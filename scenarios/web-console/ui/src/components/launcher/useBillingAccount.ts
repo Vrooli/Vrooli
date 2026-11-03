@@ -2,11 +2,11 @@ import { useEffect, useState } from "react";
 import { getBusinessAccountUsage, getBusinessAccounts, type BusinessAccount, type BusinessAccountUsageSummary } from "../../api/monetization";
 
 /** The accounts a metered Vrooli-credits launch may bill, and the chosen one's remaining credits. */
-export function useBillingAccount(enabled: boolean) {
+export function useBillingAccount(enabled: boolean, accountId: string, setAccountId: (id: string) => void) {
   const [accounts, setAccounts] = useState<BusinessAccount[]>([]);
   const [accountsLoading, setAccountsLoading] = useState(false);
   const [accountsFailed, setAccountsFailed] = useState(false);
-  const [accountId, setAccountId] = useState("");
+  const [maxCredits, setMaxCredits] = useState(5000);
   const [usage, setUsage] = useState<BusinessAccountUsageSummary | null>(null);
   const [usageLoading, setUsageLoading] = useState(false);
   const [usageFailed, setUsageFailed] = useState(false);
@@ -48,7 +48,7 @@ export function useBillingAccount(enabled: boolean) {
 
   const usageCurrent = usage?.business_account_id === accountId ? usage : null;
   return {
-    accounts, accountsLoading, accountsFailed, accountId, setAccountId, usage: usageCurrent, usageLoading, usageFailed,
+    accounts, accountsLoading, accountsFailed, accountId, setAccountId, maxCredits, setMaxCredits, usage: usageCurrent, usageLoading, usageFailed,
     /** A paid launch cannot start until the account and its credits are known. */
     blocked: enabled && (accountsLoading || accountsFailed || !accountId || usageLoading || usageFailed || !usageCurrent
       || typeof usageCurrent.remaining.ai_credits !== "number" || usageCurrent.remaining.ai_credits === 0),

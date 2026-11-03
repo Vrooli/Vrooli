@@ -29,6 +29,7 @@ async function renderDrawer(agents: UsageModeAgent[], modes: UsageModeView[], co
   api.getUsageMode.mockResolvedValue({ modes, agents, canControl: true });
   const onLaunch = vi.fn();
   render(<TerminalLauncher open onClose={vi.fn()} onLaunch={onLaunch} shortcuts={[{ agentId: "codex", label: "Codex", command }]} availableTargets={[target]} />);
+  fireEvent.click(screen.getByTestId("launcher-mode-agent"));
   await waitFor(() => { expect(api.getUsageMode).toHaveBeenCalled(); });
   await screen.findByTestId("launcher-save-usage");
   return onLaunch;
@@ -155,6 +156,16 @@ describe("usage mode sheet", () => {
     await waitFor(() => { expect(api.getUsageMode).toHaveBeenCalled(); });
     expect(screen.queryByTestId("usage-mode-start")).toBeNull();
     expect(screen.queryByTestId("usage-mode-end")).toBeNull();
+  });
+
+  it("recovers the real mode after a brief connection failure without replaying mutations", async () => {
+    api.getUsageMode.mockRejectedValueOnce(new TypeError("Failed to fetch"))
+      .mockResolvedValue(state({ modes: [mode], agents: [inMode] }));
+    render(<Sheet />);
+    expect(await screen.findByTestId("usage-mode-end", {}, { timeout: 3000 })).toBeInTheDocument();
+    expect(api.getUsageMode).toHaveBeenCalledTimes(2);
+    expect(api.startUsageMode).not.toHaveBeenCalled();
+    expect(api.endUsageMode).not.toHaveBeenCalled();
   });
 
   it("lists a Learn comparison as a comparison with no End button, apart from Save modes", async () => {

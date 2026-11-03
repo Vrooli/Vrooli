@@ -1,6 +1,6 @@
 module web-console
 
-go 1.25.0
+go 1.26.0
 
 require (
 	connectrpc.com/connect v1.19.2
@@ -13,7 +13,7 @@ require (
 	github.com/vrooli/binaryfetch v0.0.0
 	github.com/vrooli/cli-core v0.0.0
 	github.com/vrooli/platform-go v0.0.0
-	github.com/vrooli/vrooli v0.0.0
+	github.com/vrooli/vrooli v3.2.0+incompatible
 	github.com/vrooli/vrooli/packages/capability-registry-go v0.0.0
 	github.com/vrooli/vrooli/packages/capabilityprobe v0.0.0
 	github.com/vrooli/vrooli/packages/proto v0.0.0
@@ -23,16 +23,16 @@ require (
 )
 
 require (
-	buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go v1.36.11-20251209175733-2a1774d88802.1 // indirect
+	buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go v1.36.11-20260709200747-435963d16310.1 // indirect
 	github.com/bmatcuk/doublestar/v4 v4.10.0 // indirect
 	github.com/dustin/go-humanize v1.0.1 // indirect
-	github.com/felixge/httpsnoop v1.0.3 // indirect
-	github.com/go-chi/chi/v5 v5.0.11 // indirect
+	github.com/felixge/httpsnoop v1.0.4 // indirect
+	github.com/go-chi/chi/v5 v5.3.1 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/ncruces/go-strftime v1.0.0 // indirect
 	github.com/remyoudompheng/bigfft v0.0.0-20230129092748-24d4a6f8daec // indirect
 	github.com/vrooli/repo-contract-go v0.0.0
-	golang.org/x/sys v0.47.0
+	golang.org/x/sys v0.48.0
 	modernc.org/libc v1.72.3 // indirect
 	modernc.org/mathutil v1.7.1 // indirect
 	modernc.org/memory v1.11.0 // indirect
@@ -45,10 +45,13 @@ replace github.com/vrooli/cliresolve => ../../../packages/cliresolve
 replace github.com/vrooli/platform-go => ../../../packages/platform-go
 
 require (
-	github.com/klauspost/compress v1.17.4 // indirect
+	github.com/andybalholm/brotli v1.2.0 // indirect
+	github.com/klauspost/compress v1.18.7 // indirect
 	github.com/mikelolasagasti/xz v1.0.1 // indirect
 	github.com/santhosh-tekuri/jsonschema/v5 v5.3.1 // indirect
+	github.com/vrooli/cliresolve v0.0.0 // indirect
 	github.com/vrooli/envkit-go v0.0.0 // indirect
+	golang.org/x/crypto v0.57.0 // indirect
 )
 
 replace github.com/vrooli/cli-core => ../../../packages/cli-core
@@ -63,10 +66,104 @@ replace github.com/vrooli/vrooli/packages/proto => ../../../packages/proto
 
 replace github.com/vrooli/vrooli/packages/capabilityprobe => ../../../packages/capabilityprobe
 
-replace github.com/vrooli/vrooli/scenarios/audio-tools/clients/go => ../../../scenarios/audio-tools/clients/go
+replace github.com/vrooli/vrooli/scenarios/audio-tools/clients/go => ../../audio-tools/clients/go
 
 replace github.com/vrooli/binaryfetch => ../../../packages/binaryfetch
 
 replace github.com/vrooli/envkit-go => ../../../packages/envkit-go
 
 replace github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime => ../../scenario-to-desktop/runtime
+
+replace agent-manager => ../../agent-manager/api
+
+replace agent-manager/cli => ../../agent-manager/cli
+
+replace device-control => ../../device-control/api
+
+replace device-studio => ../../device-studio/api
+
+replace device-studio/cli => ../../device-studio/cli
+
+replace github.com/vrooli/ai-go => ../../../packages/ai-go
+
+replace github.com/vrooli/browser-automation-studio => ../../browser-automation-studio/api
+
+replace github.com/vrooli/freshness-go => ../../../packages/freshness-go
+
+replace github.com/vrooli/maturity-go => ../../../packages/maturity-go
+
+replace github.com/vrooli/mdns-go => ../../../packages/mdns-go
+
+replace github.com/vrooli/measures-go => ../../../packages/measures-go
+
+replace github.com/vrooli/pyenv-go => ../../../packages/pyenv-go
+
+replace github.com/vrooli/scenarioconfig-go => ../../../packages/scenarioconfig-go
+
+replace github.com/vrooli/searchregister-go => ../../../packages/searchregister-go
+
+replace github.com/vrooli/ssh-core => ../../../packages/ssh-core
+
+replace github.com/vrooli/vrooli-cli-go => ../../../packages/vrooli-cli-go
+
+replace github.com/vrooli/vrooli/packages/delivery-ramp-go => ../../../packages/delivery-ramp-go
+
+replace github.com/vrooli/vrooli/scenarios/scenario-dependency-analyzer/api => ../../scenario-dependency-analyzer/api
+
+replace github.com/vrooli/vrooli/scenarios/system-monitor/api => ../../system-monitor/api
+
+replace github.com/vrooli/vrooli/scenarios/template-manager/api => ../../template-manager/api
+
+replace github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api => ../../vrooli-autoheal/api
+
+replace github.com/vrooli/vrooli/scenarios/vrooli-events => ../../vrooli-events
+
+replace landing-page-business-suite-api => ../../landing-page-business-suite/api
+
+replace notification-hub => ../../notification-hub/api
+
+replace nutrition-planner => ../../nutrition-planner/api
+
+replace personal-planner => ../../personal-planner/api
+
+replace personal-planner/cli => ../../personal-planner/cli
+
+replace program-runtime => ../../program-runtime/api
+
+replace prompt-manager => ../../prompt-manager/api
+
+replace prompt-manager/cli => ../../prompt-manager/cli
+
+replace react-component-library => ../../react-component-library/api
+
+replace react-component-library/cli => ../../react-component-library/cli
+
+replace scenario-dependency-analyzer/cli => ../../scenario-dependency-analyzer/cli
+
+replace scenario-to-cloud => ../../scenario-to-cloud/api
+
+replace scenario-to-desktop-api => ../../scenario-to-desktop/api
+
+replace scenario-to-desktop/cli => ../../scenario-to-desktop/cli
+
+replace swarm-manager => ../../swarm-manager/api
+
+replace swarm-manager/cli => ../../swarm-manager/cli
+
+replace test-genie => ../../test-genie/api
+
+replace test-genie/cli => ../../test-genie/cli
+
+replace ui-health => ../../ui-health/api
+
+replace unit-health => ../../unit-health/api
+
+replace unit-health/cli => ../../unit-health/cli
+
+replace vrooli-autoheal-langrecover => ../../vrooli-autoheal/langrecover
+
+replace web-console => .
+
+replace workflow-health => ../../workflow-health/api
+
+replace workspace-sandbox => ../../workspace-sandbox/api

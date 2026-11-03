@@ -573,6 +573,12 @@
     "title": "Handoff suggestions"
   },
   "integrationsPanel": {
+    "modelSource": "Model source",
+    "creditsName": "Vrooli credits",
+    "creditsUnavailable": "Credit status is unavailable. Check Account settings.",
+    "creditsChecking": "Checking your account…",
+    "creditsConfigured": "Use your business account credits for eligible AI features. Manage funding in Account settings.",
+    "creditsSignIn": "Sign in and select a business account in Account settings to use credits.",
     "overview": {
       "summaryAllReady": "All {total} ready",
       "summarySomeReady": "{ready} of {total} ready",
@@ -595,79 +601,7 @@
       "emptyGroup": "Nothing here yet."
     },
     "groups": {
-      "accounts": "Accounts",
-      "agents": "Coding agents",
-      "apps": "Powered by other apps",
-      "models": "AI models",
-      "sessions": "Terminal sessions",
-      "other": "Other"
-    },
-    "items": {
-      "audioTools": {
-        "name": "Voice",
-        "subtitle": "Dictation, read-aloud and wake word",
-        "provider": "Audio Tools",
-        "problemTitle": "Voice is off",
-        "problemDescription": "Dictation and read-aloud won't work until Audio Tools is running."
-      },
-      "vrooliBridge": {
-        "name": "Remote terminals",
-        "subtitle": "Terminals on your other computers",
-        "provider": "Bridge",
-        "problemTitle": "Remote terminals are off",
-        "problemDescription": "Your other computers can't open terminals here until Bridge is running."
-      },
-      "notificationHub": {
-        "name": "Notifications",
-        "subtitle": "Alerts when an agent needs you",
-        "provider": "Notification Hub",
-        "problemTitle": "Notifications are off",
-        "problemDescription": "You won't be alerted when an agent finishes or needs you."
-      },
-      "integrationHub": {
-        "name": "Account connections",
-        "subtitle": "Keeps provider sign-ins in one place",
-        "provider": "Integration Hub",
-        "problemTitle": "Account connections are off",
-        "problemDescription": "Connected accounts can't be shown or checked until Integration Hub is running."
-      },
-      "ollama": {
-        "name": "Ollama",
-        "subtitle": "Runs models on this computer",
-        "problemTitle": "Ollama isn't running",
-        "problemDescription": "Models that run on this computer aren't available."
-      },
-      "openrouter": {
-        "name": "OpenRouter",
-        "subtitle": "Cloud models with your API key",
-        "problemTitle": "OpenRouter isn't set up",
-        "problemDescription": "Cloud models aren't available until an OpenRouter key is added."
-      },
-      "sessionStandard": {
-        "name": "Standard",
-        "subtitle": "Fast; ends when Aquila restarts",
-        "problemTitle": "Standard sessions are unavailable",
-        "problemDescription": "New terminals can't start."
-      },
-      "sessionPersistent": {
-        "name": "Persistent",
-        "subtitle": "Keeps running through restarts",
-        "problemTitle": "Persistent sessions are unavailable",
-        "problemDescription": "New terminals won't survive a restart."
-      }
-    },
-    "features": {
-      "voiceInput": "Dictate into the composer",
-      "voiceStreaming": "Live transcription while you talk",
-      "voiceSpeakerVerification": "Respond only to your voice",
-      "voiceEnrollment": "Learn your voice",
-      "voiceOutput": "Read replies aloud",
-      "ttsSummarization": "Summarise long replies before reading",
-      "ttsCache": "Replay recent audio instantly",
-      "ttsParagraphSplit": "Start speaking sooner on long replies",
-      "audioProviderRouting": "Use the best available speech engine",
-      "remoteTerminal": "Open terminals on your other computers",
-      "terminalRemote": "Open terminals on your other computers"
+      "accounts": "Accounts"
     },
     "facts": {
       "id": "ID",
@@ -696,13 +630,8 @@
     "accountsUnavailable": "Accounts can't be loaded right now. Everything else here is still checked.",
     "accountVerified": "verified {{time}}",
     "accountProblem": "{{name}} needs attention",
-    "agentVersion": "Version {{version}}",
-    "agentInstall": "Install",
     "startAction": "Start",
     "genericProblemTitle": "{{name}} isn't working",
-    "genericProblemDescription": "Features that depend on it won't work until it's fixed.",
-    "limitedTitle": "Some {{name}} features are unavailable",
-    "limitedDescription": "Unavailable right now: {{features}}.",
     "openApp": "Open {{name}}",
     "actionRunning": "Working…",
     "actionSucceeded": "Done.",
@@ -859,6 +788,13 @@
     "manageCheckedAge": "Updates were checked {{age}}.",
     "refreshChecks": "Check again",
     "statusMissing": "Not installed",
+    "statusFound": "Found on this machine",
+    "factInstall": "Install: {{state}}",
+    "factSignIn": "Sign-in: {{state}}",
+    "factUpdate": "Update: {{state}}",
+    "signInStateSignedIn": "Signed in",
+    "signInStateSignedOut": "Sign in needed",
+    "signInStateUnknown": "Unknown",
     "statusAttention": "Needs attention",
     "statusUpdateReady": "Update ready",
     "statusUpToDate": "Up to date",
@@ -867,6 +803,8 @@
     "stateMissingTitle": "Not installed",
     "stateMissingBody": "{{name}} isn't on this machine yet.",
     "stateShadowedTitle": "An older copy runs first",
+    "stateFoundTitle": "Keep the copy you already have",
+    "stateFoundBody": "This copy was found on your machine and remains unchanged. Vrooli has not taken ownership.",
     "stateShadowedBody": "Another copy comes before Vrooli's on PATH, so an update could not take effect.",
     "stateUnlinkedTitle": "Not linked to Vrooli's copy",
     "stateUnlinkedBody": "A standalone file blocks future updates. It can be moved aside and restored if needed.",
@@ -916,7 +854,13 @@
     "settingsDontApply": "{{name}}'s shortcut is a command of your own, so it runs as written and these settings don't apply.",
     "actionRefreshRunning": "Refreshing…",
     "usageModeOffHintDefaultStays": "Your default, {{lower}}, stays as it is. Stronger models such as {{usual}} start on {{lower}} until a time you choose.",
-    "usageModeOnHintDefaultStays": "On {{until}}. Your default, {{lower}}, stays as it is. New {{name}} sessions on {{usual}} start on {{lower}}."
+    "usageModeOnHintDefaultStays": "On {{until}}. Your default, {{lower}}, stays as it is. New {{name}} sessions on {{usual}} start on {{lower}}.",
+    "actionDoctor": "Check installation",
+    "actionCleanupPreview": "Review managed copies to remove",
+    "cleanupRemove": "These managed copies will be removed:",
+    "cleanupPreserve": "These independently installed copies will be kept:",
+    "actionUninstall": "Remove these managed copies",
+    "actionUninstallRunning": "Removing managed copies…"
   },
   "machines": {
     "actionFailed": "That did not work",

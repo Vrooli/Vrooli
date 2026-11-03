@@ -435,16 +435,17 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
   const [pendingIntentTick, setPendingIntentTick] = useState(0);
   const markPendingIntents = useCallback(() => { setPendingIntentTick((tick) => tick + 1); }, []);
 
-  const handleArchiveReopened = useCallback((result: RecoverResult) => {
-    pendingActivePaneRef.current = result.new_session_id;
+  const handleCreatedSession = useCallback((sessionId: string) => {
+    pendingActivePaneRef.current = sessionId;
     markPendingIntents();
-    void getSession(result.new_session_id).then((session) => {
+    void getSession(sessionId).then((session) => {
       mergeExternalSession(session, true);
     }).catch(() => {
       // The session.created event is the authoritative fallback. Keeping the
       // pending target makes that later merge focus the reopened pane.
     });
   }, [markPendingIntents, mergeExternalSession]);
+  const handleArchiveReopened = useCallback((result: RecoverResult) => { handleCreatedSession(result.new_session_id); }, [handleCreatedSession]);
 
   const [launcherOpen, setLauncherOpen] = useState(false);
   const [launcherInitialTarget, setLauncherInitialTarget] = useState<TerminalTarget>();
@@ -1952,8 +1953,21 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
               <Plus className="me-2 h-5 w-5" />
               {isCreating ? t(strings.workspace.creating) : t(strings.workspace.newTerminalButton)}
             </Button>
+            <div className="mt-4">
+              <Button data-testid="empty-workspace-settings" variant="ghost"
+                onClick={() => { workspace.setSettingsModalOpen(true); }}>
+                <Settings className="me-2 h-4 w-4" />
+                {t(strings.workspace.settingsTitle)}
+              </Button>
+            </div>
           </div>
         </div>
+        <DeferredSurface active={workspace.settingsModalOpen}><SettingsModal
+          sessions={sessionPanes}
+          onDeleteSession={requestClosePane}
+          onStartSessionForMachine={openLauncherForMachine}
+          onInstallCapability={installCapability}
+        /></DeferredSurface>
         <TerminalLauncher
           open={launcherOpen}
           onClose={closeLauncher}
@@ -2040,6 +2054,7 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
 
     return (
       <WorkspacePaneShell
+        onRestarted={handleCreatedSession}
         key={paneMeta.sessionId}
         paneMeta={paneMeta}
         layoutMode="grid"
@@ -2312,6 +2327,7 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
             {orderedPanes.filter((paneMeta) => mountedTabSessions.has(paneMeta.sessionId)).map((paneMeta) => {
               return (
                 <WorkspacePaneShell
+        onRestarted={handleCreatedSession}
                   key={paneMeta.sessionId}
                   paneMeta={paneMeta}
                   layoutMode="tabs"

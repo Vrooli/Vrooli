@@ -17,6 +17,9 @@ export interface AgentUpdate {
   reason: string;
   checks: AgentUpdateCheck[];
   installKind: string;
+  installState: string;
+  signInState: string;
+  updateState: string;
   rollbackVersion: string;
   newerThanReviewed: boolean;
   checkedAt: string;
@@ -27,12 +30,12 @@ export interface AgentUpdate {
 }
 
 /** An action a harness's control plane can run. Retry drops the server's cache and looks again. */
-export type AgentUpdateAction = "install" | "use_managed_copy" | "link_managed_copy" | "update" | "rollback" | "retry" | "refresh_catalog";
+export type AgentUpdateAction = "install" | "use_managed_copy" | "link_managed_copy" | "update" | "rollback" | "retry" | "refresh_catalog" | "doctor" | "preview_cleanup" | "uninstall";
 
 export type AgentActionRun =
   | { phase: "running"; action: AgentUpdateAction }
   | { phase: "failed"; action: AgentUpdateAction; message: string; unsupported: boolean; outcomeUnknown: boolean }
-  | { phase: "done"; action: AgentUpdateAction; message: string; previous: string; current: string };
+  | { phase: "done"; action: AgentUpdateAction; message: string; previous: string; current: string; cleanupPlan?: { id: string; remove: string[]; preserved: string[] } };
 
 /**
  * A control-plane update can take minutes, and the server reports no progress,
@@ -50,7 +53,8 @@ function decode(value: AgentUpdateResponse): AgentUpdate {
     installed: value.installed, latest: value.latest, pinned: value.pinned, status: value.status,
     state: value.state, primaryAction: value.primaryAction, operatorCommand: value.operatorCommand, reason: value.reason,
     checks: value.checks.map((check) => ({ id: check.id, passed: check.passed, message: check.message })),
-    installKind: value.installKind, rollbackVersion: value.rollbackVersion, newerThanReviewed: value.newerThanReviewed,
+    installKind: value.installKind, installState: value.installState || "unknown", signInState: value.signInState || "unknown", updateState: value.updateState || "unknown",
+    rollbackVersion: value.rollbackVersion, newerThanReviewed: value.newerThanReviewed,
     checkedAt: value.checkedAt, sourceKind: value.sourceKind, sourceId: value.sourceId, probeVerified: value.probeVerified, note: value.note,
   };
 }
@@ -103,7 +107,7 @@ export function useAgentUpdates(open: boolean, targetId: string, agentKey: strin
   }, [agentKey, check, open, targetId]);
 
   /** Runs one action. A second press on the same agent and machine does nothing, and it never rejects. */
-  const run = useCallback(async (agentId: string, action: AgentUpdateAction) => {
+  const run = useCallback(async (agentId: string, action: AgentUpdateAction, cleanupPlanId = "") => {
     // Captured: this run belongs to the machine it started on, wherever the view goes next.
     const runTarget = targetId;
     const key = JSON.stringify([runTarget, agentId]);
@@ -114,12 +118,12 @@ export function useAgentUpdates(open: boolean, targetId: string, agentKey: strin
     let next: AgentActionRun | null = null;
     for (let attempt = 1; next === null; attempt += 1) {
       try {
-        const response = await capabilitiesClient.runAgentUpdateAction({ targetId: runTarget, agentId, action }, { timeoutMs: ACTION_TIMEOUT_MS });
+        const response = await capabilitiesClient.runAgentUpdateAction({ targetId: runTarget, agentId, action, ...(cleanupPlanId ? { cleanupPlanId } : {}) }, { timeoutMs: ACTION_TIMEOUT_MS });
         const observed = response.update ? decode(response.update) : null;
         if (observed) setFor(setUpdatesByTarget, runTarget, (current) => ({ ...current, [agentId]: observed }));
         // A check that came back is simply the new state; nothing to announce.
         next = response.success
-          ? { phase: "done", action, message: response.message, previous, current: observed?.installed ?? "" }
+          ? { phase: "done", action, message: response.message, previous, current: observed?.installed ?? "", cleanupPlan: response.cleanupPlan }
           : { phase: "failed", action, message: response.message, unsupported: false, outcomeUnknown: false };
       } catch (error) {
         const connect = ConnectError.from(error);

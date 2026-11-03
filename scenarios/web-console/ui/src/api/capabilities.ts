@@ -8,7 +8,16 @@ export const capabilitiesClient = createClient(CapabilitiesService, transport);
 
 export type CapabilityStatus = "available" | "unavailable" | "unknown";
 
+export interface IntegrationUse {
+  id: string; name: string; description: string; group: string;
+}
+export interface LocalInstallation {
+  location: string; version: string; selected: boolean;
+}
+
 export interface CapabilityState {
+  uses?: IntegrationUse[];
+  installation?: LocalInstallation;
   id: string;
   name: string;
   description: string;
@@ -82,6 +91,8 @@ export interface CapabilityActionResponse {
 }
 
 interface ProtoCapabilityState {
+  uses?: IntegrationUse[];
+  installation?: LocalInstallation;
   id: string;
   name: string;
   description: string;
@@ -128,6 +139,7 @@ function decodeCapabilitiesResponse(resp: ProtoCapabilitiesResponse): Capabiliti
       const featureStatus = Object.fromEntries(Object.entries(c.featureStatus ?? {}).map(([feature, status]) => [feature, decodeCapabilityStatus(status)]));
       const decoded: CapabilityState = {
         id: c.id, name: c.name, description: c.description,
+        uses: c.uses, installation: c.installation,
         dependencyKind: c.dependencyKind, dependencySlug: c.dependencySlug,
         features: c.features ?? [], status: decodeCapabilityStatus(c.status),
       };

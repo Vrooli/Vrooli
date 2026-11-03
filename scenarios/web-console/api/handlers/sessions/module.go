@@ -193,6 +193,8 @@ type ArchivedSession struct {
 // own behaviour.
 type AgentLaunch struct {
 	AgentID            string
+	BusinessAccountID  string
+	MaxCredits         int64
 	Model              string
 	Provider           string
 	ContextLimitTokens int64

@@ -5,6 +5,24 @@ import (
 	"testing"
 )
 
+func TestKnownCatalogueExplainsEveryIntegration(t *testing.T) {
+	t.Setenv("WEB_CONSOLE_SERVICE_MANIFEST", "../../../.vrooli/service.json")
+	defs := KnownForPlatform("linux")
+	if len(defs) <= len(virtualCatalogue) {
+		t.Fatal("production manifest integrations are missing")
+	}
+	for _, def := range defs {
+		if len(def.Uses) == 0 {
+			t.Errorf("integration %q has no consumer purpose", def.ID)
+		}
+		for _, use := range def.Uses {
+			if use.ID == def.DependencySlug || use.Name == "" || len(use.Description) <= 15 || use.Group == "" {
+				t.Errorf("integration %q has incomplete consumer purpose: %+v", def.ID, use)
+			}
+		}
+	}
+}
+
 func TestKnownCatalogueHasLiveCheckerForEveryDeclaredIntegration(t *testing.T) {
 	want := map[string]DependencyKind{
 		"audio-tools":                DependencyScenario,
@@ -13,6 +31,7 @@ func TestKnownCatalogueHasLiveCheckerForEveryDeclaredIntegration(t *testing.T) {
 		"session-backend-standard":   DependencyResource,
 		"session-backend-persistent": DependencyResource,
 		"vrooli-bridge":              DependencyScenario,
+		"agent-manager":              DependencyScenario,
 		"integration-hub":            DependencyScenario,
 		"notification-hub":           DependencyScenario,
 		"claude":                     DependencyResource,
@@ -29,6 +48,7 @@ func TestKnownCatalogueHasLiveCheckerForEveryDeclaredIntegration(t *testing.T) {
 		"session-backend-standard":   &StaticChecker{Available: func() (bool, string) { return true, "" }},
 		"session-backend-persistent": &StaticChecker{Available: func() (bool, string) { return true, "" }},
 		"vrooli-bridge":              &BridgeChecker{},
+		"agent-manager":              &ScenarioChecker{Slug: "agent-manager"},
 		"integration-hub":            &ScenarioChecker{Slug: "integration-hub"},
 		"notification-hub":           &ScenarioChecker{Slug: "notification-hub"},
 		"claude":                     HostCapabilityChecker{},

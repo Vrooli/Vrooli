@@ -42,8 +42,8 @@ const (
 )
 
 var virtualCatalogue = []Def{
-	{ID: "session-backend-standard", Name: "Standard Terminal Sessions", Description: "Local PTY terminal sessions", DependencyKind: DependencyResource, DependencySlug: "session-backend-standard"},
-	{ID: "session-backend-persistent", Name: "Persistent Terminal Sessions", Description: "tmux-backed terminal sessions that survive API restarts", DependencyKind: DependencyResource, DependencySlug: "session-backend-persistent"},
+	{ID: "session-backend-standard", Name: "Standard Terminal Sessions", Description: "Local PTY terminal sessions", Uses: []capabilityregistry.Use{{ID: "terminal-local", Name: "Standard terminals", Description: "Open a terminal on this machine", Group: "terminals"}}, DependencyKind: DependencyResource, DependencySlug: "session-backend-standard"},
+	{ID: "session-backend-persistent", Name: "Persistent Terminal Sessions", Description: "tmux-backed terminal sessions that survive API restarts", Uses: []capabilityregistry.Use{{ID: "terminal-persistent", Name: "Persistent terminals", Description: "Keep terminal sessions running when the app restarts", Group: "terminals"}}, DependencyKind: DependencyResource, DependencySlug: "session-backend-persistent"},
 }
 
 var audioFeatures = []string{
@@ -86,13 +86,15 @@ func KnownForPlatform(goos string) []Def {
 		}
 		overlays[descriptor.Resource] = overlay
 	}
-	defs, err := capabilityregistry.ProjectManifest(path, overlays)
-	if err != nil {
-		// Desktop bundles intentionally contain the API binary, not the
-		// repository's .vrooli/service.json. Keep capability discovery honest
-		// and bundle-safe by falling back to the stable capabilities declared by
-		// this service when the development manifest is unavailable.
-		defs = bundledCatalogue(overlays)
+	defs, _ := capabilityregistry.ProjectManifest(path, overlays)
+	if os.Getenv("VROOLI_DESKTOP_MODE") == "true" {
+		// Desktop harness actions use the native lifecycle owner in Manage.
+		// A bundle cannot start repository scenarios or run host setup commands.
+		for i := range defs {
+			defs[i].ActionKind = ActionKindNone
+			defs[i].ActionLabel = ""
+			defs[i].OperatorCommand = ""
+		}
 	}
 	defs = append(defs, cloneDefs(virtualCatalogue)...)
 	if goos != "windows" {
@@ -107,26 +109,10 @@ func KnownForPlatform(goos string) []Def {
 	return defs
 }
 
-func bundledCatalogue(overlays map[string]capabilityregistry.Overlay) []Def {
-	defs := []Def{
-		{ID: "terminal-local", Name: "Local Terminal", Description: "Local PTY-backed terminal sessions", DependencyKind: DependencyResource, DependencySlug: "session-backend-standard", Features: []string{"terminal_local"}, Enabled: true},
-		{ID: "terminal-persistent", Name: "Persistent Terminal", Description: "tmux-backed terminal sessions that survive API restarts", DependencyKind: DependencyResource, DependencySlug: "session-backend-persistent", Features: []string{"terminal_persistent"}, Enabled: true},
-		{ID: "terminal-remote", Name: "Remote Terminal", Description: "Bridge-backed remote terminal sessions", DependencyKind: DependencyScenario, DependencySlug: "vrooli-bridge", Features: []string{"terminal_remote"}, Enabled: true},
-	}
-	for i := range defs {
-		if overlay, ok := overlays[defs[i].ID]; ok {
-			if overlay.Name != "" {
-				defs[i].Name = overlay.Name
-			}
-			if overlay.Features != nil {
-				defs[i].Features = append([]string(nil), overlay.Features...)
-			}
-		}
-	}
-	return defs
-}
-
 func findServiceManifest() string {
+	if bundle := os.Getenv("BUNDLE_ROOT"); os.Getenv("VROOLI_DESKTOP_MODE") == "true" && bundle != "" {
+		return filepath.Join(bundle, "catalog", "scenarios", "web-console", ".vrooli", "service.json")
+	}
 	cwd, err := os.Getwd()
 	if err != nil {
 		return filepath.Join("..", ".vrooli", "service.json")

@@ -21,6 +21,7 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/vrooli/api-core/connectx"
+	capreg "github.com/vrooli/vrooli/packages/capability-registry-go"
 
 	capabilitiesconnect "github.com/vrooli/vrooli/packages/proto/gen/go/web-console/v1/capabilities/capabilities_v1connect"
 
@@ -47,6 +48,8 @@ type Snapshot struct {
 
 // CapabilityState mirrors the proto CapabilityState message.
 type CapabilityState struct {
+	Uses                   []capreg.Use
+	Installation           *capreg.Installation
 	ID                     string
 	Name                   string
 	Description            string
@@ -90,6 +93,7 @@ type AgentUpdateResult struct {
 	Installed, Pinned, Latest, Status, CheckedAt, SourceKind, SourceID, Note string
 	ProbeVerified                                                            bool
 	State, PrimaryAction, OperatorCommand, Reason, InstallKind               string
+	InstallState, SignInState, UpdateState                                   string
 	RollbackVersion                                                          string
 	NewerThanReviewed                                                        bool
 	Checks                                                                   []AgentUpdateCheck
@@ -102,7 +106,13 @@ type AgentUpdateCheck struct {
 }
 
 // AgentUpdateActionResult is an action's outcome and the observation after it.
+type HarnessCleanupPlan struct {
+	ID                string
+	Remove, Preserved []string
+}
+
 type AgentUpdateActionResult struct {
+	CleanupPlan *HarnessCleanupPlan
 	Success     bool
 	Message     string
 	OperationID string

@@ -49,33 +49,37 @@ when usage mode has supplied a default. Empty Shell has no model controls, and
 agent and shell cards launch only after the separate submit action. These choices
 do not qualify a Vrooli-paid coding-agent route or alter credential ownership.
 
-LPBS now supports the fixture-tested `code.default` tool-call stream and
-measured partial-usage settlement. Web Console's account-bound OpenCode bridge
-also has session, cancellation, and tool-call proxy fixtures, but its
-qualification gate remains off in production. The launcher now consumes the
-application-owned fixed `vrooli/coding` choice only when the API advertises it;
-that path requires an explicit business-account selection and passes the ID
-through session creation. The API advertises the choice only when its
-qualification gate is enabled, which remains false in production. The joined
-OpenCode-to-Web-Console-to-LPBS HTTP-fixture journey does not yet prove the real
-LPBS account reservation service end to end. Offer Desk currently lists the
-Business Bundle, Tier 1, and `ai_credits` as ideas, so no approved customer
-offer or rate is available to present. The chosen measured-partial-usage policy
-does not establish those commercial terms. Failed
-streams charge provider-reported usage at the configured model rate; when no
-usage is reported, the reservation is released without estimating from partial
-text. If measured settlement fails, LPBS retains the reservation for
-reconciliation. OpenCode 1.19.4 has completed a read-tool round trip through
-the Web Console proxy to an LPBS HTTP fixture, which verified the persisted
-selected account and `code.default` role. LPBS separately fixture-tests account
-reservation and measured settlement with a fake provider. These fixtures make
-no live provider calls; a single joined execution through the real LPBS
-reservation service remains unqualified.
+Vrooli credits are offered from LPBS's current eligible-model response for the
+selected account and harness. The old qualification boolean, fixed local
+`vrooli/coding` choice and Web Console inference proxy are removed. LPBS issues
+a private capped device credential and a short-lived harness/model session key;
+only the session key reaches the child. The shared cli-core source resolver
+configures native OpenCode or Codex for the LPBS door without changing saved
+own-account configuration. Gateway evaluates supplier permission; a native
+adapter alone never approves a route. Claude remains on its own account unless
+the operator explicitly starts another eligible harness.
+
+Backup consent names an account, harness, model, aggregate credit cap and expiry
+of at most 24 hours. Credential authority stores the consent and private parent
+key; replacement sessions share that parent's LPBS-enforced cap. New sessions
+may switch only with automatic consent and a fresh structured limit or quota
+reading. Live terminals require an explicit restart and start a new session
+with a bounded recent-conversation summary, preserving the original. Generic
+429s, prose and stale signals never authorize spending. The terminal header
+shows paid sessions and offers the own-account path and consent revocation.
+A failed parent revocation remains a durable pending record, disables new
+issuance in Web Console and Agent Manager, and exposes a retry. Success is
+reported only once the parent can no longer authorize requests.
+
+J5 exercises real native tool calls through LPBS, Gateway and PostgreSQL with a
+synthetic upstream router. J6 uses explicitly labeled synthetic limit captures
+until the operator supplies real captures. These are development fixtures, not
+live supplier approval, prices or payment terms.
 
 The local launcher currently reads Codex's live app-server and coherent Claude
 statusline samples through Agent Manager. Both are estimates: neither source
 is bound to the account of the future shell command. The Web Console adapter
-discards readings older than 15 minutes or beyond their reset, and reports
+discards readings older than six hours or beyond their reset, and reports
 remote targets as unavailable until a target-owned reader exists. The drawer
 refreshes on request; the open launcher also refreshes every five minutes.
 Separate provider pools remain separate, and only provider-supplied five-hour

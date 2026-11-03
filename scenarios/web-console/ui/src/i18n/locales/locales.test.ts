@@ -30,6 +30,7 @@
  * so each consumer documents its own contract.
  */
 import { describe, it, expect } from "vitest";
+import { createInstance, type Resource } from "i18next";
 import { LOCALE_CODES } from "../locales";
 
 type CatalogValue = string | { [key: string]: CatalogValue };
@@ -132,6 +133,69 @@ describe("locale catalogs", () => {
       if (!copy || !isCatalogObject(copy)) throw new Error(`Missing ${locale} audio file player copy`);
       expect(Object.keys(copy).sort()).toEqual(expectedKeys);
       for (const value of Object.values(copy)) expect(typeof value === "string" && value.trim().length > 0).toBe(true);
+    }
+  });
+  it.each(["ar", "ja"])("localizes the visible launcher and Manage labels in %s", (locale) => {
+    const copy = flatten(catalogs[locale] ?? {});
+    const english = flatten(catalogs.en ?? {});
+    const keys = [
+      "launcher.manage", "launcher.manageWithActions", "launcher.manageAgents", "launcher.backToLauncher",
+      "launcher.chooseAgent", "launcher.agentHasAction", "launcher.noAgentsShown", "launcher.updateReady",
+      "launcher.updateAllRunning", "launcher.manageHiddenHint", "launcher.manageCheckedAge", "launcher.refreshChecks",
+      "launcher.statusMissing", "launcher.statusFound", "launcher.statusAttention", "launcher.statusUpdateReady",
+      "launcher.statusUpToDate", "launcher.statusCheckFailed", "launcher.statusNotApplicable",
+      "launcher.factInstall", "launcher.factSignIn", "launcher.factUpdate", "launcher.signInStateSignedIn",
+      "launcher.signInStateSignedOut", "launcher.signInStateUnknown", "launcher.stateFoundTitle", "launcher.stateFoundBody",
+      "launcher.actionUpdate", "launcher.actionUpdateRunning", "launcher.actionUseManagedCopy", "launcher.actionLinkManagedCopy",
+      "launcher.actionRollback", "launcher.actionDone", "launcher.actionFailed", "launcher.actionUnsupported",
+      "launcher.groupSummaryRoles", "launcher.startGroup", "launcher.addRole", "launcher.agentInstalled",
+      "launcher.agentInstalling", "launcher.agentUnsupported", "launcher.creatingGroup", "launcher.editsNotSaved",
+      "launcher.groupName", "launcher.groupNamePlaceholder", "launcher.noTemplate", "launcher.removeRole",
+      "launcher.reorderGrip", "launcher.reorderHint", "launcher.roleList", "launcher.startsNow", "launcher.startsWaiting",
+      "launcher.template",
+    ];
+    for (const key of keys) {
+      expect(copy[key], `${locale} is missing ${key}`).toBeTruthy();
+      expect(copy[key], `${locale} left ${key} in English`).not.toBe(english[key]);
+      const englishVariant = english[key] ?? english[stripPluralSuffix(key)];
+      expect([...String(copy[key]).matchAll(TOKEN_RE)].map((match) => match[1]).sort()).toEqual(
+        [...String(englishVariant).matchAll(TOKEN_RE)].map((match) => match[1]).sort(),
+      );
+    }
+    const pluralKeys = locale === "ar"
+      ? [
+        "launcher.manageWithActions_zero", "launcher.manageWithActions_one", "launcher.manageWithActions_two", "launcher.manageWithActions_few", "launcher.manageWithActions_many",
+        "launcher.updateReady_zero", "launcher.updateReady_one", "launcher.updateReady_two", "launcher.updateReady_few", "launcher.updateReady_many",
+        "launcher.groupSummaryRoles_zero", "launcher.groupSummaryRoles_one", "launcher.groupSummaryRoles_two", "launcher.groupSummaryRoles_few", "launcher.groupSummaryRoles_many",
+        "launcher.usageOtherPoolsLong_one",
+      ]
+      : [];
+    for (const key of pluralKeys) {
+      expect(copy[key], `${locale} is missing ${key}`).toBeTruthy();
+      expect(copy[key], `${locale} left ${key} in English`).not.toBe(english[key]);
+      const englishVariant = english[key] ?? english[stripPluralSuffix(key)];
+      expect([...String(copy[key]).matchAll(TOKEN_RE)].map((match) => match[1]).sort()).toEqual(
+        [...String(englishVariant).matchAll(TOKEN_RE)].map((match) => match[1]).sort(),
+      );
+    }
+  });
+  it("renders Arabic Manage and group counts with the correct plural category", async () => {
+    const instance = createInstance();
+    const arabicCatalog = catalogs.ar;
+    if (!arabicCatalog) throw new Error("Missing Arabic catalog");
+    const resources: Resource = { ar: { translation: arabicCatalog } };
+    await instance.init({ lng: "ar", fallbackLng: false, resources });
+    const translate = instance.t.bind(instance) as unknown as (key: string, options: { count: number }) => string;
+    const categoryByCount = new Map([[0, "zero"], [1, "one"], [2, "two"], [3, "few"], [11, "many"]]);
+    const labels = ["launcher.manageWithActions", "launcher.updateReady", "launcher.groupSummaryRoles"];
+    for (const [count, category] of categoryByCount) {
+      for (const key of labels) {
+        const expected = catalogs.ar?.launcher && isCatalogObject(catalogs.ar.launcher)
+          ? catalogs.ar.launcher[`${key.slice("launcher.".length)}_${category}`]
+          : undefined;
+        if (typeof expected !== "string") throw new Error(`Missing Arabic ${key}_${category}`);
+        expect(translate(key, { count })).toBe(expected.replace(/\{\{count\}\}/g, String(count)));
+      }
     }
   });
   it.each(Object.entries(catalogs))("%s presents the Aquila product name across public copy", (_locale, catalog) => {

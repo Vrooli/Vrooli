@@ -13,7 +13,6 @@ import { Alert } from "@vrooli/react-component-library/Alert";
 import { IconButton } from "@vrooli/react-component-library/IconButton";
 import { Menu, MenuContent, MenuItem, MenuTrigger } from "@vrooli/react-component-library/Menu";
 import { ResponsiveDialog } from "@vrooli/react-component-library/ResponsiveDialog/1";
-import { Tabs } from "@vrooli/react-component-library/Tabs/1";
 import { strings } from "../consts/strings";
 import type { ShortcutEntry } from "../consts/shortcuts";
 import type { InstallOutcome } from "../api/capabilities";
@@ -27,7 +26,8 @@ import { useContextCompactionStore } from "../stores/useContextCompactionStore";
 import type { TabGroupMeta } from "../stores/useWorkspaceStore";
 import { AgentRail, AgentRailHeader } from "./launcher/AgentRail";
 import { buildAgentGrid, cardLaunches, cardSelectable, defaultAgentID, mergeAgentOrder, orderAgents } from "./launcher/agentGrid";
-import { harnessNeedsAction, harnessState } from "./launcher/agentStatus";
+import { handleRadioKeys } from "./launcher/radioKeys";
+import { harnessAction, harnessNeedsAction, harnessState } from "./launcher/agentStatus";
 import GroupModePanel, { type GroupCreationRequest } from "./launcher/GroupModePanel";
 import { HarnessSettings } from "./launcher/HarnessSettings";
 import { LaunchExtras } from "./launcher/LaunchExtras";
@@ -42,7 +42,7 @@ import { useAgentUsage } from "./launcher/useAgentUsage";
 import { useBillingAccount } from "./launcher/useBillingAccount";
 import { useEffectiveShortcuts } from "./launcher/useEffectiveShortcuts";
 import { declaredWindowsFor, useHarnesses } from "./launcher/useHarnesses";
-import { limitOptions, modelLabel, useModelPolicy } from "./launcher/useModelPolicy";
+import { choiceBlocked, limitOptions, modelLabel, useModelPolicy } from "./launcher/useModelPolicy";
 import UsageModeSheet from "./launcher/UsageModeSheet";
 import { useUsageMode } from "./launcher/useUsageMode";
 import { reservedUsageRows } from "./launcher/usageWindows";
@@ -156,7 +156,7 @@ export default function TerminalLauncher({
 }: TerminalLauncherProps) {
   const { t, i18n } = useTranslation();
   const isDesktop = useMediaQuery("(min-width: 48rem)");
-  const [sessionType, setSessionType] = useState<SessionType>("agent");
+  const [sessionType, setSessionType] = useState<SessionType | null>(null);
   const [customCommand, setCustomCommand] = useState("");
   const [workingDir, setWorkingDir] = useState("");
   const [selectedBackend, setSelectedBackend] = useState<BackendID>(defaultBackend);
@@ -168,24 +168,25 @@ export default function TerminalLauncher({
   const [destinationGroupId, setDestinationGroupId] = useState<string | null>(pendingGroupId);
   const [pickedAgentId, setPickedAgentId] = useState<string | null>(null);
   // Per launch only: never stored, so neither can be left on for the next session.
-  const [contextLimit, setContextLimit] = useState<number | null>(null);
-  const [fullPower, setFullPower] = useState(false);
+  const [modelSettings, setModelSettings] = useState<{ identity: string; contextLimit: number | null; fullPower: boolean } | null>(null);
   const [usageSheet, setUsageSheet] = useState<{ agentId?: string } | null>(null);
   const [managePage, setManagePage] = useState<ManagePage>(null);
   const [footerHost, setFooterHost] = useState<HTMLElement | null>(null);
   const manageButton = useRef<HTMLButtonElement>(null);
   const drawerRoot = useRef<HTMLDivElement>(null);
 
-  // Every open starts fresh on an agent. Landing in a group because the last
-  // trip used one would surprise, and the destination follows this open's caller.
+  // Every visit waits for an explicit type choice. The destination follows
+  // this open's caller without inheriting an agent or shell launch mode.
   useEffect(() => {
-    if (!open) return;
+    if (!open) {
+      setPickedAgentId(null);
+      setModelSettings(null);
+      setSessionType(null);
+      setManagePage(null);
+      return;
+    }
     setDestinationGroupId(pendingGroupId);
     setSelectedTarget(initialTarget?.id ?? "local");
-    setPickedAgentId(null);
-    setContextLimit(null);
-    setFullPower(false);
-    setSessionType("agent");
     setManagePage(null);
   }, [initialTarget?.id, open, pendingGroupId]);
 
@@ -194,8 +195,9 @@ export default function TerminalLauncher({
     if (defaultPolicy) setSelectedPolicyKey(policyKey(defaultPolicy.mode, defaultPolicy.duration));
   }, [defaultPolicy]);
 
-  const { shortcuts, profileId, fetchEffective } = useEffectiveShortcuts(open, shortcutsProp);
-  const agentPreferences = useAgentPreferences(open && !shortcutsProp && profileId !== null, profileId);
+  const agentModeOpen = open && sessionType === "agent";
+  const { shortcuts, profileId, fetchEffective } = useEffectiveShortcuts(agentModeOpen, shortcutsProp);
+  const agentPreferences = useAgentPreferences(agentModeOpen && !shortcutsProp && profileId !== null, profileId);
   const prefs = agentPreferences.preferences;
   const hiddenAgentIds = prefs?.hiddenAgentIds ?? EMPTY_IDS;
 
@@ -245,24 +247,35 @@ export default function TerminalLauncher({
     ?? offered.find((card) => card.agentID === defaultAgentID(offered, prefs?.lastLaunchedAt))
     ?? null;
   const selectedAgentId = selectedCard?.agentID ?? null;
-  useEffect(() => { setContextLimit(null); setFullPower(false); }, [selectedAgentId]);
 
-  const harnesses = useHarnesses(open, selected.id);
+  const harnesses = useHarnesses(agentModeOpen, selected.id);
   const harness = selectedAgentId ? harnesses.harnesses[selectedAgentId] : undefined;
   const declaredWindows = useCallback((agentId: string) => declaredWindowsFor(harnesses, agentId), [harnesses]);
 
-  const usageState = useAgentUsage(open && selected.available, selected.id, railCards.map((card) => card.agentID).join(","));
-  const updateState = useAgentUpdates(open && selected.available, selected.id, agents.filter((card) => card.state !== "not-applicable").map((card) => card.agentID).join(","));
+  const usageState = useAgentUsage(agentModeOpen && selected.available, selected.id, railCards.map((card) => card.agentID).join(","));
+  const updateState = useAgentUpdates(agentModeOpen && selected.available, selected.id, agents.filter((card) => card.state !== "not-applicable").map((card) => card.agentID).join(","));
 
-  const slots = reservedUsageRows(railCards.map((card) => declaredWindows(card.agentID)), railCards.map((card) => usageState.usages[card.agentID]));
+  const reportedSlots = reservedUsageRows(railCards.map((card) => declaredWindows(card.agentID)), railCards.map((card) => usageState.usages[card.agentID]));
+  // Resolving descriptors or hiding a card must not shrink the rail under a
+  // thumb. A new drawer visit or machine can begin with its own row budget.
+  const [usageSpace, setUsageSpace] = useState({ targetId: selected.id, open, slots: reportedSlots });
+  const slots = usageSpace.targetId === selected.id && usageSpace.open === open ? Math.max(usageSpace.slots, reportedSlots) : reportedSlots;
+  if (slots !== usageSpace.slots || usageSpace.targetId !== selected.id || usageSpace.open !== open) setUsageSpace({ targetId: selected.id, open, slots });
   const needsAction = useCallback((agentId: string) => {
     const card = agents.find((item) => item.agentID === agentId);
-    return card !== undefined && harnessNeedsAction(harnessState(card, updateState.updates[agentId], updateState.loading));
+    const state = card && harnessState(card, updateState.updates[agentId], updateState.loading);
+    return state !== undefined && harnessNeedsAction(state) && (state !== "update_ready" || harnessAction(state, updateState.updates[agentId]) === "update");
   }, [agents, updateState.loading, updateState.updates]);
-  const actionCount = agents.filter((card) => !hiddenAgentIds.includes(card.agentID) && needsAction(card.agentID)).length;
+  const actionCount = agents.filter((card) => needsAction(card.agentID)).length;
 
-  const model = useModelPolicy(open, selectedAgentId, selected.id, selectedCard?.command ?? "");
-  const billing = useBillingAccount(open && model.usesVrooliCredits);
+  const [billingAccountId, setBillingAccountId] = useState("");
+  const model = useModelPolicy(agentModeOpen, selectedAgentId, selected.id, selectedCard?.command ?? "", billingAccountId);
+  const billing = useBillingAccount(model.billingProbeReady, billingAccountId, setBillingAccountId);
+  const currentModelSettings = modelSettings?.identity === model.identity ? modelSettings : undefined;
+  const contextLimit = currentModelSettings?.contextLimit ?? null;
+  const fullPower = currentModelSettings?.fullPower ?? false;
+  const setContextLimit = (value: number | null) => { setModelSettings({ identity: model.identity, contextLimit: value, fullPower }); };
+  const setFullPower = (value: boolean) => { setModelSettings({ identity: model.identity, contextLimit, fullPower: value }); };
 
   // The mode file belongs to this machine, so it is only shown for local launches.
   const usageMode = useUsageMode(open && selected.kind === "local");
@@ -271,9 +284,11 @@ export default function TerminalLauncher({
   const saveMode = usageMode.state.modes.find((mode) => mode.kind !== "learn" && mode.id === saveAgent?.modeId);
 
   // A usage mode reports the launch name; the list knows what to call it.
-  const modeModel = fullPower ? saveAgent?.usualModel : saveAgent?.model;
-  const modeChoice = model.choices.find((choice) => choice.model === modeModel);
-  const effectiveChoice = model.explicitChoice ?? modeChoice ?? model.selectedChoice;
+  const modeModel = model.loading || model.failed ? undefined : fullPower ? saveAgent?.usualModel : saveAgent?.model;
+  const modeChoice = model.choices.find((choice) => choice.model === modeModel && !choice.metered)
+    ?? model.choices.find((choice) => choice.model === modeModel);
+  const effectiveChoice = model.explicitChoice ?? (modeModel ? modeChoice : model.selectedChoice);
+  const modelBlocked = !model.literal && Boolean(effectiveChoice && choiceBlocked(effectiveChoice, model.stale));
   const effectiveModelName = model.explicitChoice?.displayName ?? modelLabel(model, modeModel) ?? model.defaultChoice?.displayName;
   // A limit is offered per model, so one chosen for another model no longer applies.
   const appliedLimit = contextLimit !== null && !model.literal && limitOptions(effectiveChoice).includes(contextLimit) ? contextLimit : null;
@@ -305,13 +320,14 @@ export default function TerminalLauncher({
   // The launch carries what was chosen and the server composes the command. A
   // command the operator wrote stays literal, so nothing is sent with it.
   const launchAgent = () => {
-    if (!selectedCard) return;
-    const chosenModel = fullPower ? saveAgent?.usualModel : model.explicitChoice?.model;
+    if (!selectedCard || launchBlocked || (model.usesVrooliCredits && billing.blocked) || modelBlocked || model.loading) return;
+    const chosenModel = model.failed ? undefined : fullPower ? saveAgent?.usualModel : model.explicitChoice?.model;
     const hasSettings = !model.literal && (chosenModel !== undefined || appliedLimit !== null);
     onLaunch(buildLaunchOptions(selectedCard.command, hasSettings ? {
       agent_id: selectedCard.agentID,
       model: chosenModel,
       provider: model.explicitChoice?.source,
+      max_credits: model.usesVrooliCredits ? billing.maxCredits : undefined,
       context_limit_tokens: appliedLimit ?? undefined,
     } : undefined));
     agentPreferences.recordLaunch(selectedCard.agentID);
@@ -324,7 +340,7 @@ export default function TerminalLauncher({
 
   // A harness is already selected, so Enter launches it unless focus is on a control.
   const onDrawerKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
-    if (event.key !== "Enter" || event.target !== event.currentTarget || launchBlocked || billing.blocked) return;
+    if (event.key !== "Enter" || event.target !== event.currentTarget || launchBlocked) return;
     if (sessionType === "agent") launchAgent();
     else if (sessionType === "shell") launchShell();
   };
@@ -345,9 +361,9 @@ export default function TerminalLauncher({
   const summaryParts = [selected.label];
   if (sessionType === "shell") summaryParts.push(t(strings.terminalLauncher.summaryNoAgent));
   else {
-    summaryParts.push(effectiveModelName ?? t(strings.terminalLauncher.summaryDefaultModel));
+    summaryParts.push(model.literal ? t(strings.terminalLauncher.modelSetByCommand) : effectiveModelName ?? t(strings.terminalLauncher.summaryDefaultModel));
     if (appliedLimit !== null) summaryParts.push(t(strings.launcher.summaryCompacts, { limit: formatTokens(appliedLimit, locale) }));
-    if (saveAgent?.model && !fullPower && !model.explicitChoice) summaryParts.push(t(strings.launcher.summarySaving));
+    if (saveAgent?.model && !model.literal && !fullPower && !model.explicitChoice) summaryParts.push(t(strings.launcher.summarySaving));
   }
   if (destinationGroup) summaryParts.push(destinationGroup.name);
 
@@ -362,7 +378,7 @@ export default function TerminalLauncher({
         <MachinePicker targets={targets} selectedId={selected.id} onSelect={setSelectedTarget} onOpenMachines={onOpenMachines} catalogMessage={catalogMessage}
           catalogRecovery={targetCatalog?.recovery_action} onRefresh={onRefreshTargets} refreshing={targetsLoading} />
       )}
-      {selected.kind === "local" && (
+      {sessionType === "agent" && selected.kind === "local" && (
         <Menu>
           {/* The trigger's own button styling is for labelled triggers; this one
               wears the library's icon button, shaped like the machine control beside it. */}
@@ -380,18 +396,30 @@ export default function TerminalLauncher({
     </div>
   );
 
+  const sessionTypes: { id: SessionType; label: string }[] = [
+    { id: "agent", label: t(strings.terminalLauncher.typeAgent) },
+    { id: "shell", label: t(strings.terminalLauncher.typeShell) },
+  ];
+  if (onCreateGroupFromRoles) sessionTypes.push({ id: "group", label: t(strings.terminalLauncher.typeGroup) });
+  const selectSessionType = (next: SessionType) => { setSessionType(next); };
   const typeTabs = (
-    <Tabs mode="controlled" variant="segmented" density="compact" ariaLabel={t(strings.terminalLauncher.sessionType)} active={sessionType}
-      onChange={(next) => { setSessionType(next as SessionType); }}
-      items={[
-        { id: "agent", label: t(strings.terminalLauncher.typeAgent) },
-        { id: "shell", label: t(strings.terminalLauncher.typeShell) },
-        ...(onCreateGroupFromRoles ? [{ id: "group", label: t(strings.terminalLauncher.typeGroup) }] : []),
-      ]}
-      itemTestId={(id) => `launcher-mode-${id}`} />
+    <div role="radiogroup" aria-label={t(strings.terminalLauncher.sessionType)} className="flex flex-wrap gap-2"
+      onKeyDown={(event) => { handleRadioKeys(event, (index) => { const next = sessionTypes[index]; if (next) selectSessionType(next.id); }); }}>
+      {sessionTypes.map((item, index) => {
+        const checked = sessionType === item.id;
+        return (
+          <button key={item.id} type="button" role="radio" aria-checked={checked} tabIndex={checked || (sessionType === null && index === 0) ? 0 : -1}
+            data-testid={`launcher-mode-${item.id}`}
+            className={`rounded-md border px-3 py-2 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wc-focus ${checked ? "border-wc-focus bg-wc-surface-raised text-wc-text" : "border-wc-default text-wc-text hover:bg-wc-surface-raised"}`}
+            onClick={(event) => { selectSessionType(item.id); event.currentTarget.focus(); }}>
+            {item.label}
+          </button>
+        );
+      })}
+    </div>
   );
 
-  const alerts = (noBackendAvailable || !selected.available) && (
+  const alerts = ((sessionType === "agent" && noBackendAvailable) || (sessionType !== null && !selected.available)) && (
     <div className="grid gap-2 px-4 pt-2">
       {noBackendAvailable && (
         <div data-testid="launcher-no-backend"><Alert tone="danger" title={backendUnavailableReason} /></div>
@@ -431,17 +459,17 @@ export default function TerminalLauncher({
     <div className="px-4 pt-4"><GroupModePanel open={open} onCreate={onCreateGroupFromRoles} isCreating={isCreating} disabled={!selected.available || noBackendAvailable} footerHost={footerHost} machineLabel={selected.label} onEditTemplates={onEditTemplates} /></div>
   ) : null;
 
-  const extras = sessionType === "group" ? null : (
+  const extras = sessionType === null || sessionType === "group" ? null : (
     <LaunchExtras groups={groups} destinationGroupId={destinationGroupId} onDestination={changeDestination} onCreateDestination={createDestination} appearance={appearance}
       workingDir={workingDir} onWorkingDir={setWorkingDir} backends={backends} backend={selectedBackend} onBackend={setSelectedBackend} policyKey={selectedPolicyKey} onPolicyKey={setSelectedPolicyKey} />
   );
 
-  const footer = sessionType === "group"
+  const footer = sessionType === null ? null : sessionType === "group"
     ? <div ref={setFooterHost} className="w-full" />
     : (
       <LaunchFooter testId="launcher-submit-selection" summary={summaryParts.join(" · ")}
         label={sessionType === "shell" ? t(strings.terminalLauncher.launchSelectedShell) : selectedCard ? t(strings.terminalLauncher.launchSelectedAgent, { name: selectedCard.label }) : t(strings.terminalLauncher.launch)}
-        disabled={launchBlocked || (sessionType === "agent" && (!selectedCard || billing.blocked))}
+        disabled={launchBlocked || (sessionType === "agent" && (!selectedCard || (model.usesVrooliCredits && billing.blocked) || modelBlocked || model.loading))}
         busy={isCreating} busyLabel={t(strings.terminalLauncher.creating)}
         onLaunch={sessionType === "shell" ? launchShell : launchAgent} />
     );
@@ -478,7 +506,7 @@ export default function TerminalLauncher({
           </div>
           <div className="flex min-h-0 flex-col">
             <div className="relative min-h-0 flex-1 overflow-y-auto p-4 pb-0">
-              {sessionType === "agent" ? settings : <p className="px-1 text-xs text-wc-text-muted">{t(strings.terminalLauncher.nothingToConfigure)}</p>}
+              {sessionType === "agent" ? settings : sessionType === null ? null : <p className="px-1 text-xs text-wc-text-muted">{t(strings.terminalLauncher.nothingToConfigure)}</p>}
               <ScrollFade />
             </div>
             <div className="border-t border-wc-default p-4">{footer}</div>

@@ -1,15 +1,19 @@
 package main
 
 import (
+	"context"
 	"database/sql"
 	"encoding/json"
 	"errors"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 
 	"github.com/vrooli/api-core/database"
+	healthstatusv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/health_status"
 
 	_ "modernc.org/sqlite"
 
@@ -317,5 +321,39 @@ func TestContentDispositionAndEnvironmentHelpers(t *testing.T) {
 	t.Setenv("WEB_CONSOLE_TEST_VALUE", "")
 	if got := getEnvOrDefault("WEB_CONSOLE_TEST_VALUE", "fallback"); got != "fallback" {
 		t.Fatalf("empty environment value = %q", got)
+	}
+}
+
+// Production wiring must retain audio's own feature identities regardless of
+// where a new dependency sorts in the manifest-projected catalogue.
+func TestProductionAudioHealthMissingFeaturesStayUnknown(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"status":"healthy"}`))
+	}))
+	defer server.Close()
+	for _, tc := range []struct {
+		name string
+		err  error
+	}{
+		{"failed", errors.New("provider health unavailable")},
+		{"empty", nil},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			checkers := newCapabilityCheckers("", "", "", "", "", func(context.Context) (*healthstatusv1.GetProviderHealthResponse, error) {
+				return &healthstatusv1.GetProviderHealthResponse{}, tc.err
+			})
+			audio := checkers["audio-tools"].(*capabilities.AudioToolsChecker)
+			audio.Scenario.ResolveURL = func(context.Context, string) (string, error) { return server.URL, nil }
+			result := audio.CheckResult(context.Background())
+			if result.Status != capabilities.StatusAvailable {
+				t.Fatalf("scenario reachability was lost: %+v", result)
+			}
+			for _, feature := range []string{"voice-input", "voice-output"} {
+				if result.FeatureStatus[feature] != string(capabilities.StatusUnknown) {
+					t.Fatalf("missing health for %s must be unknown: %+v", feature, result.FeatureStatus)
+				}
+			}
+		})
 	}
 }

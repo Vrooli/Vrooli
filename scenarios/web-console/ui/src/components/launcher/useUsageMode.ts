@@ -15,11 +15,21 @@ export function useUsageMode(enabled: boolean) {
   useEffect(() => {
     if (!enabled) { setState(EMPTY); return; }
     const abort = new AbortController();
-    getUsageMode(abort.signal).then((next) => { if (!abort.signal.aborted) setState(next); })
-      .catch(() => { if (!abort.signal.aborted) setState(EMPTY); });
+    let retry: number | undefined;
+    const read = (attempt = 0) => {
+      getUsageMode(abort.signal).then((next) => { if (!abort.signal.aborted) setState(next); })
+        .catch(() => {
+          if (abort.signal.aborted) return;
+          setState(EMPTY);
+          // A brief connection change must not hide supported controls until
+          // the minute refresh. Retry this read only, with a bounded budget.
+          if (attempt < 2) retry = window.setTimeout(() => { read(attempt + 1); }, 1000 * (attempt + 1));
+        });
+    };
+    read();
     // An expiring mode must disappear on its own while the launcher is open.
     const timer = window.setInterval(() => { setRevision((value) => value + 1); }, 60_000);
-    return () => { abort.abort(); window.clearInterval(timer); };
+    return () => { abort.abort(); window.clearTimeout(retry); window.clearInterval(timer); };
   }, [enabled, revision]);
   const run = useCallback(async (action: () => Promise<UsageModeState>) => {
     setBusy(true); setError(false);

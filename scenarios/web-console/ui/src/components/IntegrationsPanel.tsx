@@ -2,7 +2,7 @@
 // DOC: docs/internal/SEAMS.md#connected-scenarios-registry-seam-api-ui
 import { useMemo, useState, type ReactNode } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Bell, Boxes, Cloud, Cpu, ExternalLink, Mic, MonitorSmartphone, Plug, TerminalSquare } from "lucide-react";
+import { ExternalLink } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
 import { useCapabilities } from "../hooks/useCapabilities";
@@ -11,7 +11,9 @@ import { runCapabilityAction, type CapabilityActionResponse, type CapabilityStat
 import { fetchScenarioLink } from "../api/notifications";
 import {
   getCommercialContext,
+  getSubscriptionSummary,
   getConnections,
+  isUnauthenticatedResponse,
   isCommercialContentVisible,
   removeOpenRouterKey,
   safeCommercialDestination,
@@ -26,7 +28,7 @@ import {
   type IntegrationItem,
   type IntegrationStatus,
   type IntegrationsOverviewStrings,
-} from "@vrooli/react-component-library/IntegrationsOverview/1";
+} from "@vrooli/react-component-library/IntegrationsOverview/1.1.1";
 
 interface IntegrationsPanelProps {
   open: boolean;
@@ -36,85 +38,14 @@ interface IntegrationsPanelProps {
 
 const P = strings.integrationsPanel;
 
-/** Capabilities whose copy Web Console words for people; keys into integrationsPanel.items. */
-const ITEM_COPY: Record<string, keyof typeof P.items> = {
-  "audio-tools": "audioTools",
-  "vrooli-bridge": "vrooliBridge",
-  "notification-hub": "notificationHub",
-  "integration-hub": "integrationHub",
-  ollama: "ollama",
-  openrouter: "openrouter",
-  "session-backend-standard": "sessionStandard",
-  "session-backend-persistent": "sessionPersistent",
-  "terminal-local": "sessionStandard",
-  "terminal-persistent": "sessionPersistent",
-  "terminal-remote": "vrooliBridge",
-};
-
-const ICONS: Record<string, ReactNode> = {
-  "audio-tools": <Mic />,
-  "vrooli-bridge": <MonitorSmartphone />,
-  "terminal-remote": <MonitorSmartphone />,
-  "notification-hub": <Bell />,
-  "integration-hub": <Plug />,
-  ollama: <Cpu />,
-  openrouter: <Cloud />,
-  "session-backend-standard": <TerminalSquare />,
-  "session-backend-persistent": <TerminalSquare />,
-  "terminal-local": <TerminalSquare />,
-  "terminal-persistent": <TerminalSquare />,
-};
-
-const AGENT_INITIALS: Record<string, string> = {
-  claude: "CC",
-  "claude-code": "CC",
-  codex: "CX",
-  opencode: "OC",
-  grok: "GK",
-  agy: "AG",
-  antigravity: "AG",
-};
-
-const MODEL_IDS = new Set(["ollama", "openrouter"]);
-
-type GroupId = "agents" | "models" | "apps" | "sessions" | "other";
-
-function groupOf(cap: CapabilityState): GroupId {
-  if (cap.id in AGENT_INITIALS || (cap.dependencyKind !== "scenario" && cap.actionKind === "operator_command")) return "agents";
-  if (MODEL_IDS.has(cap.id)) return "models";
-  if (cap.id.startsWith("session-backend-") || cap.id === "terminal-local" || cap.id === "terminal-persistent") return "sessions";
-  if (cap.dependencyKind === "scenario") return "apps";
-  return "other";
-}
-
 function initialsOf(name: string): string {
   const words = name.replace(/[^A-Za-z0-9 ]+/g, " ").trim().split(/\s+/);
   return ((words[0]?.[0] ?? "") + (words[1]?.[0] ?? words[0]?.[1] ?? "")).toUpperCase();
 }
 
-function camel(slug: string): string {
-  return slug.replace(/[-_]+(\w)/g, (_, c: string) => c.toUpperCase());
-}
-
 function humanize(slug: string): string {
   const words = slug.replace(/[-_.]+/g, " ").trim();
   return words.charAt(0).toUpperCase() + words.slice(1);
-}
-
-function versionOf(message?: string): string | undefined {
-  return message?.match(/\d+\.\d+(?:\.\d+)?/)?.[0];
-}
-
-function runnable(cap: CapabilityState): boolean {
-  if (cap.dependencyKind === "scenario") return cap.actionKind === "scenario_start" || cap.actionKind === "scenario_restart";
-  return cap.actionKind === "operator_command";
-}
-
-function capabilityStatus(cap: CapabilityState, group: GroupId): IntegrationStatus {
-  if (cap.status === "unknown") return "checking";
-  if (cap.status === "unavailable") return group === "agents" ? "missing" : "off";
-  const features = Object.values(cap.featureStatus ?? {});
-  return features.includes("unavailable") ? "limited" : "ready";
 }
 
 function formatTime(value: string | undefined, locale: string): string | undefined {
@@ -221,84 +152,24 @@ interface ActionOutcome {
   text: string;
 }
 
-function capabilityItem(
+function dependencyDetails(
   cap: CapabilityState,
-  group: GroupId,
-  t: TFunction,
-  locale: string,
   pendingId: string | undefined,
   outcome: ActionOutcome | undefined,
   run: (cap: CapabilityState) => void,
-): IntegrationItem {
-  const copyKey = ITEM_COPY[cap.id];
-  const copy = copyKey ? P.items[copyKey] : undefined;
-  const name = copy ? t(copy.name) : group === "agents" ? cap.name : humanize(cap.name);
-  const status = capabilityStatus(cap, group);
-  const version = group === "agents" ? versionOf(cap.message) : undefined;
-  const subtitle = copy
-    ? t(copy.subtitle)
-    : version
-      ? t(P.agentVersion, { version })
-      : group === "agents" ? undefined : cap.description || undefined;
-  const provider = copy && "provider" in copy ? t(copy.provider) : undefined;
-
-  let problem: IntegrationItem["problem"];
-  if (status === "off") {
-    problem = copy
-      ? { title: t(copy.problemTitle), description: t(copy.problemDescription) }
-      : { title: t(P.genericProblemTitle, { name }), description: t(P.genericProblemDescription) };
-  }
-
-  const features = cap.features.map((slug) => {
-    const key = camel(slug) as keyof typeof P.features;
-    return {
-      id: slug,
-      label: key in P.features ? t(P.features[key]) : humanize(slug),
-      available: cap.featureStatus?.[slug] !== "unavailable",
-    };
-  });
-  if (status === "limited") {
-    const missing = features.filter((feature) => !feature.available).map((feature) => feature.label);
-    problem = {
-      title: t(P.limitedTitle, { name }),
-      description: t(P.limitedDescription, { features: missing.join(", ") }),
-    };
-  }
-
-  // Starting or installing fixes only something that is off or absent; a
-  // running service with some features down needs its provider, not a start.
-  const canRun = (status === "off" || status === "missing") && runnable(cap);
-  const action = canRun
-    ? {
-        label: group === "agents" ? t(P.agentInstall) : cap.actionLabel || t(P.startAction),
-        pendingLabel: t(P.actionRunning),
-        pending: pendingId === cap.id,
-        onRun: () => { run(cap); },
-      }
-    : undefined;
-
-  const facts = [
-    { label: t(P.facts.id), value: cap.dependencySlug || cap.id, monospace: true },
-    ...(cap.message ? [{ label: t(P.facts.health), value: cap.message }] : []),
-    ...(cap.reasonCode ? [{ label: t(P.facts.reason), value: cap.reasonCode, monospace: true }] : []),
-    ...(formatTime(cap.checkedAt, locale) ? [{ label: t(P.facts.checked), value: formatTime(cap.checkedAt, locale) }] : []),
-    ...(status !== "ready" && cap.operatorCommand ? [{ label: t(P.facts.command), value: cap.operatorCommand, monospace: true }] : []),
-  ];
-
+  t: TFunction,
+): Partial<IntegrationItem> {
+  const unavailable = cap.status === "unavailable";
+  const missing = unavailable && cap.dependencyKind === "resource" && cap.actionKind === "operator_command";
+  const canRun = unavailable && (cap.dependencyKind === "scenario"
+    ? cap.actionKind === "scenario_start" || cap.actionKind === "scenario_restart"
+    : cap.actionKind === "operator_command");
   return {
-    id: cap.id,
-    name,
-    subtitle: status === "missing" && action ? t(P.overview.statusMissing) : status === "missing" ? undefined : subtitle,
-    provider,
-    icon: ICONS[cap.id] ?? (group === "agents" ? undefined : <Boxes />),
-    initials: group === "agents" ? (AGENT_INITIALS[cap.id] ?? initialsOf(cap.name)) : undefined,
-    status,
-    problem,
-    action,
-    inlineAction: group === "agents",
-    features: features.length > 1 || copy ? features : [],
-    facts,
-    detail: cap.dependencyKind === "scenario" && cap.dependencySlug ? <OpenScenarioLink slug={cap.dependencySlug} name={provider ?? name} /> : undefined,
+    ...(unavailable && !missing ? { problem: { title: t(P.genericProblemTitle, { name: humanize(cap.name) }), description: cap.message || cap.description } } : {}),
+    ...(missing ? {status: "missing" as const} : {}),
+    action: canRun ? { label: cap.actionLabel || t(P.startAction), pendingLabel: t(P.actionRunning), pending: pendingId === cap.id, onRun: () => run(cap) } : undefined,
+    inlineAction: cap.dependencyKind === "resource",
+    detail: cap.dependencyKind === "scenario" && cap.dependencySlug ? <OpenScenarioLink slug={cap.dependencySlug} name={humanize(cap.dependencySlug)} /> : undefined,
     message: outcome ? { text: outcome.text, tone: outcome.success ? "success" : "danger" } : undefined,
   };
 }
@@ -337,6 +208,63 @@ const OVERVIEW_STRING_KEYS = [
   "statusUnknown", "featuresTitle", "featureUnavailable", "technicalDetails", "emptyGroup",
 ] as const satisfies readonly (keyof IntegrationsOverviewStrings & keyof typeof P.overview)[];
 
+interface OptionalComponent {
+  entry: { id: string; owner: string; version: string; size: number; standalone_url?: string; provides: { id: string }[] };
+}
+interface ComponentStatus { catalog_error?: string; available: OptionalComponent[]; installed: { signed: OptionalComponent; state: string; reason?: string }[] }
+
+function OptionalDependencies({ open }: { open: boolean }) {
+  const queryClient = useQueryClient();
+  const bridge = window.desktop?.components;
+  const [outcome, setOutcome] = useState<string>();
+  const [removing, setRemoving] = useState<string>();
+  const catalog = useQuery({ queryKey: ["desktop-components"], queryFn: async () => await bridge!.list() as ComponentStatus, enabled: open && Boolean(bridge), retry: false });
+  const refresh = () => { void queryClient.invalidateQueries({ queryKey: ["desktop-components"] }); };
+  const install = useMutation({
+    mutationFn: (id: string) => bridge!.install(id),
+    onSuccess: () => { setOutcome("Ready for the next time you open the app."); refresh(); },
+    onError: () => setOutcome("The dependency could not be added or updated. Your current installation is unchanged."),
+  });
+  const remove = useMutation({
+    mutationFn: ({ id, keepData }: { id: string; keepData: boolean }) => bridge!.remove(id, keepData),
+    onSuccess: (_, { keepData }) => { setRemoving(undefined); setOutcome(keepData ? "Dependency removed. Its saved data was kept." : "Dependency and its saved data removed."); refresh(); },
+    onError: () => setOutcome("The dependency could not be removed. Please try again."),
+  });
+  if (!bridge || (!catalog.isError && !catalog.data?.available.length && !catalog.data?.installed.length)) return null;
+  const entries = [...(catalog.data?.available ?? [])];
+  for (const row of catalog.data?.installed ?? []) if (!entries.some(item => item.entry.id === row.signed.entry.id)) entries.push(row.signed);
+  return <section aria-label="Optional dependencies" className="mt-4 rounded-xl border border-wc-border p-4">
+    <h3 className="m-0 text-base font-semibold">Optional dependencies</h3>
+    <p className="mt-1 text-sm text-wc-text-muted">Add the features you need. Added or updated dependencies start when you next open the app.</p>
+    {(catalog.isError || catalog.data?.catalog_error) && <p role="alert">{catalog.data?.catalog_error ?? "The dependency catalog is unavailable."}</p>}
+    {entries.map((component) => {
+      const installed = catalog.data?.installed.find((row) => row.signed.entry.id === component.entry.id);
+      const available = catalog.data?.available.some(row => row.entry.id === component.entry.id);
+      const update = installed && installed.signed.entry.version !== component.entry.version;
+      const busy = install.isPending || remove.isPending;
+      return <div key={component.entry.id} data-testid={`optional-component-${component.entry.id}`} className="flex flex-wrap items-center justify-between gap-3 border-t border-wc-border py-3">
+        <div><strong>{humanize(component.entry.owner)}</strong><p className="m-0 text-sm text-wc-text-muted">Version {installed?.signed.entry.version ?? component.entry.version} · {(component.entry.size / 1048576).toFixed(1)} MB</p><p className="m-0 text-sm">{component.entry.provides.map((feature) => humanize(feature.id)).join(", ")}</p>{installed?.reason && <p className="m-0 text-sm">{installed.reason}</p>}</div>
+        <div className="flex flex-wrap items-center gap-2">
+          {installed ? <><span role="status" className="text-sm">{installed.state === "pending_next_start" ? "Added · starts next time" : humanize(installed.state)}</span>
+            {available && (update || installed.state === "needs_update") && <Button type="button" size="sm" disabled={busy} onClick={() => install.mutate(component.entry.id)}>{install.isPending ? "Updating…" : `Update to ${component.entry.version}`}</Button>}
+            <Button type="button" size="sm" disabled={busy} onClick={() => setRemoving(component.entry.id)}>Remove</Button>
+          </> : <Button type="button" size="sm" disabled={busy} onClick={() => install.mutate(component.entry.id)}>{install.isPending ? "Adding…" : "Add to this app"}</Button>}
+          {component.entry.standalone_url && <a className="text-sm underline underline-offset-4" href={component.entry.standalone_url} target="_blank" rel="noopener noreferrer">Get the full app</a>}
+        </div>
+        {removing === component.entry.id && <div role="group" aria-label="Remove dependency" className="w-full rounded-lg border border-wc-border p-3">
+          <p className="mt-0 text-sm">Remove {humanize(component.entry.owner)} from this app? Choose what happens to its saved data.</p>
+          <div className="flex flex-wrap gap-2">
+            <Button size="sm" disabled={busy} onClick={() => remove.mutate({ id: component.entry.id, keepData: true })}>Remove and keep data</Button>
+            <Button size="sm" disabled={busy} onClick={() => remove.mutate({ id: component.entry.id, keepData: false })}>Remove and delete data</Button>
+            <Button size="sm" disabled={busy} onClick={() => setRemoving(undefined)}>Cancel</Button>
+          </div>
+        </div>}
+      </div>;
+    })}
+    {outcome && <p role="status" className="text-sm">{outcome}</p>}
+  </section>;
+}
+
 export default function IntegrationsPanel({ open, header }: IntegrationsPanelProps) {
   const { t, i18n } = useTranslation();
   const locale = i18n.language;
@@ -347,6 +275,10 @@ export default function IntegrationsPanel({ open, header }: IntegrationsPanelPro
     enabled: open,
     staleTime: 30_000,
     retry: false,
+  });
+  const subscription = useQuery({
+    queryKey: ["subscription-summary"], queryFn: getSubscriptionSummary,
+    enabled: open && Boolean(getWebAccessToken()), staleTime: 30_000, retry: false,
   });
   const caps = useMemo(() => capabilities.data?.capabilities ?? [], [capabilities.data]);
   const commercialCapabilityId = caps.find((cap) => cap.status === "unavailable")?.id ?? "";
@@ -393,13 +325,6 @@ export default function IntegrationsPanel({ open, header }: IntegrationsPanelPro
   };
 
   const groups: IntegrationGroup[] = useMemo(() => {
-    const byGroup: Record<GroupId, IntegrationItem[]> = { agents: [], models: [], apps: [], sessions: [], other: [] };
-    for (const cap of caps) {
-      const group = groupOf(cap);
-      byGroup[group].push(
-        capabilityItem(cap, group, t, locale, pendingId, outcome?.capabilityId === cap.id ? outcome : undefined, run),
-      );
-    }
     const accounts = (connections.data?.connections ?? []).map((connection) => accountItem(connection, t, locale));
     const result: IntegrationGroup[] = [
       {
@@ -407,18 +332,24 @@ export default function IntegrationsPanel({ open, header }: IntegrationsPanelPro
         label: t(P.groups.accounts),
         items: accounts,
         width: "half",
-        emptyText: connections.isError ? t(P.accountsUnavailable) : connections.isLoading ? t(P.accountsLoading) : t(P.accountsEmpty),
+        emptyText: connections.isError
+          ? (isUnauthenticatedResponse(connections.error) ? t(P.accountsEmpty) : t(P.accountsUnavailable))
+          : connections.isLoading ? t(P.accountsLoading) : t(P.accountsEmpty),
       },
-      { id: "agents", label: t(P.groups.agents), items: byGroup.agents, width: "half" },
-      { id: "apps", label: t(P.groups.apps), items: byGroup.apps },
-      { id: "models", label: t(P.groups.models), items: byGroup.models, width: "half" },
-      { id: "sessions", label: t(P.groups.sessions), items: byGroup.sessions, width: "half" },
-      { id: "other", label: t(P.groups.other), items: byGroup.other },
+      { id: "funding", label: t(P.modelSource), items: [{
+        id: "vrooli-credits", name: t(P.creditsName),
+        subtitle: subscription.isError ? t(P.creditsUnavailable)
+          : subscription.isLoading ? t(P.creditsChecking)
+          : subscription.data?.configured ? t(P.creditsConfigured)
+          : t(P.creditsSignIn),
+        status: subscription.isLoading ? "checking" : "unknown",
+        selectable: false,
+      }] },
     ];
-    return result.filter((group) => group.id === "accounts" || group.items.length > 0);
+    return result;
     // `run` closes over the mutation, which is stable for this render.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [caps, connections.data, connections.isError, connections.isLoading, t, locale, pendingId, outcome]);
+  }, [connections.data, connections.error, connections.isError, connections.isLoading, t, locale, subscription.data, subscription.isError, subscription.isLoading]);
 
   const overviewStrings = useMemo(
     () => Object.fromEntries(OVERVIEW_STRING_KEYS.map((key) => [key, t(P.overview[key])])) as Partial<IntegrationsOverviewStrings>,
@@ -453,9 +384,15 @@ export default function IntegrationsPanel({ open, header }: IntegrationsPanelPro
 
   return (
     <div data-testid="integrations-panel">
+      <OptionalDependencies open={open} />
       <IntegrationsOverview
         header={header}
         groups={groups}
+        dependencies={caps}
+        decorateDependency={(dependency) => {
+          const cap = caps.find((item) => item.id === dependency.id);
+          return cap ? dependencyDetails(cap, pendingId, outcome?.capabilityId === cap.id ? outcome : undefined, run, t) : {};
+        }}
         notices={notices}
         checkedAt={capabilities.data?.timestamp}
         loading={capabilities.isLoading}

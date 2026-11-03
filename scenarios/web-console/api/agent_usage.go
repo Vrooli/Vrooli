@@ -43,7 +43,11 @@ func (s *Server) readAgentUsage(ctx context.Context, targetID, agentID string) (
 	// ensuring an unavailable service cannot hold the launcher open forever.
 	ctx, cancel := context.WithTimeout(ctx, 12*time.Second)
 	defer cancel()
-	base, err := discovery.ResolveScenarioURLDefault(ctx, "agent-manager")
+	base := s.agentUsageURL
+	var err error
+	if base == "" {
+		base, err = discovery.ResolveScenarioFeatureURLDefault(ctx, "agent-manager", "usage.live")
+	}
 	if err != nil {
 		result.Reason = "Usage service is unavailable"
 		return result, nil

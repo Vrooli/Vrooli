@@ -33,7 +33,7 @@ type Adapter struct {
 	RemoteInstall   func(context.Context, string, string) (caps.LifecycleActionResult, error)
 	ReadAgentUpdate func(context.Context, string, string) (AgentUpdateResult, error)
 	ReadAgentUsage  func(context.Context, string, string) (AgentUsageResult, error)
-	RunUpdateAction func(ctx context.Context, targetID, agentID, action string) (AgentUpdateActionResult, error)
+	RunUpdateAction func(ctx context.Context, targetID, agentID, action, cleanupPlanID string) (AgentUpdateActionResult, error)
 	// GuardUpdateAction admits one action request or writes its refusal. Nil
 	// refuses every action.
 	GuardUpdateAction func(http.ResponseWriter, *http.Request) bool
@@ -76,11 +76,11 @@ func (a *Adapter) GuardAgentUpdateAction(w http.ResponseWriter, r *http.Request)
 	return a.GuardUpdateAction(w, r)
 }
 
-func (a *Adapter) RunAgentUpdateAction(ctx context.Context, targetID, agentID, action string) (AgentUpdateActionResult, error) {
+func (a *Adapter) RunAgentUpdateAction(ctx context.Context, targetID, agentID, action, cleanupPlanID string) (AgentUpdateActionResult, error) {
 	if a.RunUpdateAction == nil {
 		return AgentUpdateActionResult{}, ErrUnavailable
 	}
-	return a.RunUpdateAction(ctx, targetID, agentID, action)
+	return a.RunUpdateAction(ctx, targetID, agentID, action, cleanupPlanID)
 }
 
 // stampInstallOutcome replaces an installer's own verdict with the target's.
@@ -265,6 +265,8 @@ func capsToTransport(in []caps.State) []CapabilityState {
 	for i, c := range in {
 		out[i] = CapabilityState{
 			ID:                     c.ID,
+			Uses:                   c.Uses,
+			Installation:           c.Installation,
 			Name:                   c.Name,
 			Description:            c.Description,
 			DependencyKind:         string(c.DependencyKind),

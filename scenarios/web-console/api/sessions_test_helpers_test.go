@@ -36,19 +36,18 @@ type sessionsConnectIface interface {
 
 func newSessionsConnectHandlerForServer(srv *Server) sessionsConnectIface {
 	return sessionsH.NewConnectHandler(sessionsH.Deps{Service: &sessionsH.Adapter{
-		Manager:             srv.sessions,
-		Store:               srv.sessionStore,
-		PaidCodingCredential: newPaidCodingToken,
-		RegisterPaidCodingSession: activePaidCodingSessions.Register,
-		RemovePaidCodingSession: activePaidCodingSessions.RemoveSession,
-		Idempotency:         srv.idempotency,
-		Events:              srv.events,
-		Metrics:             srv.metrics,
-		Conversations:       srv.conversations,
-		CodexCheckpoints:    srv.agentCheckpointStore,
-		Workspace:           srv.workspace,
-		CopyCodexHome:       copyCodexHome,
-		AgentHistoryPresent: func(sessionstore.Metadata) bool { return true },
+		Manager:                  srv.sessions,
+		Store:                    srv.sessionStore,
+		PreparePaidCodingSession: srv.preparePaidCodingSession,
+		RemovePaidCodingSession:  activePaidCodingSessions.RemoveSession,
+		Idempotency:              srv.idempotency,
+		Events:                   srv.events,
+		Metrics:                  srv.metrics,
+		Conversations:            srv.conversations,
+		CodexCheckpoints:         srv.agentCheckpointStore,
+		Workspace:                srv.workspace,
+		CopyCodexHome:            copyCodexHome,
+		AgentHistoryPresent:      func(sessionstore.Metadata) bool { return true },
 		RetentionPolicy: func() sessionsH.ArchiveRetentionPolicy {
 			cfg := srv.sessions.GetConfig()
 			return sessionsH.ArchiveRetentionPolicy{

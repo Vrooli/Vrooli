@@ -31,6 +31,7 @@ The operator approved this target and its recommendations on 2026-10-30.
 - Each window row reads `Week  87% · 4d`, with a thin bar under it. The accessible name is the full sentence, such as "Weekly 87% used, resets in 4 days".
 - Bars turn amber at 80% and red at 95%.
 - A refresh keeps the current values until new values arrive.
+- During one open drawer visit, descriptor resolution or hiding a harness never shrinks the reserved usage space. A provider reporting additional windows may increase it; those windows remain visible.
 - A small dot marks a harness with something to do. The Manage button carries a count of available actions.
 
 ## Settings panel
@@ -63,7 +64,7 @@ Each harness has one state and at most one primary action.
 | Up to date | None |
 | Check failed | Retry, with no update indicator |
 
-Web Console never elevates. Host detection and repair stay in the control plane.
+Web Console never elevates. Full deployments use the control plane through `cliinvoke`; standalone desktop uses the shared lifecycle package for verified native downloads into user-owned paths (decision 8 remains provisional for acceptance). Manage includes a read-only installation check and a cleanup preview whose identity must match before removal; independently found copies are preserved.
 
 ## Data owners
 
@@ -74,3 +75,10 @@ Web Console never elevates. Host detection and repair stay in the control plane.
 | Model context windows | Claude's status line feed and Codex's model cache, read through the shared package |
 | Install state, eligibility, update, repair, rollback | `vrooli resource update`, in `internal/` |
 | Launch command composition | The Web Console API, from a structured request |
+
+## Implementation refinements
+
+- **E33-stable-usage-space** (agent-authored, 2026-11-01): keep a per-machine, per-visit high-water mark for card rows. Source inspection and desktop/phone component regressions reproduced a two-row opening budget shrinking to one when descriptor data arrived. This preserves LD-4 and REQ-L3 without capping provider windows. J7 verifies the served production build through real Chrome at phone and desktop sizes, including measured card heights throughout delayed data loading.
+- **E33-effective-launch-model** (agent-authored correction, 2026-11-01): preserve a saved stale metered choice visibly but block agent launch by button and Enter until refreshed or changed (LD-2). Full-power context rows use the usual model's own catalog data, state an unknown window if absent, and do not claim the Save usage context limit still applies. Shell remains independently launchable, including Enter when the last agent's billing account is unavailable. These correct implementation inconsistencies, preserving the approved design and capabilities.
+- **E33-action-availability** (agent-authored correction, 2026-11-01): an update state with no server-offered update action earns no update dot or bulk update button. The reason remains visible in Manage. Control-plane action eligibility remains authoritative.
+- **E33-usage-read-recovery** (agent-authored correction, 2026-11-02): retry the usage-mode read twice after a brief connection failure so supported settings return without reopening the drawer or waiting a minute. Mutations are never retried by this recovery. The unit regression verifies recovery; the real Chrome J7 journey verifies the operated context/settings controls. The visual composition is unchanged.

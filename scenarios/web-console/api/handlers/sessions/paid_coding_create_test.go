@@ -36,11 +36,14 @@ func TestAccountBoundOpenCodeCreatePersistsAccountAndInjectsSessionCredentialBef
 	})
 	adapter := &Adapter{
 		Manager: manager, Store: store, Events: events.NewLogger(20), Metrics: metrics.New(),
-		PaidCodingCredential: func() (string, error) { return "session-secret", nil },
-		RegisterPaidCodingSession: func(sessionID, accountID, token string) {
-			mu.Lock()
-			defer mu.Unlock()
-			bindings[sessionID] = accountID + ":" + token
+		ComposeAgentLaunch: func(_ context.Context, _ AgentLaunch, command, _ string) (string, error) { return command, nil },
+		PreparePaidCodingSession: func(_ context.Context, accountID, _, _ string, _ int64) (func(string), func(), error) {
+			return func(sessionID string) {
+				token := "session-secret"
+				mu.Lock()
+				defer mu.Unlock()
+				bindings[sessionID] = accountID + ":" + token
+			}, func() {}, nil
 		},
 		RemovePaidCodingSession: func(sessionID string) {
 			mu.Lock()
@@ -53,6 +56,7 @@ func TestAccountBoundOpenCodeCreatePersistsAccountAndInjectsSessionCredentialBef
 		Shell: "/bin/sh", Cols: 80, Rows: 24, Backend: string(backend.Standard), Origin: "ui",
 		AgentType: "opencode", LaunchCommand: "opencode", ExecuteLaunchCommand: true,
 		BusinessAccountID: "acct-selected",
+		AgentLaunch:       &AgentLaunch{AgentID: "opencode", Model: "coding", Provider: "vrooli-credits"},
 	})
 	if err != nil {
 		t.Fatalf("create account-bound OpenCode session: %v", err)

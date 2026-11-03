@@ -19,6 +19,7 @@ import (
 	"github.com/vrooli/api-core/identity"
 	"github.com/vrooli/api-core/provenance"
 	"github.com/vrooli/api-core/targetmodel"
+	harnesslifecycle "github.com/vrooli/vrooli/packages/harness-lifecycle"
 	relayv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/relay"
 	relayconnect "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/relay/relayv1connect"
 	capsH "web-console/handlers/capabilities"
@@ -28,56 +29,54 @@ func operatorContext() context.Context {
 	return identity.WithPrincipal(context.Background(), identity.Principal{Kind: identity.ActorHuman, Subject: "op@example.com", Verified: true, ExpiresAt: time.Now().Add(time.Hour)})
 }
 
-// fakeVrooli puts a script named vrooli on PATH. It records its argv and answers
-// from a version file, so the test sees what a real re-probe sees: `codex` is a
-// real executable whose version the action changes.
-func fakeVrooli(t *testing.T) (log, codexVersion string) {
+// fakeHarnessLifecycle supplies a typed lifecycle unit-test seam. The browser
+// journeys use the real shared lifecycle owner instead.
+func fakeHarnessLifecycle(t *testing.T) (*Server, string, string) {
 	t.Helper()
 	dir := t.TempDir()
-	log = filepath.Join(dir, "argv.log")
-	codexVersion = filepath.Join(dir, "version")
-	if err := os.WriteFile(codexVersion, []byte("0.165.0"), 0o644); err != nil {
+	log, version := filepath.Join(dir, "actions"), filepath.Join(dir, "version")
+	if err := os.WriteFile(version, []byte("0.165.0"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	script := strings.NewReplacer("LOG", log, "VERSION", codexVersion, "CODEX", filepath.Join(dir, "codex"), "GOOS", runtime.GOOS, "GOARCH", runtime.GOARCH).Replace(`#!/bin/sh
-echo "$@" >> LOG
-version=$(cat VERSION)
-now=$(date -u +%Y-%m-%dT%H:%M:%SZ)
-ok=true action=check message=
-if [ "$2" = update ]; then
-  action=update message=done
-  if [ -e VERSION.fail ]; then
-    ok=false message=refused
-  else
-    echo 0.166.0 > VERSION
-    version=0.166.0
-  fi
-fi
-if [ "$version" = 0.166.0 ]; then state=up_to_date primary=; else state=update_ready primary=update; fi
-cat <<JSON
-{"success":$ok,"harness_update":{"action":"$action","success":$ok,"message":"$message","report":{"name":"codex","state":"$state","primary_action":"$primary","reason":"why","installed":"$version","latest":"0.166.0","command_path":"CODEX","os":"GOOS","arch":"GOARCH","checked_at":"$now","source":{"kind":"npm","id":"@openai/codex"}}}}
-JSON
-[ "$ok" = true ]
-`)
-	if err := os.WriteFile(filepath.Join(dir, "vrooli"), []byte(script), 0o755); err != nil {
-		t.Fatal(err)
-	}
-	codex := fmt.Sprintf("#!/bin/sh\necho \"codex-cli $(cat %q)\"\n", codexVersion)
-	if err := os.WriteFile(filepath.Join(dir, "codex"), []byte(codex), 0o755); err != nil {
+	binary := filepath.Join(dir, "codex")
+	if err := os.WriteFile(binary, []byte(fmt.Sprintf("#!/bin/sh\necho \"codex-cli $(cat %q)\"\n", version)), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	t.Setenv("PATH", dir+":/usr/bin:/bin")
-	return log, codexVersion
+	inspect := func(context.Context, string, string) (harnesslifecycle.HarnessReport, error) {
+		data, err := os.ReadFile(version)
+		current := strings.TrimSpace(string(data))
+		state, primary := "update_ready", "update"
+		if current == "0.166.0" {
+			state, primary = "up_to_date", ""
+		}
+		return harnesslifecycle.HarnessReport{Name: "codex", State: state, PrimaryAction: primary, Installed: current, Latest: "0.166.0", CommandPath: binary, OS: runtime.GOOS, Arch: runtime.GOARCH, CheckedAt: time.Now(), Source: harnesslifecycle.HarnessSource{Kind: "npm", ID: "@openai/codex"}}, err
+	}
+	srv := &Server{agentLifecycle: localHarnessLifecycle{inspect: inspect}}
+	srv.agentLifecycle.manage = func(ctx context.Context, _, resource, action, actor, _ string) (harnesslifecycle.HarnessActionResult, error) {
+		if err := ctx.Err(); err != nil {
+			return harnesslifecycle.HarnessActionResult{}, err
+		}
+		_ = os.WriteFile(log, []byte(resource+" "+action+" "+actor), 0o600)
+		success, message := true, "done"
+		if _, err := os.Stat(version + ".fail"); err == nil {
+			success, message = false, "refused"
+		} else if err := os.WriteFile(version, []byte("0.166.0"), 0o600); err != nil {
+			return harnesslifecycle.HarnessActionResult{}, err
+		}
+		report, err := inspect(ctx, "", resource)
+		return harnesslifecycle.HarnessActionResult{Action: action, Success: success, Message: message, Report: report}, err
+	}
+	return srv, log, version
 }
 
 func TestUpdateActionRunsTheVerbInvalidatesTheCacheAndReturnsAFreshObservation(t *testing.T) {
-	log, _ := fakeVrooli(t)
-	s := &Server{}
+	s, log, _ := fakeHarnessLifecycle(t)
 	before, err := s.getAgentUpdate(context.Background(), "local", "codex")
 	if err != nil || before.State != agentStateUpdateReady {
 		t.Fatalf("before = %+v, %v", before, err)
 	}
-	result, err := s.runAgentUpdateAction(operatorContext(), "local", "codex", "update")
+	result, err := s.runAgentUpdateAction(operatorContext(), "local", "codex", "update", "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -85,17 +84,17 @@ func TestUpdateActionRunsTheVerbInvalidatesTheCacheAndReturnsAFreshObservation(t
 		t.Fatalf("result = %+v", result)
 	}
 	argv, _ := os.ReadFile(log)
-	if !strings.Contains(string(argv), "resource update codex --json --on-behalf-of op@example.com") {
+	if !strings.Contains(string(argv), "codex update op@example.com") {
 		t.Fatalf("argv = %s", argv)
 	}
 }
 
 func TestFailedActionKeepsTheVerbsReasonAndAFreshObservation(t *testing.T) {
-	_, version := fakeVrooli(t)
+	s, _, version := fakeHarnessLifecycle(t)
 	if err := os.WriteFile(version+".fail", []byte("1"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	result, err := (&Server{}).runAgentUpdateAction(operatorContext(), "local", "codex", "update")
+	result, err := s.runAgentUpdateAction(operatorContext(), "local", "codex", "update", "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -106,7 +105,7 @@ func TestFailedActionKeepsTheVerbsReasonAndAFreshObservation(t *testing.T) {
 
 func TestActionsMapToExactCommandsAndNothingFromTheRequestReachesArgv(t *testing.T) {
 	want := map[string]string{
-		"install":           "resource install|codex --json",
+		"install":           "resource update|codex --action install --json",
 		"update":            "resource update|codex --json",
 		"use_managed_copy":  "resource update|codex --action use-managed-copy --json",
 		"link_managed_copy": "resource update|codex --action link-managed-copy --json",
@@ -121,16 +120,16 @@ func TestActionsMapToExactCommandsAndNothingFromTheRequestReachesArgv(t *testing
 	if _, _, ok := agentUpdateActionArgs("--action=rollback; rm -rf /", "codex"); ok {
 		t.Fatal("an unknown action must have no command")
 	}
-	if _, err := (&Server{}).runAgentUpdateAction(operatorContext(), "local", "codex", "unknown"); err == nil {
+	if _, err := (&Server{}).runAgentUpdateAction(operatorContext(), "local", "codex", "unknown", ""); err == nil {
 		t.Fatal("an unknown action must be refused")
 	}
-	if _, err := (&Server{}).runAgentUpdateAction(operatorContext(), "local", "not-an-agent", "update"); err == nil {
+	if _, err := (&Server{}).runAgentUpdateAction(operatorContext(), "local", "not-an-agent", "update", ""); err == nil {
 		t.Fatal("an unknown agent must be refused")
 	}
 }
 
 func TestAgentsAreRefusedTheActionEvenWithAForwardedHumanCredential(t *testing.T) {
-	log, _ := fakeVrooli(t)
+	s, log, _ := fakeHarnessLifecycle(t)
 	human := identity.Principal{Kind: identity.ActorHuman, Subject: "op@example.com", Verified: true, ExpiresAt: time.Now().Add(time.Hour)}
 	cases := map[string]context.Context{
 		"anonymous": context.Background(),
@@ -139,7 +138,7 @@ func TestAgentsAreRefusedTheActionEvenWithAForwardedHumanCredential(t *testing.T
 	}
 	for name, ctx := range cases {
 		t.Run(name, func(t *testing.T) {
-			_, err := (&Server{}).runAgentUpdateAction(ctx, "local", "codex", "update")
+			_, err := s.runAgentUpdateAction(ctx, "local", "codex", "update", "")
 			if !errors.Is(err, capsH.ErrPermissionDenied) {
 				t.Fatalf("err = %v", err)
 			}
@@ -217,11 +216,10 @@ func TestConcurrentActionsOnOneHarnessShareOrRefuseAndOtherTargetsAreIndependent
 
 // Closing the tab or losing the tunnel must not kill an install midway.
 func TestActionOutlivesItsRequest(t *testing.T) {
-	log, version := fakeVrooli(t)
-	s := &Server{}
+	s, log, version := fakeHarnessLifecycle(t)
 	ctx, cancel := context.WithCancel(operatorContext())
 	cancel()
-	if _, err := s.runAgentUpdateAction(ctx, "local", "codex", "update"); !errors.Is(err, context.Canceled) {
+	if _, err := s.runAgentUpdateAction(ctx, "local", "codex", "update", ""); !errors.Is(err, context.Canceled) {
 		t.Fatalf("err = %v", err)
 	}
 	deadline := time.Now().Add(10 * time.Second)
@@ -255,7 +253,7 @@ func TestRemoteActionRelaysTypedArgvAndKeepsTheOperationID(t *testing.T) {
 	server := httptest.NewServer(handler)
 	defer server.Close()
 	target := targetConnection{Target: targetmodel.Target{NodeID: "node-one", Label: "Node"}, BaseURL: server.URL, OwnerToken: "Bearer test"}
-	outcome, err := (&Server{}).invokeAgentUpdateCommand(context.Background(), target, "bridge-node:one", "resource update", []string{"codex", "--action", "rollback", "--json"})
+	outcome, err := (&Server{}).invokeAgentUpdateCommand(context.Background(), target, "bridge-node:one", "resource update", []string{"codex", "--action", "rollback", "--json"}, "codex", "rollback", "", "")
 	if err != nil {
 		t.Fatal(err)
 	}

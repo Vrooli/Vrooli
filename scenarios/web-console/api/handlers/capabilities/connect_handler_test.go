@@ -418,7 +418,7 @@ func (s *updateActionService) AgentUpdate(_ context.Context, target, agent strin
 	return AgentUpdateResult{TargetID: target, AgentID: agent, State: "update_ready", PrimaryAction: "update"}, nil
 }
 
-func (s *updateActionService) RunAgentUpdateAction(_ context.Context, target, agent, action string) (AgentUpdateActionResult, error) {
+func (s *updateActionService) RunAgentUpdateAction(_ context.Context, target, agent, action, _ string) (AgentUpdateActionResult, error) {
 	s.calls++
 	if s.err != nil {
 		return AgentUpdateActionResult{}, s.err

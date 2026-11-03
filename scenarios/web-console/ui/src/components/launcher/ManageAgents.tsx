@@ -22,7 +22,7 @@ import { slugify } from "../../lib/slugify";
 import AgentMark, { ReorderGrip } from "./AgentMark";
 import { MISSING_APPEARANCE, agentAppearance } from "./agentAppearance";
 import type { AgentCard } from "./agentGrid";
-import { harnessState } from "./agentStatus";
+import { harnessAction, harnessState } from "./agentStatus";
 import { ManageAgentDetail, StatusPill } from "./ManageAgentDetail";
 import { FOCUS_RING } from "./controls";
 import type { AgentInstallsController } from "./useAgentInstalls";
@@ -72,7 +72,7 @@ export function ManageAgents(props: ManageAgentsProps) {
   const back = () => { if (detail) onPage("list"); else close(); };
 
   const stateOf = (card: AgentCard) => harnessState(card, updates.updates[card.agentID], updates.loading);
-  const ready = cards.filter((card) => stateOf(card) === "update_ready" && !hidden.includes(card.agentID));
+  const ready = cards.filter((card) => stateOf(card) === "update_ready" && harnessAction("update_ready", updates.updates[card.agentID]) === "update");
   const anyRunning = cards.some((card) => updates.runs[card.agentID]?.phase === "running");
   const updateAll = async () => {
     // One at a time: installs share a package manager and its lock.

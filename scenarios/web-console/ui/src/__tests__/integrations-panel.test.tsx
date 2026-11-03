@@ -4,7 +4,7 @@ import { renderWithProviders } from "@vrooli/api-base/testing";
 import IntegrationsPanel from "../components/IntegrationsPanel";
 import { i18n } from "../i18n";
 import type { CapabilitiesResponse, CapabilityState } from "../api/capabilities";
-import type { ManagedConnection } from "../api/monetization";
+import { HttpResponseError, type ManagedConnection } from "../api/monetization";
 
 vi.mock("@vrooli/api-base", () => ({
   resolveApiBase: () => "http://localhost:4200/api/v1",
@@ -18,6 +18,7 @@ const mocks = vi.hoisted(() => ({
   runCapabilityAction: vi.fn(),
   getConnections: vi.fn(),
   getCommercialContext: vi.fn(),
+  getSubscriptionSummary: vi.fn(),
   testOpenRouterKey: vi.fn(),
   removeOpenRouterKey: vi.fn(),
   fetchScenarioLink: vi.fn(),
@@ -35,6 +36,7 @@ vi.mock("../api/monetization", async (importOriginal) => {
     ...actual,
     getConnections: mocks.getConnections,
     getCommercialContext: mocks.getCommercialContext,
+    getSubscriptionSummary: mocks.getSubscriptionSummary,
     testOpenRouterKey: mocks.testOpenRouterKey,
     removeOpenRouterKey: mocks.removeOpenRouterKey,
   };
@@ -60,6 +62,7 @@ const audioTools = cap({
   name: "audio-tools",
   description: "All audio capabilities flow through audio-tools via audioports.Remote*.",
   dependencyKind: "scenario",
+  uses: [{id:"voice",name:"Voice",description:"Dictation, read-aloud and wake word",group:"powered by other apps"}],
   features: ["voice-input", "voice-streaming"],
   message: "scenario is healthy",
   // The catalogue always carries the remedy; it must not be offered while healthy.
@@ -70,7 +73,8 @@ const audioTools = cap({
 });
 const bridgeOff = cap({
   id: "vrooli-bridge",
-  name: "Remote Terminals",
+  name: "Remote terminals",
+  uses: [{id:"remote-terminals",name:"Remote terminals",description:"Open terminals on other machines",group:"powered by other apps"}],
   dependencyKind: "scenario",
   status: "unavailable",
   message: "Bridge URL is not configured",
@@ -86,17 +90,17 @@ const openrouterOff = cap({
   actionKind: "owner_guidance",
   actionLabel: "Review dependency health",
 });
-const claude = cap({ id: "claude", name: "Claude Code", message: "2.1.312 (Claude Code)", actionKind: "operator_command", actionLabel: "Install Claude Code" });
-const grokMissing = cap({ id: "grok", name: "Grok", status: "unavailable", message: "grok not found", actionKind: "operator_command", actionLabel: "Install Grok" });
+const claude = cap({ uses:[{id:"coding-agent",name:"Claude Code",description:"Code with Claude",group:"coding agents"}], installation:{location:"machine",version:"2.1.312",selected:true}, id: "claude", name: "Claude Code", message: "2.1.312 (Claude Code)", actionKind: "operator_command", actionLabel: "Install Claude Code" });
+const grokMissing = cap({ uses:[{id:"coding-agent",name:"Grok",description:"Code with Grok",group:"coding agents"}], id: "grok", name: "Grok", status: "unavailable", message: "grok not found", actionKind: "operator_command", actionLabel: "Install Grok" });
 
 const catalogue: CapabilitiesResponse = {
   capabilities: [
     audioTools,
     bridgeOff,
-    cap({ id: "ollama", message: "Ollama is running" }),
+    cap({ uses:[{id:"local-models",name:"Ollama",description:"Local models",group:"AI models"}], id: "ollama", message: "Ollama is running" }),
     openrouterOff,
     cap({ id: "session-backend-standard", message: "available" }),
-    cap({ id: "session-backend-persistent", message: "available" }),
+    cap({ uses:[{id:"persistent",name:"Persistent",description:"Persistent terminals",group:"terminal sessions"}], id: "session-backend-persistent", message: "available" }),
     claude,
     grokMissing,
   ],
@@ -125,6 +129,7 @@ function groupNamed(label: string): HTMLElement {
 beforeEach(async () => {
   await i18n.changeLanguage("en");
   for (const mock of Object.values(mocks)) mock.mockReset();
+  mocks.getSubscriptionSummary.mockResolvedValue({configured:false});
   mocks.getConnections.mockResolvedValue({ connections: [] });
   mocks.fetchScenarioLink.mockResolvedValue("");
   mocks.getWebAccessToken.mockReturnValue(null);
@@ -147,7 +152,7 @@ describe("IntegrationsPanel", () => {
     mocks.fetchCapabilities.mockResolvedValue(catalogue);
     renderWithProviders(<IntegrationsPanel open />);
 
-    await waitFor(() => { expect(summary()).toBe("5 of 8 ready"); });
+    await waitFor(() => { expect(summary()).toBe("5 of 9 ready"); });
     expect(within(groupNamed("Powered by other apps")).getByText("Voice")).toBeInTheDocument();
     expect(within(groupNamed("Powered by other apps")).getByText("Remote terminals")).toBeInTheDocument();
     expect(within(groupNamed("AI models")).getByText("Ollama")).toBeInTheDocument();
@@ -168,16 +173,16 @@ describe("IntegrationsPanel", () => {
   it("shows an installed agent's version", async () => {
     mocks.fetchCapabilities.mockResolvedValue(catalogue);
     renderWithProviders(<IntegrationsPanel open />);
-    expect(await screen.findByText("Version 2.1.312")).toBeInTheDocument();
+    expect(await screen.findByText(/Version 2.1.312/)).toBeInTheDocument();
   });
 
   it("lists each broken service with its fix, and offers no fix it cannot run", async () => {
     mocks.fetchCapabilities.mockResolvedValue(catalogue);
     renderWithProviders(<IntegrationsPanel open />);
 
-    expect(await screen.findByText("Remote terminals are off")).toBeInTheDocument();
+    expect(await screen.findByText("Remote terminals isn't working")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Start Bridge" })).toBeInTheDocument();
-    expect(screen.getByText("OpenRouter isn't set up")).toBeInTheDocument();
+    expect(screen.getByText("Openrouter isn't working")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Review dependency health" })).not.toBeInTheDocument();
   });
 
@@ -205,7 +210,7 @@ describe("IntegrationsPanel", () => {
     fireEvent.click(await screen.findByRole("button", { name: "Start Bridge" }));
 
     await waitFor(() => { expect(mocks.runCapabilityAction).toHaveBeenCalledWith("vrooli-bridge", "scenario_start"); });
-    await waitFor(() => { expect(screen.queryByText("Remote terminals are off")).not.toBeInTheDocument(); });
+    await waitFor(() => { expect(screen.queryByText("Remote terminals isn't working")).not.toBeInTheDocument(); });
     expect(within(groupNamed("Powered by other apps")).getByText("Done.")).toBeInTheDocument();
   });
 
@@ -249,8 +254,8 @@ describe("IntegrationsPanel", () => {
     renderWithProviders(<IntegrationsPanel open />);
 
     const agents = await waitFor(() => groupNamed("Coding agents"));
-    expect(within(agents).getByText("Not installed")).toBeInTheDocument();
-    fireEvent.click(within(agents).getByRole("button", { name: "Install" }));
+    expect(within(agents).getByText("Code with Grok")).toBeInTheDocument();
+    fireEvent.click(within(agents).getByRole("button", { name: "Install Grok" }));
     await waitFor(() => { expect(mocks.runCapabilityAction).toHaveBeenCalledWith("grok", "operator_command"); });
   });
 
@@ -266,12 +271,11 @@ describe("IntegrationsPanel", () => {
 
     const detail = within(document.querySelector<HTMLElement>("[data-rcl-integrations-view='detail']") ?? document.body);
     expect(detail.getByRole("heading", { name: "Voice" })).toHaveFocus();
-    expect(detail.getByText("Provided by Audio Tools")).toBeInTheDocument();
-    expect(detail.getByText("Some Voice features are unavailable")).toBeInTheDocument();
-    expect(detail.getByText("Dictate into the composer")).toBeInTheDocument();
+    expect(detail.getByText("Provided by Audio tools")).toBeInTheDocument();
+    expect(detail.getByText("Voice input")).toBeInTheDocument();
     expect(detail.getByText("Unavailable")).toBeInTheDocument();
     expect(detail.getByText("Technical details")).toBeInTheDocument();
-    expect(detail.getByText("audio-tools")).toBeInTheDocument();
+    expect(detail.getByText("scenario:audio-tools")).toBeInTheDocument();
     expect(await screen.findByTestId("integration-open-audio-tools")).toHaveAttribute("href", "https://audio-tools.example.test");
     expect(screen.getByRole("heading", { name: "Integrations", hidden: true })).not.toBeVisible();
 
@@ -286,10 +290,12 @@ describe("IntegrationsPanel", () => {
     });
     renderWithProviders(<IntegrationsPanel open />);
 
-    await waitFor(() => { expect(summary()).toBe("0 of 1 ready"); });
+    await waitFor(() => { expect(summary()).toBe("0 of 2 ready"); });
     expect(screen.getByText("Limited")).toBeInTheDocument();
     // Naming what is missing, rather than pointing at a card that cannot be opened.
-    expect(screen.getAllByText("Unavailable right now: Live transcription while you talk.")[0]).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", {name:"Voice"}));
+    expect(screen.getByText("Voice streaming")).toBeInTheDocument();
+    expect(screen.getByText("Unavailable")).toBeInTheDocument();
     // Audio Tools is running; starting it again would not bring the features back.
     expect(screen.queryByRole("button", { name: "Start Audio Tools" })).not.toBeInTheDocument();
   });
@@ -367,6 +373,16 @@ describe("IntegrationsPanel", () => {
     expect(screen.getByText("Voice")).toBeInTheDocument();
   });
 
+  it("shows an empty account state rather than an error when the account service requires sign-in", async () => {
+    mocks.fetchCapabilities.mockResolvedValue(catalogue);
+    mocks.getConnections.mockRejectedValue(new HttpResponseError(401, "unauthenticated"));
+    renderWithProviders(<IntegrationsPanel open />);
+
+    expect(await screen.findByText("No accounts connected yet.")).toBeInTheDocument();
+    expect(screen.queryByText("Accounts can't be loaded right now. Everything else here is still checked.")).not.toBeInTheDocument();
+    expect(screen.getByText("Voice")).toBeInTheDocument();
+  });
+
   it("reports a failed check and keeps accounts visible", async () => {
     mocks.fetchCapabilities.mockRejectedValue(new Error("boom"));
     mocks.getConnections.mockResolvedValue({ connections: [openrouterAccount] });
@@ -392,7 +408,7 @@ describe("IntegrationsPanel", () => {
 
     const other = await waitFor(() => groupNamed("Other"));
     expect(within(other).getByText("Future capability")).toBeInTheDocument();
-    expect(within(other).getByText("Checking")).toBeInTheDocument();
+    expect(within(other).getByText("Unknown")).toBeInTheDocument();
   });
 
   it("shows an account recommendation and lets it be dismissed", async () => {

@@ -9,10 +9,16 @@ declare global {
   }
   interface Window {
     desktop?: {
+      components?: {
+        list: () => Promise<unknown>;
+        install: (id: string) => Promise<unknown>;
+        remove: (id: string, keepData: boolean) => Promise<unknown>;
+      };
       auth?: {
         signIn: () => Promise<{ state: string }>;
         signOut: () => Promise<void>;
         getAccessToken: () => Promise<string | null>;
+        getLocalSessionToken?: () => Promise<string | null>;
         onAuthChanged?: (callback: (event: { event: string }) => void) => void;
         offAuthChanged?: (callback: (event: { event: string }) => void) => void;
       };

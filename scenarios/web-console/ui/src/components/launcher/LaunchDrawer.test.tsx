@@ -1,5 +1,6 @@
 // DOC: docs/reference/configuration.md#launcher-shortcuts
 import { act, fireEvent, screen, waitFor, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { asMockedClient, renderWithProviders as render, setDesktopViewport, setMobileViewport } from "../../test-utils";
 import { strings } from "../../consts/strings";
@@ -14,17 +15,21 @@ vi.mock("../../api/capabilities", async () => {
 });
 vi.mock("../../api/shortcuts", () => ({ shortcutsClient: { getEffective: vi.fn(), getAgentPreferences: vi.fn(), updateAgentPreferences: vi.fn() } }));
 vi.mock("../../api/modelSelection", () => ({ modelSelectionClient: { getRoleModelChoices: vi.fn() } }));
+vi.mock("../../api/monetization", () => ({ getBusinessAccounts: vi.fn(), getBusinessAccountUsage: vi.fn() }));
 vi.mock("../../api/usageMode", () => ({ getUsageMode: vi.fn(), startUsageMode: vi.fn(), endUsageMode: vi.fn() }));
 
 import { capabilitiesClient as rawCapabilities } from "../../api/capabilities";
 import { modelSelectionClient as rawModels } from "../../api/modelSelection";
 import { shortcutsClient as rawShortcuts } from "../../api/shortcuts";
 import { getUsageMode as rawGetUsageMode } from "../../api/usageMode";
+import { getBusinessAccounts as rawGetAccounts, getBusinessAccountUsage as rawGetAccountUsage } from "../../api/monetization";
 
 const capabilities = asMockedClient(rawCapabilities);
 const models = asMockedClient(rawModels);
 const shortcutsApi = asMockedClient(rawShortcuts);
 const getUsageMode = vi.mocked(rawGetUsageMode);
+const getAccounts = vi.mocked(rawGetAccounts);
+const getAccountUsage = vi.mocked(rawGetAccountUsage);
 
 const AGENTS: ShortcutEntry[] = [
   { agentId: "claude", label: "Claude Code", command: "claude" },
@@ -39,17 +44,22 @@ const target = (over: Partial<TerminalTarget> = {}): TerminalTarget => ({
 });
 const harness = (agentId: string, over: Record<string, unknown> = {}) => ({ agentId, resource: agentId, displayName: agentId, icon: agentId, usageWindows: [], supportsContextLimit: false, supportsUsageMode: false, supportsModelSelection: true, supportsProviderSelection: false, ...over });
 const choice = (model: string, over: Record<string, unknown> = {}) => ({ displayName: model, model, source: "sub", sourceLabel: "Subscription", provider: "p", launchModel: `m/${model}`, effort: "", isDefault: false, contextWindowTokens: 0n, contextLimitTokens: [], metered: false, ...over });
-const policy = (over: Record<string, unknown> = {}) => ({ operatorCommand: "", commandLiteral: false, policyStatus: "ready", availability: "unknown", runner: "", role: "", modelFlag: "-m", provenance: "", observedAt: "", detail: "", policyDigest: "", catalogStale: false, choices: [], ...over });
-const update = (agentId: string, over: Record<string, unknown> = {}) => ({ targetId: "local", agentId, resource: agentId, installed: "1.0.0", pinned: "0.9.0", latest: "1.0.0", status: "up-to-date", checkedAt: new Date().toISOString(), sourceKind: "", sourceId: "", probeVerified: true, note: "", state: "up_to_date", primaryAction: "", operatorCommand: "", reason: "", checks: [], installKind: "managed", rollbackVersion: "", newerThanReviewed: false, ...over });
+const policy = (over: Record<string, unknown> = {}) => ({ sourceConfigurationSupported: ["opencode", "codex"].includes(String(over.runner)), operatorCommand: "", commandLiteral: false, policyStatus: "ready", availability: "unknown", runner: "", role: "", modelFlag: "-m", provenance: "", observedAt: "", detail: "", policyDigest: "", catalogStale: false, choices: [], ...over });
+const update = (agentId: string, over: Record<string, unknown> = {}) => ({ targetId: "local", agentId, resource: agentId, installed: "1.0.0", pinned: "0.9.0", latest: "1.0.0", status: "up-to-date", checkedAt: new Date().toISOString(), sourceKind: "", sourceId: "", probeVerified: true, note: "", state: "up_to_date", primaryAction: "", operatorCommand: "", reason: "", checks: [], installKind: "managed", installState: "managed", signInState: "unknown", updateState: "current", rollbackVersion: "", newerThanReviewed: false, ...over });
 const usage = (agentId: string, windows: { windowMinutes: number; usedPercent: number }[]) => ({ targetId: "local", agentId, match: "likely", reason: "", source: "provider", observedAt: new Date().toISOString(), windows: windows.map((window) => ({ pool: "primary", resetsAt: new Date(Date.now() + 86_400_000).toISOString(), observedAt: new Date().toISOString(), ...window, windowMinutes: BigInt(window.windowMinutes) })) });
 const prefs = (over: Record<string, unknown> = {}) => ({ profileId: "ws", profileInstance: "i", revision: 1n, orderedAgentIds: [], hiddenAgentIds: [], orderMode: "custom", lastLaunchedAt: {}, ...over });
 
 const onLaunch = vi.fn();
-const drawer = (extra: Record<string, unknown> = {}) => render(<TerminalLauncher open onClose={vi.fn()} onLaunch={onLaunch} shortcuts={AGENTS} availableTargets={[target()]} {...extra} />);
+const drawer = (extra: Record<string, unknown> = {}, selectAgent = true) => {
+  const view = render(<TerminalLauncher open onClose={vi.fn()} onLaunch={onLaunch} shortcuts={AGENTS} availableTargets={[target()]} {...extra} />);
+  if (selectAgent) fireEvent.click(screen.getByTestId("launcher-mode-agent"));
+  return view;
+};
 /** Without a `shortcuts` prop the drawer reads the profile and offers preferences. */
 const profileDrawer = async (extra: Record<string, unknown> = {}) => {
   shortcutsApi.getEffective.mockResolvedValue({ profileId: "ws", shortcuts: AGENTS.map((entry) => ({ description: "", agentId: "", ...entry })) } as never);
   render(<TerminalLauncher open onClose={vi.fn()} onLaunch={onLaunch} availableTargets={[target()]} {...extra} />);
+  fireEvent.click(screen.getByTestId("launcher-mode-agent"));
   await waitFor(() => { expect(shortcutsApi.getAgentPreferences).toHaveBeenCalled(); });
   await act(async () => { await Promise.resolve(); });
 };
@@ -72,11 +82,19 @@ beforeEach(() => {
   shortcutsApi.getAgentPreferences.mockResolvedValue({ preferences: prefs() } as never);
   shortcutsApi.updateAgentPreferences.mockResolvedValue({ preferences: prefs({ revision: 2n }) } as never);
   getUsageMode.mockResolvedValue({ modes: [], agents: [], canControl: true });
+  getAccounts.mockRejectedValue(new Error("offline"));
 });
 
 describe("type first", () => {
-  it("orders the drawer machine, then type, then the choice, then settings, then launch", async () => {
-    drawer();
+  it("starts with no type and requires an explicit choice before agent controls or launch", async () => {
+    setDesktopViewport();
+    drawer({}, false);
+    expect(screen.getByTestId("launcher-mode-agent")).toHaveAttribute("aria-checked", "false");
+    expect(screen.getByTestId("launcher-mode-shell")).toHaveAttribute("aria-checked", "false");
+    for (const id of ["launcher-agent-grid", "launcher-settings", "launcher-shell-command", "launcher-submit-selection"]) expect(screen.queryByTestId(id)).toBeNull();
+    fireEvent.keyDown(screen.getByTestId("launcher-desktop"), { key: "Enter" });
+    expect(onLaunch).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByTestId("launcher-mode-agent"));
     await screen.findByTestId("launcher-settings");
     const panel = screen.getByTestId("terminal-launcher");
     const sequence = ["launcher-machine-picker", "launcher-mode-agent", "launcher-agent-grid", "launcher-settings", "launcher-submit-selection"].map((id) => within(panel).getByTestId(id));
@@ -85,6 +103,97 @@ describe("type first", () => {
       expect(earlier.compareDocumentPosition(sequence[index] as HTMLElement) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     }
     expect(screen.getByText(strings.terminalLauncher.newSession)).toBeInTheDocument();
+  });
+
+  it.each([false, true])("requires a type selection before launch on %s viewport", async (desktop) => {
+    if (desktop) setDesktopViewport();
+    drawer({}, false);
+    const root = screen.getByTestId(desktop ? "launcher-desktop" : "launcher-phone");
+    fireEvent.keyDown(root, { key: "Enter" });
+    expect(onLaunch).not.toHaveBeenCalled();
+    expect(screen.queryByTestId("launcher-submit-selection")).toBeNull();
+    fireEvent.click(screen.getByTestId("launcher-mode-shell"));
+    expect(await screen.findByTestId("launcher-shell-panel")).toBeInTheDocument();
+    expect(screen.queryByTestId("launcher-agent-grid")).toBeNull();
+    expect(screen.getByTestId("launcher-submit-selection")).toBeInTheDocument();
+  });
+
+  it.each([false, true])("keeps radio semantics and keyboard focus stable after selection on %s viewport", async (desktop) => {
+    if (desktop) setDesktopViewport();
+    drawer({}, false);
+    const group = screen.getByRole("radiogroup", { name: strings.terminalLauncher.sessionType });
+    const agent = screen.getByRole("radio", { name: strings.terminalLauncher.typeAgent });
+    const shell = screen.getByRole("radio", { name: strings.terminalLauncher.typeShell });
+    expect(within(group).getAllByRole("radio")).toHaveLength(2);
+    expect(agent).toHaveAttribute("aria-checked", "false");
+    expect(shell).toHaveAttribute("aria-checked", "false");
+    expect(agent).toHaveAttribute("tabindex", "0");
+    expect(shell).toHaveAttribute("tabindex", "-1");
+
+    agent.focus();
+    fireEvent.keyDown(agent, { key: "ArrowRight" });
+    expect(shell).toHaveFocus();
+    expect(shell).toHaveAttribute("aria-checked", "true");
+    expect(agent).toHaveAttribute("aria-checked", "false");
+    expect(shell).toHaveAttribute("tabindex", "0");
+    expect(screen.getByRole("radiogroup", { name: strings.terminalLauncher.sessionType })).toBe(group);
+    expect(screen.getByRole("radio", { name: strings.terminalLauncher.typeShell })).toBe(shell);
+    expect(await screen.findByTestId("launcher-shell-panel")).toBeInTheDocument();
+
+    fireEvent.click(agent);
+    expect(agent).toHaveFocus();
+    expect(agent).toHaveAttribute("aria-checked", "true");
+    expect(screen.getByRole("radiogroup", { name: strings.terminalLauncher.sessionType })).toBe(group);
+  });
+
+  it.each([false, true])("Home and End move focus and selection across available types on %s viewport", (desktop) => {
+    if (desktop) setDesktopViewport();
+    drawer({}, false);
+    const agent = screen.getByRole("radio", { name: strings.terminalLauncher.typeAgent });
+    const shell = screen.getByRole("radio", { name: strings.terminalLauncher.typeShell });
+
+    agent.focus();
+    fireEvent.keyDown(agent, { key: "End" });
+    expect(shell).toHaveFocus();
+    expect(shell).toHaveAttribute("aria-checked", "true");
+    expect(agent).toHaveAttribute("aria-checked", "false");
+
+    fireEvent.keyDown(shell, { key: "Home" });
+    expect(agent).toHaveFocus();
+    expect(agent).toHaveAttribute("aria-checked", "true");
+    expect(shell).toHaveAttribute("aria-checked", "false");
+  });
+
+  it.each(["{Enter}", " "])("activates an initially unchecked type radio with %s on phone and desktop", async (key) => {
+    for (const desktop of [false, true]) {
+      if (desktop) setDesktopViewport(); else setMobileViewport();
+      const view = drawer({}, false);
+      await waitFor(() => expect(screen.getByTestId(desktop ? "launcher-desktop" : "launcher-phone")).toHaveFocus());
+      const user = userEvent.setup();
+      const agent = screen.getByRole("radio", { name: strings.terminalLauncher.typeAgent });
+      expect(agent).toHaveAttribute("aria-checked", "false");
+      agent.focus();
+      await user.keyboard(key);
+      expect(agent).toHaveFocus();
+      expect(agent).toHaveAttribute("aria-checked", "true");
+      expect(await screen.findByTestId("launcher-settings")).toBeInTheDocument();
+      view.unmount();
+    }
+  });
+
+  it("resets the selected type when the drawer is reopened", async () => {
+    const props = { onClose: vi.fn(), onLaunch, shortcuts: AGENTS, availableTargets: [target()] };
+    const view = render(<TerminalLauncher open={false} {...props} />);
+    view.rerender(<TerminalLauncher open {...props} />);
+    expect(screen.getByTestId("launcher-mode-agent")).toHaveAttribute("aria-checked", "false");
+    expect(screen.queryByTestId("launcher-submit-selection")).toBeNull();
+    fireEvent.click(screen.getByTestId("launcher-mode-agent"));
+    await screen.findByTestId("launcher-settings");
+    view.rerender(<TerminalLauncher open={false} {...props} />);
+    view.rerender(<TerminalLauncher open {...props} />);
+    expect(screen.getByTestId("launcher-mode-agent")).toHaveAttribute("aria-checked", "false");
+    expect(screen.queryByTestId("launcher-settings")).toBeNull();
+    expect(screen.queryByTestId("launcher-submit-selection")).toBeNull();
   });
 
   it("offers Agent, Shell and Group, and Group only when a caller can create one", () => {
@@ -242,6 +351,21 @@ describe("cards", () => {
   });
 });
 
+describe("usage space", () => {
+  it.each([false, true])("keeps the opening row budget when descriptors resolve (desktop=%s)", async (desktop) => {
+    if (desktop) setDesktopViewport();
+    let answer!: (value: never) => void;
+    capabilities.listHarnesses.mockImplementation(() => new Promise((resolve) => { answer = resolve; }));
+    capabilities.agentUsage.mockImplementation(((request: { agentId: string }) => Promise.resolve(usage(request.agentId, [{ windowMinutes: 10_080, usedPercent: 42 }]))) as never);
+    drawer();
+    const rows = () => within(screen.getByTestId("launcher-agent-grid")).getAllByTestId("launcher-card-usage").map((block) => block.querySelectorAll("[data-usage-row]").length);
+    const before = rows();
+    expect(before).toEqual([2, 2, 2]);
+    await act(async () => { answer({ targetId: "local", harnesses: ["claude", "codex", "opencode"].map((id) => harness(id, { usageWindows: [10_080] })) } as never); await Promise.resolve(); });
+    expect(rows()).toEqual(before);
+  });
+});
+
 describe("settings", () => {
   const limited = choice("big", { isDefault: true, contextWindowTokens: 500_000n, contextLimitTokens: [300_000n, 150_000n] });
   const small = choice("small", { contextWindowTokens: 200_000n, contextLimitTokens: [150_000n] });
@@ -267,6 +391,140 @@ describe("settings", () => {
     expect(onLaunch).toHaveBeenLastCalledWith(expect.objectContaining({ command: "claude", agentLaunch: expect.objectContaining({ model: "small", context_limit_tokens: undefined }) }));
   });
 
+  it.each([["harness", "click"], ["harness", "Enter"], ["command", "click"], ["command", "Enter"]] as const)("does not carry the prior request's model, provider, or context after a %s change before choices settle (%s)", async (change, launchWith) => {
+    supportsLimit();
+    capabilities.listHarnesses.mockResolvedValue({ targetId: "local", harnesses: ["claude", "codex", "opencode"].map((id) => harness(id, { supportsContextLimit: true, supportsProviderSelection: true })) } as never);
+    const oldChoice = choice("legacy-model", { source: "legacy-provider", contextWindowTokens: 500_000n, contextLimitTokens: [150_000n], isDefault: true });
+    let deferred!: (value: ReturnType<typeof policy>) => void;
+    models.getRoleModelChoices.mockImplementation(((request: { agentId: string; launchCommand: string }) => request.agentId === "claude" && request.launchCommand === "claude"
+      ? Promise.resolve(policy({ choices: [oldChoice] }))
+      : new Promise((resolve) => { deferred = resolve; })) as never);
+    const view = drawer();
+    await waitFor(() => { expect(launchButton()).not.toBeDisabled(); });
+    fireEvent.change(nativeSelect("launcher-model-choice"), { target: { value: JSON.stringify(["legacy-provider", "legacy-model"]) } });
+    await screen.findByTestId("launcher-context-limit-select");
+    chooseLimit("150000");
+
+    if (change === "harness") fireEvent.click(screen.getByTestId("launcher-agent-codex"));
+    else view.rerender(<TerminalLauncher open onClose={vi.fn()} onLaunch={onLaunch} shortcuts={AGENTS.map((entry) => entry.agentId === "claude" ? { ...entry, command: "claude --fast" } : entry)} availableTargets={[target()]} />);
+    await waitFor(() => { expect(deferred).toBeTypeOf("function"); });
+    if (launchWith === "click") fireEvent.click(launchButton());
+    else fireEvent.keyDown(screen.getByTestId("launcher-phone"), { key: "Enter" });
+    expect(launchButton()).toBeDisabled();
+    expect(onLaunch).not.toHaveBeenCalled();
+    await act(async () => { deferred(policy({ choices: [choice("new-default", { isDefault: true })] })); await Promise.resolve(); });
+    await waitFor(() => { expect(launchButton()).not.toBeDisabled(); });
+    if (launchWith === "click") fireEvent.click(launchButton());
+    else fireEvent.keyDown(screen.getByTestId("launcher-phone"), { key: "Enter" });
+
+    expect(onLaunch).toHaveBeenCalledTimes(1);
+    expect(onLaunch.mock.lastCall?.[0]).toMatchObject({ command: change === "harness" ? "codex --yolo" : "claude --fast", agentLaunch: undefined, businessAccountId: undefined });
+  });
+
+  it.each(["click", "Enter"] as const)("does not reuse the previous open session's model, provider, or context on immediate %s", async (launchWith) => {
+    supportsLimit();
+    const oldChoice = choice("previous-session-model", { source: "previous-session-provider", contextWindowTokens: 500_000n, contextLimitTokens: [150_000n], isDefault: true });
+    let secondResponse!: (value: ReturnType<typeof policy>) => void;
+    let requestCount = 0;
+    models.getRoleModelChoices.mockImplementation((() => {
+      requestCount += 1;
+      return requestCount === 1
+        ? Promise.resolve(policy({ choices: [oldChoice] }))
+        : new Promise((resolve) => { secondResponse = resolve; });
+    }) as never);
+    const props = { onClose: vi.fn(), onLaunch, shortcuts: AGENTS, availableTargets: [target()] };
+    const view = render(<TerminalLauncher open={false} {...props} />);
+    view.rerender(<TerminalLauncher open {...props} />);
+    fireEvent.click(screen.getByTestId("launcher-mode-agent"));
+    await screen.findByTestId("launcher-model-choice");
+    fireEvent.change(nativeSelect("launcher-model-choice"), { target: { value: JSON.stringify(["previous-session-provider", "previous-session-model"]) } });
+    await screen.findByTestId("launcher-context-limit-select");
+    chooseLimit("150000");
+
+    view.rerender(<TerminalLauncher open={false} {...props} />);
+    view.rerender(<TerminalLauncher open {...props} />);
+    fireEvent.click(screen.getByTestId("launcher-mode-agent"));
+    await waitFor(() => { expect(requestCount).toBe(2); });
+    if (launchWith === "click") fireEvent.click(launchButton());
+    else fireEvent.keyDown(screen.getByTestId("launcher-phone"), { key: "Enter" });
+
+    expect(launchButton()).toBeDisabled();
+    expect(onLaunch).not.toHaveBeenCalled();
+    await act(async () => {
+      await Promise.resolve();
+      secondResponse(policy({ choices: [choice("current-session-model", { isDefault: true })] }));
+      await Promise.resolve();
+    });
+    await waitFor(() => { expect(launchButton()).not.toBeDisabled(); });
+    if (launchWith === "click") fireEvent.click(launchButton());
+    else fireEvent.keyDown(screen.getByTestId("launcher-phone"), { key: "Enter" });
+    expect(onLaunch).toHaveBeenCalledTimes(1);
+    expect(onLaunch.mock.lastCall?.[0]).toMatchObject({ command: "claude", agentLaunch: undefined, businessAccountId: undefined });
+    expect(JSON.stringify(onLaunch.mock.lastCall?.[0])).not.toContain("previous-session");
+  });
+
+  it.each(["click", "Enter"] as const)("waits for policy before launching a stored model and provider with %s", async (launchWith) => {
+    const saved = choice("saved-model", { source: "saved-provider", sourceLabel: "Saved provider", isDefault: false });
+    window.localStorage.setItem("wc-launcher-model-choice:local:claude", JSON.stringify(["saved-provider", "saved-model"]));
+    let resolvePolicy!: (value: ReturnType<typeof policy>) => void;
+    models.getRoleModelChoices.mockReturnValue(new Promise((resolve) => { resolvePolicy = resolve; }) as never);
+    drawer();
+
+    expect(launchButton()).toBeDisabled();
+    if (launchWith === "click") fireEvent.click(launchButton());
+    else fireEvent.keyDown(screen.getByTestId("launcher-phone"), { key: "Enter" });
+    expect(onLaunch).not.toHaveBeenCalled();
+
+    await act(async () => {
+      resolvePolicy(policy({ choices: [choice("default-model", { isDefault: true }), saved] }));
+      await Promise.resolve();
+    });
+    await waitFor(() => { expect(nativeSelect("launcher-model-choice")).toHaveValue(JSON.stringify(["saved-provider", "saved-model"])); });
+    if (launchWith === "click") fireEvent.click(launchButton());
+    else fireEvent.keyDown(screen.getByTestId("launcher-phone"), { key: "Enter" });
+
+    expect(onLaunch).toHaveBeenCalledWith(expect.objectContaining({
+      agentLaunch: { agent_id: "claude", model: "saved-model", provider: "saved-provider", context_limit_tokens: undefined },
+    }));
+  });
+
+  it("recovers the model picker after a transient browser network change", async () => {
+    models.getRoleModelChoices.mockRejectedValueOnce(new TypeError("Failed to fetch"));
+    models.getRoleModelChoices.mockResolvedValue(policy({ choices: [choice("recovered", { isDefault: true })] }) as never);
+    drawer();
+    expect(launchButton()).toBeDisabled();
+    await waitFor(() => { expect(nativeSelect("launcher-model-choice")).toHaveValue(JSON.stringify(["sub", "recovered"])); });
+    expect(models.getRoleModelChoices).toHaveBeenCalledTimes(2);
+    expect(onLaunch).not.toHaveBeenCalled();
+  });
+
+  it("bounds transient model lookup retries and then reports the fallback", async () => {
+    models.getRoleModelChoices.mockRejectedValue(new TypeError("Failed to fetch"));
+    drawer();
+    await waitFor(() => { expect(screen.getByRole("status")).toHaveTextContent(strings.terminalLauncher.modelChoicesUnknown); }, { timeout: 2000 });
+    expect(models.getRoleModelChoices).toHaveBeenCalledTimes(3);
+    expect(onLaunch).not.toHaveBeenCalled();
+  });
+
+  it.each(["click", "Enter"] as const)("announces harness-default fallback after policy failure before %s launch", async (launchWith) => {
+    let rejectPolicy!: (reason?: unknown) => void;
+    models.getRoleModelChoices.mockReturnValue(new Promise((_, reject) => { rejectPolicy = reject; }) as never);
+    drawer();
+
+    expect(launchButton()).toBeDisabled();
+    if (launchWith === "click") fireEvent.click(launchButton());
+    else fireEvent.keyDown(screen.getByTestId("launcher-phone"), { key: "Enter" });
+    expect(onLaunch).not.toHaveBeenCalled();
+
+    await act(async () => { rejectPolicy(new Error("policy unavailable")); await Promise.resolve(); });
+    const fallbackNotice = await screen.findByRole("status");
+    expect(fallbackNotice).toHaveTextContent(strings.terminalLauncher.modelChoicesUnknown);
+    expect(launchButton()).not.toBeDisabled();
+    if (launchWith === "click") fireEvent.click(launchButton());
+    else fireEvent.keyDown(screen.getByTestId("launcher-phone"), { key: "Enter" });
+    expect(onLaunch).toHaveBeenCalledWith(expect.objectContaining({ command: "claude", agentLaunch: undefined }));
+  });
+
   it("states an unknown window rather than guessing", async () => {
     supportsLimit();
     models.getRoleModelChoices.mockResolvedValue(policy({ choices: [{ ...unknownWindow, isDefault: true }] }) as never);
@@ -285,11 +543,16 @@ describe("settings", () => {
   });
 
   it("states that settings do not apply to a command of the operator's own, and sends none", async () => {
-    supportsLimit();
+    capabilities.listHarnesses.mockResolvedValue({ targetId: "local", harnesses: [harness("claude", { supportsContextLimit: true, supportsUsageMode: true }), harness("codex"), harness("opencode")] } as never);
+    getUsageMode.mockResolvedValue({ modes: [{ id: "um", label: "", runner: "claude", startedAt: "", untilKind: "off", kind: "save" }], agents: [{ agentId: "claude", label: "Claude Code", runner: "claude", lowerModel: "small", usualModel: "big", model: "small", modeId: "um", contextLimitTokens: 100_000 }], canControl: true });
     models.getRoleModelChoices.mockResolvedValue(policy({ commandLiteral: true, choices: [limited, small] }) as never);
     drawer();
     await screen.findByTestId("launcher-model-value");
+    await waitFor(() => { expect(screen.getByTestId("launcher-save-usage-switch")).toHaveAttribute("aria-checked", "true"); });
     expect(screen.getByTestId("launcher-model-selection")).toHaveTextContent(strings.launcher.settingsDontApply);
+    expect(screen.getByTestId("launcher-model-selection")).not.toHaveTextContent(strings.launcher.usageModeLowers);
+    expect(screen.getByTestId("launcher-summary")).toHaveTextContent(strings.terminalLauncher.modelSetByCommand);
+    expect(screen.getByTestId("launcher-summary")).not.toHaveTextContent(strings.launcher.summarySaving);
     expect(screen.queryByTestId("launcher-model-choice")).toBeNull();
     expect(screen.queryByTestId("launcher-context-limit")).toBeNull();
     fireEvent.click(launchButton());
@@ -357,7 +620,7 @@ describe("settings", () => {
     await screen.findByTestId("launcher-model-source");
     fireEvent.click(screen.getByTestId("launcher-agent-codex"));
     await screen.findByTestId("launcher-model-choice");
-    expect(screen.queryByTestId("launcher-model-source")).toBeNull();
+    expect(screen.getByTestId("launcher-model-source")).toBeVisible();
     models.getRoleModelChoices.mockResolvedValue(policy({ choices: [sources[0]] }) as never);
     fireEvent.click(screen.getByTestId("launcher-agent-opencode"));
     await screen.findByTestId("launcher-model-choice");
@@ -380,6 +643,7 @@ describe("settings", () => {
 
     rerender(<TerminalLauncher open={false} onClose={vi.fn()} onLaunch={onLaunch} shortcuts={AGENTS} availableTargets={[target()]} />);
     rerender(<TerminalLauncher open onClose={vi.fn()} onLaunch={onLaunch} shortcuts={AGENTS} availableTargets={[target()]} />);
+    fireEvent.click(screen.getByTestId("launcher-mode-agent"));
     await screen.findByTestId("launcher-model-choice");
     expect(nativeSelect("launcher-model-source")).toHaveValue("two");
     expect(nativeSelect("launcher-model-choice")).toHaveValue(JSON.stringify(["two", "b"]));
@@ -395,6 +659,47 @@ describe("settings", () => {
     expect(option("paid")?.disabled).toBe(true);
     openDetail("claude");
     expect(await screen.findByTestId("launcher-model-list-detail")).toHaveTextContent("Refresh this list.");
+  });
+
+  it.each([[false, "router"], [true, "router"], [false, "vrooli-credits"], [true, "vrooli-credits"]] as const)("keeps a stale saved metered choice visible and blocks click and Enter (desktop=%s, source=%s)", async (desktop, source) => {
+    if (desktop) setDesktopViewport();
+    const paid = choice("paid", { source, sourceLabel: source, metered: true });
+    window.localStorage.setItem("wc-launcher-model-choice:local:claude", JSON.stringify([source, "paid"]));
+    models.getRoleModelChoices.mockResolvedValue(policy({ sourceConfigurationSupported: true, catalogStale: true, choices: [limited, paid] }) as never);
+    drawer();
+    await waitFor(() => { expect(nativeSelect("launcher-model-choice")).toHaveValue(JSON.stringify([source, "paid"])); });
+    expect(screen.getByTestId("launcher-summary")).toHaveTextContent("paid");
+    expect(launchButton()).toBeDisabled();
+    fireEvent.click(launchButton());
+    fireEvent.keyDown(screen.getByTestId(desktop ? "launcher-desktop" : "launcher-phone"), { key: "Enter" });
+    expect(onLaunch).not.toHaveBeenCalled();
+    if (source === "vrooli-credits") await screen.findByTestId("launcher-business-account-error");
+    fireEvent.click(screen.getByTestId("launcher-mode-shell"));
+    expect(launchButton()).not.toBeDisabled();
+    fireEvent.keyDown(screen.getByTestId(desktop ? "launcher-desktop" : "launcher-phone"), { key: "Enter" });
+    expect(onLaunch).toHaveBeenCalledWith(expect.objectContaining({ agentLaunch: undefined }));
+  });
+
+  it.each([true, false])("uses the full-power model's own context data (catalogued=%s)", async (catalogued) => {
+    supportsLimit();
+    const usual = choice("usual", { contextWindowTokens: 500_000n, contextLimitTokens: [300_000n, 150_000n] });
+    models.getRoleModelChoices.mockResolvedValue(policy({ choices: [{ ...small, isDefault: true }, ...(catalogued ? [choice("usual", { source: "metered", metered: true, contextWindowTokens: 100_000n, contextLimitTokens: [100_000n] }), usual] : [])] }) as never);
+    getUsageMode.mockResolvedValue({ modes: [{ id: "um", label: "", runner: "claude", startedAt: "", untilKind: "off", kind: "save" }], agents: [{ agentId: "claude", label: "Claude Code", runner: "claude", lowerModel: "small", usualModel: "usual", model: "small", modeId: "um", contextLimitTokens: 100_000, fullPowerArgs: "--model usual" }], canControl: true });
+    drawer();
+    fireEvent.click(await screen.findByTestId("launcher-full-power-claude"));
+    expect(screen.getByTestId("launcher-model-value")).toHaveTextContent("usual");
+    expect(screen.getByTestId("launcher-summary")).toHaveTextContent("usual");
+    expect(screen.getByTestId("launcher-context-hint")).not.toHaveTextContent(strings.launcher.contextLimitFromMode);
+    if (catalogued) {
+      expect([...nativeSelect("launcher-context-limit-select").options].map((option) => option.value)).toEqual(["default", "300000", "150000"]);
+      chooseLimit("300000");
+      expect(screen.getByTestId("launcher-context-gauge")).toHaveAttribute("data-gauge-percent", "60");
+    } else {
+      expect(screen.getByTestId("launcher-context-window")).toHaveTextContent(strings.launcher.contextWindowUnknown);
+      expect(screen.queryByTestId("launcher-context-limit-select")).toBeNull();
+    }
+    fireEvent.click(launchButton());
+    expect(onLaunch.mock.lastCall?.[0]).toMatchObject({ agentLaunch: { model: "usual", context_limit_tokens: catalogued ? 300_000 : undefined } });
   });
 
   it("closes only an open list on Escape, leaving the drawer open", async () => {
@@ -422,13 +727,16 @@ describe("settings", () => {
   });
 
   it("names the lowered model under Save usage, and choosing the usual one overrides the mode", async () => {
-    getUsageMode.mockResolvedValue({ modes: [{ id: "um", label: "", runner: "claude", startedAt: "", untilKind: "off", kind: "save" }], agents: [{ agentId: "claude", label: "Claude Code", runner: "claude", lowerModel: "small", usualModel: "big", model: "small", modeId: "um" }], canControl: true });
+    supportsLimit();
+    getUsageMode.mockResolvedValue({ modes: [{ id: "um", label: "", runner: "claude", startedAt: "", untilKind: "off", kind: "save" }], agents: [{ agentId: "claude", label: "Claude Code", runner: "claude", lowerModel: "small", usualModel: "big", model: "small", modeId: "um", contextLimitTokens: 100_000 }], canControl: true });
     models.getRoleModelChoices.mockResolvedValue(policy({ choices: [limited, small] }) as never);
     drawer();
     await screen.findByTestId("launcher-mode-note-claude");
     expect(nativeSelect("launcher-model-choice")).toHaveValue(JSON.stringify(["sub", "small"]));
     expect(screen.getByTestId("launcher-summary")).toHaveTextContent("small");
+    expect(screen.getByTestId("launcher-context-hint")).toHaveTextContent(strings.launcher.contextLimitFromMode);
     fireEvent.change(nativeSelect("launcher-model-choice"), { target: { value: JSON.stringify(["sub", "big"]) } });
+    expect(screen.getByTestId("launcher-context-hint")).toHaveTextContent(strings.launcher.contextLimitDefault);
     fireEvent.click(launchButton());
     expect(onLaunch).toHaveBeenLastCalledWith(expect.objectContaining({ command: "claude", agentLaunch: expect.objectContaining({ model: "big" }) }));
   });
@@ -466,6 +774,98 @@ describe("settings", () => {
   });
 });
 
+describe("credit route eligibility", () => {
+  const paid = choice("coding", { source: "vrooli-credits", sourceLabel: "Vrooli credits", launchModel: "vrooli/coding", metered: true });
+  const account = { id: "acct-selected", display_name: "Selected account", role: "owner", created_at: "" };
+  const openCodeDrawer = () => drawer({ availableTargets: [target({ readiness: [fact("opencode", "OpenCode")] })] });
+  const selectAccount = async () => {
+    if (!screen.queryByTestId("launcher-business-account")) {
+      await screen.findByTestId("launcher-model-source");
+      fireEvent.change(nativeSelect("launcher-model-source"), { target: { value: "vrooli-credits" } });
+    }
+    await screen.findByTestId("launcher-business-account");
+    fireEvent.change(nativeSelect("launcher-business-account"), { target: { value: account.id } });
+    await screen.findByTestId("launcher-business-account-usage");
+    expect(getAccountUsage).toHaveBeenCalledWith(account.id);
+  };
+  beforeEach(() => {
+    getAccounts.mockResolvedValue({ accounts: [{ ...account, id: "acct-default", display_name: "Default account" }, account] });
+    getAccountUsage.mockImplementation((id) => Promise.resolve({ business_account_id: id, billing_period: "", tier: "", limits: {}, usage: {}, reserved: { ai_credits: 0 }, remaining: { ai_credits: 100 }, display_credits: {} }));
+    models.getRoleModelChoices.mockResolvedValue(policy({ runner: "opencode", choices: [choice("native", { isDefault: true }), paid] }) as never);
+  });
+
+  it.each([["claude", "claude --model own"], ["opencode", "opencode -m ollama/foo"]])("keeps generic literal %s commands outside credit billing", async (agentId, command) => {
+    window.localStorage.setItem(`wc-launcher-model-choice:local:${agentId}`, JSON.stringify(["vrooli-credits", "coding"]));
+    models.getRoleModelChoices.mockResolvedValue(policy({ runner: agentId, commandLiteral: true, choices: [choice("native", { isDefault: true }), paid] }) as never);
+    drawer({ shortcuts: [{ agentId, label: agentId, command }], availableTargets: [target({ readiness: [fact(agentId, agentId)] })] });
+    await screen.findByTestId("launcher-model-value");
+    expect(screen.queryByTestId("launcher-model-choice")).toBeNull();
+    expect(screen.queryByTestId("launcher-business-account")).toBeNull();
+    expect(getAccounts).not.toHaveBeenCalled();
+    expect(getAccountUsage).not.toHaveBeenCalled();
+    expect(launchButton()).toBeEnabled();
+    fireEvent.click(launchButton());
+    expect(onLaunch.mock.lastCall?.[0]).toMatchObject({ command, agentLaunch: undefined, businessAccountId: undefined });
+  });
+
+  it("retains the chosen account for the nonliteral local OpenCode proxy without model overrides", async () => {
+    openCodeDrawer();
+    await selectAccount();
+    expect(models.getRoleModelChoices).toHaveBeenCalledWith({ agentId: "opencode", targetId: "local", launchCommand: "opencode", businessAccountId: account.id });
+    expect(screen.getByTestId("launcher-model-choice")).toBeVisible();
+    fireEvent.click(launchButton());
+    expect(onLaunch.mock.lastCall?.[0]).toMatchObject({ command: "opencode", agentLaunch: { agent_id: "opencode", model: "coding", provider: "vrooli-credits", max_credits: 5000 }, businessAccountId: account.id });
+  });
+
+  it("keeps structured paid-model launches and their selected account", async () => {
+    capabilities.listHarnesses.mockResolvedValue({ targetId: "local", harnesses: [harness("opencode", { supportsProviderSelection: true })] } as never);
+    models.getRoleModelChoices.mockResolvedValue(policy({ runner: "opencode", choices: [choice("native", { isDefault: true }), paid] }) as never);
+    openCodeDrawer();
+    await screen.findByTestId("launcher-model-source");
+    fireEvent.change(nativeSelect("launcher-model-source"), { target: { value: "vrooli-credits" } });
+    await selectAccount();
+    fireEvent.click(launchButton());
+    expect(onLaunch.mock.lastCall?.[0]).toMatchObject({ command: "opencode", businessAccountId: account.id, agentLaunch: { agent_id: "opencode", model: "coding", provider: "vrooli-credits" } });
+  });
+
+  it.each(["harness", "command"])("ignores the old account response after an Agent %s change", async (change) => {
+    const literalCommand = "opencode -m ollama/foo";
+    window.localStorage.setItem("wc-launcher-model-choice:local:opencode", JSON.stringify(["vrooli-credits", "coding"]));
+    models.getRoleModelChoices.mockImplementation(((request: { agentId: string; launchCommand: string }) => Promise.resolve(policy({ runner: request.agentId, commandLiteral: request.launchCommand === literalCommand, choices: [request.agentId === "opencode" ? { ...paid, isDefault: true } : choice("native", { isDefault: true })] }))) as never);
+    let answer!: (value: Awaited<ReturnType<typeof rawGetAccounts>>) => void;
+    getAccounts.mockReturnValue(new Promise((resolve) => { answer = resolve; }));
+    const view = change === "harness" ? drawer() : openCodeDrawer();
+    if (change === "harness") fireEvent.click(screen.getByTestId("launcher-agent-opencode"));
+    await screen.findByTestId("launcher-business-account-loading");
+    if (change === "harness") {
+      fireEvent.click(screen.getByTestId("launcher-agent-claude-code"));
+      await screen.findByTestId("launcher-model-choice");
+    } else {
+      view.rerender(<TerminalLauncher open onClose={vi.fn()} onLaunch={onLaunch} shortcuts={AGENTS.map((entry) => entry.agentId === "opencode" ? { ...entry, command: literalCommand } : entry)} availableTargets={[target({ readiness: [fact("opencode", "OpenCode")] })]} />);
+      await screen.findByTestId("launcher-model-value");
+    }
+    await act(async () => { answer({ accounts: [account] }); await Promise.resolve(); });
+    expect(getAccounts).toHaveBeenCalledTimes(1);
+    expect(getAccountUsage).not.toHaveBeenCalled();
+    fireEvent.click(launchButton());
+    expect(onLaunch.mock.lastCall?.[0]).toMatchObject({ command: change === "harness" ? "claude" : literalCommand, agentLaunch: undefined, businessAccountId: undefined });
+  });
+
+  it("does not start a credit usage lookup when accounts resolve after choosing Shell", async () => {
+    let answer!: (value: Awaited<ReturnType<typeof rawGetAccounts>>) => void;
+    getAccounts.mockReturnValue(new Promise((resolve) => { answer = resolve; }));
+    openCodeDrawer();
+    await screen.findByTestId("launcher-model-source");
+    fireEvent.change(nativeSelect("launcher-model-source"), { target: { value: "vrooli-credits" } });
+    await screen.findByTestId("launcher-business-account-loading");
+    fireEvent.click(screen.getByTestId("launcher-mode-shell"));
+    await act(async () => { answer({ accounts: [account] }); await Promise.resolve(); });
+    expect(getAccountUsage).not.toHaveBeenCalled();
+    fireEvent.click(launchButton());
+    expect(onLaunch.mock.lastCall?.[0]).toMatchObject({ agentLaunch: undefined, businessAccountId: undefined });
+  });
+});
+
 describe("Manage", () => {
   const withState = (agentId: string, over: Record<string, unknown>) => {
     capabilities.agentUpdate.mockImplementation(((request: { agentId: string }) => Promise.resolve(update(request.agentId, request.agentId === agentId ? over : {}))) as never);
@@ -487,6 +887,32 @@ describe("Manage", () => {
     fireEvent.click(screen.getByTestId(button));
     expect(capabilities.runAgentUpdateAction).toHaveBeenCalledWith({ targetId: "local", agentId: "claude", action }, expect.anything());
     expect(await screen.findByTestId("launcher-action-done")).toHaveTextContent("Done it.");
+  });
+
+  it("shows a found copy without offering an action that can rename it", async () => {
+    withState("claude", { state: "found", installState: "found", signInState: "unknown", updateState: "blocked(found_copy)", reason: "Found at ~/tools/claude; left unchanged." });
+    drawer();
+    await loaded();
+    openDetail("claude");
+    expect(screen.getByTestId("launcher-agent-status-claude")).toHaveTextContent(strings.launcher.statusFound);
+    expect(screen.getByTestId("launcher-agent-detail-claude")).toHaveTextContent("Found at ~/tools/claude; left unchanged.");
+    expect(screen.getByTestId("launcher-agent-three-facts")).toHaveAttribute("data-install-state", "found");
+    expect(screen.getByTestId("launcher-agent-three-facts")).toHaveAttribute("data-sign-in-state", "unknown");
+    expect(screen.getByTestId("launcher-agent-three-facts")).toHaveAttribute("data-update-state", "blocked(found_copy)");
+    expect(screen.queryByTestId("launcher-action-primary-claude")).toBeNull();
+  });
+
+  it("shows Grok's signed-out state as a clear sign-in need", async () => {
+    capabilities.listHarnesses.mockResolvedValue({ targetId: "local", harnesses: ["claude", "codex", "opencode", "grok"].map((id) => harness(id)) } as never);
+    withState("grok", { signInState: "signed_out" });
+    drawer({
+      shortcuts: [...AGENTS, { agentId: "grok", label: "Grok", command: "grok" }],
+      availableTargets: [target({ readiness: [fact("claude", "Claude Code"), fact("codex", "Codex"), fact("opencode", "OpenCode"), fact("grok", "Grok")] })],
+    });
+    await loaded();
+    openDetail("grok");
+    expect(screen.getByTestId("launcher-agent-three-facts")).toHaveAttribute("data-sign-in-state", "signed_out");
+    expect(screen.getByTestId("launcher-agent-three-facts")).toHaveTextContent(strings.launcher.factSignIn);
   });
 
   it("shows the operator's command with copy for a state only they can fix, and runs nothing", async () => {
@@ -605,6 +1031,31 @@ describe("Manage", () => {
     expect(within(screen.getByTestId("launcher-usage-claude")).getByText(strings.launcher.usageResets)).toBeInTheDocument();
   });
 
+  it.each(["update_ready", "needs_setup"])("counts hidden agents' %s actions in Manage", async (state) => {
+    shortcutsApi.getAgentPreferences.mockResolvedValue({ preferences: prefs({ hiddenAgentIds: ["claude"] }) } as never);
+    withState("claude", { state, primaryAction: state === "update_ready" ? "update" : "", operatorCommand: state === "needs_setup" ? "sudo vrooli setup --include-optional" : "" });
+    await profileDrawer();
+    await loaded();
+    expect(screen.queryByTestId("launcher-agent-claude-code")).toBeNull();
+    expect(screen.getByTestId("launcher-manage-count")).toHaveTextContent("1");
+    openManage();
+    expect(screen.getByTestId("launcher-agent-visibility-claude")).toHaveAttribute("aria-checked", "false");
+    if (state === "update_ready") expect(screen.getByTestId("launcher-update-ready")).toBeEnabled();
+    else expect(screen.queryByTestId("launcher-update-ready")).toBeNull();
+  });
+
+  it("offers no bulk update or update dot while the server withholds the action", async () => {
+    withState("claude", { state: "update_ready", primaryAction: "" });
+    drawer();
+    await loaded();
+    expect(screen.queryByTestId("launcher-manage-count")).toBeNull();
+    expect(screen.queryByTestId("launcher-agent-flag-claude")).toBeNull();
+    openDetail("claude");
+    expect(screen.queryByTestId("launcher-action-primary-claude")).toBeNull();
+    fireEvent.click(screen.getByTestId("launcher-management-back"));
+    expect(screen.queryByTestId("launcher-update-ready")).toBeNull();
+  });
+
   it("updates every ready harness in turn from one button", async () => {
     capabilities.agentUpdate.mockImplementation(((request: { agentId: string }) => Promise.resolve(update(request.agentId, request.agentId === "opencode" ? {} : { state: "update_ready", primaryAction: "update" }))) as never);
     capabilities.runAgentUpdateAction.mockImplementation(((request: { agentId: string }) => Promise.resolve({ success: true, message: "", update: update(request.agentId) })) as never);
@@ -627,12 +1078,13 @@ describe("Manage", () => {
     await waitFor(() => { expect(shortcutsApi.updateAgentPreferences).toHaveBeenCalledWith(expect.objectContaining({ orderMode: "recent" })); });
     await waitFor(() => { expect(screen.queryByTestId("launcher-agent-grip-claude")).toBeNull(); });
     fireEvent.click(screen.getByTestId("launcher-management-back"));
-    expect(screen.getAllByRole("radio").map((radio) => radio.getAttribute("data-capability-id"))[0]).toBe("opencode");
+    expect(within(screen.getByTestId("launcher-agent-grid")).getAllByRole("radio").map((radio) => radio.getAttribute("data-capability-id"))[0]).toBe("opencode");
   });
 
   it("records the launched harness without waiting on it", async () => {
     await profileDrawer();
     fireEvent.click(screen.getByTestId("launcher-agent-codex"));
+    await waitFor(() => { expect(launchButton()).not.toBeDisabled(); });
     fireEvent.click(launchButton());
     expect(onLaunch).toHaveBeenCalled();
     await waitFor(() => { expect(shortcutsApi.updateAgentPreferences).toHaveBeenCalledWith(expect.objectContaining({ launchedAgentId: "codex" })); });

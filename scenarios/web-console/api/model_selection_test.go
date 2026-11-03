@@ -70,10 +70,10 @@ func TestQualifiedPaidCodingChoiceIsApplicationOwnedAndFixed(t *testing.T) {
 	}
 	t.Setenv("VROOLI_RESOURCE_ROOT", root)
 
-	got := (&Server{paidCodingProtocolQualified: true}).GetRoleModelChoices(t.Context(), "opencode", "local", "")
+	got := paidCodingAuthorityFixture(t).GetAccountRoleModelChoices(t.Context(), "opencode", "local", "", "account")
 	for _, choice := range got.Choices {
 		if choice.Source == "vrooli-credits" {
-			if choice.Model != "coding" || choice.LaunchModel != "vrooli/coding" || choice.SourceLabel != "Vrooli credits" {
+			if choice.Model != "coding" || choice.LaunchModel != "coding" || choice.SourceLabel != "Vrooli credits" {
 				t.Fatalf("paid model must remain fixed to the qualified account-bound route: %+v", choice)
 			}
 			return
@@ -318,7 +318,7 @@ func TestCodexChoicesReadWindowsThroughTheSharedPackage(t *testing.T) {
 
 func TestHarnessWithoutContextLimitGetsNoLimitsAndMeteredChoicesAreMarked(t *testing.T) {
 	useRepoPolicy(t, "opencode", nil)
-	result := (&Server{paidCodingProtocolQualified: true}).GetRoleModelChoices(t.Context(), "opencode", "local", "")
+	result := paidCodingAuthorityFixture(t).GetAccountRoleModelChoices(t.Context(), "opencode", "local", "", "account")
 	if result.CatalogStale || result.PolicyStatus != "ready" {
 		t.Fatalf("a fresh list must not read as stale: %+v", result)
 	}

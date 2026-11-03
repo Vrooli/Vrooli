@@ -79,6 +79,7 @@ type CodexCheckpoints interface {
 type Adapter struct {
 	// ComposeAgentLaunch applies a launch's settings to its command. The harness
 	// descriptor owns how, so a client never rewrites command text.
+	ResolveCodingBackup func(context.Context, CreateInput) (context.Context, CreateInput, error)
 	ComposeAgentLaunch  func(ctx context.Context, intent AgentLaunch, command, targetID string) (string, error)
 	NativeUsage         func(context.Context, *sessionsv1.ReadNativeUsageRequest) (*sessionsv1.ReadNativeUsageResponse, error)
 	NativeThreadState   func(context.Context, *sessionsv1.ReadNativeThreadStateRequest) (*sessionsv1.ReadNativeThreadStateResponse, error)
@@ -109,12 +110,11 @@ type Adapter struct {
 	// session id is known and before the PTY environment is built. rawCredential
 	// is request-local and never persisted here. Best-effort: it must never fail
 	// or block session creation. A nil minter leaves behavior unchanged.
-	DelegationMinter          DelegationMinter
-	PaidCodingCredential      func() (string, error)
-	RegisterPaidCodingSession func(sessionID, accountID, token string)
-	RemovePaidCodingSession   func(sessionID string)
-	LifecycleLedger           continuity.Ledger
-	ContinuityCatalog         interface {
+	DelegationMinter         DelegationMinter
+	PreparePaidCodingSession func(context.Context, string, string, string, int64) (func(string), func(), error)
+	RemovePaidCodingSession  func(sessionID string)
+	LifecycleLedger          continuity.Ledger
+	ContinuityCatalog        interface {
 		EnqueueTombstone(context.Context, string) error
 		List(context.Context, string, int) ([]continuity.CatalogRecord, bool, error)
 		ListAll(context.Context, string) ([]continuity.CatalogRecord, error)
@@ -341,7 +341,17 @@ func lifecycleStateForMetadata(meta sessionstore.Metadata) continuity.State {
 // -----------------------------------------------------------------------------
 
 func (a *Adapter) Create(ctx context.Context, in CreateInput) (Session, error) {
+	if a.ResolveCodingBackup != nil {
+		var err error
+		ctx, in, err = a.ResolveCodingBackup(ctx, in)
+		if err != nil {
+			return Session{}, err
+		}
+	}
 	if in.AgentLaunch != nil {
+		launch := *in.AgentLaunch
+		launch.BusinessAccountID = strings.TrimSpace(in.BusinessAccountID)
+		in.AgentLaunch = &launch
 		if a.ComposeAgentLaunch == nil {
 			return Session{}, fmt.Errorf("%w: agent launch settings are unavailable", ErrFailedPrecondition)
 		}
@@ -355,26 +365,30 @@ func (a *Adapter) Create(ctx context.Context, in CreateInput) (Session, error) {
 	var paidBindingSessionID string
 	paidBindingCommitted := false
 	if in.BusinessAccountID != "" {
-		if intsessions.NormalizeAgentType(in.AgentType) != sessionstore.AgentOpenCode || !in.ExecuteLaunchCommand || in.TargetID != "" && in.TargetID != "local" || in.RequestedSessionID != "" || in.LaunchMode != "" {
-			return Session{}, fmt.Errorf("%w: account-bound paid inference requires a local OpenCode launcher session", ErrFailedPrecondition)
+		if in.AgentLaunch == nil || in.AgentLaunch.Provider != "vrooli-credits" || !in.ExecuteLaunchCommand || in.TargetID != "" && in.TargetID != "local" || in.RequestedSessionID != "" || in.LaunchMode != "" {
+			return Session{}, fmt.Errorf("%w: paid inference requires an explicit local credits selection", ErrFailedPrecondition)
 		}
-		if a.PaidCodingCredential == nil || a.RegisterPaidCodingSession == nil || a.RemovePaidCodingSession == nil {
+		if a.PreparePaidCodingSession == nil || a.RemovePaidCodingSession == nil {
 			return Session{}, fmt.Errorf("%w: account-bound paid inference is unavailable", ErrFailedPrecondition)
 		}
-		token, err := a.PaidCodingCredential()
+		register, revoke, err := a.PreparePaidCodingSession(ctx, in.BusinessAccountID, in.AgentLaunch.AgentID, in.AgentLaunch.Model, in.AgentLaunch.MaxCredits)
 		if err != nil {
-			return Session{}, fmt.Errorf("prepare account-bound OpenCode session: %v: %w", err, ErrInternal)
+			return Session{}, fmt.Errorf("prepare paid coding session: %v: %w", err, ErrFailedPrecondition)
 		}
 		ctx = session.ChainPreSpawnHook(ctx, func(sessionID string) {
 			if sessionID == "" {
 				return
 			}
-			a.RegisterPaidCodingSession(sessionID, in.BusinessAccountID, token)
+			register(sessionID)
 			paidBindingSessionID = sessionID
 		})
 		defer func() {
-			if !paidBindingCommitted && paidBindingSessionID != "" {
-				a.RemovePaidCodingSession(paidBindingSessionID)
+			if !paidBindingCommitted {
+				if paidBindingSessionID != "" {
+					a.RemovePaidCodingSession(paidBindingSessionID)
+				} else {
+					revoke()
+				}
 			}
 		}()
 	}
@@ -1116,7 +1130,11 @@ func (a *Adapter) Get(ctx context.Context, id string) (Session, error) {
 		s.Activity = activityToProto(s.ID, activity)
 	}
 	if a.Store != nil {
-		if m, err := a.Store.Get(ctx, id); err == nil {
+		m, err := a.Store.Get(ctx, id)
+		if err != nil && !errors.Is(err, sql.ErrNoRows) {
+			return Session{}, fmt.Errorf("session metadata unavailable: %w", errors.Join(ErrUnavailable, err))
+		}
+		if err == nil {
 			if m.CreateFingerprint != "" && (m.Status != sessionstore.StatusLive || !m.ArchivedAt.IsZero()) {
 				return Session{}, fmt.Errorf("session %q: %w", sanitizeID(id), ErrNotFound)
 			}

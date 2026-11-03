@@ -1,3 +1,4 @@
+import { CodingBackup } from "./CodingBackup";
 import { memo, Profiler, useCallback, useEffect, useRef, type CSSProperties, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
 import { useConversationStore, getSessionUnreadCount } from "../stores/useConversationStore";
 import { useMessagesViewStore, type PaneViewMode } from "../stores/useMessagesViewStore";
@@ -16,6 +17,7 @@ import type { PreviewSourceContext } from "../api/filePreview";
 import type { SummarizationLevel } from "./tts/PlaybackModeControl";
 
 interface WorkspacePaneShellProps {
+  onRestarted?: (sessionId: string) => void;
   paneMeta: PaneMetadata;
   layoutMode: "grid" | "tabs";
   gridColumn?: string;
@@ -69,6 +71,7 @@ interface WorkspacePaneShellProps {
 }
 
 function WorkspacePaneShell({
+  onRestarted,
   paneMeta,
   layoutMode,
   gridColumn,
@@ -192,8 +195,10 @@ function WorkspacePaneShell({
       style={wrapperStyle}
       onClick={layoutMode === "grid" ? () => { onActivate(sessionId); } : undefined}
     >
+      {layoutMode !== "grid" && isActive && <CodingBackup sessionId={sessionId} onRestarted={onRestarted} />}
       {layoutMode === "grid" && (
         <TerminalHeader
+          onRestarted={onRestarted}
           sessionId={sessionId}
           name={name}
           headerColor={headerColor}
@@ -288,4 +293,5 @@ export default memo(WorkspacePaneShell, (prev, next) => (
   // the newly-created trailing action, otherwise the toolbar intermittently
   // retains the prior undefined prop.
   && prev.messagesToolbarTrailingAction === next.messagesToolbarTrailingAction
+  && prev.onRestarted === next.onRestarted
 ));

@@ -2,6 +2,8 @@ package capabilities
 
 import (
 	"context"
+	"os"
+	"path/filepath"
 	"testing"
 	"time"
 )
@@ -213,5 +215,36 @@ func TestRegistry_IsAvailable(t *testing.T) {
 				t.Errorf("IsAvailable(%q) = %v, want %v", tt.id, got, tt.want)
 			}
 		})
+	}
+}
+
+func TestDesktopCatalogueUsesPackagedManifestAndNoHostLifecycleActions(t *testing.T) {
+	root := t.TempDir()
+	path := filepath.Join(root, "catalog", "scenarios", "web-console", ".vrooli", "service.json")
+	if err := os.MkdirAll(filepath.Dir(path), 0700); err != nil {
+		t.Fatal(err)
+	}
+	manifest, err := os.ReadFile("../../../.vrooli/service.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, manifest, 0600); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("BUNDLE_ROOT", root)
+	t.Setenv("VROOLI_DESKTOP_MODE", "true")
+	t.Setenv("WEB_CONSOLE_SERVICE_MANIFEST", "")
+	defs := KnownForPlatform("linux")
+	foundAudio := false
+	for _, def := range defs {
+		if def.ID == "audio-tools" {
+			foundAudio = true
+		}
+		if def.ActionKind != ActionKindNone && def.ActionKind != "" || def.OperatorCommand != "" {
+			t.Errorf("desktop offers host command: %+v", def)
+		}
+	}
+	if !foundAudio {
+		t.Fatal("packaged Audio Tools declaration was lost")
 	}
 }

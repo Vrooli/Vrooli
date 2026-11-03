@@ -112,3 +112,30 @@ func TestBusinessAccountProxyRejectsCrossOriginRequest(t *testing.T) {
 		t.Fatalf("cross-origin account request status = %d, want 403", response.Code)
 	}
 }
+
+func TestBusinessAccountProxyPreservesAuthenticationFailures(t *testing.T) {
+	for _, upstreamStatus := range []int{http.StatusUnauthorized, http.StatusForbidden} {
+		t.Run(http.StatusText(upstreamStatus), func(t *testing.T) {
+			upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if r.URL.Path == "/api/v1/auth/refresh" {
+					_, _ = w.Write([]byte(`{"access_token":"access-fixture","refresh_token":"refresh-rotated","expires_at":"2030-01-01T00:00:00Z"}`))
+					return
+				}
+				w.WriteHeader(upstreamStatus)
+			}))
+			defer upstream.Close()
+			resolver := &credentialclient.ConsumerSessionResolver{
+				Credentials: &businessAccountCredentialFixture{}, LPBSBaseURL: upstream.URL, HTTPClient: upstream.Client(),
+				Now: func() time.Time { return time.Date(2029, 1, 1, 0, 0, 0, 0, time.UTC) },
+			}
+			svc := &Server{subscriptionResolver: resolver}
+			request := httptest.NewRequest(http.MethodGet, "/api/v1/business-accounts", nil)
+			request.RemoteAddr = "127.0.0.1:1234"
+			response := httptest.NewRecorder()
+			svc.businessAccountsHandler(response, request)
+			if response.Code != upstreamStatus {
+				t.Fatalf("proxy status = %d, want %d; body=%q", response.Code, upstreamStatus, response.Body.String())
+			}
+		})
+	}
+}

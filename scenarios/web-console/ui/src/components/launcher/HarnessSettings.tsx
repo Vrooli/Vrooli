@@ -4,6 +4,7 @@
  * unknown window is stated, a limit that cannot reach the command says so, and a
  * usage mode's lowering shows in the model row.
  */
+import { BackupApproval } from "../CodingBackup";
 import type { ReactNode } from "react";
 import { Card } from "@vrooli/react-component-library/Card";
 import { Progress } from "@vrooli/react-component-library/Progress/1";
@@ -47,12 +48,11 @@ const Value = ({ children, testId }: { children: ReactNode; testId?: string }) =
   <span data-testid={testId} className="block min-h-11 truncate text-end text-[13px] leading-[44px] text-wc-text-muted">{children}</span>
 );
 
-function ModelRows({ card, model, canChoose, canChooseProvider, saveAgent, fullPower, onFullPower, onOpenDetail, refresh }: {
+function ModelRows({ card, model, canChoose, saveAgent, fullPower, onFullPower, onOpenDetail, refresh }: {
   refresh: CatalogRefresh;
   card: AgentCard;
   model: ModelPolicyController;
   canChoose: boolean;
-  canChooseProvider: boolean;
   saveAgent?: UsageModeAgent;
   fullPower: boolean;
   onFullPower: (on: boolean) => void;
@@ -61,7 +61,7 @@ function ModelRows({ card, model, canChoose, canChooseProvider, saveAgent, fullP
   const { t, i18n } = useTranslation();
   const { policy, choices, sources, sourceChoices, explicitChoice, defaultChoice, stale } = model;
   const selectable = model.selectable && canChoose && !model.literal;
-  const lowered = saveAgent?.model && !explicitChoice && !fullPower ? saveAgent.model : null;
+  const lowered = !model.literal && saveAgent?.model && !explicitChoice && !fullPower ? saveAgent.model : null;
   const usualName = modelLabel(model, saveAgent?.usualModel);
   const loweredName = modelLabel(model, lowered ?? undefined);
   const defaultName = loweredName ?? (fullPower ? usualName : undefined) ?? defaultChoice?.displayName;
@@ -96,6 +96,8 @@ function ModelRows({ card, model, canChoose, canChooseProvider, saveAgent, fullP
     else if (policy.policyStatus === "unsupported" || choices.length === 0) hint = policy.detail || undefined;
   }
 
+  if (!hint && !model.loading && policy?.detail && !stale) hint = policy.detail;
+
   const age = policy?.observedAt ? Date.now() - Date.parse(policy.observedAt) : NaN;
   const hasMetered = choices.some((choice) => choice.metered);
   const offerFullPower = !explicitChoice && !model.literal && saveAgent?.model && saveAgent.fullPowerArgs;
@@ -118,7 +120,7 @@ function ModelRows({ card, model, canChoose, canChooseProvider, saveAgent, fullP
         </div>
       )}
       {refreshRun?.phase === "failed" && <p role="alert" data-testid="launcher-catalog-refresh-error" className="break-words border-b border-wc-default px-3 py-2 text-xs leading-[18px] text-wc-error-text">{refreshRun.message || t(strings.launcher.actionFailed)}</p>}
-      {selectable && canChooseProvider && !fullPower && sources.length > 1 && (
+      {selectable && !fullPower && sources.length > 1 && (
         <Row>
           <Field label={t(strings.terminalLauncher.modelSource)}>
             <Select className={SELECT_TEXT} aria-label={t(strings.terminalLauncher.modelSource)} data-testid="launcher-model-source" value={providerSource}
@@ -239,7 +241,7 @@ function SaveUsageRow({ card, agent, model, mode, canControl, busy, error, onSta
   );
 }
 
-function BillingRow({ billing }: { billing: BillingAccountController }) {
+function BillingRow({ billing, harness, model, onBackup }: { billing: BillingAccountController; harness: string; model: string; onBackup: () => void }) {
   const { t, i18n } = useTranslation();
   const label = t(strings.terminalLauncher.billingAccount);
   const credits = (value: number | undefined) => {
@@ -257,6 +259,12 @@ function BillingRow({ billing }: { billing: BillingAccountController }) {
               options={billing.accounts.map((account) => ({ value: account.id, label: account.display_name }))} onValueChange={billing.setAccountId} />
           ) : null}
       </Field>
+      <Field label="Session spending cap">
+        <Select className={SELECT_TEXT} aria-label="Session spending cap" value={String(billing.maxCredits)}
+          options={[1000, 5000, 10000].map((value) => ({ value: String(value), label: `${credits(value)} credits` }))}
+          onValueChange={(value) => { billing.setMaxCredits(Number(value)); }} />
+      </Field>
+      {!billing.blocked && <BackupApproval harness={harness} account={billing.accountId} model={model} cap={billing.maxCredits} onApproved={onBackup} />}
       {billing.accountsFailed && <span role="alert" data-testid="launcher-business-account-error" className="text-xs text-wc-error-text">{t(strings.terminalLauncher.billingUnavailable)}</span>}
       {!billing.accountsLoading && !billing.accountsFailed && billing.accounts.length === 0 && <span role="status" data-testid="launcher-business-account-empty" className={HINT}>{t(strings.terminalLauncher.billingEmpty)}</span>}
       {usable && (billing.usageLoading
@@ -306,9 +314,9 @@ export function HarnessSettings({ card, harness, harnessKnown, model, effectiveC
   const showSave = Boolean(saveAgent) && (!harnessKnown || Boolean(harness?.supportsUsageMode));
   return (
     <Card aria-label={card.label} role="group" data-testid="launcher-settings" className="overflow-hidden">
-      <ModelRows card={card} model={model} canChoose={!harnessKnown || Boolean(harness?.supportsModelSelection)} canChooseProvider={!harnessKnown || Boolean(harness?.supportsProviderSelection)} saveAgent={saveAgent} fullPower={fullPower} onFullPower={onFullPower} onOpenDetail={onOpenDetail} refresh={refresh} />
-      {model.usesVrooliCredits && <BillingRow billing={billing} />}
-      {showLimit && <CompactRow card={card} choice={effectiveChoice} modelName={effectiveModelName} limit={limit} onLimit={onLimit} saveAgent={saveAgent} />}
+      <ModelRows card={card} model={model} canChoose={!harnessKnown || Boolean(harness?.supportsModelSelection)} saveAgent={saveAgent} fullPower={fullPower} onFullPower={onFullPower} onOpenDetail={onOpenDetail} refresh={refresh} />
+      {model.usesVrooliCredits && <BillingRow billing={billing} harness={card.agentID} model={effectiveChoice?.model ?? ""} onBackup={() => model.choose(null)} />}
+      {showLimit && <CompactRow card={card} choice={effectiveChoice} modelName={effectiveModelName} limit={limit} onLimit={onLimit} saveAgent={fullPower || model.explicitChoice ? undefined : saveAgent} />}
       {showSave && saveAgent && <SaveUsageRow card={card} agent={saveAgent} model={model} mode={saveMode} canControl={canControlUsage} busy={usageBusy} error={usageError} onStart={onStartSave} onEnd={onEndSave} />}
     </Card>
   );

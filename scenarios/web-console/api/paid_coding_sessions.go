@@ -1,160 +1,122 @@
+// Responsibility: scoped coding credentials for native terminal lifetimes.
 package main
 
 import (
-	"crypto/rand"
-	"crypto/sha256"
-	"encoding/base64"
-	"encoding/hex"
-	"encoding/json"
-	"errors"
-	"fmt"
-	"net"
-	"os"
-	"strconv"
-	"strings"
+	"context"
 	"sync"
+	"time"
+
+	"github.com/vrooli/cli-core/cliutil"
 )
 
-var errPaidCodingSessionUnavailable = errors.New("paid coding session is unavailable")
-
 type paidCodingBinding struct {
-	SessionID         string
-	BusinessAccountID string
+	authority   codingAuthority
+	device      codingKey
+	key         codingKey
+	environment map[string]string
+	sessionOnly bool
 }
 
-// paidCodingSessionRegistry keeps the OpenCode-to-Web-Console bearer mapping
-// in memory. The bearer is generated before PTY environment creation, is only
-// exposed to that PTY through OPENCODE_CONFIG_CONTENT, and is never persisted
-// or returned to the browser.
+// Only LPBS-issued, expiring session credentials reach the child. Device
+// credentials stay in Web Console and are revoked together with the session.
 type paidCodingSessionRegistry struct {
-	mu             sync.RWMutex
-	byTokenHash    map[string]paidCodingBinding
-	bySession      map[string]string
-	tokenBySession map[string]string
+	mu       sync.Mutex
+	sessions map[string]paidCodingBinding
 }
 
 func newPaidCodingSessionRegistry() *paidCodingSessionRegistry {
-	return &paidCodingSessionRegistry{byTokenHash: map[string]paidCodingBinding{}, bySession: map[string]string{}, tokenBySession: map[string]string{}}
+	return &paidCodingSessionRegistry{sessions: make(map[string]paidCodingBinding)}
 }
 
-func (r *paidCodingSessionRegistry) Bind(sessionID, accountID string) (string, error) {
-	token, err := newPaidCodingToken()
-	if err != nil {
-		return "", err
-	}
-	r.Register(sessionID, accountID, token)
-	return token, nil
-}
+var activePaidCodingSessions = newPaidCodingSessionRegistry()
 
-func newPaidCodingToken() (string, error) {
-	var raw [32]byte
-	if _, err := rand.Read(raw[:]); err != nil {
-		return "", fmt.Errorf("create paid coding session credential: %w", err)
-	}
-	return base64.RawURLEncoding.EncodeToString(raw[:]), nil
-}
-
-func (r *paidCodingSessionRegistry) Register(sessionID, accountID, token string) {
-	sessionID = strings.TrimSpace(sessionID)
-	accountID = strings.TrimSpace(accountID)
-	token = strings.TrimSpace(token)
-	if sessionID == "" || accountID == "" || token == "" {
-		return
-	}
-	hash := paidCodingTokenHash(token)
+func (r *paidCodingSessionRegistry) Register(id string, binding paidCodingBinding) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	if previous := r.bySession[sessionID]; previous != "" {
-		delete(r.byTokenHash, previous)
-	}
-	r.byTokenHash[hash] = paidCodingBinding{SessionID: sessionID, BusinessAccountID: accountID}
-	r.bySession[sessionID] = hash
-	r.tokenBySession[sessionID] = token
+	r.sessions[id] = binding
 }
 
-func (r *paidCodingSessionRegistry) Lookup(token string) (paidCodingBinding, bool) {
-	if strings.TrimSpace(token) == "" {
-		return paidCodingBinding{}, false
-	}
-	r.mu.RLock()
-	binding, ok := r.byTokenHash[paidCodingTokenHash(token)]
-	r.mu.RUnlock()
-	return binding, ok
-}
-
-func (r *paidCodingSessionRegistry) RemoveSession(sessionID string) {
+func (r *paidCodingSessionRegistry) Environment(id string) map[string]string {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	if hash := r.bySession[sessionID]; hash != "" {
-		delete(r.byTokenHash, hash)
-		delete(r.bySession, sessionID)
-		delete(r.tokenBySession, sessionID)
+	binding, ok := r.sessions[id]
+	if !ok || binding.key.ExpiresAt <= time.Now().Unix() {
+		return nil
+	}
+	result := make(map[string]string, len(binding.environment))
+	for key, value := range binding.environment {
+		result[key] = value
+	}
+	return result
+}
+
+func (r *paidCodingSessionRegistry) RemoveSession(id string) {
+	r.mu.Lock()
+	binding, ok := r.sessions[id]
+	delete(r.sessions, id)
+	r.mu.Unlock()
+	if ok {
+		binding.revoke()
 	}
 }
 
 func (r *paidCodingSessionRegistry) Clear() {
 	r.mu.Lock()
-	defer r.mu.Unlock()
-	r.byTokenHash = map[string]paidCodingBinding{}
-	r.bySession = map[string]string{}
-	r.tokenBySession = map[string]string{}
-}
-
-func paidCodingTokenHash(token string) string {
-	digest := sha256.Sum256([]byte(token))
-	return hex.EncodeToString(digest[:])
-}
-
-func (r *paidCodingSessionRegistry) OpenCodeEnvironment(sessionID string) (map[string]string, error) {
-	r.mu.RLock()
-	hash := r.bySession[sessionID]
-	binding := r.byTokenHash[hash]
-	token := r.tokenBySession[sessionID]
-	r.mu.RUnlock()
-	if hash == "" || binding.SessionID == "" || token == "" {
-		return nil, nil
+	bindings := r.sessions
+	r.sessions = make(map[string]paidCodingBinding)
+	r.mu.Unlock()
+	for _, binding := range bindings {
+		binding.revoke()
 	}
-	baseURL, err := paidCodingBaseURL(os.Getenv("API_PORT"))
+}
+
+func (b paidCodingBinding) revoke() {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	// Revoking the parent also kills every issued child at authentication.
+	id := b.device.ID
+	if b.sessionOnly {
+		id = b.key.ID
+	}
+	_ = b.authority.revoke(ctx, b.device.Key, id)
+}
+
+func (s *Server) preparePaidCodingSession(ctx context.Context, account, harness, model string, cap int64) (func(string), func(), error) {
+	var authority codingAuthority
+	var device codingKey
+	var err error
+	var expires time.Time
+	sessionOnly := false
+	if launch, ok := ctx.Value(codingBackupContextKey{}).(codingBackupLaunch); ok && launch.Grant != nil {
+		// Resolve and issue against the current consent while revocation and
+		// replacement are excluded; the launch context can hold an older grant.
+		s.codingBackupOperations.Lock()
+		defer s.codingBackupOperations.Unlock()
+		grant := s.backupGrant(ctx, harness)
+		if grant == nil || grant.Device.ID != launch.Grant.Device.ID || !grant.Consent.Valid(time.Now()) || grant.Consent.Harness != harness || grant.Consent.Account != account || grant.Consent.Model != model || grant.Consent.MaxCredits != cap {
+			return nil, nil, errBackupExpired
+		}
+		authority, device, expires = grant.Authority, grant.Device, grant.Consent.ExpiresAt
+		sessionOnly = true
+	} else {
+		authority, device, err = s.codingAuthorityDevice(ctx, account, cap)
+		if err != nil {
+			return nil, nil, err
+		}
+	}
+	binding := paidCodingBinding{authority: authority, device: device, sessionOnly: sessionOnly}
+	record := cliutil.CodingBackupRecord{Consent: cliutil.CodingBackupConsent{Harness: harness, Account: account, Model: model, MaxCredits: cap, ExpiresAt: expires}, Owner: "explicit-session", BaseURL: authority.BaseURL, ParentID: device.ID, ParentKey: device.Key}
+	if expires.IsZero() {
+		record.Consent.ExpiresAt = time.Now().Add(time.Hour)
+	}
+	child, err := cliutil.IssueCodingBackupSession(ctx, record, record.Owner, authority.Client)
 	if err != nil {
-		return nil, err
+		if !sessionOnly {
+			binding.revoke()
+		}
+		return nil, nil, err
 	}
-	config, err := openCodeConfig(baseURL, token)
-	if err != nil {
-		return nil, err
-	}
-	return map[string]string{"OPENCODE_CONFIG_CONTENT": config}, nil
-}
-
-var activePaidCodingSessions = newPaidCodingSessionRegistry()
-
-// paidCodingBaseURL uses a numeric loopback port so no untrusted host can be
-// injected into the provider configuration passed to a PTY.
-func paidCodingBaseURL(port string) (string, error) {
-	value, err := strconv.Atoi(strings.TrimSpace(port))
-	if err != nil || value < 1 || value > 65535 {
-		return "", errors.New("Web Console API port is unavailable")
-	}
-	return fmt.Sprintf("http://%s/api/v1/paid-coding/v1", net.JoinHostPort("127.0.0.1", strconv.Itoa(value))), nil
-}
-
-func openCodeConfig(baseURL, token string) (string, error) {
-	if strings.TrimSpace(baseURL) == "" || strings.TrimSpace(token) == "" {
-		return "", errPaidCodingSessionUnavailable
-	}
-	config := map[string]any{
-		"model": "vrooli/coding",
-		"provider": map[string]any{
-			"vrooli": map[string]any{
-				"npm":     "@ai-sdk/openai-compatible",
-				"name":    "Vrooli Coding",
-				"options": map[string]any{"baseURL": baseURL, "apiKey": token},
-				"models": map[string]any{"coding": map[string]any{
-					"name":  "Vrooli Coding",
-					"limit": map[string]int{"context": 128000, "output": 16384},
-				}},
-			},
-		},
-	}
-	encoded, err := json.Marshal(config)
-	return string(encoded), err
+	binding.key = codingKey{ID: child.ID, Key: child.Environment[child.Source.SecretEnv], ExpiresAt: child.ExpiresAt}
+	binding.environment = child.Environment
+	return func(id string) { activePaidCodingSessions.Register(id, binding) }, binding.revoke, nil
 }

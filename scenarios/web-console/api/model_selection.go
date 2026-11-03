@@ -14,6 +14,7 @@ import (
 
 	"github.com/vrooli/cli-core/agentcatalog"
 	"github.com/vrooli/cli-core/agentcatalog/harness"
+	"github.com/vrooli/cli-core/cliutil"
 	"web-console/handlers/modelselection"
 )
 
@@ -58,6 +59,7 @@ func (s *Server) GetRoleModelChoices(_ context.Context, agentID, targetID, launc
 		return result
 	}
 	result.Runner = catalog.Runner
+	result.SourceConfigurationSupported = cliutil.SupportsModelSource(catalog.Runner)
 	result.ModelFlag = ""
 	result.Provenance = catalog.Provenance.Source
 	result.ObservedAt = catalog.Provenance.ObservedAt
@@ -102,15 +104,6 @@ func (s *Server) GetRoleModelChoices(_ context.Context, agentID, targetID, launc
 		result.PolicyStatus = "unsupported"
 		result.Detail = "the resource declares no choices with a verified interactive launch mapping"
 		return result
-	}
-	// Vrooli-funded coding is an application-owned route. Keep it out of the
-	// resource policy and advertise it only after the paid execution bridge has
-	// been explicitly qualified by the server owner.
-	if catalog.Runner == "opencode" && targetID == "local" && s.paidCodingProtocolQualified {
-		result.Choices = append(result.Choices, modelselection.Choice{
-			Model: "coding", DisplayName: "Vrooli coding", Source: "vrooli-credits", Provider: "vrooli",
-			LaunchModel: "vrooli/coding", SourceLabel: "Vrooli credits", Metered: true,
-		})
 	}
 	result.PolicyStatus = "ready"
 	result.ModelFlag = selection.Flag

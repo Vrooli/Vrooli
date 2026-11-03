@@ -57,12 +57,18 @@ func (s *Server) composeAgentLaunch(ctx context.Context, intent sessionsH.AgentL
 		return "", fmt.Errorf("%w: unknown agent %q", sessionsH.ErrInvalidArgument, intent.AgentID)
 	}
 	if intent.Model == "" && intent.Provider == "" && intent.ContextLimitTokens == 0 {
+		if launch, ok := ctx.Value(codingBackupContextKey{}).(codingBackupLaunch); ok && launch.Summary != "" {
+			return appendBackupSummary(command, intent.AgentID, launch.Summary), nil
+		}
 		return command, nil
 	}
 	if !composableLaunchCommand(descriptor, command) {
 		return "", fmt.Errorf("%w: this shortcut runs its own command, so launch settings cannot apply", sessionsH.ErrInvalidArgument)
 	}
 	policy := s.GetRoleModelChoices(ctx, descriptor.ID, targetID, command)
+	if intent.Provider == "vrooli-credits" {
+		policy = s.GetAccountRoleModelChoices(ctx, descriptor.ID, targetID, command, intent.BusinessAccountID)
+	}
 	composed := strings.TrimSpace(command)
 	var chosen *modelselection.Choice
 	if intent.Model != "" {
@@ -70,19 +76,29 @@ func (s *Server) composeAgentLaunch(ctx context.Context, intent sessionsH.AgentL
 		if chosen == nil {
 			return "", fmt.Errorf("%w: model %q is not offered for %s", sessionsH.ErrInvalidArgument, intent.Model, descriptor.DisplayName)
 		}
-		if chosen.Metered && policy.CatalogStale {
+		if chosen.Metered && chosen.Source != "vrooli-credits" && policy.CatalogStale {
 			return "", fmt.Errorf("%w: %s bills per use and this model list is out of date; refresh it first", sessionsH.ErrFailedPrecondition, chosen.DisplayName)
 		}
 		if policy.ModelFlag == "" {
 			return "", fmt.Errorf("%w: %s has no verified model argument", sessionsH.ErrFailedPrecondition, descriptor.DisplayName)
 		}
-		composed = appendLaunchArgs(composed, policy.ModelFlag, chosen.LaunchModel)
+		if chosen.Source != "vrooli-credits" {
+			composed = appendLaunchArgs(composed, policy.ModelFlag, chosen.LaunchModel)
+		} else if !launcherFormCommand.MatchString(composed) {
+			// A paid selection must pass through the source resolver even on a
+			// clean desktop whose native binaries predate Vrooli's PATH shims.
+			_, arguments, _ := strings.Cut(composed, " ")
+			composed = strings.TrimSpace("vrooli-agent-launcher --agent " + descriptor.Resource + " -- " + arguments)
+		}
 	}
 	if intent.ContextLimitTokens != 0 {
 		if err := checkContextLimit(descriptor, policy, chosen, intent.ContextLimitTokens); err != nil {
 			return "", err
 		}
 		composed = applyContextLimit(descriptor, composed, intent.ContextLimitTokens)
+	}
+	if launch, ok := ctx.Value(codingBackupContextKey{}).(codingBackupLaunch); ok && launch.Summary != "" {
+		composed = appendBackupSummary(composed, intent.AgentID, launch.Summary)
 	}
 	return composed, nil
 }
@@ -148,4 +164,14 @@ func applyContextLimit(descriptor harness.Descriptor, command string, tokens int
 	}
 	binary, rest, _ := strings.Cut(command, " ")
 	return strings.TrimSpace(strings.Join([]string{binary, "-c", limit.Key + "=" + value, rest}, " "))
+}
+
+// shellLiteral uses POSIX single quoting so transcript text cannot execute shell substitutions.
+func shellLiteral(s string) string { return "'" + strings.ReplaceAll(s, "'", "'\"'\"'") + "'" }
+
+func appendBackupSummary(command, harness, summary string) string {
+	if harness == "opencode" {
+		command += " --prompt"
+	}
+	return command + " " + shellLiteral(summary)
 }

@@ -6,6 +6,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
+	"os"
 	"os/exec"
 	"path/filepath"
 	"runtime"
@@ -18,6 +20,7 @@ import (
 	"github.com/vrooli/cli-core/cliutil"
 	"github.com/vrooli/cli-core/upstreamcheck"
 	"github.com/vrooli/vrooli/packages/capabilityprobe"
+	harnesslifecycle "github.com/vrooli/vrooli/packages/harness-lifecycle"
 	relayv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/relay"
 	relayconnect "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/relay/relayv1connect"
 	capsH "web-console/handlers/capabilities"
@@ -29,15 +32,18 @@ const (
 	agentObservationMaxAge = 2 * time.Minute
 	// A check runs the agent's --version, reads the release source and asks the
 	// Dependency Analyzer about one exact version.
-	agentUpdateTimeout = 30 * time.Second
+	agentUpdateTimeout    = 30 * time.Second
+	grokAuthStatusTimeout = 3 * time.Second
 
-	agentUpdateMaxOutput = 512 * 1024
+	agentUpdateMaxOutput    = 512 * 1024
+	grokAuthStatusMaxOutput = 4 * 1024
 )
 
 // Update states. `vrooli resource update` owns their meaning; these are the
 // values capabilities.proto promises the browser.
 const (
 	agentStateMissing         = "missing"
+	agentStateFound           = "found"
 	agentStateShadowed        = "shadowed"
 	agentStateUnlinked        = "unlinked"
 	agentStateNeedsSetup      = "needs_setup"
@@ -69,6 +75,9 @@ type agentUpdate struct {
 	Reason            string               `json:"reason,omitempty"`
 	Checks            []harnessUpdateCheck `json:"checks,omitempty"`
 	InstallKind       string               `json:"install_kind,omitempty"`
+	InstallState      string               `json:"install_state,omitempty"`
+	SignInState       string               `json:"sign_in_state,omitempty"`
+	UpdateState       string               `json:"update_state,omitempty"`
 	RollbackVersion   string               `json:"rollback_version,omitempty"`
 	NewerThanReviewed bool                 `json:"newer_than_reviewed"`
 }
@@ -88,6 +97,9 @@ type harnessUpdateReport struct {
 	OperatorCommand   string               `json:"operator_command"`
 	Reason            string               `json:"reason"`
 	InstallKind       string               `json:"install_kind"`
+	InstallState      string               `json:"install_state"`
+	SignInState       string               `json:"sign_in_state"`
+	UpdateState       string               `json:"update_state"`
 	Installed         string               `json:"installed"`
 	ManagedVersion    string               `json:"managed_version"`
 	ManagedPath       string               `json:"managed_path"`
@@ -109,11 +121,12 @@ type harnessUpdateReport struct {
 type harnessUpdateEnvelope struct {
 	Success bool `json:"success"`
 	Update  struct {
-		Action        string              `json:"action"`
-		Success       bool                `json:"success"`
-		Message       string              `json:"message"`
-		PreservedPath string              `json:"preserved_path"`
-		Report        harnessUpdateReport `json:"report"`
+		CleanupPlan   *harnesslifecycle.CleanupPlan `json:"cleanup_plan"`
+		Action        string                        `json:"action"`
+		Success       bool                          `json:"success"`
+		Message       string                        `json:"message"`
+		PreservedPath string                        `json:"preserved_path"`
+		Report        harnessUpdateReport           `json:"report"`
 	} `json:"harness_update"`
 }
 
@@ -279,7 +292,7 @@ func (s *Server) getAgentUpdate(ctx context.Context, targetID, agentID string) (
 		var data []byte
 		var err error
 		if targetID == "local" {
-			data, err = localAgentUpdate(ctx, resource)
+			data, err = s.localAgentUpdate(ctx, resource)
 		} else {
 			data, err = s.remoteAgentUpdate(ctx, target, resource)
 		}
@@ -301,7 +314,75 @@ func (s *Server) getAgentUpdate(ctx context.Context, targetID, agentID string) (
 		reason := "The update observation is out of date"
 		result.Status, result.ProbeVerified, result.State, result.PrimaryAction, result.Reason, result.Note = upstreamcheck.StatusUnknown, false, agentStateCheckFailed, agentActionRetry, reason, reason
 	}
+	if agentID == "grok" {
+		if targetID == "local" {
+			result.SignInState = localGrokSignInState(ctx)
+		} else {
+			result.SignInState = remoteGrokSignInState(result.SignInState)
+		}
+	}
 	return result, err
+}
+
+// The current remote `resource update-check` owner reports sign-in as unknown
+// and has no auth verifier. Do not promote a field in its general update report
+// to an auth claim until the remote target has an owner-side probe.
+func remoteGrokSignInState(_ string) string { return "unknown" }
+
+type grokAuthStatusResponse struct {
+	Success     bool   `json:"success"`
+	SignInState string `json:"sign_in_state"`
+	Reason      string `json:"reason,omitempty"`
+}
+
+func normalizedSignInState(state string) string {
+	switch strings.TrimSpace(state) {
+	case "signed_in", "signed_out":
+		return strings.TrimSpace(state)
+	default:
+		return "unknown"
+	}
+}
+
+func decodeGrokSignInState(data []byte) string {
+	if len(data) == 0 || len(data) > grokAuthStatusMaxOutput {
+		return "unknown"
+	}
+	decoder := json.NewDecoder(bytes.NewReader(data))
+	decoder.DisallowUnknownFields()
+	var response grokAuthStatusResponse
+	if err := decoder.Decode(&response); err != nil || !response.Success {
+		return "unknown"
+	}
+	var trailing any
+	if err := decoder.Decode(&trailing); !errors.Is(err, io.EOF) {
+		return "unknown"
+	}
+	return normalizedSignInState(response.SignInState)
+}
+
+func localGrokSignInState(ctx context.Context) string {
+	return readGrokSignInState(ctx, runLocalGrokAuthStatus)
+}
+
+func readGrokSignInState(ctx context.Context, run func(context.Context) ([]byte, error)) string {
+	ctx, cancel := context.WithTimeout(ctx, grokAuthStatusTimeout)
+	defer cancel()
+	data, err := run(ctx)
+	if err != nil {
+		return "unknown"
+	}
+	return decodeGrokSignInState(data)
+}
+
+func runLocalGrokAuthStatus(ctx context.Context) ([]byte, error) {
+	var output boundedOutput
+	cmd := exec.CommandContext(ctx, "resource-grok", "auth", "status", "--json")
+	cmd.Stdout = &output
+	if err := cmd.Run(); err != nil {
+		return nil, err
+	}
+	return output.Bytes(), nil
 }
 
 type boundedOutput struct{ bytes.Buffer }
@@ -313,14 +394,34 @@ func (b *boundedOutput) Write(p []byte) (int, error) {
 	return b.Buffer.Write(p)
 }
 
-func localAgentUpdate(ctx context.Context, resource string) ([]byte, error) {
-	var out boundedOutput
-	cmd := exec.CommandContext(ctx, "vrooli", "resource", "update-check", resource, "--json")
-	cmd.Stdout = &out
-	if err := cmd.Run(); err != nil {
+type localHarnessLifecycle struct {
+	inspect func(context.Context, string, string) (harnesslifecycle.HarnessReport, error)
+	manage  func(context.Context, string, string, string, string, string) (harnesslifecycle.HarnessActionResult, error)
+}
+
+func (s *Server) localAgentUpdate(ctx context.Context, resource string) ([]byte, error) {
+	inspect := s.agentLifecycle.inspect
+	if inspect == nil && os.Getenv("VROOLI_DESKTOP_MODE") != "true" {
+		return runControlPlaneHarness(ctx, "resource update-check", []string{resource, "--json"})
+	}
+	if inspect == nil {
+		inspect = harnesslifecycle.InspectDesktopHarness
+	}
+	report, err := inspect(ctx, localHarnessRoot(), resource)
+	if err != nil {
 		return nil, err
 	}
-	return out.Bytes(), nil
+	return json.Marshal(struct {
+		Success bool                                 `json:"success"`
+		Update  harnesslifecycle.HarnessActionResult `json:"harness_update"`
+	}{Success: true, Update: harnesslifecycle.HarnessActionResult{Action: "check", Success: true, Report: report}})
+}
+
+func localHarnessRoot() string {
+	if os.Getenv("VROOLI_DESKTOP_MODE") == "true" {
+		return filepath.Join(os.Getenv("BUNDLE_ROOT"), "catalog")
+	}
+	return cliutil.ResolveRepoRoot()
 }
 
 func (s *Server) readAgentUpdate(ctx context.Context, targetID, agentID string) (capsH.AgentUpdateResult, error) {
@@ -352,7 +453,8 @@ func agentUpdateResult(update agentUpdate) capsH.AgentUpdateResult {
 		Installed: update.Installed, Pinned: update.Pinned, Latest: update.Latest, Status: string(update.Status),
 		CheckedAt: checked, SourceKind: update.SourceKind, SourceID: update.SourceID, ProbeVerified: update.ProbeVerified, Note: update.Note,
 		State: update.State, PrimaryAction: update.PrimaryAction, OperatorCommand: update.OperatorCommand, Reason: update.Reason, Checks: checks,
-		InstallKind: update.InstallKind, RollbackVersion: update.RollbackVersion, NewerThanReviewed: update.NewerThanReviewed,
+		InstallKind: update.InstallKind, InstallState: update.InstallState, SignInState: update.SignInState, UpdateState: update.UpdateState,
+		RollbackVersion: update.RollbackVersion, NewerThanReviewed: update.NewerThanReviewed,
 	}
 }
 
@@ -388,6 +490,7 @@ func projectAgentUpdate(out agentUpdate, rep harnessUpdateReport, observation ca
 	out.CheckedAt, out.SourceKind, out.SourceID = rep.CheckedAt, rep.Source.Kind, rep.Source.ID
 	out.State, out.PrimaryAction, out.OperatorCommand, out.Reason, out.Note = rep.State, rep.PrimaryAction, rep.OperatorCommand, rep.Reason, ""
 	out.Checks, out.InstallKind, out.RollbackVersion, out.NewerThanReviewed = rep.Checks, rep.InstallKind, rep.RollbackVersion, rep.NewerThanReviewed
+	out.InstallState, out.SignInState, out.UpdateState = rep.InstallState, rep.SignInState, rep.UpdateState
 	out.Status = upstreamcheck.Compare(rep.Installed, rep.Latest)
 	refuse := func(reason string) agentUpdate {
 		out.Status, out.ProbeVerified, out.State, out.PrimaryAction, out.OperatorCommand, out.Reason, out.Note = upstreamcheck.StatusUnknown, false, agentStateCheckFailed, agentActionRetry, "", reason, reason
@@ -399,7 +502,7 @@ func projectAgentUpdate(out agentUpdate, rep harnessUpdateReport, observation ca
 	}
 	out.ProbeVerified = probeConfirms(rep, observation, now)
 	switch rep.State {
-	case agentStateMissing, agentStateShadowed, agentStateUnlinked, agentStateNeedsSetup, agentStateCheckFailed:
+	case agentStateMissing, agentStateFound, agentStateShadowed, agentStateUnlinked, agentStateNeedsSetup, agentStateCheckFailed:
 		// These come from the file evidence on the target and offer a repair, not
 		// a version claim, so a lagging heartbeat probe cannot make them false.
 		return out

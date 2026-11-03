@@ -4,16 +4,17 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"log"
 	"net/http"
-	"os/exec"
+	"os"
 	"strings"
 	"sync"
 	"time"
 
 	"github.com/vrooli/api-core/authn"
+	"github.com/vrooli/repo-contract-go/cliinvoke"
+	harnesslifecycle "github.com/vrooli/vrooli/packages/harness-lifecycle"
 	relayv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/relay"
 	capsH "web-console/handlers/capabilities"
 )
@@ -38,8 +39,8 @@ const (
 // the request reaches argv except the catalogued resource name.
 func agentUpdateActionArgs(action, resource string) (command string, args []string, ok bool) {
 	switch action {
-	case "install":
-		return "resource install", []string{resource, "--json"}, true
+	case "install", "doctor", "preview_cleanup", "uninstall":
+		return "resource update", []string{resource, "--action", strings.ReplaceAll(action, "_", "-"), "--json"}, true
 	case "update":
 		return "resource update", []string{resource, "--json"}, true
 	case "use_managed_copy":
@@ -122,7 +123,7 @@ func guardAgentUpdateAction(w http.ResponseWriter, r *http.Request) bool {
 	return true
 }
 
-func (s *Server) runAgentUpdateAction(ctx context.Context, targetID, agentID, action string) (capsH.AgentUpdateActionResult, error) {
+func (s *Server) runAgentUpdateAction(ctx context.Context, targetID, agentID, action, cleanupPlanID string) (capsH.AgentUpdateActionResult, error) {
 	targetID, agentID, action = strings.TrimSpace(targetID), strings.TrimSpace(agentID), strings.TrimSpace(action)
 	principal, err := authn.RequireIndependentHuman(ctx)
 	if err != nil || !principal.IsHuman() {
@@ -141,6 +142,9 @@ func (s *Server) runAgentUpdateAction(ctx context.Context, targetID, agentID, ac
 		return capsH.AgentUpdateActionResult{Success: update.State != agentStateCheckFailed, Message: update.Reason, Update: agentUpdateResult(update)}, nil
 	}
 	command, args, ok := agentUpdateActionArgs(action, resource)
+	if action == "uninstall" {
+		args = append(args, "--cleanup-plan", cleanupPlanID)
+	}
 	if !ok {
 		return capsH.AgentUpdateActionResult{}, fmt.Errorf("unknown action %q", action)
 	}
@@ -158,10 +162,10 @@ func (s *Server) runAgentUpdateAction(ctx context.Context, targetID, agentID, ac
 	actor := principal.OwnerSubject()
 	// Detached: closing a tab or losing a tunnel must not kill an install midway.
 	detached := context.WithoutCancel(ctx)
-	flight, err := s.agentUpdateActions.join(agentUpdateActionKey(targetID, agentID), action, func() (capsH.AgentUpdateActionResult, error) {
+	flight, err := s.agentUpdateActions.join(agentUpdateActionKey(targetID, agentID), action+"\x00"+cleanupPlanID, func() (capsH.AgentUpdateActionResult, error) {
 		budget, cancel := context.WithTimeout(detached, harnessActionBudget)
 		defer cancel()
-		return s.executeAgentUpdateAction(budget, target, targetID, agentID, action, actor, command, args)
+		return s.executeAgentUpdateAction(budget, target, targetID, agentID, action, actor, cleanupPlanID, command, args)
 	})
 	if err != nil {
 		return capsH.AgentUpdateActionResult{}, err
@@ -174,14 +178,14 @@ func (s *Server) runAgentUpdateAction(ctx context.Context, targetID, agentID, ac
 	}
 }
 
-func (s *Server) executeAgentUpdateAction(ctx context.Context, target targetConnection, targetID, agentID, action, actor, command string, args []string) (capsH.AgentUpdateActionResult, error) {
+func (s *Server) executeAgentUpdateAction(ctx context.Context, target targetConnection, targetID, agentID, action, actor, cleanupPlanID, command string, args []string) (capsH.AgentUpdateActionResult, error) {
 	window, cancel := context.WithTimeout(ctx, harnessActionWindow)
 	defer cancel()
 	// The verb records this as the actor. Only this request's verified human reaches here.
 	if command == "resource update" && actor != "" {
 		args = append(args[:len(args):len(args)], "--on-behalf-of", actor)
 	}
-	outcome, err := s.invokeAgentUpdateCommand(window, target, targetID, command, args)
+	outcome, err := s.invokeAgentUpdateCommand(window, target, targetID, command, args, agentID, action, actor, cleanupPlanID)
 	// The install may have changed whatever the error says.
 	s.agentUpdates.invalidate(targetID, agentID)
 	s.auditAgentUpdateAction(actor, targetID, agentID, action, outcome, err)
@@ -193,24 +197,37 @@ func (s *Server) executeAgentUpdateAction(ctx context.Context, target targetConn
 		return capsH.AgentUpdateActionResult{}, observeErr
 	}
 	success := outcome.Success
-	if action == "install" && update.State == agentStateMissing {
+	if action == "install" && success && update.State == agentStateMissing {
 		success = false
 		outcome.Message = "The installer finished, but this machine does not report the agent yet."
 	}
-	return capsH.AgentUpdateActionResult{Success: success, Message: outcome.Message, Update: agentUpdateResult(update), OperationID: outcome.OperationID}, nil
+	return capsH.AgentUpdateActionResult{Success: success, Message: outcome.Message, Update: agentUpdateResult(update), OperationID: outcome.OperationID, CleanupPlan: agentCleanupPlan(outcome.CleanupPlan)}, nil
 }
 
 // agentUpdateCommandOutcome is what one verb run established.
 type agentUpdateCommandOutcome struct {
+	CleanupPlan *harnesslifecycle.CleanupPlan
 	Success     bool
 	Message     string
 	OperationID string
 }
 
-func (s *Server) invokeAgentUpdateCommand(ctx context.Context, target targetConnection, targetID, command string, args []string) (agentUpdateCommandOutcome, error) {
+func (s *Server) invokeAgentUpdateCommand(ctx context.Context, target targetConnection, targetID, command string, args []string, agentID, action, actor, cleanupPlanID string) (agentUpdateCommandOutcome, error) {
 	if targetID == "local" {
-		data, runErr := runLocalAgentUpdateCommand(ctx, command, args)
-		return parseAgentUpdateCommand(data, runErr == nil, errorText(runErr)), nil
+		if s.agentLifecycle.manage == nil && os.Getenv("VROOLI_DESKTOP_MODE") != "true" {
+			data, runErr := runControlPlaneHarness(ctx, command, args)
+			return parseAgentUpdateCommand(data, runErr == nil, errorText(runErr)), nil
+		}
+		resource, ok := agentResource(agentID)
+		if !ok {
+			return agentUpdateCommandOutcome{}, fmt.Errorf("unknown agent %q", agentID)
+		}
+		manage := s.agentLifecycle.manage
+		if manage == nil {
+			manage = harnesslifecycle.ManageDesktopHarness
+		}
+		result, err := manage(ctx, localHarnessRoot(), resource, action, actor, cleanupPlanID)
+		return agentUpdateCommandOutcome{Success: result.Success, Message: result.Message, CleanupPlan: result.CleanupPlan}, err
 	}
 	response, err := s.relayAgentUpdate(ctx, target, command, args, harnessActionWindow)
 	if err != nil {
@@ -222,20 +239,14 @@ func (s *Server) invokeAgentUpdateCommand(ctx context.Context, target targetConn
 	return outcome, nil
 }
 
-func runLocalAgentUpdateCommand(ctx context.Context, command string, args []string) ([]byte, error) {
-	var out boundedOutput
-	var stderr boundedOutput
-	argv := append(strings.Fields(command), args...)
-	cmd := exec.CommandContext(ctx, "vrooli", argv...)
-	cmd.Stdout, cmd.Stderr = &out, &stderr
-	cmd.WaitDelay = 5 * time.Second
-	if err := cmd.Run(); err != nil {
-		if text := strings.TrimSpace(stderr.String()); text != "" && out.Len() == 0 {
-			return nil, errors.New(text)
-		}
-		return out.Bytes(), err
+func runControlPlaneHarness(ctx context.Context, command string, args []string) ([]byte, error) {
+	binary, err := cliinvoke.Resolve(cliinvoke.ResolveOptions{})
+	if err != nil {
+		return nil, err
 	}
-	return out.Bytes(), nil
+	var out, stderr boundedOutput
+	result := cliinvoke.Run(ctx, cliinvoke.Invocation{Binary: binary, Args: append(strings.Fields(command), args...), Timeout: harnessActionWindow, Stdout: &out, Stderr: &stderr})
+	return out.Bytes(), result.Error()
 }
 
 func errorText(err error) string {
@@ -254,7 +265,7 @@ func parseAgentUpdateCommand(data []byte, completed bool, fallback string) agent
 		if message == "" {
 			message = fallback
 		}
-		return agentUpdateCommandOutcome{Success: completed && envelope.Update.Success, Message: message}
+		return agentUpdateCommandOutcome{Success: completed && envelope.Update.Success, Message: message, CleanupPlan: envelope.Update.CleanupPlan}
 	}
 	if !completed {
 		message := strings.TrimSpace(fallback)
@@ -294,4 +305,11 @@ func (s *Server) auditAgentUpdateAction(actor, targetID, agentID, action string,
 		return
 	}
 	s.events.Emit("agent_update_action", "", map[string]string{"actor": actor, "target_id": targetID, "agent_id": agentID, "action": action, "success": fmt.Sprint(success), "operation_id": outcome.OperationID})
+}
+
+func agentCleanupPlan(plan *harnesslifecycle.CleanupPlan) *capsH.HarnessCleanupPlan {
+	if plan == nil {
+		return nil
+	}
+	return &capsH.HarnessCleanupPlan{ID: plan.ID, Remove: plan.Remove, Preserved: plan.Preserved}
 }

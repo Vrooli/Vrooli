@@ -759,7 +759,7 @@ func (d serverCompactDriver) Composer(id string) composerState {
 func (d serverCompactDriver) CurrentCommand(id string) (string, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
-	out, err := tmuxCmdContext(ctx, "display-message", "-t", tmuxSessionPrefix+id, "-p", "#{pane_current_command}").Output()
+	out, err := tmuxPaneCurrentCommand(ctx, id)
 	if err != nil {
 		return "", err
 	}

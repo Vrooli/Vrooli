@@ -8,7 +8,7 @@ import type { AgentCard } from "./agentGrid";
 import type { AgentUpdate } from "./useAgentUpdates";
 
 export type HarnessState =
-  | "missing" | "shadowed" | "unlinked" | "needs_setup" | "update_ready" | "up_to_date" | "check_failed"
+  | "missing" | "found" | "shadowed" | "unlinked" | "needs_setup" | "update_ready" | "up_to_date" | "check_failed"
   /** No build for this machine. Local to the UI: the probe knows, and there is nothing to do. */
   | "not_applicable"
   /** The check has not answered yet. */
@@ -17,7 +17,7 @@ export type HarnessState =
 /** What the detail page's main button does. `retry` re-reads; the others are control-plane actions. */
 export type HarnessAction = "install" | "use_managed_copy" | "link_managed_copy" | "update" | "retry";
 
-const SERVER_STATES = new Set<string>(["missing", "shadowed", "unlinked", "needs_setup", "update_ready", "up_to_date", "check_failed"]);
+const SERVER_STATES = new Set<string>(["missing", "found", "shadowed", "unlinked", "needs_setup", "update_ready", "up_to_date", "check_failed"]);
 const SERVER_ACTIONS = new Set<string>(["install", "use_managed_copy", "link_managed_copy", "update", "retry"]);
 const ACTIONS_BY_STATE: Partial<Record<HarnessState, HarnessAction>> = {
   missing: "install", shadowed: "use_managed_copy", unlinked: "link_managed_copy", update_ready: "update", check_failed: "retry",
@@ -54,6 +54,7 @@ export const PILL_TONE: Record<HarnessState, PillTone> = {
   up_to_date: "ok",
   update_ready: "up",
   missing: "fix",
+  found: "ok",
   shadowed: "fix",
   unlinked: "fix",
   needs_setup: "fix",

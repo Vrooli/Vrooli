@@ -82,5 +82,7 @@ export const librarySelectors = {
   "forms.select": {
     "root": "forms.select",
   },
+  "patterns.integrations-overview": {
+  },
 } as const;
 // vrooli:library-selectors end

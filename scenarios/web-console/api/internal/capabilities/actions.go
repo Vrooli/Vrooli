@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/vrooli/cli-core/cliutil"
+	"github.com/vrooli/repo-contract-go/cliinvoke"
 )
 
 const defaultLifecycleActionTimeout = 180 * time.Second
@@ -81,21 +82,23 @@ func (ExecCommandRunner) Run(ctx context.Context, name string, args ...string) (
 	if err := prepareWorkspaceCommand(cmd); err != nil {
 		return CommandResult{ExitCode: -1}, err
 	}
+	if commandBaseName(name) == "vrooli" {
+		binary, err := cliinvoke.Resolve(cliinvoke.ResolveOptions{Explicit: name})
+		if err != nil {
+			return CommandResult{ExitCode: -1}, err
+		}
+		result := cliinvoke.Run(ctx, cliinvoke.Invocation{Binary: binary, Args: args, Dir: cmd.Dir, Env: cmd.Env})
+		return CommandResult{Stdout: result.Stdout, Stderr: result.Stderr, ExitCode: result.ExitCode}, result.Error()
+	}
 	stdout, err := cmd.Output()
-	result := CommandResult{Stdout: stdout}
+	result := CommandResult{Stdout: stdout, ExitCode: -1}
 	if cmd.ProcessState != nil {
 		result.ExitCode = cmd.ProcessState.ExitCode()
-	}
-	if err == nil {
-		return result, nil
 	}
 	var exitErr *exec.ExitError
 	if errors.As(err, &exitErr) {
 		result.Stderr = exitErr.Stderr
-		result.ExitCode = exitErr.ExitCode()
-		return result, err
 	}
-	result.ExitCode = -1
 	return result, err
 }
 
@@ -121,6 +124,9 @@ type LifecycleActionService struct {
 }
 
 func (s LifecycleActionService) Run(ctx context.Context, req LifecycleActionRequest) (LifecycleActionResult, error) {
+	if os.Getenv("VROOLI_DESKTOP_MODE") == "true" {
+		return LifecycleActionResult{Status: InstallStatusNotApplicable, Message: "This host lifecycle operation is unavailable in a desktop bundle.", CapabilityID: req.CapabilityID, ActionKind: req.ActionKind}, nil
+	}
 	def, ok := s.definition(req.CapabilityID)
 	if !ok {
 		return LifecycleActionResult{}, fmt.Errorf("capability %q is not declared", req.CapabilityID)

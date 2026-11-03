@@ -26,6 +26,10 @@ export const transport = createScenarioConnectTransport({
     headers.set("X-Vrooli-Device-Id", deviceIdentity().id);
     const token = await getAccessToken();
     if (token && !headers.has("Authorization")) headers.set("Authorization", `Bearer ${token}`);
+    if (window.desktop?.auth?.getLocalSessionToken && new URL(input instanceof Request ? input.url : String(input), window.location.href).origin === window.location.origin) {
+      const localToken = await window.desktop.auth.getLocalSessionToken();
+      if (localToken) headers.set("X-Vrooli-Local-Session", localToken);
+    }
     const request = globalThis["fetch"];
     return request(input, { ...init, headers });
   },

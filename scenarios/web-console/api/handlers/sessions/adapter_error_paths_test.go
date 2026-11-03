@@ -123,3 +123,32 @@ func TestAdapterErrorAndRemotePaths(t *testing.T) {
 	}
 	_ = sessionstore.StatusLive
 }
+
+// A timed-out durable lookup must never become a successful session response
+// with silently missing owner/lifecycle metadata.
+type foundSessionManager struct{ emptySessionManager }
+
+func (foundSessionManager) Get(id string) (*session.Session, bool) {
+	return &session.Session{ID: id}, true
+}
+
+type failedGetSessionStore struct {
+	sessionstore.Store
+	err error
+}
+
+func (s failedGetSessionStore) Get(context.Context, string) (sessionstore.Metadata, error) {
+	return sessionstore.Metadata{}, s.err
+}
+
+func TestGetRefusesUnavailableOwnerMetadata(t *testing.T) {
+	for _, failure := range []error{context.DeadlineExceeded, context.Canceled, errors.New("database unavailable")} {
+		t.Run(failure.Error(), func(t *testing.T) {
+			a := &Adapter{Manager: foundSessionManager{}, Store: failedGetSessionStore{err: failure}}
+			got, err := a.Get(context.Background(), "live-session")
+			if !errors.Is(err, ErrUnavailable) || !errors.Is(err, failure) || got.ID != "" {
+				t.Fatalf("Get returned partial owner proof: session=%+v error=%v", got, err)
+			}
+		})
+	}
+}

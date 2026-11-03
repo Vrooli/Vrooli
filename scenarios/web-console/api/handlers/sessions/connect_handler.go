@@ -118,7 +118,7 @@ func (h *connectHandler) Create(ctx context.Context, req *connect.Request[sessio
 	digest := sha256.Sum256(raw)
 	var agentLaunch *AgentLaunch
 	if intent := req.Msg.GetAgentLaunch(); intent != nil {
-		agentLaunch = &AgentLaunch{AgentID: intent.GetAgentId(), Model: intent.GetModel(), Provider: intent.GetProvider(), ContextLimitTokens: intent.GetContextLimitTokens()}
+		agentLaunch = &AgentLaunch{AgentID: intent.GetAgentId(), Model: intent.GetModel(), Provider: intent.GetProvider(), ContextLimitTokens: intent.GetContextLimitTokens(), MaxCredits: intent.GetMaxCredits()}
 	}
 	in := CreateInput{
 		AgentLaunch:           agentLaunch,

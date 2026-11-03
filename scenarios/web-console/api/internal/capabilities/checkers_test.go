@@ -15,9 +15,7 @@ import (
 
 func TestAudioToolsChecker_ProjectsFeatureSpecificHealth(t *testing.T) {
 	checker := &AudioToolsChecker{
-		Scenario: ScenarioChecker{Slug: "audio-tools", Run: func(context.Context, string, ...string) ([]byte, error) {
-			return []byte(`{"scenario":{"name":"audio-tools","status":"running"}}`), nil
-		}},
+		Scenario: scenarioHealthChecker(t, http.StatusOK, `{"status":"healthy"}`),
 		Features: []string{"voice-input", "voice-output"},
 		ProviderHealth: func(context.Context) (*healthstatusv1.GetProviderHealthResponse, error) {
 			return &healthstatusv1.GetProviderHealthResponse{Capabilities: []*healthstatusv1.CapabilityHealth{
@@ -34,9 +32,7 @@ func TestAudioToolsChecker_ProjectsFeatureSpecificHealth(t *testing.T) {
 
 func TestAudioToolsChecker_HealthFailureIsUnknown(t *testing.T) {
 	checker := &AudioToolsChecker{
-		Scenario: ScenarioChecker{Slug: "audio-tools", Run: func(context.Context, string, ...string) ([]byte, error) {
-			return []byte(`{"scenario":{"name":"audio-tools","status":"running"}}`), nil
-		}},
+		Scenario: scenarioHealthChecker(t, http.StatusOK, `{"status":"healthy"}`),
 		Features: []string{"voice-input"}, Timeout: time.Millisecond,
 		ProviderHealth: func(context.Context) (*healthstatusv1.GetProviderHealthResponse, error) {
 			return nil, errors.New("unreachable")
@@ -50,9 +46,7 @@ func TestAudioToolsChecker_HealthFailureIsUnknown(t *testing.T) {
 
 func TestAudioToolsChecker_EnrichesReachableDegradedScenario(t *testing.T) {
 	checker := &AudioToolsChecker{
-		Scenario: ScenarioChecker{Slug: "audio-tools", Run: func(context.Context, string, ...string) ([]byte, error) {
-			return []byte(`{"scenario":{"name":"audio-tools","status":"running","health_status":"degraded","health_error":"tts provider down"}}`), nil
-		}},
+		Scenario: scenarioHealthChecker(t, http.StatusServiceUnavailable, `{"status":"degraded","message":"tts provider down"}`),
 		Features: []string{"voice-input", "voice-output"},
 		ProviderHealth: func(context.Context) (*healthstatusv1.GetProviderHealthResponse, error) {
 			return &healthstatusv1.GetProviderHealthResponse{Capabilities: []*healthstatusv1.CapabilityHealth{
@@ -69,9 +63,7 @@ func TestAudioToolsChecker_EnrichesReachableDegradedScenario(t *testing.T) {
 
 func TestAudioToolsCheckerKeepsProviderFeaturesIndependent(t *testing.T) {
 	checker := &AudioToolsChecker{
-		Scenario: ScenarioChecker{Slug: "audio-tools", Run: func(context.Context, string, ...string) ([]byte, error) {
-			return []byte(`{"scenario":{"name":"audio-tools","status":"running"}}`), nil
-		}},
+		Scenario: scenarioHealthChecker(t, http.StatusOK, `{"status":"healthy"}`),
 		Features: []string{"voice-input", "voice-speaker-verification", "voice-enrollment"},
 		ProviderHealth: func(context.Context) (*healthstatusv1.GetProviderHealthResponse, error) {
 			return &healthstatusv1.GetProviderHealthResponse{Capabilities: []*healthstatusv1.CapabilityHealth{

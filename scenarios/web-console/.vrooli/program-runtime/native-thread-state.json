@@ -8,12 +8,12 @@
     "threads": {"type": "array", "required": true, "description": "One to sixteen unique native thread IDs."}
   },
   "assumptions": ["Web Console enforces session read authority", "A missing or unavailable goal is not an inferred completion"],
-  "invariants": ["One bounded read-only owner call", "No transcript text is returned", "An ok envelope means observation succeeded, not that any goal succeeded", "Thread state is an observation, not a deadline enforcement mechanism"],
+  "invariants": ["One bounded read-only owner call", "No transcript text is returned", "Only uniquely matched requested thread identities are accepted; missing or duplicated subjects remain unavailable", "An ok envelope means observation succeeded, not that any goal succeeded", "Thread state is an observation, not a deadline enforcement mechanism"],
   "bindings": [{"id": "web-console/session/native-thread-state", "effect": "read"}],
   "outputs": {
     "status": {"enum": ["ok", "partial", "failed"]},
     "signals": {"threads": "Per-thread live owner and goal observations"},
-    "errors": {"classes": ["invalid_input", "binding_error"]},
+    "errors": {"classes": ["invalid_input", "invalid_response", "binding_error"]},
     "evidence": "The owner binding when the observation was obtained",
     "phase": {"enum": ["validate", "report"]}
   },

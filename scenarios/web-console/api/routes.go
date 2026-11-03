@@ -75,7 +75,11 @@ func (s *Server) setupRoutes() {
 		s.router.HandleFunc("/api/v1/auth/subscription/session", session.Provision).Methods(http.MethodPost)
 		s.router.HandleFunc("/api/v1/auth/subscription/session", session.Status).Methods(http.MethodGet)
 		s.router.HandleFunc("/api/v1/auth/subscription/session", func(w http.ResponseWriter, r *http.Request) {
+			s.backupGrant(r.Context(), "codex")
+			s.backupGrant(r.Context(), "opencode")
 			session.Delete(w, r)
+			activePaidCodingSessions.Clear()
+			s.clearCodingBackups()
 			if s.subscriptionResolver != nil {
 				s.subscriptionResolver.Clear()
 			}
@@ -83,8 +87,9 @@ func (s *Server) setupRoutes() {
 		s.router.HandleFunc("/api/v1/auth/subscription/summary", s.subscriptionSummaryHandler).Methods(http.MethodGet)
 		s.router.HandleFunc("/api/v1/business-accounts", s.businessAccountsHandler).Methods(http.MethodGet)
 		s.router.HandleFunc("/api/v1/business-account-usage", s.businessAccountUsageHandler).Methods(http.MethodGet)
-		s.router.HandleFunc("/api/v1/paid-coding/v1/chat/completions", s.paidCodingCompletionsHandler).Methods(http.MethodPost)
 	}
+	s.router.HandleFunc("/api/v1/coding-backup", s.codingBackupHandler).Methods(http.MethodGet, http.MethodPost, http.MethodDelete)
+	s.router.HandleFunc("/api/v1/coding-backup/restart", s.codingBackupRestart).Methods(http.MethodPost)
 	s.router.HandleFunc("/api/v1/credentials/provision", s.credentialProvisionHandler).Methods(http.MethodPost)
 	s.router.HandleFunc("/api/v1/credentials/provision", s.credentialDeleteHandler).Methods(http.MethodDelete)
 	s.router.HandleFunc("/api/v1/credentials/test", s.credentialTestHandler).Methods(http.MethodPost)
@@ -139,11 +144,9 @@ func (s *Server) setupRoutes() {
 		Remote:             s,
 		ComposeAgentLaunch: s.composeAgentLaunch,
 	}
-	if s.paidCodingProtocolQualified {
-		sessionAdapter.PaidCodingCredential = newPaidCodingToken
-		sessionAdapter.RegisterPaidCodingSession = activePaidCodingSessions.Register
-		sessionAdapter.RemovePaidCodingSession = activePaidCodingSessions.RemoveSession
-	}
+	sessionAdapter.ResolveCodingBackup = s.resolveCodingBackup
+	sessionAdapter.PreparePaidCodingSession = s.preparePaidCodingSession
+	sessionAdapter.RemovePaidCodingSession = activePaidCodingSessions.RemoveSession
 	s.lifecycleDelete = sessionAdapter.Delete
 	s.desktopCreateSession = sessionAdapter.Create
 	if s.sweeper != nil {

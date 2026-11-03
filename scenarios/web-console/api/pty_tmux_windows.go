@@ -54,3 +54,7 @@ func tmuxMouseModeValue(enabled bool) string {
 func buildTmuxNewSessionArgs(sessionName, workingDir string, spec pty.LaunchSpec) []string {
 	return []string{"new-session", "-d", "-s", sessionName, "-c", workingDir, "-x", "0", "-y", "0", spec.Shell}
 }
+
+func tmuxPaneCurrentCommand(context.Context, string) ([]byte, error) {
+	return nil, pty.ErrUnsupported
+}

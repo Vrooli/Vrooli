@@ -3,6 +3,8 @@ package capabilities
 import (
 	"context"
 	"errors"
+	capreg "github.com/vrooli/vrooli/packages/capability-registry-go"
+	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 	"log"
 
 	"connectrpc.com/connect"
@@ -62,7 +64,7 @@ type agentUpdateReader interface {
 }
 
 type agentUpdateActionRunner interface {
-	RunAgentUpdateAction(ctx context.Context, targetID, agentID, action string) (AgentUpdateActionResult, error)
+	RunAgentUpdateAction(ctx context.Context, targetID, agentID, action, cleanupPlanID string) (AgentUpdateActionResult, error)
 }
 
 type agentUsageReader interface {
@@ -137,6 +139,7 @@ func agentUpdateToProto(result AgentUpdateResult) *capabilitiesv1.AgentUpdateRes
 		ProbeVerified: result.ProbeVerified, Note: result.Note,
 		State: result.State, PrimaryAction: result.PrimaryAction, OperatorCommand: result.OperatorCommand, Reason: result.Reason,
 		Checks: checks, InstallKind: result.InstallKind, RollbackVersion: result.RollbackVersion, NewerThanReviewed: result.NewerThanReviewed,
+		InstallState: result.InstallState, SignInState: result.SignInState, UpdateState: result.UpdateState,
 	}
 }
 
@@ -145,12 +148,12 @@ func (h *connectHandler) RunAgentUpdateAction(ctx context.Context, req *connect.
 	if !ok {
 		return nil, connect.NewError(connect.CodeUnavailable, ErrUnavailable)
 	}
-	result, err := runner.RunAgentUpdateAction(ctx, req.Msg.GetTargetId(), req.Msg.GetAgentId(), req.Msg.GetAction())
+	result, err := runner.RunAgentUpdateAction(ctx, req.Msg.GetTargetId(), req.Msg.GetAgentId(), req.Msg.GetAction(), req.Msg.GetCleanupPlanId())
 	if err != nil {
 		return nil, connect.NewError(runActionCode(err), err)
 	}
 	return connect.NewResponse(&capabilitiesv1.RunAgentUpdateActionResponse{
-		Success: result.Success, Message: result.Message, OperationId: result.OperationID, Update: agentUpdateToProto(result.Update),
+		Success: result.Success, Message: result.Message, OperationId: result.OperationID, Update: agentUpdateToProto(result.Update), CleanupPlan: cleanupPlanToProto(result.CleanupPlan),
 	}), nil
 }
 
@@ -227,6 +230,8 @@ func statesToProto(in []CapabilityState) []*capabilitiesv1.CapabilityState {
 			FeatureOperatorCommand: s.FeatureOperatorCommand,
 			ProviderStatus:         s.ProviderStatus,
 			ProviderFeatures:       s.ProviderFeatures,
+			Uses:                   integrationUses(s.Uses),
+			Installation:           localInstallation(s.Installation),
 		}
 	}
 	return out
@@ -245,4 +250,25 @@ func backendsToProto(in []BackendOption) []*capabilitiesv1.BackendOption {
 		}
 	}
 	return out
+}
+
+func cleanupPlanToProto(plan *HarnessCleanupPlan) *capabilitiesv1.HarnessCleanupPlan {
+	if plan == nil {
+		return nil
+	}
+	return &capabilitiesv1.HarnessCleanupPlan{Id: plan.ID, Remove: plan.Remove, Preserved: plan.Preserved}
+}
+
+func integrationUses(uses []capreg.Use) []*commonv1.IntegrationUse {
+	out := make([]*commonv1.IntegrationUse, len(uses))
+	for i, use := range uses {
+		out[i] = &commonv1.IntegrationUse{Id: use.ID, Name: use.Name, Description: use.Description, Group: use.Group}
+	}
+	return out
+}
+func localInstallation(installation *capreg.Installation) *commonv1.LocalInstallation {
+	if installation == nil {
+		return nil
+	}
+	return &commonv1.LocalInstallation{Location: installation.Location, Version: installation.Version, Selected: installation.Selected}
 }

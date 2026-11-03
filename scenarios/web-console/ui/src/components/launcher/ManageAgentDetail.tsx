@@ -39,6 +39,7 @@ function useStateLabel() {
   const { t } = useTranslation();
   return (state: HarnessState): string => t({
     missing: strings.launcher.statusMissing,
+    found: strings.launcher.statusFound,
     shadowed: strings.launcher.statusAttention,
     unlinked: strings.launcher.statusAttention,
     needs_setup: strings.launcher.statusAttention,
@@ -86,6 +87,9 @@ const RUNNING_LABELS: Record<AgentUpdateAction, keyof typeof strings.launcher> =
   update: "actionUpdateRunning",
   rollback: "actionRollbackRunning",
   refresh_catalog: "actionRefreshRunning",
+  doctor: "updateChecking",
+  preview_cleanup: "updateChecking",
+  uninstall: "actionUninstallRunning",
 };
 
 function RunNote({ run }: { run: AgentActionRun }) {
@@ -126,6 +130,7 @@ function ActionCard({ card, update, state, run, updates, installs, canInstall }:
 
   const title: string | null = {
     missing: t(strings.launcher.stateMissingTitle),
+    found: t(strings.launcher.stateFoundTitle),
     shadowed: t(strings.launcher.stateShadowedTitle),
     unlinked: t(strings.launcher.stateUnlinkedTitle),
     needs_setup: t(strings.launcher.stateNeedsSetupTitle),
@@ -138,6 +143,7 @@ function ActionCard({ card, update, state, run, updates, installs, canInstall }:
   if (!title) return null;
   const body = update?.reason || card.detail || {
     missing: t(strings.launcher.stateMissingBody, { name: card.label }),
+    found: t(strings.launcher.stateFoundBody),
     shadowed: t(strings.launcher.stateShadowedBody),
     unlinked: t(strings.launcher.stateUnlinkedBody),
     needs_setup: t(strings.launcher.stateNeedsSetupBody),
@@ -166,10 +172,10 @@ function ActionCard({ card, update, state, run, updates, installs, canInstall }:
 
   return (
     <Card data-testid={`launcher-action-${testKey}`} data-harness-state={state} className={CARD}>
-      <div className="flex items-center gap-3">
+      <div className="flex flex-col items-stretch gap-3 sm:flex-row sm:items-center">
         <div className="min-w-0 flex-1">
           <h4 className="text-sm font-semibold text-wc-text-primary">{title}</h4>
-          <p className={cn(BODY, "break-words")}>{body}</p>
+          <p className={cn(BODY, "[overflow-wrap:anywhere]")}>{body}</p>
         </div>
         {showButton && outcome?.status !== "installed" && outcome?.status !== "not_applicable" && (
           <Button type="button" variant="primary" size="md" shape="square" data-testid={buttonTestId} disabled={busy} aria-busy={busy} onClick={press} className="flex-none font-semibold">
@@ -249,6 +255,12 @@ export function ManageAgentDetail({ card, targetId, updates, usage, usageLoading
   const locale = i18n.resolvedLanguage;
   const update = updates.updates[card.agentID];
   const state = harnessState(card, update, updates.loading);
+  const signInState = update?.signInState ?? "unknown";
+  const signInStateLabel = t(signInState === "signed_in"
+    ? strings.launcher.signInStateSignedIn
+    : signInState === "signed_out"
+      ? strings.launcher.signInStateSignedOut
+      : strings.launcher.signInStateUnknown);
   const run = updates.runs[card.agentID];
   const testKey = slugify(card.key);
   const running = run?.phase === "running";
@@ -268,6 +280,11 @@ export function ManageAgentDetail({ card, targetId, updates, usage, usageLoading
         <AgentMark mark={card.agentID} appearance={agentAppearance(card.agentID)} />
         <StatusPill state={state} testId={`launcher-agent-status-${testKey}`} />
       </div>
+      {update && <div data-testid="launcher-agent-three-facts" data-install-state={update.installState || "unknown"} data-sign-in-state={update.signInState || "unknown"} data-update-state={update.updateState || "unknown"} className="mx-4 grid grid-cols-3 gap-2 rounded-[var(--radius-card)] border border-wc-default bg-wc-surface-base px-3 py-2 text-[11px] leading-4 text-wc-text-muted">
+        <span>{t(strings.launcher.factInstall, { state: update.installState || "unknown" })}</span>
+        <span>{t(strings.launcher.factSignIn, { state: signInStateLabel })}</span>
+        <span>{t(strings.launcher.factUpdate, { state: update.updateState || "unknown" })}</span>
+      </div>}
       <div className="grid gap-2.5">
         {run && <RunNote run={run} />}
         <ActionCard card={card} update={update} state={state} run={run} updates={updates} installs={installs} canInstall={canInstall} />
@@ -324,6 +341,17 @@ export function ManageAgentDetail({ card, targetId, updates, usage, usageLoading
           </Card>
         </>
       )}
+      <Card className={CARD} data-testid="launcher-maintenance">
+        <Button type="button" variant="outline" size="md" disabled={running} data-testid={`launcher-doctor-${testKey}`} onClick={() => { void updates.run(card.agentID, "doctor"); }}>{t(strings.launcher.actionDoctor)}</Button>
+        {update && <Button type="button" variant="outline" size="md" disabled={running} data-testid={`launcher-cleanup-preview-${testKey}`} onClick={() => { void updates.run(card.agentID, "preview_cleanup"); }}>{t(strings.launcher.actionCleanupPreview)}</Button>}
+        {run?.phase === "done" && run.action === "preview_cleanup" && run.cleanupPlan && <div data-testid="launcher-cleanup-plan" className={BODY}>
+          <p>{t(strings.launcher.cleanupRemove)}</p>
+          <ul className="my-2 list-inside list-disc break-all">{run.cleanupPlan.remove.map(path => <li key={path} data-cleanup-remove>{path}</li>)}</ul>
+          {run.cleanupPlan.preserved.length > 0 && <><p>{t(strings.launcher.cleanupPreserve)}</p><ul className="my-2 list-inside list-disc break-all">{run.cleanupPlan.preserved.map(path => <li key={path} data-cleanup-preserve>{path}</li>)}</ul></>}
+          <Button type="button" variant="outline" size="md" disabled={run.cleanupPlan.remove.length === 0} data-testid={`launcher-uninstall-${testKey}`} onClick={() => { void updates.run(card.agentID,"uninstall",run.cleanupPlan?.id); }}>{t(strings.launcher.actionUninstall)}</Button>
+        </div>}
+        {run?.phase === "failed" && ["doctor","preview_cleanup","uninstall"].includes(run.action) && <p role="alert">{run.message || t(strings.launcher.actionFailed)}</p>}
+      </Card>
       <ModelListSection agentId={card.agentID} targetId={targetId} updates={updates} />
     </div>
   );

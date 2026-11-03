@@ -1,3 +1,4 @@
+import { CodingBackup } from "./CodingBackup";
 import { useState, useRef, useCallback } from "react";
 import type { PointerEvent as ReactPointerEvent, KeyboardEvent as ReactKeyboardEvent } from "react";
 import { GripVertical, MessageSquareText, TerminalSquare, Palette, Send, X, Pin } from "lucide-react";
@@ -10,6 +11,7 @@ import { paneAccentStyle } from "../lib/paneColor";
 import { IconButton } from "@vrooli/react-component-library/IconButton";
 
 interface TerminalHeaderProps {
+  onRestarted?: (sessionId: string) => void;
   sessionId: string;
   name: string;
   headerColor: string;
@@ -34,6 +36,7 @@ interface TerminalHeaderProps {
 }
 
 export default function TerminalHeader({
+  onRestarted,
   sessionId,
   name,
   headerColor,
@@ -104,6 +107,7 @@ export default function TerminalHeader({
       style={bgStyle ?? { backgroundColor: "rgb(var(--wc-surface-header))" }}
       onClick={onFocus}
     >
+      <CodingBackup sessionId={sessionId} onRestarted={onRestarted} />
       {/* Drag handle */}
       <button
         type="button"

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } from "react";
-import { Archive, ArrowDownUp, ArrowLeft, ChevronRight, Circle, GripVertical, MessageSquareText, Pencil, Plus, Search, TerminalSquare, X } from "lucide-react";
+import { Archive, ArrowDownUp, ArrowLeft, ChevronRight, Circle, GripVertical, MessageSquareText, Pencil, Plus, Search, Settings, TerminalSquare, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { strings } from "../consts/strings";
 import { cn } from "../lib/classnames";
@@ -370,6 +370,13 @@ export default function SessionSidebar({
         >
           <Plus className="h-4 w-4" />
         </Button>
+        {!isMobile && (
+          <Button data-testid="nav-settings" variant="ghost" size="icon" shape="square"
+            className="h-8 w-8 shrink-0" title={t(strings.workspace.settingsTitle)}
+            onClick={() => useWorkspaceStore.getState().setSettingsModalOpen(true)}>
+            <Settings className="h-4 w-4" />
+          </Button>
+        )}
         {isMobile && (
           <Button
             data-testid="workspace-sidebar-close"

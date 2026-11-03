@@ -34,8 +34,21 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const accessToken = await getAccessToken();
   if (accessToken && !headers.has("Authorization")) headers.set("Authorization", `Bearer ${accessToken}`);
   const response = await fetch(path, { ...init, headers });
-  if (!response.ok) throw new Error(`Request failed (${response.status}): ${await response.text()}`);
+  if (!response.ok) throw new HttpResponseError(response.status, await response.text());
   return response.status === 204 ? ({} as T) : response.json() as Promise<T>;
+}
+
+/** HTTP status kept separate from the message so callers can render expected
+ * unauthenticated states without parsing transport text. */
+export class HttpResponseError extends Error {
+  constructor(readonly status: number, detail: string) {
+    super(`Request failed (${status}): ${detail}`);
+    this.name = "HttpResponseError";
+  }
+}
+
+export function isUnauthenticatedResponse(error: unknown): boolean {
+  return error instanceof HttpResponseError && error.status === 401;
 }
 
 export const getSubscriptionSession = () => request<SubscriptionSessionStatus>("/api/v1/auth/subscription/session");
@@ -186,3 +199,23 @@ export function isCommercialContentVisible(
   }
   return true;
 }
+
+export interface CodingBackupConsent {
+  harness: string;
+  business_account_id: string;
+  model: string;
+  max_credits: number;
+  expires_at: string;
+  automatic: boolean;
+}
+export interface CodingBackupStatus {
+  revocation_pending?: boolean;
+  limit: { harness: string; kind: string; resets_at?: string };
+  consent: CodingBackupConsent | null;
+  decision: string;
+  on_credits: boolean;
+}
+export const getCodingBackup = (harness: string, sessionId = "") => request<CodingBackupStatus>(`/api/v1/coding-backup?${new URLSearchParams({ harness, session_id: sessionId })}`);
+export const approveCodingBackup = (consent: CodingBackupConsent) => request<CodingBackupConsent>("/api/v1/coding-backup", { method: "POST", body: JSON.stringify(consent) });
+export const removeCodingBackup = (harness: string) => request(`/api/v1/coding-backup?${new URLSearchParams({ harness })}`, { method: "DELETE" });
+export const restartCodingSource = (sessionId: string, source: "credits" | "subscription", harness?: string) => request<{ id: string; name: string }>("/api/v1/coding-backup/restart", { method: "POST", body: JSON.stringify({ session_id: sessionId, source, harness }) });

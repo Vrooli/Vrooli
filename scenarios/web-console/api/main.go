@@ -42,6 +42,7 @@ import (
 	"github.com/vrooli/api-core/preflight"
 	"github.com/vrooli/api-core/server"
 	"github.com/vrooli/api-core/storage"
+	"github.com/vrooli/cli-core/cliutil"
 	"github.com/vrooli/vrooli/packages/capabilityprobe"
 	credentialauthority "github.com/vrooli/vrooli/packages/credential-authority-go"
 	credentialclient "github.com/vrooli/vrooli/packages/credentialclient-go"
@@ -89,38 +90,42 @@ type Server struct {
 	sessionStore    sessionstore.Store
 	// lifecycleDelete is installed from the sessions transport adapter so
 	// retention cleanup cannot bypass the canonical lifecycle owner.
-	lifecycleDelete             func(context.Context, string) error
-	desktopCreateSession        func(context.Context, sessionsH.CreateInput) (sessionsH.Session, error)
-	aiChain                     *intai.Chain
-	shortcuts                   ShortcutStore
-	aiConfig                    intai.ConfigStore
-	ai                          *intai.Service
-	sweeper                     *session.ExpirationSweeper
-	conversationRetention       *conversationRetentionSweeper
-	conversationControlMu       sync.Mutex
-	conversationControl         *conversationControlState
-	managedCodex                *managedCodexRegistry
-	agentVoiceMu                sync.Mutex
-	agentVoiceControllers       map[string]*agentVoiceLease
-	idempotency                 *intsessions.IdempotencyCache // replay-safe session creation
-	capabilities                *capabilities.Registry
-	agentUpdates                agentUpdateCache
-	agentUpdateActions          agentUpdateActions
-	workspace                   intworkspace.Store
-	groupTemplates              intgrouptemplates.Store
-	handoffRules                inthandoffrules.Store
-	snippets                    intsnippets.Store
-	hookAuthToken               string
-	credentialClient            credentialclient.Client
-	integrationHubURL           string
-	subscriptionResolver        *credentialclient.ConsumerSessionResolver
-	paidCodingProtocolQualified bool
-	entitlements                *entitlementclient.Client
-	codexTailer                 *CodexTailer
-	claudeTailer                *ClaudeTailer
-	grokTailer                  *GrokTailer
-	opencodeWatcher             *OpenCodeWatcher
-	agentCheckpointStore        AgentTranscriptCheckpointStore
+	lifecycleDelete        func(context.Context, string) error
+	desktopCreateSession   func(context.Context, sessionsH.CreateInput) (sessionsH.Session, error)
+	aiChain                *intai.Chain
+	shortcuts              ShortcutStore
+	aiConfig               intai.ConfigStore
+	ai                     *intai.Service
+	sweeper                *session.ExpirationSweeper
+	conversationRetention  *conversationRetentionSweeper
+	conversationControlMu  sync.Mutex
+	conversationControl    *conversationControlState
+	managedCodex           *managedCodexRegistry
+	agentVoiceMu           sync.Mutex
+	agentVoiceControllers  map[string]*agentVoiceLease
+	idempotency            *intsessions.IdempotencyCache // replay-safe session creation
+	capabilities           *capabilities.Registry
+	agentUpdates           agentUpdateCache
+	agentUpdateActions     agentUpdateActions
+	agentLifecycle         localHarnessLifecycle
+	agentUsageURL          string
+	codingBackupOperations sync.Mutex
+	codingBackupMu         sync.Mutex
+	codingBackups          map[string]*codingBackupGrant
+	workspace              intworkspace.Store
+	groupTemplates         intgrouptemplates.Store
+	handoffRules           inthandoffrules.Store
+	snippets               intsnippets.Store
+	hookAuthToken          string
+	credentialClient       credentialclient.Client
+	integrationHubURL      string
+	subscriptionResolver   *credentialclient.ConsumerSessionResolver
+	entitlements           *entitlementclient.Client
+	codexTailer            *CodexTailer
+	claudeTailer           *ClaudeTailer
+	grokTailer             *GrokTailer
+	opencodeWatcher        *OpenCodeWatcher
+	agentCheckpointStore   AgentTranscriptCheckpointStore
 	// usageModeQuota overrides the quota reading used to resolve a reset time (tests).
 	usageModeQuota func(context.Context, string) (capsH.AgentUsageResult, error)
 	// compaction compacts idle sessions and watches context size (context_compaction.go).
@@ -286,6 +291,7 @@ func NewServer(db *database.RoutedDB) *Server {
 	sessions.SetEvents(eventLog)
 	continuityCatalog := internalContinuity.NewSQLCatalogStore(db)
 	sessions.SetProcessExitObserver(func(ctx context.Context, sessionID string) error {
+		activePaidCodingSessions.RemoveSession(sessionID)
 		return continuityCatalog.UpdateLifecycleState(ctx, sessionID, internalContinuity.StateRecoverable)
 	})
 	sessions.SetProcessRecoveryObserver(func(ctx context.Context, sessionID string) error {
@@ -337,7 +343,7 @@ func NewServer(db *database.RoutedDB) *Server {
 		metrics:           metrics,
 		backendRegistry:   backendRegistry,
 		sessionStore:      sessionStore,
-		aiChain:           intai.NewChain(intai.NewOllamaProvider(), intai.NewOpenRouterProvider(), intai.NewMeteredProvider(os.Getenv("AI_GATEWAY_URL"))),
+		aiChain:           intai.NewGatewayChain(),
 		shortcuts:         NewSQLShortcutStore(db),
 		aiConfig:          intai.NewSQLConfigStore(context.Background(), db),
 		sweeper:           session.NewExpirationSweeper(sessions, eventLog, metrics),
@@ -393,7 +399,7 @@ func NewServer(db *database.RoutedDB) *Server {
 		}
 	}
 	if srv.credentialClient != nil {
-		srv.aiChain = intai.NewChain(intai.NewOllamaProvider(), intai.NewOpenRouterProvider(intai.NewCredentialKeyResolver(srv.credentialClient)), intai.NewMeteredProvider(os.Getenv("AI_GATEWAY_URL")))
+		srv.aiChain = intai.NewGatewayChain()
 	}
 	// Every session (including those recovered before the server existed)
 	// gets an activity detector that publishes session_activity on the hub.
@@ -444,7 +450,7 @@ func NewServer(db *database.RoutedDB) *Server {
 		"openrouter": &capabilities.OpenRouterChecker{
 			APIKey: openrouterKey,
 		},
-		"audio-tools": &capabilities.AudioToolsChecker{Scenario: capabilities.ScenarioChecker{Slug: "audio-tools"}, ProviderHealth: audioProviderHealth, Features: capabilities.Known[0].Features, Timeout: time.Second},
+		"audio-tools": checkers["audio-tools"],
 		"vrooli-bridge": &capabilities.BridgeChecker{
 			BaseURL: bridgeURL, OwnerToken: bridgeOwnerToken, ReauthToken: bridgeReauthToken, Credentials: bridgeCredentialSource(bridgeOwnerToken),
 			ResolveURL: resolveBridgeScenarioURL,
@@ -594,6 +600,13 @@ func newCapabilityCheckers(ollamaURL, openrouterKey, bridgeURL, bridgeOwnerToken
 	if len(audioClient) > 0 {
 		providerHealth = audioClient[0]
 	}
+	var audioFeatures []string
+	for _, definition := range capabilities.Known {
+		if definition.ID == "audio-tools" {
+			audioFeatures = definition.Features
+			break
+		}
+	}
 	checkers := map[string]capabilities.Checker{
 		"ollama": &capabilities.OllamaChecker{
 			BaseURL: ollamaURL,
@@ -608,7 +621,7 @@ func newCapabilityCheckers(ollamaURL, openrouterKey, bridgeURL, bridgeOwnerToken
 		// render real status. Scenario-to-scenario calls use their owned
 		// API clients and api-core discovery; host capability checks may still
 		// use the control-plane CLI where no scenario API exists.
-		"audio-tools":                &capabilities.AudioToolsChecker{Scenario: capabilities.ScenarioChecker{Slug: "audio-tools"}, ProviderHealth: providerHealth, Features: capabilities.Known[0].Features, Timeout: time.Second},
+		"audio-tools":                &capabilities.AudioToolsChecker{Scenario: capabilities.ScenarioChecker{Slug: "audio-tools"}, ProviderHealth: providerHealth, Features: audioFeatures, Timeout: time.Second},
 		"session-backend-standard":   &capabilities.StaticChecker{Available: probeStandard},
 		"session-backend-persistent": &capabilities.StaticChecker{Available: backend.CheckTmuxAvailable},
 		"vrooli-bridge": &capabilities.BridgeChecker{
@@ -616,6 +629,7 @@ func newCapabilityCheckers(ollamaURL, openrouterKey, bridgeURL, bridgeOwnerToken
 			ResolveURL: resolveBridgeScenarioURL,
 			Client:     &http.Client{Timeout: 3 * time.Second}, Probe: true,
 		},
+		"agent-manager":   &capabilities.ScenarioChecker{Slug: "agent-manager"},
 		"integration-hub": &capabilities.ScenarioChecker{Slug: "integration-hub"},
 		// notification-hub owns the operator's notification preferences and the
 		// approvals inbox the shared operator-decision rail surfaces. The approvals
@@ -1193,6 +1207,7 @@ func main() {
 			// Graceful session shutdown: detach from tmux sessions (preserving
 			// them for recovery) and kill standard sessions.
 			srv.sessions.Shutdown()
+			activePaidCodingSessions.Clear()
 			return db.Close()
 		},
 	}); err != nil {
@@ -1204,8 +1219,15 @@ func main() {
 // operator's Cloudflare Access login, and scenario-authenticator tokens issued
 // for the web-console resource audience. The latter carries Agent Manager's
 // operator-issued service principal, which Web Console pins as the stable
-// session creator. Unverified callers still receive no principal.
+// session creator. Personal-local desktop bundles also verify their runtime-owned
+// renderer session token. Unverified callers still receive no principal.
 func pointerToManagedAuthentication(config authn.Config) *authn.Config {
 	config = config.WithScenarioAuthenticator("web-console").WithManagedCloudflare("web-console")
+	if os.Getenv("VROOLI_DESKTOP_MODE") == "true" {
+		runtime, err := cliutil.ReadDesktopRuntimeConfig()
+		if err == nil && runtime.AuthenticationMode == "personal_local" {
+			config.Providers = append(config.Providers, authn.NewPersonalLocalProviderWithTokenFile(runtime.TokenFile))
+		}
+	}
 	return &config
 }

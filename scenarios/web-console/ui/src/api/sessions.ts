@@ -81,6 +81,7 @@ export interface AgentLaunchIntent {
   model?: string;
   provider?: string;
   context_limit_tokens?: number;
+  max_credits?: number;
 }
 
 export type AgentType = "none" | "codex" | "claude" | "opencode" | "grok";
@@ -340,6 +341,7 @@ export async function createSession(opts?: {
       model: opts.agent_launch.model ?? "",
       provider: opts.agent_launch.provider ?? "",
       contextLimitTokens: BigInt(opts.agent_launch.context_limit_tokens ?? 0),
+      maxCredits: BigInt(opts.agent_launch.max_credits ?? 0),
     } : undefined,
     agentType: opts?.agent_type ?? "",
 		owner: opts?.owner ?? "",

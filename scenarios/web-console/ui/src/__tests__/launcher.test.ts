@@ -49,6 +49,7 @@ describe("TerminalLauncher", () => {
       availableBackends: [{ id: "standard", display_name: "Standard", description: "", available: true, survives_restart: false }, { id: "persistent", display_name: "Persistent", description: "", available: true, survives_restart: true }],
       targetCatalog: { status: "configured-empty", targets: [target("offline", "offline", false), target("update", "needs-update", false), target("ready", "dispatchable", true), target("bad-date", "unavailable", false)], message: "catalog warning", recovery_action: "refresh" },
     }));
+    fireEvent.click(screen.getByTestId("launcher-mode-agent"));
 
     expect(screen.getByTestId("terminal-launcher")).toBeInTheDocument();
     // Machine selection is one trigger row that opens a listbox; the picker's
@@ -81,6 +82,7 @@ describe("TerminalLauncher", () => {
 
   it("shows the unavailable and creating states", () => {
     render(createElement(TerminalLauncher, { open: true, onClose: vi.fn(), onLaunch: vi.fn(), isCreating: true, availableTargets: [] }));
+    fireEvent.click(screen.getByTestId("launcher-mode-agent"));
     expect(screen.getByTestId("launcher-creating")).toBeInTheDocument();
     expect(screen.getByTestId("launcher-submit-selection")).toBeDisabled();
   });
@@ -108,6 +110,7 @@ describe("TerminalLauncher", () => {
       availableTargets: [remote],
       targetCatalog: { status: "registry-error", targets: [remote], message: "registry offline", recovery_action: "retry" },
     }));
+    fireEvent.click(screen.getByTestId("launcher-mode-agent"));
 
     expect(screen.getByTestId("launcher-no-backend")).toHaveTextContent("terminalLauncher.noBackend");
     fireEvent.click(screen.getByTestId("launcher-machine-picker"));
@@ -119,9 +122,10 @@ describe("TerminalLauncher", () => {
     expect(unavailableOption).toBeDisabled();
     expect(unavailableOption).toHaveAttribute("title", "node unreachable");
     expect(screen.getByTestId("launcher-machine-picker")).toHaveAttribute("aria-label", "launcher.machine: terminalLauncher.thisMachine");
+    await waitFor(() => { expect(getEffective).toHaveBeenCalledOnce(); });
     fireEvent.click(screen.getByTestId("launcher-mode-shell"));
+    expect(await screen.findByText("Status")).toBeInTheDocument();
     expect(screen.getByTestId("launcher-submit-selection")).toBeDisabled();
-    await waitFor(() => { expect(screen.getByTestId("launcher-shortcut-status")).toBeInTheDocument(); });
     expect(getEffective).toHaveBeenCalled();
     getEffective.mockRestore();
   });
@@ -189,6 +193,7 @@ describe("TerminalLauncher", () => {
       onRefreshTargets: vi.fn(),
       targetsLoading: true,
     }));
+    fireEvent.click(screen.getByTestId("launcher-mode-agent"));
     expect(screen.getByTestId("launcher-no-backend")).toHaveTextContent("backend registry offline");
     // A known fleet keeps its trigger while re-probing; the refresh control
     // inside the menu is what goes disabled.

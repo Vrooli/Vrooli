@@ -3,7 +3,10 @@
   "version": "1.0.0",
   "branding": {
     "brand": "aquila",
-    "targets": ["web-public-v1", "electron-v1"]
+    "targets": [
+      "web-public-v1",
+      "electron-v1"
+    ]
   },
   "storage": {
     "entries": {
@@ -52,10 +55,10 @@
         "class": "data",
         "subpath": "recovery-snapshots",
         "regenerable": false,
-      "budget": {
-        "max_bytes": "2GiB",
-        "rationale": "Recovery snapshots preserve operator data across hardening and repair operations; the ceiling covers the current multi-copy recovery set while still detecting runaway accumulation without authorizing automatic deletion."
-      },
+        "budget": {
+          "max_bytes": "2GiB",
+          "rationale": "Recovery snapshots preserve operator data across hardening and repair operations; the ceiling covers the current multi-copy recovery set while still detecting runaway accumulation without authorizing automatic deletion."
+        },
         "rationale": "Protected SQLite recovery copies created before potentially destructive repair."
       },
       "deployment-report": {
@@ -152,7 +155,9 @@
         "safety_tier": "safe_with_owner",
         "default_mode": "disabled",
         "default_approval": "owner",
-        "storage_entries": ["session-rollouts"]
+        "storage_entries": [
+          "session-rollouts"
+        ]
       }
     ],
     "rationale": "The session tree is owner-managed durable state; cleanup is delegated to web-console so active sessions remain protected."
@@ -331,11 +336,15 @@
   "skills": {
     "usage": {
       "source": "skills/web-console-continuity/SKILL.md",
-      "programs": ["web-console.continuity-integrity-audit"]
+      "programs": [
+        "web-console.continuity-integrity-audit"
+      ]
     },
     "improve": {
       "source": "skills/web-console-continuity-improve/SKILL.md",
-      "programs": ["web-console.continuity-integrity-audit"]
+      "programs": [
+        "web-console.continuity-integrity-audit"
+      ]
     },
     "learning": {
       "scope": "web-console-continuity"
@@ -423,18 +432,54 @@
       {
         "logical_id": "vrooli/openrouter",
         "field": "api-key",
-      "label": "OpenRouter API key",
-      "description": "Optional user-provided key. The value is never returned and never stored in browser storage.",
-      "placeholder": "sk-or-v1-a1b2c3d4e5f6...",
+        "label": "OpenRouter API key",
+        "description": "Optional user-provided key. The value is never returned and never stored in browser storage.",
+        "placeholder": "sk-or-v1-a1b2c3d4e5f6...",
         "required": false,
         "provisioning": "operator",
         "obtain_url": "https://openrouter.ai/keys"
       }
     ]
   },
+  "authentication": {
+    "version": 1,
+    "profile": "hybrid",
+    "default_mode": "personal_local",
+    "supported_modes": [
+      "personal_local"
+    ],
+    "human_sign_in": "optional",
+    "offline": true,
+    "team_domain": "${VROOLI_CLOUDFLARE_ACCESS_TEAM_DOMAIN}",
+    "audience": "${VROOLI_CLOUDFLARE_ACCESS_AUDIENCE}",
+    "scenario_audience": "scenario-authenticator:web-console",
+    "policy_mode": "operator_managed",
+    "owner": "tunnel-manager",
+    "resource": "web-console",
+    "capabilities": [
+      {
+        "id": "web-console:read",
+        "effect": "read",
+        "agent_eligible": true
+      },
+      {
+        "id": "web-console:write",
+        "effect": "write",
+        "agent_eligible": false
+      }
+    ]
+  },
   "dependencies": {
     "resources": {
       "ollama": {
+        "uses": [
+          {
+            "id": "command-generation",
+            "name": "Command generation",
+            "description": "Turn instructions into terminal commands using local models",
+            "group": "models"
+          }
+        ],
         "type": "ollama",
         "enabled": true,
         "required": false,
@@ -446,6 +491,14 @@
         ]
       },
       "openrouter": {
+        "uses": [
+          {
+            "id": "command-generation",
+            "name": "Command generation",
+            "description": "Turn instructions into terminal commands using your provider account",
+            "group": "models"
+          }
+        ],
         "type": "openrouter",
         "enabled": true,
         "required": false,
@@ -457,6 +510,14 @@
         ]
       },
       "claude-code": {
+        "uses": [
+          {
+            "id": "coding-agents",
+            "name": "Coding agents",
+            "description": "Run Claude Code in your terminal with your own account",
+            "group": "agents"
+          }
+        ],
         "type": "claude-code",
         "enabled": true,
         "required": false,
@@ -465,6 +526,14 @@
         "degraded_behavior": "Claude Code remains unavailable until an operator explicitly installs it."
       },
       "codex": {
+        "uses": [
+          {
+            "id": "coding-agents",
+            "name": "Coding agents",
+            "description": "Run Codex in your terminal with your own account",
+            "group": "agents"
+          }
+        ],
         "type": "codex",
         "enabled": true,
         "required": false,
@@ -473,6 +542,14 @@
         "degraded_behavior": "Codex remains unavailable until an operator explicitly installs it."
       },
       "opencode": {
+        "uses": [
+          {
+            "id": "coding-agents",
+            "name": "Coding agents",
+            "description": "Run OpenCode in your terminal with your own account",
+            "group": "agents"
+          }
+        ],
         "type": "opencode",
         "enabled": true,
         "required": false,
@@ -481,6 +558,14 @@
         "degraded_behavior": "OpenCode remains unavailable until an operator explicitly installs it."
       },
       "grok": {
+        "uses": [
+          {
+            "id": "coding-agents",
+            "name": "Coding agents",
+            "description": "Run Grok in your terminal with your own account",
+            "group": "agents"
+          }
+        ],
         "type": "grok",
         "enabled": true,
         "required": false,
@@ -489,6 +574,14 @@
         "degraded_behavior": "Grok remains unavailable until an operator explicitly installs it."
       },
       "antigravity": {
+        "uses": [
+          {
+            "id": "coding-agents",
+            "name": "Coding agents",
+            "description": "Run Antigravity in your terminal with your own account",
+            "group": "agents"
+          }
+        ],
         "type": "antigravity",
         "enabled": true,
         "required": false,
@@ -499,14 +592,33 @@
     },
     "scenarios": {
       "audio-tools": {
+        "uses": [
+          {
+            "id": "voice",
+            "name": "Voice",
+            "description": "Dictation, read-aloud and wake word",
+            "group": "audio"
+          }
+        ],
         "required": false,
         "startup_policy": "try_start",
+        "bundle_policy": "embed",
+        "include_ui": false,
         "runtime_only": true,
         "runtime_only_rationale": "web-console reaches audio-tools through its scenario resolver and audioports client boundary; the dependency is a separately orchestrated service and is not linked as an in-process implementation dependency.",
         "description": "All audio capabilities (TTS synthesis, voice listing, summarization, STT/transcription, speaker verification, wake word) flow through audio-tools via audioports.Remote* and the shared browser capture package. web-console contains zero audio synthesis or transcription code.",
-        "degraded_behavior": "Terminal workspace boots without audio-tools. Voice, TTS, summarization, speaker verification, and wake word features show degraded/unavailable until audio-tools is reachable, then recover on the next lazy resolution or capability refresh."
+        "degraded_behavior": "Terminal workspace boots without audio-tools. Voice, TTS, summarization, speaker verification, and wake word features show degraded/unavailable until audio-tools is reachable, then recover on the next lazy resolution or capability refresh.",
+        "versionRange": ">=0.0.1 <1.0.0"
       },
       "vrooli-bridge": {
+        "uses": [
+          {
+            "id": "remote-terminals",
+            "name": "Remote terminals",
+            "description": "Open terminal sessions on your other machines",
+            "group": "terminals"
+          }
+        ],
         "required": false,
         "startup_policy": "try_start",
         "runtime_only": true,
@@ -515,6 +627,14 @@
         "degraded_behavior": "Local terminal sessions remain available; remote targets show bridge_url_missing or another typed capability reason until vrooli-bridge is configured."
       },
       "integration-hub": {
+        "uses": [
+          {
+            "id": "connected-accounts",
+            "name": "Connected accounts",
+            "description": "Connect provider accounts and manage their access",
+            "group": "accounts"
+          }
+        ],
         "required": false,
         "startup_policy": "try_start",
         "runtime_only": true,
@@ -522,13 +642,67 @@
         "description": "Provider-neutral connection metadata and lifecycle owner for managed integrations.",
         "degraded_behavior": "Runtime dependencies and local BYOK behavior remain available; connected-account management reports an explicit unavailable state until Integration Hub recovers."
       },
+      "agent-manager": {
+        "uses": [
+          {
+            "id": "agent-runs",
+            "name": "Agent runs",
+            "description": "Launch and follow managed agents from this workspace",
+            "group": "agents"
+          },
+          {
+            "id": "agent-history",
+            "name": "Agent history",
+            "description": "Review agent conversations and completed work",
+            "group": "agents"
+          },
+          {
+            "id": "agent-usage",
+            "name": "Agent usage",
+            "description": "See agent activity and usage across your machines",
+            "group": "agents"
+          }
+        ],
+        "required": false,
+        "startup_policy": "try_start",
+        "runtime_only": true,
+        "runtime_only_rationale": "Web Console delegates managed agent capabilities through Agent Manager's scenario API boundary; it does not embed Agent Manager implementation code.",
+        "description": "Optional owner of managed agent discovery, setup, launch and operation capabilities.",
+        "degraded_behavior": "Terminal and local harness use remain available. Managed agent controls report an explicit unavailable state until Agent Manager is reachable.",
+        "versionRange": ">=0.0.1 <1.0.0"
+      },
       "notification-hub": {
+        "uses": [
+          {
+            "id": "notifications",
+            "name": "Notifications",
+            "description": "Choose which agent and app events notify you",
+            "group": "notifications"
+          }
+        ],
         "required": false,
         "startup_policy": "try_start",
         "runtime_only": true,
         "runtime_only_rationale": "Web Console reaches notification-hub only through its REST API boundary (/api/v1/notifications/*), resolved per request via scenario discovery; there is no Go package import or in-process implementation dependency. The browser calls Web Console's own same-origin facade, which forwards the operator's Bearer token to notification-hub.",
         "description": "Owner of the operator's notification preferences (sources, categories, min-urgency, channel overrides). The Notifications settings tab reads the preference catalog and upserts preferences through notification-hub.",
         "degraded_behavior": "The terminal workspace and all other settings remain available. The Notifications settings tab shows an explicit \"Notifications service is unavailable\" state (facade returns a clean 503) until notification-hub is reachable, then recovers on the next catalog fetch."
+      },
+      "ai-gateway": {
+        "uses": [
+          {
+            "id": "ai-command-routing",
+            "name": "AI command routing",
+            "description": "Route command generation to local models, your provider or Vrooli credits",
+            "group": "models"
+          }
+        ],
+        "required": true,
+        "bundle_policy": "embed",
+        "include_ui": false,
+        "runtime_only": true,
+        "runtime_only_rationale": "Web Console constructs its own prompts and consumes the common Gateway inference HTTP boundary.",
+        "description": "Required embedded AI routing service; call-time peer discovery prefers a full server in range.",
+        "degraded_behavior": "Terminal sessions remain available; AI generation reports Gateway unavailable until the required service recovers."
       }
     }
   },

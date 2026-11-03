@@ -28,6 +28,9 @@ func TestAgentUpdateRequiresMatchingFreshTargetEvidence(t *testing.T) {
 		want   string
 	}{
 		{"matching", func(*harnessUpdateReport, *capabilityprobe.Observation) {}, agentStateUpdateReady},
+		{"found copy remains available without a managed action", func(r *harnessUpdateReport, _ *capabilityprobe.Observation) {
+			r.State, r.PrimaryAction, r.InstallState, r.SignInState, r.UpdateState = agentStateFound, "", "found", "unknown", "blocked(found_copy)"
+		}, agentStateFound},
 		{"different executable", func(_ *harnessUpdateReport, p *capabilityprobe.Observation) { p.Path = "/other/codex" }, agentStateCheckFailed},
 		{"different installed version", func(_ *harnessUpdateReport, p *capabilityprobe.Observation) { p.Version = "0.164.0" }, agentStateCheckFailed},
 		{"stale capability", func(_ *harnessUpdateReport, p *capabilityprobe.Observation) { p.ProbedAt = now.Add(-3 * time.Minute) }, agentStateCheckFailed},
@@ -50,6 +53,9 @@ func TestAgentUpdateRequiresMatchingFreshTargetEvidence(t *testing.T) {
 			if got.State != tc.want {
 				t.Fatalf("state %q, want %q: %+v", got.State, tc.want, got)
 			}
+			if tc.want == agentStateFound && (got.InstallState != "found" || got.SignInState != "unknown" || got.UpdateState != "blocked(found_copy)") {
+				t.Fatalf("three-fact state lost in API projection: %+v", got)
+			}
 			if tc.want == agentStateCheckFailed && (got.PrimaryAction != agentActionRetry || got.Status != upstreamcheck.StatusUnknown) {
 				t.Fatalf("a failed check offers retry and no update indicator: %+v", got)
 			}
@@ -57,6 +63,51 @@ func TestAgentUpdateRequiresMatchingFreshTargetEvidence(t *testing.T) {
 				t.Fatal("matching installed tool must be verified")
 			}
 		})
+	}
+}
+
+func TestDecodeGrokSignInStateRequiresTheResourceOwnedContract(t *testing.T) {
+	cases := []struct {
+		name string
+		data string
+		want string
+	}{
+		{"signed out", `{"success":true,"sign_in_state":"signed_out"}`, "signed_out"},
+		{"signed in", `{"success":true,"sign_in_state":"signed_in"}`, "signed_in"},
+		{"resource unknown", `{"success":true,"sign_in_state":"unknown"}`, "unknown"},
+		{"invalid state", `{"success":true,"sign_in_state":"expired"}`, "unknown"},
+		{"failed status", `{"success":false,"sign_in_state":"signed_out"}`, "unknown"},
+		{"unrecognized fields", `{"success":true,"sign_in_state":"signed_out","token":"secret"}`, "unknown"},
+		{"trailing data", `{"success":true,"sign_in_state":"signed_out"}{"token":"secret"}`, "unknown"},
+		{"invalid JSON", `not-json`, "unknown"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := decodeGrokSignInState([]byte(tc.data)); got != tc.want {
+				t.Fatalf("state = %q, want %q", got, tc.want)
+			}
+		})
+	}
+}
+
+func TestRemoteGrokSignInStateDoesNotTrustUpdateReportFields(t *testing.T) {
+	for _, claimed := range []string{"signed_in", "signed_out", "expired", "unknown"} {
+		if got := remoteGrokSignInState(claimed); got != "unknown" {
+			t.Errorf("remote report claim %q produced sign-in state %q, want unknown without an owner probe", claimed, got)
+		}
+	}
+}
+
+func TestReadGrokSignInStateUsesSafeUnknownFallbacks(t *testing.T) {
+	if got := readGrokSignInState(context.Background(), func(context.Context) ([]byte, error) {
+		return []byte(`{"success":true,"sign_in_state":"signed_out"}`), nil
+	}); got != "signed_out" {
+		t.Fatalf("resource signed-out state = %q", got)
+	}
+	if got := readGrokSignInState(context.Background(), func(context.Context) ([]byte, error) {
+		return nil, errors.New("resource command unavailable")
+	}); got != "unknown" {
+		t.Fatalf("resource command failure state = %q, want unknown", got)
 	}
 }
 

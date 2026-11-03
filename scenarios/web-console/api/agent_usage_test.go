@@ -5,11 +5,53 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"testing"
 	"time"
 
 	capsH "web-console/handlers/capabilities"
 )
+
+func TestAgentUsageResolvesDesktopFeaturePerCall(t *testing.T) {
+	token := filepath.Join(t.TempDir(), "runtime-token")
+	if err := os.WriteFile(token, []byte("usage-test-token"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("VROOLI_AUTH_LOCAL_TOKEN_FILE", token)
+	owner := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/api/v1/pricing/live-quota" || r.URL.Query().Get("agent") != "codex" {
+			t.Errorf("unexpected owner request %s", r.URL)
+		}
+		fmt.Fprintf(w, `{"match":"likely","source":"Codex app-server","observedAt":%q,"windows":[{"pool":"codex","windowMinutes":300,"usedPercent":27}]}`, time.Now().UTC().Format(time.RFC3339))
+	}))
+	defer owner.Close()
+	selected := true
+	lookups := 0
+	runtime := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		lookups++
+		if r.URL.Path != "/features" || r.URL.Query().Get("scenario") != "agent-manager" || r.URL.Query().Get("feature") != "usage.live" || r.Header.Get("Authorization") != "Bearer usage-test-token" {
+			t.Errorf("unexpected feature lookup %s", r.URL)
+		}
+		if !selected {
+			http.Error(w, "component removed", 404)
+			return
+		}
+		fmt.Fprintf(w, `{"url":%q,"source":"component","component_id":"agent-manager-usage"}`, owner.URL)
+	}))
+	defer runtime.Close()
+	t.Setenv("VROOLI_RUNTIME_URL", runtime.URL)
+	server := &Server{}
+	got, err := server.readAgentUsage(context.Background(), "local", "codex")
+	if err != nil || got.Match != "likely" || len(got.Windows) != 1 || got.Windows[0].UsedPercent != 27 {
+		t.Fatalf("feature usage: %+v %v", got, err)
+	}
+	selected = false
+	got, err = server.readAgentUsage(context.Background(), "local", "codex")
+	if err != nil || got.Match != "unavailable" || len(got.Windows) != 0 || lookups != 2 {
+		t.Fatalf("removed feature: %+v %v lookups=%d", got, err, lookups)
+	}
+}
 
 func TestLocalAgentUsageKeepsEvidenceAndNeverClaimsVerified(t *testing.T) {
 	now := time.Now().UTC()
