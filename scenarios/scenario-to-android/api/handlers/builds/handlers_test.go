@@ -46,6 +46,7 @@ func TestArtifactMetadataAndAPKHandlersUseImmutableOwnerReference(t *testing.T) 
 	require.Equal(t, ref, descriptor["immutable_ref"])
 	require.Equal(t, "sha256:"+digestHandlerBytes(apk), descriptor["apk_checksum"])
 	require.Equal(t, "com.example.portal", descriptor["package_name"])
+	require.Equal(t, "debug-only", descriptor["signing"])
 	require.NotContains(t, metadataResponse.Body.String(), "local_path")
 	require.NotContains(t, metadataResponse.Body.String(), "apk_path")
 
@@ -105,7 +106,7 @@ func retainedHandlerArtifact(t *testing.T) (string, string, []byte) {
 	artifact := deliveryramp.Artifact{
 		ImmutableRef: "android-debug:" + digest, Kind: "android-debug-apk-aab", Checksum: "sha256:" + digest,
 		SizeBytes: int64(len(apk) + len(aab)), CreatedAt: time.Date(2026, 11, 2, 12, 0, 0, 0, time.UTC),
-		Metadata: map[string]string{"apk_path": apkPath, "aab_path": aabPath, "package_name": "com.example.portal", "version_name": "0.4.3", "version_code": "43"},
+		Metadata: map[string]string{"apk_path": apkPath, "aab_path": aabPath, "package_name": "com.example.portal", "version_name": "0.4.3", "version_code": "43", "signing": "debug-only"},
 	}
 	retained, err := buildsdomain.RetainArtifact(context.Background(), root, artifact)
 	require.NoError(t, err)

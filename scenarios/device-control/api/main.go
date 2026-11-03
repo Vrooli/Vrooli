@@ -124,7 +124,8 @@ func main() {
 		BaseURL: func(ctx context.Context) (string, error) {
 			return discovery.ResolveScenarioURLDefault(ctx, "scenario-to-android")
 		},
-		Inspector: androidartifact.AAPTInspector{ADBPath: "adb"},
+		Inspector:        androidartifact.AAPTInspector{ADBPath: "adb"},
+		SigningInspector: androidartifact.AndroidSDKSigningInspector{ADBPath: "adb"},
 	})
 	controlService.SetEvidenceDir(environment.Value(processEnv, "DEVICE_CONTROL_EVIDENCE_DIR"))
 	controlService.SetAgentPlanner(internalflows.NewGatewayPlanner(gateway))
@@ -205,9 +206,15 @@ func main() {
 	handler := lifecycleProvider.Middleware(apihttp.TestModeMiddleware(rootMux))
 
 	if err := apiserver.Run(apiserver.Config{
-		Handler:      handler,
-		ReadTimeout:  30 * time.Second,
-		WriteTimeout: 2 * time.Minute,
+		Handler: handler,
+		// Device Control has a domain provider that also accounts for Android,
+		// Cast and desktop helper generations; its own middleware closes ingress.
+		LifecycleConfiguredExternally: true,
+		ReadTimeout:                   30 * time.Second,
+		// Flow execution allows up to five minutes, then still has to encode its
+		// result and audit evidence. Keep the server write deadline above that
+		// contract so bounded Android operations return their actual outcome.
+		WriteTimeout: control.FlowHTTPWriteTimeout(),
 		Cleanup: func(ctx context.Context) error {
 			stopDesktop()
 			select {

@@ -133,16 +133,17 @@ func TestAgentStartSerializesBooleanFlags(t *testing.T) {
 			t.Fatalf("request = %s %s, want POST /api/v1/agents/start", r.Method, r.URL.Path)
 		}
 		var request struct {
-			Goal           string `json:"goal"`
-			DeviceID       string `json:"device_id"`
-			SkillAvailable bool   `json:"skill_available"`
-			DryRun         bool   `json:"dry_run"`
-			ExpectSelected string `json:"expect_selected"`
+			Goal                    string `json:"goal"`
+			DeviceID                string `json:"device_id"`
+			SkillAvailable          bool   `json:"skill_available"`
+			DryRun                  bool   `json:"dry_run"`
+			ExpectSelected          string `json:"expect_selected"`
+			ExpectForegroundPackage string `json:"expect_foreground_package"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
 			t.Fatalf("decode request: %v", err)
 		}
-		if request.Goal != "observe the TV" || request.DeviceID != "tv-1" || !request.SkillAvailable || !request.DryRun || request.ExpectSelected != "TV apps" {
+		if request.Goal != "observe the TV" || request.DeviceID != "tv-1" || !request.SkillAvailable || !request.DryRun || request.ExpectSelected != "TV apps" || request.ExpectForegroundPackage != "com.example.tv" {
 			t.Fatalf("request = %+v, want both boolean flags true", request)
 		}
 		_, _ = w.Write([]byte(`{"id":"agent-1","state":"completed"}`))
@@ -165,7 +166,7 @@ func TestAgentStartSerializesBooleanFlags(t *testing.T) {
 		t.Fatal("agent start command has no RunCtx handler")
 	}
 	ctx, err := cliapp.NewTestRunContextFromArgs(start.Args, []string{
-		"--goal", "observe the TV", "--device", "tv-1", "--skill-available", "--dry-run", "--expect-selected", "TV apps", "--json",
+		"--goal", "observe the TV", "--device", "tv-1", "--skill-available", "--dry-run", "--expect-selected", "TV apps", "--expect-foreground-package", "com.example.tv", "--json",
 	}, core, &stdout, &stdout)
 	if err != nil {
 		t.Fatalf("parse context: %v", err)

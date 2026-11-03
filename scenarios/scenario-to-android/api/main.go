@@ -112,19 +112,53 @@ func main() {
 	if err != nil {
 		log.Fatalf("durable Android app plan failed: %v", err)
 	}
+	updateAppPlan, err := journeys.ScenarioAppPlan("update")
+	if err != nil {
+		log.Fatalf("Android app update plan failed: %v", err)
+	}
+	verifyAppPlan, err := journeys.ScenarioAppPlan("verify")
+	if err != nil {
+		log.Fatalf("Android app verification plan failed: %v", err)
+	}
+	offlineTransitionPlan := journeys.InstalledAppOfflineTransitionPlan()
 	journeySelections := []validationmatrix.JourneySelection{
 		journeySelection,
 		{JourneyID: journeys.TemporaryAppTestPlanID, DisplayName: "Temporary scenario app BAS test", SourcePath: "internal/journeys/plan.go", ExecutionMode: "platform", Required: true, Category: "android", Requirements: []string{"immutable Android artifact", "absent package precondition", "cold and warm BAS assertions", "verified cleanup"}, Safety: validationmatrix.JourneySafety{Mutating: true, RequiresIsolation: true, RequiresConfirmation: true}},
 		{JourneyID: journeys.DurableAppPlanID, DisplayName: "Durable scenario app installation and BAS test", SourcePath: "internal/journeys/plan.go", ExecutionMode: "platform", Required: true, Category: "android", Requirements: []string{"immutable Android artifact", "absent package precondition", "cold and warm BAS assertions", "installed package readback"}, Safety: validationmatrix.JourneySafety{Mutating: true, RequiresIsolation: true, RequiresConfirmation: true}},
+		{JourneyID: journeys.UpdateAppPlanID, DisplayName: "Durable scenario app version update and data-preservation test", SourcePath: "internal/journeys/plan.go", ExecutionMode: "platform", Required: true, Category: "android", Requirements: []string{"immutable Android artifact", "existing package with lower installed version code", "matching signer", "pre-input BAS data-preservation assertion", "cold and warm BAS assertions", "updated package remains installed"}, Safety: validationmatrix.JourneySafety{Mutating: true, RequiresIsolation: true, RequiresConfirmation: true}},
+		{JourneyID: journeys.VerifyAppPlanID, DisplayName: "Verify an installed scenario app with BAS without reinstalling", SourcePath: "internal/journeys/plan.go", ExecutionMode: "platform", Required: true, Category: "android", Requirements: []string{"expected package and version-name readback", "saved-state assertion before BAS input", "cold and warm BAS assertions", "installed package remains present", "original screen and lock state restored"}, Safety: validationmatrix.JourneySafety{Mutating: true, RequiresIsolation: true, RequiresConfirmation: true}},
+		{JourneyID: journeys.OfflineTransitionPlanID, DisplayName: "Offline and online BAS on an installed hello-mobile fixture", SourcePath: "internal/journeys/plan.go", ExecutionMode: "platform", Required: false, Category: "android", Requirements: []string{"exact Android target on USB", "installed hello-mobile test fixture with matching package and version name/code", "registered mutating hello-mobile smoke flow", "offline and online BAS assertions", "online recovery after interruption", "terminal package identity readback", "original screen and lock state restored"}, Safety: validationmatrix.JourneySafety{Mutating: true, RequiresIsolation: true, RequiresConfirmation: true}},
 	}
 	journeyRunner := func(ctx context.Context, request deliveryramp.DriverRequest, deviceURL, basURL, deviceTransport string, client *http.Client) (deliveryramp.JourneyResult, error) {
 		if client == nil {
 			client = http.DefaultClient
 		}
+		if request.Plan.ID == journeys.PlanID {
+			inventory, err := (targets.DeviceControlInventory{Resolve: func(context.Context) (string, error) { return deviceURL, nil }, Client: client}).List(ctx)
+			if err != nil {
+				return deliveryramp.JourneyResult{}, fmt.Errorf("resolve Android version for conformance plan: %w", err)
+			}
+			version := ""
+			for _, device := range inventory {
+				if device.ID == request.Cell.Target.ID {
+					version = device.OSVersion
+					break
+				}
+			}
+			if strings.TrimSpace(version) == "" {
+				return deliveryramp.JourneyResult{}, fmt.Errorf("Device Control did not report an Android OS version for target %q", request.Cell.Target.ID)
+			}
+			plan, err := journeys.AndroidPlanForOSVersion(version)
+			if err != nil {
+				return deliveryramp.JourneyResult{}, err
+			}
+			request.Plan = plan.JourneyPlan()
+		}
 		driver := journeys.Driver{
-			Devices: &journeys.HTTPDeviceClient{BaseURL: deviceURL, Actor: "scenario-to-android", DeviceTransport: deviceTransport, Client: client},
-			BAS:     journeys.HTTPBASClient{BaseURL: basURL, FlowRoot: repoRoot(), HTTP: client},
-			Actor:   "scenario-to-android",
+			Devices:         &journeys.HTTPDeviceClient{BaseURL: deviceURL, Actor: "scenario-to-android", DeviceTransport: deviceTransport, Client: client},
+			BAS:             journeys.HTTPBASClient{BaseURL: basURL, FlowRoot: repoRoot(), HTTP: client},
+			Actor:           "scenario-to-android",
+			DeviceTransport: deviceTransport,
 		}
 		return driver.Execute(ctx, request)
 	}
@@ -139,7 +173,7 @@ func main() {
 		}
 		return "usb"
 	}
-	executors := validationmatrix.Executors{Local: releases.Executor{JourneyPlan: androidPlan.JourneyPlan(), JourneyPlans: map[string]deliveryramp.JourneyPlan{journeys.TemporaryAppTestPlanID: temporaryAppPlan, journeys.DurableAppPlanID: durableAppPlan}, ResolveTransport: resolveTransport, RunJourney: journeyRunner}}
+	executors := validationmatrix.Executors{Local: releases.Executor{JourneyPlan: androidPlan.JourneyPlan(), JourneyPlans: map[string]deliveryramp.JourneyPlan{journeys.TemporaryAppTestPlanID: temporaryAppPlan, journeys.DurableAppPlanID: durableAppPlan, journeys.UpdateAppPlanID: updateAppPlan, journeys.VerifyAppPlanID: verifyAppPlan, journeys.OfflineTransitionPlanID: offlineTransitionPlan}, ResolveTransport: resolveTransport, RunJourney: journeyRunner}}
 	if bridgeExecutor := validationmatrix.NewClientFromEnv(validationmatrix.WithPlatform("android")); bridgeExecutor != nil {
 		executors.Bridge = bridgeExecutor
 	}

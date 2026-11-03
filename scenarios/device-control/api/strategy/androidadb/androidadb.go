@@ -26,6 +26,7 @@ import (
 	"sync"
 	"time"
 
+	"device-control/internal/androidartifact"
 	"device-control/strategy"
 )
 
@@ -123,6 +124,8 @@ type activeRecording struct {
 	handle          strategy.RecordingHandle
 	process         Process
 	path            string
+	stopping        bool
+	stopAttempted   bool
 	audioSessionID  string
 	videoStartNanos int64
 	priorStayAwake  string
@@ -186,19 +189,20 @@ func (s *recordingScreenshots) appendSample(frame []byte, captured time.Time, bu
 }
 
 type Adapter struct {
-	runner         Runner
-	serial         string
-	identitySerial string
-	endpoint       string
-	transport      string
-	recordingMu    sync.Mutex
-	recordings     map[string]activeRecording
-	rendererID     func(context.Context, string) (string, error)
-	rendererTarget func(context.Context, string) (string, string, error)
+	runner           Runner
+	serial           string
+	identitySerial   string
+	endpoint         string
+	transport        string
+	recordingMu      sync.Mutex
+	recordings       map[string]activeRecording
+	rendererID       func(context.Context, string) (string, error)
+	rendererTarget   func(context.Context, string) (string, string, error)
+	signingInspector androidartifact.APKSigningInspector
 }
 
 func newAdapter(runner Runner, serial string) *Adapter {
-	return &Adapter{runner: runner, serial: serial, identitySerial: serial, transport: transportForSerial(serial), recordings: map[string]activeRecording{}, rendererTarget: discoverWebViewRenderer}
+	return &Adapter{runner: runner, serial: serial, identitySerial: serial, transport: transportForSerial(serial), recordings: map[string]activeRecording{}, rendererTarget: discoverWebViewRenderer, signingInspector: androidartifact.AndroidSDKSigningInspector{ADBPath: "adb"}}
 }
 
 type Config struct {
@@ -220,7 +224,7 @@ func NewWithRunner(r Runner, serial string) *Adapter {
 
 func (a *Adapter) ForDevice(serial string) strategy.Strategy {
 	serial = strings.TrimSpace(serial)
-	return &Adapter{runner: a.runner, serial: serial, identitySerial: serial, transport: transportForSerial(serial), recordings: map[string]activeRecording{}, rendererID: a.rendererID, rendererTarget: a.rendererTarget}
+	return &Adapter{runner: a.runner, serial: serial, identitySerial: serial, transport: transportForSerial(serial), recordings: map[string]activeRecording{}, rendererID: a.rendererID, rendererTarget: a.rendererTarget, signingInspector: a.signingInspector}
 }
 
 // NewNetworkTransport returns a fresh, unbound adapter that shares this
@@ -369,13 +373,27 @@ func (a *Adapter) StopRecording(ctx context.Context, handle strategy.RecordingHa
 	captureElapsed := time.Since(handle.StartedAt)
 	a.recordingMu.Lock()
 	active, ok := a.recordings[handle.ID]
-	if ok {
-		delete(a.recordings, handle.ID)
-	}
-	a.recordingMu.Unlock()
 	if !ok {
+		a.recordingMu.Unlock()
 		return strategy.RecordingArtifact{}, fmt.Errorf("recording %q is not active", handle.ID)
 	}
+	if active.stopping || active.stopAttempted {
+		a.recordingMu.Unlock()
+		return strategy.RecordingArtifact{}, fmt.Errorf("recording %q already has a stop attempt; inspect its status before any recovery", handle.ID)
+	}
+	active.stopping, active.stopAttempted = true, true
+	a.recordings[handle.ID] = active
+	a.recordingMu.Unlock()
+	defer func() {
+		a.recordingMu.Lock()
+		defer a.recordingMu.Unlock()
+		if retErr == nil {
+			delete(a.recordings, handle.ID)
+			return
+		}
+		active.stopping = false
+		a.recordings[handle.ID] = active
+	}()
 	audioTerminal := false
 	var stopBackgroundOnce sync.Once
 	stopBackground := func() {
@@ -487,33 +505,85 @@ func (a *Adapter) StopRecording(ctx context.Context, handle strategy.RecordingHa
 	return strategy.RecordingArtifact{Bytes: video, Method: method, ClaimClass: handle.ClaimClass, Duration: captureElapsed, EffectiveFPS: sampleFPS}, retErr
 }
 
+// InspectRecording reports whether the exact owned encoder is still present
+// and whether its producer-owned output path remains available. It never
+// signals the encoder, reads the artifact bytes, or clears retained state.
+func (a *Adapter) InspectRecording(ctx context.Context, handle strategy.RecordingHandle) (strategy.RecordingInspection, error) {
+	a.recordingMu.Lock()
+	active, ok := a.recordings[handle.ID]
+	a.recordingMu.Unlock()
+	inspection := strategy.RecordingInspection{State: "unknown", ObservedAt: time.Now().UTC()}
+	if !ok || active.path == "" {
+		inspection.Reason = "recording handle has no retained adapter state"
+		return inspection, nil
+	}
+	if active.stopping {
+		inspection.State = "stopping"
+		inspection.Reason = "the original stop attempt is still in progress"
+		return inspection, nil
+	}
+	processes, err := a.ownedScreenrecordProcesses(ctx, active.path)
+	if err != nil {
+		inspection.Reason = "could not inspect the exact owned encoder process"
+		return inspection, err
+	}
+	if len(processes) > 1 {
+		inspection.Reason = "multiple encoder processes match the recording path"
+		return inspection, nil
+	}
+	if len(processes) == 1 {
+		inspection.State = "process_active"
+		inspection.Reason = "the exact owned encoder is still running; no stop was sent"
+		return inspection, nil
+	}
+	inspection.State = "process_stopped_artifact_missing"
+	inspection.Reason = "the exact owned encoder is absent; artifact availability was not confirmed"
+	if _, err := a.runner.Run(ctx, "adb", a.args("shell", "ls", active.path)...); err == nil {
+		inspection.State = "process_stopped_artifact_available"
+		inspection.ArtifactAvailable = true
+		inspection.Reason = "the exact owned encoder is absent and its output path exists; no artifact bytes were read"
+	}
+	return inspection, nil
+}
+
 // stopOwnedScreenrecord signals only the encoder whose complete argument list
 // ends in this recording's unique path. Ambiguity is not authority to stop
 // another session's encoder.
 func (a *Adapter) stopOwnedScreenrecord(ctx context.Context, path string) error {
+	processes, err := a.ownedScreenrecordProcesses(ctx, path)
+	if err != nil {
+		return err
+	}
+	if len(processes) == 0 {
+		return errors.New("owned encoder process not found")
+	}
+	if len(processes) != 1 {
+		return errors.New("ambiguous encoder process identity")
+	}
+	if _, err := a.runner.Run(ctx, "adb", a.args("shell", "kill", "-INT", processes[0])...); err != nil {
+		return fmt.Errorf("signal owned encoder: %w", err)
+	}
+	return nil
+}
+
+func (a *Adapter) ownedScreenrecordProcesses(ctx context.Context, path string) ([]string, error) {
 	out, err := a.runner.Run(ctx, "adb", a.args("shell", "ps", "-A", "-o", "PID,ARGS")...)
 	if err != nil {
-		return fmt.Errorf("inspect encoder processes: %w", err)
+		return nil, fmt.Errorf("inspect encoder processes: %w", err)
 	}
-	var pid string
+	processes := make([]string, 0, 1)
 	for _, line := range strings.Split(string(out), "\n") {
 		fields := strings.Fields(line)
 		if len(fields) < 3 || fields[len(fields)-1] != path || (fields[1] != "screenrecord" && fields[1] != "/system/bin/screenrecord") {
 			continue
 		}
 		n, parseErr := strconv.ParseUint(fields[0], 10, 31)
-		if parseErr != nil || n == 0 || pid != "" {
-			return errors.New("ambiguous encoder process identity")
+		if parseErr != nil || n == 0 {
+			return nil, errors.New("owned encoder process has an invalid PID")
 		}
-		pid = fields[0]
+		processes = append(processes, fields[0])
 	}
-	if pid == "" {
-		return errors.New("owned encoder process not found")
-	}
-	if _, err := a.runner.Run(ctx, "adb", a.args("shell", "kill", "-INT", pid)...); err != nil {
-		return fmt.Errorf("signal owned encoder: %w", err)
-	}
-	return nil
+	return processes, nil
 }
 
 func (a *Adapter) readStayAwake(ctx context.Context) (string, error) {
@@ -1188,10 +1258,10 @@ func (a *Adapter) ID() string { return "android-adb" }
 func (a *Adapter) AttachWebView(ctx context.Context, packageName string) (strategy.WebViewEndpoint, error) {
 	packageName = strings.TrimSpace(packageName)
 	if packageName == "" {
-		return strategy.WebViewEndpoint{}, fmt.Errorf("webview attach requires an application package")
+		return strategy.WebViewEndpoint{}, &strategy.WebViewAttachFailure{Stage: strategy.WebViewStageRequestValidation, Err: fmt.Errorf("webview attach requires an application package")}
 	}
 	if !regexp.MustCompile(`^[A-Za-z0-9_][A-Za-z0-9_.]*$`).MatchString(packageName) {
-		return strategy.WebViewEndpoint{}, fmt.Errorf("webview attach rejected invalid package %q", packageName)
+		return strategy.WebViewEndpoint{}, &strategy.WebViewAttachFailure{Stage: strategy.WebViewStageRequestValidation, Err: fmt.Errorf("webview attach rejected invalid package %q", packageName)}
 	}
 	socket, err := a.webViewSocket(ctx, packageName)
 	if err != nil {
@@ -1200,7 +1270,7 @@ func (a *Adapter) AttachWebView(ctx context.Context, packageName string) (strate
 	forward := "localabstract:" + socket
 	allocated, err := a.runner.Run(ctx, "adb", a.args("forward", "tcp:0", forward)...)
 	if err != nil {
-		return strategy.WebViewEndpoint{}, fmt.Errorf("forward WebView socket %q: %w", socket, err)
+		return strategy.WebViewEndpoint{}, &strategy.WebViewAttachFailure{Stage: strategy.WebViewStagePortForward, Err: fmt.Errorf("forward WebView socket %q: %w", socket, err)}
 	}
 	port, err := forwardedPort(allocated, socket)
 	if err != nil {
@@ -1210,7 +1280,7 @@ func (a *Adapter) AttachWebView(ctx context.Context, packageName string) (strate
 		}
 	}
 	if err != nil {
-		return strategy.WebViewEndpoint{}, err
+		return strategy.WebViewEndpoint{}, &strategy.WebViewAttachFailure{Stage: strategy.WebViewStageForwardReadback, Err: err}
 	}
 	cdpEndpoint := fmt.Sprintf("http://127.0.0.1:%d", port)
 	var rendererID, rendererURL string
@@ -1224,32 +1294,37 @@ func (a *Adapter) AttachWebView(ctx context.Context, packageName string) (strate
 		rendererID, rendererURL, err = readRenderer(ctx, cdpEndpoint)
 	}
 	if err != nil {
-		return strategy.WebViewEndpoint{}, fmt.Errorf("discover WebView renderer for %q: %w", packageName, err)
+		return strategy.WebViewEndpoint{}, &strategy.WebViewAttachFailure{Stage: strategy.WebViewStageRendererDiscovery, Err: fmt.Errorf("discover WebView renderer for %q: %w", packageName, err)}
 	}
 	if strings.TrimSpace(rendererID) == "" || (a.rendererID == nil && strings.TrimSpace(rendererURL) == "") {
-		return strategy.WebViewEndpoint{}, fmt.Errorf("discover WebView renderer for %q returned incomplete identity", packageName)
+		return strategy.WebViewEndpoint{}, &strategy.WebViewAttachFailure{Stage: strategy.WebViewStageRendererIdentity, Err: fmt.Errorf("discover WebView renderer for %q returned incomplete identity", packageName)}
 	}
 	return strategy.WebViewEndpoint{Package: packageName, Socket: socket, CDPEndpoint: cdpEndpoint, RendererID: rendererID, RendererURL: rendererURL, Transport: "adb-forward"}, nil
 }
 
 func (a *Adapter) webViewSocket(ctx context.Context, packageName string) (string, error) {
 	var lastErr error
+	lastStage := strategy.WebViewStageProcessLookup
 	for attempt := 0; attempt < 20; attempt++ {
 		pids, err := a.runner.Run(ctx, "adb", a.args("shell", "pidof", packageName)...)
 		if err != nil {
+			lastStage = strategy.WebViewStageProcessLookup
 			lastErr = fmt.Errorf("find WebView process for %q: %w", packageName, err)
 		} else {
 			pid := strings.Fields(string(pids))
 			if len(pid) > 0 && regexp.MustCompile(`^\d+$`).MatchString(pid[0]) {
 				sockets, socketErr := a.runner.Run(ctx, "adb", a.args("shell", "cat", "/proc/net/unix")...)
 				if socketErr != nil {
+					lastStage = strategy.WebViewStageSocketTableRead
 					lastErr = fmt.Errorf("list Android WebView sockets: %w", socketErr)
 				} else if socket, socketErr := webViewSocketForPID(sockets, pid[0]); socketErr == nil {
 					return socket, nil
 				} else {
+					lastStage = strategy.WebViewStageSocketDiscovery
 					lastErr = fmt.Errorf("find WebView socket for %q: %w", packageName, socketErr)
 				}
 			} else {
+				lastStage = strategy.WebViewStageProcessLookup
 				lastErr = fmt.Errorf("application %q has no running process", packageName)
 			}
 		}
@@ -1258,11 +1333,11 @@ func (a *Adapter) webViewSocket(ctx context.Context, packageName string) (string
 		}
 		select {
 		case <-ctx.Done():
-			return "", ctx.Err()
+			return "", &strategy.WebViewAttachFailure{Stage: lastStage, Err: ctx.Err()}
 		case <-time.After(250 * time.Millisecond):
 		}
 	}
-	return "", lastErr
+	return "", &strategy.WebViewAttachFailure{Stage: lastStage, Err: lastErr}
 }
 
 func discoverWebViewRenderer(ctx context.Context, endpoint string) (string, string, error) {
@@ -2620,19 +2695,32 @@ func (a *Adapter) AppLifecycle(ctx context.Context, request strategy.AppLifecycl
 	if operation == "package-enabled-set" {
 		return a.setPackageEnabled(ctx, request)
 	}
-	supported := map[string]bool{"launch": true, "focus": true, "close": true, "minimize": true, "restore": true, "stop": true, "uninstall": true, "clear-data": true, "grant-permission": true, "revoke-permission": true, "package-state": true}
+	supported := map[string]bool{"launch": true, "focus": true, "close": true, "minimize": true, "restore": true, "stop": true, "uninstall": true, "clear-data": true, "grant-permission": true, "revoke-permission": true, "package-state": true, "package-signing-state": true}
 	if !supported[operation] {
 		return strategy.AppLifecycleResult{}, &strategy.UnsupportedCapabilityError{Capability: strategy.CapAppLifecycle, Operation: operation}
 	}
 	if operation == "package-state" {
-		installed, version, err := a.packageState(ctx, request.Package)
+		installed, version, versionCode, err := a.packageState(ctx, request.Package)
 		if err != nil {
 			return strategy.AppLifecycleResult{Operation: operation, Package: request.Package, Status: strategy.StatusUnavailable, Reason: err.Error()}, err
 		}
-		result := strategy.AppLifecycleResult{Operation: operation, Package: request.Package, Status: strategy.StatusAvailable, Installed: installed}
+		result := strategy.AppLifecycleResult{Operation: operation, Package: request.Package, Status: strategy.StatusAvailable, Installed: installed, VersionCode: versionCode}
 		if installed {
 			result.Version = version
 			result.Reason = "package is installed"
+		} else {
+			result.Reason = "package is not installed"
+		}
+		return result, nil
+	}
+	if operation == "package-signing-state" {
+		installed, digest, err := a.packageSigningState(ctx, request.Package)
+		if err != nil {
+			return strategy.AppLifecycleResult{Operation: operation, Package: request.Package, Status: strategy.StatusUnavailable, Reason: err.Error()}, err
+		}
+		result := strategy.AppLifecycleResult{Operation: operation, Package: request.Package, Status: strategy.StatusAvailable, Installed: installed, SigningCertificateSHA256: digest}
+		if installed {
+			result.Reason = "installed package signing certificate was read back"
 		} else {
 			result.Reason = "package is not installed"
 		}
@@ -2733,14 +2821,15 @@ func focusedPackage(output string) string {
 }
 
 var packageVersionPattern = regexp.MustCompile(`versionName=(\S+)`)
+var packageVersionCodePattern = regexp.MustCompile(`versionCode=([0-9]+)`)
 
 // packageState reports whether a package is installed on the target and, when
 // present, its versionName. It matches the exact package line (not a prefix) so
 // `com.foo` is never reported present because `com.foobar` is installed.
-func (a *Adapter) packageState(ctx context.Context, pkg string) (bool, string, error) {
+func (a *Adapter) packageState(ctx context.Context, pkg string) (bool, string, int64, error) {
 	out, err := a.runner.Run(ctx, "adb", a.args("shell", "pm", "list", "packages", pkg)...)
 	if err != nil {
-		return false, "", fmt.Errorf("query package state: %w", err)
+		return false, "", 0, fmt.Errorf("query package state: %w", err)
 	}
 	installed := false
 	for _, line := range strings.Split(string(out), "\n") {
@@ -2750,15 +2839,79 @@ func (a *Adapter) packageState(ctx context.Context, pkg string) (bool, string, e
 		}
 	}
 	if !installed {
-		return false, "", nil
+		return false, "", 0, nil
 	}
 	version := ""
+	var versionCode int64
 	if info, infoErr := a.runner.Run(ctx, "adb", a.args("shell", "dumpsys", "package", pkg)...); infoErr == nil {
 		if match := packageVersionPattern.FindStringSubmatch(string(info)); len(match) == 2 {
 			version = match[1]
 		}
+		if match := packageVersionCodePattern.FindStringSubmatch(string(info)); len(match) == 2 {
+			versionCode, _ = strconv.ParseInt(match[1], 10, 64)
+		}
 	}
-	return true, version, nil
+	return true, version, versionCode, nil
+}
+
+var installedAPKPathPattern = regexp.MustCompile(`^/data/app/[A-Za-z0-9_./=~-]+/base\.apk$`)
+
+// packageSigningState reads the exact installed base APK through the bound
+// ADB strategy, then inspects its signer with the Android SDK build-tools.
+func (a *Adapter) packageSigningState(ctx context.Context, pkg string) (bool, string, error) {
+	installed, _, _, err := a.packageState(ctx, pkg)
+	if err != nil || !installed {
+		return installed, "", err
+	}
+	paths, err := a.runner.Run(ctx, "adb", a.args("shell", "pm", "path", pkg)...)
+	if err != nil {
+		return false, "", fmt.Errorf("query installed APK path: %w", err)
+	}
+	var baseAPK string
+	for _, line := range strings.Split(string(paths), "\n") {
+		path := strings.TrimSpace(strings.TrimPrefix(strings.TrimSpace(line), "package:"))
+		if !strings.HasSuffix(path, "/base.apk") {
+			continue
+		}
+		if !installedAPKPathPattern.MatchString(path) || strings.Contains(path, "..") {
+			return false, "", fmt.Errorf("installed APK path is not a safe package-manager path")
+		}
+		if baseAPK != "" {
+			return false, "", fmt.Errorf("package manager returned multiple base APK paths")
+		}
+		baseAPK = path
+	}
+	if baseAPK == "" {
+		return false, "", fmt.Errorf("package manager did not return an installed base APK path")
+	}
+	localAPK, err := os.CreateTemp("", "device-control-installed-*.apk")
+	if err != nil {
+		return false, "", fmt.Errorf("create installed APK signer inspection file: %w", err)
+	}
+	localPath := localAPK.Name()
+	if err := localAPK.Close(); err != nil {
+		_ = os.Remove(localPath)
+		return false, "", fmt.Errorf("close installed APK signer inspection file: %w", err)
+	}
+	defer os.Remove(localPath)
+	if _, err := a.runner.Run(ctx, "adb", a.args("pull", baseAPK, localPath)...); err != nil {
+		return false, "", fmt.Errorf("read installed APK for signer inspection: %w", err)
+	}
+	info, err := os.Stat(localPath)
+	if err != nil {
+		return false, "", fmt.Errorf("stat installed APK for signer inspection: %w", err)
+	}
+	if !info.Mode().IsRegular() || info.Size() <= 0 || info.Size() > 1<<30 {
+		return false, "", fmt.Errorf("installed APK size or file type is outside signer inspection limits")
+	}
+	if a.signingInspector == nil {
+		return false, "", fmt.Errorf("Android APK signing inspector is unavailable")
+	}
+	digest, err := a.signingInspector.InspectSigningCertificate(ctx, localPath)
+	if err != nil {
+		return false, "", fmt.Errorf("inspect installed APK signer: %w", err)
+	}
+	return true, strings.ToLower(strings.TrimSpace(digest)), nil
 }
 
 func maxInt(value, fallback int) int {

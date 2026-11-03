@@ -67,10 +67,63 @@ ANDROID_SOURCE_REF=/absolute/path/to/scenario/ui/dist \
   scenario-to-android android build
 scenario-to-android android targets
 scenario-to-android android matrix-catalog
-ANDROID_ARTIFACT_DIGEST=sha256:<apk-sha256> scenario-to-android android matrix-create
+ANDROID_ARTIFACT_DIGEST=sha256:<artifact-sha256> \
+ANDROID_ARTIFACT_REF=android-debug:<artifact-sha256> \
+ANDROID_ARTIFACT_PATH=/absolute/path/to/app.apk \
+  scenario-to-android android matrix-create
 ANDROID_MATRIX_RUN_ID=<run-id> scenario-to-android android matrix-start
 ANDROID_MATRIX_RUN_ID=<run-id> scenario-to-android android matrix-wait
+ANDROID_MATRIX_RUN_ID=<run-id> scenario-to-android android matrix-abort
 ```
+
+To run only the installed-app offline/online chapter on an isolated USB
+Android target, create a matrix with the exact journey and target selected:
+
+```bash
+ANDROID_ARTIFACT_DIGEST=sha256:<artifact-sha256> \
+ANDROID_ARTIFACT_REF=android-debug:<artifact-sha256> \
+ANDROID_ARTIFACT_PATH=/absolute/path/to/app.apk \
+ANDROID_ARTIFACT_PACKAGE=<installed-package> \
+ANDROID_TARGET_ID=<exact-usb-target-id> \
+ANDROID_JOURNEY_IDS=android-scenario-app-offline-transition-v1 \
+  scenario-to-android android matrix-create
+```
+
+Then start and wait on the returned server-owned matrix ID. The selected target
+must be attached over USB, have no competing owner, and already contain the
+fixture at the version named by the selected immutable artifact metadata. This
+journey runs offline and online BAS assertions, restores
+connectivity and original display/lock state, and confirms the package remains
+at the expected version without installing or uninstalling it.
+
+For durable app upgrades, first install the baseline artifact with `android
+app-install` while the package is absent. Build the next artifact with the
+same package and signing identity and a strictly higher
+`ANDROID_ARTIFACT_VERSION_CODE`, then run `android app-update`. The selected
+scenario must register its cold/warm flow at
+`bas/cases/mobile/conformance-flow.json` and the
+`scenario-app-update-preservation` flow at
+`bas/cases/mobile/update-preservation-flow.json`. Scenario-to-Android checks
+both files and registry entries before device lease acquisition or installation.
+The update-preservation flow asserts persisted app state on the installed
+version before replacement and again immediately after update, before other
+BAS input. A failed pre-update assertion prevents replacement. The update path
+refuses unknown or non-increasing installed versions and leaves the updated
+package in place for inspection after a post-update failure.
+
+To repeat BAS checks against an installed package without replacing or deleting
+it, use `android app-verify` with the expected package and version settings. It
+uses the scenario's registered read-only preservation flow for saved-state,
+cold-start, and warm-resume assertions and restores the display and lock state.
+The flow must declare observer execution, `reset: none`, and use only
+navigation, wait, assertion, screenshot, or extraction actions. If Device
+Control omits installed `versionCode`, the run records that limit and does not
+claim exact APK byte identity. This verification path skips Device Control
+video and log capture while external recording owners remain unreconciled.
+
+`matrix-abort` waits for the matrix owner to persist cancellation. Keep the
+owner running until it reports a terminal result; if a request ends before
+then, use `matrix-wait` to continue observing the owner.
 
 `android build` produces a debug APK and AAB without an operator signing
 identity. A matrix cell is pass-eligible only when device-control proves the

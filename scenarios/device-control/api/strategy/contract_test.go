@@ -26,6 +26,22 @@ func TestLifecycleResultOmitsUnknownInstalledState(t *testing.T) {
 	require.Contains(t, string(encoded), `"installed":false`)
 }
 
+func TestPackageStateJSONIncludesReadBackVersionCodeAndOmitsUnknown(t *testing.T) {
+	encoded, err := json.Marshal(strategy.AppLifecycleResult{
+		Operation: "package-state", Status: "available", Installed: true,
+		Version: "1.0.1", VersionCode: 2,
+	})
+	require.NoError(t, err)
+	require.Contains(t, string(encoded), `"version_code":2`)
+
+	encoded, err = json.Marshal(strategy.AppLifecycleResult{
+		Operation: "package-state", Status: "available", Installed: true,
+		Version: "1.0.1",
+	})
+	require.NoError(t, err)
+	require.NotContains(t, string(encoded), `"version_code"`)
+}
+
 func TestDeviceStateOmitsUnknownMobileBooleans(t *testing.T) {
 	encoded, err := json.Marshal(strategy.DeviceState{BatteryLevel: -1, Properties: map[string]strategy.PropertyValue{"volume": {Value: 0.7, Status: strategy.StatusAvailable}}})
 	require.NoError(t, err)

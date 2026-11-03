@@ -243,6 +243,13 @@ const (
 	maxRetryBudget    = 3
 )
 
+// FlowHTTPWriteTimeout leaves time to serialize evidence after the bounded
+// flow execution window. The API server must not close a response while a
+// valid maximum-duration flow is still producing its result.
+func FlowHTTPWriteTimeout() time.Duration {
+	return time.Duration(maxFlowDurationMS)*time.Millisecond + time.Minute
+}
+
 func validateFlowContract(flow Flow) error {
 	if len(flow.Steps) > maxFlowSteps {
 		return fmt.Errorf("flow exceeds %d steps", maxFlowSteps)
@@ -1277,16 +1284,19 @@ func (s *Service) execute(ctx context.Context, flow Flow, deviceID, actor string
 		audit := Audit{ID: uuid.NewString(), Actor: actor, DeviceID: deviceID, Transport: flow.Transport, CausationID: stepCausationID, LeaseID: sess.ID, Verb: step.Kind, Outcome: outcome, CreatedAt: time.Now().UTC(), RedactionVerified: redactionVerified, RedactionOptedOut: flow.AllowUnredactedCapture}
 		if install := chapter.ArtifactInstall; install != nil {
 			audit.Details = map[string]string{
-				"immutable_ref":         install.ImmutableRef,
-				"artifact_checksum":     install.ArtifactChecksum,
-				"apk_checksum":          install.APKChecksum,
-				"package_name":          install.PackageName,
-				"version_name":          install.VersionName,
-				"version_code":          strconv.FormatInt(install.VersionCode, 10),
-				"install_accepted":      strconv.FormatBool(install.InstallAccepted),
-				"installed":             strconv.FormatBool(install.Installed),
-				"installed_version":     install.InstalledVersion,
-				"post_install_verified": strconv.FormatBool(install.PostInstallVerified),
+				"immutable_ref":                        install.ImmutableRef,
+				"artifact_checksum":                    install.ArtifactChecksum,
+				"apk_checksum":                         install.APKChecksum,
+				"signing_certificate_sha256":           install.SigningCertificateSHA256,
+				"installed_signing_certificate_sha256": install.InstalledSigningCertificateSHA256,
+				"package_name":                         install.PackageName,
+				"version_name":                         install.VersionName,
+				"version_code":                         strconv.FormatInt(install.VersionCode, 10),
+				"installed_version_code":               strconv.FormatInt(install.InstalledVersionCode, 10),
+				"install_accepted":                     strconv.FormatBool(install.InstallAccepted),
+				"installed":                            strconv.FormatBool(install.Installed),
+				"installed_version":                    install.InstalledVersion,
+				"post_install_verified":                strconv.FormatBool(install.PostInstallVerified),
 			}
 		}
 		if s.db != nil {

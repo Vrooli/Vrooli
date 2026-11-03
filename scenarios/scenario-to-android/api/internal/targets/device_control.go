@@ -78,13 +78,42 @@ func (c DeviceControlInventory) List(ctx context.Context) ([]DeviceObservation, 
 		if strings.EqualFold(device.Transport, "bridge") || strings.EqualFold(device.Transport, "remote") {
 			transport = deliveryramp.TransportBridge
 		}
+		executionTransport := actionableADBTransport(device.Transport, device.Transports)
+		reason := firstReason(device.HealthReason, device.Status)
+		if executionTransport != strings.TrimSpace(device.Transport) {
+			reason = fmt.Sprintf("%s; selected transport %q, using observed actionable transport %q", reason, device.Transport, executionTransport)
+		}
 		observations = append(observations, DeviceObservation{
-			ID: device.Id, Label: device.Name, NodeID: device.HostNodeId, Serial: device.Serial, ADBTransport: device.Transport,
+			ID: device.Id, Label: device.Name, NodeID: device.HostNodeId, Serial: device.Serial, OSVersion: device.OsVersion, ADBTransport: executionTransport,
 			OS: "Android", Architecture: device.Model, Transport: deliveryramp.Transport{Kind: transport, ID: device.Serial, Available: available},
-			Capabilities: capabilities, Available: available, Reason: firstReason(device.HealthReason, device.Status), ObservedAt: observedAt(device.ObservedAt),
+			Capabilities: capabilities, Available: available, Reason: reason, ObservedAt: observedAt(device.ObservedAt),
 		})
 	}
 	return observations, nil
+}
+
+// actionableADBTransport keeps the requested profile when inventory cannot
+// prove a usable alternative. A wireless selection may use USB only when the
+// typed inventory reports an available android-adb USB profile.
+func actionableADBTransport(selected string, profiles []*devicesv1.TransportProfile) string {
+	selected = strings.TrimSpace(selected)
+	if strings.EqualFold(selected, "wireless") && availableADBProfile("usb", profiles) {
+		return "usb"
+	}
+	return selected
+}
+
+func availableADBProfile(name string, profiles []*devicesv1.TransportProfile) bool {
+	for _, profile := range profiles {
+		if profile == nil || !strings.EqualFold(strings.TrimSpace(profile.StrategyId), "android-adb") ||
+			!strings.EqualFold(strings.TrimSpace(profile.Health), "available") {
+			continue
+		}
+		if strings.EqualFold(strings.TrimSpace(profile.Name), name) || strings.EqualFold(strings.TrimSpace(profile.Endpoint), name) {
+			return true
+		}
+	}
+	return false
 }
 
 func observedAt(value *timestamppb.Timestamp) time.Time {

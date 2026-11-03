@@ -458,6 +458,10 @@ func (r *failingExternalRecorder) StopRecording(context.Context, strategy.Record
 	return strategy.RecordingArtifact{}, errors.New("destination stop outcome unknown")
 }
 
+func (r *failingExternalRecorder) InspectRecording(context.Context, strategy.RecordingHandle) (strategy.RecordingInspection, error) {
+	return strategy.RecordingInspection{State: "process_stopped_artifact_available", ArtifactAvailable: true, ObservedAt: time.Now().UTC(), Reason: "read-only fixture"}, nil
+}
+
 func TestStopRecordingFailurePreservesUncertainOutcomeWithoutReplay(t *testing.T) {
 	svc, _ := testService(t)
 	session, err := svc.Acquire("fake", "operator", time.Minute)
@@ -470,6 +474,29 @@ func TestStopRecordingFailurePreservesUncertainOutcomeWithoutReplay(t *testing.T
 	_, err = svc.StopExternalRecording(context.Background(), "fake", "operator", session.LeaseToken, "handle")
 	require.ErrorContains(t, err, "outcome uncertain")
 	require.EqualValues(t, 1, recorder.stops.Load(), "the owner must not replay a possibly consumed stop")
+}
+
+func TestInspectUncertainRecordingIsReadOnlyAndKeepsLifecycleBlocker(t *testing.T) {
+	svc, _ := testService(t)
+	session, err := svc.Acquire("fake", "operator", time.Minute)
+	require.NoError(t, err)
+	recorder := &failingExternalRecorder{}
+	svc.externalRecordings["handle"] = externalRecording{DeviceID: "fake", LeaseID: session.ID, Recorder: recorder, Handle: strategy.RecordingHandle{ID: "handle"}, Uncertain: true}
+
+	beforeWork, beforeBlockers, beforeComplete := svc.LifecycleInventory(context.Background())
+	inspection, err := svc.InspectExternalRecording(context.Background(), "fake", session.LeaseToken, "handle")
+	require.NoError(t, err)
+	require.Equal(t, "uncertain", inspection.OwnerState)
+	require.Equal(t, "process_stopped_artifact_available", inspection.ProcessState)
+	require.True(t, inspection.ArtifactAvailable)
+	require.True(t, beforeComplete)
+
+	afterWork, afterBlockers, afterComplete := svc.LifecycleInventory(context.Background())
+	require.Equal(t, beforeComplete, afterComplete)
+	require.Equal(t, beforeWork, afterWork)
+	require.Equal(t, beforeBlockers, afterBlockers)
+	require.True(t, svc.externalRecordings["handle"].Uncertain, "native readback must not clear the uncertain owner")
+	require.Zero(t, recorder.stops.Load(), "inspection must not replay the native stop")
 }
 
 type partialExternalRecorder struct {

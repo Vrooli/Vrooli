@@ -71,6 +71,7 @@ func Module(s *internal.Service) module.Module {
 		r.HandleFunc("/api/v1/sessions/{id}/release", h.release).Methods(http.MethodPost)
 		r.HandleFunc("/api/v1/sessions/{id}/validate", h.validateLease).Methods(http.MethodPost)
 		r.HandleFunc("/api/v1/recordings/start", h.startExternalRecording).Methods(http.MethodPost)
+		r.HandleFunc("/api/v1/recordings/inspect", h.inspectExternalRecording).Methods(http.MethodPost)
 		r.HandleFunc("/api/v1/recordings/stop", h.stopExternalRecording).Methods(http.MethodPost)
 		r.HandleFunc("/api/v1/recordings/concat", h.concatRecordings).Methods(http.MethodPost)
 		r.HandleFunc("/api/v1/flows/validate", h.validateFlow).Methods(http.MethodPost)
@@ -527,6 +528,7 @@ type webViewAttachRequest struct {
 	Actor      string `json:"actor"`
 	LeaseToken string `json:"lease_token"`
 	Package    string `json:"package"`
+	Transport  string `json:"transport,omitempty"`
 }
 
 func (h *handler) attachWebView(w http.ResponseWriter, r *http.Request) {
@@ -535,7 +537,7 @@ func (h *handler) attachWebView(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "invalid_request", err.Error())
 		return
 	}
-	endpoint, err := h.service.AttachWebView(r.Context(), mux.Vars(r)["id"], in.Actor, in.LeaseToken, in.Package)
+	endpoint, err := h.service.AttachWebView(r.Context(), mux.Vars(r)["id"], in.Actor, in.LeaseToken, in.Package, in.Transport)
 	if err != nil {
 		writeError(w, http.StatusConflict, leaseErrorCode(err), err.Error())
 		return
@@ -696,6 +698,7 @@ type externalRecordingRequest struct {
 	Actor      string `json:"actor"`
 	LeaseToken string `json:"lease_token"`
 	HandleID   string `json:"handle_id,omitempty"`
+	Transport  string `json:"transport,omitempty"`
 }
 
 type reviewRecordingRequest struct {
@@ -711,7 +714,7 @@ func (h *handler) startExternalRecording(w http.ResponseWriter, r *http.Request)
 		writeError(w, http.StatusBadRequest, "invalid_request", err.Error())
 		return
 	}
-	handle, err := h.service.StartExternalRecording(r.Context(), in.DeviceID, in.Actor, in.LeaseToken)
+	handle, err := h.service.StartExternalRecording(r.Context(), in.DeviceID, in.Actor, in.LeaseToken, in.Transport)
 	if err != nil {
 		writeError(w, http.StatusConflict, leaseErrorCode(err), err.Error())
 		return
@@ -735,6 +738,20 @@ func (h *handler) stopExternalRecording(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 	write(w, http.StatusOK, result)
+}
+
+func (h *handler) inspectExternalRecording(w http.ResponseWriter, r *http.Request) {
+	var in externalRecordingRequest
+	if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid_request", err.Error())
+		return
+	}
+	inspection, err := h.service.InspectExternalRecording(r.Context(), in.DeviceID, in.LeaseToken, in.HandleID)
+	if err != nil {
+		writeError(w, http.StatusConflict, leaseErrorCode(err), err.Error())
+		return
+	}
+	write(w, http.StatusOK, inspection)
 }
 
 func (h *handler) concatRecordings(w http.ResponseWriter, r *http.Request) {
@@ -922,19 +939,20 @@ func (h *handler) listAgents(w http.ResponseWriter, _ *http.Request) {
 
 func (h *handler) startAgent(w http.ResponseWriter, r *http.Request) {
 	var in struct {
-		Goal           string `json:"goal"`
-		DeviceID       string `json:"device_id"`
-		Actor          string `json:"actor"`
-		SkillAvailable bool   `json:"skill_available"`
-		DryRun         bool   `json:"dry_run"`
-		Confirmed      bool   `json:"confirmed"`
-		ExpectSelected string `json:"expect_selected"`
+		Goal                    string `json:"goal"`
+		DeviceID                string `json:"device_id"`
+		Actor                   string `json:"actor"`
+		SkillAvailable          bool   `json:"skill_available"`
+		DryRun                  bool   `json:"dry_run"`
+		Confirmed               bool   `json:"confirmed"`
+		ExpectSelected          string `json:"expect_selected"`
+		ExpectForegroundPackage string `json:"expect_foreground_package"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
 		writeError(w, http.StatusBadRequest, "invalid_request", err.Error())
 		return
 	}
-	a, err := h.service.StartAgentWithOutcome(r.Context(), in.Goal, in.DeviceID, in.Actor, in.SkillAvailable, in.DryRun, internalflows.DefaultAgentPolicy(), in.Confirmed, in.ExpectSelected)
+	a, err := h.service.StartAgentWithAssertions(r.Context(), in.Goal, in.DeviceID, in.Actor, in.SkillAvailable, in.DryRun, internalflows.DefaultAgentPolicy(), in.Confirmed, internal.AgentOutcomeAssertions{SelectedControl: in.ExpectSelected, ForegroundPackage: in.ExpectForegroundPackage})
 	if err != nil {
 		writeError(w, http.StatusPreconditionFailed, "agent_unavailable", err.Error())
 		return

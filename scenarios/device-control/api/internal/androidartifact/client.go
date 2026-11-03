@@ -25,6 +25,7 @@ const maxAPKBytes int64 = 1 << 30
 var (
 	immutableRefPattern = regexp.MustCompile(`^android-(debug|release):[0-9a-f]{64}$`)
 	checksumPattern     = regexp.MustCompile(`^sha256:[0-9a-f]{64}$`)
+	certificatePattern  = regexp.MustCompile(`^[0-9a-f]{64}$`)
 	packagePattern      = regexp.MustCompile(`^[A-Za-z][A-Za-z0-9_]*(\.[A-Za-z][A-Za-z0-9_]*)+$`)
 )
 
@@ -50,6 +51,43 @@ type APKIdentity struct {
 
 type APKInspector interface {
 	Inspect(context.Context, string) (APKIdentity, error)
+}
+
+type APKSigningInspector interface {
+	InspectSigningCertificate(context.Context, string) (string, error)
+}
+
+// AndroidSDKSigningInspector reads the signing certificate digest from the
+// staged APK. The result is computed from verified immutable bytes; it is not
+// trusted from producer-supplied descriptive metadata.
+type AndroidSDKSigningInspector struct{ ADBPath string }
+
+func (i AndroidSDKSigningInspector) InspectSigningCertificate(ctx context.Context, apkPath string) (string, error) {
+	apkSignerPath, err := resolveBuildToolsTool(i.ADBPath, "apksigner")
+	if err != nil {
+		return "", err
+	}
+	output, err := exec.CommandContext(ctx, apkSignerPath, "verify", "--print-certs", apkPath).CombinedOutput()
+	if err != nil {
+		return "", fmt.Errorf("inspect APK signing certificate: %w", err)
+	}
+	match := certificateDigestPattern.FindSubmatch(output)
+	if len(match) != 2 {
+		return "", fmt.Errorf("APK signing certificate SHA-256 digest is missing or malformed")
+	}
+	digest := strings.ToLower(string(match[1]))
+	if !certificatePattern.MatchString(digest) {
+		return "", fmt.Errorf("APK signing certificate SHA-256 digest is invalid")
+	}
+	return digest, nil
+}
+
+var certificateDigestPattern = regexp.MustCompile(`(?mi)^Signer #1 certificate SHA-256 digest:\s*([0-9a-f]{64})\s*$`)
+
+// ValidSigningCertificateSHA256 reports whether value is a normalized
+// lowercase SHA-256 certificate digest returned by artifact verification.
+func ValidSigningCertificateSHA256(value string) bool {
+	return certificatePattern.MatchString(value)
 }
 
 // AAPTInspector reads the identity embedded in a compiled APK manifest using
@@ -110,16 +148,18 @@ func resolveAAPT(adbPath string) (string, error) {
 }
 
 type Client struct {
-	HTTP      httpc.Doer
-	BaseURL   BaseURLResolver
-	Inspector APKInspector
+	HTTP             httpc.Doer
+	BaseURL          BaseURLResolver
+	Inspector        APKInspector
+	SigningInspector APKSigningInspector
 }
 
 // StagedAPK is a bounded, independently checksum-verified temporary APK.
 // Close removes the staged bytes after the device operation finishes.
 type StagedAPK struct {
-	Descriptor Descriptor
-	Path       string
+	Descriptor               Descriptor
+	SigningCertificateSHA256 string
+	Path                     string
 }
 
 func (a StagedAPK) Close() error {
@@ -223,8 +263,49 @@ func (c Client) Resolve(ctx context.Context, immutableRef, expectedPackage, expe
 	if identity.PackageName != descriptor.PackageName || identity.VersionName != descriptor.VersionName || identity.VersionCode != descriptor.VersionCode {
 		return StagedAPK{}, fmt.Errorf("APK manifest identity does not match its immutable descriptor")
 	}
+	if c.SigningInspector == nil {
+		return StagedAPK{}, fmt.Errorf("Android APK signing inspector is unavailable")
+	}
+	signingCertificate, err := c.SigningInspector.InspectSigningCertificate(ctx, path)
+	if err != nil {
+		return StagedAPK{}, fmt.Errorf("verify APK signing certificate: %w", err)
+	}
+	signingCertificate = strings.ToLower(strings.TrimSpace(signingCertificate))
+	if !certificatePattern.MatchString(signingCertificate) {
+		return StagedAPK{}, fmt.Errorf("APK signing certificate SHA-256 digest is invalid")
+	}
 	removeOnError = false
-	return StagedAPK{Descriptor: descriptor, Path: path}, nil
+	return StagedAPK{Descriptor: descriptor, SigningCertificateSHA256: signingCertificate, Path: path}, nil
+}
+
+func resolveBuildToolsTool(adbPath, tool string) (string, error) {
+	if strings.TrimSpace(adbPath) == "" {
+		adbPath = "adb"
+	}
+	resolved, err := exec.LookPath(adbPath)
+	if err != nil {
+		return "", fmt.Errorf("locate adb for Android SDK build-tools inspection: %w", err)
+	}
+	resolved, err = filepath.EvalSymlinks(resolved)
+	if err != nil {
+		return "", fmt.Errorf("resolve adb for Android SDK build-tools inspection: %w", err)
+	}
+	buildTools := filepath.Join(filepath.Dir(filepath.Dir(resolved)), "build-tools")
+	versions, err := os.ReadDir(buildTools)
+	if err != nil {
+		return "", fmt.Errorf("locate Android SDK build tools: %w", err)
+	}
+	sort.Slice(versions, func(a, b int) bool { return versions[a].Name() > versions[b].Name() })
+	for _, version := range versions {
+		if !version.IsDir() {
+			continue
+		}
+		candidate := filepath.Join(buildTools, version.Name(), tool)
+		if info, statErr := os.Stat(candidate); statErr == nil && info.Mode().IsRegular() && info.Mode()&0o111 != 0 {
+			return candidate, nil
+		}
+	}
+	return "", fmt.Errorf("Android SDK build tools do not provide %s", tool)
 }
 
 func (c Client) getJSON(ctx context.Context, target string, result any) error {

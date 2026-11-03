@@ -104,6 +104,7 @@ type (
 		InferenceCalls                          []internalflows.AgentInferenceEvidence `json:"inference_calls,omitempty"`
 		DryRun                                  bool                                   `json:"dry_run,omitempty"`
 		GoalVerified                            bool                                   `json:"goal_verified"`
+		ExpectedForegroundPackage               string                                 `json:"expected_foreground_package,omitempty"`
 		PlanningRole                            string                                 `json:"planning_role,omitempty"`
 		PromptHash                              string                                 `json:"prompt_hash,omitempty"`
 		PolicyHash                              string                                 `json:"policy_hash,omitempty"`

@@ -21,11 +21,13 @@ func TestClientResolveStagesOnlyMatchingVerifiedAPK(t *testing.T) {
 	server := artifactServer(t, descriptor, apk)
 	client := Client{HTTP: server.Client(), BaseURL: func(context.Context) (string, error) { return server.URL, nil }}
 	client.Inspector = fixtureInspector{identity: identityFor(descriptor)}
+	client.SigningInspector = fixtureSigningInspector{digest: strings.Repeat("b", 64)}
 
 	staged, err := client.Resolve(context.Background(), descriptor.ImmutableRef, descriptor.PackageName, descriptor.VersionName)
 	require.NoError(t, err)
 	defer staged.Close()
 	require.Equal(t, descriptor, staged.Descriptor)
+	require.Equal(t, strings.Repeat("b", 64), staged.SigningCertificateSHA256)
 	got, err := os.ReadFile(staged.Path)
 	require.NoError(t, err)
 	require.Equal(t, apk, got)
@@ -37,6 +39,7 @@ func TestClientResolveRejectsMismatchedIdentityAndTamperedBytes(t *testing.T) {
 	server := artifactServer(t, descriptor, []byte("tampered APK fixture"))
 	client := Client{HTTP: server.Client(), BaseURL: func(context.Context) (string, error) { return server.URL, nil }}
 	client.Inspector = fixtureInspector{identity: identityFor(descriptor)}
+	client.SigningInspector = fixtureSigningInspector{digest: strings.Repeat("b", 64)}
 
 	_, err := client.Resolve(context.Background(), descriptor.ImmutableRef, "com.example.other", descriptor.VersionName)
 	require.ErrorContains(t, err, "descriptor does not match")
@@ -90,6 +93,7 @@ func TestClientResolveCleansStagedFileOnClose(t *testing.T) {
 	server := artifactServer(t, descriptor, apk)
 	client := Client{HTTP: server.Client(), BaseURL: func(context.Context) (string, error) { return server.URL, nil }}
 	client.Inspector = fixtureInspector{identity: identityFor(descriptor)}
+	client.SigningInspector = fixtureSigningInspector{digest: strings.Repeat("b", 64)}
 
 	staged, err := client.Resolve(context.Background(), descriptor.ImmutableRef, descriptor.PackageName, "")
 	require.NoError(t, err)
@@ -116,6 +120,12 @@ func TestClientResolveRejectsAPKManifestIdentityBeforeReturningInstallableFile(t
 }
 
 type fixtureInspector struct{ identity APKIdentity }
+
+type fixtureSigningInspector struct{ digest string }
+
+func (f fixtureSigningInspector) InspectSigningCertificate(context.Context, string) (string, error) {
+	return f.digest, nil
+}
 
 func (f fixtureInspector) Inspect(context.Context, string) (APKIdentity, error) {
 	return f.identity, nil

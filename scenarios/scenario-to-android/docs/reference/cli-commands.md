@@ -16,7 +16,7 @@ that touches the API).
 The CLI's command surface (groups, commands, positionals, flags,
 RPC bindings, governance metadata) is declared in
 [`cli/manifest.json`](../../cli/manifest.json) and validated against the
-project CLI-manifest schema (`path:../../.vrooli/schemas/cli-manifest.schema.json`)
+project CLI-manifest schema (`path:.vrooli/schemas/cli-manifest.schema.json`)
 (schema id `cli-manifest/v1`). The manifest is loaded at startup by
 `cliapp.LoadFromManifestPrimitives`, which:
 
@@ -44,7 +44,7 @@ that committed file **statically** to verify each declared primitive — it neve
 runs your commands. A declaration with no matching evidence is advisory
 not-yet-verified debt, a mismatch is a gating error, and a stale/missing artifact
 keeps declared primitives unverified. See the CLI architecture maturity
-reference (`path:../cli-health/docs/reference/cli-architecture-maturity.md`).
+reference (`path:scenarios/cli-health/docs/reference/cli-architecture-maturity.md`).
 
 Per-domain tests use `cliapp.RequireProtoServiceCoverage` to assert
 that every RPC on the bound proto service either has a manifest command
@@ -150,16 +150,38 @@ artifact creation, readiness, distribution, and durable validation runs:
 
 ```text
 targets · generate · build · signing-provision · conformance-plan · readiness · distribution
-matrix-catalog · matrix-list · matrix-create · matrix-start · matrix-wait
+matrix-catalog · matrix-list · matrix-create · matrix-start · matrix-abort · matrix-wait
 compare · matrix-rerun-failed · evidence-paths · run
-app-test · app-install
+app-test · app-install · app-update · app-verify
 ```
 
 `android generate` and `android build` read `ANDROID_SOURCE_REF` and optional
 artifact settings from the environment, then call `/api/v1/android/generate`
 or `/api/v1/android/build`. Matrix lifecycle commands use
 `ANDROID_MATRIX_RUN_ID`; `compare` additionally uses
-`ANDROID_PRIOR_MATRIX_RUN_ID`; `matrix-create` uses `ANDROID_ARTIFACT_DIGEST`.
+`ANDROID_PRIOR_MATRIX_RUN_ID`. `matrix-create` requires
+`ANDROID_ARTIFACT_DIGEST`, `ANDROID_ARTIFACT_REF` and `ANDROID_ARTIFACT_PATH`.
+It resolves the exact immutable ref through the artifact owner and includes
+owner-produced package, version and signing metadata in the full-catalog
+selection. `ANDROID_ARTIFACT_PACKAGE`, when provided, is checked against the
+owner record; it cannot override it.
+`matrix-abort` sends a cancellation request and then waits on the server-owned
+run until the owner persists a terminal state. If the owner is still draining,
+keep it running and use `matrix-wait` to observe completion; do not stop the
+scenario owner after an intermediate `running` response.
+Set `ANDROID_TARGET_ID` to restrict a matrix to one exact catalog target; an
+unavailable matching target is retained as unavailable and never replaced by
+another device. Without it, the matrix uses the full eligible catalog.
+Set `ANDROID_JOURNEY_IDS` to a comma-separated set of exact registered journey
+IDs to narrow a matrix; when omitted, catalog defaults apply. For example,
+`android-scenario-app-offline-transition-v1` selects the isolated offline and
+online BAS check for an already-installed `hello-mobile` fixture. It requires
+the exact Android target over USB, matching installed package/version metadata,
+and the registered mutating smoke flow. The journey preserves the installed
+package and verifies it afterward; it does not install or uninstall the app.
+The journey restores online connectivity and the original display and lock
+state during cleanup. It must not run against a device with another active
+owner.
 `evidence-paths` refuses relative paths so the two
 reviewable recording locations are always unambiguous.
 
@@ -174,7 +196,8 @@ target unless `ANDROID_TARGET_ID` is supplied. It requires
 `ANDROID_SOURCE_REF`; the optional artifact environment variables are the same
 ones accepted by `android build`.
 
-`android app-test` and `android app-install` run the scenario-app path. They
+`android app-test`, `android app-install`, `android app-update`, and
+`android app-verify` run the scenario-app path. They
 require the producer's immutable ref, digest, package, version, and signing
 metadata, then pass that ref to Device Control's verified `install-artifact`
 flow. BAS runs the scenario's
@@ -186,9 +209,37 @@ available; `ANDROID_ARTIFACT_SCENARIO` selects the scenario and its BAS flow.
 It attempts lease-owned uninstall on success or failure and verifies the
 package is absent afterward. If the package already exists, it refuses before
 capture and installation. `android app-install` also requires an absent package,
-leaves its verified install in place, and reads package state back. Updating an
-existing install remains unsupported until Device Control can verify the
-installed signing identity before actuation.
+leaves its verified install in place, and reads package state back. To update
+that app, keep the same package and signing identity, set
+`ANDROID_ARTIFACT_VERSION_CODE` to a strictly higher value (and
+`ANDROID_ARTIFACT_VERSION` to the new version name), then run `android app-update`.
+It reads the installed version under the Device Control lease and refuses
+absent, unknown-version, or non-increasing packages before install. Device
+Control verifies signer identity before actuation and checks installed version
+name and code afterward. Before it acquires a device lease or installs, the
+journey verifies that the selected scenario registers its cold/warm flow at
+`bas/cases/mobile/conformance-flow.json` and its
+`scenario-app-update-preservation` flow at
+`bas/cases/mobile/update-preservation-flow.json`. It checks that each file
+parses and matches its registry entry; the update flow must also declare the
+expected contract ID. The preservation flow first asserts saved app state on
+the installed version before replacement, then runs again immediately after the
+update and before any other BAS input. A failed baseline assertion prevents
+replacement; a failed post-install assertion leaves the updated app installed.
+
+`android app-verify` checks an already-installed package without installing or
+uninstalling it. The installed version name must match the expected build; when
+Device Control reports an installed version code, it must also match. It runs
+the scenario's registered preservation flow for saved-state, cold-start, and
+warm-resume assertions. That flow must be an `observer` with `reset: none` and
+only navigation, wait, assertion, screenshot, or extraction steps; the owner
+refuses a flow with input, click, or other mutating actions before acquiring a
+device lease. The journey confirms that the package remains installed and
+restores the original display/lock state. If the installed version code is
+unavailable, it records that limit and does not claim byte-for-byte artifact
+identity. It omits Device Control video and log capture while external
+recording lifecycle inventory is incomplete; BAS execution evidence remains
+in the durable matrix.
 
 `android signing-provision` generates an upload key with the governed `keytool`
 and stores its keystore, separate keystore/key passwords, and alias through `secrets-manager`; it never

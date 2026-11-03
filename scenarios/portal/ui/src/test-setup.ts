@@ -24,12 +24,10 @@
  */
 import "@testing-library/jest-dom/vitest";
 import { createElement } from "react";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { configureTestProviders } from "@vrooli/api-base/testing";
 import { Providers } from "./app/providers";
 
-const queryClient = new QueryClient();
-configureTestProviders((children) => createElement(QueryClientProvider, { client: queryClient }, createElement(Providers, null, children)));
+configureTestProviders((children) => createElement(Providers, null, children));
 import { afterEach, beforeEach, vi } from "vitest";
 import { i18n } from "./i18n";
 

@@ -127,6 +127,12 @@ func (e Executor) Execute(ctx context.Context, request validationmatrix.CellRequ
 			artifact.ImmutableRef = immutableRef
 		}
 	}
+	if request.Metadata == nil {
+		request.Metadata = make(map[string]string)
+	}
+	if request.Metadata["package_name"] == "" {
+		request.Metadata["package_name"] = artifact.Metadata["package_name"]
+	}
 	deviceURL, err := resolveURL(ctx, "device-control", os.Getenv("DEVICE_CONTROL_URL"))
 	if err != nil {
 		return validationmatrix.CellResult{Disposition: domainv1.ValidationDisposition_VALIDATION_DISPOSITION_UNAVAILABLE, Reason: err.Error()}
@@ -207,7 +213,14 @@ func androidArtifact(configuredPath, digest string) (deliveryramp.Artifact, erro
 		return deliveryramp.Artifact{}, fmt.Errorf("read Android artifact: %w", err)
 	}
 	aabPath := strings.Replace(path, string(filepath.Separator)+"apk"+string(filepath.Separator), string(filepath.Separator)+"bundle"+string(filepath.Separator), 1)
-	aabPath = strings.Replace(aabPath, "app-debug.apk", "app-debug.aab", 1)
+	if filepath.Base(path) == "app.apk" {
+		// Retained immutable artifacts use stable app.apk/app.aab names in one
+		// digest directory. Build workspace paths keep app-debug.apk and the
+		// historical apk/../bundle/ layout handled below.
+		aabPath = filepath.Join(filepath.Dir(path), "app.aab")
+	} else {
+		aabPath = strings.Replace(aabPath, "app-debug.apk", "app-debug.aab", 1)
+	}
 	aab, err := os.ReadFile(aabPath)
 	if err != nil {
 		return deliveryramp.Artifact{}, fmt.Errorf("read Android companion AAB: %w", err)
@@ -262,7 +275,7 @@ func targetFromDescriptor(descriptor *domainv1.ValidationTargetDescriptor) deliv
 
 func journeyEvidence(result deliveryramp.JourneyResult, request validationmatrix.CellRequest) []*domainv1.LayeredEvidence {
 	evidence := make([]*domainv1.LayeredEvidence, 0)
-	if result.ReviewRecording != nil {
+	if result.ReviewRecording != nil && result.ReviewRecording.Redacted {
 		reference := *result.ReviewRecording
 		mediaType := reference.MediaType
 		if mediaType == "" {
@@ -272,19 +285,24 @@ func journeyEvidence(result deliveryramp.JourneyResult, request validationmatrix
 	}
 	for _, step := range result.Steps {
 		for _, reference := range step.Evidence {
+			if !reference.Redacted {
+				continue
+			}
 			mediaType := reference.MediaType
 			if mediaType == "" {
 				mediaType = "application/octet-stream"
 			}
 			kind := domainv1.LayeredEvidence_KIND_TARGET
-			if strings.HasPrefix(strings.ToLower(mediaType), "video/") || strings.Contains(strings.ToLower(reference.Kind), "video") || strings.Contains(strings.ToLower(reference.Kind), "record") {
+			if strings.Contains(strings.ToLower(reference.Kind), "bas-runtime") {
+				kind = domainv1.LayeredEvidence_KIND_DESKTOP_RUNTIME
+			} else if strings.HasPrefix(strings.ToLower(mediaType), "video/") || strings.Contains(strings.ToLower(reference.Kind), "video") || strings.Contains(strings.ToLower(reference.Kind), "record") {
 				kind = domainv1.LayeredEvidence_KIND_DESKTOP_RUNTIME
 			}
 			evidence = append(evidence, &domainv1.LayeredEvidence{Kind: kind, EvidenceId: reference.ID, Uri: firstNonEmpty(reference.URI, "device-control://evidence/"+reference.ID), Sha256: reference.Checksum, MediaType: &mediaType, Redacted: reference.Redacted})
 		}
 	}
 	for _, sample := range []*deliveryramp.ClockOffsetSample{result.ClockOffsetStart, result.ClockOffsetEnd} {
-		if sample == nil || sample.Evidence.ID == "" {
+		if sample == nil || sample.Evidence.ID == "" || !sample.Evidence.Redacted {
 			continue
 		}
 		mediaType := sample.Evidence.MediaType
@@ -293,10 +311,65 @@ func journeyEvidence(result deliveryramp.JourneyResult, request validationmatrix
 		}
 		evidence = append(evidence, &domainv1.LayeredEvidence{Kind: domainv1.LayeredEvidence_KIND_MACHINE_ASSERTION, EvidenceId: sample.Evidence.ID, Uri: firstNonEmpty(sample.Evidence.URI, "device-control://evidence/"+sample.Evidence.ID), Sha256: sample.Evidence.Checksum, MediaType: &mediaType, Redacted: sample.Evidence.Redacted})
 	}
+	if targetProof := verifiedScenarioPackageEvidence(result, request); targetProof != nil {
+		evidence = append(evidence, targetProof)
+	}
 	value := fmt.Sprintf("target=%s journey=%s run=%s", request.Target.GetTargetId(), request.Journey.JourneyID, request.RunID)
 	mediaType := "text/plain"
 	evidence = append(evidence, &domainv1.LayeredEvidence{Kind: domainv1.LayeredEvidence_KIND_MACHINE_ASSERTION, EvidenceId: "assertion-" + request.Cell.GetCellId(), Uri: "validation://android/" + request.Cell.GetCellId(), Sha256: hashText(value), MediaType: &mediaType, Redacted: true})
 	return evidence
+}
+
+func verifiedScenarioPackageEvidence(result deliveryramp.JourneyResult, request validationmatrix.CellRequest) *domainv1.LayeredEvidence {
+	mode := strings.TrimSpace(request.Metadata["install_mode"])
+	if mode == "" {
+		switch request.Journey.JourneyID {
+		case "android-scenario-app-temporary-test-v1":
+			mode = "temporary"
+		case "android-scenario-app-durable-v1":
+			mode = "durable"
+		case "android-scenario-app-update-v1":
+			mode = "update"
+		case "android-scenario-app-verify-v1":
+			mode = "verify"
+		}
+	}
+	wantStep, wantState := "", ""
+	switch mode {
+	case "temporary":
+		wantStep, wantState = "temporary-cleanup/verify-absent", "scenario package is absent"
+	case "durable":
+		wantStep = "verify-installed"
+	case "update":
+		wantStep = "verify-updated"
+	case "verify":
+		wantStep = "verify-installed"
+	default:
+		if request.Journey.JourneyID == "android-generated-app-conformance-v1" {
+			wantStep, wantState = "clean_uninstall/assert-absent", "absent"
+		} else {
+			return nil
+		}
+	}
+	for _, step := range result.Steps {
+		stateMatches := wantState == "" || step.ExpectedState == wantState
+		if wantState == "absent" {
+			stateMatches = strings.Contains(strings.ToLower(step.ExpectedState), "absent")
+		}
+		if step.ID != wantStep || step.Action != "package-state" || step.Disposition != deliveryramp.StepPassed || step.AssertionStatus != "observed" || !stateMatches {
+			continue
+		}
+		cellID := request.Cell.GetCellId()
+		value := fmt.Sprintf("target=%s package=%s state=%s step=%s", request.Target.GetTargetId(), request.Metadata["package_name"], step.ExpectedState, step.ID)
+		mediaType := "text/plain"
+		return &domainv1.LayeredEvidence{
+			Kind:       domainv1.LayeredEvidence_KIND_TARGET,
+			EvidenceId: "target-state-" + cellID,
+			Uri:        "validation://android/" + cellID + "/target-state",
+			Sha256:     hashText(value), MediaType: &mediaType, Redacted: true,
+		}
+	}
+	return nil
 }
 
 func capabilityEnum(value string) (domainv1.ValidationTargetCapability, bool) {

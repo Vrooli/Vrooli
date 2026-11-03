@@ -118,6 +118,21 @@ type SessionRecorder interface {
 	StopRecording(context.Context, RecordingHandle) (RecordingArtifact, error)
 }
 
+// RecordingInspection is a read-only snapshot of the native resources owned
+// by one recording handle. It does not stop a process or clear owner state.
+type RecordingInspection struct {
+	State             string    `json:"state"`
+	ArtifactAvailable bool      `json:"artifact_available"`
+	ObservedAt        time.Time `json:"observed_at"`
+	Reason            string    `json:"reason,omitempty"`
+}
+
+// RecordingInspector is optional. Implementations must not signal or otherwise
+// mutate the recording while inspecting it.
+type RecordingInspector interface {
+	InspectRecording(context.Context, RecordingHandle) (RecordingInspection, error)
+}
+
 // AudioSessionRecorder explicitly opts into capturing playback audio. A
 // declared audio capability alone is not an executable implementation.
 type AudioSessionRecorder interface {
@@ -198,8 +213,10 @@ type AppLifecycleResult struct {
 	// Installed is the verified package-presence result for a package-state
 	// query. Status reports whether the operation itself succeeded; Installed
 	// reports the live on-device fact.
-	Installed bool   `json:"installed"`
-	Version   string `json:"version,omitempty"`
+	Installed                bool   `json:"installed"`
+	Version                  string `json:"version,omitempty"`
+	VersionCode              int64  `json:"version_code,omitempty"`
+	SigningCertificateSHA256 string `json:"signing_certificate_sha256,omitempty"`
 	// Outcome separates a command acknowledgement from a live foreground
 	// observation. Neither proves a rendered frame or application readiness.
 	Outcome                string            `json:"outcome,omitempty"`
@@ -380,6 +397,38 @@ type SemanticSnapshot struct {
 // the bounded local CDP endpoint selected under the device lease.
 type WebViewAttacher interface {
 	AttachWebView(context.Context, string) (WebViewEndpoint, error)
+}
+
+const (
+	WebViewStageRequestValidation = "request_validation"
+	WebViewStageProcessLookup     = "process_lookup"
+	WebViewStageSocketTableRead   = "socket_table_read"
+	WebViewStageSocketDiscovery   = "socket_discovery"
+	WebViewStagePortForward       = "port_forward"
+	WebViewStageForwardReadback   = "forward_readback"
+	WebViewStageRendererDiscovery = "renderer_discovery"
+	WebViewStageRendererIdentity  = "renderer_identity"
+)
+
+// WebViewAttachFailure carries a bounded owner-defined stage across strategy
+// boundaries without requiring callers to parse adapter error text.
+type WebViewAttachFailure struct {
+	Stage string
+	Err   error
+}
+
+func (e *WebViewAttachFailure) Error() string {
+	if e == nil || e.Err == nil {
+		return "WebView attach failed"
+	}
+	return e.Err.Error()
+}
+
+func (e *WebViewAttachFailure) Unwrap() error {
+	if e == nil {
+		return nil
+	}
+	return e.Err
 }
 
 type WebViewEndpoint struct {

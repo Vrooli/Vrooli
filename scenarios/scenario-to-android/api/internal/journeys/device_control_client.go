@@ -162,9 +162,11 @@ func (c *HTTPDeviceClient) Execute(ctx context.Context, lease Lease, action stri
 			step["timeout_ms"] = timeoutMS
 			continue
 		}
-		if key != "step_id" && key != "target" {
-			stepArgs[key] = value
+		switch key {
+		case "step_id", "target", "chapter_id", "required_capabilities", "reference":
+			continue
 		}
+		stepArgs[key] = value
 	}
 	var response struct {
 		Disposition      string `json:"disposition"`
@@ -180,6 +182,12 @@ func (c *HTTPDeviceClient) Execute(ctx context.Context, lease Lease, action stri
 	}
 	transport := strings.TrimSpace(c.DeviceTransport)
 	if transport == "" {
+		transport = "usb"
+	}
+	if strings.EqualFold(action, "network") && strings.EqualFold(transport, "wireless") {
+		// A network-control step can disable the Wi-Fi radio that carries the
+		// selected wireless ADB session. Use the USB route for the mutation so
+		// the owner can still restore connectivity and finish the chapter.
 		transport = "usb"
 	}
 	err := c.post(ctx, "/api/v1/flows/run", map[string]any{
@@ -229,7 +237,11 @@ func (c *HTTPDeviceClient) startRecording(ctx context.Context, lease Lease, key 
 			ID string `json:"id"`
 		} `json:"handle"`
 	}
-	if err := c.post(ctx, "/api/v1/recordings/start", map[string]string{"device_id": lease.DeviceID, "actor": c.actor(""), "lease_token": lease.Token}, &response); err != nil {
+	request := map[string]string{"device_id": lease.DeviceID, "actor": c.actor(""), "lease_token": lease.Token}
+	if strings.EqualFold(key, "offline_transition") {
+		request["transport"] = "usb"
+	}
+	if err := c.post(ctx, "/api/v1/recordings/start", request, &response); err != nil {
 		return err
 	}
 	if response.Handle.ID == "" {
@@ -302,6 +314,15 @@ func (c *HTTPDeviceClient) Release(ctx context.Context, lease Lease) error {
 }
 
 func (c *HTTPDeviceClient) AttachWebView(ctx context.Context, lease Lease, packageName string) (WebViewAttachment, error) {
+	return c.AttachWebViewWithTransport(ctx, lease, packageName, "")
+}
+
+func (c *HTTPDeviceClient) AttachWebViewWithTransport(ctx context.Context, lease Lease, packageName, transport string) (WebViewAttachment, error) {
+	if strings.TrimSpace(transport) == "" {
+		transport = strings.TrimSpace(c.DeviceTransport)
+	}
+	requestCtx, cancel := context.WithTimeout(ctx, 90*time.Second)
+	defer cancel()
 	var response struct {
 		Endpoint struct {
 			CDPEndpoint string `json:"cdp_endpoint"`
@@ -309,7 +330,11 @@ func (c *HTTPDeviceClient) AttachWebView(ctx context.Context, lease Lease, packa
 			RendererURL string `json:"renderer_url"`
 		} `json:"endpoint"`
 	}
-	if err := c.post(ctx, "/api/v1/devices/"+urlPathSegment(lease.DeviceID)+"/webview/attach", map[string]string{"actor": c.actor(""), "lease_token": lease.Token, "package": packageName}, &response); err != nil {
+	request := map[string]string{"actor": c.actor(""), "lease_token": lease.Token, "package": packageName}
+	if strings.TrimSpace(transport) != "" {
+		request["transport"] = transport
+	}
+	if err := c.post(requestCtx, "/api/v1/devices/"+urlPathSegment(lease.DeviceID)+"/webview/attach", request, &response); err != nil {
 		return WebViewAttachment{}, err
 	}
 	if strings.TrimSpace(response.Endpoint.CDPEndpoint) == "" {
@@ -332,6 +357,66 @@ func (c *HTTPDeviceClient) actor(actor string) string {
 		return c.Actor
 	}
 	return "scenario-to-android"
+}
+
+func (c *HTTPDeviceClient) ReadState(ctx context.Context, deviceID string) (DeviceStateSnapshot, error) {
+	var state DeviceStateSnapshot
+	path := "/api/v1/devices/" + urlPathSegment(deviceID) + "/state"
+	if err := c.get(ctx, path, &state); err != nil {
+		return DeviceStateSnapshot{}, err
+	}
+	return state, nil
+}
+
+func (c *HTTPDeviceClient) ReadPackageState(ctx context.Context, lease Lease, packageName string) (InstalledPackageState, error) {
+	var response struct {
+		Result struct {
+			Operation   string `json:"operation"`
+			Package     string `json:"package,omitempty"`
+			Status      string `json:"status"`
+			Installed   bool   `json:"installed"`
+			Version     string `json:"version,omitempty"`
+			VersionCode int64  `json:"version_code,omitempty"`
+			Reason      string `json:"reason,omitempty"`
+		} `json:"result"`
+	}
+	payload := map[string]any{
+		"actor": c.actor(""), "lease_token": lease.Token, "confirmed": false,
+		"operation": "package-state", "package": packageName,
+	}
+	path := "/api/v1/devices/" + urlPathSegment(lease.DeviceID) + "/apps"
+	if err := c.post(ctx, path, payload, &response); err != nil {
+		return InstalledPackageState{}, err
+	}
+	if response.Result.Operation != "package-state" || response.Result.Package != packageName || response.Result.Status != "available" {
+		return InstalledPackageState{}, fmt.Errorf("Device Control package-state readback did not verify %s: %s", packageName, response.Result.Reason)
+	}
+	return InstalledPackageState{Installed: response.Result.Installed, Version: response.Result.Version, VersionCode: response.Result.VersionCode}, nil
+}
+
+func (c *HTTPDeviceClient) get(ctx context.Context, path string, result any) error {
+	if strings.TrimSpace(c.BaseURL) == "" {
+		return fmt.Errorf("device-control URL is not configured")
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, strings.TrimRight(c.BaseURL, "/")+path, nil)
+	if err != nil {
+		return err
+	}
+	response, err := c.ClientOrDefault().Do(req)
+	if err != nil {
+		return err
+	}
+	defer response.Body.Close()
+	if response.StatusCode < 200 || response.StatusCode >= 300 {
+		data, _ := io.ReadAll(io.LimitReader(response.Body, 16<<10))
+		return fmt.Errorf("device-control %s returned %s: %s", path, response.Status, strings.TrimSpace(string(data)))
+	}
+	if result != nil {
+		if err := json.NewDecoder(response.Body).Decode(result); err != nil {
+			return fmt.Errorf("decode device-control %s: %w", path, err)
+		}
+	}
+	return nil
 }
 
 func (c *HTTPDeviceClient) post(ctx context.Context, path string, payload any, result any) error {

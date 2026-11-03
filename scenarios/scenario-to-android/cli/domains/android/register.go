@@ -6,6 +6,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"github.com/vrooli/cli-core/cliapp"
@@ -20,6 +21,8 @@ func Register(core *cliapp.ScenarioApp) cliapp.SubcommandGroup {
 		{Name: "run", Description: "Build, install, drive, and record one server-owned Android validation run", NeedsAPI: true, RunCtx: run(core)},
 		{Name: "app-test", Description: "Build a scenario APK, test cold and warm BAS behavior, and safely remove it", NeedsAPI: true, RunCtx: appTest(core)},
 		{Name: "app-install", Description: "Build a scenario APK, test it, and leave a fresh install on the exact device", NeedsAPI: true, RunCtx: appInstall(core)},
+		{Name: "app-update", Description: "Build a higher-version scenario APK, preserve app data, and verify cold and warm BAS behavior", NeedsAPI: true, RunCtx: appUpdate(core)},
+		{Name: "app-verify", Description: "Verify an installed scenario app with cold and warm BAS without reinstalling it", NeedsAPI: true, RunCtx: appVerify(core)},
 		{Name: "conformance-plan", Description: "Show the generated-app Android conformance chapters", NeedsAPI: true, RunCtx: get(core, "/android/conformance-plan")},
 		{Name: "readiness", Description: "Show the six-rung Google release readiness ladder", NeedsAPI: true, RunCtx: get(core, "/android/readiness")},
 		{Name: "distribution", Description: "Show independent Play, sideload, and ADB channels", NeedsAPI: true, RunCtx: get(core, "/android/distribution")},
@@ -27,6 +30,7 @@ func Register(core *cliapp.ScenarioApp) cliapp.SubcommandGroup {
 		{Name: "matrix-list", Description: "List durable Android validation runs", NeedsAPI: true, RunCtx: get(core, "/validation/matrices?scenario=hello-mobile")},
 		{Name: "matrix-create", Description: "Create a normal-profile Android validation matrix", NeedsAPI: true, RunCtx: matrixCreate(core)},
 		{Name: "matrix-start", Description: "Start a server-owned Android validation matrix", NeedsAPI: true, RunCtx: matrixAction(core, "start")},
+		{Name: "matrix-abort", Description: "Cancel a matrix and wait for its owner to persist a terminal state", NeedsAPI: true, RunCtx: matrixAbort(core)},
 		{Name: "matrix-wait", Description: "Wait for a server-owned Android validation matrix", NeedsAPI: true, RunCtx: matrixWait(core)},
 		{Name: "compare", Description: "Compare two durable Android validation matrix runs", NeedsAPI: true, RunCtx: matrixCompare(core)},
 		{Name: "matrix-rerun-failed", Description: "Rerun failed Android validation cells", NeedsAPI: true, RunCtx: matrixRerun(core)},
@@ -115,23 +119,125 @@ type androidCatalog struct {
 	Targets []catalogTarget `json:"targets"`
 }
 
-const defaultAndroidPackageName = "com.vrooli.generated.app"
+type artifactDescriptor struct {
+	ImmutableRef    string `json:"immutable_ref"`
+	Checksum        string `json:"checksum"`
+	PackageName     string `json:"package_name"`
+	VersionName     string `json:"version_name"`
+	VersionCode     int64  `json:"version_code"`
+	Signing         string `json:"signing"`
+	SigningIdentity string `json:"signing_identity"`
+}
 
-func matrixSelectionRequest(digest, artifactPath, packageName string) map[string]any {
-	packageName = strings.TrimSpace(packageName)
-	if packageName == "" {
-		packageName = defaultAndroidPackageName
-	}
-	return map[string]any{
-		"scenario_name":        "hello-mobile",
+const (
+	defaultAndroidPackageName  = "com.vrooli.generated.app"
+	defaultAndroidScenarioName = "hello-mobile"
+)
+
+func matrixSelectionRequest(digest, artifactPath string, metadata map[string]string, target map[string]any) map[string]any {
+	request := map[string]any{
+		"scenario_name":        metadata["scenario_name"],
 		"artifact_digest":      digest,
 		"artifact_path":        artifactPath,
 		"environment_profiles": []int{1},
 		"max_concurrency":      1,
-		"metadata": map[string]string{
-			"package_name": packageName,
-		},
+		"metadata":             metadata,
 	}
+	if target != nil {
+		request["targets"] = []map[string]any{target}
+	}
+	return request
+}
+
+func selectedJourneyIDs(raw string) ([]map[string]string, error) {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return nil, nil
+	}
+	seen := make(map[string]struct{})
+	journeys := make([]map[string]string, 0)
+	for _, value := range strings.Split(raw, ",") {
+		id := strings.TrimSpace(value)
+		if id == "" {
+			return nil, fmt.Errorf("ANDROID_JOURNEY_IDS must contain comma-separated journey IDs without empty entries")
+		}
+		for _, r := range id {
+			if !(r >= 'a' && r <= 'z' || r >= 'A' && r <= 'Z' || r >= '0' && r <= '9' || r == '-') {
+				return nil, fmt.Errorf("invalid journey ID %q in ANDROID_JOURNEY_IDS", id)
+			}
+		}
+		if _, exists := seen[id]; exists {
+			return nil, fmt.Errorf("duplicate journey ID %q in ANDROID_JOURNEY_IDS", id)
+		}
+		seen[id] = struct{}{}
+		journeys = append(journeys, map[string]string{"journey_id": id})
+	}
+	return journeys, nil
+}
+
+func withAuthProfile(metadata map[string]string, profileID string) map[string]string {
+	if metadata == nil {
+		metadata = make(map[string]string)
+	}
+	if profileID = strings.TrimSpace(profileID); profileID != "" {
+		metadata["auth_profile_id"] = profileID
+	}
+	return metadata
+}
+
+func matrixArtifactMetadata(digest, immutableRef, packageOverride, scenarioName string, artifact artifactDescriptor) (map[string]string, error) {
+	digest = strings.TrimSpace(digest)
+	checksum := "sha256:" + strings.TrimPrefix(digest, "sha256:")
+	immutableRef = strings.TrimSpace(immutableRef)
+	if !validImmutableRefForDigest(immutableRef, checksum) || artifact.ImmutableRef != immutableRef || artifact.Checksum != checksum {
+		return nil, fmt.Errorf("Android artifact metadata does not match the requested immutable ref and digest")
+	}
+	packageName := strings.TrimSpace(artifact.PackageName)
+	if override := strings.TrimSpace(packageOverride); override != "" && override != packageName {
+		return nil, fmt.Errorf("ANDROID_ARTIFACT_PACKAGE %q does not match owner-produced package %q", override, packageName)
+	}
+	signing := strings.TrimSpace(artifact.Signing)
+	if signing == "" && strings.HasPrefix(immutableRef, "android-debug:") {
+		// The immutable ref identifies the builder-owned debug keystore path;
+		// the build owner contract assigns this identity the fixed debug-only label.
+		signing = "debug-only"
+	}
+	if packageName == "" || strings.TrimSpace(artifact.VersionName) == "" || artifact.VersionCode <= 0 || signing == "" {
+		return nil, fmt.Errorf("Android artifact owner metadata is incomplete")
+	}
+	if strings.HasPrefix(immutableRef, "android-release:") && strings.TrimSpace(artifact.SigningIdentity) == "" {
+		return nil, fmt.Errorf("Android release artifact metadata is missing its signing identity")
+	}
+	scenarioName = strings.TrimSpace(scenarioName)
+	if scenarioName == "" {
+		scenarioName = defaultAndroidScenarioName
+	}
+	return map[string]string{
+		"immutable_ref":    immutableRef,
+		"package_name":     packageName,
+		"scenario_name":    scenarioName,
+		"version_name":     artifact.VersionName,
+		"version_code":     strconv.FormatInt(artifact.VersionCode, 10),
+		"signing":          signing,
+		"signing_identity": artifact.SigningIdentity,
+	}, nil
+}
+
+func resolveMatrixArtifactMetadata(core *cliapp.ScenarioApp, digest, immutableRef, packageOverride, scenarioName string) (map[string]string, error) {
+	immutableRef = strings.TrimSpace(immutableRef)
+	if immutableRef == "" {
+		return nil, fmt.Errorf("ANDROID_ARTIFACT_REF is required; use the immutable_ref returned by android build")
+	}
+	query := url.Values{"immutable_ref": []string{immutableRef}}
+	body, err := core.Get("/android/artifacts/metadata", query)
+	if err != nil {
+		return nil, fmt.Errorf("resolve Android artifact metadata: %w", err)
+	}
+	var artifact artifactDescriptor
+	if err := json.Unmarshal(body, &artifact); err != nil {
+		return nil, fmt.Errorf("decode owner-produced Android artifact metadata: %w", err)
+	}
+	return matrixArtifactMetadata(digest, immutableRef, packageOverride, scenarioName, artifact)
 }
 
 // selectPhysicalTarget keeps the end-to-end operator command focused on the
@@ -181,6 +287,26 @@ func selectPhysicalTarget(body []byte, requestedID string) (map[string]any, erro
 	return map[string]any{"descriptor": candidates[0].Descriptor, "kind": candidates[0].Kind}, nil
 }
 
+// selectCatalogTarget narrows a full-catalog matrix to one exact target when
+// requested. Unavailable rows are preserved so the server records the typed
+// capability failure instead of silently substituting another device.
+func selectCatalogTarget(body []byte, requestedID string) (map[string]any, error) {
+	requestedID = strings.TrimSpace(requestedID)
+	if requestedID == "" {
+		return nil, nil
+	}
+	var catalog androidCatalog
+	if err := json.Unmarshal(body, &catalog); err != nil {
+		return nil, fmt.Errorf("decode Android target catalog: %w", err)
+	}
+	for _, target := range catalog.Targets {
+		if target.Descriptor["target_id"] == requestedID {
+			return map[string]any{"descriptor": target.Descriptor, "kind": target.Kind}, nil
+		}
+	}
+	return nil, fmt.Errorf("Android target %q was not found in the live catalog", requestedID)
+}
+
 func run(core *cliapp.ScenarioApp) func(cliapp.RunContext) error {
 	return runJourney(core, "conformance")
 }
@@ -191,6 +317,14 @@ func appTest(core *cliapp.ScenarioApp) func(cliapp.RunContext) error {
 
 func appInstall(core *cliapp.ScenarioApp) func(cliapp.RunContext) error {
 	return runJourney(core, "durable")
+}
+
+func appUpdate(core *cliapp.ScenarioApp) func(cliapp.RunContext) error {
+	return runJourney(core, "update")
+}
+
+func appVerify(core *cliapp.ScenarioApp) func(cliapp.RunContext) error {
+	return runJourney(core, "verify")
 }
 
 func runJourney(core *cliapp.ScenarioApp, mode string) func(cliapp.RunContext) error {
@@ -214,7 +348,7 @@ func runJourney(core *cliapp.ScenarioApp, mode string) func(cliapp.RunContext) e
 		if strings.TrimSpace(artifact.LocalPath) == "" || strings.TrimSpace(artifact.Checksum) == "" {
 			return fmt.Errorf("Android build returned no usable artifact path and digest")
 		}
-		if mode != "conformance" && !immutableArtifactMetadataComplete(artifact) {
+		if !immutableArtifactMetadataComplete(artifact) {
 			return fmt.Errorf("Android build omitted immutable ref, package, version, or signing metadata required for safe installation")
 		}
 		catalogBody, err := core.Get("/validation/catalog?scenario="+url.QueryEscape(body["scenario_name"]), nil)
@@ -233,16 +367,8 @@ func runJourney(core *cliapp.ScenarioApp, mode string) func(cliapp.RunContext) e
 		if packageName == "" {
 			packageName = defaultAndroidPackageName
 		}
-		metadata := map[string]string{
-			"package_name":    packageName,
-			"scenario_name":   body["scenario_name"],
-			"auth_profile_id": strings.TrimSpace(getenv("ANDROID_AUTH_PROFILE_ID")),
-		}
+		metadata := journeyArtifactMetadata(artifact, body["scenario_name"], packageName, getenv("ANDROID_AUTH_PROFILE_ID"), mode)
 		if mode != "conformance" {
-			for _, key := range []string{"immutable_ref", "version_name", "version_code", "signing_identity", "signing"} {
-				metadata[key] = artifact.Metadata[key]
-			}
-			metadata["immutable_ref"] = artifact.ImmutableRef
 			metadata["install_mode"] = mode
 		}
 		journeyID := "android-generated-app-conformance-v1"
@@ -251,6 +377,10 @@ func runJourney(core *cliapp.ScenarioApp, mode string) func(cliapp.RunContext) e
 			journeyID = "android-scenario-app-temporary-test-v1"
 		case "durable":
 			journeyID = "android-scenario-app-durable-v1"
+		case "update":
+			journeyID = "android-scenario-app-update-v1"
+		case "verify":
+			journeyID = "android-scenario-app-verify-v1"
 		}
 		selection := map[string]any{
 			"scenario_name":        body["scenario_name"],
@@ -280,7 +410,7 @@ func runJourney(core *cliapp.ScenarioApp, mode string) func(cliapp.RunContext) e
 		if _, err := core.Request("POST", path+"/start", nil, nil); err != nil {
 			return fmt.Errorf("start Android validation matrix %s: %w", matrix.RunID, err)
 		}
-		result, err := core.Get(path+"/wait", nil)
+		result, err := core.GetWithoutTimeout(path+"/wait", nil)
 		if err != nil {
 			return fmt.Errorf("wait for Android validation matrix %s: %w", matrix.RunID, err)
 		}
@@ -291,6 +421,24 @@ func runJourney(core *cliapp.ScenarioApp, mode string) func(cliapp.RunContext) e
 			},
 		})
 	}
+}
+
+func journeyArtifactMetadata(artifact builtArtifact, scenarioName, packageName, authProfileID, mode string) map[string]string {
+	metadata := map[string]string{
+		"package_name":    strings.TrimSpace(packageName),
+		"scenario_name":   strings.TrimSpace(scenarioName),
+		"auth_profile_id": strings.TrimSpace(authProfileID),
+		"immutable_ref":   strings.TrimSpace(artifact.ImmutableRef),
+	}
+	for _, key := range []string{"version_name", "version_code", "signing_identity", "signing"} {
+		if value := strings.TrimSpace(artifact.Metadata[key]); value != "" {
+			metadata[key] = value
+		}
+	}
+	if strings.TrimSpace(mode) != "conformance" {
+		metadata["install_mode"] = strings.TrimSpace(mode)
+	}
+	return metadata
 }
 
 func immutableArtifactMetadataComplete(artifact builtArtifact) bool {
@@ -356,7 +504,36 @@ func matrixCreate(core *cliapp.ScenarioApp) func(cliapp.RunContext) error {
 		if digest == "" {
 			return fmt.Errorf("ANDROID_ARTIFACT_DIGEST is required")
 		}
-		body, err := core.Request("POST", "/validation/matrices", nil, matrixSelectionRequest(digest, strings.TrimSpace(getenv("ANDROID_ARTIFACT_PATH")), getenv("ANDROID_ARTIFACT_PACKAGE")))
+		artifactPath := strings.TrimSpace(getenv("ANDROID_ARTIFACT_PATH"))
+		if artifactPath == "" {
+			return fmt.Errorf("ANDROID_ARTIFACT_PATH is required for an Android matrix run")
+		}
+		metadata, err := resolveMatrixArtifactMetadata(core, digest, getenv("ANDROID_ARTIFACT_REF"), getenv("ANDROID_ARTIFACT_PACKAGE"), getenv("ANDROID_ARTIFACT_SCENARIO"))
+		if err != nil {
+			return err
+		}
+		metadata = withAuthProfile(metadata, getenv("ANDROID_AUTH_PROFILE_ID"))
+		journeys, err := selectedJourneyIDs(getenv("ANDROID_JOURNEY_IDS"))
+		if err != nil {
+			return err
+		}
+		var target map[string]any
+		if targetID := strings.TrimSpace(getenv("ANDROID_TARGET_ID")); targetID != "" {
+			catalogBody, err := core.Get("/validation/catalog?scenario="+url.QueryEscape(metadata["scenario_name"]), nil)
+			if err != nil {
+				return fmt.Errorf("resolve exact Android target %q: %w", targetID, err)
+			}
+			selected, err := selectCatalogTarget(catalogBody, targetID)
+			if err != nil {
+				return err
+			}
+			target = selected
+		}
+		selection := matrixSelectionRequest(digest, artifactPath, metadata, target)
+		if len(journeys) > 0 {
+			selection["journeys"] = journeys
+		}
+		body, err := core.Request("POST", "/validation/matrices", nil, selection)
 		if err != nil {
 			return fmt.Errorf("create Android matrix: %w", err)
 		}
@@ -378,13 +555,31 @@ func matrixAction(core *cliapp.ScenarioApp, action string) func(cliapp.RunContex
 	}
 }
 
+func matrixAbort(core *cliapp.ScenarioApp) func(cliapp.RunContext) error {
+	return func(ctx cliapp.RunContext) error {
+		id := strings.TrimSpace(getenv("ANDROID_MATRIX_RUN_ID"))
+		if id == "" {
+			return fmt.Errorf("ANDROID_MATRIX_RUN_ID is required")
+		}
+		path := "/validation/matrices/" + url.PathEscape(id)
+		if _, err := core.Request("POST", path+"/abort", nil, nil); err != nil {
+			return fmt.Errorf("abort Android matrix: %w", err)
+		}
+		body, err := core.GetWithoutTimeout(path+"/wait", nil)
+		if err != nil {
+			return fmt.Errorf("wait for aborted Android matrix: %w", err)
+		}
+		return ctx.RenderOperational(cliapp.OperationalReport{Status: []string{strings.TrimSpace(string(body)), "Owner persisted the terminal matrix state."}, NextSteps: []string{"Inspect cell evidence and the fail-closed gate in the run review surface."}})
+	}
+}
+
 func matrixWait(core *cliapp.ScenarioApp) func(cliapp.RunContext) error {
 	return func(ctx cliapp.RunContext) error {
 		id := strings.TrimSpace(getenv("ANDROID_MATRIX_RUN_ID"))
 		if id == "" {
 			return fmt.Errorf("ANDROID_MATRIX_RUN_ID is required")
 		}
-		body, err := core.Get("/validation/matrices/"+url.PathEscape(id)+"/wait", nil)
+		body, err := core.GetWithoutTimeout("/validation/matrices/"+url.PathEscape(id)+"/wait", nil)
 		if err != nil {
 			return fmt.Errorf("wait for Android matrix: %w", err)
 		}

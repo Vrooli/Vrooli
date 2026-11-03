@@ -340,6 +340,32 @@ func (s *partialRecordingStrategy) StopRecording(context.Context, strategy.Recor
 	s.stops.Add(1)
 	return strategy.RecordingArtifact{Bytes: s.data, Method: "native", ClaimClass: strategy.ClaimTransition}, errors.New("restore failed")
 }
+func (*partialRecordingStrategy) InspectRecording(context.Context, strategy.RecordingHandle) (strategy.RecordingInspection, error) {
+	return strategy.RecordingInspection{State: "process_active", ObservedAt: time.Now().UTC(), Reason: "fixture readback"}, nil
+}
+
+func TestInspectRecordingHTTPReturnsReadOnlyOwnerSnapshot(t *testing.T) {
+	recorder := &partialRecordingStrategy{Strategy: fakes.New("fake", strategy.StatusAvailable, strategy.CapInput)}
+	service := internal.New(strategyregistry.New(recorder))
+	session, err := service.Acquire("fake", "operator", time.Minute)
+	require.NoError(t, err)
+	_, err = service.StartExternalRecording(context.Background(), "fake", "operator", session.LeaseToken)
+	require.NoError(t, err)
+	router := mux.NewRouter()
+	Module(service).Mount(router)
+	body, err := json.Marshal(map[string]string{"device_id": "fake", "lease_token": session.LeaseToken, "handle_id": "handle"})
+	require.NoError(t, err)
+	response := httptest.NewRecorder()
+	router.ServeHTTP(response, httptest.NewRequest(http.MethodPost, "/api/v1/recordings/inspect", strings.NewReader(string(body))))
+	require.Equal(t, http.StatusOK, response.Code)
+	var inspection internal.ExternalRecordingInspection
+	require.NoError(t, json.Unmarshal(response.Body.Bytes(), &inspection))
+	require.Equal(t, "handle", inspection.HandleID)
+	require.Equal(t, "active", inspection.OwnerState)
+	require.Equal(t, "process_active", inspection.ProcessState)
+	require.Equal(t, "fixture readback", inspection.Reason)
+	require.Zero(t, recorder.stops.Load(), "inspection must not stop the recording")
+}
 
 func TestStopRecordingReturnsRecoveredReferenceAndUncertainStatus(t *testing.T) {
 	if _, err := exec.LookPath("ffmpeg"); err != nil {

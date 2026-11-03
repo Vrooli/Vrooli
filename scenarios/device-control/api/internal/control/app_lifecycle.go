@@ -31,7 +31,7 @@ type AppLifecycleResponse struct {
 
 func lifecycleNeedsConfirmation(operation string) bool {
 	switch operation {
-	case "home-state", "package-state", "accessibility-state", "foreground-state", "process-state", "app-status", "performance-state":
+	case "home-state", "package-state", "package-signing-state", "accessibility-state", "foreground-state", "process-state", "app-status", "performance-state":
 		return false
 	default:
 		return true

@@ -26,6 +26,18 @@ type ExternalRecordingResult struct {
 	EndOffset   int64              `json:"end_offset_ms"`
 }
 
+// ExternalRecordingInspection is a read-only owner snapshot. A process or
+// artifact observation never clears an uncertain stop outcome.
+type ExternalRecordingInspection struct {
+	HandleID            string    `json:"handle_id"`
+	OwnerState          string    `json:"owner_state"`
+	ProcessState        string    `json:"process_state"`
+	ArtifactAvailable   bool      `json:"artifact_available"`
+	RecoveredEvidenceID string    `json:"recovered_evidence_id,omitempty"`
+	ObservedAt          time.Time `json:"observed_at"`
+	Reason              string    `json:"reason,omitempty"`
+}
+
 // ReviewRecordingResult is the durable, producer-owned review copy built
 // from the chapter recordings of one leased journey.
 type ReviewRecordingResult struct {
@@ -139,14 +151,27 @@ func (s *Service) Capture(ctx context.Context, request CaptureRequest) (RunResul
 	return s.Run(ctx, flow, device.ID, firstNonEmpty(strings.TrimSpace(request.Actor), "device-capture"))
 }
 
-func (s *Service) StartExternalRecording(ctx context.Context, deviceID, actor, leaseToken string) (strategy.RecordingHandle, error) {
+func (s *Service) StartExternalRecording(ctx context.Context, deviceID, actor, leaseToken string, requestedTransport ...string) (strategy.RecordingHandle, error) {
 	session, err := s.sessionForLease(ctx, deviceID, leaseToken)
 	if err != nil {
 		return strategy.RecordingHandle{}, err
 	}
-	transport := "usb"
-	if record, found := s.devices.Get(deviceID); found && record.Transport != "" {
-		transport = record.Transport
+	transport := ""
+	if len(requestedTransport) > 0 {
+		transport = strings.TrimSpace(requestedTransport[0])
+	}
+	if transport == "" {
+		if record, found := s.devices.Get(deviceID); found {
+			transport = record.Transport
+		}
+		if transport == "" {
+			transport = "usb"
+		}
+	}
+	var routeErr error
+	transport, routeErr = s.requireCurrentEffectRoute(deviceID, transport)
+	if routeErr != nil {
+		return strategy.RecordingHandle{}, routeErr
 	}
 	strat, ok := s.strategyForFlow(deviceID, transport)
 	if !ok {
@@ -260,6 +285,52 @@ func (s *Service) StopExternalRecording(ctx context.Context, deviceID, actor, le
 		return result, fmt.Errorf("recording stop outcome uncertain: %w", stopErr)
 	}
 	return result, nil
+}
+
+// InspectExternalRecording reads one retained recording owner through its
+// strategy and never replays StopRecording or changes lifecycle inventory.
+func (s *Service) InspectExternalRecording(ctx context.Context, deviceID, leaseToken, handleID string) (ExternalRecordingInspection, error) {
+	if _, err := s.sessionForLease(ctx, deviceID, leaseToken); err != nil {
+		return ExternalRecordingInspection{}, err
+	}
+	s.mu.Lock()
+	recording, ok := s.externalRecordings[handleID]
+	if !ok || recording.DeviceID != deviceID {
+		s.mu.Unlock()
+		return ExternalRecordingInspection{}, fmt.Errorf("recording %q is not retained for device %q", handleID, deviceID)
+	}
+	inspection := ExternalRecordingInspection{HandleID: handleID, OwnerState: "active", ProcessState: "unknown", ObservedAt: time.Now().UTC()}
+	if recording.Uncertain {
+		inspection.OwnerState = "uncertain"
+	}
+	if recording.Stopping {
+		inspection.OwnerState = "stopping"
+		inspection.Reason = "the owner stop request has not returned"
+		if recording.Recovered != nil {
+			inspection.RecoveredEvidenceID = recording.Recovered.Reference.ID
+		}
+		s.mu.Unlock()
+		return inspection, nil
+	}
+	if recording.Recovered != nil {
+		inspection.RecoveredEvidenceID = recording.Recovered.Reference.ID
+	}
+	inspector, supported := recording.Recorder.(strategy.RecordingInspector)
+	s.mu.Unlock()
+	if !supported {
+		inspection.Reason = "recording strategy does not expose read-only native status"
+		return inspection, nil
+	}
+	native, err := inspector.InspectRecording(ctx, recording.Handle)
+	if err != nil {
+		inspection.Reason = "recording strategy could not verify native process or artifact state"
+		return inspection, nil
+	}
+	inspection.ProcessState = native.State
+	inspection.ArtifactAvailable = native.ArtifactAvailable
+	inspection.ObservedAt = native.ObservedAt
+	inspection.Reason = native.Reason
+	return inspection, nil
 }
 
 // FinalizeReviewRecording concatenates already-retained chapter recordings.

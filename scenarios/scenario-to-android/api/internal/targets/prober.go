@@ -24,6 +24,7 @@ type DeviceObservation struct {
 	Label        string
 	NodeID       string
 	Serial       string
+	OSVersion    string
 	OS           string
 	Architecture string
 	Transport    deliveryramp.Transport

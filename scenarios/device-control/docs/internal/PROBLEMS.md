@@ -1047,3 +1047,63 @@ became unreachable earlier or establish a causal relationship with sleep.
 - Blocker: None for this implementation change; broader transport stability
   remains an open observation question and is not part of this W3 repair.
 - Measured: 2026-11-01
+
+## Work ladder
+
+- Rung: W3
+- Evidence: A failed Android `StopRecording` previously removed its adapter
+  entry before native stop and restoration finished. The service retained an
+  uncertain owner and refused replay, but there was no owner-scoped read path
+  to inspect the exact encoder and output artifact. The adapter now retains
+  the handle after failure and makes stop one-shot; `POST
+  /api/v1/recordings/inspect` reports owner state and optional read-only
+  native process/artifact availability without signaling, reading bytes, or
+  clearing lifecycle inventory. Focused strategy, service, and handler tests
+  pass. This cannot reconcile recordings already stranded in the old live
+  process because its adapter has already discarded their paths.
+- Blocker: Current live lifecycle inventory remains OPEN; old uncertain
+  recordings still need owner receipts or safe process replacement.
+- Measured: 2026-11-03
+
+## Work ladder
+
+- Rung: W3
+- Evidence: The current Scenario-to-Android client requests USB for the
+  `offline_transition` WebView attach, and current Device Control source accepts
+  that explicit route and validates it through the normal route guard. Focused
+  source tests cover USB selection and resolved-route audit. The serving Device
+  Control build predates the request field, so its handler ignores the unknown
+  `transport` member and uses the persisted wireless route. The Moto matrix
+  recorded successful USB network actions but its offline WebView attach timed
+  out after 90 seconds; the old runtime audit has no failed attach detail. This
+  explains a concrete source/runtime transport mismatch, but does not prove the
+  exact failing Android strategy stage or that the current-source fix succeeds
+  on-device.
+- Blocker: A current-source Device Control owner run against the Moto is needed
+  to verify explicit USB WebView attach and complete an offline/online BAS
+  matrix. The serving owner's lifecycle Status remains OPEN with unresolved
+  items, so this physical verification is not currently safe to perform.
+- Measured: 2026-11-03
+
+## Work ladder
+
+- Rung: W3
+- Evidence: A current-source API 36 emulator matrix completed the generated-app conformance, temporary-install/verified-cleanup, durable-install, and verify-without-reinstall journeys. Its update cell refused to continue because the serving Device Control package-state response omitted `version_code`. Independent lease-owned readback confirmed the app remained installed at version `1.0.0`, but also omitted the numeric code. Current Device Control source includes Android `dumpsys package` version-code parsing; the serving runtime is an older build behind OPEN lifecycle inventory. The matrix gate correctly failed with one required cell incomplete.
+- Blocker: Updating the serving Device Control build is not safe while its lifecycle inventory remains OPEN. Emulator update-preservation and current-source explicit USB attach on the Moto remain unverified.
+- Measured: 2026-11-03
+
+
+## Work ladder
+
+- Rung: W3
+- Evidence: The prior live-build package-state gap is resolved for current source: an isolated current-source Device Control owner read version 1.0.0/code 1 from the API 36 emulator; after a focused update journey, the same owner independently read version 1.0.2/code 3. The focused matrix passed saved-state preservation and cold/warm BAS. A broader matrix passed four journeys, but its update cell failed closed because its durable cell had already installed the same code-2 artifact; the matrix currently selects one artifact digest across journeys.
+- Blocker: No blocker to current-source emulator update execution. The full matrix gate needs either per-journey artifact selection or separate update runs. Live Device Control replacement remains unsafe while its lifecycle inventory is OPEN; Moto offline USB attach and physical install-timeout recovery remain unverified.
+- Measured: 2026-11-03
+
+
+## Work ladder
+
+- Rung: W3
+- Evidence: The S2A journey test `TestTemporaryScenarioAppCleansUpAfterUncertainInstallFailure` covers an ambiguous install error followed by exact-package uninstall and absent readback. The Android ADB adapter now has `TestInstallTimeoutAfterSideEffectRemainsObservableAndCleanable`, which simulates the package side effect before returning a timeout, then verifies the timeout propagates, package-state sees the package, and bounded uninstall plus package-state verify cleanup. Both focused Go tests passed.
+- Blocker: Physical adapter timeout-after-side-effect and end-to-end live production cleanup remain unverified; no supported hardware injection hook exists. Device Control Test Genie unit execution is unavailable while SDA API 15413 is down and its lifecycle provider is non-authoritative.
+- Measured: 2026-11-03

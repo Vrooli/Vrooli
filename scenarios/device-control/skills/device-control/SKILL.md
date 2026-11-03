@@ -51,7 +51,7 @@ Read rows in order; the first matching row is the next step.
 | Need to inspect a candidate before reuse | Run `device-control flow get` with id and version. Verify its goal, device, context, preconditions and assertions. **[S1]** |
 | Have a new typed flow with an outcome assertion | Run `device-control.author-flow` with flow, device_id, context_key and actor. **[S3]** |
 | Have a repair candidate for a failed saved flow | Run `device-control.author-flow` with the same inputs plus flow_id and expected_version. **[S3]** |
-| No reusable flow exists and bounded AI control is appropriate | Run `device-control agent start` with the requested goal and exact device, using current help. Where the outcome is a selected control, supply its exact label with `--expect-selected` for an independent state check. **[S1]** |
+| No reusable flow exists and bounded AI control is appropriate | Run `device-control agent start` with the requested goal and exact device, using current help. Use `--expect-selected` for an exact selected control or `--expect-foreground-package` for an exact Android app package. **[S1]** |
 | Successful agent exploration should become reusable | Promotion requires independently verified goal completion and a terminal outcome assertion. If unavailable, author and validate a flow with an explicit assertion; do not treat the model's success claim as proof. **[S1]** |
 | Need the promoted candidate definition | Run `device-control flow export <run-id>`. Export alone does not save or validate a reusable library revision. **[S1]** |
 | Need one live state snapshot | Run `device-control device state <id>`. **[S1]** |

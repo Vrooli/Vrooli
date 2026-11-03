@@ -178,6 +178,7 @@ device-control device capture "<device-id>" --kind logs --package com.example.ap
 device-control flow export "<run-id>" --json
 device-control agent start --device <device-id> --goal 'Open settings' --skill-available --dry-run --json
 device-control agent start --device <device-id> --goal 'Open TV apps' --skill-available --expect-selected 'TV apps' --json
+device-control agent start --device <device-id> --goal 'Launch the test app' --skill-available --expect-foreground-package com.example.generated --json
 ```
 
 Screenshots and recordings preserve the full frame by default and are not
@@ -213,6 +214,11 @@ reports completion, the current complete semantic snapshot must contain one
 matching control whose reported `selected` state is true. Missing, ambiguous,
 unselected or truncated observations fail verification. Without an explicit
 expectation, model-reported completion is not independently verified.
+For Android app tasks, `--expect-foreground-package` instead verifies an exact
+valid package identity against Device Control's fresh typed foreground read.
+The two expectation flags are mutually exclusive. Missing or unavailable
+foreground state, or a different package, fails the run; the expectation is
+retained in the agent record.
 The screen operation owns and releases its lease, reads the screen before and
 after, and returns `verified` only for the device-reported requested state.
 `ready` also verifies that the device is unlocked; the authentication profile

@@ -35,14 +35,33 @@ func (s *Service) StartAgentWithPolicy(ctx context.Context, goal, deviceID, acto
 // StartAgentWithOutcome accepts an operator-supplied, independently observable
 // completion condition. The planner cannot change this condition.
 func (s *Service) StartAgentWithOutcome(ctx context.Context, goal, deviceID, actor string, skillAvailable, dryRun bool, policy internalflows.AgentPolicy, confirmed bool, expectSelected string) (AgentRun, error) {
+	return s.StartAgentWithAssertions(ctx, goal, deviceID, actor, skillAvailable, dryRun, policy, confirmed, AgentOutcomeAssertions{SelectedControl: expectSelected})
+}
+
+type AgentOutcomeAssertions struct {
+	SelectedControl   string
+	ForegroundPackage string
+}
+
+func (s *Service) StartAgentWithAssertions(ctx context.Context, goal, deviceID, actor string, skillAvailable, dryRun bool, policy internalflows.AgentPolicy, confirmed bool, assertions AgentOutcomeAssertions) (AgentRun, error) {
 	startedAt := time.Now().UTC()
 	if !skillAvailable {
 		return AgentRun{}, fmt.Errorf("agent mode refused: prompt-manager device-control skill is unavailable")
 	}
 	goal = strings.TrimSpace(goal)
-	expectSelected = strings.TrimSpace(expectSelected)
+	expectSelected := strings.TrimSpace(assertions.SelectedControl)
+	expectForegroundPackage := strings.TrimSpace(assertions.ForegroundPackage)
 	if len(expectSelected) > 256 {
 		return AgentRun{}, fmt.Errorf("selected-control expectation exceeds 256 bytes")
+	}
+	if len(expectForegroundPackage) > 256 {
+		return AgentRun{}, fmt.Errorf("foreground-package expectation exceeds 256 bytes")
+	}
+	if expectSelected != "" && expectForegroundPackage != "" {
+		return AgentRun{}, fmt.Errorf("only one independently observed terminal outcome assertion may be supplied")
+	}
+	if expectForegroundPackage != "" && !androidPackageName.MatchString(expectForegroundPackage) {
+		return AgentRun{}, fmt.Errorf("foreground-package expectation %q is not a valid Android package identity", expectForegroundPackage)
 	}
 	if goal == "" {
 		return AgentRun{}, fmt.Errorf("agent goal is required")
@@ -243,8 +262,17 @@ func (s *Service) StartAgentWithOutcome(ctx context.Context, goal, deviceID, act
 					}
 					goalVerified = true
 					appendChapter(fmt.Sprintf("goal-%d", iteration), "passed", "operator-specified selected control independently observed")
+				} else if expectForegroundPackage != "" {
+					if err := verifyAgentForegroundPackage(state, expectForegroundPackage); err != nil {
+						appendChapter(fmt.Sprintf("goal-%d", iteration), "failed", err.Error())
+						result.Disposition = "failed"
+						break
+					}
+					goalVerified = true
+					appendChapter(fmt.Sprintf("goal-%d", iteration), "passed", fmt.Sprintf("operator-specified foreground package %q independently observed", expectForegroundPackage))
 				} else {
-					appendChapter(fmt.Sprintf("goal-%d", iteration), "passed", "planner reported the goal satisfied")
+					appendChapter(fmt.Sprintf("goal-%d", iteration), "unverified", "planner reported the goal satisfied, but no independent terminal outcome assertion was supplied")
+					result.Disposition = "unverified"
 				}
 				completed = true
 				break
@@ -392,7 +420,9 @@ func (s *Service) StartAgentWithOutcome(ctx context.Context, goal, deviceID, act
 		result.Disposition = "failed"
 	}
 	agentState := "completed"
-	if result.Disposition != "passed" {
+	if result.Disposition == "unverified" {
+		agentState = "unverified"
+	} else if result.Disposition != "passed" {
 		agentState = "failed"
 	}
 	if result.Disposition == "confirmation_required" {
@@ -402,11 +432,25 @@ func (s *Service) StartAgentWithOutcome(ctx context.Context, goal, deviceID, act
 		agentState = "planned"
 	}
 	completedAt := time.Now().UTC()
-	agent := AgentRun{ID: uuid.NewString(), Goal: goal, DeviceID: deviceID, Actor: actor, State: agentState, Skill: "prompt-manager/device-control", Result: result, CreatedAt: startedAt, CompletedAt: completedAt, DurationMS: completedAt.Sub(startedAt).Milliseconds(), PlannerCalls: plannerCalls, ActionAttempts: actionAttempts, ActionCompletions: actionCompletions, InferenceCalls: inferenceCalls, DryRun: dryRun, GoalVerified: goalVerified, PlanningRole: internalflows.AgentPlanRole, PromptHash: promptHash, PolicyHash: policyHash, PlanHashes: append([]string(nil), planHashes...), PlannedSteps: plannedSteps, ProposedStep: proposedStep}
+	agent := AgentRun{ID: uuid.NewString(), Goal: goal, DeviceID: deviceID, Actor: actor, State: agentState, Skill: "prompt-manager/device-control", Result: result, CreatedAt: startedAt, CompletedAt: completedAt, DurationMS: completedAt.Sub(startedAt).Milliseconds(), PlannerCalls: plannerCalls, ActionAttempts: actionAttempts, ActionCompletions: actionCompletions, InferenceCalls: inferenceCalls, DryRun: dryRun, GoalVerified: goalVerified, ExpectedForegroundPackage: expectForegroundPackage, PlanningRole: internalflows.AgentPlanRole, PromptHash: promptHash, PolicyHash: policyHash, PlanHashes: append([]string(nil), planHashes...), PlannedSteps: plannedSteps, ProposedStep: proposedStep}
 	s.mu.Lock()
 	s.agents[agent.ID] = agent
 	s.mu.Unlock()
 	return agent, nil
+}
+
+func verifyAgentForegroundPackage(state strategy.DeviceState, expected string) error {
+	if unavailable := strings.TrimSpace(state.Unavailable["foreground_package"]); unavailable != "" {
+		return fmt.Errorf("foreground package could not be independently observed: %s", unavailable)
+	}
+	observed := strings.TrimSpace(state.ForegroundPackage)
+	if observed == "" {
+		return fmt.Errorf("foreground package could not be independently observed")
+	}
+	if observed != expected {
+		return fmt.Errorf("foreground package %q does not match expected package %q", observed, expected)
+	}
+	return nil
 }
 
 const (

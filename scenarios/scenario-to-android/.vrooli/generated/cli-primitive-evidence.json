@@ -4,7 +4,7 @@
   "source_manifest": "cli/manifest.json",
   "scenario": "scenario-to-android",
   "generator": "v1.0.0",
-  "manifest_hash": "9c8402acea567eafc411cc0a561c69301613f293385457fac4e70c42d2d8e683",
+  "manifest_hash": "3ee6cfe975ee20b087d858a5e72c4a340ad8621e2a7e9e03511de3d79dd18c38",
   "commands": [
     {
       "path": "android app-install",
@@ -16,6 +16,18 @@
       "path": "android app-test",
       "group": "android",
       "command": "app-test",
+      "binding": "."
+    },
+    {
+      "path": "android app-update",
+      "group": "android",
+      "command": "app-update",
+      "binding": "."
+    },
+    {
+      "path": "android app-verify",
+      "group": "android",
+      "command": "app-verify",
       "binding": "."
     },
     {
@@ -52,6 +64,12 @@
       "path": "android generate",
       "group": "android",
       "command": "generate",
+      "binding": "."
+    },
+    {
+      "path": "android matrix-abort",
+      "group": "android",
+      "command": "matrix-abort",
       "binding": "."
     },
     {

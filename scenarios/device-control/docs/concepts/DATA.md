@@ -108,7 +108,12 @@ and refuses automatic stop replay. A repeat request requires a valid device leas
 policy; that policy is not a general secret detector. The status and artifact-kind
 metadata do not survive restart, and the remote encoder's termination is not
 proven by a local ADB wrapper exit. A failed stop with no recoverable video also
-remains uncertain; do not treat it as successful cleanup.
+remains uncertain; do not treat it as successful cleanup. `POST
+/api/v1/recordings/inspect` can read the retained owner and, when supported,
+the exact native process and output-path state. This observation does not recover
+video bytes, clear the uncertainty, or authorize another stop attempt. The
+Android adapter retains its recording path after a failed stop so that this
+read-only inspection remains possible until process replacement.
 
 ## Privacy Notes
 

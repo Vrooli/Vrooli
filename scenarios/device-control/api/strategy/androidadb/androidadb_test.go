@@ -521,6 +521,24 @@ func TestAttachWebViewMatchesPackageProcessAndAllocatesCDPForward(t *testing.T) 
 	require.Equal(t, strategy.WebViewEndpoint{Package: "com.example.hello", Socket: "webview_devtools_remote_4321", CDPEndpoint: "http://127.0.0.1:43123", RendererID: "renderer-1", Transport: "adb-forward"}, endpoint)
 }
 
+func TestAttachWebViewClassifiesPortForwardFailure(t *testing.T) {
+	forwardErr := errors.New("forward timed out with device transport details")
+	runner := &scriptedRunner{
+		responses: map[string][]byte{
+			"adb -s serial-1 shell pidof com.example.hello": []byte("4321\n"),
+			"adb -s serial-1 shell cat /proc/net/unix":      []byte("Num RefCount Protocol Flags Type St Inode Path\n0001 2 0 10000 1 01 7 @webview_devtools_remote_4321\n"),
+		},
+		errors: map[string]error{
+			"adb -s serial-1 forward tcp:0 localabstract:webview_devtools_remote_4321": forwardErr,
+		},
+	}
+	_, err := NewWithRunner(runner, "serial-1").AttachWebView(context.Background(), "com.example.hello")
+	var failure *strategy.WebViewAttachFailure
+	require.ErrorAs(t, err, &failure)
+	require.Equal(t, strategy.WebViewStagePortForward, failure.Stage)
+	require.ErrorIs(t, err, forwardErr)
+}
+
 func TestWebViewSocketMatchingRejectsDifferentProcess(t *testing.T) {
 	_, err := webViewSocketForPID([]byte("0001 2 0 10000 1 01 7 @webview_devtools_remote_9876\n"), "4321")
 	require.ErrorContains(t, err, "matched process 4321")
@@ -531,6 +549,60 @@ func TestInstallReusesPackageDataForUpdateMigration(t *testing.T) {
 	adapter := NewWithRunner(runner, "serial-1")
 	require.NoError(t, adapter.Actuate(context.Background(), strategy.Actuation{Action: "install", Value: "/tmp/hello-mobile.apk"}))
 	require.Contains(t, runner.calls[0], "install -r /tmp/hello-mobile.apk")
+}
+
+type installSideEffectTimeoutRunner struct {
+	*scriptedRunner
+	packageName string
+	installed   bool
+	timeoutErr  error
+}
+
+func (r *installSideEffectTimeoutRunner) Run(ctx context.Context, name string, args ...string) ([]byte, error) {
+	command := strings.Join(append([]string{name}, args...), " ")
+	switch {
+	case strings.Contains(command, " install -r "):
+		r.installed = true
+		_, _ = r.scriptedRunner.Run(ctx, name, args...)
+		return nil, r.timeoutErr
+	case strings.HasSuffix(command, "shell pm list packages "+r.packageName):
+		if r.installed {
+			r.responses[command] = []byte("package:" + r.packageName + "\n")
+		} else {
+			r.responses[command] = nil
+		}
+	case strings.HasSuffix(command, "shell pm uninstall "+r.packageName):
+		r.installed = false
+	}
+	return r.scriptedRunner.Run(ctx, name, args...)
+}
+
+func TestInstallTimeoutAfterSideEffectRemainsObservableAndCleanable(t *testing.T) {
+	const packageName = "com.example.generated"
+	timeoutErr := context.DeadlineExceeded
+	runner := &installSideEffectTimeoutRunner{
+		scriptedRunner: &scriptedRunner{responses: map[string][]byte{}},
+		packageName:    packageName,
+		timeoutErr:     timeoutErr,
+	}
+	adapter := NewWithRunner(runner, "serial-1")
+
+	err := adapter.Actuate(context.Background(), strategy.Actuation{Action: "install", Value: "/tmp/generated.apk"})
+	require.ErrorIs(t, err, timeoutErr)
+	require.True(t, runner.installed, "the timed-out command may have installed the package")
+
+	state, err := adapter.AppLifecycle(context.Background(), strategy.AppLifecycleRequest{Operation: "package-state", Package: packageName})
+	require.NoError(t, err)
+	require.True(t, state.Installed, "package-state must expose the install side effect after timeout")
+
+	cleanup, err := adapter.AppLifecycle(context.Background(), strategy.AppLifecycleRequest{Operation: "uninstall", Package: packageName})
+	require.NoError(t, err)
+	require.Equal(t, "accepted", cleanup.Outcome)
+
+	state, err = adapter.AppLifecycle(context.Background(), strategy.AppLifecycleRequest{Operation: "package-state", Package: packageName})
+	require.NoError(t, err)
+	require.False(t, state.Installed, "exact-package cleanup must make absence observable")
+	require.Contains(t, strings.Join(runner.calls, "\n"), "shell pm uninstall "+packageName)
 }
 
 func TestActuateScreenrecordRequiresAndFillsOutputSink(t *testing.T) {
@@ -960,7 +1032,7 @@ func TestProbeScreenshotRequiresDecodableFrame(t *testing.T) {
 func TestAppLifecyclePackageStateVerifiesInstallation(t *testing.T) {
 	runner := &scriptedRunner{responses: map[string][]byte{
 		"adb -s serial-1 shell pm list packages org.smarttube.stable": []byte("package:org.smarttube.stable\n"),
-		"adb -s serial-1 shell dumpsys package org.smarttube.stable":  []byte("Packages:\n  Package [org.smarttube.stable]\n    versionName=25.10\n"),
+		"adb -s serial-1 shell dumpsys package org.smarttube.stable":  []byte("Packages:\n  Package [org.smarttube.stable]\n    versionCode=2510 minSdk=23 targetSdk=35\n    versionName=25.10\n"),
 		"adb -s serial-1 shell pm list packages com.example.absent":   []byte(""),
 		"adb -s serial-1 shell pm list packages org.smart":            []byte("package:org.smarttube.stable\n"),
 	}}
@@ -970,6 +1042,7 @@ func TestAppLifecyclePackageStateVerifiesInstallation(t *testing.T) {
 	require.NoError(t, err)
 	require.True(t, present.Installed)
 	require.Equal(t, "25.10", present.Version)
+	require.EqualValues(t, 2510, present.VersionCode)
 	require.Equal(t, strategy.StatusAvailable, present.Status)
 
 	absent, err := adapter.AppLifecycle(context.Background(), strategy.AppLifecycleRequest{Operation: "package-state", Package: "com.example.absent"})
@@ -981,6 +1054,59 @@ func TestAppLifecyclePackageStateVerifiesInstallation(t *testing.T) {
 	prefix, err := adapter.AppLifecycle(context.Background(), strategy.AppLifecycleRequest{Operation: "package-state", Package: "org.smart"})
 	require.NoError(t, err)
 	require.False(t, prefix.Installed)
+}
+
+type fixtureSigningInspector struct{ digest string }
+
+func (f fixtureSigningInspector) InspectSigningCertificate(context.Context, string) (string, error) {
+	return f.digest, nil
+}
+
+type packageSigningRunner struct{ *scriptedRunner }
+
+func (r *packageSigningRunner) Run(ctx context.Context, name string, args ...string) ([]byte, error) {
+	if len(args) >= 4 && args[len(args)-3] == "pull" {
+		if err := os.WriteFile(args[len(args)-1], []byte("installed APK fixture"), 0o600); err != nil {
+			return nil, err
+		}
+	}
+	return r.scriptedRunner.Run(ctx, name, args...)
+}
+
+func TestAppLifecyclePackageSigningStateReadsExactInstalledBaseAPK(t *testing.T) {
+	runner := &packageSigningRunner{scriptedRunner: &scriptedRunner{responses: map[string][]byte{
+		"adb -s serial-1 shell pm list packages com.example.portal": []byte("package:com.example.portal\n"),
+		"adb -s serial-1 shell dumpsys package com.example.portal":  []byte("versionName=1.4.0\n"),
+		"adb -s serial-1 shell pm path com.example.portal":          []byte("package:/data/app/com.example.portal-1/base.apk\npackage:/data/app/com.example.portal-1/split_config.arm64_v8a.apk\n"),
+	}}}
+	adapter := NewWithRunner(runner, "serial-1")
+	adapter.signingInspector = fixtureSigningInspector{digest: strings.Repeat("a", 64)}
+	result, err := adapter.AppLifecycle(context.Background(), strategy.AppLifecycleRequest{Operation: "package-signing-state", Package: "com.example.portal"})
+	require.NoError(t, err)
+	require.True(t, result.Installed)
+	require.Equal(t, strings.Repeat("a", 64), result.SigningCertificateSHA256)
+	foundPull := false
+	for _, call := range runner.calls {
+		if strings.HasPrefix(call, "adb -s serial-1 pull /data/app/com.example.portal-1/base.apk ") {
+			foundPull = true
+		}
+	}
+	require.True(t, foundPull, "signer inspection must pull the exact base.apk, not a split APK")
+}
+
+func TestAppLifecyclePackageSigningStateRejectsUnsafeInstalledPath(t *testing.T) {
+	runner := &scriptedRunner{responses: map[string][]byte{
+		"adb -s serial-1 shell pm list packages com.example.portal": []byte("package:com.example.portal\n"),
+		"adb -s serial-1 shell dumpsys package com.example.portal":  []byte("versionName=1.4.0\n"),
+		"adb -s serial-1 shell pm path com.example.portal":          []byte("package:/data/app/../../tmp/base.apk\n"),
+	}}
+	adapter := NewWithRunner(runner, "serial-1")
+	adapter.signingInspector = fixtureSigningInspector{digest: strings.Repeat("a", 64)}
+	_, err := adapter.AppLifecycle(context.Background(), strategy.AppLifecycleRequest{Operation: "package-signing-state", Package: "com.example.portal"})
+	require.ErrorContains(t, err, "safe package-manager path")
+	for _, call := range runner.calls {
+		require.NotContains(t, call, " pull ", "unsafe remote paths must not be pulled")
+	}
 }
 
 func TestLaunchUsesTVActivityAndReportsObservedForeground(t *testing.T) {
@@ -1221,10 +1347,46 @@ func TestRecordingStopReportsArtifactAndRestoreSeparately(t *testing.T) {
 			calls := strings.Join(runner.calls, "\n")
 			runner.mu.Unlock()
 			require.Contains(t, calls, "shell settings put system screen_off_timeout 60000", "restoration is attempted even after an artifact error")
+			require.Contains(t, adapter.recordings, handle.ID, "failed stop must retain the path and owner state for inspection")
 			_, err = adapter.StopRecording(context.Background(), handle)
-			require.ErrorContains(t, err, "not active", "native stop is one-shot")
+			require.ErrorContains(t, err, "already has a stop attempt", "native stop is one-shot")
+			runner.mu.Lock()
+			callsAfterRetry := strings.Join(runner.calls, "\n")
+			runner.mu.Unlock()
+			require.Equal(t, calls, callsAfterRetry, "refused retry must not send another device command")
 		})
 	}
+}
+
+func TestInspectRecordingReadsProcessAndArtifactWithoutMutation(t *testing.T) {
+	const ps = "adb -s serial shell ps -A -o PID,ARGS"
+	const artifact = "/data/local/tmp/android-recording-inspect.mp4"
+	runner := &scriptedRunner{responses: map[string][]byte{
+		ps:                                   []byte("USER PID ARGS\n123 screenrecord " + artifact + "\n"),
+		"adb -s serial shell ls " + artifact: []byte(artifact + "\n"),
+	}}
+	adapter := NewWithRunner(runner, "serial")
+	handle := strategy.RecordingHandle{ID: "android-recording-inspect"}
+	adapter.recordings[handle.ID] = activeRecording{handle: handle, path: artifact, stopAttempted: true}
+
+	inspection, err := adapter.InspectRecording(context.Background(), handle)
+	require.NoError(t, err)
+	require.Equal(t, "process_active", inspection.State)
+	require.False(t, inspection.ArtifactAvailable)
+	require.Equal(t, []string{ps}, runner.calls, "active encoder inspection must not query artifacts or signal the process")
+	require.Contains(t, adapter.recordings, handle.ID)
+	require.NotContains(t, strings.Join(runner.calls, "\n"), "shell kill")
+
+	runner.mu.Lock()
+	runner.responses[ps] = []byte("USER PID ARGS\n")
+	runner.calls = nil
+	runner.mu.Unlock()
+	inspection, err = adapter.InspectRecording(context.Background(), handle)
+	require.NoError(t, err)
+	require.Equal(t, "process_stopped_artifact_available", inspection.State)
+	require.True(t, inspection.ArtifactAvailable)
+	require.Equal(t, []string{ps, "adb -s serial shell ls " + artifact}, runner.calls)
+	require.Contains(t, adapter.recordings, handle.ID, "readback must retain owner state")
 }
 
 func TestStopOwnedScreenrecordRejectsMissingAndAmbiguousProcesses(t *testing.T) {

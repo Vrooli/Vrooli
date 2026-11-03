@@ -42,6 +42,12 @@ func testService(t *testing.T) (*Service, *sql.DB) {
 	return svc, db
 }
 
+func TestFlowHTTPWriteTimeoutOutlivesBoundedFlowExecution(t *testing.T) {
+	flowBudget := time.Duration(maxFlowDurationMS) * time.Millisecond
+	require.Greater(t, FlowHTTPWriteTimeout(), flowBudget)
+	require.Equal(t, time.Minute, FlowHTTPWriteTimeout()-flowBudget)
+}
+
 type semanticSnapshotFixture struct {
 	*fakes.Strategy
 	calls    int
@@ -1126,14 +1132,17 @@ func (f *verifiedArtifactResolverFixture) Resolve(_ context.Context, ref, packag
 	if ref != f.descriptor.ImmutableRef || packageName != f.descriptor.PackageName || versionName != f.descriptor.VersionName {
 		return androidartifact.StagedAPK{}, fmt.Errorf("unexpected artifact identity")
 	}
-	return androidartifact.StagedAPK{Descriptor: f.descriptor, Path: f.path}, nil
+	return androidartifact.StagedAPK{Descriptor: f.descriptor, SigningCertificateSHA256: strings.Repeat("a", 64), Path: f.path}, nil
 }
 
 type verifiedArtifactStrategyFixture struct {
 	*fakes.Strategy
-	installedPath  string
-	installedBytes []byte
-	version        string
+	installedPath   string
+	installedBytes  []byte
+	version         string
+	versionCode     int64
+	signer          string
+	existingInstall bool
 }
 
 func (f *verifiedArtifactStrategyFixture) Actuate(_ context.Context, event strategy.Actuation) error {
@@ -1150,6 +1159,13 @@ func (f *verifiedArtifactStrategyFixture) Actuate(_ context.Context, event strat
 }
 
 func (f *verifiedArtifactStrategyFixture) AppLifecycle(_ context.Context, request strategy.AppLifecycleRequest) (strategy.AppLifecycleResult, error) {
+	if request.Operation == "package-signing-state" {
+		signer := f.signer
+		if signer == "" {
+			signer = strings.Repeat("a", 64)
+		}
+		return strategy.AppLifecycleResult{Operation: request.Operation, Package: request.Package, Status: strategy.StatusAvailable, Installed: f.existingInstall || len(f.installedBytes) > 0, SigningCertificateSHA256: signer}, nil
+	}
 	if request.Operation != "package-state" {
 		return strategy.AppLifecycleResult{}, fmt.Errorf("unexpected lifecycle operation %q", request.Operation)
 	}
@@ -1157,7 +1173,32 @@ func (f *verifiedArtifactStrategyFixture) AppLifecycle(_ context.Context, reques
 	if version == "" {
 		version = "1.4.0"
 	}
-	return strategy.AppLifecycleResult{Operation: request.Operation, Package: request.Package, Status: strategy.StatusAvailable, Installed: true, Version: version}, nil
+	versionCode := f.versionCode
+	if versionCode == 0 {
+		versionCode = 14
+	}
+	return strategy.AppLifecycleResult{Operation: request.Operation, Package: request.Package, Status: strategy.StatusAvailable, Installed: true, Version: version, VersionCode: versionCode}, nil
+}
+
+func TestVerifiedArtifactInstallRefusesDifferentInstalledSignerBeforeInstall(t *testing.T) {
+	apkPath := filepath.Join(t.TempDir(), "verified.apk")
+	require.NoError(t, os.WriteFile(apkPath, []byte("verified apk"), 0o600))
+	adapter := &verifiedArtifactStrategyFixture{Strategy: fakes.New("android-adb", strategy.StatusAvailable, strategy.CapInput, strategy.CapAppLifecycle), existingInstall: true, signer: strings.Repeat("b", 64)}
+	svc := New(strategyregistry.New(adapter))
+	svc.devices.Upsert(devicedomain.Record{ID: "phone", StrategyID: "android-adb", Transport: "usb", Status: strategy.StatusAvailable, Health: strategy.StatusAvailable, Capabilities: []strategy.Capability{{Name: strategy.CapAppLifecycle, Status: strategy.StatusAvailable}}})
+	descriptor := androidartifact.Descriptor{ImmutableRef: "android-debug:" + strings.Repeat("f", 64), Checksum: "sha256:" + strings.Repeat("f", 64), APKChecksum: "sha256:" + strings.Repeat("e", 64), PackageName: "com.example.portal", VersionName: "1.4.0", VersionCode: 14}
+	svc.SetAndroidArtifactResolver(&verifiedArtifactResolverFixture{descriptor: descriptor, path: apkPath})
+	lease, err := svc.Acquire("phone", "operator", time.Minute)
+	require.NoError(t, err)
+	flow := Flow{Steps: []Step{{ID: "install", Kind: "install-artifact", RequiredCapabilities: []string{strategy.CapAppLifecycle}, Arguments: map[string]any{"artifact_ref": descriptor.ImmutableRef, "package": descriptor.PackageName, "version_name": descriptor.VersionName}}}}
+
+	result, err := svc.RunWithLeaseConfirmed(context.Background(), flow, "phone", "operator", lease.LeaseToken, true)
+	require.NoError(t, err)
+	require.Equal(t, "failed", result.Disposition)
+	require.Empty(t, adapter.installedBytes, "a mismatched signer must stop before adb install")
+	require.False(t, result.Chapters[0].ArtifactInstall.InstallAccepted)
+	require.Equal(t, strings.Repeat("b", 64), result.Chapters[0].ArtifactInstall.InstalledSigningCertificateSHA256)
+	require.Contains(t, result.Chapters[0].Message, "refusing update")
 }
 
 func TestVerifiedArtifactInstallFailsWhenInstalledVersionDoesNotMatch(t *testing.T) {
@@ -1180,6 +1221,30 @@ func TestVerifiedArtifactInstallFailsWhenInstalledVersionDoesNotMatch(t *testing
 	require.True(t, result.Chapters[0].ArtifactInstall.Installed)
 	require.False(t, result.Chapters[0].ArtifactInstall.PostInstallVerified)
 	require.Contains(t, result.Chapters[0].Message, "does not match artifact version")
+}
+
+func TestVerifiedArtifactInstallFailsWhenInstalledVersionCodeDoesNotMatch(t *testing.T) {
+	apkPath := filepath.Join(t.TempDir(), "verified.apk")
+	require.NoError(t, os.WriteFile(apkPath, []byte("verified apk"), 0o600))
+	adapter := &verifiedArtifactStrategyFixture{Strategy: fakes.New("android-adb", strategy.StatusAvailable, strategy.CapInput, strategy.CapAppLifecycle), versionCode: 13}
+	svc := New(strategyregistry.New(adapter))
+	svc.devices.Upsert(devicedomain.Record{ID: "phone", StrategyID: "android-adb", Transport: "usb", Status: strategy.StatusAvailable, Health: strategy.StatusAvailable, Capabilities: []strategy.Capability{{Name: strategy.CapAppLifecycle, Status: strategy.StatusAvailable}}})
+	descriptor := androidartifact.Descriptor{ImmutableRef: "android-debug:" + strings.Repeat("f", 64), Checksum: "sha256:" + strings.Repeat("f", 64), APKChecksum: "sha256:" + strings.Repeat("e", 64), PackageName: "com.example.portal", VersionName: "1.4.0", VersionCode: 14}
+	svc.SetAndroidArtifactResolver(&verifiedArtifactResolverFixture{descriptor: descriptor, path: apkPath})
+	lease, err := svc.Acquire("phone", "operator", time.Minute)
+	require.NoError(t, err)
+	flow := Flow{Steps: []Step{{ID: "install", Kind: "install-artifact", RequiredCapabilities: []string{strategy.CapAppLifecycle}, Arguments: map[string]any{"artifact_ref": descriptor.ImmutableRef, "package": descriptor.PackageName, "version_name": descriptor.VersionName}}}}
+
+	result, err := svc.RunWithLeaseConfirmed(context.Background(), flow, "phone", "operator", lease.LeaseToken, true)
+	require.NoError(t, err)
+	require.Equal(t, "failed", result.Disposition)
+	proof := result.Chapters[0].ArtifactInstall
+	require.NotNil(t, proof)
+	require.True(t, proof.InstallAccepted)
+	require.True(t, proof.Installed)
+	require.EqualValues(t, 13, proof.InstalledVersionCode)
+	require.False(t, proof.PostInstallVerified)
+	require.Contains(t, result.Chapters[0].Message, "installed package version code 13 does not match artifact version code 14")
 }
 
 func TestVerifiedArtifactInstallRequiresConfirmationAndRecordsPostInstallProof(t *testing.T) {
@@ -1218,8 +1283,11 @@ func TestVerifiedArtifactInstallRequiresConfirmationAndRecordsPostInstallProof(t
 	require.Equal(t, descriptor.ImmutableRef, proof.ImmutableRef)
 	require.Equal(t, descriptor.Checksum, proof.ArtifactChecksum)
 	require.Equal(t, descriptor.APKChecksum, proof.APKChecksum)
+	require.Equal(t, strings.Repeat("a", 64), proof.SigningCertificateSHA256)
+	require.Equal(t, strings.Repeat("a", 64), proof.InstalledSigningCertificateSHA256)
 	require.Equal(t, descriptor.PackageName, proof.PackageName)
 	require.Equal(t, descriptor.VersionName, proof.InstalledVersion)
+	require.Equal(t, descriptor.VersionCode, proof.InstalledVersionCode)
 	require.Equal(t, apkBytes, adapter.installedBytes)
 	require.NotEmpty(t, adapter.installedPath)
 	require.False(t, strings.Contains(result.Chapters[0].Message, adapter.installedPath), "proof must not expose the private staging path")
@@ -1227,6 +1295,10 @@ func TestVerifiedArtifactInstallRequiresConfirmationAndRecordsPostInstallProof(t
 	require.Len(t, audits, 1)
 	require.Equal(t, descriptor.ImmutableRef, audits[0].Details["immutable_ref"])
 	require.Equal(t, descriptor.APKChecksum, audits[0].Details["apk_checksum"])
+	require.Equal(t, strings.Repeat("a", 64), audits[0].Details["signing_certificate_sha256"])
+	require.Equal(t, strings.Repeat("a", 64), audits[0].Details["installed_signing_certificate_sha256"])
+	require.Equal(t, "14", audits[0].Details["version_code"])
+	require.Equal(t, "14", audits[0].Details["installed_version_code"])
 	require.Equal(t, "true", audits[0].Details["post_install_verified"])
 }
 
@@ -1647,7 +1719,11 @@ func TestAgentPlannerReceivesSemanticSnapshotAndActionHistory(t *testing.T) {
 	svc.SetAgentPlanner(planner)
 	run, err := svc.StartAgentWithOptions(context.Background(), "open settings", "target", "test", true, false)
 	require.NoError(t, err)
-	require.Equal(t, "completed", run.State)
+	require.Equal(t, "unverified", run.State)
+	require.Equal(t, "unverified", run.Result.Disposition)
+	require.False(t, run.GoalVerified)
+	require.Equal(t, "unverified", run.Result.Chapters[len(run.Result.Chapters)-1].Disposition)
+	require.Contains(t, run.Result.Chapters[len(run.Result.Chapters)-1].Message, "no independent terminal outcome assertion")
 	require.Equal(t, 2, run.PlannerCalls)
 	require.Equal(t, 1, run.ActionAttempts)
 	require.Equal(t, 1, run.ActionCompletions)
@@ -1689,13 +1765,14 @@ func TestAgentSemanticTargetRunsThroughFlowOwner(t *testing.T) {
 	svc.SetAgentPlanner(&sequenceAgentPlanner{plans: []internalflows.AgentPlan{{StepKind: "semantic-target", Action: "Settings"}, {GoalMet: true}}})
 	run, err := svc.StartAgent(context.Background(), "open settings", "target", "test", true)
 	require.NoError(t, err)
-	require.Equal(t, "completed", run.State, "%+v", run.Result.Chapters)
+	require.Equal(t, "unverified", run.State, "%+v", run.Result.Chapters)
+	require.Equal(t, "unverified", run.Result.Disposition)
 	require.Len(t, fixture.Actuations, 1)
 	require.NotNil(t, fixture.Actuations[0].Pointer)
 	require.Equal(t, "semantic-target", fixture.Actuations[0].Pointer.Kind)
 	require.Equal(t, "Settings", run.PlannedSteps[0].Target)
 	_, err = svc.PromoteAgent(run.ID)
-	require.ErrorContains(t, err, "terminal outcome assertion")
+	require.ErrorContains(t, err, "not eligible for promotion")
 }
 
 type agentLifecycleStateFixture struct {
@@ -1726,8 +1803,8 @@ func TestAgentLaunchUsesTypedAppLifecycleAndVerifiesForeground(t *testing.T) {
 
 	run, err := svc.StartAgent(context.Background(), "open the calculator", "agent-launch", "operator", true)
 	require.NoError(t, err)
-	require.Equal(t, "completed", run.State)
-	require.Equal(t, "passed", run.Result.Disposition)
+	require.Equal(t, "unverified", run.State)
+	require.Equal(t, "unverified", run.Result.Disposition)
 	require.Len(t, run.PlannedSteps, 1)
 	require.Equal(t, packageName, run.PlannedSteps[0].Target)
 	require.Len(t, fixture.requests, 1)
@@ -1751,6 +1828,45 @@ func TestAgentLaunchFailsWhenForegroundPackageDoesNotMatch(t *testing.T) {
 	require.Contains(t, run.Result.Chapters[len(run.Result.Chapters)-1].Message, "was not observed in the foreground")
 }
 
+func TestAgentVerifiesOperatorForegroundPackageExpectation(t *testing.T) {
+	const packageName = "com.vrooli.generated.app.e7candidate"
+	fixture := &agentLifecycleStateFixture{Strategy: fakes.New("agent-assert-foreground", strategy.StatusAvailable, strategy.CapAppLifecycle), foregroundOnLaunch: packageName}
+	svc := New(strategyregistry.New(fixture))
+	svc.devices.Upsert(devicedomain.Record{ID: "agent-assert-foreground", StrategyID: fixture.ID(), Transport: "usb", Status: strategy.StatusAvailable, Health: strategy.StatusAvailable, Capabilities: []strategy.Capability{{Name: strategy.CapAppLifecycle, Status: strategy.StatusAvailable}}})
+	svc.SetAgentPlanner(&sequenceAgentPlanner{plans: []internalflows.AgentPlan{{StepKind: "launch", Action: packageName}, {GoalMet: true}}})
+
+	run, err := svc.StartAgentWithAssertions(context.Background(), "launch and verify the app", "agent-assert-foreground", "operator", true, false, internalflows.DefaultAgentPolicy(), false, AgentOutcomeAssertions{ForegroundPackage: packageName})
+	require.NoError(t, err)
+	require.Equal(t, "completed", run.State)
+	require.Equal(t, "passed", run.Result.Disposition)
+	require.True(t, run.GoalVerified)
+	require.Equal(t, packageName, run.ExpectedForegroundPackage)
+	require.Contains(t, run.Result.Chapters[len(run.Result.Chapters)-1].Message, packageName)
+}
+
+func TestAgentFailsWhenOperatorForegroundPackageExpectationIsNotObserved(t *testing.T) {
+	const expected = "com.vrooli.generated.app.e7candidate"
+	fixture := &agentLifecycleStateFixture{Strategy: fakes.New("agent-assert-foreground-mismatch", strategy.StatusAvailable, strategy.CapAppLifecycle), foreground: "com.example.other"}
+	svc := New(strategyregistry.New(fixture))
+	svc.devices.Upsert(devicedomain.Record{ID: "agent-assert-foreground-mismatch", StrategyID: fixture.ID(), Transport: "usb", Status: strategy.StatusAvailable, Health: strategy.StatusAvailable, Capabilities: []strategy.Capability{{Name: strategy.CapAppLifecycle, Status: strategy.StatusAvailable}}})
+	svc.SetAgentPlanner(&sequenceAgentPlanner{plans: []internalflows.AgentPlan{{GoalMet: true}}})
+
+	run, err := svc.StartAgentWithAssertions(context.Background(), "launch and verify the app", "agent-assert-foreground-mismatch", "operator", true, false, internalflows.DefaultAgentPolicy(), false, AgentOutcomeAssertions{ForegroundPackage: expected})
+	require.NoError(t, err)
+	require.Equal(t, "failed", run.State)
+	require.Equal(t, "failed", run.Result.Disposition)
+	require.False(t, run.GoalVerified)
+	require.Contains(t, run.Result.Chapters[len(run.Result.Chapters)-1].Message, "does not match expected package")
+}
+
+func TestAgentRejectsInvalidOrAmbiguousOutcomeAssertions(t *testing.T) {
+	svc, _ := testService(t)
+	_, err := svc.StartAgentWithAssertions(context.Background(), "verify app", "fake", "operator", true, false, internalflows.DefaultAgentPolicy(), false, AgentOutcomeAssertions{ForegroundPackage: "not a package"})
+	require.ErrorContains(t, err, "not a valid Android package identity")
+	_, err = svc.StartAgentWithAssertions(context.Background(), "verify app", "fake", "operator", true, false, internalflows.DefaultAgentPolicy(), false, AgentOutcomeAssertions{SelectedControl: "Home", ForegroundPackage: "com.example.app"})
+	require.ErrorContains(t, err, "only one independently observed terminal outcome assertion")
+}
+
 func TestAgentPlannerOnlyReceivesExecutableStepKinds(t *testing.T) {
 	fixture := fakes.New("agent-step-contract", strategy.StatusAvailable, strategy.CapInput, strategy.CapMedia, strategy.CapAppLifecycle, strategy.CapProperty, strategy.CapScreenshot)
 	svc := New(strategyregistry.New(fixture))
@@ -1760,7 +1876,8 @@ func TestAgentPlannerOnlyReceivesExecutableStepKinds(t *testing.T) {
 
 	run, err := svc.StartAgent(context.Background(), "check current state", "agent-step-contract", "operator", true)
 	require.NoError(t, err)
-	require.Equal(t, "completed", run.State)
+	require.Equal(t, "unverified", run.State)
+	require.Equal(t, "unverified", run.Result.Disposition)
 	require.Len(t, planner.worlds, 1)
 	for _, supported := range []string{"key", "media-pause", "launch", "property-get", "property-set"} {
 		require.Contains(t, planner.worlds[0], supported)
@@ -1960,8 +2077,8 @@ func TestAgentUsesBoundedGoalLoopAndRecordsEachWorldModel(t *testing.T) {
 
 	run, err := svc.StartAgentWithOptions(context.Background(), "pause and verify", "frameless-loop", "operator", true, false)
 	require.NoError(t, err)
-	require.Equal(t, "completed", run.State)
-	require.Equal(t, "passed", run.Result.Disposition)
+	require.Equal(t, "unverified", run.State)
+	require.Equal(t, "unverified", run.Result.Disposition)
 	require.Equal(t, 2, planner.calls)
 	require.Contains(t, run.Result.Chapters[0].ID, "world-model-1")
 	require.Contains(t, run.Result.Chapters[1].ID, "iteration-1")
@@ -2557,7 +2674,8 @@ func TestAgentUsesKnownUSBWhenPreferredWirelessIsUnavailable(t *testing.T) {
 	svc.SetAgentPlanner(&sequenceAgentPlanner{plans: []internalflows.AgentPlan{{StepKind: "key", Value: "DPAD_DOWN"}, {GoalMet: true}}})
 	run, err := svc.StartAgent(context.Background(), "move down", "phone", "test", true)
 	require.NoError(t, err)
-	require.Equal(t, "completed", run.State, "%+v", run.Result.Chapters)
+	require.Equal(t, "unverified", run.State, "%+v", run.Result.Chapters)
+	require.Equal(t, "unverified", run.Result.Disposition)
 	require.Len(t, base.Calls(), 1)
 	require.Empty(t, wireless.Calls())
 	require.Equal(t, "usb", svc.Audit()[0].Transport)

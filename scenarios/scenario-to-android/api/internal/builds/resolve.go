@@ -28,16 +28,18 @@ var (
 // ImmutableRef binds the retained APK and AAB pair; APKChecksum lets the
 // consumer independently verify the exact bytes it will install.
 type APKDescriptor struct {
-	ImmutableRef string    `json:"immutable_ref"`
-	Kind         string    `json:"kind"`
-	Checksum     string    `json:"checksum"`
-	APKChecksum  string    `json:"apk_checksum"`
-	SizeBytes    int64     `json:"size_bytes"`
-	APKSizeBytes int64     `json:"apk_size_bytes"`
-	PackageName  string    `json:"package_name"`
-	VersionName  string    `json:"version_name"`
-	VersionCode  int64     `json:"version_code"`
-	CreatedAt    time.Time `json:"created_at"`
+	ImmutableRef    string    `json:"immutable_ref"`
+	Kind            string    `json:"kind"`
+	Checksum        string    `json:"checksum"`
+	APKChecksum     string    `json:"apk_checksum"`
+	SizeBytes       int64     `json:"size_bytes"`
+	APKSizeBytes    int64     `json:"apk_size_bytes"`
+	PackageName     string    `json:"package_name"`
+	VersionName     string    `json:"version_name"`
+	VersionCode     int64     `json:"version_code"`
+	Signing         string    `json:"signing"`
+	SigningIdentity string    `json:"signing_identity,omitempty"`
+	CreatedAt       time.Time `json:"created_at"`
 }
 
 // ResolvedAPK holds the verified owner descriptor and an open handle to the
@@ -88,8 +90,13 @@ func ResolveAPK(dataRoot, immutableRef string) (ResolvedAPK, error) {
 	packageName := strings.TrimSpace(artifact.Metadata["package_name"])
 	versionName := strings.TrimSpace(artifact.Metadata["version_name"])
 	versionCode, versionErr := parsePositiveInt64(artifact.Metadata["version_code"])
+	signing := strings.TrimSpace(artifact.Metadata["signing"])
+	signingIdentity := strings.TrimSpace(artifact.Metadata["signing_identity"])
 	if !androidPackageName.MatchString(packageName) || versionName == "" || len(versionName) > 128 || versionErr != nil {
 		return ResolvedAPK{}, errors.New("Android artifact package metadata is invalid")
+	}
+	if signing == "" || (kind == "android-release" && signingIdentity == "") {
+		return ResolvedAPK{}, errors.New("Android artifact signing metadata is invalid")
 	}
 	apkPath := filepath.Join(root, "app.apk")
 	aabPath := filepath.Join(root, "app.aab")
@@ -159,16 +166,18 @@ func ResolveAPK(dataRoot, immutableRef string) (ResolvedAPK, error) {
 	}
 	return ResolvedAPK{
 		Descriptor: APKDescriptor{
-			ImmutableRef: artifact.ImmutableRef,
-			Kind:         artifact.Kind,
-			Checksum:     artifact.Checksum,
-			APKChecksum:  "sha256:" + hex.EncodeToString(apkHasher.Sum(nil)),
-			SizeBytes:    artifact.SizeBytes,
-			APKSizeBytes: apkInfo.Size(),
-			PackageName:  packageName,
-			VersionName:  versionName,
-			VersionCode:  versionCode,
-			CreatedAt:    artifact.CreatedAt,
+			ImmutableRef:    artifact.ImmutableRef,
+			Kind:            artifact.Kind,
+			Checksum:        artifact.Checksum,
+			APKChecksum:     "sha256:" + hex.EncodeToString(apkHasher.Sum(nil)),
+			SizeBytes:       artifact.SizeBytes,
+			APKSizeBytes:    apkInfo.Size(),
+			PackageName:     packageName,
+			VersionName:     versionName,
+			VersionCode:     versionCode,
+			Signing:         signing,
+			SigningIdentity: signingIdentity,
+			CreatedAt:       artifact.CreatedAt,
 		},
 		File: apk,
 	}, nil

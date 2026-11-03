@@ -14,6 +14,10 @@ func scenarioAppInstallMode(planID string) string {
 		return "temporary"
 	case DurableAppPlanID:
 		return "durable"
+	case UpdateAppPlanID:
+		return "update"
+	case VerifyAppPlanID, OfflineTransitionPlanID:
+		return "verify"
 	default:
 		return ""
 	}

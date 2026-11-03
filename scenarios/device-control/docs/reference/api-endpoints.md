@@ -69,6 +69,14 @@ not assert that events were absent. Screenshots and recordings preserve the full
 classified for private information. Explicit image redaction requires known
 sensitive regions; content-aware video redaction is unavailable.
 
+`POST /api/v1/recordings/inspect` accepts `device_id`, `lease_token`, and
+`handle_id` for a recording retained by Device Control. It returns the owner's
+current state plus an optional read-only native process/artifact observation.
+The Android ADB strategy checks the exact encoder process and output-path
+availability; it does not signal the encoder or read artifact bytes. Inspection
+never clears an uncertain stop or replays it. Strategies without native
+inspection support return `process_state: "unknown"` with a reason.
+
 `GET /api/v1/devices/discover` performs a bounded DNS-SD browse and returns
 every service instance with its transport, endpoint, and TXT-derived identity
 keys. A browse failure returns `health: unreachable` and a named `reason`.

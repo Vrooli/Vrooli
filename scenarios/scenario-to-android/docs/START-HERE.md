@@ -308,8 +308,8 @@ governs how they should look and behave, not which ones exist.
 
 ```bash
 react-component-library components list --json
-react-component-library adoptions resolve-path "<component-id>" scenario-to-android
-react-component-library adoptions apply "<component-id>" scenario-to-android "<adopted-path>"
+react-component-library adoptions preflight "<component-id>" scenario-to-android --version "<version>"
+react-component-library adoptions link "<component-id>" scenario-to-android --version "<version>"
 ```
 
       If no governed primitive exists, build the scenario-local component
@@ -465,10 +465,10 @@ this tree and the tree has to be real first.
       directory:
 
 ```bash
-react-component-library components draft-begin <component>
+react-component-library components draft-begin "<component-id>"
 # add the stories/states your experience spec declares
-react-component-library components test <component-id>
-react-component-library components draft-publish <component>
+react-component-library components check "<component-id>"
+react-component-library components draft-publish "<component-id>" --changelog "Add declared stories and states"
 ```
 
       A raised component improves every scenario already consuming it, which a
@@ -477,17 +477,15 @@ react-component-library components draft-publish <component>
       it so the canon inherits the claims rather than losing them:
 
 ```bash
-react-component-library components ingest scenario-to-android <tsx-path> <slug> \
-  --experience-contract experience/components/<component>.json \
-  --display-name "<Name>" --slot <slot>
+react-component-library components ingest scenario-to-android "<source-file>" "<slug>" --experience-contract "experience/components/<component>.json" --display-name "<Name>" --slot "<slot>"
 ```
 
 - [ ] Validate before calling anything canonical:
 
 ```bash
-react-component-library components test <component-id>
-react-component-library components style-fit <component-id> scenario-to-android
-react-component-library catalog evidence capture <asset-id>
+react-component-library components test "<component-id>" --version "<version>"
+react-component-library components check "<component-id>"
+react-component-library catalog gates kit-compatibility --asset-id "<asset-id>"
 ```
 
 - [ ] Read the promotion gate. It requires parity, examples, dependency
@@ -495,19 +493,18 @@ react-component-library catalog evidence capture <asset-id>
       scenario:
 
 ```bash
-react-component-library workflows promotion-readiness <asset-id> \
-  --origin-scenario scenario-to-android
+react-component-library workflows promotion-readiness "<asset-id>" --origin-scenario scenario-to-android
 ```
 
-- [ ] Adopt the published version back, then delete the local original:
+- [ ] Link the published version and migrate imports before deleting the local original:
 
 ```bash
-react-component-library adoptions apply <component-id> scenario-to-android <adopted-path>
+react-component-library adoptions preflight "<component-id>" scenario-to-android --version "<version>"
+react-component-library adoptions link "<component-id>" scenario-to-android --version "<version>"
 ```
 
-      Promotion is not finished while this scenario still runs its own copy.
-      That is a fork with extra steps, and `promotion-readiness` reports it as
-      an unmet origin replacement.
+      Remove the local copy only after the scenario build and
+      `promotion-readiness` check verify the package replacement.
 - [ ] Record what stays local and why, in `docs/internal/DECISIONS.md`. A
       genuinely scenario-specific component is a fine outcome; an unrecorded
       one is indistinguishable from a fork.

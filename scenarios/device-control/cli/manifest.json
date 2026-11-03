@@ -1254,6 +1254,10 @@
             {
               "name": "expect-selected",
               "description": "Independently verify this exact control is selected"
+            },
+            {
+              "name": "expect-foreground-package",
+              "description": "Independently verify this exact package is foreground"
             }
           ],
           "binding": {

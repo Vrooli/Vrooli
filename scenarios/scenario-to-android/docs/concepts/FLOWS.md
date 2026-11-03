@@ -48,13 +48,17 @@ The twelve chapter IDs are:
 `offline_transition`, `deep_link`, `notification_tap`, `back_navigation`,
 `update_migration`, and `clean_uninstall`.
 
-Every chapter carries a bounded readiness policy and settle policy, expected
-behavior, required capabilities, and ordered verb references. When a target
-does not advertise a required capability, the chapter is terminal
-`unsupported` with the capability and next action; it is never omitted or
-promoted to pass. For example, the connected phone's missing
-`network-control` capability makes `offline_transition` honestly unsupported
-on that target while leaving the other chapters eligible.
+Every applicable chapter carries a bounded readiness policy and settle policy,
+expected behavior, required capabilities, and ordered verb references. A
+chapter-level expected result is attached to the final evidence-producing step,
+so an earlier screenshot or action does not need to duplicate a later BAS
+assertion. The notification-denial chapter requires Android 13 because
+`POST_NOTIFICATIONS` does not exist on earlier platform releases. The runner
+reads the Android version from Device Control; older targets retain an explicit
+`not-applicable` step with the reason and perform no permission action. Unknown
+versions fail before device actuation. When a target does not advertise another
+required capability, the chapter is terminal `unsupported` with the capability
+and next action; it is never omitted or promoted to pass.
 
 ## Flow Details
 

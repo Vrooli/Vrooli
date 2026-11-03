@@ -24,6 +24,7 @@ func TestResolveAPKReturnsPathFreeVerifiedDescriptorAndBytes(t *testing.T) {
 	require.Equal(t, "com.example.portal", resolved.Descriptor.PackageName)
 	require.Equal(t, "0.4.3", resolved.Descriptor.VersionName)
 	require.EqualValues(t, 43, resolved.Descriptor.VersionCode)
+	require.Equal(t, "debug-only", resolved.Descriptor.Signing)
 	require.NotContains(t, resolved.Descriptor.PackageName, filepath.Base(dataRoot))
 	got, err := os.ReadFile(resolved.File.Name())
 	require.NoError(t, err)
@@ -93,7 +94,7 @@ func retainResolverFixture(t *testing.T) (string, string, []byte) {
 		CreatedAt:    time.Date(2026, 11, 2, 12, 0, 0, 0, time.UTC),
 		Metadata: map[string]string{
 			"apk_path": apkPath, "aab_path": aabPath,
-			"package_name": "com.example.portal", "version_name": "0.4.3", "version_code": "43",
+			"package_name": "com.example.portal", "version_name": "0.4.3", "version_code": "43", "signing": "debug-only",
 		},
 	}
 	retained, err := RetainArtifact(context.Background(), dataRoot, artifact)
