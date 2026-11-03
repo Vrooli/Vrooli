@@ -31,6 +31,7 @@ vanilla/
 │   ├── index.ts            # Public API exports
 │   ├── types.ts            # Channel definitions
 │   ├── handlers.ts         # IPC handler registration
+│   ├── renderer-authority.ts # Owned origin/frame and navigation policy
 │   ├── channels.ts         # Channel constants
 │   └── __tests__/          # Unit tests
 │
@@ -84,10 +85,8 @@ vanilla/
 │   └── README.md           # Examples documentation
 │
 └── scripts/                # Build helper scripts
-    ├── fix-rcedit.js       # Windows resource editor fix
     ├── post-build-windows.js
-    ├── setup-dmg-license.js
-    └── setup-wine.js
+    └── setup-dmg-license.js
 ```
 
 ---
@@ -179,15 +178,25 @@ Type-safe communication between Electron main and renderer processes.
 
 **Public API:**
 ```typescript
-import { registerAllHandlers, IPC_CHANNELS } from './ipc';
+import { registerAllHandlers } from './ipc';
+import { createRendererAuthority, protectRendererNavigation } from './ipc/renderer-authority';
 
-registerAllHandlers(ipcMain, {
-  storage: appStorage,
-  auth: authManager,
-  dialog: electron.dialog,
-  fs: fileSystem,
-  // ... other dependencies
+// rendererURL is assigned by the shell from its selected runtime/static UI,
+// before loading the page. Never derive it from a later navigation's URL.
+const isTrustedRenderer = createRendererAuthority(() => mainWindow ? {
+  sender: mainWindow.webContents,
+  mainFrame: mainWindow.webContents.mainFrame,
+  url: rendererURL,
+} : null);
+
+registerAllHandlers({
+  ipcMain, isTrustedRenderer,
+  storage: appStorage, authManager,
+  dialog: electron.dialog, fs: fileSystem,
+  getMainWindow: () => mainWindow,
+  systemInfo: { platform: process.platform, arch: process.arch, version: appVersion },
 });
+protectRendererNavigation(mainWindow.webContents, rendererURL);
 ```
 
 **Channels:**
@@ -200,7 +209,12 @@ registerAllHandlers(ipcMain, {
 | `storage:write` | Renderer → Main | Write to app storage |
 | `auth:status` | Renderer → Main | Get authentication status |
 
-**Testing Seams:** `IIpcMain`, `IDialog`, `IFileFs`
+Privileged IPC accepts only the owned window's main frame at its declared
+origin, including its exact port. Other loopback pages, other files and child
+frames do not inherit that authority. Navigation and redirects outside the
+owned renderer are prevented; external links open only in the system browser.
+
+**Testing Seams:** `IIpcMain`, `IDialog`, `IFileFs`, `isTrustedRenderer`
 
 ---
 
@@ -508,7 +522,7 @@ const auth = createAuthManager({ storage, ... });
 const windowState = new WindowStateManager({ storage: stateStorage, displayProvider });
 
 // 3. Register IPC handlers with all modules
-registerAllHandlers(ipcMain, { storage, auth, runtime, telemetry, ... });
+registerAllHandlers({ ipcMain, isTrustedRenderer, storage, authManager: auth, ... });
 
 // 4. Create windows with state
 const state = await windowState.getInitialState();

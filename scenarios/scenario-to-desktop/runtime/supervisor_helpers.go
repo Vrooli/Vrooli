@@ -176,7 +176,11 @@ func (s *Supervisor) TelemetryUploadURL() string {
 
 // Manifest returns the bundle manifest.
 func (s *Supervisor) Manifest() *manifest.Manifest {
-	return s.opts.Manifest
+	s.componentMu.Lock()
+	defer s.componentMu.Unlock()
+	snapshot := *s.opts.Manifest
+	snapshot.Services = s.effectiveServices()
+	return &snapshot
 }
 
 // AuthenticationStatus returns non-secret mode and provider state for the
@@ -397,7 +401,7 @@ func (s *Supervisor) UpdateSecrets(newSecrets map[string]string) error {
 
 // renderEnvMap builds the environment variable map for a service.
 func (s *Supervisor) renderEnvMap(svc manifest.Service, bin manifest.Binary) (map[string]string, error) {
-	return s.envRenderer.RenderEnvMap(svc, bin)
+	return s.serviceRenderer(svc).RenderEnvMap(svc, bin)
 }
 
 // renderArgs expands template variables in command arguments.
@@ -490,3 +494,6 @@ func hashManifest(m *manifest.Manifest) string {
 	sum := sha256.Sum256(data)
 	return hex.EncodeToString(sum[:])
 }
+
+// PeerHomeDir returns the registry selected by this runtime, including isolated preflight homes.
+func (s *Supervisor) PeerHomeDir() (string, error) { return s.resolvePeerHome() }

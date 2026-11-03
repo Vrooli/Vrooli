@@ -121,6 +121,7 @@ func (s *Server) deploymentClosure(ctx context.Context, dctx *DeploymentContext)
 	derived, derr := svc.Derive(ctx, closure.Request{
 		ScenarioID: dctx.Manifest.Scenario.ID, Environment: dctx.Deployment.Environment,
 		OS: svc.DefaultPlatform.OS, Arch: svc.DefaultPlatform.Arch, Scope: string(closure.ScopeBundle),
+		Overrides: closure.RequestOverride{DeselectOptional: append([]string(nil), dctx.Manifest.Dependencies.DeselectOptional...)},
 	})
 	if derr != nil {
 		return nil, derr.Error()

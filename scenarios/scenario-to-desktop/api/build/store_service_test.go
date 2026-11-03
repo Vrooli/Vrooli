@@ -72,6 +72,9 @@ func TestBuildPlatform_NonexistentBuild(t *testing.T) {
 }
 
 func TestBuildPlatform_WineNotInstalled(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("Wine prerequisites apply only to cross-build hosts")
+	}
 	store := NewStore()
 	wineChecker := &mockWineChecker{installed: false}
 	logger := &mockLogger{}
@@ -539,5 +542,23 @@ func TestLockDesktopPathCancellationDoesNotWaitForOtherBuild(t *testing.T) {
 	cancel()
 	if _, err := service.lockDesktopPath(ctx, dir); !errors.Is(err, context.Canceled) {
 		t.Fatalf("lock cancellation: %v", err)
+	}
+}
+
+func TestWindowsBuildRequiresHostWineForIncompleteManagedBundle(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("Wine prerequisites apply only to cross-build hosts")
+	}
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "package.json"), []byte(`{"build":{"toolsets":{"wine":"1.0.1"}}}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	store := NewStore()
+	store.Save(&Status{BuildID: "missing-wine", PlatformResults: map[string]*PlatformResult{"windows-amd64": {Status: "building"}}})
+	service := NewService(WithStore(store), WithWineChecker(&mockWineChecker{installed: false}), WithCommandRunner(&mockCommandRunner{}))
+	service.BuildPlatform(context.Background(), "missing-wine", "fixture", dir, filepath.Join(dir, "dist"), "windows-amd64")
+	status, _ := store.Get("missing-wine")
+	if result := status.PlatformResults["windows-amd64"]; result == nil || result.Status != "skipped" {
+		t.Fatalf("missing host Wine must be reported before execution, got %+v", result)
 	}
 }

@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
-import { classifyUpdateRecovery, consumeUpdateIntent, markUpdateIntentApplying, readUpdateIntent, writeInstalledUpdateReceipt, writeUpdateIntent, writeUpdateState, type UpdateRecoveryFileSystem } from "../update-recovery";
+import { classifyUpdateRecovery, consumeUpdateIntent, createUpdateStateWriter, markUpdateIntentApplying, readUpdateIntent, transitionUpdateState, updateStateNames, writeInstalledUpdateReceipt, writeUpdateIntent, writeUpdateState, type UpdateRecoveryFileSystem, type UpdateStateName } from "../update-recovery";
+import specification from "../update-lifecycle.spec.json";
 
 function fixture(initial = "") {
     const files = new Map<string, string>();
@@ -25,6 +26,52 @@ function fixture(initial = "") {
 const intent = { schemaVersion: 1 as const, fromVersion: "1.0.0", toVersion: "1.1.0", requestedAt: "2026-09-06T00:00:00Z", nonce: "nonce-12345678", toArtifactRef: "sha512:new" };
 
 describe("update recovery marker", () => {
+    it("conforms to every declared lifecycle state/event pair and trace", () => {
+        expect(specification.states).toEqual(["idle", ...updateStateNames]);
+        expect(specification.events).toEqual(updateStateNames);
+        expect(Object.keys(specification.transitionMatrix)).toEqual(specification.states);
+        for (const [state, row] of Object.entries(specification.transitionMatrix)) {
+            expect(Object.keys(row)).toEqual(specification.events);
+            for (const [event, expected] of Object.entries(row)) {
+                const transition = () => transitionUpdateState(state as UpdateStateName | "idle", event as UpdateStateName);
+                if (expected === null) expect(transition).toThrow("invalid update transition");
+                else expect(transition()).toBe(expected);
+            }
+        }
+        for (const trace of specification.traces) {
+            let state = trace.initial as UpdateStateName | "idle";
+            for (const event of trace.events) state = transitionUpdateState(state, event as UpdateStateName);
+            expect(specification.terminal).toContain(state);
+        }
+        expect(() => transitionUpdateState("healthy", "unknown" as UpdateStateName)).toThrow();
+        expect(() => transitionUpdateState("unknown" as UpdateStateName, "healthy")).toThrow();
+    });
+    it("serializes updater events and resumes the persisted installation trace after launch", async () => {
+        const { fs, files } = fixture();
+        const path = "/user/update-state.json";
+        const persist = createUpdateStateWriter(fs, path);
+        const states: UpdateStateName[] = ["offered", "downloading", "downloading", "verified", "apply_pending", "applying", "installing"];
+        await Promise.all(states.map(state => persist({ schemaVersion: 1, state, observedAt: "2026-09-08T00:00:00Z" })));
+        const resumed = createUpdateStateWriter(fs, path);
+        await resumed({ schemaVersion: 1, state: "relaunched", observedAt: "2026-09-08T00:01:00Z" });
+        await resumed({ schemaVersion: 1, state: "healthy", observedAt: "2026-09-08T00:01:01Z" });
+        expect(JSON.parse(files.get(path)!).transitions.map((entry: { state: string }) => entry.state)).toEqual(["offered", "downloading", "verified", "apply_pending", "applying", "installing", "relaunched", "healthy"]);
+        await expect(resumed({ schemaVersion: 1, state: "applying", observedAt: "now" })).rejects.toThrow("healthy -> applying");
+        expect(JSON.parse(files.get(path)!).state).toBe("healthy");
+    });
+
+    it("keeps the last durable transition when persistence fails and permits recovery", async () => {
+        const { fs, files } = fixture();
+        const path = "/user/update-state.json";
+        const persist = createUpdateStateWriter(fs, path);
+        for (const state of ["offered", "verified", "apply_pending"] as const) await persist({ schemaVersion: 1, state, observedAt: "now" });
+        vi.mocked(fs.rename!).mockRejectedValueOnce(new Error("disk full"));
+        await expect(persist({ schemaVersion: 1, state: "applying", observedAt: "now" })).rejects.toThrow("disk full");
+        expect(JSON.parse(files.get(path)!).state).toBe("apply_pending");
+        await expect(persist({ schemaVersion: 1, state: "installing", observedAt: "now" })).rejects.toThrow("apply_pending -> installing");
+        await createUpdateStateWriter(fs, path)({ schemaVersion: 1, state: "recovering", observedAt: "now" });
+        expect(JSON.parse(files.get(path)!).transitions.map((entry: { state: string }) => entry.state)).toEqual(["offered", "verified", "apply_pending", "recovering"]);
+    });
     it("atomically records and classifies an applied update", async () => {
         const { fs, files } = fixture();
         await writeUpdateIntent(fs, "/user/update-intent.json", intent);

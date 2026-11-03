@@ -24,6 +24,10 @@ func baseInputs() CompileInputs {
 		Closure: &domain.Closure{
 			SchemaVersion: "1", ScenarioID: "app", Digest: "sha256:fixture-closure",
 			Components: []domain.ClosureComponent{
+				{ID: "app", Kind: domain.ClosureKindScenario, Required: true},
+				{ID: "records-service", Kind: domain.ClosureKindScenario, Required: true, Reasons: []domain.ClosureReason{{Kind: domain.ClosureReasonDeclaredBy, From: "app"}}},
+				{ID: "store", Kind: domain.ClosureKindResource, Required: true},
+				{ID: "cache", Kind: domain.ClosureKindResource, Required: true},
 				{ID: "fixture/app:session-secret", Kind: domain.ClosureKindCredentialDescriptor, Credential: &domain.ClosureCredential{LogicalID: "fixture/app", Field: "session-secret", Required: true}},
 			},
 			PersistentData: []domain.ClosurePersistentData{{ID: "application-records", Owner: "store", MigrationOwner: "scenario", DeclaredBy: "scenario:app"}},
@@ -305,6 +309,61 @@ func TestScopesSelectActionSubsets(t *testing.T) {
 	}
 	if startIDs[0] != OpRuntimeStartDeps || startIDs[len(startIDs)-2] != OpWorkloadStart || startIDs[len(startIDs)-1] != OpVerifyReadiness {
 		t.Fatalf("start scope order: %v", startIDs)
+	}
+}
+
+func TestRuntimeStartUsesClosureAndDependencyOrder(t *testing.T) {
+	in := baseInputs()
+	in.Manifest.Bundle.Scenarios = []string{"app", "storage", "records-service"}
+	in.Closure.Components = []domain.ClosureComponent{
+		{ID: "app", Kind: domain.ClosureKindScenario, Required: true},
+		{ID: "records-service", Kind: domain.ClosureKindScenario, OptionalSelected: true, Reasons: []domain.ClosureReason{{Kind: domain.ClosureReasonDeclaredBy, From: "app"}}},
+		{ID: "storage", Kind: domain.ClosureKindScenario, Required: true, Reasons: []domain.ClosureReason{{Kind: domain.ClosureReasonDeclaredBy, From: "records-service"}}},
+		{ID: "postgres", Kind: domain.ClosureKindResource, OptionalSelected: true},
+	}
+	// The manifest snapshot deliberately contains a deselected optional
+	// dependency and an unrelated resource. The reviewed closure is authoritative.
+	plan := compile(t, in)
+	var start Action
+	for _, action := range plan.Actions {
+		if action.ID == OpRuntimeStartDeps {
+			start = action
+			break
+		}
+	}
+	if start.ID == "" {
+		t.Fatal("expected runtime.start_dependencies")
+	}
+	if got, want := start.Inputs["scenarios"], "storage,records-service"; got != want {
+		t.Fatalf("dependency scenarios must start leaf-first from the closure: got %q, want %q", got, want)
+	}
+	if got, want := start.Inputs["resources"], "postgres"; got != want {
+		t.Fatalf("only closure resources must activate: got %q, want %q", got, want)
+	}
+	if got, want := start.Inputs["optional_scenarios"], "records-service"; got != want {
+		t.Fatalf("optional scenarios must be identified for degraded startup: got %q, want %q", got, want)
+	}
+	if got, want := start.Inputs["optional_resources"], "postgres"; got != want {
+		t.Fatalf("optional resources must be identified for degraded startup: got %q, want %q", got, want)
+	}
+}
+
+func TestRuntimeStartDoesNotResurrectDeselectedManifestDependencies(t *testing.T) {
+	for _, components := range [][]domain.ClosureComponent{
+		{{ID: "app", Kind: domain.ClosureKindScenario, Required: true}},
+		{},
+	} {
+		in := baseInputs()
+		in.Manifest.Dependencies = domain.ManifestDependencies{
+			Scenarios: []string{"stale-scenario"}, Resources: []string{"stale-resource"},
+		}
+		in.Closure = &domain.Closure{SchemaVersion: "1", ScenarioID: "app", Digest: "sha256:root-only", Components: components}
+		plan := compile(t, in)
+		for _, action := range plan.Actions {
+			if action.ID == OpRuntimeStartDeps {
+				t.Fatalf("root-only closure must not emit dependency activation from stale manifest snapshot: %+v", action.Inputs)
+			}
+		}
 	}
 }
 

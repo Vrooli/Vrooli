@@ -169,7 +169,7 @@ type resourceArtifactManifest struct {
 // any bundle output is written. The artifact hashes are resolved here as well
 // so staging cannot change the deployment choice after the gate has passed.
 func resolveResourceDeploymentPlanWithTrust(scenarioPath, artifactRoot, toolArtifactRoot string, platformInputs []string, trustMode resourcedeployment.ArtifactTrustMode, rendererSelections ...[]string) (*ResourceDeploymentPlan, error) {
-	required, fallbacks, err := requiredScenarioResources(filepath.Join(scenarioPath, ".vrooli", "service.json"))
+	required, fallbacks, err := requiredBundleResources(scenarioPath)
 	if err != nil {
 		return nil, err
 	}
@@ -252,6 +252,112 @@ func resolveResourceDeploymentPlanWithTrust(scenarioPath, artifactRoot, toolArti
 		return plan.Resources[i].RequestedResource < plan.Resources[j].RequestedResource
 	})
 	return plan, nil
+}
+
+// requiredBundleResources includes the active required resources owned by the
+// root scenario and every locally materialized embed/either peer. A discover
+// edge remains external and does not contribute local resources.
+func requiredBundleResources(scenarioPath string) ([]string, map[string][]string, error) {
+	resources := make(map[string]struct{})
+	fallbacks := make(map[string][]string)
+	visited := make(map[string]struct{})
+	visiting := make(map[string]struct{})
+	var walk func(string) error
+	walk = func(current string) error {
+		abs, err := filepath.Abs(current)
+		if err != nil {
+			return fmt.Errorf("resolve scenario path %s: %w", current, err)
+		}
+		if _, exists := visited[abs]; exists {
+			return nil
+		}
+		if _, cycle := visiting[abs]; cycle {
+			return nil
+		}
+		visiting[abs] = struct{}{}
+		defer delete(visiting, abs)
+		servicePath := filepath.Join(abs, ".vrooli", "service.json")
+		required, localFallbacks, err := requiredScenarioResources(servicePath)
+		if err != nil {
+			return err
+		}
+		for _, name := range required {
+			resources[name] = struct{}{}
+			fallbacks[name] = append(fallbacks[name], localFallbacks[name]...)
+		}
+		data, err := os.ReadFile(servicePath)
+		if err != nil {
+			return fmt.Errorf("read scenario service manifest: %w", err)
+		}
+		var service struct {
+			Dependencies struct {
+				Scenarios map[string]struct {
+					BundlePolicy string `json:"bundle_policy"`
+				} `json:"scenarios"`
+			} `json:"dependencies"`
+		}
+		if err := json.Unmarshal(data, &service); err != nil {
+			return fmt.Errorf("parse scenario peer dependencies: %w", err)
+		}
+		peerNames := make([]string, 0, len(service.Dependencies.Scenarios))
+		for name, dependency := range service.Dependencies.Scenarios {
+			if dependency.BundlePolicy == "embed" || dependency.BundlePolicy == "either" {
+				peerNames = append(peerNames, name)
+			}
+		}
+		sort.Strings(peerNames)
+		for _, name := range peerNames {
+			dependency := service.Dependencies.Scenarios[name]
+			if strings.TrimSpace(name) == "" || !filepath.IsLocal(name) || strings.ContainsAny(name, `/\\`) {
+				return fmt.Errorf("embedded peer has invalid scenario name %q in %s", name, servicePath)
+			}
+			peerPath := filepath.Join(filepath.Dir(abs), name)
+			if info, statErr := os.Stat(peerPath); statErr != nil || !info.IsDir() {
+				if dependency.BundlePolicy == "embed" {
+					return fmt.Errorf("required embedded peer %s for %s is unavailable: %v", name, abs, statErr)
+				}
+				continue
+			}
+			peerServicePath := filepath.Join(peerPath, ".vrooli", "service.json")
+			if _, statErr := os.Stat(peerServicePath); os.IsNotExist(statErr) && dependency.BundlePolicy == "either" {
+				continue
+			} else if statErr != nil {
+				return fmt.Errorf("stat embedded peer service manifest %s: %w", peerServicePath, statErr)
+			}
+			if err := walk(peerPath); err != nil {
+				return fmt.Errorf("embedded peer %s: %w", name, err)
+			}
+		}
+		visited[abs] = struct{}{}
+		return nil
+	}
+	if err := walk(scenarioPath); err != nil {
+		return nil, nil, err
+	}
+	result := make([]string, 0, len(resources))
+	for name := range resources {
+		result = append(result, name)
+		fallbacks[name] = dedupeSorted(fallbacks[name])
+	}
+	sort.Strings(result)
+	return result, fallbacks, nil
+}
+
+func dedupeSorted(values []string) []string {
+	seen := make(map[string]struct{}, len(values))
+	result := make([]string, 0, len(values))
+	for _, value := range values {
+		if value == "" {
+			continue
+		}
+		if _, exists := seen[value]; exists {
+			continue
+		}
+		seen[value] = struct{}{}
+		result = append(result, value)
+	}
+	sort.Strings(result)
+	return result
 }
 
 func resolveRendererPacks(root, artifactRoot string, platforms []resourcedeployment.Platform, trustMode resourcedeployment.ArtifactTrustMode, selections []string) ([]RendererPackPlanItem, error) {

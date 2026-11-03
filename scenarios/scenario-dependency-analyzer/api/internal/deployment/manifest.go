@@ -1,7 +1,10 @@
 package deployment
 
 import (
+	"encoding/json"
 	"fmt"
+	component "github.com/vrooli/vrooli/packages/desktop-component"
+	runtimeManifest "github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/manifest"
 	"log"
 	"net/url"
 	"os"
@@ -25,7 +28,7 @@ func BuildBundleManifest(scenarioName, scenarioPath string, generatedAt time.Tim
 	manifest := types.BundleManifest{
 		Scenario:     scenarioName,
 		GeneratedAt:  generatedAt,
-		Files:        discoverBundleFiles(scenarioName, scenarioPath, cfg),
+		Files:        discoverBundleFiles(scenarioName, scenarioPath, cfg, nodes),
 		Dependencies: flattenBundleDependencies(nodes),
 		Skeleton:     skeleton,
 	}
@@ -34,7 +37,7 @@ func BuildBundleManifest(scenarioName, scenarioPath string, generatedAt time.Tim
 }
 
 // discoverBundleFiles derives package inputs from the declared component graph.
-func discoverBundleFiles(scenarioName, scenarioPath string, cfg *types.Manifest) []types.BundleFileEntry {
+func discoverBundleFiles(scenarioName, scenarioPath string, cfg *types.Manifest, nested ...[]types.DeploymentDependencyNode) []types.BundleFileEntry {
 	entries := make([]types.BundleFileEntry, 0)
 
 	// Always include service config
@@ -88,8 +91,108 @@ func discoverBundleFiles(scenarioName, scenarioPath string, cfg *types.Manifest)
 		}
 		entries = append(entries, types.BundleFileEntry{Path: output, Type: entryType, Exists: statErr == nil, Notes: "Declared component output"})
 	}
+	if len(nested) > 0 {
+		appendEmbeddedPeerFiles(&entries, cfg, nested[0], filepath.Dir(scenarioPath), map[string]struct{}{})
+	}
 
 	return entries
+}
+
+func appendEmbeddedPeerFiles(entries *[]types.BundleFileEntry, cfg *types.Manifest, nodes []types.DeploymentDependencyNode, scenariosRoot string, seen map[string]struct{}) {
+	if cfg == nil {
+		return
+	}
+	peerNames := make([]string, 0, len(cfg.Dependencies.Scenarios))
+	for name, dependency := range cfg.Dependencies.Scenarios {
+		if dependency.BundlePolicy == "embed" || dependency.BundlePolicy == "either" {
+			peerNames = append(peerNames, name)
+		}
+	}
+	sort.Strings(peerNames)
+	includeUIByPeer := make(map[string]bool)
+	for _, name := range peerNames {
+		if _, duplicate := seen[name]; duplicate {
+			dependency := cfg.Dependencies.Scenarios[name]
+			if dependency.IncludeUI && !includeUIByPeer[name] {
+				if node, ok := findDirectScenarioNode(nodes, name); ok && node.Path != "" {
+					if peerConfig, err := config.LoadServiceConfig(node.Path); err == nil {
+						appendPeerUIFiles(entries, name, peerConfig, filepath.Join(scenariosRoot, name))
+						includeUIByPeer[name] = true
+					}
+				}
+			}
+			continue
+		}
+		seen[name] = struct{}{}
+		dependency := cfg.Dependencies.Scenarios[name]
+		includeUIByPeer[name] = dependency.IncludeUI
+		node, ok := findDirectScenarioNode(nodes, name)
+		if !ok || node.Path == "" {
+			if dependency.BundlePolicy == "embed" {
+				path := filepath.ToSlash(filepath.Join("peers", name, ".vrooli", "service.json"))
+				*entries = append(*entries, types.BundleFileEntry{Path: path, Type: "peer-service-config", Exists: false, Notes: "Required embedded peer could not be resolved"})
+			}
+			continue
+		}
+		peerConfig, err := config.LoadServiceConfig(node.Path)
+		if err != nil {
+			if dependency.BundlePolicy == "embed" {
+				path := filepath.ToSlash(filepath.Join("peers", name, ".vrooli", "service.json"))
+				*entries = append(*entries, types.BundleFileEntry{Path: path, Type: "peer-service-config", Exists: false, Notes: "Required embedded peer configuration is unavailable"})
+			}
+			continue
+		}
+		localPeerRoot := filepath.Join(scenariosRoot, name)
+		peerConfigPath := filepath.ToSlash(filepath.Join("peers", name, ".vrooli", "service.json"))
+		_, configErr := os.Stat(filepath.Join(localPeerRoot, ".vrooli", "service.json"))
+		*entries = append(*entries, types.BundleFileEntry{Path: peerConfigPath, Type: "peer-service-config", Exists: configErr == nil})
+		componentNames := make([]string, 0, len(peerConfig.Components))
+		for componentName := range peerConfig.Components {
+			componentNames = append(componentNames, componentName)
+		}
+		sort.Strings(componentNames)
+		for _, componentName := range componentNames {
+			component := peerConfig.Components[componentName]
+			if component.Role == "ui" && !dependency.IncludeUI {
+				continue
+			}
+			if dir := strings.TrimSpace(component.Build.Dir); dir != "" {
+				path := filepath.ToSlash(filepath.Join("peers", name, dir))
+				_, statErr := os.Stat(filepath.Join(localPeerRoot, dir))
+				*entries = append(*entries, types.BundleFileEntry{Path: path, Type: componentName + "-source", Exists: statErr == nil})
+			}
+			if component.Role == "ui" && component.Build.Dir != "" {
+				path := filepath.ToSlash(filepath.Join("peers", name, component.Build.Dir, "dist", "index.html"))
+				_, statErr := os.Stat(filepath.Join(localPeerRoot, component.Build.Dir, "dist", "index.html"))
+				*entries = append(*entries, types.BundleFileEntry{Path: path, Type: "ui-bundle", Exists: statErr == nil, Notes: "Declared peer UI output"})
+			}
+		}
+		appendEmbeddedPeerFiles(entries, peerConfig, node.Children, scenariosRoot, seen)
+	}
+}
+
+func appendPeerUIFiles(entries *[]types.BundleFileEntry, peerName string, peerConfig *types.Manifest, localPeerRoot string) {
+	componentNames := make([]string, 0, len(peerConfig.Components))
+	for name := range peerConfig.Components {
+		componentNames = append(componentNames, name)
+	}
+	sort.Strings(componentNames)
+	for _, componentName := range componentNames {
+		component := peerConfig.Components[componentName]
+		if component.Role != "ui" {
+			continue
+		}
+		if dir := strings.TrimSpace(component.Build.Dir); dir != "" {
+			path := filepath.ToSlash(filepath.Join("peers", peerName, dir))
+			_, statErr := os.Stat(filepath.Join(localPeerRoot, dir))
+			*entries = append(*entries, types.BundleFileEntry{Path: path, Type: componentName + "-source", Exists: statErr == nil})
+		}
+		if component.Build.Dir != "" {
+			path := filepath.ToSlash(filepath.Join("peers", peerName, component.Build.Dir, "dist", "index.html"))
+			_, statErr := os.Stat(filepath.Join(localPeerRoot, component.Build.Dir, "dist", "index.html"))
+			*entries = append(*entries, types.BundleFileEntry{Path: path, Type: "ui-bundle", Exists: statErr == nil, Notes: "Declared peer UI output"})
+		}
+	}
 }
 
 // flattenBundleDependencies walks the entire dependency tree and returns a flat,
@@ -209,9 +312,23 @@ func buildDesktopBundleSkeleton(scenarioName, scenarioPath string, cfg *types.Ma
 		},
 	}
 
+	// Personal-local identity has no deployment-specific provider values to
+	// select. Preserve that declared default in the generated runtime contract.
+	// Network modes still require explicit endpoint/lease configuration.
+	if profile := cfg.Authentication; profile != nil && profile.DefaultMode == "personal_local" {
+		skeleton.Authentication = &runtimeManifest.AuthenticationProfile{
+			Version: 1, Mode: "personal_local", Resource: profile.Resource,
+			HumanSignIn: profile.HumanSignIn, Offline: true,
+			PublicRoutes:    append([]string(nil), profile.PublicRoutes...),
+			ProtectedRoutes: append([]string(nil), profile.ProtectedRoutes...),
+		}
+		if skeleton.Authentication.HumanSignIn == "" {
+			skeleton.Authentication.HumanSignIn = "optional"
+		}
+	}
 	skeleton.Swaps = deriveSwaps(nodes)
 	skeleton.ProgramBindingPeers = deriveProgramBindingPeers(cfg, nodes)
-	skeleton.Peers = derivePeers(cfg)
+	skeleton.Peers = derivePeers(cfg, nodes)
 	if len(skeleton.ProgramBindingPeers) > 0 {
 		programPeerNames := make(map[string]struct{}, len(skeleton.ProgramBindingPeers))
 		for _, peer := range skeleton.ProgramBindingPeers {
@@ -225,10 +342,35 @@ func buildDesktopBundleSkeleton(scenarioName, scenarioPath string, cfg *types.Ma
 		}
 		skeleton.Peers = filtered
 	}
+	// Root and embedded owner exports remain separate scopes.
+	skeleton.Features = readOwnerFeatures(scenarioPath, "")
 	skeleton.Services = buildSkeletonServices(cfg)
 	skeleton.Services = embedPeerServices(skeleton.Services, cfg, nodes)
 
 	return skeleton
+}
+
+// readOwnerFeatures projects explicit owner metadata to the owner's staged service IDs.
+// A missing or malformed declaration grants no capability.
+func readOwnerFeatures(scenarioPath, servicePrefix string) map[string]runtimeManifest.FeatureExport {
+	featurePath := filepath.Join(scenarioPath, ".vrooli", "desktop-features.json")
+	data, err := os.ReadFile(featurePath)
+	if err != nil {
+		if !os.IsNotExist(err) {
+			log.Printf("cannot read owner feature declarations from %s: %v", featurePath, err)
+		}
+		return nil
+	}
+	var features map[string]runtimeManifest.FeatureExport
+	if err := json.Unmarshal(data, &features); err != nil {
+		log.Printf("cannot read owner feature declarations from %s: %v", featurePath, err)
+		return nil
+	}
+	for id, feature := range features {
+		feature.Service = servicePrefix + feature.Service
+		features[id] = feature
+	}
+	return features
 }
 
 func deriveProgramBindingPeers(cfg *types.Manifest, nodes []types.DeploymentDependencyNode) []types.BundleSkeletonPeer {
@@ -249,7 +391,14 @@ func deriveProgramBindingPeers(cfg *types.Manifest, nodes []types.DeploymentDepe
 					if bundlePolicy == "" {
 						bundlePolicy = "discover"
 					}
-					peers = append(peers, types.BundleSkeletonPeer{Scenario: name, BundlePolicy: bundlePolicy, StartupPolicy: dependency.StartupPolicy, DegradedBehavior: dependency.DegradedBehavior})
+					peer := types.BundleSkeletonPeer{Scenario: name, BundlePolicy: bundlePolicy, StartupPolicy: dependency.StartupPolicy, DegradedBehavior: dependency.DegradedBehavior, VersionRange: dependency.VersionRange}
+					if (bundlePolicy == "embed" || bundlePolicy == "either") && node.Path != "" {
+						peer.Features = readOwnerFeatures(node.Path, name+"--")
+						if owner, err := config.LoadServiceConfig(node.Path); err == nil {
+							peer.EmbeddedVersion = owner.Service.Version
+						}
+					}
+					peers = append(peers, peer)
 				}
 			}
 			walk(node.Children)
@@ -261,54 +410,83 @@ func deriveProgramBindingPeers(cfg *types.Manifest, nodes []types.DeploymentDepe
 }
 
 func embedPeerServices(root []types.BundleSkeletonService, cfg *types.Manifest, nodes []types.DeploymentDependencyNode) []types.BundleSkeletonService {
-	peerNames := make([]string, 0)
-	for name, dependency := range cfg.Dependencies.Scenarios {
-		if dependency.BundlePolicy == "embed" {
-			peerNames = append(peerNames, name)
+	seen := make(map[string]struct{})
+	includeUIByPeer := make(map[string]bool)
+	var walk func(*types.Manifest, []types.DeploymentDependencyNode)
+	walk = func(parent *types.Manifest, children []types.DeploymentDependencyNode) {
+		if parent == nil {
+			return
 		}
-	}
-	sort.Strings(peerNames)
-	for _, peerName := range peerNames {
-		node, ok := findScenarioNode(nodes, peerName)
-		if !ok || node.Path == "" {
-			log.Printf("cannot embed declared peer %s: dependency DAG has no scenario path", peerName)
-			continue
+		names := make([]string, 0, len(parent.Dependencies.Scenarios))
+		for name := range parent.Dependencies.Scenarios {
+			names = append(names, name)
 		}
-		peerConfig, err := config.LoadServiceConfig(node.Path)
-		if err != nil {
-			log.Printf("cannot embed declared peer %s from %s: %v", peerName, node.Path, err)
-			continue
-		}
-		peerServices := buildSkeletonServices(peerConfig)
-		prefix := peerName + "--"
-		prefixedIDs := map[string]string{}
-		for _, service := range peerServices {
-			prefixedIDs[service.ID] = prefix + service.ID
-		}
-		for index := range peerServices {
-			originalID := peerServices[index].ID
-			peerServices[index].ID = prefixedIDs[originalID]
-			for dependencyIndex, dependency := range peerServices[index].Dependencies {
-				peerServices[index].Dependencies[dependencyIndex] = prefixedIDs[dependency]
+		sort.Strings(names)
+		for _, peerName := range names {
+			dependency := parent.Dependencies.Scenarios[peerName]
+			if dependency.BundlePolicy != "embed" && dependency.BundlePolicy != "either" {
+				continue
 			}
-			for key, value := range peerServices[index].Env {
-				for source, target := range prefixedIDs {
-					value = strings.ReplaceAll(value, "${"+source+".", "${"+target+".")
+			node, ok := findDirectScenarioNode(children, peerName)
+			if !ok || node.Path == "" {
+				if dependency.BundlePolicy == "embed" {
+					log.Printf("cannot embed declared peer %s: dependency DAG has no scenario path", peerName)
 				}
-				peerServices[index].Env[key] = value
+				continue
 			}
-			if peerServices[index].Build != nil {
-				peerServices[index].Build.SourceDir = filepath.ToSlash(filepath.Join("peers", peerName, peerServices[index].Build.SourceDir))
-				peerServices[index].Build.OutputPattern = strings.ReplaceAll(peerServices[index].Build.OutputPattern, "/"+originalID+"{{ext}}", "/"+prefix+originalID+"{{ext}}")
+			peerConfig, err := config.LoadServiceConfig(node.Path)
+			if err != nil {
+				if dependency.BundlePolicy == "embed" {
+					log.Printf("cannot embed declared peer %s from %s: %v", peerName, node.Path, err)
+				}
+				continue
 			}
-			for platform, binary := range peerServices[index].Binaries {
-				binary.Path = strings.ReplaceAll(binary.Path, "/"+originalID, "/"+prefix+originalID)
-				peerServices[index].Binaries[platform] = binary
+			if _, duplicate := seen[peerName]; duplicate {
+				if dependency.IncludeUI && !includeUIByPeer[peerName] {
+					for _, service := range prefixPeerServices(peerName, peerConfig, true) {
+						if service.Type == "ui-bundle" {
+							root = append(root, service)
+						}
+					}
+					includeUIByPeer[peerName] = true
+				}
+				continue
+			}
+			seen[peerName] = struct{}{}
+			includeUIByPeer[peerName] = dependency.IncludeUI
+			root = append(root, prefixPeerServices(peerName, peerConfig, dependency.IncludeUI)...)
+			walk(peerConfig, node.Children)
+		}
+	}
+	walk(cfg, nodes)
+	return root
+}
+
+func prefixPeerServices(peerName string, peerConfig *types.Manifest, includeUI bool) []types.BundleSkeletonService {
+	peerServices := buildSkeletonServices(peerConfig)
+	if !includeUI {
+		filtered := peerServices[:0]
+		for _, service := range peerServices {
+			if service.Type != "ui-bundle" {
+				filtered = append(filtered, service)
 			}
 		}
-		root = append(root, peerServices...)
+		peerServices = filtered
 	}
-	return root
+	raw, err := json.Marshal(peerServices)
+	if err == nil {
+		raw, err = component.ProjectServices(peerName, raw)
+	}
+	if err == nil {
+		err = json.Unmarshal(raw, &peerServices)
+	}
+	if err != nil {
+		// The runtime manifest gate refuses an embed peer with no services.
+		// Never publish a partially projected or path-escaping service graph.
+		log.Printf("cannot project embedded peer %s: %v", peerName, err)
+		return nil
+	}
+	return peerServices
 }
 
 func findScenarioNode(nodes []types.DeploymentDependencyNode, name string) (types.DeploymentDependencyNode, bool) {
@@ -323,22 +501,79 @@ func findScenarioNode(nodes []types.DeploymentDependencyNode, name string) (type
 	return types.DeploymentDependencyNode{}, false
 }
 
-func derivePeers(cfg *types.Manifest) []types.BundleSkeletonPeer {
-	names := make([]string, 0, len(cfg.Dependencies.Scenarios))
-	for name, dependency := range cfg.Dependencies.Scenarios {
-		if dependency.BundlePolicy != "" {
-			names = append(names, name)
+func findDirectScenarioNode(nodes []types.DeploymentDependencyNode, name string) (types.DeploymentDependencyNode, bool) {
+	for _, node := range nodes {
+		if node.Type == "scenario" && node.Name == name {
+			return node, true
 		}
+	}
+	return types.DeploymentDependencyNode{}, false
+}
+
+func derivePeers(cfg *types.Manifest, nested ...[]types.DeploymentDependencyNode) []types.BundleSkeletonPeer {
+	dependencies := make(map[string]scenariomodel.Dependency)
+	versions := make(map[string]string)
+	features := make(map[string]map[string]runtimeManifest.FeatureExport)
+	var collect func(*types.Manifest, []types.DeploymentDependencyNode)
+	seen := make(map[string]struct{})
+	collect = func(parent *types.Manifest, nodes []types.DeploymentDependencyNode) {
+		if parent == nil {
+			return
+		}
+		dependencyNames := make([]string, 0, len(parent.Dependencies.Scenarios))
+		for name := range parent.Dependencies.Scenarios {
+			dependencyNames = append(dependencyNames, name)
+		}
+		sort.Strings(dependencyNames)
+		for _, name := range dependencyNames {
+			dependency := parent.Dependencies.Scenarios[name]
+			if dependency.BundlePolicy != "" {
+				dependencies[name] = dependency
+				if node, ok := findDirectScenarioNode(nodes, name); ok && node.Path != "" {
+					if peerConfig, err := config.LoadServiceConfig(node.Path); err == nil {
+						versions[name] = peerConfig.Service.Version
+						if dependency.BundlePolicy == "embed" || dependency.BundlePolicy == "either" {
+							features[name] = readOwnerFeatures(node.Path, name+"--")
+						}
+					}
+				}
+			}
+		}
+		for _, node := range nodes {
+			if node.Type != "scenario" || node.Path == "" {
+				continue
+			}
+			if _, visited := seen[node.Name]; visited {
+				continue
+			}
+			seen[node.Name] = struct{}{}
+			peerConfig, err := config.LoadServiceConfig(node.Path)
+			if err == nil {
+				collect(peerConfig, node.Children)
+			}
+		}
+	}
+	var nodes []types.DeploymentDependencyNode
+	if len(nested) > 0 {
+		nodes = nested[0]
+	}
+	collect(cfg, nodes)
+	names := make([]string, 0, len(dependencies))
+	for name := range dependencies {
+		names = append(names, name)
 	}
 	sort.Strings(names)
 	peers := make([]types.BundleSkeletonPeer, 0, len(names))
 	for _, name := range names {
-		dependency := cfg.Dependencies.Scenarios[name]
+		dependency := dependencies[name]
 		peer := types.BundleSkeletonPeer{
 			Scenario:         name,
 			BundlePolicy:     dependency.BundlePolicy,
 			StartupPolicy:    dependency.StartupPolicy,
 			DegradedBehavior: dependency.DegradedBehavior,
+			VersionRange:     dependency.VersionRange,
+			EmbeddedVersion:  versions[name],
+			Features:         features[name],
 		}
 		peers = append(peers, peer)
 	}

@@ -366,7 +366,7 @@ describe("registerAuthHandlers", () => {
 
     beforeEach(() => {
         ipcMain = createMockIpcMain();
-        deps = { authManager: createMockAuthManager() };
+        deps = { authManager: createMockAuthManager(), isTrustedRenderer: (event) => event.senderFrame?.url === "file:///app/index.html" };
     });
 
     it("registers all auth handlers", () => {
@@ -435,23 +435,20 @@ describe("registerAuthHandlers", () => {
         expect(result).toBe("mock-access-token");
     });
 
-    it("serves the local session only to a trusted loopback renderer", async () => {
+    it("binds local session authority to the owned origin and main frame", async () => {
         const getLocalSessionToken = vi.fn(async () => "runtime-session-token");
-        registerAuthHandlers(ipcMain, { ...deps, getLocalSessionToken });
-        const handler = ipcMain._handlers.get(AUTH_CHANNELS.GET_LOCAL_SESSION_TOKEN);
-        if (!handler) throw new Error("local-session handler was not registered");
-
-        const trustedEvent = {
-            senderFrame: { url: "http://127.0.0.1:22000/" },
-            sender: { getURL: () => "http://127.0.0.1:22000/" },
-        };
+        const frame = { url: "http://127.0.0.1:22000/" };
+        const sender = { getURL: () => frame.url };
+        const trustedEvent = { senderFrame: frame, sender };
+        const isTrustedRenderer = (event: Electron.IpcMainInvokeEvent) => event.sender === sender && event.senderFrame === frame && event.senderFrame.url === "http://127.0.0.1:22000/";
+        registerAuthHandlers(ipcMain, { ...deps, getLocalSessionToken, isTrustedRenderer });
+        const handler = ipcMain._handlers.get(AUTH_CHANNELS.GET_LOCAL_SESSION_TOKEN)!;
         await expect(handler(trustedEvent)).resolves.toBe("runtime-session-token");
-
-        const remoteEvent = {
-            senderFrame: { url: "https://attacker.example/" },
-            sender: { getURL: () => "https://attacker.example/" },
-        };
-        await expect(handler(remoteEvent)).resolves.toBeNull();
+        frame.url = "http://127.0.0.1:34335/";
+        await expect(handler(trustedEvent)).resolves.toBeNull();
+        frame.url = "http://127.0.0.1:22000/";
+        await expect(handler({ sender, senderFrame: { url: frame.url } })).resolves.toBeNull();
+        await expect(handler({ sender: { getURL: () => frame.url }, senderFrame: frame })).resolves.toBeNull();
         expect(getLocalSessionToken).toHaveBeenCalledTimes(1);
     });
 
@@ -465,14 +462,16 @@ describe("registerAuthHandlers", () => {
 });
 
 describe("registerAllHandlers", () => {
-    it("registers all handler groups", () => {
+    it("registers all handler groups", async () => {
         const ipcMain = createMockIpcMain();
         const deps = {
             ipcMain,
+            isTrustedRenderer: (event: Electron.IpcMainInvokeEvent) => event.senderFrame?.url === "file:///app/index.html",
             dialog: createMockDialog(),
             fs: createMockFileFs(),
             storage: createMockStorage(),
             authManager: createMockAuthManager(),
+            getLocalSessionToken: async () => "runtime-session-token",
             getMainWindow: () => createMockWindow(),
             systemInfo: { platform: "linux" as const, arch: "x64", version: "1.0.0" },
         };
@@ -485,6 +484,9 @@ describe("registerAllHandlers", () => {
         expect(ipcMain._handlers.has(APP_CHANNELS.MINIMIZE)).toBe(true);
         expect(ipcMain._handlers.has(STORAGE_CHANNELS.GET_PATH)).toBe(true);
         expect(ipcMain._handlers.has(AUTH_CHANNELS.SIGN_IN)).toBe(true);
+        const local = ipcMain._handlers.get(AUTH_CHANNELS.GET_LOCAL_SESSION_TOKEN);
+        expect(local).toBeDefined();
+        await expect(ipcMain._invoke(AUTH_CHANNELS.GET_LOCAL_SESSION_TOKEN)).resolves.toBe("runtime-session-token");
 
         // Check channels list
         expect(registration.channels.length).toBeGreaterThan(10);
@@ -494,6 +496,7 @@ describe("registerAllHandlers", () => {
         const ipcMain = createMockIpcMain();
         const deps = {
             ipcMain,
+            isTrustedRenderer: (event: Electron.IpcMainInvokeEvent) => event.senderFrame?.url === "file:///app/index.html",
             dialog: createMockDialog(),
             fs: createMockFileFs(),
             storage: createMockStorage(),

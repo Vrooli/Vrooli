@@ -30,6 +30,28 @@ func TestBundleSchemaSamplesValidate(t *testing.T) {
 	}
 }
 
+func TestBundleValidatorsAcceptVersionedPeerWithoutStaticBindings(t *testing.T) {
+	path := filepath.Join("..", "..", "..", "..", "..", "docs", "deployment", "examples", "manifests", "desktop-happy.json")
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Skipf("desktop bundle fixture not present: %v", err)
+	}
+	var manifest map[string]interface{}
+	if err := json.Unmarshal(data, &manifest); err != nil {
+		t.Fatal(err)
+	}
+	peer := map[string]interface{}{"scenario": "helper", "bundle_policy": "discover", "versionRange": ">=1.2.0", "embedded_version": "1.4.0"}
+	manifest["peers"] = []interface{}{peer}
+	manifest["program_binding_peers"] = []interface{}{peer}
+	data, err = json.Marshal(manifest)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := validateDesktopBundleManifestBytes(data); err != nil {
+		t.Fatalf("versioned peer manifest without static bindings rejected: %v", err)
+	}
+}
+
 func TestBundleSchemaRejectsInvalidManifest(t *testing.T) {
 	invalid := []byte(`{"schema_version":"v0.1","target":"desktop","services":[]}`)
 	if err := validateDesktopBundleManifestBytes(invalid); err == nil {

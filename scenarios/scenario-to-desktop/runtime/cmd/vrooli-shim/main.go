@@ -10,7 +10,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -19,19 +18,16 @@ import (
 	"strings"
 	"time"
 
+	cliv1 "github.com/vrooli/vrooli/packages/proto/gen/go/cli/v1"
 	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/config"
 	runtimemanifest "github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/manifest"
+	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/peerlookup"
 	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/toolprofiles"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 )
 
-type bundleInfo struct {
-	App          runtimemanifest.App                  `json:"app"`
-	IPC          runtimemanifest.IPC                  `json:"ipc"`
-	Services     []runtimemanifest.Service            `json:"services"`
-	ToolProfiles []runtimemanifest.ToolProfilePackage `json:"tool_profiles,omitempty"`
-}
+type bundleInfo = runtimemanifest.Manifest
 
 func main() {
 	bundleRoot, err := locateBundleRoot()
@@ -43,6 +39,12 @@ func main() {
 		fail(err)
 	}
 	if handled, err := runOfflineToolProfile(os.Args[1:], bundleRoot, manifest, os.Stdout); handled {
+		if err != nil {
+			fail(err)
+		}
+		return
+	}
+	if handled, err := runPeerScenarioPort(os.Args[1:], manifest, os.Stdout); handled {
 		if err != nil {
 			fail(err)
 		}
@@ -200,31 +202,67 @@ func resolveRuntimeCtl(bundleRoot string) (string, error) {
 	return path, nil
 }
 
-func translateScenarioPort(manifest *bundleInfo, args []string) ([]string, error) {
+func translateScenarioPort(bundle *bundleInfo, args []string) ([]string, error) {
 	if len(args) != 2 {
 		return nil, errors.New("usage: vrooli scenario port <scenario> <API_PORT|UI_PORT>")
 	}
-	serviceType := map[string]string{"API_PORT": "api-binary", "UI_PORT": "ui-bundle"}[args[1]]
-	if serviceType == "" {
-		return nil, fmt.Errorf("unsupported port name: %s", args[1])
+	service, port, err := peerlookup.Local(bundle, args[0], args[1])
+	if err != nil {
+		return nil, err
 	}
-	for _, service := range manifest.Services {
-		if service.Type != serviceType || service.Ports == nil {
-			continue
-		}
-		portName := "http"
-		if len(service.Ports.Requested) > 0 && service.Ports.Requested[0].Name != "" {
-			portName = service.Ports.Requested[0].Name
-		}
-		// Keep the scenario argument validated even though the desktop manifest
-		// owns the actual service identity; it prevents accidental forwarding of
-		// a URL-like value into the control API query string.
-		if _, err := url.Parse(args[0]); err != nil {
-			return nil, fmt.Errorf("invalid scenario name: %w", err)
-		}
-		return []string{"port", "--service", service.ID, "--port-name", portName}, nil
+	return []string{"port", "--service", service, "--port-name", port}, nil
+}
+
+func runPeerScenarioPort(args []string, bundle *bundleInfo, output io.Writer) (bool, error) {
+	if len(args) < 2 || args[0] != "scenario" || args[1] != "port" {
+		return false, nil
 	}
-	return nil, fmt.Errorf("no service for type %s", serviceType)
+	if len(args) < 4 || len(args) > 5 {
+		return true, errors.New("usage: vrooli scenario port <scenario> <API_PORT|UI_PORT> [--json]")
+	}
+	scenario, portName := strings.TrimSpace(args[2]), strings.TrimSpace(args[3])
+	jsonOutput := len(args) == 5 && args[4] == "--json"
+	if len(args) == 5 && !jsonOutput {
+		return true, errors.New("usage: vrooli scenario port <scenario> <API_PORT|UI_PORT> [--json]")
+	}
+	if !peerlookup.ValidScenarioName(scenario) {
+		return true, errors.New("invalid scenario name")
+	}
+	if portName != "API_PORT" && portName != "UI_PORT" {
+		return true, fmt.Errorf("unsupported port name: %s", portName)
+	}
+	if bundle != nil && scenario == bundle.App.Scenario {
+		return false, nil
+	}
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return true, err
+	}
+	port, err := peerlookup.External(bundle, home, scenario, portName)
+	if err == nil && port > 0 {
+		if jsonOutput {
+			return true, writeScenarioPortJSON(output, &cliv1.ScenarioPortSingle{Success: true, Scenario: scenario, PortName: portName, Port: int32(port)})
+		}
+		_, err = fmt.Fprintln(output, port)
+		return true, err
+	}
+	if peerlookup.HasEmbedded(bundle, scenario) {
+		return false, nil
+	}
+	message := fmt.Sprintf("no running runtime ports found for scenario %q", scenario)
+	if jsonOutput {
+		return true, writeScenarioPortJSON(output, &cliv1.ScenarioPortSingle{Success: false, Scenario: scenario, PortName: portName, Error: message})
+	}
+	return true, errors.New(message)
+}
+
+func writeScenarioPortJSON(output io.Writer, response *cliv1.ScenarioPortSingle) error {
+	data, err := (protojson.MarshalOptions{UseProtoNames: true}).Marshal(response)
+	if err != nil {
+		return err
+	}
+	_, err = fmt.Fprintln(output, string(data))
+	return err
 }
 
 func fail(err error) {

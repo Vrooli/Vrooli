@@ -6,7 +6,7 @@ Centralize prerequisites and failure points before cutting installers.
 - **UI build present** in the target scenario at `ui/dist` (Scenario Inventory now validates this).
 - **Node 18+** and **npm** available for `platforms/electron`.
 - **electron-builder** bundled via template dependencies (no global install required).
-- **Wine (Linux → Windows builds)**: follow `docs/guides/wine-installation.md` for a no-sudo Flatpak install.
+- **Wine (Linux → Windows builds)**: provide working host Wine; see `docs/guides/wine-installation.md`.
 
 ## Build Commands (inside generated `platforms/electron/`)
 - Dev: `npm run dev`
@@ -16,7 +16,7 @@ Centralize prerequisites and failure points before cutting installers.
 
 ## Common Issues
 - **App won’t start (Windows)**: run the unpacked exe from PowerShell to see logs; see `docs/guides/debugging-windows.md`.
-- **Wine not found**: set `WINE_BIN="flatpak run org.winehq.Wine"` or add the wrapper script from `docs/guides/wine-installation.md`.
+- **Wine not found**: use control-plane-owned host setup, or build on Windows; see `docs/guides/wine-installation.md`.
 - **No icon in .exe**: ensure the `afterPack` hook and rcedit/Wine are available; rebuild after fixing Wine.
 - **Cannot reach server**: verify proxy URL, firewall, or SSH tunnel; thin clients require the remote scenario to be running.
 
@@ -59,6 +59,13 @@ scenario-to-desktop pipeline run device-studio \
 The pipeline still needs the scenario's valid Electron bundle manifest and a
 supported Linux target. Do not call package assembly proof a completed
 private-app or offline-render qualification.
+
+For embedded scenario peers, package assembly stages each peer's declared build
+source and UI/assets through a temporary read-only source overlay; it does not
+copy a peer working tree into the root scenario. The immutable resource plan
+walks the same local `embed`/`either` closure and admits required active peer
+resources through the configured artifact trust gate. A missing required peer
+source or required resource artifact fails the build with its owner-path error.
 
 ## Tests
 - Run scenario tests from repo root: `make test` or `vrooli test help` for options.

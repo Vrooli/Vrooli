@@ -101,6 +101,7 @@ var freshnessExclusions = []moduleExclusion{
 	{Path: "scenarios/go-code-graph/bas/fixtures/go-usage-facts/go.mod", Reason: "synthetic BAS fixture"},
 	{Path: "scenarios/go-code-graph/bas/fixtures/go-tests/go.mod", Reason: "synthetic BAS fixture"},
 	{Path: "scenarios/go-code-graph/bas/fixtures/go-mislocated/go.mod", Reason: "synthetic BAS fixture"},
+	{Path: "docs/internal/delivery-reliability-research/follow-through/evidence/continuation-admission/known-team-return-20261020/openrouter-resource-module-closure/preimage/go.mod", Reason: "retained evidence preimage, not an active Go module"},
 }
 
 func runFreshness(args []string) error {
@@ -462,11 +463,12 @@ func discoverGoModules(root string) (map[string]goModule, error) {
 		if d.Name() != "go.mod" {
 			return nil
 		}
+		if excludedGoMod(path, root) {
+			out["__excluded:"+path] = goModule{dir: filepath.Dir(path)}
+			return nil
+		}
 		view, err := parseGoModFile(path)
 		if err != nil || view.module == "" {
-			if excludedGoMod(path, root) {
-				out["__excluded:"+path] = goModule{dir: filepath.Dir(path)}
-			}
 			return nil
 		}
 		// Retained fixture/evidence copies must not shadow the repository's
@@ -524,6 +526,12 @@ func excludedGoMod(path, root string) bool {
 		return false
 	}
 	rel = filepath.ToSlash(rel)
+	// docs/ contains retained source snapshots and evidence. Its go.mod is a
+	// Go tooling boundary so the root module does not absorb archived imports;
+	// none of those nested modules are active build surfaces.
+	if rel == "docs/go.mod" || strings.HasPrefix(rel, "docs/") {
+		return true
+	}
 	for _, exclusion := range freshnessExclusions {
 		if rel == exclusion.Path || strings.HasPrefix(rel, "templates/") {
 			return true

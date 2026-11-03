@@ -38,6 +38,7 @@ package bundleruntime
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io/fs"
@@ -46,7 +47,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
-	"strconv"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -54,6 +55,7 @@ import (
 	"github.com/vrooli/vrooli/internal/peerrecord"
 	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/api"
 	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/assets"
+	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/components"
 	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/config"
 	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/env"
 	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/gpu"
@@ -139,18 +141,21 @@ type Supervisor struct {
 	migrationExecutor migrations.Runner
 
 	// Paths and auth.
-	authToken      string
-	appData        string
-	telemetryPath  string
-	migrationsPath string
-	instanceID     string
-	manifestHash   string
-	startedAt      time.Time
-	peerHome       string
-	peerPublished  bool
-	resourcePlan   *resourceplan.Plan
-	resourceServer *resourceplan.ServiceSupervisor
-	authModes      *authenticationModeManager
+	authToken          string
+	appData            string
+	telemetryPath      string
+	migrationsPath     string
+	instanceID         string
+	manifestHash       string
+	startedAt          time.Time
+	peerHome           string
+	peerPublished      bool
+	components         *components.Manager
+	activeComponents   map[string]components.Installation
+	componentOverrides map[string][]manifest.Service
+	resourcePlan       *resourceplan.Plan
+	resourceServer     *resourceplan.ServiceSupervisor
+	authModes          *authenticationModeManager
 
 	// Runtime state.
 	serviceStatus   map[string]ServiceStatus
@@ -167,6 +172,7 @@ type Supervisor struct {
 
 	// Concurrency control.
 	mu           sync.RWMutex
+	componentMu  sync.Mutex
 	stateMu      sync.RWMutex
 	wg           sync.WaitGroup
 	cancel       context.CancelFunc
@@ -191,28 +197,55 @@ func NewSupervisor(opts Options) (*Supervisor, error) {
 	if err != nil {
 		return nil, err
 	}
+	componentManager := components.New(appData, opts.Manifest.App.Version, opts.Manifest.Components)
+	activeComponents := map[string]components.Installation{}
+	if opts.Manifest.Components != nil {
+		raw, marshalErr := json.Marshal(opts.Manifest)
+		if marshalErr != nil {
+			return nil, marshalErr
+		}
+		var merged manifest.Manifest
+		if mergeErr := json.Unmarshal(raw, &merged); mergeErr != nil {
+			return nil, mergeErr
+		}
+		if mergeErr := componentManager.Merge(context.Background(), &merged); mergeErr != nil {
+			return nil, mergeErr
+		}
+		rows, err := componentManager.Installed(context.Background())
+		if err != nil {
+			return nil, err
+		}
+		for _, row := range rows {
+			if row.State == components.Installed {
+				activeComponents[row.Signed.Entry.ID] = row
+			}
+		}
+		opts.Manifest = &merged
+	}
 	deps := resolveDependencies(opts, appData)
 
 	s := &Supervisor{
-		opts:          opts,
-		clock:         deps.clock,
-		fs:            deps.fileSystem,
-		dialer:        deps.dialer,
-		procRunner:    deps.procRunner,
-		cmdRunner:     deps.cmdRunner,
-		gpuDetector:   deps.gpuDetector,
-		envReader:     deps.envReader,
-		portAllocator: deps.portAllocator,
-		secretStore:   deps.secretStore,
-		appData:       appData,
-		peerHome:      opts.PeerHomeDir,
-		serviceStatus: make(map[string]ServiceStatus),
-		statusChanges: make(chan struct{}, 1),
-		shutdownDone:  make(chan struct{}),
-		procs:         make(map[string]*serviceProcess),
-		instanceID:    newInstanceID(),
-		manifestHash:  hashManifest(opts.Manifest),
-		resourcePlan:  resourcePlan,
+		components:       componentManager,
+		activeComponents: activeComponents,
+		opts:             opts,
+		clock:            deps.clock,
+		fs:               deps.fileSystem,
+		dialer:           deps.dialer,
+		procRunner:       deps.procRunner,
+		cmdRunner:        deps.cmdRunner,
+		gpuDetector:      deps.gpuDetector,
+		envReader:        deps.envReader,
+		portAllocator:    deps.portAllocator,
+		secretStore:      deps.secretStore,
+		appData:          appData,
+		peerHome:         opts.PeerHomeDir,
+		serviceStatus:    make(map[string]ServiceStatus),
+		statusChanges:    make(chan struct{}, 1),
+		shutdownDone:     make(chan struct{}),
+		procs:            make(map[string]*serviceProcess),
+		instanceID:       newInstanceID(),
+		manifestHash:     hashManifest(opts.Manifest),
+		resourcePlan:     resourcePlan,
 		// Create envRenderer now since all dependencies are available.
 		envRenderer: env.NewRenderer(appData, opts.BundlePath, deps.portAllocator, deps.envReader),
 	}
@@ -328,10 +361,6 @@ func (s *Supervisor) Start(ctx context.Context) error {
 	}
 
 	if err := s.initAuthAndPorts(); err != nil {
-		return err
-	}
-
-	if err := s.resolvePeerEnvironment(); err != nil {
 		return err
 	}
 
@@ -497,79 +526,6 @@ func (s *Supervisor) initAuthAndPorts() error {
 	return s.portAllocator.Allocate()
 }
 
-// PeerDiscoveryUnavailableError makes a required discover edge actionable
-// instead of starting a bundle with a silently wrong environment.
-type PeerDiscoveryUnavailableError struct {
-	Scenario string
-	Binding  string
-}
-
-func (e PeerDiscoveryUnavailableError) Error() string {
-	return fmt.Sprintf("peer discovery unavailable for %s binding %s", e.Scenario, e.Binding)
-}
-
-func (s *Supervisor) resolvePeerEnvironment() error {
-	if len(s.opts.Manifest.Peers) == 0 {
-		return nil
-	}
-	home, err := s.resolvePeerHome()
-	if err != nil {
-		return err
-	}
-	resolved := map[string]string{}
-	for _, peer := range s.opts.Manifest.Peers {
-		if peer.BundlePolicy == "embed" {
-			continue
-		}
-		record, readErr := peerrecord.Read(home, peer.Scenario)
-		for _, binding := range peer.Bindings {
-			port, available := record.Ports[binding.Port]
-			if readErr != nil || !available || port <= 0 {
-				if binding.WhenUnavailable == "omit" {
-					continue
-				}
-				return PeerDiscoveryUnavailableError{Scenario: peer.Scenario, Binding: binding.EnvVar}
-			}
-			if _, exists := resolved[binding.EnvVar]; exists {
-				return fmt.Errorf("peer env collision for %s", binding.EnvVar)
-			}
-			value, formatErr := formatPeerBinding(binding.Form, port)
-			if formatErr != nil {
-				return formatErr
-			}
-			resolved[binding.EnvVar] = value
-		}
-	}
-	for serviceIndex := range s.opts.Manifest.Services {
-		service := &s.opts.Manifest.Services[serviceIndex]
-		if service.Env == nil {
-			service.Env = map[string]string{}
-		}
-		for key, value := range resolved {
-			if _, exists := service.Env[key]; exists {
-				return fmt.Errorf("peer env collision for %s in service %s", key, service.ID)
-			}
-			service.Env[key] = value
-		}
-	}
-	return nil
-}
-
-func formatPeerBinding(form string, port int) (string, error) {
-	switch form {
-	case "http_base_url":
-		return fmt.Sprintf("http://127.0.0.1:%d", port), nil
-	case "ws_base_url":
-		return fmt.Sprintf("ws://127.0.0.1:%d", port), nil
-	case "host_port":
-		return fmt.Sprintf("127.0.0.1:%d", port), nil
-	case "port_number":
-		return strconv.Itoa(port), nil
-	default:
-		return "", fmt.Errorf("unsupported peer binding form %q", form)
-	}
-}
-
 func (s *Supervisor) resolvePeerHome() (string, error) {
 	if s.peerHome != "" {
 		return s.peerHome, nil
@@ -591,8 +547,27 @@ func (s *Supervisor) publishPeerRecord() error {
 	if err != nil {
 		return err
 	}
+	if err := manifest.ValidateFeatureExports(s.opts.Manifest.Features, s.opts.Manifest.Services); err != nil {
+		return err
+	}
+	rootServices := map[string]bool{}
+	for _, service := range s.opts.Manifest.Services {
+		if service.ComponentSlice == "" && !strings.Contains(service.ID, "--") {
+			rootServices[service.ID] = true
+		}
+	}
+	allocated := s.portAllocator.Map()
+	features := map[string]peerrecord.Feature{}
+	for id, feature := range s.opts.Manifest.Features {
+		if port := allocated[feature.Service][feature.Port]; port > 0 && port <= 65535 {
+			features[id] = peerrecord.Feature{OwnerVersion: feature.OwnerVersion, Port: feature.Port}
+		}
+	}
 	flattened := map[string]int{"ipc": s.opts.Manifest.IPC.Port}
-	for _, servicePorts := range s.portAllocator.Map() {
+	for serviceID, servicePorts := range allocated {
+		if !rootServices[serviceID] {
+			continue
+		}
 		for name, port := range servicePorts {
 			if prior, exists := flattened[name]; exists && prior != port {
 				return fmt.Errorf("cannot publish peer %s: port name %s is ambiguous", scenarioName, name)
@@ -600,11 +575,21 @@ func (s *Supervisor) publishPeerRecord() error {
 			flattened[name] = port
 		}
 	}
+	provides := make([]string, 0, len(flattened))
+	for name := range flattened {
+		if name != "ipc" {
+			provides = append(provides, name)
+		}
+	}
+	sort.Strings(provides)
 	tokenPath := manifest.ResolvePath(s.appData, s.opts.Manifest.IPC.AuthTokenRel)
 	if err := peerrecord.Write(home, peerrecord.Record{
 		Scenario:      scenarioName,
 		Instance:      "live",
 		Tier:          2,
+		Version:       s.opts.Manifest.App.Version,
+		Provides:      provides,
+		Features:      features,
 		OwnerPID:      os.Getpid(),
 		StartedAt:     s.startedAt,
 		Ports:         flattened,
@@ -723,7 +708,7 @@ func (s *Supervisor) Shutdown(ctx context.Context) error {
 	_ = s.recordTelemetry("runtime_shutdown", nil)
 	var peerErr error
 	if s.peerPublished {
-		peerErr = peerrecord.Remove(s.peerHome, s.opts.Manifest.App.Scenario)
+		peerErr = peerrecord.Remove(s.peerHome, s.opts.Manifest.App.Scenario, os.Getpid())
 		s.peerPublished = false
 	}
 

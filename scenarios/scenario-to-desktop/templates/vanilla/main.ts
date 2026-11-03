@@ -15,7 +15,7 @@
  * - window-state/ - Window position persistence
  */
 
-import { app, BrowserWindow, net as electronNet, protocol, session, shell, Menu, ipcMain, dialog, Tray, nativeImage, clipboard, safeStorage, screen, contentTracing } from "electron";
+import { app, autoUpdater as electronAutoUpdater, BrowserWindow, net as electronNet, protocol, session, shell, Menu, ipcMain, dialog, Tray, nativeImage, clipboard, safeStorage, screen, contentTracing } from "electron";
 import { type ChildProcess, fork, spawn } from "node:child_process";
 import { configuredLocalActivationCapture } from "./native/activation-owner";
 import { installPresentation, type PresentationController } from "./native/presentation";
@@ -26,6 +26,7 @@ import * as fs from "node:fs";
 import path from "node:path";
 import process from "node:process";
 import { autoUpdater } from "electron-updater";
+import { createUpdateApplyTransition } from "./storage/update-apply";
 
 // DOC: docs/internal/SEAMS.md#splash-window-module
 import {
@@ -101,12 +102,15 @@ import {
     readUpdateIntent,
     writeInstalledUpdateReceipt,
     writeUpdateIntent,
-    writeUpdateState,
+    createUpdateStateWriter,
     type InstalledUpdateReceipt,
     type UpdateIntent,
     type UpdateState,
     type UpdateStateName,
 } from "./storage/update-recovery";
+
+import { createRendererAuthority, protectRendererNavigation, isExternalBrowserURL } from "./ipc/renderer-authority";
+import { pathToFileURL } from "url";
 
 // DOC: docs/internal/SEAMS.md#ipc-module
 import {
@@ -222,7 +226,12 @@ const AUTH_CONFIG = {
 let serverProcess: ChildProcess | null = null;
 let runtimeProcess: ChildProcess | null = null;
 let runtimeQuitPending = false;
+let updateApplyTransition: ReturnType<typeof createUpdateApplyTransition> | undefined;
 let mainWindow: BrowserWindow | null = null;
+let ownedRendererURL: string | null = null;
+const isTrustedRenderer = createRendererAuthority(() => mainWindow && ownedRendererURL ? {
+    sender: mainWindow.webContents, mainFrame: mainWindow.webContents.mainFrame, url: ownedRendererURL,
+} : null);
 let splashManager: ISplashWindowManager | null = null;
 let windowStateManager: IWindowStateManager | null = null;
 let tray: Tray | null = null;
@@ -511,30 +520,6 @@ function getUpdateStatePath(): string {
     return path.join(app.getPath("userData"), "update-state.json");
 }
 
-function updateBindingMatches(info: unknown): { ok: boolean; reason?: string } {
-    if (typeof info !== "object" || info === null) return { ok: false, reason: "update metadata is not an object" };
-    const binding = (info as { vrooli?: unknown }).vrooli;
-    if (binding === undefined) return { ok: true };
-    if (typeof binding !== "object" || binding === null) return { ok: false, reason: "update binding is malformed" };
-    const values = binding as { applicationId?: unknown; applicationKey?: unknown; channel?: unknown; platform?: unknown; arch?: unknown; artifactRef?: unknown };
-    if (typeof values.applicationId === "string" && values.applicationId !== APP_CONFIG.APP_ID) return { ok: false, reason: "application identity mismatch" };
-    if (typeof values.applicationKey === "string") {
-        try {
-            const segments = new URL(UPDATE_CONFIG.SERVER_URL).pathname.split("/").filter(Boolean);
-            const updatesIndex = segments.lastIndexOf("updates");
-            if (updatesIndex < 0 || !segments[updatesIndex + 1] || segments[updatesIndex + 1] !== values.applicationKey) return { ok: false, reason: "application key mismatch" };
-        } catch {
-            return { ok: false, reason: "update server URL is invalid" };
-        }
-    }
-    if (typeof values.channel === "string" && values.channel !== UPDATE_CONFIG.CHANNEL) return { ok: false, reason: "update channel mismatch" };
-    const expectedPlatform = process.platform === "darwin" ? "mac" : process.platform === "win32" ? "win" : process.platform;
-    if (typeof values.platform === "string" && values.platform !== expectedPlatform && !(expectedPlatform === "win" && values.platform === "windows")) return { ok: false, reason: "target platform mismatch" };
-    if (typeof values.arch === "string" && values.arch !== process.arch) return { ok: false, reason: "target architecture mismatch" };
-    const advertisedDigest = (info as { sha512?: unknown }).sha512;
-    if (typeof values.artifactRef === "string" && (typeof advertisedDigest !== "string" || !advertisedDigest.trim() || values.artifactRef !== `sha512:${advertisedDigest.trim()}`)) return { ok: false, reason: "artifact digest mismatch" };
-    return { ok: true };
-}
 
 async function installedExecutableDigest(): Promise<string | undefined> {
     try {
@@ -607,9 +592,11 @@ async function reportClientUpdateReceipt(receipt: InstalledUpdateReceipt): Promi
     await recordTelemetry("update_receipt_reported", { release_id: releaseID, target_id: targetID, external_receipt: externalReceipt });
 }
 
-async function persistUpdateState(state: UpdateStateName, fields: Partial<UpdateState> = {}): Promise<void> {
+let updateStateWriter: ReturnType<typeof createUpdateStateWriter> | undefined;
+async function persistUpdateState(state: UpdateStateName, fields: Partial<UpdateState> = {}, required = false): Promise<void> {
     try {
-        await writeUpdateState(createUpdateRecoveryFileSystem(fs.promises), getUpdateStatePath(), {
+        updateStateWriter ??= createUpdateStateWriter(createUpdateRecoveryFileSystem(fs.promises), getUpdateStatePath());
+        await updateStateWriter({
             ...fields,
             schemaVersion: 1,
             state,
@@ -617,6 +604,7 @@ async function persistUpdateState(state: UpdateStateName, fields: Partial<Update
         });
     } catch (error) {
         await recordTelemetry("update_state_persist_failed", { state, error: String(error) }, "warn");
+        if (required) throw error;
     }
 }
 
@@ -1358,11 +1346,14 @@ async function startBundledRuntime(): Promise<string> {
     RUNTIME_CONTROL.TOKEN_PATH_ENV = tokenPath;
 
     const args = ["--manifest", stagedManifestPath, "--bundle-root", bundleRoot, "--app-data", appData, "--dry-run=false"];
-    const runtimeEnv: Record<string, string | undefined> = bundledEnvironmentBase(process.env);
+    const runtimeEnv: Record<string, string | undefined> = bundledEnvironmentBase(process.env, AUTH_CONFIG.LPBS_URL);
     Object.assign(runtimeEnv, {
         VROOLI_API_SKIP_STALE_CHECK: "true",
         VROOLI_LIFECYCLE_MANAGED: "true",
         VROOLI_DESKTOP_MODE: "true",
+        // Desktop credentials are held by the OS keyring. Selecting this
+        // explicitly avoids repository setup state in downloaded apps.
+        VROOLI_CREDENTIAL_BACKEND: "native",
         // Backward-compatible root used by existing scenarios.
         VROOLI_DATA: appData,
         // Canonical root for api-core/storage class directories.
@@ -1626,7 +1617,9 @@ async function closeSplashWindow(): Promise<void> {
     splashManager = null;
 }
 
-async function createMainWindow(): Promise<BrowserWindow> {
+async function createMainWindow(rendererURL: string = ownedRendererURL ?? ""): Promise<BrowserWindow> {
+    if (!rendererURL) throw new Error("The shell-owned renderer destination is not configured");
+    ownedRendererURL = rendererURL;
     console.log("[Desktop App] Creating main window (hidden)...");
     const storage = createWindowStateStorage(app, fs, path);
     const displayProvider = createDisplayProvider(screen);
@@ -1658,7 +1651,8 @@ async function createMainWindow(): Promise<BrowserWindow> {
     const presentation = installPresentation(mainWindow, NATIVE_EXTENSION_CONFIG, NATIVE_EXTENSION_CONFIG?.version === 3 ? configuredLocalActivationCapture(process.env.VROOLI_DESKTOP_ACTIVATION_CONFIG, () => companionWindow.getNativeWindowHandle()) : undefined);
     presentationController = presentation;
     windowStateManager.manage(mainWindow, presentation?.persistenceState);
-    mainWindow.webContents.setWindowOpenHandler(({ url }) => { shell.openExternal(url); return { action: "deny" }; });
+    protectRendererNavigation(mainWindow.webContents, rendererURL);
+    mainWindow.webContents.setWindowOpenHandler(({ url }) => { if (isExternalBrowserURL(url)) void shell.openExternal(url); return { action: "deny" }; });
     mainWindow.on("closed", () => { mainWindow = null; presentationController = undefined; });
     if (APP_CONFIG.ENABLE_DEV_TOOLS && !app.isPackaged) mainWindow.webContents.openDevTools();
     return mainWindow;
@@ -1737,7 +1731,7 @@ function setupAutoUpdater(): void {
     if (!APP_CONFIG.ENABLE_AUTO_UPDATER || !app.isPackaged || UPDATE_CONFIG.PROVIDER === "none") { console.log("[Desktop App] Auto-updater disabled"); return; }
     autoUpdater.logger = console;
     autoUpdater.autoDownload = true;
-    autoUpdater.autoInstallOnAppQuit = true;
+
     // electron-updater resolves its default stable feed as latest-<platform>.yml.
     // Assigning "stable" explicitly changes that lookup to stable-<platform>.yml,
     // which electron-builder does not emit for its normal stable channel.
@@ -1757,31 +1751,17 @@ function setupAutoUpdater(): void {
         if (mainWindow && !mainWindow.isDestroyed()) void dialog.showMessageBox(mainWindow, { type: "info", title: "Update Available", message: `A new version (${version}) is available and will be downloaded automatically.`, buttons: ["OK"] });
     });
     autoUpdater.on("update-not-available", info => { console.log("[Desktop App] Already on latest version:", info.version); });
-    autoUpdater.on("error", err => { console.error("[Desktop App] Update error:", err.message); void persistUpdateState("failed", { applicationId: APP_CONFIG.APP_ID, channel: UPDATE_CONFIG.CHANNEL, reason: err.message }); void recordTelemetry("update_error", { error: err.message, channel: UPDATE_CONFIG.CHANNEL }); });
+    autoUpdater.on("error", err => { updateApplyTransition?.failed(); console.error("[Desktop App] Update error:", err.message); void persistUpdateState("failed", { applicationId: APP_CONFIG.APP_ID, channel: UPDATE_CONFIG.CHANNEL, reason: err.message }); void recordTelemetry("update_error", { error: err.message, channel: UPDATE_CONFIG.CHANNEL }); });
     autoUpdater.on("download-progress", progressObj => { console.log(`[Desktop App] Download progress: ${Math.round(progressObj.percent)}%`); if (progressObj.percent > 0) void persistUpdateState("downloading", { applicationId: APP_CONFIG.APP_ID, channel: UPDATE_CONFIG.CHANNEL, platform: process.platform, arch: process.arch }); });
-    autoUpdater.on("update-downloaded", info => {
-        console.log("[Desktop App] Update downloaded:", info.version);
-        const rawDigest = (info as { sha512?: unknown }).sha512;
-        const toArtifactRef = typeof rawDigest === "string" && rawDigest.trim() ? `sha512:${rawDigest.trim()}` : undefined;
-        if (!toArtifactRef) {
-            void persistUpdateState("failed", { applicationId: APP_CONFIG.APP_ID, channel: UPDATE_CONFIG.CHANNEL, platform: process.platform, arch: process.arch, toVersion: String(info.version), reason: "successor artifact digest is missing" });
-            void recordTelemetry("update_rejected", { version: info.version, channel: UPDATE_CONFIG.CHANNEL, reason: "successor artifact digest is missing" }, "error");
-            return;
-        }
-        const binding = updateBindingMatches(info);
-        if (!binding.ok) {
-            void persistUpdateState("failed", { applicationId: APP_CONFIG.APP_ID, channel: UPDATE_CONFIG.CHANNEL, platform: process.platform, arch: process.arch, toVersion: String(info.version), reason: binding.reason });
-            void recordTelemetry("update_rejected", { version: info.version, channel: UPDATE_CONFIG.CHANNEL, reason: binding.reason }, "error");
-            return;
-        }
-        void persistUpdateState("verified", { applicationId: APP_CONFIG.APP_ID, channel: UPDATE_CONFIG.CHANNEL, platform: process.platform, arch: process.arch, toVersion: String(info.version), artifactRef: toArtifactRef });
-        void recordTelemetry("update_verified", { version: info.version, channel: UPDATE_CONFIG.CHANNEL, application_id: APP_CONFIG.APP_ID, platform: process.platform, arch: process.arch, to_artifact_ref: toArtifactRef });
-        const applyUpdate = async () => {
+    updateApplyTransition = createUpdateApplyTransition({
+        updater: autoUpdater,
+        target: { applicationId: APP_CONFIG.APP_ID, serverURL: UPDATE_CONFIG.SERVER_URL, channel: UPDATE_CONFIG.CHANNEL, platform: process.platform, arch: process.arch },
+        prepare: async update => {
             const markerPath = getUpdateIntentPath();
             await writeUpdateIntent(createUpdateRecoveryFileSystem(fs.promises), markerPath, {
                 schemaVersion: 1,
                 fromVersion: APP_CONFIG.APP_VERSION,
-                toVersion: String(info.version),
+                toVersion: update.version,
                 requestedAt: new Date().toISOString(),
                 nonce: randomUUID(),
                 applicationId: APP_CONFIG.APP_ID,
@@ -1789,17 +1769,57 @@ function setupAutoUpdater(): void {
                 platform: process.platform,
                 arch: process.arch,
                 fromArtifactRef: await installedExecutableDigest(),
-                toArtifactRef,
+                toArtifactRef: update.artifactRef,
                 state: "apply_pending",
             });
-            await persistUpdateState("apply_pending", { applicationId: APP_CONFIG.APP_ID, channel: UPDATE_CONFIG.CHANNEL, platform: process.platform, arch: process.arch, fromVersion: APP_CONFIG.APP_VERSION, toVersion: String(info.version), artifactRef: toArtifactRef });
+            await persistUpdateState("apply_pending", { applicationId: APP_CONFIG.APP_ID, channel: UPDATE_CONFIG.CHANNEL, platform: process.platform, arch: process.arch, fromVersion: APP_CONFIG.APP_VERSION, toVersion: update.version, artifactRef: update.artifactRef }, true);
             await markUpdateIntentApplying(createUpdateRecoveryFileSystem(fs.promises), markerPath);
-            await persistUpdateState("applying", { applicationId: APP_CONFIG.APP_ID, channel: UPDATE_CONFIG.CHANNEL, platform: process.platform, arch: process.arch, fromVersion: APP_CONFIG.APP_VERSION, toVersion: String(info.version), artifactRef: toArtifactRef });
-            await recordTelemetry("update_apply_requested", { version: info.version, channel: UPDATE_CONFIG.CHANNEL, to_artifact_ref: toArtifactRef });
-            autoUpdater.quitAndInstall(false, true);
-        };
-        if (isUpdateApplyTest) { void applyUpdate().catch(error => void recordTelemetry("update_apply_failed", { error: String(error) }, "error")); return; }
-        if (mainWindow && !mainWindow.isDestroyed()) dialog.showMessageBox(mainWindow, { type: "info", title: "Update Ready", message: `Version ${info.version} has been downloaded. The application will restart to apply the update.`, buttons: ["Restart Now", "Later"], defaultId: 0 }).then(({ response }) => { if (response === 0) void applyUpdate().catch(error => void recordTelemetry("update_apply_failed", { error: String(error) }, "error")); });
+            await persistUpdateState("applying", { applicationId: APP_CONFIG.APP_ID, channel: UPDATE_CONFIG.CHANNEL, platform: process.platform, arch: process.arch, fromVersion: APP_CONFIG.APP_VERSION, toVersion: update.version, artifactRef: update.artifactRef }, true);
+            await persistUpdateState("installing", {}, true);
+            await recordTelemetry("update_apply_requested", { version: update.version, channel: UPDATE_CONFIG.CHANNEL, to_artifact_ref: update.artifactRef });
+        },
+        install: restart => {
+            autoUpdater.autoRunAppAfterInstall = restart;
+            // AppImageUpdater replaces the file but its default restart drops
+            // argv, including a selected user-data-dir. Electron owns the
+            // relaunch so the same profile (and validation target) survives.
+            if (restart && process.platform === "linux" && process.env.APPIMAGE) {
+                let successor = process.env.APPIMAGE;
+                const renamed = (destination: string) => { successor = destination; };
+                const cleanup = () => {
+                    autoUpdater.removeListener("appimage-filename-updated", renamed);
+                    autoUpdater.removeListener("error", cleanup);
+                    electronAutoUpdater.removeListener("before-quit-for-update", relaunch);
+                };
+                const relaunch = () => {
+                    cleanup();
+                    app.relaunch({ execPath: successor, args: process.argv.slice(1) });
+                };
+                autoUpdater.once("appimage-filename-updated", renamed);
+                autoUpdater.once("error", cleanup);
+                electronAutoUpdater.once("before-quit-for-update", relaunch);
+                autoUpdater.autoRunAppAfterInstall = false;
+                autoUpdater.quitAndInstall(false, false);
+            } else {
+                autoUpdater.quitAndInstall(!restart, restart);
+            }
+        },
+        onFailure: error => { void persistUpdateState("failed", { reason: String(error) }); void recordTelemetry("update_apply_failed", { error: String(error) }, "error"); },
+    });
+    autoUpdater.on("update-downloaded", info => {
+        if (updateApplyTransition!.phase === "applying" || updateApplyTransition!.phase === "installing") return;
+        console.log("[Desktop App] Update downloaded:", info.version);
+        const result = updateApplyTransition!.downloaded(info);
+        if (!result.ok) {
+            void persistUpdateState("failed", { applicationId: APP_CONFIG.APP_ID, channel: UPDATE_CONFIG.CHANNEL, platform: process.platform, arch: process.arch, toVersion: String(info.version), reason: result.reason });
+            void recordTelemetry("update_rejected", { version: info.version, channel: UPDATE_CONFIG.CHANNEL, reason: result.reason }, "error");
+            return;
+        }
+        void persistUpdateState("verified", { applicationId: APP_CONFIG.APP_ID, channel: UPDATE_CONFIG.CHANNEL, platform: process.platform, arch: process.arch, toVersion: result.update.version, artifactRef: result.update.artifactRef });
+        void recordTelemetry("update_verified", { version: info.version, channel: UPDATE_CONFIG.CHANNEL, application_id: APP_CONFIG.APP_ID, platform: process.platform, arch: process.arch, to_artifact_ref: result.update.artifactRef });
+        const applyUpdate = () => updateApplyTransition!.apply(true).catch(error => { void persistUpdateState("failed", { reason: String(error) }); void recordTelemetry("update_apply_failed", { error: String(error) }, "error"); });
+        if (isUpdateApplyTest) { void applyUpdate(); return; }
+        if (mainWindow && !mainWindow.isDestroyed()) void dialog.showMessageBox(mainWindow, { type: "info", title: "Update Ready", message: `Version ${info.version} has been downloaded. Restart now, or install when you quit the application.`, buttons: ["Restart Now", "Later"], defaultId: 0 }).then(({ response }) => { if (response === 0) void applyUpdate(); });
     });
     if (UPDATE_CONFIG.AUTO_CHECK) setTimeout(() => { console.log("[Desktop App] Performing automatic update check..."); autoUpdater.checkForUpdatesAndNotify().catch(err => { console.error("[Desktop App] Failed to check for updates:", err.message); }); }, 3000);
 }
@@ -1909,7 +1929,6 @@ app.whenReady().then(async () => {
         await createSplashWindowManager();
         console.log(`[Desktop App] Version: ${APP_CONFIG.APP_VERSION}`);
         updateSplashStatus("initializing");
-        setupAutoUpdater();
         createApplicationMenu();
         createSystemTray();
 
@@ -2042,13 +2061,20 @@ app.whenReady().then(async () => {
 
         // Register IPC handlers
         ipcRegistration = registerAllHandlers({
-            ipcMain, dialog, fs: { writeFile: (p: string, d: string) => fs.promises.writeFile(p, d), readFile: (p: string, e: "utf-8") => fs.promises.readFile(p, e) },
+            ipcMain, isTrustedRenderer, dialog, fs: { writeFile: (p: string, d: string) => fs.promises.writeFile(p, d), readFile: (p: string, e: "utf-8") => fs.promises.readFile(p, e) },
             storage: appStorage!, authManager: authManager!, getLocalSessionToken, getMainWindow: () => mainWindow,
             systemInfo: { platform: process.platform, arch: process.arch, version: APP_CONFIG.APP_VERSION },
+            ...(runtimeControlClient ? { components: {
+                list: () => runtimeControlClient!.request("/components"),
+                install: (id: string) => runtimeControlClient!.request("/components", { method: "POST", body: { id } }),
+                remove: (id: string, keepData: boolean) => runtimeControlClient!.request("/components", { method: "DELETE", body: { id, keep_data: keepData } }),
+            } } : {}),
         });
 
         updateSplashStatus("loading-ui", "Creating application window...");
-        await createMainWindow();
+        const declaredRendererURL = APP_CONFIG.OPTIMIZATION_PROFILE.secureCustomSchemeUI ? SECURE_DESKTOP_URL :
+            APP_CONFIG.SERVER_TYPE === "static" && !isBundledMode ? pathToFileURL(path.resolve(app.getAppPath(), APP_CONFIG.SERVER_PATH)).href : targetUrl;
+        await createMainWindow(declaredRendererURL);
         if (APP_CONFIG.SERVER_TYPE !== "static" || isBundledMode) { updateSplashStatus("loading-ui", "Waiting for server..."); await checkServerReady(targetUrl, serverCheckTimeoutMs); }
         let rendererURL = targetUrl;
         if (APP_CONFIG.OPTIMIZATION_PROFILE.secureCustomSchemeUI) {
@@ -2088,6 +2114,7 @@ app.whenReady().then(async () => {
         appSessionReadyAt = new Date().toISOString();
         await packagedLaunch.emit("app_ready", "electron", "main");
         await finalizeUpdateReceipt();
+        setupAutoUpdater();
         void recordTelemetry("app_ready", { serverUrl: targetUrl, bundled: isBundledMode });
     } catch (error) {
         console.error("[Desktop App] Startup error:", error);
@@ -2112,6 +2139,7 @@ app.on("before-quit", (event) => {
         return;
     }
     if (presentationController && !presentationController.requestQuit()) { event.preventDefault(); return; }
+    if (updateApplyTransition?.beforeQuit(event)) return;
     presentationController?.prepareQuit();
     if (runtimeProcess || runtimeQuitPending) {
         event.preventDefault();

@@ -253,6 +253,7 @@ describe('DesktopTemplateGenerator update configuration', () => {
             expect(publishConfig).not.toBeNull();
             expect(publishConfig.provider).toBe('generic');
             expect(publishConfig.url).toBe('https://updates.example.com/stable');
+            expect(publishConfig.channel).toBeUndefined();
             expect(effectiveProvider).toBe('generic');
         });
 

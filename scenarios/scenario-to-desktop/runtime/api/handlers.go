@@ -179,6 +179,8 @@ func (s *Server) RegisterHandlers(mux *http.ServeMux) {
 	mux.HandleFunc("/readyz", s.handleReady)
 	mux.HandleFunc("/readyz/wait", s.handleReadyWait)
 	mux.HandleFunc("/ports", s.handlePorts)
+	mux.HandleFunc("/scenario-port", s.handleScenarioPort)
+	mux.HandleFunc("/features", s.handleFeature)
 	mux.HandleFunc("/logs/tail", s.handleLogs)
 	mux.HandleFunc("/shutdown", s.handleShutdown)
 	mux.HandleFunc("/secrets", s.handleSecrets)
@@ -198,6 +200,7 @@ func (s *Server) RegisterHandlers(mux *http.ServeMux) {
 	mux.HandleFunc("/authentication/rollback", s.handleAuthenticationRollback)
 	mux.HandleFunc("/provider-observations", s.handleProviderObservations)
 	mux.HandleFunc("/resource-upgrades", s.handleResourceUpgrades)
+	mux.HandleFunc("/components", s.handleComponents)
 }
 
 // AuthMiddleware returns middleware that enforces bearer token authentication.

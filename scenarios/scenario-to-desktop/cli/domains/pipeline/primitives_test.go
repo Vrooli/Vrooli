@@ -130,6 +130,9 @@ func TestPipelineConfigFromContext_BuildsTypedReleaseRequest(t *testing.T) {
 	if got := strings.Join(config.GetRendererToolProfiles(), ","); got != "ffmpeg-video,blender" {
 		t.Errorf("renderer profiles = %q", got)
 	}
+	if got := strings.Join(config.GetPlatformTargets(), ","); got != "windows-x64,macos-arm64" {
+		t.Errorf("architecture targets lost: %q", got)
+	}
 	if config.GetUpdateConfig().GetProvider() != "generic" || config.GetUpdateConfig().GetGeneric().GetUrl() != "http://127.0.0.1:8765/updates" || config.GetUpdateConfig().GetChannel() != "stable" || !config.GetUpdateConfig().GetAutoCheck() {
 		t.Errorf("unexpected update config: %+v", config.GetUpdateConfig())
 	}
@@ -260,7 +263,7 @@ func TestPipelineNativeExtensionFile(t *testing.T) {
 		{`{"version":1,"module":"presentation","permissions":["window.presentation"],"platforms":["linux"]}`, true},
 		{`{"version":1,"module":"presentation","entrypoint":"/tmp/code.js"}`, false},
 	} {
-		if err := os.WriteFile(path, []byte(tc.raw), 0600); err != nil {
+		if err := os.WriteFile(path, []byte(tc.raw), 0o600); err != nil {
 			t.Fatal(err)
 		}
 		ctx := cliapp.NewTestRunContext(cliapp.TestRunContextOptions{Schema: pipelineRunArgs(), Positionals: map[string]string{"scenario": "portal"}, Flags: map[string]string{"native-extension-file": path, "deployment-mode": "proxy"}})

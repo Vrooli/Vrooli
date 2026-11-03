@@ -25,16 +25,17 @@ var (
 // desktopBundleManifest mirrors the v0.1 desktop bundle schema enough for
 // lightweight validation without pulling in external schema validators.
 type desktopBundleManifest struct {
-	SchemaVersion string                 `json:"schema_version"`
-	Target        string                 `json:"target"`
-	App           manifestApp            `json:"app"`
-	IPC           manifestIPC            `json:"ipc"`
-	Telemetry     manifestTelemetry      `json:"telemetry"`
-	Ports         *manifestPorts         `json:"ports,omitempty"`
-	Swaps         []manifestSwap         `json:"swaps,omitempty"`
-	Peers         []manifestPeer         `json:"peers,omitempty"`
-	Secrets       []manifestSecret       `json:"secrets,omitempty"`
-	Services      []manifestServiceEntry `json:"services"`
+	SchemaVersion       string                 `json:"schema_version"`
+	Target              string                 `json:"target"`
+	App                 manifestApp            `json:"app"`
+	IPC                 manifestIPC            `json:"ipc"`
+	Telemetry           manifestTelemetry      `json:"telemetry"`
+	Ports               *manifestPorts         `json:"ports,omitempty"`
+	Swaps               []manifestSwap         `json:"swaps,omitempty"`
+	Peers               []manifestPeer         `json:"peers,omitempty"`
+	ProgramBindingPeers []manifestPeer         `json:"program_binding_peers,omitempty"`
+	Secrets             []manifestSecret       `json:"secrets,omitempty"`
+	Services            []manifestServiceEntry `json:"services"`
 }
 
 type manifestApp struct {
@@ -78,6 +79,8 @@ type manifestPeer struct {
 	BundlePolicy     string `json:"bundle_policy"`
 	StartupPolicy    string `json:"startup_policy,omitempty"`
 	DegradedBehavior string `json:"degraded_behavior,omitempty"`
+	VersionRange     string `json:"versionRange,omitempty"`
+	EmbeddedVersion  string `json:"embedded_version,omitempty"`
 }
 
 type manifestSecret struct {
@@ -207,7 +210,7 @@ func validateDesktopBundleManifestBytes(data []byte) error {
 			return fmt.Errorf("secret %s: %w", secret.ID, err)
 		}
 	}
-	for _, peer := range manifest.Peers {
+	for _, peer := range append(append([]manifestPeer(nil), manifest.Peers...), manifest.ProgramBindingPeers...) {
 		if err := validatePeer(peer, manifest.Services); err != nil {
 			return err
 		}

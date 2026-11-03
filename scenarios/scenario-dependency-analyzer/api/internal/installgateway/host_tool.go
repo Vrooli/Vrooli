@@ -19,12 +19,12 @@ import (
 	"github.com/vrooli/vrooli/internal/artifactlock"
 	"github.com/vrooli/vrooli/internal/cliinstall"
 	"github.com/vrooli/vrooli/internal/config"
-	"github.com/vrooli/vrooli/internal/resources/agentinstall"
 	manifestpkg "github.com/vrooli/vrooli/internal/resources/manifest"
 	"github.com/vrooli/vrooli/internal/tools/akt"
 	"github.com/vrooli/vrooli/internal/tools/hyperframes"
 	"github.com/vrooli/vrooli/internal/tools/kubo"
 	triposrsource "github.com/vrooli/vrooli/internal/tools/triposr-source"
+	"github.com/vrooli/vrooli/packages/harness-lifecycle"
 )
 
 // resolveHostTool is deliberately a closed owner surface, not an arbitrary path
@@ -285,6 +285,9 @@ func provisionAgentResource(ctx context.Context, r Resolution) (string, error) {
 		if installed.Name != r.PackageName || installed.Version != r.HostToolTargetVersion {
 			return output, fmt.Errorf("candidate package identity mismatch")
 		}
+		if err := agentinstall.PrepareNativeHarnessCandidate(ctx, r.RepositoryRoot, name, candidate); err != nil {
+			return output, fmt.Errorf("prepare declared native executable: %w", err)
+		}
 		tree, err := binaryfetch.TreeDigestContext(ctx, filepath.Join(candidate, "node_modules"))
 		if err != nil {
 			return output, err
@@ -293,7 +296,7 @@ func provisionAgentResource(ctx context.Context, r Resolution) (string, error) {
 		if err != nil {
 			return output, err
 		}
-		if err := os.WriteFile(filepath.Join(candidate, "installation.json"), data, 0600); err != nil {
+		if err := os.WriteFile(filepath.Join(candidate, "installation.json"), data, 0o600); err != nil {
 			return output, err
 		}
 		latest, err := resolveHostTool(r.RepositoryRoot, name, "npm", r.PackageName, r.HostToolTargetVersion)
@@ -447,7 +450,7 @@ func qualifyAgentBinary(ctx context.Context, name, binary, version, root string)
 	if err != nil {
 		return err
 	}
-	if err := os.WriteFile(filepath.Join(receiptDir, "intent.json"), data, 0600); err != nil {
+	if err := os.WriteFile(filepath.Join(receiptDir, "intent.json"), data, 0o600); err != nil {
 		return err
 	}
 	operation, err := platform.StartOwnedOperation(ctx, intent, spec)
@@ -478,7 +481,7 @@ func qualifyAgentBinary(ctx context.Context, name, binary, version, root string)
 	if err != nil {
 		return err
 	}
-	if err := os.WriteFile(filepath.Join(receiptDir, "result.json"), data, 0600); err != nil {
+	if err := os.WriteFile(filepath.Join(receiptDir, "result.json"), data, 0o600); err != nil {
 		return err
 	}
 	if !observation.ExitKnown || observation.Populated || observation.ExecMainCode != 1 || observation.ExecMainStatus != 0 || observation.Result != "success" {

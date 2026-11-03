@@ -29,6 +29,9 @@ import (
 
 // ensureAssets verifies all required assets for a service exist and are valid.
 func (s *Supervisor) ensureAssets(svc manifest.Service) error {
+	if svc.ComponentID != "" {
+		return assets.NewVerifier(s.serviceBundleRoot(svc), s.fs, s.telemetry).EnsureAssets(svc)
+	}
 	return s.assetVerifier.EnsureAssets(svc)
 }
 
@@ -84,7 +87,13 @@ type serviceProcess struct {
 
 // launchServices starts all services in dependency order.
 func (s *Supervisor) launchServices(ctx context.Context) error {
-	order, err := deps.TopoSort(s.opts.Manifest.Services)
+	s.componentMu.Lock()
+	defer s.componentMu.Unlock()
+	if err := s.activatePendingUpdates(ctx); err != nil {
+		return err
+	}
+	services := s.effectiveServices()
+	order, err := deps.TopoSort(services)
 	if err != nil {
 		return fmt.Errorf("dependency sort: %w", err)
 	}
@@ -103,8 +112,11 @@ func (s *Supervisor) launchServices(ctx context.Context) error {
 		default:
 		}
 
-		svc := deps.FindService(s.opts.Manifest.Services, id)
+		svc := deps.FindService(services, id)
 		if svc == nil {
+			continue
+		}
+		if s.getProc(id) != nil {
 			continue
 		}
 
@@ -149,8 +161,9 @@ func (s *Supervisor) launchServices(ctx context.Context) error {
 
 func (s *Supervisor) launchServicesParallel(ctx context.Context, order []string) error {
 	var wg sync.WaitGroup
+	services := s.effectiveServices()
 	for _, id := range order {
-		svc := deps.FindService(s.opts.Manifest.Services, id)
+		svc := deps.FindService(services, id)
 		if svc == nil {
 			continue
 		}
@@ -220,6 +233,9 @@ func (s *Supervisor) shouldSkipAuthenticationService(svc manifest.Service) (bool
 }
 
 func shouldSkipService(svc manifest.Service) (bool, string) {
+	if svc.ComponentSlice != "" {
+		return true, "optional feature starts on demand"
+	}
 	if len(svc.Metadata) == 0 {
 		return false, ""
 	}
@@ -255,17 +271,17 @@ func (s *Supervisor) startService(ctx context.Context, svc manifest.Service) err
 	}
 	s.recordIsolationObservation(svc.ID, envMap)
 
-	cmdPath := manifest.ResolvePath(s.opts.BundlePath, bin.Path)
+	cmdPath := manifest.ResolvePath(s.serviceBundleRoot(svc), bin.Path)
 	cmdCtx, cancel := context.WithCancel(ctx)
-	args, err := s.renderArgs(bin.Args)
+	args, err := s.serviceRenderer(svc).RenderArgs(bin.Args)
 	if err != nil {
 		cancel()
 		return fmt.Errorf("render arguments for service %s: %w", svc.ID, err)
 	}
 
-	workDir := s.opts.BundlePath
+	workDir := s.serviceBundleRoot(svc)
 	if bin.CWD != "" {
-		workDir = manifest.ResolvePath(s.opts.BundlePath, bin.CWD)
+		workDir = manifest.ResolvePath(s.serviceBundleRoot(svc), bin.CWD)
 	}
 
 	logWriter, logPath, err := s.logWriter(svc)
@@ -297,7 +313,7 @@ func (s *Supervisor) startService(ctx context.Context, svc manifest.Service) err
 	s.setStatus(svc.ID, ServiceStatus{Ready: false, Message: "starting"})
 	_ = s.recordTelemetry("service_start", map[string]interface{}{"service_id": svc.ID})
 
-	s.monitorReadiness(cmdCtx, svc.ID, nil)
+	s.monitorReadiness(cmdCtx, svc, nil)
 	s.monitorExit(svcProc, proc)
 
 	return nil
@@ -317,6 +333,7 @@ func (s *Supervisor) prepareServiceEnv(ctx context.Context, svc manifest.Service
 	// manifest. The runtime owns this value so a service cannot accidentally
 	// authenticate against a different file or fall back to its OS user.
 	envMap["VROOLI_AUTH_LOCAL_TOKEN_FILE"] = manifest.ResolvePath(s.appData, s.opts.Manifest.IPC.AuthTokenRel)
+	envMap["VROOLI_RUNTIME_URL"] = fmt.Sprintf("http://127.0.0.1:%d", s.opts.Manifest.IPC.Port)
 	if s.resourceServer != nil {
 		for key, value := range s.resourceServer.Environment() {
 			if existing, exists := envMap[key]; exists && existing != value {
@@ -349,17 +366,26 @@ func (s *Supervisor) prepareServiceEnv(ctx context.Context, svc manifest.Service
 
 // monitorReadiness watches for service readiness in a background goroutine.
 // extraFields are appended to telemetry events.
-func (s *Supervisor) monitorReadiness(ctx context.Context, svcID string, extraFields map[string]interface{}) {
+func (s *Supervisor) monitorReadiness(ctx context.Context, svc manifest.Service, extraFields map[string]interface{}) {
+	svcID := svc.ID
+	checker := s.serviceHealthChecker(svc)
+	process := s.getProc(svcID)
 	s.wg.Add(1)
 	go func() {
 		defer s.wg.Done()
-		if err := s.healthChecker.WaitForReadiness(ctx, svcID); err != nil {
+		if err := checker.WaitForReadiness(ctx, svcID); err != nil {
+			if s.getProc(svcID) != process {
+				return
+			}
 			s.setStatus(svcID, ServiceStatus{Ready: false, Message: err.Error()})
 			fields := map[string]interface{}{"service_id": svcID, "error": err.Error()}
 			for k, v := range extraFields {
 				fields[k] = v
 			}
 			_ = s.recordTelemetry("service_not_ready", fields)
+			return
+		}
+		if s.getProc(svcID) != process {
 			return
 		}
 		s.setStatus(svcID, ServiceStatus{Ready: true, Message: "ready"})
@@ -382,7 +408,9 @@ func (s *Supervisor) monitorExit(svcProc *serviceProcess, proc Process) {
 		if err != nil {
 			msg = err.Error()
 		}
-		s.setStatus(svcProc.service.ID, ServiceStatus{Ready: false, Message: msg, ExitCode: code})
+		if s.getProc(svcProc.service.ID) == svcProc {
+			s.setStatus(svcProc.service.ID, ServiceStatus{Ready: false, Message: msg, ExitCode: code})
+		}
 		_ = s.recordTelemetry("service_exit", map[string]interface{}{
 			"service_id": svcProc.service.ID,
 			"exit_code":  code,
@@ -460,7 +488,7 @@ func (s *Supervisor) startUIBundleService(ctx context.Context, svc manifest.Serv
 	})
 
 	extraFields := map[string]interface{}{"port": port, "type": "ui-bundle"}
-	s.monitorReadiness(serverCtx, svc.ID, extraFields)
+	s.monitorReadiness(serverCtx, svc, extraFields)
 
 	return nil
 }
@@ -490,7 +518,7 @@ func (s *Supervisor) buildUIHandler(svc manifest.Service, serveRoot string) http
 		healthPath = "/health"
 	}
 
-	apiProxy := s.buildAPIProxy()
+	apiProxy := s.buildAPIProxy(svc)
 	fileServer := http.FileServer(http.Dir(serveRoot))
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -531,8 +559,8 @@ func (s *Supervisor) buildUIHandler(svc manifest.Service, serveRoot string) http
 }
 
 // buildAPIProxy creates a reverse proxy to the API service, or nil if no API port is found.
-func (s *Supervisor) buildAPIProxy() *httputil.ReverseProxy {
-	apiPort := s.resolveAPIPort()
+func (s *Supervisor) buildAPIProxy(ui ...manifest.Service) *httputil.ReverseProxy {
+	apiPort := s.resolveAPIPort(ui...)
 	if apiPort <= 0 {
 		return nil
 	}
@@ -540,31 +568,41 @@ func (s *Supervisor) buildAPIProxy() *httputil.ReverseProxy {
 	return httputil.NewSingleHostReverseProxy(target)
 }
 
-// resolveAPIPort attempts to find a service that exposes an "api" port and returns its allocated value.
-func (s *Supervisor) resolveAPIPort() int {
-	ports := s.portAllocator.Map()
-
-	portFor := func(entries map[string]int) int {
-		for _, name := range []string{"http", "api", "https"} {
-			if port, ok := entries[name]; ok && port > 0 {
-				return port
-			}
-		}
+// resolveAPIPort binds each UI to its own declared API. Embedded peer APIs
+// must not capture the root UI's requests through naming or map iteration order.
+func (s *Supervisor) resolveAPIPort(ui ...manifest.Service) int {
+	if s.opts.Manifest == nil {
 		return 0
 	}
-	for svcID, entries := range ports {
-		if strings.Contains(strings.ToLower(svcID), "-api") {
-			if port := portFor(entries); port > 0 {
-				return port
+	prefix := ""
+	if len(ui) > 0 {
+		if scenario, _, ok := strings.Cut(ui[0].ID, "--"); ok {
+			prefix = scenario + "--"
+		}
+	}
+	allocations := s.portAllocator.Map()
+	selected := 0
+	for _, service := range s.opts.Manifest.Services {
+		if service.Type != "api-binary" || service.Ports == nil {
+			continue
+		}
+		if prefix == "" && strings.Contains(service.ID, "--") {
+			continue
+		}
+		if prefix != "" && !strings.HasPrefix(service.ID, prefix) {
+			continue
+		}
+		for _, port := range service.Ports.Requested {
+			if value := allocations[service.ID][port.Name]; value > 0 {
+				if selected != 0 {
+					return 0
+				} // An ambiguous declaration cannot choose an API.
+				selected = value
+				break
 			}
 		}
 	}
-	for _, entries := range ports {
-		if port := portFor(entries); port > 0 {
-			return port
-		}
-	}
-	return 0
+	return selected
 }
 
 // resolveUIDistRoot determines the directory to serve static files from for a ui-bundle service.
@@ -578,14 +616,14 @@ func (s *Supervisor) resolveAPIPort() int {
 func (s *Supervisor) resolveUIDistRoot(svc manifest.Service) (string, error) {
 	// Priority 1: Explicit dist_root takes precedence
 	if svc.DistRoot != "" {
-		return manifest.ResolvePath(s.opts.BundlePath, svc.DistRoot), nil
+		return manifest.ResolvePath(s.serviceBundleRoot(svc), svc.DistRoot), nil
 	}
 
 	// Priority 2: Find index.html in assets - its parent directory is the dist root
 	for _, asset := range svc.Assets {
 		if filepath.Base(asset.Path) == "index.html" {
 			distRoot := filepath.Dir(asset.Path)
-			return manifest.ResolvePath(s.opts.BundlePath, distRoot), nil
+			return manifest.ResolvePath(s.serviceBundleRoot(svc), distRoot), nil
 		}
 	}
 
@@ -600,7 +638,9 @@ func (s *Supervisor) resolveUIDistRoot(svc manifest.Service) (string, error) {
 
 // stopServices stops all services in reverse dependency order.
 func (s *Supervisor) stopServices(ctx context.Context) {
-	order, err := deps.TopoSort(s.opts.Manifest.Services)
+	s.componentMu.Lock()
+	defer s.componentMu.Unlock()
+	order, err := deps.TopoSort(s.effectiveServices())
 	if err != nil {
 		return
 	}
@@ -643,7 +683,7 @@ func (s *Supervisor) gracefulStop(ctx context.Context, proc *serviceProcess) {
 // prepareServiceDirs creates required directories for a service.
 func (s *Supervisor) prepareServiceDirs(svc manifest.Service) error {
 	for _, dir := range svc.DataDirs {
-		path := manifest.ResolvePath(s.appData, dir)
+		path := manifest.ResolvePath(s.serviceDataRoot(svc), dir)
 		if err := s.fs.MkdirAll(path, 0o755); err != nil {
 			return fmt.Errorf("create data dir for %s: %w", svc.ID, err)
 		}

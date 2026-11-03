@@ -69,6 +69,51 @@ func TestImpactedSurfacesFansOutThroughTransitiveInRepoModules(t *testing.T) {
 	}
 }
 
+func TestDiscoverGoModulesSkipsRetainedDocsModules(t *testing.T) {
+	root := t.TempDir()
+	write := func(rel, contents string) {
+		t.Helper()
+		path := filepath.Join(root, filepath.FromSlash(rel))
+		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(path, []byte(contents), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	write("go.mod", "module example.com/root\n\ngo 1.26.0\n")
+	write("docs/go.mod", "module example.com/docs-boundary\n\ngo 1.26.0\n")
+	write("docs/evidence/preimage/go.mod", "module example.com/retained-preimage\n\ngo 1.26.0\n")
+
+	modules, err := discoverGoModules(root)
+	if err != nil {
+		t.Fatalf("discoverGoModules() error = %v", err)
+	}
+	if _, ok := modules["example.com/root"]; !ok {
+		t.Fatal("root module was not discovered")
+	}
+	for module := range modules {
+		if module == "example.com/docs-boundary" || module == "example.com/retained-preimage" {
+			t.Errorf("docs module %q was discovered as active module", module)
+		}
+	}
+}
+
+func TestExcludedGoModSkipsEntireDocsSubtree(t *testing.T) {
+	root := filepath.Clean("/repo")
+	for _, rel := range []string{
+		"docs/go.mod",
+		"docs/internal/evidence/preimage/go.mod",
+	} {
+		if !excludedGoMod(filepath.Join(root, filepath.FromSlash(rel)), root) {
+			t.Errorf("excludedGoMod(%q) = false, want true", rel)
+		}
+	}
+	if excludedGoMod(filepath.Join(root, "resources", "go.mod"), root) {
+		t.Fatal("active resources module was excluded")
+	}
+}
+
 func TestImpactedSurfacesRootModuleChangesFanOutToAllSurfaces(t *testing.T) {
 	root := filepath.Clean("/repo")
 	surfaces := []goSurface{
@@ -843,6 +888,48 @@ func TestDiscoverGoModulesPreservesRootOwnerAgainstRetainedCopy(t *testing.T) {
 	}
 	if modules["example.com/root"].dir != root {
 		t.Fatalf("retained copy shadowed root owner: %+v", modules)
+	}
+}
+
+func TestDiscoverGoModulesExcludesRetainedEvidenceBeforeOwnerResolution(t *testing.T) {
+	root := t.TempDir()
+	modulePath := "github.com/vrooli/vrooli/resources"
+	canonicalDir := filepath.Join(root, "resources")
+	retainedEvidencePath := "docs/internal/delivery-reliability-research/follow-through/evidence/continuation-admission/known-team-return-20261020/openrouter-resource-module-closure/preimage/go.mod"
+	retainedCopy := filepath.Join(root, filepath.FromSlash(retainedEvidencePath))
+	writeFreshnessFile(t, filepath.Join(canonicalDir, "go.mod"), "module "+modulePath+"\n")
+	writeFreshnessFile(t, retainedCopy, "module "+modulePath+"\n")
+
+	modules, err := discoverGoModules(root)
+	if err != nil {
+		t.Fatalf("discoverGoModules: %v", err)
+	}
+	module, ok := modules[modulePath]
+	if !ok {
+		t.Fatalf("canonical module %q was not discovered: %#v", modulePath, modules)
+	}
+	if module.dir != canonicalDir || module.ambiguous {
+		t.Fatalf("canonical module owner = %+v, want unambiguous owner at %s", module, canonicalDir)
+	}
+
+	surfaces, err := discoverGoSurfacesFromModules(root, modules)
+	if err != nil {
+		t.Fatalf("discoverGoSurfacesFromModules: %v", err)
+	}
+	if len(surfaces) != 1 || surfaces[0].goMod != filepath.Join(canonicalDir, "go.mod") {
+		t.Fatalf("surfaces = %+v, want only canonical module at %s", surfaces, filepath.Join(canonicalDir, "go.mod"))
+	}
+
+	exclusions := discoverGoExclusions(root, modules)
+	foundRetainedCopy := false
+	for _, exclusion := range exclusions {
+		if exclusion.GoModPath == retainedEvidencePath {
+			foundRetainedCopy = true
+			break
+		}
+	}
+	if !foundRetainedCopy {
+		t.Fatalf("retained evidence copy %q absent from exclusions: %+v", retainedEvidencePath, exclusions)
 	}
 }
 

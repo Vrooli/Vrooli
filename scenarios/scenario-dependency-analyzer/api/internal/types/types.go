@@ -5,6 +5,7 @@ import (
 	"time"
 
 	scenariomodel "github.com/vrooli/vrooli/internal/scenario"
+	runtimeManifest "github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/manifest"
 )
 
 // Manifest and its nested declarations are aliases of the control plane's
@@ -301,17 +302,19 @@ type BundleDependencyEntry struct {
 // It is intentionally conservative: defaults are portable, and values are placeholders
 // that deployment-manager can refine.
 type DesktopBundleSkeleton struct {
-	SchemaVersion       string                  `json:"schema_version"`
-	Target              string                  `json:"target"`
-	App                 BundleSkeletonApp       `json:"app"`
-	IPC                 BundleSkeletonIPC       `json:"ipc"`
-	Telemetry           BundleSkeletonTelemetry `json:"telemetry"`
-	Ports               BundleSkeletonPorts     `json:"ports"`
-	Swaps               []BundleSkeletonSwap    `json:"swaps,omitempty"`
-	Peers               []BundleSkeletonPeer    `json:"peers,omitempty"`
-	ProgramBindingPeers []BundleSkeletonPeer    `json:"program_binding_peers,omitempty"`
-	Secrets             []BundleSkeletonSecret  `json:"secrets,omitempty"`
-	Services            []BundleSkeletonService `json:"services"`
+	Features            map[string]runtimeManifest.FeatureExport `json:"features,omitempty"`
+	Authentication      *runtimeManifest.AuthenticationProfile   `json:"authentication,omitempty"`
+	SchemaVersion       string                                   `json:"schema_version"`
+	Target              string                                   `json:"target"`
+	App                 BundleSkeletonApp                        `json:"app"`
+	IPC                 BundleSkeletonIPC                        `json:"ipc"`
+	Telemetry           BundleSkeletonTelemetry                  `json:"telemetry"`
+	Ports               BundleSkeletonPorts                      `json:"ports"`
+	Swaps               []BundleSkeletonSwap                     `json:"swaps,omitempty"`
+	Peers               []BundleSkeletonPeer                     `json:"peers,omitempty"`
+	ProgramBindingPeers []BundleSkeletonPeer                     `json:"program_binding_peers,omitempty"`
+	Secrets             []BundleSkeletonSecret                   `json:"secrets,omitempty"`
+	Services            []BundleSkeletonService                  `json:"services"`
 }
 
 type BundleSkeletonApp struct {
@@ -322,10 +325,13 @@ type BundleSkeletonApp struct {
 }
 
 type BundleSkeletonPeer struct {
-	Scenario         string `json:"scenario"`
-	BundlePolicy     string `json:"bundle_policy"`
-	StartupPolicy    string `json:"startup_policy,omitempty"`
-	DegradedBehavior string `json:"degraded_behavior,omitempty"`
+	Features         map[string]runtimeManifest.FeatureExport `json:"features,omitempty"`
+	Scenario         string                                   `json:"scenario"`
+	BundlePolicy     string                                   `json:"bundle_policy"`
+	StartupPolicy    string                                   `json:"startup_policy,omitempty"`
+	DegradedBehavior string                                   `json:"degraded_behavior,omitempty"`
+	VersionRange     string                                   `json:"versionRange,omitempty"`
+	EmbeddedVersion  string                                   `json:"embedded_version,omitempty"`
 }
 
 type BundleSkeletonIPC struct {

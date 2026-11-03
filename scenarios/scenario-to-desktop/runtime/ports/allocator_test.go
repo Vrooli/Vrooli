@@ -142,6 +142,20 @@ func TestManagerAllocate(t *testing.T) {
 	}
 }
 
+func TestRollbackPortAllocationPreservesServingHostBindings(t *testing.T) {
+	root := &manifest.Manifest{IPC: manifest.IPC{Host: "127.0.0.1", Port: 47003}}
+	manager := ports.NewManager(root, &stubDialer{availability: map[int]bool{47000: true, 47001: true, 47002: true, 47003: true, 47004: true}})
+	manager.SetPorts(map[string]map[string]int{"host-api": {"api": 47000}, "host-ui": {"http": 47001}, "owner--api": {"api": 47002}})
+	old := []manifest.Service{{ID: "owner--api", Ports: &manifest.ServicePorts{Requested: []manifest.PortRequest{{Name: "api"}}}}, {ID: "owner--old-worker", Ports: &manifest.ServicePorts{Requested: []manifest.PortRequest{{Name: "metrics"}}}}}
+	if err := manager.AllocateServices(old); err != nil {
+		t.Fatal(err)
+	}
+	got := manager.Map()
+	if got["host-api"]["api"] != 47000 || got["host-ui"]["http"] != 47001 || got["owner--api"]["api"] != 47002 || got["owner--old-worker"]["metrics"] != 47004 {
+		t.Fatalf("rollback changed serving ports or reused control port: %+v", got)
+	}
+}
+
 func TestManagerAllocateAssignsIPCFromSharedRange(t *testing.T) {
 	m := &manifest.Manifest{
 		IPC:   manifest.IPC{Host: "127.0.0.1", Port: 0},

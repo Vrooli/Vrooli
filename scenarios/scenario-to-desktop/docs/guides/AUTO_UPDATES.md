@@ -12,6 +12,18 @@ This guide explains how to configure automatic updates for desktop applications 
 - [DOC: docs/guides/DEPLOYMENT.md#upload-flow] - LPBS deployment/upload flow
 - [CODE: templates/vanilla/storage/update-recovery.ts] - atomic apply intent and installed-client receipt
 
+## Optional component lifecycle boundary
+
+This guide owns updates to the installed desktop application and its retained
+application data. Optional runtime components have a separate catalog and
+compatibility contract; installing or updating one must not be described as
+updating the desktop shell. Component installation, version-range checks,
+staging, rollback, and removal must use the component lifecycle owner and
+respect the compatibility window described by
+[packaging strategies](../../../../docs/architecture/packaging-strategies.md).
+The retained application update receipt described later in this guide is not a
+component version record.
+
 ## Overview
 
 The auto-update system uses [electron-updater](https://www.electron.build/docs/api/) to check for and apply updates. Scenario-to-desktop supports multiple update providers:
@@ -100,6 +112,18 @@ vrooli:
 LPBS adds the `vrooli` binding after it selects the immutable channel revision. A packaged client refuses a supplied binding for another application, channel, platform, architecture, or digest. The update URL remains the product and channel boundary, so redirects and feed responses must stay within the configured owner path.
 
 The client writes `update-intent.json` atomically before `quitAndInstall`. The intent records the predecessor and successor versions, target, channel, and artifact references, then moves from `apply_pending` to `applying`. A restart on the predecessor records an interrupted outcome. A successful receipt is written only after the successor executable is identified and the application server and window have both reached ready state. The receipt is stored at `userData/update-receipt.json` and emitted through the existing telemetry/evidence path; a downloaded or verified update is never treated as installed.
+
+The shell has one explicit apply state: `idle`, `pending`, `applying`,
+`installing`, or `failed`. Concurrent quit/restart requests share the applying
+operation; new download events cannot replace an operation in progress. The
+existing `update-state.json` serializes the allowed offer, download, verification,
+apply, installation and recovery transitions. Its bounded transition history
+survives the predecessor exit and successor launch, allowing the real J10
+AppImage journey to verify the path as well as the installed receipt. Installation
+requires successful persistence; updater events cannot overwrite a later state.
+Recovery runs before new update offers are enabled. No extra state store is used.
+The consumed [lifecycle spec](../../templates/vanilla/storage/update-lifecycle.spec.json)
+declares all state/event pairs and recovery traces; its conformance test fails on drift.
 
 ### Manifest Generation
 

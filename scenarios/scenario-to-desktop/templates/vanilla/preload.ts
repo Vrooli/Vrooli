@@ -734,6 +734,12 @@ contextBridge.exposeInMainWorld("desktop", {
     loadStoredBlob: desktopUtils.loadStoredBlob,
     getStoredFileUrl: desktopUtils.getStoredFileUrl,
 
+    // Signed optional code is admitted by the native runtime, never the renderer.
+    components: {
+        list: () => ipcRenderer.invoke("components:list") as Promise<unknown>,
+        install: (id: string) => ipcRenderer.invoke("components:install", id) as Promise<unknown>,
+        remove: (id: string, keepData: boolean) => ipcRenderer.invoke("components:remove", id, keepData) as Promise<unknown>,
+    },
     // Authentication (via LPBS magic links)
     auth: desktopAPI.auth,
 
@@ -777,6 +783,7 @@ declare global {
             storeBlob: typeof desktopUtils.storeBlob;
             loadStoredBlob: typeof desktopUtils.loadStoredBlob;
             getStoredFileUrl: typeof desktopUtils.getStoredFileUrl;
+            components: { list: () => Promise<unknown>; install: (id: string) => Promise<unknown>; remove: (id: string, keepData: boolean) => Promise<unknown> };
             // Authentication
             auth: typeof desktopAPI.auth;
             // App control & utilities

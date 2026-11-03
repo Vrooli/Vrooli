@@ -297,6 +297,14 @@ Get full deployment readiness report including recursive DAG, tier fitness, and 
 }
 ```
 
+The desktop bundle skeleton carries scenario peer policy and version metadata
+without static port bindings. `embed` and locally available `either` peers are
+projected recursively with `<peer>--<service>` IDs; each peer's build source is
+described under `peers/<peer>/...`. `include_ui` controls only that dependency
+edge's peer UI. Resources from included peers remain in the flattened dependency
+closure, and active required peer resources are admitted by scenario-to-desktop's
+immutable resource plan.
+
 ### `GET /api/v1/scenarios/:scenario/dag/export`
 Export the recursive dependency DAG for a scenario.
 

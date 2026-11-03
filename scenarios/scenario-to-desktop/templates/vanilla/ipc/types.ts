@@ -94,6 +94,7 @@ export interface StorageHandlerDependencies {
  * Dependencies for auth handlers.
  */
 export interface AuthHandlerDependencies {
+    isTrustedRenderer?: (event: Electron.IpcMainInvokeEvent) => boolean;
     authManager: IAuthManager;
     getLocalSessionToken?: () => Promise<string | null>;
 }
@@ -102,12 +103,14 @@ export interface AuthHandlerDependencies {
  * Combined dependencies for all handlers.
  */
 export interface IpcHandlerDependencies {
+    isTrustedRenderer: (event: Electron.IpcMainInvokeEvent) => boolean;
     ipcMain: IIpcMain;
     dialog: IDialog;
     fs: IFileFs;
     storage: IAppStorage;
     authManager: IAuthManager;
     getLocalSessionToken?: () => Promise<string | null>;
+    components?: { list: () => Promise<unknown>; install: (id: string) => Promise<unknown>; remove: (id: string, keepData: boolean) => Promise<unknown> };
     getMainWindow: () => BrowserWindow | null;
     systemInfo: SystemInfo;
 }

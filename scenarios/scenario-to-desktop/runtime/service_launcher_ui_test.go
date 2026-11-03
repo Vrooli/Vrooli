@@ -210,7 +210,7 @@ func TestBuildUIHandlerRoutesNonAssetsToAPIAndHTMLNavigationToSPA(t *testing.T) 
 	defer api.Close()
 	ports := testutil.NewMockPortAllocator()
 	ports.SetPort("api", "http", api.Listener.Addr().(*net.TCPAddr).Port)
-	s := &Supervisor{portAllocator: ports}
+	s := &Supervisor{portAllocator: ports, opts: Options{Manifest: uiAPIManifest("api", "http")}}
 	handler := s.buildUIHandler(manifest.Service{Health: manifest.HealthCheck{Path: "/ready"}}, root)
 
 	for _, tt := range []struct{ name, path, accept, upgrade, want string }{
@@ -243,7 +243,7 @@ func TestResolveAPIPortAcceptsHTTPAPIAndHTTPS(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			ports := testutil.NewMockPortAllocator()
 			ports.SetPort("backend", name, 21010)
-			if got := (&Supervisor{portAllocator: ports}).resolveAPIPort(); got != 21010 {
+			if got := (&Supervisor{portAllocator: ports, opts: Options{Manifest: uiAPIManifest("backend", name)}}).resolveAPIPort(); got != 21010 {
 				t.Fatalf("resolveAPIPort() = %d, want 21010", got)
 			}
 		})
@@ -277,19 +277,43 @@ func TestResolveUIPortHonorsHealthReadinessAndRequestedPortPriority(t *testing.T
 	}
 }
 
+func uiAPIManifest(id, name string) *manifest.Manifest {
+	return &manifest.Manifest{Services: []manifest.Service{{ID: id, Type: "api-binary", Ports: &manifest.ServicePorts{Requested: []manifest.PortRequest{{Name: name}}}}}}
+}
+
 func TestResolveAPIPortPrefersAPINamedService(t *testing.T) {
 	ports := testutil.NewMockPortAllocator()
 	ports.SetPort("worker", "api", 21010)
 	ports.SetPort("desktop-api", "api", 21011)
-	s := &Supervisor{portAllocator: ports}
+	s := &Supervisor{portAllocator: ports, opts: Options{Manifest: uiAPIManifest("desktop-api", "api")}}
 	if got := s.resolveAPIPort(); got != 21011 {
-		t.Fatalf("resolveAPIPort() = %d, want API service port", got)
+		t.Fatalf("declared API port=%d", got)
 	}
-	if proxy := s.buildAPIProxy(); proxy == nil {
-		t.Fatal("buildAPIProxy() returned nil with an API port")
+	if s.buildAPIProxy() == nil {
+		t.Fatal("missing API proxy")
 	}
-	if got := (&Supervisor{portAllocator: testutil.NewMockPortAllocator()}).resolveAPIPort(); got != 0 {
-		t.Fatalf("resolveAPIPort() without API = %d", got)
+	if got := (&Supervisor{portAllocator: ports}).resolveAPIPort(); got != 0 {
+		t.Fatalf("undeclared API port=%d", got)
+	}
+}
+
+func TestAggregateUIBindsOwnAPIInsteadOfEmbeddedPeer(t *testing.T) {
+	ports := testutil.NewMockPortAllocator()
+	ports.SetPort("api", "api", 21011)
+	ports.SetPort("audio-tools--api", "api", 21012)
+	m := uiAPIManifest("api", "api")
+	m.Services = append(m.Services, uiAPIManifest("audio-tools--api", "api").Services...)
+	s := &Supervisor{portAllocator: ports, opts: Options{Manifest: m}}
+	if got := s.resolveAPIPort(manifest.Service{ID: "ui"}); got != 21011 {
+		t.Fatalf("root UI routed to %d", got)
+	}
+	if got := s.resolveAPIPort(manifest.Service{ID: "audio-tools--ui"}); got != 21012 {
+		t.Fatalf("peer UI routed to %d", got)
+	}
+	m.Services = append(m.Services, uiAPIManifest("other", "api").Services...)
+	ports.SetPort("other", "api", 21013)
+	if got := s.resolveAPIPort(); got != 0 {
+		t.Fatalf("ambiguous root API selected %d", got)
 	}
 }
 

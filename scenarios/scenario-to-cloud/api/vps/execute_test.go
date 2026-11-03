@@ -11,6 +11,7 @@ import (
 
 	"github.com/vrooli/api-core/database"
 
+	"scenario-to-cloud/apierrors"
 	"scenario-to-cloud/domain"
 	"scenario-to-cloud/execplan"
 	"scenario-to-cloud/faultinject"
@@ -39,6 +40,86 @@ func (failedReceiptReach) Deliver(context.Context, identity.TargetRef, reach.Del
 
 func (failedReceiptReach) Negotiate(context.Context, identity.TargetRef) (reach.Capabilities, error) {
 	return reach.Capabilities{}, nil
+}
+
+type optionalDependencyFailureReach struct{ started []string }
+
+func (r *optionalDependencyFailureReach) Exec(_ context.Context, _ identity.TargetRef, command reach.Command) (reach.Result, error) {
+	if command.Verb == "scenario start" && len(command.Args) > 0 {
+		id := command.Args[0]
+		r.started = append(r.started, id)
+		if id == "sign-in-email" {
+			return reach.Result{ExitCode: 1, Stderr: "sign-in email dependency unavailable"}, nil
+		}
+	}
+	return reach.Result{}, nil
+}
+
+func (*optionalDependencyFailureReach) Deliver(context.Context, identity.TargetRef, reach.Delivery) (reach.DeliveryReceipt, error) {
+	return reach.DeliveryReceipt{}, nil
+}
+
+func (*optionalDependencyFailureReach) Negotiate(context.Context, identity.TargetRef) (reach.Capabilities, error) {
+	return reach.Capabilities{Transport: identity.TransportSSH, Online: true}, nil
+}
+
+func TestSignInDependencyStartFailureDoesNotBlockPrimaryScenarioStart(t *testing.T) {
+	target := &optionalDependencyFailureReach{}
+	action := execplan.Action{
+		ID: execplan.OpRuntimeStartDeps, OwnerOperation: execplan.OpRuntimeStartDeps,
+		Inputs: map[string]string{"workdir": "/root/Vrooli", "scenarios": "sign-in-email,app", "optional_scenarios": "sign-in-email"},
+	}
+	e := &executor{
+		manifest: domain.CloudManifest{Scenario: domain.ManifestScenario{ID: "app"}, Target: domain.ManifestTarget{VPS: &domain.ManifestVPS{Workdir: "/root/Vrooli"}}},
+		rt:       Runtime{Target: targetRef(), Identity: Identity{OperationID: "op-optional", Fence: 1}},
+		reach:    &attributedReach{inner: target}, deploymentID: "dep-optional",
+	}
+	e.reach.enter(action.ID)
+	detail, err := e.runCommands(context.Background(), action)
+	if err != nil {
+		t.Fatalf("optional dependency failure must not block primary startup: %v", err)
+	}
+	if strings.Join(target.started, ",") != "sign-in-email,app" {
+		t.Fatalf("primary scenario was not started after optional failure: %v", target.started)
+	}
+	if !strings.Contains(detail, "degraded:") || !strings.Contains(detail, "sign-in-email") || !strings.Contains(detail, "sign-in email dependency unavailable") {
+		t.Fatalf("action detail must expose the optional failure as degraded: %q", detail)
+	}
+}
+
+func TestOptionalDependencyDegradesOnlyKnownCompletedStartRefusal(t *testing.T) {
+	action := execplan.Action{ID: execplan.OpRuntimeStartDeps, Inputs: map[string]string{"optional_scenarios": "ai-gateway"}}
+	start := TargetCommand{Step: execplan.OpRuntimeStartDeps + ".scenario.ai-gateway", Command: reach.Command{Verb: "scenario start", Args: []string{"ai-gateway"}}}
+	cases := []struct {
+		name   string
+		ctx    context.Context
+		cmd    TargetCommand
+		result reach.Result
+		err    error
+		want   bool
+	}{
+		{name: "known component refusal", ctx: context.Background(), cmd: start, result: reach.Result{ExitCode: 1, Stderr: "startup refused"}, err: apierrors.New(apierrors.CodeInternal, "vrooli scenario start exited 1: startup refused"), want: true},
+		{name: "transport outcome unknown", ctx: context.Background(), cmd: start, err: &reach.Error{Kind: reach.KindTransport, Detail: "connection lost"}},
+		{name: "authentication refusal", ctx: context.Background(), cmd: start, result: reach.Result{ExitCode: 1}, err: apierrors.New("unauthorized", "not authorized")},
+		{name: "failed owner receipt", ctx: context.Background(), cmd: TargetCommand{Step: start.Step, Command: reach.Command{Verb: "cloud-target runtime start"}}, result: reach.Result{ExitCode: 1}, err: apierrors.New(apierrors.CodeInternal, "runtime receipt failed")},
+		{name: "cancellation", ctx: canceledContext(t), cmd: start, result: reach.Result{ExitCode: 1}, err: apierrors.New(apierrors.CodeInternal, "context canceled")},
+		{name: "canceled transport result", ctx: context.Background(), cmd: start, err: context.Canceled},
+		{name: "non-start command", ctx: context.Background(), cmd: TargetCommand{Step: start.Step, Command: reach.Command{Verb: "scenario stop"}}, result: reach.Result{ExitCode: 1}, err: apierrors.New(apierrors.CodeInternal, "stop failed")},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := mayDegradeOptionalStart(tc.ctx, action, tc.cmd, tc.result, tc.err); got != tc.want {
+				t.Fatalf("mayDegradeOptionalStart() = %v, want %v", got, tc.want)
+			}
+		})
+	}
+}
+
+func canceledContext(t *testing.T) context.Context {
+	t.Helper()
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	return ctx
 }
 
 func TestInvokeIncludesFailedTargetReceiptMessage(t *testing.T) {
@@ -76,6 +157,12 @@ func fixtureManifest(w *fixtures.Workload) domain.CloudManifest {
 func fixtureClosure(w *fixtures.Workload) *domain.Closure {
 	c := &domain.Closure{SchemaVersion: "1", ScenarioID: w.Declaration.PrimaryScenario, Digest: "sha256:fixture-" + w.ID}
 	c.Components = append(c.Components, domain.ClosureComponent{ID: w.Declaration.PrimaryScenario, Kind: domain.ClosureKindScenario, Required: true, Recovery: &domain.ClosureRecovery{CodeRollback: "any_predecessor", SchemaStrategy: "expand_contract"}})
+	for _, scenario := range w.Declaration.Scenarios {
+		c.Components = append(c.Components, domain.ClosureComponent{ID: scenario, Kind: domain.ClosureKindScenario, Required: true, Reasons: []domain.ClosureReason{{Kind: domain.ClosureReasonDeclaredBy, From: w.Declaration.PrimaryScenario}}})
+	}
+	for _, resource := range w.Declaration.Resources {
+		c.Components = append(c.Components, domain.ClosureComponent{ID: resource, Kind: domain.ClosureKindResource, Required: true})
+	}
 	for _, data := range w.Declaration.PersistentData {
 		binding := "database:" + data.Database
 		if data.Kind == "files" {
@@ -425,6 +512,7 @@ func TestSharedResourceDemandSurvivesSiblingStop(t *testing.T) {
 	a := newHarness(t, target, cat.Workloads["sql-uploads"], "a")
 	b := newHarness(t, target, cat.Workloads["dependent-chain"], "b")
 	b.manifest.Dependencies.Resources = []string{"postgres"}
+	b.closure.Components = append(b.closure.Components, domain.ClosureComponent{ID: "postgres", Kind: domain.ClosureKindResource, Required: true})
 	b.depID = "dep-b"
 	if _, execErr := b.execute(context.Background(), b.compile(execplan.ScopeFull, execplan.Observations{}), Identity{OperationID: "op-b", Fence: 1}); execErr != nil {
 		t.Fatalf("survivor deploy: %v (%s)", execErr, execErr.ActionID)

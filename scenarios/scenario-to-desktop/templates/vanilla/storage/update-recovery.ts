@@ -40,7 +40,7 @@ export type InstalledUpdateReceipt = {
     reason?: string;
 };
 
-export type UpdateStateName = "offered" | "downloading" | "verified" | "apply_pending" | "applying" | "recovering" | "relaunched" | "healthy" | "failed";
+export type UpdateStateName = "offered" | "downloading" | "verified" | "apply_pending" | "applying" | "installing" | "recovering" | "relaunched" | "healthy" | "failed";
 
 export type UpdateState = {
     schemaVersion: 1;
@@ -54,7 +54,54 @@ export type UpdateState = {
     artifactRef?: string;
     observedAt: string;
     reason?: string;
+    transitions?: Array<{ state: UpdateStateName; observedAt: string }>;
 };
+
+// Recovery may observe either side of the external installer boundary. The
+// intent remains authoritative even if the last state write was interrupted.
+const updateTransitions: Record<UpdateStateName, readonly UpdateStateName[]> = {
+    offered: ["offered", "downloading", "verified", "failed", "recovering", "relaunched"],
+    downloading: ["downloading", "offered", "verified", "failed", "recovering", "relaunched"],
+    verified: ["offered", "verified", "apply_pending", "failed", "recovering", "relaunched"],
+    apply_pending: ["applying", "failed", "recovering", "relaunched"],
+    applying: ["installing", "failed", "recovering", "relaunched"],
+    installing: ["failed", "recovering", "relaunched"],
+    recovering: ["offered", "failed", "recovering", "relaunched"],
+    relaunched: ["healthy", "failed", "relaunched"],
+    healthy: ["offered", "failed"],
+    failed: ["offered", "failed", "recovering", "relaunched"],
+};
+export const updateStateNames = Object.keys(updateTransitions) as UpdateStateName[];
+
+export function transitionUpdateState(current: UpdateStateName | "idle", requested: UpdateStateName): UpdateStateName {
+    const allowed = current === "idle" ? ["offered", "recovering", "relaunched", "failed"] : updateTransitions[current];
+    if (!allowed?.includes(requested)) throw new Error(`invalid update transition: ${current} -> ${requested}`);
+    return requested;
+}
+
+/** Serialize event callbacks into the existing atomic state file. */
+export function createUpdateStateWriter(fs: UpdateRecoveryFileSystem, statePath: string) {
+    let tail = Promise.resolve();
+    return (next: UpdateState): Promise<void> => {
+        const operation = tail.then(async () => {
+            let previous: UpdateState | undefined;
+            try {
+                previous = JSON.parse(await fs.readFile(statePath, "utf-8")) as UpdateState;
+                if (!previous || !Object.prototype.hasOwnProperty.call(updateTransitions, previous.state)) throw new Error("invalid persisted update state");
+            } catch (error) {
+                if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
+            }
+            transitionUpdateState(previous?.state ?? "idle", next.state);
+            const history = next.state === "offered" && previous?.state !== "offered" ? [] : previous?.transitions ?? [];
+            // Progress callbacks do not consume trace capacity. A new offer
+            // starts a new attempt; retain only this bounded lifecycle history.
+            const transitions = previous?.state === next.state ? history : [...history, { state: next.state, observedAt: next.observedAt }].slice(-16);
+            await writeUpdateState(fs, statePath, { ...(next.state === "offered" ? {} : previous), ...next, transitions });
+        });
+        tail = operation.catch(() => undefined);
+        return operation;
+    };
+}
 
 export type UpdateRecovery =
     | { disposition: "none" }
@@ -181,7 +228,7 @@ export async function writeInstalledUpdateReceipt(fs: UpdateRecoveryFileSystem, 
 }
 
 export async function writeUpdateState(fs: UpdateRecoveryFileSystem, statePath: string, state: UpdateState): Promise<void> {
-    if (!state.observedAt || !["offered", "downloading", "verified", "apply_pending", "applying", "recovering", "relaunched", "healthy", "failed"].includes(state.state)) {
+    if (!state.observedAt || !Object.prototype.hasOwnProperty.call(updateTransitions, state.state)) {
         throw new Error("invalid update state");
     }
     const encoded = JSON.stringify({ ...state, schemaVersion: 1, state: state.state, observedAt: state.observedAt });

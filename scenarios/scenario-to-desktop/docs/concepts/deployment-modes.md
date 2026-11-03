@@ -78,6 +78,15 @@ directory through `resource_artifact_root` when a required profile uses a
 `bundled-*` mode; the bundle stage rejects source builds and unsigned or altered
 artifact inputs.
 
+Embedded scenario peers are materialized with their declared source/build
+inputs under `peers/<scenario>/...`. `embed` requires that local source and its
+required active resources; `either` uses a local peer when present and otherwise
+keeps the discovery route. `include_ui` controls only the peer UI. Peer API/UI
+ports resolve at call time: an in-range full peer record takes precedence, and
+an embedded fallback is used only when its recorded version satisfies the
+declared `versionRange`. Bundle manifests contain no static peer environment
+bindings.
+
 ## Thin Client Mode
 
 Use thin client when users connect to the same server. Configure the external

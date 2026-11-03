@@ -23,6 +23,8 @@ Every desktop bundle includes a `bundle.json` manifest that describes the applic
 | `Readiness` | Readiness check configuration |
 | `Migration` | Schema migration definition |
 | `Asset` | Asset verification rules (size, checksum) |
+| `Peer.VersionRange` | The declared version range for a discoverable scenario edge |
+| `Peer.EmbeddedVersion` | The version of the locally staged peer used for embedded fallback |
 
 ## Usage
 
@@ -73,6 +75,13 @@ The loader performs basic validation:
 - Referenced secrets exist
 - Authentication modes have explicit provider, offline, and lease requirements
 
+Peer `versionRange` values are propagated from the canonical scenario dependency
+declaration. The shim checks a separate peer's full record first, then falls
+back to a compatible embedded service only when that peer is part of the bundle.
+Embedded service identity uses `<scenario>--<service>`; ambiguous or
+out-of-range local matches fail closed. No static environment bindings are
+projected at startup.
+
 Authentication is separate from the supervisor bearer token. The four
 supported modes are `personal_local`, `local_multi_user`, `remote_vrooli`, and
 `shared_provider`. The supervisor reports the selected non-secret profile from
@@ -99,3 +108,18 @@ changes.
 
 - **Depends on**: Standard library (`encoding/json`, `os`, `runtime`)
 - **Depended on by**: `bundleruntime`, `ports`, `secrets`, `health`, `assets`
+
+## Optional components
+
+The host manifest's optional `components` policy pins a catalog URL and release
+public key. Catalog entries bind component identity, owner release and slice,
+platform, host range, declared features, state class, complete service manifest,
+artifact digest/size and published standalone URL under the release signature.
+The runtime installs verified immutable generations below its own app data,
+records a pending generation atomically, and merges it at the next launch through
+the same service projection and supervisor as embedded services. Failed updates
+preserve the prior compatible generation; incompatible generations stay off.
+Uninstall explicitly chooses whether to retain component data. Feature providers
+are derived from healthy services in the current runtime; ordinary scenario-port
+lookup never selects a feature slice. Full compatible peers take precedence per
+call and use a separate read token, never another runtime's control token.

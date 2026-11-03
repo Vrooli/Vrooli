@@ -247,16 +247,12 @@ export function registerStorageHandlers(
  * Register authentication handlers.
  */
 export function registerAuthHandlers(
-    ipcMain: IIpcMain,
+    rawIPC: IIpcMain,
     deps: AuthHandlerDependencies
 ): HandlerRegistration {
+    const ipcMain = restrictIPC(rawIPC, deps.isTrustedRenderer);
     const channels: string[] = [];
     const { authManager } = deps;
-
-    const requireTrustedLocalRenderer = (event: Electron.IpcMainInvokeEvent) => {
-        const rawURL = event.senderFrame?.url ?? event.sender.getURL();
-        if (!isTrustedLocalRendererURL(rawURL)) throw new Error("desktop account IPC requires a trusted local renderer");
-    };
 
     // auth:sign-in - Start sign-in flow
     ipcMain.handle(AUTH_CHANNELS.SIGN_IN, async (_event, options?: { state?: string }) => {
@@ -266,37 +262,31 @@ export function registerAuthHandlers(
 
     // auth:connect-desktop - Link the authenticated LPBS account to a local identity.
     ipcMain.handle(AUTH_CHANNELS.CONNECT_DESKTOP, async (event, options) => {
-        requireTrustedLocalRenderer(event);
         return authManager.connectDesktop(options);
     });
     channels.push(AUTH_CHANNELS.CONNECT_DESKTOP);
 
     ipcMain.handle(AUTH_CHANNELS.GET_DESKTOP_LINK_STATUS, async (event, options) => {
-        requireTrustedLocalRenderer(event);
         return authManager.getDesktopLinkStatus(options);
     });
     channels.push(AUTH_CHANNELS.GET_DESKTOP_LINK_STATUS);
 
     ipcMain.handle(AUTH_CHANNELS.DISCONNECT_DESKTOP, async (event, options) => {
-        requireTrustedLocalRenderer(event);
         return authManager.disconnectDesktop(options);
     });
     channels.push(AUTH_CHANNELS.DISCONNECT_DESKTOP);
 
     ipcMain.handle(AUTH_CHANNELS.GET_CREDIT_SESSION_STATUS, async (event) => {
-        requireTrustedLocalRenderer(event);
         return authManager.getCreditSessionShareStatus();
     });
     channels.push(AUTH_CHANNELS.GET_CREDIT_SESSION_STATUS);
 
     ipcMain.handle(AUTH_CHANNELS.GET_CREDIT_BALANCE, async (event) => {
-        requireTrustedLocalRenderer(event);
         return authManager.getCreditBalance();
     });
     channels.push(AUTH_CHANNELS.GET_CREDIT_BALANCE);
 
     ipcMain.handle(AUTH_CHANNELS.SET_CREDIT_SESSION_SHARING, async (event, enabled: unknown) => {
-        requireTrustedLocalRenderer(event);
         if (typeof enabled !== "boolean") throw new Error("credit session sharing requires an explicit boolean choice");
         return authManager.setCreditSessionSharing(enabled);
     });
@@ -319,8 +309,6 @@ export function registerAuthHandlers(
     // a bearer-token oracle.
     if (deps.getLocalSessionToken) {
         ipcMain.handle(AUTH_CHANNELS.GET_LOCAL_SESSION_TOKEN, async (event) => {
-            const rawURL = event.senderFrame?.url ?? event.sender.getURL();
-            if (!isTrustedLocalRendererURL(rawURL)) return null;
             return deps.getLocalSessionToken?.() ?? null;
         });
         channels.push(AUTH_CHANNELS.GET_LOCAL_SESSION_TOKEN);
@@ -355,27 +343,52 @@ export function registerAuthHandlers(
     };
 }
 
-function isTrustedLocalRendererURL(rawURL: string): boolean {
-    try {
-        const url = new URL(rawURL);
-        if (url.protocol === "file:") return true;
-        if (url.protocol !== "http:" && url.protocol !== "https:") return false;
-        return url.hostname === "127.0.0.1" || url.hostname === "localhost" || url.hostname === "[::1]" || url.hostname === "::1";
-    } catch {
-        return false;
-    }
+function restrictIPC(ipcMain: IIpcMain, authorize?: (event: Electron.IpcMainInvokeEvent) => boolean): IIpcMain {
+    return {
+        removeHandler: (channel) => ipcMain.removeHandler(channel),
+        handle: (channel, listener) => ipcMain.handle(channel, async (event, ...args) => {
+            if (!authorize?.(event)) {
+                if (channel === AUTH_CHANNELS.GET_LOCAL_SESSION_TOKEN) return null;
+                throw new Error("Desktop IPC requires the trusted local renderer main frame");
+            }
+            return listener(event, ...args);
+        }),
+    };
+}
+
+/** Component code admission stays in the authenticated native runtime. */
+function registerComponentHandlers(deps: IpcHandlerDependencies): HandlerRegistration {
+    if (!deps.components) return { channels: [], unregister: () => undefined };
+    const trusted = (event: Electron.IpcMainInvokeEvent) => {
+        if (!deps.isTrustedRenderer(event)) throw new Error("Component changes require the trusted local renderer main frame");
+    };
+    deps.ipcMain.handle("components:list", async (event) => { trusted(event); return deps.components!.list(); });
+    deps.ipcMain.handle("components:install", async (event, id: unknown) => {
+        trusted(event);
+        if (typeof id !== "string" || !/^[a-z][a-z0-9.-]*$/.test(id) || id.includes("..")) throw new Error("Invalid component ID");
+        return deps.components!.install(id);
+    });
+    deps.ipcMain.handle("components:remove", async (event, id: unknown, keepData: unknown) => {
+        trusted(event);
+        if (typeof id !== "string" || !/^[a-z][a-z0-9.-]*$/.test(id) || id.includes("..") || typeof keepData !== "boolean") throw new Error("Invalid component removal choice");
+        return deps.components!.remove(id, keepData);
+    });
+    const channels = ["components:list", "components:install", "components:remove"];
+    return { channels, unregister: () => channels.forEach(channel => deps.ipcMain.removeHandler(channel)) };
 }
 
 /**
  * Register all IPC handlers.
  */
-export function registerAllHandlers(deps: IpcHandlerDependencies): HandlerRegistration {
+export function registerAllHandlers(input: IpcHandlerDependencies): HandlerRegistration {
+    const deps = { ...input, ipcMain: restrictIPC(input.ipcMain, input.isTrustedRenderer) };
     const registrations = [
+        registerComponentHandlers(deps),
         registerFileHandlers(deps.ipcMain, { dialog: deps.dialog, fs: deps.fs }),
         registerSystemHandlers(deps.ipcMain, deps.systemInfo),
         registerAppHandlers(deps.ipcMain, { getMainWindow: deps.getMainWindow }),
         registerStorageHandlers(deps.ipcMain, { storage: deps.storage }),
-        registerAuthHandlers(deps.ipcMain, { authManager: deps.authManager }),
+        registerAuthHandlers(deps.ipcMain, { authManager: deps.authManager, isTrustedRenderer: deps.isTrustedRenderer, ...(deps.getLocalSessionToken ? { getLocalSessionToken: deps.getLocalSessionToken } : {}) }),
     ];
 
     const allChannels = registrations.flatMap(r => r.channels);

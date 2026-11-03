@@ -344,12 +344,13 @@ func defaultDryRunRuntime(manifest *bundlemanifest.Manifest, bundleRoot string, 
 		return nil, fmt.Errorf("create preflight app data: %w", err)
 	}
 
-	supervisor, err := bundleruntime.NewSupervisor(bundleruntime.Options{
-		Manifest:   manifest,
-		BundlePath: bundleRoot,
-		AppDataDir: appData,
-		DryRun:     true,
-	})
+	options, err := isolatedPreflightOptions(manifest, bundleRoot, appData)
+	if err != nil {
+		_ = os.RemoveAll(appData)
+		return nil, err
+	}
+	options.DryRun = true
+	supervisor, err := bundleruntime.NewSupervisor(options)
 	if err != nil {
 		_ = os.RemoveAll(appData)
 		return nil, fmt.Errorf("init runtime: %w", err)

@@ -646,7 +646,8 @@ class DesktopTemplateGenerator {
             return {
                 provider: "generic",
                 url: fullUrl,
-                channel,
+                // Stable uses electron-updater's default latest-<platform>.yml.
+                ...(channel === "stable" ? {} : { channel }),
                 useMultipleRangeRequest: false, // Better compatibility
             };
         }

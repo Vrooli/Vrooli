@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"sync"
 	"time"
@@ -553,10 +554,10 @@ func (s *DefaultService) BuildPlatform(ctx context.Context, buildID, scenarioNam
 	}
 
 	// Check platform dependencies
-	if builderPlatform == "win" && !s.wineChecker.IsWineInstalled() {
+	if builderPlatform == "win" && runtime.GOOS != "windows" && !s.wineChecker.IsWineInstalled() {
 		s.store.UpdatePlatform(buildID, platform, func(_ *Status, result *PlatformResult) {
 			result.Status = "skipped"
-			result.SkipReason = "Wine not installed (required for Windows builds on Linux). Install with: sudo apt install wine"
+			result.SkipReason = "Working host Wine is required for Windows builds on this host; host installation and repair belong to the control plane"
 			now := time.Now()
 			result.CompletedAt = &now
 		})

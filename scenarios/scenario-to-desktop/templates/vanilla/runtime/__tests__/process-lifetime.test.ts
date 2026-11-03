@@ -45,7 +45,7 @@ it("keeps normal application quit pending until runtime cleanup finishes", async
         app: { quit }, packagedLaunch: { complete: vi.fn() },
         shutdownRuntime: vi.fn(() => { context.runtimeProcess = null; return cleanup; }),
         shutdownLocalVrooli: vi.fn(), recordAppSessionOutcome: vi.fn(), recordTelemetry: vi.fn(),
-        ipcRegistration: null, authManager: null,
+        ipcRegistration: null, authManager: null, updateApplyTransition: undefined,
     };
     const beforeQuit = vm.runInNewContext(script, context) as (event: { preventDefault(): void }) => void;
     const first = { preventDefault: vi.fn() };

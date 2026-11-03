@@ -72,3 +72,13 @@ func (s *Service) Derive(ctx context.Context, request Request) (domain.Closure, 
 func (s *Service) Resolve(ctx context.Context, scenarioID, environment string) (domain.Closure, error) {
 	return s.Derive(ctx, Request{ScenarioID: scenarioID, Environment: environment, OS: s.DefaultPlatform.OS, Arch: s.DefaultPlatform.Arch, Scope: string(ScopeBundle)})
 }
+
+// ResolveWithOverrides resolves the deployment bundle with its persisted edge
+// selections. It is the manifest refresher's closure entry point.
+func (s *Service) ResolveWithOverrides(ctx context.Context, scenarioID, environment string, overrides RequestOverride) (domain.Closure, error) {
+	return s.Derive(ctx, Request{
+		ScenarioID: scenarioID, Environment: environment,
+		OS: s.DefaultPlatform.OS, Arch: s.DefaultPlatform.Arch,
+		Scope: string(ScopeBundle), Overrides: overrides,
+	})
+}

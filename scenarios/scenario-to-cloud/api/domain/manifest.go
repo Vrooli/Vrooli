@@ -78,8 +78,11 @@ type ManifestScenario struct {
 
 // ManifestDependencies captures the dependency snapshot from scenario-dependency-analyzer.
 type ManifestDependencies struct {
-	Scenarios           []string `json:"scenarios,omitempty"`
-	Resources           []string `json:"resources,omitempty"`
+	Scenarios []string `json:"scenarios,omitempty"`
+	Resources []string `json:"resources,omitempty"`
+	// DeselectOptional records optional dependency edges the operator excluded.
+	// The deploy path re-resolves the closure with these edge selections.
+	DeselectOptional    []string `json:"deselect_optional,omitempty"`
 	ProgramBindingPeers []string `json:"program_binding_peers,omitempty"`
 	// ClosureDigest binds the dependency snapshot to the closure it was
 	// derived from (closure.Digest); plans bind to it in turn.

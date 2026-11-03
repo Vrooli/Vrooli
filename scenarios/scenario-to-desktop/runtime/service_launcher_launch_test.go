@@ -2,6 +2,7 @@ package bundleruntime
 
 import (
 	"context"
+	"fmt"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -338,6 +339,27 @@ func TestResolveUIDistRoot_ExplicitDistRoot(t *testing.T) {
 	want := filepath.Join(tmp, "custom/dist/path")
 	if got != want {
 		t.Errorf("resolveUIDistRoot() = %q, want %q", got, want)
+	}
+}
+
+func TestResolveUIDistRoot_InstalledComponentUsesItsVerifiedGeneration(t *testing.T) {
+	hostRoot, componentRoot := t.TempDir(), t.TempDir()
+	s := &Supervisor{opts: Options{BundlePath: hostRoot}}
+	for _, explicit := range []bool{true, false} {
+		t.Run(fmt.Sprint("explicit=", explicit), func(t *testing.T) {
+			svc := manifest.Service{ID: "audio-tools--ui", Type: "ui-bundle", ComponentID: "audio-tools", BundleRoot: componentRoot, Assets: []manifest.Asset{{Path: "peers/audio-tools/ui/dist/index.html"}}}
+			if explicit {
+				svc.DistRoot = "peers/audio-tools/ui/dist"
+			}
+			got, err := s.resolveUIDistRoot(svc)
+			if err != nil {
+				t.Fatal(err)
+			}
+			want := filepath.Join(componentRoot, "peers/audio-tools/ui/dist")
+			if got != want {
+				t.Fatalf("installed UI root=%s, want verified generation=%s (host=%s)", got, want, hostRoot)
+			}
+		})
 	}
 }
 

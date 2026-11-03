@@ -11,13 +11,15 @@ import (
 )
 
 type fakeClosureSource struct {
-	closure domain.Closure
-	err     error
-	calls   []string
+	closure  domain.Closure
+	err      error
+	calls    []string
+	selected []closure.RequestOverride
 }
 
-func (f *fakeClosureSource) Resolve(_ context.Context, scenarioID, environment string) (domain.Closure, error) {
+func (f *fakeClosureSource) ResolveWithOverrides(_ context.Context, scenarioID, environment string, overrides closure.RequestOverride) (domain.Closure, error) {
 	f.calls = append(f.calls, scenarioID+"@"+environment)
+	f.selected = append(f.selected, overrides)
 	if f.err != nil {
 		return domain.Closure{}, f.err
 	}
@@ -62,6 +64,7 @@ func TestRefreshManifestFromClosureBindsDigest(t *testing.T) {
 		Scenario:    domain.ManifestScenario{ID: "app"},
 		Dependencies: domain.ManifestDependencies{
 			Scenarios:           []string{"app", "stale-dependency"},
+			DeselectOptional:    []string{"optional-helper"},
 			ProgramBindingPeers: []string{"peer"},
 		},
 		Bundle:  domain.ManifestBundle{IncludePackages: true, IncludeAutoheal: true, Scenarios: []string{"stale-dependency"}},
@@ -73,6 +76,9 @@ func TestRefreshManifestFromClosureBindsDigest(t *testing.T) {
 	}
 	if len(source.calls) != 1 || source.calls[0] != "app@staging" {
 		t.Fatalf("closure must be resolved for the manifest environment: %v", source.calls)
+	}
+	if len(source.selected) != 1 || strings.Join(source.selected[0].DeselectOptional, ",") != "optional-helper" || strings.Join(refreshed.Dependencies.DeselectOptional, ",") != "optional-helper" {
+		t.Fatalf("edge deselection must survive refresh and resolve: %+v / %v", source.selected, refreshed.Dependencies.DeselectOptional)
 	}
 	if refreshed.Dependencies.ClosureDigest != "sha256:fixture" {
 		t.Fatalf("closure_digest = %q", refreshed.Dependencies.ClosureDigest)

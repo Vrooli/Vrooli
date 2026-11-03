@@ -509,8 +509,12 @@ func (e *executor) runCommands(ctx context.Context, action execplan.Action) (str
 	}
 	details := make([]string, 0, len(commands))
 	for _, tc := range commands {
-		reply, _, err := e.invoke(ctx, tc)
+		reply, result, err := e.invoke(ctx, tc)
 		if err != nil {
+			if mayDegradeOptionalStart(ctx, action, tc, result, err) {
+				details = append(details, "degraded: "+tc.Step+" failed: "+err.Error())
+				continue
+			}
 			return strings.Join(details, "; "), err
 		}
 		outcome := "ok"
@@ -523,4 +527,37 @@ func (e *executor) runCommands(ctx context.Context, action execplan.Action) (str
 		details = append(details, tc.Step+": "+outcome)
 	}
 	return strings.Join(details, "; "), nil
+}
+
+func mayDegradeOptionalStart(ctx context.Context, action execplan.Action, tc TargetCommand, result reach.Result, err error) bool {
+	if ctx.Err() != nil || errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) || err == nil || !optionalDependencyStart(action, tc.Step) {
+		return false
+	}
+	// Only a completed local CLI invocation returning nonzero is a known
+	// startup refusal. Transport errors and cloud-target receipts have
+	// different outcome semantics and must remain fatal/unknown.
+	if strings.HasPrefix(tc.Command.Verb, "cloud-target") || (tc.Command.Verb != "scenario start" && tc.Command.Verb != "resource start") || result.ExitCode == 0 {
+		return false
+	}
+	typed := apierrors.As(err)
+	return typed != nil && typed.Code == apierrors.CodeInternal
+}
+
+func optionalDependencyStart(action execplan.Action, step string) bool {
+	for _, category := range []struct{ suffix, input string }{
+		{suffix: ".scenario.", input: "optional_scenarios"},
+		{suffix: ".resource.", input: "optional_resources"},
+	} {
+		prefix := action.ID + category.suffix
+		if !strings.HasPrefix(step, prefix) {
+			continue
+		}
+		id := strings.TrimPrefix(step, prefix)
+		for _, optional := range strings.Split(action.Inputs[category.input], ",") {
+			if strings.TrimSpace(optional) == id && id != "" {
+				return true
+			}
+		}
+	}
+	return false
 }

@@ -18,7 +18,27 @@ instead of emitting an unbound observation.
 
 ## Service manifest (`.vrooli/service.json`)
 
-The manifest declares SQLite storage, scenario dependencies on `proto-health` and `code-facts`, resource dependencies, setup steps, and lifecycle commands.
+The manifest declares SQLite storage, scenario dependencies on `proto-health` and `code-facts`, resource dependencies, setup steps, and lifecycle commands. Scenario edges retain their canonical `bundle_policy` and optional `versionRange`; `include_ui` opts a peer's UI into the desktop bundle while its API and worker services remain eligible for embedding. Peer ports are resolved at call time and are not written as static environment bindings.
+
+```json
+{
+  "dependencies": {
+    "scenarios": {
+      "helper-scenario": {
+        "bundle_policy": "either",
+        "versionRange": ">=1.2.0 <2.0.0",
+        "include_ui": true
+      }
+    }
+  }
+}
+```
+
+`embed` requires the peer's local service manifest and declared build inputs.
+`either` includes the compatible local copy when it is available and otherwise
+uses discovery. `discover` never materializes local peer services. Required
+resources from each embedded peer participate in the desktop resource plan;
+optional and disabled resources do not become required plan entries.
 
 ## Schema bootstrap
 

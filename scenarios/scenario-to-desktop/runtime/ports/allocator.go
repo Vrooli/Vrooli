@@ -50,6 +50,12 @@ func NewManager(m *manifest.Manifest, dialer infra.NetworkDialer) *Manager {
 // Ports are allocated sequentially within the specified or default range,
 // skipping reserved ports and ports already in use.
 func (p *Manager) Allocate() error {
+	return p.AllocateServices(p.manifest.Services)
+}
+
+// AllocateServices adds missing service ports while preserving every existing
+// binding, including ports already serving the host during component rollback.
+func (p *Manager) AllocateServices(services []manifest.Service) error {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
@@ -62,8 +68,16 @@ func (p *Manager) Allocate() error {
 	}
 
 	reserved := p.buildReservedSet()
+	if p.manifest.IPC.Port > 0 {
+		reserved[p.manifest.IPC.Port] = true
+	}
+	for _, ports := range p.portMap {
+		for _, port := range ports {
+			reserved[port] = true
+		}
+	}
 
-	for _, svc := range p.manifest.Services {
+	for _, svc := range services {
 		if p.portMap[svc.ID] == nil {
 			p.portMap[svc.ID] = make(map[string]int)
 		}
@@ -72,6 +86,9 @@ func (p *Manager) Allocate() error {
 		}
 
 		for _, req := range svc.Ports.Requested {
+			if p.portMap[svc.ID][req.Name] > 0 {
+				continue
+			}
 			rng := defaultRange
 			if req.Range.Min != 0 && req.Range.Max != 0 {
 				rng = Range{Min: req.Range.Min, Max: req.Range.Max}

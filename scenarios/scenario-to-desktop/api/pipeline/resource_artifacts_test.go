@@ -23,8 +23,12 @@ func TestStageBundledResourceArtifactsStagesVerifiedArtifactsAndPlan(t *testing.
 	root := t.TempDir()
 	scenarioPath := filepath.Join(root, "scenarios", "demo")
 	mustMkdirAll(t, filepath.Join(scenarioPath, ".vrooli"))
-	service := `{"dependencies":{"resources":{"openrouter":{"enabled":true,"required":true}}}}`
+	service := `{"dependencies":{"resources":{},"scenarios":{"helper":{"enabled":true,"required":true,"bundle_policy":"embed"}}}}`
 	mustWriteFile(t, filepath.Join(scenarioPath, ".vrooli", "service.json"), []byte(service), 0o644)
+	peerPath := filepath.Join(root, "scenarios", "helper")
+	mustMkdirAll(t, filepath.Join(peerPath, ".vrooli"))
+	peerService := `{"dependencies":{"resources":{"openrouter":{"enabled":true,"required":true},"unused":{"enabled":true,"required":false},"disabled":{"enabled":false,"required":true}}}}`
+	mustWriteFile(t, filepath.Join(peerPath, ".vrooli", "service.json"), []byte(peerService), 0o644)
 	resourceDir := filepath.Join(root, "resources", "openrouter")
 	mustMkdirAll(t, resourceDir)
 	resource := `{"cli":{"distribution":{"kind":"prebuilt_artifact","artifact_name":"resource-openrouter_${os}_${arch}"}},"deployment":{"profiles":{"desktop":{"linux":{"support":"supported","mode":"bundled-client","architectures":["amd64","arm64"],"evidence":["test"]},"macos":{"support":"unsupported","mode":"bundled-client","reason":"test"},"windows":{"support":"unsupported","mode":"bundled-client","reason":"test"}}}}}`
@@ -54,6 +58,9 @@ func TestStageBundledResourceArtifactsStagesVerifiedArtifactsAndPlan(t *testing.
 	bundleDir := filepath.Join(root, "bundle")
 	plan, err := resolveResourceDeploymentPlanWithTrust(scenarioPath, artifactRoot, "", []string{"linux-amd64"}, resourcedeployment.ArtifactTrustProduction)
 	mustNoError(t, err, "resolve plan")
+	if len(plan.Resources) != 1 || plan.Resources[0].RequestedResource != "openrouter" {
+		t.Fatalf("required embedded peer resource plan = %#v, want only required active openrouter", plan.Resources)
+	}
 	copied, err := stageBundledResourceArtifacts(bundleDir, artifactRoot, plan)
 	mustNoError(t, err, "stage artifacts")
 	if len(copied) != 4 {
@@ -272,7 +279,14 @@ func TestStageBundledResourceArtifactsRejectsChecksumMismatch(t *testing.T) {
 	if err := os.MkdirAll(filepath.Join(scenarioPath, ".vrooli"), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(scenarioPath, ".vrooli", "service.json"), []byte(`{"dependencies":{"resources":{"openrouter":{"enabled":true,"required":true}}}}`), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(scenarioPath, ".vrooli", "service.json"), []byte(`{"dependencies":{"resources":{},"scenarios":{"helper":{"enabled":true,"bundle_policy":"embed"}}}}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	peerPath := filepath.Join(root, "scenarios", "helper")
+	if err := os.MkdirAll(filepath.Join(peerPath, ".vrooli"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(peerPath, ".vrooli", "service.json"), []byte(`{"dependencies":{"resources":{"openrouter":{"enabled":true,"required":true}}}}`), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	if err := os.MkdirAll(filepath.Join(root, "resources", "openrouter"), 0o755); err != nil {

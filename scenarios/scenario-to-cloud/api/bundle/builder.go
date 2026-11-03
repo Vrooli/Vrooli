@@ -126,15 +126,21 @@ func MiniVrooliBundleSpec(repoRoot string, manifest domain.CloudManifest) (MiniB
 	}
 
 	roots := existingProfileRoots(repoRoot, resolvedProfile.Include, resolvedProfile.OptionalInclude)
-	if manifest.Bundle.IncludeAutoheal {
-		if autohealRoot, err := contract.ScenarioRoot(repoRoot, "vrooli-autoheal"); err == nil {
-			rel, relErr := filepath.Rel(repoRoot, autohealRoot)
-			if relErr == nil {
-				rel = filepath.ToSlash(rel)
-				if dirExists(filepath.Join(repoRoot, filepath.FromSlash(rel))) && !stringutil.Contains(roots, rel) {
-					roots = append(roots, rel)
-				}
-			}
+	// A bundle's scenario list is its explicit root set. The repo-contract
+	// profile supplies shared mini-Vrooli roots; add each selected scenario so
+	// dependency source code and lifecycle manifests travel with the release.
+	for _, scenarioID := range scenarioIDs {
+		scenarioRoot, err := contract.ScenarioRoot(repoRoot, scenarioID)
+		if err != nil {
+			return MiniBundleSpec{}, fmt.Errorf("resolve selected scenario root %s: %w", scenarioID, err)
+		}
+		rel, err := filepath.Rel(repoRoot, scenarioRoot)
+		if err != nil {
+			return MiniBundleSpec{}, fmt.Errorf("make selected scenario root relative %s: %w", scenarioID, err)
+		}
+		rel = filepath.ToSlash(rel)
+		if dirExists(filepath.Join(repoRoot, filepath.FromSlash(rel))) && !stringutil.Contains(roots, rel) {
+			roots = append(roots, rel)
 		}
 	}
 	sort.Strings(roots)

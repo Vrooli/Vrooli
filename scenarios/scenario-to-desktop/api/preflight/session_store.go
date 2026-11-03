@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/vrooli/envkit-go"
 
 	bundleruntime "github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime"
 	bundlemanifest "github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/manifest"
@@ -76,12 +77,42 @@ func NewInMemorySessionStore(opts ...InMemorySessionStoreOption) *InMemorySessio
 }
 
 func defaultCreateSupervisor(manifest *bundlemanifest.Manifest, bundleRoot, appData string) (*bundleruntime.Supervisor, error) {
-	return bundleruntime.NewSupervisor(bundleruntime.Options{
-		Manifest:   manifest,
-		BundlePath: bundleRoot,
-		AppDataDir: appData,
-		DryRun:     false,
-	})
+	options, err := isolatedPreflightOptions(manifest, bundleRoot, appData)
+	if err != nil {
+		return nil, err
+	}
+	return bundleruntime.NewSupervisor(options)
+}
+
+func isolatedPreflightOptions(manifest *bundlemanifest.Manifest, bundleRoot, appData string) (bundleruntime.Options, error) {
+	home := filepath.Join(appData, "home")
+	if err := os.MkdirAll(home, 0o700); err != nil {
+		return bundleruntime.Options{}, err
+	}
+	return bundleruntime.Options{
+		Manifest: manifest, BundlePath: bundleRoot, AppDataDir: appData,
+		PeerHomeDir: home, EnvReader: preflightEnvironment(envkit.WithOverlay(envkit.Env(os.Environ()), envkit.SameScenario, envkit.Env{
+			"HOME=" + home, "USERPROFILE=" + home,
+			"XDG_CONFIG_HOME=" + filepath.Join(home, ".config"),
+			"XDG_DATA_HOME=" + filepath.Join(home, ".local", "share"),
+			"XDG_STATE_HOME=" + filepath.Join(home, ".local", "state"),
+			"XDG_CACHE_HOME=" + filepath.Join(home, ".cache"),
+		})),
+	}, nil
+}
+
+// Preflight uses a private home for both service processes and peer discovery;
+// a temporary app-data directory alone still exposes operator legacy state.
+type preflightEnvironment []string
+
+func (e preflightEnvironment) Environ() []string { return append([]string(nil), e...) }
+func (e preflightEnvironment) Getenv(key string) string {
+	for _, value := range e {
+		if strings.HasPrefix(value, key+"=") {
+			return strings.TrimPrefix(value, key+"=")
+		}
+	}
+	return ""
 }
 
 func defaultReadFileWithRetry(path string, timeout time.Duration) ([]byte, error) {

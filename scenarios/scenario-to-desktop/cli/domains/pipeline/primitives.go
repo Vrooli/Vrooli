@@ -372,6 +372,9 @@ func pipelineConfigFromContext(ctx cliapp.OperationContext) (*pipelinev1.Pipelin
 		}
 	}
 	for _, value := range splitValues(ctx.Flag("platforms")) {
+		if strings.Contains(value, "-") {
+			config.PlatformTargets = append(config.PlatformTargets, value)
+		}
 		value = strings.SplitN(value, "-", 2)[0]
 		platform, ok := map[string]sharedv1.Platform{"win": sharedv1.Platform_PLATFORM_WIN, "windows": sharedv1.Platform_PLATFORM_WIN, "mac": sharedv1.Platform_PLATFORM_MAC, "macos": sharedv1.Platform_PLATFORM_MAC, "darwin": sharedv1.Platform_PLATFORM_MAC, "linux": sharedv1.Platform_PLATFORM_LINUX}[value]
 		if !ok {

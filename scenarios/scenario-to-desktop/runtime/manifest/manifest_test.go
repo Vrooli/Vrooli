@@ -224,6 +224,15 @@ func TestManifestValidateEnforcesStructureAndPlatforms(t *testing.T) {
 			t.Fatalf("Validate() error = %v, want http health port_name requirement", err)
 		}
 	})
+
+	t.Run("rejects duplicate service ids", func(t *testing.T) {
+		m := makeBaseManifest()
+		m.Services = append(m.Services, m.Services[0])
+		err := m.Validate("windows", "amd64")
+		if err == nil || !strings.Contains(err.Error(), `service id "api" is declared more than once`) {
+			t.Fatalf("Validate() error = %v, want duplicate service ID rejection", err)
+		}
+	})
 }
 
 func TestValidate_MissingSchemaVersion(t *testing.T) {
@@ -359,7 +368,7 @@ func TestValidate_AllocatorAssignedIPCPort(t *testing.T) {
 	}
 }
 
-func TestValidate_DiscoverPeerRequiresBindings(t *testing.T) {
+func TestValidate_DiscoverPeerUsesCallTimeLookupWithoutBindings(t *testing.T) {
 	m := Manifest{
 		SchemaVersion: "desktop.v0.1",
 		Target:        "desktop",
@@ -373,9 +382,8 @@ func TestValidate_DiscoverPeerRequiresBindings(t *testing.T) {
 			Readiness: ReadinessCheck{Type: "port_open"},
 		}},
 	}
-	var missing MissingPeerDiscoveryPathError
-	if err := m.Validate("linux", "amd64"); !errors.As(err, &missing) {
-		t.Fatalf("Validate() error = %v, want MissingPeerDiscoveryPathError", err)
+	if err := m.Validate("linux", "amd64"); err != nil {
+		t.Fatalf("Validate() should accept call-time discovery without bindings: %v", err)
 	}
 }
 
@@ -681,9 +689,9 @@ func TestResolvePath_MixedSeparators(t *testing.T) {
 	}
 }
 
-func TestManifestParsesProgramBindingPeersAdditively(t *testing.T) {
+func TestManifestParsesProgramBindingPeersWithoutStaticBindings(t *testing.T) {
 	var parsed Manifest
-	if err := json.Unmarshal([]byte(`{"schema_version":"v0.1","target":"desktop","app":{"name":"demo","version":"1"},"ipc":{"mode":"loopback-http","host":"127.0.0.1","port":0,"auth_token_path":"token"},"telemetry":{"file":"events.jsonl"},"services":[],"program_binding_peers":[{"scenario":"vrooli-memory","bundle_policy":"discover","bindings":[]}]}`), &parsed); err != nil {
+	if err := json.Unmarshal([]byte(`{"schema_version":"v0.1","target":"desktop","app":{"name":"demo","version":"1"},"ipc":{"mode":"loopback-http","host":"127.0.0.1","port":0,"auth_token_path":"token"},"telemetry":{"file":"events.jsonl"},"services":[],"program_binding_peers":[{"scenario":"vrooli-memory","bundle_policy":"discover"}]}`), &parsed); err != nil {
 		t.Fatal(err)
 	}
 	if len(parsed.ProgramBindingPeers) != 1 || parsed.ProgramBindingPeers[0].Scenario != "vrooli-memory" {
@@ -691,5 +699,101 @@ func TestManifestParsesProgramBindingPeersAdditively(t *testing.T) {
 	}
 	if len(parsed.Peers) != 0 {
 		t.Fatalf("ordinary peers changed = %#v", parsed.Peers)
+	}
+	data, err := json.Marshal(parsed)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(data), `"bindings"`) {
+		t.Fatalf("static peer bindings reappeared in manifest output: %s", data)
+	}
+}
+
+func TestVersionSatisfiesRangeUsesScenarioDependencyContract(t *testing.T) {
+	tests := []struct {
+		version, constraint string
+		want                bool
+	}{
+		{"1.4.2", ">=1.2.0 <2.0.0", true},
+		{"2.0.0", ">=1.2.0 <2.0.0", false},
+		{"1.2.0", "^1.2.0", true},
+		{"1.3.0", "~1.2.0", false},
+		{"1.2.3", "*", true},
+		{"1.2.3", ">=1.2, <2", true},
+		{"1.2.3", "1.2", false},
+		{"invalid", ">=1.0.0", false},
+		{"1.2.3", ">=1.2", true},
+		{"1.2.3", "", true},
+		{"1.2.3", "   ", true},
+		{"1.2.3", ",", false},
+		{"1.2.3", ",>=1.2", false},
+		{"1.2.3", ">=1.2,", false},
+		{"1.2.3", ">=1.2,,<2", false},
+		{"1.2.3", ", ,", false},
+	}
+	for _, tc := range tests {
+		if got := VersionSatisfiesRange(tc.version, tc.constraint); got != tc.want {
+			t.Errorf("VersionSatisfiesRange(%q, %q) = %t, want %t", tc.version, tc.constraint, got, tc.want)
+		}
+	}
+}
+
+func TestFeatureExportsRequireExplicitRootOwnerService(t *testing.T) {
+	valid := Service{ID: "api", Health: HealthCheck{Type: "http"}, Readiness: ReadinessCheck{Type: "port"}, Ports: &ServicePorts{Requested: []PortRequest{{Name: "api"}}}}
+	for _, tc := range []struct {
+		name     string
+		feature  FeatureExport
+		services []Service
+		want     bool
+	}{
+		{"explicit root", FeatureExport{OwnerVersion: "0.0.1", Service: "api", Port: "api"}, []Service{valid}, true},
+		{"missing owner version", FeatureExport{Service: "api", Port: "api"}, []Service{valid}, false},
+		{"invalid owner version", FeatureExport{OwnerVersion: "broken", Service: "api", Port: "api"}, []Service{valid}, false},
+		{"unknown service", FeatureExport{OwnerVersion: "0.0.1", Service: "other", Port: "api"}, []Service{valid}, false},
+		{"unknown port", FeatureExport{OwnerVersion: "0.0.1", Service: "api", Port: "other"}, []Service{valid}, false},
+		{"duplicate service", FeatureExport{OwnerVersion: "0.0.1", Service: "api", Port: "api"}, []Service{valid, valid}, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			err := ValidateFeatureExports(map[string]FeatureExport{"usage.live": tc.feature}, tc.services)
+			if (err == nil) != tc.want {
+				t.Fatalf("valid=%v err=%v", tc.want, err)
+			}
+		})
+	}
+	for _, change := range []func(*Service){func(s *Service) { s.ComponentSlice = "usage" }, func(s *Service) { s.Health = HealthCheck{} }, func(s *Service) { s.Readiness = ReadinessCheck{} }, func(s *Service) { s.ID = "other--api" }} {
+		service := valid
+		change(&service)
+		if err := ValidateFeatureExports(map[string]FeatureExport{"usage.live": {OwnerVersion: "0.0.1", Service: service.ID, Port: "api"}}, []Service{service}); err == nil {
+			t.Fatalf("unqualified service accepted: %#v", service)
+		}
+	}
+}
+
+func TestEmbeddedPeerFeatureExportsRequireExactOwnerService(t *testing.T) {
+	service := Service{ID: "audio-tools--api", Health: HealthCheck{Type: "http"}, Readiness: ReadinessCheck{Type: "port"}, Ports: &ServicePorts{Requested: []PortRequest{{Name: "api"}}}}
+	for _, tc := range []struct {
+		name, policy, ownerVersion, serviceID string
+		component                             bool
+		want                                  bool
+	}{
+		{"embedded", "embed", "0.0.1", "audio-tools--api", false, true},
+		{"either embedded", "either", "0.0.1", "audio-tools--api", false, true},
+		{"discover has no local capabilities", "discover", "0.0.1", "audio-tools--api", false, false},
+		{"root service cannot impersonate owner", "embed", "0.0.1", "api", false, false},
+		{"other owner cannot impersonate owner", "embed", "0.0.1", "agent-manager--api", false, false},
+		{"component cannot impersonate full owner", "embed", "0.0.1", "audio-tools--api", true, false},
+		{"owner release required", "embed", "", "audio-tools--api", false, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			candidate := service
+			if tc.component {
+				candidate.ComponentSlice = "audio.processing"
+			}
+			peer := Peer{Scenario: "audio-tools", BundlePolicy: tc.policy, EmbeddedVersion: "9.9.9", Features: map[string]FeatureExport{"audio.processing": {OwnerVersion: tc.ownerVersion, Service: tc.serviceID, Port: "api"}}}
+			err := ValidatePeerFeatureExports([]Peer{peer}, []Service{candidate})
+			if (err == nil) != tc.want {
+				t.Fatalf("valid=%t err=%v", tc.want, err)
+			}
+		})
 	}
 }

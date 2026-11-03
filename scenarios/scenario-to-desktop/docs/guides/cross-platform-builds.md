@@ -163,19 +163,9 @@ sudo apt-get install rpm  # If building RPM
 ```
 
 #### For Windows Builds on Linux (Wine)
-Wine is automatically installed by the build scripts:
-```bash
-npm run dist:win  # Runs setup-wine.js automatically
-```
-
-Or install manually:
-```bash
-# Using AppImage (no sudo required)
-node scripts/setup-wine.js
-
-# Or via Flatpak
-flatpak --user install flathub org.winehq.Wine
-```
+Generated packages require working host Wine. The published Wine 1.0.1 bundle
+lacks PE builtins and is not selected. Packaging does not install or overwrite
+host Wine wrappers; see [Wine prerequisites](wine-installation.md).
 
 #### For macOS Builds on Linux
 No additional setup needed for ZIP target. DMG/PKG require macOS.
@@ -276,11 +266,9 @@ npm run dist:all
 ### Wine Build Issues
 
 **"spawn wine ENOENT"**
-Wine is not in PATH. Run:
-```bash
-node scripts/setup-wine.js
-export PATH="$HOME/.local/bin:$PATH"
-```
+Wine is not in the build process PATH. Confirm the existing Wine installation
+with `scenario-to-desktop wine check --json`, then select that toolchain in the
+build environment. Host installation and repair belong to the control plane.
 
 **WiX/MSI errors under Wine**
 Switch to NSIS target (see "Setting Up Cross-Platform Builds").

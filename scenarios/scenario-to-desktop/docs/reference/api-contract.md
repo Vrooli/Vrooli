@@ -193,6 +193,12 @@ This scenario calls deployment-manager. deployment-manager does not drive this p
 
 The gate response is authoritative. When the gate refuses, the pipeline stops and reports the named missing gate. Do not publish on a gate error, and do not treat an unreachable deployment-manager as an implicit allow.
 
+The generated bundle carries scenario peer policies and versions without
+static port bindings. The runtime shim resolves a peer at call time, preferring
+an in-range full peer record before selecting a compatible embedded service.
+The resource plan includes required active resources from locally materialized
+peers and stages only the artifacts admitted by its trust verification.
+
 Any new ramp scenario implements this same caller side. Target-specific behavior belongs here; gate and record logic belongs in deployment-manager.
 
 ## Cross-Scenario Interactions

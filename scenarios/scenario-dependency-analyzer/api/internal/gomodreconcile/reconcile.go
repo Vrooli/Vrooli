@@ -127,6 +127,10 @@ func LoadTopology(repoRoot string) (Topology, error) {
 	skipDir := map[string]struct{}{
 		".git": {}, "node_modules": {}, "vendor": {}, "data": {},
 		"dist": {}, "build": {}, ".cache": {},
+		// Retained snapshots are evidence, not source module providers. A
+		// scenario target contains its docs too, so the target-root check alone
+		// cannot distinguish an archived go.mod from a production module.
+		"docs": {}, "testdata": {}, "evidence": {}, ".vrooli": {},
 	}
 	err = filepath.WalkDir(repoRoot, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
@@ -148,7 +152,11 @@ func LoadTopology(repoRoot string) (Topology, error) {
 		if modulePath == "" {
 			return nil
 		}
-		topo[modulePath] = filepath.Dir(path)
+		dir := filepath.Dir(path)
+		if previous, exists := topo[modulePath]; exists && previous != dir {
+			return fmt.Errorf("ambiguous source module %s: %s and %s", modulePath, previous, dir)
+		}
+		topo[modulePath] = dir
 		return nil
 	})
 	if err != nil {
@@ -231,9 +239,17 @@ func Plan(ctx context.Context, goModPath string, topo Topology) ([]MissingReplac
 	for _, req := range view.Require {
 		requiredDirect[req.Path] = struct{}{}
 	}
-	replaced := make(map[string]struct{}, len(view.Replace))
+	replaced := make(map[string]string, len(view.Replace))
 	for _, r := range view.Replace {
-		replaced[r.Old.Path] = struct{}{}
+		if r.New.Version == "" {
+			resolved := r.New.Path
+			if !filepath.IsAbs(resolved) {
+				resolved = filepath.Join(moduleDir, resolved)
+			}
+			replaced[r.Old.Path] = filepath.Clean(resolved)
+		} else {
+			replaced[r.Old.Path] = "versioned"
+		}
 	}
 	required, err := requiredInRepoModules(ctx, view, topo)
 	if err != nil {
@@ -244,6 +260,13 @@ func Plan(ctx context.Context, goModPath string, topo Topology) ([]MissingReplac
 		return nil, err
 	}
 	candidates := make(map[string]bool)
+	// Existing local replacements remain build inputs even if tidy removed
+	// their requirement. Never leave one pointing at an archived source copy.
+	for path := range replaced {
+		if _, inRepo := topo[path]; inRepo {
+			candidates[path] = false
+		}
+	}
 	for _, path := range required {
 		candidates[path] = false
 	}
@@ -265,7 +288,7 @@ func Plan(ctx context.Context, goModPath string, topo Topology) ([]MissingReplac
 			continue // third-party — governed by approved-dependencies, not here
 		}
 		addRequire := candidates[path]
-		if _, ok := replaced[path]; ok && !addRequire {
+		if target, ok := replaced[path]; ok && !addRequire && (target == filepath.Clean(dir) || target == "versioned") {
 			continue
 		}
 		rel, err := filepath.Rel(moduleDir, dir)

@@ -3,7 +3,9 @@ package bundle
 import (
 	"encoding/json"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	bundlemanifest "github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/manifest"
@@ -43,6 +45,20 @@ func (directoryCompiler) Compile(_ bundlemanifest.Service, _ string, root string
 	}
 	launcher := filepath.Join(dir, "run.sh")
 	return dir, os.WriteFile(launcher, []byte("#!/bin/sh\n"), 0o755)
+}
+
+type peerOverlayCompiler struct{ called bool }
+
+func (c *peerOverlayCompiler) Compile(_ bundlemanifest.Service, _ string, root string) (string, error) {
+	c.called = true
+	if _, err := os.Stat(filepath.Join(root, "peers", "helper", "api", "main.go")); err != nil {
+		return "", err
+	}
+	path := filepath.Join(root, "compiled", "helper-api")
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		return "", err
+	}
+	return path, os.WriteFile(path, []byte("compiled"), 0o755)
 }
 
 func TestStageServiceBinariesUsesLauncherForDirectoryCompilerOutput(t *testing.T) {
@@ -105,6 +121,337 @@ func TestPackagerPackageStagesManifestServiceAndRuntime(t *testing.T) {
 		if _, err := os.Stat(path); err != nil {
 			t.Fatalf("expected staged path %s: %v", path, err)
 		}
+	}
+}
+
+func TestStageEmbeddedPeerSourceInputsCopiesDeclaredInputsWithoutMutatingSources(t *testing.T) {
+	repo := t.TempDir()
+	app := filepath.Join(repo, "scenarios", "desktop-app")
+	peer := filepath.Join(repo, "scenarios", "helper")
+	for path, contents := range map[string]string{
+		filepath.Join(peer, "api"):                      "source",
+		filepath.Join(peer, "ui", "dist", "index.html"): "ui-output",
+		filepath.Join(peer, "config", "rules.json"):     "{}",
+	} {
+		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(path, []byte(contents), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	staging := filepath.Join(t.TempDir(), "inputs")
+	manifest := &bundlemanifest.Manifest{
+		Peers: []bundlemanifest.Peer{{Scenario: "helper", BundlePolicy: "embed"}},
+		Services: []bundlemanifest.Service{
+			{ID: "helper--api", Type: "api", Build: &bundlemanifest.BuildConfig{SourceDir: "peers/helper/api"}, Assets: []bundlemanifest.Asset{{Path: "peers/helper/config/rules.json"}}},
+			{ID: "helper--ui", Type: "ui-bundle", DistRoot: "peers/helper/ui/dist", Binaries: map[string]bundlemanifest.Binary{"linux-amd64": {Path: "peers/helper/ui/dist/index.html"}}},
+		},
+	}
+	if err := NewPackager().stageEmbeddedPeerSourceInputs(manifest, app, staging); err != nil {
+		t.Fatalf("stageEmbeddedPeerSourceInputs: %v", err)
+	}
+	for _, path := range []string{"peers/helper/api", "peers/helper/ui/dist", "peers/helper/ui/dist/index.html", "peers/helper/config/rules.json"} {
+		if _, err := os.Stat(filepath.Join(staging, filepath.FromSlash(path))); err != nil {
+			t.Errorf("staged input %s missing: %v", path, err)
+		}
+	}
+	for path, want := range map[string]string{
+		filepath.Join(peer, "api"):                      "source",
+		filepath.Join(peer, "ui", "dist", "index.html"): "ui-output",
+		filepath.Join(peer, "config", "rules.json"):     "{}",
+	} {
+		got, err := os.ReadFile(path)
+		if err != nil || string(got) != want {
+			t.Errorf("source %s mutated: contents=%q err=%v", path, got, err)
+		}
+	}
+}
+
+func TestStageEmbeddedPeerSourceInputsRejectsMissingRequiredInputAndTraversal(t *testing.T) {
+	app := filepath.Join(t.TempDir(), "scenarios", "desktop-app")
+	manifest := &bundlemanifest.Manifest{Peers: []bundlemanifest.Peer{{Scenario: "helper", BundlePolicy: "embed"}}, Services: []bundlemanifest.Service{{ID: "helper--api", Build: &bundlemanifest.BuildConfig{SourceDir: "peers/helper/missing"}}}}
+	if err := NewPackager().stageEmbeddedPeerSourceInputs(manifest, app, t.TempDir()); err == nil {
+		t.Fatal("missing required source input accepted")
+	}
+	if _, ok := embeddedPeerSourceRelative("helper", "peers/helper/../../outside"); ok {
+		t.Fatal("peer source traversal accepted")
+	}
+}
+
+func TestStageEmbeddedPeerSourceInputsValidatesSymlinkContainment(t *testing.T) {
+	tests := []struct {
+		name       string
+		linkTarget func(peerAPI, scenariosRoot, repoRoot string) string
+		wantErr    bool
+	}{
+		{
+			name: "contained relative symlink",
+			linkTarget: func(peerAPI, _, _ string) string {
+				return "main.go"
+			},
+		},
+		{
+			name: "relative sibling escape",
+			linkTarget: func(_, _, _ string) string {
+				return "../../other/secret.go"
+			},
+			wantErr: true,
+		},
+		{
+			name: "absolute escape",
+			linkTarget: func(_, _, repoRoot string) string {
+				return filepath.Join(repoRoot, "outside", "secret.go")
+			},
+			wantErr: true,
+		},
+		{
+			name: "dangling symlink",
+			linkTarget: func(_, _, _ string) string {
+				return "missing.go"
+			},
+			wantErr: true,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			repoRoot := t.TempDir()
+			scenariosRoot := filepath.Join(repoRoot, "scenarios")
+			app := filepath.Join(scenariosRoot, "desktop-app")
+			peer := filepath.Join(scenariosRoot, "helper")
+			peerAPI := filepath.Join(peer, "api")
+			for path, contents := range map[string]string{
+				filepath.Join(peerAPI, "main.go"):                  "package main",
+				filepath.Join(scenariosRoot, "other", "secret.go"): "package other",
+				filepath.Join(repoRoot, "outside", "secret.go"):    "package outside",
+			} {
+				if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+					t.Fatal(err)
+				}
+				if err := os.WriteFile(path, []byte(contents), 0o600); err != nil {
+					t.Fatal(err)
+				}
+			}
+			if err := os.MkdirAll(app, 0o755); err != nil {
+				t.Fatal(err)
+			}
+			linkPath := filepath.Join(peerAPI, "linked.go")
+			if err := os.Symlink(tc.linkTarget(peerAPI, scenariosRoot, repoRoot), linkPath); err != nil {
+				t.Fatal(err)
+			}
+			manifest := &bundlemanifest.Manifest{
+				Peers: []bundlemanifest.Peer{{Scenario: "helper", BundlePolicy: "embed"}},
+				Services: []bundlemanifest.Service{{
+					ID:    "helper--api",
+					Build: &bundlemanifest.BuildConfig{SourceDir: "peers/helper/api"},
+				}},
+			}
+			staging := t.TempDir()
+			err := NewPackager().stageEmbeddedPeerSourceInputs(manifest, app, staging)
+			if tc.wantErr {
+				if err == nil || !strings.Contains(err.Error(), "embedded peer helper") || !strings.Contains(err.Error(), "linked.go") {
+					t.Fatalf("stageEmbeddedPeerSourceInputs error = %v, want peer/path symlink rejection", err)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("contained symlink rejected: %v", err)
+			}
+			stagedLink := filepath.Join(staging, "peers", "helper", "api", "linked.go")
+			info, err := os.Lstat(stagedLink)
+			if err != nil {
+				t.Fatalf("staged contained symlink missing: %v", err)
+			}
+			if info.Mode()&os.ModeSymlink == 0 {
+				t.Fatalf("contained symlink was not preserved: mode %v", info.Mode())
+			}
+		})
+	}
+}
+
+func TestPackagerRejectsEmbeddedPeerWithoutServices(t *testing.T) {
+	manifest := &bundlemanifest.Manifest{
+		SchemaVersion: "v1",
+		Target:        "desktop",
+		Peers:         []bundlemanifest.Peer{{Scenario: "helper", BundlePolicy: "embed"}},
+		Services:      []bundlemanifest.Service{{ID: "api", Type: "api", Build: &bundlemanifest.BuildConfig{Type: "go"}}},
+	}
+	if err := NewPackager().validateManifestForPlatforms(manifest, []string{"linux-amd64"}); err == nil || !strings.Contains(err.Error(), "required embedded peer helper has no bundled services") {
+		t.Fatalf("missing embedded peer services error = %v", err)
+	}
+}
+
+func TestPackageStagesEmbeddedPeerInputsAndRemovesTemporaryOverlay(t *testing.T) {
+	repo := t.TempDir()
+	scenariosRoot := filepath.Join(repo, "scenarios")
+	app := filepath.Join(scenariosRoot, "desktop-app")
+	peer := filepath.Join(scenariosRoot, "helper")
+	for path, contents := range map[string]string{
+		filepath.Join(peer, "api", "main.go"):           "package main",
+		filepath.Join(peer, "ui", "dist", "index.html"): "<html></html>",
+		filepath.Join(peer, "config", "rules.json"):     "{}",
+	} {
+		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(path, []byte(contents), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := os.MkdirAll(app, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	manifest := bundlemanifest.Manifest{
+		SchemaVersion: "v1", Target: "desktop",
+		Peers: []bundlemanifest.Peer{{Scenario: "helper", BundlePolicy: "embed"}},
+		Services: []bundlemanifest.Service{
+			{ID: "helper--api", Type: "api-binary", Binaries: map[string]bundlemanifest.Binary{"linux-amd64": {Path: "peers/helper/bin/api"}}, Build: &bundlemanifest.BuildConfig{Type: "go", SourceDir: "peers/helper/api"}, Assets: []bundlemanifest.Asset{{Path: "peers/helper/config/rules.json"}}},
+			{ID: "helper--ui", Type: "ui-bundle", Binaries: map[string]bundlemanifest.Binary{"linux-amd64": {Path: "peers/helper/ui/dist/index.html"}}, DistRoot: "peers/helper/ui/dist"},
+		},
+	}
+	manifestPath := filepath.Join(app, "bundle.json")
+	data, err := json.Marshal(manifest)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(manifestPath, data, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	compiler := &peerOverlayCompiler{}
+	packager := NewPackager(
+		WithRuntimeResolver(packagerRuntimeResolver{dir: app}),
+		WithRuntimeBuilder(packagerRuntimeBuilder{}),
+		WithCLIStager(&packagerCLIStager{}),
+		WithSizeCalculator(packagerSizeCalculator{}),
+		WithServiceCompiler(compiler),
+	)
+	result, err := packager.Package(app, manifestPath, "electron", []string{"linux-amd64"})
+	if err != nil {
+		t.Fatalf("Package: %v", err)
+	}
+	if !compiler.called {
+		t.Fatal("peer source overlay was not used for compilation")
+	}
+	for _, path := range []string{
+		filepath.Join(result.BundleDir, "peers", "helper", "bin", "api"),
+		filepath.Join(result.BundleDir, "peers", "helper", "ui", "dist", "index.html"),
+		filepath.Join(result.BundleDir, "peers", "helper", "config", "rules.json"),
+	} {
+		if _, err := os.Stat(path); err != nil {
+			t.Errorf("packaged peer artifact %s missing: %v", path, err)
+		}
+	}
+	overlays, err := filepath.Glob(filepath.Join(app, "platforms", "electron", ".peer-source-inputs-*"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(overlays) != 0 {
+		t.Fatalf("temporary peer overlays remain after Package: %v", overlays)
+	}
+	if _, err := os.Stat(filepath.Join(peer, "api", "main.go")); err != nil {
+		t.Fatalf("peer source was mutated or removed: %v", err)
+	}
+}
+
+func TestPackageCompilesEmbeddedGoPeerWithLocalReplaceFromOverlay(t *testing.T) {
+	repo := t.TempDir()
+	scenariosRoot := filepath.Join(repo, "scenarios")
+	app := filepath.Join(scenariosRoot, "desktop-app")
+	peerAPI := filepath.Join(scenariosRoot, "helper", "api")
+	shared := filepath.Join(repo, "packages", "helperlib")
+	files := map[string]string{
+		filepath.Join(peerAPI, "go.mod"): `module example.com/helper
+
+go 1.26.0
+
+require example.com/helperlib v0.0.0
+require example.com/root v0.0.0
+
+replace example.com/helperlib => ../../../packages/helperlib
+replace example.com/root => ../../..
+`,
+		filepath.Join(peerAPI, "main.go"): `package main
+
+import (
+	"fmt"
+	"example.com/helperlib"
+	"example.com/root/packages/authority"
+)
+
+func main() { fmt.Print(helperlib.Value()+authority.Value()) }
+`,
+		filepath.Join(repo, "go.mod"):                                "module example.com/root\n\ngo 1.26.0\n",
+		filepath.Join(repo, "packages", "authority", "authority.go"): "package authority\nfunc Value()string{return \"-root-module\"}\n",
+		filepath.Join(shared, "go.mod"): `module example.com/helperlib
+
+go 1.26.0
+`,
+		filepath.Join(shared, "helper.go"): `package helperlib
+
+func Value() string { return "compiled-from-local-replace" }
+`,
+	}
+	for path, contents := range files {
+		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(path, []byte(contents), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := os.MkdirAll(app, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	manifest := bundlemanifest.Manifest{
+		SchemaVersion: "v1",
+		Target:        "desktop",
+		Peers:         []bundlemanifest.Peer{{Scenario: "helper", BundlePolicy: "embed"}},
+		Services: []bundlemanifest.Service{{
+			ID:       "helper--api",
+			Type:     "api-binary",
+			Binaries: map[string]bundlemanifest.Binary{"linux-amd64": {Path: "peers/helper/bin/api"}},
+			Build: &bundlemanifest.BuildConfig{
+				Type:          "go",
+				SourceDir:     "peers/helper/api",
+				OutputPattern: "bin/{{platform}}/{{ext}}helper",
+				Env:           map[string]string{"GOWORK": "off", "GOPROXY": "off", "GOSUMDB": "off"},
+			},
+		}},
+	}
+	manifestPath := filepath.Join(app, "bundle.json")
+	data, err := json.Marshal(manifest)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(manifestPath, data, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	result, err := NewPackager(
+		WithRuntimeResolver(packagerRuntimeResolver{dir: app}),
+		WithRuntimeBuilder(packagerRuntimeBuilder{}),
+		WithCLIStager(&packagerCLIStager{}),
+		WithSizeCalculator(packagerSizeCalculator{}),
+	).Package(app, manifestPath, "electron", []string{"linux-amd64"})
+	if err != nil {
+		t.Fatalf("Package with default Go compiler: %v", err)
+	}
+	binary := filepath.Join(result.BundleDir, "peers", "helper", "bin", "api")
+	if _, err := os.Stat(binary); err != nil {
+		t.Fatalf("compiled peer binary missing: %v", err)
+	}
+	output, err := exec.Command(binary).CombinedOutput()
+	if err != nil {
+		t.Fatalf("run compiled peer binary: %v: %s", err, output)
+	}
+	if string(output) != "compiled-from-local-replace-root-module" {
+		t.Fatalf("compiled peer output = %q, want local replacement dependency output", output)
+	}
+	if _, err := os.Stat(filepath.Join(peerAPI, "go.mod")); err != nil {
+		t.Fatalf("source module was mutated or removed: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(shared, "helper.go")); err != nil {
+		t.Fatalf("local replacement source was mutated or removed: %v", err)
 	}
 }
 

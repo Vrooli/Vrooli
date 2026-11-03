@@ -44,6 +44,11 @@ func TestLoadTopologyReadsModulePaths(t *testing.T) {
 	writeModule(t, filepath.Join(root, "templates", "scenarios", "react-vite", "api"), "module {{SCENARIO_ID}}\n\ngo 1.25.0\n", nil)
 	// node_modules must be skipped.
 	writeModule(t, filepath.Join(root, "node_modules", "junk"), "module junk\n\ngo 1.25.0\n", nil)
+	// Evidence copied from a production module must never replace its owner.
+	for _, retained := range []string{"docs/internal/goal/evidence/snapshot", "api/testdata/copied-source", ".vrooli/evidence/snapshot"} {
+		writeModule(t, filepath.Join(root, "scenarios", "demo", retained), "module example.com/control-plane\n\ngo 1.25.0\n", nil)
+		writeModule(t, filepath.Join(root, "scenarios", "demo", retained, "packages", "leaf"), "module example.com/leaf\n\ngo 1.25.0\n", nil)
+	}
 
 	topo, err := LoadTopology(root)
 	if err != nil {
@@ -66,6 +71,18 @@ func TestLoadTopologyReadsModulePaths(t *testing.T) {
 	}
 	if got := topo["example.com/control-plane"]; got != root {
 		t.Fatalf("control-plane dir = %q", got)
+	}
+}
+
+func TestLoadTopologyRejectsAmbiguousSourceModules(t *testing.T) {
+	fixture := testkitgo.NewRepoFixture(t)
+	fixture.WriteRepoContract(t)
+	fixture.WriteScenarioStub(t, "demo")
+	for _, surface := range []string{"api", "cli"} {
+		writeModule(t, filepath.Join(fixture.Root, "scenarios", "demo", surface), "module example.com/duplicate\n\ngo 1.25.0\n", nil)
+	}
+	if _, err := LoadTopology(fixture.Root); err == nil || !strings.Contains(err.Error(), "ambiguous source module example.com/duplicate") {
+		t.Fatalf("ambiguous source modules must not be selected by directory order: %v", err)
 	}
 }
 
@@ -421,5 +438,31 @@ func TestPrepareLocalInstallSeedsTargetAndTransitiveReplacesBeforeGoGet(t *testi
 	}
 	if strings.Contains(got, "require example.com/target") {
 		t.Fatalf("preparation must leave dependency selection to go get:\n%s", got)
+	}
+}
+
+func TestPlanRepairsExistingReplaceThatPointsAtEvidence(t *testing.T) {
+	root := t.TempDir()
+	leaf := filepath.Join(root, "packages", "leaf")
+	consumer := filepath.Join(root, "scenarios", "demo", "api")
+	snapshot := filepath.Join(root, "scenarios", "demo", "docs", "evidence", "leaf")
+	writeModule(t, leaf, "module example.com/leaf\n\ngo 1.25.0\n", nil)
+	writeModule(t, snapshot, "module example.com/leaf\n\ngo 1.25.0\n", nil)
+	writeModule(t, consumer, "module example.com/demo\n\ngo 1.25.0\nrequire example.com/leaf v0.0.0\nreplace example.com/leaf => ../docs/evidence/leaf\n", nil)
+	missing, err := Plan(t.Context(), filepath.Join(consumer, "go.mod"), Topology{"example.com/leaf": leaf})
+	if err != nil || len(missing) != 1 || missing[0].RelPath != "../../../packages/leaf" || missing[0].AddRequire {
+		t.Fatalf("canonical replacement not repaired: %+v %v", missing, err)
+	}
+}
+
+func TestPlanRepairsUnusedLocalReplaceThatPointsAtEvidence(t *testing.T) {
+	root := t.TempDir()
+	leaf := filepath.Join(root, "packages", "leaf")
+	consumer := filepath.Join(root, "scenarios", "demo", "api")
+	writeModule(t, leaf, "module example.com/leaf\n\ngo 1.25.0\n", nil)
+	writeModule(t, consumer, "module example.com/demo\n\ngo 1.25.0\nreplace example.com/leaf => ../docs/evidence/leaf\n", nil)
+	missing, err := Plan(t.Context(), filepath.Join(consumer, "go.mod"), Topology{"example.com/leaf": leaf})
+	if err != nil || len(missing) != 1 || missing[0].RelPath != "../../../packages/leaf" || missing[0].AddRequire {
+		t.Fatalf("unused canonical replacement not repaired: %+v %v", missing, err)
 	}
 }

@@ -149,7 +149,7 @@ func (c *Commands) wineCheckPrimitive() cliapp.PrimitiveHandler {
 		}
 		return response.Msg, nil
 	}, func(_ cliapp.OperationContext, response *domainv1.WineCheckResponse) cliapp.OperationalReport {
-		report := cliapp.OperationalReport{NextSteps: []string{"scenario-to-desktop wine install --method <flatpak|flatpak-auto|appimage>"}}
+		report := cliapp.OperationalReport{NextSteps: []string{"Regenerate the desktop package to use its managed electron-builder Wine toolset"}}
 		if response.GetInstalled() {
 			version := response.GetVersion()
 			if version == "" {

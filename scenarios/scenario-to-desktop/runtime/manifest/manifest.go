@@ -11,22 +11,25 @@ import (
 	"runtime"
 	"sort"
 	"strings"
+
+	component "github.com/vrooli/vrooli/packages/desktop-component"
 )
 
 // Manifest represents bundle.json (desktop v0.1).
 type Manifest struct {
-	SchemaVersion       string                 `json:"schema_version"`
-	Target              string                 `json:"target"`
-	App                 App                    `json:"app"`
-	IPC                 IPC                    `json:"ipc"`
-	Telemetry           Telemetry              `json:"telemetry"`
-	Authentication      *AuthenticationProfile `json:"authentication,omitempty"`
-	Ports               *PortRules             `json:"ports,omitempty"`
-	Swaps               []Swap                 `json:"swaps,omitempty"`
-	Peers               []Peer                 `json:"peers,omitempty"`
-	ProgramBindingPeers []Peer                 `json:"program_binding_peers,omitempty"`
-	Secrets             []Secret               `json:"secrets,omitempty"`
-	Services            []Service              `json:"services"`
+	Features            map[string]FeatureExport `json:"features,omitempty"`
+	Components          *component.Source        `json:"components,omitempty"`
+	SchemaVersion       string                   `json:"schema_version"`
+	Target              string                   `json:"target"`
+	App                 App                      `json:"app"`
+	IPC                 IPC                      `json:"ipc"`
+	Telemetry           Telemetry                `json:"telemetry"`
+	Authentication      *AuthenticationProfile   `json:"authentication,omitempty"`
+	Ports               *PortRules               `json:"ports,omitempty"`
+	Peers               []Peer                   `json:"peers,omitempty"`
+	ProgramBindingPeers []Peer                   `json:"program_binding_peers,omitempty"`
+	Secrets             []Secret                 `json:"secrets,omitempty"`
+	Services            []Service                `json:"services"`
 	// ToolProfiles declares optional, fixed renderer packages included in the
 	// bundle. Their paths are derived from the finite tool ID, never from JSON.
 	ToolProfiles []ToolProfilePackage `json:"tool_profiles,omitempty"`
@@ -34,6 +37,76 @@ type Manifest struct {
 	// needs in order to boot every declared capability. Packaging validation
 	// fails before launch when one is absent.
 	CatalogRequirements []string `json:"catalog_requirements,omitempty"`
+}
+
+// FeatureExport declares a full application's owner capability independently of its app version.
+type FeatureExport struct {
+	OwnerVersion string `json:"owner_version"`
+	Service      string `json:"service"`
+	Port         string `json:"port"`
+}
+
+// ValidateFeatureExports ensures declarations resolve only to root-owned, health-checkable services.
+func ValidateFeatureExports(features map[string]FeatureExport, services []Service) error {
+	for id, feature := range features {
+		if strings.TrimSpace(id) == "" || strings.TrimSpace(id) != id || !VersionSatisfiesRange(feature.OwnerVersion, "") || feature.Port == "" {
+			return fmt.Errorf("invalid feature export %q", id)
+		}
+		found := false
+		matched := false
+		for _, service := range services {
+			if service.ID != feature.Service {
+				continue
+			}
+			if matched || strings.Contains(service.ID, "--") || service.ComponentSlice != "" || service.Health.Type == "" || service.Health.Type == "none" || service.Readiness.Type == "" || service.Ports == nil {
+				return fmt.Errorf("feature export %q requires a root-owned health-checkable service", id)
+			}
+			matched = true
+			for _, port := range service.Ports.Requested {
+				if port.Name == feature.Port {
+					found = true
+					break
+				}
+			}
+		}
+		if !found {
+			return fmt.Errorf("feature export %q has no root service port", id)
+		}
+	}
+	return nil
+}
+
+// ValidatePeerFeatureExports verifies runtime-local capabilities against the exact
+// embedded owner service tree. Full-peer publication uses only Manifest.Features.
+func ValidatePeerFeatureExports(peers []Peer, services []Service) error {
+	for _, peer := range peers {
+		if len(peer.Features) == 0 {
+			continue
+		}
+		if peer.Scenario == "" || (peer.BundlePolicy != "embed" && peer.BundlePolicy != "either") {
+			return fmt.Errorf("peer %q feature exports require embedded services", peer.Scenario)
+		}
+		prefix := peer.Scenario + "--"
+		ownerServices := make([]Service, 0)
+		for _, service := range services {
+			if strings.HasPrefix(service.ID, prefix) {
+				service.ID = strings.TrimPrefix(service.ID, prefix)
+				ownerServices = append(ownerServices, service)
+			}
+		}
+		ownerFeatures := make(map[string]FeatureExport, len(peer.Features))
+		for id, feature := range peer.Features {
+			if !strings.HasPrefix(feature.Service, prefix) {
+				return fmt.Errorf("peer %q feature %q references a different owner service", peer.Scenario, id)
+			}
+			feature.Service = strings.TrimPrefix(feature.Service, prefix)
+			ownerFeatures[id] = feature
+		}
+		if err := ValidateFeatureExports(ownerFeatures, ownerServices); err != nil {
+			return fmt.Errorf("peer %q: %w", peer.Scenario, err)
+		}
+	}
+	return nil
 }
 
 // ToolProfilePackage binds a finite tool/profile/platform selection to the
@@ -151,14 +224,6 @@ func (e InvalidIPCHostError) Error() string {
 	return fmt.Sprintf("ipc.host %q is not a loopback address", e.Host)
 }
 
-// MissingPeerDiscoveryPathError identifies a discover edge that cannot
-// produce any runtime binding and would otherwise be silently discarded.
-type MissingPeerDiscoveryPathError struct{ Scenario string }
-
-func (e MissingPeerDiscoveryPathError) Error() string {
-	return fmt.Sprintf("peer %q declares bundle_policy discover but has no discovery bindings", e.Scenario)
-}
-
 type MissingEmbeddedPeerError struct{ Scenario string }
 
 func (e MissingEmbeddedPeerError) Error() string {
@@ -194,26 +259,15 @@ type PortRange struct {
 	Max int `json:"max"`
 }
 
-type Swap struct {
-	Original    string `json:"original"`
-	Replacement string `json:"replacement"`
-	Reason      string `json:"reason,omitempty"`
-	Limitations string `json:"limitations,omitempty"`
-}
-
 type Peer struct {
-	Scenario         string        `json:"scenario"`
-	BundlePolicy     string        `json:"bundle_policy"`
-	StartupPolicy    string        `json:"startup_policy,omitempty"`
-	DegradedBehavior string        `json:"degraded_behavior,omitempty"`
-	Bindings         []PeerBinding `json:"bindings"`
-}
-
-type PeerBinding struct {
-	EnvVar          string `json:"env_var"`
-	Form            string `json:"form"`
-	Port            string `json:"port"`
-	WhenUnavailable string `json:"when_unavailable"`
+	// Features belong to this embedded owner, never the root peer record.
+	Features         map[string]FeatureExport `json:"features,omitempty"`
+	Scenario         string                   `json:"scenario"`
+	BundlePolicy     string                   `json:"bundle_policy"`
+	StartupPolicy    string                   `json:"startup_policy,omitempty"`
+	DegradedBehavior string                   `json:"degraded_behavior,omitempty"`
+	VersionRange     string                   `json:"versionRange,omitempty"`
+	EmbeddedVersion  string                   `json:"embedded_version,omitempty"`
 }
 
 type Secret struct {
@@ -266,21 +320,26 @@ type SecretTarget struct {
 }
 
 type Service struct {
-	ID           string            `json:"id"`
-	Type         string            `json:"type"`
-	Description  string            `json:"description,omitempty"`
-	Binaries     map[string]Binary `json:"binaries"`
-	Build        *BuildConfig      `json:"build,omitempty"`
-	Env          map[string]string `json:"env,omitempty"`
-	Secrets      []string          `json:"secrets,omitempty"`
-	DataDirs     []string          `json:"data_dirs,omitempty"`
-	LogDir       string            `json:"log_dir,omitempty"`
-	Ports        *ServicePorts     `json:"ports,omitempty"`
-	Health       HealthCheck       `json:"health"`
-	Readiness    ReadinessCheck    `json:"readiness"`
-	Dependencies []string          `json:"dependencies,omitempty"`
-	Migrations   []Migration       `json:"migrations,omitempty"`
-	Assets       []Asset           `json:"assets,omitempty"`
+	// Runtime-only origins are supplied after signature verification, never by JSON.
+	BundleRoot       string            `json:"-"`
+	ComponentID      string            `json:"-"`
+	ComponentVersion string            `json:"-"`
+	ComponentSlice   string            `json:"-"`
+	ID               string            `json:"id"`
+	Type             string            `json:"type"`
+	Description      string            `json:"description,omitempty"`
+	Binaries         map[string]Binary `json:"binaries"`
+	Build            *BuildConfig      `json:"build,omitempty"`
+	Env              map[string]string `json:"env,omitempty"`
+	Secrets          []string          `json:"secrets,omitempty"`
+	DataDirs         []string          `json:"data_dirs,omitempty"`
+	LogDir           string            `json:"log_dir,omitempty"`
+	Ports            *ServicePorts     `json:"ports,omitempty"`
+	Health           HealthCheck       `json:"health"`
+	Readiness        ReadinessCheck    `json:"readiness"`
+	Dependencies     []string          `json:"dependencies,omitempty"`
+	Migrations       []Migration       `json:"migrations,omitempty"`
+	Assets           []Asset           `json:"assets,omitempty"`
 	// AssetDirs contains runtime directories that must be copied and preserved
 	// as part of a service bundle (for example, a Node service's dependencies).
 	AssetDirs []string               `json:"asset_dirs,omitempty"`
@@ -449,7 +508,21 @@ func (m *Manifest) Validate(targetOS, targetArch string) error {
 			}
 		}
 	}
-	if err := validatePeers(m.Peers, m.Services); err != nil {
+	if err := ValidateFeatureExports(m.Features, m.Services); err != nil {
+		return err
+	}
+	serviceIDs := make(map[string]struct{}, len(m.Services))
+	for _, service := range m.Services {
+		id := strings.TrimSpace(service.ID)
+		if id == "" {
+			continue // validateService reports the field-specific error below.
+		}
+		if _, duplicate := serviceIDs[id]; duplicate {
+			return fmt.Errorf("service id %q is declared more than once", id)
+		}
+		serviceIDs[id] = struct{}{}
+	}
+	if err := validatePeers(append(append([]Peer(nil), m.Peers...), m.ProgramBindingPeers...), m.Services); err != nil {
 		return err
 	}
 	keys := PlatformKeys(targetOS, targetArch)
@@ -546,10 +619,18 @@ func validateProviderEndpoint(raw string) error {
 }
 
 func validatePeers(peers []Peer, services []Service) error {
+	if err := ValidatePeerFeatureExports(peers, services); err != nil {
+		return err
+	}
+	seen := make(map[string]struct{}, len(peers))
 	for _, peer := range peers {
 		if strings.TrimSpace(peer.Scenario) == "" {
 			return errors.New("peer.scenario is required")
 		}
+		if _, exists := seen[peer.Scenario]; exists {
+			return fmt.Errorf("peer %q is declared more than once", peer.Scenario)
+		}
+		seen[peer.Scenario] = struct{}{}
 		switch peer.BundlePolicy {
 		case "embed":
 			prefix := peer.Scenario + "--"
@@ -564,24 +645,8 @@ func validatePeers(peers []Peer, services []Service) error {
 				return MissingEmbeddedPeerError{Scenario: peer.Scenario}
 			}
 		case "discover", "either":
-			if len(peer.Bindings) == 0 {
-				return MissingPeerDiscoveryPathError{Scenario: peer.Scenario}
-			}
 		default:
 			return fmt.Errorf("peer %q has unsupported bundle_policy %q", peer.Scenario, peer.BundlePolicy)
-		}
-		for _, binding := range peer.Bindings {
-			if binding.EnvVar == "" || binding.Port == "" {
-				return fmt.Errorf("peer %q has an incomplete discovery binding", peer.Scenario)
-			}
-			switch binding.Form {
-			case "http_base_url", "ws_base_url", "host_port", "port_number":
-			default:
-				return fmt.Errorf("peer %q binding %s has unsupported form %q", peer.Scenario, binding.EnvVar, binding.Form)
-			}
-			if binding.WhenUnavailable != "omit" && binding.WhenUnavailable != "fail" {
-				return fmt.Errorf("peer %q binding %s has unsupported when_unavailable %q", peer.Scenario, binding.EnvVar, binding.WhenUnavailable)
-			}
 		}
 	}
 	return nil

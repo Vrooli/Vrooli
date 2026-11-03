@@ -157,11 +157,11 @@ func resolvePlatforms(m *bundlemanifest.Manifest, requestedPlatforms []string) (
 }
 
 // stageAllServices stages all service binaries and assets into the bundle directory.
-func (p *DefaultPackager) stageAllServices(m *bundlemanifest.Manifest, platforms []string, appAbs, bundleDir, manifestRoot string) ([]string, error) {
+func (p *DefaultPackager) stageAllServices(m *bundlemanifest.Manifest, platforms []string, appAbs, bundleDir, manifestRoot, peerSourceRoot string) ([]string, error) {
 	var copied []string
 	for _, svc := range m.Services {
 		if isUIService(svc.Type) {
-			uiCopied, err := p.stageUIService(svc, appAbs, bundleDir, manifestRoot)
+			uiCopied, err := p.stageUIService(svc, appAbs, bundleDir, manifestRoot, peerSourceRoot)
 			if err != nil {
 				return nil, err
 			}
@@ -169,19 +169,264 @@ func (p *DefaultPackager) stageAllServices(m *bundlemanifest.Manifest, platforms
 			continue
 		}
 
-		binCopied, err := p.stageServiceBinaries(svc, platforms, bundleDir, manifestRoot, appAbs)
+		binCopied, err := p.stageServiceBinaries(svc, platforms, bundleDir, manifestRoot, appAbs, peerSourceRoot)
 		if err != nil {
 			return nil, err
 		}
 		copied = append(copied, binCopied...)
 
-		assetCopied, err := p.stageServiceAssets(svc, bundleDir, manifestRoot, appAbs)
+		assetCopied, err := p.stageServiceAssets(svc, bundleDir, manifestRoot, appAbs, peerSourceRoot)
 		if err != nil {
 			return nil, err
 		}
 		copied = append(copied, assetCopied...)
 	}
 	return copied, nil
+}
+
+func (p *DefaultPackager) stageEmbeddedPeerSourceInputs(m *bundlemanifest.Manifest, appAbs, stagingRoot string) error {
+	peers := make(map[string]struct{})
+	for _, peer := range append(append([]bundlemanifest.Peer(nil), m.Peers...), m.ProgramBindingPeers...) {
+		if peer.BundlePolicy == "embed" || peer.BundlePolicy == "either" {
+			peers[peer.Scenario] = struct{}{}
+		}
+	}
+	if len(peers) == 0 {
+		return nil
+	}
+	scenariosRoot := filepath.Dir(appAbs)
+	repoRoot := filepath.Dir(scenariosRoot)
+	// Peer go.mod files may use the same repository-relative replace paths as
+	// their source-tree locations. Make those workspace roots visible at the
+	// corresponding overlay paths during compilation without copying them into
+	// the final bundle.
+	for _, sourceRoot := range []string{"go.mod", "go.sum", "packages", "internal"} {
+		source := filepath.Join(repoRoot, sourceRoot)
+		if _, err := os.Stat(source); err != nil {
+			if os.IsNotExist(err) {
+				continue
+			}
+			return fmt.Errorf("inspect workspace source root %s: %w", source, err)
+		}
+		link := filepath.Join(stagingRoot, sourceRoot)
+		if err := os.Symlink(source, link); err != nil {
+			return fmt.Errorf("link workspace source root %s into peer compile overlay: %w", source, err)
+		}
+	}
+	staged := make(map[string]struct{})
+	copyInput := func(peerName, bundlePath string, required bool) error {
+		if strings.TrimSpace(peerName) == "" || !filepath.IsLocal(peerName) || strings.ContainsAny(peerName, `/\\`) {
+			return fmt.Errorf("invalid embedded peer name %q", peerName)
+		}
+		relativeSource, ok := embeddedPeerSourceRelative(peerName, bundlePath)
+		if !ok {
+			return fmt.Errorf("embedded peer %s input %q is outside peers/%s", peerName, bundlePath, peerName)
+		}
+		sourceRoot := filepath.Join(scenariosRoot, peerName)
+		source := filepath.Join(sourceRoot, filepath.FromSlash(relativeSource))
+		if err := validateEmbeddedPeerInputSymlinks(peerName, sourceRoot, source); err != nil {
+			if !required && errors.Is(err, os.ErrNotExist) {
+				return nil
+			}
+			if required && errors.Is(err, os.ErrNotExist) {
+				return fmt.Errorf("required embedded peer input %s is missing: %w", source, err)
+			}
+			return err
+		}
+		if _, err := os.Stat(source); err != nil {
+			if required {
+				return fmt.Errorf("required embedded peer input %s is missing: %w", source, err)
+			}
+			return nil
+		}
+		destination := filepath.Join(stagingRoot, filepath.FromSlash(bundlePath))
+		if _, exists := staged[destination]; exists {
+			return nil
+		}
+		if err := os.MkdirAll(filepath.Dir(destination), 0o755); err != nil {
+			return fmt.Errorf("create peer input directory for %s: %w", bundlePath, err)
+		}
+		if err := p.fileOps.CopyPath(source, destination); err != nil {
+			return fmt.Errorf("copy embedded peer input %s: %w", bundlePath, err)
+		}
+		staged[destination] = struct{}{}
+		return nil
+	}
+
+	for _, service := range m.Services {
+		peerName, embedded := embeddedPeerForService(peers, service.ID)
+		if !embedded {
+			continue
+		}
+		if service.Build != nil && strings.TrimSpace(service.Build.SourceDir) != "" {
+			if err := copyInput(peerName, service.Build.SourceDir, true); err != nil {
+				return err
+			}
+		}
+		for _, binary := range service.Binaries {
+			if strings.HasPrefix(filepath.ToSlash(binary.Path), "peers/") {
+				if err := copyInput(peerName, binary.Path, isUIService(service.Type)); err != nil {
+					return err
+				}
+			}
+		}
+		if service.DistRoot != "" && strings.HasPrefix(filepath.ToSlash(service.DistRoot), "peers/") {
+			if err := copyInput(peerName, service.DistRoot, true); err != nil {
+				return err
+			}
+		}
+		for _, asset := range service.Assets {
+			if err := copyInput(peerName, asset.Path, true); err != nil {
+				return err
+			}
+		}
+		for _, assetDir := range service.AssetDirs {
+			if err := copyInput(peerName, assetDir, true); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+func validateEmbeddedPeerInputSymlinks(peerName, peerRoot, inputPath string) error {
+	resolvedScenariosRoot, err := filepath.EvalSymlinks(filepath.Dir(peerRoot))
+	if err != nil {
+		return fmt.Errorf("resolve scenario source root for embedded peer %s: %w", peerName, err)
+	}
+	resolvedPeerRoot, err := filepath.EvalSymlinks(peerRoot)
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return err
+		}
+		return fmt.Errorf("resolve source root for embedded peer %s: %w", peerName, err)
+	}
+	if !pathWithin(resolvedScenariosRoot, resolvedPeerRoot) {
+		return fmt.Errorf("embedded peer %s source root %s resolves outside scenarios root %s", peerName, peerRoot, resolvedScenariosRoot)
+	}
+
+	peerRootAbs, err := filepath.Abs(peerRoot)
+	if err != nil {
+		return fmt.Errorf("resolve source root for embedded peer %s: %w", peerName, err)
+	}
+	inputAbs, err := filepath.Abs(inputPath)
+	if err != nil {
+		return fmt.Errorf("resolve input path for embedded peer %s: %w", peerName, err)
+	}
+	rel, err := filepath.Rel(peerRootAbs, inputAbs)
+	if err != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) || filepath.IsAbs(rel) {
+		return fmt.Errorf("embedded peer %s input %s is outside its source root %s", peerName, inputPath, peerRoot)
+	}
+
+	current := peerRootAbs
+	if rel != "." {
+		for _, component := range strings.Split(rel, string(filepath.Separator)) {
+			current = filepath.Join(current, component)
+			info, err := os.Lstat(current)
+			if err != nil {
+				return err
+			}
+			if info.Mode()&os.ModeSymlink == 0 {
+				continue
+			}
+			resolved, err := filepath.EvalSymlinks(current)
+			if err != nil {
+				return fmt.Errorf("embedded peer %s input %s has dangling symlink %s: %v", peerName, inputPath, current, err)
+			}
+			resolved, err = filepath.Abs(resolved)
+			if err != nil {
+				return fmt.Errorf("resolve symlink %s for embedded peer %s: %w", current, peerName, err)
+			}
+			if !pathWithin(resolvedPeerRoot, resolved) {
+				return fmt.Errorf("embedded peer %s input %s has symlink %s resolving outside peer source root to %s", peerName, inputPath, current, resolved)
+			}
+		}
+	}
+
+	resolvedInput, err := filepath.EvalSymlinks(inputAbs)
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return err
+		}
+		return fmt.Errorf("resolve embedded peer %s input %s: %w", peerName, inputPath, err)
+	}
+	seenDirs := make(map[string]struct{})
+	var inspect func(string) error
+	inspect = func(root string) error {
+		info, err := os.Stat(root)
+		if err != nil {
+			return err
+		}
+		if !info.IsDir() {
+			return nil
+		}
+		root, err = filepath.Abs(root)
+		if err != nil {
+			return err
+		}
+		if _, ok := seenDirs[root]; ok {
+			return nil
+		}
+		seenDirs[root] = struct{}{}
+		return filepath.WalkDir(root, func(path string, entry os.DirEntry, walkErr error) error {
+			if walkErr != nil {
+				return walkErr
+			}
+			if entry.Type()&os.ModeSymlink == 0 {
+				return nil
+			}
+			resolved, err := filepath.EvalSymlinks(path)
+			if err != nil {
+				return fmt.Errorf("embedded peer %s input %s has dangling symlink %s: %v", peerName, inputPath, path, err)
+			}
+			resolved, err = filepath.Abs(resolved)
+			if err != nil {
+				return fmt.Errorf("resolve symlink %s for embedded peer %s: %w", path, peerName, err)
+			}
+			if !pathWithin(resolvedPeerRoot, resolved) {
+				return fmt.Errorf("embedded peer %s input %s has symlink %s resolving outside peer source root to %s", peerName, inputPath, path, resolved)
+			}
+			targetInfo, err := os.Stat(resolved)
+			if err != nil {
+				return fmt.Errorf("inspect symlink target %s for embedded peer %s: %w", path, peerName, err)
+			}
+			if targetInfo.IsDir() {
+				return inspect(resolved)
+			}
+			return nil
+		})
+	}
+	return inspect(resolvedInput)
+}
+
+func pathWithin(base, target string) bool {
+	rel, err := filepath.Rel(base, target)
+	if err != nil {
+		return false
+	}
+	return rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator)) && !filepath.IsAbs(rel)
+}
+
+func embeddedPeerSourceRelative(peerName, bundlePath string) (string, bool) {
+	clean := filepath.ToSlash(filepath.Clean(filepath.FromSlash(strings.TrimSpace(bundlePath))))
+	prefix := "peers/" + peerName + "/"
+	if !strings.HasPrefix(clean, prefix) {
+		return "", false
+	}
+	relative := strings.TrimPrefix(clean, prefix)
+	if relative == "" || !filepath.IsLocal(filepath.FromSlash(relative)) {
+		return "", false
+	}
+	return relative, true
+}
+
+func embeddedPeerForService(peers map[string]struct{}, serviceID string) (string, bool) {
+	for peerName := range peers {
+		if strings.HasPrefix(serviceID, peerName+"--") {
+			return peerName, true
+		}
+	}
+	return "", false
 }
 
 // Package packages a bundle from the given app path and manifest.
@@ -215,6 +460,14 @@ func (p *DefaultPackager) Package(appPath, manifestPath, framework string, reque
 	if err := os.MkdirAll(bundleDir, 0o755); err != nil {
 		return nil, fmt.Errorf("create bundle dir: %w", err)
 	}
+	peerSourceRoot, err := os.MkdirTemp(filepath.Dir(bundleDir), ".peer-source-inputs-")
+	if err != nil {
+		return nil, fmt.Errorf("create peer source staging root: %w", err)
+	}
+	defer os.RemoveAll(peerSourceRoot)
+	if err := p.stageEmbeddedPeerSourceInputs(m, paths.appAbs, peerSourceRoot); err != nil {
+		return nil, fmt.Errorf("stage embedded peer source inputs: %w", err)
+	}
 
 	destManifest := filepath.Join(bundleDir, "bundle.json")
 	if err := p.fileOps.CopyFile(paths.manifestAbs, destManifest); err != nil {
@@ -224,7 +477,7 @@ func (p *DefaultPackager) Package(appPath, manifestPath, framework string, reque
 	manifestRoot := filepath.Dir(paths.manifestAbs)
 	copied := []string{destManifest}
 
-	svcCopied, err := p.stageAllServices(m, platforms, paths.appAbs, bundleDir, manifestRoot)
+	svcCopied, err := p.stageAllServices(m, platforms, paths.appAbs, bundleDir, manifestRoot, peerSourceRoot)
 	if err != nil {
 		return nil, err
 	}
@@ -395,7 +648,7 @@ func catalogRequirementFilter(requirements []string, category string) (map[strin
 
 // stageServiceBinaries resolves or compiles binaries for a single service across all requested platforms,
 // then copies them into the bundle directory. Returns the list of copied destination paths.
-func (p *DefaultPackager) stageServiceBinaries(svc bundlemanifest.Service, platforms []string, bundleDir, manifestRoot, appAbs string) ([]string, error) {
+func (p *DefaultPackager) stageServiceBinaries(svc bundlemanifest.Service, platforms []string, bundleDir, manifestRoot, appAbs string, peerSourceRoots ...string) ([]string, error) {
 	var copied []string
 	for _, platform := range platforms {
 		bin, ok := p.platform.ResolveBinaryForPlatform(svc, platform)
@@ -423,7 +676,11 @@ func (p *DefaultPackager) stageServiceBinaries(svc bundlemanifest.Service, platf
 			}
 
 			// Compile the service binary (source dirs are relative to scenario root, not manifest)
-			compiledPath, err := p.serviceCompiler.Compile(svc, platform, appAbs)
+			compileRoot := appAbs
+			if len(peerSourceRoots) > 0 && strings.HasPrefix(filepath.ToSlash(svc.Build.SourceDir), "peers/") {
+				compileRoot = peerSourceRoots[0]
+			}
+			compiledPath, err := p.serviceCompiler.Compile(svc, platform, compileRoot)
 			if err != nil {
 				return nil, fmt.Errorf("compile binary for %s (%s): %w", svc.ID, platform, err)
 			}
@@ -599,6 +856,9 @@ func (p *DefaultPackager) validateManifestForPlatforms(m *bundlemanifest.Manifes
 	if len(m.Services) == 0 {
 		return errors.New("manifest requires at least one service")
 	}
+	if err := validateEmbeddedPeerServices(m); err != nil {
+		return err
+	}
 	for _, svc := range m.Services {
 		// Skip UI services - Electron handles UI bundling separately
 		if isUIService(svc.Type) {
@@ -615,6 +875,26 @@ func (p *DefaultPackager) validateManifestForPlatforms(m *bundlemanifest.Manifes
 	return nil
 }
 
+func validateEmbeddedPeerServices(m *bundlemanifest.Manifest) error {
+	for _, peer := range append(append([]bundlemanifest.Peer(nil), m.Peers...), m.ProgramBindingPeers...) {
+		if peer.BundlePolicy != "embed" {
+			continue
+		}
+		prefix := peer.Scenario + "--"
+		found := false
+		for _, service := range m.Services {
+			if strings.HasPrefix(service.ID, prefix) {
+				found = true
+				break
+			}
+		}
+		if !found {
+			return fmt.Errorf("required embedded peer %s has no bundled services", peer.Scenario)
+		}
+	}
+	return nil
+}
+
 // Helper functions
 
 // stageUIService copies a UI service's entry point and assets to the bundle.
@@ -626,7 +906,7 @@ func (p *DefaultPackager) validateManifestForPlatforms(m *bundlemanifest.Manifes
 //
 // The entry point (typically index.html) is specified in the service's Binaries map,
 // and additional assets are listed in the Assets array.
-func (p *DefaultPackager) stageUIService(svc bundlemanifest.Service, appPath, bundleDir, manifestRoot string) ([]string, error) {
+func (p *DefaultPackager) stageUIService(svc bundlemanifest.Service, appPath, bundleDir, manifestRoot string, additionalRoots ...string) ([]string, error) {
 	var copied []string
 
 	// UI services have their entry point in the Binaries map (e.g., "ui/dist/index.html").
@@ -648,8 +928,12 @@ func (p *DefaultPackager) stageUIService(svc bundlemanifest.Service, appPath, bu
 			// Try relative to manifest root as fallback
 			srcPath = filepath.Join(manifestRoot, entryPath)
 			if _, err := os.Stat(srcPath); err != nil {
-				return nil, fmt.Errorf("UI entry point not found for %s: tried %s and %s",
-					svc.ID, filepath.Join(appPath, entryPath), srcPath)
+				if alternate, ok := firstExistingPath(additionalRoots, entryPath); ok {
+					srcPath = alternate
+				} else {
+					return nil, fmt.Errorf("UI entry point not found for %s: tried %s and %s",
+						svc.ID, filepath.Join(appPath, entryPath), srcPath)
+				}
 			}
 		}
 
@@ -672,7 +956,11 @@ func (p *DefaultPackager) stageUIService(svc bundlemanifest.Service, appPath, bu
 			// Fall back to manifest root
 			srcPath = filepath.Join(manifestRoot, asset.Path)
 			if _, err := os.Stat(srcPath); err != nil {
-				return nil, fmt.Errorf("UI asset not found for %s: %s", svc.ID, asset.Path)
+				if alternate, ok := firstExistingPath(additionalRoots, asset.Path); ok {
+					srcPath = alternate
+				} else {
+					return nil, fmt.Errorf("UI asset not found for %s: %s", svc.ID, asset.Path)
+				}
 			}
 		}
 
@@ -688,6 +976,16 @@ func (p *DefaultPackager) stageUIService(svc bundlemanifest.Service, appPath, bu
 	}
 
 	return copied, nil
+}
+
+func firstExistingPath(roots []string, relativePath string) (string, bool) {
+	for _, root := range roots {
+		candidate := filepath.Join(root, filepath.FromSlash(relativePath))
+		if pathExists(candidate) {
+			return candidate, true
+		}
+	}
+	return "", false
 }
 
 // isUIService returns true if the service type indicates a UI/frontend service.

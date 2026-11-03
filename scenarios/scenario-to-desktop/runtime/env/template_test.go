@@ -59,7 +59,13 @@ func (r mockEnvReader) Environ() []string {
 func TestRenderer_RenderEnvMap(t *testing.T) {
 	ports := testutil.NewMockPortAllocator()
 	envReader := mockEnvReader{env: map[string]string{
-		"EXISTING_VAR": "existing_value",
+		"EXISTING_VAR":              "existing_value",
+		"VROOLI_CREDENTIAL_BACKEND": "native",
+		"LPBS_AI_DOOR_URL":          "https://app.example.test",
+		"HTTPS_PROXY":               "http://127.0.0.1:9000",
+		"NO_PROXY":                  "localhost,127.0.0.1",
+		"DBUS_SESSION_BUS_ADDRESS":  "unix:path=/session/bus",
+		"XDG_RUNTIME_DIR":           "/session",
 	}}
 
 	r := NewRenderer("/app/data", "/bundle/root", ports, envReader)
@@ -92,6 +98,12 @@ func TestRenderer_RenderEnvMap(t *testing.T) {
 		// Allowlisted inherited environment is retained only when present.
 		// Standard bundle hints
 		{"APP_DATA_DIR", "/app/data"},
+		{"LPBS_AI_DOOR_URL", "https://app.example.test"},
+		{"VROOLI_CREDENTIAL_BACKEND", "native"},
+		{"HTTPS_PROXY", "http://127.0.0.1:9000"},
+		{"NO_PROXY", "localhost,127.0.0.1"},
+		{"DBUS_SESSION_BUS_ADDRESS", "unix:path=/session/bus"},
+		{"XDG_RUNTIME_DIR", "/session"},
 		{"BUNDLE_ROOT", "/bundle/root"},
 		{"VROOLI_BIN", "/bundle/root/bin/vrooli"},
 		{"VROOLI_DATA", "/app/data"},

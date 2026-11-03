@@ -10,7 +10,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/vrooli/vrooli/internal/resources/agentinstall"
+	"github.com/vrooli/vrooli/packages/harness-lifecycle"
 	"github.com/vrooli/vrooli/internal/tools/akt"
 	"github.com/vrooli/vrooli/internal/tools/hyperframes"
 	"github.com/vrooli/vrooli/internal/tools/kubo"

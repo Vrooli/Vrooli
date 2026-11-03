@@ -42,7 +42,7 @@ type manifestRefresher struct {
 // refresh: a manifest must never be rebuilt from a stale dependency snapshot
 // when the closure cannot be derived.
 type ClosureSource interface {
-	Resolve(ctx context.Context, scenarioID, environment string) (domain.Closure, error)
+	ResolveWithOverrides(ctx context.Context, scenarioID, environment string, overrides closure.RequestOverride) (domain.Closure, error)
 }
 
 // PortsFetcher fetches scenario ports from service.json.
@@ -93,7 +93,8 @@ func (r *manifestRefresher) refreshFromClosure(ctx context.Context, refreshed *d
 	if environment == "" {
 		environment = "production"
 	}
-	resolved, err := r.closureSource.Resolve(ctx, refreshed.Scenario.ID, environment)
+	deselected := append([]string(nil), refreshed.Dependencies.DeselectOptional...)
+	resolved, err := r.closureSource.ResolveWithOverrides(ctx, refreshed.Scenario.ID, environment, closure.RequestOverride{DeselectOptional: deselected})
 	if err != nil {
 		r.log("closure unavailable, refusing manifest refresh", map[string]interface{}{
 			"scenario_id": refreshed.Scenario.ID,
@@ -102,6 +103,7 @@ func (r *manifestRefresher) refreshFromClosure(ctx context.Context, refreshed *d
 		return fmt.Errorf("derive closure for %s: %w", refreshed.Scenario.ID, err)
 	}
 	deps, bundleSpec := closure.ManifestDependencies(resolved)
+	deps.DeselectOptional = deselected
 	deps.ProgramBindingPeers = refreshed.Dependencies.ProgramBindingPeers
 	deps.Analyzer.Fingerprint = refreshed.Dependencies.Analyzer.Fingerprint
 	deps.Analyzer.GeneratedAt = time.Now().UTC().Format(time.RFC3339)

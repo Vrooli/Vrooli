@@ -145,7 +145,14 @@ the manifests), `host_tools`, `host_safeguards`, `credential_addresses`,
 With a closure source configured, the manifest refresher fills
 `dependencies.scenarios`, `dependencies.resources`, `bundle.scenarios` and
 `bundle.resources` from the closure and records `dependencies.closure_digest`.
-A closure failure refuses the refresh; the manifest is never rebuilt from a
+`dependencies.deselect_optional` carries optional edge deselections through
+refresh and deployment closure resolution. The bundle builder treats the
+selected `bundle.scenarios` as roots alongside shared repo-contract roots, so
+dependency source code ships with the release. The plan starts included
+scenarios leaf-first. A selected optional component that fails to start is
+reported as degraded while the remaining components, including the primary
+scenario, continue; a required component failure still stops activation. A
+closure failure refuses the refresh; the manifest is never rebuilt from a
 stale dependency snapshot.
 
 ## Explanations are the closure

@@ -36,7 +36,12 @@ func TestBundleBuildEndpoint_BuildsTarballArtifact(t *testing.T) {
 	writeFileBytes(t, repoRoot, "package.json", []byte("{}\n"))
 	writeFileBytes(t, repoRoot, "packages/pkg-a/README.md", []byte("pkg-a\n"))
 	writeFileBytes(t, repoRoot, "scenarios/app-a/README.md", []byte("app-a\n"))
+	writeFileBytes(t, repoRoot, "scenarios/dep-a/README.md", []byte("dep-a-code\n"))
+	writeFileBytes(t, repoRoot, "scenarios/dep-a/.vrooli/service.json", []byte(`{"service":{"name":"dep-a"}}`))
 	writeFileBytes(t, repoRoot, "scenarios/vrooli-autoheal/README.md", []byte("autoheal\n"))
+	writeFileBytes(t, repoRoot, "scenarios/vrooli-autoheal/.vrooli/service.json", []byte(`{"service":{"name":"vrooli-autoheal"}}`))
+	writeFileBytes(t, repoRoot, "resources/ollama/README.md", []byte("must-not-ship\n"))
+	writeFileBytes(t, repoRoot, "resources/router/README.md", []byte("must-not-ship\n"))
 
 	t.Setenv("SCENARIO_TO_CLOUD_REPO_ROOT", repoRoot)
 	t.Setenv("API_PORT", "0")
@@ -52,12 +57,13 @@ func TestBundleBuildEndpoint_BuildsTarballArtifact(t *testing.T) {
 			ID: "app-a",
 		},
 		Dependencies: domain.ManifestDependencies{
-			Scenarios: []string{"app-a"},
+			Scenarios: []string{"app-a", "dep-a"},
 			Resources: []string{},
 		},
 		Bundle: domain.ManifestBundle{
 			IncludePackages: true,
 			IncludeAutoheal: true,
+			Scenarios:       []string{"app-a", "dep-a", "vrooli-autoheal"},
 		},
 		Ports: domain.ManifestPorts{"ui": 3000, "api": 3001, "ws": 3002},
 		Edge:  domain.ManifestEdge{Domain: "example.com", Caddy: domain.ManifestCaddy{Enabled: true, Email: "ops@example.com"}},
@@ -98,6 +104,15 @@ func TestBundleBuildEndpoint_BuildsTarballArtifact(t *testing.T) {
 	if !manifest.Contains(names, "scenarios/app-a/README.md") {
 		t.Fatalf("expected scenario file in tar, got: %v", names)
 	}
+	if !manifest.Contains(names, "scenarios/dep-a/README.md") {
+		t.Fatalf("bundle must include selected dependency code, got: %v", names)
+	}
+	if manifest.Contains(names, "resources/ollama/README.md") {
+		t.Fatalf("bundle must not pull an unselected Ollama resource, got: %v", names)
+	}
+	if manifest.Contains(names, "resources/router/README.md") {
+		t.Fatalf("bundle must not pull an unselected router resource, got: %v", names)
+	}
 	if !manifest.Contains(names, "scenarios/vrooli-autoheal/README.md") {
 		t.Fatalf("expected autoheal file in tar, got: %v", names)
 	}
@@ -119,6 +134,7 @@ func TestBuildMiniVrooliBundle_DeterministicNameAndBytes(t *testing.T) {
 	writeFileBytes(t, repoRoot, "packages/pkg-a/README.md", []byte("pkg-a\n"))
 	writeFileBytes(t, repoRoot, "scenarios/app-a/README.md", []byte("app-a\n"))
 	writeFileBytes(t, repoRoot, "scenarios/vrooli-autoheal/README.md", []byte("autoheal\n"))
+	writeFileBytes(t, repoRoot, "scenarios/vrooli-autoheal/.vrooli/service.json", []byte(`{"service":{"name":"vrooli-autoheal"}}`))
 	writeFileBytes(t, repoRoot, "resources/postgres/README.md", []byte("pg\n"))
 
 	m := domain.CloudManifest{

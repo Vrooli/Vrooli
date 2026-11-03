@@ -359,6 +359,10 @@ curl -H "Authorization: Bearer $(cat /tmp/vrooli-runtime-fixture/runtime/auth-to
 | `/readyz` | GET | Yes | Detailed service readiness status |
 | `/status` | GET | Yes | Runtime instance metadata (instance id, start time, manifest hash) |
 | `/ports` | GET | Yes | Current port allocation map |
+| `/features` | GET | Yes | Resolve an explicit owner feature and optional version range at call time |
+| `/components` | GET | Yes | Signed available releases and installed component state |
+| `/components` | POST | Yes | Verify and stage a signed component; activate on restart |
+| `/components` | DELETE | Yes | Stop and remove a component; requires explicit `keep_data` choice |
 | `/logs/tail` | GET | Yes | Tail service log file (`?serviceId=X&lines=N`) |
 | `/secrets` | GET | Yes | List secrets with has_value status |
 | `/secrets` | POST | Yes | Submit secret values |
@@ -367,6 +371,22 @@ curl -H "Authorization: Bearer $(cat /tmp/vrooli-runtime-fixture/runtime/auth-to
 | `/shutdown` | GET | Yes | Initiate graceful shutdown |
 
 **Authentication:** Bearer token from `{app_data}/runtime/auth-token`
+
+Feature selection prefers a healthy compatible full application that explicitly
+advertises the requested owner feature. It then uses an explicit embedded peer
+binding or a verified installed component. Embedded and installed bindings stay
+local to the host runtime; slices never satisfy bare scenario discovery or
+advertise themselves as full applications. Selecting a full application stops
+the local copy; a later call can restart it after the full application closes.
+Owner declarations live in `.vrooli/desktop-features.json`; packaged slices carry
+their feature declarations in signed catalog entries. Installed data lives
+separately from immutable code generations and survives removal only when chosen.
+Signed feature declarations must select a declared port in their own owner service
+graph. An update retains its previous signed generation until the new services
+pass readiness. Failed activation re-verifies and restores the previous compatible
+generation, keeps user data, and preserves the host's existing port bindings.
+If no healthy, trusted, compatible generation remains, the optional component
+stays unavailable with a reason in Integrations while the host continues running.
 
 ```bash
 curl -H "Authorization: Bearer $(cat ~/.config/myapp/runtime/auth-token)" \

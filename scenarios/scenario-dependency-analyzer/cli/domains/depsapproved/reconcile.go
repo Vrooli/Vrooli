@@ -140,9 +140,9 @@ func runReconcile(core *cliapp.ScenarioApp, args []string) error {
 			return printReconcileJSON(responses)
 		}
 		return support.PrintReportJSON(struct {
-			Responses    []*scenariovalidationv1.FixResponse `json:"responses"`
-			GoSumSynced  []string                            `json:"gosum_synced,omitempty"`
-			GoSumFailed  []string                            `json:"gosum_failures,omitempty"`
+			Responses   []*scenariovalidationv1.FixResponse `json:"responses"`
+			GoSumSynced []string                            `json:"gosum_synced,omitempty"`
+			GoSumFailed []string                            `json:"gosum_failures,omitempty"`
 		}{Responses: responses, GoSumSynced: synced, GoSumFailed: syncFailures})
 	}
 	if err := printReconcileReport(responses, apply); err != nil {
@@ -200,7 +200,10 @@ func reconcileCheckTargets(core *cliapp.ScenarioApp, scenario string, all, allMo
 }
 
 func discoverBuildableModules() (map[string]string, error) {
-	root := cliutil.ResolveRepoRoot()
+	return discoverBuildableModulesAt(cliutil.ResolveRepoRoot())
+}
+
+func discoverBuildableModulesAt(root string) (map[string]string, error) {
 	out := map[string]string{}
 	err := filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
@@ -218,7 +221,7 @@ func discoverBuildableModules() (map[string]string, error) {
 		}
 		rel, _ := filepath.Rel(root, path)
 		rel = filepath.ToSlash(rel)
-		if strings.HasPrefix(rel, "templates/") || strings.Contains(rel, "/bas/") {
+		if strings.HasPrefix(rel, "docs/") || strings.HasPrefix(rel, "templates/") || strings.Contains(rel, "/bas/") {
 			return nil
 		}
 		out[rel] = path

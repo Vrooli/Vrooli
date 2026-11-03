@@ -690,23 +690,27 @@ func runtimeActions(in CompileInputs, startOnly bool) []Action {
 		})
 	}
 	depScenarios := []string{}
-	for _, scen := range sortedUnique(in.Manifest.Dependencies.Scenarios) {
+	for _, scen := range runtimeScenarioOrder(in) {
 		if scen != in.Manifest.Scenario.ID {
 			depScenarios = append(depScenarios, scen)
 		}
 	}
-	resources := sortedUnique(in.Manifest.Dependencies.Resources)
+	resources := runtimeResourceIDs(in)
 	hasDeps := len(resources) > 0 || len(depScenarios) > 0
 	if hasDeps {
+		optionalScenarios := runtimeOptionalIDs(in, domain.ClosureKindScenario)
+		optionalResources := runtimeOptionalIDs(in, domain.ClosureKindResource)
 		actions = append(actions, Action{
 			ID:                 OpRuntimeStartDeps,
 			OwnerOperation:     OpRuntimeStartDeps,
 			Effect:             EffectRuntimeStart,
 			RequiredCapability: "vrooli:resource.start,scenario.start",
 			Inputs: map[string]string{
-				"workdir":   lay.workdir,
-				"resources": strings.Join(resources, ","),
-				"scenarios": strings.Join(depScenarios, ","),
+				"workdir":            lay.workdir,
+				"resources":          strings.Join(resources, ","),
+				"scenarios":          strings.Join(depScenarios, ","),
+				"optional_resources": strings.Join(optionalResources, ","),
+				"optional_scenarios": strings.Join(optionalScenarios, ","),
 			},
 			DependsOn:    []string{OpCredentialsProvision},
 			Verification: "dependencies_running",
@@ -895,6 +899,78 @@ func runtimeActions(in CompileInputs, startOnly bool) []Action {
 		})
 	}
 	return actions
+}
+
+func runtimeOptionalIDs(in CompileInputs, kind domain.ClosureComponentKind) []string {
+	if in.Closure == nil {
+		return nil
+	}
+	var ids []string
+	for _, component := range in.Closure.Components {
+		if component.Kind == kind && !component.Required && component.OptionalSelected {
+			ids = append(ids, component.ID)
+		}
+	}
+	return sortedUnique(ids)
+}
+
+// runtimeScenarioOrder uses the reviewed closure when available so optional
+// edge selections made during closure resolution govern activation as well as
+// bundle construction. Dependencies are emitted before their consumers.
+func runtimeScenarioOrder(in CompileInputs) []string {
+	if in.Closure == nil {
+		return sortedUnique(in.Manifest.Dependencies.Scenarios)
+	}
+	children := map[string][]string{}
+	ids := map[string]bool{}
+	for _, component := range in.Closure.Components {
+		if component.Kind != domain.ClosureKindScenario {
+			continue
+		}
+		ids[component.ID] = true
+		for _, reason := range component.Reasons {
+			if reason.Kind == domain.ClosureReasonDeclaredBy && reason.From != "" && reason.From != component.ID {
+				children[reason.From] = append(children[reason.From], component.ID)
+			}
+		}
+	}
+	ids[in.Closure.ScenarioID] = true
+	ordered, visiting, visited := []string{}, map[string]bool{}, map[string]bool{}
+	var visit func(string)
+	visit = func(id string) {
+		if visited[id] || visiting[id] {
+			return
+		}
+		visiting[id] = true
+		dependencies := append([]string(nil), children[id]...)
+		sort.Strings(dependencies)
+		for _, dependency := range dependencies {
+			if ids[dependency] {
+				visit(dependency)
+			}
+		}
+		visiting[id] = false
+		visited[id] = true
+		ordered = append(ordered, id)
+	}
+	visit(in.Closure.ScenarioID)
+	for _, id := range sortedKeys(ids) {
+		visit(id)
+	}
+	return ordered
+}
+
+func runtimeResourceIDs(in CompileInputs) []string {
+	if in.Closure == nil {
+		return sortedUnique(in.Manifest.Dependencies.Resources)
+	}
+	var resources []string
+	for _, component := range in.Closure.Components {
+		if component.Kind == domain.ClosureKindResource {
+			resources = append(resources, component.ID)
+		}
+	}
+	return sortedUnique(resources)
 }
 
 func readinessAction(in CompileInputs, deps []string) Action {
