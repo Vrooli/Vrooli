@@ -202,8 +202,26 @@ func (a *App) runCommands() []cliapp.Command {
 	// Keep the richer local `run events` view for statistics, failed-result filtering,
 	// and WebSocket following. This separate typed page is the governed bounded
 	// Connect surface for workflow consumers.
-	commands = append(commands, runEventPageCommand())
+	commands = append(commands, runEventPageCommand(), runAccountingCommand())
 	return commands
+}
+
+func runAccountingCommand() cliapp.Command {
+	command := cliapp.Command{Name: "accounting", Description: "Read one run's authoritative metered accounting", NeedsAPI: true,
+		Args: cliapp.ArgSchema{Positionals: []cliapp.Positional{{Name: "run_id", Required: true, Description: "Run UUID"}}}}
+	return command.WithPrimitive(cliapp.ProtoList(
+		func(op cliapp.OperationContext) (*apipb.RunAccounting, error) {
+			h, base := cliapp.NewConnectHTTPClient(op.Core())
+			response, err := apiconnect.NewAgentManagerServiceClient(h, base).GetRunAccounting(context.Background(), connect.NewRequest(&apipb.GetRunAccountingRequest{RunId: op.Positional("run_id")}))
+			if err != nil {
+				return nil, err
+			}
+			return response.Msg, nil
+		},
+		func(_ cliapp.OperationContext, row *apipb.RunAccounting) cliapp.ListReport {
+			return cliapp.ListReport{Summary: []string{fmt.Sprintf("Run accounting: tokens_known=%t non_cache=%d cache_read=%d charge_measured=%t", row.GetTokensKnown(), row.GetNonCacheTokens(), row.GetCacheReadTokens(), row.GetChargeMeasured())}}
+		},
+	))
 }
 
 func runEventPageCommand() cliapp.Command {

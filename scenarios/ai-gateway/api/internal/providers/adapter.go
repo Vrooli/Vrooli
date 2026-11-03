@@ -127,6 +127,8 @@ type Adapter struct {
 	Family      string
 	Runner      CommandRunner
 	Metered     *MeteredClient
+	HTTP        *HTTPProvider
+	Door        *HostedDoorClient
 }
 
 type Role struct {
@@ -297,6 +299,12 @@ func (a Adapter) family() string {
 }
 
 func (a Adapter) ListRoles(ctx context.Context) (Inventory, error) {
+	if a.Door != nil {
+		return Inventory{Roles: []Role{{Provider: ProviderMetered, Role: "metered", Locality: "remote", Status: "available"}}}, nil
+	}
+	if a.HTTP != nil {
+		return a.HTTP.ListRoles(), nil
+	}
 	if a.Provider == ProviderMetered {
 		if a.Metered == nil {
 			return Inventory{}, &CommandError{Code: "unavailable", Command: a.Provider, ExitCode: -1, Err: errors.New("metered inference client is not configured")}
@@ -352,6 +360,12 @@ func (a Adapter) ListRoles(ctx context.Context) (Inventory, error) {
 // ResolveRole asks the resource for the concrete model selected by its
 // policy. AI Gateway never reads provider model catalogs or credentials.
 func (a Adapter) ResolveRole(ctx context.Context, role string) (ResolvedRole, error) {
+	if a.Door != nil {
+		return ResolvedRole{Provider: ProviderMetered, Role: role, Model: "policy-resolved", Locality: "remote"}, nil
+	}
+	if a.HTTP != nil {
+		return a.HTTP.ResolveRole(ctx, role)
+	}
 	role = strings.TrimSpace(role)
 	if role == "" {
 		return ResolvedRole{}, &CommandError{Code: "invalid_request", Command: a.Provider, ExitCode: -1, Err: errors.New("role is required")}
@@ -481,6 +495,12 @@ func (a Adapter) Smoke(ctx context.Context) SmokeResult {
 }
 
 func (a Adapter) Execute(ctx context.Context, req ExecutionRequest) (ExecutionResult, error) {
+	if a.Door != nil {
+		return a.Door.Run(ctx, req)
+	}
+	if a.HTTP != nil {
+		return a.HTTP.Execute(ctx, req)
+	}
 	if a.Provider == ProviderMetered {
 		if a.Metered == nil {
 			return ExecutionResult{}, &CommandError{Code: "unavailable", Command: a.Provider, ExitCode: -1, Err: errors.New("metered inference client is not configured")}

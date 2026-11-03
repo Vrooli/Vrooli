@@ -24,6 +24,8 @@ func (h *connectHandler) Run(ctx context.Context, req *connect.Request[inference
 		return nil, connect.NewError(connect.CodeInvalidArgument, internalinference.ErrUnavailable)
 	}
 	ctx = providers.WithAccessToken(ctx, req.Header().Get("Authorization"))
+	ctx = providers.WithSource(ctx, req.Header().Get("X-Vrooli-AI-Source"))
+	ctx = providers.WithGatewayHop(ctx, req.Header().Get("X-Vrooli-Gateway-Hop"))
 	request := internalinference.ProviderRequest{
 		Source: req.Msg.GetSource(), SchemaJSON: req.Msg.GetSchemaJson(), Instruction: req.Msg.GetInstruction(), Role: req.Msg.GetRole(), Profile: req.Msg.GetProfile(),
 		Turns: req.Msg.GetTurns(), Attachments: req.Msg.GetAttachments(),

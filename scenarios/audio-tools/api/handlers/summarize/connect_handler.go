@@ -57,6 +57,7 @@ func (h *connectHandler) Summarize(ctx context.Context, req *connect.Request[sum
 	if opID == "" {
 		opID = uuid.NewString()
 	}
+	chainReq.OperationID = opID
 	start := h.now()
 	resp := connect.NewResponse(&summv1.SummarizeResponse{})
 	fallbackReason := ""

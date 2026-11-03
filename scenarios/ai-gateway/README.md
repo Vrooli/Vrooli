@@ -9,6 +9,11 @@ delegating concrete provider credentials and model catalogs to the
 `resource-abliteration`, `resource-pii-detector` and `resource-ollaya`
 resources.
 
+The public feature-route contract is documented in
+[`docs/reference/feature-routes.md`](docs/reference/feature-routes.md). That
+document owns request paths and their relation to the LPBS feature contract;
+this README remains the scenario entry point.
+
 Two inference capabilities share one role catalog and candidate walk:
 
 - **Typed inference** (`inference run`): a generative model produces a value
@@ -50,8 +55,9 @@ Two inference capabilities share one role catalog and candidate walk:
   metadata, testing config, and CLI install wiring.
 - Domain-first API shape with per-domain service, repository, schema,
   handler module, mocks, and tests.
-- SQLite by default for local evidence/settings. Provider execution must
-  go through resource commands, not direct provider HTTP clients.
+- SQLite by default for local evidence/settings. Full-server execution may
+  use resource commands; packaged inference uses the resource-owned catalog
+  and direct HTTP adapters without requiring resource CLIs or a repository.
 - UI/CLI guardrails for i18n, accessibility, API base resolution,
   declarative command args, generated Connect clients, and report-shaped
   output.
@@ -141,9 +147,7 @@ finer-grained presets.
 6. **Update `docs/concepts/DOMAINS.md`** before adding product code.
 7. **Keep `docs/manifest.json` accurate.** Durable docs should be registered there with a truthful maturity value.
 8. **Append progress entries** to `docs/internal/PROGRESS.md` whenever you land work.
-9. **Use resource gateways for providers.** AI Gateway should call
-   resource command surfaces; it must
-   not own provider credentials, provider URLs, or concrete model catalogs.
+9. **Preserve provider ownership.** Follow the [provider boundary](docs/concepts/ARCHITECTURE.md#provider-boundary): resource commands and packaged HTTP adapters consume owner declarations and credential authority.
 10. **Keep boundaries**: only edit within this scenario's directory.
 
 ## pnpm Everywhere
@@ -156,3 +160,25 @@ lockfiles yourself before committing. Scripts use `pnpm` directly (no
 
 Open `scenarios/browser-automation-studio/` to see the same template
 shape taken to completion.
+
+Packaged Gateway builds carry credential-free resource policies and the inference
+role catalog. Run `make provider-catalog` after changing their canonical owners;
+`make verify-provider-catalog` detects projection drift. Compatible suppliers
+without resource wrappers are declarations under `config/suppliers/*.json` with
+`id`, `family: openai-compatible`, `locality`, `endpoint`, credential identity/field,
+and `policy` (the resource model-policy shape). Duplicate declaration owners are
+refused. Proposed rules remain denied until the exact human Hub decision verifies.
+The public hosted fallback uses `LPBS_AI_DOOR_URL` and the credential authority's
+`vrooli/ai-device:key`; it never forwards a consumer access token as an AI key.
+
+```mermaid
+flowchart LR
+  App[App owns its prompt] --> Discovery[Call-time peer discovery]
+  Discovery --> Full[Compatible full-server Gateway]
+  Discovery --> Embedded[Embedded Gateway]
+  Embedded --> Local[Local model]
+  Embedded --> Own[Own router key]
+  Embedded --> Door[LPBS public door with device key]
+  Door --> Private[Private hosted Gateway]
+  Private --> Supplier[Approved supplier]
+```

@@ -1,6 +1,6 @@
 module browser-automation-studio/cli
 
-go 1.25.0
+go 1.26.0
 
 require (
 	github.com/vrooli/api-core v0.0.0
@@ -16,13 +16,14 @@ require (
 
 require (
 	buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go v1.36.11-20260709200747-435963d16310.1 // indirect
+	github.com/andybalholm/brotli v1.2.0 // indirect
 	github.com/bmatcuk/doublestar/v4 v4.10.0 // indirect
 	github.com/dustin/go-humanize v1.0.1 // indirect
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/gorilla/websocket v1.5.3 // indirect
 	github.com/jmoiron/sqlx v1.3.5 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
-	github.com/klauspost/compress v1.17.4 // indirect
+	github.com/klauspost/compress v1.18.7 // indirect
 	github.com/klauspost/cpuid/v2 v2.2.6 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/mikelolasagasti/xz v1.0.1 // indirect
@@ -38,15 +39,16 @@ require (
 	github.com/sirupsen/logrus v1.9.3 // indirect
 	github.com/sony/gobreaker/v2 v2.3.0 // indirect
 	github.com/vrooli/binaryfetch v0.0.0 // indirect
+	github.com/vrooli/cliresolve v0.0.0 // indirect
 	github.com/vrooli/envkit-go v0.0.0 // indirect
 	github.com/vrooli/platform-go v0.0.0 // indirect
 	github.com/vrooli/repo-contract-go v0.0.0 // indirect
 	github.com/vrooli/vrooli v0.0.0 // indirect
 	github.com/vrooli/vrooli-cli-go v0.0.0 // indirect
-	golang.org/x/crypto v0.54.0 // indirect
-	golang.org/x/net v0.56.0 // indirect
-	golang.org/x/sys v0.47.0 // indirect
-	golang.org/x/text v0.40.0 // indirect
+	golang.org/x/crypto v0.57.0 // indirect
+	golang.org/x/net v0.58.0 // indirect
+	golang.org/x/sys v0.48.0 // indirect
+	golang.org/x/text v0.42.0 // indirect
 	gopkg.in/ini.v1 v1.67.0 // indirect
 	modernc.org/libc v1.72.3 // indirect
 	modernc.org/mathutil v1.7.1 // indirect
@@ -83,3 +85,13 @@ replace github.com/vrooli/scenarioconfig-go => ../../../packages/scenarioconfig-
 replace github.com/vrooli/ai-go => ../../../packages/ai-go
 
 replace github.com/vrooli/measures-go => ../../../packages/measures-go
+
+replace github.com/vrooli/maturity-go => ../../../packages/maturity-go
+
+replace github.com/vrooli/searchregister-go => ../../../packages/searchregister-go
+
+replace github.com/vrooli/vrooli/packages/capability-registry-go => ../../../packages/capability-registry-go
+
+replace nutrition-planner => ../../nutrition-planner/api
+
+replace workflow-health => ../../workflow-health/api

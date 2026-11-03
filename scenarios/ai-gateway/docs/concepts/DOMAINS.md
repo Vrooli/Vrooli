@@ -30,10 +30,11 @@ unless a later decision splits or merges them.
 
 ### providers
 
-- Owns: subprocess/resource-command adapters, timeout/cancellation
-  wrappers, normalized provider result/error shape.
-- Does not own: direct HTTP clients to Ollama/OpenRouter or provider
-  credentials.
+- Owns: subprocess/resource-command adapters and packaged HTTP adapters,
+  timeout/cancellation wrappers, normalized provider result/error shape.
+- Resource owners retain model policies; the packaged projection includes
+  those declarations without resource CLIs. The credential authority retains
+  keys. Hosted fallback authenticates to the LPBS door with its device key.
 - Requirements: `AIGW-PROVIDER-*`.
 - First implementation slice: fakeable command-runner seam and Ollama
   policy/gateway adapter.

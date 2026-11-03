@@ -2,7 +2,10 @@
 
 This document is the dependency contract for AI Gateway. It names what
 the scenario may call, what remains owned elsewhere, and how failure
-should degrade.
+should degrade. The [provider boundary](ARCHITECTURE.md#provider-boundary)
+also covers packaged HTTP adapters: these consume owner declarations and
+credential authority without requiring resource CLIs. The resource-command
+contracts below describe the full-deployment adapter path.
 
 ## Dependency Inventory
 
@@ -86,8 +89,7 @@ its resource policy/configuration.
 The following are invalid unless a future approved exception explicitly
 documents the reason:
 
-- direct Ollama HTTP calls
-- direct OpenRouter HTTP calls
+- provider HTTP that bypasses owner declarations or applicable approval checks
 - provider credentials in AI Gateway config
 - `OPENROUTER_API_KEY`, `OLLAMA_URL`, or equivalent env vars in caller
   scenarios

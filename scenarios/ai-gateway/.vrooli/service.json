@@ -107,6 +107,19 @@
         }
       ],
       "startup_grace_period": 15000
+    },
+    "setup": {
+      "description": "Project owner provider declarations before compiling the self-contained API.",
+      "steps": [
+        {
+          "name": "provider-catalog",
+          "exec": [
+            "make",
+            "provider-catalog"
+          ],
+          "description": "Embed the current credential-free resource policies and Gateway role catalog."
+        }
+      ]
     }
   },
   "dependencies": {
@@ -246,6 +259,14 @@
         "required": false,
         "provisioning": "operator",
         "obtain_url": "https://github.com/Vrooli/Vrooli/tree/master/scenarios/landing-page-business-suite/docs/guides/CONFIGURATION_GUIDE.md"
+      },
+      {
+        "logical_id": "vrooli/ai-device",
+        "field": "key",
+        "label": "Vrooli AI device key",
+        "description": "LPBS-issued device credential for the hosted AI door. Stored only in the credential authority.",
+        "required": false,
+        "provisioning": "operator"
       }
     ]
   },

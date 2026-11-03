@@ -84,6 +84,12 @@ orient: ## Show generated-scenario orientation progress
 endpoints: ## Regenerate .vrooli/endpoints.json from API modules (validated against cli/manifest.json)
 	@cd api && go run ./cmd/gen-endpoints --output ../.vrooli/endpoints.json
 
+provider-catalog: ## Project resource-owned provider declarations into the deployed gateway
+	@cd api && GOWORK=off go run ./cmd/gen-provider-catalog
+
+verify-provider-catalog: ## Verify the deployed catalog matches its canonical owners
+	@cd api && GOWORK=off go run ./cmd/gen-provider-catalog --check
+
 run: start
 
 dev: start

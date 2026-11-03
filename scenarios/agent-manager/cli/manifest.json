@@ -2929,6 +2929,14 @@
       "description": "Bounded run inspection and execution operations",
       "commands": [
         {
+          "name": "accounting",
+          "description": "Read one run's authoritative metered accounting",
+          "positionals": [{"name": "run_id", "required": true, "description": "Run UUID"}],
+          "binding": {"kind": "connect-rpc", "service": "AgentManagerService", "method": "GetRunAccounting"},
+          "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal"]},
+          "architecture": {"primitive": "proto_list"}
+        },
+        {
           "name": "event-page",
           "description": "Read one bounded typed page from a run event stream",
           "positionals": [
@@ -5464,11 +5472,6 @@
     {
       "service": "AgentManagerService",
       "method": "EnrollEffort",
-      "reason": "Existing hand-registered CLI/owner API surface; intentionally not exposed as a workflow-manifest command in this bounded migration."
-    },
-    {
-      "service": "AgentManagerService",
-      "method": "GetRunAccounting",
       "reason": "Existing hand-registered CLI/owner API surface; intentionally not exposed as a workflow-manifest command in this bounded migration."
     },
     {

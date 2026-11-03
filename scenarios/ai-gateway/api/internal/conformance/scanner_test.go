@@ -4,7 +4,6 @@ import (
 	"context"
 	"os"
 	"path/filepath"
-	"runtime"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -72,9 +71,7 @@ import resourceollama "github.com/vrooli/resource-ollama/client"
 }
 
 func TestBrowserAutomationStudioHasNoHighConformanceFindings(t *testing.T) { // [REQ:AIGW-CONFORMANCE-BAS]
-	_, sourceFile, _, ok := runtime.Caller(0)
-	require.True(t, ok)
-	root := filepath.Clean(filepath.Join(filepath.Dir(sourceFile), "..", "..", "..", "..", "browser-automation-studio"))
+	root := browserAutomationStudioRoot(t)
 	report, err := conformance.NewScanner().Scan(context.Background(), conformance.ScanRequest{
 		Scenario: "browser-automation-studio",
 		Path:     root,
@@ -86,9 +83,7 @@ func TestBrowserAutomationStudioHasNoHighConformanceFindings(t *testing.T) { // 
 }
 
 func TestBrowserAutomationStudioDoesNotRetainProviderRegistryOrMediaExecutor(t *testing.T) { // [REQ:AIGW-CONFORMANCE-BAS]
-	_, sourceFile, _, ok := runtime.Caller(0)
-	require.True(t, ok)
-	root := filepath.Clean(filepath.Join(filepath.Dir(sourceFile), "..", "..", "..", "..", "browser-automation-studio"))
+	root := browserAutomationStudioRoot(t)
 	registry := filepath.Join(root, "playwright-driver", "src", "ai", "vision-client", "model-registry.ts")
 	_, err := os.Stat(registry)
 	require.ErrorIs(t, err, os.ErrNotExist, "concrete provider model registry must not return to the BAS driver")
@@ -112,9 +107,7 @@ func TestBrowserAutomationStudioDoesNotRetainProviderRegistryOrMediaExecutor(t *
 }
 
 func TestBrowserAutomationStudioDoesNotReadProviderSecrets(t *testing.T) { // [REQ:AIGW-CONFORMANCE-BAS]
-	_, sourceFile, _, ok := runtime.Caller(0)
-	require.True(t, ok)
-	root := filepath.Clean(filepath.Join(filepath.Dir(sourceFile), "..", "..", "..", "..", "browser-automation-studio"))
+	root := browserAutomationStudioRoot(t)
 	report, err := conformance.NewScanner().Scan(context.Background(), conformance.ScanRequest{
 		Scenario: "browser-automation-studio",
 		Path:     root,
@@ -123,6 +116,15 @@ func TestBrowserAutomationStudioDoesNotReadProviderSecrets(t *testing.T) { // [R
 	for _, finding := range report.Findings {
 		require.NotEqual(t, "ai.invalid_provider_secret_env", finding.GetRuleId(), "%s: %s", finding.GetPath(), finding.GetMessage())
 	}
+}
+
+func browserAutomationStudioRoot(t *testing.T) string {
+	t.Helper()
+	// Go runs package tests from their source directory, including with
+	// -trimpath, where runtime.Caller no longer contains a filesystem path.
+	root, err := filepath.Abs(filepath.Join("..", "..", "..", "..", "browser-automation-studio"))
+	require.NoError(t, err)
+	return root
 }
 
 func TestScannerRecognizesGatewayAdoptionSignal(t *testing.T) { // [REQ:AIGW-CONFORMANCE-MATURITY] [REQ:AIGW-MIGRATION-REPORTS]

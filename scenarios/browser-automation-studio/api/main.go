@@ -220,9 +220,10 @@ func main() {
 
 	// Load configuration
 	cfg := config.Load()
-	if resolved, resolveErr := discovery.ResolveScenarioURLDefault(context.Background(), "landing-page-business-suite"); resolveErr == nil {
-		cfg.Entitlement.ServiceURL = resolved
-	}
+	cfg.Entitlement.ServiceURL = resolveEntitlementServiceURL(context.Background(), cfg.Entitlement.ServiceURL, func(ctx context.Context, scenario string) (string, error) {
+		resolver := discovery.NewResolver(discovery.ResolverConfig{VrooliPath: "vrooli"})
+		return resolver.ResolveScenarioURLDefault(ctx, scenario)
+	})
 
 	// Initialize entitlement service
 	entitlementSvc := entitlement.NewService(cfg.Entitlement, log)
@@ -1193,6 +1194,22 @@ func main() {
 	}); err != nil {
 		log.WithError(err).Fatal("Server error")
 	}
+}
+
+type scenarioURLResolver func(context.Context, string) (string, error)
+
+func resolveEntitlementServiceURL(ctx context.Context, configuredURL string, resolve scenarioURLResolver) string {
+	if strings.TrimSpace(configuredURL) != "" {
+		return configuredURL
+	}
+	if resolve == nil {
+		return configuredURL
+	}
+	resolved, err := resolve(ctx, "landing-page-business-suite")
+	if err != nil || strings.TrimSpace(resolved) == "" {
+		return configuredURL
+	}
+	return resolved
 }
 
 func isLoopbackPeer(remoteAddr string) bool {

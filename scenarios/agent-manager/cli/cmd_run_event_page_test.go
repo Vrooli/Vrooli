@@ -246,3 +246,38 @@ func captureRunEventsOutput(t *testing.T, call func() error) (string, error) {
 	}
 	return string(output), callErr
 }
+
+type runAccountingHandler struct {
+	apiconnect.UnimplementedAgentManagerServiceHandler
+	runID string
+}
+
+func (h *runAccountingHandler) GetRunAccounting(_ context.Context, req *connect.Request[apipb.GetRunAccountingRequest]) (*connect.Response[apipb.RunAccounting], error) {
+	h.runID = req.Msg.GetRunId()
+	return connect.NewResponse(&apipb.RunAccounting{RunId: h.runID, Terminal: true, TokensKnown: true, NonCacheTokens: 42, CacheReadTokens: 100, ChargeMeasured: false}), nil
+}
+func TestRunAccountingUsesOwnerAndRetainsCompleteness(t *testing.T) {
+	const id = "33333333-3333-4333-8333-333333333333"
+	owner := &runAccountingHandler{}
+	path, handler := apiconnect.NewAgentManagerServiceHandler(owner)
+	mux := http.NewServeMux()
+	mux.Handle(path, handler)
+	server := httptest.NewServer(mux)
+	defer server.Close()
+	app, err := NewApp()
+	if err != nil {
+		t.Fatal(err)
+	}
+	app.core.APIOverride = server.URL
+	var out strings.Builder
+	if err := app.core.CLI.RunWithWriters([]string{"run", "accounting", id, "--json"}, &out, &strings.Builder{}); err != nil {
+		t.Fatal(err)
+	}
+	var row apipb.RunAccounting
+	if err := protojson.Unmarshal([]byte(out.String()), &row); err != nil {
+		t.Fatal(err)
+	}
+	if owner.runID != id || !row.GetTokensKnown() || row.GetChargeMeasured() || row.GetNonCacheTokens() != 42 || row.GetCacheReadTokens() != 100 {
+		t.Fatalf("incorrect accounting: %s", out.String())
+	}
+}

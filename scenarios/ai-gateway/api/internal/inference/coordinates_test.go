@@ -86,7 +86,7 @@ func TestCatalogDeclaresDeviceControlPlanningRole(t *testing.T) {
 	role, ok := catalog.Roles["device-control.plan"]
 	require.True(t, ok)
 	require.Len(t, role.Candidates, 4)
-	require.Equal(t, "extract.structured", role.Candidates[0].ResourceRole)
+	require.Equal(t, "chat.default", role.Candidates[0].ResourceRole)
 	require.Equal(t, "extract.structured", role.Candidates[1].ResourceRole)
 	require.Equal(t, "extract.structured", role.Candidates[2].ResourceRole)
 	require.Equal(t, "extract.structured", role.Candidates[3].ResourceRole)

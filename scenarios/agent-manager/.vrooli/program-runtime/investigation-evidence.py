@@ -38,6 +38,10 @@ def read_subject(run_id):
         item["report"] = agent_manager.run.report(run_id=run_id, rows="tools")
     except Exception as exc:
         item["report_error"] = exc
+    try:
+        item["accounting"] = agent_manager.run.accounting(run_id=run_id)
+    except Exception as exc:
+        item["accounting_error"] = exc
     return item
 
 
@@ -66,21 +70,46 @@ def step_classify():
             missing += 1
         if "report" in item:
             report_meta = item["report"].meta()
-            subject["report"] = {"status": report_meta.get("status"), "exit_code": report_meta.get("exitCode"), "events_availability": report_meta.get("eventsAvailability"), "receipts_availability": report_meta.get("receiptsAvailability")}
+            timing = report_meta.get("timeAccounting")
+            timing = timing if isinstance(timing, dict) else {}
+            subject["report"] = {
+                "status": report_meta.get("status"), "exit_code": report_meta.get("exitCode"),
+                "events_availability": report_meta.get("eventsAvailability"), "receipts_availability": report_meta.get("receiptsAvailability"),
+                "duration_ms": report_meta.get("durationMs"), "longest_event_gap_ms": report_meta.get("longestEventGapMs"),
+                "repeated_tool_calls": report_meta.get("repeatedToolCalls"),
+                "reported_tokens": report_meta.get("tokens"), "requested_model": report_meta.get("requestedModel"),
+                "actual_model": report_meta.get("actualModel"), "goal_outcome": report_meta.get("goalOutcome"),
+                "time_accounting": {key: timing.get(key) for key in ("modelGeneratingMs", "toolExecutingMs", "idleWaitingMs", "awaitingHumanMs", "unattributableMs")},
+            }
             for field in ("eventsAvailability", "receiptsAvailability"):
                 availability = report_meta.get(field)
                 if not isinstance(availability, dict) or availability.get("state") != "available":
                     subject["report_availability"] = "partial"
                     missing += 1
                     break
+        accounting = item.get("accounting")
+        if accounting is not None:
+            meta = accounting.meta()
+            subject["accounting"] = {key: meta.get(key) for key in ("terminal", "tokensKnown", "nonCacheTokens", "cacheReadTokens", "chargeMeasured", "chargeMicroUsd", "wallSeconds", "model")}
+            subject["accounting_availability"] = "available"
+        else:
+            subject["accounting"] = None
+            subject["accounting_availability"] = "unknown"
+            error = item.get("accounting_error")
+            if error is not None:
+                _, klass = program.classify(error)
+                envelope["errors"].append({"class": klass, "detail": str(error)[:180], "where": "collect:" + item["run_id"] + ":accounting"})
+            missing += 1
+        any_available = "report" in item or accounting is not None
+        if any_available:
             available += 1
         if missing:
-            subject["availability"] = "partial" if "report" in item else "unknown"
+            subject["availability"] = "partial" if any_available else "unknown"
             unknown += 1
         subjects.append(subject)
     envelope["signals"] = {"subjects": subjects, "subject_count": len(subjects), "available": available, "unknown": unknown, "coverage": "complete" if unknown == 0 else "partial"}
     envelope["status"] = "ok" if unknown == 0 else ("unavailable" if available == 0 else "partial")
-    envelope["evidence"] = list(envelope["inputs"]["run_ids"]) + ["agent-manager/run/report"]
+    envelope["evidence"] = list(envelope["inputs"]["run_ids"]) + ["agent-manager/run/report", "agent-manager/run/accounting"]
     return "report"
 
 

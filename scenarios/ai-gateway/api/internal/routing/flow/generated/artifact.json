@@ -1,0 +1,1704 @@
+{
+  "schemaVersion": 6,
+  "flowId": "routing.media-receipt.api",
+  "source": {
+    "contractPath": "api/internal/routing/flow/flow.json",
+    "contractSha256": "f56254b842aff418d28bfd754c1bff8290bd0f2b544ac43803094cb32ff734b4",
+    "generatorPath": "flow-verifier",
+    "generatorSha256": "2f4bdb4736a693e8d45276b8ad50a7f9078816d749b1d31b315d67302d62b864",
+    "generatorVersion": 7,
+    "modelPath": "api/internal/routing/flow/generated/model.qnt",
+    "modelSha256": "c0de18147f9b28a7202eae152e051aa2dfdc2060ea07569101091b7db21c6d25",
+    "quintVersion": "0.32.0",
+    "verificationBackend": "apalache"
+  },
+  "commands": {
+    "run": [
+      "quint",
+      "run",
+      "api/internal/routing/flow/generated/model.qnt",
+      "--mbt",
+      "--seed",
+      "2026110102",
+      "--max-samples",
+      "24",
+      "--n-traces",
+      "24",
+      "--max-steps",
+      "8",
+      "--out-itf",
+      "<temp-itf-pattern>"
+    ],
+    "test": [
+      "quint",
+      "test",
+      "api/internal/routing/flow/generated/model.qnt",
+      "--seed",
+      "2026110102"
+    ],
+    "typecheck": [
+      "quint",
+      "typecheck",
+      "api/internal/routing/flow/generated/model.qnt"
+    ],
+    "verify": [
+      "quint",
+      "verify",
+      "api/internal/routing/flow/generated/model.qnt",
+      "--invariants",
+      "TypeOK",
+      "TerminalClosure",
+      "IllegalTransitionsPreserveState",
+      "--max-steps",
+      "8"
+    ]
+  },
+  "states": [
+    "queued",
+    "running",
+    "succeeded",
+    "failed",
+    "outcome_unknown",
+    "cancelled"
+  ],
+  "events": [
+    "dispatch",
+    "succeed",
+    "fail",
+    "cancel",
+    "restart",
+    "retry"
+  ],
+  "transitions": [
+    {
+      "from": "queued",
+      "event": "dispatch",
+      "to": "running",
+      "wantError": false
+    },
+    {
+      "from": "queued",
+      "event": "succeed",
+      "to": "queued",
+      "wantError": true
+    },
+    {
+      "from": "queued",
+      "event": "fail",
+      "to": "failed",
+      "wantError": false
+    },
+    {
+      "from": "queued",
+      "event": "cancel",
+      "to": "cancelled",
+      "wantError": false
+    },
+    {
+      "from": "queued",
+      "event": "restart",
+      "to": "queued",
+      "wantError": false
+    },
+    {
+      "from": "queued",
+      "event": "retry",
+      "to": "queued",
+      "wantError": true
+    },
+    {
+      "from": "running",
+      "event": "dispatch",
+      "to": "running",
+      "wantError": true
+    },
+    {
+      "from": "running",
+      "event": "succeed",
+      "to": "succeeded",
+      "wantError": false
+    },
+    {
+      "from": "running",
+      "event": "fail",
+      "to": "failed",
+      "wantError": false
+    },
+    {
+      "from": "running",
+      "event": "cancel",
+      "to": "cancelled",
+      "wantError": false
+    },
+    {
+      "from": "running",
+      "event": "restart",
+      "to": "outcome_unknown",
+      "wantError": false
+    },
+    {
+      "from": "running",
+      "event": "retry",
+      "to": "running",
+      "wantError": true
+    },
+    {
+      "from": "succeeded",
+      "event": "dispatch",
+      "to": "succeeded",
+      "wantError": true
+    },
+    {
+      "from": "succeeded",
+      "event": "succeed",
+      "to": "succeeded",
+      "wantError": true
+    },
+    {
+      "from": "succeeded",
+      "event": "fail",
+      "to": "succeeded",
+      "wantError": true
+    },
+    {
+      "from": "succeeded",
+      "event": "cancel",
+      "to": "succeeded",
+      "wantError": false
+    },
+    {
+      "from": "succeeded",
+      "event": "restart",
+      "to": "succeeded",
+      "wantError": false
+    },
+    {
+      "from": "succeeded",
+      "event": "retry",
+      "to": "succeeded",
+      "wantError": false
+    },
+    {
+      "from": "failed",
+      "event": "dispatch",
+      "to": "failed",
+      "wantError": true
+    },
+    {
+      "from": "failed",
+      "event": "succeed",
+      "to": "failed",
+      "wantError": true
+    },
+    {
+      "from": "failed",
+      "event": "fail",
+      "to": "failed",
+      "wantError": true
+    },
+    {
+      "from": "failed",
+      "event": "cancel",
+      "to": "failed",
+      "wantError": false
+    },
+    {
+      "from": "failed",
+      "event": "restart",
+      "to": "failed",
+      "wantError": false
+    },
+    {
+      "from": "failed",
+      "event": "retry",
+      "to": "failed",
+      "wantError": false
+    },
+    {
+      "from": "outcome_unknown",
+      "event": "dispatch",
+      "to": "outcome_unknown",
+      "wantError": true
+    },
+    {
+      "from": "outcome_unknown",
+      "event": "succeed",
+      "to": "outcome_unknown",
+      "wantError": true
+    },
+    {
+      "from": "outcome_unknown",
+      "event": "fail",
+      "to": "outcome_unknown",
+      "wantError": true
+    },
+    {
+      "from": "outcome_unknown",
+      "event": "cancel",
+      "to": "outcome_unknown",
+      "wantError": false
+    },
+    {
+      "from": "outcome_unknown",
+      "event": "restart",
+      "to": "outcome_unknown",
+      "wantError": false
+    },
+    {
+      "from": "outcome_unknown",
+      "event": "retry",
+      "to": "outcome_unknown",
+      "wantError": true
+    },
+    {
+      "from": "cancelled",
+      "event": "dispatch",
+      "to": "cancelled",
+      "wantError": true
+    },
+    {
+      "from": "cancelled",
+      "event": "succeed",
+      "to": "cancelled",
+      "wantError": true
+    },
+    {
+      "from": "cancelled",
+      "event": "fail",
+      "to": "cancelled",
+      "wantError": true
+    },
+    {
+      "from": "cancelled",
+      "event": "cancel",
+      "to": "cancelled",
+      "wantError": false
+    },
+    {
+      "from": "cancelled",
+      "event": "restart",
+      "to": "cancelled",
+      "wantError": false
+    },
+    {
+      "from": "cancelled",
+      "event": "retry",
+      "to": "cancelled",
+      "wantError": false
+    }
+  ],
+  "namedTraces": [
+    {
+      "name": "success_is_retained",
+      "initial": "queued",
+      "steps": [
+        {
+          "event": "dispatch",
+          "want": "running",
+          "wantError": false
+        },
+        {
+          "event": "succeed",
+          "want": "succeeded",
+          "wantError": false
+        },
+        {
+          "event": "cancel",
+          "want": "succeeded",
+          "wantError": false
+        },
+        {
+          "event": "restart",
+          "want": "succeeded",
+          "wantError": false
+        },
+        {
+          "event": "retry",
+          "want": "succeeded",
+          "wantError": false
+        },
+        {
+          "event": "fail",
+          "want": "succeeded",
+          "wantError": true
+        }
+      ]
+    },
+    {
+      "name": "pre_dispatch_failure",
+      "initial": "queued",
+      "steps": [
+        {
+          "event": "fail",
+          "want": "failed",
+          "wantError": false
+        },
+        {
+          "event": "retry",
+          "want": "failed",
+          "wantError": false
+        },
+        {
+          "event": "cancel",
+          "want": "failed",
+          "wantError": false
+        },
+        {
+          "event": "restart",
+          "want": "failed",
+          "wantError": false
+        },
+        {
+          "event": "succeed",
+          "want": "failed",
+          "wantError": true
+        }
+      ]
+    },
+    {
+      "name": "cancel_before_dispatch",
+      "initial": "queued",
+      "steps": [
+        {
+          "event": "cancel",
+          "want": "cancelled",
+          "wantError": false
+        },
+        {
+          "event": "dispatch",
+          "want": "cancelled",
+          "wantError": true
+        },
+        {
+          "event": "succeed",
+          "want": "cancelled",
+          "wantError": true
+        },
+        {
+          "event": "fail",
+          "want": "cancelled",
+          "wantError": true
+        },
+        {
+          "event": "cancel",
+          "want": "cancelled",
+          "wantError": false
+        },
+        {
+          "event": "restart",
+          "want": "cancelled",
+          "wantError": false
+        },
+        {
+          "event": "retry",
+          "want": "cancelled",
+          "wantError": false
+        }
+      ]
+    },
+    {
+      "name": "completed_result_lost",
+      "initial": "queued",
+      "steps": [
+        {
+          "event": "dispatch",
+          "want": "running",
+          "wantError": false
+        },
+        {
+          "event": "restart",
+          "want": "outcome_unknown",
+          "wantError": false
+        },
+        {
+          "event": "retry",
+          "want": "outcome_unknown",
+          "wantError": true
+        },
+        {
+          "event": "cancel",
+          "want": "outcome_unknown",
+          "wantError": false
+        },
+        {
+          "event": "restart",
+          "want": "outcome_unknown",
+          "wantError": false
+        },
+        {
+          "event": "succeed",
+          "want": "outcome_unknown",
+          "wantError": true
+        },
+        {
+          "event": "fail",
+          "want": "outcome_unknown",
+          "wantError": true
+        },
+        {
+          "event": "dispatch",
+          "want": "outcome_unknown",
+          "wantError": true
+        }
+      ]
+    },
+    {
+      "name": "failure_after_dispatch",
+      "initial": "queued",
+      "steps": [
+        {
+          "event": "dispatch",
+          "want": "running",
+          "wantError": false
+        },
+        {
+          "event": "fail",
+          "want": "failed",
+          "wantError": false
+        },
+        {
+          "event": "dispatch",
+          "want": "failed",
+          "wantError": true
+        }
+      ]
+    },
+    {
+      "name": "resume_undispatched",
+      "initial": "queued",
+      "steps": [
+        {
+          "event": "restart",
+          "want": "queued",
+          "wantError": false
+        },
+        {
+          "event": "retry",
+          "want": "queued",
+          "wantError": true
+        },
+        {
+          "event": "dispatch",
+          "want": "running",
+          "wantError": false
+        },
+        {
+          "event": "retry",
+          "want": "running",
+          "wantError": true
+        },
+        {
+          "event": "dispatch",
+          "want": "running",
+          "wantError": true
+        },
+        {
+          "event": "cancel",
+          "want": "cancelled",
+          "wantError": false
+        }
+      ]
+    }
+  ],
+  "generatedTraces": [
+    {
+      "name": "generated_model_001",
+      "initial": "queued",
+      "steps": [
+        {
+          "event": "restart",
+          "want": "queued",
+          "wantError": false
+        },
+        {
+          "event": "retry",
+          "want": "queued",
+          "wantError": true
+        },
+        {
+          "event": "cancel",
+          "want": "cancelled",
+          "wantError": false
+        },
+        {
+          "event": "fail",
+          "want": "cancelled",
+          "wantError": true
+        },
+        {
+          "event": "cancel",
+          "want": "cancelled",
+          "wantError": false
+        },
+        {
+          "event": "fail",
+          "want": "cancelled",
+          "wantError": true
+        },
+        {
+          "event": "fail",
+          "want": "cancelled",
+          "wantError": true
+        },
+        {
+          "event": "dispatch",
+          "want": "cancelled",
+          "wantError": true
+        }
+      ]
+    },
+    {
+      "name": "generated_model_002",
+      "initial": "queued",
+      "steps": [
+        {
+          "event": "succeed",
+          "want": "queued",
+          "wantError": true
+        },
+        {
+          "event": "succeed",
+          "want": "queued",
+          "wantError": true
+        },
+        {
+          "event": "succeed",
+          "want": "queued",
+          "wantError": true
+        },
+        {
+          "event": "cancel",
+          "want": "cancelled",
+          "wantError": false
+        },
+        {
+          "event": "retry",
+          "want": "cancelled",
+          "wantError": false
+        },
+        {
+          "event": "dispatch",
+          "want": "cancelled",
+          "wantError": true
+        },
+        {
+          "event": "restart",
+          "want": "cancelled",
+          "wantError": false
+        },
+        {
+          "event": "dispatch",
+          "want": "cancelled",
+          "wantError": true
+        }
+      ]
+    },
+    {
+      "name": "generated_model_003",
+      "initial": "queued",
+      "steps": [
+        {
+          "event": "dispatch",
+          "want": "running",
+          "wantError": false
+        },
+        {
+          "event": "succeed",
+          "want": "succeeded",
+          "wantError": false
+        },
+        {
+          "event": "cancel",
+          "want": "succeeded",
+          "wantError": false
+        },
+        {
+          "event": "succeed",
+          "want": "succeeded",
+          "wantError": true
+        },
+        {
+          "event": "restart",
+          "want": "succeeded",
+          "wantError": false
+        },
+        {
+          "event": "dispatch",
+          "want": "succeeded",
+          "wantError": true
+        },
+        {
+          "event": "restart",
+          "want": "succeeded",
+          "wantError": false
+        },
+        {
+          "event": "cancel",
+          "want": "succeeded",
+          "wantError": false
+        }
+      ]
+    },
+    {
+      "name": "generated_model_004",
+      "initial": "queued",
+      "steps": [
+        {
+          "event": "succeed",
+          "want": "queued",
+          "wantError": true
+        },
+        {
+          "event": "cancel",
+          "want": "cancelled",
+          "wantError": false
+        },
+        {
+          "event": "dispatch",
+          "want": "cancelled",
+          "wantError": true
+        },
+        {
+          "event": "restart",
+          "want": "cancelled",
+          "wantError": false
+        },
+        {
+          "event": "fail",
+          "want": "cancelled",
+          "wantError": true
+        },
+        {
+          "event": "fail",
+          "want": "cancelled",
+          "wantError": true
+        },
+        {
+          "event": "retry",
+          "want": "cancelled",
+          "wantError": false
+        },
+        {
+          "event": "restart",
+          "want": "cancelled",
+          "wantError": false
+        }
+      ]
+    },
+    {
+      "name": "generated_model_005",
+      "initial": "queued",
+      "steps": [
+        {
+          "event": "cancel",
+          "want": "cancelled",
+          "wantError": false
+        },
+        {
+          "event": "dispatch",
+          "want": "cancelled",
+          "wantError": true
+        },
+        {
+          "event": "dispatch",
+          "want": "cancelled",
+          "wantError": true
+        },
+        {
+          "event": "retry",
+          "want": "cancelled",
+          "wantError": false
+        },
+        {
+          "event": "cancel",
+          "want": "cancelled",
+          "wantError": false
+        },
+        {
+          "event": "cancel",
+          "want": "cancelled",
+          "wantError": false
+        },
+        {
+          "event": "retry",
+          "want": "cancelled",
+          "wantError": false
+        },
+        {
+          "event": "retry",
+          "want": "cancelled",
+          "wantError": false
+        }
+      ]
+    },
+    {
+      "name": "generated_model_006",
+      "initial": "queued",
+      "steps": [
+        {
+          "event": "dispatch",
+          "want": "running",
+          "wantError": false
+        },
+        {
+          "event": "retry",
+          "want": "running",
+          "wantError": true
+        },
+        {
+          "event": "restart",
+          "want": "outcome_unknown",
+          "wantError": false
+        },
+        {
+          "event": "restart",
+          "want": "outcome_unknown",
+          "wantError": false
+        },
+        {
+          "event": "restart",
+          "want": "outcome_unknown",
+          "wantError": false
+        },
+        {
+          "event": "fail",
+          "want": "outcome_unknown",
+          "wantError": true
+        },
+        {
+          "event": "cancel",
+          "want": "outcome_unknown",
+          "wantError": false
+        },
+        {
+          "event": "retry",
+          "want": "outcome_unknown",
+          "wantError": true
+        }
+      ]
+    },
+    {
+      "name": "generated_model_007",
+      "initial": "queued",
+      "steps": [
+        {
+          "event": "cancel",
+          "want": "cancelled",
+          "wantError": false
+        },
+        {
+          "event": "succeed",
+          "want": "cancelled",
+          "wantError": true
+        },
+        {
+          "event": "dispatch",
+          "want": "cancelled",
+          "wantError": true
+        },
+        {
+          "event": "restart",
+          "want": "cancelled",
+          "wantError": false
+        },
+        {
+          "event": "fail",
+          "want": "cancelled",
+          "wantError": true
+        },
+        {
+          "event": "retry",
+          "want": "cancelled",
+          "wantError": false
+        },
+        {
+          "event": "dispatch",
+          "want": "cancelled",
+          "wantError": true
+        },
+        {
+          "event": "retry",
+          "want": "cancelled",
+          "wantError": false
+        }
+      ]
+    },
+    {
+      "name": "generated_model_008",
+      "initial": "queued",
+      "steps": [
+        {
+          "event": "fail",
+          "want": "failed",
+          "wantError": false
+        },
+        {
+          "event": "fail",
+          "want": "failed",
+          "wantError": true
+        },
+        {
+          "event": "fail",
+          "want": "failed",
+          "wantError": true
+        },
+        {
+          "event": "fail",
+          "want": "failed",
+          "wantError": true
+        },
+        {
+          "event": "retry",
+          "want": "failed",
+          "wantError": false
+        },
+        {
+          "event": "succeed",
+          "want": "failed",
+          "wantError": true
+        },
+        {
+          "event": "fail",
+          "want": "failed",
+          "wantError": true
+        },
+        {
+          "event": "cancel",
+          "want": "failed",
+          "wantError": false
+        }
+      ]
+    },
+    {
+      "name": "generated_model_009",
+      "initial": "queued",
+      "steps": [
+        {
+          "event": "fail",
+          "want": "failed",
+          "wantError": false
+        },
+        {
+          "event": "retry",
+          "want": "failed",
+          "wantError": false
+        },
+        {
+          "event": "restart",
+          "want": "failed",
+          "wantError": false
+        },
+        {
+          "event": "dispatch",
+          "want": "failed",
+          "wantError": true
+        },
+        {
+          "event": "retry",
+          "want": "failed",
+          "wantError": false
+        },
+        {
+          "event": "retry",
+          "want": "failed",
+          "wantError": false
+        },
+        {
+          "event": "restart",
+          "want": "failed",
+          "wantError": false
+        },
+        {
+          "event": "cancel",
+          "want": "failed",
+          "wantError": false
+        }
+      ]
+    },
+    {
+      "name": "generated_model_010",
+      "initial": "queued",
+      "steps": [
+        {
+          "event": "succeed",
+          "want": "queued",
+          "wantError": true
+        },
+        {
+          "event": "restart",
+          "want": "queued",
+          "wantError": false
+        },
+        {
+          "event": "restart",
+          "want": "queued",
+          "wantError": false
+        },
+        {
+          "event": "cancel",
+          "want": "cancelled",
+          "wantError": false
+        },
+        {
+          "event": "fail",
+          "want": "cancelled",
+          "wantError": true
+        },
+        {
+          "event": "cancel",
+          "want": "cancelled",
+          "wantError": false
+        },
+        {
+          "event": "cancel",
+          "want": "cancelled",
+          "wantError": false
+        },
+        {
+          "event": "cancel",
+          "want": "cancelled",
+          "wantError": false
+        }
+      ]
+    },
+    {
+      "name": "generated_model_011",
+      "initial": "queued",
+      "steps": [
+        {
+          "event": "fail",
+          "want": "failed",
+          "wantError": false
+        },
+        {
+          "event": "dispatch",
+          "want": "failed",
+          "wantError": true
+        },
+        {
+          "event": "fail",
+          "want": "failed",
+          "wantError": true
+        },
+        {
+          "event": "succeed",
+          "want": "failed",
+          "wantError": true
+        },
+        {
+          "event": "succeed",
+          "want": "failed",
+          "wantError": true
+        },
+        {
+          "event": "dispatch",
+          "want": "failed",
+          "wantError": true
+        },
+        {
+          "event": "dispatch",
+          "want": "failed",
+          "wantError": true
+        },
+        {
+          "event": "fail",
+          "want": "failed",
+          "wantError": true
+        }
+      ]
+    },
+    {
+      "name": "generated_model_012",
+      "initial": "queued",
+      "steps": [
+        {
+          "event": "restart",
+          "want": "queued",
+          "wantError": false
+        },
+        {
+          "event": "fail",
+          "want": "failed",
+          "wantError": false
+        },
+        {
+          "event": "succeed",
+          "want": "failed",
+          "wantError": true
+        },
+        {
+          "event": "fail",
+          "want": "failed",
+          "wantError": true
+        },
+        {
+          "event": "retry",
+          "want": "failed",
+          "wantError": false
+        },
+        {
+          "event": "cancel",
+          "want": "failed",
+          "wantError": false
+        },
+        {
+          "event": "cancel",
+          "want": "failed",
+          "wantError": false
+        },
+        {
+          "event": "dispatch",
+          "want": "failed",
+          "wantError": true
+        }
+      ]
+    },
+    {
+      "name": "generated_model_013",
+      "initial": "queued",
+      "steps": [
+        {
+          "event": "cancel",
+          "want": "cancelled",
+          "wantError": false
+        },
+        {
+          "event": "fail",
+          "want": "cancelled",
+          "wantError": true
+        },
+        {
+          "event": "restart",
+          "want": "cancelled",
+          "wantError": false
+        },
+        {
+          "event": "retry",
+          "want": "cancelled",
+          "wantError": false
+        },
+        {
+          "event": "restart",
+          "want": "cancelled",
+          "wantError": false
+        },
+        {
+          "event": "restart",
+          "want": "cancelled",
+          "wantError": false
+        },
+        {
+          "event": "restart",
+          "want": "cancelled",
+          "wantError": false
+        },
+        {
+          "event": "retry",
+          "want": "cancelled",
+          "wantError": false
+        }
+      ]
+    },
+    {
+      "name": "generated_model_014",
+      "initial": "queued",
+      "steps": [
+        {
+          "event": "dispatch",
+          "want": "running",
+          "wantError": false
+        },
+        {
+          "event": "dispatch",
+          "want": "running",
+          "wantError": true
+        },
+        {
+          "event": "restart",
+          "want": "outcome_unknown",
+          "wantError": false
+        },
+        {
+          "event": "dispatch",
+          "want": "outcome_unknown",
+          "wantError": true
+        },
+        {
+          "event": "fail",
+          "want": "outcome_unknown",
+          "wantError": true
+        },
+        {
+          "event": "cancel",
+          "want": "outcome_unknown",
+          "wantError": false
+        },
+        {
+          "event": "fail",
+          "want": "outcome_unknown",
+          "wantError": true
+        },
+        {
+          "event": "dispatch",
+          "want": "outcome_unknown",
+          "wantError": true
+        }
+      ]
+    },
+    {
+      "name": "generated_model_015",
+      "initial": "queued",
+      "steps": [
+        {
+          "event": "succeed",
+          "want": "queued",
+          "wantError": true
+        },
+        {
+          "event": "restart",
+          "want": "queued",
+          "wantError": false
+        },
+        {
+          "event": "cancel",
+          "want": "cancelled",
+          "wantError": false
+        },
+        {
+          "event": "succeed",
+          "want": "cancelled",
+          "wantError": true
+        },
+        {
+          "event": "dispatch",
+          "want": "cancelled",
+          "wantError": true
+        },
+        {
+          "event": "restart",
+          "want": "cancelled",
+          "wantError": false
+        },
+        {
+          "event": "retry",
+          "want": "cancelled",
+          "wantError": false
+        },
+        {
+          "event": "cancel",
+          "want": "cancelled",
+          "wantError": false
+        }
+      ]
+    },
+    {
+      "name": "generated_model_016",
+      "initial": "queued",
+      "steps": [
+        {
+          "event": "succeed",
+          "want": "queued",
+          "wantError": true
+        },
+        {
+          "event": "dispatch",
+          "want": "running",
+          "wantError": false
+        },
+        {
+          "event": "succeed",
+          "want": "succeeded",
+          "wantError": false
+        },
+        {
+          "event": "cancel",
+          "want": "succeeded",
+          "wantError": false
+        },
+        {
+          "event": "dispatch",
+          "want": "succeeded",
+          "wantError": true
+        },
+        {
+          "event": "succeed",
+          "want": "succeeded",
+          "wantError": true
+        },
+        {
+          "event": "dispatch",
+          "want": "succeeded",
+          "wantError": true
+        },
+        {
+          "event": "dispatch",
+          "want": "succeeded",
+          "wantError": true
+        }
+      ]
+    },
+    {
+      "name": "generated_model_017",
+      "initial": "queued",
+      "steps": [
+        {
+          "event": "dispatch",
+          "want": "running",
+          "wantError": false
+        },
+        {
+          "event": "dispatch",
+          "want": "running",
+          "wantError": true
+        },
+        {
+          "event": "cancel",
+          "want": "cancelled",
+          "wantError": false
+        },
+        {
+          "event": "retry",
+          "want": "cancelled",
+          "wantError": false
+        },
+        {
+          "event": "dispatch",
+          "want": "cancelled",
+          "wantError": true
+        },
+        {
+          "event": "dispatch",
+          "want": "cancelled",
+          "wantError": true
+        },
+        {
+          "event": "fail",
+          "want": "cancelled",
+          "wantError": true
+        },
+        {
+          "event": "retry",
+          "want": "cancelled",
+          "wantError": false
+        }
+      ]
+    },
+    {
+      "name": "generated_model_018",
+      "initial": "queued",
+      "steps": [
+        {
+          "event": "cancel",
+          "want": "cancelled",
+          "wantError": false
+        },
+        {
+          "event": "succeed",
+          "want": "cancelled",
+          "wantError": true
+        },
+        {
+          "event": "cancel",
+          "want": "cancelled",
+          "wantError": false
+        },
+        {
+          "event": "succeed",
+          "want": "cancelled",
+          "wantError": true
+        },
+        {
+          "event": "restart",
+          "want": "cancelled",
+          "wantError": false
+        },
+        {
+          "event": "retry",
+          "want": "cancelled",
+          "wantError": false
+        },
+        {
+          "event": "succeed",
+          "want": "cancelled",
+          "wantError": true
+        },
+        {
+          "event": "cancel",
+          "want": "cancelled",
+          "wantError": false
+        }
+      ]
+    },
+    {
+      "name": "generated_model_019",
+      "initial": "queued",
+      "steps": [
+        {
+          "event": "restart",
+          "want": "queued",
+          "wantError": false
+        },
+        {
+          "event": "retry",
+          "want": "queued",
+          "wantError": true
+        },
+        {
+          "event": "succeed",
+          "want": "queued",
+          "wantError": true
+        },
+        {
+          "event": "succeed",
+          "want": "queued",
+          "wantError": true
+        },
+        {
+          "event": "retry",
+          "want": "queued",
+          "wantError": true
+        },
+        {
+          "event": "restart",
+          "want": "queued",
+          "wantError": false
+        },
+        {
+          "event": "restart",
+          "want": "queued",
+          "wantError": false
+        },
+        {
+          "event": "succeed",
+          "want": "queued",
+          "wantError": true
+        }
+      ]
+    },
+    {
+      "name": "generated_model_020",
+      "initial": "queued",
+      "steps": [
+        {
+          "event": "restart",
+          "want": "queued",
+          "wantError": false
+        },
+        {
+          "event": "cancel",
+          "want": "cancelled",
+          "wantError": false
+        },
+        {
+          "event": "succeed",
+          "want": "cancelled",
+          "wantError": true
+        },
+        {
+          "event": "restart",
+          "want": "cancelled",
+          "wantError": false
+        },
+        {
+          "event": "fail",
+          "want": "cancelled",
+          "wantError": true
+        },
+        {
+          "event": "succeed",
+          "want": "cancelled",
+          "wantError": true
+        },
+        {
+          "event": "succeed",
+          "want": "cancelled",
+          "wantError": true
+        },
+        {
+          "event": "succeed",
+          "want": "cancelled",
+          "wantError": true
+        }
+      ]
+    },
+    {
+      "name": "generated_model_021",
+      "initial": "queued",
+      "steps": [
+        {
+          "event": "retry",
+          "want": "queued",
+          "wantError": true
+        },
+        {
+          "event": "dispatch",
+          "want": "running",
+          "wantError": false
+        },
+        {
+          "event": "retry",
+          "want": "running",
+          "wantError": true
+        },
+        {
+          "event": "succeed",
+          "want": "succeeded",
+          "wantError": false
+        },
+        {
+          "event": "fail",
+          "want": "succeeded",
+          "wantError": true
+        },
+        {
+          "event": "succeed",
+          "want": "succeeded",
+          "wantError": true
+        },
+        {
+          "event": "fail",
+          "want": "succeeded",
+          "wantError": true
+        },
+        {
+          "event": "cancel",
+          "want": "succeeded",
+          "wantError": false
+        }
+      ]
+    },
+    {
+      "name": "generated_model_022",
+      "initial": "queued",
+      "steps": [
+        {
+          "event": "cancel",
+          "want": "cancelled",
+          "wantError": false
+        },
+        {
+          "event": "dispatch",
+          "want": "cancelled",
+          "wantError": true
+        },
+        {
+          "event": "dispatch",
+          "want": "cancelled",
+          "wantError": true
+        },
+        {
+          "event": "retry",
+          "want": "cancelled",
+          "wantError": false
+        },
+        {
+          "event": "retry",
+          "want": "cancelled",
+          "wantError": false
+        },
+        {
+          "event": "cancel",
+          "want": "cancelled",
+          "wantError": false
+        },
+        {
+          "event": "restart",
+          "want": "cancelled",
+          "wantError": false
+        },
+        {
+          "event": "dispatch",
+          "want": "cancelled",
+          "wantError": true
+        }
+      ]
+    },
+    {
+      "name": "generated_model_023",
+      "initial": "queued",
+      "steps": [
+        {
+          "event": "cancel",
+          "want": "cancelled",
+          "wantError": false
+        },
+        {
+          "event": "cancel",
+          "want": "cancelled",
+          "wantError": false
+        },
+        {
+          "event": "retry",
+          "want": "cancelled",
+          "wantError": false
+        },
+        {
+          "event": "dispatch",
+          "want": "cancelled",
+          "wantError": true
+        },
+        {
+          "event": "restart",
+          "want": "cancelled",
+          "wantError": false
+        },
+        {
+          "event": "retry",
+          "want": "cancelled",
+          "wantError": false
+        },
+        {
+          "event": "cancel",
+          "want": "cancelled",
+          "wantError": false
+        },
+        {
+          "event": "fail",
+          "want": "cancelled",
+          "wantError": true
+        }
+      ]
+    },
+    {
+      "name": "generated_model_024",
+      "initial": "queued",
+      "steps": [
+        {
+          "event": "restart",
+          "want": "queued",
+          "wantError": false
+        },
+        {
+          "event": "retry",
+          "want": "queued",
+          "wantError": true
+        },
+        {
+          "event": "cancel",
+          "want": "cancelled",
+          "wantError": false
+        },
+        {
+          "event": "succeed",
+          "want": "cancelled",
+          "wantError": true
+        },
+        {
+          "event": "cancel",
+          "want": "cancelled",
+          "wantError": false
+        },
+        {
+          "event": "dispatch",
+          "want": "cancelled",
+          "wantError": true
+        },
+        {
+          "event": "cancel",
+          "want": "cancelled",
+          "wantError": false
+        },
+        {
+          "event": "succeed",
+          "want": "cancelled",
+          "wantError": true
+        }
+      ]
+    }
+  ],
+  "invariants": [
+    "TypeOK",
+    "TerminalClosure",
+    "IllegalTransitionsPreserveState"
+  ],
+  "generatedChecks": [
+    "transitionTable"
+  ],
+  "coverage": {
+    "transitionMatrixComplete": true,
+    "terminalTransitionsChecked": true,
+    "namedTraces": {
+      "allStatesCovered": true,
+      "allEventsCovered": true,
+      "coveredStates": [
+        "queued",
+        "running",
+        "succeeded",
+        "failed",
+        "outcome_unknown",
+        "cancelled"
+      ],
+      "coveredEvents": [
+        "dispatch",
+        "succeed",
+        "fail",
+        "cancel",
+        "restart",
+        "retry"
+      ]
+    },
+    "generatedTraces": {
+      "allStatesCovered": true,
+      "allEventsCovered": true,
+      "coveredStates": [
+        "queued",
+        "running",
+        "succeeded",
+        "failed",
+        "outcome_unknown",
+        "cancelled"
+      ],
+      "coveredEvents": [
+        "dispatch",
+        "succeed",
+        "fail",
+        "cancel",
+        "restart",
+        "retry"
+      ],
+      "coveredPairs": [
+        "queued/dispatch",
+        "queued/succeed",
+        "queued/fail",
+        "queued/cancel",
+        "queued/restart",
+        "queued/retry",
+        "running/dispatch",
+        "running/succeed",
+        "running/cancel",
+        "running/restart",
+        "running/retry",
+        "succeeded/dispatch",
+        "succeeded/succeed",
+        "succeeded/fail",
+        "succeeded/cancel",
+        "succeeded/restart",
+        "failed/dispatch",
+        "failed/succeed",
+        "failed/fail",
+        "failed/cancel",
+        "failed/restart",
+        "failed/retry",
+        "outcome_unknown/dispatch",
+        "outcome_unknown/fail",
+        "outcome_unknown/cancel",
+        "outcome_unknown/restart",
+        "outcome_unknown/retry",
+        "cancelled/dispatch",
+        "cancelled/succeed",
+        "cancelled/fail",
+        "cancelled/cancel",
+        "cancelled/restart",
+        "cancelled/retry"
+      ],
+      "allPairsCovered": false
+    }
+  },
+  "checks": {
+    "typechecked": true,
+    "tested": true,
+    "verified": true,
+    "generatedFromContract": true,
+    "generatedFromModel": true
+  }
+}

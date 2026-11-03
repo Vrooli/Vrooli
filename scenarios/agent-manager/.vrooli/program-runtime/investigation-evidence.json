@@ -19,15 +19,16 @@
   ],
   "invariants": [
     "read only; no launches, mutations, cursor movement, or recommendations",
-    "one report read per declared subject run",
-    "a report failure remains an explicit per-subject unknown; a healthy sibling stays visible",
+    "one report and accounting read per declared subject run",
+    "report and accounting failures remain explicit; any available sibling is retained as partial evidence",
     "the envelope is printed exactly once on every path"
   ],
   "bindings": [
     {
       "id": "agent-manager/run/report",
       "effect": "read"
-    }
+    },
+    {"id": "agent-manager/run/accounting", "effect": "read"}
   ],
   "verbs": [
     "gather"
@@ -50,11 +51,11 @@
       ]
     },
     "signals": {
-      "subjects": "Bounded subject rows with report availability; source_completeness and source_freshness are unknown because the report does not prove ingestion coverage or currency",
+      "subjects": "Bounded subject rows include owner-reported duration, event gap, repeated tool calls, time-accounting, reported aggregate tokens, model and goal outcome; missing values are null. Accounting carries owner-reported non-cache and cache tokens, known flags, charge and terminal state; a failed accounting read is unknown. Source completeness and freshness remain unknown.",
       "subject_count": "Number of requested subjects",
       "available": "Subjects with at least one available projection",
       "unknown": "Subjects with at least one unavailable projection",
-      "coverage": "complete only when the report is available for every subject; this describes report availability, not underlying source completeness or freshness"
+      "coverage": "complete only when both projections and report evidence are available for every subject; this is not source completeness or freshness"
     },
     "errors": {
       "classes": [

@@ -8,8 +8,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math"
+	"mime"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -88,7 +91,7 @@ func (e *ResourceOpenRouterMediaExecutor) Execute(ctx context.Context, req *rout
 		}
 	}()
 
-	args := []string{"images", "generate", "--role", role, "--output-count", "1"}
+	args := []string{"images", "generate", "--role", role, "--output-count", "1", "--result-format", "gateway-v1"}
 	if len(req.GetInputs()) > 0 {
 		inputPath := strings.TrimSpace(req.GetInputs()[0].GetReference())
 		if !filepath.IsAbs(inputPath) {
@@ -106,12 +109,12 @@ func (e *ResourceOpenRouterMediaExecutor) Execute(ctx context.Context, req *rout
 		return nil, fmt.Errorf("resource-openrouter image generation: %w", err)
 	}
 
-	image, mediaType, err := decodeMediaImage([]byte(result.Stdout))
+	image, mediaType, actualCostUSD, err := decodeMediaImage([]byte(result.Stdout))
 	if err != nil {
-		return nil, err
+		return &MediaExecutionResult{ActualCostUSD: actualCostUSD}, err
 	}
 	if err := writeMediaOutput(outputPath, image); err != nil {
-		return nil, err
+		return &MediaExecutionResult{ActualCostUSD: actualCostUSD}, err
 	}
 	checksum := sha256.Sum256(image)
 	request := req.GetRequest()
@@ -144,6 +147,7 @@ func (e *ResourceOpenRouterMediaExecutor) Execute(ctx context.Context, req *rout
 			Bytes:     int64(len(image)),
 			Checksum:  "sha256:" + hex.EncodeToString(checksum[:]),
 		}},
+		ActualCostUSD: actualCostUSD,
 		ResolvedModel: model,
 	}, nil
 }
@@ -205,38 +209,60 @@ func resolveOpenRouterCredential(_ context.Context) (string, error) {
 }
 
 type mediaImageResponse struct {
-	Data []struct {
-		B64JSON   string `json:"b64_json"`
+	SchemaVersion int `json:"schema_version"`
+	Images        []struct {
+		DataB64   string `json:"data_b64"`
 		MediaType string `json:"media_type"`
-	} `json:"data"`
-	Error *struct {
-		Message string `json:"message"`
-	} `json:"error"`
+	} `json:"images"`
+	ActualCostUSD json.RawMessage `json:"actual_cost_usd"`
 }
 
-func decodeMediaImage(body []byte) ([]byte, string, error) {
+func decodeMediaImage(body []byte) ([]byte, string, *float64, error) {
 	var response mediaImageResponse
 	if err := json.Unmarshal(body, &response); err != nil {
-		return nil, "", fmt.Errorf("decode resource-openrouter image response: %w", err)
+		return nil, "", nil, fmt.Errorf("decode resource-openrouter image response: %w", err)
 	}
-	if response.Error != nil && strings.TrimSpace(response.Error.Message) != "" {
-		return nil, "", fmt.Errorf("resource-openrouter image error: %s", response.Error.Message)
-	}
-	if len(response.Data) == 0 || strings.TrimSpace(response.Data[0].B64JSON) == "" {
-		return nil, "", errors.New("resource-openrouter returned no image output")
-	}
-	image, err := base64.StdEncoding.DecodeString(response.Data[0].B64JSON)
+	actualCostUSD, err := parseGatewayImageCost(response.ActualCostUSD)
 	if err != nil {
-		return nil, "", fmt.Errorf("decode resource-openrouter image bytes: %w", err)
+		return nil, "", nil, err
+	}
+	if response.SchemaVersion != 1 {
+		return nil, "", actualCostUSD, fmt.Errorf("resource-openrouter returned unsupported gateway image schema version %d", response.SchemaVersion)
+	}
+	if len(response.Images) != 1 {
+		return nil, "", actualCostUSD, fmt.Errorf("resource-openrouter returned %d images for output_count=1", len(response.Images))
+	}
+	if strings.TrimSpace(response.Images[0].DataB64) == "" {
+		return nil, "", actualCostUSD, errors.New("resource-openrouter returned no image output")
+	}
+	image, err := base64.StdEncoding.DecodeString(response.Images[0].DataB64)
+	if err != nil {
+		return nil, "", actualCostUSD, fmt.Errorf("decode resource-openrouter image bytes: %w", err)
 	}
 	if len(image) == 0 {
-		return nil, "", errors.New("resource-openrouter returned empty image output")
+		return nil, "", actualCostUSD, errors.New("resource-openrouter returned empty image output")
 	}
-	mediaType := strings.TrimSpace(response.Data[0].MediaType)
-	if mediaType == "" {
-		mediaType = "image/png"
+	mediaType := strings.TrimSpace(response.Images[0].MediaType)
+	parsedType, _, err := mime.ParseMediaType(mediaType)
+	if err != nil || !strings.HasPrefix(strings.ToLower(parsedType), "image/") {
+		return nil, "", actualCostUSD, fmt.Errorf("resource-openrouter returned invalid image media_type %q", mediaType)
 	}
-	return image, mediaType, nil
+	return image, mediaType, actualCostUSD, nil
+}
+
+func parseGatewayImageCost(raw json.RawMessage) (*float64, error) {
+	if len(raw) == 0 {
+		return nil, nil
+	}
+	text := strings.TrimSpace(string(raw))
+	if text == "" || text == "null" || (text[0] != '-' && (text[0] < '0' || text[0] > '9')) {
+		return nil, fmt.Errorf("resource-openrouter returned invalid actual_cost_usd")
+	}
+	value, err := strconv.ParseFloat(text, 64)
+	if err != nil || math.IsNaN(value) || math.IsInf(value, 0) || value < 0 {
+		return nil, fmt.Errorf("resource-openrouter returned invalid actual_cost_usd")
+	}
+	return &value, nil
 }
 
 func writeMediaOutput(path string, image []byte) error {

@@ -40,6 +40,17 @@ func TestCodingBackupRequiresCurrentConsentAndSwitchesOnce(t *testing.T) {
 		{name: "different explicit source", mutate: func(e *RunExecutor, _ *cliutil.CodingBackupRecord) {
 			e.customEnv = map[string]string{cliutil.ModelSourceEnvironment: `{"kind":"own_key"}`}
 		}},
+		{name: "malformed explicit source", mutate: func(e *RunExecutor, _ *cliutil.CodingBackupRecord) {
+			e.customEnv = map[string]string{cliutil.ModelSourceEnvironment: `{"kind":`}
+		}},
+		{name: "successful original run", mutate: func(e *RunExecutor, _ *cliutil.CodingBackupRecord) { e.result.Success = true }},
+		{name: "no original result", mutate: func(e *RunExecutor, _ *cliutil.CodingBackupRecord) { e.result = nil }},
+		{name: "no structured limit", mutate: func(e *RunExecutor, _ *cliutil.CodingBackupRecord) { e.result.CodingLimit = nil }},
+		{name: "no owner", mutate: func(e *RunExecutor, _ *cliutil.CodingBackupRecord) { e.run.OwnerSubject = "" }},
+		{name: "no config", mutate: func(e *RunExecutor, _ *cliutil.CodingBackupRecord) { e.run.ResolvedConfig = nil }},
+		{name: "no run", mutate: func(e *RunExecutor, _ *cliutil.CodingBackupRecord) { e.run = nil }},
+		{name: "revocation pending", mutate: func(_ *RunExecutor, r *cliutil.CodingBackupRecord) { r.RevocationPending = true }},
+		{name: "wrong harness consent", mutate: func(_ *RunExecutor, r *cliutil.CodingBackupRecord) { r.Consent.Harness = "opencode" }},
 		{name: "no automatic consent", mutate: func(_ *RunExecutor, r *cliutil.CodingBackupRecord) { r.Consent.Automatic = false }},
 		{name: "wrong owner", mutate: func(_ *RunExecutor, r *cliutil.CodingBackupRecord) { r.Owner = "other" }},
 		{name: "expired", mutate: func(_ *RunExecutor, r *cliutil.CodingBackupRecord) {
@@ -79,6 +90,7 @@ func TestCodingBackupRequiresCurrentConsentAndSwitchesOnce(t *testing.T) {
 			e := NewRunExecutor(nil, nil, nil, store, run, nil, nil, "original task", "")
 			e.workDir, e.runStateRoot = t.TempDir(), t.TempDir()
 			e.result = &runner.ExecuteResult{CodingLimit: &cliutil.CodingLimit{Harness: "codex", Kind: "provider_limit", ObservedAt: time.Now()}}
+			sink := e.createEventSink()
 			record := cliutil.CodingBackupRecord{Owner: "owner", BaseURL: door.URL, ParentID: "parent", ParentKey: "parent-test-only", Consent: cliutil.CodingBackupConsent{Harness: "codex", Account: "account", Model: "model", MaxCredits: 5000, ExpiresAt: time.Now().Add(time.Hour), Automatic: true}}
 			if tc.mutate != nil {
 				tc.mutate(e, &record)
@@ -110,7 +122,7 @@ func TestCodingBackupRequiresCurrentConsentAndSwitchesOnce(t *testing.T) {
 				_ = req.EventSink.Emit(domain.NewLifecycleEvent(run.ID, domain.LifecycleEventData{Phase: domain.LifecyclePhaseRunnerAcquired}))
 				return &runner.ExecuteResult{Success: true}, nil
 			}
-			switched, out := e.tryCodingBackup(context.Background(), agent, e.createEventSink())
+			switched, out := e.tryCodingBackup(context.Background(), agent, sink)
 			if out.RunState != nil {
 				defer out.RunState.Close()
 			}

@@ -2,7 +2,7 @@
 //
 // Routing precedence (fixed): BYOK -> Vrooli/LPBS -> Local.
 // Local is backed by internal/summarize.OllamaClient; BYOK starter is
-// openrouter; Vrooli routes through LPBS chat with `Operation: audio.summarize`.
+// openrouter; Vrooli routes through the declared LPBS audio-tools.summarize feature.
 package summarizechain
 
 import (
@@ -20,6 +20,7 @@ const (
 )
 
 type Request struct {
+	OperationID    string // stable caller operation; retries must not dispatch twice
 	Text           string
 	Level          string // "light" | "moderate" | "heavy"
 	Model          string // optional override

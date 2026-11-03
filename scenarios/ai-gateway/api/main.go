@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"log"
 	"net/http"
 	"os"
@@ -9,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"ai-gateway/internal/catalog"
 	inference "ai-gateway/internal/inference"
 	"ai-gateway/internal/modules"
 	"ai-gateway/internal/providers"
@@ -21,8 +23,6 @@ import (
 	"github.com/vrooli/api-core/devrouting"
 	"github.com/vrooli/api-core/preflight"
 	apiserver "github.com/vrooli/api-core/server"
-	credentialauthority "github.com/vrooli/vrooli/packages/credential-authority-go"
-	credentialclient "github.com/vrooli/vrooli/packages/credentialclient-go"
 	_ "modernc.org/sqlite"
 
 	conformanceH "ai-gateway/handlers/conformance"
@@ -52,6 +52,35 @@ func repoRoot() string {
 			return ""
 		}
 	}
+}
+
+func loadPrivateAIFeatures(root string) []internalrouting.PrivateFeature {
+	path := filepath.Join(root, "packages", "monetization-go", "ai-features.generated.json")
+	data, err := os.ReadFile(path)
+	if root == "" {
+		if bundle, bundleErr := catalog.Embedded(); bundleErr == nil {
+			data, err = bundle.Features, nil
+		}
+	}
+	if err != nil {
+		log.Printf("private AI feature registry unavailable: %v", err)
+		return nil
+	}
+	var registry struct {
+		Version  int `json:"version"`
+		Features []struct {
+			Feature internalrouting.PrivateFeature `json:"feature"`
+		} `json:"features"`
+	}
+	if err := json.Unmarshal(data, &registry); err != nil || registry.Version != 1 {
+		log.Printf("private AI feature registry is invalid; private feature routing remains denied")
+		return nil
+	}
+	features := make([]internalrouting.PrivateFeature, 0, len(registry.Features))
+	for _, entry := range registry.Features {
+		features = append(features, entry.Feature)
+	}
+	return features
 }
 
 func main() {
@@ -87,36 +116,24 @@ func main() {
 	catalogPath := filepath.Join(repoRoot(), "scenarios", "ai-gateway", "config", "inference-role-catalog.json")
 	var inferenceRepository inference.Repository
 	roleCatalog, err := inference.LoadCatalog(catalogPath)
+	bundle, bundleErr := catalog.Embedded()
+	if repoRoot() == "" && bundleErr == nil {
+		err = json.Unmarshal(bundle.Roles, &roleCatalog)
+		if err == nil {
+			err = roleCatalog.Validate()
+		}
+	}
 	if err != nil {
 		log.Printf("typed inference disabled: %v", err)
 		inferenceRepository = inference.UnavailableRepository{Reason: err.Error()}
 		roleCatalog = inference.RoleCatalog{}
 	} else {
 		adapters := providers.NewDefaultAdapters(nil)
-		if endpoint := strings.TrimSpace(os.Getenv("LPBS_METERED_INFERENCE_URL")); endpoint != "" {
-			var resolveAccessToken func(context.Context, string) (string, error)
-			if authority, authorityErr := credentialauthority.Default(); authorityErr != nil {
-				log.Printf("subscription-backed inference shared credential unavailable: %v", authorityErr)
-			} else if client, clientErr := credentialclient.NewClient(credentialclient.ClientOptions{
-				Authority: authority,
-				Descriptors: func() ([]credentialclient.CredentialRef, error) {
-					return credentialclient.DiscoverDescriptors(repoRoot())
-				},
-			}); clientErr != nil {
-				log.Printf("subscription-backed inference credential client unavailable: %v", clientErr)
-			} else {
-				resolver := &credentialclient.ConsumerSessionResolver{Credentials: client}
-				resolveAccessToken = func(ctx context.Context, baseURL string) (string, error) {
-					access, err := resolver.ResolveAt(ctx, baseURL)
-					if err != nil {
-						return "", err
-					}
-					return "Bearer " + access.AccessToken, nil
-				}
-			}
-			adapters = append(adapters, providers.Adapter{Provider: providers.ProviderMetered, Locality: "remote", Metered: providers.NewMeteredClient(providers.MeteredClientOptions{
-				BaseURL: endpoint, ResolveAccessToken: resolveAccessToken,
-			})})
+		if repoRoot() == "" {
+			adapters = providers.NewPackagedAdapters(bundle)
+		}
+		if endpoint := strings.TrimSpace(os.Getenv("LPBS_AI_DOOR_URL")); endpoint != "" {
+			adapters = append(adapters, providers.Adapter{Provider: providers.ProviderMetered, Locality: "remote", Door: &providers.HostedDoorClient{BaseURL: endpoint}})
 		}
 		if resourceRepository, repositoryErr := inference.NewResourceRepository(roleCatalog, adapters); repositoryErr != nil {
 			log.Printf("typed inference disabled: %v", repositoryErr)
@@ -136,8 +153,10 @@ func main() {
 		inventoryH.Module(inventoryH.Deps{InferenceRoles: roleCatalog.RoleNames()}),
 		measuresModule,
 		routingH.Module(routingH.Deps{
-			DB:            db.Primary(),
-			MediaExecutor: internalrouting.NewResourceOpenRouterMediaExecutor(nil),
+			DB:                  db.Primary(),
+			MediaExecutor:       internalrouting.NewResourceOpenRouterMediaExecutor(nil),
+			ProviderDecisionHub: internalrouting.NewDefaultProviderDecisionHubClient(),
+			PrivatePolicy:       internalrouting.NewResourcePrivatePolicyService(db.Primary(), loadPrivateAIFeatures(repoRoot()), repoRoot(), internalrouting.NewDefaultProviderDecisionHubClient()),
 		}),
 	)
 

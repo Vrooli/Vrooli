@@ -49,7 +49,7 @@ func renderMediaSubmit(ctx cliapp.RunContext, message proto.Message) error {
 		return fmt.Errorf("media submit renderer received %T", message)
 	}
 	execution := response.GetExecution()
-	return cliapp.RenderProtoMutation(ctx, response, cliapp.MutationReport{Result: []string{fmt.Sprintf("Submitted media execution %s.", execution.GetExecutionId())}, Changes: mediaLines(execution)})
+	return renderMediaMutation(ctx, "Submitted", execution)
 }
 
 func (h *handlers) mediaSubmit(ctx cliapp.RunContext) error {
@@ -101,6 +101,13 @@ func (h *handlers) mediaRetry(ctx cliapp.RunContext) error {
 }
 
 func renderMediaMutation(ctx cliapp.RunContext, action string, execution *routingv1.MediaExecution) error {
+	if execution.GetErrorCode() == "outcome_unknown" {
+		if action == "Cancelled" {
+			action = "Unchanged"
+		} else if action == "Submitted" {
+			action = "Retained"
+		}
+	}
 	return cliapp.RenderProtoMutation(ctx, &routingv1.SubmitMediaResponse{Execution: execution}, cliapp.MutationReport{Result: []string{fmt.Sprintf("%s media execution %s.", action, execution.GetExecutionId())}, Changes: mediaLines(execution)})
 }
 
@@ -112,7 +119,11 @@ func mediaLines(execution *routingv1.MediaExecution) []string {
 	if execution == nil {
 		return []string{"(no execution returned)"}
 	}
-	lines := []string{fmt.Sprintf("status=%s model=%s actual_cost_usd=%.4f", execution.GetStatus(), execution.GetResolvedModel(), execution.GetActualCostUsd())}
+	cost := "unknown"
+	if execution.ActualCostUsd != nil {
+		cost = fmt.Sprintf("%.4f", execution.GetActualCostUsd())
+	}
+	lines := []string{fmt.Sprintf("status=%s model=%s actual_cost_usd=%s", execution.GetStatus(), execution.GetResolvedModel(), cost)}
 	for _, output := range execution.GetOutputs() {
 		lines = append(lines, fmt.Sprintf("output=%s media_type=%s bytes=%d", output.GetReference(), output.GetMediaType(), output.GetBytes()))
 	}

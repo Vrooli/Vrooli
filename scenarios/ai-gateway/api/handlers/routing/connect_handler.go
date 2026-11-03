@@ -3,6 +3,7 @@ package routing
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"strings"
 
 	"connectrpc.com/connect"
@@ -13,15 +14,21 @@ import (
 )
 
 type Deps struct {
-	DB            *sql.DB
-	Adapters      []providers.Adapter
-	Service       *internalrouting.Service
-	MediaExecutor internalrouting.MediaExecutor
+	DB                       *sql.DB
+	Adapters                 []providers.Adapter
+	Service                  *internalrouting.Service
+	MediaExecutor            internalrouting.MediaExecutor
+	PrivatePolicy            *internalrouting.PrivatePolicyService
+	ProviderDecisionHub      *internalrouting.ProviderDecisionHubClient
+	PrivateFeatures          []internalrouting.PrivateFeature
+	ReportMediaRecoveryError MediaRecoveryReporter
 }
 
 type connectHandler struct {
-	service *internalrouting.Service
-	media   *internalrouting.MediaService
+	service             *internalrouting.Service
+	media               *internalrouting.MediaService
+	private             *internalrouting.PrivatePolicyService
+	providerDecisionHub *internalrouting.ProviderDecisionHubClient
 }
 
 func NewConnectHandler(d Deps) *connectHandler {
@@ -32,16 +39,21 @@ func NewConnectHandler(d Deps) *connectHandler {
 		}
 		d.Service = internalrouting.NewSQLService(d.DB, adapters)
 	}
-	return &connectHandler{service: d.Service, media: internalrouting.NewMediaService(d.DB, d.MediaExecutor)}
+	if d.PrivatePolicy == nil {
+		d.PrivatePolicy = internalrouting.NewPrivatePolicyService(d.PrivateFeatures, nil,
+			internalrouting.NewSQLPrivatePlanRepository(d.DB), internalrouting.NewSQLPrivateReceiptRepository(d.DB))
+	}
+	return &connectHandler{service: d.Service, media: internalrouting.NewMediaService(d.DB, d.MediaExecutor), private: d.PrivatePolicy, providerDecisionHub: d.ProviderDecisionHub}
 }
 
-// RecoverMedia resumes durable, non-terminal receipts after schema setup and
-// before the handler accepts new requests. It is called once from the module
-// lifecycle rather than racing every handler construction.
-func (h *connectHandler) RecoverMedia(ctx context.Context) {
+// RecoverMedia quarantines interrupted dispatch and resumes undispatched work
+// after schema setup, before the handler accepts new requests. It is called
+// once from the module lifecycle rather than every handler construction.
+func (h *connectHandler) RecoverMedia(ctx context.Context) error {
 	if h != nil && h.media != nil {
-		h.media.Recover(ctx)
+		return h.media.Recover(ctx)
 	}
+	return nil
 }
 
 func (h *connectHandler) PreviewRoute(ctx context.Context, req *connect.Request[routingv1.PreviewRouteRequest]) (*connect.Response[routingv1.PreviewRouteResponse], error) {
@@ -66,7 +78,7 @@ func (h *connectHandler) ExecuteRoute(ctx context.Context, req *connect.Request[
 func (h *connectHandler) SubmitMedia(ctx context.Context, req *connect.Request[routingv1.SubmitMediaRequest]) (*connect.Response[routingv1.SubmitMediaResponse], error) {
 	execution, err := h.media.Submit(ctx, req.Msg)
 	if err != nil {
-		return nil, connect.NewError(connect.CodeInvalidArgument, err)
+		return nil, connect.NewError(mediaErrorCode(err), err)
 	}
 	return connect.NewResponse(&routingv1.SubmitMediaResponse{Execution: execution}), nil
 }
@@ -98,9 +110,22 @@ func (h *connectHandler) CancelMediaExecution(ctx context.Context, req *connect.
 func (h *connectHandler) RetryMediaExecution(ctx context.Context, req *connect.Request[routingv1.RetryMediaExecutionRequest]) (*connect.Response[routingv1.RetryMediaExecutionResponse], error) {
 	execution, err := h.media.Retry(ctx, req.Msg.GetExecutionId(), req.Msg.GetIdempotencyKey())
 	if err != nil {
-		return nil, connect.NewError(connect.CodeInvalidArgument, err)
+		return nil, connect.NewError(mediaErrorCode(err), err)
 	}
 	return connect.NewResponse(&routingv1.RetryMediaExecutionResponse{Execution: execution}), nil
+}
+
+func mediaErrorCode(err error) connect.Code {
+	switch {
+	case errors.Is(err, internalrouting.ErrMediaIdempotencyConflict):
+		return connect.CodeAlreadyExists
+	case errors.Is(err, internalrouting.ErrMediaOutcomeUnknown):
+		return connect.CodeFailedPrecondition
+	case errors.Is(err, internalrouting.ErrMediaRetainedSubmissionInvalid):
+		return connect.CodeInternal
+	default:
+		return connect.CodeInvalidArgument
+	}
 }
 
 func (h *connectHandler) ListRouteEvidence(ctx context.Context, req *connect.Request[routingv1.ListRouteEvidenceRequest]) (*connect.Response[routingv1.ListRouteEvidenceResponse], error) {

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -17,25 +18,18 @@ func TestSummarizeClient_RoutesThroughMeteredInference(t *testing.T) {
 		switch r.URL.Path {
 		case "/health":
 			w.WriteHeader(http.StatusOK)
-		case "/api/v1/ai/inference":
-			require.Equal(t, http.MethodPost, r.Method)
+		case "/api/v1/features/audio-tools.summarize":
 			require.Equal(t, "Bearer access-token", r.Header.Get("Authorization"))
 			var request struct {
-				Role     string `json:"role"`
-				Messages []struct {
-					Role    string `json:"role"`
-					Content string `json:"content"`
-				} `json:"messages"`
-				Metadata struct {
-					AppBundleKey string `json:"app_bundle_key"`
-					Operation    string `json:"operation"`
-				} `json:"metadata"`
+				Instruction string                         `json:"instruction"`
+				Turn        struct{ Role, Content string } `json:"turn"`
+				Schema      json.RawMessage                `json:"schema"`
 			}
 			require.NoError(t, json.NewDecoder(r.Body).Decode(&request))
-			require.Equal(t, "audio.summarize", request.Role)
-			require.Len(t, request.Messages, 2)
-			require.Equal(t, "audio-tools", request.Metadata.AppBundleKey)
-			require.Equal(t, "audio.summarize", request.Metadata.Operation)
+			require.Equal(t, SummarizeInstruction, request.Instruction)
+			require.Equal(t, "user", request.Turn.Role)
+			require.JSONEq(t, `{"text":"long text","level":"light"}`, request.Turn.Content)
+			require.JSONEq(t, SummarizeSchema, string(request.Schema))
 			_, _ = w.Write([]byte(`{"content":"short version","prompt_tokens":12,"completion_tokens":4,"model":"openai/gpt-4o-mini"}`))
 		default:
 			http.NotFound(w, r)
@@ -61,4 +55,18 @@ func TestSummarizeClient_RequiresTokenAndText(t *testing.T) {
 	require.ErrorContains(t, err, "access token is required")
 	_, err = c.Summarize(context.Background(), "tok", "user", summarizechain.Request{})
 	require.ErrorContains(t, err, "text is required")
+}
+
+// Executes the production Audio Tools client against the parent journey's real door.
+func TestJourneyAudioSummary(t *testing.T) {
+	base := os.Getenv("J4_DOOR_URL")
+	if base == "" {
+		t.Skip("journey child")
+	}
+	result, err := NewSummarizeClient(base).Summarize(context.Background(), os.Getenv("J4_DEVICE_KEY"), "", summarizechain.Request{OperationID: "j4-audio-summary", Text: "Our release is ready. Deploy it tomorrow.", Level: "heavy"})
+	require.NoError(t, err)
+	require.Equal(t, "Hello from router", result.Text)
+	require.Equal(t, "fixture-model", result.ModelID)
+	require.Equal(t, 4, result.PromptTokens)
+	require.Equal(t, 3, result.OutputTokens)
 }

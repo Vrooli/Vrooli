@@ -86,6 +86,7 @@ CREATE TABLE IF NOT EXISTS media_executions (
   route_evidence_json TEXT NOT NULL DEFAULT '',
   outputs_json TEXT NOT NULL DEFAULT '',
   actual_cost_usd REAL NOT NULL DEFAULT 0,
+  actual_cost_known INTEGER NOT NULL DEFAULT 0,
   resolved_model TEXT NOT NULL DEFAULT '',
   seed TEXT NOT NULL DEFAULT '',
   warnings_json TEXT NOT NULL DEFAULT '',
@@ -94,3 +95,24 @@ CREATE TABLE IF NOT EXISTS media_executions (
 );
 
 CREATE INDEX IF NOT EXISTS idx_media_executions_created_at ON media_executions(created_at DESC);
+
+-- Private provider-policy outcomes are keyed by LPBS operation id. The full
+-- receipt and normalized request digest make retries idempotent without
+-- creating a second policy or approval store.
+CREATE TABLE IF NOT EXISTS private_provider_receipts (
+  operation_id TEXT PRIMARY KEY,
+  request_sha256 TEXT NOT NULL,
+  receipt_json TEXT NOT NULL,
+  created_at TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_private_provider_receipts_created_at ON private_provider_receipts(created_at DESC);
+
+CREATE TABLE IF NOT EXISTS private_provider_plans (
+  operation_id TEXT PRIMARY KEY,
+  request_sha256 TEXT NOT NULL,
+  plan_json TEXT NOT NULL,
+  created_at TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_private_provider_plans_created_at ON private_provider_plans(created_at DESC);

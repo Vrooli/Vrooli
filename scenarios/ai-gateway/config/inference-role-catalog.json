@@ -294,9 +294,9 @@
       "candidates": [
         {
           "provider": "ollama",
-          "resource_role": "extract.structured",
+          "resource_role": "chat.default",
           "model": "policy-resolved",
-          "reason": "Local structured inference keeps device state and action planning on the control host."
+          "reason": "Use Ollama's existing local generation role with gateway schema validation; the dedicated resource extraction role is not yet available."
         },
         {
           "provider": "openrouter",

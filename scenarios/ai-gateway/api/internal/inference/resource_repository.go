@@ -130,6 +130,23 @@ func (r *ResourceRepository) Run(ctx context.Context, request ProviderRequest) (
 	// "nothing here can sample the way you asked".
 	var samplingRefused bool
 	for _, candidate := range definition.Candidates {
+		switch providers.Source(ctx) {
+		case "local":
+			if candidate.Provider != providers.ProviderOllama {
+				continue
+			}
+		case "own-key":
+			if candidate.Provider == providers.ProviderMetered || candidate.Provider == providers.ProviderOllama {
+				continue
+			}
+		case "vrooli-credits":
+			if candidate.Provider != providers.ProviderMetered {
+				continue
+			}
+		case "":
+		default:
+			return ProviderResult{}, fmt.Errorf("unsupported AI source")
+		}
 		adapter, ok := r.adapters[strings.ToLower(strings.TrimSpace(candidate.Provider))]
 		if ok && !profileAdmits(request.Profile, adapter.Locality) {
 			continue

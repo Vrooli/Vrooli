@@ -3,7 +3,7 @@
 AI Gateway is the policy boundary between scenario callers and AI
 providers. It is not a model host, provider SDK, chat application, or
 second resource policy file. It turns caller intent into a provider
-route, executes through approved resources, and emits evidence that can
+route, executes through approved provider adapters, and emits evidence that can
 be inspected by operators and test-genie.
 
 ## Architectural Position
@@ -23,9 +23,9 @@ AI Gateway
   - reports conformance findings
         |
         v
-Resource gateway commands
-  - resource-ollama policy/gateway commands
-  - resource-openrouter / resource-orcarouter / resource-abliteration policy/generate commands
+Provider adapters
+  - resource gateway commands in a full deployment
+  - packaged HTTP adapters consuming owner declarations
         |
         v
 Concrete provider implementation
@@ -35,7 +35,8 @@ Concrete provider implementation
 
 The core invariant is simple: callers should bind to AI work, not to a
 provider implementation. Resources own concrete model catalogs,
-credentials, installation, and provider-specific API behavior. AI Gateway
+credential descriptors, installation, and provider policy. Credential authority
+owns secret values. AI Gateway
 owns cross-provider routing, caller-facing profiles, evidence, and
 conformance checks.
 
@@ -120,29 +121,17 @@ AI Gateway should explain which resource role was selected and why.
 
 ## Provider Boundary
 
-Allowed:
+Full deployments can call resource command adapters. Packaged and private
+inference paths use HTTP adapters with endpoint, policy and credential descriptors
+from resource-owned declarations or the explicit supplier catalog. The generated
+catalog contains no secrets; credential authority supplies secret values at use.
+`make verify-provider-catalog` checks the projection against its canonical owners.
 
-- `resource-ollama policy roles/models/resolve`
-- `resource-ollama gateway generate/chat/embed`
-- `resource-orcarouter policy roles/models/resolve`
-- `resource-abliteration policy roles/models/resolve`
-- `resource-openrouter policy roles/models/resolve`
-- `resource-orcarouter generate` / `resource-abliteration generate` or equivalent approved
-- `resource-openrouter generate/chat/images` or equivalent approved
-  resource gateway commands
-
-Forbidden inside AI Gateway:
-
-- `http://localhost:11434`
-- `api.openrouter.ai`, `api.orcarouter.ai`, `api.abliteration.ai`
-- `OLLAMA_URL`, `OPENROUTER_API_KEY`, or provider-specific secrets
-- hard-coded model names such as `llama3.2`, `codellama`, or hosted
-  provider slugs
-- hard-coded embedding dimensions or context windows as routing truth
-
-If a resource lacks a command needed by AI Gateway, the fix belongs in
-the resource first. AI Gateway should not bypass the resource to keep
-moving.
+Gateway owns cross-provider selection and execution, not a second model/policy
+catalog. Do not hard-code model slugs, endpoint lists or secret values in adapters.
+Canonical rule evaluation and exact human Hub decisions gate paid supplier use;
+packaging a proposal never approves it. LPBS owns the public AI door, identities,
+reservations and settlement. Gateway's private route stays off the public edge.
 
 ## Route Evidence
 
@@ -186,7 +175,7 @@ contract. See [`../reference/validation-provider.md`](../reference/validation-pr
 
 1. Add or update the owning domain in `docs/concepts/DOMAINS.md`.
 2. Define the contract in requirements before implementation.
-3. Add provider behavior only through resource command adapters.
+3. Add provider behavior through the declared provider boundary above.
 4. Add route/profile changes with preview tests before execution tests.
 5. Add UI pages to `experience/` before building the page.
 6. Update conformance findings when a new invalid pattern or approved

@@ -85,6 +85,33 @@ and use matrix/trace helpers from the relevant testutil package.
 
 ## Current seams
 
+### Media Startup Recovery Reporter (AM-23)
+
+| | |
+|---|---|
+| **Seam** | `routing.MediaRecoveryReporter`, an injected `func(error)` declared beside module composition. |
+| **Declaration** | `api/handlers/routing/module.go`; `routing.Deps.ReportMediaRecoveryError` supplies the substitution. |
+| **Production wiring** | The routing module defaults to `reportMediaRecoveryError`, which uses the existing standard logger for incomplete startup recovery. It runs only when Recover returns an error. |
+| **Test substitution** | `TestMediaStartupReportsQuarantineWriteFailureWithoutDispatch` supplies a typed capture function, forces the RUNNING quarantine write to fail, and proves one error report with no executor dispatch. |
+| **Why it exists** | A failed quarantine must be observable without claiming the receipt was recovered or replaying a possibly completed provider operation. The reporter has no receipt or dispatch authority. |
+
+### Notification Hub provider-decision service identity (AM-36 / S-7)
+
+| | |
+|---|---|
+| **Seam** | `routing.ProviderDecisionIdentity` and `routing.ProviderDecisionHubClient` provide the Hub-only service identity and fixed publish/lookup calls. |
+| **Production wiring** | `api/main.go` composes the client. It reads `scenario-authenticator/service-principal/ai-gateway/notification-hub-provider-decision:credential` from the shared Credential Authority and exchanges it through Scenario Authenticator's existing `ExchangeServiceCredential` Connect method. |
+| **Test substitution** | `provider_decision_identity_test.go` injects credential/exchange functions and a local HTTP server; it proves fail-closed behavior and bearer use without real credentials or Hub records. |
+| **Why it exists** | Hub accepts provider-decision publication and exact lookup only from the verified `ai-gateway` subject with the dedicated audience and sole provider-decision capability. Credential and service-token values stay in memory. The client itself does not grant Hub answer authority. |
+
+The service identity client is composed, but no E6b plan/execute call site
+currently invokes publication or lookup. Live credential issuance requires a
+verified human issuer/admin session and is outside focused local proof.
+
+The declaration carries a `seam:` tag and the selected substitution has focused
+proof. This entry does not claim a scenario-wide seam registry reconciliation
+test or repair other ambient time, environment, or logger dependencies.
+
 ### Clock
 
 | | |
@@ -439,3 +466,28 @@ an actionable diff showing exactly which entries diverged.
 - Documentation manifest (used by doc-rendering tooling): `docs/manifest.json`.
 - Production-import quarantine for testutil: `api/internal/testutil/no_prod_import_test.go`.
 - The unit-testing-architecture-steer skill (loaded via `prompt-manager skill read unit-testing-architecture-steer`) is the canonical source for "should this be a seam?" judgement calls.
+
+## E6b private provider decision route
+
+The private route module composes `PrivatePolicyService` with the routing
+repositories and the published server-side feature declarations. `plan` and
+`execute` call the same `policy.Eligible` path. Request JSON cannot select a
+use class or change the feature contract. The policy snapshot is an explicit
+reader seam; an empty snapshot supplies zero approved records and denies
+eligibility. No second policy store or Gateway policy walker is introduced.
+
+`PrivatePlanRepository` pins the normalized plan to an operation ID and request
+digest. `PrivateReceiptRepository` stores the terminal execution result. Once
+execute accepts a request, it detaches receipt persistence from the caller's
+cancellation context. The production provider executor and approved-record
+reader remain unavailable until their existing owners expose those seams.
+
+Notification Hub owns the typed provider decision ask. Its private read route
+checks the dedicated scenario-authenticator service identity, Hub-only audience,
+and `notification-hub:provider-decision` capability before returning one exact
+ask result. `ProviderDecisionIdentity` reads the principal credential through
+Credential Authority and exchanges it through Scenario Authenticator,
+validating the fixed subject, audience, and sole capability before caching the
+short-lived token in memory. The composed `ProviderDecisionHubClient` applies
+that token only to the fixed publish and lookup routes. Plan/execute do not yet
+invoke these methods.
