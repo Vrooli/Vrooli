@@ -1,6 +1,6 @@
 ---
 name: harness-goal-authoring
-description: Write the message a coding agent runs under in harness goal mode (Claude Code and Codex `/goal`, Agent Manager `until`), or the assignment a coordinator hands a sub-agent. Nine slots, four handoff shapes, and the split between what the docs and plan hold and what the goal message holds. Not for Swarm goal records; use swarm-manager-work-authoring for those.
+description: Write the message a coding agent runs under in harness goal mode (Claude Code and Codex `/goal`, Agent Manager `until`), or the assignment a coordinator hands a sub-agent. Nine slots, five handoff shapes, and the split between what the docs and plan hold and what the goal message holds. Not for Swarm goal records; use swarm-manager-work-authoring for those.
 license: CC-BY-4.0
 metadata:
   kind: skill
@@ -9,9 +9,9 @@ metadata:
   tags: [goal, harness, until, delegation, sub-agent, orchestration, prompt]
   icon: target
   status: active
-  revision: 15
+  revision: 16
   createdAt: "2026-09-11T00:00:00Z"
-  updatedAt: "2026-10-25T00:00:00Z"
+  updatedAt: "2026-11-01T00:00:00Z"
   requires:
     scenarios: [prompt-manager]
     commands: [prompt-manager skill read]
@@ -130,15 +130,19 @@ separate plan-shaped change boundary. Do not
 author a child plan merely to make a worker's handoff look formal.
 
 Every sub-agent assignment also names its **model and lifetime**. Pick the
-cheapest agent definition or role that fits the work (`.claude/agents/` `lookup`,
-`researcher`, `reviewer`, `implementer`; Codex Luna roles for read-only work, as
-the role descriptions state); name Opus or a high-effort role only for design or
-hard debugging. One assignment is one outcome for one fresh worker: do not reuse
-a long-lived worker for the next outcome, because each request re-reads its whole
-context.
+cheapest agent definition or role that fits the required judgment
+(`.claude/agents/` `lookup`, `researcher`, `reviewer`, `implementer`, or the current
+Codex roles). Use lookup roles for well-specified retrieval. Use higher effort
+when conceptual design, synthesis or debugging requires it. One assignment is one coherent outcome. Start a fresh worker for a different
+outcome. For sustained research, one direction can include several checks and
+sessions; keep a productive investigator until a context or recovery handoff is
+justified. Use the curated brief and checkpoint instead of inheriting an entire
+history by default. Choose a role for the difficulty of judgment, not read-only
+status alone; a lookup role is not the default for conceptual research.
 
-**A. Plan-backed goal.** The route or phase order matters, or several sessions
-will touch the work. Receiving skill: `implementation-plan-execution`. A
+**A. Plan-backed goal.** A required route, phase order or delivery dependency
+needs a durable plan. Session count alone does not require a plan; sustained
+research uses E. Receiving skill: `implementation-plan-execution`. A
 convergence loop has no phase order and is never this shape (§6).
 
 ```text
@@ -190,8 +194,10 @@ Stop after 30 turns with a written summary of changed, verified, remaining.
 Non-goals: <what not to touch or widen into>.
 ```
 
-**D. Investigation or review goal.** The deliverable is a report or a verdict,
-not a change. Read-only. Never give this shape a plan.
+**D. Read-only investigation or review goal.** The commissioned deliverable is
+a report or verdict. Use this shape only when the actual commission is read-only.
+For sustained research or authorized construction, use E. Do not choose a read-only
+shape merely because the first action is research.
 
 ```text
 /goal A report at <path> answers "<question>" with a verdict per claim and file:line evidence for each, and no file outside <path> is modified.
@@ -201,6 +207,19 @@ Label every statement fact, hypothesis, or recommendation. Quote; do not paraphr
 Blocked means a source you cannot access; name it and report what you could verify.
 Stop after 20 turns.
 ```
+
+**E. Sustained research direction.** The route emerges from evidence. The
+outcome may be a finding, architecture, experiment, prototype or authorized app.
+Point at the commission's working brief and checkpoint. Read
+`prompt-manager skill read adaptive-research`; use the canonical
+`research-coordination/references/direction.md` for curation. An approval gate
+applies only when the actual commission requires it. Give the investigator a
+coherent direction and starting evidence, freedom to choose methods and follow
+implications, and proof suited to the outcome. Do not impose D's read-only rule
+or example turn cap. Preserve real cumulative limits and session recovery through
+the selected owner; do not promise automatic continuation from prompt text.
+A session limit requires a checkpoint or successor, not a smaller research goal.
+For a bounded source question, a normal prompt may be cheaper than a native goal.
 
 ### 6. Convergence goals: done is a disproof, not a checklist
 

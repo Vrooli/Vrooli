@@ -9,9 +9,9 @@ metadata:
   tags: ["practice","scenario","ladder","contract","prd","requirements","routing","methodology"]
   icon: "layers"
   status: "active"
-  revision: 5
+  revision: 6
   createdAt: "2026-07-27T00:00:00Z"
-  updatedAt: "2026-09-08T00:00:00Z"
+  updatedAt: "2026-11-02T15:00:00Z"
   requires:
     scenarios: ["prompt-manager", "vrooli"]
     commands: ["prompt-manager skill read", "vrooli scenario"]
@@ -113,6 +113,17 @@ resolved; archived status alone neither grants work nor erases a standing constr
 | Expected behavior, obligations, or ownership are disputed | Inspect the highest implicated layer; start at W0 for a contract dispute. |
 | Full scenario readiness or maturity review | Start at W0 and descend in order, stopping at the first failure. |
 
+For an issue that crosses durable state or an external effect, trace the owners
+and transition before selecting the rung: who stores each state, what commits or
+releases it, where the side effect occurs, and what failure or retry evidence
+covers that boundary. Use the trace to locate the gap: a missing or disputed
+product outcome starts at W0; a missing required promise at W1; missing passing
+evidence for a specified persistence/effect path at W2; and observed behavior
+that violates a proven obligation at W3. This is a diagnostic aid, not another
+rung. An owner boundary or state diagram alone proves neither a defect nor
+conformance; a pure transition test does not prove production persistence or
+external effects.
+
 3. Escalate when evidence contradicts an upstream contract or obligation.
    Missing unrelated readiness evidence does not block a scoped implementation fix.
 
@@ -198,6 +209,7 @@ A rung record without its evidence is not a rung record. The next session re-run
 | Rung inversion — writing tests to close W2 while W1 is open | The evidence attaches to obligations that do not link to the contract, so the evidence is discarded when W1 is repaired | Repair W1 first, then re-measure |
 | Gate skipping by reading — declaring a rung satisfied from a document that describes it | Documents state intent. Gates measure state | Run the rung's gate and record its evidence: command stdout for W1–W3, the compared quotations for W0 |
 | Gate widening — running the gates under a failed rung to build a fuller picture | The outputs describe a stack that the repair above them will change, so the picture is stale before it is read | Stop at the first failing gate. Re-measure after the repair (Phase 3) |
+| Owner-boundary overreach — treating separate state owners or an out-of-sync snapshot as proof of a defect | Independent durable states can converge through a valid retry, and atomicity may not be a product obligation | Trace commit order, side effects and recovery; compare them with the proven obligation before naming a rung |
 
 ---
 

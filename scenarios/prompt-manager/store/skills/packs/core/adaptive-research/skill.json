@@ -1,6 +1,6 @@
 {
   "createdAt": "2026-10-21T00:00:00Z",
-  "description": "Investigate an open-ended question through bounded source research, data analysis, and local experiments; retain evidence, competing explanations, reproducible prototypes, and a separate integration handoff.",
+  "description": "Develop an uncertain research direction through evidence, analysis, experiments or authorized construction; choose consequential follow-ups and preserve understanding across sessions.",
   "entry": "SKILL.md",
   "icon": "search",
   "id": "adaptive-research",
@@ -22,7 +22,7 @@
       "prompt-manager"
     ]
   },
-  "revision": 9,
+  "revision": 13,
   "schemaVersion": 1,
   "status": "active",
   "tags": [
@@ -31,5 +31,5 @@
     "evidence",
     "optimization"
   ],
-  "updatedAt": "2026-10-26T00:00:00Z"
+  "updatedAt": "2026-11-02T00:00:00Z"
 }

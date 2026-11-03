@@ -23,7 +23,7 @@
       "vrooli"
     ]
   },
-  "revision": 5,
+  "revision": 6,
   "schemaVersion": 1,
   "status": "active",
   "tags": [
@@ -36,5 +36,5 @@
     "routing",
     "methodology"
   ],
-  "updatedAt": "2026-09-08T00:00:00Z"
+  "updatedAt": "2026-11-02T15:00:00Z"
 }

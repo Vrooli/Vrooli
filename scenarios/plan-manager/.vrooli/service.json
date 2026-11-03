@@ -13,6 +13,49 @@
           "max_bytes": "5GiB",
           "rationale": "Durable storage is bounded by the workload byte ceiling; it is alarm-only because the data is not regenerable."
         }
+      },
+      "plan_artifacts": {
+        "rung": "pinned",
+        "kind": "dir",
+        "path": "$USER_HOME/.vrooli/plan-artifacts",
+        "regenerable": false,
+        "agent_removal": "deny",
+        "rationale": "Runtime-home plan_artifacts root (.vrooli/repo-contract.json, protected, cleanup never): plan source material, submission files, effort workspaces and execution/acceptance evidence written by planning and effort agents. Durable; never pruned by budget. The only automatic removal is Plan Manager's owner pruner (internal/artifactretention), which deletes gitignored build outputs (node_modules, dist, dist-electron, generated platforms, compiled binaries) inside isolated-tree source copies that no live process uses and that have been idle for 7 days; source and evidence are never touched, and whole-tree removal is listed for operator review in the receipt.",
+        "reclaim": {
+          "pruner": "custom"
+        },
+        "budget": {
+          "max_bytes": "40GiB",
+          "rationale": "Alarm-only ceiling: about 29GiB observed on 2026-10-28, of which ~12GiB were isolated-tree build outputs the owner pruner reclaims once their tree is idle and unused. Exceeding it means durable plan evidence or live isolated trees outgrew expectations and needs an operator decision."
+        }
+      },
+      "plan_artifacts_retention_receipt": {
+        "rung": "owned",
+        "kind": "file",
+        "class": "state",
+        "format": "json",
+        "subpath": "retention/isolated-tree-receipt.json",
+        "regenerable": true,
+        "rationale": "Latest plan-artifacts isolated-tree retention cycle: per-tree status, protection reason, freed and reclaimable bytes, and trees listed for operator review.",
+        "budget": {
+          "max_bytes": "1MiB",
+          "max_age": "30d",
+          "rationale": "Bounded regenerable operational state replaced on every cycle."
+        }
+      },
+      "retention_receipt": {
+        "rung": "owned",
+        "kind": "file",
+        "class": "state",
+        "format": "json",
+        "subpath": "retention/enforcement-receipt.json",
+        "regenerable": true,
+        "rationale": "Shared storage retention enforcement writes the latest compact receipt for the operational-table budgets under Plan Manager's state namespace.",
+        "budget": {
+          "max_bytes": "1MiB",
+          "max_age": "30d",
+          "rationale": "The receipt is bounded regenerable operational state and is replaced on each enforcement run."
+        }
       }
     },
     "rationale": "Storage surfaces are declared from observed canonical scenario directories; external resource databases are not claimed by this scenario."

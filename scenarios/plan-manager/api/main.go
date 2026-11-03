@@ -119,6 +119,7 @@ func main() {
 		retentionManager.Start(context.Background())
 		defer retentionManager.Stop()
 	}
+	startPlanArtifactsRetention(context.Background(), slog.Default())
 
 	// Top-level mux that mounts the API handler plus, when in development
 	// mode, the dev-only RoutingService used by test-genie to install a

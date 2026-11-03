@@ -103,12 +103,20 @@ rg -n "// TODO: remove|// TODO: delete|// TODO: clean" --type go --type ts
 
 **Unused exports:**
 ```bash
-# Use golangci-lint for Go unused detection
-golangci-lint run --enable=unused,deadcode
+# Use golangci-lint for Go unused detection from the owning module.
+# `unused` replaces the deprecated, fully inactivated `deadcode` linter.
+golangci-lint run --enable-only=unused ./...
 
 # For TypeScript, check import counts
 rg -l "export.*function\s+\w+Legacy" --type ts
 ```
+
+Treat Go `unused` output as a candidate list. It can report whole private call
+chains beneath an unregistered handler, stubs, and uncalled test helpers. Trace
+each candidate through routes, callers, tests, generated-code conventions, and
+migration history before removal. Do not enable it in a scenario's normal lint
+profile until its owner has reviewed existing findings and chosen a baseline
+policy.
 
 ---
 
