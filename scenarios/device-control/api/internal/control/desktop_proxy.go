@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"fmt"
 	"image/png"
 	"net"
 	"net/http"
@@ -41,6 +42,63 @@ type desktopOwnerRPC struct {
 	refresh  chan chan error
 	mu       sync.Mutex
 	sessions map[string]ownerDesktopSession
+}
+
+// desktopOwnerRequestTracker keeps owner admission and session state alive
+// until accepted RPC handlers have returned. Closing an HTTP listener does not
+// join handlers that are still using the helper or owner lease.
+type desktopOwnerRequestTracker struct {
+	mu       sync.Mutex
+	active   int
+	stopping bool
+	changed  chan struct{}
+}
+
+func newDesktopOwnerRequestTracker() *desktopOwnerRequestTracker {
+	return &desktopOwnerRequestTracker{changed: make(chan struct{})}
+}
+
+func (t *desktopOwnerRequestTracker) enter() bool {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	if t.stopping {
+		return false
+	}
+	t.active++
+	return true
+}
+
+func (t *desktopOwnerRequestTracker) leave() {
+	t.mu.Lock()
+	t.active--
+	close(t.changed)
+	t.changed = make(chan struct{})
+	t.mu.Unlock()
+}
+
+func (t *desktopOwnerRequestTracker) stop() {
+	t.mu.Lock()
+	t.stopping = true
+	close(t.changed)
+	t.changed = make(chan struct{})
+	t.mu.Unlock()
+}
+
+func (t *desktopOwnerRequestTracker) wait(ctx context.Context) error {
+	for {
+		t.mu.Lock()
+		if t.active == 0 {
+			t.mu.Unlock()
+			return nil
+		}
+		changed := t.changed
+		t.mu.Unlock()
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-changed:
+		}
+	}
 }
 
 // Describe projects registered identity only. Reading registration does not
@@ -95,7 +153,7 @@ func helperRequest[T any](msg *T, token string) *connect.Request[T] {
 	return r
 }
 
-func (p *desktopOwnerRPC) Open(ctx context.Context, r *connect.Request[desktopv1.OwnerOpenRequest]) (*connect.Response[desktopv1.OwnerOpenResponse], error) {
+func (p *desktopOwnerRPC) Open(ctx context.Context, r *connect.Request[desktopv1.OwnerOpenRequest]) (response *connect.Response[desktopv1.OwnerOpenResponse], returnedErr error) {
 	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
 	surface, err := targetmodel.SurfaceRefFromProto(r.Msg.Surface)
@@ -144,8 +202,11 @@ func (p *desktopOwnerRPC) Open(ctx context.Context, r *connect.Request[desktopv1
 		if !success {
 			cleanup, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 			defer cancel()
-			_, _ = p.owner.service.ReleaseContext(cleanup, grant.Lease.Ref.SessionID)
-			_ = p.publish(cleanup)
+			_, releaseErr := p.owner.service.ReleaseContext(cleanup, grant.Lease.Ref.SessionID)
+			publishErr := p.publish(cleanup)
+			if releaseErr != nil || publishErr != nil {
+				returnedErr = ownerError(errors.Join(returnedErr, releaseErr, publishErr))
+			}
 		}
 	}()
 	// Persist before any helper Open can take effect, including an unknown reply.
@@ -256,8 +317,10 @@ func (a *LocalDesktopAdmission) serveDesktopOwner(ctx context.Context, listener 
 	accountPath, accountHandler := desktopv1connect.NewDesktopAccountServiceHandler(rpc, connect.WithReadMaxBytes(128*1024))
 	mux.Handle(accountPath, accountHandler)
 	var count atomic.Int32
+	requests := newDesktopOwnerRequestTracker()
 	server := &http.Server{
 		ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 10 * time.Second, WriteTimeout: 40 * time.Second, IdleTimeout: 15 * time.Second, MaxHeaderBytes: 16 * 1024,
+		BaseContext: func(net.Listener) context.Context { return child },
 		ConnContext: func(ctx context.Context, c net.Conn) context.Context {
 			return context.WithValue(ctx, ownerConnectionKey{}, c)
 		},
@@ -272,6 +335,11 @@ func (a *LocalDesktopAdmission) serveDesktopOwner(ctx context.Context, listener 
 			}
 		},
 		Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if !requests.enter() {
+				http.Error(w, "desktop owner is shutting down", http.StatusServiceUnavailable)
+				return
+			}
+			defer requests.leave()
 			peer, ok := r.Context().Value(ownerConnectionKey{}).(*net.UnixConn)
 			if !ok {
 				http.Error(w, "desktop admission refused", http.StatusUnauthorized)
@@ -308,27 +376,45 @@ func (a *LocalDesktopAdmission) serveDesktopOwner(ctx context.Context, listener 
 	case publishErr = <-publishing:
 		gotPublish = true
 	}
+	requests.stop()
 	cancel()
-	_ = server.Close()
+	closeErr := server.Close()
 	if !gotServe {
 		serveErr = <-serving
 	}
 	if !gotPublish {
 		publishErr = <-publishing
 	}
+	waitCtx, cancelWait := context.WithTimeout(context.Background(), 5*time.Second)
+	requestErr := requests.wait(waitCtx)
+	cancelWait()
+	if requestErr != nil {
+		// The LocalDesktopAdmission and its helper client are owned by this
+		// serving goroutine. Do not release their leases or return while an
+		// accepted RPC still holds those resources.
+		requestErr = errors.Join(errors.New("desktop owner shutdown exceeded its RPC drain timeout; waiting for accepted handlers"), requestErr)
+		_ = requests.wait(context.Background())
+	}
 	// Revoke ordinary owner exclusion too, so a worker restart does not strand
 	// held device leases until expiry. Status is already empty on publisher exit.
 	rpc.mu.Lock()
+	var releaseErrs []error
 	for _, s := range rpc.sessions {
 		cleanup, cancel := context.WithTimeout(context.Background(), 2*time.Second)
-		_, _ = a.service.ReleaseContext(cleanup, s.grant.Lease.Ref.SessionID)
+		_, releaseErr := a.service.ReleaseContext(cleanup, s.grant.Lease.Ref.SessionID)
 		cancel()
+		if releaseErr != nil {
+			releaseErrs = append(releaseErrs, fmt.Errorf("release desktop owner lease %s: %w", s.grant.Lease.Ref.SessionID, releaseErr))
+		}
 	}
 	rpc.mu.Unlock()
 	if errors.Is(serveErr, http.ErrServerClosed) {
 		serveErr = nil
 	}
-	return errors.Join(serveErr, publishErr)
+	if errors.Is(closeErr, http.ErrServerClosed) {
+		closeErr = nil
+	}
+	return errors.Join(serveErr, publishErr, closeErr, requestErr, errors.Join(releaseErrs...))
 }
 
 func (p *desktopOwnerRPC) Applications(ctx context.Context, r *connect.Request[desktopv1.OwnerApplicationsRequest]) (*connect.Response[desktopv1.ApplicationsResponse], error) {

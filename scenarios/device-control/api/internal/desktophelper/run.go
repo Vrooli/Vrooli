@@ -219,9 +219,22 @@ func RunBound(ctx context.Context, path, ownerPath string, session SessionEnviro
 	}
 	// This safe metadata lets admission name the exact helper generation/epoch.
 	registration := Registration{HelperID: helperID, Epoch: epoch + 1, SessionID: config.SessionID, Surface: config.Surface, SocketPath: socketPath}
+	registration.ComponentGeneration = session.ComponentGeneration
 	if err = writeRegistration(config.StateDirectory, registration); err != nil {
 		return err
 	}
+	lifecycleReceipt := LifecycleReceipt{HelperID: helperID, Epoch: registration.Epoch, SessionID: registration.SessionID, Surface: registration.Surface, Status: "running", ObservedAt: nowUTC()}
+	lifecycleReceipt.ComponentGeneration = registration.ComponentGeneration
+	if err = WriteLifecycleReceipt(config.StateDirectory, lifecycleReceipt); err != nil {
+		return err
+	}
+	helper.SetLifecycleReporter(func(status string, activeRequests int, errorCode string) error {
+		lifecycleReceipt.Status = status
+		lifecycleReceipt.ActiveRequests = activeRequests
+		lifecycleReceipt.ErrorCode = errorCode
+		lifecycleReceipt.ObservedAt = nowUTC()
+		return WriteLifecycleReceipt(config.StateDirectory, lifecycleReceipt)
+	})
 	return helper.Serve(ctx, listener)
 }
 

@@ -9,9 +9,9 @@ metadata:
   tags: ["automation", "workflow", "learning"]
   icon: "play"
   status: "active"
-  revision: 57
+  revision: 58
   createdAt: "2026-09-04T00:00:00Z"
-  updatedAt: "2026-09-06T00:00:00Z"
+  updatedAt: "2026-11-02T15:52:01Z"
   requires:
     scenarios: ["device-control", "program-runtime", "vrooli-memory"]
     commands: ["device-control", "program-runtime", "vrooli-memory"]
@@ -40,7 +40,7 @@ Read rows in order; the first matching row is the next step.
 |---|---|
 | Operation or inputs are unknown | Read `device-control <group> help`. **[S1]** |
 | Wake, sleep, or prepare one device | Run `device-control device screen <exact-id-or-unique-name> --operation wake|sleep|ready --actor <actor> --json`. Ready requires a verified unlocked state; supply `--auth-profile <id>` when needed. It does not navigate home. **[S1]** |
-| Capture a screenshot, short recording, or app logs | Run `device-control device capture <exact-id-or-unique-name> --kind screenshot|recording|logs --actor <actor> --json`; recordings accept `--seconds` from 1 to 30 and logs require `--package`. Inspect the disposition and evidence method. Screenshots and recordings preserve the full frame and are not content-classified by default. **[S1]** |
+| Capture a screenshot, short recording, or app logs | Run `device-control device capture <exact-id-or-unique-name> --kind screenshot|recording|logs --actor <actor> --json`; recordings accept `--seconds` from 1 to 30 and logs require `--package`. Add `--require-audio` only when playback audio is needed. Android then requires on-device consent for each session and fails if the result has no verifiable audio track; the default recording is video-only and does not prompt. Inspect the disposition and evidence method. Screenshots and recordings preserve the full frame and are not content-classified by default. **[S1]** |
 | Inspect controls and labels without a screenshot | Run `device-control device semantics <exact-id-or-unique-name> --json`. Check availability and `truncated`; editable content is omitted, but other labels may be private. **[S1]** |
 | Device is not paired/onboarded | Run `device-control device connect` for its kind and follow the first unavailable rung. **[S1]** |
 | Need one device task with identity resolution and outcome capture | Run `device-control.do-task` with device, context_key, actor, and a selected flow/revision or candidate. **[S4]** |
@@ -61,8 +61,14 @@ Read rows in order; the first matching row is the next step.
 Select capabilities per device/transport. Android TV Remote can supply directional
 and media input without a frame; never retry screenshot requests on a screenless
 transport. Use typed state where available. Use semantic targeting first, visual
-anchors next, and vision only when required and available.
+anchors next. The current Gateway agent receives typed state and semantics but no
+image pixels, so it cannot act as a vision fallback for image-only screens.
 A fast command acknowledgement does not prove the requested screen or media state.
+Agent run evidence reports elapsed duration, planner calls, executed action
+attempts/completions, and Gateway provider/model usage when available. Compare
+token and USD micro-cost fields with their provenance; absent usage is unknown,
+not zero. These measures support comparisons but do not establish task success
+without an independent terminal assertion.
 
 For volume, `by 50 percent` means a relative reduction
 (`fraction_of_current=-0.5`), while `set to 50%` means an absolute normalized

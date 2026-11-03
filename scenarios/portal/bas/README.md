@@ -19,13 +19,7 @@ Each workflow JSON must include:
 }
 ```
 
-Reference selectors via `@selector/<key>` from `ui/src/consts/selectors.ts`. After adding or moving a workflow, run from the scenario directory:
-
-```bash
-test-genie registry build
-```
-
-This regenerates `bas/registry.json`, which is tracked so other agents can see which files exist, which requirements they validate, and what fixtures they depend on. (Only `bas/cases/**` are executed by the Playbooks phase — `flows/` and `actions/` are reusable building blocks.)
+Reference selectors via `@selector/<key>` from `ui/src/consts/selectors.ts`. The tracked `bas/registry.json` records the cases and their requirements and fixtures. Only `bas/cases/**` are executed by the Playbooks phase; `flows/` and `actions/` are reusable building blocks.
 
 ## Performance-capture flows (`intent: "performance"`)
 

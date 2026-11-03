@@ -120,17 +120,19 @@ func (commandRunner) Start(name string, args ...string) (Process, error) {
 }
 
 type activeRecording struct {
-	handle         strategy.RecordingHandle
-	process        Process
-	path           string
-	priorStayAwake string
-	priorTimeout   string
-	priorDoze      dozeState
-	keepAliveStop  chan struct{}
-	keepAliveDone  chan struct{}
-	screenshotStop chan struct{}
-	screenshotDone chan struct{}
-	screenshots    *recordingScreenshots
+	handle          strategy.RecordingHandle
+	process         Process
+	path            string
+	audioSessionID  string
+	videoStartNanos int64
+	priorStayAwake  string
+	priorTimeout    string
+	priorDoze       dozeState
+	keepAliveStop   chan struct{}
+	keepAliveDone   chan struct{}
+	screenshotStop  chan struct{}
+	screenshotDone  chan struct{}
+	screenshots     *recordingScreenshots
 }
 
 const recordingScreenOffTimeout = "1800000"
@@ -242,6 +244,28 @@ func (a *Adapter) RestoreWireless(endpoint string) strategy.Strategy {
 }
 
 func (a *Adapter) StartRecording(ctx context.Context, class strategy.ClaimClass) (strategy.RecordingHandle, error) {
+	return a.startRecording(ctx, class, "")
+}
+
+// StartRecordingWithAudio starts the Android consent companion first, then
+// starts the existing device video recorder. The companion owns the per-session
+// MediaProjection token; a fresh system consent is required for each call.
+func (a *Adapter) StartRecordingWithAudio(ctx context.Context, class strategy.ClaimClass) (strategy.RecordingHandle, error) {
+	id := fmt.Sprintf("android-recording-%d", time.Now().UnixNano())
+	if err := a.startAudioCapture(ctx, id); err != nil {
+		return strategy.RecordingHandle{}, err
+	}
+	handle, err := a.startRecording(ctx, class, id)
+	if err != nil {
+		cleanupCtx, cancel := context.WithTimeout(context.Background(), 6*time.Second)
+		defer cancel()
+		_, _, _ = a.stopAudioCapture(cleanupCtx, id)
+		return strategy.RecordingHandle{}, err
+	}
+	return handle, nil
+}
+
+func (a *Adapter) startRecording(ctx context.Context, class strategy.ClaimClass, sessionID string) (strategy.RecordingHandle, error) {
 	if err := ctx.Err(); err != nil {
 		return strategy.RecordingHandle{}, err
 	}
@@ -252,7 +276,10 @@ func (a *Adapter) StartRecording(ctx context.Context, class strategy.ClaimClass)
 	if class == "" {
 		class = strategy.ClaimTransition
 	}
-	id := fmt.Sprintf("android-recording-%d", time.Now().UnixNano())
+	id := sessionID
+	if id == "" {
+		id = fmt.Sprintf("android-recording-%d", time.Now().UnixNano())
+	}
 	path := "/data/local/tmp/" + id + ".mp4"
 	priorStayAwake, err := a.readStayAwake(ctx)
 	if err != nil {
@@ -285,6 +312,30 @@ func (a *Adapter) StartRecording(ctx context.Context, class strategy.ClaimClass)
 	if err := ctx.Err(); err != nil {
 		return strategy.RecordingHandle{}, errors.Join(err, restore())
 	}
+	videoStartNanos := int64(0)
+	if sessionID != "" {
+		before, clockErr := a.readDeviceUptime(ctx)
+		if clockErr != nil {
+			return strategy.RecordingHandle{}, errors.Join(fmt.Errorf("read device clock before recording: %w", clockErr), restore())
+		}
+		process, err := processRunner.Start("adb", a.args("shell", "screenrecord", "--bit-rate", "1000000", path)...)
+		if err != nil {
+			return strategy.RecordingHandle{}, errors.Join(fmt.Errorf("start adb screenrecord: %w", err), restore())
+		}
+		if err := process.Start(); err != nil {
+			return strategy.RecordingHandle{}, errors.Join(fmt.Errorf("start screenrecord process: %w", err), restore())
+		}
+		after, clockErr := a.readDeviceUptime(ctx)
+		if clockErr != nil {
+			_ = process.Interrupt()
+			_ = process.Kill()
+			_ = process.Wait()
+			return strategy.RecordingHandle{}, errors.Join(fmt.Errorf("read device clock after recording start: %w", clockErr), restore())
+		}
+		videoStartNanos = before + (after-before)/2
+		activeProcess := process
+		return a.finishRecordingStart(ctx, class, id, path, priorStayAwake, priorTimeout, priorDoze, activeProcess, videoStartNanos)
+	}
 	process, err := processRunner.Start("adb", a.args("shell", "screenrecord", "--bit-rate", "1000000", path)...)
 	if err != nil {
 		return strategy.RecordingHandle{}, errors.Join(fmt.Errorf("start adb screenrecord: %w", err), restore())
@@ -292,6 +343,10 @@ func (a *Adapter) StartRecording(ctx context.Context, class strategy.ClaimClass)
 	if err := process.Start(); err != nil {
 		return strategy.RecordingHandle{}, errors.Join(fmt.Errorf("start screenrecord process: %w", err), restore())
 	}
+	return a.finishRecordingStart(ctx, class, id, path, priorStayAwake, priorTimeout, priorDoze, process, videoStartNanos)
+}
+
+func (a *Adapter) finishRecordingStart(ctx context.Context, class strategy.ClaimClass, id, path string, priorStayAwake, priorTimeout string, priorDoze dozeState, process Process, videoStartNanos int64) (strategy.RecordingHandle, error) {
 	handle := strategy.RecordingHandle{ID: id, ClaimClass: class, StartedAt: time.Now().UTC()}
 	keepAliveStop := make(chan struct{})
 	keepAliveDone := make(chan struct{})
@@ -301,7 +356,11 @@ func (a *Adapter) StartRecording(ctx context.Context, class strategy.ClaimClass)
 	screenshots := &recordingScreenshots{}
 	go a.captureDisplaySamples(screenshotStop, screenshotDone, screenshots)
 	a.recordingMu.Lock()
-	a.recordings[id] = activeRecording{handle: handle, process: process, path: path, priorStayAwake: priorStayAwake, priorTimeout: priorTimeout, priorDoze: priorDoze, keepAliveStop: keepAliveStop, keepAliveDone: keepAliveDone, screenshotStop: screenshotStop, screenshotDone: screenshotDone, screenshots: screenshots}
+	active := activeRecording{handle: handle, process: process, path: path, priorStayAwake: priorStayAwake, priorTimeout: priorTimeout, priorDoze: priorDoze, keepAliveStop: keepAliveStop, keepAliveDone: keepAliveDone, screenshotStop: screenshotStop, screenshotDone: screenshotDone, screenshots: screenshots, videoStartNanos: videoStartNanos}
+	if strings.HasPrefix(id, "android-recording-") && videoStartNanos > 0 {
+		active.audioSessionID = id
+	}
+	a.recordings[id] = active
 	a.recordingMu.Unlock()
 	return handle, nil
 }
@@ -317,6 +376,7 @@ func (a *Adapter) StopRecording(ctx context.Context, handle strategy.RecordingHa
 	if !ok {
 		return strategy.RecordingArtifact{}, fmt.Errorf("recording %q is not active", handle.ID)
 	}
+	audioTerminal := false
 	var stopBackgroundOnce sync.Once
 	stopBackground := func() {
 		stopBackgroundOnce.Do(func() {
@@ -328,6 +388,18 @@ func (a *Adapter) StopRecording(ctx context.Context, handle strategy.RecordingHa
 	}
 	defer func() {
 		stopBackground()
+		if active.audioSessionID != "" && !audioTerminal {
+			cleanupCtx, cancel := context.WithTimeout(context.Background(), 8*time.Second)
+			if err := a.cleanupAudioCapture(cleanupCtx, active.audioSessionID); err != nil {
+				cleanupErr := fmt.Errorf("clean up Android playback capture: %w", err)
+				if retErr == nil {
+					retErr = cleanupErr
+				} else {
+					retErr = errors.Join(retErr, cleanupErr)
+				}
+			}
+			cancel()
+		}
 		cleanupCtx, cancel := context.WithTimeout(context.Background(), 8*time.Second)
 		defer cancel()
 		if err := a.restoreStayAwake(cleanupCtx, active.priorStayAwake); err != nil {
@@ -381,6 +453,24 @@ func (a *Adapter) StopRecording(ctx context.Context, handle strategy.RecordingHa
 		return strategy.RecordingArtifact{}, fmt.Errorf("read screenrecord artifact %q: adb returned zero bytes", active.path)
 	}
 	_, _ = a.runner.Run(ctx, "adb", a.args("shell", "rm", "-f", active.path)...)
+	if active.audioSessionID != "" {
+		wave, status, audioErr := a.stopAudioCapture(ctx, active.audioSessionID)
+		switch status.State {
+		case "stopped", "failed", "duration_limit", "projection_stopped", "audio_permission_denied", "projection_consent_denied", "unavailable":
+			audioTerminal = true
+		}
+		if audioErr != nil {
+			return strategy.RecordingArtifact{}, fmt.Errorf("finalize required Android playback audio (state=%s, rms=%.1f dBFS): %w", status.State, status.RMSDBFS, audioErr)
+		}
+		offset, offsetErr := audioTrimOffset(status.FirstSampleElapsedNanos, active.videoStartNanos)
+		if offsetErr != nil {
+			return strategy.RecordingArtifact{}, fmt.Errorf("align Android playback audio: %w", offsetErr)
+		}
+		video, err = muxPlaybackAudio(ctx, video, wave, offset)
+		if err != nil {
+			return strategy.RecordingArtifact{}, err
+		}
+	}
 	stopBackground()
 	nativeVisible := nativeVideoVisible(video)
 	method := "native"
@@ -1405,6 +1495,7 @@ func (a *Adapter) DescribeCapture(ctx context.Context, kind string) (strategy.De
 		_, err := a.runner.Run(ctx, "adb", a.args("shell", "screenrecord", "--help")...)
 		caps[strategy.CapNativeRecording] = strategy.ProbeCapability(strategy.CapNativeRecording, err == nil, "adb screenrecord is unavailable", "Install a device image with screenrecord support", "adb shell screenrecord --help")
 		caps[strategy.CapScreenRecording] = caps[strategy.CapNativeRecording]
+		caps[strategy.CapRecordingAudio] = a.probeAudioCapture(ctx)
 	case "logs":
 		_, err := a.runner.Run(ctx, "adb", a.args("logcat", "-d", "-t", "1")...)
 		caps[strategy.CapDeviceLogs] = strategy.ProbeCapability(strategy.CapDeviceLogs, err == nil, "logcat is unavailable", "Check device log access", "adb logcat -d -t 1")
@@ -1473,6 +1564,7 @@ func (a *Adapter) Describe(ctx context.Context) (strategy.Declaration, error) {
 	_, recordingErr := a.runner.Run(ctx, "adb", a.args("shell", "screenrecord", "--help")...)
 	caps[strategy.CapNativeRecording] = strategy.ProbeCapability(strategy.CapNativeRecording, recordingErr == nil, "adb screenrecord is unavailable on this device image", "Install a device image with screenrecord support", "adb shell screenrecord --help")
 	caps[strategy.CapScreenRecording] = caps[strategy.CapNativeRecording]
+	caps[strategy.CapRecordingAudio] = a.probeAudioCapture(ctx)
 	sockets, socketErr := a.runner.Run(ctx, "adb", a.args("shell", "cat", "/proc/net/unix")...)
 	hasWebViewSocket := socketErr == nil && strings.Contains(string(sockets), "webview_devtools_remote")
 	caps[strategy.CapWebViewAttach] = strategy.ProbeCapability(strategy.CapWebViewAttach, hasWebViewSocket, "No running Android WebView exposes a debuggable socket", "Launch the target WebView with debugging enabled, then probe again", "adb shell cat /proc/net/unix")

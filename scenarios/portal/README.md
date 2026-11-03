@@ -56,7 +56,7 @@ vrooli scenario test portal
 To wait for a run, block once with:
 
 ```bash
-test-genie runs wait --json portal 20260706-000000-example
+vrooli scenario test wait portal 20260706-000000-example --timeout 120 --json
 ```
 
 ## CLI Quick Reference

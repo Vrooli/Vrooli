@@ -132,15 +132,24 @@ func (c *DesktopController) cleanup(ctx context.Context, force bool) error {
 }
 
 // MaintainLease runs inside the helper process. It owns one bounded expiry
-// check per tick and a final shutdown attempt. A durably recorded native
-// release failure remains readable and is retried at a bounded cadence; other
-// errors stop the helper. Failed release is never treated as successful.
+// check per tick and preserves the standalone caller's final shutdown attempt.
+// Serve uses maintainLease directly so its HTTP handlers can be joined before
+// it performs the final controller shutdown.
 func (c *DesktopController) MaintainLease(ctx context.Context) (result error) {
 	defer func() {
 		cleanupCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
 		result = errors.Join(result, c.Shutdown(cleanupCtx))
 	}()
+	return c.maintainLease(ctx)
+}
+
+// maintainLease is the expiry monitor without its final shutdown. The helper
+// server owns that shutdown because it must first stop and join all RPC work.
+// A durably recorded native release failure remains readable and is retried at
+// a bounded cadence; other errors stop the helper. Failed release is never
+// treated as successful.
+func (c *DesktopController) maintainLease(ctx context.Context) error {
 	ticker := time.NewTicker(250 * time.Millisecond)
 	defer ticker.Stop()
 	for {

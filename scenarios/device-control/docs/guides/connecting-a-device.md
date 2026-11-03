@@ -173,6 +173,35 @@ action is never replayed on another transport after execution begins. Other
 device operations may still require an explicit reconnect or transport choice;
 this flow fallback cannot enable debugging or make an unreachable network
 endpoint reachable.
+
+For an owner-built APK retained by `scenario-to-android`, use an
+`install-artifact` flow step with the exact immutable ref and expected package:
+
+```json
+{
+  "steps": [
+    {
+      "id": "install-portal",
+      "kind": "install-artifact",
+      "required_capabilities": ["app-lifecycle"],
+      "arguments": {
+        "artifact_ref": "android-debug:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+        "package": "com.example.portal",
+        "version_name": "1.2.3"
+      }
+    }
+  ]
+}
+```
+
+Run it with `device-control flow run --file <definition> --device <id>
+--confirmed`. The confirmation applies to that run and is not saved in the
+flow. The step downloads and checks the APK through the artifact producer,
+installs only the staged bytes under the Device Control lease, then verifies
+package presence and exact version name. Inspect the structured chapter and
+audit details. A raw-path `install` step remains for local developer workflows
+and does not count as verified-artifact evidence. Live TV/phone installation
+and signing continuity still require device-specific proof.
 The agent planner also selects the known serial-bound USB profile before
 planning when its preferred wireless adapter is unavailable; it records the
 chosen transport for subsequent observations and actions.

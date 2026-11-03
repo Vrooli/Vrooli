@@ -129,8 +129,8 @@ When adding a shared component, search and adopt from the registry first:
 
 ```bash
 react-component-library components list --json
-react-component-library adoptions resolve-path <component-id> device-control
-react-component-library adoptions apply <component-id> device-control <adopted-path>
+react-component-library adoptions preflight "<component-id>" device-control --json
+react-component-library adoptions link "<component-id>" device-control --version "<version>" --json
 ```
 
 Use scenario-local custom components for genuinely scenario-specific surfaces,

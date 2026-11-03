@@ -14,6 +14,7 @@ import (
 	"sync"
 	"time"
 
+	"device-control/internal/androidartifact"
 	authdomain "device-control/internal/auth"
 	devicedomain "device-control/internal/devices"
 	internalflows "device-control/internal/flows"
@@ -44,33 +45,36 @@ type Service struct {
 	inventoryGate     chan struct{}
 	inventoryGateOnce sync.Once
 	// Lease admission and cancellation must not wait for transport inventory.
-	sessionMu           sync.Mutex
-	sessions            map[string]Session
-	audits              []Audit
-	agents              map[string]AgentRun
-	devices             *devicedomain.Store
-	artifacts           map[string]string
-	artifactKinds       map[string]string
-	evidenceDir         string
-	activeCancels       map[string]context.CancelFunc
-	transportStrategies map[string]strategy.Strategy
-	transportStates     map[string]transportState
-	transportProfiles   map[string]transportState
-	anchors             *internalflows.AnchorStore
-	runs                map[string]RunResult
-	flowRuns            map[string]Flow
-	runDevices          map[string]string
-	library             internalflows.Library
-	desktopRuns         internalflows.DesktopRuns
-	retainedRuns        internalflows.RetainedRuns
-	externalRecordings  map[string]externalRecording
-	auth                *authdomain.Store
-	stateEvents         *strategy.EventBus
-	observedStates      map[string]any
-	observerCancels     map[string]*observerJob
-	actuationCauses     map[string]actuationCause
-	auditAliases        map[string]map[string]struct{}
-	agentPlanner        internalflows.AgentPlanner
+	sessionMu               sync.Mutex
+	sessions                map[string]Session
+	audits                  []Audit
+	agents                  map[string]AgentRun
+	devices                 *devicedomain.Store
+	artifacts               map[string]string
+	artifactKinds           map[string]string
+	evidenceDir             string
+	activeCancels           map[string]context.CancelFunc
+	transportStrategies     map[string]strategy.Strategy
+	transportStates         map[string]transportState
+	transportProfiles       map[string]transportState
+	anchors                 *internalflows.AnchorStore
+	runs                    map[string]RunResult
+	flowRuns                map[string]Flow
+	runDevices              map[string]string
+	library                 internalflows.Library
+	desktopRuns             internalflows.DesktopRuns
+	retainedRuns            internalflows.RetainedRuns
+	externalRecordings      map[string]externalRecording
+	auth                    *authdomain.Store
+	stateEvents             *strategy.EventBus
+	observedStates          map[string]any
+	observerCancels         map[string]*observerJob
+	actuationCauses         map[string]actuationCause
+	auditAliases            map[string]map[string]struct{}
+	agentPlanner            internalflows.AgentPlanner
+	androidArtifactResolver interface {
+		Resolve(context.Context, string, string, string) (androidartifact.StagedAPK, error)
+	}
 	inventoryTimeout    time.Duration
 	sessionQueryTimeout time.Duration
 	pendingPairings     map[string]pendingPairing
@@ -140,6 +144,8 @@ type pendingPairing struct {
 	pairer    interactivePairer
 	session   androidtvremote.PairingSession
 	expiresAt time.Time
+	closing   bool
+	uncertain bool
 }
 
 // ActuationCorrelationWindow links a transport event to the operator command
@@ -190,14 +196,18 @@ func newService(registry *strategyregistry.Registry, anchors *internalflows.Anch
 
 // observerJob identifies one reservation so a cancelled, stale worker cannot
 // remove or replace an observer started for a later incarnation of a device.
-type observerJob struct{ cancel context.CancelFunc }
+type observerJob struct {
+	cancel   context.CancelFunc
+	stopping bool
+	done     chan struct{}
+}
 
 func (s *Service) startObserverLocked(record devicedomain.Record) {
 	if s.observerCancels[record.ID] != nil {
 		return
 	}
 	ctx, cancel := context.WithCancel(context.Background())
-	job := &observerJob{cancel: cancel}
+	job := &observerJob{cancel: cancel, done: make(chan struct{})}
 	s.observerCancels[record.ID] = job
 	go s.runDeviceObserver(ctx, record, job)
 }
@@ -205,6 +215,9 @@ func (s *Service) startObserverLocked(record devicedomain.Record) {
 func (s *Service) runDeviceObserver(ctx context.Context, record devicedomain.Record, job *observerJob) {
 	transport := record.StrategyID
 	defer func() {
+		if job.done != nil {
+			defer close(job.done)
+		}
 		if recover() != nil && ctx.Err() == nil {
 			s.EmitStateChange(strategy.StateChangeEvent{DeviceID: record.ID, Transport: transport, Attribute: "transport_health", NewValue: "unreachable", StateClass: strategy.EventBearing})
 		}
@@ -349,6 +362,16 @@ func (s *Service) SetAgentPlanner(planner internalflows.AgentPlanner) {
 	s.agentPlanner = planner
 }
 
+// SetAndroidArtifactResolver wires the producer-owned immutable artifact
+// boundary before device installation requests are admitted.
+func (s *Service) SetAndroidArtifactResolver(resolver interface {
+	Resolve(context.Context, string, string, string) (androidartifact.StagedAPK, error)
+}) {
+	s.mu.Lock()
+	s.androidArtifactResolver = resolver
+	s.mu.Unlock()
+}
+
 // SubscribeStateChanges exposes the local fast-path seam for a future rule
 // engine. It intentionally has no vrooli-events integration.
 func (s *Service) SubscribeStateChanges(buffer int) strategy.StateSubscription {
@@ -417,6 +440,7 @@ CREATE TABLE IF NOT EXISTS device_control_audits (
  id TEXT PRIMARY KEY, actor TEXT NOT NULL, device_id TEXT NOT NULL, transport TEXT NOT NULL DEFAULT '', causation_id TEXT NOT NULL DEFAULT '', lease_id TEXT NOT NULL,
  verb TEXT NOT NULL, outcome TEXT NOT NULL, created_at TEXT NOT NULL, redaction_verified INTEGER NOT NULL,
 	operation_id TEXT NOT NULL DEFAULT '',
+	details_json TEXT NOT NULL DEFAULT '',
 	redaction_opted_out INTEGER NOT NULL DEFAULT 0, profile_id TEXT NOT NULL DEFAULT '',
 	interactive INTEGER NOT NULL DEFAULT 0, evidence_backed INTEGER NOT NULL DEFAULT 1,
  method TEXT NOT NULL DEFAULT '', attempts INTEGER NOT NULL DEFAULT 0,
@@ -470,6 +494,7 @@ CREATE TABLE IF NOT EXISTS device_control_command_receipts (
 	_, _ = db.ExecContext(context.Background(), `ALTER TABLE device_control_audits ADD COLUMN evidence_backed INTEGER NOT NULL DEFAULT 1`)
 	_, _ = db.ExecContext(context.Background(), `ALTER TABLE device_control_transport_profiles ADD COLUMN profile_json TEXT NOT NULL DEFAULT ''`)
 	_, _ = db.ExecContext(context.Background(), `ALTER TABLE device_control_audits ADD COLUMN operation_id TEXT NOT NULL DEFAULT ''`)
+	_, _ = db.ExecContext(context.Background(), `ALTER TABLE device_control_audits ADD COLUMN details_json TEXT NOT NULL DEFAULT ''`)
 	for _, column := range []string{
 		`transport TEXT NOT NULL DEFAULT ''`,
 		`causation_id TEXT NOT NULL DEFAULT ''`,
@@ -572,11 +597,14 @@ func (s *Service) registerSessionOperation(ctx context.Context, session Session,
 	}
 	s.activeCancels[session.ID] = cancel
 	s.sessionMu.Unlock()
+	var cleanupOnce sync.Once
 	cleanup := func() {
-		cancel()
-		s.sessionMu.Lock()
-		delete(s.activeCancels, session.ID)
-		s.sessionMu.Unlock()
+		cleanupOnce.Do(func() {
+			cancel()
+			s.sessionMu.Lock()
+			delete(s.activeCancels, session.ID)
+			s.sessionMu.Unlock()
+		})
 	}
 	return operationCtx, cleanup, nil
 }
@@ -1458,7 +1486,6 @@ func (s *Service) finishContext(ctx context.Context, id, state, reason string) (
 	s.sessions[id] = v
 	if cancel := s.activeCancels[id]; cancel != nil {
 		cancel()
-		delete(s.activeCancels, id)
 	}
 	return v, nil
 }
@@ -1471,16 +1498,19 @@ func (s *Service) AuditContext(ctx context.Context) []Audit {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if s.db != nil {
-		rows, err := s.db.QueryContext(ctx, `SELECT id, actor, device_id, transport, causation_id, operation_id, lease_id, verb, outcome, profile_id, method, attempts, provider_state, before_lock_state, after_lock_state, created_at, redaction_verified, redaction_opted_out, interactive, evidence_backed FROM device_control_audits ORDER BY created_at DESC`)
+		rows, err := s.db.QueryContext(ctx, `SELECT id, actor, device_id, transport, causation_id, operation_id, lease_id, verb, outcome, profile_id, method, attempts, provider_state, before_lock_state, after_lock_state, created_at, redaction_verified, redaction_opted_out, interactive, evidence_backed, details_json FROM device_control_audits ORDER BY created_at DESC`)
 		if err == nil {
 			defer rows.Close()
 			out := make([]Audit, 0)
 			for rows.Next() {
 				var v Audit
-				var created string
+				var created, details string
 				var verified, optedOut, interactive, evidenceBacked int
-				if err := rows.Scan(&v.ID, &v.Actor, &v.DeviceID, &v.Transport, &v.CausationID, &v.OperationID, &v.LeaseID, &v.Verb, &v.Outcome, &v.ProfileID, &v.Method, &v.Attempts, &v.ProviderState, &v.BeforeLockState, &v.AfterLockState, &created, &verified, &optedOut, &interactive, &evidenceBacked); err != nil {
+				if err := rows.Scan(&v.ID, &v.Actor, &v.DeviceID, &v.Transport, &v.CausationID, &v.OperationID, &v.LeaseID, &v.Verb, &v.Outcome, &v.ProfileID, &v.Method, &v.Attempts, &v.ProviderState, &v.BeforeLockState, &v.AfterLockState, &created, &verified, &optedOut, &interactive, &evidenceBacked, &details); err != nil {
 					continue
+				}
+				if details != "" {
+					_ = json.Unmarshal([]byte(details), &v.Details)
 				}
 				v.CreatedAt, _ = time.Parse(time.RFC3339Nano, created)
 				v.RedactionVerified = verified != 0

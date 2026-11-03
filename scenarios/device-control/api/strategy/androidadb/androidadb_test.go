@@ -53,8 +53,9 @@ func TestDescribeCaptureProbesOnlyRequestedModality(t *testing.T) {
 	var frame bytes.Buffer
 	require.NoError(t, png.Encode(&frame, image.NewRGBA(image.Rect(0, 0, 4, 4))))
 	runner := &scriptedRunner{responses: map[string][]byte{
-		"adb devices -l":                      []byte("List of devices attached\nserial device\n"),
-		"adb -s serial exec-out screencap -p": frame.Bytes(),
+		"adb devices -l":                                   []byte("List of devices attached\nserial device\n"),
+		"adb -s serial exec-out screencap -p":              frame.Bytes(),
+		"adb -s serial shell getprop ro.build.version.sdk": []byte("30\n"),
 	}}
 	adapter := NewWithRunner(runner, "serial")
 	declaration, err := adapter.DescribeCapture(context.Background(), "screenshot")
@@ -65,7 +66,13 @@ func TestDescribeCaptureProbesOnlyRequestedModality(t *testing.T) {
 	declaration, err = adapter.DescribeCapture(context.Background(), "recording")
 	require.NoError(t, err)
 	require.Equal(t, strategy.StatusAvailable, declaration.Capabilities[strategy.CapNativeRecording].Status)
-	require.Equal(t, []string{"adb devices -l", "adb -s serial shell screenrecord --help"}, runner.calls)
+	require.Equal(t, []string{
+		"adb devices -l",
+		"adb -s serial shell screenrecord --help",
+		"adb -s serial shell getprop ro.build.version.sdk",
+		"adb -s serial shell pm path com.vrooli.devicecontrol.capture",
+	}, runner.calls)
+	require.Equal(t, strategy.StatusUnavailable, declaration.Capabilities[strategy.CapRecordingAudio].Status)
 }
 
 type scriptedProcess struct{ signaled bool }

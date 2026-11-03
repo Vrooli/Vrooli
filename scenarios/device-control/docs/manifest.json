@@ -1529,6 +1529,294 @@
               "[TODO]"
             ]
           }
+        },
+        {
+          "path": "internal/goal/device-control-maturity/CHARTER.md",
+          "docType": "goal-charter",
+          "title": "Device Control and TV Launcher Maturity Charter",
+          "aliases": [],
+          "description": "Scope and authority for sustained Device Control and Portal maturity delivery",
+          "audience": [
+            "developers",
+            "agents"
+          ],
+          "canonicalFor": [
+            "device-control-maturity-handoff"
+          ],
+          "maturity": "active",
+          "requiredBy": [
+            "implemented",
+            "validated"
+          ],
+          "completion": "required",
+          "validation": {
+            "requiredHeadings": [],
+            "forbiddenPlaceholders": [
+              "[TODO]"
+            ]
+          }
+        },
+        {
+          "path": "internal/goal/device-control-maturity/STATUS.md",
+          "docType": "goal-status",
+          "title": "Device Control Maturity Status",
+          "aliases": [],
+          "description": "Authoritative scoreboard, dependencies, forecast and completion gates",
+          "audience": [
+            "developers",
+            "agents"
+          ],
+          "canonicalFor": [
+            "device-control-maturity-handoff"
+          ],
+          "maturity": "active",
+          "requiredBy": [
+            "implemented",
+            "validated"
+          ],
+          "completion": "required",
+          "validation": {
+            "requiredHeadings": [],
+            "forbiddenPlaceholders": [
+              "[TODO]"
+            ]
+          }
+        },
+        {
+          "path": "internal/goal/device-control-maturity/FEEDBACK.md",
+          "docType": "goal-feedback",
+          "title": "Device Control Maturity User Feedback",
+          "aliases": [],
+          "description": "Durable user requirements and physical-device constraints",
+          "audience": [
+            "developers",
+            "agents"
+          ],
+          "canonicalFor": [
+            "device-control-maturity-handoff"
+          ],
+          "maturity": "active",
+          "requiredBy": [
+            "implemented",
+            "validated"
+          ],
+          "completion": "required",
+          "validation": {
+            "requiredHeadings": [],
+            "forbiddenPlaceholders": [
+              "[TODO]"
+            ]
+          }
+        },
+        {
+          "path": "internal/goal/device-control-maturity/LOG.md",
+          "docType": "goal-evidence-log",
+          "title": "Device Control Maturity Evidence Log",
+          "aliases": [],
+          "description": "Accepted evidence and handoff record for the maturity effort",
+          "audience": [
+            "developers",
+            "agents"
+          ],
+          "canonicalFor": [
+            "device-control-maturity-handoff"
+          ],
+          "maturity": "active",
+          "requiredBy": [
+            "implemented",
+            "validated"
+          ],
+          "completion": "required",
+          "validation": {
+            "requiredHeadings": [],
+            "forbiddenPlaceholders": [
+              "[TODO]"
+            ]
+          }
+        },
+        {
+          "path": "internal/goal/device-control-maturity/epochs/E1-inventory-contracts.md",
+          "docType": "goal-epoch-e1-inventory-contracts",
+          "title": "E1 Inventory Contracts",
+          "aliases": [],
+          "description": "Delivery epoch outcome and proof requirements",
+          "audience": [
+            "developers",
+            "agents"
+          ],
+          "canonicalFor": [
+            "device-control-maturity-handoff"
+          ],
+          "maturity": "active",
+          "requiredBy": [
+            "implemented",
+            "validated"
+          ],
+          "completion": "required",
+          "validation": {
+            "requiredHeadings": [],
+            "forbiddenPlaceholders": [
+              "[TODO]"
+            ]
+          }
+        },
+        {
+          "path": "internal/goal/device-control-maturity/epochs/E2-android-device-and-artifact-boundaries.md",
+          "docType": "goal-epoch-e2-android-device-and-artifact-boundaries",
+          "title": "E2 Android Device And Artifact Boundaries",
+          "aliases": [],
+          "description": "Delivery epoch outcome and proof requirements",
+          "audience": [
+            "developers",
+            "agents"
+          ],
+          "canonicalFor": [
+            "device-control-maturity-handoff"
+          ],
+          "maturity": "active",
+          "requiredBy": [
+            "implemented",
+            "validated"
+          ],
+          "completion": "required",
+          "validation": {
+            "requiredHeadings": [],
+            "forbiddenPlaceholders": [
+              "[TODO]"
+            ]
+          }
+        },
+        {
+          "path": "internal/goal/device-control-maturity/epochs/E3-capture-audio-performance.md",
+          "docType": "goal-epoch-e3-capture-audio-performance",
+          "title": "E3 Capture Audio Performance",
+          "aliases": [],
+          "description": "Delivery epoch outcome and proof requirements",
+          "audience": [
+            "developers",
+            "agents"
+          ],
+          "canonicalFor": [
+            "device-control-maturity-handoff"
+          ],
+          "maturity": "active",
+          "requiredBy": [
+            "implemented",
+            "validated"
+          ],
+          "completion": "required",
+          "validation": {
+            "requiredHeadings": [],
+            "forbiddenPlaceholders": [
+              "[TODO]"
+            ]
+          }
+        },
+        {
+          "path": "internal/goal/device-control-maturity/epochs/E4-semantic-ai-control.md",
+          "docType": "goal-epoch-e4-semantic-ai-control",
+          "title": "E4 Semantic Ai Control",
+          "aliases": [],
+          "description": "Delivery epoch outcome and proof requirements",
+          "audience": [
+            "developers",
+            "agents"
+          ],
+          "canonicalFor": [
+            "device-control-maturity-handoff"
+          ],
+          "maturity": "active",
+          "requiredBy": [
+            "implemented",
+            "validated"
+          ],
+          "completion": "required",
+          "validation": {
+            "requiredHeadings": [],
+            "forbiddenPlaceholders": [
+              "[TODO]"
+            ]
+          }
+        },
+        {
+          "path": "internal/goal/device-control-maturity/epochs/E5-portal-launcher.md",
+          "docType": "goal-epoch-e5-portal-launcher",
+          "title": "E5 Portal Launcher",
+          "aliases": [],
+          "description": "Delivery epoch outcome and proof requirements",
+          "audience": [
+            "developers",
+            "agents"
+          ],
+          "canonicalFor": [
+            "device-control-maturity-handoff"
+          ],
+          "maturity": "active",
+          "requiredBy": [
+            "implemented",
+            "validated"
+          ],
+          "completion": "required",
+          "validation": {
+            "requiredHeadings": [],
+            "forbiddenPlaceholders": [
+              "[TODO]"
+            ]
+          }
+        },
+        {
+          "path": "internal/goal/device-control-maturity/epochs/E6-integrated-qualification.md",
+          "docType": "goal-epoch-e6-integrated-qualification",
+          "title": "E6 Integrated Qualification",
+          "aliases": [],
+          "description": "Delivery epoch outcome and proof requirements",
+          "audience": [
+            "developers",
+            "agents"
+          ],
+          "canonicalFor": [
+            "device-control-maturity-handoff"
+          ],
+          "maturity": "active",
+          "requiredBy": [
+            "implemented",
+            "validated"
+          ],
+          "completion": "required",
+          "validation": {
+            "requiredHeadings": [],
+            "forbiddenPlaceholders": [
+              "[TODO]"
+            ]
+          }
+        },
+        {
+          "path": "internal/goal/device-control-maturity/GOAL.md",
+          "docType": "copyable-agent-goal",
+          "title": "Copyable Agent Goal",
+          "aliases": [
+            "goal-message"
+          ],
+          "description": "Copyable sustained delivery goal for the Device Control maturity effort",
+          "audience": [
+            "developers",
+            "agents"
+          ],
+          "canonicalFor": [
+            "device-control-maturity-goal"
+          ],
+          "maturity": "active",
+          "requiredBy": [
+            "implemented",
+            "validated"
+          ],
+          "completion": "required",
+          "validation": {
+            "requiredHeadings": [],
+            "forbiddenPlaceholders": [
+              "[TODO]"
+            ]
+          }
         }
       ]
     }

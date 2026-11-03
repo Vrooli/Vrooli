@@ -150,7 +150,7 @@ and gap reports.
 | ID | Capability | What it means |
 |---|---|---|
 | `semantic-tree` | Semantic tree | An accessibility or view hierarchy with addressable elements. |
-| `app-lifecycle` | App lifecycle | Inventory, inspect, install a verified artifact, launch, focus, stop, uninstall, clear data, and report package state for a named application. |
+| `app-lifecycle` | App lifecycle | Inventory, inspect, launch, focus, stop, uninstall, clear data, and report package state for a named application. Verified-artifact installation is a required but not yet complete operation. |
 | `permission-control` | Permission control | Grant, revoke, or respond to OS permission prompts. |
 | `network-control` | Network control | Toggle or condition the device's connectivity. |
 | `wireless-debugging` | Native wireless debugging | Set and verify Android's paired Wi-Fi debugging setting through an authorized USB transport. Pairing and reachability are separate. |
@@ -219,11 +219,21 @@ captured samples, not duplicated encoder frames.
 Recording evidence reports `audio_track_present` when the container can be
 inspected. A present track does not prove that it contains audible or
 synchronized playback; an absent track means the delivered file has no sound.
-The Android ADB `screenrecord` and screenshot fallback paths currently produce
-video without an audio track. Android playback-capture experiments on Android
-10 and 11 succeeded with system projection consent, but are not yet integrated
-into recording. App capture policy can prevent particular audio from being
-captured even when playback capture itself works.
+Android ADB `screenrecord` and its screenshot fallback produce video without an
+audio track unless `--require-audio` selects the Device Control Capture
+companion. Recording is video-only by default and does not open audio or
+screen-capture consent prompts. `--require-audio` is an explicit opt-in: the
+command may bring the companion to the foreground and requires the operator to
+accept Android's prompts on the device for that recording. The flag is a
+requirement, not a best-effort preference; if consent is unavailable or the
+result cannot be verified to contain an audio track, the request fails without
+delivering a video-only substitute. The companion captures playback audio through Android
+MediaProjection, which requires per-session system consent and may be restricted
+by the source app's capture policy. Its availability probe requires the
+companion installed on the device and host `ffmpeg` available for muxing.
+Android's audio and video start timestamps share the device elapsed-realtime
+clock; alignment is estimated around the host start request and is not a
+precision synchronization guarantee.
 
 Review recordings preserve the audio tracks of their input chapters. If only
 some chapters contain an audio track, the review inserts silence for the
@@ -242,15 +252,21 @@ implements audio recording, rather than silently producing a video-only file.
 If a provider claims audio but the resulting track is absent or cannot be
 inspected, the retained evidence is degraded. An audio track can still be silent.
 
-The intended Android audio/video route needs a device-side capture owner that
-holds one MediaProjection session, requests Android's capture consent, and
-uses a foreground service for playback capture. The host must bind that session
-to the existing device lease, stop it on cancellation, bound retained data, and
-verify cleanup before another recording is admitted. Video and audio timestamps
-must share a measured clock or expose synchronization uncertainty. A requested
-audio capture must not silently become a successful silent recording; a present
-audio stream alone does not establish audible content. This is a target, not a
-claim that the companion or its lifecycle protocol is implemented.
+The Android companion holds one MediaProjection session in a foreground
+service, requests consent for each recording, caps capture at 40 seconds, and
+keeps intermediate PCM and status files in app-specific storage. Device Control
+starts it before `screenrecord`, stops it with the video session, trims the
+pre-video audio interval, and muxes AAC into the retained MP4. A required-audio
+capture fails closed if consent is denied, capture fails, synchronization inputs
+are invalid, muxing fails, or the output track is absent/uninspectable. A
+present track alone still does not establish audible content. The companion is
+built through `scenario-to-android`; installing it remains an explicit app
+lifecycle action. Android requires user consent for every MediaProjection
+session, so audio recording cannot run unattended; the operator must accept
+the on-device audio and screen-capture prompts for each requested session
+([Android MediaProjection guidance](https://developer.android.com/media/grow/media-projection)).
+Physical-device consent, sound, and synchronization qualification remain
+required before calling this path release-qualified.
 
 `device-control device inspect <device>` reports Android's video encoder
 inventory when it can read and recognize it. Each entry names the MIME type,
@@ -272,9 +288,9 @@ console messages or requests occurred.
 
 ## App lifecycle control
 
-The application surface has two classes of operation. Read operations are
+The target application surface has two classes of operation. Read operations are
 package inventory, package inspection, and package state. Mutating operations
-are verified-artifact install, `launch`, `focus`, `close`, `minimize`,
+include verified-artifact install, `launch`, `focus`, `close`, `minimize`,
 `restore`, `stop`, `uninstall`, `clear-data`, `grant-permission`, and
 `revoke-permission`. Every mutating request must hold a live device lease and
 must carry explicit confirmation. Install additionally records an artifact
@@ -283,7 +299,50 @@ and the post-install package-state verification. The artifact authority owns
 the APK and release meaning; device-control owns only the bounded install and
 verification operation.
 
-**Current implementation boundary (2026-09-17):** governed network-ADB
+**Current implementation boundary (2026-11-02):** Android flows now have a
+separate `install-artifact` step. It requires `artifact_ref` and the expected
+fully-qualified `package` in step arguments, plus optional `version_name`.
+`device-control flow run --confirmed` supplies one-shot confirmation outside
+the replayable flow definition. Capability discovery advertises this step only
+for the `android-adb` strategy; other app-lifecycle providers do not claim
+immutable Android artifact support. Device Control resolves the producer's exact
+immutable reference, checks descriptor identity, package/version and APK
+checksum, stages only bounded verified bytes in a private temporary file, and
+inspects the compiled APK manifest with the Android SDK's `aapt`. The embedded
+package name, version name and version code must match the descriptor before
+the staged APK can reach the lease-owned install path. Device Control then
+revalidates the lease, sends the install through the Android strategy, and
+requires matching installed package/version state. The flow chapter and audit
+details retain the immutable ref,
+producer/APK checksums, expected/observed version and verification result;
+they do not retain the staging path.
+
+`scenario-to-android` owns the retained APK/AAB pair and exposes exact-ref
+metadata and APK-byte endpoints. Device Control's HTTP consumer resolves the
+scenario through api-core discovery and independently checks the downloaded
+APK length and SHA-256 against the producer descriptor, then checks embedded
+manifest identity before installation. The existing flow
+`install` step remains for explicit local developer workflows; it accepts a
+host path and is not evidence of verified-artifact installation. The producer
+endpoints follow the scenario's existing plain JSON operator API and add no
+separate authentication layer. The producer API binds to loopback, and both
+artifact routes reject requests stamped by the network-facing UI proxy. Runtime
+checks confirmed 403 from the UI proxy and loopback-only listening. This is a
+local-operator boundary, not route authentication.
+
+Physical install passed on Moto G7 Android 10 (serial `ZY226TG2BM`) using exact
+immutable ref `android-debug:a4571098c6ec6ce4a12739faa287a2070367ee4761ee5304b3a88bd325852571`.
+The response verifies APK SHA-256, package `com.vrooli.devicecontrol.capture`,
+version `1.0.0` and post-install package state. Flow
+`1d5c512e-26e6-46cb-bc58-2ee139df3eeb` is the retained run evidence. The APK
+is debug-only, signing continuity is unverified, and no TV install has been
+performed through this flow. After the embedded-manifest gate was added, a
+managed Device Control restart and confirmed reinstall on the same exact Moto
+G7 also passed; audit `62f101f5-66d9-4667-8fdb-4aa026659cc7` records the APK
+digest, package, version code/name and post-install verification. The companion
+was not launched and no projection/audio prompt was requested.
+
+The prior live boundary (2026-09-17) remains: governed network-ADB
 onboarding, live capability probing, `device state`, and verified `package-state`
 are implemented and proven live against an Android TV (a SmartTV 4K at
 `192.168.1.158:5555`): onboarding publishes `app-lifecycle`, and `launch`/`stop`
@@ -530,7 +589,7 @@ Exercisable covers three mechanisms — a step **requires** it
 | Capability | Exercised by | Mechanism |
 |---|---|---|
 | `semantic-tree` | `semantic` rung | rung |
-| `app-lifecycle` | `device.install` / `launch` / `stop` / `uninstall` | step |
+| `app-lifecycle` | `device.install` / `install-artifact` / `launch` / `stop` / `uninstall` | step |
 | `permission-control` | `device.permission` | step |
 | `network-control` | `device.network` | step |
 | `wireless-debugging` | `wireless-debugging` / `wireless-debugging-assert` | step |

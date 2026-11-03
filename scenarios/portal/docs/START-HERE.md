@@ -18,7 +18,7 @@ When you need the full scenario gate, use test-genie:
 
 ```bash
 vrooli scenario test portal
-test-genie runs wait --json portal 20260706-000000-example
+vrooli scenario test wait portal 20260706-000000-example --timeout 120 --json
 ```
 
 Do not run `api/portal-api`, UI dev scripts, or CLI binaries directly for

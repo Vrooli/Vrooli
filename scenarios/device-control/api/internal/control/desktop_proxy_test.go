@@ -632,3 +632,160 @@ func TestActivationImageReplyValidation(t *testing.T) {
 		})
 	}
 }
+
+type desktopOwnerShutdownHarness struct {
+	service    *Service
+	db         interface{ Close() error }
+	owner      *LocalDesktopAdmission
+	native     *proxyNative
+	client     desktopv1connect.DesktopOwnerServiceClient
+	account    desktopv1connect.DesktopAccountServiceClient
+	session    *commonv1.SessionRef
+	cancel     context.CancelFunc
+	ownerDone  chan struct{}
+	ownerErr   error
+	helperDone chan struct{}
+	helperErr  error
+	transport  *http.Transport
+}
+
+type blockingDesktopIdentity struct {
+	entered chan struct{}
+	resume  chan struct{}
+}
+
+func (f *blockingDesktopIdentity) Validate(context.Context, string) (owneridentity.Identity, error) {
+	close(f.entered)
+	<-f.resume // Model an identity provider call that does not return on cancellation.
+	return owneridentity.Identity{Subject: "shutdown-operator", Scopes: []string{"device-control:read"}, ExpiresAt: time.Now().Add(time.Minute)}, nil
+}
+
+func newDesktopOwnerShutdownHarness(t *testing.T) *desktopOwnerShutdownHarness {
+	t.Helper()
+	svc, db := testService(t)
+	public, private, err := ed25519.GenerateKey(rand.Reader)
+	require.NoError(t, err)
+	dir := testutil.SocketDir(t)
+	require.NoError(t, os.Chmod(dir, 0o700))
+	surface := targetmodel.SurfaceRef{Target: targetmodel.TargetRef{OwnerScenario: "vrooli-bridge", ResourceID: "host", HostNodeID: "host"}, OwnerScenario: "device-control", SurfaceID: "desktop"}
+	config := desktophelper.Config{StateDirectory: dir, GrantStatusFile: filepath.Join(dir, "grants.json")}
+	registration := desktophelper.Registration{Surface: surface, SessionID: "shutdown-login", HelperID: "shutdown-helper", Epoch: 1}
+	owner, err := NewLocalDesktopAdmission(svc, private, "fake", surface, func(context.Context) (desktophelper.Registration, error) { return registration, nil })
+	require.NoError(t, err)
+	authority, err := sessions.NewSignedDesktopAuthority(public, func(_ context.Context, id string) (bool, error) {
+		data, err := os.ReadFile(config.GrantStatusFile)
+		if err != nil {
+			return false, err
+		}
+		var status desktophelper.GrantStatus
+		if err = json.Unmarshal(data, &status); err != nil {
+			return false, err
+		}
+		if !time.Now().Before(status.ExpiresAt) {
+			return false, nil
+		}
+		for _, active := range status.Active {
+			if active == id {
+				return true, nil
+			}
+		}
+		return false, nil
+	})
+	require.NoError(t, err)
+	repo, err := sessions.NewSQLiteDesktopRepository(context.Background(), db, registration.SessionID)
+	require.NoError(t, err)
+	native := &proxyNative{}
+	controller, err := sessions.NewDesktopController(repo, authority, native, surface, registration.SessionID, registration.HelperID)
+	require.NoError(t, err)
+	require.NoError(t, controller.ActivateHelper(context.Background(), "", 0))
+	helper, err := sessions.NewDesktopUnixHelper(controller, authority)
+	require.NoError(t, err)
+	helperListener, err := net.ListenUnix("unix", &net.UnixAddr{Name: filepath.Join(dir, "helper.sock"), Net: "unix"})
+	require.NoError(t, err)
+	ownerListener, err := net.ListenUnix("unix", &net.UnixAddr{Name: filepath.Join(dir, "shutdown-owner.sock"), Net: "unix"})
+	require.NoError(t, err)
+	ctx, cancel := context.WithCancel(context.Background())
+	h := &desktopOwnerShutdownHarness{service: svc, db: db, owner: owner, native: native, cancel: cancel, ownerDone: make(chan struct{}), helperDone: make(chan struct{})}
+	go func() {
+		h.helperErr = helper.Serve(ctx, helperListener)
+		close(h.helperDone)
+	}()
+	go func() {
+		h.ownerErr = owner.serveDesktopOwner(ctx, ownerListener, config)
+		close(h.ownerDone)
+	}()
+	h.transport = &http.Transport{DialContext: func(ctx context.Context, _, _ string) (net.Conn, error) {
+		return (&net.Dialer{}).DialContext(ctx, "unix", ownerListener.Addr().String())
+	}}
+	h.client = desktopv1connect.NewDesktopOwnerServiceClient(&http.Client{Transport: h.transport, Timeout: 10 * time.Second}, "http://owner")
+	h.account = desktopv1connect.NewDesktopAccountServiceClient(&http.Client{Transport: h.transport, Timeout: 10 * time.Second}, "http://owner")
+	opened, err := h.client.Open(context.Background(), connect.NewRequest(&desktopv1.OwnerOpenRequest{Surface: surface.Proto(), TtlSeconds: 60, Control: true}))
+	require.NoError(t, err)
+	h.session = opened.Msg.Session
+	t.Cleanup(func() {
+		cancel()
+		h.transport.CloseIdleConnections()
+		for name, done := range map[string]<-chan struct{}{"desktop owner": h.ownerDone, "desktop helper": h.helperDone} {
+			select {
+			case <-done:
+			case <-time.After(5 * time.Second):
+				t.Errorf("%s did not stop", name)
+			}
+		}
+	})
+	return h
+}
+
+func TestDesktopOwnerShutdownJoinsAcceptedRPCBeforeReleasingLease(t *testing.T) {
+	h := newDesktopOwnerShutdownHarness(t)
+	identity := &blockingDesktopIdentity{entered: make(chan struct{}), resume: make(chan struct{})}
+	h.owner.webSubject = "shutdown-operator"
+	h.owner.webIdentity = identity
+	requestDone := make(chan error, 1)
+	go func() {
+		request := connect.NewRequest(&desktopv1.OwnerGetSavedFlowRequest{Session: h.session, Id: "missing", Version: 1, ContextKey: "shutdown"})
+		request.Header().Set("Authorization", "Bearer shutdown-token")
+		_, err := h.account.GetSavedFlow(context.Background(), request)
+		requestDone <- err
+	}()
+	select {
+	case <-identity.entered:
+	case <-time.After(3 * time.Second):
+		t.Fatal("owner RPC did not enter forwarded identity validation")
+	}
+
+	h.cancel()
+	select {
+	case <-h.ownerDone:
+		t.Fatalf("desktop owner returned before the accepted RPC exited: %v", h.ownerErr)
+	case <-time.After(100 * time.Millisecond):
+	}
+	require.Len(t, h.service.ListLiveSessions(), 1, "owner lease remains held while the accepted RPC is active")
+
+	close(identity.resume)
+	select {
+	case <-requestDone:
+	case <-time.After(3 * time.Second):
+		t.Fatal("accepted owner RPC did not finish after its native operation resumed")
+	}
+	select {
+	case <-h.ownerDone:
+		require.NoError(t, h.ownerErr)
+	case <-time.After(5 * time.Second):
+		t.Fatal("desktop owner did not finish after accepted RPC exit")
+	}
+	require.Empty(t, h.service.ListLiveSessions(), "owner lease is released after RPC drain")
+}
+
+func TestDesktopOwnerShutdownSurfacesLeaseReleaseFailure(t *testing.T) {
+	h := newDesktopOwnerShutdownHarness(t)
+	require.Len(t, h.service.ListLiveSessions(), 1)
+	require.NoError(t, h.db.Close())
+	h.cancel()
+	select {
+	case <-h.ownerDone:
+		require.ErrorContains(t, h.ownerErr, "database is closed", "owner shutdown must report a failed lease release")
+	case <-time.After(5 * time.Second):
+		t.Fatal("desktop owner did not finish after shutdown")
+	}
+}

@@ -2,11 +2,68 @@ package desktopwebrtc
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 
 	"github.com/pion/webrtc/v4"
 )
+
+func TestCloseKeepsPriorPeerCloseFailureVisible(t *testing.T) {
+	want := errors.New("peer close failed")
+	peer := &PionPeer{closed: true, closeErr: want}
+	if err := peer.Close(); !errors.Is(err, want) {
+		t.Fatalf("repeated Close() error = %v, want %v", err, want)
+	}
+}
+
+func TestConcurrentCloseWaitsForPeerCloseResult(t *testing.T) {
+	want := errors.New("peer close failed")
+	entered, release := make(chan struct{}), make(chan struct{})
+	peer := &PionPeer{closePeerFn: func() error {
+		close(entered)
+		<-release
+		return want
+	}}
+	first := make(chan error, 1)
+	go func() { first <- peer.Close() }()
+	<-entered
+	second := make(chan error, 1)
+	go func() { second <- peer.Close() }()
+	select {
+	case err := <-second:
+		t.Fatalf("concurrent Close returned before peer close finished: %v", err)
+	case <-time.After(20 * time.Millisecond):
+	}
+	close(release)
+	if err := <-first; !errors.Is(err, want) {
+		t.Fatalf("first Close() error = %v, want %v", err, want)
+	}
+	if err := <-second; !errors.Is(err, want) {
+		t.Fatalf("concurrent Close() error = %v, want %v", err, want)
+	}
+}
+
+func TestCloseWaitsForRegisteredDrainWorkers(t *testing.T) {
+	peer := &PionPeer{}
+	peer.workers.Add(1)
+	workerDone := make(chan struct{})
+	go func() {
+		defer peer.workers.Done()
+		<-workerDone
+	}()
+	closed := make(chan error, 1)
+	go func() { closed <- peer.Close() }()
+	select {
+	case err := <-closed:
+		t.Fatalf("Close returned before drain worker exited: %v", err)
+	case <-time.After(20 * time.Millisecond):
+	}
+	close(workerDone)
+	if err := <-closed; err != nil {
+		t.Fatalf("Close() error = %v", err)
+	}
+}
 
 func TestPionPeerCreatesVP8AndReliableLanes(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())

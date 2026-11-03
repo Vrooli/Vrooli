@@ -164,6 +164,26 @@ type AgentPlanner interface {
 	Plan(context.Context, AgentWorld) (AgentPlan, error)
 }
 
+// AgentInferenceEvidence contains only gateway-provided usage and routing
+// facts. Nil usage values mean the gateway did not provide that measurement.
+type AgentInferenceEvidence struct {
+	Provider          string `json:"provider,omitempty"`
+	Model             string `json:"model,omitempty"`
+	ProviderCallsMade int32  `json:"provider_calls_made"`
+	InputTokens       *int64 `json:"input_tokens,omitempty"`
+	OutputTokens      *int64 `json:"output_tokens,omitempty"`
+	CostMicros        *int64 `json:"cost_micros,omitempty"`
+	InputProvenance   string `json:"input_tokens_provenance,omitempty"`
+	OutputProvenance  string `json:"output_tokens_provenance,omitempty"`
+	CostProvenance    string `json:"cost_provenance,omitempty"`
+}
+
+// AgentPlannerWithEvidence is optional so local/fake planners do not invent
+// provider usage facts they cannot observe.
+type AgentPlannerWithEvidence interface {
+	PlanWithEvidence(context.Context, AgentWorld) (AgentPlan, *AgentInferenceEvidence, error)
+}
+
 // HashAgentPayload creates a stable, non-reversible evidence identifier for a
 // prompt, policy snapshot, plan, or observation. Raw state and model text are
 // intentionally kept out of durable agent chapters.
@@ -223,6 +243,12 @@ func ValidateAgentPlan(plan AgentPlan, declared []string) error {
 	if strings.HasPrefix(plan.StepKind, "media-") && strings.TrimSpace(plan.Action) == "" {
 		return fmt.Errorf("agent step %q requires an action", plan.StepKind)
 	}
+	switch plan.StepKind {
+	case "install", "launch", "focus", "close", "minimize", "restore", "stop", "uninstall", "clear-data", "home-set", "package-state":
+		if strings.TrimSpace(plan.Action) == "" {
+			return fmt.Errorf("agent step %q requires an application identity", plan.StepKind)
+		}
+	}
 	if plan.Value != nil {
 		encoded, err := json.Marshal(plan.Value)
 		if err != nil {
@@ -249,18 +275,23 @@ func NewGatewayPlanner(gateway InferenceRunner) *GatewayPlanner {
 }
 
 func (p *GatewayPlanner) Plan(ctx context.Context, world AgentWorld) (AgentPlan, error) {
+	plan, _, err := p.PlanWithEvidence(ctx, world)
+	return plan, err
+}
+
+func (p *GatewayPlanner) PlanWithEvidence(ctx context.Context, world AgentWorld) (AgentPlan, *AgentInferenceEvidence, error) {
 	if p == nil || p.Gateway == nil {
-		return AgentPlan{}, &UnavailableError{Reason: "ai_gateway_client_not_configured"}
+		return AgentPlan{}, nil, &UnavailableError{Reason: "ai_gateway_client_not_configured"}
 	}
 	if len(strings.TrimSpace(world.Goal)) == 0 || len(world.Goal) > maxAgentGoalBytes {
-		return AgentPlan{}, fmt.Errorf("agent goal must be between 1 and %d bytes", maxAgentGoalBytes)
+		return AgentPlan{}, nil, fmt.Errorf("agent goal must be between 1 and %d bytes", maxAgentGoalBytes)
 	}
 	encoded, err := json.Marshal(world)
 	if err != nil {
-		return AgentPlan{}, fmt.Errorf("encode agent world model: %w", err)
+		return AgentPlan{}, nil, fmt.Errorf("encode agent world model: %w", err)
 	}
 	if len(encoded) > maxAgentWorldBytes {
-		return AgentPlan{}, fmt.Errorf("agent world exceeds %d bytes", maxAgentWorldBytes)
+		return AgentPlan{}, nil, fmt.Errorf("agent world exceeds %d bytes", maxAgentWorldBytes)
 	}
 	planCtx := ctx
 	timeout := p.Timeout
@@ -290,26 +321,44 @@ func (p *GatewayPlanner) Plan(ctx context.Context, world AgentWorld) (AgentPlan,
 	}
 	response, err := p.Gateway.Run(planCtx, request)
 	if err != nil {
-		return AgentPlan{}, err
+		return AgentPlan{}, nil, err
 	}
 	if response == nil || response.Msg == nil {
-		return AgentPlan{}, &UnavailableError{Reason: "empty_gateway_response"}
+		return AgentPlan{}, nil, &UnavailableError{Reason: "empty_gateway_response"}
 	}
+	evidence := agentInferenceEvidence(response.Msg)
 	if response.Msg.GetError() != nil {
-		return AgentPlan{}, fmt.Errorf("agent gateway inference failed: %s", response.Msg.GetError().GetMessage())
+		return AgentPlan{}, evidence, fmt.Errorf("agent gateway inference failed: %s", response.Msg.GetError().GetMessage())
 	}
 	valueJSON := response.Msg.GetValueJson()
 	if len(valueJSON) > maxAgentValueBytes {
-		return AgentPlan{}, fmt.Errorf("agent plan exceeds %d bytes", maxAgentValueBytes)
+		return AgentPlan{}, evidence, fmt.Errorf("agent plan exceeds %d bytes", maxAgentValueBytes)
 	}
 	var plan AgentPlan
 	decoder := json.NewDecoder(bytes.NewReader([]byte(valueJSON)))
 	decoder.DisallowUnknownFields()
 	if err := decoder.Decode(&plan); err != nil {
-		return AgentPlan{}, fmt.Errorf("decode agent plan: %w", err)
+		return AgentPlan{}, evidence, fmt.Errorf("decode agent plan: %w", err)
 	}
 	if err := ValidateAgentPlan(plan, world.StepKinds); err != nil {
-		return AgentPlan{}, err
+		return AgentPlan{}, evidence, err
 	}
-	return plan, nil
+	return plan, evidence, nil
+}
+
+func agentInferenceEvidence(response *inferencev1.RunResponse) *AgentInferenceEvidence {
+	if response == nil {
+		return nil
+	}
+	evidence := &AgentInferenceEvidence{Provider: response.GetProvider(), Model: response.GetModel(), ProviderCallsMade: response.GetProviderCallsMade()}
+	usage := response.GetUsage()
+	if usage == nil {
+		return evidence
+	}
+	input, output, cost := usage.GetInputTokens(), usage.GetOutputTokens(), usage.GetCostMicros()
+	evidence.InputTokens, evidence.OutputTokens, evidence.CostMicros = &input, &output, &cost
+	evidence.InputProvenance = usage.GetInputTokensProvenance().String()
+	evidence.OutputProvenance = usage.GetOutputTokensProvenance().String()
+	evidence.CostProvenance = usage.GetCostProvenance().String()
+	return evidence
 }

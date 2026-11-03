@@ -72,10 +72,18 @@
           }
         },
         {
+          "name": "semantics",
+          "description": "Read a bounded accessibility snapshot from a device",
+          "positionals": [{"name": "id", "required": true}],
+          "flags": [{"name": "lease"}, {"name": "transport"}, {"name": "actor", "default": "cli"}],
+          "binding": {"kind": "local"},
+          "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal"]}
+        },
+        {
           "name": "capture",
           "description": "Capture available device evidence or report an observation gap",
           "positionals": [{"name": "id", "required": true}],
-          "flags": [{"name": "kind", "required": true}, {"name": "seconds", "default": "5"}, {"name": "package"}, {"name": "actor"}],
+          "flags": [{"name": "kind", "required": true}, {"name": "seconds", "default": "5"}, {"name": "require-audio", "type": "bool", "description": "Opt in to playback audio; Android requires on-device consent for each session and verifies the audio track"}, {"name": "package"}, {"name": "actor"}],
           "binding": {"kind": "local"},
           "governance": {"effect": "write", "run_eligible": true, "permissions": ["network:internal"]}
         },
@@ -971,6 +979,14 @@
               "name": "actor",
               "description": "Audit actor",
               "default": "cli"
+            },
+            {
+              "name": "confirmed",
+              "description": "Confirm verified artifact installation for this run",
+              "bool": true,
+              "bind": {
+                "field": "confirmed"
+              }
             }
           ],
           "binding": {
@@ -981,6 +997,7 @@
           "governance": {
             "effect": "write",
             "run_eligible": true,
+            "requires_confirmation": true,
             "permissions": [
               "network:internal"
             ]

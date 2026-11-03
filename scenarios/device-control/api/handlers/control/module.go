@@ -809,6 +809,7 @@ type flowRequest struct {
 	DeviceID   string        `json:"device_id"`
 	Actor      string        `json:"actor"`
 	LeaseToken string        `json:"lease_token,omitempty"`
+	Confirmed  bool          `json:"confirmed,omitempty"`
 }
 
 func (h *handler) validateFlow(w http.ResponseWriter, r *http.Request) {
@@ -826,8 +827,12 @@ func (h *handler) runFlow(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "invalid_request", err.Error())
 		return
 	}
-	result, err := h.service.RunWithLease(r.Context(), in.Flow, in.DeviceID, in.Actor, in.LeaseToken)
+	result, err := h.service.RunWithLeaseConfirmed(r.Context(), in.Flow, in.DeviceID, in.Actor, in.LeaseToken, in.Confirmed)
 	if err != nil {
+		if strings.Contains(err.Error(), "requires explicit confirmation") {
+			writeError(w, http.StatusPreconditionRequired, "confirmation_required", err.Error())
+			return
+		}
 		if strings.HasPrefix(err.Error(), "unknown device ") {
 			writeError(w, http.StatusBadRequest, "unknown_device", err.Error())
 			return

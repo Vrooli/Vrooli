@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"testing"
+	"time"
 
 	"device-control/internal/sessions"
 	"github.com/stretchr/testify/require"
@@ -52,4 +53,33 @@ func TestReadRegistrationUsesCurrentEpochAndRefusesStoppedGeneration(t *testing.
 	require.NoError(t, os.Chmod(databasePath, 0644))
 	_, err = ReadRegistration(ctx, path)
 	require.ErrorIs(t, err, ErrBootstrap)
+}
+
+func TestLifecycleReceiptRoundTripsShutdownPendingState(t *testing.T) {
+	dir := t.TempDir()
+	require.NoError(t, os.Chmod(dir, 0700))
+	surface := targetmodel.SurfaceRef{Target: targetmodel.TargetRef{OwnerScenario: "vrooli-bridge", ResourceID: "host", HostNodeID: "host"}, OwnerScenario: "device-control", SurfaceID: "desktop"}
+	config := Config{Version: 1, Surface: surface, SessionID: "os-session", StateDirectory: dir, XAuthorityFile: filepath.Join(dir, "authority"), GrantStatusFile: filepath.Join(dir, "grants"), PublicKey: base64.StdEncoding.EncodeToString(make([]byte, 32))}
+	data, err := json.Marshal(config)
+	require.NoError(t, err)
+	configPath := filepath.Join(dir, "config.json")
+	require.NoError(t, os.WriteFile(configPath, data, 0600))
+	require.NoError(t, writeRegistration(dir, Registration{Surface: surface, SessionID: config.SessionID, HelperID: "helper-generation-2", Epoch: 2, SocketPath: filepath.Join(dir, "helper.sock")}))
+	receipt := LifecycleReceipt{HelperID: "helper-generation-2", Epoch: 2, SessionID: config.SessionID, Surface: surface, Status: "stopping", ActiveRequests: 1, ErrorCode: "rpc_drain_timeout", ObservedAt: time.Now().UTC()}
+	require.NoError(t, WriteLifecycleReceipt(dir, receipt))
+
+	got, err := ReadLifecycleReceipt(context.Background(), configPath)
+	require.NoError(t, err)
+	require.Equal(t, receipt, got)
+	receipt.Status = "controller-cleanup-completed"
+	receipt.ActiveRequests = 0
+	receipt.ErrorCode = ""
+	receipt.ObservedAt = time.Now().UTC()
+	require.NoError(t, WriteLifecycleReceipt(dir, receipt))
+	got, err = ReadLifecycleReceipt(context.Background(), configPath)
+	require.NoError(t, err)
+	require.Equal(t, receipt, got)
+
+	receipt.Status = "done"
+	require.ErrorIs(t, WriteLifecycleReceipt(dir, receipt), ErrBootstrap, "unknown states must not be treated as terminal receipts")
 }

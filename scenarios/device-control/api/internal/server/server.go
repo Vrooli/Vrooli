@@ -29,8 +29,11 @@ import (
 // pingers) live inside each module's constructor — Deps is intentionally
 // limited to what the middleware stack reads.
 type Deps struct {
-	Clock  clock.Clock
-	Logger *log.Logger
+	Clock     clock.Clock
+	Logger    *log.Logger
+	Admission interface {
+		Middleware(http.Handler) http.Handler
+	}
 }
 
 // Server is the wired HTTP application: cross-cutting deps + router
@@ -60,6 +63,9 @@ func New(d Deps, modules ...module.Module) *Server {
 	s := &Server{deps: d, router: mux.NewRouter()}
 	s.router.Use(middleware.NewSecurityHeadersMiddleware())
 	s.router.Use(middleware.NewLoggingMiddleware(d.Clock, d.Logger))
+	if d.Admission != nil {
+		s.router.Use(func(next http.Handler) http.Handler { return d.Admission.Middleware(next) })
+	}
 	for _, m := range modules {
 		m.Mount(s.router)
 	}

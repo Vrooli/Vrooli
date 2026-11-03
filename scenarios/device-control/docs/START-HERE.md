@@ -308,8 +308,8 @@ governs how they should look and behave, not which ones exist.
 
 ```bash
 react-component-library components list --json
-react-component-library adoptions resolve-path <component-id> device-control
-react-component-library adoptions apply <component-id> device-control <adopted-path>
+react-component-library adoptions preflight "<component-id>" device-control --json
+react-component-library adoptions link "<component-id>" device-control --version "<approved-version>" --json
 ```
 
       If no governed primitive exists, build the scenario-local component
@@ -477,17 +477,15 @@ react-component-library components draft-publish <component>
       it so the canon inherits the claims rather than losing them:
 
 ```bash
-react-component-library components ingest device-control <tsx-path> <slug> \
-  --experience-contract experience/components/<component>.json \
-  --display-name "<Name>" --slot <slot>
+react-component-library components ingest device-control "<source-file>" "<slug>" --experience-contract "experience/components/<component>.json" --display-name "<Name>" --slot "<slot>"
 ```
 
 - [ ] Validate before calling anything canonical:
 
 ```bash
-react-component-library components test <component-id>
-react-component-library components style-fit <component-id> device-control
-react-component-library catalog evidence capture <asset-id>
+react-component-library components test "<component-id>" --version "<version>" --json
+react-component-library components check "<component-id>" --version "<version>" --json
+react-component-library catalog gates evidence-freshness --asset-id "<asset-id>" --json
 ```
 
 - [ ] Read the promotion gate. It requires parity, examples, dependency
@@ -495,14 +493,13 @@ react-component-library catalog evidence capture <asset-id>
       scenario:
 
 ```bash
-react-component-library workflows promotion-readiness <asset-id> \
-  --origin-scenario device-control
+react-component-library workflows promotion-readiness "<asset-id>" --origin-scenario device-control --json
 ```
 
 - [ ] Adopt the published version back, then delete the local original:
 
 ```bash
-react-component-library adoptions apply <component-id> device-control <adopted-path>
+react-component-library adoptions link "<component-id>" device-control --version "<version>" --json
 ```
 
       Promotion is not finished while this scenario still runs its own copy.

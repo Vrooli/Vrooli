@@ -1,10 +1,15 @@
 # Portal Android TV launcher
 
-Current installed daily release: **0.4.12/code30**, with final upgrade
-qualification recorded below. Earlier daily25 fixed catalogue continuation and
-viewport clipping. The selected direct LAN connection is working with a
-setup-installed, verified persistent admission rule. Trusted local HTTPS and
-endpoint-change/travel qualification remain separate work.
+Last recorded installed daily release: **0.4.19/code37**, installed through
+Device Control run `43074659-b8e1-4775-a4dc-9f30e93bde0a` and qualified through
+boot 75 on 1 November 2026. The current installed version is unknown: the
+17:49 UTC Device Control inventory on 2 November did not contain the previously
+recorded SmartTV identity, and Android TV Remote discovery found no reachable
+`_androidtvremote._tcp` service. This does not establish that the TV is off or
+that the launcher failed. Earlier daily25 fixed catalogue continuation and
+viewport clipping. A prior direct-LAN connection used a setup-installed,
+verified persistent admission rule. Trusted local HTTPS and endpoint-change/
+travel qualification remain separate work.
 
 ## Interaction polish target — 23 October 2026
 
@@ -158,16 +163,16 @@ agent-session-containment's live-test input; filed as Scenario QA
 The initial automated installation stopped before root execution because sudo
 requires an operator terminal. The operator subsequently authenticated the
 focused setup command. Live qualification exposed a service configuration bug:
-UFW creates Python temporary files, but the broker kept `/tmp` and `/var/tmp`
-read-only without a writable `TMPDIR`. Installed UFW can acknowledge a kernel
+UFW creates Python temporary files, but the broker kept its temporary
+directories read-only without a writable temporary directory. Installed UFW can acknowledge a kernel
 update without persisting its rules after that failure. Do not equate live TV
 traffic with a saved, verified rule. A regression now requires
-`TMPDIR=/run/vrooli`, using the existing writable broker directory while keeping
+`TMPDIR` pointed to the broker runtime directory, keeping
 host temporary roots read-only. The safeguard also retains bounded broker
 failure details instead of hiding the actionable result code.
 
 The operator authenticated the corrected setup at 23:18 local time. The live
-unit now has the expected `TMPDIR`; `/etc/ufw/user.rules` was updated, and the
+unit now has the expected `TMPDIR`; the managed UFW rules file was updated, and the
 host safeguard reports `already_present` after exact managed-rule verification.
 The operator sees the native Vrooli catalogue over the saved direct LAN origin.
 HTTPS/certificate/DNS lifecycle, automatic endpoint-change recovery and
@@ -552,17 +557,13 @@ The saved flow ID is `6d276722-a5d1-45dd-bcf4-aa3a83eb20db`, version `1`.
 Replay it only on the exact device/context after the operator returns the TV:
 
 ```bash
-device-control flow replay \
-  --id 6d276722-a5d1-45dd-bcf4-aa3a83eb20db --version 1 \
-  --device-id android-0df87078c18abfb8 \
-  --context-key hisense:api30:daily0.3.9:home-override \
-  --actor tv-home-qualification --json
+device-control flow replay --id 6d276722-a5d1-45dd-bcf4-aa3a83eb20db --version 1 --device-id android-0df87078c18abfb8 --context-key hisense:api30:daily0.3.9:home-override --actor tv-home-qualification --json
 ```
 
 Private protocols and receipts are under
 `vrooli-experiments/tv-capabilities-20261022T144942Z/home-wake-20261022` and
 `home17-qualification-20261022` beside it. Focused owner regressions and native
-build checks pass; earlier broad Device Control unit failures remain unresolved.
+build checks pass; current physical TV qualification remains unverified.
 
 ## Standby repair target — 22 October 2026
 

@@ -23,6 +23,7 @@ func main() {
 	defer cancel()
 	processEnv := environment.OSReader{}
 	session := desktophelper.SessionEnvironment{SessionType: environment.Value(processEnv, "XDG_SESSION_TYPE"), WaylandDisplay: environment.Value(processEnv, "WAYLAND_DISPLAY")}
+	session.ComponentGeneration = environment.Value(processEnv, "VROOLI_COMPONENT_GENERATION")
 	run(ctx, environment.Value(processEnv, "DEVICE_CONTROL_DESKTOP_HELPER_CONFIG"), environment.Value(processEnv, "DEVICE_CONTROL_DESKTOP_OWNER_CONFIG"), session)
 }
 

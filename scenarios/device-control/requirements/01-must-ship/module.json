@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "description": "Requirement stubs scaffolded from the P0 operational targets.",
-    "last_validated_at": "2026-11-01T02:15:33-05:00",
+    "last_validated_at": "2026-11-02T13:46:29-05:00",
     "module": "P0-targets",
     "priority": "P0",
     "schema_version": "1.0.0"
@@ -152,7 +152,7 @@
     {
       "id": "DVC-P0-008",
       "title": "Honest capture references and redaction",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P0-008",
       "criticality": "P0",
       "description": "When Device Control retains visual capture, it shall record checksum, size, creation time, and redaction state. It shall preserve the full frame by default and, when explicit redaction is requested, apply only supported regions or report that operation unavailable. It shall not claim that it detected all sensitive content.",
@@ -196,7 +196,7 @@
     {
       "id": "DVC-P0-010",
       "title": "CLI as the complete control surface",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P0-010",
       "criticality": "P0",
       "description": "Every capability is reachable from the CLI with report-shaped JSON output, including discovery and onboarding, transport diagnostics, LAN discovery, Google TV pairing, direct lease-owned actuation, state reads, strategy verification, application inventory and inspection, verified artifact installation, package state, launch, focus, stop, uninstall, and clear-data. A capability reachable only from the API or UI is treated as incomplete.",
@@ -210,7 +210,7 @@
         {
           "type": "test",
           "ref": "cli/app_test.go::TestAndroidApplicationLifecycleSurface",
-          "status": "planned",
+          "status": "implemented",
           "notes": "Required regression: the CLI must expose app inventory/inspect, artifact install, package-state, launch, focus, stop, uninstall, and clear-data with JSON reports and typed capability gaps."
         }
       ]
@@ -218,7 +218,7 @@
     {
       "id": "DVC-P0-011",
       "title": "android-adb strategy",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P0-011",
       "criticality": "P0",
       "description": "The first full-tier strategy serves Android emulators, physical phones, Android TV devices, and TV boxes through one adapter with target-specific transport profiles. It provides governed USB and network ADB onboarding, verified artifact install, package state and launch, semantic view hierarchy, permission control, input, screenshot, logs, and recording wherever the live target proves them. It distinguishes classic authorized TCP ADB from Wireless Debugging/TLS, refuses stale or ambient endpoints, and proves the floor, ladder, and conformance suite against real phone and TV classes.",
@@ -262,7 +262,7 @@
         {
           "type": "test",
           "ref": "api/internal/control/conformance_test.go::TestAndroidTVVerifiedArtifactInstallLifecycleLive",
-          "status": "planned",
+          "status": "implemented",
           "notes": "Not yet earned: the 2026-09-17 SmartTV validation proved onboarding, state, package-state, launch, and stop, but did not exercise a lease-protected verified-artifact install / uninstall / clear-data against a real Android TV (destructive on an owner device without a vetted artifact). DVC-P0-011 stays in_progress until this live conformance is captured."
         }
       ]
@@ -382,7 +382,7 @@
     {
       "id": "DVC-AGENT-REUSE",
       "title": "Validated reusable agent workflows and attributable effort",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P0-014",
       "criticality": "P0",
       "description": "Discover exact targets, validate candidate flows before promotion, preserve revision history during repair, and measure comparable user task effort without treating unknown outcomes as success.",

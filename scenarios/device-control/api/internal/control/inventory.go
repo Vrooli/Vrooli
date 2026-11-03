@@ -579,8 +579,8 @@ func (s *Service) ForgetDeviceContext(ctx context.Context, id string) bool {
 	forgotten := s.devices.Forget(id)
 	delete(s.transportStrategies, id)
 	if job := s.observerCancels[id]; job != nil {
+		job.stopping = true
 		job.cancel()
-		delete(s.observerCancels, id)
 	}
 	delete(s.transportStates, id)
 	for key, state := range s.transportProfiles {

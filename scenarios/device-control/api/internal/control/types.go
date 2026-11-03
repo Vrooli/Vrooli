@@ -8,6 +8,7 @@ import (
 	auditdomain "device-control/internal/audit"
 	devicedomain "device-control/internal/devices"
 	executiondomain "device-control/internal/execution"
+	internalflows "device-control/internal/flows"
 	identitydomain "device-control/internal/identity"
 	sessionsdomain "device-control/internal/sessions"
 	"device-control/strategy"
@@ -93,17 +94,23 @@ type (
 	RunResult  = executiondomain.RunResult
 	AgentRun   struct {
 		ID, Goal, DeviceID, Actor, State, Skill string
-		Result                                  RunResult          `json:"result"`
-		CreatedAt                               time.Time          `json:"created_at"`
-		DryRun                                  bool               `json:"dry_run,omitempty"`
-		GoalVerified                            bool               `json:"goal_verified"`
-		PlanningRole                            string             `json:"planning_role,omitempty"`
-		PromptHash                              string             `json:"prompt_hash,omitempty"`
-		PolicyHash                              string             `json:"policy_hash,omitempty"`
-		PlanHashes                              []string           `json:"plan_hashes,omitempty"`
-		PromotedFlowID                          string             `json:"promoted_flow_id,omitempty"`
-		ProposedStep                            *AgentProposedStep `json:"proposed_step,omitempty"`
-		PlannedSteps                            []Step             `json:"-"`
+		Result                                  RunResult                              `json:"result"`
+		CreatedAt                               time.Time                              `json:"created_at"`
+		CompletedAt                             time.Time                              `json:"completed_at,omitempty"`
+		DurationMS                              int64                                  `json:"duration_ms"`
+		PlannerCalls                            int                                    `json:"planner_calls"`
+		ActionAttempts                          int                                    `json:"action_attempts"`
+		ActionCompletions                       int                                    `json:"action_completions"`
+		InferenceCalls                          []internalflows.AgentInferenceEvidence `json:"inference_calls,omitempty"`
+		DryRun                                  bool                                   `json:"dry_run,omitempty"`
+		GoalVerified                            bool                                   `json:"goal_verified"`
+		PlanningRole                            string                                 `json:"planning_role,omitempty"`
+		PromptHash                              string                                 `json:"prompt_hash,omitempty"`
+		PolicyHash                              string                                 `json:"policy_hash,omitempty"`
+		PlanHashes                              []string                               `json:"plan_hashes,omitempty"`
+		PromotedFlowID                          string                                 `json:"promoted_flow_id,omitempty"`
+		ProposedStep                            *AgentProposedStep                     `json:"proposed_step,omitempty"`
+		PlannedSteps                            []Step                                 `json:"-"`
 	}
 	AgentProposedStep struct {
 		Kind   string `json:"kind"`

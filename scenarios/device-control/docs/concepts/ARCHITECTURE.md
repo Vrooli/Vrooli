@@ -358,8 +358,8 @@ Device Control owns desktop semantics: session readiness, one-display
 capture, raw and semantic input, clipboard, controller leases, revocation,
 and the native platform companion. Bridge supplies trusted node reach and
 interactive signaling; Web Console renders the browser pane. See the
-[canonical architecture](/home/matthalloran8/Vrooli/docs/architecture/remote-desktop-control.md)
-and [decision record](/home/matthalloran8/Vrooli/docs/architecture/remote-desktop-control-decision-record.md).
+[canonical architecture](../../../../docs/architecture/remote-desktop-control.md)
+and [decision record](../../../../docs/architecture/remote-desktop-control-decision-record.md).
 
 The production macOS path is a Device Control-owned Go companion using Pion
 WebRTC, ScreenCaptureKit, Quartz/CGEvent, and explicit text clipboard APIs.

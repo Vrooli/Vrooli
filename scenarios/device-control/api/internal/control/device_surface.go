@@ -188,17 +188,33 @@ func (s *Service) BeginPairDevice(ctx context.Context, deviceID string) (string,
 	if s.pendingPairings == nil {
 		s.pendingPairings = map[string]pendingPairing{}
 	}
-	var replaced []androidtvremote.PairingSession
+	type closeJob struct {
+		id      string
+		pending pendingPairing
+	}
+	var replaced []closeJob
 	for id, pending := range s.pendingPairings {
-		if pending.deviceID == deviceID {
-			delete(s.pendingPairings, id)
-			replaced = append(replaced, pending.session)
+		if pending.deviceID == deviceID && !pending.closing && !pending.uncertain {
+			pending.closing = true
+			s.pendingPairings[id] = pending
+			replaced = append(replaced, closeJob{id: id, pending: pending})
 		}
 	}
 	s.pendingPairings[pairingID] = pendingPairing{deviceID: deviceID, pairer: pairer, session: session, expiresAt: now.Add(pairingSessionTTL)}
 	s.mu.Unlock()
 	for _, old := range replaced {
-		_ = old.Close()
+		closeErr := old.pending.session.Close()
+		s.mu.Lock()
+		if current, stillPending := s.pendingPairings[old.id]; stillPending && current.closing {
+			if closeErr == nil {
+				delete(s.pendingPairings, old.id)
+			} else {
+				current.closing = false
+				current.uncertain = true
+				s.pendingPairings[old.id] = current
+			}
+		}
+		s.mu.Unlock()
 	}
 	time.AfterFunc(pairingSessionTTL, func() { s.expirePairing(pairingID) })
 	return pairingID, nil
@@ -207,17 +223,27 @@ func (s *Service) BeginPairDevice(ctx context.Context, deviceID string) (string,
 func (s *Service) expirePairing(pairingID string) {
 	s.mu.Lock()
 	pending, ok := s.pendingPairings[pairingID]
-	if ok && time.Now().UTC().Before(pending.expiresAt) {
+	if !ok || time.Now().UTC().Before(pending.expiresAt) || pending.closing || pending.uncertain {
 		s.mu.Unlock()
 		return
 	}
-	if ok {
-		delete(s.pendingPairings, pairingID)
+	pending.closing = true
+	pending.uncertain = false
+	s.pendingPairings[pairingID] = pending
+	s.mu.Unlock()
+
+	closeErr := pending.session.Close()
+	s.mu.Lock()
+	if current, stillPending := s.pendingPairings[pairingID]; stillPending && current.closing {
+		if closeErr == nil {
+			delete(s.pendingPairings, pairingID)
+		} else {
+			current.closing = false
+			current.uncertain = true
+			s.pendingPairings[pairingID] = current
+		}
 	}
 	s.mu.Unlock()
-	if ok {
-		_ = pending.session.Close()
-	}
 }
 
 // CompletePairDevice submits the owner-provided pairing code to a previously started
@@ -226,17 +252,16 @@ func (s *Service) CompletePairDevice(ctx context.Context, deviceID, pairingID st
 	defer zeroSecret(secret)
 	s.mu.Lock()
 	pending, ok := s.pendingPairings[pairingID]
-	var expiredSession androidtvremote.PairingSession
-	if ok && time.Now().UTC().After(pending.expiresAt) {
-		delete(s.pendingPairings, pairingID)
-		expiredSession = pending.session
-		ok = false
+	if ok && !time.Now().UTC().Before(pending.expiresAt) && !pending.closing {
+		s.mu.Unlock()
+		if !pending.uncertain {
+			s.expirePairing(pairingID)
+		}
+		return strategy.PairResult{Outcome: "failed", Transport: "android-tv-remote", Detail: "pairing session is unavailable or expired"}, fmt.Errorf("pairing session is unavailable or expired")
 	}
+	closing := pending.closing
 	s.mu.Unlock()
-	if expiredSession != nil {
-		_ = expiredSession.Close()
-	}
-	if !ok || pending.deviceID != deviceID {
+	if !ok || closing || pending.deviceID != deviceID {
 		return strategy.PairResult{Outcome: "failed", Transport: "android-tv-remote", Detail: "pairing session is unavailable"}, fmt.Errorf("pairing session is unavailable or expired")
 	}
 	if !pairingPIN.Match(secret) {
@@ -245,9 +270,27 @@ func (s *Service) CompletePairDevice(ctx context.Context, deviceID, pairingID st
 		return result, fmt.Errorf("pairing code must contain exactly six hexadecimal characters")
 	}
 	s.mu.Lock()
-	delete(s.pendingPairings, pairingID)
+	current, stillPending := s.pendingPairings[pairingID]
+	if !stillPending || current.closing || current.deviceID != deviceID || !time.Now().UTC().Before(current.expiresAt) {
+		s.mu.Unlock()
+		s.expirePairing(pairingID)
+		return strategy.PairResult{Outcome: "failed", Transport: "android-tv-remote", Detail: "pairing session is unavailable"}, fmt.Errorf("pairing session is unavailable or expired")
+	}
+	current.closing = true
+	s.pendingPairings[pairingID] = current
 	s.mu.Unlock()
 	result, err := pending.pairer.CompletePairing(ctx, pending.session, secret)
+	s.mu.Lock()
+	if current, stillPending := s.pendingPairings[pairingID]; stillPending && current.closing {
+		if err == nil {
+			delete(s.pendingPairings, pairingID)
+		} else {
+			current.closing = false
+			current.uncertain = true
+			s.pendingPairings[pairingID] = current
+		}
+	}
+	s.mu.Unlock()
 	s.recordPairAudit(ctx, pending.deviceID, result.Transport, result.Outcome)
 	if err != nil {
 		detail := strings.TrimSpace(result.Detail)

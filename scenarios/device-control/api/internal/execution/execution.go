@@ -53,6 +53,20 @@ type Chapter struct {
 	EvidenceIDs  []string `json:"evidence_ids,omitempty"`
 	FailureClass string   `json:"failure_class,omitempty"`
 	Attempts     int      `json:"attempts,omitempty"`
+	ArtifactInstall *ArtifactInstallProof `json:"artifact_install,omitempty"`
+}
+
+type ArtifactInstallProof struct {
+	ImmutableRef       string `json:"immutable_ref"`
+	ArtifactChecksum   string `json:"artifact_checksum,omitempty"`
+	APKChecksum        string `json:"apk_checksum,omitempty"`
+	PackageName        string `json:"package_name"`
+	VersionName        string `json:"version_name,omitempty"`
+	VersionCode        int64  `json:"version_code,omitempty"`
+	InstallAccepted    bool   `json:"install_accepted"`
+	Installed          bool   `json:"installed"`
+	InstalledVersion   string `json:"installed_version,omitempty"`
+	PostInstallVerified bool  `json:"post_install_verified"`
 }
 type Resolution struct {
 	Target     string  `json:"target"`

@@ -540,14 +540,15 @@ public final class MainActivity extends Activity {
     private void experienceOptions(JSONObject app) {
         String identity = app.optString("scenario");
         boolean pinned = favoriteExperiences.contains(identity);
-        String[] options = "portal".equals(identity) ? new String[]{pinned ? "Remove from favorites" : "Add to favorites"} : new String[]{pinned ? "Remove from favorites" : "Add to favorites", "Start app", "Restart app", "Stop app"};
+        String[] options = ApplicationActionPolicy.options(identity, pinned);
         new AlertDialog.Builder(this).setTitle(app.optString("label")).setItems(options, (dialog, which) -> {
-            if (which == 0) {
+            if (ApplicationActionPolicy.isFavoriteSelection(which)) {
                 if (pinned) favoriteExperiences.remove(identity); else favoriteExperiences.add(identity);
                 saveList("favorite-experiences", new ArrayList<>(favoriteExperiences)); render(false);
             } else {
-                String action = new String[]{"", "start", "restart", "stop"}[which];
-                if ("start".equals(action)) requestAppAction(identity, action, false);
+                String action = ApplicationActionPolicy.actionForSelection(identity, which);
+                if (action.isEmpty()) return;
+                if (!ApplicationActionPolicy.requiresConfirmation(action)) requestAppAction(identity, action, false);
                 else new AlertDialog.Builder(this).setTitle(("stop".equals(action) ? "Stop " : "Restart ") + app.optString("label", identity) + "?")
                         .setPositiveButton("Continue", (d, w) -> requestAppAction(identity, action, false)).setNegativeButton("Cancel", null).show();
             }

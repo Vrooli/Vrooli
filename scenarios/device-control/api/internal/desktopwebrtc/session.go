@@ -85,10 +85,12 @@ type state struct {
 	clipboard      bool
 	revoked        bool
 	cleanupPending bool
+	cleanupError   string
 	inFlight       int
 	peer           *PionPeer
 	peerCancel     context.CancelFunc
 	captureCancel  context.CancelFunc
+	captureDone    chan struct{}
 }
 
 // Signal terminates the browser-to-companion negotiation at Device Control.
@@ -127,7 +129,9 @@ func (m *Manager) Signal(ctx context.Context, req *desktopv1.DesktopSignalReques
 			m.handleDataMessage(req.GetSession().GetSessionId(), peer, label, payload)
 		})
 		if err == nil {
-			peer.SetFailureHandler(func() { m.Revoke(req.GetSession().GetSessionId()) })
+			// A transport worker can report its own send failure. Revoke must run
+			// after that callback returns so peer.Close can join the reporting worker.
+			peer.SetFailureHandler(func() { go m.Revoke(req.GetSession().GetSessionId()) })
 		}
 		s.peer = peer
 		if err == nil {
@@ -317,8 +321,15 @@ func (m *Manager) startCapture(sessionID, displayID string) {
 		return
 	}
 	s.captureCancel = cancel
+	done := make(chan struct{})
+	s.captureDone = done
 	m.mu.Unlock()
 	go func() {
+		defer func() {
+			close(done)
+			// Re-run terminal cleanup after the capture worker has actually exited.
+			m.Revoke(sessionID)
+		}()
 		for {
 			m.mu.Lock()
 			current := m.sessions[sessionID]
@@ -436,6 +447,7 @@ func (m *Manager) TakeControl(_ context.Context, req *desktopv1.TakeControlReque
 							continue
 						}
 						existing.revoked, existing.cleanupPending = true, true
+						existing.cleanupError = err.Error()
 						if existing.captureCancel != nil {
 							existing.captureCancel()
 						}
@@ -443,7 +455,9 @@ func (m *Manager) TakeControl(_ context.Context, req *desktopv1.TakeControlReque
 							existing.peerCancel()
 						}
 						if existing.peer != nil {
-							_ = existing.peer.Close()
+							if closeErr := existing.peer.Close(); closeErr != nil {
+								existing.cleanupError = closeErr.Error()
+							}
 						}
 					}
 					return nil, err
@@ -551,10 +565,11 @@ func (m *Manager) Close(ctx context.Context, req *desktopv1.CloseSessionRequest)
 	if !proto.Equal(ref, s.session.GetRef()) {
 		return nil, ErrInvalidCall
 	}
-	if s.revoked && !s.cleanupPending {
-		return nil, ErrRevoked
+	if s.revoked && !s.cleanupPending && s.cleanupError == "" {
+		return &desktopv1.CloseSessionResponse{Closed: true}, nil
 	}
 	s.revoked = true
+	s.cleanupPending = true
 	if s.captureCancel != nil {
 		s.captureCancel()
 	}
@@ -562,25 +577,31 @@ func (m *Manager) Close(ctx context.Context, req *desktopv1.CloseSessionRequest)
 		s.peerCancel()
 	}
 	if s.peer != nil {
-		_ = s.peer.Close()
+		if err := s.peer.Close(); err != nil {
+			s.cleanupError = err.Error()
+			return nil, err
+		}
 	}
-	s.cleanupPending = true
-	if s.inFlight != 0 {
+	if s.inFlight != 0 || captureRunning(s.captureDone) {
 		return nil, ErrCleanupPending
 	}
 	if s.session.GetController() {
 		releaser, ok := m.provider.(heldInputReleaser)
 		if !ok {
+			s.cleanupError = "provider cannot confirm held-input release"
 			return nil, ErrCleanupPending
 		}
 		if err := releaser.ReleaseHeld(ctx); err != nil {
+			s.cleanupError = err.Error()
 			return nil, err
 		}
 	}
-	if err := m.closeProviderIfIdleLocked(); err != nil {
+	if err := m.closeProviderIfIdleLocked(ref.GetSessionId()); err != nil {
+		s.cleanupError = err.Error()
 		return nil, err
 	}
 	s.cleanupPending = false
+	s.cleanupError = ""
 	return &desktopv1.CloseSessionResponse{Closed: true}, nil
 }
 
@@ -592,7 +613,7 @@ func (m *Manager) Revoke(sessionID string) bool {
 	if !ok {
 		return false
 	}
-	if s.revoked {
+	if s.revoked && !s.cleanupPending && s.cleanupError == "" {
 		return true
 	}
 	s.revoked = true
@@ -604,24 +625,31 @@ func (m *Manager) Revoke(sessionID string) bool {
 		s.peerCancel()
 	}
 	if s.peer != nil {
-		_ = s.peer.Close()
+		if err := s.peer.Close(); err != nil {
+			s.cleanupError = err.Error()
+			return true
+		}
 	}
-	if s.inFlight != 0 {
+	if s.inFlight != 0 || captureRunning(s.captureDone) {
 		return true
 	}
 	if s.session.GetController() {
 		releaser, ok := m.provider.(heldInputReleaser)
 		if !ok {
+			s.cleanupError = "provider cannot confirm held-input release"
 			return true
 		}
 		if err := releaser.ReleaseHeld(context.Background()); err != nil {
+			s.cleanupError = err.Error()
 			return true
 		}
 	}
-	if err := m.closeProviderIfIdleLocked(); err != nil {
+	if err := m.closeProviderIfIdleLocked(sessionID); err != nil {
+		s.cleanupError = err.Error()
 		return true
 	}
 	s.cleanupPending = false
+	s.cleanupError = ""
 	return true
 }
 
@@ -634,8 +662,14 @@ func (m *Manager) hasPendingCleanupLocked() bool {
 	return false
 }
 
-func (m *Manager) closeProviderIfIdleLocked() error {
-	for _, current := range m.sessions {
+func (m *Manager) closeProviderIfIdleLocked(exceptID string) error {
+	for id, current := range m.sessions {
+		if id == exceptID {
+			continue
+		}
+		if current.cleanupPending || current.inFlight != 0 || captureRunning(current.captureDone) {
+			return nil
+		}
 		if !current.revoked && current.session.GetExpiresAt().AsTime().After(m.now()) {
 			return nil
 		}
@@ -679,9 +713,15 @@ func (m *Manager) reapExpiredLocked(exceptionID string) bool {
 			s.peerCancel()
 		}
 		if s.peer != nil {
-			_ = s.peer.Close()
+			if err := s.peer.Close(); err != nil {
+				s.cleanupError = err.Error()
+				if id == exceptionID {
+					expiredException = true
+				}
+				continue
+			}
 		}
-		if s.inFlight != 0 {
+		if s.inFlight != 0 || captureRunning(s.captureDone) {
 			if id == exceptionID {
 				expiredException = true
 			}
@@ -696,19 +736,22 @@ func (m *Manager) reapExpiredLocked(exceptionID string) bool {
 				continue
 			}
 			if err := releaser.ReleaseHeld(context.Background()); err != nil {
+				s.cleanupError = err.Error()
 				if id == exceptionID {
 					expiredException = true
 				}
 				continue
 			}
 		}
-		if err := m.closeProviderIfIdleLocked(); err != nil {
+		if err := m.closeProviderIfIdleLocked(id); err != nil {
+			s.cleanupError = err.Error()
 			if id == exceptionID {
 				expiredException = true
 			}
 			continue
 		}
 		s.cleanupPending = false
+		s.cleanupError = ""
 		if id == exceptionID {
 			expiredException = true
 		}

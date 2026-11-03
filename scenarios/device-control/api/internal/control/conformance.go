@@ -98,7 +98,7 @@ func (s *Service) RunAndroidCapabilitySelfTest(ctx context.Context, deviceID, ac
 	for _, chapter := range plan.Chapters {
 		chapterResult := ConformanceChapterResult{ID: chapter.ID, Purpose: chapter.Purpose, Expected: chapter.Expected, Disposition: "not_run"}
 		chapterStarted := time.Now()
-		flowResult, runErr := s.execute(ctx, chapter.Flow(), deviceID, actor, session, false)
+		flowResult, runErr := s.execute(ctx, chapter.Flow(), deviceID, actor, session, false, false)
 		chapterResult.DurationMS = time.Since(chapterStarted).Milliseconds()
 		if runErr != nil {
 			chapterResult.Disposition, chapterResult.Message = "failed", runErr.Error()

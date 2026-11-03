@@ -104,7 +104,14 @@ func (r authorityResolver) Provision(_ context.Context, identity, field, value s
 	if err != nil {
 		return err
 	}
-	return r.authority.Put(parsed, field, value)
+	candidate, err := r.authority.PutCandidate(parsed, field, value)
+	if err != nil {
+		return err
+	}
+	if err := r.authority.ActivateCandidate(candidate); err != nil {
+		return errors.Join(err, r.authority.RejectCandidate(candidate))
+	}
+	return nil
 }
 
 func (r authorityResolver) Resolve(_ context.Context, identity, field string) (string, error) {

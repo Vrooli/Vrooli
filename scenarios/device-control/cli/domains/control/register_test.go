@@ -5,6 +5,8 @@ import (
 	_ "embed"
 	"encoding/json"
 	"net/http"
+	"os"
+	"path/filepath"
 	"regexp"
 	"strings"
 	"sync/atomic"
@@ -346,6 +348,54 @@ func TestDeviceObserveDefaultsToFullFrame(t *testing.T) {
 	}
 	if received.Flow.Redact {
 		t.Fatal("observe should preserve the full frame by default")
+	}
+}
+
+func TestFlowRunSendsOneShotConfirmationOutsideTheFlow(t *testing.T) {
+	var received struct {
+		Confirmed bool `json:"confirmed"`
+		Flow      struct {
+			Steps []struct {
+				Kind string `json:"kind"`
+			} `json:"steps"`
+		} `json:"flow"`
+	}
+	server := testutil.NewAPIServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost || r.URL.Path != "/api/v1/flows/run" {
+			t.Fatalf("unexpected request %s %s", r.Method, r.URL.Path)
+		}
+		if err := json.NewDecoder(r.Body).Decode(&received); err != nil {
+			t.Fatal(err)
+		}
+		_, _ = w.Write([]byte(`{"disposition":"passed"}`))
+	}))
+	core, err := cliapp.NewStandardScenarioApp(cliapp.StandardScenarioOptions{Name: "device-control-test", Version: "test", DefaultAPIBase: server.URL, AllowAnonymous: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	flowPath := filepath.Join(t.TempDir(), "install.json")
+	if err := os.WriteFile(flowPath, []byte(`{"steps":[{"id":"install","kind":"install-artifact"}]}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	var run cliapp.Command
+	for _, group := range FlowGroup(core).Subcommands {
+		if group.Name == "run" {
+			run = group
+		}
+	}
+	if run.RunCtx == nil {
+		t.Fatal("flow run command missing")
+	}
+	var out bytes.Buffer
+	ctx, err := cliapp.NewTestRunContextFromArgs(run.Args, []string{"--file", flowPath, "--device", "phone", "--confirmed", "--json"}, core, &out, &out)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := run.RunCtx(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if !received.Confirmed || len(received.Flow.Steps) != 1 || received.Flow.Steps[0].Kind != "install-artifact" {
+		t.Fatalf("artifact confirmation must be per-run, not stored in the flow: %+v", received)
 	}
 }
 

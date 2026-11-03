@@ -206,6 +206,67 @@ Next work: reuse existing WebView/CDP observation to qualify semantics, choose a
 
 Drive experiment addendum and 267,049-byte evidence ZIP verified in the existing folder. ZIP SHA-256 `6afd4dcad688f2be56332b2affd3764964d39b342415904c0ed76df4e91ac49e`; bundle link is retained in the private `drive-handoff.json`. Scenario to Android artifact checksum is for APK+NUL+AAB, independently verified; the APK alone is 87,292 bytes with SHA-256 `42947b4fc599d432fd0b8b10b8db9efbb08c5002d6fc23004815c7796308d12d`. The ZIP SHA256SUMS uses the correct individual APK digest.
 
+## Android recording audio integration — 2026-11-02
+
+Added a native Device Control Capture companion built through the governed
+`scenario-to-android` native-project pipeline. Each session requests Android's
+RECORD_AUDIO and MediaProjection consent, runs a foreground playback-capture
+service, writes bounded PCM WAV plus status under app-specific storage, and
+finalizes on stop, projection loss, or its 40-second safety limit. The Android
+ADB strategy now reports audio readiness only when the companion is installed
+and host ffmpeg is available. `require_audio` starts the companion before
+screenrecord, estimates their offset on device elapsed realtime, trims and muxes
+AAC, and relies on existing evidence inspection to reject a missing output
+track. Audio capture denial and unsafe alignment/mux failures fail the request.
+
+The native APK built successfully and was installed on the Moto G7 through a
+lease-owned Device Control flow. The exact indirect `httpsnoop@v1.0.4` approval
+and install completed through Scenario Dependency Analyzer, and
+`go mod tidy -diff` is clean. Test Genie unit run
+`20261102-151604-bab78df7` passes (earlier passing runs:
+`20261102-150001-22f7602d`, `20261102-150749-1a1e81a9`, and
+`20261102-151408-df509d5b`; initial module-gate failure:
+`20261102-144236-74aa43eb`). Managed Device Control restart succeeded after
+the final code change, and the live Moto probe reports `recording-audio`
+available. Authentication provisioning now activates a versioned credential
+candidate instead of writing an unversioned legacy value. Reprovisioning the
+existing profile removed the stale missing-version status, and the phone
+unlocked successfully. Screenshot evidence is retained as
+`9a7dccc9-ec25-4ab8-a37e-1bc6f55ca209`.
+
+Two required-audio recording attempts timed out while Android awaited its
+runtime audio permission and per-session screen-capture consent. Both failed
+closed with no recording artifact. The second attempt confirmed the phone was
+awake/unlocked and the permission controller was foregrounded. The timeout now
+returns a specific next action for accepting the prompts and checking companion
+status/logs. Physical consent acceptance, audible playback content, and A/V
+offset accuracy still need a successful recording. Alignment remains
+approximate, and application capture policy can still mute individual sources.
+
+The companion's pre-consent screen now explains Android audio permission and
+screen-capture approval, clarifies that audio permission is requested only when
+not already granted, and notes that screen-capture consent is required for each
+recording. It explains that capture is limited to media/game playback rather than
+microphone input and that app policy can still produce silent audio. The APK
+rebuilt successfully as
+`android-debug:a4571098c6ec6ce4a12739faa287a2070367ee4761ee5304b3a88bd325852571`.
+The CLI help and capability reference now state that audio is opt-in, requires
+per-session on-device consent, and fails closed when an audio track cannot be
+verified. The installed Moto companion still reports audio capture available,
+but its installed version was not replaced: the public Device Control app CLI
+does not expose the verified-artifact install described by the app-lifecycle
+contract. Do not use raw ADB to work around that missing owner surface. Consent,
+audible-content, and synchronization validation remain pending while the operator
+is away from the phone.
+
+The canonical Device Control skill now documents `--require-audio` as an
+explicit playback-audio opt-in and explains Android's per-session consent and
+fail-closed track verification. Prompt Manager synced skill revision 58; the
+Test Genie `skill-set` phase passes as `20261102-155229-654d8c52`. The docs phase
+still fails on existing broken command snippets in `START-HERE.md`; this pass
+reduced the documentation warning count by fixing the stale placeholder example
+in `QUICKSTART.md`, but did not clear the broader docs gate.
+
 ## Home-first and remaining TV research — 2026-10-22
 
 The operator requires direct home access with a saved secure-domain fallback for travel. Portal's existing TV README and decisions now specify separate routes, paired host verification, lightweight bounded home probing, visible remote sign-in and no automatic write replay. Reuse `api-base`'s existing `createScenarioProxyHost` in Portal's UI gateway; App Monitor is a source-backed precedent, not a running/qualified TV dependency. Gateway-aware application URL resolution and local HTTPS remain implementation work. No automatic fallback, DNS, firewall or VPN change was installed.

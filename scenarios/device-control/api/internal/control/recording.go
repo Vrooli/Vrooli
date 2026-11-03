@@ -120,7 +120,15 @@ func (s *Service) Capture(ctx context.Context, request CaptureRequest) (RunResul
 	if kind == "screenshot" {
 		flow.Steps = []Step{{ID: "capture", Kind: "observe", RequiredCapabilities: []string{strategy.CapScreenshot}, TimeoutMS: 20000}}
 	} else if kind == "recording" {
-		flow.Steps = []Step{{ID: "record", Kind: "recording-start", TimeoutMS: 15000, Arguments: map[string]any{"require_audio": request.RequireAudio}}, {ID: "duration", Kind: "wait", TimeoutMS: int64(request.Seconds+3) * 1000, Arguments: map[string]any{"settle_ms": float64(request.Seconds * 1000)}}, {ID: "stop", Kind: "recording-stop", Target: "record", TimeoutMS: 30000, Arguments: map[string]any{"minimum_duration_ms": float64(request.Seconds * 500)}}}
+		startTimeoutMS, flowTimeoutMS := int64(15000), int64(65000)
+		if request.RequireAudio {
+			// Android's per-session projection and RECORD_AUDIO prompts are
+			// operator-owned consent boundaries and may remain visible while the
+			// service waits. Keep that bounded wait inside the capture request.
+			startTimeoutMS, flowTimeoutMS = 65000, 100000
+		}
+		flow.MaxDurationMS = flowTimeoutMS
+		flow.Steps = []Step{{ID: "record", Kind: "recording-start", TimeoutMS: startTimeoutMS, Arguments: map[string]any{"require_audio": request.RequireAudio}}, {ID: "duration", Kind: "wait", TimeoutMS: int64(request.Seconds+3) * 1000, Arguments: map[string]any{"settle_ms": float64(request.Seconds * 1000)}}, {ID: "stop", Kind: "recording-stop", Target: "record", TimeoutMS: 30000, Arguments: map[string]any{"minimum_duration_ms": float64(request.Seconds * 500)}}}
 	} else {
 		flow.Steps = []Step{{ID: "logs", Kind: "device-logs", RequiredCapabilities: []string{strategy.CapDeviceLogs}, TimeoutMS: 10000, Arguments: map[string]any{"package": strings.TrimSpace(request.Package)}}}
 	}

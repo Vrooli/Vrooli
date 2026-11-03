@@ -48,8 +48,8 @@ func (s *Service) MergeDevices(ctx context.Context, canonicalID, memberID, claim
 	_ = s.persistObservedTransportProfiles(ctx, merged)
 	s.mu.Lock()
 	if job := s.observerCancels[memberID]; job != nil {
+		job.stopping = true
 		job.cancel()
-		delete(s.observerCancels, memberID)
 	}
 	if s.db != nil {
 		_, _ = s.db.ExecContext(ctx, `DELETE FROM device_control_identity_claims WHERE device_id = ?`, memberID)

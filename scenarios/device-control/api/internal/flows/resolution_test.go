@@ -159,7 +159,7 @@ func TestEvidenceIsJSONSafe(t *testing.T) {
 }
 
 func TestValidateAgentPlanRejectsUntrustedOrMalformedShapes(t *testing.T) {
-	declared := []string{"media-pause", "key", "property-set"}
+	declared := []string{"media-pause", "key", "property-set", "launch"}
 	tests := []struct {
 		name string
 		plan AgentPlan
@@ -169,6 +169,7 @@ func TestValidateAgentPlanRejectsUntrustedOrMalformedShapes(t *testing.T) {
 		{name: "undeclared", plan: AgentPlan{StepKind: "host-shell"}, want: "undeclared"},
 		{name: "media action required", plan: AgentPlan{StepKind: "media-pause"}, want: "requires an action"},
 		{name: "key value required", plan: AgentPlan{StepKind: "key"}, want: "requires a value"},
+		{name: "application identity required", plan: AgentPlan{StepKind: "launch"}, want: "requires an application identity"},
 		{name: "oversized value", plan: AgentPlan{StepKind: "key", Value: strings.Repeat("x", maxAgentValueBytes)}, want: "exceeds"},
 	}
 	for _, tt := range tests {
@@ -177,6 +178,7 @@ func TestValidateAgentPlanRejectsUntrustedOrMalformedShapes(t *testing.T) {
 		})
 	}
 	require.NoError(t, ValidateAgentPlan(AgentPlan{StepKind: "media-pause", Action: "pause"}, declared))
+	require.NoError(t, ValidateAgentPlan(AgentPlan{StepKind: "launch", Action: "com.example.app"}, declared))
 	require.NoError(t, ValidateAgentPlan(AgentPlan{GoalMet: true}, declared))
 }
 
@@ -189,6 +191,38 @@ func TestGatewayPlannerUsesBoundedTypedContract(t *testing.T) {
 	require.EqualValues(t, defaultPlanTokenCap, fake.request.GetMaxOutputTokens())
 	require.NotContains(t, fake.request.GetSchemaJson(), "additionalProperties")
 	require.NotContains(t, fake.request.GetSchemaJson(), "maxLength")
+}
+
+func TestGatewayPlannerReturnsGatewayUsageWithoutInventingMissingMetrics(t *testing.T) {
+	input, output, cost := int64(41), int64(7), int64(23)
+	fake := &fakeGateway{response: &inferencev1.RunResponse{
+		ValueJson:         `{"goal_met":true}`,
+		Provider:          "local-provider",
+		Model:             "small-model",
+		ProviderCallsMade: 2,
+		Usage: &inferencev1.Usage{
+			InputTokens: input, OutputTokens: output, CostMicros: cost,
+			InputTokensProvenance:  inferencev1.UsageProvenance_USAGE_PROVENANCE_PROVIDER_REPORTED,
+			OutputTokensProvenance: inferencev1.UsageProvenance_USAGE_PROVENANCE_PROVIDER_REPORTED,
+			CostProvenance:         inferencev1.UsageProvenance_USAGE_PROVENANCE_GATEWAY_ESTIMATE,
+		},
+	}}
+	_, evidence, err := NewGatewayPlanner(fake).PlanWithEvidence(context.Background(), AgentWorld{Goal: "inspect"})
+	require.NoError(t, err)
+	require.Equal(t, "local-provider", evidence.Provider)
+	require.Equal(t, "small-model", evidence.Model)
+	require.EqualValues(t, 2, evidence.ProviderCallsMade)
+	require.Equal(t, input, *evidence.InputTokens)
+	require.Equal(t, output, *evidence.OutputTokens)
+	require.Equal(t, cost, *evidence.CostMicros)
+	require.Equal(t, "USAGE_PROVENANCE_GATEWAY_ESTIMATE", evidence.CostProvenance)
+
+	fake.response.Usage = nil
+	_, evidence, err = NewGatewayPlanner(fake).PlanWithEvidence(context.Background(), AgentWorld{Goal: "inspect"})
+	require.NoError(t, err)
+	require.Nil(t, evidence.InputTokens)
+	require.Nil(t, evidence.OutputTokens)
+	require.Nil(t, evidence.CostMicros)
 }
 
 func TestGatewayPlannerHonorsEarlierCallerDeadline(t *testing.T) {

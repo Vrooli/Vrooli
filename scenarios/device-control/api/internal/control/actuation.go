@@ -2,6 +2,7 @@ package control
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"strings"
 	"time"
@@ -26,6 +27,12 @@ type DirectActuation struct {
 }
 
 const maxDirectActuationRepeat = 10
+
+const (
+	screenSettlePollInterval      = 500 * time.Millisecond
+	screenSettlePollAttempts      = 5
+	screenSleepSettlePollAttempts = 11
+)
 
 // ScreenRequest describes explicit outcomes, never a power toggle. Ready means
 // awake and unlocked; it does not navigate away from the current application.
@@ -156,19 +163,24 @@ func (s *Service) Screen(ctx context.Context, req ScreenRequest) (result ScreenR
 			return result, fmt.Errorf("screen command failed: %w", err)
 		}
 	}
-	// Give the device a bounded interval to settle, without repeating an effect.
-	for attempt := 0; attempt < 5; attempt++ {
+	// Sleep may take longer than wake to appear in state while Android enters
+	// Doze. Allow eleven state-read attempts, without repeating the effect.
+	settleAttempts := screenSettlePollAttempts
+	if op == "sleep" {
+		settleAttempts = screenSleepSettlePollAttempts
+	}
+	for attempt := 0; attempt < settleAttempts; attempt++ {
 		result.After, err = reader.ReadState(ctx)
 		if err == nil && result.After.ScreenState == want {
 			break
 		}
-		if attempt == 4 {
+		if attempt == settleAttempts-1 {
 			return result, fmt.Errorf("screen %s was not verified", want)
 		}
 		select {
 		case <-ctx.Done():
 			return result, ctx.Err()
-		case <-time.After(500 * time.Millisecond):
+		case <-time.After(screenSettlePollInterval):
 		}
 	}
 	if op == "ready" {
@@ -414,7 +426,8 @@ func (s *Service) persistDirectAudit(ctx context.Context, record Audit) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if s.db != nil {
-		_, _ = s.db.ExecContext(ctx, `INSERT INTO device_control_audits (id, actor, device_id, transport, causation_id, operation_id, lease_id, verb, outcome, created_at, redaction_verified, redaction_opted_out, interactive, evidence_backed) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, record.ID, record.Actor, record.DeviceID, record.Transport, record.CausationID, record.OperationID, record.LeaseID, record.Verb, record.Outcome, record.CreatedAt.Format(time.RFC3339Nano), 1, 0, 1, 0)
+		details, _ := json.Marshal(record.Details)
+		_, _ = s.db.ExecContext(ctx, `INSERT INTO device_control_audits (id, actor, device_id, transport, causation_id, operation_id, lease_id, verb, outcome, created_at, redaction_verified, redaction_opted_out, interactive, evidence_backed, details_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, record.ID, record.Actor, record.DeviceID, record.Transport, record.CausationID, record.OperationID, record.LeaseID, record.Verb, record.Outcome, record.CreatedAt.Format(time.RFC3339Nano), 1, 0, 1, 0, string(details))
 	}
 	s.audits = append(s.audits, record)
 }

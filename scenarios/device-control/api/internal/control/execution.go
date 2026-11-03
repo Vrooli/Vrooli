@@ -3,6 +3,7 @@ package control
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"reflect"
@@ -255,6 +256,17 @@ func validateFlowContract(flow Flow) error {
 	ids := map[string]struct{}{}
 	reversePorts := map[int]bool{}
 	for _, step := range flow.Steps {
+		if step.Kind == "install-artifact" {
+			artifactRef, _ := step.Arguments["artifact_ref"].(string)
+			packageName, _ := step.Arguments["package"].(string)
+			versionName, hasVersion := step.Arguments["version_name"].(string)
+			if step.Target != "" || !androidArtifactRef.MatchString(artifactRef) || !androidPackageName.MatchString(packageName) || len(step.Arguments) < 2 || len(step.Arguments) > 3 || (hasVersion && (strings.TrimSpace(versionName) != versionName || len(versionName) > 128)) || (!hasVersion && step.Arguments["version_name"] != nil) {
+				return fmt.Errorf("step %q install-artifact requires an immutable Android ref, fully-qualified package, and optional version_name", step.ID)
+			}
+			if step.RetryBudget != 0 || flow.RetryBudget != 0 {
+				return fmt.Errorf("step %q install-artifact cannot be retried automatically", step.ID)
+			}
+		}
 		if step.Kind == "home-set" && (!flow.RequireUnlocked || step.RetryBudget != 0 || flow.RetryBudget != 0) {
 			return fmt.Errorf("home-set requires an unlocked flow without retries")
 		}
@@ -347,21 +359,39 @@ func claimClassForStep(step Step) string {
 }
 
 func (s *Service) Run(ctx context.Context, flow Flow, deviceID, actor string) (RunResult, error) {
-	return s.execute(ctx, flow, deviceID, actor, Session{}, true)
+	return s.execute(ctx, flow, deviceID, actor, Session{}, true, false)
 }
 
 func (s *Service) RunWithLease(ctx context.Context, flow Flow, deviceID, actor, leaseToken string) (RunResult, error) {
+	return s.RunWithLeaseConfirmed(ctx, flow, deviceID, actor, leaseToken, false)
+}
+
+// RunWithLeaseConfirmed keeps one-shot operator confirmation outside the
+// replayable flow definition. It is required for artifact installation.
+func (s *Service) RunWithLeaseConfirmed(ctx context.Context, flow Flow, deviceID, actor, leaseToken string, confirmed bool) (RunResult, error) {
+	if flowRequiresConfirmation(flow) && !confirmed {
+		return RunResult{}, fmt.Errorf("flow contains install-artifact and requires explicit confirmation")
+	}
 	if leaseToken == "" {
-		return s.Run(ctx, flow, deviceID, actor)
+		return s.execute(ctx, flow, deviceID, actor, Session{}, true, confirmed)
 	}
 	sess, err := s.sessionForLease(ctx, deviceID, leaseToken)
 	if err != nil {
 		return RunResult{}, err
 	}
-	return s.execute(ctx, flow, deviceID, actor, sess, false)
+	return s.execute(ctx, flow, deviceID, actor, sess, false, confirmed)
 }
 
-func (s *Service) execute(ctx context.Context, flow Flow, deviceID, actor string, sess Session, releaseLease bool) (RunResult, error) {
+func flowRequiresConfirmation(flow Flow) bool {
+	for _, step := range flow.Steps {
+		if step.Kind == "install-artifact" {
+			return true
+		}
+	}
+	return false
+}
+
+func (s *Service) execute(ctx context.Context, flow Flow, deviceID, actor string, sess Session, releaseLease, confirmed bool) (RunResult, error) {
 	requestedFlow := flow
 	strat, ok := s.strategyForFlow(deviceID, flow.Transport)
 	if !ok {
@@ -1129,6 +1159,12 @@ func (s *Service) execute(ctx context.Context, flow Flow, deviceID, actor string
 						value, _ = step.Arguments["expected"].(string)
 					}
 					stepErr = dispatch(stepctx, strategy.Actuation{Action: step.Kind, Package: packageName, Permission: permission, Value: value})
+				case "install-artifact":
+					chapter.ArtifactInstall, stepErr = s.installVerifiedAndroidArtifact(stepctx, deviceID, sess, strat, step)
+					if stepErr == nil {
+						proof := chapter.ArtifactInstall
+						chapter.Message = fmt.Sprintf("installed and verified %s version %s from %s", proof.PackageName, proof.VersionName, proof.ImmutableRef)
+					}
 				}
 			}
 			if stepErr == nil {
@@ -1234,8 +1270,23 @@ func (s *Service) execute(ctx context.Context, flow Flow, deviceID, actor string
 		}
 		s.mu.Lock()
 		audit := Audit{ID: uuid.NewString(), Actor: actor, DeviceID: deviceID, Transport: flow.Transport, CausationID: stepCausationID, LeaseID: sess.ID, Verb: step.Kind, Outcome: outcome, CreatedAt: time.Now().UTC(), RedactionVerified: redactionVerified, RedactionOptedOut: flow.AllowUnredactedCapture}
+		if install := chapter.ArtifactInstall; install != nil {
+			audit.Details = map[string]string{
+				"immutable_ref":         install.ImmutableRef,
+				"artifact_checksum":     install.ArtifactChecksum,
+				"apk_checksum":          install.APKChecksum,
+				"package_name":          install.PackageName,
+				"version_name":          install.VersionName,
+				"version_code":          strconv.FormatInt(install.VersionCode, 10),
+				"install_accepted":      strconv.FormatBool(install.InstallAccepted),
+				"installed":             strconv.FormatBool(install.Installed),
+				"installed_version":     install.InstalledVersion,
+				"post_install_verified": strconv.FormatBool(install.PostInstallVerified),
+			}
+		}
 		if s.db != nil {
-			_, _ = s.db.ExecContext(ctx, `INSERT INTO device_control_audits (id, actor, device_id, transport, causation_id, lease_id, verb, outcome, created_at, redaction_verified, redaction_opted_out) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, audit.ID, audit.Actor, audit.DeviceID, audit.Transport, audit.CausationID, audit.LeaseID, audit.Verb, audit.Outcome, audit.CreatedAt.Format(time.RFC3339Nano), boolInt(redactionVerified), boolInt(flow.AllowUnredactedCapture))
+			details, _ := json.Marshal(audit.Details)
+			_, _ = s.db.ExecContext(ctx, `INSERT INTO device_control_audits (id, actor, device_id, transport, causation_id, lease_id, verb, outcome, created_at, redaction_verified, redaction_opted_out, details_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, audit.ID, audit.Actor, audit.DeviceID, audit.Transport, audit.CausationID, audit.LeaseID, audit.Verb, audit.Outcome, audit.CreatedAt.Format(time.RFC3339Nano), boolInt(redactionVerified), boolInt(flow.AllowUnredactedCapture), string(details))
 		}
 		s.audits = append(s.audits, audit)
 		s.mu.Unlock()

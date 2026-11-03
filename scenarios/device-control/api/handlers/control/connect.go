@@ -231,7 +231,7 @@ func (c *flowConnect) ValidateFlow(ctx context.Context, req *connect.Request[flo
 }
 
 func (c *flowConnect) RunFlow(ctx context.Context, req *connect.Request[flowsv1.RunFlowRequest]) (*connect.Response[flowsv1.RunResult], error) {
-	result, err := c.h.service.RunWithLease(ctx, flowFromProto(req.Msg.Flow), req.Msg.DeviceId, req.Msg.Actor, req.Msg.LeaseToken)
+	result, err := c.h.service.RunWithLeaseConfirmed(ctx, flowFromProto(req.Msg.Flow), req.Msg.DeviceId, req.Msg.Actor, req.Msg.LeaseToken, req.Msg.Confirmed)
 	if err != nil {
 		if strings.HasPrefix(err.Error(), "unknown device ") {
 			return nil, connect.NewError(connect.CodeInvalidArgument, err)
@@ -261,7 +261,16 @@ func runResultProto(result internal.RunResult) *flowsv1.RunResult {
 		},
 	}
 	for _, ch := range result.Chapters {
-		out.Chapters = append(out.Chapters, &flowsv1.Chapter{Id: ch.ID, Title: ch.Title, Disposition: ch.Disposition, Message: ch.Message, EvidenceIds: ch.EvidenceIDs, FailureClass: ch.FailureClass, Attempts: int32(ch.Attempts)})
+		chapter := &flowsv1.Chapter{Id: ch.ID, Title: ch.Title, Disposition: ch.Disposition, Message: ch.Message, EvidenceIds: ch.EvidenceIDs, FailureClass: ch.FailureClass, Attempts: int32(ch.Attempts)}
+		if proof := ch.ArtifactInstall; proof != nil {
+			chapter.ArtifactInstall = &flowsv1.ArtifactInstallProof{
+				ImmutableRef: proof.ImmutableRef, ArtifactChecksum: proof.ArtifactChecksum, ApkChecksum: proof.APKChecksum,
+				PackageName: proof.PackageName, VersionName: proof.VersionName, VersionCode: proof.VersionCode,
+				InstallAccepted: proof.InstallAccepted, Installed: proof.Installed, InstalledVersion: proof.InstalledVersion,
+				PostInstallVerified: proof.PostInstallVerified,
+			}
+		}
+		out.Chapters = append(out.Chapters, chapter)
 	}
 	for _, res := range result.Resolutions {
 		out.Resolutions = append(out.Resolutions, &flowsv1.Resolution{Target: res.Target, Rung: res.Rung, Confidence: res.Confidence})

@@ -57,11 +57,11 @@ The manifest's `governance` block (`effect`, `run_eligible`,
 to derive action certainty automatically; scenarios that adopt the
 manifest don't need hand-classified action-safety lists.
 
-`binding.kind` is currently `connect-rpc` only. REST-exception
-commands (for example, a multipart file-upload command whose request
-body carries opaque bytes) are appended to the loaded group outside the
-manifest path in the domain's `register.go` and documented in the
-manifest's `omitted[]` array.
+Manifest commands may use `connect-rpc` or `local` bindings. A local binding
+declares a command whose handler is implemented in the domain's `register.go`.
+REST-exception commands (for example, multipart file uploads whose request
+body carries opaque bytes) may be appended outside the manifest and must be
+documented in the manifest's `omitted[]` array.
 
 For environment-variable precedence and CLI config-file shape, see
 [`configuration.md`](configuration.md).
@@ -123,15 +123,16 @@ The device group includes the LAN and identity operations:
 
 ```bash
 device-control device discover --service _googlecast._tcp --timeout-seconds 10 --json
-device-control device pair <id> --pin <six-hex-characters>
+device-control device pair "<id>" --pin "<six-hex-characters>"
 device-control device pair <id> --pin-stdin
-device-control device actuate <id> --lease <lease-token> --key DPAD_DOWN [--repeat 1]
-device-control device actuate <id> --lease <lease-token> --media pause
-device-control device watch <id>
-device-control device merge <canonical-id> <member-id> --claim cast-id=<receiver-id>
-device-control device split <canonical-id>
-device-control device volume <logical-device-id-or-name> --goal "turn down by 50 percent" --actor operator --json
-program-runtime library run device-control.volume --input device=<logical-device-id-or-name> --input actor=operator --input goal="turn down by 50 percent"
+device-control device actuate "<id>" --lease "<lease>" --key DPAD_DOWN
+device-control device actuate "<id>" --lease "<lease>" --key DPAD_DOWN --repeat 1
+device-control device actuate "<id>" --lease "<lease>" --media pause
+device-control device watch "<id>"
+device-control device merge "<canonical-id>" "<member-id>" --claim "cast-id=<receiver-id>"
+device-control device split "<canonical-id>"
+device-control device volume "<logical-device-id-or-name>" --goal "turn down by 50 percent" --actor operator --json
+program-runtime library run device-control.volume --input 'device=<logical-device-id-or-name>' --input actor=operator --input 'goal=turn down by 50 percent'
 ```
 
 `--pin-stdin` starts the Android TV Remote handshake before prompting for one
@@ -164,17 +165,17 @@ reference (see the fenced example below); `template-manager detemplate
 Device Control also exposes live state and replay export through the thin CLI:
 
 ```bash
-device-control device state <device-id> --json
-device-control device semantics <device-id> --json
-device-control device screen <device-id> --operation wake --json
-device-control device screen <device-id> --operation sleep --json
-device-control device screen <device-id> --operation ready --auth-profile <profile-id> --json
-device-control device screen <device-id> --operation ready --home --json
-device-control device capture <device-id> --kind screenshot --json
-device-control device capture <device-id> --kind recording --seconds 5 --json
-device-control device capture <device-id> --kind recording --seconds 5 --require-audio --json
-device-control device capture <device-id> --kind logs --package com.example.app --json
-device-control flow export <run-id> --json
+device-control device state "<device-id>" --json
+device-control device semantics "<device-id>" --json
+device-control device screen "<device-id>" --operation wake --json
+device-control device screen "<device-id>" --operation sleep --json
+device-control device screen "<device-id>" --operation ready --auth-profile "<profile-id>" --json
+device-control device screen "<device-id>" --operation ready --home --json
+device-control device capture "<device-id>" --kind screenshot --json
+device-control device capture "<device-id>" --kind recording --seconds 5 --json
+device-control device capture "<device-id>" --kind recording --seconds 5 --require-audio --json
+device-control device capture "<device-id>" --kind logs --package com.example.app --json
+device-control flow export "<run-id>" --json
 device-control agent start --device <device-id> --goal 'Open settings' --skill-available --dry-run --json
 device-control agent start --device <device-id> --goal 'Open TV apps' --skill-available --expect-selected 'TV apps' --json
 ```
@@ -202,6 +203,11 @@ changes or verify the goal. A semantic proposal can contain a screen label.
 The normal planner permits 30 seconds per inference and the default agent
 policy permits 90 seconds overall; caller cancellation and shorter policy
 limits still apply.
+Agent run records also report elapsed `duration_ms`, `planner_calls`, executed
+`action_attempts` and `action_completions`, and per-call Gateway provider/model
+and usage when returned. Token and cost values retain Gateway provenance;
+missing usage is omitted rather than reported as zero. Cost is in USD
+micro-units and is not provider-specific credit accounting.
 `--expect-selected` supplies an exact, operator-chosen outcome: when the model
 reports completion, the current complete semantic snapshot must contain one
 matching control whose reported `selected` state is true. Missing, ambiguous,

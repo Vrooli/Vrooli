@@ -38,6 +38,7 @@ import (
 	"google.golang.org/protobuf/reflect/protoreflect"
 
 	healthH "device-control/handlers/health"
+	lifecycleH "device-control/handlers/lifecycle"
 	localdb "device-control/internal/database"
 )
 
@@ -123,5 +124,6 @@ func AllSchemas() []apidb.SchemaProvider {
 	return []apidb.SchemaProvider{
 		apidb.SchemaProviderFunc(localdb.SystemSchema),
 		apidb.SchemaProviderFunc(healthH.Schema),
+		apidb.SchemaProviderFunc(lifecycleH.Schema),
 	}
 }

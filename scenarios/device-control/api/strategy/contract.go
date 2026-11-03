@@ -884,6 +884,9 @@ func StepKinds(d Declaration) []string {
 	}
 	if d.Capabilities[CapAppLifecycle].Status == StatusAvailable {
 		steps = append(steps, "install", "launch", "focus", "close", "minimize", "restore", "stop", "uninstall", "clear-data", "package-state")
+		if d.StrategyID == "android-adb" {
+			steps = append(steps, "install-artifact")
+		}
 	}
 	if d.Capabilities[CapPermissions].Status == StatusAvailable {
 		steps = append(steps, "grant-permission", "revoke-permission")

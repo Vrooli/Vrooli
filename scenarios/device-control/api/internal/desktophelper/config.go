@@ -24,8 +24,9 @@ var ErrBootstrap = errors.New("desktop helper bootstrap refused")
 // rather than assuming that DISPLAY means X11.  WAYLAND_DISPLAY can be set by
 // a compositor before XDG_SESSION_TYPE is propagated to a child process.
 type SessionEnvironment struct {
-	SessionType    string
-	WaylandDisplay string
+	SessionType         string
+	WaylandDisplay      string
+	ComponentGeneration string
 }
 
 func activeWaylandSession(session SessionEnvironment) bool {

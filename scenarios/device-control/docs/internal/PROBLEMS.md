@@ -558,6 +558,13 @@ without a vetted artifact). The app-lifecycle audit now falls back to the durabl
 device-record transport when the adapter declaration carries none, so an
 endpoint-bound TV records `transport: wireless` instead of an empty value.
 
+The install contract remains incomplete at the public boundary. The Device
+Control CLI has no install operation, and Android flow `install` currently takes
+a local APK path rather than an immutable artifact reference. That step does not
+prove artifact identity or satisfy the verified-artifact requirement. A future
+repair must resolve an artifact through its owner, bind its digest and package
+identity, install under the device lease, and verify package state afterward.
+
 ## Work ladder
 
 - Rung: W3 (localized implementation defect with established expected behavior),
@@ -614,8 +621,16 @@ endpoint-bound TV records `transport: wireless` instead of an empty value.
 - Rung: W3; scoped owner retention and diagnostic repair, not full scenario readiness.
 - A running process previously held ordinary run results and replay flows only in memory. Explicit, sensitive-data-acknowledged retention now stores a selected run in the flows domain with an operator-selected deadline; expired rows are deleted on access or list, without background deletion, and legacy rows retain their previous no-deadline status; inventory is point-in-time and does not fence admission. Clipboard-step flows are refused; this is not a general secret detector. Owner deletion removes the retained record, not live maps, evidence files, backups, or SQLite WAL remnants.
 - Validation: focused restart/export, exact-device promotion, clipboard refusal, storage-failure and HTTP acknowledgment/refusal tests pass. Test Genie `20261028-235204-fec0848b` storage passed with 19 advisory findings; unit failed on three test commands. Source changed after admission, so the run is not a final-tree proof. `make endpoints` regenerated the endpoint catalog successfully.
-- Remaining: Device Control does not implement the `common.v1.LifecycleMaintenanceService` provider contract. The control plane treats an absent provider as unguarded. A complete replacement fence must cover existing held-lease flow/actuation paths, observation leases, recordings, agent work and the separate desktop session manager; preserve volatile run/evidence state; retain fence identity through replacement; and resume through the existing control-plane owner. A flow-only admission switch cannot establish complete inventory or protect held leases. Research prototypes for process and helper fencing were removed after review; the owner boundary and test findings remain in the research receipt. The older serving process also cannot use the new inventory or retention APIs, so its unknown in-memory state remains unpreserved; do not infer safe replacement from this change.
+- Remaining (at the time of this 2026-10-28 entry): Device Control does not implement the `common.v1.LifecycleMaintenanceService` provider contract, and the control plane treated an absent provider as unguarded. The control-plane behavior was corrected on 2026-11-02; see the follow-up below. A complete replacement fence must cover existing held-lease flow/actuation paths, observation leases, recordings, agent work and the separate desktop session manager; preserve volatile run/evidence state; retain fence identity through replacement; and resume through the existing control-plane owner. A flow-only admission switch cannot establish complete inventory or protect held leases. Research prototypes for process and helper fencing were removed after review; the owner boundary and test findings remain in the research receipt. The older serving process also cannot use the new inventory or retention APIs, so its unknown in-memory state remains unpreserved; do not infer safe replacement from this change.
 - Evidence: research receipt `device-control-retention-specialist-2354.json` and scoped Test Genie findings in the current TV research run; no serving replacement or device effect was performed.
+
+### Live provider missing-fence refusal — 2026-11-02
+
+- The control-plane lifecycle owner now refuses replacement when a live API provider's lifecycle `Status` or `Prepare` call returns `NotFound` or `Unimplemented`. This closes the prior unsafe path where a missing provider contract silently allowed process replacement.
+- Regressions exercise both codes for both RPCs and prove refusal before `Prepare`/`Drain` as applicable. The focused provider-fence group passes.
+- Device Control still has no lifecycle provider, so a requested replacement of its live instance now fails safely. This does not drain or preserve old process-local state, nor implement the provider inventory, durable fence, or exact resume path. Do not retry replacement until that owner contract is implemented and qualified.
+- A fresh read-only owner audit found the missing inventory extends beyond held leases and flows: all API/Connect ingress, cleanup that continues after cancellation, active or uncertain external recordings, process-local observers, pending pairings, asynchronous agent work, WebRTC capture/data callbacks, desktop-owner retries/helper cleanup, and volatile result/evidence maps must be covered. `activeCancels` and the existing `quiesced=false` flow response do not prove those owners have stopped.
+- The provider belongs at Device Control's API composition root and must couple durable fence identity with process-wide admission and explicit per-owner completion evidence. Unknown or pending work is a blocker. Keep `inventory_complete=false` or refuse Prepare until every ingress and ongoing-work owner participates; do not mount a flow-only fence as a replacement guarantee.
 
 ### Desktop helper cleanup receipt availability — 2026-10-29
 
@@ -772,10 +787,32 @@ Host muxing used the recorded API start times and is approximate; it does not
 establish audio/video synchronization. The test app was removed from the TV.
 
 `device capture --kind recording --require-audio` now requires both an
-executable audio recorder and a declared audio capability. A missing or
-uninspectable output audio track degrades evidence. The option currently
-returns `capability_gap` on the tested Android ADB transports: the experimental
-projection owner is not integrated. An audio track may still contain silence.
+executable audio recorder and a declared audio capability. The Android strategy
+probes for the installed Device Control Capture companion and host `ffmpeg`,
+then owns consent, capture stop, timestamp alignment, mux, and cleanup in the
+recording lifecycle. A missing or uninspectable output audio track degrades
+evidence; capture denial and mux/alignment errors fail the requested recording.
+The companion builds through `scenario-to-android` and is installed on the
+available Moto G7 through a Device Control flow. The exact `httpsnoop@v1.0.4`
+indirect dependency was approved and installed through Scenario Dependency
+Analyzer; `go mod tidy -diff` is now clean. Test Genie unit run
+`20261102-151604-bab78df7` passes. Device Control restarted healthy after the
+final code change, and the live Moto capability probe reports both audio
+recording and screen recording available. The existing Device Control auth
+profile was reprovisioned and successfully unlocked the phone. Provisioning now
+uses the versioned credential authority path, so status no longer reports
+missing active-version metadata. A screenshot was captured as evidence
+`9a7dccc9-ec25-4ab8-a37e-1bc6f55ca209`.
+
+Two required-audio capture attempts then stopped before recording because the
+Android runtime permission and per-session MediaProjection prompt were not
+accepted. The failure is fail-closed with no recording artifact. The timeout
+now tells the operator to keep the phone awake/unlocked and accept the audio
+and screen-capture prompts, or inspect companion status/device logs if they
+already accepted. Physical consent acceptance, captured audible content, and
+A/V offset accuracy remain unverified. App capture policy can also prevent
+particular playback from being captured, and a present track may still be
+silent.
 
 ### Review recording reference provenance — 2026-11-01
 
@@ -936,9 +973,8 @@ rejected a key action without the required value. A phone dry run rejected an in
 ADB probes were unavailable. Neither is evidence of successful autonomous
 navigation. Local synthetic decision-model trials found severe context
 sensitivity in the fast route and better results in a small accurate-model
-sample. They do not qualify either route for unattended actuation. The
-[experiment and receipts](/home/matthalloran8/.vrooli/research/topics/tv-capabilities/runs/device-decision-prompt-20261101/README.md)
-retain the tests and limits. Device Control still needs independently verified
+sample. They do not qualify either route for unattended actuation. The experiment
+and receipts remain in the operator's local research store. Device Control still needs independently verified
 agent goal assertions, visual planning support, and broader decision-model
 evaluation before reusable automatic navigation is reliable.
 

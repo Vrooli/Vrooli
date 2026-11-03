@@ -24,6 +24,7 @@ type fakeProvider struct {
 	closes          int
 	releaseSignal   chan struct{}
 	releaseErr      error
+	closeErr        error
 }
 
 type captureProvider struct {
@@ -108,7 +109,7 @@ func (f *fakeProvider) ReleaseHeld(context.Context) error {
 }
 func (f *fakeProvider) Close(context.Context) error {
 	f.closes++
-	return nil
+	return f.closeErr
 }
 
 func surface() *commonv1.SurfaceRef {
@@ -140,6 +141,23 @@ func TestManagerRejectsMalformedSessionCalls(t *testing.T) {
 	}
 	if _, err := m.Close(context.Background(), nil); err != ErrInvalidCall {
 		t.Fatalf("nil close error=%v", err)
+	}
+}
+
+func TestProviderCloseWaitsForRevokedSessionWork(t *testing.T) {
+	provider := &fakeProvider{ready: desktopv1.ReadinessState_READINESS_STATE_READY}
+	m := NewManager(provider)
+	m.sessions["pending"] = &state{
+		session:        &desktopv1.DesktopSession{},
+		revoked:        true,
+		cleanupPending: true,
+		inFlight:       1,
+	}
+	if err := m.closeProviderIfIdleLocked(""); err != nil {
+		t.Fatal(err)
+	}
+	if provider.closes != 0 {
+		t.Fatalf("provider closed while revoked session still had work: closes=%d", provider.closes)
 	}
 }
 
@@ -770,4 +788,25 @@ func managerInventory(m *Manager) (live, pending int) {
 		}
 	}
 	return live, pending
+}
+
+func TestRevokeAfterCloseDoesNotRepeatTerminalCleanup(t *testing.T) {
+	provider := &fakeProvider{ready: desktopv1.ReadinessState_READINESS_STATE_READY}
+	manager := NewManager(provider)
+	session, err := manager.Open(context.Background(), &desktopv1.OpenSessionRequest{Surface: surface(), DisplayId: "main", Control: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := manager.Close(context.Background(), &desktopv1.CloseSessionRequest{Session: session.Ref}); err != nil {
+		t.Fatal(err)
+	}
+	if provider.releases != 1 || provider.closes != 1 {
+		t.Fatalf("initial cleanup counts: releases=%d closes=%d", provider.releases, provider.closes)
+	}
+	if !manager.Revoke(session.Ref.SessionId) {
+		t.Fatal("Revoke after a completed Close should retain the terminal session record")
+	}
+	if provider.releases != 1 || provider.closes != 1 {
+		t.Fatalf("terminal cleanup repeated: releases=%d closes=%d", provider.releases, provider.closes)
+	}
 }

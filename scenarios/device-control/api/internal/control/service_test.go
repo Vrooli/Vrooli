@@ -8,10 +8,12 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync/atomic"
 	"testing"
 	"time"
 
+	"device-control/internal/androidartifact"
 	authdomain "device-control/internal/auth"
 	devicedomain "device-control/internal/devices"
 	internalflows "device-control/internal/flows"
@@ -425,6 +427,46 @@ func TestCancelledObserverCannotRemoveReplacement(t *testing.T) {
 	require.Same(t, replacement, svc.observerCancels["device"])
 }
 
+type cancellationIgnoringDescribeStrategy struct {
+	pollingStateStrategy
+	started chan struct{}
+	release chan struct{}
+}
+
+func (p cancellationIgnoringDescribeStrategy) Describe(ctx context.Context) (strategy.Declaration, error) {
+	close(p.started)
+	<-p.release // Deliberately ignore ctx cancellation until the probe returns.
+	return p.pollingStateStrategy.Describe(ctx)
+}
+
+func TestForgottenDeviceObserverRemainsLifecycleBlockerUntilExit(t *testing.T) {
+	probe := cancellationIgnoringDescribeStrategy{started: make(chan struct{}), release: make(chan struct{})}
+	svc := New(strategyregistry.New(probe))
+	svc.devices.UpsertIdentity(devicedomain.Record{ID: "blocked-device", Kind: "physical", StrategyID: "polling-state"})
+	svc.mu.Lock()
+	svc.startObserverLocked(devicedomain.Record{ID: "blocked-device", StrategyID: "polling-state"})
+	job := svc.observerCancels["blocked-device"]
+	svc.mu.Unlock()
+	<-probe.started
+
+	require.True(t, svc.ForgetDeviceContext(context.Background(), "blocked-device"))
+	work, blockers, complete := svc.LifecycleInventory(context.Background())
+	require.True(t, complete)
+	require.NotEmpty(t, blockers, "cancellation does not prove the observer exited")
+	require.Equal(t, "stopping", lifecyclePairingStatus(work, "observer/blocked-device"))
+
+	close(probe.release)
+	select {
+	case <-job.done:
+	case <-time.After(time.Second):
+		t.Fatal("observer did not exit after its probe was released")
+	}
+	work, blockers, complete = svc.LifecycleInventory(context.Background())
+	require.True(t, complete)
+	require.Empty(t, blockers)
+	require.Equal(t, "idle", lifecyclePairingStatus(work, "owner/observers"))
+}
+
 type panickingObserverProbe struct{ *fakes.Strategy }
 
 func (*panickingObserverProbe) Describe(context.Context) (strategy.Declaration, error) {
@@ -787,8 +829,9 @@ func (s *semanticScreenFixture) SetScreenState(_ context.Context, state string) 
 
 type delayedScreenFixture struct {
 	*fakes.Strategy
-	calls int
-	reads int
+	calls     int
+	reads     int
+	offAtRead int
 }
 
 func (f *delayedScreenFixture) SetScreenState(context.Context, string) error {
@@ -798,10 +841,27 @@ func (f *delayedScreenFixture) SetScreenState(context.Context, string) error {
 
 func (f *delayedScreenFixture) ReadState(context.Context) (strategy.DeviceState, error) {
 	f.reads++
-	if f.reads == 1 {
-		return strategy.DeviceState{ScreenState: "on"}, nil
+	if f.offAtRead == 0 && f.reads > 1 || f.offAtRead > 0 && f.reads >= f.offAtRead {
+		return strategy.DeviceState{ScreenState: "off"}, nil
 	}
-	return strategy.DeviceState{ScreenState: "off"}, nil
+	return strategy.DeviceState{ScreenState: "on"}, nil
+}
+
+func TestSemanticScreenWaitsForDelayedSleepTransitionWithoutRepeatingCommand(t *testing.T) {
+	fixture := &delayedScreenFixture{
+		Strategy:  fakes.New("screen-delay", strategy.StatusAvailable, strategy.CapScreenControl),
+		offAtRead: 8, // Initial state plus seven post-command reads: beyond the old 2s window.
+	}
+	svc := New(strategyregistry.New(fixture))
+	svc.devices.Upsert(devicedomain.Record{ID: "target", StrategyID: fixture.ID(), Transport: "usb", Status: strategy.StatusAvailable, Health: strategy.StatusAvailable})
+
+	result, err := svc.Screen(context.Background(), ScreenRequest{Device: "target", Operation: "sleep"})
+	require.NoError(t, err)
+	require.Equal(t, "verified", result.Status)
+	require.Equal(t, "off", result.After.ScreenState)
+	require.Equal(t, 8, fixture.reads)
+	require.Equal(t, 1, fixture.calls, "screen sleep must not be repeated while waiting for the device to settle")
+	require.Empty(t, svc.ListLiveSessions())
 }
 
 func TestScreenFlowWaitsForObservedTransitionWithoutRepeatingInput(t *testing.T) {
@@ -1042,6 +1102,121 @@ func TestAppLifecycleRequiresConfirmationAndUsesTypedStrategyBoundary(t *testing
 	require.Equal(t, "success", response.Audit.Outcome)
 	require.Len(t, fake.LifecycleCalls(), 1)
 	require.Equal(t, "launch", fake.LifecycleCalls()[0].Operation)
+}
+
+type verifiedArtifactResolverFixture struct {
+	descriptor androidartifact.Descriptor
+	path       string
+	calls      int
+}
+
+func (f *verifiedArtifactResolverFixture) Resolve(_ context.Context, ref, packageName, versionName string) (androidartifact.StagedAPK, error) {
+	f.calls++
+	if ref != f.descriptor.ImmutableRef || packageName != f.descriptor.PackageName || versionName != f.descriptor.VersionName {
+		return androidartifact.StagedAPK{}, fmt.Errorf("unexpected artifact identity")
+	}
+	return androidartifact.StagedAPK{Descriptor: f.descriptor, Path: f.path}, nil
+}
+
+type verifiedArtifactStrategyFixture struct {
+	*fakes.Strategy
+	installedPath  string
+	installedBytes []byte
+	version        string
+}
+
+func (f *verifiedArtifactStrategyFixture) Actuate(_ context.Context, event strategy.Actuation) error {
+	if event.Action != "install" {
+		return fmt.Errorf("unexpected actuation %q", event.Action)
+	}
+	f.installedPath = event.Value
+	data, err := os.ReadFile(event.Value)
+	if err != nil {
+		return err
+	}
+	f.installedBytes = data
+	return nil
+}
+
+func (f *verifiedArtifactStrategyFixture) AppLifecycle(_ context.Context, request strategy.AppLifecycleRequest) (strategy.AppLifecycleResult, error) {
+	if request.Operation != "package-state" {
+		return strategy.AppLifecycleResult{}, fmt.Errorf("unexpected lifecycle operation %q", request.Operation)
+	}
+	version := f.version
+	if version == "" {
+		version = "1.4.0"
+	}
+	return strategy.AppLifecycleResult{Operation: request.Operation, Package: request.Package, Status: strategy.StatusAvailable, Installed: true, Version: version}, nil
+}
+
+func TestVerifiedArtifactInstallFailsWhenInstalledVersionDoesNotMatch(t *testing.T) {
+	apkPath := filepath.Join(t.TempDir(), "verified.apk")
+	require.NoError(t, os.WriteFile(apkPath, []byte("verified apk"), 0o600))
+	adapter := &verifiedArtifactStrategyFixture{Strategy: fakes.New("android-adb", strategy.StatusAvailable, strategy.CapInput, strategy.CapAppLifecycle), version: "9.9.9"}
+	svc := New(strategyregistry.New(adapter))
+	svc.devices.Upsert(devicedomain.Record{ID: "phone", StrategyID: "android-adb", Transport: "usb", Status: strategy.StatusAvailable, Health: strategy.StatusAvailable, Capabilities: []strategy.Capability{{Name: strategy.CapAppLifecycle, Status: strategy.StatusAvailable}}})
+	descriptor := androidartifact.Descriptor{ImmutableRef: "android-debug:" + strings.Repeat("f", 64), Checksum: "sha256:" + strings.Repeat("f", 64), APKChecksum: "sha256:" + strings.Repeat("e", 64), PackageName: "com.example.portal", VersionName: "1.4.0", VersionCode: 14}
+	svc.SetAndroidArtifactResolver(&verifiedArtifactResolverFixture{descriptor: descriptor, path: apkPath})
+	lease, err := svc.Acquire("phone", "operator", time.Minute)
+	require.NoError(t, err)
+	flow := Flow{Steps: []Step{{ID: "install", Kind: "install-artifact", RequiredCapabilities: []string{strategy.CapAppLifecycle}, Arguments: map[string]any{"artifact_ref": descriptor.ImmutableRef, "package": descriptor.PackageName, "version_name": descriptor.VersionName}}}}
+
+	result, err := svc.RunWithLeaseConfirmed(context.Background(), flow, "phone", "operator", lease.LeaseToken, true)
+	require.NoError(t, err)
+	require.Equal(t, "failed", result.Disposition)
+	require.NotNil(t, result.Chapters[0].ArtifactInstall)
+	require.True(t, result.Chapters[0].ArtifactInstall.InstallAccepted)
+	require.True(t, result.Chapters[0].ArtifactInstall.Installed)
+	require.False(t, result.Chapters[0].ArtifactInstall.PostInstallVerified)
+	require.Contains(t, result.Chapters[0].Message, "does not match artifact version")
+}
+
+func TestVerifiedArtifactInstallRequiresConfirmationAndRecordsPostInstallProof(t *testing.T) {
+	apkPath := filepath.Join(t.TempDir(), "verified.apk")
+	apkBytes := []byte("verified apk")
+	require.NoError(t, os.WriteFile(apkPath, apkBytes, 0o600))
+	base := fakes.New("android-adb", strategy.StatusAvailable, strategy.CapInput, strategy.CapAppLifecycle)
+	adapter := &verifiedArtifactStrategyFixture{Strategy: base}
+	db, err := sql.Open("sqlite", "file:verified-artifact-install-"+t.Name()+"?mode=memory&cache=shared")
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = db.Close() })
+	svc, err := NewWithDB(strategyregistry.New(adapter), db)
+	require.NoError(t, err)
+	svc.devices.Upsert(devicedomain.Record{ID: "phone", StrategyID: "android-adb", Transport: "usb", Status: strategy.StatusAvailable, Health: strategy.StatusAvailable, Capabilities: []strategy.Capability{{Name: strategy.CapAppLifecycle, Status: strategy.StatusAvailable}}})
+	descriptor := androidartifact.Descriptor{ImmutableRef: "android-debug:" + strings.Repeat("c", 64), Checksum: "sha256:" + strings.Repeat("d", 64), APKChecksum: "sha256:" + strings.Repeat("e", 64), PackageName: "com.example.portal", VersionName: "1.4.0", VersionCode: 14}
+	resolver := &verifiedArtifactResolverFixture{descriptor: descriptor, path: apkPath}
+	svc.SetAndroidArtifactResolver(resolver)
+	lease, err := svc.Acquire("phone", "operator", time.Minute)
+	require.NoError(t, err)
+	flow := Flow{Steps: []Step{{ID: "install", Kind: "install-artifact", RequiredCapabilities: []string{strategy.CapAppLifecycle}, Arguments: map[string]any{"artifact_ref": descriptor.ImmutableRef, "package": descriptor.PackageName, "version_name": descriptor.VersionName}}}}
+
+	_, err = svc.RunWithLeaseConfirmed(context.Background(), flow, "phone", "operator", lease.LeaseToken, false)
+	require.ErrorContains(t, err, "requires explicit confirmation")
+	require.Zero(t, resolver.calls)
+	require.Empty(t, adapter.installedBytes)
+
+	result, err := svc.RunWithLeaseConfirmed(context.Background(), flow, "phone", "operator", lease.LeaseToken, true)
+	require.NoError(t, err)
+	require.Equal(t, "passed", result.Disposition)
+	require.Len(t, result.Chapters, 1)
+	proof := result.Chapters[0].ArtifactInstall
+	require.NotNil(t, proof)
+	require.True(t, proof.InstallAccepted)
+	require.True(t, proof.Installed)
+	require.True(t, proof.PostInstallVerified)
+	require.Equal(t, descriptor.ImmutableRef, proof.ImmutableRef)
+	require.Equal(t, descriptor.Checksum, proof.ArtifactChecksum)
+	require.Equal(t, descriptor.APKChecksum, proof.APKChecksum)
+	require.Equal(t, descriptor.PackageName, proof.PackageName)
+	require.Equal(t, descriptor.VersionName, proof.InstalledVersion)
+	require.Equal(t, apkBytes, adapter.installedBytes)
+	require.NotEmpty(t, adapter.installedPath)
+	require.False(t, strings.Contains(result.Chapters[0].Message, adapter.installedPath), "proof must not expose the private staging path")
+	audits := svc.Audit()
+	require.Len(t, audits, 1)
+	require.Equal(t, descriptor.ImmutableRef, audits[0].Details["immutable_ref"])
+	require.Equal(t, descriptor.APKChecksum, audits[0].Details["apk_checksum"])
+	require.Equal(t, "true", audits[0].Details["post_install_verified"])
 }
 
 func TestAppLifecycleRejectsUnallowlistedIdentityAndUndeclaredAdapter(t *testing.T) {
@@ -1445,6 +1620,13 @@ func (p *capturingAgentPlanner) Plan(_ context.Context, world internalflows.Agen
 	}
 	return internalflows.AgentPlan{GoalMet: true}, nil
 }
+
+func (p *capturingAgentPlanner) PlanWithEvidence(ctx context.Context, world internalflows.AgentWorld) (internalflows.AgentPlan, *internalflows.AgentInferenceEvidence, error) {
+	plan, err := p.Plan(ctx, world)
+	input, output, cost := int64(41), int64(7), int64(23)
+	return plan, &internalflows.AgentInferenceEvidence{Provider: "fixture", Model: "fixture-model", ProviderCallsMade: 1, InputTokens: &input, OutputTokens: &output, CostMicros: &cost, CostProvenance: "USAGE_PROVENANCE_GATEWAY_ESTIMATE"}, err
+}
+
 func TestAgentPlannerReceivesSemanticSnapshotAndActionHistory(t *testing.T) {
 	fixture := &semanticAgentFixture{semanticSnapshotFixture: &semanticSnapshotFixture{Strategy: fakes.New("semantic-agent", strategy.StatusAvailable, strategy.CapSemanticTree, strategy.CapScreenshot, strategy.CapInput)}}
 	svc := New(strategyregistry.New(fixture))
@@ -1454,6 +1636,23 @@ func TestAgentPlannerReceivesSemanticSnapshotAndActionHistory(t *testing.T) {
 	run, err := svc.StartAgentWithOptions(context.Background(), "open settings", "target", "test", true, false)
 	require.NoError(t, err)
 	require.Equal(t, "completed", run.State)
+	require.Equal(t, 2, run.PlannerCalls)
+	require.Equal(t, 1, run.ActionAttempts)
+	require.Equal(t, 1, run.ActionCompletions)
+	require.NotZero(t, run.CreatedAt)
+	require.NotZero(t, run.CompletedAt)
+	require.GreaterOrEqual(t, run.DurationMS, int64(0))
+	require.Len(t, run.InferenceCalls, 2)
+	require.Equal(t, "fixture-model", run.InferenceCalls[0].Model)
+	require.Equal(t, int64(41), *run.InferenceCalls[0].InputTokens)
+	require.Equal(t, "USAGE_PROVENANCE_GATEWAY_ESTIMATE", run.InferenceCalls[0].CostProvenance)
+	encoded, err := json.Marshal(run)
+	require.NoError(t, err)
+	var response map[string]any
+	require.NoError(t, json.Unmarshal(encoded, &response))
+	require.Equal(t, float64(2), response["planner_calls"])
+	require.Equal(t, float64(1), response["action_attempts"])
+	require.Equal(t, "fixture-model", response["inference_calls"].([]any)[0].(map[string]any)["model"])
 	require.Len(t, planner.worlds, 2)
 	require.NotNil(t, planner.worlds[0].Semantics)
 	require.NotContains(t, planner.worlds[0].StepKinds, "observe", "the planner receives no image to inspect")
@@ -1484,6 +1683,78 @@ func TestAgentSemanticTargetRunsThroughFlowOwner(t *testing.T) {
 	require.Equal(t, "Settings", run.PlannedSteps[0].Target)
 	_, err = svc.PromoteAgent(run.ID)
 	require.ErrorContains(t, err, "terminal outcome assertion")
+}
+
+type agentLifecycleStateFixture struct {
+	*fakes.Strategy
+	foreground         string
+	foregroundOnLaunch string
+	requests           []strategy.AppLifecycleRequest
+}
+
+func (s *agentLifecycleStateFixture) ReadState(context.Context) (strategy.DeviceState, error) {
+	return strategy.DeviceState{ScreenState: "on", LockState: "unlocked", ForegroundPackage: s.foreground}, nil
+}
+
+func (s *agentLifecycleStateFixture) AppLifecycle(_ context.Context, request strategy.AppLifecycleRequest) (strategy.AppLifecycleResult, error) {
+	s.requests = append(s.requests, request)
+	if request.Operation == "launch" {
+		s.foreground = s.foregroundOnLaunch
+	}
+	return strategy.AppLifecycleResult{Operation: request.Operation, Package: request.Package, Status: strategy.StatusAvailable}, nil
+}
+
+func TestAgentLaunchUsesTypedAppLifecycleAndVerifiesForeground(t *testing.T) {
+	const packageName = "com.google.android.calculator"
+	fixture := &agentLifecycleStateFixture{Strategy: fakes.New("agent-launch", strategy.StatusAvailable, strategy.CapAppLifecycle), foregroundOnLaunch: packageName}
+	svc := New(strategyregistry.New(fixture))
+	svc.devices.Upsert(devicedomain.Record{ID: "agent-launch", StrategyID: "agent-launch", Transport: "agent-launch", Status: strategy.StatusAvailable, Health: strategy.StatusAvailable, Capabilities: []strategy.Capability{{Name: strategy.CapAppLifecycle, Status: strategy.StatusAvailable}}})
+	svc.SetAgentPlanner(&sequenceAgentPlanner{plans: []internalflows.AgentPlan{{StepKind: "launch", Action: packageName}, {GoalMet: true}}})
+
+	run, err := svc.StartAgent(context.Background(), "open the calculator", "agent-launch", "operator", true)
+	require.NoError(t, err)
+	require.Equal(t, "completed", run.State)
+	require.Equal(t, "passed", run.Result.Disposition)
+	require.Len(t, run.PlannedSteps, 1)
+	require.Equal(t, packageName, run.PlannedSteps[0].Target)
+	require.Len(t, fixture.requests, 1)
+	require.Equal(t, "launch", fixture.requests[0].Operation)
+	require.Equal(t, packageName, fixture.requests[0].Package)
+	require.Equal(t, 1, run.ActionCompletions)
+}
+
+func TestAgentLaunchFailsWhenForegroundPackageDoesNotMatch(t *testing.T) {
+	const packageName = "com.google.android.calculator"
+	fixture := &agentLifecycleStateFixture{Strategy: fakes.New("agent-launch-mismatch", strategy.StatusAvailable, strategy.CapAppLifecycle), foregroundOnLaunch: "com.example.other"}
+	svc := New(strategyregistry.New(fixture))
+	svc.devices.Upsert(devicedomain.Record{ID: "agent-launch-mismatch", StrategyID: "agent-launch-mismatch", Transport: "agent-launch-mismatch", Status: strategy.StatusAvailable, Health: strategy.StatusAvailable, Capabilities: []strategy.Capability{{Name: strategy.CapAppLifecycle, Status: strategy.StatusAvailable}}})
+	svc.SetAgentPlanner(&sequenceAgentPlanner{plans: []internalflows.AgentPlan{{StepKind: "launch", Action: packageName}, {GoalMet: true}}})
+
+	run, err := svc.StartAgent(context.Background(), "open the calculator", "agent-launch-mismatch", "operator", true)
+	require.NoError(t, err)
+	require.Equal(t, "failed", run.State)
+	require.Equal(t, "failed", run.Result.Disposition)
+	require.Equal(t, 1, run.ActionAttempts)
+	require.Contains(t, run.Result.Chapters[len(run.Result.Chapters)-1].Message, "was not observed in the foreground")
+}
+
+func TestAgentPlannerOnlyReceivesExecutableStepKinds(t *testing.T) {
+	fixture := fakes.New("agent-step-contract", strategy.StatusAvailable, strategy.CapInput, strategy.CapMedia, strategy.CapAppLifecycle, strategy.CapProperty, strategy.CapScreenshot)
+	svc := New(strategyregistry.New(fixture))
+	svc.devices.Upsert(devicedomain.Record{ID: "agent-step-contract", StrategyID: fixture.ID(), Transport: "usb", Status: strategy.StatusAvailable, Health: strategy.StatusAvailable})
+	planner := &sequenceAgentPlanner{plans: []internalflows.AgentPlan{{GoalMet: true}}}
+	svc.SetAgentPlanner(planner)
+
+	run, err := svc.StartAgent(context.Background(), "check current state", "agent-step-contract", "operator", true)
+	require.NoError(t, err)
+	require.Equal(t, "completed", run.State)
+	require.Len(t, planner.worlds, 1)
+	for _, supported := range []string{"key", "media-pause", "launch", "property-get", "property-set"} {
+		require.Contains(t, planner.worlds[0], supported)
+	}
+	for _, unsupported := range []string{"tap", "swipe", "text", "observe"} {
+		require.NotContains(t, planner.worlds[0], unsupported)
+	}
 }
 
 func TestAgentDryRunReturnsFirstProposalWithoutActuation(t *testing.T) {
@@ -1652,11 +1923,13 @@ func TestAgentSemanticTargetPolicyChecksControlLabelsWhenSelectedByID(t *testing
 }
 
 type sequenceAgentPlanner struct {
-	plans []internalflows.AgentPlan
-	calls int
+	plans  []internalflows.AgentPlan
+	calls  int
+	worlds [][]string
 }
 
-func (p *sequenceAgentPlanner) Plan(context.Context, internalflows.AgentWorld) (internalflows.AgentPlan, error) {
+func (p *sequenceAgentPlanner) Plan(_ context.Context, world internalflows.AgentWorld) (internalflows.AgentPlan, error) {
+	p.worlds = append(p.worlds, append([]string(nil), world.StepKinds...))
 	index := p.calls
 	p.calls++
 	if index >= len(p.plans) {
@@ -1735,6 +2008,20 @@ func TestAgentRequiresOutOfBandConfirmationForRiskyPlannerStep(t *testing.T) {
 	require.Equal(t, "awaiting_confirmation", run.State)
 	require.Equal(t, "confirmation_required", run.Result.Disposition)
 	require.Contains(t, run.Result.Chapters[len(run.Result.Chapters)-1].Message, "no actuation executed")
+	require.Empty(t, run.PlannedSteps)
+}
+
+func TestAgentRejectsMalformedGoalMetBeforeRiskClassification(t *testing.T) {
+	strategyUnderTest := &lifecycleAgentStrategy{Strategy: fakes.New("malformed-goal-risk", strategy.StatusAvailable, strategy.CapAppLifecycle)}
+	svc := New(strategyregistry.New(strategyUnderTest))
+	svc.devices.Upsert(devicedomain.Record{ID: "malformed-goal-risk", StrategyID: "malformed-goal-risk", Transport: "malformed-goal-risk", Status: strategy.StatusAvailable, Health: strategy.StatusAvailable, Capabilities: []strategy.Capability{{Name: strategy.CapAppLifecycle, Status: strategy.StatusAvailable}}})
+	svc.SetAgentPlanner(&sequenceAgentPlanner{plans: []internalflows.AgentPlan{{GoalMet: true, StepKind: "share", Action: "send"}}})
+
+	run, err := svc.StartAgentWithPolicy(context.Background(), "share this", "malformed-goal-risk", "operator", true, false, internalflows.DefaultAgentPolicy(), false)
+	require.NoError(t, err)
+	require.Equal(t, "failed", run.State)
+	require.Equal(t, "failed", run.Result.Disposition)
+	require.Contains(t, run.Result.Chapters[len(run.Result.Chapters)-1].Message, "goal_met cannot include")
 	require.Empty(t, run.PlannedSteps)
 }
 
@@ -2875,7 +3162,7 @@ func TestReleasedLeaseCannotRegisterRun(t *testing.T) {
 	require.NoError(t, err)
 	_, err = svc.Release(session.ID)
 	require.NoError(t, err)
-	_, err = svc.execute(context.Background(), Flow{Steps: []Step{{ID: "wait", Kind: "wait"}}}, "fake", "operator", session, false)
+	_, err = svc.execute(context.Background(), Flow{Steps: []Step{{ID: "wait", Kind: "wait"}}}, "fake", "operator", session, false, false)
 	require.ErrorContains(t, err, "lease is no longer held")
 }
 

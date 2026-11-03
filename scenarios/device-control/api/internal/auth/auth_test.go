@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"strings"
+	"sync"
 	"testing"
 
 	"device-control/strategy"
@@ -21,6 +22,38 @@ type fakeResolver struct {
 	status       ProviderStatus
 	err          error
 	resolveCalls int
+}
+
+type memoryAuthorityStore struct {
+	mu     sync.Mutex
+	values map[string]string
+}
+
+func (s *memoryAuthorityStore) Put(service, key, value string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.values == nil {
+		s.values = make(map[string]string)
+	}
+	s.values[service+"\x00"+key] = value
+	return nil
+}
+
+func (s *memoryAuthorityStore) Get(service, key string) (string, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	value, ok := s.values[service+"\x00"+key]
+	if !ok {
+		return "", credentialauthority.ErrNotFound
+	}
+	return value, nil
+}
+
+func (s *memoryAuthorityStore) Delete(service, key string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	delete(s.values, service+"\x00"+key)
+	return nil
 }
 
 func (f *fakeResolver) Provision(_ context.Context, identity, field, value string) error {
@@ -72,6 +105,25 @@ func TestProfilePersistenceNeverStoresCredentialMaterial(t *testing.T) {
 		values = append(values, v[:]...)
 	}
 	require.NotContains(t, values, "runtime-only-fixture")
+}
+
+func TestAuthorityResolverProvisionActivatesVersionedCredential(t *testing.T) {
+	authority, err := credentialauthority.NewAuthority(&memoryAuthorityStore{})
+	require.NoError(t, err)
+	resolver := authorityResolver{authority: authority}
+	identity := CredentialNamespace + "android-test"
+
+	require.NoError(t, resolver.Provision(context.Background(), identity, "pin", "fixture-pin"))
+
+	parsed, err := credentialauthority.ParseIdentity(identity)
+	require.NoError(t, err)
+	status := authority.Status(parsed, "pin")
+	require.True(t, status.Configured)
+	require.NotEmpty(t, status.Version)
+	require.Empty(t, status.ProviderDetail)
+	value, err := resolver.Resolve(context.Background(), identity, "pin")
+	require.NoError(t, err)
+	require.Equal(t, "fixture-pin", value)
 }
 
 func TestPairingCertificateUsesCredentialAuthority(t *testing.T) {

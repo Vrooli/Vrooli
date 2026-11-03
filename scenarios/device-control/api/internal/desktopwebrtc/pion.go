@@ -25,6 +25,10 @@ type PionPeer struct {
 	dataQueue    *BoundedQueue[[]byte]
 	cancel       context.CancelFunc
 	closed       bool
+	closeErr     error
+	closeDone    chan struct{}
+	closePeerFn  func() error // Test seam for peer shutdown completion.
+	workers      sync.WaitGroup
 	onFailure    func()
 	failureOnce  sync.Once
 	statsMu      sync.Mutex
@@ -106,9 +110,10 @@ func NewPionPeerWithDataHandler(ctx context.Context, configuration webrtc.Config
 			_ = p.Close()
 		}
 	})
-	go p.drainVideo(transportCtx)
-	go p.drainData(transportCtx, p.control, p.controlQueue)
-	go p.drainData(transportCtx, p.data, p.dataQueue)
+	p.workers.Add(3)
+	go func() { defer p.workers.Done(); p.drainVideo(transportCtx) }()
+	go func() { defer p.workers.Done(); p.drainData(transportCtx, p.control, p.controlQueue) }()
+	go func() { defer p.workers.Done(); p.drainData(transportCtx, p.data, p.dataQueue) }()
 	go func() { <-transportCtx.Done(); _ = p.Close() }()
 	return p, nil
 }
@@ -255,7 +260,6 @@ func (p *PionPeer) drainVideo(ctx context.Context) {
 		}
 		if err := p.video.WriteSample(sample); err != nil {
 			p.notifyFailure()
-			_ = p.Close()
 			return
 		}
 		p.statsMu.Lock()
@@ -283,7 +287,6 @@ func (p *PionPeer) drainData(ctx context.Context, channel *webrtc.DataChannel, q
 		}
 		if err := channel.Send(payload); err != nil {
 			p.notifyFailure()
-			_ = p.Close()
 			return
 		}
 		p.statsMu.Lock()
@@ -321,23 +324,50 @@ func (p *PionPeer) Close() error {
 	}
 	p.mu.Lock()
 	if p.closed {
+		done := p.closeDone
+		err := p.closeErr
 		p.mu.Unlock()
-		return nil
+		if done != nil {
+			<-done
+			p.mu.Lock()
+			err = p.closeErr
+			p.mu.Unlock()
+		}
+		return err
 	}
 	p.closed = true
+	p.closeDone = make(chan struct{})
+	done := p.closeDone
 	cancel := p.cancel
 	pc := p.pc
+	closePeerFn := p.closePeerFn
 	videoQueue, controlQueue, dataQueue := p.videoQueue, p.controlQueue, p.dataQueue
 	p.mu.Unlock()
 	if cancel != nil {
 		cancel()
 	}
-	videoQueue.Close()
-	controlQueue.Close()
-	dataQueue.Close()
-	if pc != nil {
-		return pc.Close()
+	if videoQueue != nil {
+		videoQueue.Close()
 	}
-	return nil
+	if controlQueue != nil {
+		controlQueue.Close()
+	}
+	if dataQueue != nil {
+		dataQueue.Close()
+	}
+	var err error
+	if closePeerFn != nil {
+		err = closePeerFn()
+	} else if pc != nil {
+		err = pc.Close()
+	}
+	p.workers.Wait()
+	// Keep a failed close visible on later calls. Marking the peer closed
+	// prevents new work, but does not prove that Pion released its resources.
+	p.mu.Lock()
+	p.closeErr = err
+	close(done)
+	p.mu.Unlock()
+	return err
 }
 func boolPtr(v bool) *bool { return &v }

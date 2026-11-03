@@ -22,6 +22,7 @@ def navigationClasses = layout.buildDirectory.dir('navigation-verification')
 tasks.register('compileNavigationVerification', JavaCompile) {
  source file('src/main/java/com/vrooli/portal/tv/NavigationState.java'), rootProject.file('verification/NavigationStateTest.java'), file('src/main/java/com/vrooli/portal/tv/HomeOverridePolicy.java'), rootProject.file('verification/HomeOverridePolicyTest.java'), file('src/main/java/com/vrooli/portal/tv/PortalOrigin.java'), rootProject.file('verification/PortalOriginTest.java')
  source file('src/main/java/com/vrooli/portal/tv/CatalogueWindow.java'), rootProject.file('verification/CatalogueWindowTest.java')
+ source file('src/main/java/com/vrooli/portal/tv/ApplicationActionPolicy.java'), rootProject.file('verification/ApplicationActionPolicyTest.java')
  classpath = files()
  destinationDirectory = navigationClasses
  sourceCompatibility = '17'; targetCompatibility = '17'
@@ -51,3 +52,9 @@ tasks.register('verifyCatalogueWindow', JavaExec) {
  mainClass = 'com.vrooli.portal.tv.CatalogueWindowTest'
 }
 tasks.named('preBuild').configure { dependsOn 'verifyCatalogueWindow' }
+tasks.register('verifyApplicationActions', JavaExec) {
+ dependsOn 'compileNavigationVerification'
+ classpath = files(navigationClasses)
+ mainClass = 'com.vrooli.portal.tv.ApplicationActionPolicyTest'
+}
+tasks.named('preBuild').configure { dependsOn 'verifyApplicationActions' }

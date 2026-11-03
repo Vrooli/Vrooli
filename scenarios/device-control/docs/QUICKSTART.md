@@ -60,8 +60,10 @@ automatically):
 
 ```bash
 device-control status
-device-control <domain> <command>   # e.g. list/create commands for your domain
+device-control device list --json
 ```
+
+The device list shows the devices currently discovered by Device Control.
 
 Or directly via HTTP:
 

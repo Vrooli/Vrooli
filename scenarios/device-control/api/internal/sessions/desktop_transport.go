@@ -10,6 +10,7 @@ import (
 	"net"
 	"net/http"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -22,16 +23,85 @@ import (
 )
 
 type DesktopUnixHelper struct {
-	controller *DesktopController
-	authority  *SignedDesktopAuthority
+	controller        *DesktopController
+	authority         *SignedDesktopAuthority
+	lifecycleReporter func(status string, activeRequests int, errorCode string) error
 }
 type desktopConnectionKey struct{}
+
+const desktopHelperShutdownTimeout = 5 * time.Second
+
+type desktopRequestTracker struct {
+	mu       sync.Mutex
+	active   int
+	stopping bool
+	changed  chan struct{}
+}
+
+func newDesktopRequestTracker() *desktopRequestTracker {
+	return &desktopRequestTracker{changed: make(chan struct{})}
+}
+
+func (t *desktopRequestTracker) enter() bool {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	if t.stopping {
+		return false
+	}
+	t.active++
+	return true
+}
+
+func (t *desktopRequestTracker) leave() {
+	t.mu.Lock()
+	t.active--
+	close(t.changed)
+	t.changed = make(chan struct{})
+	t.mu.Unlock()
+}
+
+func (t *desktopRequestTracker) stop() {
+	t.mu.Lock()
+	t.stopping = true
+	close(t.changed)
+	t.changed = make(chan struct{})
+	t.mu.Unlock()
+}
+
+func (t *desktopRequestTracker) wait(ctx context.Context) error {
+	for {
+		t.mu.Lock()
+		if t.active == 0 {
+			t.mu.Unlock()
+			return nil
+		}
+		changed := t.changed
+		t.mu.Unlock()
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-changed:
+		}
+	}
+}
+
+func (t *desktopRequestTracker) activeCount() int {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	return t.active
+}
 
 func NewDesktopUnixHelper(c *DesktopController, a *SignedDesktopAuthority) (*DesktopUnixHelper, error) {
 	if c == nil || a == nil || c.authority != a {
 		return nil, ErrDesktopAdmission
 	}
 	return &DesktopUnixHelper{controller: c, authority: a}, nil
+}
+
+// SetLifecycleReporter connects shutdown milestones to the lifecycle owner's
+// durable receipt. Configure it before Serve starts.
+func (h *DesktopUnixHelper) SetLifecycleReporter(report func(status string, activeRequests int, errorCode string) error) {
+	h.lifecycleReporter = report
 }
 
 // Serve accepts only an existing Unix listener from the lifecycle owner, which
@@ -47,8 +117,10 @@ func (h *DesktopUnixHelper) Serve(ctx context.Context, listener *net.UnixListene
 	mux := http.NewServeMux()
 	mux.Handle(path, handler)
 	var connections atomic.Int32
+	requests := newDesktopRequestTracker()
 	server := &http.Server{
 		ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 10 * time.Second, WriteTimeout: 15 * time.Second, IdleTimeout: 15 * time.Second, MaxHeaderBytes: 16 * 1024,
+		BaseContext: func(net.Listener) context.Context { return child },
 		ConnContext: func(ctx context.Context, c net.Conn) context.Context {
 			return context.WithValue(ctx, desktopConnectionKey{}, c)
 		},
@@ -63,6 +135,11 @@ func (h *DesktopUnixHelper) Serve(ctx context.Context, listener *net.UnixListene
 			}
 		},
 		Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if !requests.enter() {
+				http.Error(w, "desktop helper is shutting down", http.StatusServiceUnavailable)
+				return
+			}
+			defer requests.leave()
 			conn, ok := r.Context().Value(desktopConnectionKey{}).(*net.UnixConn)
 			cleanupRead := r.URL.Path == desktopv1connect.DesktopHelperServiceReadCleanupProcedure
 			scheme := "DesktopGrant "
@@ -90,7 +167,7 @@ func (h *DesktopUnixHelper) Serve(ctx context.Context, listener *net.UnixListene
 	}
 	serving, maintaining := make(chan error, 1), make(chan error, 1)
 	go func() { serving <- server.Serve(listener) }()
-	go func() { maintaining <- h.controller.MaintainLease(child) }()
+	go func() { maintaining <- h.controller.maintainLease(child) }()
 	var serveErr, maintainErr error
 	gotServe, gotMaintain := false, false
 	select {
@@ -100,8 +177,19 @@ func (h *DesktopUnixHelper) Serve(ctx context.Context, listener *net.UnixListene
 	case maintainErr = <-maintaining:
 		gotMaintain = true
 	}
+	// Stop admitting controller calls and cancel their base contexts before
+	// closing connections. Shutdown waits for accepted handlers and the lease
+	// monitor before it releases any held native input.
+	requests.stop()
 	cancel()
-	_ = server.Close()
+	closeErr := server.Close()
+	var lifecycleErr error
+	reportLifecycle := func(status string, errorCode string) {
+		if h.lifecycleReporter != nil {
+			lifecycleErr = errors.Join(lifecycleErr, h.lifecycleReporter(status, requests.activeCount(), errorCode))
+		}
+	}
+	reportLifecycle("stopping", "")
 	if !gotServe {
 		serveErr = <-serving
 	}
@@ -111,7 +199,31 @@ func (h *DesktopUnixHelper) Serve(ctx context.Context, listener *net.UnixListene
 	if errors.Is(serveErr, http.ErrServerClosed) {
 		serveErr = nil
 	}
-	return errors.Join(serveErr, maintainErr)
+	waitCtx, cancelWait := context.WithTimeout(context.Background(), desktopHelperShutdownTimeout)
+	requestErr := requests.wait(waitCtx)
+	cancelWait()
+	if requestErr != nil {
+		// Keep the helper process and its native/database resources alive while
+		// accepted handlers are still running. The caller closes those resources
+		// after Serve returns, so returning on timeout would tear them down under
+		// an in-flight RPC. Preserve the timeout as an error after the handlers
+		// eventually finish and cleanup can run safely.
+		requestErr = errors.Join(errors.New("desktop helper shutdown exceeded its RPC drain timeout; waiting for accepted handlers"), requestErr)
+		reportLifecycle("stopping", "rpc_drain_timeout")
+		_ = requests.wait(context.Background())
+	}
+	shutdownCtx, cancelShutdown := context.WithTimeout(context.Background(), desktopHelperShutdownTimeout)
+	shutdownErr := h.controller.Shutdown(shutdownCtx)
+	cancelShutdown()
+	if shutdownErr != nil {
+		reportLifecycle("uncertain", "cleanup_failed")
+	} else {
+		reportLifecycle("controller-cleanup-completed", "")
+	}
+	if errors.Is(closeErr, http.ErrServerClosed) {
+		closeErr = nil
+	}
+	return errors.Join(serveErr, maintainErr, closeErr, requestErr, shutdownErr, lifecycleErr)
 }
 
 type desktopRPC struct{ controller *DesktopController }

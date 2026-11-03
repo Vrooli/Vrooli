@@ -35,6 +35,7 @@ func (s *Service) StartAgentWithPolicy(ctx context.Context, goal, deviceID, acto
 // StartAgentWithOutcome accepts an operator-supplied, independently observable
 // completion condition. The planner cannot change this condition.
 func (s *Service) StartAgentWithOutcome(ctx context.Context, goal, deviceID, actor string, skillAvailable, dryRun bool, policy internalflows.AgentPolicy, confirmed bool, expectSelected string) (AgentRun, error) {
+	startedAt := time.Now().UTC()
 	if !skillAvailable {
 		return AgentRun{}, fmt.Errorf("agent mode refused: prompt-manager device-control skill is unavailable")
 	}
@@ -79,7 +80,9 @@ func (s *Service) StartAgentWithOutcome(ctx context.Context, goal, deviceID, act
 	}
 	allowed := map[string]bool{}
 	for _, kind := range strategy.StepKinds(declaration) {
-		allowed[kind] = true
+		if agentPlannerCanExecute(kind) {
+			allowed[kind] = true
+		}
 	}
 	result := RunResult{RunID: uuid.NewString(), Disposition: "passed", Chapters: []Chapter{}}
 	appendChapter := func(id, disposition, message string) {
@@ -95,6 +98,10 @@ func (s *Service) StartAgentWithOutcome(ctx context.Context, goal, deviceID, act
 	planner := s.agentPlanner
 	s.mu.Unlock()
 	plannedSteps := []Step{}
+	plannerCalls := 0
+	inferenceCalls := []internalflows.AgentInferenceEvidence{}
+	actionAttempts := 0
+	actionCompletions := 0
 	goalVerified := false
 	var proposedStep *AgentProposedStep
 	history := []internalflows.AgentHistory{}
@@ -141,15 +148,14 @@ func (s *Service) StartAgentWithOutcome(ctx context.Context, goal, deviceID, act
 			// The planner receives typed state and semantics, not captured image
 			// bytes. Offering observe would let it repeatedly request screenshots
 			// whose contents it cannot actually inspect.
-			if planner != nil {
-				filtered := worldModel.StepKinds[:0]
-				for _, kind := range worldModel.StepKinds {
-					if kind != "observe" {
-						filtered = append(filtered, kind)
-					}
+			filtered := worldModel.StepKinds[:0]
+			for _, kind := range worldModel.StepKinds {
+				if !agentPlannerCanExecute(kind) || planner != nil && kind == "observe" {
+					continue
 				}
-				worldModel.StepKinds = filtered
+				filtered = append(filtered, kind)
 			}
+			worldModel.StepKinds = filtered
 			if worldModel.Semantics == nil || worldModel.Semantics.Truncated || declaration.Capabilities[strategy.CapScreenshot].Status != strategy.StatusAvailable {
 				filtered := worldModel.StepKinds[:0]
 				for _, kind := range worldModel.StepKinds {
@@ -168,7 +174,16 @@ func (s *Service) StartAgentWithOutcome(ctx context.Context, goal, deviceID, act
 			var plan internalflows.AgentPlan
 			var planningErr error
 			if planner != nil {
-				plan, planningErr = planner.Plan(agentCtx, worldModel)
+				plannerCalls++
+				if measured, ok := planner.(internalflows.AgentPlannerWithEvidence); ok {
+					var evidence *internalflows.AgentInferenceEvidence
+					plan, evidence, planningErr = measured.PlanWithEvidence(agentCtx, worldModel)
+					if evidence != nil {
+						inferenceCalls = append(inferenceCalls, *evidence)
+					}
+				} else {
+					plan, planningErr = planner.Plan(agentCtx, worldModel)
+				}
 			} else {
 				// Test and offline operation can use the deterministic capability
 				// planner; production wires GatewayPlanner through ai-gateway.
@@ -177,6 +192,26 @@ func (s *Service) StartAgentWithOutcome(ctx context.Context, goal, deviceID, act
 			if planningErr != nil {
 				appendChapter(fmt.Sprintf("planning-%d", iteration), "failed", planningErr.Error())
 				result.Disposition = "failed"
+				break
+			}
+			// Validate plan shape against the device's declared step vocabulary
+			// first. This keeps contradictory goal_met responses from being
+			// misreported as confirmation requests.
+			if validationErr := internalflows.ValidateAgentPlan(plan, strategy.StepKinds(declaration)); validationErr != nil {
+				appendChapter(fmt.Sprintf("planning-%d", iteration), "failed", validationErr.Error()+"; no actuation executed")
+				result.Disposition = "failed"
+				break
+			}
+			// Classify the requested effect before checking device support so
+			// risky unsupported choices still fail closed through the operator
+			// confirmation path, without being advertised or actuated.
+			if policyErr := internalflows.AgentPolicyViolation(policy, plan, confirmed); policyErr != nil {
+				disposition := "failed"
+				if strings.Contains(policyErr.Error(), "confirmation required") {
+					disposition = "confirmation_required"
+				}
+				appendChapter(fmt.Sprintf("confirmation-%d", iteration), disposition, policyErr.Error()+"; no actuation executed")
+				result.Disposition = disposition
 				break
 			}
 			if validationErr := internalflows.ValidateAgentPlan(plan, worldModel.StepKinds); validationErr != nil {
@@ -212,15 +247,6 @@ func (s *Service) StartAgentWithOutcome(ctx context.Context, goal, deviceID, act
 					appendChapter(fmt.Sprintf("goal-%d", iteration), "passed", "planner reported the goal satisfied")
 				}
 				completed = true
-				break
-			}
-			if policyErr := internalflows.AgentPolicyViolation(policy, plan, confirmed); policyErr != nil {
-				disposition := "failed"
-				if strings.Contains(policyErr.Error(), "confirmation required") {
-					disposition = "confirmation_required"
-				}
-				appendChapter(fmt.Sprintf("confirmation-%d", iteration), disposition, policyErr.Error()+"; no actuation executed")
-				result.Disposition = disposition
 				break
 			}
 			if plan.StepKind == "semantic-target" {
@@ -302,7 +328,8 @@ func (s *Service) StartAgentWithOutcome(ctx context.Context, goal, deviceID, act
 			}
 			var iterationErr error
 			causation := ""
-			if plan.StepKind == "semantic-target" {
+			if plan.StepKind == "semantic-target" || isAgentAppLifecycleStep(plan.StepKind) {
+				actionAttempts++
 				flow := Flow{ID: uuid.NewString(), Transport: declaration.Transport, Steps: []Step{agentFlowStep(iteration, plan)}}
 				flowResult, flowErr := s.RunWithLease(agentCtx, flow, deviceID, actor, lease.LeaseToken)
 				if flowErr != nil {
@@ -312,13 +339,27 @@ func (s *Service) StartAgentWithOutcome(ctx context.Context, goal, deviceID, act
 					if len(flowResult.Chapters) > 0 {
 						detail = flowResult.Chapters[len(flowResult.Chapters)-1].Message
 					}
-					iterationErr = fmt.Errorf("semantic action did not pass: %s: %s", flowResult.Disposition, detail)
+					iterationErr = fmt.Errorf("agent flow action did not pass: %s: %s", flowResult.Disposition, detail)
+				} else {
+					actionCompletions++
+					if plan.StepKind == "launch" {
+						launched, stateErr := s.ReadDeviceState(agentCtx, deviceID)
+						if stateErr != nil {
+							iterationErr = fmt.Errorf("read state after launch: %w", stateErr)
+						} else if launched.ForegroundPackage != plan.Action || launched.Unavailable["foreground_package"] != "" {
+							iterationErr = fmt.Errorf("launched package %q was not observed in the foreground", plan.Action)
+						}
+					}
 				}
 			} else {
+				actionAttempts++
 				direct := directActuationForAgentPlan(plan, declaration.Transport)
 				audit, actuationErr := s.ActuateDevice(agentCtx, deviceID, actor, lease.LeaseToken, direct)
 				iterationErr = actuationErr
 				causation = audit.CausationID
+				if actuationErr == nil {
+					actionCompletions++
+				}
 			}
 			if iterationErr == nil {
 				state, iterationErr = s.ReadDeviceState(agentCtx, deviceID)
@@ -360,7 +401,8 @@ func (s *Service) StartAgentWithOutcome(ctx context.Context, goal, deviceID, act
 	if result.Disposition == "planned" {
 		agentState = "planned"
 	}
-	agent := AgentRun{ID: uuid.NewString(), Goal: goal, DeviceID: deviceID, Actor: actor, State: agentState, Skill: "prompt-manager/device-control", Result: result, CreatedAt: time.Now().UTC(), DryRun: dryRun, GoalVerified: goalVerified, PlanningRole: internalflows.AgentPlanRole, PromptHash: promptHash, PolicyHash: policyHash, PlanHashes: append([]string(nil), planHashes...), PlannedSteps: plannedSteps, ProposedStep: proposedStep}
+	completedAt := time.Now().UTC()
+	agent := AgentRun{ID: uuid.NewString(), Goal: goal, DeviceID: deviceID, Actor: actor, State: agentState, Skill: "prompt-manager/device-control", Result: result, CreatedAt: startedAt, CompletedAt: completedAt, DurationMS: completedAt.Sub(startedAt).Milliseconds(), PlannerCalls: plannerCalls, ActionAttempts: actionAttempts, ActionCompletions: actionCompletions, InferenceCalls: inferenceCalls, DryRun: dryRun, GoalVerified: goalVerified, PlanningRole: internalflows.AgentPlanRole, PromptHash: promptHash, PolicyHash: policyHash, PlanHashes: append([]string(nil), planHashes...), PlannedSteps: plannedSteps, ProposedStep: proposedStep}
 	s.mu.Lock()
 	s.agents[agent.ID] = agent
 	s.mu.Unlock()
@@ -491,12 +533,36 @@ func directActuationForAgentPlan(plan internalflows.AgentPlan, transport string)
 	return direct
 }
 
+func isAgentAppLifecycleStep(stepKind string) bool {
+	switch stepKind {
+	case "install", "launch", "focus", "close", "minimize", "restore", "stop", "uninstall", "clear-data", "home-set", "package-state":
+		return true
+	default:
+		return false
+	}
+}
+
+// agentPlannerCanExecute keeps the advertised action contract aligned with
+// the owner paths that StartAgent can actually execute. Visual gestures are
+// omitted because the planner receives no screenshot pixels or coordinates.
+func agentPlannerCanExecute(stepKind string) bool {
+	if isAgentAppLifecycleStep(stepKind) || stepKind == "semantic-target" || stepKind == "key" || stepKind == "observe" {
+		return true
+	}
+	if strings.HasPrefix(stepKind, "media-") {
+		return true
+	}
+	return stepKind == "property-get" || stepKind == "property-set"
+}
+
 func agentFlowStep(iteration int, plan internalflows.AgentPlan) Step {
 	step := Step{ID: fmt.Sprintf("iteration-%d", iteration), Kind: plan.StepKind, RequiredCapabilities: []string{capabilityForAgentStep(plan.StepKind)}, Arguments: map[string]any{}}
 	switch {
 	case plan.StepKind == "key":
 		step.Target = fmt.Sprint(plan.Value)
 	case plan.StepKind == "semantic-target":
+		step.Target = plan.Action
+	case isAgentAppLifecycleStep(plan.StepKind):
 		step.Target = plan.Action
 	case strings.HasPrefix(plan.StepKind, "media-"):
 		if plan.Value != nil {
