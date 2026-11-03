@@ -32,12 +32,14 @@ domain needs them. Document those decisions in
 | Notes | notes | SQLite | `api/internal/notes/schema.sql` | Until deleted by future product behavior | Template reference data; remove with notes domain. |
 | Attachment metadata | notes | SQLite | `api/internal/notes/schema.sql` | Until parent note or attachment is deleted by future product behavior | Metadata only; bytes are stored through BlobStore. |
 | Attachment bytes | notes | Filesystem BlobStore by default | BlobStore implementation in notes handler module | Same lifecycle as metadata | Opaque bytes stay outside proto payloads. |
+| Verification run history | runs | SQLite | `api/internal/runs/schema.sql` | No domain-level retention or delete operation | Per-flow terminal snapshots (`passed`, `failed`, `error`); active `queued`/`running` lifecycle states are not persisted. |
 
 ## Schema Map
 
 | Table/File/Object | Owner | Defined In | Used By |
 |---|---|---|---|
 | notes tables | notes | `api/internal/notes/schema.sql` | notes repository/service/handlers |
+| `verification_runs` and indexes | runs | `api/internal/runs/schema.sql` | `api/internal/runs/sqlite.go`, verifications recorder |
 | system schema | infrastructure | `api/internal/database/system.sql` | API boot and cross-cutting DB setup |
 
 ## Migrations And Compatibility

@@ -6,6 +6,7 @@ package pipeline
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"path/filepath"
@@ -229,21 +230,20 @@ func renderNavigationReport(s kind.Spec, res kind.VerifyResult, vErr error) stri
 
 // recordPerFlow translates a single Verify invocation into one Recorder
 // entry per flow. pipeline.Run iterates flows in order and stops at the
-// first failure, so any flow that emitted output before the error is
-// recorded as passed, the flow that triggered the error is recorded as
-// failed, and any remaining flows are skipped (not recorded).
+// first failure, so any flow before the identified failure is recorded as
+// passed, that flow is recorded as failed, and any remaining flows are
+// skipped (not recorded).
 func recordPerFlow(ctx context.Context, rec Recorder, flows []model.Flow, started map[string]time.Time, mode Mode, root string, output string, runErr error) {
 	finished := time.Now().UTC()
-	// Detect which flow the error belongs to by checking the trailing
-	// flow id mentioned in output. pipeline.Run prints "fresh <id>"
-	// or "wrote <path>" before advancing. If the error is non-nil and
-	// references a flow id, that flow's entry is "failed"; flows
-	// processed before it are "passed". This stays a heuristic — Phase
-	// E records the minimum the UI needs; deeper per-flow attribution
-	// is a follow-up.
 	failingFlow := ""
 	if runErr != nil && len(flows) > 0 {
-		failingFlow = guessFailingFlow(output, flows)
+		failingFlow = flowIDFromExecutionError(runErr)
+		if !containsFlow(flows, failingFlow) {
+			// Pipeline setup failures have no per-flow identity. Preserve
+			// the existing request-level fallback without inferring identity
+			// from human-readable output.
+			failingFlow = flows[0].FlowID
+		}
 	}
 	for _, flow := range flows {
 		entry := RunEntry{
@@ -287,19 +287,26 @@ func recordPerFlow(ctx context.Context, rec Recorder, flows []model.Flow, starte
 	}
 }
 
-// guessFailingFlow walks output for the last flow id mentioned; pipeline
-// prints "fresh <id>" or "wrote <path-containing-id>" before advancing,
-// so the last mentioned id is the one that was actively being processed
-// when Run returned an error. Falls back to the first flow.
-func guessFailingFlow(output string, flows []model.Flow) string {
-	lastSeen := ""
+func flowIDFromExecutionError(err error) string {
+	var flowErr *flowExecutionError
+	if errors.As(err, &flowErr) {
+		return flowErr.flowID
+	}
+	var freshnessErr *FreshnessError
+	if errors.As(err, &freshnessErr) {
+		return freshnessErr.FlowID
+	}
+	return ""
+}
+
+func containsFlow(flows []model.Flow, flowID string) bool {
+	if flowID == "" {
+		return false
+	}
 	for _, flow := range flows {
-		if strings.Contains(output, flow.FlowID) {
-			lastSeen = flow.FlowID
+		if flow.FlowID == flowID {
+			return true
 		}
 	}
-	if lastSeen == "" && len(flows) > 0 {
-		return flows[0].FlowID
-	}
-	return lastSeen
+	return false
 }

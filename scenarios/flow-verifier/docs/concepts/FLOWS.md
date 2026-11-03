@@ -23,6 +23,7 @@ workflow model.
 | Flow | Domain | Trigger | Outcome | Statefulness | Validation |
 |---|---|---|---|---|---|
 | Attachment upload | notes | User/CLI uploads a file for a note. | Blob is stored and metadata is persisted. | Stateful upload request with validation and failure paths. | Level 5 workflow tests: matrix, traces, declarative spec, checked Quint model, generated artifacts, and production replay. |
+| Verification run | verifications / runs | A caller verifies one or more discovered flows. | Request returns verification output and terminal history rows for completed per-flow work. | Temporal flows execute in deterministic order; the first temporal failure stops later temporal flows. Selected navigation checks run independently afterward. The database stores terminal snapshots after the request, not live queued/running transitions. | `api/internal/pipeline` tests cover ordered failure attribution; the run contract replay currently checks the pure generated transition function. |
 
 ## Flow Details
 
@@ -54,12 +55,22 @@ workflow model.
   `runtime.ts`, `replay.helper.ts`).
 - Requirements: template starter only.
 
+### Verification run
+
+- Owner domain: verifications; terminal history is stored by `internal/runs`.
+- Trigger: a caller invokes verification for one flow or a selected set of flows.
+- Steps: discover and filter flows; validate conventional files; execute selected temporal flows in order; record per-flow terminal history; run selected navigation checks independently afterward.
+- Partial failure: completed temporal flows before the first failed temporal flow are recorded as passed, that flow as failed, and later temporal flows have no row for that request. Selected navigation checks still run and record their own results. The recorder uses a flow identity carried by the execution error; stdout is retained as evidence but does not determine failure identity. A failure before any flow-specific operation has no per-flow identity and keeps the current first-flow fallback.
+- Persistence boundary: `verification_runs.status` accepts only `passed`, `failed` and `error`. `api/internal/runs/flow/flow.json` declares queued/running/terminal transitions as an execution model, but production does not create or update a durable row for queued or running, nor replay crash/cancellation transitions against the repository. Treat durable active-run recovery as unimplemented.
+- Tests: `api/internal/pipeline/pipeline_test.go` covers flow identity on preflight failure; `api/internal/pipeline/freshness_test.go` covers partial history attribution. `api/internal/runs/sqlite_test.go` covers terminal snapshot persistence and history ordering. `api/internal/runs/flow/flow_test.go` replays the pure generated model only.
+
 ## State Machines
 
 | Domain/Flow | States | Illegal Transitions | Enforcement |
 |---|---|---|---|
 | notes / attachment upload API | received, bytes_stored, metadata_recorded, failed | metadata before bytes, terminal-state escape, duplicate terminal events | `*.flow.json` contract, generated Quint model, generated formal artifact replay, side-effect cleanup tests |
 | notes / attachment upload UI | idle, selected, uploading, succeeded, failed | start before select, stale completion after reset/reselect, retry without file context | `*.flow.json` contract, generated Quint model, generated formal artifact replay, attempt-id stale completion tests |
+| verifications / verification run | queued, running, passed, failed, errored (declarative execution model) | illegal and terminal transitions | `api/internal/runs/flow/flow.json` plus pure generated transition replay. Storage enforces only terminal `passed` / `failed` / `error` snapshots; it does not persist the modeled active states. |
 
 ## Maturity Ladder
 

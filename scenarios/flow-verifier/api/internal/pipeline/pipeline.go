@@ -39,6 +39,24 @@ type Options struct {
 	Stdout io.Writer
 }
 
+type flowExecutionError struct {
+	flowID string
+	err    error
+}
+
+func (e *flowExecutionError) Error() string {
+	return fmt.Sprintf("flow %s: %v", e.flowID, e.err)
+}
+
+func (e *flowExecutionError) Unwrap() error { return e.err }
+
+func withFlowExecutionError(flowID string, err error) error {
+	if err == nil {
+		return nil
+	}
+	return &flowExecutionError{flowID: flowID, err: err}
+}
+
 func Run(ctx context.Context, options Options) error {
 	stdout := options.Stdout
 	if stdout == nil {
@@ -55,7 +73,7 @@ func Run(ctx context.Context, options Options) error {
 	if options.Mode == ModeCheck {
 		for _, flow := range options.Flows {
 			if err := contract.ValidateConventionalFiles(options.Root, contractFromFlow(flow)); err != nil {
-				return err
+				return withFlowExecutionError(flow.FlowID, err)
 			}
 		}
 	}
@@ -73,10 +91,10 @@ func Run(ctx context.Context, options Options) error {
 	for _, flow := range options.Flows {
 		files, err := buildOutputPlan(ctx, options.Root, flow, quintVersion, runner)
 		if err != nil {
-			return err
+			return withFlowExecutionError(flow.FlowID, err)
 		}
 		if err := applyOutputPlan(fs, options.Root, flow.FlowID, options.Mode, files); err != nil {
-			return err
+			return withFlowExecutionError(flow.FlowID, err)
 		}
 		if options.Mode == ModeCheck {
 			fmt.Fprintf(stdout, "fresh %s\n", flow.FlowID)

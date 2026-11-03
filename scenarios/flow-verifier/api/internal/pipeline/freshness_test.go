@@ -2,6 +2,7 @@ package pipeline
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 
@@ -10,6 +11,35 @@ import (
 
 type capturingRecorder struct {
 	entries []RunEntry
+}
+
+func TestRecordPerFlowUsesStructuredFailureIdentity(t *testing.T) {
+	rec := &capturingRecorder{}
+	flows := []model.Flow{
+		{FlowID: "first.flow"},
+		{FlowID: "second.flow"},
+		{FlowID: "third.flow"},
+	}
+	started := map[string]time.Time{
+		"first.flow":  time.Now(),
+		"second.flow": time.Now(),
+		"third.flow":  time.Now(),
+	}
+	runErr := &flowExecutionError{
+		flowID: "second.flow",
+		err:    errors.New("failure detail mentions third.flow path"),
+	}
+	recordPerFlow(context.Background(), rec, flows, started, ModeCheck, "/root", "fresh first.flow\n", runErr)
+
+	if len(rec.entries) != 2 {
+		t.Fatalf("recorded %d entries, want first success and second failure only: %+v", len(rec.entries), rec.entries)
+	}
+	if rec.entries[0].FlowID != "first.flow" || rec.entries[0].Status != "passed" {
+		t.Fatalf("first entry = %+v, want first.flow passed", rec.entries[0])
+	}
+	if rec.entries[1].FlowID != "second.flow" || rec.entries[1].Status != "failed" {
+		t.Fatalf("second entry = %+v, want second.flow failed", rec.entries[1])
+	}
 }
 
 func (c *capturingRecorder) Record(_ context.Context, e RunEntry) error {
