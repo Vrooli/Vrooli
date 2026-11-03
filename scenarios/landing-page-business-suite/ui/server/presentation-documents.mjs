@@ -7,7 +7,7 @@ const BRANDING = '/landing_page_business_suite.v1.BrandingService/GetPublicBrand
 const MAX_RESPONSE_BYTES = 8 * 1024 * 1024;
 const detailRoute = /^\/apps\/[a-z0-9][a-z0-9-]*$/;
 const downloadRoute = /^\/apps\/[a-z0-9][a-z0-9-]*\/download$/;
-const privateRoute = /^\/(?:admin(?:\/|$)|login$|auth(?:\/|$)|checkout$|feedback$)/;
+const privateRoute = /^\/(?:admin(?:\/|$)|login$|auth(?:\/|$)|account(?:\/|$)|checkout$|feedback$)/;
 const field = (value, camel, snake) => value?.[camel] ?? value?.[snake];
 
 // The API's canonical development routing marker is the only caller header

@@ -58,7 +58,10 @@ CREATE TABLE IF NOT EXISTS business_account_credit_reservations (
   billing_period VARCHAR(20) NOT NULL,
   limit_key VARCHAR(100) NOT NULL,
   reserved_amount BIGINT NOT NULL,
+  livemode BOOLEAN,
   actual_amount BIGINT,
+  charged_amount BIGINT NOT NULL DEFAULT 0,
+  overrun_amount BIGINT NOT NULL DEFAULT 0,
   status VARCHAR(20) NOT NULL DEFAULT 'pending',
   expires_at TIMESTAMP NOT NULL,
   created_at TIMESTAMP NOT NULL DEFAULT NOW(),
@@ -69,6 +72,114 @@ CREATE TABLE IF NOT EXISTS business_account_credit_reservations (
   prompt_tokens BIGINT NOT NULL DEFAULT 0,
   completion_tokens BIGINT NOT NULL DEFAULT 0,
   provider VARCHAR(100) NOT NULL DEFAULT 'openrouter'
+);
+ALTER TABLE business_account_credit_reservations ADD COLUMN IF NOT EXISTS charged_amount BIGINT NOT NULL DEFAULT 0;
+ALTER TABLE business_account_credit_reservations ADD COLUMN IF NOT EXISTS overrun_amount BIGINT NOT NULL DEFAULT 0;
+-- Null means the funding mode was not recorded. Never infer it from an
+-- account's current lots; active unknown-mode holds fail closed.
+ALTER TABLE business_account_credit_reservations ADD COLUMN IF NOT EXISTS livemode BOOLEAN;
+CREATE TABLE IF NOT EXISTS credit_funding_lots (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  business_account_id TEXT NOT NULL,
+  source_kind VARCHAR(40) NOT NULL,
+  provider VARCHAR(40) NOT NULL DEFAULT 'unknown',
+  provider_ref TEXT,
+  provider_ref2 TEXT,
+  external_event_id TEXT,
+  livemode BOOLEAN,
+  settlement_state VARCHAR(20) NOT NULL DEFAULT 'pending' CHECK (settlement_state IN ('pending','settled','failed','reversed')),
+  spendable_after TIMESTAMP,
+  reversal_window_ends TIMESTAMP,
+  reversal_risk VARCHAR(32),
+  paid_amount_minor BIGINT,
+  paid_currency CHAR(3),
+  cost_basis_usd_micros BIGINT,
+  basis_rate_ref TEXT,
+  granted BIGINT NOT NULL CHECK (granted >= 0),
+  remaining BIGINT NOT NULL CHECK (remaining >= 0 AND remaining <= granted),
+  expires_at TIMESTAMP,
+  status VARCHAR(20) NOT NULL DEFAULT 'open' CHECK (status IN ('open','frozen','exhausted','expired','reversed')),
+  funding_fingerprint TEXT,
+  policy_id TEXT,
+  created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+  UNIQUE (business_account_id, provider, provider_ref)
+);
+CREATE INDEX IF NOT EXISTS idx_credit_funding_lots_spendable ON credit_funding_lots(business_account_id, status, settlement_state, livemode, spendable_after, expires_at);
+CREATE TABLE IF NOT EXISTS credit_lot_allocations (
+  id TEXT PRIMARY KEY,
+  lot_id UUID NOT NULL REFERENCES credit_funding_lots(id),
+  operation_id TEXT NOT NULL,
+  credits BIGINT NOT NULL CHECK (credits > 0),
+  cost_micros BIGINT NOT NULL DEFAULT 0 CHECK (cost_micros >= 0),
+  created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+  UNIQUE (lot_id, operation_id)
+);
+CREATE INDEX IF NOT EXISTS idx_credit_lot_allocations_operation ON credit_lot_allocations(operation_id);
+CREATE TABLE IF NOT EXISTS funding_losses (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  lot_id UUID NOT NULL REFERENCES credit_funding_lots(id),
+  kind VARCHAR(40) NOT NULL,
+  consumed_cost_micros BIGINT NOT NULL DEFAULT 0,
+  fee_minor BIGINT NOT NULL DEFAULT 0,
+  reversed_revenue_minor BIGINT NOT NULL DEFAULT 0,
+  refunded_revenue_minor BIGINT NOT NULL DEFAULT 0,
+  disputed_revenue_minor BIGINT NOT NULL DEFAULT 0,
+  recorded_to_account TEXT NOT NULL,
+  event_ref TEXT NOT NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+  UNIQUE (lot_id, event_ref, kind)
+);
+CREATE INDEX IF NOT EXISTS idx_funding_losses_account ON funding_losses(recorded_to_account, created_at);
+-- Provider lifecycle is distinct from lot exhaustion. Replays and late delivery
+-- cannot reopen a finalized dispute or increase an already-applied refund.
+CREATE TABLE IF NOT EXISTS funding_payment_states (
+  lot_id UUID PRIMARY KEY REFERENCES credit_funding_lots(id),
+  fraud_warning BOOLEAN NOT NULL DEFAULT FALSE,
+  restricted_at TIMESTAMP,
+  refunded_minor BIGINT NOT NULL DEFAULT 0 CHECK (refunded_minor >= 0)
+);
+CREATE TABLE IF NOT EXISTS funding_disputes (
+  lot_id UUID NOT NULL REFERENCES credit_funding_lots(id),
+  dispute_id TEXT NOT NULL,
+  status TEXT NOT NULL,
+  amount_minor BIGINT NOT NULL DEFAULT 0,
+  PRIMARY KEY(lot_id,dispute_id)
+);
+-- Immutable Stripe balance transactions own actual withdrawn/reinstated
+-- principal and fees, including partial returns whose dispute stays lost.
+CREATE TABLE IF NOT EXISTS funding_dispute_balance_transactions (
+  lot_id UUID NOT NULL,
+  dispute_id TEXT NOT NULL,
+  transaction_id TEXT NOT NULL,
+  amount_minor BIGINT NOT NULL,
+  fee_minor BIGINT NOT NULL,
+  currency CHAR(3) NOT NULL,
+  PRIMARY KEY(lot_id,dispute_id,transaction_id),
+  FOREIGN KEY(lot_id,dispute_id) REFERENCES funding_disputes(lot_id,dispute_id)
+);
+CREATE TABLE IF NOT EXISTS funding_provider_events (
+  event_id TEXT NOT NULL,
+  livemode BOOLEAN NOT NULL,
+  payload JSONB NOT NULL,
+  PRIMARY KEY(event_id,livemode)
+);
+CREATE TABLE IF NOT EXISTS funding_purchase_blocks (
+  business_account_id TEXT PRIMARY KEY,
+  reason TEXT NOT NULL,
+  event_ref TEXT NOT NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT NOW()
+);
+-- No production trust values are seeded. Operator-owned policy is data;
+-- journey fixtures insert isolated proposals without approving a trust bar.
+CREATE TABLE IF NOT EXISTS funding_source_policies (
+  id TEXT PRIMARY KEY,
+  provider TEXT NOT NULL,
+  source_kind TEXT NOT NULL,
+  young_account_seconds BIGINT NOT NULL CHECK (young_account_seconds >= 0),
+  young_hold_seconds BIGINT NOT NULL CHECK (young_hold_seconds >= 0),
+  young_cap_credits BIGINT NOT NULL CHECK (young_cap_credits >= 0),
+  mature_cap_credits BIGINT NOT NULL CHECK (mature_cap_credits >= 0),
+  UNIQUE(provider,source_kind)
 );
 CREATE INDEX IF NOT EXISTS idx_business_account_reservations_active ON business_account_credit_reservations(business_account_id, billing_period, limit_key, status);
 CREATE INDEX IF NOT EXISTS idx_business_account_reservations_expiry ON business_account_credit_reservations(status, expires_at);
@@ -84,6 +195,28 @@ CREATE TABLE IF NOT EXISTS business_account_usage_events (
   prompt_tokens BIGINT NOT NULL DEFAULT 0,
   completion_tokens BIGINT NOT NULL DEFAULT 0,
   provider VARCHAR(100) NOT NULL DEFAULT 'openrouter',
+  feature_id TEXT NOT NULL DEFAULT '',
   created_at TIMESTAMP NOT NULL DEFAULT NOW()
 );
+ALTER TABLE business_account_usage_events ADD COLUMN IF NOT EXISTS feature_id TEXT NOT NULL DEFAULT '';
 CREATE INDEX IF NOT EXISTS idx_business_account_usage_events_account ON business_account_usage_events(business_account_id, created_at);
+-- The outbox commits with the lot mutation, independently of ledger uptime.
+-- Separate mode-specific sinks prevent test reversals reaching a live book.
+CREATE TABLE IF NOT EXISTS funding_ledger_sinks (
+  livemode BOOLEAN PRIMARY KEY,
+  endpoint TEXT NOT NULL,
+  adapter_id TEXT NOT NULL,
+  book_id TEXT NOT NULL,
+  loss_account_id TEXT NOT NULL,
+  refund_account_id TEXT NOT NULL,
+  fee_account_id TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS funding_ledger_outbox (
+  id BIGSERIAL PRIMARY KEY,
+  lot_id UUID NOT NULL REFERENCES credit_funding_lots(id),
+  category TEXT NOT NULL,
+  amount_minor BIGINT NOT NULL CHECK(amount_minor<>0),
+  currency TEXT NOT NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+  delivered_at TIMESTAMP
+);

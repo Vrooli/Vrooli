@@ -3,6 +3,7 @@ package commerce
 import (
 	"errors"
 	"fmt"
+	"math"
 	"strings"
 
 	shared "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-business-suite/v1/shared"
@@ -72,9 +73,12 @@ func (s *CreditTopupService) Apply(customerEmail string, amountCents int64, plan
 		return errors.New("amount is zero - cannot process credit topup")
 	}
 
+	if bundle.CreditsPerUsd <= 0 || amountCents > math.MaxInt64/bundle.CreditsPerUsd {
+		return errors.New("credit top-up conversion is invalid or overflows")
+	}
 	credits := (bundle.CreditsPerUsd * amountCents) / 100
 	if credits <= 0 {
-		return nil
+		return errors.New("credit top-up must grant a positive amount")
 	}
 	if metadata == nil {
 		metadata = make(map[string]interface{})
@@ -84,15 +88,15 @@ func (s *CreditTopupService) Apply(customerEmail string, amountCents int64, plan
 	if s.wallet == nil {
 		return errors.New("credit wallet unavailable for credit top-up")
 	}
-	if businessAccountID := metadataString(metadata, "business_account_id"); businessAccountID != "" {
-		scoped, ok := s.wallet.(BusinessAccountCreditWallet)
-		if !ok {
-			return errors.New("account-scoped credit wallet unavailable")
-		}
-		return scoped.AddCreditsForBusinessAccount(businessAccountID, customerEmail, credits, "credit_topup", "stripe", providerEventID, metadata)
+	if strings.TrimSpace(providerEventID) == "" {
+		return errors.New("provider event attribution is required")
 	}
-	if sourceWallet, ok := s.wallet.(SourceCreditWallet); ok {
-		return sourceWallet.AddCreditsFromSource(customerEmail, credits, "credit_topup", "stripe", providerEventID, metadata)
+	accountID := metadataString(metadata, "business_account_id")
+	if accountID == "" {
+		return ErrBusinessAccountRequired
 	}
-	return s.wallet.AddCredits(customerEmail, credits, "credit_topup", providerEventID, metadata)
+	if _, err := knownGrantMode(metadata); err != nil {
+		return err
+	}
+	return s.wallet.AddCreditsForBusinessAccount(accountID, customerEmail, credits, "credit_topup", "stripe", providerEventID, metadata)
 }

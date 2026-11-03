@@ -246,84 +246,39 @@ func subscriptionStatusFromRecord(user string, record *subscriptionRecord) *shar
 	return result
 }
 
-func (s *Service) GetCredits(userIdentity string) (*CreditsEnvelope, error) {
-	return s.GetCreditsContext(context.Background(), userIdentity)
-}
-
-// GetCreditsContext reads credit balance using the caller's context.
-func (s *Service) GetCreditsContext(ctx context.Context, userIdentity string) (*CreditsEnvelope, error) {
-	userIdentity = s.normalizeEmail(userIdentity)
-	if userIdentity == "" {
-		return &CreditsEnvelope{
-			Balance: &shared.CreditsBalance{
-				CustomerEmail:  "",
-				BalanceCredits: 0,
-				BundleKey:      s.bundleKey,
-				UpdatedAt:      timestamppb.Now(),
-			},
-			DisplayCreditsLabel:      "credits",
-			DisplayCreditsMultiplier: 1.0,
-		}, nil
-	}
-
-	query := `
-		SELECT customer_email, balance_credits, bonus_credits, updated_at
-		FROM credit_wallets
-		WHERE customer_email = $1
-		LIMIT 1
-	`
-
-	row := s.db.QueryRowContext(ctx, query, userIdentity)
-	var balance shared.CreditsBalance
-	var updatedAt time.Time
-	if err := row.Scan(
-		&balance.CustomerEmail,
-		&balance.BalanceCredits,
-		new(int64), // bonus credits (unused placeholder)
-		&updatedAt,
-	); err != nil {
-		if err == sql.ErrNoRows {
-			// No wallet yet; return zero values
-			balance.CustomerEmail = userIdentity
-		} else {
-			return nil, err
-		}
-	}
-
-	return s.decorateCredits(balance, updatedAt), nil
-}
-
-// GetCreditsForBusinessAccountContext reads the separate account-scoped
-// wallet created by an account-bound checkout. It never falls back to the
-// legacy person-email wallet, because that would reintroduce cross-account
-// credit leakage.
+// GetCreditsForBusinessAccountContext reports only attributed account lots.
+// Cached wallet balances are not funding provenance, and this path never
+// falls back to the person-email wallet for a selected business account.
 func (s *Service) GetCreditsForBusinessAccountContext(ctx context.Context, userIdentity, businessAccountID string) (*CreditsEnvelope, error) {
 	userIdentity = s.normalizeEmail(userIdentity)
 	businessAccountID = strings.TrimSpace(businessAccountID)
 	if userIdentity == "" || businessAccountID == "" {
-		return s.GetCreditsContext(ctx, userIdentity)
+		return nil, ErrBusinessAccountRequired
 	}
-	var balance shared.CreditsBalance
-	var updatedAt time.Time
+	var balance int64
 	err := s.db.QueryRowContext(ctx, `
-		SELECT customer_email, balance_credits, bonus_credits, updated_at
-		FROM business_account_credit_wallets
-		WHERE business_account_id = $1 AND customer_email = $2
-		LIMIT 1
-	`, businessAccountID, userIdentity).Scan(&balance.CustomerEmail, &balance.BalanceCredits, new(int64), &updatedAt)
-	if err != nil && err != sql.ErrNoRows {
+		SELECT COALESCE(SUM(l.remaining), 0)
+		FROM credit_funding_lots l
+		JOIN business_account_credit_wallets w ON w.business_account_id = l.business_account_id
+		WHERE w.business_account_id = $1
+		  AND w.customer_email = $2
+		  AND l.status = 'open'
+		  AND l.settlement_state = 'settled'
+		  AND l.livemode IS NOT NULL
+		  AND (l.spendable_after IS NULL OR l.spendable_after <= CURRENT_TIMESTAMP)
+		  AND (l.expires_at IS NULL OR l.expires_at > CURRENT_TIMESTAMP)
+	`, businessAccountID, userIdentity).Scan(&balance)
+	if err != nil {
 		return nil, err
 	}
-	if err == sql.ErrNoRows {
-		balance.CustomerEmail = userIdentity
-	}
-	return s.decorateCredits(balance, updatedAt), nil
+	credits := shared.CreditsBalance{CustomerEmail: userIdentity, BalanceCredits: balance}
+	return s.decorateCredits(credits, time.Time{}), nil
 }
 
 func (s *Service) decorateCredits(balance shared.CreditsBalance, updatedAt time.Time) *CreditsEnvelope {
 	label := "credits"
 	multiplier := 1.0
-	if pOverview, err := s.planService.GetPricingOverview(); err == nil {
+	if pOverview, err := s.planService.GetPricingOverview(); err == nil && pOverview != nil && pOverview.Bundle != nil {
 		label = pOverview.Bundle.DisplayCreditsLabel
 		multiplier = pOverview.Bundle.DisplayCreditsMultiplier
 		balance.BundleKey = pOverview.Bundle.BundleKey
@@ -410,9 +365,14 @@ func (s *Service) getEntitlementsContext(ctx context.Context, userIdentity, busi
 		return nil, err
 	}
 
-	credits, err := s.GetCreditsForBusinessAccountContext(ctx, userIdentity, businessAccountID)
-	if err != nil {
-		return nil, err
+	// Subscription-only callers do not obtain credit authority without an
+	// authenticated account selection. Their subscription entitlements remain.
+	credits := s.decorateCredits(shared.CreditsBalance{CustomerEmail: userIdentity}, time.Time{})
+	if businessAccountID != "" {
+		credits, err = s.GetCreditsForBusinessAccountContext(ctx, userIdentity, businessAccountID)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	payload := &EntitlementPayload{

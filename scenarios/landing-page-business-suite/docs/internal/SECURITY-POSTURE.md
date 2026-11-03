@@ -36,7 +36,7 @@ The user-facing security surface is also covered by `docs/reference/SECURITY.md`
                   │   /api/v1/deploy-readiness
                   │   (requireAdminOrService — admin cookie OR service bearer)
                   │
-                  ├── /api/v1/usage/report     (service bearer only)
+                  ├── /api/v1/usage/report     (authenticated user; body identity ignored)
                   │
                   └── /api/v1/webhooks/stripe  (Stripe signature verification)
 ```
@@ -92,6 +92,12 @@ After the identity migration, the service-bearer path must be replaced or
 constrained to the generated authenticator management client for identity
 operations. Product-admin authorization remains in LPBS; identity-admin
 authorization remains in the authenticator.
+
+## Credit authority boundary
+
+Business-account membership comes from the canonical account resolver and the authenticated actor; a caller-supplied account ID or email cannot establish membership. Account grant persistence requires provider source, immutable event data, and known live/test mode, and creates the grant ledger link and lot atomically. The personal email wallet is not a fallback funding authority. Count-based quota is a separate principal-scoped owner with server-derived tier and cannot mutate credit lots.
+
+App scope is not authenticated by request metadata or a header. The existing key/session owner must first prove the app-to-bundle binding before any app-bound credit admission, hold, replay, or settlement can be enabled. That authority source has not been found, and missing metadata is not proof of a global caller. E2a1 remains open; isolated money and quota tests are not production app-identity or provider-receipt evidence. No live credential, provider, payment, trust, or price operation is implied by this migration.
 
 ## Abuse resistance
 

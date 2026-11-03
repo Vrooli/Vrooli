@@ -6,6 +6,7 @@ import (
 
 	"landing-page-business-suite-api/internal/businessaccount"
 	"landing-page-business-suite-api/internal/commerce"
+	intelligencecore "landing-page-business-suite-api/internal/intelligence"
 )
 
 func TestNewMeteredInferenceDependencies_ComposesUsageAndSubscriptionSeams(t *testing.T) {
@@ -42,5 +43,13 @@ func TestNewMeteredInferenceDependencies_ComposesUsageAndSubscriptionSeams(t *te
 	}
 	if tier != "" {
 		t.Fatalf("expected no tier for a user without a subscription, got %q", tier)
+	}
+}
+
+func TestCommerceReportCarriesOperationID(t *testing.T) {
+	operationID := "usage-replay-key"
+	request := commerceReport(intelligencecore.UsageReport{OperationID: &operationID})
+	if request.OperationID == nil || *request.OperationID != operationID {
+		t.Fatalf("operation_id=%v, want %q", request.OperationID, operationID)
 	}
 }

@@ -1,0 +1,815 @@
+{
+  "schemaVersion": 6,
+  "flowId": "commerce.reservation.api",
+  "source": {
+    "contractPath": "api/internal/commerce/reservation/flow/flow.json",
+    "contractSha256": "8499b13e8e4449bc6a682b1dd19f373d321f25efe159219405c105cdee2f0f50",
+    "generatorPath": "flow-verifier",
+    "generatorSha256": "2f4bdb4736a693e8d45276b8ad50a7f9078816d749b1d31b315d67302d62b864",
+    "generatorVersion": 7,
+    "modelPath": "api/internal/commerce/reservation/flow/generated/model.qnt",
+    "modelSha256": "b310f0a5b1b9b37bc83f4e1c2fa86ba9afc6f7f81ba9acc551701f4bda355cf3",
+    "quintVersion": "0.32.0",
+    "verificationBackend": "apalache"
+  },
+  "commands": {
+    "run": [
+      "quint",
+      "run",
+      "api/internal/commerce/reservation/flow/generated/model.qnt",
+      "--mbt",
+      "--seed",
+      "2026110101",
+      "--max-samples",
+      "12",
+      "--n-traces",
+      "12",
+      "--max-steps",
+      "6",
+      "--out-itf",
+      "<temp-itf-pattern>"
+    ],
+    "test": [
+      "quint",
+      "test",
+      "api/internal/commerce/reservation/flow/generated/model.qnt",
+      "--seed",
+      "2026110101"
+    ],
+    "typecheck": [
+      "quint",
+      "typecheck",
+      "api/internal/commerce/reservation/flow/generated/model.qnt"
+    ],
+    "verify": [
+      "quint",
+      "verify",
+      "api/internal/commerce/reservation/flow/generated/model.qnt",
+      "--invariants",
+      "TypeOK",
+      "TerminalClosure",
+      "IllegalTransitionsPreserveState",
+      "--max-steps",
+      "6"
+    ]
+  },
+  "states": [
+    "pending",
+    "finalized",
+    "overrun",
+    "released",
+    "expired"
+  ],
+  "events": [
+    "finalize",
+    "finalize_overrun",
+    "release",
+    "expire",
+    "retain"
+  ],
+  "transitions": [
+    {
+      "from": "pending",
+      "event": "finalize",
+      "to": "finalized",
+      "wantError": false
+    },
+    {
+      "from": "pending",
+      "event": "finalize_overrun",
+      "to": "overrun",
+      "wantError": false
+    },
+    {
+      "from": "pending",
+      "event": "release",
+      "to": "released",
+      "wantError": false
+    },
+    {
+      "from": "pending",
+      "event": "expire",
+      "to": "expired",
+      "wantError": false
+    },
+    {
+      "from": "pending",
+      "event": "retain",
+      "to": "pending",
+      "wantError": false
+    },
+    {
+      "from": "finalized",
+      "event": "finalize",
+      "to": "finalized",
+      "wantError": true
+    },
+    {
+      "from": "finalized",
+      "event": "finalize_overrun",
+      "to": "finalized",
+      "wantError": true
+    },
+    {
+      "from": "finalized",
+      "event": "release",
+      "to": "finalized",
+      "wantError": true
+    },
+    {
+      "from": "finalized",
+      "event": "expire",
+      "to": "finalized",
+      "wantError": true
+    },
+    {
+      "from": "finalized",
+      "event": "retain",
+      "to": "finalized",
+      "wantError": true
+    },
+    {
+      "from": "overrun",
+      "event": "finalize",
+      "to": "overrun",
+      "wantError": true
+    },
+    {
+      "from": "overrun",
+      "event": "finalize_overrun",
+      "to": "overrun",
+      "wantError": true
+    },
+    {
+      "from": "overrun",
+      "event": "release",
+      "to": "overrun",
+      "wantError": true
+    },
+    {
+      "from": "overrun",
+      "event": "expire",
+      "to": "overrun",
+      "wantError": true
+    },
+    {
+      "from": "overrun",
+      "event": "retain",
+      "to": "overrun",
+      "wantError": true
+    },
+    {
+      "from": "released",
+      "event": "finalize",
+      "to": "released",
+      "wantError": true
+    },
+    {
+      "from": "released",
+      "event": "finalize_overrun",
+      "to": "released",
+      "wantError": true
+    },
+    {
+      "from": "released",
+      "event": "release",
+      "to": "released",
+      "wantError": true
+    },
+    {
+      "from": "released",
+      "event": "expire",
+      "to": "released",
+      "wantError": true
+    },
+    {
+      "from": "released",
+      "event": "retain",
+      "to": "released",
+      "wantError": true
+    },
+    {
+      "from": "expired",
+      "event": "finalize",
+      "to": "expired",
+      "wantError": true
+    },
+    {
+      "from": "expired",
+      "event": "finalize_overrun",
+      "to": "expired",
+      "wantError": true
+    },
+    {
+      "from": "expired",
+      "event": "release",
+      "to": "expired",
+      "wantError": true
+    },
+    {
+      "from": "expired",
+      "event": "expire",
+      "to": "expired",
+      "wantError": true
+    },
+    {
+      "from": "expired",
+      "event": "retain",
+      "to": "expired",
+      "wantError": true
+    }
+  ],
+  "namedTraces": [
+    {
+      "name": "settle_once",
+      "initial": "pending",
+      "steps": [
+        {
+          "event": "finalize",
+          "want": "finalized",
+          "wantError": false
+        }
+      ]
+    },
+    {
+      "name": "release_hold",
+      "initial": "pending",
+      "steps": [
+        {
+          "event": "release",
+          "want": "released",
+          "wantError": false
+        }
+      ]
+    },
+    {
+      "name": "overrun_remains_terminal",
+      "initial": "pending",
+      "steps": [
+        {
+          "event": "finalize_overrun",
+          "want": "overrun",
+          "wantError": false
+        },
+        {
+          "event": "finalize_overrun",
+          "want": "overrun",
+          "wantError": true
+        },
+        {
+          "event": "release",
+          "want": "overrun",
+          "wantError": true
+        },
+        {
+          "event": "expire",
+          "want": "overrun",
+          "wantError": true
+        }
+      ]
+    },
+    {
+      "name": "expire_hold",
+      "initial": "pending",
+      "steps": [
+        {
+          "event": "expire",
+          "want": "expired",
+          "wantError": false
+        }
+      ]
+    },
+    {
+      "name": "retain_then_settle",
+      "initial": "pending",
+      "steps": [
+        {
+          "event": "retain",
+          "want": "pending",
+          "wantError": false
+        },
+        {
+          "event": "finalize",
+          "want": "finalized",
+          "wantError": false
+        }
+      ]
+    }
+  ],
+  "generatedTraces": [
+    {
+      "name": "generated_model_001",
+      "initial": "pending",
+      "steps": [
+        {
+          "event": "release",
+          "want": "released",
+          "wantError": false
+        },
+        {
+          "event": "finalize",
+          "want": "released",
+          "wantError": true
+        },
+        {
+          "event": "finalize",
+          "want": "released",
+          "wantError": true
+        },
+        {
+          "event": "finalize_overrun",
+          "want": "released",
+          "wantError": true
+        },
+        {
+          "event": "retain",
+          "want": "released",
+          "wantError": true
+        },
+        {
+          "event": "retain",
+          "want": "released",
+          "wantError": true
+        }
+      ]
+    },
+    {
+      "name": "generated_model_002",
+      "initial": "pending",
+      "steps": [
+        {
+          "event": "expire",
+          "want": "expired",
+          "wantError": false
+        },
+        {
+          "event": "release",
+          "want": "expired",
+          "wantError": true
+        },
+        {
+          "event": "expire",
+          "want": "expired",
+          "wantError": true
+        },
+        {
+          "event": "finalize",
+          "want": "expired",
+          "wantError": true
+        },
+        {
+          "event": "release",
+          "want": "expired",
+          "wantError": true
+        },
+        {
+          "event": "release",
+          "want": "expired",
+          "wantError": true
+        }
+      ]
+    },
+    {
+      "name": "generated_model_003",
+      "initial": "pending",
+      "steps": [
+        {
+          "event": "finalize_overrun",
+          "want": "overrun",
+          "wantError": false
+        },
+        {
+          "event": "retain",
+          "want": "overrun",
+          "wantError": true
+        },
+        {
+          "event": "release",
+          "want": "overrun",
+          "wantError": true
+        },
+        {
+          "event": "expire",
+          "want": "overrun",
+          "wantError": true
+        },
+        {
+          "event": "release",
+          "want": "overrun",
+          "wantError": true
+        },
+        {
+          "event": "expire",
+          "want": "overrun",
+          "wantError": true
+        }
+      ]
+    },
+    {
+      "name": "generated_model_004",
+      "initial": "pending",
+      "steps": [
+        {
+          "event": "release",
+          "want": "released",
+          "wantError": false
+        },
+        {
+          "event": "expire",
+          "want": "released",
+          "wantError": true
+        },
+        {
+          "event": "finalize",
+          "want": "released",
+          "wantError": true
+        },
+        {
+          "event": "finalize",
+          "want": "released",
+          "wantError": true
+        },
+        {
+          "event": "finalize",
+          "want": "released",
+          "wantError": true
+        },
+        {
+          "event": "finalize_overrun",
+          "want": "released",
+          "wantError": true
+        }
+      ]
+    },
+    {
+      "name": "generated_model_005",
+      "initial": "pending",
+      "steps": [
+        {
+          "event": "retain",
+          "want": "pending",
+          "wantError": false
+        },
+        {
+          "event": "retain",
+          "want": "pending",
+          "wantError": false
+        },
+        {
+          "event": "expire",
+          "want": "expired",
+          "wantError": false
+        },
+        {
+          "event": "retain",
+          "want": "expired",
+          "wantError": true
+        },
+        {
+          "event": "finalize_overrun",
+          "want": "expired",
+          "wantError": true
+        },
+        {
+          "event": "retain",
+          "want": "expired",
+          "wantError": true
+        }
+      ]
+    },
+    {
+      "name": "generated_model_006",
+      "initial": "pending",
+      "steps": [
+        {
+          "event": "expire",
+          "want": "expired",
+          "wantError": false
+        },
+        {
+          "event": "retain",
+          "want": "expired",
+          "wantError": true
+        },
+        {
+          "event": "expire",
+          "want": "expired",
+          "wantError": true
+        },
+        {
+          "event": "expire",
+          "want": "expired",
+          "wantError": true
+        },
+        {
+          "event": "finalize",
+          "want": "expired",
+          "wantError": true
+        },
+        {
+          "event": "expire",
+          "want": "expired",
+          "wantError": true
+        }
+      ]
+    },
+    {
+      "name": "generated_model_007",
+      "initial": "pending",
+      "steps": [
+        {
+          "event": "finalize",
+          "want": "finalized",
+          "wantError": false
+        },
+        {
+          "event": "finalize_overrun",
+          "want": "finalized",
+          "wantError": true
+        },
+        {
+          "event": "release",
+          "want": "finalized",
+          "wantError": true
+        },
+        {
+          "event": "finalize",
+          "want": "finalized",
+          "wantError": true
+        },
+        {
+          "event": "retain",
+          "want": "finalized",
+          "wantError": true
+        },
+        {
+          "event": "finalize_overrun",
+          "want": "finalized",
+          "wantError": true
+        }
+      ]
+    },
+    {
+      "name": "generated_model_008",
+      "initial": "pending",
+      "steps": [
+        {
+          "event": "retain",
+          "want": "pending",
+          "wantError": false
+        },
+        {
+          "event": "finalize_overrun",
+          "want": "overrun",
+          "wantError": false
+        },
+        {
+          "event": "retain",
+          "want": "overrun",
+          "wantError": true
+        },
+        {
+          "event": "retain",
+          "want": "overrun",
+          "wantError": true
+        },
+        {
+          "event": "finalize_overrun",
+          "want": "overrun",
+          "wantError": true
+        },
+        {
+          "event": "finalize_overrun",
+          "want": "overrun",
+          "wantError": true
+        }
+      ]
+    },
+    {
+      "name": "generated_model_009",
+      "initial": "pending",
+      "steps": [
+        {
+          "event": "release",
+          "want": "released",
+          "wantError": false
+        },
+        {
+          "event": "finalize_overrun",
+          "want": "released",
+          "wantError": true
+        },
+        {
+          "event": "retain",
+          "want": "released",
+          "wantError": true
+        },
+        {
+          "event": "release",
+          "want": "released",
+          "wantError": true
+        },
+        {
+          "event": "finalize_overrun",
+          "want": "released",
+          "wantError": true
+        },
+        {
+          "event": "finalize",
+          "want": "released",
+          "wantError": true
+        }
+      ]
+    },
+    {
+      "name": "generated_model_010",
+      "initial": "pending",
+      "steps": [
+        {
+          "event": "release",
+          "want": "released",
+          "wantError": false
+        },
+        {
+          "event": "finalize",
+          "want": "released",
+          "wantError": true
+        },
+        {
+          "event": "retain",
+          "want": "released",
+          "wantError": true
+        },
+        {
+          "event": "finalize",
+          "want": "released",
+          "wantError": true
+        },
+        {
+          "event": "finalize_overrun",
+          "want": "released",
+          "wantError": true
+        },
+        {
+          "event": "release",
+          "want": "released",
+          "wantError": true
+        }
+      ]
+    },
+    {
+      "name": "generated_model_011",
+      "initial": "pending",
+      "steps": [
+        {
+          "event": "finalize",
+          "want": "finalized",
+          "wantError": false
+        },
+        {
+          "event": "finalize",
+          "want": "finalized",
+          "wantError": true
+        },
+        {
+          "event": "expire",
+          "want": "finalized",
+          "wantError": true
+        },
+        {
+          "event": "finalize_overrun",
+          "want": "finalized",
+          "wantError": true
+        },
+        {
+          "event": "retain",
+          "want": "finalized",
+          "wantError": true
+        },
+        {
+          "event": "finalize_overrun",
+          "want": "finalized",
+          "wantError": true
+        }
+      ]
+    },
+    {
+      "name": "generated_model_012",
+      "initial": "pending",
+      "steps": [
+        {
+          "event": "release",
+          "want": "released",
+          "wantError": false
+        },
+        {
+          "event": "retain",
+          "want": "released",
+          "wantError": true
+        },
+        {
+          "event": "release",
+          "want": "released",
+          "wantError": true
+        },
+        {
+          "event": "expire",
+          "want": "released",
+          "wantError": true
+        },
+        {
+          "event": "finalize_overrun",
+          "want": "released",
+          "wantError": true
+        },
+        {
+          "event": "expire",
+          "want": "released",
+          "wantError": true
+        }
+      ]
+    }
+  ],
+  "invariants": [
+    "TypeOK",
+    "TerminalClosure",
+    "IllegalTransitionsPreserveState"
+  ],
+  "generatedChecks": [
+    "transitionTable"
+  ],
+  "coverage": {
+    "transitionMatrixComplete": true,
+    "terminalTransitionsChecked": true,
+    "namedTraces": {
+      "allStatesCovered": true,
+      "allEventsCovered": true,
+      "coveredStates": [
+        "pending",
+        "finalized",
+        "overrun",
+        "released",
+        "expired"
+      ],
+      "coveredEvents": [
+        "finalize",
+        "finalize_overrun",
+        "release",
+        "expire",
+        "retain"
+      ]
+    },
+    "generatedTraces": {
+      "allStatesCovered": true,
+      "allEventsCovered": true,
+      "coveredStates": [
+        "pending",
+        "finalized",
+        "overrun",
+        "released",
+        "expired"
+      ],
+      "coveredEvents": [
+        "finalize",
+        "finalize_overrun",
+        "release",
+        "expire",
+        "retain"
+      ],
+      "coveredPairs": [
+        "pending/finalize",
+        "pending/finalize_overrun",
+        "pending/release",
+        "pending/expire",
+        "pending/retain",
+        "finalized/finalize",
+        "finalized/finalize_overrun",
+        "finalized/release",
+        "finalized/expire",
+        "finalized/retain",
+        "overrun/finalize_overrun",
+        "overrun/release",
+        "overrun/expire",
+        "overrun/retain",
+        "released/finalize",
+        "released/finalize_overrun",
+        "released/release",
+        "released/expire",
+        "released/retain",
+        "expired/finalize",
+        "expired/finalize_overrun",
+        "expired/release",
+        "expired/expire",
+        "expired/retain"
+      ],
+      "allPairsCovered": false
+    }
+  },
+  "checks": {
+    "typechecked": true,
+    "tested": true,
+    "verified": true,
+    "generatedFromContract": true,
+    "generatedFromModel": true
+  }
+}

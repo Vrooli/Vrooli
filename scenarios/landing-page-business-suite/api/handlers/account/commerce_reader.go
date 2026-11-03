@@ -16,15 +16,32 @@ import (
 // from becoming a second account domain.
 type CommerceSource interface {
 	GetSubscriptionContext(context.Context, string) (*shared.SubscriptionStatus, error)
-	GetCreditsContext(context.Context, string) (*commerce.CreditsEnvelope, error)
-	GetEntitlementsContext(context.Context, string) (*commerce.EntitlementPayload, error)
+	GetCreditsForBusinessAccountContext(context.Context, string, string) (*commerce.CreditsEnvelope, error)
+	GetEntitlementsForBusinessAccountContext(context.Context, string, string) (*commerce.EntitlementPayload, error)
 }
 
-type commerceReader struct{ service CommerceSource }
+type commerceReader struct {
+	service CommerceSource
+	resolve func(context.Context, string) (string, error)
+}
 
 // NewCommerceReader projects commerce DTOs into AccountService transport DTOs.
-func NewCommerceReader(service CommerceSource) Reader {
-	return commerceReader{service: service}
+func NewCommerceReader(service CommerceSource, resolve func(context.Context, string) (string, error)) Reader {
+	return commerceReader{service: service, resolve: resolve}
+}
+
+func (r commerceReader) account(ctx context.Context, user string) (string, error) {
+	if r.resolve == nil {
+		return "", commerce.ErrBusinessAccountRequired
+	}
+	account, err := r.resolve(ctx, user)
+	if err != nil {
+		return "", err
+	}
+	if strings.TrimSpace(account) == "" {
+		return "", commerce.ErrBusinessAccountRequired
+	}
+	return account, nil
 }
 
 func (r commerceReader) GetSubscriptionContext(ctx context.Context, user string) (*shared.SubscriptionStatus, error) {
@@ -32,7 +49,11 @@ func (r commerceReader) GetSubscriptionContext(ctx context.Context, user string)
 }
 
 func (r commerceReader) GetCreditsContext(ctx context.Context, user string) (*Credits, error) {
-	credits, err := r.service.GetCreditsContext(ctx, user)
+	account, err := r.account(ctx, user)
+	if err != nil {
+		return nil, err
+	}
+	credits, err := r.service.GetCreditsForBusinessAccountContext(ctx, user, account)
 	if err != nil {
 		return nil, err
 	}
@@ -43,7 +64,11 @@ func (r commerceReader) GetCreditsContext(ctx context.Context, user string) (*Cr
 }
 
 func (r commerceReader) GetEntitlementsContext(ctx context.Context, user string) (*Entitlements, error) {
-	entitlements, err := r.service.GetEntitlementsContext(ctx, user)
+	account, err := r.account(ctx, user)
+	if err != nil {
+		return nil, err
+	}
+	entitlements, err := r.service.GetEntitlementsForBusinessAccountContext(ctx, user, account)
 	if err != nil {
 		return nil, err
 	}
@@ -57,7 +82,11 @@ func (r commerceReader) GetCommercialContext(ctx context.Context, user, placemen
 	// Eligibility is evaluated here, on the commercial owner. Integrations is
 	// intentionally allow-listed and capability-scoped; arbitrary placements
 	// never receive promotional content.
-	entitlements, err := r.service.GetEntitlementsContext(ctx, user)
+	account, err := r.account(ctx, user)
+	if err != nil {
+		return nil, err
+	}
+	entitlements, err := r.service.GetEntitlementsForBusinessAccountContext(ctx, user, account)
 	if err != nil {
 		return nil, err
 	}

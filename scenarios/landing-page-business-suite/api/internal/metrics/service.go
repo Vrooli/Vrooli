@@ -244,16 +244,16 @@ func (s *Service) GetBusinessDigest(ctx context.Context, days int32) (*lpbsv1.Bu
 	if err = s.db.QueryRow(`SELECT COALESCE(SUM(amount_cents),0) FROM checkout_sessions WHERE status IN ('paid','complete') AND COALESCE(completed_at, created_at) >= $1 AND COALESCE(completed_at, created_at) <= $2`, start, end).Scan(&digestRevenue); err != nil {
 		return nil, err
 	}
-	if err = s.db.QueryRow(`SELECT COALESCE(SUM(credits),0) FROM usage_events WHERE created_at >= $1 AND created_at <= $2`, start, end).Scan(&digestCredits); err != nil {
+	if err = s.db.QueryRow(`SELECT COALESCE(SUM(credits),0) FROM business_account_usage_events WHERE created_at >= $1 AND created_at <= $2`, start, end).Scan(&digestCredits); err != nil {
 		return nil, err
 	}
-	if err = s.db.QueryRow(`SELECT COALESCE(SUM(cost_micros),0) FROM usage_events WHERE created_at >= $1 AND created_at <= $2`, start, end).Scan(&digestCostMicros); err != nil {
+	if err = s.db.QueryRow(`SELECT COALESCE(SUM(cost_micros),0) FROM business_account_usage_events WHERE created_at >= $1 AND created_at <= $2`, start, end).Scan(&digestCostMicros); err != nil {
 		return nil, err
 	}
-	if err = s.db.QueryRow(`SELECT COUNT(*), COUNT(DISTINCT user_identity) FROM usage_events WHERE created_at >= $1 AND created_at <= $2`, start, end).Scan(&digestOperations, &digestConsumers); err != nil {
+	if err = s.db.QueryRow(`SELECT COUNT(*), COUNT(DISTINCT actor_identity) FROM business_account_usage_events WHERE created_at >= $1 AND created_at <= $2`, start, end).Scan(&digestOperations, &digestConsumers); err != nil {
 		return nil, err
 	}
-	if err = s.db.QueryRow(`SELECT COALESCE((SELECT SUM(amount_credits) FROM credit_transactions WHERE amount_credits > 0 AND created_at >= $1 AND created_at <= $2), 0) + COALESCE((SELECT SUM(amount_credits) FROM business_account_credit_transactions WHERE amount_credits > 0 AND created_at >= $1 AND created_at <= $2), 0)`, start, end).Scan(&digestPurchased); err != nil {
+	if err = s.db.QueryRow(`SELECT COALESCE(SUM(amount_credits),0) FROM business_account_credit_transactions WHERE amount_credits > 0 AND created_at >= $1 AND created_at <= $2`, start, end).Scan(&digestPurchased); err != nil {
 		return nil, err
 	}
 	var signups, waitlist, paidSubs, trials int64
@@ -299,7 +299,7 @@ func (s *Service) GetBusinessDigest(ctx context.Context, days int32) (*lpbsv1.Bu
 	appRows.Close()
 	byApp := make([]*lpbsv1.CreditUsageRow, 0)
 	byModel := make([]*lpbsv1.CreditUsageRow, 0)
-	usageRows, err := s.db.Query(`SELECT app_bundle_key, COALESCE(SUM(credits),0), COUNT(*), COALESCE(SUM(cost_micros),0) FROM usage_events WHERE created_at >= $1 AND created_at <= $2 GROUP BY app_bundle_key ORDER BY app_bundle_key`, start, end)
+	usageRows, err := s.db.Query(`SELECT app_bundle_key, COALESCE(SUM(credits),0), COUNT(*), COALESCE(SUM(cost_micros),0) FROM business_account_usage_events WHERE created_at >= $1 AND created_at <= $2 GROUP BY app_bundle_key ORDER BY app_bundle_key`, start, end)
 	if err != nil {
 		return nil, err
 	}
@@ -317,7 +317,7 @@ func (s *Service) GetBusinessDigest(ctx context.Context, days int32) (*lpbsv1.Bu
 		return nil, err
 	}
 	usageRows.Close()
-	modelRows, err := s.db.Query(`SELECT model, COALESCE(SUM(credits),0), COUNT(*), COALESCE(SUM(cost_micros),0) FROM usage_events WHERE created_at >= $1 AND created_at <= $2 GROUP BY model ORDER BY model`, start, end)
+	modelRows, err := s.db.Query(`SELECT model, COALESCE(SUM(credits),0), COUNT(*), COALESCE(SUM(cost_micros),0) FROM business_account_usage_events WHERE created_at >= $1 AND created_at <= $2 GROUP BY model ORDER BY model`, start, end)
 	if err != nil {
 		return nil, err
 	}
@@ -511,21 +511,23 @@ func (s *Service) GetRevenueSummary() (*RevenueSummary, error) {
 	if err := s.db.QueryRow(`SELECT COUNT(*) FILTER (WHERE canceled_at >= CURRENT_DATE - INTERVAL '30 days') FROM subscriptions WHERE canceled_at IS NOT NULL`).Scan(&churned); err != nil {
 		return nil, fmt.Errorf("compute revenue summary churn: %w", err)
 	}
-	if err := s.db.QueryRow(`SELECT COALESCE(SUM(balance_credits + bonus_credits), 0) FROM credit_wallets`).Scan(&creditBalance); err != nil {
-		return nil, fmt.Errorf("compute revenue summary credits: %w", err)
-	}
-	var businessCreditBalance int64
-	if err := s.db.QueryRow(`SELECT COALESCE(SUM(balance_credits + bonus_credits), 0) FROM business_account_credit_wallets`).Scan(&businessCreditBalance); err != nil {
+	if err := s.db.QueryRow(`SELECT COALESCE(SUM(l.remaining), 0)
+		FROM credit_funding_lots l
+		JOIN business_account_credit_wallets w ON w.business_account_id = l.business_account_id
+		WHERE l.status = 'open'
+		  AND l.settlement_state = 'settled'
+		  AND l.livemode IS NOT NULL
+		  AND (l.spendable_after IS NULL OR l.spendable_after <= CURRENT_TIMESTAMP)
+		  AND (l.expires_at IS NULL OR l.expires_at > CURRENT_TIMESTAMP)`).Scan(&creditBalance); err != nil {
 		return nil, fmt.Errorf("compute revenue summary business credits: %w", err)
 	}
-	creditBalance += businessCreditBalance
-	if err := s.db.QueryRow(`SELECT COALESCE(SUM(credits), 0) FROM usage_events WHERE created_at >= CURRENT_DATE - INTERVAL '30 days'`).Scan(&creditBurned); err != nil {
+	if err := s.db.QueryRow(`SELECT COALESCE(SUM(credits), 0) FROM business_account_usage_events WHERE created_at >= CURRENT_DATE - INTERVAL '30 days'`).Scan(&creditBurned); err != nil {
 		return nil, fmt.Errorf("compute revenue summary credit usage: %w", err)
 	}
-	if err := s.db.QueryRow(`SELECT COUNT(*) FROM usage_events WHERE created_at >= CURRENT_DATE - INTERVAL '30 days'`).Scan(&usage); err != nil {
+	if err := s.db.QueryRow(`SELECT COUNT(*) FROM business_account_usage_events WHERE created_at >= CURRENT_DATE - INTERVAL '30 days'`).Scan(&usage); err != nil {
 		return nil, fmt.Errorf("compute revenue summary usage: %w", err)
 	}
-	if err := s.db.QueryRow(`SELECT COALESCE(SUM(cost_micros), 0) FROM usage_events WHERE created_at >= CURRENT_DATE - INTERVAL '30 days'`).Scan(&costMicros); err != nil {
+	if err := s.db.QueryRow(`SELECT COALESCE(SUM(cost_micros), 0) FROM business_account_usage_events WHERE created_at >= CURRENT_DATE - INTERVAL '30 days'`).Scan(&costMicros); err != nil {
 		return nil, fmt.Errorf("compute revenue summary cost: %w", err)
 	}
 	lineRows, err := s.db.Query(`SELECT COALESCE(NULLIF(session_type, ''), 'subscription'), COALESCE(SUM(amount_cents), 0), COUNT(*) FROM checkout_sessions WHERE status IN ('paid','complete') AND COALESCE(completed_at, created_at) >= CURRENT_DATE - INTERVAL '30 days' GROUP BY COALESCE(NULLIF(session_type, ''), 'subscription') ORDER BY 1`)

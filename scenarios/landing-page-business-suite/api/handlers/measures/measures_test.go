@@ -56,7 +56,7 @@ func TestSubscriptionMeasureRegistryAndConnectShareTheSameAggregate(t *testing.T
 func TestCreditAndCheckoutMeasuresUseFixedDomainQueries(t *testing.T) {
 	db := newMeasureTestDB(t)
 	fixedNow := time.Date(2026, time.July, 15, 12, 0, 0, 0, time.UTC)
-	for _, table := range []string{"credit_transactions", "checkout_sessions"} {
+	for _, table := range []string{"business_account_credit_transactions", "checkout_sessions"} {
 		insertCreatedAt(t, db, table, time.Date(2026, time.July, 13, 1, 0, 0, 0, time.UTC))
 		insertCreatedAt(t, db, table, time.Date(2026, time.July, 14, 1, 0, 0, 0, time.UTC))
 	}
@@ -108,7 +108,7 @@ func TestCustomerAndUsageMeasuresUseTheirAuthoritativeTables(t *testing.T) {
 	fixedNow := time.Date(2026, time.July, 15, 12, 0, 0, 0, time.UTC)
 	measures := map[string]string{
 		MeasureUsersCreated: "users", MeasureUserSessionsCreated: "user_sessions", MeasureAuthTokensCreated: "auth_tokens",
-		MeasureProviderKeysCreated: "api_keys", MeasureCreditReservationsCreated: "credit_reservations",
+		MeasureProviderKeysCreated: "api_keys", MeasureCreditReservationsCreated: "business_account_credit_reservations",
 		MeasureSubscriptionTierLimitsCreated: "subscription_tier_limits", MeasureUsageRecordsCreated: "usage_records",
 	}
 	for _, table := range measures {
@@ -183,9 +183,9 @@ func newMeasureTestDB(t *testing.T) *sql.DB {
 	}
 	t.Cleanup(func() { _ = db.Close() })
 	for _, table := range []string{
-		"subscriptions", "credit_transactions", "checkout_sessions", "bundle_products", "bundle_prices",
+		"subscriptions", "business_account_credit_transactions", "checkout_sessions", "bundle_products", "bundle_prices",
 		"subscription_schedules", "intro_coupon_usage", "payment_anomaly_log",
-		"users", "user_sessions", "auth_tokens", "api_keys", "credit_reservations", "subscription_tier_limits", "usage_records",
+		"users", "user_sessions", "auth_tokens", "api_keys", "business_account_credit_reservations", "subscription_tier_limits", "usage_records",
 		"admin_sessions", "admin_users", "assets", "download_apps", "download_artifacts", "download_assets",
 		"download_storage_settings", "feedback_requests", "metrics_events", "remote_profiles", "waitlist_emails",
 	} {

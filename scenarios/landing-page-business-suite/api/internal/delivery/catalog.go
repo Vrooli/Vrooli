@@ -169,6 +169,9 @@ func (s *CatalogService) ListAppsContext(ctx context.Context, bundleKey string) 
 
 	grouped := make(map[string][]Asset)
 	for _, asset := range assets {
+		if asset.Metadata["kind"] == "component" {
+			continue
+		}
 		grouped[asset.AppKey] = append(grouped[asset.AppKey], asset)
 	}
 

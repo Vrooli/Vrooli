@@ -22,6 +22,7 @@ import { useAppLimitsForm } from '../hooks/useAppLimitsForm';
 import {
   APP_OPTIONS,
   getSelectedAppLabel,
+  getAppMeterKind,
 } from '../services/appLimits.service';
 
 export function AppLimitsSettings() {
@@ -98,7 +99,7 @@ export function AppLimitsSettings() {
         <Callout
           type="info"
           title="Understanding App Limits"
-          message="App limits allow you to set specific restrictions for individual applications beyond the global AI credit limits. These are app-specific quotas like workflow exports, API calls, or feature usage counts."
+          message="App limits allow you to set specific restrictions for individual applications beyond the global AI credit limits. Cost limits use dollars and count quotas use whole units. Limits with an unspecified meter kind must be classified before they can be edited."
         />
 
         {loading ? (
@@ -137,6 +138,7 @@ export function AppLimitsSettings() {
                       if (!limit) return null;
 
                       const editKey = getEditKey(tierID, limitKey);
+                      const meterKind = getAppMeterKind(limit);
                       const currentValue = limit.limit_value;
                       const isUnlimited = isUnlimitedValue(currentValue);
 
@@ -157,7 +159,7 @@ export function AppLimitsSettings() {
                                     <InfinityIcon className="h-4 w-4" /> Unlimited
                                   </span>
                                 ) : (
-                                  formatDollars(currentValue, limit.cost_multiplier)
+                                  meterKind === null ? 'Meter kind required' : meterKind === 'count_based' ? `${currentValue.toLocaleString()} units` : formatDollars(currentValue, limit.cost_multiplier)
                                 )}
                               </span>
                               /month
@@ -169,21 +171,22 @@ export function AppLimitsSettings() {
                                 Limit
                               </Label>
                               <div className="relative">
-                                <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                                {meterKind === 'cost_based' && <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />}
                                 <Input
                                   id={editKey}
                                   type="text"
                                   value={getEditedOrDisplayValue(editKey, limit)}
                                   onChange={(e) => { setEditedValue(editKey, e.target.value); }}
-                                  className="w-32 pl-8"
-                                  placeholder="0.00"
+                                  className={meterKind === 'cost_based' ? 'w-32 pl-8' : 'w-32'}
+                                  disabled={meterKind === null}
+                                  placeholder={meterKind === 'count_based' ? '0' : '0.00'}
                                 />
                               </div>
                             </div>
                             <Button
                               size="sm"
                               onClick={() => { void onSave(tierID, limit); }}
-                              disabled={!isEdited(editKey) || saving === editKey}
+                              disabled={meterKind === null || !isEdited(editKey) || saving === editKey}
                               className="gap-1"
                             >
                               <Save className="h-4 w-4" />
@@ -248,7 +251,7 @@ export function AppLimitsSettings() {
                     id="new-limit-key"
                     value={newLimit.limit_key}
                     onChange={(e) => { setNewLimit({ limit_key: e.target.value }); }}
-                    placeholder="e.g., workflow_exports"
+                    placeholder="e.g., ai_credits"
                     className={inputClassName}
                   />
                 </FormField>

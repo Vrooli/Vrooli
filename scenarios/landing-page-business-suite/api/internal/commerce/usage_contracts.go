@@ -2,11 +2,34 @@ package commerce
 
 import (
 	"context"
+	cryptoRand "crypto/rand"
 	"database/sql"
+	"errors"
 	"fmt"
+	"strconv"
 	"strings"
 	"time"
 )
+
+var ErrBusinessAccountRequired = errors.New("a verified business account is required for Vrooli credits")
+
+// MeterLimit validates the authoritative data kind before selecting an owner.
+func requireMeterKind(ctx context.Context, limits LimitsServicer, tier, key, expected string) (*TierLimit, error) {
+	if limits == nil || strings.TrimSpace(tier) == "" {
+		return nil, errors.New("meter limit authority is unavailable")
+	}
+	limit, err := limits.GetLimit(ctx, tier, key, nil)
+	if err != nil {
+		return nil, err
+	}
+	if limit == nil || (limit.LimitType != "count_based" && limit.LimitType != "cost_based") {
+		return nil, errors.New("meter limit kind is unavailable")
+	}
+	if expected != "" && limit.LimitType != expected {
+		return nil, fmt.Errorf("%s meter requires its %s accounting owner", key, limit.LimitType)
+	}
+	return limit, nil
+}
 
 // UsageStore is the context-aware persistence contract for usage records and
 // credit reservations.
@@ -59,14 +82,16 @@ type UsageHealthStatus struct {
 
 // UsageReportRequest is a metering report from an entitled application.
 type UsageReportRequest struct {
-	UserIdentity string            `json:"user_identity"`
-	LimitKey     string            `json:"limit_key"`
-	Amount       int64             `json:"amount"`
-	AppBundleKey string            `json:"app_bundle_key"`
-	Operation    string            `json:"operation,omitempty"`
-	IsBYOK       bool              `json:"is_byok,omitempty"`
-	Metadata     map[string]string `json:"metadata,omitempty"`
-	OperationID  *string           `json:"operation_id,omitempty"`
+	BusinessAccountID string            `json:"business_account_id,omitempty"`
+	Tier              string            `json:"-"`
+	UserIdentity      string            `json:"user_identity"`
+	LimitKey          string            `json:"limit_key"`
+	Amount            int64             `json:"amount"`
+	AppBundleKey      string            `json:"app_bundle_key"`
+	Operation         string            `json:"operation,omitempty"`
+	IsBYOK            bool              `json:"is_byok,omitempty"`
+	Metadata          map[string]string `json:"metadata,omitempty"`
+	OperationID       *string           `json:"operation_id,omitempty"`
 }
 
 // NormalizedUsageReport is a validated report ready for persistence.
@@ -95,4 +120,33 @@ func NormalizeUsageReport(request UsageReportRequest) (NormalizedUsageReport, er
 		amount = 0
 	}
 	return NormalizedUsageReport{UsageReportRequest: request, Amount: amount}, nil
+}
+
+func newReservationID() string {
+	b := make([]byte, 16)
+	if _, err := cryptoRand.Read(b); err != nil {
+		return fmt.Sprintf("reservation-%d", time.Now().UnixNano())
+	}
+	return fmt.Sprintf("%x-%x-%x-%x-%x", b[0:4], b[4:6], b[6:8], b[8:10], b[10:])
+}
+
+func usageEventMetadata(metadata map[string]string) (int64, int, int, string) {
+	var cost int64
+	var prompt, completion int
+	if metadata != nil {
+		cost, _ = strconv.ParseInt(strings.TrimSpace(metadata["cost_micros"]), 10, 64)
+		prompt, _ = strconv.Atoi(strings.TrimSpace(metadata["prompt_tokens"]))
+		completion, _ = strconv.Atoi(strings.TrimSpace(metadata["completion_tokens"]))
+	}
+	provider := firstNonEmpty(metadata["provider"], "local")
+	return cost, prompt, completion, provider
+}
+
+func firstNonEmpty(values ...string) string {
+	for _, value := range values {
+		if strings.TrimSpace(value) != "" {
+			return strings.TrimSpace(value)
+		}
+	}
+	return ""
 }

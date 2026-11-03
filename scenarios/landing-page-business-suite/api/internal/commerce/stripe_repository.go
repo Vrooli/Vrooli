@@ -64,15 +64,6 @@ type CheckoutSessionRecord struct {
 	UpdatedAt         time.Time
 }
 
-// CreditWalletRecord represents a credit wallet in the database.
-type CreditWalletRecord struct {
-	ID             int64
-	CustomerEmail  string
-	BalanceCredits int64
-	BonusCredits   int64
-	UpdatedAt      time.Time
-}
-
 // CreditTransactionRecord represents a credit transaction in the database.
 type CreditTransactionRecord struct {
 	ID              int64
@@ -213,13 +204,13 @@ func (r *StripeRepository) LoadCheckoutSession(sessionID string) (*CheckoutSessi
 	var metadataBytes []byte
 	err := r.db.QueryRow(`
 		SELECT session_id, customer_email, customer_id, price_id, subscription_id, status,
-			   COALESCE(session_type, 'subscription'), COALESCE(amount_cents, 0), schedule_id, metadata
+			   COALESCE(session_type, 'subscription'), COALESCE(amount_cents, 0), schedule_id, metadata, business_account_id
 		FROM checkout_sessions
 		WHERE session_id = $1
 	`, sessionID).Scan(
 		&rec.SessionID, &rec.CustomerEmail, &rec.CustomerID, &rec.PriceID,
 		&rec.SubscriptionID, &rec.Status, &rec.SessionType, &rec.AmountCents,
-		&rec.ScheduleID, &metadataBytes,
+		&rec.ScheduleID, &metadataBytes, &rec.BusinessAccountID,
 	)
 	if err == sql.ErrNoRows {
 		return nil, nil

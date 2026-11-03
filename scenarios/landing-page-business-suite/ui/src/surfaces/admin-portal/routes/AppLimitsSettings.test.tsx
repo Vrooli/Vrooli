@@ -36,7 +36,7 @@ describe('AppLimitsSettings', () => {
   });
 
   it('edits, saves, and confirms deletion of a tier limit with result feedback', async () => {
-    const limit = { id: 'limit-1', tier_id: 'solo', limit_type: 'app_specific', limit_key: 'api_calls', limit_value: 10000000, cost_multiplier: 1000000, reset_period: 'monthly', created_at: '', updated_at: '' } as const;
+    const limit = { id: 'limit-1', tier_id: 'solo', limit_type: 'cost_based', limit_key: 'api_calls', limit_value: 10000000, cost_multiplier: 1000000, reset_period: 'monthly', created_at: '', updated_at: '' } as const;
     const state = formState({ limits: { solo: [limit] }, limitKeys: new Set(['api_calls']) });
     vi.mocked(limitsHook.useAppLimitsForm).mockReturnValue(state);
     render(<AppLimitsSettings />);
@@ -65,4 +65,14 @@ describe('AppLimitsSettings', () => {
     expect(state.setShowAddLimit).toHaveBeenCalledWith(false);
     expect(state.resetNewLimitForm).toHaveBeenCalledOnce();
   });
+  it('shows count units and disables ambiguous legacy money edits', () => {
+    const count = { id: 'count', tier_id: 'solo', limit_type: 'count_based', limit_key: 'compute_minutes', limit_value: 60, cost_multiplier: 0 };
+    const ambiguous = { id: 'legacy', tier_id: 'pro', limit_type: 'app_specific', limit_key: 'exports', limit_value: 3, cost_multiplier: 1 };
+    vi.mocked(limitsHook.useAppLimitsForm).mockReturnValue(formState({ limits: { solo: [count], pro: [ambiguous] }, limitKeys: new Set(['compute_minutes', 'exports']) }));
+    render(<AppLimitsSettings />);
+    expect(screen.getByText('60 units')).toBeInTheDocument();
+    expect(screen.getByText('Meter kind required')).toBeInTheDocument();
+    expect(screen.getAllByRole('button', { name: 'Save' }).filter((button) => (button as HTMLButtonElement).disabled)).toHaveLength(1);
+  });
+
 });

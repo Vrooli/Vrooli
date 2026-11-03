@@ -24,7 +24,7 @@ const mockRemoveTierLimit = vi.mocked(appLimitsService.removeTierLimit);
 const createMockLimit = (overrides: Partial<TierLimit> = {}): TierLimit => ({
   id: '1',
   tier_id: 'solo',
-  limit_type: 'app_specific',
+  limit_type: 'cost_based',
   limit_key: 'workflow_exports',
   limit_value: 10000000,
   cost_multiplier: 1000000,
@@ -510,4 +510,24 @@ describe('useAppLimitsForm', () => {
       expect(result.current.limitKeys.has('key2')).toBe(true);
     });
   });
+  it('edits count quotas as whole units without a dollar conversion', async () => {
+    const limit = createMockLimit({ limit_type: 'count_based', limit_key: 'compute_minutes', limit_value: 60, display_dollars: undefined });
+    const { result } = renderHook(() => useAppLimitsForm());
+    await waitFor(() => { expect(result.current.loading).toBe(false); });
+    expect(result.current.getEditedOrDisplayValue('solo:compute_minutes', limit)).toBe('60');
+    act(() => result.current.setEditedValue('solo:compute_minutes', '61'));
+    await act(async () => { expect((await result.current.handleSave('solo', limit)).success).toBe(true); });
+    expect(mockSaveTierLimit).toHaveBeenCalledWith('solo', 'compute_minutes', { limit_value: 61 }, 'browser-automation-studio');
+  });
+
+  it('refuses fractional counts and ambiguous legacy units before sending an update', async () => {
+    const { result } = renderHook(() => useAppLimitsForm());
+    await waitFor(() => { expect(result.current.loading).toBe(false); });
+    for (const limit of [createMockLimit({ limit_type: 'count_based' }), createMockLimit({ limit_type: 'app_specific' })]) {
+      act(() => result.current.setEditedValue('solo:workflow_exports', '1.5'));
+      await act(async () => { expect((await result.current.handleSave('solo', limit)).success).toBe(false); });
+    }
+    expect(mockSaveTierLimit).not.toHaveBeenCalled();
+  });
+
 });

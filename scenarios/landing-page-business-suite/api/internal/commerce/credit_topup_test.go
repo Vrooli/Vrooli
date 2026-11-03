@@ -1,8 +1,8 @@
 package commerce
 
 import (
-	"context"
 	"errors"
+	"math"
 	"testing"
 )
 
@@ -14,35 +14,27 @@ type creditTopupPlansFake struct {
 func (f creditTopupPlansFake) GetBundleProduct() (*BundleProduct, error) { return f.bundle, f.err }
 
 type creditTopupWalletFake struct {
-	email, kind, event string
-	credits            int64
-	metadata           map[string]interface{}
+	account, email, kind, event string
+	credits                     int64
+	metadata                    map[string]interface{}
 }
 
-func (f *creditTopupWalletFake) AddCredits(email string, credits int64, kind, event string, metadata map[string]interface{}) error {
-	f.email, f.credits, f.kind, f.event, f.metadata = email, credits, kind, event, metadata
+func (f *creditTopupWalletFake) AddCreditsForBusinessAccount(account, email string, credits int64, kind, source, event string, metadata map[string]interface{}) error {
+	f.account, f.email, f.credits, f.kind, f.event, f.metadata = account, email, credits, kind, event, metadata
 	return nil
 }
-
-func (*creditTopupWalletFake) ConsumeCredits(context.Context, string, int64, string, map[string]interface{}) error {
-	return nil
-}
-
-func (*creditTopupWalletFake) ConsumeCreditsIdempotent(context.Context, string, int64, string, string, map[string]interface{}) error {
-	return nil
-}
-func (*creditTopupWalletFake) Balance(string) (int64, error) { return 0, nil }
+func (*creditTopupWalletFake) BalanceForBusinessAccount(string, string) (int64, error) { return 0, nil }
 
 func TestCreditTopupServiceApplyRecordsReplaySafeWalletCredit(t *testing.T) {
 	wallet := &creditTopupWalletFake{}
 	service := NewCreditTopupService(creditTopupPlansFake{bundle: &BundleProduct{CreditsPerUsd: 150}}, wallet, nil)
-	metadata := map[string]interface{}{"checkout_session": "cs_123"}
+	metadata := map[string]interface{}{"checkout_session": "cs_123", "business_account_id": "acct:one", "livemode": false}
 
 	err := service.Apply("buyer@example.test", 1000, &PlanOption{StripePriceId: "price_123", PlanTier: "credits", AmountCents: 1000}, "evt_123", metadata)
 	if err != nil {
 		t.Fatalf("Apply() error = %v", err)
 	}
-	if wallet.email != "buyer@example.test" || wallet.credits != 1500 || wallet.kind != "credit_topup" || wallet.event != "evt_123" {
+	if wallet.account != "acct:one" || wallet.email != "buyer@example.test" || wallet.credits != 1500 || wallet.kind != "credit_topup" || wallet.event != "evt_123" {
 		t.Fatalf("wallet call = %#v, want normalized top-up credit", wallet)
 	}
 	if got := wallet.metadata["price_id"]; got != "price_123" {
@@ -86,5 +78,34 @@ func TestCreditTopupServiceApplyRejectsProviderAmountMismatch(t *testing.T) {
 
 	if err := service.Apply("buyer@example.test", 500, plan, "evt_mismatch", nil); err == nil {
 		t.Fatal("Apply() error = nil, want provider/catalog amount mismatch rejection")
+	}
+}
+
+func TestCreditTopupServiceRequiresAccountAndModeAttribution(t *testing.T) {
+	plan := &PlanOption{StripePriceId: "price_10", PlanTier: "credits", AmountCents: 1000}
+	for _, tc := range []struct {
+		name     string
+		metadata map[string]interface{}
+		event    string
+	}{
+		{"missing account", map[string]interface{}{"livemode": false}, "event"},
+		{"missing mode", map[string]interface{}{"business_account_id": "acct"}, "event"},
+		{"unknown mode", map[string]interface{}{"business_account_id": "acct", "livemode": "unknown"}, "event"},
+		{"missing event", map[string]interface{}{"business_account_id": "acct", "livemode": false}, ""},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			wallet := &creditTopupWalletFake{}
+			service := NewCreditTopupService(creditTopupPlansFake{bundle: &BundleProduct{CreditsPerUsd: 100}}, wallet, nil)
+			if err := service.Apply("member@example.test", 1000, plan, tc.event, tc.metadata); err == nil {
+				t.Fatal("an unattributed top-up must fail")
+			}
+			if wallet.credits != 0 {
+				t.Fatal("invalid attribution reached the credit grant owner")
+			}
+		})
+	}
+	service := NewCreditTopupService(creditTopupPlansFake{bundle: &BundleProduct{CreditsPerUsd: math.MaxInt64}}, &creditTopupWalletFake{}, nil)
+	if err := service.Apply("member@example.test", 1000, plan, "event", map[string]interface{}{"business_account_id": "acct", "livemode": false}); err == nil {
+		t.Fatal("overflowing grant conversion must fail")
 	}
 }

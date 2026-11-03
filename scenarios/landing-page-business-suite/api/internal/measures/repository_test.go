@@ -2,6 +2,8 @@ package measures
 
 import (
 	"context"
+	"database/sql"
+	_ "modernc.org/sqlite"
 	"strings"
 	"testing"
 	"time"
@@ -9,11 +11,11 @@ import (
 
 func TestCreatedCountCatalogContainsEverySupportedMeasure(t *testing.T) {
 	wantTables := map[string]string{
-		"subscriptions.created": "subscriptions", "credit_transactions.created": "credit_transactions", "checkout_sessions.created": "checkout_sessions",
+		"subscriptions.created": "subscriptions", "credit_transactions.created": "business_account_credit_transactions", "checkout_sessions.created": "checkout_sessions",
 		"bundle_products.created": "bundle_products", "bundle_prices.created": "bundle_prices", "subscription_schedules.created": "subscription_schedules",
 		"intro_coupon_usage.created": "intro_coupon_usage", "payment_anomaly_log.created": "payment_anomaly_log", "users.created": "users",
 		"user_sessions.created": "user_sessions", "auth_tokens.created": "auth_tokens", "api_keys.created": "api_keys",
-		"credit_reservations.created": "credit_reservations", "subscription_tier_limits.created": "subscription_tier_limits", "usage_records.created": "usage_records",
+		"credit_reservations.created": "business_account_credit_reservations", "subscription_tier_limits.created": "subscription_tier_limits", "usage_records.created": "usage_records",
 		"admin_sessions.created": "admin_sessions", "admin_users.created": "admin_users", "assets.created": "assets",
 		"download_apps.created": "download_apps", "download_artifacts.created": "download_artifacts", "download_assets.created": "download_assets",
 		"download_storage_settings.created": "download_storage_settings", "feedback_requests.created": "feedback_requests", "metrics_events.created": "metrics_events",
@@ -39,5 +41,42 @@ func TestSQLRepositoryRejectsUnknownMeasureBeforeDatabaseAccess(t *testing.T) {
 	_, err := repository.CountCreated(context.Background(), "unreviewed.created", time.Time{}, time.Time{})
 	if err == nil || !strings.Contains(err.Error(), "unknown measure") {
 		t.Fatalf("CountCreated() error = %v, want unknown-measure error", err)
+	}
+}
+
+func TestCreditMeasuresCountCanonicalAccountStateOnly(t *testing.T) {
+	db, err := sql.Open("sqlite", ":memory:")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	for _, table := range []string{"business_account_credit_transactions", "business_account_credit_reservations", "credit_transactions", "credit_reservations"} {
+		if _, err := db.Exec("CREATE TABLE " + table + "(created_at DATETIME)"); err != nil {
+			t.Fatal(err)
+		}
+	}
+	from := time.Date(2026, 11, 1, 0, 0, 0, 0, time.UTC)
+	to := from.Add(time.Hour)
+	for _, table := range []string{"credit_transactions", "credit_reservations"} {
+		for i := 0; i < 10; i++ {
+			if _, err := db.Exec("INSERT INTO "+table+" VALUES(?)", from); err != nil {
+				t.Fatal(err)
+			}
+		}
+	}
+	for _, table := range []string{"business_account_credit_transactions", "business_account_credit_reservations"} {
+		if _, err := db.Exec("INSERT INTO "+table+" VALUES(?),(?)", from, to); err != nil {
+			t.Fatal(err)
+		}
+	}
+	repository := NewSQLRepository(db)
+	for _, measure := range []string{"credit_transactions.created", "credit_reservations.created"} {
+		got, err := repository.CountCreated(context.Background(), measure, from, to)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got != 1 {
+			t.Fatalf("%s count=%d; only account rows in the half-open window may count", measure, got)
+		}
 	}
 }

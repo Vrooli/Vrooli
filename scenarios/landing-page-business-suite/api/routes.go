@@ -398,6 +398,7 @@ func registerHealthRoutes(s *Server) {
 }
 
 func registerLandingRoutes(s *Server) {
+	s.router.HandleFunc("/api/v1/components", downloadhttp.Components(s.planService.BundleKey, s.downloadService, s.downloadHosting)).Methods("GET")
 	landinghttp.RegisterLandingConfigConnectRoutes(s.router, s.landingConfigService)
 	pricinghandler.RegisterRoutes(s.router, s.planService.GetPricingOverview)
 	variantspacehttp.RegisterRoutes(s.router, s.variantSpace.JSONBytes)
@@ -445,7 +446,13 @@ func registerAuthRoutes(s *Server) {
 }
 
 func registerAccountRoutes(s *Server) {
-	accounthttp.RegisterRoutes(s.router, accounthttp.NewCommerceReader(s.accountService), getUserEmail, s.requireUserAuth)
+	accounthttp.RegisterRoutes(s.router, accounthttp.NewCommerceReader(s.accountService, func(ctx context.Context, email string) (string, error) {
+		account, err := s.businessAccounts.ResolveForUser(ctx, getUserID(ctx), email, "")
+		if err != nil {
+			return "", err
+		}
+		return account.ID, nil
+	}), getUserEmail, s.requireUserAuth)
 	securityDeps := accountsecurityhttp.Dependencies{
 		Service: s.accountSecurityService, UserID: getUserID, UserEmail: getUserEmail, SessionID: getSessionID,
 		ClientIP: getClientIP, SecureCookies: isSecureCookiesEnabled, Now: time.Now,
@@ -537,7 +544,12 @@ func registerEntitlementRoute(s *Server) {
 			writeJSONError(w, http.StatusForbidden, "entitlement identity does not match token", ApiErrorTypeForbidden)
 			return
 		}
-		payload, err := s.accountService.GetEntitlementsContext(r.Context(), identity)
+		account, err := s.businessAccounts.ResolveForUser(r.Context(), getUserID(r.Context()), identity, strings.TrimSpace(r.URL.Query().Get("business_account_id")))
+		if err != nil {
+			writeJSONError(w, http.StatusForbidden, "Business account access is not available", ApiErrorTypeForbidden)
+			return
+		}
+		payload, err := s.accountService.GetEntitlementsForBusinessAccountContext(r.Context(), identity, account.ID)
 		if err != nil {
 			writeJSONError(w, http.StatusServiceUnavailable, "entitlement service unavailable", ApiErrorTypeServerError)
 			return
@@ -572,6 +584,7 @@ func registerBillingRoutes(s *Server) {
 	// authenticated portal, and admin cancellation boundaries.
 	billingDeps := billingConnectDependencies(s.stripeService, s.businessAccounts)
 	billingDeps.RequireRecentAuth = s.requireRecentUserAuth
+	billingDeps.OptionalUserAuth = s.optionalUserAuth
 	billinghttp.RegisterConnectRoutes(s.router, billingDeps, s.requireUserAuth, s.requireAdminStepUp)
 
 	// Stripe webhook remains Stripe's signed HTTP callback, not a browser RPC.
@@ -725,6 +738,16 @@ func registerCreditsRoutes(s *Server) {
 	// from the verified access token; no shared service credential is accepted.
 	usageDeps := usageHTTPDependencies()
 	usageDeps.UserID = getUserID
+	usageDeps.SubscriptionTier = func(ctx context.Context, identity string) (string, error) {
+		subscription, err := s.accountService.GetSubscriptionContext(ctx, identity)
+		if err != nil {
+			return "", err
+		}
+		if subscription == nil || strings.TrimSpace(subscription.GetPlanTier()) == "" {
+			return "free", nil
+		}
+		return subscription.GetPlanTier(), nil
+	}
 	usageDeps.ResolveBusinessAccount = func(ctx context.Context, userID, email, requestedID string) (string, error) {
 		account, err := s.businessAccounts.ResolveForUser(ctx, userID, email, requestedID)
 		if err != nil {
@@ -752,11 +775,11 @@ func usageHTTPDependencies() billinghttp.UsageDependencies {
 }
 
 func registerAIRoutes(s *Server) {
+	registerAIDoor(s)
 	intelligencehandler.RegisterConnectRoutes(s.router, s.meteredInferenceDeps, s.requireUserAuth)
 
 	// AI MeteredInferenceProvider endpoints
 	// Public endpoint for listing available models
-	s.router.HandleFunc("/api/v1/ai/models", s.meteredInferenceHandler.Models()).Methods("GET")
 	// Health check (public for monitoring)
 	s.router.HandleFunc("/api/v1/ai/health", s.meteredInferenceHandler.Health()).Methods("GET")
 	// User auth required for AI operations

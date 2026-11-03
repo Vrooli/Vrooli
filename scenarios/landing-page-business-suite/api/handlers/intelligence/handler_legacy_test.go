@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -435,6 +436,67 @@ func TestHandleAIStreamAdjustsRequestDeadlines(t *testing.T) {
 	}
 	if !w.writeDeadline.IsZero() {
 		t.Fatalf("write deadline should be cleared for a long stream: got %v", w.writeDeadline)
+	}
+}
+
+func TestHandleAIStreamSurvivesBeyondServerTimeouts(t *testing.T) {
+	const serverTimeout = 30 * time.Second
+	const streamDuration = 2*time.Minute + time.Second
+	mock := &MockMeteredInference{
+		ExecuteChatStreamFn: func(_ context.Context, _ string, _ intelligence.AIRequest, w http.ResponseWriter) error {
+			time.Sleep(streamDuration)
+			w.Header().Set("Content-Type", "text/event-stream")
+			_, err := io.WriteString(w, "data: {\"type\":\"done\"}\n\n")
+			return err
+		},
+	}
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		handleAIStream(newTestMeteredInferenceDeps(mock))(w, r.WithContext(testUserContext("user-123", "test@example.com")))
+	})
+	server := httptest.NewUnstartedServer(handler)
+	server.Config.ReadTimeout = serverTimeout
+	server.Config.WriteTimeout = serverTimeout
+	server.Start()
+	defer server.Close()
+
+	body, _ := json.Marshal(intelligence.AIRequest{
+		Model:    "openai/gpt-4o",
+		Messages: []intelligence.AIMessage{{Role: "user", Content: "Hello"}},
+	})
+	reader, writer := io.Pipe()
+	request, err := http.NewRequest(http.MethodPost, server.URL+"/api/v1/ai/stream", reader)
+	if err != nil {
+		t.Fatal(err)
+	}
+	request.Header.Set("Content-Type", "application/json")
+	writeDone := make(chan error, 1)
+	go func() {
+		mid := len(body) / 2
+		if _, err := writer.Write(body[:mid]); err != nil {
+			writeDone <- err
+			return
+		}
+		time.Sleep(serverTimeout + time.Second)
+		_, err := writer.Write(body[mid:])
+		_ = writer.Close()
+		writeDone <- err
+	}()
+
+	client := &http.Client{Timeout: 3 * time.Minute}
+	response, err := client.Do(request)
+	if err != nil {
+		t.Fatalf("stream request exceeded server timeout: %v", err)
+	}
+	defer response.Body.Close()
+	responseBody, err := io.ReadAll(response.Body)
+	if err != nil {
+		t.Fatalf("read streamed response: %v", err)
+	}
+	if err := <-writeDone; err != nil {
+		t.Fatalf("write slow request body: %v", err)
+	}
+	if response.StatusCode != http.StatusOK || !strings.Contains(string(responseBody), `"type":"done"`) {
+		t.Fatalf("expected completed SSE response, status=%d body=%q", response.StatusCode, responseBody)
 	}
 }
 

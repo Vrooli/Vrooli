@@ -491,10 +491,10 @@
       "category": "ai"
     },
     {
-      "id": "get-api-v1-ai-models",
-      "path": "/api/v1/ai/models",
-      "method": "GET",
-      "summary": "GET /api/v1/ai/models",
+      "id": "post-api-v1-ai-inference-stream",
+      "path": "/api/v1/ai/inference-stream",
+      "method": "POST",
+      "summary": "POST /api/v1/ai/inference-stream",
       "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
       "category": "ai"
     },
@@ -657,6 +657,14 @@
       "summary": "HEAD /api/v1/uploads/{path:.*}",
       "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
       "category": "system"
+    },
+    {
+      "id": "get-api-v1-usage-business-account-summary",
+      "path": "/api/v1/usage/business-account-summary",
+      "method": "GET",
+      "summary": "GET /api/v1/usage/business-account-summary",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "usage"
     },
     {
       "id": "get-api-v1-usage-check",

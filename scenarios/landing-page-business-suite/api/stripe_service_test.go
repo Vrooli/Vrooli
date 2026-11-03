@@ -1160,15 +1160,15 @@ func TestHandleWebhook_UnknownEventType_Succeeds(t *testing.T) {
 	}
 }
 
-func TestHandleWebhook_RefundEventIsExplicitlyIgnored(t *testing.T) {
+func TestHandleWebhook_UnknownRefundRequiresRetry(t *testing.T) {
 	db := setupTestDB(t)
 	cfg := DefaultStripeTestConfig().WithKeys("pk_test_default", "sk_test_default", "whsec_test")
 	service := ConfigureStripeService(t, db, cfg, nil)
 
 	event := map[string]interface{}{
-		"id":   "evt_refund_unsupported",
+		"id":   "evt_refund_unknown",
 		"type": "charge.refunded",
-		"data": map[string]interface{}{"object": map[string]interface{}{"id": "ch_refunded"}},
+		"data": map[string]interface{}{"object": map[string]interface{}{"id": "ch_refunded", "payment_intent": "pi_unknown", "amount_refunded": 1000}},
 	}
 	payload, err := json.Marshal(event)
 	if err != nil {
@@ -1179,8 +1179,8 @@ func TestHandleWebhook_RefundEventIsExplicitlyIgnored(t *testing.T) {
 	_, _ = mac.Write([]byte(timestamp + "." + string(payload)))
 	signatureHeader := "t=" + timestamp + ",v1=" + hex.EncodeToString(mac.Sum(nil))
 
-	if err := service.HandleWebhook(payload, signatureHeader); err != nil {
-		t.Fatalf("refund event should be safely ignored until refund reconciliation is implemented: %v", err)
+	if err := service.HandleWebhook(payload, signatureHeader); err == nil {
+		t.Fatal("unknown refund must request retry instead of acknowledging a lost funding reversal")
 	}
 }
 
@@ -1467,11 +1467,12 @@ func TestCreditTopup_TransactionRecorded(t *testing.T) {
 	service := NewStripeService(db)
 
 	metadata := map[string]interface{}{
+		"livemode":   false,
 		"price_id":   "price_test_123",
 		"session_id": "cs_test_123",
 	}
 
-	err = service.creditWallet.AddCredits("audit@example.com", 250, "credit_topup", "evt_audit_123", metadata)
+	err = service.creditWallet.AddCreditsForBusinessAccount("acct-audit", "audit@example.com", 250, "credit_topup", "stripe", "evt_audit_123", metadata)
 	require.NoError(t, err)
 
 	// Verify transaction was recorded with all details
@@ -1484,9 +1485,9 @@ func TestCreditTopup_TransactionRecorded(t *testing.T) {
 	)
 
 	err = db.QueryRow(`
-		SELECT customer_email, amount_credits, transaction_type, stripe_event_id, metadata::text
-		FROM credit_transactions
-		WHERE stripe_event_id = $1
+		SELECT customer_email, amount_credits, transaction_type, external_event_id, metadata::text
+		FROM business_account_credit_transactions
+		WHERE external_event_id = $1
 	`, "evt_audit_123").Scan(&customerEmail, &amountCredits, &transactionType, &stripeEventID, &metadataJSON)
 	require.NoError(t, err)
 

@@ -303,7 +303,9 @@ func startTestContainerDB(t *testing.T) string {
 		//nolint:staticcheck // legacy testcontainers helper still required for current runtime
 		container, err := postgres.RunContainer(ctx,
 			tc.WithImage("postgres:15-alpine"),
-			tc.WithWaitStrategy(wait.ForListeningPort("5432/tcp").WithStartupTimeout(90*time.Second)),
+			// PostgreSQL opens its bootstrap listener before the final server is
+			// query-ready. Use the owner's log + listening-port readiness contract.
+			postgres.BasicWaitStrategies(),
 			postgres.WithDatabase(dbName),
 			postgres.WithUsername(user),
 			postgres.WithPassword(pass),

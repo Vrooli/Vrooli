@@ -127,8 +127,6 @@ func (s *AccountLinkService) MigrateCustomerEmail(ctx context.Context, oldEmail,
 		label string
 	}{
 		{`UPDATE subscriptions SET customer_email = $1, updated_at = NOW() WHERE customer_email = $2 OR customer_id = $3`, []any{normalizedNew, normalizedOld, customerID}, "migrate subscriptions table"},
-		{`UPDATE credit_wallets SET customer_email = $1, updated_at = NOW() WHERE customer_email = $2`, []any{normalizedNew, normalizedOld}, "migrate credit_wallets table"},
-		{`UPDATE credit_transactions SET customer_email = $1 WHERE customer_email = $2`, []any{normalizedNew, normalizedOld}, "migrate credit_transactions table"},
 		{`UPDATE intro_coupon_usage SET email = $1 WHERE email = $2 OR stripe_customer_id = $3`, []any{normalizedNew, normalizedOld, customerID}, "migrate intro_coupon_usage table"},
 	}
 	for _, update := range updates {

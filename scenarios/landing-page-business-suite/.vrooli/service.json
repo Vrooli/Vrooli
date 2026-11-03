@@ -26,6 +26,14 @@
         "type": "postgres",
         "startup_policy": "must_start"
       }
+    },
+    "scenarios": {
+      "ai-gateway": {
+        "required": true,
+        "startup_policy": "must_start",
+        "versionRange": ">=0.0.1",
+        "description": "Private provider policy and streaming execution behind the LPBS authenticated AI door"
+      }
     }
   },
   "environment": {
@@ -33,9 +41,9 @@
     "AUTH_MAGIC_LINK_BASE_URL": "https://vrooli.com/auth/verify",
     "CONSUMER_AUTH_KEY_ID": "lpbs-consumer-v1",
     "STRIPE_MODE": "test",
-    "STRIPE_PLANS_PATH": ".vrooli/plans.json"
-    ,"EMAIL_FROM_ADDRESS": "noreply@vrooli.com"
-    ,"EMAIL_FROM_NAME": "Vrooli"
+    "STRIPE_PLANS_PATH": ".vrooli/plans.json",
+    "EMAIL_FROM_ADDRESS": "noreply@vrooli.com",
+    "EMAIL_FROM_NAME": "Vrooli"
   },
   "generation": {
     "template": {
@@ -85,51 +93,26 @@
       "range": "20000-24999"
     }
   },
-  "components": {
-    "api": {
-      "role": "api",
-      "build": {
-        "kind": "go_module",
-        "dir": "api"
-      },
-      "run": {
-        "argv": [
-          "{{bin.api}}"
-        ],
-        "port": "api",
-        "cwd": "api"
-      }
-    },
-    "ui": {
-      "role": "ui",
-      "build": {
-        "kind": "go_module",
-        "dir": "ui",
-        "output": "ui/landing-page-business-suite-ui"
-      },
-      "run": {
-        "argv": [
-          "{{bin.ui}}"
-        ],
-        "port": "ui",
-        "cwd": "ui"
-      }
-    }
-  },
   "deployment": {
     "listeners": [
       {
         "id": "ui",
         "port": "ui",
         "visibility": "public_via_edge",
-        "readiness": {"type": "http", "path": "/health"}
+        "readiness": {
+          "type": "http",
+          "path": "/health"
+        }
       },
       {
         "id": "api",
         "port": "api",
         "path_prefix": "/api",
         "visibility": "public_via_edge",
-        "readiness": {"type": "http", "path": "/health"}
+        "readiness": {
+          "type": "http",
+          "path": "/health"
+        }
       }
     ]
   },
@@ -216,15 +199,15 @@
     "descriptors": [
       {
         "logical_id": "vrooli/landing-page-business-suite",
-    "field": "session-secret",
+        "field": "session-secret",
         "label": "Session signing secret",
         "description": "Signs session cookies. Landing Page Business Suite mints this on first start and stores it in the credential authority; there is nothing for an operator to enter.",
         "required": true,
-      "provisioning": "generated",
-      "tiers": [
-      "tier-1-local",
-      "tier-4-saas"
-      ]
+        "provisioning": "generated",
+        "tiers": [
+          "tier-1-local",
+          "tier-4-saas"
+        ]
       },
       {
         "logical_id": "vrooli/landing-page-business-suite",
@@ -233,7 +216,10 @@
         "description": "Scoped read-only token for Command Center business analytics. LPBS mints and rotates this through the credential authority; it is never accepted from browser clients.",
         "required": true,
         "provisioning": "generated",
-        "tiers": ["tier-1-local", "tier-4-saas"]
+        "tiers": [
+          "tier-1-local",
+          "tier-4-saas"
+        ]
       },
       {
         "logical_id": "vrooli/landing-page-business-suite",
@@ -248,35 +234,38 @@
       },
       {
         "logical_id": "vrooli/landing-page-business-suite",
-      "field": "service-secret",
+        "field": "service-secret",
         "label": "Service-to-service token",
         "description": "Service-to-service token minted by Landing Page Business Suite and stored in the credential authority; there is nothing for an operator to enter.",
         "required": true,
         "provisioning": "generated",
-      "tiers": [
-        "tier-1-local",
-        "tier-4-saas"
-      ]
+        "tiers": [
+          "tier-1-local",
+          "tier-4-saas"
+        ]
       },
       {
         "logical_id": "vrooli/landing-page-business-suite",
-    "field": "api-key-encryption-key",
+        "field": "api-key-encryption-key",
         "label": "API key encryption key",
         "description": "Versioned encryption ring minted by LPBS. Losing it makes sealed API-key rows unreadable; there is nothing for an operator to enter.",
         "required": true,
-    "provisioning": "generated",
-    "tiers": ["tier-1-local", "tier-4-saas"]
+        "provisioning": "generated",
+        "tiers": [
+          "tier-1-local",
+          "tier-4-saas"
+        ]
       },
       {
         "logical_id": "vrooli/landing-page-business-suite",
-    "field": "remote-profile-encryption-key",
+        "field": "remote-profile-encryption-key",
         "label": "Remote profile encryption key",
         "description": "Independent versioned encryption ring minted by LPBS. Losing it makes sealed remote profiles unreadable; there is nothing for an operator to enter.",
         "required": true,
         "provisioning": "generated",
         "tiers": [
-      "tier-1-local",
-      "tier-4-saas"
+          "tier-1-local",
+          "tier-4-saas"
         ]
       },
       {
@@ -286,7 +275,10 @@
         "description": "Versioned encryption ring minted by LPBS that seals administrator authenticator-app secrets. Losing it disables two-factor sign-in until an operator resets it; there is nothing for an operator to enter.",
         "required": true,
         "provisioning": "generated",
-        "tiers": ["tier-1-local", "tier-4-saas"]
+        "tiers": [
+          "tier-1-local",
+          "tier-4-saas"
+        ]
       },
       {
         "logical_id": "vrooli/landing-page-business-suite",
@@ -317,14 +309,14 @@
       },
       {
         "logical_id": "vrooli/landing-page-business-suite",
-    "field": "consumer-auth-private-key",
+        "field": "consumer-auth-private-key",
         "label": "Consumer token signing key",
         "description": "Private RSA key minted by Landing Page Business Suite and stored in the credential authority. Never distribute it to bundled scenarios.",
         "required": true,
         "provisioning": "generated",
         "tiers": [
-      "tier-1-local",
-      "tier-4-saas"
+          "tier-1-local",
+          "tier-4-saas"
         ]
       },
       {
@@ -337,7 +329,10 @@
         "required": false,
         "provisioning": "operator",
         "obtain_url": "https://app.mailgun.com/app/account/security/api_keys",
-        "tiers": ["tier-1-local", "tier-4-saas"]
+        "tiers": [
+          "tier-1-local",
+          "tier-4-saas"
+        ]
       },
       {
         "logical_id": "vrooli/landing-page-business-suite",
@@ -349,7 +344,10 @@
         "required": false,
         "provisioning": "operator",
         "obtain_url": "https://app.sendgrid.com/settings/api_keys",
-        "tiers": ["tier-1-local", "tier-4-saas"]
+        "tiers": [
+          "tier-1-local",
+          "tier-4-saas"
+        ]
       },
       {
         "logical_id": "vrooli/landing-page-business-suite",
@@ -360,7 +358,10 @@
         "required": false,
         "provisioning": "operator",
         "obtain_url": "https://www.twilio.com/docs/sendgrid/for-developers/tracking-events/getting-started-event-webhook-security-features",
-        "tiers": ["tier-1-local", "tier-4-saas"]
+        "tiers": [
+          "tier-1-local",
+          "tier-4-saas"
+        ]
       },
       {
         "logical_id": "vrooli/landing-page-business-suite",
@@ -371,11 +372,14 @@
         "required": false,
         "provisioning": "operator",
         "obtain_url": "https://app.mailgun.com/app/sending/domains",
-        "tiers": ["tier-1-local", "tier-4-saas"]
+        "tiers": [
+          "tier-1-local",
+          "tier-4-saas"
+        ]
       },
       {
         "logical_id": "vrooli/landing-page-business-suite",
-    "field": "stripe-secret-key",
+        "field": "stripe-secret-key",
         "label": "Stripe restricted secret key",
         "description": "Legacy migration fallback for live-mode server requests. Prefer stripe-live-secret-key.",
         "placeholder": "sk_live_a1b2c3d4e5f6...",
@@ -383,13 +387,13 @@
         "provisioning": "operator",
         "obtain_url": "https://dashboard.stripe.com/apikeys",
         "tiers": [
-      "tier-1-local",
-      "tier-4-saas"
+          "tier-1-local",
+          "tier-4-saas"
         ]
       },
       {
         "logical_id": "vrooli/landing-page-business-suite",
-    "field": "stripe-webhook-secret",
+        "field": "stripe-webhook-secret",
         "label": "Stripe webhook signing secret",
         "description": "Legacy migration fallback for live-mode webhook verification. Prefer stripe-live-webhook-secret.",
         "placeholder": "whsec_a1b2c3d4e5f6...",
@@ -397,8 +401,8 @@
         "provisioning": "operator",
         "obtain_url": "https://dashboard.stripe.com/webhooks",
         "tiers": [
-      "tier-1-local",
-      "tier-4-saas"
+          "tier-1-local",
+          "tier-4-saas"
         ]
       },
       {
@@ -412,8 +416,8 @@
         "provisioning": "operator",
         "obtain_url": "https://dashboard.stripe.com/apikeys",
         "tiers": [
-      "tier-1-local",
-      "tier-4-saas"
+          "tier-1-local",
+          "tier-4-saas"
         ]
       },
       {
@@ -425,7 +429,10 @@
         "required": false,
         "provisioning": "operator",
         "obtain_url": "https://dashboard.stripe.com/test/apikeys",
-        "tiers": ["tier-1-local", "tier-4-saas"]
+        "tiers": [
+          "tier-1-local",
+          "tier-4-saas"
+        ]
       },
       {
         "logical_id": "vrooli/landing-page-business-suite",
@@ -436,7 +443,10 @@
         "required": false,
         "provisioning": "operator",
         "obtain_url": "https://dashboard.stripe.com/test/webhooks",
-        "tiers": ["tier-1-local", "tier-4-saas"]
+        "tiers": [
+          "tier-1-local",
+          "tier-4-saas"
+        ]
       },
       {
         "logical_id": "vrooli/landing-page-business-suite",
@@ -447,7 +457,10 @@
         "required": false,
         "provisioning": "operator",
         "obtain_url": "https://dashboard.stripe.com/test/apikeys",
-        "tiers": ["tier-1-local", "tier-4-saas"]
+        "tiers": [
+          "tier-1-local",
+          "tier-4-saas"
+        ]
       },
       {
         "logical_id": "vrooli/landing-page-business-suite",
@@ -458,7 +471,10 @@
         "required": false,
         "provisioning": "operator",
         "obtain_url": "https://dashboard.stripe.com/apikeys",
-        "tiers": ["tier-1-local", "tier-4-saas"]
+        "tiers": [
+          "tier-1-local",
+          "tier-4-saas"
+        ]
       },
       {
         "logical_id": "vrooli/landing-page-business-suite",
@@ -469,7 +485,10 @@
         "required": false,
         "provisioning": "operator",
         "obtain_url": "https://dashboard.stripe.com/webhooks",
-        "tiers": ["tier-1-local", "tier-4-saas"]
+        "tiers": [
+          "tier-1-local",
+          "tier-4-saas"
+        ]
       },
       {
         "logical_id": "vrooli/landing-page-business-suite",
@@ -480,7 +499,10 @@
         "required": false,
         "provisioning": "operator",
         "obtain_url": "https://dashboard.stripe.com/apikeys",
-        "tiers": ["tier-1-local", "tier-4-saas"]
+        "tiers": [
+          "tier-1-local",
+          "tier-4-saas"
+        ]
       },
       {
         "logical_id": "vrooli/landing-page-business-suite",
@@ -492,13 +514,13 @@
         "provisioning": "operator",
         "obtain_url": "https://docs.aws.amazon.com/IAM/latest/UserGuide/security-creds-programmatic-access.html",
         "tiers": [
-      "tier-1-local",
-      "tier-4-saas"
+          "tier-1-local",
+          "tier-4-saas"
         ]
       },
       {
         "logical_id": "vrooli/landing-page-business-suite",
-    "field": "delivery-s3-secret-access-key",
+        "field": "delivery-s3-secret-access-key",
         "label": "Download bucket secret access key",
         "description": "Required secret access key paired with delivery-s3-access-key-id. Shown by AWS only once; never store it in application configuration. Provision through the credential authority.",
         "placeholder": "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY",
@@ -506,13 +528,13 @@
         "provisioning": "operator",
         "obtain_url": "https://docs.aws.amazon.com/IAM/latest/UserGuide/security-creds-programmatic-access.html",
         "tiers": [
-      "tier-1-local",
-      "tier-4-saas"
+          "tier-1-local",
+          "tier-4-saas"
         ]
       },
       {
         "logical_id": "vrooli/landing-page-business-suite",
-    "field": "delivery-s3-session-token",
+        "field": "delivery-s3-session-token",
         "label": "Download bucket session token",
         "description": "Optional session token paired with temporary download-bucket credentials; use short-lived credentials when a role is unavailable.",
         "placeholder": "IQoJb3JpZ2luX2Vj...",
@@ -520,8 +542,8 @@
         "provisioning": "operator",
         "obtain_url": "https://docs.aws.amazon.com/IAM/latest/UserGuide/id_credentials_temp_use-resources.html",
         "tiers": [
-      "tier-1-local",
-      "tier-4-saas"
+          "tier-1-local",
+          "tier-4-saas"
         ]
       },
       {
@@ -533,7 +555,9 @@
         "required": false,
         "provisioning": "operator",
         "obtain_url": "https://www.apple.com/certificateauthority/",
-        "tiers": ["tier-1-local"]
+        "tiers": [
+          "tier-1-local"
+        ]
       },
       {
         "logical_id": "vrooli/landing-page-business-suite",
@@ -544,7 +568,9 @@
         "required": false,
         "provisioning": "operator",
         "obtain_url": "https://appstoreconnect.apple.com/",
-        "tiers": ["tier-1-local"]
+        "tiers": [
+          "tier-1-local"
+        ]
       },
       {
         "logical_id": "vrooli/landing-page-business-suite",
@@ -555,7 +581,9 @@
         "required": false,
         "provisioning": "operator",
         "obtain_url": "https://appstoreconnect.apple.com/",
-        "tiers": ["tier-1-local"]
+        "tiers": [
+          "tier-1-local"
+        ]
       },
       {
         "logical_id": "vrooli/landing-page-business-suite",
@@ -566,7 +594,9 @@
         "required": false,
         "provisioning": "operator",
         "obtain_url": "https://play.google.com/console",
-        "tiers": ["tier-1-local"]
+        "tiers": [
+          "tier-1-local"
+        ]
       },
       {
         "logical_id": "vrooli/landing-page-business-suite",
@@ -577,7 +607,9 @@
         "required": false,
         "provisioning": "operator",
         "obtain_url": "https://play.google.com/console",
-        "tiers": ["tier-1-local"]
+        "tiers": [
+          "tier-1-local"
+        ]
       },
       {
         "logical_id": "vrooli/landing-page-business-suite",
@@ -588,40 +620,264 @@
         "required": false,
         "provisioning": "operator",
         "obtain_url": "https://console.cloud.google.com/iam-admin/serviceaccounts",
-        "tiers": ["tier-1-local"]
+        "tiers": [
+          "tier-1-local"
+        ]
       }
     ],
     "consumers": [
-      {"logical_id":"vrooli/landing-page-business-suite","field":"session-secret","kind":"generated","consumer":"session cookie manager","source_ref":"api/auth.go:110","required":true},
-      {"logical_id":"vrooli/landing-page-business-suite","field":"metrics-reader-token","kind":"generated","consumer":"Command Center business analytics reader","source_ref":"api/main.go:198","required":true},
-      {"logical_id":"vrooli/landing-page-business-suite","field":"session-secret-previous","kind":"authority","consumer":"session rotation verifier","source_ref":"api/auth.go:135","required":false},
-      {"logical_id":"vrooli/landing-page-business-suite","field":"service-secret","kind":"generated","consumer":"LPBS service identity bootstrap","source_ref":"api/main.go:209","required":true},
-      {"logical_id":"vrooli/landing-page-business-suite","field":"api-key-encryption-key","kind":"generated","consumer":"provider-key encryption ring","source_ref":"api/main.go:209","required":true},
-      {"logical_id":"vrooli/openrouter","field":"api-key","kind":"authority","consumer":"LPBS metered inference provider","source_ref":"api/internal/intelligence/credential_authority_api_key_service.go:25","required":false},
-      {"logical_id":"vrooli/landing-page-business-suite","field":"remote-profile-encryption-key","kind":"generated","consumer":"remote-profile encryption ring","source_ref":"api/main.go:209","required":true},
-      {"logical_id":"vrooli/landing-page-business-suite","field":"admin-mfa-encryption-key","kind":"generated","consumer":"admin two-factor secret encryption ring","source_ref":"api/admin_mfa_composition.go:12","required":true},
-      {"logical_id":"vrooli/landing-page-business-suite","field":"consumer-auth-private-key","kind":"generated","consumer":"customer token signer","source_ref":"api/main.go:464","required":true},
-      {"logical_id":"vrooli/landing-page-business-suite","field":"admin-default-password","kind":"authority","consumer":"seeded administrator bootstrap","source_ref":"api/auth.go:79","required":true},
-      {"logical_id":"vrooli/landing-page-business-suite","field":"mailgun-api-key","kind":"authority","consumer":"Mailgun HTTPS API sign-in email delivery","source_ref":"api/email_service.go:570; api/internal/emaildelivery/registry.go:21","required":false},
-      {"logical_id":"vrooli/landing-page-business-suite","field":"sendgrid-api-key","kind":"authority","consumer":"SendGrid sign-in code and link mail delivery","source_ref":"api/email_service.go:70","required":false},
-      {"logical_id":"vrooli/landing-page-business-suite","field":"sendgrid-webhook-public-key","kind":"authority","consumer":"signed SendGrid delivery event verification","source_ref":"api/routes.go:355","required":false},
-      {"logical_id":"vrooli/landing-page-business-suite","field":"smtp-password","kind":"authority","consumer":"legacy SMTP and feedback notification delivery","source_ref":"api/email_service.go:197","required":false},
-      {"logical_id":"vrooli/landing-page-business-suite","field":"stripe-secret-key","kind":"authority","consumer":"Stripe API migration fallback","source_ref":"api/internal/commerce/payment_settings_service.go:100","required":false,"reason":"Legacy fallback only when STRIPE_MODE=live and the explicit live field is absent."},
-      {"logical_id":"vrooli/landing-page-business-suite","field":"stripe-webhook-secret","kind":"authority","consumer":"Stripe webhook migration fallback","source_ref":"api/internal/commerce/payment_settings_service.go:103","required":false,"reason":"Legacy fallback only when STRIPE_MODE=live and the explicit live field is absent."},
-      {"logical_id":"vrooli/landing-page-business-suite","field":"stripe-publishable-key","kind":"environment","consumer":"browser checkout migration fallback","source_ref":"api/internal/commerce/payment_settings_service.go:101","required":false,"reason":"Legacy fallback only; active mode-specific credentials are authority-backed."},
-      {"logical_id":"vrooli/landing-page-business-suite","field":"stripe-test-secret-key","kind":"authority","consumer":"Stripe API client when STRIPE_MODE=test","source_ref":"api/internal/commerce/payment_settings_service.go:88","required":true,"reason":"Required when STRIPE_MODE=test; never falls back to live or legacy fields."},
-      {"logical_id":"vrooli/landing-page-business-suite","field":"stripe-test-webhook-secret","kind":"authority","consumer":"Stripe webhook verifier when STRIPE_MODE=test","source_ref":"api/internal/commerce/payment_settings_service.go:90","required":true,"reason":"Required when STRIPE_MODE=test; never falls back to live or legacy fields."},
-      {"logical_id":"vrooli/landing-page-business-suite","field":"stripe-test-publishable-key","kind":"authority","consumer":"browser checkout configuration when STRIPE_MODE=test","source_ref":"api/internal/commerce/payment_settings_service.go:88","required":true,"reason":"Required when STRIPE_MODE=test; never falls back to live or legacy fields."},
-      {"logical_id":"vrooli/landing-page-business-suite","field":"stripe-live-secret-key","kind":"authority","consumer":"Stripe API client when STRIPE_MODE=live","source_ref":"api/internal/commerce/payment_settings_service.go:95","required":true,"reason":"Required when STRIPE_MODE=live; legacy fields are migration fallback only."},
-      {"logical_id":"vrooli/landing-page-business-suite","field":"stripe-live-webhook-secret","kind":"authority","consumer":"Stripe webhook verifier when STRIPE_MODE=live","source_ref":"api/internal/commerce/payment_settings_service.go:97","required":true,"reason":"Required when STRIPE_MODE=live; legacy fields are migration fallback only."},
-      {"logical_id":"vrooli/landing-page-business-suite","field":"stripe-live-publishable-key","kind":"authority","consumer":"browser checkout configuration when STRIPE_MODE=live","source_ref":"api/internal/commerce/payment_settings_service.go:95","required":true,"reason":"Required when STRIPE_MODE=live; legacy fields are migration fallback only."},
-      {"logical_id":"vrooli/landing-page-business-suite","field":"delivery-s3-access-key-id","kind":"authority","consumer":"download artifact S3 client","source_ref":"api/internal/delivery/s3.go:62","required":true,"reason":"Required for the private delivery bucket; separate pair per local and production host."},
-      {"logical_id":"vrooli/landing-page-business-suite","field":"delivery-s3-secret-access-key","kind":"authority","consumer":"download artifact S3 client","source_ref":"api/internal/delivery/s3.go:63","required":true,"reason":"Required for the private delivery bucket; paired with delivery-s3-access-key-id."},
-      {"logical_id":"vrooli/landing-page-business-suite","field":"delivery-s3-session-token","kind":"authority","consumer":"download artifact S3 client","source_ref":"api/internal/delivery/s3.go:64","required":false,"reason":"Optional; only for temporary AWS STS credentials."},
-      {"logical_id":"vrooli/landing-page-business-suite","field":"google-play-oauth-token","kind":"authority","consumer":"Google Play receipt verifier","source_ref":"api/receipt_registration.go:87","required":false},
-      {"logical_id":"vrooli/landing-page-business-suite","field":"apple-root-cert-pem","kind":"public","consumer":"Apple receipt verifier","source_ref":"api/receipt_registration.go:40","required":false},
-      {"logical_id":"vrooli/landing-page-business-suite","field":"apple-bundle-id","kind":"public","consumer":"Apple receipt verifier","source_ref":"api/receipt_registration.go:26","required":false},
-      {"logical_id":"vrooli/landing-page-business-suite","field":"apple-product-plans","kind":"public","consumer":"Apple receipt verifier","source_ref":"api/receipt_registration.go:57","required":false}
+      {
+        "logical_id": "vrooli/landing-page-business-suite",
+        "field": "session-secret",
+        "kind": "generated",
+        "consumer": "session cookie manager",
+        "source_ref": "api/auth.go:110",
+        "required": true
+      },
+      {
+        "logical_id": "vrooli/landing-page-business-suite",
+        "field": "metrics-reader-token",
+        "kind": "generated",
+        "consumer": "Command Center business analytics reader",
+        "source_ref": "api/main.go:198",
+        "required": true
+      },
+      {
+        "logical_id": "vrooli/landing-page-business-suite",
+        "field": "session-secret-previous",
+        "kind": "authority",
+        "consumer": "session rotation verifier",
+        "source_ref": "api/auth.go:135",
+        "required": false
+      },
+      {
+        "logical_id": "vrooli/landing-page-business-suite",
+        "field": "service-secret",
+        "kind": "generated",
+        "consumer": "LPBS service identity bootstrap",
+        "source_ref": "api/main.go:209",
+        "required": true
+      },
+      {
+        "logical_id": "vrooli/landing-page-business-suite",
+        "field": "api-key-encryption-key",
+        "kind": "generated",
+        "consumer": "provider-key encryption ring",
+        "source_ref": "api/main.go:209",
+        "required": true
+      },
+      {
+        "logical_id": "vrooli/openrouter",
+        "field": "api-key",
+        "kind": "authority",
+        "consumer": "LPBS metered inference provider",
+        "source_ref": "api/internal/intelligence/credential_authority_api_key_service.go:25",
+        "required": false
+      },
+      {
+        "logical_id": "vrooli/landing-page-business-suite",
+        "field": "remote-profile-encryption-key",
+        "kind": "generated",
+        "consumer": "remote-profile encryption ring",
+        "source_ref": "api/main.go:209",
+        "required": true
+      },
+      {
+        "logical_id": "vrooli/landing-page-business-suite",
+        "field": "admin-mfa-encryption-key",
+        "kind": "generated",
+        "consumer": "admin two-factor secret encryption ring",
+        "source_ref": "api/admin_mfa_composition.go:12",
+        "required": true
+      },
+      {
+        "logical_id": "vrooli/landing-page-business-suite",
+        "field": "consumer-auth-private-key",
+        "kind": "generated",
+        "consumer": "customer token signer",
+        "source_ref": "api/main.go:464",
+        "required": true
+      },
+      {
+        "logical_id": "vrooli/landing-page-business-suite",
+        "field": "admin-default-password",
+        "kind": "authority",
+        "consumer": "seeded administrator bootstrap",
+        "source_ref": "api/auth.go:79",
+        "required": true
+      },
+      {
+        "logical_id": "vrooli/landing-page-business-suite",
+        "field": "mailgun-api-key",
+        "kind": "authority",
+        "consumer": "Mailgun HTTPS API sign-in email delivery",
+        "source_ref": "api/email_service.go:570; api/internal/emaildelivery/registry.go:21",
+        "required": false
+      },
+      {
+        "logical_id": "vrooli/landing-page-business-suite",
+        "field": "sendgrid-api-key",
+        "kind": "authority",
+        "consumer": "SendGrid sign-in code and link mail delivery",
+        "source_ref": "api/email_service.go:70",
+        "required": false
+      },
+      {
+        "logical_id": "vrooli/landing-page-business-suite",
+        "field": "sendgrid-webhook-public-key",
+        "kind": "authority",
+        "consumer": "signed SendGrid delivery event verification",
+        "source_ref": "api/routes.go:355",
+        "required": false
+      },
+      {
+        "logical_id": "vrooli/landing-page-business-suite",
+        "field": "smtp-password",
+        "kind": "authority",
+        "consumer": "legacy SMTP and feedback notification delivery",
+        "source_ref": "api/email_service.go:197",
+        "required": false
+      },
+      {
+        "logical_id": "vrooli/landing-page-business-suite",
+        "field": "stripe-secret-key",
+        "kind": "authority",
+        "consumer": "Stripe API migration fallback",
+        "source_ref": "api/internal/commerce/payment_settings_service.go:100",
+        "required": false,
+        "reason": "Legacy fallback only when STRIPE_MODE=live and the explicit live field is absent."
+      },
+      {
+        "logical_id": "vrooli/landing-page-business-suite",
+        "field": "stripe-webhook-secret",
+        "kind": "authority",
+        "consumer": "Stripe webhook migration fallback",
+        "source_ref": "api/internal/commerce/payment_settings_service.go:103",
+        "required": false,
+        "reason": "Legacy fallback only when STRIPE_MODE=live and the explicit live field is absent."
+      },
+      {
+        "logical_id": "vrooli/landing-page-business-suite",
+        "field": "stripe-publishable-key",
+        "kind": "environment",
+        "consumer": "browser checkout migration fallback",
+        "source_ref": "api/internal/commerce/payment_settings_service.go:101",
+        "required": false,
+        "reason": "Legacy fallback only; active mode-specific credentials are authority-backed."
+      },
+      {
+        "logical_id": "vrooli/landing-page-business-suite",
+        "field": "stripe-test-secret-key",
+        "kind": "authority",
+        "consumer": "Stripe API client when STRIPE_MODE=test",
+        "source_ref": "api/internal/commerce/payment_settings_service.go:88",
+        "required": true,
+        "reason": "Required when STRIPE_MODE=test; never falls back to live or legacy fields."
+      },
+      {
+        "logical_id": "vrooli/landing-page-business-suite",
+        "field": "stripe-test-webhook-secret",
+        "kind": "authority",
+        "consumer": "Stripe webhook verifier when STRIPE_MODE=test",
+        "source_ref": "api/internal/commerce/payment_settings_service.go:90",
+        "required": true,
+        "reason": "Required when STRIPE_MODE=test; never falls back to live or legacy fields."
+      },
+      {
+        "logical_id": "vrooli/landing-page-business-suite",
+        "field": "stripe-test-publishable-key",
+        "kind": "authority",
+        "consumer": "browser checkout configuration when STRIPE_MODE=test",
+        "source_ref": "api/internal/commerce/payment_settings_service.go:88",
+        "required": true,
+        "reason": "Required when STRIPE_MODE=test; never falls back to live or legacy fields."
+      },
+      {
+        "logical_id": "vrooli/landing-page-business-suite",
+        "field": "stripe-live-secret-key",
+        "kind": "authority",
+        "consumer": "Stripe API client when STRIPE_MODE=live",
+        "source_ref": "api/internal/commerce/payment_settings_service.go:95",
+        "required": true,
+        "reason": "Required when STRIPE_MODE=live; legacy fields are migration fallback only."
+      },
+      {
+        "logical_id": "vrooli/landing-page-business-suite",
+        "field": "stripe-live-webhook-secret",
+        "kind": "authority",
+        "consumer": "Stripe webhook verifier when STRIPE_MODE=live",
+        "source_ref": "api/internal/commerce/payment_settings_service.go:97",
+        "required": true,
+        "reason": "Required when STRIPE_MODE=live; legacy fields are migration fallback only."
+      },
+      {
+        "logical_id": "vrooli/landing-page-business-suite",
+        "field": "stripe-live-publishable-key",
+        "kind": "authority",
+        "consumer": "browser checkout configuration when STRIPE_MODE=live",
+        "source_ref": "api/internal/commerce/payment_settings_service.go:95",
+        "required": true,
+        "reason": "Required when STRIPE_MODE=live; legacy fields are migration fallback only."
+      },
+      {
+        "logical_id": "vrooli/landing-page-business-suite",
+        "field": "delivery-s3-access-key-id",
+        "kind": "authority",
+        "consumer": "download artifact S3 client",
+        "source_ref": "api/internal/delivery/s3.go:62",
+        "required": true,
+        "reason": "Required for the private delivery bucket; separate pair per local and production host."
+      },
+      {
+        "logical_id": "vrooli/landing-page-business-suite",
+        "field": "delivery-s3-secret-access-key",
+        "kind": "authority",
+        "consumer": "download artifact S3 client",
+        "source_ref": "api/internal/delivery/s3.go:63",
+        "required": true,
+        "reason": "Required for the private delivery bucket; paired with delivery-s3-access-key-id."
+      },
+      {
+        "logical_id": "vrooli/landing-page-business-suite",
+        "field": "delivery-s3-session-token",
+        "kind": "authority",
+        "consumer": "download artifact S3 client",
+        "source_ref": "api/internal/delivery/s3.go:64",
+        "required": false,
+        "reason": "Optional; only for temporary AWS STS credentials."
+      },
+      {
+        "logical_id": "vrooli/landing-page-business-suite",
+        "field": "google-play-oauth-token",
+        "kind": "authority",
+        "consumer": "Google Play receipt verifier",
+        "source_ref": "api/receipt_registration.go:87",
+        "required": false
+      },
+      {
+        "logical_id": "vrooli/landing-page-business-suite",
+        "field": "apple-root-cert-pem",
+        "kind": "public",
+        "consumer": "Apple receipt verifier",
+        "source_ref": "api/receipt_registration.go:40",
+        "required": false
+      },
+      {
+        "logical_id": "vrooli/landing-page-business-suite",
+        "field": "apple-bundle-id",
+        "kind": "public",
+        "consumer": "Apple receipt verifier",
+        "source_ref": "api/receipt_registration.go:26",
+        "required": false
+      },
+      {
+        "logical_id": "vrooli/landing-page-business-suite",
+        "field": "apple-product-plans",
+        "kind": "public",
+        "consumer": "Apple receipt verifier",
+        "source_ref": "api/receipt_registration.go:57",
+        "required": false
+      }
     ]
   },
   "components": {

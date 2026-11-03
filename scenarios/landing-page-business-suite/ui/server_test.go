@@ -115,7 +115,7 @@ func TestUIHandlerServesClientEntryForDirectPublicRoutes(t *testing.T) {
 	h := newUIHandler(root, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		http.Error(w, "unexpected proxy", http.StatusBadGateway)
 	}))
-	for _, path := range []string{"/apps/aquila", "/apps/aquila/download", "/checkout", "/contact", "/privacy", "/terms", "/thank-you"} {
+	for _, path := range []string{"/apps/aquila", "/apps/aquila/download", "/checkout", "/contact", "/privacy", "/terms", "/thank-you", "/account/credits"} {
 		response := httptest.NewRecorder()
 		h.ServeHTTP(response, httptest.NewRequest(http.MethodGet, path, nil))
 		if response.Code != http.StatusOK || !strings.Contains(response.Body.String(), `<base href="/">`) {

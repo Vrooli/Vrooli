@@ -47,7 +47,7 @@ This document reflects the current code; claims here have been verified against 
 | commerce.PaymentAnomalyStore | `api/internal/commerce/anomaly_dispatcher.go` | `*database.RoutedDB` in API composition | `*sql.DB` in payment-anomaly tests | Route payment anomaly records and delivery state through the request-scoped database seam. |
 | commerce.LimitsStore | `api/internal/commerce/limits_service.go` | `*database.RoutedDB` in API composition | `*sql.DB` in limits service tests | Route subscription-tier limits through the request-scoped database seam. |
 | commerce.StripeStore | `api/internal/commerce/{stripe_repository,account_link_service}.go` | `*database.RoutedDB` in API composition through `StripeService` | `*sql.DB` in commerce-focused tests | Keep subscription, checkout, credit, and customer-identity persistence independent of API composition and Stripe transport clients. |
-| commerce.CreditWallet | `api/internal/commerce/credit_wallet_service.go` | `*commerce.CreditWalletService` constructed from `StripeServiceStore` during API composition | real Postgres in credit-wallet tests | Keep wallet ledger and replay-safe balance mutation inside commerce; Stripe webhook code supplies only provider event data for a top-up. |
+| commerce.CreditWallet | `api/internal/commerce/credit_wallet_service.go` | `*commerce.CreditWalletService` constructed from `StripeServiceStore` during API composition | real Postgres in credit-wallet tests | Keep attributed account grants and lot-derived display balances inside commerce; no personal-email grant or debit authority. |
 | commerce.BundleProductReader | `api/internal/commerce/credit_topup.go` | `*commerce.PlanService` injected by `StripeService` composition | `creditTopupPlansFake` in commerce tests | Keep conversion from a completed provider payment to wallet credits inside commerce without coupling the policy to Stripe webhook parsing. |
 | commerce.CouponService | `api/internal/commerce/{coupons,stripe_coupon_provider}.go` | `*commerce.StripeCouponProvider` composed by `StripeService` | `fakeCouponService` in `api/handlers/coupons/handler_test.go`; `stripeCouponRequesterFake` in commerce tests | Keep generated coupon administration transport and coupon policy independent of Stripe runtime configuration. The root adapter supplies only authenticated requests, current intro-coupon configuration, and the plan mapping source. |
 | commerce.CouponMappingReader | `api/internal/commerce/stripe_coupon_provider.go` | `*commerce.PlanService` injected by `StripeService.couponProvider` | plan-store fakes in commerce coupon-provider tests | Keep coupon import previews dependent on the minimal local plan-to-coupon mapping contract rather than API composition or provider configuration. |
@@ -275,9 +275,12 @@ handler tests prove both oversized-payload rejection and non-leaking failures.
 
 `api/handlers/commerce/usage.go` owns the usage-report, usage-summary,
 limit-check, admin-summary, and monitoring HTTP transports. Its
-`UsageDependencies` supplies only request-identity extraction and API response
-and logging adapters; `internal/commerce.UsageService` owns token validation,
-metering, limit policy, and persistence. `usageHTTPDependencies` is the single
+`UsageDependencies` supplies authenticated identity, server-owned subscription-tier
+and account-membership resolution, plus API response and logging adapters;
+`internal/commerce.UsageService` owns meter-kind dispatch and persistence.
+Count-based reservations use an explicit non-credit quota owner and preserve
+principal scope and custom windows. Cost-based mutation fails closed while
+verified billing/app scope is unavailable. `usageHTTPDependencies` is the single
 root composition point. This keeps service-to-service bearer validation at the
 commerce edge and makes missing-auth, malformed-input, and unauthenticated-user
 paths testable without a database.
@@ -435,7 +438,7 @@ defer meteredInferenceRateLimiter.UseTimeProvider(nil)
 │  └──────────────────┘    └─────────────────────────────────┘   │
 │                                                                  │
 │  ┌──────────────────┐    ┌─────────────────────────────────┐   │
-│  │ UsageService     │───▶ ReserveAndCharge() (atomic)       │   │
+│  │ UsageService     │───▶ account holds / count quota       │   │
 │  │                  │    CheckLimit(), RecordUsage()        │   │
 │  └──────────────────┘    └─────────────────────────────────┘   │
 │                                                                  │
@@ -447,13 +450,7 @@ defer meteredInferenceRateLimiter.UseTimeProvider(nil)
 └──────────────────────────────────────────────────────────────────┘
 ```
 
-**Credit Flow:**
-
-1. **Non-streaming (atomic):**
-   - Estimate cost → ReserveAndCharge (atomic) → Call OpenRouter → Adjust if needed
-
-2. **Streaming (check-then-charge):**
-   - Estimate cost → CheckLimit → Stream response → RecordUsage after completion
+**Credit flow contract:** authenticate actor and account membership, establish verified app/global scope and both caps, reserve eligible account lots before dispatch, then settle a measured receipt under the immutable operation binding. Ambiguous dispatched outcomes retain the hold; settlement is capped and replay-safe. The current AI composition migration is held on app-binding authority and must not restore personal wrappers to compile. The abstract owner tests do not certify that production seam. See [funding flows](../concepts/FLOWS.md).
 
 **Credit Units:**
 - Internal unit = 1/1,000,000 of a cent

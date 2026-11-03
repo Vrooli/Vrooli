@@ -215,3 +215,78 @@ func TestClientIPFromHeaders(t *testing.T) {
 		t.Fatalf("fallback=%q", got)
 	}
 }
+
+func TestBillingAuthorityErrorsAreActionableAndDistinct(t *testing.T) {
+	for _, tc := range []struct {
+		err    error
+		status int
+		code   string
+	}{
+		{intelligence.ErrBillingAccountRequired, 403, "billing_account_required"},
+		{intelligence.ErrBillingScopeUnavailable, 503, "billing_scope_unavailable"},
+		{intelligence.ErrInsufficientCredits, 402, "insufficient_credits"},
+	} {
+		w := httptest.NewRecorder()
+		WriteError(Dependencies{WriteJSONError: writeTestError, LogError: func(string, map[string]interface{}) {}}, w, tc.err)
+		if w.Code != tc.status || !bytes.Contains(w.Body.Bytes(), []byte(tc.code)) {
+			t.Fatalf("status=%d body=%s", w.Code, w.Body)
+		}
+		if tc.status != 402 && !bytes.Contains(w.Body.Bytes(), []byte(tc.err.Error())) {
+			t.Fatalf("missing actionable message: %s", w.Body)
+		}
+		ce := connectAIError(tc.err)
+		if tc.status != 402 && !bytes.Contains([]byte(ce.Error()), []byte(tc.code)) {
+			t.Fatalf("connect error=%v", ce)
+		}
+	}
+}
+
+func TestHTTPAdmissionRejectsMissingVerifiedBillingScopeBeforeSideEffects(t *testing.T) {
+	for _, account := range []string{"", "acct-selected"} {
+		for _, route := range []string{"chat", "stream", "inference", "inference-stream"} {
+			t.Run(route+"/"+account, func(t *testing.T) {
+				h := New(Dependencies{
+					Service:         intelligence.NewMeteredInferenceService(intelligence.MeteredInferenceServiceOptions{}),
+					UserRateLimiter: allowLimiter{}, IPRateLimiter: allowLimiter{}, IPKeyFunc: func(*http.Request) string { return "ip" },
+					UserID: func(context.Context) string { return "user" }, UserIdentity: func(context.Context) string { return "actor@example.test" },
+					ResolveBusinessAccount: func(_ context.Context, user, actor, id string) (string, error) {
+						if user != "user" || actor != "actor@example.test" {
+							t.Fatal("lost principal")
+						}
+						return id, nil
+					},
+					WriteJSONError: writeTestError, Log: func(string, map[string]interface{}) {}, LogError: func(string, map[string]interface{}) {},
+				})
+				payload := map[string]any{"business_account_id": account, "messages": []map[string]string{{"role": "user", "content": "hello"}}, "metadata": map[string]string{"app_bundle_key": "caller-controlled"}}
+				if route == "inference" || route == "inference-stream" {
+					payload["role"] = "code.default"
+				} else {
+					payload["model"] = "openai/gpt-4o"
+				}
+				body, _ := json.Marshal(payload)
+				r := httptest.NewRequest("POST", "/api/v1/ai/"+route, bytes.NewReader(body))
+				w := httptest.NewRecorder()
+				switch route {
+				case "chat":
+					h.Chat()(w, r)
+				case "stream":
+					h.Stream()(w, r)
+				case "inference":
+					h.Inference()(w, r)
+				case "inference-stream":
+					h.InferenceStream()(w, r)
+				}
+				status, code := 503, "billing_scope_unavailable"
+				if account == "" {
+					status, code = 403, "billing_account_required"
+				}
+				if w.Code != status || !bytes.Contains(w.Body.Bytes(), []byte(code)) {
+					t.Fatalf("status=%d body=%s", w.Code, w.Body)
+				}
+				if w.Header().Get("Content-Type") == "text/event-stream" {
+					t.Fatal("stream started before admission")
+				}
+			})
+		}
+	}
+}

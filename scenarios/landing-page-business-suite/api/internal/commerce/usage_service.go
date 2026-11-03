@@ -16,6 +16,7 @@ type UsageService struct {
 	dialect             string
 	logf                func(string, map[string]interface{})
 	insufficientCredits error
+	liveMode            bool
 	// serviceAuthConfigured reports whether the service-to-service credential
 	// the request gate actually checks (the shared LPBS service secret) resolves.
 	// It is a composition-owned seam so this package does not read credentials.
@@ -30,17 +31,23 @@ type UsageServiceOptions struct {
 	Dialect               string
 	Log                   func(string, map[string]interface{})
 	InsufficientCredits   error
+	LiveMode              *bool
 	ServiceAuthConfigured func() bool
 }
 
 // NewUsageServiceWithOptions creates a usage service with explicit configuration.
 func NewUsageServiceWithOptions(opts UsageServiceOptions) *UsageService {
+	liveMode := true
+	if opts.LiveMode != nil {
+		liveMode = *opts.LiveMode
+	}
 	return &UsageService{
 		db:                    opts.DB,
 		limitsSvc:             opts.LimitsService,
 		dialect:               opts.Dialect,
 		logf:                  opts.Log,
 		insufficientCredits:   opts.InsufficientCredits,
+		liveMode:              liveMode,
 		serviceAuthConfigured: opts.ServiceAuthConfigured,
 	}
 }
@@ -60,126 +67,157 @@ func (s *UsageService) log(event string, fields map[string]interface{}) {
 	}
 }
 
-func (s *UsageService) reservationService() *ReservationService {
-	insufficientCredits := s.insufficientCredits
-	if insufficientCredits == nil {
-		insufficientCredits = errors.New("insufficient credits")
-	}
-	return NewReservationService(s.db, s.limitsSvc, s.dialect, ReservationRuntime{
-		InsufficientCredits: insufficientCredits,
-		Log:                 s.logf,
-	})
+func (s *UsageService) quotaReservations() *QuotaReservationService {
+	return NewQuotaReservationService(s.db, s.limitsSvc, s.dialect, s.insufficientCredits)
 }
 
 func (s *UsageService) businessAccountUsageService() *BusinessAccountUsageService {
-	return NewBusinessAccountUsageService(BusinessAccountUsageOptions{
-		DB: s.db, Limits: s.limitsSvc, Dialect: s.dialect, Insufficient: s.insufficientCredits, Log: s.logf,
-	})
+	return NewBusinessAccountUsageService(BusinessAccountUsageOptions{DB: s.db, Limits: s.limitsSvc, Dialect: s.dialect, Insufficient: s.insufficientCredits, Log: s.logf, LiveMode: &s.liveMode})
 }
 
-func (s *UsageService) ReserveBusinessAccountCredits(ctx context.Context, accountID, actorIdentity, tier, limitKey string, amount int64) (string, error) {
-	return s.businessAccountUsageService().ReserveCredits(ctx, accountID, actorIdentity, tier, limitKey, amount)
-}
-
-func (s *UsageService) FinalizeBusinessAccountReservationWithCost(ctx context.Context, accountID, reservationID string, amount int64, appBundleKey, model string, costMicros int64, promptTokens, completionTokens int, provider string) error {
-	return s.businessAccountUsageService().FinalizeReservationWithCost(ctx, accountID, reservationID, amount, appBundleKey, model, costMicros, promptTokens, completionTokens, provider)
-}
-
-func (s *UsageService) ReleaseBusinessAccountReservation(ctx context.Context, accountID, reservationID string) error {
-	return s.businessAccountUsageService().ReleaseReservation(ctx, accountID, reservationID)
-}
-
-func (s *UsageService) RetainUncertainBusinessAccountReservation(ctx context.Context, reservationID string) error {
-	return s.businessAccountUsageService().RetainUncertainReservation(ctx, reservationID)
-}
-
-func (s *UsageService) RecordBusinessAccountUsage(ctx context.Context, accountID, actorIdentity, tier, limitKey string, amount int64, appBundleKey, model string, costMicros int64, promptTokens, completionTokens int, provider string) error {
-	return s.businessAccountUsageService().RecordUsage(ctx, accountID, actorIdentity, tier, limitKey, amount, appBundleKey, model, costMicros, promptTokens, completionTokens, provider)
-}
-
-func (s *UsageService) AdjustBusinessAccountUsage(ctx context.Context, accountID, limitKey string, adjustment int64) error {
-	return s.businessAccountUsageService().AdjustUsage(ctx, accountID, limitKey, adjustment)
-}
-
-func (s *UsageService) GetBusinessAccountUsageSummary(ctx context.Context, accountID, tier string) (BusinessAccountUsageSummary, error) {
-	return s.businessAccountUsageService().GetUsageSummary(ctx, accountID, tier)
-}
-
-func (s *UsageService) ReserveAndCharge(ctx context.Context, userIdentity, tier, limitKey string, amount int64, metadata UsageReportRequest) error {
-	return s.reservationService().ReserveAndCharge(ctx, userIdentity, tier, limitKey, amount, metadata)
-}
-
-func (s *UsageService) ReserveCredits(ctx context.Context, userIdentity, tier, limitKey string, amount int64) (string, error) {
-	return s.reservationService().ReserveCredits(ctx, userIdentity, tier, limitKey, amount)
-}
-
-// ReserveUSDSpendCap converts a USD micro-dollar ceiling using the current
-// authoritative LPBS cost multiplier, rounds upward, and reserves that amount.
-func (s *UsageService) ReserveUSDSpendCap(ctx context.Context, userIdentity, tier string, costMicros int64, operationID string) (string, int64, int64, error) {
-	if costMicros <= 0 || s.limitsSvc == nil {
-		return "", 0, 0, fmt.Errorf("current credit limit authority is unavailable")
-	}
-	limit, err := s.limitsSvc.GetLimit(ctx, tier, "ai_credits", nil)
+func (s *UsageService) MeterKind(ctx context.Context, tier, key string) (string, error) {
+	limit, err := requireMeterKind(ctx, s.limitsSvc, tier, key, "")
 	if err != nil {
-		return "", 0, 0, fmt.Errorf("load current AI credit conversion: %w", err)
+		return "", err
 	}
-	if limit == nil || limit.LimitType != "cost_based" || limit.CostMultiplier <= 0 {
-		return "", 0, 0, fmt.Errorf("current AI credit conversion is unavailable")
+	return limit.LimitType, nil
+}
+
+func (s *UsageService) ReserveQuota(ctx context.Context, actor, tier, key string, amount int64, window time.Duration) (string, error) {
+	return s.quotaReservations().Reserve(ctx, actor, tier, key, amount, window)
+}
+
+func (s *UsageService) FinalizeQuota(ctx context.Context, actor, tier, id string, amount int64) error {
+	return s.quotaReservations().Finalize(ctx, actor, tier, id, amount)
+}
+
+func (s *UsageService) ReleaseQuota(ctx context.Context, actor, tier, id string) error {
+	return s.quotaReservations().Release(ctx, actor, tier, id)
+}
+
+func (s *UsageService) ReserveBusinessAccountCredits(ctx context.Context, account, actor, tier, key string, amount int64) (string, error) {
+	return s.businessAccountUsageService().ReserveCredits(ctx, account, actor, tier, key, amount)
+}
+
+func (s *UsageService) ReserveBusinessAccountCreditsWithID(ctx context.Context, account, actor, tier, key string, amount int64, operation string) (string, bool, error) {
+	return s.businessAccountUsageService().ReserveCreditsWithID(ctx, account, actor, tier, key, amount, operation)
+}
+
+func (s *UsageService) FinalizeBusinessAccountReservationWithCost(ctx context.Context, account, actor, id string, amount int64, app, model string, cost int64, prompt, completion int, provider string) error {
+	owner := s.businessAccountUsageService()
+	if err := owner.VerifyActor(ctx, account, actor, id); err != nil {
+		return err
+	}
+	return owner.FinalizeReservationWithCost(ctx, account, id, amount, app, model, cost, prompt, completion, provider)
+}
+
+func (s *UsageService) ReleaseBusinessAccountReservation(ctx context.Context, account, actor, id string) error {
+	owner := s.businessAccountUsageService()
+	if err := owner.VerifyActor(ctx, account, actor, id); err != nil {
+		return err
+	}
+	return owner.ReleaseReservation(ctx, account, id)
+}
+
+func (s *UsageService) RetainUncertainBusinessAccountReservation(ctx context.Context, account, actor, id string) error {
+	owner := s.businessAccountUsageService()
+	if err := owner.VerifyActor(ctx, account, actor, id); err != nil {
+		return err
+	}
+	return owner.RetainUncertainReservation(ctx, account, id)
+}
+
+func (s *UsageService) RecordBusinessAccountUsage(ctx context.Context, account, actor, tier, key string, amount int64, operation, app, model string, cost int64, prompt, completion int, provider string) error {
+	return s.businessAccountUsageService().RecordUsage(ctx, account, actor, tier, key, amount, operation, app, model, cost, prompt, completion, provider)
+}
+
+func (s *UsageService) GetBusinessAccountUsageSummary(ctx context.Context, account, tier string) (BusinessAccountUsageSummary, error) {
+	owner := s.businessAccountUsageService()
+	summary, err := owner.GetUsageSummary(ctx, account, tier)
+	if err != nil {
+		return summary, err
+	}
+	summary.Wallet, err = owner.WalletView(ctx, account)
+	return summary, err
+}
+
+// CreditReservationBinding exposes immutable ownership for the authenticated
+// transport to verify membership before any credit reservation mutation.
+func (s *UsageService) CreditReservationBinding(ctx context.Context, id string) (account, actor, key string, found bool, err error) {
+	err = s.db.QueryRowContext(ctx, `SELECT business_account_id,actor_identity,limit_key FROM business_account_credit_reservations WHERE id=$1`, id).Scan(&account, &actor, &key)
+	if errors.Is(err, sql.ErrNoRows) {
+		return "", "", "", false, nil
+	}
+	return account, actor, key, err == nil, err
+}
+
+func (s *UsageService) QuotaReservationKey(ctx context.Context, id string) (string, error) {
+	_, key, err := s.quotaReservations().binding(ctx, id)
+	return key, err
+}
+
+func (s *UsageService) ReserveBusinessAccountUSDSpendCap(ctx context.Context, account, actor, tier string, costMicros int64, operation string) (string, int64, int64, error) {
+	if strings.TrimSpace(account) == "" {
+		return "", 0, 0, ErrBusinessAccountRequired
+	}
+	limit, err := requireMeterKind(ctx, s.limitsSvc, tier, "ai_credits", "cost_based")
+	if err != nil || costMicros <= 0 {
+		return "", 0, 0, fmt.Errorf("current credit limit authority is unavailable: %w", err)
+	}
+	if limit.CostMultiplier <= 0 {
+		return "", 0, 0, errors.New("current AI credit conversion is unavailable")
 	}
 	if costMicros > (int64(^uint64(0)>>1)-9999)/limit.CostMultiplier {
-		return "", 0, 0, fmt.Errorf("spend ceiling conversion overflows")
+		return "", 0, 0, errors.New("spend ceiling conversion overflows")
 	}
 	units := (costMicros*limit.CostMultiplier + 9999) / 10000
 	if units <= 0 {
-		return "", 0, 0, fmt.Errorf("spend ceiling conversion is invalid")
+		return "", 0, 0, errors.New("spend ceiling conversion is invalid")
 	}
-	id, err := s.reservationService().ReserveCreditsWithID(ctx, userIdentity, tier, "ai_credits", units, operationID)
+	id, created, err := s.ReserveBusinessAccountCreditsWithID(ctx, account, actor, tier, "ai_credits", units, operation)
+	if err == nil && !created {
+		return "", 0, 0, errors.New("spend operation is already reserved; reconcile its existing receipt")
+	}
 	return id, units, limit.CostMultiplier, err
 }
 
-// RetainUncertainReservation makes a provider-dispatch hold survive automatic
-// expiry until an owner reconciles its outcome.
-func (s *UsageService) RetainUncertainReservation(ctx context.Context, reservationID string) error {
-	return s.reservationService().RetainUncertainReservation(ctx, reservationID)
-}
-
-func (s *UsageService) FinalizeReservationWithMetadata(ctx context.Context, reservationID string, amount int64, appBundleKey, model string) error {
-	return s.reservationService().FinalizeReservationWithMetadata(ctx, reservationID, amount, appBundleKey, model)
-}
-
-// ReserveCreditsWithWindow exposes the bounded reservation window needed by
-// long-lived compute capacity while retaining the same ownership and limit
-// checks as the default reservation path.
-func (s *UsageService) ReserveCreditsWithWindow(ctx context.Context, userIdentity, tier, limitKey string, amount int64, window time.Duration) (string, error) {
-	return s.reservationService().ReserveCreditsWithWindow(ctx, userIdentity, tier, limitKey, amount, window)
-}
-
-func (s *UsageService) FinalizeReservation(ctx context.Context, reservationID string, actualAmount int64) error {
-	return s.reservationService().FinalizeReservation(ctx, reservationID, actualAmount)
-}
-
-func (s *UsageService) FinalizeReservationForUser(ctx context.Context, userIdentity, reservationID string, actualAmount int64) error {
-	return s.reservationService().FinalizeReservationForUser(ctx, userIdentity, reservationID, actualAmount)
-}
-
-func (s *UsageService) ReleaseReservation(ctx context.Context, reservationID string) error {
-	return s.reservationService().ReleaseReservation(ctx, reservationID)
-}
-
-func (s *UsageService) ReleaseReservationForUser(ctx context.Context, userIdentity, reservationID string) error {
-	return s.reservationService().ReleaseReservationForUser(ctx, userIdentity, reservationID)
-}
-
 func (s *UsageService) CleanupExpiredReservations(ctx context.Context) (int, error) {
-	return s.reservationService().CleanupExpiredReservations(ctx)
+	quota, err := s.quotaReservations().Cleanup(ctx)
+	if err != nil {
+		return 0, err
+	}
+	credit, err := s.businessAccountUsageService().CleanupExpiredReservations(ctx)
+	return int(quota + credit), err
 }
 
 func (s *UsageService) StartReservationCleanup(interval time.Duration) func() {
-	return s.reservationService().StartReservationCleanup(interval)
-}
-
-func (s *UsageService) AdjustUsage(ctx context.Context, userIdentity, limitKey string, adjustment int64, reason string) error {
-	return s.reservationService().AdjustUsage(ctx, userIdentity, limitKey, adjustment, reason)
+	if interval <= 0 {
+		interval = time.Minute
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		ticker := time.NewTicker(interval)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ticker.C:
+				if s.dialect != "sqlite" {
+					if _, err := DispatchFundingLedger(ctx, s.db); err != nil {
+						s.log("funding_ledger_dispatch_failed", map[string]interface{}{"error": err.Error()})
+					}
+				}
+				_, err := s.CleanupExpiredReservations(ctx)
+				if err != nil {
+					s.log("reservation_cleanup_failed", map[string]interface{}{"error": err.Error()})
+				}
+			case <-ctx.Done():
+				return
+			}
+		}
+	}()
+	return func() { cancel(); <-done }
 }
 
 // getCurrentBillingPeriod returns the current billing period in YYYY-MM format.
@@ -193,6 +231,60 @@ func getResetDate() time.Time {
 	return time.Date(now.Year(), now.Month()+1, 1, 0, 0, 0, 0, now.Location())
 }
 
+// ErrDirectUsageScopeUnavailable is stable while direct reports have no verified
+// account/app binding. Request fields cannot establish that authority.
+var ErrDirectUsageScopeUnavailable = errors.New("Verified app billing scope is unavailable; contact the app operator to complete LPBS billing setup")
+
+// ErrDirectUsageAuthorityUnavailable identifies retryable server-owned tier/limit
+// lookup failures, separately from invalid meter definitions and missing scope.
+var ErrDirectUsageAuthorityUnavailable = errors.New("Meter authority is temporarily unavailable; retry the usage report")
+
+type directUsageLimitAuthority struct{ LimitsServicer }
+
+func (a directUsageLimitAuthority) GetTierLimits(ctx context.Context, tier string) ([]TierLimit, error) {
+	rows, err := a.LimitsServicer.GetTierLimits(ctx, tier)
+	if err != nil {
+		return nil, fmt.Errorf("%w: %w", ErrDirectUsageAuthorityUnavailable, err)
+	}
+	return rows, nil
+}
+
+// ValidateDirectUsage performs all report admission checks without mutating usage.
+// Only an explicitly configured global count meter can use the existing personal
+// quota subject. Any app definition needs a verified binding, even if omitted by
+// the caller; absence in the request is not evidence of global authority.
+func (s *UsageService) ValidateDirectUsage(ctx context.Context, req UsageReportRequest) error {
+	normalized, err := NormalizeUsageReport(req)
+	if err != nil {
+		return err
+	}
+	req = normalized.UsageReportRequest
+	if req.BusinessAccountID != "" || req.AppBundleKey != "" {
+		return ErrDirectUsageScopeUnavailable
+	}
+	if s.limitsSvc == nil || strings.TrimSpace(req.Tier) == "" {
+		return ErrDirectUsageAuthorityUnavailable
+	}
+	authority := directUsageLimitAuthority{s.limitsSvc}
+	rows, err := authority.GetTierLimits(ctx, req.Tier)
+	if err != nil {
+		return err
+	}
+	for _, row := range rows {
+		if row.LimitKey == req.LimitKey && row.AppBundleKey != nil {
+			return ErrDirectUsageScopeUnavailable
+		}
+	}
+	limits, err := ResolveMeterLimits(ctx, authority, req.Tier, req.LimitKey, "")
+	if err != nil {
+		return err
+	}
+	if limits.Kind != "count_based" || limits.Global == nil {
+		return ErrDirectUsageScopeUnavailable
+	}
+	return nil
+}
+
 // RecordUsage records usage for a user. This is typically called by external apps.
 // If OperationID is provided, this operation is idempotent - duplicate requests with
 // the same operation_id will return success without incrementing usage.
@@ -202,6 +294,9 @@ func (s *UsageService) RecordUsage(ctx context.Context, req UsageReportRequest) 
 		return err
 	}
 	req, amount := normalized.UsageReportRequest, normalized.Amount
+	if err := s.ValidateDirectUsage(ctx, req); err != nil {
+		return err
+	}
 	userIdentity, limitKey, appBundleKey := req.UserIdentity, req.LimitKey, req.AppBundleKey
 
 	// Idempotency check: if operation_id is provided, check if it was already processed
@@ -269,21 +364,6 @@ func (s *UsageService) RecordUsage(ctx context.Context, req UsageReportRequest) 
 	if err != nil {
 		return fmt.Errorf("record usage: %w", err)
 	}
-	eventAppKey := firstNonEmpty(appBundleKey, defaultUsageEventAppKey)
-	model := defaultUsageEventModel
-	if req.Metadata != nil {
-		model = firstNonEmpty(req.Metadata["model"], model)
-	}
-	costMicros, promptTokens, completionTokens, provider := usageEventMetadata(req.Metadata)
-	var eventQuery string
-	if s.dialect == "sqlite" {
-		eventQuery = `INSERT INTO usage_events (operation_id,user_identity,app_bundle_key,model,credits,cost_micros,prompt_tokens,completion_tokens,provider) VALUES (?,?,?,?,?,?,?,?,?) ON CONFLICT (operation_id) DO NOTHING`
-	} else {
-		eventQuery = `INSERT INTO usage_events (operation_id,user_identity,app_bundle_key,model,credits,cost_micros,prompt_tokens,completion_tokens,provider) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) ON CONFLICT (operation_id) DO NOTHING`
-	}
-	if _, err = s.db.ExecContext(ctx, eventQuery, opID, userIdentity, eventAppKey, model, amount, costMicros, promptTokens, completionTokens, provider); err != nil {
-		return fmt.Errorf("record usage event: %w", err)
-	}
 
 	s.log("usage_recorded", map[string]interface{}{
 		"level":          "debug",
@@ -344,8 +424,8 @@ func (s *UsageService) GetUsageSummary(ctx context.Context, userIdentity, tier s
 	rows, err := s.db.QueryContext(ctx, `
 		SELECT limit_key, usage_amount, app_bundle_key
 		FROM usage_records
-		WHERE user_identity = $1 AND billing_period = $2
-	`, userIdentity, billingPeriod)
+		WHERE user_identity = $1 AND billing_period = $2 AND limit_key IN (SELECT limit_key FROM subscription_tier_limits WHERE tier_id=$3 AND limit_type='count_based')
+	`, userIdentity, billingPeriod, tier)
 	if err != nil {
 		return nil, fmt.Errorf("query usage records: %w", err)
 	}
@@ -387,6 +467,9 @@ func (s *UsageService) GetUsageSummary(ctx context.Context, userIdentity, tier s
 			})
 		} else {
 			for _, limit := range tierLimits {
+				if limit.LimitType != "count_based" {
+					continue
+				}
 				limits[limit.LimitKey] = limit.LimitValue
 
 				// Calculate remaining
@@ -443,20 +526,9 @@ func (s *UsageService) CheckLimit(ctx context.Context, userIdentity, tier, limit
 	tier = strings.TrimSpace(strings.ToLower(tier))
 	limitKey = strings.TrimSpace(strings.ToLower(limitKey))
 
-	if tier == "" || s.limitsSvc == nil {
-		// No tier or limits service - allow everything
-		return true, -1, nil
-	}
-
-	// Get the limit for this tier and key
-	limit, err := s.limitsSvc.GetLimit(ctx, tier, limitKey, nil)
+	limit, err := requireMeterKind(ctx, s.limitsSvc, tier, limitKey, "count_based")
 	if err != nil {
 		return false, 0, err
-	}
-
-	if limit == nil {
-		// No limit configured - allow everything
-		return true, -1, nil
 	}
 
 	// Check if unlimited

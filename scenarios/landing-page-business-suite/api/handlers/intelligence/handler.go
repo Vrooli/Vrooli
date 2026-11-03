@@ -234,7 +234,7 @@ func (h *Handler) resolveBusinessAccount(w http.ResponseWriter, r *http.Request,
 	requestedID = strings.TrimSpace(requestedID)
 	if requestedID == "" {
 		if required {
-			h.deps.WriteJSONError(w, http.StatusBadRequest, "business_account_id is required", "validation")
+			WriteError(h.deps, w, intelligence.ErrBillingAccountRequired)
 			return "", false
 		}
 		return "", true
@@ -567,6 +567,10 @@ func ValidateRequest(req *intelligence.AIRequest) error {
 // Centralizes error mapping to keep handlers thin.
 func WriteError(deps Dependencies, w http.ResponseWriter, err error) {
 	switch {
+	case errors.Is(err, intelligence.ErrBillingAccountRequired):
+		deps.WriteJSONError(w, http.StatusForbidden, intelligence.ErrBillingAccountRequired.Error(), "billing_account_required")
+	case errors.Is(err, intelligence.ErrBillingScopeUnavailable):
+		deps.WriteJSONError(w, http.StatusServiceUnavailable, intelligence.ErrBillingScopeUnavailable.Error(), "billing_scope_unavailable")
 	case errors.Is(err, intelligence.ErrInsufficientCredits):
 		deps.WriteJSONError(w, http.StatusPaymentRequired, "Insufficient credits for this operation", "insufficient_credits")
 	case errors.Is(err, intelligence.ErrNoAPIKeyConfigured):

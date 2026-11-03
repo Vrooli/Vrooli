@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -222,7 +223,7 @@ func TestConcurrent_GetCredits_MultipleUsers(t *testing.T) {
 			defer wg.Done()
 			email := "credits" + string(rune('0'+userNum)) + "@example.com"
 			for j := 0; j < lookupsPerUser; j++ {
-				credits, err := svc.GetCredits(email)
+				credits, err := svc.GetCreditsForBusinessAccountContext(context.Background(), email, "acct:"+email)
 				if err != nil {
 					atomic.AddInt32(&errors, 1)
 					t.Logf("User %d lookup %d failed: %v", userNum, j, err)
@@ -267,7 +268,7 @@ func TestConcurrent_AccountService_HighContention_StressTest(t *testing.T) {
 						atomic.AddInt32(&errors, 1)
 					}
 				case 1:
-					_, err := svc.GetCredits(email)
+					_, err := svc.GetCreditsForBusinessAccountContext(context.Background(), email, "acct:"+email)
 					if err != nil {
 						atomic.AddInt32(&errors, 1)
 					}

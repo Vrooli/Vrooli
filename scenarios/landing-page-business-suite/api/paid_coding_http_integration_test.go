@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -86,19 +87,15 @@ type paidCodingFixtureLimiter struct{}
 
 func (paidCodingFixtureLimiter) Allow(string) bool { return true }
 
-func TestPaidCodingHTTPHandlerSettlesMeasuredPartialUsageToBusinessAccount(t *testing.T) {
+func TestPaidCodingHTTPHandlerRefusesUnverifiedAppBeforeUsage(t *testing.T) {
 	db := newPaidCodingFixtureDB(t)
-	usage := commerce.NewUsageServiceWithOptions(commerce.UsageServiceOptions{
-		DB: db, LimitsService: paidCodingFixtureLimits{}, Dialect: "sqlite",
-		Log: func(string, map[string]interface{}) {},
-	})
 	providerErr := errors.New("upstream stream interrupted")
 	provider := paidCodingFixtureProvider{
 		usage: &intelligencecore.OpenRouterUsage{PromptTokens: 100, CompletionTokens: 20, TotalTokens: 120, CostMicros: 1234, UsageReported: true},
 		err:   providerErr,
 	}
 	service := intelligencecore.NewMeteredInferenceService(intelligencecore.MeteredInferenceServiceOptions{
-		UsageService: newCommerceUsageServicer(usage), AccountService: paidCodingFixtureAccount{},
+		AccountService:   paidCodingFixtureAccount{},
 		OpenRouterClient: provider, Logger: func(string, map[string]interface{}) {},
 	})
 	deps := intelligence.Dependencies{
@@ -141,44 +138,27 @@ func TestPaidCodingHTTPHandlerSettlesMeasuredPartialUsageToBusinessAccount(t *te
 		t.Fatalf("call LPBS inference handler: %v", err)
 	}
 	defer response.Body.Close()
-	if response.StatusCode != http.StatusOK {
+	if response.StatusCode != http.StatusServiceUnavailable {
 		t.Fatalf("LPBS status=%d", response.StatusCode)
 	}
-
-	var accountID, actor, appBundle, model, providerName string
-	var amount, costMicros int64
-	var promptTokens, completionTokens int
-	if err := db.QueryRow(`SELECT business_account_id,actor_identity,usage_amount FROM business_account_usage_records WHERE billing_period=?`, time.Now().UTC().Format("2006-01")).Scan(&accountID, &actor, &amount); err != nil {
-		t.Fatalf("read settled account usage: %v", err)
+	var bodyError map[string]any
+	if err := json.NewDecoder(response.Body).Decode(&bodyError); err != nil {
+		t.Fatal(err)
 	}
-	if accountID != "acct-selected" || actor != "coding-user@example.test" {
-		t.Fatalf("settlement attribution = account %q actor %q", accountID, actor)
+	if !strings.Contains(fmt.Sprint(bodyError), "billing_scope_unavailable") {
+		t.Fatalf("response=%v", bodyError)
 	}
-	if err := db.QueryRow(`SELECT app_bundle_key,model,cost_micros,prompt_tokens,completion_tokens,provider FROM business_account_usage_events`).Scan(&appBundle, &model, &costMicros, &promptTokens, &completionTokens, &providerName); err != nil {
-		t.Fatalf("read settled usage event: %v", err)
+	var records int
+	if err := db.QueryRow(`SELECT COUNT(*) FROM business_account_usage_records`).Scan(&records); err != nil {
+		t.Fatal(err)
 	}
-	wantAmount := intelligencecore.CalculateCost(intelligencecore.DefaultModelPricing(), "openai/gpt-4o-mini", 100, 20)
-	if amount != wantAmount || appBundle != "web-console" || costMicros != 1234 || promptTokens != 100 || completionTokens != 20 || providerName != "openrouter" {
-		t.Fatalf("measured settlement = amount %d app %q cost %d tokens %d/%d provider %q", amount, appBundle, costMicros, promptTokens, completionTokens, providerName)
-	}
-	if model == "" {
-		t.Fatal("usage event omitted the policy-resolved model")
-	}
-	var pending int
-	if err := db.QueryRow(`SELECT COUNT(*) FROM business_account_credit_reservations WHERE status='pending'`).Scan(&pending); err != nil {
-		t.Fatalf("read pending reservations: %v", err)
-	}
-	if pending != 0 {
-		t.Fatalf("pending reservations=%d, want measured partial usage to settle", pending)
+	if records != 0 {
+		t.Fatalf("missing app authority wrote %d usage records", records)
 	}
 }
 
-// TestPaidCodingHTTPHandlerJoinsWebConsoleProxyAndSettlesToBusinessAccount
-// hosts the real LPBS intelligence handler and SQLite usage ledger, then runs
-// the Web Console owner test as an HTTP client against that live fixture. It is
-// opt-in because the nested OpenCode run is an integration check, not a unit
-// dependency of LPBS's ordinary suite.
 func TestPaidCodingHTTPHandlerJoinsWebConsoleProxyAndSettlesToBusinessAccount(t *testing.T) {
+	t.Skip("AM-43: app-bound paid journey held until LPBS key/session binding exists")
 	if os.Getenv("RUN_PAID_CODING_CROSS_OWNER_TEST") != "1" {
 		t.Skip("set RUN_PAID_CODING_CROSS_OWNER_TEST=1 to run the isolated cross-owner paid-coding journey")
 	}
@@ -187,10 +167,6 @@ func TestPaidCodingHTTPHandlerJoinsWebConsoleProxyAndSettlesToBusinessAccount(t 
 	}
 
 	db := newPaidCodingFixtureDB(t)
-	usage := commerce.NewUsageServiceWithOptions(commerce.UsageServiceOptions{
-		DB: db, LimitsService: paidCodingFixtureLimits{}, Dialect: "sqlite",
-		Log: func(string, map[string]interface{}) {},
-	})
 	toolRequestCounter := &atomic.Int32{}
 	provider := paidCodingFixtureProvider{
 		usage:              &intelligencecore.OpenRouterUsage{PromptTokens: 100, CompletionTokens: 20, TotalTokens: 120, CostMicros: 1234, UsageReported: true},
@@ -198,7 +174,7 @@ func TestPaidCodingHTTPHandlerJoinsWebConsoleProxyAndSettlesToBusinessAccount(t 
 		toolRequestCounter: toolRequestCounter,
 	}
 	service := intelligencecore.NewMeteredInferenceService(intelligencecore.MeteredInferenceServiceOptions{
-		UsageService: newCommerceUsageServicer(usage), AccountService: paidCodingFixtureAccount{},
+		AccountService:   paidCodingFixtureAccount{},
 		OpenRouterClient: provider, Logger: func(string, map[string]interface{}) {},
 	})
 	deps := intelligence.Dependencies{
@@ -292,14 +268,39 @@ func newPaidCodingFixtureDB(t *testing.T) *sql.DB {
 	}
 	db.SetMaxOpenConns(1)
 	t.Cleanup(func() { _ = db.Close() })
+	// This handler fixture preserves its SQLite dialect. The commerce package's
+	// Postgres test separately applies the embedded production schemas.
 	for _, statement := range []string{
+		`CREATE TABLE business_account_credit_wallets (business_account_id TEXT PRIMARY KEY, customer_email TEXT NOT NULL, balance_credits INTEGER NOT NULL DEFAULT 0, bonus_credits INTEGER NOT NULL DEFAULT 0, updated_at DATETIME)`,
+		`CREATE TABLE credit_funding_lots (id TEXT PRIMARY KEY, business_account_id TEXT NOT NULL, source_kind TEXT NOT NULL, provider TEXT NOT NULL, provider_ref TEXT, livemode BOOLEAN, settlement_state TEXT NOT NULL, spendable_after DATETIME, reversal_window_ends DATETIME, granted INTEGER NOT NULL, remaining INTEGER NOT NULL, expires_at DATETIME, status TEXT NOT NULL, created_at DATETIME DEFAULT CURRENT_TIMESTAMP, UNIQUE(business_account_id,provider,provider_ref))`,
+		`CREATE TABLE credit_lot_allocations (id TEXT PRIMARY KEY, lot_id TEXT NOT NULL, operation_id TEXT NOT NULL, credits INTEGER NOT NULL, cost_micros INTEGER NOT NULL, created_at DATETIME, UNIQUE(lot_id,operation_id))`,
 		`CREATE TABLE business_account_usage_records (business_account_id TEXT NOT NULL, actor_identity TEXT NOT NULL, billing_period TEXT NOT NULL, limit_key TEXT NOT NULL, usage_amount INTEGER NOT NULL DEFAULT 0, app_bundle_key TEXT NOT NULL, last_operation_at DATETIME, created_at DATETIME, updated_at DATETIME, UNIQUE(business_account_id,billing_period,limit_key,app_bundle_key))`,
-		`CREATE TABLE business_account_credit_reservations (id TEXT PRIMARY KEY, business_account_id TEXT NOT NULL, actor_identity TEXT NOT NULL, billing_period TEXT NOT NULL, limit_key TEXT NOT NULL, reserved_amount INTEGER NOT NULL, actual_amount INTEGER, status TEXT NOT NULL, expires_at DATETIME NOT NULL, created_at DATETIME, settled_at DATETIME, app_bundle_key TEXT NOT NULL DEFAULT 'unattributed', model TEXT NOT NULL DEFAULT 'unknown', cost_micros INTEGER NOT NULL DEFAULT 0, prompt_tokens INTEGER NOT NULL DEFAULT 0, completion_tokens INTEGER NOT NULL DEFAULT 0, provider TEXT NOT NULL DEFAULT 'openrouter')`,
+		`CREATE TABLE business_account_credit_reservations (id TEXT PRIMARY KEY, business_account_id TEXT NOT NULL, actor_identity TEXT NOT NULL, billing_period TEXT NOT NULL, limit_key TEXT NOT NULL, reserved_amount INTEGER NOT NULL, livemode BOOLEAN NOT NULL DEFAULT FALSE, actual_amount INTEGER, charged_amount INTEGER NOT NULL DEFAULT 0, overrun_amount INTEGER NOT NULL DEFAULT 0, status TEXT NOT NULL, expires_at DATETIME NOT NULL, created_at DATETIME, settled_at DATETIME, app_bundle_key TEXT NOT NULL DEFAULT 'unattributed', model TEXT NOT NULL DEFAULT 'unknown', cost_micros INTEGER NOT NULL DEFAULT 0, prompt_tokens INTEGER NOT NULL DEFAULT 0, completion_tokens INTEGER NOT NULL DEFAULT 0, provider TEXT NOT NULL DEFAULT 'openrouter')`,
 		`CREATE TABLE business_account_usage_events (id INTEGER PRIMARY KEY AUTOINCREMENT, operation_id TEXT NOT NULL UNIQUE, business_account_id TEXT NOT NULL, actor_identity TEXT NOT NULL, app_bundle_key TEXT, model TEXT, credits INTEGER NOT NULL, cost_micros INTEGER, prompt_tokens INTEGER, completion_tokens INTEGER, provider TEXT, created_at DATETIME)`,
+		`INSERT INTO business_account_credit_wallets(business_account_id,customer_email,balance_credits) VALUES('acct-selected','coding-user@example.test',0)`,
+		`INSERT INTO credit_funding_lots(id,business_account_id,source_kind,provider,provider_ref,livemode,settlement_state,granted,remaining,status) VALUES('00000000-0000-4000-8000-000000000001','acct-selected','paid','fixture','paid-coding-live-grant',TRUE,'settled',100000000,100000000,'open')`,
 	} {
 		if _, err := db.Exec(statement); err != nil {
-			t.Fatalf("create fixture schema: %v", err)
+			t.Fatalf("prepare attributed SQLite fixture: %v", err)
 		}
 	}
 	return db
+}
+
+func TestActualAccountLowBalanceRetainsPaymentRequiredSemantics(t *testing.T) {
+	db := newPaidCodingFixtureDB(t)
+	if _, err := db.Exec(`UPDATE credit_funding_lots SET remaining=0`); err != nil {
+		t.Fatal(err)
+	}
+	live := true
+	usage := commerce.NewBusinessAccountUsageService(commerce.BusinessAccountUsageOptions{DB: db, Limits: paidCodingFixtureLimits{}, Dialect: "sqlite", LiveMode: &live, Insufficient: intelligencecore.ErrInsufficientCredits})
+	_, err := usage.ReserveCredits(context.Background(), "acct-selected", "coding-user@example.test", "pro", "ai_credits", 1)
+	if !errors.Is(err, intelligencecore.ErrInsufficientCredits) {
+		t.Fatalf("actual low balance error=%v", err)
+	}
+	w := httptest.NewRecorder()
+	intelligence.WriteError(intelligence.Dependencies{WriteJSONError: writeJSONError}, w, err)
+	if w.Code != 402 || !strings.Contains(w.Body.String(), "insufficient_credits") {
+		t.Fatalf("status=%d body=%s", w.Code, w.Body)
+	}
 }

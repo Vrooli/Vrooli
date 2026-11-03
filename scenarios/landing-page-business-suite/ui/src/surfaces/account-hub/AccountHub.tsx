@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react';
 import { Link, Navigate, useNavigate } from 'react-router-dom';
 import { useUserAuth } from '../../app/providers/useUserAuth';
-import { getCreditInfo, getEntitlements } from '../../shared/api/account';
+import { getEntitlements } from '../../shared/api/account';
 import { createBillingPortalSession } from '../../shared/api/billing';
 import { getLandingConfig } from '../../shared/api/landing';
-import type { CreditInfo, EntitlementPayload } from '../../shared/api/types';
+import type { EntitlementPayload } from '../../shared/api/types';
 import { decodeProductPresentation } from '../public-landing/presentation/decode';
 import type { Spotlight } from '../public-landing/presentation/types';
 import { SiteShell } from '../public-landing/site/SiteShell';
@@ -25,8 +25,8 @@ const copy = {
   billingFailed: 'The billing portal could not be opened. If this keeps happening, verify your identity under Security and try again.',
   billingCycle: (day: number) => `Billing cycle starts on day ${day} of each month.`,
   credits: 'Credits',
-  creditsDetail: 'Credits cover metered AI usage across the suite. They never expire.',
-  buyCredits: 'Buy credits',
+  creditsDetail: 'Review available credits, holds, and usage across the suite.',
+  buyCredits: 'Manage credits',
   apps: 'Your apps',
   appsDetail: 'Every suite app is included with your account.',
   openApp: 'View',
@@ -65,13 +65,12 @@ export function AccountHub() {
     getLandingConfig(undefined, undefined, { route: '/' })
       .then(config => {
         if (!live || !config.presentation) return;
-        try { setSpotlights(decodeProductPresentation(config.presentation).spotlights.filter(app => app.slug && app.detail_route)); } catch { /* apps list stays empty */ }
+        try { setSpotlights((decodeProductPresentation(config.presentation).spotlights ?? []).filter(app => app.slug && app.detail_route)); } catch { /* apps list stays empty */ }
       })
       .catch(() => undefined);
     return () => { live = false; };
   }, [auth.isAuthenticated]);
 
-  const [creditInfo, setCreditInfo] = useState<CreditInfo | null>(null);
   useEffect(() => {
     if (!auth.isAuthenticated) return;
     let live = true;
@@ -79,11 +78,6 @@ export function AccountHub() {
     getEntitlements()
       .then(value => { if (live) { setEntitlements(value); setEntitlementsState('ready'); } })
       .catch(() => { if (live) setEntitlementsState('error'); });
-    // The credits owner carries the display label and multiplier; the
-    // entitlement payload only proves a balance exists.
-    getCreditInfo()
-      .then(value => { if (live) setCreditInfo(value); })
-      .catch(() => undefined);
     return () => { live = false; };
   }, [auth.isAuthenticated]);
 
@@ -94,8 +88,6 @@ export function AccountHub() {
 
   const subscription = entitlements?.subscription;
   const hasPlan = subscription && ['active', 'trialing', 'past_due'].includes(subscription.status);
-  const credits = creditInfo ?? entitlements?.credits ?? null;
-  const creditBalance = credits ? (credits.balance_credits * credits.display_credits_multiplier) : null;
   const billingCycleStart = entitlements?.billing_cycle_start ?? 0;
 
   const openBillingPortal = async () => {
@@ -143,15 +135,10 @@ export function AccountHub() {
       </section>
       <section className="account-card" aria-labelledby="account-credits-title">
         <h2 id="account-credits-title">{copy.credits}</h2>
-        {entitlementsState === 'loading' && <p role="status">{copy.planLoading}</p>}
-        {entitlementsState === 'error' && <p role="status">{copy.planError}</p>}
-        {entitlementsState === 'ready' && <>
-          <p className="account-credits-balance">{creditBalance === null ? '0' : creditBalance.toLocaleString()}<span> {credits?.display_credits_label ?? 'credits'}</span></p>
-          <p className="account-fine">{copy.creditsDetail}</p>
-          <div className="account-card-actions">
-            <Link className="button button-secondary" to="/#plans">{copy.buyCredits}</Link>
-          </div>
-        </>}
+        <p className="account-fine">{copy.creditsDetail}</p>
+        <div className="account-card-actions">
+          <Link className="button button-secondary" to="/account/credits">{copy.buyCredits}</Link>
+        </div>
       </section>
       <section className="account-card account-card-apps" aria-labelledby="account-apps-title">
         <h2 id="account-apps-title">{copy.apps}</h2>

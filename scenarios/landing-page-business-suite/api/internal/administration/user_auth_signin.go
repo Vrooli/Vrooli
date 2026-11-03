@@ -138,9 +138,11 @@ func (s *UserAuthService) RequestSignIn(ctx context.Context, request SignInReque
 	var requestID string
 	var dedupeKey string
 	if s.outboxEnabled {
-		db, ok := s.db.(*sql.DB)
+		db, ok := s.db.(interface {
+			BeginTx(context.Context, *sql.TxOptions) (*sql.Tx, error)
+		})
 		if !ok {
-			return nil, errors.New("durable email outbox requires a SQL database")
+			return nil, errors.New("durable email outbox requires transaction support")
 		}
 		tx, txErr := db.BeginTx(ctx, nil)
 		if txErr != nil {

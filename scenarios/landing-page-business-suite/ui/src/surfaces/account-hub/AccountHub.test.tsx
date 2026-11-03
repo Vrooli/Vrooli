@@ -9,10 +9,9 @@ import { UserAuthContext, type UserAuthContextValue } from '../../app/providers/
 
 const mocks = vi.hoisted(() => ({
   getEntitlements: vi.fn<typeof import('../../shared/api/account').getEntitlements>(),
-  getCreditInfo: vi.fn<typeof import('../../shared/api/account').getCreditInfo>(),
   portal: vi.fn<typeof import('../../shared/api/billing').createBillingPortalSession>(),
 }));
-vi.mock('../../shared/api/account', () => ({ getEntitlements: mocks.getEntitlements, getCreditInfo: mocks.getCreditInfo }));
+vi.mock('../../shared/api/account', () => ({ getEntitlements: mocks.getEntitlements }));
 vi.mock('../../shared/api/landing', () => ({ getLandingConfig: vi.fn(() => Promise.resolve(publicConfig('/'))) }));
 vi.mock('../../shared/api/billing', () => ({ createBillingPortalSession: mocks.portal }));
 vi.mock('../public-landing/site/useSiteIdentity', () => ({
@@ -44,19 +43,17 @@ function mount(session = auth) {
 
 beforeEach(() => {
   mocks.getEntitlements.mockReset();
-  mocks.getCreditInfo.mockReset();
   mocks.portal.mockReset();
   mocks.getEntitlements.mockResolvedValue({ status: 'active', plan_tier: 'pro', features: [], subscription: { status: 'active', plan_tier: 'pro' } });
-  mocks.getCreditInfo.mockResolvedValue({ customer_email: user.email, balance_credits: 12_000_000, bonus_credits: 0, display_credits_label: 'credits', display_credits_multiplier: 0.001 });
 });
 afterEach(() => { cleanup(); vi.restoreAllMocks(); });
 
 describe('account hub', () => {
-  it('shows the plan, converted credit balance, billing entry, security and profile for a subscriber', async () => {
+  it('shows the plan, credit management, billing entry, security and profile for a subscriber', async () => {
     mount();
     expect(await screen.findByText('Pro')).toBeInTheDocument();
     expect(screen.getByText('Active')).toBeInTheDocument();
-    expect(screen.getByText('12,000')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Manage credits' })).toHaveAttribute('href', '/account/credits');
     expect(screen.getByRole('button', { name: 'Manage billing' })).toBeEnabled();
     expect(screen.getByRole('link', { name: 'Manage security' })).toHaveAttribute('href', '/account/security');
     expect(screen.getByText(user.email)).toBeInTheDocument();

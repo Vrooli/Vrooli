@@ -14,16 +14,17 @@
     "id": "landing-page-business-suite"
   },
   "dependencies": {
-    "scenarios": ["landing-page-business-suite"],
+    "scenarios": ["ai-gateway", "landing-page-business-suite"],
     "resources": ["postgres"],
     "analyzer": {
       "tool": "scenario-dependency-analyzer"
-    }
+    },
+    "deselect_optional": ["ollama", "ollaya", "openrouter", "orcarouter", "abliteration"]
   },
   "bundle": {
     "include_packages": true,
     "include_autoheal": true,
-    "scenarios": ["landing-page-business-suite", "vrooli-autoheal"],
+    "scenarios": ["ai-gateway", "landing-page-business-suite", "vrooli-autoheal"],
     "resources": ["postgres"]
   },
   "ports": {

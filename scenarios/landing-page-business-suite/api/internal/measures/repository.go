@@ -51,7 +51,7 @@ func (r *SQLRepository) QueryFor(measure string) (string, bool) {
 
 var createdCountQueries = map[string]string{
 	"subscriptions.created":             "SELECT COUNT(*) FROM subscriptions WHERE created_at >= $1 AND created_at < $2",
-	"credit_transactions.created":       "SELECT COUNT(*) FROM credit_transactions WHERE created_at >= $1 AND created_at < $2",
+	"credit_transactions.created":       "SELECT COUNT(*) FROM business_account_credit_transactions WHERE created_at >= $1 AND created_at < $2",
 	"checkout_sessions.created":         "SELECT COUNT(*) FROM checkout_sessions WHERE created_at >= $1 AND created_at < $2",
 	"bundle_products.created":           "SELECT COUNT(*) FROM bundle_products WHERE created_at >= $1 AND created_at < $2",
 	"bundle_prices.created":             "SELECT COUNT(*) FROM bundle_prices WHERE created_at >= $1 AND created_at < $2",
@@ -62,7 +62,7 @@ var createdCountQueries = map[string]string{
 	"user_sessions.created":             "SELECT COUNT(*) FROM user_sessions WHERE created_at >= $1 AND created_at < $2",
 	"auth_tokens.created":               "SELECT COUNT(*) FROM auth_tokens WHERE created_at >= $1 AND created_at < $2", // #nosec G101 -- fixed database table identifier, never a credential
 	"api_keys.created":                  "SELECT COUNT(*) FROM api_keys WHERE created_at >= $1 AND created_at < $2",
-	"credit_reservations.created":       "SELECT COUNT(*) FROM credit_reservations WHERE created_at >= $1 AND created_at < $2",
+	"credit_reservations.created":       "SELECT COUNT(*) FROM business_account_credit_reservations WHERE created_at >= $1 AND created_at < $2",
 	"subscription_tier_limits.created":  "SELECT COUNT(*) FROM subscription_tier_limits WHERE created_at >= $1 AND created_at < $2",
 	"usage_records.created":             "SELECT COUNT(*) FROM usage_records WHERE created_at >= $1 AND created_at < $2",
 	"admin_sessions.created":            "SELECT COUNT(*) FROM admin_sessions WHERE created_at >= $1 AND created_at < $2",

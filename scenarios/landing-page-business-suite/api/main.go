@@ -30,11 +30,11 @@ import (
 	"github.com/vrooli/api-core/server"
 	corestorage "github.com/vrooli/api-core/storage"
 	credentialauthority "github.com/vrooli/vrooli/packages/credential-authority-go"
-	credentialclient "github.com/vrooli/vrooli/packages/credentialclient-go"
 	maildns "github.com/vrooli/vrooli/packages/maildns-go"
 	aihandler "landing-page-business-suite-api/handlers/intelligence"
 	accountsecurity "landing-page-business-suite-api/internal/accountsecurity"
 	"landing-page-business-suite-api/internal/administration"
+	"landing-page-business-suite-api/internal/aidoor"
 	"landing-page-business-suite-api/internal/analytics"
 	"landing-page-business-suite-api/internal/businessaccount"
 	"landing-page-business-suite-api/internal/commerce"
@@ -117,6 +117,7 @@ type Server struct {
 	stopAuthDeliveryAlerts  func()
 	stopEmailDeliveryWorker func()
 	stopProviderChecks      func()
+	stopCreditMaintenance   func()
 	// AI MeteredInferenceProvider service
 	meteredInferenceService *intelligence.MeteredInferenceService
 	meteredInferenceHandler *aihandler.Handler
@@ -148,6 +149,7 @@ func runtimeSchema() string {
 		delivery.Schema(),
 		content.Schema(),
 		commerce.OperationsSchema(),
+		aidoor.Schema(),
 	}, "\n")
 }
 
@@ -457,30 +459,9 @@ func NewServer() (*Server, error) {
 	// Rate limiter: 5 requests per 15 minutes per email for magic link
 	magicLinkLimiter := NewRateLimiter(5, 15*time.Minute)
 
-	// Initialize metered inference provider service
-	aiCredentialAuthority, err := credentialauthority.Default()
-	if err != nil {
-		return nil, fmt.Errorf("initialize shared AI credential authority: %w", err)
-	}
-	aiCredentialClient, err := credentialclient.NewClient(credentialclient.ClientOptions{Authority: aiCredentialAuthority})
-	if err != nil {
-		return nil, fmt.Errorf("initialize shared AI credential client: %w", err)
-	}
-	meteredInferenceService := intelligence.NewMeteredInferenceService(intelligence.MeteredInferenceServiceOptions{
-		APIKeyService:  intelligence.CredentialAuthorityAPIKeyService{Client: aiCredentialClient},
-		UsageService:   newCommerceUsageServicer(usageService),
-		AccountService: accountService,
-		Logger:         logx.Info,
-		ClientFactory: func(apiKey string, logger func(string, map[string]interface{})) intelligence.OpenRouterClient {
-			return intelligence.NewOpenRouterClient(intelligence.OpenRouterClientOptions{
-				APIKey:  apiKey,
-				BaseURL: envx.Get("OPENROUTER_BASE_URL"),
-				Referer: envx.Get("OPENROUTER_REFERER"),
-				Title:   envx.Get("OPENROUTER_TITLE"),
-				Logger:  logger,
-			})
-		},
-	})
+	// Legacy role adapters remain fail-closed during their caller migration;
+	// production paid inference is exclusively composed through registerAIDoor.
+	meteredInferenceService := intelligence.NewMeteredInferenceService(intelligence.MeteredInferenceServiceOptions{AccountService: accountService, Logger: logx.Info})
 
 	// Create metered inference provider dependencies with rate limiters
 	meteredInferenceDeps := newMeteredInferenceDependencies(meteredInferenceService, usageService, accountService, businessAccounts)
@@ -654,12 +635,14 @@ func resolveConsumerSigningKey() (string, error) {
 // boundary. Commerce owns usage rules; this function owns only environment and
 // logging policy needed to start the process.
 func newRuntimeUsageService(db commerce.UsageStore, limitsSvc commerce.LimitsServicer, dialect string) *commerce.UsageService {
+	liveMode := isProductionEnvironment()
 	return commerce.NewUsageServiceWithOptions(commerce.UsageServiceOptions{
 		DB:                  db,
 		LimitsService:       limitsSvc,
 		Dialect:             dialect,
 		Log:                 logx.Info,
 		InsufficientCredits: intelligence.ErrInsufficientCredits,
+		LiveMode:            &liveMode,
 		// The status endpoint must report what the request gate actually
 		// checks: whether the shared service secret resolves from the
 		// authority. A missing secret is the only real "disabled" state.
@@ -733,6 +716,9 @@ func (s *Server) Router() http.Handler {
 
 // Cleanup releases resources when the server shuts down
 func (s *Server) Cleanup() error {
+	if s.stopCreditMaintenance != nil {
+		s.stopCreditMaintenance()
+	}
 	if s.stopAuthJanitor != nil {
 		s.stopAuthJanitor()
 	}
@@ -837,6 +823,7 @@ func main() {
 	srv.stopAuthJanitor = srv.startAuthJanitor()
 	srv.stopAuthDeliveryAlerts = srv.startAuthDeliveryAlerts()
 	srv.stopProviderChecks = srv.startProviderVerification()
+	srv.stopCreditMaintenance = srv.usageService.StartReservationCleanup(time.Minute)
 
 	if err := server.Run(server.Config{
 		Handler: apihttp.TestModeMiddleware(srv.Router()),

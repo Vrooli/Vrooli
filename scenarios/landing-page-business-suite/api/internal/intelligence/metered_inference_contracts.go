@@ -61,6 +61,7 @@ type UsageReport struct {
 	UserIdentity string
 	LimitKey     string
 	Amount       int64
+	OperationID  *string
 	AppBundleKey string
 	Operation    string
 	Metadata     map[string]string
@@ -83,7 +84,7 @@ type BusinessAccountUsageServicer interface {
 	FinalizeBusinessAccountReservationWithCost(context.Context, string, string, int64, string, string, int64, int, int, string) error
 	ReleaseBusinessAccountReservation(context.Context, string, string) error
 	RetainUncertainBusinessAccountReservation(context.Context, string) error
-	RecordBusinessAccountUsage(context.Context, string, string, string, string, int64, string, string, int64, int, int, string) error
+	RecordBusinessAccountUsage(context.Context, string, string, string, string, int64, string, string, string, int64, int, int, string) error
 	AdjustBusinessAccountUsage(context.Context, string, string, int64) error
 }
 

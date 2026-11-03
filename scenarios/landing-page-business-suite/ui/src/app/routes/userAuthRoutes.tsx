@@ -21,6 +21,7 @@ const VerifyMagicLink = lazy(() =>
 );
 const AccountSecurity = lazy(() => import('../../surfaces/account-security/AccountSecurity'));
 const AccountHub = lazy(() => import('../../surfaces/account-hub/AccountHub'));
+const AccountCredits = lazy(() => import('../../surfaces/account-hub/AccountCredits'));
 
 function AppRoute({ name, children }: { name: string; children: ReactNode }) {
   return (
@@ -38,6 +39,7 @@ export const userAuthRoutes = (
     <Route path="/auth/login" element={<AppRoute name="UserLogin"><UserLogin /></AppRoute>} />
     <Route path="/auth/verify" element={<AppRoute name="VerifyMagicLink"><VerifyMagicLink /></AppRoute>} />
     <Route path="/account" element={<AppRoute name="AccountHub"><AccountHub /></AppRoute>} />
+    <Route path="/account/credits" element={<AppRoute name="AccountCredits"><AccountCredits /></AppRoute>} />
     <Route path="/account/security" element={<AppRoute name="AccountSecurity"><AccountSecurity /></AppRoute>} />
   </>
 );

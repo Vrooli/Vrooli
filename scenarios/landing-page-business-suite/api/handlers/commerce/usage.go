@@ -2,6 +2,7 @@ package billing
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"errors"
 	"net/http"
@@ -17,6 +18,7 @@ import (
 type UsageDependencies struct {
 	UserEmail              func(context.Context) string
 	UserID                 func(context.Context) string
+	SubscriptionTier       func(context.Context, string) (string, error)
 	ResolveBusinessAccount func(context.Context, string, string, string) (string, error)
 	WriteError             func(http.ResponseWriter, int, string, string)
 	LogError               func(string, map[string]any)
@@ -66,6 +68,16 @@ func GetBusinessAccountUsageSummary(svc *commerce.UsageService, accountSvc *comm
 	}
 }
 
+// Fixed diagnostic fields avoid copying private causes or request identity into logs.
+func logDirectUsagePreflightFailure(deps UsageDependencies, authority, reason string) {
+	if deps.LogError != nil {
+		deps.LogError("report_usage_preflight_failed", map[string]any{
+			"phase": "preflight", "authority": authority, "reason": reason,
+			"code": "meter_authority_unavailable",
+		})
+	}
+}
+
 func ReportUsage(svc *commerce.UsageService, deps UsageDependencies) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		userIdentity := deps.UserEmail(r.Context())
@@ -102,13 +114,50 @@ func ReportUsage(svc *commerce.UsageService, deps UsageDependencies) http.Handle
 			return
 		}
 
+		// SubscriptionTier is composed from the authenticated subject's subscription.
+		// No body tier, account or app field can grant metering authority.
+		if deps.SubscriptionTier == nil {
+			logDirectUsagePreflightFailure(deps, "subscription_tier", "missing_callback")
+			deps.WriteError(w, http.StatusServiceUnavailable, commerce.ErrDirectUsageAuthorityUnavailable.Error(), "meter_authority_unavailable")
+			return
+		}
+		tier, err := deps.SubscriptionTier(r.Context(), userIdentity)
+		if err != nil || strings.TrimSpace(tier) == "" {
+			reason := "empty_tier"
+			if err != nil {
+				reason = "lookup_failed"
+			}
+			logDirectUsagePreflightFailure(deps, "subscription_tier", reason)
+			deps.WriteError(w, http.StatusServiceUnavailable, commerce.ErrDirectUsageAuthorityUnavailable.Error(), "meter_authority_unavailable")
+			return
+		}
+		// Validate the entire batch before the first RecordUsage call. A rejected
+		// cost/app/unknown item must never leave an earlier count item written.
 		for i := range requests {
-			// Never trust user_identity from the wire. The only accepted identity
-			// is the one established by requireUserAuth and stored in context.
 			requests[i].UserIdentity = userIdentity
+			requests[i].Tier = tier
+			if err := svc.ValidateDirectUsage(r.Context(), requests[i]); err != nil {
+				if errors.Is(err, commerce.ErrDirectUsageScopeUnavailable) {
+					deps.WriteError(w, http.StatusServiceUnavailable, err.Error(), "billing_scope_unavailable")
+				} else if errors.Is(err, commerce.ErrDirectUsageAuthorityUnavailable) {
+					logDirectUsagePreflightFailure(deps, "tier_limits", "lookup_unavailable")
+					deps.WriteError(w, http.StatusServiceUnavailable, commerce.ErrDirectUsageAuthorityUnavailable.Error(), "meter_authority_unavailable")
+				} else {
+					deps.WriteError(w, http.StatusBadRequest, err.Error(), "validation")
+				}
+				return
+			}
+		}
+		for i := range requests {
 			if err := svc.RecordUsage(r.Context(), requests[i]); err != nil {
 				deps.LogError("report_usage_failed", map[string]any{"error": err.Error(), "user_identity": userIdentity, "limit_key": requests[i].LimitKey, "operation_id": requests[i].OperationID})
-				deps.WriteError(w, http.StatusBadRequest, err.Error(), "validation")
+				if errors.Is(err, commerce.ErrDirectUsageScopeUnavailable) {
+					deps.WriteError(w, http.StatusServiceUnavailable, err.Error(), "billing_scope_unavailable")
+				} else if errors.Is(err, commerce.ErrDirectUsageAuthorityUnavailable) {
+					deps.WriteError(w, http.StatusServiceUnavailable, commerce.ErrDirectUsageAuthorityUnavailable.Error(), "meter_authority_unavailable")
+				} else {
+					deps.WriteError(w, http.StatusBadRequest, err.Error(), "validation")
+				}
 				return
 			}
 		}
@@ -218,7 +267,14 @@ func ReserveCredits(svc *commerce.UsageService, accountSvc *commerce.Service, de
 			return
 		}
 		tier := ""
-		if accountSvc != nil {
+		if deps.SubscriptionTier != nil {
+			var err error
+			tier, err = quotaTier(r.Context(), userIdentity, deps)
+			if err != nil {
+				deps.WriteError(w, http.StatusServiceUnavailable, "Subscription service unavailable", "server_error")
+				return
+			}
+		} else if accountSvc != nil {
 			subscription, err := accountSvc.GetSubscriptionContext(r.Context(), userIdentity)
 			if err != nil {
 				deps.WriteError(w, http.StatusServiceUnavailable, "Subscription service unavailable", "server_error")
@@ -228,7 +284,20 @@ func ReserveCredits(svc *commerce.UsageService, accountSvc *commerce.Service, de
 				tier = subscription.GetPlanTier()
 			}
 		}
-		reservationID, err := svc.ReserveCreditsWithWindow(r.Context(), userIdentity, tier, request.LimitKey, request.Amount, time.Duration(request.WindowSeconds)*time.Second)
+		if request.WindowSeconds < 0 || request.WindowSeconds > int64((24*time.Hour)/time.Second) {
+			deps.WriteError(w, http.StatusBadRequest, "reservation window exceeds maximum of 24h0m0s", "reservation")
+			return
+		}
+		kind, err := svc.MeterKind(r.Context(), tier, request.LimitKey)
+		if err != nil {
+			deps.WriteError(w, http.StatusServiceUnavailable, "Meter limit authority is unavailable", "server_error")
+			return
+		}
+		if kind != "count_based" {
+			deps.WriteError(w, http.StatusServiceUnavailable, "Verified billing scope is unavailable", "server_error")
+			return
+		}
+		reservationID, err := svc.ReserveQuota(r.Context(), userIdentity, tier, request.LimitKey, request.Amount, time.Duration(request.WindowSeconds)*time.Second)
 		if err != nil {
 			status := http.StatusBadRequest
 			if strings.Contains(strings.ToLower(err.Error()), "insufficient credits") {
@@ -259,7 +328,12 @@ func FinalizeReservation(svc *commerce.UsageService, deps UsageDependencies) htt
 			return
 		}
 		reservationID := mux.Vars(r)["reservationID"]
-		if err := svc.FinalizeReservationForUser(r.Context(), userIdentity, reservationID, request.ActualAmount); err != nil {
+		tier, err := quotaTier(r.Context(), userIdentity, deps)
+		if err != nil {
+			deps.WriteError(w, http.StatusServiceUnavailable, "Subscription service unavailable", "server_error")
+			return
+		}
+		if err := svc.FinalizeQuota(r.Context(), userIdentity, tier, reservationID, request.ActualAmount); err != nil {
 			reservationError(w, deps, err, "finalize_reservation_failed")
 			return
 		}
@@ -275,12 +349,31 @@ func ReleaseReservation(svc *commerce.UsageService, deps UsageDependencies) http
 			return
 		}
 		reservationID := mux.Vars(r)["reservationID"]
-		if err := svc.ReleaseReservationForUser(r.Context(), userIdentity, reservationID); err != nil {
+		tier, err := quotaTier(r.Context(), userIdentity, deps)
+		if err != nil {
+			deps.WriteError(w, http.StatusServiceUnavailable, "Subscription service unavailable", "server_error")
+			return
+		}
+		if err := svc.ReleaseQuota(r.Context(), userIdentity, tier, reservationID); err != nil {
 			reservationError(w, deps, err, "release_reservation_failed")
 			return
 		}
 		writeReservationJSON(w, map[string]any{"reservation_id": reservationID, "status": "released"})
 	}
+}
+
+func quotaTier(ctx context.Context, identity string, deps UsageDependencies) (string, error) {
+	if deps.SubscriptionTier == nil {
+		return "", errors.New("subscription authority is unavailable")
+	}
+	tier, err := deps.SubscriptionTier(ctx, identity)
+	if err != nil {
+		return "", err
+	}
+	if strings.TrimSpace(tier) == "" {
+		return "free", nil
+	}
+	return tier, nil
 }
 
 func reservationError(w http.ResponseWriter, deps UsageDependencies, err error, event string) {
@@ -290,7 +383,7 @@ func reservationError(w http.ResponseWriter, deps UsageDependencies, err error, 
 		status, code = http.StatusForbidden, "forbidden"
 	} else if strings.Contains(strings.ToLower(err.Error()), "required") || strings.Contains(strings.ToLower(err.Error()), "non-negative") {
 		status, code = http.StatusBadRequest, "validation"
-	} else if strings.Contains(strings.ToLower(err.Error()), "not found") {
+	} else if errors.Is(err, sql.ErrNoRows) || strings.Contains(strings.ToLower(err.Error()), "not found") {
 		status, code = http.StatusNotFound, "not_found"
 	}
 	deps.LogError(event, map[string]any{"error": err.Error()})

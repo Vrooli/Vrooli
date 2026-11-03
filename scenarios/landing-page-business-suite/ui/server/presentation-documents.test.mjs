@@ -50,7 +50,7 @@ test('LP-PRES-011: root and app metadata follow the public revision before JavaS
 
 test('LP-PRES-009: admin and unknown paths never request a public assignment', async () => {
   const run = harness();
-  for (const route of ['/admin/presentation/control', '/login', '/checkout', '/feedback', '/not-a-page']) {
+  for (const route of ['/admin/presentation/control', '/login', '/account', '/account/credits', '/checkout', '/feedback', '/not-a-page']) {
     const result = await run.request(route);
     assert.equal(result.statusCode, route === '/not-a-page' ? 404 : 200);
     assert.equal(result.headers['X-Robots-Tag'], 'noindex, nofollow');

@@ -13,6 +13,9 @@ import (
 // Uses credit reservations to prevent TOCTOU race conditions where concurrent
 // streaming requests could exceed the credit limit.
 func (s *MeteredInferenceService) ExecuteChatStream(ctx context.Context, userIdentity string, req AIRequest, w http.ResponseWriter) error {
+	if err := requireBillingScope(req.BusinessAccountID); err != nil {
+		return err
+	}
 	if !allowedModels[req.Model] {
 		return fmt.Errorf("%w: %s", ErrModelNotAllowed, req.Model)
 	}

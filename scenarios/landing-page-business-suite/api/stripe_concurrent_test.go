@@ -370,8 +370,8 @@ func TestConcurrent_CreditsAndSubscription(t *testing.T) {
 			defer wg.Done()
 
 			eventID := fmt.Sprintf("evt_credit_%d", i)
-			err := service.creditWallet.AddCredits(email, 100, "credit_topup", eventID, map[string]interface{}{
-				"test": true,
+			err := service.creditWallet.AddCreditsForBusinessAccount("acct-mixed", email, 100, "credit_topup", "stripe", eventID, map[string]interface{}{
+				"livemode": false,
 			})
 			if err != nil {
 				atomic.AddInt64(&creditErrors, 1)
@@ -427,13 +427,13 @@ func TestConcurrent_CreditsAndSubscription(t *testing.T) {
 
 	// Verify credit balance is correct (5 unique events * 100 credits)
 	var balance int64
-	err = db.QueryRow(`SELECT COALESCE(balance_credits, 0) FROM credit_wallets WHERE customer_email = $1`, email).Scan(&balance)
+	err = db.QueryRow(`SELECT COALESCE(SUM(remaining), 0) FROM credit_funding_lots WHERE business_account_id='acct-mixed' AND livemode=FALSE AND settlement_state='settled' AND status='open'`).Scan(&balance)
 	require.NoError(t, err)
 	assert.Equal(t, int64(500), balance, "all credit transactions should be processed")
 
 	// Verify correct number of credit transactions
 	var txnCount int
-	err = db.QueryRow(`SELECT COUNT(*) FROM credit_transactions WHERE customer_email = $1`, email).Scan(&txnCount)
+	err = db.QueryRow(`SELECT COUNT(*) FROM business_account_credit_transactions WHERE customer_email = $1`, email).Scan(&txnCount)
 	require.NoError(t, err)
 	assert.Equal(t, numCreditsOps, txnCount, "all credit transactions should be recorded")
 

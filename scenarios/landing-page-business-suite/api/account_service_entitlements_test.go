@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"os"
 	"reflect"
@@ -75,19 +76,12 @@ func TestAccountServiceCreditsReflectBundleMetadata(t *testing.T) {
 
 	accountService := newAccountServiceWithTestPlanStore(t, db)
 	email := "credits-test@example.com"
-	if _, err := db.Exec(`
-		INSERT INTO credit_wallets (customer_email, balance_credits, bonus_credits, updated_at)
-		VALUES ($1, $2, $3, NOW())
-		ON CONFLICT (customer_email) DO UPDATE
-		SET balance_credits = EXCLUDED.balance_credits,
-		    bonus_credits = EXCLUDED.bonus_credits,
-		    updated_at = NOW()
-	`, email, 1_000_000, 200_000); err != nil {
-		t.Fatalf("failed to seed credit wallet: %v", err)
+	if err := commerce.NewCreditWalletService(db).AddCreditsForBusinessAccount("acct:metadata", email, 1_000_000, "test_grant", "fixture", "metadata-grant", map[string]interface{}{"livemode": false}); err != nil {
+		t.Fatalf("seed attributed account grant: %v", err)
 	}
 
 	// [REQ:SUB-CREDITS] Credits response surfaces bundle multipliers and labels
-	credits, err := accountService.GetCredits(email)
+	credits, err := accountService.GetCreditsForBusinessAccountContext(context.Background(), email, "acct:metadata")
 	if err != nil {
 		t.Fatalf("GetCredits failed: %v", err)
 	}
@@ -115,7 +109,7 @@ func TestAccountServiceCreditsFallbackWithoutPricing(t *testing.T) {
 	planService := NewPlanServiceWithOptions(commerce.PlanServiceOptions{PlanStore: emptyStore, DefaultBundle: bundleKey, DisplayEnv: "production"})
 	accountService := NewAccountService(db, planService)
 
-	credits, err := accountService.GetCredits("no-wallet@example.com")
+	credits, err := accountService.GetCreditsForBusinessAccountContext(context.Background(), "no-wallet@example.com", "acct:no-wallet")
 	if err != nil {
 		t.Fatalf("GetCredits failed without pricing: %v", err)
 	}
@@ -257,6 +251,12 @@ func TestAccountServiceEntitlementsStayBoundToBusinessAccount(t *testing.T) {
 		VALUES ($1, $2, 1200000, 120000, NOW())
 	`, accountA, email); err != nil {
 		t.Fatalf("failed to seed account wallet: %v", err)
+	}
+	if _, err := db.Exec(`
+		INSERT INTO credit_funding_lots (business_account_id, source_kind, provider, provider_ref, livemode, settlement_state, granted, remaining, status, created_at)
+		VALUES ($1, 'credit_topup', 'fixture', 'account-a-attributed-grant', TRUE, 'settled', 1200000, 1200000, 'open', NOW())
+	`, accountA); err != nil {
+		t.Fatalf("failed to seed attributed account funding: %v", err)
 	}
 
 	accountService := newAccountServiceWithTestPlanStore(t, db)
@@ -403,34 +403,12 @@ func TestAccountServiceEntitlements_InfersPlanTierFromPrice(t *testing.T) {
 	}
 }
 
-func TestAccountServiceCredits_EmptyUserUsesDefaults(t *testing.T) {
-	db := setupTestDB(t)
-
-	bundleKey := configureAccountBundleEnv(t, "empty_user_env")
-	accountService := newAccountServiceWithTestPlanStore(t, db)
-
-	credits, err := accountService.GetCredits("   ")
-	if err != nil {
-		t.Fatalf("GetCredits for empty user failed: %v", err)
-	}
-
-	if credits.DisplayCreditsLabel != "credits" {
-		t.Fatalf("expected default display label credits, got %s", credits.DisplayCreditsLabel)
-	}
-	if credits.DisplayCreditsMultiplier != 1.0 {
-		t.Fatalf("expected default multiplier 1.0, got %f", credits.DisplayCreditsMultiplier)
-	}
-	if credits.Balance.BundleKey != bundleKey {
-		t.Fatalf("expected bundle key to match configured env %s, got %s", bundleKey, credits.Balance.BundleKey)
-	}
-	if credits.Balance.CustomerEmail != "" {
-		t.Fatalf("expected empty customer email passthrough, got %s", credits.Balance.CustomerEmail)
-	}
-	if credits.Balance.BalanceCredits != 0 {
-		t.Fatalf("expected zero balance for empty user, got %d", credits.Balance.BalanceCredits)
-	}
-	if ts := credits.Balance.GetUpdatedAt(); ts == nil || ts.AsTime().IsZero() {
-		t.Fatal("expected updated_at timestamp populated for empty user credits response")
+func TestAccountServiceCreditsRequireActorAndAccount(t *testing.T) {
+	service := newAccountServiceWithTestPlanStore(t, nil)
+	for _, input := range [][2]string{{"   ", "acct"}, {"member@example.test", ""}} {
+		if _, err := service.GetCreditsForBusinessAccountContext(context.Background(), input[0], input[1]); !errors.Is(err, commerce.ErrBusinessAccountRequired) {
+			t.Fatalf("missing actor/account error=%v", err)
+		}
 	}
 }
 

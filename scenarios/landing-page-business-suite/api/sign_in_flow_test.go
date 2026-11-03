@@ -11,6 +11,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/vrooli/api-core/database"
 	adminhttp "landing-page-business-suite-api/handlers/administration"
 	"landing-page-business-suite-api/internal/administration"
 )
@@ -18,6 +19,29 @@ import (
 const testBinding = "browser-binding-for-tests-0001"
 
 type capturedSignIn struct{ token, code string }
+
+func TestSignInRequestQueuesTokenAndEmailThroughRoutedDatabase(t *testing.T) {
+	db := setupTestDB(t)
+	service := administration.NewUserAuthService(administration.UserAuthServiceOptions{
+		Store: database.NewFromPrimary(db), JWTIssuer: "test", OutboxEnabled: true,
+		BaseURL: "https://hosted.example.invalid/auth/verify", SenderIdentity: "fixture@example.invalid",
+	})
+	const email = "routed-outbox@example.invalid"
+	started, err := service.RequestSignIn(context.Background(), administration.SignInRequest{Email: email})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var tokenCount, emailCount int
+	if err := db.QueryRow(`SELECT count(*) FROM auth_tokens WHERE id=$1 AND delivery_status='queued'`, started.RequestID).Scan(&tokenCount); err != nil {
+		t.Fatal(err)
+	}
+	if err := db.QueryRow(`SELECT count(*) FROM email_outbox WHERE recipient=$1`, email).Scan(&emailCount); err != nil {
+		t.Fatal(err)
+	}
+	if tokenCount != 1 || emailCount != 1 {
+		t.Fatalf("routed sign-in must queue one token and email: tokens=%d emails=%d", tokenCount, emailCount)
+	}
+}
 
 func signInServiceWithCapture(t *testing.T, db *sql.DB, sender administration.MagicLinkSender) (*administration.UserAuthService, *capturedSignIn) {
 	t.Helper()

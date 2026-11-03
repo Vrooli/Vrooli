@@ -189,10 +189,14 @@ func (s *UserManagementService) enrich(ctx context.Context, user *UserAccountRes
 		user.Subscription = &SubscriptionInfo{Status: status.String, PlanTier: planTier.String}
 	}
 
-	var balance, bonus int64
-	err = s.db.QueryRowContext(ctx, `SELECT balance_credits, bonus_credits FROM credit_wallets WHERE customer_email = $1`, strings.ToLower(user.Email)).Scan(&balance, &bonus)
+	var balance int64
+	err = s.db.QueryRowContext(ctx, `SELECT COALESCE(SUM(l.remaining),0)
+        FROM credit_funding_lots l JOIN business_account_members m ON m.business_account_id=l.business_account_id
+        WHERE m.user_id = $1 AND l.status = 'open' AND l.settlement_state = 'settled' AND l.livemode IS NOT NULL
+          AND (l.spendable_after IS NULL OR l.spendable_after<=CURRENT_TIMESTAMP)
+          AND (l.expires_at IS NULL OR l.expires_at>CURRENT_TIMESTAMP)`, user.ID).Scan(&balance)
 	if err == nil {
-		user.Credits = &CreditInfo{Balance: balance, Bonus: bonus}
+		user.Credits = &CreditInfo{Balance: balance}
 	}
 
 	if err := s.db.QueryRowContext(ctx, `

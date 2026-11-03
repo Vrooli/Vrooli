@@ -7,6 +7,10 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"time"
+
+	"go.yaml.in/yaml/v3"
 	"testing"
 
 	internal "landing-page-business-suite-api/internal/delivery"
@@ -130,4 +134,32 @@ type updatePolicyStub struct {
 func (s updatePolicyStub) GetApp(string, string) (*internal.App, error) { return s.get, nil }
 func (s updatePolicyStub) UpdateAppPolicy(b, a string, p internal.UpdatePolicy) error {
 	return s.update(b, a, p)
+}
+
+// Emit the actual owner-produced, parsed manifest for the desktop consumer's
+// cross-language identity regression. No hand-shaped transport fixture.
+func TestElectronManifestDesktopContract(t *testing.T) {
+	manifests := map[string]any{}
+	for _, architecture := range []string{"amd64", "arm64"} {
+		artifact := &internal.Artifact{AppKey: "web-console", Platform: "linux", ReleaseVersion: "0.0.2", OriginalFilename: "Aquila.AppImage", SHA512: "successor", SizeBytes: 123, UpdatedAt: time.Date(2026, 11, 2, 0, 0, 0, 0, time.UTC), Metadata: map[string]interface{}{"architecture": architecture}}
+		encoded := BuildElectronManifest(artifact, "", "stable", "web-console")
+		var manifest map[string]interface{}
+		if err := yaml.Unmarshal(encoded, &manifest); err != nil {
+			t.Fatal(err)
+		}
+		binding := manifest["vrooli"].(map[string]interface{})
+		if binding["architecture"] != architecture {
+			t.Fatalf("owner omitted architecture: %s", encoded)
+		}
+		manifests[architecture] = manifest
+	}
+	if output := os.Getenv("J10_MANIFEST_FIXTURE_OUT"); output != "" {
+		encoded, err := json.MarshalIndent(manifests, "", "  ")
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(output, encoded, 0600); err != nil {
+			t.Fatal(err)
+		}
+	}
 }

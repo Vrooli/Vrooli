@@ -11,6 +11,11 @@ import (
 )
 
 func revenueQueryMatcher(expected, actual string) error {
+	for _, legacy := range []string{"FROM credit_wallets", "FROM credit_transactions", "FROM usage_events"} {
+		if strings.Contains(actual, legacy) {
+			return fmt.Errorf("money summary consulted retired personal authority: %s", legacy)
+		}
+	}
 	if expected == "revenue-subscriptions" {
 		for _, fragment := range []string{"sub.status = 'active'", "sub.status = 'trialing'", "billing_interval = 'year'", "intro_enabled", "discount_percent"} {
 			if !strings.Contains(actual, fragment) {
@@ -19,6 +24,17 @@ func revenueQueryMatcher(expected, actual string) error {
 		}
 		if strings.Contains(actual, "past_due") {
 			return fmt.Errorf("subscription rollup query must exclude past_due")
+		}
+		return nil
+	}
+	if expected == "revenue-business-credit-lots" {
+		for _, fragment := range []string{"FROM credit_funding_lots l", "JOIN business_account_credit_wallets w ON w.business_account_id = l.business_account_id", "l.status = 'open'", "l.settlement_state = 'settled'", "l.livemode IS NOT NULL", "l.spendable_after", "l.expires_at"} {
+			if !strings.Contains(actual, fragment) {
+				return fmt.Errorf("business credit summary query missing %q", fragment)
+			}
+		}
+		if strings.Contains(actual, "balance_credits") || strings.Contains(actual, "bonus_credits") {
+			return fmt.Errorf("business credit summary must not read cached wallet or bonus amounts")
 		}
 		return nil
 	}
@@ -38,16 +54,13 @@ func expectRevenueSummaryQueries(mock sqlmock.Sqlmock, mrr, today, window float6
 	mock.ExpectQuery("(?s)SELECT COUNT\\(\\*\\) FILTER").WillReturnRows(
 		sqlmock.NewRows([]string{"count"}).AddRow(churned),
 	)
-	mock.ExpectQuery("(?s)SELECT COALESCE\\(SUM\\(balance_credits").WillReturnRows(
+	mock.ExpectQuery("revenue-business-credit-lots").WillReturnRows(
 		sqlmock.NewRows([]string{"sum"}).AddRow(creditBalance),
-	)
-	mock.ExpectQuery("(?s)SELECT COALESCE\\(SUM\\(balance_credits.*business_account_credit_wallets").WillReturnRows(
-		sqlmock.NewRows([]string{"sum"}).AddRow(0),
 	)
 	mock.ExpectQuery("(?s)SELECT COALESCE\\(SUM\\(credits\\)").WillReturnRows(
 		sqlmock.NewRows([]string{"sum"}).AddRow(creditBurned),
 	)
-	mock.ExpectQuery("(?s)SELECT COUNT\\(\\*\\) FROM usage_events").WillReturnRows(
+	mock.ExpectQuery("(?s)SELECT COUNT\\(\\*\\) FROM business_account_usage_events").WillReturnRows(
 		sqlmock.NewRows([]string{"count"}).AddRow(usage),
 	)
 	mock.ExpectQuery("(?s)SELECT COALESCE\\(SUM\\(cost_micros\\)").WillReturnRows(
@@ -118,6 +131,28 @@ func TestRevenueSummaryAppliesDocumentedRollupSemantics(t *testing.T) {
 	}
 	if summary.ObservedAt == nil || !summary.ObservedAt.Equal(observedAt) {
 		t.Fatalf("observed_at = %v, want %v", summary.ObservedAt, observedAt)
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Fatalf("SQL expectations: %v", err)
+	}
+}
+
+func TestRevenueSummaryUsesAttributedLotsForBusinessCreditBalance(t *testing.T) {
+	db, mock, err := sqlmock.New(sqlmock.QueryMatcherOption(sqlmock.QueryMatcherFunc(revenueQueryMatcher)))
+	if err != nil {
+		t.Fatalf("sqlmock.New() error = %v", err)
+	}
+	defer db.Close()
+
+	// Personal and business cached amounts are excluded. Only eligible,
+	// attributed account funding lots may contribute the seven credits.
+	expectRevenueSummaryQueries(mock, 0, 0, 0, 0, 0, 0, 0, 7, 0, 0, "usd")
+	summary, err := NewServiceWithClock(db, scheduletest.New(time.Date(2026, 9, 3, 20, 0, 0, 0, time.UTC))).GetRevenueSummary()
+	if err != nil {
+		t.Fatalf("GetRevenueSummary() error = %v", err)
+	}
+	if summary.CreditBalanceTotal != 7 {
+		t.Fatalf("credit balance total = %d, want only seven attributed account lot credits", summary.CreditBalanceTotal)
 	}
 	if err := mock.ExpectationsWereMet(); err != nil {
 		t.Fatalf("SQL expectations: %v", err)

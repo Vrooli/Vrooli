@@ -1,153 +1,83 @@
 package commerce
 
 import (
+	"bytes"
 	"context"
 	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
+
+	fundingstate "landing-page-business-suite-api/internal/commerce/fundinglot/flow/generated"
 )
 
-// seam: CreditWallet keeps credit ledger mutation independent of Stripe webhook
-// parsing and API composition.
+// CreditWallet owns attributed account funding grants and their displayed balance.
+// seam: commerce funding authority, backed by the account lot ledger.
+// Credit spending is owned by BusinessAccountUsageService, never an email wallet.
 type CreditWallet interface {
-	AddCredits(customerEmail string, amount int64, txnType, stripeEventID string, metadata map[string]interface{}) error
-	ConsumeCredits(ctx context.Context, email string, amount int64, reason string, metadata map[string]interface{}) error
-	ConsumeCreditsIdempotent(ctx context.Context, email string, amount int64, reason, idempotencyKey string, metadata map[string]interface{}) error
-	Balance(email string) (int64, error)
-}
-
-// SourceCreditWallet is the provider-neutral ledger extension. Older wallet
-// callers keep the historical AddCredits seam; new providers use a separate
-// source plus external event pair for replay safety.
-type SourceCreditWallet interface {
-	AddCreditsFromSource(customerEmail string, amount int64, txnType, source, externalEventID string, metadata map[string]interface{}) error
-}
-
-// BusinessAccountCreditWallet is the account-scoped extension used by
-// explicitly selected LPBS commercial checkouts. It intentionally does not
-// alter the legacy person-email wallet contract.
-type BusinessAccountCreditWallet interface {
 	AddCreditsForBusinessAccount(businessAccountID, customerEmail string, amount int64, txnType, source, externalEventID string, metadata map[string]interface{}) error
 	BalanceForBusinessAccount(businessAccountID, customerEmail string) (int64, error)
 }
 
-// CreditWalletService owns credit-wallet balances and their immutable ledger.
-// A Stripe event ID is the replay key for provider-driven mutations; a caller
-// supplied idempotency key is the replay key for credit consumption.
-type CreditWalletService struct {
-	db StripeStore
-}
+type CreditWalletService struct{ db StripeStore }
 
-func NewCreditWalletService(db StripeStore) *CreditWalletService {
-	return &CreditWalletService{db: db}
-}
-
-var _ BusinessAccountCreditWallet = (*CreditWalletService)(nil)
+func NewCreditWalletService(db StripeStore) *CreditWalletService { return &CreditWalletService{db: db} }
 
 var _ CreditWallet = (*CreditWalletService)(nil)
 
-// AddCredits records an additive ledger entry and updates the wallet in the
-// same transaction. Replaying a non-empty event ID is a successful no-op.
-func (s *CreditWalletService) AddCredits(customerEmail string, amount int64, txnType, stripeEventID string, metadata map[string]interface{}) error {
-	if customerEmail == "" || amount <= 0 {
-		return nil
+func knownGrantMode(metadata map[string]interface{}) (bool, error) {
+	switch value := metadata["livemode"].(type) {
+	case bool:
+		return value, nil
+	case string:
+		switch strings.ToLower(strings.TrimSpace(value)) {
+		case "true":
+			return true, nil
+		case "false":
+			return false, nil
+		}
 	}
-
-	metadataJSON, _ := json.Marshal(metadata)
-	tx, err := s.db.Begin()
-	if err != nil {
-		return fmt.Errorf("begin credit transaction: %w", err)
-	}
-	defer func() { _ = tx.Rollback() }()
-
-	var eventID any
-	if stripeEventID != "" {
-		eventID = stripeEventID
-	}
-	result, err := tx.Exec(`
-		INSERT INTO credit_transactions (customer_email, amount_credits, transaction_type, stripe_event_id, metadata, created_at)
-		VALUES ($1, $2, $3, $4, $5, NOW())
-		ON CONFLICT (stripe_event_id) DO NOTHING
-	`, normalizeEmail(customerEmail), amount, txnType, eventID, string(metadataJSON))
-	if err != nil {
-		return fmt.Errorf("insert credit transaction: %w", err)
-	}
-
-	rowsAffected, err := result.RowsAffected()
-	if err != nil {
-		return fmt.Errorf("check credit transaction rows: %w", err)
-	}
-	if rowsAffected == 0 {
-		return nil
-	}
-
-	_, err = tx.Exec(`
-		INSERT INTO credit_wallets (customer_email, balance_credits, updated_at)
-		VALUES ($1, $2, NOW())
-		ON CONFLICT (customer_email) DO UPDATE
-		SET balance_credits = credit_wallets.balance_credits + $2, updated_at = NOW()
-	`, normalizeEmail(customerEmail), amount)
-	if err != nil {
-		return fmt.Errorf("update credit wallet: %w", err)
-	}
-	if err := tx.Commit(); err != nil {
-		return fmt.Errorf("commit credit transaction: %w", err)
-	}
-	return nil
+	return false, errors.New("funding livemode attribution is required")
 }
 
-func (s *CreditWalletService) AddCreditsFromSource(customerEmail string, amount int64, txnType, source, externalEventID string, metadata map[string]interface{}) error {
-	if customerEmail == "" || amount <= 0 {
-		return nil
+func sameGrantMetadata(stored []byte, expected []byte) bool {
+	var value any
+	if json.Unmarshal(stored, &value) != nil {
+		return false
 	}
-	metadataJSON, _ := json.Marshal(metadata)
-	tx, err := s.db.Begin()
-	if err != nil {
-		return fmt.Errorf("begin source credit transaction: %w", err)
-	}
-	defer func() { _ = tx.Rollback() }()
-	result, err := tx.Exec(`
-		INSERT INTO credit_transactions (customer_email, amount_credits, transaction_type, source, external_event_id, metadata, created_at)
-		VALUES ($1, $2, $3, $4, $5, $6, NOW())
-		ON CONFLICT (source, external_event_id) DO NOTHING
-	`, normalizeEmail(customerEmail), amount, txnType, source, externalEventID, string(metadataJSON))
-	if err != nil {
-		// Deployments with the legacy schema can still process Stripe events;
-		// the governed schema path above is authoritative once migrated.
-		if strings.Contains(strings.ToLower(err.Error()), "external_event_id") || strings.Contains(strings.ToLower(err.Error()), "source") {
-			return s.AddCredits(customerEmail, amount, txnType, externalEventID, metadata)
-		}
-		return fmt.Errorf("insert source credit transaction: %w", err)
-	}
-	rowsAffected, err := result.RowsAffected()
-	if err != nil {
-		return fmt.Errorf("check source credit transaction: %w", err)
-	}
-	if rowsAffected == 0 {
-		return nil
-	}
-	if _, err := tx.Exec(`
-		INSERT INTO credit_wallets (customer_email, balance_credits, updated_at)
-		VALUES ($1, $2, NOW())
-		ON CONFLICT (customer_email) DO UPDATE SET balance_credits = credit_wallets.balance_credits + $2, updated_at = NOW()
-	`, normalizeEmail(customerEmail), amount); err != nil {
-		return fmt.Errorf("update source credit wallet: %w", err)
-	}
-	return tx.Commit()
+	canonical, err := json.Marshal(value)
+	return err == nil && bytes.Equal(canonical, expected)
 }
 
 func (s *CreditWalletService) AddCreditsForBusinessAccount(businessAccountID, customerEmail string, amount int64, txnType, source, externalEventID string, metadata map[string]interface{}) error {
-	if strings.TrimSpace(businessAccountID) == "" || strings.TrimSpace(customerEmail) == "" || amount <= 0 {
-		return nil
+	businessAccountID, customerEmail = strings.TrimSpace(businessAccountID), normalizeEmail(customerEmail)
+	txnType, source, externalEventID = strings.TrimSpace(txnType), strings.TrimSpace(source), strings.TrimSpace(externalEventID)
+	if businessAccountID == "" || customerEmail == "" || amount <= 0 || txnType == "" || source == "" || externalEventID == "" {
+		return errors.New("business_account_id, customer, positive amount, funding kind, source, and external event attribution are required")
 	}
-	metadataJSON, _ := json.Marshal(metadata)
+	liveMode, err := knownGrantMode(metadata)
+	if err != nil {
+		return err
+	}
+	metadataJSON, err := json.Marshal(metadata)
+	if err != nil {
+		return fmt.Errorf("encode immutable grant metadata: %w", err)
+	}
+	if s.db == nil {
+		return errors.New("account funding authority is unavailable")
+	}
 	tx, err := s.db.Begin()
 	if err != nil {
 		return fmt.Errorf("begin account credit transaction: %w", err)
 	}
 	defer func() { _ = tx.Rollback() }()
+	if _, err := tx.Exec(`SELECT pg_advisory_xact_lock(hashtextextended($1,0))`, businessAccountID); err != nil {
+		return err
+	}
+	if err := checkFundingPurchaseBlock(context.Background(), tx, businessAccountID); err != nil {
+		return err
+	}
 	result, err := tx.Exec(`
 		INSERT INTO business_account_credit_transactions (business_account_id, customer_email, amount_credits, transaction_type, source, external_event_id, metadata, created_at)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())
@@ -161,13 +91,39 @@ func (s *CreditWalletService) AddCreditsForBusinessAccount(businessAccountID, cu
 		return fmt.Errorf("check account credit transaction: %w", err)
 	}
 	if rowsAffected == 0 {
+		var account, email, kind string
+		var previousAmount int64
+		var originalMetadata []byte
+		if err := tx.QueryRow(`SELECT business_account_id,customer_email,amount_credits,transaction_type,metadata FROM business_account_credit_transactions WHERE source=$1 AND external_event_id=$2`, source, externalEventID).Scan(&account, &email, &previousAmount, &kind, &originalMetadata); err != nil {
+			return fmt.Errorf("load existing account grant: %w", err)
+		}
+		if account != businessAccountID || email != customerEmail || previousAmount != amount || kind != txnType || !sameGrantMetadata(originalMetadata, metadataJSON) {
+			return errors.New("funding event was replayed with different account or grant data")
+		}
 		return nil
 	}
+	lotID := newReservationID()
+	providerRef := firstNonEmpty(metadataString(metadata, "payment_intent_id"), externalEventID)
+	providerRef2 := firstNonEmpty(metadataString(metadata, "charge_id"), metadataString(metadata, "session_id"))
+	if _, err := tx.Exec(`INSERT INTO credit_funding_lots (id,business_account_id,source_kind,provider,provider_ref,provider_ref2,external_event_id,livemode,settlement_state,granted,remaining,status,created_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,'settled',$9,$9,'open',NOW())`, lotID, businessAccountID, txnType, source, providerRef, providerRef2, externalEventID, liveMode, amount); err != nil {
+		return fmt.Errorf("create account funding lot: %w", err)
+	}
+	if paid, ok := metadata["paid_amount_minor"].(int64); ok {
+		if _, err := tx.Exec(`UPDATE credit_funding_lots SET paid_amount_minor=$2,paid_currency=$3 WHERE id=$1`, lotID, paid, metadataString(metadata, "paid_currency")); err != nil {
+			return err
+		}
+	}
+	if err := applyFundingPolicy(context.Background(), tx, lotID, businessAccountID, source, txnType); err != nil {
+		return err
+	}
+	if _, err := tx.Exec(`UPDATE business_account_credit_transactions SET lot_id=$1 WHERE source=$2 AND external_event_id=$3`, lotID, source, externalEventID); err != nil {
+		return fmt.Errorf("link account credit transaction to funding lot: %w", err)
+	}
 	if _, err := tx.Exec(`
-		INSERT INTO business_account_credit_wallets (business_account_id, customer_email, balance_credits, updated_at)
-		VALUES ($1, $2, $3, NOW())
-		ON CONFLICT (business_account_id) DO UPDATE SET balance_credits = business_account_credit_wallets.balance_credits + $3, customer_email = EXCLUDED.customer_email, updated_at = NOW()
-	`, strings.TrimSpace(businessAccountID), normalizeEmail(customerEmail), amount); err != nil {
+		INSERT INTO business_account_credit_wallets (business_account_id, customer_email, updated_at)
+		VALUES ($1, $2, NOW())
+		ON CONFLICT (business_account_id) DO UPDATE SET customer_email = EXCLUDED.customer_email, updated_at = NOW()
+	`, strings.TrimSpace(businessAccountID), normalizeEmail(customerEmail)); err != nil {
 		return fmt.Errorf("update account credit wallet: %w", err)
 	}
 	return tx.Commit()
@@ -175,104 +131,17 @@ func (s *CreditWalletService) AddCreditsForBusinessAccount(businessAccountID, cu
 
 func (s *CreditWalletService) BalanceForBusinessAccount(businessAccountID, customerEmail string) (int64, error) {
 	if strings.TrimSpace(businessAccountID) == "" || strings.TrimSpace(customerEmail) == "" {
-		return 0, nil
+		return 0, ErrBusinessAccountRequired
 	}
 	var balance int64
-	err := s.db.QueryRow(`SELECT COALESCE(balance_credits, 0) FROM business_account_credit_wallets WHERE business_account_id = $1 AND customer_email = $2`, strings.TrimSpace(businessAccountID), normalizeEmail(customerEmail)).Scan(&balance)
+	// The wallet is an identity row. Only attributed, usable funding lots
+	// establish the displayed balance; an old cache amount has no provenance.
+	err := s.db.QueryRow(`SELECT COALESCE(SUM(l.remaining),0) FROM credit_funding_lots l JOIN business_account_credit_wallets w ON w.business_account_id=l.business_account_id WHERE w.business_account_id=$1 AND w.customer_email=$2 AND l.status=$3 AND l.settlement_state='settled' AND l.livemode IS NOT NULL AND (l.spendable_after IS NULL OR l.spendable_after<=CURRENT_TIMESTAMP) AND (l.expires_at IS NULL OR l.expires_at>CURRENT_TIMESTAMP)`, strings.TrimSpace(businessAccountID), normalizeEmail(customerEmail), string(fundingstate.FundingLotOpen)).Scan(&balance)
 	if err == sql.ErrNoRows {
 		return 0, nil
 	}
 	if err != nil {
 		return 0, fmt.Errorf("get account credit balance: %w", err)
-	}
-	return balance, nil
-}
-
-// ConsumeCredits deducts a wallet balance for an ordinary request.
-func (s *CreditWalletService) ConsumeCredits(ctx context.Context, email string, amount int64, reason string, metadata map[string]interface{}) error {
-	return s.ConsumeCreditsIdempotent(ctx, email, amount, reason, "", metadata)
-}
-
-// ConsumeCreditsIdempotent deducts a wallet balance. The optional idempotency
-// key makes retries a successful no-op after the first committed deduction.
-func (s *CreditWalletService) ConsumeCreditsIdempotent(ctx context.Context, email string, amount int64, reason, idempotencyKey string, metadata map[string]interface{}) error {
-	if email == "" || amount <= 0 {
-		return errors.New("email and positive amount are required")
-	}
-
-	metadataJSON, _ := json.Marshal(metadata)
-	tx, err := s.db.BeginTx(ctx, nil)
-	if err != nil {
-		return fmt.Errorf("begin consume credits transaction: %w", err)
-	}
-	defer func() { _ = tx.Rollback() }()
-
-	if idempotencyKey != "" {
-		var exists bool
-		err = tx.QueryRowContext(ctx, `
-			SELECT EXISTS(SELECT 1 FROM credit_transactions WHERE stripe_event_id = $1)
-		`, idempotencyKey).Scan(&exists)
-		if err != nil {
-			return fmt.Errorf("check idempotency key: %w", err)
-		}
-		if exists {
-			return nil
-		}
-	}
-
-	var balance int64
-	err = tx.QueryRowContext(ctx, `
-		SELECT COALESCE(balance_credits, 0) FROM credit_wallets WHERE customer_email = $1 FOR UPDATE
-	`, normalizeEmail(email)).Scan(&balance)
-	if errors.Is(err, sql.ErrNoRows) {
-		return errors.New("no credit wallet found for user")
-	}
-	if err != nil {
-		return fmt.Errorf("check credit balance: %w", err)
-	}
-	if balance < amount {
-		return fmt.Errorf("insufficient credits: have %d, need %d", balance, amount)
-	}
-
-	var eventID any
-	if idempotencyKey != "" {
-		eventID = idempotencyKey
-	}
-	_, err = tx.ExecContext(ctx, `
-		INSERT INTO credit_transactions (customer_email, amount_credits, transaction_type, stripe_event_id, metadata, created_at)
-		VALUES ($1, $2, $3, $4, $5, NOW())
-	`, normalizeEmail(email), -amount, reason, eventID, string(metadataJSON))
-	if err != nil {
-		return fmt.Errorf("insert consumption transaction: %w", err)
-	}
-
-	_, err = tx.ExecContext(ctx, `
-		UPDATE credit_wallets SET balance_credits = balance_credits - $1, updated_at = NOW()
-		WHERE customer_email = $2
-	`, amount, normalizeEmail(email))
-	if err != nil {
-		return fmt.Errorf("update credit wallet: %w", err)
-	}
-	if err := tx.Commit(); err != nil {
-		return fmt.Errorf("commit consume credits transaction: %w", err)
-	}
-	return nil
-}
-
-func (s *CreditWalletService) Balance(email string) (int64, error) {
-	if email == "" {
-		return 0, errors.New("email is required")
-	}
-
-	var balance int64
-	err := s.db.QueryRow(`
-		SELECT COALESCE(balance_credits, 0) FROM credit_wallets WHERE customer_email = $1
-	`, normalizeEmail(email)).Scan(&balance)
-	if err == sql.ErrNoRows {
-		return 0, nil
-	}
-	if err != nil {
-		return 0, fmt.Errorf("get credit balance: %w", err)
 	}
 	return balance, nil
 }

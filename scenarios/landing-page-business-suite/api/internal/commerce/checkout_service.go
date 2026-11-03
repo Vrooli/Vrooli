@@ -74,6 +74,17 @@ func (s *CheckoutService) create(ctx context.Context, priceID, successURL, cance
 		return nil, fmt.Errorf("checkout dependencies unavailable")
 	}
 	customerEmail = normalizeEmail(customerEmail)
+	if businessAccountID != "" {
+		tx, err := s.store.BeginTx(ctx, nil)
+		if err != nil {
+			return nil, err
+		}
+		err = checkFundingPurchaseBlock(ctx, tx, businessAccountID)
+		_ = tx.Rollback()
+		if err != nil {
+			return nil, err
+		}
+	}
 	plan, err := s.plans.GetPlanByPriceID(priceID)
 	if err != nil {
 		return nil, fmt.Errorf("price %s not found: %w", priceID, err)

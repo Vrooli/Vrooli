@@ -151,6 +151,10 @@ func protobufTokenCount(value int) int32 {
 
 func connectAIError(err error) error {
 	switch {
+	case errors.Is(err, intelligencecore.ErrBillingAccountRequired):
+		return connect.NewError(connect.CodeFailedPrecondition, fmt.Errorf("billing_account_required: %w", intelligencecore.ErrBillingAccountRequired))
+	case errors.Is(err, intelligencecore.ErrBillingScopeUnavailable):
+		return connect.NewError(connect.CodeUnavailable, fmt.Errorf("billing_scope_unavailable: %w", intelligencecore.ErrBillingScopeUnavailable))
 	case errors.Is(err, intelligencecore.ErrInsufficientCredits):
 		return connect.NewError(connect.CodeFailedPrecondition, errors.New("insufficient credits for this operation"))
 	case errors.Is(err, intelligencecore.ErrNoAPIKeyConfigured):

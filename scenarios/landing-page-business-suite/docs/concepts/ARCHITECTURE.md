@@ -226,7 +226,8 @@ api/
 ├── feedback_*.go            # In-product feedback intake
 ├── waitlist_*.go            # Coming-soon waitlist capture
 ├── remote_profile*.go       # Remote-profile storage, proxy, session linking, revoke
-├── apikeys_service.go       # API-key vault for upstream LLM providers
+├── internal/intelligence/credential_authority_api_key_service.go # Credential-authority adapter
+├── internal/aidoor/         # Public AI keys, admission, private Gateway calls and receipt recovery
 ├── limits_service.go        # Cost-based credit limits per tier / app
 ├── internal/commerce/       # Usage rules/reservations; main.go supplies runtime policy
 ├── handlers/account/        # Generated AccountService Connect transport plus commerce reader

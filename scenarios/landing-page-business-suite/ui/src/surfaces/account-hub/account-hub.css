@@ -28,3 +28,14 @@
 .presentation-page .button-quiet{background:transparent;color:var(--muted);border:1px solid var(--line)}
 .presentation-page .button-quiet:hover{color:var(--ink);border-color:color-mix(in srgb,var(--accent) 40%,var(--line))}
 @media (max-width: 640px){.presentation-page .account-card{padding:22px 18px}.presentation-page .account-app-list li{align-items:flex-start;flex-direction:column}}
+.presentation-page .credits-account{display:grid;gap:8px;max-width:360px;margin-bottom:24px}
+.presentation-page .credits-toolbar{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:18px}
+.presentation-page .credits-toolbar select{max-width:250px}
+.presentation-page .credits-balances{margin-bottom:22px}
+.presentation-page .credits-history{margin-bottom:22px}
+.presentation-page .credits-holds{list-style:none;padding:0;margin:0;display:grid;gap:8px;font-size:13px;color:var(--muted)}
+.presentation-page .credits-holds li{display:flex;justify-content:space-between;gap:14px}
+.presentation-page .credits-table-wrap{overflow:auto}
+.presentation-page .credits-table-wrap table{border-collapse:collapse;width:100%;font-size:14px;text-align:left}
+.presentation-page .credits-table-wrap th,.presentation-page .credits-table-wrap td{padding:15px 12px;border-bottom:1px solid var(--line)}
+.presentation-page .credits-table-wrap thead{color:var(--muted);font:12px var(--mono)}

@@ -50,6 +50,14 @@ export function collectLimitKeys(limits: Record<string, TierLimit[]>): Set<strin
 }
 
 
+function costLimitValue(input: string): number | null {
+  const value = input.trim().toLowerCase();
+  if (value === 'unlimited' || value === '-1') return -1;
+  const dollars = Number(value);
+  const units = Math.round(dollars * 100 * 1000000);
+  return Number.isFinite(dollars) && dollars >= 0 && Number.isSafeInteger(units) ? units : null;
+}
+
 /**
  * Validate new limit form data
  */
@@ -57,6 +65,7 @@ export function validateNewLimitForm(form: NewLimitFormState): string | null {
   if (!form.limit_key.trim()) {
     return 'Please enter a limit key';
   }
+  if (costLimitValue(form.display_dollars) === null) return 'Enter a non-negative dollar amount or unlimited';
   return null;
 }
 
@@ -67,13 +76,15 @@ export function buildCreateLimitPayload(
   form: NewLimitFormState,
   selectedApp: string
 ): Partial<TierLimit> {
-  const dollars = parseFloat(form.display_dollars) || 0;
+  const error = validateNewLimitForm(form);
+  const value = costLimitValue(form.display_dollars);
+  if (error || value === null || !selectedApp.trim()) throw new Error(error ?? 'Select an exact application');
 
   return {
     tier_id: form.tier_id,
-    limit_type: 'app_specific',
+    limit_type: 'cost_based',
     limit_key: form.limit_key.trim(),
-    limit_value: Math.round(dollars * 100 * 1000000), // Convert to internal units
+    limit_value: value,
     cost_multiplier: 1000000,
     app_bundle_key: selectedApp,
     reset_period: 'monthly',
@@ -135,3 +146,11 @@ export async function removeTierLimit(
 
 // Re-export TIER_OPTIONS for convenience
 export { TIER_OPTIONS };
+
+/** Presentation follows the declared server meter kind; app scope alone never
+ * establishes currency units. The server owns the legacy AI-cap mapping. */
+export function getAppMeterKind(limit: TierLimit): 'cost_based' | 'count_based' | null {
+  return limit.limit_type === 'cost_based' || limit.limit_type === 'count_based'
+    ? limit.limit_type
+    : null;
+}

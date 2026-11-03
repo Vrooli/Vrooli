@@ -21,6 +21,7 @@ import (
 // normalization, logging, and workflows that belong to adjacent domains.
 type StripeWebhookService struct {
 	db                    StripeStore
+	provider              StripeRequester
 	planService           *PlanService
 	getConfig             func() StripeWebhookConfig
 	normalizeEmailFn      func(string) string
@@ -63,6 +64,7 @@ func (s *StripeWebhookService) normalizeEmail(value string) string {
 
 type StripeWebhookOptions struct {
 	DB                    StripeStore
+	Provider              StripeRequester
 	PlanService           *PlanService
 	Config                func() StripeWebhookConfig
 	NormalizeEmail        func(string) string
@@ -81,7 +83,7 @@ type StripeWebhookOptions struct {
 
 func NewStripeWebhookService(options StripeWebhookOptions) *StripeWebhookService {
 	return &StripeWebhookService{
-		db: options.DB, planService: options.PlanService, getConfig: options.Config,
+		db: options.DB, provider: options.Provider, planService: options.PlanService, getConfig: options.Config,
 		normalizeEmailFn: options.NormalizeEmail, loadCheckoutSession: options.LoadCheckoutSession,
 		extractAmount: options.ExtractAmount, handleCreditTopup: options.HandleCreditTopup,
 		refreshSubscription: options.RefreshSubscription, persistSubscription: options.PersistSubscription,
@@ -301,11 +303,14 @@ func (s *StripeWebhookService) HandleWebhook(body []byte, signature string) erro
 	if !ok {
 		return errors.New("missing event object")
 	}
+	eventLiveMode, _ := event["livemode"].(bool)
 
 	// Handle different event types
 	switch eventType {
-	case "checkout.session.completed":
-		return s.handleCheckoutCompleted(obj, eventID)
+	case "charge.dispute.created", "charge.dispute.updated", "charge.dispute.closed", "charge.dispute.funds_withdrawn", "charge.dispute.funds_reinstated", "charge.refunded", "radar.early_fraud_warning.created", "radar.early_fraud_warning.updated":
+		return s.handleFundingReversal(context.Background(), eventID, eventType, obj, eventLiveMode)
+	case "checkout.session.completed", "checkout.session.async_payment_succeeded":
+		return s.handleCheckoutCompleted(obj, eventID, eventLiveMode)
 	case "customer.subscription.created":
 		return s.handleSubscriptionCreated(obj)
 	case "customer.subscription.updated":
@@ -340,7 +345,7 @@ func (s *StripeWebhookService) BillingIntervalDuration(interval shared.BillingIn
 	return s.billingIntervalDuration(interval)
 }
 
-func (s *StripeWebhookService) handleCheckoutCompleted(obj map[string]interface{}, stripeEventID string) error {
+func (s *StripeWebhookService) handleCheckoutCompleted(obj map[string]interface{}, stripeEventID string, eventLiveMode bool) error {
 	sessionID, ok := obj["id"].(string)
 	if !ok {
 		return errors.New("missing session id")
@@ -376,6 +381,9 @@ func (s *StripeWebhookService) handleCheckoutCompleted(obj map[string]interface{
 		return err
 	}
 
+	if sessionRec == nil {
+		return errors.New("checkout session is unknown")
+	}
 	if sessionRec.Status == "complete" {
 		s.log("checkout.session.completed ignored (duplicate)", map[string]interface{}{
 			"session_id": sessionID,
@@ -399,18 +407,24 @@ func (s *StripeWebhookService) handleCheckoutCompleted(obj map[string]interface{
 
 	switch {
 	case plan != nil && plan.Kind == shared.PlanKind_PLAN_KIND_CREDITS_TOPUP:
+		// A completed checkout can still be awaiting delayed payment. Only
+		// Stripe's paid state grants a settled lot; the success event retries
+		// this same stored checkout after settlement.
+		if obj["payment_status"] != "paid" {
+			return nil
+		}
+		metadata := map[string]interface{}{"session_id": sessionID, "livemode": eventLiveMode, "payment_intent_id": stripeReference(obj["payment_intent"]), "paid_amount_minor": amountCents, "paid_currency": plan.Currency}
+		if sessionRec.BusinessAccountID.Valid && strings.TrimSpace(sessionRec.BusinessAccountID.String) != "" {
+			metadata["business_account_id"] = strings.TrimSpace(sessionRec.BusinessAccountID.String)
+		}
+		if err := s.handleCreditTopup(customerEmail, amountCents, plan, stripeEventID, metadata); err != nil {
+			return err
+		}
 		if _, err := s.db.Exec(`
 			UPDATE checkout_sessions
 			SET status = $1, subscription_id = $2, customer_id = $3, customer_email = $4, completed_at = $5, updated_at = $5
 			WHERE session_id = $6
 		`, "complete", subscriptionID, customerID, customerEmail, time.Now(), sessionID); err != nil {
-			return err
-		}
-		metadata := map[string]interface{}{"session_id": sessionID}
-		if sessionRec.BusinessAccountID.Valid && strings.TrimSpace(sessionRec.BusinessAccountID.String) != "" {
-			metadata["business_account_id"] = strings.TrimSpace(sessionRec.BusinessAccountID.String)
-		}
-		if err := s.handleCreditTopup(customerEmail, amountCents, plan, stripeEventID, metadata); err != nil {
 			return err
 		}
 		return withTransaction(context.Background(), s.db, func(tx *sql.Tx) error {
@@ -897,26 +911,6 @@ func (s *StripeWebhookService) handleCustomerUpdated(obj map[string]interface{})
 	`, newEmail, oldEmail, customerID)
 	if err != nil {
 		return fmt.Errorf("migrate users email: %w", err)
-	}
-
-	// Update credit_wallets table
-	_, err = tx.Exec(`
-		UPDATE credit_wallets
-		SET customer_email = $1, updated_at = NOW()
-		WHERE customer_email = $2
-	`, newEmail, oldEmail)
-	if err != nil {
-		return fmt.Errorf("migrate credit_wallets email: %w", err)
-	}
-
-	// Update credit_transactions table
-	_, err = tx.Exec(`
-		UPDATE credit_transactions
-		SET customer_email = $1
-		WHERE customer_email = $2
-	`, newEmail, oldEmail)
-	if err != nil {
-		return fmt.Errorf("migrate credit_transactions email: %w", err)
 	}
 
 	// Update intro_coupon_usage table

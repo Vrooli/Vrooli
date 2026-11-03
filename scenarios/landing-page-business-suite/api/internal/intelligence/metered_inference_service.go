@@ -9,6 +9,19 @@ import (
 	"strings"
 )
 
+// Legacy app-scoped spending remains closed until its authenticated feature contract is migrated to the one door.
+var ErrBillingAccountRequired = errors.New("Select a business account with authorized membership to use Vrooli credits")
+var ErrBillingScopeUnavailable = errors.New("Verified app billing scope is unavailable; contact the app operator to complete LPBS billing setup")
+
+func requireBillingScope(accountID string) error {
+	if strings.TrimSpace(accountID) == "" {
+		return ErrBillingAccountRequired
+	}
+	// Caller metadata cannot establish app-scoped authority. The issued-key
+	// door has its own verified account and membership admission.
+	return ErrBillingScopeUnavailable
+}
+
 // MeteredInferenceService handles AI requests through the LPBS gateway.
 // It provides centralized AI access with credit management for all Vrooli applications.
 //
@@ -129,6 +142,9 @@ func NewMeteredInferenceService(opts MeteredInferenceServiceOptions) *MeteredInf
 // ExecuteInference applies the stable role contract and delegates to the
 // atomic reservation/provider pipeline. Concrete model selection is internal.
 func (s *MeteredInferenceService) ExecuteInference(ctx context.Context, userIdentity string, req InferenceRequest) (*AIResponse, error) {
+	if err := requireBillingScope(req.BusinessAccountID); err != nil {
+		return nil, err
+	}
 	role := strings.TrimSpace(req.Role)
 	policy, ok := s.rolePolicies[role]
 	if !ok {
@@ -146,6 +162,9 @@ func (s *MeteredInferenceService) ExecuteInference(ctx context.Context, userIden
 // ExecuteInferenceStream applies server-owned role policy before entering the
 // same reservation and provider pipeline used by the legacy chat stream.
 func (s *MeteredInferenceService) ExecuteInferenceStream(ctx context.Context, userIdentity string, req InferenceRequest, w http.ResponseWriter) error {
+	if err := requireBillingScope(req.BusinessAccountID); err != nil {
+		return err
+	}
 	if strings.TrimSpace(req.BusinessAccountID) == "" {
 		return errors.New("business_account_id is required for account-scoped streaming")
 	}
@@ -177,6 +196,9 @@ func defaultModelPricing() map[string]ModelPricing {
 // ExecuteChat executes a non-streaming chat completion.
 // Credits are checked and charged atomically to prevent TOCTOU race conditions.
 func (s *MeteredInferenceService) ExecuteChat(ctx context.Context, userIdentity string, req AIRequest) (*AIResponse, error) {
+	if err := requireBillingScope(req.BusinessAccountID); err != nil {
+		return nil, err
+	}
 	if req.SpendLimit != nil {
 		if strings.TrimSpace(req.BusinessAccountID) != "" {
 			return nil, errors.New("spend-limited inference does not support business-account billing")
@@ -245,62 +267,6 @@ func (s *MeteredInferenceService) ExecuteChat(ctx context.Context, userIdentity 
 	// Calculate actual cost based on real token usage
 	actualCost := s.calculateCost(req.Model, orResp.Usage.PromptTokens, orResp.Usage.CompletionTokens)
 
-	/*
-			Legacy estimate adjustment is intentionally disabled: the reservation
-			finalizer below owns the single authoritative charge/refund operation.
-			Keeping a second adjustment here would double-charge successful requests.
-		if false {
-			if actualCost > estimatedCost {
-				// Charge additional credits if actual cost exceeds estimate
-				extraCost := actualCost - estimatedCost
-				if err := s.usageService.RecordUsage(ctx, UsageReport{
-					UserIdentity: billingIdentity,
-					LimitKey:     "ai_credits",
-					Amount:       extraCost,
-					AppBundleKey: req.Metadata.AppBundleKey,
-					Operation:    req.Metadata.Operation,
-					Metadata:     map[string]string{"type": "cost_adjustment"},
-				}); err != nil {
-					s.log("cost_adjustment_charge_failed", map[string]interface{}{
-						"level":         "warn",
-						"user_identity": userIdentity,
-						"extra_cost":    extraCost,
-						"error":         err.Error(),
-					})
-				}
-			} else if actualCost < estimatedCost {
-				// Refund overage when actual cost is less than estimated
-				refundAmount := estimatedCost - actualCost
-				refundPercent := float64(refundAmount) / float64(estimatedCost) * 100
-
-				// Log refund with security flag if unusually large (>50% indicates estimation drift)
-				logLevel := "debug"
-				if refundPercent > 50 {
-					logLevel = "warn"
-				}
-				s.log("credit_refund_issued", map[string]interface{}{
-					"level":          logLevel,
-					"user_identity":  userIdentity,
-					"refund_amount":  refundAmount,
-					"refund_percent": refundPercent,
-					"estimated_cost": estimatedCost,
-					"actual_cost":    actualCost,
-					"security":       refundPercent > 50,
-				})
-
-				if err := s.usageService.AdjustUsage(ctx, billingIdentity, "ai_credits", -refundAmount, "estimate_refund"); err != nil {
-					s.log("refund_adjustment_failed", map[string]interface{}{
-						"level":          "warn",
-						"user_identity":  userIdentity,
-						"refund_amount":  refundAmount,
-						"estimated_cost": estimatedCost,
-						"actual_cost":    actualCost,
-						"error":          err.Error(),
-					})
-				}
-			}
-		}
-	*/
 	if err := s.finalizeReservationWithCost(ctx, userIdentity, req.BusinessAccountID, reservationID, actualCost, req.Metadata.AppBundleKey, req.Model, orResp.Usage.CostMicros, orResp.Usage.PromptTokens, orResp.Usage.CompletionTokens, "openrouter"); err != nil {
 		return nil, fmt.Errorf("finalize credit reservation: %w", err)
 	}
@@ -331,8 +297,7 @@ func (s *MeteredInferenceService) ExecuteChat(ctx context.Context, userIdentity 
 func (s *MeteredInferenceService) billingIdentityAndTier(ctx context.Context, userIdentity, businessAccountID string) (string, string, error) {
 	businessAccountID = strings.TrimSpace(businessAccountID)
 	if businessAccountID == "" {
-		tier, err := s.getUserTier(ctx, userIdentity)
-		return userIdentity, tier, err
+		return "", "", ErrBillingAccountRequired
 	}
 	if s.accountService == nil {
 		return "", "", errors.New("business-account subscription authority is unavailable")
@@ -389,7 +354,11 @@ func (s *MeteredInferenceService) recordUsage(ctx context.Context, actorIdentity
 	if !ok {
 		return errors.New("business-account usage authority is unavailable")
 	}
-	return accountUsage.RecordBusinessAccountUsage(ctx, businessAccountID, actorIdentity, tier, report.LimitKey, report.Amount, report.AppBundleKey, report.Metadata["model"], parseNonnegativeInt64(report.Metadata["cost_micros"]), parseNonnegativeInt(report.Metadata["prompt_tokens"]), parseNonnegativeInt(report.Metadata["completion_tokens"]), report.Metadata["provider"])
+	operationID := ""
+	if report.OperationID != nil {
+		operationID = *report.OperationID
+	}
+	return accountUsage.RecordBusinessAccountUsage(ctx, businessAccountID, actorIdentity, tier, report.LimitKey, report.Amount, operationID, report.AppBundleKey, report.Metadata["model"], parseNonnegativeInt64(report.Metadata["cost_micros"]), parseNonnegativeInt(report.Metadata["prompt_tokens"]), parseNonnegativeInt(report.Metadata["completion_tokens"]), report.Metadata["provider"])
 }
 
 func (s *MeteredInferenceService) adjustUsage(ctx context.Context, actorIdentity, businessAccountID, limitKey string, amount int64, reason string) error {

@@ -31,7 +31,7 @@ export interface APIKeyTestResult {
 export interface TierLimit {
   id: string;
   tier_id: string;
-  limit_type: 'cost_based' | 'app_specific';
+  limit_type: 'cost_based' | 'count_based' | 'app_specific';
   limit_key: string;
   limit_value: number;
   cost_multiplier: number;

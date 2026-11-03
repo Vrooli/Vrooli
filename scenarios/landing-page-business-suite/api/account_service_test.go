@@ -16,7 +16,7 @@ func TestAccountServiceCreditsContextCancellationReachesPersistence(t *testing.T
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 	service := NewAccountService(db, NewPlanService(db))
-	_, err := service.GetCreditsContext(ctx, "canceled-context@example.com")
+	_, err := service.GetCreditsForBusinessAccountContext(ctx, "canceled-context@example.com", "acct-canceled")
 	if !errors.Is(err, context.Canceled) {
 		t.Fatalf("GetCreditsContext() error = %v, want context cancellation", err)
 	}
@@ -118,7 +118,7 @@ func TestAccountServiceCreditsFallbacksWhenPlanUnavailable(t *testing.T) {
 	planService := NewPlanServiceWithOptions(commerce.PlanServiceOptions{PlanStore: emptyStore, DefaultBundle: "missing_bundle", DisplayEnv: "production"})
 	accountService := NewAccountService(db, planService)
 
-	credits, err := accountService.GetCredits("fallback@example.com")
+	credits, err := accountService.GetCreditsForBusinessAccountContext(context.Background(), "fallback@example.com", "acct-fallback")
 	if err != nil {
 		t.Fatalf("unexpected error in fallback path: %v", err)
 	}

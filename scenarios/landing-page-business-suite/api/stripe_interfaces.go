@@ -64,6 +64,7 @@ func (s *StripeService) FetchStripePriceDetails(ctx context.Context, priceID str
 func (s *StripeService) webhookService() *commerce.StripeWebhookService {
 	return commerce.NewStripeWebhookService(commerce.StripeWebhookOptions{
 		DB:          s.db,
+		Provider:    stripeCouponRequester{service: s},
 		PlanService: s.planService,
 		Config: func() commerce.StripeWebhookConfig {
 			cfg := s.getConfig()

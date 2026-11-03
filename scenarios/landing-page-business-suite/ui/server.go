@@ -71,7 +71,7 @@ func isConnectProcedurePath(path string) bool {
 
 func isPublicSPARoute(path string) bool {
 	switch path {
-	case "/contact", "/privacy", "/terms", "/thank-you", "/account", "/account/security":
+	case "/contact", "/privacy", "/terms", "/thank-you", "/account", "/account/security", "/account/credits":
 		return true
 	}
 	if path == "/" || path == "/checkout" || path == "/feedback" || strings.HasPrefix(path, "/auth/") || strings.HasPrefix(path, "/admin") {

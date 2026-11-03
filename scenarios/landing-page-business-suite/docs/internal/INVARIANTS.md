@@ -26,10 +26,10 @@ Properties that must hold **at all times** across the data + behavior of the sce
 
 ## Credits & usage
 
-8. **A finalized credit reservation is immutable.** `credit_reservations.status` transitions are `pending → finalized | released | expired`. No row may go back to `pending`.
-9. **Usage cannot exceed a non-`-1` tier limit.** A `usage_records.usage_amount > limit_value` row, where `limit_value != -1`, indicates a metering bug — usage reporting must reject the increment instead of clamping it silently.
-10. **Bonus credits are spent before subscription credits.** `credit_wallets.bonus_credits` decrements first, then `balance_credits`.
-11. **Credit ledger mutations are replay-safe.** `CreditWalletService` records a top-up and its wallet update in one transaction; a repeated non-empty Stripe event ID is a successful no-op. Consumption locks the wallet row and uses its caller-provided idempotency key to make a retried debit a successful no-op after the first commit. Distinct keys remain independent debits.
+8. **Credit authority is account-owned and source-attributed.** Funding grants require a business account, customer, positive amount, funding kind, provider source, external event, and explicit live/test mode. Historical email-wallet balances and bonuses never become spendable lots. Grant, ledger link, and funding lot commit atomically; exact event replays succeed and conflicting grant data fails.
+9. **Meter kind is independent of app scope.** `cost_based` uses account funding; `count_based` uses the authenticated principal's non-credit quota and custom reservation window. Each owner rejects the other kind. The exact legacy `app_specific/ai_credits` money mapping is retained only with valid conversion and app scope; ambiguous rows fail closed. Global and applicable app caps must both hold before money admission.
+10. **Credit admission precedes dispatch.** The public AI door authenticates only LPBS-issued device/session keys and rechecks account membership, parent revocation and expiry. Keys bind actor, account, app, optional harness/model and cumulative credit caps. Caller billing metadata and outside-funded markers cannot bypass the wallet. Global account limits, device/session holds and spendable lots precede private Gateway execution. App-specific cap binding remains unavailable to the legacy inference adapters, which fail closed.
+11. **Credit settlement is immutable and capped.** Account reservation state follows SM2 in [funding flows](../concepts/FLOWS.md). Exact replay cannot allocate twice; conflicting replay fails. Measured provider cost may exceed the reserved ceiling, but customer charge and lot allocation cannot. Ambiguous dispatched outcomes retain a hold for reconciliation. A disconnect or timeout alone does not authorize release. Count quota remains separate and never touches funding lots or credit events.
 
 ## Configuration
 
@@ -49,4 +49,18 @@ Properties that must hold **at all times** across the data + behavior of the sce
 
 ## Tests
 
-19. **No test mocks the database.** Integration tests run against a real Postgres (matches our prod migration discipline).
+19. **Evidence matches its boundary.** SQL mocks prove narrow query and rejection behavior; SQLite exercises deterministic domain transactions; isolated real Postgres proves funding order, attribution, and concurrent SQL behavior. None alone proves authenticated production admission, app binding, provider receipts, or live payment behavior.
+
+## AI door and recovery
+
+`internal/aidoor` owns `/api/v1/ai/chat/completions`, `/responses`, device/session keys and receipt reconciliation. AI Gateway is a required private dependency. It owns provider rules, dispatch and durable measured-cost receipts. LPBS has no production OpenRouter client composition. Legacy role adapters await caller migration and remain unavailable for paid execution.
+
+A dispatch retains its wallet hold beyond ordinary expiry. LPBS restart reconciles pending operations from Gateway receipts; repeated requests never repeat provider dispatch. A verified pre-dispatch rejection releases the hold; ambiguous outcomes retain it. Streaming handlers clear the ordinary HTTP write deadline per response. Journey tests use real PostgreSQL and real HTTP handlers/processes, with only Stripe, upstream inference and explicitly labelled approval data as fixtures.
+
+## Replay and funding reversals
+
+Signed Stripe dispute/refund/early-warning events match an attributed, mode-matched payment lot. Unknown payments return an error for retry. The event payload, lot mutation, payment state, loss rollup and Money Ledger outbox commit under the same account lock used by reservation settlement. Identical event replay is a no-op; changed payload under the same event identity fails. Cumulative refund amounts cannot decrease. Delayed inquiry snapshots cannot demote formal chargebacks or release their funding. A genuine late win after a lost dispute corrects returned funds without clearing a separate purchase block or another active dispute.
+
+A freeze raced against an already-admitted reservation still settles measured usage once, with unavailable funding attributed as loss to its original lot. New requests cannot spend frozen/refunded credit; remaining credit never becomes negative. Refund and dispute overlap share one derived loss row, avoiding duplicate provider cost. Immutable Stripe balance-transaction IDs own gross principal movements and fees, including partial reinstatements while a dispute remains lost; older snapshots cannot erase returned funds or replace an existing transaction's money facts. Lost disputes block new checkout and grants. Source-policy age/hold/cap values remain operator-owned data; no production trust values are seeded.
+
+Production main starts the reservation-cleanup worker; server shutdown cancels and joins it before closing the database. The worker dispatches committed reversal deltas through Money Ledger's typed ingestion API. Separate live/test sinks select books and accounts. An uncertain acknowledgement retries the same immutable external identity. USD provider cost is rounded cumulatively to currency minor units before delta calculation; refund/fee currency follows the lot. Corrections append journal entries. `journeytest/fraud_test.go` and `funding_ledger_test.go` prove these boundaries against real Postgres, Gateway, and Money Ledger modules/database; Stripe test-card operation remains unverified without operator keys.

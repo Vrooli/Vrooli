@@ -34,13 +34,9 @@ func TestEstimateTokensHonorsExplicitCompletionLimit(t *testing.T) {
 	}
 }
 
-func TestDefaultRolePoliciesIncludesAudioSummarization(t *testing.T) {
-	policy, ok := DefaultRolePolicies()["audio.summarize"]
-	if !ok {
-		t.Fatal("audio.summarize role is not registered")
-	}
-	if policy.Model == "" || policy.Pricing.PromptCostPer1K <= 0 || policy.Pricing.CompletionCostPer1K <= 0 {
-		t.Fatalf("audio.summarize policy is incomplete: %+v", policy)
+func TestDefaultRolePoliciesLeavesAudioToItsFeatureOwner(t *testing.T) {
+	if _, ok := DefaultRolePolicies()["audio.summarize"]; ok {
+		t.Fatal("Audio summary must use its declared feature, not an LPBS model policy")
 	}
 }
 

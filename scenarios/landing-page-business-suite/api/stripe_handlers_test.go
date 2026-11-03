@@ -184,8 +184,9 @@ func TestHandleStripeWebhookCreditTopup(t *testing.T) {
 	sessionID := session.SessionId
 
 	body := map[string]interface{}{
-		"id":   "evt_credits_topup_123",
-		"type": "checkout.session.completed",
+		"id":       "evt_credits_topup_123",
+		"type":     "checkout.session.completed",
+		"livemode": false,
 		"data": map[string]interface{}{
 			"object": map[string]interface{}{
 				"id":             sessionID,
@@ -212,6 +213,35 @@ func TestHandleStripeWebhookCreditTopup(t *testing.T) {
 	}
 	if balance == 0 {
 		t.Fatalf("expected non-zero credit balance after top-up")
+	}
+	var testMode string
+	if err := db.QueryRow(`SELECT metadata->>'livemode' FROM credit_transactions WHERE source='stripe' AND external_event_id=$1`, "evt_credits_topup_123").Scan(&testMode); err != nil {
+		t.Fatalf("read propagated test mode: %v", err)
+	}
+	if testMode != "false" {
+		t.Fatalf("test event livemode=%q, want false", testMode)
+	}
+	liveSession, err := stripeService.CreateCheckoutSession("price_credits_topup", "/ok", "/cancel", "credits-live@example.com")
+	if err != nil {
+		t.Fatalf("create live-mode fixture session: %v", err)
+	}
+	livePayload, _ := json.Marshal(map[string]interface{}{
+		"id": "evt_credits_topup_live_123", "type": "checkout.session.completed", "livemode": true,
+		"data": map[string]interface{}{"object": map[string]interface{}{"id": liveSession.SessionId, "customer_email": "credits-live@example.com", "subscription": "", "amount_total": 1000}},
+	})
+	liveReq := httptest.NewRequest(http.MethodPost, "/api/v1/webhooks/stripe", bytes.NewReader(livePayload))
+	liveReq.Header.Set("Stripe-Signature", signStripePayload(t, livePayload, "", "whsec_handlers"))
+	liveRec := httptest.NewRecorder()
+	billinghttp.Webhook(billingWebhookDependencies(stripeService)).ServeHTTP(liveRec, liveReq)
+	if liveRec.Code != http.StatusOK {
+		t.Fatalf("live-mode webhook failed: %d %s", liveRec.Code, liveRec.Body.String())
+	}
+	var liveMode string
+	if err := db.QueryRow(`SELECT metadata->>'livemode' FROM credit_transactions WHERE source='stripe' AND external_event_id=$1`, "evt_credits_topup_live_123").Scan(&liveMode); err != nil {
+		t.Fatalf("read propagated live mode: %v", err)
+	}
+	if liveMode != "true" {
+		t.Fatalf("live event livemode=%q, want true", liveMode)
 	}
 }
 

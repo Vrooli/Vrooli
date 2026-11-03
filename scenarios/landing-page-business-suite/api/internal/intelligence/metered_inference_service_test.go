@@ -554,8 +554,8 @@ func (m *MockUsageService) RetainUncertainBusinessAccountReservation(_ context.C
 	return nil
 }
 
-func (m *MockUsageService) RecordBusinessAccountUsage(_ context.Context, accountID, actor, tier, limitKey string, amount int64, appBundleKey, model string, costMicros int64, promptTokens, completionTokens int, provider string) error {
-	m.Calls["RecordBusinessAccountUsage"] = append(m.Calls["RecordBusinessAccountUsage"], []interface{}{accountID, actor, tier, limitKey, amount, appBundleKey, model, costMicros, promptTokens, completionTokens, provider})
+func (m *MockUsageService) RecordBusinessAccountUsage(_ context.Context, accountID, actor, tier, limitKey string, amount int64, operationID, appBundleKey, model string, costMicros int64, promptTokens, completionTokens int, provider string) error {
+	m.Calls["RecordBusinessAccountUsage"] = append(m.Calls["RecordBusinessAccountUsage"], []interface{}{accountID, actor, tier, limitKey, amount, operationID, appBundleKey, model, costMicros, promptTokens, completionTokens, provider})
 	return nil
 }
 
@@ -1430,5 +1430,40 @@ func TestGetOpenRouterClient_NoKey(t *testing.T) {
 
 	if !errors.Is(err, ErrNoAPIKeyConfigured) {
 		t.Errorf("expected ErrNoAPIKeyConfigured, got: %v", err)
+	}
+}
+
+func TestCreditAdmissionFailsClosedBeforeAnyBillingOrProviderSideEffect(t *testing.T) {
+	for _, account := range []string{"", "acct-selected"} {
+		for _, route := range []string{"chat", "chat-stream", "inference", "inference-stream"} {
+			t.Run(route+"/"+account, func(t *testing.T) {
+				// Nil dependencies intentionally panic if admission reaches any owner.
+				svc := NewMeteredInferenceService(MeteredInferenceServiceOptions{})
+				req := AIRequest{BusinessAccountID: account, Model: "openai/gpt-4o", Metadata: AIMetadata{AppBundleKey: "caller-controlled"}}
+				inference := InferenceRequest{BusinessAccountID: account, Role: "code.default", Metadata: req.Metadata}
+				w := httptest.NewRecorder()
+				var err error
+				switch route {
+				case "chat":
+					_, err = svc.ExecuteChat(context.Background(), "actor@example.test", req)
+				case "chat-stream":
+					err = svc.ExecuteChatStream(context.Background(), "actor@example.test", req, w)
+				case "inference":
+					_, err = svc.ExecuteInference(context.Background(), "actor@example.test", inference)
+				case "inference-stream":
+					err = svc.ExecuteInferenceStream(context.Background(), "actor@example.test", inference, w)
+				}
+				want := ErrBillingScopeUnavailable
+				if account == "" {
+					want = ErrBillingAccountRequired
+				}
+				if !errors.Is(err, want) {
+					t.Fatalf("error=%v want=%v", err, want)
+				}
+				if w.Body.Len() != 0 || len(w.Header()) != 0 {
+					t.Fatalf("stream setup before admission: %v %s", w.Header(), w.Body)
+				}
+			})
+		}
 	}
 }

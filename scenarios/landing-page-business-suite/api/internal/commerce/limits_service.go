@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"math"
 	"strings"
 	"time"
 )
@@ -115,12 +116,7 @@ func (s *LimitsService) GetTierLimits(ctx context.Context, tierID string) ([]Tie
 		}
 
 		// Calculate display dollars for cost-based limits
-		if limit.LimitType == "cost_based" && limit.LimitValue > 0 && limit.CostMultiplier > 0 {
-			// Convert internal units to dollars
-			// internal_units / cost_multiplier = cents, cents / 100 = dollars
-			dollars := float64(limit.LimitValue) / float64(limit.CostMultiplier) / 100.0
-			limit.DisplayDollars = &dollars
-		}
+		presentLimit(&limit)
 
 		limits = append(limits, limit)
 	}
@@ -158,10 +154,7 @@ func (s *LimitsService) GetAllTierLimits(ctx context.Context) (map[string][]Tier
 		}
 
 		// Calculate display dollars
-		if limit.LimitType == "cost_based" && limit.LimitValue > 0 && limit.CostMultiplier > 0 {
-			dollars := float64(limit.LimitValue) / float64(limit.CostMultiplier) / 100.0
-			limit.DisplayDollars = &dollars
-		}
+		presentLimit(&limit)
 
 		result[limit.TierID] = append(result[limit.TierID], limit)
 	}
@@ -171,56 +164,142 @@ func (s *LimitsService) GetAllTierLimits(ctx context.Context) (map[string][]Tier
 
 // GetLimit returns a specific limit for a tier and key.
 func (s *LimitsService) GetLimit(ctx context.Context, tierID, limitKey string, appBundleKey *string) (*TierLimit, error) {
-	tierID = strings.TrimSpace(strings.ToLower(tierID))
-	limitKey = strings.TrimSpace(strings.ToLower(limitKey))
-
-	var query string
-	var args []interface{}
-
-	if appBundleKey == nil {
-		query = `
-			SELECT id, tier_id, limit_type, limit_key, limit_value, cost_multiplier,
-				   app_bundle_key, reset_period, created_at, updated_at
-			FROM subscription_tier_limits
-			WHERE tier_id = $1 AND limit_key = $2 AND app_bundle_key IS NULL
-		`
-		args = []interface{}{tierID, limitKey}
-	} else {
-		query = `
-			SELECT id, tier_id, limit_type, limit_key, limit_value, cost_multiplier,
-				   app_bundle_key, reset_period, created_at, updated_at
-			FROM subscription_tier_limits
-			WHERE tier_id = $1 AND limit_key = $2 AND app_bundle_key = $3
-		`
-		args = []interface{}{tierID, limitKey, *appBundleKey}
+	tierID, limitKey = strings.ToLower(strings.TrimSpace(tierID)), strings.ToLower(strings.TrimSpace(limitKey))
+	query := `SELECT id,tier_id,limit_type,limit_key,limit_value,cost_multiplier,app_bundle_key,reset_period,created_at,updated_at FROM subscription_tier_limits WHERE tier_id=$1 AND limit_key=$2 AND app_bundle_key IS NULL`
+	args := []any{tierID, limitKey}
+	if appBundleKey != nil {
+		if strings.TrimSpace(*appBundleKey) == "" {
+			return nil, fmt.Errorf("app scope must be an exact nonempty key")
+		}
+		query = `SELECT id,tier_id,limit_type,limit_key,limit_value,cost_multiplier,app_bundle_key,reset_period,created_at,updated_at FROM subscription_tier_limits WHERE tier_id=$1 AND limit_key=$2 AND app_bundle_key=$3`
+		args = append(args, *appBundleKey)
 	}
-
-	var limit TierLimit
-	var appKey sql.NullString
-	err := s.db.QueryRowContext(ctx, query, args...).Scan(
-		&limit.ID, &limit.TierID, &limit.LimitType, &limit.LimitKey,
-		&limit.LimitValue, &limit.CostMultiplier, &appKey,
-		&limit.ResetPeriod, &limit.CreatedAt, &limit.UpdatedAt,
-	)
-
-	if err == sql.ErrNoRows {
-		return nil, nil
-	}
+	rows, err := s.db.QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, fmt.Errorf("get limit: %w", err)
 	}
-
-	if appKey.Valid {
-		limit.AppBundleKey = &appKey.String
+	defer rows.Close()
+	var result *TierLimit
+	for rows.Next() {
+		if result != nil {
+			return nil, fmt.Errorf("multiple meter definitions apply to the same tier, key and app scope")
+		}
+		var value TierLimit
+		var app sql.NullString
+		if err := rows.Scan(&value.ID, &value.TierID, &value.LimitType, &value.LimitKey, &value.LimitValue, &value.CostMultiplier, &app, &value.ResetPeriod, &value.CreatedAt, &value.UpdatedAt); err != nil {
+			return nil, err
+		}
+		if app.Valid {
+			value.AppBundleKey = &app.String
+		}
+		kind, err := meterKind(value)
+		if err != nil {
+			return nil, err
+		}
+		value.LimitType = kind
+		decorateLimitDollars(&value)
+		result = &value
 	}
+	return result, rows.Err()
+}
 
-	// Calculate display dollars
-	if limit.LimitType == "cost_based" && limit.LimitValue > 0 && limit.CostMultiplier > 0 {
-		dollars := float64(limit.LimitValue) / float64(limit.CostMultiplier) / 100.0
+// meterKind is the only compatibility mapping for the old scope-as-kind field.
+// It does not change stored configuration or guess units for an arbitrary key.
+func meterKind(limit TierLimit) (string, error) {
+	switch limit.LimitType {
+	case "cost_based":
+		if limit.CostMultiplier <= 0 {
+			return "", fmt.Errorf("cost meter conversion must be positive")
+		}
+		return "cost_based", nil
+	case "count_based":
+		return "count_based", nil
+	case "app_specific":
+		if limit.LimitKey == "ai_credits" && limit.AppBundleKey != nil && strings.TrimSpace(*limit.AppBundleKey) != "" && limit.CostMultiplier > 0 {
+			return "cost_based", nil
+		}
+	}
+	return "", fmt.Errorf("meter kind is ambiguous or unsupported for %s/%s", limit.LimitType, limit.LimitKey)
+}
+
+func decorateLimitDollars(limit *TierLimit) {
+	if kind, err := meterKind(*limit); err == nil && kind == "cost_based" && limit.LimitValue >= 0 {
+		dollars := float64(limit.LimitValue) / float64(limit.CostMultiplier) / 100
 		limit.DisplayDollars = &dollars
 	}
+}
 
-	return &limit, nil
+// Admin reads expose the reviewed kind where it is known, retaining an
+// ambiguous legacy row visibly for explicit operator correction.
+func presentLimit(limit *TierLimit) {
+	if kind, err := meterKind(*limit); err == nil {
+		limit.LimitType = kind
+		decorateLimitDollars(limit)
+	}
+}
+
+// MeterLimits separates a meter's units from its two possible applicable caps.
+// The caller supplies its verified app identity; this resolver never authenticates
+// client metadata and never substitutes a different app's definition.
+type MeterLimits struct {
+	Kind           string
+	Global, App    *TierLimit
+	CostMultiplier int64
+}
+
+func ResolveMeterLimits(ctx context.Context, authority LimitsServicer, tier, key, app string) (MeterLimits, error) {
+	var result MeterLimits
+	if authority == nil || strings.TrimSpace(tier) == "" || strings.TrimSpace(key) == "" {
+		return result, fmt.Errorf("meter limit authority is unavailable")
+	}
+	rows, err := authority.GetTierLimits(ctx, tier)
+	if err != nil {
+		return result, err
+	}
+	for _, row := range rows {
+		if row.LimitKey != key {
+			continue
+		}
+		if row.AppBundleKey != nil && strings.TrimSpace(*row.AppBundleKey) == "" {
+			return result, fmt.Errorf("meter has an empty app scope")
+		}
+		global := row.AppBundleKey == nil
+		if !global && (app == "" || *row.AppBundleKey != app) {
+			continue
+		}
+		kind, err := meterKind(row)
+		if err != nil {
+			return result, err
+		}
+		row.LimitType = kind
+		if result.Kind != "" && result.Kind != kind {
+			return result, fmt.Errorf("global and app meter kinds contradict each other")
+		}
+		if kind == "cost_based" && result.CostMultiplier != 0 && result.CostMultiplier != row.CostMultiplier {
+			return result, fmt.Errorf("global and app credit conversions contradict each other")
+		}
+		result.Kind = kind
+		if kind == "cost_based" {
+			result.CostMultiplier = row.CostMultiplier
+		}
+		if global {
+			if result.Global != nil {
+				return result, fmt.Errorf("duplicate global meter definition")
+			}
+			value := row
+			result.Global = &value
+		} else {
+			if result.App != nil {
+				return result, fmt.Errorf("duplicate exact-app meter definition")
+			}
+			value := row
+			result.App = &value
+		}
+	}
+	if result.Kind == "" {
+		return result, fmt.Errorf("no meter definition applies to the verified app scope")
+	}
+	return result, nil
 }
 
 // UpdateLimit updates a tier limit.
@@ -242,15 +321,23 @@ func (s *LimitsService) UpdateLimit(ctx context.Context, tierID, limitKey string
 	if update.IsUnlimited != nil && *update.IsUnlimited {
 		newValue = -1
 	} else if update.DisplayDollars != nil {
-		// Convert dollars to internal units
-		// dollars * 100 = cents, cents * cost_multiplier = internal_units
-		newValue = int64(*update.DisplayDollars * 100.0 * float64(current.CostMultiplier))
+		if current.LimitType != "cost_based" {
+			return nil, fmt.Errorf("dollar amounts require a cost-based meter")
+		}
+		units := *update.DisplayDollars * 100 * float64(current.CostMultiplier)
+		if math.IsNaN(units) || math.IsInf(units, 0) || units < 0 || units >= float64(math.MaxInt64) {
+			return nil, fmt.Errorf("dollar limit is invalid or overflows")
+		}
+		newValue = int64(math.Round(units))
 	} else if update.LimitValue != nil {
 		newValue = *update.LimitValue
 	} else {
 		return nil, fmt.Errorf("must provide limit_value, display_dollars, or is_unlimited")
 	}
 
+	if newValue < -1 {
+		return nil, fmt.Errorf("limit_value must be non-negative or -1 for unlimited")
+	}
 	// Update the limit
 	var query string
 	var args []interface{}
@@ -292,10 +379,7 @@ func (s *LimitsService) UpdateLimit(ctx context.Context, tierID, limitKey string
 	}
 
 	// Calculate display dollars
-	if limit.LimitType == "cost_based" && limit.LimitValue > 0 && limit.CostMultiplier > 0 {
-		dollars := float64(limit.LimitValue) / float64(limit.CostMultiplier) / 100.0
-		limit.DisplayDollars = &dollars
-	}
+	presentLimit(&limit)
 
 	s.log("tier_limit_updated", map[string]interface{}{
 		"level":     "info",
@@ -317,12 +401,20 @@ func (s *LimitsService) CreateLimit(ctx context.Context, limit TierLimit) (*Tier
 		return nil, fmt.Errorf("tier_id, limit_key, and limit_type are required")
 	}
 
-	if limit.LimitType != "cost_based" && limit.LimitType != "app_specific" {
-		return nil, fmt.Errorf("limit_type must be 'cost_based' or 'app_specific'")
+	if limit.AppBundleKey != nil {
+		value := strings.TrimSpace(*limit.AppBundleKey)
+		if value == "" {
+			return nil, fmt.Errorf("app scope must be an exact nonempty key")
+		}
+		limit.AppBundleKey = &value
 	}
-
-	if limit.CostMultiplier <= 0 {
-		limit.CostMultiplier = 1000000 // Default multiplier
+	kind, err := meterKind(limit)
+	if err != nil {
+		return nil, err
+	}
+	limit.LimitType = kind
+	if limit.LimitValue < -1 {
+		return nil, fmt.Errorf("limit_value must be non-negative or -1 for unlimited")
 	}
 
 	if limit.ResetPeriod == "" {
@@ -339,7 +431,7 @@ func (s *LimitsService) CreateLimit(ctx context.Context, limit TierLimit) (*Tier
 
 	var result TierLimit
 	var appKey sql.NullString
-	err := s.db.QueryRowContext(ctx, query,
+	err = s.db.QueryRowContext(ctx, query,
 		limit.TierID, limit.LimitType, limit.LimitKey, limit.LimitValue,
 		limit.CostMultiplier, limit.AppBundleKey, limit.ResetPeriod,
 	).Scan(
@@ -356,10 +448,7 @@ func (s *LimitsService) CreateLimit(ctx context.Context, limit TierLimit) (*Tier
 	}
 
 	// Calculate display dollars
-	if result.LimitType == "cost_based" && result.LimitValue > 0 && result.CostMultiplier > 0 {
-		dollars := float64(result.LimitValue) / float64(result.CostMultiplier) / 100.0
-		result.DisplayDollars = &dollars
-	}
+	presentLimit(&result)
 
 	s.log("tier_limit_created", map[string]interface{}{
 		"level":     "info",
