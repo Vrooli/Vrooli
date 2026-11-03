@@ -2,6 +2,7 @@ package validationrunner
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 
@@ -256,6 +257,32 @@ func TestServicePersistsCompletedValidationAfterRequestCancellation(t *testing.T
 	}
 }
 
+func TestServiceShallowValidationHonorsRequestCancellation(t *testing.T) {
+	repo := newRepo(t)
+	ctx, cancel := context.WithCancel(context.Background())
+	runner := &requestCancelingRunner{cancel: cancel}
+
+	_, err := NewService(repo, runner).RunValidation(ctx, ValidateRequest{
+		TemplateID: "react-vite",
+		Mode:       catalog.ModeShallow,
+	})
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("RunValidation error = %v, want context.Canceled", err)
+	}
+	if !errors.Is(runner.contextErr, context.Canceled) {
+		t.Fatalf("runner context error = %v, want context.Canceled", runner.contextErr)
+	}
+	runs, err := repo.ListValidationRuns(context.Background(), "react-vite")
+	if err != nil {
+		t.Fatalf("ListValidationRuns: %v", err)
+	}
+	for _, run := range runs {
+		if run.Trigger == "manual" {
+			t.Fatalf("persisted canceled shallow run = %+v, want no terminal run", run)
+		}
+	}
+}
+
 type fakeRunner struct {
 	validate ValidateResult
 	drift    DriftResult
@@ -273,6 +300,21 @@ type cancelingRunner struct {
 	cancel     context.CancelFunc
 	result     ValidateResult
 	contextErr error
+}
+
+type requestCancelingRunner struct {
+	cancel     context.CancelFunc
+	contextErr error
+}
+
+func (r *requestCancelingRunner) ValidateTemplate(ctx context.Context, _ ValidateRequest) (ValidateResult, error) {
+	r.cancel()
+	r.contextErr = ctx.Err()
+	return ValidateResult{}, r.contextErr
+}
+
+func (r *requestCancelingRunner) RecordFleetDrift(context.Context) (DriftResult, error) {
+	return DriftResult{}, nil
 }
 
 func (r *cancelingRunner) ValidateTemplate(ctx context.Context, _ ValidateRequest) (ValidateResult, error) {

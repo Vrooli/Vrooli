@@ -1,4 +1,5 @@
-import { fireEvent, screen, waitFor } from "@testing-library/react";
+import { screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
 import { renderWithProviders } from "../test-utils";
@@ -36,7 +37,10 @@ describe("TemplateListPage", () => {
     renderWithProviders(<TemplateListPage />);
 
     await screen.findByTestId(selectors.templateList.root);
-    fireEvent.change(screen.getByTestId(selectors.templateList.kindFilter), { target: { value: "3" } });
+    const kindTrigger = screen.getAllByTestId(selectors.templateList.kindFilter).find((element) => element.tagName === "BUTTON");
+    expect(kindTrigger).toBeDefined();
+    await userEvent.click(kindTrigger!);
+    await userEvent.click(await screen.findByRole("option", { name: "resource" }));
 
     await waitFor(() =>
       expect(screen.queryByTestId(selectors.templateList.row({ id: "react-vite" }))).not.toBeInTheDocument(),

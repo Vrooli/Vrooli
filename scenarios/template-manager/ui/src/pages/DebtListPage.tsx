@@ -86,7 +86,7 @@ export function DebtListPage() {
                 aria-label={t(strings.debtList.filters.template)}
                 options={templateOptions}
                 value={templateFilter}
-                onChange={(event) => setFilter(TEMPLATE_PARAM, event.target.value)}
+                onValueChange={(value) => setFilter(TEMPLATE_PARAM, value)}
               />
             </label>
             <label className="flex flex-col gap-1">
@@ -98,7 +98,7 @@ export function DebtListPage() {
                 aria-label={t(strings.debtList.filters.status)}
                 options={statusOptions}
                 value={statusFilter}
-                onChange={(event) => setFilter(STATUS_PARAM, event.target.value)}
+                onValueChange={(value) => setFilter(STATUS_PARAM, value)}
               />
             </label>
           </div>

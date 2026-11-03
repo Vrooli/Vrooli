@@ -14,6 +14,9 @@ import (
 )
 
 func runTemplateValidate[C any](deps HandlerDeps[C], ctx C, req templatecontracts.TemplateValidateRequest) (templatecontracts.TemplateValidationReport, error) {
+	if err := validationContextErr(ctx); err != nil {
+		return templatecontracts.TemplateValidationReport{}, err
+	}
 	templates, err := loadTemplates(deps.Root(ctx))
 	if err != nil {
 		return templatecontracts.TemplateValidationReport{}, err
@@ -43,6 +46,9 @@ func runTemplateValidate[C any](deps HandlerDeps[C], ctx C, req templatecontract
 		Count:         len(templates),
 	}
 	for _, info := range templates {
+		if err := validationContextErr(ctx); err != nil {
+			return report, err
+		}
 		switch mode {
 		case templatecontracts.TemplateValidationModeDeep:
 			run, issues := validateTemplateDeep(deps, ctx, info, req)
@@ -52,8 +58,18 @@ func runTemplateValidate[C any](deps HandlerDeps[C], ctx C, req templatecontract
 		default:
 			report.Issues = append(report.Issues, validateTemplateShallow(deps, ctx, info)...)
 		}
+		if err := validationContextErr(ctx); err != nil {
+			return report, err
+		}
 	}
 	return report, nil
+}
+
+func validationContextErr[C any](ctx C) error {
+	if context, ok := any(ctx).(interface{ Err() error }); ok {
+		return context.Err()
+	}
+	return nil
 }
 
 func validateTemplateShallow[C any](deps HandlerDeps[C], ctx C, info templatecontracts.TemplateInfo) []templatecontracts.TemplateValidationIssue {

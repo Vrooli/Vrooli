@@ -1,4 +1,5 @@
-import { fireEvent, screen, waitFor } from "@testing-library/react";
+import { screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
 import { renderWithProviders } from "../test-utils";
@@ -35,7 +36,10 @@ describe("RunListPage", () => {
     renderWithProviders(<RunListPage />);
 
     await screen.findByTestId(selectors.runList.root);
-    fireEvent.change(screen.getByTestId(selectors.runList.statusFilter), { target: { value: "failed" } });
+    const filter = screen.getAllByTestId(selectors.runList.statusFilter).find((element) => element.tagName === "BUTTON");
+    expect(filter).toBeDefined();
+    await userEvent.click(filter!);
+    await userEvent.click(await screen.findByRole("option", { name: "failed" }));
 
     await waitFor(() =>
       expect(screen.queryByTestId(selectors.runList.row({ id: "validation-1" }))).not.toBeInTheDocument(),

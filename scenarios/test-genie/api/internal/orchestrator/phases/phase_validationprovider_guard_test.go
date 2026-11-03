@@ -95,6 +95,9 @@ func assertProviderMatchesDescriptor(t *testing.T, catalog *Catalog, phase Name,
 	if provider.ProviderScenario != descriptor.Scenario {
 		t.Fatalf("%s provider = %q, want descriptor scenario %q", phase, provider.ProviderScenario, descriptor.Scenario)
 	}
+	if provider.DetailCommand != descriptor.Validation.DetailCommand {
+		t.Fatalf("%s detail command = %q, want %q", phase, provider.DetailCommand, descriptor.Validation.DetailCommand)
+	}
 	if provider.Optional != spec.Optional {
 		t.Fatalf("%s provider optional = %v, want catalog optional %v", phase, provider.Optional, spec.Optional)
 	}
@@ -177,5 +180,23 @@ func assertNoImports(t *testing.T, path string, banned ...string) {
 		if _, banned := bannedSet[unquoted]; banned {
 			t.Fatalf("%s imports %s; provider transport must stay in validationprovider", filepath.Base(path), unquoted)
 		}
+	}
+}
+
+func TestProgramsDescriptorExposesBudgetInspection(t *testing.T) {
+	descriptor, ok := descriptorExpectations(t)[Name("programs")]
+	if !ok {
+		t.Fatal("programs descriptor missing")
+	}
+	want := "program-runtime programs portfolio --scenario {{scenario}} --json"
+	if descriptor.Validation.DetailCommand != want {
+		t.Fatalf("detail command = %q, want %q", descriptor.Validation.DetailCommand, want)
+	}
+	spec, ok := NewDefaultCatalog(DefaultTimeout).Lookup("programs")
+	if !ok || spec.Delegated == nil {
+		t.Fatal("programs provider missing")
+	}
+	if spec.Delegated.provider().DetailCommand != want {
+		t.Fatalf("detail command was not projected: %+v", spec.Delegated)
 	}
 }

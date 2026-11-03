@@ -85,19 +85,26 @@ func (e *Engine) ValidateDesignKits(ctx context.Context, req templatecontracts.D
 	return runDesignValidate(e.deps(), ctx, req)
 }
 
+func bindSubprocessContext(ctx context.Context, spec shell.Spec) shell.Spec {
+	if spec.Context == nil {
+		spec.Context = ctx
+	}
+	return spec
+}
+
 func (e *Engine) deps() HandlerDeps[context.Context] {
 	return HandlerDeps[context.Context]{
 		Stdout: func(context.Context) io.Writer { return io.Discard },
 		Stderr: func(context.Context) io.Writer { return io.Discard },
 		Root:   func(context.Context) string { return e.root },
-		RunSubprocess: func(_ context.Context, spec shell.Spec) error {
+		RunSubprocess: func(ctx context.Context, spec shell.Spec) error {
 			if spec.Stdout == nil {
 				spec.Stdout = &bytes.Buffer{}
 			}
 			if spec.Stderr == nil {
 				spec.Stderr = &bytes.Buffer{}
 			}
-			return shell.CommandWithDefaults(spec).Run()
+			return shell.CommandWithDefaults(bindSubprocessContext(ctx, spec)).Run()
 		},
 		LocateTestGenieCLI: func(context.Context) (string, error) {
 			home, _ := os.UserHomeDir()

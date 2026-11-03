@@ -180,6 +180,7 @@ func (d *Descriptor) UnmarshalJSON(raw []byte) error {
 }
 
 type Validation struct {
+	DetailCommand    string   `json:"detailCommand,omitempty"`
 	Contract         string   `json:"contract"`
 	CapabilitySubset []string `json:"capabilitySubset,omitempty"`
 	// DeliveryMode defaults to inline so existing descriptors remain source and

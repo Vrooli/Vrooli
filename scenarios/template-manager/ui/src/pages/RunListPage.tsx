@@ -66,7 +66,7 @@ export function RunListPage() {
               aria-label={t(strings.runList.filters.status)}
               options={statusOptions}
               value={statusFilter}
-              onChange={(event) => setStatus(event.target.value)}
+              onValueChange={setStatus}
             />
           </label>
 

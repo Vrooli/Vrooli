@@ -1,4 +1,5 @@
-import { fireEvent, screen, waitFor, within } from "@testing-library/react";
+import { screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
 import { renderWithProviders } from "../test-utils";
@@ -42,9 +43,10 @@ describe("DebtListPage", () => {
     renderWithProviders(<DebtListPage />);
 
     await screen.findByTestId(selectors.debtList.root);
-    fireEvent.change(screen.getByTestId(selectors.debtList.templateFilter), {
-      target: { value: "minimal-resource" },
-    });
+    const filter = screen.getAllByTestId(selectors.debtList.templateFilter).find((element) => element.tagName === "BUTTON");
+    expect(filter).toBeDefined();
+    await userEvent.click(filter!);
+    await userEvent.click(await screen.findByRole("option", { name: "Minimal Resource" }));
 
     await waitFor(() =>
       expect(screen.queryByTestId(selectors.debtList.row({ key: "react-vite.aria" }))).not.toBeInTheDocument(),
@@ -58,9 +60,10 @@ describe("DebtListPage", () => {
     renderWithProviders(<DebtListPage />);
 
     await screen.findByTestId(selectors.debtList.root);
-    fireEvent.change(screen.getByTestId(selectors.debtList.statusFilter), {
-      target: { value: "open" },
-    });
+    const filter = screen.getAllByTestId(selectors.debtList.statusFilter).find((element) => element.tagName === "BUTTON");
+    expect(filter).toBeDefined();
+    await userEvent.click(filter!);
+    await userEvent.click(await screen.findByRole("option", { name: "open" }));
 
     await waitFor(() =>
       expect(screen.queryByTestId(selectors.debtList.row({ key: "minimal.lint" }))).not.toBeInTheDocument(),
@@ -74,9 +77,11 @@ describe("DebtListPage", () => {
     renderWithProviders(<DebtListPage />);
 
     await screen.findByTestId(selectors.debtList.root);
-    const templateFilter = screen.getByTestId(selectors.debtList.templateFilter);
-    expect(within(templateFilter).getByRole("option", { name: "React + Vite" })).toBeInTheDocument();
-    expect(within(templateFilter).getByRole("option", { name: "Minimal Resource" })).toBeInTheDocument();
+    const templateFilter = screen.getAllByTestId(selectors.debtList.templateFilter).find((element) => element.tagName === "BUTTON");
+    expect(templateFilter).toBeDefined();
+    await userEvent.click(templateFilter!);
+    expect(await screen.findByRole("option", { name: "React + Vite" })).toBeInTheDocument();
+    expect(screen.getByRole("option", { name: "Minimal Resource" })).toBeInTheDocument();
   });
 
   it("renders the loading state", () => {

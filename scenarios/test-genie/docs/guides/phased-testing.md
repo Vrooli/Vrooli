@@ -60,7 +60,7 @@ See [Phases Overview](../phases/README.md) for the generated effective registry,
 
 ## Provider Descriptor Contract
 
-Each provider-backed phase is declared by `scenarios/<provider>/.vrooli/test-genie.json`. The descriptor must include provider and phase identity, `source: "validation-provider"`, a positive timeout, validation contract `scenario-validation/v1`, declarative applicability, policy, runnability, `docs.path`, and an embedded `maturity` block. Retired `.vrooli/maturity.json` files are rejected so maturity cannot drift from the phase descriptor.
+Each provider-backed phase is declared by `scenarios/<provider>/.vrooli/test-genie.json`. The descriptor must include provider and phase identity, `source: "validation-provider"`, a positive timeout, validation contract `scenario-validation/v1`, declarative applicability, policy, runnability, `docs.path`, and an embedded `maturity` block. Retired `.vrooli/maturity.json` files are rejected so maturity cannot drift from the phase descriptor. A provider may declare `validation.detailCommand` as a human-facing inspection command; `{{scenario}}` is replaced with the target. Test Genie displays this guidance and does not execute it.
 
 Operators can inspect the effective descriptor projection without reading code:
 

@@ -63,7 +63,7 @@ export function TemplateListPage() {
               aria-label={t(strings.templateList.filters.kind)}
               options={kindOptions}
               value={kindFilter}
-              onChange={(event) => setKind(event.target.value)}
+              onValueChange={setKind}
             />
           </label>
 

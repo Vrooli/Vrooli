@@ -27,13 +27,15 @@ const (
 var (
 	canonicalResourceTemplateNames = []string{
 		"cloud-api",
-		"compose-service",
-		"desktop-app",
-		"docker-service",
 		"external-cli",
-		"manual-resource",
 		"managed-service",
 		"native-cli",
+	}
+	transitionalResourceTemplateDrivers = map[string]string{
+		"compose-service": "compose-service",
+		"desktop-app":     "desktop-app",
+		"docker-service":  "docker-service",
+		"manual-resource": "manual",
 	}
 	resourceTemplateRequiredFiles = []string{
 		".gitignore",
@@ -81,7 +83,8 @@ type ResourceTemplateSummary struct {
 }
 
 // ResourceTemplateValidationResult is the per-template verdict. Status is
-// "pass" when the template produced no issues, "fail" otherwise.
+// "pass", "fail", or "transitional" when a retained legacy template is not
+// part of the active generation/validation contract.
 type ResourceTemplateValidationResult struct {
 	Name         string   `json:"name"`
 	Driver       string   `json:"driver"`
@@ -227,6 +230,11 @@ func validateResourceTemplates(root string) (ResourceTemplateValidationReport, e
 			Driver:       item.Manifest.Driver,
 			Transitional: item.Manifest.Transitional,
 		}
+		if item.Manifest.Transitional {
+			result.Status = "transitional"
+			report.Results = append(report.Results, result)
+			continue
+		}
 		if err := validateResourceTemplateGoModuleSource(item); err != nil {
 			result.Issues = append(result.Issues, fmt.Sprintf("go.mod source: %v", err))
 		}
@@ -252,6 +260,9 @@ func generateResourceTemplate(root string, req ResourceTemplateGenerateRequest) 
 	info, blueprint, err := resolveResourceTemplateGenerationInputs(root, req)
 	if err != nil {
 		return ResourceTemplateGenerateReport{}, err
+	}
+	if info.Manifest.Transitional {
+		return ResourceTemplateGenerateReport{}, fmt.Errorf("resource template %q is transitional and cannot generate new resources; choose a supported archetype", info.Name)
 	}
 	values := copyStringMap(req.Values)
 	if values == nil {
@@ -378,17 +389,24 @@ func normalizeResourceTemplateManifest(manifest *ResourceTemplateManifest) {
 }
 
 func validateResourceTemplateManifest(manifest ResourceTemplateManifest) error {
-	if !stringInSlice(manifest.Name, canonicalResourceTemplateNames) {
-		return fmt.Errorf("name %q is invalid", manifest.Name)
+	if manifest.Transitional {
+		legacyDriver, ok := transitionalResourceTemplateDrivers[manifest.Name]
+		if !ok || manifest.Driver != legacyDriver {
+			return fmt.Errorf("transitional resource template %q has an unknown legacy driver %q", manifest.Name, manifest.Driver)
+		}
+	} else {
+		if !stringInSlice(manifest.Name, canonicalResourceTemplateNames) {
+			return fmt.Errorf("name %q is invalid", manifest.Name)
+		}
+		if !stringInSlice(strings.TrimSpace(manifest.Driver), manifestpkg.AllowedDrivers) {
+			return fmt.Errorf("driver %q is invalid", manifest.Driver)
+		}
 	}
 	if strings.TrimSpace(manifest.DisplayName) == "" {
 		return errors.New("displayName is required")
 	}
 	if strings.TrimSpace(manifest.Description) == "" {
 		return errors.New("description is required")
-	}
-	if !stringInSlice(strings.TrimSpace(manifest.Driver), manifestpkg.AllowedDrivers) {
-		return fmt.Errorf("driver %q is invalid", manifest.Driver)
 	}
 	for key, variable := range manifest.RequiredVars {
 		if err := validateResourceTemplateVar(key, variable); err != nil {

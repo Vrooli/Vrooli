@@ -3,10 +3,20 @@ package templateengine
 import (
 	"context"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	repocontract "github.com/vrooli/repo-contract-go"
 )
+
+func mustTemplateTestRepoRoot(t *testing.T) string {
+	t.Helper()
+	root, err := repocontract.FindRepoRootFromEnvOrCWD()
+	if err != nil {
+		t.Fatalf("FindRepoRootFromEnvOrCWD: %v", err)
+	}
+	return root
+}
 
 func TestResourceTemplateGenerateDryRunUsesSharedRenderer(t *testing.T) {
 	root, err := repocontract.FindRepoRootFromEnvOrCWD()
@@ -45,6 +55,9 @@ func TestResourceTemplateGenerateDryRunUsesSharedRenderer(t *testing.T) {
 }
 
 func TestResourceTemplateValidateCatalog(t *testing.T) {
+	if got, want := strings.Join(canonicalResourceTemplateNames, ","), "cloud-api,external-cli,managed-service,native-cli"; got != want {
+		t.Fatalf("canonical resource templates = %q, want %q", got, want)
+	}
 	root, err := repocontract.FindRepoRootFromEnvOrCWD()
 	if err != nil {
 		t.Fatalf("repo root: %v", err)
@@ -59,5 +72,56 @@ func TestResourceTemplateValidateCatalog(t *testing.T) {
 	}
 	if len(items) < len(canonicalResourceTemplateNames) {
 		t.Fatalf("resource template count = %d, want at least %d", len(items), len(canonicalResourceTemplateNames))
+	}
+	if len(items) != len(canonicalResourceTemplateNames)+len(transitionalResourceTemplateDrivers) {
+		t.Fatalf("resource template count = %d, want active plus retained transitional templates", len(items))
+	}
+
+	report, err := engine.ValidateResourceTemplates(context.Background())
+	if err != nil {
+		t.Fatalf("ValidateResourceTemplates: %v", err)
+	}
+	if report.Status != "pass" || report.IssuesCount != 0 {
+		t.Fatalf("validation status = %q issues_count=%d issues=%v results=%+v, want all canonical templates pass", report.Status, report.IssuesCount, report.Issues, report.Results)
+	}
+	transitional := 0
+	resultIssues := 0
+	for _, result := range report.Results {
+		if result.Transitional {
+			transitional++
+			if result.Status != "transitional" || len(result.Issues) != 0 {
+				t.Errorf("transitional result %q = %+v, want non-blocking transitional status", result.Name, result)
+			}
+		} else {
+			resultIssues += len(result.Issues)
+		}
+	}
+	if transitional != len(transitionalResourceTemplateDrivers) {
+		t.Fatalf("transitional result count = %d, want %d", transitional, len(transitionalResourceTemplateDrivers))
+	}
+	if report.IssuesCount != resultIssues {
+		t.Fatalf("issue count %d includes issues outside active template results (%d); missing canonical templates? %v", report.IssuesCount, resultIssues, report.Issues)
+	}
+}
+
+func TestResourceTemplateTransitionalCannotGenerate(t *testing.T) {
+	root, err := repocontract.FindRepoRootFromEnvOrCWD()
+	if err != nil {
+		t.Fatalf("repo root: %v", err)
+	}
+	engine, err := New(root)
+	if err != nil {
+		t.Fatalf("New: %v", err)
+	}
+	_, err = engine.GenerateResourceTemplate(context.Background(), ResourceTemplateGenerateRequest{
+		TemplateName: "compose-service",
+		Destination:  filepath.Join(t.TempDir(), "compose-demo"),
+		DryRun:       true,
+		Values: map[string]string{
+			"RESOURCE_NAME": "compose-demo",
+		},
+	})
+	if err == nil || !strings.Contains(err.Error(), "transitional") {
+		t.Fatalf("GenerateResourceTemplate error = %v, want transitional-template error", err)
 	}
 }

@@ -69,10 +69,13 @@ func (s *Service) RunValidation(ctx context.Context, req ValidateRequest) (catal
 	if req.Mode == "" {
 		req.Mode = catalog.ModeShallow
 	}
-	// A deep validation owns a Test Genie run whose completion is evidence even
-	// when the HTTP client disconnects. Detach the complete engine-and-persist
-	// path from the request here, rather than only detaching the final writes.
-	executionCtx := context.WithoutCancel(ctx)
+	// Deep validation owns a Test Genie run whose completion is evidence even
+	// when the HTTP client disconnects. Shallow validation is synchronous and
+	// remains attached to the caller so disconnects can stop its work.
+	executionCtx := ctx
+	if req.Mode == catalog.ModeDeep {
+		executionCtx = context.WithoutCancel(ctx)
+	}
 	started := s.now()
 	result, err := s.runner.ValidateTemplate(executionCtx, req)
 	finished := s.now()
@@ -88,11 +91,9 @@ func (s *Service) RunValidation(ctx context.Context, req ValidateRequest) (catal
 	if result.Target == "" {
 		result.Target = fmt.Sprintf("templates/scenarios/%s", result.TemplateID)
 	}
-	// The real Test Genie execution is server-owned and can finish after the
-	// caller's HTTP attachment has gone away. Its completed result is evidence,
-	// so persist the terminal run and debt projection independently of request
-	// cancellation rather than losing it at the final write.
-	persistenceCtx := executionCtx
+	// Once execution returns a result, it is terminal evidence. Preserve it if
+	// the caller disconnects between execution and the persistence write.
+	persistenceCtx := context.WithoutCancel(executionCtx)
 	status := "failed"
 	if result.Success {
 		status = "passed"

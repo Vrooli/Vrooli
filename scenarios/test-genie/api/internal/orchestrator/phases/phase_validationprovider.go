@@ -100,6 +100,7 @@ func ValidationProviderSpecFromDescriptor(descriptor providerdescriptor.Descript
 	delegated := Delegated{
 		Name:             name,
 		ProviderScenario: descriptor.Scenario,
+		DetailCommand:    descriptor.Validation.DetailCommand,
 		FindingSource:    findingSource,
 		Optional:         legacyOptional(descriptor.Policy.Policy),
 		Timeout:          descriptor.TimeoutValue,

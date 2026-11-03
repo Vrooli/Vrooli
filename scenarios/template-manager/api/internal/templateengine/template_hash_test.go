@@ -3,23 +3,14 @@ package templateengine
 import (
 	"os"
 	"path/filepath"
-	"runtime"
 	"testing"
 
-	repocontract "github.com/vrooli/repo-contract-go"
 	scenariocli "github.com/vrooli/vrooli/scenarios/template-manager/api/internal/templatecontracts"
 )
 
 func mustLoadRepoTemplate(t *testing.T, name string) (string, scenariocli.TemplateInfo) {
 	t.Helper()
-	_, thisFile, _, ok := runtime.Caller(0)
-	if !ok {
-		t.Fatal("runtime.Caller(0) failed")
-	}
-	repoRoot, err := repocontract.FindRepoRootFromPath(thisFile)
-	if err != nil {
-		t.Fatalf("FindRepoRootFromPath: %v", err)
-	}
+	repoRoot := mustTemplateTestRepoRoot(t)
 	info, err := loadTemplate(repoRoot, name)
 	if err != nil {
 		t.Fatalf("loadTemplate(%s): %v", name, err)

@@ -86,13 +86,6 @@
       "note": "Transitive binding set of lib.test_genie.validation_digest; the child contract owns the digest composition."
     },
     {
-      "id": "agent-manager/run/episodes",
-      "effect": "read",
-      "optional": true,
-      "via": "lib",
-      "note": "Transitive binding set of lib.agent_manager.friction_digest."
-    },
-    {
       "id": "agent-manager/run/list",
       "effect": "read",
       "optional": true,

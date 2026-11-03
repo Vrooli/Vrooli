@@ -6,7 +6,7 @@ Template Manager has several stateful workflows because generation, validation, 
 
 | Flow | Domain | Trigger | Outcome | Statefulness | Validation |
 |---|---|---|---|---|---|
-| Validation run | validation | CLI/API request or scheduler. | Persisted run with parsed findings and debt updates. | queued, running, succeeded, failed, canceled, timed_out. | Unit fake-runner tests plus live shallow/deep smoke. |
+| Validation run | validation | CLI/API request or scheduler. | Persisted terminal run with parsed findings and debt updates. | Execution is synchronous; shallow follows the request context, while deep continues after caller disconnect. Persisted run statuses are passed or failed. | Unit fake-runner tests plus live shallow/deep smoke. |
 | Drift snapshot | validation | CLI/API drift request or scheduled run. | Fleet/template drift records and version lag. | running, succeeded, failed. | Parser/persistence tests and live drift proof. |
 | Provenance autofix | phase-provider | test-genie fix preview/apply. | Target scenario gains adopted generation provenance. | preview, applicable, applied, no-op, failed. | Provider-contract live probe and disposable target apply. |
 | Orientation guidance | guidance | API/CLI request for a target scenario. | Next incomplete gate with check contract. | computed from current target files; no long-running state. | Fixture tests for pre-finalize and finalized scenarios. |
@@ -24,6 +24,8 @@ Template Manager has several stateful workflows because generation, validation, 
 7. API/CLI/UI expose run status and details.
 
 Failure behavior: runner timeout or parse failure marks the run failed and records diagnostic text under a stable Test Genie failure class; it must not corrupt unrelated debt state.
+
+Cancellation ownership is mode-specific. Shallow validation is request-owned: subprocesses inherit the caller context, and the runner returns a cancellation error after its current synchronous filesystem step. A canceled request does not create a terminal validation row; a result already returned by the runner is persisted independently of a later disconnect. Deep validation owns a Test Genie run whose completion remains evidence after the initiating caller disconnects, so its execution and terminal persistence are detached from the request context.
 
 ## Provenance Autofix Flow
 
@@ -51,7 +53,7 @@ The hard-cutover phases move existing engine behavior into Template Manager with
 
 | Domain/Flow | States | Illegal Transitions | Enforcement |
 |---|---|---|---|
-| validation / run | queued, running, succeeded, failed, canceled, timed_out | terminal to running; succeeded without parsed result; failed without diagnostic | Repository transition tests |
+| validation / run | passed, failed (persisted terminal states) | persisted terminal evidence without a parsed result | Repository persistence tests and mode-specific cancellation tests |
 | phase-provider / autofix | previewed, applied, no_op, failed | apply without applicable finding; generated provenance for adopted legacy target | Autofix registry tests |
 | monitor / deep validate | idle, due, running, skipped_busy, succeeded, failed | concurrent running jobs; next run before current terminal state | Scheduler tests |
 

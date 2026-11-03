@@ -1,11 +1,8 @@
 import { createElement } from "react";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { configureTestProviders } from "@vrooli/api-base/testing";
 import { Providers } from "./app/providers";
 
-const queryClient = new QueryClient();
-
-configureTestProviders((children) => createElement(QueryClientProvider, { client: queryClient }, createElement(Providers, null, children)));
+configureTestProviders((children) => createElement(Providers, null, children));
 
 /**
  * Vitest setup file
@@ -46,7 +43,16 @@ beforeEach(async () => {
 });
 
 afterEach(() => {
-  const errorCalls = consoleError.mock.calls;
+  // jsdom 25 reports the RCL @layer token sheet as a parser error. Keep the
+  // strict console guard for application errors and other CSS diagnostics.
+  const isJSDOMStylesheetParserLimitation = (args: unknown[]) => {
+    const diagnostic = args.map(String).join("\n");
+    return (
+      diagnostic.includes("Could not parse CSS stylesheet") &&
+      diagnostic.includes("jsdom/lib/jsdom/living/helpers/stylesheets.js")
+    );
+  };
+  const errorCalls = consoleError.mock.calls.filter((args) => !isJSDOMStylesheetParserLimitation(args));
   const warnCalls = consoleWarn.mock.calls;
   consoleError.mockRestore();
   consoleWarn.mockRestore();

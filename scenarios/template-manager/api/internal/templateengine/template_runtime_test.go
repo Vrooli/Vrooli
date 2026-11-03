@@ -11,25 +11,16 @@ import (
 	"os/exec"
 	"path/filepath"
 	"reflect"
-	"runtime"
 	"slices"
 	"strings"
 	"testing"
 
-	repocontract "github.com/vrooli/repo-contract-go"
 	"github.com/vrooli/vrooli/internal/shell"
 	scenariocli "github.com/vrooli/vrooli/scenarios/template-manager/api/internal/templatecontracts"
 )
 
 func TestBuildTemplateValuesAndCopyTemplateRenderGeneratedGoModPaths(t *testing.T) {
-	_, thisFile, _, ok := runtime.Caller(0)
-	if !ok {
-		t.Fatal("runtime.Caller(0) failed")
-	}
-	repoRoot, err := repocontract.FindRepoRootFromPath(thisFile)
-	if err != nil {
-		t.Fatalf("FindRepoRootFromPath() error = %v", err)
-	}
+	repoRoot := mustTemplateTestRepoRoot(t)
 	info, err := loadTemplate(repoRoot, "react-vite")
 	if err != nil {
 		t.Fatalf("loadTemplate() error = %v", err)
@@ -97,14 +88,7 @@ func TestBuildTemplateValuesAndCopyTemplateRenderGeneratedGoModPaths(t *testing.
 }
 
 func TestLandingTemplateRejectsUnsupportedScenarioID(t *testing.T) {
-	_, thisFile, _, ok := runtime.Caller(0)
-	if !ok {
-		t.Fatal("runtime.Caller(0) failed")
-	}
-	repoRoot, err := repocontract.FindRepoRootFromPath(thisFile)
-	if err != nil {
-		t.Fatalf("FindRepoRootFromPath() error = %v", err)
-	}
+	repoRoot := mustTemplateTestRepoRoot(t)
 	info, err := loadTemplate(repoRoot, "landing-page-react-vite")
 	if err != nil {
 		t.Fatalf("loadTemplate() error = %v", err)
@@ -120,14 +104,7 @@ func TestLandingTemplateRejectsUnsupportedScenarioID(t *testing.T) {
 }
 
 func TestRunGenerateReactViteHooksWritePrimitiveEvidenceArtifact(t *testing.T) {
-	_, thisFile, _, ok := runtime.Caller(0)
-	if !ok {
-		t.Fatal("runtime.Caller(0) failed")
-	}
-	repoRoot, err := repocontract.FindRepoRootFromPath(thisFile)
-	if err != nil {
-		t.Fatalf("FindRepoRootFromPath() error = %v", err)
-	}
+	repoRoot := mustTemplateTestRepoRoot(t)
 	info, err := loadTemplate(repoRoot, "react-vite")
 	if err != nil {
 		t.Fatalf("loadTemplate() error = %v", err)
@@ -1217,14 +1194,7 @@ func newRelocationTestDeps(repoRoot string, stdout, stderr io.Writer, capture *c
 // hand-trimmed copy.
 func seedRepoContract(t *testing.T, repoRoot string) {
 	t.Helper()
-	_, thisFile, _, ok := runtime.Caller(0)
-	if !ok {
-		t.Fatal("runtime.Caller(0) failed in seedRepoContract")
-	}
-	realRoot, err := repocontract.FindRepoRootFromPath(thisFile)
-	if err != nil {
-		t.Fatalf("FindRepoRootFromPath() error = %v", err)
-	}
+	realRoot := mustTemplateTestRepoRoot(t)
 	contract, err := os.ReadFile(filepath.Join(realRoot, ".vrooli", "repo-contract.json"))
 	if err != nil {
 		t.Fatalf("read canonical repo-contract.json: %v", err)
@@ -1808,14 +1778,7 @@ func TestValidateRelocationProtoSources_RunsOfflineWithBSRUnreachable(t *testing
 		t.Skipf("buf not on PATH: %v", err)
 	}
 
-	_, thisFile, _, ok := runtime.Caller(0)
-	if !ok {
-		t.Fatal("runtime.Caller(0) failed")
-	}
-	repoRoot, err := repocontract.FindRepoRootFromPath(thisFile)
-	if err != nil {
-		t.Fatalf("FindRepoRootFromPath: %v", err)
-	}
+	repoRoot := mustTemplateTestRepoRoot(t)
 	if _, err := os.Stat(filepath.Join(repoRoot, "packages", "proto", "schemas")); err != nil {
 		t.Skipf("packages/proto/schemas not present in this repo layout: %v", err)
 	}

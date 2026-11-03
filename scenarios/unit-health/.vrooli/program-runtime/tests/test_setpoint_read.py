@@ -188,7 +188,7 @@ class SetpointReadTests(unittest.TestCase):
         contract = json.loads((ROOT / "setpoint-read.json").read_text())
         jsonschema.validate(contract, schema)
         self.assertEqual(contract["owner_skill"], "unit-health-improve")
-        self.assertEqual([b["id"] for b in contract["bindings"]], ["unit-health/validate/scenario", "unit-health/calibrate/run", "unit-health/mutation/pilot", "test-genie/validation/list", "agent-manager/run/episodes", "agent-manager/run/list", "agent-manager/watch/policy-outcomes"])
+        self.assertEqual([b["id"] for b in contract["bindings"]], ["unit-health/validate/scenario", "unit-health/calibrate/run", "unit-health/mutation/pilot", "test-genie/validation/list", "agent-manager/run/list", "agent-manager/watch/policy-outcomes"])
         for name in ROW_ORDER:
             self.assertIn(name, contract["outputs"]["signals"]["rows"])
 

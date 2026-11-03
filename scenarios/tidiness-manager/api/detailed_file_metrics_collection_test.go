@@ -474,6 +474,73 @@ func TestCollectDetailedFileMetrics_TestFileDetection(t *testing.T) {
 	}
 }
 
+// Companion detection uses names as a heuristic; it does not assert test coverage.
+func TestCollectDetailedFileMetrics_DescriptiveGoTestFileDetection(t *testing.T) {
+	tmpDir, apiDir := setupTestDir(t, "api")
+	source := "package main\n\nfunc overlap() {}\n"
+	testSource := "package main\n\nimport \"testing\"\n\nfunc TestOverlap(t *testing.T) {}\n"
+	writeTestFile(t, filepath.Join(apiDir, "overlap_agree.go"), source)
+	writeTestFile(t, filepath.Join(apiDir, "overlap_agree_behavior_test.go"), testSource)
+	writeTestFile(t, filepath.Join(apiDir, "overlap_agree_internal_test.go"), testSource)
+	writeTestFile(t, filepath.Join(apiDir, "overlap_agreement_test.go"), testSource)
+	writeTestFile(t, filepath.Join(apiDir, "overlap_agreements.go"), "package main\n\nfunc agreements() {}\n")
+	writeTestFile(t, filepath.Join(apiDir, "orphan.go"), "package main\n\nfunc orphan() {}\n")
+	writeTestFile(t, filepath.Join(apiDir, "record.go"), "package main\n\nfunc record() {}\n")
+	writeTestFile(t, filepath.Join(apiDir, "record_details.go"), "package main\n\nfunc recordDetails() {}\n")
+	writeTestFile(t, filepath.Join(apiDir, "record_details_test.go"), testSource)
+	subDir := filepath.Join(apiDir, "sub")
+	if err := os.MkdirAll(subDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	writeTestFile(t, filepath.Join(subDir, "orphan_behavior_test.go"), testSource)
+
+	files := []string{
+		"api/overlap_agree.go",
+		"api/overlap_agree_behavior_test.go",
+		"api/overlap_agree_internal_test.go",
+		"api/overlap_agreement_test.go",
+		"api/overlap_agreements.go",
+		"api/orphan.go",
+		"api/record.go",
+		"api/record_details.go",
+		"api/record_details_test.go",
+		"api/sub/orphan_behavior_test.go",
+	}
+	metrics := collectAndValidateMetrics(t, tmpDir, files, len(files))
+	for _, metric := range metrics {
+		switch metric.FilePath {
+		case "api/overlap_agree.go":
+			if !metric.HasTestFile {
+				t.Error("overlap_agree.go should match same-directory descriptive test files")
+			}
+		case "api/overlap_agreements.go":
+			if metric.HasTestFile {
+				t.Error("overlap_agree_* tests should not match overlap_agreements.go")
+			}
+		case "api/orphan.go":
+			if metric.HasTestFile {
+				t.Error("orphan.go should not match a test in another directory")
+			}
+		case "api/record.go":
+			if metric.HasTestFile {
+				t.Error("record_details_test.go should not match the less-specific record.go sibling")
+			}
+		case "api/record_details.go":
+			if !metric.HasTestFile {
+				t.Error("record_details.go should match its exact record_details_test.go companion")
+			}
+		}
+	}
+
+	aggregate, err := NewCodeMetricsAnalyzer(tmpDir).AnalyzeFiles(files, LanguageGo)
+	if err != nil {
+		t.Fatalf("AnalyzeFiles returned error: %v", err)
+	}
+	if aggregate.FilesWithTests != 2 || aggregate.FilesWithoutTests != 3 {
+		t.Errorf("AnalyzeFiles test companion counts = %d with, %d without; want 2 with, 3 without", aggregate.FilesWithTests, aggregate.FilesWithoutTests)
+	}
+}
+
 // [REQ:TM-LS-005] Test CollectDetailedFileMetrics with binary/non-text files
 func TestCollectDetailedFileMetrics_BinaryFiles(t *testing.T) {
 	tmpDir := t.TempDir()
