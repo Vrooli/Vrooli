@@ -263,6 +263,16 @@ func ParseSetupOptions(args []string) (projectsetup.Options, error) {
 				ExplainName: strings.TrimSpace(parsed.Positionals[0]),
 				Verbose:     parsed.HasFlag("--verbose"),
 			}, nil
+		case "broker":
+			parsed, err := commandtree.ParseArgs("setup broker", SetupBrokerHelpText(), setupBrokerArgSchema(), rest)
+			if err != nil {
+				return projectsetup.Options{}, err
+			}
+			mode := parsed.FlagValue("--sudo-mode")
+			if mode != "" && mode != "ask" && mode != "skip" && mode != "error" {
+				return projectsetup.Options{}, clipolicy.UsageErrorf("setup broker", "invalid --sudo-mode %q", mode)
+			}
+			return projectsetup.Options{Subcommand: "broker", DryRun: parsed.HasFlag("--dry-run"), SudoMode: mode, JSON: parsed.HasFlag("--json")}, nil
 		}
 	}
 	return parseLifecycleOptions("setup", args, SetupHelpText())
@@ -276,7 +286,7 @@ func extractSetupSubcommand(args []string) (string, []string, bool) {
 			return "", nil, false
 		}
 		switch arg {
-		case lifecycleStatus, "explain":
+		case lifecycleStatus, "explain", "broker":
 			rest := append([]string(nil), args[:i]...)
 			rest = append(rest, args[i+1:]...)
 			return arg, rest, true
@@ -325,6 +335,13 @@ func withoutOption(args []string, name string) []string {
 
 func SetupExplainHelpText() string {
 	return commandtree.HelpText("", "vrooli setup explain <name>", "Show full reasons, notes, and provenance for one requirement.", commandtree.Help{}, setupExplainArgSchema())
+}
+
+func setupBrokerArgSchema() commandtree.ArgSchema {
+	return commandtree.ArgSchema{Options: []commandtree.OptionArg{{Name: "--dry-run", Description: "Inspect broker state and preview its setup-managed installation"}, {Name: "--sudo-mode", ValueName: "mode", Description: "Sudo policy (ask|skip|error)"}, commandtree.JSONOption()}}
+}
+func SetupBrokerHelpText() string {
+	return commandtree.HelpText("", "vrooli setup broker", "Install or upgrade only the setup-managed privilege broker and saved local-service policy.", commandtree.Help{}, setupBrokerArgSchema())
 }
 
 func ParseDevelopOptions(args []string) (projectsetup.Options, error) {
@@ -538,6 +555,7 @@ func SetupHelpText() string {
 			"Subcommands:",
 			"  vrooli setup status            Inspect host requirements without applying changes",
 			"  vrooli setup explain <name>    Show full reasons / notes / declarer for one requirement",
+			"  vrooli setup broker            Install/upgrade only the broker and its saved policy",
 			"",
 			"Privilege & opt-in flags:",
 			"  By default `vrooli setup` is non-interactive: items requiring privilege are",

@@ -49,6 +49,30 @@ func TestDecideGrantWhenFree(t *testing.T) {
 	}
 }
 
+func TestDecideNoReclaimIncludesIdleYieldTargets(t *testing.T) {
+	now := time.Date(2026, 10, 22, 12, 0, 0, 0, time.UTC)
+	for _, priority := range []int{PriorityBatch, PriorityService, PriorityInteractive} {
+		req := vramReq(6, 0, priority)
+		req.NoReclaim = true
+		req.Profile = &DegradeProfile{Steps: []DegradeStep{{Label: "gpu", AmountBytes: 6 * gib}, {Label: "cpu", AmountBytes: 0}}}
+		lastActive := now.Add(-time.Hour)
+		ledger := []CapacityClaim{{
+			ClaimID: "idle-yield", ResourceKind: ResourceKindVRAM, GPUIndex: gpu(0),
+			Status: StatusGranted, AmountBytes: 8 * gib, Priority: PriorityInteractive,
+			YieldWhenIdle: true, ActivityState: ActivityIdle, LastActiveAt: &lastActive,
+		}}
+		v := Decide(req, snapshotWith(16, 14), ledger, DefaultPolicy(), now)
+		if v.Kind != VerdictDegrade || v.Step != "cpu" || v.ReclaimBytes != 0 || len(v.ReclaimTargets) != 0 {
+			t.Fatalf("priority %d: no-reclaim used another owner's memory: %+v", priority, v)
+		}
+		// The policy still permits work that fits already-free capacity.
+		v = Decide(req, snapshotWith(16, 2), nil, DefaultPolicy(), now)
+		if v.Kind != VerdictGrant || v.ReclaimBytes != 0 {
+			t.Fatalf("priority %d: free capacity should remain usable: %+v", priority, v)
+		}
+	}
+}
+
 func TestDecideDegradeToFittingStep(t *testing.T) {
 	now := time.Date(2026, 6, 22, 12, 0, 0, 0, time.UTC)
 	req := vramReq(8, 1, PriorityBatch)

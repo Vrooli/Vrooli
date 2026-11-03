@@ -157,6 +157,16 @@ func WriteControlReport(w io.Writer, format cliout.Format, reportKey, verb strin
 		for _, item := range failed {
 			_, _ = fmt.Fprintf(w, "Failed %s: %s\n", item.Name, item.Error)
 		}
+		var observed []control.ResultItem
+		switch typed := report.(type) {
+		case control.StopReport:
+			observed = typed.Observed
+		case *control.StopReport:
+			observed = typed.Observed
+		}
+		for _, item := range observed {
+			_, _ = fmt.Fprintf(w, "Observed %s: %s\n", item.Name, item.Message)
+		}
 		return nil
 	})
 }

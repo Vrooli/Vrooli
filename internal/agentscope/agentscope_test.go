@@ -162,3 +162,16 @@ func TestUnreadableOccupancyLeavesTasksUnknown(t *testing.T) {
 		t.Fatalf("an unknown task count contributes nothing to the total: %d", AgentlessTasks(entries))
 	}
 }
+
+// The launcher mints a scope for every declared harness binary, so a census
+// must recognise each of them.
+func TestBinariesCoverEveryDeclaredHarness(t *testing.T) {
+	for _, binary := range []string{"claude", "codex", "grok", "opencode", "agy"} {
+		if !Binaries[binary] {
+			t.Errorf("Binaries lacks %q", binary)
+		}
+	}
+	if len(Binaries) != 5 {
+		t.Errorf("Binaries = %v", Binaries)
+	}
+}

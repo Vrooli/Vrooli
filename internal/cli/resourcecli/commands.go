@@ -33,6 +33,8 @@ const (
 	CommandDisable               CommandID = "disable"
 	CommandInfo                  CommandID = "info"
 	CommandUpstreamCheck         CommandID = "upstream-check"
+	CommandUpdate                CommandID = "update"
+	CommandUpdateCheck           CommandID = "update-check"
 	CommandDeprecate             CommandID = "deprecate"
 	CommandListDeprecated        CommandID = "list-deprecated"
 	CommandArchiveToBlueprint    CommandID = "archive-to-blueprint"
@@ -47,6 +49,7 @@ const (
 )
 
 const (
+	AcquisitionCommandRuntimeProbe     AcquisitionCommandID = "runtime-probe"
 	AcquisitionCommandExplain          AcquisitionCommandID = "explain"
 	AcquisitionCommandInspectData      AcquisitionCommandID = "inspect-data"
 	AcquisitionCommandComposeCandidate AcquisitionCommandID = "compose-candidate"
@@ -121,7 +124,7 @@ func CommandSpecs() []commandtree.Spec[CommandID] {
 			}},
 		}, Handler: CommandInstall},
 		{Name: string(CommandUninstall), Summary: "Uninstall a resource", Args: nameArgSchema("name"), Handler: CommandUninstall},
-		{Name: string(CommandStart), Summary: "Start a resource", Args: nameArgSchema("name"), Handler: CommandStart},
+		{Name: string(CommandStart), Summary: "Start a resource", Args: resourceStartArgs(), Handler: CommandStart},
 		{Name: string(CommandRestart), Summary: "Restart a resource", Args: nameArgSchema("name"), Handler: CommandRestart},
 		{Name: string(CommandStartAll), Summary: "Start all enabled resources", Handler: CommandStartAll},
 		{Name: string(CommandStop), Summary: "Stop a resource", Args: nameArgSchema("name"), Handler: CommandStop},
@@ -142,6 +145,30 @@ func CommandSpecs() []commandtree.Spec[CommandID] {
 			},
 			Handler: CommandUpstreamCheck,
 		},
+		{
+			Name:    string(CommandUpdate),
+			Summary: "Update a coding agent, or repair or roll back how it is installed",
+			Args: commandtree.ArgSchema{
+				Positionals: []commandtree.PositionalArg{{Name: "name", Required: true}},
+				Options: []commandtree.OptionArg{
+					{Name: "--check", Description: "Report state and eligibility without changing anything"},
+					{Name: "--on-behalf-of", ValueName: "subject", Description: "The verified operator a trusted caller acts for, recorded as the actor. An agent's claim is recorded as a claim."},
+					{Name: "--action", ValueName: "action", Description: "install, refresh-catalog, use-managed-copy, link-managed-copy, rollback, doctor, preview-cleanup or uninstall"},
+					{Name: "--cleanup-plan", ValueName: "id", Description: "Exact preview identity required for uninstall"},
+					commandtree.JSONOption(),
+				},
+			},
+			Handler: CommandUpdate,
+		},
+		{
+			Name:    string(CommandUpdateCheck),
+			Summary: "Report a coding agent's update state and eligibility (read-only)",
+			Args: commandtree.ArgSchema{
+				Positionals: []commandtree.PositionalArg{{Name: "name", Required: true}},
+				Options:     []commandtree.OptionArg{commandtree.JSONOption()},
+			},
+			Handler: CommandUpdateCheck,
+		},
 		{Name: string(CommandDeprecate), Summary: "Deprecate a resource", Args: nameArgSchema("name"), Handler: CommandDeprecate},
 		{Name: string(CommandListDeprecated), Summary: "List deprecated resources", Handler: CommandListDeprecated},
 		{Name: string(CommandArchiveToBlueprint), Summary: "Archive a resource into blueprint-only state", Args: nameArgSchema("name"), Handler: CommandArchiveToBlueprint},
@@ -158,10 +185,11 @@ func CommandSpecs() []commandtree.Spec[CommandID] {
 
 func AcquisitionCommandSpecs() []commandtree.Spec[AcquisitionCommandID] {
 	return []commandtree.Spec[AcquisitionCommandID]{
+		{Name: string(AcquisitionCommandRuntimeProbe), Summary: "Qualify managed Python imports in an owned offline read-only runtime", Args: AcquisitionRuntimeProbeArgs(), Handler: AcquisitionCommandRuntimeProbe},
 		{Name: string(AcquisitionCommandComposeCandidate), Summary: "Prepare an uninstalled composed artifact candidate and actual digest", Args: AcquisitionComposeCandidateArgs(), Handler: AcquisitionCommandComposeCandidate},
 		{Name: string(AcquisitionCommandInspectData), Summary: "Verify bounded pinned upstream metadata and report its SHA-256 (never admit execution)", Args: AcquisitionInspectDataArgs(), Handler: AcquisitionCommandInspectData},
 		{Name: string(AcquisitionCommandExplain), Summary: "Explain host-fact acquisition target selection", Args: nameArgSchema("name"), Handler: AcquisitionCommandExplain},
-		{Name: string(AcquisitionCommandPrune), Summary: "Remove superseded managed-resource artifact versions", Args: commandtree.ArgSchema{Positionals: []commandtree.PositionalArg{{Name: "name"}}}, Handler: AcquisitionCommandPrune},
+		{Name: string(AcquisitionCommandPrune), Summary: "Preview or apply managed-resource artifact version retention", Args: AcquisitionPruneArgs(), Handler: AcquisitionCommandPrune},
 		{Name: string(AcquisitionCommandDataGroup), Summary: "Acquire one explicitly declared data group", Args: AcquisitionDataGroupArgs(), Handler: AcquisitionCommandDataGroup},
 		{Name: string(AcquisitionCommandModelCache), Summary: "Preview or apply owner-fenced model-cache retention", Args: AcquisitionModelCacheArgs(), Handler: AcquisitionCommandModelCache},
 	}
@@ -282,7 +310,7 @@ func AcquisitionInspectDataArgs() commandtree.ArgSchema {
 }
 
 func AcquisitionComposeCandidateArgs() commandtree.ArgSchema {
-	return commandtree.ArgSchema{Positionals: []commandtree.PositionalArg{{Name: "name", Required: true}}, Options: []commandtree.OptionArg{{Name: "--out", ValueName: "new-directory", Description: "New candidate bundle; never overwrite"}}}
+	return commandtree.ArgSchema{Positionals: []commandtree.PositionalArg{{Name: "name", Required: true}}, Options: []commandtree.OptionArg{{Name: "--out", ValueName: "new-directory", Description: "New candidate bundle; never overwrite"}, {Name: "--offline", Description: "Require verified cached external parts; refuse network acquisition"}}}
 }
 
 func AcquisitionModelCacheArgs() commandtree.ArgSchema {
@@ -293,6 +321,24 @@ func AcquisitionModelCacheArgs() commandtree.ArgSchema {
 	}}
 }
 
+func AcquisitionPruneArgs() commandtree.ArgSchema {
+	return commandtree.ArgSchema{Positionals: []commandtree.PositionalArg{{Name: "name"}}, Options: []commandtree.OptionArg{
+		commandtree.JSONOption(),
+		{Name: "--keep-previous", ValueName: "n", Description: "Previous versions kept for rollback beside the active one (default 1)"},
+		{Name: "--apply", Description: "Remove the versions the preview marks superseded; without it nothing is deleted"},
+	}}
+}
+
 func AcquisitionDataGroupArgs() commandtree.ArgSchema {
 	return commandtree.ArgSchema{Positionals: []commandtree.PositionalArg{{Name: "name", Required: true}}, Options: []commandtree.OptionArg{{Name: "--group", ValueName: "group", Description: "Exact declared data group; never start a resource"}}}
+}
+
+func resourceStartArgs() commandtree.ArgSchema {
+	args := nameArgSchema("name")
+	args.Options = append(args.Options, commandtree.OptionArg{Name: "--no-reclaim", Description: "Require manifest-derived admission using already-free capacity; refuse startup if unavailable"})
+	return args
+}
+
+func AcquisitionRuntimeProbeArgs() commandtree.ArgSchema {
+	return commandtree.ArgSchema{Positionals: []commandtree.PositionalArg{{Name: "name", Required: true}}, Options: []commandtree.OptionArg{{Name: "--imports", ValueName: "modules", Description: "Comma-separated import-only Python modules"}, {Name: "--out", ValueName: "directory", Description: "New receipt directory outside the artifact"}}}
 }

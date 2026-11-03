@@ -1,7 +1,9 @@
 package hosthandlers
 
 import (
+	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"strconv"
@@ -19,10 +21,13 @@ import (
 	"github.com/vrooli/vrooli/internal/hostreqkit"
 	"github.com/vrooli/vrooli/internal/operatorstate"
 	hostruntime "github.com/vrooli/vrooli/internal/runtime"
+	blenderrenderer "github.com/vrooli/vrooli/internal/tools/blender-renderer"
 	"github.com/vrooli/vrooli/internal/tools/hyperframes"
+	triposrsource "github.com/vrooli/vrooli/internal/tools/triposr-source"
 	"github.com/vrooli/vrooli/internal/volumeremediation"
 	"github.com/vrooli/vrooli/internal/workloadowner"
 	cliv1 "github.com/vrooli/vrooli/packages/proto/gen/go/cli/v1"
+	"google.golang.org/protobuf/proto"
 )
 
 type hostService struct {
@@ -31,7 +36,7 @@ type hostService struct {
 
 const hostMemoryBytesPerMegabyte = 1024
 
-var hostCommandNames = []string{"cron", "inventory", "desktop-session", "install", "safeguard", "reboot", "volume", "storage", "hyperframes"}
+var hostCommandNames = []string{"cron", "inventory", "desktop-session", "install", "safeguard", "reboot", "volume", "storage", "hyperframes", "renderer-profile", "triposr-source", "renderer-cache-repair"}
 
 // RegisteredCommandPaths returns the child paths bound by the host handler.
 func RegisteredCommandPaths() []string {
@@ -128,6 +133,12 @@ func hostBindings(ctx *rootcli.CommandContext, names []string) map[string]func(c
 					return runDesktopSession(runCtx, ctx)
 				case "hyperframes":
 					return runHyperframes(runCtx, ctx)
+				case "renderer-profile":
+					return runRendererProfile(runCtx, ctx)
+				case "triposr-source":
+					return runTripoSRSourceProfile(runCtx, ctx)
+				case "renderer-cache-repair":
+					return runRendererCacheRepair(runCtx, ctx)
 				case "install":
 					return runHostInstall(runCtx, ctx)
 				case "safeguard":
@@ -182,6 +193,27 @@ func runHostInstall(runCtx cliapp.RunContext, parent *rootcli.CommandContext) er
 		return rootcli.ExitCodeError{Code: 1, Silent_: true}
 	}
 	return nil
+}
+
+func runTripoSRSourceProfile(runCtx cliapp.RunContext, parent *rootcli.CommandContext) error {
+	if runCtx.Positional("action") != "profile" {
+		return rootcli.UsageErrorf("host triposr-source", "use the read-only `profile` action")
+	}
+	root, receipt, err := triposrsource.SelectedInstallation(parent.OperationContext())
+	if err != nil {
+		return fmt.Errorf("resolve managed TripoSR source profile: %w", err)
+	}
+	result := struct {
+		SourceDir     string `json:"source_dir"`
+		Commit        string `json:"commit"`
+		TreeSHA256    string `json:"tree_sha256"`
+		ArchiveSHA256 string `json:"archive_sha256"`
+		License       string `json:"license"`
+	}{root, receipt.Commit, receipt.TreeSHA256, receipt.ArchiveSHA256, receipt.License}
+	if parent.Globals.JSON || runCtx.JSON() {
+		return cliout.WriteJSONValue(runCtx.Stdout(), result)
+	}
+	return cliout.WriteSection(runCtx.Stdout(), cliout.Section{Headers: []string{"field", "value"}, Rows: [][]string{{"source_dir", result.SourceDir}, {"commit", result.Commit}, {"tree_sha256", result.TreeSHA256}, {"license", result.License}}})
 }
 
 func runHostSafeguard(runCtx cliapp.RunContext, parent *rootcli.CommandContext) error {
@@ -521,5 +553,68 @@ func runHyperframes(runCtx cliapp.RunContext, parent *rootcli.CommandContext) er
 	} else if err == nil {
 		_, _ = fmt.Fprintf(runCtx.Stdout(), "HyperFrames: %s (reused=%t)\n", out, receipt.Reused)
 	}
+	return err
+}
+
+func runRendererProfile(runCtx cliapp.RunContext, parent *rootcli.CommandContext) error {
+	service := hostapp.Service{}
+	return runRendererProfileWith(runCtx, parent, service.RendererProfile, service.BlenderProfile)
+}
+
+func runRendererCacheRepair(runCtx cliapp.RunContext, parent *rootcli.CommandContext) error {
+	return runRendererCacheRepairWith(runCtx, parent, func(ctx context.Context, dryRun bool) (blenderrenderer.PythonCacheRepairReceipt, error) {
+		return (hostapp.Service{}).RepairBlenderPythonCache(ctx, dryRun)
+	})
+}
+
+func runRendererCacheRepairWith(
+	runCtx cliapp.RunContext,
+	parent *rootcli.CommandContext,
+	repair func(context.Context, bool) (blenderrenderer.PythonCacheRepairReceipt, error),
+) error {
+	target := strings.TrimSpace(runCtx.Positional("target"))
+	if target != "blender-python-cache" {
+		return rootcli.UsageErrorf("host renderer-cache-repair", "target must be blender-python-cache")
+	}
+	receipt, err := repair(parent.OperationContext(), runCtx.BoolFlag("dry-run"))
+	if parent.Globals.JSON || runCtx.JSON() {
+		writeErr := cliout.WriteJSONValue(runCtx.Stdout(), receipt)
+		return errors.Join(err, writeErr)
+	}
+	_, writeErr := fmt.Fprintf(runCtx.Stdout(), "Blender Python cache repair: %s\n%s\n", receipt.QuarantineID, receipt.Detail)
+	return errors.Join(err, writeErr)
+}
+
+func runRendererProfileWith(
+	runCtx cliapp.RunContext,
+	parent *rootcli.CommandContext,
+	ffmpegProfile func(context.Context) (*cliv1.RendererToolProfile, error),
+	blenderProfile func(context.Context) (*cliv1.BlenderToolProfile, error),
+) error {
+	profile := strings.TrimSpace(runCtx.Positional("profile"))
+	ctx := parent.OperationContext()
+	switch profile {
+	case "ffmpeg-video":
+		response, err := ffmpegProfile(ctx)
+		if err != nil {
+			return err
+		}
+		return writeRendererProfileOutput(runCtx, parent, response, response.GetProfileId(), response.GetState().String(), response.GetDetail())
+	case "blender":
+		response, err := blenderProfile(ctx)
+		if err != nil {
+			return err
+		}
+		return writeRendererProfileOutput(runCtx, parent, response, response.GetProfileId(), response.GetState().String(), response.GetDetail())
+	default:
+		return rootcli.UsageErrorf("host renderer-profile", "profile must be ffmpeg-video or blender")
+	}
+}
+
+func writeRendererProfileOutput(runCtx cliapp.RunContext, parent *rootcli.CommandContext, message proto.Message, profileID, state, detail string) error {
+	if parent.Globals.JSON || runCtx.JSON() {
+		return cliout.WriteProtoJSON(runCtx.Stdout(), message)
+	}
+	_, err := fmt.Fprintf(runCtx.Stdout(), "Renderer profile %s: %s\n%s\n", profileID, state, detail)
 	return err
 }

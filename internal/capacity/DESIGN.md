@@ -182,6 +182,19 @@ absence for a newer lease. The fact cache does not serve expired data on errors.
 
 ### Reclaim cohort preservation
 
+Explicit admissions may set `CapacityRequest.NoReclaim` (`vrooli capacity claim
+--no-reclaim`). This independent request policy restricts the decision to already
+free capacity, including when idle-yield would otherwise make a higher-priority
+claim reclaimable. It does not lower priority or change the new claim's own
+future yield behavior. Omitted policy preserves existing reclaim selection.
+
+Resource lifecycle and explicit CLI admission share `AdmitReclaim`. In enforce
+mode a reclaim-backed grant requires successful actuation of at least the
+verdict's reclaim bytes. Failed, skipped or insufficient callbacks produce a
+denial with warnings; recording a claim remains distinct from permission to run.
+Advisory observations never establish physical capacity. A requester must honor
+the verdict and must not infer a grant solely from the ledger's recorded status.
+
 Enforcement plans only the exact claim IDs named by Decide.ReclaimTargets. It
 must preserve the admission resource/GPU cohort rather than replan against all
 active claims. Current generation/activity/protection is still revalidated
@@ -237,3 +250,22 @@ not reuse a once-fresh timestamp. Returned expiry UpdatedAt uses that row's
 actual mutation clock. Zero sampling checks after its current row read and
 immediately before writing. Operation TTL remains independent of resident
 proofs; supplied expiry cutoff remains the caller's explicit sweep boundary.
+
+### Resource admission simplification target
+
+Lifecycle startup and explicit claims use one shared sensing, safe sweep, pressure,
+reclaim and recording path. Unknown sensing produces a denial, never an optimistic
+grant. Advisory accounting remains separate from permission to execute. Reuse
+compares canonical GPU identities, renews the lease successfully and reports the
+actual granted rung; a recorded reservation is not a successful prior admission.
+Manifest replacement must not discard the existing reservation before its
+replacement has been recorded.
+
+`vrooli resource start <name> --no-reclaim` admits directly from the manifest,
+without preparatory manual claims. The operation carries that constraint through
+replacement and refuses to start if sensing, policy, accounting or admission cannot
+establish the manifest's full preferred budget. A smaller recommendation alone
+does not prove the driver will execute a smaller workload. It leaves other owners intact and does not change the resource's
+own yield policy. Normal resource starts keep their existing advisory behavior.
+No new ledger schema, persistent no-reclaim field, scheduler or policy switch is
+needed: no-reclaim is an input to this admission, not a lifetime claim property.

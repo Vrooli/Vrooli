@@ -29,12 +29,12 @@ func RenderFit(w io.Writer, format cliout.Format, resp engine.FitVerdict) error 
 func RenderClaim(w io.Writer, format cliout.Format, resp capacityapp.ClaimOutput) error {
 	return cliout.RenderJSONOr(w, format, func(w io.Writer) error { return cliout.WriteJSON(w, resp) }, func(w io.Writer) error {
 		v := resp.Verdict
-		_, _ = fmt.Fprintf(w, "claim %s\n", resp.Claim.ClaimID)
+		_, _ = fmt.Fprintf(w, "claim %s\n  recorded: %s  amount: %s\n", resp.Claim.ClaimID, resp.Claim.Status, humanAmount(resp.Claim.ResourceKind, resp.Claim.AmountBytes))
 		_, _ = fmt.Fprintf(w, "  verdict: %s", v.Kind)
 		if v.Step != "" {
 			_, _ = fmt.Fprintf(w, " (step %s)", v.Step)
 		}
-		_, _ = fmt.Fprintf(w, "  granted: %s\n", humanBytes(v.GrantedBytes))
+		_, _ = fmt.Fprintf(w, "  recommended: %s\n", humanAmount(resp.Claim.ResourceKind, v.GrantedBytes))
 		_, _ = fmt.Fprintf(w, "  owner: %s/%s  priority: %s  enforce: %s\n", resp.Claim.OwnerKind, resp.Claim.OwnerID, resp.Claim.PriorityTier, resp.Enforce)
 		if v.Reason != "" {
 			_, _ = fmt.Fprintf(w, "  reason: %s\n", v.Reason)
@@ -52,7 +52,7 @@ func RenderClaimView(w io.Writer, format cliout.Format, resp capacityapp.ClaimVi
 		return cliout.WriteSection(w, cliout.Section{Rows: [][]string{{
 			resp.ClaimID, resp.OwnerKind + "/" + resp.OwnerID, resp.Status,
 			"activity=" + resp.ActivityState, "idle=" + resp.IdleReclaimState,
-			fmt.Sprintf("gen=%d", resp.Generation), humanBytes(resp.AmountBytes),
+			fmt.Sprintf("gen=%d", resp.Generation), humanAmount(resp.ResourceKind, resp.AmountBytes),
 		}}})
 	})
 }
@@ -65,7 +65,7 @@ func RenderList(w io.Writer, format cliout.Format, resp capacityapp.ListOutput) 
 			rows = append(rows, []string{
 				c.ClaimID, c.OwnerKind + "/" + c.OwnerID, c.ResourceKind, c.Status,
 				"prio=" + c.PriorityTier, fmt.Sprintf("protected=%t", c.Protected), "idle=" + c.IdleReclaimState,
-				"granted=" + humanBytes(c.AmountBytes), "observed=" + humanBytes(c.ObservedBytes), "peak=" + humanBytes(c.ObservedPeakBytes),
+				"granted=" + humanAmount(c.ResourceKind, c.AmountBytes), "observed=" + humanAmount(c.ResourceKind, c.ObservedBytes), "peak=" + humanAmount(c.ResourceKind, c.ObservedPeakBytes),
 				"created=" + c.CreatedAt, "updated=" + c.UpdatedAt,
 			})
 		}
@@ -173,6 +173,14 @@ func RenderPolicy(w io.Writer, format cliout.Format, resp capacityapp.PolicyOutp
 		}
 		return cliout.WriteSection(w, cliout.Section{Rows: rows})
 	})
+}
+
+// CPU shares the generic amount fields but uses millicores, never bytes.
+func humanAmount(kind string, amount int64) string {
+	if kind == engine.ResourceKindCPU {
+		return fmt.Sprintf("%d mCPU (%.3f cores)", amount, float64(amount)/1000)
+	}
+	return humanBytes(amount)
 }
 
 func humanBytes(b int64) string {

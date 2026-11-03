@@ -24,19 +24,19 @@ func emitLifecycleFailure[C any](
 	verb string,
 	names []string,
 	err error,
-) {
+) bool {
 	if err == nil {
-		return
+		return false
 	}
 	if deps.Globals != nil && deps.Globals(ctx).JSON {
-		return
+		return false
 	}
 	var stderr io.Writer
 	if deps.Stderr != nil {
 		stderr = deps.Stderr(ctx)
 	}
 	if stderr == nil {
-		return
+		return false
 	}
 
 	home := ""
@@ -53,6 +53,20 @@ func emitLifecycleFailure[C any](
 	for _, name := range names {
 		writeLifecycleFailureBlock(stderr, verb, name, home, err)
 	}
+	return true
+}
+
+func lifecycleFailureError[C any](
+	deps rootcli.HandlerDeps[C],
+	ctx C,
+	verb string,
+	names []string,
+	err error,
+) error {
+	if emitLifecycleFailure(deps, ctx, verb, names, err) {
+		return silentLifecycleError{inner: err}
+	}
+	return err
 }
 
 func writeLifecycleFailureBlock(w io.Writer, verb, name, home string, err error) {
@@ -136,10 +150,11 @@ func (e silentLifecycleError) ErrorCategory() string    { return vroolierr.Categ
 func (silentLifecycleError) ErrorHint() string          { return "" }
 func (silentLifecycleError) ErrorSuggestions() []string { return nil }
 
-// withLifecycleFailureBlock wraps a run function so that any error
-// emits a failure block and is then returned as a silent error so the
-// root CLI does not re-print it. The signature matches the scenario binder
-// contract used by Start/Restart/Stop handlers.
+// withLifecycleFailureBlock wraps a run function and applies the shared
+// lifecycle failure policy: human mode emits one block and suppresses the
+// duplicate root CLI message, while JSON mode returns the original error to
+// the root CLI boundary. The signature matches the scenario binder contract
+// used by Start/Restart/Stop handlers.
 func withLifecycleFailureBlock[C any, Req any](
 	deps rootcli.HandlerDeps[C],
 	verb string,
@@ -149,8 +164,7 @@ func withLifecycleFailureBlock[C any, Req any](
 	return func(ctx C, format cliout.Format, req Req) ([]LifecycleItemOutput, error) {
 		items, err := run(ctx, format, req)
 		if err != nil {
-			emitLifecycleFailure(deps, ctx, verb, names(req), err)
-			err = silentLifecycleError{inner: err}
+			err = lifecycleFailureError(deps, ctx, verb, names(req), err)
 		}
 		return items, err
 	}

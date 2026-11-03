@@ -116,6 +116,7 @@ func RenderStopReport(w io.Writer, format cliout.Format, report control.StopRepo
 		for _, item := range report.Failed {
 			_, _ = fmt.Fprintf(w, "Failed %s: %s\n", item.Name, item.Error)
 		}
+		writeObserved(w, report.Observed)
 		return nil
 	})
 }
@@ -138,7 +139,8 @@ func RenderOrphansResponse(w io.Writer, format cliout.Format, resp OrphansRespon
 			for _, item := range typed.Failed {
 				_, _ = fmt.Fprintf(w, "Failed orphan PID %s: %s\n", item.Name, item.Error)
 			}
-			if len(typed.Stopped) == 0 && len(typed.Failed) == 0 {
+			writeObserved(w, typed.Observed)
+			if len(typed.Stopped) == 0 && len(typed.Failed) == 0 && len(typed.Observed) == 0 {
 				_, _ = fmt.Fprintln(w, "No orphaned Vrooli processes found.")
 			}
 		}
@@ -185,7 +187,8 @@ func RenderLocksResponse(w io.Writer, format cliout.Format, resp LocksResponse) 
 			for _, item := range typed.Failed {
 				_, _ = fmt.Fprintf(w, "Failed %s: %s\n", item.Name, item.Error)
 			}
-			if len(typed.Stopped) == 0 && len(typed.Failed) == 0 {
+			writeObserved(w, typed.Observed)
+			if len(typed.Stopped) == 0 && len(typed.Failed) == 0 && len(typed.Observed) == 0 {
 				_, _ = fmt.Fprintln(w, "No stale registry state found.")
 			}
 		}
@@ -340,4 +343,10 @@ func RenderPortDiagnostic(w io.Writer, format cliout.Format, diagnostic maintena
 		}
 		return nil
 	})
+}
+
+func writeObserved(w io.Writer, items []control.ResultItem) {
+	for _, item := range items {
+		_, _ = fmt.Fprintf(w, "Observed %s: %s\n", item.Name, item.Message)
+	}
 }

@@ -19,6 +19,7 @@ import (
 	engine "github.com/vrooli/vrooli/internal/capacity"
 	"github.com/vrooli/vrooli/internal/config"
 	"github.com/vrooli/vrooli/internal/hostinventory"
+	"github.com/vrooli/vrooli/internal/hostpressure"
 	"github.com/vrooli/vrooli/internal/operatorstate"
 	"github.com/vrooli/vrooli/internal/repocontractmeta"
 	manifestpkg "github.com/vrooli/vrooli/internal/resources/manifest"
@@ -173,9 +174,11 @@ func (s Service) Footprint(ctx context.Context, req FootprintRequest) (Footprint
 // Service performs capacity operations for the CLI. The three seams (OpenStore,
 // Source, Attributor) are injectable; nil values resolve production defaults.
 type Service struct {
-	OpenStore  func(ctx context.Context) (Store, error)
-	Source     engine.CapacitySource
-	Attributor engine.Attributor
+	OpenStore func(ctx context.Context) (Store, error)
+	Source    engine.CapacitySource
+	// MemoryPressure injects fresh PSI evidence; nil uses the production reader only with the default source.
+	MemoryPressure func() hostpressure.Reading
+	Attributor     engine.Attributor
 	// Exec is the adopter callback used when enforce mode must reclaim idle
 	// lower-priority capacity. Nil uses the production resource-CLI executor;
 	// tests inject a recorder so broker actuation remains hermetic.
@@ -337,6 +340,7 @@ type ClaimRequest struct {
 	PreferredBytes int64
 	FloorBytes     int64
 	PriorityTier   string
+	NoReclaim      bool
 	Protected      bool
 	YieldWhenIdle  bool
 	IdleUnloadTTL  time.Duration
@@ -345,7 +349,8 @@ type ClaimRequest struct {
 	TTL            time.Duration
 }
 
-// ClaimOutput carries the granted claim plus the advisory verdict.
+// ClaimOutput carries the recorded claim and recommendation. Enforce reports
+// the effective policy mode; Claim itself does not veto or block the caller.
 type ClaimOutput struct {
 	Verdict engine.Verdict `json:"verdict"`
 	Claim   ClaimView      `json:"claim"`
@@ -354,7 +359,8 @@ type ClaimOutput struct {
 
 // Claim runs the admission decision and records the resulting claim. In
 // advisory mode the claim is recorded at the requested preferred amount even on
-// a non-grant verdict (the caller proceeds and chooses its own fallback); the
+// a non-grant verdict. The same advisory record behavior applies when Enforce is
+// on: that mode enables reclaim callbacks, while the caller owns enforcement. The
 // verdict and its warnings are always returned.
 func (s Service) Claim(ctx context.Context, req ClaimRequest) (ClaimOutput, error) {
 	if strings.TrimSpace(req.OwnerID) == "" {
@@ -379,6 +385,7 @@ func (s Service) Claim(ctx context.Context, req ClaimRequest) (ClaimOutput, erro
 		PreferredBytes: req.PreferredBytes,
 		FloorBytes:     req.FloorBytes,
 		Priority:       engine.ParsePriorityTier(req.PriorityTier),
+		NoReclaim:      req.NoReclaim,
 		Protected:      req.Protected,
 		YieldWhenIdle:  req.YieldWhenIdle,
 		IdleUnloadTTL:  req.IdleUnloadTTL,
@@ -397,76 +404,16 @@ func (s Service) Claim(ctx context.Context, req ClaimRequest) (ClaimOutput, erro
 	if err != nil {
 		return ClaimOutput{}, err
 	}
-	snapshot, snapErr := s.source().Snapshot(ctx)
-	// A snapshot error is not fatal in advisory mode — we still record the claim,
-	// but we surface the sensing failure as a warning via a deny-ish verdict.
-	var verdict engine.Verdict
-	var ledger []engine.CapacityClaim
-	var admissionWarnings []string
-	if snapErr != nil {
-		verdict = engine.Verdict{Kind: engine.VerdictGrant, GrantedBytes: req.PreferredBytes, Warnings: []string{"capacity sensing unavailable: " + snapErr.Error()}}
-	} else {
-		swept, sweepErr := engine.Sweep(ctx, store, snapshot, s.attributor(), policy, s.now())
-		if sweepErr != nil {
-			return ClaimOutput{}, sweepErr
-		}
-		if len(swept.Deferred) > 0 {
-			admissionWarnings = append(admissionWarnings, fmt.Sprintf("preserved %d resident claim(s) whose GPU presence is unverified", len(swept.Deferred)))
-		}
-		var listErr error
-		ledger, listErr = store.ListClaims(ctx, engine.ClaimFilter{ResourceKind: req.ResourceKind, Statuses: engine.ActiveClaimStatuses()})
-		if listErr != nil {
-			return ClaimOutput{}, listErr
-		}
-		verdict = engine.Decide(engReq, snapshot, ledger, policy, s.now())
-		if len(snapshot.GPUs) > 0 && (snapshot.ProbeStatuses["nvidia_gpu"] != "ok" || snapshot.ProbeStatuses["nvidia_gpu_processes"] != "ok") {
-			verdict.Warnings = append(verdict.Warnings, "GPU process absence is unverified; resident claims were preserved")
-		}
-	}
-	verdict.Warnings = append(verdict.Warnings, admissionWarnings...)
-	// A CLI claim is a broker admission too, not merely a ledger insert. In
-	// enforce mode, execute the declared adopter callbacks before recording the
-	// requester so a grant that depends on reclaiming idle capacity is real.
 	effective := policy.EffectiveEnforce(envEnforce())
-	if effective == engine.EnforceOn && verdict.Granted() && verdict.ReclaimBytes > 0 {
-		_, actuation, actErr := engine.EnforceReclaim(ctx, store, engReq.Priority, verdict, ledger, s.Exec, policy, effective, s.now())
-		if actErr != nil {
-			verdict.Warnings = append(verdict.Warnings, "capacity actuation error: "+actErr.Error())
-		}
-		for _, outcome := range actuation.Outcomes {
-			if outcome.Err != "" {
-				verdict.Warnings = append(verdict.Warnings, fmt.Sprintf("degrade of %q failed: %s", outcome.OwnerID, outcome.Err))
-			}
-		}
+	verdict, err := engine.EvaluateAdmission(ctx, store, engReq, engine.AdmissionOptions{
+		Source: s.Source, MemoryPressure: s.MemoryPressure, Attributor: s.attributor(),
+		Exec: s.Exec, Policy: policy, Enforce: effective, Clock: s.now,
+	})
+	if err != nil {
+		return ClaimOutput{}, err
 	}
 
-	amount := req.PreferredBytes
-	status := engine.StatusGranted
-	if verdict.Granted() {
-		amount = verdict.GrantedBytes
-		if verdict.Kind == engine.VerdictDegrade {
-			status = engine.StatusDegraded
-		}
-	}
-
-	claim := engine.CapacityClaim{
-		OwnerKind:      req.OwnerKind,
-		OwnerID:        req.OwnerID,
-		InstanceID:     req.InstanceID,
-		ResourceKind:   req.ResourceKind,
-		GPUIndex:       req.GPUIndex,
-		AmountBytes:    amount,
-		PreferredBytes: req.PreferredBytes,
-		FloorBytes:     req.FloorBytes,
-		Priority:       engReq.Priority,
-		Protected:      req.Protected,
-		YieldWhenIdle:  req.YieldWhenIdle,
-		IdleUnloadTTL:  req.IdleUnloadTTL,
-		IdleGrace:      req.IdleGrace,
-		Status:         status,
-		DegradeProfile: profile,
-	}
-	created, err := store.CreateClaim(ctx, claim, req.TTL)
+	created, err := store.CreateClaim(ctx, engReq.Claim(verdict), req.TTL)
 	if err != nil {
 		return ClaimOutput{}, err
 	}

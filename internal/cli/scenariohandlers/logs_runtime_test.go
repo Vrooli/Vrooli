@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	. "github.com/vrooli/vrooli/internal/cli/scenariocli"
+	"github.com/vrooli/vrooli/internal/lifecycle"
 	"github.com/vrooli/vrooli/internal/process"
 )
 
@@ -73,6 +74,40 @@ func TestShowScenarioLifecycleLogHonorsTailOption(t *testing.T) {
 	got := stdout.String()
 	if strings.Contains(got, "two\n") || !strings.Contains(got, "three\n") {
 		t.Fatalf("tail output = %q", got)
+	}
+}
+
+// Disk-pressure recovery reclaims the regenerable logs root; the lifecycle
+// log must then come from the run retained under the state root rather than
+// "no lifecycle log found".
+func TestShowScenarioLifecycleLogFallsBackToRetainedRun(t *testing.T) {
+	home := t.TempDir()
+	dir, err := lifecycle.LifecycleRunLogsDir(home, "alpha")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	for file, content := range map[string]string{
+		"20261027-062405.774246632-111.restart.develop.log": "older run\n",
+		"20261028-212514.976424189-222.restart.setup.log":   "setup of latest run\n",
+		"20261028-212533.754640648-222.restart.develop.log": "develop of latest run\n",
+	} {
+		if err := os.WriteFile(filepath.Join(dir, file), []byte(content), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	var stdout bytes.Buffer
+	if err := showScenarioLifecycleLog(t.TempDir(), home, "alpha", LogOptions{}, &stdout, &bytes.Buffer{}); err != nil {
+		t.Fatalf("showScenarioLifecycleLog: %v", err)
+	}
+	got := stdout.String()
+	if !strings.Contains(got, "setup of latest run") || !strings.Contains(got, "develop of latest run") || strings.Contains(got, "older run") {
+		t.Fatalf("retained fallback output = %q", got)
+	}
+	if err := showScenarioLifecycleLog(t.TempDir(), t.TempDir(), "alpha", LogOptions{}, &bytes.Buffer{}, &bytes.Buffer{}); err == nil || !strings.Contains(err.Error(), "no lifecycle log found") {
+		t.Fatalf("missing log and no retained run: err = %v", err)
 	}
 }
 

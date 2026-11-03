@@ -118,7 +118,8 @@ type AcquisitionExplanation struct {
 	// Closure is the runtime-closure verdict for the artifact staged on this
 	// host, when one is staged. A digest-correct artifact whose libraries do
 	// not resolve is the failure this field exists to make visible.
-	Closure *resources.ClosureVerdict `json:"runtime_closure,omitempty"`
+	Closure      *resources.ClosureVerdict      `json:"runtime_closure,omitempty"`
+	ComposeCache []resources.ComposePartPreview `json:"compose_cache,omitempty"`
 }
 
 func (s Service) List() (ListResponse, error) {

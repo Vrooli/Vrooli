@@ -342,3 +342,51 @@ func TestInspectDataActualHandlerPublishesVerifiedMetadataAndJSONReceipt(t *test
 		t.Fatal("wrong published data", err)
 	}
 }
+
+func TestNoReclaimStartRefusesBeforeDriverAndDoesNotLeakPolicy(t *testing.T) {
+	t.Setenv("VROOLI_CAPACITY_ENFORCE", "off")
+	root := t.TempDir()
+	binary := filepath.Join(root, "fake-cli")
+	marker := filepath.Join(root, "started")
+	t.Setenv("VROOLI_ADMISSION_TEST_MARKER", marker)
+	if err := os.WriteFile(binary, []byte(shelltest.BashShebang()+`printf entered > "$VROOLI_ADMISSION_TEST_MARKER"
+`), 0700); err != nil {
+		t.Fatal(err)
+	}
+	testscenario.WriteProjectResourceConfig(t, root, "admission-fixture", true)
+	testresource.WriteResourceManifest(t, root, "admission-fixture", testresource.ResourceManifest("admission-fixture", testresource.WithResourceDriver("external-cli"), testresource.WithResourceBinary(binary), testresource.WithResourceVersionArgs("--version")))
+	previous := enforceHostRequirementsFn
+	enforceHostRequirementsFn = func(vrooliruntime.Options) (vrooliruntime.Report, error) { return vrooliruntime.Report{}, nil }
+	t.Cleanup(func() { enforceHostRequirementsFn = previous })
+	ctx := testContext{stdout: &bytes.Buffer{}, stderr: &bytes.Buffer{}}
+	deps := rootcli.HandlerDeps[testContext]{Stdout: func(c testContext) io.Writer { return c.stdout }, Stderr: func(c testContext) io.Writer { return c.stderr }}
+	controller := resources.NewController(root, t.TempDir())
+	err := singleResourceControlHandler(deps, "start")(ctx, controller, []string{"admission-fixture", "--no-reclaim"})
+	if err == nil || !strings.Contains(err.Error(), "no-reclaim") {
+		t.Fatalf("strict startup lost admission policy: %v", err)
+	}
+	if _, err := os.Stat(marker); !os.IsNotExist(err) {
+		t.Fatalf("refused startup invoked driver: %v", err)
+	}
+	if controller.NoReclaim {
+		t.Fatal("request policy escaped into shared controller")
+	}
+	if err := singleResourceControlHandler(deps, "start")(ctx, controller, []string{"admission-fixture"}); err != nil {
+		t.Fatalf("ordinary advisory start failed: %v", err)
+	}
+	if _, err := os.Stat(marker); err != nil {
+		t.Fatalf("ordinary start never invoked driver: %v", err)
+	}
+}
+
+func TestResourceStartHelpHasNoLifecycleSideEffects(t *testing.T) {
+	for _, flag := range []string{"--help", "-h"} {
+		ctx := testContext{stdout: &bytes.Buffer{}, stderr: &bytes.Buffer{}}
+		calls := 0
+		deps := rootcli.HandlerDeps[testContext]{Stdout: func(c testContext) io.Writer { return c.stdout }, EnsureCLI: func(testContext, string) error { calls++; return errors.New("unexpected install") }}
+		err := singleResourceControlHandler(deps, "start")(ctx, nil, []string{flag})
+		if err != nil || calls != 0 || !strings.Contains(ctx.stdout.String(), "--no-reclaim") {
+			t.Fatalf("help needs a controller or loses required admission option: err=%v calls=%d output=%s", err, calls, ctx.stdout)
+		}
+	}
+}

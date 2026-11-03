@@ -3,12 +3,17 @@ package capacity
 import (
 	"context"
 	"encoding/json"
+	"fmt"
+	"github.com/vrooli/vrooli/internal/setpoint"
+	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
 	engine "github.com/vrooli/vrooli/internal/capacity"
 	"github.com/vrooli/vrooli/internal/hostinventory"
+	"github.com/vrooli/vrooli/internal/hostpressure"
 	"github.com/vrooli/vrooli/packages/capacity/companion"
 )
 
@@ -133,6 +138,25 @@ func TestServiceClaimDegradeInAdvisoryStillRecords(t *testing.T) {
 	}
 	if out.Claim.Status != engine.StatusDegraded {
 		t.Errorf("recorded status = %q, want degraded", out.Claim.Status)
+	}
+}
+
+func TestServiceAdvisoryDenialStillRecordsRequestedClaim(t *testing.T) {
+	t.Setenv(engine.EnvEnforce, engine.EnforceAdvisory)
+	svc := testService(t, gpuSnapshot(16, 16), nil)
+	out, err := svc.Claim(context.Background(), ClaimRequest{
+		OwnerKind: engine.OwnerKindScenario, OwnerID: "research", InstanceID: "experiment-1",
+		ResourceKind: engine.ResourceKindVRAM, PreferredBytes: gib(4), FloorBytes: gib(4),
+		PriorityTier: "batch", Protected: true, YieldWhenIdle: true,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if out.Enforce != engine.EnforceAdvisory || out.Verdict.Kind != engine.VerdictDeny || out.Verdict.GrantedBytes != 0 {
+		t.Fatalf("expected advisory denial, got %+v", out)
+	}
+	if out.Claim.Status != engine.StatusReserved || out.Claim.AmountBytes != gib(4) || out.Claim.InstanceID != "experiment-1" || !out.Claim.Protected || !out.Claim.YieldWhenIdle {
+		t.Fatalf("advisory claim lost requested reservation or identity: %+v", out.Claim)
 	}
 }
 
@@ -489,5 +513,59 @@ func TestDefaultVRAMClaimNativeJSONSupportsExactCompanionSelection(t *testing.T)
 	one := 1
 	if got := viewClaim(engine.CapacityClaim{ResourceKind: "vram", GPUIndex: &one}, engine.DefaultPolicy(), time.Now()); got.GPUIndex == nil || *got.GPUIndex != 1 {
 		t.Fatalf("explicit device changed: %+v", got)
+	}
+}
+
+func TestServiceClaimUsesFreshMemoryPSI(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		psi  hostpressure.Reading
+		free uint64
+		want string
+	}{
+		{"occupied swap with zero PSI", hostpressure.NewRead(0, "fixture"), 20, engine.VerdictGrant},
+		{"active pressure with low swap", hostpressure.NewRead(99, "fixture"), 90, engine.VerdictDeny},
+		{"unread PSI retains fallback", hostpressure.NewUnread("fixture", "unavailable"), 20, engine.VerdictDeny},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			svc := testService(t, hostinventory.Snapshot{Memory: hostinventory.Memory{TotalBytes: 100, AvailableBytes: 90}, Swap: hostinventory.Swap{TotalBytes: 100, FreeBytes: tc.free}}, nil)
+			svc.MemoryPressure = func() hostpressure.Reading { return tc.psi }
+			got, err := svc.Claim(context.Background(), ClaimRequest{OwnerKind: engine.OwnerKindOp, OwnerID: "pressure-regression", ResourceKind: engine.ResourceKindRAM, PreferredBytes: 10, FloorBytes: 10, NoReclaim: true})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if got.Verdict.Kind != tc.want {
+				t.Fatalf("verdict=%+v, want %s", got.Verdict, tc.want)
+			}
+		})
+	}
+}
+
+func TestServiceClaimFailsVisibleWithInvalidPressureSetpoint(t *testing.T) {
+	p := filepath.Join(t.TempDir(), "invalid-setpoint.json")
+	if err := os.WriteFile(p, []byte(`{"bad":true}`), 0600); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv(setpoint.PathEnv, p)
+	svc := testService(t, hostinventory.Snapshot{Memory: hostinventory.Memory{TotalBytes: 100, AvailableBytes: 90}}, nil)
+	svc.MemoryPressure = func() hostpressure.Reading { return hostpressure.NewRead(0, "fixture") }
+	got, err := svc.Claim(context.Background(), ClaimRequest{OwnerKind: engine.OwnerKindOp, OwnerID: "invalid-pressure-regression", ResourceKind: engine.ResourceKindRAM, PreferredBytes: 10, FloorBytes: 10, NoReclaim: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Verdict.Kind != engine.VerdictDeny || !strings.Contains(got.Verdict.Reason, "threshold unavailable") {
+		t.Fatalf("verdict=%+v", got.Verdict)
+	}
+}
+
+func TestServiceClaimUnknownSensingDoesNotGrant(t *testing.T) {
+	svc := testService(t, gpuSnapshot(16, 0), nil)
+	svc.Source = engine.StaticSource{Err: fmt.Errorf("sensor unavailable")}
+	out, err := svc.Claim(context.Background(), ClaimRequest{OwnerKind: engine.OwnerKindOp, OwnerID: "bounded-research", ResourceKind: engine.ResourceKindVRAM, PreferredBytes: gib(4), FloorBytes: gib(4), NoReclaim: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if out.Verdict.Kind != engine.VerdictDeny || out.Claim.Status != engine.StatusReserved {
+		t.Fatalf("unknown sensing became grant: %+v", out)
 	}
 }

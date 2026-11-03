@@ -117,6 +117,11 @@ func extractLocalSessionToken(req *http.Request) string {
 	if req == nil {
 		return ""
 	}
+	// Local desktop identity is independent of an account bearer credential.
+	// The renderer may need both when a local API proxies an account request.
+	if value := strings.TrimSpace(req.Header.Get("X-Vrooli-Local-Session")); value != "" {
+		return value
+	}
 	value := strings.TrimSpace(req.Header.Get("Authorization"))
 	if value == "" {
 		return ""

@@ -99,6 +99,13 @@ func WriteDeployReport(w io.Writer, report lifecycle.DeployReport) error {
 		// mid-restart scenario may not be running; each artifact says so.
 		b.WriteString("no changes since the recorded builds\n")
 	}
+	if report.CandidateSource != "" || report.ServingSource != "" || report.SourceRole != "" {
+		fmt.Fprintf(&b, "  Candidate source: %s\n", report.CandidateSource)
+		fmt.Fprintf(&b, "  Serving source: %s (%s)\n", report.ServingSource, report.SourceRole)
+		if report.Engagement != "" || report.CaptureID != "" || report.Generation != "" || report.ProtoArtifactID != "" {
+			fmt.Fprintf(&b, "  Serving provenance: engagement=%q capture=%q generation=%q proto_artifact=%q\n", report.Engagement, report.CaptureID, report.Generation, report.ProtoArtifactID)
+		}
+	}
 	for _, art := range report.Artifacts {
 		fmt.Fprintf(&b, "\n%s [%s] %s\n", art.Component, art.CheckType, art.Target)
 		if art.Baseline != "recorded" {

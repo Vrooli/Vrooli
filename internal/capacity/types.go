@@ -112,14 +112,10 @@ var DefaultObservedPeakHalflife = tuning.CapacityObservedPeakHalflife()
 // (§Phase 4). A recommendation is never below observed_peak * (1 + pct/100).
 const DefaultRecommendHeadroomPct = 20
 
-// DefaultSwapPressureThreshold is the fraction of swap in use at which the host
-// is considered to be under memory pressure, expressed as a percent.
-//
-// Swap usage is the lagging signal the RAM figures miss: once pages are on
-// disk, AvailableBytes can look healthy while the machine thrashes, and
-// admitting more memory-hungry work then makes the situation worse rather than
-// better. 50% is deliberately not aggressive — a host that has touched swap at
-// all is not necessarily in trouble, but one running on half of it is.
+// DefaultSwapPressureThreshold is the conservative swap-occupancy fallback
+// percent used only when fresh memory PSI is unavailable. Occupancy alone is
+// not proof of current paging; production adapters apply MemoryPressurePolicy
+// before pure Decide. The legacy threshold remains unchanged.
 const DefaultSwapPressureThreshold = 50
 
 // DefaultTerminalRetention is how long a terminal (released/expired/preempted)
@@ -348,12 +344,45 @@ type CapacityRequest struct {
 	PreferredBytes int64
 	FloorBytes     int64
 	Priority       int
-	Protected      bool
-	YieldWhenIdle  bool
-	IdleUnloadTTL  time.Duration
-	IdleGrace      time.Duration
-	Profile        *DegradeProfile
-	TTL            time.Duration
+	// NoReclaim restricts this admission to already-free capacity. It does not
+	// change priority or the resulting claim's idle-yield policy.
+	NoReclaim     bool
+	Protected     bool
+	YieldWhenIdle bool
+	IdleUnloadTTL time.Duration
+	IdleGrace     time.Duration
+	Profile       *DegradeProfile
+	TTL           time.Duration
+}
+
+// Claim constructs a claim at the recommended grant or, on a non-grant verdict,
+// as a reserved preferred amount. A recorded claim
+// is accounting, not proof that the recommendation permits execution.
+func (r CapacityRequest) Claim(v Verdict) CapacityClaim {
+	amount, status := r.PreferredBytes, StatusReserved
+	if v.Granted() {
+		amount, status = v.GrantedBytes, StatusGranted
+		if v.Kind == VerdictDegrade {
+			status = StatusDegraded
+		}
+	}
+	return CapacityClaim{
+		OwnerKind:      r.OwnerKind,
+		OwnerID:        r.OwnerID,
+		InstanceID:     r.InstanceID,
+		ResourceKind:   r.ResourceKind,
+		GPUIndex:       r.GPUIndex,
+		AmountBytes:    amount,
+		PreferredBytes: r.PreferredBytes,
+		FloorBytes:     r.FloorBytes,
+		Priority:       r.Priority,
+		Protected:      r.Protected,
+		YieldWhenIdle:  r.YieldWhenIdle,
+		IdleUnloadTTL:  r.IdleUnloadTTL,
+		IdleGrace:      r.IdleGrace,
+		Status:         status,
+		DegradeProfile: r.Profile,
+	}
 }
 
 // Verdict is the output of Decide (plan §8.5). It carries no enforcement side

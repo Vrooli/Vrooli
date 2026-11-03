@@ -3,26 +3,33 @@ package resourcehandlers
 import (
 	"context"
 	"path/filepath"
+	"sort"
 	"strings"
 	"time"
 
 	"github.com/vrooli/vrooli/internal/tuning"
 
+	"github.com/vrooli/cli-core/agentcatalog/harness"
 	"github.com/vrooli/cli-core/upstreamcheck"
 	"github.com/vrooli/vrooli/internal/cli/resourcecli"
 	"github.com/vrooli/vrooli/internal/resources"
 )
 
-// codingAgentUpstreamEntries is the SSOT list of coding-agent resources the
-// aggregate upstream-check spans. Each runs the resource CLI's own
-// `upstream-check --json`, so per-resource source/pin config stays owned by
-// the resource (resources/<name>/cli/main.go), never duplicated here.
-var codingAgentUpstreamEntries = []upstreamcheck.AggregateEntry{
-	{Name: "claude-code", CheckCmd: []string{"resource-claude-code", "upstream-check", "--json"}},
-	{Name: "codex", CheckCmd: []string{"resource-codex", "upstream-check", "--json"}},
-	{Name: "opencode", CheckCmd: []string{"resource-opencode", "upstream-check", "--json"}},
-	{Name: "grok", CheckCmd: []string{"resource-grok", "upstream-check", "--json"}},
-	{Name: "antigravity", CheckCmd: []string{"resource-antigravity", "upstream-check", "--json"}},
+// codingAgentUpstreamEntries lists the coding-agent resources the aggregate
+// upstream-check spans, one per declared harness, by resource name. Each runs the
+// resource CLI's own `upstream-check --json`, so per-resource source/pin config
+// stays owned by the resource (resources/<name>/cli/main.go).
+var codingAgentUpstreamEntries = declaredUpstreamEntries()
+
+func declaredUpstreamEntries() []upstreamcheck.AggregateEntry {
+	var entries []upstreamcheck.AggregateEntry
+	for _, descriptor := range harness.Builtin().All() {
+		entries = append(entries, upstreamcheck.AggregateEntry{
+			Name: descriptor.Resource, CheckCmd: []string{"resource-" + descriptor.Resource, "upstream-check", "--json"},
+		})
+	}
+	sort.Slice(entries, func(i, j int) bool { return entries[i].Name < entries[j].Name })
+	return entries
 }
 
 func knownCodingAgentResourceNames() string {

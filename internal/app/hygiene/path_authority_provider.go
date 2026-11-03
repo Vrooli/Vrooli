@@ -24,13 +24,16 @@ func (p pathAuthorityProvider) Run(_ context.Context, _ Request, report *Report)
 		base := filepath.Join(p.root, "scenarios", scenario)
 		err := filepath.WalkDir(base, func(path string, entry os.DirEntry, walkErr error) error {
 			if walkErr != nil {
-				return walkErr
+				return skipUnreadable(walkErr, entry)
 			}
 			if entry.IsDir() || filepath.Ext(path) != ".go" || strings.HasSuffix(path, "_test.go") {
 				return nil
 			}
 			data, err := os.ReadFile(path)
 			if err != nil {
+				if isUnreadable(err) {
+					return nil
+				}
 				return err
 			}
 			for lineNumber, line := range strings.Split(string(data), "\n") {

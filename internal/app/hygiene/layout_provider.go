@@ -144,7 +144,7 @@ func findUndocumentedInternalPackages(root string) ([]string, error) {
 	fset := token.NewFileSet()
 	err := filepath.WalkDir(internalRoot, func(path string, entry os.DirEntry, walkErr error) error {
 		if walkErr != nil {
-			return walkErr
+			return skipUnreadable(walkErr, entry)
 		}
 		if entry.IsDir() {
 			if path != internalRoot && (entry.Name() == "vendor" || entry.Name() == "testdata" || strings.HasPrefix(entry.Name(), ".")) {
@@ -268,20 +268,25 @@ func findEmptyDirectories(root string, relativeRoots []string) ([]string, error)
 		}
 		absoluteRoot := filepath.Join(root, relativeRoot)
 		if _, err := os.Stat(absoluteRoot); err != nil {
-			if os.IsNotExist(err) {
+			if os.IsNotExist(err) || isUnreadable(err) {
 				continue
 			}
 			return nil, err
 		}
 		err := filepath.WalkDir(absoluteRoot, func(path string, entry os.DirEntry, walkErr error) error {
 			if walkErr != nil {
-				return walkErr
+				return skipUnreadable(walkErr, entry)
 			}
 			if !entry.IsDir() || path == absoluteRoot {
 				return nil
 			}
 			children, readErr := os.ReadDir(path)
 			if readErr != nil {
+				// An unreadable directory is not an empty one; skip its subtree
+				// rather than mislabel it for removal or abort the run.
+				if isUnreadable(readErr) {
+					return filepath.SkipDir
+				}
 				return readErr
 			}
 			if len(children) == 0 {

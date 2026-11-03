@@ -38,7 +38,7 @@ func WriteUpstreamCheck(w io.Writer, format cliout.Format, agg upstreamcheck.Agg
 			}
 		}
 		if len(agg.Behind) > 0 {
-			fmt.Fprintf(w, "\nbehind: %v — run `vrooli resource install <name>` (or the resource's `update`) to catch up\n", agg.Behind)
+			fmt.Fprintf(w, "\nbehind upstream: %v — check the resource's pinned version and update instructions\n", agg.Behind)
 		}
 		if len(agg.Unknown) > 0 {
 			fmt.Fprintf(w, "unknown: %v — could not resolve installed/latest version\n", agg.Unknown)

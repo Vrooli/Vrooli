@@ -336,9 +336,10 @@
 //	Deny(reason) — cannot satisfy even the floor
 //
 // Advisory mode (VROOLI_CAPACITY_ENFORCE=advisory, the V1 default — see the
-// admission-default note below) records the claim, logs the verdict, and ALWAYS
-// lets the caller proceed (the caller chooses its own fallback). Enforced mode
-// (`on`) honors the verdict and runs the actuator. Decide is a PURE function: no
+// admission-default note below) records accounting and logs the verdict; callers
+// choose their fallback. Explicit required admission refuses non-grants. Mode `on`
+// enables reclaim actuation; admission entry points still record claims, and
+// callers own whether a non-grant verdict blocks execution. Decide is PURE: no
 // enforcement side effects, no nvidia-smi/docker calls (capacity is read through
 // the injected CapacitySource seam).
 //
@@ -375,14 +376,14 @@
 // # Admission default — RATIFIED: advisory (completion plan §8.1)
 //
 // DefaultPolicy() returns EnforceAdvisory: a started resource's claim is recorded
-// and the verdict logged/warned, but the start is NEVER blocked. This is a
+// and the verdict logged/warned; ordinary starts are not blocked. This is a
 // DELIBERATE divergence from the original plan
 // (capacity-broker-internal-capacity-arbitration-system-monitor-ux), which
 // specified `off` as the default. Advisory was chosen so the ledger is populated
 // and observability works out-of-the-box at zero start-path risk.
 // VROOLI_CAPACITY_ENFORCE=off remains the byte-identical escape hatch
 // (parity-tested in admission_test.go): with it the admission hook is a complete
-// no-op and the resource start path is identical to legacy. `on` additionally
+// no-op for ordinary starts. It cannot waive an explicit required admission. `on` additionally
 // enables actuation (§8.8). The divergence is recorded here and in the original
 // plan's note.
 package capacity
@@ -404,3 +405,19 @@ package capacity
 // within DefaultHeartbeatTTL, and at/after its creation/update/heartbeat/active
 // boundary. Unknown, stale or pre-liveness absence defers; operation TTL remains
 // independent. Sensing callers evaluate their clock after Snapshot completes.
+
+//
+// # Required resource admission
+//
+// `vrooli resource start <name> --no-reclaim` derives its request from the
+// resource manifest and requires a fresh grant before invoking the driver.
+// Disabled policy, absent declarations, unread sensing and ledger errors do not
+// authorize that explicit startup. Ordinary starts retain advisory behavior.
+// NoReclaim is admission policy, not a persisted claim or idle-yield property.
+//
+// CLI and lifecycle use the same EvaluateAdmission boundary for fresh sensing,
+// safe resident sweeping, memory-pressure policy and exact-cohort actuation.
+// Denied/queued advisory requests record reserved accounting rather than granted
+// status. Renewal compares canonical GPU identities, reports the recorded amount
+// and must successfully renew the exact lease. Manifest refresh records its
+// replacement before releasing prior accounting. No schema migration is needed.

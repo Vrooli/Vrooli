@@ -21,6 +21,7 @@ package agentscope
 import (
 	"strings"
 
+	"github.com/vrooli/cli-core/agentcatalog/harness"
 	platformgo "github.com/vrooli/platform-go"
 )
 
@@ -35,12 +36,14 @@ const (
 // Binaries are the coding-agent programs a live session runs, by the
 // kernel's own name for the program. The launcher's codingAgentSpec mints
 // scopes for exactly these.
-var Binaries = map[string]bool{
-	"claude":   true,
-	"codex":    true,
-	"grok":     true,
-	"opencode": true,
-	"agy":      true,
+var Binaries = declaredBinaries()
+
+func declaredBinaries() map[string]bool {
+	binaries := map[string]bool{}
+	for _, descriptor := range harness.Builtin().All() {
+		binaries[strings.ToLower(descriptor.Binary)] = true
+	}
+	return binaries
 }
 
 // Entry is one session scope and what it holds.

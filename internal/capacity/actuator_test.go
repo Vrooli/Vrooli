@@ -111,6 +111,45 @@ func TestActuateDegradesIdleLowerPriorityHolder(t *testing.T) {
 	}
 }
 
+func TestAdmitReclaimRequiresEnoughSuccessfullyFreedCapacity(t *testing.T) {
+	for _, tc := range []struct {
+		name      string
+		bytes     int64
+		fail      bool
+		enforce   string
+		wantGrant bool
+	}{
+		{"successful", 4 << 30, false, EnforceOn, true},
+		{"callback-failed", 4 << 30, true, EnforceOn, false},
+		{"partial-reclaim", 7 << 30, false, EnforceOn, false},
+		{"advisory-does-not-actuate", 4 << 30, true, EnforceAdvisory, true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			ctx := context.Background()
+			clk := testenv.NewClock(time.Date(2026, 10, 22, 12, 0, 0, 0, time.UTC))
+			store := testenv.NewSQLiteStore(t, "capacity.db", func(path string) (*SQLiteStore, error) {
+				return NewSQLiteStore(ctx, Config{DBPath: path, Clock: clk})
+			})
+			holder := idleLadderClaim(t, store, "scene-holder", PriorityBatch)
+			clk.Advance(2 * DefaultIdleGrace)
+			exec := newFakeExecutor()
+			exec.failOn[holder.OwnerID] = tc.fail
+			v := AdmitReclaim(ctx, store, PriorityInteractive,
+				Verdict{Kind: VerdictGrant, GrantedBytes: 8 << 30, Step: "gpu", ReclaimBytes: tc.bytes, ReclaimTargets: []string{holder.ClaimID}},
+				[]CapacityClaim{mustGet(t, store, holder.ClaimID)}, exec, DefaultPolicy(), tc.enforce, clk.Now())
+			if v.Granted() != tc.wantGrant {
+				t.Fatalf("unsafe admission verdict: %+v", v)
+			}
+			if !tc.wantGrant && (v.GrantedBytes != 0 || v.Step != "" || v.Reason == "") {
+				t.Fatalf("refusal still advertises executable capacity: %+v", v)
+			}
+			if tc.enforce != EnforceOn && len(exec.calls) != 0 {
+				t.Fatalf("advisory changed another owner: %v", exec.calls)
+			}
+		})
+	}
+}
+
 // Protected and active claims are NEVER eligible — the planner excludes them, so
 // the actuator never produces an action against them and never mutates them.
 func TestActuateNeverTouchesProtectedOrActive(t *testing.T) {

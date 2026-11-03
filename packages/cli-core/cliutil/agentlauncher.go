@@ -107,6 +107,9 @@ type AgentLaunchRequest struct {
 	Environment           []string
 	APIBase               string
 	WorkingDir            string
+	// ModelSource is an explicit per-session provider selection. It never
+	// changes the account's saved harness configuration.
+	ModelSource *ModelSource
 	// Claims are advisory paths this session says it will edit; a live
 	// session holding an overlapping claim is named at launch and the
 	// launch continues (D8: advisory in this release).
@@ -326,7 +329,21 @@ func launchNativeSession(ctx context.Context, request AgentLaunchRequest, comman
 	// An active usage mode lowers what this new session runs on. Fail open:
 	// no mode, or any problem reading it, leaves args and environment as-is.
 	if command == "" {
-		request.Args, environment = ApplyUsageMode(request.Agent, request.Args, environment)
+		source := request.ModelSource
+		if source == nil {
+			source, err = modelSourceFromEnvironment(environment)
+			if err != nil {
+				return LaunchResult{}, &AgentLaunchError{Agent: request.Agent, Err: err}
+			}
+		}
+		if source != nil && source.Kind != "subscription" {
+			request.Args, environment, err = ResolveModelSource(request.Agent, *source, request.Args, environment)
+			if err != nil {
+				return LaunchResult{}, &AgentLaunchError{Agent: request.Agent, Err: err}
+			}
+		} else {
+			request.Args, environment = ApplyUsageMode(request.Agent, request.Args, environment)
+		}
 	}
 
 	// A later launcher stage inherits the session the first one opened. It

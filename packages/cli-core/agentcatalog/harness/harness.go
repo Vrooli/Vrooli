@@ -85,19 +85,37 @@ type Features struct {
 	Hooks               bool            `json:"hooks,omitempty"`
 }
 
+// NativeArtifact names an upstream optional package and its executable. The
+// registry supplies the exact version and archive integrity; no install scripts run.
+type NativeArtifact struct {
+	Dependency  string `json:"dependency"`
+	Executable  string `json:"executable"`
+	Compression string `json:"compression,omitempty"`
+}
+
+// SignInProbe describes a read-only native status command. Output is consumed
+// locally and reduced to a state; credentials and account text are never returned.
+type SignInProbe struct {
+	Args             []string `json:"args"`
+	SignedInPrefixes []string `json:"signed_in_prefixes"`
+	SignedOutLines   []string `json:"signed_out_lines"`
+}
+
 // Descriptor is one harness. Resource comes from the manifest's name, which is
 // also the runner name; ID is the launcher agent ID.
 type Descriptor struct {
-	Resource      string        `json:"resource"`
-	ID            string        `json:"id"`
-	Aliases       []string      `json:"aliases,omitempty"`
-	Binary        string        `json:"binary"`
-	DisplayName   string        `json:"display_name"`
-	Icon          string        `json:"icon"`
-	SessionEnv    []string      `json:"session_env,omitempty"`
-	HomeIsolation HomeIsolation `json:"home_isolation"`
-	UsageWindows  []UsageWindow `json:"usage_windows,omitempty"`
-	Features      Features      `json:"features"`
+	SignInProbe     *SignInProbe              `json:"sign_in_probe,omitempty"`
+	NativeArtifacts map[string]NativeArtifact `json:"native_artifacts,omitempty"`
+	Resource        string                    `json:"resource"`
+	ID              string                    `json:"id"`
+	Aliases         []string                  `json:"aliases,omitempty"`
+	Binary          string                    `json:"binary"`
+	DisplayName     string                    `json:"display_name"`
+	Icon            string                    `json:"icon"`
+	SessionEnv      []string                  `json:"session_env,omitempty"`
+	HomeIsolation   HomeIsolation             `json:"home_isolation"`
+	UsageWindows    []UsageWindow             `json:"usage_windows,omitempty"`
+	Features        Features                  `json:"features"`
 }
 
 // Set is an immutable collection of descriptors sorted by ID.
@@ -159,6 +177,16 @@ var (
 
 func validate(d Descriptor) error {
 	var errs []error
+	if probe := d.SignInProbe; probe != nil {
+		if len(probe.Args) == 0 || len(probe.SignedInPrefixes) == 0 || len(probe.SignedOutLines) == 0 {
+			errs = append(errs, errors.New("sign_in_probe requires arguments and both state matchers"))
+		}
+		for _, value := range append(append(append([]string{}, probe.Args...), probe.SignedInPrefixes...), probe.SignedOutLines...) {
+			if strings.TrimSpace(value) == "" || strings.ContainsAny(value, "\x00\r\n") {
+				errs = append(errs, errors.New("sign_in_probe values must be nonempty single lines"))
+			}
+		}
+	}
 	for field, value := range map[string]string{"resource": d.Resource, "id": d.ID, "binary": d.Binary} {
 		if !bareName.MatchString(value) {
 			errs = append(errs, fmt.Errorf("%s %q must be a bare lowercase name", field, value))
@@ -207,6 +235,12 @@ func validate(d Descriptor) error {
 		}
 	default:
 		errs = append(errs, fmt.Errorf("home_isolation kind %q must be none or env", home.Kind))
+	}
+	for platform, artifact := range d.NativeArtifacts {
+		clean := filepath.ToSlash(filepath.Clean(artifact.Executable))
+		if !regexp.MustCompile(`^(linux|darwin|windows)_(amd64|arm64)$`).MatchString(platform) || !regexp.MustCompile(`^(?:@[a-z0-9][a-z0-9._-]*/)?[a-z0-9][a-z0-9._-]*$`).MatchString(artifact.Dependency) || artifact.Executable == "" || clean != artifact.Executable || strings.HasPrefix(clean, "../") || filepath.IsAbs(clean) || (artifact.Compression != "" && artifact.Compression != "brotli") {
+			errs = append(errs, fmt.Errorf("invalid native artifact for %s", platform))
+		}
 	}
 	return errors.Join(errs...)
 }

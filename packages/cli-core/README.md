@@ -106,6 +106,22 @@ separator. A launcher must return a context error when no usable directory can
 be established; silently inheriting an invalid directory or falling back to a
 temporary directory can make project-owned capabilities appear unavailable.
 
+## Coding model sources and backup
+
+`cliutil.ResolveModelSource` applies an explicit subscription, own-key, local,
+or Vrooli-credit source to native OpenCode/Codex arguments and process
+configuration. Subscription leaves saved configuration unchanged. Credentials
+are referenced by an environment variable and never embedded in arguments.
+`vrooli-agent-launcher --model-source <json-file>` consumes the same record;
+managed launchers use `VROOLI_MODEL_SOURCE` or `ResolveModelSourceEnvironment`.
+
+`CodingBackupDecision` requires a fresh explicit provider limit or quota reading
+and owner consent naming the harness, account, model, cap and expiry. Live
+terminals always require restart confirmation. `CodingBackupRecord` stays in
+credential authority; `IssueCodingBackupSession` sends its private parent key
+only to LPBS and gives the native child a bounded session key. All child keys
+share the parent's aggregate cap. Synthetic limit fixtures are labeled as such.
+
 ## Quickstart (install a resource CLI)
 ```bash
 # From a source checkout, use the Go-native resource control plane. It reads

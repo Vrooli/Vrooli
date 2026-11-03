@@ -43,15 +43,14 @@ func Decide(req CapacityRequest, snapshot hostinventory.Snapshot, ledger []Capac
 		return Verdict{Kind: VerdictDeny, Reason: resolveWarn}
 	}
 
-	// A host that is swapping heavily has already run out of memory; granting
-	// more memory-hungry work makes it worse rather than better. AvailableBytes
-	// alone cannot see this — once pages are on disk it can look healthy while
-	// the machine thrashes.
+	// This legacy occupancy gate is conservative fallback evidence when fresh
+	// memory PSI is unavailable. Production adapters first apply MemoryPressurePolicy;
+	// measured clear PSI suppresses only this gate, not RAM/ledger fit checks.
 	if req.ResourceKind == ResourceKindRAM && SwapPressure(snapshot, policy.SwapPressureThresholdPct) {
 		return Verdict{
 			Kind: VerdictDeny,
 			Reason: fmt.Sprintf("host is under swap pressure (at or above %d%% of swap in use); "+
-				"admitting more memory would deepen the thrashing", policy.SwapPressureThresholdPct),
+				"current memory PSI is unavailable; admission conservatively refuses more RAM", policy.SwapPressureThresholdPct),
 		}
 	}
 
@@ -79,7 +78,7 @@ func Decide(req CapacityRequest, snapshot hostinventory.Snapshot, ledger []Capac
 		if !IsActiveClaimStatus(c.Status) || c.ResourceKind != req.ResourceKind || (req.ResourceKind == ResourceKindVRAM && !sameGPU(req.GPUIndex, c.GPUIndex)) {
 			continue
 		}
-		if potentialReclaimEligibleFor(c, req.Priority, policy) {
+		if !req.NoReclaim && potentialReclaimEligibleFor(c, req.Priority, policy) {
 			potentialBytes += c.AmountBytes
 			if isReclaimEligible(c, effectiveIdleGrace(c, policy), now) {
 				reclaimNowBytes += c.AmountBytes
@@ -241,12 +240,9 @@ func observedCPUMillis(snapshot hostinventory.Snapshot) (int64, string) {
 	return used, ""
 }
 
-// SwapPressure reports whether the host is swapping heavily enough that
-// admitting more memory-hungry work would make things worse rather than better.
-//
-// Swap usage is a lagging signal of memory exhaustion that the RAM figures miss:
-// once pages are on disk, AvailableBytes can look healthy while the machine
-// thrashes. The snapshot has carried Swap all along without anything reading it.
+// SwapPressure reports the conservative legacy occupancy fallback. It does not
+// establish current paging or thrashing: cold pages can stay swapped out after
+// pressure subsides. MemoryPressurePolicy selects fresh measured PSI first.
 //
 // A host with no swap configured is not under swap pressure, which is why the
 // zero-total case returns false rather than dividing by zero.

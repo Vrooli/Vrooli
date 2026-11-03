@@ -193,8 +193,7 @@ func buildScenarioReadHandlers[C any](deps rootcli.HandlerDeps[C]) map[CommandID
 				if node, remoteScenario, remote := remoteScenarioAddress(req.Name); remote {
 					payload, callErr := callRemoteScenario(deps, ctx, node, remoteScenario, "scenario status", nil, req.JSON)
 					if callErr != nil {
-						emitLifecycleFailure(deps, ctx, "status", []string{req.Name}, callErr)
-						return StatusResponse{}, silentLifecycleError{inner: callErr}
+						return StatusResponse{}, lifecycleFailureError(deps, ctx, "status", []string{req.Name}, callErr)
 					}
 					return StatusResponse{Raw: payload}, callErr
 				}
@@ -284,13 +283,11 @@ func scenarioWaitHandler[C any](deps rootcli.HandlerDeps[C]) rootcli.Handler[C] 
 				}
 				payload, callErr := callRemoteScenario(deps, ctx, node, remoteScenario, "scenario wait", args, true)
 				if callErr != nil {
-					emitLifecycleFailure(deps, ctx, "wait", []string{req.Name}, callErr)
-					return WaitResponse{}, silentLifecycleError{inner: callErr}
+					return WaitResponse{}, lifecycleFailureError(deps, ctx, "wait", []string{req.Name}, callErr)
 				}
 				resp, decodeErr := decodeRemoteWait(payload)
 				if decodeErr != nil {
-					emitLifecycleFailure(deps, ctx, "wait", []string{req.Name}, decodeErr)
-					return WaitResponse{}, silentLifecycleError{inner: decodeErr}
+					return WaitResponse{}, lifecycleFailureError(deps, ctx, "wait", []string{req.Name}, decodeErr)
 				}
 				return resp, nil
 			}
@@ -646,13 +643,11 @@ func buildScenarioUtilityHandlers[C any](deps rootcli.HandlerDeps[C]) map[Comman
 					}
 					payload, callErr := callRemoteScenario(deps, ctx, node, remoteScenario, "scenario port", args, true)
 					if callErr != nil {
-						emitLifecycleFailure(deps, ctx, "query port", []string{req.ScenarioName}, callErr)
-						return PortResponse{}, silentLifecycleError{inner: callErr}
+						return PortResponse{}, lifecycleFailureError(deps, ctx, "query port", []string{req.ScenarioName}, callErr)
 					}
 					resp, decodeErr := decodeRemotePort(payload, req.PortName)
 					if decodeErr != nil {
-						emitLifecycleFailure(deps, ctx, "query port", []string{req.ScenarioName}, decodeErr)
-						return PortResponse{}, silentLifecycleError{inner: decodeErr}
+						return PortResponse{}, lifecycleFailureError(deps, ctx, "query port", []string{req.ScenarioName}, decodeErr)
 					}
 					return resp, nil
 				}

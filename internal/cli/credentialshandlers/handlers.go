@@ -64,7 +64,7 @@ func RootHandler[C any](deps rootcli.HandlerDeps[C]) rootcli.Handler[C] {
 			}
 			app := &credentialsapp.Service{}
 			return credentialService{run: func(args []string) error {
-				if len(args) == 0 || manifestdispatch.WantsHelp(args) {
+				if len(args) == 0 || (len(args) == 1 && manifestdispatch.WantsHelp(args)) {
 					return writeCredentialsHelp(deps.Stdout(ctx))
 				}
 				groups, err := credentialGroups(app, commandCtx)
@@ -165,7 +165,16 @@ func breakGlassBindings(app *credentialsapp.Service, ctx *rootcli.CommandContext
 }
 
 func writeCredentialsHelp(out io.Writer) error {
-	_, err := io.WriteString(out, "Usage: vrooli credentials <doctor|list|delete|provision|status>\n  vrooli credentials doctor\n  vrooli credentials list\n  vrooli credentials extensions <install|uninstall|status>\n")
+	_, err := io.WriteString(out, "Usage: vrooli credentials <doctor|list|delete|provision|status|store|keyring|recovery|extensions>\n"+
+		"  vrooli credentials doctor\n"+
+		"  vrooli credentials list\n"+
+		"  vrooli credentials delete --identity <id> [--field <field>] --yes\n"+
+		"  vrooli credentials provision --identity <id> [--field <field>]\n"+
+		"  vrooli credentials status --identity <id> [--field <field>]\n"+
+		"  vrooli credentials store <status|init|unlock|lock|rewrap|change-passphrase|add-passphrase|verify-passphrase|copy|copy-configure|copy-scheduled>\n"+
+		"  vrooli credentials keyring <status|inspect|repair|unlock>\n"+
+		"  vrooli credentials recovery <export|verify|restore>\n"+
+		"  vrooli credentials extensions <install|uninstall|status>\n")
 	return err
 }
 

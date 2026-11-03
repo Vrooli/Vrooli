@@ -2,14 +2,17 @@ package scenariohandlers
 
 import (
 	"bytes"
+	"encoding/json"
 	"errors"
 	"io"
+	"log/slog"
 	"path/filepath"
 	"strings"
 	"testing"
 
 	"github.com/vrooli/vrooli/internal/cli/rootcli"
 	. "github.com/vrooli/vrooli/internal/cli/scenariocli" //nolint:revive
+	"github.com/vrooli/vrooli/internal/cli/topcli"
 	"github.com/vrooli/vrooli/internal/cliout"
 	"github.com/vrooli/vrooli/internal/lifecycle"
 	"github.com/vrooli/vrooli/internal/process"
@@ -205,6 +208,91 @@ func TestWithLifecycleFailureBlockWrapsErrorAsSilent(t *testing.T) {
 	}
 	if !strings.Contains(stderr.String(), "✗ Failed to start 'alpha'") {
 		t.Fatalf("failure block missing from stderr: %q", stderr.String())
+	}
+	if got := strings.Count(stderr.String(), "✗ Failed to start 'alpha'"); got != 1 {
+		t.Fatalf("failure block count = %d, want 1: %q", got, stderr.String())
+	}
+}
+
+func TestLifecycleFailureReachesCLIJSONBoundaryButHumanBlockStaysSingle(t *testing.T) {
+	wantErr := vroolierr.New("scenario_cli_refresh_failed", rootcli.ErrorCategoryRuntime, "scenario CLI refresh failed")
+	for _, asJSON := range []bool{false, true} {
+		mode := "human"
+		args := []string{"scenario"}
+		if asJSON {
+			mode = "json"
+			args = []string{"--json", "scenario"}
+		}
+		t.Run(mode, func(t *testing.T) {
+			home := t.TempDir()
+			deps := newFailureDeps(home)
+			deps.EnsureCLI = func(*failureCtx, string) error { return wantErr }
+			registry := rootcli.NewRegistry(
+				map[topcli.CommandID]rootcli.Handler[*failureCtx]{
+					topcli.CommandScenario: func(ctx *failureCtx, _ []string) error {
+						format := cliout.FormatHuman
+						if ctx.globals.JSON {
+							format = cliout.FormatJSON
+						}
+						call := withLifecycleFailureBlock(
+							deps,
+							"start",
+							func(req string) []string { return []string{req} },
+							func(runCtx *failureCtx, _ cliout.Format, _ string) ([]LifecycleItemOutput, error) {
+								if err := ensureScenarioCLIs(deps, runCtx, "alpha"); err != nil {
+									return nil, err
+								}
+								return nil, errors.New("scenario restart unexpectedly passed CLI preflight")
+							},
+						)
+						_, err := call(ctx, format, "alpha")
+						return err
+					},
+				},
+				nil,
+			)
+			runner := rootcli.NewRunner(rootcli.RunnerConfig[*failureCtx]{
+				Registry: registry,
+				NewLogger: func(rootcli.GlobalOptions, io.Writer) (*slog.Logger, func()) {
+					return slog.New(slog.NewTextHandler(io.Discard, nil)), func() {}
+				},
+				NewContext: func(globals rootcli.GlobalOptions, _ io.Writer, stderr io.Writer, _ *slog.Logger) *failureCtx {
+					return &failureCtx{stderr: stderr.(*bytes.Buffer), home: home, globals: globals}
+				},
+				ResolveRoot:  func() (string, error) { return "/resolved", nil },
+				ShowMainHelp: func(*failureCtx) {},
+				ShowVersion:  func(*failureCtx) error { return nil },
+			})
+
+			var stdout, stderr bytes.Buffer
+			if code := runner.Run(args, &stdout, &stderr); code != 1 {
+				t.Fatalf("exit code = %d, want 1; stdout=%q stderr=%q", code, stdout.String(), stderr.String())
+			}
+			if stdout.Len() != 0 {
+				t.Fatalf("failure unexpectedly wrote stdout: %q", stdout.String())
+			}
+			if asJSON {
+				var payload struct {
+					Success  bool   `json:"success"`
+					Error    string `json:"error"`
+					Code     string `json:"code"`
+					Category string `json:"category"`
+				}
+				if err := json.Unmarshal(stderr.Bytes(), &payload); err != nil {
+					t.Fatalf("JSON boundary error: %v; stderr=%q", err, stderr.String())
+				}
+				if payload.Success || payload.Code != "scenario_cli_refresh_failed" || payload.Category != rootcli.ErrorCategoryRuntime || payload.Error != wantErr.Error() {
+					t.Fatalf("JSON error payload = %+v", payload)
+				}
+				return
+			}
+			if got := strings.Count(stderr.String(), "✗ Failed to start 'alpha'"); got != 1 {
+				t.Fatalf("human failure block count = %d, want 1: %q", got, stderr.String())
+			}
+			if strings.Contains(stderr.String(), "scenario_cli_refresh_failed") {
+				t.Fatalf("human mode duplicated boundary error after failure block: %q", stderr.String())
+			}
+		})
 	}
 }
 

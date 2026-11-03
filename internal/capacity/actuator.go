@@ -41,6 +41,31 @@ type ActuationResult struct {
 	FreedBytes int64              `json:"freed_bytes"`
 }
 
+// AdmitReclaim realizes a reclaim-backed verdict before admission. Both resource
+// lifecycle and explicit CLI claims use this owner; a failed, skipped or partial
+// callback must never leave a GPU grant that relies on memory still in use.
+func AdmitReclaim(ctx context.Context, store ClaimRepository, priority int, verdict Verdict, ledger []CapacityClaim, exec ApplyExecutor, policy Policy, enforce string, now time.Time) Verdict {
+	if enforce != EnforceOn || !verdict.Granted() || verdict.ReclaimBytes <= 0 {
+		return verdict
+	}
+	_, result, err := EnforceReclaim(ctx, store, priority, verdict, ledger, exec, policy, enforce, now)
+	if err != nil {
+		verdict.Warnings = append(verdict.Warnings, "capacity actuation error: "+err.Error())
+	}
+	for _, outcome := range result.Outcomes {
+		if outcome.Err != "" {
+			verdict.Warnings = append(verdict.Warnings, fmt.Sprintf("degrade of %q failed: %s", outcome.OwnerID, outcome.Err))
+		}
+	}
+	if err != nil || result.FreedBytes < verdict.ReclaimBytes {
+		verdict.Kind = VerdictDeny
+		verdict.GrantedBytes = 0
+		verdict.Step = ""
+		verdict.Reason = fmt.Sprintf("reclaim did not establish required capacity: freed %d of %d bytes", result.FreedBytes, verdict.ReclaimBytes)
+	}
+	return verdict
+}
+
 // Actuate executes an escalation plan in enforce mode (§8.8). PlanEscalation
 // stays a pure planner; Actuate is the orchestration layer it always lacked. For
 // each action:

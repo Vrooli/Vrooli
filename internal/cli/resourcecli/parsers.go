@@ -234,3 +234,21 @@ func ParseSchemaSyncRequest(args []string) (NoArgsRequest, error) {
 	}
 	return NoArgsRequest{}, nil
 }
+
+// ControlRequest is scoped to one lifecycle command, never global operator state.
+type ControlRequest struct {
+	Name      string
+	NoReclaim bool
+}
+
+func ParseControlRequest(action string, args []string) (ControlRequest, error) {
+	id := CommandID(action)
+	parsed, err := commandtree.ParseArgs("resource "+action, CommandHelpText(id), commandSpec(id).Args, args)
+	if err != nil {
+		return ControlRequest{}, err
+	}
+	if len(parsed.Positionals) != 1 {
+		return ControlRequest{}, fmt.Errorf("resource %s requires exactly one resource name", action)
+	}
+	return ControlRequest{Name: parsed.Positionals[0], NoReclaim: parsed.HasFlag("--no-reclaim")}, nil
+}

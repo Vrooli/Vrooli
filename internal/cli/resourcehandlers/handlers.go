@@ -170,6 +170,8 @@ func buildResourceCommandTable[C any](deps rootcli.HandlerDeps[C]) []commandtree
 			resourcecli.WriteInfo,
 		),
 		resourcecli.CommandUpstreamCheck: resourceUpstreamCheckHandler(deps),
+		resourcecli.CommandUpdate:        resourceUpdateHandler(deps, resourcecli.ParseUpdateRequest),
+		resourcecli.CommandUpdateCheck:   resourceUpdateHandler(deps, resourcecli.ParseUpdateCheckRequest),
 		resourcecli.CommandDeprecate: rootcli.BindResourceCommand(deps.Stdout, deps.OutputFormat,
 			func(args []string) (resourcecli.NameRequest, error) { return parseResourceDeprecateRequest(args) },
 			func(ctx C, controller *resources.Controller, req resourcecli.NameRequest) (resources.DeprecationReport, error) {
@@ -540,6 +542,7 @@ func orUnknown(value string) string {
 
 func buildResourceAcquisitionCommandTable[C any](deps rootcli.HandlerDeps[C]) []commandtree.Spec[rootcli.ResourceHandler[C]] {
 	return []commandtree.Spec[rootcli.ResourceHandler[C]]{
+		{Name: string(resourcecli.AcquisitionCommandRuntimeProbe), Summary: "Qualify managed Python imports", Args: resourcecli.AcquisitionRuntimeProbeArgs(), Handler: resourceRuntimeProbeHandler(deps)},
 		{Name: string(resourcecli.AcquisitionCommandComposeCandidate), Summary: "Prepare an uninstalled composed candidate", Args: resourcecli.AcquisitionComposeCandidateArgs(), Handler: resourceComposeCandidateHandler(deps)},
 		{Name: string(resourcecli.AcquisitionCommandDataGroup), Summary: "Acquire one declared data group", Args: resourcecli.AcquisitionDataGroupArgs(), Handler: resourceDataGroupHandler(deps)},
 		{Name: string(resourcecli.AcquisitionCommandModelCache), Summary: "Preview or apply owner-fenced model-cache retention", Args: resourcecli.AcquisitionModelCacheArgs(), Handler: resourceModelCacheHandler(deps)},
@@ -570,6 +573,13 @@ func buildResourceAcquisitionCommandTable[C any](deps rootcli.HandlerDeps[C]) []
 				if manifest.ManagedService != nil && manifest.ManagedService.Acquisition != nil {
 					result.Acquisition = manifest.ManagedService.Acquisition
 					result.Resolution = manifest.ManagedService.Acquisition.Explain(facts)
+					selected, err := manifest.ManagedService.Acquisition.Resolve(facts)
+					if err == nil && len(selected.Compose) > 0 {
+						result.ComposeCache, err = resources.PreviewComposeCache(rootcli.ResolveOperationContext(deps, ctx), name, selected, filepath.Join(controller.Root, "resources", name))
+						if err != nil {
+							return err
+						}
+					}
 					if verdict, ok := controller.StagedArtifactClosure(manifest); ok {
 						result.Closure = &verdict
 					}
@@ -577,41 +587,7 @@ func buildResourceAcquisitionCommandTable[C any](deps rootcli.HandlerDeps[C]) []
 				return writeResourceAcquisitionExplanation(deps.Stdout(ctx), format, result)
 			}),
 		},
-		{
-			Name:    string(resourcecli.AcquisitionCommandPrune),
-			Summary: "Remove superseded managed-resource artifact versions",
-			Args:    commandtree.ArgSchema{Positionals: []commandtree.PositionalArg{{Name: "name"}}},
-			Handler: func(ctx C, controller *resources.Controller, args []string) error {
-				if len(args) > 1 {
-					return rootcli.UsageErrorf("resource acquisition prune", "resource acquisition prune accepts at most one resource name")
-				}
-				names := make([]string, 0, 1)
-				if len(args) == 1 && strings.TrimSpace(args[0]) != "" {
-					names = append(names, strings.TrimSpace(args[0]))
-				} else {
-					items, err := controller.Discover()
-					if err != nil {
-						return err
-					}
-					for _, item := range items {
-						manifest, err := controller.LoadManifest(filepath.Join(controller.Root, "resources", item.Name, "resource.json"))
-						if err == nil && manifest.ManagedService != nil && manifest.ManagedService.Acquisition != nil {
-							names = append(names, item.Name)
-						}
-					}
-				}
-				removed := 0
-				for _, name := range names {
-					count, err := controller.PruneManagedServiceArtifacts(name)
-					if err != nil {
-						return err
-					}
-					removed += count
-				}
-				_, err := fmt.Fprintf(deps.Stdout(ctx), "pruned %d superseded artifact version(s)\n", removed)
-				return err
-			},
-		},
+		{Name: string(resourcecli.AcquisitionCommandPrune), Summary: "Preview or apply managed-resource artifact version retention", Args: resourcecli.AcquisitionPruneArgs(), Handler: resourceArtifactPruneHandler(deps)},
 	}
 }
 
@@ -687,6 +663,9 @@ func writeResourceAcquisitionExplanation(w io.Writer, format cliout.Format, resu
 				selection = " [selected]"
 			}
 			_, _ = fmt.Fprintf(w, "- #%d when=%v: %s%s\n", candidate.Index, candidate.When, candidate.Reason, selection)
+		}
+		for _, part := range result.ComposeCache {
+			_, _ = fmt.Fprintf(w, "Compose part %s (%s): cache=%s; network bytes unknown on miss; use --offline to forbid acquisition\n", part.Role, part.Kind, part.CacheState)
 		}
 		if result.Closure != nil {
 			_, _ = fmt.Fprintf(w, "Runtime closure: %s\n", result.Closure.State)
@@ -765,26 +744,32 @@ func installResourceHandler[C any](deps rootcli.HandlerDeps[C]) rootcli.Resource
 
 func singleResourceControlHandler[C any](deps rootcli.HandlerDeps[C], action string) rootcli.ResourceHandler[C] {
 	return func(ctx C, controller *resources.Controller, args []string) error {
-		if len(args) != 1 {
-			return rootcli.UsageErrorf("resource "+action, "resource %s requires exactly one resource name", action)
+		req, err := resourcecli.ParseControlRequest(action, args)
+		if err != nil {
+			if commandtree.HandleHelp(deps.Stdout(ctx), err) {
+				return nil
+			}
+			return err
 		}
 		operationCtx := rootcli.ResolveOperationContext(deps, ctx)
 		if err := operationCtx.Err(); err != nil {
 			return err
 		}
-		if err := ensureNamedResourceCLI(deps, ctx, args[0]); err != nil {
+		if err := ensureNamedResourceCLI(deps, ctx, req.Name); err != nil {
 			return err
 		}
 		if err := operationCtx.Err(); err != nil {
 			return err
 		}
-		if err := enforceResourceHostRequirements(ctx, deps, controller, args[0], action); err != nil {
+		if err := enforceResourceHostRequirements(ctx, deps, controller, req.Name, action); err != nil {
 			return err
 		}
 		if err := operationCtx.Err(); err != nil {
 			return err
 		}
-		if err := controller.RunContext(operationCtx, args[0], []string{action}, deps.Stdout(ctx), deps.Stderr(ctx)); err != nil {
+		operation := *controller
+		operation.NoReclaim = operation.NoReclaim || req.NoReclaim
+		if err := operation.RunContext(operationCtx, req.Name, []string{action}, deps.Stdout(ctx), deps.Stderr(ctx)); err != nil {
 			return err
 		}
 		return nil

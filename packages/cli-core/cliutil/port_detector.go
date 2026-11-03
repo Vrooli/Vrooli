@@ -8,6 +8,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -179,6 +180,14 @@ func LookupScenarioPort(ctx context.Context, target, portVar string, policy Port
 		}
 	}
 
+	if os.Getenv("VROOLI_DESKTOP_MODE") == "true" {
+		outcome := lookupDesktopPort(ctx, target, portVar)
+		if ctx.Err() == nil {
+			entry.outcome, entry.resolved = outcome, portCacheNow()
+		}
+		return outcome
+	}
+
 	outcome := peerRecordLookupFn(target, portVar)
 	portCacheMu.Lock()
 	portLookupStats.Evaluations++
@@ -336,6 +345,8 @@ func lookupPeerRecord(target, portVar string) ScenarioPortOutcome {
 		SchemaVersion int            `json:"schema_version"`
 		Scenario      string         `json:"scenario"`
 		Instance      string         `json:"instance"`
+		Version       string         `json:"version"`
+		Provides      []string       `json:"provides"`
 		OwnerPID      int            `json:"owner_pid"`
 		Ports         map[string]int `json:"ports"`
 	}
@@ -348,6 +359,9 @@ func lookupPeerRecord(target, portVar string) ScenarioPortOutcome {
 	}
 	port, ok := record.Ports[normalizePortClaimKey(portVar)]
 	if !ok || port <= 0 {
+		return ScenarioPortOutcome{Err: os.ErrNotExist}
+	}
+	if record.Provides != nil && !slices.Contains(record.Provides, normalizePortClaimKey(portVar)) {
 		return ScenarioPortOutcome{Err: os.ErrNotExist}
 	}
 	return ScenarioPortOutcome{Port: strconv.Itoa(port)}

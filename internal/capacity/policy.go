@@ -33,7 +33,8 @@ const (
 	// and ALWAYS lets the caller proceed (caller chooses its own fallback). This
 	// is the V1 default.
 	EnforceAdvisory = "advisory"
-	// EnforceOn honors the verdict (block/degrade/queue). Gated; opt-in.
+	// EnforceOn enables reclaim actuation. Admission callers own whether a
+	// non-grant verdict blocks execution. Gated; opt-in.
 	EnforceOn = "on"
 )
 
@@ -97,9 +98,9 @@ type Policy struct {
 	// observed peak when right-sizing recommends a smaller reservation (§Phase 4).
 	// A recommendation is NEVER below observed_peak * (1 + pct/100).
 	RecommendHeadroomPct int `json:"recommend_headroom"`
-	// SwapPressureThresholdPct is the percentage of swap in use above which a
-	// RAM request is denied rather than granted. Swap usage is a lagging signal
-	// of memory exhaustion that AvailableBytes misses. 0 disables the check.
+	// SwapPressureThresholdPct is the conservative occupancy fallback used for
+	// RAM admission when fresh memory PSI is unavailable. Measured PSI uses the
+	// canonical setpoint instead. 0 disables only this fallback.
 	SwapPressureThresholdPct int `json:"swap_pressure_threshold"`
 	// AccelReprobe decides what happens when host accelerator readiness
 	// transitions from not-ready to ready. Resources that started before the

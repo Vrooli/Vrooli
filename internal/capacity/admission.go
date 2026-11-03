@@ -8,15 +8,17 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"slices"
 	"strings"
 	"sync"
 	"time"
 
 	"github.com/vrooli/vrooli/internal/clock"
+	"github.com/vrooli/vrooli/internal/hostpressure"
 	"github.com/vrooli/vrooli/internal/tuning"
 )
 
-// ResourceClaimSpec is the optional `capacity` block a resource declares in its
+// ResourceClaimSpec is the optional `acceleration.claim` block declared in
 // resource.json so the lifecycle can claim on its behalf at admission. Absent
 // block => the resource is not (yet) a capacity adopter and admission is a
 // no-op (the dormant-by-default property that keeps Phase 3 parity-safe).
@@ -54,7 +56,7 @@ type resourceManifestEnvelope struct {
 	} `json:"acceleration"`
 }
 
-// LoadResourceClaimSpec reads the optional capacity block from a resource's
+// LoadResourceClaimSpec reads the optional acceleration.claim block from a resource's
 // resource.json. ok is false (with nil error) when the file or block is absent.
 func LoadResourceClaimSpec(root, resourceName string) (ResourceClaimSpec, bool, error) {
 	path := filepath.Join(root, "resources", resourceName, "resource.json")
@@ -85,11 +87,15 @@ type AdmitStore interface {
 // AdmitOptions configures a single resource admission. Seams are injectable for
 // tests; nil values resolve production defaults.
 type AdmitOptions struct {
+	// NoReclaim makes this startup a required admission from already-free capacity.
+	NoReclaim    bool
 	Root         string
 	ResourceName string
 	// EnforceEnv overrides the VROOLI_CAPACITY_ENFORCE read (tests).
 	EnforceEnv string
 	Source     CapacitySource
+	// MemoryPressure injects fresh PSI evidence; nil uses the production reader only with the default source.
+	MemoryPressure func() hostpressure.Reading
 	// Attributor resolves observed GPU PIDs to owners for the presence-aware
 	// admission sweep. nil resolves the production docker attributor.
 	Attributor Attributor
@@ -103,20 +109,20 @@ type AdmitOptions struct {
 }
 
 // AdmissionResult reports what admission did. Skipped=true means no claim was
-// recorded (no profile, or enforcement disabled) — the byte-identical path.
+// recorded (no profile, or enforcement disabled).
 type AdmissionResult struct {
-	Skipped bool    `json:"skipped"`
-	Reason  string  `json:"reason,omitempty"`
-	Enforce string  `json:"enforce,omitempty"`
-	Verdict Verdict `json:"verdict,omitempty"`
-	ClaimID string  `json:"claim_id,omitempty"`
+	Skipped bool          `json:"skipped"`
+	Reason  string        `json:"reason,omitempty"`
+	Enforce string        `json:"enforce,omitempty"`
+	Verdict Verdict       `json:"verdict,omitempty"`
+	ClaimID string        `json:"claim_id,omitempty"`
+	ttl     time.Duration // Same manifest snapshot as the admitted request.
 }
 
-// AdmitResource is the advisory admission hook the lifecycle calls before a
-// resource starts (plan §7 Phase 3). It is ALWAYS advisory in V1: it claims +
-// warns + records but NEVER blocks the start (a returned error is operational,
-// not a veto — the caller logs it and proceeds). When the resource declares no
-// capacity block, or enforcement is off, it is a complete no-op.
+// AdmitResource derives the lifecycle request from the resource manifest.
+// Ordinary startup remains advisory; explicit NoReclaim requires a fresh grant
+// before changing the reservation. Missing declarations and disabled policy are
+// reported as skipped, never certified as successful admission.
 //
 //nolint:gocyclo // admission evaluates resource identity, budget, lease, and contention outcomes explicitly.
 func AdmitResource(ctx context.Context, opts AdmitOptions) (AdmissionResult, error) {
@@ -153,121 +159,168 @@ func AdmitResource(ctx context.Context, opts AdmitOptions) (AdmissionResult, err
 	}
 
 	req := spec.toRequest(opts.ResourceName)
-	verdict := Verdict{Kind: VerdictGrant, GrantedBytes: req.PreferredBytes}
-	var admissionWarnings []string
-	existing, listErr := store.ListClaims(ctx, ClaimFilter{
-		OwnerKind:    OwnerKindResource,
-		OwnerID:      opts.ResourceName,
-		ResourceKind: req.ResourceKind,
-		Statuses:     ActiveClaimStatuses(),
+	req.NoReclaim = opts.NoReclaim
+	existing, err := store.ListClaims(ctx, ClaimFilter{
+		OwnerKind: OwnerKindResource, OwnerID: opts.ResourceName,
+		ResourceKind: req.ResourceKind, Statuses: ActiveClaimStatuses(),
 	})
-	if listErr != nil {
-		return AdmissionResult{}, listErr
+	if err != nil {
+		return AdmissionResult{}, err
 	}
 	var reusable *CapacityClaim
+	var replaced []string
 	for _, claim := range existing {
-		claim := claim
-		if claimMatchesResourceRequest(claim, req) && reusable == nil {
-			reusable = &claim
-			continue
+		if reusable == nil && claimMatchesResourceRequest(claim, req) && claim.Status != StatusReserved && (!opts.NoReclaim || claim.AmountBytes == req.PreferredBytes) {
+			c := claim
+			reusable = &c
+		} else {
+			replaced = append(replaced, claim.ClaimID)
 		}
-		if _, err := store.ReleaseClaim(ctx, claim.ClaimID); err != nil {
-			return AdmissionResult{}, fmt.Errorf("release stale capacity claim %s: %w", claim.ClaimID, err)
-		}
-		admissionWarnings = append(admissionWarnings, fmt.Sprintf("released stale capacity claim %s for manifest refresh", claim.ClaimID))
 	}
-	if reusable != nil {
-		reused := *reusable
-		if refreshed, hbErr := store.HeartbeatClaim(ctx, reused.ClaimID, reused.Generation, normalizeAdmitTTL(req.TTL)); hbErr == nil {
-			reused = refreshed
+	var verdict Verdict
+	if reusable != nil && !opts.NoReclaim {
+		// Residency renewal is not a new placement. Do not reclaim someone else's
+		// capacity merely to renew accounting for an already admitted resident.
+		verdict = reusedClaimVerdict(*reusable)
+	} else {
+		ignored := append([]string(nil), replaced...)
+		decisionReq := req
+		if reusable != nil {
+			ignored = append(ignored, reusable.ClaimID)
+
 		}
-		verdict.Warnings = append(verdict.Warnings, admissionWarnings...)
-		return AdmissionResult{Enforce: effective, Verdict: verdict, ClaimID: reused.ClaimID, Reason: "reused existing active claim"}, nil
+		if opts.NoReclaim {
+			// Startup executes the selected manifest, not an unimplemented lower-rung
+			// recommendation. Require its full budget; explicit claim callers can still
+			// request and execute smaller rungs through their own owner path.
+			decisionReq.FloorBytes, decisionReq.Profile = req.PreferredBytes, nil
+		}
+		verdict, err = EvaluateAdmission(ctx, store, decisionReq, AdmissionOptions{
+			Source: opts.Source, MemoryPressure: opts.MemoryPressure, Attributor: opts.Attributor,
+			Exec: opts.Exec, Policy: policy, Enforce: effective, Clock: opts.Clock, ExcludeClaims: ignored,
+		})
+		if err != nil {
+			return AdmissionResult{}, err
+		}
+		if opts.NoReclaim && !verdict.Granted() {
+			return AdmissionResult{Enforce: effective, Verdict: verdict}, fmt.Errorf("no-reclaim admission refused: %s", verdict.Reason)
+		}
+		if reusable != nil {
+			warnings := verdict.Warnings
+			verdict = reusedClaimVerdict(*reusable)
+			verdict.Warnings = warnings
+		}
 	}
 
+	var recorded CapacityClaim
+	if reusable != nil {
+		recorded, err = store.HeartbeatClaim(ctx, reusable.ClaimID, reusable.Generation, normalizeAdmitTTL(req.TTL))
+	} else {
+		recorded, err = store.CreateClaim(ctx, req.Claim(verdict), req.TTL)
+	}
+	if err != nil {
+		return AdmissionResult{}, err
+	}
+	// Keep the old accounting until its successor is recorded or renewed. A
+	// failed decision/write must not erase an existing owner's reservation.
+	for _, id := range replaced {
+		if _, err := store.ReleaseClaim(ctx, id); err != nil {
+			return AdmissionResult{Enforce: effective, Verdict: verdict, ClaimID: recorded.ClaimID}, fmt.Errorf("claim %s recorded; release prior capacity claim %s: %w", recorded.ClaimID, id, err)
+		}
+	}
+	reason := ""
+	if reusable != nil {
+		reason = "reused existing active claim"
+	}
+	return AdmissionResult{Enforce: effective, Verdict: verdict, ClaimID: recorded.ClaimID, Reason: reason, ttl: normalizeAdmitTTL(req.TTL)}, nil
+}
+
+func reusedClaimVerdict(claim CapacityClaim) Verdict {
+	v := Verdict{Kind: VerdictGrant, GrantedBytes: claim.AmountBytes, Step: "preferred"}
+	if claim.AmountBytes < claim.PreferredBytes {
+		v.Kind, v.Step = VerdictDegrade, "floor"
+		v.Reason = "reused existing degraded reservation"
+	}
+	if claim.DegradeProfile != nil {
+		for _, step := range claim.DegradeProfile.Steps {
+			if step.AmountBytes == claim.AmountBytes {
+				v.Step = step.Label
+				break
+			}
+		}
+	}
+	return v
+}
+
+// AdmissionOptions binds the shared sensing/decision pipeline. ExcludeClaims is
+// only the exact reservations this owner is replacing, never other owners.
+type AdmissionOptions struct {
+	Source         CapacitySource
+	MemoryPressure func() hostpressure.Reading
+	Attributor     Attributor
+	Exec           ApplyExecutor
+	Policy         Policy
+	Enforce        string
+	Clock          func() time.Time
+	ExcludeClaims  []string
+}
+
+// EvaluateAdmission is the shared native CLI/resource decision boundary. It
+// senses once, preserves residents through Sweep, applies pressure policy and
+// realizes only the reclaim cohort selected by Decide. Recording is separate
+// from a grant; unavailable sensing is a denial, including in advisory mode.
+func EvaluateAdmission(ctx context.Context, store ClaimRepository, req CapacityRequest, opts AdmissionOptions) (Verdict, error) {
 	source := opts.Source
 	if source == nil {
 		source = HostInventorySource{}
+	}
+	snapshot, err := source.Snapshot(ctx)
+	if err != nil {
+		return Verdict{Kind: VerdictDeny, Reason: "capacity sensing unavailable: " + err.Error()}, nil
+	}
+	now := clock.Real{}.Now()
+	if opts.Clock != nil {
+		now = opts.Clock().UTC()
 	}
 	attr := opts.Attributor
 	if attr == nil {
 		attr = NewDockerAttributor()
 	}
-	var ledger []CapacityClaim
-	snapshot, snapErr := source.Snapshot(ctx)
-	now := admitNow(opts) // Decision clock follows sensing so provenance cannot appear future-dated.
-	if snapErr != nil {
-		// Sensing unavailable: do NOT expire — a presence miss must never strand a
-		// live resident. Decide on the optimistic preferred grant.
-		verdict.Warnings = append(verdict.Warnings, "capacity sensing unavailable: "+snapErr.Error())
-	} else {
-		// Presence-aware self-clean (opportunistic sweep, §8.6): refresh resident
-		// claims still observed on the GPU, then expire dead ones — so a crashed
-		// prior owner's claim doesn't count against this start, but a live resident
-		// whose heartbeat lapsed is rescued rather than wrongly expired.
-		if _, err := Sweep(ctx, store, snapshot, attr, policy, now); err != nil {
-			return AdmissionResult{}, err
-		}
-		listed, listErr := store.ListClaims(ctx, ClaimFilter{ResourceKind: req.ResourceKind, Statuses: ActiveClaimStatuses()})
-		if listErr != nil {
-			return AdmissionResult{}, listErr
-		}
-		ledger = listed
-		verdict = Decide(req, snapshot, ledger, policy, now)
-	}
-	verdict.Warnings = append(verdict.Warnings, admissionWarnings...)
-
-	// Enforce-mode actuation (§8.8): when the grant depends on reclaiming idle
-	// lower-priority capacity, plan + actuate the degrade ladder BEFORE recording
-	// the new claim, so the space is actually freed. Advisory/off only log the
-	// plan. Actuation failure is non-fatal — it surfaces as a warning and the
-	// claim is still recorded (the requester proceeds, honestly degraded).
-	if effective == EnforceOn && verdict.Granted() && verdict.ReclaimBytes > 0 {
-		_, actResult, actErr := EnforceReclaim(ctx, store, req.Priority, verdict, ledger, opts.Exec, policy, effective, now)
-		if actErr != nil {
-			verdict.Warnings = append(verdict.Warnings, "capacity actuation error: "+actErr.Error())
-		}
-		for _, oc := range actResult.Outcomes {
-			if oc.Err != "" {
-				verdict.Warnings = append(verdict.Warnings, fmt.Sprintf("degrade of %q failed: %s", oc.OwnerID, oc.Err))
-			}
-		}
-	}
-
-	amount := req.PreferredBytes
-	status := StatusGranted
-	if verdict.Granted() {
-		amount = verdict.GrantedBytes
-		if verdict.Kind == VerdictDegrade {
-			status = StatusDegraded
-		}
-	}
-	claim := CapacityClaim{
-		OwnerKind:      OwnerKindResource,
-		OwnerID:        opts.ResourceName,
-		ResourceKind:   req.ResourceKind,
-		GPUIndex:       req.GPUIndex,
-		AmountBytes:    amount,
-		PreferredBytes: req.PreferredBytes,
-		FloorBytes:     req.FloorBytes,
-		Priority:       req.Priority,
-		Protected:      req.Protected,
-		YieldWhenIdle:  req.YieldWhenIdle,
-		IdleUnloadTTL:  req.IdleUnloadTTL,
-		IdleGrace:      req.IdleGrace,
-		Status:         status,
-		DegradeProfile: req.Profile,
-	}
-	created, err := store.CreateClaim(ctx, claim, req.TTL)
+	swept, err := Sweep(ctx, store, snapshot, attr, opts.Policy, now)
 	if err != nil {
-		return AdmissionResult{}, err
+		return Verdict{}, err
 	}
-	return AdmissionResult{Enforce: effective, Verdict: verdict, ClaimID: created.ClaimID}, nil
+	ledger, err := store.ListClaims(ctx, ClaimFilter{ResourceKind: req.ResourceKind, Statuses: ActiveClaimStatuses()})
+	if err != nil {
+		return Verdict{}, err
+	}
+	ledger = slices.DeleteFunc(ledger, func(c CapacityClaim) bool {
+		return slices.Contains(opts.ExcludeClaims, c.ClaimID) && c.OwnerKind == req.OwnerKind && c.OwnerID == req.OwnerID
+	})
+	policy := opts.Policy
+	pressure := opts.MemoryPressure
+	if pressure == nil && opts.Source == nil {
+		pressure = ReadHostMemoryPressure
+	}
+	if req.ResourceKind == ResourceKindRAM {
+		policy, err = MemoryPressurePolicy(policy, pressure)
+		if err != nil {
+			return Verdict{Kind: VerdictDeny, Reason: err.Error()}, nil
+		}
+	}
+	verdict := Decide(req, snapshot, ledger, policy, now)
+	if len(swept.Deferred) > 0 {
+		verdict.Warnings = append(verdict.Warnings, fmt.Sprintf("preserved %d resident claim(s) whose GPU presence is unverified", len(swept.Deferred)))
+	}
+	if len(snapshot.GPUs) > 0 && (snapshot.ProbeStatuses["nvidia_gpu"] != "ok" || snapshot.ProbeStatuses["nvidia_gpu_processes"] != "ok") {
+		verdict.Warnings = append(verdict.Warnings, "GPU process absence is unverified; resident claims were preserved")
+	}
+	return AdmitReclaim(ctx, store, req.Priority, verdict, ledger, opts.Exec, policy, opts.Enforce, now), nil
 }
 
 func claimMatchesResourceRequest(claim CapacityClaim, req CapacityRequest) bool {
 	return claim.ResourceKind == req.ResourceKind &&
-		claim.GPUIndex == req.GPUIndex &&
+		(req.ResourceKind != ResourceKindVRAM || sameGPU(claim.GPUIndex, req.GPUIndex)) &&
 		claim.PreferredBytes == req.PreferredBytes &&
 		claim.FloorBytes == req.FloorBytes &&
 		claim.Priority == req.Priority &&
@@ -322,20 +375,14 @@ func openAdmitStore(ctx context.Context, opts AdmitOptions) (AdmitStore, error) 
 	return NewSQLiteStore(ctx, cfg)
 }
 
-func admitNow(opts AdmitOptions) time.Time {
-	if opts.Clock != nil {
-		return opts.Clock().UTC()
-	}
-	return clock.Real{}.Now()
-}
-
 type clockAdapter func() time.Time
 
 func (c clockAdapter) Now() time.Time { return c() }
 
 // WithResourceAdmission keeps the exact manifest-derived claim alive throughout
 // a bounded start/restart operation, including CPU-only verification/loading.
-// It preserves advisory semantics: ledger failures never replace run's outcome.
+// Ordinary starts remain advisory. Explicit NoReclaim refuses startup when
+// admission or the initial startup lease cannot be established.
 // Completion hands residency to the resource companion with one final renewal.
 // Failure/cancellation does not mean the supervised process stopped, so it never
 // releases the claim. Explicit verified stop owns release.
@@ -356,26 +403,32 @@ func withResourceAdmissionTicks(ctx context.Context, opts AdmitOptions, ticks <-
 	result, err := AdmitResource(ctx, opts)
 	if err != nil {
 		admissionLog(opts, "admission: %v", err)
+		if opts.NoReclaim {
+			return err
+		}
 		return runOwner()
 	}
 	for _, warning := range result.Verdict.Warnings {
 		admissionLog(opts, "admission: %s", warning)
 	}
 	if result.Skipped || result.ClaimID == "" {
+		if opts.NoReclaim {
+			return fmt.Errorf("no-reclaim admission unavailable: %s", result.Reason)
+		}
 		return runOwner()
 	}
+	admissionLog(opts, "admission claim=%s verdict=%s granted_bytes=%d no_reclaim=%t", result.ClaimID, result.Verdict.Kind, result.Verdict.GrantedBytes, opts.NoReclaim)
 	store, err := openAdmitStore(ctx, opts)
 	if err != nil {
 		admissionLog(opts, "open startup lease: %v", err)
+		if opts.NoReclaim {
+			return err
+		}
 		return runOwner()
 	}
 	defer store.Close()
-	spec, _, err := LoadResourceClaimSpec(opts.Root, opts.ResourceName)
-	if err != nil {
-		admissionLog(opts, "read startup lease: %v", err)
-		return runOwner()
-	}
-	ttl := normalizeAdmitTTL(time.Duration(spec.TTLSeconds) * time.Second)
+	ttl := result.ttl
+
 	interval := ttl / 3
 	if interval <= 0 {
 		interval = time.Nanosecond

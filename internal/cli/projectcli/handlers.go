@@ -126,13 +126,7 @@ func DoctorHandler[C any](stdout func(C) io.Writer, outputFormat func(C) (cliout
 		func(ctx C, args []string) (DoctorRequest, error) {
 			return ParseDoctorRequest(args)
 		},
-		func(ctx C, req DoctorRequest) (project.DoctorReport, error) {
-			report, err := run(ctx, req)
-			if err != nil {
-				return project.DoctorReport{}, err
-			}
-			return report, nil
-		},
+		run,
 		RenderDoctorResponse,
 	)
 }
@@ -142,13 +136,7 @@ func StopHandler[C any](stdout func(C) io.Writer, outputFormat func(C) (cliout.F
 		func(ctx C, args []string) (StopRequest, error) {
 			return ParseStopRequest(args)
 		},
-		func(ctx C, req StopRequest) (control.StopReport, error) {
-			report, err := run(ctx, req)
-			if err != nil {
-				return control.StopReport{}, err
-			}
-			return report, nil
-		},
+		run,
 		RenderStopResponse,
 	)
 }
@@ -158,13 +146,7 @@ func OrphansHandler[C any](stdout func(C) io.Writer, outputFormat func(C) (cliou
 		func(ctx C, args []string) (OrphansRequest, error) {
 			return ParseOrphansRequest(args)
 		},
-		func(ctx C, req OrphansRequest) (OrphansResponse, error) {
-			resp, err := run(ctx, req)
-			if err != nil {
-				return OrphansResponse{}, err
-			}
-			return resp, nil
-		},
+		run,
 		RenderOrphansResponse,
 	)
 }
@@ -174,13 +156,7 @@ func LocksHandler[C any](stdout func(C) io.Writer, outputFormat func(C) (cliout.
 		func(ctx C, args []string) (LocksRequest, error) {
 			return ParseLocksRequest(args)
 		},
-		func(ctx C, req LocksRequest) (LocksResponse, error) {
-			resp, err := run(ctx, req)
-			if err != nil {
-				return LocksResponse{}, err
-			}
-			return resp, nil
-		},
+		run,
 		RenderLocksResponse,
 	)
 }
@@ -190,13 +166,7 @@ func DiagnosePortHandler[C any](stdout func(C) io.Writer, outputFormat func(C) (
 		func(ctx C, args []string) (DiagnosePortRequest, error) {
 			return ParseDiagnosePortRequest(args)
 		},
-		func(ctx C, req DiagnosePortRequest) (maintenance.PortDiagnostic, error) {
-			resp, err := run(ctx, req)
-			if err != nil {
-				return maintenance.PortDiagnostic{}, err
-			}
-			return resp, nil
-		},
+		run,
 		RenderPortDiagnostic,
 	)
 }
@@ -206,13 +176,7 @@ func TemplateValidationCleanupHandler[C any](stdout func(C) io.Writer, outputFor
 		func(ctx C, args []string) (TemplateValidationCleanupRequest, error) {
 			return ParseTemplateValidationCleanupRequest(args)
 		},
-		func(ctx C, req TemplateValidationCleanupRequest) (TemplateValidationCleanupResponse, error) {
-			resp, err := run(ctx, req)
-			if err != nil {
-				return TemplateValidationCleanupResponse{}, err
-			}
-			return resp, nil
-		},
+		run,
 		RenderTemplateValidationCleanupResponse,
 	)
 }

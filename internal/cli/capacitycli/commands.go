@@ -62,9 +62,10 @@ func CommandSpecs() []commandtree.Spec[CommandID] {
 					{Name: "--instance-id", ValueName: "id", Description: "Linked scenarioruntime instance id (optional)"},
 					{Name: "--resource-kind", ValueName: "kind", Description: "vram|ram|cpu (default vram)"},
 					{Name: "--gpu-index", ValueName: "n", Description: "GPU index for vram (default 0)"},
-					{Name: "--preferred", ValueName: "bytes", Description: "Preferred amount (bytes or e.g. 7GiB)"},
-					{Name: "--floor", ValueName: "bytes", Description: "Minimum viable amount (bytes or e.g. 1GiB)"},
+					{Name: "--preferred", ValueName: "amount", Description: "Preferred amount: bytes/7GiB for memory; millicores for cpu (4000 = 4 cores)"},
+					{Name: "--floor", ValueName: "amount", Description: "Minimum amount: bytes/1GiB for memory; millicores for cpu (1000 = 1 core)"},
 					{Name: "--priority", ValueName: "tier", Description: "interactive|service|batch (default batch)"},
+					{Name: "--no-reclaim", Description: "Use only already-free capacity; never reclaim another owner's claim"},
 					{Name: "--protected", Description: "Never preempt/degrade while active"},
 					{Name: "--yield-when-idle", Description: "When idle beyond grace, yield capacity to active work at/above idle_yield_floor"},
 					{Name: "--idle-grace", ValueName: "dur", Description: "Demand-reclaim warm-idle dwell before this claim can become cold-idle (e.g. 15m; default policy idle_grace)"},
@@ -99,7 +100,7 @@ func CommandSpecs() []commandtree.Spec[CommandID] {
 			Summary: "Step a claim down to a profile rung (broker->adopter callback target)",
 			Group:   groupClaims,
 			Args: commandtree.ArgSchema{
-				Options: []commandtree.OptionArg{claimIDOption(), generationOption(), {Name: "--to", ValueName: "label", Description: "Target profile step label"}, {Name: "--amount", ValueName: "bytes", Description: "Explicit amount (overrides profile lookup)"}, commandtree.JSONOption()},
+				Options: []commandtree.OptionArg{claimIDOption(), generationOption(), {Name: "--to", ValueName: "label", Description: "Target profile step label"}, {Name: "--amount", ValueName: "amount", Description: "Explicit amount in the claim units: memory bytes or CPU millicores"}, commandtree.JSONOption()},
 			},
 			Handler: CommandDegrade,
 		},
@@ -108,7 +109,7 @@ func CommandSpecs() []commandtree.Spec[CommandID] {
 			Summary: "Resize a claim in place when the owner's real footprint changes",
 			Group:   groupClaims,
 			Args: commandtree.ArgSchema{
-				Options: []commandtree.OptionArg{claimIDOption(), generationOption(), {Name: "--amount", ValueName: "bytes", Description: "New granted and preferred amount in bytes"}, commandtree.JSONOption()},
+				Options: []commandtree.OptionArg{claimIDOption(), generationOption(), {Name: "--amount", ValueName: "amount", Description: "New granted and preferred amount: memory bytes or CPU millicores"}, commandtree.JSONOption()},
 			},
 			Handler: CommandResize,
 		},
@@ -297,6 +298,7 @@ func ParseClaimRequest(args []string) (capacityapp.ClaimRequest, error) {
 		PreferredBytes: preferred,
 		FloorBytes:     floor,
 		PriorityTier:   parsed.FlagValue("--priority"),
+		NoReclaim:      parsed.HasFlag("--no-reclaim"),
 		Protected:      parsed.HasFlag("--protected"),
 		YieldWhenIdle:  parsed.HasFlag("--yield-when-idle"),
 		IdleUnloadTTL:  idleUnloadTTL,
@@ -492,7 +494,7 @@ func commandHelpText(id CommandID) string {
 func RenderCommandHelp(w io.Writer) {
 	commandtree.RenderHelp(w, commandtree.Help{
 		Title:        "Vrooli Capacity Broker Commands",
-		Description:  "Host resource claim/lease arbitration (GPU VRAM, RAM, CPU). Resources, scenarios, and the lifecycle claim against a contention-aware ledger; idleness is reported by the work-owner, never inferred.",
+		Description:  "Host resource claim/lease arbitration (GPU VRAM, RAM, CPU). Resources, scenarios, and the lifecycle claim against a contention-aware ledger; idleness is reported by the work-owner, never inferred. Amounts use bytes for memory and millicores for CPU (4000 = 4 cores).",
 		Usage:        "vrooli capacity <subcommand> [options]",
 		DefaultGroup: groupClaims,
 	}, CommandSpecs())

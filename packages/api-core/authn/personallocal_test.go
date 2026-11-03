@@ -81,3 +81,23 @@ func TestPersonalLocalProviderReadsTokenFileWithoutExposingTokenInPrincipal(t *t
 		t.Fatalf("principal leaked or omitted token identity: %#v", principal)
 	}
 }
+
+func TestPersonalLocalHeaderCoexistsWithAccountBearerAndRemainsLoopbackOnly(t *testing.T) {
+	provider := PersonalLocalProvider{SessionToken: "native-session"}
+	request := httptest.NewRequest("POST", "http://127.0.0.1/rpc", nil)
+	request.RemoteAddr = "127.0.0.1:1234"
+	request.Header.Set("Authorization", "Bearer account-token")
+	request.Header.Set("X-Vrooli-Local-Session", "native-session")
+	if principal, err := provider.VerifyRequest(context.Background(), request); err != nil || !principal.IsHuman() {
+		t.Fatalf("native identity with account bearer: %+v %v", principal, err)
+	}
+	request.RemoteAddr = "192.0.2.1:1234"
+	if _, err := provider.VerifyRequest(context.Background(), request); err == nil {
+		t.Fatal("remote caller used native session")
+	}
+	request.RemoteAddr = "127.0.0.1:1234"
+	request.Header.Set("X-Vrooli-Local-Session", "wrong-session")
+	if _, err := provider.VerifyRequest(context.Background(), request); err == nil {
+		t.Fatal("invalid native session admitted")
+	}
+}

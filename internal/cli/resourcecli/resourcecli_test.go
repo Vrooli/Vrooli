@@ -102,3 +102,17 @@ func TestCommandHelpTextIncludesStandardLifecycleCommands(t *testing.T) {
 		}
 	}
 }
+
+func TestResourceNoReclaimCommandScope(t *testing.T) {
+	for _, args := range [][]string{{"songgen", "--no-reclaim"}, {"--no-reclaim", "songgen"}} {
+		req, err := ParseControlRequest("start", args)
+		if err != nil || req.Name != "songgen" || !req.NoReclaim {
+			t.Fatalf("parse %v = %+v, %v", args, req, err)
+		}
+	}
+	for _, action := range []string{"restart", "stop", "logs", "uninstall"} {
+		if _, err := ParseControlRequest(action, []string{"songgen", "--no-reclaim"}); err == nil {
+			t.Errorf("accepted start-only policy on %s", action)
+		}
+	}
+}

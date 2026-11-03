@@ -14,6 +14,7 @@ import (
 	"github.com/vrooli/vrooli/internal/testenv"
 
 	"github.com/vrooli/vrooli/internal/hostinventory"
+	"github.com/vrooli/vrooli/internal/hostpressure"
 )
 
 func writeResourceManifest(t *testing.T, root, name, body string) {
@@ -463,5 +464,312 @@ func TestStartupCancellationDuringAdmissionNeverInvokesOwner(t *testing.T) {
 	err := WithResourceAdmission(ctx, opts, func(context.Context) error { calls++; return nil })
 	if !errors.Is(err, context.Canceled) || calls != 0 {
 		t.Fatalf("cancelled admission invoked owner %d times: %v", calls, err)
+	}
+}
+
+func TestAdmitResourceUsesFreshMemoryPSI(t *testing.T) {
+	for _, tc := range []struct {
+		name            string
+		reading         hostpressure.Reading
+		available, free uint64
+		want            string
+	}{
+		{"quiet occupied swap", hostpressure.NewRead(0, "fixture"), 90, 20, VerdictGrant},
+		{"active pressure low swap", hostpressure.NewRead(99, "fixture"), 90, 90, VerdictDeny},
+		{"unread retains occupancy gate", hostpressure.NewUnread("fixture", "unavailable"), 90, 20, VerdictDeny},
+		{"quiet still insufficient RAM", hostpressure.NewRead(0, "fixture"), 5, 20, VerdictDeny},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			root := t.TempDir()
+			writeResourceManifest(t, root, "ram-fixture", `{"acceleration":{"claim":{"resource_kind":"ram","default_preferred_bytes":10,"floor_bytes":10}}}`)
+			open, clk := admitTestStore(t)
+			out, err := AdmitResource(context.Background(), AdmitOptions{Root: root, ResourceName: "ram-fixture", OpenStore: open, Clock: clk, EnforceEnv: EnforceAdvisory,
+				Source:         StaticSource{Inventory: hostinventory.Snapshot{Memory: hostinventory.Memory{TotalBytes: 100, AvailableBytes: tc.available}, Swap: hostinventory.Swap{TotalBytes: 100, FreeBytes: tc.free}}},
+				MemoryPressure: func() hostpressure.Reading { return tc.reading },
+			})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if out.Verdict.Kind != tc.want {
+				t.Fatalf("verdict=%+v, want %s", out.Verdict, tc.want)
+			}
+		})
+	}
+}
+
+func TestAdmitResourceReusesCanonicalGPUClaim(t *testing.T) {
+	ctx := context.Background()
+	root := t.TempDir()
+	writeResourceManifest(t, root, "model", `{"acceleration":{"claim":{"default_preferred_bytes":1073741824,"floor_bytes":1073741824,"default_priority":"batch"}}}`)
+	open, clk := admitTestStore(t)
+	store, err := open(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	zero := 0
+	original, err := store.CreateClaim(ctx, CapacityClaim{OwnerKind: OwnerKindResource, OwnerID: "model", ResourceKind: ResourceKindVRAM, GPUIndex: &zero, AmountBytes: 1 << 30, PreferredBytes: 1 << 30, FloorBytes: 1 << 30, Priority: PriorityBatch}, 0)
+	store.Close()
+	if err != nil {
+		t.Fatal(err)
+	}
+	result, err := AdmitResource(ctx, AdmitOptions{Root: root, ResourceName: "model", OpenStore: open, Clock: clk, Source: StaticSource{Inventory: snapshotWith(16, 0)}, EnforceEnv: EnforceAdvisory})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.ClaimID != original.ClaimID {
+		t.Fatalf("GPU0 identity changed claim %s to %s", original.ClaimID, result.ClaimID)
+	}
+}
+
+func TestAdmitResourceReuseReportsActualRung(t *testing.T) {
+	root := t.TempDir()
+	writeResourceManifest(t, root, "model", `{"acceleration":{"claim":{"default_preferred_bytes":7516192768,"floor_bytes":1073741824,"default_priority":"batch"}}}`)
+	open, clk := admitTestStore(t)
+	opts := AdmitOptions{Root: root, ResourceName: "model", OpenStore: open, Clock: clk, Source: StaticSource{Inventory: snapshotWith(16, 14)}, EnforceEnv: EnforceAdvisory}
+	first, err := AdmitResource(context.Background(), opts)
+	if err != nil || first.Verdict.Kind != VerdictDegrade {
+		t.Fatalf("first=%+v err=%v", first, err)
+	}
+	second, err := AdmitResource(context.Background(), opts)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if second.ClaimID != first.ClaimID || second.Verdict.GrantedBytes != 1<<30 || second.Verdict.Kind != VerdictDegrade {
+		t.Fatalf("reused claim fabricated preferred grant: %+v", second)
+	}
+}
+
+type failedRenewalStore struct{ AdmitStore }
+
+func (s failedRenewalStore) HeartbeatClaim(context.Context, string, int64, time.Duration) (CapacityClaim, error) {
+	return CapacityClaim{}, errors.New("renewal unavailable")
+}
+
+func TestAdmitResourceReuseRequiresRenewal(t *testing.T) {
+	root := t.TempDir()
+	writeResourceManifest(t, root, "model", `{"acceleration":{"claim":{"default_preferred_bytes":1073741824,"floor_bytes":1073741824,"default_priority":"batch"}}}`)
+	open, clk := admitTestStore(t)
+	opts := AdmitOptions{Root: root, ResourceName: "model", OpenStore: open, Clock: clk, Source: StaticSource{Inventory: snapshotWith(16, 0)}, EnforceEnv: EnforceAdvisory}
+	if _, err := AdmitResource(context.Background(), opts); err != nil {
+		t.Fatal(err)
+	}
+	opts.OpenStore = func(ctx context.Context) (AdmitStore, error) { s, e := open(ctx); return failedRenewalStore{s}, e }
+	if result, err := AdmitResource(context.Background(), opts); err == nil {
+		t.Fatalf("accepted unrenewed claim: %+v", result)
+	}
+}
+
+func TestNoReclaimStartupUsesManifestAndPreservesOtherOwners(t *testing.T) {
+	for _, mode := range []string{EnforceAdvisory, EnforceOn} {
+		for _, free := range []bool{false, true} {
+			t.Run(fmt.Sprintf("%s/free=%t", mode, free), func(t *testing.T) {
+				ctx := context.Background()
+				root := t.TempDir()
+				writeResourceManifest(t, root, "model", `{"acceleration":{"claim":{"default_preferred_bytes":10737418240,"floor_bytes":10737418240,"default_priority":"batch","yield_when_idle":true,"idle_grace_seconds":5}}}`)
+				open, clk := admitTestStore(t)
+				store, err := open(ctx)
+				if err != nil {
+					t.Fatal(err)
+				}
+				defer store.Close()
+				other, err := store.CreateClaim(ctx, CapacityClaim{OwnerKind: OwnerKindResource, OwnerID: "shared", ResourceKind: ResourceKindVRAM, AmountBytes: 8 << 30, PreferredBytes: 8 << 30, Priority: PriorityBatch, YieldWhenIdle: true, ActivityState: ActivityIdle, LastActiveAt: func() *time.Time { v := clk().Add(-time.Hour); return &v }()}, time.Hour)
+				if err != nil {
+					t.Fatal(err)
+				}
+				total := 16
+				used := 8
+				if free {
+					total = 24
+				}
+				ran := false
+				opts := AdmitOptions{Root: root, ResourceName: "model", NoReclaim: true, OpenStore: open, Clock: clk, EnforceEnv: mode, Source: StaticSource{Inventory: snapshotWith(int64(total), int64(used))}}
+				err = WithResourceAdmission(ctx, opts, func(context.Context) error { ran = true; return nil })
+				if ran != free || (err == nil) != free {
+					t.Fatalf("ran=%v err=%v, want admitted=%v", ran, err, free)
+				}
+				current, err := store.GetClaim(ctx, other.ClaimID)
+				if err != nil || current.Status != other.Status || current.AmountBytes != other.AmountBytes || current.Generation != other.Generation {
+					t.Fatalf("changed other owner: %+v err=%v", current, err)
+				}
+				own, err := store.ListClaims(ctx, ClaimFilter{OwnerID: "model", Statuses: ActiveClaimStatuses()})
+				if err != nil {
+					t.Fatal(err)
+				}
+				if !free && len(own) != 0 {
+					t.Fatalf("denied startup leaked reservation: %+v", own)
+				}
+				if free && (len(own) != 1 || own[0].AmountBytes != 10<<30 || !own[0].YieldWhenIdle || own[0].IdleGrace != 5*time.Second) {
+					t.Fatalf("manifest not retained: %+v", own)
+				}
+			})
+		}
+	}
+}
+
+func TestNoReclaimStartupFailsClosed(t *testing.T) {
+	for _, failure := range []string{"sensor", "ledger", "off", "undeclared"} {
+		t.Run(failure, func(t *testing.T) {
+			root := t.TempDir()
+			if failure != "undeclared" {
+				writeResourceManifest(t, root, "model", `{"acceleration":{"claim":{"default_preferred_bytes":1073741824,"floor_bytes":1073741824}}}`)
+			}
+			open, clk := admitTestStore(t)
+			opts := AdmitOptions{Root: root, ResourceName: "model", NoReclaim: true, OpenStore: open, Clock: clk, EnforceEnv: EnforceAdvisory, Source: StaticSource{Inventory: snapshotWith(16, 0)}}
+			switch failure {
+			case "sensor":
+				opts.Source = StaticSource{Err: errors.New("sensor unavailable")}
+			case "ledger":
+				opts.OpenStore = func(context.Context) (AdmitStore, error) { return nil, errors.New("ledger unavailable") }
+			case "off":
+				opts.EnforceEnv = EnforceOff
+			}
+			ran := false
+			err := WithResourceAdmission(context.Background(), opts, func(context.Context) error { ran = true; return nil })
+			if ran || err == nil {
+				t.Fatalf("startup ran without required admission: ran=%v err=%v", ran, err)
+			}
+		})
+	}
+}
+
+func TestAdvisoryReservationDoesNotBecomeGrantOnReuse(t *testing.T) {
+	root := t.TempDir()
+	writeResourceManifest(t, root, "model", `{"acceleration":{"claim":{"default_preferred_bytes":1073741824,"floor_bytes":1073741824}}}`)
+	open, clk := admitTestStore(t)
+	opts := AdmitOptions{Root: root, ResourceName: "model", OpenStore: open, Clock: clk, EnforceEnv: EnforceAdvisory, Source: StaticSource{Inventory: snapshotWith(16, 16)}}
+	for i := 0; i < 2; i++ {
+		got, err := AdmitResource(context.Background(), opts)
+		if err != nil || got.Verdict.Kind != VerdictDeny {
+			t.Fatalf("attempt%d fabricated grant: %+v %v", i, got, err)
+		}
+	}
+}
+
+type failedCreateStore struct{ AdmitStore }
+
+func (s failedCreateStore) CreateClaim(context.Context, CapacityClaim, time.Duration) (CapacityClaim, error) {
+	return CapacityClaim{}, errors.New("write unavailable")
+}
+
+func TestResourceReplacementPreservesPriorClaimOnFailure(t *testing.T) {
+	ctx := context.Background()
+	root := t.TempDir()
+	writeResourceManifest(t, root, "model", `{"acceleration":{"claim":{"default_preferred_bytes":1073741824,"floor_bytes":1073741824}}}`)
+	open, clk := admitTestStore(t)
+	opts := AdmitOptions{Root: root, ResourceName: "model", OpenStore: open, Clock: clk, EnforceEnv: EnforceAdvisory, Source: StaticSource{Inventory: snapshotWith(16, 0)}}
+	first, err := AdmitResource(ctx, opts)
+	if err != nil {
+		t.Fatal(err)
+	}
+	writeResourceManifest(t, root, "model", `{"acceleration":{"claim":{"default_preferred_bytes":2147483648,"floor_bytes":2147483648}}}`)
+	opts.OpenStore = func(ctx context.Context) (AdmitStore, error) { s, e := open(ctx); return failedCreateStore{s}, e }
+	if _, err := AdmitResource(ctx, opts); err == nil {
+		t.Fatal("expected replacement write failure")
+	}
+	store, err := open(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer store.Close()
+	got, err := store.GetClaim(ctx, first.ClaimID)
+	if err != nil || !IsActiveClaimStatus(got.Status) {
+		t.Fatalf("failed replacement erased old claim: %+v %v", got, err)
+	}
+}
+
+func TestNoReclaimManifestReplacementKeepsConstraintAndPriorReservation(t *testing.T) {
+	ctx := context.Background()
+	root := t.TempDir()
+	writeResourceManifest(t, root, "model", `{"acceleration":{"claim":{"default_preferred_bytes":1073741824,"floor_bytes":1073741824}}}`)
+	open, clk := admitTestStore(t)
+	opts := AdmitOptions{Root: root, ResourceName: "model", OpenStore: open, Clock: clk, EnforceEnv: EnforceAdvisory, Source: StaticSource{Inventory: snapshotWith(16, 0)}}
+	first, err := AdmitResource(ctx, opts)
+	if err != nil {
+		t.Fatal(err)
+	}
+	writeResourceManifest(t, root, "model", `{"acceleration":{"claim":{"default_preferred_bytes":10737418240,"floor_bytes":10737418240,"yield_when_idle":true,"idle_grace_seconds":5}}}`)
+	store, err := open(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer store.Close()
+	last := clk().Add(-time.Hour)
+	other, err := store.CreateClaim(ctx, CapacityClaim{OwnerKind: OwnerKindResource, OwnerID: "shared", ResourceKind: ResourceKindVRAM, AmountBytes: 8 << 30, PreferredBytes: 8 << 30, Priority: PriorityBatch, YieldWhenIdle: true, ActivityState: ActivityIdle, LastActiveAt: &last}, time.Hour)
+	if err != nil {
+		t.Fatal(err)
+	}
+	opts.NoReclaim = true
+	opts.Source = StaticSource{Inventory: snapshotWith(16, 8)}
+	refused, err := AdmitResource(ctx, opts)
+	if err == nil || refused.Verdict.Kind != VerdictDeny || len(refused.Verdict.ReclaimTargets) != 0 {
+		t.Fatalf("replacement lost no-reclaim: %+v %v", refused, err)
+	}
+	old, err := store.GetClaim(ctx, first.ClaimID)
+	if err != nil || !IsActiveClaimStatus(old.Status) {
+		t.Fatalf("denial erased existing accounting: %+v %v", old, err)
+	}
+	opts.Source = StaticSource{Inventory: snapshotWith(24, 8)}
+	admitted, err := AdmitResource(ctx, opts)
+	if err != nil || !admitted.Verdict.Granted() || admitted.ClaimID == first.ClaimID || admitted.Verdict.ReclaimBytes != 0 {
+		t.Fatalf("fresh manifest admission failed: %+v %v", admitted, err)
+	}
+	old, err = store.GetClaim(ctx, first.ClaimID)
+	if err != nil || old.Status != StatusReleased {
+		t.Fatalf("old claim not replaced: %+v %v", old, err)
+	}
+	same, err := AdmitResource(ctx, opts)
+	if err != nil || same.ClaimID != admitted.ClaimID {
+		t.Fatalf("constrained reuse changed claim identity: %+v %v", same, err)
+	}
+	current, err := store.GetClaim(ctx, other.ClaimID)
+	if err != nil || current.Status != other.Status || current.Generation != other.Generation {
+		t.Fatalf("other owner changed: %+v %v", current, err)
+	}
+}
+
+type failedReleaseStore struct{ AdmitStore }
+
+func (s failedReleaseStore) ReleaseClaim(context.Context, string) (CapacityClaim, error) {
+	return CapacityClaim{}, errors.New("release unavailable")
+}
+
+func TestResourceReplacementFailureRetainsRecoveryIdentity(t *testing.T) {
+	ctx := context.Background()
+	root := t.TempDir()
+	writeResourceManifest(t, root, "model", `{"acceleration":{"claim":{"default_preferred_bytes":1073741824,"floor_bytes":1073741824}}}`)
+	open, clk := admitTestStore(t)
+	opts := AdmitOptions{Root: root, ResourceName: "model", OpenStore: open, Clock: clk, EnforceEnv: EnforceAdvisory, Source: StaticSource{Inventory: snapshotWith(16, 0)}}
+	first, err := AdmitResource(ctx, opts)
+	if err != nil {
+		t.Fatal(err)
+	}
+	writeResourceManifest(t, root, "model", `{"acceleration":{"claim":{"default_preferred_bytes":2147483648,"floor_bytes":2147483648}}}`)
+	opts.OpenStore = func(ctx context.Context) (AdmitStore, error) { s, e := open(ctx); return failedReleaseStore{s}, e }
+	next, err := AdmitResource(ctx, opts)
+	if err == nil || next.ClaimID == "" || next.ClaimID == first.ClaimID || !strings.Contains(err.Error(), next.ClaimID) || !strings.Contains(err.Error(), first.ClaimID) {
+		t.Fatalf("partial replacement hid recovery identities: %+v %v", next, err)
+	}
+	store, err := open(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer store.Close()
+	for _, id := range []string{first.ClaimID, next.ClaimID} {
+		c, e := store.GetClaim(ctx, id)
+		if e != nil || !IsActiveClaimStatus(c.Status) {
+			t.Fatalf("unproven release: %+v %v", c, e)
+		}
+	}
+}
+
+func TestNoReclaimStartupRequiresSelectedManifestBudget(t *testing.T) {
+	root := t.TempDir()
+	writeResourceManifest(t, root, "model", `{"acceleration":{"claim":{"default_preferred_bytes":7516192768,"floor_bytes":1073741824,"profile":{"steps":[{"label":"full","amount_bytes":7516192768},{"label":"small","amount_bytes":1073741824}]}}}}`)
+	open, clk := admitTestStore(t)
+	opts := AdmitOptions{Root: root, ResourceName: "model", NoReclaim: true, OpenStore: open, Clock: clk, EnforceEnv: EnforceAdvisory, Source: StaticSource{Inventory: snapshotWith(16, 14)}}
+	ran := false
+	err := WithResourceAdmission(context.Background(), opts, func(context.Context) error { ran = true; return nil })
+	if err == nil || ran {
+		t.Fatalf("lower-rung recommendation launched unchanged manifest budget: ran=%v err=%v", ran, err)
 	}
 }

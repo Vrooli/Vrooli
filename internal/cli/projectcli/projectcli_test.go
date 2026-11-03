@@ -76,6 +76,18 @@ func TestParseSetupOptionsStatusSubcommand(t *testing.T) {
 	}
 }
 
+func TestParseSetupBrokerHasNarrowOptions(t *testing.T) {
+	opts, err := ParseSetupOptions([]string{"broker", "--sudo-mode=ask", "--dry-run", "--json"})
+	if err != nil || opts.Subcommand != "broker" || opts.SudoMode != "ask" || !opts.DryRun || !opts.JSON {
+		t.Fatalf("opts=%+v err=%v", opts, err)
+	}
+	for _, args := range [][]string{{"broker", "--scenarios=all"}, {"broker", "--bootstrap-only"}, {"broker", "--sudo-mode=anything"}} {
+		if _, err := ParseSetupOptions(args); err == nil {
+			t.Fatalf("broker accepted wider setup args %v", args)
+		}
+	}
+}
+
 func TestParseSetupOptionsExplainRequiresName(t *testing.T) {
 	if _, err := ParseSetupOptions([]string{"explain"}); err == nil {
 		t.Fatal("expected explain to require a name")

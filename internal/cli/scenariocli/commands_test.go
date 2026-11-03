@@ -2,7 +2,10 @@ package scenariocli
 
 import (
 	"reflect"
+	"strings"
 	"testing"
+
+	"github.com/vrooli/vrooli/internal/lifecycle"
 )
 
 func TestParseTestArgsPassesThroughTestGenieFlags(t *testing.T) {
@@ -106,5 +109,34 @@ func TestParseDeployReportRequest(t *testing.T) {
 	}
 	if _, err := ParseDeployReportRequest(false, nil); err == nil {
 		t.Fatal("deploy-report without a scenario name must be a usage error")
+	}
+}
+
+func TestWriteDeployReportShowsServingProvenance(t *testing.T) {
+	var out strings.Builder
+	report := lifecycle.DeployReport{
+		Scenario:        "browser-automation-studio",
+		CandidateSource: "scenarios/browser-automation-studio",
+		ServingSource:   "/var/lib/vrooli/serving/capture/scenarios/browser-automation-studio",
+		SourceRole:      "frozen_serving_tree",
+		Engagement:      "baseline-browser-automation-studio",
+		CaptureID:       "capture-17",
+		Generation:      "capture-17",
+		ProtoArtifactID: "proto-4",
+	}
+	if err := WriteDeployReport(&out, report); err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{
+		"Candidate source: scenarios/browser-automation-studio",
+		"Serving source: /var/lib/vrooli/serving/capture/scenarios/browser-automation-studio (frozen_serving_tree)",
+		"engagement=\"baseline-browser-automation-studio\"",
+		"capture=\"capture-17\"",
+		"generation=\"capture-17\"",
+		"proto_artifact=\"proto-4\"",
+	} {
+		if !strings.Contains(out.String(), want) {
+			t.Fatalf("human report missing %q:\n%s", want, out.String())
+		}
 	}
 }

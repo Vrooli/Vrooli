@@ -15,6 +15,7 @@ import (
 
 	"github.com/vrooli/vrooli/internal/cli/rootcli"
 	. "github.com/vrooli/vrooli/internal/cli/scenariocli" //nolint:revive // scenariohandlers is a thin glue layer over scenariocli; dot-import keeps wiring readable.
+	"github.com/vrooli/vrooli/internal/lifecycle"
 	"github.com/vrooli/vrooli/internal/process"
 	"github.com/vrooli/vrooli/internal/scenario"
 	"github.com/vrooli/vrooli/internal/shell"
@@ -157,10 +158,20 @@ func showScenarioLifecycleLog(root, home, name string, opts LogOptions, stdout, 
 		return err
 	}
 	if _, err := os.Stat(path); err != nil {
-		if os.IsNotExist(err) {
+		if !os.IsNotExist(err) {
+			return err
+		}
+		retained, retainedErr := latestRetainedRunLogs(home, name)
+		if retainedErr != nil {
+			return retainedErr
+		}
+		if len(retained) == 0 {
 			return fmt.Errorf("no lifecycle log found for scenario %q", name)
 		}
-		return err
+		// The logs root is regenerable and disk-pressure recovery may have
+		// reclaimed it; the last run is still retained under the state root.
+		_, _ = fmt.Fprintf(stdout, "Lifecycle log %s is missing; showing the last retained run for scenario '%s'\n\n", path, name)
+		return writeScenarioLogTail(stdout, retained, logTailLines(opts, logsRuntimeParameterB))
 	}
 	if opts.Follow {
 		if !opts.ForceFollow && !shell.WriterSupportsStreaming(stdout) {
@@ -178,6 +189,50 @@ func showScenarioLifecycleLog(root, home, name string, opts LogOptions, stdout, 
 		return err
 	}
 	return writeScenarioLogDiscovery(root, home, name, stdout, stderr)
+}
+
+// latestRetainedRunLogs returns the retained phase logs of the most recent
+// lifecycle invocation, oldest phase first. Retained names are
+// "<timestamp>-<pid>.<operation>.<phase>.log", so one invocation's phases share
+// the pid and sort by timestamp.
+func latestRetainedRunLogs(home, name string) ([]string, error) {
+	dir, err := lifecycle.LifecycleRunLogsDir(home, name)
+	if err != nil {
+		return nil, err
+	}
+	entries, err := os.ReadDir(dir)
+	if os.IsNotExist(err) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	invocation := func(file string) string {
+		parts := strings.Split(strings.TrimSuffix(file, ".log"), ".")
+		if len(parts) < 3 {
+			return file
+		}
+		runID := strings.Join(parts[:len(parts)-2], ".")
+		return runID[strings.LastIndex(runID, "-")+1:]
+	}
+	names := make([]string, 0, len(entries))
+	for _, entry := range entries {
+		if entry.Type().IsRegular() && strings.HasSuffix(entry.Name(), ".log") {
+			names = append(names, entry.Name())
+		}
+	}
+	if len(names) == 0 {
+		return nil, nil
+	}
+	sort.Strings(names)
+	latest := invocation(names[len(names)-1])
+	paths := make([]string, 0, 2)
+	for _, file := range names {
+		if invocation(file) == latest {
+			paths = append(paths, filepath.Join(dir, file))
+		}
+	}
+	return paths, nil
 }
 
 func logTailLines(opts LogOptions, fallback int) int {

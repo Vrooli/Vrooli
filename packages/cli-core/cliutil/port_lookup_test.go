@@ -39,6 +39,54 @@ func TestLookupPeerRecordAcceptsEnvironmentPortSpelling(t *testing.T) {
 	}
 }
 
+func TestLookupPeerRecordSelectsOnlyPublishedPortCapabilities(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	peers := filepath.Join(home, ".vrooli", "peers")
+	if err := os.MkdirAll(peers, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	payload := map[string]any{"schema_version": 1, "scenario": "fixture-scenario", "owner_pid": os.Getpid(), "version": "1.2.3", "provides": []string{"ui"}, "ports": map[string]int{"api": 18888, "ui": 18889}}
+	data, err := json.Marshal(payload)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(peers, "fixture-scenario.json"), data, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if out := lookupPeerRecord("fixture-scenario", "API_PORT"); out.Resolved() {
+		t.Fatalf("unpublished api capability resolved: %#v", out)
+	}
+	if out := lookupPeerRecord("fixture-scenario", "UI_PORT"); !out.Resolved() || out.Port != "18889" {
+		t.Fatalf("published ui capability = %#v", out)
+	}
+}
+
+func TestLookupPeerRecordTreatsExplicitEmptyProvidesAsNoCapabilities(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	peers := filepath.Join(home, ".vrooli", "peers")
+	if err := os.MkdirAll(peers, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	payload, err := json.Marshal(map[string]any{
+		"schema_version": 1,
+		"scenario":       "fixture-scenario",
+		"owner_pid":      os.Getpid(),
+		"provides":       []string{},
+		"ports":          map[string]int{"api": 18888},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(peers, "fixture-scenario.json"), payload, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if out := lookupPeerRecord("fixture-scenario", "API_PORT"); out.Resolved() {
+		t.Fatalf("empty capability declaration resolved api: %#v", out)
+	}
+}
+
 func TestLookupPeerRecordSeparatesLiveAndShadowInstances(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("HOME", home)
