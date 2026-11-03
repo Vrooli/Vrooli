@@ -144,11 +144,11 @@ export const strings = {
     errorLabel: "jobs.errorLabel",
     liveBadge: "jobs.liveBadge",
     cancel: "jobs.cancel",
-    lane: {
-      unspecified: "jobs.lane.unspecified",
-      gpu: "jobs.lane.gpu",
-      cpu: "jobs.lane.cpu",
-      network: "jobs.lane.network",
+    queue: {
+      unspecified: "jobs.queue.unspecified",
+      localSerial: "jobs.queue.localSerial",
+      cpuPool: "jobs.queue.cpuPool",
+      networkPool: "jobs.queue.networkPool",
     },
     state: {
       unspecified: "jobs.state.unspecified",

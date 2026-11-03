@@ -153,7 +153,7 @@ func formatJob(j *jobsv1.Job) string {
 	if j.CreatedAt != nil {
 		created = j.CreatedAt.AsTime().Format(time.RFC3339)
 	}
-	detail := fmt.Sprintf("%s — op=%s lane=%s state=%s progress=%d%%", j.Id, j.Operation, jobLaneLabel(j.Lane), jobStateLabel(j.State), j.Progress)
+	detail := fmt.Sprintf("%s — op=%s queue=%s state=%s progress=%d%%", j.Id, j.Operation, jobQueueLabel(j.SchedulingQueue, j.Lane), jobStateLabel(j.State), j.Progress)
 	if j.ResultRef != "" {
 		detail += " result=" + j.ResultRef
 	}
@@ -190,12 +190,24 @@ func jobStateLabel(s jobsv1.JobState) string {
 	}
 }
 
-func jobLaneLabel(l jobsv1.JobLane) string {
-	switch l {
-	case jobsv1.JobLane_JOB_LANE_GPU:
-		return "gpu"
-	case jobsv1.JobLane_JOB_LANE_CPU:
-		return "cpu"
+func jobQueueLabel(queue jobsv1.JobQueue, legacyLane jobsv1.JobLane) string {
+	if queue == jobsv1.JobQueue_JOB_QUEUE_UNSPECIFIED {
+		switch legacyLane {
+		case jobsv1.JobLane_JOB_LANE_GPU:
+			queue = jobsv1.JobQueue_JOB_QUEUE_LOCAL_SERIAL
+		case jobsv1.JobLane_JOB_LANE_CPU:
+			queue = jobsv1.JobQueue_JOB_QUEUE_CPU_POOL
+		case jobsv1.JobLane_JOB_LANE_NETWORK:
+			queue = jobsv1.JobQueue_JOB_QUEUE_NETWORK_POOL
+		}
+	}
+	switch queue {
+	case jobsv1.JobQueue_JOB_QUEUE_LOCAL_SERIAL:
+		return "local-serial"
+	case jobsv1.JobQueue_JOB_QUEUE_CPU_POOL:
+		return "cpu-pool"
+	case jobsv1.JobQueue_JOB_QUEUE_NETWORK_POOL:
+		return "network-pool"
 	default:
 		return "unspecified"
 	}

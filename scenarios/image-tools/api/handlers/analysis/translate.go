@@ -62,6 +62,8 @@ func duplicateToProto(r internalanalysis.DuplicateResult) *analysisv1.DuplicateR
 func qualityToProto(r internalanalysis.QualityResult) *analysisv1.QualityResult {
 	return &analysisv1.QualityResult{
 		OverallScore: r.OverallScore,
+		WidthPx:      int32(r.Width),
+		HeightPx:     int32(r.Height),
 		Sharpness:    r.Sharpness,
 		Blurry:       r.Blurry,
 		Brightness:   r.Brightness,

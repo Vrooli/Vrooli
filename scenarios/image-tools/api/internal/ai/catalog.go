@@ -1,7 +1,7 @@
 // Package ai is image-tools' core AI generation & enhancement engine
 // (IMG-P0-002 / IMG-P0-003). It owns the model-backed operation catalog and the
 // per-operation runners that the durable job Manager executes asynchronously on
-// its GPU-serialized lane.
+// its serialized local queue.
 //
 // An AI op runs through the seams the spine established in Phase 1: the
 // hardware-fit model selector (internal/models), the provider abstraction with

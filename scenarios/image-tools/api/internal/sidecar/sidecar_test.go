@@ -284,12 +284,18 @@ assert scores[0] < 0.12
 assert 0.49 < scores[1] < 0.51
 assert scores[2] > 0.88
 
-for module in (embedding, tagging, nsfw):
+for module in (embedding, tagging):
     inp = module._preprocess(np, img, (2, 4))
     assert inp.shape == (1, 3, 2, 4)
     assert inp.dtype == np.float32
     for channel, want in enumerate(imagenet):
         close(inp[0, channel, 0, 0], want, 1e-6)
+
+nsfw_in = nsfw._preprocess(np, img, (2, 4), resample=Image.Resampling.BILINEAR)
+assert nsfw_in.shape == (1, 3, 2, 4)
+assert nsfw_in.dtype == np.float32
+for channel, value in enumerate([128.0 / 255.0, 64.0 / 255.0, 32.0 / 255.0]):
+    close(nsfw_in[0, channel, 0, 0], (value - 0.5) / 0.5, 1e-6)
 
 payload = nsfw._payload(np, np.array([1.0, 3.0], dtype=np.float32))
 assert payload["categories"][0]["label"] == "sfw"

@@ -331,11 +331,13 @@ func main() {
 	// not just a stray directory. The Smoke gate runs an install-time load-smoke
 	// (fetch → env → smoke) through the venv interpreter so an installed-but-broken
 	// model fails the install instead of surfacing as a late job crash.
+	modelUseGate := internalmodels.NewModelUseGate()
 	installer := &internalmodels.Installer{
 		Root:      modelsRoot,
 		Reg:       registry,
 		Custom:    internalmodels.NewCustomStore(db),
 		State:     internalmodels.NewInstallStore(db),
+		UseGate:   modelUseGate,
 		Download:  fetch.HTTPDownloader{},
 		RepoFetch: &fetch.HFSnapshotFetcher{},
 		DiskAvail: fetch.DefaultDiskAvail,
@@ -482,9 +484,11 @@ func main() {
 	// Analysis service (OCR / NSFW / probe). Its NSFW path also backs the AI
 	// generation auto-scan hook.
 	analysisService, err := internalanalysis.NewService(internalanalysis.Config{
-		ModelInstalled: modelInstalled,
-		ModelsRoot:     modelsRoot,
-		Logger:         log.Default(),
+		ModelInstalled:  modelInstalled,
+		AcquireModelUse: modelUseGate.Acquire,
+		ModelsRoot:      modelsRoot,
+		PythonProgram:   pythonInterpreter,
+		Logger:          log.Default(),
 	})
 	if err != nil {
 		log.Fatalf("analysis service init failed: %v", err)
@@ -493,13 +497,17 @@ func main() {
 	// AI engine: probe → hardware-fit model select → backend select → execute →
 	// persist, with the optional NSFW auto-scan on generated output.
 	aiEngine, err := internalai.NewEngine(internalai.Deps{
-		Registry:         registry,
-		Backends:         backendReg,
-		Probe:            probe,
-		Store:            blobStore,
-		Enabled:          enabled,
-		DefaultOverride:  opDefaults.Get,
-		ModelInstalled:   modelInstalled,
+		Registry:        registry,
+		Backends:        backendReg,
+		Probe:           probe,
+		Store:           blobStore,
+		Enabled:         enabled,
+		DefaultOverride: opDefaults.Get,
+		ModelInstalled:  modelInstalled,
+		ModelRuntimeReadiness: func(ctx context.Context, id string) (bool, string) {
+			return installer.RuntimeReadiness(ctx, id)
+		},
+		AcquireModelUse:  modelUseGate.Acquire,
 		CustomModels:     installer.Custom.List,
 		ModelsRoot:       modelsRoot,
 		AdapterByID:      adapterByID,

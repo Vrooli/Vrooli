@@ -193,6 +193,9 @@ func TestAnalyze_Quality(t *testing.T) {
 	if q == nil {
 		t.Fatal("expected a quality result")
 	}
+	if q.GetWidthPx() != 64 || q.GetHeightPx() != 64 {
+		t.Errorf("quality dimensions = %dx%d, want 64x64", q.GetWidthPx(), q.GetHeightPx())
+	}
 	// A solid fill has zero contrast → blurry + a low-contrast note.
 	if !q.GetBlurry() || q.GetExposure() == "" {
 		t.Errorf("unexpected quality: blurry=%v exposure=%q", q.GetBlurry(), q.GetExposure())

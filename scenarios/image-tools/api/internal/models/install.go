@@ -11,6 +11,7 @@ import (
 	"path"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 
 	"image-tools/internal/fetch"
@@ -298,6 +299,19 @@ type Installer struct {
 	// validated seed BuildProfile. Export assets are already installed and hash
 	// checked before this hook can run.
 	Build *BuildConfig
+	// UseGate is shared with inference services so model files cannot be
+	// installed or removed while an operation is using them.
+	UseGate *ModelUseGate
+	gateMu  sync.Mutex
+}
+
+func (in *Installer) useGate() *ModelUseGate {
+	in.gateMu.Lock()
+	defer in.gateMu.Unlock()
+	if in.UseGate == nil {
+		in.UseGate = NewModelUseGate()
+	}
+	return in.UseGate
 }
 
 func (in *Installer) now() time.Time {
@@ -370,6 +384,11 @@ func (in *Installer) InstallForJob(ctx context.Context, id, jobID string, emit f
 }
 
 func (in *Installer) install(ctx context.Context, id, jobID string, emit func(progress int, message string)) (InstallRecord, error) {
+	release, err := in.useGate().AcquireExclusive(id)
+	if err != nil {
+		return InstallRecord{}, err
+	}
+	defer release()
 	if emit == nil {
 		emit = func(int, string) {}
 	}
@@ -663,6 +682,11 @@ func (in *Installer) installRepo(ctx context.Context, id string, m Model, emit f
 // Remove deletes a model's downloaded weights and clears its install record. A
 // custom local model is unlinked (its referenced path is never deleted).
 func (in *Installer) Remove(ctx context.Context, id string) error {
+	release, err := in.useGate().AcquireExclusive(id)
+	if err != nil {
+		return err
+	}
+	defer release()
 	m, err := in.Resolve(ctx, id)
 	if err != nil {
 		return err

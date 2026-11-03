@@ -21,7 +21,7 @@ hardware-aware (fallback tiers, GPU pressure).
 |---|---|---|---|---|
 | Job throughput | performance | job queue | Completed jobs per interval | Trends with load; sustained zero under queued jobs = stuck. |
 | Per-op latency (p50/p95) | performance | measures domain | Detect slow/regressed ops per model | Per-model budget; p95 spike signals contention or wrong tier. |
-| Queue depth / wait time | saturation | heavy-job queue | GPU contention visibility | Rising depth = serialized GPU backlog (expected under load, not under idle). |
+| Queue depth / wait time | saturation | local-serial, CPU-pool, and network-pool queues | Scheduling pressure visibility | Rising local-serial depth is expected under load; it does not by itself prove GPU contention. |
 | Fallback-tier usage | reliability | provider selector | How often Local-GPU → Local-CPU → BYOK fires | Frequent CPU/BYOK fallback signals missing/over-VRAM models. |
 | VRAM headroom | saturation | root `vrooli host inventory` / `internal/hostinventory` probe (via `capabilities` seam) | GPU memory available at run time | Low headroom predicts fallback / OOM. |
 | Model install / health | reliability | model manager | Checksum/`/ready` state of opt-in models | Failed download or unready resource gates the op. |
@@ -48,7 +48,7 @@ measure blocks, enforced by the test-genie measures phase (OT-P0-012).
 |---|---|---|
 | Per-model op latency (p50/p95) | active | Measure blocks per operation/model. |
 | Throughput | active | Completed jobs per interval. |
-| Queue wait time | active | Time from submission to start in the serialized GPU queue. |
+| Queue wait time | active | Time from submission to start in the job's reported `scheduling_queue`. |
 | Fallback-tier usage | active | Count of Local-GPU / Local-CPU / BYOK selections. |
 | Terminal job traces | active | `job_trace` records the exact model/backend/tier/lane and queue/run durations for each finalized job. |
 | VRAM headroom | active | Captured from the root `vrooli host inventory` probe (the shared `internal/hostinventory` collector, via the `capabilities` seam) at run time. |

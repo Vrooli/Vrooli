@@ -8,6 +8,7 @@ import (
 	"image/color"
 	"image/png"
 	"testing"
+	"time"
 
 	"github.com/vrooli/api-core/blobstore"
 	database "github.com/vrooli/api-core/database"
@@ -102,6 +103,7 @@ func TestPreparationMeasuresActualRemovalMaskAndRetainsInlineProof(t *testing.T)
 func TestPreparationRetainsInputsAndReviewsAsImmutableChild(t *testing.T) {
 	ctx := context.Background()
 	s, req := preparationService(t)
+	s.Now = func() time.Time { return time.UnixMilli(1_793_650_979_434).UTC() }
 	first, err := s.Create(ctx, req)
 	if err != nil {
 		t.Fatal(err)
@@ -137,7 +139,8 @@ func TestPreparationRetainsInputsAndReviewsAsImmutableChild(t *testing.T) {
 	if _, err := s.Review(ctx, conflict); !errors.Is(err, ErrInvalid) {
 		t.Fatalf("operation key reuse with changed review must fail: %v", err)
 	}
-	forged, err := s.Review(ctx, &v1.ReviewPhotographRequest{Id: first.Id, OperationId: "22222222-2222-4222-8222-222222222222", Review: &v1.VisualReview{Decision: "rejected", ReviewedBy: "visual reviewer", Rationale: "visible fill boundary", EvidenceRefs: []string{"retained/sample.mp4"}, ReviewedAtUnixMs: 1}})
+	forgedOperationID := "22222222-2222-4222-8222-222222222222"
+	forged, err := s.Review(ctx, &v1.ReviewPhotographRequest{Id: first.Id, OperationId: forgedOperationID, Review: &v1.VisualReview{Decision: "rejected", ReviewedBy: "visual reviewer", Rationale: "visible fill boundary", EvidenceRefs: []string{"retained/sample.mp4"}, ReviewedAtUnixMs: 1}})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -147,16 +150,23 @@ func TestPreparationRetainsInputsAndReviewsAsImmutableChild(t *testing.T) {
 	if reviewed.Id == first.Id || reviewed.ParentId != first.Id || reviewed.Manifest.Review.Decision != "rejected" {
 		t.Fatalf("review did not create child: %v", reviewed)
 	}
+	if forged.Id != reviewed.Id {
+		t.Fatalf("identical review content should retain one content-addressed child: %s != %s", forged.Id, reviewed.Id)
+	}
+	_, sameChild, err := s.Repository.ReviewOperation(ctx, forgedOperationID)
+	if err != nil || sameChild == nil || sameChild.Id != reviewed.Id {
+		t.Fatalf("second operation did not retain its content child: %v %v", sameChild, err)
+	}
 	original, err := s.Get(ctx, first.Id)
 	if err != nil || original.Manifest.Review.Decision != "pending" {
 		t.Fatalf("review mutated original: %v %v", original, err)
 	}
 	list, err := s.List(ctx, 30)
-	if err != nil || len(list) != 3 {
+	if err != nil || len(list) != 2 {
 		t.Fatalf("retained revisions lost: %v %v", list, err)
 	}
-	if list[0].Id != forged.Id || list[1].Id != reviewed.Id {
-		t.Fatalf("review operation insertion order was not retained: parent=%d child=%d rows=%s,%s,%s", first.CreatedAtUnixMs, reviewed.CreatedAtUnixMs, list[0].Id, list[1].Id, list[2].Id)
+	if list[0].Id != reviewed.Id || list[1].Id != first.Id {
+		t.Fatalf("content-addressed review order was not retained: parent=%d child=%d rows=%s,%s", first.CreatedAtUnixMs, reviewed.CreatedAtUnixMs, list[0].Id, list[1].Id)
 	}
 }
 

@@ -124,16 +124,15 @@ def make_session(onnx_path: str):
         raise
 
 
-def model_input_hw(session) -> Tuple[int, int]:
-    """Return the model's (height, width) spatial input, defaulting to 320 when
-    the dimensions are dynamic/unknown."""
+def model_input_hw(session, default_hw: Tuple[int, int] = (320, 320)) -> Tuple[int, int]:
+    """Return the model's (height, width) input or its caller-supplied fallback."""
     try:
         shape = session.get_inputs()[0].shape  # typically [N, C, H, W]
-        h = shape[2] if isinstance(shape[2], int) and shape[2] > 0 else 320
-        w = shape[3] if isinstance(shape[3], int) and shape[3] > 0 else 320
+        h = shape[2] if isinstance(shape[2], int) and shape[2] > 0 else default_hw[0]
+        w = shape[3] if isinstance(shape[3], int) and shape[3] > 0 else default_hw[1]
         return int(h), int(w)
     except Exception:  # noqa: BLE001
-        return 320, 320
+        return default_hw
 
 
 def load_oriented_image(path: str, max_pixels: int, mode: str = "RGB"):

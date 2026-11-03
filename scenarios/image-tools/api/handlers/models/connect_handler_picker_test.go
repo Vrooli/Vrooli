@@ -28,7 +28,7 @@ func TestReadyState_EnvAndSmokeOverrides(t *testing.T) {
 		{"env not provisioned", internalmodels.SmokeStatus{Applicable: true, EnvProvisioned: false}, "env_not_provisioned"},
 		{"smoke failed", internalmodels.SmokeStatus{Applicable: true, EnvProvisioned: true, HasVerdict: true, Verdict: smoke.Verdict{Pass: false}}, "smoke_failed"},
 		{"smoke passed", internalmodels.SmokeStatus{Applicable: true, EnvProvisioned: true, HasVerdict: true, Verdict: smoke.Verdict{Pass: true}}, "ready"},
-		{"env ok, no verdict yet", internalmodels.SmokeStatus{Applicable: true, EnvProvisioned: true}, "ready"},
+		{"env ok, no verdict yet", internalmodels.SmokeStatus{Applicable: true, EnvProvisioned: true}, "smoke_pending"},
 	}
 	for _, c := range cases {
 		if got := readyState(true, true, "ok", ready, c.smoke); got != c.want {
@@ -38,6 +38,16 @@ func TestReadyState_EnvAndSmokeOverrides(t *testing.T) {
 	// A not-yet-installed model is unaffected by the smoke override.
 	if got := readyState(false, true, "ok", ready, internalmodels.SmokeStatus{Applicable: true}); got != "needs_model_install" {
 		t.Errorf("smoke override must not apply to a not-installed model: %q", got)
+	}
+}
+
+func TestPythonSidecarWithoutModelProbeIsNotReady(t *testing.T) {
+	m := internalmodels.Model{ID: "unprobed-sidecar", Backend: "python-sidecar"}
+	if got := requirePythonSidecarSmoke(m, internalmodels.SmokeStatus{}, "ready"); got != "smoke_unsupported" {
+		t.Fatalf("readiness = %q, want smoke_unsupported", got)
+	}
+	if got := requirePythonSidecarSmoke(m, internalmodels.SmokeStatus{Applicable: true, EnvProvisioned: true, HasVerdict: true}, "ready"); got != "ready" {
+		t.Fatalf("supported smoke readiness = %q, want ready", got)
 	}
 }
 
@@ -155,6 +165,31 @@ func TestListOperationModels(t *testing.T) {
 	}
 	if builtin.GetBackend().GetInstallTier() != "builtin" {
 		t.Fatalf("builtin backend install_tier = %q, want builtin", builtin.GetBackend().GetInstallTier())
+	}
+}
+
+func TestListOperationModelsDoesNotAdvertiseUnsupportedHostAsRunnable(t *testing.T) {
+	h, _ := newTestHandler(t, capabilities.Host{OS: "darwin", Arch: "arm64", Cores: 8})
+	resp, err := h.ListOperationModels(context.Background(),
+		connect.NewRequest(&modelsv1.ListOperationModelsRequest{Operation: "deblur"}))
+	if err != nil {
+		t.Fatalf("ListOperationModels(deblur): %v", err)
+	}
+	nafnet := findCandidate(resp.Msg, "nafnet")
+	if nafnet == nil {
+		t.Fatal("NAFNet should remain visible in the picker with its unsupported-host reason")
+	}
+	if nafnet.GetFit().GetRunnable() {
+		t.Fatal("NAFNet must not be advertised runnable outside its declared os_arch set")
+	}
+	if nafnet.GetFit().GetFitClass() != "unsupported_os" {
+		t.Fatalf("NAFNet fit class = %q, want unsupported_os", nafnet.GetFit().GetFitClass())
+	}
+	if nafnet.GetReadyState() != "unsupported" {
+		t.Fatalf("NAFNet ready state = %q, want unsupported", nafnet.GetReadyState())
+	}
+	if nafnet.GetSelected() || resp.Msg.GetSelectedId() != "" {
+		t.Fatalf("unsupported NAFNet was selected: candidate=%t selected_id=%q", nafnet.GetSelected(), resp.Msg.GetSelectedId())
 	}
 }
 

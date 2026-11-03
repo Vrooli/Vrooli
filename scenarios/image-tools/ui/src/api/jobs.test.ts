@@ -39,10 +39,11 @@ describe("api/jobs", () => {
     expect(mocks.client.cancelJob).toHaveBeenCalledWith({ id: "job-1" });
   });
 
-  it("re-exports the JobState and JobLane enums for callers", async () => {
-    const { JobState, JobLane } = await import("./jobs");
+  it("re-exports the job lifecycle, legacy lane, and scheduling queue enums", async () => {
+    const { JobState, JobLane, JobQueue } = await import("./jobs");
 
     expect(JobState.SUCCEEDED).toBeDefined();
     expect(JobLane.GPU).toBeDefined();
+    expect(JobQueue.LOCAL_SERIAL).toBeDefined();
   });
 });

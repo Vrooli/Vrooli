@@ -107,6 +107,13 @@ func (h *connectHandler) ListOperationModels(ctx context.Context, req *connect.R
 	for _, cand := range candidates {
 		m := cand.Model
 		fit := internalmodels.Fit(m, host)
+		// Fit's CPU/GPU calculation is separate from the registry's declared
+		// OS/architecture support. ModelFit.runnable is host-level, so don't let a
+		// CPU-capable entry advertise runnable when its declared build excludes
+		// this host.
+		if !m.SupportsHost(host) {
+			fit.Runnable = false
+		}
 		fitClass := internalmodels.FitClass(m, host, fit)
 		enabled := internalmodels.EffectiveEnabled(m, overlay)
 		installed := !m.RequiresWeights()
@@ -120,13 +127,17 @@ func (h *connectHandler) ListOperationModels(ctx context.Context, req *connect.R
 			if rec, ok := installs[m.ID]; ok && rec.Path != "" {
 				dir = rec.Path
 			}
-			smokeStatus = h.deps.Installer.SmokeStatusFor(m, dir)
+			smokeStatus = h.deps.Installer.SmokeStatusFor(ctx, m, dir)
 		}
 		eo := cand.Effective
 		// A derived op whose technique is not yet proven is honestly un-offerable
 		// (derived_pipeline_unproven) regardless of weights/backend/hardware — it is
 		// shown so the user understands the capability exists, never run.
 		ready := readyState(installed, enabled, fitClass, backend, smokeStatus)
+		ready = requirePythonSidecarSmoke(m, smokeStatus, ready)
+		if ready == "ready" && installed && m.BuildProfile != nil && h.deps.Installer != nil && !h.deps.Installer.BuildReady(ctx, m.ID) {
+			ready = "build_not_ready"
+		}
 		if eo.Support == "derived" && !eo.Ready {
 			ready = "derived_pipeline_unproven"
 		}
@@ -143,6 +154,13 @@ func (h *connectHandler) ListOperationModels(ctx context.Context, req *connect.R
 	}
 	sortCandidates(out.Candidates)
 	return connect.NewResponse(out), nil
+}
+
+func requirePythonSidecarSmoke(m internalmodels.Model, smoke internalmodels.SmokeStatus, state string) string {
+	if state == "ready" && m.Backend == "python-sidecar" && !smoke.Applicable {
+		return "smoke_unsupported"
+	}
+	return state
 }
 
 // ExplainResolution returns the explicit Resolution for an operation on this
@@ -355,6 +373,9 @@ func readyState(installed, enabled bool, fitClass string, br *modelsv1.BackendRe
 			if !smoke.EnvProvisioned {
 				return "env_not_provisioned"
 			}
+			if !smoke.HasVerdict {
+				return "smoke_pending"
+			}
 			if smoke.HasVerdict && !smoke.Verdict.Pass {
 				return "smoke_failed"
 			}
@@ -390,16 +411,18 @@ func readyRank(state string) int {
 		return 4
 	case "env_not_provisioned":
 		return 5
-	case "smoke_failed":
+	case "smoke_pending", "smoke_unsupported", "build_not_ready":
 		return 6
-	case "disabled":
+	case "smoke_failed":
 		return 7
-	case "derived_pipeline_unproven":
+	case "disabled":
 		return 8
-	case "insufficient":
+	case "derived_pipeline_unproven":
 		return 9
-	case "unsupported":
+	case "insufficient":
 		return 10
+	case "unsupported":
+		return 11
 	default:
 		return 11
 	}

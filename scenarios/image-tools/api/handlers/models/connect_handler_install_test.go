@@ -275,6 +275,28 @@ func TestRemoveModelClearsInstall(t *testing.T) {
 	}
 }
 
+func TestRemoveModelReturnsFailedPreconditionWhileInUse(t *testing.T) {
+	h, installer, _ := newInstallHandler(t)
+	ctx := context.Background()
+	installer.UseGate = internalmodels.NewModelUseGate()
+	if _, err := installer.Install(ctx, handlerInstallTestModelID, nil); err != nil {
+		t.Fatalf("install: %v", err)
+	}
+	release, err := installer.UseGate.Acquire(handlerInstallTestModelID)
+	if err != nil {
+		t.Fatalf("acquire use lease: %v", err)
+	}
+	defer release()
+
+	_, err = h.RemoveModel(ctx, connect.NewRequest(&modelsv1.RemoveModelRequest{Id: handlerInstallTestModelID}))
+	if connect.CodeOf(err) != connect.CodeFailedPrecondition {
+		t.Fatalf("RemoveModel error = %v, want FailedPrecondition", err)
+	}
+	if !installer.Installed(ctx, handlerInstallTestModelID) {
+		t.Fatal("RemoveModel deleted the model while it was in use")
+	}
+}
+
 func TestAddCustomModelRoundTrip(t *testing.T) {
 	h, _, _ := newInstallHandler(t)
 	ctx := context.Background()

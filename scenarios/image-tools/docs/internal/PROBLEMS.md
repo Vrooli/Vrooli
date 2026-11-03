@@ -799,3 +799,20 @@ it but invented an oval object and left seams. Both remain rejected and the
 runtime candidate was disabled. Preserve these outputs when qualifying a more
 appropriate photographed-device fixture; do not treat a pinned checkpoint or
 successful inference as photographic readiness.
+
+
+## Work ladder
+
+### W3 — Public job queue contract now names scheduler class
+
+The previous public `Job.lane` enum exposed the serialized local worker as
+`JOB_LANE_GPU`, which misreported a CPU-only Big-LaMa execution as GPU work.
+An additive `scheduling_queue` field now reports `LOCAL_SERIAL`, `CPU_POOL`,
+or `NETWORK_POOL`; the legacy lane remains deprecated for compatibility and
+is used only as a fallback when older records lack the new field. Focused API,
+CLI, UI tests and UI type-check passed. Test Genie unit run
+`20261102-211555-ec7afe3b` did not yield a terminal receipt because its waiter
+session disappeared and the owner status lookup failed with
+`identity_refresh_unavailable`; do not claim that phase passed. Scheduler
+concurrency and device execution are unchanged. See the active cohort Image
+Tools checkpoint for generated artifact and dependency-refresh evidence.

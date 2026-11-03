@@ -19,8 +19,9 @@ import (
 
 // Module returns the ai domain's contribution: the AIService discovery handler
 // and stored-input admission handler (Connect-RPC), plus multipart uploads.
-// Execution is asynchronous on the durable job Manager's GPU-serialized lane. The
-// Both submission transports enforce the same Responsible-Use deployment gate.
+// Execution is asynchronous on the durable job Manager's serialized local
+// queue. Both submission transports enforce the same Responsible-Use deployment
+// gate.
 func Module(engine *internalai.Engine, registry *models.Registry, store *storage.Store, jobs *internaljobs.Manager, gate *safety.Gate, logger *log.Logger) module.Module {
 	if logger == nil {
 		logger = log.Default()

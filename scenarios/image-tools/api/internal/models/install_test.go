@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -329,6 +330,87 @@ func TestRemove_DeletesWeightsAndRecord(t *testing.T) {
 	if _, ok, _ := f.in.State.Get(ctx, installTestModelID); ok {
 		t.Fatalf("install record should be gone after remove")
 	}
+}
+
+func TestRemove_RefusesWhileModelIsInUse(t *testing.T) {
+	ctx := context.Background()
+	f := newInstallFixture(t)
+	f.in.UseGate = NewModelUseGate()
+	if _, err := f.in.Install(ctx, installTestModelID, nil); err != nil {
+		t.Fatalf("install: %v", err)
+	}
+	modelDir := filepath.Join(f.root, "models", installTestModelID)
+	release, err := f.in.UseGate.Acquire(installTestModelID)
+	if err != nil {
+		t.Fatalf("acquire use lease: %v", err)
+	}
+	defer release()
+
+	if err := f.in.Remove(ctx, installTestModelID); !errors.Is(err, ErrModelInUse) {
+		t.Fatalf("Remove while model is in use should return ErrModelInUse, got %v", err)
+	}
+	if !dirExists(modelDir) {
+		t.Fatal("Remove deleted weights while model was in use")
+	}
+	if _, ok, err := f.in.State.Get(ctx, installTestModelID); err != nil || !ok {
+		t.Fatalf("Remove changed install state while model was in use: ok=%v err=%v", ok, err)
+	}
+
+	release()
+	if err := f.in.Remove(ctx, installTestModelID); err != nil {
+		t.Fatalf("Remove after releasing model use: %v", err)
+	}
+}
+
+func TestInstall_RefusesWhileModelIsInUse(t *testing.T) {
+	ctx := context.Background()
+	f := newInstallFixture(t)
+	f.in.UseGate = NewModelUseGate()
+	if _, err := f.in.Install(ctx, installTestModelID, nil); err != nil {
+		t.Fatalf("install: %v", err)
+	}
+	modelDir := filepath.Join(f.root, "models", installTestModelID)
+	release, err := f.in.UseGate.Acquire(installTestModelID)
+	if err != nil {
+		t.Fatalf("acquire use lease: %v", err)
+	}
+	defer release()
+
+	if _, err := f.in.Install(ctx, installTestModelID, nil); !errors.Is(err, ErrModelInUse) {
+		t.Fatalf("Install while model is in use should return ErrModelInUse, got %v", err)
+	}
+	if !dirExists(modelDir) {
+		t.Fatal("Install removed or replaced weights while model was in use")
+	}
+}
+
+func TestModelUseGateConcurrentReadersAndMutators(t *testing.T) {
+	gate := NewModelUseGate()
+	const workers = 8
+	const iterations = 100
+	start := make(chan struct{})
+	var wg sync.WaitGroup
+	for worker := 0; worker < workers; worker++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			<-start
+			for i := 0; i < iterations; i++ {
+				if release, err := gate.Acquire(installTestModelID); err == nil {
+					release()
+				} else if !errors.Is(err, ErrModelInUse) {
+					t.Errorf("Acquire returned unexpected error: %v", err)
+				}
+				if release, err := gate.AcquireExclusive(installTestModelID); err == nil {
+					release()
+				} else if !errors.Is(err, ErrModelInUse) {
+					t.Errorf("AcquireExclusive returned unexpected error: %v", err)
+				}
+			}
+		}()
+	}
+	close(start)
+	wg.Wait()
 }
 
 // TestAddCustom_RoundTripAndLocalInstall proves a custom local model is rejected

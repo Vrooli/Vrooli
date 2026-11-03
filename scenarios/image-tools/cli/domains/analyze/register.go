@@ -38,6 +38,6 @@ func (h *handlers) runCommands() []cliapp.Command {
 		cmd("ocr", "ocr", "Extract text from an image (OCR)"),
 		cmd("nsfw", "nsfw_classify", "Classify an image for NSFW / unsafe content"),
 		cmd("duplicate", "duplicate_detect", "Compute perceptual fingerprints for near-duplicate detection (pure-Go)"),
-		cmd("quality", "quality_assessment", "Assess no-reference image quality — sharpness/exposure/contrast (pure-Go)"),
+		cmd("quality", "quality_assessment", "Report image dimensions and no-reference sharpness/exposure/contrast heuristics (pure-Go)"),
 	}
 }

@@ -26,7 +26,7 @@ the Level it lists when its domain is built.
 
 | Flow | Domain | Trigger | Outcome | Statefulness | Validation |
 |---|---|---|---|---|---|
-| Single-op async job lifecycle | jobs | User/CLI/UI submits an operation. | Output stored, status terminal (succeeded/failed/canceled). | Highly stateful: queued→running→terminal, GPU-serialized, cancellable. | Target Level 5: matrix, traces, declarative spec, checked Quint model, replay. |
+| Single-op async job lifecycle | jobs | User/CLI/UI submits an operation. | Output stored, status terminal (succeeded/failed/canceled). | Highly stateful: queued→running→terminal, queue class reported, cancellable. | Target Level 5: matrix, traces, declarative spec, checked Quint model, replay. |
 | Model install/enable/select lifecycle | models | User installs/enables a model or selector runs at op time. | Model available + selected for the probed host. | Stateful install + enable + selection states. | Target Level 4–5. |
 | Backend fallback chain | backends | Op cannot run on the current tier. | Op runs on next available tier with user-visible messaging. | Stateful tier transitions (Local-GPU→Local-CPU→BYOK). | Target Level 4–5. |
 | Recipe replay | recipes | User runs a saved recipe. | Each op-stack step executes in order; outputs produced. | Sequential multi-step, per-step failure handling. | Target Level 3–4. |
@@ -45,8 +45,8 @@ the Level it lists when its domain is built.
 - Steps:
   1. Validate op + parameters; run ingestion safety guard on inputs.
   2. Create a server-owned job record; return **job-id + ETA up front**.
-  3. Enqueue: heavy GPU ops go to the serializing queue; cheap CPU ops run
-     concurrently.
+  3. Enqueue: local AI work goes to the serialized local queue; lightweight
+     CPU-pool work runs concurrently; remote work uses the bounded network pool.
   4. Resolve provider via `backends` (apply fallback ladder if needed).
   5. Execute; stream progress over SSE (UI) — clients never poll.
   6. Persist output via `storage`; transition to a terminal state.
@@ -189,7 +189,7 @@ Backend fallback chain (backends):
 | jobs / single-op job (API) | queued, running, succeeded, failed, canceled | running before queued, escape from a terminal state, succeeded after canceled, duplicate terminal events | Planned `*.flow.json` contract + generated Quint model + replay (target Level 5). |
 | jobs / progress (UI) | idle, submitted, running, succeeded, failed, canceled | progress before submit, stale completion after cancel/resubmit, success after cancel | Planned `*.flow.json` + generated model + attempt-id stale-completion tests. |
 | backends / fallback chain | local_gpu, local_cpu, byok_cloud, ran, gave_up | byok_cloud before cost-estimate accepted, skipping CPU when a CPU model exists, re-entering a failed tier | Planned `*.flow.json` + generated model + replay. |
-| models / install+select | absent, downloading, installed, enabled, disabled, selected | enabled before installed, selected when disabled, removal while in use | Planned model + repository/selector tests. |
+| models / install+select | absent, downloading, installed, enabled, disabled, selected | enabled before installed, selected when disabled, removal while in use | Shared `ModelUseGate` spans Installer install/remove, AI inference, and NSFW classification; active use blocks filesystem mutation with focused model, engine, analysis, and API tests. |
 | automation / watch-folder | watching, debouncing, submitted | submit before debounce settles, re-trigger on same unchanged file | Planned model + debounce tests. |
 | notes / attachment upload API (template, remove) | received, bytes_stored, metadata_recorded, failed | metadata before bytes, terminal-state escape, duplicate terminal events | `*.flow.json` contract, generated Quint model, replay, side-effect cleanup tests. |
 | notes / attachment upload UI (template, remove) | idle, selected, uploading, succeeded, failed | start before select, stale completion after reset/reselect, retry without file context | `*.flow.json` contract, generated Quint model, replay, attempt-id stale-completion tests. |
@@ -214,7 +214,7 @@ image-tools is pre-implementation, so no flow has reached this production
 shape yet. When the domains are built, the single-op job lifecycle (jobs)
 is the first flow that should be taken to the full Level-5 production shape
 below, since it carries the most lifecycle risk (durability across client
-disconnect, GPU serialization, cancellation, stale completion). The
+disconnect, queue serialization, cancellation, stale completion). The
 backend fallback chain and watch-folder trigger follow.
 
 Three (Go) or four (UI) files per flow at the top of the feature folder,
@@ -337,7 +337,7 @@ Inventory above with owners and target levels.
 
 | Flow | Risk | Next Step |
 |---|---|---|
-| Single-op async job lifecycle | High — durable server-owned runs, GPU serialization, cancel/stale completion. | Model to Level 5 first when `jobs` is built. |
+| Single-op async job lifecycle | High — durable server-owned runs, queue serialization, cancel/stale completion. | Model to Level 5 first when `jobs` is built. |
 | Backend fallback chain | Medium-high — tier transitions + BYOK cost gate must be correct and well-messaged. | Model to Level 4–5 when `backends` is built. |
 | Watch-folder trigger | Medium — debounce + trigger-once correctness. | Model to Level 3–4 when `automation` is built. |
 | Recipe replay | Medium — sequential multi-step with partial-failure semantics. | Model to Level 3–4 when `recipes` is built. |

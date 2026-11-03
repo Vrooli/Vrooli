@@ -127,11 +127,11 @@
     "stateLabel": "状態:",
     "progressLabel": "{{count}}% 完了",
     "cancel": "キャンセル",
-    "lane": {
+    "queue": {
       "unspecified": "未指定",
-      "gpu": "GPU",
-      "cpu": "CPU",
-      "network": "クラウド"
+      "localSerial": "ローカル直列キュー",
+      "cpuPool": "CPUプール",
+      "networkPool": "ネットワークプール"
     },
     "state": {
       "unspecified": "未指定",

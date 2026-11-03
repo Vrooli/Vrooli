@@ -21,8 +21,8 @@ ops and heavy AI jobs — so budgets are split accordingly.
 |---|---|---|---|
 | Cheap deterministic ops (resize/crop/convert/metadata/etc.) | Sub-second, synchronous, zero model download | per-op latency in cli/manifest.json measures | planned |
 | AI op submission | Returns a job-id + ETA immediately; never blocks on the model; no client polling | job-submit latency measure | planned |
-| GPU jobs | Serialized — one heavy job at a time; queue wait surfaced as ETA | queue wait time measure | planned |
-| Cheap CPU ops under load | Run concurrently with (not behind) GPU jobs | concurrency / throughput measure | planned |
+| Local AI queue | Serialized — one local job at a time; queue wait surfaced as ETA | `scheduling_queue` wait-time measure | planned |
+| Lightweight CPU-pool work under load | Runs concurrently with the local serialized queue | concurrency / throughput measure | planned |
 | Model cold-start (download + load) | Bounded and surfaced up front as ETA, not as a silent stall | cold-start latency measure | planned |
 | Heavy resources (ComfyUI, per-op models) | Idle-shutdown delegated to the platform orchestrator | orchestrator idle-shutdown signal | planned |
 | UI build | 5-10 minutes accepted for current Vite module graph | lifecycle/test-genie build logs | inherited |

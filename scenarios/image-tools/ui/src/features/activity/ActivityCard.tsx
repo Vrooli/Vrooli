@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Cpu, Zap } from "lucide-react";
+import { Cloud, Cpu, Layers, ListOrdered } from "lucide-react";
 
 import { Button } from "../../components/ui/button";
 import { EmptyState } from "../../components/ui/empty-state";
@@ -7,7 +7,7 @@ import { selectors } from "../../consts/selectors";
 import { strings } from "../../consts/strings";
 import { useTranslation } from "../../i18n";
 import { blobUrl } from "../../api/client";
-import { JobLane, JobState, jobsClient, type Job } from "../../api/jobs";
+import { JobLane, JobQueue, JobState, jobsClient, type Job } from "../../api/jobs";
 import { errorMessage } from "../../lib/errorMessage";
 import { useJobProgress } from "../jobs/useJobProgress";
 import { operationLabelKey } from "../workspace/operationLabel";
@@ -15,11 +15,18 @@ import { useReopenOutput } from "../library/useReopenOutput";
 
 const JOBS_QUERY_KEY = ["jobs"] as const;
 
-const LANE_LABEL: Record<JobLane, (typeof strings.jobs.lane)[keyof typeof strings.jobs.lane]> = {
-  [JobLane.UNSPECIFIED]: strings.jobs.lane.unspecified,
-  [JobLane.GPU]: strings.jobs.lane.gpu,
-  [JobLane.CPU]: strings.jobs.lane.cpu,
-  [JobLane.NETWORK]: strings.jobs.lane.network,
+const QUEUE_LABEL: Record<JobQueue, (typeof strings.jobs.queue)[keyof typeof strings.jobs.queue]> = {
+  [JobQueue.UNSPECIFIED]: strings.jobs.queue.unspecified,
+  [JobQueue.LOCAL_SERIAL]: strings.jobs.queue.localSerial,
+  [JobQueue.CPU_POOL]: strings.jobs.queue.cpuPool,
+  [JobQueue.NETWORK_POOL]: strings.jobs.queue.networkPool,
+};
+
+const QUEUE_ICON = {
+  [JobQueue.UNSPECIFIED]: ListOrdered,
+  [JobQueue.LOCAL_SERIAL]: Layers,
+  [JobQueue.CPU_POOL]: Cpu,
+  [JobQueue.NETWORK_POOL]: Cloud,
 };
 
 const STATE_LABEL: Record<JobState, (typeof strings.jobs.state)[keyof typeof strings.jobs.state]> = {
@@ -43,7 +50,7 @@ interface JobRowProps {
 
 /**
  * One activity row — a result thumbnail (succeeded jobs), a friendly op label,
- * the GPU/CPU lane chip, the live state + progress, a readable status message
+ * the scheduler queue chip, the live state + progress, a readable status message
  * (which carries the GPU→CPU→cloud fallback line), and Cancel / Open-output.
  * Active jobs overlay live WatchJob progress on the polled snapshot.
  */
@@ -57,7 +64,8 @@ function JobRow({ job, index, onCancel, onOpen, cancelPending }: JobRowProps) {
   const labelKey = operationLabelKey(job.operation);
   const label = labelKey ? t(labelKey) : job.operation;
   const succeeded = state === JobState.SUCCEEDED && job.resultRef !== "";
-  const LaneIcon = job.lane === JobLane.GPU ? Zap : Cpu;
+  const queue = schedulingQueueForJob(job);
+  const QueueIcon = QUEUE_ICON[queue];
 
   return (
     <li className="flex gap-3 rounded-lg border border-app-border p-3">
@@ -81,8 +89,8 @@ function JobRow({ job, index, onCancel, onOpen, cancelPending }: JobRowProps) {
             data-testid={selectors.jobs.lane}
             className="inline-flex items-center gap-1 rounded-control border border-app-border px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-app-muted-foreground"
           >
-            <LaneIcon aria-hidden="true" className="h-3 w-3" />
-            {t(LANE_LABEL[job.lane])}
+            <QueueIcon aria-hidden="true" className="h-3 w-3" />
+            {t(QUEUE_LABEL[queue])}
           </span>
           {live ? (
             <span
@@ -142,6 +150,22 @@ function JobRow({ job, index, onCancel, onOpen, cancelPending }: JobRowProps) {
   );
 }
 
+function schedulingQueueForJob(job: Job): JobQueue {
+  if (job.schedulingQueue !== JobQueue.UNSPECIFIED) return job.schedulingQueue;
+  switch (job.lane) {
+    // Legacy JOB_LANE_GPU described the serialized local queue. It never
+    // established which device the selected backend used.
+    case JobLane.GPU:
+      return JobQueue.LOCAL_SERIAL;
+    case JobLane.CPU:
+      return JobQueue.CPU_POOL;
+    case JobLane.NETWORK:
+      return JobQueue.NETWORK_POOL;
+    default:
+      return JobQueue.UNSPECIFIED;
+  }
+}
+
 /**
  * Activity — the durable-async-work monitor (the Console-zone upgrade of the
  * old jobs card): live + recent operations with result thumbnails, friendly
@@ -187,7 +211,7 @@ export function ActivityCard() {
       {jobsQuery.data && jobs.length === 0 ? (
         <EmptyState
           testId={selectors.activity.empty}
-          Icon={Zap}
+          Icon={Layers}
           title={t(strings.jobs.empty)}
         />
       ) : null}

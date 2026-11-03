@@ -61,6 +61,12 @@ type Deps struct {
 	// the engine refuses to launch a job for an uninstalled model with an
 	// actionable hint instead of failing opaquely mid-run.
 	ModelInstalled func(modelID string) bool
+	// ModelRuntimeReadiness reports whether the model has a complete built artifact
+	// and, when applicable, a provisioned Python environment with passing load-smoke.
+	ModelRuntimeReadiness func(ctx context.Context, modelID string) (bool, string)
+	// AcquireModelUse retains the installed weights while inference consumes
+	// them. Production shares this gate with Installer and analysis services.
+	AcquireModelUse func(modelID string) (release func(), err error)
 	// CustomModels lists the user-imported (add-only) models so a model imported by
 	// `models import` is resolvable for generation right after install. nil ⇒
 	// seed-only registry. Merged over Registry via models.Registry.WithCustom per
@@ -204,6 +210,8 @@ type PlanRequest struct {
 // ErrModelNotInstalled is returned by Plan when the selected model's weights are
 // not yet on disk (the operator must install it via the model management layer).
 var ErrModelNotInstalled = errors.New("ai: selected model is not installed")
+var ErrModelNotRuntimeReady = errors.New("ai: selected model is not runtime-ready")
+var ErrModelUnsupportedHost = errors.New("ai: selected model does not support the current host")
 
 // Plan selects the model + provider for an op on the current host without
 // running it. It fails (before any job is created) when the op is unknown, no
@@ -257,6 +265,11 @@ func (e *Engine) Plan(ctx context.Context, req PlanRequest) (Plan, error) {
 	}
 	if !e.deps.ModelInstalled(res.Model.ID) {
 		return Plan{}, fmt.Errorf("%w: %q — run `image-tools models install %s`", ErrModelNotInstalled, res.Model.ID, res.Model.ID)
+	}
+	if e.deps.ModelRuntimeReadiness != nil {
+		if ready, state := e.deps.ModelRuntimeReadiness(ctx, res.Model.ID); !ready {
+			return Plan{}, fmt.Errorf("%w: %q (%s) — re-run `image-tools models install %s` and resolve the reported runtime issue", ErrModelNotRuntimeReady, res.Model.ID, state, res.Model.ID)
+		}
 	}
 	// Fill each resolved adapter's on-disk dir so the pinned payload is execution-
 	// ready (no second resolution in the runner).
@@ -335,10 +348,10 @@ func estimateSecondsForTier(op string, gpuViable bool, tier string) int {
 	return estimateSeconds(op, gpuViable)
 }
 
-// LaneForTier returns the job lane for the selected tier. A remote BYOK-cloud
-// tier runs on the network lane, never behind the single local GPU worker, which
-// otherwise serialized cloud jobs (F7: ~70 s queued per OpenRouter job). Local
-// GPU and CPU tiers stay on the local lanes.
+// LaneForTier returns the scheduler queue for the selected tier. Remote
+// BYOK-cloud work uses the bounded network pool; every local tier uses the
+// serialized local queue. The internal LaneGPU name is a legacy queue name and
+// does not assert that the selected backend executes on GPU hardware.
 func LaneForTier(tier string) internaljobs.Lane {
 	switch tier {
 	case "byok-cloud":
@@ -408,8 +421,36 @@ func (e *Engine) run(ctx context.Context, op string, job internaljobs.Job, emit 
 	if !ok {
 		return internaljobs.Result{}, fmt.Errorf("ai: model %q not in registry", pl.ModelID)
 	}
+	var releaseModelUse func()
+	if e.deps.AcquireModelUse != nil {
+		var acquireErr error
+		releaseModelUse, acquireErr = e.deps.AcquireModelUse(model.ID)
+		if acquireErr != nil {
+			return internaljobs.Result{}, fmt.Errorf("ai: acquire model use %q: %w", model.ID, acquireErr)
+		}
+		if releaseModelUse == nil {
+			return internaljobs.Result{}, fmt.Errorf("ai: acquire model use %q returned no release function", model.ID)
+		}
+		defer func() {
+			if releaseModelUse != nil {
+				releaseModelUse()
+			}
+		}()
+	}
 	if !e.deps.ModelInstalled(model.ID) {
 		return internaljobs.Result{}, fmt.Errorf("%w: %q", ErrModelNotInstalled, model.ID)
+	}
+	if e.deps.ModelRuntimeReadiness != nil {
+		if ready, state := e.deps.ModelRuntimeReadiness(ctx, model.ID); !ready {
+			return internaljobs.Result{}, fmt.Errorf("%w: %q (%s)", ErrModelNotRuntimeReady, model.ID, state)
+		}
+	}
+	host, err := e.deps.Probe.Inventory(ctx)
+	if err != nil {
+		return internaljobs.Result{}, fmt.Errorf("ai: recheck host support for %q: %w", model.ID, err)
+	}
+	if !model.SupportsHost(host) {
+		return internaljobs.Result{}, fmt.Errorf("%w: %q (%s/%s)", ErrModelUnsupportedHost, model.ID, host.OS, host.Arch)
 	}
 
 	bsel, err := e.deps.Backends.SelectProvider(ctx, backends.SelectRequest{
@@ -641,6 +682,10 @@ func (e *Engine) run(ctx context.Context, op string, job internaljobs.Job, emit 
 	} else if meta != nil {
 		delete(meta, MetaCostUSD)
 		delete(meta, MetaCostProvenance)
+	}
+	if releaseModelUse != nil {
+		releaseModelUse()
+		releaseModelUse = nil
 	}
 
 	primary := outKeys[0]

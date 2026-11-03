@@ -3,6 +3,7 @@ package analysis
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"os"
@@ -18,9 +19,16 @@ type Config struct {
 	// ModelInstalled reports whether a model's weights are on disk. Required for
 	// the model-backed ops (ocr/nsfw); probe never consults it.
 	ModelInstalled func(modelID string) bool
+	// AcquireModelUse holds shared ownership while NSFW inference reads model
+	// files; production shares this gate with the Installer and AI engine.
+	AcquireModelUse func(modelID string) (release func(), err error)
 	// ModelsRoot is the absolute directory model weights live under (per model:
 	// <ModelsRoot>/models/<id>).
 	ModelsRoot string
+	// PythonProgram is the absolute interpreter path from image-tools' private
+	// lock-pinned venv. An empty value leaves model-backed analysis unavailable;
+	// NSFW must never fall back to the host's shared Python installation.
+	PythonProgram string
 	// NSFWThreshold is the decision threshold for the boolean NSFW verdict.
 	// AdamCodd's classifier over-flags skin tones, so this is operator-tunable;
 	// defaults to 0.5 when <= 0.
@@ -34,12 +42,14 @@ type Config struct {
 // Service runs the model-backed analysis ops (OCR, NSFW). Probe is a free
 // function (no deps).
 type Service struct {
-	modelInstalled func(string) bool
-	modelsRoot     string
-	threshold      float64
-	lookPath       lookPathFunc
-	run            cmdOutput
-	logger         *log.Logger
+	modelInstalled  func(string) bool
+	acquireModelUse func(string) (func(), error)
+	modelsRoot      string
+	pythonProgram   string
+	threshold       float64
+	lookPath        lookPathFunc
+	run             cmdOutput
+	logger          *log.Logger
 }
 
 // NewService validates cfg and returns the service.
@@ -56,12 +66,14 @@ func NewService(cfg Config) (*Service, error) {
 		logger = log.Default()
 	}
 	return &Service{
-		modelInstalled: cfg.ModelInstalled,
-		modelsRoot:     cfg.ModelsRoot,
-		threshold:      thr,
-		lookPath:       cfg.LookPath,
-		run:            cfg.Run,
-		logger:         logger,
+		modelInstalled:  cfg.ModelInstalled,
+		acquireModelUse: cfg.AcquireModelUse,
+		modelsRoot:      cfg.ModelsRoot,
+		pythonProgram:   strings.TrimSpace(cfg.PythonProgram),
+		threshold:       thr,
+		lookPath:        cfg.LookPath,
+		run:             cfg.Run,
+		logger:          logger,
 	}, nil
 }
 
@@ -79,6 +91,22 @@ func (s *Service) resolveRun() cmdOutput {
 	return func(ctx context.Context, name string, args []string) ([]byte, error) {
 		return exec.CommandContext(ctx, name, args...).Output()
 	}
+}
+
+const maxCommandStderrBytes = 4096
+
+func commandError(prefix string, err error) error {
+	var exitErr *exec.ExitError
+	if errors.As(err, &exitErr) {
+		stderr := strings.TrimSpace(string(exitErr.Stderr))
+		if len(stderr) > maxCommandStderrBytes {
+			stderr = stderr[:maxCommandStderrBytes] + "… [truncated]"
+		}
+		if stderr != "" {
+			return fmt.Errorf("%s: %w; stderr: %s", prefix, err, stderr)
+		}
+	}
+	return fmt.Errorf("%s: %w", prefix, err)
 }
 
 // modelDir is the absolute installed-weights directory for a model id.
@@ -130,21 +158,36 @@ func ocrArgs(path string) []string {
 	return []string{path, "stdout", "-l", "eng"}
 }
 
-// NSFW classifies src for unsafe content via the onnxruntime python sidecar.
-// Refuses with ErrBackendUnavailable when python3 or the model is absent.
+// NSFW classifies src for unsafe content via the onnxruntime Python sidecar.
+// It uses the isolated lock-pinned interpreter supplied by the app; a host
+// Python fallback would bypass the runtime's dependency and provenance contract.
 func (s *Service) NSFW(ctx context.Context, src []byte) (NSFWResult, error) {
 	const modelID = "adamcodd-vit-nsfw"
-	if _, err := s.resolveLookPath()("python3"); err != nil {
-		return NSFWResult{}, fmt.Errorf("%w: install python3 + onnxruntime (the `nsfw_classify` default backend)", ErrBackendUnavailable)
+	if s.pythonProgram == "" {
+		return NSFWResult{}, fmt.Errorf("%w: isolated Python environment is not provisioned; install uv and restart image-tools", ErrBackendUnavailable)
+	}
+	python, err := s.resolveLookPath()(s.pythonProgram)
+	if err != nil {
+		return NSFWResult{}, fmt.Errorf("%w: isolated Python interpreter is unavailable at %q", ErrBackendUnavailable, s.pythonProgram)
+	}
+	if s.acquireModelUse != nil {
+		release, acquireErr := s.acquireModelUse(modelID)
+		if acquireErr != nil {
+			return NSFWResult{}, fmt.Errorf("analysis: acquire model use %q: %w", modelID, acquireErr)
+		}
+		if release == nil {
+			return NSFWResult{}, fmt.Errorf("analysis: acquire model use %q returned no release function", modelID)
+		}
+		defer release()
 	}
 	if !s.modelInstalled(modelID) {
 		return NSFWResult{}, fmt.Errorf("%w: model %q not installed — run `image-tools models install %s`", ErrBackendUnavailable, modelID, modelID)
 	}
 	var raw []byte
-	err := withTempInput(src, func(path string) error {
-		b, err := s.resolveRun()(ctx, "python3", nsfwArgs(s.modelDir(modelID), path))
+	err = withTempInput(src, func(path string) error {
+		b, err := s.resolveRun()(ctx, python, nsfwArgs(s.modelDir(modelID), path))
 		if err != nil {
-			return fmt.Errorf("analysis: nsfw classifier: %w", err)
+			return commandError("analysis: nsfw classifier", err)
 		}
 		raw = b
 		return nil

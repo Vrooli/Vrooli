@@ -2,8 +2,8 @@
 // mirrors the test-genie run-lifecycle philosophy: a submit returns a job id +
 // ETA immediately, work runs under a server-lifetime context (so a client
 // disconnect never destroys it), callers block ONCE on Wait (no polling), and
-// progress streams over a subscription for SSE. Heavy GPU jobs are serialized
-// (one at a time) while cheap CPU jobs run concurrently.
+// progress streams over a subscription for SSE. Local AI work uses one
+// serialized queue; lightweight CPU work and remote jobs use separate pools.
 package jobs
 
 import "time"
@@ -38,18 +38,20 @@ func (s State) Terminal() bool {
 	}
 }
 
-// Lane selects the execution lane. GPU jobs are serialized; CPU jobs run
-// concurrently; network jobs (remote BYOK-cloud tiers) run on their own bounded
-// pool so they never queue behind the single local GPU worker.
+// Lane selects the scheduler queue. The legacy LaneGPU value is the serialized
+// local queue, including CPU-backed inference; it does not identify hardware.
+// LaneCPU is a concurrent pool for lightweight CPU work, while remote BYOK-cloud
+// jobs use their own bounded pool.
 type Lane string
 
 const (
-	// LaneGPU serializes heavy GPU work (one at a time) to avoid VRAM contention.
+	// LaneGPU is the legacy name for the serialized local queue. Local inference
+	// may execute on CPU or GPU; the queue name does not identify the device.
 	LaneGPU Lane = "gpu"
 	// LaneCPU runs cheap work concurrently.
 	LaneCPU Lane = "cpu"
 	// LaneNetwork runs remote-tier work on a bounded worker pool, independent of
-	// the local GPU lane.
+	// the serialized local queue.
 	LaneNetwork Lane = "network"
 )
 

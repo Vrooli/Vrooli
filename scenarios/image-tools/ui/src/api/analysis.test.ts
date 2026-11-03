@@ -172,6 +172,8 @@ describe("api/analysis", () => {
           job_id: "jq",
           quality: {
             overall_score: 0.82,
+            width_px: 640,
+            height_px: 480,
             sharpness: 0.71,
             blurry: false,
             brightness: 0.55,
@@ -188,6 +190,8 @@ describe("api/analysis", () => {
     expect(out.kind).toBe("quality");
     if (out.kind === "quality") {
       expect(out.overallScore).toBeCloseTo(0.82);
+      expect(out.width).toBe(640);
+      expect(out.height).toBe(480);
       expect(out.blurry).toBe(false);
       expect(out.exposure).toBe("balanced");
       expect(out.notes).toEqual(["well exposed"]);

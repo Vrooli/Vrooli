@@ -1,6 +1,7 @@
 import { createClient } from "@connectrpc/connect";
 import {
   JobLane,
+  JobQueue,
   JobsService,
   JobState,
   type Job,
@@ -19,5 +20,5 @@ export const jobsClient = createClient(JobsService, transport);
  * the server replays the latest known event first, then streams updates
  * until the job reaches a terminal state. `useJobProgress` subscribes to it.
  */
-export { JobLane, JobState };
+export { JobLane, JobQueue, JobState };
 export type { Job, ListJobsResponse, CancelJobResponse, ProgressEvent };

@@ -324,6 +324,8 @@ describe("AnalyzePanel", () => {
       phase: "done",
       result: makeQualityResult({
         overallScore: 0.4,
+        width: 640,
+        height: 480,
         sharpness: 0.12,
         blurry: true,
         exposure: "underexposed",
@@ -335,6 +337,7 @@ describe("AnalyzePanel", () => {
     const quality = await screen.findByTestId(selectors.workspace.analyze.quality);
     expect(quality).toBeInTheDocument();
     expect(quality).toHaveTextContent("40%");
+    expect(quality).toHaveTextContent("640×480");
     expect(quality).toHaveTextContent(/blurry/i);
     expect(quality).toHaveTextContent("underexposed");
     expect(quality).toHaveTextContent("low contrast");

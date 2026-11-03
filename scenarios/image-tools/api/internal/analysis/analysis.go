@@ -51,7 +51,7 @@ var catalog = []OpInfo{
 	{Name: OpNSFW, Summary: "Classify an image for NSFW / unsafe content", ModelBacked: true, DefaultModelID: "adamcodd-vit-nsfw"},
 	{Name: OpProbe, Summary: "Report structured image info (dimensions, format, metadata, palette)", ModelBacked: false},
 	{Name: OpDuplicate, Summary: "Compute perceptual fingerprints (pHash/aHash) to find near-duplicate images", ModelBacked: false},
-	{Name: OpQuality, Summary: "Assess no-reference image quality (sharpness, exposure, contrast)", ModelBacked: false},
+	{Name: OpQuality, Summary: "Report image dimensions and no-reference quality heuristics (sharpness, exposure, contrast)", ModelBacked: false},
 }
 
 // List returns the analysis catalog in stable (sorted) order.
@@ -138,8 +138,11 @@ type DuplicateResult struct {
 }
 
 // QualityResult is the structured output of the pure-Go quality_assessment op.
+// OverallScore is a heuristic summary, not a calibrated measure of perception.
 type QualityResult struct {
 	OverallScore float64
+	Width        int
+	Height       int
 	Sharpness    float64
 	Blurry       bool
 	Brightness   float64

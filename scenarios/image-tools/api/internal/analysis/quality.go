@@ -15,8 +15,9 @@ const blurThreshold = 100.0
 
 // QualityAssess computes no-reference image-quality heuristics: sharpness
 // (variance of the Laplacian), brightness (mean luma), and contrast (luma
-// standard deviation), plus a derived 0..1 overall score and human labels. Pure
-// -Go (no model, no GPU) — the always-runnable analysis floor.
+// standard deviation), plus the decoded pixel dimensions, a derived 0..1
+// overall score and human labels. Pure Go (no model, no GPU) — the
+// always-runnable analysis floor.
 func QualityAssess(src []byte) (QualityResult, error) {
 	img, _, err := internalops.Decode(src)
 	if err != nil {
@@ -31,6 +32,8 @@ func QualityAssess(src []byte) (QualityResult, error) {
 	sharp := laplacianVariance(luma)
 
 	res := QualityResult{
+		Width:      luma.w,
+		Height:     luma.h,
 		Sharpness:  round2(sharp),
 		Blurry:     sharp < blurThreshold,
 		Brightness: round2(mean),

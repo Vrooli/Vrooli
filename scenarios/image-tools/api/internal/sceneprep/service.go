@@ -38,6 +38,14 @@ type Repository interface {
 type Service struct {
 	Repository Repository
 	Blobs      blobstore.BlobStore
+	Now        func() time.Time
+}
+
+func (s *Service) now() time.Time {
+	if s.Now != nil {
+		return s.Now()
+	}
+	return time.Now()
 }
 
 func (s *Service) Create(ctx context.Context, req *preparationv1.CreatePhotographRequest) (*preparationv1.StoredPhotograph, error) {
@@ -151,7 +159,7 @@ func (s *Service) Review(ctx context.Context, req *preparationv1.ReviewPhotograp
 	m.Review = proto.Clone(req.Review).(*preparationv1.VisualReview)
 	// This value is assigned by the owner and included in the immutable child
 	// manifest so downstream publication retries keep the same review digest.
-	ownerTimestamp := time.Now().UTC().UnixMilli()
+	ownerTimestamp := s.now().UTC().UnixMilli()
 	m.Review.ReviewedAtUnixMs = ownerTimestamp
 	m.CameraEnvelope.OverscanReviewed = req.OverscanReviewed
 	updated, err := build(m, bundle.OpenArtifact)
@@ -212,7 +220,7 @@ func (s *Service) buildStored(ctx context.Context, raw []byte, label, parent str
 		}
 		previewRefs[a.Path] = ref
 	}
-	createdAt := time.Now().UTC().UnixMilli()
+	createdAt := s.now().UTC().UnixMilli()
 	if bundle.Manifest.Review.ReviewedAtUnixMs > 0 {
 		createdAt = bundle.Manifest.Review.ReviewedAtUnixMs
 	}

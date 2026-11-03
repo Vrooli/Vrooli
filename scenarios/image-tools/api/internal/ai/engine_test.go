@@ -23,16 +23,17 @@ import (
 // records the request it received, so tests assert the full vertical (select →
 // execute → persist) without a real backend binary.
 type fakeProvider struct {
-	name     string
-	ops      []string
-	out      []byte
-	meta     map[string]string
-	metas    []map[string]string
-	lastReq  backends.Request
-	execN    int
-	failWith error
-	failOn   int
-	failMeta map[string]string
+	name      string
+	ops       []string
+	out       []byte
+	meta      map[string]string
+	metas     []map[string]string
+	lastReq   backends.Request
+	execN     int
+	failWith  error
+	failOn    int
+	failMeta  map[string]string
+	onExecute func()
 }
 
 func TestOutputFormatRetainsGeometryArchive(t *testing.T) {
@@ -53,6 +54,9 @@ func (p *fakeProvider) Available(context.Context) bool { return true }
 func (p *fakeProvider) Execute(_ context.Context, req backends.Request) (backends.Result, error) {
 	p.lastReq = req
 	p.execN++
+	if p.onExecute != nil {
+		p.onExecute()
+	}
 	if p.failWith != nil {
 		if p.failOn == 0 || p.execN == p.failOn {
 			return backends.Result{Meta: p.failMeta}, p.failWith
@@ -179,6 +183,50 @@ func TestVariationCostRequiresEveryProviderReportedContribution(t *testing.T) {
 	}
 }
 
+func TestRunLeasesModelAcrossVariationsAndReleasesBeforeAutoScan(t *testing.T) {
+	gate := models.NewModelUseGate()
+	fp := &fakeProvider{}
+	eng, _, modelID := newTestEngine(t, "text_to_image", fp)
+	eng.deps.AcquireModelUse = gate.Acquire
+	eng.deps.AutoScan = func(context.Context, []byte) (bool, float64, error) {
+		release, err := gate.AcquireExclusive(modelID)
+		if err != nil {
+			t.Errorf("model lease should be released before NSFW auto-scan; exclusive acquire err=%v", err)
+		} else {
+			release()
+		}
+		return false, 0, nil
+	}
+	fp.onExecute = func() {
+		release, err := gate.AcquireExclusive(modelID)
+		if err == nil {
+			t.Error("model lease should cover backend execution; exclusive acquire succeeded")
+			release()
+		} else if !errors.Is(err, models.ErrModelInUse) {
+			t.Errorf("exclusive acquire returned unexpected error: %v", err)
+		}
+	}
+	payload, err := json.Marshal(Payload{
+		Operation: "text_to_image", ModelID: modelID, GPU: true, Variations: 2,
+		AutoScanNSFW: true, Params: map[string]string{"prompt": "lease coverage"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	runner := eng.BuildRunners()["text_to_image"]
+	if _, err := runner(context.Background(), internaljobs.Job{Operation: "text_to_image", Payload: payload}, func(int, string) {}); err != nil {
+		t.Fatalf("run: %v", err)
+	}
+	if fp.execN != 2 {
+		t.Fatalf("backend executions=%d, want two variations", fp.execN)
+	}
+	release, err := gate.AcquireExclusive(modelID)
+	if err != nil {
+		t.Fatalf("model lease remained after run: %v", err)
+	}
+	release()
+}
+
 type failingProbe struct{ err error }
 
 func (p failingProbe) Inventory(context.Context) (capabilities.Host, error) {
@@ -250,6 +298,49 @@ func runJob(t *testing.T, eng *Engine, op string, pl Payload) (string, error) {
 	}
 	result, err := runner(context.Background(), internaljobs.Job{Operation: op, Payload: raw}, func(int, string) {})
 	return result.Ref, err
+}
+
+func TestRunRejectsPersistedModelUnsupportedOnCurrentHost(t *testing.T) {
+	registry, err := models.Load()
+	if err != nil {
+		t.Fatal(err)
+	}
+	base, ok := registry.DefaultFor("text_to_image")
+	if !ok {
+		t.Fatal("text_to_image default missing")
+	}
+	restricted := base
+	restricted.ID = "restricted-host-test"
+	restricted.Name = "Restricted host test"
+	restricted.DefaultFor = nil
+	restricted.Hardware.OSArch = []string{"linux/amd64"}
+	fp := &fakeProvider{name: base.Backend, ops: []string{"text_to_image"}}
+	backendReg := backends.New()
+	if err := backendReg.Register(fp); err != nil {
+		t.Fatal(err)
+	}
+	store := storage.NewWithBlobStore(blobstore.NewMemoryBlobStore(), t.TempDir())
+	eng, err := NewEngine(Deps{
+		Registry:       registry,
+		Backends:       backendReg,
+		Probe:          capabilities.FakeProbe{Host: capabilities.Host{OS: "windows", Arch: "arm64", Cores: 8}},
+		Store:          store,
+		ModelInstalled: func(string) bool { return true },
+		CustomModels:   func(context.Context) ([]models.Model, error) { return []models.Model{restricted}, nil },
+	})
+	if err != nil {
+		t.Fatalf("new engine: %v", err)
+	}
+	_, runErr := runJob(t, eng, "text_to_image", Payload{
+		Operation: "text_to_image", ModelID: restricted.ID, GPU: false,
+		Params: map[string]string{"prompt": "must not reach provider"},
+	})
+	if !errors.Is(runErr, ErrModelUnsupportedHost) {
+		t.Fatalf("runner error = %v, want ErrModelUnsupportedHost", runErr)
+	}
+	if fp.execN != 0 {
+		t.Fatalf("unsupported model reached provider %d times", fp.execN)
+	}
 }
 
 // storeInput writes bytes under a key in the store (helper for image-input ops).
@@ -347,6 +438,9 @@ func TestPlan_SuccessUsesDefaultOverrideWarningsAndETA(t *testing.T) {
 			return def.ID, nil
 		},
 		ModelInstalled: func(id string) bool { return id == def.ID },
+		ModelRuntimeReadiness: func(context.Context, string) (bool, string) {
+			return true, "ready"
+		},
 	})
 	if err != nil {
 		t.Fatalf("new engine: %v", err)
@@ -363,6 +457,12 @@ func TestPlan_SuccessUsesDefaultOverrideWarningsAndETA(t *testing.T) {
 	}
 	if len(plan.Warnings) == 0 {
 		t.Fatalf("expected CPU warning in plan")
+	}
+	eng.deps.ModelRuntimeReadiness = func(context.Context, string) (bool, string) {
+		return false, "smoke_pending"
+	}
+	if _, err := eng.Plan(context.Background(), PlanRequest{Operation: "naturalize"}); !errors.Is(err, ErrModelNotRuntimeReady) {
+		t.Fatalf("Plan error = %v, want ErrModelNotRuntimeReady", err)
 	}
 }
 
@@ -489,7 +589,7 @@ func TestMaterializeAdapterImages(t *testing.T) {
 
 func TestEngineHelpers(t *testing.T) {
 	if LaneForTier("local-gpu") != internaljobs.LaneGPU {
-		t.Fatalf("local-gpu tier should use the GPU lane")
+		t.Fatalf("local-gpu tier should use the serialized local queue")
 	}
 	if LaneForTier("byok-cloud") != internaljobs.LaneNetwork {
 		t.Fatalf("byok-cloud tier should use the network lane")

@@ -134,6 +134,8 @@ export const makeQualityResult = (overrides: Partial<AnalyzeQuality> = {}): Anal
   kind: "quality",
   jobId: "job-quality",
   overallScore: 0.82,
+  width: 640,
+  height: 480,
   sharpness: 0.71,
   blurry: false,
   brightness: 0.55,

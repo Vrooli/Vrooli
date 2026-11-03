@@ -130,11 +130,11 @@
     "stateLabel": "الحالة:",
     "progressLabel": "اكتمل {{count}}%",
     "cancel": "إلغاء",
-    "lane": {
+    "queue": {
       "unspecified": "غير محدد",
-      "gpu": "GPU",
-      "cpu": "CPU",
-      "network": "سحابي"
+      "localSerial": "قائمة انتظار محلية متسلسلة",
+      "cpuPool": "مجموعة المعالج المركزي",
+      "networkPool": "مجموعة الشبكة"
     },
     "state": {
       "unspecified": "غير محدد",

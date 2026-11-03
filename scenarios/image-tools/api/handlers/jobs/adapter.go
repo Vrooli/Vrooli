@@ -33,6 +33,7 @@ func domainToProto(j internaljobs.Job) *jobsv1.Job {
 		Id:               j.ID,
 		Operation:        j.Operation,
 		Lane:             laneToProto(j.Lane),
+		SchedulingQueue:  queueToProto(j.Lane),
 		State:            stateToProto(j.State),
 		Progress:         int32(j.Progress),
 		Message:          j.Message,
@@ -129,6 +130,19 @@ func laneToProto(l internaljobs.Lane) jobsv1.JobLane {
 		return jobsv1.JobLane_JOB_LANE_NETWORK
 	default:
 		return jobsv1.JobLane_JOB_LANE_UNSPECIFIED
+	}
+}
+
+func queueToProto(l internaljobs.Lane) jobsv1.JobQueue {
+	switch l {
+	case internaljobs.LaneGPU:
+		return jobsv1.JobQueue_JOB_QUEUE_LOCAL_SERIAL
+	case internaljobs.LaneCPU:
+		return jobsv1.JobQueue_JOB_QUEUE_CPU_POOL
+	case internaljobs.LaneNetwork:
+		return jobsv1.JobQueue_JOB_QUEUE_NETWORK_POOL
+	default:
+		return jobsv1.JobQueue_JOB_QUEUE_UNSPECIFIED
 	}
 }
 

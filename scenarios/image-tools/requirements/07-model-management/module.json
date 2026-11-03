@@ -15,8 +15,29 @@
           "type": "test",
           "ref": "api/internal/models/install_test.go",
           "phase": "unit",
-          "status": "failing",
-          "notes": "Install verifies checksum and disk space before download"
+          "status": "implemented",
+          "notes": "Install verifies checksum and disk space; in-use weights refuse install/remove through the shared model-use gate"
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/ai/engine_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "AI inference holds the model-use lease across all requested variations and releases it before NSFW auto-scan"
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/analysis/analysis_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Standalone NSFW sidecar retains the model-use lease for the complete inference call"
+        },
+        {
+          "type": "test",
+          "ref": "api/handlers/models/connect_handler_install_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "RemoveModel reports FailedPrecondition and preserves installed weights while the model is in use"
         },
         {
           "type": "test",

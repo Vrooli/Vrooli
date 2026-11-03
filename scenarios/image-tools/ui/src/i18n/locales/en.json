@@ -132,11 +132,11 @@
     "errorLabel": "Error:",
     "liveBadge": "Live",
     "cancel": "Cancel",
-    "lane": {
+    "queue": {
       "unspecified": "Unspecified",
-      "gpu": "GPU",
-      "cpu": "CPU",
-      "network": "Cloud"
+      "localSerial": "Serialized local queue",
+      "cpuPool": "CPU pool",
+      "networkPool": "Network pool"
     },
     "state": {
       "unspecified": "Unspecified",

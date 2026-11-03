@@ -198,13 +198,13 @@
       },
       "io": {
         "native_resolution": "1024x1024",
-        "notes": "2509 iteration: multi-image editing (person+person / person+product / person+scene, 1-3 inputs), stronger single-image facial/product identity + text-edit consistency, and native ControlNet conditions (depth/edge/keypoint). Drive with `prompt` (the instruction)."
+        "notes": "2509 iteration: multi-image editing (person+person / person+product / person+scene, 1-3 inputs), stronger single-image facial/product identity + text-edit consistency, and native ControlNet conditions (depth/edge/keypoint). Drive with `prompt` (the instruction). The model is selectable after attended qualification; its 57.7 GB weights are installed only after operator action."
       },
       "capability_labels": {
         "nsfw_capable": true,
         "license": "Apache-2.0",
         "commercial_use": "yes",
-        "commercial_use_notes": "Apache-2.0 weights — clean commercial use, no revenue cap. Heavy: opt-in (disabled by default) until the operator confirms the hardware fit.",
+        "commercial_use_notes": "Apache-2.0 weights — clean commercial use, no revenue cap.",
         "base_model_lineage": "Qwen-Image-Edit-2509 (Alibaba Qwen team; Sept 2025 iteration of Qwen-Image-Edit)",
         "known_risks": "Can generate NSFW; powerful identity-altering edits carry the deployment-gate consent weight (SECURITY.md)."
       },
@@ -660,14 +660,14 @@
         "nsfw_capable": false,
         "license": "MIT",
         "commercial_use": "yes",
-        "commercial_use_notes": "Fully permissive.",
+        "commercial_use_notes": "Upstream author states all released weights are under MIT and added LICENSE-WEIGHTS. The author did not assess whether the training-teacher terms affect that grant; see upstream issue #25. Catalog records the author's explicit grant, not an independent rights-chain opinion.",
         "base_model_lineage": "Picsart AI Research MI-GAN",
         "known_risks": "Weak on faces/text regions (general inpainting limitation)."
       },
       "source": {
         "download_url": "https://github.com/Picsart-AI-Research/MI-GAN",
         "source_repo": "https://github.com/Picsart-AI-Research/MI-GAN",
-        "docs_url": "https://www.iopaint.com/models",
+        "docs_url": "https://github.com/Picsart-AI-Research/MI-GAN/blob/main/LICENSE-WEIGHTS",
         "update_source": "https://github.com/Sanster/models/releases/tag/migan",
         "assets": [
           {
@@ -718,9 +718,9 @@
       },
       "capability_labels": {
         "nsfw_capable": false,
-        "license": "Apache-2.0",
-        "commercial_use": "yes",
-        "commercial_use_notes": "Fully permissive.",
+        "license": "Apache-2.0 for repository code; pretrained-weight grant unverified",
+        "commercial_use": "conditional",
+        "commercial_use_notes": "The upstream advimman/lama repository has open unanswered requests about whether the separately distributed pretrained Big-LaMa weights are covered by Apache-2.0. Third-party ONNX mirror metadata is not authoritative for the original weights. Keep disabled until the upstream weight grant is explicit: https://github.com/advimman/lama/issues/366 and https://github.com/advimman/lama/issues/368.",
         "base_model_lineage": "LaMa / Big-LaMa (Samsung AI / advimman)",
         "known_risks": "Weak on faces/text regions."
       },
@@ -744,7 +744,7 @@
           "status": "unverified-capture-on-download"
         }
       },
-      "enabled": true
+      "enabled": false
     },
     {
       "id": "big-lama-1024-export",
@@ -759,7 +759,7 @@
       "requires_comfyui": false,
       "size_mb_approx": 450,
       "quant_variants": [
-        "Apache-2.0 Big-LaMa generator-only safetensors; fixed 1024x1024 ONNX export candidate"
+        "Big-LaMa generator-only safetensors; fixed 1024x1024 ONNX export candidate"
       ],
       "hardware": {
         "cpu_capable": true,
@@ -777,9 +777,9 @@
       },
       "capability_labels": {
         "nsfw_capable": false,
-        "license": "Apache-2.0",
-        "commercial_use": "yes",
-        "commercial_use_notes": "Carve LaMa source and the pinned AEmotionStudio Big-LaMa safetensors model card identify Apache-2.0 licensing; its card traces the generator weights to the original LaMa checkpoint.",
+        "license": "Apache-2.0 for repository code; pretrained-weight grant unverified",
+        "commercial_use": "conditional",
+        "commercial_use_notes": "The upstream advimman/lama repository has open unanswered requests about whether the separately distributed pretrained Big-LaMa weights are covered by Apache-2.0. Third-party ONNX and safetensors mirror metadata is not authoritative for the original weights. Keep disabled until the upstream weight grant is explicit: https://github.com/advimman/lama/issues/366 and https://github.com/advimman/lama/issues/368.",
         "base_model_lineage": "LaMa / Big-LaMa (Samsung AI / advimman)",
         "known_risks": "1024 fixed-shape export is experimental; hidden-background reconstruction requires visual review."
       },
@@ -883,9 +883,7 @@
         "upscale",
         "denoise"
       ],
-      "default_for": [
-        "upscale"
-      ],
+      "default_for": [],
       "tier": "default",
       "backend": "realesrgan-ncnn-vulkan",
       "alt_backends": [
@@ -918,9 +916,9 @@
       },
       "capability_labels": {
         "nsfw_capable": false,
-        "license": "BSD-3-Clause (repo) / MIT (ncnn binary)",
-        "commercial_use": "yes",
-        "commercial_use_notes": "Use only official weights — community .pth (4x-UltraSharp, Remacri, etc.) are CC-BY-NC-SA and BLOCKED.",
+        "license": "BSD-3-Clause (repository code); pretrained-weight grant unverified",
+        "commercial_use": "conditional",
+        "commercial_use_notes": "The upstream repository license covers code, but does not state terms for the pretrained weights. Its model-zoo page lists the official weights, while issue #1016 asks whether realesr-general-x4v3 weights permit commercial use and whether training-data restrictions apply; no maintainer response is present. Keep disabled until the weight grant is explicit: https://github.com/xinntao/Real-ESRGAN/issues/1016.",
         "base_model_lineage": "Real-ESRGAN (Tencent ARC / xinntao)",
         "known_risks": "Beware community model zoo: most popular ESRGAN .pth are non-commercial despite 'mit' mislabels."
       },
@@ -949,7 +947,7 @@
           "status": "unverified-capture-on-download"
         }
       },
-      "enabled": true
+      "enabled": false
     },
     {
       "id": "real-cugan",
@@ -987,9 +985,9 @@
       },
       "capability_labels": {
         "nsfw_capable": false,
-        "license": "MIT",
-        "commercial_use": "yes",
-        "commercial_use_notes": "Both code and weights MIT (the 'disputed license' reputation is false — LICENSE is clean MIT).",
+        "license": "MIT for repository code; pretrained-weight grant unverified",
+        "commercial_use": "conditional",
+        "commercial_use_notes": "Official source and ncnn wrapper repositories use MIT for code, but neither reviewed source establishes terms for the pretrained weight files. The seed has no exact release archive or pinned weight inventory. Keep disabled until an upstream grant covers the chosen artifacts.",
         "base_model_lineage": "Real-CUGAN (bilibili AI Lab)",
         "known_risks": "Anime/illustration domain; underperforms on natural photos."
       },
@@ -2481,10 +2479,10 @@
       "backend": "onnxruntime",
       "alt_backends": [],
       "requires_comfyui": false,
-      "size_mb_approx": 85,
+      "size_mb_approx": 345,
       "quant_variants": [
-        "f32 ~340MB",
-        "int8 ~85MB"
+        "f32 ~345MB",
+        "int8 ~88.5MB (not selected; the tested CPUExecutionProvider cannot execute its ConvInteger node)"
       ],
       "hardware": {
         "cpu_capable": true,
@@ -2497,10 +2495,10 @@
           "darwin/arm64",
           "windows/amd64"
         ],
-        "speed_note": "Ships ready ONNX (the only NSFW model that does); quantize to ~85MB. CPU."
+        "speed_note": "Full-precision ONNX; CPU-capable with the bundled load-smoke gate. The smaller int8 export is not selected because its ConvInteger node failed on the tested CPUExecutionProvider."
       },
       "io": {
-        "notes": "Used both as a standalone op and for configurable auto-scan of generated output. Expose the threshold."
+        "notes": "Used both as a standalone op and for configurable auto-scan of generated output. Expose the threshold. The pinned preprocessor contract is 384x384, bilinear resize, /255, and channel mean/std 0.5."
       },
       "capability_labels": {
         "nsfw_capable": false,
@@ -2514,13 +2512,13 @@
         "download_url": "",
         "source_repo": "https://huggingface.co/AdamCodd/vit-base-nsfw-detector",
         "docs_url": "https://huggingface.co/AdamCodd/vit-base-nsfw-detector",
-        "update_source": "https://huggingface.co/AdamCodd/vit-base-nsfw-detector/tree/main/onnx",
+        "update_source": "https://huggingface.co/AdamCodd/vit-base-nsfw-detector/tree/8587de998f441aac03fdd57a85d2e4cb808c7d64/onnx",
         "assets": [
           {
-            "url": "https://huggingface.co/AdamCodd/vit-base-nsfw-detector/resolve/main/onnx/model_int8.onnx",
-            "filename": "model_int8.onnx",
+            "url": "https://huggingface.co/AdamCodd/vit-base-nsfw-detector/resolve/8587de998f441aac03fdd57a85d2e4cb808c7d64/onnx/model.onnx",
+            "filename": "model.onnx",
             "kind": "onnx",
-            "min_bytes": 88000000
+            "min_bytes": 340000000
           }
         ],
         "checksum": {

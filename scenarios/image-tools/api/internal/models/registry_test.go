@@ -80,6 +80,47 @@ func TestLoadSeed(t *testing.T) {
 	}
 }
 
+func TestBigLamaPretrainedWeightsRequireRightsConfirmation(t *testing.T) {
+	r, err := Load()
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	for _, id := range []string{"big-lama", "big-lama-1024-export"} {
+		model, ok := r.ByID(id)
+		if !ok {
+			t.Fatalf("model %q not found", id)
+		}
+		if model.Enabled || model.CapabilityLabels.CommercialUse != CommercialUseConditional {
+			t.Errorf("%s rights = enabled:%t commercial_use:%q, want disabled/conditional until the upstream weight grant is confirmed", id, model.Enabled, model.CapabilityLabels.CommercialUse)
+		}
+		notes := strings.ToLower(model.CapabilityLabels.CommercialUseNotes)
+		if !strings.Contains(notes, "pretrained") || !strings.Contains(notes, "upstream") || !strings.Contains(notes, "issues/366") {
+			t.Errorf("%s rights notes = %q, want the unresolved upstream pretrained-weight grant", id, model.CapabilityLabels.CommercialUseNotes)
+		}
+	}
+}
+
+func TestDefaultNSFWModelUsesPinnedRunnableONNXArtifact(t *testing.T) {
+	r, err := Load()
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	model, ok := r.DefaultFor("nsfw_classify")
+	if !ok || model.ID != "adamcodd-vit-nsfw" {
+		t.Fatalf("default NSFW model = %+v, want adamcodd-vit-nsfw", model)
+	}
+	if len(model.Source.Assets) != 1 {
+		t.Fatalf("NSFW assets = %d, want one load-smoked ONNX artifact", len(model.Source.Assets))
+	}
+	asset := model.Source.Assets[0]
+	if asset.Filename != "model.onnx" || !strings.Contains(asset.URL, "/resolve/8587de998f441aac03fdd57a85d2e4cb808c7d64/onnx/model.onnx") {
+		t.Fatalf("NSFW asset = %+v, want immutable full-precision model.onnx", asset)
+	}
+	if asset.MinBytes < 340_000_000 || model.SizeMBApprox < 340 {
+		t.Fatalf("NSFW artifact sizing = min %d bytes / %d MB, want >=340MB full-precision artifact", asset.MinBytes, model.SizeMBApprox)
+	}
+}
+
 func TestDisabledExperimentalImageToObjectHasNoSeededDefault(t *testing.T) {
 	r, err := Load()
 	if err != nil {

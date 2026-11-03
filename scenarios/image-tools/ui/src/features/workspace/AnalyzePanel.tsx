@@ -313,6 +313,10 @@ function QualityView({ result }: { result: AnalyzeQuality }) {
     <div data-testid={selectors.workspace.analyze.quality} className="flex flex-col gap-3 text-xs">
       <dl className="rounded-control border border-app-border bg-app-surface-muted p-3">
         <MetaRow
+          label={t(strings.workspace.analyze.probe.dimensions)}
+          value={`${result.width}×${result.height}`}
+        />
+        <MetaRow
           label={t(strings.workspace.analyze.quality.overall)}
           value={`${Math.round(result.overallScore * 100)}%`}
         />

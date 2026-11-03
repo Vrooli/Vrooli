@@ -13,6 +13,7 @@ func TestAutoScan_FlagsGeneratedOutput(t *testing.T) {
 	svc := mustService(t, Config{
 		ModelInstalled: func(string) bool { return true },
 		NSFWThreshold:  0.5,
+		PythonProgram:  "/usr/bin/python3",
 		LookPath:       func(string) (string, error) { return "/usr/bin/python3", nil },
 		Run: func(context.Context, string, []string) ([]byte, error) {
 			return []byte(`{"score":0.88,"categories":[]}`), nil
@@ -34,6 +35,7 @@ func TestAutoScan_FlagsGeneratedOutput(t *testing.T) {
 func TestAutoScan_ClearOutput(t *testing.T) {
 	svc := mustService(t, Config{
 		ModelInstalled: func(string) bool { return true },
+		PythonProgram:  "/usr/bin/python3",
 		LookPath:       func(string) (string, error) { return "/usr/bin/python3", nil },
 		Run: func(context.Context, string, []string) ([]byte, error) {
 			return []byte(`{"score":0.02,"categories":[]}`), nil

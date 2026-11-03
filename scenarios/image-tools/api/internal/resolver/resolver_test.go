@@ -130,6 +130,48 @@ func TestResolveInvalidOverride(t *testing.T) {
 	}
 }
 
+func TestResolveRejectsUnsupportedHostOSArch(t *testing.T) {
+	registry, err := models.Load()
+	if err != nil {
+		t.Fatal(err)
+	}
+	backends := backends.New()
+	if err := backends.Register(fakeProvider{name: "onnxruntime", ops: []string{"deblur"}}); err != nil {
+		t.Fatalf("register ONNX provider: %v", err)
+	}
+	resolver := New(registry, backends)
+	host := capabilities.Host{OS: "darwin", Arch: "arm64", Cores: 8}
+
+	t.Run("default selection", func(t *testing.T) {
+		_, err := resolver.Resolve(context.Background(), Request{
+			Operation: "deblur",
+			Host:      host,
+			IsEnabled: func(id string) bool { return id == "nafnet" },
+		})
+		if !errors.Is(err, models.ErrNotRunnable) {
+			t.Fatalf("Resolve error = %v, want ErrNotRunnable", err)
+		}
+		if !strings.Contains(err.Error(), "darwin/arm64") {
+			t.Fatalf("Resolve error = %v, want host OS/arch detail", err)
+		}
+	})
+
+	t.Run("explicit override", func(t *testing.T) {
+		_, err := resolver.Resolve(context.Background(), Request{
+			Operation:     "deblur",
+			ModelOverride: "nafnet",
+			Host:          host,
+			IsEnabled:     func(id string) bool { return id == "nafnet" },
+		})
+		if !errors.Is(err, models.ErrOverrideInvalid) {
+			t.Fatalf("Resolve error = %v, want ErrOverrideInvalid", err)
+		}
+		if !strings.Contains(err.Error(), "darwin/arm64") {
+			t.Fatalf("Resolve error = %v, want host OS/arch detail", err)
+		}
+	})
+}
+
 func TestResolveQualitySkipsUnavailableBYOKToLocalDefault(t *testing.T) {
 	registry, err := models.Load()
 	if err != nil {

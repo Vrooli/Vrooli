@@ -162,7 +162,11 @@ type SmokeStatus struct {
 
 // SmokeStatusFor reports the cached smoke/env state for an installed model dir
 // without probing. dir should be the model's installed path.
-func (in *Installer) SmokeStatusFor(m Model, dir string) SmokeStatus {
+func (in *Installer) SmokeStatusFor(ctx context.Context, m Model, dir string) SmokeStatus {
+	return in.smokeStatusFor(m, dir, in.smokeModelHash(ctx, m, dir))
+}
+
+func (in *Installer) smokeStatusFor(m Model, dir, modelHash string) SmokeStatus {
 	st := SmokeStatus{}
 	if _, _, ok := probeArgsFor(m, dir, false); !ok {
 		return st // not applicable
@@ -171,10 +175,68 @@ func (in *Installer) SmokeStatusFor(m Model, dir string) SmokeStatus {
 	if in.Smoke != nil {
 		st.EnvProvisioned = strings.TrimSpace(in.Smoke.Python) != "" && fileExists(in.Smoke.Python)
 	}
-	if v, ok := smoke.ReadVerdict(dir); ok {
+	if v, ok := smoke.ReadVerdict(dir); ok && in.Smoke != nil && v.Fresh(modelHash, in.Smoke.LockHash) {
 		st.Verdict, st.HasVerdict = v, true
 	}
 	return st
+}
+
+// smokeModelHash returns the same installed-artifact digest used by installation
+// when it records a verdict. Unknown or incomplete state yields an empty digest,
+// which deliberately makes any cached verdict stale.
+func (in *Installer) smokeModelHash(ctx context.Context, m Model, dir string) string {
+	if m.BuildProfile != nil {
+		digest, ready := buildOutputReady(m.BuildProfile, dir)
+		if !ready {
+			return ""
+		}
+		return digest
+	}
+	if in.State == nil {
+		return ""
+	}
+	rec, ok, err := in.State.Get(ctx, m.ID)
+	if err != nil || !ok || !rec.Installed {
+		return ""
+	}
+	return rec.Checksum
+}
+
+// RuntimeReadiness reports whether an installed model satisfies the gates needed
+// before inference. Weight presence alone is intentionally weaker: build-profile
+// models need their verified export, and Python-backed models need a provisioned
+// environment plus a passing install-time load-smoke.
+func (in *Installer) RuntimeReadiness(ctx context.Context, id string) (bool, string) {
+	m, err := in.Resolve(ctx, id)
+	if err != nil || !in.Installed(ctx, id) {
+		return false, "needs_model_install"
+	}
+	if m.BuildProfile != nil && !in.BuildReady(ctx, id) {
+		return false, "build_not_ready"
+	}
+	dir := in.ModelDir(id)
+	if in.State != nil {
+		if rec, ok, stateErr := in.State.Get(ctx, id); stateErr == nil && ok && rec.Path != "" {
+			dir = rec.Path
+		}
+	}
+	st := in.SmokeStatusFor(ctx, m, dir)
+	if !st.Applicable {
+		if m.Backend == "python-sidecar" {
+			return false, "smoke_unsupported"
+		}
+		return true, "ready"
+	}
+	if !st.EnvProvisioned {
+		return false, "env_not_provisioned"
+	}
+	if !st.HasVerdict {
+		return false, "smoke_pending"
+	}
+	if !st.Verdict.Pass {
+		return false, "smoke_failed"
+	}
+	return true, "ready"
 }
 
 // modelDirFor exposes the per-model install dir for readiness callers.
@@ -197,7 +259,7 @@ func (in *Installer) DoctorRuntime(ctx context.Context, catalog []Model, overlay
 				dir = rec.Path
 			}
 		}
-		st := in.SmokeStatusFor(m, dir)
+		st := in.SmokeStatusFor(ctx, m, dir)
 		if !st.Applicable {
 			continue
 		}

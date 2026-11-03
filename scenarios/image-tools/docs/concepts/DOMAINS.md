@@ -45,7 +45,7 @@ enhancer, never a gate.
 | models | Declarative model registry, management, hardware-aware selection. | Registry / query | Model registry state, install/enable state. | API, CLI, UI | OT-P0-006, OT-P0-007, OT-P0-008 | `api/internal/models/`, `api/handlers/models/`, `cli/domains/models/`, `ui/src/features/models/`, `packages/proto/schemas/image-tools/v1/models/` |
 | adapters | Declarative conditioning-adapter catalog (LoRA / ControlNet / IP-Adapter) that modifies an op on a compatible base model; resolution + import. Sibling of `models`. | Registry / query | Adapter catalog state, install/enable overlay, custom imports. | API, CLI | IMG-CN-001, IMG-BYO-001 | `api/internal/adapters/`, `api/handlers/adapters/`, `cli/domains/adapters/`, `packages/proto/schemas/image-tools/v1/adapters/` |
 | backends | Per-op provider abstraction and fallback ladder. | Abstraction / policy | No product data (in-memory provider registry). | API (internal seam), CLI (introspection) | OT-P0-005, OT-P0-011 | `api/internal/backends/`, `packages/proto/schemas/image-tools/v1/backends/` |
-| jobs | Durable server-owned async jobs, GPU-serializing queue, progress/SSE. | Lifecycle / queue | Job records, status, progress. | API, CLI, UI | OT-P0-009 | `api/internal/jobs/`, `api/handlers/jobs/`, `cli/domains/jobs/`, `ui/src/features/jobs/`, `packages/proto/schemas/image-tools/v1/jobs/` |
+| jobs | Durable server-owned async jobs, explicit scheduler queues, progress/SSE. | Lifecycle / queue | Job records, status, progress, scheduler queue class. | API, CLI, UI | OT-P0-009 | `api/internal/jobs/`, `api/handlers/jobs/`, `cli/domains/jobs/`, `ui/src/features/jobs/`, `packages/proto/schemas/image-tools/v1/jobs/` |
 | storage | api-core storage/blobstore integration and output ownership. | Infrastructure seam | Blob references and ownership metadata. | API (seam), CLI (save-location flag) | OT-P0-010 | `api/internal/storage/`, `packages/proto/schemas/image-tools/v1/storage/` |
 | automation | Batch, watch-folder, signed webhook callbacks. | Trigger / orchestration | Watch-folder config, callback delivery state. | API, CLI, UI | OT-P1-005, OT-P1-006 | `api/internal/automation/`, `api/handlers/automation/`, `cli/domains/automation/`, `ui/src/features/automation/`, `packages/proto/schemas/image-tools/v1/automation/` |
 | measures | Op latency/throughput/queue-wait/fallback-usage observability. | Reporting / telemetry | Measure samples and aggregates. | API, CLI | OT-P0-012 | `api/internal/measures/`, `cli/manifest.json` measure blocks, `packages/proto/schemas/image-tools/v1/measures/` |
@@ -277,13 +277,15 @@ enhancer, never a gate.
 
 - Purpose: a durable, server-owned async job queue. Jobs survive client
   disconnect; submission returns a job-id and ETA up front; the CLI uses a
-  block-once wait verb; the UI uses SSE for live progress; heavy GPU jobs
-  are serialized in a dedicated queue while cheap CPU ops run concurrently.
+  block-once wait verb; the UI uses SSE for live progress; local AI jobs use
+  one serialized scheduler queue, lightweight CPU work uses a concurrent pool,
+  and remote work uses a separate bounded pool. Queue class does not identify
+  the execution device.
   The run-lifecycle mirrors the test-genie philosophy: no client polling.
 - Primary archetype: lifecycle / queue.
-- Secondary traits: GPU serialization, progress streaming, cancellation.
-- Owns: job records, status transitions, progress, the GPU-serializing
-  queue, SSE progress fan-out.
+- Secondary traits: scheduler queue classification, progress streaming, cancellation.
+- Owns: job records, status transitions, progress, the serialized local queue,
+  SSE progress fan-out.
 - Does not own: operation logic, provider selection, model state.
 - API: `api/handlers/jobs/` (Connect-RPC submit/status/cancel/wait; SSE
   progress stream).

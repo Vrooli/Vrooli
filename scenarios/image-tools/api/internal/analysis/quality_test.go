@@ -53,6 +53,9 @@ func TestQualityAssess_FlatImageIsBlurryAndLowContrast(t *testing.T) {
 	if !res.Blurry {
 		t.Errorf("a flat image should be judged blurry; sharpness=%v", res.Sharpness)
 	}
+	if res.Width != 64 || res.Height != 64 {
+		t.Errorf("dimensions = %dx%d, want 64x64", res.Width, res.Height)
+	}
 	if res.Contrast != 0 {
 		t.Errorf("flat image contrast = %v, want 0", res.Contrast)
 	}

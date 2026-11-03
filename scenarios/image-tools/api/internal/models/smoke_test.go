@@ -8,6 +8,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/databasetest"
 	"image-tools/internal/smoke"
 )
 
@@ -178,20 +180,103 @@ func TestSmokeStatusFor(t *testing.T) {
 	interp := fakeInterp(t)
 	in := &Installer{Smoke: &SmokeConfig{Python: interp, LockHash: "l1"}}
 
-	st := in.SmokeStatusFor(diffusersModel(), dir)
+	st := in.SmokeStatusFor(context.Background(), diffusersModel(), dir)
 	if !st.Applicable || !st.EnvProvisioned || st.HasVerdict {
 		t.Fatalf("expected applicable+provisioned+no-verdict: %+v", st)
 	}
 
 	// not applicable for a binary backend.
-	if in.SmokeStatusFor(Model{ID: "sd", Backend: "stable-diffusion.cpp"}, t.TempDir()).Applicable {
+	if in.SmokeStatusFor(context.Background(), Model{ID: "sd", Backend: "stable-diffusion.cpp"}, t.TempDir()).Applicable {
 		t.Error("binary backend must be not-applicable")
 	}
 
 	// reflects a cached verdict.
 	_ = smoke.WriteVerdict(dir, smoke.Verdict{Pass: true, ModelHash: "h1", LockHash: "l1"})
-	if st := in.SmokeStatusFor(diffusersModel(), dir); !st.HasVerdict || !st.Verdict.Pass {
-		t.Errorf("status should reflect cached verdict: %+v", st)
+	if st := in.smokeStatusFor(diffusersModel(), dir, "h1"); !st.HasVerdict || !st.Verdict.Pass {
+		t.Errorf("status should reflect fresh cached verdict: %+v", st)
+	}
+}
+
+func TestSmokeStatusRejectsStaleCachedVerdicts(t *testing.T) {
+	dir := t.TempDir()
+	in := &Installer{Smoke: &SmokeConfig{Python: fakeInterp(t), LockHash: "l1"}}
+	if err := smoke.WriteVerdict(dir, smoke.Verdict{Pass: true, ModelHash: "h1", LockHash: "l1", Kind: "diffusers"}); err != nil {
+		t.Fatal(err)
+	}
+	if st := in.smokeStatusFor(diffusersModel(), dir, "h2"); st.HasVerdict {
+		t.Fatalf("model digest change must invalidate cached pass: %+v", st)
+	}
+	in.Smoke.LockHash = "l2"
+	if st := in.smokeStatusFor(diffusersModel(), dir, "h1"); st.HasVerdict {
+		t.Fatalf("lock change must invalidate cached pass: %+v", st)
+	}
+}
+
+func TestRuntimeReadinessRejectsStaleInstalledDigest(t *testing.T) {
+	ctx := context.Background()
+	db := databasetest.NewSQLite(t)
+	if err := database.EnsureSchemas(ctx, db, database.SchemaProviderFunc(Schema)); err != nil {
+		t.Fatal(err)
+	}
+	registry, err := Load()
+	if err != nil {
+		t.Fatal(err)
+	}
+	model, ok := registry.ByID("qwen-image-edit")
+	if !ok || model.Backend != BackendDiffusers {
+		t.Fatalf("expected seeded diffusers model, got %+v (ok=%t)", model, ok)
+	}
+	dir := t.TempDir()
+	state := NewInstallStore(db)
+	if err := state.Set(ctx, InstallRecord{ID: model.ID, Installed: true, Path: dir, Checksum: "model-v1"}); err != nil {
+		t.Fatal(err)
+	}
+	installer := &Installer{
+		Root:  t.TempDir(),
+		Reg:   registry,
+		State: state,
+		Smoke: &SmokeConfig{Python: fakeInterp(t), LockHash: "lock-v1"},
+	}
+	if err := smoke.WriteVerdict(dir, smoke.Verdict{Pass: true, ModelHash: "model-v1", LockHash: "lock-v1", Kind: "diffusers"}); err != nil {
+		t.Fatal(err)
+	}
+	if ready, state := installer.RuntimeReadiness(ctx, model.ID); !ready || state != "ready" {
+		t.Fatalf("fresh verdict readiness = %t/%q, want ready", ready, state)
+	}
+	if err := state.Set(ctx, InstallRecord{ID: model.ID, Installed: true, Path: dir, Checksum: "model-v2"}); err != nil {
+		t.Fatal(err)
+	}
+	if ready, state := installer.RuntimeReadiness(ctx, model.ID); ready || state != "smoke_pending" {
+		t.Fatalf("stale artifact verdict readiness = %t/%q, want smoke_pending", ready, state)
+	}
+	installer.Smoke.LockHash = "lock-v2"
+	if ready, state := installer.RuntimeReadiness(ctx, model.ID); ready || state != "smoke_pending" {
+		t.Fatalf("stale lock verdict readiness = %t/%q, want smoke_pending", ready, state)
+	}
+}
+
+func TestRuntimeReadinessRejectsPythonSidecarWithoutModelProbe(t *testing.T) {
+	ctx := context.Background()
+	db := databasetest.NewSQLite(t)
+	if err := database.EnsureSchemas(ctx, db, database.SchemaProviderFunc(Schema)); err != nil {
+		t.Fatal(err)
+	}
+	registry, err := Load()
+	if err != nil {
+		t.Fatal(err)
+	}
+	model, ok := registry.ByID("restoreformer-plus-plus")
+	if !ok || model.Backend != "python-sidecar" {
+		t.Fatalf("expected seeded python-sidecar model, got %+v (ok=%t)", model, ok)
+	}
+	dir := t.TempDir()
+	state := NewInstallStore(db)
+	if err := state.Set(ctx, InstallRecord{ID: model.ID, Installed: true, Path: dir, Checksum: "checkpoint-v1"}); err != nil {
+		t.Fatal(err)
+	}
+	installer := &Installer{Root: t.TempDir(), Reg: registry, State: state, Smoke: &SmokeConfig{Python: fakeInterp(t), LockHash: "lock-v1"}}
+	if ready, state := installer.RuntimeReadiness(ctx, model.ID); ready || state != "smoke_unsupported" {
+		t.Fatalf("unsupported model-load probe readiness = %t/%q, want smoke_unsupported", ready, state)
 	}
 }
 

@@ -90,8 +90,11 @@ The `jobs` domain is the read + control surface over the server-owned
 durable job system (`api/internal/jobs`). Jobs survive client
 disconnects: a submit returns a job id + ETA immediately, work runs under
 a server-lifetime context, callers block ONCE on `WaitJob` (never poll),
-and progress streams over `WatchJob`. GPU jobs are serialized; CPU jobs
-run concurrently. Job *submission* is op-specific and lands with each
+and progress streams over `WatchJob`. `Job.scheduling_queue` reports queue
+policy: local work uses the serialized queue, lightweight CPU work uses the
+concurrent CPU pool, and remote work uses its bounded network pool. It does not
+identify the execution device; `Job.lane` is a deprecated compatibility field.
+Job *submission* is op-specific and lands with each
 operation domain from Phase 2.
 
 Proto: `packages/proto/schemas/image-tools/v1/jobs/jobs.proto`.

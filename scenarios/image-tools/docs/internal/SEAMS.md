@@ -243,8 +243,8 @@ weights, installed adapters, and sidecar files remain on the primary data root.
 |---|---|
 | **Seam** | The work-execution function behind the server-owned durable job manager |
 | **Interface** | `internal/jobs/manager.go::Runner` (`func(jobCtx, Job, emit) (ref, err)`); `jobs.SQLExecutor` is the persistence surface (both `*sql.DB` and `*database.RoutedDB`). |
-| **Production wiring** | `main.go` (Phase 1 wiring) builds `jobs.New(db, Config{Runner: ...})` where the Runner dispatches to `backends`; one GPU worker + N CPU workers run under a server-lifetime context. |
-| **Test fake** | An inline `Runner` closure (success/error/block-on-channel) drives submit/wait/cancel, GPU-serialization, CPU-concurrency, disconnect-survival, recovery, and progress streaming in `manager_test.go`. |
+| **Production wiring** | `main.go` (Phase 1 wiring) builds `jobs.New(db, Config{Runner: ...})` where the Runner dispatches to `backends`; one serialized local worker, N CPU-pool workers, and a bounded network pool run under a server-lifetime context. |
+| **Test fake** | An inline `Runner` closure (success/error/block-on-channel) drives submit/wait/cancel, local-queue serialization, CPU-pool concurrency, disconnect-survival, recovery, and progress streaming in `manager_test.go`. |
 | **Why it exists** | Durability + disconnect-survival + lane concurrency are subtle properties that must be proven deterministically; the Runner seam lets tests control timing without real op execution. On failed/canceled finalization the Manager retains only the validated `gateway_execution_evidence_v1` partial-evidence key, never arbitrary backend success metadata or a result ref. This is orderly terminal persistence only, not a per-Submit crash checkpoint. |
 
 ### storage.Store + Guard (image persistence & ingest defense)

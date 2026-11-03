@@ -3,7 +3,7 @@
 The canonical, machine-readable registry seed is
 [`api/internal/models/registry.seed.json`](../../api/internal/models/registry.seed.json)
 (schema + load/checksum policy: [`api/internal/models/README.md`](../../api/internal/models/README.md)).
-This page is the human catalog: what each operation ships, where to download it,
+This page is the human catalog: what each operation currently offers, where to download it,
 where to watch for updates, and which models are deliberately **blocked**.
 
 Authored 2026-06-16 from license-verified research. Policy choices are recorded in
@@ -11,9 +11,11 @@ Authored 2026-06-16 from license-verified research. Policy choices are recorded 
 
 ## Design rules baked into the seed
 
+- **Enabled does not mean installed.** Enabled models may participate in host-fit selection; weight-backed models are downloaded only after an explicit operator install action. An enabled quality tier can therefore be offered by the picker without downloading it automatically.
+- **Declared OS/architecture support gates admission.** When `hardware.os_arch` is populated, automatic selection and explicit overrides require an exact host match (for example, `linux/amd64`). An empty list means the registry has no OS/architecture constraint for that model. This declaration filters candidates; it is not proof that a backend or model has been exercised on every listed host.
 - **Headless + ComfyUI-free.** Every op has ≥1 standalone backend; `requires_comfyui` is always `false`. ComfyUI is an optional plug-in only.
-- **CPU-capable default per op**, plus one higher-quality (often GPU) tier.
-- **Commercial-clean licenses only** — gate-free (no Stability $1M-gated SD3.5/Turbo), no AGPL, no non-commercial weights. Traps are listed in the blocklist below.
+- **Prefer one CPU-capable default per op**, plus one higher-quality (often GPU) tier. If rights or readiness are unresolved, an operation may have no default; the catalog doctor reports it unavailable.
+- **Commercial-clean artifacts only.** A code license does not establish pretrained-weight rights. Keep entries conditional and disabled when the weight grant is unclear. Traps are listed in the blocklist below.
 - **Optional Python sidecar** unlocks PyTorch-only quality tiers (RestoreFormer++, SCUNet, Restormer, DDColor-large, RAM++, Marigold, Florence-2) without ever being required.
 - **Sizes/VRAM are approximate**; **checksums are captured on first download** (never hand-written).
 - **Enabled weight-backed models must be installable.** `image-tools models doctor`
@@ -142,13 +144,13 @@ Legend: **D**=default · **Q**=quality tier · **V**=size/CPU variant · **N**=n
 | text_to_image / image_to_image | 🔴 Q | SDXL 1.0 | OpenRAIL++-M ✅ | ~6.9GB (~2GB q4) | [HF](https://huggingface.co/stabilityai/stable-diffusion-xl-base-1.0) |
 | text_to_image / image_to_image | 🔴 Q+ | FLUX.1 schnell | Apache-2.0 ✅ | ~6.8GB q4 | [HF](https://huggingface.co/black-forest-labs/FLUX.1-schnell) |
 | edit_instruct | 🟢 D | InstructPix2Pix | OpenRAIL-M ✅ | ~7.7GB safetensors | [direct safetensors](https://huggingface.co/timbrooks/instruct-pix2pix/resolve/main/instruct-pix2pix-00-22000.safetensors) |
-| edit_instruct | 🔴 Q (opt-in) | Qwen-Image-Edit (2509) | Apache-2.0 ✅ | ~57.7GB repo (Q4 GGUF ~12-16GB) | [HF repo snapshot](https://huggingface.co/Qwen/Qwen-Image-Edit-2509) — `QwenImageEditPlusPipeline`; multi-ref + ControlNet; GPU (CPU-offload fits 16GB) |
+| edit_instruct | 🔴 Q (on-demand install) | Qwen-Image-Edit (2509) | Apache-2.0 ✅ | ~57.7GB repo (Q4 GGUF ~12-16GB) | [HF repo snapshot](https://huggingface.co/Qwen/Qwen-Image-Edit-2509) — `QwenImageEditPlusPipeline`; multi-ref + ControlNet; current selector requires 24GB VRAM (historical attended CPU-offload proof ran on a 16GB GPU) |
 | edit_instruct | ⚪ Q (disabled, pending adapter) | FLUX.2 [klein] 4B | Apache-2.0 ✅ *(4B only; 9B/dev non-commercial)* | ~9GB transformer | [HF](https://huggingface.co/black-forest-labs/FLUX.2-klein-4B) — `Flux2KleinPipeline` is bleeding-edge diffusers; enable after an attended run |
 | edit_instruct | ⚪ Q (disabled, pending adapter) | LongCat-Image-Edit-Turbo | Apache-2.0 ✅ | ~34GB (DF11 quant smaller) | [HF](https://huggingface.co/meituan-longcat/LongCat-Image-Edit-Turbo) — `LongCatImageEditPipeline` needs recent diffusers; enable after an attended run |
 | inpaint / outpaint | 🟢 D | SD 1.5 inpainting | OpenRAIL-M ✅ | ~4.2GB ckpt | [direct checkpoint](https://huggingface.co/stable-diffusion-v1-5/stable-diffusion-inpainting/resolve/main/sd-v1-5-inpainting.ckpt) |
 | inpaint / outpaint | 🔴 Q | SDXL inpainting 0.1 | OpenRAIL++-M ✅ | ~6.9GB | [HF](https://huggingface.co/diffusers/stable-diffusion-xl-1.0-inpainting-0.1) |
 | object_removal | 🟢 D | MI-GAN | MIT ✅ | ~27MB | [IOPaint traced weight](https://github.com/Sanster/models/releases/download/migan/migan_traced.pt) · [repo](https://github.com/Picsart-AI-Research/MI-GAN) |
-| object_removal | 🟢 Q | Big-LaMa | Apache-2.0 ✅ | ~198MB | [direct ONNX](https://huggingface.co/Carve/LaMa-ONNX/resolve/main/lama_fp32.onnx) · [repo](https://github.com/advimman/lama) |
+| object_removal | 🟢 Q | Big-LaMa (disabled) | Conditional — pretrained-weight grant unresolved | ~198MB | [upstream weight questions #366](https://github.com/advimman/lama/issues/366) / [#368](https://github.com/advimman/lama/issues/368) · [repo](https://github.com/advimman/lama) |
 | background_replace | 🔴 Q | IC-Light V1 (relight) | Apache-2.0 ✅ | ~2GB | [repo](https://github.com/lllyasviel/IC-Light) — *V2 is non-commercial* |
 
 > background_replace **default** is non-AI: BiRefNet/u2net cutout → composite (see below).
@@ -156,8 +158,8 @@ Legend: **D**=default · **Q**=quality tier · **V**=size/CPU variant · **N**=n
 ### Enhancement & restoration
 | Op | Tier | Model | License (commercial) | Approx size | Source / updates |
 |---|---|---|---|---|---|
-| upscale | 🟢 D | Real-ESRGAN | BSD-3 / MIT ✅ | ~10MB default pair | [x4](https://github.com/xinntao/Real-ESRGAN/releases/download/v0.2.5.0/realesr-general-x4v3.pth) · [wdn](https://github.com/xinntao/Real-ESRGAN/releases/download/v0.2.5.0/realesr-general-wdn-x4v3.pth) |
-| upscale (anime) | 🟢 V | Real-CUGAN | MIT ✅ | ~45MB | [ncnn](https://github.com/nihui/realcugan-ncnn-vulkan/releases) |
+| upscale | 🟢 D | Real-ESRGAN (disabled; no default) | Conditional — pretrained-weight grant unresolved | ~10MB default pair | [open upstream weight question #1016](https://github.com/xinntao/Real-ESRGAN/issues/1016) · [official model zoo](https://github.com/xinntao/Real-ESRGAN/blob/master/docs/model_zoo.md) |
+| upscale (anime) | 🟢 V | Real-CUGAN (disabled; no pinned archive) | Conditional — pretrained-weight grant unverified | ~45MB | [official model docs](https://github.com/bilibili/ailab/blob/main/Real-CUGAN/README_EN.md) · [ncnn releases](https://github.com/nihui/realcugan-ncnn-vulkan/releases) |
 | upscale | 🔴 Q | SwinIR | Apache-2.0 ✅ | ~142MB | [repo](https://github.com/JingyunLiang/SwinIR) |
 | denoise | 🟢 D | DnCNN | BSD-3 / MIT ✅ | <5MB | [KAIR direct weight](https://github.com/cszn/KAIR/releases/download/v1.0/dncnn_color_blind.pth) |
 | denoise | 🟡 Q | SCUNet | Apache-2.0 ✅ | ~70MB | [repo](https://github.com/cszn/SCUNet) |
@@ -188,7 +190,9 @@ Legend: **D**=default · **Q**=quality tier · **V**=size/CPU variant · **N**=n
 |---|---|---|---|---|---|
 | ocr | 🟢 D | Tesseract (gosseract) | Apache/MIT ✅ | ~4MB English data | [eng.traineddata](https://raw.githubusercontent.com/tesseract-ocr/tessdata_fast/main/eng.traineddata) · [gosseract](https://github.com/otiai10/gosseract) |
 | ocr | 🟢 Q | PaddleOCR | Apache-2.0 ✅ | ~140MB | [repo](https://github.com/PaddlePaddle/PaddleOCR) |
-| nsfw_classify | 🟢 D | AdamCodd ViT-base NSFW | Apache-2.0 ✅ | ~85MB int8 | [direct ONNX](https://huggingface.co/AdamCodd/vit-base-nsfw-detector/resolve/main/onnx/model_int8.onnx) |
+| nsfw_classify | 🟢 D | AdamCodd ViT-base NSFW | Apache-2.0 ✅ | ~345MB f32 | [pinned full-precision ONNX](https://huggingface.co/AdamCodd/vit-base-nsfw-detector/resolve/8587de998f441aac03fdd57a85d2e4cb808c7d64/onnx/model.onnx) |
+
+The NSFW sidecar follows the pinned ViT processor profile: 384×384 bilinear resize, pixel rescale by `1/255`, and channel mean/std `0.5`. The ONNX graph exposes dynamic spatial axes while its positional embeddings require the 384×384 patch grid; its sidecar uses that model-specific fallback.
 | nsfw_classify | 🟢 Q | Falconsai NSFW | Apache-2.0 ✅ | ~85MB | [HF](https://huggingface.co/Falconsai/nsfw_image_detection) |
 | caption | 🟢 D | moondream2 | Apache-2.0 ✅ | ~3.7GB GGUF pair | [text](https://huggingface.co/ggml-org/moondream2-20250414-GGUF/resolve/main/moondream2-text-model-f16_ct-vicuna.gguf) · [mmproj](https://huggingface.co/ggml-org/moondream2-20250414-GGUF/resolve/main/moondream2-mmproj-f16-20250414.gguf) |
 | caption | 🟢 V | SmolVLM-256M | Apache-2.0 ✅ | ~279MB GGUF pair | [model](https://huggingface.co/ggml-org/SmolVLM-256M-Instruct-GGUF/resolve/main/SmolVLM-256M-Instruct-Q8_0.gguf) · [mmproj](https://huggingface.co/ggml-org/SmolVLM-256M-Instruct-GGUF/resolve/main/mmproj-SmolVLM-256M-Instruct-Q8_0.gguf) |

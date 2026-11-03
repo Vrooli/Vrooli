@@ -324,7 +324,7 @@ func TestSubmit_TextToImage_Accepted(t *testing.T) {
 		t.Errorf("submitted op = %q", sub.last.Operation)
 	}
 	if sub.last.Lane != internaljobs.LaneGPU {
-		t.Errorf("AI ops should submit on the GPU lane, got %q", sub.last.Lane)
+		t.Errorf("AI ops should submit on the serialized local queue, got %q", sub.last.Lane)
 	}
 	var payload internalai.Payload
 	if err := json.Unmarshal(sub.last.Payload, &payload); err != nil {

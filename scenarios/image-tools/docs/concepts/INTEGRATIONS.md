@@ -71,7 +71,7 @@ system-monitor.
 | Dependency | Failure Signal | Expected Behavior | Tests |
 |---|---|---|---|
 | SQLite | `PingContext` error | `/health` returns unhealthy dependency status. | health handler tests |
-| GPU contention | concurrent heavy jobs / VRAM pressure | Heavy jobs serialize in the dedicated queue; cheap CPU ops keep running concurrently. | queue serialization tests |
+| Local queue pressure | local work backlog or memory pressure | Local AI jobs share the serialized queue regardless of execution device; lightweight CPU-pool jobs continue concurrently. Queue depth is not GPU-use evidence. | queue serialization tests |
 | Model download / disk pressure | download failure, checksum mismatch, low disk | Disk-space check + user confirmation before install; checksummed opt-in download; clear error on mismatch. | models install tests |
 | GPU absent / insufficient VRAM | host probe reports no fit | Fallback ladder: Local-CPU (guaranteed model), then BYOK; surface "needs ≥X GB VRAM" + time warning. | selector + fallback tests |
 | BYOK cost / availability | provider down or over budget | Pre-op cost estimate gates execution; user must accept; degrade gracefully if declined/unavailable. | cost-estimate + fallback tests |

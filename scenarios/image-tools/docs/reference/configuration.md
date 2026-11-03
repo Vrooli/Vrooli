@@ -32,7 +32,7 @@ for the full policy.
 | _(none)_ | — | The SQLite file location is **not** configurable through the environment. It is resolved from the scenario's own identity by `api-core/storage`, so no inherited variable can point one scenario at another's database. To relocate storage for a test run, set `VROOLI_STORAGE_ROOT`, which redirects the whole class tree and stays scenario-agnostic. |
 | `API_TOKEN` | unset | Shared bearer token for CLI ↔ API auth (only enforce in production deployments). |
 | `UI_BASE_URL` | (resolved by `@vrooli/api-base`) | External UI URL when the scenario is iframe-embedded. |
-| `IMAGE_TOOLS_CPU_WORKERS` | `4` | CPU-lane worker count for durable jobs. Valid range: `1`-`32`. Higher values improve throughput for independent CPU jobs but increase RAM pressure. GPU jobs remain serialized. |
+| `IMAGE_TOOLS_CPU_WORKERS` | `4` | Concurrent CPU-pool worker count for durable jobs. Valid range: `1`-`32`. Higher values improve throughput for independent lightweight CPU work but increase RAM pressure. Local AI work remains on the separate serialized local queue. |
 | `IMAGE_TOOLS_INSTALL_MB_PER_SECOND` | `15` | Assumed model-download throughput for install ETA calculation. Valid range: `1`-`10000` MB/s. Tune to measured host/network throughput; it affects ETA reporting only, not download behavior. |
 
 The browser UI does not read `API_PORT` directly. It resolves API calls through

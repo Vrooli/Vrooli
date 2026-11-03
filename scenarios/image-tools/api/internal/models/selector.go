@@ -191,7 +191,9 @@ func (r *Registry) Select(req SelectRequest, isEnabled EnabledFunc) (Selection, 
 	return candidates[0], nil
 }
 
-// SelectCandidates returns runnable candidates in deterministic policy order.
+// SelectCandidates returns host-runnable candidates in deterministic policy
+// order. Declared OS/architecture support is an admission constraint, separate
+// from the CPU/GPU fit calculation.
 // Select returns the first candidate; resolver uses the full list to skip a
 // higher-quality candidate whose provider is not currently available.
 func (r *Registry) SelectCandidates(req SelectRequest, isEnabled EnabledFunc) ([]Selection, error) {
@@ -209,6 +211,8 @@ func (r *Registry) SelectCandidates(req SelectRequest, isEnabled EnabledFunc) ([
 
 	candidates := r.ForOperation(req.Operation)
 	var enabledCount int
+	var supportedHostCount int
+	var unsupportedOSArch bool
 	var runnable []Model
 	worstShortfall := 0
 	for _, m := range candidates {
@@ -219,6 +223,11 @@ func (r *Registry) SelectCandidates(req SelectRequest, isEnabled EnabledFunc) ([
 			continue
 		}
 		enabledCount++
+		if !m.SupportsHost(req.Host) {
+			unsupportedOSArch = true
+			continue
+		}
+		supportedHostCount++
 		fit := req.fit(m)
 		if fit.Runnable {
 			runnable = append(runnable, m)
@@ -230,6 +239,9 @@ func (r *Registry) SelectCandidates(req SelectRequest, isEnabled EnabledFunc) ([
 		return nil, fmt.Errorf("%w: %q", ErrNoEnabledModel, req.Operation)
 	}
 	if len(runnable) == 0 {
+		if supportedHostCount == 0 && unsupportedOSArch {
+			return nil, fmt.Errorf("%w: %q has no enabled model declared for host %s/%s", ErrNotRunnable, req.Operation, req.Host.OS, req.Host.Arch)
+		}
 		if worstShortfall > 0 {
 			return nil, fmt.Errorf("%w: %q needs ~%d GB more VRAM, and no CPU-capable model is enabled", ErrNotRunnable, req.Operation, worstShortfall)
 		}
@@ -325,6 +337,9 @@ func (r *Registry) selectOverride(req SelectRequest, isEnabled EnabledFunc) (Sel
 	}
 	if !r.enabled(m, isEnabled) {
 		return Selection{}, fmt.Errorf("%w: model %q is disabled", ErrOverrideInvalid, req.OverrideID)
+	}
+	if !m.SupportsHost(req.Host) {
+		return Selection{}, fmt.Errorf("%w: model %q has no declared build for host %s/%s", ErrOverrideInvalid, req.OverrideID, req.Host.OS, req.Host.Arch)
 	}
 	fit := req.fit(m)
 	if !fit.Runnable {

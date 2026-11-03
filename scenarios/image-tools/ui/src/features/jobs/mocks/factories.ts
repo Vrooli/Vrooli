@@ -19,6 +19,7 @@ import { create, type MessageInitShape } from "@bufbuild/protobuf";
 import { timestampFromDate } from "@bufbuild/protobuf/wkt";
 import {
   JobLane,
+  JobQueue,
   JobSchema,
   JobState,
   ListJobsResponseSchema,
@@ -58,6 +59,7 @@ export const makeJob = (overrides: MessageInitShape<typeof JobSchema> = {}): Job
     id: "job-1",
     operation: "upscale",
     lane: JobLane.GPU,
+    schedulingQueue: JobQueue.LOCAL_SERIAL,
     state: JobState.RUNNING,
     progress: 42,
     message: "Working…",

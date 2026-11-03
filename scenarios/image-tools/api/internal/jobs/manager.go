@@ -175,8 +175,8 @@ func (m *Manager) Start(ctx context.Context) error {
 		return err
 	}
 
-	// One GPU worker (serialization); N CPU workers (concurrency); a separate
-	// bounded network pool so remote tiers never queue behind the GPU worker.
+	// One serialized local worker; N CPU workers (concurrency); a separate
+	// bounded network pool so remote tiers never queue behind local work.
 	m.wg.Add(1)
 	go m.worker(m.gpuCh)
 	for i := 0; i < m.cpuN; i++ {

@@ -366,6 +366,9 @@ func (h *connectHandler) RemoveModel(ctx context.Context, req *connect.Request[m
 	}
 	if err := h.deps.Installer.Remove(ctx, id); err != nil {
 		h.deps.Logger.Printf("models.RemoveModel: %v", err)
+		if errors.Is(err, internalmodels.ErrModelInUse) {
+			return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("model is in use or being changed; retry after the current operation completes"))
+		}
 		return nil, connect.NewError(connect.CodeInternal, errors.New("remove model"))
 	}
 	return connect.NewResponse(&modelsv1.RemoveModelResponse{Removed: true}), nil

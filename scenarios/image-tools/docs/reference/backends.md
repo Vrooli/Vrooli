@@ -294,6 +294,11 @@ How it works (`api/internal/pyenv`, wired in `main.go`):
 3. The venv is rebuilt automatically only when the lock's content hash changes
    (a sentinel file records the synced hash), so steady-state starts are instant.
 
+The synchronous `analysis/nsfw` route and generated-output auto-scan use this
+same absolute interpreter. If provisioning is absent or incomplete, analysis
+reports the backend unavailable and auto-scan keeps its documented
+best-effort behavior; neither path probes or falls back to host `python3`.
+
 Consequence: poisoning the host's `transformers` (or any other package) cannot
 affect image-tools, and the proven dependency set is reproducible from the lock.
 To change a version, edit `internal/pydeps/requirements.in` and regenerate the

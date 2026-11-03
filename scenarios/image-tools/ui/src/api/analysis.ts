@@ -108,6 +108,8 @@ export interface AnalyzeQuality {
   kind: "quality";
   jobId: string;
   overallScore: number;
+  width: number;
+  height: number;
   sharpness: number;
   blurry: boolean;
   brightness: number;
@@ -209,6 +211,8 @@ export async function analyze(operation: string, file: File): Promise<AnalyzeRes
         kind: "quality",
         jobId,
         overallScore: q.overallScore,
+        width: q.widthPx,
+        height: q.heightPx,
         sharpness: q.sharpness,
         blurry: q.blurry,
         brightness: q.brightness,

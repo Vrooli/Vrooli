@@ -355,7 +355,7 @@ func TestCancelRunningJob(t *testing.T) {
 }
 
 func TestCancelQueuedJob(t *testing.T) {
-	// Occupy the single GPU worker so the second GPU job stays queued.
+	// Occupy the single serialized local worker so the second local job stays queued.
 	block := make(chan struct{})
 	m := startManager(t, Config{
 		Runner: func(ctx context.Context, j Job, emit func(int, string)) (Result, error) {
@@ -387,7 +387,7 @@ func TestCancelQueuedJob(t *testing.T) {
 	}
 }
 
-// GPU lane must run at most one job at a time.
+// The serialized local queue must run at most one job at a time.
 func TestGPUSerialized(t *testing.T) {
 	var concurrent, maxConcurrent int32
 	var mu sync.Mutex
@@ -420,7 +420,7 @@ func TestGPUSerialized(t *testing.T) {
 		}
 	}
 	if maxConcurrent != 1 {
-		t.Fatalf("GPU lane ran %d concurrently, want 1", maxConcurrent)
+		t.Fatalf("local serial queue ran %d concurrently, want 1", maxConcurrent)
 	}
 }
 
@@ -620,7 +620,7 @@ func TestARunnerThatReportsNothingLeavesNoRecord(t *testing.T) {
 }
 
 // TestNetworkLaneDoesNotQueueBehindGPU is the F7 regression: a remote-tier job
-// must run while a local GPU job holds the single GPU worker.
+// must run while a local job holds the single serialized local worker.
 func TestNetworkLaneDoesNotQueueBehindGPU(t *testing.T) {
 	ctx := context.Background()
 	gpuStarted := make(chan struct{})

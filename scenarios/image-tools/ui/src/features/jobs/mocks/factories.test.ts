@@ -15,6 +15,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   JobLane,
+  JobQueue,
   JobSchema,
   JobState,
   type Job,
@@ -28,6 +29,7 @@ describe("makeJob", () => {
     expect(j.id).not.toBe("");
     expect(j.operation).not.toBe("");
     expect(j.lane).toBe(JobLane.GPU);
+    expect(j.schedulingQueue).toBe(JobQueue.LOCAL_SERIAL);
     expect(j.state).toBe(JobState.RUNNING);
     if (!j.createdAt) {
       throw new Error("factory did not populate created_at");

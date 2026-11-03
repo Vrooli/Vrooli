@@ -3,8 +3,9 @@ import { cleanup, fireEvent, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 import { expectNoA11yViolations, renderWithProviders } from "../../test-utils";
-import { JobLane, JobState } from "../../api/jobs";
+import { JobLane, JobQueue, JobState } from "../../api/jobs";
 import { makeApiError } from "../../api/client";
+import { strings } from "../../consts/strings";
 import {
   asProgressStream,
   makeCancelJobResponse,
@@ -95,6 +96,7 @@ describe("ActivityCard", () => {
             id: "run1",
             state: JobState.RUNNING,
             lane: JobLane.CPU,
+            schedulingQueue: JobQueue.CPU_POOL,
             progress: 40,
             message: "Falling back to CPU…",
             operation: "upscale",
@@ -107,10 +109,29 @@ describe("ActivityCard", () => {
       expect(screen.getByTestId(selectors.activity.list)).toBeInTheDocument();
     });
     expect(screen.getByTestId(selectors.jobs.lane)).toBeInTheDocument();
+    expect(screen.getByTestId(selectors.jobs.lane)).toHaveTextContent(strings.jobs.queue.cpuPool);
     expect(screen.getByTestId(selectors.jobs.progress)).toBeInTheDocument();
     expect(screen.getByTestId(selectors.jobs.message)).toHaveTextContent("Falling back to CPU…");
     // An active (running) job exposes a cancel control but no open-output.
     expect(screen.getByTestId(selectors.jobs.cancelButton)).toBeInTheDocument();
+  });
+
+  it("labels a legacy GPU lane as a serialized local queue", async () => {
+    vi.mocked(jobsClient.listJobs).mockResolvedValue(
+      makeListJobsResponse({
+        jobs: [
+          makeJob({
+            id: "legacy-local",
+            state: JobState.RUNNING,
+            schedulingQueue: JobQueue.UNSPECIFIED,
+            lane: JobLane.GPU,
+          }),
+        ],
+      }),
+    );
+    renderWithProviders(<ActivityCard />);
+    await waitFor(() => expect(screen.getByTestId(selectors.jobs.lane)).toBeInTheDocument());
+    expect(screen.getByTestId(selectors.jobs.lane)).toHaveTextContent(strings.jobs.queue.localSerial);
   });
 
   it("overlays live WatchJob progress on an active job", async () => {

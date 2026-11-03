@@ -4,10 +4,16 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"fmt"
 	"image"
 	"image/color"
 	"image/png"
+	"os"
+	"os/exec"
+	"strings"
 	"testing"
+
+	"image-tools/internal/models"
 )
 
 // makePNG renders a small solid-color PNG for probe tests.
@@ -95,17 +101,29 @@ func TestOCR_BackendUnavailable(t *testing.T) {
 
 // TestNSFW_StructuredResult drives NSFW with a fake onnx sidecar returning JSON.
 func TestNSFW_StructuredResult(t *testing.T) {
+	const isolatedPython = "/runtime/pyenv/bin/python"
+	var gotProgram string
 	svc := mustService(t, Config{
 		ModelInstalled: func(string) bool { return true },
 		NSFWThreshold:  0.5,
-		LookPath:       func(string) (string, error) { return "/usr/bin/python3", nil },
-		Run: func(context.Context, string, []string) ([]byte, error) {
+		PythonProgram:  isolatedPython,
+		LookPath: func(program string) (string, error) {
+			if program != isolatedPython {
+				t.Fatalf("looked up %q, want isolated interpreter %q", program, isolatedPython)
+			}
+			return program, nil
+		},
+		Run: func(_ context.Context, program string, _ []string) ([]byte, error) {
+			gotProgram = program
 			return []byte(`{"score":0.92,"categories":[{"label":"nsfw","score":0.92},{"label":"sfw","score":0.08}]}`), nil
 		},
 	})
 	res, err := svc.NSFW(context.Background(), []byte("img"))
 	if err != nil {
 		t.Fatalf("nsfw: %v", err)
+	}
+	if gotProgram != isolatedPython {
+		t.Fatalf("ran %q, want isolated interpreter %q", gotProgram, isolatedPython)
 	}
 	if !res.NSFW {
 		t.Errorf("nsfw = false, want true (score %.2f >= %.2f)", res.Score, res.Threshold)
@@ -118,11 +136,37 @@ func TestNSFW_StructuredResult(t *testing.T) {
 	}
 }
 
+func TestNSFW_HoldsModelUseLeaseThroughSidecar(t *testing.T) {
+	gate := models.NewModelUseGate()
+	const modelID = "adamcodd-vit-nsfw"
+	svc := mustService(t, Config{
+		ModelInstalled:  func(string) bool { return true },
+		AcquireModelUse: gate.Acquire,
+		PythonProgram:   "/runtime/pyenv/bin/python",
+		LookPath:        func(program string) (string, error) { return program, nil },
+		Run: func(context.Context, string, []string) ([]byte, error) {
+			if _, err := gate.AcquireExclusive(modelID); !errors.Is(err, models.ErrModelInUse) {
+				t.Errorf("sidecar should hold shared model lease; exclusive acquire err=%v", err)
+			}
+			return []byte(`{"score":0.1,"categories":[]}`), nil
+		},
+	})
+	if _, err := svc.NSFW(context.Background(), []byte("img")); err != nil {
+		t.Fatalf("nsfw: %v", err)
+	}
+	release, err := gate.AcquireExclusive(modelID)
+	if err != nil {
+		t.Fatalf("model lease remained after sidecar: %v", err)
+	}
+	release()
+}
+
 // TestNSFW_ThresholdGovernsVerdict proves the operator-tunable threshold.
 func TestNSFW_ThresholdGovernsVerdict(t *testing.T) {
 	svc := mustService(t, Config{
 		ModelInstalled: func(string) bool { return true },
 		NSFWThreshold:  0.95, // strict: 0.92 should read as SFW
+		PythonProgram:  "/usr/bin/python3",
 		LookPath:       func(string) (string, error) { return "/usr/bin/python3", nil },
 		Run: func(context.Context, string, []string) ([]byte, error) {
 			return []byte(`{"score":0.92,"categories":[]}`), nil
@@ -141,12 +185,66 @@ func TestNSFW_ThresholdGovernsVerdict(t *testing.T) {
 func TestNSFW_ModelNotInstalled(t *testing.T) {
 	svc := mustService(t, Config{
 		ModelInstalled: func(string) bool { return false },
+		PythonProgram:  "/usr/bin/python3",
 		LookPath:       func(string) (string, error) { return "/usr/bin/python3", nil },
 	})
 	_, err := svc.NSFW(context.Background(), []byte("img"))
 	if !errors.Is(err, ErrBackendUnavailable) {
 		t.Fatalf("err = %v, want ErrBackendUnavailable", err)
 	}
+}
+
+func TestNSFW_DoesNotFallbackToHostPython(t *testing.T) {
+	lookPathCalls := 0
+	runCalls := 0
+	svc := mustService(t, Config{
+		ModelInstalled: func(string) bool { return true },
+		// Even if host python3 resolves, an absent private venv must fail closed.
+		LookPath: func(string) (string, error) {
+			lookPathCalls++
+			return "/usr/bin/python3", nil
+		},
+		Run: func(context.Context, string, []string) ([]byte, error) {
+			runCalls++
+			return []byte(`{"score":0}`), nil
+		},
+	})
+	_, err := svc.NSFW(context.Background(), []byte("img"))
+	if !errors.Is(err, ErrBackendUnavailable) {
+		t.Fatalf("err = %v, want ErrBackendUnavailable", err)
+	}
+	if lookPathCalls != 0 || runCalls != 0 {
+		t.Fatalf("host fallback was attempted: lookPath calls=%d run calls=%d", lookPathCalls, runCalls)
+	}
+}
+
+func TestNSFW_PreservesSidecarStderrOnFailure(t *testing.T) {
+	svc := mustService(t, Config{
+		ModelInstalled: func(string) bool { return true },
+		PythonProgram:  os.Args[0],
+		LookPath:       func(string) (string, error) { return os.Args[0], nil },
+		Run: func(ctx context.Context, _ string, args []string) ([]byte, error) {
+			childArgs := append([]string{"-test.run=TestCommandFailureHelper", "--"}, args...)
+			cmd := exec.CommandContext(ctx, os.Args[0], childArgs...)
+			cmd.Env = append(os.Environ(), "IMAGE_TOOLS_COMMAND_FAILURE_HELPER=1")
+			return cmd.Output()
+		},
+	})
+	_, err := svc.NSFW(context.Background(), []byte("img"))
+	if err == nil {
+		t.Fatal("nsfw returned nil error, want sidecar failure")
+	}
+	if got := err.Error(); !strings.Contains(got, "session initialization detail") {
+		t.Fatalf("error = %q, want captured sidecar stderr", got)
+	}
+}
+
+func TestCommandFailureHelper(t *testing.T) {
+	if os.Getenv("IMAGE_TOOLS_COMMAND_FAILURE_HELPER") != "1" {
+		return
+	}
+	_, _ = fmt.Fprintln(os.Stderr, "session initialization detail")
+	os.Exit(5)
 }
 
 func mustService(t *testing.T, cfg Config) *Service {
