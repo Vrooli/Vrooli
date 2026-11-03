@@ -26,17 +26,27 @@ def step_decide():
 def step_act():
     envelope["phase"] = "act"
     try:
-        result = deployment_manager.releases.recover(release_id=release_id, review_key=review_key, candidate_id=candidate_id, destination_revision_id=destination_revision_id, action=action, expected_predecessor_revision=expected_predecessor_revision, data_compatibility=data_compatibility, repair_artifact_ids=repair_artifact_ids, confirmation=confirmation, dry_run=False).head(1)
-        row = result[0] if result else {}
-        receipt = row.get("receipt") if isinstance(row, dict) else None
-        if (not isinstance(receipt, dict) or receipt.get("release_id") != release_id or
-                receipt.get("candidate_id") != candidate_id or
-                receipt.get("destination_revision_id") != destination_revision_id or
-                not receipt.get("deployment_id") or not receipt.get("external_receipt") or
+        request = {"release_id": release_id, "review_key": review_key, "candidate_id": candidate_id, "destination_revision_id": destination_revision_id, "action": action, "expected_predecessor_revision": expected_predecessor_revision, "data_compatibility": data_compatibility, "repair_artifact_ids": repair_artifact_ids, "confirmation": confirmation, "_confirm": True}
+        preview = deployment_manager.releases.recover(**request, dry_run=True).meta() or {}
+        preview_receipt = preview.get("receipt") if isinstance(preview, dict) else None
+        if (not isinstance(preview_receipt, dict) or not preview.get("dryRun") or
+                not preview_receipt.get("dryRun") or preview_receipt.get("outcome") != "preview" or
+                preview_receipt.get("releaseId") != release_id or
+                preview_receipt.get("candidateId") != candidate_id or
+                preview_receipt.get("destinationRevisionId") != destination_revision_id or
+                not preview_receipt.get("deploymentId") or preview_receipt.get("action") != action):
+            return fail("failed", "ambiguous_response", "owner recovery preview did not match the requested operation", "act")
+        result = deployment_manager.releases.recover(**request, dry_run=False)
+        meta = result.meta() or {}
+        receipt = meta.get("receipt") if isinstance(meta, dict) else None
+        if (not isinstance(receipt, dict) or receipt.get("releaseId") != release_id or
+                receipt.get("candidateId") != candidate_id or
+                receipt.get("destinationRevisionId") != destination_revision_id or
+                not receipt.get("deploymentId") or not receipt.get("externalReceipt") or
                 receipt.get("action") != action or
                 receipt.get("outcome") not in ("halted", "withdrawn", "rolled_back", "forward_repaired")):
             return fail("failed", "ambiguous_response", "owner recovery did not return a durable effect receipt", "act")
-        envelope["signals"].update({"owner_receipt": receipt, "outcome": "recovered"}); envelope["evidence"].append("receipt:" + str(receipt["external_receipt"])); envelope["status"] = "ok"; return "report"
+        envelope["signals"].update({"owner_receipt": receipt, "outcome": "recovered"}); envelope["evidence"].append("receipt:" + str(receipt["externalReceipt"])); envelope["status"] = "ok"; return "report"
     except Exception as exc:
         message = str(exc)
         lowered = message.lower()

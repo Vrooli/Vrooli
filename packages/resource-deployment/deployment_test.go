@@ -1,6 +1,9 @@
 package resourcedeployment
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 func TestTargetNormalizesPlatformsAndEnforcesArchitecture(t *testing.T) {
 	d := Deployment{Profiles: map[string]Profile{"desktop": {
@@ -203,5 +206,23 @@ func TestComposeCandidateArtifactDoesNotAdmitUnpinnedRuntime(t *testing.T) {
 	artifact.Verification = "host-tool"
 	if err := artifact.ValidateForComposeCandidate(); err == nil {
 		t.Fatal("candidate accepted host-tool authority")
+	}
+}
+
+func TestDataArtifactOnDemandRequiresDeclaredGroup(t *testing.T) {
+	service := ManagedService{DataArtifacts: []ManagedServiceDataArtifact{{Name: "profile", Path: "models/profile.bin", AcquisitionMode: "on-demand"}}}
+	if err := service.ValidateDataArtifacts(); err == nil || !strings.Contains(err.Error(), "requires group") {
+		t.Fatalf("missing group accepted: %v", err)
+	}
+	for _, group := range []string{"../escape", "UPPER", "bad_group", "-first", strings.Repeat("a", 65)} {
+		service.DataArtifacts[0].Group = group
+		if err := service.ValidateDataArtifacts(); err == nil || !strings.Contains(err.Error(), "group") {
+			t.Fatalf("invalid group %q: %v", group, err)
+		}
+	}
+	service.DataArtifacts[0].Group = "valid-group"
+	service.DataArtifacts[0].AcquisitionMode = "guess"
+	if err := service.ValidateDataArtifacts(); err == nil || !strings.Contains(err.Error(), "acquisition_mode") {
+		t.Fatal("unknown mode accepted", err)
 	}
 }

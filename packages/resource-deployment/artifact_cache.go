@@ -48,27 +48,29 @@ var artifactCacheLocks sync.Map
 // caller's output is a union directory: only the files in this key's verified
 // manifest are copied there, so unrelated resource failures cannot block it.
 func StageCachedArtifacts(ctx context.Context, cacheRoot, outputRoot string, key ArtifactCacheKey, build func(context.Context, string) error) ([]CachedArtifact, error) {
-	if strings.TrimSpace(key.Resource) == "" || strings.TrimSpace(key.Version) == "" || strings.TrimSpace(key.SourceIdentity) == "" || key.Platform.OS == "" || key.Platform.Arch == "" {
-		return nil, fmt.Errorf("resource artifact cache key requires resource, version, platform, and source identity")
+	cacheDir, err := artifactCacheDirectory(cacheRoot, key)
+	if err != nil {
+		return nil, err
 	}
 	if build == nil {
 		return nil, fmt.Errorf("resource artifact cache build function is required")
 	}
-	keyJSON, err := json.Marshal(key)
-	if err != nil {
-		return nil, fmt.Errorf("encode resource artifact cache key: %w", err)
+	lockValue, _ := artifactCacheLocks.LoadOrStore(cacheDir, make(chan struct{}, 1))
+	gate := lockValue.(chan struct{})
+	select {
+	case gate <- struct{}{}:
+	case <-ctx.Done():
+		return nil, ctx.Err()
 	}
-	keyDigest := sha256.Sum256(keyJSON)
-	cacheDir := filepath.Join(cacheRoot, hex.EncodeToString(keyDigest[:]))
-	lockValue, _ := artifactCacheLocks.LoadOrStore(cacheDir, &sync.Mutex{})
-	lock := lockValue.(*sync.Mutex)
-	lock.Lock()
-	defer lock.Unlock()
-	if artifacts, ok := verifyArtifactCache(cacheDir, key); ok {
-		if err := copyCachedArtifacts(cacheDir, outputRoot, artifacts); err != nil {
+	defer func() { <-gate }()
+	if artifacts, ok := verifyArtifactCache(ctx, cacheDir, key); ok {
+		if err := copyCachedArtifacts(ctx, cacheDir, outputRoot, artifacts); err != nil {
 			return nil, err
 		}
 		return artifacts, nil
+	}
+	if err := ctx.Err(); err != nil {
+		return nil, err
 	}
 	if err := os.MkdirAll(cacheRoot, 0o755); err != nil {
 		return nil, fmt.Errorf("create resource artifact cache: %w", err)
@@ -81,7 +83,7 @@ func StageCachedArtifacts(ctx context.Context, cacheRoot, outputRoot string, key
 	if err := build(ctx, tmp); err != nil {
 		return nil, err
 	}
-	artifacts, err := inventoryCachedArtifacts(tmp)
+	artifacts, err := inventoryCachedArtifacts(ctx, tmp)
 	if err != nil {
 		return nil, err
 	}
@@ -95,19 +97,22 @@ func StageCachedArtifacts(ctx context.Context, cacheRoot, outputRoot string, key
 	if err := os.WriteFile(filepath.Join(tmp, artifactCacheManifestName), append(manifestData, '\n'), 0o644); err != nil {
 		return nil, fmt.Errorf("write resource artifact cache manifest: %w", err)
 	}
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 	if err := os.RemoveAll(cacheDir); err != nil {
 		return nil, fmt.Errorf("replace invalid resource artifact cache: %w", err)
 	}
 	if err := os.Rename(tmp, cacheDir); err != nil {
 		return nil, fmt.Errorf("publish resource artifact cache: %w", err)
 	}
-	if err := copyCachedArtifacts(cacheDir, outputRoot, artifacts); err != nil {
+	if err := copyCachedArtifacts(ctx, cacheDir, outputRoot, artifacts); err != nil {
 		return nil, err
 	}
 	return artifacts, nil
 }
 
-func verifyArtifactCache(cacheDir string, key ArtifactCacheKey) ([]CachedArtifact, bool) {
+func verifyArtifactCache(ctx context.Context, cacheDir string, key ArtifactCacheKey) ([]CachedArtifact, bool) {
 	data, err := os.ReadFile(filepath.Join(cacheDir, artifactCacheManifestName))
 	if err != nil {
 		return nil, false
@@ -120,7 +125,7 @@ func verifyArtifactCache(cacheDir string, key ArtifactCacheKey) ([]CachedArtifac
 		if !safeCacheArtifactName(artifact.Name) {
 			return nil, false
 		}
-		digest, err := cacheArtifactDigest(cacheDir, filepath.Join(cacheDir, filepath.FromSlash(artifact.Name)))
+		digest, err := cacheArtifactDigest(ctx, cacheDir, filepath.Join(cacheDir, filepath.FromSlash(artifact.Name)))
 		if err != nil || digest != artifact.SHA256 {
 			return nil, false
 		}
@@ -128,7 +133,7 @@ func verifyArtifactCache(cacheDir string, key ArtifactCacheKey) ([]CachedArtifac
 	return manifest.Artifacts, true
 }
 
-func inventoryCachedArtifacts(root string) ([]CachedArtifact, error) {
+func inventoryCachedArtifacts(ctx context.Context, root string) ([]CachedArtifact, error) {
 	var artifacts []CachedArtifact
 	err := filepath.WalkDir(root, func(path string, entry fs.DirEntry, walkErr error) error {
 		if walkErr != nil {
@@ -148,7 +153,7 @@ func inventoryCachedArtifacts(root string) ([]CachedArtifact, error) {
 		if entry.IsDir() && strings.Contains(name, "/") {
 			return nil
 		}
-		digest, err := cacheArtifactDigest(root, path)
+		digest, err := cacheArtifactDigest(ctx, root, path)
 		if err != nil {
 			return err
 		}
@@ -165,7 +170,10 @@ func inventoryCachedArtifacts(root string) ([]CachedArtifact, error) {
 	return artifacts, nil
 }
 
-func cacheArtifactDigest(root, path string) (string, error) {
+func cacheArtifactDigest(ctx context.Context, root, path string) (string, error) {
+	if err := ctx.Err(); err != nil {
+		return "", err
+	}
 	info, err := os.Lstat(path)
 	if err != nil {
 		return "", err
@@ -175,19 +183,31 @@ func cacheArtifactDigest(root, path string) (string, error) {
 		if err != nil {
 			return "", err
 		}
+		if filepath.IsAbs(filepath.FromSlash(link)) {
+			return "", fmt.Errorf("cache symlink %q has an absolute target", path)
+		}
 		resolved := filepath.Clean(filepath.Join(filepath.Dir(path), filepath.FromSlash(link)))
 		rel, err := filepath.Rel(root, resolved)
 		if err != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) || filepath.IsAbs(rel) {
 			return "", fmt.Errorf("cache symlink %q escapes its resource artifact", path)
 		}
-		if _, err := os.Stat(resolved); err != nil {
+		actualRoot, err := filepath.EvalSymlinks(root)
+		if err != nil {
+			return "", err
+		}
+		actual, err := filepath.EvalSymlinks(path)
+		if err != nil {
 			return "", fmt.Errorf("cache symlink %q is dangling: %w", path, err)
+		}
+		rel, err = filepath.Rel(actualRoot, actual)
+		if err != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) || filepath.IsAbs(rel) {
+			return "", fmt.Errorf("cache symlink %q resolves outside its resource artifact", path)
 		}
 		sum := sha256.Sum256(append([]byte("symlink\x00"), []byte(link)...))
 		return hex.EncodeToString(sum[:]), nil
 	}
 	if info.IsDir() {
-		return binaryfetchTreeDigest(path)
+		return binaryfetch.TreeDigestContext(ctx, path)
 	}
 	if !info.Mode().IsRegular() {
 		return "", fmt.Errorf("resource artifact cache contains unsupported entry %q", path)
@@ -198,13 +218,13 @@ func cacheArtifactDigest(root, path string) (string, error) {
 	}
 	defer f.Close()
 	h := sha256.New()
-	if _, err := io.Copy(h, f); err != nil {
+	if _, err := io.Copy(h, cacheContextReader{ctx: ctx, source: f}); err != nil {
 		return "", err
 	}
 	return hex.EncodeToString(h.Sum(nil)), nil
 }
 
-func copyCachedArtifacts(cacheDir, outputRoot string, artifacts []CachedArtifact) error {
+func copyCachedArtifacts(ctx context.Context, cacheDir, outputRoot string, artifacts []CachedArtifact) error {
 	for _, artifact := range artifacts {
 		if !safeCacheArtifactName(artifact.Name) {
 			return fmt.Errorf("unsafe cached artifact name %q", artifact.Name)
@@ -221,20 +241,23 @@ func copyCachedArtifacts(cacheDir, outputRoot string, artifacts []CachedArtifact
 				return fmt.Errorf("replace staged resource artifact %s: %w", artifact.Name, err)
 			}
 		}
-		if err := copyCacheEntry(cacheDir, source, dest); err != nil {
+		if err := copyCacheEntry(ctx, cacheDir, source, dest); err != nil {
 			return fmt.Errorf("copy cached resource artifact %s: %w", artifact.Name, err)
 		}
 	}
 	return nil
 }
 
-func copyCacheEntry(root, source, dest string) error {
+func copyCacheEntry(ctx context.Context, root, source, dest string) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	info, err := os.Lstat(source)
 	if err != nil {
 		return err
 	}
 	if info.Mode()&os.ModeSymlink != 0 {
-		if _, err := cacheArtifactDigest(root, source); err != nil {
+		if _, err := cacheArtifactDigest(ctx, root, source); err != nil {
 			return err
 		}
 		link, err := os.Readlink(source)
@@ -270,7 +293,7 @@ func copyCacheEntry(root, source, dest string) error {
 			return err
 		}
 		for _, entry := range entries {
-			if err := copyCacheEntry(root, filepath.Join(source, entry.Name()), filepath.Join(dest, entry.Name())); err != nil {
+			if err := copyCacheEntry(ctx, root, filepath.Join(source, entry.Name()), filepath.Join(dest, entry.Name())); err != nil {
 				return err
 			}
 		}
@@ -288,7 +311,7 @@ func copyCacheEntry(root, source, dest string) error {
 	if err != nil {
 		return err
 	}
-	_, copyErr := io.Copy(out, in)
+	_, copyErr := io.Copy(out, cacheContextReader{ctx: ctx, source: in})
 	closeErr := out.Close()
 	if copyErr != nil {
 		return copyErr
@@ -301,8 +324,43 @@ func safeCacheArtifactName(name string) bool {
 	return name != "" && filepath.ToSlash(clean) == name && clean != "." && !filepath.IsAbs(clean) && clean != ".." && !strings.HasPrefix(clean, ".."+string(filepath.Separator))
 }
 
-// binaryfetchTreeDigest is kept behind this package boundary so resource
-// consumers get the same deterministic directory hashing as acquisition code.
-func binaryfetchTreeDigest(path string) (string, error) {
-	return binaryfetch.TreeDigest(path)
+func artifactCacheDirectory(cacheRoot string, key ArtifactCacheKey) (string, error) {
+	if strings.TrimSpace(key.Resource) == "" || strings.TrimSpace(key.Version) == "" || strings.TrimSpace(key.SourceIdentity) == "" || key.Platform.OS == "" || key.Platform.Arch == "" {
+		return "", fmt.Errorf("resource artifact cache key requires resource, version, platform, and source identity")
+	}
+	keyJSON, err := json.Marshal(key)
+	if err != nil {
+		return "", fmt.Errorf("encode resource artifact cache key: %w", err)
+	}
+	keyDigest := sha256.Sum256(keyJSON)
+	return filepath.Join(cacheRoot, hex.EncodeToString(keyDigest[:])), nil
+}
+
+// InspectCachedArtifacts verifies the existing cache without materializing or
+// building anything. A miss is never proof that an installed tree is a cache.
+func InspectCachedArtifacts(ctx context.Context, cacheRoot string, key ArtifactCacheKey) ([]CachedArtifact, bool, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, false, err
+	}
+	path, err := artifactCacheDirectory(cacheRoot, key)
+	if err != nil {
+		return nil, false, err
+	}
+	artifacts, hit := verifyArtifactCache(ctx, path, key)
+	if err := ctx.Err(); err != nil {
+		return nil, false, err
+	}
+	return artifacts, hit, nil
+}
+
+type cacheContextReader struct {
+	ctx    context.Context
+	source io.Reader
+}
+
+func (r cacheContextReader) Read(p []byte) (int, error) {
+	if err := r.ctx.Err(); err != nil {
+		return 0, err
+	}
+	return r.source.Read(p)
 }

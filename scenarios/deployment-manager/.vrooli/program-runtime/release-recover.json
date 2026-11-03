@@ -53,7 +53,8 @@
     }
   },
   "assumptions": [
-    "recovery authority remains with the owning release target"
+    "recovery authority remains with the owning release target",
+    "a fresh matching owner preview is required immediately before execution; dry_run_reference is caller-supplied context, not verified proof"
   ],
   "invariants": [
     "read-only by default",
@@ -68,7 +69,7 @@
     },
     {
       "id": "deployment-manager/releases/recover",
-      "effect": "write"
+      "effect": "destructive"
     }
   ],
   "outputs": {

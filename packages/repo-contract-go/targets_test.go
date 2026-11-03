@@ -70,6 +70,24 @@ func TestTargetIndexLookupUsesLongestRootAndMissesUnknownRoots(t *testing.T) {
 	}
 }
 
+func TestCanonicalScenarioDiscoveryExcludesPrivateSnapshots(t *testing.T) {
+	canonical := mustLoadDefault(t, "/home/matthalloran8/Vrooli")
+	fixture := testkitgo.NewRepoFixture(t)
+	fixture.WriteRepoContract(t)
+	doc := validContractDoc(t)
+	doc.Targets.Kinds = map[string]TargetSpec{"scenario": canonical.doc.Targets.Kinds["scenario"]}
+	writeContractFile(t, fixture.Root, doc)
+	fixture.WriteScenarioStub(t, "device-studio")
+	fixture.WriteScenarioStub(t, ".device-studio-variant")
+	targets, err := mustLoadDefault(t, fixture.Root).EnumerateTargets(fixture.Root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(targets) != 1 || targets[0].ID != "device-studio" {
+		t.Fatalf("private snapshot became a second canonical scenario: %#v", targets)
+	}
+}
+
 func TestEnumerateTargetsSkipsMissingMarkersAndExcludedRoots(t *testing.T) {
 	fixture := testkitgo.NewRepoFixture(t)
 	fixture.WriteRepoContract(t)

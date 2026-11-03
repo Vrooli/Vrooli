@@ -75,6 +75,32 @@
       ]
     },
     {
+      "name": "releases",
+      "description": "Governed release operations",
+      "commands": [
+        {
+          "name": "recover",
+          "description": "Recover one exact release through its owner",
+          "positionals": [{"name": "release_id", "required": true}],
+          "flags": [
+            {"name": "review-key", "required": true},
+            {"name": "candidate-id", "required": true},
+            {"name": "destination-revision-id", "required": true},
+            {"name": "action"},
+            {"name": "expected-predecessor-revision"},
+            {"name": "data-compatibility"},
+            {"name": "repair-artifacts", "bind": {"field": "repair_artifact_ids"}, "bind_waiver": "The CLI parses platform=id pairs into the request map."},
+            {"name": "repair-bundle-sha256"},
+            {"name": "idempotency-key"},
+            {"name": "confirmation"},
+            {"name": "dry-run"}
+          ],
+          "binding": {"kind": "connect-rpc", "service": "ReleasesService", "method": "Recover"},
+          "governance": {"effect": "destructive", "run_eligible": true, "requires_confirmation": true, "permissions": ["network:internal"]}
+        }
+      ]
+    },
+    {
       "name": "readiness-reviews",
       "description": "Immutable evidence-bound readiness review operations",
       "commands": [

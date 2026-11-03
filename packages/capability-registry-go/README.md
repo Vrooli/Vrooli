@@ -25,6 +25,11 @@ health summaries; `Resolve` performs bounded feature/readiness checks. Cached
 states retain their checked timestamp so consumers can show stale evidence
 instead of presenting it as a fresh observation.
 
+`DescribeHandler` is the standard HTTP adapter for `Registry.Describe`. API
+modules keep ownership of the route path, allowed method, and endpoint metadata,
+but share the nil-registry response, unavailable response on projection errors,
+and JSON success response.
+
 A missing liveness checker yields `unknown`; it never falls back to an expensive
 readiness checker. Both tiers execute checks outside the registry mutex, so a
 blocked readiness refresh cannot serialize liveness behind model work. Keep

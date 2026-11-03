@@ -17,7 +17,9 @@ import (
 // skeletonFetchTimeout bounds the cross-scenario analyzer call. A desktop
 // deployment must report an unavailable analyzer instead of tying up its
 // complete orchestration window on an unresponsive peer.
-var skeletonFetchTimeout = 30 * time.Second
+// Refreshing the complete dependency graph can exceed 30 seconds on a busy
+// build host. Keep it bounded within the desktop pipeline export budget.
+var skeletonFetchTimeout = 90 * time.Second
 
 // analyzerBundleResponse represents the response structure from the analyzer's bundle endpoint.
 // The analyzer may return the manifest in two formats:

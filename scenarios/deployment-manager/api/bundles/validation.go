@@ -14,6 +14,7 @@ import (
 
 	"github.com/santhosh-tekuri/jsonschema/v5"
 	repocontract "github.com/vrooli/repo-contract-go"
+	runtimeManifest "github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/manifest"
 )
 
 var (
@@ -35,6 +36,18 @@ func ValidateManifestBytes(data []byte) error {
 	var manifest Manifest
 	if err := dec.Decode(&manifest); err != nil {
 		return fmt.Errorf("invalid JSON: %w", err)
+	}
+
+	var runtimeContract runtimeManifest.Manifest
+	if err := json.Unmarshal(data, &runtimeContract); err != nil {
+		return fmt.Errorf("decode runtime contract: %w", err)
+	}
+	if err := runtimeManifest.ValidateFeatureExports(runtimeContract.Features, runtimeContract.Services); err != nil {
+		return err
+	}
+
+	if err := runtimeManifest.ValidatePeerFeatureExports(append(append([]runtimeManifest.Peer(nil), runtimeContract.Peers...), runtimeContract.ProgramBindingPeers...), runtimeContract.Services); err != nil {
+		return err
 	}
 
 	// Validate schema version using domain decision helper

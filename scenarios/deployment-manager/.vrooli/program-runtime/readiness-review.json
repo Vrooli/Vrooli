@@ -29,9 +29,6 @@
     },
     "targets": {
       "type": "array",
-      "items": {
-        "type": "string"
-      },
       "default": []
     },
     "channel": {

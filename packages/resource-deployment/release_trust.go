@@ -148,32 +148,41 @@ func VerifyReleaseDirectory(root string, mode ArtifactTrustMode, publicKeyPath s
 	if e = json.Unmarshal(b, &s); e != nil {
 		return m, nil, fmt.Errorf("parse release signature: %w", e)
 	}
-	if s.SchemaVersion != "v1" || s.Algorithm != "rsa-pkcs1v15-sha256" || strings.TrimSpace(s.KeyID) == "" {
-		return m, nil, fmt.Errorf("invalid production release signature envelope")
-	}
-	sig, e := base64.StdEncoding.DecodeString(s.Signature)
-	if e != nil {
-		return m, nil, fmt.Errorf("decode release signature: %w", e)
-	}
 	pemData, e := os.ReadFile(publicKeyPath)
 	if e != nil {
 		return m, nil, fmt.Errorf("read release trust key: %w", e)
 	}
+	if e = VerifyReleaseSignature(canonical, s, pemData); e != nil {
+		return m, nil, e
+	}
+	return m, &s, nil
+}
+
+// VerifyReleaseSignature verifies canonical release-owned metadata with the
+// same trust envelope used by complete release directories.
+func VerifyReleaseSignature(canonical []byte, s ReleaseSignature, pemData []byte) error {
+	if s.SchemaVersion != "v1" || s.Algorithm != "rsa-pkcs1v15-sha256" || strings.TrimSpace(s.KeyID) == "" {
+		return fmt.Errorf("invalid production release signature envelope")
+	}
+	sig, e := base64.StdEncoding.DecodeString(s.Signature)
+	if e != nil {
+		return fmt.Errorf("decode release signature: %w", e)
+	}
 	block, _ := pem.Decode(pemData)
 	if block == nil {
-		return m, nil, fmt.Errorf("parse release trust key: invalid PEM")
+		return fmt.Errorf("parse release trust key: invalid PEM")
 	}
 	pub, e := x509.ParsePKIXPublicKey(block.Bytes)
 	if e != nil {
-		return m, nil, e
+		return e
 	}
 	key, ok := pub.(*rsa.PublicKey)
 	if !ok {
-		return m, nil, fmt.Errorf("release trust key is not RSA")
+		return fmt.Errorf("release trust key is not RSA")
 	}
 	digest := sha256.Sum256(canonical)
 	if e = rsa.VerifyPKCS1v15(key, crypto.SHA256, digest[:], sig); e != nil {
-		return m, nil, fmt.Errorf("production release signature invalid: %w", e)
+		return fmt.Errorf("production release signature invalid: %w", e)
 	}
-	return m, &s, nil
+	return nil
 }

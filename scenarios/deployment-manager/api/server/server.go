@@ -635,7 +635,7 @@ func (s *Server) Start() error {
 		Port:            s.Config.Port,
 		Handler:         s.Handler,
 		ReadTimeout:     30 * time.Second,
-		WriteTimeout:    30 * time.Second,
+		WriteTimeout:    3 * time.Minute, // bundle export includes a bounded analyzer refresh and staging
 		IdleTimeout:     120 * time.Second,
 		ShutdownTimeout: 10 * time.Second,
 		Cleanup: func(context.Context) error {

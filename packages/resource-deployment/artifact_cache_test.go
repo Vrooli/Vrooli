@@ -2,13 +2,99 @@ package resourcedeployment
 
 import (
 	"context"
+	"errors"
 	"os"
 	"path/filepath"
 	"runtime"
 	"sync"
 	"sync/atomic"
 	"testing"
+	"time"
 )
+
+func TestCacheArtifactDigestRejectsAbsoluteLinkWithInTreeLookalike(t *testing.T) {
+	root := t.TempDir()
+	external := filepath.Join(t.TempDir(), "outside")
+	lookalike := filepath.Join(root, external)
+	if err := os.MkdirAll(filepath.Dir(lookalike), 0700); err != nil {
+		t.Fatal(err)
+	}
+	for _, path := range []string{external, lookalike} {
+		if err := os.WriteFile(path, []byte("same bytes"), 0600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	link := filepath.Join(root, "payload")
+	if err := os.Symlink(external, link); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := cacheArtifactDigest(t.Context(), root, link); err == nil {
+		t.Fatal("accepted an absolute external artifact symlink")
+	}
+}
+
+func TestCacheArtifactDigestRejectsChainedEscape(t *testing.T) {
+	parent := t.TempDir()
+	root := filepath.Join(parent, "tree")
+	if err := os.MkdirAll(filepath.Join(root, ".bin"), 0700); err != nil {
+		t.Fatal(err)
+	}
+	for _, path := range []string{filepath.Join(root, "outside"), filepath.Join(parent, "outside")} {
+		if err := os.WriteFile(path, []byte("same bytes"), 0600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := os.Symlink(".", filepath.Join(root, "a")); err != nil {
+		t.Fatal(err)
+	}
+	link := filepath.Join(root, ".bin", "payload")
+	if err := os.Symlink("../a/../outside", link); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := cacheArtifactDigest(t.Context(), root, link); err == nil {
+		t.Fatal("accepted a link chain whose actual target escapes the cache")
+	}
+}
+
+func TestStageCachedArtifactsCancellationDoesNotWaitForAnotherBuild(t *testing.T) {
+	cacheRoot, outputRoot := t.TempDir(), t.TempDir()
+	key := ArtifactCacheKey{Resource: "python", Version: "1", Platform: Platform{OS: "linux", Arch: "amd64"}, SourceIdentity: "cancel-waiter"}
+	entered, release := make(chan struct{}), make(chan struct{})
+	first := make(chan error, 1)
+	go func() {
+		_, err := StageCachedArtifacts(context.Background(), cacheRoot, outputRoot, key, func(_ context.Context, staging string) error {
+			close(entered)
+			<-release
+			return os.WriteFile(filepath.Join(staging, "payload"), []byte("verified"), 0o644)
+		})
+		first <- err
+	}()
+	defer func() {
+		close(release)
+		if err := <-first; err != nil {
+			t.Errorf("original owner build: %v", err)
+		}
+	}()
+	<-entered
+	ctx, cancel := context.WithCancel(context.Background())
+	second := make(chan error, 1)
+	go func() {
+		_, err := StageCachedArtifacts(ctx, cacheRoot, t.TempDir(), key, func(context.Context, string) error {
+			t.Error("canceled waiter acquired a build")
+			return nil
+		})
+		second <- err
+	}()
+	cancel()
+	select {
+	case err := <-second:
+		if !errors.Is(err, context.Canceled) {
+			t.Fatalf("waiter result = %v, want cancellation", err)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("canceled waiter remained blocked behind active build")
+	}
+}
 
 func TestStageCachedArtifactsReusesVerifiedResourcePlatformOutput(t *testing.T) {
 	cacheRoot := t.TempDir()

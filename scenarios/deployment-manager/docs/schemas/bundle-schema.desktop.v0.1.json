@@ -12,6 +12,19 @@
     "services"
   ],
   "properties": {
+    "features": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "required": ["owner_version", "service", "port"],
+        "additionalProperties": false,
+        "properties": {
+          "owner_version": { "type": "string", "minLength": 1 },
+          "service": { "type": "string", "minLength": 1 },
+          "port": { "type": "string", "minLength": 1 }
+        }
+      }
+    },
     "schema_version": {
       "type": "string",
       "enum": ["v0.1"]
@@ -30,6 +43,10 @@
       "items": { "$ref": "#/definitions/swap" }
     },
     "peers": {
+      "type": "array",
+      "items": { "$ref": "#/definitions/peer" }
+    },
+    "program_binding_peers": {
       "type": "array",
       "items": { "$ref": "#/definitions/peer" }
     },
@@ -147,26 +164,15 @@
     },
     "peer": {
       "type": "object",
-      "required": ["scenario", "bundle_policy", "bindings"],
+      "required": ["scenario", "bundle_policy"],
       "properties": {
         "scenario": { "type": "string", "minLength": 1 },
         "bundle_policy": { "type": "string", "enum": ["embed", "discover", "either"] },
         "startup_policy": { "type": "string" },
         "degraded_behavior": { "type": "string" },
-        "bindings": {
-          "type": "array",
-          "items": { "$ref": "#/definitions/peer_binding" }
-        }
-      }
-    },
-    "peer_binding": {
-      "type": "object",
-      "required": ["env_var", "form", "port", "when_unavailable"],
-      "properties": {
-        "env_var": { "type": "string", "minLength": 1 },
-        "form": { "type": "string", "enum": ["http_base_url", "ws_base_url", "host_port", "port_number"] },
-        "port": { "type": "string", "minLength": 1 },
-        "when_unavailable": { "type": "string", "enum": ["omit", "fail"] }
+        "versionRange": { "type": "string" },
+        "embedded_version": { "type": "string" },
+        "features": { "$ref": "#/properties/features" }
       }
     },
     "secret": {

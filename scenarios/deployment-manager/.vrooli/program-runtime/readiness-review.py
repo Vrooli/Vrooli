@@ -12,7 +12,7 @@ resolved["authorization_epoch"] = raw_authorization_epoch if authorization_epoch
 raw_targets = inputs.get("targets", [])
 if raw_targets is None:
     raw_targets = []
-targets_valid = isinstance(raw_targets, list)
+targets_valid = isinstance(raw_targets, list) and all(isinstance(value, str) for value in raw_targets)
 resolved["targets"] = [str(value).strip() for value in raw_targets if str(value).strip()] if targets_valid else []
 if not resolved["targets"] and resolved["target"]:
     resolved["targets"] = [resolved["target"]]
@@ -30,7 +30,7 @@ fail = program.fail
 def step_validate():
     missing = [key for key in keys if not resolved[key]]
     if missing: return fail("failed", "invalid_input", "missing: " + ",".join(missing), "validate")
-    if not targets_valid: return fail("failed", "invalid_input", "targets must be an array", "validate")
+    if not targets_valid: return fail("failed", "invalid_input", "targets must be an array of strings", "validate")
     if not resolved["targets"]: return fail("failed", "invalid_input", "at least one target is required", "validate")
     if resolved["target"] and resolved["target"] not in resolved["targets"]: return fail("failed", "invalid_input", "target and targets disagree", "validate")
     if not authorization_epoch_valid: return fail("failed", "invalid_input", "authorization_epoch must be a non-negative integer", "validate")

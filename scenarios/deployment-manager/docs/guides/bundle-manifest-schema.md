@@ -44,6 +44,8 @@ The schema version determines validation rules and supported features. Always sp
   "authentication": { ... },
   "telemetry": { ... },
   "ports": { ... },
+  "peers": [ ... ],
+  "program_binding_peers": [ ... ],
   "swaps": [ ... ],
   "secrets": [ ... ],
   "services": [ ... ]
@@ -59,9 +61,37 @@ The schema version determines validation rules and supported features. Always sp
 | `authentication` | object | No (required for new authenticated bundles) | Human identity, provider, and offline-mode contract |
 | `telemetry` | object | **Yes** | Telemetry collection settings |
 | `ports` | object | No | Port allocation rules |
+| `peers`, `program_binding_peers` | array | No | Scenario peer identity and bundle/startup policies; lookup is resolved at call time |
 | `swaps` | array | No | Dependency swaps applied |
 | `secrets` | array | No | Secret definitions |
 | `services` | array | **Yes** | Service definitions (at least one required) |
+
+---
+
+## Scenario Peers
+
+Peer records declare a scenario slug and its bundle/startup policy. They do not
+contain static port bindings. The runtime resolves a peer's API or UI port when
+the shim is called: it checks the complete peer record first, then uses the
+embedded service only when the peer is embedded and compatible. `versionRange`
+constrains a discovered peer, while `embedded_version` records the version of a
+locally staged peer for fallback compatibility.
+
+```json
+{
+  "peers": [{
+    "scenario": "helper-scenario",
+    "bundle_policy": "either",
+    "startup_policy": "on_demand",
+    "versionRange": ">=1.2.0",
+    "embedded_version": "1.4.0"
+  }]
+}
+```
+
+`scenario` and `bundle_policy` are required. Version fields are optional. A
+blank version range preserves legacy unrestricted lookup; a malformed
+nonblank range fails closed.
 
 ---
 

@@ -139,7 +139,9 @@ func (s ServiceShutdown) Validate() error {
 // nesting here makes the JSON contract shared by resource manifests, the
 // control plane, and deployment consumers.
 type ManagedService struct {
-	ProviderPolicy ProviderPolicy `json:"provider_policy"`
+	// MinimumDataGroups fails startup promptly until enough declared data bundles exist.
+	MinimumDataGroups int            `json:"minimum_data_groups,omitempty"`
+	ProviderPolicy    ProviderPolicy `json:"provider_policy"`
 	// ArtifactRole and ProvenanceClass are release metadata declared by the
 	// resource. The distributor uses them instead of inferring trust from an
 	// artifact filename.
@@ -223,9 +225,14 @@ func (m ManagedService) ValidateCredentialFiles() error {
 // ManagedServiceDataArtifact describes one durable, regenerable artifact
 // staged below RESOURCE_DATA_DIR. Path is relative to that directory.
 type ManagedServiceDataArtifact struct {
-	Name        string                   `json:"name"`
-	Path        string                   `json:"path"`
-	Acquisition *binaryfetch.Acquisition `json:"acquisition"`
+	SizeBytes int64 `json:"size_bytes,omitempty"`
+	// Group identifies one explicitly acquirable data bundle. On-demand data
+	// is never fetched implicitly by resource start or runtime installation.
+	Group           string                   `json:"group,omitempty"`
+	AcquisitionMode string                   `json:"acquisition_mode,omitempty"`
+	Name            string                   `json:"name"`
+	Path            string                   `json:"path"`
+	Acquisition     *binaryfetch.Acquisition `json:"acquisition"`
 }
 
 // ProcessLimits are applied to the supervised process after it starts.
@@ -352,7 +359,39 @@ func (m ManagedService) ValidateAttachHealthPath() error {
 // declarations attached to a managed service.
 func (m ManagedService) ValidateDataArtifacts() error {
 	seen := make(map[string]struct{}, len(m.DataArtifacts))
+	groups := map[string]bool{}
+	modes := map[string]string{}
 	for i, artifact := range m.DataArtifacts {
+		if artifact.SizeBytes < 0 {
+			return fmt.Errorf("data artifact %d size_bytes must not be negative", i)
+		}
+		if artifact.AcquisitionMode != "" && artifact.AcquisitionMode != "eager" && artifact.AcquisitionMode != "on-demand" {
+			return fmt.Errorf("data artifact %d has invalid acquisition_mode", i)
+		}
+		if artifact.AcquisitionMode == "on-demand" && artifact.Group == "" {
+			return fmt.Errorf("on-demand data artifact %d requires group", i)
+		}
+		if artifact.Group != "" {
+			mode := artifact.AcquisitionMode
+			if mode == "" {
+				mode = "eager"
+			}
+			if previous, exists := modes[artifact.Group]; exists && previous != mode {
+				return fmt.Errorf("data group %s mixes acquisition modes", artifact.Group)
+			}
+			modes[artifact.Group] = mode
+			if mode == "on-demand" {
+				groups[artifact.Group] = true
+			}
+			for j, ch := range artifact.Group {
+				if !(ch >= 'a' && ch <= 'z' || j > 0 && (ch >= '0' && ch <= '9' || ch == '-')) {
+					return fmt.Errorf("data artifact %d group requires a lowercase identifier", i)
+				}
+			}
+			if len(artifact.Group) > 64 {
+				return fmt.Errorf("data artifact %d group exceeds 64 characters", i)
+			}
+		}
 		name := strings.TrimSpace(artifact.Name)
 		if name == "" {
 			return fmt.Errorf("data artifact %d name is required", i)
@@ -371,6 +410,9 @@ func (m ManagedService) ValidateDataArtifacts() error {
 		if err := artifact.Acquisition.Validate(); err != nil {
 			return fmt.Errorf("data artifact %q acquisition: %w", name, err)
 		}
+	}
+	if m.MinimumDataGroups < 0 || m.MinimumDataGroups > len(groups) {
+		return fmt.Errorf("minimum_data_groups exceeds the declared data groups")
 	}
 	return nil
 }

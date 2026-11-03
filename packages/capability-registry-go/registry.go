@@ -67,6 +67,7 @@ const (
 
 type Def struct {
 	ID                  string                        `json:"id"`
+	Uses                []Use                         `json:"uses,omitempty"`
 	Origin              string                        `json:"origin,omitempty"`
 	Name                string                        `json:"name"`
 	Description         string                        `json:"description"`
@@ -84,6 +85,23 @@ type Def struct {
 	Enabled         bool        `json:"enabled"`
 	Required        bool        `json:"required"`
 	StartupPolicy   string      `json:"startupPolicy,omitempty"`
+}
+
+// Use describes what the consuming app does with a dependency. Its identity is
+// independent of the provider slug, so replacing a provider preserves the feature.
+type Use struct {
+	ID          string `json:"id"`
+	Name        string `json:"name"`
+	Description string `json:"description"`
+	Group       string `json:"group"`
+}
+
+// Installation is an observation of a local dependency, never a hosted API's
+// model or protocol version. Empty fields mean the owner has not observed them.
+type Installation struct {
+	Location string `json:"location"`
+	Version  string `json:"version,omitempty"`
+	Selected bool   `json:"selected"`
 }
 
 type FeatureRequirement struct {
@@ -110,6 +128,7 @@ type Overlay struct {
 }
 
 type manifestDependency struct {
+	Uses          []Use  `json:"uses"`
 	Enabled       *bool  `json:"enabled"`
 	Required      bool   `json:"required"`
 	StartupPolicy string `json:"startup_policy"`
@@ -148,6 +167,7 @@ func ProjectManifest(path string, overlays map[string]Overlay) ([]Def, error) {
 			return
 		}
 		d := Def{ID: slug, Origin: "manifest", Name: slug, Description: v.Description, DependencyKind: kind, DependencySlug: slug, Enabled: true, Required: v.Required, StartupPolicy: v.StartupPolicy}
+		d.Uses = append([]Use(nil), v.Uses...)
 		if o, ok := overlays[slug]; ok {
 			if o.ID != "" && o.ID != slug {
 				return
@@ -179,6 +199,15 @@ func ProjectManifest(path string, overlays map[string]Overlay) ([]Def, error) {
 	}
 	if err := ValidateOverlays(defs, overlays); err != nil {
 		return nil, err
+	}
+	for _, def := range defs {
+		seen := make(map[string]bool)
+		for _, use := range def.Uses {
+			if use.ID == "" || use.Name == "" || use.Description == "" || use.Group == "" || seen[use.ID] {
+				return nil, fmt.Errorf("dependency %q has an incomplete or duplicate capability use %q", def.DependencySlug, use.ID)
+			}
+			seen[use.ID] = true
+		}
 	}
 	sort.Slice(defs, func(i, j int) bool { return defs[i].ID < defs[j].ID })
 	return defs, nil
@@ -237,6 +266,7 @@ func (d Def) ResolvedCriticality() Criticality {
 
 type State struct {
 	Def
+	Installation           *Installation     `json:"installation,omitempty"`
 	Status                 Status            `json:"status"`
 	Message                string            `json:"message,omitempty"`
 	ReasonCode             string            `json:"reasonCode,omitempty"`
@@ -268,6 +298,7 @@ type tierCache struct {
 }
 
 type CheckResult struct {
+	Installation           *Installation
 	Status                 Status
 	Message                string
 	ReasonCode             string
@@ -658,6 +689,10 @@ func checkWithBudget(parent context.Context, checker Checker, budget time.Durati
 
 func apply(state *State, result CheckResult) {
 	state.Status, state.Message, state.ReasonCode = result.Status, result.Message, result.ReasonCode
+	if result.Installation != nil {
+		installation := *result.Installation
+		state.Installation = &installation
+	}
 	if result.ActionKind != ActionKindNone {
 		state.ActionKind = result.ActionKind
 	}

@@ -361,3 +361,29 @@ func TestFullRefreshDoesNotBlockLivenessChecks(t *testing.T) {
 		t.Fatal("full refresh did not finish")
 	}
 }
+
+func TestConsumerUsesPreserveProviderIdentity(t *testing.T) {
+	path := t.TempDir() + "/service.json"
+	if err := os.WriteFile(path, []byte(`{"dependencies":{"scenarios":{"agent-manager":{"description":"Agents","uses":[{"id":"agent-runs","name":"Agents","description":"Run agents","group":"agents"},{"id":"agent-history","name":"History","description":"Review completed work","group":"agents"}]}}}}`), 0600); err != nil {
+		t.Fatal(err)
+	}
+	defs, err := ProjectManifest(path, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(defs) != 1 || defs[0].DependencySlug != "agent-manager" || len(defs[0].Uses) != 2 || defs[0].Uses[0].ID == defs[0].DependencySlug {
+		t.Fatalf("capability and provider identities were conflated: %+v", defs)
+	}
+}
+
+func TestConsumerUseRequiresPurposeAndUniqueIdentity(t *testing.T) {
+	for _, uses := range []string{`[{"id":"agents","name":"Agents","group":"agents"}]`, `[{"id":"agents","name":"Agents","description":"Run agents","group":"agents"},{"id":"agents","name":"Other","description":"Other purpose","group":"agents"}]`} {
+		path := t.TempDir() + "/service.json"
+		if err := os.WriteFile(path, []byte(`{"dependencies":{"scenarios":{"provider":{"description":"Provider","uses":`+uses+`}}}}`), 0600); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := ProjectManifest(path, nil); err == nil {
+			t.Fatal("accepted incomplete or duplicate capability declaration")
+		}
+	}
+}
