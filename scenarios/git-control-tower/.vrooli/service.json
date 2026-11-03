@@ -11,26 +11,31 @@
     "resources": {},
     "scenarios": {
       "workspace-sandbox": {
+        "uses": [{"id": "approved-changes", "name": "Approved changes", "description": "Preview and commit changes you approved", "group": "changes"}],
         "description": "Approved changes tracking and commit preview",
         "required": false,
         "startup_policy": "try_start"
       },
       "browser-automation-studio": {
+        "uses": [{"id": "visual-capture", "name": "Visual capture", "description": "Compare screenshots of your app over time", "group": "quality"}],
         "description": "Visual capture and screenshot comparison for scenario UIs",
         "required": false,
         "startup_policy": "try_start"
       },
       "test-genie": {
+        "uses": [{"id": "test-execution", "name": "Tests", "description": "Run tests and inspect results before committing", "group": "quality"}],
         "description": "Automated test execution and reporting for scenarios",
         "required": false,
         "startup_policy": "try_start"
       },
       "tidiness-manager": {
+        "uses": [{"id": "code-quality", "name": "Code quality", "description": "Review lint, type and code-quality findings", "group": "quality"}],
         "description": "Code quality analysis and tidiness scoring for scenarios",
         "required": false,
         "startup_policy": "try_start"
       },
       "agent-manager": {
+        "uses": [{"id": "agent-runs", "name": "Agent runs", "description": "Run agents and review their progress", "group": "agents"}, {"id": "agent-conversations", "name": "Agent conversations", "description": "Continue multi-turn conversations about your repository", "group": "agents"}, {"id": "agent-approval", "name": "Change approval", "description": "Review and approve agent changes before committing", "group": "agents"}],
         "description": "AI agent orchestration and run management through Git Control Tower's declared role-only profile",
         "config": {
           "declarations": {
@@ -49,6 +54,7 @@
         "startup_policy": "try_start"
       },
       "scenario-auditor": {
+        "uses": [{"id": "standards-checks", "name": "Standards checks", "description": "Find violations of repository standards", "group": "quality"}],
         "description": "Standards compliance and rule findings used by review surfaces",
         "required": false,
         "startup_policy": "try_start"

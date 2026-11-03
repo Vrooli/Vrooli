@@ -1316,7 +1316,8 @@
                 "field": "job_id"
               }
             }
-          ]
+          ],
+          "semantics": {"kind": "query", "blocks": {"replaces": ["git-control-tower message status"]}}
         },
         {
           "name": "cancel",

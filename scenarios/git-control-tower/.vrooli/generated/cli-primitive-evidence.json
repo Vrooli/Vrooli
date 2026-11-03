@@ -4,7 +4,7 @@
   "source_manifest": "cli/manifest.json",
   "scenario": "git-control-tower",
   "generator": "v1.0.0",
-  "manifest_hash": "c7b5be4c7848a6a95ff41c405991b4103854c4dd8bfcaf7b0835adf0be2830c3",
+  "manifest_hash": "e2694d29c5c210a8173b47913ebb7227e891888651257b521b442d5f7d13dcaa",
   "commands": [
     {
       "path": "audit list",

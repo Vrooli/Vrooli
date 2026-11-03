@@ -42,6 +42,9 @@ export type DependencyKind = "scenario" | "resource";
 export type CapabilityStatus = "available" | "unavailable" | "unknown";
 
 export interface CapabilityState {
+  operatorCommand?: string;
+  uses?: {id: string; name: string; description: string; group: string}[];
+  installation?: {location: string; version?: string; selected: boolean};
   id: string;
   name: string;
   description: string;

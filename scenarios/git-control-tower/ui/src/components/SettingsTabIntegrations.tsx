@@ -1,67 +1,35 @@
-import { useState, type ReactNode } from "react";
+import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { Bot, Camera, ClipboardCheck, FlaskConical, ShieldCheck, Sparkles } from "lucide-react";
 import {
   IntegrationsOverview,
   type IntegrationGroup,
   type IntegrationItem,
-  type IntegrationStatus,
-} from "@vrooli/react-component-library/IntegrationsOverview/1";
+} from "@vrooli/react-component-library/IntegrationsOverview/1.1.1";
 import { SettingsList } from "@vrooli/react-component-library/SettingsList/1";
 import { Button } from "@vrooli/react-component-library/Button/2";
 import { useCapabilities } from "../lib/hooks";
 import { useCredentials, useDeleteCredential, useTestCredential } from "../lib/hooks-settings";
 import { queryKeys } from "../lib/hooks-query-keys";
-import type { CapabilityState, Credential } from "../lib/api";
+import type { Credential } from "../lib/api";
 
 interface SettingsTabIntegrationsProps {
   isMobile: boolean;
   repoId?: string | null;
 }
 
-/** Plain-language copy for the apps Git Control Tower builds on; anything else falls back to its slug. */
-const APP_COPY: Record<string, { name: string; subtitle: string; provider: string; icon: ReactNode }> = {
-  "agent-manager": {
-    name: "Agents",
-    subtitle: "Run agents and approve their changes",
-    provider: "Agent Manager",
-    icon: <Bot aria-hidden="true" />,
-  },
-  "browser-automation-studio": {
-    name: "Visual capture",
-    subtitle: "Screenshots of app screens over time",
-    provider: "Browser Automation Studio",
-    icon: <Camera aria-hidden="true" />,
-  },
-  "scenario-auditor": {
-    name: "Standards checks",
-    subtitle: "Rule findings in reviews",
-    provider: "Scenario Auditor",
-    icon: <ShieldCheck aria-hidden="true" />,
-  },
-  "test-genie": {
-    name: "Tests",
-    subtitle: "Run tests and see their results",
-    provider: "Test Genie",
-    icon: <FlaskConical aria-hidden="true" />,
-  },
-  "tidiness-manager": {
-    name: "Code quality",
-    subtitle: "Lint, type and tidiness scores",
-    provider: "Tidiness Manager",
-    icon: <Sparkles aria-hidden="true" />,
-  },
-  "workspace-sandbox": {
-    name: "Approved changes",
-    subtitle: "Track approved changes and preview commits",
-    provider: "Workspace Sandbox",
-    icon: <ClipboardCheck aria-hidden="true" />,
-  },
-};
-
-function humanize(slug: string): string {
-  const words = slug.replace(/[-_]+/g, " ").trim();
-  return words.charAt(0).toUpperCase() + words.slice(1);
+function dependencyDetails(dependency: {
+  name: string; description: string; status: string; message?: string;
+  operatorCommand?: string; uses?: {name: string}[];
+}): Partial<IntegrationItem> {
+  return {
+    ...(dependency.status === "unavailable" ? { problem: {
+      title: `${dependency.uses?.[0]?.name ?? dependency.name} is off`,
+      description: dependency.message || dependency.description,
+    }} : {}),
+    detail: dependency.operatorCommand
+      ? <code className="block whitespace-pre-wrap break-words text-sm">{dependency.operatorCommand}</code>
+      : undefined,
+  };
 }
 
 function initialsOf(name: string): string {
@@ -70,52 +38,11 @@ function initialsOf(name: string): string {
   return (second ? first.charAt(0) + second.charAt(0) : name.slice(0, 2)).toUpperCase();
 }
 
-function capabilityStatus(cap: CapabilityState): IntegrationStatus {
-  if (cap.status === "available") return "ready";
-  if (cap.status === "unavailable") return "off";
-  return "checking";
-}
-
 function formatTime(value: string | undefined): string | undefined {
   if (!value) return undefined;
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return undefined;
   return date.toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" });
-}
-
-function capabilityItem(cap: CapabilityState): IntegrationItem {
-  const slug = cap.dependencySlug || cap.id;
-  const copy = APP_COPY[slug];
-  const name = copy?.name ?? humanize(cap.name || slug);
-  const provider = copy?.provider ?? humanize(slug);
-  const status = capabilityStatus(cap);
-  const checked = formatTime(cap.checkedAt);
-  return {
-    id: cap.id,
-    name,
-    subtitle: copy?.subtitle ?? cap.description,
-    provider,
-    icon: copy?.icon,
-    initials: copy ? undefined : initialsOf(name),
-    status,
-    problem: status === "off"
-      ? {
-          title: `${name} is off`,
-          description: cap.features.length
-            ? `${cap.features.join(", ")} won't work until ${provider} is running.`
-            : `This won't work until ${provider} is running.`,
-        }
-      : undefined,
-    features: cap.features.map((feature) => ({ id: feature, label: feature, available: status !== "off" })),
-    facts: [
-      { label: "ID", value: slug, monospace: true },
-      ...(cap.message ? [{ label: "Health", value: cap.message }] : []),
-      ...(checked ? [{ label: "Last checked", value: checked }] : []),
-      ...(status === "off" && cap.dependencyKind === "scenario"
-        ? [{ label: "Start it with", value: `vrooli scenario start ${slug}`, monospace: true }]
-        : []),
-    ],
-  };
 }
 
 function credentialHost(credential: Credential): string {
@@ -206,8 +133,6 @@ export function SettingsTabIntegrations({ repoId }: SettingsTabIntegrationsProps
     : undefined;
 
   const caps = capabilities.data?.capabilities ?? [];
-  const apps = caps.filter((cap) => cap.dependencyKind === "scenario").map(capabilityItem);
-  const services = caps.filter((cap) => cap.dependencyKind !== "scenario").map(capabilityItem);
 
   const groups: IntegrationGroup[] = [
     {
@@ -221,8 +146,6 @@ export function SettingsTabIntegrations({ repoId }: SettingsTabIntegrationsProps
           ? "Repository credentials can't be loaded right now."
           : unmanagedNote ?? "No repository credentials yet. Add HTTPS tokens and SSH keys in the Credentials tab.",
     },
-    { id: "apps", label: "Powered by other apps", items: apps },
-    ...(services.length ? [{ id: "services", label: "Local services", items: services }] : []),
   ];
 
   return (
@@ -234,6 +157,8 @@ export function SettingsTabIntegrations({ repoId }: SettingsTabIntegrationsProps
         />
       }
       groups={groups}
+      dependencies={caps}
+      decorateDependency={dependencyDetails}
       checkedAt={capabilities.data?.timestamp}
       loading={capabilities.isLoading}
       error={capabilities.isError ? `Integrations can't be checked right now: ${capabilities.error.message}` : null}

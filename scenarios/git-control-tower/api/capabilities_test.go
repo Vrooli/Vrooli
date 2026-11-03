@@ -138,6 +138,9 @@ func TestProjectedCapabilitiesUseManifestAuthorityAndFeatureOverlays(t *testing.
 		if len(def.Features) == 0 {
 			t.Fatalf("definition %q lost its operational feature overlay", def.ID)
 		}
+		if def.ActionKind != "owner_guidance" || def.OperatorCommand == "" {
+			t.Fatalf("definition %q lost owner troubleshooting guidance: %+v", def.ID, def)
+		}
 	}
 }
 

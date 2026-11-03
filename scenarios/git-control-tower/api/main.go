@@ -143,6 +143,12 @@ func projectedCapabilities() []CapabilityDef {
 	if err != nil {
 		panic("git-control-tower capability manifest invalid: " + err.Error())
 	}
+	for i := range defs {
+		if defs[i].DependencyKind == capabilityregistry.DependencyScenario {
+			defs[i].ActionKind = capabilityregistry.ActionKindOwnerGuidance
+			defs[i].OperatorCommand = "vrooli scenario start " + defs[i].DependencySlug
+		}
+	}
 	return defs
 }
 

@@ -28,5 +28,7 @@ export const librarySelectors = {
     "dismiss": "feedback.toast.dismiss",
     "viewport": "feedback.toast.viewport",
   },
+  "patterns.integrations-overview": {
+  },
 } as const;
 // vrooli:library-selectors end
