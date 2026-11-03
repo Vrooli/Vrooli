@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"sort"
 	"strconv"
 	"strings"
 
@@ -40,7 +39,6 @@ func Register(core *cliapp.ScenarioApp) cliapp.SubcommandGroup {
 			{Name: "cooldown", Description: "Show cooldown status", RunCtx: h.cooldown},
 			{Name: "cooldown-reset", Description: "Reset the investigation cooldown", RunCtx: h.cooldownReset},
 			{Name: "cooldown-set", Description: "Update the cooldown duration", Args: cliapp.ArgSchema{Flags: []cliapp.Flag{{Name: "seconds", Description: "Cooldown duration in seconds", Default: "0"}}}, RunCtx: h.cooldownSet},
-			{Name: "triggers", Description: "List trigger thresholds", RunCtx: h.triggers},
 		},
 	}
 }
@@ -319,25 +317,6 @@ func (h *handlers) cooldownSet(ctx cliapp.RunContext) error {
 	})
 }
 
-func (h *handlers) triggers(ctx cliapp.RunContext) error {
-	resp, err := h.client.GetTriggers(context.Background(), connect.NewRequest(&investigationspb.GetTriggersRequest{}))
-	if err != nil {
-		return cliapp.WrapAPIError("get investigation triggers", err, nil)
-	}
-	if resp == nil || resp.Msg == nil {
-		return fmt.Errorf("server returned no investigation triggers")
-	}
-	report := cliapp.ListReport{
-		Summary: []string{
-			fmt.Sprintf("Triggers configured: %d", len(resp.Msg.GetTriggers())),
-		},
-		ResultsHeading: "Triggers",
-		Results:        triggerRows(resp.Msg.GetTriggers()),
-		RetrievalHints: []string{"system-monitor investigations cooldown", "system-monitor status"},
-	}
-	return cliapp.RenderProtoList(ctx, resp.Msg, report)
-}
-
 func positiveIntFlag(ctx cliapp.RunContext, name string) (int, error) {
 	value := strings.TrimSpace(ctx.Flag(name))
 	if value == "" {
@@ -373,23 +352,6 @@ func investigationStepRows(steps []*investigationspb.InvestigationStep) []string
 	rows := make([]string, 0, len(steps))
 	for _, step := range steps {
 		rows = append(rows, fmt.Sprintf("%s status=%s started=%s findings=%s", step.GetName(), strings.TrimPrefix(step.GetStatus().String(), "INVESTIGATION_STEP_STATUS_"), support.FormatTimestamp(step.GetStartTime()), support.FormatMaybeString(step.GetFindings(), "none")))
-	}
-	return rows
-}
-
-func triggerRows(items map[string]*investigationspb.TriggerConfig) []string {
-	if len(items) == 0 {
-		return []string{"No investigation triggers are configured."}
-	}
-	keys := make([]string, 0, len(items))
-	for key := range items {
-		keys = append(keys, key)
-	}
-	sort.Strings(keys)
-	rows := make([]string, 0, len(keys))
-	for _, key := range keys {
-		item := items[key]
-		rows = append(rows, fmt.Sprintf("%s enabled=%t autoFix=%t threshold=%.2f%s condition=%s", key, item.GetEnabled(), item.GetAutoFix(), item.GetThreshold(), item.GetUnit(), item.GetCondition()))
 	}
 	return rows
 }

@@ -103,7 +103,8 @@ export const useInvestigationAgents = () => {
     });
 
     try {
-      await protoFetch<{ status: string; id: string }>(`/investigations/agent/${encodeURIComponent(agentId)}/stop`, data => data as { status: string; id: string }, {
+      const { parseStopAgentResponse } = await import('../../../shared/api/proto-contracts');
+      await protoFetch(`/investigations/agent/${encodeURIComponent(agentId)}/stop`, parseStopAgentResponse, {
         method: 'POST',
       });
       setAgents(prev => prev.filter(agent => agent.id !== agentId));

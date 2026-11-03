@@ -167,7 +167,7 @@ describe('LogsPage', () => {
       fireEvent.click(rows[0]);
       fireEvent.click(screen.getByRole('button', { name: 'Copy message' }));
       fireEvent.click(rows[1]);
-      await act(async () => finish());
+      await act(async () => { finish(); await Promise.resolve(); });
       expect(writeText).toHaveBeenCalledWith('first');
       expect(screen.getByRole('article', { name: 'Selected log entry' })).toHaveTextContent('second');
       expect(screen.queryByText('Message copied')).not.toBeInTheDocument();
@@ -190,7 +190,7 @@ describe('LogsPage', () => {
       fireEvent.click(screen.getByRole('button', { name: 'Copy message' }));
       expect(screen.queryByText('Message copied')).not.toBeInTheDocument();
       expect(screen.getByText('Copying message…')).toBeInTheDocument();
-      await act(async () => finish());
+      await act(async () => { finish(); await Promise.resolve(); });
       expect(screen.getByText('Message copied')).toBeInTheDocument();
     } finally {
       if (previous) Object.defineProperty(navigator, 'clipboard', previous);
@@ -222,13 +222,13 @@ describe('LogsPage', () => {
   it('refreshes on global resume at the live edge but respects an explicit Logs pause', async () => {
     const GlobalPause = () => {
       const { paused, setPaused } = useTimeRange();
-      return <button onClick={() => setPaused(!paused)}>Toggle global pause</button>;
+      return <button onClick={() => { setPaused(!paused); }}>Toggle global pause</button>;
     };
     render(<TimeRangeProvider><GlobalPause /><LogsPage /></TimeRangeProvider>);
     await screen.findByText('first');
     fireEvent.click(screen.getByRole('button', { name: 'Toggle global pause' }));
     fireEvent.click(screen.getByRole('button', { name: 'Toggle global pause' }));
-    await waitFor(() => expect(fetchLogs).toHaveBeenCalledTimes(2));
+    await waitFor(() => { expect(fetchLogs).toHaveBeenCalledTimes(2); });
     fireEvent.click(screen.getByRole('button', { name: 'Pause log updates' }));
     fireEvent.click(screen.getByRole('button', { name: 'Toggle global pause' }));
     fireEvent.click(screen.getByRole('button', { name: 'Toggle global pause' }));
@@ -239,7 +239,7 @@ describe('LogsPage', () => {
   it('does not fetch on global resume when reading away from the live edge', async () => {
     const GlobalPause = () => {
       const { paused, setPaused } = useTimeRange();
-      return <button onClick={() => setPaused(!paused)}>Toggle global pause</button>;
+      return <button onClick={() => { setPaused(!paused); }}>Toggle global pause</button>;
     };
     render(<TimeRangeProvider><GlobalPause /><LogsPage /></TimeRangeProvider>);
     await screen.findByText('first');
@@ -287,7 +287,7 @@ describe('LogsPage', () => {
     const grep = screen.getByLabelText(/Grep/i);
     fireEvent.change(grep, { target: { value: 'dbus' } });
     fireEvent.keyDown(grep, { key: 'Enter', code: 'Enter' });
-    await waitFor(() => expect(vi.mocked(fetchLogs).mock.calls.at(-1)?.[0].filters.grep).toBe('dbus'));
+    await waitFor(() => { expect(vi.mocked(fetchLogs).mock.calls.at(-1)?.[0].filters.grep).toBe('dbus'); });
     await waitFor(() => expect(screen.getByRole('button', { name: 'Refresh' })).toBeEnabled());
     first.unmount();
     const calls = vi.mocked(fetchLogs).mock.calls.length;
@@ -302,7 +302,7 @@ describe('LogsPage', () => {
     const Navigation = () => {
       const [visible, setVisible] = useState(true);
       const { setRange } = useTimeRange();
-      return <><button onClick={() => setVisible(!visible)}>Switch route</button><button onClick={() => setRange('6h')}>Change range</button>{visible && <LogsPage />}</>;
+      return <><button onClick={() => { setVisible(!visible); }}>Switch route</button><button onClick={() => { setRange('6h'); }}>Change range</button>{visible && <LogsPage />}</>;
     };
     render(<TimeRangeProvider><Navigation /></TimeRangeProvider>);
     await screen.findByText('first');
@@ -312,7 +312,7 @@ describe('LogsPage', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Switch route' }));
     expect(screen.getByRole('button', { name: 'Resume log updates' })).toHaveAttribute('aria-pressed', 'true');
     expect(screen.getByText(/shared time range changed while away/i)).toBeInTheDocument();
-    await waitFor(() => expect(vi.mocked(fetchLogs).mock.calls.at(-1)?.[0].filters.since).toBe('6h ago'));
+    await waitFor(() => { expect(vi.mocked(fetchLogs).mock.calls.at(-1)?.[0].filters.since).toBe('6h ago'); });
   });
 
   it('retains the loaded older page and cursor across a route remount', async () => {
@@ -338,11 +338,11 @@ describe('LogsPage', () => {
     const grep = screen.getByLabelText(/Grep/i);
     fireEvent.change(grep, { target: { value: 'dbus' } });
     fireEvent.keyDown(grep, { key: 'Enter', code: 'Enter' });
-    await waitFor(() => expect(fetchLogs).toHaveBeenCalledTimes(2));
+    await waitFor(() => { expect(fetchLogs).toHaveBeenCalledTimes(2); });
     first.unmount();
     render(<LogsPage />);
-    await waitFor(() => expect(fetchLogs).toHaveBeenCalledTimes(3));
-    await act(async () => finish({ available: true, generatedAt: '2026-05-07T10:00:00Z', entries: [{ timestamp: '2026-05-07T10:00:00Z', realtime: 0, priority: 4, message: 'stale result' }] }));
+    await waitFor(() => { expect(fetchLogs).toHaveBeenCalledTimes(3); });
+    await act(async () => { finish({ available: true, generatedAt: '2026-05-07T10:00:00Z', entries: [{ timestamp: '2026-05-07T10:00:00Z', realtime: 0, priority: 4, message: 'stale result' }] }); await Promise.resolve(); });
     expect(screen.queryByText('stale result')).not.toBeInTheDocument();
     expect(screen.getByLabelText(/Grep/i)).toHaveValue('dbus');
   });

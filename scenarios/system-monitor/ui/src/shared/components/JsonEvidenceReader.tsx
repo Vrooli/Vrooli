@@ -147,9 +147,9 @@ export function JsonEvidenceReader({ title, value, description, onClose }: JsonE
       </form>
       <p role="status">{searchStatus}</p>
       <div className="json-evidence-reader__part-controls">
-        <button type="button" className="header-button" disabled={visiblePart === 0} onClick={() => setPart(visiblePart - 1)}>Previous part</button>
+        <button type="button" className="header-button" disabled={visiblePart === 0} onClick={() => { setPart(visiblePart - 1); }}>Previous part</button>
         <span>Part {visiblePart + 1} of {partOffsets.length - 1}</span>
-        <button type="button" className="header-button" disabled={visiblePart >= partOffsets.length - 2} onClick={() => setPart(visiblePart + 1)}>Next part</button>
+        <button type="button" className="header-button" disabled={visiblePart >= partOffsets.length - 2} onClick={() => { setPart(visiblePart + 1); }}>Next part</button>
       </div>
       <textarea ref={partText} readOnly aria-label={`Document text, part ${visiblePart + 1} of ${partOffsets.length - 1}`} value={value.slice(partOffsets[visiblePart], partOffsets[visiblePart + 1])} />
     </div> : <div className="json-evidence-reader__editor">

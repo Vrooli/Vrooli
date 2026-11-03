@@ -47,7 +47,7 @@ func NewHealthHandler(cfg *config.Config, monitorSvc MonitorQuerier, settingsMgr
 
 // Handle processes health check requests
 func (h *HealthHandler) Handle(w http.ResponseWriter, r *http.Request) {
-	httputil.JSON(w, h.buildHealthResponse(r.Context())) //nolint:errcheck
+	httputil.JSON(w, h.buildHealthResponse(r.Context())) //nolint:errcheck // response write failure cannot be recovered after disconnect
 }
 
 // Health handles the typed Connect-RPC health contract while preserving the
@@ -66,7 +66,7 @@ func (h *HealthHandler) buildHealthResponse(ctx context.Context) map[string]inte
 		"timestamp":      time.Now().UTC().Format(time.RFC3339),
 		"readiness":      true, // Service is ready to accept requests
 		"version":        h.config.Server.Version,
-		"build_identity": strings.TrimSpace(os.Getenv("VROOLI_BUILD_IDENTITY")),
+		"build_identity": strings.TrimSpace(h.config.Health.BuildIdentity),
 		"processor_active": func() bool {
 			if h.settingsMgr == nil {
 				return true
@@ -103,6 +103,15 @@ func (h *HealthHandler) buildHealthResponse(ctx context.Context) map[string]inte
 		}
 	}
 
+	// Check the optional external webhook integration when it is configured.
+	if h.config.Alerts.EnableWebhooks && h.config.Alerts.WebhookURL != "" {
+		webhookHealth := h.checkWebhookEndpoint()
+		dependencies["webhooks"] = webhookHealth
+		if webhookHealth["connected"] == false && overallStatus == "healthy" {
+			overallStatus = "degraded"
+		}
+	}
+
 	// 3. Check external services (if configured)
 	if h.config.Resources.NodeRedURL != "" {
 		nodeRedHealth := h.checkNodeRed()
@@ -120,17 +129,6 @@ func (h *HealthHandler) buildHealthResponse(ctx context.Context) map[string]inte
 	if ollamaHealth["connected"] == false {
 		if overallStatus == "healthy" {
 			overallStatus = "degraded"
-		}
-	}
-
-	// 5. Check alert systems (if enabled)
-	if h.config.Alerts.EnableWebhooks && h.config.Alerts.WebhookURL != "" {
-		webhookHealth := h.checkWebhookEndpoint()
-		dependencies["webhooks"] = webhookHealth
-		if webhookHealth["connected"] == false {
-			if overallStatus == "healthy" {
-				overallStatus = "degraded"
-			}
 		}
 	}
 
@@ -314,7 +312,7 @@ func (h *HealthHandler) checkNodeRed() map[string]interface{} {
 // process-creation event and makes the handler unavailable when the CLI is.
 func (h *HealthHandler) checkOllama() map[string]interface{} {
 	result := healthutil.NewResult()
-	base := strings.TrimRight(os.Getenv("OLLAMA_BASE_URL"), "/")
+	base := strings.TrimRight(h.config.Health.OllamaBaseURL, "/")
 	if base == "" {
 		base = "http://127.0.0.1:11434"
 	}
@@ -356,11 +354,9 @@ func parseHealthDependencyURL(raw string) (*url.URL, error) {
 	return target, nil
 }
 
-// checkWebhookEndpoint tests webhook URL accessibility
+// checkWebhookEndpoint tests webhook URL accessibility without sending an alert.
 func (h *HealthHandler) checkWebhookEndpoint() map[string]interface{} {
 	result := healthutil.NewResult()
-
-	// For webhook, we just check if URL is reachable (don't actually send alert)
 	client := &http.Client{Timeout: 5 * time.Second}
 	resp, err := client.Head(h.config.Alerts.WebhookURL)
 	if err != nil {
@@ -368,6 +364,5 @@ func (h *HealthHandler) checkWebhookEndpoint() map[string]interface{} {
 			fmt.Sprintf("Webhook URL unreachable: %v", err), "network", true)
 	}
 	defer resp.Body.Close()
-
 	return healthutil.MarkConnected(result)
 }

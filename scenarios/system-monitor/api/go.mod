@@ -1,6 +1,6 @@
 module github.com/vrooli/vrooli/scenarios/system-monitor/api
 
-go 1.25.0
+go 1.26.0
 
 require (
 	buf.build/go/protovalidate v1.1.2
@@ -15,7 +15,7 @@ require (
 )
 
 require (
-	buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go v1.36.11-20251209175733-2a1774d88802.1 // indirect
+	buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go v1.36.11-20260709200747-435963d16310.1 // indirect
 	cel.dev/expr v0.24.0 // indirect
 	github.com/antlr4-go/antlr/v4 v4.13.1 // indirect
 	github.com/bmatcuk/doublestar/v4 v4.10.0 // indirect
@@ -26,7 +26,7 @@ require (
 	github.com/remyoudompheng/bigfft v0.0.0-20230129092748-24d4a6f8daec // indirect
 	github.com/stoewer/go-strcase v1.3.1 // indirect
 	golang.org/x/exp v0.0.0-20250813145105-42675adae3e6 // indirect
-	golang.org/x/sys v0.47.0
+	golang.org/x/sys v0.48.0
 	golang.org/x/text v0.32.0 // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20260526163538-3dc84a4a5aaa // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20260526163538-3dc84a4a5aaa // indirect
@@ -61,3 +61,25 @@ replace github.com/vrooli/platform-go => ../../../packages/platform-go
 replace github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime => ../../scenario-to-desktop/runtime
 
 replace github.com/vrooli/envkit-go => ../../../packages/envkit-go
+
+replace github.com/vrooli/ai-go => ../../../packages/ai-go
+
+replace github.com/vrooli/browser-automation-studio => ../../browser-automation-studio/api
+
+replace github.com/vrooli/cliresolve => ../../../packages/cliresolve
+
+replace github.com/vrooli/maturity-go => ../../../packages/maturity-go
+
+replace github.com/vrooli/measures-go => ../../../packages/measures-go
+
+replace github.com/vrooli/scenarioconfig-go => ../../../packages/scenarioconfig-go
+
+replace github.com/vrooli/searchregister-go => ../../../packages/searchregister-go
+
+replace github.com/vrooli/vrooli-cli-go => ../../../packages/vrooli-cli-go
+
+replace github.com/vrooli/vrooli/packages/capability-registry-go => ../../../packages/capability-registry-go
+
+replace nutrition-planner => ../../nutrition-planner/api
+
+replace workflow-health => ../../workflow-health/api

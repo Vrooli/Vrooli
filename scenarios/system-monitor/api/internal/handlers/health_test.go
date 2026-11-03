@@ -11,15 +11,21 @@ import (
 )
 
 func TestHealthResponseReportsLifecycleBuildIdentity(t *testing.T) {
-	t.Setenv("VROOLI_BUILD_IDENTITY", "sha256:test-system-monitor")
 	ollama := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	}))
 	defer ollama.Close()
-	t.Setenv("OLLAMA_BASE_URL", ollama.URL)
+	environment := map[string]string{"API_PORT": "8080", "VROOLI_BUILD_IDENTITY": "sha256:test-system-monitor", "OLLAMA_BASE_URL": ollama.URL}
+	cfg, err := config.LoadFrom(func(key string) (string, bool) {
+		value, ok := environment[key]
+		return value, ok
+	})
+	if err != nil {
+		t.Fatalf("load test config: %v", err)
+	}
 
 	handler := NewHealthHandler(
-		&config.Config{Server: config.ServerConfig{ServiceName: "system-monitor", Version: "test"}},
+		cfg,
 		handlermocks.NewMonitorQuerier().WithCurrentMetrics(&models.MetricsResponse{}),
 		nil,
 	)

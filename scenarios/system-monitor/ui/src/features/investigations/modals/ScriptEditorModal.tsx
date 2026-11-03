@@ -4,6 +4,8 @@ import { ScriptHighlighter } from '../../../shared/components/LazyScriptHighligh
 import { Modal, ModalHeader } from '../../../shared/components/Modal';
 import type { InvestigationScript } from '../../../types';
 import { timestampFromDate } from '@bufbuild/protobuf/wkt';
+import { create } from '@bufbuild/protobuf';
+import { InvestigationScriptSchema } from '@vrooli/proto-types/system-monitor/v1/scripts/scripts_pb';
 
 interface ScriptEditorModalProps {
   isOpen: boolean;
@@ -28,7 +30,7 @@ export const ScriptEditorModal = ({
   const [scriptContent, setScriptContent] = useState(initialContent || '');
   const [isExecuting, setIsExecuting] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
-  const [scriptData, setScriptData] = useState<InvestigationScript>({
+  const [scriptData, setScriptData] = useState<InvestigationScript>(() => create(InvestigationScriptSchema, {
     id: script?.id || '',
     name: script?.name || '',
     description: script?.description || '',
@@ -37,7 +39,7 @@ export const ScriptEditorModal = ({
     updatedAt: script?.updatedAt ?? timestampFromDate(new Date()),
     author: script?.author || 'user',
     enabled: script?.enabled ?? true
-  } as InvestigationScript);
+  }));
 
   useEffect(() => {
     if (script) {

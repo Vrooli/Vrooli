@@ -4,10 +4,10 @@ package services
 
 import (
 	"context"
-	"log/slog"
 	"sync"
 	"time"
 
+	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/logx"
 	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/repository"
 )
 
@@ -30,7 +30,7 @@ type RetentionStatus struct {
 type RetentionScheduler struct {
 	maint    *MetricsMaintenanceService
 	settings *SettingsManager
-	log      *slog.Logger
+	log      logx.Logger
 	clock    Clock
 
 	// Per-process retention (additive to the metrics blob retention above):
@@ -53,10 +53,10 @@ type RetentionScheduler struct {
 	done   chan struct{}
 }
 
-// NewRetentionScheduler creates a scheduler. A nil logger defaults to slog.Default().
-func NewRetentionScheduler(maint *MetricsMaintenanceService, settings *SettingsManager, log *slog.Logger) *RetentionScheduler {
+// NewRetentionScheduler creates a scheduler. A nil logger defaults to logx.Default().
+func NewRetentionScheduler(maint *MetricsMaintenanceService, settings *SettingsManager, log logx.Logger) *RetentionScheduler {
 	if log == nil {
-		log = slog.Default()
+		log = logx.Default()
 	}
 	return &RetentionScheduler{
 		maint:    maint,

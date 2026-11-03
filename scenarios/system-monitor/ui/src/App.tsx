@@ -4,11 +4,12 @@ import type { ErrorInfo, ReactNode } from 'react';
 import { BrowserRouter, Link, Routes, Route, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { getProxyInfo } from '@vrooli/api-base';
 import { Database, FileText, Network, MemoryStick } from 'lucide-react';
-import { apiFetch } from './shared/api/apiFetch';
+import { fetchMachines } from './features/machines/api';
 import { Header } from './shared/components/Header';
 import { MetricsGrid } from './features/metrics/components/MetricsGrid';
 import type { ChartInspection } from './features/metrics/components/MetricSparkline';
 import { DeviceGraphPanel } from './features/metrics/components/DeviceGraphPanel';
+import { readMetricNavigationState } from './features/metrics/navigationState';
 import { AlertPanel } from './shared/components/AlertPanel';
 import { ErrorBoundary } from './shared/components/ErrorBoundary';
 import { ToastProvider } from './shared/components/ToastProvider';
@@ -130,7 +131,7 @@ function WorkspaceMounted({ id, onMounted }: { id: string; onMounted: (id: strin
   return null;
 }
 
-export function WorkspaceFailure({ name, reload = () => window.location.reload() }: { name: string; reload?: () => void }) {
+export function WorkspaceFailure({ name, reload = () => { window.location.reload(); } }: { name: string; reload?: () => void }) {
   return (
     <div className="card" role="alert">
       <p>{name} failed to load. Reload the page to try again; unsaved changes may be lost.</p>
@@ -142,6 +143,7 @@ export function WorkspaceFailure({ name, reload = () => window.location.reload()
 function AppContent() {
   const navigate = useNavigate();
   const location = useLocation();
+  const navigationState = readMetricNavigationState(location.state);
   const overviewReturn = useRef<{ subject: string; scrollY: number; focusLabel?: string; focusAlertId?: string } | null>(null);
   const workspaceReveal = useRef<(() => void) | null>(null);
   const pendingWorkspace = useRef<string | null>(null);
@@ -198,10 +200,10 @@ function AppContent() {
     return () => { window.cancelAnimationFrame(frame); };
   }, [location.pathname, selectedMachineID]);
   useEffect(() => {
-    const section = (location.state as { overviewSection?: string } | null)?.overviewSection;
+    const section = navigationState.overviewSection;
     if (!section || !location.pathname.startsWith('/metrics/')) return;
     return revealWorkspace(() => Array.from(document.querySelectorAll<HTMLElement>('[data-detail-section]')).find(element => element.dataset.detailSection === section) ?? null);
-  }, [location.pathname, location.state]);
+  }, [location.pathname, navigationState.overviewSection]);
   const setSelectedMachineID = useCallback((machineID: string) => {
     setSearchParams(previous => {
       const next = new URLSearchParams(previous);
@@ -233,7 +235,7 @@ function AppContent() {
   useEffect(() => {
     let mounted = true;
     setMachineDiscovery('loading');
-    void apiFetch<Machine[]>('/machines').then(next => {
+    void fetchMachines().then(next => {
       if (mounted) { setMachines(next ?? []); setMachineDiscovery('ready'); }
     }).catch(() => {
       if (mounted) setMachineDiscovery('error');
@@ -453,9 +455,11 @@ function AppContent() {
           <div className="container" data-sm-style="sm-style-a8abd88c52">
             <Suspense fallback={<RouteFallback />}>
             {(() => {
-              const origin = (location.state as { condition?: { alert: Alert; revalidated: boolean; subject: string; target: CardType; windowStart?: string; windowEnd?: string; evaluatedAt?: string } } | null)?.condition;
+              const origin = navigationState.condition;
               if (!origin || origin.subject !== selectedMachineID || location.pathname !== `/metrics/${origin.target}`) return null;
-              const timedWindow = origin.windowStart && origin.windowEnd && Number.isFinite(Date.parse(origin.windowStart)) && Number.isFinite(Date.parse(origin.windowEnd));
+              const windowLabel = origin.windowStart && origin.windowEnd && Number.isFinite(Date.parse(origin.windowStart)) && Number.isFinite(Date.parse(origin.windowEnd))
+                ? `Overview window at navigation: ${new Date(origin.windowStart).toLocaleString()} – ${new Date(origin.windowEnd).toLocaleString()}`
+                : 'Overview window bounds unavailable at navigation';
               return <section className="card mb-lg" aria-label="Originating condition">
                 <h2>Condition selected on Overview</h2>
                 <details>
@@ -463,13 +467,13 @@ function AppContent() {
                   <p>{origin.alert.message}</p>
                   {origin.alert.details && <p>{origin.alert.details}</p>}
                   {origin.evaluatedAt && Number.isFinite(Date.parse(origin.evaluatedAt)) && <p>Last evaluation at navigation: {new Date(origin.evaluatedAt).toLocaleString()}</p>}
-                  <p>{timedWindow ? `Overview window at navigation: ${new Date(origin.windowStart!).toLocaleString()} – ${new Date(origin.windowEnd!).toLocaleString()}` : 'Overview window bounds unavailable at navigation'}</p>
+                  <p>{windowLabel}</p>
                 </details>
                 <p>{origin.alert.timestamp && Number.isFinite(Date.parse(origin.alert.timestamp)) ? `Active since ${new Date(origin.alert.timestamp).toLocaleString()}` : 'Activation time unavailable'}. {origin.revalidated ? 'Condition status at navigation; it may have changed.' : 'Last known condition; it was not revalidated.'}</p>
               </section>;
             })()}
             {(() => {
-              const sample = (location.state as { sample?: { selected: NonNullable<ChartInspection['selected']>; zoom?: ChartInspection['zoom']; subject: string; target: CardType } } | null)?.sample;
+              const sample = navigationState.sample;
               if (!sample || sample.subject !== selectedMachineID || location.pathname !== `/metrics/${sample.target}`) return null;
               const unit = sample.target === 'disk' ? ' MB/s' : sample.target === 'network' ? ' connections' : '%';
               const value = sample.target === 'network' ? Math.round(sample.selected.raw).toString() : sample.selected.raw.toFixed(1);
@@ -530,8 +534,8 @@ function AppContent() {
                     <div className={readingsFrozen ? 'readings-frozen' : undefined}>
                     {/* Real-time Metrics Grid */}
                     <section className="mb-lg">
-                      {!viewingRemote && Boolean(metricHistory?.missingTimestampCount) && (
-                        <p className="overview-subtitle" role="status">{metricHistory!.missingTimestampCount} timeline {metricHistory!.missingTimestampCount === 1 ? 'cycle was' : 'cycles were'} omitted from plots because {metricHistory!.missingTimestampCount === 1 ? 'its timestamp was' : 'their timestamps were'} unavailable.</p>
+                      {!viewingRemote && metricHistory && (metricHistory.missingTimestampCount ?? 0) > 0 && (
+                        <p className="overview-subtitle" role="status">{metricHistory.missingTimestampCount ?? 0} timeline {metricHistory.missingTimestampCount === 1 ? 'cycle was' : 'cycles were'} omitted from plots because {metricHistory.missingTimestampCount === 1 ? 'its timestamp was' : 'their timestamps were'} unavailable.</p>
                       )}
                       {!viewingRemote && subsystemErrors?.history && (
                         <div role="alert" className="card">

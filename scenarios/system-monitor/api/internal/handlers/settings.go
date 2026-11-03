@@ -4,7 +4,6 @@ package handlers
 
 import (
 	"context"
-	"log/slog"
 	"net/http"
 
 	"connectrpc.com/connect"
@@ -12,17 +11,18 @@ import (
 	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/apierrors"
 	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/convert"
 	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/httputil"
+	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/logx"
 	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/services"
 )
 
 // SettingsHandler handles settings-related API endpoints
 type SettingsHandler struct {
-	log             *slog.Logger
+	log             logx.Logger
 	settingsManager SettingsProvider
 }
 
 // NewSettingsHandler creates a new settings handler
-func NewSettingsHandler(settingsManager SettingsProvider, log *slog.Logger) *SettingsHandler {
+func NewSettingsHandler(settingsManager SettingsProvider, log logx.Logger) *SettingsHandler {
 	return &SettingsHandler{
 		log:             log,
 		settingsManager: settingsManager,
@@ -222,6 +222,12 @@ func (h *SettingsHandler) validateSettings(settings *services.Settings) error {
 	if settings.MemoryThreshold < 0 || settings.MemoryThreshold > 100 {
 		return apierrors.Validation("memory_threshold", "must be between 0 and 100")
 	}
+	if settings.MemoryCriticalPercent < 0 || settings.MemoryCriticalPercent > 100 {
+		return apierrors.Validation("memory_critical_percent", "must be between 0 and 100")
+	}
+	if settings.MemoryCriticalPercent <= settings.MemoryThreshold {
+		return apierrors.Validation("memory_critical_percent", "must be greater than memory_threshold")
+	}
 	if settings.DiskThreshold < 0 || settings.DiskThreshold > 100 {
 		return apierrors.Validation("disk_threshold", "must be between 0 and 100")
 	}
@@ -296,6 +302,36 @@ func validateCPUBands(settings *services.Settings) error {
 func validateAlertSettings(settings *services.Settings) error {
 	if settings.AlertSustainSeconds < 0 || settings.AlertSustainSeconds > 86400 {
 		return apierrors.Validation("alert_sustain_seconds", "must be between 0 (default) and 86400")
+	}
+	if settings.TCPConnectionsWarning < 1 || settings.TCPConnectionsWarning > 10_000_000 {
+		return apierrors.Validation("tcp_connections_warning", "must be between 1 and 10000000")
+	}
+	if settings.TCPConnectionsCritical <= settings.TCPConnectionsWarning || settings.TCPConnectionsCritical > 10_000_000 {
+		return apierrors.Validation("tcp_connections_critical", "must be greater than tcp_connections_warning and at most 10000000")
+	}
+	if settings.TCPGrowthWindowSeconds < 60 || settings.TCPGrowthWindowSeconds > 86400 {
+		return apierrors.Validation("tcp_growth_window_seconds", "must be between 60 and 86400")
+	}
+	if settings.TCPGrowthFloor < 1 || settings.TCPGrowthFloor > settings.TCPConnectionsCritical {
+		return apierrors.Validation("tcp_growth_floor", "must be positive and no greater than tcp_connections_critical")
+	}
+	if settings.TCPGrowthMinSamples < 2 || settings.TCPGrowthMinSamples > 100 {
+		return apierrors.Validation("tcp_growth_min_samples", "must be between 2 and 100")
+	}
+	if settings.TCPGrowthFactor <= 1 || settings.TCPGrowthFactor > 100 {
+		return apierrors.Validation("tcp_growth_factor", "must be greater than 1 and at most 100")
+	}
+	if settings.GPUUsageWarningPercent < 1 || settings.GPUUsageWarningPercent > 100 {
+		return apierrors.Validation("gpu_usage_warning_percent", "must be between 1 and 100")
+	}
+	if settings.MetricsSnapshotStaleIntervals < 2 || settings.MetricsSnapshotStaleIntervals > 1000 {
+		return apierrors.Validation("metrics_snapshot_stale_intervals", "must be between 2 and 1000")
+	}
+	if settings.OrphanedAgentAgeSeconds < 60 || settings.OrphanedAgentAgeSeconds > 31_536_000 {
+		return apierrors.Validation("orphaned_agent_age_seconds", "must be between 60 and 31536000")
+	}
+	if settings.OrphanedAgentMemoryBytes < 1<<20 || settings.OrphanedAgentMemoryBytes > 1<<60 {
+		return apierrors.Validation("orphaned_agent_memory_bytes", "must be between 1 MiB and 1 EiB")
 	}
 	if settings.MemoryPressureSomeAvg60ElevatedPercent < 0 || settings.MemoryPressureSomeAvg60ElevatedPercent > 100 {
 		return apierrors.Validation("memory_pressure_some_avg60_elevated_percent", "must be between 0 and 100")

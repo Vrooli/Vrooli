@@ -43,7 +43,7 @@ export const ProcessMonitor = ({ data, isExpanded = false, onToggle, collapsible
     try {
       console.log(`Killing process ${processName} (PID: ${processPid})`);
 
-      await apiFetch<{ message?: string }>(`/processes/${processPid}/kill`, {
+      await apiFetch(`/processes/${processPid}/kill`, {
         method: 'POST',
       });
 

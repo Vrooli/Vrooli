@@ -68,6 +68,7 @@ type handlers struct {
 	metrics  metricsconnect.MetricsServiceClient
 	settings settingsconnect.SettingsServiceClient
 	alerts   alertsconnect.AlertsServiceClient
+	Now      func() time.Time
 }
 
 func newHandlers(core *cliapp.ScenarioApp) *handlers {
@@ -76,6 +77,7 @@ func newHandlers(core *cliapp.ScenarioApp) *handlers {
 		metrics:  metricsconnect.NewMetricsServiceClient(httpClient, baseURL),
 		settings: settingsconnect.NewSettingsServiceClient(httpClient, baseURL),
 		alerts:   alertsconnect.NewAlertsServiceClient(httpClient, baseURL),
+		Now:      time.Now,
 	}
 }
 
@@ -287,7 +289,7 @@ func runWatch(h *handlers, args []string) error {
 
 		fmt.Print("\033[H\033[2J")
 		fmt.Println("System Monitor Watch")
-		fmt.Printf("Time: %s\n", time.Now().Format("2006-01-02 15:04:05 MST"))
+		fmt.Printf("Time: %s\n", h.Now().Format("2006-01-02 15:04:05 MST"))
 		fmt.Printf("Overall: %s\n", support.OverallStatus(monitoring, alerts))
 		fmt.Printf("CPU: %s\n", support.FormatPercent(metrics.GetCpuUsage()))
 		fmt.Printf("Memory: %s\n", support.FormatPercent(metrics.GetMemoryUsage()))

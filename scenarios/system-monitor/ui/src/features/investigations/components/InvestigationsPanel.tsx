@@ -39,7 +39,7 @@ export const InvestigationsPanel = ({ investigations, embedded = false }: Invest
 
   const renderInvestigationCard = (investigation: Investigation, options?: { compact?: boolean }) => {
     const compact = options?.compact ?? false;
-    const details = (investigation.details ?? {}) as Record<string, unknown>;
+    const details = investigation.details ?? {};
     const formattedStart = investigation.startTime
       ? timestampDate(investigation.startTime).toLocaleString()
       : 'Unknown';

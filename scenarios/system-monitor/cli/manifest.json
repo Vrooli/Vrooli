@@ -446,22 +446,6 @@
           }
         },
         {
-          "name": "triggers",
-          "description": "List trigger thresholds",
-          "binding": {
-            "kind": "connect-rpc",
-            "service": "InvestigationsService",
-            "method": "GetTriggers"
-          },
-          "governance": {
-            "effect": "read",
-            "run_eligible": true,
-            "permissions": [
-              "network:internal"
-            ]
-          }
-        },
-        {
           "name": "catalog",
           "description": "List portable investigation catalog entries",
           "binding": {

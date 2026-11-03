@@ -5,7 +5,6 @@ package handlers
 import (
 	"context"
 	"errors"
-	"log/slog"
 	"net/http"
 	"strconv"
 
@@ -14,6 +13,7 @@ import (
 	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/apierrors"
 	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/convert"
 	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/httputil"
+	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/logx"
 	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/repository"
 	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/services"
 )
@@ -22,12 +22,12 @@ const defaultRetentionDays = 30
 
 // MaintenanceHandler exposes metrics-lifecycle maintenance endpoints.
 type MaintenanceHandler struct {
-	log   *slog.Logger
+	log   logx.Logger
 	maint MaintenanceProvider
 }
 
 // NewMaintenanceHandler creates a maintenance handler.
-func NewMaintenanceHandler(maint MaintenanceProvider, log *slog.Logger) *MaintenanceHandler {
+func NewMaintenanceHandler(maint MaintenanceProvider, log logx.Logger) *MaintenanceHandler {
 	return &MaintenanceHandler{log: log, maint: maint}
 }
 

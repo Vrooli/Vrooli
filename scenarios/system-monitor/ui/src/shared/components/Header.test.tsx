@@ -50,7 +50,9 @@ describe('Header mobile navigation', () => {
     const trigger = screen.getByRole('button', { name: 'Controls' });
     fireEvent.click(trigger);
     expect(trigger).toHaveAttribute('aria-expanded', 'true');
-    fireEvent.keyDown(document.getElementById('vega-shell-controls')!, { key: 'Escape' });
+    const controls = document.getElementById('vega-shell-controls');
+    if (!controls) throw new Error('Expected the shell controls panel to open');
+    fireEvent.keyDown(controls, { key: 'Escape' });
     expect(trigger).toHaveAttribute('aria-expanded', 'false');
     expect(document.activeElement).toBe(trigger);
   });

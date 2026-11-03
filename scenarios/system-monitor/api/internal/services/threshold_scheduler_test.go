@@ -387,6 +387,17 @@ type receiptWaiter struct {
 	calls   int
 }
 
+type blockingReceiptWaiter struct {
+	started chan struct{}
+	release chan struct{}
+}
+
+func (w blockingReceiptWaiter) WaitRecovery(context.Context, string) (cleanupmanager.Recovery, error) {
+	close(w.started)
+	<-w.release
+	return cleanupmanager.Recovery{Status: "complete"}, nil
+}
+
 func (w *receiptWaiter) WaitRecovery(context.Context, string) (cleanupmanager.Recovery, error) {
 	w.calls++
 	return w.receipt, w.err
@@ -411,6 +422,27 @@ func TestThresholdSchedulerRecordsAdmissionAndTerminalRecoverySeparately(t *test
 	}
 	if waiter.calls != 1 {
 		t.Fatalf("wait calls=%d", waiter.calls)
+	}
+}
+
+func TestThresholdSchedulerStopContextWaitsForRecoveryReceipt(t *testing.T) {
+	h := newThresholdHarness(t, 20, 80)
+	waiter := blockingReceiptWaiter{started: make(chan struct{}), release: make(chan struct{})}
+	h.scheduler.trackRecovery(context.Background(), waiter, "run-blocked")
+	select {
+	case <-waiter.started:
+	case <-time.After(time.Second):
+		t.Fatal("recovery waiter did not start")
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Millisecond)
+	defer cancel()
+	if err := h.scheduler.StopContext(ctx); !errors.Is(err, context.DeadlineExceeded) {
+		t.Fatalf("StopContext error = %v, want deadline while recovery waiter is active", err)
+	}
+	close(waiter.release)
+	if err := h.scheduler.StopContext(context.Background()); err != nil {
+		t.Fatalf("StopContext after recovery completion: %v", err)
 	}
 }
 

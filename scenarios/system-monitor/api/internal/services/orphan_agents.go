@@ -228,7 +228,7 @@ func sessionKey(s AgentSessionRecord) string {
 	return s.Session
 }
 
-func (r *orphanedAgentsRule) Evaluate(ctx context.Context, _ AlertSnapshot) RuleEvaluation {
+func (r *orphanedAgentsRule) Evaluate(ctx context.Context, snapshot AlertSnapshot) RuleEvaluation {
 	if r.source == nil {
 		return unsupportedRule("no agent inventory source is configured")
 	}
@@ -240,6 +240,14 @@ func (r *orphanedAgentsRule) Evaluate(ctx context.Context, _ AlertSnapshot) Rule
 		return unsupportedRule(orphanUnsupportedText)
 	}
 	now := r.clock.Now()
+	ageLimit := time.Duration(snapshot.Settings.OrphanedAgentAgeSeconds) * time.Second
+	if ageLimit <= 0 {
+		ageLimit = OrphanedAgentAgeLimit
+	}
+	memoryLimit := snapshot.Settings.OrphanedAgentMemoryBytes
+	if memoryLimit <= 0 {
+		memoryLimit = OrphanedAgentMemoryLimit
+	}
 
 	r.mu.Lock()
 	seen := make(map[string]bool, len(inventory.Sessions))
@@ -255,7 +263,7 @@ func (r *orphanedAgentsRule) Evaluate(ctx context.Context, _ AlertSnapshot) Rule
 			since = now
 			r.reapableSince[key] = now
 		}
-		if now.Sub(since) >= OrphanedAgentAgeLimit {
+		if now.Sub(since) >= ageLimit {
 			stuckReapable = append(stuckReapable, session)
 		}
 	}
@@ -274,7 +282,7 @@ func (r *orphanedAgentsRule) Evaluate(ctx context.Context, _ AlertSnapshot) Rule
 			continue
 		}
 		orphans = append(orphans, session)
-		if session.AgeKnown && session.Age > OrphanedAgentAgeLimit {
+		if session.AgeKnown && session.Age > ageLimit {
 			old = append(old, session)
 		}
 		if session.MemoryKnown {
@@ -286,7 +294,7 @@ func (r *orphanedAgentsRule) Evaluate(ctx context.Context, _ AlertSnapshot) Rule
 			knownBytes += session.SwapBytes
 		}
 	}
-	heavy := knownBytes >= OrphanedAgentMemoryLimit
+	heavy := knownBytes >= memoryLimit
 	if len(old) == 0 && !heavy && len(stuckReapable) == 0 {
 		return clearRule()
 	}
@@ -294,7 +302,7 @@ func (r *orphanedAgentsRule) Evaluate(ctx context.Context, _ AlertSnapshot) Rule
 	severity := SeverityWarning
 	var reasons []string
 	if len(old) > 0 {
-		reasons = append(reasons, fmt.Sprintf("%d orphaned session(s) older than %s", len(old), OrphanedAgentAgeLimit))
+		reasons = append(reasons, fmt.Sprintf("%d orphaned session(s) older than %s", len(old), ageLimit))
 	}
 	if heavy {
 		severity = SeverityCritical
@@ -302,7 +310,7 @@ func (r *orphanedAgentsRule) Evaluate(ctx context.Context, _ AlertSnapshot) Rule
 	}
 	if len(stuckReapable) > 0 {
 		severity = SeverityCritical
-		reasons = append(reasons, fmt.Sprintf("%d session(s) reapable for over %s (auto-reap is off or failing)", len(stuckReapable), OrphanedAgentAgeLimit))
+		reasons = append(reasons, fmt.Sprintf("%d session(s) reapable for over %s (auto-reap is off or failing)", len(stuckReapable), ageLimit))
 	}
 	if unknownMemory > 0 {
 		reasons = append(reasons, fmt.Sprintf("memory unknown for %d orphaned session(s)", unknownMemory))
@@ -331,7 +339,7 @@ func (r *orphanedAgentsRule) Evaluate(ctx context.Context, _ AlertSnapshot) Rule
 		Message:    message,
 		MetricName: "orphaned_agent_sessions",
 		Value:      float64(len(orphans)),
-		Threshold:  OrphanedAgentMemoryLimit,
+		Threshold:  float64(memoryLimit),
 		Details: map[string]interface{}{
 			"sessions":                listed,
 			"orphaned":                len(orphans),

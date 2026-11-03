@@ -2,7 +2,8 @@ package server
 
 import (
 	"fmt"
-	"log"
+	"io"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"sort"
@@ -12,6 +13,7 @@ import (
 
 	"github.com/vrooli/api-core/storage"
 	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/config"
+	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/logx"
 )
 
 type rotatingFileWriter struct {
@@ -162,34 +164,39 @@ func (rw *rotatingFileWriter) cleanup() {
 	}
 }
 
-func setupLogging(cfg *config.Config) {
+func setupLogging(cfg *config.Config) *slog.Logger {
+	output := io.Writer(os.Stdout)
 	if cfg.Logging.FilePath == "" || cfg.Logging.FilePath == "/var/log/system-monitor.log" {
 		if resolved, err := resolveScenarioLogPath(cfg.Server.ServiceName); err == nil {
 			cfg.Logging.FilePath = resolved
 		} else {
-			log.Printf("Failed to resolve scenario log path, using stdout: %v", err)
+			logx.Default().Warn("failed to resolve scenario log path; using stdout", "error", err)
 			cfg.Logging.Output = "stdout"
 		}
 	}
 
-	if cfg.Logging.Output == "stdout" && os.Getenv("VROOLI_LIFECYCLE_MANAGED") == "true" {
+	if cfg.Logging.Output == "stdout" && cfg.Server.ManagedLifecycle {
 		cfg.Logging.Output = "file"
 	}
 
 	if cfg.Logging.Output == "file" {
 		writer, err := newRotatingFileWriter(cfg.Logging.FilePath, cfg.Logging.MaxSize, cfg.Logging.MaxBackups, cfg.Logging.MaxAge)
 		if err != nil {
-			log.Printf("Failed to configure log rotation, using stdout: %v", err)
+			logx.Default().Warn("failed to configure log rotation; using stdout", "error", err)
 		} else {
-			log.SetOutput(writer)
+			output = writer
 		}
 	}
 
+	var handler slog.Handler
 	if cfg.Logging.Format == "json" {
-		log.SetFlags(log.Ldate | log.Ltime | log.LUTC | log.Lshortfile)
+		handler = slog.NewJSONHandler(output, nil)
 	} else {
-		log.SetFlags(log.Ldate | log.Ltime | log.Lshortfile)
+		handler = slog.NewTextHandler(output, nil)
 	}
+	logger := slog.New(handler)
+	slog.SetDefault(logger)
+	return logger
 }
 
 func resolveScenarioLogPath(serviceName string) (string, error) {

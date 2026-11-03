@@ -27,7 +27,9 @@ describe('AlertPanel feed states', () => {
     expect(screen.getByText(/not revalidated/)).toBeInTheDocument();
     const actions = screen.getAllByRole('button', { name: /Inspect/ });
     expect(actions.map(action => action.textContent)).toEqual(['Inspect cpu', 'Inspect memory']);
-    fireEvent.click(actions[0]!);
+    const firstAction = actions.at(0);
+    if (!firstAction) throw new Error('Expected at least one alert inspection action');
+    fireEvent.click(firstAction);
     expect(inspect).toHaveBeenCalledWith('cpu', expect.objectContaining({ id: 'c', category: 'cpu_usage' }), false);
   });
 

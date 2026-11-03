@@ -15,7 +15,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"os"
 	"strings"
 	"time"
 
@@ -128,7 +127,7 @@ type Outcome struct {
 
 // Config controls Client behaviour.
 type Config struct {
-	BaseURL string        // optional; falls back to env / discovery
+	BaseURL string        // optional; falls back to scenario discovery
 	Timeout time.Duration // default 10s
 }
 
@@ -195,9 +194,6 @@ func (c *Client) ReportPressure(ctx context.Context, report Report) (Outcome, er
 func (c *Client) resolveURL(ctx context.Context) (string, error) {
 	if c.baseURL != "" {
 		return strings.TrimRight(c.baseURL, "/"), nil
-	}
-	if env := os.Getenv("VROOLI_CLEANUP_MANAGER_API_URL"); env != "" {
-		return strings.TrimRight(env, "/"), nil
 	}
 	url, err := discovery.ResolveScenarioURLDefault(ctx, "storage-manager")
 	if err != nil {

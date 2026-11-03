@@ -29,6 +29,9 @@ func TestMemoryProcessTimeline_RollupAndQuery(t *testing.T) {
 	if len(entries) != 2 || entries[0].Owner != "security-health" {
 		t.Fatalf("pre-rollup ranking wrong: %+v", entries)
 	}
+	if entries[0].RSSKB != 200 {
+		t.Fatalf("pre-rollup rss = %d, want average 200", entries[0].RSSKB)
+	}
 	entries, err = repo.QueryProcessTimeline(ctx, repository.ProcessTimelineQuery{
 		Start: minute.Add(-time.Minute), End: minute.Add(2 * time.Minute), Top: 10, Rank: "rss",
 	})
@@ -56,6 +59,9 @@ func TestMemoryProcessTimeline_RollupAndQuery(t *testing.T) {
 	}
 	if entries[0].CPUPct < 79 || entries[0].CPUPct > 81 {
 		t.Fatalf("rollup avg = %f, want ~80", entries[0].CPUPct)
+	}
+	if entries[0].RSSKB != 200 {
+		t.Fatalf("post-rollup rss = %d, want average 200", entries[0].RSSKB)
 	}
 }
 

@@ -8,6 +8,7 @@ import {
   setCapacityPolicy,
 } from '../api';
 import type { CapacityOverview, CapacityReconciliation, PolicyLever } from '../types';
+import { isAbortError } from '../../../shared/utils/errors';
 
 export interface UseCapacityResult {
   overview: CapacityOverview | null;
@@ -54,7 +55,7 @@ export function useCapacity(intervalMs = 15_000): UseCapacityResult {
       setPolicy(policyData);
       setError(null);
     } catch (err) {
-      if (err instanceof DOMException && err.name === 'AbortError') return;
+      if (isAbortError(err)) return;
       setError(extractErrorMessage(err, 'Failed to load capacity state'));
     } finally {
       if (!controller.signal.aborted) setIsLoading(false);

@@ -1,6 +1,5 @@
 import { ChevronDown, ChevronUp } from 'lucide-react';
 import type {
-  CardType,
   CPUMetrics,
   MemoryMetrics,
   NetworkMetrics,
@@ -12,11 +11,14 @@ import type { MetricValue } from '@vrooli/proto-types/system-monitor/v1/metrics/
 import { timestampDate } from '@bufbuild/protobuf/wkt';
 import { MetricSparkline } from './MetricSparkline';
 import type { ChartInspection } from './MetricSparkline';
-import { expansionMap } from './expansions';
 import { formatWindowLabel } from '../../../shared/utils/formatters';
+import { CpuExpansion } from './expansions/CpuExpansion';
+import { MemoryExpansion } from './expansions/MemoryExpansion';
+import { DiskExpansion } from './expansions/DiskExpansion';
+import { GpuExpansion } from './expansions/GpuExpansion';
+import { NetworkExpansion } from './expansions/NetworkExpansion';
 
-interface MetricCardProps {
-  type: CardType;
+interface MetricCardBaseProps {
   label: string;
   unit: string;
   value?: number | null;
@@ -27,7 +29,6 @@ interface MetricCardProps {
   currentUnavailableReason?: string;
   isExpanded: boolean;
   onToggle: () => void;
-  details?: CPUMetrics | MemoryMetrics | NetworkMetrics | DiskCardDetails | GPUCardDetails;
   alertCount: number;
   history?: ChartDataPoint[];
   historyWindowSeconds?: number;
@@ -41,6 +42,14 @@ interface MetricCardProps {
   detailButtonLabel?: string;
   inspectionStore?: Map<string, ChartInspection>;
 }
+
+type MetricCardProps = MetricCardBaseProps & (
+  | { type: 'cpu'; details?: CPUMetrics }
+  | { type: 'memory'; details?: MemoryMetrics }
+  | { type: 'network'; details?: NetworkMetrics }
+  | { type: 'disk'; details?: DiskCardDetails }
+  | { type: 'gpu'; details?: GPUCardDetails }
+);
 
 /**
  * Severity is the card's state, expressed once and consumed twice — as the
@@ -145,9 +154,18 @@ export const MetricCard = ({
 
   const renderExpandedContent = () => {
     if (!isExpanded || !details) return null;
-    const Expansion = expansionMap[type];
-    if (!Expansion) return null;
-    return <Expansion details={details} />;
+    switch (type) {
+      case 'cpu':
+        return <CpuExpansion details={details} />;
+      case 'memory':
+        return <MemoryExpansion details={details} />;
+      case 'disk':
+        return <DiskExpansion details={details} />;
+      case 'gpu':
+        return <GpuExpansion details={details} />;
+      case 'network':
+        return <NetworkExpansion details={details} />;
+    }
   };
 
   const figureText = isUnavailable && state?.case === 'failedError'

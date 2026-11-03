@@ -6,7 +6,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { LogTable } from './LogTable';
 
 vi.mock('react-window', () => ({
-  VariableSizeList: ({ children, itemCount, onScroll, itemData }: { children: React.ComponentType<any>; itemCount: number; onScroll: (args: { scrollOffset: number }) => void; itemData: unknown }) => <div><button onClick={() => { onScroll({ scrollOffset: 0 }); onScroll({ scrollOffset: 20 }); }}>{'scroll'}</button>{Array.from({ length: itemCount + 1 }, (_, index) => createElement(children, { key: index, index, style: {}, data: itemData }))}</div>,
+  VariableSizeList: ({ children, itemCount, onScroll, itemData }: { children: React.ComponentType<{ index: number; style: React.CSSProperties; data: unknown }>; itemCount: number; onScroll: (args: { scrollOffset: number }) => void; itemData: unknown }) => <div><button onClick={() => { onScroll({ scrollOffset: 0 }); onScroll({ scrollOffset: 20 }); }}>{'scroll'}</button>{Array.from({ length: itemCount + 1 }, (_, index) => createElement(children, { key: index, index, style: {}, data: itemData }))}</div>,
 }));
 
 describe('LogTable', () => {

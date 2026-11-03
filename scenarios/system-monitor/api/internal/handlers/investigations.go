@@ -8,7 +8,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log/slog"
 	"net/http"
 	"strconv"
 	"strings"
@@ -25,13 +24,14 @@ import (
 	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/config"
 	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/convert"
 	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/httputil"
+	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/logx"
 	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/models"
 )
 
 // InvestigationHandler handles investigation-related requests
 type InvestigationHandler struct {
 	runCallerValidator owneridentity.Validator
-	log                *slog.Logger
+	log                logx.Logger
 	config             *config.Config
 	investigationSvc   InvestigationManager
 	scriptSvc          ScriptRunner
@@ -47,7 +47,7 @@ func (h *InvestigationHandler) SetRunCallerValidator(v owneridentity.Validator) 
 }
 
 // NewInvestigationHandler creates a new investigation handler
-func NewInvestigationHandler(cfg *config.Config, investigationSvc InvestigationManager, scriptSvc ScriptRunner, log *slog.Logger) *InvestigationHandler {
+func NewInvestigationHandler(cfg *config.Config, investigationSvc InvestigationManager, scriptSvc ScriptRunner, log logx.Logger) *InvestigationHandler {
 	return &InvestigationHandler{
 		runCallerValidator: owneridentity.NewClient(owneridentity.Config{Resolver: discovery.NewResolver(discovery.ResolverConfig{})}),
 		log:                log,

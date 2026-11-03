@@ -89,6 +89,55 @@ func TestGetProcessTimeline_BareSecondsWindow(t *testing.T) {
 	}
 }
 
+func TestGetProcessTimeline_ExplicitRange(t *testing.T) {
+	start := time.Date(2026, 11, 3, 4, 0, 0, 0, time.UTC)
+	end := start.Add(30 * time.Second)
+	mock := handlermocks.NewMonitorQuerier().WithProcessTimeline([]repository.ProcessTimelineEntry{
+		{Owner: "device-control", Comm: "device-control-api", SampleCount: 3, FirstSeen: start, LastSeen: end.Add(-5 * time.Second)},
+	})
+	handler := NewMetricsHandler(&config.Config{}, mock, slog.Default())
+	path := "/api/v1/forensics/processes?start_utc=" + start.Format(time.RFC3339) + "&end_utc=" + end.Format(time.RFC3339) + "&owner=device-control&rank=rss"
+	w := httptest.NewRecorder()
+	handler.HandleGetProcessTimeline(w, httptest.NewRequest(http.MethodGet, path, nil))
+
+	testutil.AssertStatusCode(t, w.Code, http.StatusOK)
+	gotStart, gotEnd, called := mock.ProcessTimelineRange()
+	if !called || !gotStart.Equal(start) || !gotEnd.Equal(end) {
+		t.Fatalf("explicit range not forwarded exactly: called=%v start=%s end=%s", called, gotStart, gotEnd)
+	}
+	body := testutil.DecodeJSONBody[map[string]interface{}](t, w.Body.Bytes())
+	if body["start_utc"] != start.Format(time.RFC3339Nano) || body["end_utc"] != end.Format(time.RFC3339Nano) {
+		t.Fatalf("response range = %v to %v, want %s to %s", body["start_utc"], body["end_utc"], start.Format(time.RFC3339Nano), end.Format(time.RFC3339Nano))
+	}
+	if body["window_seconds"].(float64) != 30 || body["rank"] != "rss" {
+		t.Fatalf("range metadata = window %v rank %v, want 30 rss", body["window_seconds"], body["rank"])
+	}
+}
+
+func TestGetProcessTimeline_RejectsInvalidExplicitRanges(t *testing.T) {
+	for _, tc := range []struct {
+		name  string
+		query string
+	}{
+		{name: "missing end", query: "?start_utc=2026-11-03T04:00:00Z"},
+		{name: "invalid timestamp", query: "?start_utc=bad&end_utc=2026-11-03T04:00:30Z"},
+		{name: "empty interval", query: "?start_utc=2026-11-03T04:00:00Z&end_utc=2026-11-03T04:00:00Z"},
+		{name: "over 24 hours", query: "?start_utc=2026-11-02T04:00:00Z&end_utc=2026-11-03T04:00:01Z"},
+		{name: "mixed window", query: "?start_utc=2026-11-03T04:00:00Z&end_utc=2026-11-03T04:00:30Z&window=1m"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			mock := handlermocks.NewMonitorQuerier()
+			handler := NewMetricsHandler(&config.Config{}, mock, slog.Default())
+			w := httptest.NewRecorder()
+			handler.HandleGetProcessTimeline(w, httptest.NewRequest(http.MethodGet, "/api/v1/forensics/processes"+tc.query, nil))
+			_, _, called := mock.ProcessTimelineRange()
+			if w.Code != http.StatusBadRequest || called {
+				t.Fatalf("status=%d range_called=%v, want 400 and no query", w.Code, called)
+			}
+		})
+	}
+}
+
 func TestGetProcessTimelineConnect_RankedWindow(t *testing.T) {
 	now := time.Date(2026, 6, 24, 12, 0, 0, 0, time.UTC)
 	mock := handlermocks.NewMonitorQuerier().WithProcessTimeline([]repository.ProcessTimelineEntry{

@@ -3,6 +3,7 @@ import { usePolling } from '../../../shared/hooks/usePolling';
 import { extractErrorMessage } from '../../../shared/api/apiFetch';
 import { fetchForensicsSummary } from '../api';
 import type { ForensicsSummary } from '../types';
+import { isAbortError } from '../../../shared/utils/errors';
 
 export interface UseForensicsSummaryResult {
   summary: ForensicsSummary | null;
@@ -32,7 +33,7 @@ export function useForensicsSummary(intervalMs = 60_000): UseForensicsSummaryRes
       setSummary(data);
       setError(null);
     } catch (err) {
-      if (err instanceof DOMException && err.name === 'AbortError') return;
+      if (isAbortError(err)) return;
       setError(extractErrorMessage(err, 'Failed to load forensics summary'));
     } finally {
       if (!controller.signal.aborted) setIsLoading(false);

@@ -3,7 +3,6 @@ package agentmanager
 import (
 	"context"
 	"fmt"
-	"log"
 	"strings"
 	"sync"
 	"time"
@@ -13,12 +12,14 @@ import (
 	"github.com/vrooli/api-core/scenario"
 	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/api"
 	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
+	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/logx"
 )
 
 // AgentService provides agent execution services for system-monitor.
 // It wraps the agent-manager client and handles profile management,
 // run execution, and status tracking.
 type AgentService struct {
+	logger      logx.Logger
 	client      *Client
 	profileName string
 	profileKey  string
@@ -31,6 +32,7 @@ type AgentService struct {
 
 // AgentServiceConfig contains configuration for the agent service.
 type AgentServiceConfig struct {
+	Logger      logx.Logger
 	ProfileName string
 	ProfileKey  string
 	Timeout     time.Duration
@@ -40,7 +42,12 @@ type AgentServiceConfig struct {
 // NewAgentService creates a new agent service.
 func NewAgentService(cfg AgentServiceConfig) *AgentService {
 	client := NewClient(cfg.Timeout)
+	logger := cfg.Logger
+	if logger == nil {
+		logger = logx.Default()
+	}
 	return &AgentService{
+		logger:       logger,
 		client:       client,
 		profileName:  cfg.ProfileName,
 		profileKey:   cfg.ProfileKey,
@@ -91,8 +98,8 @@ func (s *AgentService) Initialize(ctx context.Context) error {
 	}
 	s.mu.Unlock()
 
-	log.Printf("[agent-manager] Reconciled profiles for %s (created=%d updated=%d unchanged=%d failed=%d)",
-		resp.Scenario, resp.Created, resp.Updated, resp.Unchanged, resp.Failed)
+	s.logger.Info("agent profiles reconciled", "scenario", resp.Scenario, "created", resp.Created, "updated", resp.Updated,
+		"unchanged", resp.Unchanged, "failed", resp.Failed)
 
 	return nil
 }

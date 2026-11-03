@@ -5,7 +5,6 @@ package handlers
 import (
 	"context"
 	"errors"
-	"log/slog"
 	"net/http"
 	"strconv"
 
@@ -15,18 +14,19 @@ import (
 	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/apierrors"
 	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/convert"
 	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/httputil"
+	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/logx"
 )
 
 // CapacityHandler exposes the platform capacity ledger + policy levers as the
 // system-monitor governance surface. Reads are advisory observability; the only
 // mutation is policy (claim mutation flows through the broker, not here).
 type CapacityHandler struct {
-	log      *slog.Logger
+	log      logx.Logger
 	capacity CapacityProvider
 }
 
 // NewCapacityHandler creates a capacity handler.
-func NewCapacityHandler(capacity CapacityProvider, log *slog.Logger) *CapacityHandler {
+func NewCapacityHandler(capacity CapacityProvider, log logx.Logger) *CapacityHandler {
 	return &CapacityHandler{log: log, capacity: capacity}
 }
 

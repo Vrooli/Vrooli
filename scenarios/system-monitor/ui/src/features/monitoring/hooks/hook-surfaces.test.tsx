@@ -3,7 +3,6 @@ import { timestampFromDate } from '@bufbuild/protobuf/wkt';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useMetricHistory } from './useMetricHistory';
 import { useHealthCheck } from './useHealthCheck';
-import { useApiCall } from '../../../shared/hooks/useApiCall';
 
 const mocks = vi.hoisted(() => ({
   apiFetch: vi.fn(),
@@ -78,9 +77,13 @@ describe('monitoring hook surfaces', () => {
       first = result.current.fetchMetricsTimeline(3600);
       second = result.current.fetchMetricsTimeline(900);
       await vi.waitFor(() => { expect(pending).toHaveLength(2); });
-      pending[1]!({ windowSeconds: 900, sampleIntervalSeconds: 5, samples: [] });
+      const resolveSecond = pending[1];
+      if (!resolveSecond) throw new Error('Second history request was not registered');
+      resolveSecond({ windowSeconds: 900, sampleIntervalSeconds: 5, samples: [] });
       await second;
-      pending[0]!({ windowSeconds: 3600, sampleIntervalSeconds: 5, samples: [] });
+      const resolveFirst = pending[0];
+      if (!resolveFirst) throw new Error('First history request was not registered');
+      resolveFirst({ windowSeconds: 3600, sampleIntervalSeconds: 5, samples: [] });
       await first;
     });
     expect(result.current.metricHistory?.windowSeconds).toBe(900);
@@ -89,7 +92,9 @@ describe('monitoring hook surfaces', () => {
       third = result.current.fetchMetricsTimeline(3600);
       await vi.waitFor(() => { expect(pending).toHaveLength(3); });
       result.current.clearHistory();
-      pending[2]!({ windowSeconds: 3600, sampleIntervalSeconds: 5, samples: [] });
+      const resolveThird = pending[2];
+      if (!resolveThird) throw new Error('Third history request was not registered');
+      resolveThird({ windowSeconds: 3600, sampleIntervalSeconds: 5, samples: [] });
       await third;
     });
     expect(result.current.metricHistory).toBeNull();
@@ -233,7 +238,7 @@ describe('monitoring hook surfaces', () => {
   it('loads health when toggled before the first health response exists', async () => {
     const { result } = renderHook(() => useHealthCheck());
     await act(async () => { await result.current.toggleMonitoring(); });
-    expect(mocks.apiFetch).toHaveBeenCalledWith('/health', expect.anything());
+    expect(mocks.apiFetch).toHaveBeenCalledWith('/health', expect.any(Function), expect.objectContaining({ headers: { Accept: 'application/json' } }));
   });
 
   it('reports health and maintenance failures, including unknown error values', async () => {
@@ -260,30 +265,4 @@ describe('monitoring hook surfaces', () => {
     await pending;
   });
 
-  it('handles successful, failed, and aborted generic API calls', async () => {
-    const { result } = renderHook(() => useApiCall<{ value: number }>());
-    mocks.apiFetch.mockResolvedValueOnce({ value: 1 });
-    await act(async () => { await result.current.execute('/ok'); });
-    expect(result.current.data).toEqual({ value: 1 });
-    mocks.apiFetch.mockRejectedValueOnce(new Error('bad request'));
-    await act(async () => { await result.current.execute('/bad'); });
-    expect(result.current.error?.error).toBe('bad request');
-    mocks.apiFetch.mockRejectedValueOnce(new DOMException('cancelled', 'AbortError'));
-    await act(async () => { await result.current.execute('/cancel'); });
-    expect(result.current.data).toEqual({ value: 1 });
-  });
-
-  it('handles API-shaped errors and unmounted requests without publishing state', async () => {
-    const { result, unmount } = renderHook(() => useApiCall<{ value: number }>());
-    mocks.apiFetch.mockRejectedValueOnce({ error: 'api-shaped' });
-    await act(async () => { await result.current.execute('/api-error'); });
-    expect(result.current.error?.error).toBe('request failed');
-
-    let resolveRequest: ((value: { value: number }) => void) | undefined;
-    mocks.apiFetch.mockImplementationOnce(() => new Promise(resolve => { resolveRequest = resolve; }));
-    const pending = result.current.execute('/pending');
-    unmount();
-    resolveRequest?.({ value: 2 });
-    await pending;
-  });
 });

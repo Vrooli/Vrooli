@@ -30,7 +30,6 @@ The control plane installs the CLI from the Go module declared in `.vrooli/servi
 | `investigations cooldown` | Show cooldown status | `GET /api/v1/investigations/cooldown` |
 | `investigations cooldown-reset` | Reset cooldown | `POST /api/v1/investigations/cooldown/reset` |
 | `investigations cooldown-set` | Update cooldown duration | `PUT /api/v1/investigations/cooldown/period` |
-| `investigations triggers` | List trigger thresholds and auto-fix state | `GET /api/v1/investigations/triggers` |
 | `reports generate <type>` | Generate a daily or weekly report | `POST /api/v1/reports/generate` |
 | `reports list` | List generated reports | `GET /api/v1/reports` |
 | `reports get <id>` | Fetch a report by ID | `GET /api/v1/reports/{id}` |

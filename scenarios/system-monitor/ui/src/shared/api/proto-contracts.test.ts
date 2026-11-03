@@ -5,13 +5,13 @@ describe('protobuf JSON contracts', () => {
   it('parses every public response and domain contract with unknown fields ignored', () => {
     const parserNames = [
       'parseMetricsResponse', 'parseDetailedMetrics', 'parseProcessMonitorData', 'parseInfrastructureMonitorData',
-      'parseMetricsTimelineResponse', 'parseDiskDetailResponse', 'parseInvestigation', 'parseTriggerConfig',
+      'parseMetricsTimelineResponse', 'parseDiskDetailResponse', 'parseInvestigation',
       'parseCooldownStatus', 'parseSystemSettings', 'parseEnhancedSystemReport', 'parseListReportsResponse',
       'parseGenerateReportResponse', 'parseInvestigationScript', 'parseScriptExecution', 'parseListScriptsResponse',
       'parseGetScriptResponse', 'parseExecuteScriptResponse', 'parseGetSettingsResponse', 'parseUpdateSettingsResponse',
       'parseResetSettingsResponse', 'parseGetMaintenanceStateResponse', 'parseSetMaintenanceStateResponse',
       'parseGetCapacityOverviewResponse', 'parseListCapacityClaimsResponse', 'parseReconcileCapacityResponse',
-      'parseGetCapacityPolicyResponse', 'parseSetCapacityPolicyResponse', 'parseGetTriggersResponse',
+      'parseGetCapacityPolicyResponse', 'parseSetCapacityPolicyResponse',
       'parseTriggerInvestigationResponse', 'parseGetCooldownStatusResponse', 'parseListInvestigationsResponse',
     ] as const;
     for (const name of parserNames) {
@@ -35,5 +35,21 @@ describe('protobuf JSON contracts', () => {
     expect(parsed.samples[0].majorFaults?.state.case).toBe('measured');
     expect(parsed.samples[0].majorFaults?.state.value).toBe(180.8);
     expect(parsed.samples[0].swapTraffic?.state.case).toBe('measured');
+  });
+
+  it('rejects values that cannot be represented as JSON at the API boundary', () => {
+    expect(() => contracts.parseInvestigation(undefined)).toThrow('Unsupported API JSON value at $');
+    expect(() => contracts.parseInvestigation({ progress: Number.NaN })).toThrow('Unsupported API JSON value at $.progress');
+    expect(() => contracts.parseInvestigation({ details: new Date() })).toThrow('Unsupported API JSON object at $.details');
+
+    const cyclic: Record<string, unknown> = {};
+    cyclic.self = cyclic;
+    expect(() => contracts.parseInvestigation(cyclic)).toThrow('Cyclic API JSON value at $.self');
+  });
+
+  it('preserves special object keys without changing the output prototype', () => {
+    const parsed = contracts.parseInvestigation(JSON.parse('{"__proto__":{"polluted":true}}'));
+    expect(parsed).toBeDefined();
+    expect({}).not.toHaveProperty('polluted');
   });
 });

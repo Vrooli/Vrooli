@@ -40,7 +40,7 @@ func collectPlatformNetwork(ctx context.Context, c *NetworkCollector) platformNe
 	// An aggregate connection count says something is wrong but never what. The
 	// /proc walk that names the owner is too expensive to run every cycle, so it
 	// runs only once the count is already alarming.
-	if shouldAttributeSockets(established) {
+	if shouldAttributeSockets(established, c.socketAttributionThreshold) {
 		values["socket_owners"] = attributeSocketOwners(ctx, established, 10)
 	}
 	return networkReading(values, "linux procfs and netlink")

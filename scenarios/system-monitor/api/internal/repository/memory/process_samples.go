@@ -36,7 +36,7 @@ func (r *MemoryRepository) QueryProcessTimeline(_ context.Context, q repository.
 		if !processRollupMatchesQuery(ru, q) {
 			continue
 		}
-		acc.AddRollup(ru.Owner, ru.Comm, ru.AvgCPUPct, ru.MaxCPUPct, ru.CPUSeconds, ru.MaxRSSKB, ru.SampleCount, ru.Minute)
+		acc.AddRollup(ru.Owner, ru.Comm, ru.AvgCPUPct, ru.MaxCPUPct, ru.CPUSeconds, ru.AvgRSSKB, ru.SampleCount, ru.Minute)
 	}
 
 	return acc.Entries(q.Top, q.Rank), nil

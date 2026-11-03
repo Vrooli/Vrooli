@@ -5,9 +5,7 @@ package handlers
 import (
 	"context"
 	"errors"
-	"log/slog"
 	"net/http"
-	"os"
 	"runtime"
 	"strconv"
 	"strings"
@@ -25,25 +23,27 @@ import (
 	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/config"
 	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/convert"
 	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/httputil"
+	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/logx"
 	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/models"
+	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/repository"
 )
 
 // MetricsHandler handles metrics-related requests
 type MetricsHandler struct {
-	log        *slog.Logger
+	log        logx.Logger
 	config     *config.Config
 	monitorSvc MonitorQuerier
 	bridge     *nodereach.Client
 }
 
 // NewMetricsHandler creates a new metrics handler
-func NewMetricsHandler(cfg *config.Config, monitorSvc MonitorQuerier, log *slog.Logger) *MetricsHandler {
+func NewMetricsHandler(cfg *config.Config, monitorSvc MonitorQuerier, log logx.Logger) *MetricsHandler {
 	return &MetricsHandler{
 		log:        log,
 		config:     cfg,
 		monitorSvc: monitorSvc,
 		bridge: nodereach.New(nodereach.Config{
-			Token:         firstNonEmpty(os.Getenv("VROOLI_BRIDGE_API_TOKEN"), os.Getenv("VROOLI_API_TOKEN")),
+			Token:         cfg.Server.BridgeToken,
 			TokenProvider: operatorsession.LocalOwnerTokenProvider(),
 		}),
 	}
@@ -354,7 +354,7 @@ func (h *MetricsHandler) HandleGetPressureSnapshot(w http.ResponseWriter, r *htt
 		httputil.HandleError(w, h.log, r, err)
 		return
 	}
-	httputil.JSON(w, snapshot) //nolint:errcheck
+	httputil.JSON(w, snapshot) //nolint:errcheck // response write failure cannot be recovered after disconnect
 }
 
 // HandleGetGPUHistory handles GET /api/v1/forensics/gpu?window=1h. It exposes
@@ -374,7 +374,7 @@ func (h *MetricsHandler) HandleGetGPUHistory(w http.ResponseWriter, r *http.Requ
 		httputil.HandleError(w, h.log, r, err)
 		return
 	}
-	httputil.JSON(w, history) //nolint:errcheck
+	httputil.JSON(w, history) //nolint:errcheck // response write failure cannot be recovered after disconnect
 }
 
 // HandleGetPressureHistory handles GET /api/v1/forensics/pressure?window=1h.
@@ -393,7 +393,7 @@ func (h *MetricsHandler) HandleGetPressureHistory(w http.ResponseWriter, r *http
 		httputil.HandleError(w, h.log, r, err)
 		return
 	}
-	httputil.JSON(w, history) //nolint:errcheck
+	httputil.JSON(w, history) //nolint:errcheck // response write failure cannot be recovered after disconnect
 }
 
 // HandleGetMetricsTimeline handles GET /api/v1/metrics/timeline.
@@ -470,6 +470,8 @@ type processTimelineEntryJSON struct {
 
 type processTimelineResponseJSON struct {
 	WindowSeconds int                        `json:"window_seconds"`
+	StartUTC      string                     `json:"start_utc,omitempty"`
+	EndUTC        string                     `json:"end_utc,omitempty"`
 	Owner         string                     `json:"owner,omitempty"`
 	Top           int                        `json:"top"`
 	Rank          string                     `json:"rank"`
@@ -478,14 +480,21 @@ type processTimelineResponseJSON struct {
 }
 
 // HandleGetProcessTimeline handles GET /api/v1/metrics/processes/timeline. Query
-// params: window (duration, default 5m), owner (scenario filter), top (int).
+// params: window (duration, default 5m) or start_utc/end_utc (RFC3339 range),
+// owner (scenario filter), top (int). Explicit ranges are capped at 24h.
 // It returns ranked consumers over the window, grouped by owner/scenario —
 // the standing replacement for the manual `ps`/`top` forensic.
 func (h *MetricsHandler) HandleGetProcessTimeline(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
+	query := r.URL.Query()
+	startText, endText := query.Get("start_utc"), query.Get("end_utc")
+	if (startText == "") != (endText == "") || (startText != "" && query.Get("window") != "") {
+		httputil.HandleError(w, h.log, r, apierrors.Validation("start_utc/end_utc", "provide both timestamps and omit window"))
+		return
+	}
 
 	window := 5 * time.Minute
-	if ws := r.URL.Query().Get("window"); ws != "" {
+	if ws := query.Get("window"); ws != "" {
 		if parsed, err := time.ParseDuration(ws); err == nil && parsed > 0 {
 			window = parsed
 		} else if secs, err := strconv.Atoi(ws); err == nil && secs > 0 {
@@ -494,20 +503,35 @@ func (h *MetricsHandler) HandleGetProcessTimeline(w http.ResponseWriter, r *http
 		}
 	}
 
-	owner := r.URL.Query().Get("owner")
+	owner := query.Get("owner")
 
 	top := 20
-	if t := r.URL.Query().Get("top"); t != "" {
+	if t := query.Get("top"); t != "" {
 		if parsed, err := strconv.Atoi(t); err == nil && parsed > 0 {
 			top = parsed
 		}
 	}
 
-	rank := r.URL.Query().Get("rank")
+	rank := query.Get("rank")
 	if rank != "rss" && rank != "gpu" && rank != "cpu_seconds" {
 		rank = "cpu"
 	}
-	entries, err := h.monitorSvc.GetProcessTimelineRanked(ctx, window, owner, top, rank)
+	var entries []repository.ProcessTimelineEntry
+	var err error
+	var startUTC, endUTC string
+	if startText != "" {
+		start, startErr := time.Parse(time.RFC3339Nano, startText)
+		end, endErr := time.Parse(time.RFC3339Nano, endText)
+		if startErr != nil || endErr != nil || !end.After(start) || end.Sub(start) > 24*time.Hour {
+			httputil.HandleError(w, h.log, r, apierrors.Validation("start_utc/end_utc", "must be valid RFC3339 timestamps with end after start and a range no longer than 24 hours"))
+			return
+		}
+		startUTC, endUTC = start.UTC().Format(time.RFC3339Nano), end.UTC().Format(time.RFC3339Nano)
+		window = end.Sub(start)
+		entries, err = h.monitorSvc.GetProcessTimelineInRange(ctx, start, end, owner, top, rank)
+	} else {
+		entries, err = h.monitorSvc.GetProcessTimelineRanked(ctx, window, owner, top, rank)
+	}
 	if err != nil {
 		httputil.HandleError(w, h.log, r, err)
 		return
@@ -536,8 +560,10 @@ func (h *MetricsHandler) HandleGetProcessTimeline(w http.ResponseWriter, r *http
 		out = append(out, row)
 	}
 
-	httputil.JSON(w, processTimelineResponseJSON{ //nolint:errcheck
+	httputil.JSON(w, processTimelineResponseJSON{ //nolint:errcheck // response write failure cannot be recovered after disconnect
 		WindowSeconds: int(window.Seconds()),
+		StartUTC:      startUTC,
+		EndUTC:        endUTC,
 		Owner:         owner,
 		Top:           top,
 		Rank:          rank,

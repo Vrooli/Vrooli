@@ -13,7 +13,7 @@ func TestRunStopsWhenPreflightHandledTheProcess(t *testing.T) {
 	served := false
 	code := run(
 		func(preflight.Config) bool { return true },
-		func() *config.Config { return &config.Config{} },
+		func() (*config.Config, error) { return &config.Config{}, nil },
 		func(*config.Config) error { served = true; return nil },
 	)
 	if code != 0 || served {
@@ -27,7 +27,7 @@ func TestRunServesLoadedConfigForSystemMonitor(t *testing.T) {
 	var gotConfig *config.Config
 	code := run(
 		func(cfg preflight.Config) bool { gotScenario = cfg.ScenarioName; return false },
-		func() *config.Config { return loaded },
+		func() (*config.Config, error) { return loaded, nil },
 		func(cfg *config.Config) error { gotConfig = cfg; return nil },
 	)
 	if code != 0 {
@@ -44,10 +44,22 @@ func TestRunServesLoadedConfigForSystemMonitor(t *testing.T) {
 func TestRunReportsServerFailureAsNonZeroExit(t *testing.T) {
 	code := run(
 		func(preflight.Config) bool { return false },
-		func() *config.Config { return &config.Config{} },
+		func() (*config.Config, error) { return &config.Config{}, nil },
 		func(*config.Config) error { return errors.New("listen failed") },
 	)
 	if code != 1 {
 		t.Fatalf("run() = %d, want 1 on server failure", code)
+	}
+}
+
+func TestRunStopsWhenConfigurationFails(t *testing.T) {
+	served := false
+	code := run(
+		func(preflight.Config) bool { return false },
+		func() (*config.Config, error) { return nil, errors.New("API_PORT is required") },
+		func(*config.Config) error { served = true; return nil },
+	)
+	if code != 1 || served {
+		t.Fatalf("run() = %d, served = %v; want a non-zero exit without starting", code, served)
 	}
 }

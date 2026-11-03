@@ -126,8 +126,10 @@ type MeasuredProvider struct {
 	lastWrite  models.MetricState
 }
 
-type diskCounter struct{ readSectors, writeSectors uint64 }
-type diskCounters map[string]diskCounter
+type (
+	diskCounter  struct{ readSectors, writeSectors uint64 }
+	diskCounters map[string]diskCounter
+)
 
 var errDiskUnsupported = errors.New("physical disk counters unavailable")
 

@@ -4,6 +4,7 @@
  * Extracted from useInvestigationAgents to share across the codebase.
  */
 
+import type { JsonObject } from '@bufbuild/protobuf';
 import { timestampDate } from '@bufbuild/protobuf/wkt';
 import { InvestigationStatus } from '../../types/api';
 import type { InvestigationAgentState } from '../../types';
@@ -15,7 +16,7 @@ interface ProtoInvestigation {
   startTime?: Parameters<typeof timestampDate>[0];
   endTime?: Parameters<typeof timestampDate>[0];
   progress?: number;
-  details?: unknown;
+  details?: JsonObject;
   triggerReason?: unknown;
   anomalyId?: string;
 }
@@ -43,7 +44,7 @@ export const statusEnumToString = (status: InvestigationStatus): string => {
 export const protoToAgentState = (inv: ProtoInvestigation): InvestigationAgentState | null => {
   if (!inv.id) return null;
 
-  const details = inv.details as Record<string, unknown> | undefined;
+  const details = inv.details;
 
   return {
     id: inv.id,

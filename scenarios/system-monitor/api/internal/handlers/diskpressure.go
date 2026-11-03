@@ -10,10 +10,10 @@ package handlers
 import (
 	"context"
 	"encoding/json"
-	"log/slog"
 	"net/http"
 	"time"
 
+	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/logx"
 	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/models"
 	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/repository"
 	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/services"
@@ -28,13 +28,13 @@ type violationHistory interface {
 type DiskPressureHandler struct {
 	scheduler *services.ThresholdScheduler
 	history   violationHistory
-	log       *slog.Logger
+	log       logx.Logger
 }
 
 // NewDiskPressureHandler creates the handler.
-func NewDiskPressureHandler(scheduler *services.ThresholdScheduler, history violationHistory, log *slog.Logger) *DiskPressureHandler {
+func NewDiskPressureHandler(scheduler *services.ThresholdScheduler, history violationHistory, log logx.Logger) *DiskPressureHandler {
 	if log == nil {
-		log = slog.Default()
+		log = logx.Default()
 	}
 	return &DiskPressureHandler{scheduler: scheduler, history: history, log: log}
 }

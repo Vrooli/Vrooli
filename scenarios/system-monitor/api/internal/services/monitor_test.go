@@ -2,6 +2,7 @@ package services
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sync/atomic"
 	"testing"
@@ -17,6 +18,22 @@ import (
 
 type selfMetricsCollector struct {
 	collectors.BaseCollector
+}
+
+type blockingLifecycleCollector struct {
+	collectors.BaseCollector
+	started chan struct{}
+	release chan struct{}
+}
+
+func (c *blockingLifecycleCollector) Collect(context.Context) (*collectors.MetricData, error) {
+	select {
+	case <-c.started:
+	default:
+		close(c.started)
+	}
+	<-c.release
+	return &collectors.MetricData{CollectorName: c.GetName(), Timestamp: time.Now(), Values: map[string]interface{}{"ok": true}}, nil
 }
 
 func newSelfMetricsCollector() *selfMetricsCollector {
@@ -359,6 +376,46 @@ func TestMonitorService_StartStop(t *testing.T) {
 		// Expected - context canceled synchronously by Stop.
 	case <-time.After(500 * time.Millisecond):
 		t.Error("service context not canceled after Stop()")
+	}
+}
+
+func TestMonitorService_StopContextWaitsForCycleAndAllowsRestart(t *testing.T) {
+	collector := &blockingLifecycleCollector{
+		BaseCollector: collectors.NewBaseCollector("lifecycle-test", time.Second),
+		started:       make(chan struct{}),
+		release:       make(chan struct{}),
+	}
+	svc := NewMonitorService(
+		&config.Config{Monitoring: config.MonitoringConfig{MetricsInterval: time.Second}},
+		memory.NewRepository(), infrastructure.NewStaticProvider(), WithCollectors(collector),
+	)
+	if err := svc.Start(); err != nil {
+		t.Fatalf("start monitor: %v", err)
+	}
+	select {
+	case <-collector.started:
+	case <-time.After(2 * time.Second):
+		t.Fatal("collector cycle did not start")
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Millisecond)
+	defer cancel()
+	if err := svc.StopContext(ctx); !errors.Is(err, context.DeadlineExceeded) {
+		t.Fatalf("StopContext error = %v, want deadline while collector is still active", err)
+	}
+	if err := svc.Start(); err == nil {
+		t.Fatal("Start succeeded while the previous collector loop lacked a completion receipt")
+	}
+
+	close(collector.release)
+	if err := svc.StopContext(context.Background()); err != nil {
+		t.Fatalf("wait for collector completion: %v", err)
+	}
+	if err := svc.Start(); err != nil {
+		t.Fatalf("restart monitor after joined stop: %v", err)
+	}
+	if err := svc.StopContext(context.Background()); err != nil {
+		t.Fatalf("stop restarted monitor: %v", err)
 	}
 }
 

@@ -35,10 +35,14 @@ describe('feature API surfaces', () => {
     // in `/api/v1`, so a path that repeats the prefix resolves to
     // `/api/v1/api/v1/...` and 404s. These assertions previously required the
     // doubled form, which is why the whole Crash Forensics page was dead.
-    expect(mocks.apiFetch).toHaveBeenNthCalledWith(1, '/forensics/summary', { signal });
-    expect(mocks.apiFetch).toHaveBeenNthCalledWith(2, '/forensics/pstore', { signal });
-    expect(mocks.apiFetch).toHaveBeenNthCalledWith(3, '/forensics/boot-history', { signal });
-    expect(mocks.apiFetch).toHaveBeenNthCalledWith(4, '/forensics/mce', { signal });
+    for (const [index, path] of [
+      '/forensics/summary',
+      '/forensics/pstore',
+      '/forensics/boot-history',
+      '/forensics/mce',
+    ].entries()) {
+      expect(mocks.apiFetch).toHaveBeenNthCalledWith(index + 1, path, expect.any(Function), { signal });
+    }
   });
 
   it('builds bounded log queries and forwards log, unit, and boot requests', async () => {
@@ -52,9 +56,9 @@ describe('feature API surfaces', () => {
     await fetchLogs({ filters: { units: [], limit: 10 }, cursor: 'next', direction: 'backward', signal });
     await fetchUnits(signal);
     await fetchBoots(signal);
-    expect(mocks.apiFetch).toHaveBeenCalledWith(expect.stringContaining('/logs?'), { signal });
-    expect(mocks.apiFetch).toHaveBeenCalledWith('/logs/units', { signal });
-    expect(mocks.apiFetch).toHaveBeenCalledWith('/logs/boots', { signal });
+    expect(mocks.apiFetch).toHaveBeenCalledWith(expect.stringContaining('/logs?'), expect.any(Function), { signal });
+    expect(mocks.apiFetch).toHaveBeenCalledWith('/logs/units', expect.any(Function), { signal });
+    expect(mocks.apiFetch).toHaveBeenCalledWith('/logs/boots', expect.any(Function), { signal });
 
     // Guard the class of bug rather than the four instances of it: no path
     // handed to `apiFetch` may carry the base prefix itself.

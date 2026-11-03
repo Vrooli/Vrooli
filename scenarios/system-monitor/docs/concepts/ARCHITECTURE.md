@@ -219,20 +219,21 @@ only.
 ## Alerting
 
 Alerts are server state. `services.AlertEvaluator` runs on
-`threshold_check_interval`, evaluates every rule against the scheduler-owned
-snapshot, and persists `condition` alerts. The CLI (`status`, `alerts`,
+`threshold_check_interval`, evaluates every rule against the shared observation
+snapshot, and persists sustained `condition` alerts. ThresholdScheduler owns
+disk band records and storage-writer edge events. The CLI (`status`, `alerts`,
 `watch`) and the dashboard alert panel read `AlertsService.ListAlerts`; no
 client derives an alert from a metric value.
 
 | Rule | Condition |
 |------|-----------|
-| `metrics_snapshot` | critical when no snapshot exists or it is older than ten collection intervals |
-| `cpu_usage` | warning ≥ `cpu_threshold`, critical ≥ `cpu_threshold` + 10 |
-| `memory_usage` | warning ≥ `memory_threshold`, critical ≥ `memory_threshold` + 5 |
-| `tcp_connections` | warning ≥ 5,000, critical ≥ 20,000, and warning on a leak-shaped climb over the last 10 minutes (≥ 5 samples, ends ≥ 500 and ≥ 2× its start, within 10% of its peak, no single drop larger than half the rise). Hundreds of connections are normal on this host, so there is no low fixed level. |
-| `gpu_usage` | warning ≥ 90% (unsupported without a GPU reading) |
+| `metrics_snapshot` | critical when no snapshot exists or it is older than `metrics_snapshot_stale_intervals` collection intervals (default 10) |
+| `cpu_usage` | warning ≥ `cpu_threshold` (default 85%), critical ≥ `cpu_critical_percent` (default 97%) |
+| `memory_usage` | warning ≥ `memory_threshold` (default 90%), critical ≥ `memory_critical_percent` (default 95%) |
+| `tcp_connections` | configurable warning/critical counts (defaults 5,000 / 20,000), plus warning on a leak-shaped climb using configured window, floor, sample count, and growth factor. Hundreds of connections are normal on this host, so there is no low fixed level. |
+| `gpu_usage` | warning ≥ `gpu_usage_warning_percent` (default 90%; unsupported without a GPU reading) |
 | `memory_pressure` | elevated → warning, critical → critical, unknown → rule unsupported |
-| `orphaned_agents` | reads `vrooli agent list --json` (`state`, `kernel_state`, `owner{kind,ref,…}`, `memory_bytes`, `swap_bytes`, `reapable`, `reap_reason`). Warning when any `state=orphaned` row is older than 1 h; critical when orphaned rows hold ≥ 2 GiB of known memory+swap or a `reapable=true` row has stayed reapable for 1 h (auto-reap off or failing). Null or absent memory is reported unknown, never 0. Unsupported ("control plane does not classify orphans yet") when rows carry no `owner`. |
+| `orphaned_agents` | reads `vrooli agent list --json` (`state`, `kernel_state`, `owner{kind,ref,…}`, `memory_bytes`, `swap_bytes`, `reapable`, `reap_reason`). Warning when an orphan exceeds `orphaned_agent_age_seconds` (default 1 h); critical when known memory+swap exceeds `orphaned_agent_memory_bytes` (default 2 GiB) or a reapable row remains so for the configured age. Null or absent memory is reported unknown, never 0. Unsupported ("control plane does not classify orphans yet") when rows carry no `owner`. |
 
 The CPU, memory, and GPU boundaries are the ones the CLI used to apply
 client-side; the TCP rule is the dashboard's former card rule. Dashboard card
@@ -257,15 +258,28 @@ to `AnomalyEscalator`: it records an `anomaly` event and runs the rule's native
 catalog investigation (`memory-pressure` for memory rules, otherwise
 `resource-leak-detector`), persisting the run with the anomaly id and a
 `sustained_<rule>` finding, where run-history readers such as the infra-health
-runtime scanner find it. It never spawns an agent-manager investigation;
+runtime scanner find it. It publishes a distinct `alert.investigation`
+notification category. It never spawns an agent-manager investigation;
 that remains an operator action. System Monitor never kills processes.
+`auto_investigate_critical_rules` in System Settings controls this per rule;
+disabling it leaves detection and alert notifications active while suppressing
+the native investigation. `cooldown_period_seconds` is the shared minimum gap
+for automatic investigations. Notification Hub separately controls category
+delivery and urgency, so muting a category does not change detection or policy.
 
-**Events.** Disk/CPU band transitions from the threshold scheduler and
+**Events.** Disk/CPU band history from the threshold scheduler and
 escalation anomalies are point-in-time records (`threshold_violation`,
 `anomaly`) created resolved. They keep history and notifications without
 leaving rows that never close; `ListAlerts` includes them only with
 `include_events`. Rows written before this change remain open in storage and
 are excluded from the default view by type.
+
+**Operator notifications.** Persisted alert lifecycle transitions and
+storage-writer hot/cooled edges publish the generic
+`system_monitor.alert.notification.v1` event. Category keys come from
+`.vrooli/notifications.json`; Notification Hub owns per-category enablement,
+minimum urgency, and delivery. System Monitor owns detection thresholds and
+alert lifecycle. Muting a category does not pause detection or investigation.
 
 **Legacy open violations.** 1,745 `threshold_violation` rows written before
 this change have no `resolved_at`. The repository has no migration mechanism
@@ -289,26 +303,16 @@ Metric Collectors (CPU, memory, disk, network, process, GPU)
         |
         v
 MonitorService.collectAll()
+        +--> metrics history
         |
-        v
-Threshold Evaluation (warning/critical levels)
+        +--> AlertEvaluator (sustain, dedup, resolve)
+        |        +--> AlertRepository
+        |        +--> Vrooli Events --> Notification Hub preferences and delivery
+        |        +--> sustained critical --> AnomalyEscalator --> native catalog run
         |
-        +-- below threshold --> store metrics, continue polling
-        |
-        +-- above threshold --> AlertEvaluator (sustain, dedup, resolve)
-                                    |   -> AlertService (persist, notify)
-                                    |
-                                    v
-                        InvestigationService.Trigger()
-                                    |
-                                    v
-                        AgentExecutor.SpawnAgent() --> agent-manager
-                                    |
-                                    v
-                        Investigation runs (steps, findings, progress)
-                                    |
-                                    v
-                        Results stored in repository
+        +--> ThresholdScheduler (disk remediation, CPU band history,
+                                 storage-writer edges) --> durable events
+                                                     +--> notifications
 ```
 
 ## Key Design Decisions

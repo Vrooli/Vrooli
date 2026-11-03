@@ -37,7 +37,15 @@ func newTestHandlers(t *testing.T, server *fakeAlertsServer) *handlers {
 	mux.Handle(path, handler)
 	httpServer := httptest.NewServer(mux)
 	t.Cleanup(httpServer.Close)
-	return &handlers{alerts: alertsconnect.NewAlertsServiceClient(httpServer.Client(), httpServer.URL)}
+	return &handlers{alerts: alertsconnect.NewAlertsServiceClient(httpServer.Client(), httpServer.URL), Now: time.Now}
+}
+
+func TestHandlersUseInjectedClock(t *testing.T) {
+	want := time.Date(2026, 11, 2, 12, 34, 56, 0, time.UTC)
+	h := &handlers{Now: func() time.Time { return want }}
+	if got := h.Now(); !got.Equal(want) {
+		t.Fatalf("injected clock = %s, want %s", got, want)
+	}
 }
 
 // A host at 53% memory while thrashing swap: no client-side rule would fire,

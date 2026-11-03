@@ -4,6 +4,10 @@ import { ApiErrorException, apiFetch, extractErrorMessage, isApiError, protoFetc
 const fetchMock = vi.fn<typeof fetch>();
 
 const ok = (body: unknown) => new Response(JSON.stringify(body), { status: 200, headers: { 'content-type': 'application/json' } });
+const parseValue = (value: unknown): { value: number } => {
+  if (!value || typeof value !== 'object' || !('value' in value) || typeof value.value !== 'number') throw new TypeError('invalid value');
+  return { value: value.value };
+};
 
 describe('apiFetch and protoFetch', () => {
   beforeEach(() => {
@@ -13,13 +17,21 @@ describe('apiFetch and protoFetch', () => {
   });
 
   it('parses successful JSON and preserves request options', async () => {
-    await expect(apiFetch<{ value: number }>('/metrics/current', { headers: { Authorization: 'Bearer test' } })).resolves.toEqual({ value: 42 });
+    await expect(apiFetch('/metrics/current', parseValue, { headers: { Authorization: 'Bearer test' } })).resolves.toEqual({ value: 42 });
     expect(fetchMock).toHaveBeenCalledWith(expect.stringContaining('/metrics/current'), { headers: { Authorization: 'Bearer test' } });
   });
 
+  it('rejects a successful JSON response that fails its caller parser', async () => {
+    fetchMock.mockResolvedValueOnce(ok({ value: 'not a number' }));
+    await expect(apiFetch('/typed', parseValue)).rejects.toMatchObject({
+      error: 'Invalid response format',
+      detail: { code: 'internal' },
+    });
+  });
+
   it('normalizes structured, legacy, text, malformed, and network failures', async () => {
-    fetchMock.mockResolvedValueOnce(new Response(JSON.stringify({ error: { code: 'busy', message: 'Try later', retryable: true } }), { status: 429, statusText: 'Busy' }));
-    await expect(apiFetch('/x')).rejects.toMatchObject({ error: 'Try later', detail: { code: 'busy' } });
+    fetchMock.mockResolvedValueOnce(new Response(JSON.stringify({ error: { code: 'unavailable', message: 'Try later', retryable: true } }), { status: 429, statusText: 'Busy' }));
+    await expect(apiFetch('/x')).rejects.toMatchObject({ error: 'Try later', detail: { code: 'unavailable' } });
 
     fetchMock.mockResolvedValueOnce(new Response(JSON.stringify({ error: 'legacy failure' }), { status: 500, statusText: 'Server Error' }));
     await expect(apiFetch('/x')).rejects.toMatchObject({ error: 'legacy failure' });
@@ -71,7 +83,6 @@ describe('apiFetch and protoFetch', () => {
       ['/investigations/cooldown', undefined, 'GetCooldownStatus', {}],
       ['/investigations/cooldown/reset', { method: 'POST' }, 'ResetCooldown', {}],
       ['/investigations/cooldown/period', { method: 'PUT', body: JSON.stringify({ cooldown_period_seconds: 30 }) }, 'UpdateCooldownPeriod', { cooldownPeriodSeconds: 30 }],
-      ['/investigations/triggers', undefined, 'GetTriggers', {}],
       ['/investigations/scripts', undefined, 'ListScripts', {}],
       ['/reports/a%2Fb', undefined, 'GetReport', { id: 'a/b' }],
       ['/investigations/agent/a%2Fb/status', undefined, 'GetInvestigation', { id: 'a/b' }],
@@ -115,6 +126,8 @@ describe('apiFetch and protoFetch', () => {
 
     const apiError = new ApiErrorException({ error: 'bad' });
     expect(isApiError(apiError)).toBe(true);
+    expect(isApiError({ error: 'bad', detail: { code: 'made_up', message: 'bad', retryable: false } })).toBe(false);
+    expect(isApiError({ error: 'bad', detail: { code: 'internal', message: 'bad', retryable: false }, timestamp: 123 })).toBe(false);
     expect(extractErrorMessage(apiError)).toBe('bad');
     expect(extractErrorMessage('unknown', 'fallback')).toBe('fallback');
     expect(toApiError(new Error('ordinary'))).toMatchObject({ error: 'ordinary', detail: { code: 'internal' } });
@@ -154,7 +167,7 @@ describe('apiFetch and protoFetch', () => {
 
     fetchMock.mockRejectedValueOnce(new Error('proto offline'));
     await expect(protoFetch('/unknown', value => value)).rejects.toMatchObject({ error: 'Unable to reach the server. Check your connection.' });
-    fetchMock.mockResolvedValueOnce(new Response(JSON.stringify({ error: { code: 'busy', message: 'busy' } }), { status: 503, statusText: 'Busy' }));
+    fetchMock.mockResolvedValueOnce(new Response(JSON.stringify({ error: { code: 'unavailable', message: 'busy', retryable: true } }), { status: 503, statusText: 'Busy' }));
     await expect(protoFetch('/unknown', value => value)).rejects.toMatchObject({ error: 'busy' });
     fetchMock.mockResolvedValueOnce(new Response('{bad', { status: 200 }));
     await expect(protoFetch('/unknown', value => value)).rejects.toMatchObject({ error: 'Invalid response from server' });

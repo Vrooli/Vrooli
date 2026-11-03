@@ -160,6 +160,9 @@ func TestAlertEvaluator_OpensOnlyAfterConditionIsSustained(t *testing.T) {
 	if opened[0].Severity != SeverityWarning || opened[0].Type != ConditionAlertType || opened[0].MetricValue != 90 {
 		t.Fatalf("opened alert = %+v", opened[0])
 	}
+	if opened[0].Details["lifecycle_phase"] != "open_warning" {
+		t.Fatalf("lifecycle phase = %v, want open_warning", opened[0].Details["lifecycle_phase"])
+	}
 
 	for i := 0; i < 5; i++ {
 		h.pass(t, 20*time.Second)
@@ -220,12 +223,43 @@ func TestAlertEvaluator_CriticalNeedsItsOwnSustainAndEscalatesOnce(t *testing.T)
 	if got[0].Details["escalated"] != true || got[0].Details["anomaly_id"] != "anomaly-test-1" {
 		t.Fatalf("escalation not recorded on the alert: %+v", got[0].Details)
 	}
+	if got[0].Details["lifecycle_phase"] != "open_critical" {
+		t.Fatalf("lifecycle phase = %v, want open_critical", got[0].Details["lifecycle_phase"])
+	}
 
 	for i := 0; i < 10; i++ {
 		h.pass(t, time.Minute)
 	}
 	if h.escalator.count() != 1 {
 		t.Fatalf("escalations = %d after the condition persisted, want exactly 1", h.escalator.count())
+	}
+}
+
+func TestAlertEvaluator_AutoInvestigationPolicyControlsCriticalEscalation(t *testing.T) {
+	h := newEvaluatorHarness(t, cpuUsageRule{})
+	settings := h.settings.GetSettings()
+	settings.AutoInvestigateCriticalRules[RuleCPUUsage] = false
+	if err := h.settings.UpdateSettings(settings); err != nil {
+		t.Fatalf("disable CPU investigation: %v", err)
+	}
+	h.source.setCPU(99, h.clock.Now())
+	h.pass(t, 0)
+	h.pass(t, 5*time.Minute)
+	if alerts := h.open(t, RuleCPUUsage); len(alerts) != 1 || alerts[0].Severity != SeverityCritical {
+		t.Fatalf("critical alert = %+v, want one critical alert", alerts)
+	}
+	if got := h.escalator.count(); got != 0 {
+		t.Fatalf("escalations with policy disabled = %d, want 0", got)
+	}
+
+	settings = h.settings.GetSettings()
+	settings.AutoInvestigateCriticalRules[RuleCPUUsage] = true
+	if err := h.settings.UpdateSettings(settings); err != nil {
+		t.Fatalf("enable CPU investigation: %v", err)
+	}
+	h.pass(t, 20*time.Second)
+	if got := h.escalator.count(); got != 1 {
+		t.Fatalf("escalations after enabling policy = %d, want 1", got)
 	}
 }
 
@@ -262,6 +296,9 @@ func TestAlertEvaluator_ResolvesOnlyAfterClearIsSustained(t *testing.T) {
 	}
 	if resolved.ResolvedAt == nil || !resolved.ResolvedAt.Equal(h.clock.Now()) {
 		t.Fatalf("ResolvedAt = %v, want the evaluator clock time %v", resolved.ResolvedAt, h.clock.Now())
+	}
+	if resolved.Details["lifecycle_phase"] != "resolved" {
+		t.Fatalf("lifecycle phase = %v, want resolved", resolved.Details["lifecycle_phase"])
 	}
 }
 
@@ -371,8 +408,9 @@ func TestPortedHostRules(t *testing.T) {
 	}{
 		{"cpu below threshold", cpuUsageRule{}, &models.MetricsResponse{CPUState: measured(84.9)}, RuleSupported, ""},
 		{"cpu at threshold", cpuUsageRule{}, &models.MetricsResponse{CPUState: measured(85)}, RuleSupported, SeverityWarning},
-		{"cpu at threshold+10", cpuUsageRule{}, &models.MetricsResponse{CPUState: measured(95)}, RuleSupported, SeverityCritical},
-		{"cpu legacy scalar", cpuUsageRule{}, &models.MetricsResponse{CPUUsage: 96}, RuleSupported, SeverityCritical},
+		{"cpu below configured critical", cpuUsageRule{}, &models.MetricsResponse{CPUState: measured(95)}, RuleSupported, SeverityWarning},
+		{"cpu at configured critical", cpuUsageRule{}, &models.MetricsResponse{CPUState: measured(97)}, RuleSupported, SeverityCritical},
+		{"cpu legacy scalar", cpuUsageRule{}, &models.MetricsResponse{CPUUsage: 96}, RuleSupported, SeverityWarning},
 		{"cpu unsupported", cpuUsageRule{}, &models.MetricsResponse{CPUState: models.MetricState{Status: "unsupported", Reason: "no backend"}}, RuleUnsupported, ""},
 		{"cpu stale", cpuUsageRule{}, &models.MetricsResponse{CPUState: models.MetricState{Status: "stale", Reason: "old"}}, RuleFailed, ""},
 		{"memory at threshold", memoryUsageRule{}, &models.MetricsResponse{MemoryState: measured(90)}, RuleSupported, SeverityWarning},
@@ -399,6 +437,34 @@ func TestPortedHostRules(t *testing.T) {
 				t.Fatalf("conditions = %+v, want clear", eval.Conditions)
 			case tc.severity != "" && (len(eval.Conditions) != 1 || eval.Conditions[0].Severity != tc.severity):
 				t.Fatalf("conditions = %+v, want one %s", eval.Conditions, tc.severity)
+			}
+		})
+	}
+}
+
+func TestAlertRulesUseConfiguredBoundaries(t *testing.T) {
+	settings := defaultSettings
+	settings.CPUThreshold, settings.CPUCriticalPercent = 70, 82
+	settings.MemoryThreshold, settings.MemoryCriticalPercent = 60, 72
+	settings.TCPConnectionsWarning, settings.TCPConnectionsCritical = 100, 250
+	settings.GPUUsageWarningPercent = 40
+	measured := func(value float64) models.MetricState { return models.MetricState{Status: "measured", Value: value} }
+	cases := []struct {
+		name    string
+		rule    AlertRule
+		metrics *models.MetricsResponse
+		want    string
+	}{
+		{"cpu critical", cpuUsageRule{}, &models.MetricsResponse{CPUState: measured(82)}, SeverityCritical},
+		{"memory critical", memoryUsageRule{}, &models.MetricsResponse{MemoryState: measured(72)}, SeverityCritical},
+		{"tcp critical", &tcpConnectionsRule{}, &models.MetricsResponse{ConnectionsState: measured(250)}, SeverityCritical},
+		{"gpu warning", gpuUsageRule{}, &models.MetricsResponse{GPUState: measured(40)}, SeverityWarning},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := tc.rule.Evaluate(context.Background(), AlertSnapshot{Now: time.Unix(1000, 0), Settings: settings, Metrics: tc.metrics})
+			if len(got.Conditions) != 1 || got.Conditions[0].Severity != tc.want {
+				t.Fatalf("conditions = %+v, want severity %s", got.Conditions, tc.want)
 			}
 		})
 	}

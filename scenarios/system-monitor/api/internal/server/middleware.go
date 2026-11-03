@@ -1,20 +1,20 @@
 package server
 
 import (
-	"log/slog"
 	"net/http"
 
 	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/config"
+	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/logx"
 	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/middleware"
 )
 
-func buildMiddleware(cfg *config.Config, handler http.Handler) http.Handler {
-	handler = middleware.MaxBodySize(1<<20, slog.Default())(handler) // 1MB body limit
+func buildMiddleware(cfg *config.Config, handler http.Handler, logger logx.Logger) http.Handler {
+	handler = middleware.MaxBodySize(1<<20, logger)(handler) // 1MB body limit
 	handler = middleware.CORS(handler)
 
-	handler = middleware.Logging(slog.Default())(handler)
+	handler = middleware.Logging(logger)(handler)
 
-	handler = middleware.Recovery(slog.Default())(handler)
+	handler = middleware.Recovery(logger)(handler)
 
 	handler = middleware.RequestID(handler)
 

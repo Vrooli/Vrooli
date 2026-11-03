@@ -3,13 +3,13 @@ package handlers
 import (
 	"context"
 	"encoding/base64"
-	"log/slog"
 	"net/http"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/httputil"
+	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/logx"
 	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/services/journal"
 )
 
@@ -28,12 +28,12 @@ type JournalReader interface {
 // LogsHandler serves /api/v1/logs and friends.
 type LogsHandler struct {
 	reader JournalReader
-	log    *slog.Logger
+	log    logx.Logger
 	now    func() time.Time
 }
 
 // NewLogsHandler builds the handler.
-func NewLogsHandler(reader JournalReader, log *slog.Logger) *LogsHandler {
+func NewLogsHandler(reader JournalReader, log logx.Logger) *LogsHandler {
 	return &LogsHandler{reader: reader, log: log, now: time.Now}
 }
 
@@ -79,7 +79,7 @@ func (h *LogsHandler) Logs(w http.ResponseWriter, r *http.Request) {
 	if cursor := q.Get("cursor"); cursor != "" {
 		decoded, err := base64.RawURLEncoding.DecodeString(cursor)
 		if err != nil {
-			httputil.JSONWithStatus(w, http.StatusBadRequest, LogsResponse{ //nolint:errcheck
+			httputil.JSONWithStatus(w, http.StatusBadRequest, LogsResponse{ //nolint:errcheck // response write failure cannot be recovered after disconnect
 				Reason:      "invalid cursor: " + err.Error(),
 				GeneratedAt: now,
 			})
@@ -89,13 +89,13 @@ func (h *LogsHandler) Logs(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if h.reader == nil {
-		httputil.JSON(w, LogsResponse{Reason: "journal reader not configured", GeneratedAt: now}) //nolint:errcheck
+		httputil.JSON(w, LogsResponse{Reason: "journal reader not configured", GeneratedAt: now}) //nolint:errcheck // response write failure cannot be recovered after disconnect
 		return
 	}
 
 	entries, err := h.reader.QueryLogs(r.Context(), opts)
 	if err != nil {
-		httputil.JSON(w, LogsResponse{ //nolint:errcheck
+		httputil.JSON(w, LogsResponse{ //nolint:errcheck // response write failure cannot be recovered after disconnect
 			Reason:      "journal query failed: " + err.Error(),
 			Error:       "journal query failed: " + err.Error(),
 			GeneratedAt: now,
@@ -115,7 +115,7 @@ func (h *LogsHandler) Logs(w http.ResponseWriter, r *http.Request) {
 			resp.NextCursor = base64.RawURLEncoding.EncodeToString([]byte(last))
 		}
 	}
-	httputil.JSON(w, resp) //nolint:errcheck
+	httputil.JSON(w, resp) //nolint:errcheck // response write failure cannot be recovered after disconnect
 }
 
 // UnitsResponse is the response for GET /api/v1/logs/units.
@@ -134,12 +134,12 @@ type UnitsResponse struct {
 func (h *LogsHandler) Units(w http.ResponseWriter, r *http.Request) {
 	now := h.now().UTC()
 	if h.reader == nil {
-		httputil.JSON(w, UnitsResponse{Reason: "journal reader not configured", GeneratedAt: now}) //nolint:errcheck
+		httputil.JSON(w, UnitsResponse{Reason: "journal reader not configured", GeneratedAt: now}) //nolint:errcheck // response write failure cannot be recovered after disconnect
 		return
 	}
 	entries, err := h.reader.QueryLogs(r.Context(), journal.QueryOpts{Tail: 1000, Reverse: true})
 	if err != nil {
-		httputil.JSON(w, UnitsResponse{Reason: "journal query failed: " + err.Error(), GeneratedAt: now}) //nolint:errcheck
+		httputil.JSON(w, UnitsResponse{Reason: "journal query failed: " + err.Error(), GeneratedAt: now}) //nolint:errcheck // response write failure cannot be recovered after disconnect
 		return
 	}
 	seen := map[string]struct{}{}
@@ -155,7 +155,7 @@ func (h *LogsHandler) Units(w http.ResponseWriter, r *http.Request) {
 	for u := range seen {
 		units = append(units, u)
 	}
-	httputil.JSON(w, UnitsResponse{Available: true, Units: units, GeneratedAt: now}) //nolint:errcheck
+	httputil.JSON(w, UnitsResponse{Available: true, Units: units, GeneratedAt: now}) //nolint:errcheck // response write failure cannot be recovered after disconnect
 }
 
 // BootsResponse is the response for GET /api/v1/logs/boots.
@@ -170,15 +170,15 @@ type BootsResponse struct {
 func (h *LogsHandler) Boots(w http.ResponseWriter, r *http.Request) {
 	now := h.now().UTC()
 	if h.reader == nil {
-		httputil.JSON(w, BootsResponse{Reason: "journal reader not configured", GeneratedAt: now}) //nolint:errcheck
+		httputil.JSON(w, BootsResponse{Reason: "journal reader not configured", GeneratedAt: now}) //nolint:errcheck // response write failure cannot be recovered after disconnect
 		return
 	}
 	boots, err := h.reader.ListBoots(r.Context())
 	if err != nil {
-		httputil.JSON(w, BootsResponse{Reason: "list-boots failed: " + err.Error(), GeneratedAt: now}) //nolint:errcheck
+		httputil.JSON(w, BootsResponse{Reason: "list-boots failed: " + err.Error(), GeneratedAt: now}) //nolint:errcheck // response write failure cannot be recovered after disconnect
 		return
 	}
-	httputil.JSON(w, BootsResponse{Available: true, Boots: boots, GeneratedAt: now}) //nolint:errcheck
+	httputil.JSON(w, BootsResponse{Available: true, Boots: boots, GeneratedAt: now}) //nolint:errcheck // response write failure cannot be recovered after disconnect
 }
 
 // normalizeJournalTime accepts either a Go duration ("5m", "1h30m", "30s")

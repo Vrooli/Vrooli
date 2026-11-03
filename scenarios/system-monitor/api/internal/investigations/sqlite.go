@@ -158,6 +158,7 @@ func parseUTC(value string) (time.Time, error) {
 	}
 	return time.Time{}, fmt.Errorf("parse investigation timestamp %q", value)
 }
+
 func boolInt(value bool) int {
 	if value {
 		return 1

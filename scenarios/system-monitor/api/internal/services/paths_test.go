@@ -10,9 +10,6 @@ func TestResolvePathsFromStorage(t *testing.T) {
 	root := t.TempDir()
 	t.Setenv("VROOLI_STORAGE_ROOT", root)
 
-	if got, want := ResolveConfigBasePath(), filepath.Join(root, "config", "vrooli", "system-monitor"); got != want {
-		t.Fatalf("ResolveConfigBasePath() = %q, want %q", got, want)
-	}
 	if got, want := ResolvePromptBasePath(), filepath.Join(root, "config", "vrooli", "system-monitor", "prompts"); got != want {
 		t.Fatalf("ResolvePromptBasePath() = %q, want %q", got, want)
 	}
@@ -33,7 +30,7 @@ func TestResolveInvestigationWorkingDirUsesContractScenarioRoot(t *testing.T) {
 	t.Setenv("VROOLI_SOURCE_ROOT", filepath.Join(root, "scenarios", "system-monitor", "api"))
 	t.Setenv("VROOLI_ROOT", "")
 
-	if got, want := resolveInvestigationWorkingDir(), filepath.Join(root, "scenarios", "system-monitor"); got != want {
+	if got, want := resolveInvestigationWorkingDir(""), filepath.Join(root, "scenarios", "system-monitor"); got != want {
 		t.Fatalf("resolveInvestigationWorkingDir() = %q, want %q", got, want)
 	}
 }

@@ -86,10 +86,10 @@ describe('useLogQuery', () => {
   it('retries the failed older cursor while retaining the current page until success', async () => {
     mocks.fetchLogs.mockResolvedValueOnce({ entries: [{ message: 'retained' }], nextCursor: 'older', available: true });
     const { result } = renderHook(() => useLogQuery());
-    await waitFor(() => expect(result.current.nextCursor).toBe('older'));
+    await waitFor(() => { expect(result.current.nextCursor).toBe('older'); });
     mocks.fetchLogs.mockResolvedValueOnce({ available: false, error: 'older failed' });
-    act(() => result.current.nextPage());
-    await waitFor(() => expect(result.current.error).toBe('older failed'));
+    act(() => { result.current.nextPage(); });
+    await waitFor(() => { expect(result.current.error).toBe('older failed'); });
     expect(result.current.entries[0].message).toBe('retained');
     expect(result.current.retryCursorStack).toEqual(['older']);
     await act(async () => { await result.current.refreshBackground(); });
@@ -97,11 +97,11 @@ describe('useLogQuery', () => {
     expect(result.current.error).toBe('older failed');
     let finish!: (value: unknown) => void;
     mocks.fetchLogs.mockImplementationOnce(() => new Promise(resolve => { finish = resolve; }));
-    act(() => result.current.retryFailed());
+    act(() => { result.current.retryFailed(); });
     expect(mocks.fetchLogs.mock.calls.at(-1)?.[0].cursor).toBe('older');
     expect(result.current.entries[0].message).toBe('retained');
     await act(async () => { finish({ entries: [{ message: 'older result' }], available: true }); await Promise.resolve(); });
-    await waitFor(() => expect(result.current.currentCursor).toBe('older'));
+    await waitFor(() => { expect(result.current.currentCursor).toBe('older'); });
     expect(result.current.entries[0].message).toBe('older result');
     expect(result.current.retryCursorStack).toBeUndefined();
   });
@@ -109,7 +109,7 @@ describe('useLogQuery', () => {
   it('keeps an unavailable state until an explicit refresh recovers it', async () => {
     mocks.fetchLogs.mockResolvedValueOnce({ available: false, reason: 'unavailable' });
     const { result } = renderHook(() => useLogQuery());
-    await waitFor(() => expect(result.current.available).toBe(false));
+    await waitFor(() => { expect(result.current.available).toBe(false); });
     await act(async () => { await result.current.refreshBackground(); });
     expect(mocks.fetchLogs).toHaveBeenCalledTimes(1);
     expect(result.current.reason).toBe('unavailable');
@@ -120,13 +120,13 @@ describe('useLogQuery', () => {
   it('discards a failed page cursor when the query filters change', async () => {
     mocks.fetchLogs.mockResolvedValueOnce({ entries: [{ message: 'head' }], nextCursor: 'older', available: true });
     const { result } = renderHook(() => useLogQuery());
-    await waitFor(() => expect(result.current.nextCursor).toBe('older'));
+    await waitFor(() => { expect(result.current.nextCursor).toBe('older'); });
     mocks.fetchLogs.mockResolvedValueOnce({ available: false, error: 'older failed' });
-    act(() => result.current.nextPage());
-    await waitFor(() => expect(result.current.retryCursorStack).toEqual(['older']));
-    act(() => result.current.setFilter({ grep: 'new query' }));
+    act(() => { result.current.nextPage(); });
+    await waitFor(() => { expect(result.current.retryCursorStack).toEqual(['older']); });
+    act(() => { result.current.setFilter({ grep: 'new query' }); });
     expect(result.current.retryCursorStack).toBeUndefined();
-    await waitFor(() => expect(mocks.fetchLogs.mock.calls.at(-1)?.[0].filters.grep).toBe('new query'));
+    await waitFor(() => { expect(mocks.fetchLogs.mock.calls.at(-1)?.[0].filters.grep).toBe('new query'); });
     expect(mocks.fetchLogs.mock.calls.at(-1)?.[0].cursor).toBeUndefined();
   });
 

@@ -36,7 +36,8 @@ export const Terminal = ({ isVisible, onClose }: TerminalProps) => {
 
     const interval = setInterval(() => {
       const randomIndex = Math.floor(Math.random() * messages.length);
-      const randomMessage = messages[randomIndex % messages.length] as string;
+      const randomMessage = messages[randomIndex];
+      if (randomMessage === undefined) return;
 
       const newLine: TerminalLine = {
         id: Date.now().toString(),

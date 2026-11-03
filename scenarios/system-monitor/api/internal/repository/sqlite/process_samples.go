@@ -96,7 +96,7 @@ func (r *Repository) addRawProcessTimelineRows(ctx context.Context, q repository
 }
 
 func (r *Repository) addRollupProcessTimelineRows(ctx context.Context, q repository.ProcessTimelineQuery, acc *repository.ProcessTimelineAccumulator) error {
-	rollQuery := `SELECT owner, comm, avg_cpu_pct, max_cpu_pct, cpu_seconds, max_rss_kb, sample_count, minute
+	rollQuery := `SELECT owner, comm, avg_cpu_pct, max_cpu_pct, cpu_seconds, avg_rss_kb, sample_count, minute
 		FROM process_sample_rollups WHERE minute >= ? AND minute < ?`
 	rollArgs := []interface{}{q.Start.UTC(), q.End.UTC()}
 	if q.Owner != "" {
@@ -113,14 +113,14 @@ func (r *Repository) addRollupProcessTimelineRows(ctx context.Context, q reposit
 		var (
 			owner, comm                string
 			avgCPU, maxCPU, cpuSeconds float64
-			maxRSS                     int64
+			avgRSS                     int64
 			count                      int64
 			minute                     time.Time
 		)
-		if err := rollRows.Scan(&owner, &comm, &avgCPU, &maxCPU, &cpuSeconds, &maxRSS, &count, &minute); err != nil {
+		if err := rollRows.Scan(&owner, &comm, &avgCPU, &maxCPU, &cpuSeconds, &avgRSS, &count, &minute); err != nil {
 			return err
 		}
-		acc.AddRollup(owner, comm, avgCPU, maxCPU, cpuSeconds, maxRSS, count, minute)
+		acc.AddRollup(owner, comm, avgCPU, maxCPU, cpuSeconds, avgRSS, count, minute)
 	}
 	return rollRows.Err()
 }

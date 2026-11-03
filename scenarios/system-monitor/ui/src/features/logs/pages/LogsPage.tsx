@@ -139,7 +139,7 @@ export const LogsPage = () => {
     if (globalPaused && !wasPaused) cancel();
     if (!globalPaused && wasPaused && atTop && !stream.paused) {
       setResuming(true);
-      void query.refreshBackground().finally(() => setResuming(false));
+      void query.refreshBackground().finally(() => { setResuming(false); });
     }
   }, [globalPaused, cancel, atTop, stream.paused, query.refreshBackground]);
 
@@ -151,7 +151,7 @@ export const LogsPage = () => {
   useEffect(() => {
     if (!restored) return;
     if (restored.readerOpen && phone && !window.history.state?.vegaLogReader) window.history.pushState({ ...window.history.state, vegaLogReader: true }, '');
-    requestAnimationFrame(() => window.scrollTo(0, restored.pageScroll));
+    requestAnimationFrame(() => { window.scrollTo(0, restored.pageScroll); });
   }, []); // Restore once when this route is mounted.
 
   useEffect(() => {
@@ -186,7 +186,7 @@ export const LogsPage = () => {
             if (!stream.paused) query.cancel();
             else if (stream.atTop && !globalPaused) {
               setResuming(true);
-              void query.refreshBackground().finally(() => setResuming(false));
+              void query.refreshBackground().finally(() => { setResuming(false); });
             }
             stream.setPaused(!stream.paused);
           }}

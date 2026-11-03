@@ -3,7 +3,6 @@ import { AlertTriangle, Bot, Play, MessageCircle } from 'lucide-react';
 import { ToggleSwitch } from '../../../shared/components/ToggleSwitch';
 import { InvestigationsPanel } from './InvestigationsPanel';
 import { InvestigationScriptsPanel } from './InvestigationScriptsPanel';
-import { AutomaticTriggersSection } from './AutomaticTriggersSection';
 import { CollapsibleSection } from '../../../shared/components/CollapsibleSection';
 import { useInvestigationsSectionState } from '../hooks/useInvestigationsSectionState';
 import type { Investigation, InvestigationScript, InvestigationAgentState } from '../../../types';
@@ -47,11 +46,6 @@ export const InvestigationsSection = ({
     spawnAgentError,
     onSpawnAgent,
   });
-
-  const handleUpdateTrigger = (triggerId: string, config: unknown) => {
-    // TODO: Implement API call to update trigger configuration
-    console.log('Updating trigger:', triggerId, config);
-  };
 
   const statusBadgeClass = activeAgentSummary.tone === 'error'
     ? 'badge-error'
@@ -135,8 +129,13 @@ export const InvestigationsSection = ({
           )}
         </div>
 
-        {/* Automatic Triggers Section */}
-        <AutomaticTriggersSection onUpdateTrigger={handleUpdateTrigger} />
+        <section className="card" aria-labelledby="automatic-investigations-heading">
+          <h3 id="automatic-investigations-heading">Automatic investigations</h3>
+          <p className="text-sm text-muted-foreground">
+            Configure alert thresholds, notification delivery, and which sustained critical alerts
+            start a native investigation in System Monitor Settings and Notification Hub.
+          </p>
+        </section>
 
         {/* Reports Subsection */}
         <CollapsibleSection

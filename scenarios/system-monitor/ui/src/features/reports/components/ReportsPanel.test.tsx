@@ -11,8 +11,10 @@ vi.mock('../../../shared/api/apiFetch', () => ({
 }));
 
 const report = {
-  id: 'daily-1', type: 'daily', generatedAt: timestampFromDate(new Date('2026-01-01T00:00:00Z')),
-  summary: { avgCpuUsage: 20, avgMemoryUsage: 30, totalAlerts: 2, uptimePercentage: 99.9 },
+  reportId: 'daily-1', reportType: 'daily', generatedAt: timestampFromDate(new Date('2026-01-01T00:00:00Z')),
+  executiveSummary: { overallHealth: 'healthy', keyFindings: [], timeDescription: 'today', metricsAnalyzed: 20 },
+  performance: { cpu: { average: 20 }, memory: { average: 30 }, timeRange: 'today' },
+  alertsCount: 2,
   recommendations: ['Reduce disk churn', 'Review process growth'],
 };
 

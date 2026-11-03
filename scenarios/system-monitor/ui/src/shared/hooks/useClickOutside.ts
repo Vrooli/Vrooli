@@ -18,7 +18,8 @@ export const useClickOutside = (
     const refList = Array.isArray(refs) ? refs : [refs];
 
     const handleMouseDown = (event: MouseEvent) => {
-      const target = event.target as Node;
+      const target = event.target;
+      if (!(target instanceof Node)) return;
       const isInside = refList.some(ref => ref.current?.contains(target));
       if (!isInside) {
         onClickOutside();

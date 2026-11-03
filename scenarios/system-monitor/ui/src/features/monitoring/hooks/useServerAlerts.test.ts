@@ -48,20 +48,20 @@ describe('useServerAlerts', () => {
 
     const { result } = renderHook(() => useServerAlerts(true));
 
-    await waitFor(() => expect(result.current.feed.status).toBe('ready'));
+    await waitFor(() => { expect(result.current.feed.status).toBe('ready'); });
     expect(result.current.alerts.map(alert => alert.id)).toEqual(['cond_orphaned_agents_host']);
   });
 
   it('keeps the last alerts on screen and marks the feed errored when a read fails', async () => {
     fetchServerAlerts.mockResolvedValueOnce(activeResponse);
     const { result, rerender } = renderHook(({ enabled }) => useServerAlerts(enabled), { initialProps: { enabled: true } });
-    await waitFor(() => expect(result.current.feed.status).toBe('ready'));
+    await waitFor(() => { expect(result.current.feed.status).toBe('ready'); });
 
     fetchServerAlerts.mockRejectedValueOnce(new Error('API unreachable'));
     rerender({ enabled: false });
     rerender({ enabled: true });
 
-    await waitFor(() => expect(result.current.feed.status).toBe('error'));
+    await waitFor(() => { expect(result.current.feed.status).toBe('error'); });
     expect(result.current.feed.error).toBe('API unreachable');
     expect(result.current.alerts.map(alert => alert.id)).toEqual(['cond_orphaned_agents_host']);
   });
@@ -69,7 +69,7 @@ describe('useServerAlerts', () => {
   it('recovers a failed feed by explicitly refreshing without losing known alerts', async () => {
     fetchServerAlerts.mockResolvedValueOnce(activeResponse);
     const { result } = renderHook(() => useServerAlerts(true));
-    await waitFor(() => expect(result.current.feed.status).toBe('ready'));
+    await waitFor(() => { expect(result.current.feed.status).toBe('ready'); });
     fetchServerAlerts.mockRejectedValueOnce(new Error('offline'));
     await act(async () => { await result.current.refresh?.(); });
     expect(result.current.feed.status).toBe('error');
@@ -85,7 +85,7 @@ describe('useServerAlerts', () => {
 
     const { result } = renderHook(() => useServerAlerts(true));
 
-    await waitFor(() => expect(result.current.feed.status).toBe('error'));
+    await waitFor(() => { expect(result.current.feed.status).toBe('error'); });
     expect(result.current.feed.error).toBe('Alert state is unavailable');
   });
 
@@ -97,12 +97,12 @@ describe('useServerAlerts', () => {
     }));
 
     const { result, unmount } = renderHook(() => useServerAlerts(true));
-    await waitFor(() => expect(fetchServerAlerts).toHaveBeenCalledTimes(1));
-    const lastSignal = fetchServerAlerts.mock.calls[0][0] as AbortSignal;
+    await waitFor(() => { expect(fetchServerAlerts).toHaveBeenCalledTimes(1); });
+    const lastSignal = fetchServerAlerts.mock.calls[0]?.[0];
     unmount();
     resolveRead(activeResponse);
 
-    expect(lastSignal.aborted).toBe(true);
+    expect(lastSignal?.aborted).toBe(true);
     expect(result.current.feed.status).toBe('loading');
   });
 
@@ -113,7 +113,7 @@ describe('useServerAlerts', () => {
     }));
 
     const { result, unmount } = renderHook(() => useServerAlerts(true));
-    await waitFor(() => expect(fetchServerAlerts).toHaveBeenCalledTimes(1));
+    await waitFor(() => { expect(fetchServerAlerts).toHaveBeenCalledTimes(1); });
     unmount();
     rejectRead(new Error('aborted'));
 

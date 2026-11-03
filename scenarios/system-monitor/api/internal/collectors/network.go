@@ -13,19 +13,25 @@ import (
 // NetworkCollector collects network metrics
 type NetworkCollector struct {
 	BaseCollector
-	mu            sync.Mutex
-	lastBytesRecv int64
-	lastBytesSent int64
-	lastCheck     time.Time
-	rates         *counterRateTracker
+	mu                         sync.Mutex
+	lastBytesRecv              int64
+	lastBytesSent              int64
+	lastCheck                  time.Time
+	rates                      *counterRateTracker
+	socketAttributionThreshold int
 }
 
 // NewNetworkCollector creates a new network collector
-func NewNetworkCollector() *NetworkCollector {
+func NewNetworkCollector(threshold ...int) *NetworkCollector {
+	socketThreshold := defaultSocketAttributionThreshold
+	if len(threshold) > 0 && threshold[0] >= 0 {
+		socketThreshold = threshold[0]
+	}
 	return &NetworkCollector{
-		BaseCollector: NewBaseCollector("network", 10*time.Second),
-		lastCheck:     time.Now(),
-		rates:         newCounterRateTracker(),
+		BaseCollector:              NewBaseCollector("network", 10*time.Second),
+		lastCheck:                  time.Now(),
+		rates:                      newCounterRateTracker(),
+		socketAttributionThreshold: socketThreshold,
 	}
 }
 
@@ -346,11 +352,13 @@ func readNetDevInterfaces(ctx context.Context, tracker *counterRateTracker) ([]m
 			continue
 		}
 		now := time.Now()
-		row := map[string]interface{}{"name": name, "up": true,
+		row := map[string]interface{}{
+			"name": name, "up": true,
 			"received_bytes": stats.bytesRecv, "transmitted_bytes": stats.bytesSent,
 			"received_packets": stats.packetsRecv, "transmitted_packets": stats.packetsSent,
 			"receive_errors": stats.errorsIn, "transmit_errors": stats.errorsOut,
-			"receive_drops": stats.droppedIn, "transmit_drops": stats.droppedOut}
+			"receive_drops": stats.droppedIn, "transmit_drops": stats.droppedOut,
+		}
 		for key, total := range map[string]int64{
 			"received_bytes": stats.bytesRecv, "transmitted_bytes": stats.bytesSent,
 			"received_packets": stats.packetsRecv, "transmitted_packets": stats.packetsSent,

@@ -3,14 +3,26 @@ package server
 import (
 	"path/filepath"
 	"testing"
+
+	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/config"
 )
 
 func TestDefaultWriterRootsAvoidBroadRuntimeHomeScan(t *testing.T) {
 	home := t.TempDir()
-	t.Setenv("HOME", home)
-	t.Setenv("VROOLI_HOME", filepath.Join(home, ".vrooli"))
+	cfg, err := config.LoadFrom(func(key string) (string, bool) {
+		if key == "API_PORT" {
+			return "8080", true
+		}
+		if key == "VROOLI_HOME" {
+			return filepath.Join(home, ".vrooli"), true
+		}
+		return "", false
+	})
+	if err != nil {
+		t.Fatalf("load config: %v", err)
+	}
 
-	roots := defaultWriterRoots()
+	roots := defaultWriterRoots(cfg)
 	for _, root := range roots {
 		if root.ID == "runtime-home" {
 			t.Fatal("default writer roots must not scan the entire runtime home")

@@ -7,10 +7,16 @@
 
 import type { ChartDataPoint } from '../../types';
 
+interface SingleSeriesPoint {
+  [key: string]: string | number;
+  timestamp: string;
+  value: number;
+}
+
 /** Normalise a time series into sorted {timestamp, value} tuples. */
-export const buildSingleSeriesData = (series?: ChartDataPoint[]) => {
+export const buildSingleSeriesData = (series?: ChartDataPoint[]): SingleSeriesPoint[] => {
   if (!series || series.length === 0) {
-    return [] as Array<{ timestamp: string; value: number }>;
+    return [];
   }
   return [...series]
     .map(point => ({ timestamp: point.timestamp, value: Number(point.value) }))

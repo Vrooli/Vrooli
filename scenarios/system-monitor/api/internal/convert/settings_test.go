@@ -1,6 +1,7 @@
 package convert
 
 import (
+	"reflect"
 	"testing"
 
 	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/services"
@@ -24,6 +25,26 @@ func TestSettingsProtoRoundTrip_PreservesDiskBands(t *testing.T) {
 		CooldownPeriodSeconds:         300,
 		CPUThreshold:                  85,
 		MemoryThreshold:               90,
+		MemoryCriticalPercent:         96,
+		TCPConnectionsWarning:         4200,
+		TCPConnectionsCritical:        18000,
+		TCPGrowthWindowSeconds:        900,
+		TCPGrowthFloor:                800,
+		TCPGrowthMinSamples:           6,
+		TCPGrowthFactor:               2.5,
+		GPUUsageWarningPercent:        88,
+		MetricsSnapshotStaleIntervals: 12,
+		OrphanedAgentAgeSeconds:       7200,
+		OrphanedAgentMemoryBytes:      3 * 1024 * 1024 * 1024,
+		AutoInvestigateCriticalRules: map[string]bool{
+			services.RuleMetricsSnapshot: true,
+			services.RuleCPUUsage:        false,
+			services.RuleMemoryUsage:     true,
+			services.RuleTCPConnections:  true,
+			services.RuleGPUUsage:        true,
+			services.RuleMemoryPressure:  true,
+			services.RuleOrphanedAgents:  true,
+		},
 		DiskThreshold:                 72,
 		DiskHighPercent:               84,
 		DiskCriticalPercent:           93,
@@ -40,7 +61,7 @@ func TestSettingsProtoRoundTrip_PreservesDiskBands(t *testing.T) {
 	if got == nil {
 		t.Fatal("ProtoToSettings returned nil")
 	}
-	if *got != want {
+	if !reflect.DeepEqual(*got, want) {
 		t.Errorf("proto round-trip lost settings:\n got=%+v\nwant=%+v", *got, want)
 	}
 }

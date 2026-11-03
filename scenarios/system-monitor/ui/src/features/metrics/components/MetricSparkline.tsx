@@ -110,9 +110,9 @@ export const MetricSparkline = ({
   // The resolved vertical domain is needed twice — to place the samples and to
   // label the rail — so it is returned alongside them rather than recomputed.
   const { points, vertices, domainMin, domainMax } = useMemo(() => {
-    const empty = {
-      points: [] as ComputedPoint[],
-      vertices: [] as ComputedPoint[],
+    const empty: { points: ComputedPoint[]; vertices: ComputedPoint[]; domainMin: number; domainMax: number } = {
+      points: [],
+      vertices: [],
       domainMin: 0,
       domainMax: 1
     };
@@ -126,6 +126,9 @@ export const MetricSparkline = ({
     const valid = plottedData.filter(point => Number.isFinite(point.value) && Number.isFinite(Date.parse(point.timestamp)) && (!hasBounds || (Date.parse(point.timestamp) >= startBound && Date.parse(point.timestamp) <= endBound)))
       .sort((a, b) => Date.parse(a.timestamp) - Date.parse(b.timestamp));
     if (!valid.length) return empty;
+    const firstValid = valid.at(0);
+    const lastValid = valid.at(-1);
+    if (!firstValid || !lastValid) return empty;
     const values = valid.map(point => point.value);
     let min = Math.min(...values);
     let max = Math.max(...values);
@@ -170,14 +173,20 @@ export const MetricSparkline = ({
       return (height - PLOT_PADDING) - normalized * plotHeight;
     };
 
-    const firstTime = hasBounds ? startBound : Date.parse(valid[0]!.timestamp);
-    const lastTime = hasBounds ? endBound : Date.parse(valid[valid.length - 1]!.timestamp);
-    const deltas = valid.slice(1).map((point, index) => Date.parse(point.timestamp) - Date.parse(valid[index]!.timestamp)).filter(delta => delta > 0).sort((a, b) => a - b);
-    const typicalMs = plottedInterval ? plottedInterval * 1000 : deltas.length >= 2 ? deltas[Math.floor(deltas.length / 2)]! : 0;
+    const firstTime = hasBounds ? startBound : Date.parse(firstValid.timestamp);
+    const lastTime = hasBounds ? endBound : Date.parse(lastValid.timestamp);
+    const deltas = valid.slice(1).flatMap((point, index) => {
+      const previous = valid[index];
+      if (!previous) return [];
+      const delta = Date.parse(point.timestamp) - Date.parse(previous.timestamp);
+      return delta > 0 ? [delta] : [];
+    }).sort((a, b) => a - b);
+    const typicalMs = plottedInterval ? plottedInterval * 1000 : deltas.length >= 2 ? (deltas.at(Math.floor(deltas.length / 2)) ?? 0) : 0;
     let segment = 0;
     const computed = valid.map((point, idx) => {
       const time = Date.parse(point.timestamp);
-      const previous = idx > 0 ? Date.parse(valid[idx - 1]!.timestamp) : time;
+      const previousPoint = idx > 0 ? valid[idx - 1] : undefined;
+      const previous = previousPoint ? Date.parse(previousPoint.timestamp) : time;
       if (point.gapBefore || (typicalMs && time - previous > typicalMs * 1.5)) segment += 1;
       return {
         x: lastTime === firstTime ? width : ((time - firstTime) / (lastTime - firstTime)) * width,
@@ -267,7 +276,9 @@ export const MetricSparkline = ({
   const curvePath = groups.map(group => group.map((point, index) =>
     `${index ? 'L' : 'M'}${point.x.toFixed(2)},${point.y.toFixed(2)}`).join('')).join('');
   const areaPath = groups.filter(group => group.length > 1).map(group => {
-    const start = group[0]!, end = group[group.length - 1]!;
+    const start = group.at(0);
+    const end = group.at(-1);
+    if (!start || !end) return '';
     return group.map((point, index) => `${index ? 'L' : 'M'}${point.x.toFixed(2)},${point.y.toFixed(2)}`).join('') +
       `L${end.x.toFixed(2)},${height}L${start.x.toFixed(2)},${height}Z`;
   }).join('');
@@ -352,7 +363,7 @@ export const MetricSparkline = ({
               const rect = event.currentTarget.getBoundingClientRect();
               if (!rect.width) return;
               const x = ((event.clientX - rect.left) / rect.width) * width;
-              const nearest = points.reduce((best, point) => Math.abs(point.x - x) < Math.abs(best.x - x) ? point : best, points[0]!);
+              const nearest = points.reduce((best, point) => Math.abs(point.x - x) < Math.abs(best.x - x) ? point : best, firstPoint);
               setFrozenView(previous => previous ?? { data: [...data], start: windowStart, end: windowEnd, interval: sampleIntervalSeconds, label: windowLabel });
               setSelectedSample({ timestamp: nearest.timestamp, raw: nearest.raw });
             }}
@@ -370,7 +381,9 @@ export const MetricSparkline = ({
                 if (next + direction >= 0 && next + direction < points.length) next += direction;
               }
               setFrozenView(previous => previous ?? { data: [...data], start: windowStart, end: windowEnd, interval: sampleIntervalSeconds, label: windowLabel });
-              setSelectedSample({ timestamp: points[next]!.timestamp, raw: points[next]!.raw });
+              const nextPoint = points[next];
+              if (!nextPoint) return;
+              setSelectedSample({ timestamp: nextPoint.timestamp, raw: nextPoint.raw });
             }}
             onMouseMove={handleMouseMove}
             onMouseLeave={handleMouseLeave}
@@ -408,9 +421,11 @@ export const MetricSparkline = ({
               strokeLinejoin="round"
               vectorEffect="non-scaling-stroke"
             />
-            {groups.filter(group => group.length === 1).map(group => (
-              <line key={`${group[0]!.timestamp}-${group[0]!.segment}`} x1={group[0]!.x} x2={group[0]!.x} y1={group[0]!.y - 2} y2={group[0]!.y + 2} stroke={color} strokeWidth={2} vectorEffect="non-scaling-stroke" />
-            ))}
+            {groups.filter(group => group.length === 1).flatMap(group => {
+              const point = group.at(0);
+              if (!point) return [];
+              return [<line key={`${point.timestamp}-${point.segment}`} x1={point.x} x2={point.x} y1={point.y - 2} y2={point.y + 2} stroke={color} strokeWidth={2} vectorEffect="non-scaling-stroke" />];
+            })}
             {thresholdLine}
             {/* Hover hairline */}
             {hoverPoint && (
@@ -462,7 +477,7 @@ export const MetricSparkline = ({
       <span id={`${gradientId}-instructions`} className="sr-only">Tap the plot or use left and right arrows to select samples; Page Up and Page Down move between segments. Select a sample to zoom, and press Escape to return to latest.</span>
       <span className="sr-only" aria-live="polite" aria-atomic="true" data-testid="sparkline-latest-announcement">{plotFocused && !selectedSample ? `Latest observation: ${withUnit(formatValue(latest.raw))} at ${new Date(latest.timestamp).toLocaleString()}` : ''}</span>
       {plottedStart && plottedEnd && Number.isFinite(Date.parse(plottedStart)) && Number.isFinite(Date.parse(plottedEnd)) && (
-        <div className="readout-trace__axis" aria-label={`Window ${new Date(plottedStart!).toLocaleString()} to ${new Date(plottedEnd!).toLocaleString()}`}>
+        <div className="readout-trace__axis" aria-label={`Window ${new Date(plottedStart).toLocaleString()} to ${new Date(plottedEnd).toLocaleString()}`}>
           <span>{formatTime(plottedStart)}</span><span>{formatTime((Date.parse(plottedStart) + Date.parse(plottedEnd)) / 2)}</span><span>{formatTime(plottedEnd)}</span>
         </div>
       )}
@@ -481,8 +496,8 @@ export const MetricSparkline = ({
       {selectedTime && <button type="button" onClick={event => { event.stopPropagation(); setSelectedSample(null); setFrozenView(null); setZoom(null); }}>Return to latest</button>}
       {selectedTime && !zoom && <button className="readout-detail__btn" type="button" onClick={event => {
         event.stopPropagation();
-        const start = Date.parse(frozenView?.start ?? windowStart ?? points[0]!.timestamp);
-        const end = Date.parse(frozenView?.end ?? windowEnd ?? points[points.length - 1]!.timestamp);
+        const start = Date.parse(frozenView?.start ?? windowStart ?? firstPoint.timestamp);
+        const end = Date.parse(frozenView?.end ?? windowEnd ?? lastPoint.timestamp);
         const selected = Date.parse(selectedTime);
         if (!Number.isFinite(start) || !Number.isFinite(end) || !Number.isFinite(selected) || end <= start) return;
         const span = Math.min(15 * 60_000, (end - start) / 4);

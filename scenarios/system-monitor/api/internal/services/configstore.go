@@ -2,6 +2,7 @@ package services
 
 import (
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"sync"
@@ -52,7 +53,7 @@ func (m *MemoryConfigStore) ReadConfig(name string) ([]byte, error) {
 	defer m.mu.RUnlock()
 	b, ok := m.data[name]
 	if !ok {
-		return nil, fmt.Errorf("config not found: %s", name)
+		return nil, fmt.Errorf("config not found: %s: %w", name, fs.ErrNotExist)
 	}
 	// Return a copy to avoid mutation.
 	out := make([]byte, len(b))

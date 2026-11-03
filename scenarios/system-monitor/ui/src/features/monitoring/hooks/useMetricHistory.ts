@@ -85,21 +85,26 @@ export const useMetricHistory = (
       if (!mountedRef.current || request !== requestRef.current || !data || !data.samples) return;
       setError(null);
 
-      const samples = data.samples.filter(sample => sample.timestamp);
+      const samples = data.samples.filter((sample): sample is typeof sample & { timestamp: NonNullable<typeof sample.timestamp> } => sample.timestamp !== undefined);
       const toIso = (ts?: Timestamp): string =>
         ts ? timestampDate(ts).toISOString() : ''; 
       // The endpoint echoes a requested sampling interval; it is not the
       // scheduler cadence. Infer typical cycle spacing from the cycle timestamps
       // and preserve explicit non-measured cycles as breaks in each series.
-      const ordered = [...samples].sort((a, b) => timestampDate(a.timestamp!).getTime() - timestampDate(b.timestamp!).getTime());
-      const deltas = ordered.slice(1).map((sample, index) => timestampDate(sample.timestamp!).getTime() - timestampDate(ordered[index]!.timestamp!).getTime()).filter(delta => delta > 0).sort((a, b) => a - b);
-      const cadenceMs = deltas.length ? deltas[Math.floor(deltas.length / 2)]! : 0;
+      const ordered = [...samples].sort((a, b) => timestampDate(a.timestamp).getTime() - timestampDate(b.timestamp).getTime());
+      const deltas = ordered.slice(1).flatMap((sample, index) => {
+        const previous = ordered[index];
+        if (!previous) return [];
+        const delta = timestampDate(sample.timestamp).getTime() - timestampDate(previous.timestamp).getTime();
+        return delta > 0 ? [delta] : [];
+      }).sort((a, b) => a - b);
+      const cadenceMs = deltas.length ? (deltas.at(Math.floor(deltas.length / 2)) ?? 0) : 0;
       const series = (pick: (sample: typeof ordered[number]) => { state: { case: string | undefined; value?: unknown } } | undefined): ChartDataPoint[] => {
         let missed = false;
         let previousTime: number | undefined;
         const result: ChartDataPoint[] = [];
         for (const sample of ordered) {
-          const time = timestampDate(sample.timestamp!).getTime();
+          const time = timestampDate(sample.timestamp).getTime();
           const value = pick(sample)?.state;
           if (value?.case !== 'measured' || typeof value.value !== 'number' || !Number.isFinite(value.value)) { missed = true; continue; }
           const gapBefore = result.length > 0 && (missed || Boolean(cadenceMs && previousTime !== undefined && time - previousTime > cadenceMs * 1.5));
@@ -119,8 +124,13 @@ export const useMetricHistory = (
           const time = timestampDate(gpu.observedAt).getTime();
           return Number.isFinite(time) ? [time] : [];
         }))].sort((a, b) => a - b);
-        const intervals = observedTimes.slice(1).map((time, index) => time - observedTimes[index]!).filter(delta => delta > 0).sort((a, b) => a - b);
-        const gpuCadence = intervals.length >= 2 ? intervals[Math.floor((intervals.length - 1) / 2)]! : 0;
+        const intervals = observedTimes.slice(1).flatMap((time, index) => {
+          const previous = observedTimes[index];
+          if (previous === undefined) return [];
+          const delta = time - previous;
+          return delta > 0 ? [delta] : [];
+        }).sort((a, b) => a - b);
+        const gpuCadence = intervals.length >= 2 ? (intervals.at(Math.floor((intervals.length - 1) / 2)) ?? 0) : 0;
         const result: ChartDataPoint[] = [];
         let gap = false;
         let lastTime = -Infinity;

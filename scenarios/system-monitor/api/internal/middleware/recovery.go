@@ -2,15 +2,15 @@ package middleware
 
 import (
 	"fmt"
-	"log/slog"
 	"net/http"
 	"runtime/debug"
 
 	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/httputil"
+	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/logx"
 )
 
 // Recovery returns middleware that catches panics and writes a 500 JSON error.
-func Recovery(log *slog.Logger) func(http.Handler) http.Handler {
+func Recovery(log logx.Logger) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			defer func() {

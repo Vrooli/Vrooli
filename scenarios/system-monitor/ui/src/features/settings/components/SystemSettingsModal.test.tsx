@@ -11,7 +11,7 @@ vi.mock('../../../shared/api/proto-contracts', () => ({
   parseResetSettingsResponse: vi.fn(),
   SystemSettingsSchema: {},
   create: (_schema: unknown, value: Record<string, unknown>) => ({ ...value }),
-  toJsonString: (_schema: unknown, value: unknown) => JSON.stringify(value),
+  toJsonString: (_schema: unknown, value: unknown) => JSON.stringify(value, (_key, item: unknown) => typeof item === 'bigint' ? Number(item) : item),
 }));
 
 const settings = {
@@ -32,6 +32,13 @@ describe('SystemSettingsModal', () => {
     render(<SystemSettingsModal isOpen onClose={onClose} />);
     expect(await screen.findByText('System Monitor Settings')).toBeInTheDocument();
     const numbers = await screen.findAllByRole('spinbutton');
+    const tcpWarning = screen.getByRole('spinbutton', { name: 'TCP Connections Warning' });
+    expect(tcpWarning).toHaveValue(5000);
+    fireEvent.change(tcpWarning, { target: { value: '6000' } });
+    const cpuInvestigation = screen.getByRole('checkbox', { name: 'CPU usage' });
+    expect(cpuInvestigation).toBeChecked();
+    fireEvent.click(cpuInvestigation);
+    expect(cpuInvestigation).not.toBeChecked();
     const interval = numbers[0];
     if (!interval) throw new Error('metric interval input was not rendered');
     expect(interval).toHaveValue(15);
@@ -61,7 +68,9 @@ describe('SystemSettingsModal', () => {
 
     const numbers = await screen.findAllByRole('spinbutton');
     for (const input of numbers) fireEvent.change(input, { target: { value: '' } });
-    fireEvent.click(screen.getByRole('checkbox'));
+    const firstCheckbox = screen.getAllByRole('checkbox').at(0);
+    if (!firstCheckbox) throw new Error('Expected at least one investigation policy checkbox');
+    fireEvent.click(firstCheckbox);
     fireEvent.click(screen.getByRole('button', { name: 'Reset to Defaults' }));
     expect(confirm).toHaveBeenCalled();
     expect(mocks.protoFetch).toHaveBeenCalledTimes(1);

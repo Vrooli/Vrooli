@@ -1,7 +1,7 @@
 # Seams & Architecture Boundaries
 
 ## Last Updated
-2026-06-02
+2026-11-03
 
 ## Integration Seams
 
@@ -60,7 +60,10 @@
 
 - **Clock** (`api/internal/services/clock.go`): `Clock` interface (`Now()`, `Since()`) abstracts time operations. `RealClock` for production, `StubClock` for deterministic testing with `Advance(d)` and `Set(t)` methods. Injected into all five services (MonitorService, InvestigationService, AlertService, ReportService, SettingsManager) via functional options (`WithMonitorClock`, `WithInvestigationClock`, etc.). Testability: high — eliminates flaky time-dependent tests and enables deterministic cooldown/ID testing. [CODE: api/internal/services/clock.go]
 
-- **ConfigStore** (`api/internal/services/configstore.go`): `ConfigStore` interface abstracts configuration file I/O (read/write). `FileConfigStore` reads/writes from disk; `MemoryConfigStore` provides an in-memory implementation for tests. Injected into `InvestigationService` (via `WithConfigStore`) and `SettingsManager` (via `WithSettingsConfigStore`). A separate `promptStore` field on `InvestigationService` (via `WithPromptStore`) abstracts prompt template loading. Testability: high — inject `MemoryConfigStore` to test config read/write without filesystem. [CODE: api/internal/services/configstore.go]
+- **Environment** (`api/internal/config/config.go`): the `Environment.LookupEnv` seam owns process environment access. `LoadWithEnvironment` builds the validated startup config, which retains the injected reader for runtime values. `systemEnvironment` is the production adapter; map-backed readers exercise runtime overrides in tests. Runtime, handlers, service clients, and collectors consume the resulting config rather than reading process globals. [CODE: api/internal/config/config.go]
+- **Logger** (`api/internal/logx/logger.go`): API components depend on the small structured `logx.Logger` interface. The server composition root creates the configured `slog.Logger` and injects component-scoped loggers into handlers, middleware, repositories, and services. `logx.Default` is the compatibility adapter for startup paths before composition; tests can inject a recording logger. [CODE: api/internal/logx/logger.go]
+- **CLI watch clock** (`cli/domains/overview/register.go`): `handlers.Now` supplies the wall clock rendered by `system-monitor watch`. Production wires `time.Now`; command tests can provide a fixed instant. [CODE: cli/domains/overview/register.go]
+- **ConfigStore** (`api/internal/services/configstore.go`): `ConfigStore` abstracts durable configuration file I/O. `FileConfigStore` is the production adapter; `MemoryConfigStore` is used by settings and prompt-store tests. Investigation trigger configuration no longer uses this store; investigation prompt loading remains injectable through `WithPromptStore`. [CODE: api/internal/services/configstore.go]
 
 - **MaintenanceRepository** (`api/internal/repository/maintenance.go`): Narrow interface (`EstimateMetricRetention`, `PruneMetricsBefore`, `SQLiteStats`, `Compact`) for the metrics storage lifecycle, embedded in the aggregate `Repository`. SQLite implements all four (prune in a tx, `VACUUM` under the write mutex); the in-memory backend implements estimate/prune and returns `ErrNotSupported` for stats/compaction. `MetricsMaintenanceService` (`api/internal/services/maintenance.go`) owns cutoff computation (via `Clock`) and the destructive-operation confirmation contract on top of it. Testability: high — drive the service over the in-memory or sqlite repo. [CODE: api/internal/repository/maintenance.go]
 
@@ -74,11 +77,11 @@
 - **Coordination/orchestration**: `api/internal/services/` — MonitorService, InvestigationService, ReportService, AlertService, SettingsService coordinate business logic.
 - **Domain rules**: `api/internal/models/` — Data structures, threshold definitions, investigation state machine.
 - **Integrations/infrastructure**: `api/internal/agentmanager/` (external agent-manager API), `api/internal/repository/` (storage), `api/internal/collectors/` (OS-level metric collection), `api/internal/infrastructure/` (infrastructure monitoring).
-- **Cross-cutting concerns**: `api/internal/config/` (configuration), `api/internal/server/` (router, middleware wiring, shutdown, database, logging). Path resolution centralized in `api/internal/services/paths.go` (`ResolveConfigBasePath`, `ResolvePromptBasePath`, `ResolveScriptsDir`).
+- **Cross-cutting concerns**: `api/internal/config/` (configuration), `api/internal/server/` (router, middleware wiring, shutdown, database, logging). Storage and prompt paths are centralized in `api/internal/services/paths.go` (`ResolveRuntimeStateBasePath`, `ResolvePromptBasePath`).
 
 ## Decision Points
 
-- **Anomaly threshold evaluation**: In `api/internal/services/monitor.go`. Compares collected metrics against configurable thresholds. Triggers are managed via `/api/v1/investigations/triggers` endpoints. Test coverage: trigger CRUD tested in `investigation_test.go`.
+- **Anomaly threshold evaluation**: In `api/internal/services/monitor.go`. Compares collected metrics against configurable notification rules. Thresholds and per-rule investigation policy are owned by System Settings; delivery is owned by Notification Hub. The old trigger CRUD API returns migration guidance and is not a settings store.
 - **Investigation cooldown**: In `api/internal/services/investigation.go`. Prevents investigation flooding based on configurable period. Exposed via cooldown endpoints. Test coverage: `TestCooldownEnforced`, `TestCooldownReset`, `TestCooldownStatus` in `investigation_test.go`; `TestAlertCooldownPreventsSpam`, `TestAlertCooldownExpires`, `TestCleanupCooldowns` in `alert_test.go`.
 - **Storage backend selection**: In `api/internal/server/runtime.go`. SQLite is the durable default. Non-production tests may explicitly select memory with `SYSTEM_MONITOR_STORAGE_MODE=memory`; production rejects that mode. The greenfield schema is declarative and idempotent. Test coverage: repository cycle and fresh-schema tests.
 - **Script execution**: In `api/internal/services/script.go`. Executes bash scripts with timeout. Test coverage: `TestExecuteScript_Success`, `TestExecuteScript_Failure`, `TestExecuteScript_Timeout` in `script_test.go`.
@@ -97,7 +100,7 @@
 ## Architecture Clarity Notes
 
 - Clean architecture with handler → service → repository layers.
-- All service-layer dependencies flow through interfaces (`MetricsSource`, `AgentExecutor`, `HTTPDoer`, `infrastructure.Provider`, `repository.*`, `Clock`, `ConfigStore`, `CommandRunner`), enabling isolated unit testing.
+- Service-layer dependencies flow through interfaces (`MetricsSource`, `AgentExecutor`, `HTTPDoer`, `infrastructure.Provider`, `repository.*`, `Clock`, `ConfigStore`, `CommandRunner`, `config.Environment`), enabling isolated unit testing. Environment-sensitive runtime configuration is resolved once through `config.LoadWithEnvironment`.
 - Handler layer uses narrow interfaces (`MonitorQuerier`, `InvestigationManager`, `ScriptRunner`, `ReportGenerator`, `SettingsProvider`) defined in `api/internal/handlers/interfaces.go`, decoupling handlers from concrete service types.
 - SQLite is the durable default; explicit development memory mode is available for isolated tests.
 - Agent-manager integration is well-isolated in its own package.
@@ -134,3 +137,20 @@ into focused hooks; shared formatters, timestamp/chart helpers, API converters,
 health/map utilities, and modal/polling primitives own cross-surface behavior.
 Lifecycle cleanup and race prevention belong in those hooks and their focused
 tests, not in individual dashboard components.
+
+Typed REST exceptions use parser functions at the shared `apiFetch` boundary:
+health, forensics, log browsing, and machine inventory validate untrusted JSON
+before exposing feature types. Router navigation state is parsed by the metrics
+feature before use. `apiFetch` without a parser deliberately returns `unknown`;
+callers that need domain types must provide a parser. Abort errors use the
+shared `isAbortError` helper so cancellation checks do not drift between hooks.
+
+## Monitor collection seams
+
+The monitor service owns collection-cycle orchestration. Process sampling and
+retention of independently ranked CPU, memory, paging, pinned-owner, and GPU
+leaders live in `api/internal/services/monitor_processsampling.go`. Metric
+history, freshness, and pressure projections live in
+`api/internal/services/monitor_metricqueries.go`. Linux per-core baseline,
+counter-reset, and core-set behavior lives in `api/internal/collectors/platform_cpu_linux.go`
+so those observation rules can be tested without reading host procfs files.

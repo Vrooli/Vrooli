@@ -4,13 +4,13 @@
 # NEVER run scenarios directly (./api/system-monitor-api). ALWAYS use these targets
 # or the `vrooli scenario ...` CLI, which owns all user-facing output.
 
-.PHONY: help setup start stop restart status logs test open run dev clean build fmt fmt-go fmt-ui lint lint-go lint-ui check
+.PHONY: help setup start stop restart status logs test open run dev clean build fmt fmt-go fmt-ui lint lint-go lint-ui check-format-go quality check
 
 .DEFAULT_GOAL := help
 
 SCENARIO_NAME := $(notdir $(CURDIR))
 
-SCENARIO_CUSTOM_TARGETS += fmt-ui lint-go lint-ui
+SCENARIO_CUSTOM_TARGETS += fmt-go fmt-ui lint-go lint-ui
 # Shared toolchain floor (mk/toolchain.mk) and build targets (mk/scenario.mk); a custom body for one of them is declared in SCENARIO_CUSTOM_TARGETS.
 -include ../../mk/scenario.mk
 
@@ -66,20 +66,22 @@ clean: ## Clean build artifacts
 fmt: fmt-go fmt-ui ## Format all code
 
 fmt-ui: ## Format UI code
-	@if [ -f ui/package.json ]; then cd ui && pnpm run format 2>/dev/null || true; fi
+	@if [ -f ui/package.json ]; then cd ui && pnpm run lint:fix; fi
+
+fmt-go: ## Format Go code
+	@if [ -d api ]; then cd api && gofumpt -w .; fi
+
+check-format-go: ## Verify Go formatting without changing files
+	@if [ -d api ]; then cd api && files="$$(gofumpt -l .)" && test -z "$$files" || { printf '%s\n' "$$files"; exit 1; }; fi
 
 lint: lint-go lint-ui ## Lint all code
 
 lint-go: ## Lint Go code
-	@if [ -d api ] && find api -name "*.go" | head -1 | grep -q .; then \
-		if command -v golangci-lint >/dev/null 2>&1; then \
-			cd api && golangci-lint run ./...; \
-		elif command -v go >/dev/null 2>&1; then \
-			cd api && go vet ./...; \
-		fi; \
-	fi
+	@if [ -d api ] && find api -name "*.go" -print -quit | grep -q .; then cd api && golangci-lint run ./...; fi
 
 lint-ui: ## Lint UI code (eslint + tsc type-check)
 	@if [ -f ui/package.json ]; then cd ui && pnpm run lint && pnpm run type-check; fi
 
-check: fmt lint test ## Run full quality gates
+quality: check-format-go lint ## Run formatting, lint, and type-check gates
+
+check: quality test ## Run full quality gates

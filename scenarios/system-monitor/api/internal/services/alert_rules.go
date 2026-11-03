@@ -42,28 +42,17 @@ const (
 // hostKey is the dedup key for host-wide rules.
 const hostKey = "host"
 
-// GPUUsageWarning is the fixed GPU boundary the rule carried when it lived in
-// the CLI.
-const GPUUsageWarning = 90.0
-
-// Connection-count boundaries. A fixed low level (the CLI's former 300)
-// fires permanently on hosts where hundreds of connections are normal, which
-// trains readers to ignore alerts; these are the dashboard's baseline-aware
-// boundaries, now owned by the server.
+// Default rule boundaries remain available for fixtures; runtime evaluation
+// reads the operator-configured values from Settings.
 const (
-	// TCPConnectionsCritical is unambiguously wrong for a single host.
-	TCPConnectionsCritical = 20_000
-	// TCPConnectionsWarning is plausible under real load but worth a look.
-	TCPConnectionsWarning = 5_000
-	// tcpGrowthFloor: below it, doubling (20 -> 40) is ordinary activity.
-	tcpGrowthFloor = 500
-	// tcpGrowthMinSamples before a trend claim is meaningful.
-	tcpGrowthMinSamples = 5
-	// tcpGrowthFactor: multiple of the window's opening value that counts as
-	// sustained growth.
-	tcpGrowthFactor = 2
-	// tcpGrowthWindow is how much evaluator history the growth rule reads.
-	tcpGrowthWindow = 10 * time.Minute
+	GPUUsageWarning               = 90.0
+	TCPConnectionsCritical        = 20_000
+	TCPConnectionsWarning         = 5_000
+	tcpGrowthFloor                = 500
+	tcpGrowthMinSamples           = 5
+	tcpGrowthFactor               = 2
+	tcpGrowthWindow               = 10 * time.Minute
+	metricsSnapshotStaleIntervals = 10
 )
 
 // AlertSnapshot is everything one evaluation pass reads. It is gathered once
@@ -172,7 +161,11 @@ func (metricsSnapshotRule) Evaluate(_ context.Context, snap AlertSnapshot) RuleE
 	if interval <= 0 {
 		interval = time.Duration(defaultSettings.MetricCollectionInterval) * time.Second
 	}
-	if !snap.Metrics.Timestamp.IsZero() && snap.Now.Sub(snap.Metrics.Timestamp) > 10*interval {
+	staleIntervals := snap.Settings.MetricsSnapshotStaleIntervals
+	if staleIntervals <= 0 {
+		staleIntervals = metricsSnapshotStaleIntervals
+	}
+	if !snap.Metrics.Timestamp.IsZero() && snap.Now.Sub(snap.Metrics.Timestamp) > time.Duration(staleIntervals)*interval {
 		age := snap.Now.Sub(snap.Metrics.Timestamp).Round(time.Second)
 		condition.Message = fmt.Sprintf("The latest metrics snapshot is %s old; collection has stopped.", age)
 		condition.Value = age.Seconds()
@@ -198,9 +191,13 @@ func (cpuUsageRule) Evaluate(_ context.Context, snap AlertSnapshot) RuleEvaluati
 		threshold = defaultSettings.CPUThreshold
 	}
 	message := fmt.Sprintf("CPU usage is %.1f%% against a %.1f%% threshold.", value, threshold)
+	critical := snap.Settings.CPUCriticalPercent
+	if critical <= threshold {
+		critical = threshold + 10
+	}
 	switch {
-	case value >= threshold+10:
-		return activeRule(AlertCondition{Key: hostKey, Severity: SeverityCritical, Message: message, MetricName: "cpu_usage_percent", Value: value, Threshold: threshold + 10})
+	case value >= critical:
+		return activeRule(AlertCondition{Key: hostKey, Severity: SeverityCritical, Message: message, MetricName: "cpu_usage_percent", Value: value, Threshold: critical})
 	case value >= threshold:
 		return activeRule(AlertCondition{Key: hostKey, Severity: SeverityWarning, Message: message, MetricName: "cpu_usage_percent", Value: value, Threshold: threshold})
 	}
@@ -224,9 +221,13 @@ func (memoryUsageRule) Evaluate(_ context.Context, snap AlertSnapshot) RuleEvalu
 		threshold = defaultSettings.MemoryThreshold
 	}
 	message := fmt.Sprintf("Memory usage is %.1f%% against a %.1f%% threshold.", value, threshold)
+	critical := snap.Settings.MemoryCriticalPercent
+	if critical <= threshold {
+		critical = threshold + 5
+	}
 	switch {
-	case value >= threshold+5:
-		return activeRule(AlertCondition{Key: hostKey, Severity: SeverityCritical, Message: message, MetricName: "memory_usage_percent", Value: value, Threshold: threshold + 5})
+	case value >= critical:
+		return activeRule(AlertCondition{Key: hostKey, Severity: SeverityCritical, Message: message, MetricName: "memory_usage_percent", Value: value, Threshold: critical})
 	case value >= threshold:
 		return activeRule(AlertCondition{Key: hostKey, Severity: SeverityWarning, Message: message, MetricName: "memory_usage_percent", Value: value, Threshold: threshold})
 	}
@@ -259,9 +260,33 @@ func (r *tcpConnectionsRule) Evaluate(_ context.Context, snap AlertSnapshot) Rul
 		// measured points.
 		return refused
 	}
+	warning := snap.Settings.TCPConnectionsWarning
+	if warning <= 0 {
+		warning = TCPConnectionsWarning
+	}
+	critical := snap.Settings.TCPConnectionsCritical
+	if critical <= warning {
+		critical = TCPConnectionsCritical
+	}
+	window := time.Duration(snap.Settings.TCPGrowthWindowSeconds) * time.Second
+	if window <= 0 {
+		window = tcpGrowthWindow
+	}
+	floor := snap.Settings.TCPGrowthFloor
+	if floor <= 0 {
+		floor = tcpGrowthFloor
+	}
+	minSamples := snap.Settings.TCPGrowthMinSamples
+	if minSamples < 2 {
+		minSamples = tcpGrowthMinSamples
+	}
+	factor := snap.Settings.TCPGrowthFactor
+	if factor <= 1 {
+		factor = tcpGrowthFactor
+	}
 	r.mu.Lock()
 	r.samples = append(r.samples, tcpSample{at: snap.Now, value: value})
-	cutoff := snap.Now.Add(-tcpGrowthWindow)
+	cutoff := snap.Now.Add(-window)
 	kept := r.samples[:0]
 	for _, sample := range r.samples {
 		if !sample.at.Before(cutoff) {
@@ -279,14 +304,14 @@ func (r *tcpConnectionsRule) Evaluate(_ context.Context, snap AlertSnapshot) Rul
 	var reasons []string
 	boundary := 0.0
 	switch {
-	case value >= TCPConnectionsCritical:
-		severity, boundary = SeverityCritical, TCPConnectionsCritical
-		reasons = append(reasons, fmt.Sprintf("%d established connections (>= %d)", int(value), TCPConnectionsCritical))
-	case value >= TCPConnectionsWarning:
-		severity, boundary = SeverityWarning, TCPConnectionsWarning
-		reasons = append(reasons, fmt.Sprintf("%d established connections (>= %d)", int(value), TCPConnectionsWarning))
+	case value >= float64(critical):
+		severity, boundary = SeverityCritical, float64(critical)
+		reasons = append(reasons, fmt.Sprintf("%d established connections (>= %d)", int(value), critical))
+	case value >= float64(warning):
+		severity, boundary = SeverityWarning, float64(warning)
+		reasons = append(reasons, fmt.Sprintf("%d established connections (>= %d)", int(value), warning))
 	}
-	growing := SustainedConnectionGrowth(history)
+	growing := sustainedConnectionGrowth(history, floor, minSamples, factor)
 	if growing {
 		if severity == "" {
 			severity = SeverityWarning
@@ -313,14 +338,18 @@ func (r *tcpConnectionsRule) Evaluate(_ context.Context, snap AlertSnapshot) Rul
 // end at or near its own peak (not recovering from a spike), and never give
 // back more than half of the rise in a single step.
 func SustainedConnectionGrowth(values []float64) bool {
-	if len(values) < tcpGrowthMinSamples {
+	return sustainedConnectionGrowth(values, tcpGrowthFloor, tcpGrowthMinSamples, tcpGrowthFactor)
+}
+
+func sustainedConnectionGrowth(values []float64, floor, minSamples int, factor float64) bool {
+	if len(values) < minSamples {
 		return false
 	}
 	first, last := values[0], values[len(values)-1]
-	if last < tcpGrowthFloor {
+	if last < float64(floor) {
 		return false
 	}
-	if first <= 0 || last < first*tcpGrowthFactor {
+	if first <= 0 || last < first*factor {
 		return false
 	}
 	peak := 0.0
@@ -358,8 +387,12 @@ func (gpuUsageRule) Evaluate(_ context.Context, snap AlertSnapshot) RuleEvaluati
 	if !ok {
 		return refused
 	}
-	if value >= GPUUsageWarning {
-		return activeRule(AlertCondition{Key: hostKey, Severity: SeverityWarning, Message: fmt.Sprintf("GPU usage is %.1f%%.", value), MetricName: "gpu_usage_percent", Value: value, Threshold: GPUUsageWarning})
+	warning := snap.Settings.GPUUsageWarningPercent
+	if warning <= 0 || warning > 100 {
+		warning = GPUUsageWarning
+	}
+	if value >= warning {
+		return activeRule(AlertCondition{Key: hostKey, Severity: SeverityWarning, Message: fmt.Sprintf("GPU usage is %.1f%%.", value), MetricName: "gpu_usage_percent", Value: value, Threshold: warning})
 	}
 	return clearRule()
 }

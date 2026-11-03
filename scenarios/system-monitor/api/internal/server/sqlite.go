@@ -3,16 +3,16 @@ package server
 import (
 	"context"
 	"fmt"
-	"log"
 	"path/filepath"
 
 	"github.com/vrooli/api-core/filerouting"
 	"github.com/vrooli/api-core/storage"
+	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/logx"
 
 	sqliterepo "github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/repository/sqlite"
 )
 
-func connectSQLite() (*sqliterepo.Repository, *filerouting.RoutedRoots, error) {
+func connectSQLite(logger logx.Logger) (*sqliterepo.Repository, *filerouting.RoutedRoots, error) {
 	resolver, err := storage.NewResolver(storage.ResolverConfig{})
 	if err != nil {
 		return nil, nil, fmt.Errorf("create storage resolver: %w", err)
@@ -41,6 +41,6 @@ func connectSQLite() (*sqliterepo.Repository, *filerouting.RoutedRoots, error) {
 		return nil, nil, fmt.Errorf("open sqlite: %w", err)
 	}
 
-	log.Printf("SQLite database opened at %s", dbPath)
+	logger.Info("SQLite database opened", "path", dbPath)
 	return repo, roots, nil
 }

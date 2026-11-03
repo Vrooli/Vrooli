@@ -17,11 +17,11 @@ package handlers
 
 import (
 	"context"
-	"log/slog"
 	"net/http"
 	"time"
 
 	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/httputil"
+	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/logx"
 	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/services/autoheal"
 	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/services/forensics"
 )
@@ -42,28 +42,28 @@ type AutohealClient interface {
 type ForensicsHandler struct {
 	svc      ForensicsService
 	autoheal AutohealClient
-	log      *slog.Logger
+	log      logx.Logger
 	now      func() time.Time
 }
 
 // NewForensicsHandler builds the handler.
-func NewForensicsHandler(svc ForensicsService, ah AutohealClient, log *slog.Logger) *ForensicsHandler {
+func NewForensicsHandler(svc ForensicsService, ah AutohealClient, log logx.Logger) *ForensicsHandler {
 	return &ForensicsHandler{svc: svc, autoheal: ah, log: log, now: time.Now}
 }
 
 // Pstore handles GET /api/v1/forensics/pstore.
 func (h *ForensicsHandler) Pstore(w http.ResponseWriter, r *http.Request) {
-	httputil.JSON(w, h.svc.Pstore()) //nolint:errcheck
+	httputil.JSON(w, h.svc.Pstore()) //nolint:errcheck // response write failure cannot be recovered after disconnect
 }
 
 // BootHistory handles GET /api/v1/forensics/boot-history.
 func (h *ForensicsHandler) BootHistory(w http.ResponseWriter, r *http.Request) {
-	httputil.JSON(w, h.svc.BootHistory(r.Context())) //nolint:errcheck
+	httputil.JSON(w, h.svc.BootHistory(r.Context())) //nolint:errcheck // response write failure cannot be recovered after disconnect
 }
 
 // MCE handles GET /api/v1/forensics/mce.
 func (h *ForensicsHandler) MCE(w http.ResponseWriter, r *http.Request) {
-	httputil.JSON(w, h.svc.MCE(r.Context())) //nolint:errcheck
+	httputil.JSON(w, h.svc.MCE(r.Context())) //nolint:errcheck // response write failure cannot be recovered after disconnect
 }
 
 // SummaryResponse aggregates the four forensics signals.
@@ -89,5 +89,5 @@ func (h *ForensicsHandler) Summary(w http.ResponseWriter, r *http.Request) {
 	} else {
 		resp.Autoheal = autoheal.Envelope{Reason: "autoheal client not configured"}
 	}
-	httputil.JSON(w, resp) //nolint:errcheck
+	httputil.JSON(w, resp) //nolint:errcheck // response write failure cannot be recovered after disconnect
 }

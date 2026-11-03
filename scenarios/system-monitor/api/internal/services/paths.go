@@ -14,15 +14,6 @@ func resolveSystemMonitorStorage() (storage.Paths, error) {
 	return resolver.Resolve(storage.Options{ScenarioID: "system-monitor"})
 }
 
-// ResolveConfigBasePath returns the base path for configuration files.
-func ResolveConfigBasePath() string {
-	paths, err := resolveSystemMonitorStorage()
-	if err != nil {
-		return ""
-	}
-	return paths.ConfigDir
-}
-
 // ResolveRuntimeStateBasePath returns the api-core storage directory for
 // mutable system-monitor settings. Runtime state must not be written into the
 // repository working tree.

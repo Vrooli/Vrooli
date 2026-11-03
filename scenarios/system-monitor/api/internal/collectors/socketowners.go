@@ -2,9 +2,7 @@ package collectors
 
 import (
 	"context"
-	"os"
 	"sort"
-	"strconv"
 	"time"
 )
 
@@ -16,9 +14,6 @@ import (
 // which process owns them — took a manual `ss -antp` to answer. It was 93% one
 // process.
 const defaultSocketAttributionThreshold = 5000
-
-// socketAttributionThresholdEnv overrides the threshold; 0 disables attribution.
-const socketAttributionThresholdEnv = "SYSTEM_MONITOR_SOCKET_ATTRIBUTION_THRESHOLD"
 
 // SocketOwner is one process's share of the host's TCP sockets.
 type SocketOwner struct {
@@ -82,22 +77,9 @@ func (c *NetworkCollector) CollectNetworkDiagnostic(ctx context.Context, request
 	return result
 }
 
-func socketAttributionThreshold() int {
-	raw := os.Getenv(socketAttributionThresholdEnv)
-	if raw == "" {
-		return defaultSocketAttributionThreshold
-	}
-	value, err := strconv.Atoi(raw)
-	if err != nil || value < 0 {
-		return defaultSocketAttributionThreshold
-	}
-	return value
-}
-
 // shouldAttributeSockets reports whether the established count justifies the
 // /proc walk. A zero threshold disables attribution entirely.
-func shouldAttributeSockets(established int) bool {
-	threshold := socketAttributionThreshold()
+func shouldAttributeSockets(established, threshold int) bool {
 	if threshold == 0 {
 		return false
 	}

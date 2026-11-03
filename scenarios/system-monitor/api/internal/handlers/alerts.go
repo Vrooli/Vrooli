@@ -4,7 +4,6 @@ package handlers
 
 import (
 	"context"
-	"log/slog"
 	"strings"
 	"time"
 
@@ -12,6 +11,7 @@ import (
 	alertspb "github.com/vrooli/vrooli/packages/proto/gen/go/system-monitor/v1/alerts"
 	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/apierrors"
 	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/convert"
+	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/logx"
 	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/models"
 	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/services"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -36,13 +36,13 @@ type AlertAcknowledger interface {
 type AlertsHandler struct {
 	source AlertSource
 	acks   AlertAcknowledger
-	log    *slog.Logger
+	log    logx.Logger
 }
 
 // NewAlertsHandler creates the alerts handler.
-func NewAlertsHandler(source AlertSource, acks AlertAcknowledger, log *slog.Logger) *AlertsHandler {
+func NewAlertsHandler(source AlertSource, acks AlertAcknowledger, log logx.Logger) *AlertsHandler {
 	if log == nil {
-		log = slog.Default()
+		log = logx.Default()
 	}
 	return &AlertsHandler{source: source, acks: acks, log: log}
 }

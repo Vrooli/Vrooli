@@ -13,7 +13,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"os"
 	"strings"
 	"time"
 
@@ -48,7 +47,7 @@ var forensicsCheckIDs = map[string]bool{
 
 // Config controls Client behavior.
 type Config struct {
-	BaseURL string        // optional; falls back to env / discovery
+	BaseURL string        // optional; falls back to scenario discovery
 	Timeout time.Duration // default 2s
 }
 
@@ -133,9 +132,6 @@ func (c *Client) Forensics(ctx context.Context) Envelope {
 func (c *Client) resolveURL(ctx context.Context) (string, error) {
 	if c.baseURL != "" {
 		return strings.TrimRight(c.baseURL, "/"), nil
-	}
-	if env := os.Getenv("VROOLI_AUTOHEAL_API_URL"); env != "" {
-		return strings.TrimRight(env, "/"), nil
 	}
 	url, err := discovery.ResolveScenarioURLDefault(ctx, "vrooli-autoheal")
 	if err != nil {

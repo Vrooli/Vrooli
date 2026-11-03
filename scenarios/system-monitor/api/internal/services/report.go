@@ -354,12 +354,15 @@ func calculateStatsWithTime(metrics []*models.MetricsResponse, valueExtractor fu
 func measuredCPU(metrics []*models.MetricsResponse) []*models.MetricsResponse {
 	return measuredMetric(metrics, func(m *models.MetricsResponse) bool { return m.CPUState.Status == "measured" })
 }
+
 func measuredMemory(metrics []*models.MetricsResponse) []*models.MetricsResponse {
 	return measuredMetric(metrics, func(m *models.MetricsResponse) bool { return m.MemoryState.Status == "measured" })
 }
+
 func measuredConnections(metrics []*models.MetricsResponse) []*models.MetricsResponse {
 	return measuredMetric(metrics, func(m *models.MetricsResponse) bool { return m.ConnectionsState.Status == "measured" })
 }
+
 func measuredMetric(metrics []*models.MetricsResponse, keep func(*models.MetricsResponse) bool) []*models.MetricsResponse {
 	result := make([]*models.MetricsResponse, 0, len(metrics))
 	for _, metric := range metrics {

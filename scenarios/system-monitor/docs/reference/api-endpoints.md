@@ -36,7 +36,7 @@ probes, development pprof, logs, and forensics.
 | GET | `/api/v1/metrics/timeline` | Recent metrics timeline |
 | GET | `/api/v1/metrics/processes` | Process monitoring data (zombies, high-thread, leak candidates) |
 | GET | `/api/v1/metrics/processes/timeline` | Ranked process consumers over a time window, grouped by owner/scenario |
-| GET | `/api/v1/forensics/processes` | Bounded CPU, RSS, or GPU-VRAM-ranked process attribution (`rank=cpu|rss|gpu`) |
+| GET | `/api/v1/forensics/processes` | Bounded CPU, RSS, or GPU-VRAM-ranked process attribution (`rank=cpu|rss|gpu`); accepts a 24-hour max explicit `start_utc`/`end_utc` RFC3339 interval |
 | GET | `/api/v1/forensics/gpu` | Retained GPU utilization and VRAM timeline (`window=1h`) |
 | GET | `/api/v1/forensics/pressure` | Retained memory PSI and OOM-kill timeline (`window=1h`) |
 | GET | `/api/v1/metrics/infrastructure` | Infrastructure monitoring (DB pools, HTTP pools, queues, storage I/O) |
@@ -96,9 +96,6 @@ level source/reason, measured signals, and top contributors with owner).
 | GET | `/api/v1/investigations/cooldown` | Get cooldown status |
 | POST | `/api/v1/investigations/cooldown/reset` | Reset cooldown period |
 | PUT | `/api/v1/investigations/cooldown/period` | Update cooldown duration |
-| GET | `/api/v1/investigations/triggers` | Get all investigation triggers |
-| PUT | `/api/v1/investigations/triggers/{id}` | Update trigger config |
-| PUT | `/api/v1/investigations/triggers/{id}/threshold` | Update trigger threshold only |
 | GET | `/api/v1/investigations/scripts` | List investigation scripts |
 | GET | `/api/v1/investigations/scripts/{id}` | Get script by ID |
 | POST | `/api/v1/investigations/scripts/{id}/execute` | Execute investigation script |

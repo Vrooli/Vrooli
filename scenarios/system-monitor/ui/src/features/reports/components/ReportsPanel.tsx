@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { BarChart, TrendingUp, RefreshCw, Loader } from 'lucide-react';
-import type { SystemReport } from '../../../types';
+import type { EnhancedSystemReport } from '../../../types';
 import { LoadingSkeleton } from '../../../shared/components/LoadingSkeleton';
 import { useToast } from '../../../shared/components/ToastProvider';
 import { extractErrorMessage, protoFetch } from '../../../shared/api/apiFetch';
@@ -8,13 +8,24 @@ import { parseListReportsResponse, parseGenerateReportResponse } from '../../../
 import { timestampDate } from '@bufbuild/protobuf/wkt';
 import { ReportInline } from '../../../shared/report/ReportBody';
 
+type ReportsLoadState =
+  | { kind: 'loading' }
+  | { kind: 'ready' }
+  | { kind: 'refreshing' }
+  | { kind: 'failed'; message: string };
+
+type ReportGenerationState =
+  | { kind: 'idle' }
+  | { kind: 'generating'; reportType: 'daily' | 'weekly' };
+
 export const ReportsPanel = () => {
   const { showApiError } = useToast();
-  const [reports, setReports] = useState<SystemReport[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [isGenerating, setIsGenerating] = useState<string | null>(null);
-  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [reports, setReports] = useState<EnhancedSystemReport[]>([]);
+  const [loadState, setLoadState] = useState<ReportsLoadState>({ kind: 'loading' });
+  const [generationState, setGenerationState] = useState<ReportGenerationState>({ kind: 'idle' });
+  const isRefreshing = loadState.kind === 'refreshing';
+  const generatingType = generationState.kind === 'generating' ? generationState.reportType : null;
+  const isGenerating = generatingType !== null;
   const mountedRef = useRef(true);
 
   useEffect(() => {
@@ -22,28 +33,15 @@ export const ReportsPanel = () => {
   }, []);
 
   const loadReports = async (isRefresh = false) => {
-    if (isRefresh) {
-      setIsRefreshing(true);
-    } else {
-      setLoading(true);
-    }
-    
+    setLoadState({ kind: isRefresh ? 'refreshing' : 'loading' });
     try {
-      setError(null);
       const resp = await protoFetch('/reports', parseListReportsResponse);
       if (!mountedRef.current) return;
-      setReports((resp.reports ?? []) as unknown as SystemReport[]);
+      setReports(resp.reports ?? []);
+      setLoadState({ kind: 'ready' });
     } catch (err) {
       if (mountedRef.current) {
-        setError(extractErrorMessage(err, 'Failed to load reports'));
-      }
-    } finally {
-      if (mountedRef.current) {
-        if (isRefresh) {
-          setIsRefreshing(false);
-        } else {
-          setLoading(false);
-        }
+        setLoadState({ kind: 'failed', message: extractErrorMessage(err, 'Failed to load reports') });
       }
     }
   };
@@ -53,9 +51,8 @@ export const ReportsPanel = () => {
   }, []);
 
   const generateReport = async (type: 'daily' | 'weekly') => {
-    if (isGenerating || isRefreshing) return; // Prevent multiple concurrent operations
-    
-    setIsGenerating(type);
+    if (isGenerating || isRefreshing) return;
+    setGenerationState({ kind: 'generating', reportType: type });
     
     try {
       await protoFetch('/reports/generate', parseGenerateReportResponse, {
@@ -70,7 +67,7 @@ export const ReportsPanel = () => {
       showApiError(err);
     } finally {
       if (mountedRef.current) {
-        setIsGenerating(null);
+        setGenerationState({ kind: 'idle' });
       }
     }
   };
@@ -86,9 +83,9 @@ export const ReportsPanel = () => {
           <button
             className="btn btn-action"
             onClick={() => { void generateReport('daily'); }}
-            disabled={isGenerating !== null || isRefreshing}
+            disabled={isGenerating || isRefreshing}
           >
-            {isGenerating === 'daily' ? (
+            {generatingType === 'daily' ? (
               <>
                 <Loader size={16} className="spinning-loader" />
                 GENERATING...
@@ -103,9 +100,9 @@ export const ReportsPanel = () => {
           <button
             className="btn btn-action"
             onClick={() => { void generateReport('weekly'); }}
-            disabled={isGenerating !== null || isRefreshing}
+            disabled={isGenerating || isRefreshing}
           >
-            {isGenerating === 'weekly' ? (
+            {generatingType === 'weekly' ? (
               <>
                 <Loader size={16} className="spinning-loader" />
                 GENERATING...
@@ -120,7 +117,7 @@ export const ReportsPanel = () => {
           <button
             className="btn btn-action"
             onClick={() => { void loadReports(true); }}
-            disabled={isGenerating !== null || isRefreshing}
+            disabled={isGenerating || isRefreshing}
           >
             {isRefreshing ? (
               <>
@@ -138,13 +135,13 @@ export const ReportsPanel = () => {
       </div>
       
       <div className="reports-list">
-        {loading ? (
+        {loadState.kind === 'loading' ? (
           <LoadingSkeleton variant="card" count={2} />
-        ) : error && !loading ? (
+        ) : loadState.kind === 'failed' ? (
           <div className="error-banner" data-sm-style="sm-style-c220bf04e8">
             FAILED TO LOAD REPORTS
             <br />
-            <span data-sm-style="sm-style-634e37ebe1">{error}</span>
+            <span data-sm-style="sm-style-634e37ebe1">{loadState.message}</span>
             <br />
             <button type="button" className="btn btn-action"
               onClick={() => { void loadReports(); }}
@@ -158,11 +155,11 @@ export const ReportsPanel = () => {
           </div>
         ) : (
           reports.map(report => (
-            <div key={report.id} className="report-item section-card mb-md" data-sm-style="sm-style-667fe49ecb">
+            <div key={report.reportId} className="report-item section-card mb-md" data-sm-style="sm-style-667fe49ecb">
               <div className="flex-row-between mb-md" data-sm-style="sm-style-b27fbbaf32">
                 <div>
                   <h4 className="section-heading" data-sm-style="sm-style-40e6416985">
-                    {report.type} Report
+                    {report.reportType} Report
                   </h4>
                   <p className="text-muted text-sm" data-sm-style="sm-style-2a0ca8350a">
                     Generated: {report.generatedAt ? timestampDate(report.generatedAt).toLocaleString() : 'Unknown'}
@@ -170,7 +167,7 @@ export const ReportsPanel = () => {
                 </div>
 
                 <span className="badge badge-success">
-                  {report.type}
+                  {report.reportType}
                 </span>
               </div>
 
@@ -178,30 +175,30 @@ export const ReportsPanel = () => {
                 <div className="summary-stat">
                   <span className="summary-stat-label">Avg CPU Usage:</span>
                   <span className="summary-stat-value" data-sm-style="sm-style-dbed1e5364">
-                    {report.summary?.avgCpuUsage.toFixed(1)}%
+                    {report.performance?.cpu?.average.toFixed(1) ?? '—'}%
                   </span>
                 </div>
 
                 <div className="summary-stat">
                   <span className="summary-stat-label">Avg Memory Usage:</span>
                   <span className="summary-stat-value" data-sm-style="sm-style-dbed1e5364">
-                    {report.summary?.avgMemoryUsage.toFixed(1)}%
+                    {report.performance?.memory?.average.toFixed(1) ?? '—'}%
                   </span>
                 </div>
 
                 <div className="summary-stat">
                   <span className="summary-stat-label">Total Alerts:</span>
                   <span className="summary-stat-value" style={{
-                    color: (report.summary?.totalAlerts ?? 0) > 0 ? 'var(--color-warning)' : 'var(--color-success)'
+                    color: report.alertsCount > 0 ? 'var(--color-warning)' : 'var(--color-success)'
                   }}>
-                    {report.summary?.totalAlerts}
+                    {report.alertsCount}
                   </span>
                 </div>
 
                 <div className="summary-stat">
-                  <span className="summary-stat-label">Uptime:</span>
+                  <span className="summary-stat-label">Overall Health:</span>
                   <span className="summary-stat-value" data-sm-style="sm-style-eab9fc4afc">
-                    {report.summary?.uptimePercentage.toFixed(1)}%
+                    {report.executiveSummary?.overallHealth || 'Unknown'}
                   </span>
                 </div>
               </div>

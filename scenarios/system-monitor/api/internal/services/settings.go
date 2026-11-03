@@ -2,9 +2,13 @@ package services
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
+	"io/fs"
 	"sync"
 	"time"
+
+	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/logx"
 )
 
 // Settings represents the system monitor settings
@@ -21,14 +25,26 @@ type Settings struct {
 	CooldownPeriodSeconds int `json:"cooldown_period_seconds"`
 
 	// System thresholds
-	CPUThreshold                 float64 `json:"cpu_threshold"`
-	CPUHighPercent               float64 `json:"cpu_high_percent"`
-	CPUCriticalPercent           float64 `json:"cpu_critical_percent"`
-	CPUEscalationCooldownSeconds int     `json:"cpu_escalation_cooldown_seconds"`
-	CPUEscalationDebounceTicks   int     `json:"cpu_escalation_debounce_ticks"`
-	CPUSustainedWindowTicks      int     `json:"cpu_sustained_window_ticks"`
-	CPUPressureThreshold         float64 `json:"cpu_pressure_threshold"`
-	MemoryThreshold              float64 `json:"memory_threshold"`
+	CPUThreshold                  float64         `json:"cpu_threshold"`
+	CPUHighPercent                float64         `json:"cpu_high_percent"`
+	CPUCriticalPercent            float64         `json:"cpu_critical_percent"`
+	CPUEscalationCooldownSeconds  int             `json:"cpu_escalation_cooldown_seconds"`
+	CPUEscalationDebounceTicks    int             `json:"cpu_escalation_debounce_ticks"`
+	CPUSustainedWindowTicks       int             `json:"cpu_sustained_window_ticks"`
+	CPUPressureThreshold          float64         `json:"cpu_pressure_threshold"`
+	MemoryThreshold               float64         `json:"memory_threshold"`
+	MemoryCriticalPercent         float64         `json:"memory_critical_percent"`
+	TCPConnectionsWarning         int             `json:"tcp_connections_warning"`
+	TCPConnectionsCritical        int             `json:"tcp_connections_critical"`
+	TCPGrowthWindowSeconds        int             `json:"tcp_growth_window_seconds"`
+	TCPGrowthFloor                int             `json:"tcp_growth_floor"`
+	TCPGrowthMinSamples           int             `json:"tcp_growth_min_samples"`
+	TCPGrowthFactor               float64         `json:"tcp_growth_factor"`
+	GPUUsageWarningPercent        float64         `json:"gpu_usage_warning_percent"`
+	MetricsSnapshotStaleIntervals int             `json:"metrics_snapshot_stale_intervals"`
+	OrphanedAgentAgeSeconds       int             `json:"orphaned_agent_age_seconds"`
+	OrphanedAgentMemoryBytes      int64           `json:"orphaned_agent_memory_bytes"`
+	AutoInvestigateCriticalRules  map[string]bool `json:"auto_investigate_critical_rules"`
 
 	// DiskThreshold is the warning band boundary: the usage percentage at
 	// which disk pressure starts being recorded. It is deliberately the same
@@ -90,11 +106,14 @@ type settingsFile struct {
 	Settings Settings               `json:"settings"`
 }
 
+const settingsFileName = "system-monitor-settings.json"
+
 // SettingsManager manages system monitor settings with thread safety
 type SettingsManager struct {
 	settings          Settings
 	mutex             sync.RWMutex
 	clock             Clock
+	logger            logx.Logger
 	stateStore        ConfigStore
 	onActiveChanged   func(active bool)   // Callback for when active status changes
 	onSettingsChanged func(next Settings) // Callback for any settings change
@@ -108,6 +127,15 @@ func WithSettingsClock(c Clock) SettingsOption {
 	return func(sm *SettingsManager) { sm.clock = c }
 }
 
+// WithSettingsLogger sets the structured logger used by settings lifecycle.
+func WithSettingsLogger(logger logx.Logger) SettingsOption {
+	return func(sm *SettingsManager) {
+		if logger != nil {
+			sm.logger = logger
+		}
+	}
+}
+
 // WithSettingsConfigStore sets the config store used by the settings manager.
 func WithSettingsConfigStore(cs ConfigStore) SettingsOption {
 	return func(sm *SettingsManager) { sm.stateStore = cs }
@@ -115,20 +143,40 @@ func WithSettingsConfigStore(cs ConfigStore) SettingsOption {
 
 // Default settings (always start inactive for safety)
 var defaultSettings = Settings{
-	Active:                       false, // ALWAYS start inactive for safety
-	MetricCollectionInterval:     20,    // 20 seconds
-	AnomalyDetectionInterval:     30,    // 30 seconds
-	ThresholdCheckInterval:       20,    // 20 seconds
-	CooldownPeriodSeconds:        300,   // 5 minutes
-	CPUThreshold:                 85.0,  // 85%
-	CPUHighPercent:               92.0,
-	CPUCriticalPercent:           97.0,
-	CPUEscalationCooldownSeconds: 1800,
-	CPUEscalationDebounceTicks:   2,
-	CPUSustainedWindowTicks:      3,
-	CPUPressureThreshold:         10.0,
-	MemoryThreshold:              90.0, // 90%
-	DiskThreshold:                80.0, // warning band
+	Active:                        false, // ALWAYS start inactive for safety
+	MetricCollectionInterval:      20,    // 20 seconds
+	AnomalyDetectionInterval:      30,    // 30 seconds
+	ThresholdCheckInterval:        20,    // 20 seconds
+	CooldownPeriodSeconds:         300,   // 5 minutes
+	CPUThreshold:                  85.0,  // 85%
+	CPUHighPercent:                92.0,
+	CPUCriticalPercent:            97.0,
+	CPUEscalationCooldownSeconds:  1800,
+	CPUEscalationDebounceTicks:    2,
+	CPUSustainedWindowTicks:       3,
+	CPUPressureThreshold:          10.0,
+	MemoryThreshold:               90.0, // 90%
+	MemoryCriticalPercent:         95.0,
+	TCPConnectionsWarning:         5000,
+	TCPConnectionsCritical:        20000,
+	TCPGrowthWindowSeconds:        600,
+	TCPGrowthFloor:                500,
+	TCPGrowthMinSamples:           5,
+	TCPGrowthFactor:               2,
+	GPUUsageWarningPercent:        90,
+	MetricsSnapshotStaleIntervals: 10,
+	OrphanedAgentAgeSeconds:       3600,
+	OrphanedAgentMemoryBytes:      2 * 1024 * 1024 * 1024,
+	AutoInvestigateCriticalRules: map[string]bool{
+		RuleMetricsSnapshot: true,
+		RuleCPUUsage:        true,
+		RuleMemoryUsage:     true,
+		RuleTCPConnections:  true,
+		RuleGPUUsage:        true,
+		RuleMemoryPressure:  true,
+		RuleOrphanedAgents:  true,
+	},
+	DiskThreshold: 80.0, // warning band
 
 	DiskHighPercent:               90.0,
 	DiskCriticalPercent:           95.0,
@@ -184,6 +232,59 @@ func sanitizeSettings(settings Settings) (Settings, bool) {
 		settings.MemoryThreshold = defaultSettings.MemoryThreshold
 		changed = true
 	}
+	if settings.MemoryCriticalPercent <= 0 {
+		settings.MemoryCriticalPercent = defaultSettings.MemoryCriticalPercent
+		changed = true
+	}
+	if settings.MemoryCriticalPercent <= settings.MemoryThreshold {
+		settings.MemoryThreshold = defaultSettings.MemoryThreshold
+		settings.MemoryCriticalPercent = defaultSettings.MemoryCriticalPercent
+		changed = true
+	}
+	if settings.TCPConnectionsWarning <= 0 {
+		settings.TCPConnectionsWarning = defaultSettings.TCPConnectionsWarning
+		changed = true
+	}
+	if settings.TCPConnectionsCritical <= settings.TCPConnectionsWarning {
+		settings.TCPConnectionsWarning = defaultSettings.TCPConnectionsWarning
+		settings.TCPConnectionsCritical = defaultSettings.TCPConnectionsCritical
+		changed = true
+	}
+	if settings.TCPGrowthWindowSeconds <= 0 {
+		settings.TCPGrowthWindowSeconds = defaultSettings.TCPGrowthWindowSeconds
+		changed = true
+	}
+	if settings.TCPGrowthFloor <= 0 {
+		settings.TCPGrowthFloor = defaultSettings.TCPGrowthFloor
+		changed = true
+	}
+	if settings.TCPGrowthMinSamples < 2 {
+		settings.TCPGrowthMinSamples = defaultSettings.TCPGrowthMinSamples
+		changed = true
+	}
+	if settings.TCPGrowthFactor <= 1 {
+		settings.TCPGrowthFactor = defaultSettings.TCPGrowthFactor
+		changed = true
+	}
+	if settings.GPUUsageWarningPercent <= 0 || settings.GPUUsageWarningPercent > 100 {
+		settings.GPUUsageWarningPercent = defaultSettings.GPUUsageWarningPercent
+		changed = true
+	}
+	if settings.MetricsSnapshotStaleIntervals <= 0 {
+		settings.MetricsSnapshotStaleIntervals = defaultSettings.MetricsSnapshotStaleIntervals
+		changed = true
+	}
+	if settings.OrphanedAgentAgeSeconds <= 0 {
+		settings.OrphanedAgentAgeSeconds = defaultSettings.OrphanedAgentAgeSeconds
+		changed = true
+	}
+	if settings.OrphanedAgentMemoryBytes <= 0 {
+		settings.OrphanedAgentMemoryBytes = defaultSettings.OrphanedAgentMemoryBytes
+		changed = true
+	}
+	if sanitizeAutoInvestigateRules(&settings) {
+		changed = true
+	}
 
 	if settings.DiskThreshold <= 0 {
 		settings.DiskThreshold = defaultSettings.DiskThreshold
@@ -212,6 +313,37 @@ func sanitizeSettings(settings Settings) (Settings, bool) {
 	}
 
 	return settings, changed
+}
+
+func sanitizeAutoInvestigateRules(settings *Settings) bool {
+	changed := false
+	if settings.AutoInvestigateCriticalRules == nil {
+		settings.AutoInvestigateCriticalRules = make(map[string]bool, len(defaultSettings.AutoInvestigateCriticalRules))
+	}
+	for ruleID, defaultEnabled := range defaultSettings.AutoInvestigateCriticalRules {
+		if _, ok := settings.AutoInvestigateCriticalRules[ruleID]; !ok {
+			settings.AutoInvestigateCriticalRules[ruleID] = defaultEnabled
+			changed = true
+		}
+	}
+	for ruleID := range settings.AutoInvestigateCriticalRules {
+		if _, ok := defaultSettings.AutoInvestigateCriticalRules[ruleID]; !ok {
+			delete(settings.AutoInvestigateCriticalRules, ruleID)
+			changed = true
+		}
+	}
+	return changed
+}
+
+func cloneSettings(settings Settings) Settings {
+	if settings.AutoInvestigateCriticalRules != nil {
+		rules := make(map[string]bool, len(settings.AutoInvestigateCriticalRules))
+		for ruleID, enabled := range settings.AutoInvestigateCriticalRules {
+			rules[ruleID] = enabled
+		}
+		settings.AutoInvestigateCriticalRules = rules
+	}
+	return settings
 }
 
 func sanitizeCPUBands(settings *Settings) bool {
@@ -333,6 +465,7 @@ func NewSettingsManager(opts ...SettingsOption) *SettingsManager {
 	sm := &SettingsManager{
 		settings: defaultSettings,
 		clock:    RealClock{},
+		logger:   logx.Default(),
 	}
 	for _, opt := range opts {
 		opt(sm)
@@ -341,13 +474,14 @@ func NewSettingsManager(opts ...SettingsOption) *SettingsManager {
 		sm.stateStore = &FileConfigStore{basePath: ResolveRuntimeStateBasePath()}
 	}
 
-	// Try to load existing settings, but if it fails, use defaults
+	// Missing settings are initialized with defaults. Invalid or unreadable
+	// settings fall back in memory but are preserved for operator recovery.
 	if err := sm.loadFromFile(); err != nil {
-		// Log the error but continue with defaults
-		fmt.Printf("Warning: Could not load settings from file (%v), using defaults\n", err)
-		// Save defaults to create the config file
-		if err := sm.saveToFile(); err != nil {
-			fmt.Printf("Warning: Could not save default settings (%v)\n", err)
+		sm.logger.Warn("could not load settings file; using defaults in memory", "error", err)
+		if errors.Is(err, fs.ErrNotExist) {
+			if saveErr := sm.saveToFile(); saveErr != nil {
+				sm.logger.Error("could not persist default settings", "error", saveErr)
+			}
 		}
 	}
 
@@ -358,37 +492,44 @@ func NewSettingsManager(opts ...SettingsOption) *SettingsManager {
 func (sm *SettingsManager) GetSettings() Settings {
 	sm.mutex.RLock()
 	defer sm.mutex.RUnlock()
-	return sm.settings
+	return cloneSettings(sm.settings)
 }
 
 // UpdateSettings updates the settings and saves to file
 func (sm *SettingsManager) UpdateSettings(newSettings Settings) error {
 	sm.mutex.Lock()
-	defer sm.mutex.Unlock()
 
 	// Check if active status is changing
 	oldActive := sm.settings.Active
 	newActive := newSettings.Active
 
 	// Update settings
-	sanitized, changed := sanitizeSettings(newSettings)
+	sanitized, changed := sanitizeSettings(cloneSettings(newSettings))
 	sm.settings = sanitized
 
 	// Save to file
 	if err := sm.saveToFile(); err != nil {
+		sm.mutex.Unlock()
 		return fmt.Errorf("failed to save settings: %w", err)
 	}
 
-	// Call callbacks outside of the mutex to prevent deadlock.
-	if oldActive != newActive && sm.onActiveChanged != nil {
-		go sm.onActiveChanged(newActive)
+	activeCallback := sm.onActiveChanged
+	settingsCallback := sm.onSettingsChanged
+	settingsCopy := cloneSettings(sanitized)
+	sm.mutex.Unlock()
+
+	// Call callbacks synchronously outside the settings lock. This keeps their
+	// effects within the admitted request that changed settings, so maintenance
+	// drain does not race detached updates after the handler returns.
+	if oldActive != newActive && activeCallback != nil {
+		activeCallback(newActive)
 	}
-	if sm.onSettingsChanged != nil {
-		go sm.onSettingsChanged(sanitized)
+	if settingsCallback != nil {
+		settingsCallback(settingsCopy)
 	}
 
 	if changed {
-		fmt.Println("Warning: Invalid monitoring settings values were adjusted to safe defaults")
+		sm.logger.Warn("invalid settings adjusted to safe defaults")
 	}
 
 	return nil
@@ -404,20 +545,20 @@ func (sm *SettingsManager) IsActive() bool {
 // SetActive updates just the active status
 func (sm *SettingsManager) SetActive(active bool) error {
 	sm.mutex.Lock()
-	defer sm.mutex.Unlock()
 
 	oldActive := sm.settings.Active
 	sm.settings.Active = active
 
 	// Save to file
 	if err := sm.saveToFile(); err != nil {
+		sm.mutex.Unlock()
 		return fmt.Errorf("failed to save settings: %w", err)
 	}
 
-	// Call callback if status changed
-	if oldActive != active && sm.onActiveChanged != nil {
-		// Call callback outside of mutex to prevent deadlock
-		go sm.onActiveChanged(active)
+	callback := sm.onActiveChanged
+	sm.mutex.Unlock()
+	if oldActive != active && callback != nil {
+		callback(active)
 	}
 
 	return nil
@@ -425,7 +566,7 @@ func (sm *SettingsManager) SetActive(active bool) error {
 
 // ResetSettings resets to default settings (inactive)
 func (sm *SettingsManager) ResetSettings() error {
-	return sm.UpdateSettings(defaultSettings)
+	return sm.UpdateSettings(cloneSettings(defaultSettings))
 }
 
 // SetActiveChangedCallback sets the callback function for when active status changes
@@ -446,7 +587,7 @@ func (sm *SettingsManager) SetSettingsChangedCallback(callback func(next Setting
 
 // loadFromFile loads settings from JSON file
 func (sm *SettingsManager) loadFromFile() error {
-	data, err := sm.stateStore.ReadConfig("system-monitor-settings.json")
+	data, err := sm.stateStore.ReadConfig(settingsFileName)
 	if err != nil {
 		return fmt.Errorf("failed to read config file: %w", err)
 	}
@@ -459,9 +600,9 @@ func (sm *SettingsManager) loadFromFile() error {
 	sanitized, changed := sanitizeSettings(file.Settings)
 	sm.settings = sanitized
 	if changed {
-		fmt.Println("Warning: Detected invalid monitoring settings; reverting to safe defaults")
+		sm.logger.Warn("invalid settings detected; reverting values to safe defaults")
 		if err := sm.saveToFile(); err != nil {
-			fmt.Printf("Warning: failed to persist sanitized settings: %v\n", err)
+			sm.logger.Error("failed to persist sanitized settings", "error", err)
 		}
 	}
 	return nil
@@ -485,7 +626,7 @@ func (sm *SettingsManager) saveToFile() error {
 		return fmt.Errorf("failed to marshal config: %w", err)
 	}
 
-	if err := sm.stateStore.WriteConfig("system-monitor-settings.json", data); err != nil {
+	if err := sm.stateStore.WriteConfig(settingsFileName, data); err != nil {
 		return fmt.Errorf("failed to write config file: %w", err)
 	}
 

@@ -45,6 +45,22 @@ export interface DetailLayoutPreference {
 
 const DETAIL_LAYOUT_VERSION = 1;
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === 'object' && !Array.isArray(value);
+}
+
+function asRecord(value: unknown): Record<string, unknown> | undefined {
+  return isRecord(value) ? value : undefined;
+}
+
+function detailDensity(value: unknown): DetailDensity | undefined {
+  return value === 'compact' || value === 'comfortable' || value === 'dense' ? value : undefined;
+}
+
+function detailColumnCount(value: unknown): DetailColumnCount | undefined {
+  return value === 1 || value === 2 || value === 3 ? value : undefined;
+}
+
 export const DetailSection = ({ id, title, children }: DetailSectionProps) => (
   <section
     data-detail-section={id}
@@ -70,18 +86,18 @@ function normalizeDetailPreference(
     density: 'comfortable',
     columns: 1,
   };
-  if (!raw || typeof raw !== 'object') return defaults;
-  const candidate = raw as Partial<DetailLayoutPreference> & { version?: unknown };
-  if (candidate.version !== undefined && candidate.version !== DETAIL_LAYOUT_VERSION) return defaults;
-  const order = Array.isArray(candidate.order)
-    ? candidate.order.filter((id): id is string => typeof id === 'string' && sectionIds.includes(id))
+  const candidate = asRecord(raw);
+  if (!candidate) return defaults;
+  if (candidate['version'] !== undefined && candidate['version'] !== DETAIL_LAYOUT_VERSION) return defaults;
+  const order = Array.isArray(candidate['order'])
+    ? candidate['order'].filter((id): id is string => typeof id === 'string' && sectionIds.includes(id))
     : [];
-  const hidden = Array.isArray(candidate.hidden)
-    ? candidate.hidden.filter((id): id is string => typeof id === 'string' && sectionIds.includes(id))
+  const hidden = Array.isArray(candidate['hidden'])
+    ? candidate['hidden'].filter((id): id is string => typeof id === 'string' && sectionIds.includes(id))
     : [];
   const completeOrder = [...order, ...sectionIds.filter(id => !order.includes(id))];
-  const density = candidate.density === 'compact' || candidate.density === 'dense' ? candidate.density : 'comfortable';
-  const columns = candidate.columns === 2 || candidate.columns === 3 ? candidate.columns : 1;
+  const density = detailDensity(candidate['density']) ?? 'comfortable';
+  const columns = detailColumnCount(candidate['columns']) ?? 1;
   return { order: completeOrder, hidden: hidden.filter((id, index) => hidden.indexOf(id) === index), density, columns };
 }
 
@@ -126,7 +142,10 @@ function DetailLayoutControls({
             aria-label="Detail density"
             data-testid="detail-density"
             value={preference.density}
-            onChange={event => onChange({ ...preference, density: event.target.value as DetailDensity })}
+            onChange={event => {
+              const density = detailDensity(event.currentTarget.value);
+              if (density) onChange({ ...preference, density });
+            }}
           >
             <option value="compact">Compact</option>
             <option value="comfortable">Comfortable</option>
@@ -139,7 +158,10 @@ function DetailLayoutControls({
             aria-label="Detail columns"
             data-testid="detail-columns"
             value={preference.columns}
-            onChange={event => onChange({ ...preference, columns: Number(event.target.value) as DetailColumnCount })}
+            onChange={event => {
+              const columns = detailColumnCount(Number(event.currentTarget.value));
+              if (columns) onChange({ ...preference, columns });
+            }}
           >
             <option value="1">One</option>
             <option value="2">Two</option>
@@ -159,16 +181,16 @@ function DetailLayoutControls({
                 <input
                   type="checkbox"
                   checked={!hidden}
-                  onChange={() => onChange({
+                  onChange={() => { onChange({
                     ...preference,
                     hidden: hidden ? preference.hidden.filter(value => value !== id) : [...preference.hidden, id],
-                  })}
+                  }); }}
                 />
                 {section.title}
               </label>
               <span>
-                <button type="button" className="btn btn-icon" aria-label={`Move ${section.title} up`} disabled={index === 0} onClick={() => move(id, -1)}>↑</button>
-                <button type="button" className="btn btn-icon" aria-label={`Move ${section.title} down`} disabled={index === preference.order.length - 1} onClick={() => move(id, 1)}>↓</button>
+                <button type="button" className="btn btn-icon" aria-label={`Move ${section.title} up`} disabled={index === 0} onClick={() => { move(id, -1); }}>↑</button>
+                <button type="button" className="btn btn-icon" aria-label={`Move ${section.title} down`} disabled={index === preference.order.length - 1} onClick={() => { move(id, 1); }}>↓</button>
               </span>
             </li>
           );
@@ -270,7 +292,7 @@ export const MetricDetailLayout = ({ layoutId, title, icon, headline, subhead, o
     </div>
     <div className="detail-layout-toolbar">
       <span className="detail-layout-toolbar__label">{sectionIds.length} detail sections</span>
-      <button type="button" className="btn btn-action" data-testid="detail-layout-customize" aria-expanded={customizing} onClick={() => setCustomizing(value => !value)}>
+      <button type="button" className="btn btn-action" data-testid="detail-layout-customize" aria-expanded={customizing} onClick={() => { setCustomizing(value => !value); }}>
         {customizing ? 'Close layout controls' : 'Customize layout'}
       </button>
     </div>
@@ -510,11 +532,11 @@ export const MetricLineChart = ({
       <div className="metric-chart-toolbar" data-testid="metric-chart-controls" aria-label="Chart controls">
         <span className="metric-chart-toolbar__label">{visibleData.length} of {data.length} samples</span>
         <div className="metric-chart-toolbar__actions">
-          <button type="button" className="btn btn-icon" aria-label="Zoom in" onClick={() => zoom('in')} disabled={!canZoomIn}>+</button>
-          <button type="button" className="btn btn-icon" aria-label="Zoom out" onClick={() => zoom('out')} disabled={!canPan}>−</button>
-          <button type="button" className="btn btn-icon" aria-label="Pan chart left" onClick={() => pan(-1)} disabled={window.start === 0}>←</button>
-          <button type="button" className="btn btn-icon" aria-label="Pan chart right" onClick={() => pan(1)} disabled={window.end >= data.length - 1}>→</button>
-          <button type="button" className="btn btn-action metric-chart-toolbar__reset" aria-label="Reset chart view" onClick={() => setWindow({ start: 0, end: Math.max(data.length - 1, 0) })} disabled={!canPan}>Reset view</button>
+          <button type="button" className="btn btn-icon" aria-label="Zoom in" onClick={() => { zoom('in'); }} disabled={!canZoomIn}>+</button>
+          <button type="button" className="btn btn-icon" aria-label="Zoom out" onClick={() => { zoom('out'); }} disabled={!canPan}>−</button>
+          <button type="button" className="btn btn-icon" aria-label="Pan chart left" onClick={() => { pan(-1); }} disabled={window.start === 0}>←</button>
+          <button type="button" className="btn btn-icon" aria-label="Pan chart right" onClick={() => { pan(1); }} disabled={window.end >= data.length - 1}>→</button>
+          <button type="button" className="btn btn-action metric-chart-toolbar__reset" aria-label="Reset chart view" onClick={() => { setWindow({ start: 0, end: Math.max(data.length - 1, 0) }); }} disabled={!canPan}>Reset view</button>
         </div>
       </div>
       <p className="sr-only" data-testid="metric-chart-summary">{summary}</p>

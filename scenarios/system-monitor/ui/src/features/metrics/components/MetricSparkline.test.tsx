@@ -48,7 +48,8 @@ describe('MetricSparkline', () => {
     const plot = screen.getByRole('img', { name: 'CPU history' });
     fireEvent.focus(plot);
     expect(document.querySelector('.readout-trace__summary')).toHaveTextContent('30.0%');
-    const summary = document.querySelector('.readout-trace__summary')!;
+    const summary = document.querySelector('.readout-trace__summary');
+    if (!summary) throw new Error('Expected the summary readout');
     expect(summary.compareDocumentPosition(plot) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(document.querySelector('.readout-trace__tooltip')).not.toBeInTheDocument();
     expect(plot).toHaveAccessibleDescription(/use left and right arrows/);

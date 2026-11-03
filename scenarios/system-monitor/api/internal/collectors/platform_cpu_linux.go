@@ -46,64 +46,8 @@ func collectPlatformCPU(_ context.Context, c *CPUCollector, snapshot hostinvento
 	names := []string{"user", "nice", "system", "idle", "iowait", "irq", "softirq", "steal"}
 	usage, modes, measured := deltaCPUValues(&c.platformState, counters, now, names, 3, 4)
 	values := map[string]interface{}{"mode_breakdown": modes, "load_average_status": loadStatus(snapshot), "load_average_provenance": loadProvenance(snapshot)}
-	if c.platformState.perCore == nil {
-		c.platformState.perCore = map[string][]uint64{}
-	}
-	coreSetChanged := len(c.platformState.perCore) > 0 && len(c.platformState.perCore) != len(coreCounters)
-	if !coreSetChanged {
-		for name := range c.platformState.perCore {
-			if _, exists := coreCounters[name]; !exists {
-				coreSetChanged = true
-				break
-			}
-		}
-	}
-	perCore := map[string]float64{}
-	busiest, least := -1.0, 101.0
-	for name, current := range coreCounters {
-		prior := c.platformState.perCore[name]
-		c.platformState.perCore[name] = append([]uint64(nil), current...)
-		if coreSetChanged || len(prior) != len(current) {
-			continue
-		}
-		var total, idle uint64
-		reset := false
-		for i, v := range current {
-			if v < prior[i] {
-				reset = true
-				break
-			}
-			d := v - prior[i]
-			total += d
-			if i == 3 || i == 4 {
-				idle += d
-			}
-		}
-		if reset || total == 0 {
-			continue
-		}
-		u := float64(total-idle) * 100 / float64(total)
-		perCore[name] = u
-		if u > busiest {
-			busiest = u
-		}
-		if u < least {
-			least = u
-		}
-	}
-	if coreSetChanged {
-		values["per_core_utilization_status"] = "not_yet_sampled"
-		values["per_core_utilization_reason"] = "CPU core set changed between samples"
-		values["core_imbalance_index_status"] = "not_yet_sampled"
-		values["core_imbalance_index_reason"] = "CPU core set changed between samples"
-	} else if len(perCore) > 0 {
-		values["per_core_utilization"] = perCore
-		values["core_imbalance_index"] = busiest - least
-		values["per_core_utilization_status"] = "measured"
-		values["core_imbalance_index_status"] = "measured"
-	} else {
-		values["per_core_utilization_status"] = "not_yet_sampled"
-		values["core_imbalance_index_status"] = "not_yet_sampled"
+	for key, value := range linuxPerCoreMetrics(&c.platformState, coreCounters) {
+		values[key] = value
 	}
 	quotaValues, quotaStatus, quotaReason := linuxQuotaEvidence(c, now)
 	for key, value := range quotaValues {
@@ -138,6 +82,81 @@ func collectPlatformCPU(_ context.Context, c *CPUCollector, snapshot hostinvento
 		return platformCPUReading{status: "not_yet_sampled", reason: "CPU counter delta requires a previous valid sample", provenance: "linux /proc/stat", values: values}
 	}
 	return platformCPUReading{usage: usage, status: "measured", provenance: "linux /proc/stat", values: values}
+}
+
+// linuxPerCoreMetrics advances each core's counter baseline and emits usage
+// only when the same core set and non-reset counters appear in both samples.
+func linuxPerCoreMetrics(state *platformCPUState, coreCounters map[string][]uint64) map[string]interface{} {
+	if state.perCore == nil {
+		state.perCore = map[string][]uint64{}
+	}
+	coreSetChanged := len(state.perCore) > 0 && len(state.perCore) != len(coreCounters)
+	if !coreSetChanged {
+		for name := range state.perCore {
+			if _, exists := coreCounters[name]; !exists {
+				coreSetChanged = true
+				break
+			}
+		}
+	}
+	perCore := map[string]float64{}
+	busiest, least := -1.0, 101.0
+	for name, current := range coreCounters {
+		prior := state.perCore[name]
+		state.perCore[name] = append([]uint64(nil), current...)
+		if coreSetChanged || len(prior) != len(current) {
+			continue
+		}
+		usage, measured := coreUtilizationDelta(prior, current)
+		if !measured {
+			continue
+		}
+		perCore[name] = usage
+		if usage > busiest {
+			busiest = usage
+		}
+		if usage < least {
+			least = usage
+		}
+	}
+	if coreSetChanged {
+		return map[string]interface{}{
+			"per_core_utilization_status": "not_yet_sampled",
+			"per_core_utilization_reason": "CPU core set changed between samples",
+			"core_imbalance_index_status": "not_yet_sampled",
+			"core_imbalance_index_reason": "CPU core set changed between samples",
+		}
+	}
+	if len(perCore) == 0 {
+		return map[string]interface{}{
+			"per_core_utilization_status": "not_yet_sampled",
+			"core_imbalance_index_status": "not_yet_sampled",
+		}
+	}
+	return map[string]interface{}{
+		"per_core_utilization":        perCore,
+		"core_imbalance_index":        busiest - least,
+		"per_core_utilization_status": "measured",
+		"core_imbalance_index_status": "measured",
+	}
+}
+
+func coreUtilizationDelta(previous, current []uint64) (float64, bool) {
+	var total, idle uint64
+	for index, value := range current {
+		if value < previous[index] {
+			return 0, false
+		}
+		delta := value - previous[index]
+		total += delta
+		if index == 3 || index == 4 {
+			idle += delta
+		}
+	}
+	if total == 0 {
+		return 0, false
+	}
+	return float64(total-idle) * 100 / float64(total), true
 }
 
 func parseCPUFields(fields []string) []uint64 {

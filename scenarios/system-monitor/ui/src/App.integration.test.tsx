@@ -242,7 +242,8 @@ describe('App production surfaces', () => {
     const view = render(<App />);
     expect(await screen.findByText('Waiting for device graph')).toBeInTheDocument();
     expect(screen.getByText('Waiting for device graph')).toHaveAttribute('aria-live', 'polite');
-    const summary = screen.getByText('Device graph', { selector: 'summary > span' }).closest('summary')!;
+    const summary = screen.getByText('Device graph', { selector: 'summary > span' }).closest('summary');
+    if (!summary) throw new Error('Device graph summary was not rendered');
     expect(summary.parentElement).not.toHaveAttribute('open');
     mocks.useSystemMonitor.mockReturnValue({ ...base, error: { error: 'unrelated metrics failure' } });
     view.rerender(<App />);
@@ -276,7 +277,8 @@ describe('App production surfaces', () => {
     mocks.useServerAlerts.mockReturnValue({ alerts: [{ id: 'cpu-other', category: 'cpu_other', severity: 'critical', message: 'Other CPU condition', timestamp: '2026-02-02T00:01:00Z', resolved: false }, { id: 'cpu-alert', category: 'cpu_usage', severity: 'critical', message: 'CPU elevated', timestamp: '2026-02-02T00:00:00Z', resolved: false }], feed: { status: 'error', error: 'offline', ruleIssues: [] } });
     const scroll = vi.spyOn(window, 'scrollTo').mockImplementation(() => {});
     render(<App />);
-    const action = screen.getAllByRole('button', { name: 'Inspect cpu' })[1]!;
+    const action = screen.getAllByRole('button', { name: 'Inspect cpu' }).at(1);
+    if (!action) throw new Error('Expected the second CPU inspection action');
     action.focus();
     fireEvent.click(action);
     const context = await screen.findByRole('region', { name: 'Originating condition' }, { timeout: 5000 });
@@ -346,7 +348,7 @@ describe('App production surfaces', () => {
     fireEvent.click(retry);
     const range = screen.getByLabelText('Shared time range');
     range.focus();
-    await act(async () => { resolveRetry(fleet); });
+    act(() => { resolveRetry(fleet); });
     expect(await screen.findByTestId('machine-picker')).toBeInTheDocument();
     expect(range).toHaveFocus();
   });
@@ -458,28 +460,31 @@ describe('App production surfaces', () => {
 
   it('opens the ownership workspace at the existing process section', async () => {
     const scroll = vi.fn();
-    const original = HTMLElement.prototype.scrollIntoView;
+    const original = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'scrollIntoView');
     HTMLElement.prototype.scrollIntoView = scroll;
     render(<App />);
     fireEvent.click(screen.getByRole('link', { name: 'Processes and ownership' }));
     await waitFor(() => { expect(document.querySelector('[data-detail-section="process-monitor"]')).toBeInTheDocument(); });
     await waitFor(() => { expect(scroll).toHaveBeenCalled(); });
-    HTMLElement.prototype.scrollIntoView = original;
+    if (original) Object.defineProperty(HTMLElement.prototype, 'scrollIntoView', original);
+    else Reflect.deleteProperty(HTMLElement.prototype, 'scrollIntoView');
   });
 
   it('keeps a delayed workspace visible until the user takes control', async () => {
     const target = document.createElement('section');
     target.scrollIntoView = vi.fn();
-    target.getBoundingClientRect = () => ({ top: window.innerHeight + 100 } as DOMRect);
+    target.getBoundingClientRect = () => new DOMRect(0, window.innerHeight + 100, 0, 0);
     document.body.appendChild(target);
+    const scrollIntoView = vi.fn();
+    target.scrollIntoView = scrollIntoView;
     const stop = revealWorkspace(() => target);
-    await waitFor(() => { expect(target.scrollIntoView).toHaveBeenCalledTimes(1); });
+    await waitFor(() => { expect(scrollIntoView).toHaveBeenCalledTimes(1); });
     target.appendChild(document.createElement('p'));
-    await waitFor(() => { expect(target.scrollIntoView).toHaveBeenCalledTimes(2); });
+    await waitFor(() => { expect(scrollIntoView).toHaveBeenCalledTimes(2); });
     window.dispatchEvent(new Event('wheel'));
     target.appendChild(document.createElement('p'));
     await new Promise(resolve => setTimeout(resolve, 50));
-    expect(target.scrollIntoView).toHaveBeenCalledTimes(2);
+    expect(scrollIntoView).toHaveBeenCalledTimes(2);
     stop();
     target.remove();
   });
@@ -511,10 +516,10 @@ describe('App production surfaces', () => {
     fireEvent.click(screen.getByRole('link', { name: 'Investigations and reports' }), { detail: 0 });
     expect(await screen.findByText('Investigations and reports panel loaded. Data may still be loading.')).toHaveAttribute('role', 'status');
     fireEvent.click(screen.getByRole('link', { name: 'Logs', exact: true }));
-    await waitFor(() => expect(window.location.pathname).toBe('/logs'));
+    await waitFor(() => { expect(window.location.pathname).toBe('/logs'); });
     await waitFor(() => expect(screen.queryByText('Investigations and reports panel loaded. Data may still be loading.')).not.toBeInTheDocument());
     fireEvent.click(await screen.findByRole('link', { name: 'Dashboard', exact: true }));
-    await waitFor(() => expect(window.location.pathname).toBe('/'));
+    await waitFor(() => { expect(window.location.pathname).toBe('/'); });
     expect(screen.queryByText('Investigations and reports panel loaded. Data may still be loading.')).not.toBeInTheDocument();
   });
 
@@ -527,7 +532,7 @@ describe('App production surfaces', () => {
     await waitFor(() => expect(screen.queryByText('Investigations and reports panel loaded. Data may still be loading.')).not.toBeInTheDocument());
     fireEvent.click(await screen.findByTestId('machine-picker'));
     fireEvent.click(await screen.findByRole('option', { name: /This machine/ }));
-    await waitFor(() => expect(window.location.search).toBe(''));
+    await waitFor(() => { expect(window.location.search).toBe(''); });
     expect(screen.queryByText('Investigations and reports panel loaded. Data may still be loading.')).not.toBeInTheDocument();
   });
 

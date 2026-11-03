@@ -5,12 +5,13 @@ package services
 import (
 	"context"
 	"fmt"
-	"log/slog"
+	"strings"
 	"sync"
 	"time"
 
 	"github.com/vrooli/api-core/eventbus"
 	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/collectors"
+	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/logx"
 	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/models"
 	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/repository"
 	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/services/cleanupmanager"
@@ -123,7 +124,7 @@ type ThresholdScheduler struct {
 	reporter      PressureReporter
 	writerSampler *WriterSampler
 	events        eventPublisher
-	log           *slog.Logger
+	log           logx.Logger
 	clock         Clock
 
 	mu              sync.Mutex
@@ -143,9 +144,8 @@ type ThresholdScheduler struct {
 	lastBand        PressureBand
 	lastRemedy      *RemediationResult
 	waitingRecovery map[string]bool
-	cpuConsecutive  int
-	cpuLastBand     PressureBand
-	cpuLastEmit     time.Time
+	recoveryWG      sync.WaitGroup
+	cpuEpisode      cpuThresholdEpisode
 	hotEpisodes     map[string]bool
 
 	// evaluated is signalled after every completed evaluation when non-nil.
@@ -214,16 +214,16 @@ func WithEvaluationSignal(ch chan struct{}) ThresholdSchedulerOption {
 }
 
 // NewThresholdScheduler creates the evaluation loop. A nil logger defaults to
-// slog.Default().
+// logx.Default().
 func NewThresholdScheduler(
 	settings *SettingsManager,
 	alerts *AlertService,
 	repo repository.ThresholdRepository,
-	log *slog.Logger,
+	log logx.Logger,
 	opts ...ThresholdSchedulerOption,
 ) *ThresholdScheduler {
 	if log == nil {
-		log = slog.Default()
+		log = logx.Default()
 	}
 	s := &ThresholdScheduler{
 		settings:    settings,
@@ -265,11 +265,32 @@ func (s *ThresholdScheduler) Start() {
 
 // Stop halts the loop and waits for it to exit.
 func (s *ThresholdScheduler) Stop() {
-	if s.cancel == nil {
-		return
+	_ = s.StopContext(context.Background())
+}
+
+// StopContext cancels the scheduler and joins both its evaluation loop and
+// detached recovery receipt waiters. A timeout leaves unfinished owners
+// visible to lifecycle Status instead of claiming a drained stop.
+func (s *ThresholdScheduler) StopContext(ctx context.Context) error {
+	if s.cancel != nil {
+		s.cancel()
+		select {
+		case <-s.done:
+		case <-ctx.Done():
+			return ctx.Err()
+		}
 	}
-	s.cancel()
-	<-s.done
+	done := make(chan struct{})
+	go func() {
+		s.recoveryWG.Wait()
+		close(done)
+	}()
+	select {
+	case <-done:
+		return nil
+	case <-ctx.Done():
+		return ctx.Err()
+	}
 }
 
 // currentInterval reads the live evaluation interval from settings.
@@ -360,11 +381,27 @@ func (s *ThresholdScheduler) publishWriterEvents(ctx context.Context, snapshots 
 		}
 		s.mu.Unlock()
 		if snapshot.Hot && !wasHot {
-			_ = s.events.PublishDomainEvent(ctx, eventbus.DomainEvent{Source: "system-monitor", EventType: "storage.writer.hot", Occurred: now, Payload: map[string]any{"root": snapshot.Root, "root_id": snapshot.RootID, "mount": snapshot.Mount, "current_bytes": snapshot.Bytes, "bytes_per_hour": snapshot.BytesPerHour, "window_seconds": int64(snapshot.DeltaHours * 3600), "sampled_at": snapshot.ObservedAt.UTC().Format(time.RFC3339Nano)}})
+			payload := map[string]any{"root": snapshot.Root, "root_id": snapshot.RootID, "mount": snapshot.Mount, "current_bytes": snapshot.Bytes, "bytes_per_hour": snapshot.BytesPerHour, "window_seconds": int64(snapshot.DeltaHours * 3600), "sampled_at": snapshot.ObservedAt.UTC().Format(time.RFC3339Nano)}
+			s.publishWriterEvent(ctx, "storage.writer.hot", now, payload)
+			if s.alerts != nil {
+				key := strings.Join([]string{snapshot.RootID, "hot", snapshot.ObservedAt.UTC().Format(time.RFC3339Nano)}, ":")
+				s.alerts.NotifySignal(ctx, "Storage is filling quickly", fmt.Sprintf("%s is growing at about %d bytes per hour.", snapshot.Root, snapshot.BytesPerHour), "alert.storage_writer", "high", key, map[string]string{"root_id": snapshot.RootID, "root": snapshot.Root, "transition": "hot"})
+			}
 		}
 		if !snapshot.Hot && wasHot {
-			_ = s.events.PublishDomainEvent(ctx, eventbus.DomainEvent{Source: "system-monitor", EventType: "storage.writer.cooled", Occurred: now, Payload: map[string]any{"root": snapshot.Root, "root_id": snapshot.RootID, "mount": snapshot.Mount, "current_bytes": snapshot.Bytes, "bytes_per_hour": snapshot.BytesPerHour, "sampled_at": snapshot.ObservedAt.UTC().Format(time.RFC3339Nano)}})
+			payload := map[string]any{"root": snapshot.Root, "root_id": snapshot.RootID, "mount": snapshot.Mount, "current_bytes": snapshot.Bytes, "bytes_per_hour": snapshot.BytesPerHour, "sampled_at": snapshot.ObservedAt.UTC().Format(time.RFC3339Nano)}
+			s.publishWriterEvent(ctx, "storage.writer.cooled", now, payload)
+			if s.alerts != nil {
+				key := strings.Join([]string{snapshot.RootID, "cooled", snapshot.ObservedAt.UTC().Format(time.RFC3339Nano)}, ":")
+				s.alerts.NotifySignal(ctx, "Storage growth slowed", fmt.Sprintf("%s is no longer growing quickly.", snapshot.Root), "alert.storage_writer", "normal", key, map[string]string{"root_id": snapshot.RootID, "root": snapshot.Root, "transition": "cooled"})
+			}
 		}
+	}
+}
+
+func (s *ThresholdScheduler) publishWriterEvent(ctx context.Context, eventType string, occurred time.Time, payload map[string]any) {
+	if err := s.events.PublishDomainEvent(ctx, eventbus.DomainEvent{Source: "system-monitor", EventType: eventType, Occurred: occurred, Payload: payload}); err != nil {
+		s.log.Warn("publish storage writer event failed", "event_type", eventType, "error", err)
 	}
 }
 
@@ -408,48 +445,59 @@ func (s *ThresholdScheduler) evaluateCPU(ctx context.Context, settings Settings)
 	}
 	value := cpu.UsageState.Value
 	band := classifyCPUBand(value, settings)
-	if band == BandNormal {
-		s.mu.Lock()
-		s.cpuConsecutive = 0
-		s.cpuLastBand = BandNormal
-		s.mu.Unlock()
-		return
-	}
 	s.mu.Lock()
-	s.cpuConsecutive++
-	consecutive := s.cpuConsecutive
-	prior := s.cpuLastBand
-	last := s.cpuLastEmit
 	now := s.clock.Now()
-	s.cpuLastBand = band
+	emit := s.cpuEpisode.Observe(band, now, settings.CPUSustainedWindowTicks, settings.CPUEscalationDebounceTicks, time.Duration(settings.CPUEscalationCooldownSeconds)*time.Second)
 	s.mu.Unlock()
-	window := settings.CPUSustainedWindowTicks
-	if window < 1 {
-		window = 1
-	}
-	debounce := settings.CPUEscalationDebounceTicks
-	if debounce < 1 {
-		debounce = 1
-	}
-	if consecutive < window || consecutive < debounce {
-		return
-	}
-	if prior == band && !last.IsZero() && now.Sub(last) < time.Duration(settings.CPUEscalationCooldownSeconds)*time.Second {
+	if !emit {
 		return
 	}
 	violation := &models.ThresholdViolation{MetricName: "cpu_usage", CurrentValue: value, ThresholdValue: cpuBandBoundary(band, settings), Severity: band.Severity(), ViolationType: band.String(), Timestamp: now, Details: map[string]interface{}{"mode_breakdown": cpu.ModeBreakdown, "stall": map[string]interface{}{"some_avg10": cpu.StallSomeAvg10, "full_avg10": cpu.StallFullAvg10}, "top_consumers": cpu.TopProcesses}}
-	s.mu.Lock()
-	s.cpuLastEmit = now
-	s.mu.Unlock()
 	if err := s.repo.SaveThresholdViolation(ctx, violation); err != nil {
 		s.log.Error("persist CPU threshold violation failed", "error", err)
 		return
 	}
-	if s.alerts != nil {
-		if err := s.alerts.SendThresholdViolation(ctx, violation); err != nil {
-			s.log.Error("send CPU threshold violation failed", "error", err)
-		}
+	// CPU condition notifications are owned by AlertEvaluator. Retain this
+	// richer band-transition record for history, without creating a second
+	// alert row or sending a duplicate notification.
+}
+
+// cpuThresholdEpisode owns sustained-window and cooldown transitions for CPU
+// history records. Unmeasured samples are not observed, so they preserve the
+// current episode; a measured normal sample resets its sustained window.
+type cpuThresholdEpisode struct {
+	consecutive int
+	band        PressureBand
+	lastEmitted time.Time
+}
+
+// Observe returns true when the measured band is sustained and is eligible for
+// another history record. State mutation remains separate from persistence so
+// failed writes retain the same cooldown behavior as successful writes.
+func (e *cpuThresholdEpisode) Observe(band PressureBand, now time.Time, sustainedTicks, debounceTicks int, cooldown time.Duration) bool {
+	if band == BandNormal {
+		e.consecutive = 0
+		e.band = BandNormal
+		return false
 	}
+
+	prior := e.band
+	e.consecutive++
+	e.band = band
+	if sustainedTicks < 1 {
+		sustainedTicks = 1
+	}
+	if debounceTicks < 1 {
+		debounceTicks = 1
+	}
+	if e.consecutive < sustainedTicks || e.consecutive < debounceTicks {
+		return false
+	}
+	if prior == band && !e.lastEmitted.IsZero() && now.Sub(e.lastEmitted) < cooldown {
+		return false
+	}
+	e.lastEmitted = now
+	return true
 }
 
 func classifyCPUBand(value float64, settings Settings) PressureBand {
@@ -560,8 +608,16 @@ func (s *ThresholdScheduler) escalate(ctx context.Context, decision bandDecision
 	}
 	s.mu.Unlock()
 	if watch {
-		go s.waitRecovery(ctx, waiter, result.RunID)
+		s.trackRecovery(ctx, waiter, result.RunID)
 	}
+}
+
+func (s *ThresholdScheduler) trackRecovery(ctx context.Context, waiter recoveryWaiter, runID string) {
+	s.recoveryWG.Add(1)
+	go func() {
+		defer s.recoveryWG.Done()
+		s.waitRecovery(ctx, waiter, runID)
+	}()
 }
 
 func (s *ThresholdScheduler) waitRecovery(ctx context.Context, waiter recoveryWaiter, runID string) {

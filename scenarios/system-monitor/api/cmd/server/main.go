@@ -1,7 +1,7 @@
 package main
 
 import (
-	"log"
+	"log/slog"
 	"os"
 
 	"github.com/vrooli/api-core/preflight"
@@ -18,12 +18,17 @@ func main() {
 // check and the lifecycle guard (direct execution outside
 // `vrooli scenario start` is rejected); returning true means it already
 // handled the process, so the server must not start.
-func run(checkPreflight func(preflight.Config) bool, load func() *config.Config, serve func(*config.Config) error) int {
+func run(checkPreflight func(preflight.Config) bool, load func() (*config.Config, error), serve func(*config.Config) error) int {
 	if checkPreflight(preflight.Config{ScenarioName: "system-monitor"}) {
 		return 0
 	}
-	if err := serve(load()); err != nil {
-		log.Printf("System Monitor API failed: %v", err)
+	cfg, err := load()
+	if err != nil {
+		slog.Error("System Monitor API configuration failed", "error", err)
+		return 1
+	}
+	if err := serve(cfg); err != nil {
+		slog.Error("System Monitor API failed", "error", err)
 		return 1
 	}
 	return 0

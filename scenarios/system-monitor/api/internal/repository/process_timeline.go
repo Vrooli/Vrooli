@@ -13,7 +13,7 @@ type processTimelineAgg struct {
 	cpuSum      float64
 	cpuMax      float64
 	cpuSeconds  float64
-	rssMax      int64
+	rssSum      float64
 	gpuVRAMMax  float64
 	sampleCount int64
 	firstSeen   time.Time
@@ -37,12 +37,12 @@ func (a *ProcessTimelineAccumulator) AddRaw(owner, comm string, pid int, cpu, cp
 	}
 	row.addCPU(cpu, 1)
 	row.cpuSeconds += cpuSeconds
-	row.addRSS(rss)
+	row.addRSS(rss, 1)
 	row.addGPU(gpuVRAMMB)
 	row.addWindow(ts, ts)
 }
 
-func (a *ProcessTimelineAccumulator) AddRollup(owner, comm string, avgCPU, maxCPU, cpuSeconds float64, maxRSS, count int64, minute time.Time) {
+func (a *ProcessTimelineAccumulator) AddRollup(owner, comm string, avgCPU, maxCPU, cpuSeconds float64, avgRSS, count int64, minute time.Time) {
 	row := a.entry(owner, comm)
 	row.aggregated = true
 	row.cpuSum += avgCPU * float64(count)
@@ -50,7 +50,7 @@ func (a *ProcessTimelineAccumulator) AddRollup(owner, comm string, avgCPU, maxCP
 	if maxCPU > row.cpuMax {
 		row.cpuMax = maxCPU
 	}
-	row.addRSS(maxRSS)
+	row.addRSS(avgRSS, count)
 	row.sampleCount += count
 	row.addWindow(minute, minute.Add(time.Minute))
 }
@@ -103,10 +103,8 @@ func (a *processTimelineAgg) addCPU(cpu float64, count int64) {
 	a.sampleCount += count
 }
 
-func (a *processTimelineAgg) addRSS(rss int64) {
-	if rss > a.rssMax {
-		a.rssMax = rss
-	}
+func (a *processTimelineAgg) addRSS(rss int64, count int64) {
+	a.rssSum += float64(rss) * float64(count)
 }
 
 func (a *processTimelineAgg) addGPU(vram float64) {
@@ -129,6 +127,10 @@ func (a *processTimelineAgg) entry() ProcessTimelineEntry {
 	if a.sampleCount > 0 {
 		avg = a.cpuSum / float64(a.sampleCount)
 	}
+	avgRSS := int64(0)
+	if a.sampleCount > 0 {
+		avgRSS = int64(a.rssSum / float64(a.sampleCount))
+	}
 	return ProcessTimelineEntry{
 		Owner:       a.owner,
 		Comm:        a.comm,
@@ -137,7 +139,7 @@ func (a *processTimelineAgg) entry() ProcessTimelineEntry {
 		CPUPct:      avg,
 		MaxCPUPct:   a.cpuMax,
 		CPUSeconds:  a.cpuSeconds,
-		RSSKB:       a.rssMax,
+		RSSKB:       avgRSS,
 		GPUVRAMMB:   a.gpuVRAMMax,
 		SampleCount: a.sampleCount,
 		FirstSeen:   a.firstSeen,

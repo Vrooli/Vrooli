@@ -3,9 +3,7 @@ package handlers
 import (
 	"context"
 	"errors"
-	"log/slog"
 	"net/http"
-	"os"
 	"sort"
 	"strings"
 	"time"
@@ -17,8 +15,10 @@ import (
 	devicegraphconnect "github.com/vrooli/vrooli/packages/proto/gen/go/system-monitor/v1/devicegraph/devicegraphconnect"
 	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/apierrors"
 	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/collectors"
+	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/config"
 	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/devicegraph"
 	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/httputil"
+	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/logx"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
@@ -37,19 +37,23 @@ var errNoDeviceGraphProvider = errors.New("the device-graph provider is not conf
 // machine.
 type DeviceGraphHandler struct {
 	graphs collectors.DeviceGraphProvider
-	log    *slog.Logger
+	log    logx.Logger
 	bridge *nodereach.Client
 }
 
-func NewDeviceGraphHandler(graphs collectors.DeviceGraphProvider, log *slog.Logger) *DeviceGraphHandler {
+func NewDeviceGraphHandler(graphs collectors.DeviceGraphProvider, log logx.Logger, configs ...*config.Config) *DeviceGraphHandler {
 	if log == nil {
-		log = slog.Default()
+		log = logx.Default()
+	}
+	var bridgeToken string
+	if len(configs) > 0 && configs[0] != nil {
+		bridgeToken = configs[0].Server.BridgeToken
 	}
 	return &DeviceGraphHandler{
 		graphs: graphs,
 		log:    log,
 		bridge: nodereach.New(nodereach.Config{
-			Token:         firstNonEmpty(os.Getenv("VROOLI_BRIDGE_API_TOKEN"), os.Getenv("VROOLI_API_TOKEN")),
+			Token:         bridgeToken,
 			TokenProvider: operatorsession.LocalOwnerTokenProvider(),
 		}),
 	}
@@ -95,13 +99,13 @@ func (h *DeviceGraphHandler) handleRemoteDeviceGraph(w http.ResponseWriter, r *h
 	handleDeviceGraphJSON(w, h.log, r, resp.Msg.GetGraph())
 }
 
-func handleDeviceGraphJSON(w http.ResponseWriter, log *slog.Logger, r *http.Request, graph *devicegraphpb.Graph) {
+func handleDeviceGraphJSON(w http.ResponseWriter, log logx.Logger, r *http.Request, graph *devicegraphpb.Graph) {
 	if err := httputil.ProtoJSONCamel(w, graph); err != nil {
 		handleDeviceGraphError(w, r, log, apierrors.Internal("encode device graph", err))
 	}
 }
 
-func handleDeviceGraphError(w http.ResponseWriter, r *http.Request, log *slog.Logger, err *apierrors.APIError) {
+func handleDeviceGraphError(w http.ResponseWriter, r *http.Request, log logx.Logger, err *apierrors.APIError) {
 	httputil.WriteAPIError(w, log, r, err)
 }
 

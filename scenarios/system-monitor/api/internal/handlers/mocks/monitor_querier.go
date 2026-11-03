@@ -10,20 +10,23 @@ import (
 
 // MonitorQuerier is a configurable test double for handlers.MonitorQuerier.
 type MonitorQuerier struct {
-	metrics           *models.MetricsResponse
-	freshMetrics      *models.MetricsResponse
-	pressureSnapshot  *models.PressureSnapshot
-	gpuHistory        *models.GPUHistory
-	pressureHistory   *models.PressureHistory
-	detailedMetrics   *models.DetailedMetrics
-	networkDiagnostic *models.NetworkDiagnosticSnapshot
-	diskDetail        *models.DiskDetailResponse
-	timelineResponse  *models.MetricsTimelineResponse
-	processData       *models.ProcessMonitorData
-	processTimeline   []repository.ProcessTimelineEntry
-	infraData         *models.InfrastructureMonitorData
-	active            bool
-	err               error
+	metrics            *models.MetricsResponse
+	freshMetrics       *models.MetricsResponse
+	pressureSnapshot   *models.PressureSnapshot
+	gpuHistory         *models.GPUHistory
+	pressureHistory    *models.PressureHistory
+	detailedMetrics    *models.DetailedMetrics
+	networkDiagnostic  *models.NetworkDiagnosticSnapshot
+	diskDetail         *models.DiskDetailResponse
+	timelineResponse   *models.MetricsTimelineResponse
+	processData        *models.ProcessMonitorData
+	processTimeline    []repository.ProcessTimelineEntry
+	processRangeStart  time.Time
+	processRangeEnd    time.Time
+	processRangeCalled bool
+	infraData          *models.InfrastructureMonitorData
+	active             bool
+	err                error
 }
 
 func (m *MonitorQuerier) WithPressureSnapshot(snapshot *models.PressureSnapshot) *MonitorQuerier {
@@ -149,6 +152,17 @@ func (m *MonitorQuerier) GetProcessTimeline(_ context.Context, _ time.Duration, 
 
 func (m *MonitorQuerier) GetProcessTimelineRanked(_ context.Context, _ time.Duration, _ string, _ int, _ string) ([]repository.ProcessTimelineEntry, error) {
 	return m.processTimeline, m.err
+}
+
+func (m *MonitorQuerier) GetProcessTimelineInRange(_ context.Context, start, end time.Time, _ string, _ int, _ string) ([]repository.ProcessTimelineEntry, error) {
+	m.processRangeStart = start
+	m.processRangeEnd = end
+	m.processRangeCalled = true
+	return m.processTimeline, m.err
+}
+
+func (m *MonitorQuerier) ProcessTimelineRange() (time.Time, time.Time, bool) {
+	return m.processRangeStart, m.processRangeEnd, m.processRangeCalled
 }
 
 func (m *MonitorQuerier) GetInfrastructureMonitorData(_ context.Context) (*models.InfrastructureMonitorData, error) {

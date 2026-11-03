@@ -209,7 +209,7 @@ describe('useSystemMonitor', () => {
       : Promise.resolve({ timestamp: ts }));
     const { result } = renderHook(() => useSystemMonitor());
     await waitFor(() => { expect(result.current.isLoading).toBe(false); });
-    await act(async () => { await result.current.refreshMetrics(); });
+    await act(async () => { result.current.refreshMetrics(); await Promise.resolve(); });
     expect(mocks.appendDiskPoints).not.toHaveBeenCalled();
   });
 
@@ -318,7 +318,7 @@ describe('useSystemMonitor', () => {
       const value = useSystemMonitor(120, { node });
       renders.push({ node, graph: value.deviceGraph, metrics: value.metrics, history: value.metricHistory });
       return value;
-    }, { initialProps: { node: 'remote' as string | undefined } });
+    }, { initialProps: { node: 'remote' } });
     await waitFor(() => { expect(result.current.deviceGraph).toBe(remoteGraph); });
     rerender({ node: undefined });
     expect(renders.find(render => render.node === undefined)).toEqual({ node: undefined, graph: null, metrics: null, history: null });

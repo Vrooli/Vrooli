@@ -5,6 +5,8 @@ import { HardDrive } from 'lucide-react';
 import { protoFetch } from '../../../shared/api/apiFetch';
 import { parseDiskDetailResponse } from '../../../shared/api/proto-contracts';
 import { timestampDate } from '@bufbuild/protobuf/wkt';
+import { create } from '@bufbuild/protobuf';
+import { DiskInfoSchema } from '@vrooli/proto-types/system-monitor/v1/metrics/metrics_pb';
 import { DetailRow } from '../../../shared/components/DetailRow';
 import { formatMbPerSecond, formatPercentage, formatTimeLabel, getUtilizationColor } from '../../../shared/utils/formatters';
 import type {
@@ -19,6 +21,7 @@ import type {
 import { DetailSection, MetricDetailLayout, MetricLineChart } from './MetricDetailViews';
 import { buildSingleSeriesData, combineDiskSeries } from '../../../shared/utils/chartData';
 import { buildDiskUsageCard } from './MetricRenderHelpers';
+import { isAbortError } from '../../../shared/utils/errors';
 
 export interface DiskDetailViewProps {
   detailedMetrics: DetailedMetrics | null;
@@ -84,7 +87,7 @@ export const DiskDetailView = ({ detailedMetrics, storageIO, metricHistory, disk
         activeRequestRef.current = null;
       } catch (error) {
         activeRequestRef.current = null;
-        if ((error as { name?: string })?.name === 'AbortError') {
+        if (isAbortError(error)) {
           setDetailsError('Scan cancelled');
         } else {
           setDetailsError(error instanceof Error ? error.message : String(error));
@@ -115,11 +118,11 @@ export const DiskDetailView = ({ detailedMetrics, storageIO, metricHistory, disk
   }, [partitions, selectedMount]);
 
   const summaryDiskInfo: DiskInfo | undefined = activePartition
-    ? {
+    ? create(DiskInfoSchema, {
         used: activePartition.usedBytes,
         total: activePartition.sizeBytes,
         percent: activePartition.usePercent
-      } as DiskInfo
+      })
     : diskUsage;
 
   const selectedMountLabel = activePartition?.mountPoint ?? selectedMount;

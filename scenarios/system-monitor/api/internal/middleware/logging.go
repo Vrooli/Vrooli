@@ -2,10 +2,11 @@ package middleware
 
 import (
 	"fmt"
-	"log/slog"
 	"net/http"
 	"sync"
 	"time"
+
+	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/logx"
 )
 
 // LogEntry represents a structured log entry
@@ -64,9 +65,9 @@ func (rw *responseWriter) Write(b []byte) (int, error) {
 }
 
 // Logging middleware logs HTTP requests and responses
-func Logging(logger *slog.Logger) func(http.Handler) http.Handler {
+func Logging(logger logx.Logger) func(http.Handler) http.Handler {
 	if logger == nil {
-		logger = slog.Default()
+		logger = logx.Default()
 	}
 
 	return func(next http.Handler) http.Handler {
@@ -124,9 +125,9 @@ func Logging(logger *slog.Logger) func(http.Handler) http.Handler {
 }
 
 // DetailedLogging provides more comprehensive logging
-func DetailedLogging(logger *slog.Logger, logStore *LogStore) func(http.Handler) http.Handler {
+func DetailedLogging(logger logx.Logger, logStore *LogStore) func(http.Handler) http.Handler {
 	if logger == nil {
-		logger = slog.Default()
+		logger = logx.Default()
 	}
 
 	return func(next http.Handler) http.Handler {

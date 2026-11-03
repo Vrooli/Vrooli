@@ -8,15 +8,10 @@ Set these in `.env` or export them before starting the scenario.
 |----------|---------|-------------|
 | `API_PORT` | `8080` | API server port |
 | `UI_PORT` | `3003` | UI dashboard port |
-| `DATABASE_URL` | `postgres://vrooli@localhost:5433/...` | PostgreSQL connection string |
-| `REDIS_URL` | `redis://localhost:6380` | Redis connection string |
-| `ENABLE_CLAUDE_INVESTIGATIONS` | `true` | Enable AI-driven investigations via agent-manager |
-| `CPU_WARNING_THRESHOLD` | `70` | CPU usage warning threshold (%) |
-| `CPU_CRITICAL_THRESHOLD` | `90` | CPU usage critical threshold (%) |
-| `MEMORY_WARNING_THRESHOLD` | `80` | Memory usage warning threshold (%) |
-| `MEMORY_CRITICAL_THRESHOLD` | `95` | Memory usage critical threshold (%) |
+| `ALERT_COOLDOWN_MINUTES` | `5` | Minimum gap between repeated point-in-time threshold records for the same metric. Condition alerts use their open/resolve lifecycle instead. |
 | `SYSTEM_MONITOR_PROC_SAMPLE_INTERVAL` | `20s` | Cadence of the per-process `/proc` sampler that feeds the attribution timeline. Go duration string. |
 | `SYSTEM_MONITOR_PROC_SAMPLE_TOP_N` | `50` | Top-N processes retained independently by CPU, RSS, and GPU VRAM per sampling cycle; the bounded union is at most 3N rows. Dropped processes are logged, never silently capped. |
+| `SYSTEM_MONITOR_PROC_SAMPLE_OWNERS` | empty | Comma-separated list of up to 16 scenario owners whose CPU and RSS leaders are also retained each cycle, even when they fall outside the global top-N. Each configured owner adds at most 2N process rows. |
 | `SYSTEM_MONITOR_RAW_RETENTION` | `6h` | How long raw per-process rows are kept before they are downsampled into per-minute rollups. Go duration string. |
 | `SYSTEM_MONITOR_ROLLUP_RETENTION` | `720h` | How long per-owner/per-minute rollups are kept (default 30 days). Go duration string. |
 | `SYSTEM_MONITOR_SOCKET_ATTRIBUTION_THRESHOLD` | `5000` | Established-TCP-connection count at or above which the network collector walks `/proc/<pid>/fd` to name the processes holding those sockets. Below it, only the aggregate count is collected. Set to `0` to disable attribution entirely. |
@@ -25,12 +20,28 @@ Set these in `.env` or export them before starting the scenario.
 
 ## Threshold Configuration
 
-Thresholds determine when the system transitions between HEALTHY, WARNING, and CRITICAL states:
+Detection thresholds are persisted in `system-monitor-settings.json` and can be
+changed in the System Settings modal or through the typed Settings API. The
+saved values are the values read by the evaluator; these are not environment
+seeds.
 
-- **Warning**: CPU >= 70% or Memory >= 80%
-- **Critical**: CPU >= 90% or Memory >= 95%
+| Signal | Default warning / boundary | Default critical | Other controls |
+|---|---:|---:|---|
+| CPU usage | 85% | 97% | `alert_sustain_seconds`; CPU band history also uses the 92% high band, sample debounce, and cooldown settings. |
+| Memory usage | 90% | 95% | `alert_sustain_seconds` |
+| TCP connections | 5,000 | 20,000 | 10-minute growth window; warns on sustained leak-shaped growth from 500 connections after 5 samples, at 2x the opening count. |
+| GPU usage | 90% | — | Unsupported when the host provides no GPU reading. |
+| Metrics snapshot | — | 10 collection intervals stale | `metrics_snapshot_stale_intervals` |
+| Orphaned agents | 1 hour old | 2 GiB known memory+swap, or reapable for 1 hour | `orphaned_agent_age_seconds`, `orphaned_agent_memory_bytes` |
+| Memory pressure | elevated | critical | PSI and swap-in boundaries are separately configurable. |
+| Disk pressure | 80% used | 95% used | 90% high band, debounce, cooldown, and fast-fill jump controls. |
 
-Thresholds can be adjusted via environment variables (above) or the Settings API:
+`alert_sustain_seconds` defaults to 300 seconds. It controls how long a
+condition must hold before opening, how long critical evidence must hold before
+critical escalation, and how long the condition must stay clear before
+resolution. Notification delivery preferences do not change detection.
+
+Example API update:
 
 ```bash
 # View current settings
@@ -39,34 +50,30 @@ curl http://localhost:8080/api/v1/settings
 # Update thresholds
 curl -X PUT http://localhost:8080/api/v1/settings \
   -H "Content-Type: application/json" \
-  -d '{"cpu_warning_threshold": 75, "cpu_critical_threshold": 95}'
+  -d '{"cpu_threshold": 75, "cpu_critical_percent": 92, "tcp_connections_warning": 4000, "tcp_connections_critical": 15000, "alert_sustain_seconds": 180}'
 ```
 
-## Investigation Triggers
+## Notifications
 
-Auto-fix triggers are configured in `api/internal/<domain>/configuration/investigation-triggers.json`:
+System Monitor publishes `system_monitor.alert.notification.v1` domain events
+to Vrooli Events. Notification Hub owns channel delivery and operator
+preferences. The categories in `.vrooli/notifications.json` let operators
+enable or mute each event family and set its minimum urgency:
 
-| Trigger | Threshold | Sustained Duration |
-|---------|-----------|-------------------|
-| High CPU Usage | 75% | 60s |
-| Memory Pressure | 10% available | 30s |
-| Low Disk Space | 90% used | 120s |
-| Excessive Network Connections | 2000 connections | 30s |
-| Process Anomaly | 25 processes | 10s |
+Condition alerts notify on open, severity change, investigation escalation,
+and resolution. Disk threshold transitions and storage-writer hot/cooled
+transitions use their corresponding categories. Payloads carry a stable
+dedupe key and alert correlation IDs; process and host details are marked
+private. A notification publish failure is logged and does not roll back the
+durable alert.
 
-Triggers can be managed via the API:
+## Investigation behavior
 
-```bash
-# List all triggers
-curl http://localhost:8080/api/v1/investigations/triggers
-
-# Update a trigger threshold
-curl -X PUT http://localhost:8080/api/v1/investigations/triggers/{id}/threshold \
-  -H "Content-Type: application/json" \
-  -d '{"threshold": 80}'
-```
-
-`[CODE: api/internal/<domain>/configuration/investigation-triggers.json]`
+After a condition is critical for the sustain duration, System Monitor records
+an anomaly and runs its native catalog investigation. This is separate from
+Notification Hub delivery settings. Agent Manager investigations remain an
+explicit operator action; System Monitor does not automatically run an
+AI-directed remediation.
 
 ## Agent-Manager integration
 
@@ -118,16 +125,23 @@ These live in the same settings file and are read live on each cycle.
 |---------|---------|-------------|
 | `metric_collection_interval` | `20` | Seconds between metric collection cycles. |
 | `anomaly_detection_interval` | `30` | Seconds between anomaly detection passes. |
-| `threshold_check_interval` | `20` | Seconds between disk-pressure evaluations (min 5). |
-| `cooldown_period_seconds` | `300` | Minimum gap between investigations of the same condition. |
-| `cpu_threshold` | `85.0` | CPU usage percentage treated as elevated. The `cpu_usage` alert rule warns at this value and is critical at `+10`. |
-| `memory_threshold` | `90.0` | Memory usage percentage treated as elevated. The `memory_usage` alert rule warns at this value and is critical at `+5`. |
+| `threshold_check_interval` | `20` | Seconds between disk-pressure and alert-rule evaluations (min 5). |
+| `cooldown_period_seconds` | `300` | Minimum gap between automatically started native investigations (1–86,400 seconds). |
+| `cpu_threshold` | `85.0` | CPU usage percentage treated as elevated; the `cpu_usage` condition warns at this value. |
+| `cpu_high_percent` / `cpu_critical_percent` | `92.0` / `97.0` | CPU band-history boundaries; `cpu_critical_percent` is also the condition alert's critical boundary. |
+| `memory_threshold` | `90.0` | Memory usage percentage treated as elevated; the `memory_usage` condition warns at this value. |
+
+The CPU and memory critical boundaries are configurable independently. CPU
+band history also uses `cpu_high_percent` and `cpu_critical_percent`; the
+condition alert uses `cpu_threshold` and `cpu_critical_percent`.
 
 ## Alert Evaluation and Memory Pressure
 
-The alert evaluator runs on `threshold_check_interval` and is the only alert
-source (see [ARCHITECTURE.md § Alerting](../concepts/ARCHITECTURE.md#alerting)).
-All values below are live; `0` selects the default.
+The alert evaluator runs on `threshold_check_interval` and owns sustained
+condition alerts. ThresholdScheduler owns disk band events and storage-writer
+edges. Both publish through the same Notification Hub categories (see
+[ARCHITECTURE.md § Alerting](../concepts/ARCHITECTURE.md#alerting)). All values
+below are live; `0` selects the default where accepted by the Settings API.
 
 | Setting | Default | Description |
 |---------|---------|-------------|
@@ -136,11 +150,28 @@ All values below are live; `0` selects the default.
 | `memory_pressure_full_avg60_critical_percent` | `5` | Linux: memory PSI `full avg60` at or above this is `critical`. |
 | `memory_pressure_swap_in_elevated_bytes_per_second` | `10485760` (10 MiB/s) | Swap-in rate that is `elevated` on Linux, and that raises a macOS native level. |
 | `memory_pressure_swap_in_critical_bytes_per_second` | `52428800` (50 MiB/s) | Swap-in rate that is `critical`. Must exceed the elevated rate. |
+| `memory_critical_percent` | `95.0` | Memory usage boundary for a critical `memory_usage` condition. |
+| `tcp_connections_warning` / `tcp_connections_critical` | `5000` / `20000` | TCP connection count boundaries; critical must exceed warning. |
+| `tcp_growth_window_seconds` | `600` | History window used for leak-shaped connection growth. |
+| `tcp_growth_floor` | `500` | Minimum connection count before a growth trend is meaningful. |
+| `tcp_growth_min_samples` | `5` | Minimum samples required to classify a growth trend. |
+| `tcp_growth_factor` | `2` | Required growth multiple across the configured window. |
+| `gpu_usage_warning_percent` | `90` | GPU usage warning boundary. |
+| `metrics_snapshot_stale_intervals` | `10` | Collection intervals without fresh metrics before a stale snapshot alert opens. |
+| `orphaned_agent_age_seconds` | `3600` | Age before an orphaned or stuck-reapable agent session is considered actionable. |
+| `orphaned_agent_memory_bytes` | `2147483648` (2 GiB) | Known memory plus swap held by orphaned sessions before critical severity. |
+| `auto_investigate_critical_rules` | all supported rules enabled | Per-rule switches for starting the rule's native catalog investigation after a critical condition is sustained. These switches do not control alert detection or Notification Hub delivery. |
 
-Fixed rule boundaries (not settings): `tcp_connections` warns at 5,000 and on a
-sustained leak-shaped climb and is critical at 20,000; `gpu_usage` warns at 90%;
-`orphaned_agents` warns on an `orphaned` session older than 1 h and is critical
-at ≥ 2 GiB orphaned memory+swap or a session reapable for 1 h.
+Notification Hub owns category enablement, urgency, and delivery. System
+Settings owns detection thresholds, sustain timing, automatic investigation
+policy, and investigation cooldown. The investigations page links to these
+settings instead of maintaining a second copy of trigger thresholds.
+The retired `investigation-triggers.json` file is ignored; it is not imported
+or maintained. The legacy trigger endpoints return migration guidance.
+
+`tcp_connections` can also warn on a sustained leak-shaped climb. A rule that
+cannot observe its required platform evidence reports unsupported or failed;
+missing evidence does not resolve an active condition.
 
 ## Disk Pressure Escalation
 
@@ -187,11 +218,12 @@ A single `/proc` walk per sampling cycle captures pid/ppid/cmdline/cwd/CPU%/RSS
 for every live process, attributes each to its owning scenario (by matching
 `.../scenarios/<name>/` in the working directory, parsing a `<scenario>-api`
 binary name, and walking the parent chain so children inherit their launcher's
-owner), and persists the bounded CPU/RSS top-N union to a `process_samples` table. Host
-processes that belong to no scenario are bucketed as `unknown` (a first-class
-result, not an error). This replaces the opaque `bash -c "ps | sort | head"`
-pipelines with one cheap pass and turns the manual "top consumers by scenario"
-forensic into a standing query.
+owner), and persists the bounded global CPU/RSS/GPU leaders plus the configured
+owners' CPU/RSS leaders to a `process_samples` table. Host processes that
+belong to no scenario are bucketed as `unknown` (a first-class result, not an
+error). This replaces the opaque `bash -c "ps | sort | head"` pipelines with
+one cheap pass and turns the manual "top consumers by scenario" forensic into
+a standing query.
 
 Raw rows are kept for `SYSTEM_MONITOR_RAW_RETENTION`, then downsampled into
 per-owner/per-minute rollups kept for `SYSTEM_MONITOR_ROLLUP_RETENTION`. Both
@@ -206,6 +238,7 @@ curl 'http://localhost:8080/api/v1/metrics/processes/timeline?window=1h&owner=se
 curl 'http://localhost:8080/api/v1/metrics/pressure'
 curl 'http://localhost:8080/api/v1/forensics/processes?window=1h&rank=rss&top=20'
 curl 'http://localhost:8080/api/v1/forensics/processes?window=1h&rank=gpu&top=20'
+curl 'http://localhost:8080/api/v1/forensics/processes?start_utc=2026-11-03T03:49:15Z&end_utc=2026-11-03T03:49:48Z&owner=device-control&rank=cpu_seconds'
 curl 'http://localhost:8080/api/v1/forensics/gpu?window=1h'
 curl 'http://localhost:8080/api/v1/forensics/pressure?window=1h'
 

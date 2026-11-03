@@ -4,7 +4,6 @@ package handlers
 
 import (
 	"context"
-	"log/slog"
 	"net/http"
 
 	"connectrpc.com/connect"
@@ -14,17 +13,18 @@ import (
 	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/config"
 	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/convert"
 	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/httputil"
+	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/logx"
 )
 
 // ReportHandler handles report-related HTTP requests
 type ReportHandler struct {
-	log           *slog.Logger
+	log           logx.Logger
 	config        *config.Config
 	reportService ReportGenerator
 }
 
 // NewReportHandler creates a new report handler
-func NewReportHandler(cfg *config.Config, reportService ReportGenerator, log *slog.Logger) *ReportHandler {
+func NewReportHandler(cfg *config.Config, reportService ReportGenerator, log logx.Logger) *ReportHandler {
 	return &ReportHandler{
 		log:           log,
 		config:        cfg,

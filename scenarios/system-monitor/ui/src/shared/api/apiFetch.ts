@@ -1,6 +1,8 @@
 // DOC: docs/internal/SEAMS.md#ui-and-api-contract-seam
 import { buildRootUrl, buildUrl as buildApiUrl } from '../../lib/api-client';
-import type { APIError, ErrorDetail } from '../../types';
+import type { APIError, ErrorCode, ErrorDetail, RecoveryAction } from '../../types';
+import { isAbortError } from '../utils/errors';
+import { isRecord } from '../utils/typeGuards';
 
 /**
  * Error subclass that also carries the normalized APIError fields.
@@ -37,14 +39,72 @@ function mergeHeaders(base: Record<string, string>, extra?: HeadersInit): Record
   return merged;
 }
 
+function asRecord(value: unknown): Record<string, unknown> | undefined {
+  return isRecord(value) ? value : undefined;
+}
+
+function isErrorCode(value: unknown): value is ErrorCode {
+  switch (value) {
+    case 'validation':
+    case 'unauthorized':
+    case 'forbidden':
+    case 'not_found':
+    case 'conflict':
+    case 'cooldown':
+    case 'unavailable':
+    case 'internal':
+    case 'network':
+      return true;
+    default:
+      return false;
+  }
+}
+
+function isRecoveryAction(value: unknown): value is RecoveryAction {
+  switch (value) {
+    case 'fix_input':
+    case 'authenticate':
+    case 'wait':
+    case 'check_config':
+    case 'contact_admin':
+    case 'none':
+      return true;
+    default:
+      return false;
+  }
+}
+
+function readErrorDetail(value: unknown): ErrorDetail | undefined {
+  const record = asRecord(value);
+  if (!record || !isErrorCode(record.code) || typeof record.message !== 'string' || typeof record.retryable !== 'boolean') {
+    return undefined;
+  }
+  if (record.recovery !== undefined && !isRecoveryAction(record.recovery)) return undefined;
+  if (record.retry_after_seconds !== undefined && (typeof record.retry_after_seconds !== 'number' || !Number.isFinite(record.retry_after_seconds))) return undefined;
+  if (record.field !== undefined && typeof record.field !== 'string') return undefined;
+  if (record.request_id !== undefined && typeof record.request_id !== 'string') return undefined;
+
+  return {
+    code: record.code,
+    message: record.message,
+    retryable: record.retryable,
+    ...(typeof record.retry_after_seconds === 'number' ? { retry_after_seconds: record.retry_after_seconds } : {}),
+    ...(typeof record.field === 'string' ? { field: record.field } : {}),
+    ...(isRecoveryAction(record.recovery) ? { recovery: record.recovery } : {}),
+    ...(typeof record.request_id === 'string' ? { request_id: record.request_id } : {}),
+  };
+}
+
 /** Parse an error response into a normalized APIError. */
 async function parseErrorResponse(response: Response): Promise<APIError> {
   const errorText = await response.text();
   try {
-    const parsed = JSON.parse(errorText) as Record<string, unknown>;
+    const parsed: unknown = JSON.parse(errorText);
+    const record = asRecord(parsed);
+    if (!record) throw new TypeError('Error response must be an object');
     // Unified format: { error: { code, message, retryable, ... } }
-    if (parsed.error && typeof parsed.error === 'object' && 'code' in (parsed.error as Record<string, unknown>)) {
-      const detail = parsed.error as ErrorDetail;
+    const detail = readErrorDetail(record.error);
+    if (detail) {
       return {
         error: detail.message,
         detail,
@@ -53,7 +113,7 @@ async function parseErrorResponse(response: Response): Promise<APIError> {
     }
     // Legacy or unexpected JSON — use what we can.
     return {
-      error: typeof parsed.error === 'string' ? parsed.error : response.statusText,
+      error: typeof record.error === 'string' ? record.error : response.statusText,
       timestamp: new Date().toISOString(),
     };
   } catch {
@@ -73,6 +133,41 @@ function networkError(): APIError {
   };
 }
 
+/** Execute the transport phase shared by both JSON and protobuf requests. */
+async function fetchSuccessfulResponse(url: string, options?: RequestInit): Promise<Response> {
+  let response: Response;
+  try {
+    response = await fetch(url, options);
+  } catch (err) {
+    if (isAbortError(err)) throw err;
+    throw new ApiErrorException(networkError());
+  }
+  if (!response.ok) throw new ApiErrorException(await parseErrorResponse(response));
+  return response;
+}
+
+/** Decode the response-body phase and normalize malformed JSON consistently. */
+async function readJsonResponse(response: Response): Promise<unknown> {
+  try {
+    const json: unknown = await response.json();
+    return json;
+  } catch {
+    throw new ApiErrorException({
+      error: 'Invalid response from server',
+      detail: { code: 'internal', message: 'Failed to parse server response', retryable: false },
+      timestamp: new Date().toISOString(),
+    });
+  }
+}
+
+function invalidResponseFormat(): ApiErrorException {
+  return new ApiErrorException({
+    error: 'Invalid response format',
+    detail: { code: 'internal', message: 'Failed to decode server response', retryable: false },
+    timestamp: new Date().toISOString(),
+  });
+}
+
 /**
  * Shared fetch utility that handles:
  * - Prepending the API base URL
@@ -80,33 +175,25 @@ function networkError(): APIError {
  * - Error normalization into APIError
  * - Optional AbortSignal forwarding
  *
- * Use this instead of raw `fetch()` + `buildApiUrl()` in hooks and callbacks.
- * For components that need loading/error state, use `useApiCall` which wraps this.
+ * Supply a parser when the caller needs a typed response. Without one, the
+ * JSON body remains unknown and must be validated by its consumer.
  */
+export function apiFetch(path: string, options?: RequestInit): Promise<unknown>;
+export function apiFetch<T>(path: string, parser: (data: unknown) => T, options?: RequestInit): Promise<T>;
 export async function apiFetch<T>(
   path: string,
-  options?: RequestInit
-): Promise<T> {
-  let response: Response;
+  parserOrOptions?: ((data: unknown) => T) | RequestInit,
+  options?: RequestInit,
+): Promise<T | unknown> {
+  const parser = typeof parserOrOptions === 'function' ? parserOrOptions : undefined;
+  const requestOptions = typeof parserOrOptions === 'function' ? options : parserOrOptions;
+  const response = await fetchSuccessfulResponse(buildApiUrl(path), requestOptions);
+  const json = await readJsonResponse(response);
+  if (!parser) return json;
   try {
-    response = await fetch(buildApiUrl(path), options);
-  } catch (err) {
-    if (err instanceof DOMException && err.name === 'AbortError') throw err;
-    throw new ApiErrorException(networkError());
-  }
-
-  if (!response.ok) {
-    throw new ApiErrorException(await parseErrorResponse(response));
-  }
-
-  try {
-    return (await response.json()) as T;
+    return parser(json);
   } catch {
-    throw new ApiErrorException({
-      error: 'Invalid response from server',
-      detail: { code: 'internal', message: 'Failed to parse server response', retryable: false },
-      timestamp: new Date().toISOString(),
-    });
+    throw invalidResponseFormat();
   }
 }
 
@@ -124,39 +211,17 @@ export async function protoFetch<T>(
 ): Promise<T> {
   const connectCall = buildConnectCall(path, options);
   const url = connectCall ? buildRootUrl(connectCall.procedure) : buildApiUrl(path);
-  let response: Response;
-  try {
-    response = await fetch(url, {
-      ...options,
-      method: connectCall ? 'POST' : options?.method,
-      body: connectCall ? JSON.stringify(connectCall.body) : options?.body,
-      headers: mergeHeaders({ 'Content-Type': 'application/json' }, options?.headers),
-    });
-  } catch (err) {
-    if (err instanceof DOMException && err.name === 'AbortError') throw err;
-    throw new ApiErrorException(networkError());
-  }
-  if (!response.ok) {
-    throw new ApiErrorException(await parseErrorResponse(response));
-  }
-  let json: unknown;
-  try {
-    json = await response.json();
-  } catch {
-    throw new ApiErrorException({
-      error: 'Invalid response from server',
-      detail: { code: 'internal', message: 'Failed to parse server response', retryable: false },
-      timestamp: new Date().toISOString(),
-    });
-  }
+  const response = await fetchSuccessfulResponse(url, {
+    ...options,
+    method: connectCall ? 'POST' : options?.method,
+    body: connectCall ? JSON.stringify(connectCall.body) : options?.body,
+    headers: mergeHeaders({ 'Content-Type': 'application/json' }, options?.headers),
+  });
+  const json = await readJsonResponse(response);
   try {
     return parser(connectCall?.unwrap(json) ?? json);
   } catch {
-    throw new ApiErrorException({
-      error: 'Invalid response format',
-      detail: { code: 'internal', message: 'Failed to decode server response', retryable: false },
-      timestamp: new Date().toISOString(),
-    });
+    throw invalidResponseFormat();
   }
 }
 
@@ -167,15 +232,14 @@ interface ConnectCall {
 }
 
 const identity = (data: unknown): unknown => data;
-const field = (name: string) => (data: unknown): unknown =>
-  data && typeof data === 'object' ? (data as Record<string, unknown>)[name] : undefined;
+const field = (name: string) => (data: unknown): unknown => asRecord(data)?.[name];
 
 function readJSONBody(options?: RequestInit): Record<string, unknown> {
   const body = options?.body;
   if (typeof body !== 'string' || body.trim() === '') return {};
   try {
-    const parsed = JSON.parse(body);
-    return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed as Record<string, unknown> : {};
+    const parsed: unknown = JSON.parse(body);
+    return asRecord(parsed) ?? {};
   } catch {
     return {};
   }
@@ -320,8 +384,6 @@ function buildConnectCall(rawPath: string, options?: RequestInit): ConnectCall |
         body: { cooldownPeriodSeconds: Number(body.cooldownPeriodSeconds ?? body.cooldown_period_seconds ?? 0) },
         unwrap: identity,
       };
-    case '/investigations/triggers':
-      return { procedure: `${investigations}/GetTriggers`, body: {}, unwrap: identity };
     case '/investigations/scripts':
       return { procedure: `${scripts}/ListScripts`, body: {}, unwrap: identity };
     default:
@@ -357,7 +419,10 @@ function buildConnectCall(rawPath: string, options?: RequestInit): ConnectCall |
 
 /** Type guard: returns true when `err` is shaped like an APIError. */
 export function isApiError(err: unknown): err is APIError {
-  return err != null && typeof err === 'object' && 'error' in err;
+  const record = asRecord(err);
+  return Boolean(record && typeof record.error === 'string'
+    && (record.detail === undefined || readErrorDetail(record.detail) !== undefined)
+    && (record.timestamp === undefined || typeof record.timestamp === 'string'));
 }
 
 /** Extract a human-readable message from any thrown value. */
@@ -370,7 +435,7 @@ export function extractErrorMessage(err: unknown, fallback = 'An unknown error o
 /** Normalize any thrown value into an APIError. */
 export function toApiError(err: unknown): APIError {
   if (isApiError(err)) return err;
-  if (err instanceof DOMException && err.name === 'AbortError') throw err;
+  if (isAbortError(err)) throw err;
   // Standard JS errors are NOT network errors — preserve their message
   if (err instanceof Error) {
     return {

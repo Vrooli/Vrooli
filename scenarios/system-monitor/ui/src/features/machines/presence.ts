@@ -88,7 +88,7 @@ const GRANT_LABELS: Record<GrantLevel, string> = {
  */
 export const describeMachine = (machine: Machine): MachinePresence => {
   const isLocal = !machine.id;
-  const platformParts = [machine.os, machine.arch].filter(Boolean) as string[];
+  const platformParts = [machine.os, machine.arch].filter((part): part is string => typeof part === 'string' && part.length > 0);
   const platform = platformParts.length > 0 ? platformParts.join('/') : 'unknown platform';
   const age = machine.heartbeat_age_seconds === undefined
     ? undefined

@@ -5,12 +5,12 @@ package services
 import (
 	"context"
 	"fmt"
-	"log/slog"
 	"sort"
 	"strings"
 	"sync"
 	"time"
 
+	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/logx"
 	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/models"
 	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/repository"
 )
@@ -33,11 +33,64 @@ type AlertEscalator interface {
 
 // conditionState tracks one rule/key across passes.
 type conditionState struct {
+	phase         conditionPhase
 	activeSince   time.Time
 	criticalSince time.Time
 	clearSince    time.Time
 	open          *models.Alert
 	last          AlertCondition
+}
+
+// conditionPhase is the evaluator's explicit state machine for one rule/key.
+// Unsupported evidence resets pending/clearing time but never resolves an
+// already-open alert.
+type conditionPhase uint8
+
+const (
+	conditionPending conditionPhase = iota
+	conditionOpenWarning
+	conditionOpenCritical
+	conditionClearing
+	conditionResolved
+)
+
+type conditionActionKind uint8
+
+const (
+	conditionActionOpen conditionActionKind = iota + 1
+	conditionActionSeverity
+	conditionActionEscalate
+	conditionActionResolve
+)
+
+type conditionAction struct {
+	kind      conditionActionKind
+	state     *conditionState
+	condition AlertCondition
+}
+
+func (p conditionPhase) String() string {
+	switch p {
+	case conditionPending:
+		return "pending"
+	case conditionOpenWarning:
+		return "open_warning"
+	case conditionOpenCritical:
+		return "open_critical"
+	case conditionClearing:
+		return "clearing"
+	case conditionResolved:
+		return "resolved"
+	default:
+		return "unknown"
+	}
+}
+
+func phaseForSeverity(severity string) conditionPhase {
+	if severity == SeverityCritical {
+		return conditionOpenCritical
+	}
+	return conditionOpenWarning
 }
 
 // RuleStatus is the evaluator's latest view of one rule.
@@ -67,7 +120,7 @@ type AlertEvaluator struct {
 	escalator AlertEscalator
 	rules     []AlertRule
 	clock     Clock
-	log       *slog.Logger
+	log       logx.Logger
 
 	mu          sync.Mutex
 	states      map[string]*conditionState
@@ -114,9 +167,9 @@ func WithAlertEvaluationSignal(ch chan struct{}) AlertEvaluatorOption {
 }
 
 // NewAlertEvaluator builds the evaluator with the default rules.
-func NewAlertEvaluator(settings *SettingsManager, source AlertSnapshotSource, repo repository.AlertRepository, alerts *AlertService, log *slog.Logger, opts ...AlertEvaluatorOption) *AlertEvaluator {
+func NewAlertEvaluator(settings *SettingsManager, source AlertSnapshotSource, repo repository.AlertRepository, alerts *AlertService, log logx.Logger, opts ...AlertEvaluatorOption) *AlertEvaluator {
 	if log == nil {
-		log = slog.Default()
+		log = logx.Default()
 	}
 	e := &AlertEvaluator{
 		settings:   settings,
@@ -200,14 +253,14 @@ func (e *AlertEvaluator) RunOnce(ctx context.Context) {
 
 	for _, rule := range e.rules {
 		eval := rule.Evaluate(ctx, snapshot)
-		e.apply(ctx, rule.ID(), eval, now, sustain)
+		e.apply(ctx, rule.ID(), eval, now, sustain, settings.AutoInvestigateCriticalRules[rule.ID()])
 	}
 	e.mu.Lock()
 	e.evaluatedAt = now
 	e.mu.Unlock()
 }
 
-func (e *AlertEvaluator) apply(ctx context.Context, ruleID string, eval RuleEvaluation, now time.Time, sustain time.Duration) {
+func (e *AlertEvaluator) apply(ctx context.Context, ruleID string, eval RuleEvaluation, now time.Time, sustain time.Duration, investigateCritical bool) {
 	status := RuleStatus{RuleID: ruleID, Status: eval.Status, Reason: eval.Reason, EvaluatedAt: now}
 	if status.Status == "" {
 		status.Status = RuleSupported
@@ -215,70 +268,108 @@ func (e *AlertEvaluator) apply(ctx context.Context, ruleID string, eval RuleEval
 
 	e.mu.Lock()
 	if status.Status != RuleSupported {
-		// A gap in evidence breaks continuity: pending and clearing timers
-		// restart once the rule can evaluate again. Open alerts stay open.
-		for id, st := range e.states {
-			if !strings.HasPrefix(id, ruleID+"\x00") {
-				continue
-			}
-			st.activeSince, st.criticalSince, st.clearSince = time.Time{}, time.Time{}, time.Time{}
-			if st.open == nil {
-				delete(e.states, id)
-			}
-		}
+		e.resetUnsupportedRuleLocked(ruleID)
 		e.ruleStatus[ruleID] = status
 		e.mu.Unlock()
 		return
 	}
 
-	active := make(map[string]AlertCondition, len(eval.Conditions))
-	for _, condition := range eval.Conditions {
+	var actions []conditionAction
+	active := keyedConditions(ruleID, eval.Conditions)
+	actions = append(actions, e.updateActiveConditionsLocked(active, now, sustain, investigateCritical, &status)...)
+	actions = append(actions, e.resolveMissingConditionsLocked(ruleID, active, now, sustain)...)
+	e.ruleStatus[ruleID] = status
+	e.mu.Unlock()
+	e.executeConditionActions(ctx, ruleID, actions, now, sustain)
+}
+
+func keyedConditions(ruleID string, conditions []AlertCondition) map[string]AlertCondition {
+	active := make(map[string]AlertCondition, len(conditions))
+	for _, condition := range conditions {
 		if condition.Key == "" {
 			condition.Key = hostKey
 		}
 		active[stateKey(ruleID, condition.Key)] = condition
 	}
-	type action struct {
-		kind      string
-		state     *conditionState
-		condition AlertCondition
-	}
-	var actions []action
-	for id, condition := range active {
-		st := e.states[id]
-		if st == nil {
-			st = &conditionState{}
-			e.states[id] = st
+	return active
+}
+
+// resetUnsupportedRuleLocked breaks pending/clearing continuity while
+// retaining open alerts until fresh evidence can resolve them.
+func (e *AlertEvaluator) resetUnsupportedRuleLocked(ruleID string) {
+	for id, state := range e.states {
+		if !strings.HasPrefix(id, ruleID+"\x00") {
+			continue
 		}
-		st.clearSince = time.Time{}
-		st.last = condition
-		if st.activeSince.IsZero() {
-			st.activeSince = now
+		state.activeSince, state.criticalSince, state.clearSince = time.Time{}, time.Time{}, time.Time{}
+		if state.open == nil {
+			delete(e.states, id)
+			continue
+		}
+		state.phase = phaseForSeverity(state.open.Severity)
+	}
+}
+
+// updateActiveConditionsLocked advances each condition present in this pass.
+// The caller holds e.mu so state and status move as one evaluator transition.
+func (e *AlertEvaluator) updateActiveConditionsLocked(
+	active map[string]AlertCondition,
+	now time.Time,
+	sustain time.Duration,
+	investigateCritical bool,
+	status *RuleStatus,
+) []conditionAction {
+	var actions []conditionAction
+	for id, condition := range active {
+		state := e.states[id]
+		if state == nil {
+			state = &conditionState{}
+			e.states[id] = state
+		}
+		state.clearSince = time.Time{}
+		state.last = condition
+		if state.activeSince.IsZero() {
+			state.activeSince = now
 		}
 		if condition.Severity == SeverityCritical {
-			if st.criticalSince.IsZero() {
-				st.criticalSince = now
+			if state.criticalSince.IsZero() {
+				state.criticalSince = now
 			}
 		} else {
-			st.criticalSince = time.Time{}
+			state.criticalSince = time.Time{}
 		}
-		if status.PendingSince.IsZero() || st.activeSince.Before(status.PendingSince) {
-			status.PendingSince = st.activeSince
+		if status.PendingSince.IsZero() || state.activeSince.Before(status.PendingSince) {
+			status.PendingSince = state.activeSince
 		}
 		status.ConditionActive = true
-		severity := sustainedSeverity(st, now, sustain)
-		switch {
-		case st.open == nil && now.Sub(st.activeSince) >= sustain:
-			actions = append(actions, action{kind: "open", state: st, condition: condition})
-		case st.open != nil && st.open.Severity != severity:
-			actions = append(actions, action{kind: "severity", state: st, condition: condition})
+		severity := sustainedSeverity(state, now, sustain)
+		if state.open == nil {
+			state.phase = conditionPending
+			if now.Sub(state.activeSince) >= sustain {
+				state.phase = phaseForSeverity(severity)
+			}
+		} else {
+			state.phase = phaseForSeverity(severity)
 		}
-		if st.open != nil || (st.open == nil && now.Sub(st.activeSince) >= sustain) {
-			if severity == SeverityCritical && !alertEscalated(st.open) {
-				actions = append(actions, action{kind: "escalate", state: st, condition: condition})
+		switch {
+		case state.open == nil && now.Sub(state.activeSince) >= sustain:
+			actions = append(actions, conditionAction{kind: conditionActionOpen, state: state, condition: condition})
+		case state.open != nil && state.open.Severity != severity:
+			actions = append(actions, conditionAction{kind: conditionActionSeverity, state: state, condition: condition})
+		}
+		if investigateCritical && (state.open != nil || (state.open == nil && now.Sub(state.activeSince) >= sustain)) {
+			if severity == SeverityCritical && !alertEscalated(state.open) {
+				actions = append(actions, conditionAction{kind: conditionActionEscalate, state: state, condition: condition})
 			}
 		}
 	}
+	return actions
+}
+
+// resolveMissingConditionsLocked starts or completes clear windows for
+// previously known conditions absent from this supported evaluation.
+func (e *AlertEvaluator) resolveMissingConditionsLocked(ruleID string, active map[string]AlertCondition, now time.Time, sustain time.Duration) []conditionAction {
+	var actions []conditionAction
 	for id, st := range e.states {
 		if !strings.HasPrefix(id, ruleID+"\x00") {
 			continue
@@ -294,25 +385,27 @@ func (e *AlertEvaluator) apply(ctx context.Context, ruleID string, eval RuleEval
 		if st.clearSince.IsZero() {
 			st.clearSince = now
 		}
+		st.phase = conditionClearing
 		if now.Sub(st.clearSince) >= sustain {
-			actions = append(actions, action{kind: "resolve", state: st})
+			actions = append(actions, conditionAction{kind: conditionActionResolve, state: st})
 			delete(e.states, id)
 		}
 	}
-	e.ruleStatus[ruleID] = status
-	e.mu.Unlock()
+	return actions
+}
 
+func (e *AlertEvaluator) executeConditionActions(ctx context.Context, ruleID string, actions []conditionAction, now time.Time, sustain time.Duration) {
 	// Persistence happens outside the lock; each action owns its state.
-	for _, a := range actions {
-		switch a.kind {
-		case "open":
-			e.open(ctx, ruleID, a.state, a.condition, now, sustain)
-		case "severity":
-			e.updateSeverity(ctx, a.state, a.condition, now, sustain)
-		case "escalate":
-			e.escalate(ctx, a.state, now)
-		case "resolve":
-			e.resolve(ctx, a.state, now)
+	for _, action := range actions {
+		switch action.kind {
+		case conditionActionOpen:
+			e.open(ctx, ruleID, action.state, action.condition, now, sustain)
+		case conditionActionSeverity:
+			e.updateSeverity(ctx, action.state, action.condition, now, sustain)
+		case conditionActionEscalate:
+			e.escalate(ctx, action.state, now)
+		case conditionActionResolve:
+			e.resolve(ctx, action.state, now)
 		}
 	}
 }
@@ -343,6 +436,7 @@ func (e *AlertEvaluator) conditionDetails(ruleID string, condition AlertConditio
 	details["key"] = condition.Key
 	details["threshold"] = condition.Threshold
 	details["condition_since"] = st.activeSince.UTC().Format(time.RFC3339Nano)
+	details["lifecycle_phase"] = st.phase.String()
 	return details
 }
 
@@ -364,6 +458,7 @@ func (e *AlertEvaluator) open(ctx context.Context, ruleID string, st *conditionS
 	}
 	e.mu.Lock()
 	st.open = alert
+	st.phase = phaseForSeverity(alert.Severity)
 	e.mu.Unlock()
 	e.log.Warn("alert opened", "rule", ruleID, "key", condition.Key, "severity", alert.Severity, "message", alert.Message)
 }
@@ -389,7 +484,9 @@ func (e *AlertEvaluator) updateSeverity(ctx context.Context, st *conditionState,
 	}
 	e.mu.Lock()
 	st.open = &updated
+	st.phase = phaseForSeverity(updated.Severity)
 	e.mu.Unlock()
+	e.alerts.NotifyTransition(ctx, &updated, AlertTransitionSeverityChange)
 }
 
 func (e *AlertEvaluator) escalate(ctx context.Context, st *conditionState, now time.Time) {
@@ -422,17 +519,25 @@ func (e *AlertEvaluator) escalate(ctx context.Context, st *conditionState, now t
 	e.mu.Unlock()
 	if err := e.repo.UpdateAlert(ctx, &updated); err != nil {
 		e.log.Error("record alert escalation failed", "alert_id", updated.ID, "error", err)
+		return
 	}
+	e.alerts.NotifyTransition(ctx, &updated, AlertTransitionEscalated)
 }
 
 func (e *AlertEvaluator) resolve(ctx context.Context, st *conditionState, now time.Time) {
 	resolved := *st.open
 	resolvedAt := now
 	resolved.ResolvedAt = &resolvedAt
+	resolved.Details = make(map[string]interface{}, len(st.open.Details)+1)
+	for key, value := range st.open.Details {
+		resolved.Details[key] = value
+	}
+	resolved.Details["lifecycle_phase"] = conditionResolved.String()
 	if err := e.repo.UpdateAlert(ctx, &resolved); err != nil {
 		e.log.Error("resolve condition alert failed", "alert_id", resolved.ID, "error", err)
 		return
 	}
+	e.alerts.NotifyTransition(ctx, &resolved, AlertTransitionResolved)
 	e.log.Info("alert resolved", "alert_id", resolved.ID)
 }
 
@@ -468,7 +573,7 @@ func (e *AlertEvaluator) adoptOpenAlerts(ctx context.Context) {
 			continue
 		}
 		copied := *alert
-		st := &conditionState{open: &copied, activeSince: alert.Timestamp}
+		st := &conditionState{open: &copied, activeSince: alert.Timestamp, phase: phaseForSeverity(alert.Severity)}
 		if alert.Severity == SeverityCritical {
 			st.criticalSince = alert.Timestamp
 		}

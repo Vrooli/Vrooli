@@ -4,7 +4,6 @@ import { describe, expect, it, vi } from 'vitest';
 import type { Investigation } from '../../../types';
 import { InvestigationsSection } from './InvestigationsSection';
 
-vi.mock('./AutomaticTriggersSection', () => ({ AutomaticTriggersSection: () => <div>automatic trigger controls</div> }));
 vi.mock('./InvestigationsPanel', () => ({ InvestigationsPanel: () => <div>embedded reports</div> }));
 vi.mock('./InvestigationScriptsPanel', () => ({ InvestigationScriptsPanel: () => <div>embedded scripts</div> }));
 
@@ -15,6 +14,7 @@ describe('InvestigationsSection', () => {
     const investigations = [{ id: 'disk', status: 'completed', findings: 'disk issue' }] as unknown as Investigation[];
     render(<InvestigationsSection investigations={investigations} onOpenScriptEditor={onOpenScriptEditor} onSpawnAgent={onSpawnAgent} agents={[]} isSpawningAgent={false} />);
     expect(screen.getByText('INVESTIGATIONS')).toBeInTheDocument();
+    expect(screen.getByText(/Configure alert thresholds, notification delivery/)).toBeInTheDocument();
     fireEvent.click(screen.getByRole('switch'));
     fireEvent.click(screen.getByTitle('Add note for agent context'));
     fireEvent.change(screen.getByLabelText('Optional note for agent context'), { target: { value: 'inspect disk' } });

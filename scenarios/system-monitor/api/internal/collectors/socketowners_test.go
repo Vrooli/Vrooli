@@ -50,29 +50,16 @@ func TestTopSocketOwnersUnlimited(t *testing.T) {
 }
 
 func TestShouldAttributeSocketsHonorsThreshold(t *testing.T) {
-	t.Setenv(socketAttributionThresholdEnv, "100")
-	if shouldAttributeSockets(99) {
+	if shouldAttributeSockets(99, 100) {
 		t.Fatal("attributed below threshold; the /proc walk is not free")
 	}
-	if !shouldAttributeSockets(100) {
+	if !shouldAttributeSockets(100, 100) {
 		t.Fatal("did not attribute at the threshold")
 	}
 }
 
 func TestShouldAttributeSocketsDisabledByZero(t *testing.T) {
-	t.Setenv(socketAttributionThresholdEnv, "0")
-	if shouldAttributeSockets(1_000_000) {
+	if shouldAttributeSockets(1_000_000, 0) {
 		t.Fatal("threshold 0 must disable attribution entirely")
-	}
-}
-
-func TestSocketAttributionThresholdFallsBackOnGarbage(t *testing.T) {
-	t.Setenv(socketAttributionThresholdEnv, "not-a-number")
-	if got := socketAttributionThreshold(); got != defaultSocketAttributionThreshold {
-		t.Fatalf("threshold=%d, want default %d", got, defaultSocketAttributionThreshold)
-	}
-	t.Setenv(socketAttributionThresholdEnv, "-5")
-	if got := socketAttributionThreshold(); got != defaultSocketAttributionThreshold {
-		t.Fatalf("negative threshold=%d, want default %d", got, defaultSocketAttributionThreshold)
 	}
 }

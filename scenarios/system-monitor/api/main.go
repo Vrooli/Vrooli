@@ -4,7 +4,8 @@ package main
 // DOC: docs/concepts/ARCHITECTURE.md
 
 import (
-	"log"
+	"log/slog"
+	"os"
 
 	"github.com/vrooli/api-core/preflight"
 
@@ -25,8 +26,13 @@ func main() {
 		return
 	}
 
-	cfg := config.Load()
+	cfg, err := config.Load()
+	if err != nil {
+		slog.Error("System Monitor API configuration failed", "error", err)
+		os.Exit(1)
+	}
 	if err := server.Run(cfg); err != nil {
-		log.Fatalf("System Monitor API failed: %v", err)
+		slog.Error("System Monitor API failed", "error", err)
+		os.Exit(1)
 	}
 }

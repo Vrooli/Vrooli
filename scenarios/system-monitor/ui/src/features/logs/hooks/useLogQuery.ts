@@ -3,6 +3,7 @@ import { extractErrorMessage } from '../../../shared/api/apiFetch';
 import { fetchLogs } from '../api';
 import type { LogQueryFilters } from '../types';
 import type { TimeRange } from '../../../shared/time/TimeRangeContext';
+import { isAbortError } from '../../../shared/utils/errors';
 import {
   initialState,
   logQueryReducer,
@@ -86,7 +87,7 @@ export function useLogQuery(range?: Pick<TimeRange, 'since' | 'until'>, restored
       });
     } catch (err) {
       if (controller.signal.aborted) return;
-      if (err instanceof DOMException && err.name === 'AbortError') return;
+      if (isAbortError(err)) return;
       recoveryRequired.current = true;
       dispatch({ type: 'fetch-error', error: extractErrorMessage(err, 'Failed to load logs') });
     } finally {

@@ -57,10 +57,12 @@ type readActivitySnapshot struct {
 // summarizeReadActivity rejects PID reuse, resets and non-positive intervals.
 // It reports bounded top rows, while retaining coverage counts for the caller.
 func summarizeReadActivity(first, last readActivitySnapshot, top int) ReadActivity {
-	result := ReadActivity{Status: "measured", Platform: "linux", FirstObservedAt: &first.observedAt, LastObservedAt: &last.observedAt,
+	result := ReadActivity{
+		Status: "measured", Platform: "linux", FirstObservedAt: &first.observedAt, LastObservedAt: &last.observedAt,
 		WindowSeconds: last.observedAt.Sub(first.observedAt).Seconds(), FirstEnumerated: first.enumerated, LastEnumerated: last.enumerated,
 		Unreadable: first.unreadable + last.unreadable, PermissionDenied: first.permissionDenied + last.permissionDenied, Disappeared: first.disappeared + last.disappeared, Truncated: first.truncated || last.truncated,
-		Semantics: "Rows rank bytes returned from successful read-like calls, including cache hits; storage_rows rank bytes fetched from the storage layer (accurate for block-backed filesystems). Linux counters include waited-for children and may overlap across processes; a reaped child's lifetime I/O can appear as a brief spike. Observed child exits are incomplete and do not prove reaping. Owner attribution uses ancestry and location heuristics. Processes absent at either sample are not ranked; these rates do not identify kernel slab allocations."}
+		Semantics: "Rows rank bytes returned from successful read-like calls, including cache hits; storage_rows rank bytes fetched from the storage layer (accurate for block-backed filesystems). Linux counters include waited-for children and may overlap across processes; a reaped child's lifetime I/O can appear as a brief spike. Observed child exits are incomplete and do not prove reaping. Owner attribution uses ancestry and location heuristics. Processes absent at either sample are not ranked; these rates do not identify kernel slab allocations.",
+	}
 	var samples []ProcessSample
 	for _, point := range last.points {
 		samples = append(samples, point.process)

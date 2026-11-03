@@ -2,21 +2,21 @@ package server
 
 import (
 	"io"
-	"log/slog"
 	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
 
+	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/logx"
 	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/services"
 )
 
-func waitForShutdown(monitorSvc *services.MonitorService, investigationSvc *services.InvestigationService, retention *services.RetentionScheduler, thresholds *services.ThresholdScheduler, alertEvaluator *services.AlertEvaluator, srv *http.Server, repo io.Closer) {
+func waitForShutdown(monitorSvc *services.MonitorService, investigationSvc *services.InvestigationService, retention *services.RetentionScheduler, thresholds *services.ThresholdScheduler, alertEvaluator *services.AlertEvaluator, srv *http.Server, repo io.Closer, logger logx.Logger) {
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
 
-	slog.Info("Shutting down server...")
+	logger.Info("Shutting down server...")
 
 	if retention != nil {
 		retention.Stop()
@@ -31,14 +31,14 @@ func waitForShutdown(monitorSvc *services.MonitorService, investigationSvc *serv
 	monitorSvc.Stop()
 
 	if err := srv.Close(); err != nil {
-		slog.Error("Error closing server", "error", err)
+		logger.Error("Error closing server", "error", err)
 	}
 
 	if repo != nil {
 		if err := repo.Close(); err != nil {
-			slog.Error("Error closing repository", "error", err)
+			logger.Error("Error closing repository", "error", err)
 		}
 	}
 
-	slog.Info("Server shutdown complete")
+	logger.Info("Server shutdown complete")
 }

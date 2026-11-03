@@ -1,6 +1,7 @@
 package services
 
 import (
+	"reflect"
 	"testing"
 	"time"
 )
@@ -28,6 +29,26 @@ func TestSettingsManager_RoundTrip(t *testing.T) {
 		CPUSustainedWindowTicks:       3,
 		CPUPressureThreshold:          10,
 		MemoryThreshold:               75,
+		MemoryCriticalPercent:         85,
+		TCPConnectionsWarning:         3500,
+		TCPConnectionsCritical:        12000,
+		TCPGrowthWindowSeconds:        900,
+		TCPGrowthFloor:                400,
+		TCPGrowthMinSamples:           6,
+		TCPGrowthFactor:               2.5,
+		GPUUsageWarningPercent:        88,
+		MetricsSnapshotStaleIntervals: 12,
+		OrphanedAgentAgeSeconds:       7200,
+		OrphanedAgentMemoryBytes:      3 * 1024 * 1024 * 1024,
+		AutoInvestigateCriticalRules: map[string]bool{
+			RuleMetricsSnapshot: true,
+			RuleCPUUsage:        false,
+			RuleMemoryUsage:     true,
+			RuleTCPConnections:  true,
+			RuleGPUUsage:        true,
+			RuleMemoryPressure:  true,
+			RuleOrphanedAgents:  true,
+		},
 		DiskThreshold:                 80,
 		DiskHighPercent:               90,
 		DiskCriticalPercent:           95,
@@ -52,8 +73,32 @@ func TestSettingsManager_RoundTrip(t *testing.T) {
 
 	// A fresh manager reading the same store must reproduce the settings.
 	reloaded := NewSettingsManager(WithSettingsConfigStore(store), WithSettingsClock(clock))
-	if got := reloaded.GetSettings(); got != want {
+	if got := reloaded.GetSettings(); !reflect.DeepEqual(got, want) {
 		t.Errorf("round-trip mismatch:\n got=%+v\nwant=%+v", got, want)
+	}
+}
+
+func TestSettingsManager_AutoInvestigationPolicyDefaultsAndClones(t *testing.T) {
+	sm := NewSettingsManager(WithSettingsConfigStore(NewMemoryConfigStore()))
+	got := sm.GetSettings()
+	if !got.AutoInvestigateCriticalRules[RuleCPUUsage] {
+		t.Fatal("CPU auto-investigation should be enabled by default")
+	}
+	got.AutoInvestigateCriticalRules[RuleCPUUsage] = false
+	if !sm.GetSettings().AutoInvestigateCriticalRules[RuleCPUUsage] {
+		t.Fatal("mutating returned policy changed the manager's settings")
+	}
+	got = sm.GetSettings()
+	got.AutoInvestigateCriticalRules = map[string]bool{RuleCPUUsage: false, "unknown_rule": true}
+	if err := sm.UpdateSettings(got); err != nil {
+		t.Fatalf("UpdateSettings: %v", err)
+	}
+	saved := sm.GetSettings().AutoInvestigateCriticalRules
+	if saved[RuleCPUUsage] || !saved[RuleMemoryUsage] {
+		t.Fatalf("policy defaults/explicit false not preserved: %#v", saved)
+	}
+	if _, exists := saved["unknown_rule"]; exists {
+		t.Fatalf("unknown rule retained in policy: %#v", saved)
 	}
 }
 
@@ -99,6 +144,26 @@ func TestSettingsManager_LoadsWrapperShape(t *testing.T) {
 	}
 	if !got.RetentionRunOnStartup {
 		t.Error("RetentionRunOnStartup should default to true for a legacy file")
+	}
+}
+
+func TestSettingsManager_PreservesUnreadableSettingsForRecovery(t *testing.T) {
+	store := NewMemoryConfigStore()
+	corrupt := []byte(`{"version":`)
+	if err := store.WriteConfig(settingsFileName, corrupt); err != nil {
+		t.Fatalf("seed corrupt settings: %v", err)
+	}
+
+	sm := NewSettingsManager(WithSettingsConfigStore(store))
+	if got := sm.GetSettings(); got.MetricCollectionInterval != defaultSettings.MetricCollectionInterval {
+		t.Fatalf("in-memory fallback interval = %d, want default %d", got.MetricCollectionInterval, defaultSettings.MetricCollectionInterval)
+	}
+	got, err := store.ReadConfig(settingsFileName)
+	if err != nil {
+		t.Fatalf("read preserved settings: %v", err)
+	}
+	if string(got) != string(corrupt) {
+		t.Fatalf("corrupt settings were overwritten: got %q, want original %q", got, corrupt)
 	}
 }
 

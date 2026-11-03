@@ -45,8 +45,8 @@ func TestProcessTimeline_RanksByCPUAcrossRawRows(t *testing.T) {
 	if entries[0].SampleCount != 2 {
 		t.Fatalf("sample_count = %d, want 2", entries[0].SampleCount)
 	}
-	if entries[0].RSSKB != 1200 {
-		t.Fatalf("rss = %d, want max 1200", entries[0].RSSKB)
+	if entries[0].RSSKB != 1100 {
+		t.Fatalf("rss = %d, want average 1100", entries[0].RSSKB)
 	}
 }
 
@@ -113,8 +113,8 @@ func TestRollupProcessSamples_AggregatesAndPrunesRaw(t *testing.T) {
 	if e.SampleCount != 2 {
 		t.Fatalf("rollup sample_count = %d, want 2", e.SampleCount)
 	}
-	if e.RSSKB != 300 {
-		t.Fatalf("rollup max rss = %d, want 300", e.RSSKB)
+	if e.RSSKB != 200 {
+		t.Fatalf("rollup average rss = %d, want 200", e.RSSKB)
 	}
 }
 

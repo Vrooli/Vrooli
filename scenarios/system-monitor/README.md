@@ -5,7 +5,7 @@ Real-time server monitoring with threshold-based anomaly detection, AI-driven in
 
 ## Features
 - **Real-time Metrics**: CPU, memory, disk, network, GPU, process monitoring via 6 pluggable collectors
-- **Threshold-based Anomaly Detection**: Configurable warning/critical thresholds with 5 auto-fix triggers
+- **Threshold-based Anomaly Detection**: Configurable warning/critical thresholds with sustained per-rule investigation policy
 - **AI Investigation**: Automated investigation via agent-manager integration (spawns AI agents)
 - **Investigation Scripts**: A typed catalog of native and explicitly shell-gated investigations (CPU, memory, network, container, process analysis)
 - **Process Monitoring**: Zombie detection, high-thread monitoring, and memory-leak candidates; process termination remains outside the current API contract
@@ -105,12 +105,11 @@ Global flags: `--help`, `--version`, `--port <port>`, `--json`, `--quiet`
 - **System**: comprehensive-system-analyzer, resource-exhaustion-detector, master-system-sweep
 - **Service-specific**: chrome-cpu-analyzer
 
-Auto-fix triggers (configurable in `api/internal/<domain>/configuration/investigation-triggers.json`):
-1. High CPU Usage (75%, 60s sustained)
-2. Memory Pressure (10% available, 30s sustained)
-3. Low Disk Space (90%, 120s sustained)
-4. Excessive Network Connections (2000, 30s sustained)
-5. Process Anomaly (25 processes, 10s sustained)
+Sustained critical conditions can start their associated native investigation.
+Detection thresholds, sustain durations, and per-rule investigation switches are
+managed in System Settings. Alert delivery channels and routing are managed by
+Notification Hub. The retired `investigation-triggers.json` file is no longer
+read or written.
 
 ## Usage
 ```bash

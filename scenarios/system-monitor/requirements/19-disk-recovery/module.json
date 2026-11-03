@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "description": "Requirements for storage rate sensing and hot-writer reporting.",
-    "last_validated_at": "2026-09-02T21:50:20-04:00",
+    "last_validated_at": "2026-11-02T22:59:57-05:00",
     "module": "disk-recovery",
     "priority": "P0",
     "schema_version": "1.0.0"
@@ -10,7 +10,7 @@
     {
       "id": "SM-P0-101",
       "title": "Storage fill rate sensor",
-      "status": "in_progress",
+      "status": "complete",
       "criticality": "P0",
       "description": "System Monitor MUST compute bytes per hour from consecutive storage samples and publish the value with the governed root identity.",
       "validation": [
@@ -18,7 +18,7 @@
           "type": "test",
           "ref": "api/internal/services/fill_rate_test.go",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Fill-rate calculations and sample windows are covered."
         }
       ]
@@ -26,7 +26,7 @@
     {
       "id": "SM-P0-102",
       "title": "Named hot-writer event",
-      "status": "in_progress",
+      "status": "complete",
       "criticality": "P0",
       "description": "System Monitor MUST emit a storage.writer.hot event after a governed root exceeds its declared rate limit for one complete sensor window.",
       "validation": [
@@ -34,7 +34,7 @@
           "type": "test",
           "ref": "api/internal/services/writer_sampler_test.go",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Writer sampling and threshold behavior are covered."
         }
       ]
@@ -42,7 +42,7 @@
     {
       "id": "SM-P0-103",
       "title": "Shared pressure classification",
-      "status": "in_progress",
+      "status": "complete",
       "criticality": "P0",
       "description": "Pressure reports MUST use the shared band classifier and MUST carry fill rate, hot writers, and trigger fields.",
       "validation": [
@@ -50,7 +50,7 @@
           "type": "test",
           "ref": "api/internal/handlers/pressure_test.go",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Pressure payload and classification behavior are covered."
         }
       ]

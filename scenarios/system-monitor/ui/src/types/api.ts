@@ -61,7 +61,6 @@ export type {
   ImpactAssessment,
   ResolutionPlan,
   ResolutionStep,
-  TriggerConfig,
   CooldownStatus,
   Anomaly,
 } from '@vrooli/proto-types/system-monitor/v1/investigations/investigations_pb';

@@ -3,7 +3,6 @@ package httputil
 import (
 	"errors"
 	"io"
-	"log/slog"
 	"net/http"
 	"sync"
 
@@ -12,6 +11,7 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/apierrors"
+	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/logx"
 )
 
 var (
@@ -71,7 +71,7 @@ func IsValidationError(err error) bool {
 	return errors.As(err, &validationErr)
 }
 
-func ValidateProtoRequest(w http.ResponseWriter, log *slog.Logger, r *http.Request, badRequestMessage string, msg proto.Message) bool {
+func ValidateProtoRequest(w http.ResponseWriter, log logx.Logger, r *http.Request, badRequestMessage string, msg proto.Message) bool {
 	if err := ValidateProto(msg); err != nil {
 		if IsValidationError(err) {
 			WriteAPIError(w, log, r, apierrors.Validation("body", badRequestMessage))

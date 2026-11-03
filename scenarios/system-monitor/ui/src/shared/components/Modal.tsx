@@ -19,7 +19,7 @@ export const Modal = ({ isOpen, onClose, children, className, ariaLabel }: Modal
   useEscapeKey(onClose, isOpen);
 
   const handleOverlayClick = useCallback((e: React.MouseEvent) => {
-    if (contentRef.current && !contentRef.current.contains(e.target as Node)) {
+    if (contentRef.current && e.target instanceof Node && !contentRef.current.contains(e.target)) {
       onClose();
     }
   }, [onClose]);

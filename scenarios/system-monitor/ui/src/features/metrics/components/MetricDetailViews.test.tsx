@@ -26,7 +26,7 @@ vi.mock('recharts', () => {
 });
 
 describe('MetricDetailViews', () => {
-  beforeEach(() => localStorage.clear());
+  beforeEach(() => { localStorage.clear(); });
 
   it('renders the shared detail layout and back action', () => {
     const onBack = vi.fn();

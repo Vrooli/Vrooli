@@ -7,11 +7,11 @@
  * snake_case field names are handled correctly.
  */
 
-import { fromJson, toJsonString, create, type JsonValue, type MessageShape } from "@bufbuild/protobuf";
+import { fromJson, toJsonString, create, type DescMessage, type JsonValue, type MessageShape } from "@bufbuild/protobuf";
 
 // Domain schemas — metrics
 import { MetricsResponseSchema, MetricsTimelineResponseSchema, DetailedMetricsSchema, DiskDetailResponseSchema, ProcessMonitorDataSchema, InfrastructureMonitorDataSchema } from "@vrooli/proto-types/system-monitor/v1/metrics/metrics_pb";
-import { InvestigationSchema, TriggerConfigSchema, CooldownStatusSchema, GetTriggersResponseSchema, TriggerInvestigationResponseSchema, GetCooldownStatusResponseSchema, ListInvestigationsResponseSchema } from "@vrooli/proto-types/system-monitor/v1/investigations/investigations_pb";
+import { InvestigationSchema, CooldownStatusSchema, TriggerInvestigationResponseSchema, GetCooldownStatusResponseSchema, ListInvestigationsResponseSchema, StopAgentResponseSchema } from "@vrooli/proto-types/system-monitor/v1/investigations/investigations_pb";
 import { SystemSettingsSchema, GetSettingsResponseSchema, UpdateSettingsResponseSchema, ResetSettingsResponseSchema, GetMaintenanceStateResponseSchema, SetMaintenanceStateResponseSchema } from "@vrooli/proto-types/system-monitor/v1/settings/settings_pb";
 import { ListScriptsResponseSchema, GetScriptResponseSchema, ExecuteScriptResponseSchema, InvestigationScriptSchema, ScriptExecutionSchema, ListRunsResponseSchema } from "@vrooli/proto-types/system-monitor/v1/scripts/scripts_pb";
 import { EnhancedSystemReportSchema, ListReportsResponseSchema, GenerateReportResponseSchema } from "@vrooli/proto-types/system-monitor/v1/reports/reports_pb";
@@ -48,32 +48,76 @@ import { GetCapacityOverviewResponseSchema, ListCapacityClaimsResponseSchema, Re
 
 const PROTO_JSON_OPTIONS = { ignoreUnknownFields: true } as const;
 
+/** Validate values at the untyped API boundary before handing them to protobuf. */
+function toProtoJsonValue(value: unknown, path = '$', ancestors = new WeakSet<object>()): JsonValue {
+  if (value === null || typeof value === 'string' || typeof value === 'boolean') return value;
+  if (typeof value === 'number' && Number.isFinite(value)) return value;
+
+  if (Array.isArray(value)) {
+    if (ancestors.has(value)) throw new TypeError(`Cyclic API JSON value at ${path}`);
+    ancestors.add(value);
+    const result = Array.from(value, (item, index) => toProtoJsonValue(item, `${path}[${index}]`, ancestors));
+    ancestors.delete(value);
+    return result;
+  }
+
+  if (typeof value === 'object' && value !== null) {
+    const prototype = Object.getPrototypeOf(value);
+    if (prototype !== Object.prototype && prototype !== null) {
+      throw new TypeError(`Unsupported API JSON object at ${path}`);
+    }
+    if (ancestors.has(value)) throw new TypeError(`Cyclic API JSON value at ${path}`);
+    ancestors.add(value);
+    const result: Record<string, JsonValue> = {};
+    for (const [key, item] of Object.entries(value)) {
+      Object.defineProperty(result, key, {
+        value: toProtoJsonValue(item, `${path}.${key}`, ancestors),
+        enumerable: true,
+        configurable: true,
+        writable: true,
+      });
+    }
+    ancestors.delete(value);
+    return result;
+  }
+
+  throw new TypeError(`Unsupported API JSON value at ${path}`);
+}
+
+export function parseProtoMessage<Desc extends DescMessage>(
+  schema: Desc,
+  data: unknown,
+  path = '$',
+): MessageShape<Desc> {
+  return fromJson(schema, toProtoJsonValue(data, path), PROTO_JSON_OPTIONS);
+}
+
 // ---------------------------------------------------------------------------
 // Parse helpers — metrics
 // ---------------------------------------------------------------------------
 
 export function parseMetricsResponse(data: unknown): MessageShape<typeof MetricsResponseSchema> {
-  return fromJson(MetricsResponseSchema, data as JsonValue, PROTO_JSON_OPTIONS);
+  return parseProtoMessage(MetricsResponseSchema, data);
 }
 
 export function parseDetailedMetrics(data: unknown): MessageShape<typeof DetailedMetricsSchema> {
-  return fromJson(DetailedMetricsSchema, data as JsonValue, PROTO_JSON_OPTIONS);
+  return parseProtoMessage(DetailedMetricsSchema, data);
 }
 
 export function parseProcessMonitorData(data: unknown): MessageShape<typeof ProcessMonitorDataSchema> {
-  return fromJson(ProcessMonitorDataSchema, data as JsonValue, PROTO_JSON_OPTIONS);
+  return parseProtoMessage(ProcessMonitorDataSchema, data);
 }
 
 export function parseInfrastructureMonitorData(data: unknown): MessageShape<typeof InfrastructureMonitorDataSchema> {
-  return fromJson(InfrastructureMonitorDataSchema, data as JsonValue, PROTO_JSON_OPTIONS);
+  return parseProtoMessage(InfrastructureMonitorDataSchema, data);
 }
 
 export function parseMetricsTimelineResponse(data: unknown): MessageShape<typeof MetricsTimelineResponseSchema> {
-  return fromJson(MetricsTimelineResponseSchema, data as JsonValue, PROTO_JSON_OPTIONS);
+  return parseProtoMessage(MetricsTimelineResponseSchema, data);
 }
 
 export function parseDiskDetailResponse(data: unknown): MessageShape<typeof DiskDetailResponseSchema> {
-  return fromJson(DiskDetailResponseSchema, data as JsonValue, PROTO_JSON_OPTIONS);
+  return parseProtoMessage(DiskDetailResponseSchema, data);
 }
 
 // ---------------------------------------------------------------------------
@@ -81,7 +125,7 @@ export function parseDiskDetailResponse(data: unknown): MessageShape<typeof Disk
 // ---------------------------------------------------------------------------
 
 export function parseListAlertsResponse(data: unknown): MessageShape<typeof ListAlertsResponseSchema> {
-  return fromJson(ListAlertsResponseSchema, data as JsonValue, PROTO_JSON_OPTIONS);
+  return parseProtoMessage(ListAlertsResponseSchema, data);
 }
 
 // ---------------------------------------------------------------------------
@@ -89,20 +133,16 @@ export function parseListAlertsResponse(data: unknown): MessageShape<typeof List
 // ---------------------------------------------------------------------------
 
 export function parseInvestigation(data: unknown): MessageShape<typeof InvestigationSchema> {
-  return fromJson(InvestigationSchema, data as JsonValue, PROTO_JSON_OPTIONS);
+  return parseProtoMessage(InvestigationSchema, data);
 }
 
 export function parseInvestigations(data: unknown): MessageShape<typeof InvestigationSchema>[] {
   if (!Array.isArray(data)) return [];
-  return data.map((item: unknown) => fromJson(InvestigationSchema, item as JsonValue, PROTO_JSON_OPTIONS));
-}
-
-export function parseTriggerConfig(data: unknown): MessageShape<typeof TriggerConfigSchema> {
-  return fromJson(TriggerConfigSchema, data as JsonValue, PROTO_JSON_OPTIONS);
+  return data.map((item: unknown, index: number) => parseProtoMessage(InvestigationSchema, item, `$[${index}]`));
 }
 
 export function parseCooldownStatus(data: unknown): MessageShape<typeof CooldownStatusSchema> {
-  return fromJson(CooldownStatusSchema, data as JsonValue, PROTO_JSON_OPTIONS);
+  return parseProtoMessage(CooldownStatusSchema, data);
 }
 
 // ---------------------------------------------------------------------------
@@ -110,7 +150,7 @@ export function parseCooldownStatus(data: unknown): MessageShape<typeof Cooldown
 // ---------------------------------------------------------------------------
 
 export function parseSystemSettings(data: unknown): MessageShape<typeof SystemSettingsSchema> {
-  return fromJson(SystemSettingsSchema, data as JsonValue, PROTO_JSON_OPTIONS);
+  return parseProtoMessage(SystemSettingsSchema, data);
 }
 
 // ---------------------------------------------------------------------------
@@ -118,15 +158,15 @@ export function parseSystemSettings(data: unknown): MessageShape<typeof SystemSe
 // ---------------------------------------------------------------------------
 
 export function parseEnhancedSystemReport(data: unknown): MessageShape<typeof EnhancedSystemReportSchema> {
-  return fromJson(EnhancedSystemReportSchema, data as JsonValue, PROTO_JSON_OPTIONS);
+  return parseProtoMessage(EnhancedSystemReportSchema, data);
 }
 
 export function parseListReportsResponse(data: unknown): MessageShape<typeof ListReportsResponseSchema> {
-  return fromJson(ListReportsResponseSchema, data as JsonValue, PROTO_JSON_OPTIONS);
+  return parseProtoMessage(ListReportsResponseSchema, data);
 }
 
 export function parseGenerateReportResponse(data: unknown): MessageShape<typeof GenerateReportResponseSchema> {
-  return fromJson(GenerateReportResponseSchema, data as JsonValue, PROTO_JSON_OPTIONS);
+  return parseProtoMessage(GenerateReportResponseSchema, data);
 }
 
 // ---------------------------------------------------------------------------
@@ -134,11 +174,11 @@ export function parseGenerateReportResponse(data: unknown): MessageShape<typeof 
 // ---------------------------------------------------------------------------
 
 export function parseInvestigationScript(data: unknown): MessageShape<typeof InvestigationScriptSchema> {
-  return fromJson(InvestigationScriptSchema, data as JsonValue, PROTO_JSON_OPTIONS);
+  return parseProtoMessage(InvestigationScriptSchema, data);
 }
 
 export function parseScriptExecution(data: unknown): MessageShape<typeof ScriptExecutionSchema> {
-  return fromJson(ScriptExecutionSchema, data as JsonValue, PROTO_JSON_OPTIONS);
+  return parseProtoMessage(ScriptExecutionSchema, data);
 }
 
 // ---------------------------------------------------------------------------
@@ -146,19 +186,19 @@ export function parseScriptExecution(data: unknown): MessageShape<typeof ScriptE
 // ---------------------------------------------------------------------------
 
 export function parseListScriptsResponse(data: unknown): MessageShape<typeof ListScriptsResponseSchema> {
-  return fromJson(ListScriptsResponseSchema, data as JsonValue, PROTO_JSON_OPTIONS);
+  return parseProtoMessage(ListScriptsResponseSchema, data);
 }
 
 export function parseGetScriptResponse(data: unknown): MessageShape<typeof GetScriptResponseSchema> {
-  return fromJson(GetScriptResponseSchema, data as JsonValue, PROTO_JSON_OPTIONS);
+  return parseProtoMessage(GetScriptResponseSchema, data);
 }
 
 export function parseExecuteScriptResponse(data: unknown): MessageShape<typeof ExecuteScriptResponseSchema> {
-  return fromJson(ExecuteScriptResponseSchema, data as JsonValue, PROTO_JSON_OPTIONS);
+  return parseProtoMessage(ExecuteScriptResponseSchema, data);
 }
 
 export function parseListRunsResponse(data: unknown): MessageShape<typeof ListRunsResponseSchema> {
-  return fromJson(ListRunsResponseSchema, data as JsonValue, PROTO_JSON_OPTIONS);
+  return parseProtoMessage(ListRunsResponseSchema, data);
 }
 
 // ---------------------------------------------------------------------------
@@ -166,23 +206,23 @@ export function parseListRunsResponse(data: unknown): MessageShape<typeof ListRu
 // ---------------------------------------------------------------------------
 
 export function parseGetSettingsResponse(data: unknown): MessageShape<typeof GetSettingsResponseSchema> {
-  return fromJson(GetSettingsResponseSchema, data as JsonValue, PROTO_JSON_OPTIONS);
+  return parseProtoMessage(GetSettingsResponseSchema, data);
 }
 
 export function parseUpdateSettingsResponse(data: unknown): MessageShape<typeof UpdateSettingsResponseSchema> {
-  return fromJson(UpdateSettingsResponseSchema, data as JsonValue, PROTO_JSON_OPTIONS);
+  return parseProtoMessage(UpdateSettingsResponseSchema, data);
 }
 
 export function parseResetSettingsResponse(data: unknown): MessageShape<typeof ResetSettingsResponseSchema> {
-  return fromJson(ResetSettingsResponseSchema, data as JsonValue, PROTO_JSON_OPTIONS);
+  return parseProtoMessage(ResetSettingsResponseSchema, data);
 }
 
 export function parseGetMaintenanceStateResponse(data: unknown): MessageShape<typeof GetMaintenanceStateResponseSchema> {
-  return fromJson(GetMaintenanceStateResponseSchema, data as JsonValue, PROTO_JSON_OPTIONS);
+  return parseProtoMessage(GetMaintenanceStateResponseSchema, data);
 }
 
 export function parseSetMaintenanceStateResponse(data: unknown): MessageShape<typeof SetMaintenanceStateResponseSchema> {
-  return fromJson(SetMaintenanceStateResponseSchema, data as JsonValue, PROTO_JSON_OPTIONS);
+  return parseProtoMessage(SetMaintenanceStateResponseSchema, data);
 }
 
 // ---------------------------------------------------------------------------
@@ -190,43 +230,43 @@ export function parseSetMaintenanceStateResponse(data: unknown): MessageShape<ty
 // ---------------------------------------------------------------------------
 
 export function parseGetCapacityOverviewResponse(data: unknown): MessageShape<typeof GetCapacityOverviewResponseSchema> {
-  return fromJson(GetCapacityOverviewResponseSchema, data as JsonValue, PROTO_JSON_OPTIONS);
+  return parseProtoMessage(GetCapacityOverviewResponseSchema, data);
 }
 
 export function parseListCapacityClaimsResponse(data: unknown): MessageShape<typeof ListCapacityClaimsResponseSchema> {
-  return fromJson(ListCapacityClaimsResponseSchema, data as JsonValue, PROTO_JSON_OPTIONS);
+  return parseProtoMessage(ListCapacityClaimsResponseSchema, data);
 }
 
 export function parseReconcileCapacityResponse(data: unknown): MessageShape<typeof ReconcileCapacityResponseSchema> {
-  return fromJson(ReconcileCapacityResponseSchema, data as JsonValue, PROTO_JSON_OPTIONS);
+  return parseProtoMessage(ReconcileCapacityResponseSchema, data);
 }
 
 export function parseGetCapacityPolicyResponse(data: unknown): MessageShape<typeof GetCapacityPolicyResponseSchema> {
-  return fromJson(GetCapacityPolicyResponseSchema, data as JsonValue, PROTO_JSON_OPTIONS);
+  return parseProtoMessage(GetCapacityPolicyResponseSchema, data);
 }
 
 export function parseSetCapacityPolicyResponse(data: unknown): MessageShape<typeof SetCapacityPolicyResponseSchema> {
-  return fromJson(SetCapacityPolicyResponseSchema, data as JsonValue, PROTO_JSON_OPTIONS);
+  return parseProtoMessage(SetCapacityPolicyResponseSchema, data);
 }
 
 // ---------------------------------------------------------------------------
 // Parse helpers — API wrapper types (investigations)
 // ---------------------------------------------------------------------------
 
-export function parseGetTriggersResponse(data: unknown): MessageShape<typeof GetTriggersResponseSchema> {
-  return fromJson(GetTriggersResponseSchema, data as JsonValue, PROTO_JSON_OPTIONS);
-}
-
 export function parseTriggerInvestigationResponse(data: unknown): MessageShape<typeof TriggerInvestigationResponseSchema> {
-  return fromJson(TriggerInvestigationResponseSchema, data as JsonValue, PROTO_JSON_OPTIONS);
+  return parseProtoMessage(TriggerInvestigationResponseSchema, data);
 }
 
 export function parseGetCooldownStatusResponse(data: unknown): MessageShape<typeof GetCooldownStatusResponseSchema> {
-  return fromJson(GetCooldownStatusResponseSchema, data as JsonValue, PROTO_JSON_OPTIONS);
+  return parseProtoMessage(GetCooldownStatusResponseSchema, data);
 }
 
 export function parseListInvestigationsResponse(data: unknown): MessageShape<typeof ListInvestigationsResponseSchema> {
-  return fromJson(ListInvestigationsResponseSchema, data as JsonValue, PROTO_JSON_OPTIONS);
+  return parseProtoMessage(ListInvestigationsResponseSchema, data);
+}
+
+export function parseStopAgentResponse(data: unknown): MessageShape<typeof StopAgentResponseSchema> {
+  return parseProtoMessage(StopAgentResponseSchema, data);
 }
 
 // ---------------------------------------------------------------------------
@@ -241,7 +281,6 @@ export {
   ProcessMonitorDataSchema,
   InfrastructureMonitorDataSchema,
   InvestigationSchema,
-  TriggerConfigSchema,
   CooldownStatusSchema,
   SystemSettingsSchema,
   EnhancedSystemReportSchema,
@@ -252,7 +291,6 @@ export {
   ResetSettingsResponseSchema,
   GetMaintenanceStateResponseSchema,
   SetMaintenanceStateResponseSchema,
-  GetTriggersResponseSchema,
   TriggerInvestigationResponseSchema,
   GetCooldownStatusResponseSchema,
   ListInvestigationsResponseSchema,
