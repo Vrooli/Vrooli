@@ -39,6 +39,28 @@
     "hook_surface": "native-permissions"
   },
   "harness": {
+    "native_artifacts": {
+      "linux_amd64": {
+        "dependency": "@xai-official/grok-linux-x64",
+        "executable": "bin/grok.br",
+        "compression": "brotli"
+      },
+      "linux_arm64": {
+        "dependency": "@xai-official/grok-linux-arm64",
+        "executable": "bin/grok.br",
+        "compression": "brotli"
+      },
+      "darwin_amd64": {
+        "dependency": "@xai-official/grok-darwin-x64",
+        "executable": "bin/grok.br",
+        "compression": "brotli"
+      },
+      "darwin_arm64": {
+        "dependency": "@xai-official/grok-darwin-arm64",
+        "executable": "bin/grok.br",
+        "compression": "brotli"
+      }
+    },
     "id": "grok",
     "aliases": [],
     "binary": "grok",

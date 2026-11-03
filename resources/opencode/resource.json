@@ -47,6 +47,24 @@
     "hook_surface": "native-permissions"
   },
   "harness": {
+    "native_artifacts": {
+      "linux_amd64": {
+        "dependency": "opencode-linux-x64-baseline",
+        "executable": "bin/opencode"
+      },
+      "linux_arm64": {
+        "dependency": "opencode-linux-arm64",
+        "executable": "bin/opencode"
+      },
+      "darwin_amd64": {
+        "dependency": "opencode-darwin-x64-baseline",
+        "executable": "bin/opencode"
+      },
+      "darwin_arm64": {
+        "dependency": "opencode-darwin-arm64",
+        "executable": "bin/opencode"
+      }
+    },
     "id": "opencode",
     "aliases": [],
     "binary": "opencode",

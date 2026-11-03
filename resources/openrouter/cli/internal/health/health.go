@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"math"
 	"net/http"
 	"os"
 	"strings"
@@ -275,4 +276,74 @@ func GenerateImage(ctx context.Context, client HTTPClient, runtime resourceenv.R
 		return nil, newHTTPProviderError(resp.StatusCode, resp.Header.Get("Retry-After"), detail)
 	}
 	return responseBody, nil
+}
+
+// GatewayImageResult is the provider-neutral image result consumed by AI
+// Gateway. Cost is omitted when OpenRouter did not provide a valid amount.
+type GatewayImageResult struct {
+	SchemaVersion int            `json:"schema_version"`
+	Images        []GatewayImage `json:"images"`
+	ActualCostUSD *float64       `json:"actual_cost_usd,omitempty"`
+}
+
+type GatewayImage struct {
+	DataB64   string `json:"data_b64"`
+	MediaType string `json:"media_type"`
+}
+
+// NormalizeGatewayImageResult translates OpenRouter's image response into the
+// versioned, provider-neutral shape used by AI Gateway. Provider accounting is
+// decoded independently so an invalid usage.cost never discards valid image
+// bytes. An invalid/missing image remains represented for Gateway to reject;
+// this also preserves any valid cost evidence alongside that protocol failure.
+func NormalizeGatewayImageResult(body []byte) ([]byte, error) {
+	var response struct {
+		Data []struct {
+			B64JSON   string `json:"b64_json"`
+			MediaType string `json:"media_type"`
+		} `json:"data"`
+		Usage json.RawMessage `json:"usage"`
+	}
+	if err := json.Unmarshal(body, &response); err != nil {
+		return nil, fmt.Errorf("decode OpenRouter image response: %w", err)
+	}
+	result := GatewayImageResult{SchemaVersion: 1, Images: make([]GatewayImage, 0, len(response.Data))}
+	for _, image := range response.Data {
+		mediaType := strings.TrimSpace(image.MediaType)
+		if mediaType == "" {
+			mediaType = "image/png"
+		}
+		result.Images = append(result.Images, GatewayImage{DataB64: image.B64JSON, MediaType: mediaType})
+	}
+	var usage struct {
+		Cost json.RawMessage `json:"cost"`
+	}
+	// Accounting metadata is independent of the image payload. A malformed or
+	// wrong-type usage container means cost is unknown, but must not discard
+	// otherwise valid provider image bytes.
+	_ = json.Unmarshal(response.Usage, &usage)
+	if cost := parseReportedImageCost(usage.Cost); cost != nil {
+		result.ActualCostUSD = cost
+	}
+	encoded, err := json.Marshal(result)
+	if err != nil {
+		return nil, fmt.Errorf("encode Gateway image result: %w", err)
+	}
+	return encoded, nil
+}
+
+func parseReportedImageCost(raw json.RawMessage) *float64 {
+	text := strings.TrimSpace(string(raw))
+	if text == "" || text == "null" || (text[0] != '-' && (text[0] < '0' || text[0] > '9')) {
+		return nil
+	}
+	var number json.Number
+	if err := json.Unmarshal([]byte(text), &number); err != nil {
+		return nil
+	}
+	value, err := number.Float64()
+	if err != nil || math.IsNaN(value) || math.IsInf(value, 0) || value < 0 {
+		return nil
+	}
+	return &value
 }

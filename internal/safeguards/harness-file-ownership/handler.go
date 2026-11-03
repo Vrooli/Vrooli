@@ -8,7 +8,7 @@ import (
 	"github.com/vrooli/vrooli/internal/config"
 	"github.com/vrooli/vrooli/internal/hostreqkit"
 	"github.com/vrooli/vrooli/internal/hostreqspec"
-	"github.com/vrooli/vrooli/internal/resources/agentinstall"
+	"github.com/vrooli/vrooli/packages/harness-lifecycle"
 )
 
 // Seams. Setup runs as root, and the files belong to the invoking operator.

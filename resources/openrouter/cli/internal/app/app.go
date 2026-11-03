@@ -154,18 +154,22 @@ func runImageGenerate(app *cliapp.ResourceApp, args []string, stdout io.Writer, 
 	}
 	fs := flag.NewFlagSet("images generate", flag.ContinueOnError)
 	fs.SetOutput(io.Discard)
-	var role, promptFlag, promptFile, inputFile string
+	var role, promptFlag, promptFile, inputFile, resultFormat string
 	var count int
 	fs.StringVar(&role, "role", "image.generate.default", "OpenRouter image policy role")
 	fs.StringVar(&promptFlag, "prompt", "", "Image prompt")
 	fs.StringVar(&promptFile, "prompt-file", "", "Read image prompt from file")
 	fs.StringVar(&inputFile, "input-file", "", "Optional source image for image-to-image or instructed editing")
+	fs.StringVar(&resultFormat, "result-format", "raw", "Image result format: raw or gateway-v1")
 	fs.IntVar(&count, "output-count", 1, "Number of image outputs")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
 	if count < 1 {
 		return fmt.Errorf("output-count must be at least 1")
+	}
+	if err := validateImageResultFormat(resultFormat); err != nil {
+		return err
 	}
 	model, err := resolveRoleModel(role)
 	if err != nil {
@@ -185,8 +189,30 @@ func runImageGenerate(app *cliapp.ResourceApp, args []string, stdout io.Writer, 
 	if err != nil {
 		return err
 	}
+	body, err = formatImageResponse(body, resultFormat)
+	if err != nil {
+		return err
+	}
 	_, err = fmt.Fprintln(stdout, string(body))
 	return err
+}
+
+func formatImageResponse(body []byte, resultFormat string) ([]byte, error) {
+	switch resultFormat {
+	case "raw":
+		return body, nil
+	case "gateway-v1":
+		return health.NormalizeGatewayImageResult(body)
+	default:
+		return nil, fmt.Errorf("result-format must be raw or gateway-v1")
+	}
+}
+
+func validateImageResultFormat(resultFormat string) error {
+	if resultFormat != "raw" && resultFormat != "gateway-v1" {
+		return fmt.Errorf("result-format must be raw or gateway-v1")
+	}
+	return nil
 }
 
 // resolveDefaultModel resolves the OpenRouter default role to a concrete model

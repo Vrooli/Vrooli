@@ -39,6 +39,29 @@
     "hook_surface": "native-permissions"
   },
   "harness": {
+    "sign_in_probe": {
+      "args": ["login", "status"],
+      "signed_in_prefixes": ["Logged in using "],
+      "signed_out_lines": ["Not logged in"]
+    },
+    "native_artifacts": {
+      "linux_amd64": {
+        "dependency": "@openai/codex-linux-x64",
+        "executable": "vendor/x86_64-unknown-linux-musl/bin/codex"
+      },
+      "linux_arm64": {
+        "dependency": "@openai/codex-linux-arm64",
+        "executable": "vendor/aarch64-unknown-linux-musl/bin/codex"
+      },
+      "darwin_amd64": {
+        "dependency": "@openai/codex-darwin-x64",
+        "executable": "vendor/x86_64-apple-darwin/bin/codex"
+      },
+      "darwin_arm64": {
+        "dependency": "@openai/codex-darwin-arm64",
+        "executable": "vendor/aarch64-apple-darwin/bin/codex"
+      }
+    },
     "id": "codex",
     "aliases": [],
     "binary": "codex",

@@ -59,6 +59,24 @@
     "hook_surface": "native-permissions"
   },
   "harness": {
+    "native_artifacts": {
+      "linux_amd64": {
+        "dependency": "@anthropic-ai/claude-code-linux-x64",
+        "executable": "claude"
+      },
+      "linux_arm64": {
+        "dependency": "@anthropic-ai/claude-code-linux-arm64",
+        "executable": "claude"
+      },
+      "darwin_amd64": {
+        "dependency": "@anthropic-ai/claude-code-darwin-x64",
+        "executable": "claude"
+      },
+      "darwin_arm64": {
+        "dependency": "@anthropic-ai/claude-code-darwin-arm64",
+        "executable": "claude"
+      }
+    },
     "id": "claude",
     "aliases": [
       "claude-code"

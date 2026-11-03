@@ -74,6 +74,17 @@ func NewAuthority(store securestore.Store) (*Authority, error) {
 	return &Authority{inner: inner}, nil
 }
 
+// OpenEncryptedFile opens an explicitly scoped encrypted authority. Unlike
+// Default it never accesses the operating-system keyring. The caller supplies
+// the path and keeps the passphrase in process memory.
+func OpenEncryptedFile(path, passphrase string) (*Authority, error) {
+	store, err := securestore.OpenEncryptedFile(path, passphrase)
+	if err != nil {
+		return nil, err
+	}
+	return NewAuthority(store)
+}
+
 // Unavailable returns an authority whose backend reports that this host has no
 // credential store.
 //

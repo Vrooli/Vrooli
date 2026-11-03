@@ -64,6 +64,9 @@ echo "Explain tool routing simply" | resource-openrouter generate --role chat.sm
 resource-openrouter generate --role chat.quality --max-tokens 640 --prompt-file ./prompt.txt
 # --model is an explicit advanced override; prefer --role.
 
+# Gateway's normalized image envelope is opt-in; the default remains raw provider JSON.
+resource-openrouter images generate --result-format gateway-v1 --prompt "A blue circle"
+
 # Multimodal requests use the standard-input JSON envelope; image bytes are
 # kept out of argv and logs.
 resource-openrouter generate --role image.generate.logo --input-json-stdin --json <<'JSON'
@@ -78,6 +81,13 @@ resource-openrouter show-config --json
 ```
 
 ## Model Role Policy
+
+`images generate` defaults to the raw OpenRouter response. The optional
+`--result-format gateway-v1` emits schema version 1 with one normalized image
+(`data_b64`, `media_type`) and includes `actual_cost_usd` only when the provider
+returns a finite, nonnegative numeric `usage.cost`. An explicit zero is known;
+missing or malformed accounting is unknown and does not discard valid image
+bytes. `--json` controls CLI output formatting and does not select this envelope.
 
 OpenRouter is the **policy authority** for model selection. Concrete OpenRouter
 model slugs live in exactly one place — [`model-policy.json`](model-policy.json).

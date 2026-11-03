@@ -1,0 +1,9 @@
+{
+  "label": "synthetic_unverified",
+  "verified": false,
+  "cases": [
+    {"id": "limit-ratelimit", "source": "synthetic", "message": "Rate limit reached. Try again later."},
+    {"id": "limit-context", "source": "synthetic", "message": "The request exceeds the model context window."},
+    {"id": "limit-output", "source": "synthetic", "finish_reason": "length", "message": "Output stopped at the configured token limit."}
+  ]
+}

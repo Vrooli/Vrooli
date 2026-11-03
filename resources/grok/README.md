@@ -69,6 +69,12 @@ credentials beyond documenting how to provide them.
 - **Headless / deployment:** export `GROK_DEPLOYMENT_KEY=<key>` before running
   `grok` (takes precedence over `auth.json`).
 
+`resource-grok auth status --json` reports the sign-in state without reading
+credential contents or contacting xAI. It reports `signed_out` only when both
+documented credential sources are absent. If a credential source is present,
+the result is `unknown`: this resource cannot establish whether the credential
+is still valid without an upstream check.
+
 Inspect what Grok discovers for a directory (read-only): `grok inspect`.
 
 ## Coding-role policy

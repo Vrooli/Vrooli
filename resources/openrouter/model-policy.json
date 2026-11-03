@@ -1,6 +1,9 @@
 {
   "schema_version": "2026-06-30",
-  "excluded_models": ["gpt-6-astra", "gpt-5.6-sol"],
+  "excluded_models": [
+    "gpt-6-astra",
+    "gpt-5.6-sol"
+  ],
   "roles": {
     "chat.small": {
       "model": "bytedance-seed/seed-2.0-mini",
@@ -1687,5 +1690,34 @@
       "observed_at": "2026-06-30",
       "sample_count": 0
     }
+  },
+  "provider": {
+    "id": "openrouter",
+    "family": "openai-compatible",
+    "terms": {
+      "plan_rules": [
+        {
+          "plan": "pay_as_you_go",
+          "access_tier": "unknown",
+          "use_classes": {
+            "own_account": "allowed",
+            "bounded_feature": "unverified",
+            "in_app": "unverified",
+            "harness_access": "needs_written_approval"
+          },
+          "reason": "Carried from the frozen agent-connect research; supplier and model terms require operator review before hosted activation."
+        }
+      ],
+      "evidence": {
+        "url": "https://openrouter.ai/terms",
+        "read_at": "2026-10-31"
+      },
+      "review": {
+        "status": "proposed"
+      },
+      "effective_from": "2026-10-31",
+      "on_expiry": "deny"
+    },
+    "hosted_routes": []
   }
 }

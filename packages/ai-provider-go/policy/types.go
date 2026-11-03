@@ -33,7 +33,8 @@ type ProviderProfile struct {
 	// structured_output, images, embeddings, audio, video, provider_fallbacks,
 	// provider_pinning, usage_cost, spend_cap). They describe what the resource
 	// can implement, not what any one role requires.
-	Capabilities []string `json:"capabilities,omitempty"`
+	Capabilities []string       `json:"capabilities,omitempty"`
+	Terms        *ProviderTerms `json:"terms,omitempty"`
 }
 
 // Role is a logical intent plus the bounded request levers it owns. A role
@@ -118,6 +119,7 @@ func (r Role) SupportFor(parameter string) SamplingSupportState {
 
 // Model is one concrete provider model and its catalog metadata.
 type Model struct {
+	Licence              *ModelLicence         `json:"licence,omitempty"`
 	Provider             string                `json:"provider,omitempty"`
 	DisplayName          string                `json:"display_name,omitempty"`
 	Family               string                `json:"family"`
@@ -133,9 +135,15 @@ type Model struct {
 	VRAMGBEstimate       float64               `json:"vram_gb_estimate,omitempty"`
 	DefaultEligible      bool                  `json:"default_eligible"`
 	Pricing              *Pricing              `json:"pricing,omitempty"`
+	TermsOverride        *TermsOverride        `json:"terms_override,omitempty"`
 	UseCaseNotes         string                `json:"use_case_notes,omitempty"`
 	Caveats              []string              `json:"caveats,omitempty"`
 	Provenance           map[string]Provenance `json:"provenance"`
+}
+
+type ModelLicence struct {
+	ID            string `json:"id,omitempty"`
+	CommercialUse *bool  `json:"commercial_use,omitempty"`
 }
 
 // Modality is the provider-neutral inference vocabulary.

@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 )
 
 // ValidationProfile selects the admission rules for a provider family.
@@ -162,7 +163,9 @@ func Validate(c Catalog, opts ValidationOptions) error {
 		for field, prov := range model.Provenance {
 			validateProvenance(&errs, path+".provenance."+field, prov, sourceKinds)
 		}
+		validateModelTermsOverride(&errs, c.Provider, path, model)
 	}
+	validateOptionalProviderTerms(&errs, c.Provider)
 
 	for name, role := range c.Roles {
 		path := "roles." + name
@@ -230,6 +233,26 @@ func Validate(c Catalog, opts ValidationOptions) error {
 	return errors.Join(errs...)
 }
 
+func validateOptionalProviderTerms(errs *[]error, provider *ProviderProfile) {
+	if provider != nil && provider.Terms != nil {
+		validateProviderTerms(errs, "provider.terms", *provider.Terms)
+	}
+}
+
+func validateModelTermsOverride(errs *[]error, provider *ProviderProfile, path string, model Model) {
+	if model.TermsOverride == nil {
+		return
+	}
+	const overridePathSuffix = ".terms_override"
+	overridePath := path + overridePathSuffix
+	validateTermsOverride(errs, overridePath, *model.TermsOverride)
+	if provider == nil || provider.Terms == nil {
+		*errs = append(*errs, fmt.Errorf("%s requires provider terms", overridePath))
+		return
+	}
+	validateOverrideNarrows(errs, overridePath, provider.Terms, *model.TermsOverride)
+}
+
 func (d *RequestDefaults) validate(path string, errs *[]error) {
 	if d == nil {
 		return
@@ -291,6 +314,199 @@ func validateProvenance(errs *[]error, path string, prov Provenance, sourceKinds
 	}
 	if prov.SampleCount < 0 {
 		*errs = append(*errs, fmt.Errorf("%s.sample_count must be >= 0", path))
+	}
+}
+
+func validateProviderTerms(errs *[]error, path string, terms ProviderTerms) {
+	if len(terms.PlanRules) == 0 {
+		*errs = append(*errs, fmt.Errorf("%s.plan_rules must not be empty", path))
+	}
+	if strings.TrimSpace(terms.Evidence.URL) == "" {
+		*errs = append(*errs, fmt.Errorf("%s.evidence.url is required", path))
+	}
+	validateProviderTermDates(errs, path, terms)
+	if terms.OnExpiry != "deny" {
+		*errs = append(*errs, fmt.Errorf("%s.on_expiry must be deny", path))
+	}
+	validateProviderReview(errs, path, terms.Review)
+	validateDownstreamRules(errs, path, terms.Downstream)
+	validatePlanRules(errs, path, terms.PlanRules)
+}
+
+func validateProviderTermDates(errs *[]error, path string, terms ProviderTerms) {
+	validateDateField(errs, path+".effective_from", terms.EffectiveFrom, true)
+	validateDateField(errs, path+".next_review_at", terms.NextReviewAt, false)
+	validateDateField(errs, path+".expires_at", terms.ExpiresAt, false)
+}
+
+func validateDateField(errs *[]error, path, value string, required bool) {
+	if value == "" && !required {
+		return
+	}
+	if _, err := time.Parse("2006-01-02", value); err != nil {
+		*errs = append(*errs, fmt.Errorf("%s must be YYYY-MM-DD", path))
+	}
+}
+
+func validateProviderReview(errs *[]error, path string, review Review) {
+	if !validReview(review.Status) {
+		*errs = append(*errs, fmt.Errorf("%s.review.status %q is invalid", path, review.Status))
+	}
+	if review.Status == ReviewApproved && strings.TrimSpace(review.DecisionRef) == "" {
+		*errs = append(*errs, fmt.Errorf("%s.review.decision_ref is required for approved records", path))
+	}
+	if review.Status != ReviewApproved && strings.TrimSpace(review.DecisionRef) != "" {
+		*errs = append(*errs, fmt.Errorf("%s.review.decision_ref is only valid for approved records", path))
+	}
+}
+
+func validateDownstreamRules(errs *[]error, path string, downstream DownstreamRules) {
+	if downstream.DataCollection != "" && downstream.DataCollection != "allow" && downstream.DataCollection != "deny" {
+		*errs = append(*errs, fmt.Errorf("%s.downstream.data_collection must be allow or deny", path))
+	}
+	if downstream.PinFeePercent != nil && (*downstream.PinFeePercent < 0 || *downstream.PinFeePercent > 100) {
+		*errs = append(*errs, fmt.Errorf("%s.downstream.pin_fee_pct must be between 0 and 100", path))
+	}
+	if len(downstream.PinnedHosts) > 0 {
+		validatePinnedHosts(errs, path, downstream.PinnedHosts)
+	}
+}
+
+func validatePinnedHosts(errs *[]error, path string, hosts []string) {
+	seen := make(map[string]struct{}, len(hosts))
+	for _, host := range hosts {
+		trimmed := strings.TrimSpace(host)
+		if trimmed == "" || trimmed != host {
+			*errs = append(*errs, fmt.Errorf("%s.downstream.pinned_hosts must contain trimmed non-empty hosts", path))
+			continue
+		}
+		if _, exists := seen[host]; exists {
+			*errs = append(*errs, fmt.Errorf("%s.downstream.pinned_hosts contains duplicate %q", path, host))
+		}
+		seen[host] = struct{}{}
+	}
+}
+
+func validatePlanRules(errs *[]error, path string, rules []PlanRule) {
+	seenPlans := map[string]struct{}{}
+	for i, rule := range rules {
+		rulePath := fmt.Sprintf("%s.plan_rules[%d]", path, i)
+		validatePlanRule(errs, rulePath, rule, seenPlans)
+	}
+}
+
+func validatePlanRule(errs *[]error, path string, rule PlanRule, seenPlans map[string]struct{}) {
+	plan := strings.TrimSpace(rule.Plan)
+	if plan == "" || plan != rule.Plan {
+		*errs = append(*errs, fmt.Errorf("%s.plan is required and must be trimmed", path))
+	}
+	if _, found := seenPlans[plan]; found {
+		*errs = append(*errs, fmt.Errorf("%s.plan duplicates %q", path, plan))
+	}
+	seenPlans[plan] = struct{}{}
+	if !validAccessTier(rule.AccessTier) {
+		*errs = append(*errs, fmt.Errorf("%s.access_tier %q is invalid", path, rule.AccessTier))
+	}
+	validateUseClassPermissions(errs, path, rule)
+	if WiderPermissionReason(rule) != "" && strings.TrimSpace(rule.Reason) == "" {
+		*errs = append(*errs, fmt.Errorf("%s allows a wider use class while denying a narrower class; reason is required", path))
+	}
+}
+
+func validateUseClassPermissions(errs *[]error, path string, rule PlanRule) {
+	if len(rule.UseClasses) == 0 && rule.AccessTier != AccessTierBarred {
+		*errs = append(*errs, fmt.Errorf("%s.use_classes must not be empty", path))
+	}
+	for class, permission := range rule.UseClasses {
+		if !validUseClass(class) {
+			*errs = append(*errs, fmt.Errorf("%s.use_classes has invalid class %q", path, class))
+		}
+		if !validPermission(permission) {
+			*errs = append(*errs, fmt.Errorf("%s.use_classes.%s has invalid permission %q", path, class, permission))
+		}
+	}
+}
+
+// WiderPermissionReason reports the permitted-with-reason exception when a
+// supplier allows a wider audience but denies a narrower one. Missing values
+// are treated as non-allowed (default deny).
+func WiderPermissionReason(rule PlanRule) string {
+	for i := 0; i < len(useClassOrder)-1; i++ {
+		if rule.UseClasses[useClassOrder[i]] == PermissionAllowed {
+			for j := i + 1; j < len(useClassOrder); j++ {
+				if permission := rule.UseClasses[useClassOrder[j]]; permission != PermissionAllowed {
+					if permission == "" {
+						permission = "default_deny"
+					}
+					return fmt.Sprintf("%s allowed while %s is %s", useClassOrder[i], useClassOrder[j], permission)
+				}
+			}
+		}
+	}
+	return ""
+}
+
+func validateTermsOverride(errs *[]error, path string, override TermsOverride) {
+	if strings.TrimSpace(override.Reason) == "" {
+		*errs = append(*errs, fmt.Errorf("%s.reason is required", path))
+	}
+	if strings.TrimSpace(override.Evidence.URL) == "" {
+		*errs = append(*errs, fmt.Errorf("%s.evidence.url is required", path))
+	}
+	for class, permission := range override.UseClasses {
+		if !validUseClass(class) {
+			*errs = append(*errs, fmt.Errorf("%s.use_classes has invalid class %q", path, class))
+		}
+		if !validPermission(permission) {
+			*errs = append(*errs, fmt.Errorf("%s.use_classes.%s has invalid permission %q", path, class, permission))
+		}
+	}
+}
+
+func validateOverrideNarrows(errs *[]error, path string, terms *ProviderTerms, override TermsOverride) {
+	for class, permission := range override.UseClasses {
+		for _, plan := range terms.PlanRules {
+			base, exists := plan.UseClasses[class]
+			if !exists {
+				base = ""
+			}
+			if permissionRank(permission) > permissionRank(base) {
+				*errs = append(*errs, fmt.Errorf("%s.use_classes.%s widens plan %q; model overrides may only narrow", path, class, plan.Plan))
+			}
+		}
+	}
+}
+
+func validReview(status ReviewStatus) bool {
+	switch status {
+	case ReviewProposed, ReviewPending, ReviewApproved, ReviewReopened, ReviewExpired, ReviewDenied:
+		return true
+	default:
+		return false
+	}
+}
+func validUseClass(class UseClass) bool {
+	switch class {
+	case UseOwnAccount, UseBoundedFeature, UseInApp, UseHarnessAccess:
+		return true
+	default:
+		return false
+	}
+}
+func validPermission(permission Permission) bool {
+	switch permission {
+	case PermissionAllowed, PermissionNeedsWrittenApproval, PermissionForbidden, PermissionSilent, PermissionUnverified:
+		return true
+	default:
+		return false
+	}
+}
+func validAccessTier(tier AccessTier) bool {
+	switch tier {
+	case AccessTierGrant, AccessTierNoBar, AccessTierSignup, AccessTierApply, AccessTierContract, AccessTierBarred, AccessTierUnknown:
+		return true
+	default:
+		return false
 	}
 }
 

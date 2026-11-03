@@ -13,7 +13,9 @@ consistent provider surface:
   behavior. Resources wrap these handlers in their own `cliapp` command group.
 - `ensure`: role-only dependency validation for `resource-<provider> ensure`.
 - `openai`: the OpenAI-compatible HTTP client, model-list normalization, chat,
-  image, and usage decoding.
+  streaming chat, image, and usage decoding. Streaming chat is consumed one SSE
+  event at a time with `ChatStream.Next`; callers must close early-terminated
+  streams, and request context cancellation interrupts body reads.
 - `providererror`: the typed failure vocabulary and
   `VROOLI_PROVIDER_ERROR` cross-process marker.
 - `conformance`: reusable checks every AI provider policy must pass.

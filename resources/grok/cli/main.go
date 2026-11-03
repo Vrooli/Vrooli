@@ -1,6 +1,7 @@
 package main
 
 import (
+	"github.com/vrooli/vrooli/resources/grok/cli/internal/authcli"
 	"github.com/vrooli/vrooli/resources/grok/cli/internal/permissionscli"
 	"github.com/vrooli/vrooli/resources/grok/cli/internal/upstream"
 	"github.com/vrooli/vrooli/resources/internal/agentapp"
@@ -35,6 +36,13 @@ func newApp() (*cliapp.ResourceApp, error) {
 		Posture:     agentharness.EnforcementPosture{Permissions: "hook_unverified", Caveats: []string{"Grok native permission rules remain active; verify the installed Grok version with a PreToolUse runner canary before treating the portable hook as enforced."}},
 		Groups: func(agentinstall.Spec) ([]cliapp.SubcommandGroup, error) {
 			return []cliapp.SubcommandGroup{
+				{
+					Name: "auth", Description: "Read Grok sign-in state without contacting xAI",
+					Subcommands: []cliapp.Command{{
+						Name: "status", Description: "Report whether Grok sign-in can be established locally",
+						Usage: "resource-grok auth status --json", Run: authcli.StatusCommand,
+					}},
+				},
 				// Grok is not on npm/GitHub releases — its latest version is a bare
 				// text pointer at https://x.ai/cli/<channel>, so we override the
 				// upstream-check fetcher (see internal/upstream).

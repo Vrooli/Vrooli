@@ -201,3 +201,90 @@ func TestGenerateClassifiesTransportFailure(t *testing.T) {
 		t.Fatalf("code = %q, want %q", providerErr.Code, CodeUnreachable)
 	}
 }
+
+func TestNormalizeGatewayImageResultSeparatesCostFromUsableImage(t *testing.T) {
+	validImage := `"b64_json":"aGVsbG8=","media_type":"image/png"`
+	cases := []struct {
+		name     string
+		cost     string
+		wantCost *float64
+	}{
+		{name: "known zero", cost: `0`, wantCost: floatPointer(0)},
+		{name: "positive", cost: `0.125`, wantCost: floatPointer(0.125)},
+		{name: "missing", cost: ""},
+		{name: "null", cost: `null`},
+		{name: "string is unknown", cost: `"0.25"`},
+		{name: "object is unknown", cost: `{"amount":0.25}`},
+		{name: "negative is unknown", cost: `-0.25`},
+		{name: "overflow is unknown", cost: `1e999`},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			usage := ""
+			if tc.cost != "" {
+				usage = `,"usage":{"cost":` + tc.cost + `}`
+			}
+			got, err := NormalizeGatewayImageResult([]byte(`{"data":[{` + validImage + `}]` + usage + `}`))
+			if err != nil {
+				t.Fatal(err)
+			}
+			var result GatewayImageResult
+			if err := json.Unmarshal(got, &result); err != nil {
+				t.Fatal(err)
+			}
+			if result.SchemaVersion != 1 || len(result.Images) != 1 || result.Images[0].DataB64 != "aGVsbG8=" {
+				t.Fatalf("image result = %+v", result)
+			}
+			if (result.ActualCostUSD == nil) != (tc.wantCost == nil) {
+				t.Fatalf("cost present = %t, want %t (%s)", result.ActualCostUSD != nil, tc.wantCost != nil, got)
+			}
+			if tc.wantCost != nil && *result.ActualCostUSD != *tc.wantCost {
+				t.Fatalf("cost = %v, want %v", *result.ActualCostUSD, *tc.wantCost)
+			}
+		})
+	}
+}
+
+func TestNormalizeGatewayImageResultMalformedUsageContainerKeepsImageCostUnknown(t *testing.T) {
+	validImage := `"b64_json":"aGVsbG8=","media_type":"image/png"`
+	for _, tc := range []struct {
+		name  string
+		usage string
+	}{
+		{name: "string", usage: `"bad"`},
+		{name: "array", usage: `[]`},
+		{name: "number", usage: `7`},
+		{name: "boolean", usage: `true`},
+		{name: "null", usage: `null`},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			got, err := NormalizeGatewayImageResult([]byte(`{"data":[{` + validImage + `}],"usage":` + tc.usage + `}`))
+			if err != nil {
+				t.Fatal(err)
+			}
+			var normalized GatewayImageResult
+			if err := json.Unmarshal(got, &normalized); err != nil {
+				t.Fatal(err)
+			}
+			if len(normalized.Images) != 1 || normalized.Images[0].DataB64 != "aGVsbG8=" || normalized.ActualCostUSD != nil {
+				t.Fatalf("normalized = %+v, want one image and unknown cost", normalized)
+			}
+		})
+	}
+}
+
+func floatPointer(value float64) *float64 { return &value }
+
+func TestNormalizeGatewayImageResultKeepsMalformedImageBesideKnownCost(t *testing.T) {
+	got, err := NormalizeGatewayImageResult([]byte(`{"data":[{"b64_json":"not-base64","media_type":"image/png"}],"usage":{"cost":0}}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var result GatewayImageResult
+	if err := json.Unmarshal(got, &result); err != nil {
+		t.Fatal(err)
+	}
+	if result.ActualCostUSD == nil || *result.ActualCostUSD != 0 || result.Images[0].DataB64 != "not-base64" {
+		t.Fatalf("normalized result lost partial evidence: %s", got)
+	}
+}

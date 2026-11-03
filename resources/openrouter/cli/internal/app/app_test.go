@@ -62,6 +62,24 @@ func TestExtractPrimaryText(t *testing.T) {
 	}
 }
 
+func TestImageResultFormatKeepsRawDefaultAndSelectsGatewayEnvelope(t *testing.T) {
+	raw := []byte(`{"data":[{"b64_json":"aGVsbG8="}],"usage":{"cost":0}}`)
+	got, err := formatImageResponse(raw, "raw")
+	if err != nil || string(got) != string(raw) {
+		t.Fatalf("raw format = %s, err=%v", got, err)
+	}
+	got, err = formatImageResponse(raw, "gateway-v1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(got), `"schema_version":1`) || !strings.Contains(string(got), `"actual_cost_usd":0`) {
+		t.Fatalf("gateway format = %s", got)
+	}
+	if err := validateImageResultFormat("unknown"); err == nil {
+		t.Fatal("unsupported result format accepted")
+	}
+}
+
 func TestResolveImageInputBuildsBoundedProviderNeutralPayload(t *testing.T) {
 	data := base64.StdEncoding.EncodeToString([]byte("image"))
 	selected := policy.ResolvedPolicyModel{Model: "vision-model", Modalities: policy.Modalities{Input: []policy.Modality{"text", "image"}}}

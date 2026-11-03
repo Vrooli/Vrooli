@@ -14,7 +14,32 @@
       "vision",
       "streaming",
       "provider_fallbacks"
-    ]
+    ],
+    "terms": {
+      "plan_rules": [
+        {
+          "plan": "pay_as_you_go",
+          "access_tier": "unknown",
+          "use_classes": {
+            "own_account": "allowed",
+            "bounded_feature": "unverified",
+            "in_app": "unverified",
+            "harness_access": "unverified"
+          },
+          "reason": "Carried from the frozen agent-connect research; supplier and model terms require operator review before hosted activation."
+        }
+      ],
+      "evidence": {
+        "url": "path:resources/orcarouter/README.md",
+        "read_at": "2026-10-31"
+      },
+      "review": {
+        "status": "proposed"
+      },
+      "effective_from": "2026-10-31",
+      "on_expiry": "deny"
+    },
+    "hosted_routes": []
   },
   "excluded_models": [],
   "roles": {

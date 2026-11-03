@@ -52,6 +52,9 @@ func TestLocalDecideUsesNativeEndpointAndReportsDaemonTimings(t *testing.T) {
 	if string(seen.body["questions"]) != string(request.Questions) || string(seen.body["model"]) != `"laya"` {
 		t.Fatalf("questions must reach the daemon byte-for-byte in caller order; got %s", seen.body["questions"])
 	}
+	if string(seen.body["state"]) != string(request.State) {
+		t.Fatalf("state must reach the daemon without being replaced or omitted; got %s", seen.body["state"])
+	}
 	if result.Model != "laya:en" || *result.Usage.InputTokens != 41 || *result.EvalMS != 16 || result.CostUSD != nil {
 		t.Fatalf("result = %+v, want the answering model, reported tokens and daemon eval time", result)
 	}
