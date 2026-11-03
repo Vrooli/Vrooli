@@ -2,6 +2,7 @@ package control
 
 import (
 	"context"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -20,15 +21,18 @@ func (f *volumeCastFixture) ID() string { return "google-cast" }
 func (f *volumeCastFixture) Describe(context.Context) (strategy.Declaration, error) {
 	return strategy.Declaration{StrategyID: f.ID(), Status: strategy.StatusAvailable, Capabilities: map[string]strategy.Capability{strategy.CapProperty: {Name: strategy.CapProperty, Status: strategy.StatusAvailable}}, Properties: []strategy.PropertyDescriptor{{Name: "volume", ValueType: "number", Writable: true}}}, nil
 }
+
 func (f *volumeCastFixture) ReadState(context.Context) (strategy.DeviceState, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	return strategy.DeviceState{Properties: map[string]strategy.PropertyValue{"volume": {Value: f.value, Status: strategy.StatusAvailable, SourceTransport: f.ID(), StateDomain: "receiver_volume", ObservedAt: time.Now().UTC(), Confidence: .75}}}, nil
 }
+
 func (f *volumeCastFixture) GetProperty(ctx context.Context, name string) (any, error) {
 	state, err := f.ReadState(ctx)
 	return state.Properties[name].Value, err
 }
+
 func (f *volumeCastFixture) SetProperty(_ context.Context, set strategy.PropertySet) error {
 	f.mu.Lock()
 	defer f.mu.Unlock()
@@ -53,6 +57,7 @@ func (f *volumeStateFixture) ID() string { return f.id }
 func (f *volumeStateFixture) Describe(context.Context) (strategy.Declaration, error) {
 	return strategy.Declaration{StrategyID: f.id, Status: strategy.StatusAvailable, Properties: []strategy.PropertyDescriptor{{Name: "volume", ValueType: "number", StateClass: strategy.StateBearing, StateDomain: "physical_output"}}}, nil
 }
+
 func (f *volumeStateFixture) ReadState(context.Context) (strategy.DeviceState, error) {
 	return strategy.DeviceState{Properties: map[string]strategy.PropertyValue{"volume": {Value: f.value, Status: strategy.StatusAvailable, SourceTransport: f.id, StateDomain: "physical_output", Confidence: f.confidence}}}, nil
 }
@@ -61,9 +66,11 @@ func (f *volumeRemoteFixture) ID() string { return "android-tv-remote" }
 func (f *volumeRemoteFixture) Describe(context.Context) (strategy.Declaration, error) {
 	return strategy.Declaration{StrategyID: f.ID(), Status: strategy.StatusAvailable, Capabilities: map[string]strategy.Capability{strategy.CapMedia: {Name: strategy.CapMedia, Status: strategy.StatusAvailable}}}, nil
 }
+
 func (f *volumeRemoteFixture) ReadState(context.Context) (strategy.DeviceState, error) {
 	return strategy.DeviceState{Unavailable: map[string]string{"state": "remote does not expose state"}}, nil
 }
+
 func (f *volumeRemoteFixture) ControlMedia(_ context.Context, command strategy.MediaCommand) error {
 	f.calls = append(f.calls, command)
 	if f.failOnce {
@@ -123,6 +130,23 @@ func TestPlanVolumeUsesRemoteForRelativeAndCastForState(t *testing.T) {
 	}
 	if plan.AbsoluteSetpoint != nil || plan.Intent.Value != -0.5 {
 		t.Fatalf("relative plan was converted to an absolute request: %#v", plan)
+	}
+}
+
+func TestStaleRouteGapTransportCannotBeSelectedForVolumeAction(t *testing.T) {
+	stale := strategy.DeviceTransport{
+		StrategyID: "android-tv-remote",
+		Name:       "remote",
+		Role:       "relative-key-actuation",
+		Operations: []string{"volume-up", "volume-down", "mute"},
+		Health:     strategy.StatusAvailable,
+	}
+	got := routeGapTransports([]strategy.DeviceTransport{stale}, "no current Device Control transport observation")
+	if selected := findRelativeVolumeTransport(got, "up"); selected != "" {
+		t.Fatalf("stale transport selected for volume action: %q (%+v)", selected, got[0])
+	}
+	if got[0].Health != strategy.StatusUnavailable {
+		t.Fatalf("stale route health = %q, want unavailable", got[0].Health)
 	}
 }
 
@@ -315,5 +339,25 @@ func TestExecuteVolumeRetriesOnceAfterTypedSessionLoss(t *testing.T) {
 	}
 	if len(svc.Audit()) != 1 || svc.Audit()[0].OperationID != "op-retry" {
 		t.Fatalf("expected one terminal semantic audit, got %#v", svc.Audit())
+	}
+}
+
+func TestExecuteVolumeRefusesStaleSelectedTransportBeforeActuation(t *testing.T) {
+	cast := &volumeCastFixture{value: .42}
+	remote := &volumeRemoteFixture{}
+	svc := New(strategyregistry.New(cast, remote))
+	now := time.Now().UTC()
+	stale := now.Add(-currentRouteObservationMaxAge - time.Second)
+	svc.devices.Upsert(devicedomain.Record{ID: "tv", Name: "Living TV", Kind: "physical", StrategyID: "google-cast", Transport: "cast", Status: strategy.StatusAvailable, Health: strategy.StatusAvailable, ObservedAt: now, Transports: []strategy.DeviceTransport{
+		{StrategyID: "google-cast", Name: "cast", Health: strategy.StatusAvailable, ObservedAt: now, Capabilities: map[string]strategy.Capability{strategy.CapProperty: {Name: strategy.CapProperty, Status: strategy.StatusAvailable}}},
+		{StrategyID: "android-tv-remote", Name: "remote", Role: "relative-key-actuation", Operations: []string{"volume-up", "volume-down", "mute"}, Health: strategy.StatusAvailable, ObservedAt: stale, Capabilities: map[string]strategy.Capability{strategy.CapMedia: {Name: strategy.CapMedia, Status: strategy.StatusAvailable}}},
+	}})
+
+	_, err := svc.ExecuteVolume(context.Background(), VolumeRequest{Device: "tv", Actor: "test", Goal: "down", OperationID: "op-stale"})
+	if err == nil || !strings.Contains(err.Error(), "observation is stale") {
+		t.Fatalf("expected stale selected transport refusal, got %v", err)
+	}
+	if len(remote.calls) != 0 {
+		t.Fatalf("stale volume route received actuation: %#v", remote.calls)
 	}
 }

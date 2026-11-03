@@ -16,6 +16,9 @@ const (
 	PlanID   = "android-generated-app-conformance-v1"
 	Fixture  = "hello-mobile"
 	Platform = "android"
+
+	TemporaryAppTestPlanID = "android-scenario-app-temporary-test-v1"
+	DurableAppPlanID       = "android-scenario-app-durable-v1"
 )
 
 type ReadinessPolicy struct {
@@ -118,6 +121,36 @@ func AndroidPlan() Plan {
 		chapters[i].Settle = SettlePolicy{ID: chapters[i].ID + "-settle", Reason: "allow the target surface to settle after a state-changing verb", MinimumMS: 250, MaximumMS: 3000, PollInterval: 100, Cancellation: "context cancellation"}
 	}
 	return Plan{SchemaVersion: "android-conformance.v1", ID: PlanID, Platform: Platform, Fixture: Fixture, Chapters: chapters}
+}
+
+// ScenarioAppPlan returns a short, scenario-owned BAS journey for an exact
+// generated Android artifact. Temporary tests require a previously absent
+// package and rely on Driver's lease-bound deferred uninstall and readback.
+// Durable installs also start from an absent package in this version: an
+// in-place update needs a device-owned signing-identity readback before it is
+// safe to claim that an existing app will be preserved.
+func ScenarioAppPlan(mode string) (deliveryramp.JourneyPlan, error) {
+	mode = strings.ToLower(strings.TrimSpace(mode))
+	planID := ""
+	switch mode {
+	case "temporary":
+		planID = TemporaryAppTestPlanID
+	case "durable":
+		planID = DurableAppPlanID
+	default:
+		return deliveryramp.JourneyPlan{}, fmt.Errorf("unsupported Android scenario-app mode %q", mode)
+	}
+	steps := []deliveryramp.JourneyStepSpec{
+		{ID: "cold-launch", Purpose: "launch the exact installed scenario artifact", Action: "launch", Arguments: map[string]string{"required_capabilities": "app-lifecycle"}},
+		{ID: "cold-bas", Purpose: "assert the scenario's cold-start WebView journey", Action: "bas-flow", Arguments: map[string]string{"required_capabilities": "webview-attach"}, Assertion: &deliveryramp.AssertionSpec{ID: "cold-bas/expected", Expected: "scenario BAS cold-start assertions passed"}},
+		{ID: "background", Purpose: "background the running app while preserving its process", Action: "key", Arguments: map[string]string{"target": "KEYCODE_HOME", "required_capabilities": "input"}},
+		{ID: "warm-launch", Purpose: "resume the installed app without reinstalling it", Action: "launch", Arguments: map[string]string{"required_capabilities": "app-lifecycle"}},
+		{ID: "warm-bas", Purpose: "assert the scenario's warm-resume WebView journey", Action: "bas-flow", Arguments: map[string]string{"required_capabilities": "webview-attach"}, Assertion: &deliveryramp.AssertionSpec{ID: "warm-bas/expected", Expected: "scenario BAS warm-resume assertions passed"}},
+	}
+	if mode == "durable" {
+		steps = append(steps, deliveryramp.JourneyStepSpec{ID: "verify-installed", Purpose: "verify the durable scenario package remains installed", Action: "package-state", Arguments: map[string]string{"target": "installed", "required_capabilities": "app-lifecycle"}, Assertion: &deliveryramp.AssertionSpec{ID: "verify-installed/expected", Expected: "the exact scenario package remains installed"}})
+	}
+	return deliveryramp.JourneyPlan{SchemaVersion: deliveryramp.JourneyEvidenceVersion, ID: planID, Capability: "generated-app", Purpose: "Scenario-built Android app cold and warm BAS test", Profile: mode, Steps: steps}, nil
 }
 
 func chapter(id, purpose, expected string, required []string, steps ...Step) Chapter {

@@ -570,12 +570,12 @@ public final class MainActivity extends Activity {
                 JSONObject result = connection.lifecycle(identity, action);
                 JSONObject app = result.getJSONObject("application");
                 String runtime = app.optString("runtimeState");
-                boolean running = "running".equals(runtime);
-                boolean confirmed = "stop".equals(action) ? "stopped".equals(runtime) || "available".equals(runtime) : running;
+                boolean confirmed = ApplicationActionPolicy.interpretLifecycleResponse(
+                        action, runtime, result.optString("outcome")) == ApplicationActionPolicy.LifecycleResult.CONFIRMED;
                 runOnUiThread(() -> {
                     if (destroyed || connection != client) return;
                     catalogueCheckedAt = 0; refreshCatalogue();
-                    if (openAfter && running) { savePosition(); openApplication(identity); }
+                    if (openAfter && confirmed && "start".equals(action)) { savePosition(); openApplication(identity); }
                     else notice(confirmed ? "App " + action + " completed." : "App status is not yet confirmed. Refresh before retrying.");
                 });
             } catch (Exception error) {
@@ -753,6 +753,7 @@ public final class MainActivity extends Activity {
         } else if ("Portal".equals(section)) {
             String status = server.isEmpty() ? "Not configured" : catalogueError != null ? "Unavailable" : catalogueLoaded && !staleCatalogue ? "Connected" : "Not connected";
             settingsStatus(body, status, "Connected".equals(status) ? TvTheme.ACCENT : TvTheme.SECONDARY);
+            settingsStatus(body, ApplicationActionPolicy.managementGuidance(!server.isEmpty(), client.secure(), client.signedIn()), TvTheme.SECONDARY);
             settingsAction(body, "address", "Portal address", server.isEmpty() ? "Not set" : server, this::editPortalAddress);
             if (client.signedIn()) settingsAction(body, "operator-signout", "Sign out of app management", "This TV", () -> { client.signOut(); render(false); });
             settingsAction(body, "discovery", "Find Portal", discovering ? "Searching…" : discoveredOrigins.isEmpty() ? "Home network" : discoveredOrigins.size() + " found", () -> { beginDiscovery(); savePosition(); render(false); });

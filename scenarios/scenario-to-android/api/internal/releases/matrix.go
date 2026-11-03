@@ -21,8 +21,9 @@ import (
 )
 
 type Catalog struct {
-	Probe   deliveryramp.Prober
-	Journey validationmatrix.JourneySelection
+	Probe    deliveryramp.Prober
+	Journey  validationmatrix.JourneySelection
+	Journeys []validationmatrix.JourneySelection
 }
 
 func (c Catalog) Resolve(ctx context.Context, scenario string) (validationmatrix.CatalogSnapshot, error) {
@@ -36,7 +37,11 @@ func (c Catalog) Resolve(ctx context.Context, scenario string) (validationmatrix
 	if err != nil {
 		return validationmatrix.CatalogSnapshot{}, err
 	}
-	if strings.TrimSpace(c.Journey.JourneyID) == "" {
+	journeys := append([]validationmatrix.JourneySelection(nil), c.Journeys...)
+	if len(journeys) == 0 && strings.TrimSpace(c.Journey.JourneyID) != "" {
+		journeys = []validationmatrix.JourneySelection{c.Journey}
+	}
+	if len(journeys) == 0 {
 		return validationmatrix.CatalogSnapshot{}, fmt.Errorf("Android release catalog journey is not configured")
 	}
 	deviceControlEmulator := false
@@ -77,7 +82,7 @@ func (c Catalog) Resolve(ctx context.Context, scenario string) (validationmatrix
 		targets = append(targets, validationmatrix.TargetSelection{Descriptor: descriptor, Kind: kind})
 	}
 	return validationmatrix.CatalogSnapshot{
-		Journeys: []validationmatrix.JourneySelection{c.Journey},
+		Journeys: journeys,
 		Targets:  targets,
 	}, nil
 }
@@ -85,6 +90,7 @@ func (c Catalog) Resolve(ctx context.Context, scenario string) (validationmatrix
 type Executor struct {
 	HTTP             *http.Client
 	JourneyPlan      deliveryramp.JourneyPlan
+	JourneyPlans     map[string]deliveryramp.JourneyPlan
 	ResolveTransport func(context.Context, string, string, *http.Client) string
 	RunJourney       func(context.Context, deliveryramp.DriverRequest, string, string, string, *http.Client) (deliveryramp.JourneyResult, error)
 }
@@ -109,6 +115,17 @@ func (e Executor) Execute(ctx context.Context, request validationmatrix.CellRequ
 		if profileID := strings.TrimSpace(request.Metadata["auth_profile_id"]); profileID != "" {
 			artifact.Metadata["auth_profile_id"] = profileID
 		}
+		for _, key := range []string{"immutable_ref", "version_name", "version_code", "signing_identity", "signing", "install_mode"} {
+			if value := strings.TrimSpace(request.Metadata[key]); value != "" {
+				artifact.Metadata[key] = value
+			}
+		}
+		if immutableRef := strings.TrimSpace(request.Metadata["immutable_ref"]); immutableRef != "" {
+			if !validImmutableRefForDigest(immutableRef, artifact.Checksum) {
+				return validationmatrix.CellResult{Disposition: domainv1.ValidationDisposition_VALIDATION_DISPOSITION_UNAVAILABLE, Reason: "Android immutable reference does not match the matrix artifact digest"}
+			}
+			artifact.ImmutableRef = immutableRef
+		}
 	}
 	deviceURL, err := resolveURL(ctx, "device-control", os.Getenv("DEVICE_CONTROL_URL"))
 	if err != nil {
@@ -126,7 +143,14 @@ func (e Executor) Execute(ctx context.Context, request validationmatrix.CellRequ
 	if client == nil {
 		client = http.DefaultClient
 	}
-	requestToRun := deliveryramp.DriverRequest{RunID: request.RunID, Cell: deliveryramp.Cell{ID: request.Cell.GetCellId(), Target: targetFromDescriptor(request.Target), ProfileID: request.Cell.GetEnvironmentProfile().String(), Required: request.Cell.GetRequired()}, Artifact: artifact, Plan: e.JourneyPlan}
+	journeyPlan := e.JourneyPlan
+	if selected, ok := e.JourneyPlans[request.Journey.JourneyID]; ok {
+		journeyPlan = selected
+	}
+	if journeyPlan.ID == "" || (request.Journey.JourneyID != "" && journeyPlan.ID != request.Journey.JourneyID) {
+		return validationmatrix.CellResult{Disposition: domainv1.ValidationDisposition_VALIDATION_DISPOSITION_UNAVAILABLE, Reason: "Android journey plan is not configured for the selected journey"}
+	}
+	requestToRun := deliveryramp.DriverRequest{RunID: request.RunID, Cell: deliveryramp.Cell{ID: request.Cell.GetCellId(), Target: targetFromDescriptor(request.Target), ProfileID: request.Cell.GetEnvironmentProfile().String(), Required: request.Cell.GetRequired()}, Artifact: artifact, Plan: journeyPlan}
 	if e.RunJourney == nil {
 		return validationmatrix.CellResult{Disposition: domainv1.ValidationDisposition_VALIDATION_DISPOSITION_UNAVAILABLE, Reason: "Android journey runner is not configured"}
 	}
@@ -199,6 +223,19 @@ func androidArtifact(configuredPath, digest string) (deliveryramp.Artifact, erro
 	return deliveryramp.Artifact{ImmutableRef: actual, LocalPath: path, Kind: "android-apk", Checksum: actual, Metadata: map[string]string{
 		"apk_path": path, "package_name": firstNonEmpty(os.Getenv("ANDROID_ARTIFACT_PACKAGE"), defaultAndroidPackageName), "scenario_name": firstNonEmpty(os.Getenv("ANDROID_ARTIFACT_SCENARIO"), "hello-mobile"),
 	}}, nil
+}
+
+func validImmutableRefForDigest(ref, checksum string) bool {
+	parts := strings.Split(strings.TrimSpace(ref), ":")
+	if len(parts) != 2 || (parts[0] != "android-debug" && parts[0] != "android-release") || len(parts[1]) != 64 {
+		return false
+	}
+	for _, char := range parts[1] {
+		if !((char >= '0' && char <= '9') || (char >= 'a' && char <= 'f')) {
+			return false
+		}
+	}
+	return "sha256:"+parts[1] == strings.TrimSpace(checksum)
 }
 
 func resolveURL(ctx context.Context, scenario, configured string) (string, error) {

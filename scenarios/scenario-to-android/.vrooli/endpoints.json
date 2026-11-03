@@ -53,12 +53,7 @@
       "category": "capabilities",
       "rest_exception": {
         "reason": "ops_probe",
-        "note": "Operational capability inventory is a plain JSON probe for lifecycle tooling.",
-        "proto_payloads": {
-          "request": { "transport": "none", "conformance": "none" },
-          "response": { "transport": "json", "conformance": "external_shape" },
-          "error": { "transport": "json", "conformance": "external_shape" }
-        }
+        "note": "Operational capability inventory is a plain JSON probe for lifecycle tooling."
       }
     },
     {
@@ -70,12 +65,7 @@
       "category": "ramp",
       "rest_exception": {
         "reason": "ops_probe",
-        "note": "Android delivery-ramp operator surface is exposed as a plain JSON control endpoint.",
-        "proto_payloads": {
-          "request": { "transport": "none", "conformance": "none" },
-          "response": { "transport": "json", "conformance": "external_shape" },
-          "error": { "transport": "json", "conformance": "external_shape" }
-        }
+        "note": "Android delivery-ramp operator surface is exposed as a plain JSON control endpoint."
       }
     },
     {
@@ -87,12 +77,7 @@
       "category": "ramp",
       "rest_exception": {
         "reason": "ops_probe",
-        "note": "Android delivery-ramp operator surface is exposed as a plain JSON control endpoint.",
-        "proto_payloads": {
-          "request": { "transport": "none", "conformance": "none" },
-          "response": { "transport": "json", "conformance": "external_shape" },
-          "error": { "transport": "json", "conformance": "external_shape" }
-        }
+        "note": "Android delivery-ramp operator surface is exposed as a plain JSON control endpoint."
       }
     },
     {
@@ -104,12 +89,7 @@
       "category": "ramp",
       "rest_exception": {
         "reason": "ops_probe",
-        "note": "Android delivery-ramp operator surface is exposed as a plain JSON control endpoint.",
-        "proto_payloads": {
-          "request": { "transport": "none", "conformance": "none" },
-          "response": { "transport": "json", "conformance": "external_shape" },
-          "error": { "transport": "json", "conformance": "external_shape" }
-        }
+        "note": "Android delivery-ramp operator surface is exposed as a plain JSON control endpoint."
       }
     },
     {
@@ -121,12 +101,7 @@
       "category": "ramp",
       "rest_exception": {
         "reason": "ops_probe",
-        "note": "Android delivery-ramp operator surface is exposed as a plain JSON control endpoint.",
-        "proto_payloads": {
-          "request": { "transport": "none", "conformance": "none" },
-          "response": { "transport": "json", "conformance": "external_shape" },
-          "error": { "transport": "json", "conformance": "external_shape" }
-        }
+        "note": "Android delivery-ramp operator surface is exposed as a plain JSON control endpoint."
       }
     },
     {
@@ -138,12 +113,7 @@
       "category": "ramp",
       "rest_exception": {
         "reason": "ops_probe",
-        "note": "Operator generation control surface accepts a JSON request and returns a generated-project descriptor.",
-        "proto_payloads": {
-          "request": { "transport": "json", "conformance": "external_shape" },
-          "response": { "transport": "json", "conformance": "external_shape" },
-          "error": { "transport": "json", "conformance": "external_shape" }
-        }
+        "note": "Operator generation control surface accepts a JSON request and returns a generated-project descriptor."
       }
     },
     {
@@ -155,12 +125,31 @@
       "category": "ramp",
       "rest_exception": {
         "reason": "ops_probe",
-        "note": "Operator build control surface accepts a JSON request and returns an immutable artifact descriptor.",
-        "proto_payloads": {
-          "request": { "transport": "json", "conformance": "external_shape" },
-          "response": { "transport": "json", "conformance": "external_shape" },
-          "error": { "transport": "json", "conformance": "external_shape" }
-        }
+        "note": "Operator build control surface accepts a JSON request and returns an immutable artifact descriptor."
+      }
+    },
+    {
+      "id": "android_artifact_metadata",
+      "path": "/api/v1/android/artifacts/metadata",
+      "method": "GET",
+      "summary": "Resolve immutable Android artifact metadata",
+      "description": "",
+      "category": "ramp",
+      "rest_exception": {
+        "reason": "ops_probe",
+        "note": "The artifact producer resolves an exact immutable ref and returns package/version/checksum metadata without host paths."
+      }
+    },
+    {
+      "id": "android_artifact_apk",
+      "path": "/api/v1/android/artifacts/apk",
+      "method": "GET",
+      "summary": "Fetch verified APK bytes by immutable artifact ref",
+      "description": "",
+      "category": "ramp",
+      "rest_exception": {
+        "reason": "ops_probe",
+        "note": "The artifact producer integrity-checks the retained APK/AAB pair and streams only the APK selected by exact immutable_ref."
       }
     },
     {
@@ -172,12 +161,7 @@
       "category": "ramp",
       "rest_exception": {
         "reason": "ops_probe",
-        "note": "Provisioning returns metadata only; key material is never returned.",
-        "proto_payloads": {
-          "request": { "transport": "json", "conformance": "external_shape" },
-          "response": { "transport": "json", "conformance": "external_shape" },
-          "error": { "transport": "json", "conformance": "external_shape" }
-        }
+        "note": "Provisioning returns metadata only; key material is never returned."
       }
     }
   ]

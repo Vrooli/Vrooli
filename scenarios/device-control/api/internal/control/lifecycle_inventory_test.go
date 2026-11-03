@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	devicedomain "device-control/internal/devices"
 	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 )
 
@@ -71,6 +72,65 @@ func TestLifecycleInventoryReportsActiveOwnersAndClearsAfterCompletion(t *testin
 		if item.GetStatus() != "idle" && item.GetStatus() != "completed" {
 			t.Errorf("owner %q remains nonterminal after cleanup: %+v", item.GetKind(), item)
 		}
+	}
+}
+
+func TestQuiesceObserversWaitsForExitReceipt(t *testing.T) {
+	s := newService(nil, nil)
+	observerCtx, cancel := context.WithCancel(context.Background())
+	job := &observerJob{cancel: cancel, done: make(chan struct{})}
+	s.mu.Lock()
+	s.observerCancels["device-1"] = job
+	s.mu.Unlock()
+
+	quiesced := make(chan error, 1)
+	go func() { quiesced <- s.QuiesceObservers(context.Background()) }()
+	select {
+	case <-observerCtx.Done():
+	case <-time.After(time.Second):
+		t.Fatal("quiesce did not request observer cancellation")
+	}
+	select {
+	case err := <-quiesced:
+		t.Fatalf("quiesce returned before the worker exit receipt: %v", err)
+	case <-time.After(20 * time.Millisecond):
+	}
+
+	s.mu.Lock()
+	if !s.observerCancels["device-1"].stopping {
+		t.Fatal("observer inventory did not report stopping during cancellation")
+	}
+	delete(s.observerCancels, "device-1")
+	s.mu.Unlock()
+	close(job.done)
+	select {
+	case err := <-quiesced:
+		if err != nil {
+			t.Fatalf("quiesce returned error after observer exit: %v", err)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("quiesce did not return after observer exit receipt")
+	}
+}
+
+func TestQuiesceObserversPreservesBlockerOnIncompleteJob(t *testing.T) {
+	s := newService(nil, nil)
+	s.mu.Lock()
+	s.observerCancels["device-1"] = &observerJob{cancel: func() {}}
+	s.mu.Unlock()
+	if err := s.QuiesceObservers(context.Background()); err == nil {
+		t.Fatal("quiesce accepted an observer without a completion receipt")
+	}
+	_, blockers, complete := s.LifecycleInventory(context.Background())
+	if !complete || len(blockers) == 0 {
+		t.Fatalf("incomplete observer ownership must remain visible: complete=%v blockers=%+v", complete, blockers)
+	}
+	s.mu.Lock()
+	s.startObserverLocked(devicedomain.Record{ID: "late-device", StrategyID: "polling-state"})
+	_, admitted := s.observerCancels["late-device"]
+	s.mu.Unlock()
+	if admitted {
+		t.Fatal("observer started after lifecycle quiescence began")
 	}
 }
 

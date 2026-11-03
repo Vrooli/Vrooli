@@ -1,5 +1,13 @@
 # Progress — Portal
 
+## TV app-management guidance — 2026-11-03
+
+Portal TV Settings now explains an unset address, HTTP browse-only connection,
+HTTPS certificate verification before sign-in, in-memory token state that may
+need renewed sign-in, and lifecycle permission. The guidance does not claim certificate
+trust or operator authorization. The Scenario-to-Android owner preview build
+and native policy verification passed; the APK was not installed or qualified.
+
 ## Native interaction polish — 2026-10-23
 
 Implemented cached native tabs, background package/artwork snapshots, idle page

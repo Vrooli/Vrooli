@@ -469,6 +469,14 @@ Plain HTTP cannot provide cryptographic host identity or browser microphone
 secure-context support. A same-IP port update is a hint qualified by the
 catalogue protocol, not proof of host identity.
 
+Portal Settings shows app-management prerequisites separately from catalogue
+connectivity: no address asks you to configure one; HTTP is labeled browse-only;
+an HTTPS address prompts certificate-trust verification before sign-in; and a
+local sign-in token may be present but may need renewal. Each action requires lifecycle
+permission. This guidance does not claim a certificate is trusted, a token is
+valid, or an action is authorized; TLS and lifecycle responses remain
+authoritative.
+
 For direct HTTPS, configure `PORTAL_TLS_CERT_FILE`, `PORTAL_TLS_KEY_FILE` and
 `PORTAL_HOME_HOST` through the existing scenario lifecycle environment. The
 certificate must be valid for that hostname and trusted by the TV, and the

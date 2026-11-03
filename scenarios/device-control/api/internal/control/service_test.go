@@ -76,6 +76,7 @@ func (f *blockingSemanticFixture) ObserveSemantics(ctx context.Context) (strateg
 	<-ctx.Done()
 	return strategy.SemanticSnapshot{}, ctx.Err()
 }
+
 func TestSemanticObservationIsFencedAndCanceledWithLease(t *testing.T) {
 	fixture := &blockingSemanticFixture{Strategy: fakes.New("semantic", strategy.StatusAvailable, strategy.CapSemanticTree), started: make(chan struct{})}
 	svc := New(strategyregistry.New(fixture))
@@ -161,9 +162,11 @@ func (p *earlyScopedInventoryProbe) Describe(ctx context.Context) (strategy.Decl
 	}
 	return p.Strategy.Describe(ctx)
 }
+
 func (p *earlyScopedInventoryProbe) Enumerate(context.Context) ([]strategy.Device, error) {
 	return []strategy.Device{{ID: "early-device", Serial: "serial", StrategyID: p.ID(), Transport: p.ID(), Health: strategy.StatusAvailable, ObservedAt: time.Now()}}, nil
 }
+
 func (p *earlyScopedInventoryProbe) ForDevice(string) strategy.Strategy {
 	return &earlyScopedInventoryProbe{Strategy: p.Strategy, ready: p.ready, scoped: true}
 }
@@ -205,12 +208,14 @@ func (p *coordinatedScopedProbe) Describe(ctx context.Context) (strategy.Declara
 	}
 	return declaration, err
 }
+
 func (p *coordinatedScopedProbe) Enumerate(context.Context) ([]strategy.Device, error) {
 	return []strategy.Device{
 		{ID: "slow-device", Serial: "slow", StrategyID: p.ID(), Transport: "usb", Health: strategy.StatusAvailable},
 		{ID: "fast-device", Serial: "fast", StrategyID: p.ID(), Transport: "usb", Health: strategy.StatusAvailable},
 	}, nil
 }
+
 func (p *coordinatedScopedProbe) ForDevice(serial string) strategy.Strategy {
 	return &coordinatedScopedProbe{Strategy: p.Strategy, ready: p.ready, serial: serial}
 }
@@ -246,12 +251,14 @@ func (p *failingScopedInventoryProbe) Describe(ctx context.Context) (strategy.De
 	}
 	return p.Strategy.Describe(ctx)
 }
+
 func (p *failingScopedInventoryProbe) Enumerate(context.Context) ([]strategy.Device, error) {
 	return []strategy.Device{
 		{ID: "failed-device", Serial: "failed", StrategyID: p.ID(), Transport: "usb", Health: strategy.StatusAvailable},
 		{ID: "healthy-device", Serial: "healthy", StrategyID: p.ID(), Transport: "usb", Health: strategy.StatusAvailable},
 	}, nil
 }
+
 func (p *failingScopedInventoryProbe) ForDevice(serial string) strategy.Strategy {
 	return &failingScopedInventoryProbe{Strategy: p.Strategy, serial: serial}
 }
@@ -290,6 +297,7 @@ func (p *coordinatedPromotedProbe) Describe(ctx context.Context) (strategy.Decla
 		return strategy.Declaration{}, ctx.Err()
 	}
 }
+
 func (p *coordinatedPromotedProbe) Enumerate(context.Context) ([]strategy.Device, error) {
 	return []strategy.Device{{ID: p.deviceID, Serial: p.deviceID, StrategyID: p.ID(), Transport: "wireless", Health: strategy.StatusAvailable, ObservedAt: time.Now()}}, nil
 }
@@ -472,6 +480,7 @@ type panickingObserverProbe struct{ *fakes.Strategy }
 func (*panickingObserverProbe) Describe(context.Context) (strategy.Declaration, error) {
 	panic("observer probe failed")
 }
+
 func (*panickingObserverProbe) ReadState(context.Context) (strategy.DeviceState, error) {
 	return strategy.DeviceState{}, nil
 }
@@ -756,6 +765,7 @@ type homeScreenFixture struct {
 func (s *homeScreenFixture) Inspect(context.Context) (strategy.DeviceInspection, error) {
 	return strategy.DeviceInspection{HomeComponent: "com.example.home/.Main"}, nil
 }
+
 func (s *homeScreenFixture) GoHome(context.Context) error {
 	s.calls++
 	s.state.ForegroundPackage = s.observed
@@ -819,6 +829,7 @@ func TestReadyDismissesOnlyWhenVerifiedUnlocked(t *testing.T) {
 func (s *semanticScreenFixture) ReadState(context.Context) (strategy.DeviceState, error) {
 	return s.state, nil
 }
+
 func (s *semanticScreenFixture) SetScreenState(_ context.Context, state string) error {
 	s.calls = append(s.calls, state)
 	if !s.ignore {
@@ -1338,7 +1349,8 @@ func TestFailedDirectActuationStillWritesInteractiveAudit(t *testing.T) {
 func TestRevokedAttachedDeviceCannotActuateHeldLease(t *testing.T) {
 	svc, _ := testService(t)
 	svc.attached = staticAttachedReader{devices: []AttachedDevice{{ID: "fake", HostNodeID: "bridge-host", TrustState: "revoked", Reachability: "reachable"}}}
-	svc.devices.Upsert(devicedomain.Record{ID: "fake", Kind: "physical", HostNodeID: "bridge-host", StrategyID: "fake", Status: strategy.StatusAvailable, Health: strategy.StatusAvailable, Capabilities: []strategy.Capability{{Name: string(strategy.CapInput), Status: strategy.StatusAvailable}}})
+	observedAt := time.Now().UTC()
+	svc.devices.Upsert(devicedomain.Record{ID: "fake", Kind: "physical", HostNodeID: "bridge-host", StrategyID: "fake", Transport: "usb", Status: strategy.StatusAvailable, Health: strategy.StatusAvailable, ObservedAt: observedAt, Capabilities: []strategy.Capability{{Name: string(strategy.CapInput), Status: strategy.StatusAvailable}}, Transports: []strategy.DeviceTransport{{Name: "usb", StrategyID: "fake", Health: strategy.StatusAvailable, ObservedAt: observedAt, Capabilities: map[string]strategy.Capability{strategy.CapInput: {Name: strategy.CapInput, Status: strategy.StatusAvailable}}}}})
 	lease, err := svc.Acquire("fake", "operator", time.Minute)
 	require.NoError(t, err)
 	_, err = svc.ActuateDevice(context.Background(), "fake", "operator", lease.LeaseToken, DirectActuation{Key: "DPAD_DOWN"})
@@ -1438,7 +1450,7 @@ func TestUnlockDeviceUsesPromotedWirelessStrategy(t *testing.T) {
 		locked:   true,
 	}
 	svc := New(strategyregistry.New(wireless))
-	svc.devices.Upsert(devicedomain.Record{ID: "wireless-device", Kind: "physical", Serial: "serial-1", StrategyID: wireless.ID(), Transport: "wireless"})
+	svc.devices.Upsert(devicedomain.Record{ID: "wireless-device", Kind: "physical", Serial: "serial-1", StrategyID: wireless.ID(), Transport: "wireless", Status: strategy.StatusAvailable, Health: strategy.StatusAvailable})
 	svc.transportStrategies["wireless-device"] = wireless
 	resolver := &flowAuthResolver{value: "runtime-only-fixture"}
 	store, err := authdomain.NewStore(nil, resolver)
@@ -1669,6 +1681,7 @@ func TestAgentPlannerReceivesSemanticSnapshotAndActionHistory(t *testing.T) {
 	require.False(t, *planner.worlds[1].History[0].SnapshotChanged)
 	require.Empty(t, svc.ListLiveSessions())
 }
+
 func TestAgentSemanticTargetRunsThroughFlowOwner(t *testing.T) {
 	fixture := &semanticAgentFixture{semanticSnapshotFixture: &semanticSnapshotFixture{Strategy: fakes.New("semantic-agent", strategy.StatusAvailable, strategy.CapSemanticTree, strategy.CapScreenshot, strategy.CapInput)}}
 	svc := New(strategyregistry.New(fixture))
@@ -2331,6 +2344,110 @@ func TestBridgeOnlyAndroidAttachmentIsAPhysicalDevice(t *testing.T) {
 	require.Equal(t, "physical", devices[0].Kind)
 	require.Equal(t, "android-adb", devices[0].StrategyID)
 	require.Equal(t, "Galaxy", devices[0].Model)
+	require.Equal(t, strategy.StatusUnavailable, devices[0].Status)
+	require.Equal(t, "degraded", devices[0].Health)
+	require.Contains(t, devices[0].HealthReason, "no current Device Control transport observation")
+	require.Empty(t, devices[0].Endpoint)
+	for _, capability := range devices[0].Capabilities {
+		require.Equal(t, strategy.StatusUnavailable, capability.Status)
+	}
+}
+
+func TestBridgeReachabilityDoesNotRestoreStaleLocalDeviceReadiness(t *testing.T) {
+	adapter := &enumeratingFake{
+		Strategy: fakes.New("fake-android", strategy.StatusAvailable, strategy.CapInput),
+		devices: []strategy.Device{{
+			ID: "android-stable", Serial: "serial-1", Model: "Galaxy", StrategyID: "fake-android", Transport: "usb", Endpoint: "usb:1-2", Health: strategy.StatusAvailable, HealthReason: "current USB transport verified",
+			Transports: []strategy.DeviceTransport{{StrategyID: "fake-android", Name: "USB", Endpoint: "usb:1-2", Endpoints: []string{"usb:1-2"}, Health: strategy.StatusAvailable, Capabilities: map[string]strategy.Capability{"input": {Name: "input", Status: strategy.StatusAvailable}}}},
+		}},
+	}
+	reader := staticAttachedReader{devices: []AttachedDevice{{ID: "android-stable", Name: "Galaxy", HostNodeID: "online-host", Kind: "android", Transport: "usb", Serial: "serial-1", TrustState: "trusted", Reachability: "reachable"}}}
+	svc := NewWithAttached(strategyregistry.New(adapter), reader)
+
+	first := svc.Devices(context.Background())
+	require.Len(t, first, 1)
+	require.Equal(t, strategy.StatusAvailable, first[0].Status)
+	require.Equal(t, "current USB transport verified", first[0].HealthReason)
+	require.Len(t, first[0].Transports, 1)
+	require.Equal(t, []string{"usb:1-2"}, first[0].Transports[0].Endpoints)
+	require.Equal(t, strategy.StatusAvailable, first[0].Transports[0].Capabilities["input"].Status)
+
+	adapter.devices = nil
+	second := svc.Devices(context.Background())
+	require.Len(t, second, 1)
+	require.Equal(t, "android-stable", second[0].ID)
+	require.Equal(t, "online-host", second[0].HostNodeID)
+	require.Equal(t, strategy.StatusUnavailable, second[0].Status)
+	require.Equal(t, "degraded", second[0].Health)
+	require.Contains(t, second[0].HealthReason, "no current Device Control transport observation")
+	require.NotContains(t, second[0].HealthReason, "disconnected")
+	require.Empty(t, second[0].Endpoint)
+	require.NotContains(t, second[0].HealthReason, "wireless ADB endpoint reachable")
+	require.Len(t, second[0].Transports, 1)
+	require.Equal(t, strategy.StatusUnavailable, second[0].Transports[0].Health)
+	require.Empty(t, second[0].Transports[0].Endpoint)
+	require.Empty(t, second[0].Transports[0].Endpoints)
+	require.Equal(t, strategy.StatusUnavailable, second[0].Transports[0].Capabilities["input"].Status)
+	require.Contains(t, second[0].Transports[0].Capabilities["input"].Reason, "no current Device Control transport observation")
+}
+
+func TestUnavailableBridgeRouteCannotDirectActuateWithImplicitOrExplicitTransport(t *testing.T) {
+	fake := fakes.New("fake-wireless", strategy.StatusAvailable, strategy.CapInput)
+	svc := New(strategyregistry.New(fake))
+	svc.devices.UpsertIdentity(devicedomain.Record{
+		ID: "bridge-stale", Kind: "physical", StrategyID: fake.ID(), Transport: "wireless",
+		Status: strategy.StatusUnavailable, Health: "degraded", Endpoint: "192.0.2.44:5555",
+		Capabilities: []strategy.Capability{{Name: strategy.CapInput, Status: strategy.StatusUnavailable}},
+		Transports: []strategy.DeviceTransport{{
+			Name: "wireless", StrategyID: fake.ID(), Endpoint: "192.0.2.44:5555", Health: strategy.StatusUnavailable,
+			Capabilities: map[string]strategy.Capability{strategy.CapInput: {Name: strategy.CapInput, Status: strategy.StatusUnavailable}},
+		}},
+	})
+	svc.mu.Lock()
+	svc.transportStrategies["bridge-stale"] = fake
+	svc.mu.Unlock()
+	lease, err := svc.Acquire("bridge-stale", "operator", time.Minute)
+	require.NoError(t, err)
+
+	for _, request := range []DirectActuation{
+		{Key: "DPAD_DOWN"},
+		{Key: "DPAD_DOWN", Transport: "wireless"},
+	} {
+		_, err := svc.ActuateDevice(context.Background(), "bridge-stale", "operator", lease.LeaseToken, request)
+		require.ErrorContains(t, err, "no current actionable transport observation")
+		require.Empty(t, fake.Calls(), "stale persisted transport must not receive an input event")
+	}
+}
+
+func TestDirectActuationCannotFallbackWhenProfileLacksRequestedCapability(t *testing.T) {
+	fake := fakes.New("fake-usb", strategy.StatusAvailable, strategy.CapInput)
+	svc := New(strategyregistry.New(fake))
+	svc.devices.UpsertIdentity(devicedomain.Record{
+		ID: "profile-gap", Kind: "physical", StrategyID: fake.ID(), Transport: "usb",
+		Status: strategy.StatusAvailable, Health: strategy.StatusAvailable,
+		Capabilities: []strategy.Capability{{Name: strategy.CapInput, Status: strategy.StatusUnavailable}},
+		Transports: []strategy.DeviceTransport{{
+			Name: "usb", StrategyID: fake.ID(), Health: strategy.StatusAvailable,
+			Capabilities: map[string]strategy.Capability{strategy.CapInput: {Name: strategy.CapInput, Status: strategy.StatusUnavailable}},
+		}},
+	})
+	lease, err := svc.Acquire("profile-gap", "operator", time.Minute)
+	require.NoError(t, err)
+
+	for _, tc := range []struct {
+		name     string
+		request  DirectActuation
+		expected string
+	}{
+		{name: "implicit", request: DirectActuation{Key: "DPAD_DOWN"}, expected: "no available transport"},
+		{name: "explicit", request: DirectActuation{Key: "DPAD_DOWN", Transport: "usb"}, expected: "does not currently prove capability"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := svc.ActuateDevice(context.Background(), "profile-gap", "operator", lease.LeaseToken, tc.request)
+			require.ErrorContains(t, err, tc.expected)
+			require.Empty(t, fake.Calls(), "unsupported profile must not receive an input event")
+		})
+	}
 }
 
 func TestBridgeOnlyAttachmentRemainsListedWhenBridgeGoesOffline(t *testing.T) {
@@ -2341,7 +2458,7 @@ func TestBridgeOnlyAttachmentRemainsListedWhenBridgeGoesOffline(t *testing.T) {
 	svc := NewWithAttached(strategyregistry.New(), reader)
 	first := svc.Devices(context.Background())
 	require.Len(t, first, 1)
-	require.Equal(t, strategy.StatusAvailable, first[0].Status)
+	require.Equal(t, strategy.StatusUnavailable, first[0].Status)
 
 	second := svc.Devices(context.Background())
 	require.Len(t, second, 1)
@@ -2432,7 +2549,10 @@ func TestAgentUsesKnownUSBWhenPreferredWirelessIsUnavailable(t *testing.T) {
 	base := &serialScopedAgentFixture{serialScopedFlowFixture: &serialScopedFlowFixture{Strategy: fakes.New("android-adb", strategy.StatusAvailable, strategy.CapInput)}}
 	wireless := fakes.New("wireless", strategy.StatusUnavailable, strategy.CapInput)
 	svc := New(strategyregistry.New(base))
-	svc.devices.Upsert(devicedomain.Record{ID: "phone", Kind: "physical", Serial: "serial-1", StrategyID: base.ID(), Transport: "wireless", Status: strategy.StatusAvailable, Health: strategy.StatusAvailable, Transports: []strategy.DeviceTransport{{Name: "wireless", StrategyID: base.ID()}, {Name: "usb", StrategyID: base.ID()}}})
+	svc.devices.Upsert(devicedomain.Record{ID: "phone", Kind: "physical", Serial: "serial-1", StrategyID: base.ID(), Transport: "wireless", Status: strategy.StatusAvailable, Health: strategy.StatusAvailable, Transports: []strategy.DeviceTransport{
+		{Name: "wireless", StrategyID: base.ID(), Health: strategy.StatusUnavailable, Capabilities: map[string]strategy.Capability{"input": {Name: "input", Status: strategy.StatusUnavailable}}},
+		{Name: "usb", StrategyID: base.ID(), Health: strategy.StatusAvailable, Capabilities: map[string]strategy.Capability{"input": {Name: "input", Status: strategy.StatusAvailable}}},
+	}})
 	svc.transportStrategies["phone"] = wireless
 	svc.SetAgentPlanner(&sequenceAgentPlanner{plans: []internalflows.AgentPlan{{StepKind: "key", Value: "DPAD_DOWN"}, {GoalMet: true}}})
 	run, err := svc.StartAgent(context.Background(), "move down", "phone", "test", true)

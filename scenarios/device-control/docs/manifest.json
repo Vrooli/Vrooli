@@ -1635,6 +1635,56 @@
           }
         },
         {
+          "path": "internal/goal/device-control-maturity/archive/LOG-2026-11-02-lifecycle-owner-history.md",
+          "docType": "goal-evidence-archive",
+          "title": "Archived Device Control lifecycle owner history",
+          "aliases": [],
+          "description": "Verbatim historical lifecycle owner investigation and implementation evidence archived from the active maturity log",
+          "audience": [
+            "developers",
+            "agents"
+          ],
+          "canonicalFor": [
+            "device-control-maturity-handoff"
+          ],
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "optional",
+          "validation": {
+            "requiredHeadings": [],
+            "forbiddenPlaceholders": [
+              "[TODO]"
+            ]
+          }
+        },
+        {
+          "path": "internal/goal/device-control-maturity/archive/LOG-2026-11-02-early-evidence.md",
+          "docType": "goal-evidence-early-archive",
+          "title": "Archived Device Control maturity early evidence",
+          "aliases": [],
+          "description": "Verbatim historical entries moved from the active maturity log to preserve its bounded working size",
+          "audience": [
+            "developers",
+            "agents"
+          ],
+          "canonicalFor": [
+            "device-control-maturity-handoff"
+          ],
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "optional",
+          "validation": {
+            "requiredHeadings": [],
+            "forbiddenPlaceholders": [
+              "[TODO]"
+            ]
+          }
+        },
+        {
           "path": "internal/goal/device-control-maturity/epochs/E1-inventory-contracts.md",
           "docType": "goal-epoch-e1-inventory-contracts",
           "title": "E1 Inventory Contracts",
@@ -1813,6 +1863,39 @@
           "completion": "required",
           "validation": {
             "requiredHeadings": [],
+            "forbiddenPlaceholders": [
+              "[TODO]"
+            ]
+          }
+        },
+        {
+          "path": "internal/goal/device-control-maturity/epochs/E7-scenario-deployment-and-bas-device-testing.md",
+          "docType": "goal-epoch",
+          "title": "Scenario App Deployment and BAS Device Testing",
+          "aliases": [
+            "scenario-deployment-testing"
+          ],
+          "description": "Epoch for temporary/durable scenario app installs and reliable Browser Automation Studio device workflows",
+          "audience": [
+            "developers",
+            "agents"
+          ],
+          "canonicalFor": [
+            "device-control-maturity-goal"
+          ],
+          "maturity": "active",
+          "requiredBy": [
+            "implemented",
+            "validated"
+          ],
+          "completion": "required",
+          "validation": {
+            "requiredHeadings": [
+              "Outcome",
+              "Owners and starting points",
+              "Work",
+              "Proof"
+            ],
             "forbiddenPlaceholders": [
               "[TODO]"
             ]

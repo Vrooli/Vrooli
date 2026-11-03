@@ -2,11 +2,47 @@ package control
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
 	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 )
+
+// QuiesceObservers requests cancellation of every in-process state observer
+// and waits for each worker's completion receipt. It is called only after the
+// lifecycle provider has closed request admission; cancellation alone is not
+// treated as completed cleanup.
+func (s *Service) QuiesceObservers(ctx context.Context) error {
+	s.mu.Lock()
+	// The lifecycle fence stops new requests, but already-admitted handlers can
+	// still finish inventory and identity work. Close observer creation while
+	// holding the same lock used by startObserverLocked so no late worker can
+	// appear after this snapshot.
+	s.observerAdmissionClosed = true
+	jobs := make([]*observerJob, 0, len(s.observerCancels))
+	for _, job := range s.observerCancels {
+		if job == nil || job.cancel == nil || job.done == nil {
+			s.mu.Unlock()
+			return errors.New("device observer is missing cancellation or completion ownership")
+		}
+		job.stopping = true
+		jobs = append(jobs, job)
+	}
+	for _, job := range jobs {
+		job.cancel()
+	}
+	s.mu.Unlock()
+
+	for _, job := range jobs {
+		select {
+		case <-job.done:
+		case <-ctx.Done():
+			return ctx.Err()
+		}
+	}
+	return nil
+}
 
 // LifecycleInventory snapshots the in-process owners that Device Control can
 // observe directly. It reports work as blockers until the owner has a terminal

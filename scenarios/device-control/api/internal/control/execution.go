@@ -393,6 +393,11 @@ func flowRequiresConfirmation(flow Flow) bool {
 
 func (s *Service) execute(ctx context.Context, flow Flow, deviceID, actor string, sess Session, releaseLease, confirmed bool) (RunResult, error) {
 	requestedFlow := flow
+	transport, routeErr := s.requireCurrentEffectRoute(deviceID, flow.Transport)
+	if routeErr != nil {
+		return RunResult{}, routeErr
+	}
+	flow.Transport = transport
 	strat, ok := s.strategyForFlow(deviceID, flow.Transport)
 	if !ok {
 		if flow.Transport == "" {

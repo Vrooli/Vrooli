@@ -72,7 +72,11 @@ func (s *Service) Capture(ctx context.Context, request CaptureRequest) (RunResul
 	transport := ""
 	found := false
 	for _, profile := range profiles {
-		candidate, ok := s.strategyForFlow(device.ID, profile.Name)
+		currentTransport, routeErr := s.requireCurrentEffectRoute(device.ID, profile.Name)
+		if routeErr != nil {
+			continue
+		}
+		candidate, ok := s.strategyForFlow(device.ID, currentTransport)
 		if !ok {
 			continue
 		}

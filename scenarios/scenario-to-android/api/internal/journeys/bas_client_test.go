@@ -16,7 +16,7 @@ func TestHTTPBASClientExecutesLiveAndroidFlow(t *testing.T) {
 	result, err := client.Execute(context.Background(), BASRequest{
 		TargetID: os.Getenv("ANDROID_TARGET_ID"), Scenario: "hello-mobile", StepID: "hello-mobile-smoke",
 		RunID: "android-live-bas", IsolationLeaseID: os.Getenv("ANDROID_LEASE_ID"), CDPEndpoint: os.Getenv("ANDROID_CDP_ENDPOINT"), RendererID: os.Getenv("ANDROID_RENDERER_ID"),
-		Artifact: deliveryramp.Artifact{ImmutableRef: "android-debug:live"},
+		Artifact: deliveryramp.Artifact{ImmutableRef: "android-debug:live", Checksum: "sha256:live"},
 	})
 	if err != nil {
 		t.Fatal(err)

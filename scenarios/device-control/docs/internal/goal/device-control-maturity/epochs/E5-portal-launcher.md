@@ -26,6 +26,10 @@ Portal-owned tests and native build validation, exact UI/action screenshots wher
 - The Remote transport availability does not qualify Portal's trusted-HTTPS lifecycle actions. The built preview 0.4.19/code37 remains uninstalled, the direct-LAN HTTP route remains unsuitable for operator actions, and no current TV launcher or Portal app state is verified. A screen-bearing observation route and trusted signed-in Portal action path remain necessary.
 - Memory work records: `26ca4404-2332-499d-8437-beee9751fdb1` (input dispatch), `c3d96a09-3199-40db-9452-35f503961aef` (paired browse), and `d8191cfd-8e45-43ff-8631-6b485b94876a` (service-type correction).
 
+## Follow-up — app-management guidance (2026-11-03 UTC)
+
+- Portal TV Settings now explains an unset address, HTTP browse-only use, HTTPS certificate verification before sign-in, an in-memory token that may need renewed sign-in, and lifecycle permission. Policy regressions cover all four states without claiming a trusted connection, valid session, or authorized action. Two reviews caught and corrected scheme/trust and token-state overclaims; two post-fix reviews found no material defect. Owner preview build produced `android-debug:2919d8d67b362fe1c09528a8cbdb2c976721d1c6c0d38b6debfb8da9c1dd67f4` (source digest `b6a4192a46d2e09fcf9a319857f76af3290418169e63c0c4c1d9fcd559390064`); Portal Test Genie `20261103-011957-e3798407` passed unit/docs. Docs L0 `broken_command_snippet` finding remains (79 warnings, 14 infos). APK not installed; live TV foreground/app-action qualification remains open. Memory `5119b363-ce70-403f-bc59-a43c59ebe302`.
+
 
 ## Follow-up — fresh preview build and current transport inventory (2026-11-02)
 
@@ -71,3 +75,49 @@ Portal-owned tests and native build validation, exact UI/action screenshots wher
 - Fresh Device Control inventory at 23:28:19Z verified exact SmartTV Cast identity `google-cast:3bc013548481e743aa769f04a9a9ba0b`, Cast `192.168.1.158:8009`, Android TV Remote `192.168.1.158:6466`, both available. Cast declares media/property/sensor; Remote declares input/media/pairing. Neither declares screen-control; neither provides screen/frame/semantic readback or physical power state.
 - Exact-ID `device screen --operation wake` returned 409 `screen_operation_failed`, status unavailable: “device has no available, state-readable screen-control transport.” The request was refused before actuation; no wake is claimed. Current readback remains Cast receiver application/player empty, Remote mute true/volume 0, input and physical power unavailable; exact-ID inspect is unsupported.
 - Source inventory confirms Android TV Remote's declaration has only volume operations and no `ScreenController`; its wire client admits a bounded set of remote keycodes, but that is not an owned, state-verified wake contract. Adding a wake key without safe readback would risk an unverified or toggle-like action, so no strategy change was made. A supported power-state or screen-bearing observer remains needed before a verified wake journey can be delivered.
+
+
+## Follow-up — current SmartTV and A03s state boundary (2026-11-03 UTC)
+
+- At `01:49:43Z`, fresh inventory verified A03s `android-024665203bca17fa` / `R9TT608Q6MH` (Android 13), Moto G7 `android-6affcac615a281a2` / `ZY226TG2BM` (Android 10, USB and wireless `192.168.1.179:5555`), and SmartTV Cast `google-cast:3bc013548481e743aa769f04a9a9ba0b` at `192.168.1.158:8009` plus Remote at `192.168.1.158:6466`. A03s `device state` at `01:50Z` still failed on USB and wireless.
+- Fresh SmartTV state at `01:50:14–18Z` reports Cast receiver application `AndroidNativeApp`, empty player state and volume `0.0`; Android TV Remote reports mute `false` and volume `0.11` (ARC/eARC source), so volume observations conflict. Input source and physical power remain unavailable. No foreground package, launcher state or Portal app action is established; inspect remains unsupported. No actuation was sent.
+
+
+## Follow-up — current Portal process and TV readback (2026-11-03 UTC)
+
+- `vrooli scenario status portal --json` reports healthy/running with API/UI listeners on 17476/24965, but the serving build is still `sha256:e1e22e47c09418a206c510b49ede90cd55e2b1c653925d0bcb17d4f546e3587f`; this does not deploy or qualify the newer native Portal source.
+- Fresh TV read at 02:10Z identifies Cast receiver application `AndroidNativeApp`, empty player state, Cast volume `0.0`, and Android TV Remote mute false/volume `0.11` (ARC/eARC). Input, power, launcher foreground, and Portal lifecycle action outcomes remain unavailable or unverified. No TV action was sent. Trusted HTTPS hostname/certificate/DNS route remains an operator decision; no network setup was changed.
+
+## Follow-up — Portal owner inventory recovered through the root API (2026-11-03 UTC)
+
+- Portal `surfaces apps` and `app-url` initially failed because their control-plane owner call could not reach `vrooli-api` on port 8092. The root bootstrap marker was present; supported `vrooli develop --scenarios none --onboarding none` started only the project API and skipped the orchestrator. Portal's app inventory then returned 128 scenarios, and `app-url portal` resolved the live Portal UI to `http://localhost:24965`.
+- The fresh `surfaces list` still reports only Web Console ready; Device Control, Bridge and Compute Manager sources are unavailable (`source_unreachable`). Portal serves the old build `sha256:e1e22e47c09418a206c510b49ede90cd55e2b1c653925d0bcb17d4f546e3587f`. The Portal lifecycle endpoint requires a signed-in human bearer token and exact lifecycle authorization; the owner CLI exposes no lifecycle action command. No app lifecycle action, TV action, TLS, DNS or network configuration change occurred. The returned direct app URL is HTTP and does not satisfy trusted-HTTPS action requirements.
+- Memory work records `af93d3b2-9846-4b37-8167-6cffafd12376`, `7f34f5a2-bf03-4756-9722-4b69e3f8f8bc` and correction `644de28e-952b-43d1-b254-82a64ae23bd2` record root API recovery and Portal gateway diagnostics.
+- Portal's same-origin gateway was exercised read-only: `portal surfaces app-url device-control --gateway` resolved `/apps/device-control/proxy/`; API proxy-target returned `UI_PORT=20698` and `API_PORT=16465`. `http://localhost:24965/` returned the Portal page title, and `http://localhost:24965/apps/device-control/proxy/` returned Device Control's page title. This verifies host-browser HTML launch over HTTP only; no TV/browser identity or trusted TLS is proven.
+
+
+## Active outcome — lifecycle response truth regression
+
+- **Mission:** Complete the Device Control and Portal maturity destination; app lifecycle actions must report the owner's observed terminal state and preserve uncertainty when a request is ambiguous.
+- **Outcome:** Extract deterministic response interpretation for Start/Restart/Stop and cover confirmed, unconfirmed, and malformed/unknown results with the native owner regression. The activity may report completion only when the returned application state proves the requested action; ambiguous results must instruct refresh before retry.
+- **References:** This epoch's `TV app lifecycle target`; Portal PRD/design; `scenarios/portal/android-tv/app/src/main/java/com/vrooli/portal/tv/MainActivity.java`, `ApplicationActionPolicy.java`, `PortalClient.java`, and `verification/ApplicationActionPolicyTest.java`.
+- **Ownership:** Portal owns lifecycle UI and response wording. Scenario-to-Android owns the source snapshot and native preview build. Do not change lifecycle API semantics, HTTPS/sign-in gates, control-plane behavior, signing identity, or TV state. Preserve existing dirty changes.
+- **Verification:** Native owner build with `ANDROID_PROJECT_KIND=native`, `ANDROID_SOURCE_REF` set to the launcher, preview profile, and JSON output; run Portal API package tests only if the response contract changes. Use the Test Genie phase appropriate to changed Portal source. No service restart, app install, or TV mutation in this slice.
+- **Return:** Changed paths, focused test/build commands and terminal results, source/artifact identities, remaining and unverified.
+
+
+### Accepted source/build slice — lifecycle response truth (2026-11-03 UTC)
+
+- The Portal-owned native activity now calls a deterministic response policy. It requires both `outcome=completed` and the action's expected runtime state, keeps all other results uncertain, refreshes the catalogue, and tells the operator to refresh before retrying. Start-after-action opens only after confirmed Start.
+- Desired regressions cover success for Start/Restart/Stop and mismatch, incomplete outcome, unknown runtime, invalid action, and null inputs. Existing HTTPS/sign-in and destructive confirmation checks remain in the owner suite.
+- Scenario-to-Android preview owner build passed, including `verifyApplicationActions`: artifact `android-debug:c1a8b226fde3246e28144890dd1014eb1c7966c4db45d543a064dfdf52dc4d88`, source digest `sha256:507ca2d1eab7bec62dc397c40f4a9963cd4c2a2064325333ad344e7b3e0bcab9`, preview package `com.vrooli.portal.tv`, v0.4.19/code37. APK/AAB hashes are in LOG. Portal unit Test Genie `20261103-032846-9767d590` passed L1 with 48 existing warnings. No API contract changed, so no Portal API repair was needed.
+- The artifact was not installed. Trusted HTTPS, operator sign-in on TV, successful lifecycle actions, exact TV foreground readback, and launcher soak remain unverified. This accepts the response-policy source/build slice, not E5 or the overall goal. Worker `/root/portal_lifecycle_response`; independent coordinator source/API review found the policy matches Portal's `Act` contract.
+
+## Follow-up — fresh SmartTV read-only state (2026-11-03 UTC)
+
+- Exact Device Control ID `google-cast:3bc013548481e743aa769f04a9a9ba0b` still resolves to Cast `192.168.1.158:8009` and Android TV Remote `192.168.1.158:6466`. Read at 04:31Z returned empty receiver application/player values, mute conflict (`google-cast=false`, Remote=true), Remote volume 0 with source `arc-earc-amplifier`, and input/physical power unavailable. Neither transport supports screenshot or semantics; inspect remains unsupported. No TV action occurred. TV-owned visual/power readback remains open. The operator clarified that HTTPS is not required for ordinary Device Control LAN/Remote actions; Portal app lifecycle calls retain their own trusted-HTTPS/sign-in requirement.
+
+## Operator correction — HTTPS scope (2026-11-03 UTC)
+
+- The operator corrected the earlier blanket HTTPS prerequisite: ordinary Device Control LAN reads and Android TV Remote actions have been used without HTTPS. Do not require a Portal hostname, certificate, or local DNS/network change for those Device Control routes.
+- This correction does not alter Portal app policy: `PortalClient` still requires trusted HTTPS and a signed-in human for its lifecycle RPC, and the server still enforces verified human authorization. That app-specific path has not been qualified on the TV. Physical foreground/input/power readback and Portal action outcomes remain unavailable/unverified; no new TV action was sent.

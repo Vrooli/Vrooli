@@ -18,6 +18,8 @@ func Register(core *cliapp.ScenarioApp) cliapp.SubcommandGroup {
 		{Name: "build", Description: "Build an APK and AAB from a native project or scenario web bundle", NeedsAPI: true, RunCtx: build(core)},
 		{Name: "signing-provision", Description: "Generate and store the Android upload key through secrets-manager", NeedsAPI: true, RunCtx: signingProvision(core)},
 		{Name: "run", Description: "Build, install, drive, and record one server-owned Android validation run", NeedsAPI: true, RunCtx: run(core)},
+		{Name: "app-test", Description: "Build a scenario APK, test cold and warm BAS behavior, and safely remove it", NeedsAPI: true, RunCtx: appTest(core)},
+		{Name: "app-install", Description: "Build a scenario APK, test it, and leave a fresh install on the exact device", NeedsAPI: true, RunCtx: appInstall(core)},
 		{Name: "conformance-plan", Description: "Show the generated-app Android conformance chapters", NeedsAPI: true, RunCtx: get(core, "/android/conformance-plan")},
 		{Name: "readiness", Description: "Show the six-rung Google release readiness ladder", NeedsAPI: true, RunCtx: get(core, "/android/readiness")},
 		{Name: "distribution", Description: "Show independent Play, sideload, and ADB channels", NeedsAPI: true, RunCtx: get(core, "/android/distribution")},
@@ -97,8 +99,11 @@ func build(core *cliapp.ScenarioApp) func(cliapp.RunContext) error {
 }
 
 type builtArtifact struct {
-	LocalPath string `json:"local_path"`
-	Checksum  string `json:"checksum"`
+	ImmutableRef string            `json:"immutable_ref"`
+	LocalPath    string            `json:"local_path"`
+	Kind         string            `json:"kind"`
+	Checksum     string            `json:"checksum"`
+	Metadata     map[string]string `json:"metadata"`
 }
 
 type catalogTarget struct {
@@ -177,6 +182,18 @@ func selectPhysicalTarget(body []byte, requestedID string) (map[string]any, erro
 }
 
 func run(core *cliapp.ScenarioApp) func(cliapp.RunContext) error {
+	return runJourney(core, "conformance")
+}
+
+func appTest(core *cliapp.ScenarioApp) func(cliapp.RunContext) error {
+	return runJourney(core, "temporary")
+}
+
+func appInstall(core *cliapp.ScenarioApp) func(cliapp.RunContext) error {
+	return runJourney(core, "durable")
+}
+
+func runJourney(core *cliapp.ScenarioApp, mode string) func(cliapp.RunContext) error {
 	return func(ctx cliapp.RunContext) error {
 		body, err := buildRequest()
 		if err != nil {
@@ -195,7 +212,10 @@ func run(core *cliapp.ScenarioApp) func(cliapp.RunContext) error {
 			return fmt.Errorf("decode Android build artifact: %w", err)
 		}
 		if strings.TrimSpace(artifact.LocalPath) == "" || strings.TrimSpace(artifact.Checksum) == "" {
-			return fmt.Errorf("Android build returned no usable artifact path and checksum")
+			return fmt.Errorf("Android build returned no usable artifact path and digest")
+		}
+		if mode != "conformance" && !immutableArtifactMetadataComplete(artifact) {
+			return fmt.Errorf("Android build omitted immutable ref, package, version, or signing metadata required for safe installation")
 		}
 		catalogBody, err := core.Get("/validation/catalog?scenario="+url.QueryEscape(body["scenario_name"]), nil)
 		if err != nil {
@@ -206,15 +226,38 @@ func run(core *cliapp.ScenarioApp) func(cliapp.RunContext) error {
 			return err
 		}
 
-		selection := map[string]any{
+		packageName := strings.TrimSpace(artifact.Metadata["package_name"])
+		if packageName == "" {
+			packageName = strings.TrimSpace(body["package_name"])
+		}
+		if packageName == "" {
+			packageName = defaultAndroidPackageName
+		}
+		metadata := map[string]string{
+			"package_name":    packageName,
 			"scenario_name":   body["scenario_name"],
-			"artifact_digest": artifact.Checksum,
-			"artifact_path":   artifact.LocalPath,
-			"metadata": map[string]string{
-				"package_name":    body["package_name"],
-				"scenario_name":   body["scenario_name"],
-				"auth_profile_id": strings.TrimSpace(getenv("ANDROID_AUTH_PROFILE_ID")),
-			},
+			"auth_profile_id": strings.TrimSpace(getenv("ANDROID_AUTH_PROFILE_ID")),
+		}
+		if mode != "conformance" {
+			for _, key := range []string{"immutable_ref", "version_name", "version_code", "signing_identity", "signing"} {
+				metadata[key] = artifact.Metadata[key]
+			}
+			metadata["immutable_ref"] = artifact.ImmutableRef
+			metadata["install_mode"] = mode
+		}
+		journeyID := "android-generated-app-conformance-v1"
+		switch mode {
+		case "temporary":
+			journeyID = "android-scenario-app-temporary-test-v1"
+		case "durable":
+			journeyID = "android-scenario-app-durable-v1"
+		}
+		selection := map[string]any{
+			"scenario_name":        body["scenario_name"],
+			"artifact_digest":      artifact.Checksum,
+			"artifact_path":        artifact.LocalPath,
+			"metadata":             metadata,
+			"journeys":             []map[string]string{{"journey_id": journeyID}},
 			"targets":              []map[string]any{target},
 			"environment_profiles": []int{1},
 			"max_concurrency":      1,
@@ -248,6 +291,33 @@ func run(core *cliapp.ScenarioApp) func(cliapp.RunContext) error {
 			},
 		})
 	}
+}
+
+func immutableArtifactMetadataComplete(artifact builtArtifact) bool {
+	if !strings.HasPrefix(artifact.ImmutableRef, "android-debug:") && !strings.HasPrefix(artifact.ImmutableRef, "android-release:") {
+		return false
+	}
+	if !validImmutableRefForDigest(artifact.ImmutableRef, artifact.Checksum) {
+		return false
+	}
+	metadata := artifact.Metadata
+	if strings.TrimSpace(metadata["package_name"]) == "" || strings.TrimSpace(metadata["version_name"]) == "" || strings.TrimSpace(metadata["version_code"]) == "" || strings.TrimSpace(metadata["signing"]) == "" {
+		return false
+	}
+	return !strings.HasPrefix(artifact.ImmutableRef, "android-release:") || strings.TrimSpace(metadata["signing_identity"]) != ""
+}
+
+func validImmutableRefForDigest(ref, checksum string) bool {
+	parts := strings.Split(strings.TrimSpace(ref), ":")
+	if len(parts) != 2 || (parts[0] != "android-debug" && parts[0] != "android-release") || len(parts[1]) != 64 {
+		return false
+	}
+	for _, char := range parts[1] {
+		if !((char >= '0' && char <= '9') || (char >= 'a' && char <= 'f')) {
+			return false
+		}
+	}
+	return strings.TrimPrefix(strings.TrimSpace(checksum), "sha256:") == parts[1]
 }
 
 func matrixCompare(core *cliapp.ScenarioApp) func(cliapp.RunContext) error {

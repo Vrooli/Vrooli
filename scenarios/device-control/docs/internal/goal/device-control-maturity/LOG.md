@@ -1,243 +1,6 @@
 # Accepted Evidence and Handoff Log
 
-## 2026-11-02 — E1 current inventory and Test Genie reconciliation (partial)
-
-- Owner: Device Control coordinator; read-only inventory and run-status checks.
-- Command: `device-control status`; `device-control device list --json` at approximately 2026-11-02 16:55 UTC. API healthy. Current inventory: Moto G7 serial `ZY226TG2BM`, Android 10, wireless/available; SmartTV 4K Cast identity `3bc013548481e743aa769f04a9a9ba0b`, available; Galaxy A03s serial `R9TT608Q6MH`, Android 13, wireless/available; Google Home Mini and local desktop also available. These observations do not prove physical action journeys.
-- Command: `test-genie runs status --json device-control 20261102-163620-00bfc8e5`; terminal `FAIL` after 179.4 seconds. Unit provider reported clean L2 with 34 advisory low-coverage findings; docs provider reported errors. Detailed findings are not yet inspected, so no product attribution is claimed.
-- Limitations: inventory lists classic wireless ADB for Moto and does not establish supported Android 10 native Wireless Debugging setup; no new device writes or consent prompts were triggered. Projection consent remains pending owner availability.
-- Next: retrieve the unfiltered Test Genie `findings.report`, classify owner/in-scope findings, and complete E1 owner map/contracts.
-
-## 2026-11-02 — E1 docs report classification and focused repair (partial)
-
-- Owner: Device Control coordinator; Test Genie artifact bytes fetched from the documented Test Genie API route using the opaque run artifact ID.
-- Source: run `20261102-163620-00bfc8e5`, artifact `artifact_32281e36d0bbb1773fe0f8cf17252ea1`, kind `findings.report`; payload 1,340,982 bytes, SHA-256 `749c2d954b76db5b6f329ad4337ae26a112fd53aaf8e784355fa2a7d0f74ace6`.
-- Classification: unit phase passed at L2 with 34 LOW_COVERAGE advisories. Docs phase failed with 219 findings, including 7 severity-3 findings; one in-scope defect was a broken link in `docs/internal/TESTING.md` to absent `HealthCard.test.tsx`. Updated the link to the existing `AppShell.a11y.test.tsx` test.
-- Verification: admitted focused docs run `20261102-165711-5212e0a2` with `vrooli scenario test device-control --phases docs`. The prescribed single blocking wait timed out; a durable status snapshot confirms queued, active at position 2, with `recommended_next_check_seconds=5`. No terminal verdict yet.
-- Remaining: wait on the same run according to Test Genie standing; classify the other reported docs errors and finish E1 owner mapping. Do not treat the full docs finding count as product failures.
-
-## 2026-11-02 — E1 docs contract repair verified
-
-- Owner: Device Control docs contract and testing guide. Updated `docs/manifest.json` goal-file `docType` values to unique stable identifiers while preserving the shared canonical grouping. Fixed the nonexistent test link in `docs/internal/TESTING.md`; replaced two machine-specific absolute architecture links with repository-relative references; removed the nonportable link to operator-local research receipts while preserving the evidence location description.
-- Root cause: Knowledge Observatory doc-contract resolution treats docType, title and aliases as identifiers. Reusing `goal-handoff` across ten distinct goal documents violated uniqueness and caused a docs-phase L0 blocking finding. Device Control's manifest was the owner source; no generated output was edited.
-- Verification: `vrooli scenario test device-control --phases docs` run `20261102-170505-2f81d28d` completed PASS, one docs phase, 10 seconds; docs capability reached L2 Readable, with content quality advisories still present. Shared proto, audio capture browser and React component library freshness preflights all reported current.
-- Earlier focused run `20261102-165711-5212e0a2` remained queued while Test Genie ran at its effective concurrency limit (2 running, 1 queued); it eventually completed FAIL before the additional fixes. It is retained as the superseded diagnostic receipt, not the accepted result.
-- Remaining: classify/resolve only material residual advisories; continue E1 owner map and metric protocol, then all later epochs. No device writes or projection prompts.
-
-## 2026-11-02 — E1 owner map and qualification constraints
-
-- Device Control owns identity/transport/lifecycle/capture/semantics/flows. Its API contains typed native wireless-debugging control and reusable verified enable/disable flows; current Moto G7 is Android 10, so native wireless debugging is unavailable and legacy network ADB is the relevant path. This is a source plus current inventory observation, not a current enable/disable action result.
-- Scenario-to-Android owns immutable APK/AAB production and data-root retention. Current build API returns a `deliveryramp.Artifact` with a digest and retained paths, but no public immutable-reference byte resolver was found. Device Control's existing flow install accepts a local APK path and is not the trusted install contract.
-- Control plane owns host scenario lifecycle. Portal's `ApplicationLifecycleService.Act` checks a human operator principal and operation authority, invokes `vrooli scenario <action>`, and verifies observed inventory state. Portal TV native launcher source is `scenarios/portal/android-tv`; the current app menu remains favorite/app-info/force-stop/uninstall and lacks owned-app actions.
-- Commands: `vrooli scenario requirements validate device-control` returned PASSED with a stale business-evidence warning. `git diff --check` returned two issues outside this slice (`README.md:477` and `docs/internal/IDENTITY-AUTHENTICATION-MIGRATION-LEDGER.md:1413`, both new blank lines at EOF); a path-scoped diff check for all Device Control files edited in this slice returned clean.
-- Limitations: E1 capture-performance paired baseline, AI quality/latency/cost protocol, comprehensive capability coverage map, and current live action journeys remain open. No device writes or projection prompts were made.
-
-## 2026-11-02 — Handoff assembled from repository evidence
-
-This entry preserves evidence found in `../../PROBLEMS.md` and prior work reports. It does not assert the devices or services remain in the same state today.
-
-- Android TV SmartTV 4K: physical screen wake and sleep verified; semantic wake/sleep/ready reported the requested state; screenshot and package-scoped log capture passed.
-- Moto G7: Android 10, USB sleep/wake/credential-backed ready/Home and full-frame screenshot passed; wireless promotion checked exact hardware identity, followed by a wireless screenshot flow. Historical inventory saw USB and Wi-Fi transports available.
-- Wireless reliability: later observations did show successful wireless promotion; a separate earlier endpoint timeout existed. No controlled repeated screen-state/reachability dataset establishes sleep as cause.
-- Screenshots/recording: black bar was reported once. Multiple TV capture methods measurably impaired playback and/or returned very low frame rates; see `../../PROBLEMS.md` sections “Android TV recording also disrupts playback” and “Android recording ownership and display-state restoration”. No method has yet demonstrated acceptable sustained capture plus playback quality.
-- Audio: prototype Android projection capture recorded a test tone on Android 10 phone and Android 11 TV, and YouTube audio on TV. Production Device Control `--require-audio` path is opt-in and fail-closed. Two sessions stopped at unanswered permission/projection prompts and produced no artifact. Physical consent acceptance, audible Device Control artifact, and A/V synchronization remain unverified.
-- Companion APK: most recent rebuilt artifact was `android-debug:a4571098c6ec6ce4a12739faa287a2070367ee4761ee5304b3a88bd325852571`, SHA256 `5a69028c18c77c636cbfe918d50ae2dfdcbd71ab1b3567e3cf770e6b17a1ed34`; do not assume it remains latest or installed. Discovery found no verified public immutable artifact resolver/install surface; recheck before implementation.
-- Decision-model and semantics: CLI semantic capture was added to the primitive evidence manifest; user reported wrong decisions in basic actions and expensive screenshot-driven control. No accepted comparative benchmark is present in this handoff evidence.
-- Portal: existing long-press app-info/force-stop and uninstall behavior was documented in `scenarios/portal/docs/internal/PROGRESS.md` (2026-10-22). Requested owned-app lifecycle actions and crash/fallback root-cause fix remain unverified/open.
-- Learning telemetry: `device-control.setpoint-read` returned partial with failure-recurrence and completion-effort unavailable due to invalid records (16 eligible attempts); no reliable baseline was established.
-- Test Genie: a prior Device Control unit run `20261102-152641-bab78df7` passed. A later combined unit/docs run `20261102-163620-00bfc8e5` remained in progress after the client wait timed out; no terminal verdict. Earlier docs failures included seven broken command snippets. Do not report the later run as pass or failure; reconcile server-owned status per current `docs/TESTING.md` before starting conflicting runs.
-- Direct CLI Go tests passed after refreshing generated primitive evidence; `git diff --check` passed. These are narrow checks, not comprehensive acceptance.
-
-## 2026-11-02 — E2 producer-side immutable artifact resolution (partial)
-
-- Owner: `scenario-to-android` APK/AAB producer; Device Control verified-install consumer not yet implemented.
-- Changed: added `ResolveAPK` over the producer's retained data root. It accepts only exact `android-debug:<sha256>` and `android-release:<sha256>` refs; derives retained paths from the digest; rejects non-regular or symlinked entries; validates manifest identity, kind, size, package, version and version code; rehashes the retained APK/AAB pair; and returns path-free descriptor fields plus an open APK handle. Added metadata and APK GET endpoints and regenerated `.vrooli/endpoints.json` with `make endpoints`.
-- Focused evidence: `go test ./internal/builds ./handlers/builds ./handlers/releases` from `scenarios/scenario-to-android/api` passed. Scenario Test Genie run `20261102-171444-db13b76f` terminal PASS for `unit`, L2; findings report warns `MISSING_INJECTABLE_SEAM` in the CLI and low-coverage advisories, so this is scoped maturity evidence, not certification. Test Genie phase summary alone does not establish that individual tests executed; the separate focused Go test result is the direct package evidence.
-- Dependency governance: module drift prevented the initial Go test. `scenario-dependency-analyzer deps reconcile --scenario scenario-to-android --surface api --apply --json` was used; it changed `go.mod`/`go.sum`, including local replacements and version/toolchain refresh. `scenario-dependency-analyzer deps-approved validate scenario-to-android --json` passed in advisory mode but reports an out-of-scope `github.com/andybalholm/brotli` exception warning and two unrelated UI version warnings. The dependency diff and advisory need owner review before E2 acceptance.
-- Consumer gap: Device Control's typed app-lifecycle path has confirmation and lease enforcement but `install` still consumes a local path. No producer-ref byte transfer, independent consumer checksum/package validation, lease-held install, or post-install version verification exists yet. The new producer routes inherit the existing plain JSON operator endpoint surface and do not add a dedicated authentication layer; confirm the service exposure boundary before a consumer relies on them.
-- Limits: no artifact was installed on a physical device and no device writes occurred. The producer API alone does not satisfy verified-install acceptance.
-
-## 2026-11-02 — E1 matched measurement protocols defined (partial)
-
-- Owner: Device Control evidence contract; no physical task was run.
-- Changed: added matched capture/playback and AI comparison protocols to `epochs/E1-inventory-contracts.md`. Capture procedure uses exact identity/context, alternating three paired 30-second video-only trials, typed before/after playback metrics and honest unknown values; AI procedure compares assertion-bearing vision and deterministic routes with paired starting state and preserves failures.
-- Source-backed limits: current `RecordingArtifact`/video reference carries method, frame count, duration and output FPS; Android `performance-state` has SurfaceFlinger/graphics metrics. Existing agent/flow records retain dispositions, assertions/chapters and prompt/policy/plan hashes, but lack consistent action count, wall-clock end-to-end latency, model/token cost, or confidence calibration. These are explicitly marked unmeasured; no proxy metric is presented as equivalent.
-- Evidence: source inspection of `api/strategy/contract.go`, `api/strategy/androidadb/performance.go`, `api/internal/control/execution.go`, `recording.go` and `agent.go`; no new Test Genie run because this edit changes only the internal measurement protocol. E1 remains open pending capability map, actual baselines, and native effort-home conformance.
-- Limits: no capture/playback or AI trial was run; no physical action or consent prompt occurred. Device owner availability remains necessary for the later audio claim, while video-only measurement can proceed independently.
-- Verification follow-up: `vrooli scenario test device-control --phases docs` run `20261102-171741-012f0ae2` terminal PASS; `test-genie runs findings` reports docs L1→L2 with 207 warning findings (17 `content_issue`, 12 `placeholder_style`, among others). The phase is green but the docs maturity north star is not met. No individual-test execution claim is derived from the phase summary.
-
-## 2026-11-02 — E2 verified artifact consumer implemented (partial)
-
-- Owner: Device Control flow/API/CLI; producer API remains owned by scenario-to-android.
-- Changed: added an exact-ref HTTP consumer with redirect refusal, descriptor/ref/package consistency checks, APK size and SHA-256 verification, and a private temporary staging file whose path is not caller-controlled. Added confirmed `install-artifact` flow step, active lease revalidation immediately before mutation, post-install package/version assertion, and structured proof in flow response/audit details without persisting the staged path. The existing path-based developer install remains separate. Updated the flow schema, generated artifacts through `make generate SCENARIO=device-control`, verified committed proto generation and breaking compatibility, and refreshed CLI primitive evidence via its owner test.
-- Evidence: focused API packages `go test ./internal/androidartifact ./internal/control ./handlers/control` passed; CLI `go test ./domains/control` passed. Test Genie unit run `20261102-173240-8e0ece12` terminal PASS at L2 with 34 low-coverage warnings. `business-health validate scenario device-control` and `vrooli scenario requirements validate device-control` passed with a stale evidence warning; `git diff --check -- scenarios/device-control` passed. Goal-home lint passed at 15,523/30,000 bytes.
-- Limitations: the producer's plain JSON endpoint has no dedicated authentication; its supported exposure/auth boundary is unresolved. No live install or device mutation occurred. No projection prompt was triggered. Producer-side package identity is checked against the request and post-install device state, but no independent APK manifest parser was added.
-
-## 2026-11-02 — E1 capability-owner map expanded and docs requalified (partial)
-
-- Owner: Device Control capability contract and coordinator evidence map.
-- Changed: expanded the E1 owner map across identity/transport, lifecycle, capture/performance, logs/semantics/network, AI control, immutable artifact resolution, verified install, control-plane lifecycle, Portal applications and Portal TV launcher. Marked unsupported/unknown routes and missing telemetry directly, and replaced stale E2 consumer claims with the implemented consumer state.
-- Evidence: docs run `20261102-173457-a1f85e80` terminal PASS; docs contract, link health, append-log integrity and manifest coverage are clean, while knowledge-observatory remains L1 because content quality has 209 maturity-blocking findings. `git diff --check -- scenarios/device-control/docs/internal/goal/device-control-maturity` and `agent-manager effort lint scenarios/device-control/docs/internal/goal/device-control-maturity` pass.
-- Limitations: the map is source-backed but several rows still lack current physical outcome evidence. Capture and AI paired measurements, consistent AI action/latency/cost telemetry, and authorized live journeys are still open. Owner is away; no projection prompt or device action was performed.
-
-## 2026-11-02 — E2 local API boundary and E5 action-policy regressions (partial)
-
-- E2 owner finding: `/api/v1/android/artifacts/{metadata,apk}` has no route authentication. api-core server defaults to `127.0.0.1`; Scenario-to-Android's active process PID 1623522 on API port 17827 was observed listening only on `127.0.0.1:17827`, and its environment contains `API_PORT` but no `API_BIND_ADDRESS`. However, lifecycle environment passes inherited `API_BIND_ADDRESS` and api-core honors it. Source now pins scenario-to-android startup to `127.0.0.1`, making artifact routes local-operator only. Owner suite/runtime verification remains pending. No artifact request or device write was made.
-- E5 source finding: the native Portal TV menu and authenticated lifecycle API already implement requested app actions. Actions require trusted HTTPS and operator sign-in; current documentation names a direct-LAN HTTP pairing, so actual TV action use remains unverified. `MainActivity` now uses a dependency-free `ApplicationActionPolicy`; its owner-build regression checks menu labels, Portal self-exclusion, selection mapping and destructive confirmation. Native owner build, Portal Test Genie, trusted HTTPS TV action and launcher fallback/soak evidence remain open.
-- Limitations: no device operation, installation, or projection prompt occurred. Read-only cross-owner inspections used fresh workers; no worker modified source.
-
-## 2026-11-02 — E2 proxy exposure constrained; E5 source/build qualification advanced (partial)
-
-- E2 boundary: source confirms the producer API is a standard api-core server and defaults to loopback; its UI service binds `0.0.0.0` and proxies `/api`, so loopback alone was not an end-to-end isolation claim. The producer now pins API bind `127.0.0.1`; the UI proxy injects `X-Vrooli-Scenario-UI-Proxy: scenario-to-android`; metadata and APK handlers fail closed for that marker. Direct localhost producer calls remain the Device Control integration route. `go test ./handlers/builds ./internal/builds` and `go test .` in `scenarios/scenario-to-android/api` pass; Test Genie run `20261102-174053-3232da30` passes at L2 with one unrelated CLI `MISSING_INJECTABLE_SEAM` advisory.
-- Runtime gate: `make start` + one `vrooli scenario wait` attempt failed first on missing local replacements in `vrooli-bridge` and Browser Automation Studio; another attempt exposed Secrets Manager. Each module was previewed and reconciled through Scenario Dependency Analyzer, preserving its existing dirty module versions. Approved dependency validation is advisory; `vrooli-bridge` reports two existing UI version-range warnings, and Secrets Manager reports existing Electron/npm governance warnings. A subsequent managed start reached `android-sdk` and failed because the required resource is disabled by operator state; `vrooli resource status android-sdk --json` reports `enabled=false`, `healthy=false` (`avdmanager --version` failure). The old healthy service remains running. No resource state was changed.
-- E5: current source already implements Start/Restart/Stop long-press actions and Start for not-running owned apps. Added `ApplicationActionPolicy` and dependency-free regressions, included in Scenario-to-Android preBuild. Owner command `ANDROID_PROJECT_KIND=native ANDROID_SOURCE_REF=scenarios/portal/android-tv ANDROID_NATIVE_PROFILE=preview SCENARIO_TO_ANDROID_HTTP_TIMEOUT=360 scenario-to-android android build --json` produced `android-debug:f5b3246c7038ac391d812746196db6564bc62ade528cb49f15e5ccf1ebfd1413` (`com.vrooli.portal.tv`, 0.4.19/code37, debug-only). It was not installed. Portal API packages `go test ./handlers/surfaces ./internal/surfaces` pass; Test Genie run `20261102-174054-978141dc` passes at L1 with 48 advisory findings and `TEST_UTIL_MISSING`/injectable-seam debt in Portal CLI.
-- Current device evidence: `device-control device list --json` at 2026-11-02 17:49 UTC observed Moto G7 Android 10 (`ZY226TG2BM`, stable id `android-6affcac615a281a2`) and Galaxy A03s Android 13 (`R9TT608Q6MH`) available over wireless ADB. Moto reports `wireless-debugging` unavailable for Android 10 and `recording-audio` available only pending owner consent. No SmartTV identity was present; Android TV Remote discovery had no reachable `_androidtvremote._tcp` service. Do not infer that the TV is off or that a prior wireless event establishes causality. No physical mutation, installation, or projection prompt occurred.
-- Documentation: corrected Portal Android TV README's stale top-line version. Last recorded install is 0.4.19/code37 (run `43074659-b8e1-4775-a4dc-9f30e93bde0a`, boot 75), but current installed version is unknown pending a reachable current TV identity.
-- Remaining: verify the producer proxy rejection after an approved managed restart; resolve the disabled/unhealthy Android SDK owner state; install a suitable immutable artifact on a freshly confirmed Android phone; execute matched capture/performance and AI evidence; qualify Portal actions over trusted HTTPS and diagnose TV foreground/Home state; complete E6 gates and two fresh hostile reviews.
-
-## Recording new work
-
-Append dated entries only for accepted outcomes. Include owner, changed surface, exact command or physical evidence identity, terminal result, limitations, and links to immutable evidence. Do not turn an attempt into a success claim.
-
-
-## 2026-11-02 — E1 owner-map reconciliation and docs gates (partial)
-
-- Reconciled the E1 owner map with current source: artifact producer API is loopback-pinned and rejects requests stamped by its network-facing UI proxy; Portal TV native menu already supports owned-app lifecycle actions and now has deterministic menu-policy coverage. Runtime producer proof and current physical TV qualification remain open.
-- The device-control docs gate `20261102-175341-38ee53e8` passed at L1 Readable; advisories remain for content quality and placeholder style. The Portal docs gate `20261102-175457-c2649f01` passed; reference-integrity advisories remain. Prior blocking findings led to replacing obsolete Test Genie wait snippets, removing a malformed replay snippet, updating a stale registry-generation instruction, removing a broken test link, and replacing absolute host paths in historic notes. No tests were added beyond the already-recorded owner regression; no device was modified.
-- Goal-home lint passes with zero warnings; scoped `git diff --check` passes. These doc gates do not close E1: matched capture/AI evidence protocols and the measurable baselines remain open.
-- Next: continue E1 by reconciling the remaining capability inventory and protocol fields, then proceed through E2/E3/E4/E5/E6. E2 runtime restart still depends on the operator-disabled, unhealthy Android SDK resource; owner-present projection consent and fresh TV identity remain unavailable.
-
-
-## 2026-11-02 — E4 agent outcome-effort telemetry (partial)
-
-- Device Control now persists `duration_ms`, planner-call count, executed action attempts/completions, and per-inference Gateway provider/model, provider adapter attempt count, token counts, USD micro-cost and provenance in agent-run JSON. Token/cost fields are absent when Gateway usage is absent; provider identity does not select a provider SDK or bypass AI Gateway. Existing planner compatibility is preserved through an optional measured-planner interface.
-- Regression coverage asserts actual action counts/duration and inference metadata persistence; Gateway planner tests assert provenance and absent-usage semantics. `go test ./internal/flows ./internal/control` passes. Test Genie unit run `20261102-180125-e4f3025a` passes at L2 with 34 advisory findings; docs run `20261102-180237-01b09954` passes at L1 with 214 warnings/24 infos and clean contract/link/manifest capabilities.
-- Updated the CLI reference and canonical Device Control skill to describe the metrics and state truthfully that the planner receives no screenshot pixels. Metrics make repeated comparison possible but do not constitute paired task outcomes, success rates or model quality evidence.
-- Next: verify serialized agent-list output includes the measurements, obtain paired assertion-bearing AI vs deterministic-flow trials on a current authorized identity, and reconcile screenshot/privacy architecture before enabling image context. Continue remaining E2/E3/E5/E6 work in their owner boundaries.
-
-
-## 2026-11-02 — E2 resource and live install; E1 phone journey (partial)
-
-- The Android SDK resource failure was a false unhealthy report: its liveness probe invoked unsupported `avdmanager --version`. Replaced it with supported `avdmanager list device`, which completed successfully. `vrooli resource validate android-sdk` passes. `vrooli resource enable android-sdk` was applied under the goal's operator authorization; status now reports enabled/installed/running/healthy.
-- Scenario-to-Android managed `make start` completed healthy at API port 17827 and UI port 24699. Runtime checks found metadata and APK GETs through the UI proxy both return 403, while direct API requests to an invalid probe ref return 404. The API listener is bound to `127.0.0.1:17827`.
-- The capture companion APK was built through `scenario-to-android android build` from `scenarios/device-control/android-capture`, profile `capture`, as immutable ref `android-debug:a4571098c6ec6ce4a12739faa287a2070367ee4761ee5304b3a88bd325852571` (package `com.vrooli.devicecontrol.capture`, version 1.0.0/code1, debug-only). Fresh Device Control inventory identified Moto G7 `android-6affcac615a281a2`, serial `ZY226TG2BM`, Android 10, app-lifecycle available. Confirmed Device Control flow `1d5c512e-26e6-46cb-bc58-2ee139df3eeb` passed: artifact checksum `sha256:a4571098c6ec6ce4a12739faa287a2070367ee4761ee5304b3a88bd325852571`, APK checksum `sha256:5a69028c18c77c636cbfe918d50ae2dfdcbd71ab1b3567e3cf770e6b17a1ed34`, install accepted, installed true, post-install package/version verified. The first flow attempt failed during preflight before lease or mutation because `strategy.StepKinds` omitted the Android-only kind; fixed it to advertise `install-artifact` only for `android-adb`, and added regressions for support/unsupported providers.
-- The first managed Device Control start failed before stopping the scenario: Scenario Authenticator had missing local module replacements. Its working tree contained source and module changes from elsewhere; Scenario Dependency Analyzer was previewed and applied only missing local replacements, preserving the existing version edits. The subsequent managed Device Control `make start` stopped and restarted Device Control successfully at API 16465/UI 20698.
-- On the exact Moto G7, `device screen --operation wake` verified off/locked → on/locked. Existing auth profile `auth-1a7ba66d-4776-441a-bffd-18ff8eb93b4e` is active and its provider reports configured. A subsequent `ready --home` run verified unlocked/on and foreground `com.motorola.launcher3` after Settings. No projection prompt was triggered. Screenshot flow `bd7d2930-a454-4f38-8bab-4a5169b332b7` retained 2,660,899-byte image (SHA-256 `88d688be6adf1e4ea88a847f9ff5e0d5be0a74553d5d7ebde0e3f76ecfc91cff`); content classification was not performed. Home semantics returned 16 elements without truncation; labels were not retained in this handoff.
-- Current TV inventory sees SmartTV stable ID `google-cast:3bc013548481e743aa769f04a9a9ba0b` available on Cast; Cast input/screenshot and power/input state remain unavailable, so TV launcher foreground/Home diagnosis is still unverified. Galaxy A03s is listed available, but fresh state probes fail over its wireless and USB routes.
-- Validation after the `StepKinds` regression: Test Genie unit run `20261102-181835-f8957e35` PASS L2 (34 advisory findings); docs run `20261102-181920-f5af9f8a` PASS L1 (216 warnings/24 infos, primarily existing content-quality debt). `vrooli scenario requirements sync device-control` updated one file/two statuses. `business-health validate scenario device-control` and `vrooli scenario requirements validate device-control` now pass with no findings. Global `git diff --check` still flags only unrelated preexisting EOF blank lines in root `README.md` and `docs/internal/IDENTITY-AUTHENTICATION-MIGRATION-LEDGER.md`; scoped check remains required after this edit.
-- Remaining: do repeated capture/playback and wireless-recovery trials; keep audio consent pending until owner is present; repeat AI-vs-flow matched outcomes; diagnose TV using an input/screen-bearing transport and trusted HTTPS; complete Portal qualification, lifecycle-fence audit, E6 owner gates and two fresh hostile reviews.
-
-## 2026-11-02 — E6 fresh TV reachability and gate refresh
-
-- At 18:22 UTC, `device-control device list --json` still reported SmartTV Cast stable ID `google-cast:3bc013548481e743aa769f04a9a9ba0b` available, with media/property/sensor only; input and screenshot remain unavailable by Cast capability. Its separate Android TV Remote mDNS discovery entry at `192.168.1.158:8009` is unreachable. This confirms the current transport gap only; it does not establish why the TV remote endpoint is unreachable or whether the TV is asleep.
-- Requirements validation and business-health validation both pass without findings. The scoped whitespace check for Device Control, Scenario-to-Android, Portal and Android SDK surfaces is clean. Current goal-doc edits still require a fresh terminal docs phase.
-- Fresh Device Control docs Test Genie run `20261102-182236-d3786d15` is terminal PASS at L1 (Readable), with 222 warnings and 24 infos. Doc contract, append-log integrity, links and manifest checks are clean; content-quality debt prevents the next maturity level.
-- Fresh producer unit Test Genie run `20261102-182313-02ec8d20` is terminal PASS at L2 (35 advisories); fresh Portal unit run `20261102-182312-30345356` is terminal PASS at L1 (48 advisories).
-- Remaining E6 gates include paired playback/capture and AI outcome evidence, trusted HTTPS Portal action proof and TV foreground diagnosis, complete current capability outcomes, lifecycle fence review, final owner validations, and two fresh hostile reviews.
-
-## 2026-11-02 — E6 hostile artifact review closed before actuation
-
-- Two fresh hostile reviews found the same material boundary gap: producer package/version metadata lived beside the APK and was not proven to describe the APK bytes; a mismatch could be detected only after installation.
-- Device Control now invokes Android SDK `aapt dump badging` on the checksum-verified staged APK and compares embedded package name, version name and version code to descriptor fields before exposing that path to the lease-owned installer. aapt is resolved from the Android SDK that owns `adb`; missing tool, invalid manifest or identity mismatch fails closed.
-- Regressions cover mismatches for all three embedded identity fields, plus `AAPTInspector` command and output parsing. Focused Device Control Test Genie unit run `20261102-182546-4bd8a8c9` passed L2 with 34 advisory low-coverage findings. Direct `aapt dump badging` on the retained capture companion reports `com.vrooli.devicecontrol.capture`, version `1.0.0`, code `1`.
-- This new pre-install gate has not been exercised by a subsequent physical install; the live flow in the earlier entry predates the fix. The two reviews found no additional material Portal, producer proxy-boundary or AI telemetry defects. TV launcher proof remains open because its Remote discovery entry is unreachable and Cast lacks input/screen modalities.
-
-## 2026-11-02 — E6 post-review claims and final gates
-
-- Updated the handoff to assign APK/AAB byte/ref resolution to Scenario-to-Android and embedded package/version/code verification to Device Control. The second hostile reviewer rechecked this correction and reported no remaining material or accuracy findings. Both post-fix hostile reviews found no material defect in their assigned scope.
-- Final Device Control docs Test Genie run `20261102-182910-325fc883` is terminal PASS at L1. Device Control unit `20261102-182546-4bd8a8c9`, producer unit `20261102-182313-02ec8d20`, and Portal unit `20261102-182312-30345356` also remain terminal PASS.
-- `vrooli scenario requirements sync device-control` reports zero files/statuses changed. Business-health and requirements validation both pass without findings. Goal-home lint passes with zero warnings. Scoped `git diff --check` is clean; global diff check still reports only the two unrelated pre-existing EOF blank lines in root `README.md` and the identity/authentication migration ledger (plus Git CRLF notices).
-- Goal remains in progress: no matched capture/playback or AI outcome cohort; owner-present projection/audio consent unavailable; Portal actions over trusted HTTPS and TV Home/foreground remain unverified; repeated wireless recovery, lifecycle-fence review and invalid setpoint telemetry debt remain open. No single timeout is treated as sleep evidence.
-
-## 2026-11-02 — E2 live exercise of APK manifest gate
-
-- Managed `make start` rebuilt and restarted Device Control successfully after the APK inspector change. Fresh post-restart inventory/state identified Moto G7 stable ID `android-6affcac615a281a2`, serial `ZY226TG2BM`, available with app-lifecycle; screen was off/locked and operation transport resolved to USB.
-- Confirmed Device Control `install-artifact` flow reinstalled exact ref `android-debug:a4571098c6ec6ce4a12739faa287a2070367ee4761ee5304b3a88bd325852571`. Audit `62f101f5-66d9-4667-8fdb-4aa026659cc7` at 18:32:10 UTC records APK SHA-256 `5a69028c18c77c636cbfe918d50ae2dfdcbd71ab1b3567e3cf770e6b17a1ed34`, package `com.vrooli.devicecontrol.capture`, version `1.0.0`/code `1`, install accepted and post-install verification. Flow disposition passed. The app was not launched; no projection/audio prompt occurred.
-- This is the first live install after adding the consumer-side embedded-manifest check. The earlier exact Moto identity and state were freshly observed before the flow. No raw ADB command was used.
-
-## 2026-11-02 — E6 Device Control learning telemetry routed to Memory
-
-- Program Runtime `device-control.prepare-task` resolved exact Moto stable ID `android-6affcac615a281a2` as available for context `moto-capture-performance`, with zero saved flows for that context. The declared `device-control.setpoint-read` program ran for `2026-10-26T00:00:00Z` to `2026-11-02T00:00:00Z`; direct Memory `learning measure` returned 16 eligible attempts, 8 invalid records, and `unreliable:invalid_records`.
-- Read-only Source Ledger analysis and the Memory implementation explain all eight invalid increments: the child attempt links to a parent present in the same scope/task/operation/provenance but with a different context key. `Measure` groups records by context before checking parent membership, then counts a cross-context parent as absent. Parent records are within the selected date window. These are valid relationship records under the scope/task identity but make the reading unusable.
-- Filed one owner defect with Report Bug skill: `knw-1793644749148975095`, topic `bug-inbox/code-defect/learning-measure-invalidates-cross-context-parented-attempts`. The report includes measurement and Source Ledger reproduction. No Memory code or ledger entries were changed; the setpoint remains unreliable until the owner resolves and revalidates it.
-- Recorded the improvement cycle through `vrooli-memory journal note` as work record `98182083-b765-47d8-ac8b-34517e7cab03`. The note explicitly rejects a performance baseline or improvement claim from the unreliable sample.
-
-## 2026-11-02 — E5 current TV transport recheck
-
-- `device-control device list --json` at 18:40 UTC again reports SmartTV Cast stable ID `google-cast:3bc013548481e743aa769f04a9a9ba0b` available, while its Android TV Remote discovery at `192.168.1.158:8009` is unreachable. Cast exposes media/property/sensor and explicitly lacks input, screenshot and semantic-tree modalities.
-- This confirms the current transport gap only. It gives no evidence about why the Remote endpoint is unreachable, whether the display is asleep, or which Portal launcher is foreground. Trusted-HTTPS actions and TV Home/fallback diagnosis remain open.
-- After the terminal docs run `20261102-183259-34b02e04`, requirements sync reported zero changes; business-health and requirements validation both pass without findings. Scoped `git diff --check` and goal-home lint pass. Global `git diff --check` remains affected only by unrelated pre-existing EOF blank lines in root `README.md` and the identity/authentication migration ledger.
-
-## 2026-11-02 — E2 A03s Bridge inventory and state route discrepancy
-
-- At 23:23Z fresh Device Control describe reports A03s `android-024665203bca17fa` / `R9TT608Q6MH` with Bridge host node `697b6224-6283-4a31-90e2-73724e424c05`, available health, and a wireless-reachable reason, but no endpoint. State reads over both listed transports fail; inspect cannot establish hardware/Home facts. SmartTV and Moto readbacks were also rechecked and remain as documented in STATUS.
-- Source trace confirms attached Bridge inventory is reconciled into physical-device records, but `ReadDeviceState` selects local strategy readers only; no attached-device remote state-reader contract exists. Inventory reachability can coexist with unavailable local state. The promoted-device pass can also rewrite a health reason to local wireless ADB wording. E2 now records this distinction; no source change was made without an owner-defined Bridge read/authorization contract.
-- No device action, reconnect, pairing, install, or lifecycle replacement occurred. Current serving API reports the prior build identity. This turn is source tracing and evidence correction only; full maturity remains open.
-
-## 2026-11-02 — E2 current Moto readiness and owned screenshot
-
-- Fresh inventory at 23:26Z verified Moto G7 `android-6affcac615a281a2` / `ZY226TG2BM` on USB and wireless `192.168.1.179:5555`; screen state was off/locked. Device Control `ready --home` with configured profile `auth-1a7ba66d-4776-441a-bffd-18ff8eb93b4e` returned verified over USB. Immediate state was on/unlocked with Motorola launcher foreground; exact-USB inspect confirmed Home component `com.motorola.launcher3/com.android.launcher3.CustomizationPanelLauncher`.
-- Owned observe flow `81c709dd-5ba4-4d83-8cd4-7d654e745ac8` passed and produced image evidence `8b9997ce-cb3b-425d-9d28-0467f8efbab0`, 3,262,811 bytes, SHA-256 `584548e51d5387008e07aef57c101e5f9032a2b6bd9c33a93d2e817c310b2d83`. Device Control marks content unclassified/unverified. Held lease `132a8c37-e206-443e-a820-e8e209f744ff` was released. No projection/audio consent was opened.
-- Current SmartTV state remains Cast application/player empty, mute true/volume 0, input/power unavailable; read-only inspect is unsupported on the selected TV transport. Current A03s still shows Bridge-reachable inventory with no endpoint while state reads fail. These live observations do not close their journeys or prove Portal behavior.
-
-## 2026-11-02 — E5 exact-TV screen-wake attempt
-
-- Fresh inventory at 23:28:19Z verified SmartTV `google-cast:3bc013548481e743aa769f04a9a9ba0b`, Cast `192.168.1.158:8009`, Remote `192.168.1.158:6466`. Device Control `screen --operation wake` returned 409 before actuation: no available, state-readable screen-control transport. Cast exposes no input; Remote exposes key navigation/media/volume but no declared screen-control or power-state reader. No wake success or physical panel state is claimed.
-- Source trace confirms Android TV Remote declares only volume operations and lacks `ScreenController`; Cast has media/property capabilities, but its current state cannot observe physical power. A wake implementation without an owner-supported verifier could create an unverified/toggle-like action, so no source change was made. E5 records the owner boundary and next required evidence.
-
-## 2026-11-02 — E3 current wireless off/on output and host-process sample
-
-- Retained owner flows on Moto `android-6affcac615a281a2`/`ZY226TG2BM` passed for one Sintel no-recording interval `d9301dd0-3f7c-427e-9fd3-c1560f2ac3e5` and native capture `b9be4a18-2152-4398-b280-c8e5f0eb58f4`. Video `09d26d45-bf8a-426c-85ca-9c8337fea028` is content-verified, 21.86 fps, 2,154,921 bytes, SHA-256 `9fd49c82aea4dccbb91b19fdb6bc9acfdafe95a9146dc1b5269f6d9fc1d691cc`, no audio.
-- Android graphics counters were unchanged; SurfaceFPS was unavailable. One Device Control host sample landed during capture-on (0.02 CPU seconds, 52,964 KB RSS), but the no-capture sample was outside its interval. No host-cost delta, source drops, or playback effect is claimed. Lease expiry prevented another interval; no flow remained active. Owner `ready --home` returned the phone to Motorola Home. No consent prompt was opened. Details: E3. Work record `2f4a4b7c-51ec-4120-8eda-1cd81cb5a440`; Program Runtime preparation note `aa3dfb07-0131-4756-b874-56ee18838e29`.
-
-## 2026-11-02 — E6 Test Genie fixture repair and owner refresh
-
-- The first post-Proto-refresh Device Control unit run `20261102-184113-41ed4f3a` failed in `TestAAPTInspectorReadsCompiledManifestIdentity`: its temporary `adb` fixture was mode `0600`, so `exec.LookPath` rejected it as non-executable. The regression now creates the stub with mode `0700`; no production code or generated output was changed for this failure.
-- Fresh Device Control unit run `20261102-184531-32c618d8` passed at L2 with 34 advisory low-coverage findings. Scenario-to-Android unit `20261102-184619-158f671c` passed at L2 with one injectable-seam advisory. Portal unit `20261102-184622-4769d932` passed at L1 with 48 helper/injectable-seam advisories. All three reported the Proto owner artifact `7dfc2f00f25ca7c8df810450b296fcb64f0ba252ee34dc6b051ddc0f7913c5ca` fresh.
-- Requirements sync changed one file and two requirement statuses; subsequent business-health and requirements validation passed without findings. This metadata sync does not accept the nine-surface scoreboard or any physical outcome. Capture/performance and AI comparison cohorts, owner-present consent, live Portal HTTPS actions/TV launcher state, lifecycle fence, and reliable Memory setpoint readings remain open.
-- Recorded this validation cycle as Memory work record `9a300a09-f5e8-49e3-a9bc-c53393a4cd97`.
-- Refreshed Test Genie docs run `20261102-185904-c7bc1131` passed at L1 (240 content-quality advisories, 24 informational observations; documentation contract, link health, append-log integrity and manifest coverage are clean). Goal-home lint and scoped diff check pass. Two fresh final hostile reviewers confirmed no actionable material findings after rechecking APK identity, Portal/producer ownership, and the corrected evidence wording and run references; two fresh E3 follow-up reviewers also found no material issue and verified the USB/unlock transport wording correction.
-
-## 2026-11-02 — E3 current Moto screenshot QA and performance evidence reconciliation
-
-- Program Runtime `device-control.prepare-task` resolved exact Moto stable ID `android-6affcac615a281a2` as available. Live `device state` reported screen-off/locked; the `screen wake` and Home-navigation audit rows record USB. The profile-backed unlock audit row omits transport and shares its lease with Home navigation. A fresh state read showed on/unlocked with `com.motorola.launcher3`, and `device inspect --transport usb` succeeded at 18:54 UTC. No projection/audio consent was opened.
-- Governed screenshot flow `0e489275-9be1-4591-abda-201489ead479` passed at 18:53:01 UTC and retained image evidence `9c6da24f-4d3b-4ae2-b783-0cab760e8a6d`, 3,262,468 bytes, SHA-256 `8c0c990186652fc3cdc795d05fd129de9db05c2d8f1ee32b3dbb2a72b6b1cf57`. The Device Control evidence API returned the same bytes. Full decode and visual review verified 1080×2270 matching the live display size and no black top band in this sample. The immutable producer record remains `content_verified=false`; the review is sample-specific.
-- Reconciled an inaccurate “no matched playback comparison” summary against the existing owner problem log. A 2026-11-01 SmartTV exploratory trial has a ~60 fps baseline, 3.02 fps during native recording, and 2.79 fps during native plus PNG sampling, with 21/18 encoded frames. Only one PNG sample completed, no source-drop/resource metrics were measured, and the trial is not linked in current evidence to the currently observed TV ID. It is retained as inconclusive exploratory evidence, not an accepted performance cohort.
-- Work record `1a910c29-2b4d-4a2a-916b-c929c8e7de4e`. No temporary image copy remains. Repeated same-identity capture/playback comparisons and current TV black-bar diagnosis remain open.
-
-- The nine-surface scoreboard now cites this current 18:53 UTC Moto artifact and distinguishes the incomplete historical SmartTV comparison from an accepted performance cohort. E3 and E6 retain the full evidence details and limitations.
-
-## 2026-11-02 — Post-docs requirements evidence refresh
-
-- `vrooli scenario requirements sync device-control --json` after docs run `20261102-185725-72f55868` reported zero file/status changes. `business-health validate scenario device-control` and `vrooli scenario requirements validate device-control` then passed with no findings. The previous business-evidence-stale warning is cleared.
-
-## 2026-11-02 — E5 current TV Remote transport and Home dispatch
-
-- Fresh inventory/describe at 18:59:51 UTC reports the SmartTV stable ID `google-cast:3bc013548481e743aa769f04a9a9ba0b` available. It distinguishes Cast endpoint `192.168.1.158:8009` (media/property/sensor; no input/screenshot) from Android TV Remote `192.168.1.158:6466` (input/media/pairing; no screenshot/semantic tree). The earlier 18:40 line in this log mislabeled port 8009 as the Remote endpoint; it is the Cast endpoint. The cause of the earlier Remote absence is unknown.
-- A short lease sent one `HOME` key through `mdns`; direct-actuation audit `dab954cb-10c4-46dd-aa19-294f46de5622` returned success at 19:00:41 UTC and lease `66dc2487-8be8-4ba3-be70-7c16742acf40` was released. This verifies only transport dispatch. Cast state at 19:00:52 UTC has empty application/player values and reports physical power/input unavailable; no visible launcher/Home result is established.
-- Memory work record `26ca4404-2332-499d-8437-beee9751fdb1`. Trusted-HTTPS Portal owned-app actions and current TV foreground/screen evidence remain open.
-- A bounded five-second DNS-SD browse later found four address-family records for `_androidtvremote2._tcp` on the exact Remote identity, paired and pairing-available; no ADB service was returned within that browse. It does not prove ADB disabled or explain the earlier discovery gap. Memory work records `c3d96a09-3199-40db-9452-35f503961aef` and `d8191cfd-8e45-43ff-8631-6b485b94876a` preserve the result and literal service-name correction.
-
-## 2026-11-02 — E6 final gates after live-evidence refresh
-
-- Test Genie docs run `20261102-190510-88a2753e` passed L1 after the E3/E5 evidence updates. Requirements sync at 19:02 UTC reported zero changes; business-health and requirements validation passed without findings. Agent Manager goal-home lint passed with no findings; scoped whitespace scan found no trailing whitespace in owned files.
-- Two fresh E6 hostile reviews reported no actionable material findings across the current APK identity guard, screenshot/performance evidence, TV endpoint/action boundary and Portal/producer ownership. The remaining physical and outcome cohorts stay explicitly unverified.
-- Global `git diff --check` still reports two unrelated EOF blank lines in the root README and identity/authentication migration ledger, with CRLF conversion notices on unrelated files.
-
-## 2026-11-02 — E6 repeated Moto lifecycle readiness
-
-- Fresh `device-control device state` at 19:07:52 UTC found the exact Moto G7 ID `android-6affcac615a281a2` screen-off and locked. The owner CLI wake audit `de8d4fa7-41ee-462a-9939-b54d6fb87690` succeeded over USB.
-- Ran `device-control device screen ... --operation ready --auth-profile auth-1a7ba66d-4776-441a-bffd-18ff8eb93b4e --home`. The screen-ready audit `304e7653-a1dd-4ddf-8605-991db204220d`, profile unlock audit `93f061d5-78fb-47e9-b9a9-7a86fd69a7b7`, and Home-navigation audit `23643a83-4210-4046-8a1a-31a562225fb7` all succeeded under lease `ef0f134f-0656-4683-bc11-514fa1aff5bb`; wake/ready/Home report USB. A fresh state read reports screen on, unlocked, foreground `com.motorola.launcher3`. The command itself emitted no stdout, so terminal audits and state read are the evidence.
-- Current inventory also reports Galaxy A03s `android-024665203bca17fa` available on wireless, but its state probes fail over both wireless and USB; no state result was inferred. TV Cast and paired Remote capability descriptions remain unchanged and provide no frame/launcher readback.
-- The same 19:07 inventory contains saved ADB row `android-0df87078c18abfb8` at `192.168.1.158:5555`, serial `AE70A4D38B`, now unreachable with reason `device not present on host node local` and no model metadata. This endpoint and address do not prove current association with the TV; no connection attempt was made.
-- Memory work record: `65f1bc5e-798c-47c5-bdb3-b6b465e17539`. No projection/audio prompt was opened. Repeated capture/playback performance, TV foreground proof, trusted-HTTPS Portal actions, lifecycle-fence audit, AI outcome cohort, and Memory setpoint owner resolution remain open.
-
-## 2026-11-02 — E6 docs and contract refresh
-
-- Test Genie docs run `20261102-190915-6aec4a76` passed L1. Its findings artifact reports 243 warnings and 24 informational findings; the doc contract, link health and manifest coverage remain clean.
-- Requirements sync `vrooli scenario requirements sync device-control --json` reported zero changes. `business-health validate scenario device-control` and `vrooli scenario requirements validate device-control` both passed without findings.
-- `git diff --check` reports the unrelated root `README.md:477` and identity/authentication ledger `docs/internal/IDENTITY-AUTHENTICATION-MIGRATION-LEDGER.md:1413` EOF blank lines, plus CRLF notices for unrelated landing-page artifacts/fonts. No change was made to those unrelated files.
-- After the second Moto screenshot and its E6 handoff update, Test Genie docs run `20261102-191250-ecd58b8d` passed L1 with 249 warnings and 24 infos; the doc contract, link health and manifest coverage are clean.
+Historical entries through 2026-11-02 E6 second Moto frame sample are preserved verbatim in [the early evidence archive](archive/LOG-2026-11-02-early-evidence.md).
 
 ## 2026-11-02 — E6 restore Moto screen state after QA
 
@@ -318,7 +81,7 @@ Append dated entries only for accepted outcomes. Include owner, changed surface,
 - Memory `docs/internal/PROBLEMS.md` now marks `knw-1793644749148975095` resolved. Memory work record `d0b15c8f-4e83-47bf-8965-09387904695b` records the trigger, route, exact before/after window, regression and outcome. The open broad goal still requires repeatable, comparable cohorts and all remaining E1–E6 acceptance evidence.
 
 
-- Fresh docs gate after the Memory update: Device Control Test Genie run `20261102-202947-6aa55a76` passed L1 with 305 warnings and 24 infos. Required docs, scenario documentation contract, append-log integrity, link health and manifest coverage are clean. The unfiltered artifact catalog and all four payload bytes were fetched from Test Genie owner API: catalog digest `ac:sha256:60c13ed606d9bb2f917566263e84b31a6f1b71799a069775688b967c6ca89a09`; command log `artifact_cf567f62d20c3dbde6f19dd14736daf3`, 150,834 bytes, SHA-256 `a9b667dd90ce815d67e646139a472cb1fa672e3e516eade5cf51f7399e0d2fd8`; findings `artifact_1d4ee5ade4ecb9b28db76f2d7ae951dd`, 1,155,167 bytes, SHA-256 `0a5651ed38ca7cbc30d7bd86015987578b25bfae9ebe7644a8e0054884024db8`; manifest `artifact_3d4ed0006e283706d2336ad1c1a1c61d`, 40,018 bytes, SHA-256 `d908ed9d5bbfad37873fc4265b214dee2a51022e6bbad4a127461c5d0cd33b3b`; phase result `artifact_de35579a311457e02000b01ca1b2eff1`, 3,205 bytes, SHA-256 `ca0d3938001cce1256c0b9de8dc5508222fe4c7c301d5dcb779e5aa2c6180d5e`. Two fresh final reviews for the Memory patch and updated claims are underway.
+- Device Control docs Test Genie `20261102-202947-6aa55a76`: L1 PASS (305 warnings/24 infos); required docs, contract, append log, links and manifest clean. Test Genie API catalog+payload bytes fetched: catalog `ac:sha256:60c13ed606d9bb2f917566263e84b31a6f1b71799a069775688b967c6ca89a09`; command log `artifact_cf567f62d20c3dbde6f19dd14736daf3` (150,834 B, SHA-256 `a9b667dd90ce815d67e646139a472cb1fa672e3e516eade5cf51f7399e0d2fd8`); findings `artifact_1d4ee5ade4ecb9b28db76f2d7ae951dd` (1,155,167 B, SHA-256 `0a5651ed38ca7cbc30d7bd86015987578b25bfae9ebe7644a8e0054884024db8`); manifest `artifact_3d4ed0006e283706d2336ad1c1a1c61d` (40,018 B, SHA-256 `d908ed9d5bbfad37873fc4265b214dee2a51022e6bbad4a127461c5d0cd33b3b`); phase `artifact_de35579a311457e02000b01ca1b2eff1` (3,205 B, SHA-256 `ca0d3938001cce1256c0b9de8dc5508222fe4c7c301d5dcb779e5aa2c6180d5e`). Two final Memory/claims reviews were underway.
 
 
 - After the E6 follow-up entry, Device Control docs run `20261102-203048-21cd5d31` passed L1 with 310 warnings and 24 infos. Required docs, documentation contract, append-log integrity, link health and manifest coverage are clean. Catalog digest `ac:sha256:3cf7f9bf85fa8eb7040e0862ba8ecf2c3441c62356846bab0404714d49a57afd`; command log `artifact_781313dfe3b4fb480759ef81ecbe9772`, 153,306 bytes, SHA-256 `de4c38938ca3f72a12eaf61016ccea5c581051bcdf1a4aa87fe7b091ea7d2b8c`; findings `artifact_978527e794f81fb547ba631629eb0c1a`, 1,171,510 bytes, SHA-256 `869b1f1fd5d918bd822ade94c60248a24f9292c70a726b3e2e5ac548ae1a0549`; manifest `artifact_db884ea9604a60f1cebe318ec7cf8be2`, 40,146 bytes, SHA-256 `0c4d94d0554155b1f6c1567236b7557e160dc439f3a7b35aa2525834cac3b424`; phase result `artifact_844d275c6ad3eff3e1736fb23df4468c`, 3,205 bytes, SHA-256 `ad8cb21cffa0fafd39fd52fc84d31dd053883d388f9e68b3b779d196e6bbc021`. Goal-home lint reports no findings. Device Control requirements sync changed zero files/statuses and both requirements and business-health validation pass without findings. Memory requirements sync changed zero files/statuses; requirements and business-health validation pass with the pre-existing unattested `VMEM-P1-006` warning.
@@ -500,24 +263,9 @@ Append dated entries only for accepted outcomes. Include owner, changed surface,
 - Portal actions still await an operator-selected trusted hostname/certificate and local DNS/network route. No current TV foreground or authenticated lifecycle action is proven. This refresh does not accept any maturity surface.
 - Memory work record `648cbdec-ba42-480a-8966-78bc602c4fac` captures these observations and limits.
 
-## 2026-11-02 — control-plane desktop-helper process exit trace
+## 2026-11-02 — archived lifecycle owner implementation history
 
-- Fresh read-only worker `/root/helper_exit_owner_trace` traced `service.json`'s `desktop-helper` sidecar through `internal/lifecycle/phases.go` and `teardown.go`: the control plane writes canonical `process.Record` identities, then owns signal/wait and can observe exit for those records during its own teardown. `internal/process.ReadScenarioRecords`/`LiveRecords` are private control-plane owner functions; there is no API-facing observation contract for Device Control.
-- Device Control's helper lifecycle inventory intentionally keeps process exit unknown (`api/main.go`) and the existing regression proves receipt completion does not prove helper exit (`api/main_test.go`). The safe missing seam is a read-only supervisor-backed component observation keyed by scenario/component generation; unknown, corrupt or stale identity must remain blocking. Do not use PID-only probing or scenario-side process inspection.
-- A fresh implementation worker `/root/lifecycle_component_exit_integration` is now assigned the whole control-plane/Device Control source integration and regressions. No lifecycle commands, tests, service operations, device actions or credentials were used by the investigator.
-- Scope was expanded after the second source check: the canonical supervisor also has PID-only liveness and no retained OS-incarnation/wait receipt, while provider standing unconditionally adds an unknown owner and validates completeness before Drain. Worker is implementing the control-plane-owned pre-replacement stop/wait protocol, including generation binding; observer-only inventory would not meet the safety outcome. No live restart or service state mutation is authorized in this slice.
-
-## 2026-11-02 — exact-generation helper stop/wait source integration
-
-- **Changed:** Standing separates complete helper-generation enumeration from unresolved exit. Under a retained fence, Device Control closes ordinary admission and joins owner RPCs; control plane validates sidecar/launch identity and generation, pins, signals and waits the exact process, then submits matching completion. Emergency override cannot bypass exit proof. Successful wait publishes `exited_verified` before retiring the exact runtime ref. Tombstones never create proof. Recovery requires the same provider and fence.
-- **Evidence:** two fresh post-fix hostile reviews found no material defect. Focused `internal/process` and `internal/lifecycle` regressions passed (including PID reuse, emergency, cancellation, failure ordering and exact-fence recovery); affected Device Control API packages passed; full process package passed; Proto `make verify-committed-gen` passed. Test Genie unit `20261102-231451-df2159fa` passed L2. Final docs run `20261102-231941-1170b2dd` passed L1 after removing absolute evidence paths; remaining content-quality advisories are existing debt. Requirements sync changed zero files/statuses; Business Health and requirements validation passed; goal-home lint passed at 27,297/30,000 bytes; scoped diff check passed. Memory work record `ce352657-735a-4f48-897a-6f5908dc7855` records the source outcome and limits.
-- **Other limits:** shared dependency evidence and unrelated generated-output attribution remain open.
-- **Remaining:** no replacement/deployment; live behavior is unverified and the old API/helper remain fenced. Lost coordinator context after signal leaves the fence closed; a durable supervisor proof flow needs owner design. Device Control/Portal still lacks live deployment, A03s and TV qualification, trusted HTTPS, matched performance/AI evidence, and consented audio.
-
-## 2026-11-02 — lifecycle fixture repair
-
-- Fixture persistence: seven regressions and lifecycle passed; refusal unchanged. `f0a9ce4f-b916-48e9-9446-bfef6b2a3e66`.
-- Docs `20261102-235127-164f12e1` passed L1; validators clean; lint 28,196 bytes.
+The exact investigation, generation-pinned helper stop/wait integration, and fixture-repair entries were moved verbatim to [the lifecycle owner history archive](archive/LOG-2026-11-02-lifecycle-owner-history.md) to keep the active log writable. Current open migration and retry conditions remain in the E6 active outcome and STATUS.
 
 ## 2026-11-03 — Moto paired attempt
 
@@ -525,8 +273,84 @@ Append dated entries only for accepted outcomes. Include owner, changed surface,
 
 ## 2026-11-03 — three matched Moto pairs
 
-- Three counterbalanced trials yielded on-output 24.226/24.111/24.070 fps; offsets differed ≤1.758s. Five payloads remain retrievable; P2 off is listed but unavailable via retained-get, relying on coordinator inspection. E3 has IDs/hashes/limits. Persisted interval20 overrode env; update5 yielded ~5–6s samples, then restored20. Unequal coverage: no cost delta. Moto Home/on/unlocked, zero flows; no consent. Learning cohort unreliable; no baseline (`ce8e94eb-d20c-4b7a-bf6f-197c69048d76`).
+- Three counterbalanced pairs: output 24.226/24.111/24.070 fps, offsets ≤1.758s; P2-off not retrievable. Unequal host coverage: no cost delta. Sampler 5s then restored 20s; Moto Home/unlocked, no consent or learning baseline. Details in E3; memory `ce8e94eb-d20c-4b7a-bf6f-197c69048d76`.
 
-## 2026-11-03 — helper inventory restart repair
+## 2026-11-03 — lifecycle source follow-up
 
-- Supported restart built replacements but refused before stop on incomplete helper inventory. Regression proved recognized receipts can enumerate work while liveness/exit remain blockers; absent generation still blocks. Focused owner/control tests passed; Test Genie and restart retry next.
+- TG `20261103-010951-d526e596` unit/docs and docs `20261103-014202-158012c0` L1 passed (438 warnings/24 infos). Drain tests/reviews clean. Old API fence: Cast observers/unknown desktop owners; Bridge rejected A03s pre-dispatch. Validators passed. Memory `a983a733-02e4-416e-9b9d-219531dc6943`.
+
+## 2026-11-03 UTC — lifecycle/device readback
+
+Archived verbatim in lifecycle history.
+
+## 2026-11-03 — dependency repair and lifecycle refusal
+
+- Analyzer dry run found nine missing autoheal local replaces; scoped reconcile fixed them. `make install` and supervisory verification passed. Restart then refused pre-stop with 4 blockers (2 active Cast observers, 2 unknown desktop inventories), 9 work items, 0 managed components. API remains old; no stop/device write. Docs TG `20261103-014715-5f29c46d` passed L1. E6 has RPC detail.
+
+## 2026-11-03 — autoheal gate repair and live Status
+
+- Proto/install, quiescence tests/reviews and TG unit/docs pass. Old API restart 4/9/0. Moto ready/Home; USB+wireless screenshots full-frame. A03s state fails; TV readback limited. No consent/TV action. Memories `ae2a5ca9-c733-4e04-a67e-d6960168ff2b`, `76b9db62-7936-4223-a844-b782fde1e180`; E2/E3/E5/E6.
+- E2 host ladder.
+
+
+## 2026-11-03 — Portal app lifecycle response truth
+
+- **Changed:** Scenario-to-Android preview source now interprets owner lifecycle results through a deterministic policy. Start/Restart require `outcome=completed` and `runtimeState=running`; Stop requires completed and `stopped` or `available`. Mismatched, unknown, incomplete, or malformed responses remain unconfirmed, refresh catalogue, and advise refresh before retry; the unavailable-app action opens only after confirmed Start. HTTPS/sign-in and confirmation policy remain in place.
+- **Verified:** owner preview build passed `verifyApplicationActions`; artifact `android-debug:c1a8b226fde3246e28144890dd1014eb1c7966c4db45d543a064dfdf52dc4d88`, profile preview, package `com.vrooli.portal.tv`, v0.4.19/code37, source digest `sha256:507ca2d1eab7bec62dc397c40f4a9963cd4c2a2064325333ad344e7b3e0bcab9`. APK SHA-256 `9b415909246f64e7e569494c095c213af8c81bcac2896ee9e7c6346990c75349`; AAB SHA-256 `4007a75abf018ca544e8519d0c9316ee17ea86b1452dd309e060065ec814a701`. Portal Test Genie unit `20261103-032846-9767d590` passed L1 with 48 existing warnings. `git diff --check` passed.
+- **Remaining:** artifact was not installed; no trusted-HTTPS TV action, foreground readback, or app lifecycle side effect was qualified. Exact hostname/certificate and local DNS/admission material are still needed. The E5 outcome is accepted at source/build/regression scope only.
+- Worker: `/root/portal_lifecycle_response`; coordinator inspected final diff and owner/API semantics.
+
+
+## 2026-11-03 — fresh current identity and hostile review follow-up
+
+Archived verbatim in lifecycle history.
+
+
+## 2026-11-03 — current docs gate after live evidence/reviews
+
+Archived verbatim in lifecycle history.
+## 2026-11-03 — verified Moto readiness/capture
+
+Archived verbatim in lifecycle history.
+
+
+## 2026-11-03 — current API staged through setup owner
+
+- `vrooli scenario setup device-control` completed; staged API sha256 `5e684c427eb8feacb837e2c8f6ef5d2a44777aefc75f9040b330a2074b6af418` is fresh. Unit `20261103-034020-b9bc76c5` PASS L2. Runtime remains old sha256 `9b04c50800de7bb04a1c3c3f3f695b1951d12a931dd56cd86f148b880ce0c80b`; restart still refuses 4 blockers/9 work. E6.
+
+## 2026-11-03 — matched Moto video-only pair
+
+- Exact Moto wireless off/on flows passed; audit arm offsets were 17.283s/18.799s after playback start. On evidence `a36a6a32-34c9-486e-b4c9-c5c1e40d6274`: native video, 3,126,189 B, SHA-256 `47bf87b22d3e08960f1789d11697007a8e0aa20f745225e502e2448e8ab23dee`, 24.026 fps, no audio. Runs `69bf6dfa-567f-44e9-ba73-f196e5118457`/`e48f59d1-e5e0-4384-8bef-97f347440a01` retained through Nov 10. Host process timeline spans both arms and setup; no cost delta. E3.
+- Device Control docs phase passed at L1: Test Genie `20261103-035741-74349fa9`; existing content-quality debt remains. Business Health and requirements validation pass.
+
+## 2026-11-03 — System Monitor RSS contract repair
+
+See E3 for implementation, tests and staged-versus-serving limits.
+
+## 2026-11-03 — fresh final hostile reviews
+
+- Reviews A/B after the RSS correction found no material in-scope defect; A checked System Monitor/E3/lifecycle and B checked Portal E5, Android evidence and E6. Open proof remains. E3/E5/E6.
+
+## 2026-11-03 — System Monitor re-stage and owner unit gate
+
+- Setup staged fresh API SHA-256 `8294badd249e8509f93bc98713911482dab41d60419486f79a7d0381de63b6d9`; unit `20261103-040742-dcc27ec3` passed L2. UI is stale after an owner edit; serving process remains old. No restart/live claim. E3.
+
+## 2026-11-03 — fresh Moto readiness round trip and Device Control source gate
+
+- Current inventory/state reverified Moto G7 `android-6affcac615a281a2` / `ZY226TG2BM` as off/locked at Home. Credential-profile ready/Home and sleep both returned verified over USB. Screenshot `7ed8c531-dd53-4b55-80f7-961716da0a44` passed producer capture with SHA-256 `6a66d7c7062971364b12db366c842ae60b0a591b322ecb6ec52c2bedd044a58b`; content was not verified. No consent prompt; restored original off/locked state. E2.
+- Device Control Test Genie unit run `20261103-042317-d3dcb6ec` passed L2 (39 observations; 34 advisory coverage findings) for the current dirty source. Requirement sync changed 0 files/statuses; Business Health and requirements validation passed without findings. Hostile review found the Bridge route-unavailability guard did not cover flow and app-lifecycle mutations; cross-path guard and regressions are in progress. E6 remains open. No new deployment/restart attempted.
+
+## 2026-11-03 — fresh SmartTV read-only boundary
+
+- Exact SmartTV ID `google-cast:3bc013548481e743aa769f04a9a9ba0b` read at 04:31Z. Receiver application/player are empty; mute sources conflict; volume 0 is reported by Android TV Remote from `arc-earc-amplifier`; input/power unavailable. No TV action. E5.
+
+## 2026-11-03 — fresh A03s route/readback mismatch
+
+- Device Control identified A03s `android-024665203bca17fa` / `R9TT608Q6MH` / Android 13, but reports available with empty endpoint and stale underlying transport samples; fresh state fails on USB and wireless. Confirms old-serving-build Bridge/local-route mismatch; no pairing or device write. E2.
+
+## 2026-11-03 — HTTPS scope correction and lifecycle owner progress
+
+- Operator clarified that ordinary Device Control LAN reads and TV Remote actions do not require HTTPS, consistent with prior Remote dispatch evidence. The Portal app's own lifecycle client still requires trusted HTTPS and signed-in human authorization; that boundary remains in force. Removed the hostname/certificate/DNS choice from Device Control TV action prerequisites. No new TV mutation was sent.
+- E6 cross-path Bridge route guards now cover direct effects, flows, app lifecycle, screen/capture/unlock, and semantic volume. Owner ran `GOWORK=off go test ./internal/control -count=1` successfully. Scoped Test Genie remains queued/pending.
+- E7 worker added immutable-ref temporary test install and fresh durable install modes with BAS cold/warm assertions and temporary uninstall/absence verification. Durable update remains intentionally unavailable: current Device Control package-state proof does not expose installed signer identity, so matching a candidate update's signing certificate cannot yet be established. No install was run.
+- System Monitor retention/evaluator loops now have context-aware `StopContext` joins and idempotent starts; focused tests passed, including `-race`. This is owner-level progress only; lifecycle provider, ingress gate, and runtime shutdown fence remain unwired. No service was restarted.

@@ -74,7 +74,11 @@ func (s *Service) ExecuteAppLifecycle(ctx context.Context, deviceID string, requ
 	if err != nil {
 		return AppLifecycleResponse{}, err
 	}
-	adapter, ok := s.strategyForFlow(deviceID, "")
+	transport, err := s.requireCurrentEffectRoute(deviceID, "")
+	if err != nil {
+		return AppLifecycleResponse{}, err
+	}
+	adapter, ok := s.strategyForFlow(deviceID, transport)
 	if !ok {
 		return AppLifecycleResponse{}, fmt.Errorf("device %q has no available transport", deviceID)
 	}
@@ -124,17 +128,13 @@ func (s *Service) ExecuteAppLifecycle(ctx context.Context, deviceID string, requ
 	if operationErr != nil {
 		outcome = "failed"
 	}
-	// The adapter's declaration carries no transport for an endpoint-bound
-	// strategy (Android sets transport per-device at enumeration, not in
-	// Describe). Fall back to the durable device record so the audit records the
-	// real transport (e.g. wireless for a network-onboarded TV).
-	transport := declaration.Transport
-	if transport == "" {
-		if record, ok := s.devices.Get(deviceID); ok {
-			transport = record.Transport
-		}
+	// Endpoint-bound adapters may omit transport from Describe. Use the route
+	// that passed the Device Control inventory guard for the audit record.
+	auditTransport := declaration.Transport
+	if auditTransport == "" {
+		auditTransport = transport
 	}
-	audit := Audit{ID: uuid.NewString(), Actor: request.Actor, DeviceID: deviceID, Transport: transport, OperationID: commandID, LeaseID: session.ID, Verb: "app-" + request.Operation, Outcome: outcome, CreatedAt: time.Now().UTC(), RedactionVerified: true, Interactive: true, EvidenceBacked: false}
+	audit := Audit{ID: uuid.NewString(), Actor: request.Actor, DeviceID: deviceID, Transport: auditTransport, OperationID: commandID, LeaseID: session.ID, Verb: "app-" + request.Operation, Outcome: outcome, CreatedAt: time.Now().UTC(), RedactionVerified: true, Interactive: true, EvidenceBacked: false}
 	s.persistDirectAudit(ctx, audit)
 	response := AppLifecycleResponse{CommandID: commandID, Result: result, Audit: audit}
 	if operationErr != nil {

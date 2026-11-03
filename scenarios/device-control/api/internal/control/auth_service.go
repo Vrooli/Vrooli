@@ -99,6 +99,10 @@ func (s *Service) UnlockDevice(ctx context.Context, profileID, deviceID, actor, 
 	if record, found := s.devices.Get(deviceID); found {
 		transport = record.Transport
 	}
+	transport, err = s.requireCurrentEffectRoute(deviceID, transport)
+	if err != nil {
+		return authdomain.UnlockResponse{}, err
+	}
 	adapter, ok := s.strategyForFlow(deviceID, transport)
 	if !ok {
 		return authdomain.UnlockResponse{}, fmt.Errorf("unknown or unavailable device %q", deviceID)

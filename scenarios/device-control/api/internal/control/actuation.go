@@ -122,7 +122,11 @@ func (s *Service) Screen(ctx context.Context, req ScreenRequest) (result ScreenR
 		profiles = []strategy.DeviceTransport{{Name: device.Transport}}
 	}
 	for _, profile := range profiles {
-		candidate, ok := s.strategyForFlow(device.ID, profile.Name)
+		currentTransport, routeErr := s.requireCurrentEffectRoute(device.ID, profile.Name)
+		if routeErr != nil {
+			continue
+		}
+		candidate, ok := s.strategyForFlow(device.ID, currentTransport)
 		if !ok {
 			continue
 		}
@@ -291,8 +295,33 @@ func (s *Service) ActuateDevice(ctx context.Context, deviceID, actor, leaseToken
 	if err != nil {
 		return Audit{}, err
 	}
+	if _, _, err := s.requireCurrentDeviceObservation(deviceID); err != nil {
+		return Audit{}, err
+	}
+	deviceRecord, recordFound := s.devices.Get(deviceID)
 	if strings.TrimSpace(request.Transport) == "" {
 		request.Transport = s.transportForDirectActuation(deviceID, request)
+		if request.Transport == "" && recordFound && len(deviceRecord.Transports) > 0 {
+			return Audit{}, fmt.Errorf("device %q has no available transport for the requested direct-actuation capability", deviceID)
+		}
+	}
+	resolvedTransport, err := s.requireCurrentEffectRoute(deviceID, request.Transport)
+	if err != nil {
+		return Audit{}, err
+	}
+	request.Transport = resolvedTransport
+	if recordFound && len(deviceRecord.Transports) > 0 {
+		if strings.TrimSpace(request.Transport) == "" {
+			return Audit{}, fmt.Errorf("device %q has no available transport for the requested direct-actuation capability", deviceID)
+		}
+		profile, found := findTransportProfile(deviceRecord.Transports, request.Transport)
+		if !found || !profileAvailable(profile) {
+			return Audit{}, fmt.Errorf("transport %q is unavailable for direct actuation on device %q", request.Transport, deviceID)
+		}
+		capability, found := profile.Capabilities[directActuationCapability(request)]
+		if !found || capability.Status != strategy.StatusAvailable {
+			return Audit{}, fmt.Errorf("transport %q does not currently prove capability %q for device %q", request.Transport, directActuationCapability(request), deviceID)
+		}
 	}
 	adapter, ok := s.strategyForFlow(deviceID, request.Transport)
 	if !ok {
@@ -380,6 +409,26 @@ func (s *Service) ActuateDevice(ctx context.Context, deviceID, actor, leaseToken
 	return record, nil
 }
 
+func directActuationCapability(request DirectActuation) string {
+	if request.Key != "" || request.Text != "" {
+		return strategy.CapInput
+	}
+	if request.Property != "" {
+		return strategy.CapProperty
+	}
+	return strategy.CapMedia
+}
+
+func findTransportProfile(profiles []strategy.DeviceTransport, requested string) (strategy.DeviceTransport, bool) {
+	requested = strings.ToLower(strings.TrimSpace(requested))
+	for _, profile := range profiles {
+		if requested == strings.ToLower(strings.TrimSpace(profile.Name)) || requested == strings.ToLower(strings.TrimSpace(profile.StrategyID)) {
+			return profile, true
+		}
+	}
+	return strategy.DeviceTransport{}, false
+}
+
 func keyEvent(key string) *strategy.KeyEvent {
 	if strings.TrimSpace(key) == "" {
 		return nil
@@ -396,7 +445,18 @@ func (s *Service) transportForDirectActuation(deviceID string, request DirectAct
 	if mediaAction == "" {
 		mediaAction = strings.TrimSpace(request.Action)
 	}
+	now := time.Now().UTC()
 	for _, profile := range record.Transports {
+		if !profileAvailable(profile) {
+			continue
+		}
+		observedAt := profile.ObservedAt
+		if observedAt.IsZero() {
+			observedAt = record.ObservedAt
+		}
+		if !recentRouteObservation(observedAt, now) {
+			continue
+		}
 		candidate, candidateOK := s.strategyForFlow(deviceID, profile.Name)
 		if !candidateOK {
 			continue

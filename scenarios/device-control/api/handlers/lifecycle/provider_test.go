@@ -28,6 +28,42 @@ func testProvider(t *testing.T) (*sql.DB, *Provider) {
 	return db, p
 }
 
+func TestQuiescenceRunsWhenOwnerWorkHasNoManagedComponent(t *testing.T) {
+	_, p := testProvider(t)
+	ctx := context.Background()
+	active := true
+	quiesceCalled := false
+	p.SetOwnerInventory(func(context.Context) ([]*commonv1.LifecycleWorkItem, []*commonv1.LifecycleBlocker, bool) {
+		if active {
+			return []*commonv1.LifecycleWorkItem{{Id: "observer/cast", Kind: "observer", Status: "active"}}, []*commonv1.LifecycleBlocker{{Code: "observer_pending", Disposition: commonv1.LifecycleBlockerDisposition_LIFECYCLE_BLOCKER_DISPOSITION_BLOCKING, Observed: true}}, true
+		}
+		return []*commonv1.LifecycleWorkItem{{Id: "owner/observers", Kind: "observer", Status: "idle"}}, nil, true
+	})
+	p.SetComponentMaintenance(func(context.Context, map[string]string) ([]*commonv1.LifecycleManagedComponent, []*commonv1.LifecycleWorkItem, []*commonv1.LifecycleBlocker, bool) {
+		return nil, nil, nil, true
+	}, func(context.Context) error {
+		quiesceCalled = true
+		active = false
+		return nil
+	})
+	prepared, err := p.Prepare(ctx, connect.NewRequest(&commonv1.LifecyclePrepareRequest{OperationId: "op", Reason: "replace"}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	standing := prepared.Msg.GetStanding()
+	if !standing.GetInventoryComplete() || standing.GetDrained() || !standing.GetQuiescencePending() || len(standing.GetManagedComponents()) != 0 {
+		t.Fatalf("prepared standing lost zero-component quiescence requirement: %+v", standing)
+	}
+	quiesced, err := p.Drain(ctx, connect.NewRequest(&commonv1.LifecycleDrainRequest{OperationId: "op", FenceToken: standing.GetFenceToken(), Revision: standing.GetRevision(), QuiesceComponents: true}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	result := quiesced.Msg.GetStanding()
+	if !quiesceCalled || !result.GetComponentStopReady() || result.GetQuiescencePending() || !result.GetDrained() || len(result.GetManagedComponents()) != 0 {
+		t.Fatalf("owner work was not quiesced without OS components: %+v", result)
+	}
+}
+
 func TestManagedComponentQuiescenceAndExitStayBehindSameClosedFence(t *testing.T) {
 	_, p := testProvider(t)
 	ctx := context.Background()

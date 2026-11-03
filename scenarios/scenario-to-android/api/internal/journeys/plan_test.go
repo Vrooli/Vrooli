@@ -70,3 +70,23 @@ func TestAndroidPlanRoutesWebContentThroughBAS(t *testing.T) {
 		}
 	}
 }
+
+func TestScenarioAppPlansSeparateTemporaryCleanupFromDurableInstall(t *testing.T) {
+	temporary, err := ScenarioAppPlan("temporary")
+	require.NoError(t, err)
+	require.Equal(t, TemporaryAppTestPlanID, temporary.ID)
+	require.Len(t, temporary.Steps, 5)
+	require.Equal(t, "bas-flow", temporary.Steps[1].Action)
+	require.Equal(t, "bas-flow", temporary.Steps[4].Action)
+
+	durable, err := ScenarioAppPlan("durable")
+	require.NoError(t, err)
+	require.Equal(t, DurableAppPlanID, durable.ID)
+	require.Len(t, durable.Steps, 6)
+	require.Equal(t, "package-state", durable.Steps[5].Action)
+	require.Equal(t, "installed", durable.Steps[5].Arguments["target"])
+
+	if _, err := ScenarioAppPlan("update"); err == nil {
+		t.Fatal("unsupported in-place update mode must be refused")
+	}
+}

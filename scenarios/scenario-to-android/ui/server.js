@@ -27,6 +27,9 @@ startScenarioServer({
   distDir: './dist',
   serviceName: 'scenario-to-android',
   corsOrigins: '*',
+  // The API is loopback-bound while this UI server is network reachable.
+  // Do not expose retained APK bytes through the general /api proxy.
+  proxyHeaders: { 'X-Vrooli-Scenario-UI-Proxy': 'scenario-to-android' },
   setupRoutes(app) {
     app.use((req, res, next) => {
       if (!connectRpcPath.test(req.path)) {

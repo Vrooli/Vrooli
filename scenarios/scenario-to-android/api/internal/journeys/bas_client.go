@@ -67,7 +67,7 @@ func (c HTTPBASClient) Execute(ctx context.Context, request BASRequest) (BASResu
 		FlowDefinition:    flow,
 		WaitForCompletion: true,
 		Metadata:          &basexecution.ExecutionMetadata{Name: request.StepID, Description: "scenario-to-android Android WebView conformance"},
-		Options:           &basexecution.ExecuteWorkflowOptions{AppTarget: &basexecution.AppTarget{TargetKind: "android-webview", TargetId: request.TargetID, CdpEndpoint: request.CDPEndpoint, RendererId: request.RendererID, RendererUrl: request.RendererURL, ScenarioName: request.Scenario, ArtifactDigest: request.Artifact.ImmutableRef, ContextId: request.RunID, CdpTransport: "loopback-authenticated"}, ValidationContext: &basexecution.ValidationContext{ContextId: request.RunID, ScenarioName: request.Scenario, ArtifactDigest: request.Artifact.ImmutableRef, TargetId: request.TargetID, WorkflowId: request.RunID, IsolationLeaseId: request.IsolationLeaseID}},
+		Options:           &basexecution.ExecuteWorkflowOptions{AppTarget: &basexecution.AppTarget{TargetKind: "android-webview", TargetId: request.TargetID, CdpEndpoint: request.CDPEndpoint, RendererId: request.RendererID, RendererUrl: request.RendererURL, ScenarioName: request.Scenario, ArtifactDigest: request.Artifact.Checksum, ContextId: request.RunID, CdpTransport: "loopback-authenticated"}, ValidationContext: &basexecution.ValidationContext{ContextId: request.RunID, ScenarioName: request.Scenario, ArtifactDigest: request.Artifact.Checksum, TargetId: request.TargetID, WorkflowId: request.RunID, IsolationLeaseId: request.IsolationLeaseID}},
 	}))
 	if err != nil {
 		return BASResult{}, fmt.Errorf("execute BAS Android WebView flow: %w", err)
@@ -75,7 +75,7 @@ func (c HTTPBASClient) Execute(ctx context.Context, request BASRequest) (BASResu
 	if response.Msg.GetStatus() != basbase.ExecutionStatus_EXECUTION_STATUS_COMPLETED || strings.TrimSpace(response.Msg.GetError()) != "" {
 		return BASResult{}, fmt.Errorf("BAS flow failed: status=%s error=%s", response.Msg.GetStatus().String(), response.Msg.GetError())
 	}
-	return BASResult{Completed: true}, nil
+	return BASResult{Completed: true, ExecutionID: strings.TrimSpace(response.Msg.GetExecutionId())}, nil
 }
 
 func normalizeFlowJSON(data []byte) ([]byte, error) {

@@ -69,6 +69,7 @@ type Service struct {
 	stateEvents             *strategy.EventBus
 	observedStates          map[string]any
 	observerCancels         map[string]*observerJob
+	observerAdmissionClosed bool
 	actuationCauses         map[string]actuationCause
 	auditAliases            map[string]map[string]struct{}
 	agentPlanner            internalflows.AgentPlanner
@@ -203,7 +204,7 @@ type observerJob struct {
 }
 
 func (s *Service) startObserverLocked(record devicedomain.Record) {
-	if s.observerCancels[record.ID] != nil {
+	if s.observerAdmissionClosed || s.observerCancels[record.ID] != nil {
 		return
 	}
 	ctx, cancel := context.WithCancel(context.Background())

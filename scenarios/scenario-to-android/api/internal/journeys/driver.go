@@ -111,8 +111,9 @@ type BASRequest struct {
 }
 
 type BASResult struct {
-	Completed bool
-	Evidence  []deliveryramp.EvidenceReference
+	Completed   bool
+	ExecutionID string
+	Evidence    []deliveryramp.EvidenceReference
 }
 
 type BASClient interface {
@@ -157,6 +158,86 @@ func (d Driver) Execute(ctx context.Context, request deliveryramp.DriverRequest)
 		return result, fmt.Errorf("acquire device-control lease: %w", err)
 	}
 	defer func() { _ = d.Devices.Release(context.Background(), lease) }()
+	installMode := scenarioAppInstallMode(request.Plan.ID)
+	packageName := ""
+	if installMode != "" {
+		var validationErr error
+		packageName, validationErr = validateScenarioInstallArtifact(request.Artifact)
+		if validationErr != nil {
+			return result, validationErr
+		}
+		preflight, preflightErr := d.Devices.Execute(ctx, lease, "package-state", map[string]string{
+			"step_id": "install-preflight/package-state", "package": packageName, "expected": "absent",
+		})
+		preflightStep := deliveryramp.JourneyStep{ID: "install-preflight/package-state", Name: "install-preflight/package-state", Purpose: "refuse installation when the target package already exists", Action: "package-state", Disposition: deliveryramp.StepPassed, StartedAt: time.Now().UTC()}
+		preflightStep.CompletedAt = time.Now().UTC()
+		if preflightErr != nil {
+			preflightStep.Disposition = deliveryramp.StepFailed
+			preflightStep.Error = fmt.Sprintf("safe Android install refused before mutation: %s", preflightErr)
+			result.Steps = append(result.Steps, preflightStep)
+			result.Disposition = deliveryramp.DispositionFailed
+			result.DegradedReason = preflightStep.Error
+			return result, nil
+		}
+		preflightStep.AssertionID = "install-preflight/package-absent"
+		preflightStep.ExpectedState = "scenario package is absent"
+		preflightStep.AssertionStatus = "observed"
+		preflightStep.Evidence = append(preflightStep.Evidence, preflight.Evidence...)
+		result.Steps = append(result.Steps, preflightStep)
+
+		installAttempted := false
+		if installMode == "temporary" {
+			defer func() {
+				if !installAttempted {
+					return
+				}
+				cleanupStarted := time.Now().UTC()
+				_, uninstallErr := d.Devices.Execute(context.Background(), lease, "uninstall", map[string]string{"step_id": "temporary-cleanup/uninstall", "package": packageName})
+				_, verifyErr := d.Devices.Execute(context.Background(), lease, "package-state", map[string]string{"step_id": "temporary-cleanup/verify-absent", "package": packageName, "expected": "absent"})
+				cleanupStep := deliveryramp.JourneyStep{ID: "temporary-cleanup/verify-absent", Name: "temporary-cleanup/verify-absent", Purpose: "remove the temporary package and verify its absence", Action: "package-state", StartedAt: cleanupStarted, CompletedAt: time.Now().UTC(), ExpectedState: "scenario package is absent", AssertionID: "temporary-cleanup/package-absent", AssertionStatus: "observed"}
+				if verifyErr != nil {
+					cleanupStep.Disposition = deliveryramp.StepFailed
+					cleanupStep.Error = "temporary app cleanup could not verify package absence: " + verifyErr.Error()
+					result.Disposition = deliveryramp.DispositionFailed
+					result.DegradedReason = cleanupStep.Error
+					if err == nil {
+						err = errors.New(cleanupStep.Error)
+					} else {
+						err = errors.Join(err, errors.New(cleanupStep.Error))
+					}
+				} else {
+					cleanupStep.Disposition = deliveryramp.StepPassed
+					if uninstallErr != nil {
+						cleanupStep.DegradedReason = "uninstall reported an error, but package-state verified absence: " + uninstallErr.Error()
+					}
+				}
+				if result.Steps == nil {
+					result.Steps = make([]deliveryramp.JourneyStep, 0, len(request.Plan.Steps)+3)
+				}
+				result.Steps = append(result.Steps, cleanupStep)
+			}()
+		}
+		installAttempted = installMode == "temporary"
+		installStarted := time.Now().UTC()
+		installResult, installErr := d.Devices.Execute(ctx, lease, "install-artifact", map[string]string{
+			"step_id": "artifact-install/install", "artifact_ref": request.Artifact.ImmutableRef,
+			"package": packageName, "version_name": request.Artifact.Metadata["version_name"],
+		})
+		installStep := deliveryramp.JourneyStep{ID: "artifact-install/install", Name: "artifact-install/install", Purpose: "install the exact immutable Android artifact through Device Control", Action: "install-artifact", StartedAt: installStarted, CompletedAt: time.Now().UTC(), ExpectedState: request.Artifact.ImmutableRef}
+		if installErr != nil {
+			installStep.Disposition = deliveryramp.StepFailed
+			installStep.Error = installErr.Error()
+			result.Steps = append(result.Steps, installStep)
+			result.Disposition = deliveryramp.DispositionFailed
+			result.DegradedReason = installStep.Error
+			return result, nil
+		}
+		installStep.Disposition = deliveryramp.StepPassed
+		installStep.AssertionID = "artifact-install/verified"
+		installStep.AssertionStatus = "observed"
+		installStep.Evidence = append(installStep.Evidence, installResult.Evidence...)
+		result.Steps = append(result.Steps, installStep)
+	}
 	clockSampler, hasClockSampler := d.Devices.(ClockSampler)
 	if hasClockSampler {
 		sample, sampleErr := clockSampler.SampleClock(ctx, lease)
@@ -376,7 +457,7 @@ func (d Driver) Execute(ctx context.Context, request deliveryramp.DriverRequest)
 			result.Events = append(result.Events, deliveryramp.JourneyEvent{
 				Type:             "bas-observation",
 				StepID:           step.ID,
-				Observed:         "BAS flow completed",
+				Observed:         basExecutionObservation(basResult.ExecutionID),
 				StartedAt:        step.StartedAt,
 				CompletedAt:      time.Now().UTC(),
 				MonotonicStartMs: step.MonotonicStartMs,
@@ -500,6 +581,13 @@ func (d Driver) Execute(ctx context.Context, request deliveryramp.DriverRequest)
 	}
 	result.CompletedAt = time.Now().UTC()
 	return result, nil
+}
+
+func basExecutionObservation(executionID string) string {
+	if id := strings.TrimSpace(executionID); id != "" {
+		return "BAS flow completed; execution_id=" + id
+	}
+	return "BAS flow completed; execution_id unavailable"
 }
 
 func isTransientWebViewClosure(err error) bool {

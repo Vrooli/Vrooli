@@ -152,6 +152,7 @@ artifact creation, readiness, distribution, and durable validation runs:
 targets · generate · build · signing-provision · conformance-plan · readiness · distribution
 matrix-catalog · matrix-list · matrix-create · matrix-start · matrix-wait
 compare · matrix-rerun-failed · evidence-paths · run
+app-test · app-install
 ```
 
 `android generate` and `android build` read `ANDROID_SOURCE_REF` and optional
@@ -172,6 +173,22 @@ full catalog. It defaults the matrix scenario to `hello-mobile` when
 target unless `ANDROID_TARGET_ID` is supplied. It requires
 `ANDROID_SOURCE_REF`; the optional artifact environment variables are the same
 ones accepted by `android build`.
+
+`android app-test` and `android app-install` run the scenario-app path. They
+require the producer's immutable ref, digest, package, version, and signing
+metadata, then pass that ref to Device Control's verified `install-artifact`
+flow. BAS runs the scenario's
+`bas/cases/mobile/conformance-flow.json` for cold start and warm resume.
+`ANDROID_TARGET_ID` chooses one physical target when multiple targets are
+available; `ANDROID_ARTIFACT_SCENARIO` selects the scenario and its BAS flow.
+
+`android app-test` requires the package to be absent before capture or install.
+It attempts lease-owned uninstall on success or failure and verifies the
+package is absent afterward. If the package already exists, it refuses before
+capture and installation. `android app-install` also requires an absent package,
+leaves its verified install in place, and reads package state back. Updating an
+existing install remains unsupported until Device Control can verify the
+installed signing identity before actuation.
 
 `android signing-provision` generates an upload key with the governed `keytool`
 and stores its keystore, separate keystore/key passwords, and alias through `secrets-manager`; it never

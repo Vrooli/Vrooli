@@ -169,6 +169,9 @@ func main() {
 	lifecycleProvider.SetComponentMaintenance(func(ctx context.Context, exits map[string]string) ([]*commonv1.LifecycleManagedComponent, []*commonv1.LifecycleWorkItem, []*commonv1.LifecycleBlocker, bool) {
 		return desktopHelperManagedInventory(ctx, desktopOwnerBootstrap, exits)
 	}, func(ctx context.Context) error {
+		if err := controlService.QuiesceObservers(ctx); err != nil {
+			return err
+		}
 		stopDesktop()
 		select {
 		case <-desktopDone:

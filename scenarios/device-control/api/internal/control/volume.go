@@ -75,8 +75,10 @@ type VolumeError struct {
 
 func (e *VolumeError) Error() string { return e.Class + ": " + e.Message }
 
-var percentPattern = regexp.MustCompile(`(?i)([-+]?\d+(?:\.\d+)?)\s*(?:%|percent(?:age)?)`)
-var numberPattern = regexp.MustCompile(`(?i)(?:^|\s)([-+]?\d+(?:\.\d+)?)(?:\s|$)`)
+var (
+	percentPattern = regexp.MustCompile(`(?i)([-+]?\d+(?:\.\d+)?)\s*(?:%|percent(?:age)?)`)
+	numberPattern  = regexp.MustCompile(`(?i)(?:^|\s)([-+]?\d+(?:\.\d+)?)(?:\s|$)`)
+)
 
 // ParseVolumeIntent turns natural language into a typed operation. Percent
 // signs are never silently treated as normalized absolute values: "by 50%"
@@ -445,7 +447,11 @@ func (s *Service) executeVolumeAction(ctx context.Context, deviceID, token strin
 	if err := s.ValidateLease(ctx, deviceID, token); err != nil {
 		return fmt.Errorf("%w: %v", ErrVolumeSessionLost, err)
 	}
-	adapter, ok := s.strategyForFlow(deviceID, plan.ActionTransport)
+	transport, err := s.requireCurrentEffectRoute(deviceID, plan.ActionTransport)
+	if err != nil {
+		return &VolumeError{Class: "transport_unavailable", Message: err.Error()}
+	}
+	adapter, ok := s.strategyForFlow(deviceID, transport)
 	if !ok {
 		return &VolumeError{Class: "transport_unavailable", Message: "selected volume transport is unavailable"}
 	}
@@ -622,6 +628,7 @@ func maxInt(value, fallback int) int {
 	}
 	return fallback
 }
+
 func firstNonEmpty(values ...string) string {
 	for _, value := range values {
 		if strings.TrimSpace(value) != "" {

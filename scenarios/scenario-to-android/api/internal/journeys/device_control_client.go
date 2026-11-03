@@ -184,7 +184,8 @@ func (c *HTTPDeviceClient) Execute(ctx context.Context, lease Lease, action stri
 	}
 	err := c.post(ctx, "/api/v1/flows/run", map[string]any{
 		"device_id": lease.DeviceID, "actor": c.actor(""), "lease_token": lease.Token,
-		"flow": map[string]any{"id": "android-ramp-" + arguments["step_id"], "name": "scenario-to-android", "transport": transport, "steps": []any{step}},
+		"confirmed": action == "install-artifact",
+		"flow":      map[string]any{"id": "android-ramp-" + arguments["step_id"], "name": "scenario-to-android", "transport": transport, "steps": []any{step}},
 	}, &response)
 	if err != nil {
 		return ActionResult{}, err

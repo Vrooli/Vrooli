@@ -69,6 +69,35 @@ func unavailableDeviceDeclaration(base strategy.Declaration) strategy.Declaratio
 	return strategy.UnavailableDeclaration(base.StrategyID, "device capability probe failed", caps, "Retry the device capability probe")
 }
 
+func unavailableCapabilities(capabilities []strategy.Capability, reason string) []strategy.Capability {
+	result := make([]strategy.Capability, len(capabilities))
+	for index, capability := range capabilities {
+		capability.Status = strategy.StatusUnavailable
+		capability.Reason = reason
+		capability.NextAction = "Refresh Device Control transport inventory"
+		result[index] = capability
+	}
+	return result
+}
+
+func routeGapTransports(transports []strategy.DeviceTransport, reason string) []strategy.DeviceTransport {
+	result := make([]strategy.DeviceTransport, len(transports))
+	for index, transport := range transports {
+		transport.Health = strategy.StatusUnavailable
+		transport.HealthReason = reason
+		transport.Endpoint = ""
+		transport.Endpoints = nil
+		for name, capability := range transport.Capabilities {
+			capability.Status = strategy.StatusUnavailable
+			capability.Reason = reason
+			capability.NextAction = "Refresh Device Control transport inventory"
+			transport.Capabilities[name] = capability
+		}
+		result[index] = transport
+	}
+	return result
+}
+
 // Each discovered serial has an independent capability profile. Start probes
 // together while retaining the original device merge order.
 func startDeviceDescriptions(ctx context.Context, scoped strategy.DeviceScoped, devices []strategy.Device, promotedEndpoints map[string]string, limit chan struct{}) []*deviceDescription {
@@ -399,11 +428,7 @@ func (s *Service) Devices(ctx context.Context) []Device {
 				}
 			}
 			for _, d := range attached {
-				status := strategy.StatusAvailable
-				reason := d.HealthReason
-				if d.Reachability != "reachable" || d.TrustState != "trusted" {
-					status = strategy.StatusUnavailable
-				}
+				const routeGap = currentRouteObservationGap + "; attached-device route unavailable"
 				index, found := byID[d.ID]
 				if !found && d.Serial != "" {
 					index, found = bySerial[d.Serial]
@@ -433,7 +458,16 @@ func (s *Service) Devices(ctx context.Context) []Device {
 							device.Capabilities = mapCaps(declaration)
 						}
 					}
-					device.Status, device.Health, device.HealthReason = status, status, reason
+					// Bridge trust and host-channel presence establish an attached identity,
+					// not a route this Device Control process can operate. Only an exact
+					// identity seen by the current local enumeration owns readiness.
+					if !seen[device.ID] {
+						device.Status, device.Health = strategy.StatusUnavailable, "degraded"
+						device.HealthReason = routeGap
+						device.Capabilities = unavailableCapabilities(device.Capabilities, routeGap)
+						device.Endpoint = ""
+						device.Transports = routeGapTransports(device.Transports, routeGap)
+					}
 					merged := s.devices.UpsertIdentity(recordFromDevice(*device))
 					_ = s.persistObservedTransportProfiles(inventoryCtx, merged)
 					_ = s.persistIdentityClaims(inventoryCtx, merged)
@@ -457,7 +491,7 @@ func (s *Service) Devices(ctx context.Context) []Device {
 				// answers whether the row is a physical target. Keep those
 				// concepts separate: every bridge peripheral is physical, and
 				// the strategy id carries the platform-specific driver.
-				merged := s.devices.UpsertIdentity(devicedomain.Record{ID: d.ID, IdentityKey: d.Serial, Name: d.Name, Kind: "physical", Serial: d.Serial, Model: d.Name, OSVersion: d.OSVersion, StrategyID: strategyID, Transport: d.Transport, HostNodeID: d.HostNodeID, Status: status, Health: status, HealthReason: reason, Capabilities: capabilities, ObservedAt: time.Now().UTC()})
+				merged := s.devices.UpsertIdentity(devicedomain.Record{ID: d.ID, IdentityKey: d.Serial, Name: d.Name, Kind: "physical", Serial: d.Serial, Model: d.Name, OSVersion: d.OSVersion, StrategyID: strategyID, Transport: d.Transport, HostNodeID: d.HostNodeID, Status: strategy.StatusUnavailable, Health: "degraded", HealthReason: routeGap, Capabilities: unavailableCapabilities(capabilities, routeGap), ObservedAt: time.Now().UTC()})
 				_ = s.persistObservedTransportProfiles(inventoryCtx, merged)
 				_ = s.persistIdentityClaims(inventoryCtx, merged)
 				s.startObserverLocked(merged)

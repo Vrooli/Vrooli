@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -148,6 +149,138 @@ func TestDriverCompletesBASStepWithReferenceOnlyVideo(t *testing.T) {
 	}
 	if result.Disposition != deliveryramp.DispositionPass || result.Steps[0].VideoStartOffsetMs == nil || result.Steps[0].VideoEndOffsetMs == nil {
 		t.Fatalf("unexpected result: %#v", result)
+	}
+}
+
+type scenarioInstallFakeDevice struct {
+	preflightErr     error
+	calls            []map[string]string
+	startedRecording int
+}
+
+func (f *scenarioInstallFakeDevice) Acquire(context.Context, string, string, time.Duration) (Lease, error) {
+	return Lease{ID: "lease-app-test", DeviceID: "android-phone", Token: "lease-token"}, nil
+}
+
+func (f *scenarioInstallFakeDevice) ValidateLease(context.Context, Lease) error { return nil }
+
+func (f *scenarioInstallFakeDevice) Execute(_ context.Context, _ Lease, _ string, arguments map[string]string) (ActionResult, error) {
+	copied := make(map[string]string, len(arguments))
+	for key, value := range arguments {
+		copied[key] = value
+	}
+	f.calls = append(f.calls, copied)
+	if arguments["step_id"] == "install-preflight/package-state" && f.preflightErr != nil {
+		return ActionResult{}, f.preflightErr
+	}
+	return ActionResult{Evidence: []deliveryramp.EvidenceReference{{ID: "evidence-" + arguments["step_id"], Kind: "device-control", Checksum: "sha256:evidence"}}}, nil
+}
+
+func (f *scenarioInstallFakeDevice) StartRecording(context.Context, Lease) error {
+	f.startedRecording++
+	return nil
+}
+
+func (f *scenarioInstallFakeDevice) StopRecording(context.Context, Lease) (RecordingArtifact, error) {
+	return RecordingArtifact{Reference: deliveryramp.EvidenceReference{ID: "recording", Checksum: "sha256:recording", Redacted: true, Kind: "video"}, StartMs: 10, EndMs: 100, HasOffsets: true}, nil
+}
+
+func (f *scenarioInstallFakeDevice) Release(context.Context, Lease) error { return nil }
+
+type countingBAS struct{ calls int }
+
+func (f *countingBAS) Execute(context.Context, BASRequest) (BASResult, error) {
+	f.calls++
+	return BASResult{Completed: true, ExecutionID: fmt.Sprintf("bas-execution-%d", f.calls)}, nil
+}
+
+func appInstallRequest(t *testing.T, mode string) deliveryramp.DriverRequest {
+	t.Helper()
+	plan, err := ScenarioAppPlan(mode)
+	if err != nil {
+		t.Fatal(err)
+	}
+	request := testRequest()
+	request.Plan = plan
+	request.Cell.Target.Capabilities = []string{"app-lifecycle", "webview-attach", "input"}
+	request.Artifact = deliveryramp.Artifact{
+		ImmutableRef: "android-debug:" + strings.Repeat("a", 64),
+		Checksum:     "sha256:" + strings.Repeat("a", 64),
+		Metadata: map[string]string{
+			"package_name": "com.example.generated", "version_name": "1.2.3", "version_code": "12", "signing": "debug-only",
+			"scenario_name": "hello-mobile",
+		},
+	}
+	return request
+}
+
+func TestTemporaryScenarioAppRefusesPreexistingPackageBeforeCaptureOrInstall(t *testing.T) {
+	device := &scenarioInstallFakeDevice{preflightErr: errors.New("package already installed")}
+	bas := &countingBAS{}
+	result, err := (Driver{Devices: device, BAS: bas}).Execute(context.Background(), appInstallRequest(t, "temporary"))
+	if err != nil {
+		t.Fatalf("prestate refusal should be a structured journey result, got %v", err)
+	}
+	if result.Disposition != deliveryramp.DispositionFailed || len(device.calls) != 1 || device.calls[0]["expected"] != "absent" {
+		t.Fatalf("existing package was not refused before mutation: result=%#v calls=%#v", result, device.calls)
+	}
+	if device.startedRecording != 0 || bas.calls != 0 {
+		t.Fatalf("prestate refusal started capture or BAS: recording=%d bas=%d", device.startedRecording, bas.calls)
+	}
+}
+
+func TestTemporaryScenarioAppUsesImmutableInstallAndVerifiesCleanup(t *testing.T) {
+	device := &scenarioInstallFakeDevice{}
+	bas := &countingBAS{}
+	result, err := (Driver{Devices: device, BAS: bas}).Execute(context.Background(), appInstallRequest(t, "temporary"))
+	if err != nil || result.Disposition != deliveryramp.DispositionPass {
+		t.Fatalf("temporary scenario app journey failed: result=%#v err=%v", result, err)
+	}
+	if bas.calls != 2 {
+		t.Fatalf("cold and warm BAS flows were not both executed: %d", bas.calls)
+	}
+	var installSeen, uninstallSeen, absentVerified bool
+	for _, call := range device.calls {
+		switch call["step_id"] {
+		case "artifact-install/install":
+			installSeen = call["artifact_ref"] == "android-debug:"+strings.Repeat("a", 64) && call["package"] == "com.example.generated" && call["version_name"] == "1.2.3"
+		case "temporary-cleanup/uninstall":
+			uninstallSeen = call["package"] == "com.example.generated"
+		case "temporary-cleanup/verify-absent":
+			absentVerified = call["expected"] == "absent"
+		}
+	}
+	if !installSeen || !uninstallSeen || !absentVerified {
+		t.Fatalf("immutable install or cleanup contract missing: install=%v uninstall=%v absent=%v calls=%#v", installSeen, uninstallSeen, absentVerified, device.calls)
+	}
+	if result.Events[len(result.Events)-1].Observed != "BAS flow completed; execution_id=bas-execution-2" {
+		t.Fatalf("BAS execution identity was not retained: %#v", result.Events)
+	}
+}
+
+func TestDurableScenarioAppKeepsPackageInstalled(t *testing.T) {
+	device := &scenarioInstallFakeDevice{}
+	bas := &countingBAS{}
+	result, err := (Driver{Devices: device, BAS: bas}).Execute(context.Background(), appInstallRequest(t, "durable"))
+	if err != nil || result.Disposition != deliveryramp.DispositionPass {
+		t.Fatalf("durable scenario app journey failed: result=%#v err=%v", result, err)
+	}
+	if bas.calls != 2 {
+		t.Fatalf("durable install did not run cold and warm BAS assertions: %d", bas.calls)
+	}
+	for _, call := range device.calls {
+		if call["step_id"] == "temporary-cleanup/uninstall" {
+			t.Fatal("durable scenario app was unexpectedly uninstalled")
+		}
+	}
+	foundInstalledReadback := false
+	for _, call := range device.calls {
+		if call["step_id"] == "verify-installed" && call["expected"] == "installed" {
+			foundInstalledReadback = true
+		}
+	}
+	if !foundInstalledReadback {
+		t.Fatalf("durable app state was not read back: %#v", device.calls)
 	}
 }
 
@@ -455,5 +588,39 @@ func TestHTTPDeviceClientSendsDeviceTimeoutOutsideActionArguments(t *testing.T) 
 	})
 	if err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestHTTPDeviceClientConfirmsOnlyImmutableArtifactInstall(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var request struct {
+			Confirmed bool `json:"confirmed"`
+			Flow      struct {
+				Steps []struct {
+					Kind      string         `json:"kind"`
+					Arguments map[string]any `json:"arguments"`
+				} `json:"steps"`
+			} `json:"flow"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+			t.Fatalf("decode flow request: %v", err)
+		}
+		if !request.Confirmed || len(request.Flow.Steps) != 1 || request.Flow.Steps[0].Kind != "install-artifact" {
+			t.Fatalf("verified install was not explicitly confirmed: %#v", request)
+		}
+		if request.Flow.Steps[0].Arguments["artifact_ref"] != "android-debug:immutable" || request.Flow.Steps[0].Arguments["version_name"] != "1.2.3" {
+			t.Fatalf("immutable identity was not sent to Device Control: %#v", request.Flow.Steps[0].Arguments)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"disposition":"passed","evidence":[]}`))
+	}))
+	defer server.Close()
+
+	client := &HTTPDeviceClient{BaseURL: server.URL, Client: server.Client()}
+	_, err := client.Execute(context.Background(), Lease{ID: "lease-1", DeviceID: "device-1", Token: "token-1"}, "install-artifact", map[string]string{
+		"step_id": "artifact-install/install", "artifact_ref": "android-debug:immutable", "package": "com.example.generated", "version_name": "1.2.3",
+	})
+	if err != nil {
+		t.Fatalf("confirmed verified install failed: %v", err)
 	}
 }

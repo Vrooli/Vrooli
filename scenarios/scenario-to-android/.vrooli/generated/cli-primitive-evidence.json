@@ -4,8 +4,20 @@
   "source_manifest": "cli/manifest.json",
   "scenario": "scenario-to-android",
   "generator": "v1.0.0",
-  "manifest_hash": "4057fcc3dbfb17ece5b0ff0c86ec63777a62f2aaf4e11a07ce54b3948f2f7863",
+  "manifest_hash": "9c8402acea567eafc411cc0a561c69301613f293385457fac4e70c42d2d8e683",
   "commands": [
+    {
+      "path": "android app-install",
+      "group": "android",
+      "command": "app-install",
+      "binding": "."
+    },
+    {
+      "path": "android app-test",
+      "group": "android",
+      "command": "app-test",
+      "binding": "."
+    },
     {
       "path": "android build",
       "group": "android",

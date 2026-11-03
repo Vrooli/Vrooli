@@ -104,6 +104,19 @@ func main() {
 	}
 	androidPlan := journeys.AndroidPlan()
 	journeySelection := validationmatrix.JourneySelection{JourneyID: androidPlan.ID, DisplayName: "Android generated-app conformance", SourcePath: "internal/journeys/plan.go", ExecutionMode: "platform", Required: true, Category: "android", Requirements: []string{"hello-mobile APK", "device-control lease", "redacted recording", "BAS WebView flow"}, Safety: validationmatrix.JourneySafety{Mutating: true, RequiresIsolation: true, RequiresConfirmation: true}}
+	temporaryAppPlan, err := journeys.ScenarioAppPlan("temporary")
+	if err != nil {
+		log.Fatalf("temporary Android app plan failed: %v", err)
+	}
+	durableAppPlan, err := journeys.ScenarioAppPlan("durable")
+	if err != nil {
+		log.Fatalf("durable Android app plan failed: %v", err)
+	}
+	journeySelections := []validationmatrix.JourneySelection{
+		journeySelection,
+		{JourneyID: journeys.TemporaryAppTestPlanID, DisplayName: "Temporary scenario app BAS test", SourcePath: "internal/journeys/plan.go", ExecutionMode: "platform", Required: true, Category: "android", Requirements: []string{"immutable Android artifact", "absent package precondition", "cold and warm BAS assertions", "verified cleanup"}, Safety: validationmatrix.JourneySafety{Mutating: true, RequiresIsolation: true, RequiresConfirmation: true}},
+		{JourneyID: journeys.DurableAppPlanID, DisplayName: "Durable scenario app installation and BAS test", SourcePath: "internal/journeys/plan.go", ExecutionMode: "platform", Required: true, Category: "android", Requirements: []string{"immutable Android artifact", "absent package precondition", "cold and warm BAS assertions", "installed package readback"}, Safety: validationmatrix.JourneySafety{Mutating: true, RequiresIsolation: true, RequiresConfirmation: true}},
+	}
 	journeyRunner := func(ctx context.Context, request deliveryramp.DriverRequest, deviceURL, basURL, deviceTransport string, client *http.Client) (deliveryramp.JourneyResult, error) {
 		if client == nil {
 			client = http.DefaultClient
@@ -126,12 +139,12 @@ func main() {
 		}
 		return "usb"
 	}
-	executors := validationmatrix.Executors{Local: releases.Executor{JourneyPlan: androidPlan.JourneyPlan(), ResolveTransport: resolveTransport, RunJourney: journeyRunner}}
+	executors := validationmatrix.Executors{Local: releases.Executor{JourneyPlan: androidPlan.JourneyPlan(), JourneyPlans: map[string]deliveryramp.JourneyPlan{journeys.TemporaryAppTestPlanID: temporaryAppPlan, journeys.DurableAppPlanID: durableAppPlan}, ResolveTransport: resolveTransport, RunJourney: journeyRunner}}
 	if bridgeExecutor := validationmatrix.NewClientFromEnv(validationmatrix.WithPlatform("android")); bridgeExecutor != nil {
 		executors.Bridge = bridgeExecutor
 	}
 	matrixOptions := []validationmatrix.ServiceOption{
-		validationmatrix.WithCatalogResolver(releases.Catalog{Probe: targets.Prober{Devices: targets.NewDeviceControlInventory()}, Journey: journeySelection}),
+		validationmatrix.WithCatalogResolver(releases.Catalog{Probe: targets.Prober{Devices: targets.NewDeviceControlInventory()}, Journeys: journeySelections}),
 	}
 	if deploymentURL := strings.TrimSpace(os.Getenv("DEPLOYMENT_MANAGER_URL")); deploymentURL != "" {
 		profileID := strings.TrimSpace(os.Getenv("DEPLOYMENT_MANAGER_PROFILE_ID"))
@@ -177,6 +190,9 @@ func main() {
 			fileRoots.RecordWrite(ctx)
 			return builds.RetainArtifact(ctx, root, artifact)
 		},
+		ArtifactRoot: func(ctx context.Context) (string, error) {
+			return fileRoots.PickRequired(ctx, storage.ClassData)
+		},
 		ProvisionSigning: func(ctx context.Context, identity string) error {
 			if builder.Signing == nil {
 				return fmt.Errorf("secrets-manager credential client is not configured")
@@ -210,8 +226,9 @@ func main() {
 	handler := apihttp.TestModeMiddleware(rootMux)
 
 	if err := apiserver.Run(apiserver.Config{
-		Handler: handler,
-		Cleanup: func(ctx context.Context) error { return db.Close() },
+		Handler:     handler,
+		BindAddress: "127.0.0.1",
+		Cleanup:     func(ctx context.Context) error { return db.Close() },
 	}); err != nil {
 		log.Fatalf("Server error: %v", err)
 	}

@@ -9,9 +9,9 @@ metadata:
   tags: ["automation", "workflow", "learning"]
   icon: "play"
   status: "active"
-  revision: 58
+  revision: 59
   createdAt: "2026-09-04T00:00:00Z"
-  updatedAt: "2026-11-02T15:52:01Z"
+  updatedAt: "2026-11-03T03:06:11Z"
   requires:
     scenarios: ["device-control", "program-runtime", "vrooli-memory"]
     commands: ["device-control", "program-runtime", "vrooli-memory"]
@@ -54,7 +54,8 @@ Read rows in order; the first matching row is the next step.
 | No reusable flow exists and bounded AI control is appropriate | Run `device-control agent start` with the requested goal and exact device, using current help. Where the outcome is a selected control, supply its exact label with `--expect-selected` for an independent state check. **[S1]** |
 | Successful agent exploration should become reusable | Promotion requires independently verified goal completion and a terminal outcome assertion. If unavailable, author and validate a flow with an explicit assertion; do not treat the model's success claim as proof. **[S1]** |
 | Need the promoted candidate definition | Run `device-control flow export <run-id>`. Export alone does not save or validate a reusable library revision. **[S1]** |
-| Need a live state check | Run `device-control device state <id>`. **[S1]** |
+| Need one live state snapshot | Run `device-control device state <id>`. **[S1]** |
+| Need to wait for live state changes | Run `device-control device watch <id>`; it prints changes until interrupted, so do not poll `device list` or `device state` in a loop. **[S1]** |
 | Saved wireless endpoint is stale | Run `device-control device reconnect <id>`; it verifies hardware identity. **[S1]** |
 | Need to stop a leased operation | Run `device-control session kill <id>`. **[S1]** |
 

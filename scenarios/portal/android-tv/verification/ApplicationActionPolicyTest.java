@@ -22,6 +22,38 @@ public final class ApplicationActionPolicyTest {
         expect("", ApplicationActionPolicy.actionForSelection("web-console", 4));
         if (ApplicationActionPolicy.requiresConfirmation("start")) throw new AssertionError("starting an app should not require destructive confirmation");
         if (!ApplicationActionPolicy.requiresConfirmation("restart") || !ApplicationActionPolicy.requiresConfirmation("stop")) throw new AssertionError("restart and stop must require confirmation");
-        System.out.println("PASS: owned-app menu actions map to explicit lifecycle calls; Portal is excluded and destructive actions are confirmed");
+        expect(ApplicationActionPolicy.LifecycleResult.CONFIRMED,
+                ApplicationActionPolicy.interpretLifecycleResponse("start", "running", "completed"));
+        expect(ApplicationActionPolicy.LifecycleResult.CONFIRMED,
+                ApplicationActionPolicy.interpretLifecycleResponse("restart", "running", "completed"));
+        expect(ApplicationActionPolicy.LifecycleResult.CONFIRMED,
+                ApplicationActionPolicy.interpretLifecycleResponse("stop", "stopped", "completed"));
+        expect(ApplicationActionPolicy.LifecycleResult.CONFIRMED,
+                ApplicationActionPolicy.interpretLifecycleResponse("stop", "available", "completed"));
+        expect(ApplicationActionPolicy.LifecycleResult.UNCONFIRMED,
+                ApplicationActionPolicy.interpretLifecycleResponse("start", "stopped", "completed"));
+        expect(ApplicationActionPolicy.LifecycleResult.UNCONFIRMED,
+                ApplicationActionPolicy.interpretLifecycleResponse("restart", "starting", "completed"));
+        expect(ApplicationActionPolicy.LifecycleResult.UNCONFIRMED,
+                ApplicationActionPolicy.interpretLifecycleResponse("stop", "running", "completed"));
+        expect(ApplicationActionPolicy.LifecycleResult.UNCONFIRMED,
+                ApplicationActionPolicy.interpretLifecycleResponse("start", "running", "unverified"));
+        expect(ApplicationActionPolicy.LifecycleResult.UNCONFIRMED,
+                ApplicationActionPolicy.interpretLifecycleResponse("start", "RUNNING", "completed"));
+        expect(ApplicationActionPolicy.LifecycleResult.UNCONFIRMED,
+                ApplicationActionPolicy.interpretLifecycleResponse("start", "", "completed"));
+        expect(ApplicationActionPolicy.LifecycleResult.UNCONFIRMED,
+                ApplicationActionPolicy.interpretLifecycleResponse("unknown", "running", "completed"));
+        expect(ApplicationActionPolicy.LifecycleResult.UNCONFIRMED,
+                ApplicationActionPolicy.interpretLifecycleResponse(null, null, null));
+        expect("Set a Portal address. App management requires trusted HTTPS.",
+                ApplicationActionPolicy.managementGuidance(false, false, false));
+        expect("HTTP is browse-only. App management requires trusted HTTPS.",
+                ApplicationActionPolicy.managementGuidance(true, false, false));
+        expect("HTTPS address set. Verify certificate trust, then sign in to manage apps.",
+                ApplicationActionPolicy.managementGuidance(true, true, false));
+        expect("Local sign-in token present. Actions may need renewed sign-in and lifecycle permission.",
+                ApplicationActionPolicy.managementGuidance(true, true, true));
+        System.out.println("PASS: app action guidance preserves trusted HTTPS, sign-in, and lifecycle permission requirements");
     }
 }

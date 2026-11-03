@@ -383,5 +383,5 @@ func (p *Provider) standing() *commonv1.LifecycleStanding {
 	if token == "" {
 		token = strconv.FormatInt(p.revision, 10)
 	}
-	return &commonv1.LifecycleStanding{Provider: "device-control", ProviderInstanceId: p.instance, Scenario: "device-control", InstanceId: p.instance, OperationId: p.operation, FenceToken: token, Revision: p.revision, Phase: phase, AdmissionClosed: p.closed, Admitting: int32(p.active), Remaining: int32(len(blockers)), InventoryComplete: complete, Drained: drained, Work: work, Blockers: blockers, ObservedAt: timestamppb.Now(), Interlock: "device-control-owner-fence-v1", ManagedComponents: components, ComponentStopReady: p.closed && p.componentQuiesced && complete && workQuiesced}
+	return &commonv1.LifecycleStanding{Provider: "device-control", ProviderInstanceId: p.instance, Scenario: "device-control", InstanceId: p.instance, OperationId: p.operation, FenceToken: token, Revision: p.revision, Phase: phase, AdmissionClosed: p.closed, Admitting: int32(p.active), Remaining: int32(len(blockers)), InventoryComplete: complete, Drained: drained, Work: work, Blockers: blockers, ObservedAt: timestamppb.Now(), Interlock: "device-control-owner-fence-v1", ManagedComponents: components, ComponentStopReady: p.closed && p.componentQuiesced && complete && workQuiesced, QuiescencePending: p.closed && p.quiesce != nil && !p.componentQuiesced}
 }

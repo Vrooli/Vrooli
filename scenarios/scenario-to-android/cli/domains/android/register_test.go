@@ -2,6 +2,7 @@ package android
 
 import (
 	"encoding/json"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -85,4 +86,26 @@ func TestMatrixSelectionUsesBuilderPackageDefault(t *testing.T) {
 	metadata, ok := request["metadata"].(map[string]string)
 	require.True(t, ok)
 	require.Equal(t, defaultAndroidPackageName, metadata["package_name"])
+}
+
+func TestInstallJourneyRequiresImmutableRefAndBuildIdentity(t *testing.T) {
+	digest := strings.Repeat("a", 64)
+	artifact := builtArtifact{
+		ImmutableRef: "android-debug:" + digest,
+		Checksum:     "sha256:" + digest,
+		Metadata: map[string]string{
+			"package_name": "com.example.generated", "version_name": "1.2.3", "version_code": "12", "signing": "debug-only",
+		},
+	}
+	if !immutableArtifactMetadataComplete(artifact) {
+		t.Fatal("complete debug artifact identity was rejected")
+	}
+	artifact.ImmutableRef = "android-debug:" + strings.Repeat("b", 64)
+	if immutableArtifactMetadataComplete(artifact) {
+		t.Fatal("mismatched artifact ref was accepted")
+	}
+	artifact.ImmutableRef = "android-release:" + digest
+	if immutableArtifactMetadataComplete(artifact) {
+		t.Fatal("release artifact without signing identity was accepted")
+	}
 }

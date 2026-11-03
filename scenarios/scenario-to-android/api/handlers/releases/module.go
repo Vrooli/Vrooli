@@ -28,6 +28,8 @@ func Module(matrixHandlers []*validationmatrix.Handler, surfaces ...buildsh.Surf
 			r.HandleFunc("/api/v1/android/distribution", distributionh.Handler).Methods(http.MethodGet)
 			r.HandleFunc("/api/v1/android/generate", buildsh.GenerateHandler(surface)).Methods(http.MethodPost)
 			r.HandleFunc("/api/v1/android/build", buildsh.BuilderHandler(surface)).Methods(http.MethodPost)
+			r.HandleFunc("/api/v1/android/artifacts/metadata", buildsh.ArtifactMetadataHandler(surface)).Methods(http.MethodGet)
+			r.HandleFunc("/api/v1/android/artifacts/apk", buildsh.APKArtifactHandler(surface)).Methods(http.MethodGet)
 			r.HandleFunc("/api/v1/android/signing/provision", buildsh.ProvisionSigningHandler(surface)).Methods(http.MethodPost)
 			for _, handler := range matrixHandlers {
 				if handler != nil {
@@ -42,6 +44,8 @@ func Module(matrixHandlers []*validationmatrix.Handler, surfaces ...buildsh.Surf
 			rampEndpoint("android_distribution", "/api/v1/android/distribution", http.MethodGet, "Show independent Android distribution channels"),
 			{ID: "android_generate", Path: "/api/v1/android/generate", Method: http.MethodPost, Summary: "Render a generated Android project without building artifacts", Category: "ramp", RESTException: &module.RESTException{Reason: module.RESTReasonOpsProbe, Note: "Operator generation control surface accepts a JSON request and returns a generated-project descriptor."}},
 			{ID: "android_build", Path: "/api/v1/android/build", Method: http.MethodPost, Summary: "Build a debug APK and AAB from a scenario web bundle", Category: "ramp", RESTException: &module.RESTException{Reason: module.RESTReasonOpsProbe, Note: "Operator build control surface accepts a JSON request and returns an immutable artifact descriptor."}},
+			{ID: "android_artifact_metadata", Path: "/api/v1/android/artifacts/metadata", Method: http.MethodGet, Summary: "Resolve immutable Android artifact metadata", Category: "ramp", RESTException: &module.RESTException{Reason: module.RESTReasonOpsProbe, Note: "The artifact producer resolves an exact immutable ref and returns package/version/checksum metadata without host paths."}},
+			{ID: "android_artifact_apk", Path: "/api/v1/android/artifacts/apk", Method: http.MethodGet, Summary: "Fetch verified APK bytes by immutable artifact ref", Category: "ramp", RESTException: &module.RESTException{Reason: module.RESTReasonOpsProbe, Note: "The artifact producer integrity-checks the retained APK/AAB pair and streams only the APK selected by exact immutable_ref."}},
 			{ID: "android_signing_provision", Path: "/api/v1/android/signing/provision", Method: http.MethodPost, Summary: "Generate and store the Android upload key through secrets-manager", Category: "ramp", RESTException: &module.RESTException{Reason: module.RESTReasonOpsProbe, Note: "Provisioning returns metadata only; key material is never returned."}},
 		},
 	}

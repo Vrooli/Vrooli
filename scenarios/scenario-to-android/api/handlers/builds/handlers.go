@@ -15,6 +15,7 @@ type Surface struct {
 	Builder          builds.Builder
 	Generate         func(context.Context, deliveryramp.BuildRequest) (builds.GeneratedProject, error)
 	Retain           func(context.Context, deliveryramp.Artifact) (deliveryramp.Artifact, error)
+	ArtifactRoot     func(context.Context) (string, error)
 	SigningIdentity  string
 	ProvisionSigning func(context.Context, string) error
 }
