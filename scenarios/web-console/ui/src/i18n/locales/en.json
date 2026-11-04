@@ -1447,7 +1447,7 @@
       "lastOutput": "last output {{ago}} ago",
       "asking": "{{speaker}} is asking you something",
       "interruption": "{{speaker}} is temporarily unavailable",
-      "interruptionHint": "This looks resumable. Choose the recovery command or open the terminal to inspect it.",
+      "interruptionHint": "Open the terminal to inspect the cause and choose a recovery action.",
       "detected": "detected {{ago}} ago · {{source}}",
       "openTerminal": "Open terminal",
       "answerInTerminal": "Answer in terminal",

@@ -1458,7 +1458,7 @@
       "asking": "{{speaker}} يسألك شيئًا",
       "detected": "اكتُشف قبل {{ago}} · {{source}}",
       "interruption": "{{speaker}} غير متاح مؤقتًا",
-      "interruptionHint": "يبدو أن هذا قابل للاستئناف. اختر أمر الاسترداد أو افتح الطرفية لفحصه.",
+      "interruptionHint": "افتح الطرفية لفحص السبب واختيار إجراء الاسترداد.",
       "openTerminal": "افتح الطرفية",
       "answerInTerminal": "أجب في الطرفية",
       "sendOption": "أرسل {{key}} ↵",

@@ -46,6 +46,11 @@ describe("resolveStateSlot", () => {
     expect(resolveStateSlot({ ...base, state: "waiting", prompt })?.kind).toBe("interruption");
   });
 
+  it("shows an agent process termination as an interruption with terminal recovery", () => {
+    const prompt = { kind: "agent_terminated", text: "The terminal reported 'Killed'. The cause is unknown.", options: [], answerable: false };
+    expect(resolveStateSlot({ ...base, state: "waiting", prompt })?.kind).toBe("interruption");
+  });
+
   it("[REQ:P0-017e] idle, unknown, and missing show nothing", () => {
     expect(resolveStateSlot({ ...base, state: "idle" })).toBeNull();
     expect(resolveStateSlot({ ...base, state: "unknown" })).toBeNull();

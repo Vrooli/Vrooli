@@ -114,6 +114,26 @@ func TestCodexCapacityInterruptionIsResumable(t *testing.T) {
 	}
 }
 
+func TestCodexKilledAgentAtShellPromptIsInterrupted(t *testing.T) {
+	got := DefaultPromptDetector().Analyze(stubView{text: "Ran checks\nKilled\nuser@host:~/repo$ ", cursor: 2})
+	if got.Interruption == nil || got.Interruption.Kind != "agent_process_killed" || got.Confidence < 0.9 {
+		t.Fatalf("killed-agent screen = %+v, want high-confidence process interruption", got)
+	}
+}
+
+func TestCodexKilledTextWithoutShellExitIsNotInterrupted(t *testing.T) {
+	for _, view := range []stubView{
+		{text: "The log says Killed\n› Ask Codex to do anything", cursor: 1},
+		{text: "Killed\n› Ask Codex to do anything", cursor: 1},
+		{text: "Ran checks\nKilled\n› Ask Codex to do anything", cursor: 2},
+	} {
+		got := DefaultPromptDetector().Analyze(view)
+		if got.Interruption != nil {
+			t.Fatalf("screen %q = %+v, want no process interruption", view.text, got)
+		}
+	}
+}
+
 type stubView struct {
 	text   string
 	cursor int

@@ -70,6 +70,7 @@ const (
 	// stalled-agent signal, not an operator question, so it notifies under its
 	// own category.
 	promptKindResumableInterruption = "resumable_interruption"
+	promptKindAgentTerminated       = "agent_terminated"
 
 	// Settle windows a transition must persist before it notifies. A prompt the
 	// operator clears within inputNeededDwell, or a turn-end that the agent
@@ -124,23 +125,25 @@ type sessionNotifier struct {
 	// Defaults to time.AfterFunc; swapped in tests for deterministic firing.
 	schedule func(d time.Duration, fn func()) timerHandle
 
-	mu      sync.Mutex
-	last    map[string]session.ActivityState
-	active  map[string]time.Time   // per-session time the session last left idle
-	pending map[string]timerHandle // per-session not-yet-fired notice
-	baseURL string                 // cached vrooli-events base URL
+	mu             sync.Mutex
+	last           map[string]session.ActivityState
+	lastPromptKind map[string]string
+	active         map[string]time.Time   // per-session time the session last left idle
+	pending        map[string]timerHandle // per-session not-yet-fired notice
+	baseURL        string                 // cached vrooli-events base URL
 }
 
 // newSessionNotifier builds a notifier that publishes to Vrooli Events and
 // resolves links through Tunnel Manager.
 func newSessionNotifier() *sessionNotifier {
 	n := &sessionNotifier{
-		notice:   discovery.ResolveExternalURLForNotice,
-		now:      func() time.Time { return time.Now().UTC() },
-		last:     map[string]session.ActivityState{},
-		active:   map[string]time.Time{},
-		pending:  map[string]timerHandle{},
-		schedule: func(d time.Duration, fn func()) timerHandle { return time.AfterFunc(d, fn) },
+		notice:         discovery.ResolveExternalURLForNotice,
+		now:            func() time.Time { return time.Now().UTC() },
+		last:           map[string]session.ActivityState{},
+		lastPromptKind: map[string]string{},
+		active:         map[string]time.Time{},
+		pending:        map[string]timerHandle{},
+		schedule:       func(d time.Duration, fn func()) timerHandle { return time.AfterFunc(d, fn) },
 	}
 	n.publish = n.publishViaEventbus
 	return n
@@ -158,7 +161,13 @@ func (n *sessionNotifier) observe(sessionID string, a session.Activity) {
 	defer n.mu.Unlock()
 
 	prev, had := n.last[sessionID]
+	prevPromptKind := n.lastPromptKind[sessionID]
 	n.last[sessionID] = state
+	promptKind := ""
+	if a.Prompt != nil {
+		promptKind = a.Prompt.Kind
+	}
+	n.lastPromptKind[sessionID] = promptKind
 	if !had {
 		// Baseline: the first state we see for a session is the state it was
 		// already in when we began watching — never a witnessed transition, so
@@ -166,7 +175,8 @@ func (n *sessionNotifier) observe(sessionID string, a session.Activity) {
 		// burst.
 		return
 	}
-	if state == prev {
+	if state == prev && !(state == session.ActivityWaiting && promptKind != prevPromptKind &&
+		(promptKind == promptKindResumableInterruption || promptKind == promptKindAgentTerminated)) {
 		return
 	}
 	// A real transition supersedes any notice still settling for this session.
@@ -219,13 +229,19 @@ func decideNotice(sessionID string, prev session.ActivityState, a session.Activi
 		// "temporarily unavailable" card; give the operator notification a
 		// matching category and title so a stalled agent reads differently from
 		// "the agent is asking you something".
-		if a.Prompt != nil && a.Prompt.Kind == promptKindResumableInterruption {
+		if a.Prompt != nil && (a.Prompt.Kind == promptKindResumableInterruption || a.Prompt.Kind == promptKindAgentTerminated) {
+			title := interruptedTitle(a)
+			body := "Open the session to resume or retry."
+			if a.Prompt.Kind == promptKindAgentTerminated {
+				title = "Agent stopped unexpectedly"
+				body = "Open the terminal to inspect the cause and restart the agent if appropriate."
+			}
 			return sessionNotice{
 				SessionID: sessionID,
 				Category:  categoryAgentInterrupted,
 				Urgency:   "high",
-				Title:     interruptedTitle(a),
-				Body:      "Open the session to resume or retry.",
+				Title:     title,
+				Body:      body,
 				DedupeKey: sessionID + ":interrupted:" + backend.PromptHash(a.Prompt),
 			}, true
 		}
@@ -284,6 +300,7 @@ func (n *sessionNotifier) forget(sessionID string) {
 	}
 	n.mu.Lock()
 	delete(n.last, sessionID)
+	delete(n.lastPromptKind, sessionID)
 	delete(n.active, sessionID)
 	n.cancelLocked(sessionID)
 	n.mu.Unlock()

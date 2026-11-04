@@ -3791,3 +3791,31 @@ exhausted its 15-second budget; the BAS skill's direct capture leaf was used.
 - Rung: W3, scoped implementation; the operator selected the existing settings study and requested desktop category icons and shared-component ownership.
 - Evidence: baseline and live candidate captures in `docs/mockups/experience-review-20261029/`; shared `SettingsList` 1.2.0 supplies an opt-in aligned layout. User review of the running result and complete state/theme/device coverage remain open.
 - Gate: focused settings navigation tests, shared component story checks, scenario unit phase, and desktop/phone browser review; see the current handoff for results and limits. No W0–W2 readiness claim is implied.
+
+## Work ladder — unexpected agent process termination, 2026-11-03
+
+- Rung: W3, scoped Codex activity detection, notification, and UI recovery behavior. No W0–W2 readiness claim is implied.
+- Evidence: operator screenshot `IMG_2112.png` shows a session left marked Working after the terminal reports `Killed`; the existing notification producer recognizes provider interruptions but not an agent process returning to its shell.
+- Repair: recognize a standalone `Killed` diagnostic at a shell prompt, mark it as a non-answerable interruption, notify through `session.agent_interrupted`, and offer terminal inspection from Messages. Keep the cause unknown unless the terminal proves it.
+- Validation: detector and notifier regressions pass; Messages recovery control tests pass (10 tests); UI TypeScript/generated-string check passes. Test Genie unit run `20261103-221145-2e2362ca` failed: API execution includes the initial nil-map test-helper failure (fixed afterward), an `ai-gateway` capability-checker mismatch, and a journey temporary-directory cleanup error; UI function coverage is 84.8% against 85%. The run does not establish a passing unit gate. The governed restart staged a replacement but refused to stop the serving API because its live instance lacks the lifecycle `Status` fence. Current API `/health` and UI `/` both return 200, readiness is true, and the old build identity remains live. No force override was used. Focused final regressions pass.
+
+### Follow-up — lifecycle compatibility and runtime verification, 2026-11-03
+
+The control plane now logs a warning and proceeds without a provider fence when
+a live owner reports `Status` as `NotFound` or `Unimplemented`. Other status
+errors and invalid drain proofs still fail closed. The status contract regression
+tests pass, and the warning-only change is documented in
+`docs/configuration/scenarios.md`.
+
+After `make install`, the managed restart completed healthy and emitted the
+expected warning for Web Console's unsupported Status contract. The new serving
+build identity is `sha256:f6d2a1bdb8de4c35397b6f004740499e4ee55157056159e9ac19d0c187d35ad3`.
+API `/health` returned HTTP 200 with `readiness: true`; UI `/` returned HTTP 200.
+Focused API termination/notification tests, focused Messages recovery tests (10),
+and UI type-check pass. Test Genie unit run `20261103-234611-866dd8e2` completed
+FAIL: all 3,604 UI tests passed, but the UI workspace remains below its global
+function-coverage threshold (84.8% vs 85%). The API workspace has two failures
+from the existing AI Gateway capability-catalogue/checker mismatch; the bounded
+report does not attribute either failure to this change. The prior broader
+journey temp-directory failure did not recur. This run is not a passing unit
+gate; no whole-scenario certification claim is made.

@@ -60,11 +60,12 @@ func newTestNotifier() (*sessionNotifier, *fakeScheduler, *testClock) {
 	sched := &fakeScheduler{}
 	clk := &testClock{t: time.Unix(0, 0).UTC()}
 	n := &sessionNotifier{
-		now:      clk.now,
-		last:     map[string]session.ActivityState{},
-		active:   map[string]time.Time{},
-		pending:  map[string]timerHandle{},
-		schedule: sched.arm,
+		now:            clk.now,
+		last:           map[string]session.ActivityState{},
+		lastPromptKind: map[string]string{},
+		active:         map[string]time.Time{},
+		pending:        map[string]timerHandle{},
+		schedule:       sched.arm,
 	}
 	return n, sched, clk
 }
@@ -245,6 +246,35 @@ func TestObserveResumableInterruptionNotifiesItsOwnCategory(t *testing.T) {
 	other, _ := decideNotice("sess-1", session.ActivityWorking, session.Activity{State: session.ActivityWaiting, Prompt: q})
 	if other.Category != categoryInputNeeded {
 		t.Fatalf("a non-interruption prompt must stay %q, got %q", categoryInputNeeded, other.Category)
+	}
+}
+
+func TestUnexpectedAgentTerminationNotifiesWithTerminalRecovery(t *testing.T) {
+	activity := session.Activity{State: session.ActivityWaiting, Prompt: &backend.PendingPrompt{
+		Kind: "agent_terminated", Text: "The terminal reported 'Killed'. The cause is unknown.",
+	}}
+	notice, ok := decideNotice("sess-1", session.ActivityWorking, activity)
+	if !ok || notice.Category != categoryAgentInterrupted || notice.Urgency != "high" {
+		t.Fatalf("notice = %+v, ok=%t; want high-urgency agent interruption", notice, ok)
+	}
+	if notice.Title != "Agent stopped unexpectedly" || !strings.Contains(notice.Body, "inspect the cause") {
+		t.Fatalf("notice = %+v; want explicit cause inspection and recovery", notice)
+	}
+}
+
+func TestObserveNotifiesWhenWaitingPromptBecomesAgentTermination(t *testing.T) {
+	n, sched, _ := newTestNotifier()
+	n.observe("sess-1", session.Activity{State: session.ActivityWaiting, Prompt: &backend.PendingPrompt{Kind: "unknown"}})
+	n.observe("sess-1", session.Activity{State: session.ActivityWaiting, Prompt: &backend.PendingPrompt{
+		Kind: "agent_terminated", Text: "The terminal reported 'Killed'. The cause is unknown.",
+	}})
+	armed := sched.last()
+	var got eventbus.DomainEvent
+	n.publish = func(_ context.Context, event eventbus.DomainEvent) error { got = event; return nil }
+	n.notice = func(_ context.Context, _ string) (string, error) { return "", nil }
+	armed.fire()
+	if got.Payload["category"] != categoryAgentInterrupted || got.Payload["title"] != "Agent stopped unexpectedly" {
+		t.Fatalf("event payload = %#v; want agent termination notification", got.Payload)
 	}
 }
 

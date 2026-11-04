@@ -1431,7 +1431,7 @@
       "asking": "{{speaker}} が質問しています",
       "detected": "{{ago}} 前に検出 · {{source}}",
       "interruption": "{{speaker}} は一時的に利用できません",
-      "interruptionHint": "再開できる可能性があります。復旧コマンドを選ぶか、ターミナルを開いて確認してください。",
+      "interruptionHint": "ターミナルを開いて原因を確認し、復旧方法を選んでください。",
       "openTerminal": "ターミナルを開く",
       "answerInTerminal": "ターミナルで回答",
       "sendOption": "{{key}} ↵ を送信",

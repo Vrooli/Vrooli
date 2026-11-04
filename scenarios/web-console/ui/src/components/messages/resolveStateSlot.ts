@@ -37,7 +37,7 @@ export function resolveStateSlot(activity: SessionActivityView | undefined): Sta
   const base: WaitingSlotBase = { harness: activity.harness, source: activity.source, since: activity.since };
   const prompt = activity.prompt;
   if (!prompt || prompt.text.trim() === "") return { kind: "waiting-detected", ...base };
-  if (prompt.kind === "resumable_interruption") return { kind: "interruption", ...base, prompt };
+  if (prompt.kind === "resumable_interruption" || prompt.kind === "agent_terminated") return { kind: "interruption", ...base, prompt };
   if (prompt.answerable) return { kind: "waiting-answerable", ...base, prompt };
   return { kind: "waiting-rendered", ...base, prompt };
 }

@@ -65,6 +65,7 @@ var codexCapacityMarkers = []string{
 var codexSelectedOption = regexp.MustCompile(`^\s*[›❯>▌]\s*1\.\s+\S`)
 var codexGoalStalledFooter = regexp.MustCompile(`(?i)^.+\bgoal stalled \(\s*/goal resume\s*\)$`)
 var codexShortcutFooter = regexp.MustCompile(`(?i)^\?\s*for shortcuts\b`)
+var codexKilledShellPrompt = regexp.MustCompile(`^[^\s].*[@:].*[$#%]\s*$`)
 
 func (promptDetector) Analyze(view backend.ScreenView) backend.PromptAnalysis {
 	if view == nil {
@@ -83,6 +84,11 @@ func (promptDetector) Analyze(view backend.ScreenView) backend.PromptAnalysis {
 		}
 	}
 	lines := strings.Split(text, "\n")
+	if codexKilledAgentVisible(view, lines) {
+		return backend.PromptAnalysis{Interruption: &backend.ResumableInterruption{
+			Kind: "agent_process_killed", Message: "The terminal reported 'Killed'. The cause is unknown; inspect the terminal before restarting the agent.",
+		}, Confidence: 0.95}
+	}
 	if codexGoalStalledVisibleFooter(view, lines) {
 		return backend.PromptAnalysis{Interruption: &backend.ResumableInterruption{
 			Kind: "goal_stalled", Message: "Goal stalled (/goal resume)",
@@ -105,6 +111,26 @@ func (promptDetector) Analyze(view backend.ScreenView) backend.PromptAnalysis {
 		return backend.PromptAnalysis{AwaitingInput: true, Confidence: 0.75}
 	}
 	return backend.PromptAnalysis{}
+}
+
+// codexKilledAgentVisible recognizes the shell's standalone SIGKILL diagnostic
+// only when the cursor is back at a shell prompt. This avoids treating quoted
+// transcript text or Codex's own prompt as a process exit.
+func codexKilledAgentVisible(view backend.ScreenView, lines []string) bool {
+	cursor := view.CursorRow()
+	if cursor < 0 || cursor >= len(lines) || strings.HasPrefix(strings.TrimSpace(codexMainPaneText(lines[cursor])), codexPromptGlyph) {
+		return false
+	}
+	if !codexKilledShellPrompt.MatchString(strings.TrimSpace(codexMainPaneText(lines[cursor]))) {
+		return false
+	}
+	start := max(0, cursor-8)
+	for _, line := range lines[start:cursor] {
+		if strings.EqualFold(strings.TrimSpace(codexMainPaneText(line)), "Killed") {
+			return true
+		}
+	}
+	return false
 }
 
 // codexGoalStalledVisibleFooter recognizes the current Codex footer, not text

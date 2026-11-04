@@ -303,13 +303,22 @@ func (d *ActivityDetector) evaluate(quiet bool) {
 	case d.harnessPrompt != nil:
 		d.setLocked(ActivityWaiting, SourceHarnessEvent, confidenceHarnessEvent, d.harnessPrompt)
 	case analysis.Interruption != nil:
+		promptKind := "resumable_interruption"
+		options := []backend.PromptOption{
+			{Key: "continue", Label: "Continue"},
+			{Key: "/goal resume", Label: "Resume goal"},
+		}
+		if analysis.Interruption.Kind == "agent_process_killed" {
+			// No agent process remains to receive a recovery command. Keep the
+			// signal non-answerable so the UI directs the operator to inspect
+			// the terminal instead of typing into the shell blindly.
+			promptKind = "agent_terminated"
+			options = nil
+		}
 		prompt := &backend.PendingPrompt{
-			Kind: "resumable_interruption",
-			Text: analysis.Interruption.Message,
-			Options: []backend.PromptOption{
-				{Key: "continue", Label: "Continue"},
-				{Key: "/goal resume", Label: "Resume goal"},
-			},
+			Kind:    promptKind,
+			Text:    analysis.Interruption.Message,
+			Options: options,
 		}
 		d.setLocked(ActivityWaiting, SourceScreen, analysis.Confidence, prompt)
 	case analysis.Prompt != nil:
