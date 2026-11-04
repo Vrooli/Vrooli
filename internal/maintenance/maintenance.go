@@ -627,16 +627,20 @@ func (c *Controller) CleanStaleLocks() (control.StopReport, error) {
 	// no longer depend on a 6h ttl_seconds stopgap. Best-effort: a ledger that
 	// does not exist yet, or transient sensing/DB trouble, never fails the lock
 	// sweep this rides on.
+	var observed []control.ResultItem
 	if capacityExpired, capErr := c.sweepCapacityClaims(ctx); capErr == nil {
-		stopped = append(stopped, capacityExpired...)
+		stopped = append(stopped, capacityExpired.Stopped...)
+		failed = append(failed, capacityExpired.Failed...)
+		observed = append(observed, capacityExpired.Observed...)
 	} else {
 		failed = append(failed, control.Failed("capacity-sweep", capErr))
 	}
 
 	return control.StopReport{
-		Stopped: stopped,
-		Failed:  failed,
-		Message: control.StopSummary(len(stopped), len(failed)),
+		Stopped:  stopped,
+		Observed: observed,
+		Failed:   failed,
+		Message:  control.StopSummary(len(stopped), len(failed)),
 	}, nil
 }
 

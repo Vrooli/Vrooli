@@ -15,6 +15,7 @@ import (
 
 	"github.com/vrooli/cli-core/cliutil"
 	"github.com/vrooli/vrooli/internal/scenario"
+	"github.com/vrooli/vrooli/internal/scenarioruntime"
 )
 
 // Running-build states reported per artifact.
@@ -44,9 +45,16 @@ var envSwitchPatterns = []*regexp.Regexp{
 // environment switches those sources add. It reads only; it never builds,
 // stamps or restarts.
 type DeployReport struct {
-	Scenario  string                 `json:"scenario"`
-	Changed   bool                   `json:"changed"`
-	Artifacts []DeployReportArtifact `json:"artifacts"`
+	Scenario        string                 `json:"scenario"`
+	Changed         bool                   `json:"changed"`
+	CandidateSource string                 `json:"candidate_source"`
+	ServingSource   string                 `json:"serving_source"`
+	SourceRole      string                 `json:"source_role"`
+	Engagement      string                 `json:"engagement,omitempty"`
+	CaptureID       string                 `json:"capture_id,omitempty"`
+	Generation      string                 `json:"generation,omitempty"`
+	ProtoArtifactID string                 `json:"proto_artifact_id,omitempty"`
+	Artifacts       []DeployReportArtifact `json:"artifacts"`
 }
 
 // DeployReportArtifact compares one artifact's recorded build with the
@@ -114,22 +122,85 @@ func (r *Runner) DeployReportByName(ctx context.Context, name, customPath string
 	if err := ctx.Err(); err != nil {
 		return DeployReport{}, err
 	}
-	item, err := r.loadScenario(name, customPath)
+	key, err := scenarioruntime.ParseInstanceKey(name, "")
 	if err != nil {
 		return DeployReport{}, err
 	}
-	return r.DeployReport(ctx, item)
+	item, err := r.loadScenario(key.Scenario, customPath)
+	if err != nil {
+		return DeployReport{}, err
+	}
+	item.Variant = key.Variant
+	candidate := item
+	serving := item
+	source := deployReportSource{role: "working_tree"}
+	if r.Engagements != nil {
+		info, engaged, err := r.Engagements.Engagement(item.Slug)
+		if err != nil {
+			return DeployReport{}, fmt.Errorf("resolve serving source for deploy report %q: %w", item.Slug, err)
+		}
+		if engaged && layoutVariant(item) == liveVariant {
+			locator, ok := r.Engagements.(ServingSourceLocator)
+			if !ok {
+				return DeployReport{}, fmt.Errorf("resolve serving source for deploy report %q: engagement resolver does not support read-only serving path lookup", item.Slug)
+			}
+			location, err := locator.ServingSourceLocation(item.Slug, info, r.Root)
+			if err != nil {
+				return DeployReport{}, fmt.Errorf("resolve serving source for deploy report %q: %w", item.Slug, err)
+			}
+			if strings.TrimSpace(location.ScenarioDir) == "" || strings.TrimSpace(location.RepoRoot) == "" {
+				return DeployReport{}, fmt.Errorf("resolve serving source for deploy report %q: resolver returned an incomplete path", item.Slug)
+			}
+			serving.SourceDir = location.ScenarioDir
+			source = deployReportSource{
+				role:            "frozen_serving_tree",
+				engagement:      info.Slug,
+				captureID:       info.CaptureID,
+				generation:      info.Generation,
+				protoArtifactID: info.ProtoArtifactID,
+				servingRepoRoot: location.RepoRoot,
+			}
+		}
+	}
+	report, err := r.deployReportWithSources(ctx, candidate, serving, source)
+	if err != nil {
+		return DeployReport{}, err
+	}
+	report.Scenario = key.Slug()
+	return report, nil
 }
 
 // DeployReport compares every build artifact of item with the current sources.
 func (r *Runner) DeployReport(ctx context.Context, item scenario.Scenario) (DeployReport, error) {
-	report := DeployReport{Scenario: item.Slug}
+	return r.deployReportWithSources(ctx, item, item, deployReportSource{role: "working_tree"})
+}
+
+type deployReportSource struct {
+	role            string
+	engagement      string
+	captureID       string
+	generation      string
+	protoArtifactID string
+	servingRepoRoot string
+}
+
+func (r *Runner) deployReportWithSources(ctx context.Context, candidate, serving scenario.Scenario, source deployReportSource) (DeployReport, error) {
+	report := DeployReport{
+		Scenario:        candidate.Slug,
+		CandidateSource: relUnder(r.Root, candidate.Path),
+		ServingSource:   serving.SourcePath(),
+		SourceRole:      source.role,
+		Engagement:      source.engagement,
+		CaptureID:       source.captureID,
+		Generation:      source.generation,
+		ProtoArtifactID: source.protoArtifactID,
+	}
 	deps := r.hostProbeDeps()
-	scenarioDir := relUnder(r.Root, item.SourcePath())
+	scenarioDir := relUnder(r.Root, candidate.Path)
 	executables, procOK := deployRunningExecutables()
 
-	names := make([]string, 0, len(item.Manifest.Components))
-	for name := range item.Manifest.Components {
+	names := make([]string, 0, len(candidate.Manifest.Components))
+	for name := range candidate.Manifest.Components {
 		names = append(names, name)
 	}
 	slices.Sort(names)
@@ -137,19 +208,36 @@ func (r *Runner) DeployReport(ctx context.Context, item scenario.Scenario) (Depl
 		if err := ctx.Err(); err != nil {
 			return DeployReport{}, err
 		}
-		component := item.Manifest.Components[name]
-		artifacts, err := componentFreshnessArtifactsContextWithName(ctx, item.SourcePath(), r.Root, item.Slug, name, component, deps)
+		component := candidate.Manifest.Components[name]
+		baselineArtifacts, err := componentFreshnessArtifactsContextWithName(ctx, serving.SourcePath(), r.Root, candidate.Slug, name, component, deps)
 		if err != nil {
-			return DeployReport{}, fmt.Errorf("component %s inputs: %w", name, err)
+			return DeployReport{}, fmt.Errorf("component %s serving baseline: %w", name, err)
 		}
-		for _, art := range artifacts {
-			entry, err := r.deployReportArtifact(name, scenarioDir, art)
+		// With identical effective source roots, the same scenario/component
+		// contract produces the same artifact descriptors. Reuse them to avoid
+		// repeating input discovery (including Go dependency closure resolution).
+		candidateArtifacts := baselineArtifacts
+		if serving.SourcePath() != candidate.SourcePath() {
+			candidateArtifacts, err = componentFreshnessArtifactsContextWithName(ctx, candidate.SourcePath(), r.Root, candidate.Slug, name, component, deps)
+			if err != nil {
+				return DeployReport{}, fmt.Errorf("component %s candidate inputs: %w", name, err)
+			}
+		}
+		if len(baselineArtifacts) != len(candidateArtifacts) {
+			return DeployReport{}, fmt.Errorf("component %s artifact count differs between serving baseline (%d) and candidate (%d)", name, len(baselineArtifacts), len(candidateArtifacts))
+		}
+		for i, baselineArt := range baselineArtifacts {
+			candidateArt := candidateArtifacts[i]
+			if baselineArt.Target != candidateArt.Target {
+				return DeployReport{}, fmt.Errorf("component %s artifact %d target differs between serving baseline %q and candidate %q", name, i, baselineArt.Target, candidateArt.Target)
+			}
+			entry, err := r.deployReportArtifact(name, scenarioDir, source.servingRepoRoot, serving.SourcePath(), candidate.SourcePath(), baselineArt, candidateArt)
 			if err != nil {
 				return DeployReport{}, fmt.Errorf("component %s: %w", name, err)
 			}
 			entry.Running = DeployRunningNotApplicable
 			if entry.SwitchScan {
-				entry.Running = deployRunningState(art.ArtifactPath, executables, procOK)
+				entry.Running = deployRunningState(baselineArt.ArtifactPath, executables, procOK)
 			}
 			if entry.Baseline != "recorded" || len(entry.Files) > 0 || len(entry.KeyChanges) > 0 || entry.Running == DeployRunningReplaced {
 				report.Changed = true
@@ -160,9 +248,9 @@ func (r *Runner) DeployReport(ctx context.Context, item scenario.Scenario) (Depl
 	return report, nil
 }
 
-func (r *Runner) deployReportArtifact(component, scenarioDir string, art artifactFreshness) (DeployReportArtifact, error) {
-	entry := DeployReportArtifact{Component: component, CheckType: art.CheckType, Target: art.Target, Baseline: "missing"}
-	recorded, ok, err := cliutil.ReadFreshnessManifest(art.ManifestPath)
+func (r *Runner) deployReportArtifact(component, scenarioDir, servingRepoRoot, servingScenarioRoot, candidateScenarioRoot string, baseline, candidate artifactFreshness) (DeployReportArtifact, error) {
+	entry := DeployReportArtifact{Component: component, CheckType: baseline.CheckType, Target: baseline.Target, Baseline: "missing"}
+	recorded, ok, err := cliutil.ReadFreshnessManifest(baseline.ManifestPath)
 	if err != nil || !ok {
 		return entry, nil
 	}
@@ -171,15 +259,15 @@ func (r *Runner) deployReportArtifact(component, scenarioDir string, art artifac
 		builtAt := time.Unix(0, recorded.WrittenAtNS).UTC()
 		entry.BuiltAt = &builtAt
 	}
-	current, err := cliutil.ComputeFreshnessManifest(art.Spec, art.CheckType, art.KeyInputs, 0)
+	current, err := cliutil.ComputeFreshnessManifest(candidate.Spec, candidate.CheckType, candidate.KeyInputs, 0)
 	if err != nil {
 		return entry, err
 	}
 	entry.KeyChanges = deployKeyInputChanges(recorded.KeyInputs, current.KeyInputs)
 
-	walkRoot := art.Spec.ContextRoot
+	walkRoot := candidate.Spec.ContextRoot
 	if strings.TrimSpace(walkRoot) == "" {
-		walkRoot = art.Spec.SourceRoot
+		walkRoot = candidate.Spec.SourceRoot
 	}
 	repoPath := func(rel string) string {
 		return relUnder(r.Root, filepath.Join(walkRoot, filepath.FromSlash(rel)))
@@ -188,7 +276,7 @@ func (r *Runner) deployReportArtifact(component, scenarioDir string, art artifac
 	// file sets, not the entry lists.
 	before := make(map[string]string, len(recorded.Files))
 	for _, file := range recorded.Files {
-		before[file.Rel] = file.Hash
+		before[reportInputKey(file.Rel, baseline.Spec, servingRepoRoot, servingScenarioRoot, candidateScenarioRoot, r.Root)] = file.Hash
 	}
 	now := make(map[string]string, len(current.Files))
 	for _, file := range current.Files {
@@ -253,6 +341,37 @@ func (r *Runner) deployReportArtifact(component, scenarioDir string, art artifac
 		}
 	}
 	return entry, nil
+}
+
+// reportInputKey maps an input recorded from the serving tree to the same
+// repository-relative key used by the candidate freshness spec. The freshness
+// manifest remains the hash authority; this only reconciles the two roots so
+// identical source files are not reported as removed and re-added.
+func reportInputKey(rel string, baseline cliutil.FreshnessSpec, servingRepoRoot, servingScenarioRoot, candidateScenarioRoot, candidateContextRoot string) string {
+	if strings.TrimSpace(servingRepoRoot) == "" || strings.TrimSpace(servingScenarioRoot) == "" || strings.TrimSpace(candidateScenarioRoot) == "" {
+		return rel
+	}
+	base := baseline.ContextRoot
+	if strings.TrimSpace(base) == "" {
+		base = baseline.SourceRoot
+	}
+	if strings.TrimSpace(base) == "" {
+		return rel
+	}
+	absolute := filepath.Clean(filepath.Join(base, filepath.FromSlash(rel)))
+	if pathUnderRoot(servingScenarioRoot, absolute) {
+		suffix, err := filepath.Rel(servingScenarioRoot, absolute)
+		if err == nil {
+			return filepath.ToSlash(relUnder(candidateContextRoot, filepath.Join(candidateScenarioRoot, suffix)))
+		}
+	}
+	if pathUnderRoot(servingRepoRoot, absolute) {
+		repoRel, err := filepath.Rel(servingRepoRoot, absolute)
+		if err == nil {
+			return filepath.ToSlash(repoRel)
+		}
+	}
+	return rel
 }
 
 // recordEnvSwitches stores the switch names of a Go build in its manifest so a

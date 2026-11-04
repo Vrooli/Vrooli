@@ -2,11 +2,14 @@ package resources
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
+	"net/http"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/vrooli/vrooli/internal/accel"
 	"github.com/vrooli/vrooli/internal/capacity"
@@ -14,6 +17,7 @@ import (
 	"github.com/vrooli/vrooli/internal/gpuaccess"
 	resourcecontrol "github.com/vrooli/vrooli/internal/resources/control"
 	"github.com/vrooli/vrooli/internal/scenarioruntime"
+	valuehelpers "github.com/vrooli/vrooli/internal/values"
 )
 
 const (
@@ -122,9 +126,44 @@ func placementTargetFor(ctx context.Context, controller *Controller, manifest Re
 				process.Serving = true
 			}
 		}
+		if process.Serving && manifest.Acceleration != nil && manifest.Acceleration.IdleProbe != "" {
+			absent, err := probeWorkloadIdle(ctx, manifest.Acceleration.IdleProbe)
+			if err != nil {
+				return nil, false, err
+			}
+			process.WorkloadAbsent = absent
+		}
 		return process, true, nil
 	}
 	return nil, false, nil
+}
+
+// probeWorkloadIdle accepts only explicit bounded JSON evidence. Missing fields,
+// redirects, and unavailable probes produce unknown placement, never invented CPU.
+func probeWorkloadIdle(parent context.Context, endpoint string) (bool, error) {
+	ctx, cancel := context.WithTimeout(parent, 2*time.Second)
+	defer cancel()
+	request, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, nil)
+	if err != nil {
+		return false, err
+	}
+	client := &http.Client{CheckRedirect: func(*http.Request, []*http.Request) error { return fmt.Errorf("idle probe redirects refused") }}
+	response, err := client.Do(request)
+	if err != nil {
+		return false, fmt.Errorf("workload idle probe unavailable: %w", err)
+	}
+	defer response.Body.Close()
+	raw, err := io.ReadAll(io.LimitReader(response.Body, 65537))
+	if err != nil {
+		return false, err
+	}
+	var status struct {
+		Active *bool `json:"workload_active"`
+	}
+	if response.StatusCode != http.StatusOK || len(raw) > 65536 || json.Unmarshal(raw, &status) != nil || status.Active == nil {
+		return false, fmt.Errorf("workload idle probe requires workload_active boolean in bounded 200 JSON")
+	}
+	return !*status.Active, nil
 }
 
 func noWorkloadReasonFor(manifest ResourceManifest) string {
@@ -245,6 +284,53 @@ func applyGPUOverride(readiness accel.ReadinessResult, spec accel.Spec) (accel.R
 		return readiness, gpuOverrideEnvVar + "=on forced the declared backend regardless of the host probe"
 	}
 	return readiness, ""
+}
+
+// managedServiceBackendEnvironment applies the selected backend's declared
+// process configuration after generic environment/config files. Selecting CPU
+// must actually constrain an auto-detecting daemon, not just change its ledger.
+func managedServiceBackendEnvironment(ctx context.Context, manifest ResourceManifest, env []string) ([]string, error) {
+	declaration := manifest.EffectiveAcceleration()
+	if declaration == nil || len(declaration.Backends) == 0 {
+		return env, nil
+	}
+	hasEnvironment := false
+	for _, backend := range declaration.Backends {
+		if config, ok := declaration.Config(backend); ok && len(config.Env) > 0 {
+			hasEnvironment = true
+			break
+		}
+	}
+	if !hasEnvironment {
+		return env, nil
+	}
+	backends, err := accel.ParseBackends(declaration.Backends)
+	if err != nil {
+		return nil, err
+	}
+	selected := backends[0]
+	switch gpuOverride() {
+	case "off":
+		selected = accel.BackendCPU
+	case "on":
+	default:
+		// Single-backend declarations need no host probe to choose their env.
+		if len(backends) > 1 {
+			readiness, err := accel.Readiness(ctx, accelFactSource, accel.Spec{Resource: manifest.Name, Backends: backends, Require: declaration.EffectiveRequire()})
+			if err != nil {
+				return nil, fmt.Errorf("select managed-service backend environment: %w", err)
+			}
+			selected = readiness.Selected
+		}
+	}
+	config, ok := declaration.Config(string(selected))
+	if !ok {
+		return nil, fmt.Errorf("resource %q has no configuration for selected backend %s", manifest.Name, selected)
+	}
+	for key, value := range config.Env {
+		env = valuehelpers.SetEnv(env, key, value)
+	}
+	return env, nil
 }
 
 // applyHealthToStatus is the single place a health verdict becomes a status

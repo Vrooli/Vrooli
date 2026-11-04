@@ -91,6 +91,26 @@ func TestSystemdUnitRunsOnlyInternalBrokerWithExplicitCallerIdentity(t *testing.
 	}
 }
 
+func TestSystemdUnitProvidesWritableTemporaryStorageForUFW(t *testing.T) {
+	unit := systemdUnit("/usr/local/lib/vrooli/vrooli-privilege-broker", 1000, 1000)
+	temporaryRoot := ""
+	for _, line := range strings.Split(unit, "\n") {
+		if strings.HasPrefix(line, "Environment=") {
+			for _, field := range strings.Fields(strings.TrimPrefix(line, "Environment=")) {
+				if strings.HasPrefix(field, "TMPDIR=") {
+					temporaryRoot = strings.TrimPrefix(field, "TMPDIR=")
+				}
+			}
+		}
+	}
+	if temporaryRoot == "" {
+		t.Fatal("UFW rule persistence needs a writable temporary directory while host /tmp and /var/tmp stay read-only")
+	}
+	if !strings.HasPrefix(temporaryRoot, "/run/vrooli") || !strings.Contains(unit, "ReadWritePaths=/run/vrooli ") || !strings.Contains(unit, "ReadOnlyPaths=/tmp /var/tmp") {
+		t.Fatalf("temporary storage must be inside the existing managed writable root, preserving host observation restrictions: %s", unit)
+	}
+}
+
 func TestCopyAtomicallyReplacesExistingBrokerBinary(t *testing.T) {
 	dir := t.TempDir()
 	source := filepath.Join(dir, "source")

@@ -29,7 +29,7 @@ func TestPeerRecordPermissions(t *testing.T) {
 	if info.Mode().Perm() != 0o600 {
 		t.Fatalf("mode = %o", info.Mode().Perm())
 	}
-	if err := removePeerRecord(home, "authority"); err != nil {
+	if err := removePeerRecord(home, "authority", os.Getpid()); err != nil {
 		t.Fatalf("remove peer record: %v", err)
 	}
 }
@@ -44,7 +44,7 @@ func TestRemovePeerRecordIsScopedToInstance(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	if err := removePeerRecord(home, "demo@shadow"); err != nil {
+	if err := removePeerRecord(home, "demo@shadow", os.Getpid()); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := peerrecord.Read(home, "demo@shadow"); !os.IsNotExist(err) {

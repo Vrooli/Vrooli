@@ -30,8 +30,9 @@ const ProtoArtifactStampPath = "packages/proto/gen/.vrooli-proto-artifact.json"
 // SharedSourceRoot is one repo-relative path (directory or file) a scenario
 // build reads outside the scenario directory, with the reference requiring it.
 type SharedSourceRoot struct {
-	Path   string
-	Reason string
+	Path        string
+	Reason      string
+	KeepOutputs []string
 }
 
 // SharedSourceRoots lists the repository sources a scenario's declared
@@ -165,6 +166,7 @@ type sharedRootCollector struct {
 	repo        string
 	scenarioDir string
 	roots       map[string]string
+	keepOutputs map[string]struct{}
 }
 
 // add records a repo-relative root unless it lies inside the scenario (which
@@ -336,6 +338,16 @@ func (c *sharedRootCollector) addPackageRoot(component, target, reason string, s
 		if err := requireBuiltOutputs(pkg, target); err != nil {
 			return fmt.Errorf("component %s: %s: %w", component, reason, err)
 		}
+		if c.keepOutputs == nil {
+			c.keepOutputs = map[string]struct{}{}
+		}
+		for _, command := range append(append([]packagegov.CommandSpec{}, pkg.Manifest.Package.Lifecycle.Generate...), pkg.Manifest.Package.Lifecycle.Build...) {
+			for _, output := range command.Outputs {
+				if prefix := sharedOutputPrefix(output); prefix != "" {
+					c.keepOutputs[path.Join(rel, prefix)] = struct{}{}
+				}
+			}
+		}
 		for _, required := range pkg.Manifest.Package.Lifecycle.Requires {
 			requiredRoot := filepath.Join(c.repo, "packages", strings.TrimSpace(required))
 			if err := c.addPackageRoot(component, requiredRoot, "requires:"+required, seen); err != nil {
@@ -355,12 +367,8 @@ func (c *sharedRootCollector) addPackageRoot(component, target, reason string, s
 func requireBuiltOutputs(pkg packagegov.Package, root string) error {
 	for _, command := range append(append([]packagegov.CommandSpec{}, pkg.Manifest.Package.Lifecycle.Generate...), pkg.Manifest.Package.Lifecycle.Build...) {
 		for _, output := range command.Outputs {
-			prefix := strings.TrimSpace(output)
-			if index := strings.IndexAny(prefix, "*?["); index >= 0 {
-				prefix = prefix[:index]
-			}
-			prefix = strings.TrimSuffix(prefix, "/")
-			if prefix == "" || prefix == "node_modules" || strings.HasPrefix(prefix, "node_modules/") {
+			prefix := sharedOutputPrefix(output)
+			if prefix == "" {
 				continue
 			}
 			if _, err := os.Stat(filepath.Join(root, filepath.FromSlash(prefix))); err != nil {
@@ -369,6 +377,18 @@ func requireBuiltOutputs(pkg packagegov.Package, root string) error {
 		}
 	}
 	return nil
+}
+
+func sharedOutputPrefix(output string) string {
+	prefix := strings.TrimSpace(filepath.ToSlash(output))
+	if index := strings.IndexAny(prefix, "*?["); index >= 0 {
+		prefix = prefix[:index]
+	}
+	prefix = strings.TrimSuffix(prefix, "/")
+	if prefix == "" || prefix == "node_modules" || strings.HasPrefix(prefix, "node_modules/") {
+		return ""
+	}
+	return prefix
 }
 
 var configRelativePathRE = regexp.MustCompile(`["'](\.\.?/[^"'\s]*)["']`)
@@ -455,6 +475,14 @@ func (c *sharedRootCollector) compact() []SharedSourceRoot {
 		if !nested {
 			out = append(out, SharedSourceRoot{Path: rel, Reason: c.roots[rel]})
 		}
+	}
+	for i := range out {
+		for output := range c.keepOutputs {
+			if strings.HasPrefix(output, out[i].Path+"/") {
+				out[i].KeepOutputs = append(out[i].KeepOutputs, strings.TrimPrefix(output, out[i].Path+"/"))
+			}
+		}
+		sort.Strings(out[i].KeepOutputs)
 	}
 	return out
 }

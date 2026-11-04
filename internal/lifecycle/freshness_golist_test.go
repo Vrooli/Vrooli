@@ -2,12 +2,14 @@ package lifecycle
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"reflect"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -422,19 +424,19 @@ func TestGoListFreshnessInputs_RealRepo(t *testing.T) {
 		t.Fatal("expected real go list to resolve the import closure")
 	}
 
-	var hasOwnDir, hasPackage bool
+	var hasOwnSource, hasPackage bool
 	for _, in := range inputs {
 		switch {
-		case in == "scenarios/tidiness-manager/api":
-			hasOwnDir = true
+		case in == "scenarios/tidiness-manager/api/main.go":
+			hasOwnSource = true
 		case strings.HasPrefix(in, "packages/"):
 			hasPackage = true
 		case strings.HasPrefix(in, "scenarios/") && !strings.HasPrefix(in, "scenarios/tidiness-manager/"):
 			t.Errorf("input set leaks an unrelated scenario: %q", in)
 		}
 	}
-	if !hasOwnDir {
-		t.Errorf("input set missing the binary's own package dir; got %v", inputs)
+	if !hasOwnSource {
+		t.Errorf("input set missing the binary's compiled main.go; got %v", inputs)
 	}
 	if !hasPackage {
 		t.Errorf("input set missing imported packages/* (repo-root-replace false-negative not closed); got %v", inputs)
@@ -491,5 +493,69 @@ func TestGoClosureTracksIndependentComponentSourceOutsideRepo(t *testing.T) {
 	}
 	if before == after {
 		t.Fatal("independent component source changed but fingerprint stayed fresh")
+	}
+}
+
+func TestGoClosureExcludesDocsButRetainsEmbeddedAssetsAndNewSources(t *testing.T) {
+	root := t.TempDir()
+	dir := filepath.Join(root, "api")
+	for name, contents := range map[string]string{"go.mod": "module example\n", "main.go": "package main\n", "DESIGN.md": "documentation", "assets/message.txt": "one"} {
+		writeFreshnessBuildInputFile(t, filepath.Join(dir, name), contents)
+	}
+	calls := 0
+	deps := defaultHostProbeDeps()
+	deps.cache = &hostProbeCache{}
+	deps.goListJSONContext = nil
+	deps.goListJSON = func(string) ([]byte, error) {
+		calls++
+		files, _ := filepath.Glob(filepath.Join(dir, "*.go"))
+		names := []string{}
+		for _, file := range files {
+			names = append(names, filepath.Base(file))
+		}
+		embeds, _ := filepath.Glob(filepath.Join(dir, "assets", "*"))
+		embedded := []string{}
+		for _, file := range embeds {
+			rel, _ := filepath.Rel(dir, file)
+			embedded = append(embedded, rel)
+		}
+		return json.Marshal(map[string]any{"Dir": dir, "GoFiles": names, "EmbedFiles": embedded, "EmbedPatterns": []string{"assets/*"}, "Module": map[string]string{"Dir": dir, "GoMod": filepath.Join(dir, "go.mod")}})
+	}
+	resolve := func() cliutil.FreshnessSpec {
+		inputs, ok := goListFreshnessInputs(dir, root, deps)
+		if !ok {
+			t.Fatal("closure unavailable")
+		}
+		return cliutil.FreshnessSpec{SourceRoot: dir, ContextRoot: root, Inputs: inputs}
+	}
+	spec := resolve()
+	manifest, err := cliutil.ComputeFreshnessManifest(spec, "go_module", nil, 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	writeFreshnessBuildInputFile(t, filepath.Join(dir, "DESIGN.md"), "changed documentation")
+	current := resolve()
+	verdict, err := cliutil.EvaluateFreshness(current, manifest, nil)
+	if err != nil || verdict.Stale {
+		t.Fatalf("uncompiled documentation invalidated build: %+v %v", verdict, err)
+	}
+	if calls != 1 {
+		t.Fatalf("doc edit invalidated dependency cache: calls=%d", calls)
+	}
+	writeFreshnessBuildInputFile(t, filepath.Join(dir, "assets/message.txt"), "two")
+	verdict, err = cliutil.EvaluateFreshness(resolve(), manifest, nil)
+	if err != nil || !verdict.Stale {
+		t.Fatalf("embedded bytes must invalidate: %+v %v", verdict, err)
+	}
+	// Additions must expand cached file lists even when the import source is unchanged.
+	writeFreshnessBuildInputFile(t, filepath.Join(dir, "assets/new.txt"), "new embedded asset")
+	spec = resolve()
+	if !slices.Contains(spec.Inputs, "api/assets/new.txt") {
+		t.Fatalf("new embed missing: %v", spec.Inputs)
+	}
+	writeFreshnessBuildInputFile(t, filepath.Join(dir, "extra.go"), "package main\n")
+	spec = resolve()
+	if !slices.Contains(spec.Inputs, "api/extra.go") {
+		t.Fatalf("new Go source missing: %v", spec.Inputs)
 	}
 }

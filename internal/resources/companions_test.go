@@ -1,11 +1,17 @@
 package resources
 
 import (
+	"bufio"
+	"fmt"
 	"io"
+	"net"
 	"os"
+	"os/exec"
+	"os/signal"
 	"path/filepath"
 	"strconv"
 	"strings"
+	"syscall"
 	"testing"
 	"time"
 
@@ -25,6 +31,48 @@ func TestStartCompanionsDormant(t *testing.T) {
 	stopCompanions("plain-resource", nil, io.Discard)
 	if called {
 		t.Error("no companions declared must not touch the companion dir")
+	}
+}
+
+func TestCompanionStartRecoversUniqueOwnedProcessWithoutLaunching(t *testing.T) {
+	dir := t.TempDir()
+	defer withCompanionDir(t, func(string) (string, error) { return dir, nil })()
+	previous := findExistingCompanion
+	t.Cleanup(func() { findExistingCompanion = previous })
+	findExistingCompanion = func(resource string, c ResourceCompanion, bin string, parent int) (int, error) {
+		if resource != "fixture" || c.Name != "edge" || parent != 42 {
+			t.Fatalf("wrong recovery identity %q %q %d", resource, c.Name, parent)
+		}
+		return os.Getpid(), nil
+	}
+	// Running this command would create an unrelated sleeper; recovery must not.
+	if err := startCompanion("fixture", ResourceCompanion{Name: "edge", Command: "sleep", Args: []string{"30"}}, 0, 42); err != nil {
+		t.Fatal(err)
+	}
+	for _, suffix := range []string{"pid", "state"} {
+		if pid, ok := readCompanionPID(filepath.Join(dir, "edge."+suffix)); !ok || pid != os.Getpid() {
+			t.Fatalf("recovered %s=%d valid=%t", suffix, pid, ok)
+		}
+	}
+	if _, err := os.Stat(filepath.Join(dir, "edge.log")); !os.IsNotExist(err) {
+		t.Fatal("recovery opened a new launch log", err)
+	}
+}
+
+func TestCompanionStartRefusesAmbiguousRecoveryWithoutLaunching(t *testing.T) {
+	dir := t.TempDir()
+	defer withCompanionDir(t, func(string) (string, error) { return dir, nil })()
+	previous := findExistingCompanion
+	t.Cleanup(func() { findExistingCompanion = previous })
+	findExistingCompanion = func(string, ResourceCompanion, string, int) (int, error) {
+		return 0, fmt.Errorf("ambiguous companion scope")
+	}
+	if err := startCompanion("fixture", ResourceCompanion{Name: "edge", Command: "sleep", Args: []string{"30"}}, 0, 42); err == nil {
+		t.Fatal("ambiguous recovery launched another process")
+	}
+	entries, err := os.ReadDir(dir)
+	if err != nil || len(entries) != 0 {
+		t.Fatalf("ambiguous recovery changed ownership: %v %v", entries, err)
 	}
 }
 
@@ -242,4 +290,55 @@ func withCompanionDir(t *testing.T, fn func(string) (string, error)) func() {
 	prev := resolveCompanionDir
 	resolveCompanionDir = fn
 	return func() { resolveCompanionDir = prev }
+}
+
+func TestCompanionStopWaitsForPortReleaseBeforeDiscardingOwnership(t *testing.T) {
+	dir := t.TempDir()
+	defer withCompanionDir(t, func(string) (string, error) { return dir, nil })()
+	cmd := exec.Command(os.Args[0], "-test.run=^TestCompanionDelayedStopFixture$")
+	cmd.Env = append(os.Environ(), "VROOLI_COMPANION_DELAYED_STOP=1")
+	stdout, err := cmd.StdoutPipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := cmd.Start(); err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = cmd.Process.Kill(); _ = cmd.Wait() }()
+	address, err := bufio.NewReader(stdout).ReadString('\n')
+	if err != nil {
+		t.Fatal(err)
+	}
+	address = strings.TrimSpace(address)
+	if err := os.WriteFile(filepath.Join(dir, "edge.pid"), []byte(strconv.Itoa(cmd.Process.Pid)), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if err := stopCompanion("fixture", ResourceCompanion{Name: "edge"}); err != nil {
+		t.Fatal(err)
+	}
+	listener, err := net.Listen("tcp", address)
+	if err != nil {
+		t.Fatalf("stop returned before public port release: %v", err)
+	}
+	listener.Close()
+	if _, err := os.Stat(filepath.Join(dir, "edge.pid")); !os.IsNotExist(err) {
+		t.Fatal("finished ownership not cleared", err)
+	}
+}
+
+func TestCompanionDelayedStopFixture(t *testing.T) {
+	if os.Getenv("VROOLI_COMPANION_DELAYED_STOP") != "1" {
+		return
+	}
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		os.Exit(2)
+	}
+	signals := make(chan os.Signal, 1)
+	signal.Notify(signals, os.Interrupt, syscall.SIGTERM)
+	fmt.Fprintln(os.Stdout, listener.Addr().String())
+	<-signals
+	time.Sleep(200 * time.Millisecond)
+	listener.Close()
+	os.Exit(0)
 }

@@ -2,6 +2,8 @@ package volumeremediation
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -64,12 +66,81 @@ func (o *HostObserver) Observe(ctx context.Context, devicePath string) (State, e
 		return o.observeLinux(ctx, devicePath)
 	case string(hostreqspec.PlatformDarwin):
 		return o.observeDarwin(ctx, devicePath)
+	case string(hostreqspec.PlatformWindows):
+		return o.observeWindows(ctx, devicePath)
 	default:
 		return State{}, ErrUnsupported{
 			Reason:          "no volume observation adapter for " + o.goos,
 			OperatorCommand: "Get-Volume | Format-List",
 		}
 	}
+}
+
+// observeWindows reads the volume and backing-disk identity through
+// PowerShell's storage cmdlets. Get-Volume is read-only and returns the
+// volume's stable UniqueId even when the filesystem is not mounted. Windows
+// does not expose a portable clean/dirty filesystem verdict through this
+// inventory, so Dirty deliberately remains unknown.
+func (o *HostObserver) observeWindows(ctx context.Context, devicePath string) (State, error) {
+	selector := ""
+	query := ""
+	if len(devicePath) == 2 && devicePath[1] == ':' {
+		letter := strings.ToUpper(devicePath[:1])
+		selector = letter + ":"
+		query = "Get-Volume -DriveLetter '" + letter + "'"
+	} else if windowsVolumeGUIDPattern.MatchString(devicePath) {
+		selector = devicePath
+		query = "Get-Volume -UniqueId '" + devicePath + "'"
+	} else {
+		return State{}, ErrInvalid{Field: "device.path", Reason: "Windows volume observation requires a drive letter or stable volume GUID"}
+	}
+	state := State{Device: Device{Path: selector}, Dirty: TristateUnknown}
+	if o.run == nil {
+		return state, fmt.Errorf("PowerShell volume observer is unavailable")
+	}
+	// The drive-letter and volume-GUID selectors are restricted by
+	// validateDevicePath. Get-Volume by UniqueId keeps this lookup stable even
+	// when Windows has not assigned a drive letter after reboot.
+	script := fmt.Sprintf("$v = %s -ErrorAction Stop; $p = Get-Partition -Volume $v -ErrorAction SilentlyContinue | Select-Object -First 1; $d = if ($p) { Get-Disk -Number $p.DiskNumber -ErrorAction SilentlyContinue }; [pscustomobject]@{ DriveLetter=$v.DriveLetter; FileSystem=$v.FileSystem; UniqueId=$v.UniqueId; Size=$v.Size; FileSystemLabel=$v.FileSystemLabel; SerialNumber=$d.SerialNumber; IsReadOnly=$d.IsReadOnly } | ConvertTo-Json -Compress", query)
+	out, err := o.run(ctx, []string{"powershell", "-NoProfile", "-NonInteractive", "-Command", script})
+	if err != nil {
+		return state, fmt.Errorf("query Windows volume inventory: %w", err)
+	}
+	var record struct {
+		DriveLetter     string `json:"DriveLetter"`
+		FileSystem      string `json:"FileSystem"`
+		UniqueID        string `json:"UniqueId"`
+		Size            int64  `json:"Size"`
+		FileSystemLabel string `json:"FileSystemLabel"`
+		SerialNumber    string `json:"SerialNumber"`
+		IsReadOnly      *bool  `json:"IsReadOnly"`
+	}
+	if err := json.Unmarshal(out, &record); err != nil {
+		return state, fmt.Errorf("decode Windows volume inventory: %w", err)
+	}
+	if strings.TrimSpace(record.UniqueID) == "" {
+		return state, fmt.Errorf("Windows volume inventory returned no stable volume identity")
+	}
+	if record.IsReadOnly == nil {
+		return state, fmt.Errorf("Windows volume inventory could not determine whether the backing disk is read-only")
+	}
+	state.Device.Filesystem = strings.TrimSpace(record.FileSystem)
+	state.Device.UUID = strings.TrimSpace(record.UniqueID)
+	state.Device.Serial = strings.TrimSpace(record.SerialNumber)
+	state.Device.TotalBytes = record.Size
+	state.Mounted = strings.TrimSpace(record.DriveLetter) != ""
+	state.ReadOnly = *record.IsReadOnly
+	if state.Mounted {
+		state.Device.Mountpoint = strings.ToUpper(strings.TrimSpace(record.DriveLetter)) + `:\`
+		state.Observations = append(state.Observations, "volume mounted at "+state.Device.Mountpoint)
+	} else {
+		state.Observations = append(state.Observations, "volume is visible but not mounted; Windows manages attachment")
+	}
+	state.Observations = append(state.Observations, "filesystem consistency is unknown; Windows volume inventory does not publish a clean/dirty verdict")
+	if state.ReadOnly {
+		state.Observations = append(state.Observations, "backing disk is read-only")
+	}
+	return state, nil
 }
 
 func (o *HostObserver) observeLinux(ctx context.Context, devicePath string) (State, error) {
@@ -84,6 +155,7 @@ func (o *HostObserver) observeLinux(ctx context.Context, devicePath string) (Sta
 	if mounted {
 		state.Device.Mountpoint = mountpoint
 		state.Device.Filesystem = fstype
+		state.Device.MountDriver = fstype
 		state.ReadOnly = hasOption(opts, "ro")
 		observations = append(observations, "mount: "+mountpoint+" ("+fstype+")")
 	} else {
@@ -219,9 +291,11 @@ func (o *HostObserver) linuxUUID(devicePath string) string {
 
 var lsblkProperty = regexp.MustCompile(`([A-Z]+)="([^"]*)"`)
 
-// enrichWithLsblk fills identity fields the filesystem evidence cannot supply —
-// notably the serial, and the filesystem type of an unmounted volume. A failure
-// leaves the fields unset, which the safety gates treat as unprovable identity.
+// enrichWithLsblk fills stable identity and on-disk filesystem fields that the
+// mount table cannot supply — notably the serial and the format hidden behind
+// generic userspace drivers such as fuseblk. MountDriver remains the active
+// mount-table value so safety policy can still distinguish NTFS-3G from ntfs3.
+// A failure leaves fields unset, which safety gates treat as unproven.
 func (o *HostObserver) enrichWithLsblk(ctx context.Context, devicePath string, device *Device) {
 	if o.run == nil {
 		return
@@ -245,7 +319,7 @@ func (o *HostObserver) enrichWithLsblk(ctx context.Context, devicePath string, d
 				device.Serial = value
 			}
 		case "FSTYPE":
-			if device.Filesystem == "" {
+			if device.Filesystem == "" || strings.EqualFold(strings.TrimSpace(device.MountDriver), "fuseblk") {
 				device.Filesystem = value
 			}
 		}
@@ -294,8 +368,24 @@ func (o *HostObserver) observeDarwin(ctx context.Context, devicePath string) (St
 	if o.run == nil {
 		return state, nil
 	}
+	info, infoErr := o.run(ctx, []string{"diskutil", "info", devicePath})
+	if infoErr == nil {
+		fields := diskutilInfoFields(string(info))
+		state.Device.UUID = firstNonEmptyVolumeValue(fields["Volume UUID"], fields["Disk / Partition UUID"])
+		state.Device.Filesystem = firstNonEmptyVolumeValue(fields["File System Personality"], fields["File System"])
+		mountpoint := strings.TrimSpace(fields["Mount Point"])
+		if strings.Contains(strings.ToLower(mountpoint), "not mounted") || strings.Contains(strings.ToLower(mountpoint), "not applicable") {
+			mountpoint = ""
+		}
+		state.Device.Mountpoint = mountpoint
+		state.Mounted = strings.EqualFold(strings.TrimSpace(fields["Mounted"]), "yes") || mountpoint != ""
+		state.ReadOnly = strings.EqualFold(strings.TrimSpace(fields["Read-Only Volume"]), "yes") || strings.EqualFold(strings.TrimSpace(fields["Read-Only Media"]), "yes")
+	}
 	out, err := o.run(ctx, []string{"mount"})
 	if err != nil {
+		if infoErr != nil {
+			return state, fmt.Errorf("inspect macOS volume with diskutil and mount: diskutil: %v; mount: %w", infoErr, err)
+		}
 		return state, nil
 	}
 	for _, line := range strings.Split(string(out), "\n") {
@@ -311,7 +401,10 @@ func (o *HostObserver) observeDarwin(ctx context.Context, devicePath string) (St
 			attrs = strings.TrimSuffix(strings.TrimSpace(attrs), ")")
 			parts := strings.Split(attrs, ",")
 			if len(parts) > 0 {
-				state.Device.Filesystem = strings.TrimSpace(parts[0])
+				state.Device.MountDriver = strings.TrimSpace(parts[0])
+				if state.Device.Filesystem == "" {
+					state.Device.Filesystem = state.Device.MountDriver
+				}
 			}
 			for _, part := range parts {
 				if strings.EqualFold(strings.TrimSpace(part), "read-only") {
@@ -322,8 +415,39 @@ func (o *HostObserver) observeDarwin(ctx context.Context, devicePath string) (St
 		state.Observations = append(state.Observations, "mount: "+state.Device.Mountpoint)
 		return state, nil
 	}
-	state.Observations = append(state.Observations, "not mounted")
+	if state.Mounted {
+		state.Observations = append(state.Observations, "mounted at "+state.Device.Mountpoint+" (diskutil info)")
+	} else {
+		state.Device.Mountpoint = ""
+		state.Observations = append(state.Observations, "not mounted")
+	}
+	if infoErr != nil {
+		return state, fmt.Errorf("inspect unmounted macOS volume identity: %w", infoErr)
+	}
+	if state.Device.UUID == "" {
+		return state, fmt.Errorf("diskutil did not report a stable volume UUID")
+	}
 	return state, nil
+}
+
+func diskutilInfoFields(output string) map[string]string {
+	fields := make(map[string]string)
+	for _, line := range strings.Split(output, "\n") {
+		key, value, ok := strings.Cut(line, ":")
+		if ok {
+			fields[strings.TrimSpace(key)] = strings.TrimSpace(value)
+		}
+	}
+	return fields
+}
+
+func firstNonEmptyVolumeValue(values ...string) string {
+	for _, value := range values {
+		if strings.TrimSpace(value) != "" {
+			return strings.TrimSpace(value)
+		}
+	}
+	return ""
 }
 
 func hasOption(opts []string, want string) bool {

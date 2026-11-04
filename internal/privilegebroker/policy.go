@@ -17,7 +17,18 @@ func Validate(req Request) error {
 	if strings.TrimSpace(req.RequestID) == "" || len(req.RequestID) > 128 {
 		return fmt.Errorf("invalid_request_id")
 	}
+	if req.LocalAdmission != nil && req.Action != ActionLocalAdmissionInspect && req.Action != ActionLocalAdmissionEnsure && req.Action != ActionLocalAdmissionRevoke {
+		return fmt.Errorf("subject_not_allowed")
+	}
+	if req.SMART != nil && req.Action != ActionVolumeSMARTInspect {
+		return fmt.Errorf("subject_not_allowed")
+	}
 	switch req.Action {
+	case ActionLocalAdmissionInspect, ActionLocalAdmissionEnsure, ActionLocalAdmissionRevoke:
+		if req.LocalAdmission == nil || !admissionID.MatchString(req.LocalAdmission.Binding) || req.Subject != (Subject{}) || req.Volume != nil || req.RuntimeHome != nil || req.Log != nil || req.Journal != nil || req.Docker != nil || req.Apt != nil || req.Edge != nil || req.Process != nil || req.Caddy != nil {
+			return fmt.Errorf("local_binding_subject_required")
+		}
+		return nil
 	case ActionTemporaryActivityObserve, ActionCapabilitiesInspect:
 		if req.Subject != (Subject{}) || req.Volume != nil || req.RuntimeHome != nil || req.Log != nil || req.Journal != nil || req.Docker != nil || hasCloudSubject(req) {
 			return fmt.Errorf("subject_not_allowed")
@@ -27,6 +38,8 @@ func Validate(req Request) error {
 		return validateBridge(req)
 	case ActionVolumeFilesystemCheck, ActionVolumeFilesystemRepair:
 		return validateVolume(req)
+	case ActionVolumeSMARTInspect:
+		return validateSMART(req)
 	case ActionRuntimeHomeOwnershipRepair:
 		return validateRuntimeHome(req)
 	case ActionLogRotateForce, ActionJournaldVacuum, ActionDockerPruneUnusedImages, ActionDockerPruneUnusedVolumes:
@@ -44,12 +57,35 @@ func Validate(req Request) error {
 	}
 }
 
+func validateSMART(req Request) error {
+	if req.SMART == nil || req.Volume != nil || req.RuntimeHome != nil || req.Log != nil || req.Journal != nil || req.Docker != nil || req.Apt != nil || req.Edge != nil || req.Process != nil || req.Caddy != nil || req.LocalAdmission != nil || req.Subject != (Subject{}) {
+		return fmt.Errorf("smart_subject_required")
+	}
+	device := strings.TrimSpace(req.SMART.Device)
+	serial := strings.TrimSpace(req.SMART.Serial)
+	if device == "" || strings.Contains(device, "..") || !volumeDevicePattern.MatchString(device) {
+		return fmt.Errorf("invalid_device")
+	}
+	if serial == "" || len(serial) > 128 || !smartSerialPattern.MatchString(serial) {
+		return fmt.Errorf("device_identity_required")
+	}
+	return nil
+}
+
+// SMARTArgs returns a fixed read-only health and attribute query.
+func SMARTArgs(req Request) (string, []string, error) {
+	if err := Validate(req); err != nil {
+		return "", nil, fmt.Errorf("validate privileged SMART request: %w", err)
+	}
+	return "smartctl", []string{"-j", "-H", "-A", strings.TrimSpace(req.SMART.Device)}, nil
+}
+
 const managedLogStanza = "vrooli-log-volume-bounds"
 
 // hasCloudSubject reports whether any cloud-target subject is present, so the
 // older action families can refuse a request that smuggles one alongside.
 func hasCloudSubject(req Request) bool {
-	return req.Apt != nil || req.Edge != nil || req.Process != nil || req.Caddy != nil
+	return req.Apt != nil || req.Edge != nil || req.Process != nil || req.Caddy != nil || req.LocalAdmission != nil
 }
 
 func validateStorageAction(req Request) error {
@@ -126,6 +162,7 @@ func validateBridge(req Request) error {
 // so a device string can never smuggle an option or a shell fragment into the
 // argv the policy builds.
 var volumeDevicePattern = regexp.MustCompile(`^/dev/[A-Za-z0-9][A-Za-z0-9._/-]{0,62}$`)
+var smartSerialPattern = regexp.MustCompile(`^[A-Za-z0-9_.:-]+$`)
 
 // volumeFilesystems maps an accepted filesystem type onto its repair family.
 // Membership means a fixed argv exists for that family.

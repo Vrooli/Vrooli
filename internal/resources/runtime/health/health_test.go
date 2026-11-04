@@ -133,3 +133,23 @@ func TestRunCheckCommandLeavesCombinedOutputUnset(t *testing.T) {
 		t.Fatalf("expected command health check to leave stdout/stderr unset, got stdout=%v stderr=%v", captured.Stdout, captured.Stderr)
 	}
 }
+
+func TestCommandHealthUsesCheckContextForExecution(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	called := false
+	result, err := RunCheck(ctx, manifestpkg.ResourceHealthCheck{Type: "command", Command: []string{"test-only-command"}}, Config{Runner: func(checkCtx context.Context, cmd *exec.Cmd) ([]byte, error) {
+		called = true
+		if cmd.Cancel == nil {
+			t.Error("command has no context-owned cancellation")
+		}
+		cancel()
+		if !errors.Is(checkCtx.Err(), context.Canceled) {
+			t.Error("caller cancellation detached from check")
+		}
+		return nil, checkCtx.Err()
+	}})
+	if !called || err != nil || result.Healthy {
+		t.Fatalf("health verdict changed: called=%v result=%+v err=%v", called, result, err)
+	}
+}

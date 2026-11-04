@@ -66,6 +66,7 @@ type Store interface {
 	scenarioruntime.CleanupRepository
 	scenarioruntime.HealthRepository
 	scenarioruntime.RecoveryRepository
+	ExpireStaleEditorLeases(ctx context.Context, at time.Time, guard scenarioruntime.StartingLeaseGuard) ([]scenarioruntime.EditorLease, error)
 	Close() error
 }
 
@@ -332,6 +333,19 @@ func (s *Service) Tick(ctx context.Context) (TickReport, error) {
 		}
 		demandFailures = len(demandReport.Failed)
 		s.logf("demand lease reconciliation stopped=%d failed=%d", demandStopped, demandFailures)
+	}
+	// Editor-session expiry uses the same deadline-plus-proof-of-death rule as
+	// operator cleanup. This retires only bookkeeping for owners proven gone;
+	// it never signals or stops an editor process. Keep this in the supervisor
+	// tick so stale rows do not depend on an operator invoking cleanup.
+	expiredEditors, editorErr := s.store.ExpireStaleEditorLeases(ctx, s.now(), scenarioruntime.StartingLeaseGuard{
+		CurrentBootID: s.host.BootID,
+		PIDRunning:    s.pidRunning,
+	})
+	if editorErr != nil {
+		s.logf("editor lease reconciliation degraded this tick: %v", editorErr)
+	} else if len(expiredEditors) > 0 {
+		s.logf("retired %d editor lease(s) whose process is gone", len(expiredEditors))
 	}
 
 	instances, err := s.store.ListInstances(ctx, scenarioruntime.InstanceFilter{Statuses: scenarioruntime.ActiveInstanceStatuses()})

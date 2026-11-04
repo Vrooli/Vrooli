@@ -37,9 +37,10 @@ type startOperationRecorder struct {
 	// instanceSlug is InstanceKey{scenario, variant}.Slug(). Stop events carry
 	// the instance slug (scenario@variant for non-live), unlike every other
 	// event, so they are filtered against this instead of scenario.
-	instanceSlug string
-	done         chan struct{}
-	cancelled    chan struct{}
+	instanceSlug  string
+	providerFence *providerFence
+	done          chan struct{}
+	cancelled     chan struct{}
 }
 
 func (rec *startOperationRecorder) operationID() string {
@@ -47,6 +48,12 @@ func (rec *startOperationRecorder) operationID() string {
 		return ""
 	}
 	return rec.op.OperationID
+}
+
+func (rec *startOperationRecorder) setProviderFence(fence *providerFence) {
+	if rec != nil {
+		rec.providerFence = fence
+	}
 }
 
 func (rec *startOperationRecorder) context() context.Context {
@@ -59,7 +66,7 @@ func (rec *startOperationRecorder) context() context.Context {
 // beginStartOperationRecord opens the registry and creates a running
 // operation record for a top-level start. Returns nil (no-op) when the
 // registry is unavailable — the start proceeds unrecorded.
-func (r *Runner) beginStartOperationRecord(name string, opts StartOptions) *startOperationRecorder {
+func (r *Runner) beginStartOperationRecord(name string, opts StartOptions) (*startOperationRecorder, error) {
 	deps := r.runtimeDeps()
 	ctx := opts.Context
 	if ctx == nil {
@@ -67,9 +74,12 @@ func (r *Runner) beginStartOperationRecord(name string, opts StartOptions) *star
 	}
 	store, err := deps.runtimeRegistry(ctx, r.Home)
 	if err != nil {
+		if opts.providerFenceOperationID != "" {
+			return nil, errors.Join(errors.New("provider fence is prepared but its recovery link cannot be persisted"), err)
+		}
 		r.logWarn("Start-operation record unavailable; starting unrecorded",
 			logx.AttrScenario, name, "error", err.Error())
-		return nil
+		return nil, nil
 	}
 	// Capture WHO is starting this, not just the PID. The PID is the liveness
 	// signal and dies with the process; argv, the parent, and the OS scope are
@@ -77,6 +87,8 @@ func (r *Runner) beginStartOperationRecord(name string, opts StartOptions) *star
 	// many short-lived CLIs start work concurrently.
 	initiator := deps.captureInitiator()
 	op, err := store.BeginStartOperation(ctx, scenarioruntime.StartOperation{
+		OperationID:         opts.lifecycleOperationID,
+		FenceOperationID:    opts.providerFenceOperationID,
 		Scenario:            name,
 		Variant:             opts.Variant,
 		Operation:           defaultIfEmpty(opts.Operation, "start"),
@@ -89,9 +101,12 @@ func (r *Runner) beginStartOperationRecord(name string, opts StartOptions) *star
 	})
 	if err != nil {
 		_ = store.Close()
+		if opts.providerFenceOperationID != "" {
+			return nil, errors.Join(errors.New("provider fence is prepared but its recovery link cannot be persisted"), err)
+		}
 		r.logWarn("Start-operation record could not be created; starting unrecorded",
 			logx.AttrScenario, name, "error", err.Error())
-		return nil
+		return nil, nil
 	}
 	rec := &startOperationRecorder{
 		runner: r, ctx: ctx, store: store, op: op, scenario: name,
@@ -113,7 +128,21 @@ func (r *Runner) beginStartOperationRecord(name string, opts StartOptions) *star
 		case <-done:
 		}
 	}(op.OperationID, r.Home, ctx, rec.done)
-	return rec
+	return rec, nil
+}
+
+func (rec *startOperationRecorder) linkProviderFence(operationID string) error {
+	if rec == nil {
+		return errors.New("start operation recorder is unavailable for provider fence recovery link")
+	}
+	if rec.store == nil {
+		return errors.New("start operation registry is unavailable for provider fence recovery link")
+	}
+	if err := rec.store.SetStartOperationFenceOperationID(rec.context(), rec.op.OperationID, operationID); err != nil {
+		return err
+	}
+	rec.op.FenceOperationID = operationID
+	return nil
 }
 
 // close releases the recorder's registry handle. If the operation never

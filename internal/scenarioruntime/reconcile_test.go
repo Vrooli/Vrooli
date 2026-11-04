@@ -158,6 +158,60 @@ func TestRuntimeEvidenceHelpersKeepHostInspectionAtTheSeam(t *testing.T) {
 	}
 }
 
+func TestProcessEvidenceForInstanceIncludesOwnerWithoutChildRefs(t *testing.T) {
+	deadPID := 424242
+	livePID := 424243
+	for _, tc := range []struct {
+		name      string
+		pid       int
+		isRunning bool
+		wantDead  bool
+	}{
+		{name: "dead startup owner", pid: deadPID, isRunning: false, wantDead: true},
+		{name: "live startup owner", pid: livePID, isRunning: true, wantDead: false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			instance := Instance{OwnerKind: OwnerKindLifecycle, OwnerPID: &tc.pid}
+			processes := ProcessEvidenceForInstance(instance, nil, func(pid int) bool {
+				if pid != tc.pid {
+					t.Fatalf("probed pid = %d, want owner pid %d", pid, tc.pid)
+				}
+				return tc.isRunning
+			})
+			evidence, ok := processes[strconv.Itoa(tc.pid)]
+			if !ok || !evidence.Known || evidence.Running == tc.wantDead {
+				t.Fatalf("owner evidence = %+v (present=%v), want known running=%v", evidence, ok, !tc.wantDead)
+			}
+		})
+	}
+}
+
+func TestReconcileExpiredStartupUsesOwnerEvidenceWithoutChildRefs(t *testing.T) {
+	now := time.Date(2026, 11, 2, 15, 0, 0, 0, time.UTC)
+	deadline := now.Add(-time.Minute)
+	deadPID := 424242
+	instance := Instance{
+		InstanceID: "inst-startup", Scenario: "web-search", Status: StatusStarting,
+		OwnerKind: OwnerKindLifecycle, OwnerPID: &deadPID,
+		HostBootID: "boot-current", HeartbeatDeadlineAt: &deadline,
+	}
+	dead := ReconcileRuntime(ReconcileInput{
+		Now: now, CurrentBootID: "boot-current", Instance: instance,
+		Processes: ProcessEvidenceForInstance(instance, nil, func(int) bool { return false }),
+	})
+	if dead.Authoritative || dead.Classification != ReconcileStaleInstance {
+		t.Fatalf("dead owner reconciliation = %s authoritative=%v reason=%q, want stale instance", dead.Classification, dead.Authoritative, dead.Reason)
+	}
+
+	live := ReconcileRuntime(ReconcileInput{
+		Now: now, CurrentBootID: "boot-current", Instance: instance,
+		Processes: ProcessEvidenceForInstance(instance, nil, func(int) bool { return true }),
+	})
+	if !live.Authoritative || live.Classification != ReconcileVerifiedRunning {
+		t.Fatalf("live owner reconciliation = %s authoritative=%v reason=%q, want verified running", live.Classification, live.Authoritative, live.Reason)
+	}
+}
+
 func ptrTime(t time.Time) *time.Time {
 	return &t
 }

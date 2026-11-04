@@ -2,6 +2,8 @@ package lifecycle
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"io"
@@ -1042,6 +1044,12 @@ func (r *Runner) startTrackedProcessContext(ctx context.Context, item scenario.S
 	defer file.Close()
 
 	stepEnv := lifecycleStepEnv(phase, env)
+	var generationBytes [16]byte
+	if _, err := rand.Read(generationBytes[:]); err != nil {
+		return newPhaseStepError(item.Slug, phase, step.Name, logFile, err)
+	}
+	generation := hex.EncodeToString(generationBytes[:])
+	stepEnv = values.SetEnv(stepEnv, "VROOLI_COMPONENT_GENERATION", generation)
 	stepEnv = values.SetEnv(stepEnv, "VROOLI_PROCESS_ID", processID)
 	stepEnv = values.SetEnv(stepEnv, "VROOLI_PHASE", phase)
 	stepEnv = values.SetEnv(stepEnv, "VROOLI_SCENARIO", item.Slug)
@@ -1094,20 +1102,25 @@ func (r *Runner) startTrackedProcessContext(ctx context.Context, item scenario.S
 	r.placeServiceProcess(slug, step.Name, cmd.Process.Pid)
 
 	record := process.Record{
-		PID:        cmd.Process.Pid,
-		PGID:       cmd.Process.Pid,
-		ProcessID:  processID,
-		Phase:      phase,
-		Scenario:   item.Slug,
-		Step:       step.Name,
-		Command:    commandText,
-		WorkingDir: workingDir,
-		LogFile:    logFile,
-		Port:       port,
-		PortKey:    declared.PortKey,
-		StartedAt:  time.Now().UTC(),
-		Status:     "running",
+		Generation:        generation,
+		RuntimeInstanceID: strings.TrimSpace(env[runtimeRegistryInstanceEnv]),
+		PID:               cmd.Process.Pid,
+		PGID:              cmd.Process.Pid,
+		ProcessID:         processID,
+		Phase:             phase,
+		Scenario:          item.Slug,
+		Step:              step.Name,
+		Command:           commandText,
+		WorkingDir:        workingDir,
+		LogFile:           logFile,
+		Port:              port,
+		PortKey:           declared.PortKey,
+		StartedAt:         time.Now().UTC(),
+		Status:            "running",
 	}
+	// Unsupported or already exited processes retain an empty identity and
+	// therefore cannot enter the exact-generation component-stop protocol.
+	record.Incarnation, _ = process.Incarnation(cmd.Process.Pid)
 	if err := process.WriteScenarioRecord(r.Home, slug, step.Name, record); err != nil {
 		_ = cmd.Process.Kill()
 		r.releaseContainment(cmd.Process.Pid)

@@ -123,3 +123,15 @@ func TestWorkflowScannerExtractsArgv(t *testing.T) {
 		}
 	}
 }
+
+func TestDesktopConsumersUseCanonicalInvoker(t *testing.T) {
+	callers, err := DeferredCallers()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, caller := range callers {
+		if caller.Scenario == "web-console" || caller.Scenario == "audio-tools" {
+			t.Errorf("bundled caller bypasses canonical invocation owner: %+v", caller)
+		}
+	}
+}

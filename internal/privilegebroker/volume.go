@@ -188,7 +188,7 @@ func volumeExitAcceptable(filesystem string, exitCode int, err error) bool {
 }
 
 func boundedDetail(out []byte) string {
-	const maxDetail = 1024
+	const maxDetail = 8192
 	text := strings.TrimSpace(string(out))
 	if len(text) <= maxDetail {
 		return text

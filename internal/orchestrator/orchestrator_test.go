@@ -3,9 +3,13 @@ package orchestrator
 
 import (
 	"context"
+	"encoding/json"
+	"errors"
 	"io"
 	"log/slog"
 	"net"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"testing"
@@ -262,6 +266,7 @@ func TestInventoryIgnoresRegistryRecordsForUnknownScenarios(t *testing.T) {
 }
 
 func TestStartDetailedUsesInjectedRunnerFactory(t *testing.T) {
+	t.Setenv("VROOLI_SANDBOX_MERGED", "")
 	root := t.TempDir()
 	home := t.TempDir()
 	testscenario.WriteScenarioService(t, root, "alpha", testscenario.ScenarioServiceManifest("alpha", testscenario.WithDisplayName("Alpha"), testscenario.WithDescription("running"), testscenario.WithPorts(map[string]scenario.Port{"api": {EnvVar: "API_PORT", Range: "18080-18090"}})))
@@ -269,26 +274,117 @@ func TestStartDetailedUsesInjectedRunnerFactory(t *testing.T) {
 	writeRegistryRuntime(t, home, "alpha", scenarioruntime.StatusRunning, scenarioruntime.ClaimStatusBound, "api", "API_PORT", port)
 
 	service := New(root, home, io.Discard, io.Discard)
+	startCalls, restartCalls := 0, 0
 	service.newRunner = func(root, home string, stdout, stderr io.Writer, logger ...*slog.Logger) (lifecycleRunner, error) {
 		return fakeLifecycleRunner{
 			startFn: func(name string, opts lifecycle.StartOptions) (lifecycle.Result, error) {
+				startCalls++
+				if name != "alpha" || !opts.BestEffort || opts.CustomPath != "/requested/path" {
+					t.Fatalf("Start args = %q, %+v", name, opts)
+				}
 				return lifecycle.Result{
 					Scenario: scenarioFixture(name, filepath.Join(root, "scenarios", name)),
 					AllocatedPorts: map[string]int{
 						"API_PORT": port,
 					},
-					Health: "healthy",
+					Health:             "healthy",
+					FailedDependencies: []string{"dependency"},
+					FailedResources:    []string{"resource"},
+					AlreadyRunning:     true,
+				}, nil
+			},
+			restartFn: func(name string, opts lifecycle.StartOptions) (lifecycle.Result, error) {
+				restartCalls++
+				if name != "alpha" || !opts.BestEffort || opts.CustomPath != "/requested/path" {
+					t.Fatalf("Restart args = %q, %+v", name, opts)
+				}
+				return lifecycle.Result{
+					Scenario: scenarioFixture(name, filepath.Join(root, "scenarios", name)),
+					AllocatedPorts: map[string]int{
+						"API_PORT": port,
+					},
+					Health:             "healthy",
+					FailedDependencies: []string{"dependency"},
+					FailedResources:    []string{"resource"},
+					AlreadyRunning:     true,
 				}, nil
 			},
 		}, nil
 	}
 
-	result, err := service.StartDetailed("alpha", lifecycle.StartOptions{})
+	opts := lifecycle.StartOptions{BestEffort: true, CustomPath: "/requested/path"}
+	result, err := service.StartDetailed("alpha", opts)
 	if err != nil {
 		t.Fatalf("StartDetailed: %v", err)
 	}
-	if result.View.Name != "alpha" {
-		t.Fatalf("view name = %q", result.View.Name)
+	if result.View.Name != "alpha" || result.Verdict != "healthy" || result.AllocatedPorts["API_PORT"] != port || len(result.FailedDependencies) != 1 || result.FailedDependencies[0] != "dependency" || len(result.FailedResources) != 1 || result.FailedResources[0] != "resource" || !result.AlreadyRunning {
+		t.Fatalf("start result = %+v", result)
+	}
+	restarted, err := service.RestartDetailed("alpha", opts)
+	if err != nil {
+		t.Fatalf("RestartDetailed: %v", err)
+	}
+	if restarted.View.Name != "alpha" || restarted.Verdict != "healthy" || restarted.AllocatedPorts["API_PORT"] != port || len(restarted.FailedDependencies) != 1 || restarted.FailedDependencies[0] != "dependency" || len(restarted.FailedResources) != 1 || restarted.FailedResources[0] != "resource" || !restarted.AlreadyRunning {
+		t.Fatalf("restart result = %+v", restarted)
+	}
+	if startCalls != 1 || restartCalls != 1 {
+		t.Fatalf("runner calls: start=%d restart=%d", startCalls, restartCalls)
+	}
+}
+
+func TestDetailedSandboxStartAndRestartPreserveAction(t *testing.T) {
+	root, home := t.TempDir(), t.TempDir()
+	testscenario.WriteScenarioService(t, root, "alpha", testscenario.ScenarioServiceManifest("alpha", testscenario.WithDisplayName("Alpha"), testscenario.WithDescription("running"), testscenario.WithPorts(map[string]scenario.Port{"api": {EnvVar: "API_PORT", Range: "18080-18090"}})))
+	port := openTestListener(t)
+	writeRegistryRuntime(t, home, "alpha", scenarioruntime.StatusRunning, scenarioruntime.ClaimStatusBound, "api", "API_PORT", port)
+	var actions []lifecycle.ScenarioRequest
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var request lifecycle.ScenarioRequest
+		if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+			t.Errorf("decode scenario request: %v", err)
+		}
+		actions = append(actions, request)
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = io.WriteString(w, `{"success":true}`)
+	}))
+	defer server.Close()
+	t.Setenv("VROOLI_SANDBOX_MERGED", "1")
+	t.Setenv(lifecycle.HostLifecycleBaseEnv, server.URL)
+	service := New(root, home, io.Discard, io.Discard)
+	opts := lifecycle.StartOptions{BestEffort: true, CleanStale: true, CustomPath: "/requested/path"}
+	if _, err := service.StartDetailed("alpha", opts); err != nil {
+		t.Fatalf("StartDetailed in sandbox: %v", err)
+	}
+	if _, err := service.RestartDetailed("alpha", opts); err != nil {
+		t.Fatalf("RestartDetailed in sandbox: %v", err)
+	}
+	if len(actions) != 2 || actions[0].Action != "start" || actions[1].Action != "restart" {
+		t.Fatalf("sandbox actions = %+v", actions)
+	}
+	for _, request := range actions {
+		if request.Name != "alpha" || !request.BestEffort || !request.CleanStale || request.CustomPath != "/requested/path" {
+			t.Fatalf("sandbox request = %+v", request)
+		}
+	}
+}
+
+func TestDetailedStartAndRestartPreserveRunnerErrors(t *testing.T) {
+	t.Setenv("VROOLI_SANDBOX_MERGED", "")
+	startErr, restartErr := errors.New("start failed"), errors.New("restart failed")
+	service := New(t.TempDir(), t.TempDir(), io.Discard, io.Discard)
+	service.newRunner = func(root, home string, stdout, stderr io.Writer, logger ...*slog.Logger) (lifecycleRunner, error) {
+		return fakeLifecycleRunner{
+			startFn: func(string, lifecycle.StartOptions) (lifecycle.Result, error) { return lifecycle.Result{}, startErr },
+			restartFn: func(string, lifecycle.StartOptions) (lifecycle.Result, error) {
+				return lifecycle.Result{}, restartErr
+			},
+		}, nil
+	}
+	if _, err := service.StartDetailed("alpha", lifecycle.StartOptions{}); err != startErr {
+		t.Fatalf("StartDetailed error = %v, want identical error %v", err, startErr)
+	}
+	if _, err := service.RestartDetailed("alpha", lifecycle.StartOptions{}); err != restartErr {
+		t.Fatalf("RestartDetailed error = %v, want identical error %v", err, restartErr)
 	}
 }
 

@@ -28,19 +28,24 @@ const (
 )
 
 type Record struct {
-	PID        int       `json:"pid"`
-	PGID       int       `json:"pgid,omitempty"`
-	ProcessID  string    `json:"process_id,omitempty"`
-	Phase      string    `json:"phase,omitempty"`
-	Scenario   string    `json:"scenario,omitempty"`
-	Step       string    `json:"step,omitempty"`
-	Command    string    `json:"command,omitempty"`
-	WorkingDir string    `json:"working_dir,omitempty"`
-	LogFile    string    `json:"log_file,omitempty"`
-	Port       int       `json:"port,omitempty"`
-	PortKey    string    `json:"port_key,omitempty"`
-	StartedAt  time.Time `json:"started_at"`
-	Status     string    `json:"status,omitempty"`
+	// Generation binds a launch to its component's own registration. Incarnation
+	// binds that launch to the OS process independently of numeric PID reuse.
+	Generation        string    `json:"generation,omitempty"`
+	Incarnation       string    `json:"incarnation,omitempty"`
+	RuntimeInstanceID string    `json:"runtime_instance_id,omitempty"`
+	PID               int       `json:"pid"`
+	PGID              int       `json:"pgid,omitempty"`
+	ProcessID         string    `json:"process_id,omitempty"`
+	Phase             string    `json:"phase,omitempty"`
+	Scenario          string    `json:"scenario,omitempty"`
+	Step              string    `json:"step,omitempty"`
+	Command           string    `json:"command,omitempty"`
+	WorkingDir        string    `json:"working_dir,omitempty"`
+	LogFile           string    `json:"log_file,omitempty"`
+	Port              int       `json:"port,omitempty"`
+	PortKey           string    `json:"port_key,omitempty"`
+	StartedAt         time.Time `json:"started_at"`
+	Status            string    `json:"status,omitempty"`
 }
 
 type ScenarioRuntime struct {
@@ -203,7 +208,7 @@ func WriteScenarioRecord(home, name, step string, record Record) error {
 	data = append(data, '\n')
 
 	recordPath := filepath.Join(processDir, step+".json")
-	if err := config.WriteOwnedFile(recordPath, data, tuning.PermFile); err != nil {
+	if err := config.WriteOwnedFileAtomic(recordPath, data, tuning.PermFile); err != nil {
 		return fmt.Errorf("write %s: %w", recordPath, err)
 	}
 
@@ -268,6 +273,9 @@ func ReadScenarioRecords(home, name string) ([]Record, error) {
 func LiveRecords(records []Record) []Record {
 	live := make([]Record, 0, len(records))
 	for _, record := range records {
+		if record.Status == "exited_verified" {
+			continue
+		}
 		if isPIDRunningFn(record.PID) {
 			live = append(live, record)
 		}

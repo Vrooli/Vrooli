@@ -54,6 +54,8 @@ func stopCompanions(resourceName string, companions []ResourceCompanion, stderr 
 // the supervisor never touches the real runtime home).
 var resolveCompanionDir = companionDir
 
+var findExistingCompanion = existingResourceCompanion
+
 type CompanionStatus struct {
 	Name     string `json:"name"`
 	Port     int    `json:"port,omitempty"`
@@ -188,6 +190,22 @@ func startCompanion(resourceName string, c ResourceCompanion, recoveryAttempts i
 	if err != nil {
 		return fmt.Errorf("resolve %q on PATH: %w", c.Command, err)
 	}
+	parentPID := 0
+	if len(parentPIDs) > 0 {
+		parentPID = parentPIDs[0]
+	}
+	if pid, err := findExistingCompanion(resourceName, c, bin, parentPID); err != nil {
+		return err
+	} else if pid > 1 {
+		if err := os.WriteFile(pidPath, []byte(strconv.Itoa(pid)), tuning.PermFile); err != nil {
+			return err
+		}
+		if err := os.WriteFile(statePath, []byte(strconv.Itoa(pid)), tuning.PermFile); err != nil {
+			return err
+		}
+		clearCompanionCrashState(dir, c.Name)
+		return nil
+	}
 	logPath := filepath.Join(dir, c.Name+".log")
 	boundCompanionLog(logPath, tuning.CompanionLogMaxBytes())
 	logf, err := os.OpenFile(logPath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, tuning.PermFile)
@@ -240,6 +258,15 @@ func stopCompanion(resourceName string, c ResourceCompanion) error {
 	if process.IsPIDRunning(pid) {
 		if err := terminateCompanion(pid); err != nil {
 			return err
+		}
+		// Signal delivery is not completion. A proxy may hold the public port
+		// while it drains, so retain its ownership record until it has exited.
+		deadline := time.Now().Add(5 * time.Second)
+		for process.IsPIDRunning(pid) {
+			if time.Now().After(deadline) {
+				return fmt.Errorf("companion %s pid %d did not exit within 5s; ownership retained", c.Name, pid)
+			}
+			time.Sleep(20 * time.Millisecond)
 		}
 	}
 	clearCompanionCrashState(dir, c.Name)

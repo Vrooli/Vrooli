@@ -6,12 +6,14 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"testing"
 	"time"
 
 	"connectrpc.com/connect"
 	"github.com/vrooli/api-core/demand"
+	"github.com/vrooli/vrooli/internal/providerdemand"
 	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 	scenariovalidationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1"
 	scenariovalidationconnect "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1/scenariovalidationv1connect"
@@ -24,19 +26,25 @@ type fakeValidationService struct {
 }
 
 type demandStub struct {
-	acquired []demand.AcquireRequest
-	released []string
+	acquired       []demand.AcquireRequest
+	released       []string
+	releaseReasons []string
+	acquireErr     error
 }
 
 func (s *demandStub) Acquire(_ context.Context, req demand.AcquireRequest) (demand.Lease, error) {
 	s.acquired = append(s.acquired, req)
+	if s.acquireErr != nil {
+		return demand.Lease{}, s.acquireErr
+	}
 	return demand.Lease{LeaseID: req.LeaseID}, nil
 }
 func (s *demandStub) Renew(context.Context, string, time.Duration) (demand.Lease, error) {
 	return demand.Lease{}, nil
 }
-func (s *demandStub) Release(_ context.Context, id, _ string) (demand.Lease, error) {
+func (s *demandStub) Release(_ context.Context, id, reason string) (demand.Lease, error) {
 	s.released = append(s.released, id)
+	s.releaseReasons = append(s.releaseReasons, reason)
 	return demand.Lease{LeaseID: id}, nil
 }
 
@@ -86,6 +94,10 @@ func TestValidateDelegatesProjectTargetAndPreservesFinding(t *testing.T) {
 	if len(demands.acquired) != 1 || len(demands.released) != 1 || demands.released[0] != demands.acquired[0].LeaseID {
 		t.Fatalf("demand lifecycle = acquired %d released %d", len(demands.acquired), len(demands.released))
 	}
+	lease := demands.acquired[0]
+	if lease.Scenario != ScenarioName || lease.ConsumerID != "control-plane:structure-provider" || lease.Kind != demand.KindDependency || lease.Metadata != "owner=structure-provider" || !strings.HasPrefix(lease.RequestID, "validate:/repo:") || lease.LeaseID != demand.StableLeaseID(lease.ConsumerID, ScenarioName, lease.RequestID) || len(demands.releaseReasons) != 1 || demands.releaseReasons[0] != "structure validation complete" {
+		t.Fatalf("demand policy = %+v, release reasons = %v", lease, demands.releaseReasons)
+	}
 	if output.Report.Checks[4].Name != "project_config_surface" || output.Report.Checks[4].Passed {
 		t.Fatalf("project config check = %#v", output.Report.Checks[4])
 	}
@@ -97,6 +109,37 @@ func TestValidateReturnsExplicitUnavailableError(t *testing.T) {
 	}).Validate(context.Background(), "/repo")
 	if !errors.Is(err, ErrUnavailable) {
 		t.Fatalf("error = %v, want ErrUnavailable", err)
+	}
+}
+
+func TestValidateWrapsDemandAcquireFailure(t *testing.T) {
+	service := &fakeValidationService{}
+	_, handler := scenariovalidationconnect.NewScenarioValidationServiceHandler(service)
+	server := httptest.NewServer(handler)
+	defer server.Close()
+	demands := &demandStub{acquireErr: errors.New("lease denied")}
+	_, err := (Provider{ResolveURL: func(context.Context, string) (string, error) { return server.URL, nil }, Demand: demands}).Validate(context.Background(), "/repo")
+	if !errors.Is(err, ErrUnavailable) || !strings.Contains(err.Error(), "acquire structure-health demand lease") {
+		t.Fatalf("Validate error = %v, want provider-specific unavailable error", err)
+	}
+}
+
+func TestDemandConsumerIDIsTrimmed(t *testing.T) {
+	demands := &demandStub{}
+	release, err := providerdemand.Acquire(context.Background(), demands, demand.AcquireRequest{ConsumerID: "  custom-consumer  ", Scenario: ScenarioName}, "fallback", "done", "acquire failed")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if demands.acquired[0].ConsumerID != "custom-consumer" {
+		t.Fatalf("consumer ID = %q", demands.acquired[0].ConsumerID)
+	}
+	release()
+}
+
+func TestDemandAcquireWithoutClientIsNoop(t *testing.T) {
+	release, err := providerdemand.Acquire(context.Background(), nil, demand.AcquireRequest{}, "fallback", "done", "acquire failed")
+	if err != nil || release != nil {
+		t.Fatalf("Acquire(nil) returned release=%t, err=%v; want no-op", release != nil, err)
 	}
 }
 

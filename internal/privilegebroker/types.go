@@ -14,10 +14,13 @@ const (
 	BridgeScenario  = "vrooli-bridge"
 	RuleComment     = "vrooli-bridge-admission-v1"
 
-	ActionBridgeUFWInspect = "bridge.ufw.inspect"
-	ActionBridgeUFWAllow   = "bridge.ufw.allow"
-	ActionBridgeUFWVerify  = "bridge.ufw.verify"
-	ActionBridgeUFWRevoke  = "bridge.ufw.revoke"
+	ActionBridgeUFWInspect      = "bridge.ufw.inspect"
+	ActionBridgeUFWAllow        = "bridge.ufw.allow"
+	ActionBridgeUFWVerify       = "bridge.ufw.verify"
+	ActionBridgeUFWRevoke       = "bridge.ufw.revoke"
+	ActionLocalAdmissionInspect = "local-service.admission.inspect"
+	ActionLocalAdmissionEnsure  = "local-service.admission.ensure"
+	ActionLocalAdmissionRevoke  = "local-service.admission.revoke"
 
 	// Volume actions repair a storage filesystem that the kernel refuses to
 	// mount read/write. They exist only for hosts without udisks2, which
@@ -30,6 +33,7 @@ const (
 	// an action that silently does nothing is worse than no action.
 	ActionVolumeFilesystemCheck      = "volume.filesystem.check"
 	ActionVolumeFilesystemRepair     = "volume.filesystem.repair"
+	ActionVolumeSMARTInspect         = "volume.smart.inspect"
 	ActionRuntimeHomeOwnershipRepair = "runtime-home.ownership.repair"
 	ActionLogRotateForce             = "log.rotate.force"
 	ActionJournaldVacuum             = "journald.vacuum"
@@ -63,15 +67,17 @@ type Request struct {
 	// Volume carries the target of a volume.* action. It is a separate subject
 	// rather than extra fields on Subject so each action family validates
 	// against exactly the shape it needs and nothing else.
-	Volume      *VolumeSubject      `json:"volume,omitempty"`
-	RuntimeHome *RuntimeHomeSubject `json:"runtime_home,omitempty"`
-	Log         *LogSubject         `json:"log,omitempty"`
-	Journal     *JournalSubject     `json:"journal,omitempty"`
-	Docker      *DockerSubject      `json:"docker,omitempty"`
-	Apt         *AptSubject         `json:"apt,omitempty"`
-	Edge        *EdgeSubject        `json:"edge,omitempty"`
-	Process     *ProcessSubject     `json:"process,omitempty"`
-	Caddy       *CaddySubject       `json:"caddy,omitempty"`
+	Volume         *VolumeSubject         `json:"volume,omitempty"`
+	SMART          *SMARTSubject          `json:"smart,omitempty"`
+	RuntimeHome    *RuntimeHomeSubject    `json:"runtime_home,omitempty"`
+	Log            *LogSubject            `json:"log,omitempty"`
+	Journal        *JournalSubject        `json:"journal,omitempty"`
+	Docker         *DockerSubject         `json:"docker,omitempty"`
+	Apt            *AptSubject            `json:"apt,omitempty"`
+	Edge           *EdgeSubject           `json:"edge,omitempty"`
+	Process        *ProcessSubject        `json:"process,omitempty"`
+	Caddy          *CaddySubject          `json:"caddy,omitempty"`
+	LocalAdmission *LocalAdmissionSubject `json:"local_admission,omitempty"`
 }
 
 // CaddySubject scopes a validate/reload to the deployment whose snippet
@@ -125,6 +131,14 @@ type VolumeSubject struct {
 	Serial string `json:"serial,omitempty"`
 }
 
+// SMARTSubject binds a read-only SMART probe to one whole block device and its
+// stable serial. The broker chooses the exact smartctl flags; callers cannot
+// request self-tests, configuration changes, or arbitrary device commands.
+type SMARTSubject struct {
+	Device string `json:"device"`
+	Serial string `json:"serial"`
+}
+
 type RuntimeHomeSubject struct {
 	Class       string `json:"class"`
 	ExpectedUID uint32 `json:"expected_uid"`
@@ -147,6 +161,7 @@ type Result struct {
 	Evidence          Evidence                  `json:"evidence,omitempty"`
 	TemporaryActivity *storageactivity.Snapshot `json:"temporary_activity,omitempty"`
 	Capabilities      []string                  `json:"capabilities,omitempty"`
+	LocalAdmission    *LocalAdmissionReport     `json:"local_admission,omitempty"`
 }
 
 type Evidence struct {

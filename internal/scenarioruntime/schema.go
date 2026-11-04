@@ -144,6 +144,7 @@ CREATE INDEX IF NOT EXISTS idx_runtime_events_type ON runtime_events(event_type)
 
 CREATE TABLE IF NOT EXISTS runtime_start_operations (
   operation_id TEXT PRIMARY KEY,
+  fence_operation_id TEXT NOT NULL DEFAULT '',
   scenario TEXT NOT NULL,
   variant TEXT NOT NULL DEFAULT 'live',
   operation TEXT NOT NULL DEFAULT 'start',
@@ -339,6 +340,15 @@ var schemaMigrations = map[int]func(context.Context, *sql.DB) error{
 		return err
 	},
 	13: addEditorLeaseOwner,
+	14: addStartOperationFenceLink,
+}
+
+func addStartOperationFenceLink(ctx context.Context, db *sql.DB) error {
+	_, err := db.ExecContext(ctx, `ALTER TABLE runtime_start_operations ADD COLUMN fence_operation_id TEXT NOT NULL DEFAULT ''`)
+	if err != nil && strings.Contains(strings.ToLower(err.Error()), "duplicate column name") {
+		return nil
+	}
+	return err
 }
 
 const demandIdleSchemaSQL = `

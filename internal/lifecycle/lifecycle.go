@@ -194,7 +194,6 @@ type lifecycleDeps struct {
 	captureInitiator        func() process.InitiatorInfo
 	readOwnerMaintenance    func(context.Context, scenario.Scenario) (ownerMaintenanceStanding, error)
 	verifyOwnerAccounting   func(context.Context, scenario.Scenario, []string) error
-	requireRuntimeAbsent    func(context.Context, maintenance.RuntimeScopeRef) error
 }
 
 type hostProbeDeps struct {
@@ -316,9 +315,6 @@ func defaultGoListJSONContext(parent context.Context, dir string) ([]byte, error
 }
 
 type StartOptions struct {
-	// ownerBootstrap restores an absent execution-owner API without host
-	// cleanup. A failed restoration must not sweep its surviving executors.
-	ownerBootstrap bool
 	// Context carries cancellation from the owning caller through the complete
 	// recursive start graph. Nil preserves the historical background context
 	// for library callers that do not need cancellation.
@@ -333,18 +329,19 @@ type StartOptions struct {
 	BestEffort         bool
 	ForceSetup         bool
 	ForceSetupScenario string
-	// ForceLifecycle is an explicit emergency replacement request. It bypasses
-	// drain-only blockers, but never bypasses unavailable provider identity or
-	// an unmatched maintenance fence.
+	// ForceLifecycle is explicit operator acceptance of replacement risk. It
+	// bypasses overrideable drain blockers and an unavailable provider fence, but
+	// never bypasses non-authoritative process identity.
 	ForceLifecycle bool
 	// LifecycleOverrideReason is required when ForceLifecycle is set. It is
 	// retained in the provider request and operation audit trail.
-	LifecycleOverrideReason string
-	providerFence           *providerFence
-	lifecycleOperationID    string
-	maintenanceRevision     int64
-	ownerMaintenanceChecked bool
-	recoveryFirstRestart    bool
+	LifecycleOverrideReason  string
+	providerFence            *providerFence
+	lifecycleOperationID     string
+	providerFenceOperationID string
+	startRecorder            *startOperationRecorder
+	priorStartOperation      *scenarioruntime.StartOperation
+	priorStartOperationErr   error
 	// AcceptCredentialLoss explicitly permits a generated credential to be
 	// replaced after its data-owned mint witness reports that the original was
 	// lost. The lifecycle passes this as a process-scoped environment marker;
@@ -389,12 +386,6 @@ type StopOptions struct {
 	// Variant selects which instance to stop. Empty / "live" stops only the
 	// canonical instance and never reaps a sibling shadow (and vice versa).
 	Variant string
-	// maintenanceRevision pins the preflight observation through replacement
-	// preparation. It is never a caller-supplied bypass of the owner read.
-	maintenanceRevision int64
-	// recoveryFirst preserves the explicit recovery-first owner proof through
-	// the internal stop phase when the owner is still reporting startup 503.
-	recoveryFirst bool
 	// immediate is used only by explicit restart: the restart contract has
 	// already crossed its interruption boundary, so waiting through graceful
 	// teardown would keep accepted input live beyond the cancellation band.
@@ -627,10 +618,37 @@ func (r *Runner) StartContext(ctx context.Context, name string, opts StartOption
 	return r.Start(name, opts)
 }
 
+func (r *Runner) latestStartOperationSnapshot(ctx context.Context, name, variant string) (*scenarioruntime.StartOperation, error) {
+	store, err := r.runtimeDeps().runtimeRegistry(ctx, r.Home)
+	if err != nil {
+		return nil, err
+	}
+	op, readErr := store.GetLatestStartOperation(ctx, name, variant)
+	closeErr := store.Close()
+	if errors.Is(readErr, scenarioruntime.ErrNotFound) {
+		readErr = nil
+	}
+	if readErr != nil || closeErr != nil {
+		return nil, errors.Join(readErr, closeErr)
+	}
+	if op.OperationID == "" {
+		return nil, nil
+	}
+	return &op, nil
+}
+
 // startLocked is the lock-free body of Start. Callers must already hold the
 // per-scenario advisory lock for `name` (acquireScenarioLock). Used by Start
 // and Restart to avoid double-acquiring the lock from the same goroutine.
 func (r *Runner) startLocked(name string, opts StartOptions, session *startSession) (result Result, returnErr error) {
+	if err := r.normalizeStartVariantDependencies(name, &opts); err != nil {
+		return Result{}, err
+	}
+	if opts.priorStartOperation == nil && opts.priorStartOperationErr == nil {
+		op, err := r.latestStartOperationSnapshot(ctxOrBackground(opts.Context), name, opts.Variant)
+		opts.priorStartOperation = op
+		opts.priorStartOperationErr = err
+	}
 	preserveDependencyLeases := false
 	defer func() {
 		if preserveDependencyLeases && returnErr != nil {
@@ -640,6 +658,25 @@ func (r *Runner) startLocked(name string, opts StartOptions, session *startSessi
 	var item scenario.Scenario
 	var err error
 	var restartStopStartedAt time.Time
+	var recorder *startOperationRecorder
+	var detachRecorder func()
+	attachRecorder := func(candidate *startOperationRecorder) {
+		recorder = candidate
+		if candidate == nil {
+			return
+		}
+		opts.startRecorder = candidate
+		opts.lifecycleOperationID = candidate.operationID()
+		detachRecorder = r.attachSink(candidate)
+	}
+	defer func() {
+		if recorder != nil {
+			recorder.close()
+		}
+		if detachRecorder != nil {
+			detachRecorder()
+		}
+	}()
 	if opts.stopFirst && name != "agent-manager" {
 		// Build and preflight before the stop: a restart whose replacement
 		// cannot be built or whose host requirements fail must leave the
@@ -649,11 +686,42 @@ func (r *Runner) startLocked(name string, opts StartOptions, session *startSessi
 		if err := r.prepareRestartBeforeStop(name, &opts); err != nil {
 			return Result{}, err
 		}
+		item, err = r.loadScenario(name, opts.CustomPath)
+		if err != nil {
+			return Result{}, err
+		}
+		item.Variant = opts.Variant
+		// Fence the current provider after replacement preflight/build has
+		// succeeded, but before issuing the stop. A failed drain must leave the
+		// serving process untouched; a successful drain keeps provider admission
+		// closed through replacement and is resumed only after the new instance
+		// is healthy.
+		opts.providerFence, err = r.prepareProviderFence(opts.Context, item, opts.ForceLifecycle, opts.LifecycleOverrideReason, opts.providerFenceOperationID, opts.priorStartOperation, opts.priorStartOperationErr)
+		if err != nil {
+			return Result{}, err
+		}
+		if opts.providerFence != nil {
+			opts.providerFenceOperationID = opts.providerFence.operationID
+		}
+		candidate, beginErr := r.beginStartOperationRecord(name, opts)
+		if beginErr != nil {
+			return Result{}, beginErr
+		}
+		if opts.providerFence != nil && candidate == nil {
+			return Result{}, fmt.Errorf("provider fence for %q requires a durable start-operation link", name)
+		}
+		attachRecorder(candidate)
+		if opts.providerFence != nil {
+			recorder.setProviderFence(opts.providerFence)
+		}
 		restartStopStartedAt = r.runtimeDeps().now()
 		if err := r.stopLocked(name, StopOptions{
 			Context: opts.Context, Variant: opts.Variant, CustomPath: opts.CustomPath, immediate: true,
 		}); err != nil {
 			return Result{}, err
+		}
+		if recorder != nil {
+			recorder.markCompletedStep(startStepStop, restartStopStartedAt, r.runtimeDeps().now())
 		}
 		opts.stopFirst = false
 		opts.restartAfterStop = true
@@ -673,57 +741,15 @@ func (r *Runner) startLocked(name string, opts StartOptions, session *startSessi
 	if item, err = r.withSourceLayout(item); err != nil {
 		return Result{}, err
 	}
-	// Create the durable operation after an explicit restart stop. Registry
-	// setup is observability, not part of the interruption boundary; opening it
-	// first can delay accepted work before the stop signal is issued.
-	var recorder *startOperationRecorder
-	if candidate := r.beginStartOperationRecord(name, opts); candidate != nil {
-		recorder = candidate
-		if opts.restartAfterStop {
-			candidate.markCompletedStep(startStepStop, restartStopStartedAt, r.runtimeDeps().now())
+	// Create a durable attempt before any ordinary replacement stop. The record
+	// is progress, except that its write-once fence link is the recovery proof
+	// for a provider gate that must remain closed across a failed replacement.
+	if recorder == nil {
+		candidate, beginErr := r.beginStartOperationRecord(name, opts)
+		if beginErr != nil {
+			return Result{}, beginErr
 		}
-		opts.lifecycleOperationID = candidate.operationID()
-		detach := r.attachSink(candidate)
-		defer detach()
-		defer candidate.close()
-	}
-	if opts.stopFirst && item.Slug != "agent-manager" {
-		maintenanceRevision, maintenanceErr := r.requireOwnerMaintenance(opts.Context, item, 0)
-		if maintenanceErr != nil && opts.ForceLifecycle && item.Slug == "agent-manager" && errors.Is(maintenanceErr, ErrOwnerMaintenanceRequired) {
-			maintenanceRevision, maintenanceErr = r.allowRecoveryFirstRestart(opts.Context, item)
-			if maintenanceErr == nil {
-				opts.recoveryFirstRestart = true
-				r.logWarn("using recovery-first Agent Manager restart with detached executors retained", logx.AttrScenario, item.Slug, "maintenance_revision", maintenanceRevision, "override_reason", opts.LifecycleOverrideReason)
-			}
-		}
-		if maintenanceErr != nil {
-			return Result{}, maintenanceErr
-		}
-		// Once the strict owner observation succeeds, an explicit Agent Manager
-		// force request may also recover an abandoned provider fence left by a
-		// prior failed Prepare. The observation remains the authority; this flag
-		// only preserves that proof through the replacement pipeline.
-		if opts.ForceLifecycle && item.Slug == "agent-manager" {
-			opts.recoveryFirstRestart = true
-		}
-		opts.maintenanceRevision = maintenanceRevision
-		opts.ownerMaintenanceChecked = true
-		if opts.recoveryFirstRestart {
-			// Detached executors can legitimately change state while the owner
-			// closes its gate. Reuse the bounded startup-recovery observation
-			// window here so a transient inventory transition does not prevent the
-			// recovery-first handoff, while a persistent ambiguity still refuses.
-			opts.providerFence, err = r.prepareProviderFenceAfterRecovery(opts.Context, item, opts.LifecycleOverrideReason, opts.lifecycleOperationID)
-		} else {
-			opts.providerFence, err = r.prepareProviderFence(opts.Context, item, opts.ForceLifecycle, opts.LifecycleOverrideReason, opts.lifecycleOperationID)
-		}
-		if err != nil && opts.recoveryFirstRestart && isStaleProviderFenceError(err) {
-			r.logWarn("adopting stale Agent Manager provider fence after startup-recovery proof", logx.AttrScenario, item.Slug, logx.AttrError, err.Error())
-			err = nil
-		}
-		if err != nil {
-			return Result{}, err
-		}
+		attachRecorder(candidate)
 	}
 	if opts.hostRequirementsPreflighted == nil {
 		if err := r.preflightStartTree(item, &opts); err != nil {
@@ -750,28 +776,8 @@ func (r *Runner) startLocked(name string, opts StartOptions, session *startSessi
 		r.logError("Scenario start failed", err, logx.AttrScenario, name)
 		return Result{}, err
 	}
-	// A recovery-first replacement must never reuse the provider fence obtained
-	// from the process that was stopped. Re-negotiate against the new owner after
-	// it is serving; its lifecycle service can adopt the persisted closed gate
-	// and the normal resume below then reopens admission exactly once for the
-	// replacement operation. This also covers a successful initial Prepare; the
-	// old fence is invalid as soon as its provider process exits.
-	if opts.recoveryFirstRestart {
-		opts.providerFence = nil
-	}
-	if opts.recoveryFirstRestart && opts.providerFence == nil {
-		item, itemErr := r.loadScenario(name, opts.CustomPath)
-		if itemErr != nil {
-			return Result{}, itemErr
-		}
-		item.Variant = opts.Variant
-		if item, err = r.withSourceLayout(item); err != nil {
-			return Result{}, err
-		}
-		opts.providerFence, err = r.prepareProviderFenceAfterRecovery(opts.Context, item, opts.LifecycleOverrideReason, opts.lifecycleOperationID)
-		if err != nil {
-			return Result{}, fmt.Errorf("reacquire recovery-first provider fence for %q: %w", name, err)
-		}
+	if opts.providerFence == nil && recorder != nil {
+		opts.providerFence = recorder.providerFence
 	}
 	if err := opts.providerFence.resume(opts.Context); err != nil {
 		return Result{}, fmt.Errorf("resume lifecycle fence for %q: %w", name, err)
@@ -788,6 +794,26 @@ func (r *Runner) startLocked(name string, opts StartOptions, session *startSessi
 		"failed_dependencies", len(result.FailedDependencies),
 	)
 	return result, nil
+}
+
+// normalizeStartVariantDependencies validates the selected instance's routing
+// override at the shared start/restart boundary, before explicit restart can
+// prepare a provider fence or stop the serving instance.
+func (r *Runner) normalizeStartVariantDependencies(name string, opts *StartOptions) error {
+	if len(opts.VariantDependencies) == 0 {
+		return nil
+	}
+	item, err := r.loadScenario(name, opts.CustomPath)
+	if err != nil {
+		return err
+	}
+	item.Variant = opts.Variant
+	names, err := normalizeVariantDependencies(item, opts.VariantDependencies)
+	if err != nil {
+		return err
+	}
+	opts.VariantDependencies = names
+	return nil
 }
 
 func (r *Runner) startWithState(name string, opts StartOptions, session *startSession) (Result, error) {
@@ -830,13 +856,18 @@ func (r *Runner) startScenario(item scenario.Scenario, opts StartOptions, sessio
 	}
 	var failedDeps, failedResources []string
 	var err error
-	// An explicit restart promises interruption-first semantics. Defer
-	// dependency preparation until after the old instance has stopped so setup
-	// latency cannot extend the time that accepted work remains live. Ordinary
-	// stale/unhealthy replacement still bootstraps while the healthy instance
-	// serves and retains its failure-safe behavior below.
-	if !opts.stopFirst && !opts.reuseDependencyStateAfterStop {
-		failedDeps, failedResources, err = r.bootstrapScenarioDependencies(item, opts, branch)
+	// Agent Manager's ordinary restart preserves executors, so dependencies
+	// must be checked while its owner still serves. A healthy existing resource
+	// is reused without a potentially unbounded model/configuration ensure,
+	// matching the normal post-stop restart behavior for other scenarios.
+	// Other explicit restarts retain their interruption-first contract.
+	preparingAgentRestart := opts.stopFirst && item.Slug == "agent-manager"
+	if (!opts.stopFirst || preparingAgentRestart) && !opts.reuseDependencyStateAfterStop {
+		dependencyOpts := opts
+		if preparingAgentRestart {
+			dependencyOpts.restartAfterStop = true
+		}
+		failedDeps, failedResources, err = r.bootstrapScenarioDependencies(item, dependencyOpts, branch)
 		if err != nil {
 			return Result{}, err
 		}
@@ -883,38 +914,6 @@ func (r *Runner) startScenario(item scenario.Scenario, opts StartOptions, sessio
 			AlreadyRunning:     true,
 		}, nil
 	case decisionStopThenStart:
-		maintenanceRevision := opts.maintenanceRevision
-		var err error
-		if item.Slug == "agent-manager" {
-			// Agent Manager is self-restarting infrastructure. Its persistent
-			// sessions and durable recovery path must remain usable while this
-			// process is replaced; do not make it fence itself.
-			maintenanceRevision = 0
-		} else if !opts.ownerMaintenanceChecked {
-			maintenanceRevision, err = r.requireOwnerMaintenance(opts.Context, item, 0)
-		}
-		if err != nil && opts.ForceLifecycle && item.Slug == "agent-manager" && errors.Is(err, ErrOwnerMaintenanceRequired) {
-			// Emergency provider fencing deliberately skips drain, but the owner
-			// still needs an explicit, complete executor inventory before a
-			// recovery-first restart may proceed.
-			maintenanceRevision, err = r.allowRecoveryFirstRestart(opts.Context, item)
-			if err == nil {
-				opts.recoveryFirstRestart = true
-				r.logWarn("using recovery-first Agent Manager restart with detached executors retained", logx.AttrScenario, item.Slug, "maintenance_revision", maintenanceRevision, "override_reason", opts.LifecycleOverrideReason)
-			}
-		}
-		if errors.Is(err, errOwnerAdmissionUnavailable) && item.Slug == "agent-manager" && !observed.View.Authoritative {
-			if err := r.retireAbsentOwner(ctxOrBackground(opts.Context), item, observed.View); err != nil {
-				return Result{}, err
-			}
-			// No Stop, setup-before-teardown, signal or owner-gate exchange:
-			// only positively dead registry bookkeeping was finalized.
-			opts.ownerBootstrap = true
-			break
-		}
-		if err != nil {
-			return Result{}, err
-		}
 		// Running-but-unfit, or a stale registry row whose leftover claims
 		// would collide with a fresh start.
 		r.logDebug("Stopping existing instance before start",
@@ -933,7 +932,23 @@ func (r *Runner) startScenario(item scenario.Scenario, opts StartOptions, sessio
 				forceSetup = false
 			}
 		}
-		if err := r.stopLocked(item.Slug, StopOptions{Context: opts.Context, Variant: item.Variant, CustomPath: opts.CustomPath, maintenanceRevision: maintenanceRevision, recoveryFirst: opts.recoveryFirstRestart, immediate: opts.stopFirst}); err != nil {
+		if opts.providerFence == nil {
+			opts.providerFence, err = r.prepareProviderFence(opts.Context, item, opts.ForceLifecycle, opts.LifecycleOverrideReason, opts.providerFenceOperationID, opts.priorStartOperation, opts.priorStartOperationErr)
+			if err != nil {
+				return Result{}, err
+			}
+			if opts.providerFence != nil {
+				opts.providerFenceOperationID = opts.providerFence.operationID
+				if opts.startRecorder == nil {
+					return Result{}, fmt.Errorf("provider fence for %q requires a durable start-operation link", item.Slug)
+				}
+				if err := opts.startRecorder.linkProviderFence(opts.providerFence.operationID); err != nil {
+					return Result{}, fmt.Errorf("persist provider fence recovery link for %q: %w", item.Slug, err)
+				}
+				opts.startRecorder.setProviderFence(opts.providerFence)
+			}
+		}
+		if err := r.stopLocked(item.Slug, StopOptions{Context: opts.Context, Variant: item.Variant, CustomPath: opts.CustomPath, immediate: opts.stopFirst}); err != nil {
 			return Result{}, err
 		}
 		if err := r.waitForInstanceReleased(opts.Context, item.Slug, item.Variant); err != nil {
@@ -949,7 +964,7 @@ func (r *Runner) startScenario(item scenario.Scenario, opts StartOptions, sessio
 			return Result{}, fmt.Errorf("release prior dependency demand: %w", err)
 		}
 	}
-	if opts.stopFirst {
+	if opts.stopFirst && !preparingAgentRestart {
 		failedDeps, failedResources, err = r.bootstrapScenarioDependencies(item, opts, branch)
 		if err != nil {
 			return Result{}, err
@@ -987,7 +1002,7 @@ func (r *Runner) executeStart(item scenario.Scenario, opts StartOptions, forceSe
 			err = errors.Join(err, runtimeErr)
 		}
 		_ = runtimeSession.close()
-		if !cleanupOnError || opts.ownerBootstrap {
+		if !cleanupOnError {
 			return
 		}
 		// Rollback is intentionally scoped to the scenario currently being started.
@@ -1011,7 +1026,7 @@ func (r *Runner) executeStart(item scenario.Scenario, opts StartOptions, forceSe
 		}
 	}
 
-	env, err := r.prepareScenarioEnvironmentWithCleanup(ctx, item, runtimeSession, !opts.ownerBootstrap)
+	env, err := r.prepareScenarioEnvironmentWithCleanup(ctx, item, runtimeSession, true)
 	cleanupOnError = true
 	if err != nil {
 		return Result{}, err
@@ -1433,7 +1448,7 @@ func (r *Runner) cleanupScenarioRuntimeWithRegistryContext(ctx context.Context, 
 	if err := runtimeStop.finish(ctx); err != nil {
 		return err
 	}
-	if err := removePeerRecord(r.Home, key.Slug()); err != nil {
+	if err := removePeerRecord(r.Home, key.Slug(), runtimeStop.peerOwnerPIDs()...); err != nil {
 		return fmt.Errorf("remove scenario peer record: %w", err)
 	}
 	return nil
@@ -1838,6 +1853,18 @@ func isolatedVariantBuild(item scenario.Scenario, servingRoot string) bool {
 // refused for a live instance, where "follow my variant" means live and the
 // flag can only be a mistake.
 func applyVariantDependencies(item scenario.Scenario, dependencies []string, envVars map[string]string) error {
+	names, err := normalizeVariantDependencies(item, dependencies)
+	if err != nil {
+		return err
+	}
+	if len(names) == 0 {
+		return nil
+	}
+	envVars[cliutil.EnvVariantDependencies] = strings.Join(names, ",")
+	return nil
+}
+
+func normalizeVariantDependencies(item scenario.Scenario, dependencies []string) ([]string, error) {
 	names := make([]string, 0, len(dependencies))
 	for _, dependency := range dependencies {
 		for _, field := range strings.FieldsFunc(dependency, func(r rune) bool { return r == ',' || r == ' ' }) {
@@ -1847,21 +1874,20 @@ func applyVariantDependencies(item scenario.Scenario, dependencies []string, env
 		}
 	}
 	if len(names) == 0 {
-		return nil
+		return nil, nil
 	}
 	key := scenarioruntime.InstanceKey{Scenario: item.Slug, Variant: item.Variant}.Normalize()
 	if key.IsLive() {
-		return fmt.Errorf("variant dependencies (%s) require a non-live instance: %s is live", strings.Join(names, ", "), item.Slug)
+		return nil, fmt.Errorf("variant dependencies (%s) require a non-live instance: %s is live", strings.Join(names, ", "), item.Slug)
 	}
 	for _, name := range names {
 		if _, declared := item.Manifest.Dependencies.Scenarios[name]; !declared {
-			return fmt.Errorf("variant dependency %q is not declared in %s's dependencies.scenarios", name, item.Slug)
+			return nil, fmt.Errorf("variant dependency %q is not declared in %s's dependencies.scenarios", name, item.Slug)
 		}
 	}
 	slices.Sort(names)
 	names = slices.Compact(names)
-	envVars[cliutil.EnvVariantDependencies] = strings.Join(names, ",")
-	return nil
+	return names, nil
 }
 
 // instanceLogName returns the name this item's lifecycle log is filed under.

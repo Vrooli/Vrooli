@@ -4,12 +4,154 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/vrooli/vrooli/internal/credentialauthority"
+	"github.com/vrooli/vrooli/internal/credentialspec"
+	"github.com/vrooli/vrooli/internal/resources"
 	"github.com/vrooli/vrooli/internal/securestore"
 	"github.com/vrooli/vrooli/internal/testenv"
 )
+
+func TestTreasuryWalletDynamicCredentialsAreIncludedInRecovery(t *testing.T) {
+	logicalID := "vrooli/treasury/wallets/" + strings.Repeat("a", 32) + "/" + strings.Repeat("b", 32)
+	identity, err := credentialauthority.ParseIdentity(logicalID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	store := testenv.NewCredentialStore(securestore.ErrNotFound)
+	authority, err := credentialauthority.NewAuthority(store)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// These are non-secret fixture strings, not valid wallet keys/passphrases.
+	for _, field := range []string{"secp256k1-scalar", "recovery-passphrase", "unrelated-field"} {
+		if err := authority.Put(identity, field, "TEST fixture only: "+field); err != nil {
+			t.Fatal(err)
+		}
+	}
+	previous := credentialauthority.DefaultAuthority
+	credentialauthority.DefaultAuthority = func() (*credentialauthority.Authority, error) { return authority, nil }
+	t.Cleanup(func() { credentialauthority.DefaultAuthority = previous })
+	root := t.TempDir()
+	writeFixtureFile(t, filepath.Join(root, ".vrooli", "service.json"), map[string]any{})
+	refs := []securestore.EntryRef{
+		{Service: "vrooli.credentials.v1", Key: logicalID + ":secp256k1-scalar"},
+		{Service: "vrooli.credentials.v1", Key: logicalID + ":recovery-passphrase"},
+		{Service: "vrooli.credentials.v1", Key: logicalID + ":secp256k1-scalar"},
+		{Service: "vrooli.credentials.v1", Key: logicalID + ":unrelated-field"},
+		{Service: "unrelated-service", Key: logicalID + ":secp256k1-scalar"},
+	}
+	systems := managedSystemEntriesFromRefs(root, refs)
+	for _, entry := range systems {
+		if entry.LogicalID == logicalID && entry.Owner != "treasury" {
+			t.Fatal("wallet credential attributed to another owner")
+		}
+	}
+	result, err := CollectWithOptions(root, CollectionOptions{
+		ManagedSystemEntries:       func(string) []SystemEntry { return systems },
+		LiveVaultUnsealKeyEntries:  func() []resources.VaultUnsealKeyEntry { return nil },
+		LiveKopiaRepositoryEntries: func() []resources.KopiaRepositoryEntry { return nil },
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(result.Entries) != 2 {
+		t.Fatalf("wallet recovery population has %d configured entries, want both scoped fields exactly once", len(result.Entries))
+	}
+	for _, row := range result.Rows {
+		if row.LogicalID == logicalID && (row.Resource != "treasury" || row.Provisioning != credentialspec.ProvisioningGenerated) {
+			t.Fatal("wallet credential lost its generated-owner attribution")
+		}
+	}
+	for _, field := range []string{"secp256k1-scalar", "recovery-passphrase"} {
+		if !containsRecoveryAddress(result.Entries, logicalID+":"+field) {
+			t.Fatalf("wallet %s is absent from authoritative recovery population", field)
+		}
+	}
+	bundle, err := authority.ExportRecovery(result.Entries, "TEST-only recovery challenge")
+	if err != nil {
+		t.Fatal(err)
+	}
+	manifest, err := credentialauthority.InspectRecovery(bundle, "TEST-only recovery challenge")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(manifest.Entries) != 2 {
+		t.Fatal("exported manifest does not cover exactly both wallet fields")
+	}
+	fresh, err := credentialauthority.NewAuthority(testenv.NewCredentialStore(securestore.ErrNotFound))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err = fresh.RestoreRecovery(bundle, "TEST-only recovery challenge"); err != nil {
+		t.Fatal(err)
+	}
+	for _, field := range []string{"secp256k1-scalar", "recovery-passphrase"} {
+		value, err := fresh.Resolve(identity, field)
+		if err != nil || value != "TEST fixture only: "+field {
+			t.Fatal("fresh TEST authority did not restore the expected fixture")
+		}
+	}
+}
+
+func TestTreasuryWalletInventoryRejectsAdjacentMalformedAndUnrelatedReferences(t *testing.T) {
+	valid := "vrooli/treasury/wallets/" + strings.Repeat("a", 32) + "/" + strings.Repeat("b", 32)
+	for name, logicalID := range map[string]string{
+		"adjacent_namespace": strings.Replace(valid, "/wallets/", "/wallets-extra/", 1),
+		"missing_digest":     "vrooli/treasury/wallets/" + strings.Repeat("a", 32),
+		"short_namespace":    "vrooli/treasury/wallets/a/" + strings.Repeat("b", 32),
+		"nonhex_digest":      "vrooli/treasury/wallets/" + strings.Repeat("a", 32) + "/" + strings.Repeat("z", 32),
+		"extra_component":    valid + "/extra",
+	} {
+		t.Run(name, func(t *testing.T) {
+			entries := managedSystemEntriesFromRefs(t.TempDir(), []securestore.EntryRef{{Service: "vrooli.credentials.v1", Key: logicalID + ":secp256k1-scalar"}})
+			for _, entry := range entries {
+				if entry.Owner == "treasury" {
+					t.Fatal("malformed reference entered wallet recovery population")
+				}
+			}
+		})
+	}
+	for _, field := range []string{"api-key", "value", "secp256k1-scalar-extra", "recovery-passphrase/extra"} {
+		entries := managedSystemEntriesFromRefs(t.TempDir(), []securestore.EntryRef{{Service: "vrooli.credentials.v1", Key: valid + ":" + field}})
+		for _, entry := range entries {
+			if entry.Owner == "treasury" {
+				t.Fatal("unrelated field entered wallet recovery population")
+			}
+		}
+	}
+}
+
+func TestTreasuryX402RecoveryCredentialsAreIncludedInRecovery(t *testing.T) {
+	logicalID := "vrooli/treasury/x402-recovery/" + strings.Repeat("a", 64)
+	entries := managedSystemEntriesFromRefs(t.TempDir(), []securestore.EntryRef{
+		{Service: "vrooli.credentials.v1", Key: logicalID + ":signed-payment"},
+		{Service: "vrooli.credentials.v1", Key: logicalID + ":unrelated"},
+	})
+	var treasuryEntries []SystemEntry
+	for _, entry := range entries {
+		if entry.Owner == "treasury" {
+			treasuryEntries = append(treasuryEntries, entry)
+		}
+	}
+	if len(treasuryEntries) != 1 || treasuryEntries[0].Field != "signed-payment" || treasuryEntries[0].Provisioning != credentialspec.ProvisioningGenerated {
+		t.Fatalf("x402 recovery inventory = %+v", entries)
+	}
+	for _, malformed := range []string{
+		"vrooli/treasury/x402-recovery/" + strings.Repeat("a", 63),
+		"vrooli/treasury/x402-recovery/" + strings.Repeat("z", 64),
+		"vrooli/treasury/x402-recovery-extra/" + strings.Repeat("a", 64),
+	} {
+		entries := managedSystemEntriesFromRefs(t.TempDir(), []securestore.EntryRef{{Service: "vrooli.credentials.v1", Key: malformed + ":signed-payment"}})
+		for _, entry := range entries {
+			if entry.Owner == "treasury" {
+				t.Fatalf("malformed recovery identity entered inventory: %+v", entries)
+			}
+		}
+	}
+}
 
 func TestCollectEmptyRootIsValueFreeAndEmpty(t *testing.T) {
 	result, err := Collect("")

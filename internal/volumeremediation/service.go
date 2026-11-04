@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os/exec"
 	"runtime"
+	"strconv"
 	"strings"
 
 	"github.com/vrooli/vrooli/internal/hostreqspec"
@@ -165,7 +166,7 @@ func (s *Service) Execute(ctx context.Context, req Request) (Result, error) {
 	if done, result := s.shortCircuit(req, observed, backend); done {
 		return result, nil
 	}
-	if err := s.gateOnObservedState(req, observed); err != nil {
+	if err := s.gateOnObservedState(req, observed, s.goos); err != nil {
 		return Result{Action: req.Action, Device: observed.Device, Status: StatusRefused, Backend: string(backend), State: observed}, err
 	}
 
@@ -317,10 +318,10 @@ func (s *Service) shortCircuit(req Request, observed State, backend Backend) (bo
 }
 
 // gateOnObservedState applies the gates that depend on live host state.
-func (s *Service) gateOnObservedState(req Request, observed State) error {
+func (s *Service) gateOnObservedState(req Request, observed State, goos string) error {
 	switch req.Action {
 	case ActionCheck, ActionRepair:
-		if observed.Mounted {
+		if observed.Mounted && goos != string(hostreqspec.PlatformWindows) {
 			// Every filesystem checker in the supported set requires exclusive
 			// access. Running one against a mounted volume risks corrupting the
 			// very data the remediation exists to protect.
@@ -353,6 +354,23 @@ func checkVerdict(backend Backend, out []byte, runErr error) Tristate {
 		default:
 			return TristateUnknown
 		}
+	}
+	if backend == BackendRepairVolume {
+		for _, line := range strings.Split(string(out), "\n") {
+			value := strings.TrimSpace(line)
+			if !strings.HasPrefix(value, "DBM_CHECK_RESULT=") {
+				continue
+			}
+			code, err := strconv.ParseUint(strings.TrimPrefix(value, "DBM_CHECK_RESULT="), 10, 32)
+			if err != nil {
+				return TristateUnknown
+			}
+			if code == 0 {
+				return TristateYes
+			}
+			return TristateNo
+		}
+		return TristateUnknown
 	}
 	if runErr == nil {
 		return TristateYes

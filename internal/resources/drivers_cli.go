@@ -15,6 +15,7 @@ import (
 	"github.com/vrooli/vrooli/internal/tuning"
 
 	"github.com/vrooli/cli-core/cliutil"
+	"github.com/vrooli/cliresolve"
 	repocontract "github.com/vrooli/repo-contract-go"
 	"github.com/vrooli/vrooli/internal/artifactlease"
 	"github.com/vrooli/vrooli/internal/artifactledger"
@@ -25,6 +26,7 @@ import (
 	"github.com/vrooli/vrooli/internal/scenario"
 	"github.com/vrooli/vrooli/internal/scenarioruntime"
 	"github.com/vrooli/vrooli/internal/shell"
+	harnesslifecycle "github.com/vrooli/vrooli/packages/harness-lifecycle"
 	resourcedeployment "github.com/vrooli/vrooli/packages/resource-deployment"
 )
 
@@ -152,6 +154,9 @@ func (d externalCLIDriver) Run(ctx context.Context, controller *Controller, item
 		if err != nil {
 			return err
 		}
+		if err := ctx.Err(); err != nil {
+			return err
+		}
 		if status.Running && status.Healthy != nil && *status.Healthy {
 			_, err := fmt.Fprintf(stdout, "%s does not require a managed start step\n", item.Name)
 			return err
@@ -170,6 +175,9 @@ func (d externalCLIDriver) Run(ctx context.Context, controller *Controller, item
 		_, err := fmt.Fprintf(stdout, "%s does not run as a managed background service\n", item.Name)
 		return err
 	case driversCliUninstall:
+		if _, err := cliutil.CodingAgentBinary(manifest.Name); err == nil {
+			return harnesslifecycle.Uninstall(ctx, controller.Root, manifest.Name)
+		}
 		return uninstallNativeCLI(controller, manifest)
 	case driversCliLogs:
 		if manifest.Capabilities.SupportsLogs {
@@ -252,11 +260,12 @@ func probeExternalCLICommand(ctx context.Context, controller *Controller, manife
 	}
 
 	cmd := shell.Command(shell.Spec{
-		Name:  binary,
-		Args:  args,
-		Dir:   controller.Root,
-		Env:   resourceEnvForResource(controller.Root, controller.Home, manifest.Name),
-		Stdin: nil,
+		Context: ctx,
+		Name:    binary,
+		Args:    args,
+		Dir:     controller.Root,
+		Env:     resourceEnvForResource(controller.Root, controller.Home, manifest.Name),
+		Stdin:   nil,
 	})
 	result := runCommandResource(ctx, cmd)
 	if result.err != nil {
@@ -473,6 +482,9 @@ func uninstallNativeCLI(controller *Controller, manifest ResourceManifest) error
 }
 
 func runInstallCommand(ctx context.Context, controller *Controller, manifest ResourceManifest) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	if manifest.ManagedService != nil && len(manifest.ManagedService.DataArtifacts) > 0 {
 		if err := ensureManagedServiceDataArtifacts(ctx, controller, manifest); err != nil {
 			return err
@@ -492,22 +504,31 @@ func runInstallCommand(ctx context.Context, controller *Controller, manifest Res
 	if len(command) == 0 {
 		return nil
 	}
+	program := command[0]
+	// CLI setup publishes into the canonical runtime bin directory. GUI
+	// launches need not inherit an interactive shell's PATH configuration.
+	if manifest.CLI != nil && program == manifest.CLI.Command {
+		if installed, err := cliresolve.Executable(controller.Home, program); err == nil {
+			program = installed
+		}
+	}
 
 	stderrTail := newTailBuffer(driversCliParameterB << driversCliParameterA)
 	env, err := resourceEnvForManifest(controller.Root, controller.Home, manifest)
 	if err != nil {
 		return err
 	}
-	cmd := shell.Command(shell.Spec{
-		Name:   command[0],
-		Args:   command[1:],
-		Dir:    controller.Root,
-		Env:    env,
-		Stdout: io.Discard,
-		Stderr: stderrTail,
-	})
 	runCtx, cancel := context.WithTimeout(ctx, tuning.ResourceCommandTimeout())
 	defer cancel()
+	cmd := shell.Command(shell.Spec{
+		Context: runCtx,
+		Name:    program,
+		Args:    command[1:],
+		Dir:     controller.Root,
+		Env:     env,
+		Stdout:  io.Discard,
+		Stderr:  stderrTail,
+	})
 	if err := cmd.Start(); err != nil {
 		return err
 	}

@@ -13,9 +13,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/vrooli/cli-core/cliutil"
-	"github.com/vrooli/vrooli/internal/maintenance"
 	"github.com/vrooli/vrooli/internal/scenario"
-	"github.com/vrooli/vrooli/internal/scenarioruntime"
 	amdomain "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
 	"google.golang.org/protobuf/encoding/protojson"
 )
@@ -23,8 +21,7 @@ import (
 // ErrOwnerMaintenanceRequired means no lifecycle effect may follow this read.
 // It is deliberately not an instruction to acquire elevated owner authority.
 var (
-	ErrOwnerMaintenanceRequired  = errors.New("execution owner maintenance precondition failed")
-	errOwnerAdmissionUnavailable = errors.New("owner admission unavailable")
+	ErrOwnerMaintenanceRequired = errors.New("execution owner maintenance precondition failed")
 )
 
 type ownerAdmissionReadError struct {
@@ -34,90 +31,6 @@ type ownerAdmissionReadError struct {
 
 func (e *ownerAdmissionReadError) Error() string {
 	return fmt.Sprintf("owner read returned HTTP %d", e.status)
-}
-
-// retireAbsentOwner is a Start-only bootstrap recovery, never a bypass for
-// Stop/Restart/setup. A stale row is not proof of death: inspect all active
-// generations, managed refs/groups, process identities and claimed listeners
-// under the same lifecycle lock before finalizing registry bookkeeping.
-func (r *Runner) retireAbsentOwner(ctx context.Context, item scenario.Scenario, view registryRuntimeView) error {
-	refuse := func(err error) error {
-		return fmt.Errorf("%w: stopped-owner bootstrap exclusion: %w", ErrOwnerMaintenanceRequired, err)
-	}
-	if view.Authoritative || !view.Present {
-		return refuse(fmt.Errorf("bootstrap requires an observed stale owner instance"))
-	}
-	deps := r.runtimeDeps()
-	store, err := deps.runtimeRegistry(ctx, r.Home)
-	if err != nil {
-		return refuse(err)
-	}
-	defer store.Close()
-	key := (scenarioruntime.InstanceKey{Scenario: item.Slug, Variant: item.Variant}).Normalize()
-	instances, err := store.ListInstances(ctx, scenarioruntime.InstanceFilter{Scenario: key.Scenario, Variant: key.Variant, Statuses: scenarioruntime.ActiveInstanceStatuses()})
-	if err != nil {
-		return refuse(err)
-	}
-	ref := maintenance.RuntimeScopeRef{Scenario: key.Scenario, Variant: key.Variant}
-	matched := false
-	for _, instance := range instances {
-		if instance.InstanceID == view.Instance.InstanceID && instance.Generation == view.Instance.Generation {
-			matched = true
-		}
-		ref.InstanceIDs = append(ref.InstanceIDs, instance.InstanceID)
-		if instance.OwnerPID != nil && instance.OwnerKind != scenarioruntime.OwnerKindSupervisor {
-			ref.PIDs = append(ref.PIDs, *instance.OwnerPID)
-		}
-		refs, err := store.ListProcessRefs(ctx, instance.InstanceID)
-		if err != nil {
-			return refuse(err)
-		}
-		for _, process := range refs {
-			if process.PID != nil {
-				ref.PIDs = append(ref.PIDs, *process.PID)
-			}
-			if process.PGID != nil {
-				ref.PGIDs = append(ref.PGIDs, *process.PGID)
-			}
-		}
-		claims, err := store.ListPortClaims(ctx, scenarioruntime.PortClaimFilter{InstanceID: instance.InstanceID, Statuses: scenarioruntime.ActivePortClaimStatuses()})
-		if err != nil {
-			return refuse(err)
-		}
-		for _, claim := range claims {
-			ref.Ports = append(ref.Ports, claim.Port)
-		}
-	}
-	if !matched {
-		return refuse(fmt.Errorf("observed owner generation changed"))
-	}
-	records, err := deps.readScenarioRecords(r.Home, recordSlug(item))
-	if err != nil {
-		return refuse(err)
-	}
-	for _, record := range records {
-		ref.PIDs = append(ref.PIDs, record.PID)
-		ref.PGIDs = append(ref.PGIDs, record.PGID)
-	}
-	inspect := r.deps.requireRuntimeAbsent
-	if inspect == nil {
-		inspect = maintenance.NewController(r.Root, r.Home).RequireRuntimeScopeAbsent
-	}
-	if err := inspect(ctx, ref); err != nil {
-		return refuse(err)
-	}
-	for _, instance := range instances {
-		// Pin the observed generation before releasing any claims. The shared
-		// finalizer is idempotent and tolerates stale generations; bootstrap
-		// must instead refuse a takeover that raced the physical observation.
-		if _, err := store.StopLease(ctx, instance.InstanceID, instance.Generation, "start-absent-owner"); err != nil {
-			return refuse(err)
-		}
-		if err := scenarioruntime.FinalizeStuckInstance(ctx, store, instance, "start-absent-owner", time.Now().UTC()); err != nil {
-			return refuse(err)
-		}
-	}
-	return nil
 }
 
 // This is the existing AM admission projection, not a lifecycle configuration
@@ -159,8 +72,7 @@ func (r *Runner) requireOwnerMaintenance(ctx context.Context, item scenario.Scen
 	}
 	state, err := read(ctxOrBackground(ctx), item)
 	if err != nil {
-		_, refusal := refuse("owner admission is unknown: " + err.Error())
-		return 0, errors.Join(refusal, errOwnerAdmissionUnavailable)
+		return refuse("owner admission is unknown: " + err.Error())
 	}
 	if !state.Closed || state.Revision <= 0 || state.Admitting == nil || *state.Admitting != 0 || state.Remaining == nil || *state.Remaining < 0 {
 		return refuse("admission is not closed with a complete observation")
@@ -194,98 +106,6 @@ func (r *Runner) requireOwnerMaintenance(ctx context.Context, item scenario.Scen
 		}
 	}
 	return state.Revision, nil
-}
-
-// allowRecoveryFirstRestart admits an explicitly audited control-plane
-// replacement while detached Agent Manager executors continue doing work. It
-// is intentionally narrower than a general maintenance bypass: admission must
-// already be closed, the owner observation must be complete, and every active
-// executor must have an identity. Unknown physical scope or an identified
-// executor in the current caller remains a refusal.
-func (r *Runner) allowRecoveryFirstRestart(ctx context.Context, item scenario.Scenario) (int64, error) {
-	if item.Slug != "agent-manager" {
-		return 0, fmt.Errorf("recovery-first restart is only supported for agent-manager")
-	}
-	if currentExecutorIdentified() {
-		return 0, fmt.Errorf("recovery-first restart refused while the current executor is identified")
-	}
-	read := r.deps.readOwnerMaintenance
-	if read == nil {
-		read = r.readOwnerMaintenance
-	}
-	state, err := read(ctxOrBackground(ctx), item)
-	if err != nil {
-		if revision, ok := recoveryUnavailableAdmission(err); ok {
-			return revision, nil
-		}
-		return 0, fmt.Errorf("recovery-first owner observation unavailable: %w", err)
-	}
-	if !state.Closed || state.Revision <= 0 || state.Admitting == nil || *state.Admitting != 0 || state.Remaining == nil || *state.Remaining < 0 {
-		return 0, fmt.Errorf("recovery-first restart requires closed admission and complete remaining-work accounting")
-	}
-	inv := state.Inventory
-	if inv == nil || inv.Remaining == nil || *inv.Remaining != *state.Remaining || len(inv.Unknown) != 0 {
-		return 0, fmt.Errorf("recovery-first restart requires identified executor inventory without unknown physical scope")
-	}
-	if len(inv.Executors) == 0 {
-		if *state.Remaining == 0 {
-			if !state.Drained || len(inv.Work) != 0 {
-				return 0, fmt.Errorf("recovery-first restart requires identified executor inventory without unknown physical scope")
-			}
-			return state.Revision, nil
-		}
-		// A durable run without a physical executor is detached work, not
-		// evidence that the owner must stay up. Interactive/remote runs retain
-		// their durable identity and are reattached by AM startup recovery;
-		// workflows remain excluded because their executor/continuation proof is
-		// a different contract.
-		if len(inv.Work) != *state.Remaining {
-			return 0, fmt.Errorf("recovery-first restart requires complete detached-run accounting")
-		}
-		for _, raw := range inv.Work {
-			var work struct {
-				ID     string `json:"id"`
-				Kind   string `json:"kind"`
-				Status string `json:"status"`
-			}
-			if err := json.Unmarshal(raw, &work); err != nil || strings.TrimSpace(work.ID) == "" || work.Kind != "run" || (work.Status != "running" && work.Status != "parked" && work.Status != "needs_review") {
-				return 0, fmt.Errorf("recovery-first restart requires detached run identities without active workflows")
-			}
-		}
-		return state.Revision, nil
-	}
-	for _, raw := range inv.Executors {
-		var executor struct {
-			ID    string `json:"id"`
-			Alive *bool  `json:"alive"`
-		}
-		if err := json.Unmarshal(raw, &executor); err != nil || strings.TrimSpace(executor.ID) == "" || (executor.Alive != nil && !*executor.Alive) {
-			return 0, fmt.Errorf("recovery-first executor inventory contains an unidentified or inactive executor")
-		}
-	}
-	return state.Revision, nil
-}
-
-// recoveryUnavailableAdmission recognizes only the owner's typed startup
-// recovery response. This is a recovery escape hatch, not a generic
-// unavailable-owner bypass: admission must already be durably closed, no
-// caller may be admitting work, and the lifecycle interlock must match.
-func recoveryUnavailableAdmission(err error) (int64, bool) {
-	var readErr *ownerAdmissionReadError
-	if !errors.As(err, &readErr) || readErr.status != http.StatusServiceUnavailable {
-		return 0, false
-	}
-	var response struct {
-		State ownerMaintenanceStanding `json:"state"`
-		Error string                   `json:"error"`
-	}
-	if json.Unmarshal(readErr.body, &response) != nil || response.Error != "startup recovery is not ready" {
-		return 0, false
-	}
-	if !response.State.Closed || response.State.Revision <= 0 || response.State.Admitting == nil || *response.State.Admitting != 0 || response.State.LifecycleInterlock != "scenario-lock-v1" {
-		return 0, false
-	}
-	return response.State.Revision, true
 }
 
 // Accounting retention is not active execution. This exception never changes

@@ -203,40 +203,20 @@ func (s *Service) DetailAtPath(name, path string) (Detail, error) {
 }
 
 func (s *Service) StartDetailed(name string, opts lifecycle.StartOptions) (StartResult, error) {
-	if lifecycle.InSandbox() {
-		if _, err := lifecycle.RunScenario(context.Background(), lifecycle.StartOptionsRequest("start", name, opts)); err != nil {
-			return StartResult{}, err
-		}
-		return s.startResultFromLiveDetail(name, false)
-	}
-	runner, err := s.runner()
-	if err != nil {
-		return StartResult{}, err
-	}
-	result, err := runner.Start(name, opts)
-	if err != nil {
-		return StartResult{}, err
-	}
-	detail, err := s.detailFor(result.Scenario, name)
-	if err != nil {
-		return StartResult{}, err
-	}
-	return StartResult{
-		View:               s.viewForDetail(detail),
-		Scenario:           result.Scenario,
-		AllocatedPorts:     result.AllocatedPorts,
-		FailedDependencies: append([]string(nil), result.FailedDependencies...),
-		FailedResources:    append([]string(nil), result.FailedResources...),
-		AlreadyRunning:     result.AlreadyRunning,
-		Details:            detail.Details,
-		Verdict:            result.Health,
-		StartOperation:     detail.StartOperation,
-	}, nil
+	return s.runDetailed(name, "start", opts, func(runner lifecycleRunner) (lifecycle.Result, error) {
+		return runner.Start(name, opts)
+	})
 }
 
 func (s *Service) RestartDetailed(name string, opts lifecycle.StartOptions) (StartResult, error) {
+	return s.runDetailed(name, "restart", opts, func(runner lifecycleRunner) (lifecycle.Result, error) {
+		return runner.Restart(name, opts)
+	})
+}
+
+func (s *Service) runDetailed(name, operation string, opts lifecycle.StartOptions, run func(lifecycleRunner) (lifecycle.Result, error)) (StartResult, error) {
 	if lifecycle.InSandbox() {
-		if _, err := lifecycle.RunScenario(context.Background(), lifecycle.StartOptionsRequest("restart", name, opts)); err != nil {
+		if _, err := lifecycle.RunScenario(context.Background(), lifecycle.StartOptionsRequest(operation, name, opts)); err != nil {
 			return StartResult{}, err
 		}
 		return s.startResultFromLiveDetail(name, false)
@@ -245,7 +225,7 @@ func (s *Service) RestartDetailed(name string, opts lifecycle.StartOptions) (Sta
 	if err != nil {
 		return StartResult{}, err
 	}
-	result, err := runner.Restart(name, opts)
+	result, err := run(runner)
 	if err != nil {
 		return StartResult{}, err
 	}

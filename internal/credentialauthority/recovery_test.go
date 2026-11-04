@@ -6,6 +6,8 @@ import (
 	"crypto/cipher"
 	"encoding/base64"
 	"encoding/json"
+	"fmt"
+	"maps"
 	"os"
 	"path/filepath"
 	"testing"
@@ -162,5 +164,99 @@ func TestHistoricalRecoveryFixtureOpensThroughCompatibilityReader(t *testing.T) 
 	}
 	if len(manifest.Entries) != 1 || string(manifest.Entries[0].Identity) != "vrooli/fixture" || manifest.Entries[0].Field != "api-key" {
 		t.Fatalf("historical recovery manifest = %+v", manifest)
+	}
+}
+
+func TestRecoveryRejectsMalformedEnvelopesWithoutPanicOrTargetChanges(t *testing.T) {
+	fixtureBytes, err := os.ReadFile(filepath.Join("..", "credentialpolicy", "testdata", "historical-envelopes-v1.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var fixture struct {
+		Recovery struct {
+			recoveryEnvelope
+			Passphrase string `json:"passphrase"`
+		} `json:"recovery_v1"`
+	}
+	if err := json.Unmarshal(fixtureBytes, &fixture); err != nil {
+		t.Fatal(err)
+	}
+	marshal := func(envelope recoveryEnvelope) []byte {
+		t.Helper()
+		bundle, err := json.Marshal(envelope)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return bundle
+	}
+	passphrase := fixture.Recovery.Passphrase
+	legacy := fixture.Recovery.recoveryEnvelope
+	plain, err := decryptRecovery(marshal(legacy), passphrase)
+	if err != nil {
+		t.Fatal(err)
+	}
+	currentBundle, err := encryptRecovery(plain, passphrase)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var current recoveryEnvelope
+	if err := json.Unmarshal(currentBundle, &current); err != nil {
+		t.Fatal(err)
+	}
+	versionTwo := legacy
+	versionTwo.Version = 2
+	versionTwo.KDF = recoveryKDFPBKDF2SHA256
+	versionTwo.Iterations = credentialpolicy.RecoveryPBKDF2Iterations
+	for _, envelope := range []recoveryEnvelope{legacy, versionTwo, current} {
+		t.Run(fmt.Sprintf("version_%d", envelope.Version), func(t *testing.T) {
+			if _, err := InspectRecovery(marshal(envelope), passphrase); err != nil {
+				t.Fatalf("valid recovery fixture rejected: %v", err)
+			}
+			reject := func(t *testing.T, bundle []byte, password string) {
+				t.Helper()
+				store := &authorityStore{}
+				target, err := NewAuthority(store)
+				if err != nil {
+					t.Fatal(err)
+				}
+				id, _ := ParseIdentity("vrooli/fixture")
+				if err := target.Put(id, "api-key", "existing-test-value"); err != nil {
+					t.Fatal(err)
+				}
+				before := maps.Clone(store.values)
+				check := func(name string, call func() error) {
+					t.Helper()
+					defer func() {
+						if recover() != nil {
+							t.Errorf("%s panicked instead of rejecting malformed input", name)
+						}
+					}()
+					if err := call(); err == nil {
+						t.Errorf("%s accepted malformed input", name)
+					}
+				}
+				check("inspect", func() error {
+					_, err := InspectRecovery(bundle, password)
+					return err
+				})
+				check("restore", func() error { return target.RestoreRecovery(bundle, password) })
+				if !maps.Equal(before, store.values) {
+					t.Fatal("rejected recovery changed target credentials")
+				}
+			}
+			for _, size := range []int{0, 1, 13} {
+				t.Run(fmt.Sprintf("nonce_%d", size), func(t *testing.T) {
+					malformed := envelope
+					malformed.Nonce = base64.StdEncoding.EncodeToString(make([]byte, size))
+					reject(t, marshal(malformed), passphrase)
+				})
+			}
+			t.Run("wrong_passphrase", func(t *testing.T) { reject(t, marshal(envelope), "wrong-test-passphrase") })
+			t.Run("truncated_ciphertext", func(t *testing.T) {
+				malformed := envelope
+				malformed.Ciphertext = base64.StdEncoding.EncodeToString([]byte{0})
+				reject(t, marshal(malformed), passphrase)
+			})
+		})
 	}
 }

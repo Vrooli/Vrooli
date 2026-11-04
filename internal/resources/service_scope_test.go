@@ -5,11 +5,30 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
+	platform "github.com/vrooli/platform-go"
 	resourcedeployment "github.com/vrooli/vrooli/packages/resource-deployment"
 )
+
+func TestMissingCompanionScopeAllowsFreshLaunch(t *testing.T) {
+	if runtime.GOOS != "linux" {
+		t.Skip("cgroup ownership is Linux-specific")
+	}
+	ref := platform.ScopeRef{Kind: platform.ScopeKindCgroup, Name: "absent", Path: filepath.Join("/vrooli-missing-companion", filepath.Base(t.TempDir()))}
+	pids, err := companionScopeProcesses(ref)
+	if err != nil || len(pids) != 0 {
+		t.Fatalf("absent scope must permit a fresh companion launch, got pids=%v err=%v", pids, err)
+	}
+}
+
+func TestInvalidCompanionScopeDoesNotAuthorizeFreshLaunch(t *testing.T) {
+	if _, err := companionScopeProcesses(platform.ScopeRef{}); err == nil {
+		t.Fatal("invalid ownership scope must fail closed")
+	}
+}
 
 func TestResourceServiceScopeNameIsStableAndSanitized(t *testing.T) {
 	first := resourceServiceScopeName("kokoro", "service")
@@ -30,6 +49,29 @@ func TestResourceServiceScopeNameIsStableAndSanitized(t *testing.T) {
 	long := resourceServiceScopeName(strings.Repeat("k", 300), "service")
 	if len(long) > 200 {
 		t.Fatalf("scope name length %d exceeds the unit bound", len(long))
+	}
+}
+
+func TestCompanionRecoveryRequiresExactCommandAndCurrentParent(t *testing.T) {
+	bin := "/operator/bin/resource-fixture"
+	for _, tc := range []struct {
+		name, executable, command string
+		args                      []string
+		want                      bool
+	}{
+		{"exact", bin, bin + " activity-edge --parent-pid 42", []string{"activity-edge"}, true},
+		{"atomic replacement", bin + " (deleted)", bin + " activity-edge --parent-pid 42", []string{"activity-edge"}, true},
+		{"same name elsewhere", "/other/resource-fixture", bin + " activity-edge --parent-pid 42", []string{"activity-edge"}, false},
+		{"old parent", bin, bin + " activity-edge --parent-pid 41", []string{"activity-edge"}, false},
+		{"other command", bin, bin + " capacity-sync --parent-pid 42", []string{"activity-edge"}, false},
+		{"extra arguments", bin, bin + " activity-edge --parent-pid 42 --other", []string{"activity-edge"}, false},
+		{"ambiguous argv projection", bin, bin + " two words --parent-pid 42", []string{"two words"}, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := companionCommandMatches(bin, tc.args, 42, tc.executable, tc.command); got != tc.want {
+				t.Fatalf("identity match=%t, want %t", got, tc.want)
+			}
+		})
 	}
 }
 

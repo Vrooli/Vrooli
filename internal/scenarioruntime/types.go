@@ -16,7 +16,7 @@ const (
 	// shape and schemaMigrations carries additive upgrades for local registries.
 	// A version bump must update both the greenfield schema and its migration
 	// rung; destructive conversions remain operator-owned.
-	SchemaVersion = 14
+	SchemaVersion = 15
 
 	StatusStarting = "starting"
 	StatusRunning  = "running"

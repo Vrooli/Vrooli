@@ -19,6 +19,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/vrooli/vrooli/internal/capacity"
+
 	"github.com/vrooli/vrooli/internal/shell"
 	"github.com/vrooli/vrooli/internal/tuning"
 
@@ -55,6 +57,9 @@ func NewManagedServiceOwnerLifecycle(controller *Controller, manifest ResourceMa
 }
 
 func (l ManagedServiceOwnerLifecycle) Manage(ctx context.Context, instance ManagedInstance, action string) (any, error) {
+	if l.Manifest.Lifecycle.ExclusiveGroup != "" {
+		return nil, fmt.Errorf("exclusive group %q requires managed-private lifecycle; shared broker activation refused", l.Manifest.Lifecycle.ExclusiveGroup)
+	}
 	if l.Controller == nil || instance.Resource != l.Manifest.Name || instance.Provider != resourcedeployment.ProviderManagedShared {
 		return nil, fmt.Errorf("owner lifecycle does not match a managed shared %s instance", l.Manifest.Name)
 	}
@@ -64,7 +69,9 @@ func (l ManagedServiceOwnerLifecycle) Manage(ctx context.Context, instance Manag
 	case brokerTransportStart, brokerTransportRestart:
 		var result any
 		err := withManagedServiceLifecycleLock(ctx, l.Manifest.Name, func() error {
-			if err := driver.runUserHosted(ctx, l.Controller, item, l.Manifest, action, io.Discard); err != nil {
+			if err := l.Controller.withResourceCapacity(ctx, l.Manifest.Name, action, func(ctx context.Context) error {
+				return driver.runUserHosted(ctx, l.Controller, item, l.Manifest, action, io.Discard)
+			}); err != nil {
 				return err
 			}
 			var err error
@@ -287,32 +294,59 @@ func (d managedServiceDriver) Run(ctx context.Context, controller *Controller, i
 			return managedServiceDriverError(item.Name, action, "Provider", err)
 		}
 		if managedServiceLifecycleAction(action) {
-			release, err := acquireManagedServiceLifecycleLock(ctx, manifest.Name)
+			release, err := acquireManagedLifecycleLocks(ctx, manifest)
 			if err != nil {
 				return managedServiceDriverError(item.Name, action, "Lifecycle", err)
 			}
 			defer release()
 		}
-		if mode == resourcedeployment.ProviderManagedShared {
+		if manifest.Lifecycle.ExclusiveGroup != "" {
+			if mode != resourcedeployment.ProviderManagedPrivate {
+				return fmt.Errorf("exclusive resource groups require the managed-private provider")
+			}
+			if action == brokerTransportStart || action == brokerTransportRestart {
+				if err := checkExclusiveResourceGroup(controller, manifest); err != nil {
+					return managedServiceDriverError(item.Name, action, "ExclusiveGroup", err)
+				}
+				if err := pruneIdleExclusiveModelCaches(ctx, controller, manifest); err != nil {
+					_, _ = fmt.Fprintf(stderr, "warning: inactive model-cache retention skipped: %s\n", err)
+				}
+			}
+		}
+		// Admission is serialized with stop/restart. A lease created while
+		// queued outside this lock can be released by the preceding stop.
+		runErr := controller.withResourceCapacity(ctx, manifest.Name, action, func(ctx context.Context) error {
+			if mode == resourcedeployment.ProviderManagedShared {
+				if action == brokerTransportStart || action == brokerTransportRestart {
+					if err := migrateLegacyDockerStorage(ctx, controller, manifest); err != nil {
+						return err
+					}
+				}
+				return d.runUserHosted(ctx, controller, item, manifest, action, stdout)
+			}
+			if mode == resourcedeployment.ProviderManagedDiscovered && (action == brokerTransportStart || action == brokerTransportRestart) {
+				return d.runDiscovered(ctx, controller, item, manifest, action, args)
+			}
+			if mode != resourcedeployment.ProviderManagedPrivate {
+				return managedServiceDriverError(item.Name, action, "Provider", fmt.Errorf("%s provider does not grant local lifecycle authority; use the broker or provider-specific client", mode))
+			}
 			if action == brokerTransportStart || action == brokerTransportRestart {
 				if err := migrateLegacyDockerStorage(ctx, controller, manifest); err != nil {
 					return err
 				}
 			}
-			return d.runUserHosted(ctx, controller, item, manifest, action, stdout)
-		}
-		if mode == resourcedeployment.ProviderManagedDiscovered && (action == brokerTransportStart || action == brokerTransportRestart) {
-			return d.runDiscovered(ctx, controller, item, manifest, action, args)
-		}
-		if mode != resourcedeployment.ProviderManagedPrivate {
-			return managedServiceDriverError(item.Name, action, "Provider", fmt.Errorf("%s provider does not grant local lifecycle authority; use the broker or provider-specific client", mode))
-		}
-		if action == brokerTransportStart || action == brokerTransportRestart {
-			if err := migrateLegacyDockerStorage(ctx, controller, manifest); err != nil {
-				return err
+			return d.runPrivate(ctx, controller, item, manifest, action, stdout)
+		})
+		if runErr == nil && mode == resourcedeployment.ProviderManagedPrivate && (action == brokerTransportStart || action == brokerTransportRestart || action == brokerTransportStop) {
+			event := "started"
+			if action == brokerTransportStop {
+				event = "stopped"
+			}
+			if err := noteModelCaches(ctx, manifest, event); err != nil {
+				_, _ = fmt.Fprintf(stderr, "warning: model-cache usage not recorded; cleanup remains protected: %s\n", err)
 			}
 		}
-		return d.runPrivate(ctx, controller, item, manifest, action, stdout)
+		return runErr
 	default:
 		return managedServiceDriverError(item.Name, action, "Driver", fmt.Errorf("action %q is not supported by driver %q", action, d.Name()))
 	}
@@ -550,7 +584,7 @@ func (d managedServiceDriver) runPrivate(ctx context.Context, controller *Contro
 		stopCompanions(manifest.Name, manifest.Companions, os.Stderr)
 		stopCtx, cancel := managedServiceStopContext(ctx, manifest)
 		defer cancel()
-		return stopManagedService(stopCtx, manifest, supervisor)
+		return capacity.ReleaseResourceAdmissionAfterStop(stopCtx, capacity.AdmitOptions{Root: controller.Root, ResourceName: manifest.Name, Log: os.Stderr}, func() error { return stopManagedService(stopCtx, manifest, supervisor) })
 	case "logs":
 		return supervisor.Logs(stdout)
 	default:
@@ -603,6 +637,9 @@ func (d managedServiceDriver) startPrivate(ctx context.Context, controller *Cont
 	} else if running {
 		return nil
 	}
+	if err := verifyManagedServiceDataGroupAvailability(ctx, manifest); err != nil {
+		return err
+	}
 	if err := ensureManagedServiceArtifact(ctx, controller, manifest); err != nil {
 		return err
 	}
@@ -613,24 +650,18 @@ func (d managedServiceDriver) startPrivate(ctx context.Context, controller *Cont
 	if err != nil {
 		return err
 	}
-	return d.startPrivateAt(ctx, controller, manifest, supervisor, path)
+	if err := d.startPrivateAt(ctx, controller, manifest, supervisor, path); err != nil {
+		return err
+	}
+	retainManagedServiceArtifactsAfterActivation(ctx, controller, manifest, supervisor)
+	return nil
 }
 
-func (d managedServiceDriver) startPrivateAt(ctx context.Context, controller *Controller, manifest ResourceManifest, supervisor *ManagedServiceSupervisor, path string) error {
-	if err := ctx.Err(); err != nil {
-		return err
-	}
-	if err := d.verifyArtifactAt(ctx, manifest, path); err != nil {
-		return err
-	}
-	artifact, err := managedServiceArtifactForLaunch(ctx, manifest, path)
-	if err != nil {
-		return err
-	}
+// managedServiceRuntimeEnvironment is shared by service launch and import
+// qualification. It resolves the declared closure without writing service
+// configuration, credentials, bootstrap state or model data.
+func managedServiceRuntimeEnvironment(ctx context.Context, controller *Controller, manifest ResourceManifest, path string, artifact resourcedeployment.ServiceArtifact) ([]string, error) {
 	env := resourceEnvForResource(controller.Root, controller.Home, manifest.Name)
-	if err := ensureManagedServiceRunAsUser(ctx, manifest, env, path); err != nil {
-		return err
-	}
 	if manifest.ManagedService != nil && strings.TrimSpace(manifest.ManagedService.RunAsUser) != "" {
 		env = valuehelpers.SetEnv(env, "VROOLI_MANAGED_SERVICE_RUN_AS_USER", strings.TrimSpace(manifest.ManagedService.RunAsUser))
 	}
@@ -646,7 +677,7 @@ func (d managedServiceDriver) startPrivateAt(ctx context.Context, controller *Co
 	env = valuehelpers.SetEnv(env, "RESOURCE_ARTIFACT_DIR", artifactRoot)
 	acquisitionEnv, err := acquisitionTargetRuntimeEnv(ctx, manifest, artifactRoot)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	for key, value := range acquisitionEnv {
 		env = valuehelpers.SetEnv(env, key, value)
@@ -663,11 +694,39 @@ func (d managedServiceDriver) startPrivateAt(ctx context.Context, controller *Co
 	if strings.TrimSpace(manifest.ManagedService.EnvironmentFile) != "" {
 		fileEnv, err := readManagedServiceEnvironmentFile(manifest.ManagedService.EnvironmentFile, env)
 		if err != nil {
-			return err
+			return nil, err
 		}
 		for key, value := range fileEnv {
 			env = valuehelpers.SetEnv(env, key, value)
 		}
+	}
+	env, err = managedServiceBackendEnvironment(ctx, manifest, env)
+	if err != nil {
+		return nil, err
+	}
+	return env, nil
+}
+
+func (d managedServiceDriver) startPrivateAt(ctx context.Context, controller *Controller, manifest ResourceManifest, supervisor *ManagedServiceSupervisor, path string) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	if err := verifyManagedServiceDataGroupAvailability(ctx, manifest); err != nil {
+		return err
+	}
+	if err := d.verifyArtifactAt(ctx, manifest, path); err != nil {
+		return err
+	}
+	artifact, err := managedServiceArtifactForLaunch(ctx, manifest, path)
+	if err != nil {
+		return err
+	}
+	env, err := managedServiceRuntimeEnvironment(ctx, controller, manifest, path, artifact)
+	if err != nil {
+		return err
+	}
+	if err := ensureManagedServiceRunAsUser(ctx, manifest, env, path); err != nil {
+		return err
 	}
 	if err := writeManagedServiceConfig(manifest, env); err != nil {
 		return err
@@ -1277,7 +1336,10 @@ func waitForManagedServiceHealth(parent context.Context, controller *Controller,
 		if ctx.Err() != nil {
 			return interrupted()
 		}
-		if probeErr == nil && health.Healthy {
+		// Serving below the declared backend is a visible degraded state,
+		// not a failed readiness probe. Otherwise an explicit CPU rung can
+		// serve correctly while every normal start waits until its timeout.
+		if probeErr == nil && (health.Healthy || (health.Serving && health.ModeDrift && health.LivenessFailed == "")) {
 			return nil
 		}
 		select {

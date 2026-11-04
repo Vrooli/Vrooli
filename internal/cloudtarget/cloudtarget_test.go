@@ -595,9 +595,39 @@ func TestScenarioActivatorUsesLifecycleArgv(t *testing.T) {
 	want := [][]string{
 		{"/opt/vrooli/bin/vrooli", "scenario", "stop", "landing-app", "--json"},
 		{"/opt/vrooli/bin/vrooli", "scenario", "start", "landing-app", "--path", "/home/deploy/.vrooli/cloud/deployments/d/releases/abc/scenarios/landing-app", "--clean-stale", "--json"},
+		{"/opt/vrooli/bin/vrooli", "scenario", "wait", "landing-app", "--json"},
 	}
 	if mustJSON(t, runner.calls) != mustJSON(t, want) {
 		t.Fatalf("calls = %q", runner.calls)
+	}
+}
+
+type failedReadinessRunner struct{ recordingRunner }
+
+func (r *failedReadinessRunner) Run(ctx context.Context, name string, args ...string) ([]byte, error) {
+	r.recordingRunner.Run(ctx, name, args...)
+	if len(args) > 1 && args[1] == "wait" {
+		return []byte(`{"status":"failed","error":"API could not start"}`), errors.New("lifecycle readiness failed")
+	}
+	return nil, nil
+}
+
+// Start admission is not runtime readiness. A later lifecycle failure must
+// leave the release inactive even though the start command accepted the work.
+func TestScenarioActivationWaitsForReadinessBeforeCommittingRelease(t *testing.T) {
+	f := newFixture(t, defaultBundleEntries(), nil)
+	stageFixture(t, f, "op-1", 1)
+	runner := &failedReadinessRunner{}
+	result, err := f.store.Activate(context.Background(), ActivateRequest{
+		Effect: f.effect("op-1", "activate", 1), Release: f.manifest.ReleaseDigest,
+		Activator: ScenarioRestartActivator{Runner: runner}, Scenarios: []string{testScenario},
+	})
+	if err == nil || result.Receipt.Outcome != OutcomeFailed || !strings.Contains(err.Error(), "lifecycle readiness failed") {
+		t.Fatalf("activation accepted a failed start: result=%+v err=%v", result, err)
+	}
+	active, err := f.store.ReadActive(testDeployment)
+	if err != nil || active != nil {
+		t.Fatalf("failed lifecycle start committed a release: active=%+v err=%v", active, err)
 	}
 }
 

@@ -32,6 +32,32 @@ func acquireManagedServiceLifecycleLock(ctx context.Context, resource string) (f
 	return artifactlock.AcquireContext(ctx, "resource-lifecycle:"+resource)
 }
 
+// Group before resource is the single lock order, including stop/restart. A
+// completed start publishes supervised state before another member may inspect.
+func acquireManagedLifecycleLocks(ctx context.Context, manifest ResourceManifest) (func(), error) {
+	var groupRelease func()
+	if group := manifest.Lifecycle.ExclusiveGroup; group != "" {
+		var err error
+		groupRelease, err = artifactlock.AcquireContext(ctx, "resource-exclusive-group:"+group)
+		if err != nil {
+			return nil, err
+		}
+	}
+	resourceRelease, err := acquireManagedServiceLifecycleLock(ctx, manifest.Name)
+	if err != nil {
+		if groupRelease != nil {
+			groupRelease()
+		}
+		return nil, err
+	}
+	return func() {
+		resourceRelease()
+		if groupRelease != nil {
+			groupRelease()
+		}
+	}, nil
+}
+
 func managedServiceLifecycleAction(action string) bool {
 	switch action {
 	case "start", "restart", brokerTransportStop, "uninstall":

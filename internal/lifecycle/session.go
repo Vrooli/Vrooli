@@ -19,10 +19,13 @@ type startSession struct {
 }
 
 type sessionState struct {
-	mu                 sync.Mutex
-	readySet           map[string]struct{}
-	cache              setupCheckCache
-	dependencyLeaseIDs map[string]struct{}
+	mu                         sync.Mutex
+	readySet                   map[string]struct{}
+	cache                      setupCheckCache
+	dependencyLeaseIDs         map[string]struct{}
+	dependencyLeaseConsumers   map[string]string
+	priorDependencyLeaseIDs    map[string]map[string]struct{}
+	stoppedDependencyConsumers map[string]struct{}
 }
 
 type setupCheckCache map[string]setupCheckResult
@@ -36,16 +39,89 @@ func newStartSession(ctx context.Context) *startSession {
 	if ctx == nil {
 		ctx = context.Background()
 	}
-	return &startSession{ctx: ctx, state: &sessionState{readySet: map[string]struct{}{}, cache: setupCheckCache{}, dependencyLeaseIDs: map[string]struct{}{}}}
+	return &startSession{ctx: ctx, state: &sessionState{
+		readySet:                   map[string]struct{}{},
+		cache:                      setupCheckCache{},
+		dependencyLeaseIDs:         map[string]struct{}{},
+		dependencyLeaseConsumers:   map[string]string{},
+		priorDependencyLeaseIDs:    map[string]map[string]struct{}{},
+		stoppedDependencyConsumers: map[string]struct{}{},
+	}}
 }
 
-func (s *startSession) recordDependencyLease(leaseID string) {
+func (s *startSession) recordDependencyLease(consumerID, leaseID string) {
 	if s == nil || s.state == nil || leaseID == "" {
 		return
 	}
 	s.state.mu.Lock()
 	s.state.dependencyLeaseIDs[leaseID] = struct{}{}
+	s.state.dependencyLeaseConsumers[leaseID] = consumerID
 	s.state.mu.Unlock()
+}
+
+func (s *startSession) rememberPriorDependencyLeases(consumerID string, leaseIDs []string) {
+	if s == nil || s.state == nil || consumerID == "" {
+		return
+	}
+	s.state.mu.Lock()
+	defer s.state.mu.Unlock()
+	if _, captured := s.state.priorDependencyLeaseIDs[consumerID]; captured {
+		return
+	}
+	prior := make(map[string]struct{}, len(leaseIDs))
+	for _, leaseID := range leaseIDs {
+		if leaseID != "" {
+			prior[leaseID] = struct{}{}
+		}
+	}
+	s.state.priorDependencyLeaseIDs[consumerID] = prior
+}
+
+func (s *startSession) markDependencyConsumerStopped(consumerID string) {
+	if s == nil || s.state == nil || consumerID == "" {
+		return
+	}
+	s.state.mu.Lock()
+	s.state.stoppedDependencyConsumers[consumerID] = struct{}{}
+	s.state.mu.Unlock()
+}
+
+func (s *startSession) shouldPreservePriorDependencyLease(consumerID, leaseID string) bool {
+	if s == nil || s.state == nil || consumerID == "" || leaseID == "" {
+		return false
+	}
+	s.state.mu.Lock()
+	defer s.state.mu.Unlock()
+	if _, stopped := s.state.stoppedDependencyConsumers[consumerID]; stopped {
+		return false
+	}
+	_, prior := s.state.priorDependencyLeaseIDs[consumerID][leaseID]
+	return prior
+}
+
+func (s *startSession) shouldPreserveRecordedDependencyLease(leaseID string) bool {
+	if s == nil || s.state == nil || leaseID == "" {
+		return false
+	}
+	s.state.mu.Lock()
+	consumerID := s.state.dependencyLeaseConsumers[leaseID]
+	s.state.mu.Unlock()
+	return s.shouldPreservePriorDependencyLease(consumerID, leaseID)
+}
+
+func (s *startSession) dependencyLeaseSetForConsumer(consumerID string) map[string]struct{} {
+	if s == nil || s.state == nil || consumerID == "" {
+		return nil
+	}
+	s.state.mu.Lock()
+	defer s.state.mu.Unlock()
+	set := make(map[string]struct{})
+	for leaseID := range s.state.dependencyLeaseIDs {
+		if s.state.dependencyLeaseConsumers[leaseID] == consumerID {
+			set[leaseID] = struct{}{}
+		}
+	}
+	return set
 }
 
 func (s *startSession) dependencyLeases() []string {
@@ -82,6 +158,7 @@ func (s *startSession) forgetDependencyLeases(ids []string) {
 	s.state.mu.Lock()
 	for _, id := range ids {
 		delete(s.state.dependencyLeaseIDs, id)
+		delete(s.state.dependencyLeaseConsumers, id)
 	}
 	s.state.mu.Unlock()
 }

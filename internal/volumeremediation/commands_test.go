@@ -23,10 +23,10 @@ func TestCommandTable(t *testing.T) {
 			want:    []string{"udisksctl", "unmount", "--block-device", "/dev/sda1", "--no-user-interaction"},
 		},
 		{
-			name:    "udisks mount",
+			name:    "udisks NTFS mount selects the ntfs helper",
 			backend: BackendUDisks,
 			req:     Request{Action: ActionMountReadWrite, Device: elementsDevice()},
-			want:    []string{"udisksctl", "mount", "--block-device", "/dev/sda1", "--no-user-interaction"},
+			want:    []string{"udisksctl", "mount", "--block-device", "/dev/sda1", "--filesystem-type", "ntfs", "--no-user-interaction"},
 		},
 		{
 			name:    "udisks check",
@@ -87,7 +87,7 @@ func TestCommandTable(t *testing.T) {
 			name:    "native mount",
 			backend: BackendNativeTools,
 			req:     Request{Action: ActionMountReadWrite, Device: elementsDevice(), DesiredMountpoint: "/media/user/Elements"},
-			want:    []string{"mount", "-t", "ntfs3", "-o", "rw", "/dev/sda1", "/media/user/Elements"},
+			want:    []string{"mount", "-t", "ntfs-3g", "-o", "rw", "/dev/sda1", "/media/user/Elements"},
 		},
 		{
 			name:    "darwin verify",
@@ -104,14 +104,14 @@ func TestCommandTable(t *testing.T) {
 		{
 			name:    "windows scan",
 			backend: BackendRepairVolume,
-			req:     Request{Action: ActionCheck, Device: Device{Path: "E:", Filesystem: "ntfs"}},
-			want:    []string{"powershell", "-NoProfile", "-NonInteractive", "-Command", "Repair-Volume -DriveLetter E -Scan"},
+			req:     Request{Action: ActionCheck, Device: Device{Path: "E:", UUID: `\\?\Volume{12345678-1234-1234-1234-123456789abc}\`, Filesystem: "ntfs"}},
+			state:   State{Device: Device{Path: "E:", UUID: `\\?\Volume{12345678-1234-1234-1234-123456789abc}\`}},
 		},
 		{
 			name:    "windows repair",
 			backend: BackendRepairVolume,
-			req:     Request{Action: ActionRepair, Device: Device{Path: "e:", Filesystem: "ntfs"}},
-			want:    []string{"powershell", "-NoProfile", "-NonInteractive", "-Command", "Repair-Volume -DriveLetter E -OfflineScanAndFix"},
+			req:     Request{Action: ActionRepair, Device: Device{Path: `\\?\Volume{12345678-1234-1234-1234-123456789abc}\`, UUID: `\\?\Volume{12345678-1234-1234-1234-123456789abc}\`, Filesystem: "ntfs"}},
+			state:   State{Device: Device{UUID: `\\?\Volume{12345678-1234-1234-1234-123456789abc}\`}},
 		},
 	}
 	for _, tc := range cases {
@@ -120,28 +120,32 @@ func TestCommandTable(t *testing.T) {
 			if err != nil {
 				t.Fatalf("commandFor: %v", err)
 			}
-			if strings.Join(got, "\x00") != strings.Join(tc.want, "\x00") {
+			if len(tc.want) > 0 && strings.Join(got, "\x00") != strings.Join(tc.want, "\x00") {
 				t.Fatalf("argv = %q, want %q", got, tc.want)
+			}
+			if tc.name == "windows scan" && (!strings.Contains(got[4], "Get-Volume -UniqueId") || !strings.Contains(got[4], "DBM_CHECK_RESULT=")) {
+				t.Fatalf("scan command is not identity-bound with an explicit result: %q", got[4])
+			}
+			if tc.name == "windows repair" && !strings.Contains(got[4], "Repair-Volume -InputObject $v -OfflineScanAndFix") {
+				t.Fatalf("repair command is not bound to the resolved volume object: %q", got[4])
 			}
 		})
 	}
 }
 
-// Windows attaches volumes itself; claiming a mount step would imply control
-// the platform does not give us. The error must still hand back a usable
-// operator command.
-func TestWindowsMountIsUnsupportedButActionable(t *testing.T) {
-	_, err := commandFor(BackendRepairVolume, Request{Action: ActionMountReadWrite, Device: Device{Path: "E:", Filesystem: "ntfs"}}, State{})
-
-	var unsupported ErrUnsupported
-	if !asUnsupported(err, &unsupported) {
-		t.Fatalf("error = %v, want ErrUnsupported", err)
+func TestWindowsMountRestoresPriorLetterByStableID(t *testing.T) {
+	volumeID := `\\?\Volume{12345678-1234-1234-1234-123456789abc}\`
+	got, err := commandFor(BackendRepairVolume, Request{
+		Action: ActionMountReadWrite, Device: Device{Path: volumeID, UUID: volumeID}, DesiredMountpoint: `E:\`,
+	}, State{Device: Device{UUID: volumeID}})
+	if err != nil {
+		t.Fatalf("commandFor: %v", err)
 	}
-	if unsupported.OperatorCommand == "" {
-		t.Fatal("an unsupported platform must still name a native command")
-	}
-	if !strings.Contains(err.Error(), "Repair-Volume") {
-		t.Fatalf("error text must carry the command: %v", err)
+	script := got[4]
+	for _, required := range []string{"Get-Volume -UniqueId", "already has a drive letter", "requested drive letter is already assigned", "already has a mounted-folder access path", "Add-PartitionAccessPath", "-AccessPath 'E:'"} {
+		if !strings.Contains(script, required) {
+			t.Fatalf("mount script %q is missing %q", script, required)
+		}
 	}
 }
 

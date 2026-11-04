@@ -2,13 +2,17 @@ package resources
 
 import (
 	"context"
+	"github.com/vrooli/vrooli/internal/hostinventory"
 	"go/ast"
 	"go/parser"
 	"go/token"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/vrooli/vrooli/internal/accel"
 	manifestpkg "github.com/vrooli/vrooli/internal/resources/manifest"
@@ -371,4 +375,110 @@ func receiverTypeName(fields *ast.FieldList) string {
 		}
 	}
 	return ""
+}
+
+func TestIdleWorkloadProbeRequiresExplicitBoundedEvidence(t *testing.T) {
+	for _, item := range []struct {
+		body        string
+		idle, valid bool
+	}{
+		{`{"workload_active":false}`, true, true}, {`{"workload_active":true}`, false, true},
+		{`{}`, false, false}, {`{"workload_active":null}`, false, false}, {`{"workload_active":"false"}`, false, false},
+		{strings.Repeat(" ", 65537), false, false},
+	} {
+		t.Run(item.body[:min(len(item.body), 35)], func(t *testing.T) {
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { w.Write([]byte(item.body)) }))
+			defer server.Close()
+			idle, err := probeWorkloadIdle(t.Context(), server.URL)
+			if (err == nil) != item.valid || idle != item.idle {
+				t.Fatalf("idle=%v err=%v", idle, err)
+			}
+		})
+	}
+}
+
+func TestManagedReadinessReturnsForServingDegradedCPUWithoutHidingDrift(t *testing.T) {
+	t.Setenv("VROOLI_GPU", "off")
+	t.Setenv("VROOLI_RESOURCE_STORAGE_ROOT", t.TempDir())
+	oldFacts := accelFactSource
+	accelFactSource = accel.StaticFactSource{Inventory: hostinventory.Snapshot{}}
+	t.Cleanup(func() { accelFactSource = oldFacts })
+	controller := NewController(t.TempDir(), t.TempDir())
+	manifest := acceleratedManifest("degraded-readiness-fixture", "managed-service")
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { w.WriteHeader(http.StatusOK) }))
+	defer server.Close()
+	manifest.HealthChecks = []ResourceHealthCheck{{Type: "http", Kind: "readiness", Target: server.URL}}
+	supervisor, _, err := managedServiceSupervisorFor(manifest.Name)
+	if err != nil {
+		t.Fatal(err)
+	}
+	state := ownershipState()
+	state.PID, state.InstanceID, state.ArtifactSHA256, state.ArtifactVersion = os.Getpid(), "fixture-instance", strings.Repeat("a", 64), "1"
+	withOwnershipFacts(t, func(int) (map[string]string, error) {
+		return map[string]string{managedServiceOwnershipTokenEnv: "owned"}, nil
+	}, executableAt(state.ArtifactPath))
+	if err := supervisor.writeState(state); err != nil {
+		t.Fatal(err)
+	}
+	ctx, cancel := context.WithTimeout(t.Context(), time.Second)
+	defer cancel()
+	if err := waitForManagedServiceHealth(ctx, controller, manifest); err != nil {
+		t.Fatal("serving CPU rung stranded startup", err)
+	}
+	health, err := controller.runResourceHealthChecks(t.Context(), manifest)
+	if err != nil || health.Healthy || !health.Serving || !health.ModeDrift {
+		t.Fatalf("drift was hidden: %+v err=%v", health, err)
+	}
+
+	failing := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { w.WriteHeader(http.StatusServiceUnavailable) }))
+	defer failing.Close()
+	manifest.HealthChecks = append(manifest.HealthChecks, ResourceHealthCheck{Type: "http", Kind: "liveness", Target: failing.URL})
+	blocked, stop := context.WithTimeout(t.Context(), 30*time.Millisecond)
+	defer stop()
+	if err := waitForManagedServiceHealth(blocked, controller, manifest); err == nil {
+		t.Fatal("CPU drift hid an explicit liveness failure")
+	}
+}
+
+// A CPU downgrade must keep an auto-detecting server off the GPU even after
+// another request arrives; an inherited GPU environment cannot override it.
+func TestManagedServiceSelectedBackendOwnsProcessEnvironment(t *testing.T) {
+	t.Setenv("VROOLI_GPU", "off")
+	m, err := manifestpkg.Load(filepath.Join("..", "..", "resources", "ollama", "resource.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	initial := []string{"CUDA_VISIBLE_DEVICES=0", "ROCR_VISIBLE_DEVICES=0", "GGML_VK_VISIBLE_DEVICES=0", "OLLAMA_VULKAN=1", "UNCHANGED=value"}
+	got, err := managedServiceBackendEnvironment(context.Background(), m, append([]string{}, initial...))
+	if err != nil {
+		t.Fatal(err)
+	}
+	values := managedServiceEnvValues(got)
+	for _, key := range []string{"CUDA_VISIBLE_DEVICES", "ROCR_VISIBLE_DEVICES", "GGML_VK_VISIBLE_DEVICES"} {
+		if values[key] != "-1" {
+			t.Errorf("CPU process still sees %s=%q", key, values[key])
+		}
+	}
+	if values["OLLAMA_VULKAN"] != "0" || values["UNCHANGED"] != "value" {
+		t.Fatalf("CPU selection lost environment: %v", values)
+	}
+	t.Setenv("VROOLI_GPU", "on")
+	gpuEnv, err := managedServiceBackendEnvironment(context.Background(), m, append([]string{}, initial...))
+	if err != nil || managedServiceEnvValues(gpuEnv)["CUDA_VISIBLE_DEVICES"] != "0" {
+		t.Fatalf("GPU selection inherited CPU constraints: %v %v", gpuEnv, err)
+	}
+}
+
+func TestManagedServiceAutoBackendEnvironmentUsesHostDecision(t *testing.T) {
+	t.Setenv("VROOLI_GPU", "auto")
+	oldFacts := accelFactSource
+	accelFactSource = accel.StaticFactSource{Inventory: hostinventory.Snapshot{}}
+	t.Cleanup(func() { accelFactSource = oldFacts })
+	m := acceleratedManifest("cpu-fallback-env", "managed-service")
+	m.Acceleration.Backend[manifestpkg.BackendCPU] = manifestpkg.BackendConfig{Env: map[string]string{"DEVICE": "cpu"}}
+	m.Acceleration.Backend[manifestpkg.BackendCUDA] = manifestpkg.BackendConfig{Env: map[string]string{"DEVICE": "cuda"}}
+	env, err := managedServiceBackendEnvironment(context.Background(), m, []string{"DEVICE=auto"})
+	if err != nil || managedServiceEnvValues(env)["DEVICE"] != "cpu" {
+		t.Fatalf("host fallback not applied: %v %v", env, err)
+	}
 }

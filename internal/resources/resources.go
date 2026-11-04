@@ -3,6 +3,7 @@ package resources
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -11,8 +12,11 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
+	"time"
 
+	"github.com/vrooli/vrooli/internal/artifactlock"
 	"github.com/vrooli/vrooli/internal/buildinfo"
+	"github.com/vrooli/vrooli/internal/capacity"
 	internalcontrol "github.com/vrooli/vrooli/internal/control"
 	"github.com/vrooli/vrooli/internal/operatorstate"
 	catalogpkg "github.com/vrooli/vrooli/internal/resources/catalog"
@@ -21,6 +25,7 @@ import (
 	manifestpkg "github.com/vrooli/vrooli/internal/resources/manifest"
 	"github.com/vrooli/vrooli/internal/scenario"
 	"github.com/vrooli/vrooli/internal/shell"
+	"github.com/vrooli/vrooli/internal/tuning"
 	"github.com/vrooli/vrooli/internal/values"
 	"github.com/vrooli/vrooli/internal/vroolierr"
 )
@@ -43,6 +48,10 @@ type Controller struct {
 	Root        string
 	Home        string
 	Environment string
+	// NoReclaim requires manifest-derived starts to use only already-free capacity.
+	NoReclaim bool
+	// admitCapacity is an instance-scoped owner seam; nil uses canonical admission.
+	admitCapacity func(context.Context, capacity.AdmitOptions, func(context.Context) error) error
 }
 
 type (
@@ -131,8 +140,11 @@ func (c *Controller) discoverResource(name string) (*Resource, error) {
 	})
 }
 
-func (c *Controller) runResourceCommand(name, operation string, args []string, stdout, stderr io.Writer) error {
-	cmd, err := c.commandForResource(name, append([]string{operation}, args...)...)
+func (c *Controller) runResourceCommand(ctx context.Context, name, operation string, args []string, stdout, stderr io.Writer) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	cmd, err := c.commandForResourceContext(ctx, name, append([]string{operation}, args...)...)
 	if err != nil {
 		return err
 	}
@@ -140,6 +152,9 @@ func (c *Controller) runResourceCommand(name, operation string, args []string, s
 	cmd.Stderr = stderr
 	cmd.Stdin = os.Stdin
 	if err := cmd.Run(); err != nil {
+		if ctx.Err() != nil {
+			err = errors.Join(ctx.Err(), err)
+		}
 		return &Error{
 			Code:      ErrorCodeOperationFailed,
 			Resource:  name,
@@ -160,7 +175,7 @@ func (c *Controller) RunResourceCLI(name string, args []string, stdout, stderr i
 	if len(args) == 0 {
 		return fmt.Errorf("run resource CLI %s: args must include the operation name", name)
 	}
-	return c.runResourceCommand(name, args[0], args[1:], stdout, stderr)
+	return c.runResourceCommand(context.Background(), name, args[0], args[1:], stdout, stderr)
 }
 
 func (c *Controller) SetEnabled(name string, enabled bool) error {
@@ -281,15 +296,33 @@ func (c *Controller) resourceControl() *resourcecontrol.Service {
 			}
 			return driver.Status(ctx, c, item, manifest, fast)
 		},
+		StartupTimeoutFn: func(manifest ResourceManifest) time.Duration {
+			seconds := managedServiceStartTimeoutSeconds(c, manifest)
+			if seconds <= 0 {
+				seconds = 60
+			}
+			if uint64(seconds) > uint64((1<<63-1)/time.Second) {
+				return 0
+			}
+			return tuning.ManagedServiceConfiguredTimeout(time.Duration(seconds) * time.Second)
+		},
 		DriverRunFn: func(ctx context.Context, item catalogpkg.Resource, manifest ResourceManifest, operation string, args []string, stdout, stderr io.Writer) error {
 			driver, err := driverForManifest(manifest)
 			if err != nil {
 				return err
 			}
-			return driver.Run(ctx, c, item, manifest, operation, args, stdout, stderr)
+			run := func(ctx context.Context) error {
+				return driver.Run(ctx, c, item, manifest, operation, args, stdout, stderr)
+			}
+			if manifest.Driver == "managed-service" {
+				return run(ctx)
+			} // admission follows that driver's lifecycle lock
+			return c.withResourceCapacity(ctx, item.Name, operation, run)
 		},
-		RunResourceCommandFn: func(name, operation string, args []string, stdout, stderr io.Writer) error {
-			return c.runResourceCommand(name, operation, args, stdout, stderr)
+		RunResourceCommandFn: func(ctx context.Context, name, operation string, args []string, stdout, stderr io.Writer) error {
+			return c.withResourceCapacity(ctx, name, operation, func(ctx context.Context) error {
+				return c.runResourceCommand(ctx, name, operation, args, stdout, stderr)
+			})
 		},
 		CommandForResourceFn: c.commandForResource,
 		RunCommandFn: func(ctx context.Context, cmd *exec.Cmd) resourcecontrol.CommandResult {
@@ -327,7 +360,15 @@ func (c *Controller) ListStatusesReport(fast bool, onlyEnabled bool) (StatusRepo
 }
 
 func (c *Controller) Run(name string, args []string, stdout, stderr io.Writer) error {
-	return c.resourceControl().Run(name, args, stdout, stderr)
+	return c.RunContext(context.Background(), name, args, stdout, stderr)
+}
+
+// RunContext preserves the caller's cancellation through single-resource control.
+func (c *Controller) RunContext(ctx context.Context, name string, args []string, stdout, stderr io.Writer) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	return c.resourceControl().RunContext(ctx, name, args, stdout, stderr)
 }
 
 func (c *Controller) StartAll(stdout, stderr io.Writer) (internalcontrol.StartReport, error) {
@@ -349,6 +390,10 @@ func (c *Controller) resolveCLIPath(name string) (string, bool) {
 }
 
 func (c *Controller) commandForResource(name string, args ...string) (*exec.Cmd, error) {
+	return c.commandForResourceContext(context.Background(), name, args...)
+}
+
+func (c *Controller) commandForResourceContext(ctx context.Context, name string, args ...string) (*exec.Cmd, error) {
 	if path, ok := c.resolveCLIPath(name); ok {
 		env := resourceEnvForResource(c.Root, c.Home, name)
 		var runAsUser string
@@ -362,7 +407,7 @@ func (c *Controller) commandForResource(name string, args ...string) (*exec.Cmd,
 				return nil, err
 			}
 			if manifest.ManagedService == nil {
-				return shell.Command(shell.Spec{
+				return shell.Command(shell.Spec{Context: ctx,
 					Name: path,
 					Args: args,
 					Dir:  c.Root,
@@ -392,9 +437,9 @@ func (c *Controller) commandForResource(name string, args ...string) (*exec.Cmd,
 			runAsUser = "postgres"
 		}
 		if runAsUser != "" && os.Geteuid() == 0 {
-			return shell.Command(shell.Spec{Name: "runuser", Args: append([]string{"--preserve-environment", "--user", runAsUser, "--", path}, args...), Dir: c.Root, Env: env}), nil
+			return shell.Command(shell.Spec{Context: ctx, Name: "runuser", Args: append([]string{"--preserve-environment", "--user", runAsUser, "--", path}, args...), Dir: c.Root, Env: env}), nil
 		}
-		return shell.Command(shell.Spec{
+		return shell.Command(shell.Spec{Context: ctx,
 			Name: path,
 			Args: args,
 			Dir:  c.Root,
@@ -448,6 +493,9 @@ func resourceEnvForResource(root, home, resourceName string) []string {
 	env = values.SetEnv(env, "RESOURCE_CACHE_DIR", paths.CacheDir)
 	env = values.SetEnv(env, "RESOURCE_LOGS_DIR", paths.LogsDir)
 	env = values.SetEnv(env, "RESOURCE_STATE_DIR", paths.StateDir)
+	if lockPath, err := artifactlock.LockPath("resource-data:" + resourceName); err == nil {
+		env = values.SetEnv(env, "RESOURCE_DATA_LOCK_PATH", lockPath)
+	}
 	return env
 }
 
@@ -472,4 +520,17 @@ func (c *Controller) deprecatedNameSet() (map[string]struct{}, error) {
 		result[item.Name] = struct{}{}
 	}
 	return result, nil
+}
+
+// withResourceCapacity is shared by standalone, batch and scenario callers.
+// Managed services call it only after acquiring their lifecycle owner lock.
+func (c *Controller) withResourceCapacity(ctx context.Context, name, operation string, run func(context.Context) error) error {
+	if operation != "start" && operation != "restart" {
+		return run(ctx)
+	}
+	admit := c.admitCapacity
+	if admit == nil {
+		admit = capacity.WithResourceAdmission
+	}
+	return admit(ctx, capacity.AdmitOptions{Root: c.Root, ResourceName: name, NoReclaim: c.NoReclaim, Log: os.Stderr}, run)
 }

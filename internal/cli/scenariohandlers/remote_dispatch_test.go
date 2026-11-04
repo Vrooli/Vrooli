@@ -17,8 +17,9 @@ import (
 )
 
 type remoteDispatchCtx struct {
-	stdout *bytes.Buffer
-	stderr *bytes.Buffer
+	stdout  *bytes.Buffer
+	stderr  *bytes.Buffer
+	globals rootcli.GlobalOptions
 }
 
 type remoteDispatchCall struct {
@@ -29,12 +30,17 @@ type remoteDispatchCall struct {
 
 func remoteDispatchDeps(calls *[]remoteDispatchCall) rootcli.HandlerDeps[*remoteDispatchCtx] {
 	return rootcli.HandlerDeps[*remoteDispatchCtx]{
-		Stdout:       func(ctx *remoteDispatchCtx) io.Writer { return ctx.stdout },
-		Stderr:       func(ctx *remoteDispatchCtx) io.Writer { return ctx.stderr },
-		Globals:      func(*remoteDispatchCtx) rootcli.GlobalOptions { return rootcli.GlobalOptions{} },
-		OutputFormat: func(*remoteDispatchCtx) (cliout.Format, error) { return cliout.FormatHuman, nil },
-		HomeDir:      func(*remoteDispatchCtx) (string, error) { return "/tmp", nil },
-		CommandEnv:   func(*remoteDispatchCtx) []string { return nil },
+		Stdout:  func(ctx *remoteDispatchCtx) io.Writer { return ctx.stdout },
+		Stderr:  func(ctx *remoteDispatchCtx) io.Writer { return ctx.stderr },
+		Globals: func(ctx *remoteDispatchCtx) rootcli.GlobalOptions { return ctx.globals },
+		OutputFormat: func(ctx *remoteDispatchCtx) (cliout.Format, error) {
+			if ctx.globals.JSON {
+				return cliout.FormatJSON, nil
+			}
+			return cliout.FormatHuman, nil
+		},
+		HomeDir:    func(*remoteDispatchCtx) (string, error) { return "/tmp", nil },
+		CommandEnv: func(*remoteDispatchCtx) []string { return nil },
 		RemoteScenarioCall: func(_ *remoteDispatchCtx, node, scenario, command string, args []string, jsonOutput bool) ([]byte, error) {
 			*calls = append(*calls, remoteDispatchCall{node: node, scenario: scenario, command: command, args: append([]string(nil), args...), json: jsonOutput})
 			switch command {
@@ -212,5 +218,41 @@ func TestRemoteDispatchFailuresHaveTriageForEveryExplicitNodeVerb(t *testing.T) 
 		if !strings.Contains(ctx.stderr.String(), "Failed to "+command.verb) {
 			t.Errorf("%s: stderr lacks triage block: %q", command.id, ctx.stderr.String())
 		}
+	}
+}
+
+func TestRemoteStatusWaitPortFailuresRemainVisibleInJSONMode(t *testing.T) {
+	commands := []struct {
+		name     string
+		id       CommandID
+		args     []string
+		response []byte
+		callErr  error
+	}{
+		{name: "status transport", id: CommandStatus, args: []string{"node-a/example"}, callErr: errors.New("node_offline")},
+		{name: "wait transport", id: CommandWait, args: []string{"node-a/example"}, callErr: errors.New("node_offline")},
+		{name: "port transport", id: CommandPort, args: []string{"node-a/example", "HTTP_PORT"}, callErr: errors.New("node_offline")},
+		{name: "wait decode", id: CommandWait, args: []string{"node-a/example"}, response: []byte("{")},
+		{name: "port decode", id: CommandPort, args: []string{"node-a/example", "HTTP_PORT"}, response: []byte("{")},
+	}
+	for _, command := range commands {
+		t.Run(command.name, func(t *testing.T) {
+			var calls []remoteDispatchCall
+			deps := remoteDispatchDeps(&calls)
+			deps.RemoteScenarioCall = func(_ *remoteDispatchCtx, _, _, _ string, _ []string, _ bool) ([]byte, error) {
+				return command.response, command.callErr
+			}
+			ctx := &remoteDispatchCtx{stdout: &bytes.Buffer{}, stderr: &bytes.Buffer{}, globals: rootcli.GlobalOptions{JSON: true}}
+			err := BuildHandlers(deps)[command.id](ctx, command.args)
+			if err == nil {
+				t.Fatal("expected remote failure")
+			}
+			if silent, ok := err.(interface{ Silent() bool }); ok && silent.Silent() {
+				t.Errorf("JSON failure was marked silent: %v", err)
+			}
+			if ctx.stderr.Len() != 0 {
+				t.Errorf("JSON mode emitted a human block: %q", ctx.stderr.String())
+			}
+		})
 	}
 }

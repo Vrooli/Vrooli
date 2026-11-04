@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net"
 	"net/http"
 	"os"
@@ -15,11 +16,13 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 
 	testkitgo "github.com/vrooli/repo-contract-go/repocontracttest"
 	hostreqspec "github.com/vrooli/vrooli/internal/hostreqspec"
 	manifestpkg "github.com/vrooli/vrooli/internal/resources/manifest"
 	testresource "github.com/vrooli/vrooli/internal/resources/resourcestest"
+	"github.com/vrooli/vrooli/internal/scenario"
 	testscenario "github.com/vrooli/vrooli/internal/scenario/scenariotest"
 	"github.com/vrooli/vrooli/internal/shell/shelltest"
 	resourcedeployment "github.com/vrooli/vrooli/packages/resource-deployment"
@@ -916,5 +919,117 @@ func copyManifestWithOverrides(t *testing.T, srcRoot, dstRoot, name string, prim
 	}
 	if err := os.WriteFile(path, append(data, '\n'), 0o644); err != nil {
 		t.Fatalf("write %s: %v", path, err)
+	}
+}
+
+func TestExternalCLICommandFactoryRetainsOperationContext(t *testing.T) {
+	root, home := t.TempDir(), t.TempDir()
+	controller := NewController(root, home)
+	writeExecutableOnPath(t, "resource-context-fixture", shelltest.BashShebang()+"exit 0\n")
+	parent, cancel := context.WithCancel(context.Background())
+	cmd, err := controller.commandForResourceContext(parent, "context-fixture", "stop")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cmd.Cancel == nil {
+		t.Fatal("external resource CLI has no context-owned cancellation")
+	}
+	cancel()
+	if err := cmd.Run(); !errors.Is(err, context.Canceled) {
+		t.Fatalf("cancelled external command executed: %v", err)
+	}
+	if err := controller.RunContext(parent, "context-fixture", []string{"stop"}, io.Discard, io.Discard); !errors.Is(err, context.Canceled) {
+		t.Fatalf("controller ignored pre-cancel: %v", err)
+	}
+}
+
+func TestInstallCommandChildHonorsCancellation(t *testing.T) {
+	root := t.TempDir()
+	marker := filepath.Join(root, "install-started")
+	binary := filepath.Join(root, "fake-install")
+	t.Setenv("VROOLI_CANCEL_TEST_INSTALL_CHILD", marker)
+	if err := os.WriteFile(binary, []byte(shelltest.BashShebang()+"printf entered > \"$VROOLI_CANCEL_TEST_INSTALL_CHILD\"\nexec sleep 2\n"), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	parent, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	controller := NewController(root, t.TempDir())
+	manifest := ResourceManifest{Name: "install-cancel-fixture", Install: manifestpkg.ResourceInstall{Command: []string{binary}}}
+	done := make(chan error, 1)
+	go func() { done <- runInstallCommand(parent, controller, manifest) }()
+	ticker := time.NewTicker(time.Millisecond)
+	defer ticker.Stop()
+	deadline := time.After(time.Second)
+wait:
+	for {
+		select {
+		case <-ticker.C:
+			if _, err := os.Stat(marker); err == nil {
+				break wait
+			}
+		case err := <-done:
+			t.Fatalf("install fixture did not enter: %v", err)
+		case <-deadline:
+			t.Fatal("install fixture did not start")
+		}
+	}
+	cancel()
+	select {
+	case err := <-done:
+		if !errors.Is(err, context.Canceled) {
+			t.Fatalf("install cancellation lost: %v", err)
+		}
+	case <-time.After(time.Millisecond * 500):
+		err := <-done
+		t.Fatalf("install child ignored cancellation: %v", err)
+	}
+}
+
+func TestInstallPrecancelDoesNotExecuteCommand(t *testing.T) {
+	parent, cancel := context.WithCancel(context.Background())
+	cancel()
+	if err := runInstallCommand(parent, NewController(t.TempDir(), t.TempDir()), ResourceManifest{Name: "fixture"}); !errors.Is(err, context.Canceled) {
+		t.Fatalf("cancelled install continued: %v", err)
+	}
+}
+
+func TestInstallUsesCanonicalResourceCLIWithoutPATH(t *testing.T) {
+	root, home := t.TempDir(), t.TempDir()
+	bin := filepath.Join(home, ".vrooli", "bin")
+	if err := os.MkdirAll(bin, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	marker := filepath.Join(home, "installed")
+	t.Setenv("VROOLI_INSTALL_PATH_MARKER", marker)
+	t.Setenv("PATH", "/usr/bin:/bin")
+	if err := os.WriteFile(filepath.Join(bin, "resource-install-path-fixture"), []byte(shelltest.BashShebang()+"printf '%s' \"$*\" > \"$VROOLI_INSTALL_PATH_MARKER\"\n"), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	manifest := ResourceManifest{Name: "install-path-fixture", CLI: &scenario.CLIConfig{Command: "resource-install-path-fixture"}, Install: manifestpkg.ResourceInstall{Command: []string{"resource-install-path-fixture", "install-direct"}}}
+	if err := runInstallCommand(t.Context(), NewController(root, home), manifest); err != nil {
+		t.Fatalf("install through canonical resource CLI: %v", err)
+	}
+	if data, err := os.ReadFile(marker); err != nil || string(data) != "install-direct" {
+		t.Fatalf("installed CLI invocation = %q, %v", data, err)
+	}
+}
+
+func TestCancelledExternalProbeCannotFallThroughToInstall(t *testing.T) {
+	root := t.TempDir()
+	marker := filepath.Join(root, "unexpected-install")
+	binary := writeExecutableOnPath(t, "cancel-probe-fixture", shelltest.BashShebang()+"printf unexpected > \"$VROOLI_CANCEL_PROBE_FALLBACK\"\n")
+	t.Setenv("VROOLI_CANCEL_PROBE_FALLBACK", marker)
+	parent, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	previous := runCommandResource
+	runCommandResource = func(context.Context, *exec.Cmd) commandResult { cancel(); return commandResult{err: context.Canceled} }
+	t.Cleanup(func() { runCommandResource = previous })
+	manifest := ResourceManifest{Name: "cancel-probe-fixture", Driver: "external-cli", Binary: binary, VersionArgs: []string{"--version"}, Install: manifestpkg.ResourceInstall{Command: []string{binary}}}
+	err := (externalCLIDriver{}).Run(parent, NewController(root, t.TempDir()), Resource{Name: manifest.Name}, manifest, "restart", nil, io.Discard, io.Discard)
+	if !errors.Is(err, context.Canceled) {
+		t.Errorf("probe cancellation lost: %v", err)
+	}
+	if _, err := os.Stat(marker); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("cancelled probe executed fallback install: %v", err)
 	}
 }

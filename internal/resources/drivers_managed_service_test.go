@@ -207,58 +207,6 @@ func TestManagedServiceHostToolDoesNotRequireReleaseChecksum(t *testing.T) {
 	}
 }
 
-func TestPruneManagedServiceArtifactsKeepsCurrentVersion(t *testing.T) {
-	root := t.TempDir()
-	artifactRoot := filepath.Join(root, "artifacts")
-	t.Setenv("VROOLI_RESOURCE_ARTIFACT_DIR", artifactRoot)
-	manifest := managedServiceTestManifest(strings.Repeat("a", 64))
-	manifest.Name = "prune-fixture"
-	manifest.ManagedService.Artifact.Version = "current"
-	manifest.ManagedService.ProviderPolicy.AllowedModes = []resourcedeployment.ProviderMode{resourcedeployment.ProviderManagedPrivate}
-	manifest.ManagedService.ProviderPolicy.ExternalAccessCapabilities = nil
-	manifest.ManagedService.Acquisition = &binaryfetch.Acquisition{
-		Kind: "url",
-		Targets: []binaryfetch.AcquisitionTarget{{
-			URL:    "https://example.invalid/service",
-			SHA256: strings.Repeat("b", 64),
-		}},
-	}
-	manifestDir := filepath.Join(root, "resources", manifest.Name)
-	if err := os.MkdirAll(manifestDir, 0o700); err != nil {
-		t.Fatal(err)
-	}
-	data, err := json.Marshal(manifest)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(filepath.Join(manifestDir, "resource.json"), data, 0o600); err != nil {
-		t.Fatal(err)
-	}
-	for _, version := range []string{"current", "superseded"} {
-		path := filepath.Join(artifactRoot, manifest.Name, version, "server")
-		if err := os.MkdirAll(path, 0o700); err != nil {
-			t.Fatal(err)
-		}
-		if err := os.WriteFile(filepath.Join(path, "entry"), []byte(version), 0o700); err != nil {
-			t.Fatal(err)
-		}
-	}
-
-	removed, err := NewController(root, filepath.Join(root, "home")).PruneManagedServiceArtifacts(manifest.Name)
-	if err != nil {
-		t.Fatalf("prune: %v", err)
-	}
-	if removed != 1 {
-		t.Fatalf("removed = %d, want 1 superseded version", removed)
-	}
-	if _, err := os.Stat(filepath.Join(artifactRoot, manifest.Name, "current")); err != nil {
-		t.Fatalf("current artifact version missing: %v", err)
-	}
-	if _, err := os.Stat(filepath.Join(artifactRoot, manifest.Name, "superseded")); !os.IsNotExist(err) {
-		t.Fatalf("superseded artifact version still exists: %v", err)
-	}
-}
-
 func TestManagedServiceStartTimeoutDerivesQdrantCollectionBudget(t *testing.T) {
 	root := t.TempDir()
 	t.Setenv("VROOLI_RESOURCE_STORAGE_ROOT", filepath.Join(root, "runtime"))

@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"sync"
+	"time"
 
 	"github.com/vrooli/vrooli/internal/storageactivity"
 	"github.com/vrooli/vrooli/internal/tuning"
@@ -32,6 +33,7 @@ type Config struct {
 	Executor          Executor
 	RuntimeHomeRepair func(context.Context, RuntimeHomeSubject) Result
 	TemporaryActivity func(context.Context, uint32) (storageactivity.Snapshot, error)
+	LocalAdmission    *LocalAdmissionManager
 }
 
 // Executor is the narrow test seam. Implementations receive only broker-built
@@ -54,6 +56,9 @@ func New(config Config) (*Broker, error) {
 	}
 	if config.TemporaryActivity == nil {
 		config.TemporaryActivity = storageactivity.Observe
+	}
+	if config.LocalAdmission != nil && config.LocalAdmission.Policy.UID != config.AllowedUID {
+		return nil, fmt.Errorf("local admission policy caller does not match broker caller")
 	}
 	return &Broker{config: config}, nil
 }
@@ -144,6 +149,13 @@ func (b *Broker) Execute(ctx context.Context, req Request, callerUID uint32) Res
 // recognise never reaches here.
 func (b *Broker) dispatch(ctx context.Context, req Request) Result {
 	switch req.Action {
+	case ActionLocalAdmissionInspect, ActionLocalAdmissionEnsure, ActionLocalAdmissionRevoke:
+		if b.config.LocalAdmission == nil {
+			return NewFailure(req.RequestID, req.Action, "local_admission_not_installed")
+		}
+		operation, cancel := context.WithTimeout(ctx, 20*time.Second)
+		defer cancel()
+		return b.config.LocalAdmission.Execute(operation, req.Action, req.LocalAdmission.Binding)
 	case ActionCapabilitiesInspect:
 		return Result{Version: ProtocolVersion, RequestID: req.RequestID, Action: req.Action, Status: "completed", Capabilities: capabilities()}
 	case ActionTemporaryActivityObserve:
@@ -158,6 +170,10 @@ func (b *Broker) dispatch(ctx context.Context, req Request) Result {
 		return Result{Version: ProtocolVersion, RequestID: req.RequestID, Action: req.Action, Status: "completed", TemporaryActivity: &snapshot}
 	case ActionVolumeFilesystemCheck, ActionVolumeFilesystemRepair:
 		return executeVolume(ctx, b.config.Executor, req)
+	case ActionVolumeSMARTInspect:
+		operation, cancel := context.WithTimeout(ctx, smartProbeTimeout)
+		defer cancel()
+		return executeSMART(operation, b.config.Executor, req)
 	case ActionRuntimeHomeOwnershipRepair:
 		if b.config.RuntimeHomeRepair == nil {
 			return NewFailure(req.RequestID, req.Action, "runtime_home_repair_unavailable")
@@ -191,14 +207,19 @@ func (b *Broker) audit(uid uint32, req Request, result Result) {
 	}
 	defer f.Close()
 	// No request body, credentials, environment, or command output is logged.
+	localBinding := ""
+	if req.LocalAdmission != nil {
+		localBinding = req.LocalAdmission.Binding
+	}
 	_ = json.NewEncoder(f).Encode(struct {
-		RequestID string `json:"request_id"`
-		CallerUID uint32 `json:"caller_uid"`
-		Action    string `json:"action"`
-		Scenario  string `json:"scenario"`
-		Candidate string `json:"candidate_ip"`
-		Port      int    `json:"port"`
-		Status    string `json:"status"`
-		Code      string `json:"code,omitempty"`
-	}{req.RequestID, uid, req.Action, req.Subject.Scenario, req.Subject.CandidateIP, req.Subject.Port, result.Status, result.Code})
+		RequestID    string `json:"request_id"`
+		CallerUID    uint32 `json:"caller_uid"`
+		Action       string `json:"action"`
+		Scenario     string `json:"scenario"`
+		Candidate    string `json:"candidate_ip"`
+		Port         int    `json:"port"`
+		Status       string `json:"status"`
+		Code         string `json:"code,omitempty"`
+		LocalBinding string `json:"local_binding,omitempty"`
+	}{req.RequestID, uid, req.Action, req.Subject.Scenario, req.Subject.CandidateIP, req.Subject.Port, result.Status, result.Code, localBinding})
 }

@@ -53,7 +53,9 @@ func SupportedFilesystems() []string {
 // devicePathPattern accepts the device spellings the supported platforms use
 // and nothing else. It exists so a device string can never smuggle an argument,
 // a path traversal, or a shell fragment into a command line.
-var devicePathPattern = regexp.MustCompile(`^(/dev/[A-Za-z0-9._/-]+|[A-Za-z]:)$`)
+var devicePathPattern = regexp.MustCompile(`^(/dev/[A-Za-z0-9._/-]+|[A-Za-z]:|\\\\\?\\Volume\{[0-9A-Fa-f-]{36}\}\\)$`)
+var windowsVolumeGUIDPattern = regexp.MustCompile(`^\\\\\?\\Volume\{[0-9A-Fa-f-]{36}\}\\$`)
+var windowsDriveRootPattern = regexp.MustCompile(`^[D-Zd-z]:\\?$`)
 
 // validateDevicePath rejects anything that is not a plain device specifier.
 func validateDevicePath(path string) error {
@@ -68,7 +70,7 @@ func validateDevicePath(path string) error {
 		return ErrInvalid{Field: "device.path", Reason: "must not contain a path traversal"}
 	}
 	if !devicePathPattern.MatchString(path) {
-		return ErrInvalid{Field: "device.path", Reason: "must be a plain device path such as /dev/sda1 or a drive letter such as E:"}
+		return ErrInvalid{Field: "device.path", Reason: "must be a plain device path such as /dev/sda1, a drive letter such as E:, or a stable Windows volume GUID"}
 	}
 	return nil
 }
@@ -83,6 +85,15 @@ func isSystemMountpoint(mountpoint string) bool {
 	mountpoint = strings.TrimSpace(mountpoint)
 	if mountpoint == "" {
 		return false
+	}
+	// filepath.Clean follows the host running the control plane, which means a
+	// Windows C:\ path must still be protected when fixtures or shared callers
+	// evaluate it from another build target.
+	windowsPath := strings.ReplaceAll(mountpoint, `\`, "/")
+	if len(windowsPath) >= 2 && windowsPath[1] == ':' && strings.EqualFold(windowsPath[:2], "C:") {
+		if len(windowsPath) == 2 || windowsPath[2] == '/' {
+			return true
+		}
 	}
 	clean := filepath.Clean(mountpoint)
 	if clean == "/" {
@@ -103,6 +114,17 @@ func isSystemMountpoint(mountpoint string) bool {
 // under. Restricting the target keeps a mount action from being redirected to
 // shadow a system path.
 var permittedMountRoots = []string{"/media", "/run/media", "/mnt", "/Volumes"}
+
+// validateWindowsMountpoint only permits assigning a non-system drive letter.
+// Directory mount points have a separate ownership and ACL contract and are
+// intentionally not created by automatic recovery.
+func validateWindowsMountpoint(mountpoint string) error {
+	mountpoint = strings.TrimSpace(mountpoint)
+	if !windowsDriveRootPattern.MatchString(mountpoint) {
+		return ErrInvalid{Field: "mountpoint", Reason: "Windows recovery requires an unused drive-letter root from D: through Z:"}
+	}
+	return nil
+}
 
 // validateMountpoint rejects a mount target outside the permitted media roots.
 func validateMountpoint(mountpoint string) error {
@@ -159,7 +181,13 @@ func validateRequest(req Request) error {
 		}
 	}
 	if req.Action == ActionMountReadWrite && strings.TrimSpace(req.DesiredMountpoint) != "" {
-		if err := validateMountpoint(req.DesiredMountpoint); err != nil {
+		var err error
+		if windowsDriveRootPattern.MatchString(req.DesiredMountpoint) {
+			err = validateWindowsMountpoint(req.DesiredMountpoint)
+		} else {
+			err = validateMountpoint(req.DesiredMountpoint)
+		}
+		if err != nil {
 			return err
 		}
 	}

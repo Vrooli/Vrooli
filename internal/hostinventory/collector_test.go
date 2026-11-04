@@ -2,6 +2,7 @@ package hostinventory
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"path/filepath"
 	"strings"
@@ -463,6 +464,42 @@ func TestParseLinuxMeminfo(t *testing.T) {
 	}
 	if swap.TotalBytes != 10*1024 || swap.FreeBytes != 5*1024 {
 		t.Fatalf("swap = %#v", swap)
+	}
+}
+
+func TestParseLinuxMeminfoPreservesSlabAccountingAndAbsence(t *testing.T) {
+	for _, tc := range []struct {
+		name, extra string
+		want        map[string]float64
+	}{
+		{"measured", "Slab: 18000 kB\nSReclaimable: 5000 kB\nSUnreclaim: 13000 kB\n", map[string]float64{"slab_bytes": 18000 * 1024, "slab_reclaimable_bytes": 5000 * 1024, "slab_unreclaimable_bytes": 13000 * 1024}},
+		{"measured zero", "Slab: 0 kB\nSReclaimable: 0 kB\nSUnreclaim: 0 kB\n", map[string]float64{"slab_bytes": 0, "slab_reclaimable_bytes": 0, "slab_unreclaimable_bytes": 0}},
+		{"missing", "", nil},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			mem, _, err := ParseLinuxMeminfo("MemTotal: 64000 kB\n" + tc.extra)
+			if err != nil {
+				t.Fatal(err)
+			}
+			raw, err := json.Marshal(mem)
+			if err != nil {
+				t.Fatal(err)
+			}
+			var got map[string]interface{}
+			if err := json.Unmarshal(raw, &got); err != nil {
+				t.Fatal(err)
+			}
+			for _, key := range []string{"slab_bytes", "slab_reclaimable_bytes", "slab_unreclaimable_bytes"} {
+				want, measured := tc.want[key]
+				value, present := got[key]
+				if measured && (!present || value != want) {
+					t.Errorf("%s=%v (present=%v), want measured %v", key, value, present, want)
+				}
+				if !measured && present {
+					t.Errorf("missing %s became %v", key, value)
+				}
+			}
+		})
 	}
 }
 

@@ -291,7 +291,11 @@ func checkManagedArtifact(name string, manifest manifestpkg.ResourceManifest) er
 			if hostreqspec.PlatformFromGOOS(factsOS) == hostreqspec.PlatformMacOS {
 				factsOS = externalAcquisitionGOOSDarwin
 			}
-			acquired, err := service.Acquisition.Resolve(binaryfetch.Facts{"os": factsOS, "arch": arch})
+			facts := binaryfetch.Facts{"os": factsOS, "arch": arch}
+			acquired, err := service.Acquisition.Resolve(facts)
+			if target.Support == "conditional" && manifest.Driver == accelBridgeManagedService && (err != nil || acquired.Unsupported != "") {
+				acquired, err = conditionalPlatformAcquisition(service.Acquisition, facts)
+			}
 			if err != nil {
 				return fmt.Errorf("resource %s acquisition does not cover %s: %w", name, platform, err)
 			}
@@ -317,6 +321,31 @@ func checkManagedArtifact(name string, manifest manifestpkg.ResourceManifest) er
 		}
 	}
 	return nil
+}
+
+// A static platform check establishes a declared route, not hardware readiness.
+// Conditional managed-service profiles may require runtime facts. Project only
+// their build-time predicates for this check; actual acquisition always resolves
+// the complete original target against measured host facts.
+func conditionalPlatformAcquisition(acquisition *binaryfetch.Acquisition, facts binaryfetch.Facts) (binaryfetch.AcquisitionTarget, error) {
+	for _, candidate := range acquisition.Targets {
+		if candidate.Unsupported != "" {
+			continue
+		}
+		declared := candidate
+		declared.When = map[string]string{}
+		for key, value := range candidate.When {
+			if key == "os" || key == "arch" {
+				declared.When[key] = value
+			}
+		}
+		probe := *acquisition
+		probe.Targets = []binaryfetch.AcquisitionTarget{declared}
+		if _, err := probe.Resolve(facts); err == nil {
+			return candidate, nil
+		}
+	}
+	return binaryfetch.AcquisitionTarget{}, fmt.Errorf("no declared conditional acquisition target covers os/arch")
 }
 
 // legacyAcceleratorSurfaces are the three declarations the acceleration block

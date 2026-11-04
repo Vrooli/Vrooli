@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"net/http/httptest"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -25,19 +26,25 @@ type fakeValidationService struct {
 }
 
 type demandStub struct {
-	acquired []demand.AcquireRequest
-	released []string
+	acquired       []demand.AcquireRequest
+	released       []string
+	releaseReasons []string
+	acquireErr     error
 }
 
 func (s *demandStub) Acquire(_ context.Context, req demand.AcquireRequest) (demand.Lease, error) {
 	s.acquired = append(s.acquired, req)
+	if s.acquireErr != nil {
+		return demand.Lease{}, s.acquireErr
+	}
 	return demand.Lease{LeaseID: req.LeaseID}, nil
 }
 func (s *demandStub) Renew(context.Context, string, time.Duration) (demand.Lease, error) {
 	return demand.Lease{}, nil
 }
-func (s *demandStub) Release(_ context.Context, id, _ string) (demand.Lease, error) {
+func (s *demandStub) Release(_ context.Context, id, reason string) (demand.Lease, error) {
 	s.released = append(s.released, id)
+	s.releaseReasons = append(s.releaseReasons, reason)
 	return demand.Lease{LeaseID: id}, nil
 }
 
@@ -89,11 +96,27 @@ func TestValidateDelegatesControlPlaneTargetAndExcludesOwnedChildren(t *testing.
 	if len(demands.acquired) != 1 || len(demands.released) != 1 || demands.released[0] != demands.acquired[0].LeaseID {
 		t.Fatalf("demand lifecycle = acquired %d released %d", len(demands.acquired), len(demands.released))
 	}
+	lease := demands.acquired[0]
+	if lease.Scenario != ScenarioName || lease.ConsumerID != "control-plane:tidiness-provider" || lease.Kind != demand.KindDependency || lease.Metadata != "owner=tidiness-provider" || !strings.HasPrefix(lease.RequestID, "validate:/repo:") || lease.LeaseID != demand.StableLeaseID(lease.ConsumerID, ScenarioName, lease.RequestID) || len(demands.releaseReasons) != 1 || demands.releaseReasons[0] != "tidiness validation complete" {
+		t.Fatalf("demand policy = %+v, release reasons = %v", lease, demands.releaseReasons)
+	}
 }
 
 func TestValidateReturnsExplicitUnavailableError(t *testing.T) {
 	_, err := (Provider{ResolveURL: func(context.Context, string) (string, error) { return "", context.Canceled }}).Validate(context.Background(), "/repo")
 	if err == nil || !errors.Is(err, ErrUnavailable) {
 		t.Fatalf("error = %v, want ErrUnavailable", err)
+	}
+}
+
+func TestValidateWrapsDemandAcquireFailure(t *testing.T) {
+	service := &fakeValidationService{}
+	_, handler := scenariovalidationconnect.NewScenarioValidationServiceHandler(service)
+	server := httptest.NewServer(handler)
+	defer server.Close()
+	demands := &demandStub{acquireErr: errors.New("lease denied")}
+	_, err := (Provider{ResolveURL: func(context.Context, string) (string, error) { return server.URL, nil }, Demand: demands}).Validate(context.Background(), "/repo")
+	if !errors.Is(err, ErrUnavailable) || !strings.Contains(err.Error(), "acquire tidiness-manager demand lease") {
+		t.Fatalf("Validate error = %v, want provider-specific unavailable error", err)
 	}
 }

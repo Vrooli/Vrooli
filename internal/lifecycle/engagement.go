@@ -106,6 +106,24 @@ type ServingSourceMaterializer interface {
 	MaterializeServingSource(scenario string, info EngagementInfo, repoRoot string) (string, error)
 }
 
+// ServingSourceLocator is the read-only counterpart to
+// ServingSourceMaterializer. It identifies the generation-addressed serving
+// source without creating, updating, or reaping any tree. Read-only reporting
+// paths use this when they need the serving baseline but must not materialize
+// it as a side effect.
+type ServingSourceLocator interface {
+	ServingSourceLocation(scenario string, info EngagementInfo, repoRoot string) (ServingSourceLocation, error)
+}
+
+// ServingSourceLocation names the already materialized serving generation.
+// RepoRoot is the repo-shaped tree root and ScenarioDir is the scenario's
+// source directory inside it. Locators return these paths without creating
+// or reaping either directory.
+type ServingSourceLocation struct {
+	RepoRoot    string
+	ScenarioDir string
+}
+
 // defaultEngagementResolver is the process-wide engagement resolver applied to
 // every Runner built by NewRunner. It is nil by default — so test binaries,
 // which never call SetDefaultEngagementResolver, get the pre-Baseline-Modes

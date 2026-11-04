@@ -22,6 +22,7 @@ func AdvertisedCapabilities() Capabilities {
 		Actions: []string{
 			string(ActionInspect),
 			string(ActionCheck),
+			"smart",
 			string(ActionRepair),
 			string(ActionUnmount),
 			string(ActionMountReadWrite),

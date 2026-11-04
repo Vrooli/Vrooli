@@ -5,6 +5,7 @@
 package credentialinventory
 
 import (
+	"encoding/hex"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -70,6 +71,7 @@ type Entry struct {
 type CollectionOptions struct {
 	LiveVaultUnsealKeyEntries  func() []resources.VaultUnsealKeyEntry
 	LiveKopiaRepositoryEntries func() []resources.KopiaRepositoryEntry
+	ManagedSystemEntries       func(string) []SystemEntry
 }
 
 func providerGapReason(state credentialauthority.ProviderState) resourceenv.CredentialGapReason {
@@ -90,10 +92,11 @@ func providerRemediation(state credentialauthority.ProviderState) string {
 // scenario manifest to declare it. These are still inventory inputs, but their
 // ownership is explicit rather than being guessed from a manifest.
 type SystemEntry struct {
-	Owner     string
-	LogicalID string
-	Field     string
-	Consumers []credentialspec.Consumer
+	Owner        string
+	LogicalID    string
+	Field        string
+	Provisioning string
+	Consumers    []credentialspec.Consumer
 }
 
 // ManagedSystemEntries returns metadata-only system credentials. Dynamic
@@ -104,6 +107,13 @@ func ManagedSystemEntries(root string) []SystemEntry {
 	if _, err := os.Stat(filepath.Join(root, repocontractmeta.ProjectConfigDir)); err != nil {
 		return nil
 	}
+	refs, _ := securestore.ListEntryRefs()
+	return managedSystemEntriesFromRefs(root, refs)
+}
+
+// managedSystemEntriesFromRefs isolates the metadata index from live custody.
+// It receives only public service/key references, never credential values.
+func managedSystemEntriesFromRefs(root string, refs []securestore.EntryRef) []SystemEntry {
 	seen := map[string]SystemEntry{}
 	add := func(owner, logicalID, field string, consumers ...credentialspec.Consumer) {
 		identity, err := credentialauthority.ParseIdentity(logicalID)
@@ -117,36 +127,50 @@ func ManagedSystemEntries(root string) []SystemEntry {
 		LogicalID: "vrooli/release-authority", Field: "rsa-pkcs8-v1", Kind: credentialspec.KindDelegated,
 		Consumer: "release metadata signer", SourceRef: filepath.Join(root, "internal", "releaseauthority", "authority.go"), Required: true,
 	})
-	if refs, err := securestore.ListEntryRefs(); err == nil {
-		for _, ref := range refs {
-			if ref.Service != "vrooli.credentials.v1" {
-				continue
-			}
-			separator := strings.LastIndex(ref.Key, ":")
-			if separator <= 0 || separator == len(ref.Key)-1 {
-				continue
-			}
-			logicalID := ref.Key[:separator]
-			field := ref.Key[separator+1:]
-			switch {
-			case strings.HasPrefix(logicalID, "device-control/"):
-				add("device-control", logicalID, field, credentialspec.Consumer{
-					AddressPattern: "device-control/{name}", Kind: "dynamic",
-					Consumer: "device-control credential resolver", SourceRef: filepath.Join(root, "scenarios", "device-control", "api", "internal", "auth", "auth.go"), Required: true,
+	for _, ref := range refs {
+		if ref.Service != "vrooli.credentials.v1" {
+			continue
+		}
+		separator := strings.LastIndex(ref.Key, ":")
+		if separator <= 0 || separator == len(ref.Key)-1 {
+			continue
+		}
+		logicalID := ref.Key[:separator]
+		field := ref.Key[separator+1:]
+		switch {
+		case strings.HasPrefix(logicalID, "device-control/"):
+			add("device-control", logicalID, field, credentialspec.Consumer{
+				AddressPattern: "device-control/{name}", Kind: "dynamic",
+				Consumer: "device-control credential resolver", SourceRef: filepath.Join(root, "scenarios", "device-control", "api", "internal", "auth", "auth.go"), Required: true,
+			})
+		case isManagedDesktopSigningIdentity(logicalID):
+			// Scenario-to-desktop custodies its managed GPG signing key
+			// under a dynamic logical identity (a shared publisher identity
+			// or the per-scenario default). Both halves are generated
+			// material the recovery bundle must capture, so declare them
+			// even though no static descriptor names this instance.
+			if isManagedDesktopSigningField(field) {
+				add("scenario-to-desktop", logicalID, field, credentialspec.Consumer{
+					Kind: "dynamic", Consumer: "scenario-to-desktop managed signing key",
+					SourceRef: filepath.Join(root, "scenarios", "scenario-to-desktop", "api", "signing", "keygen.go"), Required: true,
 				})
-			case isManagedDesktopSigningIdentity(logicalID):
-				// Scenario-to-desktop custodies its managed GPG signing key
-				// under a dynamic logical identity (a shared publisher identity
-				// or the per-scenario default). Both halves are generated
-				// material the recovery bundle must capture, so declare them
-				// even though no static descriptor names this instance.
-				if isManagedDesktopSigningField(field) {
-					add("scenario-to-desktop", logicalID, field, credentialspec.Consumer{
-						Kind: "dynamic", Consumer: "scenario-to-desktop managed signing key",
-						SourceRef: filepath.Join(root, "scenarios", "scenario-to-desktop", "api", "signing", "keygen.go"), Required: true,
-					})
-				}
 			}
+		case isManagedTreasuryWalletIdentity(logicalID) && (field == "secp256k1-scalar" || field == "recovery-passphrase"):
+			add("treasury", logicalID, field, credentialspec.Consumer{
+				AddressPattern: "vrooli/treasury/wallets/{namespace}/{scope}", Kind: "dynamic",
+				Consumer: "Treasury receive-only wallet custody", SourceRef: filepath.Join(root, "scenarios", "treasury", "api", "internal", "wallet", "service.go"), Required: true,
+			})
+			entry := seen[logicalID+":"+field]
+			entry.Provisioning = credentialspec.ProvisioningGenerated
+			seen[logicalID+":"+field] = entry
+		case isManagedTreasuryX402RecoveryIdentity(logicalID) && field == "signed-payment":
+			add("treasury", logicalID, field, credentialspec.Consumer{
+				AddressPattern: "vrooli/treasury/x402-recovery/{settlement-hash}", Kind: "dynamic",
+				Consumer: "Treasury x402 interrupted-payment recovery", SourceRef: filepath.Join(root, "scenarios", "treasury", "api", "internal", "settlement", "service.go"), Required: true,
+			})
+			entry := seen[logicalID+":"+field]
+			entry.Provisioning = credentialspec.ProvisioningGenerated
+			seen[logicalID+":"+field] = entry
 		}
 	}
 	entries := make([]SystemEntry, 0, len(seen))
@@ -159,6 +183,39 @@ func ManagedSystemEntries(root string) []SystemEntry {
 		return left < right
 	})
 	return entries
+}
+
+func isManagedTreasuryWalletIdentity(logicalID string) bool {
+	const prefix = "vrooli/treasury/wallets/"
+	if !strings.HasPrefix(logicalID, prefix) {
+		return false
+	}
+	parts := strings.Split(strings.TrimPrefix(logicalID, prefix), "/")
+	if len(parts) != 2 {
+		return false
+	}
+	for _, part := range parts {
+		if len(part) != 32 {
+			return false
+		}
+		if _, err := hex.DecodeString(part); err != nil {
+			return false
+		}
+	}
+	return true
+}
+
+func isManagedTreasuryX402RecoveryIdentity(logicalID string) bool {
+	const prefix = "vrooli/treasury/x402-recovery/"
+	if !strings.HasPrefix(logicalID, prefix) {
+		return false
+	}
+	value := strings.TrimPrefix(logicalID, prefix)
+	if len(value) != 64 {
+		return false
+	}
+	_, err := hex.DecodeString(value)
+	return err == nil
 }
 
 // isManagedDesktopSigningIdentity reports whether a logical identity holds a
@@ -198,6 +255,9 @@ func CollectWithOptions(root string, options CollectionOptions) (Result, error) 
 	}
 	if options.LiveKopiaRepositoryEntries == nil {
 		options.LiveKopiaRepositoryEntries = resources.LiveKopiaRepositoryEntries
+	}
+	if options.ManagedSystemEntries == nil {
+		options.ManagedSystemEntries = ManagedSystemEntries
 	}
 	entries := map[string]credentialauthority.RecoveryEntry{}
 	declared := map[string]credentialauthority.RecoveryEntry{}
@@ -294,8 +354,8 @@ func CollectWithOptions(root string, options CollectionOptions) (Result, error) 
 			}
 		}
 	}
-	for _, entry := range ManagedSystemEntries(root) {
-		if err := add(entry.Owner, credentialspec.Declaration{Descriptors: []credentialspec.Descriptor{{LogicalID: entry.LogicalID, Field: entry.Field, Required: true}}}); err != nil {
+	for _, entry := range options.ManagedSystemEntries(root) {
+		if err := add(entry.Owner, credentialspec.Declaration{Descriptors: []credentialspec.Descriptor{{LogicalID: entry.LogicalID, Field: entry.Field, Required: true, Provisioning: entry.Provisioning}}}); err != nil {
 			return Result{}, err
 		}
 	}

@@ -17,6 +17,7 @@ import (
 
 	"github.com/vrooli/api-core/discovery"
 	"github.com/vrooli/cli-core/cliutil"
+	"github.com/vrooli/vrooli/internal/agentsession"
 	"github.com/vrooli/vrooli/internal/cli/clipolicy"
 	"github.com/vrooli/vrooli/internal/cli/commandtree"
 	configpkg "github.com/vrooli/vrooli/internal/config"
@@ -121,7 +122,19 @@ func (app *App) runAgentAuthorization(ctx *AppContext, action string, args []str
 	if _, err := authorizationDecisionURL(*approvalBase, "request", "approve"); err != nil {
 		return err
 	}
-	body := map[string]any{"pid": lease.PID, "harness_kind": lease.Agent, "harness_session": lease.SessionID, "duration_seconds": int64(duration.Seconds())}
+	// harness_kind must be the lease's Harness, not its Agent: the server's
+	// identity-binding proof validates the request against lease.Harness
+	// (see validateIdentityBindingLease). For most runners the two are equal
+	// (codex/codex, grok/grok), but a claude session records Harness
+	// "claude-code" and Agent "claude" — sending Agent there produced a
+	// spurious lease_identity_mismatch and blocked claude sessions from
+	// requesting authorization at all.
+	body := map[string]any{"pid": lease.PID, "harness_kind": lease.Harness, "harness_session": lease.SessionID, "duration_seconds": int64(duration.Seconds())}
+	if webConsoleSessionID := verifiedLaunchWebConsoleSessionID(lease); webConsoleSessionID != "" {
+		// This is an expected locator only. Agent Manager verifies it against
+		// the launch lease and live Web Console session before persisting it.
+		body["web_console_session_id"] = webConsoleSessionID
+	}
 	if len(requested) == 1 {
 		body["policy"], body["targets"] = requested[0].Policy, requested[0].Targets
 	} else {
@@ -148,6 +161,16 @@ func (app *App) runAgentAuthorization(ctx *AppContext, action string, args []str
 	}
 	fmt.Fprintf(ctx.Stdout, "Authorization request %s is pending human consent.\n%s\nApprove by: %s\nPermission lifetime starts at approval. After approval, this running session uses the grant on subsequent CLI requests.\nA newer request replaces this one while it is pending, and a newer approval replaces this session's earlier grant: ask for every policy the work needs in one request (repeat --policy, each with its --target).\n", grant.ID, approval, grant.RequestExpiresAt.Format(time.RFC3339))
 	return nil
+}
+
+func verifiedLaunchWebConsoleSessionID(lease scenarioruntime.EditorLease) string {
+	owner, ok := agentsession.OwnerFromLease(lease.Owner)
+	if !ok || owner.Kind != agentsession.KindWebConsoleSession || owner.Source != agentsession.SourceLaunch ||
+		owner.Ref == "" || owner.Ref != owner.Evidence.WebConsoleSessionID || owner.Evidence.ReadFromPID != lease.PID ||
+		owner.Evidence.WebConsoleStateRoot == "" {
+		return ""
+	}
+	return owner.Ref
 }
 
 func selectAuthorizationLease(leases []scenarioruntime.EditorLease, selector string) (scenarioruntime.EditorLease, error) {

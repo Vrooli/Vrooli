@@ -431,3 +431,49 @@ func TestGoBuildKeyInputsLowercasing(t *testing.T) {
 		t.Fatalf("goos = %q, want linux", keys["goos"])
 	}
 }
+
+func TestGeneratedPackageBuildKeyTracksConsumedSourceAndInstalledCopy(t *testing.T) {
+	root := t.TempDir()
+	ui := filepath.Join(root, "scenarios", "consumer", "ui")
+	dep := filepath.Join(root, "packages", "example")
+	installed := filepath.Join(ui, "node_modules", "@vrooli", "example")
+	packagegovtest.WritePackageManifest(t, root, "example", packagegovtest.PackageManifest("example",
+		packagegovtest.WithPackageModuleIdentifiers("@vrooli/example"),
+		packagegovtest.WithPackageGeneratedOutputs(packagegov.GeneratedOutput{Name: "runtime", Identifiers: []string{"@vrooli/example"}, Consumers: []packagegov.ConsumerClass{packagegov.ConsumerScenarioUI}}),
+		packagegovtest.WithPackageGenerateCommands(packagegov.CommandSpec{Name: "generate", Run: []string{"go", "generate"}, Outputs: []string{"dist/**"}}),
+	))
+	writeFreshnessBuildInputFile(t, filepath.Join(ui, "package.json"), `{"dependencies":{"@vrooli/example":"file:../../../packages/example"}}`)
+	writeFreshnessBuildInputFile(t, filepath.Join(ui, "src", "App.tsx"), `import {value} from "@vrooli/example/used"; export const App=value;`)
+	for _, base := range []string{dep, installed} {
+		writeFreshnessBuildInputFile(t, filepath.Join(base, "package.json"), `{"exports":{"./used":"./dist/used.js"}}`)
+		writeFreshnessBuildInputFile(t, filepath.Join(base, "dist", "used.js"), `export {value} from "./shared.js";`)
+		writeFreshnessBuildInputFile(t, filepath.Join(base, "dist", "shared.js"), `export const value=1;`)
+		writeFreshnessBuildInputFile(t, filepath.Join(base, "dist", "unrelated.js"), `export const other=1;`)
+	}
+	keys := func() map[string]string {
+		deps := defaultHostProbeDeps()
+		return sharedPackageFreshnessKeyInputs(root, ui, &deps)
+	}
+	baseline := keys()
+	if len(baseline) == 0 {
+		t.Fatal("no shared package key")
+	}
+	writeFreshnessBuildInputFile(t, filepath.Join(dep, "dist", "unrelated.js"), `export const other=2;`)
+	if !reflect.DeepEqual(baseline, keys()) {
+		t.Fatal("unconsumed generated output invalidated consumer")
+	}
+	writeFreshnessBuildInputFile(t, filepath.Join(dep, "dist", "shared.js"), `export const value=2;`)
+	if reflect.DeepEqual(baseline, keys()) {
+		t.Fatal("transitively consumed source change ignored")
+	}
+	canonicalChanged := keys()
+	writeFreshnessBuildInputFile(t, filepath.Join(installed, "dist", "shared.js"), `export const value=3;`)
+	if reflect.DeepEqual(canonicalChanged, keys()) {
+		t.Fatal("installed consumer drift ignored")
+	}
+	beforeExports := keys()
+	writeFreshnessBuildInputFile(t, filepath.Join(installed, "package.json"), `{"exports":{"./used":"./dist/shared.js"}}`)
+	if reflect.DeepEqual(beforeExports, keys()) {
+		t.Fatal("installed export mapping ignored")
+	}
+}

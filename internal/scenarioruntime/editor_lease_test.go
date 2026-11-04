@@ -2,6 +2,7 @@ package scenarioruntime
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 
@@ -78,5 +79,38 @@ func TestEditorLeaseExpiresOnlyOnProofOfDeath(t *testing.T) {
 	active, _ = store.ListEditorLeases(ctx, false)
 	if len(active) != 1 || active[0].Status != EditorLeaseActive {
 		t.Fatalf("re-attached lease = %+v", active)
+	}
+}
+
+// Exact proof lookup is read-only and never enumerates unrelated leases.
+func TestGetEditorLeaseReadsExactLeaseAndReportsMissing(t *testing.T) {
+	ctx := context.Background()
+	store, _ := newEditorLeaseStore(t)
+	want, err := store.CreateEditorLease(ctx, EditorLease{
+		SessionID: "exact-session", Harness: "codex", Agent: "codex", PID: 4200,
+		HostBootID: "boot-current", Scope: "vrooli-agent-exact.scope", WorkingDir: "/repo",
+		Owner: EditorLeaseOwner{Kind: "web-console-session", Ref: "wc-exact", Source: EditorLeaseOwnerLaunch},
+	}, time.Hour)
+	if err != nil {
+		t.Fatalf("CreateEditorLease: %v", err)
+	}
+	readOnly, err := NewSQLiteStore(ctx, Config{DBPath: store.path, ReadOnly: true})
+	if err != nil {
+		t.Fatalf("NewSQLiteStore(read-only): %v", err)
+	}
+	defer readOnly.Close()
+	got, err := readOnly.GetEditorLease(ctx, "exact-session")
+	if err != nil {
+		t.Fatalf("GetEditorLease(exact): %v", err)
+	}
+	if got.SessionID != want.SessionID || got.PID != want.PID || got.HostBootID != want.HostBootID || got.Scope != want.Scope || (got.Owner.Kind != want.Owner.Kind || got.Owner.Ref != want.Owner.Ref || got.Owner.Source != want.Owner.Source || got.Owner.EvidenceJSON != want.Owner.EvidenceJSON) {
+		t.Fatalf("GetEditorLease returned %+v, want exact lease %+v", got, want)
+	}
+	if _, err := readOnly.GetEditorLease(ctx, "absent-session"); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("GetEditorLease(missing) error = %v, want ErrNotFound", err)
+	}
+	rows, err := readOnly.ListEditorLeases(ctx, true)
+	if err != nil || len(rows) != 1 || rows[0].SessionID != "exact-session" {
+		t.Fatalf("read-only lookup changed registry rows: %+v, %v", rows, err)
 	}
 }

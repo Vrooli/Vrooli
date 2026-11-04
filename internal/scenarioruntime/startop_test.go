@@ -451,3 +451,98 @@ func TestBeginStartOperationBoundsInitiatorText(t *testing.T) {
 		t.Fatalf("truncated argv must say so, got %q", got.InitiatorArgv[len(got.InitiatorArgv)-20:])
 	}
 }
+
+func TestStartOperationFenceLinkIsWriteOnceAndOnlyForRunningAttempt(t *testing.T) {
+	ctx := context.Background()
+	store, err := NewSQLiteStore(ctx, Config{HomeDir: t.TempDir()})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer store.Close()
+
+	op, err := store.BeginStartOperation(ctx, StartOperation{Scenario: "alpha", Variant: "live"})
+	if err != nil {
+		t.Fatalf("BeginStartOperation: %v", err)
+	}
+	if err := store.SetStartOperationFenceOperationID(ctx, op.OperationID, "fence-a"); err != nil {
+		t.Fatalf("set first fence link: %v", err)
+	}
+	if err := store.SetStartOperationFenceOperationID(ctx, op.OperationID, "fence-a"); err != nil {
+		t.Fatalf("repeat same fence link: %v", err)
+	}
+	if err := store.SetStartOperationFenceOperationID(ctx, op.OperationID, "fence-b"); err == nil {
+		t.Fatal("replacing an existing fence link succeeded")
+	}
+	got, err := store.GetLatestStartOperation(ctx, "alpha", "live")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.FenceOperationID != "fence-a" {
+		t.Fatalf("fence link = %q, want fence-a", got.FenceOperationID)
+	}
+
+	op.Status = StartOperationStatusFailed
+	if _, err := store.UpdateStartOperation(ctx, op); err != nil {
+		t.Fatalf("terminalize attempt: %v", err)
+	}
+	if err := store.SetStartOperationFenceOperationID(ctx, op.OperationID, "fence-b"); err == nil {
+		t.Fatal("terminal attempt accepted a new fence link")
+	}
+	got, err = store.GetLatestStartOperation(ctx, "alpha", "live")
+	if err != nil || got.FenceOperationID != "fence-a" {
+		t.Fatalf("terminal attempt/link = %+v, err=%v; want preserved fence-a", got, err)
+	}
+}
+
+func TestStartOperationFenceLinkMigrationPreservesLegacyRows(t *testing.T) {
+	ctx := context.Background()
+	dbPath := filepath.Join(t.TempDir(), "runtime.db")
+	store, err := NewSQLiteStore(ctx, Config{DBPath: dbPath})
+	if err != nil {
+		t.Fatalf("open fresh store: %v", err)
+	}
+	legacy, err := store.BeginStartOperation(ctx, StartOperation{Scenario: "alpha", OperationID: "legacy-attempt"})
+	if err != nil {
+		t.Fatalf("seed legacy attempt: %v", err)
+	}
+	legacy.Status = StartOperationStatusFailed
+	if _, err := store.UpdateStartOperation(ctx, legacy); err != nil {
+		t.Fatalf("terminalize legacy attempt before migration: %v", err)
+	}
+	if err := store.Close(); err != nil {
+		t.Fatal(err)
+	}
+	raw, err := sql.Open("sqlite", buildDSN(dbPath))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := raw.ExecContext(ctx, `ALTER TABLE runtime_start_operations DROP COLUMN fence_operation_id`); err != nil {
+		_ = raw.Close()
+		t.Fatalf("make v14 schema fixture: %v", err)
+	}
+	if _, err := raw.ExecContext(ctx, `PRAGMA user_version = 14`); err != nil {
+		_ = raw.Close()
+		t.Fatal(err)
+	}
+	if err := raw.Close(); err != nil {
+		t.Fatal(err)
+	}
+	migrated, err := NewSQLiteStore(ctx, Config{DBPath: dbPath})
+	if err != nil {
+		t.Fatalf("migrate v14 store: %v", err)
+	}
+	defer migrated.Close()
+	got, err := migrated.GetLatestStartOperation(ctx, "alpha", "live")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.OperationID != legacy.OperationID || got.Status != StartOperationStatusFailed || got.FenceOperationID != "" {
+		t.Fatalf("migrated legacy attempt = %+v; want preserved terminal with empty fence link", got)
+	}
+	if err := migrated.SetStartOperationFenceOperationID(ctx, got.OperationID, "recovered-only-when-proven"); err == nil {
+		t.Fatal("migration made a terminal/unknown old attempt linkable")
+	}
+	if err := addStartOperationFenceLink(ctx, migrated.db); err != nil {
+		t.Fatalf("migration idempotence: %v", err)
+	}
+}

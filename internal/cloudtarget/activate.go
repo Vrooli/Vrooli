@@ -123,9 +123,9 @@ func (OSEnvRunner) RunEnv(ctx context.Context, env []string, name string, args .
 // scenario is started from its directory inside the release tree via
 // `--path`, so the runtime resolves the scenario root from the immutable
 // release rather than from a mutable checkout. Readiness is the lifecycle
-// owner's verdict: `vrooli scenario start` exits non-zero when the scenario
-// does not become healthy, and the active pointer is committed only after
-// the activator returned nil.
+// owner's verdict: start admits a durable operation, then wait attaches once
+// until that operation reaches its readiness verdict. The active pointer is
+// committed only after the lifecycle owner reports success.
 type ScenarioRestartActivator struct {
 	Runner     shell.Runner
 	Executable string
@@ -177,6 +177,9 @@ func (a ScenarioRestartActivator) Activate(ctx context.Context, activation Activ
 		// allocating ports so retries do not exhaust an otherwise idle host.
 		if out, err := a.run(ctx, env, executable, "scenario", "start", scenario, "--path", scenarioDir, "--clean-stale", "--json"); err != nil {
 			return fmt.Errorf("start %s from %s: %v: %s", scenario, scenarioDir, err, strings.TrimSpace(string(out)))
+		}
+		if out, err := a.run(ctx, env, executable, "scenario", "wait", scenario, "--json"); err != nil {
+			return fmt.Errorf("wait for %s activation: %v: %s", scenario, err, strings.TrimSpace(string(out)))
 		}
 	}
 	return nil

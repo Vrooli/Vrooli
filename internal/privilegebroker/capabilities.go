@@ -9,7 +9,8 @@ func capabilities() []string {
 	return []string{
 		ActionCapabilitiesInspect, ActionTemporaryActivityObserve,
 		ActionBridgeUFWInspect, ActionBridgeUFWAllow, ActionBridgeUFWVerify, ActionBridgeUFWRevoke,
-		ActionVolumeFilesystemCheck, ActionVolumeFilesystemRepair, ActionRuntimeHomeOwnershipRepair,
+		ActionLocalAdmissionInspect, ActionLocalAdmissionEnsure, ActionLocalAdmissionRevoke,
+		ActionVolumeFilesystemCheck, ActionVolumeFilesystemRepair, ActionVolumeSMARTInspect, ActionRuntimeHomeOwnershipRepair,
 		ActionLogRotateForce, ActionJournaldVacuum, ActionDockerPruneUnusedImages, ActionDockerPruneUnusedVolumes,
 		ActionAptPackagesEnsure, ActionEdgeUFWAllow, ActionProcessStopScoped, ActionEdgeCaddyValidate, ActionEdgeCaddyReload,
 	}

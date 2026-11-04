@@ -484,6 +484,9 @@ func (dependency *Dependency) UnmarshalJSON(data []byte) error {
 	if err := takeString("bundle_policy", &dependency.BundlePolicy); err != nil {
 		return err
 	}
+	if _, err := takeBool("include_ui", &dependency.IncludeUI); err != nil {
+		return err
+	}
 	if v, ok := raw["bindings"]; ok {
 		return fmt.Errorf("bindings are no longer supported; resolve scenario addresses through discovery: %s", string(v))
 	}
@@ -608,6 +611,9 @@ func (dependency Dependency) MarshalJSON() ([]byte, error) {
 		return nil, err
 	}
 	if err := emitIfNonEmpty("bundle_policy", dependency.BundlePolicy); err != nil {
+		return nil, err
+	}
+	if err := emitIfTrue("include_ui", dependency.IncludeUI); err != nil {
 		return nil, err
 	}
 	if len(dependency.Config) > 0 {

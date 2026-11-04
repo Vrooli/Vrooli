@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	uuidgen "github.com/google/uuid"
 	"github.com/vrooli/cli-core/cliapp"
 	climanifest "github.com/vrooli/vrooli/cli"
 	hostapp "github.com/vrooli/vrooli/internal/app/host"
@@ -20,6 +21,7 @@ import (
 	"github.com/vrooli/vrooli/internal/hostinventory"
 	"github.com/vrooli/vrooli/internal/hostreqkit"
 	"github.com/vrooli/vrooli/internal/operatorstate"
+	"github.com/vrooli/vrooli/internal/privilegebroker"
 	hostruntime "github.com/vrooli/vrooli/internal/runtime"
 	blenderrenderer "github.com/vrooli/vrooli/internal/tools/blender-renderer"
 	"github.com/vrooli/vrooli/internal/tools/hyperframes"
@@ -368,17 +370,42 @@ func runHostVolume(runCtx cliapp.RunContext, parent *rootcli.CommandContext) err
 		actionName = strings.ToLower(strings.TrimSpace(parsed.Arg(0)))
 	}
 	if actionName == "" || parsed.NArg() > 1 {
-		return rootcli.UsageErrorf("host volume", "an action is required (capabilities, inspect, check, repair, unmount, or mount-rw)")
+		return rootcli.UsageErrorf("host volume", "an action is required (capabilities, inspect, check, smart, repair, unmount, or mount-rw)")
 	}
 	if actionName == "capabilities" {
 		if parent.Globals.JSON || runCtx.JSON() {
 			return cliout.WriteJSONValue(runCtx.Stdout(), volumeremediation.AdvertisedCapabilities())
 		}
-		return cliout.WriteSection(runCtx.Stdout(), cliout.Section{Rows: [][]string{{volumeremediation.ContractVersion, "inspect,check,repair,unmount,mount-rw"}}})
+		return cliout.WriteSection(runCtx.Stdout(), cliout.Section{Rows: [][]string{{volumeremediation.ContractVersion, "inspect,check,smart,repair,unmount,mount-rw"}}})
+	}
+	if actionName == "smart" {
+		if strings.TrimSpace(*device) == "" || strings.TrimSpace(*serial) == "" {
+			return rootcli.UsageErrorf("host volume", "smart requires --device and the expected whole-disk --serial")
+		}
+		result, err := privilegebroker.NewClient().Do(parent.OperationContext(), privilegebroker.Request{
+			Version: privilegebroker.ProtocolVersion, RequestID: uuidgen.NewString(),
+			Action: privilegebroker.ActionVolumeSMARTInspect,
+			SMART:  &privilegebroker.SMARTSubject{Device: strings.TrimSpace(*device), Serial: strings.TrimSpace(*serial)},
+		})
+		if err != nil {
+			return err
+		}
+		if parent.Globals.JSON || runCtx.JSON() {
+			if err := cliout.WriteJSONValue(runCtx.Stdout(), result); err != nil {
+				return err
+			}
+		} else {
+			_, _ = fmt.Fprintf(runCtx.Stdout(), "Device identity verified: %s serial=%s\nsmartctl exit status: %d\n", *device, *serial, result.Evidence.ExitCode)
+			_, _ = fmt.Fprintln(runCtx.Stdout(), result.Evidence.Detail)
+		}
+		if result.Status != "verified" {
+			return rootcli.ExitCodeError{Code: 1, Silent_: true}
+		}
+		return nil
 	}
 	action, ok := hostVolumeActions[actionName]
 	if !ok {
-		return rootcli.UsageErrorf("host volume", "unknown action %q (want capabilities, inspect, check, repair, unmount, or mount-rw)", actionName)
+		return rootcli.UsageErrorf("host volume", "unknown action %q (want capabilities, inspect, check, smart, repair, unmount, or mount-rw)", actionName)
 	}
 	if strings.TrimSpace(*device) == "" {
 		return rootcli.UsageErrorf("host volume", "--device is required")

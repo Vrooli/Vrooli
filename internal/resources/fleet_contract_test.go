@@ -158,3 +158,21 @@ func TestFleetContractRejectsEveryLegacyAcceleratorSurface(t *testing.T) {
 		})
 	}
 }
+
+func TestConditionalManagedPlatformChecksDeclarationWithoutInventingGPUFacts(t *testing.T) {
+	a := &binaryfetch.Acquisition{Kind: "url", Targets: []binaryfetch.AcquisitionTarget{{When: map[string]string{"os": "linux", "arch": "amd64", "gpu.cuda_compute": ">=8.9"}, URL: "https://example.invalid/model", SHA256: strings.Repeat("a", 64)}}}
+	facts := binaryfetch.Facts{"os": "linux", "arch": "amd64"}
+	if _, err := a.Resolve(facts); err == nil {
+		t.Fatal("runtime acquisition accepted missing hardware facts")
+	}
+	declared, err := conditionalPlatformAcquisition(a, facts)
+	if err != nil || declared.When["gpu.cuda_compute"] != ">=8.9" {
+		t.Fatalf("declared route=%+v err=%v", declared, err)
+	}
+	if _, err := conditionalPlatformAcquisition(a, binaryfetch.Facts{"os": "linux", "arch": "arm64"}); err == nil {
+		t.Fatal("invented an arm64 route")
+	}
+	if _, err := a.Resolve(facts); err == nil {
+		t.Fatal("static check weakened the runtime predicates")
+	}
+}

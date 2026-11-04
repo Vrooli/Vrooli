@@ -2,9 +2,11 @@ package lifecycle
 
 import (
 	"context"
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/vrooli/cli-core/cliutil"
@@ -59,6 +61,149 @@ func onlyArtifact(t *testing.T, report DeployReport) DeployReportArtifact {
 		t.Fatalf("artifacts = %+v, want one", report.Artifacts)
 	}
 	return report.Artifacts[0]
+}
+
+type deployReportEngagementResolver struct {
+	info             EngagementInfo
+	engaged          bool
+	location         ServingSourceLocation
+	resolveErr       error
+	lookupCalls      int
+	locatorCalls     int
+	materializeCalls int
+}
+
+func (r *deployReportEngagementResolver) Engagement(string) (EngagementInfo, bool, error) {
+	r.lookupCalls++
+	return r.info, r.engaged, r.resolveErr
+}
+
+func (r *deployReportEngagementResolver) ServingSourceLocation(string, EngagementInfo, string) (ServingSourceLocation, error) {
+	r.locatorCalls++
+	return r.location, r.resolveErr
+}
+
+func (r *deployReportEngagementResolver) MaterializeServingSource(string, EngagementInfo, string) (string, error) {
+	r.materializeCalls++
+	return "unexpected-materialization", nil
+}
+
+func writeDeployReportManifest(t *testing.T, item scenario.Scenario) {
+	t.Helper()
+	data, err := json.Marshal(item.Manifest)
+	if err != nil {
+		t.Fatal(err)
+	}
+	writeSceneFile(t, filepath.Join(item.Path, ".vrooli", "service.json"), string(data))
+}
+
+func TestDeployReportByNameUsesServingBaselineAndCandidateInputsWithoutMaterializing(t *testing.T) {
+	r, item, candidateBin := deployReportScene(t)
+	writeDeployReportManifest(t, item)
+
+	servingRepo := t.TempDir()
+	servingApp := filepath.Join(servingRepo, "scenarios", item.Slug)
+	for _, name := range []string{"api/main.go", "api/go.mod"} {
+		data, err := os.ReadFile(filepath.Join(item.Path, filepath.FromSlash(name)))
+		if err != nil {
+			t.Fatal(err)
+		}
+		writeSceneFile(t, filepath.Join(servingApp, filepath.FromSlash(name)), string(data))
+	}
+	for _, name := range []string{"go.mod", "shared.go"} {
+		data, err := os.ReadFile(filepath.Join(r.Root, "packages", "shared", name))
+		if err != nil {
+			t.Fatal(err)
+		}
+		writeSceneFile(t, filepath.Join(servingRepo, "packages", "shared", name), string(data))
+	}
+	servingBin := filepath.Join(servingApp, "api", "alpha-api")
+	writeSceneFile(t, servingBin, "serving executable")
+	if err := os.Chmod(servingBin, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	component := item.Manifest.Components["api"]
+	servingArtifacts, err := componentFreshnessArtifactsContextWithName(context.Background(), servingApp, r.Root, item.Slug, "api", component, defaultHostProbeDeps())
+	if err != nil || len(servingArtifacts) != 1 {
+		t.Fatalf("serving freshness artifacts: %v (%d)", err, len(servingArtifacts))
+	}
+	if err := r.stampArtifactFreshness(servingArtifacts[0]); err != nil {
+		t.Fatalf("stamp serving baseline: %v", err)
+	}
+	servingManifest, ok, err := cliutil.ReadFreshnessManifest(servingArtifacts[0].ManifestPath)
+	if err != nil || !ok {
+		t.Fatalf("read serving freshness manifest: ok=%v err=%v", ok, err)
+	}
+
+	if err := os.WriteFile(candidateBin, []byte("candidate executable"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	writeSceneFile(t, filepath.Join(item.Path, "api", "main.go"), "package main\n\nconst gate = \"VROOLI_NEW_GATE_ENFORCE\"\n\nfunc main(){}\n")
+	resolver := &deployReportEngagementResolver{
+		engaged: true,
+		info: EngagementInfo{
+			Slug: "goal", CaptureID: "capture-17", Generation: "capture-17", ProtoArtifactID: "proto-4",
+		},
+		location: ServingSourceLocation{RepoRoot: servingRepo, ScenarioDir: servingApp},
+	}
+	r.Engagements = resolver
+	setDeployRunningExecutables(t, []string{servingBin}, true)
+
+	report, err := r.DeployReportByName(context.Background(), item.Slug, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	api := onlyArtifact(t, report)
+	if report.SourceRole != "frozen_serving_tree" || report.CandidateSource != "scenarios/alpha" || report.ServingSource != servingApp || report.Engagement != "goal" || report.CaptureID != "capture-17" || report.Generation != "capture-17" || report.ProtoArtifactID != "proto-4" {
+		t.Fatalf("source provenance = %+v", report)
+	}
+	if api.BuiltAt == nil || api.BuiltAt.UnixNano() != servingManifest.WrittenAtNS {
+		t.Fatalf("built_at = %v, want serving manifest timestamp %d", api.BuiltAt, servingManifest.WrittenAtNS)
+	}
+	if api.Running != DeployRunningCurrent {
+		t.Fatalf("running = %q, want current serving artifact", api.Running)
+	}
+	if !report.Changed || !reflect.DeepEqual(api.Files, []DeployReportFile{{Path: "scenarios/alpha/api/main.go", Change: "modified"}}) {
+		t.Fatalf("candidate delta = %+v, changed=%v", api.Files, report.Changed)
+	}
+	if !api.SwitchesKnown || !reflect.DeepEqual(api.NewSwitches, []DeployReportSwitch{{Name: "VROOLI_NEW_GATE_ENFORCE", Files: []string{"scenarios/alpha/api/main.go"}}}) {
+		t.Fatalf("candidate switch changes = known:%v switches:%+v", api.SwitchesKnown, api.NewSwitches)
+	}
+	if resolver.lookupCalls != 1 || resolver.materializeCalls != 0 {
+		t.Fatalf("engagement reads=%d materializations=%d, want one read and no materialization", resolver.lookupCalls, resolver.materializeCalls)
+	}
+}
+
+func TestDeployReportByNameFailsClosedWhenEngagementCannotBeResolved(t *testing.T) {
+	r, item, _ := deployReportScene(t)
+	writeDeployReportManifest(t, item)
+	resolver := &deployReportEngagementResolver{resolveErr: os.ErrPermission}
+	r.Engagements = resolver
+	_, err := r.DeployReportByName(context.Background(), item.Slug, "")
+	if err == nil || !strings.Contains(err.Error(), "resolve serving source") {
+		t.Fatalf("deploy report error = %v, want explicit engagement resolution failure", err)
+	}
+	if resolver.materializeCalls != 0 {
+		t.Fatalf("read-only report materialized serving tree %d times", resolver.materializeCalls)
+	}
+}
+
+func TestDeployReportByNameResolvesExplicitShadowVariant(t *testing.T) {
+	r, item, _ := deployReportScene(t)
+	writeDeployReportManifest(t, item)
+	resolver := &deployReportEngagementResolver{engaged: true, info: EngagementInfo{Slug: "goal"}}
+	r.Engagements = resolver
+
+	report, err := r.DeployReportByName(context.Background(), item.Slug+"@shadow", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if report.Scenario != item.Slug+"@shadow" || report.SourceRole != "working_tree" || report.ServingSource != item.Path {
+		t.Fatalf("shadow report identity/source = %+v", report)
+	}
+	if resolver.lookupCalls != 1 || resolver.locatorCalls != 0 || resolver.materializeCalls != 0 {
+		t.Fatalf("shadow resolver calls: engagement=%d locator=%d materialize=%d", resolver.lookupCalls, resolver.locatorCalls, resolver.materializeCalls)
+	}
 }
 
 func TestDeployReportFreshTreeReportsNoChanges(t *testing.T) {

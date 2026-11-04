@@ -1,6 +1,7 @@
 package resources
 
 import (
+	"bytes"
 	"context"
 	"crypto/sha256"
 	"encoding/json"
@@ -29,10 +30,26 @@ type ComposeCandidateReceipt struct {
 }
 type composeArtifactFunc func(context.Context, binaryfetch.AcquisitionTarget, string, string) error
 
+const maxComposeCandidateManifestBytes = 1 << 20
+
+var composeCandidateResolveTarget = managedServiceAcquisitionTargetWithFacts
+
+type candidateManifestBuffer struct{ bytes.Buffer }
+
+func (b *candidateManifestBuffer) Write(p []byte) (int, error) {
+	if len(p) > maxComposeCandidateManifestBytes-b.Len() {
+		return 0, errors.New("candidate manifest exceeds 1 MiB limit")
+	}
+	return b.Buffer.Write(p)
+}
+
 // ComposeCandidate stages reviewed compose inputs without installing, executing
 // the target, acquiring model data or publishing any runtime verification facts.
 func (c *Controller) ComposeCandidate(ctx context.Context, name, output string) (ComposeCandidateReceipt, error) {
 	var empty ComposeCandidateReceipt
+	if err := ctx.Err(); err != nil {
+		return empty, err
+	}
 	if !composeCandidatePlatformSupported() {
 		return empty, errors.New("compose-candidate currently supports Linux only")
 	}
@@ -40,18 +57,25 @@ func (c *Controller) ComposeCandidate(ctx context.Context, name, output string) 
 		return empty, errors.New("compose-candidate requires one resource name")
 	}
 	resourceRoot := filepath.Join(c.Root, "resources", name)
-	manifest, raw, err := manifestpkg.LoadForComposeCandidate(filepath.Join(resourceRoot, "resource.json"))
+	var buffer candidateManifestBuffer
+	if err := copyCandidateInput(ctx, resourceRoot, "resource.json", &buffer); err != nil {
+		return empty, fmt.Errorf("read candidate manifest: %w", err)
+	}
+	raw := buffer.Bytes()
+	manifest, err := manifestpkg.ParseForComposeCandidate(filepath.Join(resourceRoot, "resource.json"), raw)
 	if err != nil {
 		return empty, err
 	}
 	if manifest.Name != name {
 		return empty, errors.New("compose-candidate resource identity does not match manifest")
 	}
-	target, _, err := managedServiceAcquisitionTargetWithFacts(ctx, manifest)
+	target, _, err := composeCandidateResolveTarget(ctx, manifest)
 	if err != nil {
 		return empty, err
 	}
-	return composeCandidate(ctx, manifest, raw, target, resourceRoot, output, composeManagedServiceArtifact)
+	return composeCandidate(ctx, manifest, raw, target, resourceRoot, output, func(ctx context.Context, target binaryfetch.AcquisitionTarget, resourceRoot, artifactRoot string) error {
+		return composeManagedServiceArtifactWithCache(ctx, name, target, resourceRoot, artifactRoot)
+	})
 }
 
 func composeCandidate(ctx context.Context, manifest ResourceManifest, rawManifest []byte, target binaryfetch.AcquisitionTarget, resourceRoot, output string, compose composeArtifactFunc) (ComposeCandidateReceipt, error) {
@@ -81,14 +105,15 @@ func composeCandidate(ctx context.Context, manifest ResourceManifest, rawManifes
 	}
 	defer os.RemoveAll(stage)
 	snapshot := filepath.Join(stage, "inputs")
-	if err := os.Mkdir(snapshot, 0700); err != nil {
+	if err := os.Mkdir(snapshot, 0o700); err != nil {
 		return empty, err
 	}
 	hashes := map[string]string{"resource.json": fmt.Sprintf("%x", sha256.Sum256(rawManifest))}
-	if err := os.WriteFile(filepath.Join(snapshot, "resource.json"), rawManifest, 0600); err != nil {
+	if err := os.WriteFile(filepath.Join(snapshot, "resource.json"), rawManifest, 0o600); err != nil {
 		return empty, err
 	}
-	destinations := []string{}
+	type destination struct{ path, kind string }
+	destinations := []destination{}
 	for _, step := range target.Compose {
 		if err := step.Validate(); err != nil {
 			return empty, err
@@ -98,13 +123,19 @@ func composeCandidate(ctx context.Context, manifest ResourceManifest, rawManifes
 			return empty, errors.New("candidate destination must be a nonempty relative path")
 		}
 		for _, prior := range destinations {
-			if prior == dest || strings.HasPrefix(prior, dest+string(filepath.Separator)) || strings.HasPrefix(dest, prior+string(filepath.Separator)) {
-				return empty, fmt.Errorf("candidate compose destinations overlap: %s and %s", prior, dest)
+			// Ordered local file overlays into an earlier archive tree are the
+			// canonical wrapper pattern. Other overlaps can remove prior inputs.
+			childOverlay := prior.kind == "url" && step.Kind == "local" && strings.HasPrefix(dest, prior.path+string(filepath.Separator))
+			if !childOverlay && (prior.path == dest || strings.HasPrefix(prior.path, dest+string(filepath.Separator)) || strings.HasPrefix(dest, prior.path+string(filepath.Separator))) {
+				return empty, fmt.Errorf("candidate compose destinations overlap: %s and %s", prior.path, dest)
 			}
 		}
-		destinations = append(destinations, dest)
+		destinations = append(destinations, destination{dest, step.Kind})
 		switch step.Kind {
 		case "url":
+			if step.BinPath != "" && (!filepath.IsLocal(filepath.FromSlash(step.BinPath)) || filepath.Clean(step.BinPath) == ".") {
+				return empty, errors.New("candidate archive prefix must remain within extracted tree")
+			}
 			if err := candidatePublicURL(step.URL); err != nil {
 				return empty, err
 			}
@@ -158,7 +189,7 @@ func composeCandidate(ctx context.Context, manifest ResourceManifest, rawManifes
 	if err != nil {
 		return empty, err
 	}
-	if err := os.WriteFile(filepath.Join(stage, "receipt.json"), append(encoded, '\n'), 0600); err != nil {
+	if err := os.WriteFile(filepath.Join(stage, "receipt.json"), append(encoded, '\n'), 0o600); err != nil {
 		return empty, err
 	}
 	if err := ctx.Err(); err != nil {
@@ -178,11 +209,20 @@ func candidatePublicURL(raw string) error {
 	return nil
 }
 
-func candidateInputPath(root, relative string) (string, error) {
-	path := filepath.FromSlash(relative)
+func candidateInputRelative(relative string) (string, error) {
+	path := filepath.Clean(filepath.FromSlash(relative))
 	if !filepath.IsLocal(path) || path == "." {
 		return "", errors.New("candidate input must remain under resource root")
 	}
+	return filepath.ToSlash(path), nil
+}
+
+func candidateInputPath(root, relative string) (string, error) {
+	relative, err := candidateInputRelative(relative)
+	if err != nil {
+		return "", err
+	}
+	path := filepath.FromSlash(relative)
 	current := root
 	for _, part := range strings.Split(path, string(filepath.Separator)) {
 		current = filepath.Join(current, part)
@@ -205,48 +245,24 @@ func candidateInputPath(root, relative string) (string, error) {
 }
 
 func snapshotComposeInput(ctx context.Context, resourceRoot, snapshot, relative string, hashes map[string]string) error {
-	relative = filepath.ToSlash(filepath.Clean(filepath.FromSlash(relative)))
+	var err error
+	relative, err = candidateInputRelative(relative)
+	if err != nil {
+		return err
+	}
 	if _, exists := hashes[relative]; exists {
 		return nil
 	}
-	path, err := candidateInputPath(resourceRoot, relative)
-	if err != nil {
-		return err
-	}
 	destination := filepath.Join(snapshot, filepath.FromSlash(relative))
-	if err := os.MkdirAll(filepath.Dir(destination), 0700); err != nil {
+	if err := os.MkdirAll(filepath.Dir(destination), 0o700); err != nil {
 		return err
 	}
-	in, err := os.Open(path)
-	if err != nil {
-		return err
-	}
-	defer in.Close()
-	out, err := os.OpenFile(destination, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0600)
+	out, err := os.OpenFile(destination, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o600)
 	if err != nil {
 		return err
 	}
 	hasher := sha256.New()
-	buffer := make([]byte, 32*1024)
-	for {
-		if err = ctx.Err(); err != nil {
-			break
-		}
-		n, readErr := in.Read(buffer)
-		if n > 0 {
-			if _, err = io.MultiWriter(out, hasher).Write(buffer[:n]); err != nil {
-				break
-			}
-		}
-		if readErr == io.EOF {
-			err = nil
-			break
-		}
-		if readErr != nil {
-			err = readErr
-			break
-		}
-	}
+	err = copyCandidateInput(ctx, resourceRoot, relative, io.MultiWriter(out, hasher))
 	closeErr := out.Close()
 	if err != nil {
 		return err
@@ -260,17 +276,78 @@ func snapshotComposeInput(ctx context.Context, resourceRoot, snapshot, relative 
 
 func checkComposeInputs(ctx context.Context, resourceRoot string, hashes map[string]string) error {
 	for relative, expected := range hashes {
-		path, err := candidateInputPath(resourceRoot, relative)
-		if err != nil {
+		hasher := sha256.New()
+		if err := copyCandidateInput(ctx, resourceRoot, relative, hasher); err != nil {
 			return fmt.Errorf("candidate input %s changed: %w", relative, err)
 		}
-		actual, err := managedRegularFileSHA256(ctx, path)
-		if err != nil {
-			return err
-		}
+		actual := fmt.Sprintf("%x", hasher.Sum(nil))
 		if actual != expected {
 			return fmt.Errorf("candidate input %s changed during preparation", relative)
 		}
+	}
+	return nil
+}
+
+// Every read uses the same rooted nonblocking regular-file contract, including
+// rechecks. Refuse replacement or in-place mutation observed during a copy.
+func copyCandidateInput(ctx context.Context, root, relative string, output io.Writer) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	path, err := candidateInputPath(root, relative)
+	if err != nil {
+		return err
+	}
+	before, err := os.Lstat(path)
+	if err != nil {
+		return err
+	}
+	input, err := openCandidateInput(root, relative)
+	if err != nil {
+		return err
+	}
+	defer input.Close()
+	opened, err := input.Stat()
+	if err != nil {
+		return err
+	}
+	if !opened.Mode().IsRegular() || !os.SameFile(before, opened) {
+		return errors.New("candidate input replaced before open")
+	}
+	buffer := make([]byte, 32*1024)
+	for {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
+		n, readErr := input.Read(buffer)
+		if err := ctx.Err(); err != nil {
+			return err
+		}
+		if n > 0 {
+			if _, err := output.Write(buffer[:n]); err != nil {
+				return err
+			}
+		}
+		if readErr == io.EOF {
+			break
+		}
+		if readErr != nil {
+			return readErr
+		}
+		if n == 0 {
+			return io.ErrNoProgress
+		}
+	}
+	after, err := input.Stat()
+	if err != nil {
+		return err
+	}
+	current, err := os.Lstat(path)
+	if err != nil {
+		return err
+	}
+	if !os.SameFile(opened, current) || !os.SameFile(opened, after) || opened.Size() != after.Size() || !opened.ModTime().Equal(after.ModTime()) || after.Size() != current.Size() || !after.ModTime().Equal(current.ModTime()) {
+		return errors.New("candidate input changed while reading")
 	}
 	return nil
 }

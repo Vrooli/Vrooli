@@ -8,6 +8,7 @@ import (
 	"io"
 	"os"
 	"os/signal"
+	"time"
 )
 
 const (
@@ -65,13 +66,42 @@ func RunServiceCommand(args []string, stdout, stderr io.Writer) int {
 			return executeRuntimeHomeRepairAt(ctx, subject, fixedRoot)
 		}
 	}
-	b, err := New(Config{SocketPath: *socket, AllowedUID: uint32(*allowedUID), SocketGID: *socketGID, AuditPath: *auditPath, RuntimeHomeRepair: runtimeRepair})
+	admission, admissionErr := installedLocalAdmission(uint32(*allowedUID), OSExecutor{})
+	if admissionErr != nil {
+		fmt.Fprintln(stderr, "local-service admission unavailable:", admissionErr)
+	}
+	b, err := New(Config{SocketPath: *socket, AllowedUID: uint32(*allowedUID), SocketGID: *socketGID, AuditPath: *auditPath, RuntimeHomeRepair: runtimeRepair, LocalAdmission: admission})
 	if err != nil {
 		fmt.Fprintln(stderr, err)
 		return 1
 	}
 	ctx, stop := signal.NotifyContext(context.Background(), serviceSignals()...)
 	defer stop()
+	if admission != nil {
+		go func() {
+			ticker := time.NewTicker(30 * time.Second)
+			defer ticker.Stop()
+			for {
+				operation, cancel := context.WithTimeout(ctx, 20*time.Second)
+				results := admission.Reconcile(operation)
+				cancel()
+				for _, result := range results {
+					if result.Changed || result.Status == "failed" {
+						request := Request{RequestID: "local-converge-" + time.Now().UTC().Format("20060102T150405.000000000"), Action: result.Action}
+						if result.LocalAdmission != nil {
+							request.LocalAdmission = &LocalAdmissionSubject{Binding: result.LocalAdmission.Binding}
+						}
+						b.audit(uint32(*allowedUID), request, result)
+					}
+				}
+				select {
+				case <-ctx.Done():
+					return
+				case <-ticker.C:
+				}
+			}
+		}()
+	}
 	if err := b.Serve(ctx); err != nil {
 		fmt.Fprintln(stderr, err)
 		return 1

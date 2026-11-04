@@ -192,6 +192,34 @@ func TestRestartBuildsBeforeStoppingAndKeepsServingOnBuildFailure(t *testing.T) 
 	}
 }
 
+func TestAgentManagerRestartKeepsServingWhenReplacementBuildFails(t *testing.T) {
+	if runtime.GOOS != "linux" {
+		testkitgo.SkipPlatform(t, "lifecycle process management currently targets linux")
+	}
+	root, home := t.TempDir(), t.TempDir()
+	writeLifecycleFixture(t, root, "agent-manager")
+	runner := newLifecycleRunnerForTest(t, root, home, nil)
+	allowRestartFixtureBuilds(runner)
+	if _, err := runner.Start("agent-manager", StartOptions{}); err != nil {
+		t.Fatal(err)
+	}
+	cleanupRunner(t, runner, "agent-manager", StopOptions{})
+	before := liveScenarioPID(t, home, "agent-manager")
+	mainGo := filepath.Join(root, "scenarios", "agent-manager", "api", "main.go")
+	testkitgo.WriteFile(t, mainGo, "package main\n\nfunc main() { undefinedSymbol() }\n")
+	events := []string{}
+	runner.WithProgressSink(&restartOrderSink{events: &events})
+	if _, err := runner.Restart("agent-manager", StartOptions{}); err == nil {
+		t.Fatal("broken replacement unexpectedly built")
+	}
+	if slices.Contains(events, "stop") {
+		t.Fatalf("failed replacement stopped the execution owner: %v", events)
+	}
+	if after := liveScenarioPID(t, home, "agent-manager"); after != before {
+		t.Fatalf("serving owner changed after failed build: %d -> %d", before, after)
+	}
+}
+
 func TestSetupNeededDetectsUpdatedSources(t *testing.T) {
 	if runtime.GOOS != "linux" {
 		testkitgo.SkipPlatform(t, "lifecycle process management currently targets linux")

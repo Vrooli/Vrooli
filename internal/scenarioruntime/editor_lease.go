@@ -73,6 +73,22 @@ ON CONFLICT(session_id) DO UPDATE SET
 	return out, nil
 }
 
+// GetEditorLease reads one exact session lease without enumerating the registry.
+func (s *SQLiteStore) GetEditorLease(ctx context.Context, sessionID string) (EditorLease, error) {
+	sessionID = strings.TrimSpace(sessionID)
+	if sessionID == "" {
+		return EditorLease{}, fmt.Errorf("get editor lease: session_id is required")
+	}
+	lease, err := scanEditorLease(s.db.QueryRowContext(ctx, editorLeaseSelectSQL+` WHERE session_id = ?`, sessionID))
+	if err == sql.ErrNoRows {
+		return EditorLease{}, ErrNotFound
+	}
+	if err != nil {
+		return EditorLease{}, fmt.Errorf("get editor lease: %w", err)
+	}
+	return lease, nil
+}
+
 // HeartbeatEditorLease renews an active lease's deadline.
 func (s *SQLiteStore) HeartbeatEditorLease(ctx context.Context, sessionID string, ttl time.Duration) (EditorLease, error) {
 	sessionID = strings.TrimSpace(sessionID)

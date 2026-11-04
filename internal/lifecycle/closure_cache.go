@@ -13,16 +13,18 @@ import (
 	"github.com/vrooli/vrooli/internal/tuning"
 )
 
-const closureCacheVersion = 2
+const closureCacheVersion = 3
 
 // closureCache is the durable dependency-closure record for one Go component.
 // It lives beside the component's build output, not in a shared global cache,
 // so two scenarios cannot invalidate or consume one another's inputs.
 type closureCache struct {
-	Version   int      `json:"version"`
-	Key       string   `json:"key"`
-	Inputs    []string `json:"inputs"`
-	Toolchain string   `json:"toolchain"`
+	Version      int      `json:"version"`
+	Key          string   `json:"key"`
+	Inputs       []string `json:"inputs"`
+	Files        []string `json:"files"`
+	EmbedWatches []string `json:"embed_watches,omitempty"`
+	Toolchain    string   `json:"toolchain"`
 }
 
 // goListCacheKey identifies a dependency-closure query by the module files and
@@ -92,7 +94,7 @@ func closureCacheKey(dir, repoRoot, toolchain string, inputs []string, deps host
 	return fmt.Sprintf("%x", h.Sum(nil))
 }
 
-// goPackageSourceDigest fingerprints only Go files in the resolved package
+// goPackageSourceDigest fingerprints build-source files in the resolved package
 // directory. Walking descendants of a local replace (especially the repo
 // root) makes an unrelated scenario edit invalidate every consumer's closure.
 func goPackageSourceDigest(root string, deps hostProbeDeps) string {
@@ -117,7 +119,7 @@ func goPackageSourceDigest(root string, deps hostProbeDeps) string {
 			return nil
 		}
 		name := entry.Name()
-		if !strings.HasSuffix(name, ".go") || strings.HasSuffix(name, "_test.go") {
+		if !isGoBuildSource(name) || strings.HasSuffix(name, "_test.go") {
 			return nil
 		}
 		data, err := readFile(path)
@@ -203,10 +205,11 @@ func readClosureCache(path, toolchain string, read func(string) ([]byte, error))
 		return closureCache{}, false
 	}
 	var cached closureCache
-	if json.Unmarshal(data, &cached) != nil || cached.Version != closureCacheVersion || cached.Toolchain != toolchain || len(cached.Inputs) == 0 {
+	if json.Unmarshal(data, &cached) != nil || cached.Version != closureCacheVersion || cached.Toolchain != toolchain || len(cached.Inputs) == 0 || len(cached.Files) == 0 {
 		return closureCache{}, false
 	}
 	cached.Inputs = append([]string(nil), cached.Inputs...)
+	cached.Files = append([]string(nil), cached.Files...)
 	return cached, true
 }
 
@@ -234,4 +237,44 @@ func writeClosureCache(path string, cached closureCache) error {
 		return err
 	}
 	return os.Rename(tmpPath, path)
+}
+
+// Embed patterns can acquire new files without changing a Go source. Watch the
+// matched trees for cache refresh; only go-list's actual EmbedFiles enter the
+// build manifest (so hidden or otherwise excluded assets are not build inputs).
+func resolvedClosureCacheKey(dir, root, toolchain string, cached closureCache, deps hostProbeDeps) string {
+	h := sha256.New()
+	fmt.Fprintln(h, closureCacheKey(dir, root, toolchain, cached.Inputs, deps))
+	for _, pattern := range cached.EmbedWatches {
+		matches, err := filepath.Glob(pattern)
+		fmt.Fprintf(h, "pattern:%s:error:%v\n", pattern, err)
+		for _, match := range matches {
+			err := filepath.WalkDir(match, func(path string, entry fs.DirEntry, walkErr error) error {
+				if walkErr != nil {
+					return walkErr
+				}
+				if entry.IsDir() {
+					return nil
+				}
+				data, err := os.ReadFile(path)
+				if err != nil {
+					return err
+				}
+				fmt.Fprintf(h, "%s:%x\n", path, sha256.Sum256(data))
+				return nil
+			})
+			fmt.Fprintf(h, "walk:%v\n", err)
+		}
+	}
+	return fmt.Sprintf("%x", h.Sum(nil))
+}
+
+// New C/assembly/swig files can change go-list's compiled file set too.
+func isGoBuildSource(name string) bool {
+	switch filepath.Ext(name) {
+	case ".go", ".c", ".cc", ".cpp", ".cxx", ".m", ".h", ".hh", ".hpp", ".f", ".F", ".for", ".f90", ".s", ".S", ".sx", ".swig", ".swigcxx", ".syso":
+		return true
+	default:
+		return false
+	}
 }

@@ -10,6 +10,6 @@ func writePeerRecord(home string, record PeerRecord) error {
 	return peerrecord.Write(home, record)
 }
 
-func removePeerRecord(home, name string) error {
-	return peerrecord.Remove(home, name)
+func removePeerRecord(home, name string, ownerPIDs ...int) error {
+	return peerrecord.Remove(home, name, ownerPIDs...)
 }

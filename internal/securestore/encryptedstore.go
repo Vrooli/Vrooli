@@ -19,6 +19,27 @@ import (
 // always learns which store holds their values and what protects the key.
 const adapterEncryptedFile = "encrypted-file"
 
+// OpenEncryptedFile selects an explicit file and passphrase without consulting
+// the host keyring, host defaults or unlock cache. The caller owns this path.
+// It is useful for isolated application authorities and integration fixtures;
+// it is never an automatic fallback from an unavailable native store.
+func OpenEncryptedFile(path, passphrase string) (Store, error) {
+	if path == "" || passphrase == "" {
+		return nil, errors.New("encrypted credential store requires an explicit path and passphrase")
+	}
+	store := newEncryptedStore(path, passphraseProvider{passphrase: passphrase})
+	if !store.initialized() {
+		if _, err := store.initialize(); err != nil {
+			return nil, err
+		}
+	}
+	wrapped := guardValues(store)
+	if err := Probe(wrapped); err != nil {
+		return nil, err
+	}
+	return wrapped, nil
+}
+
 type encryptedStore struct {
 	path string
 	// providers are tried in order when opening the store. Order is strongest

@@ -1,15 +1,17 @@
 package vroolicli
 
 import (
+	"encoding/base64"
 	"encoding/json"
-	"github.com/vrooli/cli-core/cliutil"
-	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
+
+	"github.com/vrooli/cli-core/cliutil"
 
 	"github.com/vrooli/vrooli/internal/shell/shelltest"
 )
@@ -24,6 +26,8 @@ func TestAgentRunnerBinaryAllowlist(t *testing.T) {
 		{input: "codex", want: "codex"},
 		{input: "opencode", want: "opencode"},
 		{input: "grok", want: "grok"},
+		{input: "agy", want: "agy"},
+		{input: "antigravity", want: "agy"},
 	} {
 		got, err := agentRunnerBinary(test.input)
 		if err != nil || got != test.want {
@@ -41,16 +45,18 @@ func TestRunAgentCommandUsesTypedRunnerArguments(t *testing.T) {
 
 	for _, test := range []struct {
 		runner string
+		binary string
 		want   string
 	}{
-		{runner: "claude", want: "--dangerously-skip-permissions\n-p\nhello\n"},
-		{runner: "codex", want: "--dangerously-skip-permissions\nhello\n"},
-		{runner: "opencode", want: "run\n--dangerously-skip-permissions\nhello\n"},
-		{runner: "grok", want: "--dangerously-skip-permissions\nhello\n"},
+		{runner: "claude", binary: "claude", want: "--dangerously-skip-permissions\n-p\nhello\n"},
+		{runner: "codex", binary: "codex", want: "--dangerously-skip-permissions\nhello\n"},
+		{runner: "opencode", binary: "opencode", want: "run\n--dangerously-skip-permissions\nhello\n"},
+		{runner: "grok", binary: "grok", want: "--dangerously-skip-permissions\nhello\n"},
+		{runner: "antigravity", binary: "agy", want: "--dangerously-skip-permissions\n-p\nhello\n"},
 	} {
 		t.Run(test.runner, func(t *testing.T) {
 			argsPath := filepath.Join(dir, test.runner+"-args")
-			script := filepath.Join(dir, test.runner)
+			script := filepath.Join(dir, test.binary)
 			contents := shelltest.POSIXShebang() + "printf '%s\\n' \"$@\" > \"" + argsPath + "\"\n"
 			if err := os.WriteFile(script, []byte(contents), 0o700); err != nil {
 				t.Fatal(err)
@@ -85,6 +91,16 @@ func TestRunAgentExecProtectedCommandAndTypedArguments(t *testing.T) {
 	t.Setenv(cliutil.EnvIdentityToken, "")
 	t.Setenv(cliutil.AgentSessionEnv, "")
 	attach, detach := 0, 0
+	claims, err := json.Marshal(struct {
+		RunID     string            `json:"run_id"`
+		IssuedAt  int64             `json:"iat"`
+		ExpiresAt int64             `json:"exp"`
+		Meta      map[string]string `json:"meta"`
+	}{RunID: "synthetic-owned-command", IssuedAt: time.Now().Unix(), ExpiresAt: time.Now().Add(time.Hour).Unix(), Meta: map[string]string{}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	identityToken := base64.RawURLEncoding.EncodeToString(claims) + "." + base64.RawURLEncoding.EncodeToString(make([]byte, 32))
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if strings.HasSuffix(r.URL.Path, "/attach") {
 			var body struct {
@@ -97,7 +113,7 @@ func TestRunAgentExecProtectedCommandAndTypedArguments(t *testing.T) {
 			}
 			attach++
 			w.WriteHeader(201)
-			io.WriteString(w, `{"run":{"id":"synthetic-owned-command"},"identity_token":"synthetic-command-leaf"}`)
+			_ = json.NewEncoder(w).Encode(map[string]any{"run": map[string]string{"id": "synthetic-owned-command"}, "identity_token": identityToken})
 			return
 		}
 		if strings.HasSuffix(r.URL.Path, "/detach") {

@@ -158,7 +158,7 @@ func RunCheck(ctx context.Context, check manifestpkg.ResourceHealthCheck, cfg Co
 				return cmd.CombinedOutput()
 			}
 		}
-		cmd := shell.Command(shell.Spec{
+		cmd := shell.Command(shell.Spec{Context: checkCtx,
 			Name:  check.Command[0],
 			Args:  check.Command[1:],
 			Dir:   cfg.Root,

@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -41,6 +42,7 @@ type runtimeRegistrySession struct {
 	store    scenarioRuntimeStore
 	instance scenarioruntime.Instance
 	claims   map[string]scenarioruntime.PortClaim
+	version  string
 }
 
 type runtimeRegistryStopSession struct {
@@ -52,6 +54,16 @@ type runtimeRegistryStopSession struct {
 	// older lifecycle process has removed them while the child remains alive.
 	processRecords []process.Record
 	processRefIDs  []string
+}
+
+func (s runtimeRegistryStopSession) peerOwnerPIDs() []int {
+	pids := make([]int, 0, len(s.processRecords))
+	for _, record := range s.processRecords {
+		if record.PID > 0 {
+			pids = append(pids, record.PID)
+		}
+	}
+	return pids
 }
 
 func disabledRuntimeRegistrySession() runtimeRegistrySession {
@@ -107,6 +119,7 @@ func (r *Runner) beginRuntimeRegistryStart(ctx context.Context, item scenario.Sc
 		store:    store,
 		instance: instance,
 		claims:   map[string]scenarioruntime.PortClaim{},
+		version:  item.Manifest.Version,
 	}, nil
 }
 
@@ -174,6 +187,11 @@ func (r *Runner) beginRuntimeRegistryStop(ctx context.Context, scenarioName, var
 			}
 			env, envErr := r.runtimeDeps().readProcessEnv(*ref.PID)
 			if envErr != nil || strings.TrimSpace(env[runtimeRegistryInstanceEnv]) != instance.InstanceID || strings.TrimSpace(env["VROOLI_SCENARIO"]) != scenarioName || strings.TrimSpace(env["VROOLI_VARIANT"]) != filter.Variant {
+				continue
+			}
+			if strings.HasPrefix(ref.RefID, "launch-") && env["VROOLI_COMPONENT_GENERATION"] != strings.TrimPrefix(ref.RefID, "launch-") {
+				// A newer process in the same runtime instance must not become
+				// the old launch's numeric teardown target after PID reuse.
 				continue
 			}
 			pgid := 0
@@ -465,10 +483,17 @@ func (s runtimeRegistrySession) publishPeerRecord(ctx context.Context, home stri
 			ports[name] = claim.Port
 		}
 	}
+	provides := make([]string, 0, len(ports))
+	for name := range ports {
+		provides = append(provides, name)
+	}
+	sort.Strings(provides)
 	return writePeerRecord(home, PeerRecord{
 		Scenario:  s.instance.Scenario,
 		Instance:  s.instance.Variant,
 		Tier:      1,
+		Version:   s.version,
+		Provides:  provides,
 		OwnerPID:  ownerPID,
 		StartedAt: s.instance.StartedAt,
 		Ports:     ports,
@@ -629,7 +654,12 @@ func recordRuntimeProcessRef(ctx context.Context, deps lifecycleDeps, home strin
 	}
 	pid := record.PID
 	pgid := record.PGID
+	refID := ""
+	if record.Generation != "" {
+		refID = process.LaunchRefID(record.Generation)
+	}
 	_, err = store.AddProcessRef(ctx, scenarioruntime.ProcessRef{
+		RefID:      refID,
 		InstanceID: instanceID,
 		PID:        &pid,
 		PGID:       &pgid,
@@ -741,7 +771,7 @@ func (r *Runner) lookupRegistryRuntime(ctx context.Context, item scenario.Scenar
 		Instance:      latest,
 		Claims:        claims,
 		ProcessRefs:   refs,
-		Processes:     scenarioruntime.ProcessEvidenceFromRefs(refs, process.IsPIDRunning),
+		Processes:     scenarioruntime.ProcessEvidenceForInstance(latest, refs, process.IsPIDRunning),
 		Listeners: scenarioruntime.ListenerEvidenceFromClaims(claims, refs, func(port int) scenarioruntime.ListenerEvidence {
 			state := snapshot.Listening(port)
 			if !state.Known {

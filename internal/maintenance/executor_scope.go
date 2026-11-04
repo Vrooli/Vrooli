@@ -2,12 +2,19 @@ package maintenance
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"os"
 	"runtime"
 	"slices"
 	"strings"
 	"time"
 
+	platformgo "github.com/vrooli/platform-go"
+	"github.com/vrooli/vrooli/internal/agentscope"
+	"github.com/vrooli/vrooli/internal/agentsession"
+	"github.com/vrooli/vrooli/internal/hostsession"
+	"github.com/vrooli/vrooli/internal/scenarioruntime"
 	"github.com/vrooli/vrooli/internal/supervision"
 )
 
@@ -50,9 +57,55 @@ type scopeIdentity struct {
 	TagLabels                            map[string]string
 }
 
-var scopeProcessTable = listProcessTableContext
-var scopeReadIdentity = readScopeIdentity
-var scopeProcessBirths = (supervision.NativeProcessTableSource{}).ProcessesContext
+var (
+	scopeProcessTable       = listProcessTableContext
+	scopeReadIdentity       = readScopeIdentity
+	scopeProcessBirths      = (supervision.NativeProcessTableSource{}).ProcessesContext
+	scopeEditorLeases       = listScopeEditorLeases
+	scopeEditorScopeMembers = func(unit string) ([]int, error) {
+		return agentsession.NewHostFacts().ScopeMembers(unit)
+	}
+	scopeSessionCgroupPath    = agentsession.ScopeCgroupPath
+	scopeEditorScopeOccupancy = platformgo.ScopeOccupancy
+	scopeEditorScopeProcesses = platformgo.ScopeProcessesContext
+	scopeEditorLeaseBySession = getScopeEditorLeaseBySession
+	scopeEditorScopeGone      = func(ctx context.Context, unit string) (bool, error) {
+		cgroupPath, err := scopeSessionCgroupPath(unit)
+		if err != nil {
+			return false, err
+		}
+		ref := agentscope.Ref(cgroupPath)
+		ref.Name = strings.TrimSuffix(unit, agentscope.ScopeSuffix)
+		_, occupancyErr := scopeEditorScopeOccupancy(ref)
+		if occupancyErr == nil {
+			return false, nil
+		}
+		if !errors.Is(occupancyErr, os.ErrNotExist) {
+			return false, occupancyErr
+		}
+		// A missing cgroup is only a positive gone result when the platform
+		// owner also proves the exact unit is not-found/inactive. This second
+		// bounded probe rejects empty-but-active and inconsistent scope states.
+		members, err := scopeEditorScopeProcesses(ctx, ref)
+		if err != nil {
+			return false, err
+		}
+		if len(members) != 0 {
+			return false, nil
+		}
+		// The unit probe may observe an empty readable cgroup after the first
+		// ENOENT. Recheck the exact cgroup so a reappeared scope is not absence.
+		_, finalOccupancyErr := scopeEditorScopeOccupancy(ref)
+		if finalOccupancyErr == nil {
+			return false, nil
+		}
+		if !errors.Is(finalOccupancyErr, os.ErrNotExist) {
+			return false, finalOccupancyErr
+		}
+		return true, nil
+	}
+)
+var scopeCurrentBootID = hostsession.CurrentBootID
 
 const (
 	ExecutorScopeMaxReferences = 16384
@@ -155,6 +208,7 @@ func (c *Controller) ExecutorScope(parent context.Context, req ExecutorScopeRequ
 	if ctx.Err() != nil {
 		err = fmt.Errorf("scope observation deadline or cancellation")
 	}
+	attached, attachedUncertain, attachedReasons, attachedErr := c.attachedExecutorLeases(ctx, req.Executors, entries, identities, beforeBirths, afterBirths, beforeErr, afterErr)
 	sampleLimit := min(64, executorScopeSampleBudget/len(req.Executors))
 	index, indexErr := indexExecutorScopes(ctx, req.Executors, entries, identities, inherited, sampleLimit)
 	if indexErr != nil {
@@ -189,6 +243,15 @@ func (c *Controller) ExecutorScope(parent context.Context, req ExecutorScopeRequ
 		}
 		if len(evidence.PIDs) > 0 {
 			evidence.State = "present"
+		} else if pid := attached[ref.RunID]; pid > 0 {
+			evidence.State = "present"
+			evidence.PIDs = append(evidence.PIDs, pid)
+		} else if attachedUncertain[ref.RunID] {
+			evidence.State = "unknown"
+			evidence.Reasons = append(evidence.Reasons, "matching active attached-session lease lacks current process/scope proof")
+		} else if attachedErr != nil {
+			evidence.State = "unknown"
+			evidence.Reasons = append(evidence.Reasons, attachedErr.Error())
 		} else {
 			ambiguous := 0
 			if entry, exists := entries[ref.PID]; exists && ref.PID > 0 && !strings.HasPrefix(entry.State, "Z") && !bornOutside(ref.PID, ref) {
@@ -202,6 +265,9 @@ func (c *Controller) ExecutorScope(parent context.Context, req ExecutorScopeRequ
 				evidence.State = "unknown"
 				evidence.Reasons = append(evidence.Reasons, fmt.Sprintf("pid/group %d lacks run identity or reuse proof", ambiguous))
 			}
+		}
+		if reason := attachedReasons[ref.RunID]; reason != "" {
+			evidence.Reasons = append(evidence.Reasons, reason)
 		}
 		slices.Sort(evidence.PIDs)
 		if err != nil {
@@ -227,6 +293,151 @@ func (c *Controller) ExecutorScope(parent context.Context, req ExecutorScopeRequ
 		}
 	}
 	return report, nil
+}
+
+// attachedExecutorLeases joins an Agent Manager run to the exact editor lease
+// recorded by the coding-agent launcher. A lease is only positive evidence
+// when its process incarnation is stable and currently held by the leased
+// native scope. Owner metadata, scope names, and PIDs alone never establish
+// this association.
+func (c *Controller) attachedExecutorLeases(ctx context.Context, refs []ExecutorScopeRef, entries map[int]processTableEntry, identities map[int]scopeIdentity, before, after map[int]supervision.ProcessInfo, beforeErr, afterErr error) (map[string]int, map[string]bool, map[string]string, error) {
+	matched := map[string]int{}
+	uncertain := map[string]bool{}
+	reasons := map[string]string{}
+	if beforeErr != nil || afterErr != nil {
+		return matched, uncertain, reasons, fmt.Errorf("attached executor birth evidence unavailable")
+	}
+	bootID := scopeCurrentBootID()
+	if bootID == "" {
+		return matched, uncertain, reasons, fmt.Errorf("attached executor host boot identity unavailable")
+	}
+	leases, err := scopeEditorLeases(ctx, c.Home)
+	if err != nil {
+		return matched, uncertain, reasons, fmt.Errorf("attached executor lease registry unavailable")
+	}
+	refsByRun := make(map[string]ExecutorScopeRef, len(refs))
+	for _, ref := range refs {
+		refsByRun[ref.RunID] = ref
+	}
+	for _, lease := range leases {
+		if err := ctx.Err(); err != nil {
+			return matched, uncertain, reasons, fmt.Errorf("attached executor observation deadline or cancellation")
+		}
+		ref, requested := refsByRun[lease.SessionID]
+		if !requested || lease.Status != scenarioruntime.EditorLeaseActive {
+			continue
+		}
+		uncertain[ref.RunID] = true
+		if lease.HostBootID != "" && lease.HostBootID != bootID {
+			delete(uncertain, ref.RunID) // the lease belongs to a prior host boot
+			continue
+		}
+		if lease.HostBootID == "" || lease.PID <= 0 || lease.Scope == "" {
+			reasons[ref.RunID] = "attached-session lease is missing required boot, PID, or scope metadata"
+			continue
+		}
+		entry, exists := entries[lease.PID]
+		identity := identities[lease.PID]
+		birth, stable := stableScopeBirth(lease.PID, before, after)
+		if !exists || strings.HasPrefix(entry.State, "Z") {
+			session := agentsession.Session{Scope: lease.Scope}
+			unit := session.ScopeUnit()
+			if unit == "" || !agentscope.IsSessionScope(unit) {
+				reasons[ref.RunID] = "attached-session lease scope is not a supported session scope"
+				continue
+			}
+			scopeGone, goneErr := scopeEditorScopeGone(ctx, unit)
+			if goneErr != nil {
+				reasons[ref.RunID] = "attached-session native scope gone state could not be verified"
+				return matched, uncertain, reasons, fmt.Errorf("attached executor native scope gone-state unavailable")
+			}
+			if scopeGone {
+				// Reattach refreshes the exact SessionID lease in place. Re-read
+				// that row after the native proof so an old PID/scope snapshot
+				// cannot classify a newer attached executor as absent.
+				current, readErr := scopeEditorLeaseBySession(ctx, c.Home, lease.SessionID)
+				if readErr != nil {
+					reasons[ref.RunID] = "attached-session lease could not be revalidated after native scope proof"
+					continue
+				}
+				if current.SessionID != lease.SessionID || current.Status != scenarioruntime.EditorLeaseActive ||
+					current.PID != lease.PID || current.HostBootID != lease.HostBootID || current.Scope != lease.Scope {
+					reasons[ref.RunID] = "attached-session lease changed during native scope proof"
+					continue
+				}
+				delete(uncertain, ref.RunID)
+				// The existing consumer treats any reason on an absent verdict as
+				// contradictory evidence. Keep this diagnostic only for unknown
+				// outcomes; a verified absence carries no reason.
+			} else {
+				reasons[ref.RunID] = "leased PID is absent but its native scope is not positively gone/inactive"
+			}
+			continue
+		}
+		if !stable {
+			reasons[ref.RunID] = "leased PID birth is unavailable or changed during sampling"
+			continue
+		}
+		if identity.RunID != "" && identity.RunID != ref.RunID {
+			reasons[ref.RunID] = "leased process carries a conflicting run identity"
+			continue
+		}
+		if (ref.StartedAt != nil && birth.Before(ref.StartedAt.Add(-2*time.Second))) ||
+			(ref.EndedAt != nil && birth.After(ref.EndedAt.Add(2*time.Second))) {
+			reasons[ref.RunID] = "leased PID birth is outside the recorded Agent Manager run interval"
+			continue
+		}
+		session := agentsession.Session{Scope: lease.Scope}
+		unit := session.ScopeUnit()
+		if unit == "" || !agentscope.IsSessionScope(unit) {
+			reasons[ref.RunID] = "attached-session lease scope is not a supported session scope"
+			continue
+		}
+		members, err := scopeEditorScopeMembers(unit)
+		if err != nil {
+			reasons[ref.RunID] = "attached-session native scope membership could not be read"
+			return matched, uncertain, reasons, fmt.Errorf("attached executor native scope membership unavailable")
+		}
+		if slices.Contains(members, lease.PID) {
+			matched[ref.RunID] = lease.PID
+			delete(uncertain, ref.RunID)
+		} else {
+			reasons[ref.RunID] = "leased PID is not a member of the recorded native session scope"
+		}
+	}
+	return matched, uncertain, reasons, nil
+}
+
+func getScopeEditorLeaseBySession(ctx context.Context, home, sessionID string) (scenarioruntime.EditorLease, error) {
+	path, err := scenarioruntime.DefaultDBPath(home)
+	if err != nil {
+		return scenarioruntime.EditorLease{}, err
+	}
+	if _, err := os.Stat(path); err != nil {
+		return scenarioruntime.EditorLease{}, err
+	}
+	store, err := scenarioruntime.NewSQLiteStore(ctx, scenarioruntime.Config{HomeDir: home, DBPath: path, ReadOnly: true})
+	if err != nil {
+		return scenarioruntime.EditorLease{}, err
+	}
+	defer store.Close()
+	return store.GetEditorLease(ctx, sessionID)
+}
+
+func listScopeEditorLeases(ctx context.Context, home string) ([]scenarioruntime.EditorLease, error) {
+	path, err := scenarioruntime.DefaultDBPath(home)
+	if err != nil {
+		return nil, err
+	}
+	if _, err := os.Stat(path); err != nil {
+		return nil, err
+	}
+	store, err := scenarioruntime.NewSQLiteStore(ctx, scenarioruntime.Config{HomeDir: home, DBPath: path, ReadOnly: true})
+	if err != nil {
+		return nil, err
+	}
+	defer store.Close()
+	return store.ListEditorLeases(ctx, false)
 }
 
 // Reuse the maintenance process table and platform process handles, not a

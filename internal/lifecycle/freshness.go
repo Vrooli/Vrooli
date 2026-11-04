@@ -496,11 +496,12 @@ func binariesFreshnessFallbackInputsContext(ctx context.Context, binaryDir, repo
 }
 
 // goListPackage is the subset of `go list -json` output the freshness adapter
-// consumes: the package's own directory and the local module it belongs to.
+// consumes: compiled sources, embedded assets, and the local module contract.
 type goListPackage struct {
-	Dir      string `json:"Dir"`
-	Standard bool   `json:"Standard"`
-	Module   *struct {
+	Dir                                                                                                                                string `json:"Dir"`
+	GoFiles, CgoFiles, CFiles, CXXFiles, MFiles, HFiles, FFiles, SFiles, SwigFiles, SwigCXXFiles, SysoFiles, EmbedFiles, EmbedPatterns []string
+	Standard                                                                                                                           bool `json:"Standard"`
+	Module                                                                                                                             *struct {
 		Dir   string `json:"Dir"`
 		GoMod string `json:"GoMod"`
 	} `json:"Module"`
@@ -511,7 +512,7 @@ type goListPackage struct {
 // is wired, the toolchain is present, the command succeeds, and at least one
 // repo-local package is found; otherwise (nil, false) so the caller falls back to
 // the static walk. Inputs are repo-relative: each imported repo-local package
-// directory (the engine walks it, hashing *.go and skipping _test.go) plus the
+// compiled source and embedded asset (excluding unrelated documentation), plus the
 // go.mod/go.sum of every repo-local module in the closure (so a dependency bump
 // marks the binary stale). Standard-library and module-cache packages live outside
 // the repo root and are dropped by the under-repo filter.
@@ -536,11 +537,13 @@ func goListFreshnessInputsContext(ctx context.Context, binaryDir, repoRoot strin
 		readFile = os.ReadFile
 	}
 	if cached, ok := readClosureCache(cachePath, toolchain, readFile); ok {
-		if cached.Key == closureCacheKey(binaryDir, repoRoot, toolchain, cached.Inputs, deps) {
-			return cached.Inputs, true
+		if cached.Key == resolvedClosureCacheKey(binaryDir, repoRoot, toolchain, cached, deps) {
+			return cached.Files, true
 		}
 	}
-	raw, err := cachedGoListJSONContext(ctx, binaryDir, deps)
+	// A durable miss can be caused by a dependency package, outside binaryDir.
+	// Do not reuse a raw go-list entry keyed only by the main module.
+	raw, err := runGoListJSONContext(ctx, binaryDir, deps)
 	if err != nil || len(bytes.TrimSpace(raw)) == 0 {
 		return nil, false
 	}
@@ -551,6 +554,7 @@ func goListFreshnessInputsContext(ctx context.Context, binaryDir, repoRoot strin
 	cleanRepo := filepath.Clean(repoRoot)
 	seen := map[string]struct{}{}
 	var inputs []string
+	var watchDirs, embedWatches []string
 	add := func(abs string) {
 		if strings.TrimSpace(abs) == "" {
 			return
@@ -579,7 +583,26 @@ func goListFreshnessInputsContext(ctx context.Context, binaryDir, repoRoot strin
 		if pkg.Standard {
 			continue
 		}
-		add(pkg.Dir)
+
+		// Keep package directories as graph-cache watches, not build inputs. A new
+		// source file must refresh the closure; an unrelated README must not rebuild.
+		cleanDir := repoCanonicalPath(cleanRepo, filepath.Clean(pkg.Dir))
+		if pathUnderRoot(cleanRepo, cleanDir) || pathUnderRoot(filepath.Clean(binaryDir), cleanDir) {
+			watchDirs = append(watchDirs, relUnder(cleanRepo, cleanDir))
+			compiled := slices.Concat(pkg.GoFiles, pkg.CgoFiles, pkg.CFiles, pkg.CXXFiles, pkg.MFiles, pkg.HFiles, pkg.FFiles, pkg.SFiles, pkg.SwigFiles, pkg.SwigCXXFiles, pkg.SysoFiles, pkg.EmbedFiles)
+			if len(compiled) == 0 {
+				// Incomplete owner data is conservative, never an empty build closure.
+				add(pkg.Dir)
+			} else {
+				for _, name := range compiled {
+					add(filepath.Join(pkg.Dir, name))
+				}
+			}
+			for _, pattern := range pkg.EmbedPatterns {
+				pattern = strings.TrimPrefix(pattern, "all:")
+				embedWatches = append(embedWatches, filepath.Join(cleanDir, filepath.FromSlash(pattern)))
+			}
+		}
 		if pkg.Module != nil && strings.TrimSpace(pkg.Module.GoMod) != "" {
 			add(pkg.Module.GoMod)
 			add(filepath.Join(filepath.Dir(pkg.Module.GoMod), "go.sum"))
@@ -593,12 +616,9 @@ func goListFreshnessInputsContext(ctx context.Context, binaryDir, repoRoot strin
 	// Cache writes are best-effort. A read-only or interrupted build directory
 	// must still fall back to the in-process result without making freshness
 	// itself fail.
-	_ = writeClosureCache(cachePath, closureCache{
-		Version:   closureCacheVersion,
-		Key:       closureCacheKey(binaryDir, repoRoot, toolchain, inputs, deps),
-		Inputs:    inputs,
-		Toolchain: toolchain,
-	})
+	cached := closureCache{Version: closureCacheVersion, Inputs: slices.Concat(inputs, watchDirs), Files: inputs, EmbedWatches: embedWatches, Toolchain: toolchain}
+	cached.Key = resolvedClosureCacheKey(binaryDir, repoRoot, toolchain, cached, deps)
+	_ = writeClosureCache(cachePath, cached)
 	return inputs, true
 }
 
@@ -653,6 +673,12 @@ func sharedPackageFreshnessKeyInputs(repoRoot, uiDir string, deps *hostProbeDeps
 		return inputs
 	}
 	for _, dependency := range dependencies {
+		if len(dependency.Package.Manifest.Package.GeneratedOutputs) > 0 && deps != nil {
+			if digest, ok := generatedPackageConsumerDigest(repoRoot, uiDir, dependency, *deps); ok {
+				inputs["shared_package:"+dependency.Name+":consumed"] = digest
+				continue
+			}
+		}
 		commands := append(append([]packagegov.CommandSpec{}, dependency.Generation...), dependency.Build...)
 		for index, command := range commands {
 			digest, err := sharedPackageConsumedDigest(dependency.Root, command.Name, command.Outputs, deps)
@@ -1318,4 +1344,47 @@ func isRunnableArtifact(checkType, path string, info os.FileInfo, recognize func
 	default:
 		return !info.IsDir()
 	}
+}
+
+// Generated consumers already have an import closure. Fingerprint that closure
+// in both the canonical package and the installed file: copy; a package-wide
+// generator digest would make an unrelated proto or component rebuild every UI.
+// Owner generation and installation still use their full lifecycle contracts.
+func generatedPackageConsumerDigest(repoRoot, uiDir string, dependency sharedPackageDependency, deps hostProbeDeps) (string, bool) {
+	sourceDir := filepath.Join(uiDir, "src")
+	canonical, ok := generatedPackageFreshnessInputsContext(context.Background(), repoRoot, sourceDir, dependency.Name, dependency.Root, deps)
+	if !ok {
+		return "", false
+	}
+	h := sha256.New()
+	roots := []string{dependency.Root, filepath.Join(uiDir, "node_modules", filepath.FromSlash(dependency.Name))}
+	for index, root := range roots {
+		inputs := canonical
+		if index == 1 {
+			var resolved bool
+			inputs, resolved = generatedPackageFreshnessInputsContext(context.Background(), repoRoot, sourceDir, dependency.Name, root, deps)
+			if !resolved {
+				fmt.Fprintln(h, "installed:unresolved")
+				inputs = nil
+			}
+		}
+		inputs = append(append([]string(nil), inputs...), relUnder(repoRoot, filepath.Join(root, "package.json")))
+		for _, input := range inputs {
+			absolute := resolveCheckPath(repoRoot, input)
+			if !pathUnderRoot(root, absolute) {
+				return "", false
+			}
+			relative, err := filepath.Rel(root, absolute)
+			if err != nil {
+				return "", false
+			}
+			data, err := deps.readFile(absolute)
+			if err != nil {
+				fmt.Fprintf(h, "%d:%s:error:%v\n", index, relative, err)
+				continue
+			}
+			fmt.Fprintf(h, "%d:%s:%x\n", index, filepath.ToSlash(relative), sha256.Sum256(data))
+		}
+	}
+	return fmt.Sprintf("%x", h.Sum(nil)), true
 }

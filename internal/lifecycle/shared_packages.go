@@ -939,12 +939,16 @@ type sharedPackageStamp struct {
 	// bytes keeps the check cheap on a large generated tree.
 	OutputsDigest string `json:"outputs_digest"`
 	// OutputContentDigest is the digest consumed by downstream freshness keys.
-	// OutputsStatDigest lets consumers validate it with metadata-only probes.
-	OutputContentDigest string                         `json:"output_content_digest,omitempty"`
-	OutputsStatDigest   string                         `json:"outputs_stat_digest,omitempty"`
-	OutputFiles         []string                       `json:"output_files,omitempty"`
-	OutputDirectories   []sharedPackageOutputDirectory `json:"output_directories,omitempty"`
-	RecordedAt          string                         `json:"recorded_at"`
+	// OutputContentDigestVersion lets consumers reject older digest semantics
+	// without invalidating the generator's source/output freshness stamp.
+	OutputContentDigest        string `json:"output_content_digest,omitempty"`
+	OutputContentDigestVersion int    `json:"output_content_digest_version,omitempty"`
+	// OutputsStatDigest lets consumers validate the full declared output set
+	// with metadata-only probes.
+	OutputsStatDigest string                         `json:"outputs_stat_digest,omitempty"`
+	OutputFiles       []string                       `json:"output_files,omitempty"`
+	OutputDirectories []sharedPackageOutputDirectory `json:"output_directories,omitempty"`
+	RecordedAt        string                         `json:"recorded_at"`
 }
 
 type sharedPackageOutputDirectory struct {
@@ -1011,9 +1015,10 @@ func recordSharedPackageStamp(home string, dependency sharedPackageDependency, c
 	if err != nil {
 		return fmt.Errorf("list outputs: %w", err)
 	}
-	outputContentDigest, err := sharedPackageOutputsContentDigest(dependency.Root, outputs)
+	consumedOutputs := sharedPackageConsumedOutputFiles(dependency.Root, outputs)
+	outputContentDigest, err := sharedPackageOutputsContentDigest(dependency.Root, consumedOutputs)
 	if err != nil {
-		return fmt.Errorf("hash outputs: %w", err)
+		return fmt.Errorf("hash consumed outputs: %w", err)
 	}
 	outputStatDigest, err := sharedPackageOutputsStatDigest(dependency.Root, outputs)
 	if err != nil {
@@ -1030,6 +1035,7 @@ func recordSharedPackageStamp(home string, dependency sharedPackageDependency, c
 		digest,
 		sharedPackageOutputsListDigest(dependency.Root, outputs),
 		outputContentDigest,
+		sharedPackageOutputContentDigestVersion,
 		outputStatDigest,
 		outputFiles,
 		outputDirectories,
@@ -1040,10 +1046,10 @@ func recordSharedPackageStamp(home string, dependency sharedPackageDependency, c
 // outputs. It is written only after a command succeeds and its outputs are
 // confirmed present.
 func writeSharedPackageStamp(stampPath, packageName, commandName, digest, outputsDigest string) error {
-	return writeSharedPackageStampWithSnapshot(stampPath, packageName, commandName, digest, outputsDigest, "", "", nil, nil)
+	return writeSharedPackageStampWithSnapshot(stampPath, packageName, commandName, digest, outputsDigest, "", 0, "", nil, nil)
 }
 
-func writeSharedPackageStampWithSnapshot(stampPath, packageName, commandName, digest, outputsDigest, outputContentDigest, outputsStatDigest string, outputFiles []string, outputDirectories []sharedPackageOutputDirectory) error {
+func writeSharedPackageStampWithSnapshot(stampPath, packageName, commandName, digest, outputsDigest, outputContentDigest string, outputContentDigestVersion int, outputsStatDigest string, outputFiles []string, outputDirectories []sharedPackageOutputDirectory) error {
 	if stampPath == "" {
 		return nil
 	}
@@ -1051,16 +1057,17 @@ func writeSharedPackageStampWithSnapshot(stampPath, packageName, commandName, di
 		return err
 	}
 	data, err := json.Marshal(sharedPackageStamp{
-		Version:             sharedPackageStampVersion,
-		Package:             packageName,
-		Command:             commandName,
-		SourceDigest:        digest,
-		OutputsDigest:       outputsDigest,
-		OutputContentDigest: outputContentDigest,
-		OutputsStatDigest:   outputsStatDigest,
-		OutputFiles:         outputFiles,
-		OutputDirectories:   outputDirectories,
-		RecordedAt:          time.Now().UTC().Format(time.RFC3339),
+		Version:                    sharedPackageStampVersion,
+		Package:                    packageName,
+		Command:                    commandName,
+		SourceDigest:               digest,
+		OutputsDigest:              outputsDigest,
+		OutputContentDigest:        outputContentDigest,
+		OutputContentDigestVersion: outputContentDigestVersion,
+		OutputsStatDigest:          outputsStatDigest,
+		OutputFiles:                outputFiles,
+		OutputDirectories:          outputDirectories,
+		RecordedAt:                 time.Now().UTC().Format(time.RFC3339),
 	})
 	if err != nil {
 		return err
@@ -1146,6 +1153,25 @@ func sharedPackageOutputMatch(root, filePath string, patterns []string) bool {
 	return false
 }
 
+const sharedPackageOutputContentDigestVersion = 2
+
+// sharedPackageConsumedOutputFiles projects declared outputs to consumer bytes.
+// Proto's compatibility marker remains in the generated output set for owner
+// freshness, snapshots, and frozen-root provenance; it is a control-plane
+// selection receipt, not a file imported by @vrooli/proto-types consumers.
+func sharedPackageConsumedOutputFiles(root string, outputs []string) []string {
+	marker := filepath.ToSlash(filepath.Join("gen", filepath.Base(ProtoArtifactStampPath)))
+	filtered := make([]string, 0, len(outputs))
+	for _, output := range outputs {
+		rel, err := filepath.Rel(root, output)
+		if err == nil && filepath.ToSlash(rel) == marker {
+			continue
+		}
+		filtered = append(filtered, output)
+	}
+	return filtered
+}
+
 func sharedPackageConsumedDigest(root, commandName string, patterns []string, deps *hostProbeDeps) (string, error) {
 	// The command is part of the durable stamp identity. Keep it in the
 	// runner-local key as well: two commands may enumerate the same path set
@@ -1169,7 +1195,7 @@ func sharedPackageConsumedDigest(root, commandName string, patterns []string, de
 			}
 		}
 	}
-	if stamp.OutputContentDigest != "" && len(stamp.OutputFiles) > 0 && len(stamp.OutputDirectories) > 0 && sharedPackageOutputDirectoriesFresh(root, stamp.OutputDirectories) {
+	if stamp.OutputContentDigestVersion == sharedPackageOutputContentDigestVersion && stamp.OutputContentDigest != "" && len(stamp.OutputFiles) > 0 && len(stamp.OutputDirectories) > 0 && sharedPackageOutputDirectoriesFresh(root, stamp.OutputDirectories) {
 		files := make([]string, 0, len(stamp.OutputFiles))
 		valid := true
 		for _, rel := range stamp.OutputFiles {
@@ -1210,18 +1236,22 @@ func sharedPackageConsumedDigest(root, commandName string, patterns []string, de
 		}
 		return "missing", nil
 	}
-	digest, err := sharedPackageOutputsContentDigest(root, files)
+	consumedFiles := sharedPackageConsumedOutputFiles(root, files)
+	digest, err := sharedPackageOutputsContentDigest(root, consumedFiles)
 	if err != nil {
 		return "", err
 	}
-	// Upgrade older durable stamps after the fallback content read. The next
-	// process can then validate output metadata and reuse this digest without
-	// reading the generated tree again.
-	if stampPath != "" && (stamp.OutputContentDigest == "" || len(stamp.OutputFiles) == 0 || len(stamp.OutputDirectories) == 0) && stamp.Package != "" {
+	// Refresh the digest and stat snapshot after a fallback read. The marker
+	// stays in the full snapshot, but only consumer-visible output bytes feed
+	// the downstream key.
+	if stampPath != "" && stamp.Version == sharedPackageStampVersion && stamp.Package != "" {
 		if statDigest, statErr := sharedPackageOutputsStatDigest(root, files); statErr == nil {
 			outputFiles, outputDirectories, snapshotErr := sharedPackageOutputSnapshot(root, files)
-			if snapshotErr == nil {
-				_ = writeSharedPackageStampWithSnapshot(stampPath, stamp.Package, stamp.Command, stamp.SourceDigest, stamp.OutputsDigest, digest, statDigest, outputFiles, outputDirectories)
+			needsRefresh := stamp.OutputContentDigestVersion != sharedPackageOutputContentDigestVersion || stamp.OutputContentDigest == "" ||
+				len(stamp.OutputFiles) == 0 || len(stamp.OutputDirectories) == 0 || stamp.OutputsStatDigest != statDigest ||
+				!sharedPackageOutputDirectoriesFresh(root, stamp.OutputDirectories)
+			if snapshotErr == nil && needsRefresh {
+				_ = writeSharedPackageStampWithSnapshot(stampPath, stamp.Package, stamp.Command, stamp.SourceDigest, stamp.OutputsDigest, digest, sharedPackageOutputContentDigestVersion, statDigest, outputFiles, outputDirectories)
 			}
 		}
 	}

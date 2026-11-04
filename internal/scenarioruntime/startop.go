@@ -76,12 +76,17 @@ type StartOperationStep struct {
 // StartOperation is the durable record of one start/restart invocation.
 type StartOperation struct {
 	OperationID string
-	Scenario    string
-	Variant     string
-	Operation   string // start|restart
-	Status      string // running|succeeded|failed|abandoned
-	Verdict     string // health verdict on success (healthy|degraded|running)
-	Error       string // failure message on failed
+	// FenceOperationID links this start attempt to the provider's independent
+	// maintenance-fence identity. The start-attempt ID remains unique and
+	// immutable; a later retry may reuse this fence ID after a replacement
+	// failed, without reusing or mutating the old attempt record.
+	FenceOperationID string
+	Scenario         string
+	Variant          string
+	Operation        string // start|restart
+	Status           string // running|succeeded|failed|abandoned
+	Verdict          string // health verdict on success (healthy|degraded|running)
+	Error            string // failure message on failed
 	// InitiatorPID is the orchestrating CLI process. Its liveness is the
 	// staleness signal: a running record with a dead initiator is abandoned.
 	InitiatorPID *int
@@ -148,6 +153,10 @@ type StartOperationRepository interface {
 	// running records for the same (scenario, variant) abandoned (superseded),
 	// and prunes terminal history beyond StartOperationKeepTerminal.
 	BeginStartOperation(ctx context.Context, op StartOperation) (StartOperation, error)
+	// SetStartOperationFenceOperationID links a live attempt to its independent
+	// provider maintenance fence before the lifecycle crosses a stop boundary.
+	// The link is write-once and terminal attempts are immutable.
+	SetStartOperationFenceOperationID(ctx context.Context, operationID, fenceOperationID string) error
 	// UpdateStartOperation overwrites the mutable fields of a still-RUNNING
 	// record by id. Terminal records are immutable: once a record is
 	// abandoned (signal handler, supersede) or finished, a late in-flight
@@ -173,6 +182,44 @@ type StartOperationRepository interface {
 	// start-operation records. An empty scenario includes both per-scenario and
 	// fleet rows; a named scenario only includes that scenario.
 	StartTimingSummaries(ctx context.Context, scenario string) ([]StartTimingSummary, error)
+}
+
+func (s *SQLiteStore) SetStartOperationFenceOperationID(ctx context.Context, operationID, fenceOperationID string) error {
+	operationID = strings.TrimSpace(operationID)
+	fenceOperationID = strings.TrimSpace(fenceOperationID)
+	if operationID == "" || fenceOperationID == "" {
+		return fmt.Errorf("link start operation fence: both operation IDs are required")
+	}
+	return s.withRetryableTx(ctx, func(tx *sql.Tx) error {
+		var status, current string
+		if err := tx.QueryRowContext(ctx, `SELECT status, fence_operation_id FROM runtime_start_operations WHERE operation_id = ?`, operationID).Scan(&status, &current); err != nil {
+			if errors.Is(err, sql.ErrNoRows) {
+				return ErrNotFound
+			}
+			return fmt.Errorf("read start operation before fence link: %w", err)
+		}
+		if status != StartOperationStatusRunning {
+			return fmt.Errorf("start operation %q is %s; provider fence link requires a running attempt", operationID, status)
+		}
+		if current == fenceOperationID {
+			return nil
+		}
+		if current != "" {
+			return fmt.Errorf("start operation %q already links provider fence %q", operationID, current)
+		}
+		result, err := tx.ExecContext(ctx, `UPDATE runtime_start_operations SET fence_operation_id = ? WHERE operation_id = ? AND status = ? AND fence_operation_id = ''`, fenceOperationID, operationID, StartOperationStatusRunning)
+		if err != nil {
+			return fmt.Errorf("write provider fence link: %w", err)
+		}
+		updated, err := result.RowsAffected()
+		if err != nil {
+			return fmt.Errorf("confirm provider fence link: %w", err)
+		}
+		if updated != 1 {
+			return fmt.Errorf("start operation %q changed while linking provider fence", operationID)
+		}
+		return nil
+	})
 }
 
 // StartTimingSummary is the typed read model behind `vrooli scenario
@@ -227,12 +274,12 @@ WHERE scenario = ? AND variant = ? AND status = ?`,
 		}
 		if _, err := tx.ExecContext(ctx, `
 INSERT INTO runtime_start_operations (
-  operation_id, scenario, variant, operation, status, verdict, error, initiator_pid,
+  operation_id, fence_operation_id, scenario, variant, operation, status, verdict, error, initiator_pid,
   initiator_argv, initiator_parent_pid, initiator_parent_argv, initiator_scope,
   started_at, updated_at, finished_at, current_step, dependency_current,
   dependency_index, dependency_total, steps_json
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-			op.OperationID, op.Scenario, op.Variant, op.Operation, op.Status, op.Verdict, op.Error,
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+			op.OperationID, op.FenceOperationID, op.Scenario, op.Variant, op.Operation, op.Status, op.Verdict, op.Error,
 			optionalIntValue(op.InitiatorPID), op.InitiatorArgv, optionalIntValue(op.InitiatorParentPID),
 			op.InitiatorParentArgv, op.InitiatorScope,
 			formatTime(op.StartedAt), formatTime(op.UpdatedAt),
@@ -303,7 +350,7 @@ WHERE operation_id = ? AND status = ?`,
 func (s *SQLiteStore) GetLatestStartOperation(ctx context.Context, scenario, variant string) (StartOperation, error) {
 	variant = InstanceKey{Scenario: scenario, Variant: variant}.Normalize().Variant
 	row := s.db.QueryRowContext(ctx, `
-SELECT operation_id, scenario, variant, operation, status, verdict, error, initiator_pid,
+SELECT operation_id, fence_operation_id, scenario, variant, operation, status, verdict, error, initiator_pid,
        initiator_argv, initiator_parent_pid, initiator_parent_argv, initiator_scope,
        started_at, updated_at, finished_at, current_step, dependency_current,
        dependency_index, dependency_total, steps_json
@@ -347,7 +394,7 @@ WHERE operation_id = ? AND status = ?`,
 
 func (s *SQLiteStore) getStartOperation(ctx context.Context, operationID string) (StartOperation, error) {
 	row := s.db.QueryRowContext(ctx, `
-SELECT operation_id, scenario, variant, operation, status, verdict, error, initiator_pid,
+SELECT operation_id, fence_operation_id, scenario, variant, operation, status, verdict, error, initiator_pid,
        initiator_argv, initiator_parent_pid, initiator_parent_argv, initiator_scope,
        started_at, updated_at, finished_at, current_step, dependency_current,
        dependency_index, dependency_total, steps_json
@@ -594,7 +641,7 @@ func scanStartOperation(row *sql.Row) (StartOperation, error) {
 	var initiatorPID, initiatorParentPID sql.NullInt64
 	var startedAt, updatedAt string
 	var finishedAt sql.NullString
-	err := row.Scan(&op.OperationID, &op.Scenario, &op.Variant, &op.Operation, &op.Status,
+	err := row.Scan(&op.OperationID, &op.FenceOperationID, &op.Scenario, &op.Variant, &op.Operation, &op.Status,
 		&op.Verdict, &op.Error, &initiatorPID,
 		&op.InitiatorArgv, &initiatorParentPID, &op.InitiatorParentArgv, &op.InitiatorScope,
 		&startedAt, &updatedAt, &finishedAt,

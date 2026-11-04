@@ -16,6 +16,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/vrooli/binaryfetch"
+
 	"github.com/vrooli/vrooli/internal/shell"
 	"github.com/vrooli/vrooli/internal/tuning"
 
@@ -188,7 +190,13 @@ func (s *ManagedServiceSupervisor) Status() (ManagedServiceState, bool, error) {
 // recorded. A stale record is atomically replaced; a live record never changes
 // provider, version, or arguments behind the operator's back.
 func (s *ManagedServiceSupervisor) Start(artifactPath string, artifact resourcedeployment.ServiceArtifact, args, env []string, workingDir string, limits *resourcedeployment.ProcessLimits) (ManagedServiceState, error) {
-	if err := artifact.VerifyFile(artifactPath); err != nil {
+	return s.StartContext(context.Background(), artifactPath, artifact, args, env, workingDir, limits)
+}
+
+// StartContext preserves the supervisor ownership contract while honoring
+// acquisition cancellation through final verification and immediately at spawn.
+func (s *ManagedServiceSupervisor) StartContext(ctx context.Context, artifactPath string, artifact resourcedeployment.ServiceArtifact, args, env []string, workingDir string, limits *resourcedeployment.ProcessLimits) (ManagedServiceState, error) {
+	if err := artifact.VerifyFileContext(ctx, artifactPath); err != nil {
 		return ManagedServiceState{}, err
 	}
 	launchPath, err := artifact.LaunchPath(artifactPath)
@@ -230,6 +238,9 @@ func (s *ManagedServiceSupervisor) Start(artifactPath string, artifact resourced
 	if err := platform.ConfigureCommand(cmd, platform.ProcessOptions{Detached: true}); err != nil {
 		return ManagedServiceState{}, err
 	}
+	if err := ctx.Err(); err != nil {
+		return ManagedServiceState{}, err
+	}
 	if err := s.start(cmd); err != nil {
 		return ManagedServiceState{}, fmt.Errorf("start managed-service artifact: %w", err)
 	}
@@ -252,7 +263,7 @@ func (s *ManagedServiceSupervisor) Start(artifactPath string, artifact resourced
 	}
 	artifactDigest := strings.ToLower(strings.TrimSpace(artifact.SHA256))
 	if artifactDigest == "" {
-		artifactDigest, err = managedFileSHA256(launchPath)
+		artifactDigest, err = binaryfetch.FileDigestContext(ctx, launchPath)
 		if err != nil {
 			_ = s.terminate(cmd.Process.Pid)
 			return ManagedServiceState{}, fmt.Errorf("fingerprint managed-service artifact: %w", err)

@@ -23,9 +23,10 @@ const (
 )
 
 const (
-	agentClaude   = "claude"
-	agentCodex    = "codex"
-	agentOpencode = "opencode"
+	agentClaude      = "claude"
+	agentCodex       = "codex"
+	agentOpencode    = "opencode"
+	agentAntigravity = "agy"
 )
 
 // agentArgs is deliberately a repeatable argv surface. A coding-agent launch
@@ -74,7 +75,7 @@ func (app *App) runAgentCommand(ctx *AppContext, args []string) error {
 
 	fs := commandtree.NewFlagSet("vrooli agent launch")
 	fs.SetOutput(ctx.Stderr)
-	runner := fs.String("runner", agentClaude, "coding-agent runner: claude, codex, opencode, or grok")
+	runner := fs.String("runner", agentClaude, "coding-agent runner: claude, codex, opencode, grok, or antigravity")
 	prompt := fs.String("prompt", "", "optional non-interactive prompt")
 	requireIdentity := fs.Bool("require-native-identity", false, "refuse protected startup without native identity; broker refusal is terminal")
 	cwd := fs.String("cwd", "", "optional working directory")
@@ -184,8 +185,8 @@ func (app *App) runAgentRecovery(ctx *AppContext, args []string) error {
 
 // agentInvocationArgs keeps the governed wrapper's prompt contract aligned
 // with each runner's real CLI. The wrapper deliberately exposes one stable
-// Vrooli flag, while the underlying tools disagree: Claude uses -p, Codex and
-// Grok accept a positional prompt, and OpenCode's non-interactive prompt lives
+// Vrooli flag, while the underlying tools disagree: Claude and Antigravity use
+// -p, Codex and Grok accept a positional prompt, and OpenCode's non-interactive prompt lives
 // under its run subcommand. Extra argv tokens remain operator-controlled but
 // are always passed as typed arguments, never through a shell.
 func agentInvocationArgs(binary string, extra []string, prompt string) []string {
@@ -194,7 +195,7 @@ func agentInvocationArgs(binary string, extra []string, prompt string) []string 
 		return args
 	}
 	switch binary {
-	case agentClaude:
+	case agentClaude, agentAntigravity:
 		return append(args, "-p", prompt)
 	case agentOpencode:
 		args = append([]string{"run"}, args...)
@@ -208,19 +209,9 @@ func agentInvocationArgs(binary string, extra []string, prompt string) []string 
 	}
 }
 
+// agentRunnerBinary admits exactly the runners the harness descriptors declare.
 func agentRunnerBinary(name string) (string, error) {
-	switch strings.ToLower(strings.TrimSpace(name)) {
-	case agentClaude, "claude-code":
-		return agentClaude, nil
-	case agentCodex:
-		return agentCodex, nil
-	case agentOpencode:
-		return agentOpencode, nil
-	case agentGrok:
-		return agentGrok, nil
-	default:
-		return "", fmt.Errorf("unsupported coding-agent runner %q (supported: claude, claude-code, codex, opencode, grok)", name)
-	}
+	return cliutil.CodingAgentBinary(name)
 }
 
 // absoluteClaims resolves claim paths against the launch directory so two

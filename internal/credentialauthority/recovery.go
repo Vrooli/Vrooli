@@ -271,6 +271,9 @@ func decryptRecovery(bundle []byte, passphrase string) ([]byte, error) {
 		if err != nil {
 			return nil, err
 		}
+		if len(nonce) != gcm.NonceSize() {
+			return nil, fmt.Errorf("invalid recovery nonce size")
+		}
 		plain, err := gcm.Open(nil, nonce, ciphertext, nil)
 		if err != nil {
 			return nil, fmt.Errorf("decrypt recovery bundle: authorization failed")

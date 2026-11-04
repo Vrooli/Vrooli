@@ -351,6 +351,7 @@ func (r *Runner) ensureDependency(ctx context.Context, item scenario.Scenario, o
 	// start. dependencyItem is loaded as live above; clear the carried
 	// variant too so the "deps are always live" invariant is explicit.
 	dependencyOpts.Variant = ""
+	dependencyOpts.VariantDependencies = nil
 	// A dependency started for a consumer is demand-managed. Its lease is
 	// renewed while the consumer instance is active and released when it stops.
 	// Explicit/core/manual starts retain their stronger supervision policy.
@@ -768,6 +769,14 @@ func (r *Runner) ensureResourceDependencies(item scenario.Scenario, opts StartOp
 				}
 				return nil, err
 			}
+			continue
+		}
+		if item.Slug == "agent-manager" && opts.stopFirst && decision.continueOnFailure {
+			// Restarting the execution owner must not wait for optional model
+			// pulls or restart a shared resource. Keep the degraded dependency
+			// visible and let its own lifecycle recover it independently.
+			r.logWarn("Optional resource unavailable during Agent Manager restart; continuing without starting it", logx.AttrScenario, item.Slug, logx.AttrDependency, resourceName)
+			failed = append(failed, resourceName)
 			continue
 		}
 

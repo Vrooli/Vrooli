@@ -2,12 +2,15 @@ package maintenance
 
 import (
 	"context"
+	"errors"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/vrooli/vrooli/internal/capacity"
 	"github.com/vrooli/vrooli/internal/hostinventory"
+	"github.com/vrooli/vrooli/internal/testenv"
 )
 
 // seedCapacityClaim opens a temp ledger, records one resident VRAM claim with a
@@ -57,15 +60,17 @@ func withCapacitySweepSeams(t *testing.T, dbPath string, snap hostinventory.Snap
 func TestSweepCapacityClaimsExpiresDeadResident(t *testing.T) {
 	ctx := context.Background()
 	dbPath, claimID := seedCapacityClaim(t, "kyutai-stt")
-	// Empty snapshot (no observed owner) + a now far past the deadline.
-	withCapacitySweepSeams(t, dbPath, hostinventory.Snapshot{}, nil, fakeMaintAttributor{}, time.Now().Add(time.Hour))
+	// A complete, successful empty process probe proves absence.
+	now := time.Now() // seed TTL is one nanosecond; store and probe use the real clock.
+	snapshot := hostinventory.Snapshot{ProbeStatuses: map[string]string{"nvidia_gpu": "ok", "nvidia_gpu_processes": "ok"}, FieldProvenance: map[string]hostinventory.Provenance{"gpu_processes": {ObservedAt: now}}}
+	withCapacitySweepSeams(t, dbPath, snapshot, nil, fakeMaintAttributor{}, now)
 
 	c := NewController(t.TempDir(), t.TempDir())
 	items, err := c.sweepCapacityClaims(ctx)
 	if err != nil {
 		t.Fatalf("sweepCapacityClaims() error = %v", err)
 	}
-	if len(items) != 1 || items[0].Name != "kyutai-stt" {
+	if len(items.Observed) != 1 || items.Observed[0].Name != "kyutai-stt" || len(items.Stopped) != 0 {
 		t.Fatalf("items = %+v, want one expired item for kyutai-stt (claim %s)", items, claimID)
 	}
 }
@@ -82,7 +87,7 @@ func TestSweepCapacityClaimsSensingDownNoExpiry(t *testing.T) {
 	if err != nil {
 		t.Fatalf("sweepCapacityClaims() error = %v", err)
 	}
-	if len(items) != 0 {
+	if len(items.Stopped) != 0 {
 		t.Fatalf("items = %+v, want none (sensing down)", items)
 	}
 	// Confirm the claim survived.
@@ -139,7 +144,7 @@ func TestSweepCapacityClaimsRefreshesObservedResident(t *testing.T) {
 	if err != nil {
 		t.Fatalf("sweepCapacityClaims() error = %v", err)
 	}
-	if len(items) != 0 {
+	if len(items.Stopped) != 0 {
 		t.Fatalf("items = %+v, want no expiry for observed reranker claim %s", items, created.ClaimID)
 	}
 
@@ -168,7 +173,7 @@ func TestSweepCapacityClaimsNoLedgerIsNoop(t *testing.T) {
 	if err != nil {
 		t.Fatalf("sweepCapacityClaims() error = %v", err)
 	}
-	if len(items) != 0 {
+	if len(items.Stopped) != 0 {
 		t.Fatalf("items = %+v, want none (no ledger)", items)
 	}
 }
@@ -184,3 +189,144 @@ var errMaintSensing = maintSensingError("nvidia-smi unavailable")
 type maintSensingError string
 
 func (e maintSensingError) Error() string { return string(e) }
+
+type maintenanceApplyFunc func(context.Context, string, string, []string) error
+
+func (f maintenanceApplyFunc) Apply(ctx context.Context, owner, verb string, args []string) error {
+	return f(ctx, owner, verb, args)
+}
+
+type activateOnReadStore struct {
+	*capacity.SQLiteStore
+	activateID string
+	once       bool
+}
+
+func (s *activateOnReadStore) GetClaim(ctx context.Context, id string) (capacity.CapacityClaim, error) {
+	if !s.once {
+		s.once = true
+		c, err := s.SQLiteStore.GetClaim(ctx, s.activateID)
+		if err != nil {
+			return c, err
+		}
+		if _, err := s.SQLiteStore.ReportActivity(ctx, c.ClaimID, c.Generation, capacity.ActivityActive); err != nil {
+			return c, err
+		}
+	}
+	return s.SQLiteStore.GetClaim(ctx, id)
+}
+
+func TestCapacityMaintenanceReportsActualOutcomes(t *testing.T) {
+	for _, kind := range []string{"unload", "upshift"} {
+		for _, mode := range []string{"advisory", "applied", "failed", "debounced", "stale"} {
+			t.Run(kind+"/"+mode, func(t *testing.T) {
+				ctx := context.Background()
+				clk := testenv.NewClock(time.Date(2026, 10, 17, 12, 0, 0, 0, time.UTC))
+				db := filepath.Join(t.TempDir(), "capacity.db")
+				store, err := capacity.NewSQLiteStore(ctx, capacity.Config{DBPath: db, Clock: clk})
+				if err != nil {
+					t.Fatal(err)
+				}
+				gpu := 0
+				amount := int64(8 << 30)
+				status := capacity.StatusGranted
+				ttl := time.Second
+				if kind == "upshift" {
+					amount = 4 << 30
+					status = capacity.StatusDegraded
+					ttl = 0
+				}
+				if mode == "debounced" {
+					status = capacity.StatusDegraded
+				}
+				c, err := store.CreateClaim(ctx, capacity.CapacityClaim{OwnerKind: "resource", OwnerID: "fixture", ResourceKind: "vram", GPUIndex: &gpu, AmountBytes: amount, PreferredBytes: 8 << 30, FloorBytes: 2 << 30, Priority: capacity.PriorityService, Status: status, IdleUnloadTTL: ttl, DegradeProfile: &capacity.DegradeProfile{Steps: []capacity.DegradeStep{{Label: "large", AmountBytes: 8 << 30}, {Label: "medium", AmountBytes: 4 << 30}, {Label: "small", AmountBytes: 2 << 30}}, Upshift: kind == "upshift", Apply: capacity.DegradeApply{Verb: "fixture", Argv: []string{"{label}"}}}}, time.Hour)
+				if err != nil {
+					t.Fatal(err)
+				}
+				store.Close()
+				clk.Advance(time.Minute)
+				withCapacitySweepSeams(t, db, hostinventory.Snapshot{GPUs: []hostinventory.GPU{{Index: 0, VRAMBytes: 16 << 30, VRAMUsedBytes: uint64(amount)}}}, nil, fakeMaintAttributor{}, clk.Now())
+				oldSweep, oldExec, oldEnforce, oldOpen := capacitySweepFn, capacityExecFn, capacityEnforceFn, openCapacityStoreFn
+				t.Cleanup(func() {
+					capacitySweepFn, capacityExecFn, capacityEnforceFn, openCapacityStoreFn = oldSweep, oldExec, oldEnforce, oldOpen
+				})
+				capacitySweepFn = func(context.Context, capacity.ClaimRepository, hostinventory.Snapshot, capacity.Attributor, capacity.Policy, time.Time) (capacity.SweepResult, error) {
+					return capacity.SweepResult{}, nil
+				}
+				openCapacityStoreFn = func(ctx context.Context, _ string) (capacitySweepStore, error) {
+					s, err := capacity.NewSQLiteStore(ctx, capacity.Config{DBPath: db, Clock: clk})
+					if err != nil {
+						return nil, err
+					}
+					if mode == "debounced" {
+						if _, err := s.SetPolicyKey(ctx, "degrade_debounce", "2m"); err != nil {
+							t.Fatal(err)
+						}
+					}
+					if mode == "stale" {
+						return &activateOnReadStore{SQLiteStore: s, activateID: c.ClaimID}, nil
+					}
+					return s, nil
+				}
+				capacityEnforceFn = func(capacity.Policy) string {
+					if mode == "advisory" {
+						return capacity.EnforceAdvisory
+					}
+					return capacity.EnforceOn
+				}
+				calls := 0
+				capacityExecFn = func() capacity.ApplyExecutor {
+					return maintenanceApplyFunc(func(context.Context, string, string, []string) error {
+						calls++
+						if mode == "failed" {
+							return errors.New("desired fake resize failure")
+						}
+						return nil
+					})
+				}
+				report, err := NewController(t.TempDir(), t.TempDir()).sweepCapacityClaims(ctx)
+				if err != nil {
+					t.Fatal(err)
+				}
+				if mode == "failed" {
+					if len(report.Failed) != 1 || !strings.Contains(report.Failed[0].Error, "desired fake resize failure") {
+						t.Fatalf("failed callback presented as success: %+v", report)
+					}
+				} else if mode == "applied" && kind == "unload" {
+					if len(report.Stopped) != 1 || !strings.Contains(report.Stopped[0].Message, "idle-unloaded") {
+						t.Fatalf("applied unload missing: %+v", report)
+					}
+				} else {
+					if len(report.Observed) != 1 {
+						t.Fatalf("non-stop outcome not observed: %+v", report)
+					}
+				}
+				wantCalls := 0
+				if mode == "failed" || mode == "applied" {
+					wantCalls = 1
+				}
+				if calls != wantCalls {
+					t.Fatalf("callbacks=%d want=%d", calls, wantCalls)
+				}
+				if !(mode == "applied" && kind == "unload") && len(report.Stopped) != 0 {
+					t.Fatalf("non-stop outcome counted stopped: %+v", report)
+				}
+			})
+		}
+	}
+}
+
+func TestCleanStaleLocksDoesNotCountLedgerObservationAsStop(t *testing.T) {
+	db, _ := seedCapacityClaim(t, "gone")
+	now := time.Now()
+	snap := hostinventory.Snapshot{ProbeStatuses: map[string]string{"nvidia_gpu": "ok", "nvidia_gpu_processes": "ok"}, FieldProvenance: map[string]hostinventory.Provenance{"gpu_processes": {ObservedAt: now}}}
+	withCapacitySweepSeams(t, db, snap, nil, fakeMaintAttributor{}, now)
+	stubListenerSnapshot(t, true, nil)
+	report, err := NewController(t.TempDir(), t.TempDir()).CleanStaleLocks()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(report.Stopped) != 0 || len(report.Failed) != 0 || len(report.Observed) != 1 || !strings.Contains(report.Message, "Stopped 0 targets, 0 failed") {
+		t.Fatalf("ledger observation became physical stop: %+v", report)
+	}
+}

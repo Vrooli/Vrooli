@@ -245,6 +245,177 @@ func TestRunPhaseDetailedReportsUndefinedPhase(t *testing.T) {
 	}
 }
 
+func TestRunPhaseSetupPreservesServingOwnerAndDoesNotCleanupFixedPort(t *testing.T) {
+	root, home := t.TempDir(), t.TempDir()
+	apiPort, uiPort := 15452, 20453
+	writeLifecycleFixtureManifest(t, root, scenario.ServiceManifest{
+		Service: scenario.ServiceMetadata{Name: "alpha"},
+		Ports: map[string]scenario.Port{
+			"api": {EnvVar: "API_PORT", Port: &apiPort},
+			"ui":  {EnvVar: "UI_PORT", Port: &uiPort},
+		},
+		Lifecycle: scenario.Lifecycle{Setup: scenario.Phase{Steps: []scenario.PhaseStep{{
+			Name: "setup-marker", Exec: []string{"bash", "-c", "printf setup > setup.txt"},
+		}}}},
+	})
+
+	ctx := context.Background()
+	store, err := scenarioruntime.NewSQLiteStore(ctx, scenarioruntime.Config{HomeDir: home})
+	if err != nil {
+		t.Fatalf("NewSQLiteStore: %v", err)
+	}
+	instance, err := store.CreateInstance(ctx, scenarioruntime.Instance{
+		InstanceID: "alpha-live", Scenario: "alpha", Variant: "live", Status: scenarioruntime.StatusRunning,
+	})
+	if err != nil {
+		store.Close()
+		t.Fatalf("CreateInstance: %v", err)
+	}
+	for _, ref := range []scenarioruntime.ProcessRef{
+		{RefID: "api-ref", InstanceID: instance.InstanceID, PID: intPtr(5101), ProcessID: "vrooli.develop.alpha.start-api", Step: "start-api", Status: WaitVerdictRunning},
+		{RefID: "ui-ref", InstanceID: instance.InstanceID, PID: intPtr(5102), ProcessID: "vrooli.develop.alpha.start-ui", Step: "start-ui", Status: WaitVerdictRunning},
+	} {
+		if _, err := store.AddProcessRef(ctx, ref); err != nil {
+			store.Close()
+			t.Fatalf("AddProcessRef(%s): %v", ref.RefID, err)
+		}
+	}
+	for _, claim := range []scenarioruntime.PortClaim{
+		{ClaimID: "api-claim", InstanceID: instance.InstanceID, Scenario: "alpha", Variant: "live", PortName: "api", EnvVar: "API_PORT", Port: apiPort},
+		{ClaimID: "ui-claim", InstanceID: instance.InstanceID, Scenario: "alpha", Variant: "live", PortName: "ui", EnvVar: "UI_PORT", Port: uiPort},
+	} {
+		if _, err := store.AcquirePortClaim(ctx, claim); err != nil {
+			store.Close()
+			t.Fatalf("AcquirePortClaim(%s): %v", claim.ClaimID, err)
+		}
+		if _, err := store.BindPortClaim(ctx, claim.ClaimID); err != nil {
+			store.Close()
+			t.Fatalf("BindPortClaim(%s): %v", claim.ClaimID, err)
+		}
+	}
+	if err := store.Close(); err != nil {
+		t.Fatalf("Close seed registry: %v", err)
+	}
+
+	inspectCalls := 0
+	var signaled []int
+	runner := newLifecycleRunnerForTest(t, root, home, func(deps *lifecycleDeps) {
+		deps.inspectPort = func(port int) network.PortInspection {
+			inspectCalls++
+			if port != apiPort && port != uiPort {
+				t.Fatalf("inspectPort(%d), want one of fixed ports %d or %d", port, apiPort, uiPort)
+			}
+			if port == apiPort {
+				return network.PortInspection{Inspection: network.ListenerInspection{Available: true, Tool: "fixture"}}
+			}
+			return network.PortInspection{
+				Inspection: network.ListenerInspection{Available: true, Tool: "fixture"},
+				Listeners:  []network.PortListener{{PID: 5102}},
+			}
+		}
+		deps.readProcessEnv = func(int) (map[string]string, error) {
+			return map[string]string{
+				"VROOLI_LIFECYCLE_MANAGED": "true",
+				"VROOLI_SCENARIO":          "alpha",
+				"VROOLI_VARIANT":           "live",
+			}, nil
+		}
+		deps.signalPID = func(pid int, _ bool) error {
+			signaled = append(signaled, pid)
+			return nil
+		}
+		deps.isPIDRunning = func(int) bool { return false }
+	})
+	if _, err := runner.RunPhaseDetailed("alpha", "setup", PhaseOptions{}); err != nil {
+		t.Fatalf("RunPhaseDetailed(setup): %v", err)
+	}
+	if inspectCalls != 0 || len(signaled) != 0 {
+		t.Fatalf("standalone setup inspected/signaled fixed-port listener: inspect calls=%d signaled=%v", inspectCalls, signaled)
+	}
+
+	store, err = scenarioruntime.NewSQLiteStore(ctx, scenarioruntime.Config{HomeDir: home})
+	if err != nil {
+		t.Fatalf("reopen registry: %v", err)
+	}
+	defer store.Close()
+	instances, err := store.ListInstances(ctx, scenarioruntime.InstanceFilter{Scenario: "alpha"})
+	if err != nil {
+		t.Fatalf("ListInstances: %v", err)
+	}
+	refs, err := store.ListProcessRefs(ctx, instance.InstanceID)
+	if err != nil {
+		t.Fatalf("ListProcessRefs: %v", err)
+	}
+	claims, err := store.ListPortClaims(ctx, scenarioruntime.PortClaimFilter{InstanceID: instance.InstanceID})
+	if err != nil {
+		t.Fatalf("ListPortClaims: %v", err)
+	}
+	if len(instances) != 1 || instances[0].InstanceID != instance.InstanceID || instances[0].Status != scenarioruntime.StatusRunning {
+		t.Fatalf("serving runtime instance changed during setup: %#v", instances)
+	}
+	if len(refs) != 2 || len(claims) != 2 {
+		t.Fatalf("serving owner references changed during setup: process refs=%#v port claims=%#v", refs, claims)
+	}
+	refPIDs := make(map[string]int, len(refs))
+	for _, ref := range refs {
+		if ref.PID != nil {
+			refPIDs[ref.RefID] = *ref.PID
+		}
+	}
+	if refPIDs["api-ref"] != 5101 || refPIDs["ui-ref"] != 5102 {
+		t.Fatalf("serving process refs changed during setup: %#v", refs)
+	}
+	claimPorts := make(map[string]int, len(claims))
+	for _, claim := range claims {
+		if claim.Status != scenarioruntime.ClaimStatusBound {
+			t.Fatalf("serving port claim %q status changed to %q", claim.ClaimID, claim.Status)
+		}
+		claimPorts[claim.ClaimID] = claim.Port
+	}
+	if claimPorts["api-claim"] != apiPort || claimPorts["ui-claim"] != uiPort {
+		t.Fatalf("serving port claims changed during setup: %#v", claims)
+	}
+}
+
+func TestStartStillCleansStaleFixedPortListenerAfterArbitration(t *testing.T) {
+	root, home := t.TempDir(), t.TempDir()
+	uiPort := 20454
+	writeLifecycleFixtureManifest(t, root, scenario.ServiceManifest{
+		Service: scenario.ServiceMetadata{Name: "alpha"},
+		Ports:   map[string]scenario.Port{"ui": {EnvVar: "UI_PORT", Port: &uiPort}},
+	})
+	var signaled []int
+	runner := newLifecycleRunnerForTest(t, root, home, func(deps *lifecycleDeps) {
+		deps.inspectPort = func(port int) network.PortInspection {
+			if port != uiPort {
+				t.Fatalf("inspectPort(%d), want fixed UI port %d", port, uiPort)
+			}
+			return network.PortInspection{
+				Inspection: network.ListenerInspection{Available: true, Tool: "fixture"},
+				Listeners:  []network.PortListener{{PID: 5301}},
+			}
+		}
+		deps.readProcessEnv = func(int) (map[string]string, error) {
+			return map[string]string{
+				"VROOLI_LIFECYCLE_MANAGED": "true",
+				"VROOLI_SCENARIO":          "alpha",
+				"VROOLI_VARIANT":           "live",
+			}, nil
+		}
+		deps.signalPID = func(pid int, _ bool) error {
+			signaled = append(signaled, pid)
+			return nil
+		}
+		deps.isPIDRunning = func(int) bool { return false }
+	})
+	if _, err := runner.Start("alpha", StartOptions{}); err != nil {
+		t.Fatalf("Start(alpha): %v", err)
+	}
+	if len(signaled) != 1 || signaled[0] != 5301 {
+		t.Fatalf("start path did not clean stale fixed-port listener: signaled=%v", signaled)
+	}
+}
+
 func TestExecutePhaseDetailedReplaysTailToErrOnFailure(t *testing.T) {
 	root := t.TempDir()
 	home := t.TempDir()

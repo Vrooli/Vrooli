@@ -49,14 +49,26 @@ func ParseLinuxMeminfo(input string) (Memory, Swap, error) {
 		return Memory{}, Swap{}, fmt.Errorf("parse /proc/meminfo: MemTotal not found")
 	}
 	return Memory{
-			TotalBytes:     total,
-			AvailableBytes: values["MemAvailable"],
-			BuffersBytes:   values["Buffers"],
-			CachedBytes:    values["Cached"],
+			TotalBytes:             total,
+			AvailableBytes:         values["MemAvailable"],
+			BuffersBytes:           values["Buffers"],
+			CachedBytes:            values["Cached"],
+			SlabBytes:              optionalMeminfoBytes(values, "Slab"),
+			SlabReclaimableBytes:   optionalMeminfoBytes(values, "SReclaimable"),
+			SlabUnreclaimableBytes: optionalMeminfoBytes(values, "SUnreclaim"),
 		}, Swap{
 			TotalBytes: values["SwapTotal"],
 			FreeBytes:  values["SwapFree"],
 		}, nil
+}
+
+// optionalMeminfoBytes preserves absent fields independently of measured zero.
+func optionalMeminfoBytes(values map[string]uint64, key string) *uint64 {
+	value, present := values[key]
+	if !present {
+		return nil
+	}
+	return &value
 }
 
 func ParseLinuxLoadavg(input string, cpuCores int) (Load, error) {

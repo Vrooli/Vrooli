@@ -1651,3 +1651,24 @@ func repoRoot(t *testing.T) string {
 	}
 	return filepath.Clean(filepath.Join(wd, "..", ".."))
 }
+
+func TestEnsurePortBindableRejectsEveryDraftResourceReservation(t *testing.T) {
+	root, home := t.TempDir(), t.TempDir()
+	dir := filepath.Join(root, "resources", "draft")
+	if err := os.MkdirAll(dir, 0700); err != nil {
+		t.Fatal(err)
+	}
+	body := `{"name":"draft","driver":"managed-service","managed_service":{"artifact":{"sha256":""}},"ports":[{"name":"http","host":19876},{"name":"upstream","host":19877}]}`
+	if err := os.WriteFile(filepath.Join(dir, "resource.json"), []byte(body), 0600); err != nil {
+		t.Fatal(err)
+	}
+	manager, err := NewManager(root, home)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, port := range []int{19876, 19877} {
+		if err := manager.ensurePortBindable(port, scenarioruntime.InstanceKey{Scenario: "alpha"}, &listenerSnapshotOnce{}); err == nil || !strings.Contains(err.Error(), "reserved for resource") {
+			t.Fatalf("draft port%d not protected: %v", port, err)
+		}
+	}
+}

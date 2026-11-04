@@ -15,122 +15,13 @@ import (
 
 	"github.com/vrooli/cli-core/cliutil"
 	"github.com/vrooli/vrooli/internal/hostreqkit"
-	"github.com/vrooli/vrooli/internal/maintenance"
+	"github.com/vrooli/vrooli/internal/hostsession"
 	vrooliruntime "github.com/vrooli/vrooli/internal/runtime"
 	"github.com/vrooli/vrooli/internal/scenario"
 	"github.com/vrooli/vrooli/internal/scenarioruntime"
 )
 
-func TestOwnerMaintenanceStoppedBootstrapRequiresPhysicalExclusion(t *testing.T) {
-	t.Setenv(cliutil.EnvIdentityToken, "")
-	for _, unknown := range []bool{false, true} {
-		t.Run(fmt.Sprintf("unknown_%t", unknown), func(t *testing.T) {
-			root, home := t.TempDir(), t.TempDir()
-			writeLifecycleFixtureManifest(t, root, scenario.ServiceManifest{Service: scenario.ServiceMetadata{Name: "agent-manager"}, Lifecycle: scenario.Lifecycle{Setup: scenario.Phase{Steps: []scenario.PhaseStep{{Name: "setup", Exec: []string{"bash", "-c", "printf setup > setup.txt"}}}}}})
-			store, err := scenarioruntime.NewSQLiteStore(t.Context(), scenarioruntime.Config{HomeDir: home})
-			if err != nil {
-				t.Fatal(err)
-			}
-			defer store.Close()
-			old, err := store.CreateInstance(t.Context(), scenarioruntime.Instance{Scenario: "agent-manager", Status: scenarioruntime.StatusStarting})
-			if err != nil {
-				t.Fatal(err)
-			}
-			var runner *Runner
-			proofs := 0
-			runner = newLifecycleRunnerForTest(t, root, home, func(deps *lifecycleDeps) {
-				deps.readOwnerMaintenance = func(context.Context, scenario.Scenario) (ownerMaintenanceStanding, error) {
-					return ownerMaintenanceStanding{}, errors.New("owner offline")
-				}
-				deps.requireRuntimeAbsent = func(_ context.Context, ref maintenance.RuntimeScopeRef) error {
-					proofs++
-					if len(ref.InstanceIDs) != 1 || ref.InstanceIDs[0] != old.InstanceID {
-						t.Fatalf("wrong bootstrap scope: %+v", ref)
-					}
-					if release, err := runner.tryAcquireScenarioLock("agent-manager"); err == nil {
-						release()
-						t.Error("bootstrap proof must hold lifecycle lock")
-					}
-					if unknown {
-						return errors.New("managed process scope unknown")
-					}
-					return nil
-				}
-				deps.signalPID = func(int, bool) error { t.Fatal("bootstrap must not signal an executor"); return nil }
-				deps.signalProcessGroup = func(int, bool) error { t.Fatal("bootstrap must not signal a group"); return nil }
-			})
-			result, err := runner.Start("agent-manager", StartOptions{ForceSetup: true})
-			if unknown {
-				if !errors.Is(err, ErrOwnerMaintenanceRequired) {
-					t.Fatalf("unknown bootstrap admitted: %v", err)
-				}
-				if _, err := os.Stat(filepath.Join(root, "scenarios/agent-manager/setup.txt")); !os.IsNotExist(err) {
-					t.Fatalf("unknown bootstrap setup effect: %v", err)
-				}
-			} else if err != nil || result.Scenario.Slug != "agent-manager" {
-				t.Fatalf("positively stopped owner cannot bootstrap: %+v %v", result, err)
-			}
-			if proofs != 1 {
-				t.Fatalf("physical exclusion reads=%d", proofs)
-			}
-			instances, err := store.ListInstances(t.Context(), scenarioruntime.InstanceFilter{Scenario: "agent-manager"})
-			if err != nil {
-				t.Fatal(err)
-			}
-			for _, instance := range instances {
-				if instance.InstanceID == old.InstanceID {
-					want := scenarioruntime.StatusStopped
-					if unknown {
-						want = scenarioruntime.StatusStarting
-					}
-					if instance.Status != want {
-						t.Fatalf("old instance status=%s want=%s", instance.Status, want)
-					}
-				}
-			}
-		})
-	}
-}
-
 const drainedOwnerFixture = `{"closed":true,"revision":7,"admitting":0,"remaining":0,"drained":true,"lifecycleInterlock":"scenario-lock-v1","inventory":{"remaining":0,"work":[],"executors":[]}}`
-
-type bootstrapChangedGenerationStore struct {
-	scenarioRuntimeStore
-	t *testing.T
-}
-
-func (s bootstrapChangedGenerationStore) Close() error { return nil }
-func (s bootstrapChangedGenerationStore) StopLease(context.Context, string, int64, string) (scenarioruntime.Instance, error) {
-	return scenarioruntime.Instance{}, scenarioruntime.ErrStaleGeneration
-}
-
-func (s bootstrapChangedGenerationStore) ReleaseActivePortClaimsForInstance(context.Context, string) ([]scenarioruntime.PortClaim, error) {
-	s.t.Fatal("generation change must refuse before claim release")
-	return nil, nil
-}
-
-func TestOwnerMaintenanceBootstrapPinsGenerationBeforeClaimRelease(t *testing.T) {
-	root, home := t.TempDir(), t.TempDir()
-	store, err := scenarioruntime.NewSQLiteStore(t.Context(), scenarioruntime.Config{HomeDir: home})
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer store.Close()
-	instance, err := store.CreateInstance(t.Context(), scenarioruntime.Instance{Scenario: "agent-manager", Status: scenarioruntime.StatusStarting})
-	if err != nil {
-		t.Fatal(err)
-	}
-	runner := newLifecycleRunnerForTest(t, root, home, func(deps *lifecycleDeps) {
-		deps.runtimeRegistry = func(context.Context, string) (scenarioRuntimeStore, error) {
-			return bootstrapChangedGenerationStore{scenarioRuntimeStore: store, t: t}, nil
-		}
-		deps.requireRuntimeAbsent = func(context.Context, maintenance.RuntimeScopeRef) error { return nil }
-	})
-	err = runner.retireAbsentOwner(t.Context(), scenario.Scenario{Slug: "agent-manager"}, registryRuntimeView{Present: true, Instance: instance})
-	if !errors.Is(err, scenarioruntime.ErrStaleGeneration) || !errors.Is(err, ErrOwnerMaintenanceRequired) {
-		t.Fatalf("changed generation admitted: %v", err)
-	}
-}
 
 func drainedOwner(t *testing.T) ownerMaintenanceStanding {
 	t.Helper()
@@ -208,118 +99,10 @@ func TestOwnerMaintenanceProtectsLegacyTaggedExecutor(t *testing.T) {
 	}
 }
 
-func TestRecoveryFirstRestartRequiresCompleteIdentifiedExecutorInventory(t *testing.T) {
-	t.Setenv(cliutil.EnvIdentityToken, "")
-	for _, tc := range []struct {
-		name string
-		edit func(*ownerMaintenanceStanding)
-		want bool
-	}{
-		{name: "identified active executor", edit: func(s *ownerMaintenanceStanding) {
-			s.Remaining = intPtr(1)
-			s.Inventory.Remaining = intPtr(1)
-			s.Inventory.Executors = []json.RawMessage{json.RawMessage(`{"id":"run-1","alive":true}`)}
-		}, want: true},
-		{name: "unknown physical scope", edit: func(s *ownerMaintenanceStanding) {
-			s.Remaining = intPtr(1)
-			s.Inventory.Remaining = intPtr(1)
-			s.Inventory.Executors = []json.RawMessage{json.RawMessage(`{"id":"run-1","alive":true}`)}
-			s.Inventory.Unknown = []string{"descendants unavailable"}
-		}},
-		{name: "missing identity", edit: func(s *ownerMaintenanceStanding) {
-			s.Remaining = intPtr(1)
-			s.Inventory.Remaining = intPtr(1)
-			s.Inventory.Executors = []json.RawMessage{json.RawMessage(`{"alive":true}`)}
-		}},
-		{name: "inactive executor", edit: func(s *ownerMaintenanceStanding) {
-			s.Remaining = intPtr(1)
-			s.Inventory.Remaining = intPtr(1)
-			s.Inventory.Executors = []json.RawMessage{json.RawMessage(`{"id":"run-1","alive":false}`)}
-		}},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			state := drainedOwner(t)
-			tc.edit(&state)
-			r := &Runner{deps: lifecycleDeps{readOwnerMaintenance: func(context.Context, scenario.Scenario) (ownerMaintenanceStanding, error) { return state, nil }}}
-			_, err := r.allowRecoveryFirstRestart(t.Context(), scenario.Scenario{Slug: "agent-manager"})
-			if tc.want && err != nil {
-				t.Fatalf("valid recovery-first inventory refused: %v", err)
-			}
-			if !tc.want && err == nil {
-				t.Fatal("unsafe recovery-first inventory admitted")
-			}
-		})
-	}
-}
-
-func TestRecoveryFirstRestartAcceptsCompleteEmptyInventory(t *testing.T) {
-	t.Setenv(cliutil.EnvIdentityToken, "")
-	state := drainedOwner(t)
-	r := &Runner{deps: lifecycleDeps{readOwnerMaintenance: func(context.Context, scenario.Scenario) (ownerMaintenanceStanding, error) {
-		return state, nil
-	}}}
-	if revision, err := r.allowRecoveryFirstRestart(t.Context(), scenario.Scenario{Slug: "agent-manager"}); err != nil || revision != state.Revision {
-		t.Fatalf("complete empty inventory refused: revision=%d err=%v, want revision %d", revision, err, state.Revision)
-	}
-}
-
-func TestRecoveryFirstRestartAcceptsDetachedDurableRuns(t *testing.T) {
-	t.Setenv(cliutil.EnvIdentityToken, "")
-	state := drainedOwner(t)
-	state.Drained = false
-	state.Remaining = intPtr(1)
-	state.Inventory.Remaining = intPtr(1)
-	state.Inventory.Work = []json.RawMessage{json.RawMessage(`{"id":"run-1","kind":"run","status":"running"}`)}
-	r := &Runner{deps: lifecycleDeps{readOwnerMaintenance: func(context.Context, scenario.Scenario) (ownerMaintenanceStanding, error) {
-		return state, nil
-	}}}
-	if revision, err := r.allowRecoveryFirstRestart(t.Context(), scenario.Scenario{Slug: "agent-manager"}); err != nil || revision != state.Revision {
-		t.Fatalf("detached durable run refused: revision=%d err=%v", revision, err)
-	}
-}
-
-func TestRecoveryFirstRestartProtectsIdentifiedCurrentExecutor(t *testing.T) {
-	t.Setenv(cliutil.EnvIdentityToken, "identified-test-executor")
-	r := &Runner{deps: lifecycleDeps{readOwnerMaintenance: func(context.Context, scenario.Scenario) (ownerMaintenanceStanding, error) {
-		t.Fatal("current executor protection must precede owner observation")
-		return drainedOwner(t), nil
-	}}}
-	if _, err := r.allowRecoveryFirstRestart(t.Context(), scenario.Scenario{Slug: "agent-manager"}); err == nil {
-		t.Fatal("recovery-first restart admitted the current executor")
-	}
-}
-
-func TestRecoveryFirstRestartAcceptsTypedStartupRecoveryUnavailable(t *testing.T) {
-	state := drainedOwner(t)
-	state.Remaining = nil
-	state.Inventory.Remaining = nil
-	state.Inventory.Executors = nil
-	state.Inventory.Unknown = []string{"startup recovery degraded"}
-	payload, err := json.Marshal(struct {
-		State ownerMaintenanceStanding `json:"state"`
-		Error string                   `json:"error"`
-	}{State: state, Error: "startup recovery is not ready"})
-	if err != nil {
-		t.Fatal(err)
-	}
-	r := &Runner{deps: lifecycleDeps{readOwnerMaintenance: func(context.Context, scenario.Scenario) (ownerMaintenanceStanding, error) {
-		return ownerMaintenanceStanding{}, &ownerAdmissionReadError{status: http.StatusServiceUnavailable, body: payload}
-	}}}
-	if revision, err := r.allowRecoveryFirstRestart(t.Context(), scenario.Scenario{Slug: "agent-manager"}); err != nil || revision != state.Revision {
-		t.Fatalf("typed startup recovery response revision=%d err=%v, want revision %d and admission", revision, err, state.Revision)
-	}
-}
-
-func TestRecoveryFirstRestartRejectsUnrelatedUnavailableOwner(t *testing.T) {
-	r := &Runner{deps: lifecycleDeps{readOwnerMaintenance: func(context.Context, scenario.Scenario) (ownerMaintenanceStanding, error) {
-		return ownerMaintenanceStanding{}, &ownerAdmissionReadError{status: http.StatusServiceUnavailable, body: []byte(`{"error":"database unavailable"}`)}
-	}}}
-	if _, err := r.allowRecoveryFirstRestart(t.Context(), scenario.Scenario{Slug: "agent-manager"}); err == nil {
-		t.Fatal("unrelated unavailable owner response admitted recovery-first restart")
-	}
-}
-
 func TestOwnerMaintenanceStillProtectsNonRestartLifecycleEffects(t *testing.T) {
+	// Owner admission protects standalone setup and in-place dependency rebuild.
+	// Stop has its separate teardown contract; Agent Manager's managed restart
+	// does not self-fence on the owner admission endpoint.
 	t.Setenv(cliutil.EnvIdentityToken, "")
 	for _, operation := range []string{"setup", "dependency_rebuild"} {
 		t.Run(operation, func(t *testing.T) {
@@ -348,10 +131,6 @@ func TestOwnerMaintenanceStillProtectsNonRestartLifecycleEffects(t *testing.T) {
 				t.Fatal(err)
 			}
 			switch operation {
-			case "stop":
-				err = runner.Stop("agent-manager", StopOptions{})
-			case "restart":
-				_, err = runner.Restart("agent-manager", StartOptions{})
 			case "setup":
 				_, err = runner.RunPhaseDetailed("agent-manager", "setup", PhaseOptions{})
 			case "dependency_rebuild":
@@ -504,27 +283,51 @@ func TestOwnerMaintenanceRestartDrainedAndRevisionRevalidated(t *testing.T) {
 	}
 }
 
-func TestOwnerMaintenanceAdmissionChangesAtLockAcquisition(t *testing.T) {
+func TestOwnerMaintenanceAdmissionChangesAtSetupLockAcquisition(t *testing.T) {
 	t.Setenv(cliutil.EnvIdentityToken, "")
 	root, home := t.TempDir(), t.TempDir()
-	writeLifecycleFixtureManifest(t, root, scenario.ServiceManifest{Service: scenario.ServiceMetadata{Name: "agent-manager"}})
+	writeLifecycleFixtureManifest(t, root, scenario.ServiceManifest{
+		Service: scenario.ServiceMetadata{Name: "agent-manager"},
+		Lifecycle: scenario.Lifecycle{Setup: scenario.Phase{Steps: []scenario.PhaseStep{{
+			Name: "setup-marker",
+			Exec: []string{"bash", "-c", "printf setup > setup.txt"},
+		}}}},
+	})
 	state := drainedOwner(t)
-	runner := newLifecycleRunnerForTest(t, root, home, func(deps *lifecycleDeps) {
-		deps.readOwnerMaintenance = func(context.Context, scenario.Scenario) (ownerMaintenanceStanding, error) { return state, nil }
+	reads := 0
+	var runner *Runner
+	runner = newLifecycleRunnerForTest(t, root, home, func(deps *lifecycleDeps) {
+		deps.readOwnerMaintenance = func(context.Context, scenario.Scenario) (ownerMaintenanceStanding, error) {
+			reads++
+			release, err := runner.tryAcquireScenarioLock("agent-manager")
+			if err == nil {
+				release()
+				t.Error("setup maintenance read must hold the lifecycle lock")
+			} else if !errors.Is(err, ErrScenarioBusy) {
+				t.Errorf("unexpected lock error: %v", err)
+			}
+			return state, nil
+		}
 	})
 	originalLock := lockFileFn
 	t.Cleanup(func() { lockFileFn = originalLock })
 	lockFileFn = func(file *os.File, nonBlocking bool) (func(), error) {
 		release, err := originalLock(file, nonBlocking)
 		if err == nil {
-			// An earlier empty read would be stale by the time Stop can act.
+			// An earlier empty read would be stale by the time setup can act.
 			state.Closed = false
 			state.Admitting = intPtr(1)
 		}
 		return release, err
 	}
-	if err := runner.Stop("agent-manager", StopOptions{}); !errors.Is(err, ErrOwnerMaintenanceRequired) {
-		t.Fatalf("pre-lock empty observation authorized Stop: %v", err)
+	if err := runner.RunPhase("agent-manager", phasesSetup, PhaseOptions{}); !errors.Is(err, ErrOwnerMaintenanceRequired) {
+		t.Fatalf("pre-lock empty observation authorized setup: %v", err)
+	}
+	if reads != 1 {
+		t.Fatalf("setup owner reads=%d, want one lock-held fresh read", reads)
+	}
+	if _, err := os.Stat(filepath.Join(root, "scenarios/agent-manager/setup.txt")); !os.IsNotExist(err) {
+		t.Fatalf("stale admission caused setup effects: %v", err)
 	}
 }
 
@@ -537,17 +340,24 @@ func TestOwnerMaintenanceDependencyRefreshPreservesOwner(t *testing.T) {
 				Service:   scenario.ServiceMetadata{Name: "agent-manager"},
 				Lifecycle: scenario.Lifecycle{Setup: scenario.Phase{Steps: []scenario.PhaseStep{{Name: "setup-marker", Exec: []string{"bash", "-c", "printf setup >> setup.txt"}}}}},
 			})
+			pid := os.Getpid()
 			store, err := scenarioruntime.NewSQLiteStore(t.Context(), scenarioruntime.Config{HomeDir: home})
 			if err != nil {
 				t.Fatal(err)
 			}
 			defer store.Close()
-			_, err = store.CreateInstance(t.Context(), scenarioruntime.Instance{Scenario: "agent-manager", Status: scenarioruntime.StatusRunning})
+			_, err = store.CreateLease(t.Context(), scenarioruntime.Instance{
+				Scenario: "agent-manager", Status: scenarioruntime.StatusRunning,
+				BuildIdentity: "superseded-build", HostBootID: "test-boot", OwnerPID: &pid,
+			}, scenarioruntime.DefaultHeartbeatTTL)
 			if err != nil {
 				t.Fatal(err)
 			}
 			reads := 0
 			runner := newLifecycleRunnerForTest(t, root, home, func(deps *lifecycleDeps) {
+				deps.hostSession = func(context.Context, string) (hostsession.Snapshot, error) {
+					return hostsession.Snapshot{BootID: "test-boot"}, nil
+				}
 				deps.readOwnerMaintenance = func(context.Context, scenario.Scenario) (ownerMaintenanceStanding, error) {
 					reads++
 					state := drainedOwner(t)
@@ -560,21 +370,29 @@ func TestOwnerMaintenanceDependencyRefreshPreservesOwner(t *testing.T) {
 				policy = scenario.DependencyStartupPolicyTryStart
 			}
 			consumer := scenario.Scenario{Slug: "swarm-manager", Manifest: scenario.ServiceManifest{
-				Dependencies: scenario.Dependencies{Scenarios: map[string]scenario.Dependency{"agent-manager": {Enabled: true, Required: !bestEffort, StartupPolicy: policy}}},
+				Dependencies: scenario.Dependencies{Scenarios: map[string]scenario.Dependency{"agent-manager": {
+					Enabled: true, Required: !bestEffort, StartupPolicy: policy,
+					FreshnessPolicy: scenario.DependencyFreshnessPolicyRebuildOnly,
+				}}},
 			}}
 			failed, err := runner.ensureDependency(t.Context(), consumer, StartOptions{BestEffort: bestEffort}, newStartSession(t.Context()), 0, "agent-manager", 1)
 			if bestEffort {
-				if err != nil || failed != "agent-manager" {
-					t.Fatalf("unsafe optional dependency must be reported as deferred: failed=%s err=%v", failed, err)
+				if err != nil || failed != "" {
+					t.Fatalf("healthy optional dependency must be reused: failed=%s err=%v", failed, err)
 				}
-			} else if !errors.Is(err, ErrOwnerMaintenanceRequired) {
-				t.Fatalf("unsafe required dependency must refuse: %v", err)
-			}
-			if reads != 1 {
-				t.Fatalf("dependency did not consult its execution owner: reads=%d", reads)
+				if reads != 0 {
+					t.Fatalf("optional reuse unexpectedly attempted owner maintenance: reads=%d", reads)
+				}
+			} else {
+				if !errors.Is(err, ErrOwnerMaintenanceRequired) {
+					t.Fatalf("unsafe required dependency must refuse: %v", err)
+				}
+				if reads != 1 {
+					t.Fatalf("dependency rebuild did not consult its execution owner: reads=%d", reads)
+				}
 			}
 			instances, err := store.ListInstances(t.Context(), scenarioruntime.InstanceFilter{Scenario: "agent-manager"})
-			if err != nil || len(instances) != 1 || instances[0].Status != scenarioruntime.StatusRunning {
+			if err != nil || len(instances) != 1 || instances[0].Status != scenarioruntime.StatusRunning || instances[0].OwnerPID == nil || *instances[0].OwnerPID != pid {
 				t.Fatalf("dependency refresh changed its owner runtime: %+v %v", instances, err)
 			}
 			if _, err := os.Stat(filepath.Join(root, "scenarios/agent-manager/setup.txt")); !os.IsNotExist(err) {

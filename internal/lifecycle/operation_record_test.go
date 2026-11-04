@@ -172,7 +172,10 @@ func TestStartOperationContextCancellationMarksAbandoned(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewRunner: %v", err)
 	}
-	rec := runner.beginStartOperationRecord("alpha", StartOptions{Context: ctx})
+	rec, err := runner.beginStartOperationRecord("alpha", StartOptions{Context: ctx})
+	if err != nil {
+		t.Fatalf("beginStartOperationRecord: %v", err)
+	}
 	if rec == nil {
 		t.Fatal("beginStartOperationRecord returned nil")
 	}

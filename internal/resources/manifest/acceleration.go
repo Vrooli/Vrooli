@@ -3,6 +3,7 @@ package manifest
 import (
 	"encoding/json"
 	"fmt"
+	"net/url"
 	"slices"
 	"strconv"
 	"strings"
@@ -69,7 +70,7 @@ var AllowedVerifyKinds = []string{VerifyProcessDevice, VerifyContainerDevice, Ve
 
 // accelerationReservedKeys are the non-backend keys inside an `acceleration`
 // block. Everything else must name a backend from AllowedBackends.
-var accelerationReservedKeys = []string{"backends", "require", "claim", "capacity"}
+var accelerationReservedKeys = []string{"backends", "require", "claim", "capacity", "idle_probe"}
 
 // AccelerationSpec is the single accelerator declaration in resource.json. It
 // replaces the `gpu` block, `requirements.gpu`, and the top-level `capacity`
@@ -100,6 +101,9 @@ type AccelerationSpec struct {
 	// Capacity declares bounded, operator-selectable settings that affect the
 	// resource footprint independently of its degrade rung.
 	Capacity AccelerationCapacitySpec
+	// IdleProbe is a loopback health URL whose workload_active boolean explicitly
+	// distinguishes an unloaded supervisor from a serving CPU fallback.
+	IdleProbe string
 }
 
 type AccelerationCapacitySpec struct {
@@ -169,10 +173,11 @@ func (v VerifySpec) IsZero() bool { return v.Kind == "" && v.Device == "" }
 // exists so UnmarshalJSON can decode the scalar fields with the standard
 // decoder and treat every remaining key as a backend name.
 type accelerationScalars struct {
-	Backends []string                    `json:"backends"`
-	Require  string                      `json:"require,omitempty"`
-	Claim    *capacity.ResourceClaimSpec `json:"claim,omitempty"`
-	Capacity AccelerationCapacitySpec    `json:"capacity,omitempty"`
+	Backends  []string                    `json:"backends"`
+	Require   string                      `json:"require,omitempty"`
+	Claim     *capacity.ResourceClaimSpec `json:"claim,omitempty"`
+	Capacity  AccelerationCapacitySpec    `json:"capacity,omitempty"`
+	IdleProbe string                      `json:"idle_probe,omitempty"`
 }
 
 // UnmarshalJSON decodes the sibling-keys shape and rejects any key that is
@@ -192,6 +197,7 @@ func (a *AccelerationSpec) UnmarshalJSON(data []byte) error {
 	a.Require = scalars.Require
 	a.Claim = scalars.Claim
 	a.Capacity = scalars.Capacity
+	a.IdleProbe = scalars.IdleProbe
 	a.Backend = nil
 
 	var unknown []string
@@ -235,6 +241,9 @@ func (a AccelerationSpec) MarshalJSON() ([]byte, error) {
 	if len(a.Capacity.Tunables) > 0 {
 		out["capacity"] = a.Capacity
 	}
+	if a.IdleProbe != "" {
+		out["idle_probe"] = a.IdleProbe
+	}
 	for name, config := range a.Backend {
 		out[name] = config
 	}
@@ -275,6 +284,13 @@ func (a AccelerationSpec) DeclaresAcceleration() bool { return len(a.Accelerated
 
 // Validate enforces every rule the contract makes about an acceleration block.
 func (a AccelerationSpec) Validate() error {
+	if a.IdleProbe != "" {
+		u, err := url.Parse(a.IdleProbe)
+		if err != nil || u.Scheme != "http" || (u.Hostname() != "127.0.0.1" && u.Hostname() != "localhost" && u.Hostname() != "::1") || u.User != nil || u.RawQuery != "" || u.Fragment != "" {
+			return fmt.Errorf("acceleration.idle_probe requires an HTTP loopback URL")
+		}
+	}
+
 	if len(a.Backends) == 0 {
 		return fmt.Errorf("acceleration.backends must list at least one backend (allowed: %v)", AllowedBackends)
 	}

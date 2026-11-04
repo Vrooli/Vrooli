@@ -104,8 +104,8 @@ func TestAgentSessionReapAuditRoundTrips(t *testing.T) {
 	}
 }
 
-// A v13 registry with live leases climbs to v14 with its rows intact and
-// gains the owner columns and the reap audit table.
+// A v13 registry with live leases migrates to the current schema with its
+// rows intact, owner columns, and reap audit table.
 func TestSchemaMigrationAddsEditorLeaseOwnerToExistingDatabase(t *testing.T) {
 	ctx := context.Background()
 	dbPath := filepath.Join(t.TempDir(), "runtime.db")
@@ -140,8 +140,8 @@ VALUES ('legacy', 'codex', 'codex', 42, 'vrooli-agent-legacy', 'active', '2026-0
 		t.Fatalf("NewSQLiteStore on a v13 database: %v", err)
 	}
 	defer store.Close()
-	if version, err := readSchemaVersion(ctx, store.db); err != nil || version != 14 {
-		t.Fatalf("schema version = %d, %v; want 14", version, err)
+	if version, err := readSchemaVersion(ctx, store.db); err != nil || version != SchemaVersion {
+		t.Fatalf("schema version = %d, %v; want current version %d", version, err, SchemaVersion)
 	}
 	legacy := leasesByID(t, store)["legacy"]
 	if legacy.SessionID != "legacy" || legacy.Owner.Kind != "" {

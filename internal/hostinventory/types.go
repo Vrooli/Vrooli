@@ -195,6 +195,10 @@ type Memory struct {
 	AvailableBytes uint64 `json:"available_bytes,omitempty"`
 	BuffersBytes   uint64 `json:"buffers_bytes,omitempty"`
 	CachedBytes    uint64 `json:"cached_bytes,omitempty"`
+	// Linux slab accounting: nil means the field was not observed, not zero.
+	SlabBytes              *uint64 `json:"slab_bytes,omitempty"`
+	SlabReclaimableBytes   *uint64 `json:"slab_reclaimable_bytes,omitempty"`
+	SlabUnreclaimableBytes *uint64 `json:"slab_unreclaimable_bytes,omitempty"`
 }
 
 type Swap struct {

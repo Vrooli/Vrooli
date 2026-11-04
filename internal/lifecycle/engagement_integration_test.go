@@ -199,7 +199,9 @@ func TestEngagedLiveBuildsFromFrozenSharedSources(t *testing.T) {
 	workingTree := filepath.Join(root, "scenarios", "alpha")
 	testkitgo.WriteFile(t, filepath.Join(root, "packages", "shared", "go.mod"), "module example.com/shared\n\ngo 1.22\n")
 	testkitgo.WriteFile(t, filepath.Join(root, "packages", "shared", "shared.go"), "package shared\n\nfunc Status() string { return \"healthy\" }\n")
-	testkitgo.WriteFile(t, filepath.Join(workingTree, "api", "go.mod"), "module fixture\n\ngo 1.22\n\nrequire example.com/shared v0.0.0\n\nreplace example.com/shared => ../../../packages/shared\n")
+	goMod := readFile(t, filepath.Join(workingTree, "api", "go.mod"))
+	goMod += "\nrequire example.com/shared v0.0.0\n\nreplace example.com/shared => ../../../packages/shared\n"
+	testkitgo.WriteFile(t, filepath.Join(workingTree, "api", "go.mod"), goMod)
 	mainGo := readFile(t, filepath.Join(workingTree, "api", "main.go"))
 	mainGo = strings.Replace(mainGo, "import (\n", "import (\n \"example.com/shared\"\n", 1)
 	mainGo = strings.Replace(mainGo, `{\"status\":\"healthy\"`, `{\"status\":\"`+"\"+shared.Status()+\""+`\"`, 1)
@@ -267,7 +269,9 @@ func TestLegacyServingBuildRefusesUncapturedSharedContractsBeforeSetup(t *testin
 	}
 	writeFile(t, filepath.Join(root, "packages", "shared", "go.mod"), "module example.com/shared\n\ngo 1.22\n")
 	writeFile(t, filepath.Join(root, "packages", "shared", "shared.go"), "package shared\nfunc Value() string{return \"new contract\"}\n")
-	writeFile(t, filepath.Join(working, "api", "go.mod"), "module fixture\n\ngo 1.22\nrequire example.com/shared v0.0.0\nreplace example.com/shared => ../../../packages/shared\n")
+	goMod := readFile(t, filepath.Join(working, "api", "go.mod"))
+	goMod += "\nrequire example.com/shared v0.0.0\nreplace example.com/shared => ../../../packages/shared\n"
+	writeFile(t, filepath.Join(working, "api", "go.mod"), goMod)
 	main := readFile(t, filepath.Join(working, "api", "main.go"))
 	main = strings.Replace(main, "import (\n", "import (\n _ \"example.com/shared\"\n", 1)
 	writeFile(t, filepath.Join(working, "api", "main.go"), main)

@@ -33,13 +33,26 @@ func TestValidateDevicePathRejectsSmuggledArguments(t *testing.T) {
 		})
 	}
 
-	accepted := []string{"/dev/sda1", "/dev/nvme0n1p2", "/dev/disk2s1", "/dev/mapper/vg-data", "E:", "c:"}
+	accepted := []string{"/dev/sda1", "/dev/nvme0n1p2", "/dev/disk2s1", "/dev/mapper/vg-data", "E:", "c:", `\\?\Volume{12345678-1234-1234-1234-123456789abc}\`}
 	for _, path := range accepted {
 		t.Run("accept "+path, func(t *testing.T) {
 			if err := validateDevicePath(path); err != nil {
 				t.Fatalf("rejected %q: %v", path, err)
 			}
 		})
+	}
+}
+
+func TestValidateWindowsMountpointAllowsOnlyNonSystemDriveRoots(t *testing.T) {
+	for _, mountpoint := range []string{`D:\`, "E:", `Z:\`} {
+		if err := validateWindowsMountpoint(mountpoint); err != nil {
+			t.Fatalf("rejected %q: %v", mountpoint, err)
+		}
+	}
+	for _, mountpoint := range []string{"", `C:\`, `E:\backup`, `\\server\share`, "E:relative"} {
+		if err := validateWindowsMountpoint(mountpoint); err == nil {
+			t.Fatalf("accepted unsafe Windows mountpoint %q", mountpoint)
+		}
 	}
 }
 
@@ -70,6 +83,16 @@ func TestIsSystemMountpoint(t *testing.T) {
 	for _, mountpoint := range external {
 		if isSystemMountpoint(mountpoint) {
 			t.Fatalf("%q must not be treated as a system mountpoint", mountpoint)
+		}
+	}
+	for _, mountpoint := range []string{`C:\`, `C:\Users\operator`, `c:/Windows`} {
+		if !isSystemMountpoint(mountpoint) {
+			t.Fatalf("Windows system path %q must be treated as a system mountpoint", mountpoint)
+		}
+	}
+	for _, mountpoint := range []string{`D:\`, `E:\Backup`} {
+		if isSystemMountpoint(mountpoint) {
+			t.Fatalf("external Windows path %q must not be treated as a system mountpoint", mountpoint)
 		}
 	}
 }
@@ -139,12 +162,32 @@ func TestDeviceMatchesIgnoresMountpointButNotIdentity(t *testing.T) {
 
 	resized := approved
 	resized.TotalBytes = 42
-	if approved.Matches(resized) {
-		t.Fatal("a different size must not match")
+	if !approved.Matches(resized) {
+		t.Fatal("matching stable UUID and serial must tolerate observer capacity differences")
+	}
+
+	weak := Device{Path: "/dev/sda1", Filesystem: "ntfs", TotalBytes: 100}
+	weakResized := weak
+	weakResized.TotalBytes = 42
+	if weak.Matches(weakResized) {
+		t.Fatal("without stable identifiers, a capacity mismatch must still reject the device")
 	}
 
 	nothing := Device{}
 	if nothing.Matches(Device{}) {
 		t.Fatal("two identity-free devices must never match")
+	}
+}
+
+func TestDeviceMatchesFilesystemDriverAlias(t *testing.T) {
+	approved := elementsDevice()
+	observed := approved
+	observed.Filesystem = "ntfs3"
+	if !approved.Matches(observed) {
+		t.Fatal("NTFS driver alias ntfs3 must identify the approved NTFS filesystem")
+	}
+	observed.Filesystem = "ext4"
+	if approved.Matches(observed) {
+		t.Fatal("a different filesystem family must not match")
 	}
 }

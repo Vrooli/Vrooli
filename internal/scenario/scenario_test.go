@@ -907,6 +907,34 @@ func TestDependencyFreshnessPolicyRoundTrip(t *testing.T) {
 	}
 }
 
+func TestDependencyIncludeUIRoundTrip(t *testing.T) {
+	var dependency Dependency
+	if err := json.Unmarshal([]byte(`{"bundle_policy":"embed","include_ui":true}`), &dependency); err != nil {
+		t.Fatalf("unmarshal dependency: %v", err)
+	}
+	if !dependency.IncludeUI {
+		t.Fatal("include_ui was not decoded into the typed dependency field")
+	}
+	if len(dependency.Config) != 0 {
+		t.Fatalf("include_ui was incorrectly retained as arbitrary config: %s", dependency.Config)
+	}
+	encoded, err := json.Marshal(dependency)
+	if err != nil {
+		t.Fatalf("marshal dependency: %v", err)
+	}
+	var fields map[string]json.RawMessage
+	if err := json.Unmarshal(encoded, &fields); err != nil {
+		t.Fatalf("decode encoded dependency: %v", err)
+	}
+	var includeUI bool
+	if err := json.Unmarshal(fields["include_ui"], &includeUI); err != nil || !includeUI {
+		t.Fatalf("encoded include_ui = %v (raw %s), err=%v", includeUI, fields["include_ui"], err)
+	}
+	if _, exists := fields["config"]; exists {
+		t.Fatalf("include_ui was re-encoded under config: %s", encoded)
+	}
+}
+
 func TestReadServiceRejectsFreshnessPolicyOnIgnoreEdge(t *testing.T) {
 	root := t.TempDir()
 	servicePath := filepath.Join(root, "service.json")

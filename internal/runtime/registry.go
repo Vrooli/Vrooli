@@ -24,10 +24,12 @@ import (
 	edacmodules "github.com/vrooli/vrooli/internal/safeguards/edac-modules"
 	emergencywatchdog "github.com/vrooli/vrooli/internal/safeguards/emergency-watchdog"
 	graphicalsession "github.com/vrooli/vrooli/internal/safeguards/graphical-session"
+	harnessfileownership "github.com/vrooli/vrooli/internal/safeguards/harness-file-ownership"
 	hosthardening "github.com/vrooli/vrooli/internal/safeguards/host-hardening"
 	kdumpobservability "github.com/vrooli/vrooli/internal/safeguards/kdump-observability"
 	kernelconfig "github.com/vrooli/vrooli/internal/safeguards/kernel-config"
 	keyringdaemonlimits "github.com/vrooli/vrooli/internal/safeguards/keyring-daemon-limits"
+	localserviceadmission "github.com/vrooli/vrooli/internal/safeguards/local-service-admission"
 	logvolumebounds "github.com/vrooli/vrooli/internal/safeguards/log-volume-bounds"
 	loginkeyringunlock "github.com/vrooli/vrooli/internal/safeguards/login-keyring-unlock"
 	modelpolicydrift "github.com/vrooli/vrooli/internal/safeguards/model-policy-drift"
@@ -48,10 +50,12 @@ import (
 	vroolilauncher "github.com/vrooli/vrooli/internal/safeguards/vrooli-launcher"
 	workspacesandboxuserns "github.com/vrooli/vrooli/internal/safeguards/workspace-sandbox-userns"
 	"github.com/vrooli/vrooli/internal/tools"
+	"github.com/vrooli/vrooli/internal/tools/akt"
 	"github.com/vrooli/vrooli/internal/tools/cloudflared"
 	"github.com/vrooli/vrooli/internal/tools/docker"
 	"github.com/vrooli/vrooli/internal/tools/hyperframes"
 	kdumptools "github.com/vrooli/vrooli/internal/tools/kdump-tools"
+	"github.com/vrooli/vrooli/internal/tools/kubo"
 	"github.com/vrooli/vrooli/internal/tools/mcelog"
 	"github.com/vrooli/vrooli/internal/tools/protoc"
 	protocgenconnectgo "github.com/vrooli/vrooli/internal/tools/protoc-gen-connect-go"
@@ -60,6 +64,7 @@ import (
 	"github.com/vrooli/vrooli/internal/tools/quint"
 	"github.com/vrooli/vrooli/internal/tools/rasdaemon"
 	"github.com/vrooli/vrooli/internal/tools/stripe"
+	triposrsource "github.com/vrooli/vrooli/internal/tools/triposr-source"
 	"github.com/vrooli/vrooli/internal/tools/vault"
 	"github.com/vrooli/vrooli/internal/tools/webkitgtk"
 )
@@ -73,6 +78,10 @@ const (
 // under internal/tools/. The invariant is enforced by
 // TestToolManifestsReferenceRegisteredHandlers.
 var customToolHandlers = map[string]func(hostreqkit.ToolManifest) hostreqkit.Handler{
+	"akt": akt.NewHandler,
+	"kubo": func(m hostreqkit.ToolManifest) hostreqkit.Handler {
+		return kubo.NewHandler(m, newGenericToolHandler(m))
+	},
 	"cloudflared":           cloudflared.NewHandler,
 	"docker":                docker.NewHandler,
 	"kdump_tools":           kdumptools.NewHandler,
@@ -85,6 +94,7 @@ var customToolHandlers = map[string]func(hostreqkit.ToolManifest) hostreqkit.Han
 	"hyperframes":           hyperframes.NewHandler,
 	"rasdaemon":             rasdaemon.NewHandler,
 	"stripe":                stripe.NewHandler,
+	"triposr_source":        triposrsource.NewHandler,
 	"vault":                 vault.NewHandler,
 	"webkitgtk":             webkitgtk.NewHandler,
 }
@@ -109,6 +119,7 @@ var customSafeguardHandlers = map[string]func(hostreqkit.SafeguardManifest) host
 	"emergency_watchdog":           emergencywatchdog.NewHandler,
 	"runtime_supervisor":           runtimesupervisorsafeguard.NewHandler,
 	"log_volume_bounds":            logvolumebounds.NewHandler,
+	"local_service_admission":      localserviceadmission.NewHandler,
 	"keyring_daemon_limits":        keyringdaemonlimits.NewHandler,
 	"host_hardening":               hosthardening.NewHandler,
 	"kdump_observability":          kdumpobservability.NewHandler,
@@ -127,6 +138,7 @@ var customSafeguardHandlers = map[string]func(hostreqkit.SafeguardManifest) host
 	"tcp_tuning":                   tcptuning.NewHandler,
 	"vrooli_launcher":              vroolilauncher.NewHandler,
 	"coding_agent_shims":           codingagentshims.NewHandler,
+	"harness_file_ownership":       harnessfileownership.NewHandler,
 	"workspace_sandbox_userns":     workspacesandboxuserns.NewHandler,
 }
 

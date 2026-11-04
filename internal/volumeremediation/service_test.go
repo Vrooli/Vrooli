@@ -501,6 +501,27 @@ func TestCheckVerdictFromToolExitStatus(t *testing.T) {
 	if got := checkVerdict(BackendDiskutil, nil, nil); got != TristateYes {
 		t.Fatalf("diskutil clean = %q, want yes", got)
 	}
+	if got := checkVerdict(BackendRepairVolume, []byte("DBM_CHECK_RESULT=0\n"), nil); got != TristateYes {
+		t.Fatalf("Windows clean scan = %q, want yes", got)
+	}
+	if got := checkVerdict(BackendRepairVolume, []byte("DBM_CHECK_RESULT=3\n"), nil); got != TristateNo {
+		t.Fatalf("Windows scan with errors = %q, want no", got)
+	}
+	if got := checkVerdict(BackendRepairVolume, []byte(""), nil); got != TristateUnknown {
+		t.Fatalf("Windows scan without an explicit result = %q, want unknown", got)
+	}
+}
+
+func TestWindowsRepairVolumeOwnsItsOnlineAndOfflineTransitions(t *testing.T) {
+	service := &Service{}
+	for _, action := range []Action{ActionCheck, ActionRepair} {
+		if err := service.gateOnObservedState(Request{Action: action}, State{Mounted: true, Device: Device{Mountpoint: `E:\`}}, "windows"); err != nil {
+			t.Fatalf("Windows %s should delegate locking/offline behavior to Repair-Volume: %v", action, err)
+		}
+	}
+	if err := service.gateOnObservedState(Request{Action: ActionCheck}, State{Mounted: true}, "linux"); err == nil {
+		t.Fatal("Linux filesystem checks must still refuse a mounted volume")
+	}
 }
 
 // Only a check produces a consistency verdict; other actions must not imply one.

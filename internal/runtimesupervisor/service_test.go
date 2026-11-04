@@ -480,6 +480,64 @@ func TestServiceRecoveryWaitsForPressureClearAndRestoresOnlyDeclaredCriticalWork
 	}
 }
 
+func TestServiceTickExpiresOnlyOverdueDeadEditorLeases(t *testing.T) {
+	ctx := context.Background()
+	clk := testenv.NewClock(time.Date(2026, 10, 18, 12, 0, 0, 0, time.UTC))
+	dbPath := filepath.Join(t.TempDir(), "runtime.db")
+	store, err := scenarioruntime.NewSQLiteStore(ctx, scenarioruntime.Config{DBPath: dbPath, Clock: clk})
+	if err != nil {
+		t.Fatalf("NewSQLiteStore: %v", err)
+	}
+	for _, lease := range []scenarioruntime.EditorLease{
+		{SessionID: "dead-owner", Harness: "codex", Agent: "codex", PID: 101, HostBootID: "boot-current"},
+		{SessionID: "live-owner", Harness: "codex", Agent: "codex", PID: 202, HostBootID: "boot-current"},
+	} {
+		if _, err := store.CreateEditorLease(ctx, lease, time.Minute); err != nil {
+			t.Fatalf("CreateEditorLease(%s): %v", lease.SessionID, err)
+		}
+	}
+	if err := store.Close(); err != nil {
+		t.Fatal(err)
+	}
+
+	// Both deadlines have elapsed. Only positive proof that PID 101 is gone
+	// may retire its lease; PID 202 remains active despite the same missed
+	// heartbeat.
+	clk.Advance(2 * time.Minute)
+	svc := New(Config{
+		DBPath:       dbPath,
+		SupervisorID: "supervisor-editor-expiry",
+		Clock:        clk,
+		HostProvider: fakeHostProvider{snapshot: hostsession.Snapshot{BootID: "boot-current", SessionID: "session-current"}},
+		PIDRunning:   func(pid int) bool { return pid == 202 },
+		Stderr:       io.Discard,
+	})
+	defer svc.Close()
+	if _, err := svc.Tick(ctx); err != nil {
+		t.Fatalf("Tick: %v", err)
+	}
+
+	check, err := scenarioruntime.NewSQLiteStore(ctx, scenarioruntime.Config{DBPath: dbPath, Clock: clk})
+	if err != nil {
+		t.Fatalf("reopen store: %v", err)
+	}
+	defer check.Close()
+	leases, err := check.ListEditorLeases(ctx, true)
+	if err != nil {
+		t.Fatalf("ListEditorLeases: %v", err)
+	}
+	statuses := make(map[string]string, len(leases))
+	for _, lease := range leases {
+		statuses[lease.SessionID] = lease.Status
+	}
+	if statuses["dead-owner"] != scenarioruntime.EditorLeaseExpired {
+		t.Fatalf("dead owner status = %q, want expired; leases=%+v", statuses["dead-owner"], leases)
+	}
+	if statuses["live-owner"] != scenarioruntime.EditorLeaseActive {
+		t.Fatalf("live owner status = %q, want active; leases=%+v", statuses["live-owner"], leases)
+	}
+}
+
 func TestServiceTickAdoptsAndRenewsRunningInstance(t *testing.T) {
 	ctx := context.Background()
 	clk := testenv.NewClock(time.Date(2026, 5, 9, 12, 0, 0, 0, time.UTC))

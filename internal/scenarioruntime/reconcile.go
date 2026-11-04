@@ -142,6 +142,20 @@ func ProcessEvidenceFromRefs(refs []ProcessRef, isRunning PIDRunningFunc) map[st
 	return out
 }
 
+// ProcessEvidenceForInstance includes the lifecycle owner PID as well as
+// recorded child refs. A startup owner can exit before it records any child
+// refs, so refs alone cannot establish whether an expired starting lease is
+// still owned by a live process.
+func ProcessEvidenceForInstance(instance Instance, refs []ProcessRef, isRunning PIDRunningFunc) map[string]ProcessEvidence {
+	out := ProcessEvidenceFromRefs(refs, isRunning)
+	if isRunning == nil || instance.OwnerPID == nil || *instance.OwnerPID <= 0 {
+		return out
+	}
+	pid := *instance.OwnerPID
+	out[strconv.Itoa(pid)] = ProcessEvidence{Known: true, Running: isRunning(pid)}
+	return out
+}
+
 func ListenerEvidenceFromClaims(claims []PortClaim, refs []ProcessRef, inspect PortListenerFunc) map[int]ListenerEvidence {
 	if inspect == nil {
 		return nil

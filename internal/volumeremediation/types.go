@@ -57,12 +57,16 @@ func (a Action) Known() bool {
 // identity it expects; the service re-observes and refuses on any mismatch, so
 // a replugged or renumbered disk can never inherit another disk's approval.
 type Device struct {
-	// Path is the OS device specifier: /dev/sda1, /dev/disk2s1, or a Windows
-	// drive letter such as "E:".
+	// Path is the OS device selector: /dev/sda1, /dev/disk2s1, a Windows drive
+	// letter, or a Windows stable volume GUID such as \\\\?\\Volume{...}\\.
 	Path string
 	// Filesystem selects the repair adapter. An unrecognised filesystem is
-	// refused rather than guessed at.
+	// refused rather than guessed at. This is the on-disk format; it can differ
+	// from MountDriver (for example, ntfs-3g appears as fuseblk in /proc/mounts).
 	Filesystem string
+	// MountDriver is the filesystem driver reported by the active mount table.
+	// It is empty for an unmounted volume or when the platform does not expose it.
+	MountDriver string
 	// UUID and Serial are the identifiers that survive a replug. At least one
 	// is required for a mutating action.
 	UUID   string
@@ -83,19 +87,31 @@ func (d Device) StableIdentity() bool {
 // Mountpoint is excluded on purpose: remediation unmounts the volume itself,
 // so guarding on the mountpoint would reject the flow mid-sequence.
 func (d Device) Matches(observed Device) bool {
-	if !equalFoldOptional(d.Filesystem, observed.Filesystem) {
-		return false
-	}
-	if d.TotalBytes != 0 && observed.TotalBytes != 0 && d.TotalBytes != observed.TotalBytes {
+	if !sameFilesystemIdentity(d.Filesystem, observed.Filesystem) {
 		return false
 	}
 	if d.StableIdentity() && observed.StableIdentity() {
+		// UUID and serial identify a replugged filesystem/disk more reliably
+		// than capacity. Kernel, partition-table and filesystem observers can
+		// report slightly different usable byte counts for the same device.
 		return equalFoldOptional(d.UUID, observed.UUID) && equalOptional(d.Serial, observed.Serial)
+	}
+	if d.TotalBytes != 0 && observed.TotalBytes != 0 && d.TotalBytes != observed.TotalBytes {
+		return false
 	}
 	if strings.TrimSpace(d.Path) == "" || strings.TrimSpace(observed.Path) == "" {
 		return false
 	}
 	return strings.TrimSpace(d.Path) == strings.TrimSpace(observed.Path)
+}
+
+func sameFilesystemIdentity(a, b string) bool {
+	aFamily, aOK := filesystemFamily(a)
+	bFamily, bOK := filesystemFamily(b)
+	if aOK || bOK {
+		return aOK && bOK && aFamily == bFamily
+	}
+	return equalFoldOptional(a, b)
 }
 
 // Describe renders a compact identity for confirmation phrases and audit rows.
@@ -140,8 +156,9 @@ const (
 type Request struct {
 	Action Action
 	Device Device
-	// DesiredMountpoint is honoured only by ActionMountReadWrite, and only
-	// when it sits under a permitted media root.
+	// DesiredMountpoint is honoured only by ActionMountReadWrite. Unix targets
+	// must sit under a permitted media root; Windows targets must be a free,
+	// non-system drive-letter root.
 	DesiredMountpoint string
 	// AcknowledgeDataLoss must be set for a destructive action. The service
 	// enforces this independently of any caller-side confirmation, because a

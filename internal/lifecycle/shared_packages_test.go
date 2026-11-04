@@ -3,6 +3,7 @@ package lifecycle
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -639,7 +640,7 @@ func TestProvisionSelectedProtoArtifactDoesNotRunMutableSourceGeneration(t *test
 	if _, err := store.Publish(context.Background(), protogen.Candidate{Metadata: metadata, SourceRoot: generated}); err != nil {
 		t.Fatal(err)
 	}
-	dependency := sharedPackageDependency{Name: "proto", Root: packageRoot, Generation: []packagegov.CommandSpec{{Name: "generate", Run: []string{"this-command-must-not-run"}, Outputs: []string{"gen/**"}}}}
+	dependency := sharedPackageDependency{Name: "proto", Root: packageRoot, Generation: []packagegov.CommandSpec{{Name: "generate", Run: []string{"this-command-must-not-run"}, Outputs: []string{"gen/**"}, ArtifactSelection: protoArtifactSelection}}}
 	var log bytes.Buffer
 	if err := provisionSharedPackageWithOptions(dependency, &log, &log, sharedPackageProvisionOptions{Context: context.Background(), Home: home, Scenario: "command-center"}); err != nil {
 		t.Fatal(err)
@@ -778,5 +779,158 @@ func TestSharedPackageOutputsFreshDetectsDeletedOutput(t *testing.T) {
 	}
 	if fresh {
 		t.Fatal("a deleted output must invalidate freshness so it can be regenerated")
+	}
+}
+
+func TestProtoConsumedDigestIgnoresCompatibilityMarkerButTracksGeneratedBytes(t *testing.T) {
+	root := t.TempDir()
+	home := t.TempDir()
+	artifactRoot := filepath.Join(home, "proto-artifacts")
+	t.Setenv(protoArtifactRootEnv, artifactRoot)
+	if err := os.MkdirAll(artifactRoot, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	activePath := filepath.Join(artifactRoot, "active.json")
+	if err := os.WriteFile(activePath, []byte(`{"artifact_id":"one"}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	patterns := []string{"gen/**"}
+	generatedPath := filepath.Join(root, "gen", "typescript", "demo", "demo_pb.ts")
+	markerPath := filepath.Join(root, "gen", filepath.Base(ProtoArtifactStampPath))
+	for _, dir := range []string{filepath.Dir(generatedPath), filepath.Dir(markerPath)} {
+		if err := os.MkdirAll(dir, 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := os.WriteFile(generatedPath, []byte("export const version = 1;\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(markerPath, []byte(`{"artifact_id":"one","source_digest":"source-one"}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	command := packagegov.CommandSpec{
+		Name:              "generate",
+		Run:               []string{"unused"},
+		Outputs:           patterns,
+		ArtifactSelection: protoArtifactSelection,
+	}
+	dependency := sharedPackageDependency{Name: "proto", Root: root, Generation: []packagegov.CommandSpec{command}}
+	if err := recordSharedPackageStamp(home, dependency, command); err != nil {
+		t.Fatalf("record proto output stamp: %v", err)
+	}
+	stampPath, err := sharedPackageStampPath(home, root, command.Name)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, found, err := readSharedPackageStamp(stampPath)
+	if err != nil || !found {
+		t.Fatalf("read output stamp: found=%v err=%v", found, err)
+	}
+	// Model an existing stamp written with the previous all-output digest. The
+	// candidate must recognize that digest as old semantics and recompute it.
+	allOutputs, err := declaredOutputFiles(root, patterns)
+	if err != nil {
+		t.Fatal(err)
+	}
+	legacyDigest, err := sharedPackageOutputsContentDigest(root, allOutputs)
+	if err != nil {
+		t.Fatal(err)
+	}
+	legacyStamp, err := os.ReadFile(stampPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var legacyFields map[string]any
+	if err := json.Unmarshal(legacyStamp, &legacyFields); err != nil {
+		t.Fatal(err)
+	}
+	delete(legacyFields, "output_content_digest_version")
+	legacyFields["output_content_digest"] = legacyDigest
+	legacyStamp, err = json.Marshal(legacyFields)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(stampPath, legacyStamp, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	fresh, err := sharedPackageOutputsFresh(home, root, command.Name, patterns, command.Inputs, command.Ignore, []string{command.ArtifactSelection})
+	if err != nil || !fresh {
+		t.Fatalf("recorded Proto output set should be fresh: fresh=%v err=%v", fresh, err)
+	}
+
+	deps := &hostProbeDeps{userHomeDir: func() (string, error) { return home, nil }}
+	before, err := sharedPackageConsumedDigest(root, command.Name, patterns, deps)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(markerPath, []byte(`{"artifact_id":"two","source_digest":"source-two"}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	afterMarkerChange, err := sharedPackageConsumedDigest(root, command.Name, patterns, deps)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if before != afterMarkerChange {
+		t.Fatalf("compatibility selection marker changed consumer digest: before=%s after=%s", before, afterMarkerChange)
+	}
+	upgradedStamp, err := os.ReadFile(stampPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var upgradedFields map[string]any
+	if err := json.Unmarshal(upgradedStamp, &upgradedFields); err != nil {
+		t.Fatal(err)
+	}
+	if got := upgradedFields["output_content_digest_version"]; got != float64(2) {
+		t.Fatalf("upgraded output content digest version = %v, want %d", got, 2)
+	}
+
+	if err := os.WriteFile(activePath, []byte(`{"artifact_id":"two"}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	fresh, err = sharedPackageOutputsFresh(home, root, command.Name, patterns, command.Inputs, command.Ignore, []string{command.ArtifactSelection})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if fresh {
+		t.Fatal("changed active Proto selection must invalidate the generator's freshness stamp")
+	}
+	afterSelectionChange, err := sharedPackageConsumedDigest(root, command.Name, patterns, deps)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if before != afterSelectionChange {
+		t.Fatalf("selection-only change changed consumer digest: before=%s after=%s", before, afterSelectionChange)
+	}
+
+	if err := os.WriteFile(generatedPath, []byte("export const version = 2;\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	afterGeneratedChange, err := sharedPackageConsumedDigest(root, command.Name, patterns, deps)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if afterGeneratedChange == before {
+		t.Fatal("changed generated TypeScript bytes must invalidate the consumer digest")
+	}
+	if err := recordSharedPackageStamp(home, dependency, command); err != nil {
+		t.Fatalf("record current Proto output set before marker removal: %v", err)
+	}
+	fresh, err = sharedPackageOutputsFresh(home, root, command.Name, patterns, command.Inputs, command.Ignore, []string{command.ArtifactSelection})
+	if err != nil || !fresh {
+		t.Fatalf("current Proto output set should be fresh before marker removal: fresh=%v err=%v", fresh, err)
+	}
+
+	if err := os.Remove(markerPath); err != nil {
+		t.Fatal(err)
+	}
+	fresh, err = sharedPackageOutputsFresh(home, root, command.Name, patterns, command.Inputs, command.Ignore, []string{command.ArtifactSelection})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if fresh {
+		t.Fatal("missing compatibility marker must still invalidate the generator output set")
 	}
 }

@@ -132,7 +132,7 @@ func CommandSpecs() []commandtree.Spec[CommandID] {
 			Name: string(CommandStart), Group: "Lifecycle and Utility Commands", Summary: "Start a scenario", Handler: CommandStart, Suggestable: true, RootPolicy: commandtree.RootPolicy{RequiresRoot: true, CanRunWithoutRoot: HelpOnlyWithoutRoot},
 			Args: commandtree.ArgSchema{
 				Positionals: []commandtree.PositionalArg{{Name: "scenario name", Required: true, Repeatable: true}},
-				Options:     []commandtree.OptionArg{{Name: "--path", ValueName: "path"}, {Name: "--best-effort"}, {Name: "--clean-stale"}, {Name: "--demand-managed", Description: "Tie this instance to renewable demand leases"}, {Name: "--force", Description: "Rebuild artifacts even when their inputs are fresh"}, {Name: "--accept-credential-loss", Description: "Explicitly permit witnessed generated-credential replacement"}, {Name: "--variant-dependencies", ValueName: "scenarios", Description: "Comma-separated dependencies this non-live instance resolves at its own variant instead of live (no live fallback)"}, {Name: "--force-lifecycle", Description: "Emergency restart: override drain-only lifecycle blockers"}, {Name: "--lifecycle-override-reason", ValueName: "reason", Description: "Audit reason required with --force-lifecycle"}, {Name: "--open"}, {Name: "--timeout", ValueName: "seconds", Description: "Ceiling for the whole start (not the expected duration); on expiry exit 124 — the operation record stays honest and the next start/wait resumes"}, commandtree.JSONOption(), instanceOption(), nodeOption()},
+				Options:     []commandtree.OptionArg{{Name: "--path", ValueName: "path"}, {Name: "--best-effort"}, {Name: "--clean-stale"}, {Name: "--demand-managed", Description: "Tie this instance to renewable demand leases"}, {Name: "--force", Description: "Rebuild artifacts even when their inputs are fresh"}, {Name: "--accept-credential-loss", Description: "Explicitly permit witnessed generated-credential replacement"}, {Name: "--variant-dependencies", ValueName: "scenarios", Description: "Comma-separated dependencies this non-live instance resolves at its own variant instead of live (no live fallback)"}, {Name: "--open"}, {Name: "--timeout", ValueName: "seconds", Description: "Ceiling for the whole start (not the expected duration); on expiry exit 124 — the operation record stays honest and the next start/wait resumes"}, commandtree.JSONOption(), instanceOption(), nodeOption()},
 			},
 		},
 		{
@@ -147,7 +147,7 @@ func CommandSpecs() []commandtree.Spec[CommandID] {
 			Name: string(CommandRestart), Group: "Lifecycle and Utility Commands", Summary: "Restart a scenario", Handler: CommandRestart, Suggestable: true, RootPolicy: commandtree.RootPolicy{RequiresRoot: true, CanRunWithoutRoot: HelpOnlyWithoutRoot},
 			Args: commandtree.ArgSchema{
 				Positionals: []commandtree.PositionalArg{{Name: "scenario name", Required: true}},
-				Options:     []commandtree.OptionArg{{Name: "--path", ValueName: "path"}, {Name: "--best-effort"}, {Name: "--clean-stale"}, {Name: "--demand-managed", Description: "Tie this instance to renewable demand leases"}, {Name: "--force", Description: "Rebuild artifacts even when their inputs are fresh"}, {Name: "--accept-credential-loss", Description: "Explicitly permit witnessed generated-credential replacement"}, {Name: "--variant-dependencies", ValueName: "scenarios", Description: "Comma-separated dependencies this non-live instance resolves at its own variant instead of live (no live fallback)"}, {Name: "--force-lifecycle", Description: "Emergency restart: override drain-only lifecycle blockers"}, {Name: "--lifecycle-override-reason", ValueName: "reason", Description: "Audit reason required with --force-lifecycle"}, {Name: "--open"}, {Name: "--timeout", ValueName: "seconds", Description: "Ceiling for the whole restart; on expiry exit 124 — the operation record stays honest and the next start/wait resumes"}, {Name: restartDeployReportFlag, Description: "Print the deploy report (changes since the running build) to stderr before restarting"}, commandtree.JSONOption(), instanceOption(), nodeOption()},
+				Options:     []commandtree.OptionArg{{Name: "--path", ValueName: "path"}, {Name: "--best-effort"}, {Name: "--clean-stale"}, {Name: "--demand-managed", Description: "Tie this instance to renewable demand leases"}, {Name: "--force", Description: "Rebuild artifacts even when their inputs are fresh"}, {Name: "--accept-credential-loss", Description: "Explicitly permit witnessed generated-credential replacement"}, {Name: "--variant-dependencies", ValueName: "scenarios", Description: "Comma-separated dependencies this non-live instance resolves at its own variant instead of live (no live fallback)"}, {Name: "--force-lifecycle", Description: "Accept lifecycle replacement risk, including missing owner proof"}, {Name: "--lifecycle-override-reason", ValueName: "reason", Description: "Audited reason required with --force-lifecycle"}, {Name: "--open"}, {Name: "--timeout", ValueName: "seconds", Description: "Ceiling for the whole restart; on expiry exit 124 — the operation record stays honest and the next start/wait resumes"}, {Name: restartDeployReportFlag, Description: "Print the deploy report (changes since the running build) to stderr before restarting"}, commandtree.JSONOption(), instanceOption(), nodeOption()},
 			},
 		},
 		{
@@ -343,8 +343,12 @@ func splitListFlag(value string) []string {
 }
 
 func ParseScenarioStartArgs(defaultJSON bool, args []string) (ScenarioStartArgs, error) {
-	spec := commandSpec(CommandStart)
-	parsed, err := commandtree.ParseArgs("scenario start", commandHelpText(CommandStart), spec.Args, args)
+	return parseScenarioStartArgs("start", CommandStart, defaultJSON, args)
+}
+
+func parseScenarioStartArgs(command string, commandID CommandID, defaultJSON bool, args []string) (ScenarioStartArgs, error) {
+	spec := commandSpec(commandID)
+	parsed, err := commandtree.ParseArgs("scenario "+command, commandHelpText(commandID), spec.Args, args)
 	if err != nil {
 		return ScenarioStartArgs{}, err
 	}
@@ -364,7 +368,7 @@ func ParseScenarioStartArgs(defaultJSON bool, args []string) (ScenarioStartArgs,
 		OpenAfter: parsed.HasFlag("--open"),
 	}
 	if out.Options.ForceLifecycle && strings.TrimSpace(out.Options.LifecycleOverrideReason) == "" {
-		return ScenarioStartArgs{}, clipolicy.UsageErrorf("scenario start", "--lifecycle-override-reason is required with --force-lifecycle")
+		return ScenarioStartArgs{}, clipolicy.UsageErrorf("scenario "+command, "--lifecycle-override-reason is required with --force-lifecycle")
 	}
 	if raw := strings.TrimSpace(parsed.FlagValue("--timeout")); raw != "" {
 		out.TimeoutSeconds, err = strconv.Atoi(raw)
@@ -386,7 +390,11 @@ func ParseScenarioStartArgs(defaultJSON bool, args []string) (ScenarioStartArgs,
 }
 
 func ParseScenarioSingleStartArgs(command string, defaultJSON bool, args []string) (ScenarioStartArgs, error) {
-	parsed, err := ParseScenarioStartArgs(defaultJSON, args)
+	commandID := CommandStart
+	if command == "restart" {
+		commandID = CommandRestart
+	}
+	parsed, err := parseScenarioStartArgs(command, commandID, defaultJSON, args)
 	if err != nil {
 		return ScenarioStartArgs{}, err
 	}

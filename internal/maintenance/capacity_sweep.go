@@ -70,30 +70,30 @@ func openCapacityStoreIfPresent(ctx context.Context, home string) (capacitySweep
 // a claim it cannot verify against the GPU, or a transient nvidia-smi hiccup
 // would strand a live resident; the next pass recovers. Expired claims are
 // surfaced as StopReport items so the cleanup is observable (no silent caps).
-func (c *Controller) sweepCapacityClaims(ctx context.Context) ([]control.ResultItem, error) {
+func (c *Controller) sweepCapacityClaims(ctx context.Context) (control.StopReport, error) {
 	store, err := openCapacityStoreFn(ctx, c.Home)
 	if err != nil || store == nil {
-		return nil, err
+		return control.StopReport{}, err
 	}
 	defer store.Close()
 
 	policy, err := store.GetPolicy(ctx)
 	if err != nil {
-		return nil, err
+		return control.StopReport{}, err
 	}
 	snapshot, err := capacitySnapshotFn(ctx)
 	if err != nil {
 		// Sensing unavailable: skip the sweep entirely (never expire unverified).
-		return nil, nil
+		return control.StopReport{}, nil
 	}
 	now := capacityNowFn()
 	result, err := capacitySweepFn(ctx, store, snapshot, capacityAttributorFn(), policy, now)
 	if err != nil {
-		return nil, err
+		return control.StopReport{}, err
 	}
-	items := make([]control.ResultItem, 0, len(result.Expired)+1)
+	report := control.StopReport{}
 	for _, claim := range result.Expired {
-		items = append(items, control.Stopped(claim.OwnerID, "Expired stale capacity claim "+claim.ClaimID))
+		report.Observed = append(report.Observed, control.ResultItem{Name: claim.OwnerID, Message: "Expired stale capacity claim " + claim.ClaimID})
 	}
 	// Autonomous idle-unload (plan §Phase 3 keystone): proactively free VRAM from
 	// claims idle beyond their idle_unload_ttl, accepting a cold start on next use.
@@ -101,37 +101,16 @@ func (c *Controller) sweepCapacityClaims(ctx context.Context) ([]control.ResultI
 	// enforce=on actuates through the degrade path (debounce-respected, fail-open).
 	// GC + sampling above stay safe regardless.
 	enforce := capacityEnforceFn(policy)
-	if active, listErr := store.ListClaims(ctx, capacity.ClaimFilter{Statuses: capacity.ActiveClaimStatuses()}); listErr == nil {
-		plan, _, _ := capacity.RunIdleUnload(ctx, store, active, capacityExecFn(), policy, enforce, now)
-		for _, a := range plan.Actions {
-			if a.Action != capacity.ActionRequestDegrade {
-				continue
-			}
-			verb := "would idle-unload (advisory)"
-			if enforce == capacity.EnforceOn {
-				verb = "idle-unloaded"
-			}
-			items = append(items, control.Stopped(a.OwnerID, fmt.Sprintf("%s claim %s to %q", verb, a.ClaimID, a.ToStep)))
-		}
-
-		// Capacity upshift (§8.8 hysteresis): a claim degraded under earlier GPU
-		// pressure should climb back toward its preferred size once the contending
-		// consumer frees VRAM and the claim is idle, so it is ready before its owner
-		// is next used. Symmetric to idle-unload and gated identically — advisory
-		// surfaces the would-upshift recommendation (non-acting), enforce=on actuates
-		// through the adopter's resize verb (--upshift). Reuses the snapshot the
-		// sweep already collected for per-GPU free-headroom accounting.
-		upPlan, _, _ := capacity.RunUpshift(ctx, store, active, snapshot, capacityExecFn(), policy, enforce, now)
-		for _, a := range upPlan.Actions {
-			if a.Action != capacity.ActionRequestUpshift {
-				continue
-			}
-			verb := "would upshift (advisory)"
-			if enforce == capacity.EnforceOn {
-				verb = "upshifted"
-			}
-			items = append(items, control.Started(a.OwnerID, fmt.Sprintf("%s claim %s to %q", verb, a.ClaimID, a.ToStep)))
-		}
+	active, listErr := store.ListClaims(ctx, capacity.ClaimFilter{Statuses: capacity.ActiveClaimStatuses()})
+	if listErr != nil {
+		report.Failed = append(report.Failed, control.Failed("capacity-actions", listErr))
+	} else {
+		plan, outcomes, runErr := capacity.RunIdleUnload(ctx, store, active, capacityExecFn(), policy, enforce, now)
+		appendCapacityOutcomes(&report, plan, outcomes, runErr, enforce, "idle-unload", true)
+		// Preserve the pre-action cohort: an unload must not immediately plan its
+		// own reversal. Actuation still validates every captured generation.
+		upPlan, upOutcomes, upErr := capacity.RunUpshift(ctx, store, active, snapshot, capacityExecFn(), policy, enforce, now)
+		appendCapacityOutcomes(&report, upPlan, upOutcomes, upErr, enforce, "upshift", false)
 	}
 
 	// Claim-on-observe adoption (plan §Phase 6): an observed GPU consumer whose
@@ -144,7 +123,7 @@ func (c *Controller) sweepCapacityClaims(ctx context.Context) ([]control.ResultI
 	}
 	if adopted, adoptErr := capacity.AdoptObservedResidents(ctx, store, snapshot, capacityAttributorFn(), policy, loadSpec, now); adoptErr == nil {
 		for _, cl := range adopted {
-			items = append(items, control.Started(cl.OwnerID, "Adopted declared resident into capacity ledger ("+cl.ClaimID+")"))
+			report.Observed = append(report.Observed, control.ResultItem{Name: cl.OwnerID, Message: "Adopted declared resident into capacity ledger (" + cl.ClaimID + ")"})
 		}
 	}
 
@@ -153,7 +132,7 @@ func (c *Controller) sweepCapacityClaims(ctx context.Context) ([]control.ResultI
 	// Always safe (frees no live capacity); disabled when retention <= 0.
 	if policy.TerminalRetention > 0 {
 		if gc, gcErr := store.GCTerminalClaims(ctx, now.Add(-policy.TerminalRetention)); gcErr == nil && gc.Count > 0 {
-			items = append(items, control.Stopped("capacity", fmt.Sprintf("Pruned %d terminal capacity claim(s) past retention", gc.Count)))
+			report.Observed = append(report.Observed, control.ResultItem{Name: "capacity", Message: fmt.Sprintf("Pruned %d terminal capacity claim(s) past retention", gc.Count)})
 		}
 	}
 	// A ledger that stays large after a prune is not a retention problem, it is
@@ -161,9 +140,58 @@ func (c *Controller) sweepCapacityClaims(ctx context.Context) ([]control.ResultI
 	// because something is creating one per state change. Retention alone will
 	// never catch up with that, so say so rather than pruning quietly forever.
 	if warning := ledgerSizeWarning(ctx, store); warning != "" {
-		items = append(items, control.Stopped("capacity", warning))
+		report.Observed = append(report.Observed, control.ResultItem{Name: "capacity", Message: warning})
 	}
-	return items, nil
+	return report, nil
+}
+
+// appendCapacityOutcomes distinguishes a proposal from a completed callback.
+// Upshift and ledger changes are observations, never stopped resources.
+func appendCapacityOutcomes(report *control.StopReport, plan capacity.EscalationPlan, result capacity.ActuationResult, runErr error, enforce, verb string, stopEffect bool) {
+	for _, action := range plan.Actions {
+		context := fmt.Sprintf("%s claim %s to %q", verb, action.ClaimID, action.ToStep)
+		if enforce != capacity.EnforceOn {
+			report.Observed = append(report.Observed, control.ResultItem{Name: action.OwnerID, Message: "would " + context + " (" + enforce + ")"})
+			continue
+		}
+		var outcome *capacity.ActuationOutcome
+		for i := range result.Outcomes {
+			o := &result.Outcomes[i]
+			if o.ClaimID == action.ClaimID && o.Action == action.Action && o.ToStep == action.ToStep {
+				outcome = o
+				break
+			}
+		}
+		if outcome == nil {
+			cause := runErr
+			if cause == nil {
+				cause = fmt.Errorf("actuator returned no outcome")
+			}
+			report.Failed = append(report.Failed, control.Failed(action.OwnerID, fmt.Errorf("%s not completed: %w", context, cause)))
+			continue
+		}
+		if outcome.Err != "" {
+			report.Failed = append(report.Failed, control.Failed(action.OwnerID, fmt.Errorf("%s failed: %s", context, outcome.Err)))
+			continue
+		}
+		if outcome.Applied {
+			completed := "upshifted"
+			if stopEffect {
+				completed = "idle-unloaded"
+			}
+			item := control.ResultItem{Name: action.OwnerID, Message: fmt.Sprintf("%s claim %s to %q", completed, action.ClaimID, action.ToStep)}
+			if stopEffect {
+				report.Stopped = append(report.Stopped, item)
+			} else {
+				report.Observed = append(report.Observed, item)
+			}
+			continue
+		}
+		report.Observed = append(report.Observed, control.ResultItem{Name: action.OwnerID, Message: "skipped " + context + ": " + outcome.Reason})
+	}
+	if runErr != nil && len(plan.Actions) == 0 {
+		report.Failed = append(report.Failed, control.Failed("capacity-actions", runErr))
+	}
 }
 
 // LedgerSizeWarnThreshold is the claim count above which a post-prune ledger is

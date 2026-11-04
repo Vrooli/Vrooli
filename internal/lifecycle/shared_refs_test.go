@@ -96,8 +96,15 @@ func TestSharedSourceRootsResolvesBASShapedScenario(t *testing.T) {
 		t.Fatalf("SharedSourceRoots: %v", err)
 	}
 	got := map[string]string{}
+	var keptOutputs []string
 	for _, root := range roots {
 		got[root.Path] = root.Reason
+		if root.Path == "packages/widgets" {
+			keptOutputs = root.KeepOutputs
+		}
+	}
+	if len(keptOutputs) != 1 || keptOutputs[0] != "dist" {
+		t.Fatalf("declared build outputs were not carried into the capture: %v", keptOutputs)
 	}
 	for _, want := range []string{
 		"go.mod",                        // the replaced repository module

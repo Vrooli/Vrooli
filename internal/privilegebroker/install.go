@@ -118,6 +118,9 @@ func (i Installer) Install(ctx context.Context) (SetupStatus, error) {
 	if err != nil {
 		return SetupStatus{}, fmt.Errorf("resolve broker runtime-home root: %w", err)
 	}
+	if err := installLocalAdmissionPolicy(ctx, i.RepoRoot, uint32(uid)); err != nil {
+		return SetupStatus{}, fmt.Errorf("install local-service admission policy: %w", err)
+	}
 	if strings.TrimSpace(i.Executable) == "" {
 		return SetupStatus{}, fmt.Errorf("resolve broker executable: empty path")
 	}
@@ -184,6 +187,7 @@ After=network.target
 [Service]
 Type=simple
 User=root
+Environment=LC_ALL=C TMPDIR=/run/vrooli
 ExecStart=%s __privilege-broker serve --socket %s --allowed-uid %d --socket-gid %d --audit-path %s%s
 Restart=on-failure
 RestartSec=2s
@@ -194,6 +198,8 @@ LogsDirectoryMode=750
 NoNewPrivileges=true
 # Temporary activity must be observed against the host namespace. Give it
 # read-only visibility rather than a private, empty temporary filesystem.
+# UFW persists rules through Python temporary files. TMPDIR points to the
+# existing managed writable runtime directory; host temporary roots stay read-only.
 PrivateTmp=false
 ReadOnlyPaths=/tmp /var/tmp
 ProtectHome=false
@@ -201,7 +207,7 @@ ProtectSystem=strict
 # UFW creates this lock even for read-only status requests, and writes its
 # managed rules below /etc/ufw. The lock does not exist until UFW is used, so
 # its path must be optional or systemd refuses to start the broker.
-ReadWritePaths=/run/vrooli -/run/ufw.lock /etc/ufw /var/log/vrooli
+ReadWritePaths=/run/vrooli -/run/ufw.lock /etc/ufw /var/log/vrooli /var/lib/vrooli/local-service-admission
 
 [Install]
 WantedBy=multi-user.target

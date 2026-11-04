@@ -81,7 +81,7 @@ type Options struct {
 	// auto classification; the CLI parser supplies the explicit five modes.
 	Onboarding onboardinghandoff.Mode
 	// Subcommand selects an alternate setup mode. Empty string runs the
-	// default apply flow. Recognized values: "status", "explain".
+	// default apply flow. Recognized values: "status", "explain", "broker".
 	Subcommand string
 	// Phase selects which declared safeguard phase `setup status` inspects.
 	// Empty means "setup" (everything setup would converge). "readiness"
@@ -238,6 +238,9 @@ func RunSetupWithOptions(root, home string, opts Options, stdout, stderr io.Writ
 }
 
 func (s *setupService) RunSetupWithOptions(root, home string, opts Options, stdout, stderr io.Writer) (err error) {
+	if opts.Subcommand == "broker" {
+		return s.runSetupBroker(root, opts, stdout, stderr)
+	}
 	if opts.Selection == nil && strings.TrimSpace(opts.SelectionB64) != "" {
 		selection, decodeErr := DecodeSelectionB64(opts.SelectionB64)
 		if decodeErr != nil {

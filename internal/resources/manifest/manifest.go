@@ -189,11 +189,25 @@ type ResourceStorage struct {
 }
 
 type ResourceStorageEntry struct {
+	Budget      *ResourceStorageBudget     `json:"budget,omitempty"`
+	Reclaim     *ResourceStorageReclaim    `json:"reclaim,omitempty"`
 	Kind        string                     `json:"kind,omitempty"`
 	Class       string                     `json:"class,omitempty"`
 	Regenerable bool                       `json:"regenerable,omitempty"`
 	Subpath     string                     `json:"subpath,omitempty"`
 	Relocation  *ResourceStorageRelocation `json:"relocation,omitempty"`
+}
+
+type ResourceStorageBudget struct {
+	MaxAge string `json:"max_age,omitempty"`
+}
+
+type ResourceStorageReclaim struct {
+	// GeneratedFiles names exact files, relative to the owned storage entry,
+	// reconstructed by the custom owner beside acquired data. No globs.
+	GeneratedFiles []string `json:"generated_files,omitempty"`
+	Pruner         string   `json:"pruner,omitempty"`
+	Command        string   `json:"command,omitempty"`
 }
 
 type ResourceStorageRelocation struct {
@@ -359,9 +373,10 @@ type ResourceVolume struct {
 }
 
 type ResourceLifecycle struct {
-	StartTimeoutSeconds int `json:"start_timeout_seconds,omitempty"`
-	StopTimeoutSeconds  int `json:"stop_timeout_seconds,omitempty"`
-	Retries             int `json:"retries,omitempty"`
+	ExclusiveGroup      string `json:"exclusive_group,omitempty"`
+	StartTimeoutSeconds int    `json:"start_timeout_seconds,omitempty"`
+	StopTimeoutSeconds  int    `json:"stop_timeout_seconds,omitempty"`
+	Retries             int    `json:"retries,omitempty"`
 }
 
 type ResourceManifestCapabilities struct {
@@ -382,46 +397,53 @@ func DefaultPath(root, name string) string {
 }
 
 func readManifest(path string) (ResourceManifest, error) {
-	m, _, err := readManifestSnapshot(path)
-	return m, err
-}
-func readManifestSnapshot(path string) (ResourceManifest, []byte, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
-		return ResourceManifest{}, nil, fmt.Errorf("read resource manifest %s: %w", path, err)
+		return ResourceManifest{}, fmt.Errorf("read resource manifest %s: %w", path, err)
 	}
+	return parseManifest(path, data)
+}
+
+// parseManifest is shared by path-based runtime readers and preparation's
+// guarded byte reader, so credential and wire parsing cannot diverge.
+func parseManifest(path string, data []byte) (ResourceManifest, error) {
 	if err := repocontract.ValidateCredentialDescriptorUniqueness(data, path); err != nil {
-		return ResourceManifest{}, nil, fmt.Errorf("validate credentials in %s: %w", path, err)
+		return ResourceManifest{}, fmt.Errorf("validate credentials in %s: %w", path, err)
 	}
 	var manifest ResourceManifest
 	if err := json.Unmarshal(data, &manifest); err != nil {
-		return ResourceManifest{}, nil, fmt.Errorf("parse resource manifest %s: %w", path, err)
+		return ResourceManifest{}, fmt.Errorf("parse resource manifest %s: %w", path, err)
 	}
-	return manifest, data, nil
+	return manifest, nil
 }
 
-func Load(path string) (ResourceManifest, error) { return loadValidated(path, false) }
-
-// LoadForComposeCandidate permits only missing composed output digests; every
-// normal contract/input check remains active. This is never an install loader.
-func LoadForComposeCandidate(path string) (ResourceManifest, error) { return loadValidated(path, true) }
-
-func loadValidated(path string, candidate bool) (ResourceManifest, error) {
-	m, _, err := loadValidatedSnapshot(path, candidate)
-	return m, err
-}
-func loadValidatedSnapshot(path string, candidate bool) (ResourceManifest, []byte, error) {
-	manifest, data, err := readManifestSnapshot(path)
+func Load(path string) (ResourceManifest, error) {
+	manifest, err := readManifest(path)
 	if err != nil {
-		return ResourceManifest{}, nil, err
+		return ResourceManifest{}, err
 	}
+	return validateLoadedManifest(path, manifest, false)
+}
+
+// ParseForComposeCandidate permits only missing composed output digests. Its
+// caller owns safe bounded acquisition of these exact bytes; it never reopens
+// the manifest path or grants install authority.
+func ParseForComposeCandidate(path string, data []byte) (ResourceManifest, error) {
+	manifest, err := parseManifest(path, data)
+	if err != nil {
+		return ResourceManifest{}, err
+	}
+	return validateLoadedManifest(path, manifest, true)
+}
+
+func validateLoadedManifest(path string, manifest ResourceManifest, candidate bool) (ResourceManifest, error) {
 	if err := validateManifest(manifest, candidate); err != nil {
-		return ResourceManifest{}, nil, fmt.Errorf("validate resource manifest %s: %w", path, err)
+		return ResourceManifest{}, fmt.Errorf("validate resource manifest %s: %w", path, err)
 	}
 	if err := validateMaterializedPolicySteps(path, manifest); err != nil {
-		return ResourceManifest{}, nil, fmt.Errorf("validate resource manifest %s: %w", path, err)
+		return ResourceManifest{}, fmt.Errorf("validate resource manifest %s: %w", path, err)
 	}
-	return manifest, data, nil
+	return manifest, nil
 }
 
 func Validate(manifest ResourceManifest) error { return validateManifest(manifest, false) }
@@ -473,6 +495,11 @@ func validateManifestContract(manifest ResourceManifest) error {
 }
 
 func validateManifestFeatures(manifest ResourceManifest) error {
+	if group := manifest.Lifecycle.ExclusiveGroup; group != "" {
+		if manifest.Driver != manifestManagedService || !regexp.MustCompile(`^[a-z][a-z0-9-]{0,63}$`).MatchString(group) {
+			return fmt.Errorf("lifecycle.exclusive_group requires a managed-service and a lowercase group identifier (1..64 characters)")
+		}
+	}
 	for _, capability := range manifest.OperatorCapabilities {
 		if err := capability.Validate(); err != nil {
 			return fmt.Errorf("validate operator capability %q: %w", capability.CapabilityID, err)

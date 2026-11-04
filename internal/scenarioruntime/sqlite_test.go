@@ -268,7 +268,7 @@ func TestFreshInstallAppliesFullSchema(t *testing.T) {
 		"runtime_instances":   {"variant", "supervision_policy", "schema_version"},
 		"runtime_port_claims": {"variant", "listener_status", "listener_process_label"},
 		"runtime_start_operations": {
-			"operation_id", "scenario", "variant", "status", "verdict",
+			"operation_id", "fence_operation_id", "scenario", "variant", "status", "verdict",
 			"current_step", "dependency_current", "dependency_index",
 			"dependency_total", "steps_json",
 		},

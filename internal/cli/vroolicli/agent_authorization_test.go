@@ -1,8 +1,10 @@
 package vroolicli
 
 import (
+	"encoding/json"
 	"testing"
 
+	"github.com/vrooli/vrooli/internal/agentsession"
 	"github.com/vrooli/vrooli/internal/scenarioruntime"
 )
 
@@ -41,6 +43,31 @@ func TestAuthorizationSelectorAcceptsScopeAndPID(t *testing.T) {
 		if lease, err := selectAuthorizationLease(leases, selector); err != nil || lease.SessionID != "e03eeb2e" {
 			t.Fatalf("selector %q did not resolve the live lease: %v", selector, err)
 		}
+	}
+}
+
+func TestAuthorizationUsesOnlyLaunchRecordedWebConsoleLocator(t *testing.T) {
+	evidence, err := json.Marshal(agentsession.Evidence{
+		ReadFromPID: 42, WebConsoleSessionID: "wc-launch-1",
+		WebConsoleStateRoot: "/run/user/1000/web-console",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	lease := scenarioruntime.EditorLease{SessionID: "host-lease-1", PID: 42, Owner: scenarioruntime.EditorLeaseOwner{
+		Kind: agentsession.KindWebConsoleSession, Ref: "wc-launch-1", Source: agentsession.SourceLaunch, EvidenceJSON: string(evidence),
+	}}
+	if got := verifiedLaunchWebConsoleSessionID(lease); got != "wc-launch-1" {
+		t.Fatalf("launch-recorded locator = %q", got)
+	}
+	lease.Owner.Source = agentsession.SourceBackfill
+	if got := verifiedLaunchWebConsoleSessionID(lease); got != "" {
+		t.Fatalf("backfilled locator was forwarded: %q", got)
+	}
+	lease.Owner.Source = agentsession.SourceLaunch
+	lease.Owner.Ref = "different-session"
+	if got := verifiedLaunchWebConsoleSessionID(lease); got != "" {
+		t.Fatalf("mismatched owner locator was forwarded: %q", got)
 	}
 }
 

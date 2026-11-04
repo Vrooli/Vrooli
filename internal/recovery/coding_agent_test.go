@@ -6,6 +6,8 @@ import (
 	"sync/atomic"
 	"testing"
 	"time"
+
+	"github.com/vrooli/cli-core/agentcatalog/harness"
 )
 
 func TestCodingAgentBrokerDeduplicatesPersistsAndFallsBack(t *testing.T) {
@@ -73,4 +75,24 @@ func TestCodingAgentBrokerDeduplicatesPersistsAndFallsBack(t *testing.T) {
 		t.Fatal("next-window runner did not complete")
 	}
 	time.Sleep(20 * time.Millisecond)
+}
+
+// Which harnesses may run an unattended investigation is a decision, so a new
+// harness has to be placed on one side of it. Antigravity is left out: its live
+// enforcement canary and live detection check are still pending.
+func TestDefaultRunnersAccountForEveryDeclaredHarness(t *testing.T) {
+	excluded := map[string]bool{"agy": true}
+	included := map[string]bool{}
+	for _, runner := range DefaultCodingAgentRunners {
+		included[runner] = true
+	}
+	all := harness.Builtin().All()
+	for _, descriptor := range all {
+		if included[descriptor.ID] == excluded[descriptor.ID] {
+			t.Errorf("harness %q must be in exactly one of DefaultCodingAgentRunners and the exclusions", descriptor.ID)
+		}
+	}
+	if len(included)+len(excluded) != len(all) {
+		t.Errorf("%d default and %d excluded runners, but %d declared harnesses", len(included), len(excluded), len(all))
+	}
 }

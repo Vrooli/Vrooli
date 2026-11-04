@@ -276,3 +276,39 @@ func TestEncryptedStoreLockDiscardsTheCachedKey(t *testing.T) {
 		t.Fatalf("the store did not reopen after a lock: %q, %v", value, err)
 	}
 }
+
+// Explicit fixture stores must never alias each other or the host backend.
+func TestOpenEncryptedFileIsolatesAndReopens(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "credentials.enc")
+	first, err := OpenEncryptedFile(path, "synthetic passphrase")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := first.Put("fixture", "key", "synthetic secret"); err != nil {
+		t.Fatal(err)
+	}
+	second, err := OpenEncryptedFile(filepath.Join(t.TempDir(), "credentials.enc"), "synthetic passphrase")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := second.Get("fixture", "key"); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("isolated store: %v", err)
+	}
+	reopened, err := OpenEncryptedFile(path, "synthetic passphrase")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got, err := reopened.Get("fixture", "key"); err != nil || got != "synthetic secret" {
+		t.Fatalf("reopened store did not retain its own value: %v", err)
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(data), "synthetic secret") {
+		t.Fatal("credential stored in plaintext")
+	}
+	if _, err := OpenEncryptedFile(path, "wrong passphrase"); err == nil {
+		t.Fatal("wrong passphrase accepted")
+	}
+}

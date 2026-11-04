@@ -305,6 +305,22 @@ func collectOrphans(root, home string, processTable map[int]processTableEntry, t
 		if isControlPlaneAPIExecutable(entry) {
 			continue
 		}
+		// Leaked scenario-to-desktop bundle processes are only reapable once
+		// they have been orphaned to init (ppid==1). A bundle process still
+		// attached to a live parent (e.g. a desktop app actively running) is
+		// managed by that parent, so it is never targeted here — the ppid==1
+		// guard keeps the match conservative. The not-registry-claimed and
+		// not-agent-session conditions above already applied.
+		if isLeakedDesktopBundleProcess(entry) {
+			if entry.PPID == 1 {
+				orphans = append(orphans, SystemProcess{
+					PID:     entry.PID,
+					PPID:    entry.PPID,
+					Command: entry.Command,
+				})
+			}
+			continue
+		}
 		if isTrackedOrAncestorTracked(pid, tracked, trackedSIDs, processTable, memo, visiting) {
 			continue
 		}
