@@ -37,6 +37,7 @@ probes, development pprof, logs, and forensics.
 | GET | `/api/v1/metrics/processes` | Process monitoring data (zombies, high-thread, leak candidates) |
 | GET | `/api/v1/metrics/processes/timeline` | Ranked process consumers over a time window, grouped by owner/scenario |
 | GET | `/api/v1/forensics/processes` | Bounded CPU, RSS, or GPU-VRAM-ranked process attribution (`rank=cpu|rss|gpu`); accepts a 24-hour max explicit `start_utc`/`end_utc` RFC3339 interval |
+| GET | `/api/v1/forensics/process-samples` | Timestamped raw process observations for one required `owner` and exact RFC3339 `start_utc`/`end_utc` interval (maximum 24 hours); `limit` defaults to 1000 and is capped at 5000. Returns `truncated` when the result limit omits rows and `raw_retention_seconds` for the configured raw-sample window. Older observations may already be rolled up and are not returned here. Command lines and working directories are excluded. |
 | GET | `/api/v1/forensics/gpu` | Retained GPU utilization and VRAM timeline (`window=1h`) |
 | GET | `/api/v1/forensics/pressure` | Retained memory PSI and OOM-kill timeline (`window=1h`) |
 | GET | `/api/v1/metrics/infrastructure` | Infrastructure monitoring (DB pools, HTTP pools, queues, storage I/O) |

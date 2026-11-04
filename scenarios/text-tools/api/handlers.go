@@ -139,131 +139,48 @@ func (s *Server) AnalyzeHandlerV1(w http.ResponseWriter, r *http.Request) {
 
 // DiffHandlerV2 handles text diff requests (v2 with enhanced features)
 func (s *Server) DiffHandlerV2(w http.ResponseWriter, r *http.Request) {
-	var req DiffRequestV2
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		sendErrorResponseV2(w, "Invalid request body", http.StatusBadRequest)
-		return
-	}
-
-	// Enhanced validation
-	if err := req.Validate(); err != nil {
-		sendErrorResponseV2(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-
-	// Process diff with v2 enhancements
-	response := s.processDiffV2(req)
-
-	w.Header().Set("Content-Type", "application/json")
-	w.Header().Set("X-API-Version", "2.0")
-	json.NewEncoder(w).Encode(response)
+	handleV2(w, r, s.processDiffV2)
 }
 
 // SearchHandlerV2 handles text search requests (v2 with vector search)
 func (s *Server) SearchHandlerV2(w http.ResponseWriter, r *http.Request) {
-	var req SearchRequestV2
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		sendErrorResponseV2(w, "Invalid request body", http.StatusBadRequest)
-		return
-	}
-
-	// Enhanced validation
-	if err := req.Validate(); err != nil {
-		sendErrorResponseV2(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-
-	// Process search with v2 enhancements (including vector search)
-	response := s.processSearchV2(req)
-
-	w.Header().Set("Content-Type", "application/json")
-	w.Header().Set("X-API-Version", "2.0")
-	json.NewEncoder(w).Encode(response)
+	handleV2(w, r, s.processSearchV2)
 }
 
 // TransformHandlerV2 handles text transformation requests (v2 with chaining)
 func (s *Server) TransformHandlerV2(w http.ResponseWriter, r *http.Request) {
-	var req TransformRequestV2
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		sendErrorResponseV2(w, "Invalid request body", http.StatusBadRequest)
-		return
-	}
-
-	// Enhanced validation
-	if err := req.Validate(); err != nil {
-		sendErrorResponseV2(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-
-	// Process transformation with v2 chaining support
-	response := s.processTransformV2(req)
-
-	w.Header().Set("Content-Type", "application/json")
-	w.Header().Set("X-API-Version", "2.0")
-	json.NewEncoder(w).Encode(response)
+	handleV2(w, r, s.processTransformV2)
 }
 
 // ExtractHandlerV2 handles text extraction requests (v2 with streaming)
 func (s *Server) ExtractHandlerV2(w http.ResponseWriter, r *http.Request) {
-	var req ExtractRequestV2
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		sendErrorResponseV2(w, "Invalid request body", http.StatusBadRequest)
-		return
-	}
-
-	// Enhanced validation
-	if err := req.Validate(); err != nil {
-		sendErrorResponseV2(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-
-	// Process extraction with v2 streaming support
-	response := s.processExtractV2(req)
-
-	w.Header().Set("Content-Type", "application/json")
-	w.Header().Set("X-API-Version", "2.0")
-	json.NewEncoder(w).Encode(response)
+	handleV2(w, r, s.processExtractV2)
 }
 
 // AnalyzeHandlerV2 handles text analysis requests (v2 with AI enhancements)
 func (s *Server) AnalyzeHandlerV2(w http.ResponseWriter, r *http.Request) {
-	var req AnalyzeRequestV2
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		sendErrorResponseV2(w, "Invalid request body", http.StatusBadRequest)
-		return
-	}
-
-	// Enhanced validation
-	if err := req.Validate(); err != nil {
-		sendErrorResponseV2(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-
-	// Process analysis with v2 AI enhancements
-	response := s.processAnalyzeV2(req)
-
-	w.Header().Set("Content-Type", "application/json")
-	w.Header().Set("X-API-Version", "2.0")
-	json.NewEncoder(w).Encode(response)
+	handleV2(w, r, s.processAnalyzeV2)
 }
 
 // PipelineHandler handles text processing pipelines (v2 only)
 func (s *Server) PipelineHandler(w http.ResponseWriter, r *http.Request) {
-	var req PipelineRequest
+	handleV2(w, r, s.processPipeline)
+}
+
+func handleV2[Request any, Validatable interface {
+	*Request
+	Validate() error
+}, Response any](w http.ResponseWriter, r *http.Request, process func(Request) Response) {
+	var req Request
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		sendErrorResponseV2(w, "Invalid request body", http.StatusBadRequest)
 		return
 	}
-
-	// Validate pipeline
-	if err := req.Validate(); err != nil {
+	if err := Validatable(&req).Validate(); err != nil {
 		sendErrorResponseV2(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-
-	// Process pipeline
-	response := s.processPipeline(req)
-
+	response := process(req)
 	w.Header().Set("Content-Type", "application/json")
 	w.Header().Set("X-API-Version", "2.0")
 	json.NewEncoder(w).Encode(response)

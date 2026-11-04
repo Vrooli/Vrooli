@@ -480,6 +480,7 @@ func TestService_TurnCheckpoint_RecordsPendingReviewForRejectedChanges(t *testin
 
 	id := uuid.New()
 	existing := createTestSandbox(id, types.StatusActive)
+	existing.NoLock = true
 	existing.Behavior.Acceptance.Allow.PathGlobs = []string{"allowed.txt"}
 	repo.Sandboxes[id] = existing
 	drv.ChangedFiles = []*types.FileChange{{
@@ -513,6 +514,41 @@ func TestService_TurnCheckpoint_RecordsPendingReviewForRejectedChanges(t *testin
 	}
 	if row.AgentManagerRunID != "run-1" || row.ConversationID != "conv-1" {
 		t.Errorf("run/conversation provenance = %q/%q", row.AgentManagerRunID, row.ConversationID)
+	}
+}
+
+func TestAcceptanceRulesIndependentOfScopeLock(t *testing.T) {
+	// AUDITABILITY_CONTRACT.md: locking and acceptance are orthogonal.
+	// Disabling mutual exclusion must preserve both allow and deny rules.
+	for _, locking := range []struct {
+		name   string
+		noLock bool
+	}{
+		{name: "locked"},
+		{name: "unlocked", noLock: true},
+	} {
+		t.Run(locking.name, func(t *testing.T) {
+			sb := createTestSandbox(uuid.New(), types.StatusActive)
+			sb.ScopePath = sb.ProjectRoot
+			sb.NoLock = locking.noLock
+			sb.Behavior.Acceptance.Allow.PathGlobs = []string{"src/**"}
+			sb.Behavior.Acceptance.Deny.PathGlobs = []string{"src/secret.txt"}
+			for _, file := range []struct {
+				path string
+				want types.AcceptanceStatus
+			}{
+				{path: "src/allowed.txt", want: types.AcceptanceStatusAccepted},
+				{path: "src/secret.txt", want: types.AcceptanceStatusDenied},
+				{path: "docs/readme.txt", want: types.AcceptanceStatusIgnored},
+			} {
+				t.Run(file.path, func(t *testing.T) {
+					got := evaluateAcceptance(sb, &types.FileChange{FilePath: file.path, ChangeType: types.ChangeTypeModified})
+					if got == nil || got.Status != file.want {
+						t.Fatalf("acceptance = %+v, want %s", got, file.want)
+					}
+				})
+			}
+		})
 	}
 }
 

@@ -116,6 +116,49 @@ func TestMonitorService_ProcessTimelineInRangeRejectsUnboundedInterval(t *testin
 	}
 }
 
+func TestMonitorService_ProcessSamplesInRangeReportsTruncationAndExactBounds(t *testing.T) {
+	repo := memory.NewRepository()
+	start := time.Date(2026, 11, 3, 4, 0, 0, 0, time.UTC)
+	end := start.Add(30 * time.Second)
+	if err := repo.SaveProcessSamples(context.Background(), []repository.ProcessSample{
+		{Timestamp: start, PID: 1, Owner: "device-control", Comm: "api", CPUPct: 1, RSSKB: 100},
+		{Timestamp: start.Add(5 * time.Second), PID: 2, Owner: "device-control", Comm: "node", CPUPct: 2, RSSKB: 200},
+		{Timestamp: start.Add(10 * time.Second), PID: 3, Owner: "other", Comm: "other"},
+		{Timestamp: end, PID: 4, Owner: "device-control", Comm: "outside"},
+	}); err != nil {
+		t.Fatalf("save samples: %v", err)
+	}
+	svc := newSamplingService(t, nil, repo, &StubClock{current: end.Add(time.Hour)})
+	rows, truncated, err := svc.GetProcessSamplesInRange(context.Background(), start, end, "device-control", 1)
+	if err != nil {
+		t.Fatalf("query process samples: %v", err)
+	}
+	if len(rows) != 1 || rows[0].PID != 1 || !truncated {
+		t.Fatalf("rows=%#v truncated=%v, want first in-range sample and explicit truncation", rows, truncated)
+	}
+}
+
+func TestMonitorService_ProcessSamplesInRangeRejectsMissingOwnerAndLongWindow(t *testing.T) {
+	svc := newSamplingService(t, nil, memory.NewRepository(), &StubClock{current: time.Now()})
+	start := time.Date(2026, 11, 1, 0, 0, 0, 0, time.UTC)
+	for _, tc := range []struct {
+		name  string
+		end   time.Time
+		owner string
+		limit int
+	}{
+		{name: "missing owner", end: start.Add(time.Minute), limit: 10},
+		{name: "long range", end: start.Add(24*time.Hour + time.Second), owner: "device-control", limit: 10},
+		{name: "oversize limit", end: start.Add(time.Minute), owner: "device-control", limit: MaxProcessSampleQueryLimit + 1},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			if _, _, err := svc.GetProcessSamplesInRange(context.Background(), start, tc.end, tc.owner, tc.limit); err == nil {
+				t.Fatal("expected invalid query to be rejected")
+			}
+		})
+	}
+}
+
 func TestSelectDualRankSamplesKeepsMemoryLeaderOutsideCPUTopN(t *testing.T) {
 	selected, dropped := selectDualRankSamples([]procsampler.ProcessSample{
 		{PID: 1, CPUPct: 90, RSSKB: 10},

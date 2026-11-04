@@ -7,11 +7,11 @@ metadata:
   schemaVersion: 1
   modes: ["tools"]
   status: "active"
-  revision: 1
+  revision: 2
   createdAt: "2026-09-04T00:00:00Z"
-  updatedAt: "2026-09-04T00:00:00Z"
+  updatedAt: "2026-10-28T20:55:00Z"
   requires:
-    scenarios: ["command-center", "prompt-manager", "program-runtime", "source-ledger", "vrooli-memory"]
+    scenarios: ["command-center", "prompt-manager", "program-runtime", "source-ledger", "swarm-manager", "vrooli-memory"]
     commands: ["command-center", "prompt-manager skill read", "program-runtime library run", "source-ledger journal", "vrooli-memory learning"]
   origin:
     kind: "authored"
@@ -26,6 +26,7 @@ Use this skill for reading the instrument or choosing a morning walk capability.
 | Conduct or resume the strategic conversation | Read `prompt-manager skill read morning-vision-walk`. **[S0]** |
 | Inspect measured outcomes without sample figures | Run `command-center walk read`. **[S1]** |
 | Inspect ranked missing instrumentation | Run `command-center focus`. **[S1]** |
+| Review stale backlog, aging goals, and board anomaly signals for Director Swarm | Run `program-runtime library run command-center.portfolio-pulse`; branch on its status, quality, and errors, then make the disposition yourself. It is read-only and returns bounded evidence. **[S3]** |
 | Improve this instrument or its walk capabilities | Read `prompt-manager skill read command-center-improve`. **[S0]** |
 
 Keep coverage, trust, and empirical verdicts separate. A zero with valid provenance is a real zero. A sample, stale value, missing timestamp, or unavailable source cannot support a current success claim. The denominator belongs to the objective/capability owner.

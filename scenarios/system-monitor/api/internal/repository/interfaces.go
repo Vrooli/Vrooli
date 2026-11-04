@@ -27,6 +27,11 @@ type ProcessSampleRepository interface {
 	// SaveProcessSamples writes one cycle's worth of per-process rows.
 	SaveProcessSamples(ctx context.Context, samples []ProcessSample) error
 
+	// QueryProcessSamples returns raw per-process observations from the exact
+	// half-open interval [Start, End), in timestamp order. Callers must provide
+	// a non-empty owner and a positive result limit.
+	QueryProcessSamples(ctx context.Context, q ProcessSampleQuery) ([]ProcessSample, error)
+
 	// QueryProcessTimeline returns ranked consumers over the window described by
 	// the query. Rows come from the raw table when available and the per-owner
 	// minute rollups for the older portion of the window.
@@ -42,6 +47,14 @@ type ProcessSampleRepository interface {
 
 	// PruneProcessRollupsBefore deletes per-minute rollup rows older than cutoff.
 	PruneProcessRollupsBefore(ctx context.Context, cutoff time.Time) (int64, error)
+}
+
+// ProcessSampleQuery bounds a forensic read of the raw process observations.
+type ProcessSampleQuery struct {
+	Start time.Time
+	End   time.Time
+	Owner string
+	Limit int
 }
 
 // ProcessSample is one observed process within a single sampling cycle, ready

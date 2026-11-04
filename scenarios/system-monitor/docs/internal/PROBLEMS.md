@@ -7,6 +7,13 @@
 - Blocker: no missing authority. Remaining red phases are inherited dependency, unit, workflow, and experience debt; Linux arm64 hardware evidence remains unavailable. Ollama remains CPU-backed until the NVIDIA driver/device-node issue is repaired.
 - Measured: 2026-08-26
 
+### E3 arm-aligned per-sample attribution — 2026-11-03
+
+- Rung: W3 implementation
+- Evidence: The applicable E3 goal requires timestamped process observations aligned to capture arms. `GET /api/v1/forensics/processes` accepts exact half-open ranges but returns only a merged summary (`sample_count`, first/last seen, aggregate CPU and average RSS); `ProcessSample` rows are already retained and time-indexed in SQLite.
+- Blocker: A caller cannot independently compare per-sample Device Control CPU/RSS observations within its measured capture intervals. No contract or requirement conflict identified; this is a localized owner implementation gap.
+- Measured: 2026-11-03
+
 ## Last Updated
 2026-11-03 (multi-round debt reduction)
 

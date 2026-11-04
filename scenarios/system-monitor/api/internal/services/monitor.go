@@ -5,6 +5,7 @@ package services
 import (
 	"context"
 	"fmt"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -699,6 +700,44 @@ func (s *MonitorService) GetProcessTimelineInRange(ctx context.Context, start, e
 		Top:   top,
 		Rank:  rank,
 	})
+}
+
+const (
+	DefaultProcessSampleQueryLimit = 1000
+	MaxProcessSampleQueryLimit     = 5000
+)
+
+// GetProcessSamplesInRange returns owner-scoped raw observations from an exact
+// half-open interval. One extra row detects truncation without an unbounded
+// read. Raw samples are used intentionally; rolled-up rows cannot support
+// per-arm attribution.
+func (s *MonitorService) GetProcessSamplesInRange(ctx context.Context, start, end time.Time, owner string, limit int) ([]repository.ProcessSample, bool, error) {
+	if s.procRepo == nil {
+		return nil, false, nil
+	}
+	if start.IsZero() || end.IsZero() || !end.After(start) || end.Sub(start) > 24*time.Hour {
+		return nil, false, fmt.Errorf("process sample range must be positive and no longer than 24 hours")
+	}
+	if strings.TrimSpace(owner) == "" {
+		return nil, false, fmt.Errorf("process sample query requires an owner")
+	}
+	if limit <= 0 {
+		limit = DefaultProcessSampleQueryLimit
+	}
+	if limit > MaxProcessSampleQueryLimit {
+		return nil, false, fmt.Errorf("process sample query limit must be no greater than %d", MaxProcessSampleQueryLimit)
+	}
+	rows, err := s.procRepo.QueryProcessSamples(ctx, repository.ProcessSampleQuery{
+		Start: start.UTC(), End: end.UTC(), Owner: owner, Limit: limit + 1,
+	})
+	if err != nil {
+		return nil, false, err
+	}
+	truncated := len(rows) > limit
+	if truncated {
+		rows = rows[:limit]
+	}
+	return rows, truncated, nil
 }
 
 // GetCurrentMetrics retrieves the current system metrics

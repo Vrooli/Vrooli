@@ -20,6 +20,26 @@ The CLI uses the same `connect.Error` values through cli-core. Human
 output is English for now; future CLI i18n should use the same code
 names as the UI catalog instead of string-matching messages.
 
+## Embedding failures and later retries
+
+`GatewayClient.Embed` makes at most one `ExecuteRoute` RPC per invocation.
+Transport timeouts, cancellation, missing or rejected responses, malformed
+JSON, and empty vectors return an error without resubmitting. Transport and
+decode errors retain their original error chain. A failed response does not
+prove that the provider did no work or incurred no cost; Gateway request IDs
+are correlation values, not replay keys.
+
+Journal append persists an `embed` retry record when a derived vector is
+missing. `ProcessEmbeddingRetries` later invokes `Embed` again for missing
+vectors and acknowledges the queue only after they are stored. The queue has
+no durable provider-operation receipt or outcome reconciliation. A later
+invocation after an unknown outcome can repeat provider work, so this flow
+does not guarantee exactly-once execution across invocations or processes.
+Durable reconciliation for that boundary remains unresolved.
+
+Sources: `path:scenarios/source-ledger/api/internal/inference/client.go` and
+`path:scenarios/source-ledger/api/internal/journal/service.go`.
+
 ## Sentinel Mapping
 
 | Domain error | Connect code | UI i18n key |

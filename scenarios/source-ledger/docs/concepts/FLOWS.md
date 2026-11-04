@@ -8,6 +8,25 @@
 3. Enrichment may classify, derive facet text, embed, and queue failures.
 4. The response reports durable append success independently of enrichment.
 
+## Embedding and missing-vector recovery
+
+1. Each `GatewayClient.Embed` invocation makes at most one `ExecuteRoute` RPC.
+2. An unusable response or transport error ends that invocation without
+   resubmission; it does not prove that provider work did not complete.
+3. Journal append persists an `embed` retry record for missing derived vectors.
+4. A later `ProcessEmbeddingRetries` pass serializes queue processing, invokes
+   `Embed` for missing vectors, and stores successful vectors before
+   acknowledging the retry record. Journal prose and facet-text rows remain
+   immutable.
+
+The Journal queue has no durable provider receipt or unknown-outcome
+reconciliation. Later invocations can repeat completed provider work after a
+lost response. One RPC per invocation does not provide exactly-once execution
+across queue attempts or processes; durable reconciliation remains unresolved.
+
+Sources: `path:scenarios/source-ledger/api/internal/inference/client.go` and
+`path:scenarios/source-ledger/api/internal/journal/service.go`.
+
 ## Recall and Wake
 
 1. The request boundary normalizes the scope once.

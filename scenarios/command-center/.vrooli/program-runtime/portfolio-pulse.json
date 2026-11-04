@@ -139,5 +139,6 @@
       "note": "Partial is expected when swarm-manager or the board reading is unavailable, or when a sensor returns no rows; see errors and quality."
     }
   ],
-  "rung": "S3"
+  "rung": "S3",
+  "owner_skill": "command-center"
 }

@@ -2,6 +2,7 @@ package inference
 
 import (
 	"context"
+	"encoding/json"
 	"strings"
 	"testing"
 	"time"
@@ -50,16 +51,58 @@ func TestGatewayClientEmbedPrefixesClusteringText(t *testing.T) {
 	}
 }
 
-func TestGatewayClientRetriesTransientEmbeddingResponse(t *testing.T) {
-	routing := &sequenceRouting{
-		fakeRouting: fakeRouting{wantRole: EmbeddingRole, wantInput: clusteringPrefix + "memory", wantTimeout: EmbeddingTimeout},
-		responses:   []string{"{", `{"embedding":[0.3,0.4]}`},
-	}
+func TestGatewayClientEmbedReturnsVectorFromSingleCall(t *testing.T) {
+	routing := &outcomeRouting{result: connect.NewResponse(&routingv1.ExecuteRouteResponse{Valid: true, OutputText: `{"embedding":[0.3,0.4]}`})}
 	client := NewGatewayClient(routing)
 	got, err := client.Embed(context.Background(), "memory", EmbeddingClustering)
 	require.NoError(t, err)
 	require.Equal(t, []float64{0.3, 0.4}, got)
-	require.Equal(t, 2, routing.calls)
+	require.Equal(t, 1, routing.calls)
+}
+
+func TestGatewayClientEmbedDoesNotRepeatUnknownOutcomes(t *testing.T) {
+	tests := []struct {
+		name       string
+		result     *connect.Response[routingv1.ExecuteRouteResponse]
+		err        error
+		wantError  string
+		wantCause  error
+		wantSyntax bool
+	}{
+		{name: "timeout", err: context.DeadlineExceeded, wantError: "context deadline exceeded", wantCause: context.DeadlineExceeded},
+		{name: "cancellation", err: context.Canceled, wantError: "context canceled", wantCause: context.Canceled},
+		{name: "nil response", wantError: "no route response"},
+		{name: "nil message", result: &connect.Response[routingv1.ExecuteRouteResponse]{}, wantError: "no route response"},
+		{name: "rejected response", result: connect.NewResponse(&routingv1.ExecuteRouteResponse{Valid: false}), wantError: "rejected embedding.default route"},
+		{name: "malformed JSON", result: connect.NewResponse(&routingv1.ExecuteRouteResponse{Valid: true, OutputText: "{"}), wantError: "decode ai-gateway embedding response", wantSyntax: true},
+		{name: "empty vector", result: connect.NewResponse(&routingv1.ExecuteRouteResponse{Valid: true, OutputText: `{"embedding":[]}`}), wantError: "contained no vector"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			routing := &outcomeRouting{result: tt.result, err: tt.err}
+			got, err := NewGatewayClient(routing).Embed(context.Background(), "memory", EmbeddingClustering)
+			require.Nil(t, got)
+			require.ErrorContains(t, err, tt.wantError)
+			if tt.wantCause != nil {
+				require.ErrorIs(t, err, tt.wantCause)
+			}
+			if tt.wantSyntax {
+				var syntaxErr *json.SyntaxError
+				require.ErrorAs(t, err, &syntaxErr)
+			}
+			require.Equal(t, 1, routing.calls, "an unusable result does not prove the provider did no work")
+		})
+	}
+}
+
+func TestGatewayClientEmbedRejectsMissingRoutingDependency(t *testing.T) {
+	for name, client := range map[string]*GatewayClient{"nil receiver": nil, "nil routing": NewGatewayClient(nil)} {
+		t.Run(name, func(t *testing.T) {
+			got, err := client.Embed(context.Background(), "memory", EmbeddingClustering)
+			require.Nil(t, got)
+			require.ErrorContains(t, err, "routing client is not configured")
+		})
+	}
 }
 
 func TestGatewayClientUsesGenerationTimeoutAndDecodesClassification(t *testing.T) {
@@ -156,20 +199,16 @@ type fakeRouting struct {
 	wantMaxOutputTokens int
 }
 
-type sequenceRouting struct {
+type outcomeRouting struct {
 	fakeRouting
-	responses []string
-	calls     int
+	result *connect.Response[routingv1.ExecuteRouteResponse]
+	err    error
+	calls  int
 }
 
-func (r *sequenceRouting) ExecuteRoute(ctx context.Context, req *connect.Request[routingv1.ExecuteRouteRequest]) (*connect.Response[routingv1.ExecuteRouteResponse], error) {
-	response := r.responses[len(r.responses)-1]
-	if r.calls < len(r.responses) {
-		response = r.responses[r.calls]
-	}
+func (r *outcomeRouting) ExecuteRoute(context.Context, *connect.Request[routingv1.ExecuteRouteRequest]) (*connect.Response[routingv1.ExecuteRouteResponse], error) {
 	r.calls++
-	r.fakeRouting.response = response
-	return r.fakeRouting.ExecuteRoute(ctx, req)
+	return r.result, r.err
 }
 
 func (f fakeRouting) ExecuteRoute(_ context.Context, req *connect.Request[routingv1.ExecuteRouteRequest]) (*connect.Response[routingv1.ExecuteRouteResponse], error) {

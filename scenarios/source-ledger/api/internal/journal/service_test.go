@@ -152,6 +152,9 @@ func TestProcessEmbeddingRetriesRestoresAllFacetVectorsAndAcknowledgesQueue(t *t
 	entry, err := NewService(repo, failing).Append(context.Background(), Entry{Body: "recover vectors", Kind: "memory"})
 	require.NoError(t, err)
 	require.Len(t, entry.FacetTexts, 3)
+	var pending int
+	require.NoError(t, d.QueryRowContext(context.Background(), `SELECT COUNT(*) FROM journal_retry_queue WHERE entry_id=? AND reason='embed'`, entry.ID).Scan(&pending))
+	require.Equal(t, 1, pending, "a failed Embed invocation leaves a durable missing-vector retry")
 	result, err := NewService(repo, &mocks.FakeInference{EmbedOut: []float64{0.1, 0.2}}).ProcessEmbeddingRetries(context.Background(), 10)
 	require.NoError(t, err)
 	require.Equal(t, 1, result.Processed)
@@ -206,11 +209,13 @@ func (f *slowAppendInference) Classify(ctx context.Context, _ string) (string, e
 	<-ctx.Done()
 	return "", ctx.Err()
 }
+
 func (f *slowAppendInference) Embed(ctx context.Context, _ string, _ inference.EmbeddingTask) ([]float64, error) {
 	f.calls++
 	<-ctx.Done()
 	return nil, ctx.Err()
 }
+
 func TestAppendBoundsAggregateProviderWorkAndPersistsRetry(t *testing.T) {
 	repo := journalDB(t)
 	for _, facet := range []string{"", "episode"} {

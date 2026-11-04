@@ -8,6 +8,27 @@ import (
 	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/repository"
 )
 
+func TestQueryProcessSamplesUsesOwnerScopedHalfOpenRangeAndLimit(t *testing.T) {
+	repo := NewRepository()
+	start := time.Date(2026, 11, 3, 12, 0, 0, 0, time.UTC)
+	end := start.Add(time.Minute)
+	if err := repo.SaveProcessSamples(context.Background(), []repository.ProcessSample{
+		{Timestamp: start, PID: 2, Owner: "device-control", Comm: "node", Cmdline: "secret command"},
+		{Timestamp: start.Add(5 * time.Second), PID: 3, Owner: "other", Comm: "other"},
+		{Timestamp: start.Add(5 * time.Second), PID: 1, Owner: "device-control", Comm: "api"},
+		{Timestamp: end, PID: 4, Owner: "device-control", Comm: "outside"},
+	}); err != nil {
+		t.Fatalf("save samples: %v", err)
+	}
+	rows, err := repo.QueryProcessSamples(context.Background(), repository.ProcessSampleQuery{Start: start, End: end, Owner: "device-control", Limit: 2})
+	if err != nil {
+		t.Fatalf("query samples: %v", err)
+	}
+	if len(rows) != 2 || rows[0].PID != 2 || rows[1].PID != 1 {
+		t.Fatalf("rows = %#v, want owner rows in stable timestamp order", rows)
+	}
+}
+
 func TestMemoryProcessTimeline_RollupAndQuery(t *testing.T) {
 	repo := NewRepository()
 	ctx := context.Background()

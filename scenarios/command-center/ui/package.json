@@ -64,7 +64,7 @@
   "private": true,
   "scripts": {
     "build": "pnpm theme:generate \u0026\u0026 pnpm selector:manifest \u0026\u0026 pnpm slots:check \u0026\u0026 vite build",
-    "build:profile": "pnpm selector:manifest \u0026\u0026 vite build --mode profile",
+    "build:profile": "pnpm theme:generate \u0026\u0026 pnpm selector:manifest \u0026\u0026 pnpm slots:check \u0026\u0026 vite build --mode profile",
     "dev": "vrooli lifecycle protect -- vite",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",

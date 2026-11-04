@@ -138,6 +138,61 @@ func TestGetProcessTimeline_RejectsInvalidExplicitRanges(t *testing.T) {
 	}
 }
 
+func TestGetProcessSamples_ReturnsTimestampedOwnerScopedProjection(t *testing.T) {
+	start := time.Date(2026, 11, 3, 4, 0, 0, 0, time.UTC)
+	end := start.Add(30 * time.Second)
+	mock := handlermocks.NewMonitorQuerier().WithProcessSamples([]repository.ProcessSample{
+		{Timestamp: start.Add(5 * time.Second), PID: 42, Owner: "device-control", Comm: "device-control-api", Cmdline: "secret command", Cwd: "/private", CPUPct: 2.5, CPUSeconds: 0.4, CPUSecondsStatus: "available", RSSKB: 2048, MetricsStatus: "available"},
+	}, true)
+	handler := NewMetricsHandler(&config.Config{Monitoring: config.MonitoringConfig{RawRetention: 6 * time.Hour}}, mock, slog.Default())
+	path := "/api/v1/forensics/process-samples?start_utc=" + start.Format(time.RFC3339Nano) + "&end_utc=" + end.Format(time.RFC3339Nano) + "&owner=device-control&limit=1"
+	w := httptest.NewRecorder()
+	handler.HandleGetProcessSamples(w, httptest.NewRequest(http.MethodGet, path, nil))
+	testutil.AssertStatusCode(t, w.Code, http.StatusOK)
+	gotStart, gotEnd, called := mock.ProcessTimelineRange()
+	if !called || !gotStart.Equal(start) || !gotEnd.Equal(end) {
+		t.Fatalf("explicit range not forwarded: called=%v start=%s end=%s", called, gotStart, gotEnd)
+	}
+	body := testutil.DecodeJSONBody[map[string]interface{}](t, w.Body.Bytes())
+	if body["owner"] != "device-control" || body["truncated"] != true || body["count"].(float64) != 1 || body["raw_retention_seconds"].(float64) != 21600 {
+		t.Fatalf("response metadata = %#v", body)
+	}
+	samples := body["samples"].([]interface{})
+	row := samples[0].(map[string]interface{})
+	if row["timestamp"] != start.Add(5*time.Second).Format(time.RFC3339Nano) || row["cpu_seconds_status"] != "available" {
+		t.Fatalf("sample = %#v", row)
+	}
+	if _, ok := row["cmdline"]; ok {
+		t.Fatal("process command line leaked in forensic sample response")
+	}
+	if _, ok := row["cwd"]; ok {
+		t.Fatal("process working directory leaked in forensic sample response")
+	}
+}
+
+func TestGetProcessSamples_RejectsUnboundedOrUnscopedReads(t *testing.T) {
+	for _, tc := range []struct {
+		name  string
+		query string
+	}{
+		{name: "missing owner", query: "?start_utc=2026-11-03T04:00:00Z&end_utc=2026-11-03T04:01:00Z"},
+		{name: "missing end", query: "?start_utc=2026-11-03T04:00:00Z&owner=device-control"},
+		{name: "range too long", query: "?start_utc=2026-11-02T04:00:00Z&end_utc=2026-11-03T04:00:01Z&owner=device-control"},
+		{name: "limit too large", query: "?start_utc=2026-11-03T04:00:00Z&end_utc=2026-11-03T04:01:00Z&owner=device-control&limit=5001"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			mock := handlermocks.NewMonitorQuerier()
+			handler := NewMetricsHandler(&config.Config{}, mock, slog.Default())
+			w := httptest.NewRecorder()
+			handler.HandleGetProcessSamples(w, httptest.NewRequest(http.MethodGet, "/api/v1/forensics/process-samples"+tc.query, nil))
+			_, _, called := mock.ProcessTimelineRange()
+			if w.Code != http.StatusBadRequest || called {
+				t.Fatalf("status=%d range_called=%v, want 400 and no query", w.Code, called)
+			}
+		})
+	}
+}
+
 func TestGetProcessTimelineConnect_RankedWindow(t *testing.T) {
 	now := time.Date(2026, 6, 24, 12, 0, 0, 0, time.UTC)
 	mock := handlermocks.NewMonitorQuerier().WithProcessTimeline([]repository.ProcessTimelineEntry{

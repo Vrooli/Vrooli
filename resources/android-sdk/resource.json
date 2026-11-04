@@ -96,7 +96,8 @@
       "kind": "liveness",
       "command": [
         "avdmanager",
-        "--version"
+        "list",
+        "device"
       ],
       "timeout_seconds": 30
     },

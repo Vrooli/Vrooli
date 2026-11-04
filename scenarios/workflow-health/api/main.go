@@ -92,8 +92,11 @@ func main() {
 	// Its 15-minute Workflow phase budget receives one minute of bounded
 	// transport headroom; Start/Get/Abort return promptly and do not rely on it.
 	if err := apiserver.Run(apiserver.Config{
-		Handler:      handler,
-		WriteTimeout: 16 * time.Minute,
+		Handler: handler,
+		// Workflow Health installs its own durable validation-work fence and
+		// admission guard in the validation handlers.
+		LifecycleConfiguredExternally: true,
+		WriteTimeout:                  16 * time.Minute,
 		Cleanup: func(ctx context.Context) error {
 			cancelSearchRegistration()
 			return db.Close()

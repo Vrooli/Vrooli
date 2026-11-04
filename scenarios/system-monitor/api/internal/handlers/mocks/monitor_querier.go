@@ -21,6 +21,8 @@ type MonitorQuerier struct {
 	timelineResponse   *models.MetricsTimelineResponse
 	processData        *models.ProcessMonitorData
 	processTimeline    []repository.ProcessTimelineEntry
+	processSamples     []repository.ProcessSample
+	processSamplesMore bool
 	processRangeStart  time.Time
 	processRangeEnd    time.Time
 	processRangeCalled bool
@@ -159,6 +161,19 @@ func (m *MonitorQuerier) GetProcessTimelineInRange(_ context.Context, start, end
 	m.processRangeEnd = end
 	m.processRangeCalled = true
 	return m.processTimeline, m.err
+}
+
+func (m *MonitorQuerier) WithProcessSamples(samples []repository.ProcessSample, truncated bool) *MonitorQuerier {
+	m.processSamples = samples
+	m.processSamplesMore = truncated
+	return m
+}
+
+func (m *MonitorQuerier) GetProcessSamplesInRange(_ context.Context, start, end time.Time, _ string, _ int) ([]repository.ProcessSample, bool, error) {
+	m.processRangeStart = start
+	m.processRangeEnd = end
+	m.processRangeCalled = true
+	return m.processSamples, m.processSamplesMore, m.err
 }
 
 func (m *MonitorQuerier) ProcessTimelineRange() (time.Time, time.Time, bool) {

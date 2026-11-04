@@ -2,6 +2,8 @@ package memory
 
 import (
 	"context"
+	"fmt"
+	"sort"
 	"time"
 
 	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/repository"
@@ -16,6 +18,36 @@ func (r *MemoryRepository) SaveProcessSamples(_ context.Context, samples []repos
 	defer r.mu.Unlock()
 	r.processSamples = append(r.processSamples, samples...)
 	return nil
+}
+
+// QueryProcessSamples returns raw owner-scoped samples in timestamp order.
+func (r *MemoryRepository) QueryProcessSamples(_ context.Context, q repository.ProcessSampleQuery) ([]repository.ProcessSample, error) {
+	if q.Start.IsZero() || q.End.IsZero() || !q.End.After(q.Start) || q.Owner == "" || q.Limit <= 0 {
+		return nil, fmt.Errorf("process sample query requires a positive interval, owner and limit")
+	}
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	rows := make([]repository.ProcessSample, 0, q.Limit)
+	for _, sample := range r.processSamples {
+		if sample.Timestamp.Before(q.Start) || !sample.Timestamp.Before(q.End) || sample.Owner != q.Owner {
+			continue
+		}
+		rows = append(rows, sample)
+	}
+	sort.SliceStable(rows, func(i, j int) bool {
+		if !rows[i].Timestamp.Equal(rows[j].Timestamp) {
+			return rows[i].Timestamp.Before(rows[j].Timestamp)
+		}
+		if rows[i].Comm != rows[j].Comm {
+			return rows[i].Comm < rows[j].Comm
+		}
+		return rows[i].PID < rows[j].PID
+	})
+	if len(rows) > q.Limit {
+		rows = rows[:q.Limit]
+	}
+	return rows, nil
 }
 
 // QueryProcessTimeline ranks consumers over [Start, End) across raw rows and

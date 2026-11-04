@@ -26,6 +26,7 @@ import (
 	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/logx"
 	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/models"
 	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/repository"
+	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/services"
 )
 
 // MetricsHandler handles metrics-related requests
@@ -479,6 +480,35 @@ type processTimelineResponseJSON struct {
 	Entries       []processTimelineEntryJSON `json:"entries"`
 }
 
+type processSampleJSON struct {
+	Timestamp            string  `json:"timestamp"`
+	Owner                string  `json:"owner"`
+	Comm                 string  `json:"comm"`
+	PID                  int     `json:"pid"`
+	CPUPct               float64 `json:"cpu_pct"`
+	CPUSeconds           float64 `json:"cpu_seconds"`
+	CPUSecondsStatus     string  `json:"cpu_seconds_status,omitempty"`
+	CPUSecondsReason     string  `json:"cpu_seconds_reason,omitempty"`
+	RSSKB                int64   `json:"rss_kb"`
+	SwapKB               int64   `json:"swap_kb"`
+	MajorFaultsPerSecond float64 `json:"major_faults_per_second"`
+	MetricsStatus        string  `json:"metrics_status,omitempty"`
+	MetricsReason        string  `json:"metrics_reason,omitempty"`
+	Threads              int     `json:"threads"`
+	GPUVRAMMB            float64 `json:"gpu_vram_mb"`
+}
+
+type processSamplesResponseJSON struct {
+	StartUTC            string              `json:"start_utc"`
+	EndUTC              string              `json:"end_utc"`
+	Owner               string              `json:"owner"`
+	Limit               int                 `json:"limit"`
+	RawRetentionSeconds int64               `json:"raw_retention_seconds"`
+	Count               int                 `json:"count"`
+	Truncated           bool                `json:"truncated"`
+	Samples             []processSampleJSON `json:"samples"`
+}
+
 // HandleGetProcessTimeline handles GET /api/v1/metrics/processes/timeline. Query
 // params: window (duration, default 5m) or start_utc/end_utc (RFC3339 range),
 // owner (scenario filter), top (int). Explicit ranges are capped at 24h.
@@ -569,6 +599,75 @@ func (h *MetricsHandler) HandleGetProcessTimeline(w http.ResponseWriter, r *http
 		Rank:          rank,
 		Count:         len(out),
 		Entries:       out,
+	})
+}
+
+// HandleGetProcessSamples returns timestamped raw process observations for one
+// owner and an exact bounded half-open time interval. Command lines and working
+// directories are deliberately excluded from this forensic projection.
+func (h *MetricsHandler) HandleGetProcessSamples(w http.ResponseWriter, r *http.Request) {
+	query := r.URL.Query()
+	startText, endText, owner := query.Get("start_utc"), query.Get("end_utc"), strings.TrimSpace(query.Get("owner"))
+	if startText == "" || endText == "" || owner == "" || query.Get("window") != "" {
+		httpErr := apierrors.Validation("start_utc/end_utc/owner", "provide an exact timestamp range and one owner")
+		httputil.HandleError(w, h.log, r, httpErr)
+		return
+	}
+	start, startErr := time.Parse(time.RFC3339Nano, startText)
+	end, endErr := time.Parse(time.RFC3339Nano, endText)
+	if startErr != nil || endErr != nil || !end.After(start) || end.Sub(start) > 24*time.Hour {
+		httpErr := apierrors.Validation("start_utc/end_utc", "must be valid RFC3339 timestamps with end after start and a range no longer than 24 hours")
+		httputil.HandleError(w, h.log, r, httpErr)
+		return
+	}
+	limit := services.DefaultProcessSampleQueryLimit
+	if raw := query.Get("limit"); raw != "" {
+		parsed, err := strconv.Atoi(raw)
+		if err != nil || parsed <= 0 || parsed > services.MaxProcessSampleQueryLimit {
+			httpErr := apierrors.Validation("limit", "must be a positive integer no greater than the supported maximum")
+			httputil.HandleError(w, h.log, r, httpErr)
+			return
+		}
+		limit = parsed
+	}
+	rows, truncated, err := h.monitorSvc.GetProcessSamplesInRange(r.Context(), start, end, owner, limit)
+	if err != nil {
+		httputil.HandleError(w, h.log, r, err)
+		return
+	}
+	out := make([]processSampleJSON, 0, len(rows))
+	for _, sample := range rows {
+		out = append(out, processSampleJSON{
+			Timestamp:            sample.Timestamp.UTC().Format(time.RFC3339Nano),
+			Owner:                sample.Owner,
+			Comm:                 sample.Comm,
+			PID:                  sample.PID,
+			CPUPct:               sample.CPUPct,
+			CPUSeconds:           sample.CPUSeconds,
+			CPUSecondsStatus:     sample.CPUSecondsStatus,
+			CPUSecondsReason:     sample.CPUSecondsReason,
+			RSSKB:                sample.RSSKB,
+			SwapKB:               sample.SwapKB,
+			MajorFaultsPerSecond: sample.MajorFaultsPerSecond,
+			MetricsStatus:        sample.MetricsStatus,
+			MetricsReason:        sample.MetricsReason,
+			Threads:              sample.Threads,
+			GPUVRAMMB:            sample.GPUVRAMMB,
+		})
+	}
+	rawRetentionSeconds := int64(0)
+	if h.config != nil {
+		rawRetentionSeconds = int64(h.config.Monitoring.RawRetention.Seconds())
+	}
+	httputil.JSON(w, processSamplesResponseJSON{
+		StartUTC:            start.UTC().Format(time.RFC3339Nano),
+		EndUTC:              end.UTC().Format(time.RFC3339Nano),
+		Owner:               owner,
+		Limit:               limit,
+		RawRetentionSeconds: rawRetentionSeconds,
+		Count:               len(out),
+		Truncated:           truncated,
+		Samples:             out,
 	})
 }
 

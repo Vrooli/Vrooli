@@ -8,6 +8,35 @@ import (
 	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/repository"
 )
 
+func TestQueryProcessSamplesUsesOwnerScopedHalfOpenRangeAndLimit(t *testing.T) {
+	repo, err := NewInMemoryRepository()
+	if err != nil {
+		t.Fatalf("repo: %v", err)
+	}
+	defer repo.Close()
+	ctx := context.Background()
+	start := time.Date(2026, 11, 3, 12, 0, 0, 0, time.UTC)
+	end := start.Add(time.Minute)
+	if err := repo.SaveProcessSamples(ctx, []repository.ProcessSample{
+		{Timestamp: start, PID: 2, Owner: "device-control", Comm: "node", Cmdline: "secret command", Cwd: "/private"},
+		{Timestamp: start.Add(5 * time.Second), PID: 3, Owner: "other", Comm: "other"},
+		{Timestamp: start.Add(5 * time.Second), PID: 1, Owner: "device-control", Comm: "api"},
+		{Timestamp: end, PID: 4, Owner: "device-control", Comm: "outside"},
+	}); err != nil {
+		t.Fatalf("save samples: %v", err)
+	}
+	rows, err := repo.QueryProcessSamples(ctx, repository.ProcessSampleQuery{Start: start, End: end, Owner: "device-control", Limit: 2})
+	if err != nil {
+		t.Fatalf("query samples: %v", err)
+	}
+	if len(rows) != 2 || rows[0].PID != 2 || rows[1].PID != 1 {
+		t.Fatalf("rows = %#v, want owner rows in stable timestamp order", rows)
+	}
+	if rows[0].Cmdline != "" || rows[0].Cwd != "" {
+		t.Fatalf("forensic projection unexpectedly returned sensitive process metadata: %#v", rows[0])
+	}
+}
+
 func TestProcessTimeline_RanksByCPUAcrossRawRows(t *testing.T) {
 	repo, err := NewInMemoryRepository()
 	if err != nil {

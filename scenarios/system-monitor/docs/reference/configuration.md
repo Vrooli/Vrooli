@@ -239,6 +239,7 @@ curl 'http://localhost:8080/api/v1/metrics/pressure'
 curl 'http://localhost:8080/api/v1/forensics/processes?window=1h&rank=rss&top=20'
 curl 'http://localhost:8080/api/v1/forensics/processes?window=1h&rank=gpu&top=20'
 curl 'http://localhost:8080/api/v1/forensics/processes?start_utc=2026-11-03T03:49:15Z&end_utc=2026-11-03T03:49:48Z&owner=device-control&rank=cpu_seconds'
+curl 'http://localhost:8080/api/v1/forensics/process-samples?start_utc=2026-11-03T03:49:15Z&end_utc=2026-11-03T03:49:48Z&owner=device-control&limit=1000'
 curl 'http://localhost:8080/api/v1/forensics/gpu?window=1h'
 curl 'http://localhost:8080/api/v1/forensics/pressure?window=1h'
 

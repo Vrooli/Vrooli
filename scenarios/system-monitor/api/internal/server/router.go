@@ -42,6 +42,7 @@ func buildRouter(cfg *config.Config, health *handlers.HealthHandler, metrics *ha
 	// the handler sat unreachable. The typed Connect route stays canonical.
 	r.HandleFunc("GET /api/v1/metrics/timeline", metrics.HandleGetMetricsTimeline)
 	r.HandleFunc("GET /api/v1/forensics/processes", metrics.HandleGetProcessTimeline)
+	r.HandleFunc("GET /api/v1/forensics/process-samples", metrics.HandleGetProcessSamples)
 	r.HandleFunc("GET /api/v1/forensics/gpu", metrics.HandleGetGPUHistory)
 	r.HandleFunc("GET /api/v1/forensics/pressure", metrics.HandleGetPressureHistory)
 

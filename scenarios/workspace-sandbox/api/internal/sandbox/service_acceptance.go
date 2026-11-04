@@ -66,17 +66,9 @@ func applyAcceptanceInfo(sandbox *types.Sandbox, changes []*types.FileChange) {
 }
 
 // evaluateAcceptance returns the acceptance status for a single change.
-// noLock sandboxes accept everything; otherwise the deny rules are
-// evaluated first (with a guard against the empty-criteria default-true
-// trap), then the allow rules.
+// Locking does not affect acceptance. Deny rules are evaluated first
+// (with a guard against the empty-criteria default-true trap), then allow rules.
 func evaluateAcceptance(sandbox *types.Sandbox, change *types.FileChange) *types.AcceptanceInfo {
-	if sandbox.NoLock {
-		return &types.AcceptanceInfo{
-			Status: types.AcceptanceStatusAccepted,
-			Reason: "no acceptance rules (noLock sandbox)",
-		}
-	}
-
 	behavior := normalizeBehavior(sandbox.Behavior)
 	acceptance := behavior.Acceptance
 

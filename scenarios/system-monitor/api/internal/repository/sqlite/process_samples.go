@@ -46,6 +46,48 @@ func (r *Repository) SaveProcessSamples(ctx context.Context, samples []repositor
 	return nil
 }
 
+// QueryProcessSamples returns raw owner-scoped observations in timestamp order.
+// The projection deliberately omits command lines and working directories.
+func (r *Repository) QueryProcessSamples(ctx context.Context, q repository.ProcessSampleQuery) ([]repository.ProcessSample, error) {
+	if q.Start.IsZero() || q.End.IsZero() || !q.End.After(q.Start) || q.Owner == "" || q.Limit <= 0 {
+		return nil, fmt.Errorf("process sample query requires a positive interval, owner and limit")
+	}
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	rows, err := r.db.QueryContext(ctx, `
+		SELECT ts, pid, comm, owner, cpu_pct, cpu_seconds, cpu_seconds_status,
+		       cpu_seconds_reason, rss_kb, swap_kb, major_faults_per_second,
+		       metrics_status, metrics_reason, threads, gpu_vram_mb
+		FROM process_samples
+		WHERE ts >= ? AND ts < ? AND owner = ?
+		ORDER BY ts ASC, comm ASC, pid ASC
+		LIMIT ?`, q.Start.UTC(), q.End.UTC(), q.Owner, q.Limit)
+	if err != nil {
+		return nil, fmt.Errorf("query raw process samples: %w", err)
+	}
+	defer rows.Close()
+
+	samples := make([]repository.ProcessSample, 0, q.Limit)
+	for rows.Next() {
+		var sample repository.ProcessSample
+		if err := rows.Scan(
+			&sample.Timestamp, &sample.PID, &sample.Comm, &sample.Owner,
+			&sample.CPUPct, &sample.CPUSeconds, &sample.CPUSecondsStatus,
+			&sample.CPUSecondsReason, &sample.RSSKB, &sample.SwapKB,
+			&sample.MajorFaultsPerSecond, &sample.MetricsStatus,
+			&sample.MetricsReason, &sample.Threads, &sample.GPUVRAMMB,
+		); err != nil {
+			return nil, fmt.Errorf("scan raw process sample: %w", err)
+		}
+		samples = append(samples, sample)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("read raw process samples: %w", err)
+	}
+	return samples, nil
+}
+
 // QueryProcessTimeline ranks consumers over [Start, End). It reads raw rows and
 // rollup rows in two separate (non-nested) queries, merges them per owner+comm,
 // then sorts by CPU and applies the Top cap. Both queries are issued under the
