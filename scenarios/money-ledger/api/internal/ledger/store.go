@@ -46,6 +46,8 @@ var declaredAccountKinds = map[ledgerpb.AccountKind]string{
 
 const acceptedAccountKinds = "ASSET, LIABILITY, REVENUE, EXPENSE, EQUITY"
 
+var ErrExternalIDPayloadConflict = errors.New("same adapter_id and external_id already exists with a different payload")
+
 // columnExists reports whether a table already carries a column. It is the
 // shared guard for the additive migrations below, which must stay safe to run
 // against a database that has already been migrated.
@@ -345,6 +347,9 @@ func (s *Store) Ingest(ctx context.Context, e *sharedpb.MoneyEvent, actor string
 		ft, _ := time.Parse(time.RFC3339Nano, fetched)
 		p.Event = &sharedpb.MoneyEvent{Id: p.Id, ExternalId: eventID, AdapterId: adapterID, AccountId: accountID, BookId: bookID, AmountMinor: amount, Currency: currency, OccurredAt: timestamppb.New(ot), FetchedAt: timestamppb.New(ft), Basis: sharedpb.Basis(basis), Description: desc, Category: cat}
 		p.ReversalOf, p.Actor = rev, act
+		if !sameIngestPayload(p.Event, e) {
+			return nil, false, ErrExternalIDPayloadConflict
+		}
 		p.Audit, err = s.loadAudit(ctx, p.Id)
 		return &p, true, err
 	}
@@ -383,7 +388,32 @@ func (s *Store) Ingest(ctx context.Context, e *sharedpb.MoneyEvent, actor string
 		return nil, false, err
 	}
 	accepted, err := s.GetPosting(ctx, p.Id)
+	if err != nil {
+		return nil, duplicate, err
+	}
+	if duplicate && !sameIngestPayload(accepted.Event, e) {
+		return nil, false, ErrExternalIDPayloadConflict
+	}
 	return accepted, duplicate, err
+}
+
+// sameIngestPayload distinguishes a true replay from reuse of an idempotency
+// key for changed accounting facts. FetchedAt and Id are observation/generated
+// metadata; the durable source and accounting fields must remain stable.
+func sameIngestPayload(accepted, incoming *sharedpb.MoneyEvent) bool {
+	if accepted == nil || incoming == nil || accepted.OccurredAt == nil || incoming.OccurredAt == nil {
+		return false
+	}
+	return accepted.ExternalId == incoming.ExternalId &&
+		accepted.AdapterId == incoming.AdapterId &&
+		accepted.AccountId == incoming.AccountId &&
+		accepted.BookId == incoming.BookId &&
+		accepted.AmountMinor == incoming.AmountMinor &&
+		strings.EqualFold(accepted.Currency, incoming.Currency) &&
+		accepted.OccurredAt.AsTime().Equal(incoming.OccurredAt.AsTime()) &&
+		accepted.Basis == incoming.Basis &&
+		accepted.Description == incoming.Description &&
+		accepted.Category == incoming.Category
 }
 
 func (s *Store) GetPosting(ctx context.Context, id string) (*sharedpb.Posting, error) {

@@ -90,11 +90,21 @@ func TestCryptoPreviewPendingApprovalReversionAndRemovalHaveDistinctEffects(t *t
 	original, err := s.PreviewCryptoObservation(ctx, in)
 	require.NoError(t, err)
 	require.Equal(t, original.OccurrenceKey, out.OccurrenceKey)
+	require.Equal(t, original.InclusionRevision, out.InclusionRevision)
 	reincluded := proto.Clone(in).(*ingestpb.PreviewCryptoObservationRequest)
 	reincluded.BlockHash = "0x" + strings.Repeat("c", 64)
 	again, err := s.PreviewCryptoObservation(ctx, reincluded)
 	require.NoError(t, err)
-	require.NotEqual(t, original.OccurrenceKey, again.OccurrenceKey)
+	require.Equal(t, original.OccurrenceKey, again.OccurrenceKey, "block re-inclusion revises evidence for one economic occurrence")
+	require.NotEqual(t, original.InclusionRevision, again.InclusionRevision)
+
+	pendingLeg := proto.Clone(in).(*ingestpb.PreviewCryptoObservationRequest)
+	pendingLeg.State = ingestpb.CryptoObservationState_CRYPTO_OBSERVATION_STATE_PENDING
+	pendingLeg.BlockHash = ""
+	pendingPreview, err := s.PreviewCryptoObservation(ctx, pendingLeg)
+	require.NoError(t, err)
+	require.Equal(t, original.OccurrenceKey, pendingPreview.OccurrenceKey, "pending and included observations share an economic identity")
+	require.Empty(t, pendingPreview.InclusionRevision)
 }
 
 func TestCryptoPreviewBookReadbackDoesNotProveWalletOwnership(t *testing.T) {

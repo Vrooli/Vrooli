@@ -32,10 +32,12 @@ func TestCryptoPreviewTransportPreservesUnitsAndNeverAcceptsApprovalOrWrites(t *
 	server := httptest.NewServer(handler)
 	defer server.Close()
 	client := rpc.NewIngestServiceClient(server.Client(), server.URL)
-	in := &pb.PreviewCryptoObservationRequest{Network: "eip155:84532", AssetId: "eip155:84532/slip44:60", Address: "0x" + strings.Repeat("1", 40), AtomicAmount: "5901522149285533025181", Decimals: 18, State: pb.CryptoObservationState_CRYPTO_OBSERVATION_STATE_FINALIZED, LegKind: pb.CryptoLegKind_CRYPTO_LEG_KIND_BALANCE, SourceReference: "fixture:transport-not-owned", BlockHash: "0x" + strings.Repeat("2", 64)}
+	in := &pb.PreviewCryptoObservationRequest{Network: "eip155:84532", AssetId: "eip155:84532/slip44:60", Address: "0x" + strings.Repeat("1", 40), AtomicAmount: "5901522149285533025181", Decimals: 18, State: pb.CryptoObservationState_CRYPTO_OBSERVATION_STATE_FINALIZED, LegKind: pb.CryptoLegKind_CRYPTO_LEG_KIND_DEPOSIT, SourceReference: "fixture:transport-not-owned", TransactionHash: "0x" + strings.Repeat("a", 64), BlockHash: "0x" + strings.Repeat("2", 64), LegIndex: 3}
 	out, err := client.PreviewCryptoObservation(ctx, connect.NewRequest(in))
 	require.NoError(t, err)
 	require.Equal(t, in.AtomicAmount, out.Msg.AtomicAmount)
+	require.NotEmpty(t, out.Msg.OccurrenceKey)
+	require.Equal(t, strings.ToLower(in.TransactionHash)+"/log/3@"+strings.ToLower(in.BlockHash), out.Msg.InclusionRevision)
 	require.Equal(t, "withheld", out.Msg.PostingState)
 	require.Equal(t, "uncredited", out.Msg.BudgetState)
 	// Unknown caller assertions cannot turn this read-only contract into approval.

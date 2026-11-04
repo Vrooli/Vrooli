@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -47,6 +48,48 @@ func TestManualAdapterUsesOperatorBasisAndDeduplicates(t *testing.T) { // [REQ:C
 	_, duplicate, _, err = s.IngestEvent(ctx, event)
 	require.NoError(t, err)
 	require.True(t, duplicate)
+}
+
+func TestIngestEventRecordsFailureWhenSourceIdentityPayloadChanges(t *testing.T) { // [REQ:CTR-004]
+	s, ctx := newIngestStore(t)
+	book, err := s.journal.CreateBook(ctx, "Operating", "USD")
+	require.NoError(t, err)
+	account, err := s.journal.CreateAccount(ctx, book.Id, "Cash", ledgerpb.AccountKind_ASSET)
+	require.NoError(t, err)
+	_, err = s.RegisterAdapter(ctx, &ingestpb.Adapter{Id: "base-usdc", Name: "Base USDC", Kind: ingestpb.AdapterKind_ADAPTER_KIND_FILE, Enabled: true})
+	require.NoError(t, err)
+
+	event := &sharedpb.MoneyEvent{
+		ExternalId: "base-transfer-1", AdapterId: "base-usdc", AccountId: account.Id, BookId: book.Id,
+		AmountMinor: 1250, Currency: "USD",
+		OccurredAt:  timestamppb.New(time.Date(2026, 11, 2, 12, 0, 0, 0, time.UTC)),
+		Basis:       sharedpb.Basis_BASIS_AUTHORITATIVE,
+		Description: "Base USDC transfer", Category: "funding",
+	}
+	_, duplicate, _, err := s.IngestEvent(ctx, event)
+	require.NoError(t, err)
+	require.False(t, duplicate)
+
+	changed := *event
+	changed.AmountMinor++
+	_, duplicate, receipt, err := s.IngestEvent(ctx, &changed)
+	require.ErrorIs(t, err, ledger.ErrExternalIDPayloadConflict)
+	require.False(t, duplicate)
+	require.Equal(t, "failed", receipt.Status)
+	require.EqualValues(t, 1, receipt.Read)
+	require.Zero(t, receipt.Written)
+	require.Zero(t, receipt.SkippedDuplicates)
+	require.Contains(t, receipt.Error, "same adapter_id and external_id already exists with a different payload")
+
+	var status, receiptError string
+	require.NoError(t, s.db.QueryRowContext(ctx, `SELECT status,error FROM ingest_receipts WHERE id=?`, receipt.Id).Scan(&status, &receiptError))
+	require.Equal(t, "failed", status)
+	require.Contains(t, receiptError, "different payload")
+
+	postings, err := s.journal.ListPostings(ctx, account.Id, "", "", "", 100)
+	require.NoError(t, err)
+	require.Len(t, postings, 1)
+	require.EqualValues(t, 1250, postings[0].Event.AmountMinor)
 }
 
 func TestOperatorInputsImportPreservesPendingAsAbsent(t *testing.T) { // [REQ:CTR-006]
@@ -206,18 +249,18 @@ func TestFailedAdapterIsVisibleAndNeverWritesZero(t *testing.T) { // [REQ:POS-00
 	require.Len(t, position.Availability, 1)
 }
 
-func TestCommerceAdapterIngestsRevenueLinesIdempotently(t *testing.T) { // [REQ:POS-005]
+func TestCommerceAdapterDoesNotPostRevenueSummaryAsTransactions(t *testing.T) { // [REQ:POS-005]
 	s, ctx := newIngestStore(t)
 	book, err := s.journal.CreateBook(ctx, "Operating", "USD")
 	require.NoError(t, err)
 	account, err := s.journal.CreateAccount(ctx, book.Id, "Revenue", ledgerpb.AccountKind_REVENUE)
 	require.NoError(t, err)
 
-	observed := time.Date(2026, 9, 16, 1, 0, 0, 0, time.UTC)
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		require.Equal(t, "/api/v1/admin/dashboard/revenue/summary", r.URL.Path)
+	var requests atomic.Int32
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		requests.Add(1)
 		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write([]byte(`{"observed_at":"` + observed.Format(time.RFC3339) + `","currency":"usd","revenue_by_line":[{"key":"subscription","amount_minor":1200},{"key":"credit_top_up","amount_minor":300}]}`))
+		_, _ = w.Write([]byte(`{"observed_at":"2026-09-16T01:00:00Z","currency":"usd","revenue_by_line":[{"key":"subscription","amount_minor":1200}]}`))
 	}))
 	defer server.Close()
 	t.Setenv("MONEY_LEDGER_LPBS_URL", server.URL)
@@ -227,46 +270,20 @@ func TestCommerceAdapterIngestsRevenueLinesIdempotently(t *testing.T) { // [REQ:
 	_, err = s.RegisterAdapter(ctx, &ingestpb.Adapter{Id: "commerce", Name: "LPBS commerce", Kind: ingestpb.AdapterKind_ADAPTER_KIND_COMMERCE, Enabled: true})
 	require.NoError(t, err)
 
-	first, availability, err := s.RunAdapter(ctx, "commerce", nil, nil)
-	require.NoError(t, err)
-	require.Empty(t, availability)
-	require.EqualValues(t, 2, first.Written)
-	require.Zero(t, first.SkippedDuplicates)
-
-	second, availability, err := s.RunAdapter(ctx, "commerce", nil, nil)
-	require.NoError(t, err)
-	require.Empty(t, availability)
-	require.Zero(t, second.Written)
-	require.EqualValues(t, 2, second.SkippedDuplicates)
-
-	var postings int
-	require.NoError(t, s.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM postings`).Scan(&postings))
-	require.Equal(t, 2, postings)
-	var cursor string
-	require.NoError(t, s.db.QueryRowContext(ctx, `SELECT cursor FROM adapters WHERE id='commerce'`).Scan(&cursor))
-	require.Equal(t, observed.Format(time.RFC3339), cursor)
-}
-
-func TestCommerceAdapterUnavailableDoesNotWriteZero(t *testing.T) { // [REQ:POS-005]
-	s, ctx := newIngestStore(t)
-	book, err := s.journal.CreateBook(ctx, "Operating", "USD")
-	require.NoError(t, err)
-	account, err := s.journal.CreateAccount(ctx, book.Id, "Revenue", ledgerpb.AccountKind_REVENUE)
-	require.NoError(t, err)
-	t.Setenv("MONEY_LEDGER_LPBS_URL", "")
-	t.Setenv("MONEY_LEDGER_COMMERCE_BOOK_ID", book.Id)
-	t.Setenv("MONEY_LEDGER_COMMERCE_ACCOUNT_ID", account.Id)
-	_, err = s.RegisterAdapter(ctx, &ingestpb.Adapter{Id: "commerce", Name: "LPBS commerce", Kind: ingestpb.AdapterKind_ADAPTER_KIND_COMMERCE, Enabled: true})
-	require.NoError(t, err)
-
 	receipt, availability, err := s.RunAdapter(ctx, "commerce", nil, nil)
-	require.Error(t, err)
+	require.ErrorContains(t, err, "aggregate projection")
 	require.Equal(t, "failed", receipt.Status)
+	require.Zero(t, receipt.Written)
 	require.Len(t, availability, 1)
-	require.Contains(t, availability[0].Reason, "MONEY_LEDGER_LPBS_URL")
+	require.Contains(t, availability[0].Reason, "aggregate projection")
+	require.Zero(t, requests.Load(), "the unsupported summary endpoint must not be called")
+
 	var postings int
 	require.NoError(t, s.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM postings`).Scan(&postings))
 	require.Zero(t, postings)
+	var cursor string
+	require.NoError(t, s.db.QueryRowContext(ctx, `SELECT cursor FROM adapters WHERE id='commerce'`).Scan(&cursor))
+	require.Empty(t, cursor)
 }
 
 // operatorBookWithStandardAccounts builds the four-account shape the production

@@ -91,9 +91,13 @@ func (s *Store) PreviewCryptoObservation(ctx context.Context, in *ingestpb.Previ
 		}
 		out.BookAccountStatus = "active_book_account_readback"
 	}
-	if in.BlockHash != "" {
-		bytes, _ := json.Marshal([]any{in.Network, out.AssetId, out.Address, strings.ToLower(in.TransactionHash), strings.ToLower(in.BlockHash), in.LegIndex, int32(in.LegKind)})
+	if in.LegKind != ingestpb.CryptoLegKind_CRYPTO_LEG_KIND_BALANCE {
+		canonicalTx := strings.ToLower(in.TransactionHash)
+		bytes, _ := json.Marshal([]any{in.Network, out.AssetId, out.Address, canonicalTx, in.LegIndex, int32(in.LegKind)})
 		out.OccurrenceKey = fmt.Sprintf("sha256:%x", sha256.Sum256(bytes))
+		if in.BlockHash != "" {
+			out.InclusionRevision = fmt.Sprintf("%s/log/%d@%s", canonicalTx, in.LegIndex, strings.ToLower(in.BlockHash))
+		}
 	}
 	switch in.State {
 	case ingestpb.CryptoObservationState_CRYPTO_OBSERVATION_STATE_PENDING:

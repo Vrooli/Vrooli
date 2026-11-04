@@ -38,7 +38,11 @@ default — an adapter that cannot state a basis is not conformant.
 
 **2. Ingestion is idempotent on `(adapter_id, external_id)`.** Re-running an
 adapter over an overlapping window must produce no duplicate postings
-(`OT-P0-007`). This is a database constraint, not adapter etiquette.
+(`OT-P0-007`). The same key with the same source and accounting fields returns
+the original posting with `duplicate=true`; `fetched_at` may differ because it
+records when the adapter observed the source event. Reusing the key with a
+changed accounting payload is rejected and creates no posting. This is a
+database constraint, not adapter etiquette.
 
 **3. An adapter that cannot run reports unavailable with a reason and an age.
 It never reports zero.** A failed read and a real zero are different facts and
@@ -52,7 +56,8 @@ An implementation is conformant when all four hold:
 1. Every emitted event carries all required fields above, with a basis drawn
    from the three declared values.
 2. Re-emitting the same `(adapter_id, external_id)` over an overlapping window
-   adds no posting.
+   with unchanged event fields returns the original posting; a changed payload
+   under that key is rejected and adds no posting.
 3. A failure mode — no credentials, upstream down, malformed response —
    produces an availability record with a reason and a last-success age, and no
    postings.

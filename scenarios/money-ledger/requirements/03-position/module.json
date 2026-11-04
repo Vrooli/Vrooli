@@ -11,7 +11,7 @@
     {
       "id": "POS-001",
       "title": "Position is computed with visible inputs",
-      "status": "complete",
+      "status": "planned",
       "prd_ref": "OT-P1-001",
       "category": "service",
       "criticality": "P1",
@@ -110,11 +110,11 @@
     {
       "id": "POS-005",
       "title": "The commerce adapter proves the contract",
-      "status": "complete",
+      "status": "planned",
       "prd_ref": "OT-P1-005",
       "category": "adapter",
       "criticality": "P1",
-      "description": "The Landing Page Business Suite adapter lands subscription and charge events through the ordinary contract. It exists as much to prove the contract against a real, messy upstream as to carry the data.",
+      "description": "The Landing Page Business Suite adapter lands immutable subscription and charge events through the ordinary contract. Aggregate revenue summaries are not transaction events and must remain unavailable until LPBS exposes a suitable event feed.",
       "tags": [
         "adapter",
         "integration"
@@ -123,7 +123,7 @@
         {
           "type": "test",
           "status": "implemented",
-          "notes": "COMMERCE adapter reads LPBS revenue lines, posts non-zero observed events with authoritative basis and stable external ids, leaves the cursor unchanged on failure, and reports unavailable without synthetic zero events."
+          "notes": "Regression confirms the current LPBS aggregate summary is not requested or posted as transaction events. Requirement remains planned until an immutable event feed is available."
         }
       ]
     },

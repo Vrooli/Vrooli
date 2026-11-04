@@ -4,7 +4,6 @@ import (
 	"context"
 	"os"
 	"path/filepath"
-	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -63,6 +62,60 @@ func TestStoreIngestIsIdempotentAndReversalIsAppendOnly(t *testing.T) { // [REQ:
 	position, err := s.Position(ctx, b.Id)
 	require.NoError(t, err)
 	require.EqualValues(t, 0, position.CashMinor)
+}
+
+func TestStoreIngestRejectsChangedPayloadForSameExternalIdentity(t *testing.T) { // [REQ:CTR-004]
+	s, ctx := testStore(t)
+	b, err := s.CreateBook(ctx, "Operating", "USD")
+	require.NoError(t, err)
+	a, err := s.CreateAccount(ctx, b.Id, "Cash", ledgerpb.AccountKind_ASSET)
+	require.NoError(t, err)
+	event := &sharedpb.MoneyEvent{
+		ExternalId: "base-transfer-1", AdapterId: "base-usdc", AccountId: a.Id, BookId: b.Id,
+		AmountMinor: 1250, Currency: "USD",
+		OccurredAt:  timestamppb.New(time.Date(2026, 11, 2, 12, 0, 0, 0, time.UTC)),
+		FetchedAt:   timestamppb.New(time.Date(2026, 11, 2, 12, 1, 0, 0, time.UTC)),
+		Basis:       sharedpb.Basis_BASIS_AUTHORITATIVE,
+		Description: "Base USDC transfer",
+		Category:    "funding",
+	}
+	accepted, duplicate, err := s.Ingest(ctx, event, "adapter")
+	require.NoError(t, err)
+	require.False(t, duplicate)
+
+	// Fetch time is observation metadata and can legitimately differ on retry.
+	replay := *event
+	replay.FetchedAt = timestamppb.New(time.Date(2026, 11, 2, 12, 5, 0, 0, time.UTC))
+	replayed, duplicate, err := s.Ingest(ctx, &replay, "adapter")
+	require.NoError(t, err)
+	require.True(t, duplicate)
+	require.Equal(t, accepted.Id, replayed.Id)
+
+	// Reusing the same source identity for changed source/accounting facts must stop.
+	mutations := []struct {
+		name   string
+		mutate func(*sharedpb.MoneyEvent)
+	}{
+		{name: "amount", mutate: func(e *sharedpb.MoneyEvent) { e.AmountMinor++ }},
+		{name: "occurred_at", mutate: func(e *sharedpb.MoneyEvent) { e.OccurredAt = timestamppb.New(e.OccurredAt.AsTime().Add(time.Minute)) }},
+		{name: "basis", mutate: func(e *sharedpb.MoneyEvent) { e.Basis = sharedpb.Basis_BASIS_DERIVED }},
+		{name: "description", mutate: func(e *sharedpb.MoneyEvent) { e.Description = "changed source description" }},
+		{name: "category", mutate: func(e *sharedpb.MoneyEvent) { e.Category = "changed-category" }},
+	}
+	for _, test := range mutations {
+		t.Run(test.name, func(t *testing.T) {
+			changed := replay
+			test.mutate(&changed)
+			_, duplicate, err := s.Ingest(ctx, &changed, "adapter")
+			require.ErrorContains(t, err, "same adapter_id and external_id already exists with a different payload")
+			require.False(t, duplicate)
+		})
+	}
+
+	unchanged, err := s.GetPosting(ctx, accepted.Id)
+	require.NoError(t, err)
+	require.EqualValues(t, 1250, unchanged.Event.AmountMinor)
+	require.Equal(t, "funding", unchanged.Event.Category)
 }
 
 func TestStoreRejectsProjectedAndMissingOccurredAt(t *testing.T) { // [REQ:JRNL-003] [REQ:CTR-002]
@@ -227,15 +280,15 @@ func TestGoalSupportsRatioAndMetricComparandWithExplicitUnits(t *testing.T) { //
 }
 
 func TestJournalWriteBoundaryHasOnePostingWriter(t *testing.T) { // [REQ:CTR-001] [REQ:CTR-005]
-	_, file, _, ok := runtime.Caller(0)
-	require.True(t, ok)
-	entries, err := os.ReadDir(filepath.Dir(file))
+	packageDir, err := os.Getwd()
+	require.NoError(t, err)
+	entries, err := os.ReadDir(packageDir)
 	require.NoError(t, err)
 	for _, entry := range entries {
 		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".go") || entry.Name() == "store.go" || strings.HasSuffix(entry.Name(), "_test.go") {
 			continue
 		}
-		contents, readErr := os.ReadFile(filepath.Join(filepath.Dir(file), entry.Name()))
+		contents, readErr := os.ReadFile(filepath.Join(packageDir, entry.Name()))
 		require.NoError(t, readErr)
 		require.NotContains(t, string(contents), "INSERT INTO postings", "only ledger.Store may write postings")
 	}

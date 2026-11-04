@@ -48,6 +48,13 @@ Use this shape so entries are scannable. Append newest at the bottom.
 
 ## Entries
 
+### Reusing an external identity with changed payload was accepted as a duplicate
+
+- Rung: W3 (contract and requirement were present; ledger implementation violated the accounting boundary)
+- Evidence: the regression first failed because the changed `amount_minor` returned the existing posting with `duplicate=true`; an exact replay with refreshed `fetched_at` remained valid.
+- Repair: ingestion now compares stable source and accounting fields on both the initial lookup and the concurrent-insert path. Changed payloads return an invalid-argument conflict and preserve the original posting; generated `id` and observation-time `fetched_at` are ignored.
+- Scope: this protects idempotent inbound accounting, including future Base USDC receipts. It does not implement a chain adapter or verify chain finality.
+
 ## Work ladder
 
 - Rung: W1 (contract gate satisfied; implementation/evidence work remains)
