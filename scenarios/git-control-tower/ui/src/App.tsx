@@ -982,10 +982,8 @@ export default function App() {
           setSelectedIsStaged(true);
           setSelectedIsUntracked(false);
         }
-        // On mobile, return to Changes tab so user isn't stranded on empty diff
-        if (isMobile) {
-          setMobileActivePanel("changes");
-        }
+        // Keep the selected diff visible after staging. The updated staged state
+        // switches its action to Unstage without interrupting review.
         pathsToStage.forEach((stagedPath) => {
           queryClient.invalidateQueries({
             queryKey: queryKeys.diff(stagedPath, false, false, undefined, "diff", false, repoId)
@@ -1008,7 +1006,7 @@ export default function App() {
         }
       });
     },
-    [notify, queryClient, selectedFile, selectedIsStaged, selectedFiles, repoId, isMobile, setMobileActivePanel, requestStage]
+    [notify, queryClient, selectedFile, selectedIsStaged, selectedFiles, repoId, requestStage]
   );
 
   const handleUnstageFile = useCallback(
@@ -1028,10 +1026,7 @@ export default function App() {
               setSelectedIsStaged(false);
               setSelectedIsUntracked(false);
             }
-            // On mobile, return to Changes tab so user isn't stranded on empty diff
-            if (isMobile) {
-              setMobileActivePanel("changes");
-            }
+            // Keep the selected diff visible after unstaging so review can continue.
             pathsToUnstage.forEach((unstagedPath) => {
               queryClient.invalidateQueries({
                 queryKey: queryKeys.diff(unstagedPath, false, false, undefined, "diff", false, repoId)
@@ -1047,7 +1042,7 @@ export default function App() {
         }
       );
     },
-    [unstageMutate, queryClient, selectedFile, selectedIsStaged, selectedFiles, repoId, isMobile, setMobileActivePanel]
+    [unstageMutate, queryClient, selectedFile, selectedIsStaged, selectedFiles, repoId]
   );
 
   const handleStageAll = useCallback(() => {

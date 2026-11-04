@@ -1,10 +1,15 @@
 import { fireEvent, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import type { ComponentProps } from "react";
 import { describe, expect, it, vi } from "vitest";
 import { DiffViewer } from "./DiffViewer";
 import type { DiffResponse, LineChange, ViewMode } from "../lib/api";
 import { FileContentConflictError } from "../lib/api";
 import { renderWithProviders } from "../test-utils/renderWithProviders";
+
+const mobile = vi.hoisted(() => ({ enabled: false }));
+
+vi.mock("../hooks", () => ({ useIsMobile: () => mobile.enabled }));
 
 vi.mock("../lib/highlighter", () => ({
   highlightCode: vi.fn(async (content: string) =>
@@ -206,6 +211,23 @@ describe("DiffViewer minimap", () => {
       expect(screen.getByTestId("save-error")).toHaveTextContent("File changed on disk");
       expect(screen.getByTestId("save-error")).toHaveTextContent("server-hash");
     });
+  });
+});
+
+describe("DiffViewer mobile actions", () => {
+  it("keeps the stage action in a bottom-anchored panel footer", async () => {
+    mobile.enabled = true;
+    const onStage = vi.fn();
+    try {
+      renderViewer(buildDiffResponse({ full_content: "const value = 1;" }), "source", { onStage });
+      const actions = screen.getByTestId("diff-mobile-actions");
+      expect(actions).toHaveClass("sticky", "bottom-0", "z-20");
+      expect(actions.parentElement).toHaveClass("flex", "flex-col", "min-h-0");
+      await userEvent.setup().click(screen.getByRole("button", { name: "Stage" }));
+      expect(onStage).toHaveBeenCalledWith("src/main.ts");
+    } finally {
+      mobile.enabled = false;
+    }
   });
 });
 

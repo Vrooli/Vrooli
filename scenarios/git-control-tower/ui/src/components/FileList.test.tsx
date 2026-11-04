@@ -1,4 +1,4 @@
-import { fireEvent, screen } from "@testing-library/react";
+import { fireEvent, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import type { RepoFilesStatus } from "../lib/api";
@@ -406,6 +406,9 @@ describe("FileList", () => {
 
     await user.click(screen.getByTestId("file-group-toggle-contract:scenario:one"));
     expect(screen.getByTestId("group-run-dots").children).toHaveLength(2);
+    expect(screen.queryByTestId("file-group-open-contract:scenario:one")).not.toBeInTheDocument();
+    await user.click(screen.getByTestId("file-group-toggle-contract:scenario:one"));
+    expect(screen.getByTestId("file-group-open-contract:scenario:one")).toBeInTheDocument();
   });
 
   it("shows run dots only for files included by the active group filter", async () => {
@@ -416,6 +419,51 @@ describe("FileList", () => {
     await user.click(screen.getByRole("tab", { name: "Staged" }));
     await user.click(screen.getByTestId("file-group-toggle-filtered"));
     expect(screen.queryByTestId("group-run-dots")).not.toBeInTheDocument();
+  });
+
+  it("drills into a change group by folder and stages only the current folder scope", async () => {
+    const onStagePaths = vi.fn();
+    const groupedFiles = [
+      "docs/README.md",
+      "docs/agent-system/README.md",
+      "docs/agent-system/decisions/authority.md",
+      "docs/concepts/glossary.md",
+    ];
+    const { user } = renderFileList({
+      files: { staged: [], unstaged: groupedFiles, untracked: [], conflicts: [] },
+      fileViewMode: "grouped",
+      resolvedGroups: [{ key: "contract:docs", id: "docs", kind: "docs", label: "docs", root: "docs/", source: "contract", files: groupedFiles }],
+      onStagePaths,
+    });
+
+    const scroller = screen.getByTestId("changes-scroll-region");
+    scroller.scrollTop = 120;
+    fireEvent.scroll(scroller);
+    await user.click(screen.getByTestId("file-group-open-contract:docs"));
+    expect(scroller.scrollTop).toBe(0);
+    expect(await screen.findByTestId("change-group-drill-header")).toBeInTheDocument();
+    await user.click(screen.getByRole("tab", { name: "Conflicts" }));
+    expect(await screen.findByTestId("change-group-empty")).toBeInTheDocument();
+    await user.click(screen.getByRole("tab", { name: "All" }));
+    expect(screen.getByText("agent-system")).toBeInTheDocument();
+    expect(screen.getByText("concepts")).toBeInTheDocument();
+    expect(screen.getAllByTestId("file-item-unstaged").some((row) => row.textContent?.includes("README.md"))).toBe(true);
+
+    const agentSystemRow = within(screen.getAllByTestId("change-folder-row")[0] as HTMLElement);
+    const stageFolderButton = agentSystemRow.getByTestId("change-folder-stage");
+    expect(stageFolderButton).toHaveAttribute("aria-label", "Stage 2 changed files in agent-system");
+    await user.click(stageFolderButton);
+    expect(onStagePaths).toHaveBeenCalledWith([
+      "docs/agent-system/README.md",
+      "docs/agent-system/decisions/authority.md",
+    ]);
+
+    await user.click(screen.getByRole("button", { name: "Open folder agent-system" }));
+    expect(await screen.findByText("decisions")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Go to parent folder" })).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Go to parent folder" }));
+    await user.click(screen.getByRole("button", { name: "Back to all change groups" }));
+    expect(scroller.scrollTop).toBe(120);
   });
 
   it("exposes Reveal in file tree from the mobile action sheet", async () => {

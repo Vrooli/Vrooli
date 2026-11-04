@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Git Control Tower — change review drill-in</title>
+  <style>
+    :root { color-scheme: dark; font: 14px/1.45 Inter, ui-sans-serif, system-ui, sans-serif; background:#070b16; color:#e2e8f0; }
+    * { box-sizing:border-box; }
+    body { margin:0; padding:28px; }
+    h1 { font-size:22px; margin:0 0 8px; }
+    p { color:#94a3b8; margin:0 0 20px; max-width:850px; }
+    .boards { display:grid; grid-template-columns:minmax(680px,1.35fr) minmax(360px,.65fr); gap:20px; align-items:start; }
+    .device { border:1px solid #263244; border-radius:14px; overflow:hidden; background:#0b1221; box-shadow:0 16px 50px #0007; }
+    .label { padding:12px 16px; border-bottom:1px solid #263244; color:#94a3b8; text-transform:uppercase; letter-spacing:.12em; font-size:11px; font-weight:700; }
+    .desktop { min-height:690px; display:grid; grid-template-columns:310px 1fr; }
+    .mobile { width:100%; max-width:410px; min-height:690px; margin:auto; display:flex; flex-direction:column; }
+    .list { min-width:0; border-right:1px solid #263244; }
+    .mobile .list { border:0; flex:1; }
+    .title { padding:18px 18px 10px; font-size:18px; font-weight:700; }
+    .crumb { padding:8px 18px; color:#7dd3fc; border-bottom:1px solid #263244; }
+    .summary { display:flex; justify-content:space-between; gap:12px; padding:12px 18px; border-bottom:1px solid #263244; color:#94a3b8; }
+    .summary strong { color:#e2e8f0; }
+    .row { display:flex; align-items:center; justify-content:space-between; gap:10px; padding:12px 18px; min-height:54px; border-bottom:1px solid #1e293b; }
+    .folder { display:flex; gap:10px; align-items:center; min-width:0; }
+    .icon { color:#94a3b8; width:20px; text-align:center; font-size:18px; }
+    .count { color:#94a3b8; white-space:nowrap; }
+    .button { border:1px solid #3a4b61; border-radius:7px; padding:6px 10px; color:#cbd5e1; background:#111c2e; white-space:nowrap; }
+    .primary { color:#052e20; border-color:#34d399; background:#34d399; font-weight:700; }
+    .files { padding:10px 18px; color:#cbd5e1; }
+    .file { padding:9px 0; border-bottom:1px solid #1e293b; font-family:ui-monospace,monospace; }
+    .detail { display:flex; flex-direction:column; min-height:690px; }
+    .file-head { padding:18px; border-bottom:1px solid #263244; font-family:ui-monospace,monospace; }
+    .diff { flex:1; padding:18px; color:#94a3b8; font:13px/1.8 ui-monospace,monospace; white-space:pre; overflow:hidden; }
+    .add { color:#6ee7b7; }.del { color:#fda4af; }
+    .actions { display:flex; gap:10px; padding:12px 16px max(12px, env(safe-area-inset-bottom)); border-top:1px solid #263244; background:#111a2b; }
+    .actions .button { flex:1; min-height:44px; }
+    .nav { display:flex; justify-content:space-around; padding:10px 4px; border-top:1px solid #263244; color:#94a3b8; font-size:12px; }
+    @media(max-width:1000px) { body{padding:16px}.boards{grid-template-columns:1fr}.desktop{min-height:520px}.mobile{min-height:720px} }
+  </style>
+</head>
+<body>
+  <h1>Review large groups in place</h1>
+  <p>Keep the repository overview and bulk actions. Opening a group reveals its changed folders; opening a folder narrows the file list. On mobile, the selected diff keeps its Stage/Unstage action available above the app navigation.</p>
+  <div class="boards">
+    <section class="device desktop">
+      <div class="list">
+        <div class="label">Desktop · Group contents</div>
+        <div class="title">Changes</div>
+        <div class="crumb">Changes / <strong>docs</strong></div>
+        <div class="summary"><span><strong>docs</strong> · 1,024 files</span><button class="button primary">Stage group</button></div>
+        <div class="row"><span class="folder"><span class="icon">▸</span><strong>agent-system</strong></span><span class="count">214 files</span><button class="button">Stage folder</button></div>
+        <div class="row"><span class="folder"><span class="icon">▸</span><strong>concepts</strong></span><span class="count">46 files</span><button class="button">Stage folder</button></div>
+        <div class="row"><span class="folder"><span class="icon">▸</span><strong>guides</strong></span><span class="count">88 files</span><button class="button">Stage folder</button></div>
+        <div class="row"><span class="folder"><span class="icon">▸</span><strong>README.md</strong></span><span class="count">Modified</span></div>
+      </div>
+      <div class="detail">
+        <div class="label">File detail · persistent actions</div>
+        <div class="file-head">docs/agent-system/README.md</div>
+        <div class="diff"><span class="del">- Previous guidance</span>
+<span class="add">+ Updated guidance</span>
+
+  Review continues here after staging.
+  File status changes to Staged.</div>
+        <div class="actions"><button class="button">Unstage</button><button class="button">Discard</button></div>
+      </div>
+    </section>
+    <section class="device mobile">
+      <div class="label">Mobile · Focused drill-in</div>
+      <div class="crumb">‹ Changes <span style="color:#64748b">/</span> <strong>docs</strong> <span style="float:right;color:#94a3b8">1,024 files</span></div>
+      <div class="summary"><span>Changed folders</span><button class="button primary">Stage group</button></div>
+      <div class="row"><span class="folder"><span class="icon">▸</span><strong>agent-system</strong></span><span class="count">214</span></div>
+      <div class="row"><span class="folder"><span class="icon">▸</span><strong>concepts</strong></span><span class="count">46</span></div>
+      <div class="row"><span class="folder"><span class="icon">▸</span><strong>guides</strong></span><span class="count">88</span></div>
+      <div class="files"><strong>Files in docs/</strong><div class="file">README.md</div><div class="file">TESTING.md</div></div>
+      <div class="actions"><button class="button primary">Stage</button><button class="button">Discard</button></div>
+      <div class="nav"><span>Changes</span><span>Diff</span><span>Commit</span><span>History</span><span>Review</span></div>
+    </section>
+  </div>
+</body>
+</html>

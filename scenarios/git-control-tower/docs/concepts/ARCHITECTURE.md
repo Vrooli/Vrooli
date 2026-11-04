@@ -61,6 +61,23 @@ from moving the embedding document and keeps safe-area ownership explicit. Libra
 portal placement, focus, gestures, scroll locking, footer safe padding and page
 canvas paint while open. The resting html/body canvas matches bottom navigation.
 
+## Change review drill-in
+
+The Changes list keeps repository-level groups and bulk actions as its overview.
+Opening a group drills into its changed folders, and opening a folder narrows the
+list to that subtree while retaining staged, modified, untracked, and conflict
+sections. Breadcrumbs return to the parent scope. Group and folder staging stay
+available at their own scope. On mobile the selected file remains the active
+panel after staging or unstaging; its action bar stays bottom-anchored in the
+diff panel above the app navigation. The desktop list continues to use
+the same hierarchy in its existing panel. See
+[the desktop and mobile interaction model](../mockups/change-review-drill-in.html).
+
+Status refreshes should preserve the active review scope and virtual-row identity.
+Non-urgent list projection work may yield during active interaction so a refresh
+does not interrupt scrolling; fresh status remains authoritative for subsequent
+actions.
+
 ## Descriptor-aware review evidence
 
 The scenario review UI has exactly eight workflow tabs: Overview, Baselines,

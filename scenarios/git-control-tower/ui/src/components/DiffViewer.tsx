@@ -1320,7 +1320,7 @@ function DiffViewerImpl({
         )}
       </CardHeader>
 
-      <CardContent className="flex-1 p-0 overflow-hidden relative">
+      <CardContent className="flex min-h-0 flex-1 flex-col p-0 overflow-hidden relative">
         {/* Mobile horizontal scroll hints */}
         {isMobile && (canScrollLeft || canScrollRight) && (
           <>
@@ -1347,7 +1347,7 @@ function DiffViewerImpl({
           </>
         )}
 
-        <ScrollArea className="flex-1 min-h-0" ref={scrollContainerRef}>
+        <ScrollArea className="w-full flex-1 min-h-0" ref={scrollContainerRef}>
           {/* Loading State */}
           {(isLoading || isHighlighting) && (
             <div className="flex items-center justify-center py-12" data-testid="diff-loading">
@@ -1587,7 +1587,7 @@ function DiffViewerImpl({
 
         {/* Mobile Action Bar - history mode: delete only (hidden in fullscreen) */}
         {isMobile && !isFullscreen && selectedFile && !isLoading && isHistoryMode && !isEditing && onDeletePath && (
-          <div className="flex-none p-3 bg-slate-900/95 backdrop-blur-sm border-t border-slate-800" data-testid="diff-mobile-actions-history">
+          <div className="sticky bottom-0 z-20 flex-none p-3 bg-slate-900/95 backdrop-blur-sm border-t border-slate-800" data-testid="diff-mobile-actions-history">
             <div className="flex items-center gap-2">
               <Button
                 variant="outline"
@@ -1605,7 +1605,7 @@ function DiffViewerImpl({
 
         {/* Mobile Action Bar - normal mode (hidden in fullscreen) */}
         {isMobile && !isFullscreen && selectedFile && !isLoading && !isHistoryMode && !isProposalMode && !isEditing && (
-          <div className="flex-none p-3 bg-slate-900/95 backdrop-blur-sm border-t border-slate-800" data-testid="diff-mobile-actions">
+          <div className="sticky bottom-0 z-20 flex-none p-3 bg-slate-900/95 backdrop-blur-sm border-t border-slate-800" data-testid="diff-mobile-actions">
             {confirmingDiscard ? (
               <div className="flex items-center gap-2">
                 <span className="text-sm text-amber-400 flex-1">

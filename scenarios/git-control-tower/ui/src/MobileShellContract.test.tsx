@@ -29,9 +29,11 @@ describe("GCT-MOBILE embedded shell regression contract", () => {
     expect(app).toContain("chromeTheme.setBase({ statusColor: GCT_CHROME_COLOR, fillColor: GCT_CHROME_COLOR })");
   });
 
-  it("GCT-MOBILE-005: uses a bounded flex footer instead of an overlay action bar", () => {
-    expect(diffViewer).toContain('<ScrollArea className="flex-1 min-h-0"');
-    expect(diffViewer).toContain('className="flex-none p-3 bg-slate-900/95 backdrop-blur-sm border-t border-slate-800" data-testid="diff-mobile-actions"');
+  it("GCT-MOBILE-005: anchors file actions below the bounded diff scroller", () => {
+    expect(diffViewer).toContain('<CardContent className="flex min-h-0 flex-1 flex-col p-0 overflow-hidden relative">');
+    expect(diffViewer).toContain('<ScrollArea className="w-full flex-1 min-h-0"');
+    expect(diffViewer).toContain('className="sticky bottom-0 z-20 flex-none p-3 bg-slate-900/95 backdrop-blur-sm border-t border-slate-800" data-testid="diff-mobile-actions"');
+    expect(diffViewer.indexOf("</ScrollArea>")).toBeLessThan(diffViewer.indexOf('data-testid="diff-mobile-actions"'));
     expect(diffViewer).not.toContain("Mobile spacer to account for fixed action bar");
   });
 

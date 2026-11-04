@@ -1,6 +1,7 @@
 import {
   Profiler,
   memo,
+  useDeferredValue,
   useState,
   useEffect,
   useLayoutEffect,
@@ -13,6 +14,8 @@ import {
   File,
   FilePlus,
   FileX,
+  FolderOpen,
+  ArrowLeft,
   AlertTriangle,
   Plus,
   Minus,
@@ -47,6 +50,8 @@ import { IconButton } from "@vrooli/react-component-library/IconButton/3";
 import { Tabs } from "@vrooli/react-component-library/Tabs/1";
 
 export type { GroupingRule, FileCategory, SelectedFileEntry, FileListProps } from "./FileListTypes";
+
+type GroupDrillIn = { groupId: string; directory: string };
 
 function FileListImpl({
   files,
@@ -114,6 +119,9 @@ function FileListImpl({
     } catch { /* ignore */ }
     return new Set();
   });
+  const [groupDrillIn, setGroupDrillIn] = useState<GroupDrillIn | null>(null);
+  const overviewScrollTopRef = useRef(0);
+  const previousDrillInRef = useRef<GroupDrillIn | null>(null);
   // Persisted subsection (Modified/Untracked/…) expand state, keyed by
   // group.id + category. Only explicitly-toggled sections are stored; sections
   // absent from the map fall back to their per-category default (Untracked
@@ -549,7 +557,9 @@ function FileListImpl({
         count: Object.values(groupedFiles).reduce((total, paths) => total + paths.length, 0),
         runs: [...new Set(Object.values(groupedFiles).flatMap(paths => paths.map(path => runIndex?.get(path)?.runId)).filter((id): id is string => Boolean(id)))],
       };
-    }).filter((group) => Object.values(group.files).some((paths) => paths.length > 0));
+    }).filter((group) =>
+      Object.values(group.files).some((paths) => paths.length > 0) || group.id === groupDrillIn?.groupId,
+    );
 
     const bandSummaries = new Map<string, { groups: number; files: number }>();
     for (const group of visibleGroups) {
@@ -564,7 +574,7 @@ function FileListImpl({
       ...group,
       bandSummary: bandSummaries.get((group.source === "contract" ? group.kind : group.source) ?? "other") ?? { groups: 0, files: 0 },
     }));
-  }, [files, groupingActive, resolvedGroups, filterPaths, runIndex]);
+  }, [files, groupingActive, resolvedGroups, filterPaths, runIndex, groupDrillIn?.groupId]);
 
   const renderGroupHeader = useCallback((group: (typeof groupedSections)[number], index: number) => {
     const { stageable, discardCount, count: groupCount, runs } = group;
@@ -644,6 +654,18 @@ function FileListImpl({
               >
                 {groupCount} files
               </button>
+            )}
+            {!isGroupCollapsed && (
+              <IconButton
+                size="xs"
+                surface="ghost"
+                denseTapTarget
+                className="!h-8 !w-8 !min-h-0 !min-w-0 !border-0 !shadow-none !text-sky-300"
+                onClick={() => setGroupDrillIn({ groupId: group.id, directory: "" })}
+                aria-label={`Open ${group.label} group`}
+                title={`Browse ${group.label} folders`}
+                data-testid={`file-group-open-${group.id}`}
+              ><FolderOpen className="h-4 w-4" /></IconButton>
             )}
             {!mobileSelectionMode &&
               !isGroupCollapsed &&
@@ -735,7 +757,7 @@ function FileListImpl({
     );
   }, [groupedSections, collapsedGroups, isMobile, runIndex, onOpenReview,
     mobileSelectionMode, onStagePaths, compactHeader, onDiscardPaths,
-    isDiscarding, confirmingGroup, toggleGroupCollapse, openGroupMetrics]);
+    isDiscarding, confirmingGroup, toggleGroupCollapse, openGroupMetrics, setGroupDrillIn]);
 
 
   const listBlocks = useMemo<ChangeListBlock[]>(() => {
@@ -764,14 +786,181 @@ function FileListImpl({
       });
     };
     if (!groupingActive) return sectionsFor("__flat__", files ?? {});
-    return groupedSections.flatMap((group, index): ChangeListBlock[] => [
+    if (groupDrillIn) {
+      const group = groupedSections.find((candidate) => candidate.id === groupDrillIn.groupId);
+      if (group) {
+        const categories: FileCategory[] = ["conflicts", "staged", "unstaged", "untracked"];
+        const root = group.displayPrefix.replace(/^\/+|\/+$/g, "");
+        const directFiles: Partial<Record<FileCategory, string[]>> = {};
+        const folders = new Map<string, Record<FileCategory, string[]>>();
+
+        for (const category of categories) {
+          directFiles[category] = [];
+          for (const path of group.files[category]) {
+            const relative = root && path.startsWith(`${root}/`) ? path.slice(root.length + 1) : path;
+            const directoryPrefix = groupDrillIn.directory ? `${groupDrillIn.directory}/` : "";
+            if (directoryPrefix && !relative.startsWith(directoryPrefix)) continue;
+            const withinDirectory = directoryPrefix ? relative.slice(directoryPrefix.length) : relative;
+            const [child, ...remaining] = withinDirectory.split("/");
+            if (!child) continue;
+            if (remaining.length === 0) {
+              directFiles[category]?.push(path);
+              continue;
+            }
+            const childFiles = folders.get(child) ?? {
+              conflicts: [], staged: [], unstaged: [], untracked: [],
+            };
+            childFiles[category].push(path);
+            folders.set(child, childFiles);
+          }
+        }
+
+        const folderRows: ChangeListBlock[] = [...folders.entries()]
+          .sort(([a], [b]) => a.localeCompare(b))
+          .map(([name, folderFiles]) => {
+            const allPaths = categories.flatMap((category) => folderFiles[category]);
+            const stageable = [
+              ...folderFiles.conflicts,
+              ...folderFiles.unstaged,
+              ...folderFiles.untracked,
+            ];
+            const directory = [groupDrillIn.directory, name].filter(Boolean).join("/");
+            return {
+              type: "header",
+              key: `folder:${group.id}:${directory}`,
+              estimateSize: isMobile ? 56 : 44,
+              render: () => (
+                <div className="flex min-h-11 items-center gap-2 border-b border-slate-800/80 px-3 py-1.5" data-testid="change-folder-row">
+                  <button
+                    type="button"
+                    className="flex min-w-0 flex-1 items-center gap-2 text-left text-sm text-slate-200 hover:text-white"
+                    onClick={() => setGroupDrillIn({ groupId: group.id, directory })}
+                    aria-label={`Open folder ${directory}`}
+                    data-testid="change-folder-open"
+                  >
+                    <FolderOpen className="h-4 w-4 shrink-0 text-sky-300" />
+                    <span className="truncate">{name}</span>
+                    <ChevronRight className="h-4 w-4 shrink-0 text-slate-500" />
+                  </button>
+                  <span className="shrink-0 text-xs text-slate-500">{allPaths.length} files</span>
+                  {stageable.length > 0 && onStagePaths && (
+                    <IconButton
+                      size="xs"
+                      surface="ghost"
+                      denseTapTarget
+                      className="!h-8 !w-8 !min-h-0 !min-w-0 !border-0 !shadow-none !text-emerald-300"
+                      onClick={() => onStagePaths(stageable)}
+                      aria-label={`Stage ${stageable.length} changed files in ${directory}`}
+                      title="Stage folder changes"
+                      data-testid="change-folder-stage"
+                    ><Plus className="h-4 w-4" /></IconButton>
+                  )}
+                </div>
+              ),
+            };
+          });
+
+        const allScopedPaths = categories.flatMap((category) => [
+          ...(directFiles[category] ?? []),
+          ...[...folders.values()].flatMap((folderFiles) => folderFiles[category]),
+        ]);
+        const stageable = allScopedPaths.filter((path) =>
+          (files?.unstaged ?? []).includes(path) ||
+          (files?.untracked ?? []).includes(path) ||
+          (files?.conflicts ?? []).includes(path),
+        );
+        const segments = groupDrillIn.directory.split("/").filter(Boolean);
+        const breadcrumbRows: ChangeListBlock[] = [{
+          type: "header",
+          key: `group-drill:${group.id}:${groupDrillIn.directory}`,
+          estimateSize: isMobile ? 100 : 76,
+          render: () => (
+            <div className="border-b border-slate-800 bg-slate-950/95 px-3 py-2" data-testid="change-group-drill-header">
+              <div className="flex min-h-9 items-center gap-2">
+                <button
+                  type="button"
+                  className="inline-flex min-h-9 shrink-0 items-center gap-1 rounded px-1 text-sm text-sky-300 hover:bg-slate-800/70"
+                  onClick={() => {
+                    if (!segments.length) setGroupDrillIn(null);
+                    else setGroupDrillIn({ groupId: group.id, directory: segments.slice(0, -1).join("/") });
+                  }}
+                  aria-label={segments.length ? "Go to parent folder" : "Back to all change groups"}
+                  data-testid="change-group-drill-back"
+                ><ArrowLeft className="h-4 w-4" />{segments.length ? "Back" : "Changes"}</button>
+                <nav className="flex min-w-0 items-center gap-1 overflow-hidden text-xs text-slate-400" aria-label="Change location">
+                  <button type="button" className="truncate hover:text-slate-200" onClick={() => setGroupDrillIn({ groupId: group.id, directory: "" })}>{group.label}</button>
+                  {segments.map((segment, index) => (
+                    <span key={`${index}:${segment}`} className="flex min-w-0 items-center gap-1">
+                      <ChevronRight className="h-3 w-3 shrink-0" />
+                      <button type="button" className="truncate hover:text-slate-200" onClick={() => setGroupDrillIn({ groupId: group.id, directory: segments.slice(0, index + 1).join("/") })}>{segment}</button>
+                    </span>
+                  ))}
+                </nav>
+              </div>
+              <div className="mt-1 flex items-center justify-between gap-2 pl-1 text-xs text-slate-500">
+                <span>{allScopedPaths.length} changed files</span>
+                {stageable.length > 0 && onStagePaths && (
+                  <Button variant="outline" size="sm" className="h-8 px-2 text-emerald-200" onClick={() => onStagePaths(stageable)} data-testid="change-group-scope-stage">
+                    <Plus className="mr-1 h-3.5 w-3.5" />Stage {segments.length ? "folder" : "group"}
+                  </Button>
+                )}
+              </div>
+            </div>
+          ),
+        }];
+        const emptyRow: ChangeListBlock[] = allScopedPaths.length === 0 ? [{
+          type: "header",
+          key: `group-drill-empty:${group.id}:${groupDrillIn.directory}`,
+          estimateSize: 64,
+          render: () => (
+            <div className="px-4 py-8 text-center text-sm text-slate-500" data-testid="change-group-empty">
+              No changed files match this filter.
+            </div>
+          ),
+        }] : [];
+        return [
+          ...breadcrumbRows,
+          ...folderRows,
+          ...emptyRow,
+          ...sectionsFor(`drill:${group.id}:${groupDrillIn.directory}`, directFiles, `${group.label}/${groupDrillIn.directory}`),
+        ];
+      }
+    }
+    return groupedSections.flatMap((group, index): ChangeListBlock[] => group.count === 0 ? [] : [
       { type: "header", key: `group:${group.id}`, render: () => renderGroupHeader(group, index), estimateSize: isMobile ? 80 : 72 },
       ...(collapsedGroups.has(group.id) ? [] : sectionsFor(group.id, group.files, group.label)),
     ]);
   }, [files, fileStats, groupedSections, groupingActive, collapsedGroups, filterPaths,
     isSectionExpanded, toggleSectionCollapse, onStageFile, onUnstageFile,
     handleDiscardUnstaged, handleDiscardUntracked, openAggregateMetrics, openGroupCategoryMetrics,
-    isMobile, renderGroupHeader]);
+    isMobile, renderGroupHeader, groupDrillIn, onStagePaths]);
+
+  const deferredListBlocks = useDeferredValue(listBlocks);
+
+  useLayoutEffect(() => {
+    const element = scrollAreaRef.current;
+    const previous = previousDrillInRef.current;
+    if (!element) return;
+
+    if (!previous && groupDrillIn) {
+      overviewScrollTopRef.current = element.scrollTop;
+      element.scrollTop = 0;
+    } else if (previous && !groupDrillIn) {
+      element.scrollTop = overviewScrollTopRef.current;
+      if (scrollTopStore) scrollTopStore.current = overviewScrollTopRef.current;
+    } else if (previous && groupDrillIn && (
+      previous.groupId !== groupDrillIn.groupId || previous.directory !== groupDrillIn.directory
+    )) {
+      element.scrollTop = 0;
+    }
+    previousDrillInRef.current = groupDrillIn;
+  }, [groupDrillIn, scrollTopStore]);
+
+  useEffect(() => {
+    if (groupDrillIn && !resolvedGroups?.some((group) => group.key === groupDrillIn.groupId)) {
+      setGroupDrillIn(null);
+    }
+  }, [groupDrillIn, resolvedGroups]);
 
   const handleCycleViewMode = onCycleViewMode ?? (() => {});
   const totalFilesCount =
@@ -980,7 +1169,7 @@ function FileListImpl({
                   />
                 ) : (
                     <VirtualizedFileSections
-                      blocks={listBlocks}
+                      blocks={deferredListBlocks}
                       scrollRef={scrollAreaRef}
                       fileStatuses={files?.statuses}
                       binaryFiles={binarySet}

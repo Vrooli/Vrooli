@@ -1993,3 +1993,33 @@ This is the same scenario/behavior and does not change the mutation boundary.
   2026-10-15 15:31:32 America/New_York; API 18710, UI 21400. The final scoped
   whitespace check passes. Closing reviews were rechecked against this final
   source with no additional material findings.
+
+### Operator follow-up — grouped review drill-in and persistent diff actions (2026-11-03)
+
+- Trigger: operator reported that very large groups such as project-level docs
+  are difficult to review, mobile file actions disappear from reach, staging
+  exits the detail view, and list refreshes can interrupt scrolling.
+- W3 repair: added a separate group-browse affordance, hierarchical folder
+  drill-in, scoped folder/group staging, breadcrumbs, an empty filtered state,
+  and restoration of the overview scroll position. Deferred virtual-list block
+  updates keep non-urgent refresh projection work behind active interaction.
+  Mobile stage/unstage leaves the selected diff open; the diff panel now uses a
+  bounded flex scroller with its action footer anchored below it and above app
+  navigation. Desktop keeps the existing side-by-side panels and gets the same
+  group/folder hierarchy.
+- Mockup and interaction record: `docs/mockups/change-review-drill-in.html` and
+  the Change review drill-in section in `docs/concepts/ARCHITECTURE.md`.
+- Regressions cover group/folder navigation, scoped stage path selection,
+  filter-empty behavior, overview scroll restoration, and the anchored mobile
+  footer. Full UI suite: 69 files / 665 tests pass. `pnpm lint`,
+  `pnpm type-check`, `pnpm build`, `pnpm selector:check`, and scoped
+  `git diff --check -- scenarios/git-control-tower` pass. The build reports
+  existing stale Browserslist data and large-chunk advisories.
+- Test Genie `unit` intent was accepted as receipt
+  `625c99ed-9026-4265-9c41-81d0025b55c0` in queued state, but the printed wait
+  and get commands both returned `not_found`; no owner terminal receipt was
+  available. Direct Test Genie CLI initialization also panicked on the unrelated
+  hidden descriptor `scenarios/.browser-automation-studio-e7-offline` naming
+  `browser-automation-studio`. Local UI results are retained; Test Genie status
+  remains unknown and is not claimed as passing. Catalog panic filed with
+  Scenario QA as `knw-1793754405769719578`.
