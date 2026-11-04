@@ -11,7 +11,7 @@ import { preserveRoutedTestMode } from "../routedTestMode";
 import { optionLabel } from "./askView";
 
 const PAGE_SIZE = 50;
-const states = ["all", "awaiting", "answered", "defaulted", "expired", "withdrawn"] as const;
+const states = ["all", "awaiting", "answered", "defaulted", "expired", "withdrawn", "dismissed"] as const;
 type StateFilter = typeof states[number];
 let returnPosition = { from: "", top: 0, askId: "", index: 0 };
 

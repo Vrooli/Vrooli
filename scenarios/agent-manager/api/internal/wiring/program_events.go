@@ -72,7 +72,7 @@ func reconcileEventSubscriptionAt(ctx context.Context, base, name, pattern, targ
 		return err
 	}
 	for _, item := range existing {
-		if item.Enabled && item.DeliveryTarget == target && item.EventPattern == pattern {
+		if item.Name == name && item.Enabled && item.DeliveryTarget == target && item.EventPattern == pattern {
 			return nil
 		}
 	}

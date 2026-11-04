@@ -71,7 +71,9 @@ For an operator-authorized ordinary Agent Manager restart:
    The control plane stages a stale replacement before stopping the serving
    instance. It preserves detached API executors and does not require Agent
    Manager to close admission or drain itself. No force flag or maintenance
-   credential is needed for this ordinary restart path.
+   credential is needed for this ordinary restart path. Dependencies are checked
+   while the old owner serves. An unavailable optional resource is reported as
+   degraded instead of delaying the restart for a resource start or model pull.
 3. Wait for health and startup recovery readiness.
 4. Read the same run IDs and recovery events. Verify preserved session/runner
    identity, transcript progress and normal continuation. Readiness alone is

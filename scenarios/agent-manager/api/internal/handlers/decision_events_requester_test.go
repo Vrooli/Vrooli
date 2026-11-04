@@ -242,4 +242,8 @@ func TestFormatDecisionWakeMessage(t *testing.T) {
 	if !strings.Contains(defaulted, "default answer") || !strings.Contains(defaulted, "Do not delete") {
 		t.Fatalf("defaulted message missing expected content: %q", defaulted)
 	}
+	dismissed := formatDecisionWakeMessage(operatordecision.DecisionResolution{State: "dismissed", Reason: "not applicable"})
+	if !strings.Contains(dismissed, "DISMISSED without an answer") || !strings.Contains(dismissed, "No approval was granted") {
+		t.Fatalf("dismissal message must explicitly withhold approval: %q", dismissed)
+	}
 }

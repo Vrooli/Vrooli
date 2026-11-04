@@ -59,7 +59,7 @@ Examples: Scientific Debugging, Code Review, Incident Response, Performance Inve
 
 ### **3. The Process Section**
 
-The core of every Practice skill is a **repeatable process**, structured as numbered phases with clear entry/exit criteria.
+A Practice skill gives a repeatable approach with decision points. Use phases and entry/exit criteria when they help the work; avoid forcing a rigid sequence or artifacts for every application.
 
 **Phase template:**
 ```markdown
@@ -78,7 +78,7 @@ The core of every Practice skill is a **repeatable process**, structured as numb
 **Artifacts:** [What this phase produces]
 ```
 
-Each phase must be **independently valuable** (produces something useful even if stopped early), **observable** (clear completion criteria), and **documented** (artifacts persist beyond the session).
+When phases are useful, make their decisions and outcomes observable without requiring a separate artifact at every step.
 
 ---
 
@@ -98,7 +98,7 @@ The falsifiability characteristic lives here: every methodology needs at least o
 
 ### **5. Knowledge Capture**
 
-Every application of a Practice skill must produce artifacts that **persist** (outlive the session), **explain** (document the why), and **prevent** (help future agents avoid the same issues). When authoring, specify which artifact types the methodology produces (tests, findings docs, code comments, runbooks, benchmarks) and where they live.
+Retain evidence and rationale where they are useful, preferably in existing work artifacts. Choose tests, notes, comments or other artifacts according to the task; avoid mandatory paperwork for every application.
 
 ---
 
@@ -119,10 +119,10 @@ Every Practice skill includes an anti-patterns table warning against the methodo
 You may update Practice skills for clarity, additional patterns, or improved workflows.
 
 You must:
-- Include a clear, numbered process with phases and entry/exit criteria
+- Give a clear process and decisions, using phases only when they help
 - Include convergence patterns matched to the methodology's shape (§4)
 - Ensure the process is falsifiable (decision points where hypotheses can fail)
-- Specify the artifacts the methodology produces (§5)
+- Explain proportionate evidence and retention (§5)
 - Include a methodology-specific anti-patterns table (§6)
 - Keep the methodology scenario-agnostic (no `{{TARGET}}`)
 

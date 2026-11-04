@@ -30,6 +30,7 @@ const (
 	DecisionAnswered  = effortdecision.Answered
 	DecisionDefaulted = effortdecision.Defaulted
 	DecisionExpired   = effortdecision.Expired
+	DecisionDismissed = effortdecision.Dismissed
 
 	DecisionViaPhone   = effortdecision.ViaPhone
 	DecisionViaDesktop = effortdecision.ViaDesktop
@@ -570,7 +571,7 @@ func (s *EffortService) answerDecision(ctx context.Context, req *pb.AnswerEffort
 		if d.Answer == answer {
 			// The decision write may have succeeded before the receiver signal
 			// failed. Preserve the original answer fields and repair that effect.
-			return d, true, s.signalDecisionAnswer(ctx, d)
+			return d, true, s.signalDecisionResolution(ctx, d)
 		}
 		return nil, false, ErrDecisionAnswered
 	}
@@ -579,7 +580,7 @@ func (s *EffortService) answerDecision(ctx context.Context, req *pb.AnswerEffort
 	if err := s.repo.SaveEffortDecision(ctx, d); err != nil {
 		return nil, false, err
 	}
-	return d, true, s.signalDecisionAnswer(ctx, d)
+	return d, true, s.signalDecisionResolution(ctx, d)
 }
 
 // ResolveDecisionFromHub applies notification-hub's ask.resolved event. It
@@ -635,7 +636,19 @@ func (s *EffortService) resolveDecisionFromHub(ctx context.Context, resolution D
 	case "expired":
 		if d.State == DecisionPending {
 			d.State, d.ResolutionReason = DecisionExpired, resolution.Reason
+			d.ResolvedAt = timestamppb.New(answeredAt)
 			changed = true
+		}
+	case operatordecision.StateDismissed:
+		if d.State == DecisionPending {
+			d.State, d.ResolutionReason, d.AnsweredVia = DecisionDismissed, resolution.Reason, DecisionViaPhone
+			d.ResolvedAt = timestamppb.New(answeredAt)
+			d.RecordedAt = nil
+			changed = true
+			answerSignalNeeded = true
+		} else if d.State == DecisionDismissed {
+			// Repair a failed signal append on callback redelivery.
+			answerSignalNeeded = true
 		}
 	case "defaulted":
 		if d.State == DecisionPending || d.State == DecisionExpired {
@@ -670,7 +683,7 @@ func (s *EffortService) resolveDecisionFromHub(ctx context.Context, resolution D
 		}
 	}
 	if answerSignalNeeded {
-		return d, true, s.signalDecisionAnswer(ctx, d)
+		return d, true, s.signalDecisionResolution(ctx, d)
 	}
 	return d, false, nil
 }
@@ -679,11 +692,15 @@ func (s *EffortService) setDecisionAnswer(d *pb.EffortDecision, state, answer, n
 	d.State, d.Answer, d.AnswerNote, d.AnsweredVia = state, answer, note, via
 	d.AnswerLabel = DecisionView(d).Label(answer)
 	d.AnsweredAt = timestamppb.New(at)
+	d.ResolvedAt = timestamppb.New(at)
 	d.ResolutionReason = reason
 	d.RecordedAt = nil
 }
 
 func hasDecisionOption(d *pb.EffortDecision, key string) bool {
+	if key == "other" {
+		return true
+	}
 	for _, option := range d.GetOptions() {
 		if option.GetKey() == key {
 			return true
@@ -692,8 +709,8 @@ func hasDecisionOption(d *pb.EffortDecision, key string) bool {
 	return false
 }
 
-// signalDecisionAnswer appends one operator_answer signal per answer.
-func (s *EffortService) signalDecisionAnswer(ctx context.Context, d *pb.EffortDecision) error {
+// signalDecisionResolution appends one durable signal per terminal resolution.
+func (s *EffortService) signalDecisionResolution(ctx context.Context, d *pb.EffortDecision) error {
 	if d.EffortRef == "" {
 		d.EffortRef = s.effortForGoalHome(ctx, d.GoalHome)
 		if d.EffortRef == "" {
@@ -704,8 +721,12 @@ func (s *EffortService) signalDecisionAnswer(ctx context.Context, d *pb.EffortDe
 		}
 	}
 	at := d.GetAnsweredAt().AsTime().UTC().Format(time.RFC3339Nano)
+	kind := SignalOperatorAnswer
+	if d.State == DecisionDismissed {
+		kind = SignalOperatorDecisionDismissed
+	}
 	detail := fmt.Sprintf("decision %s %s: %s (%s); run `agent-manager effort decision sync %s`", d.DecisionId, d.State, d.Answer, d.AnsweredVia, s.currentDecisionHome(ctx, d))
-	_, _, err := s.repo.AppendEffortSignal(ctx, d.EffortRef, SignalOperatorAnswer, "", detail, SignalOperatorAnswer+":"+d.GoalHome+"|"+d.DecisionId+"|"+d.State+"|"+d.Answer+"|"+at)
+	_, _, err := s.repo.AppendEffortSignal(ctx, d.EffortRef, kind, "", detail, kind+":"+d.GoalHome+"|"+d.DecisionId+"|"+d.State+"|"+d.Answer+"|"+at)
 	return err
 }
 
@@ -747,7 +768,15 @@ func (s *EffortService) MarkDecisionRecorded(ctx context.Context, req *pb.MarkEf
 	if err != nil {
 		return nil, err
 	}
-	if (d.State != DecisionAnswered && d.State != DecisionDefaulted) || req.AnsweredAt == nil || d.AnsweredAt == nil || !d.AnsweredAt.AsTime().Equal(req.AnsweredAt.AsTime()) {
+	terminalAt := d.GetResolvedAt()
+	if terminalAt == nil {
+		terminalAt = d.GetAnsweredAt() // legacy records used answer time as their sync fence
+	}
+	requestAt := req.GetResolvedAt()
+	if requestAt == nil {
+		requestAt = req.GetAnsweredAt() // compatibility with existing sync clients
+	}
+	if (d.State != DecisionAnswered && d.State != DecisionDefaulted && d.State != DecisionDismissed) || requestAt == nil || terminalAt == nil || !terminalAt.AsTime().Equal(requestAt.AsTime()) {
 		return nil, ErrDecisionNotAnswered
 	}
 	if d.RecordedAt == nil {

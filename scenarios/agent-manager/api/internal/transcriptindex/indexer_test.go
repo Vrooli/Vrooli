@@ -813,9 +813,9 @@ func TestCoverageReportsCapturedAndPendingFilesPerRoot(t *testing.T) {
 	}
 }
 
-// A session the retired snapshot importer adopted is relinked to its source
-// file (no duplicate run) and its private transcript copy is deleted.
-func TestIndexerRelinksLegacySnapshotImportsAndDeletesTheirCopy(t *testing.T) {
+// A retired snapshot import is relinked without deleting its private copy;
+// identity-safe cleanup is tracked separately by the owner.
+func TestIndexerRelinksLegacySnapshotImportsAndRetainsTheirCopy(t *testing.T) {
 	r := newRig(t, transcriptindex.DefaultRecallMaxBytes)
 	ctx := context.Background()
 	if _, err := r.svc.CreateTask(ctx, &domain.Task{ID: uuid.NewSHA1(uuid.NameSpaceURL, []byte("agent-manager/imported-transcripts")), Title: "Imported external transcripts", ScopePath: "."}); err != nil {
@@ -840,8 +840,8 @@ func TestIndexerRelinksLegacySnapshotImportsAndDeletesTheirCopy(t *testing.T) {
 	if run := r.run(row.RunID); run.TranscriptPath != source {
 		t.Fatalf("relinked transcript path = %s", run.TranscriptPath)
 	}
-	if _, err := os.Stat(filepath.Dir(legacy.TranscriptPath)); !os.IsNotExist(err) {
-		t.Fatalf("legacy copy still on disk: %v", err)
+	if _, err := os.Stat(legacy.TranscriptPath); err != nil {
+		t.Fatalf("legacy copy must remain for identity-safe cleanup: %v", err)
 	}
 	if r.tokens(row.RunID) != 110 {
 		t.Fatalf("relinked tokens = %d", r.tokens(row.RunID))

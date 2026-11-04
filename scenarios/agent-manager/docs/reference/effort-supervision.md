@@ -409,6 +409,7 @@ restarts. Kinds:
 | `child_run_ended` | Agent Manager: a run holding the effort reference (not as orchestrator or supervisor) ended. |
 | `cap_stop` | Agent Manager: a run of the effort stopped with `stop_reason=token_cap`. |
 | `operator_answer` | Agent Manager: a decision was answered, defaulted, or answered late. |
+| `operator_decision_dismissed` | Agent Manager: the operator dismissed a decision without answering or granting its requested authority. |
 | `step_back` | `effort epoch-check --effort <ref>` on STEP_BACK. |
 | `delivery_pressure` | Agent Manager: one native threshold notice per commission/phase; never an acceptance record. |
 | `feedback` | Whoever writes an operator or supervisor FEEDBACK.md entry: `effort signal <ref> --kind feedback --detail "FB-070 …"`. |
@@ -432,6 +433,11 @@ create an operator decision or claim that work was accepted.
 one `agent_manager.effort.decision_requested.v1` event (notification-hub asks
 the operator once) and adds a `[decision <id>]` item under `## Needs operator`.
 An identical re-raise changes nothing; a changed one is refused (use a new id).
+A decision menu always has a Notification Hub-provided `Other` choice. The
+operator must enter the alternative in the free-text field; Hub returns the
+stable answer key `other` and the text in the resolution note. Agent Manager
+retains both, displays the label `Other`, and syncs the note verbatim. Producers
+must not define an option whose key is `other`.
 A bounded owner sweep also retries unpublished pending decisions across all
 history using a database checkpoint; it resumes after restart and wraps back
 to revisit failed publications. For published decisions still pending, the
@@ -448,9 +454,12 @@ through their owner before making a delivery claim.
 A default needs `--reversible`; notification-hub applies it only after the
 question was delivered. notification-hub's `ask.resolved` event records the
 answer, appends an `operator_answer` signal and wakes a parked orchestrator of
-the effort. `effort decision sync <home>` writes each answer verbatim into
-FEEDBACK.md (a default reads "applied by default"), removes the item and marks
-the decision recorded; it is idempotent. `effort decision answer <home> <id>
+the effort. An operator may dismiss an open Hub ask without answering; the
+`dismissed` callback closes the matching Agent Manager decision without
+granting authority, records the dismissal reason, appends a resolution signal,
+and wakes the requester. `effort decision sync <home>` writes answers (including
+an `Other` note) or a dismissal record into FEEDBACK.md, removes the item and
+marks the terminal record synced; it is idempotent. `effort decision answer <home> <id>
 <key>` is the operator's desktop answer (agent runs are refused);
 `effort decision list` lists them. `--home-ref` names the repository-relative
 goal home when the directory is a copy.

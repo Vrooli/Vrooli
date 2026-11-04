@@ -33,6 +33,7 @@ import (
 	"github.com/vrooli/api-core/devrouting"
 	"github.com/vrooli/api-core/discovery"
 	"github.com/vrooli/api-core/filerouting"
+	apilifecycle "github.com/vrooli/api-core/lifecycle"
 	"github.com/vrooli/api-core/owneridentity"
 	"github.com/vrooli/api-core/preflight"
 	apiserver "github.com/vrooli/api-core/server"
@@ -236,7 +237,7 @@ func main() {
 		base, _ := discovery.ResolveScenarioURLDefault(ctx, "vrooli-events")
 		return base
 	}
-	go integrations.RetrySubscriptions(context.Background(), 30*time.Second, func(ctx context.Context, kind string) error {
+	reconcileSubscription := func(ctx context.Context, kind string) error {
 		config := eventConfig.Get()
 		base := eventsBase(ctx)
 		var err error
@@ -256,7 +257,46 @@ func main() {
 			slog.Warn("vrooli-events subscription reconciliation failed; will retry", "kind", kind, "error", err)
 		}
 		return err
-	}, "incident", "decision", "withdrawal", "notification", "heartbeat")
+	}
+	var subscriptionRetryMu sync.Mutex
+	var subscriptionRetryCancel context.CancelFunc
+	var subscriptionRetryDone chan struct{}
+	startSubscriptionRetry := func() {
+		subscriptionRetryMu.Lock()
+		defer subscriptionRetryMu.Unlock()
+		if subscriptionRetryCancel != nil {
+			return
+		}
+		workerCtx, cancel := context.WithCancel(context.Background())
+		done := make(chan struct{})
+		subscriptionRetryCancel, subscriptionRetryDone = cancel, done
+		go func() {
+			defer close(done)
+			integrations.RetrySubscriptions(workerCtx, 30*time.Second, reconcileSubscription, "incident", "decision", "withdrawal", "notification", "heartbeat")
+		}()
+	}
+	stopSubscriptionRetry := func(ctx context.Context) error {
+		subscriptionRetryMu.Lock()
+		cancel, done := subscriptionRetryCancel, subscriptionRetryDone
+		if cancel == nil {
+			subscriptionRetryMu.Unlock()
+			return nil
+		}
+		cancel()
+		subscriptionRetryMu.Unlock()
+		select {
+		case <-done:
+			subscriptionRetryMu.Lock()
+			if subscriptionRetryDone == done {
+				subscriptionRetryCancel, subscriptionRetryDone = nil, nil
+			}
+			subscriptionRetryMu.Unlock()
+			return nil
+		case <-ctx.Done():
+			return ctx.Err()
+		}
+	}
+	startSubscriptionRetry()
 	// The webhook verifies with the publisher's own signing secret: the
 	// environment override, then the credential authority. The value is
 	// never logged.
@@ -320,7 +360,19 @@ func main() {
 		// Map verified producer provenance to the canonical agent principal for
 		// operation grants. OwnerAuthenticator retains the Hub's owner contract.
 		Authentication: &authn.Config{},
-		Cleanup:        func(ctx context.Context) error { return db.Close() },
+		LifecycleHooks: apilifecycle.Hooks{
+			Quiesce: stopSubscriptionRetry,
+			Resume: func(context.Context) error {
+				startSubscriptionRetry()
+				return nil
+			},
+		},
+		Cleanup: func(ctx context.Context) error {
+			if err := stopSubscriptionRetry(ctx); err != nil {
+				return err
+			}
+			return db.Close()
+		},
 	}); err != nil {
 		log.Fatalf("Server error: %v", err)
 	}

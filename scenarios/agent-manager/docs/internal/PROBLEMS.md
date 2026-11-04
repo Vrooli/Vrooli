@@ -19,6 +19,17 @@ not authorize stopping runs, destructive maintenance, or restarting dependency
 parents. See [runner recovery](../runner-transcript-recovery.md) for the receiving
 checks and the limitations of durable transcripts.
 
+On 2026-11-03, two ordinary live restarts retained the Web Console and harness
+session identities for all 23 captured attached records. A startup replay
+conflict on six read-only imported records was traced to importing historical
+`running` status into managed-run recovery; startup and manual recovery now
+leave those imports with their external owner. A separate restart delay came
+from an optional Ollama ensure after the stop; dependency observation now runs
+before the stop, and an unavailable optional resource is reported as degraded
+without starting it or pulling models. Restart evidence is retained in the
+research home under `topics/experiment-operations/runs/research-direction-validation-attention-20261101/evidence/agent-manager-restart-20261103.json`.
+Matching session identities do not prove useful progress for every run.
+
 Standalone setup/dependency rebuild and operations that do require an owner
 maintenance proof retain their own control-plane gates. Do not transfer the
 restart exception to those operations. The maintenance API reports admission,

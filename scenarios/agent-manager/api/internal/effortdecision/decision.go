@@ -9,12 +9,14 @@ import (
 	"path"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"agent-manager/internal/goalhome"
 
 	"github.com/vrooli/api-core/eventbus"
 	"github.com/vrooli/api-core/operatordecision"
 	pb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 // Decision states. pending waits for the operator; answered and defaulted
@@ -25,6 +27,7 @@ const (
 	Answered  = "answered"
 	Defaulted = "defaulted"
 	Expired   = "expired"
+	Dismissed = "dismissed"
 
 	ViaPhone   = "phone"
 	ViaDesktop = "desktop"
@@ -55,7 +58,9 @@ func View(d *pb.EffortDecision) goalhome.Decision {
 		Urgency: d.GetUrgency(), Note: d.GetNote(), BigPicture: d.GetBigPicture(), TechnicalDetails: d.GetTechnicalDetails(),
 		ContextURL: d.GetContextUrl(), State: d.GetState(),
 		Answer: d.GetAnswer(), AnswerLabel: d.GetAnswerLabel(), AnswerNote: d.GetAnswerNote(), AnsweredVia: d.GetAnsweredVia(),
-		Late: d.GetLate(), AskID: d.GetAskId(),
+		ResolutionReason: d.GetResolutionReason(),
+		ResolvedAt:       timestampTime(d.GetResolvedAt()),
+		Late:             d.GetLate(), AskID: d.GetAskId(),
 	}
 	for _, option := range d.GetOptions() {
 		view.Options = append(view.Options, goalhome.DecisionOption{Key: option.GetKey(), Label: option.GetLabel()})
@@ -70,6 +75,13 @@ func View(d *pb.EffortDecision) goalhome.Decision {
 		view.AnsweredAt = d.GetAnsweredAt().AsTime()
 	}
 	return view
+}
+
+func timestampTime(value *timestamppb.Timestamp) time.Time {
+	if value == nil {
+		return time.Time{}
+	}
+	return value.AsTime()
 }
 
 // RequestedEvent rebuilds the decision_requested event from the stored

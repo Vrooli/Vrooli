@@ -94,7 +94,8 @@ function AskBody({
   const navigate = useNavigate();
   const [draft, setDraft] = useState(() => readAskDraft(subject, ask.id));
   const [attempt, setAttempt] = useState(() => readAskAttempt(attemptSubject, ask.id));
-  const [outcome, setOutcome] = useState<"uncertain" | "open" | "defaulted" | "recorded" | "conflict" | null>(() =>
+  const [dismissAttempt, setDismissAttempt] = useState(false);
+  const [outcome, setOutcome] = useState<"uncertain" | "open" | "defaulted" | "recorded" | "dismissed" | "conflict" | null>(() =>
     readAskAttempt(attemptSubject, ask.id) ? "uncertain" : null,
   );
   const [recordedLabel, setRecordedLabel] = useState("");
@@ -118,6 +119,10 @@ function AskBody({
         setOutcome("open");
       } else if (current.state === "defaulted") {
         setOutcome("defaulted");
+      } else if (current.state === "dismissed") {
+        setOutcome("dismissed");
+        setDismissAttempt(false);
+        clearAskDraft(subject, ask.id);
       } else if (current.state === "answered" || current.state === "expired" || current.state === "withdrawn") {
         setOutcome("conflict");
         setRecordedLabel(current.answerLabel || current.answer || current.state);
@@ -144,6 +149,12 @@ function AskBody({
     },
     onError: () => setOutcome("uncertain"),
   });
+  const dismiss = useMutation({
+    retry: false,
+    mutationFn: (note: string) => conversationsClient.dismiss({ askId: ask.id, note }),
+    onSuccess: () => readback.mutate(),
+    onError: () => setOutcome("uncertain"),
+  });
   const now = useNow();
   const open = ask.state === "pending" || ask.state === "escalated";
   const canAnswer = open || ask.state === "defaulted";
@@ -157,12 +168,17 @@ function AskBody({
     writeAskDraft(subject, ask.id, next);
   };
   const submit = () => {
-    if (!subject || !draft.answer || attempt || answer.isPending) return;
+    if (!subject || !draft.answer || attempt || answer.isPending || dismiss.isPending || (draft.answer === "other" && !draft.note.trim())) return;
     const immutable = { answer: draft.answer, note: draft.note.trim() };
     const savedAttempt = { ...immutable, subject };
     setAttempt(savedAttempt);
     writeAskAttempt(subject, ask.id, savedAttempt);
     answer.mutate(immutable);
+  };
+  const submitDismiss = () => {
+    if (!open || answer.isPending || dismiss.isPending) return;
+    setDismissAttempt(true);
+    dismiss.mutate(draft.note.trim());
   };
 
   return (
@@ -228,11 +244,12 @@ function AskBody({
         <div className="flex flex-col gap-3">
           {orderedOptions(ask).map((option) => {
             const recommended = option.key === ask.recommended;
+            const label = option.key === "other" ? t(strings.asks.detail.otherOption) : option.label;
             return (
               <div key={option.key} className={`flex flex-col gap-1 rounded-panel border p-3 ${draft.answer === option.key ? "border-app-accent bg-app-surface-muted" : "border-app-border"}`}>
                 <label className="flex min-h-11 cursor-pointer items-center gap-3">
                   <input data-testid={selectors.asks.option} data-option-key={option.key} type="radio" name={`answer-${ask.id}`} value={option.key} checked={draft.answer === option.key} disabled={Boolean(attempt) || answer.isPending} onChange={() => updateDraft({ ...draft, answer: option.key })} />
-                  <span className="font-medium">{option.label}{recommended && <span className="ms-2 text-xs text-app-muted-foreground">({t(strings.asks.detail.recommended)})</span>}</span>
+                  <span className="font-medium">{label}{recommended && <span className="ms-2 text-xs text-app-muted-foreground">({t(strings.asks.detail.recommended)})</span>}</span>
                 </label>
                 {recommended && ask.recommendationReason && (
                   <p className="text-sm text-app-muted-foreground">
@@ -242,6 +259,21 @@ function AskBody({
               </div>
             );
           })}
+          {draft.answer === "other" && (
+            <div className="flex flex-col gap-1">
+              <label htmlFor={`other-answer-${ask.id}`} className="text-sm font-medium">{t(strings.asks.detail.otherPrompt)}</label>
+              <textarea
+                id={`other-answer-${ask.id}`}
+                data-testid={selectors.asks.note}
+                aria-label={t(strings.asks.detail.otherPrompt)}
+                aria-required="true"
+                className="min-h-28 w-full rounded-control border border-app-border bg-app-surface p-3"
+                value={draft.note}
+                disabled={Boolean(attempt) || answer.isPending || dismiss.isPending}
+                onChange={(event) => updateDraft({ ...draft, note: event.target.value })}
+              />
+            </div>
+          )}
           <details className="text-sm">
             <summary className="cursor-pointer py-2">
               {t(strings.asks.detail.noteLabel)}
@@ -251,7 +283,7 @@ function AskBody({
               aria-label={t(strings.asks.detail.noteLabel)}
               className="mt-1 min-h-24 w-full rounded-control border border-app-border bg-app-surface p-2"
               value={draft.note}
-              disabled={Boolean(attempt) || answer.isPending}
+              disabled={Boolean(attempt) || answer.isPending || dismiss.isPending || draft.answer === "other"}
               onChange={(event) => updateDraft({ ...draft, note: event.target.value })}
             />
           </details>
@@ -260,10 +292,13 @@ function AskBody({
       {answer.isPending && <p role="status">{t(strings.asks.detail.sending)}</p>}
       {canAnswer && signedIn && !attempt && (
         <footer className="sticky bottom-0 z-10 -mx-4 border-t border-app-border bg-app-surface/95 px-4 py-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] backdrop-blur sm:-mx-8 sm:px-8">
-          <Button className="min-h-12 w-full" type="button" variant="primary" disabled={!draft.answer || answer.isPending} onClick={submit}>{t(strings.asks.detail.submit)}</Button>
+          <div className="flex flex-col gap-2">
+            <Button className="min-h-12 w-full" type="button" variant="primary" disabled={!draft.answer || answer.isPending || dismiss.isPending || (draft.answer === "other" && !draft.note.trim())} onClick={submit}>{t(strings.asks.detail.submit)}</Button>
+          {open && <Button className="min-h-11 w-full" type="button" variant="outline" disabled={answer.isPending || dismiss.isPending} onClick={submitDismiss}>{t(dismiss.isPending ? strings.asks.detail.dismissing : strings.asks.detail.dismiss)}</Button>}
+          </div>
         </footer>
       )}
-      {attempt && outcome !== "recorded" && signedIn && (
+      {(attempt || dismissAttempt) && outcome !== "recorded" && outcome !== "dismissed" && signedIn && (
         <footer className="sticky bottom-0 z-10 -mx-4 border-t border-app-border bg-app-surface/95 px-4 py-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] backdrop-blur sm:-mx-8 sm:px-8">
           <Button className="min-h-12 w-full" type="button" variant="outline" disabled={readback.isPending} onClick={() => { setReadError(false); readback.mutate(); }}>
             {readback.isPending ? t(strings.asks.detail.checking) : t(strings.asks.detail.checkStatus)}
@@ -341,6 +376,13 @@ function AskStatus({ ask, now }: { ask: Ask; now: number }) {
       <p data-testid={selectors.asks.status} role="status">
         {t(strings.asks.detail.withdrawn)}
       </p>
+    );
+  }
+  if (ask.state === "dismissed") {
+    return (
+      <div data-testid={selectors.asks.status} role="status" className="rounded-panel border border-app-border p-3">
+        <p className="font-medium">{t(strings.asks.detail.dismissed, { reason: ask.reason || "" })}</p>
+      </div>
     );
   }
   if (!ask.defaultAnswer) return null;

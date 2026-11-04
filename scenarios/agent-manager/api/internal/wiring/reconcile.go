@@ -18,22 +18,52 @@ func ScheduleDeclarationReconcile(orch *orchestration.Orchestrator, repoRoot str
 	}
 	go func() {
 		defer obs.RecoverToFailure("deferred declaration reconcile", nil)
-		for _, delay := range []time.Duration{5 * time.Second, 30 * time.Second, 2 * time.Minute} {
-			time.Sleep(delay)
-			summary := orch.ReconcileDeclaringScenarios(context.Background(), repoRoot)
-			selfResult, selfErr := orch.ReconcileSelfDeclarations(context.Background(), repoRoot)
-			scenarioErr, selfErr := declarationRetryFailures(summary, selfResult, selfErr)
-			if report != nil {
-				report("scenario_declarations", scenarioErr)
-				report("self_declarations", selfErr)
-			}
-			if scenarioErr == nil && selfErr == nil {
-				obs.Logger().Info("deferred declaration reconciliation complete", "scanned", summary.Scanned, "reconciled", summary.Reconciled)
-				return
-			}
-			obs.Logger().Warn("deferred declaration reconciliation still has failures", "attemptDelay", delay.String(), "failed", summary.Failed, "self_error", selfErr)
-		}
+		retryDeclarationReconcile(context.Background(), waitDeclarationRetry, func(ctx context.Context) (orchestration.SweepSummary, *orchestration.ReconcileScenarioDeclarationsResult, error) {
+			summary := orch.ReconcileDeclaringScenarios(ctx, repoRoot)
+			selfResult, selfErr := orch.ReconcileSelfDeclarations(ctx, repoRoot)
+			return summary, selfResult, selfErr
+		}, report)
 	}()
+}
+
+func waitDeclarationRetry(ctx context.Context, delay time.Duration) bool {
+	timer := time.NewTimer(delay)
+	defer timer.Stop()
+	select {
+	case <-ctx.Done():
+		return false
+	case <-timer.C:
+		return true
+	}
+}
+
+// Keep retrying at a capped cadence: a long dependency outage must not leave
+// startup readiness permanently degraded after its owner becomes available.
+func retryDeclarationReconcile(ctx context.Context, wait func(context.Context, time.Duration) bool, reconcile func(context.Context) (orchestration.SweepSummary, *orchestration.ReconcileScenarioDeclarationsResult, error), report func(string, error) bool) {
+	delays := []time.Duration{5 * time.Second, 30 * time.Second, 2 * time.Minute}
+	for attempt := 0; ; attempt++ {
+		index := attempt
+		if index >= len(delays) {
+			index = len(delays) - 1
+		}
+		delay := delays[index]
+		if !wait(ctx, delay) || ctx.Err() != nil {
+			return
+		}
+		summary, selfResult, selfErr := reconcile(ctx)
+		scenarioErr, selfErr := declarationRetryFailures(summary, selfResult, selfErr)
+		reported := true
+		if report != nil {
+			scenarioReported := report("scenario_declarations", scenarioErr)
+			selfReported := report("self_declarations", selfErr)
+			reported = scenarioReported && selfReported
+		}
+		if scenarioErr == nil && selfErr == nil && reported {
+			obs.Logger().Info("deferred declaration reconciliation complete", "scanned", summary.Scanned, "reconciled", summary.Reconciled)
+			return
+		}
+		obs.Logger().Warn("deferred declaration reconciliation still has failures", "attemptDelay", delay.String(), "failed", summary.Failed, "self_error", selfErr)
+	}
 }
 
 // declarationRetryFailures maps both retry owners back to the startup steps

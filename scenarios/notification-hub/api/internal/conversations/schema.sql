@@ -32,6 +32,7 @@ CREATE TABLE IF NOT EXISTS asks (
   resolution_published_at TEXT NOT NULL DEFAULT ''
 );
 CREATE UNIQUE INDEX IF NOT EXISTS idx_asks_notification ON asks(notification_id);
+CREATE INDEX IF NOT EXISTS idx_asks_resolution_outbox ON asks(resolution_published_at, resolved_at, id);
 -- Continue a bounded outbox sweep even when older resolutions keep failing.
 CREATE TABLE IF NOT EXISTS resolution_outbox_cursor (
   singleton INTEGER PRIMARY KEY CHECK (singleton = 1),

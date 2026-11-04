@@ -230,6 +230,48 @@ func TestDecisionSyncRecordsAnswersVerbatimAndIsIdempotent(t *testing.T) {
 	}
 }
 
+func TestDecisionSyncRecordsDismissalWithoutAnswerOrApproval(t *testing.T) {
+	dismissed := decisionFixture(effortdecision.Dismissed, "", "", effortdecision.ViaPhone, time.Date(2026, 10, 10, 9, 0, 0, 0, time.UTC))
+	dismissed.ResolutionReason = "No longer applicable"
+	dismissed.ResolvedAt = timestamppb.New(time.Date(2026, 10, 10, 9, 0, 0, 0, time.UTC))
+	home := copyBASGoalHome(t, nil)
+	queuePath := filepath.Join(home, goalhome.StatusFile)
+	queue, _ := os.ReadFile(queuePath)
+	queue, _ = goalhome.AddNeedsOperatorItem(queue, effortdecision.View(dismissed))
+	writeFile(t, queuePath, string(queue))
+	services, server := decisionServer(t, dismissed)
+
+	output, code := runEffort(t, &App{services: services}, "decision", "sync", home, "--home-ref", basGoalHomeRef)
+	if code != 0 {
+		t.Fatalf("dismissal sync failed (exit %d):\n%s", code, output)
+	}
+	feedback, err := os.ReadFile(filepath.Join(home, goalhome.FeedbackFile))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(feedback), "dismissed without answer") || !strings.Contains(string(feedback), "No longer applicable") {
+		t.Fatalf("sync must record dismissal reason without inventing an answer:\n%s", feedback)
+	}
+	queue, _ = os.ReadFile(queuePath)
+	if strings.Contains(string(queue), "[decision BAS-D-070]") {
+		t.Fatalf("dismissed decision remains under Needs operator:\n%s", queue)
+	}
+	var recordedAt string
+	for _, request := range server.Requests() {
+		if request.Path != apiconnect.AgentManagerServiceMarkEffortDecisionRecordedProcedure {
+			continue
+		}
+		var mark pb.MarkEffortDecisionRecordedRequest
+		if err := protojson.Unmarshal([]byte(request.Body), &mark); err != nil {
+			t.Fatal(err)
+		}
+		recordedAt = mark.GetResolvedAt().AsTime().UTC().Format(time.RFC3339)
+	}
+	if recordedAt != "2026-10-10T09:00:00Z" {
+		t.Fatalf("sync fence must use resolved_at for dismissals, got %q", recordedAt)
+	}
+}
+
 func TestRoutineDecisionSyncDoesNotRecreateHandledArchivedFeedback(t *testing.T) {
 	home := copyBASGoalHome(t, nil)
 	d := decisionFixture(effortdecision.Answered, "close", "handled before archival", effortdecision.ViaPhone, time.Now())

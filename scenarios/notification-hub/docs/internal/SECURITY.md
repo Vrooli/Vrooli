@@ -51,15 +51,19 @@ answering it. Ask answers, subscription/credential operations, and the
 recipient/device/preferences writes covered here retain their existing checks.
 Other endpoints are unchanged by this read rule.
 
-**Interactive sender consent is recipient-bound.** Agent Manager's reviewed
-`notification-sending` policy delegates only `notification.send` with
-`notification-hub:write`. Send and relay use `authn.RequireOperation` for the
-configured `notification-hub:recipient/<subject>` when an interactive grant is
-present; supplemental proofs are reverified at that boundary. Their scopes are
-not merged into the baseline identity. Existing managed profiles retain their
-scoped producer contract. Neither path grants owner identity, answers, preference
-changes or subscription management. The human approves through Agent Manager's
-native consent page; the requesting agent cannot approve its own request.
+**Interactive operations are recipient-bound and distinct.** Agent Manager's
+reviewed `notification-sending` policy delegates only `notification.send`, and
+`notification-decision-asking` delegates only `notification.ask`; both require
+`notification-hub:write` and the exact configured
+`notification-hub:recipient/<subject>` target. Send, relay and decision asks
+use `authn.RequireOperation`; supplemental proofs are reverified at that
+boundary. A send grant does not authorize an ask, and an ask grant does not
+authorize informational sends. Their scopes are not merged into the baseline
+identity. Existing managed profiles retain their scoped send contract but do
+not receive decision-ask authority. Neither policy grants owner identity,
+answers, preference changes or subscription management. The human approves
+through Agent Manager's native consent page; the requesting agent cannot
+approve its own request.
 
 **Trust posture selects the recipient model.** `trust_posture` in
 `~/.vrooli/state/vrooli/vrooli-onboarding/operator-state.json` is `personal`, `shared`, or `hosted`.

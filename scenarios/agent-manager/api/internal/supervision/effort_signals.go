@@ -29,11 +29,12 @@ type EffortSignalWakeController interface {
 // Effort signal kinds (DL-2). A check-in dispatcher starts one orchestrator
 // check-in when the log advances past its cursor.
 const (
-	SignalChildRunEnded  = "child_run_ended"
-	SignalStepBack       = "step_back"
-	SignalFeedback       = "feedback"
-	SignalOperatorAnswer = "operator_answer"
-	SignalCapStop        = "cap_stop"
+	SignalChildRunEnded             = "child_run_ended"
+	SignalStepBack                  = "step_back"
+	SignalFeedback                  = "feedback"
+	SignalOperatorAnswer            = "operator_answer"
+	SignalOperatorDecisionDismissed = "operator_decision_dismissed"
+	SignalCapStop                   = "cap_stop"
 )
 
 const (

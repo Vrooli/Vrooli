@@ -67,6 +67,28 @@ func TestFileSkillStoreRejectsDuplicateScenarioSkillIdentifiers(t *testing.T) {
 	}
 }
 
+func TestFileSkillStoreIgnoresHiddenScenarioWorktreeSkills(t *testing.T) {
+	root := t.TempDir()
+	scenarios := filepath.Join(root, "scenarios")
+	config := filepath.Join(root, "config")
+	if err := os.MkdirAll(filepath.Join(config, "skills", "packs", "core"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := SaveJSON(filepath.Join(config, "skills", "_pack-order.json"), &PackOrder{ActivePacks: []string{"core"}}); err != nil {
+		t.Fatal(err)
+	}
+	writeScenarioSkill(t, scenarios, "device-control", "device-control")
+	writeScenarioSkill(t, scenarios, ".device-control-worktree", "device-control")
+
+	items, err := NewFileSkillStoreWithScenarioRoots(config, scenarios).List(t.Context())
+	if err != nil {
+		t.Fatalf("List with a hidden scenario worktree: %v", err)
+	}
+	if len(items) != 1 || items[0].SourceDir != filepath.Join(scenarios, "device-control", "skills", "device-control") {
+		t.Fatalf("indexed skills = %#v, want only the registered scenario skill", items)
+	}
+}
+
 func TestScenarioSkillCacheRebuildsFromRootsAfterDeletion(t *testing.T) {
 	root := t.TempDir()
 	scenarios := filepath.Join(root, "scenarios")

@@ -9,6 +9,7 @@ import (
 	"connectrpc.com/connect"
 
 	"github.com/gorilla/mux"
+	"github.com/vrooli/api-core/authn"
 	v1 "github.com/vrooli/vrooli/packages/proto/gen/go/notification-hub/v1/conversations"
 	connectv1 "github.com/vrooli/vrooli/packages/proto/gen/go/notification-hub/v1/conversations/conversations_v1connect"
 	shared "github.com/vrooli/vrooli/packages/proto/gen/go/notification-hub/v1/shared"
@@ -44,9 +45,12 @@ func (h *handler) owner(ctx context.Context, headers http.Header) (string, error
 }
 
 func (h *handler) Ask(ctx context.Context, req *connect.Request[v1.AskRequest]) (*connect.Response[v1.AskResponse], error) {
-	subject, err := h.owner(ctx, req.Header())
+	subject, err := identity.DecisionSubject(ctx, req.Header(), h.verifier, h.service.ResolveRecipient(ctx))
 	if err != nil {
-		return nil, err
+		if errors.Is(err, authn.ErrOperation) || errors.Is(err, authn.ErrCapability) {
+			return nil, connect.NewError(connect.CodePermissionDenied, err)
+		}
+		return nil, connect.NewError(connect.CodeUnauthenticated, errors.New("verified owner or approved decision-asking grant is required"))
 	}
 	deadline, err := time.Parse(time.RFC3339, req.Msg.GetDeadline())
 	if err != nil {
@@ -125,6 +129,33 @@ func (h *handler) Answer(ctx context.Context, req *connect.Request[v1.AnswerRequ
 	return connect.NewResponse(&v1.AnswerResponse{AskId: ask.ID, Answer: ask.Answer, AnsweredAt: ask.AnsweredAt, Late: ask.Late}), nil
 }
 
+func (h *handler) Dismiss(ctx context.Context, req *connect.Request[v1.DismissRequest]) (*connect.Response[v1.DismissResponse], error) {
+	actor, err := h.owner(ctx, req.Header())
+	if err != nil {
+		return nil, err
+	}
+	ask, err := h.service.DismissAsk(ctx, req.Msg.GetAskId(), actor, req.Msg.GetNote())
+	if err != nil {
+		return nil, connectError(err)
+	}
+	return connect.NewResponse(&v1.DismissResponse{AskId: ask.ID, State: ask.State}), nil
+}
+
+func (h *handler) Withdraw(ctx context.Context, req *connect.Request[v1.WithdrawRequest]) (*connect.Response[v1.WithdrawResponse], error) {
+	requester, err := identity.DecisionSubject(ctx, req.Header(), h.verifier, h.service.ResolveRecipient(ctx))
+	if err != nil {
+		if errors.Is(err, authn.ErrOperation) || errors.Is(err, authn.ErrCapability) {
+			return nil, connect.NewError(connect.CodePermissionDenied, err)
+		}
+		return nil, connect.NewError(connect.CodeUnauthenticated, errors.New("verified owner or approved decision-asking grant is required"))
+	}
+	ask, err := h.service.WithdrawDirectAsk(ctx, req.Msg.GetAskId(), requester, req.Msg.GetReason())
+	if err != nil {
+		return nil, connectError(err)
+	}
+	return connect.NewResponse(&v1.WithdrawResponse{AskId: ask.ID, State: ask.State}), nil
+}
+
 // Wait stays readable without an owner token: autoheal's approval check
 // reads it, and a read never changes an ask.
 func (h *handler) Wait(ctx context.Context, req *connect.Request[v1.WaitRequest]) (*connect.Response[v1.WaitResponse], error) {
@@ -171,9 +202,12 @@ func (h *handler) ListAsks(ctx context.Context, req *connect.Request[v1.ListAsks
 }
 
 func (h *handler) toProto(ask hub.AskRecord) *v1.Ask {
-	options := make([]*v1.AskOption, 0, len(ask.Options))
+	options := make([]*v1.AskOption, 0, len(ask.Options)+1)
 	for _, option := range ask.Options {
 		options = append(options, &v1.AskOption{Key: option.Key, Label: option.Label})
+	}
+	if !containsAskOption(ask.Options, "other") {
+		options = append(options, &v1.AskOption{Key: "other", Label: "Other — I have a different answer"})
 	}
 	return &v1.Ask{
 		Id: ask.ID, NotificationId: ask.NotificationID, Question: ask.Question, Title: ask.Title, Options: options,
@@ -188,6 +222,15 @@ func (h *handler) toProto(ask hub.AskRecord) *v1.Ask {
 		ResolvedAt: ask.ResolvedAt, CreatedAt: ask.CreatedAt, UpdatedAt: ask.UpdatedAt,
 		ProviderDecisionContext: providerDecisionContextToProto(ask.ProviderDecisionContext),
 	}
+}
+
+func containsAskOption(options []hub.AskOption, key string) bool {
+	for _, option := range options {
+		if option.Key == key {
+			return true
+		}
+	}
+	return false
 }
 
 func providerDecisionContextFromProto(value *v1.ProviderDecisionContext) *hub.ProviderDecisionContext {
@@ -236,6 +279,8 @@ func connectError(err error) error {
 var Endpoints = []module.EndpointDescriptor{
 	{ID: "conversations_ask", Path: connectv1.ConversationsServiceAskProcedure, Method: http.MethodPost, Summary: "Ask a question and persist its deadline", Category: "conversations"},
 	{ID: "conversations_answer", Path: connectv1.ConversationsServiceAnswerProcedure, Method: http.MethodPost, Summary: "Record an allowed answer", Category: "conversations"},
+	{ID: "conversations_dismiss", Path: connectv1.ConversationsServiceDismissProcedure, Method: http.MethodPost, Summary: "Dismiss an ask without answering", Category: "conversations"},
+	{ID: "conversations_withdraw", Path: connectv1.ConversationsServiceWithdrawProcedure, Method: http.MethodPost, Summary: "Withdraw a direct ask you created", Category: "conversations"},
 	{ID: "conversations_wait", Path: connectv1.ConversationsServiceWaitProcedure, Method: http.MethodPost, Summary: "Block until an ask is resolved or the caller deadline passes", Category: "conversations"},
 	{ID: "conversations_get_ask", Path: connectv1.ConversationsServiceGetAskProcedure, Method: http.MethodPost, Summary: "Read one ask without changing it", Category: "conversations"},
 	{ID: "conversations_list_asks", Path: connectv1.ConversationsServiceListAsksProcedure, Method: http.MethodPost, Summary: "List the owner's asks, optionally only open ones", Category: "conversations"},

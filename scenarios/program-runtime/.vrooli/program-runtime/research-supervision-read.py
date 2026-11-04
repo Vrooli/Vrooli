@@ -187,7 +187,8 @@ def step_report():
             for item_id in index.get("signals", {}).get("actionable_ids", []):
                 decision = by_id.get(item_id)
                 if decision is None:
-                    attention.append({"source": "attention_index", "subject": item_id, "signal": "decision_unlinked_or_unobserved"})
+                    signal = "delivery_not_checked" if not envelope["inputs"].get("effort_ref") else "decision_unlinked_or_unobserved"
+                    attention.append({"source": "attention_index", "subject": item_id, "signal": signal})
                 elif decision.get("delivery") == "not_pending":
                     attention.append({"source": "attention_index", "subject": item_id, "signal": "decision_not_pending"})
     envelope["signals"]["attention"] = attention

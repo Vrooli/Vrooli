@@ -37,24 +37,32 @@ ports as outbound source ports. See the project-level port allocation reference
 
 Direct `notifications send` and `relay` accept verified owner credentials or an
 Agent Manager run identity with `notification-hub:write` scope (including canonical
-wildcard coverage). Interactive `notification-sending` grants require the
-`notification.send` operation for `notification-hub:recipient/<configured-subject>`.
-The canonical evaluator accepts covering wildcard targets and multi-policy rules;
-supplemental grants are reverified against their live baseline at the send boundary.
-Agent ingress uses the configured recipient; it does not grant
-owner authority for answers or preferences. Channel readiness does not prove sender
+wildcard coverage). Interactive `notification-sending` grants require
+`notification.send`; the separate `notification-decision-asking` grant requires
+`notification.ask`. Both target
+`notification-hub:recipient/<configured-subject>`. The canonical evaluator accepts
+covering wildcard targets and multi-policy rules; supplemental grants are
+reverified against their live baseline at the operation boundary. Agent ingress
+uses the configured recipient; neither grant authorizes answers, preferences or
+subscriptions. Channel readiness does not prove sender
 authorization or delivery. Verified run attribution remains request provenance;
 per-notification actor persistence is not guaranteed by this contract.
 
-Request interactive sending authority through the existing consent owner:
+Request recipient-bound authority through the existing consent owner. Include
+only the policies the commission needs; a new approval replaces the session's
+previous grant.
 
 ```bash
 notification-hub recipients get --json
 vrooli agent list --json
 vrooli agent authorization <session-or-run>
-vrooli agent authorize <session-or-run> --policy notification-sending \
+vrooli agent authorize <session-or-run> \
+  --policy notification-sending \
+  --target notification-hub:recipient/<subject> \
+  --policy notification-decision-asking \
   --target notification-hub:recipient/<subject> --expires-in 8h \
-  --reason 'Send progress updates and reminders during this session.' \
+  --reason 'Send updates and create operator decision asks during this session.' \
+  --technical-details 'Only notification.send and notification.ask to this recipient. Answers, preferences and subscriptions remain owner-only.' \
   --approval-base https://<authenticated-agent-manager-host>
 ```
 
@@ -65,8 +73,9 @@ human whose verified policy includes `agent-manager:write` and
 the existing session obtains the grant automatically on later CLI calls. Include
 other still-needed policies in the same request: a new approval replaces the
 session's previous grant. Use `vrooli agent authorization` to reconcile the request
-instead of submitting it again. Direct conversation asks keep their owner-only
-contract; sender consent does not approve decisions or change delivery settings.
+instead of submitting it again. Direct owner asks remain available. Agent asks
+require the separate `notification-decision-asking` grant; sender consent does
+not authorize decision asks or change delivery settings.
 
 The browser UI does not read `API_PORT` directly. It resolves API calls through
 the UI origin, and `ui/server.js` proxies `/api/*` plus the scenario's Connect

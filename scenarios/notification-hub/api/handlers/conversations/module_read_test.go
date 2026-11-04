@@ -68,6 +68,11 @@ func TestAskReadsAreUnauthenticatedAndConfiguredRecipientScoped(t *testing.T) {
 	got, err := client.GetAsk(ctx, getRequest)
 	require.NoError(t, err)
 	require.Equal(t, "Alice question", got.Msg.GetAsk().GetQuestion())
+	keys := make([]string, 0, len(got.Msg.GetAsk().GetOptions()))
+	for _, option := range got.Msg.GetAsk().GetOptions() {
+		keys = append(keys, option.GetKey())
+	}
+	require.Contains(t, keys, "other", "every ask must expose the operator-authored alternative")
 	foreignRequest := connect.NewRequest(&v1.GetAskRequest{AskId: bobAsk})
 	_, err = client.GetAsk(ctx, foreignRequest)
 	var connectErr *connect.Error
@@ -88,6 +93,40 @@ func TestAskReadsAreUnauthenticatedAndConfiguredRecipientScoped(t *testing.T) {
 	_, err = client.ListAsks(ctx, emptyList)
 	require.ErrorAs(t, err, &connectErr)
 	require.Equal(t, connect.CodeNotFound, connectErr.Code())
+}
+
+func TestDismissEndpointClosesOnlyTheVerifiedRecipientAsk(t *testing.T) {
+	ctx := context.Background()
+	primary := databasetest.NewSQLite(t)
+	require.NoError(t, database.EnsureSchemas(ctx, primary, modules.AllSchemas()...))
+	db := database.NewFromPrimary(primary)
+	service := hub.New(db, nil, nil)
+	service.SetDefaultRecipient("alice")
+	deadline := time.Now().Add(time.Hour)
+	askID, _, err := service.Ask(ctx, "alice", "Choose?", []string{"approve", "reject"}, deadline, "public", "dismiss-endpoint-test")
+	require.NoError(t, err)
+
+	router := mux.NewRouter()
+	conversationsH.Module(service).Mount(router)
+	server := httptest.NewServer(router)
+	defer server.Close()
+	client := conversationsconnect.NewConversationsServiceClient(server.Client(), server.URL)
+
+	foreign := connect.NewRequest(&v1.DismissRequest{AskId: askID, Note: "not mine"})
+	foreign.Header().Set("X-Vrooli-Identity-Subject", "bob")
+	_, err = client.Dismiss(ctx, foreign)
+	var connectErr *connect.Error
+	require.ErrorAs(t, err, &connectErr)
+	require.Equal(t, connect.CodeNotFound, connectErr.Code())
+
+	dismiss := connect.NewRequest(&v1.DismissRequest{AskId: askID, Note: "No longer applicable"})
+	dismiss.Header().Set("X-Vrooli-Identity-Subject", "alice")
+	response, err := client.Dismiss(ctx, dismiss)
+	require.NoError(t, err)
+	require.Equal(t, "dismissed", response.Msg.GetState())
+	var answers int
+	require.NoError(t, db.QueryRowContext(ctx, `SELECT COUNT(*) FROM answers WHERE ask_id=?`, askID).Scan(&answers))
+	require.Zero(t, answers, "dismissal must not create an answer")
 }
 
 func TestGetAskExposesProviderDecisionContextAsTypedOwnerEvidence(t *testing.T) {

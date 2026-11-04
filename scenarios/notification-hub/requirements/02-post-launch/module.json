@@ -149,7 +149,7 @@
       "status": "in_progress",
       "prd_ref": "OT-P1-009",
       "criticality": "P1",
-      "description": "The system should accept an acknowledgement or a chosen action from a delivered notification and should return it to the requesting scenario, so a notification can carry a decision back rather than only carrying information out.",
+      "description": "Every decision includes a recipient-authored Other answer requiring free text; that text is preserved in the resolution callback. A recipient can dismiss an open ask without answering, which is a durable terminal state returned to the requester and never interpreted as approval. Chosen actions and acknowledgements continue to be returned to the requester.",
       "validation": [
         {
           "type": "test",

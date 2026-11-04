@@ -13,6 +13,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 	"github.com/vrooli/api-core/eventbus"
+	"google.golang.org/protobuf/types/known/structpb"
 )
 
 type recordingPublisher struct {
@@ -86,6 +87,34 @@ func decisionSpec(now time.Time, key string) hub.AskSpec {
 		Source:               "agent-manager",
 		SourceEventType:      "agent_manager.effort.decision_requested.v1",
 		Correlation:          map[string]string{"decision_id": "BAS-D-065"},
+	}
+}
+
+func TestAskResolvedEventPayloadIsVrooliEventsSerializable(t *testing.T) {
+	for name, decisionContext := range map[string]*hub.ProviderDecisionContext{
+		"ordinary ask": nil,
+		"provider decision": {
+			SchemaVersion: 1, CanonicalTermsSHA256: strings.Repeat("a", 64),
+			Scope: hub.ProviderDecisionScopeRule,
+		},
+	} {
+		t.Run(name, func(t *testing.T) {
+			event := hub.AskResolvedEvent(hub.AskRecord{
+				ID: "ask-1", State: hub.AskAnswered, Source: "data-backup-manager",
+				SourceEventType:         "data_backup_manager.volume_repair.decision_requested.v1",
+				ProviderDecisionContext: decisionContext,
+				ResolvedAt:              "2026-11-03T16:54:49Z",
+			})
+			_, err := structpb.NewStruct(event.Payload)
+			require.NoError(t, err, "event payload must encode through the shared Vrooli Events serializer")
+			if decisionContext == nil {
+				_, ok := event.Payload["provider_decision_context"]
+				require.False(t, ok, "nil typed pointer must not be inserted as a dynamic payload value")
+			} else {
+				_, ok := event.Payload["provider_decision_context"].(map[string]any)
+				require.True(t, ok, "typed provider context must be projected into JSON-compatible facts")
+			}
+		})
 	}
 }
 
@@ -639,6 +668,54 @@ func TestAnswerAsk_PublishesResolutionOnceAndLateAnswerSupersedesDefault(t *test
 	require.True(t, late.Late)
 	_, err = service.AnswerAsk(context.Background(), hub.AnswerInput{AskID: second.ID, Answer: "re-aim", Actor: "alice"})
 	require.ErrorIs(t, err, hub.ErrAskResolved)
+}
+
+func TestAnswerAsk_OtherCarriesTheOperatorAuthoredAlternative(t *testing.T) {
+	service, _ := testService(t)
+	publisher := &recordingPublisher{}
+	service.SetResolutionPublisher(publisher)
+	now := time.Date(2026, time.October, 7, 12, 0, 0, 0, time.UTC)
+	ask, _, err := service.AskWithSpec(context.Background(), decisionSpec(now, "evt-other"))
+	require.NoError(t, err)
+
+	_, err = service.AnswerAsk(context.Background(), hub.AnswerInput{AskID: ask.ID, Answer: "other", Actor: "alice"})
+	require.ErrorIs(t, err, hub.ErrInvalidArgument, "Other must include the operator's alternative")
+
+	answered, err := service.AnswerAsk(context.Background(), hub.AnswerInput{AskID: ask.ID, Answer: "other", Actor: "alice", Note: "Keep the effort open and narrow the next milestone."})
+	require.NoError(t, err)
+	require.Equal(t, hub.AskAnswered, answered.State)
+	require.Equal(t, "Other", answered.AnswerLabel)
+	require.Equal(t, "Keep the effort open and narrow the next milestone.", answered.Note)
+	require.NoError(t, service.PublishPendingResolutions(context.Background()))
+	require.Eventually(t, func() bool { return len(publisher.snapshot()) == 1 }, time.Second, 10*time.Millisecond)
+	require.Equal(t, "other", publisher.snapshot()[0].Payload["answer"])
+	require.Equal(t, "Other", publisher.snapshot()[0].Payload["answer_label"])
+	require.Equal(t, answered.Note, publisher.snapshot()[0].Payload["note"])
+}
+
+func TestDismissAsk_ClosesWithoutAnswerAndIsIdempotent(t *testing.T) {
+	service, db := testService(t)
+	publisher := &recordingPublisher{}
+	service.SetResolutionPublisher(publisher)
+	now := time.Date(2026, time.October, 7, 12, 0, 0, 0, time.UTC)
+	ask, _, err := service.AskWithSpec(context.Background(), decisionSpec(now, "evt-dismiss"))
+	require.NoError(t, err)
+
+	_, err = service.DismissAsk(context.Background(), ask.ID, "mallory", "not mine")
+	require.ErrorIs(t, err, hub.ErrNotFound)
+
+	dismissed, err := service.DismissAsk(context.Background(), ask.ID, "alice", "No longer applicable")
+	require.NoError(t, err)
+	require.Equal(t, hub.AskDismissed, dismissed.State)
+	require.Contains(t, dismissed.Reason, "No longer applicable")
+	_, err = service.DismissAsk(context.Background(), ask.ID, "alice", "duplicate")
+	require.NoError(t, err, "a retry after a lost response should be safe")
+	var answerCount int
+	require.NoError(t, db.QueryRowContext(context.Background(), `SELECT COUNT(*) FROM answers WHERE ask_id=?`, ask.ID).Scan(&answerCount))
+	require.Zero(t, answerCount)
+	require.NoError(t, service.PublishPendingResolutions(context.Background()))
+	require.Eventually(t, func() bool { return len(publisher.snapshot()) == 1 }, time.Second, 10*time.Millisecond)
+	require.Equal(t, "dismissed", publisher.snapshot()[0].Payload["state"])
 }
 
 // [REQ:NOTIFICA-P0-005][REQ:NOTIFICA-P1-011]

@@ -66,9 +66,11 @@ type Decision struct {
 	Answer               string           `json:"answer,omitempty"`
 	AnswerLabel          string           `json:"answer_label,omitempty"`
 	AnswerNote           string           `json:"answer_note,omitempty"`
+	ResolutionReason     string           `json:"resolution_reason,omitempty"`
 	AnsweredVia          string           `json:"answered_via,omitempty"`
 	Late                 bool             `json:"late,omitempty"`
 	AnsweredAt           time.Time        `json:"answered_at,omitempty"`
+	ResolvedAt           time.Time        `json:"resolved_at,omitempty"`
 	AskID                string           `json:"ask_id,omitempty"`
 }
 
@@ -97,6 +99,9 @@ func (d Decision) Validate() error {
 		if !decisionKeyRule.MatchString(option.Key) {
 			return fmt.Errorf("option key %q must be 1-64 letters, digits, '.', '_', ':' or '-'", option.Key)
 		}
+		if option.Key == "other" {
+			return fmt.Errorf("option key %q is reserved for the operator's free-form answer", option.Key)
+		}
 		if seen[option.Key] {
 			return fmt.Errorf("option key %q is repeated", option.Key)
 		}
@@ -121,6 +126,9 @@ func (d Decision) Validate() error {
 
 // Label returns an option's label, or the key when the option has none.
 func (d Decision) Label(key string) string {
+	if key == "other" {
+		return "Other"
+	}
 	for _, option := range d.Options {
 		if option.Key == key && option.Label != "" {
 			return option.Label
@@ -273,6 +281,22 @@ func needsOperatorItemSpan(doc *document, section section, id string) (int, int,
 // DecisionFeedbackEntry renders the answer as an open operator FEEDBACK.md entry. The
 // answer and the operator's note are verbatim.
 func DecisionFeedbackEntry(d Decision) string {
+	if d.State == "dismissed" {
+		var b strings.Builder
+		fmt.Fprintf(&b, "### %s — operator decision (%s, operator — dismissed without answer)\n\n", d.ID, stamp(d.ResolvedAt))
+		fmt.Fprintf(&b, "Question: %s\n\n", strings.Join(strings.Fields(d.Question), " "))
+		reason := strings.TrimSpace(d.AnswerNote)
+		if reason == "" {
+			reason = strings.TrimSpace(d.ResolutionReason)
+		}
+		if reason != "" {
+			fmt.Fprintf(&b, "> Dismissed without an answer: %s\n\n", reason)
+		} else {
+			b.WriteString("> Dismissed without an answer.\n\n")
+		}
+		fmt.Fprintf(&b, "Recorded by `agent-manager effort decision sync`.\n\nStatus: open\n\n")
+		return b.String()
+	}
 	how := "answered via phone"
 	switch d.AnsweredVia {
 	case decisionAnsweredViaDesk:

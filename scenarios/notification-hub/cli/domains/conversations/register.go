@@ -61,6 +61,26 @@ func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup
 			}
 			return cliapp.RenderProtoMutation(ctx, resp.Msg, cliapp.MutationReport{Result: []string{fmt.Sprintf("Answered ask %s.", resp.Msg.GetAskId())}})
 		},
+		"ConversationsService.Dismiss": func(ctx cliapp.RunContext) error {
+			resp, callErr := client.Dismiss(context.Background(), connect.NewRequest(&v1.DismissRequest{
+				AskId: ctx.Flag("ask-id"),
+				Note:  ctx.Flag("note"),
+			}))
+			if callErr != nil {
+				return cliapp.WrapAPIError("dismiss notification question", callErr, nil)
+			}
+			return cliapp.RenderProtoMutation(ctx, resp.Msg, cliapp.MutationReport{Result: []string{fmt.Sprintf("Dismissed ask %s without answering.", resp.Msg.GetAskId())}})
+		},
+		"ConversationsService.Withdraw": func(ctx cliapp.RunContext) error {
+			resp, callErr := client.Withdraw(context.Background(), connect.NewRequest(&v1.WithdrawRequest{
+				AskId:  ctx.Flag("ask-id"),
+				Reason: ctx.Flag("reason"),
+			}))
+			if callErr != nil {
+				return cliapp.WrapAPIError("withdraw notification question", callErr, nil)
+			}
+			return cliapp.RenderProtoMutation(ctx, resp.Msg, cliapp.MutationReport{Result: []string{fmt.Sprintf("Withdrew ask %s.", resp.Msg.GetAskId())}})
+		},
 		"ConversationsService.Wait": func(ctx cliapp.RunContext) error {
 			deadline, err := parseDeadline(ctx.Flag("deadline"), time.Now())
 			if err != nil {

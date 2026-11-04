@@ -25,7 +25,7 @@ vi.mock("../../api/notifications", () => ({
       }),
     ),
   },
-  conversationsClient: { getAsk: vi.fn(), answer: vi.fn(), listAsks: vi.fn() },
+  conversationsClient: { getAsk: vi.fn(), answer: vi.fn(), dismiss: vi.fn(), listAsks: vi.fn() },
 }));
 
 const inThreeHours = new Date(
@@ -39,6 +39,7 @@ function pendingAsk() {
     options: [
       { key: "close", label: "Close the goal" },
       { key: "re-aim", label: "Re-aim at quality" },
+      { key: "other", label: "Other — I have a different answer" },
     ],
     recommended: "re-aim",
     recommendationReason: "Quality gaps remain.",
@@ -161,7 +162,7 @@ describe("AskPage", () => {
     const options = await screen.findAllByTestId(selectors.asks.option);
     expect(
       options.map((option) => option.getAttribute("data-option-key")),
-    ).toEqual(["re-aim", "close"]);
+    ).toEqual(["re-aim", "close", "other"]);
     expect(options.every((option) => !(option as HTMLInputElement).checked)).toBe(true);
     expect(within(options[0]!.parentElement!).getByText(/Recommended/)).toBeInTheDocument();
     expect(screen.getByTestId(selectors.asks.defaultNotice)).toHaveTextContent(
@@ -169,11 +170,48 @@ describe("AskPage", () => {
     );
   });
 
+  it("lets the operator submit an Other answer with free-form text", async () => {
+    const user = userEvent.setup();
+    const ask = pendingAsk();
+    vi.mocked(conversationsClient.getAsk).mockResolvedValue({ ask } as never);
+    vi.mocked(conversationsClient.answer).mockResolvedValue({ answer: "other" } as never);
+    vi.mocked(conversationsClient.getAsk)
+      .mockResolvedValueOnce({ ask } as never)
+      .mockResolvedValueOnce({ ask: { ...ask, state: "answered", answer: "other", answerLabel: "Other", note: "Keep it open and narrow the scope." } } as never);
+    renderAsk();
+
+    const other = (await screen.findAllByTestId(selectors.asks.option)).find((option) => option.getAttribute("data-option-key") === "other")!;
+    await user.click(other);
+    const alternative = screen.getByLabelText("What do you have in mind?");
+    await user.type(alternative, "Keep it open and narrow the scope.");
+    await user.click(screen.getByRole("button", { name: "Submit answer" }));
+
+    await waitFor(() => expect(conversationsClient.answer).toHaveBeenCalledWith({ askId: "ask-1", answer: "other", note: "Keep it open and narrow the scope." }));
+    expect(await screen.findByText("Answered: Other")).toBeInTheDocument();
+    expect(screen.getByText("Keep it open and narrow the scope.")).toBeInTheDocument();
+  });
+
+  it("lets the operator dismiss an open decision without recording an answer", async () => {
+    const user = userEvent.setup();
+    const ask = pendingAsk();
+    vi.mocked(conversationsClient.getAsk)
+      .mockResolvedValueOnce({ ask } as never)
+      .mockResolvedValueOnce({ ask: { ...ask, state: "dismissed", reason: "dismissed by recipient: not applicable" } } as never);
+    vi.mocked(conversationsClient.dismiss).mockResolvedValue({ state: "dismissed" } as never);
+    renderAsk();
+
+    await user.click(await screen.findByRole("button", { name: "Dismiss without answering" }));
+
+    await waitFor(() => expect(conversationsClient.dismiss).toHaveBeenCalledWith({ askId: "ask-1", note: "" }));
+    expect(conversationsClient.answer).not.toHaveBeenCalled();
+    expect(await screen.findByText("You dismissed this decision without answering.")).toBeInTheDocument();
+  });
+
   it("keeps the selected answer form accessible by role and label", async () => {
     vi.mocked(conversationsClient.getAsk).mockResolvedValue({ ask: pendingAsk() } as never);
     const view = renderAsk();
 
-    expect(await screen.findAllByRole("radio")).toHaveLength(2);
+    expect(await screen.findAllByRole("radio")).toHaveLength(3);
     expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent(pendingAsk().question);
     expect(screen.getByRole("button", { name: "Submit answer" })).toBeDisabled();
     await expectNoA11yViolations(view.container);
@@ -449,7 +487,7 @@ describe("AskPage", () => {
       email: "other@example.test",
     });
     await waitFor(() => expect(conversationsClient.getAsk).toHaveBeenCalledTimes(2));
-    expect(await screen.findAllByTestId(selectors.asks.option)).toHaveLength(2);
+    expect(await screen.findAllByTestId(selectors.asks.option)).toHaveLength(3);
     expect(screen.queryByText(/We could not confirm whether this answer was recorded/)).not.toBeInTheDocument();
     expect(screen.getByTestId(selectors.asks.note)).toHaveValue("");
     expect(readAskAttempt("owner-1", "ask-1")).toEqual({
@@ -558,7 +596,7 @@ describe("askView", () => {
         options: pendingAsk().options,
         recommended: "re-aim",
       } as never).map((o) => o.key),
-    ).toEqual(["re-aim", "close"]);
+    ).toEqual(["re-aim", "close", "other"]);
     expect(
       remainingUntil(
         "2026-10-07T12:30:00Z",

@@ -112,6 +112,14 @@ the receiver and the translation into a durable notification or ask. If
 reconciliation or the upstream scenario is unavailable, direct Connect-RPC
 and CLI ingress remain unaffected.
 
+For Agent Manager decisions, the answer outbox retains a resolution until
+Events confirms the exact answer event is queued for the named Agent Manager
+subscription. A bounded, restart-persistent sweep continues past failed
+resolutions. This repair requires the Events missing-delivery reconciliation
+endpoint; previously published resolutions are not retrospectively certified.
+Queued and delivered are separate states, and dead letters retain their retry
+history.
+
 **Signature.** vrooli-events signs every delivery with HMAC-SHA256 over the
 exact body (`X-Vrooli-Events-Signature: sha256=<hex>`). The receiver verifies
 with the same secret the publisher uses, resolved the same way:

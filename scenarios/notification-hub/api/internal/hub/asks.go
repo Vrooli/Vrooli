@@ -28,6 +28,7 @@ const (
 	AskDefaulted = "defaulted"
 	AskExpired   = "expired"
 	AskWithdrawn = "withdrawn"
+	AskDismissed = "dismissed"
 )
 
 const (
@@ -38,7 +39,7 @@ const (
 	// receipt and applying a default answer.
 	DefaultAskDefaultFloor = 12 * time.Hour
 	// AskResolvedEventType tells the requester an ask was answered, defaulted,
-	// expired, or withdrawn. It is published once per transition.
+	// expired, withdrawn, or dismissed. It is published once per transition.
 	AskResolvedEventType = "notification_hub.ask.resolved.v1"
 	// DefaultAnsweredBy marks an answer the sweep applied.
 	DefaultAnsweredBy = "default"
@@ -238,6 +239,9 @@ func normalizeAskSpec(spec AskSpec) (AskSpec, error) {
 		}
 		if seen[key] {
 			return spec, fmt.Errorf("%w: answer key %q is repeated", ErrInvalidArgument, key)
+		}
+		if key == "other" {
+			return spec, fmt.Errorf("%w: answer key %q is reserved for the recipient's free-form answer", ErrInvalidArgument, key)
 		}
 		seen[key] = true
 		if label == "" {
@@ -576,6 +580,9 @@ func scanAsk(row rowScanner) (AskRecord, error) {
 	}
 	if record.Answer != "" {
 		record.AnswerLabel = optionLabel(record.Options, record.Answer)
+		if record.Answer == "other" && allowsOtherAnswer(record) {
+			record.AnswerLabel = "Other"
+		}
 	}
 	return record, nil
 }
@@ -673,7 +680,7 @@ func (s *Service) ListAsksPage(ctx context.Context, recipient string, opts AskLi
 		}
 	}
 	switch state {
-	case "all", "awaiting", AskPending, AskEscalated, AskAnswered, AskDefaulted, AskExpired, AskWithdrawn:
+	case "all", "awaiting", AskPending, AskEscalated, AskAnswered, AskDefaulted, AskExpired, AskWithdrawn, AskDismissed:
 	default:
 		return AskListPage{}, fmt.Errorf("%w: unknown state_filter", ErrInvalidArgument)
 	}
@@ -797,6 +804,12 @@ func (s *Service) AnswerAsk(ctx context.Context, in AnswerInput) (AskRecord, err
 			found = true
 		}
 	}
+	if answer == "other" && allowsOtherAnswer(record) {
+		found = true
+		if strings.TrimSpace(in.Note) == "" {
+			return AskRecord{}, fmt.Errorf("%w: an Other answer needs a note describing the alternative", ErrInvalidArgument)
+		}
+	}
 	if !found {
 		return AskRecord{}, fmt.Errorf("%w: answer is not one of the allowed answers", ErrInvalidArgument)
 	}
@@ -837,6 +850,91 @@ func (s *Service) AnswerAsk(ctx context.Context, in AnswerInput) (AskRecord, err
 	}
 	if err := tx.Commit(); err != nil {
 		return AskRecord{}, err
+	}
+	s.kickResolutions(ctx)
+	return s.GetAsk(ctx, record.ID)
+}
+
+// Every decision supports a recipient-authored alternative. The distinct
+// "other" key is never an alias for a source-defined answer such as "approve";
+// consumers must treat it as a non-approval response and use its note as context.
+func allowsOtherAnswer(record AskRecord) bool {
+	return true
+}
+
+// DismissAsk closes an open recipient ask without writing an answers row.
+// Repeating the same dismissal is idempotent; terminal answers/defaults remain
+// authoritative and cannot be erased by a later dismissal.
+func (s *Service) DismissAsk(ctx context.Context, askID, actor, note string) (AskRecord, error) {
+	record, err := s.GetAsk(ctx, askID)
+	if err != nil {
+		return AskRecord{}, err
+	}
+	if strings.TrimSpace(actor) == "" || strings.TrimSpace(actor) != record.Recipient {
+		return AskRecord{}, ErrNotFound
+	}
+	if record.State == AskDismissed {
+		return record, nil
+	}
+	if !record.Open() {
+		return AskRecord{}, fmt.Errorf("%w: ask is already %s", ErrAskResolved, record.State)
+	}
+	note = strings.TrimSpace(note)
+	if len(note) > 2_000 {
+		return AskRecord{}, fmt.Errorf("%w: dismissal note exceeds 2000 bytes", ErrInvalidArgument)
+	}
+	reason := "dismissed by recipient"
+	if note != "" {
+		reason += ": " + note
+	}
+	now := s.clock.Now().UTC().Format(time.RFC3339Nano)
+	result, err := s.db.ExecContext(ctx, `UPDATE asks SET state='dismissed', reason=?, resolved_at=?, resolution_published_at='', updated_at=? WHERE id=? AND state IN ('pending','escalated')`, reason, now, now, record.ID)
+	if err != nil {
+		return AskRecord{}, err
+	}
+	changed, err := result.RowsAffected()
+	if err != nil {
+		return AskRecord{}, err
+	}
+	if changed != 1 {
+		return AskRecord{}, fmt.Errorf("%w: ask changed while dismissing", ErrAskResolved)
+	}
+	s.kickResolutions(ctx)
+	return s.GetAsk(ctx, record.ID)
+}
+
+// WithdrawDirectAsk lets the direct requester close its own pending ask.
+// Provider-owned event decisions retain their source-specific withdrawal
+// contracts so an ask ID alone cannot cancel another owner's workflow.
+func (s *Service) WithdrawDirectAsk(ctx context.Context, askID, requester, reason string) (AskRecord, error) {
+	record, err := s.GetAsk(ctx, askID)
+	if err != nil {
+		return AskRecord{}, err
+	}
+	if strings.TrimSpace(requester) == "" || strings.TrimSpace(requester) != record.Source || record.SourceEventType != "" {
+		return AskRecord{}, ErrNotFound
+	}
+	if record.State == AskWithdrawn {
+		return record, nil
+	}
+	if !record.Open() {
+		return AskRecord{}, fmt.Errorf("%w: ask is already %s", ErrAskResolved, record.State)
+	}
+	reason = strings.TrimSpace(reason)
+	if reason == "" || len(reason) > 2_000 {
+		return AskRecord{}, fmt.Errorf("%w: a withdrawal reason of 1-2000 bytes is required", ErrInvalidArgument)
+	}
+	now := s.clock.Now().UTC().Format(time.RFC3339Nano)
+	result, err := s.db.ExecContext(ctx, `UPDATE asks SET state='withdrawn', reason=?, resolved_at=?, resolution_published_at='', updated_at=? WHERE id=? AND source=? AND source_event_type='' AND state IN ('pending','escalated')`, reason, now, now, record.ID, requester)
+	if err != nil {
+		return AskRecord{}, err
+	}
+	changed, err := result.RowsAffected()
+	if err != nil {
+		return AskRecord{}, err
+	}
+	if changed != 1 {
+		return AskRecord{}, fmt.Errorf("%w: ask changed while withdrawing", ErrAskResolved)
 	}
 	s.kickResolutions(ctx)
 	return s.GetAsk(ctx, record.ID)
@@ -1019,7 +1117,7 @@ func AskResolvedEvent(record AskRecord) eventbus.DomainEvent {
 	for key, value := range record.Correlation {
 		correlation[key] = value
 	}
-	return eventbus.DomainEvent{
+	event := eventbus.DomainEvent{
 		Source:    "notification-hub",
 		EventType: AskResolvedEventType,
 		Occurred:  occurred.UTC(),
@@ -1041,8 +1139,15 @@ func AskResolvedEvent(record AskRecord) eventbus.DomainEvent {
 			"source_event_type":           record.SourceEventType,
 			"requester_ref":               record.RequesterRef,
 			"correlation":                 correlation,
-			"provider_decision_context":   record.ProviderDecisionContext,
 			"resolved_at":                 record.ResolvedAt,
 		},
 	}
+	if record.ProviderDecisionContext != nil {
+		event.Payload["provider_decision_context"] = map[string]any{
+			"schema_version":         record.ProviderDecisionContext.SchemaVersion,
+			"canonical_terms_sha256": record.ProviderDecisionContext.CanonicalTermsSHA256,
+			"scope":                  record.ProviderDecisionContext.Scope,
+		}
+	}
+	return event
 }

@@ -209,6 +209,12 @@ func formatDecisionWakeMessage(res operatordecision.DecisionResolution) string {
 		noteLine = fmt.Sprintf(" Operator note: %s.", note)
 	}
 	switch res.State {
+	case "dismissed":
+		reason := strings.TrimSpace(res.Reason)
+		if reason != "" {
+			reason = " (" + reason + ")"
+		}
+		return fmt.Sprintf("Your pending operator decision was DISMISSED without an answer%s. No approval was granted. Decide whether to re-raise the request or proceed without it; do not assume approval.", reason)
 	case "expired":
 		reason := strings.TrimSpace(res.Reason)
 		if reason != "" {

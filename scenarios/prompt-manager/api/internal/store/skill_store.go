@@ -476,7 +476,11 @@ func (s *FileSkillStore) listScenarioRoot(root string) ([]Skill, error) {
 	}
 	result := make([]Skill, 0)
 	for _, scenario := range entries {
-		if !scenario.IsDir() {
+		// Hidden directories under scenarios/ are workspace snapshots and
+		// experimental copies, not registered scenario roots. Indexing them
+		// can duplicate a skill ID from the owning scenario and take the whole
+		// registry offline.
+		if !scenario.IsDir() || strings.HasPrefix(scenario.Name(), ".") {
 			continue
 		}
 		skillsDir := filepath.Join(root, scenario.Name(), "skills")

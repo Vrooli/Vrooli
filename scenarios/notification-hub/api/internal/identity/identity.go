@@ -64,6 +64,26 @@ func ProducerSubject(ctx context.Context, headers http.Header, verifier Verifier
 	return Subject(ctx, headers, verifier)
 }
 
+// DecisionSubject admits an owner or a verified agent with an explicit,
+// recipient-bound notification.ask grant. A send grant or managed producer
+// scope is not sufficient to create a human decision request.
+func DecisionSubject(ctx context.Context, headers http.Header, verifier Verifier, recipient string) (string, error) {
+	if owner, ok := ownerFromContext(ctx); ok && owner.refused {
+		return "", owneridentity.ErrUnauthenticated
+	}
+	agent := provenance.FromContext(ctx)
+	if headers.Get(cliutil.HeaderAgentIdentityToken) != "" || agent.IsAgent() {
+		if !agent.IsVerifiedAgent() || strings.TrimSpace(recipient) == "" {
+			return "", owneridentity.ErrUnauthenticated
+		}
+		if _, err := authn.RequireOperation(ctx, "notification-hub:write", "notification.ask", "notification-hub:recipient/"+recipient); err != nil {
+			return "", err
+		}
+		return recipient, nil
+	}
+	return Subject(ctx, headers, verifier)
+}
+
 // Subject verifies the owner: a Cloudflare Access login first, then the
 // credential issued by scenario-authenticator: a bearer token (CLI and
 // services) or the owner cookie (browser sign-in). The

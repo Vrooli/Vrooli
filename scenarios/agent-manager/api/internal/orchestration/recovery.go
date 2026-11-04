@@ -45,6 +45,9 @@ func (r *Reconciler) RecoverInFlightRuns(ctx context.Context) error {
 
 	recoveryLog := obs.Component("recovery")
 	for _, run := range runs {
+		if run.ExecutionMode.Normalized() == domain.ExecutionModeImported {
+			continue
+		}
 		// List() returns runs with a pruned column set that omits
 		// ResolvedConfig — re-fetch with Get so recoveryParser has the
 		// runner type. Skipping this re-fetch silently no-ops recovery
@@ -54,6 +57,13 @@ func (r *Reconciler) RecoverInFlightRuns(ctx context.Context) error {
 		full, err := r.runs.Get(ctx, run.ID)
 		if err != nil || full == nil {
 			recoveryLog.Warn("run hydrate failed", obs.KeyRunID, run.ID.String(), obs.KeyError, errString(err))
+			continue
+		}
+		// Imported transcripts are externally owned, read-only history. Their
+		// historical status can be running even though Agent Manager has no
+		// executor to reattach; replaying them as managed runs can conflict
+		// with the importer's existing event projection.
+		if full.ExecutionMode.Normalized() == domain.ExecutionModeImported {
 			continue
 		}
 		if _, err := r.recoverRun(ctx, full, true); err != nil {
@@ -67,6 +77,9 @@ func (r *Reconciler) RecoverInFlightRuns(ctx context.Context) error {
 		return err
 	}
 	for _, run := range pendingRuns {
+		if run.ExecutionMode.Normalized() == domain.ExecutionModeImported {
+			continue
+		}
 		if r.pendingRunRecovery == nil {
 			recoveryLog.Warn("pending run cannot be re-enqueued; recovery owner is not wired", obs.KeyRunID, run.ID.String())
 			continue
@@ -100,6 +113,9 @@ func (r *Reconciler) RecoverRun(ctx context.Context, runID uuid.UUID) (*RecoverR
 }
 
 func (r *Reconciler) recoverRun(ctx context.Context, run *domain.Run, allowTail bool) (_ *RecoverResult, recoveryErr error) {
+	if run.ExecutionMode.Normalized() == domain.ExecutionModeImported {
+		return &RecoverResult{Run: run, Idempotent: true, Message: "imported history has no Agent Manager executor to recover"}, nil
+	}
 	defer func() {
 		if recoveryErr != nil && run.ExecutionMode.Normalized() != domain.ExecutionModeInteractive && r.isProcessAlive(ctx, run) {
 			recoveryErr = fmt.Errorf("recovery outcome unknown; agent-manager owner diagnosis required for run %s transcript %q; live executor retained: %w", run.ID, run.TranscriptPath, recoveryErr)

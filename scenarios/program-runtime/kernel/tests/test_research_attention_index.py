@@ -54,7 +54,7 @@ def test_unknown_for_missing_ambiguous_duplicate_and_symlink(tmp_path):
     assert execute(tmp_path)['signals']['coverage'] == 'unknown'
 
 
-def test_parent_flags_unlinked_without_asserting_missing():
+def test_parent_flags_delivery_not_checked_without_selected_effort():
     index = {'status': 'ok', 'signals': {'actionable_ids': ['WALLET-123']}, 'errors': [], 'evidence': []}
     class Handle:
         def meta(self): return {}
@@ -62,6 +62,23 @@ def test_parent_flags_unlinked_without_asserting_missing():
         def child_envelope(self, handle, **kwargs): return index
     runtime = ParentRuntime({'research_root': '/authorized/research'})
     library = SimpleNamespace(program_runtime=SimpleNamespace(research_attention_index=lambda **kwargs: Handle()))
+    with contextlib.redirect_stdout(io.StringIO()):
+        runpy.run_path(str(PARENT), init_globals={'program': runtime, 'lib': library})
+    assert {'source': 'attention_index', 'subject': 'WALLET-123', 'signal': 'delivery_not_checked'} in runtime.result['signals']['attention']
+
+
+def test_parent_flags_unobserved_decision_when_effort_selected():
+    index = {'status': 'ok', 'signals': {'actionable_ids': ['WALLET-123']}, 'errors': [], 'evidence': []}
+    delivery = {'status': 'partial', 'signals': {'items': []}, 'errors': [], 'evidence': []}
+    class Handle:
+        def __init__(self, value): self.value = value
+        def meta(self): return {}
+    class ParentRuntime(Runtime):
+        def child_envelope(self, handle, **kwargs): return handle.value
+    runtime = ParentRuntime({'research_root': '/authorized/research', 'effort_ref': 'effort:test'})
+    library = SimpleNamespace(program_runtime=SimpleNamespace(
+        research_attention_index=lambda **kwargs: Handle(index),
+        research_attention_delivery=lambda **kwargs: Handle(delivery)))
     with contextlib.redirect_stdout(io.StringIO()):
         runpy.run_path(str(PARENT), init_globals={'program': runtime, 'lib': library})
     assert {'source': 'attention_index', 'subject': 'WALLET-123', 'signal': 'decision_unlinked_or_unobserved'} in runtime.result['signals']['attention']

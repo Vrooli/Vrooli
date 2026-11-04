@@ -99,7 +99,8 @@
       "loadedCount": "{{count}}件を表示中",
       "end": "一致する全{{count}}件を表示中",
       "answerSummary": "回答：{{answer}}",
-      "back": "履歴に戻る"
+      "back": "履歴に戻る",
+      "dismissed": "閉じた"
     },
     "delivery": {
       "reliabilityEyebrow": "配信の信頼性 · {{id}}",
@@ -284,7 +285,12 @@
       "conflict": "別の結果が記録されています: {{option}}。送信しようとした回答: {{attempted}}。",
       "readbackFailed": "依頼の状態を確認できません。送信内容は保持されています。再送信せず、状態をもう一度確認してください。",
       "answerError": "回答を確認できません。送信内容は保持されています。再送信する前に状態を確認してください。",
-      "expiredSession": "セッションの期限が切れました。続けるには再ログインしてください。この依頼の下書きはメモリに保持されます。"
+      "expiredSession": "セッションの期限が切れました。続けるには再ログインしてください。この依頼の下書きはメモリに保持されます。",
+      "dismiss": "回答せずに閉じる",
+      "dismissing": "閉じています…",
+      "dismissed": "回答せずにこの判断を閉じました。",
+      "otherOption": "その他",
+      "otherPrompt": "どのような案をお考えですか？"
     }
   },
   "session": {

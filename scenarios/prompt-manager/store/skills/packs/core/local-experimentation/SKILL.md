@@ -58,13 +58,13 @@ Use `research-coordination` when several studies or a broad effort need shared d
 
 **Exit/artifact:** Evidence identifies an executable route, marks inapplicable acquisition/admission gates, or names the failed required gate. Do not acquire weights for a route that already fails memory, disk, terms, or authority admission.
 
-### Phase 3: Run sequential trials
+### Phase 3: Run trials
 
 **Entry:** Inputs, identities, budgets, and required owner gates pass for this trial.
 
 1. Use the supported owner for submission, status, cancellation, and output retrieval. Record reproducible inputs and the owner operation identity or synchronous request scope before waiting. A synchronous path does not require a new job registry.
 2. Count pre-execution admission refusals separately from executed trials, while retaining both. Resubmit a refused slot only after fresh evidence shows its failed gate may have changed and the preset retry policy permits it. Record any authorized protocol amendment before dependent work; never overwrite the earlier refusal or change acceptance after seeing output.
-3. Run heavy trials sequentially without overlapping heavy acquisition/extraction. Reuse existing owner operations and suitable governed programs; retain their input/contract identities and receipts.
+3. Schedule trials and acquisitions within the capacity owner’s admission and the actual shared-resource budget. Serialize when overlap would exceed those limits or compromise comparability. Reuse owner operations and retain their identities and receipts.
 4. Measure the declared outcome and resource costs. Separate setup from trial and selection costs. Label sampled peaks and unavailable metrics; preserve metric definitions across candidates.
 5. For long-lived effects, reuse applicable owner cancellation evidence or qualify the selected path once while active. Verify final owned processes/leases and partial outputs. Reconcile the original operation before retrying; retain qualification costs and failures.
 6. Verify actual outputs against hashes and technical acceptance, then review the artifact for the declared usefulness criteria. A successful command or decodable file is not acceptance.
@@ -80,7 +80,7 @@ Use the first matching row for each route:
 | Evidence | Decision | Next action |
 |---|---|---|
 | A required effect, acceptance, permission, identity, admission or cleanup check remains unverified; or route is `not_tested` | `investigate` | Name the exact gap, owner and bounded next check. Preserve the baseline. |
-| Completed comparable trials fail a preset quality/cost criterion or the hypothesis | `reject` | Retain the failure and baseline. Do not expand the budget to chase a win. |
+| Completed comparable trials fail a preset quality/cost criterion or the hypothesis | `reject` | Retain the failure and baseline. A new or revised trial needs a prospective rationale and must fit the commission and remaining allowance. |
 | Comparable trials pass quality/cost criteria and recovery/cleanup, and improve the declared outcome over baseline | `adopt` | Retain the result and name the smallest maintained integration. Implement integration only when it belongs to the authorized outcome. |
 
 1. Retain accepted outputs, reproducible inputs, source/configuration hashes, receipts, and the decision. Update the run guide and the topic's findings, feedback dispositions, decisions and next questions; for concurrent work, send the topic update to its designated writer. Inventory each retained path, bytes, purpose, owner and license.

@@ -84,7 +84,7 @@ type EffortService struct {
 	signalScanSubject string
 	quotaStore        pricing.QuotaObservationRepository
 	// decisionMu serializes decision transitions (raise, answer, resolve,
-	// record) so each answer yields exactly one operator_answer signal.
+	// record) so each terminal human resolution yields one durable signal.
 	decisionMu        sync.Mutex
 	decisionPublisher DecisionPublisher
 	spend             EffortSpendReader

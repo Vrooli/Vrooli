@@ -405,7 +405,7 @@ func decisionLine(d *pb.EffortDecision) string {
 	return line + "  " + strings.Join(strings.Fields(d.GetQuestion()), " ")
 }
 
-// decisionSync writes each answered or defaulted, unrecorded decision of the
+// decisionSync writes each answered, defaulted, or dismissed unrecorded decision of the
 // goal home verbatim into FEEDBACK.md, removes its ## Needs operator item, and
 // marks it recorded. It is idempotent: an entry already in FEEDBACK.md is not
 // written again, and the mark is fenced on the answer time.
@@ -471,7 +471,7 @@ func (a *App) decisionSync(args []string) error {
 	for i := len(decisions) - 1; i >= 0; i-- {
 		d := decisions[i]
 		item := synced{ID: d.GetDecisionId(), State: d.GetState(), Answer: d.GetAnswer()}
-		if d.GetState() != effortdecision.Answered && d.GetState() != effortdecision.Defaulted {
+		if d.GetState() != effortdecision.Answered && d.GetState() != effortdecision.Defaulted && d.GetState() != effortdecision.Dismissed {
 			if d.GetState() == effortdecision.Expired {
 				item.Detail = "expired with no answer and no default; the item stays under ## Needs operator"
 			} else {
@@ -516,7 +516,7 @@ func (a *App) decisionSync(args []string) error {
 			continue
 		}
 		marked := &pb.EffortDecision{}
-		body, err := callRPC(a.services.Watches.api, apiconnect.AgentManagerServiceMarkEffortDecisionRecordedProcedure, &pb.MarkEffortDecisionRecordedRequest{GoalHome: d.GetGoalHome(), DecisionId: item.ID, AnsweredAt: d.GetAnsweredAt()}, marked)
+		body, err := callRPC(a.services.Watches.api, apiconnect.AgentManagerServiceMarkEffortDecisionRecordedProcedure, &pb.MarkEffortDecisionRecordedRequest{GoalHome: d.GetGoalHome(), DecisionId: item.ID, AnsweredAt: d.GetAnsweredAt(), ResolvedAt: d.GetResolvedAt()}, marked)
 		if err != nil {
 			// A newer answer arrived after the read; the next sync records it.
 			item.Detail = "not marked recorded: " + apiError(body, err).Error()

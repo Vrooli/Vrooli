@@ -346,6 +346,41 @@ func TestRecoverInFlightRunsReenqueuesPendingRuns(t *testing.T) {
 	}
 }
 
+func TestRestartRecoveryLeavesImportedRunningAndPendingHistoryUntouched(t *testing.T) {
+	reconciler, repos, events := newRecoveryTestReconciler(t, domain.RunnerTypeCodex)
+	stub := &pendingRunRecoveryStub{}
+	reconciler.pendingRunRecovery = stub
+	running := createRecoveryTestRun(t, repos, domain.RunnerTypeCodex)
+	running.ExecutionMode = domain.ExecutionModeImported
+	if err := repos.Runs.Update(t.Context(), running); err != nil {
+		t.Fatal(err)
+	}
+	pending := createRecoveryTestRun(t, repos, domain.RunnerTypeCodex)
+	pending.ExecutionMode = domain.ExecutionModeImported
+	pending.Status = domain.RunStatusPending
+	if err := repos.Runs.Update(t.Context(), pending); err != nil {
+		t.Fatal(err)
+	}
+	if err := reconciler.RecoverInFlightRuns(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	if len(stub.ids) != 0 {
+		t.Fatalf("imported history was re-enqueued: %v", stub.ids)
+	}
+	stored, err := repos.Runs.Get(t.Context(), running.ID)
+	if err != nil || stored.Status != domain.RunStatusRunning || stored.ExecutionMode != domain.ExecutionModeImported {
+		t.Fatalf("imported running record changed: %+v %v", stored, err)
+	}
+	rows, err := events.Get(t.Context(), running.ID, event.GetOptions{AfterSequence: -1})
+	if err != nil || len(rows) != 0 {
+		t.Fatalf("imported history gained recovery events: %d %v", len(rows), err)
+	}
+	result, err := reconciler.RecoverRun(t.Context(), running.ID)
+	if err != nil || !result.Idempotent || result.Recovered {
+		t.Fatalf("manual recovery should also leave imported history alone: %+v %v", result, err)
+	}
+}
+
 func TestRecoverPanickedRunFailsOnlyAffectedRunWithStackEvent(t *testing.T) {
 	_, repos, eventStore := newRecoveryTestReconciler(t, domain.RunnerTypeCodex)
 	run := createRecoveryTestRun(t, repos, domain.RunnerTypeCodex)

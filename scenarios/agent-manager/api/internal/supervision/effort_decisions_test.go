@@ -450,6 +450,37 @@ func TestDecisionResolutionsApplyOnceAndNeverReplaceAnOperatorAnswer(t *testing.
 	}
 }
 
+func TestDecisionResolutionAcceptsOtherTextAndDismissesWithoutApproval(t *testing.T) {
+	s, _, _, _ := decisionFixture(t)
+	ctx := context.Background()
+	request := decisionRequest()
+	request.Decision.DecisionId = "BAS-D-OTHER"
+	created, err := s.RaiseDecision(ctx, request, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	other := DecisionResolution{State: "answered", Answer: "other", AnswerLabel: "Other", Note: "Keep the effort open and narrow the next milestone.", AnsweredBy: "operator", AnsweredAt: "2026-09-05T12:00:00Z", RequesterRef: created.Decision.EventId}
+	resolved, err := s.ResolveDecisionFromHub(ctx, other)
+	if err != nil || resolved.State != DecisionAnswered || resolved.Answer != "other" || resolved.AnswerLabel != "Other" || resolved.AnswerNote != other.Note {
+		t.Fatalf("Other and its note must be retained: %+v %v", resolved, err)
+	}
+
+	request = decisionRequest()
+	request.Decision.DecisionId = "BAS-D-DISMISSED"
+	second, err := s.RaiseDecision(ctx, request, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	dismissed, err := s.ResolveDecisionFromHub(ctx, DecisionResolution{State: "dismissed", Reason: "No longer applicable", ResolvedAt: "2026-09-05T12:01:00Z", RequesterRef: second.Decision.EventId})
+	if err != nil || dismissed.State != DecisionDismissed || dismissed.GetAnswer() != "" || dismissed.GetResolutionReason() != "No longer applicable" {
+		t.Fatalf("dismissal must close without an answer or approval: %+v %v", dismissed, err)
+	}
+	signals, _, err := s.repo.ListEffortSignals(ctx, dismissed.GetEffortRef(), 0, 10)
+	if err != nil || len(signals) != 2 || signals[1].Kind != SignalOperatorDecisionDismissed {
+		t.Fatalf("dismissal needs its own resolution signal, not operator_answer: %+v %v", signals, err)
+	}
+}
+
 func TestDecisionResolutionWithMismatchedRequesterRefIsIgnored(t *testing.T) {
 	for _, tc := range []struct {
 		name         string
