@@ -50,23 +50,26 @@ func BuildEventTyped(source, eventType string, occurred time.Time, facts Facts) 
 // DecisionResolution is notification-hub's ask.resolved payload. It ports
 // supervision.DecisionResolution verbatim so phase 2 can alias the agent-manager
 // type to this one. The fields a producer cares about are Answer (the chosen
-// option key), State ("answered"/"defaulted"/"expired"), AnsweredBy (the verified
+// option key), State ("answered"/"defaulted"/"expired"/"dismissed"), AnsweredBy (the verified
 // human, where the hub carries one), SourceEventType (which producer event this
 // resolves), and Correlation (the verbatim map that locates the durable record).
 type DecisionResolution struct {
-	AskID           string            `json:"ask_id"`
-	State           string            `json:"state"`
-	Answer          string            `json:"answer"`
-	AnswerLabel     string            `json:"answer_label"`
-	Note            string            `json:"note"`
-	AnsweredBy      string            `json:"answered_by"`
-	AnsweredAt      string            `json:"answered_at"`
-	ByDefault       bool              `json:"by_default"`
-	Late            bool              `json:"late"`
-	Reason          string            `json:"reason"`
-	SourceEventType string            `json:"source_event_type"`
-	RequesterRef    string            `json:"requester_ref"`
-	Correlation     map[string]string `json:"correlation"`
+	AskID                    string            `json:"ask_id"`
+	State                    string            `json:"state"`
+	Answer                   string            `json:"answer"`
+	AnswerLabel              string            `json:"answer_label"`
+	Note                     string            `json:"note"`
+	AnsweredBy               string            `json:"answered_by"`
+	AnsweredByIdentityKind   string            `json:"answered_by_identity_kind"`
+	AnsweredByIdentitySource string            `json:"answered_by_identity_source"`
+	AnsweredAt               string            `json:"answered_at"`
+	ResolvedAt               string            `json:"resolved_at"`
+	ByDefault                bool              `json:"by_default"`
+	Late                     bool              `json:"late"`
+	Reason                   string            `json:"reason"`
+	SourceEventType          string            `json:"source_event_type"`
+	RequesterRef             string            `json:"requester_ref"`
+	Correlation              map[string]string `json:"correlation"`
 }
 
 // Resolution states carried on a DecisionResolution.State.
@@ -74,4 +77,5 @@ const (
 	StateAnswered  = "answered"
 	StateDefaulted = "defaulted"
 	StateExpired   = "expired"
+	StateDismissed = "dismissed"
 )

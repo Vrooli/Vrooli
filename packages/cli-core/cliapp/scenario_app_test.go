@@ -441,6 +441,42 @@ func TestScenarioAppDefaultHTTPTimeoutCanBeOverridden(t *testing.T) {
 	}
 }
 
+func TestScenarioAppGetWithoutTimeoutAttachesToLongRunningOwnerWait(t *testing.T) {
+	configDir := t.TempDir()
+	t.Setenv("CLI_CONFIG_DIR_OVERRIDE", configDir)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/api/v1/validation/matrices/run-1/wait" {
+			http.NotFound(w, r)
+			return
+		}
+		time.Sleep(50 * time.Millisecond)
+		_, _ = w.Write([]byte(`{"state":"completed"}`))
+	}))
+	defer server.Close()
+
+	app, err := NewScenarioApp(ScenarioOptions{
+		Name:               "demo",
+		ConfigDirEnvVars:   []string{"CLI_CONFIG_DIR_OVERRIDE"},
+		DefaultAPIBase:     server.URL,
+		DefaultHTTPTimeout: 5 * time.Millisecond,
+		AllowAnonymous:     true,
+	})
+	if err != nil {
+		t.Fatalf("NewScenarioApp: %v", err)
+	}
+
+	body, err := app.GetWithoutTimeout("/validation/matrices/run-1/wait", nil)
+	if err != nil {
+		t.Fatalf("GetWithoutTimeout: %v", err)
+	}
+	if string(body) != `{"state":"completed"}` {
+		t.Fatalf("unexpected owner wait body: %s", body)
+	}
+	if got := app.HTTPClient.Timeout(); got != 5*time.Millisecond {
+		t.Fatalf("long wait changed the ordinary client timeout: got %s", got)
+	}
+}
+
 func TestNewStandardScenarioAppUsesStandardWiring(t *testing.T) {
 	configDir := t.TempDir()
 	t.Setenv("CLI_CONFIG_DIR_OVERRIDE", configDir)

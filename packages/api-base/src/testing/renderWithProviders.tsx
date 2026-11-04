@@ -46,6 +46,8 @@ let configuredProviders: TestProvider | undefined;
  * Registers scenario-owned providers for the default render path. Call this
  * once from the UI's Vitest setup file when components require contexts that
  * cannot live in api-base (theme, session, realtime, or domain providers).
+ * Do not register a QueryClientProvider here: renderWithProviders creates a
+ * fresh client per render, and a nested client provider would shadow it.
  */
 export function configureTestProviders(provider: TestProvider | undefined): void {
   configuredProviders = provider;

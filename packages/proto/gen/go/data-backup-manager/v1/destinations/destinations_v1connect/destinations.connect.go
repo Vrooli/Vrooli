@@ -45,6 +45,9 @@ const (
 	// DestinationsServiceUpdateDestinationProcedure is the fully-qualified name of the
 	// DestinationsService's UpdateDestination RPC.
 	DestinationsServiceUpdateDestinationProcedure = "/vrooli.data_backup_manager.v1.destinations.DestinationsService/UpdateDestination"
+	// DestinationsServiceBindDestinationRecoveryIdentityProcedure is the fully-qualified name of the
+	// DestinationsService's BindDestinationRecoveryIdentity RPC.
+	DestinationsServiceBindDestinationRecoveryIdentityProcedure = "/vrooli.data_backup_manager.v1.destinations.DestinationsService/BindDestinationRecoveryIdentity"
 	// DestinationsServiceDeleteDestinationProcedure is the fully-qualified name of the
 	// DestinationsService's DeleteDestination RPC.
 	DestinationsServiceDeleteDestinationProcedure = "/vrooli.data_backup_manager.v1.destinations.DestinationsService/DeleteDestination"
@@ -78,6 +81,7 @@ type DestinationsServiceClient interface {
 	GetDestination(context.Context, *connect.Request[destinations.GetDestinationRequest]) (*connect.Response[destinations.GetDestinationResponse], error)
 	ListDestinations(context.Context, *connect.Request[destinations.ListDestinationsRequest]) (*connect.Response[destinations.ListDestinationsResponse], error)
 	UpdateDestination(context.Context, *connect.Request[destinations.UpdateDestinationRequest]) (*connect.Response[destinations.UpdateDestinationResponse], error)
+	BindDestinationRecoveryIdentity(context.Context, *connect.Request[destinations.BindDestinationRecoveryIdentityRequest]) (*connect.Response[destinations.BindDestinationRecoveryIdentityResponse], error)
 	DeleteDestination(context.Context, *connect.Request[destinations.DeleteDestinationRequest]) (*connect.Response[destinations.DeleteDestinationResponse], error)
 	GetDestinationUsage(context.Context, *connect.Request[destinations.GetDestinationUsageRequest]) (*connect.Response[destinations.GetDestinationUsageResponse], error)
 	AnalyzeDestination(context.Context, *connect.Request[destinations.AnalyzeDestinationRequest]) (*connect.Response[destinations.AnalyzeDestinationResponse], error)
@@ -122,6 +126,12 @@ func NewDestinationsServiceClient(httpClient connect.HTTPClient, baseURL string,
 			httpClient,
 			baseURL+DestinationsServiceUpdateDestinationProcedure,
 			connect.WithSchema(destinationsServiceMethods.ByName("UpdateDestination")),
+			connect.WithClientOptions(opts...),
+		),
+		bindDestinationRecoveryIdentity: connect.NewClient[destinations.BindDestinationRecoveryIdentityRequest, destinations.BindDestinationRecoveryIdentityResponse](
+			httpClient,
+			baseURL+DestinationsServiceBindDestinationRecoveryIdentityProcedure,
+			connect.WithSchema(destinationsServiceMethods.ByName("BindDestinationRecoveryIdentity")),
 			connect.WithClientOptions(opts...),
 		),
 		deleteDestination: connect.NewClient[destinations.DeleteDestinationRequest, destinations.DeleteDestinationResponse](
@@ -177,18 +187,19 @@ func NewDestinationsServiceClient(httpClient connect.HTTPClient, baseURL string,
 
 // destinationsServiceClient implements DestinationsServiceClient.
 type destinationsServiceClient struct {
-	createDestination             *connect.Client[destinations.CreateDestinationRequest, destinations.CreateDestinationResponse]
-	getDestination                *connect.Client[destinations.GetDestinationRequest, destinations.GetDestinationResponse]
-	listDestinations              *connect.Client[destinations.ListDestinationsRequest, destinations.ListDestinationsResponse]
-	updateDestination             *connect.Client[destinations.UpdateDestinationRequest, destinations.UpdateDestinationResponse]
-	deleteDestination             *connect.Client[destinations.DeleteDestinationRequest, destinations.DeleteDestinationResponse]
-	getDestinationUsage           *connect.Client[destinations.GetDestinationUsageRequest, destinations.GetDestinationUsageResponse]
-	analyzeDestination            *connect.Client[destinations.AnalyzeDestinationRequest, destinations.AnalyzeDestinationResponse]
-	planDestinationPreparation    *connect.Client[destinations.PlanDestinationPreparationRequest, destinations.PlanDestinationPreparationResponse]
-	executeDestinationPreparation *connect.Client[destinations.ExecuteDestinationPreparationRequest, destinations.ExecuteDestinationPreparationResponse]
-	startVolumeRecovery           *connect.Client[destinations.StartVolumeRecoveryRequest, destinations.StartVolumeRecoveryResponse]
-	getVolumeRecovery             *connect.Client[destinations.GetVolumeRecoveryRequest, destinations.GetVolumeRecoveryResponse]
-	resumeVolumeRecovery          *connect.Client[destinations.ResumeVolumeRecoveryRequest, destinations.ResumeVolumeRecoveryResponse]
+	createDestination               *connect.Client[destinations.CreateDestinationRequest, destinations.CreateDestinationResponse]
+	getDestination                  *connect.Client[destinations.GetDestinationRequest, destinations.GetDestinationResponse]
+	listDestinations                *connect.Client[destinations.ListDestinationsRequest, destinations.ListDestinationsResponse]
+	updateDestination               *connect.Client[destinations.UpdateDestinationRequest, destinations.UpdateDestinationResponse]
+	bindDestinationRecoveryIdentity *connect.Client[destinations.BindDestinationRecoveryIdentityRequest, destinations.BindDestinationRecoveryIdentityResponse]
+	deleteDestination               *connect.Client[destinations.DeleteDestinationRequest, destinations.DeleteDestinationResponse]
+	getDestinationUsage             *connect.Client[destinations.GetDestinationUsageRequest, destinations.GetDestinationUsageResponse]
+	analyzeDestination              *connect.Client[destinations.AnalyzeDestinationRequest, destinations.AnalyzeDestinationResponse]
+	planDestinationPreparation      *connect.Client[destinations.PlanDestinationPreparationRequest, destinations.PlanDestinationPreparationResponse]
+	executeDestinationPreparation   *connect.Client[destinations.ExecuteDestinationPreparationRequest, destinations.ExecuteDestinationPreparationResponse]
+	startVolumeRecovery             *connect.Client[destinations.StartVolumeRecoveryRequest, destinations.StartVolumeRecoveryResponse]
+	getVolumeRecovery               *connect.Client[destinations.GetVolumeRecoveryRequest, destinations.GetVolumeRecoveryResponse]
+	resumeVolumeRecovery            *connect.Client[destinations.ResumeVolumeRecoveryRequest, destinations.ResumeVolumeRecoveryResponse]
 }
 
 // CreateDestination calls
@@ -213,6 +224,12 @@ func (c *destinationsServiceClient) ListDestinations(ctx context.Context, req *c
 // vrooli.data_backup_manager.v1.destinations.DestinationsService.UpdateDestination.
 func (c *destinationsServiceClient) UpdateDestination(ctx context.Context, req *connect.Request[destinations.UpdateDestinationRequest]) (*connect.Response[destinations.UpdateDestinationResponse], error) {
 	return c.updateDestination.CallUnary(ctx, req)
+}
+
+// BindDestinationRecoveryIdentity calls
+// vrooli.data_backup_manager.v1.destinations.DestinationsService.BindDestinationRecoveryIdentity.
+func (c *destinationsServiceClient) BindDestinationRecoveryIdentity(ctx context.Context, req *connect.Request[destinations.BindDestinationRecoveryIdentityRequest]) (*connect.Response[destinations.BindDestinationRecoveryIdentityResponse], error) {
+	return c.bindDestinationRecoveryIdentity.CallUnary(ctx, req)
 }
 
 // DeleteDestination calls
@@ -270,6 +287,7 @@ type DestinationsServiceHandler interface {
 	GetDestination(context.Context, *connect.Request[destinations.GetDestinationRequest]) (*connect.Response[destinations.GetDestinationResponse], error)
 	ListDestinations(context.Context, *connect.Request[destinations.ListDestinationsRequest]) (*connect.Response[destinations.ListDestinationsResponse], error)
 	UpdateDestination(context.Context, *connect.Request[destinations.UpdateDestinationRequest]) (*connect.Response[destinations.UpdateDestinationResponse], error)
+	BindDestinationRecoveryIdentity(context.Context, *connect.Request[destinations.BindDestinationRecoveryIdentityRequest]) (*connect.Response[destinations.BindDestinationRecoveryIdentityResponse], error)
 	DeleteDestination(context.Context, *connect.Request[destinations.DeleteDestinationRequest]) (*connect.Response[destinations.DeleteDestinationResponse], error)
 	GetDestinationUsage(context.Context, *connect.Request[destinations.GetDestinationUsageRequest]) (*connect.Response[destinations.GetDestinationUsageResponse], error)
 	AnalyzeDestination(context.Context, *connect.Request[destinations.AnalyzeDestinationRequest]) (*connect.Response[destinations.AnalyzeDestinationResponse], error)
@@ -309,6 +327,12 @@ func NewDestinationsServiceHandler(svc DestinationsServiceHandler, opts ...conne
 		DestinationsServiceUpdateDestinationProcedure,
 		svc.UpdateDestination,
 		connect.WithSchema(destinationsServiceMethods.ByName("UpdateDestination")),
+		connect.WithHandlerOptions(opts...),
+	)
+	destinationsServiceBindDestinationRecoveryIdentityHandler := connect.NewUnaryHandler(
+		DestinationsServiceBindDestinationRecoveryIdentityProcedure,
+		svc.BindDestinationRecoveryIdentity,
+		connect.WithSchema(destinationsServiceMethods.ByName("BindDestinationRecoveryIdentity")),
 		connect.WithHandlerOptions(opts...),
 	)
 	destinationsServiceDeleteDestinationHandler := connect.NewUnaryHandler(
@@ -369,6 +393,8 @@ func NewDestinationsServiceHandler(svc DestinationsServiceHandler, opts ...conne
 			destinationsServiceListDestinationsHandler.ServeHTTP(w, r)
 		case DestinationsServiceUpdateDestinationProcedure:
 			destinationsServiceUpdateDestinationHandler.ServeHTTP(w, r)
+		case DestinationsServiceBindDestinationRecoveryIdentityProcedure:
+			destinationsServiceBindDestinationRecoveryIdentityHandler.ServeHTTP(w, r)
 		case DestinationsServiceDeleteDestinationProcedure:
 			destinationsServiceDeleteDestinationHandler.ServeHTTP(w, r)
 		case DestinationsServiceGetDestinationUsageProcedure:
@@ -408,6 +434,10 @@ func (UnimplementedDestinationsServiceHandler) ListDestinations(context.Context,
 
 func (UnimplementedDestinationsServiceHandler) UpdateDestination(context.Context, *connect.Request[destinations.UpdateDestinationRequest]) (*connect.Response[destinations.UpdateDestinationResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.data_backup_manager.v1.destinations.DestinationsService.UpdateDestination is not implemented"))
+}
+
+func (UnimplementedDestinationsServiceHandler) BindDestinationRecoveryIdentity(context.Context, *connect.Request[destinations.BindDestinationRecoveryIdentityRequest]) (*connect.Response[destinations.BindDestinationRecoveryIdentityResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.data_backup_manager.v1.destinations.DestinationsService.BindDestinationRecoveryIdentity is not implemented"))
 }
 
 func (UnimplementedDestinationsServiceHandler) DeleteDestination(context.Context, *connect.Request[destinations.DeleteDestinationRequest]) (*connect.Response[destinations.DeleteDestinationResponse], error) {

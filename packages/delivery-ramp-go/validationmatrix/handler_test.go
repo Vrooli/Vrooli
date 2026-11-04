@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/gorilla/mux"
 )
@@ -44,6 +45,47 @@ func TestHandlerCreatesAndReadsDurableMatrix(t *testing.T) {
 	}
 	if loaded.RunID != run.RunID || loaded.Matrix.GetArtifactDigest() != "sha256:artifact" {
 		t.Fatalf("handler lost matrix identity: %+v", loaded)
+	}
+}
+
+func TestAbortHandlerWaitsForOwnerTerminalState(t *testing.T) {
+	store, err := NewFileStore(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	started := make(chan struct{})
+	service := NewService(store, Executors{Local: localFunc(func(ctx context.Context, _ CellRequest) CellResult {
+		close(started)
+		<-ctx.Done()
+		return CellResult{}
+	})})
+	run, err := service.Create(baseSelection())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := service.Start(run.RunID); err != nil {
+		t.Fatal(err)
+	}
+	select {
+	case <-started:
+	case <-time.After(time.Second):
+		t.Fatal("cell did not start")
+	}
+
+	router := mux.NewRouter()
+	NewHandler(service).RegisterRoutes(router)
+	request := httptest.NewRequest(http.MethodPost, "/api/v1/validation/matrices/"+run.RunID+"/abort", nil)
+	response := httptest.NewRecorder()
+	router.ServeHTTP(response, request)
+	if response.Code != http.StatusOK {
+		t.Fatalf("abort status=%d body=%s", response.Code, response.Body.String())
+	}
+	var finished MatrixRun
+	if err := json.Unmarshal(response.Body.Bytes(), &finished); err != nil {
+		t.Fatal(err)
+	}
+	if finished.State != RunCancelled || finished.Cells[0].State != CellCancelled {
+		t.Fatalf("abort handler returned before owner drained: run=%s cell=%s", finished.State, finished.Cells[0].State)
 	}
 }
 

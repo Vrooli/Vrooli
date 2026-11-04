@@ -186,7 +186,7 @@
       "entry_path": "usr/lib/ld-linux-x86-64.so.2",
       "bundle_artifact": "unstructured-io_${os}_${arch}",
       "sha256_by_platform": {
-        "linux-amd64": "38697ddb80a3ac739bd11d2255c70fd3d0d22b81786414b660b72b4476df4e35"
+        "linux-amd64": "374c913bafc0a33fb051711205fb515b31fe0d61856a95f0dca63fc3eb515714"
       }
     },
     "acquisition": {
@@ -202,7 +202,7 @@
             "arch": "amd64"
           },
           "image": "downloads.unstructured.io/unstructured-io/unstructured-api@sha256:a43ab55898599157fb0e0e097dabb8ecdd1d8e3df1ae5b67c6e15a136b171a6c",
-          "artifact_sha256": "38697ddb80a3ac739bd11d2255c70fd3d0d22b81786414b660b72b4476df4e35",
+          "artifact_sha256": "374c913bafc0a33fb051711205fb515b31fe0d61856a95f0dca63fc3eb515714",
           "layout": "dir",
           "bin_path": "usr/lib/ld-linux-x86-64.so.2"
         },
@@ -247,6 +247,8 @@
     "environment": {
       "HOME": "${RESOURCE_ARTIFACT_DIR}/home/notebook-user",
       "HOST": "127.0.0.1",
+      "LD_LIBRARY_PATH": "${RESOURCE_ARTIFACT_DIR}/usr/lib:${RESOURCE_ARTIFACT_DIR}/usr/lib64:${RESOURCE_ARTIFACT_DIR}/lib:${RESOURCE_ARTIFACT_DIR}/lib64",
+      "MPLCONFIGDIR": "${RESOURCE_CACHE_DIR}/matplotlib",
       "PATH": "${RESOURCE_ARTIFACT_DIR}/home/notebook-user/.local/bin:${RESOURCE_ARTIFACT_DIR}/usr/local/bin:${RESOURCE_ARTIFACT_DIR}/usr/bin:${RESOURCE_ARTIFACT_DIR}/bin",
       "PYTHONHOME": "${RESOURCE_ARTIFACT_DIR}/usr",
       "PYTHONPATH": "${RESOURCE_ARTIFACT_DIR}/home/notebook-user:${RESOURCE_ARTIFACT_DIR}/home/notebook-user/.local/lib/python3.12/site-packages",
@@ -256,7 +258,8 @@
       "UNSTRUCTURED_API_LOG_LEVEL": "INFO",
       "UNSTRUCTURED_API_MAX_REQUEST_SIZE": "52428800",
       "UNSTRUCTURED_API_WORKERS": "1",
-      "UNSTRUCTURED_API_PORT": "${RESOURCE_PORT_HTTP}"
+      "UNSTRUCTURED_API_PORT": "${RESOURCE_PORT_HTTP}",
+      "XDG_CACHE_HOME": "${RESOURCE_CACHE_DIR}"
     },
     "shutdown": {
       "signal": "terminate"
@@ -281,8 +284,24 @@
           "scales_footprint": true
         }
       ]
+    },
+    "claim": {
+      "resource_kind": "ram",
+      "default_preferred_bytes": 1610612736,
+      "floor_bytes": 1610612736,
+      "default_priority": "service",
+      "confidence": "measured",
+      "yield_when_idle": false
     }
   },
+  "companions": [
+    {
+      "name": "capacity-sync",
+      "command": "resource-unstructured-io",
+      "args": ["capacity-sync"],
+      "required": true
+    }
+  ],
   "category": "ai",
   "requirements": {
     "ram_mb": 1536,

@@ -87,6 +87,41 @@ func TestClientGenerateUsesImageToolsInferenceAndBlocksOnceForResult(t *testing.
 	require.Equal(t, "local-gpu", out.Tier)
 }
 
+func TestClientGenerateRequiresProviderCostMarker(t *testing.T) {
+	for _, tc := range []struct {
+		name         string
+		meta         string
+		wantReported bool
+	}{
+		{name: "marked known zero", meta: `"cost_usd":"0","cost_provenance":"provider_reported_v1"`, wantReported: true},
+		{name: "historical unmarked amount", meta: `"cost_usd":"0.25"`},
+		{name: "marked non-finite amount", meta: `"cost_usd":"NaN","cost_provenance":"provider_reported_v1"`},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				switch r.URL.Path {
+				case "/api/v1/ai/text_to_image":
+					_, _ = w.Write([]byte(`{"job_id":"job-1","model_id":"model","tier":"byok-cloud"}`))
+				case "/vrooli.image_tools.v1.jobs.JobsService/WaitJob":
+					_, _ = w.Write([]byte(`{"job":{"state":"JOB_STATE_SUCCEEDED","resultRef":"out/image.png","resultMeta":{` + tc.meta + `}}}`))
+				case "/api/v1/blobs/out/image.png":
+					_, _ = w.Write([]byte("png"))
+				default:
+					t.Fatalf("unexpected path %s", r.URL.Path)
+				}
+			}))
+			defer server.Close()
+			client := &Client{HTTPClient: server.Client(), Resolve: func(context.Context) (string, error) { return server.URL, nil }}
+			result, err := client.Generate(context.Background(), GenerationRequest{Width: 512, Height: 320, Prompt: "cost proof"})
+			require.NoError(t, err)
+			require.Equal(t, tc.wantReported, result.CostReported)
+			if tc.wantReported {
+				require.Zero(t, result.CostUSD)
+			}
+		})
+	}
+}
+
 // TestUnresolvedBrandSlotFailsClosed is the regression gate for the defect that
 // made ten of sixteen seeded styles unrenderable.
 //

@@ -19,6 +19,17 @@ therefore claims no arm64, macOS, or Windows deployment architecture. The
 image digest and the extracted artifact tree digest are both pinned in
 `resource.json`.
 
+## Writable runtime storage
+
+The upstream Python package layout uses a `HOME` directory inside the staged
+artifact. Keep that layout for imports, but route mutable caches through the
+resource's relocatable `RESOURCE_CACHE_DIR`: `XDG_CACHE_HOME` owns general
+user caches and `MPLCONFIGDIR` owns Matplotlib's configuration/font cache.
+Without those overrides, the first OCR request can create
+`~/.cache/matplotlib/fontlist-*.json` inside the pinned artifact and make the
+resource fail its subsequent artifact-integrity check. The managed-service
+supervisor creates the resource storage directories before launch.
+
 ## Measured runtime
 
 On this host, a real `hi_res` parse of
@@ -39,7 +50,9 @@ readiness check. The command calls `/healthcheck` and then submits a small
 text document through the primary partition endpoint. A live service that
 cannot complete that parse is unhealthy. `health`, `formats`, and `process`
 are the supported resource CLI commands; lifecycle remains owned by
-`vrooli resource ...`.
+`vrooli resource ...`. For text PDFs, pass `--strategy fast` to `process`;
+the default `auto` path currently cannot run the bundled PDF layout helper as
+a host child process.
 
 The frozen runtime does not contain `detectron2`; `hi_res` is therefore a
 declared partial capability. Operators must treat that limitation as evidence,
@@ -49,6 +62,8 @@ not silently substitute a different processing strategy.
 
 - `resource.json` owns the pinned image, extracted artifact, platform claims,
   ports, exports, storage, and readiness semantics.
+- Mutable upstream caches must stay under the declared resource cache path;
+  do not write generated state below the immutable staged artifact.
 - `cli/` owns the thin command entrypoint.
 - `cli/internal/unstructured` owns the typed HTTP client and probe behavior.
 - No normal path invokes the retired shell files or a floating image tag.

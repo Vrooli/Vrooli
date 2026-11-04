@@ -70,7 +70,7 @@
   "private": true,
   "scripts": {
     "build": "pnpm selector:manifest && vite build",
-    "build:profile": "vite build --mode profile",
+    "build:profile": "pnpm selector:manifest && vite build --mode profile",
     "dev": "vrooli lifecycle protect -- vite",
     "lint": "eslint src --ext ts,tsx",
     "lint:fix": "eslint src --ext ts,tsx --fix",

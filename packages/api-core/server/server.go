@@ -65,6 +65,7 @@ import (
 
 	"github.com/vrooli/api-core/authn"
 	"github.com/vrooli/api-core/eventbus"
+	"github.com/vrooli/api-core/lifecycle"
 	"github.com/vrooli/api-core/provenance"
 )
 
@@ -144,6 +145,19 @@ type Config struct {
 	// read-only handlers remain available; domain writers must enforce humans.
 	Authentication *authn.Config
 
+	// LifecycleHooks describe scenario-owned background work outside admitted
+	// HTTP requests. The standard server installs the shared maintenance-fence
+	// endpoint and ingress gate automatically when VROOLI_SCENARIO is set.
+	// Supply Quiesce and Resume together when the API owns background goroutines.
+	LifecycleHooks lifecycle.Hooks
+
+	// LifecycleConfiguredExternally is for servers that already install a
+	// domain-specific LifecycleMaintenanceService and matching ingress gate.
+	// It is not a way to disable maintenance fencing without an equivalent owner
+	// contract. Custom StartServer implementations must mount lifecycle.Provider
+	// (or a domain-specific equivalent) themselves.
+	LifecycleConfiguredExternally bool
+
 	// EnvGetter overrides os.Getenv for testing.
 	// If nil, uses os.Getenv.
 	EnvGetter func(key string) string
@@ -182,6 +196,13 @@ func Run(cfg Config) error {
 
 	if cfg.Handler == nil {
 		return errors.New("server.Config.Handler is required (or provide StartServer/ShutdownServer for custom servers)")
+	}
+	if !cfg.LifecycleConfiguredExternally && (cfg.getenv("VROOLI_SCENARIO") != "" || cfg.getenv("SCENARIO_NAME") != "") {
+		provider, err := lifecycle.NewProviderFromEnv(cfg.getenv, cfg.LifecycleHooks)
+		if err != nil {
+			return err
+		}
+		cfg.Handler = provider.Mount(cfg.Handler)
 	}
 	// Standard clients used while handling this request inherit verified identity
 	// forwarding through api-core. Field scenarios do not attach workflow tokens

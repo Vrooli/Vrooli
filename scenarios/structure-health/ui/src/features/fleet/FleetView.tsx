@@ -15,11 +15,11 @@ const FLEET_QUERY_KEY = ["fleet-scan"] as const;
  * FleetView is the structure-health fleet dashboard. It calls
  * `FleetService.ScanFleet` and renders the typed all-kind rollup:
  *
- *   - headline counters (scenarios / passing / missing-freshness / auto-fixable)
+ *   - headline counters (targets / passing targets / auto-fixable)
  *   - profile distribution mini-list
  *   - per-rule conformance table (server order: most-offending first)
  *   - target offenders table (kind/id, verdict, profile, error/warning/auto-fixable
- *     counts, missing-freshness badge)
+ *     counts)
  *   - any ungraded targets with their reason
  *
  * Verdicts read strictly off `entry.passed` so the visual semantics match the

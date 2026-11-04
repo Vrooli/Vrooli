@@ -498,6 +498,17 @@ func (a *ScenarioApp) Get(path string, query url.Values) ([]byte, error) {
 	return a.APIClient.Get(a.APIPath(path), query)
 }
 
+// GetWithoutTimeout attaches to an owner-managed blocking response without
+// inheriting the CLI's ordinary request deadline. The owner remains
+// responsible for terminating the operation and the caller may still cancel
+// the command; no retry or duplicate operation is introduced.
+func (a *ScenarioApp) GetWithoutTimeout(path string, query url.Values) ([]byte, error) {
+	if a.APIClient == nil {
+		a.APIClient = cliutil.NewAPIClient(a.HTTPClient, a.APIBaseOptions, a.tokenSource)
+	}
+	return a.APIClient.WithoutTimeout().Get(a.APIPath(path), query)
+}
+
 // Request performs an HTTP request against the scenario's versioned API base.
 func (a *ScenarioApp) Request(method, path string, query url.Values, body interface{}) ([]byte, error) {
 	if a.APIClient == nil {

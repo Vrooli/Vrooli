@@ -172,6 +172,20 @@ class UpdateDestinationResponse(_message.Message):
     destination: Destination
     def __init__(self, destination: _Optional[_Union[Destination, _Mapping]] = ...) -> None: ...
 
+class BindDestinationRecoveryIdentityRequest(_message.Message):
+    __slots__ = ("id", "identity")
+    ID_FIELD_NUMBER: _ClassVar[int]
+    IDENTITY_FIELD_NUMBER: _ClassVar[int]
+    id: str
+    identity: DestinationDeviceIdentity
+    def __init__(self, id: _Optional[str] = ..., identity: _Optional[_Union[DestinationDeviceIdentity, _Mapping]] = ...) -> None: ...
+
+class BindDestinationRecoveryIdentityResponse(_message.Message):
+    __slots__ = ("destination",)
+    DESTINATION_FIELD_NUMBER: _ClassVar[int]
+    destination: Destination
+    def __init__(self, destination: _Optional[_Union[Destination, _Mapping]] = ...) -> None: ...
+
 class DeleteDestinationRequest(_message.Message):
     __slots__ = ("id", "delete_repository")
     ID_FIELD_NUMBER: _ClassVar[int]

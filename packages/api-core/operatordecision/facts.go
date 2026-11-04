@@ -136,6 +136,9 @@ func (f Facts) Validate() error {
 		if !factsKeyRule.MatchString(option.Key) {
 			return fmt.Errorf("option key %q must be 1-64 letters, digits, '.', '_', ':' or '-'", option.Key)
 		}
+		if option.Key == "other" {
+			return fmt.Errorf("option key %q is reserved for the recipient's free-form answer", option.Key)
+		}
 		if seen[option.Key] {
 			return fmt.Errorf("option key %q is repeated", option.Key)
 		}

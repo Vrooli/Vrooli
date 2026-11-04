@@ -107,6 +107,10 @@ func TestFactsValidate(t *testing.T) {
 		{"bad option key", func(f *Facts) {
 			f.Options = []Option{{Key: "approve"}, {Key: "no good key!"}}
 		}, "option key"},
+		{"reserved other key", func(f *Facts) {
+			f.Options = []Option{{Key: "other"}, {Key: "reject"}}
+			f.Recommended = "reject"
+		}, "reserved"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -475,12 +479,16 @@ type recordingEffect struct {
 	handled bool
 	err     error
 	applied *bool
+	got     *DecisionResolution
 }
 
 func (e *recordingEffect) Handles(src string) bool { return e.owns == "" || e.owns == src }
-func (e *recordingEffect) Apply(_ context.Context, _ DecisionResolution) (bool, error) {
+func (e *recordingEffect) Apply(_ context.Context, resolution DecisionResolution) (bool, error) {
 	if e.applied != nil {
 		*e.applied = true
+	}
+	if e.got != nil {
+		*e.got = resolution
 	}
 	return e.handled, e.err
 }
@@ -517,6 +525,39 @@ func TestWebhookFanOutFirstHandledWins(t *testing.T) {
 	_ = json.Unmarshal(rec.Body.Bytes(), &out)
 	if out["handled"] != true {
 		t.Fatalf("expected handled:true, got %v", out)
+	}
+}
+
+func TestWebhookPreservesVerifiedHumanIdentityForOwnerEffect(t *testing.T) {
+	secret := "whsec"
+	var got DecisionResolution
+	effect := &recordingEffect{
+		owns: "data_backup_manager.volume_recovery.decision_requested.v1", handled: true, got: &got,
+	}
+	h := Webhook(secret, effect)
+	envelope := map[string]any{
+		"event_id": "e1", "event_type": AskResolvedEventType, "source_scenario": "notification-hub",
+		"payload": map[string]any{
+			"ask_id": "ask-1", "state": "answered", "answer": "approve-repair",
+			"answered_by": "operator-1", "answered_by_identity_kind": "verified_human",
+			"answered_by_identity_source": "cloudflare_access",
+			"source_event_type":           "data_backup_manager.volume_recovery.decision_requested.v1",
+			"correlation":                 map[string]any{"recovery_id": "recovery-1"},
+		},
+	}
+	body, err := json.Marshal(envelope)
+	if err != nil {
+		t.Fatal(err)
+	}
+	req := httptest.NewRequest(http.MethodPost, "/webhook", strings.NewReader(string(body)))
+	req.Header.Set(SignatureHeader, sign(body, secret))
+	rec := httptest.NewRecorder()
+	h.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status: %d body=%s", rec.Code, rec.Body.String())
+	}
+	if got.AnsweredByIdentityKind != "verified_human" || got.AnsweredByIdentitySource != "cloudflare_access" {
+		t.Fatalf("verified answer identity was lost: %+v", got)
 	}
 }
 

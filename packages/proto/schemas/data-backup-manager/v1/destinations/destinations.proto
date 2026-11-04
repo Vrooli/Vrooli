@@ -30,6 +30,7 @@ service DestinationsService {
   rpc GetDestination(GetDestinationRequest) returns (GetDestinationResponse);
   rpc ListDestinations(ListDestinationsRequest) returns (ListDestinationsResponse);
   rpc UpdateDestination(UpdateDestinationRequest) returns (UpdateDestinationResponse);
+  rpc BindDestinationRecoveryIdentity(BindDestinationRecoveryIdentityRequest) returns (BindDestinationRecoveryIdentityResponse);
   rpc DeleteDestination(DeleteDestinationRequest) returns (DeleteDestinationResponse);
   rpc GetDestinationUsage(GetDestinationUsageRequest) returns (GetDestinationUsageResponse);
   rpc AnalyzeDestination(AnalyzeDestinationRequest) returns (AnalyzeDestinationResponse);
@@ -183,6 +184,17 @@ message UpdateDestinationRequest {
 }
 
 message UpdateDestinationResponse {
+  Destination destination = 1;
+}
+
+message BindDestinationRecoveryIdentityRequest {
+  string id = 1 [(buf.validate.field).string.min_len = 1];
+  // Stable identity and intended mount root. The server re-observes UUID or
+  // serial through read-only host inventory; supplied device_path is ignored.
+  DestinationDeviceIdentity identity = 2 [(buf.validate.field).required = true];
+}
+
+message BindDestinationRecoveryIdentityResponse {
   Destination destination = 1;
 }
 

@@ -484,6 +484,7 @@ func provenance(style catalog.Style, surface Surface, seed int64, executionPath,
 	// free, which is the opposite of what the field is for.
 	if routing.CostReported {
 		record["cost_usd"] = routing.CostUSD
+		record["cost_provenance"] = "provider_reported_v1"
 	}
 	// A generator a model wrote is disclosed by naming that model. It is a
 	// separate fact from `generation_model`, which names whatever drew pixels —

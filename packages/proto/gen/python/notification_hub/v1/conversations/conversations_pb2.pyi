@@ -98,6 +98,38 @@ class AnswerResponse(_message.Message):
     late: bool
     def __init__(self, ask_id: _Optional[str] = ..., answer: _Optional[str] = ..., answered_at: _Optional[str] = ..., late: _Optional[bool] = ...) -> None: ...
 
+class DismissRequest(_message.Message):
+    __slots__ = ("ask_id", "note")
+    ASK_ID_FIELD_NUMBER: _ClassVar[int]
+    NOTE_FIELD_NUMBER: _ClassVar[int]
+    ask_id: str
+    note: str
+    def __init__(self, ask_id: _Optional[str] = ..., note: _Optional[str] = ...) -> None: ...
+
+class DismissResponse(_message.Message):
+    __slots__ = ("ask_id", "state")
+    ASK_ID_FIELD_NUMBER: _ClassVar[int]
+    STATE_FIELD_NUMBER: _ClassVar[int]
+    ask_id: str
+    state: str
+    def __init__(self, ask_id: _Optional[str] = ..., state: _Optional[str] = ...) -> None: ...
+
+class WithdrawRequest(_message.Message):
+    __slots__ = ("ask_id", "reason")
+    ASK_ID_FIELD_NUMBER: _ClassVar[int]
+    REASON_FIELD_NUMBER: _ClassVar[int]
+    ask_id: str
+    reason: str
+    def __init__(self, ask_id: _Optional[str] = ..., reason: _Optional[str] = ...) -> None: ...
+
+class WithdrawResponse(_message.Message):
+    __slots__ = ("ask_id", "state")
+    ASK_ID_FIELD_NUMBER: _ClassVar[int]
+    STATE_FIELD_NUMBER: _ClassVar[int]
+    ask_id: str
+    state: str
+    def __init__(self, ask_id: _Optional[str] = ..., state: _Optional[str] = ...) -> None: ...
+
 class WaitRequest(_message.Message):
     __slots__ = ("ask_id", "deadline")
     ASK_ID_FIELD_NUMBER: _ClassVar[int]

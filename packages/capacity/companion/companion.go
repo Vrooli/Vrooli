@@ -72,6 +72,9 @@ const (
 type Config struct {
 	// Resource is the capacity owner id.
 	Resource string
+	// ResourceKind selects the capacity axis reported by this companion.
+	// Empty preserves the original VRAM behavior for existing resources.
+	ResourceKind string
 	// Observer supplies the resource-specific observation.
 	Observer Observer
 	// Exec runs the vrooli CLI. nil is a programming error, not a runtime one.
@@ -145,6 +148,9 @@ type Runner struct {
 func New(cfg Config) (*Runner, error) {
 	if strings.TrimSpace(cfg.Resource) == "" {
 		return nil, fmt.Errorf("capacity companion: resource name is required")
+	}
+	if kind := resourceKind(cfg.ResourceKind); kind != "vram" && kind != "ram" && kind != "cpu" {
+		return nil, fmt.Errorf("capacity companion: unsupported resource kind %q", kind)
 	}
 	if cfg.Observer == nil {
 		return nil, fmt.Errorf("capacity companion: an observer is required")
@@ -256,7 +262,7 @@ func (r *Runner) activeClaim(ctx context.Context) (*LedgerClaim, error) {
 		r.invalidateActiveClaim()
 		return nil, err
 	}
-	claim, err := selectActiveClaim(out, r.cfg.Resource, r.cfg.GPUIndex)
+	claim, err := selectActiveClaim(out, r.cfg.Resource, resourceKind(r.cfg.ResourceKind), r.cfg.GPUIndex)
 	if err != nil {
 		r.invalidateActiveClaim()
 		return nil, err
@@ -279,10 +285,21 @@ func validClaim(c LedgerClaim) bool {
 		(c.ResourceKind == "vram" || c.ResourceKind == "ram" || c.ResourceKind == "cpu") && c.Generation > 0 &&
 		(activeStatus(c.Status) || c.Status == "released" || c.Status == "expired" || c.Status == "preempted") && (c.ResourceKind != "vram" || c.GPUIndex != nil)
 }
-func exactResourceClaim(c LedgerClaim, resource string, gpu int) bool {
-	return validClaim(c) && c.OwnerID == resource && c.OwnerKind == "resource" && c.ResourceKind == "vram" && c.GPUIndex != nil && *c.GPUIndex == gpu && activeStatus(c.Status)
+func resourceKind(kind string) string {
+	if kind = strings.TrimSpace(kind); kind != "" {
+		return kind
+	}
+	return "vram"
 }
-func selectActiveClaim(out []byte, resource string, gpu int) (*LedgerClaim, error) {
+
+func exactResourceClaim(c LedgerClaim, resource, kind string, gpu int) bool {
+	if !validClaim(c) || c.OwnerID != resource || c.OwnerKind != "resource" || c.ResourceKind != kind || !activeStatus(c.Status) {
+		return false
+	}
+	return kind != "vram" || (c.GPUIndex != nil && *c.GPUIndex == gpu)
+}
+
+func selectActiveClaim(out []byte, resource, kind string, gpu int) (*LedgerClaim, error) {
 	var payload struct {
 		Claims *[]LedgerClaim `json:"claims"`
 	}
@@ -297,7 +314,7 @@ func selectActiveClaim(out []byte, resource string, gpu int) (*LedgerClaim, erro
 		if !validClaim(claim) {
 			return nil, fmt.Errorf("capacity list contains incomplete claim identity")
 		}
-		if exactResourceClaim(claim, resource, gpu) {
+		if exactResourceClaim(claim, resource, kind, gpu) {
 			if found != nil {
 				return nil, fmt.Errorf("capacity list contains ambiguous resource/GPU claims")
 			}
@@ -325,10 +342,12 @@ func (r *Runner) claim(ctx context.Context, amount int64) *LedgerClaim {
 	args := []string{
 		"capacity", "claim",
 		"--owner-kind", "resource", "--owner-id", r.cfg.Resource,
-		"--resource-kind", "vram",
-		"--gpu-index", strconv.Itoa(r.cfg.GPUIndex),
+		"--resource-kind", resourceKind(r.cfg.ResourceKind),
 		"--preferred", strconv.FormatInt(preferred, 10),
 		"--floor", strconv.FormatInt(floor, 10),
+	}
+	if resourceKind(r.cfg.ResourceKind) == "vram" {
+		args = append(args, "--gpu-index", strconv.Itoa(r.cfg.GPUIndex))
 	}
 	if priority := strings.TrimSpace(r.cfg.Priority); priority != "" {
 		args = append(args, "--priority", priority)
@@ -402,7 +421,7 @@ func (r *Runner) mutateClaim(ctx context.Context, action, claimID string, genera
 	} else {
 		err = json.Unmarshal(out, &claim)
 	}
-	if err != nil || !exactResourceClaim(claim, r.cfg.Resource, r.cfg.GPUIndex) || (claimID != "" && claim.ClaimID != claimID) || (action == "resize" && claim.Generation <= generation) || (action == "heartbeat" && claim.Generation != generation) {
+	if err != nil || !exactResourceClaim(claim, r.cfg.Resource, resourceKind(r.cfg.ResourceKind), r.cfg.GPUIndex) || (claimID != "" && claim.ClaimID != claimID) || (action == "resize" && claim.Generation <= generation) || (action == "heartbeat" && claim.Generation != generation) {
 		r.logf("%s response has no validated current claim; skipping activity", action)
 		return nil
 	}
@@ -444,6 +463,8 @@ type Reporter struct {
 	GPUIndex int
 	// Resource is the capacity owner id.
 	Resource string
+	// ResourceKind selects the capacity axis; empty preserves VRAM behavior.
+	ResourceKind string
 	// Exec runs the vrooli CLI.
 	Exec Exec
 }
@@ -473,7 +494,7 @@ func (r Reporter) ActiveClaim(ctx context.Context) (LedgerClaim, bool) {
 	if err != nil {
 		return LedgerClaim{}, false
 	}
-	claim, err := selectActiveClaim(out, r.Resource, r.GPUIndex)
+	claim, err := selectActiveClaim(out, r.Resource, resourceKind(r.ResourceKind), r.GPUIndex)
 	if err != nil || claim == nil {
 		return LedgerClaim{}, false
 	}

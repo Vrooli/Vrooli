@@ -104,7 +104,7 @@ class Chapter(_message.Message):
     def __init__(self, id: _Optional[str] = ..., title: _Optional[str] = ..., disposition: _Optional[str] = ..., message: _Optional[str] = ..., evidence_ids: _Optional[_Iterable[str]] = ..., failure_class: _Optional[str] = ..., attempts: _Optional[int] = ..., artifact_install: _Optional[_Union[ArtifactInstallProof, _Mapping]] = ...) -> None: ...
 
 class ArtifactInstallProof(_message.Message):
-    __slots__ = ("immutable_ref", "artifact_checksum", "apk_checksum", "package_name", "version_name", "version_code", "install_accepted", "installed", "installed_version", "post_install_verified")
+    __slots__ = ("immutable_ref", "artifact_checksum", "apk_checksum", "package_name", "version_name", "version_code", "install_accepted", "installed", "installed_version", "post_install_verified", "signing_certificate_sha256")
     IMMUTABLE_REF_FIELD_NUMBER: _ClassVar[int]
     ARTIFACT_CHECKSUM_FIELD_NUMBER: _ClassVar[int]
     APK_CHECKSUM_FIELD_NUMBER: _ClassVar[int]
@@ -115,6 +115,7 @@ class ArtifactInstallProof(_message.Message):
     INSTALLED_FIELD_NUMBER: _ClassVar[int]
     INSTALLED_VERSION_FIELD_NUMBER: _ClassVar[int]
     POST_INSTALL_VERIFIED_FIELD_NUMBER: _ClassVar[int]
+    SIGNING_CERTIFICATE_SHA256_FIELD_NUMBER: _ClassVar[int]
     immutable_ref: str
     artifact_checksum: str
     apk_checksum: str
@@ -125,7 +126,8 @@ class ArtifactInstallProof(_message.Message):
     installed: bool
     installed_version: str
     post_install_verified: bool
-    def __init__(self, immutable_ref: _Optional[str] = ..., artifact_checksum: _Optional[str] = ..., apk_checksum: _Optional[str] = ..., package_name: _Optional[str] = ..., version_name: _Optional[str] = ..., version_code: _Optional[int] = ..., install_accepted: _Optional[bool] = ..., installed: _Optional[bool] = ..., installed_version: _Optional[str] = ..., post_install_verified: _Optional[bool] = ...) -> None: ...
+    signing_certificate_sha256: str
+    def __init__(self, immutable_ref: _Optional[str] = ..., artifact_checksum: _Optional[str] = ..., apk_checksum: _Optional[str] = ..., package_name: _Optional[str] = ..., version_name: _Optional[str] = ..., version_code: _Optional[int] = ..., install_accepted: _Optional[bool] = ..., installed: _Optional[bool] = ..., installed_version: _Optional[str] = ..., post_install_verified: _Optional[bool] = ..., signing_certificate_sha256: _Optional[str] = ...) -> None: ...
 
 class Resolution(_message.Message):
     __slots__ = ("target", "rung", "confidence")

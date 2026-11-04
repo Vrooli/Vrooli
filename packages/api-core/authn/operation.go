@@ -121,8 +121,12 @@ func InteractivePolicy(name string) (Policy, bool) {
 		return Policy{[]string{"agent-manager:read", "agent-manager:write"}, []string{"effort.delivery"}, []string{"agent-manager"}}, true
 	case "notification-sending":
 		// Sending to an explicitly approved recipient only. Notification Hub
-		// retains owner-only answers, preferences and subscription management.
+		// retains its separate decision, answer, preference and subscription rules.
 		return Policy{[]string{"notification-hub:write"}, []string{"notification.send"}, []string{"notification-hub"}}, true
+	case "notification-decision-asking":
+		// Create a decision for the explicitly approved recipient only. This does
+		// not authorize informational sends, answers, preferences or subscriptions.
+		return Policy{[]string{"notification-hub:write"}, []string{"notification.ask"}, []string{"notification-hub"}}, true
 	case "deployment-operations":
 		return Policy{[]string{"deployment-manager:read", "deployment-manager:write", "deployment-manager:destructive", "scenario-to-cloud:read", "scenario-to-cloud:write", "scenario-to-cloud:destructive"}, []string{"deployment.manage"}, []string{"deployment-manager", "scenario-to-cloud"}}, true
 	case "nutrition-management":

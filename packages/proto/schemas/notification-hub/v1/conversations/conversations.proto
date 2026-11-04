@@ -7,11 +7,16 @@ import "notification-hub/v1/shared/types.proto";
 option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/notification-hub/v1/conversations;conversations_v1";
 
 // Asks are durable operator decisions. Reads (GetAsk, ListAsks, Wait) never
-// change an ask; only an answer or the hub's deadline sweep does.
+// change an ask; answers, explicit dismissal/withdrawal, and deadline sweeps do.
 service ConversationsService {
   rpc Ask(AskRequest) returns (AskResponse);
   rpc Answer(AnswerRequest) returns (AnswerResponse);
   rpc Wait(WaitRequest) returns (WaitResponse);
+  // Dismiss closes an ask without recording an answer. It is recipient-only.
+  rpc Dismiss(DismissRequest) returns (DismissResponse);
+  // Withdraw closes a direct ask created by this requester. Provider-owned
+  // event decisions use their source event's exact withdrawal contract.
+  rpc Withdraw(WithdrawRequest) returns (WithdrawResponse);
   // GetAsk reads one ask for the answer page.
   rpc GetAsk(GetAskRequest) returns (GetAskResponse);
   // ListAsks reads asks newest first; open_only limits it to asks that still
@@ -82,6 +87,20 @@ message AnswerResponse {
   bool late = 4;
 }
 
+message DismissRequest {
+  string ask_id = 1;
+  // Optional explanation stored as the resolution reason, not an answer.
+  string note = 2;
+}
+message DismissResponse { string ask_id = 1; string state = 2; }
+
+message WithdrawRequest {
+  string ask_id = 1;
+  // Required explanation for closing this request without an operator answer.
+  string reason = 2;
+}
+message WithdrawResponse { string ask_id = 1; string state = 2; }
+
 message WaitRequest { string ask_id = 1; string deadline = 2; }
 message WaitResponse { string ask_id = 1; string state = 2; string answer = 3; string reason = 4; }
 
@@ -98,7 +117,7 @@ message Ask {
   string urgency = 9;
   string context_url = 10;
   string deadline = 11;
-  // pending, escalated, answered, defaulted, expired, or withdrawn.
+  // pending, escalated, answered, defaulted, expired, withdrawn, or dismissed.
   string state = 12;
   string reason = 13;
   string answer = 14;
@@ -146,7 +165,7 @@ message ListAsksRequest {
   // Applied on the server before pagination.
   string query = 4;
   // all (default), awaiting (pending/escalated), answered, defaulted, expired,
-  // withdrawn, pending or escalated.
+  // withdrawn, dismissed, pending or escalated.
   string state_filter = 5;
 }
 message ListAsksResponse {

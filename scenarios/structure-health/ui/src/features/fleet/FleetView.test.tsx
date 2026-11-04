@@ -151,7 +151,10 @@ describe("FleetView", () => {
     // Scenario offenders
     const failRow = screen.getByTestId(selectors.fleet.scenarioRow({ scenario: "swarm-manager" }));
     expect(failRow).toHaveAttribute("data-passed", "false");
-    expect(failRow).toHaveTextContent("missing freshness");
+    const failCells = failRow.querySelectorAll("td");
+    expect(failCells[3]).toHaveTextContent("2");
+    expect(failCells[4]).toHaveTextContent("1");
+    expect(failCells[5]).toHaveTextContent("3");
     const passRow = screen.getByTestId(
       selectors.fleet.scenarioRow({ scenario: "measures-health" }),
     );

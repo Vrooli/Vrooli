@@ -674,3 +674,16 @@ at all, because it is the subject.
 This is the same finding this work keeps arriving at from different directions.
 Post-processing loses to composition; where a picture must be changed rather
 than merely masked, the change belongs in whatever drew it.
+
+## D-023 — Render cost is reported only with provider provenance
+
+**Date:** 2026-11-01 · **Status:** accepted · **AM-22/D31**
+
+**Decision.** Backdrop Studio treats Image Tools `cost_usd` as reported only
+when the same job metadata carries `cost_provenance=provider_reported_v1`.
+The marker is included in render provenance. Historical unmarked metadata
+remains unknown; no rate, catalog price, or estimate is substituted.
+
+**Why.** A numeric amount alone cannot distinguish an authoritative provider
+report from legacy metadata or an estimate. Explicit provenance preserves that
+boundary, including a known zero, while leaving unknown costs unknown.

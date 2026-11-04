@@ -71,6 +71,7 @@ message ArtifactInstallProof {
  bool installed = 8;
  string installed_version = 9;
  bool post_install_verified = 10;
+ string signing_certificate_sha256 = 11;
 }
 message Resolution {
   string target = 1;

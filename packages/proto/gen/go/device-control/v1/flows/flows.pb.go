@@ -527,19 +527,20 @@ func (x *Chapter) GetArtifactInstall() *ArtifactInstallProof {
 }
 
 type ArtifactInstallProof struct {
-	state               protoimpl.MessageState `protogen:"open.v1"`
-	ImmutableRef        string                 `protobuf:"bytes,1,opt,name=immutable_ref,json=immutableRef,proto3" json:"immutable_ref,omitempty"`
-	ArtifactChecksum    string                 `protobuf:"bytes,2,opt,name=artifact_checksum,json=artifactChecksum,proto3" json:"artifact_checksum,omitempty"`
-	ApkChecksum         string                 `protobuf:"bytes,3,opt,name=apk_checksum,json=apkChecksum,proto3" json:"apk_checksum,omitempty"`
-	PackageName         string                 `protobuf:"bytes,4,opt,name=package_name,json=packageName,proto3" json:"package_name,omitempty"`
-	VersionName         string                 `protobuf:"bytes,5,opt,name=version_name,json=versionName,proto3" json:"version_name,omitempty"`
-	VersionCode         int64                  `protobuf:"varint,6,opt,name=version_code,json=versionCode,proto3" json:"version_code,omitempty"`
-	InstallAccepted     bool                   `protobuf:"varint,7,opt,name=install_accepted,json=installAccepted,proto3" json:"install_accepted,omitempty"`
-	Installed           bool                   `protobuf:"varint,8,opt,name=installed,proto3" json:"installed,omitempty"`
-	InstalledVersion    string                 `protobuf:"bytes,9,opt,name=installed_version,json=installedVersion,proto3" json:"installed_version,omitempty"`
-	PostInstallVerified bool                   `protobuf:"varint,10,opt,name=post_install_verified,json=postInstallVerified,proto3" json:"post_install_verified,omitempty"`
-	unknownFields       protoimpl.UnknownFields
-	sizeCache           protoimpl.SizeCache
+	state                    protoimpl.MessageState `protogen:"open.v1"`
+	ImmutableRef             string                 `protobuf:"bytes,1,opt,name=immutable_ref,json=immutableRef,proto3" json:"immutable_ref,omitempty"`
+	ArtifactChecksum         string                 `protobuf:"bytes,2,opt,name=artifact_checksum,json=artifactChecksum,proto3" json:"artifact_checksum,omitempty"`
+	ApkChecksum              string                 `protobuf:"bytes,3,opt,name=apk_checksum,json=apkChecksum,proto3" json:"apk_checksum,omitempty"`
+	PackageName              string                 `protobuf:"bytes,4,opt,name=package_name,json=packageName,proto3" json:"package_name,omitempty"`
+	VersionName              string                 `protobuf:"bytes,5,opt,name=version_name,json=versionName,proto3" json:"version_name,omitempty"`
+	VersionCode              int64                  `protobuf:"varint,6,opt,name=version_code,json=versionCode,proto3" json:"version_code,omitempty"`
+	InstallAccepted          bool                   `protobuf:"varint,7,opt,name=install_accepted,json=installAccepted,proto3" json:"install_accepted,omitempty"`
+	Installed                bool                   `protobuf:"varint,8,opt,name=installed,proto3" json:"installed,omitempty"`
+	InstalledVersion         string                 `protobuf:"bytes,9,opt,name=installed_version,json=installedVersion,proto3" json:"installed_version,omitempty"`
+	PostInstallVerified      bool                   `protobuf:"varint,10,opt,name=post_install_verified,json=postInstallVerified,proto3" json:"post_install_verified,omitempty"`
+	SigningCertificateSha256 string                 `protobuf:"bytes,11,opt,name=signing_certificate_sha256,json=signingCertificateSha256,proto3" json:"signing_certificate_sha256,omitempty"`
+	unknownFields            protoimpl.UnknownFields
+	sizeCache                protoimpl.SizeCache
 }
 
 func (x *ArtifactInstallProof) Reset() {
@@ -640,6 +641,13 @@ func (x *ArtifactInstallProof) GetPostInstallVerified() bool {
 		return x.PostInstallVerified
 	}
 	return false
+}
+
+func (x *ArtifactInstallProof) GetSigningCertificateSha256() string {
+	if x != nil {
+		return x.SigningCertificateSha256
+	}
+	return ""
 }
 
 type Resolution struct {
@@ -1324,7 +1332,7 @@ const file_device_control_v1_flows_flows_proto_rawDesc = "" +
 	"\fevidence_ids\x18\x05 \x03(\tR\vevidenceIds\x12#\n" +
 	"\rfailure_class\x18\x06 \x01(\tR\ffailureClass\x12\x1a\n" +
 	"\battempts\x18\a \x01(\x05R\battempts\x12_\n" +
-	"\x10artifact_install\x18\b \x01(\v24.vrooli.device_control.v1.flows.ArtifactInstallProofR\x0fartifactInstall\"\x9e\x03\n" +
+	"\x10artifact_install\x18\b \x01(\v24.vrooli.device_control.v1.flows.ArtifactInstallProofR\x0fartifactInstall\"\xdc\x03\n" +
 	"\x14ArtifactInstallProof\x12#\n" +
 	"\rimmutable_ref\x18\x01 \x01(\tR\fimmutableRef\x12+\n" +
 	"\x11artifact_checksum\x18\x02 \x01(\tR\x10artifactChecksum\x12!\n" +
@@ -1336,7 +1344,8 @@ const file_device_control_v1_flows_flows_proto_rawDesc = "" +
 	"\tinstalled\x18\b \x01(\bR\tinstalled\x12+\n" +
 	"\x11installed_version\x18\t \x01(\tR\x10installedVersion\x122\n" +
 	"\x15post_install_verified\x18\n" +
-	" \x01(\bR\x13postInstallVerified\"X\n" +
+	" \x01(\bR\x13postInstallVerified\x12<\n" +
+	"\x1asigning_certificate_sha256\x18\v \x01(\tR\x18signingCertificateSha256\"X\n" +
 	"\n" +
 	"Resolution\x12\x16\n" +
 	"\x06target\x18\x01 \x01(\tR\x06target\x12\x12\n" +

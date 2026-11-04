@@ -1,6 +1,40 @@
 package main
 
-import "testing"
+import (
+	"encoding/json"
+	"os"
+	"path/filepath"
+	"runtime"
+	"testing"
+)
+
+func TestManagedServiceCachesUseWritableResourceCache(t *testing.T) {
+	_, sourceFile, _, ok := runtime.Caller(0)
+	if !ok {
+		t.Fatal("runtime.Caller could not identify test source")
+	}
+	manifestPath := filepath.Clean(filepath.Join(filepath.Dir(sourceFile), "..", "resource.json"))
+	contents, err := os.ReadFile(manifestPath)
+	if err != nil {
+		t.Fatalf("read resource manifest: %v", err)
+	}
+	var manifest struct {
+		ManagedService struct {
+			Environment map[string]string `json:"environment"`
+		} `json:"managed_service"`
+	}
+	if err := json.Unmarshal(contents, &manifest); err != nil {
+		t.Fatalf("decode resource manifest: %v", err)
+	}
+	for key, want := range map[string]string{
+		"XDG_CACHE_HOME": "${RESOURCE_CACHE_DIR}",
+		"MPLCONFIGDIR":   "${RESOURCE_CACHE_DIR}/matplotlib",
+	} {
+		if got := manifest.ManagedService.Environment[key]; got != want {
+			t.Errorf("managed_service.environment[%q] = %q, want %q so generated caches stay outside the immutable artifact", key, got, want)
+		}
+	}
+}
 
 func TestNewAppConfiguresResourceApp(t *testing.T) {
 	app, err := newApp()
@@ -22,8 +56,8 @@ func TestNewAppConfiguresResourceApp(t *testing.T) {
 	if app.StaleChecker.ManifestSourcePath != "resource.json" {
 		t.Fatalf("ManifestSourcePath = %q, want %q", app.StaleChecker.ManifestSourcePath, "resource.json")
 	}
-	if len(app.StaleChecker.FreshnessInputs) != 3 {
-		t.Fatalf("FreshnessInputs len = %d, want 3", len(app.StaleChecker.FreshnessInputs))
+	if len(app.StaleChecker.FreshnessInputs) != 4 {
+		t.Fatalf("FreshnessInputs len = %d, want 4", len(app.StaleChecker.FreshnessInputs))
 	}
 	if got, want := app.StaleChecker.FreshnessInputs[0], "cli/**"; got != want {
 		t.Fatalf("FreshnessInputs[0] = %q, want %q", got, want)
@@ -33,5 +67,8 @@ func TestNewAppConfiguresResourceApp(t *testing.T) {
 	}
 	if got, want := app.StaleChecker.FreshnessInputs[2], "../../packages/cli-core"; got != want {
 		t.Fatalf("FreshnessInputs[2] = %q, want %q", got, want)
+	}
+	if got, want := app.StaleChecker.FreshnessInputs[3], "../../packages/proto/gen/.vrooli-proto-artifact.json"; got != want {
+		t.Fatalf("FreshnessInputs[3] = %q, want %q", got, want)
 	}
 }

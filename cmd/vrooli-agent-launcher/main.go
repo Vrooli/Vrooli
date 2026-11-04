@@ -16,6 +16,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
@@ -119,6 +120,7 @@ func execUnattributed(runner string, args []string, self string) error {
 	if err != nil {
 		return &cliutil.AgentLaunchError{Agent: runner, Err: err}
 	}
+	args, childEnvironment = cliutil.ApplyUsageMode(runner, args, childEnvironment)
 	return cliutil.ExecAgentInDir(path, binary, args, childEnvironment, workingDir)
 }
 
@@ -138,6 +140,7 @@ func run(args []string) error {
 	fs := flag.NewFlagSet("vrooli-agent-launcher", flag.ContinueOnError)
 	fs.SetOutput(os.Stderr)
 	agent := fs.String("agent", "", "coding-agent runner")
+	sourcePath := fs.String("model-source", "", "per-session model source JSON file; credential supplied through its secret_env")
 	command := fs.Bool("command", false, "protected command session; no coding model")
 	task := fs.String("task", "", "optional task UUID to associate")
 	requireIdentity := fs.Bool("require-native-identity", false, "protected startup; broker refusal is terminal")
@@ -145,9 +148,20 @@ func run(args []string) error {
 		return err
 	}
 	remaining := fs.Args()
+	var source *cliutil.ModelSource
+	if *sourcePath != "" {
+		data, err := os.ReadFile(*sourcePath)
+		if err != nil {
+			return fmt.Errorf("read model source: %w", err)
+		}
+		source = &cliutil.ModelSource{}
+		if err := json.Unmarshal(data, source); err != nil {
+			return errors.New("invalid model source selection")
+		}
+	}
 	if *command {
-		if *agent != "" {
-			return errors.New("--command and --agent are exclusive")
+		if *agent != "" || source != nil {
+			return errors.New("--command cannot select an agent or model source")
 		}
 		_, err := cliutil.LaunchCommandSessionResult(context.Background(), cliutil.AgentLaunchRequest{
 			TaskID: *task, Args: remaining, Stdin: os.Stdin, Stdout: os.Stdout, Stderr: os.Stderr,
@@ -168,6 +182,7 @@ func run(args []string) error {
 	self := shimSelfPath()
 	return cliutil.LaunchCodingAgent(context.Background(), cliutil.AgentLaunchRequest{
 		Agent:                 *agent,
+		ModelSource:           source,
 		TaskID:                *task,
 		RequireNativeIdentity: *requireIdentity,
 		Args:                  remaining,

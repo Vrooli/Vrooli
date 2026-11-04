@@ -538,6 +538,216 @@ func (x *AnswerResponse) GetLate() bool {
 	return false
 }
 
+type DismissRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	AskId string                 `protobuf:"bytes,1,opt,name=ask_id,json=askId,proto3" json:"ask_id,omitempty"`
+	// Optional explanation stored as the resolution reason, not an answer.
+	Note          string `protobuf:"bytes,2,opt,name=note,proto3" json:"note,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DismissRequest) Reset() {
+	*x = DismissRequest{}
+	mi := &file_notification_hub_v1_conversations_conversations_proto_msgTypes[6]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DismissRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DismissRequest) ProtoMessage() {}
+
+func (x *DismissRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_notification_hub_v1_conversations_conversations_proto_msgTypes[6]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DismissRequest.ProtoReflect.Descriptor instead.
+func (*DismissRequest) Descriptor() ([]byte, []int) {
+	return file_notification_hub_v1_conversations_conversations_proto_rawDescGZIP(), []int{6}
+}
+
+func (x *DismissRequest) GetAskId() string {
+	if x != nil {
+		return x.AskId
+	}
+	return ""
+}
+
+func (x *DismissRequest) GetNote() string {
+	if x != nil {
+		return x.Note
+	}
+	return ""
+}
+
+type DismissResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	AskId         string                 `protobuf:"bytes,1,opt,name=ask_id,json=askId,proto3" json:"ask_id,omitempty"`
+	State         string                 `protobuf:"bytes,2,opt,name=state,proto3" json:"state,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DismissResponse) Reset() {
+	*x = DismissResponse{}
+	mi := &file_notification_hub_v1_conversations_conversations_proto_msgTypes[7]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DismissResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DismissResponse) ProtoMessage() {}
+
+func (x *DismissResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_notification_hub_v1_conversations_conversations_proto_msgTypes[7]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DismissResponse.ProtoReflect.Descriptor instead.
+func (*DismissResponse) Descriptor() ([]byte, []int) {
+	return file_notification_hub_v1_conversations_conversations_proto_rawDescGZIP(), []int{7}
+}
+
+func (x *DismissResponse) GetAskId() string {
+	if x != nil {
+		return x.AskId
+	}
+	return ""
+}
+
+func (x *DismissResponse) GetState() string {
+	if x != nil {
+		return x.State
+	}
+	return ""
+}
+
+type WithdrawRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	AskId string                 `protobuf:"bytes,1,opt,name=ask_id,json=askId,proto3" json:"ask_id,omitempty"`
+	// Required explanation for closing this request without an operator answer.
+	Reason        string `protobuf:"bytes,2,opt,name=reason,proto3" json:"reason,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *WithdrawRequest) Reset() {
+	*x = WithdrawRequest{}
+	mi := &file_notification_hub_v1_conversations_conversations_proto_msgTypes[8]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *WithdrawRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*WithdrawRequest) ProtoMessage() {}
+
+func (x *WithdrawRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_notification_hub_v1_conversations_conversations_proto_msgTypes[8]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use WithdrawRequest.ProtoReflect.Descriptor instead.
+func (*WithdrawRequest) Descriptor() ([]byte, []int) {
+	return file_notification_hub_v1_conversations_conversations_proto_rawDescGZIP(), []int{8}
+}
+
+func (x *WithdrawRequest) GetAskId() string {
+	if x != nil {
+		return x.AskId
+	}
+	return ""
+}
+
+func (x *WithdrawRequest) GetReason() string {
+	if x != nil {
+		return x.Reason
+	}
+	return ""
+}
+
+type WithdrawResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	AskId         string                 `protobuf:"bytes,1,opt,name=ask_id,json=askId,proto3" json:"ask_id,omitempty"`
+	State         string                 `protobuf:"bytes,2,opt,name=state,proto3" json:"state,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *WithdrawResponse) Reset() {
+	*x = WithdrawResponse{}
+	mi := &file_notification_hub_v1_conversations_conversations_proto_msgTypes[9]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *WithdrawResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*WithdrawResponse) ProtoMessage() {}
+
+func (x *WithdrawResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_notification_hub_v1_conversations_conversations_proto_msgTypes[9]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use WithdrawResponse.ProtoReflect.Descriptor instead.
+func (*WithdrawResponse) Descriptor() ([]byte, []int) {
+	return file_notification_hub_v1_conversations_conversations_proto_rawDescGZIP(), []int{9}
+}
+
+func (x *WithdrawResponse) GetAskId() string {
+	if x != nil {
+		return x.AskId
+	}
+	return ""
+}
+
+func (x *WithdrawResponse) GetState() string {
+	if x != nil {
+		return x.State
+	}
+	return ""
+}
+
 type WaitRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	AskId         string                 `protobuf:"bytes,1,opt,name=ask_id,json=askId,proto3" json:"ask_id,omitempty"`
@@ -548,7 +758,7 @@ type WaitRequest struct {
 
 func (x *WaitRequest) Reset() {
 	*x = WaitRequest{}
-	mi := &file_notification_hub_v1_conversations_conversations_proto_msgTypes[6]
+	mi := &file_notification_hub_v1_conversations_conversations_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -560,7 +770,7 @@ func (x *WaitRequest) String() string {
 func (*WaitRequest) ProtoMessage() {}
 
 func (x *WaitRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_notification_hub_v1_conversations_conversations_proto_msgTypes[6]
+	mi := &file_notification_hub_v1_conversations_conversations_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -573,7 +783,7 @@ func (x *WaitRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WaitRequest.ProtoReflect.Descriptor instead.
 func (*WaitRequest) Descriptor() ([]byte, []int) {
-	return file_notification_hub_v1_conversations_conversations_proto_rawDescGZIP(), []int{6}
+	return file_notification_hub_v1_conversations_conversations_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *WaitRequest) GetAskId() string {
@@ -602,7 +812,7 @@ type WaitResponse struct {
 
 func (x *WaitResponse) Reset() {
 	*x = WaitResponse{}
-	mi := &file_notification_hub_v1_conversations_conversations_proto_msgTypes[7]
+	mi := &file_notification_hub_v1_conversations_conversations_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -614,7 +824,7 @@ func (x *WaitResponse) String() string {
 func (*WaitResponse) ProtoMessage() {}
 
 func (x *WaitResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_notification_hub_v1_conversations_conversations_proto_msgTypes[7]
+	mi := &file_notification_hub_v1_conversations_conversations_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -627,7 +837,7 @@ func (x *WaitResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WaitResponse.ProtoReflect.Descriptor instead.
 func (*WaitResponse) Descriptor() ([]byte, []int) {
-	return file_notification_hub_v1_conversations_conversations_proto_rawDescGZIP(), []int{7}
+	return file_notification_hub_v1_conversations_conversations_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *WaitResponse) GetAskId() string {
@@ -672,7 +882,7 @@ type Ask struct {
 	Urgency              string                 `protobuf:"bytes,9,opt,name=urgency,proto3" json:"urgency,omitempty"`
 	ContextUrl           string                 `protobuf:"bytes,10,opt,name=context_url,json=contextUrl,proto3" json:"context_url,omitempty"`
 	Deadline             string                 `protobuf:"bytes,11,opt,name=deadline,proto3" json:"deadline,omitempty"`
-	// pending, escalated, answered, defaulted, expired, or withdrawn.
+	// pending, escalated, answered, defaulted, expired, withdrawn, or dismissed.
 	State       string `protobuf:"bytes,12,opt,name=state,proto3" json:"state,omitempty"`
 	Reason      string `protobuf:"bytes,13,opt,name=reason,proto3" json:"reason,omitempty"`
 	Answer      string `protobuf:"bytes,14,opt,name=answer,proto3" json:"answer,omitempty"`
@@ -712,7 +922,7 @@ type Ask struct {
 
 func (x *Ask) Reset() {
 	*x = Ask{}
-	mi := &file_notification_hub_v1_conversations_conversations_proto_msgTypes[8]
+	mi := &file_notification_hub_v1_conversations_conversations_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -724,7 +934,7 @@ func (x *Ask) String() string {
 func (*Ask) ProtoMessage() {}
 
 func (x *Ask) ProtoReflect() protoreflect.Message {
-	mi := &file_notification_hub_v1_conversations_conversations_proto_msgTypes[8]
+	mi := &file_notification_hub_v1_conversations_conversations_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -737,7 +947,7 @@ func (x *Ask) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Ask.ProtoReflect.Descriptor instead.
 func (*Ask) Descriptor() ([]byte, []int) {
-	return file_notification_hub_v1_conversations_conversations_proto_rawDescGZIP(), []int{8}
+	return file_notification_hub_v1_conversations_conversations_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *Ask) GetId() string {
@@ -987,7 +1197,7 @@ type GetAskRequest struct {
 
 func (x *GetAskRequest) Reset() {
 	*x = GetAskRequest{}
-	mi := &file_notification_hub_v1_conversations_conversations_proto_msgTypes[9]
+	mi := &file_notification_hub_v1_conversations_conversations_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -999,7 +1209,7 @@ func (x *GetAskRequest) String() string {
 func (*GetAskRequest) ProtoMessage() {}
 
 func (x *GetAskRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_notification_hub_v1_conversations_conversations_proto_msgTypes[9]
+	mi := &file_notification_hub_v1_conversations_conversations_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1012,7 +1222,7 @@ func (x *GetAskRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetAskRequest.ProtoReflect.Descriptor instead.
 func (*GetAskRequest) Descriptor() ([]byte, []int) {
-	return file_notification_hub_v1_conversations_conversations_proto_rawDescGZIP(), []int{9}
+	return file_notification_hub_v1_conversations_conversations_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *GetAskRequest) GetAskId() string {
@@ -1031,7 +1241,7 @@ type GetAskResponse struct {
 
 func (x *GetAskResponse) Reset() {
 	*x = GetAskResponse{}
-	mi := &file_notification_hub_v1_conversations_conversations_proto_msgTypes[10]
+	mi := &file_notification_hub_v1_conversations_conversations_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1043,7 +1253,7 @@ func (x *GetAskResponse) String() string {
 func (*GetAskResponse) ProtoMessage() {}
 
 func (x *GetAskResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_notification_hub_v1_conversations_conversations_proto_msgTypes[10]
+	mi := &file_notification_hub_v1_conversations_conversations_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1056,7 +1266,7 @@ func (x *GetAskResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetAskResponse.ProtoReflect.Descriptor instead.
 func (*GetAskResponse) Descriptor() ([]byte, []int) {
-	return file_notification_hub_v1_conversations_conversations_proto_rawDescGZIP(), []int{10}
+	return file_notification_hub_v1_conversations_conversations_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *GetAskResponse) GetAsk() *Ask {
@@ -1078,7 +1288,7 @@ type ListAsksRequest struct {
 	// Applied on the server before pagination.
 	Query string `protobuf:"bytes,4,opt,name=query,proto3" json:"query,omitempty"`
 	// all (default), awaiting (pending/escalated), answered, defaulted, expired,
-	// withdrawn, pending or escalated.
+	// withdrawn, dismissed, pending or escalated.
 	StateFilter   string `protobuf:"bytes,5,opt,name=state_filter,json=stateFilter,proto3" json:"state_filter,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -1086,7 +1296,7 @@ type ListAsksRequest struct {
 
 func (x *ListAsksRequest) Reset() {
 	*x = ListAsksRequest{}
-	mi := &file_notification_hub_v1_conversations_conversations_proto_msgTypes[11]
+	mi := &file_notification_hub_v1_conversations_conversations_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1098,7 +1308,7 @@ func (x *ListAsksRequest) String() string {
 func (*ListAsksRequest) ProtoMessage() {}
 
 func (x *ListAsksRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_notification_hub_v1_conversations_conversations_proto_msgTypes[11]
+	mi := &file_notification_hub_v1_conversations_conversations_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1111,7 +1321,7 @@ func (x *ListAsksRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListAsksRequest.ProtoReflect.Descriptor instead.
 func (*ListAsksRequest) Descriptor() ([]byte, []int) {
-	return file_notification_hub_v1_conversations_conversations_proto_rawDescGZIP(), []int{11}
+	return file_notification_hub_v1_conversations_conversations_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *ListAsksRequest) GetOpenOnly() bool {
@@ -1160,7 +1370,7 @@ type ListAsksResponse struct {
 
 func (x *ListAsksResponse) Reset() {
 	*x = ListAsksResponse{}
-	mi := &file_notification_hub_v1_conversations_conversations_proto_msgTypes[12]
+	mi := &file_notification_hub_v1_conversations_conversations_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1172,7 +1382,7 @@ func (x *ListAsksResponse) String() string {
 func (*ListAsksResponse) ProtoMessage() {}
 
 func (x *ListAsksResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_notification_hub_v1_conversations_conversations_proto_msgTypes[12]
+	mi := &file_notification_hub_v1_conversations_conversations_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1185,7 +1395,7 @@ func (x *ListAsksResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListAsksResponse.ProtoReflect.Descriptor instead.
 func (*ListAsksResponse) Descriptor() ([]byte, []int) {
-	return file_notification_hub_v1_conversations_conversations_proto_rawDescGZIP(), []int{12}
+	return file_notification_hub_v1_conversations_conversations_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *ListAsksResponse) GetAsks() []*Ask {
@@ -1252,7 +1462,19 @@ const file_notification_hub_v1_conversations_conversations_proto_rawDesc = "" +
 	"\x06answer\x18\x02 \x01(\tR\x06answer\x12\x1f\n" +
 	"\vanswered_at\x18\x03 \x01(\tR\n" +
 	"answeredAt\x12\x12\n" +
-	"\x04late\x18\x04 \x01(\bR\x04late\"@\n" +
+	"\x04late\x18\x04 \x01(\bR\x04late\";\n" +
+	"\x0eDismissRequest\x12\x15\n" +
+	"\x06ask_id\x18\x01 \x01(\tR\x05askId\x12\x12\n" +
+	"\x04note\x18\x02 \x01(\tR\x04note\">\n" +
+	"\x0fDismissResponse\x12\x15\n" +
+	"\x06ask_id\x18\x01 \x01(\tR\x05askId\x12\x14\n" +
+	"\x05state\x18\x02 \x01(\tR\x05state\"@\n" +
+	"\x0fWithdrawRequest\x12\x15\n" +
+	"\x06ask_id\x18\x01 \x01(\tR\x05askId\x12\x16\n" +
+	"\x06reason\x18\x02 \x01(\tR\x06reason\"?\n" +
+	"\x10WithdrawResponse\x12\x15\n" +
+	"\x06ask_id\x18\x01 \x01(\tR\x05askId\x12\x14\n" +
+	"\x05state\x18\x02 \x01(\tR\x05state\"@\n" +
 	"\vWaitRequest\x12\x15\n" +
 	"\x06ask_id\x18\x01 \x01(\tR\x05askId\x12\x1a\n" +
 	"\bdeadline\x18\x02 \x01(\tR\bdeadline\"k\n" +
@@ -1320,11 +1542,13 @@ const file_notification_hub_v1_conversations_conversations_proto_rawDesc = "" +
 	"\x10ListAsksResponse\x12A\n" +
 	"\x04asks\x18\x01 \x03(\v2-.vrooli.notification_hub.v1.conversations.AskR\x04asks\x12\x1f\n" +
 	"\vnext_cursor\x18\x02 \x01(\tR\n" +
-	"nextCursor2\xff\x04\n" +
+	"nextCursor2\x83\a\n" +
 	"\x14ConversationsService\x12r\n" +
 	"\x03Ask\x124.vrooli.notification_hub.v1.conversations.AskRequest\x1a5.vrooli.notification_hub.v1.conversations.AskResponse\x12{\n" +
 	"\x06Answer\x127.vrooli.notification_hub.v1.conversations.AnswerRequest\x1a8.vrooli.notification_hub.v1.conversations.AnswerResponse\x12u\n" +
-	"\x04Wait\x125.vrooli.notification_hub.v1.conversations.WaitRequest\x1a6.vrooli.notification_hub.v1.conversations.WaitResponse\x12{\n" +
+	"\x04Wait\x125.vrooli.notification_hub.v1.conversations.WaitRequest\x1a6.vrooli.notification_hub.v1.conversations.WaitResponse\x12~\n" +
+	"\aDismiss\x128.vrooli.notification_hub.v1.conversations.DismissRequest\x1a9.vrooli.notification_hub.v1.conversations.DismissResponse\x12\x81\x01\n" +
+	"\bWithdraw\x129.vrooli.notification_hub.v1.conversations.WithdrawRequest\x1a:.vrooli.notification_hub.v1.conversations.WithdrawResponse\x12{\n" +
 	"\x06GetAsk\x127.vrooli.notification_hub.v1.conversations.GetAskRequest\x1a8.vrooli.notification_hub.v1.conversations.GetAskResponse\x12\x81\x01\n" +
 	"\bListAsks\x129.vrooli.notification_hub.v1.conversations.ListAsksRequest\x1a:.vrooli.notification_hub.v1.conversations.ListAsksResponseBcZagithub.com/vrooli/vrooli/packages/proto/gen/go/notification-hub/v1/conversations;conversations_v1b\x06proto3"
 
@@ -1341,7 +1565,7 @@ func file_notification_hub_v1_conversations_conversations_proto_rawDescGZIP() []
 }
 
 var file_notification_hub_v1_conversations_conversations_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_notification_hub_v1_conversations_conversations_proto_msgTypes = make([]protoimpl.MessageInfo, 13)
+var file_notification_hub_v1_conversations_conversations_proto_msgTypes = make([]protoimpl.MessageInfo, 17)
 var file_notification_hub_v1_conversations_conversations_proto_goTypes = []any{
 	(ProviderDecisionContext_Scope)(0), // 0: vrooli.notification_hub.v1.conversations.ProviderDecisionContext.Scope
 	(*AskOption)(nil),                  // 1: vrooli.notification_hub.v1.conversations.AskOption
@@ -1350,36 +1574,44 @@ var file_notification_hub_v1_conversations_conversations_proto_goTypes = []any{
 	(*AskResponse)(nil),                // 4: vrooli.notification_hub.v1.conversations.AskResponse
 	(*AnswerRequest)(nil),              // 5: vrooli.notification_hub.v1.conversations.AnswerRequest
 	(*AnswerResponse)(nil),             // 6: vrooli.notification_hub.v1.conversations.AnswerResponse
-	(*WaitRequest)(nil),                // 7: vrooli.notification_hub.v1.conversations.WaitRequest
-	(*WaitResponse)(nil),               // 8: vrooli.notification_hub.v1.conversations.WaitResponse
-	(*Ask)(nil),                        // 9: vrooli.notification_hub.v1.conversations.Ask
-	(*GetAskRequest)(nil),              // 10: vrooli.notification_hub.v1.conversations.GetAskRequest
-	(*GetAskResponse)(nil),             // 11: vrooli.notification_hub.v1.conversations.GetAskResponse
-	(*ListAsksRequest)(nil),            // 12: vrooli.notification_hub.v1.conversations.ListAsksRequest
-	(*ListAsksResponse)(nil),           // 13: vrooli.notification_hub.v1.conversations.ListAsksResponse
-	(*shared.Notification)(nil),        // 14: vrooli.notification_hub.v1.shared.Notification
+	(*DismissRequest)(nil),             // 7: vrooli.notification_hub.v1.conversations.DismissRequest
+	(*DismissResponse)(nil),            // 8: vrooli.notification_hub.v1.conversations.DismissResponse
+	(*WithdrawRequest)(nil),            // 9: vrooli.notification_hub.v1.conversations.WithdrawRequest
+	(*WithdrawResponse)(nil),           // 10: vrooli.notification_hub.v1.conversations.WithdrawResponse
+	(*WaitRequest)(nil),                // 11: vrooli.notification_hub.v1.conversations.WaitRequest
+	(*WaitResponse)(nil),               // 12: vrooli.notification_hub.v1.conversations.WaitResponse
+	(*Ask)(nil),                        // 13: vrooli.notification_hub.v1.conversations.Ask
+	(*GetAskRequest)(nil),              // 14: vrooli.notification_hub.v1.conversations.GetAskRequest
+	(*GetAskResponse)(nil),             // 15: vrooli.notification_hub.v1.conversations.GetAskResponse
+	(*ListAsksRequest)(nil),            // 16: vrooli.notification_hub.v1.conversations.ListAsksRequest
+	(*ListAsksResponse)(nil),           // 17: vrooli.notification_hub.v1.conversations.ListAsksResponse
+	(*shared.Notification)(nil),        // 18: vrooli.notification_hub.v1.shared.Notification
 }
 var file_notification_hub_v1_conversations_conversations_proto_depIdxs = []int32{
 	0,  // 0: vrooli.notification_hub.v1.conversations.ProviderDecisionContext.scope:type_name -> vrooli.notification_hub.v1.conversations.ProviderDecisionContext.Scope
 	1,  // 1: vrooli.notification_hub.v1.conversations.AskRequest.options:type_name -> vrooli.notification_hub.v1.conversations.AskOption
 	2,  // 2: vrooli.notification_hub.v1.conversations.AskRequest.provider_decision_context:type_name -> vrooli.notification_hub.v1.conversations.ProviderDecisionContext
-	14, // 3: vrooli.notification_hub.v1.conversations.AskResponse.notification:type_name -> vrooli.notification_hub.v1.shared.Notification
+	18, // 3: vrooli.notification_hub.v1.conversations.AskResponse.notification:type_name -> vrooli.notification_hub.v1.shared.Notification
 	1,  // 4: vrooli.notification_hub.v1.conversations.Ask.options:type_name -> vrooli.notification_hub.v1.conversations.AskOption
 	2,  // 5: vrooli.notification_hub.v1.conversations.Ask.provider_decision_context:type_name -> vrooli.notification_hub.v1.conversations.ProviderDecisionContext
-	9,  // 6: vrooli.notification_hub.v1.conversations.GetAskResponse.ask:type_name -> vrooli.notification_hub.v1.conversations.Ask
-	9,  // 7: vrooli.notification_hub.v1.conversations.ListAsksResponse.asks:type_name -> vrooli.notification_hub.v1.conversations.Ask
+	13, // 6: vrooli.notification_hub.v1.conversations.GetAskResponse.ask:type_name -> vrooli.notification_hub.v1.conversations.Ask
+	13, // 7: vrooli.notification_hub.v1.conversations.ListAsksResponse.asks:type_name -> vrooli.notification_hub.v1.conversations.Ask
 	3,  // 8: vrooli.notification_hub.v1.conversations.ConversationsService.Ask:input_type -> vrooli.notification_hub.v1.conversations.AskRequest
 	5,  // 9: vrooli.notification_hub.v1.conversations.ConversationsService.Answer:input_type -> vrooli.notification_hub.v1.conversations.AnswerRequest
-	7,  // 10: vrooli.notification_hub.v1.conversations.ConversationsService.Wait:input_type -> vrooli.notification_hub.v1.conversations.WaitRequest
-	10, // 11: vrooli.notification_hub.v1.conversations.ConversationsService.GetAsk:input_type -> vrooli.notification_hub.v1.conversations.GetAskRequest
-	12, // 12: vrooli.notification_hub.v1.conversations.ConversationsService.ListAsks:input_type -> vrooli.notification_hub.v1.conversations.ListAsksRequest
-	4,  // 13: vrooli.notification_hub.v1.conversations.ConversationsService.Ask:output_type -> vrooli.notification_hub.v1.conversations.AskResponse
-	6,  // 14: vrooli.notification_hub.v1.conversations.ConversationsService.Answer:output_type -> vrooli.notification_hub.v1.conversations.AnswerResponse
-	8,  // 15: vrooli.notification_hub.v1.conversations.ConversationsService.Wait:output_type -> vrooli.notification_hub.v1.conversations.WaitResponse
-	11, // 16: vrooli.notification_hub.v1.conversations.ConversationsService.GetAsk:output_type -> vrooli.notification_hub.v1.conversations.GetAskResponse
-	13, // 17: vrooli.notification_hub.v1.conversations.ConversationsService.ListAsks:output_type -> vrooli.notification_hub.v1.conversations.ListAsksResponse
-	13, // [13:18] is the sub-list for method output_type
-	8,  // [8:13] is the sub-list for method input_type
+	11, // 10: vrooli.notification_hub.v1.conversations.ConversationsService.Wait:input_type -> vrooli.notification_hub.v1.conversations.WaitRequest
+	7,  // 11: vrooli.notification_hub.v1.conversations.ConversationsService.Dismiss:input_type -> vrooli.notification_hub.v1.conversations.DismissRequest
+	9,  // 12: vrooli.notification_hub.v1.conversations.ConversationsService.Withdraw:input_type -> vrooli.notification_hub.v1.conversations.WithdrawRequest
+	14, // 13: vrooli.notification_hub.v1.conversations.ConversationsService.GetAsk:input_type -> vrooli.notification_hub.v1.conversations.GetAskRequest
+	16, // 14: vrooli.notification_hub.v1.conversations.ConversationsService.ListAsks:input_type -> vrooli.notification_hub.v1.conversations.ListAsksRequest
+	4,  // 15: vrooli.notification_hub.v1.conversations.ConversationsService.Ask:output_type -> vrooli.notification_hub.v1.conversations.AskResponse
+	6,  // 16: vrooli.notification_hub.v1.conversations.ConversationsService.Answer:output_type -> vrooli.notification_hub.v1.conversations.AnswerResponse
+	12, // 17: vrooli.notification_hub.v1.conversations.ConversationsService.Wait:output_type -> vrooli.notification_hub.v1.conversations.WaitResponse
+	8,  // 18: vrooli.notification_hub.v1.conversations.ConversationsService.Dismiss:output_type -> vrooli.notification_hub.v1.conversations.DismissResponse
+	10, // 19: vrooli.notification_hub.v1.conversations.ConversationsService.Withdraw:output_type -> vrooli.notification_hub.v1.conversations.WithdrawResponse
+	15, // 20: vrooli.notification_hub.v1.conversations.ConversationsService.GetAsk:output_type -> vrooli.notification_hub.v1.conversations.GetAskResponse
+	17, // 21: vrooli.notification_hub.v1.conversations.ConversationsService.ListAsks:output_type -> vrooli.notification_hub.v1.conversations.ListAsksResponse
+	15, // [15:22] is the sub-list for method output_type
+	8,  // [8:15] is the sub-list for method input_type
 	8,  // [8:8] is the sub-list for extension type_name
 	8,  // [8:8] is the sub-list for extension extendee
 	0,  // [0:8] is the sub-list for field type_name
@@ -1396,7 +1628,7 @@ func file_notification_hub_v1_conversations_conversations_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_notification_hub_v1_conversations_conversations_proto_rawDesc), len(file_notification_hub_v1_conversations_conversations_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   13,
+			NumMessages:   17,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

@@ -1,7 +1,9 @@
 package validationmatrix
 
 import (
+	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"strings"
 
@@ -138,11 +140,22 @@ func (h *Handler) wait(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) abort(w http.ResponseWriter, r *http.Request) {
-	if err := h.service.Abort(mux.Vars(r)["run_id"]); err != nil {
-		writeError(w, http.StatusNotFound, err.Error())
+	runID := mux.Vars(r)["run_id"]
+	run, err := h.service.AbortAndWait(r.Context(), runID)
+	if err != nil {
+		if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+			if current, ok := h.service.store.Get(runID); ok {
+				writeJSON(w, http.StatusAccepted, current)
+				return
+			}
+		}
+		status := http.StatusNotFound
+		if !strings.Contains(err.Error(), "not found") {
+			status = http.StatusInternalServerError
+		}
+		writeError(w, status, err.Error())
 		return
 	}
-	run, _ := h.service.store.Get(mux.Vars(r)["run_id"])
 	writeJSON(w, http.StatusOK, run)
 }
 

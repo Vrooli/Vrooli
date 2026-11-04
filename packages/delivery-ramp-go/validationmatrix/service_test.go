@@ -603,6 +603,43 @@ func TestAbortAndReattachRemainServerOwned(t *testing.T) {
 	}
 }
 
+func TestAbortAndWaitReturnsOnlyAfterTerminalStateIsPersisted(t *testing.T) {
+	store, err := NewFileStore(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	started := make(chan struct{})
+	service := NewService(store, Executors{Local: localFunc(func(ctx context.Context, _ CellRequest) CellResult {
+		close(started)
+		<-ctx.Done()
+		return CellResult{}
+	})})
+	run, err := service.Create(baseSelection())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := service.Start(run.RunID); err != nil {
+		t.Fatal(err)
+	}
+	select {
+	case <-started:
+	case <-time.After(time.Second):
+		t.Fatal("cell did not start")
+	}
+
+	finished, err := service.AbortAndWait(context.Background(), run.RunID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if finished.State != RunCancelled || finished.Cells[0].State != CellCancelled {
+		t.Fatalf("abort-and-wait returned before terminal cancellation: state=%s cell=%s", finished.State, finished.Cells[0].State)
+	}
+	persisted, ok := store.Get(run.RunID)
+	if !ok || persisted.State != RunCancelled || persisted.Cells[0].State != CellCancelled {
+		t.Fatalf("terminal cancellation was not persisted: ok=%t run=%+v", ok, persisted)
+	}
+}
+
 func TestClientDisconnectDoesNotCancelServerOwnedRun(t *testing.T) {
 	store, err := NewFileStore(t.TempDir())
 	if err != nil {

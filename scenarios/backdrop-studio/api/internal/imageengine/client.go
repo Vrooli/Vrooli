@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"math"
 	"mime/multipart"
 	"net/http"
 	"net/url"
@@ -326,6 +327,8 @@ type waitGenerationResponse struct {
 // vocabulary, not this scenario's, which is why it is a named constant here
 // rather than a literal at the read site.
 const metaCostUSD = "cost_usd"
+const metaCostProvenance = "cost_provenance"
+const providerReportedCostProvenance = "provider_reported_v1"
 
 // Client calls image-tools' synchronous deterministic operation edge. The
 // resolver is injectable so unit tests can exercise the transport without
@@ -513,9 +516,13 @@ func (c *Client) Generate(ctx context.Context, req GenerationRequest) (Generatio
 		return GenerationResult{}, fmt.Errorf("image-tools inference returned an empty image")
 	}
 	result := GenerationResult{PNG: output, ModelID: submitted.ModelID, Tier: submitted.Tier}
-	if raw, ok := waited.Job.ResultMeta[metaCostUSD]; ok {
-		if cost, parseErr := strconv.ParseFloat(strings.TrimSpace(raw), 64); parseErr == nil {
-			result.CostUSD, result.CostReported = cost, true
+	if waited.Job.ResultMeta[metaCostProvenance] == providerReportedCostProvenance {
+		if raw, ok := waited.Job.ResultMeta[metaCostUSD]; ok {
+			if cost, parseErr := strconv.ParseFloat(strings.TrimSpace(raw), 64); parseErr == nil {
+				if !math.IsNaN(cost) && !math.IsInf(cost, 0) && cost >= 0 {
+					result.CostUSD, result.CostReported = cost, true
+				}
+			}
 		}
 	}
 	return result, nil

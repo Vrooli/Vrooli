@@ -8,10 +8,12 @@ import (
 	"os"
 	"time"
 
+	"github.com/vrooli/vrooli/resources/unstructured-io/cli/internal/capacitysync"
 	"github.com/vrooli/vrooli/resources/unstructured-io/cli/internal/unstructured"
 
 	"github.com/vrooli/cli-core/cliapp"
 	"github.com/vrooli/vrooli/internal/cliout"
+	"github.com/vrooli/vrooli/packages/capacity/companion"
 )
 
 const (
@@ -52,8 +54,8 @@ func newApp() (*cliapp.ResourceApp, error) {
 	if err != nil {
 		return nil, err
 	}
-	commands := append(app.StandardLifecycleCommands(), cliapp.CommandGroup{Title: "Document processing", Commands: []cliapp.Command{{Name: "health", Description: "Verify the Unstructured API", Run: runHealth}, {Name: "formats", Description: "List supported document formats", Run: runFormats}, {Name: "process", Description: "Partition one supported document", Run: runProcess}}})
-	app.SetCommands(commands)
+	commands := append(app.StandardLifecycleCommands(), cliapp.CommandGroup{Title: "Document processing", Commands: []cliapp.Command{{Name: "health", Description: "Verify the Unstructured API", Run: runHealth}, {Name: "formats", Description: "List supported document formats", Run: runFormats}, {Name: "process", Description: "Partition one supported document", Run: runProcess}, {Name: "capacity-sync", Description: "Keep the Unstructured RAM claim alive", Run: capacitysync.Command(nil)}}})
+	app.SetCommandsWithSubgroups(commands, []cliapp.SubcommandGroup{companion.LifecycleCapacityCommands(companion.LifecycleVerbsConfig{Resource: appName})})
 	return app, nil
 }
 
@@ -85,6 +87,7 @@ func runProcess(args []string) error {
 	f := flag.NewFlagSet("process", flag.ContinueOnError)
 	input := f.String("input", "", "document path")
 	output := f.String("output", "", "JSON output path; defaults to stdout")
+	strategy := f.String("strategy", "", "optional Unstructured partition strategy (for example: fast)")
 	u, t := unstructuredClient(f)
 	if e := f.Parse(args); e != nil {
 		return e
@@ -94,7 +97,7 @@ func runProcess(args []string) error {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), *t)
 	defer cancel()
-	v, e := (unstructured.Client{BaseURL: *u, HTTPClient: &http.Client{Timeout: *t}}).Process(ctx, *input)
+	v, e := (unstructured.Client{BaseURL: *u, HTTPClient: &http.Client{Timeout: *t}}).ProcessWithStrategy(ctx, *input, *strategy)
 	if e != nil {
 		return e
 	}

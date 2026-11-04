@@ -395,7 +395,7 @@ message EffortDecision {
   string note = 11;
   string context_url = 12;
   google.protobuf.Timestamp deadline = 13;
-  // pending, answered, defaulted or expired.
+  // pending, answered, defaulted, expired or dismissed.
   string state = 14;
   string answer = 15;
   string answer_label = 16;
@@ -420,6 +420,8 @@ message EffortDecision {
   string big_picture = 29;
   // Mechanism, evidence, risks, limits and remaining uncertainty.
   string technical_details = 30;
+  // Timestamp of the current terminal transition, including dismissal.
+  google.protobuf.Timestamp resolved_at = 31;
 }
 
 message RaiseEffortDecisionRequest {
@@ -457,9 +459,10 @@ message AnswerEffortDecisionRequest {
   string note = 4 [(buf.validate.field).string.max_len = 4096];
 }
 
-// Fenced on answered_at so a later answer is never marked recorded.
+// Fenced on the current terminal timestamp so a later resolution is never marked recorded.
 message MarkEffortDecisionRecordedRequest {
   string goal_home = 1 [(buf.validate.field).string = {min_len: 1, max_len: 1024}];
   string decision_id = 2 [(buf.validate.field).string = {min_len: 1, max_len: 128}];
   google.protobuf.Timestamp answered_at = 3;
+  google.protobuf.Timestamp resolved_at = 4;
 }

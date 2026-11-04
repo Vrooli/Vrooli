@@ -28,15 +28,15 @@ Three properties shape everything in this tree:
 Connecting a machine you already own stays free forever. Only capacity
 this scenario provisions and pays for is metered.
 
-> **Status: nothing is implemented.** This scenario was generated from
-> the `react-vite` template on 2026-09-03 and carries the design contract
-> only: the PRD, the requirements registry, the domain, data, flow and
-> integration contracts, the experience contract, and the operations
-> documentation. There is no provider adapter, no instance record, no
-> reconciler, no expiry sweeper and no enrollment path. Every command
-> named in the documentation below is an intended command surface unless
-> it appears in Part 1 of
-> [`docs/reference/cli-commands.md`](docs/reference/cli-commands.md).
+> **Status: partial local implementation.** The API currently includes
+> provider adapters, instance and intent records, provisioning and
+> reconciliation paths, expiry handling, and node enrollment. Focused
+> local evidence and remaining work are tracked in
+> [`docs/internal/PROGRESS.md`](docs/internal/PROGRESS.md) and the
+> [requirements registry](requirements/README.md). This does not establish
+> live-provider proof or complete the documented command surface; consult
+> Part 1 of [`docs/reference/cli-commands.md`](docs/reference/cli-commands.md)
+> for commands available to operators.
 
 > **Start here:** open [`docs/START-HERE.md`](docs/START-HERE.md). It
 > owns the first-session initialization protocol — charter, requirements,

@@ -13,6 +13,7 @@ import (
 
 	"github.com/vrooli/api-core/apihttp"
 	"github.com/vrooli/api-core/devrouting"
+	apilifecycle "github.com/vrooli/api-core/lifecycle"
 	"github.com/vrooli/api-core/preflight"
 	apiserver "github.com/vrooli/api-core/server"
 	_ "modernc.org/sqlite"
@@ -34,7 +35,11 @@ func main() {
 	rootMux := http.NewServeMux()
 	devrouting.RegisterWithFileRoots(rootMux, deps.DB, deps.FileRoots)
 	rootMux.Handle("/", srv.Handler())
-	handler := apihttp.TestModeMiddleware(rootMux)
+	provider, err := apilifecycle.NewProviderFromEnv(nil, apilifecycle.Hooks{})
+	if err != nil {
+		log.Fatalf("lifecycle provider setup failed: %v", err)
+	}
+	handler := provider.Mount(apihttp.TestModeMiddleware(rootMux))
 	var httpServer *http.Server
 	if err := apiserver.Run(apiserver.Config{
 		StartServer: func(addr string) error {
@@ -61,7 +66,8 @@ func main() {
 			}
 			return httpServer.Shutdown(ctx)
 		},
-		Cleanup: func(ctx context.Context) error { return cleanup() },
+		LifecycleConfiguredExternally: true,
+		Cleanup:                       func(ctx context.Context) error { return cleanup() },
 	}); err != nil {
 		log.Fatalf("Server error: %v", err)
 	}

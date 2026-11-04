@@ -61,16 +61,18 @@ multipart uploads) mounted at explicit REST paths. Document your
 domain's endpoints here as you build them — one section per RPC, with
 its auth, request/response proto shapes, error codes, and CLI mirror.
 
-The scaffold ships one fully worked CRUD vertical slice as a copyable
-reference (see the fenced example below); `template-manager detemplate
-<scenario>` removes it once your real domains are green.
+The former `notes` CRUD example has been removed with its handler. There is no
+copyable worked slice in this guide; use the registered modules and endpoint
+metadata as the current API inventory, then add only the messages and behavior
+required by the new domain.
 
 ---
 
 ## Adding a new endpoint
 
-For a new domain, copy the worked vertical slice in the fenced example
-above first, then replace it once your real domain is green.
+For a new domain, add its proto service, handler module, registration, and
+endpoint metadata using the steps below. Do not copy the retired `notes`
+example or add a placeholder CRUD surface.
 
 For an endpoint inside an existing domain:
 

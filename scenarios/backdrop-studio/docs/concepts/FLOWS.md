@@ -148,6 +148,11 @@ The two hard dependencies are `image-tools` and `brand-manager`. Everything else
 degrades to "the procedural catalog still works", which is the posture that makes
 this shippable as a desktop product on an ordinary machine.
 
+For model-backed renders, Backdrop Studio records `cost_usd` only when Image
+Tools marks the amount with `cost_provenance=provider_reported_v1`; the marker
+travels into render provenance. Unmarked historical job metadata remains
+unknown, and the renderer does not estimate cost from rates or catalog prices.
+
 ## Related
 
 - `DOMAINS.md` — which domain owns each step

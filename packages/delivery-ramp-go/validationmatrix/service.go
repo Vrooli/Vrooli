@@ -268,6 +268,16 @@ func (s *Service) Abort(runID string) error {
 	return s.finish(run)
 }
 
+// AbortAndWait requests cancellation and waits for the server-owned worker to
+// persist its terminal state. This keeps callers from treating the immediate
+// running snapshot returned by Abort as proof that cancellation has drained.
+func (s *Service) AbortAndWait(ctx context.Context, runID string) (*MatrixRun, error) {
+	if err := s.Abort(runID); err != nil {
+		return nil, err
+	}
+	return s.Wait(ctx, runID)
+}
+
 func (s *Service) MarkStale(runID string) error {
 	run, ok := s.store.Get(runID)
 	if !ok {

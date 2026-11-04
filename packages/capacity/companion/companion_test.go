@@ -566,6 +566,57 @@ func TestRunnerAndReporterShareExactResourceVRAMGPUSelection(t *testing.T) {
 	}
 }
 
+func TestRAMCompanionUsesRAMClaimWithoutGPUIdentity(t *testing.T) {
+	noClaims := &recorder{list: `{"claims":[]}`}
+	runner, err := companion.New(companion.Config{
+		Resource:     "unstructured-io",
+		ResourceKind: "ram",
+		Observer: companion.ObserverFunc(func(context.Context) (companion.Footprint, error) {
+			return companion.Footprint{Bytes: 1536 << 20}, nil
+		}),
+		Exec: noClaims.exec,
+	})
+	if err != nil {
+		t.Fatalf("New: %v", err)
+	}
+	runner.SyncOnce(context.Background())
+	if !noClaims.sawCall("capacity claim --owner-kind resource --owner-id unstructured-io --resource-kind ram") {
+		t.Fatalf("calls = %v, want a RAM capacity claim", noClaims.calls)
+	}
+	if noClaims.sawCall("--gpu-index") {
+		t.Fatalf("RAM claim unexpectedly included a GPU identity: %v", noClaims.calls)
+	}
+
+	withBothKinds := `{"claims":[{"claim_id":"gpu","owner_id":"unstructured-io","owner_kind":"resource","resource_kind":"vram","gpu_index":0,"amount_bytes":4294967296,"generation":1,"status":"granted"},{"claim_id":"ram","owner_id":"unstructured-io","owner_kind":"resource","resource_kind":"ram","amount_bytes":1610612736,"generation":7,"status":"granted"}]}`
+	var calls []string
+	exec := func(_ context.Context, _ string, args ...string) ([]byte, error) {
+		calls = append(calls, strings.Join(args, " "))
+		if args[1] == "list" {
+			return []byte(withBothKinds), nil
+		}
+		return []byte(`{"claim_id":"ram","owner_id":"unstructured-io","owner_kind":"resource","resource_kind":"ram","amount_bytes":1610612736,"generation":7,"status":"granted"}`), nil
+	}
+	runner, err = companion.New(companion.Config{
+		Resource:     "unstructured-io",
+		ResourceKind: "ram",
+		Observer: companion.ObserverFunc(func(context.Context) (companion.Footprint, error) {
+			return companion.Footprint{Bytes: 1536 << 20}, nil
+		}),
+		Exec: exec,
+	})
+	if err != nil {
+		t.Fatalf("New with existing claim: %v", err)
+	}
+	runner.SyncOnce(context.Background())
+	if len(calls) != 2 || !strings.Contains(calls[1], "heartbeat --claim-id ram --generation 7") {
+		t.Fatalf("calls = %v, want heartbeat for the RAM claim", calls)
+	}
+	reporter := companion.Reporter{Resource: "unstructured-io", ResourceKind: "ram", Exec: exec}
+	if got, ok := reporter.ActiveClaim(context.Background()); !ok || got.ClaimID != "ram" {
+		t.Fatalf("Reporter selected %+v, ok=%t; want RAM claim", got, ok)
+	}
+}
+
 func TestRunnerUsesCurrentMutationResponseForImmediateActivity(t *testing.T) {
 	for _, mode := range []string{"claim", "resize", "heartbeat", "resize-error", "malformed-response", "release"} {
 		t.Run(mode, func(t *testing.T) {

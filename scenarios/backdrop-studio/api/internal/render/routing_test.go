@@ -171,6 +171,7 @@ func TestAServedRenderRecordsItsLaneModelAndCost(t *testing.T) {
 	require.True(t, generator.last.AllowBYOK, "the frontier lane must be allowed to reach a paid provider")
 	require.Equal(t, "any", generator.last.FallbackPolicy)
 	require.Contains(t, job.Candidates[0].ProvenanceJSON, `"cost_usd":0.042`)
+	require.Contains(t, job.Candidates[0].ProvenanceJSON, `"cost_provenance":"provider_reported_v1"`)
 }
 
 // A backend that reports no cost must not be recorded as free. "This route cost

@@ -26,17 +26,12 @@ import "@testing-library/jest-dom/vitest";
 import { afterEach, beforeEach, vi, type MockInstance } from "vitest";
 import { i18n } from "./i18n";
 import { createElement } from "react";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { I18nextProvider } from "react-i18next";
 import { configureTestProviders } from "@vrooli/api-base/testing";
 import { ThemeProvider } from "./theme/ThemeProvider";
 
-const queryClient = new QueryClient();
-
-configureTestProviders((children) => createElement(QueryClientProvider, { client: queryClient },
-  createElement(I18nextProvider, { i18n },
-    createElement(ThemeProvider, null, children),
-  ),
+configureTestProviders((children) => createElement(I18nextProvider, { i18n },
+  createElement(ThemeProvider, null, children),
 ));
 
 let consoleError: MockInstance<(...args: unknown[]) => void>;

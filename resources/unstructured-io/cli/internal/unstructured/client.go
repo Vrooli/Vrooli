@@ -8,8 +8,10 @@ import (
 	"fmt"
 	"github.com/vrooli/vrooli/internal/tuning"
 	"io"
+	"mime"
 	"mime/multipart"
 	"net/http"
+	"net/textproto"
 	"os"
 	"path/filepath"
 	"strings"
@@ -72,6 +74,12 @@ func (c Client) Readiness(ctx context.Context) error {
 }
 func SupportedFormats() []string { return []string{"txt", "html", "htm", "pdf"} }
 func (c Client) Process(ctx context.Context, path string) ([]Element, error) {
+	return c.ProcessWithStrategy(ctx, path, "")
+}
+
+// ProcessWithStrategy applies the API's optional partition strategy. An empty
+// strategy leaves the upstream default unchanged.
+func (c Client) ProcessWithStrategy(ctx context.Context, path, strategy string) ([]Element, error) {
 	ext := strings.TrimPrefix(strings.ToLower(filepath.Ext(path)), ".")
 	supported := false
 	for _, f := range SupportedFormats() {
@@ -89,12 +97,20 @@ func (c Client) Process(ctx context.Context, path string) ([]Element, error) {
 	defer file.Close()
 	var b bytes.Buffer
 	w := multipart.NewWriter(&b)
-	part, e := w.CreateFormFile("files", filepath.Base(path))
+	header := make(textproto.MIMEHeader)
+	header.Set("Content-Disposition", mime.FormatMediaType("form-data", map[string]string{"name": "files", "filename": filepath.Base(path)}))
+	header.Set("Content-Type", contentTypeForExtension(ext))
+	part, e := w.CreatePart(header)
 	if e != nil {
 		return nil, e
 	}
 	if _, e = io.Copy(part, file); e != nil {
 		return nil, e
+	}
+	if strategy = strings.TrimSpace(strategy); strategy != "" {
+		if e = w.WriteField("strategy", strategy); e != nil {
+			return nil, e
+		}
 	}
 	if e = w.Close(); e != nil {
 		return nil, e
@@ -120,5 +136,19 @@ func (c Client) Process(ctx context.Context, path string) ([]Element, error) {
 	if e = json.Unmarshal(data, &out); e != nil {
 		return nil, fmt.Errorf("decode Unstructured response: %w", e)
 	}
+	if len(out) == 0 {
+		return nil, fmt.Errorf("Unstructured returned no elements for %s input", ext)
+	}
 	return out, nil
+}
+
+func contentTypeForExtension(ext string) string {
+	switch ext {
+	case "pdf":
+		return "application/pdf"
+	case "html", "htm":
+		return "text/html"
+	default:
+		return "text/plain"
+	}
 }
