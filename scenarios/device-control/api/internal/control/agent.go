@@ -70,11 +70,22 @@ func (s *Service) StartAgentWithAssertions(ctx context.Context, goal, deviceID, 
 	if !ok {
 		return AgentRun{}, fmt.Errorf("unknown or unavailable device %q", deviceID)
 	}
-	declaration, err := adapter.Describe(ctx)
 	selectedTransport := ""
 	if record, found := s.devices.Get(deviceID); found {
 		selectedTransport = record.Transport
+		// Resolve the saved transport explicitly. strategyForFlow's empty-route
+		// default may already have fallen back to USB when a persisted wireless
+		// adapter is missing; do not overwrite that usable route with the stale
+		// saved transport name.
+		if preferred, preferredOK := s.strategyForFlow(deviceID, selectedTransport); preferredOK {
+			adapter = preferred
+		} else if usb, usbOK := s.knownSerialAndroidUSB(deviceID); usbOK {
+			adapter, selectedTransport = usb, "usb"
+		} else {
+			selectedTransport = ""
+		}
 	}
+	declaration, err := adapter.Describe(ctx)
 	if err != nil || declaration.Status != strategy.StatusAvailable {
 		if usb, ok := s.knownSerialAndroidUSB(deviceID); ok {
 			if usbDeclaration, probeErr := usb.Describe(ctx); probeErr == nil && usbDeclaration.Status == strategy.StatusAvailable {

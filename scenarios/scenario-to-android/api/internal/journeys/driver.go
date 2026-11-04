@@ -6,6 +6,7 @@ package journeys
 
 import (
 	"context"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"path/filepath"
@@ -24,8 +25,9 @@ type Lease struct {
 }
 
 type ActionResult struct {
-	Observed string
-	Evidence []deliveryramp.EvidenceReference
+	Observed                         string
+	Evidence                         []deliveryramp.EvidenceReference
+	ArtifactSigningCertificateSHA256 string
 }
 
 type RecordingArtifact struct {
@@ -109,18 +111,33 @@ type DeviceStateSnapshot struct {
 	LockState         string `json:"lock_state"`
 }
 
+type NetworkStateSnapshot struct {
+	WifiEnabled         *bool `json:"wifi_enabled,omitempty"`
+	MobileDataEnabled   *bool `json:"mobile_data_enabled,omitempty"`
+	AirplaneModeEnabled *bool `json:"airplane_mode_enabled,omitempty"`
+}
+
+type NetworkStateReader interface {
+	ReadNetworkState(context.Context, Lease) (NetworkStateSnapshot, error)
+}
+
 type DeviceStateReader interface {
 	ReadState(context.Context, string) (DeviceStateSnapshot, error)
 }
 
 type InstalledPackageState struct {
-	Installed   bool
-	Version     string
-	VersionCode int64
+	Installed                bool
+	Version                  string
+	VersionCode              int64
+	SigningCertificateSHA256 string
 }
 
 type PackageStateReader interface {
 	ReadPackageState(context.Context, Lease, string) (InstalledPackageState, error)
+}
+
+type PackageSigningStateReader interface {
+	ReadPackageSigningState(context.Context, Lease, string) (string, error)
 }
 
 type BASRequest struct {
@@ -253,6 +270,33 @@ func (d Driver) Execute(ctx context.Context, request deliveryramp.DriverRequest)
 		return result, fmt.Errorf("acquire device-control lease: %w", err)
 	}
 	defer func() { _ = d.Devices.Release(context.Background(), lease) }()
+	var initialNetworkState *NetworkStateSnapshot
+	if focusedOffline {
+		reader, ok := d.Devices.(NetworkStateReader)
+		if !ok {
+			return result, fmt.Errorf("offline-transition refused before mutation: Device Control network-state readback is unavailable")
+		}
+		state, readErr := reader.ReadNetworkState(ctx, lease)
+		if readErr != nil {
+			return result, fmt.Errorf("offline-transition refused before mutation: cannot read initial Android network state: %w", readErr)
+		}
+		if state.WifiEnabled == nil || state.MobileDataEnabled == nil || state.AirplaneModeEnabled == nil {
+			return result, fmt.Errorf("offline-transition refused before mutation: Wi-Fi, mobile-data, and airplane-mode state must all be known")
+		}
+		if !*state.WifiEnabled || !*state.MobileDataEnabled || *state.AirplaneModeEnabled {
+			return result, fmt.Errorf("offline-transition refused before mutation: it requires Wi-Fi and mobile data enabled with airplane mode disabled")
+		}
+		initialNetworkState = &state
+		result.Steps = append(result.Steps, deliveryramp.JourneyStep{
+			ID: "offline-preflight/network-state", Name: "offline-preflight/network-state",
+			Purpose: "record the known online radio state before connectivity perturbation",
+			Action:  "network-state", Disposition: deliveryramp.StepPassed,
+			StartedAt: time.Now().UTC(), CompletedAt: time.Now().UTC(),
+			ExpectedState: "Wi-Fi enabled; mobile data enabled; airplane mode disabled",
+			ObservedState: "Wi-Fi enabled; mobile data enabled; airplane mode disabled",
+			AssertionID:   "offline-preflight/network-state-online", AssertionStatus: "observed",
+		})
+	}
 	packageName := ""
 	var preUpdatePackageState InstalledPackageState
 	var candidateUpdateVersionCode int64
@@ -484,30 +528,71 @@ func (d Driver) Execute(ctx context.Context, request deliveryramp.DriverRequest)
 				result.Steps = append(result.Steps, assertion)
 			}
 			installAttempted := false
+			temporaryArtifactSigner := normalizeSigningCertificateSHA256(request.Artifact.Metadata["signing_certificate_sha256"])
 			if installMode == "temporary" {
 				defer func() {
 					if !installAttempted {
 						return
 					}
 					cleanupStarted := time.Now().UTC()
-					_, uninstallErr := d.Devices.Execute(context.Background(), lease, "uninstall", map[string]string{"step_id": "temporary-cleanup/uninstall", "package": packageName})
-					_, verifyErr := d.Devices.Execute(context.Background(), lease, "package-state", map[string]string{"step_id": "temporary-cleanup/verify-absent", "package": packageName, "expected": "absent"})
-					cleanupStep := deliveryramp.JourneyStep{ID: "temporary-cleanup/verify-absent", Name: "temporary-cleanup/verify-absent", Purpose: "remove the temporary package and verify its absence", Action: "package-state", StartedAt: cleanupStarted, CompletedAt: time.Now().UTC(), ExpectedState: "scenario package is absent", AssertionID: "temporary-cleanup/package-absent", AssertionStatus: "observed"}
-					if verifyErr != nil {
+					cleanupStep := deliveryramp.JourneyStep{
+						ID: "temporary-cleanup/verify-absent", Name: "temporary-cleanup/verify-absent",
+						Purpose: "remove only the exact installed artifact from this temporary run and verify absence",
+						Action:  "package-state", StartedAt: cleanupStarted,
+						ExpectedState: "package absent, or installed identity matches the exact temporary artifact before removal",
+						AssertionID:   "temporary-cleanup/package-absent", AssertionStatus: "pending",
+					}
+					var cleanupErr error
+					packageReader, hasPackageReader := d.Devices.(PackageStateReader)
+					if !hasPackageReader {
+						cleanupErr = errors.New("Device Control package-state readback is unavailable; refusing to uninstall an unverified package")
+					} else {
+						current, readErr := packageReader.ReadPackageState(context.Background(), lease, packageName)
+						if readErr != nil {
+							cleanupErr = fmt.Errorf("Device Control could not verify the temporary package before cleanup: %w", readErr)
+						} else if current.Installed {
+							candidateVersion, versionErr := strconv.ParseInt(strings.TrimSpace(request.Artifact.Metadata["version_code"]), 10, 64)
+							if versionErr != nil || candidateVersion <= 0 {
+								cleanupErr = errors.New("temporary artifact version code is unavailable; refusing to uninstall an unverified package")
+							} else if temporaryArtifactSigner == "" {
+								cleanupErr = errors.New("verified temporary artifact signer is unavailable; refusing to uninstall an unverified package")
+							} else if current.Version != strings.TrimSpace(request.Artifact.Metadata["version_name"]) || current.VersionCode != candidateVersion {
+								cleanupStep.ObservedState = fmt.Sprintf("retained package %s version %s code %d because it does not match the temporary artifact", packageName, current.Version, current.VersionCode)
+								cleanupErr = errors.New("installed package identity changed after preflight; refusing destructive temporary cleanup")
+							} else if signerReader, ok := d.Devices.(PackageSigningStateReader); !ok {
+								cleanupErr = errors.New("Device Control package-signing readback is unavailable; refusing to uninstall an unverified package")
+							} else if signer, signerErr := signerReader.ReadPackageSigningState(context.Background(), lease, packageName); signerErr != nil {
+								cleanupErr = fmt.Errorf("Device Control could not verify the temporary package signer: %w", signerErr)
+							} else if !strings.EqualFold(signer, temporaryArtifactSigner) {
+								cleanupStep.ObservedState = "retained package because its signer does not match the temporary artifact"
+								cleanupErr = errors.New("installed package signer changed after preflight; refusing destructive temporary cleanup")
+							} else {
+								_, uninstallErr := d.Devices.Execute(context.Background(), lease, "uninstall", map[string]string{"step_id": "temporary-cleanup/uninstall", "package": packageName})
+								if uninstallErr != nil {
+									cleanupStep.DegradedReason = "uninstall reported an error; verifying package absence: " + uninstallErr.Error()
+								}
+								cleanupErr = verifyTemporaryPackageAbsent(context.Background(), d.Devices, lease, packageName)
+							}
+						} else {
+							cleanupErr = verifyTemporaryPackageAbsent(context.Background(), d.Devices, lease, packageName)
+						}
+					}
+					cleanupStep.CompletedAt = time.Now().UTC()
+					if cleanupErr != nil {
 						cleanupStep.Disposition = deliveryramp.StepFailed
-						cleanupStep.Error = "temporary app cleanup could not verify package absence: " + verifyErr.Error()
+						cleanupStep.AssertionStatus = "failed"
+						cleanupStep.Error = cleanupErr.Error()
 						result.Disposition = deliveryramp.DispositionFailed
 						result.DegradedReason = cleanupStep.Error
 						if err == nil {
-							err = errors.New(cleanupStep.Error)
+							err = cleanupErr
 						} else {
-							err = errors.Join(err, errors.New(cleanupStep.Error))
+							err = errors.Join(err, cleanupErr)
 						}
 					} else {
 						cleanupStep.Disposition = deliveryramp.StepPassed
-						if uninstallErr != nil {
-							cleanupStep.DegradedReason = "uninstall reported an error, but package-state verified absence: " + uninstallErr.Error()
-						}
+						cleanupStep.AssertionStatus = "observed"
+						cleanupStep.ObservedState = "scenario package is absent"
 					}
 					if result.Steps == nil {
 						result.Steps = make([]deliveryramp.JourneyStep, 0, len(request.Plan.Steps)+3)
@@ -522,6 +607,15 @@ func (d Driver) Execute(ctx context.Context, request deliveryramp.DriverRequest)
 				"package": packageName, "version_name": request.Artifact.Metadata["version_name"],
 				"timeout_ms": strconv.FormatInt(actionTimeoutMS("install"), 10),
 			})
+			reportedSigner := normalizeSigningCertificateSHA256(installResult.ArtifactSigningCertificateSHA256)
+			if reportedSigner != "" {
+				if temporaryArtifactSigner != "" && reportedSigner != temporaryArtifactSigner {
+					installErr = errors.Join(installErr, errors.New("Device Control artifact signer differs from the immutable build artifact signer"))
+					temporaryArtifactSigner = ""
+				} else {
+					temporaryArtifactSigner = reportedSigner
+				}
+			}
 			installStep := deliveryramp.JourneyStep{ID: "artifact-install/install", Name: "artifact-install/install", Purpose: "install the exact immutable Android artifact through Device Control", Action: "install-artifact", StartedAt: installStarted, CompletedAt: time.Now().UTC(), ExpectedState: request.Artifact.ImmutableRef}
 			if installErr != nil {
 				installStep.Disposition = deliveryramp.StepFailed
@@ -656,31 +750,62 @@ func (d Driver) Execute(ctx context.Context, request deliveryramp.DriverRequest)
 		}
 	}()
 	defer func() {
-		if !networkRestoreNeeded {
+		if !networkRestoreNeeded && initialNetworkState == nil {
 			return
 		}
-		step := deliveryramp.JourneyStep{
-			ID: "device-cleanup/network-online", Name: "device-cleanup/network-online",
-			Purpose: "restore connectivity after an interrupted offline-transition chapter",
-			Action:  "network", Disposition: deliveryramp.StepPassed,
-			ExpectedState: "network online", StartedAt: time.Now().UTC(),
-		}
-		_, restoreErr := d.Devices.Execute(context.Background(), lease, "network", map[string]string{
-			"step_id": step.ID, "target": "online", "value": "online",
-		})
-		step.CompletedAt = time.Now().UTC()
-		if restoreErr != nil {
-			step.Disposition = deliveryramp.StepFailed
-			step.Error = fmt.Sprintf("device-control network recovery failed: %s", restoreErr)
-			result.Disposition = deliveryramp.DispositionFailed
-			result.DegradedReason = step.Error
-			if err == nil {
-				err = fmt.Errorf("restore network after offline-transition failure: %w", restoreErr)
-			} else {
-				err = errors.Join(err, fmt.Errorf("restore network after offline-transition failure: %w", restoreErr))
+		if networkRestoreNeeded {
+			step := deliveryramp.JourneyStep{
+				ID: "device-cleanup/network-online", Name: "device-cleanup/network-online",
+				Purpose: "restore connectivity after an interrupted offline-transition chapter",
+				Action:  "network", Disposition: deliveryramp.StepPassed,
+				ExpectedState: "network online", StartedAt: time.Now().UTC(),
 			}
+			_, restoreErr := d.Devices.Execute(context.Background(), lease, "network", map[string]string{
+				"step_id": step.ID, "target": "online", "value": "online",
+			})
+			step.CompletedAt = time.Now().UTC()
+			if restoreErr != nil {
+				step.Disposition = deliveryramp.StepFailed
+				step.Error = fmt.Sprintf("device-control network recovery failed: %s", restoreErr)
+				result.Disposition = deliveryramp.DispositionFailed
+				result.DegradedReason = step.Error
+				if err == nil {
+					err = fmt.Errorf("restore network after offline-transition failure: %w", restoreErr)
+				} else {
+					err = errors.Join(err, fmt.Errorf("restore network after offline-transition failure: %w", restoreErr))
+				}
+			}
+			result.Steps = append(result.Steps, step)
 		}
-		result.Steps = append(result.Steps, step)
+		if initialNetworkState != nil {
+			step := deliveryramp.JourneyStep{
+				ID: "device-cleanup/verify-network-state", Name: "device-cleanup/verify-network-state",
+				Purpose: "verify the network radio state matches the pre-test state",
+				Action:  "network-state", Disposition: deliveryramp.StepPassed,
+				StartedAt: time.Now().UTC(), ExpectedState: describeNetworkState(*initialNetworkState),
+				AssertionID: "device-cleanup/network-state-restored",
+			}
+			observed, verifyErr := d.Devices.(NetworkStateReader).ReadNetworkState(context.Background(), lease)
+			step.CompletedAt = time.Now().UTC()
+			if verifyErr == nil && !sameNetworkState(*initialNetworkState, observed) {
+				verifyErr = fmt.Errorf("observed network state %s does not match original state %s", describeNetworkState(observed), describeNetworkState(*initialNetworkState))
+			}
+			if verifyErr != nil {
+				step.Disposition = deliveryramp.StepFailed
+				step.Error = "network-state restoration could not be verified: " + verifyErr.Error()
+				result.Disposition = deliveryramp.DispositionFailed
+				result.DegradedReason = step.Error
+				if err == nil {
+					err = errors.New(step.Error)
+				} else {
+					err = errors.Join(err, errors.New(step.Error))
+				}
+			} else {
+				step.ObservedState = describeNetworkState(observed)
+				step.AssertionStatus = "observed"
+			}
+			result.Steps = append(result.Steps, step)
+		}
 	}()
 	unsupportedChapters := make(map[string]string)
 	for index, spec := range request.Plan.Steps {
@@ -1059,6 +1184,46 @@ func failBASPreflight(result *deliveryramp.JourneyResult, message string) (deliv
 	result.Disposition = deliveryramp.DispositionFailed
 	result.DegradedReason = message
 	return *result, nil
+}
+
+func describeNetworkState(state NetworkStateSnapshot) string {
+	format := func(value *bool) string {
+		if value == nil {
+			return "unknown"
+		}
+		if *value {
+			return "enabled"
+		}
+		return "disabled"
+	}
+	return fmt.Sprintf("Wi-Fi %s; mobile data %s; airplane mode %s", format(state.WifiEnabled), format(state.MobileDataEnabled), format(state.AirplaneModeEnabled))
+}
+
+func normalizeSigningCertificateSHA256(value string) string {
+	value = strings.ToLower(strings.TrimSpace(value))
+	if len(value) != 64 {
+		return ""
+	}
+	if _, err := hex.DecodeString(value); err != nil {
+		return ""
+	}
+	return value
+}
+
+func verifyTemporaryPackageAbsent(ctx context.Context, devices DeviceClient, lease Lease, packageName string) error {
+	_, err := devices.Execute(ctx, lease, "package-state", map[string]string{
+		"step_id": "temporary-cleanup/verify-absent", "package": packageName, "expected": "absent",
+	})
+	if err != nil {
+		return fmt.Errorf("temporary package absence readback failed: %w", err)
+	}
+	return nil
+}
+
+func sameNetworkState(left, right NetworkStateSnapshot) bool {
+	return left.WifiEnabled != nil && right.WifiEnabled != nil && *left.WifiEnabled == *right.WifiEnabled &&
+		left.MobileDataEnabled != nil && right.MobileDataEnabled != nil && *left.MobileDataEnabled == *right.MobileDataEnabled &&
+		left.AirplaneModeEnabled != nil && right.AirplaneModeEnabled != nil && *left.AirplaneModeEnabled == *right.AirplaneModeEnabled
 }
 
 func failInstallPackagePreflight(result *deliveryramp.JourneyResult, message string) (deliveryramp.JourneyResult, error) {

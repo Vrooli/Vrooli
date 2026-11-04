@@ -44,7 +44,6 @@ import {
   PIPEWIRE_QUALIFICATION_DEVICE_NAME,
   resetPageInputState,
   resetSessionState,
-  selectAppTargetPage,
   SessionInfo,
   SessionListEntry,
   SessionSummary,
@@ -54,6 +53,7 @@ import {
   transition,
   validateAppTargetCapabilities,
   validateAppTargetSpec,
+  waitForAppTargetPage,
   verifyAppTargetRenderer,
   verifyBrowserCaptureDevice,
   buildContext,
@@ -844,7 +844,8 @@ export class SessionManager {
       if (extraHeaders && Object.keys(extraHeaders).length > 0) {
         await context.setExtraHTTPHeaders(extraHeaders);
       }
-      const page = await selectAppTargetPage(context.pages(), target);
+      const page = await waitForAppTargetPage(() => context.pages(), target);
+      await verifyAppTargetRenderer(target);
       sessionId = uuidv4();
       const createdAt = new Date();
       const pageBindings = new DriverPageBindings();

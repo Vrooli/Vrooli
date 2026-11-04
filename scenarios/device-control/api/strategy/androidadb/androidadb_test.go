@@ -1056,6 +1056,34 @@ func TestAppLifecyclePackageStateVerifiesInstallation(t *testing.T) {
 	require.False(t, prefix.Installed)
 }
 
+func TestAppLifecycleNetworkStateReadsAllRadioSettings(t *testing.T) {
+	runner := &scriptedRunner{responses: map[string][]byte{
+		"adb -s serial-1 shell dumpsys wifi":                         []byte("Wi-Fi is enabled\n"),
+		"adb -s serial-1 shell settings get global mobile_data":      []byte("1\n"),
+		"adb -s serial-1 shell settings get global airplane_mode_on": []byte("0\n"),
+	}}
+	result, err := NewWithRunner(runner, "serial-1").AppLifecycle(context.Background(), strategy.AppLifecycleRequest{Operation: "network-state"})
+	require.NoError(t, err)
+	require.Equal(t, strategy.StatusAvailable, result.Status)
+	require.NotNil(t, result.NetworkState)
+	require.True(t, *result.NetworkState.WifiEnabled)
+	require.True(t, *result.NetworkState.MobileDataEnabled)
+	require.False(t, *result.NetworkState.AirplaneModeEnabled)
+	require.Len(t, runner.calls, 3)
+}
+
+func TestAppLifecycleNetworkStateFailsClosedWhenAnySettingIsUnknown(t *testing.T) {
+	runner := &scriptedRunner{responses: map[string][]byte{
+		"adb -s serial-1 shell dumpsys wifi":                         []byte("Wi-Fi state is not reported\n"),
+		"adb -s serial-1 shell settings get global mobile_data":      []byte("1\n"),
+		"adb -s serial-1 shell settings get global airplane_mode_on": []byte("0\n"),
+	}}
+	result, err := NewWithRunner(runner, "serial-1").AppLifecycle(context.Background(), strategy.AppLifecycleRequest{Operation: "network-state"})
+	require.ErrorContains(t, err, "Wi-Fi")
+	require.Equal(t, strategy.StatusUnavailable, result.Status)
+	require.Nil(t, result.NetworkState)
+}
+
 type fixtureSigningInspector struct{ digest string }
 
 func (f fixtureSigningInspector) InspectSigningCertificate(context.Context, string) (string, error) {
@@ -1085,6 +1113,10 @@ func TestAppLifecyclePackageSigningStateReadsExactInstalledBaseAPK(t *testing.T)
 	require.NoError(t, err)
 	require.True(t, result.Installed)
 	require.Equal(t, strings.Repeat("a", 64), result.SigningCertificateSHA256)
+	serialized, err := json.Marshal(result)
+	require.NoError(t, err)
+	require.Contains(t, string(serialized), `"installed":true`)
+	require.Contains(t, string(serialized), `"signing_certificate_sha256":"`+strings.Repeat("a", 64)+`"`)
 	foundPull := false
 	for _, call := range runner.calls {
 		if strings.HasPrefix(call, "adb -s serial-1 pull /data/app/com.example.portal-1/base.apk ") {

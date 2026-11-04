@@ -97,7 +97,7 @@ func TestJourneyEvidenceUsesRedactedRuntimeAndVerifiedPackageState(t *testing.T)
 		ReviewRecording: &deliveryramp.EvidenceReference{ID: "raw-video", Kind: "recording", Checksum: "sha256:raw", Redacted: false},
 		Steps: []deliveryramp.JourneyStep{
 			{ID: "cold-bas", Evidence: []deliveryramp.EvidenceReference{{ID: "raw-screenshot", Kind: "screenshot", Checksum: "sha256:screenshot", Redacted: false}, {ID: "bas-summary-exec-1", Kind: "bas-runtime-summary", URI: "validation://bas/executions/exec-1/summary", MediaType: "application/json", Checksum: "sha256:summary", Redacted: true}}},
-			{ID: "temporary-cleanup/verify-absent", Action: "package-state", Disposition: deliveryramp.StepPassed, ExpectedState: "scenario package is absent", AssertionStatus: "observed"},
+			{ID: "temporary-cleanup/verify-absent", Action: "package-state", Disposition: deliveryramp.StepPassed, ExpectedState: "package absent, or installed identity matches the exact temporary artifact before removal", ObservedState: "scenario package is absent", AssertionStatus: "observed"},
 		},
 		ClockOffsetStart: &deliveryramp.ClockOffsetSample{Evidence: deliveryramp.EvidenceReference{ID: "raw-clock", Kind: "clock", Checksum: "sha256:clock", Redacted: false}},
 	}
@@ -122,6 +122,10 @@ func TestJourneyEvidenceUsesRedactedRuntimeAndVerifiedPackageState(t *testing.T)
 	for _, item := range evidence {
 		if !item.GetRedacted() {
 			t.Fatalf("unredacted source evidence entered the matrix: %#v", item)
+		}
+		if item.GetKind() == domainv1.LayeredEvidence_KIND_TARGET {
+			want := hashText("target=android-phone package=com.example.generated state=scenario package is absent step=temporary-cleanup/verify-absent")
+			require.Equal(t, want, item.GetSha256(), "target evidence must bind the observed terminal absence, not the cleanup precondition")
 		}
 	}
 }

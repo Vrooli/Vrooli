@@ -267,7 +267,7 @@ func runResultProto(result internal.RunResult) *flowsv1.RunResult {
 				ImmutableRef: proof.ImmutableRef, ArtifactChecksum: proof.ArtifactChecksum, ApkChecksum: proof.APKChecksum,
 				PackageName: proof.PackageName, VersionName: proof.VersionName, VersionCode: proof.VersionCode,
 				InstallAccepted: proof.InstallAccepted, Installed: proof.Installed, InstalledVersion: proof.InstalledVersion,
-				PostInstallVerified: proof.PostInstallVerified,
+				PostInstallVerified: proof.PostInstallVerified, SigningCertificateSha256: proof.SigningCertificateSHA256,
 			}
 		}
 		out.Chapters = append(out.Chapters, chapter)

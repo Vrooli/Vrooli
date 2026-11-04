@@ -2681,6 +2681,23 @@ func TestAgentUsesKnownUSBWhenPreferredWirelessIsUnavailable(t *testing.T) {
 	require.Equal(t, "usb", svc.Audit()[0].Transport)
 }
 
+func TestAgentKeepsImplicitUSBFallbackWhenSavedWirelessAdapterIsMissing(t *testing.T) {
+	base := &serialScopedAgentFixture{serialScopedFlowFixture: &serialScopedFlowFixture{Strategy: fakes.New("android-adb", strategy.StatusAvailable, strategy.CapInput)}}
+	svc := New(strategyregistry.New(base))
+	svc.devices.Upsert(devicedomain.Record{ID: "phone", Kind: "physical", Serial: "serial-1", StrategyID: base.ID(), Transport: "wireless", Status: strategy.StatusAvailable, Health: strategy.StatusAvailable, Transports: []strategy.DeviceTransport{
+		{Name: "wireless", StrategyID: base.ID(), Health: strategy.StatusAvailable, Capabilities: map[string]strategy.Capability{"input": {Name: "input", Status: strategy.StatusAvailable}}},
+		{Name: "usb", StrategyID: base.ID(), Health: strategy.StatusAvailable, Capabilities: map[string]strategy.Capability{"input": {Name: "input", Status: strategy.StatusAvailable}}},
+	}})
+	svc.SetAgentPlanner(&sequenceAgentPlanner{plans: []internalflows.AgentPlan{{StepKind: "key", Value: "DPAD_DOWN"}, {GoalMet: true}}})
+
+	run, err := svc.StartAgent(context.Background(), "move down", "phone", "test", true)
+	require.NoError(t, err)
+	require.Equal(t, "unverified", run.State, "%+v", run.Result.Chapters)
+	require.Equal(t, "unverified", run.Result.Disposition)
+	require.Len(t, base.Calls(), 1)
+	require.Equal(t, "usb", svc.Audit()[0].Transport)
+}
+
 func TestImplicitWirelessFlowFallsBackToVerifiedSerialUSBOnlyBeforeActuation(t *testing.T) {
 	base := &serialScopedFlowFixture{Strategy: fakes.New("android-adb", strategy.StatusAvailable, strategy.CapInput)}
 	wireless := fakes.New("wireless", strategy.StatusUnavailable, strategy.CapInput)

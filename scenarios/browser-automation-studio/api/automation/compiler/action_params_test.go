@@ -242,9 +242,10 @@ func TestBuildNavigateParams_SnakeCaseAliases(t *testing.T) {
 
 func TestBuildClickParams_Basic(t *testing.T) {
 	data := map[string]any{
-		"selector":   "#button",
-		"button":     "left",
-		"clickCount": 2,
+		"selector":       "#button",
+		"button":         "left",
+		"clickCount":     2,
+		"scrollIntoView": true,
 	}
 
 	p := BuildClickParams(data)
@@ -257,6 +258,9 @@ func TestBuildClickParams_Basic(t *testing.T) {
 	}
 	if p.ClickCount == nil || *p.ClickCount != 2 {
 		t.Errorf("expected clickCount 2, got %v", p.ClickCount)
+	}
+	if p.ScrollIntoView == nil || !*p.ScrollIntoView {
+		t.Errorf("expected scrollIntoView true, got %v", p.ScrollIntoView)
 	}
 }
 

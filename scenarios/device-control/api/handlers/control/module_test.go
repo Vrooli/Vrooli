@@ -17,6 +17,7 @@ import (
 
 	authdomain "device-control/internal/auth"
 	internal "device-control/internal/control"
+	"device-control/internal/execution"
 	"device-control/strategy"
 	"device-control/strategy/androidtvremote"
 	"device-control/strategy/fakes"
@@ -113,6 +114,12 @@ func TestRunResultProtoCarriesDisconnectMetadata(t *testing.T) {
 	require.Equal(t, int32(2), got.Chapters[0].Attempts)
 	require.Equal(t, "transport", got.Chapters[0].FailureClass)
 	require.Equal(t, []string{"e1"}, got.Chapters[0].EvidenceIds)
+}
+
+func TestRunResultProtoCarriesArtifactInstallSigner(t *testing.T) {
+	digest := strings.Repeat("a", 64)
+	got := runResultProto(internal.RunResult{Chapters: []internal.Chapter{{ArtifactInstall: &execution.ArtifactInstallProof{SigningCertificateSHA256: digest}}}})
+	require.Equal(t, digest, got.Chapters[0].ArtifactInstall.SigningCertificateSha256)
 }
 
 func TestUnknownDeviceIsBadRequestAndPreservesMessage(t *testing.T) {

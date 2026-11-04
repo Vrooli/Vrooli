@@ -328,12 +328,15 @@ func TestSignedBuildUsesTemporaryCredentialProperties(t *testing.T) {
 		}
 		return nil, nil
 	}
-	artifact, err := (Builder{BuildRoot: t.TempDir(), GradleBin: "/bin/gradle", Run: run, Signing: store}).Build(context.Background(), deliveryramp.BuildRequest{SourceRef: web, Parameters: map[string]string{"package_name": "com.example.signed", "target_sdk": "36", "signing": "required"}})
+	artifact, err := (Builder{BuildRoot: t.TempDir(), GradleBin: "/bin/gradle", Run: run, Signing: store, InspectAPKSigning: func(context.Context, string) (string, error) { return strings.Repeat("b", 64), nil }}).Build(context.Background(), deliveryramp.BuildRequest{SourceRef: web, Parameters: map[string]string{"package_name": "com.example.signed", "target_sdk": "36", "signing": "required"}})
 	if err != nil {
 		t.Fatal(err)
 	}
 	if artifact.Metadata["signing"] != "secrets-manager" || artifact.Kind != "android-release-apk-aab" {
 		t.Fatalf("signed artifact metadata is incorrect: %#v", artifact)
+	}
+	if artifact.Metadata["signing_certificate_sha256"] != strings.Repeat("b", 64) {
+		t.Fatalf("artifact signer digest was not retained: %#v", artifact.Metadata)
 	}
 	for _, arg := range gradleArgs {
 		if strings.Contains(arg, "password") || strings.Contains(arg, "keystore") {

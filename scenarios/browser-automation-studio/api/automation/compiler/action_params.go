@@ -8,8 +8,9 @@
 package compiler
 
 import (
-	contractvalues "github.com/vrooli/browser-automation-studio/automation/contracts"
 	"strings"
+
+	contractvalues "github.com/vrooli/browser-automation-studio/automation/contracts"
 
 	"github.com/vrooli/browser-automation-studio/internal/enums"
 	basactions "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/actions"
@@ -110,6 +111,11 @@ func BuildClickParams(data map[string]any) *basactions.ClickParams {
 	}
 	if force, ok := data["force"].(bool); ok {
 		p.Force = &force
+	}
+	if scrollIntoView, ok := data["scrollIntoView"].(bool); ok {
+		p.ScrollIntoView = &scrollIntoView
+	} else if scrollIntoView, ok := data["scroll_into_view"].(bool); ok {
+		p.ScrollIntoView = &scrollIntoView
 	}
 	return p
 }

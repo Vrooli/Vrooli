@@ -7,6 +7,7 @@ import {
   selectAppTargetPage,
   validateAppTargetCapabilities,
   validateAppTargetSpec,
+  waitForAppTargetPage,
   verifyAppTargetRenderer,
 } from '../../../src/session/electron-target';
 
@@ -150,8 +151,27 @@ describe('Electron target admission', () => {
       selectAppTargetPage([page(target.renderer_url), page(target.renderer_url)], target)
     ).rejects.toThrow('ambiguous');
     const androidTarget = { ...target, target_kind: 'android-webview' as const };
-    const androidPages = [page(androidTarget.renderer_url), page(androidTarget.renderer_url)];
-    await expect(selectAppTargetPage(androidPages, androidTarget)).resolves.toBe(androidPages[0]);
+    const androidPage = (url: string, targetId: string): Page => {
+      const session = {
+        send: jest.fn().mockResolvedValue({ targetInfo: { targetId } }),
+        detach: jest.fn().mockResolvedValue(undefined),
+      };
+      return {
+        url: () => url,
+        context: () => ({ newCDPSession: jest.fn().mockResolvedValue(session) }),
+        __session: session,
+      } as unknown as Page;
+    };
+    const nonmatchingAndroidPage = androidPage(androidTarget.renderer_url, 'other-renderer');
+    const matchingAndroidPage = androidPage(androidTarget.renderer_url, androidTarget.renderer_id);
+    await expect(
+      selectAppTargetPage([nonmatchingAndroidPage, matchingAndroidPage], androidTarget)
+    ).resolves.toBe(matchingAndroidPage);
+    expect((nonmatchingAndroidPage as unknown as { __session: { detach: jest.Mock } }).__session.detach).toHaveBeenCalled();
+    expect((matchingAndroidPage as unknown as { __session: { detach: jest.Mock } }).__session.detach).toHaveBeenCalled();
+    await expect(
+      selectAppTargetPage([androidPage(androidTarget.renderer_url, 'other-renderer')], androidTarget)
+    ).rejects.toThrow('renderer page identity is missing');
     await expect(
       selectAppTargetPage([page('file:///controlled/route')], target)
     ).resolves.toBeTruthy();
@@ -159,5 +179,74 @@ describe('Electron target admission', () => {
     const matchingPage = page(target.renderer_url);
     matchingPage.title = jest.fn().mockResolvedValue(target.renderer_title);
     await expect(selectAppTargetPage([matchingPage], target)).resolves.toBe(matchingPage);
+  });
+
+  it('waits briefly for Android WebView CDP pages to appear after renderer discovery', async () => {
+    const androidTarget = { ...target, target_kind: 'android-webview' as const };
+    const session = { send: jest.fn().mockResolvedValue({ targetInfo: { targetId: androidTarget.renderer_id } }), detach: jest.fn().mockResolvedValue(undefined) };
+    const page = {
+      url: () => androidTarget.renderer_url,
+      context: () => ({ newCDPSession: jest.fn().mockResolvedValue(session) }),
+    } as unknown as Page;
+    let reads = 0;
+
+    await expect(
+      waitForAppTargetPage(
+        () => {
+          reads += 1;
+          return reads < 3 ? [] : [page];
+        },
+        androidTarget,
+        { timeoutMs: 100, pollIntervalMs: 1 }
+      )
+    ).resolves.toBe(page);
+    expect(reads).toBe(3);
+  });
+
+  it('keeps missing Android WebView page identity fail-closed at the retry deadline', async () => {
+    const androidTarget = { ...target, target_kind: 'android-webview' as const };
+
+    await expect(
+      waitForAppTargetPage(() => [], androidTarget, { timeoutMs: 5, pollIntervalMs: 1 })
+    ).rejects.toThrow(
+      'renderer page identity is missing after waiting 5ms'
+    );
+  });
+
+  it('rejects an exact Android CDP target ID outside the admitted origin', async () => {
+    const androidTarget = { ...target, target_kind: 'android-webview' as const };
+    const session = { send: jest.fn().mockResolvedValue({ targetInfo: { targetId: androidTarget.renderer_id } }), detach: jest.fn().mockResolvedValue(undefined) };
+    const page = {
+      url: () => 'http://wrong.example/path',
+      context: () => ({ newCDPSession: jest.fn().mockResolvedValue(session) }),
+    } as unknown as Page;
+
+    await expect(
+      waitForAppTargetPage(() => [page], androidTarget, { timeoutMs: 1, pollIntervalMs: 1 })
+    ).rejects.toThrow(
+      'renderer navigated outside the admitted origin'
+    );
+  });
+
+  it('fails closed when page-scoped CDP cannot return renderer target identity', async () => {
+    const androidTarget = { ...target, target_kind: 'android-webview' as const };
+    const detach = jest.fn().mockResolvedValue(undefined);
+    const page = {
+      url: () => androidTarget.renderer_url,
+      context: () => ({ newCDPSession: jest.fn().mockResolvedValue({ send: jest.fn().mockRejectedValue(new Error('method unavailable')), detach }) }),
+    } as unknown as Page;
+    await expect(selectAppTargetPage([page], androidTarget)).rejects.toThrow(
+      'page-scoped CDP target identity is unavailable: method unavailable'
+    );
+    expect(detach).toHaveBeenCalled();
+  });
+
+  it('does not add Android discovery delay to desktop app-target selection', async () => {
+    const startedAt = Date.now();
+
+    await expect(waitForAppTargetPage(() => [], target)).rejects.toThrow(
+      'renderer page identity is missing'
+    );
+    expect(Date.now() - startedAt).toBeLessThan(100);
   });
 });

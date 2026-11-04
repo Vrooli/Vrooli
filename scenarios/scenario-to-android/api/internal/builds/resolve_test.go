@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -35,6 +36,17 @@ func TestResolveAPKRejectsInvalidReferenceTamperingAndSymlinks(t *testing.T) {
 	t.Run("reference cannot select arbitrary paths", func(t *testing.T) {
 		if _, err := ResolveAPK(t.TempDir(), "../../app.apk"); err == nil {
 			t.Fatal("accepted non-immutable reference")
+		}
+	})
+	t.Run("signer metadata must match the retained APK", func(t *testing.T) {
+		dataRoot, ref, _ := retainResolverFixture(t)
+		manifestPath := filepath.Join(dataRoot, "builds", "artifacts", ref[len("android-debug:"):], "artifact.json")
+		data, err := os.ReadFile(manifestPath)
+		require.NoError(t, err)
+		data = []byte(strings.Replace(string(data), strings.Repeat("b", 64), strings.Repeat("c", 64), 1))
+		require.NoError(t, os.WriteFile(manifestPath, data, 0o600))
+		if _, err := ResolveAPK(dataRoot, ref); err == nil {
+			t.Fatal("accepted signer metadata that differs from the retained APK")
 		}
 	})
 	t.Run("manifest reference must match request", func(t *testing.T) {
@@ -76,6 +88,8 @@ func TestResolveAPKRejectsInvalidReferenceTamperingAndSymlinks(t *testing.T) {
 
 func retainResolverFixture(t *testing.T) (string, string, []byte) {
 	t.Helper()
+	const signerDigest = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+	useFakeAndroidSDK(t, signerDigest)
 	dataRoot, source := t.TempDir(), t.TempDir()
 	apkBytes, aabBytes := []byte("portal APK payload"), []byte("portal AAB payload")
 	apkPath, aabPath := filepath.Join(source, "app.apk"), filepath.Join(source, "app.aab")
@@ -95,6 +109,7 @@ func retainResolverFixture(t *testing.T) (string, string, []byte) {
 		Metadata: map[string]string{
 			"apk_path": apkPath, "aab_path": aabPath,
 			"package_name": "com.example.portal", "version_name": "0.4.3", "version_code": "43", "signing": "debug-only",
+			"signing_certificate_sha256": signerDigest,
 		},
 	}
 	retained, err := RetainArtifact(context.Background(), dataRoot, artifact)

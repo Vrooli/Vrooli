@@ -33,6 +33,9 @@ type Builder struct {
 	Run       RunCommand
 	Now       func() time.Time
 	Signing   SigningStore
+	// InspectAPKSigning reads the digest from the exact built APK. Tests may
+	// inject this seam; production resolves the governed Android SDK signer.
+	InspectAPKSigning func(context.Context, string) (string, error)
 }
 
 // SigningStore is deliberately narrower than the credential-client surface.
@@ -178,6 +181,18 @@ func (b Builder) Build(ctx context.Context, request deliveryramp.BuildRequest) (
 	if err != nil {
 		return deliveryramp.Artifact{}, err
 	}
+	inspectSigning := b.InspectAPKSigning
+	if inspectSigning == nil {
+		inspectSigning = inspectAPKSigningCertificate
+	}
+	signingCertificateSHA256, err := inspectSigning(ctx, apkPath)
+	if err != nil {
+		return deliveryramp.Artifact{}, fmt.Errorf("inspect built APK signing certificate: %w", err)
+	}
+	if !validSHA256Digest(signingCertificateSHA256) {
+		return deliveryramp.Artifact{}, fmt.Errorf("inspect built APK signing certificate: invalid SHA-256 digest")
+	}
+	artifact.Metadata["signing_certificate_sha256"] = strings.ToLower(signingCertificateSHA256)
 	artifact.Metadata["branding_source"] = config.BrandSource
 	artifact.Metadata["brand_name"] = config.BrandName
 	artifact.Metadata["version_name"] = config.VersionName

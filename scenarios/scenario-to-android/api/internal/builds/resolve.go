@@ -1,6 +1,8 @@
 package builds
 
 import (
+	"bytes"
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -160,6 +162,11 @@ func ResolveAPK(dataRoot, immutableRef string) (ResolvedAPK, error) {
 		_ = apk.Close()
 		return ResolvedAPK{}, errors.New("Android artifact digest mismatch")
 	}
+	artifactSigner, signerErr := inspectVerifiedAPKSigningCertificate(apk, apkHasher.Sum(nil))
+	if signerErr != nil || !validSHA256Digest(artifact.Metadata["signing_certificate_sha256"]) || !strings.EqualFold(artifactSigner, artifact.Metadata["signing_certificate_sha256"]) {
+		_ = apk.Close()
+		return ResolvedAPK{}, errors.New("Android artifact signing metadata does not match the retained APK")
+	}
 	if _, err := apk.Seek(0, io.SeekStart); err != nil {
 		_ = apk.Close()
 		return ResolvedAPK{}, errors.New("Android APK could not be rewound")
@@ -181,6 +188,39 @@ func ResolveAPK(dataRoot, immutableRef string) (ResolvedAPK, error) {
 		},
 		File: apk,
 	}, nil
+}
+
+// inspectVerifiedAPKSigningCertificate binds signer inspection to the exact
+// bytes already verified by ResolveAPK. The private copy is hashed again
+// before apksigner reads it, so pathname replacement cannot swap the signer
+// input independently of the open verified artifact.
+func inspectVerifiedAPKSigningCertificate(apk *os.File, expectedSHA256 []byte) (string, error) {
+	if _, err := apk.Seek(0, io.SeekStart); err != nil {
+		return "", fmt.Errorf("rewind verified APK for signer inspection: %w", err)
+	}
+	temporary, err := os.CreateTemp("", "vrooli-verified-apk-*.apk")
+	if err != nil {
+		return "", fmt.Errorf("create private APK signer-inspection copy: %w", err)
+	}
+	temporaryPath := temporary.Name()
+	defer os.Remove(temporaryPath)
+	if err := temporary.Chmod(0o600); err != nil {
+		_ = temporary.Close()
+		return "", fmt.Errorf("protect APK signer-inspection copy: %w", err)
+	}
+	copyHasher := sha256.New()
+	if _, err := io.Copy(io.MultiWriter(temporary, copyHasher), apk); err != nil {
+		_ = temporary.Close()
+		return "", fmt.Errorf("copy verified APK for signer inspection: %w", err)
+	}
+	if !bytes.Equal(copyHasher.Sum(nil), expectedSHA256) {
+		_ = temporary.Close()
+		return "", errors.New("verified APK changed before signer inspection")
+	}
+	if err := temporary.Close(); err != nil {
+		return "", fmt.Errorf("close APK signer-inspection copy: %w", err)
+	}
+	return inspectAPKSigningCertificate(context.Background(), temporaryPath)
 }
 
 func requireRegularDirectory(path string) error {

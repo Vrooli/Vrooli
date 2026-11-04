@@ -172,8 +172,10 @@ func (c *HTTPDeviceClient) Execute(ctx context.Context, lease Lease, action stri
 		Disposition      string `json:"disposition"`
 		DisconnectReason string `json:"disconnect_reason"`
 		Chapters         []struct {
-			Disposition string `json:"disposition"`
-			Message     string `json:"message"`
+			Disposition          string                   `json:"disposition"`
+			Message              string                   `json:"message"`
+			ArtifactInstall      *artifactInstallResponse `json:"artifactInstall,omitempty"`
+			ArtifactInstallSnake *artifactInstallResponse `json:"artifact_install,omitempty"`
 		} `json:"chapters"`
 		Evidence []struct {
 			ID, Kind, SHA256, Checksum string
@@ -198,6 +200,23 @@ func (c *HTTPDeviceClient) Execute(ctx context.Context, lease Lease, action stri
 	if err != nil {
 		return ActionResult{}, err
 	}
+	result := ActionResult{}
+	for _, chapter := range response.Chapters {
+		proof := chapter.ArtifactInstall
+		if proof == nil {
+			proof = chapter.ArtifactInstallSnake
+		}
+		if proof != nil {
+			result.ArtifactSigningCertificateSHA256 = strings.TrimSpace(proof.signingCertificateSHA256())
+		}
+	}
+	for _, item := range response.Evidence {
+		checksum := item.Checksum
+		if checksum == "" {
+			checksum = item.SHA256
+		}
+		result.Evidence = append(result.Evidence, deliveryramp.EvidenceReference{ID: item.ID, Kind: item.Kind, Checksum: "sha256:" + strings.TrimPrefix(checksum, "sha256:"), Redacted: item.RedactionVerified})
+	}
 	if response.Disposition != "passed" {
 		reason := strings.TrimSpace(response.DisconnectReason)
 		for _, chapter := range response.Chapters {
@@ -208,19 +227,23 @@ func (c *HTTPDeviceClient) Execute(ctx context.Context, lease Lease, action stri
 			break
 		}
 		if reason != "" {
-			return ActionResult{}, fmt.Errorf("device-control action %q disposition=%q: %s", action, response.Disposition, reason)
+			return result, fmt.Errorf("device-control action %q disposition=%q: %s", action, response.Disposition, reason)
 		}
-		return ActionResult{}, fmt.Errorf("device-control action %q disposition=%q", action, response.Disposition)
-	}
-	result := ActionResult{}
-	for _, item := range response.Evidence {
-		checksum := item.Checksum
-		if checksum == "" {
-			checksum = item.SHA256
-		}
-		result.Evidence = append(result.Evidence, deliveryramp.EvidenceReference{ID: item.ID, Kind: item.Kind, Checksum: "sha256:" + strings.TrimPrefix(checksum, "sha256:"), Redacted: item.RedactionVerified})
+		return result, fmt.Errorf("device-control action %q disposition=%q", action, response.Disposition)
 	}
 	return result, nil
+}
+
+type artifactInstallResponse struct {
+	SigningCertificateSHA256Camel string `json:"signingCertificateSha256,omitempty"`
+	SigningCertificateSHA256Snake string `json:"signing_certificate_sha256,omitempty"`
+}
+
+func (r artifactInstallResponse) signingCertificateSHA256() string {
+	if value := strings.TrimSpace(r.SigningCertificateSHA256Camel); value != "" {
+		return value
+	}
+	return strings.TrimSpace(r.SigningCertificateSHA256Snake)
 }
 
 func (c *HTTPDeviceClient) StartRecording(ctx context.Context, lease Lease) error {
@@ -392,6 +415,55 @@ func (c *HTTPDeviceClient) ReadPackageState(ctx context.Context, lease Lease, pa
 		return InstalledPackageState{}, fmt.Errorf("Device Control package-state readback did not verify %s: %s", packageName, response.Result.Reason)
 	}
 	return InstalledPackageState{Installed: response.Result.Installed, Version: response.Result.Version, VersionCode: response.Result.VersionCode}, nil
+}
+
+func (c *HTTPDeviceClient) ReadNetworkState(ctx context.Context, lease Lease) (NetworkStateSnapshot, error) {
+	var response struct {
+		Result struct {
+			Operation    string               `json:"operation"`
+			Status       string               `json:"status"`
+			Reason       string               `json:"reason,omitempty"`
+			NetworkState NetworkStateSnapshot `json:"network_state"`
+		} `json:"result"`
+	}
+	payload := map[string]any{
+		"actor": c.actor(""), "lease_token": lease.Token, "confirmed": false,
+		"operation": "network-state",
+	}
+	path := "/api/v1/devices/" + urlPathSegment(lease.DeviceID) + "/apps"
+	if err := c.post(ctx, path, payload, &response); err != nil {
+		return NetworkStateSnapshot{}, err
+	}
+	state := response.Result.NetworkState
+	if response.Result.Operation != "network-state" || response.Result.Status != "available" || state.WifiEnabled == nil || state.MobileDataEnabled == nil || state.AirplaneModeEnabled == nil {
+		return NetworkStateSnapshot{}, fmt.Errorf("Device Control network-state readback is incomplete: %s", response.Result.Reason)
+	}
+	return state, nil
+}
+
+func (c *HTTPDeviceClient) ReadPackageSigningState(ctx context.Context, lease Lease, packageName string) (string, error) {
+	var response struct {
+		Result struct {
+			Operation                string `json:"operation"`
+			Package                  string `json:"package,omitempty"`
+			Status                   string `json:"status"`
+			Installed                bool   `json:"installed"`
+			SigningCertificateSHA256 string `json:"signing_certificate_sha256,omitempty"`
+			Reason                   string `json:"reason,omitempty"`
+		} `json:"result"`
+	}
+	payload := map[string]any{
+		"actor": c.actor(""), "lease_token": lease.Token, "confirmed": false,
+		"operation": "package-signing-state", "package": packageName,
+	}
+	path := "/api/v1/devices/" + urlPathSegment(lease.DeviceID) + "/apps"
+	if err := c.post(ctx, path, payload, &response); err != nil {
+		return "", err
+	}
+	if response.Result.Operation != "package-signing-state" || response.Result.Package != packageName || response.Result.Status != "available" || !response.Result.Installed || strings.TrimSpace(response.Result.SigningCertificateSHA256) == "" {
+		return "", fmt.Errorf("Device Control package-signing-state did not verify %s: %s", packageName, response.Result.Reason)
+	}
+	return strings.TrimSpace(response.Result.SigningCertificateSHA256), nil
 }
 
 func (c *HTTPDeviceClient) get(ctx context.Context, path string, result any) error {

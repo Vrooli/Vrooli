@@ -225,18 +225,19 @@ func TestDriverCompletesBASStepWithReferenceOnlyVideo(t *testing.T) {
 }
 
 type scenarioInstallFakeDevice struct {
-	preflightErr     error
-	packageStateErr  error
-	packageState     InstalledPackageState
-	postInstallState *InstalledPackageState
-	installErr       error
-	packageReads     int
-	calls            []map[string]string
-	actions          []string
-	startedRecording int
-	state            DeviceStateSnapshot
-	sleepReads       int
-	sleepReadsLeft   int
+	preflightErr        error
+	packageStateErr     error
+	packageState        InstalledPackageState
+	postInstallState    *InstalledPackageState
+	installErr          error
+	loseInstallResponse bool
+	packageReads        int
+	calls               []map[string]string
+	actions             []string
+	startedRecording    int
+	state               DeviceStateSnapshot
+	sleepReads          int
+	sleepReadsLeft      int
 }
 
 func (f *scenarioInstallFakeDevice) ReadPackageState(context.Context, Lease, string) (InstalledPackageState, error) {
@@ -245,6 +246,13 @@ func (f *scenarioInstallFakeDevice) ReadPackageState(context.Context, Lease, str
 		return InstalledPackageState{}, f.packageStateErr
 	}
 	return f.packageState, nil
+}
+
+func (f *scenarioInstallFakeDevice) ReadPackageSigningState(context.Context, Lease, string) (string, error) {
+	if !f.packageState.Installed || f.packageState.SigningCertificateSHA256 == "" {
+		return "", errors.New("package signer is unavailable")
+	}
+	return f.packageState.SigningCertificateSHA256, nil
 }
 
 func (f *scenarioInstallFakeDevice) ReadState(context.Context, string) (DeviceStateSnapshot, error) {
@@ -284,8 +292,20 @@ func (f *scenarioInstallFakeDevice) Execute(_ context.Context, _ Lease, action s
 			f.packageState = *f.postInstallState
 		}
 		if f.installErr != nil {
-			return ActionResult{}, f.installErr
+			if f.loseInstallResponse {
+				return ActionResult{}, f.installErr
+			}
+			return ActionResult{ArtifactSigningCertificateSHA256: strings.Repeat("b", 64)}, f.installErr
 		}
+		if f.postInstallState == nil {
+			f.packageState = InstalledPackageState{Installed: true, Version: "1.2.3", VersionCode: 12, SigningCertificateSHA256: strings.Repeat("b", 64)}
+		}
+	}
+	if action == "install-artifact" {
+		return ActionResult{ArtifactSigningCertificateSHA256: strings.Repeat("b", 64), Evidence: []deliveryramp.EvidenceReference{{ID: "evidence-" + arguments["step_id"], Kind: "device-control", Checksum: "sha256:evidence"}}}, nil
+	}
+	if arguments["step_id"] == "temporary-cleanup/uninstall" {
+		f.packageState = InstalledPackageState{}
 	}
 	if arguments["step_id"] == "install-preflight/package-state" && f.preflightErr != nil {
 		return ActionResult{}, f.preflightErr
@@ -385,7 +405,8 @@ func appInstallRequest(t *testing.T, mode string) deliveryramp.DriverRequest {
 		Checksum:     "sha256:" + strings.Repeat("a", 64),
 		Metadata: map[string]string{
 			"package_name": "com.example.generated", "version_name": "1.2.3", "version_code": "12", "signing": "debug-only",
-			"scenario_name": "hello-mobile", "auth_profile_id": "profile-1",
+			"signing_certificate_sha256": strings.Repeat("b", 64),
+			"scenario_name":              "hello-mobile", "auth_profile_id": "profile-1",
 		},
 	}
 	return request
@@ -465,6 +486,41 @@ func TestTemporaryScenarioAppCleansUpAfterBASFailure(t *testing.T) {
 	}
 }
 
+type temporaryPackageReplacementBAS struct {
+	device *scenarioInstallFakeDevice
+}
+
+func (b temporaryPackageReplacementBAS) ValidateFlow(context.Context, BASRequest) error { return nil }
+
+func (b temporaryPackageReplacementBAS) Execute(context.Context, BASRequest) (BASResult, error) {
+	b.device.packageState = InstalledPackageState{
+		Installed: true, Version: "1.2.3", VersionCode: 12,
+		SigningCertificateSHA256: strings.Repeat("c", 64),
+	}
+	return BASResult{Completed: true, ExecutionID: "replacement-bas"}, nil
+}
+
+func TestTemporaryCleanupRefusesPackageWhoseSignerChangedAfterInstall(t *testing.T) {
+	device := &scenarioInstallFakeDevice{}
+	result, err := (Driver{Devices: device, BAS: temporaryPackageReplacementBAS{device: device}}).Execute(context.Background(), appInstallRequest(t, "temporary"))
+	require.ErrorContains(t, err, "installed package signer changed after preflight")
+	require.Equal(t, deliveryramp.DispositionFailed, result.Disposition)
+	require.True(t, device.packageState.Installed, "a package that does not match the run artifact must be retained")
+	require.Equal(t, strings.Repeat("c", 64), device.packageState.SigningCertificateSHA256)
+	for _, call := range device.calls {
+		require.NotEqual(t, "temporary-cleanup/uninstall", call["step_id"], "cleanup must not uninstall a package with a different signer")
+	}
+	var cleanup *deliveryramp.JourneyStep
+	for index := range result.Steps {
+		if result.Steps[index].ID == "temporary-cleanup/verify-absent" {
+			cleanup = &result.Steps[index]
+		}
+	}
+	require.NotNil(t, cleanup)
+	require.Equal(t, deliveryramp.StepFailed, cleanup.Disposition)
+	require.Contains(t, cleanup.ObservedState, "retained package")
+}
+
 type temporaryInstallTimeoutDevice struct {
 	*scenarioInstallFakeDevice
 	installErr error
@@ -473,8 +529,9 @@ type temporaryInstallTimeoutDevice struct {
 func (f *temporaryInstallTimeoutDevice) Execute(ctx context.Context, lease Lease, action string, arguments map[string]string) (ActionResult, error) {
 	switch arguments["step_id"] {
 	case "artifact-install/install":
-		f.postInstallState = &InstalledPackageState{Installed: true, Version: "1.2.3", VersionCode: 12}
+		f.postInstallState = &InstalledPackageState{Installed: true, Version: "1.2.3", VersionCode: 12, SigningCertificateSHA256: strings.Repeat("b", 64)}
 		f.scenarioInstallFakeDevice.installErr = f.installErr
+		f.scenarioInstallFakeDevice.loseInstallResponse = true
 		return f.scenarioInstallFakeDevice.Execute(ctx, lease, action, arguments)
 	case "temporary-cleanup/uninstall":
 		result, err := f.scenarioInstallFakeDevice.Execute(ctx, lease, action, arguments)

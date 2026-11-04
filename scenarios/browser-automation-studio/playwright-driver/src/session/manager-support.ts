@@ -27,6 +27,7 @@ export {
   selectAppTargetPage,
   validateAppTargetCapabilities,
   validateAppTargetSpec,
+  waitForAppTargetPage,
   verifyAppTargetRenderer,
 } from './electron-target';
 export { BrowserManager, type BrowserStatus } from './browser-manager';

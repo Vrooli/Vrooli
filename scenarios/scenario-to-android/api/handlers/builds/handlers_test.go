@@ -93,6 +93,14 @@ func TestArtifactHandlersRejectScenarioUIProxyRequests(t *testing.T) {
 
 func retainedHandlerArtifact(t *testing.T) (string, string, []byte) {
 	t.Helper()
+	sdkRoot := t.TempDir()
+	const signerDigest = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+	toolPath := filepath.Join(sdkRoot, "build-tools", "35.0.0", "apksigner")
+	require.NoError(t, os.MkdirAll(filepath.Join(sdkRoot, "platforms"), 0o755))
+	require.NoError(t, os.MkdirAll(filepath.Dir(toolPath), 0o755))
+	require.NoError(t, os.WriteFile(toolPath, []byte("#!/bin/sh\nprintf '%s\\n' 'Signer #1 certificate SHA-256 digest: "+signerDigest+"'\n"), 0o755))
+	t.Setenv("ANDROID_SDK_ROOT", sdkRoot)
+	t.Setenv("ANDROID_HOME", "")
 	root, source := t.TempDir(), t.TempDir()
 	apk, aab := []byte("verified APK bytes"), []byte("verified AAB bytes")
 	apkPath, aabPath := filepath.Join(source, "app.apk"), filepath.Join(source, "app.aab")
@@ -106,7 +114,7 @@ func retainedHandlerArtifact(t *testing.T) (string, string, []byte) {
 	artifact := deliveryramp.Artifact{
 		ImmutableRef: "android-debug:" + digest, Kind: "android-debug-apk-aab", Checksum: "sha256:" + digest,
 		SizeBytes: int64(len(apk) + len(aab)), CreatedAt: time.Date(2026, 11, 2, 12, 0, 0, 0, time.UTC),
-		Metadata: map[string]string{"apk_path": apkPath, "aab_path": aabPath, "package_name": "com.example.portal", "version_name": "0.4.3", "version_code": "43", "signing": "debug-only"},
+		Metadata: map[string]string{"apk_path": apkPath, "aab_path": aabPath, "package_name": "com.example.portal", "version_name": "0.4.3", "version_code": "43", "signing": "debug-only", "signing_certificate_sha256": signerDigest},
 	}
 	retained, err := buildsdomain.RetainArtifact(context.Background(), root, artifact)
 	require.NoError(t, err)

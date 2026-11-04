@@ -213,10 +213,11 @@ type AppLifecycleResult struct {
 	// Installed is the verified package-presence result for a package-state
 	// query. Status reports whether the operation itself succeeded; Installed
 	// reports the live on-device fact.
-	Installed                bool   `json:"installed"`
-	Version                  string `json:"version,omitempty"`
-	VersionCode              int64  `json:"version_code,omitempty"`
-	SigningCertificateSHA256 string `json:"signing_certificate_sha256,omitempty"`
+	Installed                bool          `json:"installed"`
+	Version                  string        `json:"version,omitempty"`
+	VersionCode              int64         `json:"version_code,omitempty"`
+	SigningCertificateSHA256 string        `json:"signing_certificate_sha256,omitempty"`
+	NetworkState             *NetworkState `json:"network_state,omitempty"`
 	// Outcome separates a command acknowledgement from a live foreground
 	// observation. Neither proves a rendered frame or application readiness.
 	Outcome                string            `json:"outcome,omitempty"`
@@ -246,6 +247,15 @@ type AppLifecycleResult struct {
 	ProcessExits           []ProcessExit     `json:"process_exits,omitempty"`
 	ApplicationStatus      map[string]string `json:"application_status,omitempty"`
 	Performance            *AppPerformance   `json:"performance,omitempty"`
+}
+
+// NetworkState is a read-only snapshot of the radio settings that the
+// Android network verb changes. Unknown fields remain nil so callers can fail
+// closed before starting a connectivity-perturbation journey.
+type NetworkState struct {
+	WifiEnabled         *bool `json:"wifi_enabled,omitempty"`
+	MobileDataEnabled   *bool `json:"mobile_data_enabled,omitempty"`
+	AirplaneModeEnabled *bool `json:"airplane_mode_enabled,omitempty"`
 }
 
 // AppPerformance is a point-in-time diagnostic, not a claim about physical
@@ -280,7 +290,7 @@ type HomeCandidate struct {
 func (r AppLifecycleResult) MarshalJSON() ([]byte, error) {
 	type alias AppLifecycleResult
 	var installed *bool
-	if r.Operation == "package-state" {
+	if r.Operation == "package-state" || r.Operation == "package-signing-state" {
 		value := r.Installed
 		installed = &value
 	}

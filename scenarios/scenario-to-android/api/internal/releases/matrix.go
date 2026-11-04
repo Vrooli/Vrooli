@@ -334,10 +334,10 @@ func verifiedScenarioPackageEvidence(result deliveryramp.JourneyResult, request 
 			mode = "verify"
 		}
 	}
-	wantStep, wantState := "", ""
+	wantStep, wantState, wantObservedState := "", "", ""
 	switch mode {
 	case "temporary":
-		wantStep, wantState = "temporary-cleanup/verify-absent", "scenario package is absent"
+		wantStep, wantObservedState = "temporary-cleanup/verify-absent", "scenario package is absent"
 	case "durable":
 		wantStep = "verify-installed"
 	case "update":
@@ -353,6 +353,9 @@ func verifiedScenarioPackageEvidence(result deliveryramp.JourneyResult, request 
 	}
 	for _, step := range result.Steps {
 		stateMatches := wantState == "" || step.ExpectedState == wantState
+		if wantObservedState != "" {
+			stateMatches = strings.EqualFold(strings.TrimSpace(step.ObservedState), wantObservedState)
+		}
 		if wantState == "absent" {
 			stateMatches = strings.Contains(strings.ToLower(step.ExpectedState), "absent")
 		}
@@ -360,7 +363,11 @@ func verifiedScenarioPackageEvidence(result deliveryramp.JourneyResult, request 
 			continue
 		}
 		cellID := request.Cell.GetCellId()
-		value := fmt.Sprintf("target=%s package=%s state=%s step=%s", request.Target.GetTargetId(), request.Metadata["package_name"], step.ExpectedState, step.ID)
+		state := step.ExpectedState
+		if wantObservedState != "" {
+			state = strings.TrimSpace(step.ObservedState)
+		}
+		value := fmt.Sprintf("target=%s package=%s state=%s step=%s", request.Target.GetTargetId(), request.Metadata["package_name"], state, step.ID)
 		mediaType := "text/plain"
 		return &domainv1.LayeredEvidence{
 			Kind:       domainv1.LayeredEvidence_KIND_TARGET,

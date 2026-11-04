@@ -31,7 +31,7 @@ type AppLifecycleResponse struct {
 
 func lifecycleNeedsConfirmation(operation string) bool {
 	switch operation {
-	case "home-state", "package-state", "package-signing-state", "accessibility-state", "foreground-state", "process-state", "app-status", "performance-state":
+	case "home-state", "package-state", "package-signing-state", "network-state", "accessibility-state", "foreground-state", "process-state", "app-status", "performance-state":
 		return false
 	default:
 		return true
@@ -43,7 +43,11 @@ func validateAppLifecycleRequest(request strategy.AppLifecycleRequest) error {
 	if request.Operation == "" {
 		return fmt.Errorf("app lifecycle operation is required")
 	}
-	if request.Package == "" || len(request.Package) > 256 || !androidPackageName.MatchString(request.Package) {
+	if request.Operation == "network-state" {
+		if request.Package != "" {
+			return fmt.Errorf("network-state does not accept a package identity")
+		}
+	} else if request.Package == "" || len(request.Package) > 256 || !androidPackageName.MatchString(request.Package) {
 		return fmt.Errorf("package must be a fully-qualified application identity")
 	}
 	if request.Executable != "" || len(request.Arguments) > 0 {

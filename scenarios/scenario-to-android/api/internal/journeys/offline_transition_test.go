@@ -19,7 +19,16 @@ type offlineFixtureDevice struct {
 	recoveryErr    error
 	offlineErr     error
 	terminalState  *InstalledPackageState
+	networkState   NetworkStateSnapshot
+	networkErr     error
 	logStarts      int
+}
+
+func (f *offlineFixtureDevice) ReadNetworkState(context.Context, Lease) (NetworkStateSnapshot, error) {
+	if f.networkErr != nil {
+		return NetworkStateSnapshot{}, f.networkErr
+	}
+	return f.networkState, nil
 }
 
 func (f *offlineFixtureDevice) Acquire(_ context.Context, target, _ string, _ time.Duration) (Lease, error) {
@@ -48,9 +57,15 @@ func (f *offlineFixtureDevice) Execute(ctx context.Context, lease Lease, action 
 	result, err := f.scenarioInstallFakeDevice.Execute(ctx, lease, action, args)
 	if action == "network" {
 		if args["target"] == "offline" {
+			wifi, data := false, false
+			f.networkState.WifiEnabled, f.networkState.MobileDataEnabled = &wifi, &data
 			return result, f.offlineErr
 		}
 		if args["target"] == "online" {
+			if f.recoveryErr == nil {
+				wifi, data := true, true
+				f.networkState.WifiEnabled, f.networkState.MobileDataEnabled = &wifi, &data
+			}
 			return result, f.recoveryErr
 		}
 	}
@@ -83,7 +98,11 @@ func offlineFixtureRequest(t *testing.T) deliveryramp.DriverRequest {
 }
 
 func newOfflineFixtureDevice() *offlineFixtureDevice {
-	return &offlineFixtureDevice{scenarioInstallFakeDevice: &scenarioInstallFakeDevice{packageState: InstalledPackageState{Installed: true, Version: "1.2.3", VersionCode: 12}}}
+	wifi, data, airplane := true, true, false
+	return &offlineFixtureDevice{
+		scenarioInstallFakeDevice: &scenarioInstallFakeDevice{packageState: InstalledPackageState{Installed: true, Version: "1.2.3", VersionCode: 12}},
+		networkState:              NetworkStateSnapshot{WifiEnabled: &wifi, MobileDataEnabled: &data, AirplaneModeEnabled: &airplane},
+	}
 }
 
 func requireFixturePreserved(t *testing.T, device *offlineFixtureDevice) {
@@ -132,8 +151,15 @@ func TestInstalledOfflineTransitionPassesBothBASStatesAndKeepsPackage(t *testing
 		}
 	}
 	require.Equal(t, 2, device.packageReads, "preflight and terminal identity must both be read")
-	require.Equal(t, "device-cleanup/package-identity", result.Steps[len(result.Steps)-2].ID)
-	require.Equal(t, "observed", result.Steps[len(result.Steps)-2].AssertionStatus)
+	var networkRestore *deliveryramp.JourneyStep
+	for index := range result.Steps {
+		if result.Steps[index].ID == "device-cleanup/verify-network-state" {
+			networkRestore = &result.Steps[index]
+		}
+	}
+	require.NotNil(t, networkRestore)
+	require.Equal(t, deliveryramp.StepPassed, networkRestore.Disposition)
+	require.Equal(t, "observed", networkRestore.AssertionStatus)
 	requireFixturePreserved(t, device)
 }
 
@@ -171,6 +197,17 @@ func TestInstalledOfflineTransitionRefusesUnsafePreconditionsBeforeMutation(t *t
 		}},
 		{"package state unavailable", func(_ *deliveryramp.DriverRequest, d *offlineFixtureDevice, _ *countingBAS, _ *Driver) {
 			d.packageStateErr = errors.New("readback unavailable")
+		}},
+		{"wifi initially disabled", func(_ *deliveryramp.DriverRequest, d *offlineFixtureDevice, _ *countingBAS, _ *Driver) {
+			wifi := false
+			d.networkState.WifiEnabled = &wifi
+		}},
+		{"airplane mode initially enabled", func(_ *deliveryramp.DriverRequest, d *offlineFixtureDevice, _ *countingBAS, _ *Driver) {
+			airplane := true
+			d.networkState.AirplaneModeEnabled = &airplane
+		}},
+		{"network state unknown", func(_ *deliveryramp.DriverRequest, d *offlineFixtureDevice, _ *countingBAS, _ *Driver) {
+			d.networkState.MobileDataEnabled = nil
 		}},
 		{"flow unregistered", func(_ *deliveryramp.DriverRequest, _ *offlineFixtureDevice, b *countingBAS, _ *Driver) {
 			b.preflightErr = errors.New("flow is not registered")

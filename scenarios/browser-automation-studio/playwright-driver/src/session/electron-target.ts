@@ -133,16 +133,39 @@ export async function verifyAppTargetRenderer(target: AppTargetSpec): Promise<vo
 }
 
 export async function selectAppTargetPage(pages: Page[], target: AppTargetSpec): Promise<Page> {
-  await Promise.resolve();
-  const matches = pages.filter((page) => page.url() === target.renderer_url);
-  // Android WebView CDP can expose more than one Playwright Page wrapper
-  // for the same device-owned renderer. The renderer ID was already
-  // authenticated by verifyAppTargetRenderer against /json/list, so exact
-  // URL matches are safe to collapse for this target kind. Desktop targets
-  // retain strict page-identity ambiguity rejection below.
-  if (targetKind(target) === 'android-webview' && matches.length > 0) {
-    return matches[0] as Page;
+  if (targetKind(target) === 'android-webview') {
+    const matches: Page[] = [];
+    for (const page of pages) {
+      const context = page.context();
+      let session: Awaited<ReturnType<typeof context.newCDPSession>> | undefined;
+      try {
+        session = await context.newCDPSession(page);
+        const result = await session.send('Target.getTargetInfo');
+        const targetInfo = (result as { targetInfo?: { targetId?: unknown } } | undefined)?.targetInfo;
+        if (targetInfo?.targetId === target.renderer_id) matches.push(page);
+      } catch (error) {
+        const detail = error instanceof Error ? error.message : String(error);
+        throw new Error(`Android WebView page-scoped CDP target identity is unavailable: ${detail}`);
+      } finally {
+        if (session) {
+          try {
+            await session.detach();
+          } catch {
+            // Detach is best effort after identity retrieval; do not mask its result.
+          }
+        }
+      }
+    }
+    if (matches.length !== 1) {
+      throw new Error(`app-target renderer page identity is ${matches.length === 0 ? 'missing' : 'ambiguous'}`);
+    }
+    const page = matches[0];
+    if (!page || !isAllowedRendererNavigation(target, page.url())) {
+      throw new Error('app-target renderer navigated outside the admitted origin');
+    }
+    return page;
   }
+  const matches = pages.filter((page) => page.url() === target.renderer_url);
   if (matches.length !== 1) {
     if (matches.length === 0 && pages.length === 1) {
       const onlyPage = pages[0];
@@ -150,13 +173,57 @@ export async function selectAppTargetPage(pages: Page[], target: AppTargetSpec):
         return onlyPage;
       }
     }
-    throw new Error(
-      `app-target renderer page identity is ${matches.length === 0 ? 'missing' : 'ambiguous'}`
-    );
+    const identityState = matches.length === 0 ? 'missing' : 'ambiguous';
+    throw new Error(`app-target renderer page identity is ${identityState}`);
   }
   const page = matches[0];
   if (!page) throw new Error('app-target renderer page identity is missing');
   return page;
+}
+
+/**
+ * Android WebView CDP can publish the renderer through /json/list slightly
+ * before Playwright exposes its Page wrapper after connectOverCDP. Keep the
+ * admitted renderer/origin checks intact, but allow that wrapper a short,
+ * bounded window to appear before refusing the attachment.
+ */
+export async function waitForAppTargetPage(
+  listPages: () => Page[],
+  target: AppTargetSpec,
+  options: { timeoutMs?: number; pollIntervalMs?: number } = {}
+): Promise<Page> {
+  const isAndroidWebView = targetKind(target) === 'android-webview';
+  const timeoutMs = isAndroidWebView ? Math.max(0, options.timeoutMs ?? 1_000) : 0;
+  const pollIntervalMs = Math.max(1, options.pollIntervalMs ?? 50);
+  const deadline = Date.now() + timeoutMs;
+  let lastError: unknown;
+
+  do {
+    try {
+      return await selectAppTargetPage(listPages(), target);
+    } catch (error) {
+      if (
+        !isAndroidWebView ||
+        !(error instanceof Error) ||
+        !error.message.includes('renderer page identity is missing')
+      ) {
+        throw error;
+      }
+      lastError = error;
+    }
+
+    const remainingMs = deadline - Date.now();
+    if (remainingMs <= 0) break;
+    await new Promise<void>((resolve) =>
+      setTimeout(resolve, Math.min(pollIntervalMs, remainingMs))
+    );
+  } while (Date.now() <= deadline);
+
+  throw lastError instanceof Error
+    ? new Error(`${lastError.message} after waiting ${timeoutMs}ms for Android WebView discovery`)
+    : new Error(
+        `app-target renderer page identity is missing after waiting ${timeoutMs}ms for Android WebView discovery`
+      );
 }
 
 function isAllowedRendererNavigation(target: AppTargetSpec, currentURL: string): boolean {
