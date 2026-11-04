@@ -117,6 +117,33 @@ func TestIncompleteHistoryCannotProduceEffortMedian(t *testing.T) {
 	}
 }
 
+func TestCrossContextParentRemainsValidAndEffortIsLeftCensored(t *testing.T) {
+	parent := attempt("parent", "task", 1, "failed")
+	child := attempt("child", "task", 2, "verified_success")
+	child.ParentAttemptId = proto.String(parent.AttemptId)
+	child.StepName = proto.String("verify")
+	child.ContextKey = "windows:tool-v1"
+	es := []*source.Entry{entry(t, parent), entry(t, child)}
+
+	r := measure(es)
+	if !r.Reliable || r.InvalidRecords != 0 || len(r.Cohorts) != 2 {
+		t.Fatalf("cross-context parent was treated as missing or cohorts were merged: %+v", r)
+	}
+	for _, c := range r.Cohorts {
+		if c.ContextKey == child.ContextKey && (c.LeftCensoredTasks != 1 || c.MedianSecondsToSuccess != nil) {
+			t.Fatalf("child cohort lost left-censored effort semantics: %+v", c)
+		}
+	}
+
+	filtered := Measure(es, "scope", start, start.Add(24*time.Hour), "", child.ContextKey, false)
+	if !filtered.Reliable || filtered.InvalidRecords != 0 || filtered.EligibleAttempts != 1 || len(filtered.Cohorts) != 1 {
+		t.Fatalf("context filter erased a parent needed to validate its child: %+v", filtered)
+	}
+	if filtered.Cohorts[0].LeftCensoredTasks != 1 || filtered.Cohorts[0].MedianSecondsToSuccess != nil {
+		t.Fatalf("filtered child cohort lost left-censored effort semantics: %+v", filtered.Cohorts[0])
+	}
+}
+
 func TestHalfOpenWindowAndScanLimit(t *testing.T) {
 	a := attempt("a", "task", 1, "verified_success")
 	es := []*source.Entry{entry(t, a)}

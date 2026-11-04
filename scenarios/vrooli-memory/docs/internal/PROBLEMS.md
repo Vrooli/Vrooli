@@ -117,6 +117,18 @@ Use this shape so entries are scannable. Append newest at the bottom.
 
 **Refs:** `internal/vector`, `data/vrooli-memory.db`.
 
+### 2026-11-02 — Cross-context parented attempts were counted as invalid (RESOLVED)
+
+**Symptom:** `learning measure` marked valid child attempts as invalid when their recorded parent shared scope, task, operation and provenance but had a different context key. This made a mixed-context window report `unreliable:invalid_records`.
+
+**Root cause:** Parent membership was checked inside the operation/context/provenance cohort. Context selects comparison cohorts, but it does not define task-tree membership.
+
+**Real fix (done):** `Measure` now indexes eligible parent attempt IDs by task, operation and provenance before applying the measurement selectors. Metric cohorts remain partitioned by context. `TestCrossContextParentRemainsValidAndEffortIsLeftCensored` covers unfiltered cohorts, context-filtered validation and left-censored effort semantics. Focused package tests and Test Genie unit run `20261102-202743-db95f2af` passed. The exact historical window changed from 8 invalid records/16 eligible attempts to 0 invalid records/16 eligible attempts and `reliable=true`; the mixed cohorts remain too small and heterogeneous for a baseline claim.
+
+**Owner:** vrooli-memory
+
+**Refs:** `api/internal/learning/learning.go`, `api/internal/learning/learning_test.go`, bug `knw-1793644749148975095` (`bug-inbox/code-defect/learning-measure-invalidates-cross-context-parented-attempts`).
+
 ## Architecture Drift
 
 Use this section for deferred findings from `screaming-architecture-audit`.

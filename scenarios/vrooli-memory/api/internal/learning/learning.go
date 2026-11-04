@@ -239,6 +239,7 @@ func Measure(entries []*source.Entry, scope string, from, to time.Time, operatio
 	}
 	groups := map[string]*cohort{}
 	seen := map[string]string{}
+	parents := map[string]map[string]bool{}
 	for _, e := range entries {
 		if e == nil || e.CreatedAt == nil {
 			out.InvalidRecords++
@@ -264,6 +265,15 @@ func Measure(entries []*source.Entry, scope string, from, to time.Time, operatio
 		finish, _ := time.Parse(time.RFC3339Nano, a.FinishedAt)
 		if finish.Before(from) || !finish.Before(to) {
 			continue
+		}
+		if a.Provenance != "test" {
+			// Parent identity belongs to the task tree, not a comparison cohort.
+			// A valid child can move contexts while its metrics remain separated.
+			taskKey := a.Operation + "\x00" + a.TaskId + "\x00" + a.Provenance
+			if parents[taskKey] == nil {
+				parents[taskKey] = map[string]bool{}
+			}
+			parents[taskKey][a.AttemptId] = true
 		}
 		if operation != "" && a.Operation != operation || contextKey != "" && a.ContextKey != contextKey {
 			continue
@@ -348,16 +358,15 @@ func Measure(entries []*source.Entry, scope string, from, to time.Time, operatio
 		t.attempts = append(t.attempts, a)
 	}
 	// A child is meaningful only when its parent was recorded in this same
-	// scope. Keep the individual records immutable, but mark orphaned trees
-	// unreliable instead of silently treating them as independent attempts.
+	// scope/task/operation/provenance. Context is deliberately excluded because
+	// the comparison selector may partition a valid task tree across cohorts.
+	// Keep the individual records immutable, but mark orphaned trees unreliable
+	// instead of silently treating them as independent attempts.
 	for _, g := range groups {
 		for _, task := range g.tasks {
-			ids := map[string]bool{}
 			for _, a := range task.attempts {
-				ids[a.AttemptId] = true
-			}
-			for _, a := range task.attempts {
-				if a.ParentAttemptId != nil && !ids[a.GetParentAttemptId()] {
+				taskKey := a.Operation + "\x00" + a.TaskId + "\x00" + a.Provenance
+				if a.ParentAttemptId != nil && !parents[taskKey][a.GetParentAttemptId()] {
 					out.InvalidRecords++
 				}
 			}
