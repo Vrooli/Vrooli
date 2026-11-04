@@ -17,6 +17,7 @@ import (
 	destint "data-backup-manager/internal/destinations"
 	discoveryint "data-backup-manager/internal/discovery"
 	drillsint "data-backup-manager/internal/drills"
+	engineint "data-backup-manager/internal/engine"
 	plansint "data-backup-manager/internal/plans"
 	restoresint "data-backup-manager/internal/restores"
 	runsint "data-backup-manager/internal/runs"
@@ -980,36 +981,79 @@ func overdueAfter() (time.Duration, error) {
 	return def, nil
 }
 
-// backupPosture adapts runs.Service to health.BackupPosture. It counts the
-// per-target Overdue flag the runs service computes (last run failed/partial,
-// never succeeded, or last success older than DBM_OVERDUE_AFTER) so the health
-// rollup and `runs status` share one freshness rule rather than each applying
-// their own.
+// backupPosture adapts backup freshness and enabled-plan repository connection
+// checks to health.BackupPosture. It counts the per-target Overdue flag the
+// runs service computes so health and `runs status` share one freshness rule.
 type backupPosture struct {
-	runs runsint.Service
+	runs         runsint.Service
+	plans        plansint.Service
+	destinations destint.Service
+	engine       repositoryPostureEngine
+}
+
+type repositoryPostureEngine interface {
+	RepoStatus(context.Context, string) (engineint.RepoStatus, error)
 }
 
 func (a backupPosture) OverdueOrFailed(ctx context.Context) (bool, string, error) {
-	statuses, err := a.runs.ListTargetStatus(ctx, nil)
-	if err != nil {
-		return false, "", err
-	}
 	const maxNamed = 10
 	var named []string
 	bad := 0
-	for _, s := range statuses {
-		if !s.Overdue {
-			continue
+	if a.runs != nil {
+		statuses, err := a.runs.ListTargetStatus(ctx, nil)
+		if err != nil {
+			return false, "", err
 		}
-		bad++
-		if len(named) < maxNamed {
-			named = append(named, fmt.Sprintf("%s (%s)", s.TargetID, overdueReason(s)))
+		for _, s := range statuses {
+			if !s.Overdue {
+				continue
+			}
+			bad++
+			if len(named) < maxNamed {
+				named = append(named, fmt.Sprintf("%s (%s)", s.TargetID, overdueReason(s)))
+			}
+		}
+	}
+
+	// Check repository connections used by enabled plans as well as target
+	// freshness. Manifest enumeration is intentionally left to the per-run
+	// preflight: it can exceed the health probe's short timeout on large repos.
+	if a.plans != nil && a.destinations != nil && a.engine != nil {
+		plans, err := a.plans.List(ctx, 100)
+		if err != nil {
+			return false, "", fmt.Errorf("load backup plans for health: %w", err)
+		}
+		checked := map[string]bool{}
+		for _, plan := range plans {
+			if !plan.Enabled {
+				continue
+			}
+			for _, id := range plan.DestinationIDs {
+				if checked[id] {
+					continue
+				}
+				checked[id] = true
+				destination, err := a.destinations.GetDestination(ctx, id)
+				if err != nil {
+					bad++
+					if len(named) < maxNamed {
+						named = append(named, fmt.Sprintf("destination %s unavailable", id))
+					}
+					continue
+				}
+				if _, err := a.engine.RepoStatus(ctx, destination.Name); err != nil {
+					bad++
+					if len(named) < maxNamed {
+						named = append(named, fmt.Sprintf("repository %s unavailable", destination.Name))
+					}
+				}
+			}
 		}
 	}
 	if bad == 0 {
 		return false, "", nil
 	}
-	detail := fmt.Sprintf("%d of %d target(s) overdue or last run failed: %s", bad, len(statuses), strings.Join(named, ", "))
+	detail := fmt.Sprintf("%d backup posture issue(s): %s", bad, strings.Join(named, ", "))
 	if bad > len(named) {
 		detail += fmt.Sprintf(", +%d more", bad-len(named))
 	}

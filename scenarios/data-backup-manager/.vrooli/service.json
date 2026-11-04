@@ -26,6 +26,30 @@
         "max_age": "30d",
         "rationale": "Retain recent enforcement decisions for recovery and diagnosis while allowing old receipts to be reclaimed."
       }
+    },
+    "volume-recovery": {
+      "rung": "owned",
+      "kind": "dir",
+      "class": "state",
+      "subpath": "volume-recovery",
+      "regenerable": false,
+      "rationale": "Crash-resumable host recovery journals and mount episodes are required to prevent ambiguous filesystem actions from being replayed and to recover a drive failure safely.",
+      "budget": {
+        "max_bytes": "16MiB",
+        "rationale": "Measured at 5665 bytes on 2026-11-03; this ceiling leaves room for durable recovery history while making unexpected journal growth visible."
+      }
+    },
+    "volume-recovery-decisions": {
+      "rung": "owned",
+      "kind": "dir",
+      "class": "state",
+      "subpath": "volume-recovery-decisions",
+      "regenerable": false,
+      "rationale": "Durable Notification Hub approval asks and callback outcomes are needed to correlate operator consent with the filesystem recovery journal.",
+      "budget": {
+        "max_bytes": "16MiB",
+        "rationale": "Measured at 1838 bytes on 2026-11-03; retain approval evidence while surfacing unexpected growth for an explicit retention policy."
+      }
     }
     },
     "rationale": "Storage surfaces are declared from observed canonical scenario directories; external resource databases are not claimed by this scenario."

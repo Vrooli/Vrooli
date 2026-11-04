@@ -199,6 +199,46 @@ func TestInspectDeviceResolvesUnmountedVolumeByStableIdentity(t *testing.T) {
 	}
 }
 
+func TestInspectDevicePrefersStableIdentityOverStaleDevicePath(t *testing.T) {
+	inspector := destinationreadiness.NewReadOnlyInspector(fakeDeviceScanner{
+		fakeVolumeScanner: fakeVolumeScanner{volumes: []sysmounts.Volume{
+			// The old path now belongs to another disk after re-enumeration.
+			{DevicePath: "/dev/sdb1", Filesystem: "ext4", UUID: "other-volume"},
+		}},
+		devices: map[string]sysmounts.Volume{
+			"elements": {DevicePath: "/dev/sdc1", Filesystem: "ntfs", UUID: "elements-uuid", Serial: "elements-serial", Label: "Elements"},
+		},
+	})
+
+	got, err := inspector.InspectDevice(context.Background(), destinationreadiness.DeviceIdentity{
+		DevicePath: "/dev/sdb1", Filesystem: "ntfs", UUID: "elements-uuid", Serial: "elements-serial",
+	})
+	if err != nil {
+		t.Fatalf("InspectDevice: %v", err)
+	}
+	if got.Identity.DevicePath != "/dev/sdc1" || got.Identity.UUID != "elements-uuid" {
+		t.Fatalf("inspection = %+v, want stable identity on its current path", got.Identity)
+	}
+}
+
+func TestInspectDeviceDoesNotFallBackToStalePathWhenStableResolutionFails(t *testing.T) {
+	inspector := destinationreadiness.NewReadOnlyInspector(fakeDeviceScanner{
+		fakeVolumeScanner: fakeVolumeScanner{volumes: []sysmounts.Volume{
+			{DevicePath: "/dev/sdb1", Filesystem: "ntfs", UUID: "wrong-uuid", Serial: "wrong-serial"},
+		}},
+		devices: map[string]sysmounts.Volume{
+			"other": {DevicePath: "/dev/sdc1", Filesystem: "ntfs", UUID: "another-uuid", Serial: "another-serial"},
+		},
+	})
+
+	_, err := inspector.InspectDevice(context.Background(), destinationreadiness.DeviceIdentity{
+		DevicePath: "/dev/sdb1", Filesystem: "ntfs", UUID: "elements-uuid", Serial: "elements-serial",
+	})
+	if err == nil {
+		t.Fatal("expected failed stable-identity lookup to be rejected")
+	}
+}
+
 // A scanner with no device lens must say so rather than silently reporting an
 // empty inspection that would read as "device is fine".
 func TestInspectDeviceRequiresADeviceLens(t *testing.T) {

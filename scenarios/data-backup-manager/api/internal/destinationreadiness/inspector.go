@@ -117,7 +117,17 @@ func (i *ReadOnlyInspector) InspectDevice(ctx context.Context, expected DeviceId
 	device := strings.TrimSpace(expected.DevicePath)
 	var vol sysmounts.Volume
 	var err error
-	if device != "" {
+	// Device paths are enumeration artifacts: after a reboot or replug the same
+	// physical volume can move from (for example) /dev/sdb1 to /dev/sdc1. When a
+	// stored UUID or serial is available, resolve through that stable identity
+	// first. Falling back to the old path can either fail to find the drive or,
+	// worse, inspect a different device that inherited the old name.
+	if expected.StrongIdentity() {
+		if i.Stable == nil {
+			return Inspection{}, ErrInvalidReadiness{Field: "device_identity", Reason: "stable UUID/serial resolution is unavailable on this host"}
+		}
+		vol, err = i.Stable.DeviceByIdentity(ctx, expected.UUID, expected.Serial)
+	} else if device != "" {
 		if i.Devices == nil {
 			return Inspection{}, ErrInvalidReadiness{Field: "devices", Reason: "device-scoped inspection is not available on this host"}
 		}
@@ -132,6 +142,9 @@ func (i *ReadOnlyInspector) InspectDevice(ctx context.Context, expected DeviceId
 		return Inspection{}, err
 	}
 	inspection := inspectionFromVolume(vol)
+	if !expected.MatchesDevice(inspection.Identity) {
+		return Inspection{}, ErrInvalidReadiness{Field: "device_identity", Reason: "resolved device does not match the stored UUID/serial and filesystem identity"}
+	}
 	if !inspection.Mounted {
 		return inspection, nil
 	}

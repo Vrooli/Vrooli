@@ -41,6 +41,21 @@ naming, ports, health checks, and logs.
 | UI blank or stale | UI port, `ui/dist` freshness, server logs | `make setup` then `make restart` | Add troubleshooting entry if recurring. |
 | CLI talks to old API | `data-backup-manager status`, configured API base | Reinstall via `make setup` | Update CLI reference if command changed. |
 
+### Linux NTFS destination
+
+The control plane mounts Linux NTFS through UDisks' recognized `ntfs` helper
+type, which resolves to `ntfs-3g` on the supported host. Verify the live mount
+with `vrooli host volume inspect`; `fuseblk` is the mount driver, while DBM
+readiness resolves the on-disk format as NTFS. A mount through `ntfs3` fails
+readiness because the kernel driver's write fault can panic the host. Do not
+back up through that driver.
+
+`ntfs-3g` avoids that kernel fault, but this host does not expose NTFS
+clean/dirty state while mounted through FUSE. If DBM reports filesystem state
+or overall readiness as UNKNOWN, keep backup writes blocked. A successful mount
+or filesystem repair is not a clean-state check, repository verification, or
+backup/restore proof. Never format or clear a drive as a routine remount fix.
+
 ## Disaster Recovery — Backup / Restore / Verify
 
 This is the scenario's reason to exist. The operating model has three
@@ -231,12 +246,21 @@ data-backup-manager runs trigger --plan <plan-id>
 data-backup-manager runs list
 ```
 
-Before target fan-out, each run performs a read-only plan-wide preflight. A
-shared destination or credential failure is recorded once as a grouped
-incident, and affected work is blocked without capturing source data. Inspect
+Before target fan-out, each run performs a read-only plan-wide preflight. It
+checks repository connection and enumerates snapshot metadata before source
+capture; a repository that opens but has missing or unreadable snapshot
+manifests is blocked before a new write. A shared destination, repository, or
+credential failure is recorded once as a grouped incident, and affected work
+is blocked without capturing source data. Inspect
 the run JSON for `failure_code`, `next_action`, and `preflight_incidents`.
 Never retry a `credential_missing`, `destination_dirty`, `destination_read_only`,
 or `destination_unmounted` incident repeatedly; follow its next action first.
+
+The `/health` backup dependency checks freshness and quick connection status
+for repositories used by enabled plans. It does not enumerate repository
+manifests; that deeper, potentially slower check runs in preflight before each
+backup write. A healthy `/health` result therefore does not certify that every
+registered or disabled repository can restore.
 
 Plans expose an independent `protection_tier` (`full_primary`,
 `critical_primary`, or `critical_secondary`). Configure critical plans with

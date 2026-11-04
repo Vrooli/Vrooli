@@ -35,6 +35,24 @@ type (
 	Example            = endpoints.Example
 )
 
+// ConnectEndpoint builds the repeated POST descriptor shape used by generated
+// Connect RPC handlers while keeping each feature's request and response
+// schemas explicit at its endpoint declaration.
+func ConnectEndpoint(id, path, summary, description, category string, request, response *Schema, errors []ErrorDesc, examples []Example) EndpointDescriptor {
+	return EndpointDescriptor{
+		ID:          id,
+		Path:        path,
+		Method:      "POST",
+		Summary:     summary,
+		Description: description,
+		Category:    category,
+		Request:     request,
+		Response:    response,
+		Errors:      errors,
+		Examples:    examples,
+	}
+}
+
 // Canonical REST-exception reasons, re-exported from api-core/endpoints.
 const (
 	RESTReasonMultipartUpload = endpoints.RESTReasonMultipartUpload

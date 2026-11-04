@@ -43,6 +43,8 @@ func (f readinessFake) Analyze(context.Context, destinationreadiness.AnalyzeInpu
 type engineFake struct {
 	statusCalls int
 	statusErr   error
+	listCalls   int
+	listErr     error
 }
 
 func (e *engineFake) RepoCreate(context.Context, engine.RepoSpec) error { return nil }
@@ -60,7 +62,8 @@ func (e *engineFake) SnapshotCreate(context.Context, string, string, engine.Snap
 }
 
 func (e *engineFake) SnapshotList(context.Context, string, string) ([]engine.Snapshot, error) {
-	return nil, nil
+	e.listCalls++
+	return nil, e.listErr
 }
 func (e *engineFake) SnapshotRestore(context.Context, string, string, string) error { return nil }
 func (e *engineFake) SnapshotVerify(context.Context, string, string, int) error     { return nil }
@@ -101,8 +104,36 @@ func TestCheckGroupsOneSharedCredentialFailure(t *testing.T) {
 	if eng.statusCalls != 1 {
 		t.Fatalf("repo status calls = %d, want one per shared destination", eng.statusCalls)
 	}
+	if eng.listCalls != 0 {
+		t.Fatalf("snapshot list calls = %d, want none after failed repo status", eng.listCalls)
+	}
 	if got := r.Summary(); got == "" || len(got) > 300 {
 		t.Fatalf("summary should be bounded and useful: %q", got)
+	}
+}
+
+func TestCheckBlocksRepositoryWithUnreadableSnapshotMetadata(t *testing.T) {
+	eng := &engineFake{listErr: errors.New("snapshot manifest blob is missing")}
+	registry := sources.NewRegistry(&captureFake{kind: sources.KindFilesystem})
+	r := Check(context.Background(), Input{
+		Plan: Plan{TargetIDs: []string{"t1", "t2"}, DestinationIDs: []string{"d1"}},
+		Targets: targetLookup{targets: map[string]Target{
+			"t1": {ID: "t1", Kind: sources.KindFilesystem}, "t2": {ID: "t2", Kind: sources.KindFilesystem},
+		}},
+		Destinations: destLookup{destinations: map[string]Destination{"d1": {ID: "d1", Name: "elements-local"}}},
+		Engine:       eng, Sources: registry,
+	})
+	if r.Ready || !r.Blocked {
+		t.Fatalf("preflight posture = ready=%v blocked=%v", r.Ready, r.Blocked)
+	}
+	if len(r.Incidents) != 1 || r.Incidents[0].Code != failures.RepositoryInvalid {
+		t.Fatalf("incidents = %+v, want one repository integrity incident", r.Incidents)
+	}
+	if r.Incidents[0].Message != "repository snapshot metadata could not be enumerated" || len(r.Incidents[0].TargetIDs) != 2 {
+		t.Fatalf("incident should be redacted and grouped: %+v", r.Incidents[0])
+	}
+	if eng.statusCalls != 1 || eng.listCalls != 1 {
+		t.Fatalf("repo probes = status:%d list:%d, want once each", eng.statusCalls, eng.listCalls)
 	}
 }
 

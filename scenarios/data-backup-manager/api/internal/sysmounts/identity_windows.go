@@ -22,9 +22,10 @@ type windowsVolumeRecord struct {
 	Size            int64  `json:"Size"`
 }
 
-// Windows identity probing is kept behind this seam until a native volume
-// adapter is available. Returning uncertainty is safer than treating a reused
-// drive letter as the same device.
+// Windows identity probing uses Volume UniqueId rather than trusting a drive
+// letter, which can be reassigned after reboot or replug. A volume with no
+// drive letter remains observable by its stable ID, but host remediation that
+// requires a drive-letter target must refuse it explicitly.
 func platformVolumeIdentity(ctx context.Context, device string) (VolumeIdentity, error) {
 	record, err := windowsVolume(ctx, device)
 	if err != nil {
@@ -54,11 +55,14 @@ func platformDeviceByIdentity(ctx context.Context, uuid, serial string) (Volume,
 	if record.UniqueID == "" {
 		return Volume{}, fmt.Errorf("device unique id did not match PowerShell response")
 	}
+	// The volume GUID remains addressable when Windows has not assigned a drive
+	// letter after reboot. Preserve the letter only as the attached mount root.
+	volume := Volume{DevicePath: strings.TrimSpace(record.UniqueID), Filesystem: record.FileSystem, MountDriver: record.FileSystem, TotalBytes: record.Size, Label: record.FileSystemLabel, UUID: record.UniqueID}
 	device := strings.TrimSpace(record.DriveLetter)
-	if device != "" && !strings.HasSuffix(device, ":") {
-		device += ":"
+	if device != "" {
+		volume.Mountpoint = strings.ToUpper(strings.TrimSuffix(device, ":")) + `:\`
 	}
-	return Volume{DevicePath: device, Mountpoint: device + `\`, Filesystem: record.FileSystem, MountDriver: record.FileSystem, TotalBytes: record.Size, Label: record.FileSystemLabel, UUID: record.UniqueID}, nil
+	return volume, nil
 }
 
 func windowsVolume(ctx context.Context, device string) (windowsVolumeRecord, error) {

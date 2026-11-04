@@ -3,6 +3,7 @@ package mocks
 import (
 	"context"
 
+	"data-backup-manager/internal/destinationreadiness"
 	"data-backup-manager/internal/destinations"
 )
 
@@ -28,6 +29,11 @@ type FakeService struct {
 	UpdateInputs []destinations.UpdateInput
 	UpdateOut    destinations.Destination
 	UpdateErr    error
+
+	BindRecoveryID    string
+	BindIdentityInput destinationreadiness.DeviceIdentity
+	BindRecoveryOut   destinations.Destination
+	BindRecoveryErr   error
 
 	// DeleteDestination
 	DeleteIDs []string
@@ -81,6 +87,15 @@ func (f *FakeService) UpdateDestination(_ context.Context, in destinations.Updat
 		return destinations.Destination{}, f.UpdateErr
 	}
 	return f.UpdateOut, nil
+}
+
+func (f *FakeService) BindRecoveryIdentity(_ context.Context, id string, identity destinationreadiness.DeviceIdentity) (destinations.Destination, error) {
+	f.BindRecoveryID = id
+	f.BindIdentityInput = identity
+	if f.BindRecoveryErr != nil {
+		return destinations.Destination{}, f.BindRecoveryErr
+	}
+	return f.BindRecoveryOut, nil
 }
 
 func (f *FakeService) DeleteDestination(_ context.Context, id string, _ bool) (bool, error) {

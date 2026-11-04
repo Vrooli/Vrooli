@@ -168,7 +168,7 @@ both are constructed, breaking the cycle without either importing the other.
 |---|---|
 | **Seam** | Read-only destination/device inspection |
 | **Interface** | `internal/destinationreadiness/inspector.go::Inspector` (`Inspect(ctx, location)`) plus `VolumeScanner` for mounted-volume enumeration. |
-| **Production wiring** | `handlers/destinations/module.go` constructs `destinationreadiness.NewReadOnlyInspector(sysmounts.New())` and passes it to `destinationreadiness.NewService(...)`. The inspector reads mount metadata and bounded top-level names only; it never writes probe files or mutates devices. |
+| **Production wiring** | `handlers/destinations/module.go` constructs `destinationreadiness.NewReadOnlyInspector(sysmounts.New())` and passes it to `destinationreadiness.NewService(...)`. `AnalyzeDestination` also supplies registered filesystem bundle roots from the destination catalog so the readiness result can identify an already-configured path. The inspector reads mount metadata and bounded top-level names only; it never writes probe files or mutates devices. |
 | **Test fake** | `internal/destinationreadiness/service_test.go::fakeInspector` and `inspector_test.go::fakeVolumeScanner`. |
 | **Why it exists** | Drive-readiness analysis must be testable without touching real removable media. The seam lets tests model FAT32, installer media, read-only mounts, dirty/needs-check signals, low capacity, and identity drift without scanning or writing host devices. Filesystem health is only a pass when the OS explicitly reports clean; absent health signals remain unknown. |
 

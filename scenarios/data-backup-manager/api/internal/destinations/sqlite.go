@@ -44,7 +44,10 @@ const (
 `
 	updateDestSQL = `
 UPDATE destinations
-SET cap_bytes = ?, cap_policy = ?, secret_ref = ?, updated_at = ?
+SET relative_path = ?, cap_bytes = ?, cap_policy = ?, secret_ref = ?,
+    device_path = ?, device_mountpoint = ?, device_label = ?, device_filesystem = ?,
+    device_total_bytes = ?, device_model = ?, device_serial = ?, device_uuid = ?,
+    device_observed_at = ?, updated_at = ?
 WHERE id = ?
 `
 	selectDestByIDSQL = `
@@ -90,7 +93,9 @@ func (s *sqliteRepository) Create(ctx context.Context, d Destination) (Destinati
 func (s *sqliteRepository) Update(ctx context.Context, d Destination) (Destination, error) {
 	d.UpdatedAt = s.clock.Now().UTC()
 	_, err := s.db.ExecContext(ctx, updateDestSQL,
-		d.CapBytes, string(d.CapPolicy), d.SecretRef, d.UpdatedAt.Format(destTimeFormat), d.ID,
+		d.RelativePath, d.CapBytes, string(d.CapPolicy), d.SecretRef,
+		identityPath(d.DeviceIdentity), identityMountpoint(d.DeviceIdentity), identityLabel(d.DeviceIdentity), identityFilesystem(d.DeviceIdentity), identityTotalBytes(d.DeviceIdentity), identityModel(d.DeviceIdentity), identitySerial(d.DeviceIdentity), identityUUID(d.DeviceIdentity), formatTime(d.DeviceIdentityObservedAt),
+		d.UpdatedAt.Format(destTimeFormat), d.ID,
 	)
 	if err != nil {
 		return Destination{}, fmt.Errorf("update destination %q: %w", d.ID, err)

@@ -37,7 +37,10 @@ func (a preflightDestinations) DestinationForRun(ctx context.Context, id string)
 func (s *service) runPreflight(ctx context.Context, plan PlanForRun) preflight.Result {
 	var clk schedule.Clock = s.deps.Clock
 	result := preflight.Check(ctx, preflight.Input{
-		Plan:             preflight.Plan{TargetIDs: plan.TargetIDs, DestinationIDs: plan.DestinationIDs},
+		Plan: preflight.Plan{
+			TargetIDs: plan.TargetIDs, DestinationIDs: plan.DestinationIDs,
+			RetentionCopies: plan.KeepLatest,
+		},
 		Targets:          preflightTargets{lookup: s.deps.Targets},
 		Destinations:     preflightDestinations{lookup: s.deps.Destinations},
 		Engine:           s.deps.Engine,

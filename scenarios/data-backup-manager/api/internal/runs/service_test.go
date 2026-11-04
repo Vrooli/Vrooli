@@ -377,6 +377,46 @@ func TestListTargetStatus_NextScheduledAt(t *testing.T) {
 	}
 }
 
+func TestListTargetStatus_ManualOnlyTargetDoesNotBecomeOverdueByAge(t *testing.T) {
+	ctx := context.Background()
+	repo := runsmocks.NewFakeRepository()
+	lastSuccess := time.Date(2026, 1, 1, 1, 0, 0, 0, time.UTC)
+	now := lastSuccess.Add(30 * 24 * time.Hour)
+	if _, err := repo.CreateRun(ctx, runs.Run{ID: "r1", PlanID: "p1", Status: runs.RunPending, StartedAt: lastSuccess}); err != nil {
+		t.Fatalf("seed run: %v", err)
+	}
+	for _, targetID := range []string{"scheduled-target", "manual-target"} {
+		if err := repo.SaveOutcome(ctx, "r1", runs.TargetOutcome{TargetID: targetID, Status: runs.OutcomeSucceeded, FinishedAt: lastSuccess}); err != nil {
+			t.Fatalf("seed outcome %s: %v", targetID, err)
+		}
+	}
+	if err := repo.FinishRun(ctx, "r1", runs.RunCompleted, "", lastSuccess, 0); err != nil {
+		t.Fatalf("finish run: %v", err)
+	}
+	svc := runs.NewService(runs.Deps{
+		Repo:          repo,
+		ActiveTargets: &runsmocks.FakeActiveTargetLookup{TargetIDs: []string{"scheduled-target", "manual-target"}},
+		NextSchedule:  fakeNextSchedule{byTarget: map[string]time.Time{"scheduled-target": now.Add(time.Hour)}},
+		Clock:         scheduletest.New(now),
+		OverdueAfter:  24 * time.Hour,
+		Executor:      runsmocks.NewSyncExecutor(),
+	})
+	statuses, err := svc.ListTargetStatus(ctx, nil)
+	if err != nil {
+		t.Fatalf("ListTargetStatus: %v", err)
+	}
+	byID := map[string]runs.TargetStatus{}
+	for _, status := range statuses {
+		byID[status.TargetID] = status
+	}
+	if !byID["scheduled-target"].Overdue {
+		t.Fatal("scheduled target with an old successful run must remain overdue")
+	}
+	if byID["manual-target"].Overdue {
+		t.Fatal("manual-only target with a previous success must not be overdue by age")
+	}
+}
+
 // TestRun_PartialFailure proves a single target's capture failure does not
 // abort the others: the run is partial_failed with one success + one failure.
 func TestRun_PartialFailure(t *testing.T) {

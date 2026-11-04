@@ -253,6 +253,12 @@ data-backup-manager plans delete --id <plan-id>
 values (pass `--recovery-drill-schedule ""` or `--enabled false` to clear or
 disable explicitly).
 
+Plan creation defaults to enabled. An empty schedule creates a manual-only plan
+that the scheduler will not run; use `plans update --enabled false` when the
+plan itself must be disabled. The create command does not accept `--enabled`:
+the API's proto3 contract cannot distinguish an omitted `false` from an explicit
+request to create a disabled plan.
+
 `--keep-latest N` keeps at most N snapshots per target and destination. Each
 run sets that bound on the exact kopia source the snapshot was recorded under
 (every GFS bucket at 0, so the repository's global hourly/daily/... policy

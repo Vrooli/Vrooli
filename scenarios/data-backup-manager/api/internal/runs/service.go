@@ -86,7 +86,7 @@ type Deps struct {
 	// executes in parallel. < 1 uses defaultTargetConcurrency. Partial-failure
 	// isolation and cap-block-before-write are invariant under concurrency.
 	TargetConcurrency int
-	// OverdueAfter is the age past which a target's last success is overdue.
+	// OverdueAfter is the age past which a scheduled target's last success is overdue.
 	// <= 0 disables the age component (a target is then overdue only when its
 	// last run failed/partial or it has never succeeded). ListTargetStatus uses
 	// it to compute per-target freshness.
@@ -675,15 +675,18 @@ func (s *service) ListTargetStatus(ctx context.Context, targetIDs []string) ([]T
 	// Next scheduled fire per target (best-effort: a failure here must not break
 	// the freshness rollup, which is load-bearing for /health and the UI).
 	var nextByTarget map[string]time.Time
+	scheduleKnown := false
 	if s.deps.NextSchedule != nil {
 		if m, err := s.deps.NextSchedule.NextScheduledByTarget(ctx); err != nil {
 			s.logf("next-scheduled lookup: %v", err)
 		} else {
 			nextByTarget = m
+			scheduleKnown = true
 		}
 	}
 	for i := range statuses {
-		statuses[i].Overdue = isOverdue(statuses[i], now, s.deps.OverdueAfter)
+		_, scheduled := nextByTarget[statuses[i].TargetID]
+		statuses[i].Overdue = isOverdue(statuses[i], now, s.deps.OverdueAfter, scheduled, scheduleKnown)
 		if !statuses[i].LastSuccessAt.IsZero() {
 			if age := now.Sub(statuses[i].LastSuccessAt); age > 0 {
 				statuses[i].LastSuccessAgeSeconds = int64(age.Seconds())
@@ -698,9 +701,11 @@ func (s *service) ListTargetStatus(ctx context.Context, targetIDs []string) ([]T
 
 // isOverdue is the single freshness rule shared by every surface (CLI, /health,
 // UI): a target is overdue when its last run failed or partial-failed, it has
-// never succeeded, or its last success is older than the overdue threshold.
-// A non-positive threshold disables only the age component.
-func isOverdue(s TargetStatus, now time.Time, after time.Duration) bool {
+// never succeeded, or a scheduled target's last success is older than the
+// overdue threshold. Manual-only targets do not accrue age-based overdue state.
+// If schedule lookup fails, retain the age check so an outage does not mask
+// stale protection. A non-positive threshold disables only the age component.
+func isOverdue(s TargetStatus, now time.Time, after time.Duration, scheduled, scheduleKnown bool) bool {
 	switch s.LastRunStatus {
 	case RunFailed, RunPartialFailed:
 		return true
@@ -708,7 +713,7 @@ func isOverdue(s TargetStatus, now time.Time, after time.Duration) bool {
 	if s.LastSuccessAt.IsZero() {
 		return true
 	}
-	return after > 0 && now.Sub(s.LastSuccessAt) > after
+	return after > 0 && (!scheduleKnown || scheduled) && now.Sub(s.LastSuccessAt) > after
 }
 
 func (s *service) GetRunStats(ctx context.Context, planID string) (RunStats, error) {

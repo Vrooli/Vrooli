@@ -5,16 +5,16 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"strings"
 	"time"
 
 	"data-backup-manager/internal/destinationreadiness"
 	"data-backup-manager/internal/destinations"
 
 	"connectrpc.com/connect"
-	"google.golang.org/protobuf/types/known/timestamppb"
-
 	destinationsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/data-backup-manager/v1/destinations"
 	destinationsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/data-backup-manager/v1/destinations/destinations_v1connect"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 // Ensure connectHandler satisfies the generated handler interface.
@@ -27,6 +27,7 @@ type Deps struct {
 	// RecoveryStore is durable journal storage. Production wiring uses DBM's
 	// resolved state directory; tests provide an in-memory fake.
 	RecoveryStore destinationreadiness.RecoveryStore
+	DecisionFlow  *RecoveryDecisionFlow
 	Logger        *log.Logger
 }
 
@@ -96,6 +97,14 @@ func (h *connectHandler) UpdateDestination(ctx context.Context, req *connect.Req
 	}), nil
 }
 
+func (h *connectHandler) BindDestinationRecoveryIdentity(ctx context.Context, req *connect.Request[destinationsv1.BindDestinationRecoveryIdentityRequest]) (*connect.Response[destinationsv1.BindDestinationRecoveryIdentityResponse], error) {
+	d, err := h.deps.Service.BindRecoveryIdentity(ctx, req.Msg.Id, protoToDeviceIdentity(req.Msg.Identity))
+	if err != nil {
+		return nil, h.translate("BindDestinationRecoveryIdentity", err)
+	}
+	return connect.NewResponse(&destinationsv1.BindDestinationRecoveryIdentityResponse{Destination: domainToProto(d)}), nil
+}
+
 func (h *connectHandler) DeleteDestination(ctx context.Context, req *connect.Request[destinationsv1.DeleteDestinationRequest]) (*connect.Response[destinationsv1.DeleteDestinationResponse], error) {
 	removed, err := h.deps.Service.DeleteDestination(ctx, req.Msg.Id, req.Msg.DeleteRepository)
 	if err != nil {
@@ -121,11 +130,22 @@ func (h *connectHandler) AnalyzeDestination(ctx context.Context, req *connect.Re
 	if h.deps.Readiness == nil {
 		return nil, connect.NewError(connect.CodeUnimplemented, errors.New("destination readiness service is not configured"))
 	}
+	registered, err := h.deps.Service.ListDestinations(ctx, 0)
+	if err != nil {
+		return nil, h.translate("ListDestinationsForReadiness", err)
+	}
+	existingLocations := make([]string, 0, len(registered))
+	for _, destination := range registered {
+		if destination.BackendKind == destinations.BackendFilesystem {
+			existingLocations = append(existingLocations, destination.Location)
+		}
+	}
 	report, err := h.deps.Readiness.Analyze(ctx, destinationreadiness.AnalyzeInput{
 		Location:              req.Msg.Location,
 		ProposedSubdir:        req.Msg.ProposedSubdir,
 		SelectedTargetBytes:   req.Msg.SelectedTargetBytes,
 		RetentionCopies:       int(req.Msg.RetentionCopies),
+		ExistingDestinations:  existingLocations,
 		CrossPlatformRequired: req.Msg.CrossPlatformRequired,
 	})
 	if err != nil {
@@ -160,6 +180,9 @@ func (h *connectHandler) ExecuteDestinationPreparation(ctx context.Context, req 
 	dryRun := true
 	if req.Msg.DryRun != nil {
 		dryRun = req.Msg.GetDryRun()
+	}
+	if plan.Action == destinationreadiness.ActionRepairFilesystem && !dryRun {
+		return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("filesystem repair must run through a durable volume-recovery journal and verified Notification Hub decision"))
 	}
 	result, err := h.deps.Readiness.ExecutePreparation(ctx, destinationreadiness.ExecuteInput{
 		Plan:                plan,
@@ -247,21 +270,79 @@ func (h *connectHandler) ResumeVolumeRecovery(ctx context.Context, req *connect.
 	if err != nil {
 		return nil, h.translateReadiness("ResumeVolumeRecovery", err)
 	}
+	confirmations := recoveryConfirmations(req)
+	dryRun := req.Msg.DryRun == nil || req.Msg.GetDryRun()
+	acknowledgeDataLoss := req.Msg.AcknowledgeDataLoss
+	if requiresNotificationApproval(journal, dryRun) {
+		delete(confirmations, journal.Current)
+		acknowledgeDataLoss = false
+	}
+	updated, resumeErr := h.deps.Readiness.ResumeRecovery(ctx, h.deps.RecoveryStore, journal, confirmations, acknowledgeDataLoss, dryRun)
+	if resumeErr != nil {
+		return h.handleRecoveryResumeError(ctx, updated, resumeErr, dryRun)
+	}
+	if updated.State == destinationreadiness.RecoveryCompleted && h.deps.DecisionFlow != nil {
+		h.deps.DecisionFlow.NotifyRecoveryCompleted(ctx, updated)
+	}
+	return connect.NewResponse(&destinationsv1.ResumeVolumeRecoveryResponse{Journal: recoveryJournalToProto(updated)}), nil
+}
+
+func recoveryConfirmations(req *connect.Request[destinationsv1.ResumeVolumeRecoveryRequest]) map[int]string {
 	confirmations := make(map[int]string, len(req.Msg.Confirmations))
 	for index, confirmation := range req.Msg.Confirmations {
 		if index >= 0 {
 			confirmations[int(index)] = confirmation
 		}
 	}
-	dryRun := true
-	if req.Msg.DryRun != nil {
-		dryRun = req.Msg.GetDryRun()
-	}
-	updated, resumeErr := h.deps.Readiness.ResumeRecovery(ctx, h.deps.RecoveryStore, journal, confirmations, req.Msg.AcknowledgeDataLoss, dryRun)
-	if resumeErr != nil {
+	return confirmations
+}
+
+func requiresNotificationApproval(journal destinationreadiness.RecoveryJournal, dryRun bool) bool {
+	return !dryRun && journal.Current >= 0 && journal.Current < len(journal.Steps) &&
+		journal.Steps[journal.Current].Plan.Action == destinationreadiness.ActionRepairFilesystem
+}
+
+func (h *connectHandler) handleRecoveryResumeError(ctx context.Context, journal destinationreadiness.RecoveryJournal, resumeErr error, dryRun bool) (*connect.Response[destinationsv1.ResumeVolumeRecoveryResponse], error) {
+	step, ok := currentRecoveryStep(journal)
+	if !ok {
 		return nil, h.translateReadiness("ResumeVolumeRecovery", resumeErr)
 	}
-	return connect.NewResponse(&destinationsv1.ResumeVolumeRecoveryResponse{Journal: recoveryJournalToProto(updated)}), nil
+	if step.Plan.Action == destinationreadiness.ActionMountReadWrite && h.deps.DecisionFlow != nil {
+		h.deps.DecisionFlow.NotifyMountFailure(ctx, journal, resumeErr)
+	}
+	if dryRun || step.Plan.Action != destinationreadiness.ActionRepairFilesystem || !requiresRepairApproval(resumeErr) {
+		return nil, h.translateReadiness("ResumeVolumeRecovery", resumeErr)
+	}
+	if h.deps.DecisionFlow == nil {
+		journal.LastError = "filesystem repair is paused; Notification Hub decision delivery is not configured"
+		_ = h.deps.RecoveryStore.Save(ctx, journal)
+		return recoveryResponse(journal)
+	}
+	if err := h.deps.DecisionFlow.RaiseRepairApproval(ctx, journal); err != nil {
+		h.deps.Logger.Printf("raise volume repair decision: %v", err)
+		journal.LastError = "filesystem repair is paused; Notification Hub decision could not be raised: " + err.Error()
+	} else {
+		journal.LastError = "filesystem repair is paused pending a verified Notification Hub decision"
+	}
+	if err := h.deps.RecoveryStore.Save(ctx, journal); err != nil {
+		return nil, h.translateReadiness("PersistVolumeRecoveryDecisionState", err)
+	}
+	return recoveryResponse(journal)
+}
+
+func currentRecoveryStep(journal destinationreadiness.RecoveryJournal) (destinationreadiness.RecoveryStep, bool) {
+	if journal.Current < 0 || journal.Current >= len(journal.Steps) {
+		return destinationreadiness.RecoveryStep{}, false
+	}
+	return journal.Steps[journal.Current], true
+}
+
+func requiresRepairApproval(err error) bool {
+	return strings.Contains(err.Error(), "confirmation phrase did not match") || strings.Contains(err.Error(), "data loss acknowledgement required")
+}
+
+func recoveryResponse(journal destinationreadiness.RecoveryJournal) (*connect.Response[destinationsv1.ResumeVolumeRecoveryResponse], error) {
+	return connect.NewResponse(&destinationsv1.ResumeVolumeRecoveryResponse{Journal: recoveryJournalToProto(journal)}), nil
 }
 
 // translate maps a domain error to a Connect error, logging only internal ones.
@@ -357,128 +438,5 @@ func preparationPlanToProto(p destinationreadiness.Plan) *destinationsv1.Destina
 		ConfirmationPhrase:   p.ConfirmationPhrase,
 		Supported:            p.Supported,
 		UnsupportedReason:    p.UnsupportedReason,
-	}
-}
-
-func recoveryJournalToProto(j destinationreadiness.RecoveryJournal) *destinationsv1.VolumeRecoveryJournal {
-	out := &destinationsv1.VolumeRecoveryJournal{
-		Version:      j.Version,
-		Id:           j.ID,
-		Location:     j.Location,
-		RelativePath: j.RelativePath,
-		Identity:     deviceIdentityToProto(j.Identity),
-		Current:      int32(j.Current),
-		State:        string(j.State),
-		LastError:    j.LastError,
-		Steps:        make([]*destinationsv1.VolumeRecoveryStep, 0, len(j.Steps)),
-	}
-	if !j.UpdatedAt.IsZero() {
-		out.UpdatedAt = timestamppb.New(j.UpdatedAt)
-	}
-	for _, step := range j.Steps {
-		out.Steps = append(out.Steps, &destinationsv1.VolumeRecoveryStep{
-			Plan:     preparationPlanToProto(step.Plan),
-			Status:   step.Status,
-			Attempts: int32(step.Attempts),
-			Detail:   step.Detail,
-		})
-	}
-	return out
-}
-
-func protoToPreparationPlan(p *destinationsv1.DestinationPreparationPlan) destinationreadiness.Plan {
-	if p == nil {
-		return destinationreadiness.Plan{}
-	}
-	return destinationreadiness.Plan{
-		ID:                 p.Id,
-		Action:             protoToPreparationAction(p.Action),
-		Location:           p.Location,
-		TargetPath:         p.TargetPath,
-		RelativePath:       p.RelativePath,
-		Identity:           protoToDeviceIdentity(p.Identity),
-		DesiredLabel:       p.DesiredLabel,
-		DesiredFS:          p.DesiredFilesystem,
-		RequiresConfirm:    p.RequiresConfirmation,
-		Destructive:        p.Destructive,
-		ConfirmationPhrase: p.ConfirmationPhrase,
-		Supported:          p.Supported,
-		UnsupportedReason:  p.UnsupportedReason,
-	}
-}
-
-func deviceIdentityToProto(i destinationreadiness.DeviceIdentity) *destinationsv1.DestinationDeviceIdentity {
-	return &destinationsv1.DestinationDeviceIdentity{
-		DevicePath: i.DevicePath,
-		Mountpoint: i.Mountpoint,
-		Label:      i.Label,
-		Filesystem: i.Filesystem,
-		TotalBytes: i.TotalBytes,
-		Model:      i.Model,
-		Serial:     i.Serial,
-		Uuid:       i.UUID,
-	}
-}
-
-func protoToDeviceIdentity(i *destinationsv1.DestinationDeviceIdentity) destinationreadiness.DeviceIdentity {
-	if i == nil {
-		return destinationreadiness.DeviceIdentity{}
-	}
-	return destinationreadiness.DeviceIdentity{
-		DevicePath: i.DevicePath,
-		Mountpoint: i.Mountpoint,
-		Label:      i.Label,
-		Filesystem: i.Filesystem,
-		TotalBytes: i.TotalBytes,
-		Model:      i.Model,
-		Serial:     i.Serial,
-		UUID:       i.Uuid,
-	}
-}
-
-// protoToBackend / backendToProto translate the proto BackendKind enum to the
-// domain vocabulary so domain code never imports the generated enum.
-func protoToBackend(k destinationsv1.BackendKind) destinations.BackendKind {
-	switch k {
-	case destinationsv1.BackendKind_BACKEND_KIND_FILESYSTEM:
-		return destinations.BackendFilesystem
-	case destinationsv1.BackendKind_BACKEND_KIND_S3:
-		return destinations.BackendS3
-	default:
-		return ""
-	}
-}
-
-func backendToProto(k destinations.BackendKind) destinationsv1.BackendKind {
-	switch k {
-	case destinations.BackendFilesystem:
-		return destinationsv1.BackendKind_BACKEND_KIND_FILESYSTEM
-	case destinations.BackendS3:
-		return destinationsv1.BackendKind_BACKEND_KIND_S3
-	default:
-		return destinationsv1.BackendKind_BACKEND_KIND_UNSPECIFIED
-	}
-}
-
-// protoToCapPolicy / capPolicyToProto translate the proto CapPolicy enum.
-func protoToCapPolicy(p destinationsv1.CapPolicy) destinations.CapPolicy {
-	switch p {
-	case destinationsv1.CapPolicy_CAP_POLICY_ALERT_BLOCK:
-		return destinations.CapPolicyAlertBlock
-	case destinationsv1.CapPolicy_CAP_POLICY_ALERT_ONLY:
-		return destinations.CapPolicyAlertOnly
-	default:
-		return ""
-	}
-}
-
-func capPolicyToProto(p destinations.CapPolicy) destinationsv1.CapPolicy {
-	switch p {
-	case destinations.CapPolicyAlertBlock:
-		return destinationsv1.CapPolicy_CAP_POLICY_ALERT_BLOCK
-	case destinations.CapPolicyAlertOnly:
-		return destinationsv1.CapPolicy_CAP_POLICY_ALERT_ONLY
-	default:
-		return destinationsv1.CapPolicy_CAP_POLICY_UNSPECIFIED
 	}
 }

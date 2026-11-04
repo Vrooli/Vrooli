@@ -21,6 +21,20 @@ type stubReadiness struct {
 	calls  int
 }
 
+type recoveryBindingReadiness struct {
+	identity destinationreadiness.DeviceIdentity
+	mounted  bool
+	err      error
+}
+
+func (s recoveryBindingReadiness) Analyze(context.Context, destinationreadiness.AnalyzeInput) (destinationreadiness.Report, error) {
+	return destinationreadiness.Report{}, nil
+}
+
+func (s recoveryBindingReadiness) InspectDevice(context.Context, destinationreadiness.DeviceIdentity) (destinationreadiness.Inspection, error) {
+	return destinationreadiness.Inspection{Identity: s.identity, Mounted: s.mounted}, s.err
+}
+
 func (s *stubReadiness) Analyze(context.Context, destinationreadiness.AnalyzeInput) (destinationreadiness.Report, error) {
 	s.calls++
 	return s.report, s.err
@@ -166,5 +180,66 @@ func TestCreatePersistsLastObservedDeviceIdentity(t *testing.T) {
 	}
 	if d.RelativePath != "vrooli-backups" {
 		t.Fatalf("relative destination path = %q, want vrooli-backups", d.RelativePath)
+	}
+}
+
+func TestBindRecoveryIdentityObservesStableDeviceAndPersistsMountRoot(t *testing.T) {
+	repo := mocks.NewFakeRepository()
+	created, err := repo.Create(context.Background(), destinations.Destination{
+		Name: "elements-local", BackendKind: destinations.BackendFilesystem,
+		Location: "/media/matthalloran8/Elements/vrooli-backups", CapPolicy: destinations.CapPolicyAlertBlock,
+	})
+	if err != nil {
+		t.Fatalf("seed legacy destination: %v", err)
+	}
+	observed := destinationreadiness.DeviceIdentity{
+		DevicePath: "/dev/sda1", Filesystem: "ntfs", UUID: "E26A883E6A881189",
+		Serial: "WD-WX52A946D6VL", TotalBytes: 2000363192320,
+	}
+	svc := destinations.NewService(repo, &enginemocks.FakeKopiaEngine{}, mocks.NewFakeBundleWriter(), "/protected",
+		destinations.WithReadinessGate(recoveryBindingReadiness{identity: observed}))
+	expected := destinationreadiness.DeviceIdentity{
+		UUID: observed.UUID, Serial: observed.Serial, Filesystem: observed.Filesystem,
+		Mountpoint: "/media/matthalloran8/Elements",
+	}
+	bound, err := svc.BindRecoveryIdentity(context.Background(), created.ID, expected)
+	if err != nil {
+		t.Fatalf("BindRecoveryIdentity: %v", err)
+	}
+	if bound.DeviceIdentity == nil || bound.DeviceIdentity.DevicePath != observed.DevicePath || bound.DeviceIdentity.UUID != observed.UUID || bound.DeviceIdentity.Mountpoint != expected.Mountpoint {
+		t.Fatalf("bound identity = %+v, want freshly observed device plus intended mount root", bound.DeviceIdentity)
+	}
+	if bound.RelativePath != "vrooli-backups" || bound.DeviceIdentityObservedAt.IsZero() {
+		t.Fatalf("binding locator/time = %q / %v", bound.RelativePath, bound.DeviceIdentityObservedAt)
+	}
+	reread, err := repo.GetByID(context.Background(), created.ID)
+	if err != nil || reread.DeviceIdentity == nil || reread.RelativePath != "vrooli-backups" {
+		t.Fatalf("persisted binding = (%+v, %v)", reread, err)
+	}
+}
+
+func TestBindRecoveryIdentityRefusesWrongStableDeviceAndUnsafeMountRoot(t *testing.T) {
+	repo := mocks.NewFakeRepository()
+	created, err := repo.Create(context.Background(), destinations.Destination{
+		Name: "elements-local", BackendKind: destinations.BackendFilesystem,
+		Location: "/media/matthalloran8/Elements/vrooli-backups", CapPolicy: destinations.CapPolicyAlertBlock,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	observed := destinationreadiness.DeviceIdentity{DevicePath: "/dev/sda1", Filesystem: "ntfs", UUID: "different-volume"}
+	svc := destinations.NewService(repo, &enginemocks.FakeKopiaEngine{}, mocks.NewFakeBundleWriter(), "/protected",
+		destinations.WithReadinessGate(recoveryBindingReadiness{identity: observed}))
+	_, err = svc.BindRecoveryIdentity(context.Background(), created.ID, destinationreadiness.DeviceIdentity{
+		UUID: "E26A883E6A881189", Filesystem: "ntfs", Mountpoint: "/media/matthalloran8/Elements",
+	})
+	if err == nil {
+		t.Fatal("binding must refuse a different observed UUID")
+	}
+	_, err = svc.BindRecoveryIdentity(context.Background(), created.ID, destinationreadiness.DeviceIdentity{
+		UUID: "E26A883E6A881189", Filesystem: "ntfs", Mountpoint: "/",
+	})
+	if err == nil {
+		t.Fatal("binding must refuse a host-root mountpoint")
 	}
 }

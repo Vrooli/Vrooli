@@ -150,6 +150,93 @@ func TestFileRecoveryStoreDistinguishesMissingJournal(t *testing.T) {
 	}
 }
 
+func TestFileRecoveryEpisodePersistsUntilMountedThenStartsFresh(t *testing.T) {
+	ctx := context.Background()
+	root := t.TempDir()
+	identity := destinationreadiness.DeviceIdentity{DevicePath: "/dev/sdz1", Filesystem: "ntfs", UUID: "uuid-elements", Serial: "serial-elements"}
+	store := &destinationreadiness.FileRecoveryStore{Root: root}
+	first, err := store.ObserveEpisode(ctx, "elements", identity, false, "")
+	if err != nil || first.RecoveryID == "" {
+		t.Fatalf("first unmounted observation=(%+v, %v)", first, err)
+	}
+	repeated, err := store.ObserveEpisode(ctx, "elements", identity, false, "")
+	if err != nil || repeated.RecoveryID != first.RecoveryID {
+		t.Fatalf("repeated unmounted observation=(%+v, %v), want stable recovery ID %q", repeated, err, first.RecoveryID)
+	}
+
+	// A new store models a DBM process restart. It must retain the active outage
+	// episode and must not create a second decision correlation.
+	store = &destinationreadiness.FileRecoveryStore{Root: root}
+	restarted, err := store.ObserveEpisode(ctx, "elements", identity, false, "")
+	if err != nil || restarted.RecoveryID != first.RecoveryID {
+		t.Fatalf("post-restart observation=(%+v, %v), want recovery ID %q", restarted, err, first.RecoveryID)
+	}
+
+	mounted, err := store.ObserveEpisode(ctx, "elements", identity, true, "")
+	if err != nil || !mounted.LastMounted || mounted.RecoveryID != "" {
+		t.Fatalf("mounted observation=(%+v, %v), want closed episode", mounted, err)
+	}
+	second, err := store.ObserveEpisode(ctx, "elements", identity, false, "")
+	if err != nil || second.RecoveryID == "" || second.RecoveryID == first.RecoveryID {
+		t.Fatalf("second outage=(%+v, %v), want a fresh recovery ID after remount", second, err)
+	}
+	secondRestart, err := (&destinationreadiness.FileRecoveryStore{Root: root}).ObserveEpisode(ctx, "elements", identity, false, "")
+	if err != nil || secondRestart.RecoveryID != second.RecoveryID {
+		t.Fatalf("second post-restart observation=(%+v, %v), want recovery ID %q", secondRestart, err, second.RecoveryID)
+	}
+}
+
+func TestFileRecoveryEpisodeAdoptsIncompleteLegacyJournalAndAdvancesCompletedOne(t *testing.T) {
+	ctx := context.Background()
+	root := t.TempDir()
+	identity := destinationreadiness.DeviceIdentity{DevicePath: "/dev/sdz1", Mountpoint: "/media/Elements", Filesystem: "ntfs", UUID: "uuid-elements", Serial: "serial-elements"}
+	store := &destinationreadiness.FileRecoveryStore{Root: root}
+	_, legacy, _ := recoveryFixture(t)
+	legacy.ID = "legacy-recovery-id"
+	legacy.Identity = identity
+	legacy.Steps[0].Plan.Identity = identity
+	legacy.Steps[0].Plan.Location = identity.Mountpoint
+	legacy.Steps[0].Plan.TargetPath = identity.Mountpoint
+	legacy.Steps[1].Plan.Identity = identity
+	legacy.Steps[1].Plan.Location = identity.Mountpoint
+	legacy.Steps[1].Plan.TargetPath = identity.Mountpoint
+	legacy.Current = 0
+	legacy.State = destinationreadiness.RecoveryPaused
+	legacy.Steps[0].Status = "blocked"
+	if err := store.Save(ctx, legacy); err != nil {
+		t.Fatalf("save legacy journal: %v", err)
+	}
+	episode, err := store.ObserveEpisode(ctx, "elements", identity, false, legacy.ID)
+	if err != nil || episode.RecoveryID != legacy.ID {
+		t.Fatalf("legacy episode=(%+v, %v), want adopted journal %q", episode, err, legacy.ID)
+	}
+
+	_, completed, _ := recoveryFixture(t)
+	completed.ID = episode.RecoveryID
+	completed.Identity = identity
+	completed.Steps[0].Plan.Identity = identity
+	completed.Steps[0].Plan.Location = identity.Mountpoint
+	completed.Steps[0].Plan.TargetPath = identity.Mountpoint
+	completed.Steps[1].Plan.Identity = identity
+	completed.Steps[1].Plan.Location = identity.Mountpoint
+	completed.Steps[1].Plan.TargetPath = identity.Mountpoint
+	completed.Current = len(completed.Steps)
+	completed.State = destinationreadiness.RecoveryCompleted
+	for index := range completed.Steps {
+		completed.Steps[index].Status = "completed"
+	}
+	if err := store.Save(ctx, completed); err != nil {
+		t.Fatalf("save completed journal: %v", err)
+	}
+	next, err := store.AdvanceUnmountedEpisode(ctx, "elements", completed.ID)
+	if err != nil || next.RecoveryID == "" || next.RecoveryID == completed.ID || next.LastMounted {
+		t.Fatalf("advanced episode=(%+v, %v), want fresh ID while still unmounted", next, err)
+	}
+	if _, err := store.AdvanceUnmountedEpisode(ctx, "elements", completed.ID); err == nil {
+		t.Fatal("stale completion must not advance the same outage episode twice")
+	}
+}
+
 func TestNewRecoveryJournalRejectsRedirectedStep(t *testing.T) {
 	identity := destinationreadiness.DeviceIdentity{DevicePath: "/dev/sda1", Filesystem: "ntfs", UUID: "uuid-1", TotalBytes: 100}
 	_, err := destinationreadiness.NewRecoveryJournal("/media/Elements", identity, []destinationreadiness.Plan{

@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"data-backup-manager/internal/destinationreadiness"
 	"data-backup-manager/internal/engine"
@@ -35,9 +36,11 @@ type Service interface {
 	// pageSize <= 0 uses the default.
 	ListDestinations(ctx context.Context, pageSize int) ([]Destination, error)
 
-	// UpdateDestination updates the mutable fields (cap_bytes, cap_policy) of an
-	// existing destination.
+	// UpdateDestination updates mutable destination fields. A recovery identity
+	// is accepted only after the readiness owner re-observes the stable UUID or
+	// serial and proves it matches the requested mount root.
 	UpdateDestination(ctx context.Context, in UpdateInput) (Destination, error)
+	BindRecoveryIdentity(ctx context.Context, id string, identity destinationreadiness.DeviceIdentity) (Destination, error)
 
 	// DeleteDestination removes a destination's catalog row. When
 	// deleteRepository is true, it first removes local resource-kopia metadata
@@ -76,6 +79,10 @@ type UsageReport struct {
 // how preflight declares its own view of the same service.
 type ReadinessGate interface {
 	Analyze(ctx context.Context, in destinationreadiness.AnalyzeInput) (destinationreadiness.Report, error)
+}
+
+type recoveryIdentityInspector interface {
+	InspectDevice(ctx context.Context, expected destinationreadiness.DeviceIdentity) (destinationreadiness.Inspection, error)
 }
 
 type service struct {
@@ -350,6 +357,49 @@ func (s *service) UpdateDestination(ctx context.Context, in UpdateInput) (Destin
 	if in.CapPolicy != "" {
 		existing.CapPolicy = in.CapPolicy
 	}
+	return s.repo.Update(ctx, existing)
+}
+
+func (s *service) BindRecoveryIdentity(ctx context.Context, id string, expected destinationreadiness.DeviceIdentity) (Destination, error) {
+	if strings.TrimSpace(id) == "" {
+		return Destination{}, ErrInvalidDestination{Field: "id", Reason: "required"}
+	}
+	existing, err := s.repo.GetByID(ctx, id)
+	if err != nil {
+		return Destination{}, err
+	}
+	if existing.BackendKind != BackendFilesystem {
+		return Destination{}, ErrInvalidDestination{Field: "identity", Reason: "only filesystem destinations can bind a host volume"}
+	}
+	mountRoot := filepath.Clean(strings.TrimSpace(expected.Mountpoint))
+	if !expected.StrongIdentity() {
+		return Destination{}, ErrInvalidDestination{Field: "identity", Reason: "a stable UUID or serial is required"}
+	}
+	if !filepath.IsAbs(mountRoot) || mountRoot == string(filepath.Separator) {
+		return Destination{}, ErrInvalidDestination{Field: "identity.mountpoint", Reason: "an absolute non-root mount location is required"}
+	}
+	relative, relErr := destinationreadiness.RelativePathUnderMount(existing.Location, mountRoot)
+	if relErr != nil {
+		return Destination{}, ErrInvalidDestination{Field: "identity.mountpoint", Reason: relErr.Error()}
+	}
+	inspector, ok := s.readiness.(recoveryIdentityInspector)
+	if !ok {
+		return Destination{}, ErrInvalidDestination{Field: "identity", Reason: "stable device inspection is unavailable"}
+	}
+	observed, err := inspector.InspectDevice(ctx, expected)
+	if err != nil {
+		return Destination{}, fmt.Errorf("re-observe recovery volume identity: %w", err)
+	}
+	if !expected.MatchesDevice(observed.Identity) || !observed.Identity.StrongIdentity() {
+		return Destination{}, ErrInvalidDestination{Field: "identity", Reason: "observed volume does not match the requested stable identity"}
+	}
+	if observed.Mounted && filepath.Clean(observed.Identity.Mountpoint) != mountRoot {
+		return Destination{}, ErrInvalidDestination{Field: "identity.mountpoint", Reason: "the volume is currently mounted at a different location"}
+	}
+	observed.Identity.Mountpoint = mountRoot
+	existing.DeviceIdentity = &observed.Identity
+	existing.DeviceIdentityObservedAt = time.Now().UTC()
+	existing.RelativePath = relative
 	return s.repo.Update(ctx, existing)
 }
 

@@ -22,6 +22,9 @@ import (
 type Call struct {
 	Args []string
 	Env  map[string]string
+	// CaptureStderr includes stderr in successful output for commands whose
+	// reviewable result is emitted by Kopia's logger rather than stdout.
+	CaptureStderr bool
 	// Stdin, when non-nil, is wired to the kopia process stdin.
 	Stdin []byte
 }
@@ -73,6 +76,9 @@ func (r *BinaryRunner) Run(ctx context.Context, c Call) ([]byte, error) {
 			return stdout.Bytes(), fmt.Errorf("kopia %s: %w: %s", strings.Join(c.Args, " "), err, msg)
 		}
 		return stdout.Bytes(), fmt.Errorf("kopia %s: %w", strings.Join(c.Args, " "), err)
+	}
+	if c.CaptureStderr {
+		return append(stdout.Bytes(), stderr.Bytes()...), nil
 	}
 	return stdout.Bytes(), nil
 }

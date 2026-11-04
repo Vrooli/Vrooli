@@ -30,7 +30,7 @@ func TestSubcommandSurface(t *testing.T) {
 	groups := subcommandGroups(a, repo.Service{}, snapshot.Service{}, policy.Service{}, maintenance.Service{})
 
 	want := map[string][]string{
-		"repo":        {"create", "connect", "status", "stats", "list", "disconnect", "delete", "validate"},
+		"repo":        {"create", "connect", "status", "stats", "list", "disconnect", "delete", "validate", "cache-probe", "repair-format-plan", "index-recovery-scan", "index-recovery-commit", "orphan-temp-blob-commit", "quarantine-orphan-temp-blob"},
 		"snapshot":    {"create", "list", "browse", "restore", "verify", "delete"},
 		"policy":      {"set", "show", "list"},
 		"maintenance": {"run", "set"},

@@ -65,10 +65,11 @@ func TestWellKnownScannerCoversRuntimeStateOnly(t *testing.T) {
 		byName[c.Name] = c
 	}
 
-	// The durable inventory is contract-driven: plans/state/config/data plus the
-	// encrypted credential store and runtime DB. The legacy plaintext store is
-	// deliberately excluded even though the scanner never reads its contents.
-	wantNames := []string{"plans", "state", "config", "data", "secrets-enc", "runtime-db"}
+	// The durable inventory is contract-driven: plans/state/config/data,
+	// control-plane process ownership, the encrypted credential store, and the
+	// runtime DB. The legacy plaintext store is deliberately excluded even
+	// though the scanner never reads its contents.
+	wantNames := []string{"plans", "processes", "state", "config", "data", "secrets-enc", "runtime-db"}
 	if len(got) != len(wantNames) {
 		t.Fatalf("expected %d candidates, got %d: %+v", len(wantNames), len(got), got)
 	}
@@ -109,7 +110,7 @@ func TestWellKnownScannerCoversRuntimeStateOnly(t *testing.T) {
 	if !byName["secrets-enc"].Sensitive {
 		t.Error("encrypted credential-authority store must remain review-only")
 	}
-	for _, name := range []string{"plans", "state", "data"} {
+	for _, name := range []string{"plans", "processes", "state", "data"} {
 		if byName[name].Critical {
 			t.Errorf("%q must not be implicitly marked critical", name)
 		}
@@ -121,7 +122,7 @@ func TestWellKnownScannerCoversRuntimeStateOnly(t *testing.T) {
 	// No regenerable dirs leaked in.
 	for _, c := range got {
 		base := filepath.Base(c.Locator)
-		for _, banned := range []string{"logs", "cache", "metrics", "bin", "processes", "build"} {
+		for _, banned := range []string{"logs", "cache", "metrics", "bin", "build"} {
 			if base == banned {
 				t.Errorf("regenerable dir %q must not be suggested", banned)
 			}

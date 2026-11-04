@@ -2,15 +2,19 @@ package main
 
 import (
 	"context"
+	"errors"
 	"strings"
 	"testing"
 
 	"data-backup-manager/internal/destinationreadiness"
 	destinations "data-backup-manager/internal/destinations"
-	"data-backup-manager/internal/destinations/mocks"
+	destmocks "data-backup-manager/internal/destinations/mocks"
+	"data-backup-manager/internal/engine"
 	plans "data-backup-manager/internal/plans"
+	planmocks "data-backup-manager/internal/plans/mocks"
 	"data-backup-manager/internal/targets"
 	targetmocks "data-backup-manager/internal/targets/mocks"
+	backupmocks "data-backup-manager/internal/testutil/mocks"
 
 	"github.com/stretchr/testify/require"
 )
@@ -34,7 +38,7 @@ func (i adapterReadinessInspector) Inspect(context.Context, string) (destination
 
 func TestPlanCriticalDestinationPolicyAssessReportsSharedRisk(t *testing.T) {
 	targetsSvc := &targetmocks.FakeService{GetOut: targets.Target{ID: "target-1", Locator: "/source"}}
-	destSvc := &mocks.FakeService{GetOut: destinations.Destination{
+	destSvc := &destmocks.FakeService{GetOut: destinations.Destination{
 		ID:          "destination-1",
 		BackendKind: destinations.BackendFilesystem,
 		Location:    "/backup",
@@ -53,7 +57,7 @@ func TestPlanCriticalDestinationPolicyAssessReportsSharedRisk(t *testing.T) {
 
 func TestPlanCriticalDestinationPolicyRejectsOverlappingCriticalDestination(t *testing.T) {
 	targetsSvc := &targetmocks.FakeService{GetOut: targets.Target{ID: "target-1", Critical: true, Locator: "/source"}}
-	destSvc := &mocks.FakeService{GetOut: destinations.Destination{
+	destSvc := &destmocks.FakeService{GetOut: destinations.Destination{
 		ID:          "destination-1",
 		BackendKind: destinations.BackendFilesystem,
 		Location:    "/backup",
@@ -68,7 +72,7 @@ func TestPlanCriticalDestinationPolicyRejectsOverlappingCriticalDestination(t *t
 
 func TestPlanCriticalDestinationPolicyUsesCriticalTargetLocator(t *testing.T) {
 	targetsSvc := &targetmocks.FakeService{GetOut: targets.Target{ID: "target-1", Critical: true, Locator: "/backup/source"}}
-	destSvc := &mocks.FakeService{GetOut: destinations.Destination{
+	destSvc := &destmocks.FakeService{GetOut: destinations.Destination{
 		ID:          "destination-1",
 		BackendKind: destinations.BackendFilesystem,
 		Location:    "/backup",
@@ -83,7 +87,7 @@ func TestPlanCriticalDestinationPolicyUsesCriticalTargetLocator(t *testing.T) {
 
 func TestPlanCriticalDestinationPolicyRejectsKnownUnreadableDestination(t *testing.T) {
 	targetsSvc := &targetmocks.FakeService{GetOut: targets.Target{ID: "target-1", Critical: true, Locator: "/source"}}
-	destSvc := &mocks.FakeService{GetOut: destinations.Destination{
+	destSvc := &destmocks.FakeService{GetOut: destinations.Destination{
 		ID:          "destination-1",
 		BackendKind: destinations.BackendFilesystem,
 		Location:    "/backup",
@@ -105,4 +109,21 @@ func TestPlanCriticalDestinationPolicyRejectsKnownUnreadableDestination(t *testi
 	var invalid plans.ErrInvalidPlan
 	require.ErrorAs(t, err, &invalid)
 	require.Contains(t, invalid.Reason, "destination_missing")
+}
+
+func TestBackupPostureDetectsDisconnectedRepositoryForEnabledPlan(t *testing.T) {
+	destSvc := &destmocks.FakeService{GetOut: destinations.Destination{ID: "d1", Name: "elements-local"}}
+	planSvc := &planmocks.FakeService{ListOut: []plans.Plan{{ID: "p1", Enabled: true, DestinationIDs: []string{"d1"}}}}
+	engine := &backupmocks.FakeKopiaEngine{
+		RepoStatusFn: func(context.Context, string) (engine.RepoStatus, error) {
+			return engine.RepoStatus{}, errors.New("repository unavailable")
+		},
+	}
+	posture := backupPosture{plans: planSvc, destinations: destSvc, engine: engine}
+
+	degraded, detail, err := posture.OverdueOrFailed(context.Background())
+	require.NoError(t, err)
+	require.True(t, degraded)
+	require.Contains(t, detail, "repository elements-local unavailable")
+	require.NotContains(t, detail, "repository unavailable", "raw engine errors should not escape into health output")
 }

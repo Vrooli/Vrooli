@@ -139,6 +139,12 @@ func subcommandGroups(app *cliapp.ResourceApp, repoSvc repo.Service, snapSvc sna
 				{Name: "disconnect", Description: "Disconnect from a repository", Run: wrap(app, repoSvc.Disconnect)},
 				{Name: "delete", Description: "Delete local repository metadata and credential-authority refs", Run: wrap(app, repoSvc.Delete)},
 				{Name: "validate", Description: "Validate repository connectivity/integrity", Run: wrap(app, repoSvc.Validate)},
+				{Name: "cache-probe", Description: "Recheck snapshot enumeration with a temporary isolated cache", Run: wrap(app, repoSvc.CacheProbe)},
+				{Name: "repair-format-plan", Description: "Plan filesystem repository format recovery without modifying it", Run: wrap(app, repoSvc.RepairFilesystemFormatPlan)},
+				{Name: "index-recovery-scan", Description: "Scan filesystem repository for recoverable indexes without committing changes", Run: wrap(app, repoSvc.IndexRecoveryScan)},
+				{Name: "index-recovery-commit", Description: "Commit recovered indexes to a registered filesystem repository after explicit name-bound confirmation", Run: wrap(app, repoSvc.IndexRecoveryCommit)},
+				{Name: "orphan-temp-blob-commit", Description: "Restore one hash-verified orphan temp blob to its missing filesystem repository path after exact confirmation", Run: wrap(app, repoSvc.OrphanTempBlobCommit)},
+				{Name: "quarantine-orphan-temp-blob", Description: "Move one exact unpaired s-blob temp to a unique same-volume quarantine without deleting or replacing data", Run: wrap(app, repoSvc.QuarantineOrphanTempBlob)},
 			},
 		},
 		{

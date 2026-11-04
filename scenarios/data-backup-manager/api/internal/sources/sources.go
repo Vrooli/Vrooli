@@ -15,6 +15,7 @@ package sources
 import (
 	"context"
 	"fmt"
+	"os"
 )
 
 // SourceKind is the canonical domain vocabulary for a source kind. The handler
@@ -31,6 +32,31 @@ const (
 	KindQdrant        SourceKind = "qdrant"
 	KindObjectStorage SourceKind = "object-storage"
 )
+
+// EstimateLocalSourceBytes returns the logical size of a local filesystem or
+// SQLite source for read-only preflight capacity checks. A false supported
+// result means the source kind has no local-file estimate; callers must report
+// capacity as unknown instead of treating the partial sum as complete.
+func EstimateLocalSourceBytes(kind SourceKind, locator string) (bytes int64, supported bool, err error) {
+	switch kind {
+	case KindFilesystem:
+		bytes, err := EstimateFilesystemBytes(locator)
+		return bytes, true, err
+	case KindSQLite:
+		file, openErr := os.Open(locator)
+		if openErr != nil {
+			return 0, true, openErr
+		}
+		defer file.Close()
+		info, statErr := file.Stat()
+		if statErr != nil {
+			return 0, true, statErr
+		}
+		return info.Size(), true, nil
+	default:
+		return 0, false, nil
+	}
+}
 
 // Valid reports whether k is one of the six supported source kinds.
 func (k SourceKind) Valid() bool {

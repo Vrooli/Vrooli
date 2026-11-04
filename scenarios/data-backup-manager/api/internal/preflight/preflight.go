@@ -22,7 +22,10 @@ import (
 )
 
 type (
-	Plan   struct{ TargetIDs, DestinationIDs []string }
+	Plan struct {
+		TargetIDs, DestinationIDs []string
+		RetentionCopies           int
+	}
 	Target struct {
 		ID      string
 		Kind    sources.SourceKind
@@ -103,6 +106,46 @@ func Check(ctx context.Context, in Input) Result {
 		r.add(failures.Cause{Code: failures.SourceMissing, Category: failures.CategorySource, Scope: failures.ScopePlan, Message: "plan has no target", NextAction: "configure at least one approved target"})
 	}
 
+	// Estimate every selected local source before destination readiness so its
+	// capacity check uses the full source set and plan retention. If any source
+	// cannot be enumerated (or has no local estimator), capacity remains unknown
+	// rather than passing on a partial sum.
+	resolvedTargets := make(map[string]Target, len(in.Plan.TargetIDs))
+	sourceEstimateErrors := make(map[string]error)
+	selectedTargetBytes := int64(0)
+	capacityEstimateComplete := in.CheckSourcePaths
+	for _, id := range unique(in.Plan.TargetIDs) {
+		if in.Targets == nil {
+			capacityEstimateComplete = false
+			continue
+		}
+		target, err := in.Targets.TargetForRun(ctx, id)
+		if err != nil {
+			capacityEstimateComplete = false
+			continue
+		}
+		resolvedTargets[id] = target
+		if !in.CheckSourcePaths || !filepath.IsAbs(target.Locator) ||
+			(target.Kind != sources.KindFilesystem && target.Kind != sources.KindSQLite) {
+			capacityEstimateComplete = false
+			continue
+		}
+		bytes, supported, estimateErr := sources.EstimateLocalSourceBytes(target.Kind, target.Locator)
+		if estimateErr != nil {
+			sourceEstimateErrors[id] = estimateErr
+			capacityEstimateComplete = false
+			continue
+		}
+		if !supported {
+			capacityEstimateComplete = false
+			continue
+		}
+		selectedTargetBytes += bytes
+	}
+	if !capacityEstimateComplete {
+		selectedTargetBytes = 0
+	}
+
 	// Resolve and probe each destination exactly once, then attach the same
 	// cause to all affected targets in one grouped incident.
 	for _, id := range unique(in.Plan.DestinationIDs) {
@@ -134,9 +177,38 @@ func Check(ctx context.Context, in Input) Result {
 			}
 			cause.TargetIDs = append([]string(nil), in.Plan.TargetIDs...)
 			r.add(cause)
+		} else if _, err := in.Engine.SnapshotList(ctx, dest.Name, ""); err != nil {
+			// A successful repository status only proves that Kopia can open
+			// the repository and its credential. Enumerating manifests catches
+			// missing or unreadable snapshot metadata before we capture sources
+			// or attempt a new write into a damaged repository.
+			r.add(failures.Cause{
+				Code: failures.RepositoryInvalid, Category: failures.CategoryRepository,
+				Scope: failures.ScopeDestination, DestinationID: id,
+				TargetIDs:  append([]string(nil), in.Plan.TargetIDs...),
+				Message:    "repository snapshot metadata could not be enumerated",
+				NextAction: "preserve repository bytes and credentials; inspect repository integrity before retrying",
+			})
+		} else if _, err := in.Engine.RepoStats(ctx, dest.Name); err != nil {
+			// Capacity and retention safety depend on a complete repository usage
+			// read. A passing status and snapshot list do not prove that Kopia can
+			// enumerate the content/index shards used by stats; do not start source
+			// capture when the destination's current footprint cannot be measured.
+			r.add(failures.Cause{
+				Code: failures.RepositoryInvalid, Category: failures.CategoryRepository,
+				Scope: failures.ScopeDestination, DestinationID: id,
+				TargetIDs:  append([]string(nil), in.Plan.TargetIDs...),
+				Message:    "repository usage could not be measured",
+				NextAction: "preserve repository bytes and credentials; resolve the repository usage error before writing backups",
+			})
 		}
 		if in.Readiness != nil && dest.BackendKind == "filesystem" && strings.TrimSpace(dest.Location) != "" {
-			report, err := in.Readiness.Analyze(ctx, destinationreadiness.AnalyzeInput{Location: dest.Location})
+			readinessInput := destinationreadiness.AnalyzeInput{Location: dest.Location}
+			if capacityEstimateComplete {
+				readinessInput.SelectedTargetBytes = selectedTargetBytes
+				readinessInput.RetentionCopies = in.Plan.RetentionCopies
+			}
+			report, err := in.Readiness.Analyze(ctx, readinessInput)
 			if err != nil {
 				cause := failures.Classify(err)
 				cause.DestinationID, cause.Scope = id, failures.ScopeDestination
@@ -155,16 +227,9 @@ func Check(ctx context.Context, in Input) Result {
 	}
 
 	for _, id := range unique(in.Plan.TargetIDs) {
-		target, err := in.Targets.TargetForRun(ctx, id)
-		if err != nil {
-			cause := failures.Classify(err)
-			cause.TargetIDs, cause.Scope = []string{id}, failures.ScopeTarget
-			if cause.Code == failures.Unknown {
-				cause.Code, cause.Category = failures.SourceMissing, failures.CategorySource
-			}
-			cause.Message = "target could not be resolved"
-			cause.NextAction = "restore the source path or remove the stale target"
-			r.add(cause)
+		target, ok := resolvedTargets[id]
+		if !ok {
+			r.add(failures.Cause{Code: failures.SourceMissing, Category: failures.CategorySource, Scope: failures.ScopeTarget, TargetIDs: []string{id}, Message: "target could not be resolved", NextAction: "restore the source path or remove the stale target"})
 			continue
 		}
 		if in.Sources == nil {
@@ -179,7 +244,16 @@ func Check(ctx context.Context, in Input) Result {
 			r.add(cause)
 			continue
 		}
-		if in.CheckSourcePaths && (target.Kind == sources.KindWorkspace || target.Kind == sources.KindFilesystem || target.Kind == sources.KindSQLite) && filepath.IsAbs(target.Locator) {
+		if err := sourceEstimateErrors[id]; err != nil {
+			cause := failures.Classify(err)
+			cause.Code, cause.Category = failures.SourceMissing, failures.CategorySource
+			cause.TargetIDs, cause.Scope = []string{id}, failures.ScopeTarget
+			cause.Message = fmt.Sprintf("source tree could not be completely enumerated: %v", err)
+			cause.NextAction = "restore authorized read access to the full source tree and retry preflight"
+			r.add(cause)
+			continue
+		}
+		if in.CheckSourcePaths && target.Kind == sources.KindWorkspace && filepath.IsAbs(target.Locator) {
 			if _, err := os.Stat(target.Locator); err != nil {
 				cause := failures.Classify(err)
 				cause.TargetIDs, cause.Scope = []string{id}, failures.ScopeTarget
@@ -235,6 +309,11 @@ func readinessFailure(report destinationreadiness.Report) failures.Cause {
 		case "directory_inaccessible":
 			cause.Message = "destination directory is inaccessible"
 			cause.NextAction = "restore directory access and re-run destination readiness"
+		case "capacity":
+			cause.Code = failures.DestinationCapacity
+			cause.Category = failures.CategoryCapacity
+			cause.Message = "destination free space is below the complete selected source estimate and retention requirement"
+			cause.NextAction = "free destination space or select a suitable destination before enabling backup writes"
 		}
 		return cause
 	}

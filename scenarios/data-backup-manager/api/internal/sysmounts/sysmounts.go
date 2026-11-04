@@ -179,6 +179,13 @@ func (s *Scanner) Scan(ctx context.Context) ([]Volume, error) {
 		if s.identity != nil {
 			if identity, ierr := s.identity(ctx, m.Device); ierr == nil {
 				vol.Label, vol.UUID, vol.Model, vol.Serial = identity.Label, identity.UUID, identity.Model, identity.Serial
+				// fuseblk is the mount-table driver name used by ntfs-3g, while
+				// lsblk continues to report the on-disk format as NTFS. Keep the
+				// driver separate and use the block identity for filesystem
+				// matching and NTFS policy.
+				if strings.EqualFold(strings.TrimSpace(m.Fstype), "fuseblk") && strings.EqualFold(strings.TrimSpace(identity.Filesystem), "ntfs") {
+					vol.Filesystem = identity.Filesystem
+				}
 			}
 		}
 		if u, uerr := s.usage(ctx, m.Mountpoint); uerr == nil && u != nil {

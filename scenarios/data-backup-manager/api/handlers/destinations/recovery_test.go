@@ -2,12 +2,16 @@ package destinations
 
 import (
 	"context"
+	"path/filepath"
+	"strings"
 	"testing"
 
 	"connectrpc.com/connect"
 
 	"data-backup-manager/internal/destinationreadiness"
 	"data-backup-manager/internal/destinations/mocks"
+
+	"github.com/vrooli/api-core/operatordecision"
 
 	destinationsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/data-backup-manager/v1/destinations"
 )
@@ -86,6 +90,44 @@ func TestVolumeRecoveryRPCsPersistAndResumeWithoutHostEffectsOnDryRun(t *testing
 	}
 	if remediator.calls != 1 {
 		t.Fatalf("remediator calls = %d, want one dry-run validation", remediator.calls)
+	}
+}
+
+func TestResumeVolumeRecoveryCannotBypassNotificationDecisionWithCallerConfirmation(t *testing.T) {
+	identity := destinationreadiness.DeviceIdentity{DevicePath: "/dev/sdz1", UUID: "uuid-1", Filesystem: "ntfs", TotalBytes: 100}
+	plan := destinationreadiness.Plan{
+		ID: "repair-plan", Action: destinationreadiness.ActionRepairFilesystem,
+		Location: "/media/Elements", TargetPath: "/media/Elements", Identity: identity,
+		RequiresConfirm: true, Destructive: true, ConfirmationPhrase: "REPAIR", Supported: true,
+	}
+	journal := destinationreadiness.RecoveryJournal{
+		Version: "dbm-volume-recovery-v1", ID: "recovery-repair", Location: plan.Location,
+		Identity: identity, Current: 0, State: destinationreadiness.RecoveryPending,
+		Steps: []destinationreadiness.RecoveryStep{{Plan: plan, Status: "pending"}},
+	}
+	store := &recoveryStore{journal: journal}
+	remediator := &recoveryHandlerRemediator{}
+	readiness := destinationreadiness.NewService(recoveryHandlerInspector{identity: identity}, nil).WithRemediator(remediator)
+	publisher := &recoveryDecisionPublisher{}
+	decisions := newRecoveryDecisionFlow(readiness, store,
+		&destinationreadiness.FileDecisionStore{Root: filepath.Join(t.TempDir(), "asks")}, publisher, true, nil)
+	h := NewConnectHandler(Deps{Readiness: readiness, RecoveryStore: store, DecisionFlow: decisions})
+
+	response, err := h.ResumeVolumeRecovery(context.Background(), connect.NewRequest(&destinationsv1.ResumeVolumeRecoveryRequest{
+		Id: journal.ID, Confirmations: map[int32]string{0: "REPAIR"}, AcknowledgeDataLoss: true,
+		DryRun: boolPtr(false),
+	}))
+	if err != nil {
+		t.Fatalf("ResumeVolumeRecovery: %v", err)
+	}
+	if remediator.calls != 0 {
+		t.Fatalf("caller-supplied repair confirmation executed host effect; calls=%d", remediator.calls)
+	}
+	if response.Msg.Journal.Steps[0].Status != "blocked" || !strings.Contains(response.Msg.Journal.LastError, "pending a verified Notification Hub decision") {
+		t.Fatalf("journal = %+v, want a pending approval", response.Msg.Journal)
+	}
+	if len(publisher.events) != 1 || publisher.events[0].EventType != operatordecision.DecisionRequestedEventType(recoveryDecisionSource, recoveryDecisionKind) {
+		t.Fatalf("published events = %+v, want repair decision request", publisher.events)
 	}
 }
 

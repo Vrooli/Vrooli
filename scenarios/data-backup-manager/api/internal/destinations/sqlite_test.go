@@ -85,6 +85,9 @@ func TestSQLiteRepository_RoundTrip(t *testing.T) {
 	clk.Advance(time.Second)
 	created.CapBytes = 5000
 	created.CapPolicy = destinations.CapPolicyAlertOnly
+	created.RelativePath = "archives"
+	created.DeviceIdentity.Mountpoint = "/mnt/portable"
+	created.DeviceIdentityObservedAt = time.Date(2026, 1, 2, 3, 5, 0, 0, time.UTC)
 	updated, err := repo.Update(ctx, created)
 	if err != nil {
 		t.Fatalf("update: %v", err)
@@ -95,6 +98,9 @@ func TestSQLiteRepository_RoundTrip(t *testing.T) {
 	reread, _ := repo.GetByID(ctx, created.ID)
 	if reread.CapBytes != 5000 || reread.CapPolicy != destinations.CapPolicyAlertOnly {
 		t.Fatalf("update not persisted: %+v", reread)
+	}
+	if reread.RelativePath != "archives" || reread.DeviceIdentity == nil || reread.DeviceIdentity.Mountpoint != "/mnt/portable" || !reread.DeviceIdentityObservedAt.Equal(created.DeviceIdentityObservedAt) {
+		t.Fatalf("recovery identity update not persisted: %+v", reread)
 	}
 
 	// List ordering by name.

@@ -142,6 +142,28 @@ func (h *handlers) update(ctx cliapp.RunContext) error {
 	})
 }
 
+func (h *handlers) bindRecoveryIdentity(ctx cliapp.RunContext) error {
+	identity := &destinationsv1.DestinationDeviceIdentity{
+		Uuid:       strings.TrimSpace(ctx.Flag("device-uuid")),
+		Serial:     strings.TrimSpace(ctx.Flag("device-serial")),
+		Filesystem: strings.TrimSpace(ctx.Flag("device-filesystem")),
+		Mountpoint: strings.TrimSpace(ctx.Flag("mountpoint")),
+	}
+	resp, err := h.client.BindDestinationRecoveryIdentity(context.Background(), connect.NewRequest(&destinationsv1.BindDestinationRecoveryIdentityRequest{
+		Id: ctx.Flag("id"), Identity: identity,
+	}))
+	if err != nil {
+		return cliapp.WrapAPIError("bind destination recovery identity", err, nil)
+	}
+	if resp == nil || resp.Msg == nil || resp.Msg.Destination == nil {
+		return fmt.Errorf("server returned no destination")
+	}
+	return cliapp.RenderProtoMutation(ctx, resp.Msg, cliapp.MutationReport{
+		Result:  []string{fmt.Sprintf("Bound destination %s to a freshly observed stable volume identity.", resp.Msg.Destination.Id)},
+		Changes: []string{formatDestination(resp.Msg.Destination)},
+	})
+}
+
 func (h *handlers) delete(ctx cliapp.RunContext) error {
 	deleteRepo := false
 	if s := ctx.Flag("delete-repository"); s != "" {

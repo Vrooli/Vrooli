@@ -20,6 +20,7 @@ import (
 	"github.com/vrooli/api-core/apihttp"
 	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/devrouting"
+	"github.com/vrooli/api-core/eventbus"
 	"github.com/vrooli/api-core/filerouting"
 	"github.com/vrooli/api-core/preflight"
 	apiserver "github.com/vrooli/api-core/server"
@@ -408,7 +409,16 @@ func run(ctx context.Context) error {
 	// in addition to liveness, and emits a posture event for monitoring. It
 	// reads the same per-target Overdue the runs service computes from
 	// overdueAfterDur, so /health and `runs status` never disagree.
-	posture := backupPosture{runs: runsSvc}
+	posture := backupPosture{runs: runsSvc, plans: plansSvc, destinations: destSvc, engine: kopia}
+
+	// Recovery decisions and ordinary drive notices use the shared Vrooli Events
+	// rail. A signing-secret failure disables decision approvals, while the
+	// publisher can still deliver informational mount/recovery notifications.
+	decisionPublisher := eventbus.NewDiscoveredClient(ctx)
+	eventsWebhookSecret, secretErr := resolveEventsWebhookSecret()
+	if secretErr != nil {
+		logger.Printf("volume recovery decision callback unavailable: %v", secretErr)
+	}
 
 	// Baseline Modes safety substrate: pure orchestration over the
 	// destinations/targets/plans/runs services (no tables of its own) that the
@@ -423,12 +433,21 @@ func run(ctx context.Context) error {
 		RuntimeRoot:  discoveryint.RuntimeRoot,
 	})
 
+	destinationsModule, recoveryWorker := destinationsH.ModuleWithRecoveryWorker(
+		db, clk, kopia, protectedRoot, filePaths.StateDir, logger, decisionPublisher, eventsWebhookSecret,
+	)
+	if err := recoveryWorker.Start(); err != nil {
+		cancelExec()
+		_ = db.Close()
+		return fmt.Errorf("start volume recovery monitor: %w", err)
+	}
+
 	srv := server.New(
 		server.Deps{Clock: clk, Logger: logger},
 		healthH.ModuleWithPosture(db, "data-backup-manager-api", "1.0.0", posture, logEventSink{logger: logger}),
 		auditsH.Module(auditsSvc, logger),
 		coverageH.Module(coverageSvc, logger),
-		destinationsH.Module(db, clk, kopia, protectedRoot, filePaths.StateDir, logger),
+		destinationsModule,
 		discoveryH.Module(discoverySvc, logger),
 		plansH.Module(plansSvc, logger),
 		restoresH.Module(restoresSvc, logger),
@@ -463,12 +482,16 @@ func run(ctx context.Context) error {
 			// Interrupt and drain in-flight runs + restores before closing the DB
 			// so no worker can write to a closed handle.
 			cancelExec()
+			if err := recoveryWorker.Stop(cctx); err != nil {
+				logger.Printf("volume recovery monitor shutdown: %v", err)
+			}
 			_ = runsSvc.Shutdown(cctx)
 			_ = restoresSvc.Shutdown(cctx)
 			_ = auditsSvc.Shutdown(cctx)
 			_ = drillsSvc.Shutdown(cctx)
 			return db.Close()
 		},
+		LifecycleHooks: recoveryWorker.LifecycleHooks(),
 	}); err != nil {
 		return fmt.Errorf("server error: %w", err)
 	}

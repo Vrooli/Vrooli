@@ -5,7 +5,7 @@
     "entries": {},
     "rationale": "smartctl is a one-shot reader with no daemon and no state directory; it writes nothing outside the invoking workflow. The explicit empty declaration records that."
   },
-  "description": "SMART attribute reader (smartmontools) — reports storage wear, reallocated and pending sectors, media errors and power-on hours for the system-monitor device graph",
+  "description": "SMART attribute reader (smartmontools) \u2014 reports storage wear, reallocated and pending sectors, media errors and power-on hours for the system-monitor device graph",
   "commands": [
     "smartctl"
   ],
@@ -19,7 +19,7 @@
     "pacman": "smartmontools",
     "apk": "smartmontools"
   },
-  "installHint": "Install smartmontools via your package manager. Presence on PATH is not sufficient: smartctl must open the raw block device, so the account running system-monitor also needs raw device access. Where it does not have that access the device graph reports storage wear as unmeasurable with the reason 'permission denied' rather than reporting a healthy drive. Granting that access is a commissioning-time decision made during `vrooli setup`; the scenario never escalates at runtime. Windows is not declared here because smartmontools has no verified governed package identity on that platform; the Windows device graph uses Get-StorageReliabilityCounter instead.",
+  "installHint": "Install smartmontools via your package manager. Presence on PATH is not sufficient: smartctl must open the raw block device. `vrooli setup` installs the tool but does not grant persistent access to system-monitor. For a one-time identity-bound diagnostic, use `vrooli host volume smart --device <whole-disk> --serial <expected-serial>`; the control-plane broker rechecks the serial and runs only `smartctl -j -H -A`. This does not grant ongoing raw-device access to scenarios; their SMART telemetry remains unmeasurable when device permissions deny access. Windows uses Get-StorageReliabilityCounter instead.",
   "bundling": "host-required",
   "capability": "hardware-error-telemetry",
   "capability_role": "peer",

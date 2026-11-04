@@ -166,10 +166,7 @@ func (i DeviceIdentity) StrongIdentity() bool {
 // identifier it must match, and when neither does the device path must match
 // exactly rather than being waved through as "optional".
 func (i DeviceIdentity) MatchesDevice(other DeviceIdentity) bool {
-	if !equalOptional(i.Filesystem, other.Filesystem, true) {
-		return false
-	}
-	if i.TotalBytes != 0 && other.TotalBytes != 0 && i.TotalBytes != other.TotalBytes {
+	if !sameFilesystemIdentity(i.Filesystem, other.Filesystem) {
 		return false
 	}
 	if i.StrongIdentity() && other.StrongIdentity() {
@@ -177,12 +174,32 @@ func (i DeviceIdentity) MatchesDevice(other DeviceIdentity) bool {
 		// that exposes a UUID but no serial must still be able to match.
 		return equalOptional(i.UUID, other.UUID, true) && equalOptional(i.Serial, other.Serial, false)
 	}
+	// Capacity is a useful guard only when no stable identifier is available.
+	// Partition and filesystem observers can report slightly different usable
+	// byte counts for the same volume.
+	if i.TotalBytes != 0 && other.TotalBytes != 0 && i.TotalBytes != other.TotalBytes {
+		return false
+	}
 	// Guard the raw values: normalizePath collapses an empty path to ".", so
 	// comparing normalized forms would make two identity-free volumes match.
 	if strings.TrimSpace(i.DevicePath) == "" || strings.TrimSpace(other.DevicePath) == "" {
 		return false
 	}
 	return normalizePath(i.DevicePath) == normalizePath(other.DevicePath)
+}
+
+func sameFilesystemIdentity(a, b string) bool {
+	if strings.TrimSpace(a) == "" || strings.TrimSpace(b) == "" {
+		return true
+	}
+	normalize := func(value string) string {
+		value = strings.ToLower(strings.TrimSpace(value))
+		if value == "ntfs3" {
+			return "ntfs"
+		}
+		return value
+	}
+	return normalize(a) == normalize(b)
 }
 
 func normalizePath(p string) string {

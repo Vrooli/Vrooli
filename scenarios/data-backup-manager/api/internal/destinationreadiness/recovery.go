@@ -3,6 +3,7 @@ package destinationreadiness
 import (
 	"context"
 	"crypto/rand"
+	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -248,6 +249,162 @@ func recoveryID() string {
 type FileRecoveryStore struct {
 	Root string
 	mu   sync.Mutex
+}
+
+// RecoveryEpisode persists the observed mount edge for one destination. A
+// recovery ID is stable while the volume remains unavailable and is cleared
+// after a mounted observation, so a later failure receives a fresh journal
+// and a fresh Notification Hub decision.
+type RecoveryEpisode struct {
+	Version       string         `json:"version"`
+	DestinationID string         `json:"destination_id"`
+	Identity      DeviceIdentity `json:"identity"`
+	RecoveryID    string         `json:"recovery_id,omitempty"`
+	LastMounted   bool           `json:"last_mounted"`
+	UpdatedAt     time.Time      `json:"updated_at"`
+}
+
+const recoveryEpisodeVersion = "dbm-volume-recovery-episode-v1"
+
+// ObserveEpisode records a mount observation and returns the durable recovery
+// episode for an unmounted volume. legacyID lets an upgrade adopt an
+// incomplete journal created by the older deterministic-ID monitor.
+func (s *FileRecoveryStore) ObserveEpisode(ctx context.Context, destinationID string, identity DeviceIdentity, mounted bool, legacyID string) (RecoveryEpisode, error) {
+	if err := ctx.Err(); err != nil {
+		return RecoveryEpisode{}, err
+	}
+	if strings.TrimSpace(destinationID) == "" || !identity.StrongIdentity() {
+		return RecoveryEpisode{}, errors.New("recovery episode requires a destination ID and stable device identity")
+	}
+	path, err := s.episodePath(destinationID)
+	if err != nil {
+		return RecoveryEpisode{}, err
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	episode, err := s.readEpisode(path)
+	if err != nil && !os.IsNotExist(err) {
+		return RecoveryEpisode{}, err
+	}
+	if err != nil || episode.DestinationID != destinationID || !episode.Identity.MatchesDevice(identity) {
+		episode = RecoveryEpisode{Version: recoveryEpisodeVersion, DestinationID: destinationID, Identity: identity}
+	}
+	episode.Identity = identity
+	episode.UpdatedAt = time.Now().UTC()
+	if mounted {
+		episode.LastMounted = true
+		episode.RecoveryID = ""
+	} else {
+		episode.LastMounted = false
+		if episode.RecoveryID == "" {
+			episode.RecoveryID = recoveryID()
+			if strings.TrimSpace(legacyID) != "" {
+				legacyPath, pathErr := s.path(legacyID)
+				if pathErr == nil {
+					if data, readErr := os.ReadFile(legacyPath); readErr == nil && len(data) <= 1<<20 {
+						var legacy RecoveryJournal
+						if json.Unmarshal(data, &legacy) == nil && legacy.ID == legacyID && validateJournal(legacy) == nil && legacy.State != RecoveryCompleted {
+							episode.RecoveryID = legacyID
+						}
+					} else if readErr != nil && !os.IsNotExist(readErr) {
+						return RecoveryEpisode{}, readErr
+					}
+				}
+			}
+		}
+	}
+	if err := s.writeEpisode(path, episode); err != nil {
+		return RecoveryEpisode{}, err
+	}
+	return episode, nil
+}
+
+// AdvanceUnmountedEpisode rotates a completed episode that was followed by a
+// new outage before the monitor observed an intervening mounted poll.
+func (s *FileRecoveryStore) AdvanceUnmountedEpisode(ctx context.Context, destinationID string, expectedID string) (RecoveryEpisode, error) {
+	if err := ctx.Err(); err != nil {
+		return RecoveryEpisode{}, err
+	}
+	path, err := s.episodePath(destinationID)
+	if err != nil {
+		return RecoveryEpisode{}, err
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	episode, err := s.readEpisode(path)
+	if err != nil {
+		return RecoveryEpisode{}, err
+	}
+	if episode.LastMounted || episode.RecoveryID != expectedID || !episode.Identity.StrongIdentity() {
+		return RecoveryEpisode{}, errors.New("recovery episode changed before it could be advanced")
+	}
+	episode.RecoveryID = recoveryID()
+	episode.UpdatedAt = time.Now().UTC()
+	if err := s.writeEpisode(path, episode); err != nil {
+		return RecoveryEpisode{}, err
+	}
+	return episode, nil
+}
+
+func (s *FileRecoveryStore) episodePath(destinationID string) (string, error) {
+	if s == nil || !filepath.IsAbs(s.Root) || strings.TrimSpace(destinationID) == "" {
+		return "", errors.New("invalid recovery episode store or destination ID")
+	}
+	digest := sha256.Sum256([]byte(destinationID))
+	return filepath.Join(filepath.Clean(s.Root), "episodes", hex.EncodeToString(digest[:])+".json"), nil
+}
+
+func (s *FileRecoveryStore) readEpisode(path string) (RecoveryEpisode, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return RecoveryEpisode{}, err
+	}
+	if len(data) > 1<<20 {
+		return RecoveryEpisode{}, errors.New("recovery episode exceeds size limit")
+	}
+	var episode RecoveryEpisode
+	if err := json.Unmarshal(data, &episode); err != nil {
+		return RecoveryEpisode{}, err
+	}
+	if episode.Version != recoveryEpisodeVersion || strings.TrimSpace(episode.DestinationID) == "" || !episode.Identity.StrongIdentity() {
+		return RecoveryEpisode{}, errors.New("recovery episode is invalid")
+	}
+	return episode, nil
+}
+
+func (s *FileRecoveryStore) writeEpisode(path string, episode RecoveryEpisode) error {
+	if err := os.MkdirAll(filepath.Dir(path), 0700); err != nil {
+		return err
+	}
+	data, err := json.MarshalIndent(episode, "", "  ")
+	if err != nil {
+		return err
+	}
+	tmp, err := os.CreateTemp(filepath.Dir(path), ".episode-*.tmp")
+	if err != nil {
+		return err
+	}
+	tmpName := tmp.Name()
+	defer os.Remove(tmpName)
+	if err := tmp.Chmod(0600); err != nil {
+		tmp.Close()
+		return err
+	}
+	if _, err := tmp.Write(data); err != nil {
+		tmp.Close()
+		return err
+	}
+	if err := tmp.Sync(); err != nil {
+		tmp.Close()
+		return err
+	}
+	if err := tmp.Close(); err != nil {
+		return err
+	}
+	if err := os.Rename(tmpName, path); err != nil {
+		return err
+	}
+	return syncRecoveryDirectory(filepath.Dir(path))
 }
 
 func (s *FileRecoveryStore) path(id string) (string, error) {

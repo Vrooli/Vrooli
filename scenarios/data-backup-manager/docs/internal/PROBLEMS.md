@@ -22,6 +22,7 @@ they appear.
 
 - **Generic template issues** — those go in
   [`../guides/troubleshooting.md`](../guides/troubleshooting.md)
+
 - **Open feature requests** — track those in PRD operational targets
 - **Code comments** — if the constraint is local to one file, a
   comment there is more discoverable
@@ -48,6 +49,73 @@ Use this shape so entries are scannable. Append newest at the bottom.
 ```
 
 ## Entries
+
+### 2026-11-04 — Elements Kopia repository contains an unreadable temp object
+
+**Symptom:** Destination usage and Kopia blob statistics fail with `EIO` while
+reading the exact unpaired content temp
+`s/f43/64b7506cef44e4fbb3fc66ba7f2d9-sf40366ce03934d79144.f.tmp.8c9d63ca28444838`.
+Snapshot enumeration succeeds after the separately authorized q-manifest
+repairs, but the Elements backup plan remains unready and its 14 target
+postures remain failed/overdue.
+
+**Root cause:** The host currently returns an I/O error for this object on the
+USB-attached NTFS destination. Evidence does not identify whether the fault is
+in the device, USB transport, filesystem, or this object. Same-volume rename
+also returned `EIO`; moving or deleting it is not a safe diagnostic.
+
+**Current evidence:** The full 14-target source enumeration now succeeds after
+repairing traversal on one owner-owned mode-0600 receipt directory. DBM's
+current destination readiness check passes the complete estimated source bytes
+and retention-three capacity check. The exact repository usage call still
+fails with `EIO`. Mounted filesystem dirty/needs-check state is unavailable
+through the current `ntfs-3g` mount, so overall readiness remains `UNKNOWN`.
+The authorized identity-bound SMART query reports overall status passed,
+35°C, and zero reallocated sectors, reallocation events and current-pending
+sectors in the complete output prefix. The active broker truncates its raw JSON
+at 8 KiB, so the remaining attributes and error/self-test logs are not
+qualified; a passing summary does not rule out USB transport or filesystem
+damage. The owner-side serializer now emits a bounded valid SMART summary, but
+the setup-managed broker still needs the authenticated update to load it.
+
+**Workaround:** Preserve the temp object, keep `elements-daily-runtime`
+inactive, and do not capture, restore, prune, or mutate the repository until
+the error is diagnosed. Obtain the already-approved read-only SMART evidence
+through the identity-bound control-plane command after the setup-managed root
+broker is updated, or use a read-only check from another authorized computer.
+
+**Real fix:** Diagnose and resolve the drive/transport/filesystem fault at its
+owning host layer, then re-run repository usage, filesystem readiness, the
+overdue target captures, and an independent restore. Keep the plan inactive
+until those checks pass.
+
+**Owner:** Data Backup Manager recovery supervisor with host storage owner.
+
+**Refs:** `api/handlers/destinations/recovery_monitor.go`,
+`api/handlers/destinations/recovery_decision.go`,
+`api/handlers/destinations/connect_handler.go`; recovery checkpoint
+`/home/matthalloran8/.vrooli/research/cohorts/dbm-drive-recovery-20261103/CHECKPOINT.md`;
+operator actions `/home/matthalloran8/.vrooli/research/ATTENTION.md`.
+
+### 2026-11-03 — Recovery state was missing from the storage declaration (source fixed)
+
+**Symptom:** The comprehensive Test Genie storage phase reported recovery
+journal bytes under the canonical DBM state root as uncovered by any declared
+storage entry.
+
+**Root cause:** DBM's destination module writes crash-resumable journals and
+Notification Hub decision records below `filePaths.StateDir`, but
+`.vrooli/service.json` declared only `state/retention` there.
+
+**Resolution:** Declared `state/volume-recovery` and
+`state/volume-recovery-decisions` as durable owned directories with measured
+size budgets. After its five-minute inventory TTL, Storage Manager reports both
+entries and all 471,319,544 observed DBM bytes accounted for. The previous Test
+Genie phase result remains historical until a new suite produces fresh evidence.
+
+**Refs:** `api/main.go`, `api/handlers/destinations/module.go`,
+`.vrooli/service.json`; Test Genie storage artifact from run
+`20261103-213641-4ae1fc23`.
 
 ### 2026-06-03 — Discovered-vs-registered coverage gap closed (resolved)
 
@@ -396,8 +464,11 @@ denominator for the dedup metric (Phase B).
 The Elements volume `/dev/sda1` (UUID `E26A883E6A881189`) is present but not
 mounted. The host reports NTFS and the observed condition is compatible with a
 dirty volume after an unclean disconnect or shutdown; a power outage is not
-proven. The Ubuntu installer volume is FAT32 removable media and remains a
-warning-only candidate, not a primary repository.
+proven. The [NTFS-3G FAQ](https://github.com/tuxera/ntfs-3g/wiki/NTFS-3G-FAQ)
+documents filesystem checks after unsafe unmounts, which supports this as the
+immediate trigger but does not identify what interrupted this drive. The
+Ubuntu installer volume is FAT32 removable media and remains a warning-only
+candidate, not a primary repository.
 
 The latest scheduled plan run failed its planned targets because the
 `elements-local` repository passphrase was unavailable. This is independent of
@@ -502,6 +573,45 @@ a migration handoff with a planned retirement path back into
 - [`TESTING.md`](TESTING.md) — test patterns
 - [`../guides/troubleshooting.md`](../guides/troubleshooting.md) — generic-template issues
 
+## Recovery identity re-resolution — 2026-11-03
+
+An identity-bound recovery journal stores both the device's last observed path
+and its stable UUID/serial. `ReadOnlyInspector.InspectDevice` previously chose
+the saved device path whenever present, even when stable identity was available.
+After reboot or replug, device enumeration can assign the Elements volume a new
+path; the stale path can fail or refer to another volume. Recovery now resolves
+by stored UUID/serial first, then verifies the returned device against the
+stored filesystem identity before inspection. The volatile device path is used
+only when no stable identity exists. If stable resolution is unavailable or
+returns a mismatch, inspection fails closed.
+
+This fixes the identity lookup defect in the resume owner. The 2026-11-03
+commission also added the lifecycle-managed safe-remount monitor, mount-failure
+notifications, a durable Notification Hub repair decision and signed
+human-only approval callback, and retryable terminal result notifications.
+The monitor remounts only after a positive read-only check, then verifies the
+mounted/read-write result. It does not run filesystem repair without the exact
+human approval.
+
+The cross-platform owner path now resolves macOS unmounted state from
+`diskutil info`, rather than depending only on the mount table. Windows accepts
+the stable `\\?\Volume{GUID}\` selector when a drive letter is absent,
+resolves it through `Get-Volume -UniqueId`, and invokes `Repair-Volume` against
+that exact volume object. A Windows check is considered consistent only when
+the cmdlet returns an explicit zero result; absent or nonzero output is not
+treated as clean. Safe remount restores the recorded non-system drive letter
+only if it is still unassigned, then re-observes the same volume GUID. Windows
+system-root protection recognizes `C:\` paths independently of the control
+plane's build host.
+
+Focused `volumeremediation` and DBM inspector/readiness/recovery tests pass;
+Windows and macOS test targets cross-compile. Test Genie did not start because
+its provider catalog rejects the unrelated scratch scenario
+`scenarios/.browser-automation-studio-e7-repeat-durable` whose declared scenario
+name differs from its directory. These checks do not establish native Windows
+or macOS hardware recovery. NTFS remains read-only on macOS. Linux Elements
+repair/remount evidence is separately recorded in the active recovery cohort.
+
 ## Workspace checkpoints and isolated validation — 2026-09-08
 
 ## Portable destination identity and recovery locator — 2026-09-08
@@ -602,9 +712,12 @@ starting, inspecting, and resuming a sequence. The generated TypeScript client
 and React Query hooks are wired with dry-run as the default; a dedicated visual
 recovery panel remains future UI work so the operator-facing flow can present
 the confirmation and host-action boundaries clearly. Stable UUID/serial
-resolution is implemented through the Linux `lsblk` inventory seam; macOS and
-Windows return an explicit unsupported result until their native inventories
-land.
+resolution was implemented through the Linux `lsblk` inventory seam; macOS and
+Windows native inventories had not yet landed at the time of this September
+record. As of the 2026-11-03 follow-up, both DBM identity adapters and the
+Windows control-plane observer exist with fixture coverage. Native hardware
+recovery remains unverified on those platforms; Windows filesystem health is
+deliberately `unknown` in its observer.
 
 Recovery journal validation now also binds every step to the journal's absolute
 mount location, requires a strong identity on every step, and rejects a file
@@ -621,3 +734,221 @@ advisory maturity findings: deprecated `@domain` annotations and cross-domain
 proto reuse, plus two missing injectable seams in the broad unit-health scan.
 Those findings do not permit a live recovery operation by themselves; keep the
 recovery path behind its existing control-plane identity and confirmation gates.
+
+### 2026-11-03 — NTFS-3G mount lacks a trustworthy clean-state signal
+
+**Symptom:** The selected Elements destination is mounted read/write through
+`ntfs-3g`, but DBM readiness remains UNKNOWN and blocks backup writes. The
+control plane now resolves the on-disk format as NTFS and records `fuseblk` as
+the separate mount driver. A consistency check is refused while the volume is
+mounted, because the supported checker requires an unmounted volume.
+
+**Root cause:** The Linux FUSE mount publishes `fuseblk` rather than its
+on-disk NTFS type and does not expose the NTFS clean/dirty state while mounted.
+The control-plane observer previously conflated the mount driver with the
+filesystem format; that observer defect is fixed. A successful repair or
+read/write mount is not clean-state evidence.
+
+**Workaround:** Keep backup writes blocked while readiness is UNKNOWN. Do not
+change the readiness gate based only on mount success. A read-only host
+inspection may confirm device identity, mountpoint, driver and write mode, but
+not filesystem consistency.
+
+**Real fix:** The control-plane observer now retains on-disk format and mount
+driver separately, and safely refuses a check while mounted. The remaining
+work is to provide a trustworthy NTFS consistency observation after a safe
+unmount, then remount only after a positive check or an exact verified-human
+repair decision. Keep readiness UNKNOWN while the volume is mounted through a
+driver that exposes no clean/dirty state. Re-evaluate capacity separately
+before enabling backup writes. DBM recovery episodes are persisted per
+destination, so repeated outages after a successful mount can raise a fresh
+recovery and decision instead of being suppressed by an old completed journal.
+
+**Owner:** Vrooli control plane (`internal/volumeremediation`) with DBM
+readiness integration.
+
+**Refs:** `internal/volumeremediation/observer.go`,
+`scenarios/data-backup-manager/api/internal/sysmounts/volumestate.go`,
+`docs/operations/RUNBOOK.md`, and the 2026-11-03 DBM recovery checkpoint.
+
+### 2026-11-03 — Elements Kopia repository cannot enumerate manifests (open)
+
+**Symptom:** The registered encrypted `elements-local` destination fails both
+`data-backup-manager destinations usage` and
+`resource-kopia snapshot list --repo elements-local --json`. Kopia reports a
+missing manifest/cache blob (`q6390189f3d3250c965c737fd82cc103e-s42b636fa5d06735f144`),
+and `stat` on a repository `.tmp` entry returns `EIO`. Treasury has no plan on
+this destination; its separate same-host validation backup does not make this
+Elements repository usable.
+
+**Root cause:** Not yet distinguished. The filesystem's identity-bound
+read-only check returned `consistent=yes`, but that check does not verify the
+Kopia repository. The path-level I/O error and missing manifest blob are
+consistent with repository/filesystem corruption or an underlying storage
+fault. The exact unsafe-shutdown causal chain is not proven. NTFS-3G's
+userspace filesystem behavior is also a repository risk: Kopia requires
+reliable POSIX-style atomic and read-after-write behavior.
+
+**Workaround:** Do not write new snapshots to this repository, clear its local
+Kopia cache, or delete repository files. Preserve it for diagnosis. The
+2026-11-03 Treasury validation plan on `baseline-safety` proves backup and
+scratch-restore flow only; that destination shares the host disk and does not
+qualify as off-host recovery protection.
+
+**Real fix:** The first owner probe, `kopia repository repair filesystem`,
+only supports recovery of a repository format blob; its dry-run returned no
+reviewable action and does not target the missing snapshot manifest. Do not
+present it as a general repository repair. Diagnose the missing manifest and
+underlying `EIO` at the resource-kopia/control-plane boundary, then obtain an
+exact verified-human decision only if a repository-specific repair with a
+reviewable effect is found. Qualify a suitable destination, add Treasury's
+plan only after capacity/retention are sized, and verify a scratch restore.
+Keep DBM's readiness and backup gates fail-closed when repository health cannot
+be established. Treasury's 424,778,594-byte target now has a verified scratch
+restore from snapshot `9c685de6269fade090581b3b798009f1` on the healthy local
+repository, but the funding gate remains closed pending an independent
+off-host copy and restore.
+
+**Owner:** resource-kopia repository lifecycle, DBM destination/readiness and
+run health, with control-plane storage diagnostics.
+
+**Refs:** `resources/kopia/cli/internal/repo/repo.go`,
+`resources/kopia/cli/internal/snapshot/snapshot.go`, DBM repository-integrity
+checkpoint `~/.vrooli/research/cohorts/dbm-repository-integrity-20261103/`,
+[Kopia consistency and corruption guidance](https://kopia.io/docs/advanced/consistency/),
+[Kopia filesystem repository repair reference](https://kopia.io/docs/reference/command-line/advanced/repository-repair-filesystem/).
+
+**Follow-up evidence, 2026-11-03 23:06Z:** The 13 Elements plan targets still
+have failed `repository_invalid` outcomes from the 21:18Z run; none of those
+targets was captured, and their last-success evidence remains overdue. A
+read-only recursive walk found no zero-length files and 13 separate `.tmp`
+content paths returning `EIO`. `resource-kopia repo validate --name
+elements-local` returned exit code 0, but snapshot enumeration still fails on
+the missing manifest; the wrapper's repository validation does not establish
+that every manifest/content reference is readable. An offline NTFS consistency
+check previously passed, so neither that result nor Kopia's validation
+distinguishes filesystem-driver behavior from device/transport faults. Do not
+run repair, prune, or backup writes against this repository until the I/O
+cause and a repo-specific recovery plan are qualified.
+
+The disabled `elements-daily-runtime` plan has 14 targets and `keep_latest=3` (operator decision applied 2026-11-04). The retention change does not enable or run the plan.
+For a conservative ~325 GB aggregate source estimate, current Elements free
+space supports three copies (~976 GB) but not seven (~2.28 TB). The estimate is
+uncertain because some state files were unreadable and nested target roots
+overlap. `baseline-safety` has about 379 GB free on the same system NVMe and
+cannot hold three copies of that aggregate. Notification Hub ask
+`73b5d631-7ba3-40cf-90c6-5380cf79c8fb` was answered `retain3`; DBM initially
+blocked the update because 63 recommended defaults are not registered. The
+operator-authorized update used `--allow-incomplete-coverage`, changed only
+retention metadata, and was read back as `keep_latest=3`. The plan remains
+disabled and no run was made.
+
+**Follow-up, 2026-11-04 01:04Z:** The operator also answered `commit` to the
+exact additive index-recovery decision
+`ad0a46dc-fac9-4704-92d5-4a600190b625`. The registered-filesystem owner command
+committed the recovered indexes and did not delete indexes. Fresh
+`resource-kopia snapshot list` still fails on the missing manifest blob
+`q6390189f3d3250c965c737fd82cc103e-s42b636fa5d06735f144`; fresh DBM destination
+usage reports the same missing blob and `EIO` on
+`s/f43/64b7506cef44e4fbb3fc66ba7f2d9-sf40366ce03934d79144.f.tmp.8c9d63ca28444838`.
+Therefore index recovery repaired neither the missing manifest reference nor
+the failing filesystem path. The exact volume remains readable enough for an
+identity-bound offline check (`consistent=yes`, `changed=false`) and RW remount,
+but readiness reports mounted NTFS state UNKNOWN. `sudo -n smartctl -a /dev/sda`
+cannot run without a password, and `dmesg` is restricted, so device/transport
+health remains unclassified. The 14-target plan remains disabled at
+`keep_latest=3`; 13 target outcomes are still failed and overdue. No new backup,
+prune, or repository-specific repair was run. The follow-up result notification
+was delivered (`c3bc384a-70cc-47c3-a3bc-97b435c13a23`, web-push receipt
+`cf77d26a-388a-414c-8575-84623c060c0c`).
+
+Kopia's current corruption guidance treats recovery as case-specific and
+recommends trying a read-only repository open/list from another computer when
+local cache corruption is plausible; it warns not to clear the cache on the
+affected computer because it may contain recovery data. This is now the next
+safe cross-platform discriminator if another authorized host is available. Do
+not delete the reported `.tmp` path or run a general repository repair: the
+registered repair command only recovers the repository format blob, and the
+index commit did not fix this manifest/EIO case.
+
+**Follow-up, 2026-11-04 01:31Z:** `resource-kopia repo cache-probe --name
+elements-local --json` repeats snapshot enumeration using an isolated temporary
+Kopia configuration and cache. It failed on the same missing manifest blob,
+then removed its temporary state; corruption limited to the registered local
+cache is now unlikely. This does not distinguish repository-object loss from
+device, cable, bridge, or filesystem-driver I/O. The exact device reports USB
+mass-storage transport, SCSI state `running`, and writable block nodes. DBM's
+mounted NTFS clean/dirty state remains UNKNOWN. `sudo -n smartctl` requires a
+password and kernel logs remain restricted. A discovered Mac Bridge node has no
+reported attached drive; its read-scope relay call was refused before dispatch
+because `vrooli:read` is not granted. The next diagnostic needs either
+host-authorized read-only SMART/kernel evidence or a permitted second-computer
+read-only open of this same repository. Preserve the registered cache and
+repository; no backup, prune, repository repair, or filesystem mutation is
+authorized by this diagnostic result. The `elements-daily-runtime` plan remains
+disabled at `keep_latest=3`, with 13 failed/overdue targets.
+
+**Follow-up, 2026-11-04 01:56Z — exact orphaned manifest candidate isolated:** Kopia cache documentation says its metadata cache stores `q` blobs. The registered cache contained only shard descriptors and no metadata/content blobs. Resource-kopia's disposable overlay probe found exactly one adjacent temp for the missing manifest object: 75,403 bytes, SHA-256 `e67b09268188205b39ae0389e16fee268f1f4a032d94f855907083eceffedc80`. The final blob path is absent. Copying this candidate into a temporary repository overlay under its expected sharded path made snapshot enumeration pass (`snapshot_list_passed`, output SHA-256 `94aeb2d1f95b0496a43379e486d9aaa8fb6e26b3780f69fda4cfe4d0c3c34747`); the source candidate and repository were untouched. This strongly isolates one missing manifest blob and supplies an exact repair candidate, but does not explain the other repository `EIO` paths or prove media health.
+
+Resource-kopia now exposes `repo orphan-temp-blob-commit`: an exact repository/blob/hash-bound, registered-filesystem-only action that requires one adjacent candidate, stages and rehashes it, atomically links only to an absent final path, and preserves the source temp. Go build and resource install succeeded. The exact repository write is pending Notification Hub decision `8939a7e8-8ffa-4604-92d9-24701256638f` (recommended `restore_blob`; built-in Other and dismiss are available). No Elements repository write has run. Plan `elements-daily-runtime` remains disabled with 13 failed/overdue outcomes; post-repair snapshot enumeration, DBM destination readiness, target backups, and independent restore proof remain open.
+
+**Decision and follow-up, 2026-11-04 01:58Z:** Notification Hub decision `8939a7e8-8ffa-4604-92d9-24701256638f` was answered `restore_blob`; exact blob `q6390189f3d3250c965c737fd82cc103e-s42b636fa5d06735f144` was published with the reviewed SHA-256, source candidate preserved, and no target replacement. Follow-up notification `ab478525-9676-4f49-965c-ddaf018f02e1` reports the result. Snapshot listing advanced and now fails on a *different* missing blob, `q057622e37ec0310f43e73da759cd37c3-saba5e3ba867f380d144`. A fresh isolated overlay probe found its one adjacent 4,339-byte temp candidate (SHA-256 `ba7fcb1f9d85c6b528abd5f424e232c870615d0f3bad4db28bc647ec025da29c`) and snapshot listing passed in the overlay. Its separate write decision `9d6c6756-75ed-4ab4-aaef-c0944f30c0f5` is pending. DBM readiness still reports mounted NTFS state UNKNOWN; destination usage still fails on missing manifest data and separate EIO. Plan remains disabled and no backup/restore/prune has run.
+
+**Second repair outcome, 2026-11-04 02:02Z:** Notification Hub decision `9d6c6756-75ed-4ab4-aaef-c0944f30c0f5` was answered `restore_blob` by a verified human. The exact 4,339-byte candidate for `q057622e37ec0310f43e73da759cd37c3-saba5e3ba867f380d144` was published with its reviewed SHA-256; its source temp remains and no target was replaced. Follow-up notification `950de5b0-85d3-4277-98d1-1b2981906da5` was sent. Snapshot listing then advanced to another missing blob `q24decdf22b7ca74f9f48f99ca06937d0-sf40366ce03934d79144`; a fresh `cache-probe` is still running to inspect a candidate/overlay. Destination usage continues to fail on an unrelated repository `.tmp` EIO. The plan remains disabled.
+
+**Third candidate and pending decision, 2026-11-04 02:04Z:** The completed isolated-cache probe after the second repair surfaced missing blob `q94792c43d91d65761874f12697342f99-sb8e29a2fa4be3332144` (the immediately preceding run's first error was q24...). Its sole adjacent temp candidate is 4,298 bytes, SHA-256 `7cd3be7cb18d6491c10d57708286902eac859b30ff8bf28f6b3cebdfffa7c885`; adding it only in the disposable overlay makes snapshot listing pass. Exact write decision `8bd6a969-dad4-4533-8db8-c23e82a30733` is pending. Continue keeping the plan disabled. This nondeterministic discovery of different missing manifest blobs plus independent EIO shows the repository has more than one missing-object symptom; do not claim the first or second repair fixed the repository.
+
+**Fourth repair outcome, 2026-11-04 02:09Z:** Notification Hub decision `f708e982-9515-4354-96c1-83102e5d5373` was answered `restore_blob` by a verified human. The exact 4,298-byte candidate for `q06ceaedaf81c135d865086ea1abd7f43-s02fff88589daa810144` was published with its reviewed hash, preserving the temp and replacing nothing. Follow-up notification `b335ea69-dae6-498b-93c9-739b0c3f5a52` was sent. To disambiguate the persistent direct error `q24decdf22b7ca74f9f48f99ca06937d0-sf40366ce03934d79144`, a new `cache-probe --blob-id <exact-q-id>` diagnostic now tests that exact ID in its disposable overlay even if another concurrent manifest lookup reports a different first error. Its q24 probe is still running. No new repair is authorized yet.
+
+**Targeted persistent-blob probe, 2026-11-04 02:10Z:** The optional `cache-probe --blob-id q24decdf22b7ca74f9f48f99ca06937d0-sf40366ce03934d79144` found its unique adjacent temp (4,298 bytes, SHA-256 `96aab4dd1e9462f9aa76e10e360637438b05b5d717e7db183f7d78572c1efd1d`) and passed snapshot listing in the disposable overlay. Its exact repair ask `ff3850cf-985e-4a32-9b60-4d39c1f83872` is pending. The baseline concurrent read surfaced a different missing blob, `q3d011f23e6f9b0bc1353db1c0a56ef35-s4654612484971716144`, further confirming multiple manifests are involved. No q24 write has run.
+
+**Fifth and sixth repair outcomes, 2026-11-04 02:13Z:** Verified-human answers approved both exact asks: q24 decision `ff3850cf-985e-4a32-9b60-4d39c1f83872` and q3d decision `3b348a30-4f10-4eb0-8d04-41ef5ef6d477`. Both hash-matched candidates were published only at absent paths, with temp sources preserved and no replacement. Notifications `83432d22-3ad5-4d8c-a367-152806856e8f` and `1d028494-5d69-4631-b75b-664d88b65861` report the outcomes. Fresh reads then surfaced `qe0901a11462c74b3ab3c92efedcfde21-s77cc3c6509f55fdd144`; its one adjacent candidate is 4,298 bytes with SHA-256 `0a319af19058b144a60c610884c166a125de3c106f3634dc63100da3e8ed20f7`. Its targeted disposable overlay passes snapshot listing. Decision `e2466a33-63b2-4b92-994d-57d5949462ec` is pending. The separate repository EIO remains.
+
+**Seventh repair outcome and eighth ask, 2026-11-04 02:14Z:** Verified-human answer to `e2466a33-63b2-4b92-994d-57d5949462ec` approved the qe090 blob; its exact 4,298-byte candidate with SHA-256 `0a319af19058b144a60c610884c166a125de3c106f3634dc63100da3e8ed20f7` was published, source preserved, no replacement. Notification `d43c2a91-d481-4f79-9753-797527f18537` reports completion; follow-up `c454f95c-f21e-4164-8856-54d3343f8d6e` reports verification. Snapshot and usage reads advance to qcae `qcae9b48442746ccef0ccbd13bff045b4-saa974d19571ef3b8144`, whose one 61,888-byte adjacent candidate (SHA-256 `3da36b6bde9be380027c05f3d02553deaa7ff49f814e8e54f93f16c53f5daafe`) passes targeted overlay enumeration. Exact qcae ask `a1417609-c979-443c-8783-58e73a3023f4` is pending. Keep the plan disabled; separate EIO remains.
+
+**Eighth repair outcome and ninth ask, 2026-11-04 02:16Z:** Verified-human answer to `a1417609-c979-443c-8783-58e73a3023f4` approved qcae; the 61,888-byte exact candidate was published by its reviewed hash, preserving the source temp and replacing nothing. Notification `f549220e-b74b-454d-8f7e-7dba2359186a` was sent. Snapshot/usage reads then surfaced qf020 `qf0203aff1f3577a39a6a274eab1f68e8-s6b70871c747d5cad144`; its 4,339-byte unique temp (SHA-256 `3d8ae3f9542906f48ef0a7399a25318ccf45a972a51a124fb15b2e089bfd751b`) passes targeted overlay enumeration. Ask `ec30d056-0f45-4bc2-a137-4d8cbc4d7ab0` is pending. Separate EIO remains.
+
+**Standing authorization and current boundary, 2026-11-04 02:22Z:** Verified-human Notification Hub answer `Other` on qf020 ask `ec30d056-0f45-4bc2-a137-4d8cbc4d7ab0` included: “I approve of this blob restore and all future ones. Stop asking!” This explicitly authorizes repeated restores only for the same narrowly defined orphan-q class: one unique adjacent temp; candidate hash checked; final path absent; disposable overlay proves snapshot enumeration; atomically link without replacing anything and preserve the temp. No more per-q decisions are needed for that class. Nine q blobs have now been restored under the exact evidence gates, and Kopia snapshot listing succeeds (192 total, 189 DBM-tagged).
+
+The control plane then performed a safe offline filesystem check by unmounting the exact drive (`fuser` showed no users), got `consistent=yes`, `changed=false`, and remounted it read/write. Mounted NTFS readiness still says UNKNOWN. The separate repository temp path `s/f43/64b7506cef44e4fbb3fc66ba7f2d9-sf40366ce03934d79144.f.tmp.8c9d63ca28444838` remains the hard blocker: `stat` returns EIO, although its parent shard is readable and its directory listing shows only the temp name. Kopia repo stats and DBM destination usage still fail on that path. Do not delete/move it or enable backup, restore, or prune yet. Next safe evidence is control-plane/host-owner SMART and kernel transport diagnostics or a read-only open/list from another authorized computer. The plan remains disabled with 14 targets, retention three, and 13 old failed/overdue results; the independent off-host restore remains unproven.
+
+**Unpaired content-temp EIO, 2026-11-04 02:30Z:** After the nine q-manifest restores, snapshot enumeration passes but `resource-kopia repo stats` and DBM destination usage still fail on `s/f43/64b7506cef44e4fbb3fc66ba7f2d9-sf40366ce03934d79144.f.tmp.8c9d63ca28444838` with `EIO`. The shard directory itself is readable and lists only that `.tmp` name; the corresponding final `.f` is absent. `stat` returns EIO for the temp. A resource-kopia owner action was added to move one exact unpaired `s` temp into a unique sibling quarantine without reading/deleting its bytes; it built and installed, then the exact move failed with EIO. The source remained listed and no quarantine directory remained. Offline control-plane NTFS check returned `consistent=yes`, `changed=false`, with the drive remounted read/write; mounted readiness remains UNKNOWN. DBM status is still degraded on 13 failed Elements target postures. Do not retry the move, delete the temp, enable the plan, or run backup/prune/restore until SMART/kernel transport evidence or another authorized read-only host clarifies this file-level EIO.
+
+**Recovery monitor activation, 2026-11-04 02:35Z:** DBM was restarted via
+`vrooli scenario restart data-backup-manager`, activating the volume monitor and
+signed decision callback in the running process. Vrooli Events reports the
+enabled owner subscription (`id=16`) to `/api/v1/events/notification-hub`.
+The monitor observes Elements mounted at its recorded root and does not run
+filesystem repair for a mounted device. Its startup observation is healthy;
+the remaining EIO is repository-object I/O rather than a mount failure. Direct
+read-only usage still fails on the same exact `.tmp`; passwordless SMART is
+unavailable, UDisks exposes no health attributes, and readable kernel logs
+show no matching device errors. Preserve the temp and keep backup writes off.
+
+**Preflight trusted repository stats, 2026-11-04 02:52Z:** The live Elements
+plan preflight returned `ready=true` while `destinations usage` and Kopia repo
+stats failed on an EIO path. Preflight checked repo status and snapshot
+metadata only; it did not verify that usage could be measured, even though
+capacity and retention decisions rely on that probe. A run could therefore
+start capture while usage/capacity evidence was missing. Preflight now requires
+`RepoStats` to succeed after status and manifest listing. The rebuilt, restarted
+API now reports a grouped `repository_invalid` incident across all 14 plan
+targets before source capture. This closes the unsafe write path but does not
+repair the repository or prove filesystem readiness. Keep the Elements plan
+disabled and preserve the EIO temp.
+
+**Capacity estimate remains a lower bound, 2026-11-04 02:54Z:** A metadata-only
+size scan of the 14 registered Elements-plan source locators summed to
+328,472,976,155 bytes. With three retained copies, the destination free-space
+check passes against 1,621,584,723,968 bytes available. The scan reported
+permission-denied files under `.vrooli/state`, so this is not a complete upper
+bound and must not be treated as final capacity qualification. Repo usage still
+fails with EIO and preflight blocks before capture.
+
+## 2026-11-04 — source enumeration and transport diagnostics extended
+
+DBM preflight previously checked only `stat` on the root of filesystem and SQLite sources. The live `elements-daily-runtime` plan includes `/home/matthalloran8/.vrooli/state`, whose nested Agent Manager receipt path `.../planner-live-same-id-20261019/retry-preflight` is mode `0600` and cannot be traversed. A root-only check incorrectly allowed this target to proceed into capture. Preflight now uses the same filesystem walk as capture to estimate local sources, marks an incompletely enumerated target as blocked, and passes a complete logical source estimate plus `keep_latest` to the shared destination capacity check. Live read-only preflight reports that target separately from the destination repository EIO. Capacity remains unknown until the source tree is fully readable.
+
+The operator answered Notification Hub ask `d085cf69-1c61-4e4c-ac8e-d78b746dd32a` with “hold repair; obtain SMART/transport or alternate-host diagnostics first.” No drive mutation was performed. The direct ask was not correlated to a DBM recovery journal and therefore could not dispatch a repair callback; treat the human answer as the operator's direction, not an executable recovery receipt. `system-monitor` identified `/dev/sda` as the Elements USB/SCSI disk but SMART is unavailable: the device is `root:disk` mode `0660`, and the monitor user was denied access. Read-only SCSI counters showed `state=running`, `device_blocked=0`, `iotmo_cnt=0`, while `ioerr_cnt` increased from `0x1787` to `0x1789` as request count advanced from `0x80606` to `0x807ad`. This is evidence of SCSI command errors but does not by itself attribute them to the exact Kopia object or establish SMART health. Kernel log filtering found no matching storage/USB error message. Keep the EIO object intact, the plan disabled, and do not run backup, restore, prune, or broad filesystem repair.
+
+**Transport counter attribution check, 2026-11-04 03:17Z:** One paired direct `stat` on the exact EIO temp and one DBM destination-usage request both returned the same EIO, but neither changed the SCSI request/error counters (`0x807ad` / `0x1789` before and after). The earlier two-error counter increase is real but cannot be attributed to this exact Kopia path from current evidence. SMART remains unavailable due `/dev/sda` permissions; obtain a permitted SMART report or alternate-host check before repair.

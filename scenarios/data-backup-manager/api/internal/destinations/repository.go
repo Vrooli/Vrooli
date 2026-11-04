@@ -15,9 +15,9 @@ type Repository interface {
 	// CreatedAt, and UpdatedAt. Returns the persisted Destination.
 	Create(ctx context.Context, d Destination) (Destination, error)
 
-	// Update overwrites the mutable fields (cap_bytes, cap_policy) of an
-	// existing destination identified by d.ID and bumps UpdatedAt. Returns the
-	// persisted Destination.
+	// Update overwrites mutable destination metadata, policy and recovery
+	// identity for the existing row identified by d.ID, and bumps UpdatedAt.
+	// Callers load the row first so immutable repository fields are preserved.
 	Update(ctx context.Context, d Destination) (Destination, error)
 
 	// GetByID returns the destination with the given id or ErrDestinationNotFound.

@@ -57,6 +57,16 @@ func (s *Service) WithRemediator(remediator Remediator) *Service {
 	return s
 }
 
+// InspectDevice observes a registered volume by its stable identity rather
+// than trusting the last saved device path. Recovery owners use this read-only
+// lens before deciding whether automatic remount is safe.
+func (s *Service) InspectDevice(ctx context.Context, expected DeviceIdentity) (Inspection, error) {
+	if s == nil || s.deviceInspector == nil {
+		return Inspection{}, ErrInvalidReadiness{Field: "device_inspector", Reason: "device-scoped inspection is unavailable"}
+	}
+	return s.deviceInspector.InspectDevice(ctx, expected)
+}
+
 // Analyze evaluates a destination candidate without writing to it.
 func (s *Service) Analyze(ctx context.Context, in AnalyzeInput) (Report, error) {
 	location := cleanPath(in.Location)
@@ -88,6 +98,13 @@ func (s *Service) PlanPreparation(ctx context.Context, in PlanInput) (Plan, erro
 	inspection, err := s.inspectForPlan(ctx, location, in)
 	if err != nil {
 		return Plan{}, err
+	}
+	// An unmounted volume has no host-observed mountpoint. A previously
+	// verified destination binding retains the intended mount root; carry that
+	// owner-provided root into the plan rather than mounting at a nested bundle
+	// path or passing an empty target to the control plane.
+	if inspection.Identity.Mountpoint == "" && filepath.IsAbs(strings.TrimSpace(in.ExpectedDevice.Mountpoint)) {
+		inspection.Identity.Mountpoint = cleanPath(in.ExpectedDevice.Mountpoint)
 	}
 	if in.Action.IsRemediation() {
 		if err := guardRemediationTarget(location, in, inspection); err != nil {

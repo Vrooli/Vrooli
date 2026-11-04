@@ -89,6 +89,24 @@ func treeSize(root string) (int64, error) {
 	return total, err
 }
 
+// EstimateFilesystemBytes returns the logical size of a filesystem source
+// using the same walk as Capture. It does not read file contents or stage
+// data. An error means the source tree could not be enumerated completely, so
+// callers must not treat the returned partial total as a capacity estimate.
+func EstimateFilesystemBytes(locator string) (int64, error) {
+	info, err := os.Lstat(locator)
+	if err != nil {
+		return 0, err
+	}
+	if !info.IsDir() {
+		if info.Mode().IsRegular() {
+			return info.Size(), nil
+		}
+		return 0, nil
+	}
+	return treeSize(locator)
+}
+
 // Restore recursively copies the staged artifact at spec.ArtifactPath into
 // spec.Target, recreating the original tree (files, directories, and symlinks).
 func (c *filesystemCapturer) Restore(ctx context.Context, spec RestoreSpec) error {

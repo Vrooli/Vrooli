@@ -152,6 +152,30 @@ func TestAnalyzeWarnsForNTFS3WhenCrossPlatformFidelityIsUnproven(t *testing.T) {
 	}
 }
 
+func TestAnalyzeRecognizesNTFS3GUserspaceMount(t *testing.T) {
+	inspected := inspection()
+	inspected.Identity.Filesystem = "ntfs"
+	inspected.MountDriver = "fuseblk"
+	inspected.NonEmptyRoot = false
+	inspected.InstallerMedia = false
+	inspector := &fakeInspector{inspection: inspected}
+	svc := destinationreadiness.NewService(inspector, &fakePreparer{})
+
+	report, err := svc.Analyze(context.Background(), destinationreadiness.AnalyzeInput{
+		Location:              "/media/user/Elements",
+		SelectedTargetBytes:   1 << 30,
+		RetentionCopies:       2,
+		CrossPlatformRequired: true,
+	})
+	if err != nil {
+		t.Fatalf("Analyze returned error: %v", err)
+	}
+	check := checkByCode(t, report, "filesystem_suitability")
+	if check.Severity != destinationreadiness.SeverityWarning || !strings.Contains(check.Message, "userspace") {
+		t.Fatalf("filesystem_suitability = %+v, want userspace NTFS warning", check)
+	}
+}
+
 func TestAnalyzeFailsClosedForDirtyOrNeedsCheckFilesystem(t *testing.T) {
 	for _, state := range []sysmounts.FilesystemState{
 		sysmounts.FilesystemStateDirty,
@@ -540,12 +564,22 @@ func TestMatchesDeviceIgnoresMountpointChange(t *testing.T) {
 	}
 }
 
+func TestMatchesDeviceAcceptsNTFSDriverAlias(t *testing.T) {
+	planned := identity()
+	planned.Filesystem = "ntfs"
+	observed := planned
+	observed.Filesystem = "ntfs3"
+	observed.Mountpoint = "/media/Elements"
+	if !planned.MatchesDevice(observed) {
+		t.Fatal("ntfs3 mount driver must still identify the same NTFS filesystem")
+	}
+}
+
 func TestMatchesDeviceRejectsADifferentVolume(t *testing.T) {
 	planned := identity()
 	cases := map[string]func(*destinationreadiness.DeviceIdentity){
 		"different uuid":       func(i *destinationreadiness.DeviceIdentity) { i.UUID = "uuid-2" },
 		"different serial":     func(i *destinationreadiness.DeviceIdentity) { i.Serial = "serial-2" },
-		"different size":       func(i *destinationreadiness.DeviceIdentity) { i.TotalBytes = 64 << 30 },
 		"different filesystem": func(i *destinationreadiness.DeviceIdentity) { i.Filesystem = "ext4" },
 	}
 	for name, mutate := range cases {
@@ -557,6 +591,16 @@ func TestMatchesDeviceRejectsADifferentVolume(t *testing.T) {
 				t.Fatalf("MatchesDevice accepted a %s", name)
 			}
 		})
+	}
+}
+
+func TestMatchesDeviceAcceptsCapacityObserverDifferenceWithStableIdentity(t *testing.T) {
+	planned := identity()
+	observed := planned
+	observed.TotalBytes -= 4096
+	observed.Mountpoint = "/media/Elements"
+	if !planned.MatchesDevice(observed) {
+		t.Fatal("matching stable UUID and serial must tolerate observer capacity differences")
 	}
 }
 
@@ -572,6 +616,11 @@ func TestMatchesDeviceRequiresDevicePathWithoutStrongIdentity(t *testing.T) {
 	moved.DevicePath = "/dev/sdy1"
 	if weak.MatchesDevice(moved) {
 		t.Fatal("weak identity must not match across a device-path change")
+	}
+	resized := weak
+	resized.TotalBytes++
+	if weak.MatchesDevice(resized) {
+		t.Fatal("weak identity must reject capacity changes")
 	}
 	empty := destinationreadiness.DeviceIdentity{Filesystem: "vfat"}
 	if empty.MatchesDevice(empty) {

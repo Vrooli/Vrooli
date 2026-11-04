@@ -11,35 +11,10 @@ import (
 // constants, so adding or renaming an RPC in plans.proto breaks this file at
 // compile time.
 var Endpoints = []module.EndpointDescriptor{
-	{
-		ID:          "plans_create",
-		Path:        plansconnect.PlansServiceCreatePlanProcedure,
-		Method:      "POST",
-		Summary:     "Create a backup plan",
-		Description: "Creates a new plan binding targets to destinations with a schedule and retention policy.",
-		Category:    "plans",
-		Request: &module.Schema{
-			Type: "object",
-			Properties: map[string]string{
-				"name":            "string (required)",
-				"target_ids":      "array<string> (required, ≥1)",
-				"destination_ids": "array<string> (required, ≥1)",
-				"schedule":        "string (duration, optional)",
-				"retention":       "RetentionPolicy (optional)",
-			},
-		},
-		Response: &module.Schema{
-			Type:       "object",
-			Properties: map[string]string{"plan": "Plan"},
-		},
-		Errors: []module.ErrorDesc{
-			{Status: 400, Code: "invalid_argument", Description: "Missing name, target_ids, or destination_ids"},
-			{Status: 500, Code: "internal", Description: "Repository write failure"},
-		},
-		Examples: []module.Example{
-			{Name: "Create a nightly plan", Curl: "curl http://localhost:${API_PORT}/vrooli.data_backup_manager.v1.plans.PlansService/CreatePlan -H 'Content-Type: application/json' -d '{\"name\":\"nightly\",\"targetIds\":[\"tgt-1\"],\"destinationIds\":[\"dst-1\"],\"schedule\":\"24h\"}'"},
-		},
-	},
+	module.ConnectEndpoint(
+		"plans_create", plansconnect.PlansServiceCreatePlanProcedure, "Create a backup plan", "Creates a new plan binding targets to destinations with a schedule and retention policy.", "plans",
+		planCreateRequestSchema, planCreateResponseSchema, planCreateErrors, planCreateExamples,
+	),
 	{
 		ID:          "plans_get",
 		Path:        plansconnect.PlansServiceGetPlanProcedure,
@@ -146,3 +121,24 @@ var Endpoints = []module.EndpointDescriptor{
 		},
 	},
 }
+
+var (
+	planCreateRequestSchema = &module.Schema{
+		Type: "object",
+		Properties: map[string]string{
+			"name":            "string (required)",
+			"target_ids":      "array<string> (required, ≥1)",
+			"destination_ids": "array<string> (required, ≥1)",
+			"schedule":        "string (duration, optional)",
+			"retention":       "RetentionPolicy (optional)",
+		},
+	}
+	planCreateResponseSchema = &module.Schema{Type: "object", Properties: map[string]string{"plan": "Plan"}}
+	planCreateErrors         = []module.ErrorDesc{
+		{Status: 400, Code: "invalid_argument", Description: "Missing name, target_ids, or destination_ids"},
+		{Status: 500, Code: "internal", Description: "Repository write failure"},
+	}
+	planCreateExamples = []module.Example{
+		{Name: "Create a nightly plan", Curl: "curl http://localhost:${API_PORT}/vrooli.data_backup_manager.v1.plans.PlansService/CreatePlan -H 'Content-Type: application/json' -d '{\"name\":\"nightly\",\"targetIds\":[\"tgt-1\"],\"destinationIds\":[\"dst-1\"],\"schedule\":\"24h\"}'"},
+	}
+)

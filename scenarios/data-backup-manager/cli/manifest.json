@@ -260,6 +260,19 @@
           }
         },
         {
+          "name": "bind-recovery-identity",
+          "description": "Bind a filesystem destination to a stable volume UUID or serial after read-only host verification",
+          "flags": [
+            {"name": "id", "required": true, "description": "Destination id"},
+            {"name": "device-uuid", "description": "Stable filesystem UUID", "local_only": true, "bind_waiver": "The hand-written handler nests this CLI scalar under the typed identity message; the API re-observes and validates the stable identity."},
+            {"name": "device-serial", "description": "Stable backing-disk serial", "local_only": true, "bind_waiver": "The hand-written handler nests this CLI scalar under the typed identity message; the API re-observes and validates the stable identity."},
+            {"name": "device-filesystem", "description": "Expected filesystem type", "local_only": true, "bind_waiver": "The hand-written handler nests this CLI scalar under the typed identity message; the API re-observes and validates the stable identity."},
+            {"name": "mountpoint", "required": true, "description": "Intended volume mount root; destination path must be beneath it"}
+          ],
+          "binding": {"kind": "connect-rpc", "service": "DestinationsService", "method": "BindDestinationRecoveryIdentity"},
+          "governance": {"effect": "write", "run_eligible": true, "permissions": ["network:internal"]}
+        },
+        {
           "name": "delete",
           "description": "Delete a backup destination record (catalog row). Encrypted repository bytes on the backend are never removed by this command",
           "flags": [
@@ -629,10 +642,6 @@
             {
               "name": "keep-latest",
               "description": "Retention: keep at most N latest snapshots (0 = keep all)"
-            },
-            {
-              "name": "enabled",
-              "description": "Enable scheduler for this plan (default: true)"
             },
             {
               "name": "protection-tier",

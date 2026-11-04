@@ -11,35 +11,10 @@ import (
 // constants, so adding or renaming an RPC in destinations.proto breaks this
 // file at compile time.
 var Endpoints = []module.EndpointDescriptor{
-	{
-		ID:          "destinations_create",
-		Path:        destinationsconnect.DestinationsServiceCreateDestinationProcedure,
-		Method:      "POST",
-		Summary:     "Create a backup destination",
-		Description: "Provisions a new kopia repository (filesystem or S3). Encryption is always on; the repository passphrase and S3/backend credentials are stored in the credential authority. A filesystem destination must not point under the protected root.",
-		Category:    "destinations",
-		Request: &module.Schema{
-			Type: "object",
-			Properties: map[string]string{
-				"name":         "string (required)",
-				"backend_kind": "BackendKind (required, non-unspecified)",
-				"location":     "string (required)",
-				"cap_bytes":    "int64 (optional, 0 = no cap)",
-				"cap_policy":   "CapPolicy (optional, defaults to ALERT_BLOCK)",
-			},
-		},
-		Response: &module.Schema{
-			Type:       "object",
-			Properties: map[string]string{"destination": "Destination"},
-		},
-		Errors: []module.ErrorDesc{
-			{Status: 400, Code: "invalid_argument", Description: "Missing name/location, unspecified backend, or separate-root violation"},
-			{Status: 500, Code: "internal", Description: "Repository creation failure"},
-		},
-		Examples: []module.Example{
-			{Name: "Create a filesystem destination", Curl: "curl http://localhost:${API_PORT}/vrooli.data_backup_manager.v1.destinations.DestinationsService/CreateDestination -H 'Content-Type: application/json' -d '{\"name\":\"local-backup\",\"backendKind\":\"BACKEND_KIND_FILESYSTEM\",\"location\":\"/mnt/backup\"}'"},
-		},
-	},
+	module.ConnectEndpoint(
+		"destinations_create", destinationsconnect.DestinationsServiceCreateDestinationProcedure, "Create a backup destination", "Provisions a new kopia repository (filesystem or S3). Encryption is always on; the repository passphrase and S3/backend credentials are stored in the credential authority. A filesystem destination must not point under the protected root.", "destinations",
+		destinationCreateRequestSchema, destinationCreateResponseSchema, destinationCreateErrors, destinationCreateExamples,
+	),
 	{
 		ID:          "destinations_get",
 		Path:        destinationsconnect.DestinationsServiceGetDestinationProcedure,
@@ -118,6 +93,24 @@ var Endpoints = []module.EndpointDescriptor{
 		Examples: []module.Example{
 			{Name: "Set a 10 GiB cap", Curl: "curl http://localhost:${API_PORT}/vrooli.data_backup_manager.v1.destinations.DestinationsService/UpdateDestination -H 'Content-Type: application/json' -d '{\"id\":\"dst-1\",\"capBytes\":10737418240}'"},
 		},
+	},
+	{
+		ID:          "destinations_bind_recovery_identity",
+		Path:        destinationsconnect.DestinationsServiceBindDestinationRecoveryIdentityProcedure,
+		Method:      "POST",
+		Summary:     "Bind a destination to an observed recovery volume",
+		Description: "Re-observes a stable UUID or serial through the host inventory, validates the intended mount root against the destination path, and persists the stable identity plus relative path. It performs no host-volume mutation.",
+		Category:    "destinations",
+		Request: &module.Schema{Type: "object", Properties: map[string]string{
+			"id": "string (required)", "identity": "DestinationDeviceIdentity (stable UUID or serial and intended mountpoint required)",
+		}},
+		Response: &module.Schema{Type: "object", Properties: map[string]string{"destination": "Destination"}},
+		Errors: []module.ErrorDesc{
+			{Status: 400, Code: "invalid_argument", Description: "Identity is not stable or the mount root is invalid"},
+			{Status: 412, Code: "failed_precondition", Description: "The observed device did not match the requested stable identity"},
+			{Status: 500, Code: "internal", Description: "Repository write failure"},
+		},
+		Examples: []module.Example{{Name: "Bind an existing backup drive", Curl: "curl http://localhost:${API_PORT}/vrooli.data_backup_manager.v1.destinations.DestinationsService/BindDestinationRecoveryIdentity -H 'Content-Type: application/json' -d '{\"id\":\"dst-1\",\"identity\":{\"uuid\":\"volume-uuid\",\"serial\":\"disk-serial\",\"filesystem\":\"ntfs\",\"mountpoint\":\"/media/user/Elements\"}}'"}},
 	},
 	{
 		ID:          "destinations_delete",
@@ -305,3 +298,24 @@ var Endpoints = []module.EndpointDescriptor{
 		Errors:   []module.ErrorDesc{{Status: 400, Code: "invalid_argument", Description: "Missing journal id or malformed confirmation"}, {Status: 412, Code: "failed_precondition", Description: "Step refused or device identity changed"}, {Status: 500, Code: "internal", Description: "Recovery persistence failure"}},
 	},
 }
+
+var (
+	destinationCreateRequestSchema = &module.Schema{
+		Type: "object",
+		Properties: map[string]string{
+			"name":         "string (required)",
+			"backend_kind": "BackendKind (required, non-unspecified)",
+			"location":     "string (required)",
+			"cap_bytes":    "int64 (optional, 0 = no cap)",
+			"cap_policy":   "CapPolicy (optional, defaults to ALERT_BLOCK)",
+		},
+	}
+	destinationCreateResponseSchema = &module.Schema{Type: "object", Properties: map[string]string{"destination": "Destination"}}
+	destinationCreateErrors         = []module.ErrorDesc{
+		{Status: 400, Code: "invalid_argument", Description: "Missing name/location, unspecified backend, or separate-root violation"},
+		{Status: 500, Code: "internal", Description: "Repository creation failure"},
+	}
+	destinationCreateExamples = []module.Example{
+		{Name: "Create a filesystem destination", Curl: "curl http://localhost:${API_PORT}/vrooli.data_backup_manager.v1.destinations.DestinationsService/CreateDestination -H 'Content-Type: application/json' -d '{\"name\":\"local-backup\",\"backendKind\":\"BACKEND_KIND_FILESYSTEM\",\"location\":\"/mnt/backup\"}'"},
+	}
+)

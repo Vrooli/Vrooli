@@ -36,10 +36,33 @@ resource-kopia repo create --name offsite --backend s3 \
 resource-kopia repo connect    --name offsite              # reconnect using registered params
 resource-kopia repo status     --name offsite --json       # encryption algo, format version
 resource-kopia repo stats      --name offsite --json       # size, content/object counts, dedup
+resource-kopia repo repair-format-plan --name local --json # non-mutating format-blob recovery plan only
+resource-kopia repo cache-probe --name local --blob-id q... --json # isolated cache; test this exact q-blob temp in a disposable overlay; never publishes it
+resource-kopia repo index-recovery-scan --name local --json # scan recoverable indexes; captures the Kopia logger summary; does not commit
+resource-kopia repo index-recovery-commit --name local --confirm-commit commit-index-recovery:local --json # explicit name-bound index commit; never deletes indexes
+resource-kopia repo orphan-temp-blob-commit --name local --blob-id q... --candidate-sha256 <reviewed-hash> --confirm-commit restore-orphan-blob:local:q... --json # exact-hash orphan temp recovery; preserves candidate and never replaces target
+resource-kopia repo quarantine-orphan-temp-blob --name local --relative-temp-path s/f43/<blob>.f.tmp.<suffix> --confirm-quarantine quarantine-orphan-temp:local:s/f43/<blob>.f.tmp.<suffix> --json # reversible same-volume move for one unpaired unreadable temp; does not delete its bytes
 resource-kopia repo list                                   # registered repos on this host
 resource-kopia repo validate   --name offsite              # provider connectivity/integrity
 resource-kopia repo disconnect --name offsite              # detach (registry entry kept)
 ```
+
+`orphan-temp-blob-commit` mutates one registered filesystem repository. Use it
+only after a Notification Hub decision names the exact blob, candidate hash,
+and repository path. The command requires exactly one adjacent `.tmp.*`
+candidate, verifies its hash before and after same-volume staging, atomically
+links it only when the target remains absent, and preserves the candidate file.
+It does not repair other repository errors or establish mounted filesystem
+health; rerun snapshot enumeration and DBM destination readiness afterward.
+
+`quarantine-orphan-temp-blob` is a reversible namespace move for a content
+temp that blocks shard enumeration and cannot be read. It accepts only a
+repository-relative `s/...f.tmp.<suffix>` path, verifies that the matching
+final `.f` object is absent and that no other adjacent temp exists, then moves
+the named entry into a unique sibling quarantine directory on the same volume.
+It neither reads nor deletes the temp contents. Afterward rerun Kopia stats and
+DBM destination usage; retain the quarantine until the backup set has been
+independently verified.
 
 `repo connect` can also re-register a pre-existing repository by re-supplying
 the backend flags (`--backend`/`--path` or `--backend s3 --bucket …`), useful
