@@ -1,0 +1,3480 @@
+{
+  "metadata": {
+    "name": "e22-settings-owner-light-journey",
+    "description": "Run the full E22 leased owner-settings journey in light appearance and retain current-source visual evidence.",
+    "requirement": "NOTIFICA-P0-005",
+    "version": "2",
+    "labels": {
+      "reset": "none",
+      "routed_isolation": "true",
+      "requires_confirmation": "true",
+      "surface": "settings-e22-light-owner-journey"
+    },
+    "execution_mode": "mutating"
+  },
+  "flow_definition": {
+    "metadata": {
+      "description": "Qualify all five quiet-hours and policy-neutral escalation outcomes in light appearance through the routed leased fixture.",
+      "requirement": "NOTIFICA-P0-005",
+      "version": "2",
+      "execution_mode": "mutating",
+      "owner": "notification-hub"
+    },
+    "settings": {
+      "viewport_width": 390,
+      "viewport_height": 844
+    },
+    "nodes": [
+      {
+        "id": "open-settings",
+        "action": {
+          "type": "ACTION_TYPE_NAVIGATE",
+          "navigate": {
+            "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+            "scenario": "notification-hub",
+            "scenario_path": "/settings?vrooli_test_mode=1&e22_fixture=settings-owner&e22_case=e22-settings-owner-light-journey",
+            "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE"
+          },
+          "metadata": {
+            "label": "Open Settings with the leased empty Reach owner fixture"
+          }
+        }
+      },
+      {
+        "id": "wait-settings",
+        "action": {
+          "type": "ACTION_TYPE_WAIT",
+          "wait": {
+            "selector": "@selector/quietHours.root",
+            "state": "WAIT_STATE_VISIBLE"
+          },
+          "metadata": {
+            "label": "Wait for signed-in quiet-hours editor"
+          }
+        }
+      },
+      {
+        "id": "select-dark-theme",
+        "action": {
+          "type": "ACTION_TYPE_CLICK",
+          "click": {
+            "selector": "@selector/settingsPage.themeOption(choice=light)"
+          },
+          "metadata": {
+            "label": "Set light appearance for the E22 selected-state route"
+          }
+        }
+      },
+      {
+        "id": "reach-link-open",
+        "action": {
+          "type": "ACTION_TYPE_NAVIGATE",
+          "navigate": {
+            "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+            "scenario": "notification-hub",
+            "scenario_path": "/settings/reach?vrooli_test_mode=1&e21_fixture=reach-empty&e22_fixture=settings-owner&e22_case=e22-settings-owner-light-journey",
+            "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE"
+          },
+          "metadata": {
+            "label": "Open Reach with the selected empty-device fixture under the seeded owner Settings lease"
+          }
+        }
+      },
+      {
+        "id": "reach-root-ready",
+        "action": {
+          "type": "ACTION_TYPE_WAIT",
+          "wait": {
+            "selector": "[data-testid=\"reach-settings\"]",
+            "state": "WAIT_STATE_VISIBLE"
+          },
+          "metadata": {
+            "label": "Wait for the Reach destination"
+          }
+        }
+      },
+      {
+        "id": "assert-reach-test-context",
+        "action": {
+          "type": "ACTION_TYPE_EVALUATE",
+          "evaluate": {
+            "expression": "(()=>{const root=document.querySelector(\"[data-testid=\\\"reach-settings\\\"]\");const heading=root?.querySelector(\"#reach-heading\")?.textContent?.trim();const params=new URLSearchParams(location.search);const mode=params.get(\"vrooli_test_mode\");const fixture=params.get(\"e21_fixture\");if(!root||!heading)throw new Error(\"Reach destination did not render its heading\");if(mode!==\"1\"||fixture!==\"reach-empty\")throw new Error(`routed owner fixture context was lost on Reach: ${location.search}`);return {path:location.pathname,heading,mode,fixture}})()"
+          },
+          "metadata": {
+            "label": "Verify Reach rendered and retained the routed disposable-owner test context"
+          }
+        }
+      },
+      {
+        "id": "set-reach-empty-zero-insets",
+        "action": {
+          "type": "ACTION_TYPE_EVALUATE",
+          "evaluate": {
+            "expression": "(()=>{const root=document.documentElement;root.style.setProperty('--safe-area-inset-top','0px');root.style.setProperty('--safe-area-inset-bottom','0px');const top=getComputedStyle(root).getPropertyValue('--safe-area-inset-top').trim(),bottom=getComputedStyle(root).getPropertyValue('--safe-area-inset-bottom').trim(),shell=document.querySelector('[data-rcl-app-shell]'),header=document.querySelector('[data-rcl-app-shell-header]');const shellRect=shell?.getBoundingClientRect(),headerRect=header?.getBoundingClientRect();if(top!=='0px'||bottom!=='0px')throw new Error(`selected Reach capture requires zero insets, got ${top}/${bottom}`);if(headerRect?.top!==0)throw new Error(`selected Reach capture requires header top 0, got ${headerRect?.top}`);return {top,bottom,shellTop:shellRect?.top,headerTop:headerRect?.top,viewport:{width:innerWidth,height:innerHeight}}})()",
+            "store_result": "reachSelectedCaptureSafeArea"
+          },
+          "metadata": {
+            "label": "Match selected NH13.5 artwork zero-inset viewport; retain separate safe-area coverage"
+          }
+        }
+      },
+      {
+        "id": "wait-reach-empty-readback",
+        "action": {
+          "type": "ACTION_TYPE_EVALUATE",
+          "evaluate": {
+            "expression": "(async()=>{const empty=()=>document.querySelector('[data-testid=\"reach-empty-devices\"]');const refresh=()=>document.querySelector('[data-testid=\"reach-refresh-devices\"]');const initial=empty();let refreshed=false;if(!initial&&refresh()){refresh().click();refreshed=true;}const deadline=Date.now()+15000;while(!empty()){if(Date.now()>=deadline)throw new Error('owner-scoped empty device readback did not settle');await new Promise(resolve=>setTimeout(resolve,100));}return {empty:true,refreshed,heading:document.querySelector('#reach-heading')?.textContent?.trim(),fixture:new URLSearchParams(location.search).get('e21_fixture')};})()",
+            "store_result": "reachEmptyReadback"
+          },
+          "metadata": {
+            "label": "Use the owner-scoped empty readback; refresh only when stale registered rows are present"
+          }
+        }
+      },
+      {
+        "id": "focus-reach-add-browser",
+        "action": {
+          "type": "ACTION_TYPE_FOCUS",
+          "focus": {
+            "selector": "@selector/reach.addBrowser",
+            "scroll": false
+          },
+          "metadata": {
+            "label": "Focus Add this browser before keyboard review without activation"
+          }
+        }
+      },
+      {
+        "id": "tab-reach-add-browser",
+        "action": {
+          "type": "ACTION_TYPE_KEYBOARD",
+          "keyboard": {
+            "key": "Tab",
+            "action": "KEY_ACTION_PRESS"
+          },
+          "metadata": {
+            "label": "Move focus to the next available footer action using the keyboard"
+          }
+        }
+      },
+      {
+        "id": "shift-tab-reach-add-browser",
+        "action": {
+          "type": "ACTION_TYPE_KEYBOARD",
+          "keyboard": {
+            "key": "Tab",
+            "modifiers": [
+              "KEYBOARD_MODIFIER_SHIFT"
+            ],
+            "action": "KEY_ACTION_PRESS"
+          },
+          "metadata": {
+            "label": "Return visible keyboard focus to Add this browser without activating it"
+          }
+        }
+      },
+      {
+        "id": "assert-reach-keyboard-focus",
+        "action": {
+          "type": "ACTION_TYPE_EVALUATE",
+          "evaluate": {
+            "expression": "(()=>{const button=document.querySelector('[data-testid=\"reach-add-browser\"]');if(!button||document.activeElement!==button)throw new Error('Add this browser is not the active keyboard target');if(!button.matches(':focus-visible'))throw new Error('selected keyboard focus ring is not visible');const r=button.getBoundingClientRect();if(r.height<44)throw new Error('focused Add this browser target is below 44 CSS px');return {active:true,focusVisible:true,target:{x:r.x,y:r.y,width:r.width,height:r.height},viewport:{width:innerWidth,height:innerHeight}}})()",
+            "store_result": "reachEmptyKeyboardFocus"
+          },
+          "metadata": {
+            "label": "Verify the selected 44px Add button target and visible focus ring before capture"
+          }
+        }
+      },
+      {
+        "id": "capture-reach-empty",
+        "action": {
+          "type": "ACTION_TYPE_SCREENSHOT",
+          "screenshot": {
+            "full_page": false
+          },
+          "metadata": {
+            "label": "Capture the selected empty Reach state under the leased owner fixture"
+          }
+        }
+      },
+      {
+        "id": "return-settings-after-reach",
+        "action": {
+          "type": "ACTION_TYPE_NAVIGATE",
+          "navigate": {
+            "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+            "scenario": "notification-hub",
+            "scenario_path": "/settings?vrooli_test_mode=1&e22_fixture=settings-owner&e22_case=e22-settings-owner-light-journey",
+            "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE"
+          },
+          "metadata": {
+            "label": "Return to the leased owner Settings fixture"
+          }
+        }
+      },
+      {
+        "id": "set-zero-insets-after-return-settings",
+        "action": {
+          "type": "ACTION_TYPE_EVALUATE",
+          "evaluate": {
+            "expression": "(()=>{const root=document.documentElement;root.style.setProperty(\"--safe-area-inset-top\",\"0px\");root.style.setProperty(\"--safe-area-inset-bottom\",\"0px\");const top=getComputedStyle(root).getPropertyValue(\"--safe-area-inset-top\").trim(),bottom=getComputedStyle(root).getPropertyValue(\"--safe-area-inset-bottom\").trim();if(top!==\"0px\"||bottom!==\"0px\")throw new Error(\"selected phone capture requires zero safe-area insets; got \"+top+\"/\"+bottom);return {top,bottom,viewport:{width:innerWidth,height:innerHeight}}})()",
+            "store_result": "selectedCaptureSafeArea"
+          },
+          "metadata": {
+            "label": "Reapply selected phone zero-inset state after fixture navigation"
+          }
+        }
+      },
+      {
+        "id": "reach-return-settings-ready",
+        "action": {
+          "type": "ACTION_TYPE_WAIT",
+          "wait": {
+            "selector": "@selector/quietHours.root",
+            "state": "WAIT_STATE_VISIBLE"
+          },
+          "metadata": {
+            "label": "Resume the E22 settings-owner journey"
+          }
+        }
+      },
+      {
+        "id": "assert-mixed-timezones",
+        "action": {
+          "type": "ACTION_TYPE_EVALUATE",
+          "evaluate": {
+            "expression": "(()=>{const m=document.querySelector(\"[data-testid=\\\"quiet-hours-summary-1\\\"]\")?.textContent;const f=document.querySelector(\"[data-testid=\\\"quiet-hours-summary-5\\\"]\")?.textContent;if(!m?.includes(\"21:30\")||!m.includes(\"America/New_York\")||!f?.includes(\"20:00\")||!f.includes(\"Asia/Tokyo\"))throw new Error(`mixed-zone summaries mismatch Monday=${m} Friday=${f}`);return {monday:m,friday:f}})()"
+          },
+          "metadata": {
+            "label": "Initial fixture preserves separate Monday and Friday timezones"
+          }
+        }
+      },
+      {
+        "id": "assert-unknown-order",
+        "action": {
+          "type": "ACTION_TYPE_ASSERT",
+          "assert": {
+            "selector": "@selector/escalationOrder.root",
+            "mode": "ASSERTION_MODE_TEXT_CONTAINS",
+            "expected": {
+              "string_value": "x-legacy-route"
+            },
+            "failure_message": "Initial escalation order retains the unknown channel key"
+          },
+          "metadata": {
+            "label": "Initial escalation order retains the unsupported channel key"
+          }
+        }
+      },
+      {
+        "id": "capture-initial",
+        "action": {
+          "type": "ACTION_TYPE_SCREENSHOT",
+          "screenshot": {
+            "full_page": false
+          },
+          "metadata": {
+            "label": "Capture initial mixed-zone and unknown-channel review state"
+          }
+        }
+      },
+      {
+        "id": "open-partial-review",
+        "action": {
+          "type": "ACTION_TYPE_NAVIGATE",
+          "navigate": {
+            "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+            "scenario": "notification-hub",
+            "scenario_path": "/settings?vrooli_test_mode=1&e22_fault=partial&e22_fixture=settings-owner&e22_case=e22-settings-owner-light-journey",
+            "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE"
+          },
+          "metadata": {
+            "label": "Open the partial-save recovery fixture"
+          }
+        }
+      },
+      {
+        "id": "set-zero-insets-after-partial-review",
+        "action": {
+          "type": "ACTION_TYPE_EVALUATE",
+          "evaluate": {
+            "expression": "(()=>{const root=document.documentElement;root.style.setProperty(\"--safe-area-inset-top\",\"0px\");root.style.setProperty(\"--safe-area-inset-bottom\",\"0px\");const top=getComputedStyle(root).getPropertyValue(\"--safe-area-inset-top\").trim(),bottom=getComputedStyle(root).getPropertyValue(\"--safe-area-inset-bottom\").trim();if(top!==\"0px\"||bottom!==\"0px\")throw new Error(\"selected phone capture requires zero safe-area insets; got \"+top+\"/\"+bottom);return {top,bottom,viewport:{width:innerWidth,height:innerHeight}}})()",
+            "store_result": "selectedCaptureSafeArea"
+          },
+          "metadata": {
+            "label": "Reapply selected phone zero-inset state after fixture navigation"
+          }
+        }
+      },
+      {
+        "id": "partial-open-day-1",
+        "action": {
+          "type": "ACTION_TYPE_CLICK",
+          "click": {
+            "selector": "@selector/quietHours.editDay(day=1)"
+          },
+          "metadata": {
+            "label": "Open Monday editor for five-day partial review"
+          }
+        }
+      },
+      {
+        "id": "partial-set-start-1",
+        "action": {
+          "type": "ACTION_TYPE_INPUT",
+          "input": {
+            "selector": "@selector/quietHours.dayStart(day=1)",
+            "value": "13:00",
+            "clear_first": true
+          },
+          "metadata": {
+            "label": "Set Monday start to 13:00 UTC"
+          }
+        }
+      },
+      {
+        "id": "partial-set-end-1",
+        "action": {
+          "type": "ACTION_TYPE_INPUT",
+          "input": {
+            "selector": "@selector/quietHours.dayEnd(day=1)",
+            "value": "14:00",
+            "clear_first": true
+          },
+          "metadata": {
+            "label": "Set Monday end to 14:00 UTC"
+          }
+        }
+      },
+      {
+        "id": "partial-finish-day-1",
+        "action": {
+          "type": "ACTION_TYPE_CLICK",
+          "click": {
+            "selector": "@selector/quietHours.doneDay(day=1)"
+          },
+          "metadata": {
+            "label": "Stage Monday replacement for review"
+          }
+        }
+      },
+      {
+        "id": "partial-open-day-2",
+        "action": {
+          "type": "ACTION_TYPE_CLICK",
+          "click": {
+            "selector": "@selector/quietHours.editDay(day=2)"
+          },
+          "metadata": {
+            "label": "Open Tuesday editor for five-day partial review"
+          }
+        }
+      },
+      {
+        "id": "partial-set-start-2",
+        "action": {
+          "type": "ACTION_TYPE_INPUT",
+          "input": {
+            "selector": "@selector/quietHours.dayStart(day=2)",
+            "value": "13:00",
+            "clear_first": true
+          },
+          "metadata": {
+            "label": "Set Tuesday start to 13:00 UTC"
+          }
+        }
+      },
+      {
+        "id": "partial-set-end-2",
+        "action": {
+          "type": "ACTION_TYPE_INPUT",
+          "input": {
+            "selector": "@selector/quietHours.dayEnd(day=2)",
+            "value": "14:00",
+            "clear_first": true
+          },
+          "metadata": {
+            "label": "Set Tuesday end to 14:00 UTC"
+          }
+        }
+      },
+      {
+        "id": "partial-finish-day-2",
+        "action": {
+          "type": "ACTION_TYPE_CLICK",
+          "click": {
+            "selector": "@selector/quietHours.doneDay(day=2)"
+          },
+          "metadata": {
+            "label": "Stage Tuesday replacement for review"
+          }
+        }
+      },
+      {
+        "id": "partial-open-day-3",
+        "action": {
+          "type": "ACTION_TYPE_CLICK",
+          "click": {
+            "selector": "@selector/quietHours.editDay(day=3)"
+          },
+          "metadata": {
+            "label": "Open Wednesday editor for five-day partial review"
+          }
+        }
+      },
+      {
+        "id": "partial-set-start-3",
+        "action": {
+          "type": "ACTION_TYPE_INPUT",
+          "input": {
+            "selector": "@selector/quietHours.dayStart(day=3)",
+            "value": "13:00",
+            "clear_first": true
+          },
+          "metadata": {
+            "label": "Set Wednesday start to 13:00 UTC"
+          }
+        }
+      },
+      {
+        "id": "partial-set-end-3",
+        "action": {
+          "type": "ACTION_TYPE_INPUT",
+          "input": {
+            "selector": "@selector/quietHours.dayEnd(day=3)",
+            "value": "14:00",
+            "clear_first": true
+          },
+          "metadata": {
+            "label": "Set Wednesday end to 14:00 UTC"
+          }
+        }
+      },
+      {
+        "id": "partial-finish-day-3",
+        "action": {
+          "type": "ACTION_TYPE_CLICK",
+          "click": {
+            "selector": "@selector/quietHours.doneDay(day=3)"
+          },
+          "metadata": {
+            "label": "Stage Wednesday replacement for review"
+          }
+        }
+      },
+      {
+        "id": "partial-open-day-4",
+        "action": {
+          "type": "ACTION_TYPE_CLICK",
+          "click": {
+            "selector": "@selector/quietHours.editDay(day=4)"
+          },
+          "metadata": {
+            "label": "Open Thursday editor for five-day partial review"
+          }
+        }
+      },
+      {
+        "id": "partial-set-start-4",
+        "action": {
+          "type": "ACTION_TYPE_INPUT",
+          "input": {
+            "selector": "@selector/quietHours.dayStart(day=4)",
+            "value": "13:00",
+            "clear_first": true
+          },
+          "metadata": {
+            "label": "Set Thursday start to 13:00 UTC"
+          }
+        }
+      },
+      {
+        "id": "partial-set-end-4",
+        "action": {
+          "type": "ACTION_TYPE_INPUT",
+          "input": {
+            "selector": "@selector/quietHours.dayEnd(day=4)",
+            "value": "14:00",
+            "clear_first": true
+          },
+          "metadata": {
+            "label": "Set Thursday end to 14:00 UTC"
+          }
+        }
+      },
+      {
+        "id": "partial-finish-day-4",
+        "action": {
+          "type": "ACTION_TYPE_CLICK",
+          "click": {
+            "selector": "@selector/quietHours.doneDay(day=4)"
+          },
+          "metadata": {
+            "label": "Stage Thursday replacement for review"
+          }
+        }
+      },
+      {
+        "id": "partial-open-day-5",
+        "action": {
+          "type": "ACTION_TYPE_CLICK",
+          "click": {
+            "selector": "@selector/quietHours.editDay(day=5)"
+          },
+          "metadata": {
+            "label": "Open Friday editor for five-day partial review"
+          }
+        }
+      },
+      {
+        "id": "partial-set-start-5",
+        "action": {
+          "type": "ACTION_TYPE_INPUT",
+          "input": {
+            "selector": "@selector/quietHours.dayStart(day=5)",
+            "value": "13:00",
+            "clear_first": true
+          },
+          "metadata": {
+            "label": "Set Friday start to 13:00 UTC"
+          }
+        }
+      },
+      {
+        "id": "partial-set-end-5",
+        "action": {
+          "type": "ACTION_TYPE_INPUT",
+          "input": {
+            "selector": "@selector/quietHours.dayEnd(day=5)",
+            "value": "14:00",
+            "clear_first": true
+          },
+          "metadata": {
+            "label": "Set Friday end to 14:00 UTC"
+          }
+        }
+      },
+      {
+        "id": "partial-finish-day-5",
+        "action": {
+          "type": "ACTION_TYPE_CLICK",
+          "click": {
+            "selector": "@selector/quietHours.doneDay(day=5)"
+          },
+          "metadata": {
+            "label": "Stage Friday replacement for review"
+          }
+        }
+      },
+      {
+        "id": "capture-review",
+        "action": {
+          "type": "ACTION_TYPE_SCREENSHOT",
+          "screenshot": {
+            "full_page": false
+          },
+          "metadata": {
+            "label": "Capture the five-day 13:00–14:00 UTC replacement review"
+          }
+        }
+      },
+      {
+        "id": "save-partial",
+        "action": {
+          "type": "ACTION_TYPE_CLICK",
+          "click": {
+            "selector": "@selector/quietHours.saveButton"
+          },
+          "metadata": {
+            "label": "Save five weekday replacements; lose the third weekday confirming read once"
+          }
+        }
+      },
+      {
+        "id": "assert-partial",
+        "action": {
+          "type": "ACTION_TYPE_ASSERT",
+          "assert": {
+            "selector": "@selector/quietHours.root",
+            "mode": "ASSERTION_MODE_TEXT_CONTAINS",
+            "expected": {
+              "string_value": "Some quiet hours need checking"
+            },
+            "failure_message": "Partial result shows the overall state while retaining Wednesday-specific recovery details"
+          },
+          "metadata": {
+            "label": "Partial result shows the selected summary and retains unknown weekday details"
+          }
+        }
+      },
+      {
+        "id": "capture-partial",
+        "action": {
+          "type": "ACTION_TYPE_SCREENSHOT",
+          "screenshot": {
+            "full_page": false
+          },
+          "metadata": {
+            "label": "Capture the partial-save recovery outcome"
+          }
+        }
+      },
+      {
+        "id": "reload-partial",
+        "action": {
+          "type": "ACTION_TYPE_EVALUATE",
+          "evaluate": {
+            "expression": "window.location.reload(); true"
+          },
+          "metadata": {
+            "label": "Reload Settings to clear client cache after partial save"
+          }
+        }
+      },
+      {
+        "id": "wait-after-partial-refresh",
+        "action": {
+          "type": "ACTION_TYPE_WAIT",
+          "wait": {
+            "selector": "@selector/quietHours.root",
+            "state": "WAIT_STATE_VISIBLE"
+          },
+          "metadata": {
+            "label": "Wait for fresh Settings read after partial save"
+          }
+        }
+      },
+      {
+        "id": "wait-for-partial-readback-values",
+        "action": {
+          "type": "ACTION_TYPE_WAIT",
+          "wait": {
+            "selector": "[data-testid=\"quiet-hours-summary-5\"]:has-text(\"12:00\")",
+            "state": "WAIT_STATE_VISIBLE",
+            "timeout_ms": 15000
+          },
+          "metadata": {
+            "label": "Wait for owner readback to include the untouched Friday 12:00 window before verifying all five days"
+          }
+        }
+      },
+      {
+        "id": "verify-partial-readback",
+        "action": {
+          "type": "ACTION_TYPE_EVALUATE",
+          "evaluate": {
+            "expression": "(()=>{const values={};for(let day=1;day<=5;day++){const selector=\"[data-testid=\\\"quiet-hours-summary-\"+day+\"\\\"]\";const text=document.querySelector(selector)?.textContent;const expected=day<=3?\"13:00\":\"12:00\";if(!text?.includes(expected)||!text.includes(\"Etc/UTC\"))throw new Error(\"partial refresh mismatch day \"+day+\": \"+text);values[day]=text}return values})()"
+          },
+          "metadata": {
+            "label": "Verify first three saved days and later untouched weekdays after a fresh read"
+          }
+        }
+      },
+      {
+        "id": "capture-partial-refresh",
+        "action": {
+          "type": "ACTION_TYPE_SCREENSHOT",
+          "screenshot": {
+            "full_page": false
+          },
+          "metadata": {
+            "label": "Capture refreshed authoritative values after partial save"
+          }
+        }
+      },
+      {
+        "id": "open-unknown-review",
+        "action": {
+          "type": "ACTION_TYPE_NAVIGATE",
+          "navigate": {
+            "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+            "scenario": "notification-hub",
+            "scenario_path": "/settings?vrooli_test_mode=1&e22_fault=unknown-readback&e22_fixture=settings-owner&e22_case=e22-quiet-timezone-change-light-phone",
+            "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE"
+          },
+          "metadata": {
+            "label": "Open one-shot unknown-confirmation fixture"
+          }
+        }
+      },
+      {
+        "id": "set-zero-insets-after-unknown-review",
+        "action": {
+          "type": "ACTION_TYPE_EVALUATE",
+          "evaluate": {
+            "expression": "(()=>{const root=document.documentElement;root.style.setProperty(\"--safe-area-inset-top\",\"0px\");root.style.setProperty(\"--safe-area-inset-bottom\",\"0px\");const top=getComputedStyle(root).getPropertyValue(\"--safe-area-inset-top\").trim(),bottom=getComputedStyle(root).getPropertyValue(\"--safe-area-inset-bottom\").trim();if(top!==\"0px\"||bottom!==\"0px\")throw new Error(\"selected phone capture requires zero safe-area insets; got \"+top+\"/\"+bottom);return {top,bottom,viewport:{width:innerWidth,height:innerHeight}}})()",
+            "store_result": "selectedCaptureSafeArea"
+          },
+          "metadata": {
+            "label": "Reapply selected phone zero-inset state after fixture navigation"
+          }
+        }
+      },
+      {
+        "id": "open-unknown-monday-editor",
+        "action": {
+          "type": "ACTION_TYPE_CLICK",
+          "click": {
+            "selector": "@selector/quietHours.editDay(day=1)"
+          },
+          "metadata": {
+            "label": "Open Monday editor for timezone change"
+          }
+        }
+      },
+      {
+        "id": "edit-monday-zone",
+        "action": {
+          "type": "ACTION_TYPE_INPUT",
+          "input": {
+            "selector": "@selector/quietHours.dayTimezone(day=1)",
+            "value": "Europe/London",
+            "clear_first": true
+          },
+          "metadata": {
+            "label": "Change Monday timezone without converting its wall-clock time"
+          }
+        }
+      },
+      {
+        "id": "edit-monday-time",
+        "action": {
+          "type": "ACTION_TYPE_INPUT",
+          "input": {
+            "selector": "@selector/quietHours.dayStart(day=1)",
+            "value": "13:15",
+            "clear_first": true
+          },
+          "metadata": {
+            "label": "Change Monday wall-clock time"
+          }
+        }
+      },
+      {
+        "id": "finish-unknown-monday-edit",
+        "action": {
+          "type": "ACTION_TYPE_CLICK",
+          "click": {
+            "selector": "@selector/quietHours.doneDay(day=1)"
+          },
+          "metadata": {
+            "label": "Stage Monday timezone and time edit"
+          }
+        }
+      },
+      {
+        "id": "save-unknown",
+        "action": {
+          "type": "ACTION_TYPE_CLICK",
+          "click": {
+            "selector": "@selector/quietHours.saveButton"
+          },
+          "metadata": {
+            "label": "Save; fixture hides only the confirming read once"
+          }
+        }
+      },
+      {
+        "id": "assert-unknown",
+        "action": {
+          "type": "ACTION_TYPE_ASSERT",
+          "assert": {
+            "selector": "@selector/quietHours.root",
+            "mode": "ASSERTION_MODE_TEXT_CONTAINS",
+            "expected": {
+              "string_value": "Quiet hours save result is unknown"
+            },
+            "failure_message": "Unknown persistence outcome is explicit and the draft remains"
+          },
+          "metadata": {
+            "label": "Unknown persistence outcome is explicit and the draft remains"
+          }
+        }
+      },
+      {
+        "id": "capture-unknown",
+        "action": {
+          "type": "ACTION_TYPE_SCREENSHOT",
+          "screenshot": {
+            "full_page": false
+          },
+          "metadata": {
+            "label": "Capture unknown save outcome with preserved draft"
+          }
+        }
+      },
+      {
+        "id": "reload-unknown",
+        "action": {
+          "type": "ACTION_TYPE_EVALUATE",
+          "evaluate": {
+            "expression": "window.location.reload(); true"
+          },
+          "metadata": {
+            "label": "Reload to reconcile the previously unknown save"
+          }
+        }
+      },
+      {
+        "id": "wait-after-unknown-refresh",
+        "action": {
+          "type": "ACTION_TYPE_WAIT",
+          "wait": {
+            "selector": "@selector/quietHours.root",
+            "state": "WAIT_STATE_VISIBLE"
+          },
+          "metadata": {
+            "label": "Wait for authoritative read after unknown outcome"
+          }
+        }
+      },
+      {
+        "id": "verify-unknown-readback",
+        "action": {
+          "type": "ACTION_TYPE_EVALUATE",
+          "evaluate": {
+            "expression": "(()=>{const m=document.querySelector(\"[data-testid=\\\"quiet-hours-summary-1\\\"]\")?.textContent;if(!m?.includes(\"13:15\")||!m.includes(\"Europe/London\"))throw new Error(`unknown readback mismatch Monday=${m}`);return {monday:m}})()"
+          },
+          "metadata": {
+            "label": "Verify the write persisted despite the lost confirmation"
+          }
+        }
+      },
+      {
+        "id": "open-sunday-editor",
+        "action": {
+          "type": "ACTION_TYPE_CLICK",
+          "click": {
+            "selector": "@selector/quietHours.editDay(day=1)"
+          },
+          "metadata": {
+            "label": "Open the saved Monday editor for held overnight validation"
+          }
+        }
+      },
+      {
+        "id": "set-overnight-start",
+        "action": {
+          "type": "ACTION_TYPE_INPUT",
+          "input": {
+            "selector": "@selector/quietHours.dayStart(day=1)",
+            "value": "22:00",
+            "clear_first": true
+          },
+          "metadata": {
+            "label": "Stage Monday overnight start for held review"
+          }
+        }
+      },
+      {
+        "id": "set-overnight-end",
+        "action": {
+          "type": "ACTION_TYPE_INPUT",
+          "input": {
+            "selector": "@selector/quietHours.dayEnd(day=1)",
+            "value": "07:00",
+            "clear_first": true
+          },
+          "metadata": {
+            "label": "Stage Tuesday morning end for held review"
+          }
+        }
+      },
+      {
+        "id": "set-overnight-zone",
+        "action": {
+          "type": "ACTION_TYPE_INPUT",
+          "input": {
+            "selector": "@selector/quietHours.dayTimezone(day=1)",
+            "value": "Etc/UTC",
+            "clear_first": true
+          },
+          "metadata": {
+            "label": "Keep the selected UTC timezone during overnight review"
+          }
+        }
+      },
+      {
+        "id": "assert-overnight-held",
+        "action": {
+          "type": "ACTION_TYPE_ASSERT",
+          "assert": {
+            "selector": "@selector/quietHours.root",
+            "mode": "ASSERTION_MODE_TEXT_CONTAINS",
+            "expected": {
+              "string_value": "Overnight window isn’t ready"
+            },
+            "failure_message": "Overnight timing is held without conversion"
+          },
+          "metadata": {
+            "label": "Overnight timing is held without conversion"
+          }
+        }
+      },
+      {
+        "id": "assert-overnight-save-disabled",
+        "action": {
+          "type": "ACTION_TYPE_EVALUATE",
+          "evaluate": {
+            "expression": "(()=>{const root=document.querySelector('[data-testid=\"quiet-hours-editor-1\"]');const b=document.querySelector('[data-testid=\"quiet-hours-done-1\"]');const issue=root?.querySelector('[role=\"alert\"]')?.textContent;const start=root?.querySelector('[data-testid=\"quiet-hours-start-1\"]');const end=root?.querySelector('[data-testid=\"quiet-hours-end-1\"]');const zone=root?.querySelector('[data-testid=\"quiet-hours-timezone-1\"]');if(!b||!b.disabled)throw new Error(\"overnight draft must not be accepted by Done\");if(!issue?.includes(\"An updated scheduling contract is needed\")||!issue.includes(\"Monday night through Tuesday morning\"))throw new Error(`overnight hold explanation missing: ${issue}`);if(start?.value!==\"22:00\"||end?.value!==\"07:00\"||zone?.value!==\"Etc/UTC\"||!root?.textContent?.includes(\"Tuesday ends\"))throw new Error(\"overnight boundary is not explicit\");return {doneDisabled:b.disabled,issue,start:start.value,end:end.value,zone:zone.value}})()"
+          },
+          "metadata": {
+            "label": "Confirm held overnight input cannot be saved"
+          }
+        }
+      },
+      {
+        "id": "finish-sunday-edit",
+        "action": {
+          "type": "ACTION_TYPE_CLICK",
+          "click": {
+            "selector": "@selector/quietHours.cancelDay(day=1)"
+          },
+          "metadata": {
+            "label": "Leave the held overnight draft unapplied"
+          }
+        }
+      },
+      {
+        "id": "open-removal-monday-editor",
+        "action": {
+          "type": "ACTION_TYPE_CLICK",
+          "click": {
+            "selector": "@selector/quietHours.editDay(day=1)"
+          },
+          "metadata": {
+            "label": "Open Monday editor to stage removal"
+          }
+        }
+      },
+      {
+        "id": "toggle-monday-off",
+        "action": {
+          "type": "ACTION_TYPE_CLICK",
+          "click": {
+            "selector": "@selector/quietHours.removeDay(day=1)"
+          },
+          "metadata": {
+            "label": "Stage removal of Monday"
+          }
+        }
+      },
+      {
+        "id": "finish-removal-monday-edit",
+        "action": {
+          "type": "ACTION_TYPE_CLICK",
+          "click": {
+            "selector": "@selector/quietHours.doneDay(day=1)"
+          },
+          "metadata": {
+            "label": "Stage Monday removal for review"
+          }
+        }
+      },
+      {
+        "id": "assert-removal-review",
+        "action": {
+          "type": "ACTION_TYPE_ASSERT",
+          "assert": {
+            "selector": "@selector/quietHours.root",
+            "mode": "ASSERTION_MODE_TEXT_CONTAINS",
+            "expected": {
+              "string_value": "Removal is staged first"
+            },
+            "failure_message": "Removal is staged for review"
+          },
+          "metadata": {
+            "label": "Removal is staged for review"
+          }
+        }
+      },
+      {
+        "id": "stage-removal",
+        "action": {
+          "type": "ACTION_TYPE_CLICK",
+          "click": {
+            "selector": "@selector/quietHours.stageRemoval"
+          },
+          "metadata": {
+            "label": "Stage Monday removal without saving it"
+          }
+        }
+      },
+      {
+        "id": "reopen-removal-review",
+        "action": {
+          "type": "ACTION_TYPE_CLICK",
+          "click": {
+            "selector": "@selector/quietHours.reviewButton"
+          },
+          "metadata": {
+            "label": "Review the staged Monday removal before saving"
+          }
+        }
+      },
+      {
+        "id": "assert-removal-ready",
+        "action": {
+          "type": "ACTION_TYPE_ASSERT",
+          "assert": {
+            "selector": "@selector/quietHours.root",
+            "mode": "ASSERTION_MODE_TEXT_CONTAINS",
+            "expected": {
+              "string_value": "Review quiet-hour changes"
+            },
+            "failure_message": "Staged Monday removal is ready for explicit confirmation"
+          },
+          "metadata": {
+            "label": "Confirm the staged removal before saving"
+          }
+        }
+      },
+      {
+        "id": "save-removal",
+        "action": {
+          "type": "ACTION_TYPE_CLICK",
+          "click": {
+            "selector": "@selector/quietHours.saveButton"
+          },
+          "metadata": {
+            "label": "Save reviewed Monday removal"
+          }
+        }
+      },
+      {
+        "id": "assert-removal-confirmed",
+        "action": {
+          "type": "ACTION_TYPE_ASSERT",
+          "assert": {
+            "selector": "@selector/quietHours.root",
+            "mode": "ASSERTION_MODE_TEXT_CONTAINS",
+            "expected": {
+              "string_value": "Every changed day is confirmed"
+            },
+            "failure_message": "Removal confirmation is visible"
+          },
+          "metadata": {
+            "label": "Removal confirmation is visible"
+          }
+        }
+      },
+      {
+        "id": "reload-quiet-removal",
+        "action": {
+          "type": "ACTION_TYPE_EVALUATE",
+          "evaluate": {
+            "expression": "window.location.reload(); true"
+          },
+          "metadata": {
+            "label": "Reload after removal to force a fresh server read"
+          }
+        }
+      },
+      {
+        "id": "wait-after-removal",
+        "action": {
+          "type": "ACTION_TYPE_WAIT",
+          "wait": {
+            "selector": "@selector/quietHours.root",
+            "state": "WAIT_STATE_VISIBLE"
+          },
+          "metadata": {
+            "label": "Wait for refreshed quiet-hours data"
+          }
+        }
+      },
+      {
+        "id": "verify-monday-removed",
+        "action": {
+          "type": "ACTION_TYPE_EVALUATE",
+          "evaluate": {
+            "expression": "(()=>{const m=document.querySelector(\"[data-testid=\\\"quiet-hours-summary-1\\\"]\")?.textContent;const f=document.querySelector(\"[data-testid=\\\"quiet-hours-summary-5\\\"]\")?.textContent;if(m!==\"No quiet window\"||!f?.includes(\"20:00\")||!f.includes(\"Asia/Tokyo\"))throw new Error(`removal readback mismatch Monday=${m} Friday=${f}`);return {monday:m,friday:f}})()"
+          },
+          "metadata": {
+            "label": "Verify Monday removal and Friday preservation after refresh"
+          }
+        }
+      },
+      {
+        "id": "select-email-channel",
+        "action": {
+          "type": "ACTION_TYPE_CLICK",
+          "click": {
+            "selector": "@selector/escalationOrder.addSelect"
+          },
+          "metadata": {
+            "label": "Open the supported channel choices without saving"
+          }
+        }
+      },
+      {
+        "id": "type-email-channel",
+        "action": {
+          "type": "ACTION_TYPE_WAIT",
+          "wait": {
+            "selector": "@selector/escalationOrder.channelChoice(channel=email)",
+            "state": "WAIT_STATE_VISIBLE"
+          },
+          "metadata": {
+            "label": "Wait for the available Email choice"
+          }
+        }
+      },
+      {
+        "id": "confirm-email-channel",
+        "action": {
+          "type": "ACTION_TYPE_CLICK",
+          "click": {
+            "selector": "@selector/escalationOrder.channelChoice(channel=email)"
+          },
+          "metadata": {
+            "label": "Stage Email in the local escalation-order draft"
+          }
+        }
+      },
+      {
+        "id": "assert-email-selected",
+        "action": {
+          "type": "ACTION_TYPE_EVALUATE",
+          "evaluate": {
+            "expression": "(()=>{const root=document.querySelector(\"[data-testid=\\\"escalation-order-root\\\"]\");const list=document.querySelector(\"[data-testid=\\\"escalation-order-list\\\"]\");const text=list?.textContent||\"\";if(!root||!list||!text.includes(\"Email\")||!text.includes(\"Web Push\")||!root.textContent?.includes(\"Saved order\"))throw new Error(`Email draft was not staged without a saved-order readback: ${root?.textContent}`);return {emailStaged:true,savedOrderStillShown:true}})()"
+          },
+          "metadata": {
+            "label": "Verify Email is staged locally and the saved-order readback remains visible"
+          }
+        }
+      },
+      {
+        "id": "add-email-channel",
+        "action": {
+          "type": "ACTION_TYPE_WAIT",
+          "wait": {
+            "selector": "@selector/escalationOrder.list",
+            "state": "WAIT_STATE_VISIBLE"
+          },
+          "metadata": {
+            "label": "Wait for the editor after staging Email"
+          }
+        }
+      },
+      {
+        "id": "move-web-push-down",
+        "action": {
+          "type": "ACTION_TYPE_CLICK",
+          "click": {
+            "selector": "@selector/escalationOrder.moveDown(channel=web_push)"
+          },
+          "metadata": {
+            "label": "Reorder Web Push while the unsupported saved key remains under review"
+          }
+        }
+      },
+      {
+        "id": "assert-unsupported-channel-resolved",
+        "action": {
+          "type": "ACTION_TYPE_EVALUATE",
+          "evaluate": {
+            "expression": "(()=>{const root=document.querySelector('[data-testid=\\\"escalation-order-root\\\"]');const save=document.querySelector('[data-testid=\\\"escalation-order-save\\\"]');const text=root?.textContent??'';if(text.includes('x-legacy-route')||!text.includes('Email')||!text.includes('Web Push')||!save||save.disabled)throw new Error(`unsupported-channel resolution did not leave a supported editable order: ${text}; saveDisabled=${save?.disabled}`);return {text,saveDisabled:save.disabled}})()"
+          },
+          "metadata": {
+            "label": "Confirm explicit unsupported-key removal leaves a supported editable order"
+          }
+        }
+      },
+      {
+        "id": "capture-order-review",
+        "action": {
+          "type": "ACTION_TYPE_SCREENSHOT",
+          "screenshot": {
+            "full_page": false
+          },
+          "metadata": {
+            "label": "Capture supported draft order after explicit unknown-channel removal"
+          }
+        }
+      },
+      {
+        "id": "save-order",
+        "action": {
+          "type": "ACTION_TYPE_CLICK",
+          "click": {
+            "selector": "@selector/escalationOrder.saveButton"
+          },
+          "metadata": {
+            "label": "Save the supported channel order after explicit review"
+          }
+        }
+      },
+      {
+        "id": "assert-order-saved",
+        "action": {
+          "type": "ACTION_TYPE_ASSERT",
+          "assert": {
+            "selector": "@selector/escalationOrder.root",
+            "mode": "ASSERTION_MODE_TEXT_CONTAINS",
+            "expected": {
+              "string_value": "Order saved and confirmed"
+            },
+            "failure_message": "Order is reconciled from the latest read"
+          },
+          "metadata": {
+            "label": "Order is reconciled from the latest read"
+          }
+        }
+      },
+      {
+        "id": "verify-order",
+        "action": {
+          "type": "ACTION_TYPE_EVALUATE",
+          "evaluate": {
+            "expression": "(()=>{const root=document.querySelector('[data-testid=\\\"escalation-order-root\\\"]');const text=root?.textContent??'';if(!text.includes('Email → Web Push')||text.includes('x-legacy-route'))throw new Error(`supported order readback mismatch after explicit unknown-key resolution: ${text}`);return {saved:text}})()"
+          },
+          "metadata": {
+            "label": "Verify supported order readback after the unknown channel was explicitly removed"
+          }
+        }
+      },
+      {
+        "id": "capture-order-saved",
+        "action": {
+          "type": "ACTION_TYPE_SCREENSHOT",
+          "screenshot": {
+            "full_page": false
+          },
+          "metadata": {
+            "label": "Capture saved escalation order and fixed response-step disclosure"
+          }
+        }
+      },
+      {
+        "id": "move-webpush-up-for-clear",
+        "action": {
+          "type": "ACTION_TYPE_CLICK",
+          "click": {
+            "selector": "@selector/escalationOrder.moveUp(channel=web_push)"
+          },
+          "metadata": {
+            "label": "Restore selected Web Push then Email order for clear review"
+          }
+        }
+      },
+      {
+        "id": "save-clear-reference-order",
+        "action": {
+          "type": "ACTION_TYPE_CLICK",
+          "click": {
+            "selector": "@selector/escalationOrder.saveButton"
+          },
+          "metadata": {
+            "label": "Persist the reference order before staging clear"
+          }
+        }
+      },
+      {
+        "id": "assert-clear-reference-order",
+        "action": {
+          "type": "ACTION_TYPE_ASSERT",
+          "assert": {
+            "selector": "@selector/escalationOrder.root",
+            "mode": "ASSERTION_MODE_TEXT_CONTAINS",
+            "expected": {
+              "string_value": "Order saved and confirmed"
+            },
+            "timeout_ms": 10000,
+            "failure_message": "Reference order is confirmed before clear review"
+          },
+          "metadata": {
+            "label": "Confirm Web Push then Email readback before clear review"
+          }
+        }
+      },
+      {
+        "id": "edit-clear-reference-order",
+        "action": {
+          "type": "ACTION_TYPE_CLICK",
+          "click": {
+            "selector": "@selector/escalationOrder.editButton"
+          },
+          "metadata": {
+            "label": "Return to editor with reference order saved"
+          }
+        }
+      },
+      {
+        "id": "stage-clear",
+        "action": {
+          "type": "ACTION_TYPE_CLICK",
+          "click": {
+            "selector": "@selector/escalationOrder.clearButton"
+          },
+          "metadata": {
+            "label": "Stage clear for explicit confirmation"
+          }
+        }
+      },
+      {
+        "id": "scroll-clear-review",
+        "action": {
+          "type": "ACTION_TYPE_SCROLL",
+          "scroll": {
+            "behavior": "SCROLL_BEHAVIOR_AUTO",
+            "selector": "@selector/layout.main",
+            "y": 1200
+          },
+          "metadata": {
+            "label": "Bring the explicit empty-order confirmation into view"
+          }
+        }
+      },
+      {
+        "id": "capture-clear-review",
+        "action": {
+          "type": "ACTION_TYPE_SCREENSHOT",
+          "screenshot": {
+            "full_page": false
+          },
+          "metadata": {
+            "label": "Capture explicit empty-order clear review before confirmation"
+          }
+        }
+      },
+      {
+        "id": "confirm-clear",
+        "action": {
+          "type": "ACTION_TYPE_CLICK",
+          "click": {
+            "selector": "@selector/escalationOrder.confirmClear"
+          },
+          "metadata": {
+            "label": "Confirm the reviewed empty order"
+          }
+        }
+      },
+      {
+        "id": "assert-empty-draft-preserves-saved-baseline",
+        "action": {
+          "type": "ACTION_TYPE_ASSERT",
+          "assert": {
+            "selector": "@selector/escalationOrder.root",
+            "mode": "ASSERTION_MODE_TEXT_CONTAINS",
+            "expected": {
+              "string_value": "Your saved order is still Web Push, then Email."
+            },
+            "failure_message": "Empty order remains an unsaved draft while the saved baseline is preserved"
+          },
+          "metadata": {
+            "label": "Confirm cleared draft leaves the saved Web Push and Email order unchanged"
+          }
+        }
+      },
+      {
+        "id": "scroll-empty-draft-to-top",
+        "action": {
+          "type": "ACTION_TYPE_SCROLL",
+          "scroll": {
+            "behavior": "SCROLL_BEHAVIOR_AUTO",
+            "selector": "@selector/layout.main",
+            "y": 0
+          },
+          "metadata": {
+            "label": "Return to the top of the empty local order draft"
+          }
+        }
+      },
+      {
+        "id": "capture-empty-draft",
+        "action": {
+          "type": "ACTION_TYPE_SCREENSHOT",
+          "screenshot": {
+            "full_page": false
+          },
+          "metadata": {
+            "label": "Capture selected light phone empty draft before persistence"
+          }
+        }
+      },
+      {
+        "id": "save-empty-order",
+        "action": {
+          "type": "ACTION_TYPE_CLICK",
+          "click": {
+            "selector": "@selector/escalationOrder.saveButton"
+          },
+          "metadata": {
+            "label": "Persist the explicitly confirmed empty order"
+          }
+        }
+      },
+      {
+        "id": "assert-empty-order",
+        "action": {
+          "type": "ACTION_TYPE_ASSERT",
+          "assert": {
+            "selector": "@selector/escalationOrder.root",
+            "mode": "ASSERTION_MODE_TEXT_CONTAINS",
+            "expected": {
+              "string_value": "Order saved and confirmed"
+            },
+            "failure_message": "Empty order is confirmed by latest read"
+          },
+          "metadata": {
+            "label": "Empty order is confirmed by latest read"
+          }
+        }
+      },
+      {
+        "id": "reload-empty-order",
+        "action": {
+          "type": "ACTION_TYPE_EVALUATE",
+          "evaluate": {
+            "expression": "window.location.reload(); true"
+          },
+          "metadata": {
+            "label": "Reload to verify empty escalation order persists"
+          }
+        }
+      },
+      {
+        "id": "wait-empty-order",
+        "action": {
+          "type": "ACTION_TYPE_WAIT",
+          "wait": {
+            "selector": "@selector/escalationOrder.root",
+            "state": "WAIT_STATE_VISIBLE"
+          },
+          "metadata": {
+            "label": "Wait for fresh escalation order read"
+          }
+        }
+      },
+      {
+        "id": "assert-empty-after-refresh",
+        "action": {
+          "type": "ACTION_TYPE_ASSERT",
+          "assert": {
+            "selector": "@selector/escalationOrder.root",
+            "mode": "ASSERTION_MODE_TEXT_CONTAINS",
+            "expected": {
+              "string_value": "No channels are currently ordered."
+            },
+            "failure_message": "Empty order persists after refresh"
+          },
+          "metadata": {
+            "label": "Empty order persists after refresh"
+          }
+        }
+      },
+      {
+        "id": "capture-empty-order",
+        "action": {
+          "type": "ACTION_TYPE_SCREENSHOT",
+          "screenshot": {
+            "full_page": false
+          },
+          "metadata": {
+            "label": "Capture confirmed empty-order state after refresh"
+          }
+        }
+      },
+      {
+        "id": "click-review-days",
+        "action": {
+          "type": "ACTION_TYPE_CLICK",
+          "click": {
+            "selector": "@selector/quietHours.reviewButton"
+          },
+          "metadata": {
+            "label": "Open the staged weekday change review"
+          }
+        }
+      },
+      {
+        "id": "click-unknown-review",
+        "action": {
+          "type": "ACTION_TYPE_CLICK",
+          "click": {
+            "selector": "@selector/quietHours.reviewButton"
+          },
+          "metadata": {
+            "label": "Review the retained draft after an uncertain save"
+          }
+        }
+      },
+      {
+        "id": "click-removal-review",
+        "action": {
+          "type": "ACTION_TYPE_CLICK",
+          "click": {
+            "selector": "@selector/quietHours.reviewButton"
+          },
+          "metadata": {
+            "label": "Open the explicit removal confirmation"
+          }
+        }
+      },
+      {
+        "id": "open-order-unknown-fixture",
+        "action": {
+          "type": "ACTION_TYPE_NAVIGATE",
+          "navigate": {
+            "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+            "scenario": "notification-hub",
+            "scenario_path": "/settings?vrooli_test_mode=1&e22_fault=unknown-order-readback&e22_fixture=settings-owner&e22_case=e22-settings-owner-light-journey&e22_order=canonical",
+            "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE"
+          },
+          "metadata": {
+            "label": "Open the one-shot uncertain escalation-order fixture"
+          }
+        }
+      },
+      {
+        "id": "set-zero-insets-after-order-unknown-fixture",
+        "action": {
+          "type": "ACTION_TYPE_EVALUATE",
+          "evaluate": {
+            "expression": "(()=>{const root=document.documentElement;root.style.setProperty(\"--safe-area-inset-top\",\"0px\");root.style.setProperty(\"--safe-area-inset-bottom\",\"0px\");const top=getComputedStyle(root).getPropertyValue(\"--safe-area-inset-top\").trim(),bottom=getComputedStyle(root).getPropertyValue(\"--safe-area-inset-bottom\").trim();if(top!==\"0px\"||bottom!==\"0px\")throw new Error(\"selected phone capture requires zero safe-area insets; got \"+top+\"/\"+bottom);return {top,bottom,viewport:{width:innerWidth,height:innerHeight}}})()",
+            "store_result": "selectedCaptureSafeArea"
+          },
+          "metadata": {
+            "label": "Reapply selected phone zero-inset state after fixture navigation"
+          }
+        }
+      },
+      {
+        "id": "wait-order-unknown-fixture",
+        "action": {
+          "type": "ACTION_TYPE_WAIT",
+          "wait": {
+            "selector": "@selector/escalationOrder.root",
+            "state": "WAIT_STATE_VISIBLE"
+          },
+          "metadata": {
+            "label": "Wait for the current saved escalation order"
+          }
+        }
+      },
+      {
+        "id": "reorder-web-push-for-unknown-save",
+        "action": {
+          "type": "ACTION_TYPE_CLICK",
+          "click": {
+            "selector": "@selector/escalationOrder.moveDown(channel=web_push)"
+          },
+          "metadata": {
+            "label": "Stage Email before Web Push for unknown-save recovery"
+          }
+        }
+      },
+      {
+        "id": "scroll-order-editor-to-top",
+        "action": {
+          "type": "ACTION_TYPE_EVALUATE",
+          "evaluate": {
+            "expression": "document.getElementById('layout-shell-main')?.scrollTo(0, 0); true"
+          },
+          "metadata": {
+            "label": "Reset the editor viewport before capturing its selected composition"
+          }
+        }
+      },
+      {
+        "id": "capture-order-editor-for-unknown-save",
+        "action": {
+          "type": "ACTION_TYPE_SCREENSHOT",
+          "screenshot": {
+            "full_page": false
+          },
+          "metadata": {
+            "label": "Capture the selected two-channel draft before the unknown-save check"
+          }
+        }
+      },
+      {
+        "id": "save-order-with-unknown-readback",
+        "action": {
+          "type": "ACTION_TYPE_CLICK",
+          "click": {
+            "selector": "@selector/escalationOrder.saveButton"
+          },
+          "metadata": {
+            "label": "Persist order while the fixture hides its first confirming read"
+          }
+        }
+      },
+      {
+        "id": "assert-order-unknown",
+        "action": {
+          "type": "ACTION_TYPE_ASSERT",
+          "assert": {
+            "selector": "@selector/escalationOrder.root",
+            "mode": "ASSERTION_MODE_TEXT_CONTAINS",
+            "expected": {
+              "string_value": "Order not confirmed"
+            },
+            "failure_message": "The unknown order save is clearly identified and remains available for read-only recovery"
+          },
+          "metadata": {
+            "label": "Unknown order persistence is explicit"
+          }
+        }
+      },
+      {
+        "id": "capture-order-unknown",
+        "action": {
+          "type": "ACTION_TYPE_SCREENSHOT",
+          "screenshot": {
+            "full_page": false
+          },
+          "metadata": {
+            "label": "Capture unknown escalation-order persistence outcome"
+          }
+        }
+      },
+      {
+        "id": "check-order-readback",
+        "action": {
+          "type": "ACTION_TYPE_CLICK",
+          "click": {
+            "selector": "@selector/escalationOrder.checkSavedButton"
+          },
+          "metadata": {
+            "label": "Check saved order with a read only request"
+          }
+        }
+      },
+      {
+        "id": "assert-order-readback-confirmed",
+        "action": {
+          "type": "ACTION_TYPE_ASSERT",
+          "assert": {
+            "selector": "@selector/escalationOrder.root",
+            "mode": "ASSERTION_MODE_TEXT_CONTAINS",
+            "expected": {
+              "string_value": "Order saved and confirmed from the latest read."
+            },
+            "failure_message": "A later read confirms the previously uncertain order write"
+          },
+          "metadata": {
+            "label": "Later read confirms the saved order"
+          }
+        }
+      },
+      {
+        "id": "verify-order-readback",
+        "action": {
+          "type": "ACTION_TYPE_EVALUATE",
+          "evaluate": {
+            "expression": "(()=>{const root=document.querySelector('[data-testid=\\\"escalation-order-root\\\"]');const text=root?.textContent??'';if(!text.includes('Email → Web Push'))throw new Error(`later order readback mismatch: ${text}`);return {saved:text}})()"
+          },
+          "metadata": {
+            "label": "Verify the exact server-confirmed order after the read-only check"
+          }
+        }
+      },
+      {
+        "id": "open-initial-escalation-editor",
+        "action": {
+          "type": "ACTION_TYPE_CLICK",
+          "click": {
+            "selector": "@selector/escalationOrder.openButton"
+          },
+          "metadata": {
+            "label": "Open the focused escalation-order editor"
+          }
+        }
+      },
+      {
+        "id": "open-escalation-editor-before-add",
+        "action": {
+          "type": "ACTION_TYPE_CLICK",
+          "click": {
+            "selector": "@selector/escalationOrder.openButton"
+          },
+          "metadata": {
+            "label": "Open escalation-order editor before adding a channel"
+          }
+        }
+      },
+      {
+        "id": "assert-unsupported-save-blocked",
+        "action": {
+          "type": "ACTION_TYPE_EVALUATE",
+          "evaluate": {
+            "expression": "(()=>{const root=document.querySelector('[data-testid=\\\"escalation-order-root\\\"]');const save=document.querySelector('[data-testid=\\\"escalation-order-save\\\"]');const text=root?.textContent??'';const webPush=text.indexOf('1. Web Push'),unsupported=text.indexOf('2. x-legacy-route');if(!text.includes('Review this saved channel')||!text.includes('Escalation order · unsupported entry')||webPush<0||unsupported<webPush||!text.includes('A target needs review')||!text.includes('Keep draft')||!save?.disabled)throw new Error(`unsupported saved key was not held in the selected review state: ${text}; disabled=${save?.disabled}`);return {text,saveDisabled:save.disabled}})()"
+          },
+          "metadata": {
+            "label": "Confirm unsupported saved channel remains in saved order, opens review state, and blocks saving"
+          }
+        }
+      },
+      {
+        "id": "capture-unsupported-channel-review",
+        "action": {
+          "type": "ACTION_TYPE_SCREENSHOT",
+          "screenshot": {
+            "full_page": false
+          },
+          "metadata": {
+            "label": "Capture unsupported channel review with save held"
+          }
+        }
+      },
+      {
+        "id": "remove-unsupported-channel",
+        "action": {
+          "type": "ACTION_TYPE_CLICK",
+          "click": {
+            "selector": "@selector/escalationOrder.remove(channel=x-legacy-route)"
+          },
+          "metadata": {
+            "label": "Stage explicit removal of the unsupported saved channel"
+          }
+        }
+      },
+      {
+        "id": "save-removed-unsupported-channel",
+        "action": {
+          "type": "ACTION_TYPE_CLICK",
+          "click": {
+            "selector": "@selector/escalationOrder.saveButton"
+          },
+          "metadata": {
+            "label": "Save the explicit unsupported-channel removal"
+          }
+        }
+      },
+      {
+        "id": "assert-unsupported-removal-readback",
+        "action": {
+          "type": "ACTION_TYPE_EVALUATE",
+          "evaluate": {
+            "expression": "(()=>{const root=document.querySelector('[data-testid=\\\"escalation-order-root\\\"]');const text=root?.textContent??'';if(!text.includes('Order saved and confirmed')||!text.includes('Previously loadedWeb Push')||!text.includes('Attempted orderWeb Push')||text.includes('x-legacy-route'))throw new Error(`explicit removal was not confirmed against the previous saved value: ${text}`);return {text}})()"
+          },
+          "metadata": {
+            "label": "Verify explicit removal is confirmed against previously loaded value"
+          }
+        }
+      },
+      {
+        "id": "return-to-order-after-unsupported-removal",
+        "action": {
+          "type": "ACTION_TYPE_CLICK",
+          "click": {
+            "selector": "@selector/escalationOrder.editButton"
+          },
+          "metadata": {
+            "label": "Return to the order editor after the explicit removal readback"
+          }
+        }
+      },
+      {
+        "id": "open-escalation-editor-for-unknown-save",
+        "action": {
+          "type": "ACTION_TYPE_CLICK",
+          "click": {
+            "selector": "@selector/escalationOrder.openButton"
+          },
+          "metadata": {
+            "label": "Open escalation-order editor for the unknown-save recovery"
+          }
+        }
+      },
+      {
+        "id": "open-empty-order-editor-after-refresh",
+        "action": {
+          "type": "ACTION_TYPE_CLICK",
+          "click": {
+            "selector": "@selector/escalationOrder.openButton"
+          },
+          "metadata": {
+            "label": "Open the saved empty order after refresh"
+          }
+        }
+      },
+      {
+        "id": "return-to-order-editor-before-clear",
+        "action": {
+          "type": "ACTION_TYPE_CLICK",
+          "click": {
+            "selector": "@selector/escalationOrder.editButton"
+          },
+          "metadata": {
+            "label": "Return from confirmed readback to the order editor"
+          }
+        }
+      },
+      {
+        "id": "open-equal-time-editor",
+        "action": {
+          "type": "ACTION_TYPE_CLICK",
+          "metadata": {
+            "label": "Open Monday to check equal-time validation"
+          },
+          "click": {
+            "selector": "@selector/quietHours.editDay(day=1)"
+          }
+        }
+      },
+      {
+        "id": "set-equal-start-time",
+        "action": {
+          "type": "ACTION_TYPE_INPUT",
+          "metadata": {
+            "label": "Set selected equal-time start value"
+          },
+          "input": {
+            "selector": "@selector/quietHours.dayStart(day=1)",
+            "value": "13:00",
+            "clear_first": true
+          }
+        }
+      },
+      {
+        "id": "set-equal-end-time",
+        "action": {
+          "type": "ACTION_TYPE_INPUT",
+          "metadata": {
+            "label": "Set end time equal to the selected start"
+          },
+          "input": {
+            "selector": "@selector/quietHours.dayEnd(day=1)",
+            "value": "13:00",
+            "clear_first": true
+          }
+        }
+      },
+      {
+        "id": "set-equal-timezone",
+        "action": {
+          "type": "ACTION_TYPE_INPUT",
+          "metadata": {
+            "label": "Set selected equal-time timezone in the draft"
+          },
+          "input": {
+            "selector": "@selector/quietHours.dayTimezone(day=1)",
+            "value": "Etc/UTC",
+            "clear_first": true
+          }
+        }
+      },
+      {
+        "id": "assert-equal-time-invalid",
+        "action": {
+          "type": "ACTION_TYPE_ASSERT",
+          "metadata": {
+            "label": "Equal-time validation is shown above the editor fields"
+          },
+          "assert": {
+            "selector": "@selector/quietHours.root",
+            "mode": "ASSERTION_MODE_TEXT_CONTAINS",
+            "expected": {
+              "string_value": "Choose different start and end times."
+            },
+            "failure_message": "Equal quiet-hour times are rejected"
+          }
+        }
+      },
+      {
+        "id": "assert-equal-save-disabled",
+        "action": {
+          "type": "ACTION_TYPE_EVALUATE",
+          "metadata": {
+            "label": "Confirm equal-time alert, inline hint, 13:00 Etc/UTC draft and blocked Done action"
+          },
+          "evaluate": {
+            "expression": "(()=>{const root=document.querySelector('[data-testid=\\\"quiet-hours-editor-1\\\"]');const save=document.querySelector('[data-testid=\\\"quiet-hours-done-1\\\"]');const end=document.querySelector('[data-testid=\\\"quiet-hours-end-1\\\"]');const start=document.querySelector('[data-testid=\\\"quiet-hours-start-1\\\"]')?.value;const endValue=end?.value;const zone=document.querySelector('[data-testid=\\\"quiet-hours-timezone-1\\\"]')?.value;const title=root?.querySelector('h2')?.textContent;const message=root?.querySelector('[role=\\\"alert\\\"]')?.textContent;const hintId=end?.getAttribute('aria-describedby');const hint=hintId?root?.querySelector(\"#\"+CSS.escape(hintId))?.textContent:undefined;if(!save?.disabled||start!=='13:00'||endValue!=='13:00'||zone!=='Etc/UTC'||title!=='Choose different times'||!message?.includes('Start and end are the same')||!message.includes('all-day quiet window')||hint!=='Choose different start and end times.')throw new Error(`selected equal-time review did not match: ${JSON.stringify({start,end:endValue,zone,title,message,hint,disabled:save?.disabled})}`);return {start,end:endValue,zone,title,message,hint,doneDisabled:save.disabled}})()"
+          }
+        }
+      },
+      {
+        "id": "cancel-equal-time-draft",
+        "action": {
+          "type": "ACTION_TYPE_CLICK",
+          "metadata": {
+            "label": "Discard invalid equal-time draft without a write"
+          },
+          "click": {
+            "selector": "@selector/quietHours.cancelDay(day=1)"
+          }
+        }
+      },
+      {
+        "id": "open-invalid-zone-editor",
+        "action": {
+          "type": "ACTION_TYPE_CLICK",
+          "metadata": {
+            "label": "Open Monday to check timezone validation"
+          },
+          "click": {
+            "selector": "@selector/quietHours.editDay(day=1)"
+          }
+        }
+      },
+      {
+        "id": "set-invalid-zone-start",
+        "action": {
+          "type": "ACTION_TYPE_INPUT",
+          "input": {
+            "selector": "@selector/quietHours.dayStart(day=1)",
+            "value": "13:00",
+            "clear_first": true
+          },
+          "metadata": {
+            "label": "Set selected invalid-timezone start value"
+          }
+        }
+      },
+      {
+        "id": "set-invalid-zone-end",
+        "action": {
+          "type": "ACTION_TYPE_INPUT",
+          "input": {
+            "selector": "@selector/quietHours.dayEnd(day=1)",
+            "value": "14:00",
+            "clear_first": true
+          },
+          "metadata": {
+            "label": "Set selected invalid-timezone end value"
+          }
+        }
+      },
+      {
+        "id": "set-invalid-zone-valid-zone",
+        "action": {
+          "type": "ACTION_TYPE_INPUT",
+          "input": {
+            "selector": "@selector/quietHours.dayTimezone(day=1)",
+            "value": "Etc/UTC",
+            "clear_first": true
+          },
+          "metadata": {
+            "label": "Set selected time zone before invalid entry"
+          }
+        }
+      },
+      {
+        "id": "set-invalid-zone",
+        "action": {
+          "type": "ACTION_TYPE_INPUT",
+          "metadata": {
+            "label": "Enter an unrecognized IANA timezone"
+          },
+          "input": {
+            "selector": "@selector/quietHours.dayTimezone(day=1)",
+            "value": "Moon/Base",
+            "clear_first": true
+          }
+        }
+      },
+      {
+        "id": "assert-invalid-zone",
+        "action": {
+          "type": "ACTION_TYPE_ASSERT",
+          "metadata": {
+            "label": "Unknown timezone is rejected"
+          },
+          "assert": {
+            "selector": "@selector/quietHours.root",
+            "mode": "ASSERTION_MODE_TEXT_CONTAINS",
+            "expected": {
+              "string_value": "The time zone isn’t recognized"
+            },
+            "failure_message": "Unknown timezone is rejected"
+          }
+        }
+      },
+      {
+        "id": "assert-invalid-zone-save-disabled",
+        "action": {
+          "type": "ACTION_TYPE_EVALUATE",
+          "metadata": {
+            "label": "Unknown timezone cannot be staged"
+          },
+          "evaluate": {
+            "expression": "(()=>{const root=document.querySelector('[data-testid=\\\"quiet-hours-editor-1\\\"]');const b=document.querySelector('[data-testid=\\\"quiet-hours-done-1\\\"]');const start=root?.querySelector('[data-testid=\\\"quiet-hours-start-1\\\"]')?.value;const end=root?.querySelector('[data-testid=\\\"quiet-hours-end-1\\\"]')?.value;const zone=root?.querySelector('[data-testid=\\\"quiet-hours-timezone-1\\\"]')?.value;const title=root?.querySelector('h2')?.textContent;const alert=root?.querySelector('[role=\\\"alert\\\"]')?.textContent;const hintId=root?.querySelector('[data-testid=\\\"quiet-hours-timezone-1\\\"]')?.getAttribute('aria-describedby');const hint=hintId?root?.querySelector(\"#\"+CSS.escape(hintId))?.textContent:undefined;if(!b?.disabled||start!=='13:00'||end!=='14:00'||zone!=='Moon/Base'||title!==\"Check Monday’s time zone\"||!alert?.includes(\"The time zone isn’t recognized\")||hint!==\"Enter a recognized IANA time zone.\")throw new Error(`invalid timezone review mismatch: ${JSON.stringify({disabled:b?.disabled,start,end,zone,title,alert,hint})}`);return {disabled:b.disabled,start,end,zone,title,alert,hint}})()"
+          }
+        }
+      },
+      {
+        "id": "set-invalid-time-valid-zone",
+        "action": {
+          "type": "ACTION_TYPE_INPUT",
+          "input": {
+            "selector": "@selector/quietHours.dayTimezone(day=1)",
+            "value": "Etc/UTC",
+            "clear_first": true
+          },
+          "metadata": {
+            "label": "Restore selected timezone before invalid time review"
+          }
+        }
+      },
+      {
+        "id": "set-invalid-time-start",
+        "action": {
+          "type": "ACTION_TYPE_INPUT",
+          "input": {
+            "selector": "@selector/quietHours.dayStart(day=1)",
+            "value": "25:30",
+            "clear_first": true
+          },
+          "metadata": {
+            "label": "Enter an out-of-range 24-hour start time"
+          }
+        }
+      },
+      {
+        "id": "assert-invalid-time",
+        "action": {
+          "type": "ACTION_TYPE_ASSERT",
+          "metadata": {
+            "label": "Invalid start time receives a specific correction"
+          },
+          "assert": {
+            "selector": "@selector/quietHours.root",
+            "mode": "ASSERTION_MODE_TEXT_CONTAINS",
+            "expected": {
+              "string_value": "The start time isn’t valid"
+            },
+            "failure_message": "Out-of-range start time is rejected"
+          }
+        }
+      },
+      {
+        "id": "assert-invalid-time-save-disabled",
+        "action": {
+          "type": "ACTION_TYPE_EVALUATE",
+          "metadata": {
+            "label": "Confirm invalid time and field hint keep Done disabled"
+          },
+          "evaluate": {
+            "expression": "(()=>{const root=document.querySelector('[data-testid=\\\"quiet-hours-editor-1\\\"]');const b=document.querySelector('[data-testid=\\\"quiet-hours-done-1\\\"]');const start=root?.querySelector('[data-testid=\\\"quiet-hours-start-1\\\"]');const end=root?.querySelector('[data-testid=\\\"quiet-hours-end-1\\\"]');const timezone=root?.querySelector('[data-testid=\\\"quiet-hours-timezone-1\\\"]');const title=root?.querySelector('h2')?.textContent;const alert=root?.querySelector('[role=\\\"alert\\\"]')?.textContent;const hintId=start?.getAttribute('aria-describedby');const hint=hintId?root?.querySelector(\"#\"+CSS.escape(hintId))?.textContent:undefined;if(!b?.disabled||start?.value!==\"25:30\"||end?.value!==\"14:00\"||timezone?.value!==\"Etc/UTC\"||title!==\"Check Monday’s time\"||!alert?.includes(\"The start time isn’t valid\")||hint!==\"Enter a time from 00:00 to 23:59.\")throw new Error(`invalid time review mismatch: ${JSON.stringify({disabled:b?.disabled,start:start?.value,end:end?.value,timezone:timezone?.value,title,alert,hint})}`);return {disabled:b.disabled,start:start.value,end:end.value,timezone:timezone.value,title,alert,hint}})()"
+          }
+        }
+      },
+      {
+        "id": "cancel-invalid-zone-draft",
+        "action": {
+          "type": "ACTION_TYPE_CLICK",
+          "metadata": {
+            "label": "Discard invalid timezone and time drafts without a write"
+          },
+          "click": {
+            "selector": "@selector/quietHours.cancelDay(day=1)"
+          }
+        }
+      },
+      {
+        "id": "assert-five-day-partial-outcome",
+        "action": {
+          "type": "ACTION_TYPE_EVALUATE",
+          "evaluate": {
+            "expression": "(()=>{const rows=[...document.querySelectorAll('[data-testid=\"quiet-hours-outcome-rows\"] li')].map(x=>x.textContent||\"\");if(rows.length!==5)throw new Error(\"expected five outcome rows, got \"+rows.length);const expected=[[\"Monday\",\"Confirmed\",\"13:00\"],[\"Tuesday\",\"Confirmed\",\"13:00\"],[\"Wednesday\",\"Uncertain\",\"13:00\"],[\"Thursday\",\"Not attempted\",\"13:00\"],[\"Friday\",\"Not attempted\",\"13:00\"]];for(let i=0;i<5;i++)for(const value of expected[i])if(!rows[i].includes(value))throw new Error(\"outcome row \"+(i+1)+\" missing \"+value+\": \"+rows[i]);const details=document.querySelector('[data-testid=\"quiet-hours-saved-values\"]');if(!details)throw new Error(\"exact latest saved values disclosure missing\");const actual=[...details.querySelectorAll(\"li\")].map(x=>x.textContent||\"\");for(const value of [\"Wednesday\",\"Unknown\",\"Thursday\",\"12:00\",\"Friday\"])if(!actual.join(\" \").includes(value))throw new Error(\"saved value disclosure missing \"+value);if(!document.querySelector('[data-testid=\"quiet-hours-check-saved\"]'))throw new Error(\"Check saved windows recovery action missing\");return {rows,actual}})()"
+          },
+          "metadata": {
+            "label": "Confirm two saved days, one unknown day, and two unattempted days with actual values"
+          }
+        }
+      },
+      {
+        "id": "scroll-review-continuation",
+        "action": {
+          "type": "ACTION_TYPE_SCROLL",
+          "scroll": {
+            "behavior": "SCROLL_BEHAVIOR_AUTO",
+            "selector": "@selector/layout.main",
+            "y": 560
+          },
+          "metadata": {
+            "label": "Capture the lower selected five-day review and critical-override summary (scroll)"
+          }
+        }
+      },
+      {
+        "id": "capture-review-continuation",
+        "action": {
+          "type": "ACTION_TYPE_SCREENSHOT",
+          "screenshot": {
+            "full_page": false
+          },
+          "metadata": {
+            "label": "Capture the lower selected five-day review and critical-override summary"
+          }
+        }
+      },
+      {
+        "id": "scroll-partial-continuation",
+        "action": {
+          "type": "ACTION_TYPE_SCROLL",
+          "scroll": {
+            "behavior": "SCROLL_BEHAVIOR_AUTO",
+            "selector": "@selector/layout.main",
+            "y": 560
+          },
+          "metadata": {
+            "label": "Capture the lower selected partial-save details and remaining draft (scroll)"
+          }
+        }
+      },
+      {
+        "id": "capture-partial-continuation",
+        "action": {
+          "type": "ACTION_TYPE_SCREENSHOT",
+          "screenshot": {
+            "full_page": false
+          },
+          "metadata": {
+            "label": "Capture the lower selected partial-save details and remaining draft"
+          }
+        }
+      },
+      {
+        "id": "capture-mixed-timezones",
+        "action": {
+          "type": "ACTION_TYPE_SCREENSHOT",
+          "screenshot": {
+            "full_page": false
+          },
+          "metadata": {
+            "label": "Capture separate saved time zones across the week"
+          }
+        }
+      },
+      {
+        "id": "return-settings-for-japanese",
+        "action": {
+          "type": "ACTION_TYPE_NAVIGATE",
+          "navigate": {
+            "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+            "scenario": "notification-hub",
+            "scenario_path": "/settings?vrooli_test_mode=1&e22_fixture=settings-owner&e22_case=e22-settings-owner-light-journey",
+            "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE"
+          },
+          "metadata": {
+            "label": "Return to settings overview to switch locale for a visual capture"
+          }
+        }
+      },
+      {
+        "id": "wait-settings-for-japanese",
+        "action": {
+          "type": "ACTION_TYPE_WAIT",
+          "wait": {
+            "selector": "@selector/pages.settings",
+            "state": "WAIT_STATE_VISIBLE"
+          },
+          "metadata": {
+            "label": "Wait for settings overview before Japanese capture"
+          }
+        }
+      },
+      {
+        "id": "select-japanese-locale",
+        "action": {
+          "type": "ACTION_TYPE_CLICK",
+          "click": {
+            "selector": "@selector/settingsPage.localeOption(code=ja)"
+          },
+          "metadata": {
+            "label": "Switch the current UI locale to Japanese"
+          }
+        }
+      },
+      {
+        "id": "open-japanese-monday-editor",
+        "action": {
+          "type": "ACTION_TYPE_CLICK",
+          "click": {
+            "selector": "@selector/quietHours.editDay(day=1)"
+          },
+          "metadata": {
+            "label": "Open Monday quiet-hours editor in Japanese"
+          }
+        }
+      },
+      {
+        "id": "set-japanese-start",
+        "action": {
+          "type": "ACTION_TYPE_INPUT",
+          "input": {
+            "selector": "@selector/quietHours.dayStart(day=1)",
+            "value": "13:00",
+            "clear_first": true
+          },
+          "metadata": {
+            "label": "Set the selected Japanese capture start time in the draft"
+          }
+        }
+      },
+      {
+        "id": "set-japanese-end",
+        "action": {
+          "type": "ACTION_TYPE_INPUT",
+          "input": {
+            "selector": "@selector/quietHours.dayEnd(day=1)",
+            "value": "14:00",
+            "clear_first": true
+          },
+          "metadata": {
+            "label": "Set the selected Japanese capture end time in the draft"
+          }
+        }
+      },
+      {
+        "id": "set-japanese-timezone",
+        "action": {
+          "type": "ACTION_TYPE_INPUT",
+          "input": {
+            "selector": "@selector/quietHours.dayTimezone(day=1)",
+            "value": "Etc/UTC",
+            "clear_first": true
+          },
+          "metadata": {
+            "label": "Set the selected Japanese capture timezone in the draft"
+          }
+        }
+      },
+      {
+        "id": "assert-japanese-editor",
+        "action": {
+          "type": "ACTION_TYPE_EVALUATE",
+          "evaluate": {
+            "expression": "(()=>{const root=document.querySelector(\"[data-testid=\\\"quiet-hours-editor-1\\\"]\");const title=root?.querySelector(\"h2\")?.textContent||\"\";const start=root?.querySelector(\"[data-testid=\\\"quiet-hours-start-1\\\"]\")?.value;const end=root?.querySelector(\"[data-testid=\\\"quiet-hours-end-1\\\"]\")?.value;const zone=root?.querySelector(\"[data-testid=\\\"quiet-hours-timezone-1\\\"]\")?.value;if(!title.includes(\"月曜日\")||!title.includes(\"時間帯\")||start!==\"13:00\"||end!==\"14:00\"||zone!==\"Etc/UTC\")throw new Error(`Japanese editor mismatch: ${JSON.stringify({title,start,end,zone})}`);return {title,start,end,zone}})()"
+          },
+          "metadata": {
+            "label": "Verify Japanese copy and selected time-zone values before capture"
+          }
+        }
+      },
+      {
+        "id": "capture-japanese-editor",
+        "action": {
+          "type": "ACTION_TYPE_SCREENSHOT",
+          "screenshot": {
+            "full_page": false
+          },
+          "metadata": {
+            "label": "Capture selected Japanese Monday editor state"
+          }
+        }
+      },
+      {
+        "id": "cancel-japanese-editor",
+        "action": {
+          "type": "ACTION_TYPE_CLICK",
+          "click": {
+            "selector": "@selector/quietHours.cancelDay(day=1)"
+          },
+          "metadata": {
+            "label": "Discard Japanese-only visual draft without saving"
+          }
+        }
+      },
+      {
+        "id": "return-settings-for-english",
+        "action": {
+          "type": "ACTION_TYPE_NAVIGATE",
+          "navigate": {
+            "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+            "scenario": "notification-hub",
+            "scenario_path": "/settings?vrooli_test_mode=1&e22_fixture=settings-owner&e22_case=e22-settings-owner-light-journey",
+            "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE"
+          },
+          "metadata": {
+            "label": "Return to settings before restoring English for the functional journey"
+          }
+        }
+      },
+      {
+        "id": "restore-english-locale",
+        "action": {
+          "type": "ACTION_TYPE_CLICK",
+          "click": {
+            "selector": "@selector/settingsPage.localeOption(code=en)"
+          },
+          "metadata": {
+            "label": "Restore English locale before the functional journey continues"
+          }
+        }
+      },
+      {
+        "id": "open-timezone-change-review",
+        "action": {
+          "type": "ACTION_TYPE_CLICK",
+          "click": {
+            "selector": "@selector/quietHours.timezoneReviewOpen(day=1)"
+          },
+          "metadata": {
+            "label": "Open explicit per-day timezone review"
+          }
+        }
+      },
+      {
+        "id": "capture-timezone-change",
+        "action": {
+          "type": "ACTION_TYPE_SCREENSHOT",
+          "screenshot": {
+            "full_page": false
+          },
+          "metadata": {
+            "label": "Capture staged per-day time-zone change before editing the time"
+          }
+        }
+      },
+      {
+        "id": "keep-editing-timezone-change",
+        "action": {
+          "type": "ACTION_TYPE_CLICK",
+          "click": {
+            "selector": "@selector/quietHours.timezoneReviewKeepEditing"
+          },
+          "metadata": {
+            "label": "Return to the Monday editor without saving"
+          }
+        }
+      },
+      {
+        "id": "scroll-mixed-timezones",
+        "action": {
+          "type": "ACTION_TYPE_EVALUATE",
+          "evaluate": {
+            "expression": "(()=>{const main=document.querySelector('[data-testid=\"layout-shell-main\"]');const quiet=document.querySelector('[data-testid=\"quiet-hours-root\"]');if(!main||!quiet)throw new Error(\"quiet-hours capture target or scroll region is missing\");const mainRect=main.getBoundingClientRect();const before=quiet.getBoundingClientRect().top;const max=Math.max(0,main.scrollHeight-main.clientHeight);const target=Math.max(0,Math.min(max,main.scrollTop+before-mainRect.top));main.scrollTop=target;const after=quiet.getBoundingClientRect();if(after.top<mainRect.top-2||after.top>=mainRect.bottom)throw new Error(`quiet-hours target did not enter the scroll viewport: ${JSON.stringify({before,after:after.top,mainTop:mainRect.top,mainBottom:mainRect.bottom,target,max})}`);return {scrollTop:main.scrollTop,quietTop:after.top,mainTop:mainRect.top,mainBottom:mainRect.bottom,visible:true}})()"
+          },
+          "metadata": {
+            "label": "Scroll the shell main region until the selected quiet-hours week is visible"
+          }
+        }
+      },
+      {
+        "id": "check-partial-saved-windows",
+        "action": {
+          "type": "ACTION_TYPE_CLICK",
+          "click": {
+            "selector": "@selector/quietHours.checkSavedButton"
+          },
+          "metadata": {
+            "label": "Recheck saved windows after the partial multi-day write"
+          }
+        }
+      },
+      {
+        "id": "assert-partial-follow-up-unknown",
+        "action": {
+          "type": "ACTION_TYPE_EVALUATE",
+          "evaluate": {
+            "expression": "(()=>{const title=document.querySelector('[data-testid=\\\"quiet-hours-root\\\"] h2')?.textContent||\"\";if(title!==\"Wednesday is still unknown\")throw new Error(\"multi-day follow-up lost its unknown Wednesday state: \"+title);const groups=document.querySelector('[data-testid=\"quiet-hours-outcome-groups\"]')?.textContent||\"\";for(const value of [\"Confirmed\",\"Monday, Tuesday\",\"Still uncertain\",\"Wednesday\",\"Not attempted\",\"Thursday, Friday\"])if(!groups.includes(value))throw new Error(\"unknown follow-up status missing \"+value+\": \"+groups);if(!document.querySelector('[data-testid=\"quiet-hours-check-saved\"]'))throw new Error(\"saved-window retry action missing\");if(!document.querySelector('details [data-testid=\"quiet-hours-saved-values\"]'))throw new Error(\"exact day values are not available in the disclosure\");return {title,groups}})()"
+          },
+          "metadata": {
+            "label": "Preserve the week grouping after an uncertain follow-up read"
+          }
+        }
+      },
+      {
+        "id": "scroll-partial-still-unknown-to-top",
+        "action": {
+          "type": "ACTION_TYPE_SCROLL",
+          "scroll": {
+            "behavior": "SCROLL_BEHAVIOR_AUTO",
+            "selector": "@selector/layout.main",
+            "y": 0
+          },
+          "metadata": {
+            "label": "Return the still-unknown result to the selected top-of-screen state"
+          }
+        }
+      },
+      {
+        "id": "capture-partial-still-unknown",
+        "action": {
+          "type": "ACTION_TYPE_SCREENSHOT",
+          "screenshot": {
+            "full_page": false
+          },
+          "metadata": {
+            "label": "Capture grouped multi-day state after follow-up read remains unknown"
+          }
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "e22-seq-00",
+        "source": "open-settings",
+        "target": "wait-settings",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e22-seq-01",
+        "source": "wait-settings",
+        "target": "select-dark-theme",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e43-reach-01",
+        "source": "select-dark-theme",
+        "target": "reach-link-open",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e43-reach-02",
+        "source": "reach-link-open",
+        "target": "reach-root-ready",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e43-reach-03",
+        "source": "reach-root-ready",
+        "target": "assert-reach-test-context",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e43-reach-04",
+        "source": "assert-reach-test-context",
+        "target": "set-reach-empty-zero-insets",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e43-reach-04b",
+        "source": "capture-reach-empty",
+        "target": "return-settings-after-reach",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e43-reach-05",
+        "source": "return-settings-after-reach",
+        "target": "set-zero-insets-after-return-settings",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e43-reach-06",
+        "source": "reach-return-settings-ready",
+        "target": "open-equal-time-editor",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e22-seq-03",
+        "source": "assert-unknown-order",
+        "target": "capture-initial",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e22-seq-04",
+        "source": "capture-initial",
+        "target": "open-partial-review",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e22-seq-05",
+        "source": "open-partial-review",
+        "target": "set-zero-insets-after-partial-review",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e22-seq-11",
+        "source": "partial-finish-day-5",
+        "target": "click-review-days",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e22-seq-12",
+        "source": "capture-review",
+        "target": "scroll-review-continuation",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e22-seq-13",
+        "source": "save-partial",
+        "target": "assert-partial",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e22-seq-14",
+        "source": "assert-partial",
+        "target": "assert-five-day-partial-outcome",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e22-seq-15",
+        "source": "capture-partial",
+        "target": "scroll-partial-continuation",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e22-seq-16",
+        "source": "reload-partial",
+        "target": "wait-after-partial-refresh",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e22-seq-17",
+        "source": "wait-after-partial-refresh",
+        "target": "wait-for-partial-readback-values",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e22-seq-18",
+        "source": "verify-partial-readback",
+        "target": "capture-partial-refresh",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e22-seq-19",
+        "source": "capture-partial-refresh",
+        "target": "open-unknown-review",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e22-seq-20",
+        "source": "open-unknown-review",
+        "target": "set-zero-insets-after-unknown-review",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e22-seq-21",
+        "source": "open-unknown-monday-editor",
+        "target": "edit-monday-zone",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e22-seq-23",
+        "source": "edit-monday-time",
+        "target": "finish-unknown-monday-edit",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e22-seq-24",
+        "source": "finish-unknown-monday-edit",
+        "target": "click-unknown-review",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e22-seq-25",
+        "source": "save-unknown",
+        "target": "assert-unknown",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e22-seq-26",
+        "source": "assert-unknown",
+        "target": "capture-unknown",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e22-seq-27",
+        "source": "capture-unknown",
+        "target": "reload-unknown",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e22-seq-28",
+        "source": "reload-unknown",
+        "target": "wait-after-unknown-refresh",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e22-seq-29",
+        "source": "wait-after-unknown-refresh",
+        "target": "verify-unknown-readback",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e22-seq-30",
+        "source": "verify-unknown-readback",
+        "target": "open-sunday-editor",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e22-seq-32",
+        "source": "open-sunday-editor",
+        "target": "set-overnight-start",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e22-seq-33",
+        "source": "set-overnight-start",
+        "target": "set-overnight-end",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e22-seq-34",
+        "source": "set-overnight-zone",
+        "target": "assert-overnight-held",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e22-seq-33a",
+        "source": "set-overnight-end",
+        "target": "set-overnight-zone",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e22-seq-35",
+        "source": "assert-overnight-held",
+        "target": "assert-overnight-save-disabled",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e22-seq-36",
+        "source": "assert-overnight-save-disabled",
+        "target": "finish-sunday-edit",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e22-seq-37",
+        "source": "finish-sunday-edit",
+        "target": "open-removal-monday-editor",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e22-seq-39",
+        "source": "open-removal-monday-editor",
+        "target": "toggle-monday-off",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e22-seq-40",
+        "source": "toggle-monday-off",
+        "target": "finish-removal-monday-edit",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e22-seq-41",
+        "source": "finish-removal-monday-edit",
+        "target": "click-removal-review",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e22-seq-42",
+        "source": "assert-removal-review",
+        "target": "stage-removal",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e22-seq-43",
+        "source": "save-removal",
+        "target": "assert-removal-confirmed",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e22-seq-44",
+        "source": "assert-removal-confirmed",
+        "target": "reload-quiet-removal",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e22-seq-45",
+        "source": "reload-quiet-removal",
+        "target": "wait-after-removal",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e22-seq-46",
+        "source": "wait-after-removal",
+        "target": "verify-monday-removed",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e22-seq-47",
+        "source": "verify-monday-removed",
+        "target": "open-escalation-editor-before-add",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e22-seq-48",
+        "source": "select-email-channel",
+        "target": "type-email-channel",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e22-seq-49",
+        "source": "type-email-channel",
+        "target": "confirm-email-channel",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e22-seq-50",
+        "source": "confirm-email-channel",
+        "target": "assert-email-selected",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e22-seq-51",
+        "source": "assert-email-selected",
+        "target": "add-email-channel",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e22-seq-52",
+        "source": "add-email-channel",
+        "target": "move-web-push-down",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e22-seq-53",
+        "source": "move-web-push-down",
+        "target": "assert-unsupported-channel-resolved",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e22-seq-54",
+        "source": "assert-unsupported-channel-resolved",
+        "target": "capture-order-review",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e22-seq-55",
+        "source": "capture-order-review",
+        "target": "save-order",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e22-seq-56",
+        "source": "save-order",
+        "target": "assert-order-saved",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e22-seq-57",
+        "source": "assert-order-saved",
+        "target": "verify-order",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e22-seq-58",
+        "source": "verify-order",
+        "target": "capture-order-saved",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e22-seq-59",
+        "source": "capture-order-saved",
+        "target": "open-order-unknown-fixture",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e22-seq-71",
+        "source": "open-order-unknown-fixture",
+        "target": "set-zero-insets-after-order-unknown-fixture",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e22-seq-72",
+        "source": "wait-order-unknown-fixture",
+        "target": "open-escalation-editor-for-unknown-save",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e22-seq-73",
+        "source": "reorder-web-push-for-unknown-save",
+        "target": "scroll-order-editor-to-top",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e22-seq-74",
+        "source": "save-order-with-unknown-readback",
+        "target": "assert-order-unknown",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e22-seq-75",
+        "source": "assert-order-unknown",
+        "target": "capture-order-unknown",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e22-seq-76",
+        "source": "capture-order-unknown",
+        "target": "check-order-readback",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e22-seq-77",
+        "source": "check-order-readback",
+        "target": "assert-order-readback-confirmed",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e22-seq-78",
+        "source": "assert-order-readback-confirmed",
+        "target": "verify-order-readback",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e22-seq-79",
+        "source": "verify-order-readback",
+        "target": "return-to-order-editor-before-clear",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e22-seq-60",
+        "source": "stage-clear",
+        "target": "scroll-clear-review",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e22-seq-62",
+        "source": "save-empty-order",
+        "target": "assert-empty-order",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e22-seq-63",
+        "source": "assert-empty-order",
+        "target": "reload-empty-order",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e22-seq-64",
+        "source": "reload-empty-order",
+        "target": "wait-empty-order",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e22-seq-65",
+        "source": "wait-empty-order",
+        "target": "open-empty-order-editor-after-refresh",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e22-seq-66",
+        "source": "assert-empty-after-refresh",
+        "target": "capture-empty-order",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e22-seq-68",
+        "source": "click-review-days",
+        "target": "capture-review",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e22-seq-69",
+        "source": "click-unknown-review",
+        "target": "save-unknown",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e22-seq-70",
+        "source": "click-removal-review",
+        "target": "assert-removal-review",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e22-seq-80",
+        "source": "open-initial-escalation-editor",
+        "target": "assert-unknown-order",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e22-seq-81",
+        "source": "open-escalation-editor-before-add",
+        "target": "assert-unsupported-save-blocked",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e22-seq-82",
+        "source": "open-escalation-editor-for-unknown-save",
+        "target": "reorder-web-push-for-unknown-save",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e22-seq-83",
+        "source": "open-empty-order-editor-after-refresh",
+        "target": "assert-empty-after-refresh",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e22-seq-84",
+        "source": "return-to-order-editor-before-clear",
+        "target": "move-webpush-up-for-clear",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e22-seq-85",
+        "source": "open-equal-time-editor",
+        "target": "set-equal-start-time",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e22-seq-86",
+        "source": "set-equal-timezone",
+        "target": "assert-equal-time-invalid",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e22-seq-87",
+        "source": "assert-equal-time-invalid",
+        "target": "assert-equal-save-disabled",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e22-seq-88",
+        "source": "assert-equal-save-disabled",
+        "target": "cancel-equal-time-draft",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e22-seq-89",
+        "source": "cancel-equal-time-draft",
+        "target": "open-invalid-zone-editor",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e22-seq-90",
+        "source": "open-invalid-zone-editor",
+        "target": "set-invalid-zone-start",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e22-seq-90a",
+        "source": "set-invalid-zone-start",
+        "target": "set-invalid-zone-end",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e22-seq-90b",
+        "source": "set-invalid-zone-end",
+        "target": "set-invalid-zone-valid-zone",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e22-seq-90c",
+        "source": "set-invalid-zone-valid-zone",
+        "target": "set-invalid-zone",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e22-seq-91",
+        "source": "set-invalid-zone",
+        "target": "assert-invalid-zone",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e22-seq-92",
+        "source": "assert-invalid-zone",
+        "target": "assert-invalid-zone-save-disabled",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e22-seq-93",
+        "source": "assert-invalid-zone-save-disabled",
+        "target": "set-invalid-time-valid-zone",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e22-seq-93aa",
+        "source": "set-invalid-time-valid-zone",
+        "target": "set-invalid-time-start",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e22-seq-93a",
+        "source": "set-invalid-time-start",
+        "target": "assert-invalid-time",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e22-seq-93b",
+        "source": "assert-invalid-time",
+        "target": "assert-invalid-time-save-disabled",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e22-seq-93c",
+        "source": "assert-invalid-time-save-disabled",
+        "target": "cancel-invalid-zone-draft",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e22-seq-95",
+        "source": "cancel-invalid-zone-draft",
+        "target": "assert-mixed-timezones",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e22-seq-84",
+        "source": "capture-order-editor-for-unknown-save",
+        "target": "save-order-with-unknown-readback",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e22-seq-107",
+        "source": "scroll-order-editor-to-top",
+        "target": "capture-order-editor-for-unknown-save",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e22-seq-96",
+        "source": "assert-unsupported-save-blocked",
+        "target": "capture-unsupported-channel-review",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e22-seq-97",
+        "source": "remove-unsupported-channel",
+        "target": "save-removed-unsupported-channel",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e22-seq-98",
+        "source": "save-removed-unsupported-channel",
+        "target": "assert-unsupported-removal-readback",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e22-seq-99",
+        "source": "assert-unsupported-removal-readback",
+        "target": "return-to-order-after-unsupported-removal",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e22-seq-100",
+        "source": "return-to-order-after-unsupported-removal",
+        "target": "select-email-channel",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e22-seq-104",
+        "source": "capture-unsupported-channel-review",
+        "target": "remove-unsupported-channel",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e22-seq-105",
+        "source": "set-equal-start-time",
+        "target": "set-equal-end-time",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e22-seq-106",
+        "source": "set-equal-end-time",
+        "target": "set-equal-timezone",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e22-partial-seq-00",
+        "source": "partial-open-day-1",
+        "target": "partial-set-start-1",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e22-partial-seq-01",
+        "source": "partial-set-start-1",
+        "target": "partial-set-end-1",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e22-partial-seq-02",
+        "source": "partial-set-end-1",
+        "target": "partial-finish-day-1",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e22-partial-seq-03",
+        "source": "partial-finish-day-1",
+        "target": "partial-open-day-2",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e22-partial-seq-04",
+        "source": "partial-open-day-2",
+        "target": "partial-set-start-2",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e22-partial-seq-05",
+        "source": "partial-set-start-2",
+        "target": "partial-set-end-2",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e22-partial-seq-06",
+        "source": "partial-set-end-2",
+        "target": "partial-finish-day-2",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e22-partial-seq-07",
+        "source": "partial-finish-day-2",
+        "target": "partial-open-day-3",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e22-partial-seq-08",
+        "source": "partial-open-day-3",
+        "target": "partial-set-start-3",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e22-partial-seq-09",
+        "source": "partial-set-start-3",
+        "target": "partial-set-end-3",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e22-partial-seq-10",
+        "source": "partial-set-end-3",
+        "target": "partial-finish-day-3",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e22-partial-seq-11",
+        "source": "partial-finish-day-3",
+        "target": "partial-open-day-4",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e22-partial-seq-12",
+        "source": "partial-open-day-4",
+        "target": "partial-set-start-4",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e22-partial-seq-13",
+        "source": "partial-set-start-4",
+        "target": "partial-set-end-4",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e22-partial-seq-14",
+        "source": "partial-set-end-4",
+        "target": "partial-finish-day-4",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e22-partial-seq-15",
+        "source": "partial-finish-day-4",
+        "target": "partial-open-day-5",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e22-partial-seq-16",
+        "source": "partial-open-day-5",
+        "target": "partial-set-start-5",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e22-partial-seq-17",
+        "source": "partial-set-start-5",
+        "target": "partial-set-end-5",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e22-partial-seq-18",
+        "source": "partial-set-end-5",
+        "target": "partial-finish-day-5",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e22-partial-outcome-capture",
+        "source": "assert-five-day-partial-outcome",
+        "target": "capture-partial",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e22-clear-review-capture",
+        "source": "capture-clear-review",
+        "target": "confirm-clear",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e22-clear-review-scroll",
+        "source": "scroll-clear-review",
+        "target": "capture-clear-review",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e22-clear-reference-save",
+        "source": "move-webpush-up-for-clear",
+        "target": "save-clear-reference-order",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e22-clear-reference-assert",
+        "source": "save-clear-reference-order",
+        "target": "assert-clear-reference-order",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e22-clear-reference-edit",
+        "source": "assert-clear-reference-order",
+        "target": "edit-clear-reference-order",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e22-clear-reference-review",
+        "source": "edit-clear-reference-order",
+        "target": "stage-clear",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e22-seq-61-a",
+        "source": "confirm-clear",
+        "target": "assert-empty-draft-preserves-saved-baseline",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e22-seq-61-b",
+        "source": "assert-empty-draft-preserves-saved-baseline",
+        "target": "scroll-empty-draft-to-top",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e22-seq-61-c",
+        "source": "scroll-empty-draft-to-top",
+        "target": "capture-empty-draft",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e22-seq-61-d",
+        "source": "capture-empty-draft",
+        "target": "save-empty-order",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e22-review-continuation-scroll",
+        "source": "scroll-review-continuation",
+        "target": "capture-review-continuation",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e22-review-continuation-capture",
+        "source": "capture-review-continuation",
+        "target": "save-partial",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e22-partial-continuation-scroll",
+        "source": "scroll-partial-continuation",
+        "target": "capture-partial-continuation",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e22-visual-ja-01",
+        "source": "capture-mixed-timezones",
+        "target": "return-settings-for-japanese",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e22-visual-ja-02",
+        "source": "return-settings-for-japanese",
+        "target": "wait-settings-for-japanese",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e22-visual-ja-03",
+        "source": "wait-settings-for-japanese",
+        "target": "select-japanese-locale",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e22-visual-ja-04",
+        "source": "select-japanese-locale",
+        "target": "open-japanese-monday-editor",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e22-visual-ja-05",
+        "source": "open-japanese-monday-editor",
+        "target": "set-japanese-start",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e22-visual-ja-06",
+        "source": "set-japanese-start",
+        "target": "set-japanese-end",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e22-visual-ja-07",
+        "source": "set-japanese-end",
+        "target": "set-japanese-timezone",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e22-visual-ja-08",
+        "source": "set-japanese-timezone",
+        "target": "assert-japanese-editor",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e22-visual-ja-09",
+        "source": "assert-japanese-editor",
+        "target": "capture-japanese-editor",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e22-visual-ja-10",
+        "source": "capture-japanese-editor",
+        "target": "cancel-japanese-editor",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e22-visual-ja-11",
+        "source": "cancel-japanese-editor",
+        "target": "return-settings-for-english",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e22-visual-ja-12",
+        "source": "return-settings-for-english",
+        "target": "restore-english-locale",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e22-visual-timezone-01",
+        "source": "edit-monday-zone",
+        "target": "open-timezone-change-review",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e22-visual-timezone-02",
+        "source": "capture-timezone-change",
+        "target": "keep-editing-timezone-change",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e22-visual-mixed-scroll",
+        "source": "assert-mixed-timezones",
+        "target": "scroll-mixed-timezones",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e22-visual-mixed-capture",
+        "source": "scroll-mixed-timezones",
+        "target": "capture-mixed-timezones",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "reach-empty-zero-inset-to-capture",
+        "source": "set-reach-empty-zero-insets",
+        "target": "wait-reach-empty-readback",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "reach-empty-readback-to-capture",
+        "source": "wait-reach-empty-readback",
+        "target": "focus-reach-add-browser",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "wait-partial-readback-values-before-assert",
+        "source": "wait-for-partial-readback-values",
+        "target": "verify-partial-readback",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e43-zero-insets-after-return-settings",
+        "source": "set-zero-insets-after-return-settings",
+        "target": "reach-return-settings-ready",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e43-zero-insets-after-partial-review",
+        "source": "set-zero-insets-after-partial-review",
+        "target": "partial-open-day-1",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e43-zero-insets-after-unknown-review",
+        "source": "set-zero-insets-after-unknown-review",
+        "target": "open-unknown-monday-editor",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e43-zero-insets-after-order-unknown-fixture",
+        "source": "set-zero-insets-after-order-unknown-fixture",
+        "target": "wait-order-unknown-fixture",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e22-staged-removal-1",
+        "source": "stage-removal",
+        "target": "reopen-removal-review",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e22-staged-removal-2",
+        "source": "reopen-removal-review",
+        "target": "assert-removal-ready",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e22-staged-removal-3",
+        "source": "assert-removal-ready",
+        "target": "save-removal",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e22-partial-check-saved",
+        "source": "capture-partial-continuation",
+        "target": "check-partial-saved-windows",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e22-partial-followup-assert",
+        "source": "check-partial-saved-windows",
+        "target": "assert-partial-follow-up-unknown",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e22-partial-followup-scroll",
+        "source": "assert-partial-follow-up-unknown",
+        "target": "scroll-partial-still-unknown-to-top",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e22-partial-followup-capture",
+        "source": "scroll-partial-still-unknown-to-top",
+        "target": "capture-partial-still-unknown",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e22-partial-followup-reload",
+        "source": "capture-partial-still-unknown",
+        "target": "reload-partial",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e22-visual-timezone-review-open",
+        "source": "open-timezone-change-review",
+        "target": "capture-timezone-change",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e22-visual-timezone-review-continue",
+        "source": "keep-editing-timezone-change",
+        "target": "edit-monday-time",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "reach-empty-focus-to-capture",
+        "source": "focus-reach-add-browser",
+        "target": "tab-reach-add-browser"
+      },
+      {
+        "id": "reach-empty-focus-tab-to-shift",
+        "source": "tab-reach-add-browser",
+        "target": "shift-tab-reach-add-browser"
+      },
+      {
+        "id": "reach-empty-focus-shift-to-assert",
+        "source": "shift-tab-reach-add-browser",
+        "target": "assert-reach-keyboard-focus"
+      },
+      {
+        "id": "reach-empty-focus-assert-to-capture",
+        "source": "assert-reach-keyboard-focus",
+        "target": "capture-reach-empty"
+      },
+      {
+        "id": "e22-visual-ja-13",
+        "source": "restore-english-locale",
+        "target": "open-initial-escalation-editor",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      }
+    ]
+  }
+}

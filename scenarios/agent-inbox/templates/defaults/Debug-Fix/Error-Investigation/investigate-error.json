@@ -34,6 +34,5 @@
       "placeholder": "Describe any fixes you've already attempted",
       "required": false
     }
-  ],
-  "suggestedToolIds": ["spawn_coding_agent"]
+  ]
 }

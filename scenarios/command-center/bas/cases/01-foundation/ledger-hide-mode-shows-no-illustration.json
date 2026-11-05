@@ -1,0 +1,116 @@
+{
+  "metadata": {
+    "name": "ledger-hide-mode-shows-no-illustration",
+    "description": "With samples=hide, /ledger renders no hollow or dotted figure and stamps the mode on screen (CC-P1-011).",
+    "labels": {
+      "reset": "none",
+      "requirements_json": "[\"CC-UI-002\"]"
+    },
+    "version": "1",
+    "execution_mode": "observer"
+  },
+  "settings": {
+    "viewport_width": 1440,
+    "viewport_height": 900
+  },
+  "nodes": [
+    {
+      "id": "navigate",
+      "action": {
+        "type": "ACTION_TYPE_NAVIGATE",
+        "navigate": {
+          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+          "scenario": "command-center",
+          "scenario_path": "/ledger?samples=hide",
+          "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE",
+          "timeout_ms": 30000
+        },
+        "metadata": {
+          "label": "Navigate to /ledger in hide mode"
+        }
+      }
+    },
+    {
+      "id": "wait-hero",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "[data-testid='room-hero']",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 15000
+        },
+        "metadata": {
+          "label": "Wait for the hero region"
+        }
+      }
+    },
+    {
+      "id": "assert-no-illustration",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "[data-figure][data-ink='hollow'], [data-figure][data-ink='dotted']",
+          "mode": "ASSERTION_MODE_NOT_EXISTS",
+          "timeout_ms": 5000,
+          "failure_message": "Expected no hollow or dotted figure in hide mode"
+        },
+        "metadata": {
+          "label": "No illustrative figure on screen"
+        }
+      }
+    },
+    {
+      "id": "assert-stamp",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "[data-testid='samples-mode-stamp']",
+          "mode": "ASSERTION_MODE_VISIBLE",
+          "timeout_ms": 5000,
+          "failure_message": "Expected the samples-mode stamp so a screenshot is self-describing"
+        },
+        "metadata": {
+          "label": "The audience mode is stamped on screen"
+        }
+      }
+    },
+    {
+      "id": "capture",
+      "action": {
+        "type": "ACTION_TYPE_SCREENSHOT",
+        "screenshot": {
+          "full_page": false
+        },
+        "metadata": {
+          "label": "Capture hide mode"
+        }
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "source": "navigate",
+      "target": "wait-hero",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e2",
+      "source": "wait-hero",
+      "target": "assert-no-illustration",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e3",
+      "source": "assert-no-illustration",
+      "target": "assert-stamp",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e4",
+      "source": "assert-stamp",
+      "target": "capture",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    }
+  ]
+}

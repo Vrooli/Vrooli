@@ -1,6 +1,8 @@
+import { renderWithProviders as render } from "../test-utils";
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { screen, fireEvent, waitFor } from "@testing-library/react";
 import TtsSettingsSection from "../components/settings/TtsSettingsSection";
+import { strings } from "../consts/strings";
 
 const mockStoreState: Record<string, unknown> = {
   ttsVoice: "",
@@ -13,6 +15,8 @@ const mockStoreState: Record<string, unknown> = {
   setAutoTtsEnabled: vi.fn(),
   ttsBackendPreference: "auto",
   setTtsBackendPreference: vi.fn(),
+  startMutedOnLoad: false,
+  setStartMutedOnLoad: vi.fn(),
   kokoroVoice: "af_heart",
   setKokoroVoice: vi.fn(),
   kokoroSpeed: 1.0,
@@ -23,61 +27,144 @@ vi.mock("../stores/useWorkspaceStore", () => ({
   useWorkspaceStore: (selector: (state: Record<string, unknown>) => unknown) => selector(mockStoreState),
 }));
 
-const mockUpdateTTSConfig = vi.fn((patch?: Partial<{
+// Mock the new split-of-concerns sources:
+//   - hook config / routing status / playback events → ../api/ttsHook
+//     (web-console-internal REST against /api/v1/tts-hook/*).
+//   - voice/speed/summarize knobs → ../audio-integration (calls audio-tools).
+const mockUpdateHookConfig = vi.fn((patch?: Partial<{
   autoEnabled: boolean;
   backend: "auto" | "kokoro" | "browser";
-  kokoroVoice: string;
-  kokoroSpeed: number;
+  startMuted: boolean;
 }>) => Promise.resolve({
-  autoEnabled: patch?.autoEnabled ?? true,
+  autoEnabled: patch?.autoEnabled ?? false,
   backend: patch?.backend ?? "auto",
-  kokoroVoice: patch?.kokoroVoice ?? "af_heart",
-  kokoroSpeed: patch?.kokoroSpeed ?? 1.0,
+  startMuted: patch?.startMuted ?? false,
 }));
 
-vi.mock("../lib/api", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("../lib/api")>();
+vi.mock("../api/ttsHook", () => ({
+  getTTSHookStatus: vi.fn().mockResolvedValue({
+    config: { autoEnabled: false, backend: "auto", startMuted: false },
+    hookRegistered: false,
+    hookCode: "hook_missing",
+    hookReason: "Claude Stop hook is not registered in project settings",
+    lastHookRouting: {
+      appended: false,
+      code: "tts_target_missing",
+      reason: "No terminal session was available for TTS routing",
+      source: "claude_hook",
+    },
+    lastTailerRouting: {
+      appended: false,
+      code: "tts_target_missing",
+      reason: "No terminal session was available for TTS routing",
+      source: "codex_tailer",
+    },
+    lastHookAck: {
+      eventId: "evt-1",
+      source: "claude_hook",
+      sessionId: "s1",
+      stage: "rejected",
+      message: "Assistant text did not match the rendered terminal buffer",
+    },
+    lastTailerAck: {
+      eventId: "evt-2",
+      source: "codex_tailer",
+      sessionId: "s2",
+      stage: "playback_succeeded",
+      backend: "browser",
+    },
+    audioToolsCapabilityLabel: "resource is not responding",
+  }),
+  updateTTSHookConfig: vi.fn((patch: Parameters<typeof mockUpdateHookConfig>[0]) => mockUpdateHookConfig(patch)),
+  recordTTSPlaybackEvent: vi.fn().mockResolvedValue(undefined),
+  recordTTSHookAck: vi.fn().mockResolvedValue(undefined),
+}));
+
+const mockUpdateVoiceConfig = vi.fn((patch?: Partial<{
+  defaultVoice: string;
+  defaultSpeed: number;
+}>) => Promise.resolve({
+  defaultVoice: patch?.defaultVoice ?? "af_heart",
+  defaultSpeed: patch?.defaultSpeed ?? 1.0,
+  defaultResponseFormat: "mp3",
+}));
+
+const mockUpdateSummarizeConfig = vi.fn((patch?: Partial<{
+  enabled: boolean;
+  charThreshold: number;
+  level: "light" | "moderate" | "heavy";
+  model: string;
+  timeoutSeconds: number;
+}>) => Promise.resolve({
+  enabled: patch?.enabled ?? false,
+  charThreshold: patch?.charThreshold ?? 500,
+  level: patch?.level ?? "moderate",
+  model: patch?.model ?? "llama3.2:3b",
+  timeoutSeconds: patch?.timeoutSeconds ?? 120,
+}));
+
+vi.mock("../audio-integration", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../audio-integration")>();
   return {
     ...actual,
-    getTTSStatus: vi.fn().mockResolvedValue({
-      config: {
-        autoEnabled: false,
-        backend: "auto",
-        kokoroVoice: "af_heart",
-        kokoroSpeed: 1.0,
-      },
-      hookRegistered: false,
-      hookCode: "hook_missing",
-      hookReason: "Claude Stop hook is not registered in project settings",
-      lastHookRouting: {
-        routed: false,
-        code: "tts_target_missing",
-        reason: "No terminal session was available for TTS routing",
-        source: "claude_hook",
-      },
-      lastTailerRouting: {
-        routed: false,
-        code: "tts_target_missing",
-        reason: "No terminal session was available for TTS routing",
-        source: "codex_tailer",
-      },
-      lastHookAck: {
-        eventId: "evt-1",
-        source: "claude_hook",
-        sessionId: "s1",
-        stage: "rejected",
-        message: "Assistant text did not match the rendered terminal buffer",
-      },
-      lastTailerAck: {
-        eventId: "evt-2",
-        source: "codex_tailer",
-        sessionId: "s2",
-        stage: "playback_succeeded",
-        backend: "browser",
-      },
-      kokoroCapabilityLabel: "resource is not responding",
+    getTTSConfig: vi.fn().mockResolvedValue({
+      defaultVoice: "af_heart",
+      defaultSpeed: 1.0,
+      defaultResponseFormat: "mp3",
     }),
-    updateTTSConfig: vi.fn((...args: unknown[]) => mockUpdateTTSConfig(args[0] as Parameters<typeof mockUpdateTTSConfig>[0])),
+    updateTTSConfig: vi.fn((patch: Parameters<typeof mockUpdateVoiceConfig>[0]) => mockUpdateVoiceConfig(patch)),
+    getTTSSummarizeConfig: vi.fn().mockResolvedValue({
+      enabled: false,
+      charThreshold: 500,
+      level: "moderate",
+      model: "llama3.2:3b",
+      timeoutSeconds: 120,
+    }),
+    updateTTSSummarizeConfig: vi.fn((patch: Parameters<typeof mockUpdateSummarizeConfig>[0]) => mockUpdateSummarizeConfig(patch)),
+    listTTSSummarizeModels: vi.fn().mockResolvedValue([
+      {
+        id: "llama3.2:3b",
+        displayName: "Llama 3.2 3B",
+        installed: true,
+        recommended: true,
+        defaultEligible: true,
+        reasoning: false,
+        statusLabel: "Installed, recommended",
+        pullCommand: "ollama pull llama3.2:3b",
+        sizeBytes: 1n,
+        parameterSize: "3B",
+        sourceUrl: "https://ollama.com/library/llama3.2",
+        notes: "Installed fallback validated for fast local TTS summarization.",
+      },
+      {
+        id: "gemma3:4b",
+        displayName: "Gemma 3 4B",
+        installed: false,
+        recommended: true,
+        defaultEligible: true,
+        reasoning: false,
+        statusLabel: "Recommended, not installed",
+        pullCommand: "ollama pull gemma3:4b",
+        sizeBytes: 0n,
+        parameterSize: "4B",
+        sourceUrl: "https://ollama.com/library/gemma3",
+        notes: "Benchmark locally before making it the default.",
+      },
+      {
+        id: "qwen3:4b",
+        displayName: "Qwen3 4B",
+        installed: true,
+        recommended: false,
+        defaultEligible: false,
+        reasoning: true,
+        statusLabel: "Installed reasoning model",
+        pullCommand: "ollama pull qwen3:4b",
+        sizeBytes: 2n,
+        parameterSize: "4B",
+        sourceUrl: "https://ollama.com/library/qwen3:4b",
+        notes: "Reasoning-capable; too slow/noisy for default TTS summaries.",
+      },
+    ]),
   };
 });
 
@@ -118,12 +205,14 @@ describe("TtsSettingsSection", () => {
     mockStoreState.autoTtsEnabled = false;
     mockStoreState.ttsBackendPreference = "auto";
     mockStoreState.kokoroSpeed = 1.0;
+    mockStoreState.startMutedOnLoad = false;
+    mockUpdateSummarizeConfig.mockClear();
   });
 
   async function renderSection() {
     render(<TtsSettingsSection />);
     await waitFor(() => {
-      expect(screen.getByText(/Claude hook:/)).toBeTruthy();
+      expect(screen.getByText(strings.settings.voiceOutputSection.claudeHookPrefix, { exact: false })).toBeTruthy();
     });
   }
 
@@ -132,42 +221,115 @@ describe("TtsSettingsSection", () => {
     expect(screen.getByTestId("auto-tts-toggle").getAttribute("aria-checked")).toBe("false");
   });
 
-  it("clicking toggle updates store and calls updateTTSConfig", async () => {
+  it("clicking toggle updates store and persists via tts-hook config endpoint", async () => {
     await renderSection();
     fireEvent.click(screen.getByTestId("auto-tts-toggle"));
     expect(mockStoreState.setAutoTtsEnabled).toHaveBeenCalledWith(true);
     await waitFor(() => {
-      expect(mockUpdateTTSConfig).toHaveBeenCalledWith({ autoEnabled: true });
+      expect(mockUpdateHookConfig).toHaveBeenCalledWith({ autoEnabled: true });
     });
   });
 
-  it("changing backend preference persists to the API", async () => {
+  it("changing backend preference persists via tts-hook config endpoint", async () => {
     await renderSection();
     fireEvent.change(screen.getByTestId("tts-backend-select"), { target: { value: "kokoro" } });
     expect(mockStoreState.setTtsBackendPreference).toHaveBeenCalledWith("kokoro");
     await waitFor(() => {
-      expect(mockUpdateTTSConfig).toHaveBeenCalledWith({ backend: "kokoro" });
+      expect(mockUpdateHookConfig).toHaveBeenCalledWith({ backend: "kokoro" });
     });
   });
 
-  it("changing kokoro speed persists to the API", async () => {
+  it("changing kokoro speed persists to audio-tools via updateTTSConfig", async () => {
     mockStoreState.ttsBackendPreference = "kokoro";
     await renderSection();
-    fireEvent.change(screen.getByTestId("kokoro-speed-slider"), { target: { value: "1.6" } });
+    // A slider commits on release, so a persisted write follows the blur —
+    // the same contract the numeric fields below already use.
+    const speed = screen.getByTestId("kokoro-speed-slider");
+    fireEvent.change(speed, { target: { value: "1.6" } });
+    fireEvent.blur(speed);
     expect(mockStoreState.setKokoroSpeed).toHaveBeenCalledWith(1.6);
     await waitFor(() => {
-      expect(mockUpdateTTSConfig).toHaveBeenCalledWith({ kokoroSpeed: 1.6 });
+      expect(mockUpdateVoiceConfig).toHaveBeenCalledWith({ defaultSpeed: 1.6 });
     });
   });
 
   it("renders structured hook diagnostics from TTS status", async () => {
     await renderSection();
     await waitFor(() => {
-      expect(screen.getByText(/Hook status code: hook_missing/)).toBeTruthy();
-      expect(screen.getByText(/Last Claude hook routing:/)).toBeTruthy();
-      expect(screen.getByText(/Last Claude terminal ack:/)).toBeTruthy();
-      expect(screen.getByText(/Last Codex tailer routing:/)).toBeTruthy();
-      expect(screen.getByText(/Last Codex terminal ack:/)).toBeTruthy();
+      expect(screen.getByText(strings.settings.voiceOutputSection.hookStatusCode, { exact: false })).toBeTruthy();
+      expect(screen.getByText(strings.settings.voiceOutputSection.lastHookRouting, { exact: false })).toBeTruthy();
+      expect(screen.getByText(strings.settings.voiceOutputSection.lastHookAck, { exact: false })).toBeTruthy();
+      expect(screen.getByText(strings.settings.voiceOutputSection.lastTailerRouting, { exact: false })).toBeTruthy();
+      expect(screen.getByText(strings.settings.voiceOutputSection.lastTailerAck, { exact: false })).toBeTruthy();
     });
+  });
+
+  it("renders summarize model catalog status", async () => {
+    await renderSection();
+    const select = screen.getByTestId("summarize-model-select") as HTMLSelectElement;
+    expect(select.value).toBe("llama3.2:3b");
+    expect(screen.getByText("Installed, recommended")).toBeTruthy();
+  });
+
+  it("shows a pull command for missing recommended summarize models", async () => {
+    await renderSection();
+    fireEvent.change(screen.getByTestId("summarize-model-select"), { target: { value: "gemma3:4b" } });
+    await waitFor(() => expect(mockUpdateSummarizeConfig).toHaveBeenCalledWith({ model: "gemma3:4b" }));
+    expect(screen.getByTestId("summarize-model-pull-command").textContent).toContain("ollama pull gemma3:4b");
+  });
+
+  it("warns when a reasoning summarize model is selected", async () => {
+    await renderSection();
+    fireEvent.change(screen.getByTestId("summarize-model-select"), { target: { value: "qwen3:4b" } });
+    await waitFor(() => expect(mockUpdateSummarizeConfig).toHaveBeenCalledWith({ model: "qwen3:4b" }));
+    expect(screen.getByTestId("summarize-model-reasoning-warning").textContent).toContain("Reasoning models are slower");
+  });
+
+  it("exercises browser playback controls, refresh, test, and summarize sliders", async () => {
+    await renderSection();
+    fireEvent.click(screen.getByTestId("start-muted-toggle"));
+    fireEvent.click(screen.getByTestId("tts-refresh"));
+    fireEvent.click(screen.getByTestId("tts-test-button"));
+    fireEvent.change(screen.getByTestId("tts-voice-select"), { target: { value: "af_heart" } });
+    const rate = screen.getByTestId("tts-rate-slider");
+    fireEvent.change(rate, { target: { value: "1.4" } });
+    fireEvent.blur(rate);
+    const pitch = screen.getByTestId("tts-pitch-slider");
+    fireEvent.change(pitch, { target: { value: "0.8" } });
+    fireEvent.blur(pitch);
+    // Both numeric settings are NumberFields now: the base test id names the
+    // field, `-value` the input inside it, and a value commits on blur rather
+    // than per keystroke.
+    fireEvent.change(screen.getByTestId("summarize-threshold-value"), { target: { value: "800" } });
+    fireEvent.blur(screen.getByTestId("summarize-threshold-value"));
+    fireEvent.change(screen.getByTestId("summarize-level-select"), { target: { value: "heavy" } });
+    fireEvent.change(screen.getByTestId("summarize-timeout-value"), { target: { value: "90" } });
+    fireEvent.blur(screen.getByTestId("summarize-timeout-value"));
+    expect(mockStoreState.setStartMutedOnLoad).toHaveBeenCalledWith(true);
+    expect(mockStoreState.setTtsVoice).toHaveBeenCalledWith("af_heart");
+    expect(mockStoreState.setTtsRate).toHaveBeenCalledWith(1.4);
+    expect(mockStoreState.setTtsPitch).toHaveBeenCalledWith(0.8);
+    await waitFor(() => expect(mockUpdateSummarizeConfig).toHaveBeenCalledWith({ charThreshold: 800 }));
+    await waitFor(() => expect(mockUpdateSummarizeConfig).toHaveBeenCalledWith({ timeoutSeconds: 90 }));
+  });
+
+  it("clamps a summarize threshold typed above its declared ceiling", async () => {
+    await renderSection();
+    // The regression: the previous control ran Math.max(100, ...) and declared
+    // a 10000 maximum it never enforced, so 99999 persisted verbatim.
+    fireEvent.change(screen.getByTestId("summarize-threshold-value"), { target: { value: "99999" } });
+    fireEvent.blur(screen.getByTestId("summarize-threshold-value"));
+    await waitFor(() => expect(mockUpdateSummarizeConfig).toHaveBeenCalledWith({ charThreshold: 10000 }));
+  });
+
+  it("reverts an emptied summarize timeout instead of committing zero", async () => {
+    await renderSection();
+    // Number("") is 0, which the previous `|| 120` fallback masked on one path
+    // and the floor clamp would have swallowed on the other.
+    fireEvent.change(screen.getByTestId("summarize-timeout-value"), { target: { value: "" } });
+    fireEvent.blur(screen.getByTestId("summarize-timeout-value"));
+    expect((screen.getByTestId("summarize-timeout-value") as HTMLInputElement).value).toBe("120");
+    expect(mockUpdateSummarizeConfig).not.toHaveBeenCalledWith({ timeoutSeconds: 0 });
+    expect(mockUpdateSummarizeConfig).not.toHaveBeenCalledWith({ timeoutSeconds: 15 });
   });
 });

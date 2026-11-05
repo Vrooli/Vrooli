@@ -1,0 +1,98 @@
+{
+  "schema_version": 1,
+  "profile_id": "device-studio-source-innerscene-picture-frame-v1",
+  "status": "acquired-research-candidate-not-qualified",
+  "identity": {
+    "display_name": "Generic standing picture frame",
+    "manufacturer": null,
+    "manufacturer_model": null,
+    "source_title": "Frame Stand - Picture Frame",
+    "source_creator": "Innerscene (original model)",
+    "product_identity_claim": "None. This is a physical picture frame, not a smart display or electronic frame."
+  },
+  "rights": {
+    "license": "CC0 1.0 Universal / public domain, as stated on the source page and library terms",
+    "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+    "source_page": "https://www.innerscene.com/tools/library/3d-parts/frame-stand-picture-frame-89aca50e",
+    "library_terms": "https://www.innerscene.com/tools/library/terms",
+    "attribution": "Not required; provenance retained as Innerscene, Frame Stand - Picture Frame (CC0)",
+    "limitations": "The source page identifies this as an original Innerscene model. This source package does not establish rights to any later adaptation beyond the stated CC0 asset; no endorsement or named product is implied."
+  },
+  "source": {
+    "filename": "picture-frame.glb",
+    "sha256": "7c9f5cf3e63c7f01cc911b1db9eea2c95b5e1bdadd9b75c3076b10dca70cef10",
+    "size_bytes": 787012,
+    "download_url": "https://www.innerscene.com/api/library/frame-stand-picture-frame-89aca50e/download",
+    "access": "Anonymous HTTP download from the public source page's download endpoint; exact original bytes retained unchanged.",
+    "access_date": "2026-10-21",
+    "source_page_capture": "scenarios/device-studio/docs/internal/goal/evidence/E4/family-candidates-20261021/innerscene-frame-source-page.html",
+    "terms_capture": "scenarios/device-studio/docs/internal/goal/evidence/E4/family-candidates-20261021/innerscene-library-terms.html",
+    "preview_url": "https://www.innerscene.com/api/library/frame-stand-picture-frame-89aca50e/preview",
+    "preview_capture": "scenarios/device-studio/docs/internal/goal/evidence/E4/family-candidates-20261021/innerscene-frame-preview.jpg",
+    "preview_sha256": "bb196b8eea3881fea06fdd245bd9943953be70664c1890282374ba08df222f3d",
+    "preview_dimensions_pixels": [
+      1200,
+      630
+    ],
+    "preview_limitation": "Single creator-provided rendered view; not an independent physical reference."
+  },
+  "model_inventory": {
+    "glb_version": "2.0",
+    "generator": "Khronos glTF Blender I/O v5.2.40",
+    "coordinate_units": "Meters; GLB root extras declare units=meter.",
+    "coordinate_basis": "+X width, +Y up/height, +Z depth/front; floor near Y=0.",
+    "nodes": 9,
+    "meshes": 8,
+    "materials": 5,
+    "triangles": 2608,
+    "extensions_used": [
+      "KHR_materials_clearcoat",
+      "KHR_materials_transmission",
+      "KHR_materials_ior"
+    ],
+    "animations": 0,
+    "external_uris": false,
+    "texture_count": 12,
+    "semantics": [
+      "Clear protective picture glazing (separate node)",
+      "Unprinted frame insert",
+      "Four deep walnut frame rails",
+      "Hinged rear easel strut",
+      "Easel limiting cord"
+    ],
+    "embedded_image_count": 10
+  },
+  "dimensions": {
+    "creator_claim_m_w_d_h": [
+      0.189,
+      0.122,
+      0.246
+    ],
+    "creator_claim_wording": "18.9 x 12.2 x 24.6 cm (W x D x H)",
+    "measured_source_world_aabb_m_xyz": {
+      "x": [
+        -0.0945000015,
+        0.0945000015
+      ],
+      "y": [
+        0.0,
+        0.2460000087
+      ],
+      "z": [
+        -0.1105507874,
+        0.0109999998
+      ]
+    },
+    "measured_bounds_mm_width_depth_height": [
+      189.000003,
+      121.550787,
+      246.000009
+    ],
+    "measurement_note": "Parser-derived vertex envelope including node transforms; agrees closely with rounded creator dimensions. This is not an independent physical measurement."
+  },
+  "candidate_limitations": [
+    "Generic picture frame only; no electronics, controls, speaker, camera, or operating behavior.",
+    "Separate glazing is a screen-surface lead, not proof that Device Studio's screen binding accepts it.",
+    "The three KHR_materials extensions require importer compatibility review before integration."
+  ]
+}

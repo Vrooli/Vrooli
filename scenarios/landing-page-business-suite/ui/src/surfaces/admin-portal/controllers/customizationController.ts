@@ -246,7 +246,7 @@ export function buildAttentionReasonsMap(
   };
 
   staleVariants.forEach(({ variant, daysSinceUpdate }) => {
-    pushReason(variant.slug, `Stale · ${daysSinceUpdate}d`);
+    pushReason(variant.slug, `Stale · ${String(daysSinceUpdate)}d`);
   });
 
   neverUpdatedVariants.forEach((variant) => {
@@ -271,9 +271,10 @@ export function filterVariantsByQuery(
 ): Variant[] {
   const normalized = query.trim().toLowerCase();
   return variants.filter((variant) => {
+    const rawName: unknown = variant.name;
     const matchesQuery =
       !normalized ||
-      variant.name?.toLowerCase().includes(normalized) ||
+      (typeof rawName === 'string' && rawName.toLowerCase().includes(normalized)) ||
       variant.slug.toLowerCase().includes(normalized);
     const matchesAttention = !attentionOnly || attentionCandidates.has(variant.slug);
     return matchesQuery && matchesAttention;

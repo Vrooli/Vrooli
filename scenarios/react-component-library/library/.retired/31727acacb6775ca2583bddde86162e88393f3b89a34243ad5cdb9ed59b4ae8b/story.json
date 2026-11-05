@@ -1,0 +1,207 @@
+{
+  "args": {
+    "fields": []
+  },
+  "environment": {
+    "fixtures": []
+  },
+  "kind": "component",
+  "schemaVersion": 5,
+  "stories": [
+    {
+      "args": {
+        "acceptLabel": "Accept plan",
+        "facts": [
+          {
+            "label": "Selected",
+            "tone": "info",
+            "value": "0"
+          },
+          {
+            "label": "Included by dependency",
+            "tone": "neutral",
+            "value": "0"
+          }
+        ],
+        "kicker": "Proposed changes",
+        "note": "Review the selected and implied changes before continuing.",
+        "onAccept": {
+          "$handler": "accept"
+        },
+        "title": "Review this plan"
+      },
+      "expect": [
+        {
+          "kind": "visible",
+          "selector": "[data-testid='plan-summary']"
+        }
+      ],
+      "id": "default",
+      "name": "Default",
+      "role": "anatomy"
+    },
+    {
+      "args": {
+        "acceptLabel": "Accept plan",
+        "facts": [
+          {
+            "label": "Selected",
+            "tone": "info",
+            "value": "0"
+          },
+          {
+            "label": "Included by dependency",
+            "tone": "neutral",
+            "value": "0"
+          }
+        ],
+        "items": [],
+        "kicker": "Proposed changes",
+        "note": "Review the selected and implied changes before continuing.",
+        "onAccept": {
+          "$handler": "accept"
+        },
+        "title": "Review this plan"
+      },
+      "expect": [
+        {
+          "kind": "visible",
+          "selector": "[data-testid='plan-summary']"
+        }
+      ],
+      "id": "empty",
+      "mode": "pinned",
+      "name": "Empty plan",
+      "role": "boundary"
+    },
+    {
+      "args": {
+        "acceptLabel": "Accept plan",
+        "facts": [
+          {
+            "label": "Selected",
+            "tone": "info",
+            "value": "1"
+          },
+          {
+            "label": "Included by dependency",
+            "tone": "neutral",
+            "value": "0"
+          }
+        ],
+        "items": [
+          {
+            "id": "one",
+            "label": "Prepare"
+          }
+        ],
+        "kicker": "Proposed changes",
+        "note": "Review the selected and implied changes before continuing.",
+        "onAccept": {
+          "$handler": "accept"
+        },
+        "title": "Review this plan"
+      },
+      "expect": [
+        {
+          "kind": "visible",
+          "selector": "[data-testid='plan-summary']"
+        }
+      ],
+      "id": "one",
+      "mode": "pinned",
+      "name": "One plan item",
+      "role": "boundary"
+    },
+    {
+      "args": {
+        "acceptLabel": "Accept plan",
+        "facts": [
+          {
+            "label": "Selected",
+            "tone": "info",
+            "value": "4"
+          },
+          {
+            "label": "Included by dependency",
+            "tone": "neutral",
+            "value": "0"
+          }
+        ],
+        "items": [
+          {
+            "id": "one",
+            "label": "Prepare"
+          },
+          {
+            "id": "two",
+            "label": "Review"
+          },
+          {
+            "id": "three",
+            "label": "Publish"
+          },
+          {
+            "id": "four",
+            "label": "Verify"
+          }
+        ],
+        "kicker": "Proposed changes",
+        "note": "Review the selected and implied changes before continuing.",
+        "onAccept": {
+          "$handler": "accept"
+        },
+        "title": "Review this plan"
+      },
+      "expect": [
+        {
+          "kind": "visible",
+          "selector": "[data-testid='plan-summary']"
+        }
+      ],
+      "id": "many",
+      "mode": "pinned",
+      "name": "Many plan items",
+      "role": "boundary"
+    },
+    {
+      "args": {
+        "acceptLabel": "Accept plan",
+        "facts": [
+          {
+            "label": "Selected",
+            "tone": "info",
+            "value": "1"
+          },
+          {
+            "label": "Included by dependency",
+            "tone": "neutral",
+            "value": "0"
+          }
+        ],
+        "items": [
+          {
+            "id": "long",
+            "label": "A deliberately long plan item label that must wrap cleanly"
+          }
+        ],
+        "kicker": "Proposed changes",
+        "note": "Review the selected and implied changes before continuing.",
+        "onAccept": {
+          "$handler": "accept"
+        },
+        "title": "Review this plan"
+      },
+      "expect": [
+        {
+          "kind": "visible",
+          "selector": "[data-testid='plan-summary']"
+        }
+      ],
+      "id": "overflow",
+      "mode": "pinned",
+      "name": "Long plan item",
+      "role": "boundary"
+    }
+  ]
+}

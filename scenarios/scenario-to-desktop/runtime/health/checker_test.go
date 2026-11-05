@@ -1,7 +1,9 @@
 package health
 
 import (
+	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"net"
 	"net/http"
@@ -10,10 +12,16 @@ import (
 	"testing"
 	"time"
 
-	"scenario-to-desktop-runtime/infra"
-	"scenario-to-desktop-runtime/manifest"
-	"scenario-to-desktop-runtime/testutil"
+	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/infra"
+	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/manifest"
+	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/testutil"
 )
+
+func TestParseHealthBodyAcceptsOKStatus(t *testing.T) {
+	if !parseHealthBody(bytes.NewBufferString(`{"status":"ok","ready":true}`)) {
+		t.Fatal("parseHealthBody rejected a healthy endpoint using status=ok")
+	}
+}
 
 // testMonitor creates a Monitor configured for testing.
 func testMonitor(m *manifest.Manifest, ports map[string]map[string]int, clock *testutil.MockClock, dialer infra.NetworkDialer, fs *testutil.MockFileSystem, cmdRunner *testutil.MockCommandRunner) *Monitor {
@@ -77,11 +85,28 @@ func TestWaitForReadiness_HealthSuccess(t *testing.T) {
 
 	clock := testutil.NewMockClock(time.Now())
 	hm := testMonitor(m, map[string]map[string]int{"api": {"http": port}}, clock, nil, nil, nil)
+	var probes []struct {
+		service string
+		attempt int
+		success bool
+		at      time.Time
+	}
+	hm.OnReadinessProbe = func(service string, attempt int, success bool, at time.Time) {
+		probes = append(probes, struct {
+			service string
+			attempt int
+			success bool
+			at      time.Time
+		}{service, attempt, success, at})
+	}
 
 	ctx := context.Background()
 	err := hm.WaitForReadiness(ctx, "api")
 	if err != nil {
 		t.Errorf("WaitForReadiness() error = %v", err)
+	}
+	if len(probes) != 1 || probes[0].service != "api" || probes[0].attempt != 1 || !probes[0].success || probes[0].at.IsZero() {
+		t.Fatalf("readiness probes = %+v, want the first successful health probe", probes)
 	}
 }
 
@@ -495,41 +520,147 @@ func (n *noopTicker) C() <-chan time.Time {
 
 func (n *noopTicker) Stop() {}
 
-func TestWaitForReadiness_Retries(t *testing.T) {
-	clock := testutil.NewMockClock(time.Now())
+func TestWaitForReadiness_UsesDeclaredStartupDeadline(t *testing.T) {
 	runner := testutil.NewMockCommandRunner()
 	runner.SetShouldErr(true)
-
-	m := &manifest.Manifest{
-		Services: []manifest.Service{
-			{
-				ID: "api",
-				Health: manifest.HealthCheck{
-					Type:       "command",
-					Command:    []string{"health-check"},
-					IntervalMs: 100,
-					TimeoutMs:  500,
-					Retries:    2,
-				},
-				Readiness: manifest.ReadinessCheck{
-					Type:      "health_success",
-					TimeoutMs: 3000,
-				},
-			},
-		},
+	m := &manifest.Manifest{Services: []manifest.Service{{ID: "api", Health: manifest.HealthCheck{Type: "command", Command: []string{"health-check"}, Retries: 1}, Readiness: manifest.ReadinessCheck{Type: "health_success", TimeoutMs: 80}}}}
+	hm := testMonitor(m, nil, nil, nil, nil, runner)
+	hm.clock = infra.RealClock{}
+	finished := make(chan error, 1)
+	go func() { finished <- hm.WaitForReadiness(context.Background(), "api") }()
+	select {
+	case err := <-finished:
+		if !errors.Is(err, context.DeadlineExceeded) {
+			t.Errorf("readiness error = %v, want deadline exceeded", err)
+		}
+	case <-time.After(300 * time.Millisecond):
+		t.Error("readiness did not return promptly at its declared startup deadline")
+		<-finished
 	}
+}
 
-	hm := testMonitor(m, map[string]map[string]int{}, clock, nil, nil, runner)
+func TestWaitForReadiness_SlowStartupCanOutliveHealthRetryCount(t *testing.T) {
+	runner := testutil.NewMockCommandRunner()
+	runner.SetShouldErr(true)
+	m := &manifest.Manifest{Services: []manifest.Service{{ID: "api", Health: manifest.HealthCheck{Type: "command", Command: []string{"health-check"}, Retries: 1}, Readiness: manifest.ReadinessCheck{Type: "health_success", TimeoutMs: 3000}}}}
+	hm := testMonitor(m, nil, nil, nil, nil, runner)
+	hm.clock = infra.RealClock{}
+	began := time.Now()
+	hm.OnReadinessProbe = func(_ string, _ int, _ bool, at time.Time) {
+		if at.Sub(began) >= 1200*time.Millisecond {
+			runner.SetShouldErr(false)
+		}
+	}
+	if err := hm.WaitForReadiness(context.Background(), "api"); err != nil {
+		t.Fatalf("service became healthy within the startup window: %v", err)
+	}
+	if got := len(runner.Commands()); got <= 2 {
+		t.Fatalf("health probes = %d; startup should survive the monitoring retry count", got)
+	}
+}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+func TestWaitForReadiness_CancelsWhileWaitingForNextProbe(t *testing.T) {
+	runner := testutil.NewMockCommandRunner()
+	runner.SetShouldErr(true)
+	m := &manifest.Manifest{Services: []manifest.Service{{ID: "api", Health: manifest.HealthCheck{Type: "command", Command: []string{"health-check"}}, Readiness: manifest.ReadinessCheck{Type: "health_success", TimeoutMs: 3000}}}}
+	hm := testMonitor(m, nil, nil, nil, nil, runner)
+	hm.clock = infra.RealClock{}
+	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-
-	err := hm.WaitForReadiness(ctx, "api")
-	if err == nil {
-		t.Error("WaitForReadiness() expected error after retries exhausted")
+	hm.OnReadinessProbe = func(_ string, _ int, _ bool, _ time.Time) { cancel() }
+	finished := make(chan error, 1)
+	go func() { finished <- hm.WaitForReadiness(ctx, "api") }()
+	select {
+	case err := <-finished:
+		if !errors.Is(err, context.Canceled) {
+			t.Errorf("readiness error = %v, want cancellation", err)
+		}
+	case <-time.After(200 * time.Millisecond):
+		t.Error("cancellation waited for the next startup probe")
+		<-finished
 	}
-
-	if len(runner.Commands()) != 3 {
-		t.Errorf("WaitForReadiness() ran %d commands, expected 3", len(runner.Commands()))
+	if got := len(runner.Commands()); got != 1 {
+		t.Errorf("health probes after cancellation = %d, want1", got)
 	}
+}
+
+func TestWaitForReadiness_ObservesFastStartupWithoutMonitoringDelay(t *testing.T) {
+	runner := testutil.NewMockCommandRunner()
+	runner.SetShouldErr(true)
+	m := &manifest.Manifest{Services: []manifest.Service{{ID: "api", Health: manifest.HealthCheck{Type: "command", Command: []string{"health-check"}, IntervalMs: 30000}, Readiness: manifest.ReadinessCheck{Type: "health_success", TimeoutMs: 3000}}}}
+	hm := testMonitor(m, nil, nil, nil, nil, runner)
+	hm.clock = &readinessProbeClock{testutil.NewMockClock(time.Now())}
+	var observations []time.Time
+	hm.OnReadinessProbe = func(_ string, _ int, _ bool, at time.Time) {
+		observations = append(observations, at)
+		runner.SetShouldErr(false)
+	}
+	if err := hm.WaitForReadiness(context.Background(), "api"); err != nil {
+		t.Fatal(err)
+	}
+	if len(observations) != 2 {
+		t.Fatalf("health observations = %d, want2", len(observations))
+	}
+	if gap := observations[1].Sub(observations[0]); gap > 100*time.Millisecond || gap <= 0 {
+		t.Errorf("startup observation gap = %s, want at most100ms independent of monitoring cadence", gap)
+	}
+}
+
+// Advance the existing mock clock for either sleep or channel waits.
+// Probes remain real CommandRunner calls; only the scheduling clock is virtual.
+type readinessProbeClock struct{ *testutil.MockClock }
+
+func (c *readinessProbeClock) After(d time.Duration) <-chan time.Time {
+	c.Sleep(d)
+	return c.MockClock.After(0)
+}
+
+func TestWaitForReadiness_TCPUsesStartupContext(t *testing.T) {
+	for _, mode := range []string{"health_success", "port_open"} {
+		for _, cancellation := range []bool{false, true} {
+			t.Run(fmt.Sprintf("%s/cancel=%t", mode, cancellation), func(t *testing.T) {
+				dialer := &blockedStartupDialer{entered: make(chan struct{}, 1)}
+				m := &manifest.Manifest{Services: []manifest.Service{{ID: "api", Health: manifest.HealthCheck{Type: "tcp", PortName: "http"}, Readiness: manifest.ReadinessCheck{Type: mode, PortName: "http", TimeoutMs: 80}}}}
+				if cancellation {
+					m.Services[0].Readiness.TimeoutMs = 3000
+				}
+				hm := testMonitor(m, map[string]map[string]int{"api": {"http": 4312}}, nil, dialer, nil, nil)
+				hm.clock = infra.RealClock{}
+				ctx, cancel := context.WithCancel(context.Background())
+				defer cancel()
+				finished := make(chan error, 1)
+				go func() { finished <- hm.WaitForReadiness(ctx, "api") }()
+				select {
+				case <-dialer.entered:
+				case <-time.After(time.Second):
+					t.Fatal("readiness never attempted a TCP probe")
+				}
+				expected := context.DeadlineExceeded
+				if cancellation {
+					cancel()
+					expected = context.Canceled
+				}
+				select {
+				case err := <-finished:
+					if !errors.Is(err, expected) {
+						t.Errorf("readiness error = %v, want %v", err, expected)
+					}
+				case <-time.After(300 * time.Millisecond):
+					t.Error("TCP probe did not honor startup context")
+					<-finished
+				}
+			})
+		}
+	}
+}
+
+type blockedStartupDialer struct {
+	infra.RealNetworkDialer
+	entered chan struct{}
+}
+
+func (d *blockedStartupDialer) DialContext(ctx context.Context, _, _ string) (net.Conn, error) {
+	d.entered <- struct{}{}
+	<-ctx.Done()
+	return nil, ctx.Err()
 }

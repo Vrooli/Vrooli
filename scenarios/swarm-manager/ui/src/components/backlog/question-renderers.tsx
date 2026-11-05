@@ -6,6 +6,7 @@ import { CheckCircle2, AlertTriangle, Star } from "lucide-react";
 import { cn } from "../../lib";
 import { selectors } from "../../consts/selectors";
 import { OTHER_KEY, filterAgentOther } from "../../lib/workshop-files";
+import { MarkdownRenderer } from "@vrooli/react-component-library/markdown-renderer/0";
 import type { PendingQuestion, ReviewStatus } from "../../types";
 
 /** Local answer state for a single question. */
@@ -19,12 +20,49 @@ export interface QuestionAnswer {
   reviewComment?: string;
 }
 
+export interface WorkshopQuestionLike {
+  id: string;
+  topic?: string | null;
+  text?: string | null;
+  context?: string | null;
+  options?: { key: string; label: string; rationale: string; recommended?: boolean }[];
+  selected?: string | null;
+  freeform?: string | null;
+  notes?: string | null;
+}
+
+interface MarkdownBlockProps {
+  content?: string | null;
+  className?: string;
+}
+
+function MarkdownBlock({ content, className }: MarkdownBlockProps) {
+  if (!content?.trim()) return null;
+
+  return (
+    <MarkdownRenderer content={content} className={cn("prose-sm-slate break-words [overflow-wrap:anywhere]", className)} />
+  );
+}
+
+interface InlineMarkdownProps {
+  content?: string | null;
+  className?: string;
+}
+
+function InlineMarkdown({ content, className }: InlineMarkdownProps) {
+  if (!content?.trim()) return null;
+
+  return (
+    <MarkdownRenderer content={content} className={cn("min-w-0 break-words [overflow-wrap:anywhere]", className)} />
+  );
+}
+
 // ---------------------------------------------------------------------------
 // Workshop question sub-renderer
 // ---------------------------------------------------------------------------
 
 export interface WorkshopQuestionViewProps {
-  question: PendingQuestion;
+  question: WorkshopQuestionLike;
   answer: QuestionAnswer | undefined;
   disabled: boolean;
   onUpdate: (patch: Partial<QuestionAnswer>) => void;
@@ -39,6 +77,9 @@ export function WorkshopQuestionView({ question, answer, disabled, onUpdate, act
   const isOther = selected === OTHER_KEY;
   const isResolved = !!selected.trim();
   const options = filterAgentOther(question.options ?? []);
+  const title = question.topic?.trim() || "";
+  const body = question.text?.trim() || "";
+  const hasSeparateBody = !!body && body !== title;
 
   const handleSelect = (key: string) => {
     onUpdate({
@@ -49,17 +90,31 @@ export function WorkshopQuestionView({ question, answer, disabled, onUpdate, act
   };
 
   return (
-    <div className="space-y-1.5">
-      <div className="flex items-start gap-2">
+    <div className="space-y-2">
+      <div className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-start gap-x-2 gap-y-1">
         <span className="mt-0.5 shrink-0 rounded bg-amber-500/20 px-1.5 py-0.5 text-[10px] font-medium text-amber-400">
           D
         </span>
-        <p className="flex-1 text-sm font-medium leading-snug text-slate-200">{question.topic || question.text}</p>
-        {actions}
+        {title ? (
+          <InlineMarkdown
+            content={title}
+            className="text-sm font-medium leading-snug text-slate-200"
+          />
+        ) : (
+          <div />
+        )}
+        <div className="flex shrink-0 items-start justify-end">{actions}</div>
       </div>
-      {question.context && (
-        <p className="text-[11px] leading-relaxed text-slate-500">{question.context}</p>
-      )}
+      {(!title && body) || hasSeparateBody ? (
+        <MarkdownBlock
+          content={body}
+          className="text-sm leading-relaxed text-slate-300"
+        />
+      ) : null}
+      <MarkdownBlock
+        content={question.context}
+        className="text-[11px] leading-relaxed text-slate-500"
+      />
       <div className="space-y-1">
         {options.map((opt) => (
           <button
@@ -78,26 +133,30 @@ export function WorkshopQuestionView({ question, answer, disabled, onUpdate, act
               disabled && "opacity-50 cursor-not-allowed",
             )}
           >
-            <div className="flex items-baseline gap-1.5">
+            <div className="flex min-w-0 items-start gap-1.5">
               <span className={cn(
-                "shrink-0 rounded px-1 py-0.5 text-[9px] font-bold",
+                "mt-0.5 shrink-0 rounded px-1 py-0.5 text-[9px] font-bold",
                 selected === opt.key
                   ? "bg-emerald-500/20 text-emerald-400"
                   : "bg-slate-700 text-slate-400",
               )}>
                 {opt.key}
               </span>
-              <span className="text-xs text-slate-200">{opt.label}</span>
+              <InlineMarkdown
+                content={opt.label}
+                className="flex-1 text-xs text-slate-200"
+              />
               {opt.recommended && (
-                <span className="ml-auto flex items-center gap-0.5 rounded bg-cyan-500/15 px-1 py-0.5 text-[9px] font-medium text-cyan-400">
+                <span className="ml-auto mt-0.5 flex shrink-0 items-center gap-0.5 rounded bg-cyan-500/15 px-1 py-0.5 text-[9px] font-medium text-cyan-400">
                   <Star className="h-2.5 w-2.5 fill-current" />
                   Rec
                 </span>
               )}
             </div>
-            {opt.rationale && (
-              <p className="mt-0.5 pl-5 text-[10px] leading-snug text-slate-500">{opt.rationale}</p>
-            )}
+            <MarkdownBlock
+              content={opt.rationale}
+              className="mt-1 text-[10px] leading-snug text-slate-500"
+            />
           </button>
         ))}
         <button
@@ -112,14 +171,14 @@ export function WorkshopQuestionView({ question, answer, disabled, onUpdate, act
             disabled && "opacity-50 cursor-not-allowed",
           )}
         >
-          <div className="flex items-baseline gap-1.5">
+          <div className="flex min-w-0 items-start gap-1.5">
             <span className={cn(
-              "shrink-0 rounded px-1 py-0.5 text-[9px] font-bold",
+              "mt-0.5 shrink-0 rounded px-1 py-0.5 text-[9px] font-bold",
               isOther ? "bg-emerald-500/20 text-emerald-400" : "bg-slate-700 text-slate-400",
             )}>
               ...
             </span>
-            <span className="text-xs text-slate-200">Other</span>
+            <span className="min-w-0 flex-1 break-words text-xs text-slate-200 [overflow-wrap:anywhere]">Other</span>
           </div>
         </button>
         {isOther && (
@@ -174,8 +233,8 @@ export function ReviewQuestionView({ question, answer, disabled, onUpdate, actio
   };
 
   return (
-    <div className="space-y-1.5">
-      <div className="flex items-start gap-2">
+    <div className="space-y-2">
+      <div className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-start gap-x-2 gap-y-1">
         <span className="mt-0.5 shrink-0 rounded bg-slate-700 px-1.5 py-0.5 text-[10px] font-medium text-slate-400">
           {question.review_type === "requirement" ? "Req" : "Target"}
         </span>
@@ -191,16 +250,20 @@ export function ReviewQuestionView({ question, answer, disabled, onUpdate, actio
               </span>
             )}
           </div>
-          <p className="mt-0.5 text-sm font-medium leading-snug text-slate-200">{question.title}</p>
+          <InlineMarkdown
+            content={question.title}
+            className="mt-0.5 text-sm font-medium leading-snug text-slate-200"
+          />
         </div>
-        {actions}
+        <div className="flex shrink-0 items-start justify-end">{actions}</div>
       </div>
-      {question.description && (
-        <p className="text-[11px] leading-relaxed text-slate-400">{question.description}</p>
-      )}
+      <MarkdownBlock
+        content={question.description}
+        className="text-[11px] leading-relaxed text-slate-400"
+      />
 
       {/* Approve / Flag buttons */}
-      <div className="flex items-center gap-1.5">
+      <div className="flex flex-wrap items-center gap-1.5">
         <button
           type="button"
           data-testid={selectors.questionStepper.reviewApprove}

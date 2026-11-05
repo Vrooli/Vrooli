@@ -1,0 +1,43 @@
+syntax = "proto3";
+package vrooli.command_center.v1.walk;
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/command-center/v1/walk;walk_v1";
+import "google/protobuf/struct.proto";
+// Read-only projection of the existing board. Preparation composition is owned by programs.
+service WalkService { rpc Read(ReadRequest) returns (ReadResponse);
+  rpc State(StateRequest) returns (StateResponse);
+  rpc Publish(PublishRequest) returns (Receipt);
+  rpc Checkpoint(CheckpointRequest) returns (Receipt); }
+message ReadRequest { int32 limit = 1; }
+message Reading {
+ string id = 1; string label = 2; string owner = 3; string source = 4;
+ string coverage = 5; string trust = 6; string empirical = 7;
+ google.protobuf.Value value = 8; string unit = 9; string observed_at = 10;
+ int32 ttl_seconds = 11; string reason = 12;
+}
+message ReadResponse {
+ repeated Reading readings = 1; string generated_at = 2; int32 total = 3;
+ bool truncated = 4;
+}
+
+message StateRequest { string channel = 1; }
+message StoredRecord { string entry_id = 1; string body = 2; string created_at = 3; }
+message StateResponse { StoredRecord briefing = 1; StoredRecord checkpoint = 2; }
+message PublishRequest {
+ string channel = 1;
+ string request_key = 2;
+ string expected_previous_id = 3;
+ string program_id = 4;
+ string envelope_json = 5;
+ string briefing = 6;
+ string fleet_health_json = 7;
+}
+message CheckpointRequest {
+ string channel = 1;
+ string request_key = 2;
+ string expected_previous_id = 3;
+ string walk_id = 4;
+ string state = 5;
+ string resume_phase = 6;
+ string content = 7;
+}
+message Receipt { string entry_id = 1; bool existing = 2; string created_at = 3; string channel = 4; }

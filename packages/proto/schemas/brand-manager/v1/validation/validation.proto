@@ -1,0 +1,63 @@
+syntax = "proto3";
+
+package vrooli.brand_manager.v1.validation;
+
+import "common/v1/maturity.proto";
+import "google/protobuf/struct.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/brand-manager/v1/validation;validation_v1";
+
+// =============================================================================
+// VALIDATION DOMAIN — branding scan native detail
+// =============================================================================
+//
+// @layer 5
+// @domain validation
+// @stability unstable
+//
+// Scenario-level branding validation is served through the shared
+// scenario-validation/v1.ScenarioValidationService. Its native_detail packs a
+// BrandingScanResponse so brand-manager's own CLI/UI can render per-rule
+// branding findings while Test Genie reads only the shared status and the
+// common maturity assessment. Findings flow into Test Genie on the
+// architecture/v1 FINDING_SOURCE_BRANDING channel.
+// =============================================================================
+
+message BrandingScanResponse {
+  string scenario = 1;
+  // "passed" when no findings, otherwise "issues_found".
+  string status = 2;
+  repeated BrandingFinding findings = 3;
+  BrandingScanSummary summary = 4;
+  common.v1.MaturityAssessment assessment = 5;
+}
+
+message BrandingScanSummary {
+  int32 total_findings = 1;
+  // Count of findings whose underlying rule has a deterministic auto-fix.
+  int32 autofixable = 2;
+  // Count by severity bucket for quick rendering.
+  int32 errors = 3;
+  int32 warnings = 4;
+  int32 infos = 5;
+}
+
+message BrandingFinding {
+  // Stable per-finding id (hash of scenario + rule + location).
+  string id = 1;
+  // Rule code, e.g. "has-display-name", "wcag-aa-contrast".
+  string rule_id = 2;
+  string scenario = 3;
+  // Scenario-relative path the finding points at (best effort).
+  string file_path = 4;
+  // Normalized severity string ("error" | "warning" | "info").
+  string severity = 5;
+  string title = 6;
+  string description = 7;
+  // Structured evidence (e.g. the failing color pair + measured ratio).
+  google.protobuf.Struct evidence = 8;
+  string why_it_matters = 9;
+  string recommended_remediation = 10;
+  // True when a deterministic PreviewFix/ApplyFix candidate exists for this rule.
+  bool autofix_available = 11;
+}

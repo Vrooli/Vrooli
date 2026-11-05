@@ -48,6 +48,34 @@ export const SearchMethodSchema = z.enum(['ai', 'text'])
 export type SearchMethod = z.infer<typeof SearchMethodSchema>
 
 /**
+ * Text search result item from /search/skills.
+ */
+export const SkillSearchResultSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  description: z.string().nullable().optional().transform((val) => val ?? ''),
+  content: z.string().nullable().optional().transform((val) => val ?? ''),
+  folder: z.string(),
+  tags: nullableStringArray,
+  modes: nullableStringArray,
+  score: z.number().nullable().optional().transform((val) => val ?? 0),
+  highlight: z.string().nullable().optional().transform((val) => val ?? ''),
+})
+
+export type SkillSearchResult = z.infer<typeof SkillSearchResultSchema>
+
+/**
+ * Text search response from /search/skills.
+ */
+export const SkillSearchResponseSchema = z.object({
+  results: z.array(SkillSearchResultSchema).nullable().optional().transform((val) => val ?? []),
+  total: z.number(),
+  query: z.string(),
+})
+
+export type SkillSearchResponse = z.infer<typeof SkillSearchResponseSchema>
+
+/**
  * AI search response from the API.
  */
 export const AISearchResponseSchema = z.object({
@@ -143,6 +171,47 @@ export const ContentSearchResponseSchema = z.object({
 })
 
 export type ContentSearchResponse = z.infer<typeof ContentSearchResponseSchema>
+
+// --- Action AI search ---
+
+/**
+ * AI action search result item.
+ */
+export const AIActionSearchResultSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  description: z.string().nullable().optional().transform((val) => val ?? ''),
+  status: z.string(),
+  owner: z.string(),
+  command: z.string().nullable().optional().transform((val) => val ?? ''),
+  tags: nullableStringArray,
+  score: z.number(),
+  scorePercent: z.number(),
+})
+
+export type AIActionSearchResult = z.infer<typeof AIActionSearchResultSchema>
+
+/**
+ * AI action search response from the API.
+ */
+export const AIActionSearchResponseSchema = z.object({
+  results: z.array(AIActionSearchResultSchema).nullable().optional().transform((val) => val ?? []),
+  total: z.number(),
+  query: z.string(),
+  method: SearchMethodSchema,
+})
+
+export type AIActionSearchResponse = z.infer<typeof AIActionSearchResponseSchema>
+
+/**
+ * AI action search request parameters.
+ */
+export const AIActionSearchRequestSchema = z.object({
+  query: z.string(),
+  limit: z.number().optional(),
+})
+
+export type AIActionSearchRequest = z.infer<typeof AIActionSearchRequestSchema>
 
 // --- Agent AI search ---
 
@@ -297,6 +366,9 @@ export type LinkPreviewData = z.infer<typeof LinkPreviewDataSchema>
 export const DiscoverSourceSchema = z.enum(['topic', 'search'])
 export type DiscoverSource = z.infer<typeof DiscoverSourceSchema>
 
+export const DiscoverTypeSchema = z.enum(['skill', 'action'])
+export type DiscoverType = z.infer<typeof DiscoverTypeSchema>
+
 /**
  * Budget status relative to complexity budget.
  */
@@ -307,6 +379,7 @@ export type BudgetStatus = z.infer<typeof BudgetStatusSchema>
  * A single unified discovery result with content size and source tracking.
  */
 export const DiscoverResultSchema = z.object({
+  type: DiscoverTypeSchema.optional(),
   id: z.string(),
   name: z.string(),
   description: z.string().nullable().optional().transform((val) => val ?? ''),
@@ -319,6 +392,10 @@ export const DiscoverResultSchema = z.object({
   topicId: z.string().optional().default(''),
   topicName: z.string().optional().default(''),
   contentChars: z.number(),
+  status: z.string().optional(),
+  owner: z.string().optional(),
+  showCommand: z.string().optional(),
+  runCommand: z.string().optional(),
 })
 
 export type DiscoverResult = z.infer<typeof DiscoverResultSchema>
@@ -333,6 +410,8 @@ export const DiscoverResponseSchema = z.object({
   method: z.string(), // "ai", "text", or "mixed"
   totalContentChars: z.number(),
   readCommand: z.string(),
+  showCommand: z.string().optional(),
+  runCommand: z.string().optional(),
   budgetChars: z.number().optional(),
   budgetStatus: BudgetStatusSchema.optional(),
   recommendedReadCommand: z.string().optional(),

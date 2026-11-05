@@ -1,0 +1,61 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "controls.split-button",
+    "name": "SplitButton",
+    "kind": "component",
+    "surface": "raised",
+    "domain": "controls",
+    "description": "The primary action paired with a related-action menu, sharing loading state, keyboard behavior, focus management, and responsive presentation between both halves.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "ui-primitive",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P1",
+      "maturity": "verified",
+      "plannedBy": "2026-12-31"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "controls.button",
+        "reason": "The primary half is a button and must not diverge from it."
+      },
+      {
+        "asset": "hooks.use-roving-focus",
+        "reason": "Composite widgets expose a single tab stop with arrow-key movement."
+      }
+    ],
+    "suggests": [
+      {
+        "asset": "overlays.menu",
+        "reason": "The secondary half needs a menu surface, which a single-action variant does not."
+      }
+    ]
+  },
+  "requiredCapabilities": [
+    "accessible-naming",
+    "keyboard-operable",
+    "focus-visible-indicator",
+    "tap-target-size",
+    "contrast-floor",
+    "hover-contrast",
+    "cursor-discipline",
+    "ramp-conformance",
+    "dark-parity",
+    "text-scale-resilience",
+    "focus-order"
+  ],
+  "requiredStates": [
+    "default",
+    "loading",
+    "success",
+    "request-error",
+    "retry"
+  ]
+}

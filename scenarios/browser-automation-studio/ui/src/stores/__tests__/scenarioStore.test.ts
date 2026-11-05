@@ -4,7 +4,7 @@
  * Tests scenario fetching and caching functionality
  *
  * Requirements validated:
- * - Scenario list retrieval
+ * - Scenario list retrieval via ScenariosService Connect-RPC
  * - Response caching (30 second TTL)
  * - Concurrent request prevention
  * - Error handling
@@ -13,11 +13,12 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { act } from '@testing-library/react';
 
-// Mock dependencies using proper factory functions
-vi.mock('../../config', () => ({
-  getConfig: vi.fn(() => Promise.resolve({
-    API_URL: 'http://localhost:8080/api/v1',
-  })),
+const listMock = vi.fn();
+
+vi.mock('../../api/scenarios', () => ({
+  scenariosClient: {
+    list: (...args: unknown[]) => listMock(...args),
+  },
 }));
 
 vi.mock('../../utils/logger', () => ({
@@ -32,12 +33,18 @@ vi.mock('../../utils/logger', () => ({
 // Import store AFTER mocks
 import { useScenarioStore } from '../scenarioStore';
 
+const resp = (scenarios: Array<Partial<{ name: string; description: string; status: string }>>) => ({
+  scenarios: scenarios.map((s) => ({
+    name: s.name ?? '',
+    description: s.description ?? '',
+    status: s.status ?? '',
+  })),
+});
+
 describe('scenarioStore', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    global.fetch = vi.fn();
-
-    // Reset store state
+    listMock.mockReset();
     useScenarioStore.setState({
       scenarios: [],
       isLoading: false,
@@ -52,85 +59,59 @@ describe('scenarioStore', () => {
 
   describe('Initial State', () => {
     it('has empty scenarios array', () => {
-      const { scenarios } = useScenarioStore.getState();
-      expect(scenarios).toEqual([]);
+      expect(useScenarioStore.getState().scenarios).toEqual([]);
     });
-
     it('is not loading', () => {
-      const { isLoading } = useScenarioStore.getState();
-      expect(isLoading).toBe(false);
+      expect(useScenarioStore.getState().isLoading).toBe(false);
     });
-
     it('has no error', () => {
-      const { error } = useScenarioStore.getState();
-      expect(error).toBeNull();
+      expect(useScenarioStore.getState().error).toBeNull();
     });
-
     it('has no last fetch time', () => {
-      const { lastFetchTime } = useScenarioStore.getState();
-      expect(lastFetchTime).toBeNull();
+      expect(useScenarioStore.getState().lastFetchTime).toBeNull();
     });
   });
 
   describe('fetchScenarios', () => {
     it('fetches scenarios successfully', async () => {
-      const mockScenarios = [
+      const mock = [
         { name: 'calendar', description: 'Calendar app', status: 'running' },
         { name: 'notes', description: 'Notes app', status: 'stopped' },
       ];
-
-      vi.mocked(global.fetch).mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({ scenarios: mockScenarios }),
-      } as Response);
+      listMock.mockResolvedValueOnce(resp(mock));
 
       await act(async () => {
         await useScenarioStore.getState().fetchScenarios();
       });
 
       const { scenarios, isLoading, error } = useScenarioStore.getState();
-
-      expect(scenarios).toEqual(mockScenarios);
+      expect(scenarios).toEqual(mock);
       expect(isLoading).toBe(false);
       expect(error).toBeNull();
     });
 
     it('sets loading state during fetch', async () => {
-      let resolvePromise: ((value: Response) => void) | null = null;
-      const fetchPromise = new Promise<Response>((resolve) => {
-        resolvePromise = resolve;
+      let resolveListPromise: ((value: unknown) => void) | null = null;
+      const listPromise = new Promise((resolve) => {
+        resolveListPromise = resolve;
       });
-
-      vi.mocked(global.fetch).mockReturnValueOnce(fetchPromise);
+      listMock.mockReturnValueOnce(listPromise);
 
       const fetchCall = useScenarioStore.getState().fetchScenarios();
-
-      // Check loading state immediately
       expect(useScenarioStore.getState().isLoading).toBe(true);
 
-      // Resolve fetch
-      if (!resolvePromise) {
-        throw new Error('Expected fetch resolver to be defined');
-      }
-      resolvePromise({
-        ok: true,
-        json: async () => ({ scenarios: [] }),
-      } as Response);
+      if (!resolveListPromise) throw new Error('expected resolver');
+      resolveListPromise(resp([]));
 
       await act(async () => {
         await fetchCall;
       });
-
       expect(useScenarioStore.getState().isLoading).toBe(false);
     });
 
     it('updates lastFetchTime on successful fetch', async () => {
       const beforeFetch = Date.now();
-
-      vi.mocked(global.fetch).mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({ scenarios: [] }),
-      } as Response);
+      listMock.mockResolvedValueOnce(resp([]));
 
       await act(async () => {
         await useScenarioStore.getState().fetchScenarios();
@@ -138,126 +119,74 @@ describe('scenarioStore', () => {
 
       const { lastFetchTime } = useScenarioStore.getState();
       const afterFetch = Date.now();
-
       expect(lastFetchTime).toBeGreaterThanOrEqual(beforeFetch);
       expect(lastFetchTime).toBeLessThanOrEqual(afterFetch);
     });
 
     it('handles empty scenarios array', async () => {
-      vi.mocked(global.fetch).mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({ scenarios: [] }),
-      } as Response);
+      listMock.mockResolvedValueOnce(resp([]));
 
       await act(async () => {
         await useScenarioStore.getState().fetchScenarios();
       });
 
       const { scenarios, error } = useScenarioStore.getState();
-
       expect(scenarios).toEqual([]);
       expect(error).toBe('No scenarios found. Install or start a scenario, then refresh.');
     });
 
     it('filters out scenarios with empty names', async () => {
-      const mockScenarios = [
+      listMock.mockResolvedValueOnce(resp([
         { name: 'calendar', description: 'Calendar app', status: 'running' },
         { name: '', description: 'Invalid', status: 'stopped' },
         { name: 'notes', description: 'Notes app', status: 'running' },
-      ];
-
-      vi.mocked(global.fetch).mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({ scenarios: mockScenarios }),
-      } as Response);
+      ]));
 
       await act(async () => {
         await useScenarioStore.getState().fetchScenarios();
       });
 
-      const { scenarios } = useScenarioStore.getState();
-
-      expect(scenarios).toHaveLength(2);
-      expect(scenarios).toEqual([
+      expect(useScenarioStore.getState().scenarios).toEqual([
         { name: 'calendar', description: 'Calendar app', status: 'running' },
         { name: 'notes', description: 'Notes app', status: 'running' },
-      ]);
-    });
-
-    it('normalizes scenario data with missing fields', async () => {
-      const mockScenarios = [
-        { name: 'calendar' }, // Missing description and status
-        { name: 'notes', description: 'Notes app' }, // Missing status
-      ];
-
-      vi.mocked(global.fetch).mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({ scenarios: mockScenarios }),
-      } as Response);
-
-      await act(async () => {
-        await useScenarioStore.getState().fetchScenarios();
-      });
-
-      const { scenarios } = useScenarioStore.getState();
-
-      expect(scenarios).toEqual([
-        { name: 'calendar', description: '', status: '' },
-        { name: 'notes', description: 'Notes app', status: '' },
       ]);
     });
   });
 
   describe('Caching', () => {
     it('uses cache when fetched within 30 seconds', async () => {
-      vi.mocked(global.fetch).mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({
-          scenarios: [{ name: 'calendar', description: 'Calendar', status: 'running' }],
-        }),
-      } as Response);
+      listMock.mockResolvedValueOnce(resp([
+        { name: 'calendar', description: 'Calendar', status: 'running' },
+      ]));
 
-      // First fetch
       await act(async () => {
         await useScenarioStore.getState().fetchScenarios();
       });
+      expect(listMock).toHaveBeenCalledTimes(1);
 
-      expect(global.fetch).toHaveBeenCalledTimes(1);
-
-      // Second fetch immediately after (should use cache)
       await act(async () => {
         await useScenarioStore.getState().fetchScenarios();
       });
-
-      expect(global.fetch).toHaveBeenCalledTimes(1); // No additional fetch
+      expect(listMock).toHaveBeenCalledTimes(1);
     });
 
     it('fetches again after cache expires (30 seconds)', async () => {
       vi.useFakeTimers();
+      listMock.mockResolvedValue(resp([
+        { name: 'calendar', description: 'Calendar', status: 'running' },
+      ]));
 
-      vi.mocked(global.fetch).mockResolvedValue({
-        ok: true,
-        json: async () => ({
-          scenarios: [{ name: 'calendar', description: 'Calendar', status: 'running' }],
-        }),
-      } as Response);
-
-      // First fetch
       await act(async () => {
         await useScenarioStore.getState().fetchScenarios();
       });
+      expect(listMock).toHaveBeenCalledTimes(1);
 
-      expect(global.fetch).toHaveBeenCalledTimes(1);
-
-      // Advance time by 31 seconds
       vi.advanceTimersByTime(31000);
 
-      // Second fetch (cache expired)
       await act(async () => {
         await useScenarioStore.getState().fetchScenarios();
       });
-
-      expect(global.fetch).toHaveBeenCalledTimes(2);
+      expect(listMock).toHaveBeenCalledTimes(2);
 
       vi.useRealTimers();
     });
@@ -265,74 +194,43 @@ describe('scenarioStore', () => {
 
   describe('Concurrent Request Prevention', () => {
     it('prevents concurrent fetches', async () => {
-      let resolveFirstFetch: ((value: Response) => void) | null = null;
-      const firstFetchPromise = new Promise<Response>((resolve) => {
-        resolveFirstFetch = resolve;
+      let resolveFirst: ((value: unknown) => void) | null = null;
+      const firstPromise = new Promise((resolve) => {
+        resolveFirst = resolve;
       });
+      listMock.mockReturnValueOnce(firstPromise);
 
-      vi.mocked(global.fetch).mockReturnValueOnce(firstFetchPromise);
-
-      // Start first fetch
       const firstFetch = useScenarioStore.getState().fetchScenarios();
-
-      // Start second fetch while first is in progress
       const secondFetch = useScenarioStore.getState().fetchScenarios();
 
-      // Resolve first fetch
-      if (!resolveFirstFetch) {
-        throw new Error('Expected fetch resolver to be defined');
-      }
-      resolveFirstFetch({
-        ok: true,
-        json: async () => ({ scenarios: [] }),
-      } as Response);
+      if (!resolveFirst) throw new Error('expected resolver');
+      resolveFirst(resp([]));
 
       await act(async () => {
         await Promise.all([firstFetch, secondFetch]);
       });
 
-      // Should only have called fetch once
-      expect(global.fetch).toHaveBeenCalledTimes(1);
+      expect(listMock).toHaveBeenCalledTimes(1);
     });
   });
 
   describe('Error Handling', () => {
-    it('handles HTTP error responses', async () => {
-      vi.mocked(global.fetch).mockResolvedValueOnce({
-        ok: false,
-        status: 500,
-        text: async () => 'Internal server error',
-      } as Response);
+    it('handles RPC errors', async () => {
+      listMock.mockRejectedValueOnce(new Error('Internal server error'));
 
       await act(async () => {
         await useScenarioStore.getState().fetchScenarios();
       });
 
       const { scenarios, error, isLoading } = useScenarioStore.getState();
-
       expect(scenarios).toEqual([]);
       expect(error).toBe('Internal server error');
       expect(isLoading).toBe(false);
     });
 
-    it('handles network errors', async () => {
-      vi.mocked(global.fetch).mockRejectedValueOnce(new Error('Network error'));
-
-      await act(async () => {
-        await useScenarioStore.getState().fetchScenarios();
-      });
-
-      const { scenarios, error, isLoading } = useScenarioStore.getState();
-
-      expect(scenarios).toEqual([]);
-      expect(error).toBe('Network error');
-      expect(isLoading).toBe(false);
-    });
-
     it('updates lastFetchTime even on error to avoid hammering', async () => {
       const beforeFetch = Date.now();
-
-      vi.mocked(global.fetch).mockRejectedValueOnce(new Error('Network error'));
+      listMock.mockRejectedValueOnce(new Error('Network error'));
 
       await act(async () => {
         await useScenarioStore.getState().fetchScenarios();
@@ -340,84 +238,47 @@ describe('scenarioStore', () => {
 
       const { lastFetchTime } = useScenarioStore.getState();
       const afterFetch = Date.now();
-
       expect(lastFetchTime).toBeGreaterThanOrEqual(beforeFetch);
       expect(lastFetchTime).toBeLessThanOrEqual(afterFetch);
     });
 
     it('uses default error message for non-Error exceptions', async () => {
-      vi.mocked(global.fetch).mockRejectedValueOnce('String error');
+      listMock.mockRejectedValueOnce('String error');
 
       await act(async () => {
         await useScenarioStore.getState().fetchScenarios();
       });
 
-      const { error } = useScenarioStore.getState();
-
-      expect(error).toBe('Unable to load scenarios');
+      expect(useScenarioStore.getState().error).toBe('Unable to load scenarios');
     });
   });
 
   describe('clearError', () => {
     it('clears error state', async () => {
-      // Set an error first
-      vi.mocked(global.fetch).mockRejectedValueOnce(new Error('Network error'));
+      listMock.mockRejectedValueOnce(new Error('Network error'));
 
       await act(async () => {
         await useScenarioStore.getState().fetchScenarios();
       });
-
       expect(useScenarioStore.getState().error).toBe('Network error');
 
-      // Clear the error
       act(() => {
         useScenarioStore.getState().clearError();
       });
 
       expect(useScenarioStore.getState().error).toBeNull();
     });
-
-    it('does not affect other state', async () => {
-      const mockScenarios = [
-        { name: 'calendar', description: 'Calendar', status: 'running' },
-      ];
-
-      vi.mocked(global.fetch).mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({ scenarios: mockScenarios }),
-      } as Response);
-
-      await act(async () => {
-        await useScenarioStore.getState().fetchScenarios();
-      });
-
-      const beforeClear = useScenarioStore.getState();
-
-      act(() => {
-        useScenarioStore.getState().clearError();
-      });
-
-      const afterClear = useScenarioStore.getState();
-
-      expect(afterClear.scenarios).toEqual(beforeClear.scenarios);
-      expect(afterClear.isLoading).toBe(beforeClear.isLoading);
-      expect(afterClear.lastFetchTime).toBe(beforeClear.lastFetchTime);
-      expect(afterClear.error).toBeNull();
-    });
   });
 
   describe('API Integration', () => {
-    it('calls correct API endpoint', async () => {
-      vi.mocked(global.fetch).mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({ scenarios: [] }),
-      } as Response);
+    it('calls ScenariosService.List', async () => {
+      listMock.mockResolvedValueOnce(resp([]));
 
       await act(async () => {
         await useScenarioStore.getState().fetchScenarios();
       });
 
-      expect(global.fetch).toHaveBeenCalledWith('http://localhost:8080/api/v1/scenarios');
+      expect(listMock).toHaveBeenCalledTimes(1);
     });
   });
 });

@@ -1,0 +1,39 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "services.navigation-transition-manager",
+    "name": "Navigation Transition Manager",
+    "kind": "runtime-service",
+    "domain": "services",
+    "description": "The scoped service recording navigation direction, hierarchy depth, shared elements, restoration state, and transition policy for route changes.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "service",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P2",
+      "maturity": "implemented",
+      "plannedBy": "2026-12-31"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "services.create-scoped-store",
+        "reason": "Transition state is per-application."
+      }
+    ]
+  },
+  "expects": [
+    {
+      "capability": "router-adapter"
+    }
+  ],
+  "requiredCapabilities": [
+    "entrance-restraint",
+    "transition-causality"
+  ]
+}

@@ -1,0 +1,21 @@
+# E7 — fixture epoch
+
+- Outcome: J02 passive record replays in a fresh context
+- Kind: refactor
+- Started: 2026-09-29T08:00:00Z
+- Estimate: 6 work units
+- Metric: journeys passing (journey suite)
+- Workers: 11111111-1111-1111-1111-111111111111
+
+## Exit gate
+- journeys J02 pass
+
+## Directives
+- D1 2026-09-29T09:00:00Z Stop broad validation; run J02 only.
+
+## Slice log
+2026-09-29T08:00:00Z | unit 0 | exit metric=1 | net runtime lines=-40 | net test lines=+10 | ack=-
+2026-09-29T08:10:00Z | unit 1 | exit metric=2 | net runtime lines=-40 | net test lines=+10 | ack=-
+2026-09-29T08:20:00Z | unit 2 | exit metric=2 | net runtime lines=-40 | net test lines=+10 | ack=-
+2026-09-29T08:30:00Z | unit 3 | exit metric=3 | net runtime lines=-40 | net test lines=+10 | ack=D1
+2026-09-29T08:40:00Z | unit 4 | exit metric=4 | net runtime lines=-40 | net test lines=+10 | ack=-

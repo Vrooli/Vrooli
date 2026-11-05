@@ -70,7 +70,7 @@ All resource checks support these actions:
 | Restart | Yes | Restart to recover, verify running |
 | Status | No | Check current resource status |
 
-Resources monitored: postgres, redis, ollama, qdrant, searxng, browserless
+Resources monitored: postgres, redis, ollama, qdrant, searxng
 
 ### Scenario Checks
 

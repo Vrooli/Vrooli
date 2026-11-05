@@ -1,0 +1,11 @@
+{
+  "gate": "console-clean",
+  "assetId": "calibration-console-clean",
+  "kind": "component",
+  "runner": "external",
+  "requiredFailureCode": "catalog.console_clean",
+  "source": "warning.tsx",
+  "catalogAsset": "asset.json",
+  "mutation": "console-warning",
+  "description": "Package-backed browser evidence supplies the console warning calibration."
+}

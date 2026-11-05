@@ -1,0 +1,31 @@
+{
+  "id": "waitlist_joins_30d",
+  "label": "Waitlist joins · 30 days",
+  "description": "Producer-owned Business Digest reading.",
+  "unit": "count",
+  "format": "integer",
+  "kind": "scalar",
+  "shape": "series",
+  "source": {
+    "team": "monetization",
+    "binding": "scenario:landing-page-business-suite",
+    "read": "/api/v1/business-digest?window_days=30",
+    "select": "digest_waitlist",
+    "ttlSeconds": 300,
+    "integrationId": "landing-page-business-suite",
+    "origin": "production",
+    "featureId": "digest_waitlist",
+    "contractVersion": "business-digest.v1",
+    "selector": "digest_waitlist",
+    "expectedUnit": "count",
+    "sourceTimePolicy": "producer_required"
+  },
+  "coverage": "IN-REACH",
+  "sample": {
+    "value": 0,
+    "series": [
+      0
+    ],
+    "basis": "hand-authored zero baseline; production validation pending"
+  }
+}

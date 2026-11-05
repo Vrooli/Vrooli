@@ -148,11 +148,11 @@ func TestStateErrorWithID(t *testing.T) {
 
 func TestIsTerminalState(t *testing.T) {
 	// Task terminal states
-	for _, s := range []TaskStatus{TaskStatusApproved, TaskStatusRejected, TaskStatusFailed, TaskStatusCancelled} {
+	for _, s := range []TaskStatus{TaskStatusApproved, TaskStatusRejected, TaskStatusCancelled} {
 		assert.True(t, isTerminalState("Task", string(s)), "Task %s should be terminal", s)
 	}
 	// Task non-terminal states
-	for _, s := range []TaskStatus{TaskStatusQueued, TaskStatusRunning, TaskStatusNeedsReview} {
+	for _, s := range []TaskStatus{TaskStatusQueued, TaskStatusRunning, TaskStatusNeedsReview, TaskStatusFailed} {
 		assert.False(t, isTerminalState("Task", string(s)), "Task %s should not be terminal", s)
 	}
 	// Run terminal states

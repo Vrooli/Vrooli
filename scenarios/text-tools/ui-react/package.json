@@ -5,13 +5,15 @@
   "description": "Text Tools React UI - Comprehensive text processing platform",
   "type": "module",
   "scripts": {
-    "dev": "vite",
-    "build": "tsc && vite build",
+    "dev": "vrooli lifecycle protect -- vite",
+    "build": "vite build",
+    "typecheck": "tsc --noEmit",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
     "preview": "vite preview",
-    "start": "vite preview --host 0.0.0.0 --port 3000"
+    "start": "vrooli lifecycle protect -- vite preview --host 0.0.0.0 --port 3000"
   },
   "dependencies": {
+    "@vrooli/api-base": "file:../../../packages/api-base",
     "@vrooli/iframe-bridge": "file:../../../packages/iframe-bridge",
     "react": "^18.2.0",
     "react-dom": "^18.2.0"

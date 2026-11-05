@@ -1,6 +1,6 @@
 // Package runner provides runner adapter implementations.
 //
-// This file provides shared text sanitization utilities used by all runners
+// This file provides shared text sanitization utilities used by all codecs
 // to strip ANSI escape sequences from CLI subprocess output before emitting
 // events. This prevents raw terminal formatting from polluting the event
 // stream, database, and UI.
@@ -8,10 +8,10 @@ package runner
 
 import "strings"
 
-// stripANSI removes ANSI escape sequences from a string.
+// StripANSI removes ANSI escape sequences from a string.
 // Handles CSI sequences (ESC[...<letter>), OSC sequences (ESC]...ST),
 // and simple two-byte escapes (ESC<letter>).
-func stripANSI(s string) string {
+func StripANSI(s string) string {
 	// Fast path: no escape characters at all
 	if !strings.Contains(s, "\x1b") {
 		return s
@@ -57,12 +57,12 @@ func stripANSI(s string) string {
 	return result.String()
 }
 
-// isOnlyANSI returns true when s consists entirely of ANSI escape sequences
+// IsOnlyANSI returns true when s consists entirely of ANSI escape sequences
 // and whitespace — i.e., stripping ANSI leaves nothing meaningful.
 // Use this to skip emitting events for pure terminal-formatting lines.
-func isOnlyANSI(s string) bool {
+func IsOnlyANSI(s string) bool {
 	if !strings.Contains(s, "\x1b") {
 		return false
 	}
-	return strings.TrimSpace(stripANSI(s)) == ""
+	return strings.TrimSpace(StripANSI(s)) == ""
 }

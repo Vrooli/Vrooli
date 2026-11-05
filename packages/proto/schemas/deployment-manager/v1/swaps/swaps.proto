@@ -1,0 +1,13 @@
+syntax = "proto3";
+package vrooli.deployment_manager.v1.swaps;
+
+import "google/protobuf/struct.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/deployment-manager/v1/swaps;swapsv1";
+service SwapsService {
+  rpc List(google.protobuf.Value) returns (google.protobuf.Value);
+  rpc Analyze(google.protobuf.Value) returns (google.protobuf.Value);
+  rpc Cascade(google.protobuf.Value) returns (google.protobuf.Value);
+  rpc Apply(google.protobuf.Value) returns (google.protobuf.Value);
+  rpc ApplyToProfile(google.protobuf.Value) returns (google.protobuf.Value);
+}

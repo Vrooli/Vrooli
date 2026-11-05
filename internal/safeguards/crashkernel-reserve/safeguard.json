@@ -1,0 +1,79 @@
+{
+  "$schema": "../../../../.vrooli/schemas/safeguard.schema.json",
+  "name": "crashkernel_reserve",
+  "storage": {
+    "entries": {
+      "grub_config": {
+        "rung": "pinned",
+        "path": {
+          "linux": "/etc/default/grub",
+          "macos": null,
+          "windows": null
+        },
+        "kind": "file",
+        "regenerable": false,
+        "class": "config",
+        "sensitive": true,
+        "rationale": "The safeguard edits the Linux GRUB configuration and requires an operator reboot."
+      }
+    },
+    "rationale": "Linux-only boot configuration is verified by the handler's GRUB seam."
+  },
+  "description": "Reserve memory for the kdump capture kernel via the crashkernel= boot parameter",
+  "handler": "crashkernel_reserve",
+  "risk": "high",
+  "privilege": "elevated",
+  "bundling": "prohibited",
+  "capability": "crash-forensics",
+  "capability_role": "control",
+  "config": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+      "reservation": {
+        "type": "string",
+        "minLength": 1,
+        "default": "512M-:256M",
+        "description": "Kernel crashkernel reservation value, for example 512M-:256M."
+      }
+    }
+  },
+  "deployment": {
+    "profiles": {
+      "desktop": {
+        "linux": {
+          "support": "unsupported",
+          "mode": "manual",
+          "reason": "Host safeguards mutate host state and cannot ship in a desktop bundle."
+        },
+        "macos": {
+          "support": "unsupported",
+          "mode": "manual",
+          "reason": "Host safeguards mutate host state and cannot ship in a desktop bundle."
+        },
+        "windows": {
+          "support": "unsupported",
+          "mode": "manual",
+          "reason": "Host safeguards mutate host state and cannot ship in a desktop bundle."
+        }
+      }
+    }
+  },
+  "platform_status": {
+    "linux": {
+      "status": "unqualified",
+      "evidence": null
+    },
+    "macos": {
+      "status": "not_applicable",
+      "evidence": "Windows does not expose the Linux host interface used by safeguard crashkernel_reserve; the platform has a distinct host security and lifecycle model.",
+      "review_by": "2027-08-26"
+    },
+    "windows": {
+      "status": "not_applicable",
+      "evidence": "Windows does not expose the Linux host interface used by safeguard crashkernel_reserve; the platform has a distinct host security and lifecycle model.",
+      "review_by": "2027-08-26"
+    }
+  },
+  "risk_class": "boot_critical"
+}

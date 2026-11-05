@@ -2,13 +2,17 @@ package bundleruntime
 
 import (
 	"context"
+	"errors"
+	"os"
+	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
 
-	"scenario-to-desktop-runtime/manifest"
-	"scenario-to-desktop-runtime/telemetry"
-	"scenario-to-desktop-runtime/testutil"
+	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/manifest"
+	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/telemetry"
+	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/testutil"
 )
 
 // =============================================================================
@@ -35,6 +39,79 @@ func TestShutdown_NoopIfNotStarted(t *testing.T) {
 	err = s.Shutdown(ctx)
 	if err != nil {
 		t.Errorf("Shutdown() error = %v, want nil for unstarted supervisor", err)
+	}
+}
+
+func TestAuthenticationStartupFailsClosedWithoutSharedLease(t *testing.T) {
+	tmp := t.TempDir()
+	m := &manifest.Manifest{
+		SchemaVersion: "desktop.v0.1",
+		Target:        "desktop",
+		App:           manifest.App{Name: "shared-app", Version: "1.0.0"},
+		IPC:           manifest.IPC{Host: "127.0.0.1", Port: 48000, AuthTokenRel: "runtime/token"},
+		Authentication: &manifest.AuthenticationProfile{
+			Version: 1, Mode: "shared_provider", Provider: "landing-page-business-suite",
+			ProviderEndpoint: "https://provider.example", Resource: "shared-app", HumanSignIn: "required",
+			LeasePath: "credentials/entitlement.json",
+		},
+		Services: []manifest.Service{{ID: "api", Binaries: map[string]manifest.Binary{"linux-x64": {Path: "bin/api"}}, Health: manifest.HealthCheck{Type: "tcp"}, Readiness: manifest.ReadinessCheck{Type: "tcp"}}},
+	}
+	s, err := NewSupervisor(Options{Manifest: m, BundlePath: tmp, AppDataDir: tmp, FileSystem: testutil.NewMockFileSystem(), SecretStore: testutil.NewMockSecretStore(nil), PortAllocator: testutil.NewMockPortAllocator()})
+	if err != nil {
+		t.Fatalf("NewSupervisor: %v", err)
+	}
+	if err := s.validateAuthenticationStartup(); err == nil || !strings.Contains(err.Error(), "lease is unavailable") {
+		t.Fatalf("validateAuthenticationStartup = %v, want missing lease failure", err)
+	}
+}
+
+func TestAuthenticationStartupFailsClosedWithExpiredSharedLease(t *testing.T) {
+	tmp := t.TempDir()
+	m := &manifest.Manifest{
+		SchemaVersion: "desktop.v0.1", Target: "desktop",
+		App: manifest.App{Name: "shared-app", Version: "1.0.0"},
+		IPC: manifest.IPC{Host: "127.0.0.1", Port: 48000, AuthTokenRel: "runtime/token"},
+		Authentication: &manifest.AuthenticationProfile{
+			Version: 1, Mode: "shared_provider", Provider: "landing-page-business-suite",
+			ProviderEndpoint: "https://provider.example", Resource: "shared-app", HumanSignIn: "required",
+			LeasePath: "credentials/entitlement.json",
+		},
+		Services: []manifest.Service{{ID: "api", Binaries: map[string]manifest.Binary{"linux-x64": {Path: "bin/api"}}, Health: manifest.HealthCheck{Type: "tcp"}, Readiness: manifest.ReadinessCheck{Type: "tcp"}}},
+	}
+	mockFS := testutil.NewMockFileSystem()
+	leasePath := filepath.Join(tmp, "credentials", "entitlement.json")
+	_ = mockFS.WriteFile(leasePath, []byte(`{"expires_at":"2020-01-01T00:00:00Z"}`), 0o600)
+	s, err := NewSupervisor(Options{Manifest: m, BundlePath: tmp, AppDataDir: tmp, FileSystem: mockFS, SecretStore: testutil.NewMockSecretStore(nil), PortAllocator: testutil.NewMockPortAllocator(), Clock: testutil.NewMockClock(time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC))})
+	if err != nil {
+		t.Fatalf("NewSupervisor: %v", err)
+	}
+	if err := s.validateAuthenticationStartup(); err == nil || !strings.Contains(err.Error(), "lease has expired") {
+		t.Fatalf("validateAuthenticationStartup = %v, want expired lease failure", err)
+	}
+}
+
+func TestAuthenticationStartupAcceptsCurrentSharedLease(t *testing.T) {
+	tmp := t.TempDir()
+	m := &manifest.Manifest{
+		SchemaVersion: "desktop.v0.1", Target: "desktop",
+		App: manifest.App{Name: "shared-app", Version: "1.0.0"},
+		IPC: manifest.IPC{Host: "127.0.0.1", Port: 48000, AuthTokenRel: "runtime/token"},
+		Authentication: &manifest.AuthenticationProfile{
+			Version: 1, Mode: "shared_provider", Provider: "landing-page-business-suite",
+			ProviderEndpoint: "https://provider.example", Resource: "shared-app", HumanSignIn: "required",
+			LeasePath: "credentials/entitlement.json",
+		},
+		Services: []manifest.Service{{ID: "api", Binaries: map[string]manifest.Binary{"linux-x64": {Path: "bin/api"}}, Health: manifest.HealthCheck{Type: "tcp"}, Readiness: manifest.ReadinessCheck{Type: "tcp"}}},
+	}
+	mockFS := testutil.NewMockFileSystem()
+	leasePath := filepath.Join(tmp, "credentials", "entitlement.json")
+	_ = mockFS.WriteFile(leasePath, []byte(`{"expires_at":"2027-01-01T00:00:00Z"}`), 0o600)
+	s, err := NewSupervisor(Options{Manifest: m, BundlePath: tmp, AppDataDir: tmp, FileSystem: mockFS, SecretStore: testutil.NewMockSecretStore(nil), PortAllocator: testutil.NewMockPortAllocator(), Clock: testutil.NewMockClock(time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC))})
+	if err != nil {
+		t.Fatalf("NewSupervisor: %v", err)
+	}
+	if err := s.validateAuthenticationStartup(); err != nil {
+		t.Fatalf("validateAuthenticationStartup = %v, want current lease accepted", err)
 	}
 }
 
@@ -121,6 +198,117 @@ func TestShutdown_CallsCancelFunc(t *testing.T) {
 		// Good - context was canceled
 	default:
 		t.Error("Shutdown() should cancel the runtime context")
+	}
+}
+
+func TestShutdown_AllowsServiceCleanupBeforeCancellingProcessContext(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("POSIX signal fixture")
+	}
+	dir := t.TempDir()
+	s, err := NewSupervisor(Options{
+		Manifest:   &manifest.Manifest{Services: []manifest.Service{{ID: "api"}}},
+		BundlePath: dir, AppDataDir: dir,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	s.telemetry = telemetry.NopRecorder{}
+	s.runtimeCtx, s.cancel = context.WithCancel(context.Background())
+	proc, err := s.procRunner.Start(s.runtimeCtx, "sh", []string{"-c", `trap 'printf stopped > "$1/stopped"; exit 0' TERM; printf ready > "$1/ready"; while :; do sleep .05; done`, "shutdown-test", dir}, nil, dir, nil, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { s.cancel(); _ = proc.Kill(); _ = proc.Wait() })
+	deadline := time.Now().Add(2 * time.Second)
+	for {
+		if _, err := os.Stat(filepath.Join(dir, "ready")); err == nil {
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatal("service did not become ready")
+		}
+		time.Sleep(5 * time.Millisecond)
+	}
+	service := &serviceProcess{proc: proc, service: manifest.Service{ID: "api"}, cancel: s.cancel}
+	s.setProc("api", service)
+	s.monitorExit(service, proc)
+	s.started = true
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	if err := s.Shutdown(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if data, err := os.ReadFile(filepath.Join(dir, "stopped")); err != nil || string(data) != "stopped" {
+		t.Fatalf("service cleanup did not finish before process cancellation: %q, %v", data, err)
+	}
+}
+
+// Done is consumed by the runtime command host, so it must not permit the
+// process to exit while service workers or shutdown cleanup are still active.
+func TestShutdown_DoneWaitsForCleanup(t *testing.T) {
+	s, err := NewSupervisor(Options{
+		Manifest:   &manifest.Manifest{App: manifest.App{Name: "shutdown-test", Version: "1"}},
+		BundlePath: t.TempDir(), AppDataDir: t.TempDir(),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	s.telemetry = telemetry.NopRecorder{}
+	s.runtimeCtx, s.cancel = context.WithCancel(context.Background())
+	s.started = true
+	s.wg.Add(1)
+	finished := make(chan error, 1)
+	go func() { finished <- s.Shutdown(context.Background()) }()
+	select {
+	case <-s.runtimeCtx.Done():
+	case <-time.After(time.Second):
+		t.Fatal("shutdown did not request worker cancellation")
+	}
+	select {
+	case <-s.Done():
+		t.Error("runtime host may exit before shutdown cleanup completes")
+	default:
+	}
+	// A concurrent caller must observe the in-progress shutdown rather than
+	// returning success immediately (the OS-signal command host relies on it).
+	cancelled, cancel := context.WithCancel(context.Background())
+	cancel()
+	if err := s.Shutdown(cancelled); !errors.Is(err, context.Canceled) {
+		t.Errorf("concurrent shutdown ignored its cancellation while cleanup was pending: %v", err)
+	}
+	second := make(chan error, 1)
+	go func() { second <- s.Shutdown(context.Background()) }()
+	early := false
+	select {
+	case <-second:
+		early = true
+		t.Error("concurrent shutdown returned before cleanup completed")
+	case <-time.After(20 * time.Millisecond):
+	}
+	s.wg.Done()
+	if !early {
+		select {
+		case err := <-second:
+			if err != nil {
+				t.Error(err)
+			}
+		case <-time.After(time.Second):
+			t.Error("concurrent shutdown did not finish after cleanup")
+		}
+	}
+	select {
+	case err := <-finished:
+		if err != nil {
+			t.Fatal(err)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("shutdown did not finish after workers stopped")
+	}
+	select {
+	case <-s.Done():
+	default:
+		t.Fatal("runtime host was not released after shutdown completed")
 	}
 }
 
@@ -279,7 +467,10 @@ func TestAccessors(t *testing.T) {
 	t.Run("renderValue", func(t *testing.T) {
 		// renderValue just delegates to envRenderer
 		// Uses ${data} for app data dir and ${bundle} for bundle path
-		result := s.renderValue("test-${data}-value")
+		result, err := s.renderValue("test-${data}-value")
+		if err != nil {
+			t.Fatalf("renderValue() error = %v", err)
+		}
 		// Should expand ${data} to the actual path
 		if !strings.Contains(result, tmp) || strings.Contains(result, "${data}") {
 			t.Errorf("renderValue() = %q, expected ${data} to be expanded to %q", result, tmp)
@@ -329,6 +520,29 @@ func TestAllServicesReady(t *testing.T) {
 			t.Error("AllServicesReady() = true, want false when one not ready")
 		}
 	})
+}
+
+func TestSetStatusNotifiesReadinessWaitersAndCoalescesBursts(t *testing.T) {
+	s := &Supervisor{
+		clock:         RealClock{},
+		serviceStatus: make(map[string]ServiceStatus),
+		statusChanges: make(chan struct{}, 1),
+	}
+	s.setStatus("api", ServiceStatus{Ready: false, Message: "starting"})
+	s.setStatus("api", ServiceStatus{Ready: true, Message: "ready"})
+	select {
+	case <-s.StatusChanges():
+	default:
+		t.Fatal("status changes did not notify readiness waiter")
+	}
+	if status := s.ServiceStatuses()["api"]; !status.Ready {
+		t.Fatalf("latest status = %#v, want ready", status)
+	}
+	select {
+	case <-s.StatusChanges():
+		t.Fatal("bursty status changes should coalesce into one notification")
+	default:
+	}
 }
 
 func TestServiceStatuses_ReturnsCopy(t *testing.T) {

@@ -1,0 +1,184 @@
+{
+  "schema": "device-studio-source-asset/v1",
+  "asset_id": "generic-smart-display-v3-20261021",
+  "created_at": "2026-10-21",
+  "identity": {
+    "kind": "generic_smart_display_concept",
+    "manufacturer": null,
+    "product_model": null,
+    "construction_reference": "Google Nest Hub (2nd gen) published envelope and broad form only",
+    "qualification_status": "unreviewed_candidate"
+  },
+  "build": {
+    "generator": "derive_smart_display.py",
+    "generator_sha256": "cde1b0fc9e7b3464624e72aa2acaab369452e86cb8cd0bebd5b11d55a2d6722c",
+    "runtime": "Python standard library",
+    "deterministic": true,
+    "glb_file": "generic-smart-display-v3.glb",
+    "glb_bytes": 219856,
+    "glb_sha256": "9890e82e4ded55f098fb2eb99548bb3d0331c1a599193ee2041c9773a338cf50"
+  },
+  "units": "metres",
+  "axes": {
+    "up": "Y",
+    "front": "positive Z"
+  },
+  "observed_bounds_m": {
+    "width_x": 0.1774,
+    "height_y": 0.1204,
+    "depth_z": 0.0695
+  },
+  "reference": {
+    "official_device": "Google Nest Hub (2nd gen)",
+    "published_envelope_m": {
+      "width": 0.1774,
+      "height": 0.1204,
+      "depth": 0.0695
+    },
+    "published_display": {
+      "diagonal_label": "7 inch",
+      "raster": [
+        1024,
+        600
+      ]
+    },
+    "active_panel_estimate_m": {
+      "width": 0.153,
+      "height": 0.0894,
+      "diagonal": 0.17720428888714854,
+      "basis": "7-inch class and 1024:600 aspect ratio; authored estimate, not published active-corner measurement"
+    },
+    "source_pages": [
+      {
+        "url": "https://support.google.com/googlehome/answer/7072284?hl=en",
+        "capture": "references/google-nest-hub-specs-source.html",
+        "sha256": "712e45766fb227b571eca3eaff8e96adcbbee912cded50fa7789cbf228ad4078"
+      },
+      {
+        "url": "https://store.google.com/product/nest_hub_2nd_gen?hl=en-US",
+        "capture": "references/google-nest-hub-overview-source.html",
+        "sha256": "962dd88ea33cdd9f03f86276ca53eeccb35945115d9b22d686b4ed2510dacf53"
+      },
+      {
+        "url": "https://store.google.com/product/nest_hub_2nd_gen_specs?hl=en-US",
+        "note": "official product technical specification page; dimension corroboration"
+      }
+    ],
+    "reference_media": [
+      {
+        "file": "google-nest-hub-2nd-gen-official-reference.jpg",
+        "sha256": "12bb3200d83a17b11480b39c0c4bba8080a5353ad48b927977d9acb98aa1a9de",
+        "source_note": "Official Google support-page image; shown only for broad form comparison; reuse rights unverified."
+      },
+      {
+        "file": "overview-front.jpg",
+        "sha256": "a0ec8cbedac1eb133f434d8e33b5697c0d4d07eab0082e6e08d3ee7b63dae58e",
+        "source_note": "Official Google support-page image; shown only for broad form comparison; reuse rights unverified."
+      },
+      {
+        "file": "overview-mic-switch.jpg",
+        "sha256": "6721d2e621d6ca3f64de0160483d6e321f4338b89f0bac2bff6cff066c8f1f41",
+        "source_note": "Official Google support-page image; shown only for broad form comparison; reuse rights unverified."
+      },
+      {
+        "file": "overview-tabletop.jpg",
+        "sha256": "5f4a888227fc6b77c9eb480907f6cdf17036ba157443843a6e3ee18a4e38fcd0",
+        "source_note": "Official Google support-page image; shown only for broad form comparison; reuse rights unverified."
+      }
+    ]
+  },
+  "display_binding": {
+    "node_index": 8,
+    "node_name": "MainDisplayActivePlane",
+    "mesh_index": 6,
+    "primitive_index": 0,
+    "material_index": 2,
+    "material_name": "Replaceable active display plane",
+    "position_bounds_m": {
+      "min": [
+        -0.0765,
+        0.02445,
+        0.0149565
+      ],
+      "max": [
+        0.0765,
+        0.11385,
+        0.0243435
+      ]
+    },
+    "uv_attribute": "TEXCOORD_0",
+    "uv_min": [
+      0,
+      0
+    ],
+    "uv_max": [
+      1,
+      1
+    ],
+    "uv_v_orientation": "0 at top; 1 at bottom",
+    "face_normal": "positive Z",
+    "flush_offset_m": 5e-05,
+    "embedded_screen_image": false
+  },
+  "materials": [
+    {
+      "index": 0,
+      "name": "Soft-touch graphite polymer"
+    },
+    {
+      "index": 1,
+      "name": "Satin graphite bezel"
+    },
+    {
+      "index": 2,
+      "name": "Replaceable active display plane"
+    },
+    {
+      "index": 3,
+      "name": "Acoustic woven fabric"
+    },
+    {
+      "index": 4,
+      "name": "Acoustic port recess"
+    },
+    {
+      "index": 5,
+      "name": "Smoked sensor glass"
+    },
+    {
+      "index": 6,
+      "name": "Silicone contact pads"
+    },
+    {
+      "index": 7,
+      "name": "Status indicator"
+    }
+  ],
+  "geometry_review": {
+    "node_names": [
+      "GenericSmartDisplayV3",
+      "AcousticSpeakerBase",
+      "Left silicone contact pad",
+      "Right silicone contact pad",
+      "Woven acoustic grille",
+      "Acoustic port microperforations",
+      "Display rear shell",
+      "Continuous display bezel",
+      "MainDisplayActivePlane",
+      "Microphone and ambient-sensor apertures",
+      "Ambient-light sensor lens",
+      "Low-glare status indicator"
+    ],
+    "extensions_used": [],
+    "extensions_required": [],
+    "animations": 0,
+    "external_uris": false,
+    "triangle_inventory": "see notes in README; generated deterministic component meshes; active plane is a 48-triangle rounded rectangular surface",
+    "source_rights": "Original procedural geometry authored for this generic study. Official reference media is comparison-only; no redistribution license claim is made."
+  },
+  "review_caveats": [
+    "No Device Studio native render has been reviewed for this asset yet.",
+    "Not manufacturer geometry, active display measurement, stability proof, or product qualification.",
+    "Official photos contain Google branding and screen UI; neither is used in this GLB."
+  ]
+}

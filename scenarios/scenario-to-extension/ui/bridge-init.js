@@ -1,6 +1,6 @@
 import { initIframeBridgeChild } from '@vrooli/iframe-bridge/child'
 
-const BRIDGE_FLAG = '__scenarioToExtensionBridgeInitialized'
+const BRIDGE_FLAG = '__scenarioToExtensionBridgeInitialized';
 
 (function bootstrapIframeBridge() {
   if (typeof window === 'undefined') {

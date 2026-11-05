@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { renderHook, act } from '@testing-library/react';
+import { renderHook, act } from '@/test-utils';
 import { usePromptDialog } from './usePromptDialog';
 
 describe('usePromptDialog', () => {
@@ -191,6 +191,8 @@ describe('usePromptDialog', () => {
 
     act(() => {
       result.current.setValue('result');
+    });
+    act(() => {
       result.current.submit();
     });
 

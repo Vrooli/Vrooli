@@ -4,10 +4,12 @@ package strategies
 
 import (
 	"context"
-	"fmt"
 	"time"
 
-	"vrooli-autoheal/internal/checks"
+	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/checks"
+	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/elevation"
+	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/journal"
+	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/platform"
 )
 
 // SystemdStrategy provides common systemd service management actions.
@@ -38,8 +40,9 @@ func (s *SystemdStrategy) Restart(ctx context.Context, checkID string) checks.Ac
 		Timestamp: start,
 	}
 
-	output, err := s.executor.CombinedOutput(ctx, "sudo", "systemctl", "restart", s.serviceName)
+	output, outcome, err := checks.RunPrivilegedService(ctx, s.executor, elevation.ServiceRestart, s.serviceName)
 	result.Output = string(output)
+	result.Elevation = &outcome
 	result.Duration = time.Since(start)
 
 	if err != nil {
@@ -63,8 +66,9 @@ func (s *SystemdStrategy) Start(ctx context.Context, checkID string) checks.Acti
 		Timestamp: start,
 	}
 
-	output, err := s.executor.CombinedOutput(ctx, "sudo", "systemctl", "start", s.serviceName)
+	output, outcome, err := checks.RunPrivilegedService(ctx, s.executor, elevation.ServiceStart, s.serviceName)
 	result.Output = string(output)
+	result.Elevation = &outcome
 	result.Duration = time.Since(start)
 
 	if err != nil {
@@ -88,8 +92,9 @@ func (s *SystemdStrategy) Stop(ctx context.Context, checkID string) checks.Actio
 		Timestamp: start,
 	}
 
-	output, err := s.executor.CombinedOutput(ctx, "sudo", "systemctl", "stop", s.serviceName)
+	output, outcome, err := checks.RunPrivilegedService(ctx, s.executor, elevation.ServiceStop, s.serviceName)
 	result.Output = string(output)
+	result.Elevation = &outcome
 	result.Duration = time.Since(start)
 
 	if err != nil {
@@ -113,12 +118,13 @@ func (s *SystemdStrategy) Status(ctx context.Context, checkID string) checks.Act
 		Timestamp: start,
 	}
 
-	output, err := s.executor.CombinedOutput(ctx, "systemctl", "status", s.serviceName, "--no-pager")
+	output, err := s.executor.CombinedOutput(ctx, platform.ServiceManagerCommand(), "status", s.serviceName, "--no-pager")
 	result.Output = string(output)
 	result.Duration = time.Since(start)
 
 	if err != nil {
-		// systemctl status returns non-zero for stopped services, but still useful output
+		// Native service-manager status may return non-zero for stopped services,
+		// but still provides useful diagnostic output.
 		result.Success = true
 		result.Message = s.serviceName + " status retrieved"
 		return result
@@ -142,8 +148,10 @@ func (s *SystemdStrategy) Logs(ctx context.Context, checkID string, lines int) c
 		lines = 100
 	}
 
-	output, err := s.executor.CombinedOutput(ctx,
-		"journalctl", "-u", s.serviceName, "-n", fmt.Sprintf("%d", lines), "--no-pager")
+	output, err := journal.NewReader(s.executor).Tail(ctx, journal.QueryOpts{
+		Unit: []string{s.serviceName},
+		Tail: lines,
+	})
 	result.Output = string(output)
 	result.Duration = time.Since(start)
 
@@ -161,6 +169,6 @@ func (s *SystemdStrategy) Logs(ctx context.Context, checkID string, lines int) c
 
 // IsActive checks if the systemd service is active.
 func (s *SystemdStrategy) IsActive(ctx context.Context) bool {
-	err := s.executor.Run(ctx, "systemctl", "is-active", "--quiet", s.serviceName)
+	err := s.executor.Run(ctx, platform.ServiceManagerCommand(), "is-active", "--quiet", s.serviceName)
 	return err == nil
 }

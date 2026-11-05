@@ -1,0 +1,50 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-journey",
+  "schemaVersion": "1.0.0",
+  "journey": {
+    "id": "capture-existing-routine",
+    "title": "Capture an existing routine",
+    "purpose": "Bring existing meals, recurring foods, and supplements into Nooch with little effort: paste or type what is eaten now, review only material questions, and keep accepted anchors in future weeks.",
+    "prd_refs": [
+      "OT-P0-003",
+      "OT-P0-004",
+      "OT-P0-010",
+      "OT-P0-009",
+      "OT-P1-001"
+    ]
+  },
+  "steps": [
+    {
+      "page": "meals",
+      "state": "add-meal-open",
+      "intent": "Save a usual meal with just its name.",
+      "via": "capture-form"
+    },
+    {
+      "page": "meals",
+      "state": "import-review",
+      "intent": "Paste a rough routine and review the staged result, keeping unknown quantities unknown.",
+      "via": "import-action"
+    },
+    {
+      "page": "kitchen",
+      "state": "preferences-tab",
+      "intent": "Set the planning routine, targets, and fixed supplement schedules.",
+      "via": "preference-groups"
+    },
+    {
+      "page": "week",
+      "intent": "See accepted anchors in the week while flexible slots stay open for suggestions.",
+      "via": "week-board"
+    }
+  ],
+  "claims": [
+    {
+      "id": "source-text-preserved",
+      "type": "custom",
+      "statement": "Pasted text is preserved and no recipe, brand, serving weight, dose, or target is invented from it.",
+      "tier": "aspirational"
+    }
+  ]
+}

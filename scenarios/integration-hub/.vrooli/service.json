@@ -1,0 +1,58 @@
+{
+  "$schema": "../../../../.vrooli/schemas/service.schema.json",
+  "version": "1.0.0",
+  "storage": {
+    "entries": {
+      "connection-state": {
+        "class": "data",
+        "kind": "file",
+        "subpath": "connections.json",
+        "format": "json",
+        "rung": "owned",
+        "regenerable": false,
+        "budget": { "max_bytes": "10MiB", "rationale": "Bounded metadata and idempotency state; credential values are owned by the credential authority and never stored here." },
+        "rationale": "Durable provider-neutral connection metadata and binding state."
+      }
+    },
+    "rationale": "Integration Hub owns metadata and bindings; the credential authority owns all secret material."
+  },
+  "maturity": "pilot",
+  "service": {
+    "parent": "vrooli",
+    "name": "integration-hub",
+    "displayName": "Integration Hub",
+    "description": "Provider-neutral connection lifecycle and binding authority",
+    "version": "0.0.1",
+    "type": "interface-enabler",
+    "category": "ai_tools",
+    "tags": ["go-api", "connect-rpc", "integrations", "credentials"]
+  },
+  "ports": {
+    "api": { "env_var": "API_PORT", "description": "Integration Hub Connect API", "range": "15000-19999" }
+  },
+  "cli": {
+    "enabled": true,
+    "command": "integration-hub",
+    "adapter": { "kind": "go_module", "module_dir": "cli" },
+    "source_build": { "kind": "go_module" },
+    "invoke": { "kind": "installed_command", "command": "integration-hub" },
+    "freshness": { "inputs": ["cli/**", ".vrooli/service.json"] }
+  },
+  "lifecycle": {
+    "version": "2.0.0",
+    "health": {
+      "description": "Integration Hub API readiness",
+      "endpoints": { "api": "/health" },
+      "checks": [{ "name": "api_endpoint", "type": "http", "target": "http://localhost:${API_PORT}/health", "critical": true, "timeout": 10000, "interval": 30000 }],
+      "startup_grace_period": 15000
+    }
+  },
+  "dependencies": { "resources": {}, "scenarios": {} },
+  "components": {
+    "api": {
+      "role": "api",
+      "build": { "kind": "go_module", "dir": "api" },
+      "run": { "argv": ["{{bin.api}}"], "cwd": "api", "port": "api" }
+    }
+  }
+}

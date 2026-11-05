@@ -8,7 +8,7 @@
  * - Message communication with parent frames
  */
 
-import type { ReplayMovieSpec } from "@/types/export";
+import type { ReplaySpec as ReplayMovieSpec } from "@vrooli/generated-proto/browser-automation-studio/v1/exports/exports_pb";
 
 /**
  * Timeline entry for a single frame.
@@ -51,6 +51,10 @@ export interface ExportMetadata {
   deviceScaleFactor?: number;
   assetCount: number;
   specId?: string | null;
+  /** Optional native caller token, acknowledged only after this spec is adopted. */
+  requestToken?: string;
+  /** Failure of one attempted token; it does not acknowledge spec adoption. */
+  requestError?: { requestToken: string; message: string };
 }
 
 /**

@@ -31,7 +31,6 @@ type InitRequest struct {
 	Domain     string `json:"domain,omitempty"`
 	User       string `json:"user,omitempty"`
 	Port       int    `json:"port,omitempty"`
-	KeyPath    string `json:"key_path,omitempty"`
 	Workdir    string `json:"workdir,omitempty"`
 	CaddyEmail string `json:"caddy_email,omitempty"`
 }

@@ -13,24 +13,24 @@ import (
 // EnumParityFixture contains the canonical string mappings for BAS enums.
 // This fixture is used by both Go and TypeScript tests to ensure parity.
 type EnumParityFixture struct {
-	ActionType       map[string]string `json:"actionType"`
-	MouseButton      map[string]string `json:"mouseButton"`
-	KeyboardModifier map[string]string `json:"keyboardModifier"`
-	NavigateWaitEvent map[string]string `json:"navigateWaitEvent"`
-	WaitState        map[string]string `json:"waitState"`
-	AssertionMode    map[string]string `json:"assertionMode"`
-	ScrollBehavior   map[string]string `json:"scrollBehavior"`
-	KeyAction        map[string]string `json:"keyAction"`
-	ExtractType      map[string]string `json:"extractType"`
-	FrameSwitchAction map[string]string `json:"frameSwitchAction"`
-	TabSwitchAction  map[string]string `json:"tabSwitchAction"`
-	CookieOperation  map[string]string `json:"cookieOperation"`
-	StorageType      map[string]string `json:"storageType"`
-	CookieSameSite   map[string]string `json:"cookieSameSite"`
-	GestureType      map[string]string `json:"gestureType"`
-	SwipeDirection   map[string]string `json:"swipeDirection"`
+	ActionType           map[string]string `json:"actionType"`
+	MouseButton          map[string]string `json:"mouseButton"`
+	KeyboardModifier     map[string]string `json:"keyboardModifier"`
+	NavigateWaitEvent    map[string]string `json:"navigateWaitEvent"`
+	WaitState            map[string]string `json:"waitState"`
+	AssertionMode        map[string]string `json:"assertionMode"`
+	ScrollBehavior       map[string]string `json:"scrollBehavior"`
+	KeyAction            map[string]string `json:"keyAction"`
+	ExtractType          map[string]string `json:"extractType"`
+	FrameSwitchAction    map[string]string `json:"frameSwitchAction"`
+	TabSwitchAction      map[string]string `json:"tabSwitchAction"`
+	CookieOperation      map[string]string `json:"cookieOperation"`
+	StorageType          map[string]string `json:"storageType"`
+	CookieSameSite       map[string]string `json:"cookieSameSite"`
+	GestureType          map[string]string `json:"gestureType"`
+	SwipeDirection       map[string]string `json:"swipeDirection"`
 	NetworkMockOperation map[string]string `json:"networkMockOperation"`
-	DeviceOrientation map[string]string `json:"deviceOrientation"`
+	DeviceOrientation    map[string]string `json:"deviceOrientation"`
 }
 
 // actionTypeToString converts ActionType enum to handler dispatch string.

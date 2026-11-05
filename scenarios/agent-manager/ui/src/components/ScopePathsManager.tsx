@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Check, HelpCircle, Loader2, Plus, X } from "lucide-react";
-import { Button } from "./ui/button";
+import { Button } from "@vrooli/react-component-library/Button/2";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import { cn } from "../lib/utils";

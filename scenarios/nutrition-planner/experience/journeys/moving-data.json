@@ -1,0 +1,43 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-journey",
+  "schemaVersion": "1.0.0",
+  "journey": {
+    "id": "moving-data",
+    "title": "Moving data",
+    "purpose": "Export a complete backup or printouts from Settings › Data & exports, then stage an import, review it, and restore with a checkpoint — never mutating live data before confirmation.",
+    "prd_refs": [
+      "OT-P0-013",
+      "OT-P0-014",
+      "OT-P0-001"
+    ]
+  },
+  "steps": [
+    {
+      "page": "settings",
+      "state": "export-ready",
+      "intent": "Export a complete backup and see what it includes and omits.",
+      "via": "export-backup-action"
+    },
+    {
+      "page": "settings",
+      "state": "import-review",
+      "intent": "Stage an import and review counts, duplicates, and conflicts.",
+      "via": "import-action"
+    },
+    {
+      "page": "settings",
+      "state": "restore-confirm",
+      "intent": "Confirm Restore everything after reviewing its impact and checkpoint.",
+      "via": "restore-action"
+    }
+  ],
+  "claims": [
+    {
+      "id": "no-write-before-confirm",
+      "type": "custom",
+      "statement": "Parsing and preview never change live data, and a failed restore leaves the previous workspace intact.",
+      "tier": "aspirational"
+    }
+  ]
+}

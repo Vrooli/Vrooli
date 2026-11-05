@@ -113,6 +113,21 @@ func (f *FakeGitRunner) AssertNotCalled(method string) bool {
 	return !f.AssertCalled(method)
 }
 
+// AssertCalledWith verifies a method was called with the given arg present in its recorded args.
+func (f *FakeGitRunner) AssertCalledWith(method string, arg string) bool {
+	for _, call := range f.Calls {
+		if call.Method != method {
+			continue
+		}
+		for _, a := range call.Args {
+			if a == arg {
+				return true
+			}
+		}
+	}
+	return false
+}
+
 // CallCount returns the number of times a method was called.
 func (f *FakeGitRunner) CallCount(method string) int {
 	count := 0

@@ -1,0 +1,42 @@
+{
+  "schema_version": 1,
+  "case_id": "DATA-08",
+  "verdict": "passed",
+  "lane": "package",
+  "requirement_refs": [
+    "STC-P0-029",
+    "STC-P0-030",
+    "STC-P0-031"
+  ],
+  "candidate": {
+    "release_digest": "sha256:package-lane-fixture-release",
+    "configuration_digest": "",
+    "closure_digest": "sha256:fixture-sql-uploads"
+  },
+  "target": {
+    "machine_id": "fake-target",
+    "architecture": "amd64",
+    "os": "linux"
+  },
+  "operation_refs": [
+    "op-1",
+    "op-2",
+    "op-3"
+  ],
+  "validation_receipt_ref": "go test ./vps/ . ./internal/cloudtarget/ (2026-09-09, PASS)",
+  "artifact_refs": [
+    "api/vps/execute_test.go#TestLegacyConversionRefusesDeletionOfUnmapped",
+    "api/vps/execute_test.go#TestSharedResourceDemandSurvivesSiblingStop",
+    "api/handlers_reconcile_test.go#TestDataBindingInventoryAndAdoptionRecordMappingWithoutMovingData",
+    "internal/cloudtarget/persistent_data_test.go#TestActivateAdoptsLegacyDataAndRefusesToDeleteUnmapped"
+  ],
+  "assertions": [
+    "a directory no binding names is never adopted, deleted or overwritten: the target reports it as legacy_unmapped and leaves it in place; adoption requires an explicit recorded mapping onto a declared binding (POST data-bindings/adopt refuses undeclared ids) and moves nothing itself",
+    "two deployments on one host: retiring one keeps the shared resource the other demands and removes only the subject's route"
+  ],
+  "observed_at": "2026-09-09T18:30:00Z",
+  "limitations": [
+    "package lane only: the target owner (vrooli cloud-target) is exercised through internal/cloudtarget tests and a stateful fake target in api/vps; QEMU and real-VPS activation subsets are pending EXT-06 (disposable target lane) and EXT-01 (real VPS)",
+    "side_by_side is selected only for workloads without persistent data and without pinned manifest ports; the target activator delegates candidate allocation to the lifecycle owner's restart, so a candidate never runs beside the current release yet (recorded limitation)"
+  ]
+}

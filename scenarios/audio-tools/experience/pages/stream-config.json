@@ -1,0 +1,12 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.0.0",
+  "page": {
+    "id": "stream-config",
+    "title": "Stream Configuration",
+    "routes": ["/admin/stream-config"],
+    "purpose": "Inspect bounded streaming and recovery settings without allowing a UI configuration to silently weaken production safety limits.",
+    "prd_refs": ["OT-P0-001"]
+  }
+}

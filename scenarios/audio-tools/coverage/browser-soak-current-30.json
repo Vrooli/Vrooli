@@ -1,0 +1,102 @@
+{
+  "schemaVersion": 1,
+  "runId": "browser-soak-1789547428019907552",
+  "lane": "realtime",
+  "profile": "realistic",
+  "shape": "realistic",
+  "turns": 30,
+  "cell": {
+    "engineId": "kyutai",
+    "modelId": "kyutai/stt-1b-en_fr",
+    "strategy": "passthrough",
+    "policy": "default"
+  },
+  "code": {
+    "capturePackage": "sha256:919311149be956d0be5e8d4df3e3f993835f76a36b8b885e28938cdf8ac6bb00",
+    "server": "sha256:59df5d61fbb0718479eac9ce2e7536f87ea29a087cc1e1868d2b666d35fa35d2"
+  },
+  "durationMs": 91073,
+  "assertions": [
+    {
+      "name": "interval_accounting_exactly_once",
+      "outcome": "not_measured",
+      "detail": "browser step \"feed-0\" failed: map[code:TIMEOUT kind:FAILURE_KIND_TIMEOUT message:page.waitForTimeout: Target page, context or browser has been closed retryable:true source:FAILURE_SOURCE_ENGINE]"
+    },
+    {
+      "name": "capture_signal_observed",
+      "outcome": "not_measured",
+      "detail": "browser step \"feed-0\" failed: map[code:TIMEOUT kind:FAILURE_KIND_TIMEOUT message:page.waitForTimeout: Target page, context or browser has been closed retryable:true source:FAILURE_SOURCE_ENGINE]"
+    },
+    {
+      "name": "browser_retention_bounded",
+      "outcome": "not_measured",
+      "detail": "browser step \"feed-0\" failed: map[code:TIMEOUT kind:FAILURE_KIND_TIMEOUT message:page.waitForTimeout: Target page, context or browser has been closed retryable:true source:FAILURE_SOURCE_ENGINE]"
+    },
+    {
+      "name": "server_retention_bounded",
+      "outcome": "not_measured",
+      "detail": "browser step \"feed-0\" failed: map[code:TIMEOUT kind:FAILURE_KIND_TIMEOUT message:page.waitForTimeout: Target page, context or browser has been closed retryable:true source:FAILURE_SOURCE_ENGINE]"
+    },
+    {
+      "name": "per_frame_cost_constant",
+      "outcome": "not_measured",
+      "detail": "browser step \"feed-0\" failed: map[code:TIMEOUT kind:FAILURE_KIND_TIMEOUT message:page.waitForTimeout: Target page, context or browser has been closed retryable:true source:FAILURE_SOURCE_ENGINE]"
+    },
+    {
+      "name": "zero_duplicate_committed_segments",
+      "outcome": "not_measured",
+      "detail": "browser step \"feed-0\" failed: map[code:TIMEOUT kind:FAILURE_KIND_TIMEOUT message:page.waitForTimeout: Target page, context or browser has been closed retryable:true source:FAILURE_SOURCE_ENGINE]"
+    },
+    {
+      "name": "zero_silent_terminal_outcomes",
+      "outcome": "not_measured",
+      "detail": "browser step \"feed-0\" failed: map[code:TIMEOUT kind:FAILURE_KIND_TIMEOUT message:page.waitForTimeout: Target page, context or browser has been closed retryable:true source:FAILURE_SOURCE_ENGINE]"
+    },
+    {
+      "name": "provider_cell_identity",
+      "outcome": "not_measured",
+      "detail": "browser step \"feed-0\" failed: map[code:TIMEOUT kind:FAILURE_KIND_TIMEOUT message:page.waitForTimeout: Target page, context or browser has been closed retryable:true source:FAILURE_SOURCE_ENGINE]"
+    },
+    {
+      "name": "peak_memory_flat",
+      "outcome": "not_measured",
+      "detail": "browser step \"feed-0\" failed: map[code:TIMEOUT kind:FAILURE_KIND_TIMEOUT message:page.waitForTimeout: Target page, context or browser has been closed retryable:true source:FAILURE_SOURCE_ENGINE]"
+    },
+    {
+      "name": "wire_rate_within_budget",
+      "outcome": "not_measured",
+      "detail": "browser step \"feed-0\" failed: map[code:TIMEOUT kind:FAILURE_KIND_TIMEOUT message:page.waitForTimeout: Target page, context or browser has been closed retryable:true source:FAILURE_SOURCE_ENGINE]"
+    },
+    {
+      "name": "word_error_rate_stable",
+      "outcome": "not_measured",
+      "detail": "browser step \"feed-0\" failed: map[code:TIMEOUT kind:FAILURE_KIND_TIMEOUT message:page.waitForTimeout: Target page, context or browser has been closed retryable:true source:FAILURE_SOURCE_ENGINE]"
+    },
+    {
+      "name": "punctuation_rate_recorded",
+      "outcome": "not_measured",
+      "detail": "browser step \"feed-0\" failed: map[code:TIMEOUT kind:FAILURE_KIND_TIMEOUT message:page.waitForTimeout: Target page, context or browser has been closed retryable:true source:FAILURE_SOURCE_ENGINE]"
+    },
+    {
+      "name": "capitalisation_rate_recorded",
+      "outcome": "not_measured",
+      "detail": "browser step \"feed-0\" failed: map[code:TIMEOUT kind:FAILURE_KIND_TIMEOUT message:page.waitForTimeout: Target page, context or browser has been closed retryable:true source:FAILURE_SOURCE_ENGINE]"
+    },
+    {
+      "name": "first_partial_latency_stable",
+      "outcome": "not_measured",
+      "detail": "browser step \"feed-0\" failed: map[code:TIMEOUT kind:FAILURE_KIND_TIMEOUT message:page.waitForTimeout: Target page, context or browser has been closed retryable:true source:FAILURE_SOURCE_ENGINE]"
+    },
+    {
+      "name": "committed_text_lag_stable",
+      "outcome": "not_measured",
+      "detail": "browser step \"feed-0\" failed: map[code:TIMEOUT kind:FAILURE_KIND_TIMEOUT message:page.waitForTimeout: Target page, context or browser has been closed retryable:true source:FAILURE_SOURCE_ENGINE]"
+    },
+    {
+      "name": "continuous_interim_text_visible",
+      "outcome": "not_measured",
+      "detail": "browser step \"feed-0\" failed: map[code:TIMEOUT kind:FAILURE_KIND_TIMEOUT message:page.waitForTimeout: Target page, context or browser has been closed retryable:true source:FAILURE_SOURCE_ENGINE]"
+    }
+  ]
+}
+

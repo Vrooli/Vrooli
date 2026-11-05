@@ -1,0 +1,20 @@
+{
+  "version": "1.1.1",
+  "checked_at": "2026-10-14T23:46:00Z",
+  "spec_pdf_sha256": "345d92b413a1d7b5c2a151ef7ff68f9b0a841f6d76395a0be152da537d9c3c9b",
+  "spec_pdf_bytes": 421820,
+  "pages": 27,
+  "spec_text_sha256": "026d115cfd464f7e2bdfb9301cefcb6f13d967c0610faee6bede62f7d519e3f0",
+  "native_revision": "AHj4eMRsUw6-0EoA6QdniEahylyoOEUs7gW4T83HJvT5Omrc6BkKwXqfMvQRFM2elGTxH_JWWBKIjrz_YF2ngKSqKAP-Iz2r3Zz0A-R4Lw",
+  "checks": [
+    "Independent semantic review passed: one existing account live closure; required multi-account behavior through controlled synthetic fixtures; no Gmail account creation or second owner-account burden.",
+    "Full normalized PDF text exactly matches source; zero replacement glyphs and off-page text blocks.",
+    "Every changed/new page1,21\u201327 independently visually inspected; pages2\u201320 byte-identical to reviewed v1.1 renders.",
+    "Drive-hosted replacement PDF fetched back and exact SHA-256 matched.",
+    "Current project entry prominently links required companion next to frozen v1.1 source package; source map preserves historical decisions and adds linked correction."
+  ],
+  "limits": [
+    "This is a design/acceptance correction, not evidence of a connected mailbox, implementation, native approval or team activation.",
+    "Frozen v1.1 atlas and combined source package are unchanged; current acceptance requires this amendment."
+  ]
+}

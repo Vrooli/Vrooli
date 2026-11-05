@@ -6,8 +6,6 @@ import (
 	"fmt"
 	"strings"
 	"time"
-
-	"github.com/lib/pq"
 )
 
 const (
@@ -201,12 +199,13 @@ func (aco *AutoCampaignOrchestrator) updateCampaignStatus(campaignID int, newSta
 	}
 
 	if len(fromStatuses) > 0 {
+		statusClause, statusArgs := stringInClause("status", 3, fromStatuses)
 		if setCompleted {
-			query = `UPDATE campaigns SET status = $1, completed_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP WHERE id = $2 AND status = ANY($3)`
+			query = `UPDATE campaigns SET status = $1, completed_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP WHERE id = $2 AND ` + statusClause
 		} else {
-			query = `UPDATE campaigns SET status = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2 AND status = ANY($3)`
+			query = `UPDATE campaigns SET status = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2 AND ` + statusClause
 		}
-		args = []interface{}{newStatus, campaignID, pq.Array(fromStatuses)}
+		args = append([]interface{}{newStatus, campaignID}, statusArgs...)
 		_, err := aco.db.Exec(query, args...)
 		return err
 	}

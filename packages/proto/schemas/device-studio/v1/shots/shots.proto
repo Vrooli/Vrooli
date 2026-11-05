@@ -1,0 +1,780 @@
+syntax = "proto3";
+
+package vrooli.device_studio.v1.shots;
+
+import "google/protobuf/timestamp.proto";
+import "device-studio/v1/physical/physical.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/device-studio/v1/shots;shots_v1";
+
+// Shots owns immutable photographic composition revisions. Source media and
+// its bytes remain owned by ProjectsService.
+service ShotsService {
+  rpc CreateShot(CreateShotRequest) returns (CreateShotResponse);
+  rpc SaveShot(SaveShotRequest) returns (SaveShotResponse);
+  rpc ListShots(ListShotsRequest) returns (ListShotsResponse);
+  rpc GetShot(GetShotRequest) returns (GetShotResponse);
+  rpc GetShotRevision(GetShotRevisionRequest) returns (GetShotRevisionResponse);
+  rpc ListShotRevisions(ListShotRevisionsRequest) returns (ListShotRevisionsResponse);
+  rpc CompileShot(CompileShotRequest) returns (CompileShotResponse);
+  rpc ValidateShot(ValidateShotRequest) returns (ValidateShotResponse);
+  rpc ReviewOutputReadability(ReviewOutputReadabilityRequest) returns (ReviewOutputReadabilityResponse);
+  rpc GetOutputReadabilityReview(GetOutputReadabilityReviewRequest) returns (GetOutputReadabilityReviewResponse);
+  rpc SavePhysicalShotPreset(SavePhysicalShotPresetRequest) returns (SavePhysicalShotPresetResponse);
+  rpc GetPhysicalShotPreset(GetPhysicalShotPresetRequest) returns (GetPhysicalShotPresetResponse);
+  rpc GetPhysicalShotPresetHead(GetPhysicalShotPresetHeadRequest) returns (GetPhysicalShotPresetHeadResponse);
+  rpc ListPhysicalShotPresets(ListPhysicalShotPresetsRequest) returns (ListPhysicalShotPresetsResponse);
+  rpc ListPhysicalShotPresetRevisions(ListPhysicalShotPresetRevisionsRequest) returns (ListPhysicalShotPresetRevisionsResponse);
+}
+
+// A physical setup is an immutable join over exact candidate revisions. It
+// contains no source media and makes no qualification assertion.
+message PhysicalShotSetup {
+  ComponentRevisionRef device = 1;
+  ComponentRevisionRef scene = 2;
+  ComponentRevisionRef motion = 3;
+  string display_id = 4;
+  string device_support_id = 5;
+  string scene_support_id = 6;
+  string camera_id = 7;
+  vrooli.device_studio.v1.physical.TRS scene_support_world = 8;
+  vrooli.device_studio.v1.physical.Vec3 support_pivot_m = 9;
+  vrooli.device_studio.v1.physical.TRS device_root_rest = 10;
+  repeated PhysicalStillOutputProfile still_profiles = 11;
+  repeated PhysicalMotionOutputProfile motion_profiles = 12;
+  string scene_support_slot_id = 13;
+}
+
+enum PhysicalMotionOutputProfile {
+  PHYSICAL_MOTION_OUTPUT_PROFILE_UNSPECIFIED = 0;
+  PHYSICAL_MOTION_OUTPUT_PROFILE_1080P_V1 = 1;
+  PHYSICAL_MOTION_OUTPUT_PROFILE_1080P_V2 = 2;
+}
+
+message PhysicalShotPresetRevision {
+  string preset_id = 1;
+  uint32 revision = 2;
+  string sha256 = 3;
+  string name = 4;
+  PhysicalShotSetup setup = 5;
+  string state = 6;
+  bool candidate_only = 7;
+  google.protobuf.Timestamp created_at = 8;
+}
+
+message SavePhysicalShotPresetRequest {
+  string preset_id = 1;
+  uint32 expected_revision = 2;
+  string name = 3;
+  PhysicalShotSetup setup = 4;
+}
+message SavePhysicalShotPresetResponse { PhysicalShotPresetRevision revision = 1; }
+message GetPhysicalShotPresetRequest { string preset_id = 1; uint32 revision = 2; }
+message GetPhysicalShotPresetResponse { PhysicalShotPresetRevision revision = 1; }
+message GetPhysicalShotPresetHeadRequest { string preset_id = 1; }
+message GetPhysicalShotPresetHeadResponse { PhysicalShotPresetRevision revision = 1; }
+message ListPhysicalShotPresetsRequest { string after_preset_id = 1; uint32 page_size = 2; }
+message ListPhysicalShotPresetsResponse { repeated PhysicalShotPresetRevision presets = 1; string next_after_preset_id = 2; }
+message ListPhysicalShotPresetRevisionsRequest { string preset_id = 1; uint32 after_revision = 2; uint32 page_size = 3; }
+message ListPhysicalShotPresetRevisionsResponse { repeated PhysicalShotPresetRevision revisions = 1; uint32 next_after_revision = 2; }
+
+// RenderJobsService exposes durable still-render jobs. A job advances through
+// the API lifecycle without requiring a client to poll it.
+service RenderJobsService {
+  rpc SubmitRender(SubmitRenderRequest) returns (SubmitRenderResponse);
+  rpc GetVideoSampleBinding(GetVideoSampleBindingRequest) returns (GetVideoSampleBindingResponse);
+  rpc GetRender(GetRenderRequest) returns (GetRenderResponse);
+  rpc ListRenders(ListRendersRequest) returns (ListRendersResponse);
+  rpc CancelRender(CancelRenderRequest) returns (CancelRenderResponse);
+}
+
+message GetVideoSampleBindingRequest {
+  string project_id = 1;
+  string shot_id = 2;
+  string render_id = 3;
+}
+message GetVideoSampleBindingResponse { VideoSampleBinding binding = 1; }
+
+message Shot {
+  string id = 1;
+  string project_id = 2;
+  string name = 3;
+  google.protobuf.Timestamp created_at = 4;
+  google.protobuf.Timestamp updated_at = 5;
+  int64 head_revision = 6;
+}
+
+message ShotPoint {
+  double x = 1;
+  double y = 2;
+}
+
+// Quad points use plate-raster pixel boundaries in TL, TR, BR, BL order.
+message PlateQuad {
+  ShotPoint top_left = 1;
+  ShotPoint top_right = 2;
+  ShotPoint bottom_right = 3;
+  ShotPoint bottom_left = 4;
+}
+
+enum CoordinateConvention {
+  COORDINATE_CONVENTION_UNSPECIFIED = 0;
+  COORDINATE_CONVENTION_PLATE_RASTER_EDGE_PIXELS_V1 = 1;
+}
+
+message PhotographicScene {
+  string plate_media_id = 1;
+  string active_mask_media_id = 2;
+  string hardware_mask_media_id = 3;
+  // The flat display raster size in pixels. These are not physical dimensions.
+  uint32 display_width_pixels = 4;
+  uint32 display_height_pixels = 5;
+  PlateQuad plate_quad = 6;
+  CoordinateConvention coordinate_convention = 7;
+  string depiction_label = 8;
+}
+
+enum CaptureArea {
+  CAPTURE_AREA_UNSPECIFIED = 0;
+  CAPTURE_AREA_APP_ONLY = 1;
+  CAPTURE_AREA_ALREADY_COMPOSED = 2;
+}
+
+enum PresentationKind {
+  PRESENTATION_KIND_UNSPECIFIED = 0;
+  PRESENTATION_KIND_PLAIN = 1;
+  PRESENTATION_KIND_PHONE_SYSTEM = 2;
+  PRESENTATION_KIND_BROWSER_DESKTOP = 3;
+}
+
+enum ScreenFitMode {
+  SCREEN_FIT_MODE_UNSPECIFIED = 0;
+  SCREEN_FIT_MODE_CONTAIN = 1;
+  SCREEN_FIT_MODE_COVER = 2;
+}
+
+enum PresentationAppearance {
+  PRESENTATION_APPEARANCE_UNSPECIFIED = 0;
+  PRESENTATION_APPEARANCE_LIGHT = 1;
+  PRESENTATION_APPEARANCE_DARK = 2;
+  PRESENTATION_APPEARANCE_AUTO = 3;
+}
+
+message PresentationRGB {
+  uint32 red = 1;
+  uint32 green = 2;
+  uint32 blue = 3;
+}
+
+// Integer normalized rectangle; every coordinate uses basis 10000.
+message PresentationRect {
+  uint32 x = 1;
+  uint32 y = 2;
+  uint32 width = 3;
+  uint32 height = 4;
+}
+
+message PhoneSystemChrome {
+  string carrier_text = 1;
+  string clock_text = 2;
+  optional uint32 battery_percent = 3;
+  optional bool show_cellular_indicator = 4;
+  optional bool show_wifi_indicator = 5;
+  optional bool show_home_indicator = 6;
+  optional bool show_status = 7;
+  optional bool show_battery_percent = 8;
+  PresentationAppearance appearance = 9;
+  PresentationRGB top_fill = 10;
+  PresentationRGB bottom_fill = 11;
+  // Pinned inks are populated only by a verified trim-start sample revision.
+  PresentationRGB status_ink = 12;
+  PresentationRGB home_ink = 13;
+}
+
+message BrowserDesktopChrome {
+  string window_title = 1;
+  string address_text = 2;
+  optional bool show_window_controls = 3;
+  optional bool show_toolbar = 4;
+  PresentationAppearance appearance = 5;
+  PresentationRect window = 6;
+  optional bool show_menu_bar = 7;
+  optional bool show_dock = 8;
+  PresentationRGB desktop_color = 9;
+  PresentationRGB window_color = 10;
+  PresentationRGB chrome_color = 11;
+}
+
+message ScreenPresentation {
+  string source_media_id = 1;
+  CaptureArea capture_area = 2;
+  PresentationKind kind = 3;
+  ScreenFitMode fit_mode = 4;
+  uint32 viewport_width_pixels = 5;
+  uint32 viewport_height_pixels = 6;
+  PhoneSystemChrome phone_system_chrome = 7;
+  BrowserDesktopChrome browser_desktop_chrome = 8;
+  PresentationRGB matte = 9;
+}
+
+enum MotionMode {
+  MOTION_MODE_UNSPECIFIED = 0;
+  MOTION_MODE_FIXED = 1;
+  MOTION_MODE_ROTATION = 2;
+  MOTION_MODE_HINGE = 3;
+  MOTION_MODE_PARALLAX = 4;
+  MOTION_MODE_CROP_PUSH = 5;
+}
+
+// Snapshot contains only editable, typed values. Server-resolved source
+// metadata and canonical digests live alongside each immutable revision.
+message ShotSnapshot {
+  PhotographicScene scene = 1;
+  ScreenPresentation presentation = 2;
+  MotionMode motion_mode = 3;
+  VideoTiming video_timing = 4;
+  PhotographicCameraMotion camera_motion = 5;
+  // Absent for historical photographic revisions. Physical rendering uses a
+  // separate versioned binding and leaves legacy photographic bytes intact.
+  PhysicalShotBinding physical_binding = 6;
+  // Readability is declared before rendering and belongs to this immutable
+  // revision. It does not make a render successful or accepted by itself.
+  ReadabilityProof readability_proof = 7;
+}
+
+message ReadabilityProof {
+  string region_name = 1;
+  string required_content = 2;
+  string criteria = 3;
+  // Normalized output-image rectangle in [0,1], origin at top-left.
+  double region_x = 4;
+  double region_y = 5;
+  double region_width = 6;
+  double region_height = 7;
+  uint32 minimum_output_width_pixels = 8;
+  uint32 minimum_output_height_pixels = 9;
+  uint32 minimum_region_width_pixels = 10;
+  uint32 minimum_region_height_pixels = 11;
+  // Milliseconds in the final output. Stills use [0,0]; video proof uses a
+  // positive half-open interval that must fit inside the output duration.
+  uint64 proof_start_ms = 12;
+  uint64 proof_end_ms = 13;
+}
+
+enum ReadabilityVerdict {
+  READABILITY_VERDICT_UNSPECIFIED = 0;
+  READABILITY_VERDICT_ACCEPTED = 1;
+  READABILITY_VERDICT_REJECTED = 2;
+}
+
+message OutputReadabilityReview {
+  string id = 1;
+  string project_id = 2;
+  string shot_id = 3;
+  int64 shot_revision = 4;
+  string render_id = 5;
+  string output_sha256 = 6;
+  string proof_sha256 = 7;
+  ReadabilityVerdict verdict = 8;
+  string note = 9;
+  uint32 output_width_pixels = 10;
+  uint32 output_height_pixels = 11;
+  uint32 region_width_pixels = 12;
+  uint32 region_height_pixels = 13;
+  google.protobuf.Timestamp reviewed_at = 14;
+}
+
+message ReviewOutputReadabilityRequest {
+  string project_id = 1;
+  string shot_id = 2;
+  int64 shot_revision = 3;
+  string render_id = 4;
+  string output_sha256 = 5;
+  ReadabilityVerdict verdict = 6;
+  string note = 7;
+  bool explicitly_inspected_final_size = 8;
+}
+message ReviewOutputReadabilityResponse { OutputReadabilityReview review = 1; }
+message GetOutputReadabilityReviewRequest {
+  string project_id = 1;
+  string shot_id = 2;
+  int64 shot_revision = 3;
+  string render_id = 4;
+  string output_sha256 = 5;
+}
+message GetOutputReadabilityReviewResponse { OutputReadabilityReview review = 1; }
+
+message ComponentRevisionRef {
+  string id = 1;
+  uint32 revision = 2;
+  string sha256 = 3;
+}
+
+message PhysicalShotBinding {
+  ComponentRevisionRef device = 1;
+  ComponentRevisionRef scene = 2;
+  ComponentRevisionRef motion = 3;
+  string display_id = 4;
+  string device_support_id = 5;
+  string scene_support_id = 6;
+  string camera_id = 7;
+  vrooli.device_studio.v1.physical.TRS scene_support_world = 8;
+  vrooli.device_studio.v1.physical.Vec3 support_pivot_m = 9;
+  vrooli.device_studio.v1.physical.TRS device_root_rest = 10;
+  uint32 screen_width_pixels = 11;
+  uint32 screen_height_pixels = 12;
+  string renderer_profile_id = 13;
+  uint32 renderer_profile_version = 14;
+  PhysicalStillOutputProfile output_profile = 15;
+  RationalTime motion_sample_tick = 16;
+  PhysicalRenderBackend backend = 17;
+  // Physical motion is a separate public output choice. It must not be set
+  // together with the still-only output_profile.
+  PhysicalMotionOutputBinding motion_output = 18;
+  string scene_support_slot_id = 19;
+  // Optional deterministic camera endpoint for handing the device display to
+  // a following editorial shot. Coordinates are normalized to the physical
+  // motion output raster, top-left origin; the active screen viewport is
+  // contained on the display surface using the physical renderer's fit rule.
+  PhysicalCameraEndpoint camera_endpoint = 20;
+}
+
+message PhysicalCameraEndpoint {
+  string display_id = 1;
+  uint32 raster_width = 2;
+  uint32 raster_height = 3;
+  // Normalized boundary rectangle in [0,1], top-left origin. Its target is
+  // the active display by default, or the projected recording content when
+  // target_kind is RECORDING_CONTENT.
+  double x = 4;
+  double y = 5;
+  double width = 6;
+  double height = 7;
+  // Projection error tolerance in output pixels. Zero selects the compiler default.
+  double max_error_pixels = 8;
+  PhysicalCameraEndpointTargetKind target_kind = 9;
+  // Required when target_kind is RECORDING_CONTENT; this is the source
+  // recording raster whose contain fit determines the content quad.
+  uint32 content_width_pixels = 10;
+  uint32 content_height_pixels = 11;
+  // Optional motion tick at which the camera reaches the target rectangle.
+  // Zero preserves legacy behavior by reaching the target at output end.
+  // Later samples hold the endpoint pose.
+  uint32 arrival_motion_tick = 12;
+}
+
+enum PhysicalCameraEndpointTargetKind {
+  PHYSICAL_CAMERA_ENDPOINT_TARGET_KIND_ACTIVE_DISPLAY = 0;
+  PHYSICAL_CAMERA_ENDPOINT_TARGET_KIND_RECORDING_CONTENT = 1;
+}
+
+enum PhysicalCompatibilityStatus {
+  PHYSICAL_COMPATIBILITY_STATUS_UNSPECIFIED = 0;
+  PHYSICAL_COMPATIBILITY_STATUS_COMPATIBLE = 1;
+  PHYSICAL_COMPATIBILITY_STATUS_INCOMPATIBLE = 2;
+  PHYSICAL_COMPATIBILITY_STATUS_NEEDS_REVIEW = 3;
+}
+message PhysicalCompatibilityReport {
+  PhysicalCompatibilityStatus status = 1;
+  repeated string reasons = 2;
+}
+
+message PhysicalMotionOutputBinding {
+  string profile_id = 1;
+  uint32 profile_version = 2;
+  uint32 width = 3;
+  uint32 height = 4;
+  uint32 output_rate_numerator = 5;
+  uint32 output_rate_denominator = 6;
+  uint32 frame_count = 7;
+}
+
+// PhysicalRenderBackend is an explicit closed hardware choice. UNSPECIFIED
+// is invalid for a physical shot; the server never silently falls back.
+enum PhysicalRenderBackend {
+  PHYSICAL_RENDER_BACKEND_UNSPECIFIED = 0;
+  PHYSICAL_RENDER_BACKEND_CPU = 1;
+  PHYSICAL_RENDER_BACKEND_CUDA = 2;
+  PHYSICAL_RENDER_BACKEND_OPTIX = 3;
+}
+
+enum PhysicalStillOutputProfile {
+  PHYSICAL_STILL_OUTPUT_PROFILE_UNSPECIFIED = 0;
+  PHYSICAL_STILL_OUTPUT_PROFILE_2560X1440_V1 = 1;
+  PHYSICAL_STILL_OUTPUT_PROFILE_3840X2160_V1 = 2;
+}
+
+message RationalTime {
+  int64 numerator = 1;
+  int64 denominator = 2;
+}
+
+// PhotographicCameraMotion pins the bounded screen-entry camera profile.
+// Source geometry is derived from the saved scene and presentation. The optional
+// target contains the entire app viewport within an output-space rectangle.
+message PhotographicCameraMotion {
+  string profile_id = 1;
+  uint32 profile_version = 2;
+  uint32 duration_output_frames = 3;
+  PresentationRGB matte_rgb = 4;
+  // Normalized output-space destination, basis 10000. Omit for full-output
+  // contain. Must have positive size and lie wholly within the output. Source
+  // aspect is preserved: the viewport is contained and centered inside it.
+  PresentationRect target_rect = 5;
+  // Optional contain placement of the stationary photograph, basis 10000.
+  // Supported only by screen-entry-stationary-scene-v1. The screen lifts from
+  // this scene to target_rect while the unchanged room fades to matte. This is
+  // an editorial screen reveal, not a simulated physical camera or hinge.
+  PresentationRect scene_rect = 6;
+}
+
+enum VideoEOFPolicy {
+  VIDEO_EOF_POLICY_UNSPECIFIED = 0;
+  VIDEO_EOF_POLICY_REJECT = 1;
+}
+
+enum VideoAudioPolicy {
+  VIDEO_AUDIO_POLICY_UNSPECIFIED = 0;
+  VIDEO_AUDIO_POLICY_SILENT = 1;
+  // Saved for an actionable blocker; no passthrough renderer is qualified.
+  VIDEO_AUDIO_POLICY_PASSTHROUGH = 2;
+}
+
+// VideoTiming contains editable rational timing and server-canonicalized
+// immutable source/inspection bindings. PTS values are ticks, never seconds.
+message VideoTiming {
+  string source_media_id = 1;
+  string source_sha256 = 2;
+  int64 source_size_bytes = 3;
+  string inspection_job_id = 4;
+  string inspection_attempt_id = 5;
+  string inspection_receipt_id = 6;
+  string inspection_receipt_sha256 = 7;
+  string clock_artifact_id = 8;
+  string clock_sha256 = 9;
+  int64 clock_size_bytes = 10;
+  uint32 selected_video_stream = 11;
+  int64 time_base_num = 12;
+  int64 time_base_den = 13;
+  optional int64 stream_start_pts = 14;
+  int64 source_end_pts = 15;
+  int64 last_frame_duration_ticks = 16;
+  int64 trim_start_pts = 17;
+  int64 trim_end_pts = 18;
+  uint32 playback_rate_num = 19;
+  uint32 playback_rate_den = 20;
+  uint32 output_rate_num = 21;
+  uint32 output_rate_den = 22;
+  VideoEOFPolicy eof_policy = 23;
+  string video_composition_profile_id = 24;
+  uint32 video_composition_profile_version = 25;
+  VideoSampleBinding sample_binding = 26;
+  uint32 sample_base_recipe_version = 27;
+  // Unspecified means silent without rewriting historical revision bytes.
+  VideoAudioPolicy audio_policy = 28;
+}
+
+// VideoSampleBinding records one verified frame-zero sample. It is copied to
+// a new immutable revision; saving it never edits the revision it references.
+message VideoSampleBinding {
+  string job_id = 1;
+  string attempt_id = 2;
+  string receipt_id = 3;
+  string receipt_sha256 = 4;
+  string source_sha256 = 5;
+  int64 source_size_bytes = 6;
+  string clock_sha256 = 7;
+  int64 trim_start_pts = 8;
+  int64 trim_end_pts = 9;
+  string video_composition_profile_id = 10;
+  uint32 video_composition_profile_version = 11;
+  uint32 source_ordinal = 12;
+  int64 source_pts = 13;
+  string projected_png_sha256 = 14;
+  int64 projected_png_size_bytes = 15;
+  uint32 projected_png_width = 16;
+  uint32 projected_png_height = 17;
+  string composed_frame_sha256 = 18;
+  uint32 composed_frame_width = 19;
+  uint32 composed_frame_height = 20;
+  string pixel_profile = 21;
+  string base_recipe_sha256 = 22;
+  uint32 resolved_top_fill_red = 23;
+  uint32 resolved_top_fill_green = 24;
+  uint32 resolved_top_fill_blue = 25;
+  uint32 resolved_bottom_fill_red = 26;
+  uint32 resolved_bottom_fill_green = 27;
+  uint32 resolved_bottom_fill_blue = 28;
+  uint32 resolved_status_ink_red = 29;
+  uint32 resolved_status_ink_green = 30;
+  uint32 resolved_status_ink_blue = 31;
+  uint32 resolved_home_ink_red = 32;
+  uint32 resolved_home_ink_green = 33;
+  uint32 resolved_home_ink_blue = 34;
+  int64 base_shot_revision = 35;
+  string base_recipe_version = 36;
+  bool top_fill_source_resolved = 37;
+  bool bottom_fill_source_resolved = 38;
+  bool status_ink_source_resolved = 39;
+  bool home_ink_source_resolved = 40;
+}
+
+message ResolvedSourceMedia {
+  string id = 1;
+  string sha256 = 2;
+  int64 size_bytes = 3;
+  string media_type = 4;
+  uint32 width_pixels = 5;
+  uint32 height_pixels = 6;
+}
+
+enum ShotIssueCode {
+  SHOT_ISSUE_CODE_UNSPECIFIED = 0;
+  SHOT_ISSUE_CODE_DRAFT_INCOMPLETE = 1;
+  SHOT_ISSUE_CODE_MALFORMED_INPUT = 2;
+  SHOT_ISSUE_CODE_UNSAFE_GEOMETRY = 3;
+  SHOT_ISSUE_CODE_UNSUPPORTED_MOTION = 4;
+  SHOT_ISSUE_CODE_UNSUPPORTED_PRESENTATION = 5;
+  SHOT_ISSUE_CODE_UNSUPPORTED_FIT_MODE = 6;
+  SHOT_ISSUE_CODE_UNSUPPORTED_PROFILE = 7;
+  SHOT_ISSUE_CODE_UNSUPPORTED_SOURCE_MEDIA = 8;
+  SHOT_ISSUE_CODE_UNSUPPORTED_AUDIO_POLICY = 9;
+  SHOT_ISSUE_CODE_PHYSICAL_COMPATIBILITY = 10;
+}
+
+message ShotIssue {
+  ShotIssueCode code = 1;
+  string field_path = 2;
+  string summary = 3;
+  string repair = 4;
+  bool blocks_render = 5;
+}
+
+message ShotRevision {
+  string shot_id = 1;
+  int64 revision = 2;
+  google.protobuf.Timestamp created_at = 3;
+  string name = 4;
+  ShotSnapshot snapshot = 5;
+  string recipe_sha256 = 6;
+  string scene_sha256 = 7;
+  string presentation_sha256 = 8;
+  string scene_version = 9;
+  string presentation_version = 10;
+  string compositor_profile = 11;
+  ResolvedSourceMedia plate = 12;
+  ResolvedSourceMedia active_mask = 13;
+  ResolvedSourceMedia hardware_mask = 14;
+  ResolvedSourceMedia screen = 15;
+  bool render_eligible = 16;
+  repeated ShotIssue issues = 17;
+}
+
+message CompiledShot {
+  string project_id = 1;
+  string shot_id = 2;
+  int64 revision = 3;
+  string recipe_sha256 = 4;
+  string compositor_profile = 5;
+  ShotSnapshot snapshot = 6;
+  ResolvedSourceMedia plate = 7;
+  ResolvedSourceMedia active_mask = 8;
+  ResolvedSourceMedia hardware_mask = 9;
+  ResolvedSourceMedia screen = 10;
+  repeated ShotIssue issues = 11;
+  bool render_eligible = 12;
+  string scene_sha256 = 13;
+  string presentation_sha256 = 14;
+  string scene_version = 15;
+  string presentation_version = 16;
+  PhysicalCompatibilityReport physical_compatibility = 17;
+}
+
+message CreateShotRequest {
+  string project_id = 1;
+  string name = 2;
+  ShotSnapshot snapshot = 3;
+}
+message CreateShotResponse {
+  Shot shot = 1;
+  ShotRevision revision = 2;
+}
+message SaveShotRequest {
+  string shot_id = 1;
+  int64 expected_revision = 2;
+  string name = 3;
+  ShotSnapshot snapshot = 4;
+}
+message SaveShotResponse {
+  Shot shot = 1;
+  ShotRevision revision = 2;
+}
+message ListShotsRequest {
+  string project_id = 1;
+  int32 page_size = 2;
+  string page_token = 3;
+}
+message ListShotsResponse {
+  repeated Shot shots = 1;
+  string next_page_token = 2;
+}
+message GetShotRequest { string id = 1; }
+message GetShotResponse {
+  Shot shot = 1;
+  ShotRevision head = 2;
+}
+message GetShotRevisionRequest {
+  string shot_id = 1;
+  int64 revision = 2;
+}
+message GetShotRevisionResponse { ShotRevision revision = 1; }
+message ListShotRevisionsRequest {
+  string shot_id = 1;
+  int32 page_size = 2;
+  string page_token = 3;
+}
+message ListShotRevisionsResponse {
+  repeated ShotRevision revisions = 1;
+  string next_page_token = 2;
+}
+message CompileShotRequest {
+  string shot_id = 1;
+  int64 revision = 2;
+}
+message CompileShotResponse { CompiledShot compiled = 1; }
+message ValidateShotRequest {
+  string project_id = 1;
+  ShotSnapshot snapshot = 2;
+}
+message ValidateShotResponse {
+  bool render_eligible = 1;
+  repeated ShotIssue issues = 2;
+  CompiledShot compiled = 3;
+}
+
+message ShotConflict {
+  string shot_id = 1;
+  int64 expected_revision = 2;
+  int64 current_revision = 3;
+}
+
+enum RenderOutputProfile {
+  RENDER_OUTPUT_PROFILE_UNSPECIFIED = 0;
+  RENDER_OUTPUT_PROFILE_PNG_V1 = 1;
+  RENDER_OUTPUT_PROFILE_MP4_H264_SDR_V1 = 2;
+  RENDER_OUTPUT_PROFILE_PHYSICAL_PREVIEW_PNG_V1 = 3;
+  // Low-sample diagnostic output used to verify scene/device wiring and GPU
+  // admission. It is not a quality or delivery render.
+  RENDER_OUTPUT_PROFILE_PHYSICAL_DIAGNOSTIC_PNG_V1 = 4;
+  // Low-sample motion diagnostic preserves a saved source clock and endpoint;
+  // it is not a quality or delivery render.
+  RENDER_OUTPUT_PROFILE_PHYSICAL_DIAGNOSTIC_MOTION_MP4_V1 = 5;
+}
+
+enum RenderMode {
+  RENDER_MODE_UNSPECIFIED = 0;
+  RENDER_MODE_STILL = 1;
+  RENDER_MODE_VIDEO_SAMPLE_PNG = 2;
+  RENDER_MODE_VIDEO_FINAL_MP4 = 3;
+  RENDER_MODE_PHYSICAL_STILL_PNG = 4;
+  RENDER_MODE_PHYSICAL_VIDEO_FINAL_MP4 = 5;
+  RENDER_MODE_PHYSICAL_PREVIEW_PNG = 6;
+  RENDER_MODE_PHYSICAL_DIAGNOSTIC_MOTION_MP4 = 7;
+}
+
+// OBSERVED means a running execution was explicitly observed by its owner.
+// A claimed or ambiguous execution must use NEEDS_RECONCILIATION instead.
+enum RenderJobStatus {
+  RENDER_JOB_STATUS_UNSPECIFIED = 0;
+  RENDER_JOB_STATUS_QUEUED = 1;
+  RENDER_JOB_STATUS_OBSERVED = 2;
+  RENDER_JOB_STATUS_NEEDS_RECONCILIATION = 3;
+  RENDER_JOB_STATUS_CANCEL_REQUESTED = 4;
+  RENDER_JOB_STATUS_SUCCEEDED = 5;
+  RENDER_JOB_STATUS_FAILED = 6;
+  RENDER_JOB_STATUS_CANCELLED = 7;
+}
+
+enum RenderJobIssueCode {
+  RENDER_JOB_ISSUE_CODE_UNSPECIFIED = 0;
+  RENDER_JOB_ISSUE_CODE_SHOT_NOT_RENDER_ELIGIBLE = 1;
+  RENDER_JOB_ISSUE_CODE_OUTPUT_UNAVAILABLE = 2;
+  RENDER_JOB_ISSUE_CODE_OUTCOME_UNRESOLVED = 3;
+  RENDER_JOB_ISSUE_CODE_CANCELLATION_UNAVAILABLE = 4;
+}
+
+message RenderJobIssue {
+  RenderJobIssueCode code = 1;
+  string summary = 2;
+}
+
+message RenderOutput {
+  string media_type = 1;
+  int64 size_bytes = 2;
+  uint32 width_pixels = 3;
+  uint32 height_pixels = 4;
+  string sha256 = 5;
+  // Opaque project/job-scoped URL. It does not identify a filesystem path.
+  string content_url = 6;
+}
+
+message RenderJob {
+  string id = 1;
+  string project_id = 2;
+  string shot_id = 3;
+  int64 shot_revision = 4;
+  RenderJobStatus status = 5;
+  int64 version = 6;
+  google.protobuf.Timestamp created_at = 7;
+  google.protobuf.Timestamp updated_at = 8;
+  string summary = 9;
+  RenderJobIssue issue = 10;
+  RenderOutput output = 11;
+  RenderMode render_mode = 12;
+  RenderOutputProfile output_profile = 13;
+}
+
+message SubmitRenderRequest {
+  string project_id = 1;
+  string shot_id = 2;
+  int64 revision = 3;
+  // Required, bounded to 200 bytes and stable across retries of the same input.
+  string idempotency_key = 4;
+  RenderOutputProfile output_profile = 5;
+  RenderMode render_mode = 6;
+  uint32 sample_output_index = 7;
+  // Reuse a prior succeeded render only when its complete immutable input
+  // fingerprint and verified output bytes match this request exactly.
+  bool reuse_cached_success = 8;
+}
+message SubmitRenderResponse {
+  RenderJob job = 1;
+  bool reused_existing = 2;
+  CachedRenderReuse cache_reuse = 3;
+}
+message CachedRenderReuse {
+  string source_render_id = 1;
+  string source_attempt_id = 2;
+  string artifact_sha256 = 3;
+  string output_kind = 4;
+}
+message GetRenderRequest {
+  string project_id = 1;
+  string render_id = 2;
+}
+message GetRenderResponse { RenderJob job = 1; }
+message ListRendersRequest {
+  string project_id = 1;
+  int32 page_size = 2;
+  string page_token = 3;
+}
+message ListRendersResponse {
+  repeated RenderJob jobs = 1;
+  string next_page_token = 2;
+}
+message CancelRenderRequest {
+  string project_id = 1;
+  string render_id = 2;
+  int64 expected_version = 3;
+}
+message CancelRenderResponse { RenderJob job = 1; }

@@ -1,0 +1,75 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.0.0",
+  "page": {
+    "id": "library",
+    "title": "Library",
+    "routes": ["/library"],
+    "purpose": "Browse and search the collection by what music actually is — description, attribute, or similarity to another track — and make the decomposition backlog honest rather than hidden.",
+    "prd_refs": ["OT-P0-002", "OT-P0-006"]
+  },
+  "priorities": [
+    { "statement": "Search works on a partially analysed library, and says what is not yet searchable rather than silently omitting it." },
+    { "statement": "Similarity search is reachable from any track — 'more like this' is a primary action, not a menu item." },
+    { "statement": "Generated tracks are disclosed in listings, not only during playback." }
+  ],
+  "states": [
+    { "id": "indexed", "example": "indexed", "description": "Decomposition complete for the visible set." },
+    { "id": "indexing", "example": "indexing", "description": "Decomposition in progress with a known backlog." },
+    { "id": "results", "example": "results", "description": "Showing search results." },
+    { "id": "empty", "example": "empty", "description": "No source folders configured yet." }
+  ],
+  "elements": [
+    { "id": "search-input", "role": "searchbox", "description": "Natural-language and attribute search." },
+    { "id": "track-row", "role": "listitem", "description": "One track in a listing." },
+    { "id": "similar-action", "role": "button", "description": "Find tracks similar to this one." },
+    { "id": "generated-badge", "role": "status", "description": "Generated-content disclosure in listings." },
+    { "id": "index-progress", "role": "progressbar", "description": "Decomposition backlog and progress." },
+    { "id": "coverage-note", "role": "status", "description": "States that unanalysed tracks are excluded from attribute results." }
+  ],
+  "claims": [
+    {
+      "id": "partial-index-is-disclosed",
+      "type": "element-present",
+      "statement": "While indexing, the library states that unanalysed tracks are not yet searchable by attribute.",
+      "tier": "machine",
+      "elements": ["index-progress", "coverage-note"],
+      "states": ["indexing"]
+    },
+    {
+      "id": "similarity-is-a-primary-action",
+      "type": "element-present",
+      "statement": "Every track row exposes a direct control to find similar tracks.",
+      "tier": "machine",
+      "elements": ["track-row", "similar-action"],
+      "states": ["indexed", "results"]
+    },
+    {
+      "id": "generated-disclosed-in-listings",
+      "type": "element-present",
+      "statement": "Generated tracks carry their disclosure in listings, not only in the player.",
+      "tier": "machine",
+      "elements": ["generated-badge"],
+      "states": ["indexed", "results"]
+    },
+    {
+      "id": "empty-state-directs-setup",
+      "type": "element-present",
+      "statement": "With no source folders configured the library directs the listener to add one.",
+      "tier": "machine",
+      "elements": ["search-input"],
+      "states": ["empty"]
+    }
+  ],
+  "bindings": {
+    "elements": {
+      "search-input": { "testid": "library-search" },
+      "track-row": { "testid": "library-track-row" },
+      "similar-action": { "testid": "library-similar-action" },
+      "generated-badge": { "testid": "generated-badge" },
+      "index-progress": { "testid": "library-index-progress" },
+      "coverage-note": { "testid": "library-coverage-note" }
+    }
+  }
+}

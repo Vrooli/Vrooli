@@ -105,6 +105,37 @@ func TestInMemoryStoreUpdateStage(t *testing.T) {
 	})
 }
 
+func TestInMemoryStoreReadsAreIndependentSnapshots(t *testing.T) {
+	store := NewInMemoryStore()
+	store.Save(&Status{
+		PipelineID: "snapshot-test",
+		Status:     StatusRunning,
+		StageOrder: []string{"build"},
+		Stages: map[string]*StageResult{
+			"build": {Stage: "build", Status: StatusRunning, Logs: []string{"started"}},
+		},
+		Config: &PipelineConfig{Platforms: []string{"linux/amd64"}},
+	})
+
+	read, ok := store.Get("snapshot-test")
+	if !ok {
+		t.Fatal("expected stored status")
+	}
+	read.Status = StatusFailed
+	read.StageOrder[0] = "smoketest"
+	read.Stages["build"].Status = StatusFailed
+	read.Stages["build"].Logs[0] = "mutated"
+	read.Config.Platforms[0] = "windows/amd64"
+
+	stored, ok := store.Get("snapshot-test")
+	if !ok {
+		t.Fatal("expected stored status after read mutation")
+	}
+	if stored.Status != StatusRunning || stored.StageOrder[0] != "build" || stored.Stages["build"].Status != StatusRunning || stored.Stages["build"].Logs[0] != "started" || stored.Config.Platforms[0] != "linux/amd64" {
+		t.Fatalf("read mutation leaked into store: %#v", stored)
+	}
+}
+
 func TestCancelManagerOperations(t *testing.T) {
 	cm := NewInMemoryCancelManager()
 

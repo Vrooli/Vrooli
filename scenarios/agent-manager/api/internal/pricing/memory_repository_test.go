@@ -18,18 +18,95 @@ type MemoryRepository struct {
 	settings  *PricingSettings
 
 	// For historical averages simulation (in real impl, this comes from run_events)
-	historicalAverages map[string]*HistoricalPricing // key: canonicalModel
+	quotaObservations []QuotaObservation
 }
 
 // NewMemoryRepository creates a new in-memory pricing repository.
 func NewMemoryRepository() *MemoryRepository {
 	return &MemoryRepository{
-		pricing:            make(map[string]*ModelPricing),
-		aliases:            make(map[string]*ModelAlias),
-		overrides:          make(map[string]*ManualPriceOverride),
-		settings:           DefaultPricingSettings(),
-		historicalAverages: make(map[string]*HistoricalPricing),
+		pricing:           make(map[string]*ModelPricing),
+		aliases:           make(map[string]*ModelAlias),
+		overrides:         make(map[string]*ManualPriceOverride),
+		settings:          DefaultPricingSettings(),
+		quotaObservations: make([]QuotaObservation, 0),
 	}
+}
+
+var _ QuotaObservationRepository = (*MemoryRepository)(nil)
+
+// RecordQuotaObservation retains an immutable copy of a provider observation.
+func (r *MemoryRepository) RecordQuotaObservation(ctx context.Context, observation *QuotaObservation) error {
+	if observation != nil && observation.Freshness == "" {
+		observation.Freshness = ObservationUnknown
+	}
+	if err := observation.Validate(); err != nil {
+		return err
+	}
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	copy := cloneQuotaObservation(observation)
+	if copy.ID == "" {
+		copy.ID = QuotaObservationID(copy)
+		if copy.ID == "" {
+			copy.ID = uuid.NewString()
+		}
+	}
+	for _, existing := range r.quotaObservations {
+		if existing.ID == copy.ID {
+			return nil
+		}
+	}
+	r.quotaObservations = append(r.quotaObservations, *copy)
+	return nil
+}
+
+func (r *MemoryRepository) ListQuotaObservations(ctx context.Context, provider, pool, window string, limit int) ([]QuotaObservation, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	if limit <= 0 {
+		limit = 100
+	}
+	result := make([]QuotaObservation, 0, len(r.quotaObservations))
+	for i := len(r.quotaObservations) - 1; i >= 0 && len(result) < limit; i-- {
+		o := r.quotaObservations[i]
+		if provider != "" && o.Provider != provider || pool != "" && o.Pool != pool || window != "" && o.Window != window {
+			continue
+		}
+		result = append(result, *cloneQuotaObservation(&o))
+	}
+	return result, nil
+}
+
+func cloneQuotaObservation(observation *QuotaObservation) *QuotaObservation {
+	if observation == nil {
+		return nil
+	}
+	copy := *observation
+	if observation.Used != nil {
+		v := *observation.Used
+		copy.Used = &v
+	}
+	if observation.Limit != nil {
+		v := *observation.Limit
+		copy.Limit = &v
+	}
+	if observation.Remaining != nil {
+		v := *observation.Remaining
+		copy.Remaining = &v
+	}
+	if observation.ResetAt != nil {
+		v := observation.ResetAt.UTC()
+		copy.ResetAt = &v
+	}
+	if observation.UsedPercent != nil {
+		v := *observation.UsedPercent
+		copy.UsedPercent = &v
+	}
+	if observation.WindowMinutes != nil {
+		v := *observation.WindowMinutes
+		copy.WindowMinutes = &v
+	}
+	return &copy
 }
 
 func memPricingKey(canonicalModel, provider string) string {
@@ -289,29 +366,6 @@ func (r *MemoryRepository) CleanupExpiredOverrides(ctx context.Context) (int, er
 	return count, nil
 }
 
-// --- Historical Pricing ---
-
-func (r *MemoryRepository) GetHistoricalAverages(ctx context.Context, canonicalModel string, since time.Time) (*HistoricalPricing, error) {
-	r.mu.RLock()
-	defer r.mu.RUnlock()
-
-	// In memory repository, we return pre-seeded historical data if available
-	if h, ok := r.historicalAverages[canonicalModel]; ok {
-		clone := *h
-		return &clone, nil
-	}
-	return nil, nil
-}
-
-// SetHistoricalAverages is a test helper to seed historical pricing data.
-func (r *MemoryRepository) SetHistoricalAverages(canonicalModel string, historical *HistoricalPricing) {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-
-	clone := *historical
-	r.historicalAverages[canonicalModel] = &clone
-}
-
 // --- Settings ---
 
 func (r *MemoryRepository) GetSettings(ctx context.Context) (*PricingSettings, error) {
@@ -345,5 +399,4 @@ func (r *MemoryRepository) Clear() {
 	r.aliases = make(map[string]*ModelAlias)
 	r.overrides = make(map[string]*ManualPriceOverride)
 	r.settings = DefaultPricingSettings()
-	r.historicalAverages = make(map[string]*HistoricalPricing)
 }

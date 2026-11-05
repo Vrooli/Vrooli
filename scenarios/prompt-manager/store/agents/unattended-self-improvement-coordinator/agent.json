@@ -1,0 +1,19 @@
+{
+  "kind": "agent",
+  "schemaVersion": 1,
+  "id": "unattended-self-improvement-coordinator",
+  "displayName": "Unattended Self-Improvement Coordinator",
+  "status": "active",
+  "appearance": {
+    "body": "#3B82F6",
+    "head": "#F59E0B",
+    "accent": "#10B981"
+  },
+  "fileOrder": [
+    "AGENT.md"
+  ],
+  "revision": 2,
+  "createdAt": "2026-09-13T21:55:35Z",
+  "updatedAt": "2026-10-24T11:52:50Z",
+  "description": "Deliver the reviewed unattended-self-improvement family to its intent: honest goal/sliced execution, interruption recovery, mandate shape and operator surfaces, then the product launches on the reviewed frontier."
+}

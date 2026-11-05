@@ -1,0 +1,31 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "generators.theme-generator",
+    "name": "ThemeGenerator",
+    "kind": "generator",
+    "domain": "generators",
+    "description": "Produces complete semantic theme mappings from brand inputs while validating contrast, state differentiation, chart palettes, typography, and light-and-dark coherence.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "lib-util",
+    "delivery": "generated",
+    "target": {
+      "priority": "P0",
+      "maturity": "verified",
+      "plannedBy": "2026-12-31"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "foundations.themes",
+        "reason": "Output is a theme over the shared semantic token layer."
+      }
+    ]
+  },
+  "rationale": "Validation is the point rather than generation: a theme generator that emits an inaccessible palette has produced a liability, so contrast and state-differentiation checks run before the theme is written."
+}

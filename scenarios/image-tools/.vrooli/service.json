@@ -1,0 +1,486 @@
+{
+  "$schema": "../../../../.vrooli/schemas/service.schema.json",
+  "version": "1.0.0",
+  "service": {
+    "parent": "vrooli",
+    "name": "image-tools",
+    "displayName": "Image Tools",
+    "description": "Local-first image toolbox: deterministic editing, on-demand AI generation/enhancement, and image analysis via CLI, UI, and API.",
+    "version": "0.0.1",
+    "type": "business-application",
+    "category": "ai_tools",
+    "tags": [
+      "react-ui",
+      "go-api"
+    ]
+  },
+  "ports": {
+    "api": {
+      "env_var": "API_PORT",
+      "description": "Go API server",
+      "range": "15000-19999"
+    },
+    "ui": {
+      "env_var": "UI_PORT",
+      "description": "React UI",
+      "range": "20000-24999"
+    }
+  },
+  "lifecycle": {
+    "version": "2.0.0",
+    "health": {
+      "description": "Standard API/UI health checks",
+      "endpoints": {
+        "api": "/health",
+        "ui": "/health"
+      },
+      "checks": [
+        {
+          "name": "api_endpoint",
+          "type": "http",
+          "target": "http://localhost:${API_PORT}/health",
+          "critical": true,
+          "timeout": 10000,
+          "interval": 30000
+        },
+        {
+          "name": "ui_endpoint",
+          "type": "http",
+          "target": "http://localhost:${UI_PORT}/health",
+          "timeout": 5000,
+          "interval": 30000
+        }
+      ],
+      "startup_grace_period": 15000
+    }
+  },
+  "dependencies": {
+    "resources": {
+      "openrouter": {
+        "type": "openrouter",
+        "required": false,
+        "model_roles": [
+          "image.generate.default",
+          "image.generate.logo",
+          "image.edit.default",
+          "image.edit.identity"
+        ],
+        "description": "Optional BYOK cloud image backend (last tier). The concrete model is resolved per request from an OpenRouter policy role; callers carry intent via the openrouter_role param.",
+        "startup_policy": "try_start"
+      }
+    },
+    "scenarios": {
+      "device-studio": {
+        "required": false,
+        "startup_policy": "try_start",
+        "degraded_behavior": "Image operations and preparation review remain available; scene import reports Device Studio unavailable until that owner recovers.",
+        "versionRange": ">=0.0.1",
+        "description": "Optional conversion of reviewed photographic preparations into Device Studio scene candidates.",
+        "freshness_policy": "reuse_running"
+      },
+      "ai-gateway": {
+        "required": false,
+        "versionRange": ">=0.0.1",
+        "description": "Optional cloud-provider routing; local model operations do not require gateway availability.",
+        "startup_policy": "try_start",
+        "freshness_policy": "reuse_running",
+        "degraded_behavior": "Local models and retained assets remain available; gateway-backed provider routes report their unavailable state."
+      }
+    }
+  },
+  "storage": {
+    "entries": {
+      "database": {
+        "rung": "owned",
+        "kind": "file",
+        "class": "data",
+        "regenerable": false,
+        "subpath": "image-tools.db",
+        "rationale": "Scenario-owned SQLite database contains durable job, model-install, adapter-install, settings, and audit state; whole-file cleanup is forbidden.",
+        "budget": {
+          "max_bytes": "5GiB",
+          "rationale": "Durable application state is alarm-only; reclaim requires domain migrations or explicit database maintenance."
+        },
+        "format": "sqlite"
+      },
+      "models": {
+        "rung": "owned",
+        "kind": "dir",
+        "class": "data",
+        "regenerable": false,
+        "subpath": "models",
+        "rationale": "Downloaded model weights are expensive, user-selected durable assets and are never candidates for blob-output cleanup.",
+        "budget": {
+          "max_bytes": "160GiB",
+          "rationale": "Observed model weights are approximately 88GiB; the ceiling allows catalog growth while surfacing runaway downloads without authorizing deletion."
+        }
+      },
+      "adapters": {
+        "rung": "owned",
+        "kind": "dir",
+        "class": "data",
+        "regenerable": false,
+        "subpath": "adapters",
+        "rationale": "Downloaded conditioning adapters are durable selected assets and are protected from retention cleanup.",
+        "budget": {
+          "max_bytes": "32GiB",
+          "rationale": "Observed adapters are approximately 8GiB; the ceiling bounds future growth without permitting automatic deletion."
+        }
+      },
+      "input_blobs": {
+        "rung": "owned",
+        "kind": "dir",
+        "class": "data",
+        "regenerable": false,
+        "subpath": "blobs/input",
+        "rationale": "Uploaded source images are user-owned inputs and are not reproducible or cleanup candidates.",
+        "budget": {
+          "max_bytes": "32GiB",
+          "rationale": "Input retention is durable user work; the ceiling is alarm-only."
+        }
+      },
+      "conditioning_blobs": {
+        "rung": "owned",
+        "kind": "dir",
+        "class": "data",
+        "regenerable": false,
+        "subpath": "blobs/cond",
+        "rationale": "Conditioning images are user-provided operation inputs and remain protected.",
+        "budget": {
+          "max_bytes": "8GiB",
+          "rationale": "Conditioning assets are durable inputs; the ceiling is alarm-only."
+        }
+      },
+      "auxiliary_blobs": {
+        "rung": "owned",
+        "kind": "dir",
+        "class": "data",
+        "regenerable": false,
+        "subpath": "blobs/mask",
+        "rationale": "Mask and auxiliary blobs can be referenced by user operations and are protected from generic retention.",
+        "budget": {
+          "max_bytes": "8GiB",
+          "rationale": "Auxiliary operation inputs are alarm-only until their ownership model is explicit."
+        }
+      },
+      "job_outputs": {
+        "rung": "owned",
+        "kind": "dir",
+        "class": "cache",
+        "regenerable": true,
+        "subpath": "blobs/out",
+        "rationale": "Managed output blobs are derived from terminal jobs. The image-tools owner retention loop (internal/cleanup/retention.go, every 30m) deletes outputs whose newest referencing job finished beyond max_age, then the oldest beyond max_bytes after a 1h grace; it protects pinned results, inputs of queued/running jobs, and files no successful job indexes, and writes the shared enforcement receipt plus retention/job-outputs-cycle.json with protected counts by reason. The storage-manager owner provider remains a reviewed, operator-approved path over the same eligibility. The writer uses the resolver-selected cache root; source images and retained preparation bundles remain in data.",
+        "budget": {
+          "max_age": "30d",
+          "max_bytes": "32GiB",
+          "rationale": "Thirty days preserves result retrieval for consumers that fetch late while bounding derived output growth (an August 2026 burst wrote 8.4k outputs, ~5GiB, never reclaimed). Consumers that keep a result must copy its bytes or pin the job; IMAGE_TOOLS_OUTPUT_RETENTION_MAX_AGE/_MAX_BYTES override for an operator."
+        },
+        "reclaim": {
+          "pruner": "custom"
+        }
+      },
+      "python_runtime": {
+        "rung": "owned",
+        "kind": "dir",
+        "class": "cache",
+        "regenerable": true,
+        "subpath": "pyenv",
+        "rationale": "The private Python environment is lock-rebuilt runtime material, separate from model weights and user data. The writer uses the resolver-selected cache root; source images and retained preparation bundles remain in data.",
+        "budget": {
+          "max_bytes": "12GiB",
+          "rationale": "The environment is rebuilt from the committed lock; the ceiling detects failed or duplicated provisioning. No age bound and no generic pruner: a live environment's files never change, so an age pruner selects every top-level entry (lib, bin, pyvenv.cfg) and leaves a half-deleted runtime."
+        },
+        "reclaim": {
+          "pruner": "custom"
+        }
+      },
+      "sidecar_runtime": {
+        "rung": "owned",
+        "kind": "dir",
+        "class": "cache",
+        "regenerable": true,
+        "subpath": "sidecar",
+        "rationale": "The embedded Python sidecar is materialized runtime code and can be rebuilt from source. The writer uses the resolver-selected cache root; source images and retained preparation bundles remain in data.",
+        "budget": {
+          "max_bytes": "1GiB",
+          "rationale": "Sidecar materialization is small and reproducible; the ceiling catches duplicate copies without authorizing active-runtime deletion. No age bound and no generic pruner: unchanging live runtime code would otherwise age into deletion."
+        },
+        "reclaim": {
+          "pruner": "custom"
+        }
+      },
+      "deployment_state": {
+        "rung": "owned",
+        "kind": "dir",
+        "class": "data",
+        "regenerable": false,
+        "subpath": "deployment",
+        "rationale": "Deployment reports are operational state retained for diagnostics and are not owned by job-output cleanup. The lifecycle writes this report below the resolver-selected data root.",
+        "budget": {
+          "max_bytes": "64MiB",
+          "rationale": "Deployment state is small and alarm-only."
+        }
+      },
+      "diff_blobs": {
+        "rung": "owned",
+        "kind": "dir",
+        "class": "data",
+        "regenerable": false,
+        "subpath": "blobs/diff",
+        "rationale": "Comparison heatmaps are retained job results. Original comparison uploads are not retained, so exact reconstruction is not guaranteed and generic cleanup is forbidden.",
+        "budget": {
+          "max_bytes": "1GiB",
+          "rationale": "Measured 12KiB allocated on 2026-10-22; alarm-only ceiling covers comparison history without authorizing deletion."
+        }
+      },
+      "database_wal": {
+        "rung": "owned",
+        "kind": "file",
+        "class": "data",
+        "regenerable": false,
+        "subpath": "image-tools.db-wal",
+        "rationale": "Live SQLite sidecar belongs to the durable database and must not be pruned independently.",
+        "budget": {
+          "max_bytes": "5GiB",
+          "rationale": "Alarm-only database sidecar budget; lifecycle/database ownership controls reconstruction and checkpointing."
+        }
+      },
+      "database_shm": {
+        "rung": "owned",
+        "kind": "file",
+        "class": "data",
+        "regenerable": false,
+        "subpath": "image-tools.db-shm",
+        "rationale": "Live SQLite sidecar belongs to the durable database and must not be pruned independently.",
+        "budget": {
+          "max_bytes": "64MiB",
+          "rationale": "Alarm-only database sidecar budget; lifecycle/database ownership controls reconstruction and checkpointing."
+        }
+      },
+      "scene_preparations": {
+        "rung": "owned",
+        "kind": "dir",
+        "class": "data",
+        "regenerable": false,
+        "subpath": "blobs/scene-preparations",
+        "rationale": "Immutable preparation revisions and review evidence survive disposable inference outputs; generic cleanup is forbidden.",
+        "budget": {
+          "max_bytes": "8GiB",
+          "rationale": "Alarm-only ceiling for retained photographic preparations; removal requires an owner retention policy."
+        }
+      },
+      "scene_preparation_previews": {
+        "rung": "owned",
+        "kind": "dir",
+        "class": "data",
+        "regenerable": false,
+        "subpath": "blobs/scene-preparation-assets",
+        "rationale": "Immutable preparation revisions and review evidence survive disposable inference outputs; generic cleanup is forbidden.",
+        "budget": {
+          "max_bytes": "8GiB",
+          "rationale": "Alarm-only ceiling for retained photographic preparations; removal requires an owner retention policy."
+        }
+      },
+      "python_lock": {
+        "rung": "owned",
+        "kind": "file",
+        "class": "cache",
+        "regenerable": true,
+        "subpath": "requirements.lock",
+        "rationale": "Embedded dependency lock materialized beside the isolated cache runtime; canonical source remains committed.",
+        "budget": {
+          "max_bytes": "1MiB",
+          "rationale": "Alarm-only bound for the committed runtime lock."
+        }
+      },
+      "legacy_python_runtime": {
+        "rung": "owned",
+        "kind": "dir",
+        "class": "cache",
+        "regenerable": true,
+        "subpath": "legacy-pyenv",
+        "rationale": "Quiesced previous environment retained during cache-root migration, never executed; replacement is rebuilt through native lock-pinned provisioning.",
+        "budget": {
+          "max_bytes": "12GiB",
+          "max_age": "7d",
+          "rationale": "Temporary rollback retention; explicit cleanup after replacement qualification."
+        }
+      },
+      "retention_receipts": {
+        "rung": "owned",
+        "kind": "dir",
+        "class": "state",
+        "regenerable": false,
+        "subpath": "retention",
+        "rationale": "Control-plane retention enforcement receipts retain operational audit state; not inference output or cleanup candidates.",
+        "budget": {
+          "max_bytes": "1MiB",
+          "rationale": "Alarm-only bound for the latest retention receipt."
+        }
+      }
+    },
+    "cleanup_providers": [
+      {
+        "id": "image-tools-job-blobs",
+        "name": "Image-tools terminal job-output blobs",
+        "safety_tier": "safe_with_owner",
+        "default_mode": "disabled",
+        "default_approval": "operator",
+        "storage_entries": [
+          "job_outputs"
+        ]
+      }
+    ],
+    "rationale": "Image-tools declares each observed storage surface separately so model weights, adapters, inputs, derived outputs, runtime environments, and durable state cannot be conflated by a single parent data entry."
+  },
+  "generation": {
+    "template": {
+      "id": "react-vite",
+      "version": "1.1.0"
+    },
+    "generated_at": "2026-06-16T19:37:32Z",
+    "design": {
+      "id": "vrooli-default",
+      "version": "0.2.0",
+      "adapter": "react-vite-tailwind"
+    },
+    "manifest_sha": "efce375640f074bcbd20e0463fd67d9b413778c930293dda319a6e2f21526fd5",
+    "content_sha": "f26ae1ea5fb267b746c6ab7966468b0f3cebd1fc6631e78cbf6eac20fce1244e"
+  },
+  "cli": {
+    "enabled": true,
+    "command": "image-tools",
+    "adapter": {
+      "kind": "go_module",
+      "module_dir": "cli"
+    },
+    "artifacts": {
+      "manifest": {},
+      "build_metadata": {}
+    },
+    "invoke": {
+      "kind": "installed_command",
+      "command": "image-tools"
+    },
+    "freshness": {
+      "inputs": [
+        "cli/**",
+        ".vrooli/service.json"
+      ]
+    },
+    "source_build": {
+      "kind": "go_module"
+    }
+  },
+  "hostTools": [
+    {
+      "name": "google-chrome-stable",
+      "required": false,
+      "reason": "High-fidelity SVG rasterization. oksvg silently drops <filter>, <mask>, <pattern> and CSS, so a document using any of them is rendered here or refused by name \u2014 never degraded into a plausible wrong picture.",
+      "when": [
+        "develop"
+      ],
+      "notes": "Only consulted for SVG that uses one of those four features; plain SVG keeps the pure-Go path, so this is never required (headless tenet). Discovery falls back through google-chrome, chromium, chromium-browser, chrome and headless-shell, and IMAGE_TOOLS_CHROME_BINARY overrides it. Absent, ops.rasterizeSVG returns ErrSVGFidelityUnavailable naming the features and this tool."
+    },
+    {
+      "name": "ffmpeg",
+      "required": false,
+      "reason": "Transcode image formats Go's native imaging libraries can't fully cover (AVIF/HEIC encode, animated GIF/WebP) during deterministic format conversion",
+      "when": [
+        "setup",
+        "develop"
+      ],
+      "notes": "Deterministic ops use pure-Go imaging by default; ffmpeg is only consulted for the formats Go can't handle, and conversion degrades gracefully (clear error) when it is absent. Never required (headless tenet)."
+    },
+    {
+      "name": "realesrgan-ncnn-vulkan",
+      "required": false,
+      "reason": "Optional upscale/denoise backend (Real-ESRGAN ncnn-vulkan). Fetched on demand into ~/.vrooli/bin via `vrooli host install`; never auto-downloaded by default setup (headless tenet).",
+      "when": [
+        "develop"
+      ],
+      "notes": "Data-declared url/release host tool (internal/tools/realesrgan-ncnn-vulkan). Backs the realesrgan-ncnn-vulkan provider's upscale/denoise ops."
+    },
+    {
+      "name": "sd",
+      "required": false,
+      "manual": true,
+      "reason": "Optional generative backend (stable-diffusion.cpp) for text_to_image/image_to_image. GPU-recommended; no checksum-pinnable release, so install is manual.",
+      "when": [
+        "develop"
+      ],
+      "notes": "Capability-gated (requires GPU) in internal/tools/sd; resolves not-applicable on CPU-only hosts. Backs the stable-diffusion.cpp provider."
+    },
+    {
+      "name": "iopaint",
+      "required": false,
+      "manual": true,
+      "reason": "Optional object-removal/inpainting backend (IOPaint). Python/pip tool; surfaced but never auto-fetched.",
+      "when": [
+        "develop"
+      ],
+      "notes": "Backs the iopaint provider's object_removal op. Install with pipx/pip (see installHint)."
+    },
+    {
+      "name": "rembg",
+      "required": false,
+      "manual": true,
+      "reason": "Optional background-removal backend (rembg). Python/pip tool; surfaced but never auto-fetched.",
+      "when": [
+        "develop"
+      ],
+      "notes": "Backs the rembg provider's background_removal/background_replace ops. Install with pipx/pip (see installHint)."
+    },
+    {
+      "name": "llama-cpp",
+      "required": false,
+      "manual": true,
+      "reason": "Optional caption backend (llama.cpp multimodal runner). Built/installed manually; surfaced but never auto-fetched.",
+      "when": [
+        "develop"
+      ],
+      "notes": "Backs the llama.cpp provider's caption op (llama-mtmd-cli/llama-cli)."
+    },
+    {
+      "name": "uv",
+      "required": false,
+      "reason": "Astral uv builds the private, lock-pinned Python venv that isolates every Python AI backend (diffusers, onnxruntime, python-sidecar). Its absolute interpreter \u2014 never the host python3 \u2014 runs the sidecars, so torch/diffusers/transformers come from internal/pydeps/requirements.lock and cannot be perturbed by other Python on the box.",
+      "when": [
+        "develop"
+      ],
+      "notes": "Data-declared release host tool (internal/tools/uv) fetched no-sudo into ~/.vrooli/bin. On the next start image-tools builds/repairs the venv from the embedded lock; until uv is installed the Python backends report unavailable (surfaced before use), never falling back to the shared interpreter. The single Python-dependency source of truth is the lock \u2014 there is no separate pip step."
+    }
+  ],
+  "environment": {},
+  "components": {
+    "api": {
+      "role": "api",
+      "build": {
+        "kind": "go_module",
+        "dir": "api"
+      },
+      "run": {
+        "argv": [
+          "{{bin.api}}"
+        ],
+        "port": "api",
+        "cwd": "api"
+      }
+    },
+    "ui": {
+      "role": "ui",
+      "build": {
+        "kind": "pnpm_vite",
+        "dir": "ui"
+      },
+      "run": {
+        "argv": [
+          "node",
+          "server.js"
+        ],
+        "cwd": "ui",
+        "port": "ui"
+      }
+    }
+  }
+}

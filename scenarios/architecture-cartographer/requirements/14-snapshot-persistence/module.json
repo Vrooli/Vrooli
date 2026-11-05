@@ -1,0 +1,86 @@
+{
+  "description": "Store graph snapshots across runs in a local SQLite store so agents can diff before-domain vs. after-domain state and measure drift over time; no external resource dependency.",
+  "module_id": "MOD-P1-014",
+  "prd_ref": "OT-P1-004",
+  "priority": "P1",
+  "requirements": [
+    {
+      "category": "core",
+      "dependencies": [
+        "REQ-P0-001",
+        "REQ-P0-009"
+      ],
+      "description": "Cartographer must store graph snapshots across runs in a local SQLite store (AC-SNAPSHOT-STORE) with no external resource dependency. Agents must be able to diff before-domain vs. after-domain state across runs (AC-SNAPSHOT-DIFF). Per-domain drift measurement over time must be computable from stored snapshots (AC-SNAPSHOT-DRIFT). Snapshots are keyed by scenario, run timestamp, and content hash.",
+      "id": "REQ-P1-004",
+      "prd_ref": "OT-P1-004",
+      "status": "draft",
+      "title": "Snapshot Persistence — SQLite Graph Store with Diffing and Drift Measurement",
+      "validation": [
+        {
+          "notes": "AC-SNAPSHOT-STORE: Graph snapshot serializes to and deserializes from SQLite without data loss",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "AC-SNAPSHOT-STORE: Snapshots are keyed by (scenario_id, timestamp, content_hash) with a unique constraint",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "AC-SNAPSHOT-DIFF: Diff between two snapshots correctly identifies added nodes, removed nodes, added edges, and removed edges",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "AC-SNAPSHOT-DRIFT: Drift metric (conflict count delta) between two snapshots is correctly computed per domain",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Run extraction twice against the same fixture; second run's snapshot matches first run's snapshot (determinism)",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Modify a fixture file, run extraction, and diff shows exactly the modified file's node as changed",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "arch-cart drift --domain \u003cname\u003e shows the conflict count change over the last N runs using stored snapshots",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "A team can track architecture improvement over time by comparing snapshot drift metrics before and after migration sprints",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "No external database or network connection is required to store or query snapshots",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Snapshot Persistence"
+}

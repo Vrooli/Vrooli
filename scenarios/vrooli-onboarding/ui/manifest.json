@@ -1,0 +1,54 @@
+{
+  "$schema": "../../../.vrooli/schemas/scenario-ui-manifest.schema.json",
+  "title": "Vrooli onboarding UI manifest",
+  "description": "Scenario-owned overlay for the manifest-derived onboarding experience.",
+  "schemaVersion": "2.0.0",
+  "targets": ["react-vite"],
+  "idiom": "react-typescript",
+  "provides": ["design-tokens", "ui-provider"],
+  "gates": ["types", "tokens", "lifecycle"],
+  "templateStructureVersion": "react-vite/v2",
+  "slotCoverage": "partial",
+  "contract": {
+    "kind": "scenario-ui",
+    "schema": "scenario-ui-manifest/v2",
+    "template": "react-vite",
+    "extensionRule": "The onboarding flow owns its feature pages while retaining the generated slot contract."
+  },
+  "slots": {
+    "ui-primitive": {"dir": "ui/src/components/ui"},
+    "shared-component": {"dir": "ui/src/components"},
+    "layout-shell": {"dir": "ui/src/components/layout", "pathPattern": "{dir}/{ComponentName}.tsx"},
+    "layout-nav": {"dir": "ui/src/components", "pathPattern": "{dir}/{ComponentName}.tsx"},
+    "page": {"dir": "ui/src/components", "pathPattern": "{dir}/{ComponentName}.tsx"},
+    "feature": {"dir": "ui/src/components/{feature}", "pathPattern": "{dir}", "multiFile": true, "requiresFeature": true},
+    "feature-component": {"dir": "ui/src/components/{feature}", "requiresFeature": true},
+    "hook": {"dir": "ui/src/hooks", "pathPattern": "{dir}/{camelName}.ts"},
+    "api-client": {"dir": "ui/src/api", "pathPattern": "{dir}/{camelName}.ts"},
+    "lib-util": {"dir": "ui/src/lib", "pathPattern": "{dir}/{camelName}.ts"},
+    "consts": {"dir": "ui/src/consts", "pathPattern": "{dir}/{camelName}.ts"},
+    "i18n-strings": {"dir": "ui/src/i18n/locales", "pathPattern": "{dir}/{locale}.json"},
+    "theme-token": {"dir": "ui/src", "pathPattern": "{dir}/design-tokens.css"},
+    "test-util": {"dir": "ui/src/test-utils", "pathPattern": "{dir}/{camelName}.ts"},
+    "service": {"dir": "ui/src/services", "pathPattern": "{dir}/{camelName}.ts"},
+    "provider": {"dir": "ui/src/providers", "pathPattern": "{dir}/{ComponentName}.tsx"},
+    "adapter": {"dir": "ui/src/adapters", "pathPattern": "{dir}/{camelName}.ts"},
+    "pattern": {"dir": "ui/src/patterns", "pathPattern": "{dir}/{ComponentName}.tsx", "multiFile": true},
+    "page-template": {"dir": "ui/src/templates", "pathPattern": "{dir}/{ComponentName}.tsx", "multiFile": true},
+    "fixture": {"dir": "ui/src/fixtures", "pathPattern": "{dir}/{camelName}.ts"},
+    "visual-recipe": {"dir": "ui/src/visual", "pathPattern": "{dir}/{kebab-name}.ts"},
+    "motion": {"dir": "ui/src/motion", "pathPattern": "{dir}/{camelName}.ts"}
+  },
+  "defaults": {"slot": "shared-component", "fallbackDir": "ui/src/components"},
+  "files": {
+    "selectorRegistry": {"path": "ui/src/consts/selectors.ts"},
+    "appEntry": {"path": "ui/src/main.tsx"},
+    "localeCatalogue": {"path": "ui/src/i18n/locales/{locale}.json", "defaultLocale": "en"}
+  },
+  "shell": {
+    "archetype": "navigated-console",
+    "asset": "AppShell",
+    "entry": "ui/src/components/layout/AppShell.tsx",
+    "export": "AppShell"
+  }
+}

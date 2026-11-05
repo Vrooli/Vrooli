@@ -1,0 +1,38 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
+  "assetKind": "primitive",
+  "catalogId": "primitives.selection-control",
+  "deprecatedVersions": [
+    "1.0.0",
+    "1.0.1",
+    "1.0.2",
+    "1.0.3",
+    "1.0.4",
+    "1.0.5",
+    "1.0.6",
+    "1.0.7"
+  ],
+  "draft": "",
+  "evictedVersions": [
+    "1.0.1",
+    "1.0.2",
+    "1.0.3",
+    "1.0.4",
+    "1.0.5",
+    "1.0.6",
+    "1.0.0",
+    "1.0.7"
+  ],
+  "latest": "1.0.11",
+  "libraryId": "react-component-library:SelectionControl",
+  "displayName": "Selection Control",
+  "description": "Reusable selection control primitive implementation for the React component library.",
+  "tags": [],
+  "designStyles": [
+    {
+      "styleId": "vrooli-default",
+      "affinity": "native",
+      "reason": "token-native operational-console baseline"
+    }
+  ]
+}

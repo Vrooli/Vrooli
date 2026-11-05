@@ -1,0 +1,72 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "ai.tool-execution-card",
+    "name": "ToolExecutionCard",
+    "kind": "component",
+    "surface": "raised",
+    "domain": "ai",
+    "description": "The structured tool operation showing input summary, permission scope, and pending, running, progress, result, failure, retry, and cancellation, with expandable detail on demand.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "ui-primitive",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P0",
+      "maturity": "production-ready",
+      "plannedBy": "2026-12-31"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "primitives.card",
+        "reason": "Framing uses the shared card, which is a genuinely bounded object here."
+      },
+      {
+        "asset": "feedback.async-boundary",
+        "reason": "Loading, empty, partial, stale, error, and offline presentation are delegated rather than reimplemented."
+      },
+      {
+        "asset": "primitives.status-indicator",
+        "reason": "Certainty and urgency are expressed on the shared orthogonal axes rather than as one flat variant set."
+      },
+      {
+        "asset": "data-display.json-viewer",
+        "reason": "Structured inputs and results render through the shared viewer."
+      }
+    ]
+  },
+  "requiredCapabilities": [
+    "accessible-naming",
+    "keyboard-operable",
+    "focus-order",
+    "contrast-floor",
+    "text-scale-resilience",
+    "content-reflow",
+    "responsive-transformation",
+    "reading-order-honest",
+    "status-announced",
+    "transition-non-blocking",
+    "entrance-restraint",
+    "reduced-motion",
+    "recovery-path",
+    "error-honesty",
+    "error-message-usefulness",
+    "permission-explained",
+    "partial-degradation"
+  ],
+  "requiredStates": [
+    "default",
+    "loading",
+    "success",
+    "partial",
+    "request-error",
+    "permission-denied",
+    "retry"
+  ],
+  "rationale": "Must distinguish will-run from did-run unambiguously. A card that renders a proposed call identically to a completed one is how users approve things they believed had already happened."
+}

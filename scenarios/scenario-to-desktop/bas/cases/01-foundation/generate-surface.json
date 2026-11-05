@@ -1,0 +1,12 @@
+{
+  "metadata": {"name":"scenario-to-desktop-generate-surface","description":"Given an operator opens the generator for scenario-to-desktop, when the page loads, then the scenario and template controls are available.","labels":{"reset":"none","requirements_json":"[\"STD-FRAMEWORK-ELECTRON\"]","purpose":"desktop-generate-surface"},"execution_mode":"observer"},
+  "settings":{"viewport_width":1440,"viewport_height":900},
+  "nodes":[
+    {"id":"navigate","action":{"type":"ACTION_TYPE_NAVIGATE","navigate":{"destination_type":"NAVIGATE_DESTINATION_TYPE_SCENARIO","scenario":"scenario-to-desktop","scenario_path":"/?view=generator&scenario=scenario-to-desktop","wait_until":"NAVIGATE_WAIT_EVENT_NETWORKIDLE","timeout_ms":30000},"metadata":{"label":"Open the desktop generator"}}},
+    {"id":"assert-root","action":{"type":"ACTION_TYPE_ASSERT","assert":{"selector":"@selector/app.root","mode":"ASSERTION_MODE_EXISTS","timeout_ms":10000},"metadata":{"label":"Generator application renders"}}},
+    {"id":"assert-scenario","action":{"type":"ACTION_TYPE_ASSERT","assert":{"selector":"@selector/generator.scenarioPicker","mode":"ASSERTION_MODE_EXISTS","timeout_ms":10000},"metadata":{"label":"Scenario picker is available"}}},
+    {"id":"assert-template","action":{"type":"ACTION_TYPE_ASSERT","assert":{"selector":"@selector/generator.templatePicker","mode":"ASSERTION_MODE_EXISTS","timeout_ms":10000},"metadata":{"label":"Template picker is available"}}},
+    {"id":"capture","action":{"type":"ACTION_TYPE_SCREENSHOT","screenshot":{"full_page":true},"metadata":{"label":"Capture generator surface"}}}
+  ],
+  "edges":[{"id":"c7c1c1e0-77f1-4b39-9f21-1f0000000001","source":"navigate","target":"assert-root"},{"id":"c7c1c1e0-77f1-4b39-9f21-1f0000000002","source":"assert-root","target":"assert-scenario"},{"id":"c7c1c1e0-77f1-4b39-9f21-1f0000000003","source":"assert-scenario","target":"assert-template"},{"id":"c7c1c1e0-77f1-4b39-9f21-1f0000000004","source":"assert-template","target":"capture"}]
+}

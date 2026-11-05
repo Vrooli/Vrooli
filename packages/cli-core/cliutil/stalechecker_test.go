@@ -5,8 +5,31 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"testing"
+
+	"github.com/vrooli/envkit-go"
 )
+
+func checkStaleForTest(t *testing.T, checker *StaleChecker) bool {
+	t.Helper()
+	if checker.InstallKind == "" {
+		checker.InstallKind = "scenario"
+	}
+	if checker.InstallName == "" {
+		checker.InstallName = checker.AppName
+	}
+	controlPlane := filepath.Join(t.TempDir(), "vrooli")
+	if err := os.WriteFile(controlPlane, []byte("test executable"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv(LaunchRuntimeBinaryEnv, controlPlane)
+	restarted, err := checker.CheckAndMaybeRebuild()
+	if err != nil {
+		t.Fatalf("CheckAndMaybeRebuild() error = %v", err)
+	}
+	return restarted
+}
 
 func TestFindRepositoryRoot(t *testing.T) {
 	temp := t.TempDir()
@@ -30,8 +53,20 @@ func TestStaleCheckerSkipsWhenFingerprintUnknown(t *testing.T) {
 		BuildFingerprint: "unknown",
 		BuildSourceRoot:  t.TempDir(),
 	}
-	if restarted := checker.CheckAndMaybeRebuild(); restarted {
+	if restarted := checkStaleForTest(t, checker); restarted {
 		t.Fatalf("expected no restart when fingerprint unknown")
+	}
+}
+
+func TestStaleCheckerSkipsInArtifactMode(t *testing.T) {
+	t.Setenv(artifactModeEnvVar, "1")
+	checker := NewStaleChecker("demo", "old", "ts", t.TempDir())
+	checker.FingerprintFunc = func(FreshnessSpec) (string, error) {
+		t.Fatal("artifact mode must not inspect or rebuild from source")
+		return "", errors.New("unreachable")
+	}
+	if checkStaleForTest(t, checker) {
+		t.Fatal("artifact mode must not restart")
 	}
 }
 
@@ -51,7 +86,7 @@ func TestStaleCheckerRebuildsAndReexecs(t *testing.T) {
 	restarted := false
 	checker := NewStaleChecker("demo", "old", "ts", srcRoot, "ENV")
 	checker.ReexecArgs = []string{"foo"}
-	checker.FingerprintFunc = func(root string, skip ...string) (string, error) {
+	checker.FingerprintFunc = func(spec FreshnessSpec) (string, error) {
 		return "new", nil
 	}
 	checker.LookPathFunc = func(file string) (string, error) {
@@ -69,7 +104,7 @@ func TestStaleCheckerRebuildsAndReexecs(t *testing.T) {
 		return nil
 	}
 
-	if restartedFlag := checker.CheckAndMaybeRebuild(); !restartedFlag {
+	if restartedFlag := checkStaleForTest(t, checker); !restartedFlag {
 		t.Fatalf("expected restart to be triggered")
 	}
 	if !ranCommand {
@@ -77,6 +112,123 @@ func TestStaleCheckerRebuildsAndReexecs(t *testing.T) {
 	}
 	if !restarted {
 		t.Fatalf("expected reexec to be called")
+	}
+}
+
+func TestStaleCheckerReexecPreservesAgentIdentity(t *testing.T) {
+	parent := envkit.Env{
+		"PATH=/usr/bin",
+		"API_PORT=1234",
+		"OPENAI_API_KEY=sk-test",
+		EnvIdentityToken + "=token-abc",
+		EnvCodexThreadID + "=thread-1",
+		EnvClaudeCodeSessionID + "=session-1",
+		rebuildLoopEnvVar + "=stale",
+	}
+	got := map[string]string{}
+	for _, entry := range selfReexecEnv(parent, "fresh") {
+		key, value, _ := strings.Cut(entry, "=")
+		got[key] = value
+	}
+	want := map[string]string{
+		"PATH":                 "/usr/bin",
+		"API_PORT":             "1234",
+		"OPENAI_API_KEY":       "sk-test",
+		EnvIdentityToken:       "token-abc",
+		EnvCodexThreadID:       "thread-1",
+		EnvClaudeCodeSessionID: "session-1",
+		rebuildLoopEnvVar:      "fresh",
+	}
+	if len(got) != len(want) {
+		t.Fatalf("re-exec env = %v, want exactly %v", got, want)
+	}
+	for key, value := range want {
+		if got[key] != value {
+			t.Fatalf("re-exec env %s = %q, want %q (env %v)", key, got[key], value, got)
+		}
+	}
+
+	// A caller without identity gets none: the overlay only carries forward
+	// what the invoking process already held.
+	for _, entry := range selfReexecEnv(envkit.Env{"PATH=/usr/bin"}, "fresh") {
+		if key, _, _ := strings.Cut(entry, "="); key == EnvIdentityToken {
+			t.Fatalf("re-exec invented an identity token: %v", entry)
+		}
+	}
+}
+
+func TestStaleCheckerUsesDeclaredInputsFromSourceContext(t *testing.T) {
+	temp := t.TempDir()
+	contextRoot := filepath.Join(temp, "resources", "demo")
+	srcRoot := filepath.Join(contextRoot, "cli")
+	if err := os.MkdirAll(filepath.Join(srcRoot, "internal"), 0o755); err != nil {
+		t.Fatalf("mkdir src root: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(srcRoot, "main.go"), []byte("package main\n"), 0o644); err != nil {
+		t.Fatalf("write main.go: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(contextRoot, "resource.json"), []byte("{\"name\":\"demo\"}\n"), 0o644); err != nil {
+		t.Fatalf("write resource manifest: %v", err)
+	}
+
+	var gotRoot string
+	var gotInputs []string
+	checker := NewStaleChecker("demo", "match", "ts", srcRoot)
+	checker.SourceContextPath = ".."
+	checker.FreshnessInputs = []string{"cli/**", "resource.json"}
+	checker.FingerprintFunc = func(spec FreshnessSpec) (string, error) {
+		gotRoot = spec.ContextRoot
+		gotInputs = append([]string(nil), spec.Inputs...)
+		return "match", nil
+	}
+	checker.LookPathFunc = func(file string) (string, error) { return "/usr/bin/go", nil }
+
+	if restarted := checkStaleForTest(t, checker); restarted {
+		t.Fatalf("expected no restart when fingerprints match")
+	}
+	if gotRoot != contextRoot {
+		t.Fatalf("fingerprint root = %q, want %q", gotRoot, contextRoot)
+	}
+	if strings.Join(gotInputs, ",") != "cli/**,resource.json" {
+		t.Fatalf("fingerprint inputs = %v", gotInputs)
+	}
+}
+
+func TestStaleCheckerPassesContextRelativeManifestToInstaller(t *testing.T) {
+	temp := t.TempDir()
+	repoRoot := temp
+	installerPath := filepath.Join(repoRoot, "packages", "cli-core")
+	if err := os.MkdirAll(installerPath, 0o755); err != nil {
+		t.Fatalf("mkdir installer path: %v", err)
+	}
+	contextRoot := filepath.Join(repoRoot, "resources", "demo")
+	srcRoot := filepath.Join(contextRoot, "cli")
+	if err := os.MkdirAll(srcRoot, 0o755); err != nil {
+		t.Fatalf("mkdir src root: %v", err)
+	}
+
+	var ranArgs []string
+	checker := NewStaleChecker("demo", "old", "ts", srcRoot)
+	checker.InstallKind = "resource"
+	checker.InstallName = "demo"
+	checker.SourceContextPath = ".."
+	checker.ManifestSourcePath = "resource.json"
+	checker.FingerprintFunc = func(spec FreshnessSpec) (string, error) { return "new", nil }
+	checker.LookPathFunc = func(file string) (string, error) { return "/usr/bin/go", nil }
+	checker.CommandRunner = func(cmd *exec.Cmd) error {
+		ranArgs = append([]string(nil), cmd.Args...)
+		return nil
+	}
+	checker.Reexec = func(executable string, args []string) error { return nil }
+
+	if restarted := checkStaleForTest(t, checker); !restarted {
+		t.Fatalf("expected restart to be triggered")
+	}
+	if len(ranArgs) != 5 || ranArgs[1] != "cli-refresh" || ranArgs[2] != "resource" || ranArgs[3] != "demo" {
+		t.Fatalf("refresh command args = %v, want typed resource target", ranArgs)
+	}
+	if _, err := os.Stat(ranArgs[4]); err != nil {
+		t.Fatalf("refresh command executable target %q is unavailable: %v", ranArgs[4], err)
 	}
 }
 
@@ -88,7 +240,7 @@ func TestStaleCheckerNoRebuildWhenFingerprintMatches(t *testing.T) {
 	checker := &StaleChecker{
 		BuildFingerprint: "match",
 		BuildSourceRoot:  srcRoot,
-		FingerprintFunc: func(root string, skip ...string) (string, error) {
+		FingerprintFunc: func(spec FreshnessSpec) (string, error) {
 			return "match", nil
 		},
 		LookPathFunc: func(file string) (string, error) {
@@ -104,7 +256,7 @@ func TestStaleCheckerNoRebuildWhenFingerprintMatches(t *testing.T) {
 		},
 	}
 
-	if restarted := checker.CheckAndMaybeRebuild(); restarted {
+	if restarted := checkStaleForTest(t, checker); restarted {
 		t.Fatalf("expected no restart when fingerprints match")
 	}
 }
@@ -124,7 +276,7 @@ func TestStaleCheckerRebuildsOutsideScenarioPath(t *testing.T) {
 	ranCommand := false
 	restarted := false
 	checker := NewStaleChecker("custom-cli", "old", "ts", srcRoot)
-	checker.FingerprintFunc = func(root string, skip ...string) (string, error) {
+	checker.FingerprintFunc = func(spec FreshnessSpec) (string, error) {
 		return "new", nil
 	}
 	checker.LookPathFunc = func(file string) (string, error) {
@@ -139,7 +291,7 @@ func TestStaleCheckerRebuildsOutsideScenarioPath(t *testing.T) {
 		return nil
 	}
 
-	if restartedFlag := checker.CheckAndMaybeRebuild(); !restartedFlag {
+	if restartedFlag := checkStaleForTest(t, checker); !restartedFlag {
 		t.Fatalf("expected restart to be triggered for packages-based CLI")
 	}
 	if !ranCommand {
@@ -147,5 +299,55 @@ func TestStaleCheckerRebuildsOutsideScenarioPath(t *testing.T) {
 	}
 	if !restarted {
 		t.Fatalf("expected reexec to be called")
+	}
+}
+
+func TestComputeFreshnessFingerprintUsesDeclaredInputs(t *testing.T) {
+	root := t.TempDir()
+	contextRoot := filepath.Join(root, "scenario")
+	sourceRoot := filepath.Join(contextRoot, "cli")
+	if err := os.MkdirAll(sourceRoot, 0o755); err != nil {
+		t.Fatalf("mkdir source root: %v", err)
+	}
+	if err := os.MkdirAll(filepath.Join(contextRoot, ".vrooli"), 0o755); err != nil {
+		t.Fatalf("mkdir manifest dir: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(sourceRoot, "main.go"), []byte("package main\n"), 0o644); err != nil {
+		t.Fatalf("write main.go: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(contextRoot, ".vrooli", "service.json"), []byte("{}\n"), 0o644); err != nil {
+		t.Fatalf("write manifest: %v", err)
+	}
+
+	spec := FreshnessSpec{
+		SourceRoot:  sourceRoot,
+		ContextRoot: contextRoot,
+		Inputs:      []string{"cli/**", ".vrooli/service.json"},
+	}
+	first, err := ComputeFreshnessFingerprint(spec)
+	if err != nil {
+		t.Fatalf("first fingerprint: %v", err)
+	}
+
+	if err := os.WriteFile(filepath.Join(contextRoot, "README.md"), []byte("ignored\n"), 0o644); err != nil {
+		t.Fatalf("write unrelated file: %v", err)
+	}
+	second, err := ComputeFreshnessFingerprint(spec)
+	if err != nil {
+		t.Fatalf("second fingerprint: %v", err)
+	}
+	if first != second {
+		t.Fatalf("unrelated file changed declared-input fingerprint: %q vs %q", first, second)
+	}
+
+	if err := os.WriteFile(filepath.Join(contextRoot, ".vrooli", "service.json"), []byte("{\"name\":\"demo\"}\n"), 0o644); err != nil {
+		t.Fatalf("mutate manifest: %v", err)
+	}
+	third, err := ComputeFreshnessFingerprint(spec)
+	if err != nil {
+		t.Fatalf("third fingerprint: %v", err)
+	}
+	if third == second {
+		t.Fatalf("declared file change should affect fingerprint")
 	}
 }

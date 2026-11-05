@@ -1,0 +1,44 @@
+{
+  "kind": "experience-journey",
+  "schemaVersion": "1.0.0",
+  "journey": {
+    "id": "top-down-learning",
+    "title": "Top-down refinement from implementation",
+    "purpose": "Top-down refinement from implementation with explicit authority, provenance and evidence boundaries.",
+    "prd_refs": [
+      "OT-P1-003",
+      "OT-P2-003"
+    ]
+  },
+  "steps": [
+    {
+      "page": "ontology",
+      "state": "default",
+      "intent": "Inspect intended sectors and capability contribution with evidence limitations."
+    },
+    {
+      "page": "graph",
+      "state": "default",
+      "intent": "Inspect observed implementation evidence for the selected capability."
+    },
+    {
+      "page": "ontology",
+      "state": "amendment",
+      "intent": "Propose a correction or decomposition based on bottom-up evidence."
+    },
+    {
+      "page": "planning",
+      "state": "reviewing",
+      "intent": "Review the authored graph amendment separately from observed facts."
+    }
+  ],
+  "claims": [
+    {
+      "id": "top-down-learning-outcome",
+      "type": "custom",
+      "tier": "aspirational",
+      "statement": "Given a mapped scenario, when capability coverage is reviewed, then contribution is not presented as verified fulfillment without applicable evidence.",
+      "rationale": "Documentation-first target; runtime bindings and evidence remain to be implemented and qualified."
+    }
+  ]
+}

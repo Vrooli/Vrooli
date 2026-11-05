@@ -1,0 +1,85 @@
+{
+  "description": "Persist completed Rewrite operations in a local SQLite store so operators can audit what the scenario actually changed. Read-only API on the audit trail; no replay capability in v1.",
+  "module_id": "MOD-P1-014",
+  "prd_ref": "OT-P1-002",
+  "priority": "P1",
+  "requirements": [
+    {
+      "category": "core",
+      "dependencies": [
+        "REQ-P0-004"
+      ],
+      "description": "Persist all completed Rewrite apply operations in a local SQLite database. Each audit record must capture: operation ID, plan_id, timestamp, project_path, list of operations (serialized), outcome (success/partial/failed), and any error messages. Expose a read-only Connect-RPC API for querying the audit trail. No replay, rollback, or mutation of persisted records is supported in v1. The SQLite store must be initialized automatically on first use with schema migrations versioned.",
+      "id": "REQ-P1-002",
+      "prd_ref": "OT-P1-002",
+      "status": "draft",
+      "title": "Rewrite Operation Log Persistence in SQLite",
+      "validation": [
+        {
+          "notes": "Test that a completed Apply operation writes a record with all required fields to SQLite",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Test that SQLite schema migration runs idempotently on an existing database",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Test that the read-only API returns records filtered by project_path correctly",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Test that a failed Apply operation records the error message in the audit trail",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "TCG-AUDIT-LOG: Run a Rewrite apply operation and verify the record appears in the SQLite audit trail via the read-only API",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Restart the Go API process and verify audit records from previous session are still queryable",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Verify no write/delete/update endpoints exist on the audit trail API",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "An operator can audit which files were moved and when, without relying on git history",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Audit trail is queryable by project_path to review all rewrites applied to a given project",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Operation Log Persistence"
+}

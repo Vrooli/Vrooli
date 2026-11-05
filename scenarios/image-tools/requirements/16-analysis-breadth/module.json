@@ -1,0 +1,31 @@
+{
+  "_metadata": {
+    "last_validated_at": "2026-11-02T13:31:47-05:00"
+  },
+  "requirements": [
+    {
+      "id": "IMG-P1-003",
+      "title": "Analysis Breadth",
+      "status": "in_progress",
+      "prd_ref": "OT-P1-003",
+      "category": "feature",
+      "description": "Caption/alt-text, object detection/tagging, anonymous face detection (no recognition), quality assessment, duplicate/near-dup detection (perceptual hash), embedding generation, and QR/barcode read. SHIPPED (pure-Go, runs on any host): quality_assessment returns decoded pixel dimensions plus no-reference sharpness/exposure/contrast heuristics; duplicate_detect returns DCT pHash + aHash fingerprints. Both use AnalyzeResponse result types and the analyze edge; CLI commands are `analyze quality` and `analyze duplicate`. REMAINING (forward-declared, seeded, not yet wired): caption, object_detection, tagging, face_detection (no recognition), embedding, qr_barcode_read — model/library-backed.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/analysis/quality_test.go",
+          "phase": "unit",
+          "status": "passing",
+          "notes": "Test Genie run 20261102-182542-a7e6792b API Go command passed, including quality and duplicate behavior. Dimensions are now asserted. Synthetic fixtures validate deterministic calculation, not perceptual quality calibration. The overall Test Genie unit phase failed in UI on a stale generated package copy; after owner refresh, scoped Unit Health run uh-20261102-183147-c3d60dcadb5b010ac5daa49091a94b77 passed UI coverage and type-check. This entry is requirement-specific, not a whole-scenario pass."
+        },
+        {
+          "type": "test",
+          "ref": "api/handlers/analysis/rest_test.go",
+          "phase": "integration",
+          "status": "passing",
+          "notes": "Test Genie run 20261102-182542-a7e6792b API Go command passed the analyze handler tests, including QualityResult dimensions. Model-backed breadth ops (caption/object_detection/tagging/face_detection/embedding/qr) remain forward-declared."
+        }
+      ]
+    }
+  ]
+}

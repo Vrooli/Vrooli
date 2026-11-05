@@ -1,4 +1,4 @@
-import { vi, type Mock } from 'vitest';
+import { vi, type Mock, type MockInstance } from 'vitest';
 import { ApiError, type ApiErrorType } from '../api/common';
 import { isRecord, safeParseJson } from '../lib/utils';
 
@@ -6,10 +6,10 @@ import { isRecord, safeParseJson } from '../lib/utils';
  * Factory for creating a mock fetch function with proper type handling.
  */
 type FetchArgs = [RequestInfo | URL, RequestInit?];
-export type FetchMock = Mock<FetchArgs, Promise<MockFetchResponse>>;
+export type FetchMock = Mock<(...args: FetchArgs) => Promise<MockFetchResponse>>;
 
 export function createFetchMock(): FetchMock {
-  return vi.fn<FetchArgs, Promise<MockFetchResponse>>();
+  return vi.fn<(...args: FetchArgs) => Promise<MockFetchResponse>>();
 }
 
 export interface MockFetchResponse<T = unknown> {
@@ -32,8 +32,8 @@ export const mockResponses = {
       ok: true,
       status,
       statusText: 'OK',
-      json: async () => data,
-      text: async () => JSON.stringify(data),
+      json: () => Promise.resolve(data),
+      text: () => Promise.resolve(JSON.stringify(data)),
     };
   },
 
@@ -46,8 +46,8 @@ export const mockResponses = {
       ok: false,
       status,
       statusText: getStatusText(status),
-      json: async () => body,
-      text: async () => JSON.stringify(body),
+      json: () => Promise.resolve(body),
+      text: () => Promise.resolve(JSON.stringify(body)),
     };
   },
 
@@ -75,8 +75,8 @@ export const mockResponses = {
       ok: true,
       status,
       statusText: status === 204 ? 'No Content' : 'OK',
-      json: async () => undefined,
-      text: async () => '',
+      json: () => Promise.resolve(undefined),
+      text: () => Promise.resolve(''),
     };
   },
 
@@ -88,8 +88,8 @@ export const mockResponses = {
       ok: false,
       status: 400,
       statusText: 'Bad Request',
-      json: async () => ({ error: 'Validation failed', errors }),
-      text: async () => JSON.stringify({ error: 'Validation failed', errors }),
+      json: () => Promise.resolve({ error: 'Validation failed', errors }),
+      text: () => Promise.resolve(JSON.stringify({ error: 'Validation failed', errors })),
     };
   },
 
@@ -122,8 +122,8 @@ export const mockResponses = {
       ok: false,
       status: 429,
       statusText: 'Too Many Requests',
-      json: async () => ({ error: 'Rate limited', retry_after: retryAfter }),
-      text: async () => JSON.stringify({ error: 'Rate limited', retry_after: retryAfter }),
+      json: () => Promise.resolve({ error: 'Rate limited', retry_after: retryAfter }),
+      text: () => Promise.resolve(JSON.stringify({ error: 'Rate limited', retry_after: retryAfter })),
     };
   },
 
@@ -216,7 +216,7 @@ export function expectApiError(
     throw new Error(`Expected ApiError type "${expectedType}" but got "${error.type}"`);
   }
   if (expectedStatus !== undefined && error.status !== expectedStatus) {
-    throw new Error(`Expected ApiError status ${expectedStatus} but got ${error.status}`);
+    throw new Error(`Expected ApiError status ${String(expectedStatus)} but got ${String(error.status)}`);
   }
 }
 
@@ -225,17 +225,17 @@ export function expectApiError(
  * Returns the mock function and a cleanup function.
  */
 export function createWindowOpenMock(): {
-  mock: Mock<Parameters<typeof window.open>, ReturnType<typeof window.open>>;
+  mock: Mock<(...args: Parameters<typeof window.open>) => ReturnType<typeof window.open>> & Pick<MockInstance<(...args: Parameters<typeof window.open>) => ReturnType<typeof window.open>>, 'mockRestore'>;
   restore: () => void;
 } {
-  const originalOpen = window.open;
-  const mock = vi.fn<Parameters<typeof window.open>, ReturnType<typeof window.open>>();
-  window.open = mock;
+  const mock = vi.spyOn(window, 'open').mockImplementation(
+    vi.fn<(...args: Parameters<typeof window.open>) => ReturnType<typeof window.open>>()
+  );
 
   return {
     mock,
     restore: () => {
-      window.open = originalOpen;
+      mock.mockRestore();
     },
   };
 }
@@ -244,23 +244,38 @@ export function createWindowOpenMock(): {
  * Create a mock for URL.createObjectURL, used for blob downloads.
  */
 export function createObjectURLMock(): {
-  mock: Mock<Parameters<typeof URL.createObjectURL>, ReturnType<typeof URL.createObjectURL>>;
+  mock: Mock<(...args: Parameters<typeof URL.createObjectURL>) => ReturnType<typeof URL.createObjectURL>>;
   restore: () => void;
 } {
-  const originalCreateObjectURL = URL.createObjectURL;
-  const originalRevokeObjectURL = URL.revokeObjectURL;
-  const mock = vi.fn<Parameters<typeof URL.createObjectURL>, ReturnType<typeof URL.createObjectURL>>(
+  // jsdom does not provide these browser APIs in every supported version.
+  // Preserve their optional runtime presence so this helper can install and
+  // cleanly remove its own test-only implementation.
+  const urlApi = URL as typeof URL & {
+    createObjectURL?: typeof URL.createObjectURL;
+    revokeObjectURL?: typeof URL.revokeObjectURL;
+  };
+  const originalCreateObjectURL = Object.getOwnPropertyDescriptor(urlApi, 'createObjectURL');
+  const originalRevokeObjectURL = Object.getOwnPropertyDescriptor(urlApi, 'revokeObjectURL');
+  const mock = vi.fn<(...args: Parameters<typeof URL.createObjectURL>) => ReturnType<typeof URL.createObjectURL>>(
     () => 'blob:test-url'
   );
   const revokeMock = vi.fn();
-  URL.createObjectURL = mock;
-  URL.revokeObjectURL = revokeMock;
+  urlApi.createObjectURL = mock;
+  urlApi.revokeObjectURL = revokeMock;
 
   return {
     mock,
     restore: () => {
-      URL.createObjectURL = originalCreateObjectURL;
-      URL.revokeObjectURL = originalRevokeObjectURL;
+      if (originalCreateObjectURL) {
+        Object.defineProperty(urlApi, 'createObjectURL', originalCreateObjectURL);
+      } else {
+        Reflect.deleteProperty(urlApi, 'createObjectURL');
+      }
+      if (originalRevokeObjectURL) {
+        Object.defineProperty(urlApi, 'revokeObjectURL', originalRevokeObjectURL);
+      } else {
+        Reflect.deleteProperty(urlApi, 'revokeObjectURL');
+      }
     },
   };
 }
@@ -279,8 +294,8 @@ export function assertDefined<T>(value: T | undefined, name: string): asserts va
  * Helper to safely get the first call arguments from a mock.
  * Throws if no calls were made, ensuring the test fails if mock wasn't called.
  */
-export function getFirstCall<TArgs extends unknown[], TReturn>(
-  mock: Mock<TArgs, TReturn>
+export function getFirstCall<TArgs extends unknown[]>(
+  mock: Mock<(...args: TArgs) => unknown>
 ): TArgs {
   const call = mock.mock.calls[0];
   if (!call) {
@@ -293,13 +308,13 @@ export function getFirstCall<TArgs extends unknown[], TReturn>(
  * Helper to safely get a specific call from a mock by index.
  * Throws if the call at that index doesn't exist.
  */
-export function getCall<TArgs extends unknown[], TReturn>(
-  mock: Mock<TArgs, TReturn>,
+export function getCall<TArgs extends unknown[]>(
+  mock: Mock<(...args: TArgs) => unknown>,
   index: number
 ): TArgs {
   const call = mock.mock.calls[index];
   if (!call) {
-    throw new Error(`Expected mock to have call at index ${index}, but only ${mock.mock.calls.length} calls were made`);
+    throw new Error(`Expected mock to have call at index ${String(index)}, but only ${String(mock.mock.calls.length)} calls were made`);
   }
   return call;
 }
@@ -314,9 +329,14 @@ export function getFetchCall(
 ): [string, RequestInit] {
   const call = mock.mock.calls[index];
   if (!call) {
-    throw new Error(`Expected fetch mock to have call at index ${index}, but only ${mock.mock.calls.length} calls were made`);
+    throw new Error(`Expected fetch mock to have call at index ${String(index)}, but only ${String(mock.mock.calls.length)} calls were made`);
   }
-  const url = typeof call[0] === 'string' ? call[0] : call[0].toString();
+  const [request] = call;
+  const url = typeof request === 'string'
+    ? request
+    : request instanceof URL
+      ? request.href
+      : request.url;
   const options: RequestInit = call[1] ?? {};
   return [url, options];
 }
@@ -337,34 +357,33 @@ export function parseJsonBody(body: BodyInit | null | undefined): Record<string,
  */
 export function createDownloadLinkMock(): {
   element: HTMLAnchorElement;
-  clickSpy: Mock<[], void>;
-  appendChildSpy: Mock<[Node], Node>;
-  removeChildSpy: Mock<[Node], Node>;
+  clickSpy: Mock<() => undefined>;
+  appendChildSpy: Mock<(node: Node) => Node>;
+  removeChildSpy: Mock<(node: Node) => Node>;
   restore: () => void;
 } {
-  const clickSpy = vi.fn<[], void>();
-  const appendChildSpy = vi.fn<[Node], Node>();
-  const removeChildSpy = vi.fn<[Node], Node>();
+  const clickSpy = vi.fn<() => undefined>();
+  const appendChildSpy = vi.fn<(node: Node) => Node>();
+  const removeChildSpy = vi.fn<(node: Node) => Node>();
 
-  const originalCreateElement = document.createElement.bind(document);
-  const element = originalCreateElement('a') as HTMLAnchorElement;
+  const element = document.createElementNS('http://www.w3.org/1999/xhtml', 'a') as HTMLAnchorElement;
   element.click = clickSpy;
 
   vi.spyOn(document, 'createElement').mockImplementation((tag) => {
     if (tag === 'a') {
       return element;
     }
-    return originalCreateElement(tag);
+    return document.createElementNS('http://www.w3.org/1999/xhtml', tag);
   });
 
   vi.spyOn(document.body, 'appendChild').mockImplementation((node) => {
     appendChildSpy(node);
-    return node as unknown as HTMLAnchorElement;
+    return node;
   });
 
   vi.spyOn(document.body, 'removeChild').mockImplementation((node) => {
     removeChildSpy(node);
-    return node as unknown as HTMLAnchorElement;
+    return node;
   });
 
   return {

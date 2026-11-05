@@ -47,6 +47,7 @@ describe("Constants - Decision Boundaries", () => {
     "needs_review",
     "completed",
     "failed",
+    "cancelling",
     "canceled",
   ];
 

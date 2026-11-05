@@ -1,0 +1,4 @@
+# Build output and coverage are generated artifacts, not source. They must not be
+# tracked or counted by source-quality scans (duplication, long-files, complexity).
+dist/
+coverage/

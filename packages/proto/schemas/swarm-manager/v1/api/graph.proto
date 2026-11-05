@@ -1,6 +1,6 @@
 syntax = "proto3";
 
-package swarm_manager.v1;
+package vrooli.swarm_manager.v1.api;
 
 import "swarm-manager/v1/domain/graph.proto";
 
@@ -10,9 +10,6 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manage
 // GRAPH API
 // =============================================================================
 //
-// @layer 5
-// @domain api
-// @imports graph
 // @stability beta
 //
 // HTTP API contracts for the Swarm Manager graph workspace.
@@ -25,7 +22,7 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manage
 
 // GraphResponse returns the graph projection for a lens.
 message GraphResponse {
-  repeated GraphNode nodes = 1;
-  repeated GraphEdge edges = 2;
-  GraphMeta meta = 3;
+  repeated domain.GraphNode nodes = 1;
+  repeated domain.GraphEdge edges = 2;
+  domain.GraphMeta meta = 3;
 }

@@ -1,0 +1,36 @@
+syntax = "proto3";
+
+package vrooli.treasury.v1.mandate;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/treasury/v1/mandate;mandate_v1";
+
+enum MandateStatus {
+  MANDATE_STATUS_UNSPECIFIED = 0;
+  MANDATE_STATUS_DRAFT = 1;
+  MANDATE_STATUS_LIVE = 2;
+  MANDATE_STATUS_EXHAUSTED = 3;
+  MANDATE_STATUS_EXPIRED = 4;
+  MANDATE_STATUS_REVOKED = 5;
+}
+
+message Mandate {
+  string id = 1;
+  string book_id = 2;
+  string budget_id = 3;
+  string authorizer = 4;
+  int64 cap_minor = 5;
+  string currency = 6;
+  repeated string allowed_counterparties = 7;
+  repeated string denied_counterparties = 8;
+  google.protobuf.Timestamp expires_at = 9;
+  bytes signature = 10;
+  google.protobuf.Timestamp issued_at = 11;
+  MandateStatus status = 12;
+  string idempotency_key = 13;
+  repeated string required_evidence = 14;
+  int64 recurrence_seconds = 15;
+  google.protobuf.Timestamp next_charge_at = 16;
+  google.protobuf.Timestamp cancelled_at = 17;
+}

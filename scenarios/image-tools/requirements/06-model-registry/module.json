@@ -1,0 +1,31 @@
+{
+  "_metadata": {
+    "last_validated_at": "2026-07-28T23:34:11-04:00"
+  },
+  "requirements": [
+    {
+      "id": "IMG-P0-006",
+      "title": "Declarative Model Registry",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-006",
+      "category": "core",
+      "description": "Schema/proto-validated registry stores per-model metadata (ops, provider, variant/quant/size, hardware reqs, I/O dimensions, capability labels, source/checksum or local path, enabled, default) and a selector picks best-fit enabled model per host honoring default + override.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/models/registry_test.go",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Registry entries validate against schema; malformed entries rejected"
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/models/selector_test.go",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Selector returns best-fit model for probed host with user override"
+        }
+      ]
+    }
+  ]
+}

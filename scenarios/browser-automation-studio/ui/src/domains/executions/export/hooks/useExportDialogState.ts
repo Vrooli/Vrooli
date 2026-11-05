@@ -24,7 +24,7 @@ import {
   type ExportFormat,
   type ExportRenderSource,
 } from "../config";
-import type { ReplayMovieSpec } from "@/types/export";
+import type { ReplaySpec as ReplayMovieSpec } from "@vrooli/generated-proto/browser-automation-studio/v1/exports/exports_pb";
 
 // Re-export types for backwards compatibility
 export type { ExportFormat, ExportRenderSource } from "../config";

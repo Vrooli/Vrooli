@@ -4,11 +4,18 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	repocontract "github.com/vrooli/repo-contract-go"
 )
 
-func TestResolveLinuxDefaultsAndXDG(t *testing.T) {
+// TestResolveDefaultIsRuntimeHomeOnLinux proves the user-profile default resolves
+// under the operator runtime home and is OS-agnostic: RuntimeOS=linux and XDG env
+// sentinels do not steer it (the XDG branch was removed). Complements the
+// platform_test.go T-S1/T-S2 coverage from the resolver entry point.
+func TestResolveDefaultIsRuntimeHomeOnLinux(t *testing.T) {
 	t.Parallel()
 
+	const home = "/home/test"
 	r := mustResolver(t, ResolverConfig{
 		AppID:     "vrooli",
 		Profile:   ProfileAuto,
@@ -17,9 +24,7 @@ func TestResolveLinuxDefaultsAndXDG(t *testing.T) {
 			"XDG_DATA_HOME":  "/xdg/data",
 			"XDG_STATE_HOME": "/xdg/state",
 		}),
-		UserHomeDir:   func() (string, error) { return "/home/test", nil },
-		UserConfigDir: func() (string, error) { return "/home/test/.config", nil },
-		UserCacheDir:  func() (string, error) { return "/home/test/.cache", nil },
+		UserHomeDir: func() (string, error) { return home, nil },
 	})
 
 	paths, err := r.Resolve(Options{ScenarioID: "landing-page-business-suite"})
@@ -27,20 +32,24 @@ func TestResolveLinuxDefaultsAndXDG(t *testing.T) {
 		t.Fatalf("Resolve() error = %v", err)
 	}
 
-	if paths.ConfigDir != filepath.Join("/home/test/.config", "vrooli", "landing-page-business-suite") {
-		t.Fatalf("ConfigDir = %q", paths.ConfigDir)
-	}
-	if paths.DataDir != filepath.Join("/xdg/data", "vrooli", "landing-page-business-suite") {
-		t.Fatalf("DataDir = %q", paths.DataDir)
-	}
-	if paths.CacheDir != filepath.Join("/home/test/.cache", "vrooli", "landing-page-business-suite") {
-		t.Fatalf("CacheDir = %q", paths.CacheDir)
-	}
-	if paths.LogsDir != filepath.Join("/xdg/state/logs", "vrooli", "landing-page-business-suite") {
-		t.Fatalf("LogsDir = %q", paths.LogsDir)
-	}
-	if paths.StateDir != filepath.Join("/xdg/state", "vrooli", "landing-page-business-suite") {
-		t.Fatalf("StateDir = %q", paths.StateDir)
+	for cls, got := range map[string]string{
+		repocontract.HomeKeyConfig: paths.ConfigDir,
+		repocontract.HomeKeyData:   paths.DataDir,
+		repocontract.HomeKeyCache:  paths.CacheDir,
+		repocontract.HomeKeyLogs:   paths.LogsDir,
+		repocontract.HomeKeyState:  paths.StateDir,
+	} {
+		root, err := repocontract.RuntimeHomeEntryPath(home, cls)
+		if err != nil {
+			t.Fatalf("RuntimeHomeEntryPath(%q) error = %v", cls, err)
+		}
+		want := filepath.Join(root, "vrooli", "landing-page-business-suite")
+		if got != want {
+			t.Errorf("%s dir = %q, want %q", cls, got, want)
+		}
+		if strings.Contains(got, "/xdg/") {
+			t.Errorf("%s dir = %q still contains XDG segment", cls, got)
+		}
 	}
 }
 
@@ -173,6 +182,64 @@ func TestNewResolverRejectsBadAppID(t *testing.T) {
 	_, err := NewResolver(ResolverConfig{AppID: "bad/app"})
 	if err == nil {
 		t.Fatalf("expected app id validation error")
+	}
+}
+
+// TestResolveNonLiveInstanceOwnsClassDirs proves a non-live instance cannot
+// read or write its live sibling's files. A presentation instance of
+// web-console that resolved live's state directory used live's tmux socket.
+func TestResolveNonLiveInstanceOwnsClassDirs(t *testing.T) {
+	t.Parallel()
+
+	variantEnv := map[string]string{
+		EnvScenario:         "demo",
+		EnvVariant:          "presentation",
+		EnvStorageNamespace: "demo_presentation",
+	}
+	resolver := mustResolver(t, ResolverConfig{AppID: "vrooli", EnvGet: mapEnv(variantEnv)})
+	liveResolver := mustResolver(t, ResolverConfig{AppID: "vrooli", EnvGet: mapEnv(map[string]string{EnvScenario: "demo"})})
+
+	own, err := resolver.Resolve(Options{ScenarioID: "demo", RootOverride: "/ro"})
+	if err != nil {
+		t.Fatalf("Resolve(own variant) error = %v", err)
+	}
+	live, err := liveResolver.Resolve(Options{ScenarioID: "demo", RootOverride: "/ro"})
+	if err != nil {
+		t.Fatalf("Resolve(live) error = %v", err)
+	}
+	for class, pair := range map[string][2]string{
+		"config": {own.ConfigDir, live.ConfigDir},
+		"data":   {own.DataDir, live.DataDir},
+		"cache":  {own.CacheDir, live.CacheDir},
+		"logs":   {own.LogsDir, live.LogsDir},
+		"state":  {own.StateDir, live.StateDir},
+	} {
+		if pair[0] == pair[1] {
+			t.Errorf("%s: variant and live share %q", class, pair[0])
+		}
+		if filepath.Base(pair[0]) != "demo_presentation" || filepath.Base(pair[1]) != "demo" {
+			t.Errorf("%s: variant=%q live=%q", class, pair[0], pair[1])
+		}
+	}
+
+	other, err := resolver.Resolve(Options{ScenarioID: "other", RootOverride: "/ro"})
+	if err != nil {
+		t.Fatalf("Resolve(other scenario) error = %v", err)
+	}
+	if filepath.Base(other.StateDir) != "other" {
+		t.Errorf("another scenario's paths followed this process's variant: %q", other.StateDir)
+	}
+}
+
+// TestResolveFailsLoudOnVariantWithoutNamespace keeps the SQLite guard for
+// class directories: a non-live variant with no injected namespace must not
+// fall back onto live's directories.
+func TestResolveFailsLoudOnVariantWithoutNamespace(t *testing.T) {
+	t.Parallel()
+
+	resolver := mustResolver(t, ResolverConfig{AppID: "vrooli", EnvGet: mapEnv(map[string]string{EnvVariant: "presentation"})})
+	if _, err := resolver.Resolve(Options{ScenarioID: "demo", RootOverride: "/ro"}); err == nil {
+		t.Fatal("expected a non-live variant with no namespace root to fail loudly")
 	}
 }
 

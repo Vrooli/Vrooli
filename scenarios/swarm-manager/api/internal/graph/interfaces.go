@@ -3,7 +3,6 @@ package graph
 import (
 	"context"
 
-	"swarm-manager/internal/agentactivity"
 	"swarm-manager/internal/backlog"
 	"swarm-manager/internal/execution"
 )
@@ -13,8 +12,9 @@ type BacklogLister interface {
 	LoadAll(kinds []backlog.BacklogKind) ([]backlog.BacklogItem, error)
 }
 
-// InitiativeEntry is the graph-specific initiative view needed by projections.
-type InitiativeEntry struct {
+// GoalEntry is the graph-specific goal view needed by projections. Items is
+// the authoritative dependency-derived closure, not persisted membership.
+type GoalEntry struct {
 	Name       string
 	Title      string
 	Status     string
@@ -22,26 +22,19 @@ type InitiativeEntry struct {
 	ArchivedAt *string
 }
 
-// InitiativeLister lists initiatives needed by graph projections.
-type InitiativeLister interface {
-	List() ([]InitiativeEntry, error)
+// GoalLister lists goals needed by graph projections.
+type GoalLister interface {
+	List() ([]GoalEntry, error)
 }
 
-// CaptureEntry represents a capture with its classification data.
+// CaptureEntry represents a durable raw capture awaiting workflow completion.
 type CaptureEntry struct {
 	ID     string
 	Text   string
 	Status string
-	Items  []CaptureClassificationItem
 }
 
-// CaptureClassificationItem is a classified backlog suggestion from a capture.
-type CaptureClassificationItem struct {
-	Kind  string
-	Title string
-}
-
-// CaptureLister lists captures with their classification data.
+// CaptureLister lists durable captures.
 type CaptureLister interface {
 	ListCaptures() ([]CaptureEntry, error)
 }
@@ -62,12 +55,6 @@ type ExecutionLister interface {
 	List(ctx context.Context, filters execution.ListFilters) ([]execution.Record, error)
 }
 
-// AgentActivityLister retrieves tracked agent activity records.
-type AgentActivityLister interface {
-	List(ctx context.Context, filters agentactivity.ListFilters) ([]agentactivity.Record, error)
-	IsAvailable(ctx context.Context) bool
-}
-
 // Broadcaster sends real-time events to connected WebSocket clients.
 type Broadcaster interface {
 	BroadcastUpdate(event string, payload any)
@@ -78,7 +65,6 @@ type EventDispatcher interface {
 	DispatchNodeUpdate(nodeType, nodeID string, data any)
 	DispatchEdgeChange(action string, edge Edge)
 	DispatchInvalidate(lenses ...string)
-	DispatchInvalidateWithFocus(focusNodeID string)
 }
 
 // Projector builds or serves graph projections for a lens.
@@ -89,5 +75,4 @@ type Projector interface {
 // CacheInvalidator clears cached graph projections for one or more lenses.
 type CacheInvalidator interface {
 	Invalidate(lenses ...Lens)
-	InvalidateFocus(focusNodeID string)
 }

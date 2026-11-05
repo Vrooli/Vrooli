@@ -1,0 +1,34 @@
+{
+  "schema": "device-studio-photographic-example/v1",
+  "asset_roles": {
+    "plateMediaId": "vehicle_cabin_plate_v1",
+    "activeMaskMediaId": "vehicle_cabin_active_mask_v1",
+    "sourceMediaId": "laptop_app"
+  },
+  "scene": {
+    "displayWidthPixels": 2286,
+    "displayHeightPixels": 1000,
+    "plateQuad": {
+      "topLeft": {"x": 500, "y": 190},
+      "topRight": {"x": 1190, "y": 190},
+      "bottomRight": {"x": 1190, "y": 492},
+      "bottomLeft": {"x": 500, "y": 492}
+    },
+    "coordinateConvention": "COORDINATE_CONVENTION_PLATE_RASTER_EDGE_PIXELS_V1",
+    "depictionLabel": "Generated generic parked cabin; illustrative app display; no manufacturer or native-platform claim"
+  },
+  "presentation": {
+    "captureArea": "CAPTURE_AREA_APP_ONLY",
+    "kind": "PRESENTATION_KIND_PLAIN",
+    "fitMode": "SCREEN_FIT_MODE_CONTAIN"
+  },
+  "motionMode": "MOTION_MODE_FIXED",
+  "scope": {
+    "physical_units": "unknown; image-space calibration only",
+    "host_panels": "one central display; steering cluster is excluded",
+    "occlusion": "no control or trim crosses the active display in this fixed view",
+    "system_ui": "none synthesized; source is app-only",
+    "profile_labels": "CarPlay-style / Android-Auto-style are intended presentation labels only; the two current examples use identical source pixels",
+    "unsupported": ["device motion", "camera parallax", "changing scene reflections", "manufacturer dimensions", "native platform integration"]
+  }
+}

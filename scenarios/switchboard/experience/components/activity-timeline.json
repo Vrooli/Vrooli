@@ -1,0 +1,104 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-component",
+  "schemaVersion": "1.0.0",
+  "component": {
+    "id": "activity-timeline",
+    "title": "Activity timeline",
+    "purpose": "What an agent has actually done recently \u2014 turns taken, turns refused, gates raised \u2014 so a grant can be judged against behaviour rather than against its description.",
+    "storyRef": "../../../react-component-library/library/components/Timeline/versions/1.0.6/story.json"
+  },
+  "states": [
+    {
+      "id": "default",
+      "example": "default",
+      "description": "Recent turns, refusals and gates in time order."
+    },
+    {
+      "id": "empty",
+      "example": "empty",
+      "description": "This agent has not acted yet."
+    }
+  ],
+  "elements": [
+    {
+      "id": "timeline-root",
+      "role": "list",
+      "name": "Recent activity"
+    },
+    {
+      "id": "entry",
+      "role": "listitem",
+      "name": "Activity entry"
+    },
+    {
+      "id": "entry-outcome",
+      "role": "status",
+      "name": "Outcome"
+    }
+  ],
+  "claims": [
+    {
+      "id": "refusals-are-first-class",
+      "type": "element-present",
+      "statement": "A refused turn appears in the timeline with the same weight as a completed one.",
+      "tier": "aspirational",
+      "elements": [
+        "entry",
+        "entry-outcome"
+      ],
+      "states": [
+        "default"
+      ],
+      "rationale": "Refusals are how an operator learns a grant is too narrow; hiding them hides the signal."
+    },
+    {
+      "id": "outcome-not-hue-alone",
+      "type": "state-distinct",
+      "statement": "Completed, refused and expired outcomes are distinguishable without relying on colour alone.",
+      "tier": "aspirational",
+      "elements": [
+        "entry-outcome"
+      ]
+    },
+    {
+      "id": "time-is-relative-and-absolute",
+      "type": "custom",
+      "statement": "Each entry carries a relative time with the absolute time available on inspection.",
+      "tier": "manual",
+      "elements": [
+        "entry"
+      ]
+    },
+    {
+      "id": "dark-parity",
+      "type": "dark-parity",
+      "statement": "Outcome treatments hold in both themes.",
+      "tier": "aspirational",
+      "elements": [
+        "entry-outcome"
+      ]
+    }
+  ],
+  "bindings": {
+    "elements": {
+      "timeline-root": {
+        "testid": "activity-timeline"
+      },
+      "entry": {
+        "testid": "activity-entry"
+      },
+      "entry-outcome": {
+        "testid": "activity-outcome"
+      }
+    }
+  },
+  "priorities": [
+    {
+      "statement": "What this agent has been doing"
+    },
+    {
+      "statement": "What it was not allowed to do"
+    }
+  ]
+}

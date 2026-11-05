@@ -114,7 +114,7 @@ func TestNavigatorRegistry_Get(t *testing.T) {
 	})
 
 	t.Run("non-existent navigator", func(t *testing.T) {
-		_, err := registry.Get(NavigatorClaudeCode)
+		_, err := registry.Get(NavigatorType("alternate"))
 		if !errors.Is(err, ErrNavigatorNotFound) {
 			t.Errorf("Get() error = %v, want ErrNavigatorNotFound", err)
 		}
@@ -132,21 +132,21 @@ func TestNavigatorRegistry_SelectNavigator(t *testing.T) {
 			available:          true,
 			clientSourcePolicy: AllSourcesPolicy(),
 		}
-		claudeCode := &mockNavigator{
-			navType:            NavigatorClaudeCode,
+		alternateNavigator := &mockNavigator{
+			navType:            NavigatorType("alternate"),
 			available:          true,
 			clientSourcePolicy: CLIOnlyPolicy(),
 		}
 
 		registry.Register(playwright)
-		registry.Register(claudeCode)
+		registry.Register(alternateNavigator)
 
-		got, err := registry.SelectNavigator(ctx, ClientSourceCLI, NavigatorClaudeCode)
+		got, err := registry.SelectNavigator(ctx, ClientSourceCLI, NavigatorType("alternate"))
 		if err != nil {
 			t.Fatalf("SelectNavigator() error = %v", err)
 		}
-		if got.Type() != NavigatorClaudeCode {
-			t.Errorf("SelectNavigator() type = %v, want %v", got.Type(), NavigatorClaudeCode)
+		if got.Type() != NavigatorType("alternate") {
+			t.Errorf("SelectNavigator() type = %v, want %v", got.Type(), NavigatorType("alternate"))
 		}
 	})
 
@@ -160,7 +160,7 @@ func TestNavigatorRegistry_SelectNavigator(t *testing.T) {
 		}
 		registry.Register(playwright)
 
-		_, err := registry.SelectNavigator(ctx, ClientSourceCLI, NavigatorClaudeCode)
+		_, err := registry.SelectNavigator(ctx, ClientSourceCLI, NavigatorType("alternate"))
 		if !errors.Is(err, ErrNavigatorNotFound) {
 			t.Errorf("SelectNavigator() error = %v, want ErrNavigatorNotFound", err)
 		}
@@ -169,15 +169,15 @@ func TestNavigatorRegistry_SelectNavigator(t *testing.T) {
 	t.Run("preferred type not allowed for client source", func(t *testing.T) {
 		registry := NewNavigatorRegistry()
 
-		claudeCode := &mockNavigator{
-			navType:            NavigatorClaudeCode,
+		alternateNavigator := &mockNavigator{
+			navType:            NavigatorType("alternate"),
 			available:          true,
 			clientSourcePolicy: CLIOnlyPolicy(),
 		}
-		registry.Register(claudeCode)
+		registry.Register(alternateNavigator)
 
 		// Try to use CLI-only navigator from UI
-		_, err := registry.SelectNavigator(ctx, ClientSourceUI, NavigatorClaudeCode)
+		_, err := registry.SelectNavigator(ctx, ClientSourceUI, NavigatorType("alternate"))
 		if !errors.Is(err, ErrNavigatorNotAllowed) {
 			t.Errorf("SelectNavigator() error = %v, want ErrNavigatorNotAllowed", err)
 		}
@@ -186,15 +186,15 @@ func TestNavigatorRegistry_SelectNavigator(t *testing.T) {
 	t.Run("preferred type not available", func(t *testing.T) {
 		registry := NewNavigatorRegistry()
 
-		claudeCode := &mockNavigator{
-			navType:            NavigatorClaudeCode,
+		alternateNavigator := &mockNavigator{
+			navType:            NavigatorType("alternate"),
 			available:          false,
-			unavailableReason:  "claude CLI not installed",
+			unavailableReason:  "alternate navigator unavailable",
 			clientSourcePolicy: CLIOnlyPolicy(),
 		}
-		registry.Register(claudeCode)
+		registry.Register(alternateNavigator)
 
-		_, err := registry.SelectNavigator(ctx, ClientSourceCLI, NavigatorClaudeCode)
+		_, err := registry.SelectNavigator(ctx, ClientSourceCLI, NavigatorType("alternate"))
 		if !errors.Is(err, ErrNavigatorNotAvailable) {
 			t.Errorf("SelectNavigator() error = %v, want ErrNavigatorNotAvailable", err)
 		}
@@ -208,14 +208,14 @@ func TestNavigatorRegistry_SelectNavigator(t *testing.T) {
 			available:          true,
 			clientSourcePolicy: AllSourcesPolicy(),
 		}
-		claudeCode := &mockNavigator{
-			navType:            NavigatorClaudeCode,
+		alternateNavigator := &mockNavigator{
+			navType:            NavigatorType("alternate"),
 			available:          true,
 			clientSourcePolicy: CLIOnlyPolicy(),
 		}
 
 		registry.Register(playwright)
-		registry.Register(claudeCode)
+		registry.Register(alternateNavigator)
 
 		// Auto-select (no preferred type)
 		got, err := registry.SelectNavigator(ctx, ClientSourceUI, "")
@@ -237,7 +237,7 @@ func TestNavigatorRegistry_SelectNavigator(t *testing.T) {
 			clientSourcePolicy: AllSourcesPolicy(),
 		}
 		available := &mockNavigator{
-			navType:            NavigatorClaudeCode,
+			navType:            NavigatorType("alternate"),
 			available:          true,
 			clientSourcePolicy: AllSourcesPolicy(),
 		}
@@ -249,8 +249,8 @@ func TestNavigatorRegistry_SelectNavigator(t *testing.T) {
 		if err != nil {
 			t.Fatalf("SelectNavigator() error = %v", err)
 		}
-		if got.Type() != NavigatorClaudeCode {
-			t.Errorf("SelectNavigator() type = %v, want %v", got.Type(), NavigatorClaudeCode)
+		if got.Type() != NavigatorType("alternate") {
+			t.Errorf("SelectNavigator() type = %v, want %v", got.Type(), NavigatorType("alternate"))
 		}
 	})
 
@@ -258,7 +258,7 @@ func TestNavigatorRegistry_SelectNavigator(t *testing.T) {
 		registry := NewNavigatorRegistry()
 
 		cliOnly := &mockNavigator{
-			navType:            NavigatorClaudeCode,
+			navType:            NavigatorType("alternate"),
 			available:          true,
 			clientSourcePolicy: CLIOnlyPolicy(),
 		}
@@ -318,16 +318,16 @@ func TestNavigatorRegistry_ListNavigators(t *testing.T) {
 		creditPolicy: CreditPolicy{
 			RequiresCredits:  true,
 			CreditsPerStep:   2,
-			BypassConditions: []BypassCondition{BypassBYOK},
+			BypassConditions: []BypassCondition{BypassCredentialProvenance},
 		},
 		clientSourcePolicy: AllSourcesPolicy(),
 	}
 
-	claudeCode := &mockNavigator{
-		navType:           NavigatorClaudeCode,
+	alternateNavigator := &mockNavigator{
+		navType:           NavigatorType("alternate"),
 		available:         false,
-		unavailableReason: "claude CLI not installed",
-		description:       "Claude Code navigator",
+		unavailableReason: "alternate navigator unavailable",
+		description:       "alternate navigator",
 		creditPolicy: CreditPolicy{
 			RequiresCredits:  false,
 			BypassConditions: []BypassCondition{BypassLocalExecution},
@@ -336,7 +336,7 @@ func TestNavigatorRegistry_ListNavigators(t *testing.T) {
 	}
 
 	registry.Register(playwright)
-	registry.Register(claudeCode)
+	registry.Register(alternateNavigator)
 
 	t.Run("list from UI client", func(t *testing.T) {
 		infos := registry.ListNavigators(ctx, ClientSourceUI)
@@ -357,8 +357,8 @@ func TestNavigatorRegistry_ListNavigators(t *testing.T) {
 		}
 
 		// Check claude code info - not available for UI
-		if infos[1].Type != NavigatorClaudeCode {
-			t.Errorf("infos[1].Type = %v, want %v", infos[1].Type, NavigatorClaudeCode)
+		if infos[1].Type != NavigatorType("alternate") {
+			t.Errorf("infos[1].Type = %v, want %v", infos[1].Type, NavigatorType("alternate"))
 		}
 		if infos[1].Available {
 			t.Error("infos[1].Available = true, want false (not allowed for UI)")
@@ -372,8 +372,8 @@ func TestNavigatorRegistry_ListNavigators(t *testing.T) {
 		if infos[1].Available {
 			t.Error("infos[1].Available = true, want false (not installed)")
 		}
-		if infos[1].UnavailableReason != "claude CLI not installed" {
-			t.Errorf("infos[1].UnavailableReason = %q, want %q", infos[1].UnavailableReason, "claude CLI not installed")
+		if infos[1].UnavailableReason != "alternate navigator unavailable" {
+			t.Errorf("infos[1].UnavailableReason = %q, want %q", infos[1].UnavailableReason, "alternate navigator unavailable")
 		}
 	})
 }
@@ -391,7 +391,7 @@ func TestNavigatorRegistry_GetDefault(t *testing.T) {
 		registry := NewNavigatorRegistry()
 
 		registry.Register(&mockNavigator{navType: NavigatorPlaywright})
-		registry.Register(&mockNavigator{navType: NavigatorClaudeCode})
+		registry.Register(&mockNavigator{navType: NavigatorType("alternate")})
 
 		if got := registry.GetDefault(); got != NavigatorPlaywright {
 			t.Errorf("GetDefault() = %v, want %v", got, NavigatorPlaywright)
@@ -411,7 +411,7 @@ func TestNavigatorRegistry_Count(t *testing.T) {
 		t.Errorf("Count() = %d, want 1", got)
 	}
 
-	registry.Register(&mockNavigator{navType: NavigatorClaudeCode})
+	registry.Register(&mockNavigator{navType: NavigatorType("alternate")})
 	if got := registry.Count(); got != 2 {
 		t.Errorf("Count() = %d, want 2", got)
 	}

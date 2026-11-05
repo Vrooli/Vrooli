@@ -6,6 +6,7 @@ import {
   type Asset,
 } from '../../../shared/api';
 import { isFormDirty } from '../../../shared/lib/formUtils';
+import { DEFAULT_PRIVACY_MARKDOWN, DEFAULT_TERMS_MARKDOWN } from '../../public-landing/site/legalTemplates';
 
 /**
  * Form state for branding configuration
@@ -34,6 +35,12 @@ export interface BrandingFormState {
   smtp_from: string;
   coming_soon_enabled: boolean;
   coming_soon_message: string;
+  legal_name: string;
+  contact_address: string;
+  privacy_policy_markdown: string;
+  terms_markdown: string;
+  privacy_effective_date: string;
+  terms_effective_date: string;
 }
 
 /**
@@ -41,6 +48,7 @@ export interface BrandingFormState {
  */
 export interface BrandingHealthChecks {
   identity: boolean;
+  business: boolean;
   favicon: boolean;
   seo: boolean;
   ogImage: boolean;
@@ -105,6 +113,12 @@ export const DEFAULT_BRANDING_FORM: BrandingFormState = {
   smtp_from: '',
   coming_soon_enabled: false,
   coming_soon_message: '',
+  legal_name: '',
+  contact_address: '',
+  privacy_policy_markdown: DEFAULT_PRIVACY_MARKDOWN,
+  terms_markdown: DEFAULT_TERMS_MARKDOWN,
+  privacy_effective_date: '',
+  terms_effective_date: '',
 };
 
 /**
@@ -112,7 +126,7 @@ export const DEFAULT_BRANDING_FORM: BrandingFormState = {
  */
 export function brandingToForm(branding: SiteBranding): BrandingFormState {
   return {
-    site_name: branding.site_name ?? '',
+    site_name: branding.site_name,
     tagline: branding.tagline ?? '',
     logo_url: branding.logo_url ?? '',
     logo_icon_url: branding.logo_icon_url ?? '',
@@ -135,6 +149,14 @@ export function brandingToForm(branding: SiteBranding): BrandingFormState {
     smtp_from: branding.smtp_from ?? '',
     coming_soon_enabled: branding.coming_soon_enabled ?? false,
     coming_soon_message: branding.coming_soon_message ?? '',
+    legal_name: branding.legal_name ?? '',
+    contact_address: branding.contact_address ?? '',
+    // An unset document is served from the default template, so the editor
+    // starts from exactly what visitors see; unchanged text is never saved.
+    privacy_policy_markdown: branding.privacy_policy_markdown ?? DEFAULT_PRIVACY_MARKDOWN,
+    terms_markdown: branding.terms_markdown ?? DEFAULT_TERMS_MARKDOWN,
+    privacy_effective_date: branding.privacy_effective_date ?? '',
+    terms_effective_date: branding.terms_effective_date ?? '',
   };
 }
 
@@ -163,8 +185,8 @@ export function formToBrandingPayload(
     }
 
     // Handle string fields - ensure we have strings
-    const currentStr = String(current ?? '').trim();
-    const originalStr = String(originalValue ?? '').trim();
+    const currentStr = String(current).trim();
+    const originalStr = String(originalValue).trim();
     if (currentStr !== originalStr && currentStr.length > 0) {
       // Convert smtp_port to number
       if (key === 'smtp_port') {
@@ -179,7 +201,7 @@ export function formToBrandingPayload(
 }
 
 /**
- * Check if branding form has any changes from original
+ * Check whether the branding form differs from the original values.
  */
 export function isBrandingDirty(
   form: BrandingFormState,
@@ -194,6 +216,7 @@ export function isBrandingDirty(
 export function computeBrandingHealth(form: BrandingFormState): BrandingHealth {
   const checks: BrandingHealthChecks = {
     identity: Boolean(form.site_name && form.logo_url),
+    business: Boolean(form.legal_name.trim() && form.support_email.trim() && form.contact_address.trim()),
     favicon: Boolean(form.favicon_url),
     seo: Boolean(form.default_title && form.default_description),
     ogImage: Boolean(form.default_og_image_url),
@@ -241,8 +264,8 @@ export function selectLogoDerivatives(
   return {
     logo_url: primaryLogo,
     logo_icon_url: iconLogo,
-    favicon_url: favicon ?? currentForm.favicon_url,
-    apple_touch_icon_url: touch ?? currentForm.apple_touch_icon_url,
+    favicon_url: favicon,
+    apple_touch_icon_url: touch,
   };
 }
 
@@ -279,7 +302,7 @@ export function selectOgDerivatives(asset: Asset): OgDerivatives {
   const og = asset.derivatives?.og_image_1200x630 || asset.url;
 
   return {
-    default_og_image_url: og ?? '',
+    default_og_image_url: typeof og === 'string' ? og : '',
   };
 }
 

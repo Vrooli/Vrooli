@@ -92,11 +92,12 @@ func (c *chainClient) ExecutePrompt(ctx context.Context, prompt string) (string,
 }
 
 // Model implements AIClient.
+//
+// Returns the explicit per-request model override, or an empty string when none
+// was supplied (the effective model is resolved through the OpenRouter resource
+// policy at execution time — there is no baked-in default slug to report here).
 func (c *chainClient) Model() string {
-	if c.model != "" {
-		return c.model
-	}
-	return byokDefaultModel
+	return c.model
 }
 
 // Compile-time interface check

@@ -1,0 +1,156 @@
+{
+  "preparationAmendments": [
+    {
+      "actor": {
+        "kind": "agent",
+        "owner": "d47163a3-1ba3-5e7b-96dd-e6f8fc450b3f",
+        "source": "agent_provenance",
+        "subject": "fde924d0-bee7-4054-ba34-0ae28c857a4c"
+      },
+      "evidenceRef": "path:.vrooli/work/delivery/external-knowledge-delivery/PLATFORM-AMENDMENT.md",
+      "previous": {
+        "acceptedRevision": "preparation-v1:sha256:3c5b6d987132b9a42efef7cedaaf8f6995202f2d281a73f2a69f8292593452df",
+        "checkin": {
+          "mode": "parked"
+        },
+        "coordinatorPromptRef": "path:.vrooli/work/delivery/external-knowledge-delivery/GOAL.md",
+        "effortRef": "effort:external-knowledge-search",
+        "keepAlive": true,
+        "sourceRefs": [
+          "path:docs/architecture/external-knowledge-search.md",
+          "path:.vrooli/work/delivery/external-knowledge-delivery/RESEARCH.md",
+          "path:.vrooli/work/delivery/external-knowledge-delivery/QUEUE.md",
+          "path:.vrooli/work/delivery/external-knowledge-delivery/SETUP.md",
+          "path:.vrooli/work/delivery/external-knowledge-delivery/EMAIL-DESIGN-PROMPT.md"
+        ]
+      },
+      "recordedAt": "2026-10-14T19:27:58.683218506Z",
+      "replacement": {
+        "acceptedRevision": "preparation-v2:sha256:ad31c53a71676fae6e4af743f3f1bb29d5a5c7f5e5d070b895ecf19c9eeb264d",
+        "checkin": {
+          "mode": "parked"
+        },
+        "coordinatorPromptRef": "path:.vrooli/work/delivery/external-knowledge-delivery/GOAL.md",
+        "effortRef": "effort:external-knowledge-search",
+        "keepAlive": true,
+        "sourceRefs": [
+          "path:docs/architecture/external-knowledge-search.md",
+          "path:.vrooli/work/delivery/external-knowledge-delivery/RESEARCH.md",
+          "path:.vrooli/work/delivery/external-knowledge-delivery/QUEUE.md",
+          "path:.vrooli/work/delivery/external-knowledge-delivery/SETUP.md",
+          "path:.vrooli/work/delivery/external-knowledge-delivery/EMAIL-DESIGN-PROMPT.md",
+          "path:.vrooli/work/delivery/external-knowledge-delivery/sources.json"
+        ]
+      }
+    },
+    {
+      "actor": {
+        "kind": "agent",
+        "owner": "d47163a3-1ba3-5e7b-96dd-e6f8fc450b3f",
+        "source": "agent_provenance",
+        "subject": "ff5f036e-1a4e-49ac-89ef-3963322ae5e7"
+      },
+      "evidenceRef": "path:.vrooli/work/delivery/external-knowledge-delivery/PLATFORM-AMENDMENT.md",
+      "previous": {
+        "acceptedRevision": "preparation-v2:sha256:ad31c53a71676fae6e4af743f3f1bb29d5a5c7f5e5d070b895ecf19c9eeb264d",
+        "checkin": {
+          "mode": "parked"
+        },
+        "coordinatorPromptRef": "path:.vrooli/work/delivery/external-knowledge-delivery/GOAL.md",
+        "effortRef": "effort:external-knowledge-search",
+        "keepAlive": true,
+        "sourceRefs": [
+          "path:docs/architecture/external-knowledge-search.md",
+          "path:.vrooli/work/delivery/external-knowledge-delivery/RESEARCH.md",
+          "path:.vrooli/work/delivery/external-knowledge-delivery/QUEUE.md",
+          "path:.vrooli/work/delivery/external-knowledge-delivery/SETUP.md",
+          "path:.vrooli/work/delivery/external-knowledge-delivery/EMAIL-DESIGN-PROMPT.md",
+          "path:.vrooli/work/delivery/external-knowledge-delivery/sources.json"
+        ]
+      },
+      "recordedAt": "2026-10-15T04:21:49.549567582Z",
+      "replacement": {
+        "acceptedRevision": "preparation-v3:sha256:bb83b14c81c539919a0f0b3f55affbc2616d2f76fa9f597fea2295f4c4fb82fb",
+        "checkin": {
+          "mode": "parked"
+        },
+        "coordinatorPromptRef": "path:.vrooli/work/delivery/external-knowledge-delivery/GOAL.md",
+        "effortRef": "effort:external-knowledge-search",
+        "keepAlive": true,
+        "sourceRefs": [
+          "path:docs/architecture/external-knowledge-search.md",
+          "path:.vrooli/work/delivery/external-knowledge-delivery/RESEARCH.md",
+          "path:.vrooli/work/delivery/external-knowledge-delivery/QUEUE.md",
+          "path:.vrooli/work/delivery/external-knowledge-delivery/SETUP.md",
+          "path:.vrooli/work/delivery/external-knowledge-delivery/EMAIL-DESIGN-PROMPT.md",
+          "path:.vrooli/work/delivery/external-knowledge-delivery/sources.json",
+          "path:.vrooli/work/delivery/external-knowledge-delivery/EMAIL-ACCEPTANCE-AMENDMENT.md",
+          "path:.vrooli/work/delivery/external-knowledge-delivery/email-acceptance-v1.1.1/spec.txt"
+        ]
+      }
+    }
+  ],
+  "finiteLeader": {
+    "effortRef": "effort:external-knowledge-search",
+    "acceptedRevision": "preparation-v3:sha256:bb83b14c81c539919a0f0b3f55affbc2616d2f76fa9f597fea2295f4c4fb82fb",
+    "coordinatorPromptRef": "path:.vrooli/work/delivery/external-knowledge-delivery/GOAL.md",
+    "sourceRefs": [
+      "path:docs/architecture/external-knowledge-search.md",
+      "path:.vrooli/work/delivery/external-knowledge-delivery/RESEARCH.md",
+      "path:.vrooli/work/delivery/external-knowledge-delivery/QUEUE.md",
+      "path:.vrooli/work/delivery/external-knowledge-delivery/SETUP.md",
+      "path:.vrooli/work/delivery/external-knowledge-delivery/EMAIL-DESIGN-PROMPT.md",
+      "path:.vrooli/work/delivery/external-knowledge-delivery/sources.json",
+      "path:.vrooli/work/delivery/external-knowledge-delivery/EMAIL-ACCEPTANCE-AMENDMENT.md",
+      "path:.vrooli/work/delivery/external-knowledge-delivery/email-acceptance-v1.1.1/spec.txt"
+    ],
+    "keepAlive": true,
+    "checkin": {
+      "mode": "parked"
+    }
+  },
+  "finiteLeaderState": {
+    "agentId": "external-knowledge-orchestrator",
+    "binding": {
+      "acceptedRevision": "preparation-v3:sha256:bb83b14c81c539919a0f0b3f55affbc2616d2f76fa9f597fea2295f4c4fb82fb",
+      "checkin": {
+        "mode": "parked"
+      },
+      "coordinatorPromptRef": "path:.vrooli/work/delivery/external-knowledge-delivery/GOAL.md",
+      "effortRef": "effort:external-knowledge-search",
+      "keepAlive": true,
+      "sourceRefs": [
+        "path:docs/architecture/external-knowledge-search.md",
+        "path:.vrooli/work/delivery/external-knowledge-delivery/RESEARCH.md",
+        "path:.vrooli/work/delivery/external-knowledge-delivery/QUEUE.md",
+        "path:.vrooli/work/delivery/external-knowledge-delivery/SETUP.md",
+        "path:.vrooli/work/delivery/external-knowledge-delivery/EMAIL-DESIGN-PROMPT.md",
+        "path:.vrooli/work/delivery/external-knowledge-delivery/sources.json",
+        "path:.vrooli/work/delivery/external-knowledge-delivery/EMAIL-ACCEPTANCE-AMENDMENT.md",
+        "path:.vrooli/work/delivery/external-knowledge-delivery/email-acceptance-v1.1.1/spec.txt"
+      ]
+    },
+    "createdAt": "",
+    "dispatchStarted": false,
+    "id": "",
+    "profileKey": "prompt-manager/delivery-orchestrator",
+    "status": "idle",
+    "taskStarted": false,
+    "teamId": "external-knowledge-delivery",
+    "version": 1
+  },
+  "teamId": "external-knowledge-delivery",
+  "agentId": "external-knowledge-orchestrator",
+  "enabled": false,
+  "teamEnabled": false,
+  "effectiveState": "team-disabled",
+  "effectiveReason": "team is disabled",
+  "controlState": "active",
+  "scheduled": false,
+  "schedule": "*/30 * * * *",
+  "profileKey": "prompt-manager/delivery-orchestrator",
+  "consecutiveFailures": 0,
+  "lifecycleState": "disabled",
+  "createdAt": "2026-10-14T14:32:52Z",
+  "updatedAt": "2026-10-15T04:21:49Z"
+}

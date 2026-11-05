@@ -1,0 +1,30 @@
+{
+  "metadata": {
+    "name": "device-control-onboarding-reprobe",
+    "description": "Re-probe the connected device and verify that the onboarding report is rendered in place.",
+    "requirement": "DVC-P1-008",
+    "version": "1",
+    "labels": { "reset": "none", "surface": "onboarding", "requires_confirmation": "true", "routed_isolation": "true" },
+    "execution_mode": "EXECUTION_MODE_MUTATING"
+  },
+  "id": "a1270e6d-a3a5-460e-9ff5-a57fc692f215",
+  "project_id": "device-control",
+  "name": "device-control-onboarding-reprobe",
+  "folder_path": "/bas/cases/02-operator",
+  "description": "The operator can request a live onboarding probe and read its rung report.",
+  "version": 1,
+  "flow_definition": {
+    "settings": { "viewport_width": 1440, "viewport_height": 900 },
+    "nodes": [
+      { "id": "open-dashboard", "action": { "type": "ACTION_TYPE_NAVIGATE", "navigate": { "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO", "scenario": "@scenario/self", "scenario_path": "/", "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE", "timeout_ms": 30000 }, "metadata": { "label": "Open Device Control" } } },
+      { "id": "wait-reprobe", "action": { "type": "ACTION_TYPE_WAIT", "wait": { "selector": "@selector/pages.dashboardReprobe", "state": "WAIT_STATE_VISIBLE", "timeout_ms": 20000 }, "metadata": { "label": "Re-probe control renders" } } },
+      { "id": "reprobe", "action": { "type": "ACTION_TYPE_CLICK", "click": { "selector": "@selector/pages.dashboardReprobe" }, "metadata": { "label": "Re-probe onboarding" } } },
+      { "id": "wait-report", "action": { "type": "ACTION_TYPE_WAIT", "wait": { "selector": "@selector/pages.onboardingReport", "state": "WAIT_STATE_VISIBLE", "timeout_ms": 30000 }, "metadata": { "label": "Onboarding report renders" } } }
+    ],
+    "edges": [
+      { "source": "open-dashboard", "target": "wait-reprobe" },
+      { "source": "wait-reprobe", "target": "reprobe" },
+      { "source": "reprobe", "target": "wait-report" }
+    ]
+  }
+}

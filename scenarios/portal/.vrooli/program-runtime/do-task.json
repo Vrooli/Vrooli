@@ -1,0 +1,152 @@
+{
+  "$schema": "../../../program-runtime/schemas/program-contract.schema.json",
+  "name": "portal.do-task",
+  "version": "1",
+  "helpers": {
+    "program": "1"
+  },
+  "purpose": "Run one browser export and desktop verification through their owning governed programs.",
+  "inputs": {
+    "workflow_id": {
+      "type": "string",
+      "required": true,
+      "description": "Exact BAS workflow UUID"
+    },
+    "workflow_version": {
+      "type": "integer",
+      "required": true,
+      "description": "Exact BAS workflow revision"
+    },
+    "device_id": {
+      "type": "string",
+      "required": true,
+      "description": "Exact Device Control device identity"
+    },
+    "context_key": {
+      "type": "string",
+      "required": true,
+      "description": "Shared desktop application context"
+    },
+    "flow_id": {
+      "type": "string",
+      "required": true,
+      "description": "Exact saved desktop flow identity"
+    },
+    "flow_version": {
+      "type": "integer",
+      "required": true,
+      "description": "Exact saved desktop flow revision"
+    },
+    "actor": {
+      "type": "string",
+      "required": true,
+      "description": "Owner audit actor"
+    }
+  },
+  "assumptions": [
+    "The caller authorizes both owner operations and supplies exact immutable revisions.",
+    "Browser Automation Studio and Device Control retain ownership of their sessions, effects, and receipts."
+  ],
+  "invariants": [
+    "One bounded result envelope is printed exactly once on every path.",
+    "The desktop step runs only after the browser owner reports a verified result.",
+    "Each owner receives only its own typed inputs and supplies its own receipt.",
+    "No provider fallback changes the target, account, authority, or acceptance contract."
+  ],
+  "bindings": [
+    {
+      "id": "browser-automation-studio/workflows/execute",
+      "effect": "write",
+      "optional": true,
+      "note": "Portal reports unavailable when Browser Automation Studio is not reachable."
+    },
+    {
+      "id": "device-control/flow/replay",
+      "effect": "write",
+      "optional": true,
+      "note": "Portal reports unavailable when Device Control is not reachable or the desktop grant is absent."
+    }
+  ],
+  "outputs": {
+    "status": {
+      "enum": [
+        "ok",
+        "partial",
+        "failed",
+        "refused",
+        "unavailable"
+      ]
+    },
+    "phase": {
+      "enum": [
+        "validate",
+        "collect",
+        "act",
+        "report"
+      ]
+    },
+    "signals": {
+      "result": "Owner-qualified browser and desktop outcomes"
+    },
+    "errors": {
+      "classes": [
+        "invalid_input",
+        "binding_error",
+        "browser_failed",
+        "desktop_failed",
+        "scenario_unreachable",
+        "no_grant",
+        "deadline_exceeded",
+        "remote_error",
+        "no_governed_binding"
+      ]
+    },
+    "evidence": "Browser and desktop owner receipt references only"
+  },
+  "budget": {
+    "wall_ms": 120000,
+    "inference_calls": 0,
+    "delegated_runs": 0,
+    "materialize_limit": 4
+  },
+  "fixtures": [
+    {
+      "id": "missing-input",
+      "inputs": {},
+      "expect": {
+        "admission_error": "invalid_argument"
+      },
+      "requires": [
+        "portal"
+      ]
+    },
+    {
+      "id": "browser-failure-does-not-run-desktop",
+      "inputs": {
+        "workflow_id": "wf",
+        "workflow_version": 1,
+        "device_id": "desktop",
+        "context_key": "office:v1",
+        "flow_id": "flow",
+        "flow_version": 1,
+        "actor": "portal"
+      },
+      "expect": {
+        "status": [
+          "failed",
+          "unavailable"
+        ]
+      },
+      "requires": [
+        "portal"
+      ]
+    }
+  ],
+  "rung": "S3",
+  "owner_skill": "portal",
+  "verbs": [
+    "ai.classify",
+    "tasks.get",
+    "validate"
+  ]
+}

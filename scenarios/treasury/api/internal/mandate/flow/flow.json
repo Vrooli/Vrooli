@@ -1,0 +1,55 @@
+{
+  "schemaVersion": 6,
+  "kind": "temporal",
+  "flowId": "mandate.lifecycle",
+  "domain": "mandate",
+  "description": "A scoped authority grant becomes live once, then closes permanently by exhaustion, expiry, or revocation.",
+  "model": {
+    "module": "MandateLifecycle",
+    "seed": "2026081801",
+    "maxSteps": 4,
+    "traceCount": 8,
+    "verify": {
+      "invariants": ["TypeOK", "TerminalClosure", "IllegalTransitionsPreserveState", "ExpiredNeverReturnsLive"]
+    }
+  },
+  "states": [
+    {"id": "draft", "quint": "Draft", "initial": true},
+    {"id": "live", "quint": "Live"},
+    {"id": "exhausted", "quint": "Exhausted", "terminal": true},
+    {"id": "expired", "quint": "Expired", "terminal": true},
+    {"id": "revoked", "quint": "Revoked", "terminal": true}
+  ],
+  "events": [
+    {"id": "issue", "quint": "Issue"},
+    {"id": "exhaust", "quint": "Exhaust"},
+    {"id": "reach_expiry", "quint": "ReachExpiry"},
+    {"id": "revoke", "quint": "Revoke"}
+  ],
+  "transitionDefaults": {
+    "invalid": {"to": "self", "wantError": true},
+    "terminal": {"to": "self", "wantError": true}
+  },
+  "transitions": [
+    {"from": "draft", "event": "issue", "to": "live"},
+    {"from": "live", "event": "exhaust", "to": "exhausted"},
+    {"from": "live", "event": "reach_expiry", "to": "expired"},
+    {"from": "live", "event": "revoke", "to": "revoked"}
+  ],
+  "invariants": [
+    {"id": "type_ok", "quint": "TypeOK", "description": "Status remains in the declared state set."},
+    {"id": "terminal_closure", "quint": "TerminalClosure", "description": "Exhausted, expired, and revoked mandates cannot transition."},
+    {"id": "illegal_transitions_preserve_state", "quint": "IllegalTransitionsPreserveState", "description": "Rejected transitions preserve the prior status."},
+    {"id": "expired_never_returns_live", "quint": "ExpiredNeverReturnsLive", "description": "An expired mandate is never extended or resurrected; replacement requires a new mandate."}
+  ],
+  "traces": [
+    {"name": "issue_then_expire", "initial": "draft", "steps": [{"event": "issue", "want": "live", "wantError": false}, {"event": "reach_expiry", "want": "expired", "wantError": false}]},
+    {"name": "issue_then_revoke", "initial": "draft", "steps": [{"event": "issue", "want": "live", "wantError": false}, {"event": "revoke", "want": "revoked", "wantError": false}]},
+    {"name": "issue_then_exhaust", "initial": "draft", "steps": [{"event": "issue", "want": "live", "wantError": false}, {"event": "exhaust", "want": "exhausted", "wantError": false}]}
+  ],
+  "runtime": {
+    "go": {"package": "flow", "statusType": "MandateStatus", "eventType": "MandateEvent", "constantPrefix": "Mandate"},
+    "sideEffects": ["Issue validates and signs before persistence.", "Expiry is computed from the stored UTC timestamp on every read; no scheduler mutates the mandate."]
+  },
+  "replay": {"transition": {"function": "TransitionMandate", "stateType": "MandateState", "statusField": "Status"}}
+}

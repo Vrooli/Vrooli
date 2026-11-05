@@ -1,0 +1,326 @@
+{
+  "metadata": {
+    "name": "e21-channel-unknown-readback",
+    "description": "Keep an exact existing channel draft after a one-shot confirming-read failure, then retry and verify persisted owner-scoped state.",
+    "requirement": "NOTIFICA-P0-005",
+    "version": "1",
+    "labels": {
+      "reset": "none",
+      "routed_isolation": "true",
+      "requires_confirmation": "true",
+      "surface": "settings-e21-channel-unknown-readback"
+    },
+    "execution_mode": "mutating"
+  },
+  "flow_definition": {
+    "metadata": {
+      "description": "Exercise unknown save outcome and retry recovery on one disposable owner channel-address ID.",
+      "requirement": "NOTIFICA-P0-005",
+      "version": "1",
+      "execution_mode": "mutating",
+      "owner": "notification-hub"
+    },
+    "settings": {
+      "viewport_width": 390,
+      "viewport_height": 844
+    },
+    "nodes": [
+      {
+        "id": "open-reach",
+        "action": {
+          "type": "ACTION_TYPE_NAVIGATE",
+          "navigate": {
+            "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+            "scenario": "notification-hub",
+            "scenario_path": "/settings/reach?vrooli_test_mode=1&e22_fixture=settings-owner&e22_case=e21-channel-unknown-readback&e22_fault=channel-unknown-readback",
+            "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE"
+          },
+          "metadata": {
+            "label": "Open the disposable owner fixture with one channel readback fault armed"
+          }
+        }
+      },
+      {
+        "id": "wait-owner-device",
+        "action": {
+          "type": "ACTION_TYPE_WAIT",
+          "wait": {
+            "selector": "[data-testid=\"reach-device-e22-settings-device\"]",
+            "state": "WAIT_STATE_VISIBLE"
+          },
+          "metadata": {
+            "label": "Wait for the fixture owner device"
+          }
+        }
+      },
+      {
+        "id": "open-email-editor",
+        "action": {
+          "type": "ACTION_TYPE_CLICK",
+          "click": {
+            "selector": "text=Edit content access"
+          },
+          "metadata": {
+            "label": "Open the exact saved email row"
+          }
+        }
+      },
+      {
+        "id": "change-destination",
+        "action": {
+          "type": "ACTION_TYPE_INPUT",
+          "input": {
+            "selector": "[data-testid=\"reach-channel-editor\"] input[type=email]",
+            "value": "recovered@example.test",
+            "clear_first": true
+          },
+          "metadata": {
+            "label": "Stage a reserved example destination on the existing exact ID"
+          }
+        }
+      },
+      {
+        "id": "review-change",
+        "action": {
+          "type": "ACTION_TYPE_CLICK",
+          "click": {
+            "selector": "text=Review changes"
+          },
+          "metadata": {
+            "label": "Review the destination before the owner-scoped update"
+          }
+        }
+      },
+      {
+        "id": "save-with-read-fault",
+        "action": {
+          "type": "ACTION_TYPE_CLICK",
+          "click": {
+            "selector": "text=Save destination"
+          },
+          "metadata": {
+            "label": "Save the exact row while the disposable confirming read fails once"
+          }
+        }
+      },
+      {
+        "id": "wait-unknown-outcome",
+        "action": {
+          "type": "ACTION_TYPE_WAIT",
+          "wait": {
+            "selector": "text=Channel readback is unavailable. The save outcome is unknown; your draft is retained and must be checked before another create.",
+            "state": "WAIT_STATE_VISIBLE"
+          },
+          "metadata": {
+            "label": "Wait for the truthful unknown-outcome recovery message"
+          }
+        }
+      },
+      {
+        "id": "assert-draft-retained",
+        "action": {
+          "type": "ACTION_TYPE_EVALUATE",
+          "evaluate": {
+            "expression": "(()=>{const root=document.querySelector('[data-testid=reach-channel-editor]');const text=root?.textContent||'';const error=root?.querySelector('[role=alert]')?.textContent||'';if(!root||!text.includes('Destination: recovered@example.test')||!error.includes('save outcome is unknown'))throw new Error('unknown save did not retain its reviewed exact-row draft');return {draftRetained:true,address:'recovered@example.test',outcome:'unknown',noSuccessClaim:true}})()"
+          },
+          "metadata": {
+            "label": "Confirm the editor retains the exact draft and makes no success claim"
+          }
+        }
+      },
+      {
+        "id": "capture-unknown-readback",
+        "action": {
+          "type": "ACTION_TYPE_SCREENSHOT",
+          "screenshot": {
+            "full_page": false
+          },
+          "metadata": {
+            "label": "Capture the truthful unknown channel readback state on phone"
+          }
+        }
+      },
+      {
+        "id": "retry-exact-row",
+        "action": {
+          "type": "ACTION_TYPE_CLICK",
+          "click": {
+            "selector": "text=Save destination"
+          },
+          "metadata": {
+            "label": "Retry the same exact existing row after the one-shot fault is consumed"
+          }
+        }
+      },
+      {
+        "id": "wait-confirmed-recovery",
+        "action": {
+          "type": "ACTION_TYPE_WAIT",
+          "wait": {
+            "selector": "text=Destination and approved labels saved and confirmed by owner-scoped readback.",
+            "state": "WAIT_STATE_VISIBLE"
+          },
+          "metadata": {
+            "label": "Wait for exact owner-scoped readback confirmation"
+          }
+        }
+      },
+      {
+        "id": "reload-reach",
+        "action": {
+          "type": "ACTION_TYPE_NAVIGATE",
+          "navigate": {
+            "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+            "scenario": "notification-hub",
+            "scenario_path": "/settings/reach?vrooli_test_mode=1&e22_fixture=settings-owner&e22_case=e21-channel-unknown-readback&e22_fault=channel-unknown-readback",
+            "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE"
+          },
+          "metadata": {
+            "label": "Reload the same lease and case without rearming the spent read fault"
+          }
+        }
+      },
+      {
+        "id": "wait-reloaded-device",
+        "action": {
+          "type": "ACTION_TYPE_WAIT",
+          "wait": {
+            "selector": "[data-testid=\"reach-device-e22-settings-device\"]",
+            "state": "WAIT_STATE_VISIBLE"
+          },
+          "metadata": {
+            "label": "Wait for the persisted owner device"
+          }
+        }
+      },
+      {
+        "id": "reopen-email-editor",
+        "action": {
+          "type": "ACTION_TYPE_CLICK",
+          "click": {
+            "selector": "text=Edit content access"
+          },
+          "metadata": {
+            "label": "Reopen the saved exact channel row"
+          }
+        }
+      },
+      {
+        "id": "assert-recovered-readback",
+        "action": {
+          "type": "ACTION_TYPE_EVALUATE",
+          "evaluate": {
+            "expression": "(()=>{const root=document.querySelector('[data-testid=reach-channel-editor]');const input=root?.querySelector('input[type=email]');if(input?.value!=='recovered@example.test')throw new Error(`exact channel readback mismatch: ${input?.value}`);return {address:input.value,persistedAfterReload:true,recoveryConfirmed:true}})()"
+          },
+          "metadata": {
+            "label": "Verify the retried exact-ID address after full reload"
+          }
+        }
+      },
+      {
+        "id": "capture-recovered-readback",
+        "action": {
+          "type": "ACTION_TYPE_SCREENSHOT",
+          "screenshot": {
+            "full_page": false
+          },
+          "metadata": {
+            "label": "Capture the current phone channel editor after recovered persistence"
+          }
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "e21-unknown-00",
+        "source": "open-reach",
+        "target": "wait-owner-device",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e21-unknown-01",
+        "source": "wait-owner-device",
+        "target": "open-email-editor",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e21-unknown-02",
+        "source": "open-email-editor",
+        "target": "change-destination",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e21-unknown-03",
+        "source": "change-destination",
+        "target": "review-change",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e21-unknown-04",
+        "source": "review-change",
+        "target": "save-with-read-fault",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e21-unknown-05",
+        "source": "save-with-read-fault",
+        "target": "wait-unknown-outcome",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e21-unknown-06",
+        "source": "wait-unknown-outcome",
+        "target": "assert-draft-retained",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e21-unknown-07",
+        "source": "assert-draft-retained",
+        "target": "capture-unknown-readback",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e21-unknown-08",
+        "source": "capture-unknown-readback",
+        "target": "retry-exact-row",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e21-unknown-09",
+        "source": "retry-exact-row",
+        "target": "wait-confirmed-recovery",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e21-unknown-10",
+        "source": "wait-confirmed-recovery",
+        "target": "reload-reach",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e21-unknown-11",
+        "source": "reload-reach",
+        "target": "wait-reloaded-device",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e21-unknown-12",
+        "source": "wait-reloaded-device",
+        "target": "reopen-email-editor",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e21-unknown-13",
+        "source": "reopen-email-editor",
+        "target": "assert-recovered-readback",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e21-unknown-14",
+        "source": "assert-recovered-readback",
+        "target": "capture-recovered-readback",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      }
+    ]
+  }
+}

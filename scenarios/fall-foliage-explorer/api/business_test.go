@@ -8,7 +8,7 @@ import (
 	"testing"
 )
 
-// TestBusinessWorkflow tests the complete business workflow
+// [REQ:REQ-P0-003][REQ:REQ-P0-004][REQ:REQ-P1-001][REQ:REQ-P1-003] Complete user journey links discovery, weather, reports, and trips.
 func TestBusinessWorkflow(t *testing.T) {
 	cleanup := setupTestLogger()
 	defer cleanup()
@@ -111,7 +111,7 @@ func TestBusinessWorkflow(t *testing.T) {
 	})
 }
 
-// TestPredictionWorkflow tests the prediction workflow
+// [REQ:REQ-P0-005][REQ:REQ-P2-001] Prediction workflow stores AI-backed peak dates when Ollama responds.
 func TestPredictionWorkflow(t *testing.T) {
 	cleanup := setupTestLogger()
 	defer cleanup()
@@ -123,12 +123,8 @@ func TestPredictionWorkflow(t *testing.T) {
 	defer cleanupTestRegion(t, testDB.DB, regionID)
 
 	t.Run("PredictionWithMockOllama", func(t *testing.T) {
-		// Setup mock Ollama server
-		mockServer := mockOllamaServer()
-		defer mockServer.Close()
-
-		restoreEnv := setTestEnv(t, "OLLAMA_URL", mockServer.URL)
-		defer restoreEnv()
+		restoreGateway := mockResourceOllamaGateway(t, `{"response":"{\"predicted_date\":\"2025-10-15\",\"confidence\":0.85}"}`, 0)
+		defer restoreGateway()
 
 		// Make prediction request
 		rr, _ := makeHTTPRequest(HTTPTestRequest{
@@ -162,7 +158,7 @@ func TestPredictionWorkflow(t *testing.T) {
 	})
 }
 
-// TestErrorPaths tests various error paths
+// [REQ:REQ-P0-003][REQ:REQ-P0-004][REQ:REQ-P1-001][REQ:REQ-P1-003] API handlers reject missing parameters and unsupported methods.
 func TestErrorPaths(t *testing.T) {
 	cleanup := setupTestLogger()
 	defer cleanup()
@@ -225,7 +221,7 @@ func TestErrorPaths(t *testing.T) {
 	}
 }
 
-// TestCORSConfiguration tests CORS headers are set correctly
+// [REQ:REQ-P0-007] Browser-facing API handlers set lifecycle-compatible CORS headers.
 func TestCORSConfiguration(t *testing.T) {
 	cleanup := setupTestLogger()
 	defer cleanup()
@@ -246,12 +242,13 @@ func TestCORSConfiguration(t *testing.T) {
 			wrappedHandler := enableCORS(tt.handler)
 
 			req, _ := http.NewRequest(tt.method, "/test", nil)
+			req.Header.Set("Origin", "http://localhost:22116")
 			rr := httptest.NewRecorder()
 			wrappedHandler(rr, req)
 
 			origin := rr.Header().Get("Access-Control-Allow-Origin")
-			if origin != "*" {
-				t.Errorf("Expected CORS origin *, got %s", origin)
+			if origin != "http://localhost:22116" {
+				t.Errorf("Expected CORS origin http://localhost:22116, got %s", origin)
 			}
 
 			methods := rr.Header().Get("Access-Control-Allow-Methods")
@@ -272,6 +269,7 @@ func TestCORSConfiguration(t *testing.T) {
 }
 
 // TestDatabaseReconnection tests behavior when database reconnects
+// [REQ:REQ-P0-002] API handlers recover usable behavior across database availability changes.
 func TestDatabaseReconnection(t *testing.T) {
 	cleanup := setupTestLogger()
 	defer cleanup()
@@ -326,6 +324,7 @@ func TestDatabaseReconnection(t *testing.T) {
 }
 
 // TestInitDBConnection tests database initialization connection logic
+// [REQ:REQ-P0-002] Database connection health can be established through test resources.
 func TestInitDBConnection(t *testing.T) {
 	cleanup := setupTestLogger()
 	defer cleanup()

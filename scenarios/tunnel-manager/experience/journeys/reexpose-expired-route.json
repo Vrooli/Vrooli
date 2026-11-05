@@ -1,0 +1,13 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-journey",
+  "schemaVersion": "1.0.0",
+  "journey": {"id": "reexpose-expired-route", "title": "Re-expose an expired route", "purpose": "Recover an expired exposure without losing its route identity or safety disclosures."},
+  "steps": [
+    {"page": "exposure", "state": "ready", "intent": "Filter or inspect the expired lease collection.", "elements": ["exposure-expired-panel", "exposure-lease-filter"]},
+    {"page": "exposure", "state": "ready", "intent": "Open the route detail and select re-expose.", "elements": ["exposure-detail-dialog", "exposure-re-expose-button"]},
+    {"page": "exposure", "state": "ready", "intent": "Review the new duration, target, hostname, and publicness boundary.", "elements": ["exposure-review-dialog", "exposure-duration-select"]},
+    {"page": "exposure", "state": "success", "intent": "Confirm and verify the new lease result.", "elements": ["exposure-confirm-expose-button", "exposure-verify-result-button"]}
+  ],
+  "claims": [{"id": "identity-preserved", "type": "custom", "statement": "Re-exposure reuses the known route identity while requiring a fresh duration and review.", "tier": "manual"}]
+}

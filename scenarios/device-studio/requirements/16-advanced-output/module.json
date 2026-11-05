@@ -1,0 +1,38 @@
+{
+  "_metadata": {
+    "module": "advanced-output",
+    "description": "Advanced video output profiles. First-release contract; completion follows requirement-linked behavior and retained protocol evidence.",
+    "schema_version": "1.0.0",
+    "auto_sync_enabled": true
+  },
+  "requirements": [
+    {
+      "id": "DS-OUTPUT-ADVANCED",
+      "title": "The exporter may qualify advanced output profiles.",
+      "description": "Where optional 4K, higher-frame-rate or HDR output is added, the exporter may expose it only with separately qualified source adequacy, color/codec, resource and visual evidence.",
+      "prd_ref": "OT-P2-001",
+      "criticality": "P2",
+      "delivery_scope": "roadmap",
+      "status": "not_implemented",
+      "category": "advanced-output",
+      "tags": [
+        "explicit-roadmap",
+        "unimplemented"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "phase": "business",
+          "status": "planned",
+          "ref": "requirements/verification-protocols.md",
+          "notes": "NOT EXECUTED. Follow the named DS-OUTPUT-ADVANCED protocol, including its counterexample, and retain actual inputs, commands, receipts, results and reviewer verdict. The protocol is a verification plan, not passing evidence.",
+          "metadata": {
+            "protocol_id": "DS-OUTPUT-ADVANCED",
+            "planned_automation": "Future advanced-profile media/color acceptance suite.",
+            "evidence_status": "not_run"
+          }
+        }
+      ]
+    }
+  ]
+}

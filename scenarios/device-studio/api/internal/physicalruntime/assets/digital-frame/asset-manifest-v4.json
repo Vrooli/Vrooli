@@ -1,0 +1,91 @@
+{
+  "schema_version": 1,
+  "status": "candidate_only_unqualified",
+  "derivative": "generic digital-frame variants with the high-transmission source glazing node removed; its original mesh/material/image records and complete BIN payload remain preserved but unreferenced",
+  "generator": "scenarios/device-studio/assets/sources/innerscene-picture-frame/derive_visible_frame.py",
+  "runtime": "Python standard library",
+  "deterministic": true,
+  "adaptation_license": "CC0-1.0 for retained Innerscene source content; AGPL-3.0-only for Vrooli-authored candidate adaptation and the existing wall cleat.",
+  "source": {
+    "name": "Innerscene Frame Stand - Picture Frame",
+    "path": "scenarios/device-studio/assets/sources/innerscene-picture-frame/picture-frame.glb",
+    "sha256": "7c9f5cf3e63c7f01cc911b1db9eea2c95b5e1bdadd9b75c3076b10dca70cef10",
+    "license": "CC0-1.0 as stated by source package/source page",
+    "original_geometry_and_source_file_preserved": true
+  },
+  "variants": [
+    {
+      "profile": "tabletop",
+      "input": "innerscene-frame-tabletop-v2.glb",
+      "input_sha": "bc6b22fb722672b0601dc2ea4424517e6bed589e3ebf40de9ecd0257d20fb4f4",
+      "output": "innerscene-frame-tabletop-v4-glassless.glb",
+      "parent_id": "innerscene-frame-digital-neutral-tabletop-v2",
+      "id": "innerscene-frame-digital-neutral-tabletop-v4-glassless",
+      "device_id": "innerscene-digital-frame-tabletop-candidate-v4-glassless",
+      "device_name": "innerscene-digital-frame-tabletop-candidate-v4-glassless",
+      "source_bytes": 789152,
+      "source_sha256": "bc6b22fb722672b0601dc2ea4424517e6bed589e3ebf40de9ecd0257d20fb4f4",
+      "derived_bytes": 789196,
+      "derived_sha256": "6aed89133cfe34d46ae0fb12badc9300bd0947ae87280c98e45e562eccd94af3",
+      "root_node_index": 7,
+      "parent_root_node_index": 8,
+      "removed_glazing_node_index": 0,
+      "retained_unreferenced_glazing_mesh_index": 0,
+      "retained_glazing_material_index": 0,
+      "retained_unreferenced_mesh_material_records": true,
+      "screen_node_index": 6,
+      "screen_mesh_index": 7,
+      "screen_material_index": 5,
+      "binary_chunk_sha256": "23e7efc71942bb8033932be58692c840498c9ddf3edefed790f4772dad96c25d",
+      "binary_chunk_byte_identical_to_parent": true
+    },
+    {
+      "profile": "wall",
+      "input": "innerscene-frame-wall-v3.glb",
+      "input_sha": "86c216e9bc574ac076bc78231107cb53b4c178bdea4121239df43ca8963e17bf",
+      "output": "innerscene-frame-wall-v4-glassless.glb",
+      "parent_id": "innerscene-frame-digital-neutral-wall-v3",
+      "id": "innerscene-frame-digital-neutral-wall-v4-glassless",
+      "device_id": "innerscene-digital-frame-wall-candidate-v4-glassless",
+      "device_name": "innerscene-digital-frame-wall-candidate-v4-glassless",
+      "source_bytes": 790472,
+      "source_sha256": "86c216e9bc574ac076bc78231107cb53b4c178bdea4121239df43ca8963e17bf",
+      "derived_bytes": 790500,
+      "derived_sha256": "a555090d9896b2cbb89ce55b62a78ba80f077bc7b184ff1efe757c74f3074203",
+      "root_node_index": 5,
+      "parent_root_node_index": 6,
+      "removed_glazing_node_index": 0,
+      "retained_unreferenced_glazing_mesh_index": 0,
+      "retained_glazing_material_index": 0,
+      "retained_unreferenced_mesh_material_records": true,
+      "screen_node_index": 4,
+      "screen_mesh_index": 7,
+      "screen_material_index": 5,
+      "binary_chunk_sha256": "00df81be93a58aadc3c2718c9e047046ee4480b0bf870366eb995b7f91f8de10",
+      "binary_chunk_byte_identical_to_parent": true
+    }
+  ],
+  "change_scope": "For each parent variant, remove only the Clear protective picture glazing node from the nodes array and remap references to the remaining nodes. The glazing mesh/material/image records, all BIN bytes, inserts, support geometry, screen UVs and every remaining node record are retained unchanged.",
+  "display_binding": {
+    "screen_name": "Unprinted frame insert",
+    "screen_mesh_index": 7,
+    "screen_material_index": 5,
+    "uv_bounds": [
+      [
+        0,
+        0
+      ],
+      [
+        1,
+        1
+      ]
+    ],
+    "screen_target_unchanged": true
+  },
+  "claim_limits": [
+    "The active digital-frame render omits the protective pane to preserve screen legibility in the current native presentation path; its source mesh/material/image records remain unreferenced in the GLB and the complete BIN payload is unchanged.",
+    "Not an Innerscene electronic product or measured digital frame.",
+    "Unqualified candidate geometry; tabletop support stability and wall fastening/load capacity are not established.",
+    "Native stills are still required to accept the visible-screen variants."
+  ]
+}

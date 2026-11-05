@@ -1,0 +1,21 @@
+{
+  "namespace": "gct",
+  "roles": {
+    "app-background": { "target": "gct-app", "css_variable": "--gct-app-color" },
+    "app-border": { "target": "gct-border", "css_variable": "--color-border" },
+    "app-danger": { "target": "gct-danger", "css_variable": "--color-danger" },
+    "app-foreground": { "target": "gct-foreground", "css_variable": "--color-foreground" },
+    "app-info": { "target": "gct-info", "css_variable": "--color-info" },
+    "app-muted-foreground": { "target": "gct-muted-foreground", "css_variable": "--color-muted-foreground" },
+    "app-primary": { "target": "gct-primary", "css_variable": "--color-primary" },
+    "app-primary-foreground": { "target": "gct-primary-foreground", "css_variable": "--color-primary-foreground" },
+    "app-surface": { "target": "gct-chrome", "css_variable": "--gct-chrome-color" },
+    "app-surface-muted": { "target": "gct-surface-muted", "css_variable": "--color-surface-muted" },
+    "app-warning": { "target": "gct-warning", "css_variable": "--color-warning" },
+    "app-success": { "target": "gct-success", "css_variable": "--color-success" }
+  },
+  "contrast_floor": 4.5,
+  "contrast_pairs": [
+    { "foreground": "app-primary-foreground", "background": "app-primary", "ratio": 4.5 }
+  ]
+}

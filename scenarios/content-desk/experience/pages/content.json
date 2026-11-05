@@ -1,0 +1,107 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.0.0",
+  "page": {
+    "id": "content",
+    "title": "Content",
+    "routes": [
+      "/content"
+    ],
+    "purpose": "Find drafts, briefs, variants and historical work through stable identities independent of date or lifecycle.",
+    "prd_refs": [
+      "OT-P0-016",
+      "OT-P0-018",
+      "OT-P0-032"
+    ]
+  },
+  "states": [
+    {
+      "id": "default",
+      "description": "The default state is distinguishable with its truthful basis and a permitted next action."
+    },
+    {
+      "id": "recent",
+      "description": "The recent state is distinguishable with its truthful basis and a permitted next action."
+    },
+    {
+      "id": "all-content",
+      "description": "The all content state is distinguishable with its truthful basis and a permitted next action."
+    },
+    {
+      "id": "archived",
+      "description": "The archived state is distinguishable with its truthful basis and a permitted next action."
+    },
+    {
+      "id": "no-matching-items",
+      "description": "The no matching items state is distinguishable with its truthful basis and a permitted next action."
+    },
+    {
+      "id": "record-detail",
+      "description": "The record detail state is distinguishable with its truthful basis and a permitted next action."
+    },
+    {
+      "id": "same-title-records",
+      "description": "The same title records state is distinguishable with its truthful basis and a permitted next action."
+    },
+    {
+      "id": "move-preview",
+      "description": "The move preview state is distinguishable with its truthful basis and a permitted next action."
+    },
+    {
+      "id": "restore-preview",
+      "description": "The restore preview state is distinguishable with its truthful basis and a permitted next action."
+    },
+    {
+      "id": "loading",
+      "description": "The loading state is distinguishable with its truthful basis and a permitted next action."
+    },
+    {
+      "id": "empty",
+      "description": "The empty state is distinguishable with its truthful basis and a permitted next action."
+    },
+    {
+      "id": "partial",
+      "description": "The partial state is distinguishable with its truthful basis and a permitted next action."
+    },
+    {
+      "id": "stale",
+      "description": "The stale state is distinguishable with its truthful basis and a permitted next action."
+    },
+    {
+      "id": "request-error",
+      "description": "The request error state is distinguishable with its truthful basis and a permitted next action."
+    },
+    {
+      "id": "permission-denied",
+      "description": "The permission denied state is distinguishable with its truthful basis and a permitted next action."
+    },
+    {
+      "id": "offline",
+      "description": "The offline state is distinguishable with its truthful basis and a permitted next action."
+    }
+  ],
+  "claims": [
+    {
+      "id": "content-outcome-1",
+      "type": "custom",
+      "statement": "Search and filters distinguish same-title records by native identity and scope and preserve the return selection.",
+      "tier": "aspirational",
+      "rationale": "Accepted target intent; no running selector or runtime attestation is asserted."
+    },
+    {
+      "id": "content-outcome-2",
+      "type": "custom",
+      "statement": "Record history exposes revisions, sources, media, decisions, intentions, attempts and observations as separate relationships.",
+      "tier": "aspirational",
+      "rationale": "Accepted target intent; no running selector or runtime attestation is asserted."
+    }
+  ],
+  "x-i16-source": {
+    "dossier": "package/documents/dossier-accepted-basis/document-text.md",
+    "selected_visuals": [
+      "design-source/screens/M15-content-v01-desktop.png",
+      "design-source/screens/M15-content-v01-phone.png"
+    ]
+  }
+}

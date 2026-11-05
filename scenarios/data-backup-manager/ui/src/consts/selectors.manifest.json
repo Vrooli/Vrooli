@@ -1,0 +1,620 @@
+{
+  "schemaVersion": 1,
+  "selectors": {
+    "app.title": {
+      "testId": "app-title",
+      "selector": "[data-testid=\"app-title\"]"
+    },
+    "app.eyebrow": {
+      "testId": "app-eyebrow",
+      "selector": "[data-testid=\"app-eyebrow\"]"
+    },
+    "app.description": {
+      "testId": "app-description",
+      "selector": "[data-testid=\"app-description\"]"
+    },
+    "locale.switcher": {
+      "testId": "locale-switcher",
+      "selector": "[data-testid=\"locale-switcher\"]"
+    },
+    "layout.shell": {
+      "testId": "layout-shell",
+      "selector": "[data-testid=\"layout-shell\"]"
+    },
+    "layout.topBar": {
+      "testId": "layout-top-bar",
+      "selector": "[data-testid=\"layout-top-bar\"]"
+    },
+    "layout.sidebar": {
+      "testId": "layout-sidebar",
+      "selector": "[data-testid=\"layout-sidebar\"]"
+    },
+    "layout.bottomNav": {
+      "testId": "layout-bottom-nav",
+      "selector": "[data-testid=\"layout-bottom-nav\"]"
+    },
+    "layout.main": {
+      "testId": "layout-main",
+      "selector": "[data-testid=\"layout-main\"]"
+    },
+    "theme.switcher": {
+      "testId": "theme-switcher",
+      "selector": "[data-testid=\"theme-switcher\"]"
+    },
+    "theme.select": {
+      "testId": "theme-select",
+      "selector": "[data-testid=\"theme-select\"]"
+    },
+    "pages.overview": {
+      "testId": "page-overview",
+      "selector": "[data-testid=\"page-overview\"]"
+    },
+    "pages.targets": {
+      "testId": "page-targets",
+      "selector": "[data-testid=\"page-targets\"]"
+    },
+    "pages.destinations": {
+      "testId": "page-destinations",
+      "selector": "[data-testid=\"page-destinations\"]"
+    },
+    "pages.plans": {
+      "testId": "page-plans",
+      "selector": "[data-testid=\"page-plans\"]"
+    },
+    "pages.runs": {
+      "testId": "page-runs",
+      "selector": "[data-testid=\"page-runs\"]"
+    },
+    "pages.restores": {
+      "testId": "page-restores",
+      "selector": "[data-testid=\"page-restores\"]"
+    },
+    "pages.drills": {
+      "testId": "page-drills",
+      "selector": "[data-testid=\"page-drills\"]"
+    },
+    "pages.settings": {
+      "testId": "page-settings",
+      "selector": "[data-testid=\"page-settings\"]"
+    },
+    "async.loading": {
+      "testId": "async-loading",
+      "selector": "[data-testid=\"async-loading\"]"
+    },
+    "async.error": {
+      "testId": "async-error",
+      "selector": "[data-testid=\"async-error\"]"
+    },
+    "async.retry": {
+      "testId": "async-retry",
+      "selector": "[data-testid=\"async-retry\"]"
+    },
+    "async.empty": {
+      "testId": "async-empty",
+      "selector": "[data-testid=\"async-empty\"]"
+    },
+    "overview.posture": {
+      "testId": "overview-posture",
+      "selector": "[data-testid=\"overview-posture\"]"
+    },
+    "overview.postureHeadline": {
+      "testId": "overview-posture-headline",
+      "selector": "[data-testid=\"overview-posture-headline\"]"
+    },
+    "overview.storage": {
+      "testId": "overview-storage",
+      "selector": "[data-testid=\"overview-storage\"]"
+    },
+    "overview.storageEmpty": {
+      "testId": "overview-storage-empty",
+      "selector": "[data-testid=\"overview-storage-empty\"]"
+    },
+    "overview.coverage": {
+      "testId": "overview-coverage",
+      "selector": "[data-testid=\"overview-coverage\"]"
+    },
+    "overview.coverageEmpty": {
+      "testId": "overview-coverage-empty",
+      "selector": "[data-testid=\"overview-coverage-empty\"]"
+    },
+    "overview.setupCta": {
+      "testId": "overview-setup-cta",
+      "selector": "[data-testid=\"overview-setup-cta\"]"
+    },
+    "overview.metrics": {
+      "testId": "overview-metrics",
+      "selector": "[data-testid=\"overview-metrics\"]"
+    },
+    "coverage.banner": {
+      "testId": "coverage-banner",
+      "selector": "[data-testid=\"coverage-banner\"]"
+    },
+    "coverage.registerRecommended": {
+      "testId": "coverage-register-recommended",
+      "selector": "[data-testid=\"coverage-register-recommended\"]"
+    },
+    "coverage.recommendedList": {
+      "testId": "coverage-recommended-list",
+      "selector": "[data-testid=\"coverage-recommended-list\"]"
+    },
+    "coverage.sensitiveList": {
+      "testId": "coverage-sensitive-list",
+      "selector": "[data-testid=\"coverage-sensitive-list\"]"
+    },
+    "coverage.registerSensitive": {
+      "testId": "coverage-register-sensitive",
+      "selector": "[data-testid=\"coverage-register-sensitive\"]"
+    },
+    "coverage.complete": {
+      "testId": "coverage-complete",
+      "selector": "[data-testid=\"coverage-complete\"]"
+    },
+    "discovery.panel": {
+      "testId": "discovery-panel",
+      "selector": "[data-testid=\"discovery-panel\"]"
+    },
+    "discovery.targetsGroup": {
+      "testId": "discovery-targets-group",
+      "selector": "[data-testid=\"discovery-targets-group\"]"
+    },
+    "discovery.destinationsGroup": {
+      "testId": "discovery-destinations-group",
+      "selector": "[data-testid=\"discovery-destinations-group\"]"
+    },
+    "discovery.empty": {
+      "testId": "discovery-empty",
+      "selector": "[data-testid=\"discovery-empty\"]"
+    },
+    "discovery.destinationReview": {
+      "testId": "discovery-destination-review",
+      "selector": "[data-testid=\"discovery-destination-review\"]"
+    },
+    "discovery.reviewCreateButton": {
+      "testId": "discovery-destination-review-create",
+      "selector": "[data-testid=\"discovery-destination-review-create\"]"
+    },
+    "targets.table": {
+      "testId": "targets-table",
+      "selector": "[data-testid=\"targets-table\"]"
+    },
+    "targets.registerButton": {
+      "testId": "targets-register-button",
+      "selector": "[data-testid=\"targets-register-button\"]"
+    },
+    "targets.form": {
+      "testId": "targets-form",
+      "selector": "[data-testid=\"targets-form\"]"
+    },
+    "targets.formOwner": {
+      "testId": "targets-form-owner",
+      "selector": "[data-testid=\"targets-form-owner\"]"
+    },
+    "targets.formName": {
+      "testId": "targets-form-name",
+      "selector": "[data-testid=\"targets-form-name\"]"
+    },
+    "targets.formKind": {
+      "testId": "targets-form-kind",
+      "selector": "[data-testid=\"targets-form-kind\"]"
+    },
+    "targets.formLocator": {
+      "testId": "targets-form-locator",
+      "selector": "[data-testid=\"targets-form-locator\"]"
+    },
+    "targets.formCritical": {
+      "testId": "targets-form-critical",
+      "selector": "[data-testid=\"targets-form-critical\"]"
+    },
+    "targets.formSubmit": {
+      "testId": "targets-form-submit",
+      "selector": "[data-testid=\"targets-form-submit\"]"
+    },
+    "targets.inspector": {
+      "testId": "targets-inspector",
+      "selector": "[data-testid=\"targets-inspector\"]"
+    },
+    "targets.verifyLatest": {
+      "testId": "targets-verify-latest",
+      "selector": "[data-testid=\"targets-verify-latest\"]"
+    },
+    "targets.deregisterButton": {
+      "testId": "targets-deregister-button",
+      "selector": "[data-testid=\"targets-deregister-button\"]"
+    },
+    "targets.deregisterConfirm": {
+      "testId": "targets-deregister-confirm",
+      "selector": "[data-testid=\"targets-deregister-confirm\"]"
+    },
+    "destinations.list": {
+      "testId": "destinations-list",
+      "selector": "[data-testid=\"destinations-list\"]"
+    },
+    "destinations.createButton": {
+      "testId": "destinations-create-button",
+      "selector": "[data-testid=\"destinations-create-button\"]"
+    },
+    "destinations.form": {
+      "testId": "destinations-form",
+      "selector": "[data-testid=\"destinations-form\"]"
+    },
+    "destinations.formName": {
+      "testId": "destinations-form-name",
+      "selector": "[data-testid=\"destinations-form-name\"]"
+    },
+    "destinations.formBackend": {
+      "testId": "destinations-form-backend",
+      "selector": "[data-testid=\"destinations-form-backend\"]"
+    },
+    "destinations.formLocation": {
+      "testId": "destinations-form-location",
+      "selector": "[data-testid=\"destinations-form-location\"]"
+    },
+    "destinations.formRepoPreview": {
+      "testId": "destinations-form-repo-preview",
+      "selector": "[data-testid=\"destinations-form-repo-preview\"]"
+    },
+    "destinations.formCap": {
+      "testId": "destinations-form-cap",
+      "selector": "[data-testid=\"destinations-form-cap\"]"
+    },
+    "destinations.formPolicy": {
+      "testId": "destinations-form-policy",
+      "selector": "[data-testid=\"destinations-form-policy\"]"
+    },
+    "destinations.formSubmit": {
+      "testId": "destinations-form-submit",
+      "selector": "[data-testid=\"destinations-form-submit\"]"
+    },
+    "destinations.editButton": {
+      "testId": "destinations-edit-button",
+      "selector": "[data-testid=\"destinations-edit-button\"]"
+    },
+    "destinations.deleteButton": {
+      "testId": "destinations-delete-button",
+      "selector": "[data-testid=\"destinations-delete-button\"]"
+    },
+    "destinations.deleteConfirm": {
+      "testId": "destinations-delete-confirm",
+      "selector": "[data-testid=\"destinations-delete-confirm\"]"
+    },
+    "destinations.deleteRepoToggle": {
+      "testId": "destinations-delete-repo-toggle",
+      "selector": "[data-testid=\"destinations-delete-repo-toggle\"]"
+    },
+    "plans.list": {
+      "testId": "plans-list",
+      "selector": "[data-testid=\"plans-list\"]"
+    },
+    "plans.createButton": {
+      "testId": "plans-create-button",
+      "selector": "[data-testid=\"plans-create-button\"]"
+    },
+    "plans.form": {
+      "testId": "plans-form",
+      "selector": "[data-testid=\"plans-form\"]"
+    },
+    "plans.formName": {
+      "testId": "plans-form-name",
+      "selector": "[data-testid=\"plans-form-name\"]"
+    },
+    "plans.formSchedule": {
+      "testId": "plans-form-schedule",
+      "selector": "[data-testid=\"plans-form-schedule\"]"
+    },
+    "plans.formDrillSchedule": {
+      "testId": "plans-form-drill-schedule",
+      "selector": "[data-testid=\"plans-form-drill-schedule\"]"
+    },
+    "plans.formTier": {
+      "testId": "plans-form-tier",
+      "selector": "[data-testid=\"plans-form-tier\"]"
+    },
+    "plans.formKeepLatest": {
+      "testId": "plans-form-keep-latest",
+      "selector": "[data-testid=\"plans-form-keep-latest\"]"
+    },
+    "plans.formEnabled": {
+      "testId": "plans-form-enabled",
+      "selector": "[data-testid=\"plans-form-enabled\"]"
+    },
+    "plans.targetPicker": {
+      "testId": "plans-target-picker",
+      "selector": "[data-testid=\"plans-target-picker\"]"
+    },
+    "plans.destinationPicker": {
+      "testId": "plans-destination-picker",
+      "selector": "[data-testid=\"plans-destination-picker\"]"
+    },
+    "plans.summary": {
+      "testId": "plans-summary",
+      "selector": "[data-testid=\"plans-summary\"]"
+    },
+    "plans.formSubmit": {
+      "testId": "plans-form-submit",
+      "selector": "[data-testid=\"plans-form-submit\"]"
+    },
+    "plans.runNowButton": {
+      "testId": "plans-run-now-button",
+      "selector": "[data-testid=\"plans-run-now-button\"]"
+    },
+    "plans.deleteButton": {
+      "testId": "plans-delete-button",
+      "selector": "[data-testid=\"plans-delete-button\"]"
+    },
+    "plans.coverageWarning": {
+      "testId": "plans-coverage-warning",
+      "selector": "[data-testid=\"plans-coverage-warning\"]"
+    },
+    "plans.proceedIncompleteCoverage": {
+      "testId": "plans-proceed-incomplete-coverage",
+      "selector": "[data-testid=\"plans-proceed-incomplete-coverage\"]"
+    },
+    "runs.table": {
+      "testId": "runs-table",
+      "selector": "[data-testid=\"runs-table\"]"
+    },
+    "restores.list": {
+      "testId": "restores-list",
+      "selector": "[data-testid=\"restores-list\"]"
+    },
+    "restores.startButton": {
+      "testId": "restores-start-button",
+      "selector": "[data-testid=\"restores-start-button\"]"
+    },
+    "restores.verifyButton": {
+      "testId": "restores-verify-button",
+      "selector": "[data-testid=\"restores-verify-button\"]"
+    },
+    "restores.restoreButton": {
+      "testId": "restores-restore-button",
+      "selector": "[data-testid=\"restores-restore-button\"]"
+    },
+    "restores.restoreConfirm": {
+      "testId": "restores-restore-confirm",
+      "selector": "[data-testid=\"restores-restore-confirm\"]"
+    },
+    "restores.restoreLocation": {
+      "testId": "restores-restore-location",
+      "selector": "[data-testid=\"restores-restore-location\"]"
+    },
+    "restores.restoreConfirmButton": {
+      "testId": "restores-restore-confirm-button",
+      "selector": "[data-testid=\"restores-restore-confirm-button\"]"
+    },
+    "snapshot.browser": {
+      "testId": "snapshot-browser",
+      "selector": "[data-testid=\"snapshot-browser\"]"
+    },
+    "snapshot.up": {
+      "testId": "snapshot-up",
+      "selector": "[data-testid=\"snapshot-up\"]"
+    },
+    "audits.runButton": {
+      "testId": "audits-run-button",
+      "selector": "[data-testid=\"audits-run-button\"]"
+    },
+    "audits.report": {
+      "testId": "audits-report",
+      "selector": "[data-testid=\"audits-report\"]"
+    },
+    "audits.verdict": {
+      "testId": "audits-verdict",
+      "selector": "[data-testid=\"audits-verdict\"]"
+    },
+    "errorBoundary.root": {
+      "testId": "error-boundary-root",
+      "selector": "[data-testid=\"error-boundary-root\"]"
+    },
+    "errorBoundary.retryButton": {
+      "testId": "error-boundary-retry",
+      "selector": "[data-testid=\"error-boundary-retry\"]"
+    }
+  },
+  "dynamicSelectors": {
+    "locale.toggle": {
+      "description": "Locale toggle button by language code",
+      "selectorPattern": "[data-testid=\"locale-toggle-${code}\"]",
+      "testIdPattern": "locale-toggle-${code}",
+      "params": [
+        {
+          "name": "code",
+          "type": "enum",
+          "values": [
+            "en",
+            "ja",
+            "ar"
+          ]
+        }
+      ]
+    },
+    "layout.sidebarLink": {
+      "description": "Sidebar navigation link by canonical nav key",
+      "selectorPattern": "[data-testid=\"layout-sidebar-link-${key}\"]",
+      "testIdPattern": "layout-sidebar-link-${key}",
+      "params": [
+        {
+          "name": "key",
+          "type": "enum",
+          "values": [
+            "overview",
+            "targets",
+            "destinations",
+            "plans",
+            "runs",
+            "restores",
+            "drills",
+            "settings"
+          ]
+        }
+      ]
+    },
+    "layout.bottomNavLink": {
+      "description": "Bottom-nav link by canonical nav key",
+      "selectorPattern": "[data-testid=\"layout-bottom-nav-link-${key}\"]",
+      "testIdPattern": "layout-bottom-nav-link-${key}",
+      "params": [
+        {
+          "name": "key",
+          "type": "enum",
+          "values": [
+            "overview",
+            "targets",
+            "destinations",
+            "plans",
+            "runs",
+            "restores",
+            "drills",
+            "settings"
+          ]
+        }
+      ]
+    },
+    "overview.coverageRow": {
+      "description": "Coverage-grid row for one target by id",
+      "selectorPattern": "[data-testid=\"overview-coverage-row-${targetId}\"]",
+      "testIdPattern": "overview-coverage-row-${targetId}",
+      "params": [
+        {
+          "name": "targetId",
+          "type": "string"
+        }
+      ]
+    },
+    "discovery.suggestionRow": {
+      "description": "Suggestion row (target or destination) by stable suggestion id",
+      "selectorPattern": "[data-testid=\"discovery-suggestion-${id}\"]",
+      "testIdPattern": "discovery-suggestion-${id}",
+      "params": [
+        {
+          "name": "id",
+          "type": "string"
+        }
+      ]
+    },
+    "discovery.enableButton": {
+      "description": "Enable (accept) button for a suggestion by stable id",
+      "selectorPattern": "[data-testid=\"discovery-enable-${id}\"]",
+      "testIdPattern": "discovery-enable-${id}",
+      "params": [
+        {
+          "name": "id",
+          "type": "string"
+        }
+      ]
+    },
+    "discovery.dismissButton": {
+      "description": "Dismiss button for a suggestion by stable id",
+      "selectorPattern": "[data-testid=\"discovery-dismiss-${id}\"]",
+      "testIdPattern": "discovery-dismiss-${id}",
+      "params": [
+        {
+          "name": "id",
+          "type": "string"
+        }
+      ]
+    },
+    "targets.row": {
+      "description": "Targets table row by target id",
+      "selectorPattern": "[data-testid=\"targets-row-${id}\"]",
+      "testIdPattern": "targets-row-${id}",
+      "params": [
+        {
+          "name": "id",
+          "type": "string"
+        }
+      ]
+    },
+    "destinations.row": {
+      "description": "Destinations list row by destination id",
+      "selectorPattern": "[data-testid=\"destinations-row-${id}\"]",
+      "testIdPattern": "destinations-row-${id}",
+      "params": [
+        {
+          "name": "id",
+          "type": "string"
+        }
+      ]
+    },
+    "plans.row": {
+      "description": "Plans list row by plan id",
+      "selectorPattern": "[data-testid=\"plans-row-${id}\"]",
+      "testIdPattern": "plans-row-${id}",
+      "params": [
+        {
+          "name": "id",
+          "type": "string"
+        }
+      ]
+    },
+    "runs.row": {
+      "description": "Runs table row by run id",
+      "selectorPattern": "[data-testid=\"runs-row-${id}\"]",
+      "testIdPattern": "runs-row-${id}",
+      "params": [
+        {
+          "name": "id",
+          "type": "string"
+        }
+      ]
+    },
+    "runs.outcomeRow": {
+      "description": "Per-target outcome row within an expanded run, by target id",
+      "selectorPattern": "[data-testid=\"runs-outcome-row-${targetId}\"]",
+      "testIdPattern": "runs-outcome-row-${targetId}",
+      "params": [
+        {
+          "name": "targetId",
+          "type": "string"
+        }
+      ]
+    },
+    "restores.row": {
+      "description": "Restores list row by restore id",
+      "selectorPattern": "[data-testid=\"restores-row-${id}\"]",
+      "testIdPattern": "restores-row-${id}",
+      "params": [
+        {
+          "name": "id",
+          "type": "string"
+        }
+      ]
+    },
+    "settingsPage.themeOption": {
+      "description": "Theme choice radio button on the settings page",
+      "selectorPattern": "[data-testid=\"page-settings-theme-${choice}\"]",
+      "testIdPattern": "page-settings-theme-${choice}",
+      "params": [
+        {
+          "name": "choice",
+          "type": "enum",
+          "values": [
+            "light",
+            "dark",
+            "system"
+          ]
+        }
+      ]
+    },
+    "settingsPage.localeOption": {
+      "description": "Locale choice radio button on the settings page",
+      "selectorPattern": "[data-testid=\"page-settings-locale-${code}\"]",
+      "testIdPattern": "page-settings-locale-${code}",
+      "params": [
+        {
+          "name": "code",
+          "type": "enum",
+          "values": [
+            "en",
+            "ja",
+            "ar"
+          ]
+        }
+      ]
+    }
+  },
+  "sources": {
+    "ui/src/consts/selectors.library.ts": "b59c9936b32366ad576ac2f7b9f9690194df4834f034ef71efa4836e71883eda",
+    "ui/src/consts/selectors.ts": "e28dedb485a44dbb5d37dfb33697bcac87fe4a99fe1dc723bdd40fd1d70ece6a",
+    "ui/src/i18n/locales.ts": "1c6b3983d8b3b59460629079f96c0982b6b6d341add5acbddb3db845919d1ca6"
+  }
+}

@@ -1,0 +1,162 @@
+{
+  "version": 13,
+  "note": "Restores the frontmost depth plane to the two vector styles whose plate specs silently dropped it, so the plated composite is the picture the generator drew.",
+  "retune_reasons": [
+    "Found 2026-08-13 while cutting reserves into the vector lane. `radiant-orb` and `halftone-horizon` each draw FOUR depth planes and their styles named THREE, so the frontmost plane of each was never composited into a plate and never reached the delivered image. `pale-moon` shipped without its ground and `tidal-halftone` shipped without its sea - which is the subject of the picture.",
+    "The tell was a legibility measurement: tidal-halftone's reserved region read as uniform blank paper at 0.911 across the whole rectangle. A halftone of an ocean is not uniform anything. The region was blank because the sea was not there.",
+    "This is not a limit of the plate model. `maxPlates` is 3 and all four generators draw within it - `colonnade` also draws four planes and MERGES two of them into one plate (`planes: [distance, headland]`), which is exactly the accommodation the model provides. These two styles omitted rather than merged, and nothing refused them.",
+    "pale-moon: the `orb` plate now carries [orb, ground]. The ground is the surface the orb sits above and belongs in front of the orb's own glow, so it joins the frontmost plate rather than starting a fourth.",
+    "tidal-halftone: the `headland` plate now carries [headland, sea]. The headland is the mass at the horizon that separates sky from water, and the sea is the water in front of it - one plate, front to back, in the order the generator drew them.",
+    "Plate COUNT and blend modes are untouched. This restores planes that were already drawn and already paid for; it does not restructure any style's depth model.",
+    "`TestEveryDeclaredPlaneReachesAPlate` now refuses this class of defect at authoring time. It was invisible before because the flatten-equivalence proof compares the generator's own planes against the generator's own flat document - both of which are complete - and never asks whether the STYLE's plate spec covers them."
+  ],
+  "styles": [
+    {
+      "id": "pale-moon",
+      "name": "Pale Moon",
+      "version": 4,
+      "role": "focal",
+      "subject": "celestial",
+      "lineage": "wpa_poster",
+      "strategy": "vector",
+      "quality_tier": "procedural",
+      "treatments": [],
+      "placements": [
+        "full_bleed",
+        "framed_inset",
+        "type_mask"
+      ],
+      "inks": {
+        "$brand.primary": "#13275e",
+        "$brand.background": "#ece3cd",
+        "$brand.accent": "#c9432f"
+      },
+      "treatment_params": {},
+      "regions": [
+        {
+          "x": 0.06,
+          "y": 0.08,
+          "width": 0.34,
+          "height": 0.24,
+          "kind": "overlay",
+          "text_color": "#ece3cd"
+        }
+      ],
+      "contrast_threshold": 4.5,
+      "scaffold": {
+        "preset": "radiant-orb",
+        "conditioner": "",
+        "params_json": "{\"orb_radius\": 0.34, \"focal_x\": 0.52, \"focal_y\": 0.44, \"ground\": 0.86, \"figure_x\": 0.30}"
+      },
+      "plate_spec": [
+        {
+          "name": "void",
+          "depth": 0,
+          "blend": "normal",
+          "opacity": 1.0,
+          "motion": {
+            "parallax": 0.02
+          }
+        },
+        {
+          "name": "burst",
+          "depth": 1,
+          "blend": "normal",
+          "opacity": 1.0,
+          "motion": {
+            "parallax": 0.08,
+            "ambient": "breathe",
+            "ambient_seconds": 32,
+            "ambient_amplitude": 0.012
+          }
+        },
+        {
+          "name": "orb",
+          "depth": 2,
+          "blend": "normal",
+          "opacity": 1.0,
+          "motion": {
+            "parallax": 0.16
+          },
+          "planes": [
+            "orb",
+            "ground"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "tidal-halftone",
+      "name": "Tidal Halftone",
+      "version": 4,
+      "role": "ambient",
+      "subject": "horizon",
+      "lineage": "riso_zine",
+      "strategy": "vector",
+      "quality_tier": "procedural",
+      "treatments": [],
+      "placements": [
+        "full_bleed",
+        "split_panel"
+      ],
+      "inks": {
+        "$brand.primary": "#123a8c",
+        "$brand.background": "#f0e8d6",
+        "$brand.accent": "#d4452c"
+      },
+      "treatment_params": {},
+      "regions": [
+        {
+          "x": 0.06,
+          "y": 0.62,
+          "width": 0.44,
+          "height": 0.26,
+          "kind": "overlay",
+          "text_color": "#f0e8d6"
+        }
+      ],
+      "contrast_threshold": 4.5,
+      "scaffold": {
+        "preset": "halftone-horizon",
+        "conditioner": "",
+        "params_json": "{\"horizon\": 0.56, \"focal_x\": 0.68, \"cells\": 132}"
+      },
+      "plate_spec": [
+        {
+          "name": "paper",
+          "depth": 0,
+          "blend": "normal",
+          "opacity": 1.0,
+          "motion": {
+            "parallax": 0.0
+          }
+        },
+        {
+          "name": "sky",
+          "depth": 1,
+          "blend": "normal",
+          "opacity": 1.0,
+          "motion": {
+            "parallax": 0.07
+          }
+        },
+        {
+          "name": "headland",
+          "depth": 2,
+          "blend": "normal",
+          "opacity": 1.0,
+          "motion": {
+            "parallax": 0.28,
+            "ambient": "drift",
+            "ambient_seconds": 40,
+            "ambient_amplitude": 0.004
+          },
+          "planes": [
+            "headland",
+            "sea"
+          ]
+        }
+      ]
+    }
+  ]
+}

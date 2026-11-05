@@ -1,0 +1,297 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.0.0",
+  "page": {
+    "id": "dashboard",
+    "title": "Overview",
+    "routes": [
+      "/"
+    ],
+    "purpose": "The operator's answer to one question: is anything waiting on me? It surfaces unanswered gates, refusals, degraded channels and budget pressure, and stays quiet when none of those exist.",
+    "prd_refs": [
+      "OT-P0-017",
+      "OT-P1-005",
+      "OT-P1-006",
+      "OT-P1-009",
+      "OT-P1-012"
+    ]
+  },
+  "priorities": [
+    {
+      "statement": "Whether any capability gate is waiting for an answer, and for how long"
+    },
+    {
+      "statement": "Which turns the agent refused, and what would unblock them"
+    },
+    {
+      "statement": "Which channels stopped working before a person notices"
+    },
+    {
+      "statement": "Whether a turn budget or spend cap is close to silencing an agent"
+    },
+    {
+      "statement": "How much of the month's metered allowance is left"
+    }
+  ],
+  "states": [
+    {
+      "id": "default",
+      "description": "At least one item needs attention; items are ranked by urgency."
+    },
+    {
+      "id": "loading",
+      "description": "Panels resolve independently; each shows its own placeholder."
+    },
+    {
+      "id": "empty",
+      "description": "Nothing needs attention. The page says so plainly rather than showing zeroed charts."
+    },
+    {
+      "id": "partial",
+      "description": "One panel failed while the rest resolved; the failure is named and the page stays usable."
+    },
+    {
+      "id": "stale",
+      "description": "Figures are from a cached read; the age is stated."
+    },
+    {
+      "id": "request-error",
+      "description": "The primary read failed; a retry is offered and the last known values are labelled."
+    },
+    {
+      "id": "offline",
+      "description": "The host is unreachable; locally-known state is shown and marked."
+    },
+    {
+      "id": "permission-denied",
+      "description": "The signed-in person may not read fleet-wide state."
+    }
+  ],
+  "elements": [
+    {
+      "id": "attention-list",
+      "role": "list",
+      "name": "Waiting on you"
+    },
+    {
+      "id": "gate-item",
+      "role": "listitem",
+      "name": "Capability gate"
+    },
+    {
+      "id": "refusal-list",
+      "role": "list",
+      "name": "Recent refusals"
+    },
+    {
+      "id": "channel-health",
+      "role": "region",
+      "name": "Channel health"
+    },
+    {
+      "id": "budget-region",
+      "role": "region",
+      "name": "Allowance this month"
+    },
+    {
+      "id": "budget-meter",
+      "role": "meter",
+      "name": "Metered allowance used"
+    },
+    {
+      "id": "all-clear",
+      "role": "status",
+      "name": "Nothing needs your attention"
+    },
+    {
+      "id": "retry-action",
+      "role": "button",
+      "name": "Try again"
+    }
+  ],
+  "claims": [
+    {
+      "id": "attention-first",
+      "type": "reading-order",
+      "statement": "Items waiting on the operator are read before any summary figure or chart.",
+      "tier": "aspirational",
+      "elements": [
+        "attention-list",
+        "channel-health",
+        "budget-region"
+      ],
+      "states": [
+        "default"
+      ],
+      "rationale": "A dashboard that opens with vanity metrics buries the only rows that require an action."
+    },
+    {
+      "id": "empty-is-an-answer",
+      "type": "element-present",
+      "statement": "The empty state states that nothing needs attention rather than rendering empty panels.",
+      "tier": "aspirational",
+      "elements": [
+        "all-clear"
+      ],
+      "states": [
+        "empty"
+      ],
+      "rationale": "Zeroed charts read as a broken page; a sentence reads as good news."
+    },
+    {
+      "id": "partial-stays-usable",
+      "type": "custom",
+      "statement": "A failed panel names what failed and leaves every other panel interactive.",
+      "tier": "manual",
+      "states": [
+        "partial"
+      ]
+    },
+    {
+      "id": "stale-is-labelled",
+      "type": "element-present",
+      "statement": "Cached figures carry their age; no number is shown without its freshness when the read is stale.",
+      "tier": "aspirational",
+      "elements": [
+        "budget-region"
+      ],
+      "states": [
+        "stale"
+      ]
+    },
+    {
+      "id": "gate-age-visible",
+      "type": "custom",
+      "statement": "Each waiting gate shows how long it has been waiting, because an unanswered gate expires.",
+      "tier": "manual",
+      "elements": [
+        "gate-item"
+      ],
+      "states": [
+        "default"
+      ]
+    },
+    {
+      "id": "budget-pressure-is-form",
+      "type": "custom",
+      "statement": "Budget pressure is encoded in the meter's form and not only in its number, so it reads at a glance.",
+      "tier": "manual",
+      "elements": [
+        "budget-meter"
+      ],
+      "states": [
+        "default"
+      ]
+    },
+    {
+      "id": "retry-reachable",
+      "type": "keyboard-reachable",
+      "statement": "The retry action is reachable and operable from the keyboard alone.",
+      "tier": "aspirational",
+      "elements": [
+        "retry-action"
+      ],
+      "states": [
+        "request-error"
+      ]
+    },
+    {
+      "id": "dark-parity",
+      "type": "dark-parity",
+      "statement": "Severity remains distinguishable in both themes without relying on hue alone.",
+      "tier": "aspirational"
+    }
+  ],
+  "regions": [
+    {
+      "id": "attention-region",
+      "purpose": "Items that require an operator decision.",
+      "required": true,
+      "component": {
+        "local": "async-region"
+      },
+      "lifecycle": {
+        "kind": "async",
+        "states": [
+          "loading",
+          "ready",
+          "empty",
+          "error"
+        ]
+      }
+    },
+    {
+      "id": "channel-health-region",
+      "purpose": "Per-channel reachability and its stated reason.",
+      "required": true,
+      "component": {
+        "local": "async-region"
+      },
+      "lifecycle": {
+        "kind": "async",
+        "states": [
+          "loading",
+          "ready",
+          "partial",
+          "error"
+        ]
+      }
+    },
+    {
+      "id": "budget-region",
+      "purpose": "Metered allowance and per-thread pressure.",
+      "required": true,
+      "component": {
+        "local": "budget-meter"
+      },
+      "lifecycle": {
+        "kind": "async",
+        "states": [
+          "loading",
+          "ready",
+          "error"
+        ]
+      }
+    }
+  ],
+  "bindings": {
+    "elements": {
+      "attention-list": {
+        "testid": "overview-attention"
+      },
+      "gate-item": {
+        "testid": "overview-gate-item"
+      },
+      "refusal-list": {
+        "testid": "overview-refusals"
+      },
+      "channel-health": {
+        "testid": "overview-channel-health"
+      },
+      "budget-region": {
+        "testid": "overview-budget"
+      },
+      "budget-meter": {
+        "testid": "overview-budget-meter"
+      },
+      "all-clear": {
+        "testid": "overview-all-clear"
+      },
+      "retry-action": {
+        "testid": "overview-retry"
+      }
+    },
+    "regions": {
+      "attention-region": {
+        "testid": "dashboard-attention-region"
+      },
+      "channel-health-region": {
+        "testid": "dashboard-channel-health-region"
+      },
+      "budget-region": {
+        "testid": "dashboard-budget-region"
+      }
+    }
+  }
+}

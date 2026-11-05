@@ -1,0 +1,210 @@
+{
+  "schemaVersion": 1,
+  "selectors": {
+    "tabs.nav": {
+      "testId": "test-genie-tab-nav",
+      "selector": "[data-testid=\"test-genie-tab-nav\"]"
+    },
+    "tabs.dashboard": {
+      "testId": "test-genie-tab-dashboard",
+      "selector": "[data-testid=\"test-genie-tab-dashboard\"]"
+    },
+    "tabs.runs": {
+      "testId": "test-genie-tab-runs",
+      "selector": "[data-testid=\"test-genie-tab-runs\"]"
+    },
+    "tabs.docs": {
+      "testId": "test-genie-tab-docs",
+      "selector": "[data-testid=\"test-genie-tab-docs\"]"
+    },
+    "tabs.health": {
+      "testId": "test-genie-tab-health",
+      "selector": "[data-testid=\"test-genie-tab-health\"]"
+    },
+    "dashboard.continueSection": {
+      "testId": "test-genie-continue-section",
+      "selector": "[data-testid=\"test-genie-continue-section\"]"
+    },
+    "dashboard.header": {
+      "testId": "test-genie-header",
+      "selector": "[data-testid=\"test-genie-header\"]"
+    },
+    "dashboard.lastExecution": {
+      "testId": "test-genie-last-execution",
+      "selector": "[data-testid=\"test-genie-last-execution\"]"
+    },
+    "health.page": {
+      "testId": "test-genie-health-page",
+      "selector": "[data-testid=\"test-genie-health-page\"]"
+    },
+    "health.catalog": {
+      "testId": "test-genie-health-catalog",
+      "selector": "[data-testid=\"test-genie-health-catalog\"]"
+    },
+    "health.conformance": {
+      "testId": "test-genie-health-conformance",
+      "selector": "[data-testid=\"test-genie-health-conformance\"]"
+    },
+    "health.ledger": {
+      "testId": "test-genie-health-ledger",
+      "selector": "[data-testid=\"test-genie-health-ledger\"]"
+    },
+    "health.providers": {
+      "testId": "test-genie-health-providers",
+      "selector": "[data-testid=\"test-genie-health-providers\"]"
+    },
+    "health.trend": {
+      "testId": "test-genie-health-trend",
+      "selector": "[data-testid=\"test-genie-health-trend\"]"
+    },
+    "health.empty": {
+      "testId": "test-genie-health-empty",
+      "selector": "[data-testid=\"test-genie-health-empty\"]"
+    },
+    "runs.subtabScenarios": {
+      "testId": "test-genie-subtab-scenarios",
+      "selector": "[data-testid=\"test-genie-subtab-scenarios\"]"
+    },
+    "runs.subtabHistory": {
+      "testId": "test-genie-subtab-history",
+      "selector": "[data-testid=\"test-genie-subtab-history\"]"
+    },
+    "runs.scenarioTable": {
+      "testId": "test-genie-scenario-table",
+      "selector": "[data-testid=\"test-genie-scenario-table\"]"
+    },
+    "runs.testGenieScenario": {
+      "testId": "test-genie-scenario-row-test-genie",
+      "selector": "[data-testid=\"test-genie-scenario-row-test-genie\"]"
+    },
+    "runs.historyTable": {
+      "testId": "test-genie-history-table",
+      "selector": "[data-testid=\"test-genie-history-table\"]"
+    },
+    "runs.scenarioDetail": {
+      "testId": "test-genie-scenario-detail",
+      "selector": "[data-testid=\"test-genie-scenario-detail\"]"
+    },
+    "runs.scenarioDetailBack": {
+      "testId": "test-genie-scenario-detail-back",
+      "selector": "[data-testid=\"test-genie-scenario-detail-back\"]"
+    },
+    "runs.scenarioTabOverview": {
+      "testId": "test-genie-scenario-tab-overview",
+      "selector": "[data-testid=\"test-genie-scenario-tab-overview\"]"
+    },
+    "runs.scenarioTabRequirements": {
+      "testId": "test-genie-scenario-tab-requirements",
+      "selector": "[data-testid=\"test-genie-scenario-tab-requirements\"]"
+    },
+    "runs.scenarioTabHistory": {
+      "testId": "test-genie-scenario-tab-history",
+      "selector": "[data-testid=\"test-genie-scenario-tab-history\"]"
+    },
+    "runs.phaseCard": {
+      "testId": "test-genie-phase-card",
+      "selector": "[data-testid=\"test-genie-phase-card\"]"
+    },
+    "runs.remediationPanel": {
+      "testId": "test-genie-remediation-panel",
+      "selector": "[data-testid=\"test-genie-remediation-panel\"]"
+    },
+    "requirements.panel": {
+      "testId": "test-genie-requirements-panel",
+      "selector": "[data-testid=\"test-genie-requirements-panel\"]"
+    },
+    "requirements.syncBanner": {
+      "testId": "test-genie-sync-banner",
+      "selector": "[data-testid=\"test-genie-sync-banner\"]"
+    },
+    "requirements.syncButton": {
+      "testId": "test-genie-sync-button",
+      "selector": "[data-testid=\"test-genie-sync-button\"]"
+    },
+    "requirements.coverageStats": {
+      "testId": "test-genie-coverage-stats",
+      "selector": "[data-testid=\"test-genie-coverage-stats\"]"
+    },
+    "requirements.tree": {
+      "testId": "test-genie-requirements-tree",
+      "selector": "[data-testid=\"test-genie-requirements-tree\"]"
+    },
+    "requirements.filterAll": {
+      "testId": "test-genie-filter-all",
+      "selector": "[data-testid=\"test-genie-filter-all\"]"
+    },
+    "requirements.filterPassed": {
+      "testId": "test-genie-filter-passed",
+      "selector": "[data-testid=\"test-genie-filter-passed\"]"
+    },
+    "requirements.filterFailed": {
+      "testId": "test-genie-filter-failed",
+      "selector": "[data-testid=\"test-genie-filter-failed\"]"
+    },
+    "requirements.filterNotRun": {
+      "testId": "test-genie-filter-not-run",
+      "selector": "[data-testid=\"test-genie-filter-not-run\"]"
+    },
+    "requirements.searchInput": {
+      "testId": "test-genie-requirements-search",
+      "selector": "[data-testid=\"test-genie-requirements-search\"]"
+    },
+    "requirements.helpSection": {
+      "testId": "test-genie-requirements-help",
+      "selector": "[data-testid=\"test-genie-requirements-help\"]"
+    },
+    "requirements.helpToggle": {
+      "testId": "test-genie-requirements-help-toggle",
+      "selector": "[data-testid=\"test-genie-requirements-help-toggle\"]"
+    },
+    "docs.sidebar": {
+      "testId": "test-genie-docs-sidebar",
+      "selector": "[data-testid=\"test-genie-docs-sidebar\"]"
+    },
+    "docs.viewer": {
+      "testId": "test-genie-docs-viewer",
+      "selector": "[data-testid=\"test-genie-docs-viewer\"]"
+    },
+    "docs.copyPath": {
+      "testId": "test-genie-docs-copy-path",
+      "selector": "[data-testid=\"test-genie-docs-copy-path\"]"
+    },
+    "docs.searchInput": {
+      "testId": "test-genie-docs-search",
+      "selector": "[data-testid=\"test-genie-docs-search\"]"
+    },
+    "forms.executionForm": {
+      "testId": "test-genie-execution-form",
+      "selector": "[data-testid=\"test-genie-execution-form\"]"
+    },
+    "forms.submitExecution": {
+      "testId": "test-genie-submit-execution",
+      "selector": "[data-testid=\"test-genie-submit-execution\"]"
+    },
+    "actions.runTests": {
+      "testId": "test-genie-action-run-tests",
+      "selector": "[data-testid=\"test-genie-action-run-tests\"]"
+    },
+    "actions.viewScenario": {
+      "testId": "test-genie-action-view-scenario",
+      "selector": "[data-testid=\"test-genie-action-view-scenario\"]"
+    }
+  },
+  "dynamicSelectors": {
+    "scenarios.rowByName": {
+      "description": "Scenario directory row by scenario name",
+      "selectorPattern": "[data-testid=\"test-genie-scenario-row-${name}\"]",
+      "testIdPattern": "test-genie-scenario-row-${name}",
+      "params": [
+        {
+          "name": "name",
+          "type": "string"
+        }
+      ]
+    }
+  },
+  "sources": {
+    "ui/src/consts/selectors.library.ts": "b59c9936b32366ad576ac2f7b9f9690194df4834f034ef71efa4836e71883eda",
+    "ui/src/consts/selectors.ts": "ce1ad214ca8f9bd3aafb2bb2858302949ce8d4e27e523255df606e4f0bcba681"
+  }
+}

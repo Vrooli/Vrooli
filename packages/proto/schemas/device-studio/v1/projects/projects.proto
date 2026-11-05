@@ -1,0 +1,201 @@
+syntax = "proto3";
+
+package vrooli.device_studio.v1.projects;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/device-studio/v1/projects;projects_v1";
+
+// Projects are durable roots of Device Studio work. Revision is an
+// optimistic-concurrency token for metadata changes such as rename.
+service ProjectsService {
+  rpc ListProjects(ListProjectsRequest) returns (ListProjectsResponse);
+  rpc CreateProject(CreateProjectRequest) returns (CreateProjectResponse);
+  rpc GetProject(GetProjectRequest) returns (GetProjectResponse);
+  rpc RenameProject(RenameProjectRequest) returns (RenameProjectResponse);
+  rpc ListSourceMedia(ListSourceMediaRequest) returns (ListSourceMediaResponse);
+  rpc GetSourceMedia(GetSourceMediaRequest) returns (GetSourceMediaResponse);
+  rpc GetSourceMediaClockPage(GetSourceMediaClockPageRequest) returns (GetSourceMediaClockPageResponse);
+  rpc EnsureSourceMediaInspection(EnsureSourceMediaInspectionRequest) returns (EnsureSourceMediaInspectionResponse);
+  rpc RetrySourceMediaInspection(RetrySourceMediaInspectionRequest) returns (RetrySourceMediaInspectionResponse);
+  rpc CancelSourceMediaInspection(CancelSourceMediaInspectionRequest) returns (CancelSourceMediaInspectionResponse);
+}
+
+message Project {
+  string id = 1;
+  string name = 2;
+  google.protobuf.Timestamp created_at = 3;
+  google.protobuf.Timestamp updated_at = 4;
+  int64 revision = 5;
+}
+
+message ListProjectsRequest { int32 page_size = 1; string page_token = 2; }
+message ListProjectsResponse { repeated Project projects = 1; string next_page_token = 2; }
+message CreateProjectRequest { string name = 1; }
+message CreateProjectResponse { Project project = 1; }
+message GetProjectRequest { string id = 1; }
+message GetProjectResponse { Project project = 1; }
+message RenameProjectRequest {
+  string id = 1;
+  string name = 2;
+  int64 expected_revision = 3;
+}
+message RenameProjectResponse { Project project = 1; }
+
+// ProjectConflict is attached as a Connect error detail when an optimistic
+// rename loses a race. Clients can explain the conflict without parsing text.
+message ProjectConflict {
+  string project_id = 1;
+  int64 expected_revision = 2;
+  int64 current_revision = 3;
+}
+
+// SourceMedia is a local immutable reference to an imported PNG or JPEG.
+// Storage keys and filesystem paths are deliberately private to the API.
+message SourceMedia {
+  string id = 1;
+  string project_id = 2;
+  string sha256 = 3;
+  int64 size_bytes = 4;
+  string media_type = 5;
+  optional uint32 width = 6;
+  optional uint32 height = 7;
+  optional string orientation = 8;
+  optional string color_model = 9;
+  optional string color_profile_status = 10;
+  string original_filename = 11;
+  google.protobuf.Timestamp imported_at = 12;
+  string import_method = 13;
+  string decoder = 14;
+  SourceMediaKind kind = 15;
+  MediaReadiness readiness = 16;
+  string inspection_job_id = 17;
+  string inspection_issue_code = 18;
+  string inspection_issue_message = 19;
+  MediaInspectionReceipt inspection_receipt = 20;
+  string inspection_attempt_id = 21;
+  InspectionJobStatus inspection_job = 22;
+}
+
+enum SourceMediaKind {
+  SOURCE_MEDIA_KIND_UNSPECIFIED = 0;
+  SOURCE_MEDIA_KIND_IMAGE = 1;
+  SOURCE_MEDIA_KIND_VIDEO = 2;
+}
+
+enum MediaReadiness {
+  MEDIA_READINESS_UNSPECIFIED = 0;
+  MEDIA_READINESS_READY = 1;
+  MEDIA_READINESS_PENDING = 2;
+  MEDIA_READINESS_REJECTED = 3;
+  MEDIA_READINESS_RECONCILIATION_REQUIRED = 4;
+}
+
+// Facts are a typed, versioned projection of an immutable private inspection
+// receipt. The opaque ID and digest never reveal its storage key.
+message MediaInspectionReceipt {
+  uint32 version = 1;
+  string id = 2;
+  string sha256 = 3;
+  optional uint32 video_width = 4;
+  optional uint32 video_height = 5;
+  optional int32 rotation_degrees = 6;
+  optional int64 duration_numerator = 7;
+  optional int64 duration_denominator = 8;
+  optional uint32 frame_count = 9;
+  optional uint32 stream_count = 10;
+  string clock_sha256 = 11;
+  string source_sha256 = 12;
+  string job_id = 13;
+  int64 source_size_bytes = 14;
+  string attempt_id = 15;
+  string tool_profile_id = 16;
+  uint32 inspection_protocol_version = 17;
+  string clock_artifact_ref = 18;
+  string tool_profile_digest = 19;
+  string classification = 20;
+  string issue_code = 21;
+  string issue_message = 22;
+  string container = 23;
+  optional uint32 video_stream_index = 24;
+  string codec = 25;
+  optional uint32 coded_width = 26;
+  optional uint32 coded_height = 27;
+  optional uint32 sample_aspect_num = 28;
+  optional uint32 sample_aspect_den = 29;
+  string color_policy = 30;
+  string color_primaries = 31;
+  string color_transfer = 32;
+  string color_matrix = 33;
+  string color_range = 34;
+  optional int64 time_base_numerator = 35;
+  optional int64 time_base_denominator = 36;
+  optional int64 stream_start_pts = 37;
+  optional int64 source_end_pts = 38;
+  optional int64 last_frame_duration_ticks = 39;
+  string eof_policy = 40;
+  int64 clock_artifact_size_bytes = 41;
+  AudioInspectionFacts audio = 42;
+}
+
+// Absent on legacy receipts; present with no streams means observed zero.
+message AudioInspectionFacts {
+  uint32 version = 1;
+  repeated AudioStreamFact streams = 2;
+}
+
+message AudioStreamFact {
+  uint32 original_stream_index = 1;
+  string codec = 2;
+}
+
+message InspectionJobStatus {
+  string id = 1;
+  string state = 2;
+  int64 version = 3;
+  string current_attempt_id = 4;
+}
+message EnsureSourceMediaInspectionRequest { string project_id = 1; string media_id = 2; }
+message EnsureSourceMediaInspectionResponse { SourceMedia source_media = 1; InspectionJobStatus job = 2; }
+message RetrySourceMediaInspectionRequest { string project_id = 1; string media_id = 2; int64 expected_job_version = 3; }
+message RetrySourceMediaInspectionResponse { SourceMedia source_media = 1; InspectionJobStatus job = 2; }
+message CancelSourceMediaInspectionRequest { string project_id = 1; string media_id = 2; int64 expected_job_version = 3; }
+message CancelSourceMediaInspectionResponse { SourceMedia source_media = 1; InspectionJobStatus job = 2; }
+
+message ListSourceMediaRequest {
+  string project_id = 1;
+  int32 page_size = 2;
+  string page_token = 3;
+}
+message ListSourceMediaResponse {
+  repeated SourceMedia source_media = 1;
+  string next_page_token = 2;
+}
+message GetSourceMediaRequest {
+  string project_id = 1;
+  string id = 2;
+}
+message GetSourceMediaResponse { SourceMedia source_media = 1; }
+
+message SourceClockPoint {
+  uint32 ordinal = 1;
+  int64 pts = 2;
+}
+message GetSourceMediaClockPageRequest {
+  string project_id = 1;
+  string media_id = 2;
+  string expected_clock_sha256 = 3;
+  int32 page_size = 4;
+  string page_token = 5;
+}
+message GetSourceMediaClockPageResponse {
+  string clock_sha256 = 1;
+  int64 time_base_numerator = 2;
+  int64 time_base_denominator = 3;
+  repeated SourceClockPoint points = 4;
+  string next_page_token = 5;
+}
+
+// UploadSourceMediaResponse is the typed response of the documented
+// multipart REST upload exception. Upload bytes never travel through proto JSON.
+message UploadSourceMediaResponse { SourceMedia source_media = 1; }

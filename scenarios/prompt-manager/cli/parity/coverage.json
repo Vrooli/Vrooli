@@ -1,0 +1,6 @@
+{
+  "GET /health": {
+    "reason": "Health is a standard service endpoint without a domain CLI command.",
+    "status": "intentionally-absent"
+  }
+}

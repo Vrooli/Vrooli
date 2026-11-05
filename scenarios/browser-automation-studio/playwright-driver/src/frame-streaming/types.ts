@@ -6,7 +6,7 @@
  * @module frame-streaming/types
  */
 
-import type { Page } from 'rebrowser-playwright';
+import type { FrameSession } from './frame';
 
 // =============================================================================
 // WebSocket Types
@@ -18,6 +18,8 @@ import type { Page } from 'rebrowser-playwright';
  */
 export interface FrameWebSocket {
   readyState: number;
+  /** Bytes waiting in the transport implementation's outbound queue. */
+  bufferedAmount?: number;
   send(data: Buffer): void;
   close(): void;
   on(event: 'open', listener: () => void): void;
@@ -33,14 +35,18 @@ export interface FrameWebSocket {
  * Options for starting frame streaming.
  */
 export interface FrameStreamOptions {
-  /** Callback URL to derive WebSocket URL from */
-  callbackUrl: string;
+  /** Shared source-bearing driver-frame WebSocket ingress URL. */
+  streamUrl: string;
+  /** Identifies which API ownership fence admits this producer. */
+  streamKind: 'recording' | 'execution';
   /** Frame quality 1-100 (default: 65) */
   quality?: number;
   /** Target FPS 1-60 (default: 30) */
   fps?: number;
   /** Screenshot scale: 'css' for 1x (default), 'device' for devicePixelRatio */
   scale?: 'css' | 'device';
+  /** Carries the API request's test-storage routing context to the frame socket. */
+  routedTestMode?: boolean;
 }
 
 /**
@@ -53,28 +59,6 @@ export interface FrameStreamUpdateOptions {
   fps?: number;
   /** Whether to include performance headers in frames */
   perfMode?: boolean;
-}
-
-/**
- * Options for updating viewport dimensions.
- */
-export interface FrameStreamViewportOptions {
-  /** New viewport width */
-  width: number;
-  /** New viewport height */
-  height: number;
-}
-
-/**
- * Result of a viewport update operation.
- */
-export interface FrameStreamViewportResult {
-  /** Whether the update was applied */
-  success: boolean;
-  /** Whether an update was pending (skipped) */
-  skipped?: boolean;
-  /** Error message if failed */
-  error?: string;
 }
 
 /**
@@ -98,7 +82,7 @@ export interface FrameStreamSettings {
  * Allows frame streaming to be decoupled from SessionManager.
  */
 export interface SessionProvider {
-  getSession(sessionId: string): { page: Page };
+  getSession(sessionId: string): FrameSession;
 }
 
 // =============================================================================
@@ -110,6 +94,9 @@ export const MAX_FRAME_FAILURES = 3;
 
 /** WebSocket reconnection delay in ms */
 export const WS_RECONNECT_DELAY_MS = 1000;
+
+/** Keep at most one configured maximum-size recording frame queued per viewer. */
+export const MAX_QUEUED_FRAME_BYTES = 12 * 1024 * 1024 + 4096;
 
 /** How often to log FPS changes (every N frames) */
 export const FPS_LOG_INTERVAL = 30;

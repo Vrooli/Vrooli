@@ -1,0 +1,40 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
+  "assetKind": "component",
+  "catalogId": "overlays.alert-dialog",
+  "deprecatedVersions": [
+    "1.0.2",
+    "1.0.4",
+    "1.0.3",
+    "1.0.5",
+    "1.0.6",
+    "2.0.6",
+    "2.0.7",
+    "2.0.8",
+    "1.0.0",
+    "2.0.9"
+  ],
+  "designStyles": [
+    {
+      "affinity": "native",
+      "reason": "token-native operational-console baseline",
+      "styleId": "vrooli-default"
+    }
+  ],
+  "draft": "",
+  "evictedVersions": [
+    "1.0.4",
+    "1.0.2",
+    "1.0.6",
+    "1.0.5",
+    "1.0.3",
+    "2.0.6",
+    "2.0.7",
+    "2.0.8",
+    "1.0.0",
+    "2.0.9",
+    "2.0.10"
+  ],
+  "latest": "2.0.11",
+  "libraryId": "react-component-library:AlertDialog"
+}

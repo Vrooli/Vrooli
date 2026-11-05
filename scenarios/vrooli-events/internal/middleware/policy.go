@@ -3,6 +3,9 @@
 //
 // [REQ:DI-004] Receiver-side policy middleware
 // [REQ:DI-005] Graceful degradation
+//
+// DOC: docs/guides/integrating-a-scenario.md
+// DOC: docs/guides/managing-policies.md
 package middleware
 
 import (

@@ -4,8 +4,6 @@ import (
 	"context"
 	"path/filepath"
 	"strings"
-
-	"knowledge-observatory/internal/docschema"
 )
 
 // DocReadByTypeRequest describes a document read request using a friendly type name.
@@ -28,11 +26,11 @@ func (s *Service) GetContentByType(ctx context.Context, req DocReadByTypeRequest
 		return nil, ErrScenarioInvalid
 	}
 
-	dt, err := docschema.ParseDocType(req.DocType)
+	doc, _, err := s.resolveContractDoc(scenario, req.DocType)
 	if err != nil {
-		return nil, ErrDocTypeInvalid
+		return nil, err
 	}
-	relPath := filepath.Join("scenarios", scenario, dt.ExpectedPath())
+	relPath := filepath.Join("scenarios", scenario, filepath.FromSlash(doc.ScenarioPath))
 
 	return s.GetContent(ctx, DocContentRequest{
 		Path:   relPath,

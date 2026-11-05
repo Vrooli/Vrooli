@@ -1,71 +1,24 @@
-// Re-export everything from each module for backward compatibility
-// This allows existing imports from "../lib/api" to continue working
-
-// Client (error handling + typed fetch helpers)
-export { ApiError, throwIfNotOk, buildUrl, fetchJson, mutateJson, mutateVoid } from "./client";
+// Client error handling and URL builders for binary download and VNC endpoints.
+export { ApiError, apiErrorFromConnect, buildUrl } from "./client";
 export type { RecoveryAction, ApiErrorResponse } from "./client";
 
-// Types (all type definitions)
 export type {
-  DocsDocument,
-  DocsSection,
-  DocsNavigation,
-  DocsManifest,
-  DocsContentResponse,
-  HealthResponse,
-  TemplateInfo,
-  DesktopConfig,
-  BundleValidationError,
-  BundleValidationWarning,
-  BundleMissingBinary,
-  BundleMissingAsset,
-  BundleInvalidChecksum,
-  BundleValidationResult,
-  BundlePreflightRequest,
-  BundlePreflightSecret,
-  BundlePreflightReady,
-  BundlePreflightTelemetry,
-  BundlePreflightRuntime,
-  BundlePreflightServiceFingerprint,
-  BundlePreflightLogTail,
-  BundlePreflightCheck,
-  BundlePreflightResponse,
-  BundlePreflightStep,
-  BundleManifestResponse,
-  PlatformBuildResult,
-  BuildStatus,
-  SmokeTestStatus,
-  ProbeResponse,
+  ProbeEndpointsResponse as ProbeResponse,
   ProxyHintsResponse,
-  DesktopRecord,
-  ScreenRecordingView,
-  DesktopRecordResponse,
-  WineInstallMethod,
-  WineCheckResponse,
-  WineInstallStatus,
-  TelemetryUploadRequest,
   ScenarioPortResponse,
-  SigningConfig,
-  WindowsSigningConfig,
-  MacOSSigningConfig,
-  LinuxSigningConfig,
-  SigningConfigResponse,
-  SigningValidationError,
-  ValidationWarning,
-  PlatformValidation,
-  SigningValidationResult,
-  PlatformStatus,
-  SigningReadinessResponse,
-  ToolDetectionResult,
-  DiscoveredCertificate,
-  GenerateKeyResponse,
-} from "./types";
+} from "@vrooli/proto-types/scenario-to-desktop/v1/domain/operations_pb";
+export type { TemplateInfo } from "@vrooli/proto-types/scenario-to-desktop/v1/domain/config_pb";
+export type {
+  WineCheckResponse,
+  WineInstallMethod,
+  WineInstallStatusResponse as WineInstallStatus,
+} from "@vrooli/proto-types/scenario-to-desktop/v1/domain/config_pb";
+export type { ManifestResponse as BundleManifestResponse } from "@vrooli/proto-types/scenario-to-desktop/v1/domain/preflight_pb";
 
 // Pipeline types and functions
 export type {
   BuildProvenance,
   PipelineConfig,
-  PipelineStageResult,
   PipelineStatus,
   PipelineRunResponse,
   PipelineResumeResponse,
@@ -74,9 +27,9 @@ export type {
   BuildPlatformResult,
   BuildStageDetails,
   SmokeTestStageDetails,
+  PreflightStageDetails,
   DeployStageDetails,
   StageDetails,
-  VerboseStageResult,
   VerbosePipelineStatus,
   GetPipelineStatusOptions,
   // Scenario-based pipeline management types
@@ -93,7 +46,6 @@ export {
   getPipelineStatus,
   resumePipeline,
   cancelPipeline,
-  listPipelines,
   runPreflightPipeline,
   extractPreflightResult,
   // Scenario-based pipeline management functions
@@ -115,7 +67,6 @@ export type {
   ScenarioState,
   StateChange,
   ScenarioStageStatus,
-  StageStatus as ScenarioStageStatusLegacy,
   ValidationStatus,
   LoadStateResponse,
   SaveStateResponse,
@@ -161,7 +112,6 @@ export {
 // Misc functions
 export {
   getIconPreviewUrl,
-  fetchHealth,
   fetchDocsManifest,
   fetchDocContent,
   fetchDesktopRecords,
@@ -192,7 +142,6 @@ export {
   deleteAllCaptures,
   buildCapturesDownloadUrl,
 } from "./captures";
-export type { Capture, CapturesSummary } from "./captures";
 
 // Live desktop functions
 export {
@@ -224,18 +173,6 @@ export type { ParseResult, ZodSchema, ZodError } from "./safeParse";
 // Zod schemas for runtime validation
 export * from "./schemas";
 
-// Proto parsing utilities
-export {
-  parseProtoStrict,
-  parseProtoSafe,
-  protoMessageToJson,
-  timestampToDate,
-  dateToTimestamp,
-} from "./proto";
-
-// Proto enum adapters for backward compatibility
-export * from "./protoAdapters";
-
 // ============================================================================
 // Proto type re-exports for direct access to generated types
 // ============================================================================
@@ -259,7 +196,7 @@ export {
   DeploymentModeSchema as ProtoDeploymentModeSchema,
   FrameworkSchema as ProtoFrameworkSchema,
   TemplateTypeSchema as ProtoTemplateTypeSchema,
-} from "@vrooli/proto-types/scenario-to-desktop/v1/base/shared_pb";
+} from "@vrooli/proto-types/scenario-to-desktop/v1/shared/common_pb";
 
 // Pipeline types
 export type {
@@ -293,7 +230,7 @@ export type {
   PlatformBuildResult as ProtoPlatformBuildResult,
   BuildStatusResponse as ProtoBuildStatusResponse,
   SmokeTestStatusResponse as ProtoSmokeTestStatusResponse,
-} from "@vrooli/proto-types/scenario-to-desktop/v1/domain/build_pb";
+} from "@vrooli/proto-types/scenario-to-desktop/v1/shared/operation_results_pb";
 
 export {
   PlatformBuildStatus,
@@ -303,7 +240,7 @@ export {
   SmokeTestStatusResponseSchema as ProtoSmokeTestStatusResponseSchema,
   PlatformBuildStatusSchema as ProtoPlatformBuildStatusSchema,
   SmokeTestStatusSchema as ProtoSmokeTestStatusSchema,
-} from "@vrooli/proto-types/scenario-to-desktop/v1/domain/build_pb";
+} from "@vrooli/proto-types/scenario-to-desktop/v1/shared/operation_results_pb";
 
 // Signing domain types
 export type {
@@ -339,6 +276,25 @@ export {
 // Preflight domain types
 export type {
   PreflightRequest as ProtoPreflightRequest,
+  JobStep as ProtoJobStep,
+  JobStartResponse as ProtoJobStartResponse,
+  JobStatusResponse as ProtoJobStatusResponse,
+  ManifestRequest as ProtoManifestRequest,
+  ManifestResponse as ProtoManifestResponse,
+} from "@vrooli/proto-types/scenario-to-desktop/v1/domain/preflight_pb";
+
+export {
+  JobStatus,
+  PreflightRequestSchema as ProtoPreflightRequestSchema,
+  JobStepSchema as ProtoJobStepSchema,
+  JobStartResponseSchema as ProtoJobStartResponseSchema,
+  JobStatusResponseSchema as ProtoJobStatusResponseSchema,
+  ManifestRequestSchema as ProtoManifestRequestSchema,
+  ManifestResponseSchema as ProtoManifestResponseSchema,
+  JobStatusSchema as ProtoJobStatusSchema,
+} from "@vrooli/proto-types/scenario-to-desktop/v1/domain/preflight_pb";
+
+export type {
   PreflightResponse as ProtoPreflightResponse,
   PreflightSecret as ProtoPreflightSecret,
   PreflightReady as ProtoPreflightReady,
@@ -348,19 +304,12 @@ export type {
   ServiceFingerprint as ProtoServiceFingerprint,
   TelemetryInfo as ProtoTelemetryInfo,
   GPUInfo as ProtoGPUInfo,
-  JobStep as ProtoJobStep,
-  JobStartResponse as ProtoJobStartResponse,
-  JobStatusResponse as ProtoJobStatusResponse,
-  ManifestRequest as ProtoManifestRequest,
-  ManifestResponse as ProtoManifestResponse,
-} from "@vrooli/proto-types/scenario-to-desktop/v1/domain/preflight_pb";
+} from "@vrooli/proto-types/scenario-to-desktop/v1/shared/preflight_results_pb";
 
 export {
   PreflightStatus,
   CheckStatus,
   SecretClass,
-  JobStatus,
-  PreflightRequestSchema as ProtoPreflightRequestSchema,
   PreflightResponseSchema as ProtoPreflightResponseSchema,
   PreflightSecretSchema as ProtoPreflightSecretSchema,
   PreflightReadySchema as ProtoPreflightReadySchema,
@@ -370,13 +319,7 @@ export {
   ServiceFingerprintSchema as ProtoServiceFingerprintSchema,
   TelemetryInfoSchema as ProtoTelemetryInfoSchema,
   GPUInfoSchema as ProtoGPUInfoSchema,
-  JobStepSchema as ProtoJobStepSchema,
-  JobStartResponseSchema as ProtoJobStartResponseSchema,
-  JobStatusResponseSchema as ProtoJobStatusResponseSchema,
-  ManifestRequestSchema as ProtoManifestRequestSchema,
-  ManifestResponseSchema as ProtoManifestResponseSchema,
   PreflightStatusSchema as ProtoPreflightStatusSchema,
   CheckStatusSchema as ProtoCheckStatusSchema,
   SecretClassSchema as ProtoSecretClassSchema,
-  JobStatusSchema as ProtoJobStatusSchema,
-} from "@vrooli/proto-types/scenario-to-desktop/v1/domain/preflight_pb";
+} from "@vrooli/proto-types/scenario-to-desktop/v1/shared/preflight_results_pb";

@@ -1,0 +1,20 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
+  "assetKind": "component",
+  "catalogId": "forms.input-group",
+  "deprecatedVersions": [
+    "1.0.0",
+    "1.1.0",
+    "1.2.0",
+    "1.2.1"
+  ],
+  "draft": "",
+  "evictedVersions": [
+    "1.1.0",
+    "1.0.0",
+    "1.2.0",
+    "1.2.1"
+  ],
+  "latest": "1.2.2",
+  "libraryId": "react-component-library:InputGroup"
+}

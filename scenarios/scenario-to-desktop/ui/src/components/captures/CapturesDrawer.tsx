@@ -1,20 +1,31 @@
-import { Camera, Download, Trash2, CheckSquare, Square, Loader2 } from "lucide-react";
+import {
+  Camera,
+  Download,
+  Trash2,
+  CheckSquare,
+  Square,
+  Loader2,
+} from "lucide-react";
 import { Drawer, DrawerBody, DrawerHeader } from "../ui/drawer";
 import { Button } from "../ui/button";
 import { formatBytes } from "../../domain/download";
 import { buildCaptureFileUrl } from "../../lib/api/captures";
 import { useCapturesStore } from "../../store/capturesStore";
 
-function timeAgo(dateStr: string): string {
-  const ms = Date.now() - new Date(dateStr).getTime();
+function timeAgo(
+  value: { seconds: bigint; nanos: number } | undefined,
+): string {
+  if (!value) return "unknown";
+  const ms =
+    Date.now() - (Number(value.seconds) * 1_000 + value.nanos / 1_000_000);
   const seconds = Math.floor(ms / 1000);
-  if (seconds < 60) return `${seconds}s ago`;
+  if (seconds < 60) return `${String(seconds)}s ago`;
   const minutes = Math.floor(seconds / 60);
-  if (minutes < 60) return `${minutes}m ago`;
+  if (minutes < 60) return `${String(minutes)}m ago`;
   const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${hours}h ago`;
+  if (hours < 24) return `${String(hours)}h ago`;
   const days = Math.floor(hours / 24);
-  return `${days}d ago`;
+  return `${String(days)}d ago`;
 }
 
 export function CapturesDrawer() {
@@ -33,24 +44,34 @@ export function CapturesDrawer() {
   const deleteAll = useCapturesStore((s) => s.deleteAll);
   const downloadSelected = useCapturesStore((s) => s.downloadSelected);
 
-  const allSelected = captures.length > 0 && selectedIds.size === captures.length;
+  const allSelected =
+    captures.length > 0 && selectedIds.size === captures.length;
+  const captureVoidReason = (capture: (typeof captures)[number]) =>
+    (capture as typeof capture & { voidReason?: string }).voidReason;
 
   return (
-    <Drawer open={isOpen} onClose={close} side="right" panelClassName="md:w-[600px] md:max-w-2xl">
+    <Drawer
+      open={isOpen}
+      onClose={close}
+      side="right"
+      panelClassName="md:w-[600px] md:max-w-2xl"
+    >
       <DrawerHeader>
         <div className="flex items-center justify-between w-full">
           <div className="flex items-center gap-2">
             <Camera className="h-5 w-5 text-slate-400" />
             <div>
-              <h2 className="text-base font-semibold text-slate-100">Captures</h2>
+              <h2 className="text-base font-semibold text-slate-100">
+                Captures
+              </h2>
               {scenarioName && (
                 <p className="text-xs text-slate-500">{scenarioName}</p>
               )}
             </div>
           </div>
-          {summary && summary.total_bytes > 0 && (
+          {summary && summary.totalBytes > 0n && (
             <span className="text-xs text-slate-400">
-              Total: {formatBytes(summary.total_bytes)}
+              Total: {formatBytes(Number(summary.totalBytes))}
             </span>
           )}
         </div>
@@ -67,9 +88,13 @@ export function CapturesDrawer() {
               className="text-xs"
             >
               {allSelected ? (
-                <><CheckSquare className="h-3.5 w-3.5 mr-1" /> Deselect All</>
+                <>
+                  <CheckSquare className="h-3.5 w-3.5 mr-1" /> Deselect All
+                </>
               ) : (
-                <><Square className="h-3.5 w-3.5 mr-1" /> Select All</>
+                <>
+                  <Square className="h-3.5 w-3.5 mr-1" /> Select All
+                </>
               )}
             </Button>
             {selectedIds.size > 0 && (
@@ -89,8 +114,12 @@ export function CapturesDrawer() {
               size="sm"
               variant="destructive"
               onClick={() => {
-                if (window.confirm(`Delete all ${captures.length} captures for "${scenarioName}"?`)) {
-                  deleteAll();
+                if (
+                  window.confirm(
+                    `Delete all ${String(captures.length)} captures for "${scenarioName ?? "this scenario"}"?`,
+                  )
+                ) {
+                  void deleteAll();
                 }
               }}
               className="text-xs ml-auto"
@@ -130,11 +159,13 @@ export function CapturesDrawer() {
         {!loading && captures.length > 0 && (
           <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
             {captures.map((cap) => {
-              const isSelected = selectedIds.has(cap.id);
-              const fileUrl = scenarioName ? buildCaptureFileUrl(scenarioName, cap.id) : "";
+              const isSelected = selectedIds.has(cap.captureId);
+              const fileUrl = scenarioName
+                ? buildCaptureFileUrl(scenarioName, cap.captureId)
+                : "";
               return (
                 <div
-                  key={cap.id}
+                  key={cap.captureId}
                   className={`relative rounded-lg border bg-slate-900/50 overflow-hidden transition ${
                     isSelected
                       ? "border-blue-500 ring-1 ring-blue-500/30"
@@ -145,7 +176,9 @@ export function CapturesDrawer() {
                   <button
                     type="button"
                     className="absolute top-1.5 left-1.5 z-10 rounded bg-slate-900/80 p-0.5"
-                    onClick={() => toggleSelect(cap.id)}
+                    onClick={() => {
+                      toggleSelect(cap.captureId);
+                    }}
                   >
                     {isSelected ? (
                       <CheckSquare className="h-4 w-4 text-blue-400" />
@@ -156,7 +189,7 @@ export function CapturesDrawer() {
 
                   {/* Media */}
                   <div className="aspect-video bg-slate-950">
-                    {cap.type === "screenshot" ? (
+                    {cap.kind !== "recording" ? (
                       <img
                         src={fileUrl}
                         alt={cap.filename}
@@ -175,19 +208,26 @@ export function CapturesDrawer() {
 
                   {/* Info */}
                   <div className="p-2 space-y-1">
+                    {captureVoidReason(cap) && (
+                      <p className="rounded bg-amber-950/40 px-1.5 py-1 text-[11px] text-amber-200">
+                        Voided: {captureVoidReason(cap)}
+                      </p>
+                    )}
                     <div className="flex items-center justify-between">
                       <span className="text-xs text-slate-400 truncate">
-                        {formatBytes(cap.file_size_bytes)}
+                        {formatBytes(Number(cap.fileSizeBytes))}
                       </span>
                       <span className="text-xs text-slate-600">
-                        {timeAgo(cap.created_at)}
+                        {timeAgo(cap.createdAt)}
                       </span>
                     </div>
                     <div className="flex justify-end">
                       <button
                         type="button"
                         className="p-1 rounded hover:bg-red-950/50 text-slate-500 hover:text-red-400 transition"
-                        onClick={() => deleteCapture(cap.id)}
+                        onClick={() => {
+                          void deleteCapture(cap.captureId);
+                        }}
                         title="Delete"
                       >
                         <Trash2 className="h-3.5 w-3.5" />

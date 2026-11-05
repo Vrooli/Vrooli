@@ -1,0 +1,73 @@
+syntax = "proto3";
+
+package vrooli.typescript_code_graph.v1.health;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/typescript-code-graph/v1/health;health_v1";
+
+// =============================================================================
+// HEALTH DOMAIN
+// =============================================================================
+//
+// @layer 5  (api surface)
+// @domain health
+// @stability stable
+//
+// Wire contract for the API's /health and /api/v1/health endpoints.
+// Health is an operational REST exception: it is intentionally
+// fetchable by load balancers, lifecycle checks, and simple curl
+// probes without a Connect client.
+//
+// Mirrors api-core/health.Response field-for-field with matching JSON
+// names so the api-core/health.Builder.Handler() chain in production
+// produces JSON that decodes into the generated proto type without
+// translation.
+//
+// Extended for typescript-code-graph: the `sidecar_status` field
+// surfaces the Node sidecar's lifecycle state so operators can
+// distinguish a healthy API with a dead sidecar from a fully healthy
+// scenario.
+// =============================================================================
+
+// SidecarStatus enumerates the supervisor's view of the Node sidecar.
+// Matches the Go-side sidecar.Status enum 1:1.
+enum SidecarStatus {
+  SIDECAR_STATUS_UNSPECIFIED = 0;
+  // The sidecar process is running and responded to the most recent
+  // handshake / heartbeat.
+  SIDECAR_STATUS_READY = 1;
+  // The sidecar process exited unexpectedly; the supervisor is about
+  // to (or already starting to) respawn it.
+  SIDECAR_STATUS_UNHEALTHY = 2;
+  // The supervisor is mid-backoff between respawn attempts.
+  SIDECAR_STATUS_RESTARTING = 3;
+  // Five consecutive restart failures within 60s exhausted the
+  // backoff budget. No further restart attempts will be made until
+  // the API process restarts.
+  SIDECAR_STATUS_PERMANENTLY_UNHEALTHY = 4;
+}
+
+// DependencyStatus mirrors api-core/health.DependencyStatus.
+message DependencyStatus {
+  bool connected = 1;
+  double latency_ms = 2;
+  string error = 3;
+  string database = 4;
+}
+
+// Response is the JSON payload returned by /health and /api/v1/health.
+message Response {
+  string status = 1;
+  string service = 2;
+  string timestamp = 3;
+  bool readiness = 4;
+  string version = 5;
+  double uptime_seconds = 6;
+  map<string, DependencyStatus> dependencies = 7;
+  // Current Node sidecar lifecycle state. Set even when the scenario
+  // is otherwise healthy — operators read this as the typical failure
+  // diagnostic since the sidecar is the most failure-prone component.
+  SidecarStatus sidecar_status = 8;
+  // Optional human-readable sidecar diagnostic (e.g., last restart
+  // reason). Empty when sidecar_status is READY.
+  string sidecar_message = 9;
+}

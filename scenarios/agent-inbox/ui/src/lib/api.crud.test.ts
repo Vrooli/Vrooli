@@ -63,7 +63,6 @@ describe("fetchChats", () => {
         is_archived: false,
         is_starred: false,
         label_ids: [],
-        tools_enabled: true,
         web_search_enabled: false,
         created_at: "2025-01-01T00:00:00Z",
         updated_at: "2025-01-01T00:00:00Z",
@@ -130,7 +129,7 @@ describe("createChat", () => {
     const mockChat: Chat = {
       id: "new-chat", name: "New Chat", preview: "", model: "gpt-4",
       view_mode: "bubble", chat_mode: "llm", is_read: true, is_archived: false,
-      is_starred: false, label_ids: [], tools_enabled: true, web_search_enabled: false,
+      is_starred: false, label_ids: [], web_search_enabled: false,
       created_at: "2025-01-01T00:00:00Z", updated_at: "2025-01-01T00:00:00Z",
     };
     mockFetch.mockResolvedValueOnce(createMockResponse(mockChat));

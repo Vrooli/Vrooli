@@ -1,0 +1,80 @@
+syntax = "proto3";
+
+package vrooli.test_genie.v1.eligibility;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/test-genie/v1/eligibility;eligibility_v1";
+
+// =============================================================================
+// TEST-GENIE ELIGIBILITY DOMAIN — routed-test-db eligibility check
+// =============================================================================
+//
+// @layer 5  (api surface)
+// @domain test-genie
+// @stability unstable
+//
+// Wire contract for EligibilityService, the read-only surface that exposes
+// test-genie's routed-eligibility decision for a scenario. The decision is
+// produced by scanning the scenario via scenario-auditor and applying the
+// §F.3 contract to three auditor rules (routed_database_drivers,
+// routed_database_handle_capture, database_backoff).
+//
+// Consumed by:
+//   - test-genie CLI: `test-genie eligibility check <scenario>` for humans.
+//   - git-control-tower API: the workflow review panel's isolation badge.
+//   - future swarm-manager pre-flight checks.
+//
+// The single decision field is `routed`. Everything else is informational
+// (violations, missing rules, reasons) and may evolve without contract
+// breakage — do not rely on its shape in scripted callers.
+// =============================================================================
+
+service EligibilityService {
+  // Check runs (or reuses a cached) auditor scan against the named scenario
+  // and returns whether it qualifies for the in-place routed-test-db path.
+  // The call is read-only and idempotent.
+  rpc Check(CheckRequest) returns (CheckResponse);
+}
+
+message CheckRequest {
+  // scenario is the scenario slug (directory name under scenarios/), e.g.
+  // "git-control-tower" or "test-genie".
+  string scenario = 1;
+}
+
+// Violation is a single auditor finding relevant to the routing decision.
+// Shape may evolve; callers must treat it as informational.
+message Violation {
+  string rule_id = 1;
+  string severity = 2;
+  string file = 3;
+  uint32 line = 4;
+  string excerpt = 5;
+}
+
+// RuleAssertion is set when the auditor scan did not include one or more of
+// the three required routing rules. An unchecked rule is treated as
+// disqualifying — it is not the same as a passing one.
+message RuleAssertion {
+  repeated string missing_rules = 1;
+}
+
+message CheckResponse {
+  // routed is the only field consumers must read to make a routing
+  // decision. True means the scenario qualifies for the routed
+  // (in-place, isolated test pool) path; false means it does not.
+  bool routed = 1;
+
+  // violations lists the auditor excerpts the decision is based on. Empty
+  // when routed is true. Informational only.
+  repeated Violation violations = 2;
+
+  // rule_assertion is set when one or more of the three required routing
+  // rules were not registered with the auditor — the scan could not certify
+  // eligibility. Informational only; routed will already be false.
+  RuleAssertion rule_assertion = 3;
+
+  // disqualifying_reasons holds human-readable explanations for why routed
+  // is false, suitable for surfacing in CLI output and UI tooltips. Empty
+  // when routed is true. Informational only.
+  repeated string disqualifying_reasons = 4;
+}

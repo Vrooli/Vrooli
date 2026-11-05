@@ -1,0 +1,152 @@
+syntax = "proto3";
+
+package vrooli.vrooli_bridge.v1.cleanup;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/cleanup;cleanup_v1";
+
+// CLEANUP DOMAIN — Bridge-managed, operator-confirmed removal of recorded
+// Vrooli artifacts. The node helper owns host remediation; this service owns
+// the durable operation, frozen-plan identity, lease, confirmation, and audit.
+
+enum CleanupStatus {
+  CLEANUP_STATUS_UNSPECIFIED = 0;
+  CLEANUP_STATUS_QUEUED = 1;
+  CLEANUP_STATUS_PLANNING = 2;
+  CLEANUP_STATUS_PLANNED = 3;
+  CLEANUP_STATUS_CONFIRMED = 4;
+  CLEANUP_STATUS_APPLYING = 5;
+  CLEANUP_STATUS_COMPLETED = 6;
+  CLEANUP_STATUS_FAILED = 7;
+  CLEANUP_STATUS_BLOCKED = 8;
+  CLEANUP_STATUS_CANCELED = 9;
+}
+
+enum CleanupEventKind {
+  CLEANUP_EVENT_KIND_UNSPECIFIED = 0;
+  CLEANUP_EVENT_KIND_STATUS = 1;
+  CLEANUP_EVENT_KIND_LOG = 2;
+  CLEANUP_EVENT_KIND_PLAN = 3;
+  CLEANUP_EVENT_KIND_RECEIPT = 4;
+  CLEANUP_EVENT_KIND_EXIT = 5;
+}
+
+message CleanupOperation {
+  string id = 1;
+  string machine_id = 2;
+  string node_id = 3;
+  string target = 4;
+  string scope = 5;
+  CleanupStatus status = 6;
+  string transport = 7;
+  string transport_reason = 8;
+  string reason = 9;
+  string plan_hash = 10;
+  bytes plan_json = 11;
+  bytes receipt_json = 12;
+  string operator_id = 13;
+  google.protobuf.Timestamp created_at = 14;
+  google.protobuf.Timestamp updated_at = 15;
+  google.protobuf.Timestamp finished_at = 16;
+  // Public X25519 key derived from the paired node credential. It is safe to
+  // expose to the operator client; the corresponding private material stays
+  // on the node and is used only by the privileged helper.
+  bytes sealing_public_key = 17;
+}
+
+message CleanupEvent {
+  string operation_id = 1;
+  CleanupEventKind kind = 2;
+  uint64 sequence = 3;
+  string status = 4;
+  string log_chunk = 5;
+  bytes plan_json = 6;
+  bytes receipt_json = 7;
+  string reason = 8;
+  int32 exit_code = 9;
+  google.protobuf.Timestamp emitted_at = 10;
+}
+
+service CleanupService {
+  rpc PrepareCleanup(PrepareCleanupRequest) returns (PrepareCleanupResponse);
+  rpc ProvisionBreakGlass(ProvisionBreakGlassRequest) returns (ProvisionBreakGlassResponse);
+  rpc ResetBreakGlass(ResetBreakGlassRequest) returns (ResetBreakGlassResponse);
+  rpc StartCleanup(StartCleanupRequest) returns (StartCleanupResponse);
+  rpc GetCleanup(GetCleanupRequest) returns (GetCleanupResponse);
+  rpc PlanCleanup(PlanCleanupRequest) returns (PlanCleanupResponse);
+  rpc ConfirmCleanup(ConfirmCleanupRequest) returns (ConfirmCleanupResponse);
+  rpc ApplyCleanup(ApplyCleanupRequest) returns (ApplyCleanupResponse);
+  rpc VerifyCleanup(VerifyCleanupRequest) returns (VerifyCleanupResponse);
+  rpc CancelCleanup(CancelCleanupRequest) returns (CancelCleanupResponse);
+  rpc ReportCleanupEvent(ReportCleanupEventRequest) returns (ReportCleanupEventResponse);
+}
+
+message CleanupTarget {
+  string machine_id = 1;
+  string node_id = 2;
+  string target = 3;
+  string scope = 4;
+  string transport = 5;
+  string transport_reason = 6;
+  string operator_id = 7;
+  bytes sealing_public_key = 8;
+  string operation_id = 9;
+  repeated string capabilities = 10;
+  repeated string approved_scopes = 11;
+}
+
+message PrepareCleanupRequest {
+  string machine_id = 1;
+  string node_id = 2;
+  string target = 3;
+  string scope = 4;
+}
+message PrepareCleanupResponse { CleanupTarget target = 1; }
+
+message ProvisionBreakGlassRequest {
+  string machine_id = 1;
+  string node_id = 2;
+  string target = 3;
+  string scope = 4;
+  bytes sealed_passphrase = 5;
+  string operator_id = 6;
+  string operation_id = 7;
+}
+message ProvisionBreakGlassResponse { CleanupOperation operation = 1; }
+message ResetBreakGlassRequest {
+  string machine_id = 1;
+  string node_id = 2;
+  string target = 3;
+  string scope = 4;
+}
+message ResetBreakGlassResponse { CleanupOperation operation = 1; }
+
+message StartCleanupRequest {
+  string machine_id = 1;
+  string node_id = 2;
+  string target = 3;
+  string scope = 4;
+}
+message StartCleanupResponse { CleanupOperation operation = 1; }
+message GetCleanupRequest { string id = 1; }
+message GetCleanupResponse { CleanupOperation operation = 1; repeated CleanupEvent events = 2; }
+message PlanCleanupRequest { string id = 1; }
+message PlanCleanupResponse { CleanupOperation operation = 1; }
+message ConfirmCleanupRequest {
+  string id = 1;
+  string target = 2;
+  string plan_hash = 3;
+  bytes sealed_passphrase = 4;
+  bytes capability = 5;
+  string operator_id = 6;
+}
+message ConfirmCleanupResponse { CleanupOperation operation = 1; }
+message ApplyCleanupRequest { string id = 1; }
+message ApplyCleanupResponse { CleanupOperation operation = 1; }
+message VerifyCleanupRequest { string id = 1; }
+message VerifyCleanupResponse { CleanupOperation operation = 1; }
+message CancelCleanupRequest { string id = 1; string reason = 2; }
+message CancelCleanupResponse { CleanupOperation operation = 1; }
+message ReportCleanupEventRequest { CleanupEvent event = 1; }
+message ReportCleanupEventResponse { bool accepted = 1; }

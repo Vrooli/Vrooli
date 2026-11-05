@@ -9,8 +9,7 @@
 
 **Observations**:
 - Highest state density remains in `RunDetail.tsx` and page containers (`RunsPage.tsx`, `TasksPage.tsx`).
-- Replaced stats `TimeWindow` Context with a centralized module-level store in `ui/src/features/stats/hooks/useTimeWindow.tsx`.
-- `TimeWindowProvider` is now a lightweight compatibility wrapper that applies `defaultPreset` lifecycle behavior without Context coupling.
+- The stats `TimeWindow` store and its provider were deleted with `ui/src/features/stats` (P4-W6a, 2026-10-30); Usage › Details keeps its range in the URL.
 - `RunDetail.tsx` had duplicated collapsible/resizable panel logic that diverged from shared hooks.
 - This pass consolidated `RunDetail.tsx` onto shared hooks to reduce bespoke state/effect management and align panel behavior.
 
@@ -31,7 +30,7 @@
 **Status**: No major token/CVA migration in this pass.
 
 **Notes**:
-- Existing arbitrary spacing remains in `ui/src/components/ui/scroll-area.tsx` (`p-[1px]`), inherited from Radix wrapper implementation.
+- The Radix `scroll-area` wrapper and its arbitrary `p-[1px]` spacing were removed (`ui/src/components/ui/scroll-area.tsx` no longer exists).
 
 ## Priority Actions
 
@@ -44,6 +43,59 @@
 
 1. Evaluate introducing focused shared stores (or reducer-backed modules) for cross-component state in `RunsPage.tsx` and `TasksPage.tsx` as complexity grows.
 2. Reduce duplicate date/relative-time formatting between general UI utils and stats feature utils in a future coherence pass.
+
+---
+
+# React Coherence Update - 2026-04-30
+
+## Completed In Realtime Event Architecture Pass
+
+1. Introduced a focused reducer-backed run event store:
+   - Pure state machine: `ui/src/lib/runEventStore.ts`
+   - React seam: `ui/src/hooks/useRunEventStore.ts`
+   - Unit coverage: `ui/src/lib/runEventStore.test.ts`
+
+2. Removed split realtime ownership between `App.tsx` and `RunsPage.tsx`:
+   - `App.tsx` owns the WebSocket message ingress and dispatches `run_status`, `run_event`, and `task_status` into the store.
+   - `RunsPage.tsx` consumes store snapshots/events for the selected run.
+   - Local selected-run event arrays, run overrides, reconnect handlers, and terminal `setTimeout` reconciliation were removed.
+
+3. Made WebSocket subscriptions durable across reconnect:
+   - `ui/src/lib/webSocketProtocol.ts` isolates wire parsing/building.
+   - `ui/src/lib/webSocketSubscriptions.ts` tracks desired subscriptions and replays them on reconnect.
+   - `useWebSocket.ts` no longer exposes ad hoc imperative message-handler registration.
+
+## Coherence Boundary
+
+Run timeline rendering remains pure display logic over normalized events in `ui/src/lib/runTimeline.ts` and `ui/src/components/RunTimeline.tsx`. Realtime ordering, dedupe, gap-fill, and terminal reconciliation belong in the store, not in page or component-local effects.
+
+## Validation
+
+- `pnpm --dir scenarios/agent-manager/ui run type-check`
+- `pnpm --dir scenarios/agent-manager/ui run test:unit`
+
+---
+
+# React Coherence Update - 2026-04-30
+
+## Completed In Realtime Hardening Follow-up
+
+1. Removed the default browser-wide `subscribeAll` path:
+   - `App.tsx` now receives global `run_status` metadata without subscribing to every `run_event` body.
+   - `runEventStore.ts` only records live event bodies and terminal gap-fill intents for explicitly subscribed runs.
+
+2. Extracted selected-run coordination from `RunsPage.tsx`:
+   - `ui/src/hooks/useSelectedRunController.ts` owns selected run snapshots, timeline gap-fill, diff loading, selected-run WebSocket subscription, and URL-driven selection.
+   - `RunsPage.tsx` remains responsible for page composition, filters, modal workflows, and run actions.
+
+3. Made reconnect behavior testable:
+   - `ui/src/lib/webSocketConnection.ts` contains pure reconnect decision/backoff helpers.
+   - `useWebSocket.ts` now distinguishes intentional cleanup closes from unexpected socket closes and ignores stale socket close callbacks.
+
+## Validation
+
+- `pnpm --dir scenarios/agent-manager/ui run type-check`
+- `pnpm --dir scenarios/agent-manager/ui run test:unit`
 
 ---
 

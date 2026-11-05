@@ -3,6 +3,7 @@ import { cn } from "../../../lib/utils";
 import { useViewportSize } from "../../../hooks/useViewportSize";
 import { useResizablePanel } from "../../../hooks/useResizablePanel";
 import { useCollapsiblePanel } from "../../../hooks/useCollapsiblePanel";
+import { onProfilerRender } from "../../../lib/profiler";
 import { DetailModal } from "./DetailModal";
 import { ResizableDivider } from "./ResizableDivider";
 
@@ -17,9 +18,6 @@ interface MasterDetailLayoutProps {
   onDeselect: () => void;
   /** Title for the detail modal on mobile */
   detailTitle: string;
-
-  /** Optional content to display at top (error banners, alerts, etc.) */
-  headerContent?: React.ReactNode;
 
   /** Storage key for localStorage persistence (e.g., "runs", "profiles") */
   storageKey: string;
@@ -50,7 +48,40 @@ export function MasterDetailLayout({
   selectedId,
   onDeselect,
   detailTitle,
-  headerContent,
+  storageKey,
+  defaultListWidthPercent = DEFAULT_LIST_WIDTH_PERCENT,
+  minListWidth = DEFAULT_MIN_LIST_WIDTH,
+  detailHeaderLeft,
+  detailHeaderRight,
+  minDetailWidth = DEFAULT_MIN_DETAIL_WIDTH,
+  className,
+}: MasterDetailLayoutProps) {
+  return (
+    <React.Profiler id={`MasterDetail:${storageKey}`} onRender={onProfilerRender}>
+      <MasterDetailLayoutImpl
+        listPanel={listPanel}
+        detailPanel={detailPanel}
+        selectedId={selectedId}
+        onDeselect={onDeselect}
+        detailTitle={detailTitle}
+        storageKey={storageKey}
+        defaultListWidthPercent={defaultListWidthPercent}
+        minListWidth={minListWidth}
+        detailHeaderLeft={detailHeaderLeft}
+        detailHeaderRight={detailHeaderRight}
+        minDetailWidth={minDetailWidth}
+        className={className}
+      />
+    </React.Profiler>
+  );
+}
+
+function MasterDetailLayoutImpl({
+  listPanel,
+  detailPanel,
+  selectedId,
+  onDeselect,
+  detailTitle,
   storageKey,
   defaultListWidthPercent = DEFAULT_LIST_WIDTH_PERCENT,
   minListWidth = DEFAULT_MIN_LIST_WIDTH,
@@ -92,12 +123,6 @@ export function MasterDetailLayout({
   if (isDesktop) {
     return (
       <div className={cn("h-full flex flex-col overflow-hidden", className)}>
-        {/* Header content (error banners, etc.) - only when present */}
-        {headerContent && (
-          <div className="shrink-0 px-4 py-2 sm:px-6 lg:px-10">
-            {headerContent}
-          </div>
-        )}
 
         {/* Panel area - fills entire height */}
         <div
@@ -135,12 +160,6 @@ export function MasterDetailLayout({
   // Mobile layout - list with modal for details
   return (
     <div className={cn("h-full flex flex-col overflow-hidden", className)}>
-      {/* Header content (error banners, etc.) - only when present */}
-      {headerContent && (
-        <div className="shrink-0 px-4 py-2">
-          {headerContent}
-        </div>
-      )}
 
       {/* List panel - fills entire height */}
       <div className="flex-1 min-h-0 overflow-hidden bg-card">

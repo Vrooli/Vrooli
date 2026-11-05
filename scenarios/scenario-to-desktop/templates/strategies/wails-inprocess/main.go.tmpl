@@ -1,0 +1,319 @@
+package main
+
+import (
+	"context"
+	"embed"
+	"encoding/json"
+	"fmt"
+	"io/fs"
+	"log"
+	"net/http"
+	"os"
+	"path/filepath"
+	"runtime"
+	"strings"
+	"sync"
+	"time"
+
+	"github.com/wailsapp/wails/v3/pkg/application"
+	"github.com/wailsapp/wails/v3/pkg/events"
+	desktopapi "{{API_MODULE}}/desktop"
+)
+
+//go:embed assets
+var assets embed.FS
+
+type availability struct {
+	State  string `json:"state"`
+	Reason string `json:"reason"`
+}
+
+type launchMark struct {
+	Name         string       `json:"name"`
+	ElapsedNS    int64        `json:"elapsed_ns"`
+	Availability availability `json:"availability"`
+}
+
+type launchMetric struct {
+	Name         string       `json:"name"`
+	Value        float64      `json:"value"`
+	Unit         string       `json:"unit"`
+	Availability availability `json:"availability"`
+}
+
+type processRole struct {
+	Role         string       `json:"role"`
+	GenericRole  string       `json:"generic_role"`
+	ProcessCount int          `json:"process_count"`
+	RSSMB        float64      `json:"rss_mb"`
+	PSSMB        float64      `json:"pss_mb"`
+	USSMB        float64      `json:"uss_mb"`
+	Availability availability `json:"availability"`
+}
+
+type rendererMarkRequest struct {
+	Name   string `json:"name"`
+	Source string `json:"source"`
+}
+
+type launchSample struct {
+	SchemaVersion        string               `json:"schema_version"`
+	SampleID             string               `json:"sample_id"`
+	Scenario             string               `json:"scenario"`
+	Ramp                 string               `json:"ramp"`
+	Strategy             string               `json:"strategy"`
+	ToggleAttribution    map[string]bool      `json:"toggle_attribution"`
+	Platform             string               `json:"platform"`
+	CapturedAt           string               `json:"captured_at"`
+	ExperimentID         string               `json:"experiment_id"`
+	HostFingerprint      string               `json:"host_fingerprint"`
+	ArtifactDigest       string               `json:"artifact_digest"`
+	Condition            string               `json:"condition"`
+	Display              string               `json:"display"`
+	ProfilerMode         string               `json:"profiler_mode"`
+	PowerState           string               `json:"power_state"`
+	Marks                []launchMark         `json:"marks"`
+	Metrics              []launchMetric       `json:"metrics"`
+	ProcessRoles         []processRole        `json:"process_roles"`
+	AppInteractiveSource string               `json:"app_interactive_source"`
+}
+
+type launchRecorder struct {
+	started              time.Time
+	mu                   sync.Mutex
+	marks                map[string]launchMark
+	appInteractiveSource string
+	done                 sync.Once
+}
+
+func newLaunchRecorder() *launchRecorder {
+	recorder := &launchRecorder{started: time.Now(), marks: make(map[string]launchMark)}
+	recorder.mark("process_spawn")
+	return recorder
+}
+
+func (r *launchRecorder) mark(name string) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if _, exists := r.marks[name]; exists {
+		return
+	}
+	r.marks[name] = launchMark{Name: name, ElapsedNS: time.Since(r.started).Nanoseconds(), Availability: availability{State: "available", Reason: "observed by the Wails launch producer"}}
+}
+
+func (r *launchRecorder) markRenderer(name, source string) {
+	r.mu.Lock()
+	if _, exists := r.marks[name]; !exists {
+		r.marks[name] = launchMark{Name: name, ElapsedNS: time.Since(r.started).Nanoseconds(), Availability: availability{State: "available", Reason: "observed from the Wails renderer through the in-process asset handler"}}
+		if name == "app_interactive" {
+			r.appInteractiveSource = source
+		}
+	}
+	r.mu.Unlock()
+	r.persist()
+}
+
+func validRendererMark(request rendererMarkRequest) bool {
+	if request.Name == "first_contentful_paint" {
+		return request.Source == "renderer_performance_observer"
+	}
+	if request.Name != "app_interactive" {
+		return false
+	}
+	switch request.Source {
+	case "scenario_performance_mark", "fallback:fcp_api_response_500ms_without_long_task":
+		return true
+	default:
+		return false
+	}
+}
+
+func (r *launchRecorder) finish() {
+	r.done.Do(func() {
+		r.mu.Lock()
+		defer r.mu.Unlock()
+		for _, name := range []string{"shell_ready", "first_window", "backend_ready"} {
+			if _, ok := r.marks[name]; !ok {
+				r.marks[name] = launchMark{Name: name, Availability: availability{State: "unavailable", Reason: "not observed during this Wails launch"}}
+			}
+		}
+		for _, name := range []string{"first_contentful_paint", "app_interactive"} {
+			if _, ok := r.marks[name]; !ok {
+				r.marks[name] = launchMark{Name: name, Availability: availability{State: "unavailable", Reason: "the Wails renderer did not report this timing mark before shutdown"}}
+			}
+		}
+		if r.appInteractiveSource == "" {
+			r.appInteractiveSource = "unavailable"
+		}
+		if err := r.writeLocked(); err != nil {
+			log.Printf("write packaged-launch.v1 evidence: %v", err)
+		}
+	})
+}
+
+func (r *launchRecorder) persist() {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if err := r.writeLocked(); err != nil {
+		log.Printf("write packaged-launch.v1 evidence: %v", err)
+	}
+}
+
+func (r *launchRecorder) writeLocked() error {
+	path := strings.TrimSpace(os.Getenv("S2D_PACKAGED_LAUNCH_PATH"))
+	if path == "" {
+		return nil
+	}
+	runID := strings.TrimSpace(os.Getenv("SMOKE_TEST_RUN_ID"))
+	if runID == "" {
+		runID = fmt.Sprintf("wails-%d-%d", os.Getpid(), r.started.UnixNano())
+	}
+	runKind := "demo"
+	if strings.Contains(strings.ToLower(filepath.Base(path)), "protocol") {
+		runKind = "protocol"
+	}
+	condition := strings.TrimSpace(os.Getenv("SMOKE_TEST_CONDITION"))
+	if condition == "" {
+		condition = "warm"
+	}
+	marks := make([]launchMark, 0, len(r.marks))
+	for _, mark := range r.marks {
+		marks = append(marks, mark)
+	}
+	sample := launchSample{
+		SchemaVersion: "packaged-launch.v1", SampleID: runID + ":" + runKind,
+		Scenario: os.Getenv("S2D_SCENARIO"), Ramp: "desktop", Strategy: "wails-inprocess",
+		ToggleAttribution: map[string]bool{"shared_runtime_readiness": false, "secure_custom_scheme_ui": false, "v8_snapshot_code_cache": false, "electron_fuses": false},
+		Platform: runtime.GOOS, CapturedAt: r.started.UTC().Format(time.RFC3339Nano),
+		ExperimentID: os.Getenv("S2D_EXPERIMENT_ID"), HostFingerprint: os.Getenv("S2D_HOST_FINGERPRINT"),
+		ArtifactDigest: os.Getenv("S2D_ARTIFACT_DIGEST"), Condition: condition, Display: os.Getenv("DISPLAY"),
+		ProfilerMode: envOr("S2D_PROFILE_MODE", "disabled"), PowerState: "unknown", Marks: marks,
+		Metrics: unavailableMetrics(), ProcessRoles: unavailableWebviewRoles(),
+		AppInteractiveSource: r.appInteractiveSource,
+	}
+	data, err := json.MarshalIndent(sample, "", "  ")
+	if err != nil {
+		return err
+	}
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		return err
+	}
+	temporaryPath := fmt.Sprintf("%s.%d.tmp", path, os.Getpid())
+	if err := os.WriteFile(temporaryPath, append(data, '\n'), 0o600); err != nil {
+		return err
+	}
+	if err := os.Rename(temporaryPath, path); err != nil {
+		_ = os.Remove(temporaryPath)
+		return err
+	}
+	return nil
+}
+
+func unavailableMetrics() []launchMetric {
+	metrics := []launchMetric{}
+	for _, item := range [][2]string{{"tree_pss_mb", "MB"}, {"tree_uss_mb", "MB"}, {"idle_cpu_pct", "%"}, {"steady_pss_mb", "MB"}, {"artifact_bytes", "bytes"}, {"installed_bytes", "bytes"}, {"update_bytes", "bytes"}} {
+		metrics = append(metrics, launchMetric{Name: item[0], Unit: item[1], Availability: availability{State: "unavailable", Reason: "measured-launch host collector has not enriched this Wails launch"}})
+	}
+	return metrics
+}
+
+func unavailableWebviewRoles() []processRole {
+	roles := []processRole{}
+	for _, role := range []string{"webview_renderer", "webview_gpu", "webview_other"} {
+		roles = append(roles, processRole{Role: role, GenericRole: role, Availability: availability{State: "unavailable", Reason: "Linux WebKit process census must enrich this launch"}})
+	}
+	return roles
+}
+
+func envOr(name, fallback string) string {
+	if value := strings.TrimSpace(os.Getenv(name)); value != "" {
+		return value
+	}
+	return fallback
+}
+
+func isAPIRequest(r *http.Request) bool {
+	path := r.URL.Path
+	if path == "/health" || path == "/api" || strings.HasPrefix(path, "/api/") {
+		return true
+	}
+	if r.Method != http.MethodGet && r.Method != http.MethodHead {
+		return true
+	}
+	accept := strings.ToLower(r.Header.Get("Accept"))
+	if strings.Contains(accept, "application/json") || strings.Contains(accept, "application/connect+") || strings.Contains(accept, "application/grpc") {
+		return true
+	}
+	if filepath.Ext(path) != "" {
+		return false
+	}
+	return !strings.Contains(accept, "text/html")
+}
+
+func main() {
+	recorder := newLaunchRecorder()
+	api, lifecycle, err := desktopapi.New()
+	if err != nil {
+		recorder.finish()
+		log.Fatal(err)
+	}
+	ctx := context.Background()
+	if err := lifecycle.Start(ctx); err != nil {
+		_ = lifecycle.Stop(ctx)
+		recorder.finish()
+		log.Fatal(err)
+	}
+	var stopOnce sync.Once
+	stop := func() { stopOnce.Do(func() { _ = lifecycle.Stop(context.Background()) }) }
+	defer func() { stop(); recorder.finish() }()
+
+	uiAssets, err := fs.Sub(assets, "assets")
+	if err != nil {
+		log.Fatal(err)
+	}
+	staticHandler := application.AssetFileServerFS(uiAssets)
+	assetHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/__s2d/launch-mark" {
+			if r.Method != http.MethodPost {
+				http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+				return
+			}
+			var mark rendererMarkRequest
+			decoder := json.NewDecoder(http.MaxBytesReader(w, r.Body, 1024))
+			decoder.DisallowUnknownFields()
+			if err := decoder.Decode(&mark); err != nil || !validRendererMark(mark) {
+				http.Error(w, "invalid launch mark", http.StatusBadRequest)
+				return
+			}
+			recorder.markRenderer(mark.Name, mark.Source)
+			w.WriteHeader(http.StatusNoContent)
+			return
+		}
+		if isAPIRequest(r) {
+			api.ServeHTTP(w, r)
+			return
+		}
+		staticHandler.ServeHTTP(w, r)
+	})
+	app := application.New(application.Options{
+		Name:        {{APP_DISPLAY_NAME}},
+		Description: {{APP_DESCRIPTION}},
+		Assets:      application.AssetOptions{Handler: assetHandler},
+	})
+	// The in-process handler is reachable through the Wails asset server now;
+	// API lifecycle readiness before this point is not a mounted backend.
+	recorder.mark("backend_ready")
+	app.OnShutdown(func() { stop(); recorder.finish() })
+	window := app.Window.NewWithOptions(application.WebviewWindowOptions{
+		Name: "main", Title: {{APP_DISPLAY_NAME}}, URL: "/", Width: 1200, Height: 800,
+	})
+	window.OnWindowEvent(events.Common.WindowShow, func(_ *application.WindowEvent) {
+		recorder.mark("first_window")
+		recorder.persist()
+	})
+	recorder.mark("shell_ready")
+	recorder.persist()
+	if err := app.Run(); err != nil {
+		log.Printf("Wails application exited with error: %v", err)
+	}
+}

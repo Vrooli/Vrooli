@@ -6,29 +6,23 @@
 package health
 
 import (
-	"os"
-	"strconv"
 	"time"
 )
 
 // Config holds configuration for the health monitor.
 type Config struct {
 	// PollInterval is how often to check the sidecar's health.
-	// Env: BAS_SIDECAR_HEALTH_POLL_INTERVAL_MS (default: 5000)
 	PollInterval time.Duration
 
 	// Timeout is the timeout for each health check request.
-	// Env: BAS_SIDECAR_HEALTH_TIMEOUT_MS (default: 2000)
 	Timeout time.Duration
 
 	// FailureThreshold is the number of consecutive failures before
 	// the sidecar is considered unhealthy.
-	// Env: BAS_SIDECAR_HEALTH_FAILURE_THRESHOLD (default: 3)
 	FailureThreshold int
 
 	// Debounce is the minimum time between state change broadcasts.
 	// This prevents UI flicker from rapid state changes.
-	// Env: BAS_SIDECAR_HEALTH_DEBOUNCE_MS (default: 1000)
 	Debounce time.Duration
 }
 
@@ -42,33 +36,25 @@ func DefaultConfig() Config {
 	}
 }
 
-// LoadConfig loads configuration from environment variables.
-func LoadConfig() Config {
+func LoadConfig(settings map[string]any) Config {
 	cfg := DefaultConfig()
-
-	if v := os.Getenv("BAS_SIDECAR_HEALTH_POLL_INTERVAL_MS"); v != "" {
-		if ms, err := strconv.Atoi(v); err == nil && ms > 0 {
-			cfg.PollInterval = time.Duration(ms) * time.Millisecond
-		}
-	}
-
-	if v := os.Getenv("BAS_SIDECAR_HEALTH_TIMEOUT_MS"); v != "" {
-		if ms, err := strconv.Atoi(v); err == nil && ms > 0 {
-			cfg.Timeout = time.Duration(ms) * time.Millisecond
-		}
-	}
-
-	if v := os.Getenv("BAS_SIDECAR_HEALTH_FAILURE_THRESHOLD"); v != "" {
-		if n, err := strconv.Atoi(v); err == nil && n > 0 {
-			cfg.FailureThreshold = n
-		}
-	}
-
-	if v := os.Getenv("BAS_SIDECAR_HEALTH_DEBOUNCE_MS"); v != "" {
-		if ms, err := strconv.Atoi(v); err == nil && ms >= 0 {
-			cfg.Debounce = time.Duration(ms) * time.Millisecond
-		}
-	}
-
+	cfg.PollInterval = milliseconds(settings, "sidecar_health_poll_interval_ms", cfg.PollInterval)
+	cfg.Timeout = milliseconds(settings, "sidecar_health_timeout_ms", cfg.Timeout)
+	cfg.FailureThreshold = positiveInt(settings, "sidecar_health_failure_threshold", cfg.FailureThreshold)
+	cfg.Debounce = milliseconds(settings, "sidecar_health_debounce_ms", cfg.Debounce)
 	return cfg
+}
+
+func milliseconds(settings map[string]any, key string, fallback time.Duration) time.Duration {
+	if value, ok := settings[key].(float64); ok && value >= 0 {
+		return time.Duration(value) * time.Millisecond
+	}
+	return fallback
+}
+
+func positiveInt(settings map[string]any, key string, fallback int) int {
+	if value, ok := settings[key].(float64); ok && value > 0 {
+		return int(value)
+	}
+	return fallback
 }

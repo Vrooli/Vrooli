@@ -1,0 +1,124 @@
+{
+  "$schema": "../../../program-runtime/schemas/program-contract.schema.json",
+  "name": "offer-desk.board-read",
+  "version": "1",
+  "helpers": {
+    "program": "1"
+  },
+  "purpose": "Read the ranked offer board once and report what changed against a caller-supplied baseline snapshot; absence of a baseline is reported, never treated as no change.",
+  "inputs": {
+    "baseline": {
+      "type": "object",
+      "required": false,
+      "description": "Prior snapshot as {\"entries\": {node_id: status}, \"captured_at\": rfc3339}. Omitted means no comparison is possible and changes_status reads no_baseline.",
+      "default": {}
+    }
+  },
+  "assumptions": [
+    "Offer Desk is the team's single declared address for catalog, gate and posture state.",
+    "The caller retains the returned snapshot in its own continuity record and supplies it as the next run's baseline."
+  ],
+  "invariants": [
+    "No writes.",
+    "A missing baseline is reported as no_baseline; it is never reported as an unchanged board.",
+    "At most 80 entries are materialized; a larger board sets partial and says so.",
+    "An availability gap is copied from the board verbatim and is never recomputed."
+  ],
+  "bindings": [
+    {
+      "id": "offer-desk/offers/board-show",
+      "effect": "read"
+    }
+  ],
+  "verbs": [
+    "gather"
+  ],
+  "outputs": {
+    "status": {
+      "enum": [
+        "ok",
+        "partial",
+        "unavailable",
+        "refused",
+        "failed"
+      ]
+    },
+    "phase": {
+      "enum": [
+        "validate",
+        "collect",
+        "classify",
+        "report"
+      ]
+    },
+    "signals": {
+      "snapshot": "node_id to status for every materialized entry; this is what the caller stores as the next baseline.",
+      "changes": "added, removed and status_changed lists; null when no baseline was supplied.",
+      "changes_status": "compared or no_baseline.",
+      "status_counts": "Count of entries per board status.",
+      "actuals_gaps": "Count and a bounded sample of entries whose actuals the board reports unreachable.",
+      "default_alive_gap": "The board's own posture text, or null when the response carried none.",
+      "unknown_status": "Entries whose status is outside the known vocabulary; drift, not a band."
+    },
+    "errors": {
+      "classes": [
+        "scenario_unreachable",
+        "no_grant",
+        "not_run_eligible",
+        "inference_spend_exceeded",
+        "delegated_run_spend_exceeded",
+        "ambiguous_response",
+        "invalid_input",
+        "deadline_exceeded",
+        "binding_error",
+        "kernel_runtime",
+        "row_cap_reached",
+        "remote_error",
+        "no_governed_binding"
+      ]
+    },
+    "evidence": "The board binding id."
+  },
+  "budget": {
+    "wall_ms": 60000,
+    "inference_calls": 0,
+    "delegated_runs": 0,
+    "materialize_limit": 80,
+    "output_bytes": 65536
+  },
+  "fixtures": [
+    {
+      "id": "invalid-baseline",
+      "inputs": {
+        "baseline": {
+          "entries": "not-an-object"
+        }
+      },
+      "expect": {
+        "status": [
+          "failed"
+        ]
+      },
+      "note": "A malformed baseline is invalid_input, never partial.",
+      "requires": [
+        "offer-desk"
+      ]
+    },
+    {
+      "id": "live-no-baseline",
+      "inputs": {},
+      "expect": {
+        "status": [
+          "ok",
+          "partial"
+        ]
+      },
+      "note": "Partial only when the board exceeds the materialize cap; changes_status reads no_baseline.",
+      "requires": [
+        "offer-desk"
+      ]
+    }
+  ],
+  "rung": "S3",
+  "owner_skill": "offer-desk"
+}

@@ -1,0 +1,46 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-journey",
+  "schemaVersion": "1.0.0",
+  "journey": {
+    "id": "author-first-spec",
+    "title": "Author a first spec",
+    "purpose": "A first-time author goes from an unspecced fleet to a saved, validating spec without leaving the app or reading external docs.",
+    "prd_refs": ["OT-P0-004"]
+  },
+  "steps": [
+    {
+      "page": "fleet",
+      "state": "empty",
+      "intent": "Learn that nothing is specced yet and where authoring starts.",
+      "via": "empty-state guidance"
+    },
+    {
+      "page": "studio",
+      "state": "empty",
+      "intent": "Pick the scenario and page to spec first.",
+      "via": "guided selection"
+    },
+    {
+      "page": "studio",
+      "state": "default",
+      "intent": "Author purpose, priorities, and first claims with live validation and the wireframe reacting to each edit.",
+      "via": "spec-form"
+    },
+    {
+      "page": "studio",
+      "state": "saving",
+      "intent": "See the save acknowledged immediately and confirmed, with the round-trip guarantee that the saved spec re-validates clean.",
+      "via": "save-action"
+    }
+  ],
+  "claims": [
+    {
+      "id": "no-external-docs-needed",
+      "type": "custom",
+      "statement": "The full authoring path is self-explanatory: a first-time author never needs documentation outside the app to reach a saved spec.",
+      "tier": "aspirational",
+      "rationale": "The Studio's onboarding bar; validated by observation until a scripted journey check exists."
+    }
+  ]
+}

@@ -1,0 +1,305 @@
+{
+  "documentId": "1bAOrWfuDLas4VABUzXC8H3DOGtGeRdNgvQwfdkV52E4",
+  "title": "00 Email — Start here v1.1",
+  "revisionId": "AHj4eMRfwePE0aCg_zZy8kLI2LkTCIueQ2v_R1HyRrH6n1piFQC14HZMrZvqOajOwQP1ik8QHMyUrbMuhvj2ZuxFHVJJyTrluoCiChFedg",
+  "tabId": null,
+  "paragraphs": [
+    {
+      "text": "Email",
+      "startIndex": 1,
+      "endIndex": 6,
+      "tabId": "t.0",
+      "namedStyleType": "TITLE",
+      "isListItem": false
+    },
+    {
+      "text": "Vrooli Mail design package v1.1 • 14 October 2026",
+      "startIndex": 7,
+      "endIndex": 56,
+      "tabId": "t.0",
+      "namedStyleType": "SUBTITLE",
+      "isListItem": false
+    },
+    {
+      "text": "Start with the design",
+      "startIndex": 57,
+      "endIndex": 78,
+      "tabId": "t.0",
+      "namedStyleType": "HEADING_1",
+      "isListItem": false
+    },
+    {
+      "text": "The selected direction is a full local email client with familiar inbox, reading and composing; exact and semantic retrieval; correctable classifications; and evidence-backed local-agent proposals. First release supports multiple Gmail accounts, a combined All inboxes view and specific-account filtering/switching behind a minimal provider-neutral email scenario. Future Communications expansion may add Slack, Discord and other channels; those are outside this design’s immediate build scope.",
+      "startIndex": 79,
+      "endIndex": 573,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "The v1.1 package provides the full product specification, decision log and acceptance inventory, a visual atlas with 84 rendered variants of 21 representative screen families across desktop/mobile light/dark, and a portable source/asset package. The owner endorsed the overall visual direction and selected this multi-account revision. Revised-artifact acceptance, native import and implementation qualification remain distinct.",
+      "startIndex": 574,
+      "endIndex": 1002,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "Open the Visual atlas for the experience. Use the Product specification for behavior, boundaries, decisions and acceptance. The full-resolution PDF and original assets are the sharp review sources; the native atlas contains overview boards and narrative.",
+      "startIndex": 1003,
+      "endIndex": 1257,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "Full-resolution atlas PDF — individual screens at readable scale",
+      "startIndex": 1258,
+      "endIndex": 1322,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "Original assets and source package — HTML, PNGs, manifests and specification",
+      "startIndex": 1323,
+      "endIndex": 1399,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "Visual atlas — screen families, themes and mobile layouts",
+      "startIndex": 1400,
+      "endIndex": 1457,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "Product specification — behavior, decisions and acceptance",
+      "startIndex": 1458,
+      "endIndex": 1516,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "Email project folder — all delivered sources and files",
+      "startIndex": 1517,
+      "endIndex": 1571,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "Previous v1.0 delivery — preserved project history",
+      "startIndex": 1572,
+      "endIndex": 1622,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "Current route and intended route",
+      "startIndex": 1623,
+      "endIndex": 1655,
+      "tabId": "t.0",
+      "namedStyleType": "HEADING_1",
+      "isListItem": false
+    },
+    {
+      "text": "Current working route: use the connected Gmail plugin for actual email. This package did not connect an account, read private mail for mockups, send email or change mailbox state.",
+      "startIndex": 1656,
+      "endIndex": 1835,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "Intended mature route: use the local email scenario first after actual read/search/compose/send/organization/attachment/assistance journeys and their permission/recovery behavior are qualified. Gmail remains the fallback for unsupported or unhealthy paths. Design, code presence and a health response alone do not establish cutover.",
+      "startIndex": 1836,
+      "endIndex": 2168,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "Project/context route: this Drive home retains knowledge, decisions, sources and review artifacts. It is not a duplicate mailbox or runtime database. The wider Vrooli entry and Biosphere map preserve their own authority; historical folders and sources were not renamed or moved.",
+      "startIndex": 2169,
+      "endIndex": 2447,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "What was selected, and by whom",
+      "startIndex": 2448,
+      "endIndex": 2478,
+      "tabId": "t.0",
+      "namedStyleType": "HEADING_1",
+      "isListItem": false
+    },
+    {
+      "text": "Owner-selected: the full-client destination, familiar core email workflows, semantic search/classification, asynchronous local-agent proposals and existing approval/notification integration, with later Communications expansion. At 20:59 UTC on 14 October 2026, the owner liked the overall visual design and made multiple Gmail accounts, a combined Inbox, account filtering/switching and natural future-provider extensibility explicit first-release requirements. Routine design decisions were explicitly delegated so completion did not depend on reopening replacement-versus-companion positioning.",
+      "startIndex": 2479,
+      "endIndex": 3075,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "Fixed architecture: Integration Hub owns connection/credentials/capabilities; Email owns the mailbox and corpus; Document Manager derives supported attachments under parent grants; Personal Planner owns accepted planning; Search Hub federates authorized scenario-owned providers; shared search/AI Gateway are reused. Agent Inbox and Signal Inbox remain distinct products.",
+      "startIndex": 3076,
+      "endIndex": 3447,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "Designer-selected choices retained in v1.1: Mail as a working interface name, porcelain/ink/evergreen visual language, dedicated mobile full-page flows, progressive assistance, local-first inference recommendation with per-operation policy, explicit send review/recovery, optional local snooze after core, and deferred send-later/templates/automatic modify rules. These are documented choices under delegated design authority, not fictitious individual owner approvals.",
+      "startIndex": 3448,
+      "endIndex": 3917,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "The first foundation integration is read-only indexing. A read-only slice or single-account build does not satisfy the selected first full-client release. Draft, modify and send capabilities need their own qualified contracts and consent before live use across the intended accounts.",
+      "startIndex": 3918,
+      "endIndex": 4201,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "Account behavior: first run opens All inboxes; remember the owner’s deliberate viewing scope afterward. Each account retains its own messages/threads, sync, errors, grants, drafts and labels. Unified results disclose partial coverage. Replies use the receiving account; new compose chooses an explicit sender/default. Changing a view never changes an open draft’s sender or an approved action’s account. Provider-neutral means reusing Integration Hub plus a small email adapter seam, with Gmail-specific capability extensions; no non-Gmail provider is included in this release.",
+      "startIndex": 4202,
+      "endIndex": 4779,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "Review path and required reading",
+      "startIndex": 4780,
+      "endIndex": 4812,
+      "tabId": "t.0",
+      "namedStyleType": "HEADING_1",
+      "isListItem": false
+    },
+    {
+      "text": "For a quick review, start with All inboxes, Account chooser, Work inbox and Partial unified inbox, then Thread, Reply, New message, Search and Proposals. Compare mobile light/dark. Inspect Accounts, Sync, Reconnect and Send review for identity and recovery. The decision log explains tradeoffs; future-build acceptance includes multi-account isolation and partial results.",
+      "startIndex": 4813,
+      "endIndex": 5185,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "For a receiving implementation owner, read the original EMAIL-DESIGN-PROMPT, the fixed architecture and latest native source/receipt records before the specification. Then read the atlas and original asset manifest. The source package preserves the recovered original brief, native-source hashes, current-state corrections and original render sources. A contact sheet alone is not the implementation handoff.",
+      "startIndex": 5186,
+      "endIndex": 5594,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "Owner direction and project maturation — source-map amendment",
+      "startIndex": 5595,
+      "endIndex": 5656,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "Vrooli project and native delivery route",
+      "startIndex": 5657,
+      "endIndex": 5697,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "Review/PDF craft method — counterpart revision cedc649",
+      "startIndex": 5698,
+      "endIndex": 5752,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "The method is adopted for this artifact’s source-grounded entry, native review, exact export checks and honest limits. It does not amend project execution or establish owner acceptance.",
+      "startIndex": 5753,
+      "endIndex": 5938,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "Native handoff checkpoint",
+      "startIndex": 5939,
+      "endIndex": 5964,
+      "tabId": "t.0",
+      "namedStyleType": "HEADING_1",
+      "isListItem": false
+    },
+    {
+      "text": "The preparation-v2 amendment was applied at 19:27:58.683 UTC on 14 October 2026. The retained receipt and leader binding report external-knowledge-delivery disabled, unscheduled, idle and undispatched. The earlier 19:14 sources.json pending description is stale. Nothing in this design delivery enables the team or its heartbeat.",
+      "startIndex": 5965,
+      "endIndex": 6294,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "The native/local import of this new specification and asset set is pending. Future authorized work must use the current expected preparation-v2 revision, reconcile exact owner direction and separately labeled designer decisions, link the design and originals through the existing architecture/QUEUE/source records, and retain readback/validation evidence. Do not replay the already-applied v1 amendment or rewrite scenario PRDs by hand. The delivery owner later reconciles canonical product records through governed authoring routes.",
+      "startIndex": 6295,
+      "endIndex": 6828,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "No additional product-positioning answer is required to finish this design. Future account access, data processors, security/retention changes, implementation admission and consequential actions retain their specific approval boundaries. The current local API observation was blocked by native socket/credential-authority restrictions; the design’s feasibility evidence is source inspection and official provider documentation, not runtime certification.",
+      "startIndex": 6829,
+      "endIndex": 7283,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "Quality and provenance",
+      "startIndex": 7284,
+      "endIndex": 7306,
+      "tabId": "t.0",
+      "namedStyleType": "HEADING_1",
+      "isListItem": false
+    },
+    {
+      "text": "The source package records exact versions, bytes and SHA-256, screen/state/theme/viewport mapping and requirement/acceptance IDs. The native specification export was checked for content completeness, readable hierarchy and clipping, with independent review of changed and adjacent pages. The final receipt records visual coverage and exact hashes. Static specimen quality does not establish live correctness.",
+      "startIndex": 7307,
+      "endIndex": 7715,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "Generated visuals use fictional Aster Studio mail. Native phone viewing, real OAuth, provider sync/send, hostile HTML, screen readers, keyboard/reduced-motion behavior, security/privacy and actual device performance require future qualified-build tests. Specified states are distinguished from the representative states actually captured.",
+      "startIndex": 7716,
+      "endIndex": 8054,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "Discovery on 14 October 2026 found no existing email-client dossier/atlas or Email/Communications folder in Drive, and native inspection found no selected email visual sources. This focused Email home was created inside the existing Vrooli folder. The separate historical website-email-delivery brief was preserved as a different workstream.",
+      "startIndex": 8055,
+      "endIndex": 8396,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    }
+  ],
+  "document_url": "https://docs.google.com/document/d/1bAOrWfuDLas4VABUzXC8H3DOGtGeRdNgvQwfdkV52E4"
+}

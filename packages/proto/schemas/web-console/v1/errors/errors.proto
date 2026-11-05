@@ -1,0 +1,33 @@
+syntax = "proto3";
+
+package vrooli.web_console.v1.errors;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/web-console/v1/errors;errors_v1";
+
+// =============================================================================
+// ERROR ENVELOPE — canonical REST-exception non-2xx body
+// =============================================================================
+//
+// @layer 5  (api surface)
+// @domain errors
+// @stability stable
+//
+// Connect-RPC methods use Connect's canonical error envelope and code set.
+// Deliberate REST exceptions (multipart uploads, ops probes, third-party
+// callbacks, WebSocket upgrade endpoints) return this shape for non-2xx
+// responses. UI and CLI REST clients decode via fromJson / protojson.Unmarshal
+// and surface the typed `code` + `message` to callers.
+//
+// Codes are short snake_case strings categorising the failure
+// ("invalid_request", "not_found", "internal"). Keep wire-side codes in sync
+// with the writer that emits them in api/.
+//
+// `details` is reserved for structured field-violation reporting once a
+// validation framework lands; ship empty for now.
+// =============================================================================
+
+message ErrorEnvelope {
+  string code = 1;
+  string message = 2;
+  map<string, string> details = 3;
+}

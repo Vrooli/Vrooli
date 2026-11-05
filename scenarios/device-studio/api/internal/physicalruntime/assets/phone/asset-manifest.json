@@ -1,0 +1,62 @@
+{
+  "schema_version": 1,
+  "package_id": "device-studio-starter-authored-phone-v1",
+  "status": "derived_unreviewed_not_library_promoted",
+  "asset": {
+    "path": "authored-phone-neutral.glb",
+    "media_type": "model/gltf-binary",
+    "gltf_version": "2.0",
+    "size_bytes": 2580196,
+    "sha256": "152c02883f75affc15185194f4347c256fef91cc83541262744678c40c761fca",
+    "source_unit": "m",
+    "coordinate_convention": "device-studio-right-handed-meters-x-right-y-up-z-front-v1",
+    "mesh_node_count": 57,
+    "triangle_count": 58196,
+    "embedded_neutral_display": {
+      "image_name": "portable-display",
+      "sha256": "cb472f375bbb42696bc7d71e557d35fcc1cef405460ee70ad0a69e815bb7c6ed",
+      "size_bytes": 7810,
+      "dimensions_pixels": [
+        444,
+        965
+      ],
+      "pixels": "uniform opaque neutral gray; encoded-byte transfer interpretation is not asserted"
+    },
+    "island_material": {
+      "node_name": "Dynamic Island black sensor cutout",
+      "node_index": 40,
+      "mesh_index": 40,
+      "material_index": 9,
+      "name": "Matte black sensor cutout",
+      "metallic": 0,
+      "roughness": 0.8199999928474426,
+      "KHR_materials_specular.specularFactor": 0
+    }
+  },
+  "authorship": "Vrooli-authored procedural interpretation based on Apple reference material",
+  "claims": "generic tall-phone presentation model; not manufacturer CAD, not a physical-device measurement, and not Apple-endorsed",
+  "rights": {
+    "source_model": "research-only authored source, not included in this package",
+    "source_screen_pixels": "private research image, verified absent from derived GLB and not included in this package",
+    "neutral_display": "derived uniform placeholder; no source app pixels"
+  },
+  "provenance": {
+    "profile_id": "device-studio-authored-phone-starter-v1",
+    "source_glb_sha256": "46e7c79c1b54725e5f5e9ff876a3bd55f8c3eeba45e1d01e1a230ff5e7fd5b36",
+    "source_embedded_display_sha256": "f4b6c7ed95981727bbb94abf1b3958a27c27faf5618e86e2b06b3d8047f3fb6d",
+    "manifest": "docs/internal/goal/evidence/E3/scene-studies/phone/asset-derivation/runs/phone-1/cpu-export/phone-starter-manifest.json",
+    "manifest_sha256": "bd6e1387f59fc6615b262047ae5d9cd43fc35d991fd0b824f762bd2ba8aa1021",
+    "export_script": "assets/sources/phone-starter/derive_phone_starter.py",
+    "export_script_sha256": "2cdc2ae6072459761f94fbaa3b8c284695c9cc371d186f1742f882528ff2f6f2",
+    "inventory": "phone-starter-inventory.json",
+    "inventory_sha256": "057db784d425822c0a4237ac9eaea2a235f946520f82b72ab7e203ffc381eef4",
+    "operation_terminal_receipt": "scenarios/device-studio/docs/internal/goal/evidence/E3/scene-studies/phone/asset-derivation/runs/phone-1/cpu-export/operation-terminal.json",
+    "operation_terminal_sha256": "4ca3137b289bb7a707a6f2ee8c66c4333a6c70e2dbdaa99250299aab6a324808",
+    "independent_geometry_review": "docs/internal/goal/evidence/E3/scene-studies/phone/asset-derivation/runs/phone-1/parent-geometry-review.json"
+  },
+  "limitations": [
+    "This is an unreviewed starter candidate, not Library promotion.",
+    "The embedded display is a neutral placeholder; no evidence app content is bundled.",
+    "No full-room scene, render profile, or device measurements are implied by this model."
+  ]
+}

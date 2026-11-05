@@ -1,0 +1,44 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-journey",
+  "schemaVersion": "1.0.0",
+  "journey": {
+    "id": "plan-with-partial-allocation",
+    "title": "Plan with partial allocation",
+    "purpose": "Demonstrate the accepted plan with partial allocation outcome with exact identities, authority and adverse branches.",
+    "prd_refs": [
+      "OT-P0-025",
+      "OT-P0-026",
+      "OT-P0-027",
+      "OT-P0-028"
+    ]
+  },
+  "steps": [
+    {
+      "page": "plan",
+      "state": "content-mix",
+      "intent": "Compare pinned coherent 180-minute and 90-minute alternatives and inspect exclusions."
+    },
+    {
+      "page": "plan",
+      "state": "partial-application",
+      "intent": "Accept content work while Planner allocation and one intention fail with separate receipts."
+    },
+    {
+      "page": "plan",
+      "state": "unreserved",
+      "intent": "Resume only unresolved allocation through Planner preview/apply."
+    },
+    {
+      "page": "plan",
+      "state": "stale-basis",
+      "intent": "Refresh changed draft/offer/account/capacity basis and preview timezone/window consequences."
+    },
+    {
+      "page": "review",
+      "state": "release-preflight",
+      "intent": "Bind exact package, destination and tolerated window through qualified native admission."
+    }
+  ],
+  "x-i16-source": "package/documents/dossier-accepted-basis/document-text.md chapter 13 and package/documents/commission-accepted-basis/document-text.md implementation acceptance."
+}

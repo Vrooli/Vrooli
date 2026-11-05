@@ -20,35 +20,35 @@ export function createArchiveMethods(apiClient: IApiClient) {
     },
 
     async createArchiveTarget(kind: string, name: string, target: ArchiveTargetFormValues): Promise<void> {
-      await apiClient.post<void>(API_ENDPOINTS.backlogArchiveTargets(kind, name), target);
+      await apiClient.post(API_ENDPOINTS.backlogArchiveTargets(kind, name), target);
     },
 
     async updateArchiveTarget(kind: string, name: string, targetId: string, target: ArchiveTargetFormValues): Promise<void> {
-      await apiClient.put<void>(API_ENDPOINTS.backlogArchiveTarget(kind, name, targetId), target);
+      await apiClient.put(API_ENDPOINTS.backlogArchiveTarget(kind, name, targetId), target);
     },
 
     async deleteArchiveTarget(kind: string, name: string, targetId: string): Promise<void> {
-      await apiClient.delete<void>(API_ENDPOINTS.backlogArchiveTarget(kind, name, targetId));
+      await apiClient.delete(API_ENDPOINTS.backlogArchiveTarget(kind, name, targetId));
     },
 
     async updateModuleRequirements(kind: string, name: string, moduleId: string, requirements: ArchiveRequirementRecord[]): Promise<void> {
-      await apiClient.put<void>(API_ENDPOINTS.backlogArchiveRequirementsModule(kind, name, moduleId), { requirements });
+      await apiClient.put(API_ENDPOINTS.backlogArchiveRequirementsModule(kind, name, moduleId), { requirements });
     },
 
     async createModule(kind: string, name: string, payload: ModuleFormValues & { position?: number }): Promise<void> {
-      await apiClient.post<void>(API_ENDPOINTS.backlogArchiveRequirements(kind, name), payload);
+      await apiClient.post(API_ENDPOINTS.backlogArchiveRequirements(kind, name), payload);
     },
 
     async updateModuleMeta(kind: string, name: string, moduleId: string, payload: { title: string; description: string }): Promise<void> {
-      await apiClient.put<void>(API_ENDPOINTS.backlogArchiveRequirementsModuleMeta(kind, name, moduleId), payload);
+      await apiClient.put(API_ENDPOINTS.backlogArchiveRequirementsModuleMeta(kind, name, moduleId), payload);
     },
 
     async deleteModule(kind: string, name: string, moduleId: string): Promise<void> {
-      await apiClient.delete<void>(API_ENDPOINTS.backlogArchiveRequirementsModule(kind, name, moduleId));
+      await apiClient.delete(API_ENDPOINTS.backlogArchiveRequirementsModule(kind, name, moduleId));
     },
 
     async batchReview(kind: string, name: string, items: ReviewUpdate[]): Promise<void> {
-      await apiClient.put<void>(API_ENDPOINTS.backlogArchiveReview(kind, name), { items });
+      await apiClient.put(API_ENDPOINTS.backlogArchiveReview(kind, name), { items });
     },
   };
 }

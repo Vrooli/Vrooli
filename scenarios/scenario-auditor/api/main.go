@@ -10,20 +10,21 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"sort"
 	"strings"
 	"time"
+
+	"scenario-auditor/internal/audits"
 
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 	_ "github.com/lib/pq"
 	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/health"
-	"github.com/vrooli/api-core/pathfilter"
 	"github.com/vrooli/api-core/preflight"
 	"github.com/vrooli/api-core/server"
+	vroolicli "github.com/vrooli/vrooli-cli-go"
 )
 
 const (
@@ -170,32 +171,45 @@ type VrooliScenario struct {
 	Path        string   `json:"path"`
 }
 
+// cliClient is the shared typed Vrooli CLI client. It decodes the
+// vrooli.cli.v1 contracts instead of hand-parsing CLI JSON, so a CLI output
+// change is a compile error here rather than a silently empty or wrong result.
+var cliClient = vroolicli.New()
+
 // Global database connection
 var db *sql.DB
 
 // Global agent manager (used by Claude Fix and Automated Fix features)
 var agentManager = NewAgentManager()
 
-// getVrooliScenarios calls the Vrooli CLI to get real scenario information
+// getVrooliScenarios calls the Vrooli CLI to get real scenario information,
+// mapping the typed vrooli.cli.v1 scenario-list contract onto the auditor's
+// view model.
 func getVrooliScenarios() (*VrooliScenarioResponse, error) {
-	cmd := exec.Command("vrooli", "scenario", "list", "--json")
-
-	// Set timeout for the command
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
-	cmd = exec.CommandContext(ctx, "vrooli", "scenario", "list", "--json")
 
-	output, err := cmd.Output()
+	resp, err := cliClient.ListScenarios(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("failed to execute vrooli command: %w", err)
+		return nil, fmt.Errorf("failed to list vrooli scenarios: %w", err)
 	}
 
-	var response VrooliScenarioResponse
-	if err := json.Unmarshal(output, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse vrooli response: %w", err)
+	response := &VrooliScenarioResponse{Success: resp.GetSuccess()}
+	response.Summary.TotalScenarios = int(resp.GetSummary().GetTotalScenarios())
+	response.Summary.Running = int(resp.GetSummary().GetRunning())
+	response.Summary.Available = int(resp.GetSummary().GetAvailable())
+	for _, s := range resp.GetScenarios() {
+		response.Scenarios = append(response.Scenarios, VrooliScenario{
+			Name:        s.GetName(),
+			Description: s.GetDescription(),
+			Version:     s.GetVersion(),
+			Status:      s.GetStatus(),
+			Tags:        s.GetTags(),
+			Path:        s.GetPath(),
+		})
 	}
 
-	return &response, nil
+	return response, nil
 }
 
 func countScenarioEndpoints(scenarioPath string) int {
@@ -279,6 +293,14 @@ func main() {
 	logger.Info(fmt.Sprintf("Starting %s v%s", serviceName, apiVersion))
 	fmt.Fprintf(os.Stderr, "[STARTUP] Logger initialized\n")
 
+	initializeScenarioAuditorRuntime()
+
+	if _, err := initRepoContext(); err != nil {
+		logger.Error("Failed to initialize repo context", err)
+		fmt.Fprintf(os.Stderr, "[STARTUP] Repo context initialization FAILED: %v\n", err)
+		return
+	}
+
 	// Initialize database
 	fmt.Fprintf(os.Stderr, "[STARTUP] Initializing database...\n")
 	var err error
@@ -296,7 +318,7 @@ func main() {
 	r := mux.NewRouter()
 
 	// Root health check (required by Vrooli lifecycle system)
-	// Uses api-core/health for standardized response; detailed checks at /api/v1/health/summary
+	// api-core/health supplies the standard response; /api/v1/health/summary serves dashboard aggregates.
 	healthHandler := health.New().
 		Version(apiVersion).
 		Check(health.DB(db), health.Critical).
@@ -374,22 +396,13 @@ func main() {
 	api.HandleFunc("/claude/fix/preview", previewClaudeFixHandler).Methods("POST")
 	api.HandleFunc("/claude/fix/{fixId}/status", getClaudeFixStatusHandler).Methods("GET")
 
-	// DEPRECATED: Agent management endpoints (replaced by app-issue-tracker integration)
-	// api.HandleFunc("/agents", getAgentsHandler).Methods("GET")
-	// api.HandleFunc("/agents", startAgentHandler).Methods("POST")
-	// api.HandleFunc("/rules/{ruleId}/agents", startAgentHandler).Methods("POST")
-	// api.HandleFunc("/agents/{agentId}/stop", stopAgentHandler).Methods("POST")
-	// api.HandleFunc("/agents/{agentId}/logs", getAgentLogsHandler).Methods("GET")
-
-	// NEW: Rules management endpoints for scenario-auditor
+	// Rules management endpoints for scenario-auditor
 	// IMPORTANT: Specific routes must come before parameterized routes to avoid conflicts
 	api.HandleFunc("/rules", getRulesHandler).Methods("GET")
 	api.HandleFunc("/rules/test-cache", clearTestCacheHandler).Methods("DELETE")
 	api.HandleFunc("/rules/test-coverage", getTestCoverageHandler).Methods("GET")
 	api.HandleFunc("/rules/categories", getRuleCategoriesHandler).Methods("GET")
-	api.HandleFunc("/rules/create", createRuleHandler).Methods("POST")
 	api.HandleFunc("/rules/ai/edit/{ruleId}", editRuleWithAIHandler).Methods("POST")
-	api.HandleFunc("/rules/report-issue", reportIssueHandler).Methods("POST")
 	// Parameterized routes come last
 	api.HandleFunc("/rules/{ruleId}", getRuleHandler).Methods("GET")
 	api.HandleFunc("/rules/{ruleId}", updateRuleHandler).Methods("PUT")
@@ -446,467 +459,21 @@ func main() {
 }
 
 func initDB() (*sql.DB, error) {
-	return database.Connect(context.Background(), database.Config{
+	db, err := database.Connect(context.Background(), database.Config{
 		Driver: "postgres",
 	})
-}
-
-// NOTE: The old healthHandler with detailed dependency checks has been replaced by
-// api-core/health for standardized responses. For detailed health including scanner,
-// filesystem, ollama, and qdrant checks, use the /api/v1/health/summary endpoint.
-
-// Health check helper methods
-func checkDatabaseHealth() map[string]any {
-	health := map[string]any{
-		"status": "healthy",
-		"checks": map[string]any{},
-	}
-
-	if db == nil {
-		health["status"] = "unhealthy"
-		health["error"] = map[string]any{
-			"code":      "DATABASE_NOT_INITIALIZED",
-			"message":   "Database connection not initialized",
-			"category":  "configuration",
-			"retryable": false,
-		}
-		return health
-	}
-
-	// Test database connection with timeout
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-
-	if err := db.PingContext(ctx); err != nil {
-		health["status"] = "unhealthy"
-		health["error"] = map[string]any{
-			"code":      "DATABASE_CONNECTION_FAILED",
-			"message":   "Failed to ping database: " + err.Error(),
-			"category":  "resource",
-			"retryable": true,
-		}
-		return health
-	}
-	health["checks"].(map[string]any)["ping"] = "ok"
-
-	// Test scenarios table
-	var tableExists bool
-	tableQuery := `SELECT EXISTS(
-		SELECT 1 FROM information_schema.tables 
-		WHERE table_name = 'scenarios'
-	)`
-	if err := db.QueryRowContext(ctx, tableQuery).Scan(&tableExists); err != nil {
-		health["status"] = "degraded"
-		health["error"] = map[string]any{
-			"code":      "DATABASE_SCHEMA_CHECK_FAILED",
-			"message":   "Failed to verify scenarios table: " + err.Error(),
-			"category":  "resource",
-			"retryable": true,
-		}
-	} else if !tableExists {
-		health["status"] = "degraded"
-		health["error"] = map[string]any{
-			"code":      "DATABASE_SCHEMA_MISSING",
-			"message":   "scenarios table does not exist",
-			"category":  "configuration",
-			"retryable": false,
-		}
-	} else {
-		health["checks"].(map[string]any)["scenarios_table"] = "ok"
-	}
-
-	// Test vulnerability_scans table
-	tableQuery = `SELECT EXISTS(
-		SELECT 1 FROM information_schema.tables 
-		WHERE table_name = 'vulnerability_scans'
-	)`
-	if err := db.QueryRowContext(ctx, tableQuery).Scan(&tableExists); err != nil {
-		if health["status"] == "healthy" {
-			health["status"] = "degraded"
-		}
-		if health["error"] == nil {
-			health["error"] = map[string]any{
-				"code":      "DATABASE_VULN_TABLE_CHECK_FAILED",
-				"message":   "Failed to verify vulnerability_scans table: " + err.Error(),
-				"category":  "resource",
-				"retryable": true,
-			}
-		}
-	} else if tableExists {
-		health["checks"].(map[string]any)["vulnerability_scans_table"] = "ok"
-	}
-
-	// Test api_endpoints table
-	tableQuery = `SELECT EXISTS(
-		SELECT 1 FROM information_schema.tables 
-		WHERE table_name = 'api_endpoints'
-	)`
-	if err := db.QueryRowContext(ctx, tableQuery).Scan(&tableExists); err != nil {
-		if health["status"] == "healthy" {
-			health["status"] = "degraded"
-		}
-		if health["error"] == nil {
-			health["error"] = map[string]any{
-				"code":      "DATABASE_ENDPOINTS_TABLE_CHECK_FAILED",
-				"message":   "Failed to verify api_endpoints table: " + err.Error(),
-				"category":  "resource",
-				"retryable": true,
-			}
-		}
-	} else if tableExists {
-		health["checks"].(map[string]any)["api_endpoints_table"] = "ok"
-	}
-
-	// Check active connections
-	var openConnections int
-	openConnections = db.Stats().OpenConnections
-	health["checks"].(map[string]any)["open_connections"] = openConnections
-	health["checks"].(map[string]any)["max_connections"] = maxDBConnections
-
-	if openConnections > maxDBConnections*9/10 { // 90% threshold
-		if health["status"] == "healthy" {
-			health["status"] = "degraded"
-		}
-		if health["error"] == nil {
-			health["error"] = map[string]any{
-				"code":      "DATABASE_CONNECTION_POOL_HIGH",
-				"message":   fmt.Sprintf("Connection pool usage high: %d/%d", openConnections, maxDBConnections),
-				"category":  "resource",
-				"retryable": false,
-			}
-		}
-	}
-
-	return health
-}
-
-func checkScannerHealth() map[string]any {
-	health := map[string]any{
-		"status": "healthy",
-		"checks": map[string]any{},
-	}
-
-	// Check if scanner can be initialized
-	// NOTE: Scanner is currently a placeholder (returns nil) which is expected behavior
-	// This should NOT be reported as unhealthy since it's intentional, not a failure
-	scanner := NewVulnerabilityScanner(db)
-	if scanner == nil {
-		health["checks"].(map[string]any)["scanner_status"] = "not_implemented"
-		health["checks"].(map[string]any)["scanner_note"] = "Vulnerability scanner is placeholder - standards enforcement works independently"
-	} else {
-		health["checks"].(map[string]any)["scanner_initialized"] = "ok"
-	}
-
-	// Check recent scan activity
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-	defer cancel()
-
-	var lastScanTime *time.Time
-	scanQuery := `SELECT MAX(created_at) FROM vulnerability_scans`
-	db.QueryRowContext(ctx, scanQuery).Scan(&lastScanTime)
-
-	if lastScanTime != nil {
-		health["checks"].(map[string]any)["last_scan"] = lastScanTime.Format(time.RFC3339)
-		hoursSinceLastScan := time.Since(*lastScanTime).Hours()
-		if hoursSinceLastScan > 24 {
-			health["checks"].(map[string]any)["scan_staleness_warning"] = fmt.Sprintf("No scans in %.0f hours", hoursSinceLastScan)
-		}
-	} else {
-		health["checks"].(map[string]any)["last_scan"] = "never"
-	}
-
-	// Check open vulnerabilities count
-	var criticalCount, highCount int
-	db.QueryRowContext(ctx, `SELECT COUNT(*) FROM vulnerability_scans WHERE status = 'open' AND severity = 'CRITICAL'`).Scan(&criticalCount)
-	db.QueryRowContext(ctx, `SELECT COUNT(*) FROM vulnerability_scans WHERE status = 'open' AND severity = 'HIGH'`).Scan(&highCount)
-
-	health["checks"].(map[string]any)["critical_vulnerabilities"] = criticalCount
-	health["checks"].(map[string]any)["high_vulnerabilities"] = highCount
-
-	if criticalCount > 0 {
-		health["status"] = "degraded"
-		health["error"] = map[string]any{
-			"code":      "CRITICAL_VULNERABILITIES_FOUND",
-			"message":   fmt.Sprintf("%d critical vulnerabilities require immediate attention", criticalCount),
-			"category":  "security",
-			"retryable": false,
-		}
-	}
-
-	return health
-}
-
-func checkFilesystemHealth() map[string]any {
-	health := map[string]any{
-		"status": "healthy",
-		"checks": map[string]any{},
-	}
-
-	// Check VROOLI_ROOT
-	vrooliRoot := os.Getenv("VROOLI_ROOT")
-	if vrooliRoot == "" {
-		vrooliRoot = filepath.Join(os.Getenv("HOME"), "Vrooli")
-	}
-
-	// Check scenarios directory
-	scenariosDir := filepath.Join(vrooliRoot, "scenarios")
-	if info, err := os.Stat(scenariosDir); err != nil {
-		health["status"] = "unhealthy"
-		health["error"] = map[string]any{
-			"code":      "SCENARIOS_DIR_NOT_ACCESSIBLE",
-			"message":   "Cannot access scenarios directory: " + err.Error(),
-			"category":  "configuration",
-			"retryable": false,
-		}
-		return health
-	} else if !info.IsDir() {
-		health["status"] = "unhealthy"
-		health["error"] = map[string]any{
-			"code":      "SCENARIOS_PATH_NOT_DIRECTORY",
-			"message":   "Scenarios path exists but is not a directory",
-			"category":  "configuration",
-			"retryable": false,
-		}
-		return health
-	}
-	health["checks"].(map[string]any)["scenarios_directory"] = "accessible"
-
-	// Count scenarios
-	scenarioCount := 0
-	entries, err := os.ReadDir(scenariosDir)
-	if err == nil {
-		for _, entry := range entries {
-			if entry.IsDir() {
-				// Check if it has an api directory
-				apiDir := filepath.Join(scenariosDir, entry.Name(), "api")
-				if _, err := os.Stat(apiDir); err == nil {
-					scenarioCount++
-				}
-			}
-		}
-		health["checks"].(map[string]any)["discovered_scenarios"] = scenarioCount
-	}
-
-	// Check write permissions
-	testFile := filepath.Join(scenariosDir, ".scenario-auditor-health-check")
-	if err := os.WriteFile(testFile, []byte("test"), 0o644); err != nil {
-		health["status"] = "degraded"
-		health["error"] = map[string]any{
-			"code":      "SCENARIOS_DIR_NOT_WRITABLE",
-			"message":   "Cannot write to scenarios directory: " + err.Error(),
-			"category":  "permission",
-			"retryable": false,
-		}
-	} else {
-		os.Remove(testFile)
-		health["checks"].(map[string]any)["write_permission"] = "ok"
-	}
-
-	return health
-}
-
-func countHealthyDependencies(deps map[string]any) int {
-	count := 0
-	for _, dep := range deps {
-		if depMap, ok := dep.(map[string]any); ok {
-			if status, exists := depMap["status"]; exists && status == "healthy" {
-				count++
-			}
-		}
-	}
-	return count
-}
-
-func checkOllamaHealth() map[string]any {
-	health := map[string]any{
-		"status": "not_configured",
-		"checks": map[string]any{},
-	}
-
-	ollamaURL := os.Getenv("OLLAMA_URL")
-	if ollamaURL == "" {
-		// Ollama is optional - if not configured, AI features are disabled
-		health["status"] = "not_configured"
-		health["checks"].(map[string]any)["ai_analysis"] = "disabled"
-		return health
-	}
-
-	// Test Ollama connectivity
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-
-	req, err := http.NewRequestWithContext(ctx, "GET", ollamaURL+"/api/tags", nil)
 	if err != nil {
-		health["status"] = "not_configured"
-		health["checks"].(map[string]any)["ai_analysis"] = "disabled"
-		return health
+		return nil, err
 	}
-
-	client := &http.Client{Timeout: 5 * time.Second}
-	resp, err := client.Do(req)
-	if err != nil {
-		health["status"] = "not_configured"
-		health["checks"].(map[string]any)["ai_analysis"] = "disabled"
-		return health
+	if err := database.EnsureSchemas(context.Background(), db, database.SchemaProviderFunc(audits.Schema)); err != nil {
+		_ = db.Close()
+		return nil, fmt.Errorf("database schema initialization failed: %w", err)
 	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode == http.StatusOK {
-		health["status"] = "healthy"
-		health["checks"].(map[string]any)["connectivity"] = "ok"
-
-		// Parse response to check available models
-		var response struct {
-			Models []struct {
-				Name string `json:"name"`
-			} `json:"models"`
-		}
-		if err := json.NewDecoder(resp.Body).Decode(&response); err == nil {
-			health["checks"].(map[string]any)["available_models"] = len(response.Models)
-
-			// Check for required models for API analysis
-			requiredModels := []string{"llama3.1:8b", "nomic-embed-text"}
-			availableModels := make(map[string]bool)
-			for _, model := range response.Models {
-				availableModels[model.Name] = true
-			}
-
-			missingModels := []string{}
-			for _, required := range requiredModels {
-				if !availableModels[required] {
-					missingModels = append(missingModels, required)
-				}
-			}
-
-			if len(missingModels) > 0 {
-				health["status"] = "degraded"
-				health["error"] = map[string]any{
-					"code":      "OLLAMA_MODELS_MISSING",
-					"message":   fmt.Sprintf("Missing required models for API analysis: %v", missingModels),
-					"category":  "configuration",
-					"retryable": false,
-				}
-			} else {
-				health["checks"].(map[string]any)["required_models"] = "available"
-				health["checks"].(map[string]any)["ai_analysis"] = "enabled"
-			}
-		}
-	} else {
-		health["status"] = "unhealthy"
-		health["error"] = map[string]any{
-			"code":      "OLLAMA_UNHEALTHY",
-			"message":   fmt.Sprintf("Ollama returned status %d", resp.StatusCode),
-			"category":  "resource",
-			"retryable": true,
-		}
-	}
-
-	return health
+	return db, nil
 }
 
-func checkQdrantHealth() map[string]any {
-	health := map[string]any{
-		"status": "not_configured",
-		"checks": map[string]any{},
-	}
-
-	qdrantURL := os.Getenv("QDRANT_URL")
-	if qdrantURL == "" {
-		// Qdrant is optional - if not configured, vector search is disabled
-		health["status"] = "not_configured"
-		health["checks"].(map[string]any)["vector_search"] = "disabled"
-		return health
-	}
-
-	// Test Qdrant connectivity
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-	defer cancel()
-
-	req, err := http.NewRequestWithContext(ctx, "GET", qdrantURL+"/health", nil)
-	if err != nil {
-		health["status"] = "not_configured"
-		health["checks"].(map[string]any)["vector_search"] = "disabled"
-		return health
-	}
-
-	client := &http.Client{Timeout: 3 * time.Second}
-	resp, err := client.Do(req)
-	if err != nil {
-		health["status"] = "not_configured"
-		health["checks"].(map[string]any)["vector_search"] = "disabled"
-		return health
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode == http.StatusOK {
-		health["status"] = "healthy"
-		health["checks"].(map[string]any)["connectivity"] = "ok"
-		health["checks"].(map[string]any)["vector_search"] = "enabled"
-	} else {
-		health["status"] = "unhealthy"
-		health["error"] = map[string]any{
-			"code":      "QDRANT_UNHEALTHY",
-			"message":   fmt.Sprintf("Qdrant returned status %d", resp.StatusCode),
-			"category":  "resource",
-			"retryable": true,
-		}
-	}
-
-	return health
-}
-
-// Placeholder functions that need to be implemented
-func NewVulnerabilityScanner(db *sql.DB) *VulnerabilityScanner {
-	// Placeholder - return nil for now, will be implemented when copying scanner
-	return nil
-}
-
-func countScannableFiles(path string) (int, int, int) {
-	totalFiles := 0
-	codeFiles := 0
-	configFiles := 0
-
-	// Define file extensions to scan
-	codeExtensions := map[string]bool{
-		".go": true, ".js": true, ".ts": true, ".tsx": true, ".jsx": true,
-		".py": true, ".java": true, ".c": true, ".cpp": true, ".h": true,
-		".rs": true, ".rb": true, ".php": true, ".swift": true, ".kt": true,
-		".sh": true, ".bash": true, ".zsh": true, ".ps1": true,
-	}
-
-	configExtensions := map[string]bool{
-		".json": true, ".yaml": true, ".yml": true, ".toml": true, ".ini": true,
-		".xml": true, ".env": true, ".conf": true, ".config": true,
-	}
-
-	filepath.Walk(path, func(filePath string, info os.FileInfo, err error) error {
-		if err != nil || info.IsDir() {
-			if info != nil && info.IsDir() {
-				if pathfilter.SkipDir(info.Name()) {
-					return filepath.SkipDir
-				}
-			}
-			return nil
-		}
-
-		ext := strings.ToLower(filepath.Ext(filePath))
-		if codeExtensions[ext] {
-			codeFiles++
-			totalFiles++
-		} else if configExtensions[ext] {
-			configFiles++
-			totalFiles++
-		}
-
-		return nil
-	})
-
-	return totalFiles, codeFiles, configFiles
-}
-
-type VulnerabilityScanner struct {
-	// Placeholder - will be implemented when adding new functionality
-}
+// The former detailed health handler was replaced by api-core/health. The
+// /api/v1/health/summary route provides dashboard aggregates, not those checks.
 
 // Placeholder functions for missing handlers - will be implemented
 func getScenariosHandler(w http.ResponseWriter, r *http.Request) {
@@ -1533,17 +1100,15 @@ func applyAutomatedFixWithSafetyHandler(w http.ResponseWriter, r *http.Request) 
 		}
 	}
 
-	scenarioRoot := getScenarioRoot()
-	scenariosDir := filepath.Clean(filepath.Join(scenarioRoot, ".."))
-	absBase, err := filepath.Abs(scenariosDir)
+	ctx, err := repoContext()
 	if err != nil {
-		HTTPError(w, "Failed to resolve scenarios root", http.StatusInternalServerError, err)
+		HTTPError(w, "Failed to resolve repo context", http.StatusInternalServerError, err)
 		return
 	}
 
-	scenarioPath := filepath.Clean(filepath.Join(absBase, scenarioName))
-	if !isSubpath(absBase, scenarioPath) {
-		HTTPError(w, "scenario name resolved outside of scenarios directory", http.StatusBadRequest, nil)
+	scenarioPath, err := ctx.ResolveScenarioPath(scenarioName)
+	if err != nil {
+		HTTPError(w, "Failed to resolve scenario path", http.StatusBadRequest, err)
 		return
 	}
 

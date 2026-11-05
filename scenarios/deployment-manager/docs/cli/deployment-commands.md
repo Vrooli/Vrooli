@@ -2,15 +2,25 @@
 
 Commands for validating, packaging, deploying, and monitoring scenarios.
 
+The legacy command details below are retained as historical reference. In the
+current production CLI registry, `build`, `logs`, `validate`, and
+`estimate-cost` return retirement guidance because their REST handlers are no
+longer mounted. Use typed release preparation, readiness/evidence, operation
+standing, and destination review commands for the governed commercial path.
+
 ---
 
 ## Command Implementation Status
 
 Each command is marked with its current implementation status:
 
+These statuses describe command behavior, not release readiness. A working
+pipeline can still produce a target that is ineligible, environment-dependent,
+or missing the native evidence required for promotion.
+
 | Status | Meaning |
 |--------|---------|
-| **Working** | Fully functional |
+| **Working** | Implemented and available; documented limitations still apply |
 | **Partial** | Works but with limitations documented below |
 | **Stub** | Command exists but returns placeholder data |
 | **Planned** | Not yet implemented; use workaround |
@@ -19,19 +29,19 @@ Each command is marked with its current implementation status:
 
 | Command | Status | Notes |
 |---------|--------|-------|
-| `deploy-desktop` | **Working** | Full end-to-end desktop deployment pipeline |
-| `build` | **Working** | Cross-compile service binaries for all platforms |
-| `validate` | **Working** | Full pre-flight validation |
+| `deploy-desktop` | **Working** | Implemented desktop deployment pipeline; release claims remain evidence-gated |
+| `build` | **Retired** | Use typed release preparation and candidate operations |
+| `validate` | **Retired** | Use readiness review and evidence operations |
 | `deploy` | **Stub** | Generic deploy (use `deploy-desktop` for tier 2) |
 | `deployment status` | **Stub** | Returns mock data |
 | `package` | **Stub** | Deprecated shim; prints guidance to use `deploy-desktop` |
 | `packagers list` | **Stub** | Deprecated; returns static packager hints |
 | `packagers discover` | **Stub** | Same static output; no discovery performed |
-| `logs` | **Working** | Full telemetry filtering |
-| `estimate-cost` | **Partial** | AWS only; basic estimates |
-| `bundle assemble` | **Working** | Assemble bundle manifest from scenario |
-| `bundle export` | **Working** | Export production-ready manifest with checksum |
-| `bundle validate` | **Working** | Validate bundle.json against schema |
+| `logs` | **Retired** | Use operation standing and owner receipts |
+| `estimate-cost` | **Retired** | Use typed release and destination review surfaces |
+| `bundle assemble` | **Retired** | Use typed release preparation and candidate operations |
+| `bundle export` | **Working** | Export release-candidate manifest with checksum |
+| `bundle validate` | **Retired** | Use readiness review and evidence operations |
 
 > **Recommended for Desktop Deployment**: Use `deploy-desktop` - it orchestrates the entire pipeline (manifest, binaries, Electron wrapper, installers) in a single command.
 
@@ -39,7 +49,7 @@ Each command is marked with its current implementation status:
 
 ## deploy-desktop
 
-> **Status: Working** - Full end-to-end desktop deployment pipeline
+> **Status: Working** - Implemented desktop deployment pipeline; native target evidence is a separate release gate.
 
 Orchestrate the complete bundled desktop deployment workflow. This is the **recommended command** for deploying scenarios as desktop applications.
 
@@ -91,7 +101,8 @@ Run 'deployment-manager swaps list my-scenario' to see available swaps,
 then apply with 'deployment-manager swaps apply <profile-id> <from> <to>'
 ```
 
-Use `--skip-validation` to bypass blocker checking (not recommended for production).
+Use `--skip-validation` only for diagnostics. It bypasses blocker checking and
+cannot produce a release-approval verdict.
 
 **Example - Full Pipeline:**
 
@@ -244,7 +255,7 @@ Duration: 45s
 
 ## validate
 
-> **Status: Working** - Fully functional
+> **Status: Working** - Implemented command path; documented limitations still apply.
 
 Run pre-deployment validation checks on a profile.
 
@@ -633,7 +644,8 @@ deployment-manager estimate-cost profile-456 --verbose
 
 ## bundle
 
-> **Status: Working** - All subcommands fully functional
+> **Status: Working** - Implemented bundle command family; validation and
+> release approval remain separate concerns.
 
 Bundle manifest operations for desktop deployments.
 
@@ -643,14 +655,14 @@ deployment-manager bundle <subcommand> [arguments]
 
 **Subcommands:**
 - `assemble` - Generate bundle manifest from scenario
-- `export` - Export production-ready manifest with checksum
+- `export` - Export release-candidate manifest with checksum
 - `validate` - Validate manifest file against schema
 
 ---
 
 ### bundle assemble
 
-> **Status: Working** - Fully functional
+> **Status: Working** - Implemented command path; documented limitations still apply.
 
 Assemble a bundle manifest from a scenario.
 
@@ -701,9 +713,11 @@ deployment-manager bundle assemble picker-wheel --include-secrets=false
 
 ### bundle export
 
-> **Status: Working** - Fully functional
+> **Status: Working** - Implemented command path; documented limitations still apply.
 
-Export a production-ready bundle manifest with SHA256 checksum.
+Export a release-candidate bundle manifest with SHA256 checksum. The checksum
+proves manifest integrity; it does not prove dependency eligibility or native
+runtime behavior.
 
 ```bash
 deployment-manager bundle export <scenario> [--tier <tier>] [--output <file>] [--manifest-only]
@@ -761,7 +775,7 @@ Bundle manifest exported to bundle.json
 
 ### bundle validate
 
-> **Status: Working** - Fully functional
+> **Status: Working** - Implemented command path; documented limitations still apply.
 
 Validate a bundle manifest file against the v0.1 schema.
 

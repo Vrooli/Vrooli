@@ -1,0 +1,44 @@
+{
+  "id": "hive",
+  "title": "The Hive",
+  "category": "hive",
+  "theme": "bioluminescent",
+  "composition": "hive-lattice",
+  "metricIds": [
+    "total_scenarios",
+    "scenario_completeness",
+    "scenario_health_detail",
+    "scenario_ports",
+    "scenario_usage_frequency",
+    "goal_progress",
+    "release_ladder"
+  ],
+  "beats": [
+    {
+      "hero": "total_scenarios",
+      "dwellSeconds": 12
+    },
+    {
+      "hero": "scenario_completeness",
+      "dwellSeconds": 12
+    },
+    {
+      "hero": "scenario_usage_frequency",
+      "dwellSeconds": 12
+    },
+    {
+      "hero": "scenario_health_detail",
+      "dwellSeconds": 12
+    },
+    {
+      "hero": "release_ladder",
+      "layout": "wide",
+      "dwellSeconds": 16
+    }
+  ],
+  "bind": {
+    "total": "total_scenarios",
+    "running": "scenario_completeness",
+    "healthy": "scenario_completeness"
+  }
+}

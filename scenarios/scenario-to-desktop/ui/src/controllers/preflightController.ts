@@ -3,12 +3,7 @@
  * Combines API calls and services for preflight functionality.
  */
 
-import type {
-  PipelineConfig,
-  BundlePreflightResponse,
-  BundlePreflightSecret,
-  VerbosePipelineStatus,
-} from "../lib/api";
+import type { PipelineConfig, VerbosePipelineStatus } from "../lib/api";
 import {
   buildPreflightPayload,
   filterValidSecrets,
@@ -25,8 +20,14 @@ import {
   getServicesStatus,
   getDiagnosticsStatus,
 } from "../services/preflight.service";
-import { formatPortSummary, getBundleRootFromManifestPath } from "../lib/preflight-utils";
-import type { BundlePreflightStep } from "../lib/api";
+import { getBundleRootFromManifestPath } from "../lib/preflight-utils";
+import type { PreflightJobStep } from "../lib/preflight-status";
+import type { StageResult } from "@vrooli/proto-types/scenario-to-desktop/v1/pipeline/types_pb";
+import { StageStatus } from "@vrooli/proto-types/scenario-to-desktop/v1/shared/common_pb";
+import type {
+  PreflightResponse,
+  PreflightSecret,
+} from "@vrooli/proto-types/scenario-to-desktop/v1/shared/preflight_results_pb";
 
 // ============================================================================
 // Types
@@ -53,7 +54,7 @@ export interface PreflightSectionState {
   bundleRootPreview: string;
   portSummary: string | null;
   exportPayload: PreflightExportPayload;
-  missingSecrets: BundlePreflightSecret[];
+  missingSecrets: PreflightSecret[];
 }
 
 // ============================================================================
@@ -63,13 +64,19 @@ export interface PreflightSectionState {
 /**
  * Build a pipeline config for running preflight.
  */
-export function buildPreflightPipelineConfig(config: PreflightRunConfig): Partial<PipelineConfig> {
-  const filteredSecrets = config.secrets ? filterValidSecrets(config.secrets) : undefined;
+export function buildPreflightPipelineConfig(
+  config: PreflightRunConfig,
+): Partial<PipelineConfig> {
+  const filteredSecrets = config.secrets
+    ? filterValidSecrets(config.secrets)
+    : undefined;
 
   return {
-    bundle_manifest_path: config.bundleManifestPath || undefined,
-    preflight_secrets:
-      filteredSecrets && Object.keys(filteredSecrets).length > 0 ? filteredSecrets : undefined,
+    bundleManifestPath: config.bundleManifestPath || undefined,
+    preflightSecrets:
+      filteredSecrets && Object.keys(filteredSecrets).length > 0
+        ? filteredSecrets
+        : undefined,
     ...config.additionalConfig,
   };
 }
@@ -77,11 +84,13 @@ export function buildPreflightPipelineConfig(config: PreflightRunConfig): Partia
 /**
  * Validate preflight config before running.
  */
-export function validatePreflightConfig(config: PreflightRunConfig): string | null {
+export function validatePreflightConfig(
+  config: PreflightRunConfig,
+): string | null {
   if (!config.scenarioName) {
     return "No scenario selected";
   }
-  if (!config.bundleManifestPath?.trim()) {
+  if (!config.bundleManifestPath.trim()) {
     return "Bundle manifest path is required";
   }
   return null;
@@ -95,23 +104,22 @@ export function validatePreflightConfig(config: PreflightRunConfig): string | nu
  * Build the job step map from pipeline stages.
  */
 export function buildJobStepMap(
-  pipelineStatus: VerbosePipelineStatus | null
-): Map<string, BundlePreflightStep> {
-  const map = new Map<string, BundlePreflightStep>();
+  pipelineStatus: VerbosePipelineStatus | null,
+): Map<string, PreflightJobStep> {
+  const map = new Map<string, PreflightJobStep>();
   if (!pipelineStatus?.stages) return map;
 
   const stageToStep = (
     stageName: string,
-    stage: { status: string; error?: string }
-  ): BundlePreflightStep | null => {
-    if (!stage) return null;
-    const stateMap: Record<string, BundlePreflightStep["state"]> = {
-      pending: "pending",
-      running: "running",
-      completed: "pass",
-      failed: "fail",
-      cancelled: "fail",
-      skipped: "skipped",
+    stage: StageResult,
+  ): PreflightJobStep | null => {
+    const stateMap: Partial<Record<StageStatus, PreflightJobStep["state"]>> = {
+      [StageStatus.PENDING]: "pending",
+      [StageStatus.RUNNING]: "running",
+      [StageStatus.COMPLETED]: "pass",
+      [StageStatus.FAILED]: "fail",
+      [StageStatus.CANCELLED]: "fail",
+      [StageStatus.SKIPPED]: "skipped",
     };
     return {
       id: stageName,
@@ -145,30 +153,58 @@ export function buildJobStepMap(
  * Resolve all step statuses for the preflight section.
  */
 export function resolveAllStepStatuses(
-  jobStepById: Map<string, BundlePreflightStep>,
+  jobStepById: Map<string, PreflightJobStep>,
   preflightPending: boolean,
   preflightError: string | null,
   hasRun: boolean,
-  preflightResult: BundlePreflightResponse | null,
+  preflightResult: {
+    validation?: { valid: boolean };
+    ready?: { ready: boolean };
+  } | null,
   diagnosticsAvailable: boolean,
-  missingSecretsCount: number
+  missingSecretsCount: number,
 ): PreflightStepStatuses {
   return {
     validation:
       resolveJobStepStatus(jobStepById, "validation") ??
-      getValidationStatus(preflightPending, preflightError, hasRun, preflightResult?.validation?.valid),
+      getValidationStatus(
+        preflightPending,
+        preflightError,
+        hasRun,
+        preflightResult?.validation?.valid,
+      ),
     secrets:
       resolveJobStepStatus(jobStepById, "secrets") ??
-      getSecretsStatus(preflightPending, preflightError, hasRun, missingSecretsCount),
+      getSecretsStatus(
+        preflightPending,
+        preflightError,
+        hasRun,
+        missingSecretsCount,
+      ),
     runtime:
       resolveJobStepStatus(jobStepById, "runtime") ??
-      getRuntimeStatus(preflightPending, preflightError, Boolean(preflightResult), hasRun),
+      getRuntimeStatus(
+        preflightPending,
+        preflightError,
+        Boolean(preflightResult),
+        hasRun,
+      ),
     services:
       resolveJobStepStatus(jobStepById, "services") ??
-      getServicesStatus(preflightPending, preflightError, hasRun, preflightResult?.ready?.ready),
+      getServicesStatus(
+        preflightPending,
+        preflightError,
+        hasRun,
+        preflightResult?.ready?.ready,
+      ),
     diagnostics:
       resolveJobStepStatus(jobStepById, "diagnostics") ??
-      getDiagnosticsStatus(preflightPending, preflightError, hasRun, diagnosticsAvailable),
+      getDiagnosticsStatus(
+        preflightPending,
+        preflightError,
+        hasRun,
+        diagnosticsAvailable,
+      ),
   };
 }
 
@@ -177,10 +213,10 @@ export function resolveAllStepStatuses(
  */
 export function buildPreflightSectionState(
   bundleManifestPath: string,
-  preflightResult: BundlePreflightResponse | null,
+  preflightResult: PreflightResponse | null,
   preflightError: string | null,
   pipelineStatus: VerbosePipelineStatus | null,
-  isRunning: boolean
+  isRunning: boolean,
 ): PreflightSectionState {
   const missingSecrets = getMissingSecrets(preflightResult?.secrets);
   const hasRun = Boolean(preflightResult || preflightError || pipelineStatus);
@@ -191,18 +227,25 @@ export function buildPreflightSectionState(
     preflightResult,
     preflightError,
     isRunning,
-    missingSecrets.length
+    missingSecrets.length,
   );
 
   // Build job step map
   const jobStepById = buildJobStepMap(pipelineStatus);
 
   // Get port summary
-  const portSummary = preflightResult?.ports ? formatPortSummary(preflightResult.ports) : null;
+  const portSummary = preflightResult?.ports.length
+    ? preflightResult.ports
+        .map(
+          ({ serviceId, name, port }) =>
+            `${serviceId}(${name}:${String(port)})`,
+        )
+        .join(" · ")
+    : null;
   const diagnosticsAvailable = Boolean(
     portSummary ||
-      preflightResult?.telemetry?.path ||
-      (preflightResult?.log_tails && preflightResult.log_tails.length > 0)
+    preflightResult?.telemetry?.path ||
+    (preflightResult?.logTails && preflightResult.logTails.length > 0),
   );
 
   // Resolve step statuses
@@ -213,7 +256,7 @@ export function buildPreflightSectionState(
     hasRun,
     preflightResult,
     diagnosticsAvailable,
-    missingSecrets.length
+    missingSecrets.length,
   );
 
   // Build export payload
@@ -221,7 +264,7 @@ export function buildPreflightSectionState(
     bundleManifestPath,
     preflightResult,
     preflightError,
-    missingSecrets
+    missingSecrets,
   );
 
   return {
@@ -243,11 +286,16 @@ export function buildPreflightSectionState(
  */
 export function exportPreflightAsJson(
   manifestPath: string,
-  result: BundlePreflightResponse | null,
+  result: PreflightResponse | null,
   error: string | null,
-  missingSecrets: BundlePreflightSecret[]
+  missingSecrets: PreflightSecret[],
 ): string {
-  const payload = buildPreflightPayload(manifestPath, result, error, missingSecrets);
+  const payload = buildPreflightPayload(
+    manifestPath,
+    result,
+    error,
+    missingSecrets,
+  );
   return JSON.stringify(payload, null, 2);
 }
 
@@ -266,8 +314,8 @@ export function createPreflightJsonBlob(jsonString: string): Blob {
  * Check if preflight is ready to proceed to generation.
  */
 export function isPreflightReadyForGeneration(
-  preflightResult: BundlePreflightResponse | null,
-  preflightOverride: boolean
+  preflightResult: PreflightResponse | null,
+  preflightOverride: boolean,
 ): boolean {
   if (preflightOverride) return true;
   return isPreflightComplete(preflightResult);
@@ -277,7 +325,7 @@ export function isPreflightReadyForGeneration(
  * Get a summary of why preflight is not ready.
  */
 export function getPreflightBlockingReason(
-  preflightResult: BundlePreflightResponse | null
+  preflightResult: PreflightResponse | null,
 ): string | null {
   if (!preflightResult) {
     return "Preflight validation has not been run";
@@ -287,7 +335,7 @@ export function getPreflightBlockingReason(
   }
   const missing = getMissingSecrets(preflightResult.secrets);
   if (missing.length > 0) {
-    return `Missing ${missing.length} required secret(s)`;
+    return `Missing ${String(missing.length)} required secret(s)`;
   }
   if (!preflightResult.ready?.ready) {
     return "Services are not ready";
@@ -300,14 +348,14 @@ export function getPreflightBlockingReason(
 // ============================================================================
 
 export interface PreflightSeed {
-  result: BundlePreflightResponse | null;
+  result: PreflightResponse | null;
   error: string | null;
   override: boolean;
   secrets: Record<string, string>;
 }
 
 export interface ServerFormState {
-  preflight_result?: BundlePreflightResponse | null;
+  preflight_result?: PreflightResponse | null;
   preflight_error?: string | null;
   preflight_override?: boolean;
   preflight_secrets?: Record<string, string>;
@@ -317,7 +365,9 @@ export interface ServerFormState {
  * Build a preflight seed from server form state.
  * Used to initialize preflight state when loading from server.
  */
-export function buildPreflightSeed(serverFormState: ServerFormState | null): PreflightSeed {
+export function buildPreflightSeed(
+  serverFormState: ServerFormState | null,
+): PreflightSeed {
   if (!serverFormState) {
     return {
       result: null,
@@ -353,9 +403,9 @@ export interface PreflightStatus {
  * This is the canonical way to determine preflight readiness.
  */
 export function calculatePreflightStatus(
-  result: BundlePreflightResponse | null,
+  result: PreflightResponse | null,
   missingSecretsCount: number,
-  override: boolean
+  override: boolean,
 ): PreflightStatus {
   const isValid = Boolean(result?.validation?.valid);
   const isReady = Boolean(result?.ready?.ready);
@@ -383,7 +433,7 @@ export function calculatePreflightStatus(
  */
 export function mergePreflightSecrets(
   storeSecrets: Record<string, string>,
-  serverSecrets: Record<string, string> | undefined
+  serverSecrets: Record<string, string> | undefined,
 ): Record<string, string> {
   const merged: Record<string, string> = { ...serverSecrets };
 

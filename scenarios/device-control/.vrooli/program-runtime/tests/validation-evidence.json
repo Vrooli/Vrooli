@@ -1,0 +1,166 @@
+{
+  "date": "2026-09-04",
+  "provenance": "test",
+  "runtime_fixtures": [
+    {
+      "program": "device-control.author-flow",
+      "fixture": "missing-input",
+      "id": "prog_4358ac02-8ba0-4a3b-b693-18da9aa935a1",
+      "ok": true,
+      "status": "failed",
+      "errors": [
+        {
+          "class": "invalid_input",
+          "detail": "Required string: device_id",
+          "where": "validate"
+        }
+      ],
+      "failure": null,
+      "diagnostic": null
+    },
+    {
+      "program": "device-control.author-flow",
+      "fixture": "invalid-device",
+      "id": "prog_c3e726f6-04c4-40ae-893a-a3d5fa9bc186",
+      "ok": true,
+      "status": "failed",
+      "errors": [
+        {
+          "class": "invalid_input",
+          "detail": "Required string: device_id",
+          "where": "validate"
+        }
+      ],
+      "failure": null,
+      "diagnostic": null
+    },
+    {
+      "program": "device-control.prepare-task",
+      "fixture": "missing-input",
+      "id": "prog_89ba3f05-10bf-491e-a614-ebe1281e7da1",
+      "ok": true,
+      "status": "failed",
+      "errors": [
+        {
+          "class": "invalid_input",
+          "detail": "Required string: device",
+          "where": "validate"
+        }
+      ],
+      "failure": null,
+      "diagnostic": null
+    },
+    {
+      "program": "device-control.prepare-task",
+      "fixture": "invalid-device",
+      "id": "prog_8d47a8f0-1ddc-4cbf-acd6-6a280a3400a4",
+      "ok": true,
+      "status": "failed",
+      "errors": [
+        {
+          "class": "invalid_input",
+          "detail": "Required string: device",
+          "where": "validate"
+        }
+      ],
+      "failure": null,
+      "diagnostic": null
+    },
+    {
+      "program": "device-control.replay-flow",
+      "fixture": "missing-input",
+      "id": "prog_ee5154dd-a35a-47e7-b7e3-7780c92c6824",
+      "ok": true,
+      "status": "failed",
+      "errors": [
+        {
+          "class": "invalid_input",
+          "detail": "Required string: device_id",
+          "where": "validate"
+        }
+      ],
+      "failure": null,
+      "diagnostic": null
+    },
+    {
+      "program": "device-control.replay-flow",
+      "fixture": "invalid-device",
+      "id": "prog_57633ee4-1ec1-4d67-909b-95f205f397d2",
+      "ok": true,
+      "status": "failed",
+      "errors": [
+        {
+          "class": "invalid_input",
+          "detail": "Required string: device_id",
+          "where": "validate"
+        }
+      ],
+      "failure": null,
+      "diagnostic": null
+    },
+    {
+      "program": "device-control.setpoint-read",
+      "fixture": "unexpected-selector",
+      "id": "prog_25efd01c-2b91-49f6-b199-1e5d446bd589",
+      "ok": true,
+      "status": "failed",
+      "errors": [
+        {
+          "class": "invalid_input",
+          "detail": "Only explicit comparison-window selectors are accepted",
+          "where": "validate"
+        }
+      ],
+      "failure": null,
+      "diagnostic": null
+    },
+    {
+      "program": "device-control.setpoint-read",
+      "fixture": "live",
+      "id": "prog_d8c533f3-4e7d-491c-80ae-79cd08a19f98",
+      "ok": true,
+      "status": "ok",
+      "errors": [],
+      "failure": null,
+      "diagnostic": null
+    }
+  ],
+  "operator_speed_baseline": null,
+  "physical_device_actuation_performed": false,
+  "test_genie_broad_run": "20260904-223834-46d9ea26",
+  "device_library_tests": [
+    "TestValidatedFlowPersistsAndRepairPreservesChecks",
+    "TestFlowPromotionRejectsUnverifiedAndInferredRuns",
+    "TestPropertyOutcomeReplayAndRestart"
+  ],
+  "learning_capture": {
+    "entry_id": "97257cca-7678-4e05-99b0-30e79420dcd0"
+  },
+  "learning_retry": {
+    "entry_id": "97257cca-7678-4e05-99b0-30e79420dcd0",
+    "existing": true
+  },
+  "learning_measure": {
+    "scope": "device-control-usage",
+    "from": "2026-08-28T22:48:11.303004607Z",
+    "to": "2026-09-04T22:48:11.303004607Z",
+    "scanned_entries": 1,
+    "excluded_test_attempts": 1,
+    "reason": "unreliable:no_eligible_attempts",
+    "interpretation": "Evidence-linked caller reports; operator/test is caller-declared. No causal or release-approval claim. Task timing covers observed attempts only; compare identical contexts and windows."
+  },
+  "final_contract_suite": {
+    "run_id": "20260904-224914-993e8729",
+    "verdict": "PASS",
+    "phases": [
+      {
+        "name": "programs",
+        "status": "passed"
+      },
+      {
+        "name": "skill-set",
+        "status": "passed"
+      }
+    ]
+  }
+}

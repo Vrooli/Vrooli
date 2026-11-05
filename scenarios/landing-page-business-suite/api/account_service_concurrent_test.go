@@ -1,11 +1,13 @@
 package main
 
 import (
+	"context"
 	"sync"
 	"sync/atomic"
 	"testing"
 
 	_ "github.com/mattn/go-sqlite3"
+	"landing-page-business-suite-api/internal/commerce"
 )
 
 // ============================================================================
@@ -19,7 +21,6 @@ import (
 
 func TestConcurrent_GetSubscription_SameUser(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	planSvc := NewPlanService(db)
 	svc := NewAccountService(db, planSvc)
@@ -58,7 +59,6 @@ func TestConcurrent_GetSubscription_SameUser(t *testing.T) {
 
 func TestConcurrent_GetSubscription_DifferentUsers(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	planSvc := NewPlanService(db)
 	svc := NewAccountService(db, planSvc)
@@ -93,7 +93,6 @@ func TestConcurrent_GetSubscription_DifferentUsers(t *testing.T) {
 
 func TestConcurrent_GetEntitlements_MultipleUsers(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	planSvc := NewPlanService(db)
 	svc := NewAccountService(db, planSvc)
@@ -132,7 +131,6 @@ func TestConcurrent_GetEntitlements_MultipleUsers(t *testing.T) {
 
 func TestConcurrent_ServiceInitialization(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	planSvc := NewPlanService(db)
 
@@ -140,7 +138,7 @@ func TestConcurrent_ServiceInitialization(t *testing.T) {
 
 	var wg sync.WaitGroup
 	var errors int32
-	services := make([]*AccountService, numGoroutines)
+	services := make([]*commerce.Service, numGoroutines)
 
 	for i := 0; i < numGoroutines; i++ {
 		wg.Add(1)
@@ -165,7 +163,6 @@ func TestConcurrent_ServiceInitialization(t *testing.T) {
 
 func TestConcurrent_GetSubscriptionAndEntitlements_Mixed(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	planSvc := NewPlanService(db)
 	svc := NewAccountService(db, planSvc)
@@ -210,7 +207,6 @@ func TestConcurrent_GetSubscriptionAndEntitlements_Mixed(t *testing.T) {
 
 func TestConcurrent_GetCredits_MultipleUsers(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	planSvc := NewPlanService(db)
 	svc := NewAccountService(db, planSvc)
@@ -227,7 +223,7 @@ func TestConcurrent_GetCredits_MultipleUsers(t *testing.T) {
 			defer wg.Done()
 			email := "credits" + string(rune('0'+userNum)) + "@example.com"
 			for j := 0; j < lookupsPerUser; j++ {
-				credits, err := svc.GetCredits(email)
+				credits, err := svc.GetCreditsForBusinessAccountContext(context.Background(), email, "acct:"+email)
 				if err != nil {
 					atomic.AddInt32(&errors, 1)
 					t.Logf("User %d lookup %d failed: %v", userNum, j, err)
@@ -248,12 +244,7 @@ func TestConcurrent_GetCredits_MultipleUsers(t *testing.T) {
 }
 
 func TestConcurrent_AccountService_HighContention_StressTest(t *testing.T) {
-	if testing.Short() {
-		t.Skip("Skipping stress test in short mode")
-	}
-
 	db := setupTestDB(t)
-	defer db.Close()
 
 	planSvc := NewPlanService(db)
 	svc := NewAccountService(db, planSvc)
@@ -277,7 +268,7 @@ func TestConcurrent_AccountService_HighContention_StressTest(t *testing.T) {
 						atomic.AddInt32(&errors, 1)
 					}
 				case 1:
-					_, err := svc.GetCredits(email)
+					_, err := svc.GetCreditsForBusinessAccountContext(context.Background(), email, "acct:"+email)
 					if err != nil {
 						atomic.AddInt32(&errors, 1)
 					}

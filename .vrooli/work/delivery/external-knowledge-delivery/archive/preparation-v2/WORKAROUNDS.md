@@ -1,0 +1,9 @@
+# Workarounds
+
+No workaround is authorized by this document. Discovery in the preparation session had degraded cli-health, source-ledger and swarm search providers; direct source reads supplied the needed evidence. Those observations are not a diagnosis of the owners or grounds to bypass native authorization. Record future owner failures, exact attempted actions, fallback and return conditions here.
+
+## 2026-10-14 — Immutable native binding
+
+Attempt: `prompt-manager team heartbeat-bind-effort external-knowledge-delivery external-knowledge-orchestrator --update --request-file docs/internal/external-knowledge-delivery/leader-binding.json --json`, requesting preparation-v2/source references. Exact refusal: `Error: bind finite leader: prompt-manager RPC: internal: finite leader identity and profile are immutable; retain the original owner binding`. Inspection of `scenarios/prompt-manager/api/internal/store/finite_leader.go` confirms acceptedRevision and sourceRefs participate in immutable binding comparison. The request is retained in amendment-binding-request.json; leader-binding.json again mirrors the unchanged native original. No authorization/identity bypass or runtime-store edit occurred.
+
+Preparation can proceed through updated documents, member instructions and the typed operating contract. Current hashes and the amendment receipt describe amended preparation; the original accepted revision points to archived initial evidence. This is not activation-ready until the native owner provides/qualifies a legitimate accepted-revision amendment path. Complete/reopen requires actual completed effort and is not appropriate for this undelivered commission. Return condition: supported revision transition plus exact native readback under existing authority, before any enablement or dispatch.

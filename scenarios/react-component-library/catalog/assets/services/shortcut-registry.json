@@ -1,0 +1,37 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "api": {
+    "variants": {},
+    "modes": [],
+    "parts": []
+  },
+  "asset": {
+    "id": "services.shortcut-registry",
+    "name": "Shortcut Registry",
+    "kind": "runtime-service",
+    "domain": "services",
+    "description": "The collision-aware registry resolving active keyboard shortcuts by scope, priority, platform, modal layer, and currently focused context.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "service",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P1",
+      "maturity": "verified"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "services.create-scoped-store",
+        "reason": "Scope stacking requires per-provider instances."
+      }
+    ]
+  },
+  "requiredCapabilities": [
+    "keyboard-operable"
+  ]
+}

@@ -4,6 +4,8 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	"workspace-sandbox/internal/types"
 )
 
 func TestDefaultProfiles(t *testing.T) {
@@ -58,7 +60,7 @@ func TestFileProfileStore(t *testing.T) {
 	}
 	defer os.RemoveAll(tmpDir)
 
-	store := NewFileProfileStore(tmpDir)
+	store := NewFileProfileStoreAtPath(filepath.Join(tmpDir, "profiles.json"))
 
 	t.Run("List returns builtin profiles when no custom profiles exist", func(t *testing.T) {
 		profiles, err := store.List()
@@ -80,6 +82,32 @@ func TestFileProfileStore(t *testing.T) {
 		}
 		if !profile.Builtin {
 			t.Error("expected profile to be builtin")
+		}
+	})
+
+	t.Run("vrooli-aware profile uses overlay home with live read-only Vrooli state", func(t *testing.T) {
+		profile, err := store.Get("vrooli-aware")
+		if err != nil {
+			t.Fatalf("Get(vrooli-aware): %v", err)
+		}
+		for _, k := range []string{
+			"$HOME/.local/bin",
+			"$HOME/.local/share",
+			"$HOME/.config/vrooli",
+			"$HOME/.claude",
+		} {
+			if _, ok := profile.ReadOnlyBinds[k]; ok {
+				t.Errorf("vrooli-aware profile must not bind %s — the home overlay covers it; per-subpath binds shadow the overlay and reintroduce drift", k)
+			}
+		}
+		if got := profile.ReadOnlyBinds["$HOME/.vrooli"]; got != "$HOME/.vrooli" {
+			t.Errorf("vrooli-aware profile must bind live read-only ~/.vrooli, got %q", got)
+		}
+		if got := profile.Environment["HOME"]; got != "$HOME" {
+			t.Errorf("vrooli-aware profile HOME = %q; want %q so $HOME-relative lookups resolve to the home overlay merged dir, not /tmp", got, "$HOME")
+		}
+		if got := profile.Environment["PATH"]; got != "$HOME/.vrooli/bin:$HOME/go/bin:$HOME/.local/bin:/usr/local/bin:/usr/bin:/bin" {
+			t.Errorf("vrooli-aware profile PATH = %q; want canonical Vrooli tool path", got)
 		}
 	})
 
@@ -186,7 +214,7 @@ func TestFileProfileStorePersistence(t *testing.T) {
 	defer os.RemoveAll(tmpDir)
 
 	// Create and save a profile
-	store1 := NewFileProfileStore(tmpDir)
+	store1 := NewFileProfileStoreAtPath(filepath.Join(tmpDir, "profiles.json"))
 	custom := IsolationProfile{
 		ID:            "persist-test",
 		Name:          "Persistence Test",
@@ -199,7 +227,7 @@ func TestFileProfileStorePersistence(t *testing.T) {
 	}
 
 	// Create new store instance to verify file was written
-	store2 := NewFileProfileStore(tmpDir)
+	store2 := NewFileProfileStoreAtPath(filepath.Join(tmpDir, "profiles.json"))
 	retrieved, err := store2.Get("persist-test")
 	if err != nil {
 		t.Fatalf("failed to get after reload: %v", err)
@@ -212,7 +240,7 @@ func TestFileProfileStorePersistence(t *testing.T) {
 	}
 
 	// Verify file exists
-	filePath := filepath.Join(tmpDir, ".vrooli", "workspace-sandbox-profiles.json")
+	filePath := filepath.Join(tmpDir, "profiles.json")
 	if _, err := os.Stat(filePath); os.IsNotExist(err) {
 		t.Error("expected profiles file to exist")
 	}
@@ -226,7 +254,7 @@ func TestFileProfileStoreReload(t *testing.T) {
 	}
 	defer os.RemoveAll(tmpDir)
 
-	store := NewFileProfileStore(tmpDir)
+	store := NewFileProfileStoreAtPath(filepath.Join(tmpDir, "profiles.json"))
 
 	// Save a profile
 	if err := store.Save(IsolationProfile{ID: "reload-test", Name: "Before Reload"}); err != nil {
@@ -234,7 +262,7 @@ func TestFileProfileStoreReload(t *testing.T) {
 	}
 
 	// Modify the file directly (simulating external modification)
-	filePath := filepath.Join(tmpDir, ".vrooli", "workspace-sandbox-profiles.json")
+	filePath := filepath.Join(tmpDir, "profiles.json")
 	newContent := `[{"id":"reload-test","name":"After External Edit","description":"","builtin":false,"networkAccess":"","readOnlyBinds":null,"readWriteBinds":null,"environment":null,"hostname":""}]`
 	if err := os.WriteFile(filePath, []byte(newContent), 0o644); err != nil {
 		t.Fatalf("failed to modify file: %v", err)
@@ -253,5 +281,120 @@ func TestFileProfileStoreReload(t *testing.T) {
 	reloaded, _ := store.Get("reload-test")
 	if reloaded.Name != "After External Edit" {
 		t.Errorf("expected reloaded Name 'After External Edit', got %s", reloaded.Name)
+	}
+}
+
+// TestDefaultProfiles_BindCATrustStore asserts every builtin profile
+// exposes the host's CA trust store inside the sandbox so TLS clients
+// (notably Rust's rustls-native-certs used by Codex) can verify HTTPS
+// endpoints. The historical regression was Codex runs failing with
+// "no native root CA certificates found" because /etc/ssl/certs was
+// not bound — /usr alone exposes the source PEMs but rustls/OpenSSL
+// read the consolidated bundle in /etc/ssl/certs. We also pin the
+// SSL_CERT_FILE/SSL_CERT_DIR env defense in depth.
+func TestDefaultProfiles_BindCATrustStore(t *testing.T) {
+	for _, p := range DefaultProfiles() {
+		t.Run(p.ID, func(t *testing.T) {
+			if got := p.ReadOnlyBinds["/etc/ssl/certs"]; got != "/etc/ssl/certs" {
+				t.Errorf("profile %q must ro-bind /etc/ssl/certs into the sandbox; got %q", p.ID, got)
+			}
+			if got := p.Environment["SSL_CERT_FILE"]; got != "/etc/ssl/certs/ca-certificates.crt" {
+				t.Errorf("profile %q SSL_CERT_FILE = %q; want %q", p.ID, got, "/etc/ssl/certs/ca-certificates.crt")
+			}
+			if got := p.Environment["SSL_CERT_DIR"]; got != "/etc/ssl/certs" {
+				t.Errorf("profile %q SSL_CERT_DIR = %q; want %q", p.ID, got, "/etc/ssl/certs")
+			}
+		})
+	}
+}
+
+// TestDefaultProfiles_HomeOverlayRequirement pins the requirement value
+// each builtin profile carries. Catches accidental flips of the
+// vrooli-aware profile from required → optional/not_needed (which
+// would silently allow exec on a broken overlay).
+func TestDefaultProfiles_HomeOverlayRequirement(t *testing.T) {
+	want := map[string]types.HomeOverlayRequirement{
+		"full":         types.HomeOverlayNotNeeded,
+		"vrooli-aware": types.HomeOverlayRequired,
+	}
+	for _, p := range DefaultProfiles() {
+		expected, ok := want[p.ID]
+		if !ok {
+			continue
+		}
+		if p.HomeOverlayRequirement != expected {
+			t.Errorf("profile %q HomeOverlayRequirement = %q, want %q",
+				p.ID, p.HomeOverlayRequirement, expected)
+		}
+	}
+}
+
+// TestFileProfileStore_RejectsInvalidHomeOverlayRequirement asserts the
+// loader-time validator: a profiles.json containing an unknown
+// requirement value fails the load instead of being silently coerced.
+func TestFileProfileStore_RejectsInvalidHomeOverlayRequirement(t *testing.T) {
+	tmpDir := t.TempDir()
+	path := filepath.Join(tmpDir, "profiles.json")
+	bad := `[{"id":"bad","name":"Bad","homeOverlayRequirement":"nonsense"}]`
+	if err := os.WriteFile(path, []byte(bad), 0o644); err != nil {
+		t.Fatalf("WriteFile: %v", err)
+	}
+	store := NewFileProfileStoreAtPath(path)
+	_, err := store.List()
+	if err == nil {
+		t.Fatal("expected error for invalid homeOverlayRequirement, got nil")
+	}
+}
+
+// TestFileProfileStore_EmptyHomeOverlayRequirementDefaults asserts that
+// a profiles.json that omits the field is treated as "not_needed".
+// This keeps custom profiles authored before this field existed
+// loadable without manual rewriting.
+func TestFileProfileStore_EmptyHomeOverlayRequirementDefaults(t *testing.T) {
+	tmpDir := t.TempDir()
+	path := filepath.Join(tmpDir, "profiles.json")
+	good := `[{"id":"unset","name":"Unset","networkAccess":"full"}]`
+	if err := os.WriteFile(path, []byte(good), 0o644); err != nil {
+		t.Fatalf("WriteFile: %v", err)
+	}
+	store := NewFileProfileStoreAtPath(path)
+	got, err := store.Get("unset")
+	if err != nil {
+		t.Fatalf("Get: %v", err)
+	}
+	if got.HomeOverlayRequirement != types.HomeOverlayNotNeeded {
+		t.Errorf("HomeOverlayRequirement = %q, want %q",
+			got.HomeOverlayRequirement, types.HomeOverlayNotNeeded)
+	}
+}
+
+// TestFileProfileStore_SaveRejectsInvalidHomeOverlayRequirement covers
+// the runtime API: programmatic Save with an unknown value fails.
+func TestFileProfileStore_SaveRejectsInvalidHomeOverlayRequirement(t *testing.T) {
+	tmpDir := t.TempDir()
+	store := NewFileProfileStoreAtPath(filepath.Join(tmpDir, "profiles.json"))
+	err := store.Save(IsolationProfile{
+		ID:                     "bad-save",
+		Name:                   "Bad Save",
+		HomeOverlayRequirement: "wat",
+	})
+	if err == nil {
+		t.Fatal("expected error from Save with invalid requirement")
+	}
+}
+
+func TestFileProfileStoreUsesCanonicalConfigPath(t *testing.T) {
+	home := t.TempDir()
+	scenarioDir := t.TempDir()
+	t.Setenv("HOME", home)
+
+	store, err := NewFileProfileStore(scenarioDir)
+	if err != nil {
+		t.Fatalf("NewFileProfileStore() error = %v", err)
+	}
+
+	canonicalPath := filepath.Join(home, ".vrooli", "config", "vrooli", "workspace-sandbox", "profiles.json")
+	if store.path != canonicalPath {
+		t.Fatalf("store.path = %q, want %q", store.path, canonicalPath)
 	}
 }

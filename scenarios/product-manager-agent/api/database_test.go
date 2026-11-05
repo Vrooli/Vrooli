@@ -478,13 +478,13 @@ func TestStoreAnalysisOperations(t *testing.T) {
 
 	t.Run("StoreROICalculation_Success", func(t *testing.T) {
 		calc := &ROICalculation{
-			FeatureID:      "test-feature",
-			RevenueImpact:  50000,
-			CostEstimate:   10000,
-			ROI:            400,
-			PaybackPeriod:  2.5,
-			Assumptions:    []string{"$10 per user", "$1000 per effort point"},
-			CalculatedAt:   time.Now(),
+			FeatureID:     "test-feature",
+			RevenueImpact: 50000,
+			CostEstimate:  10000,
+			ROI:           400,
+			PaybackPeriod: 2.5,
+			Assumptions:   []string{"$10 per user", "$1000 per effort point"},
+			CalculatedAt:  time.Now(),
 		}
 
 		err := testApp.App.storeROICalculation(calc)

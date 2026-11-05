@@ -1,0 +1,61 @@
+{
+  "schemaVersion": 6,
+  "kind": "temporal",
+  "flowId": "conflicts.conflict-resolution.ui",
+  "domain": "conflicts",
+  "description": "Scaffolded ConflictResolution flow.",
+  "model": {
+    "module": "ConflictResolutionFlow",
+    "seed": "1",
+    "maxSteps": 4,
+    "traceCount": 4,
+    "verify": { "invariants": ["TypeOK"] }
+  },
+  "states": [
+    { "id": "idle", "quint": "Idle", "initial": true },
+    { "id": "ready", "quint": "Ready" }
+  ],
+  "events": [
+    { "id": "start", "quint": "Start" },
+    { "id": "reset", "quint": "Reset" }
+  ],
+  "transitionDefaults": {
+    "invalid": { "to": "self", "wantError": false }
+  },
+  "transitions": [
+    { "from": "idle", "event": "start", "to": "ready" },
+    { "from": "ready", "event": "reset", "to": "idle" }
+  ],
+  "invariants": [
+    { "id": "type_ok", "quint": "TypeOK", "description": "Types remain valid." }
+  ],
+  "traces": [
+    {
+      "name": "smoke",
+      "initial": "idle",
+      "steps": [
+        { "event": "start", "want": "ready", "wantError": false },
+        { "event": "reset", "want": "idle", "wantError": false }
+      ]
+    }
+  ],
+  "runtime": {
+    "typescript": {
+      "statusType": "ConflictResolutionStatus",
+      "eventType": "ConflictResolutionEventType",
+      "statusesConst": "conflictResolutionStatuses",
+      "eventsConst": "conflictResolutionEvents",
+      "formalExpectationConst": "conflictResolutionFormalExpectation",
+      "stateUnionType": "ConflictResolutionState",
+      "eventUnionType": "ConflictResolutionEvent",
+      "stateVariants": { "idle": {}, "ready": {} },
+      "eventVariants": { "start": {}, "reset": {} }
+    }
+  },
+  "replay": {
+    "transition": {
+      "function": "transitionConflictResolution",
+      "statusAccessor": "state.status"
+    }
+  }
+}

@@ -1,0 +1,11 @@
+{
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "calibration.surface-discipline",
+    "name": "Surface discipline calibration",
+    "kind": "component",
+    "surface": "raised",
+    "targets": ["react-vite"]
+  }
+}

@@ -1,0 +1,39 @@
+{
+  "$schema": "../../../.vrooli/schemas/tool.schema.json",
+  "name": "webkitgtk",
+  "description": "Linux WebKitGTK, GTK 3, and libsoup development headers required to compile Wails desktop applications",
+  "handler": "webkitgtk",
+  "commands": [
+    "pkg-config"
+  ],
+  "versionArgs": [
+    "--version"
+  ],
+  "defaultPackage": "libwebkit2gtk-4.1-dev",
+  "installHint": "Install the approved WebKitGTK 4.1, GTK 3, and libsoup 3 development packages with `sudo vrooli setup`",
+  "platforms": [
+    "linux"
+  ],
+  "privilege": "elevated",
+  "privilegeReason": "The approved Linux development headers are installed through the operator-owned host setup flow.",
+  "verificationCheck": {
+    "command": "pkg-config",
+    "args": [
+      "--exists",
+      "webkit2gtk-4.1",
+      "gtk+-3.0",
+      "libsoup-3.0"
+    ],
+    "expectExitCode": 0
+  },
+  "bundling": "host-required",
+  "capability": "build-toolchain",
+  "capability_role": "primary",
+  "platform_status": {
+    "linux": {
+      "status": "unqualified",
+      "evidence": null
+    }
+  },
+  "notes": "The declared WebKitGTK development package brings the GTK 3 and libsoup 3 headers required by the Wails Linux build. The handler checks all pkg-config modules instead of treating pkg-config itself as proof that headers are installed."
+}

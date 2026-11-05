@@ -1,27 +1,14 @@
 package main
 
 import (
-	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
-	"io"
-	"net/http"
-	"os"
+	"os/exec"
 	"strconv"
 	"strings"
+	"time"
 )
-
-// OllamaRequest represents a request to the Ollama API
-type OllamaRequest struct {
-	Model  string `json:"model"`
-	Prompt string `json:"prompt"`
-	Stream bool   `json:"stream"`
-}
-
-// OllamaResponse represents a response from the Ollama API
-type OllamaResponse struct {
-	Response string `json:"response"`
-}
 
 // ParsedQuery represents a parsed natural language query
 type ParsedQuery struct {
@@ -30,19 +17,14 @@ type ParsedQuery struct {
 	Keywords []string `json:"keywords"`
 }
 
-// parseNaturalLanguageQuery parses a natural language query into structured data
-// It attempts to use Ollama for intelligent parsing, with fallback to keyword matching
+// parseNaturalLanguageQuery parses a natural language query into structured data.
+// Uses the resource-ollama gateway CLI for intelligent parsing, with fallback
+// to keyword matching when the daemon is unavailable.
 func parseNaturalLanguageQuery(query string) ParsedQuery {
 	parsed := ParsedQuery{
 		Category: "",
 		Radius:   1.0, // Default 1 mile
 		Keywords: []string{},
-	}
-
-	// Try to use Ollama for parsing if available
-	ollamaHost := os.Getenv("OLLAMA_HOST")
-	if ollamaHost == "" {
-		ollamaHost = "http://localhost:11434"
 	}
 
 	prompt := fmt.Sprintf(`Parse this location search query and extract structured information.
@@ -56,20 +38,19 @@ Extract:
 Respond in JSON format like:
 {"category": "restaurant", "radius": 2.0, "keywords": ["vegan", "organic"]}`, query)
 
-	reqBody, _ := json.Marshal(OllamaRequest{
-		Model:  "llama3.2:latest",
-		Prompt: prompt,
-		Stream: false,
-	})
-
-	resp, err := http.Post(ollamaHost+"/api/generate", "application/json", bytes.NewBuffer(reqBody))
-	if err == nil && resp.StatusCode == 200 {
-		defer resp.Body.Close()
-		body, _ := io.ReadAll(resp.Body)
-		var ollamaResp OllamaResponse
-		if json.Unmarshal(body, &ollamaResp) == nil {
-			// Try to parse the JSON from Ollama's response
-			json.Unmarshal([]byte(ollamaResp.Response), &parsed)
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, "resource-ollama", "gateway", "generate",
+		"--role", "chat.small", "--json", "--prompt-stdin")
+	cmd.Stdin = strings.NewReader(prompt)
+	out, err := cmd.Output()
+	if err == nil {
+		var decoded struct {
+			Response string `json:"response"`
+		}
+		if json.Unmarshal(out, &decoded) == nil {
+			// Try to parse the JSON from gateway's response
+			json.Unmarshal([]byte(decoded.Response), &parsed)
 		}
 	}
 

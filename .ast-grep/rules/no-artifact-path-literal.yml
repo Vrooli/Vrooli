@@ -1,0 +1,22 @@
+id: no-artifact-path-literal
+language: Go
+severity: error
+message: >-
+  Resolve generated-artifact locations through packages/artifactpaths; do not
+  reconstruct the storage vocabulary with filepath.Join literals.
+note: >-
+  Artifact storage is a governed boundary. Centralizing its vocabulary keeps
+  producers and consumers aligned when physical roots or retention policy move.
+files:
+  - "**/*.go"
+ignores:
+  - "**/*_test.go"
+  - "packages/artifactpaths/**"
+  - "scenarios/unit-health/api/internal/adapters/artifacts.go"
+rule:
+  all:
+    - pattern: filepath.Join($FIRST, $$$REST)
+    - has:
+        kind: interpreted_string_literal
+        regex: '^("coverage"|"test-artifacts"|"test-results"|"phase-cache"|"requirements-sync"|"vitest-requirements\.json")$'
+        stopBy: end

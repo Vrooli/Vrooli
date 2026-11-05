@@ -5,6 +5,7 @@
  */
 
 import type { Page } from 'rebrowser-playwright';
+import { createMockPage } from '../../helpers';
 import { create } from '@bufbuild/protobuf';
 import {
   ActionDefinitionSchema,
@@ -29,11 +30,6 @@ jest.mock('../../../src/recording/handler-adapter', () => {
 import { hasTimelineExecutor, getTimelineExecutor, getRegisteredActionTypes } from '../../../src/recording/action-executor';
 import type { ExecutorContext, SelectorValidation } from '../../../src/recording/action-executor';
 import { executeViaHandler } from '../../../src/recording/handler-adapter';
-
-const createMockPage = (): jest.Mocked<Page> =>
-  ({
-    click: jest.fn().mockResolvedValue(undefined),
-  }) as unknown as jest.Mocked<Page>;
 
 function createBaseEntry(overrides: Partial<TimelineEntry> = {}): TimelineEntry {
   return create(TimelineEntrySchema, {

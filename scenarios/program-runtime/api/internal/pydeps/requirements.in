@@ -1,0 +1,2 @@
+# Deliberately empty: the program-runtime kernel has a standard-library-only
+# package floor. Domain capabilities are exposed through governed bindings.

@@ -11,9 +11,10 @@ import (
 	"strings"
 	"time"
 
-	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api"
 	"swarm-manager/internal/apierr"
 	"swarm-manager/internal/httputil"
+
+	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api"
 )
 
 // kindEmoji maps backlog kinds to their markdown emoji prefix.
@@ -69,97 +70,14 @@ func (h *Handler) Export(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// Parse kind filters.
-	var kinds []BacklogKind
-	for _, raw := range req.GetKinds() {
-		k, err := ParseBacklogKind(raw)
-		if err != nil {
-			apierr.MapError(w, "[backlog] export", apierr.BadRequest("%s", err.Error()))
-			return
-		}
-		kinds = append(kinds, k)
-	}
-
-	// Load all items matching kind filter.
-	items, err := h.store.LoadAll(kinds)
-	if err != nil {
-		apierr.MapError(w, "[backlog] export", apierr.Internal("failed to load backlog items"))
+	// Parse kind/status/name/tag filters and load matching items.
+	items, kindFilter, statusFilter, nameFilter, tagFilter, ok := h.loadExportItems(w, &req)
+	if !ok {
 		return
 	}
 
-	// Build status filter set.
-	statusFilter := defaultExportStatuses()
-	if len(req.GetStatuses()) > 0 {
-		statusFilter = make(map[BacklogStatus]bool, len(req.GetStatuses()))
-		for _, s := range req.GetStatuses() {
-			if !validateBacklogStatus(s) {
-				apierr.MapError(w, "[backlog] export", apierr.BadRequest("invalid status: %s", s))
-				return
-			}
-			statusFilter[BacklogStatus(s)] = true
-		}
-	}
-
-	// Build names filter set (kind/name format).
-	var nameFilter map[string]bool
-	if len(req.GetNames()) > 0 {
-		nameFilter = make(map[string]bool, len(req.GetNames()))
-		for _, n := range req.GetNames() {
-			nameFilter[n] = true
-		}
-	}
-
-	// Build tags filter set.
-	var tagFilter map[string]bool
-	if len(req.GetTags()) > 0 {
-		tagFilter = make(map[string]bool, len(req.GetTags()))
-		for _, t := range req.GetTags() {
-			tagFilter[t] = true
-		}
-	}
-
 	// Apply filters.
-	var filtered []BacklogItem
-	for _, item := range items {
-		// Exclude archived items by default.
-		if item.ArchivedAt != nil {
-			continue
-		}
-
-		// Status filter.
-		if !statusFilter[item.Status] {
-			continue
-		}
-
-		// Names filter (kind/name format).
-		if nameFilter != nil {
-			key := string(item.Kind) + "/" + item.Name
-			if !nameFilter[key] {
-				continue
-			}
-		}
-
-		// Priority max filter.
-		if req.PriorityMax != nil && int32(item.Priority) > *req.PriorityMax {
-			continue
-		}
-
-		// Tags filter: item must have at least one matching tag.
-		if tagFilter != nil {
-			found := false
-			for _, t := range item.Tags {
-				if tagFilter[t] {
-					found = true
-					break
-				}
-			}
-			if !found {
-				continue
-			}
-		}
-
-		filtered = append(filtered, item)
-	}
+	filtered, report := applyExportFilters(items, kindFilter, statusFilter, nameFilter, tagFilter, req.PriorityMax, req.GetIncludeArchived())
 
 	// Sort by priority (ascending) then by updated (descending).
 	sort.Slice(filtered, func(i, j int) bool {
@@ -191,26 +109,7 @@ func (h *Handler) Export(w http.ResponseWriter, r *http.Request) {
 	var b strings.Builder
 
 	// YAML frontmatter.
-	b.WriteString("---\n")
-	b.WriteString("version: 1\n")
-	fmt.Fprintf(&b, "exported_at: %q\n", now)
-	if len(req.GetKinds()) > 0 {
-		fmt.Fprintf(&b, "filter_kinds: [%s]\n", strings.Join(req.GetKinds(), ", "))
-	}
-	if len(req.GetStatuses()) > 0 {
-		fmt.Fprintf(&b, "filter_statuses: [%s]\n", strings.Join(req.GetStatuses(), ", "))
-	}
-	if len(req.GetNames()) > 0 {
-		fmt.Fprintf(&b, "filter_names: [%s]\n", strings.Join(req.GetNames(), ", "))
-	}
-	if req.PriorityMax != nil {
-		fmt.Fprintf(&b, "filter_priority_max: %d\n", *req.PriorityMax)
-	}
-	if len(req.GetTags()) > 0 {
-		fmt.Fprintf(&b, "filter_tags: [%s]\n", strings.Join(req.GetTags(), ", "))
-	}
-	fmt.Fprintf(&b, "items_count: %d\n", len(filtered))
-	b.WriteString("---\n\n")
+	writeExportFrontmatter(&b, &req, now, report)
 
 	// Render each item.
 	for _, item := range filtered {
@@ -226,6 +125,194 @@ func (h *Handler) Export(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/markdown; charset=utf-8")
 	w.Header().Set("Content-Disposition", "attachment; filename=\"backlog-export.md\"")
 	_, _ = w.Write([]byte(b.String()))
+}
+
+// loadExportItems parses kind filters, validates status filters, and loads
+// all matching backlog items. Returns the loaded items and the three filter
+// maps on success, or writes an error response and returns ok=false. Extracting
+// this removes five branches (kind parse loop, LoadAll err, status loop with
+// validate, name/tag set builds) from Export.
+func (h *Handler) loadExportItems(w http.ResponseWriter, req *apipb.ExportBacklogRequest) ([]BacklogItem, map[BacklogKind]bool, map[BacklogStatus]bool, map[string]bool, map[string]bool, bool) {
+	var kindFilter map[BacklogKind]bool
+	if len(req.GetKinds()) > 0 {
+		kindFilter = make(map[BacklogKind]bool, len(req.GetKinds()))
+	}
+	for _, raw := range req.GetKinds() {
+		k, err := ParseBacklogKind(raw)
+		if err != nil {
+			apierr.MapError(w, "[backlog] export", apierr.BadRequest("%s", err.Error()))
+			return nil, nil, nil, nil, nil, false
+		}
+		kindFilter[k] = true
+	}
+	items, err := h.store.LoadAll(nil)
+	if err != nil {
+		apierr.MapError(w, "[backlog] export", apierr.Internal("failed to load backlog items"))
+		return nil, nil, nil, nil, nil, false
+	}
+	statusFilter := defaultExportStatuses()
+	if len(req.GetStatuses()) > 0 {
+		statusFilter = make(map[BacklogStatus]bool, len(req.GetStatuses()))
+		for _, s := range req.GetStatuses() {
+			if !validateBacklogStatus(s) {
+				apierr.MapError(w, "[backlog] export", apierr.BadRequest("invalid status: %s", s))
+				return nil, nil, nil, nil, nil, false
+			}
+			statusFilter[BacklogStatus(s)] = true
+		}
+	}
+	nameFilter := stringSetFilter(req.GetNames())
+	tagFilter := stringSetFilter(req.GetTags())
+	return items, kindFilter, statusFilter, nameFilter, tagFilter, true
+}
+
+type exportExclusion struct {
+	Name  string
+	Rule  string
+	Count int
+}
+
+type exportFilterReport struct {
+	PreFilterTotal int
+	ItemsCount     int
+	Excluded       []exportExclusion
+}
+
+// applyExportFilters attributes every excluded item to the first filter it
+// fails. The ordered, non-overlapping counts make the frontmatter arithmetic
+// close exactly and ensure a new filter cannot remain invisible.
+func applyExportFilters(items []BacklogItem, kindFilter map[BacklogKind]bool, statusFilter map[BacklogStatus]bool, nameFilter, tagFilter map[string]bool, priorityMax *int32, includeArchived bool) ([]BacklogItem, exportFilterReport) {
+	exclusions := []exportExclusion{
+		{Name: "archived", Rule: "exclude archived records"},
+		{Name: "status", Rule: "include selected statuses"},
+	}
+	if kindFilter != nil {
+		exclusions = append(exclusions, exportExclusion{Name: "kind", Rule: "include selected kinds"})
+	}
+	if nameFilter != nil {
+		exclusions = append(exclusions, exportExclusion{Name: "name", Rule: "include selected kind/name keys"})
+	}
+	if priorityMax != nil {
+		exclusions = append(exclusions, exportExclusion{Name: "priority_max", Rule: fmt.Sprintf("priority <= %d", *priorityMax)})
+	}
+	if tagFilter != nil {
+		exclusions = append(exclusions, exportExclusion{Name: "tag", Rule: "include items matching any selected tag"})
+	}
+
+	filtered := make([]BacklogItem, 0, len(items))
+	for _, item := range items {
+		excludedBy := ""
+		switch {
+		case !includeArchived && item.ArchivedAt != nil:
+			excludedBy = "archived"
+		case !statusFilter[item.Status]:
+			excludedBy = "status"
+		case kindFilter != nil && !kindFilter[item.Kind]:
+			excludedBy = "kind"
+		case nameFilter != nil && !nameFilter[string(item.Kind)+"/"+item.Name]:
+			excludedBy = "name"
+		case priorityMax != nil && int32(item.Priority) > *priorityMax:
+			excludedBy = "priority_max"
+		case tagFilter != nil && !hasMatchingTag(item.Tags, tagFilter):
+			excludedBy = "tag"
+		}
+		if excludedBy == "" {
+			filtered = append(filtered, item)
+			continue
+		}
+		for i := range exclusions {
+			if exclusions[i].Name == excludedBy {
+				exclusions[i].Count++
+				break
+			}
+		}
+	}
+	if includeArchived {
+		exclusions[0].Rule = "include archived records"
+	}
+	return filtered, exportFilterReport{PreFilterTotal: len(items), ItemsCount: len(filtered), Excluded: exclusions}
+}
+
+// writeExportFrontmatter writes the YAML frontmatter block, including any
+// applied filters and the resulting item count.
+func writeExportFrontmatter(b *strings.Builder, req *apipb.ExportBacklogRequest, exportedAt string, report exportFilterReport) {
+	b.WriteString("---\n")
+	b.WriteString("version: 1\n")
+	fmt.Fprintf(b, "exported_at: %q\n", exportedAt)
+	if len(req.GetKinds()) > 0 {
+		fmt.Fprintf(b, "filter_kinds: [%s]\n", strings.Join(req.GetKinds(), ", "))
+	}
+	if len(req.GetStatuses()) > 0 {
+		fmt.Fprintf(b, "filter_statuses: [%s]\n", strings.Join(req.GetStatuses(), ", "))
+	}
+	if len(req.GetNames()) > 0 {
+		fmt.Fprintf(b, "filter_names: [%s]\n", strings.Join(req.GetNames(), ", "))
+	}
+	if req.PriorityMax != nil {
+		fmt.Fprintf(b, "filter_priority_max: %d\n", *req.PriorityMax)
+	}
+	if len(req.GetTags()) > 0 {
+		fmt.Fprintf(b, "filter_tags: [%s]\n", strings.Join(req.GetTags(), ", "))
+	}
+	fmt.Fprintf(b, "pre_filter_total: %d\n", report.PreFilterTotal)
+	b.WriteString("excluded:\n")
+	for _, exclusion := range report.Excluded {
+		fmt.Fprintf(b, "  - filter: %q\n", exclusion.Name)
+		fmt.Fprintf(b, "    rule: %q\n", exclusion.Rule)
+		fmt.Fprintf(b, "    count: %d\n", exclusion.Count)
+	}
+	fmt.Fprintf(b, "items_count: %d\n", report.ItemsCount)
+	b.WriteString("---\n\n")
+}
+
+// stringSetFilter builds a lookup set from the given values, returning nil when
+// the input is empty (meaning "no filter").
+func stringSetFilter(values []string) map[string]bool {
+	if len(values) == 0 {
+		return nil
+	}
+	set := make(map[string]bool, len(values))
+	for _, v := range values {
+		set[v] = true
+	}
+	return set
+}
+
+// exportItemPassesFilters reports whether an item satisfies all export filters.
+// Archived items are always excluded. A nil nameFilter / tagFilter means that
+// dimension is unfiltered.
+func exportItemPassesFilters(item BacklogItem, statusFilter map[BacklogStatus]bool, nameFilter, tagFilter map[string]bool, priorityMax *int32) bool {
+	// Exclude archived items by default.
+	if item.ArchivedAt != nil {
+		return false
+	}
+	// Status filter.
+	if !statusFilter[item.Status] {
+		return false
+	}
+	// Names filter (kind/name format).
+	if nameFilter != nil && !nameFilter[string(item.Kind)+"/"+item.Name] {
+		return false
+	}
+	// Priority max filter.
+	if priorityMax != nil && int32(item.Priority) > *priorityMax {
+		return false
+	}
+	// Tags filter: item must have at least one matching tag.
+	if tagFilter != nil && !hasMatchingTag(item.Tags, tagFilter) {
+		return false
+	}
+	return true
+}
+
+// hasMatchingTag reports whether any of the item's tags is present in the filter.
+func hasMatchingTag(tags []string, tagFilter map[string]bool) bool {
+	for _, t := range tags {
+		if tagFilter[t] {
+			return true
+		}
+	}
+	return false
 }
 
 // renderItem writes a single backlog item as a markdown section.
@@ -274,15 +361,19 @@ func renderItem(b *strings.Builder, h *Handler, item BacklogItem, includePRD, in
 		renderRequirements(b, itemDir)
 	}
 
-	// Workshop items section (replaces old clarify/suggest sections).
-	if includeClarify || includeSuggestions {
-		renderWorkshopItems(b, itemDir, item.Kind, item.Name)
-	}
-
-	// Notes section placeholder.
+	// Notes are an editable round-trip subsection. The marker is the parser's
+	// boundary; the human-facing heading stays outside it so it is not persisted
+	// into notes.md.
 	if includeNotes {
 		b.WriteString("### Notes\n\n")
-		b.WriteString("_No notes._\n\n")
+		fmt.Fprintf(b, "<!-- notes:%s/%s -->\n", item.Kind, item.Name)
+		notes, err := os.ReadFile(filepath.Join(itemDir, "notes.md"))
+		if err == nil && strings.TrimSpace(string(notes)) != "" {
+			b.WriteString(strings.TrimSpace(string(notes)))
+			b.WriteString("\n\n")
+		} else {
+			b.WriteString("_No notes._\n\n")
+		}
 	}
 
 	b.WriteString("---\n\n")
@@ -334,53 +425,6 @@ func renderRequirementGroups(b *strings.Builder, groups []ArchiveRequirementGrou
 			renderRequirementGroups(b, g.Children, depth+1)
 		}
 	}
-}
-
-// renderWorkshopItems reads the latest workshop round and renders questions/proposals.
-func renderWorkshopItems(b *strings.Builder, itemDir string, kind BacklogKind, name string) {
-	latestRound, roundCount, err := LoadLatestRound(itemDir)
-	if err != nil || latestRound == nil {
-		return
-	}
-
-	fmt.Fprintf(b, "<!-- workshop:%s/%s round:%d -->\n", kind, name, roundCount)
-	b.WriteString("### Workshop Items\n\n")
-
-	for i, item := range latestRound.Items {
-		switch item.Type {
-		case "decision":
-			resolved := item.Selected != nil && strings.TrimSpace(*item.Selected) != ""
-			topic := item.Topic
-			if topic == "" {
-				topic = item.Text
-			}
-			fmt.Fprintf(b, "**D%d: %s**\n", i+1, topic)
-			if item.Context != "" {
-				fmt.Fprintf(b, "> %s\n", item.Context)
-			}
-			for _, opt := range item.Options {
-				optCheck := " "
-				if resolved && *item.Selected == opt.Key {
-					optCheck = "x"
-				}
-				fmt.Fprintf(b, "- [%s] **%s**: %s — %s\n", optCheck, opt.Key, opt.Label, opt.Rationale)
-			}
-			if resolved && *item.Selected == "__other__" && item.Freeform != nil && *item.Freeform != "" {
-				fmt.Fprintf(b, "\n> **Other:** %s\n", *item.Freeform)
-			}
-			if item.Notes != nil && *item.Notes != "" {
-				fmt.Fprintf(b, "\n> **Notes:** %s\n", *item.Notes)
-			}
-			b.WriteString("\n")
-		case "info":
-			text := item.Text
-			if text == "" {
-				text = item.Topic
-			}
-			fmt.Fprintf(b, "**Info:** %s\n\n", text)
-		}
-	}
-	fmt.Fprintf(b, "<!-- /workshop -->\n\n")
 }
 
 // renderNewItemTemplate appends a template for adding new items to the export.

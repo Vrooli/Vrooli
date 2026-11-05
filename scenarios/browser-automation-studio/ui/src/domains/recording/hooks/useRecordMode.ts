@@ -4,10 +4,10 @@
  * Manages recording state and API interactions for Record Mode.
  * Responsibilities are split into two layers:
  * - Transport: API calls for recording lifecycle (start/stop/generate/validate/replay)
- * - Editing: local action mutations and confidence bookkeeping
+ * TimelineEntry is the recording action owner; legacy API payloads are supplied by the workspace.
  *
- * Note: Timeline data (actions + page events) is now managed by useTimeline hook.
- * This hook focuses on recording lifecycle and action editing.
+ * Note: Timeline data (actions + page events) is managed by useWorkspaceTimeline.
+ * This hook focuses on recording lifecycle and boundary API calls.
  */
 
 import {
@@ -15,13 +15,10 @@ import {
   useCallback,
   useRef,
   useEffect,
-  useMemo,
-  type Dispatch,
-  type SetStateAction,
 } from 'react';
 import toast from 'react-hot-toast';
 import { recordingApi } from '../api';
-import type { RecordedAction, SelectorSet } from '../types/types';
+import type { RecordedAction } from '../types/types';
 import type {
   GenerateWorkflowResponse,
   SelectorValidation,
@@ -33,48 +30,24 @@ interface UseRecordModeOptions {
   sessionId: string | null;
 }
 
-/** Minimal action data for inserting a new step */
-export interface InsertActionData {
-  actionType: RecordedAction['actionType'];
-  payload?: Record<string, unknown>;
-  selector?: string;
-}
-
 interface UseRecordModeReturn {
   isRecording: boolean;
   recordingId: string | null;
-  actions: RecordedAction[];
   isLoading: boolean;
   error: string | null;
   startRecording: (sessionIdOverride?: string) => Promise<void>;
   stopRecording: () => Promise<void>;
-  clearActions: () => void;
-  deleteAction: (index: number) => void;
-  insertAction: (data: InsertActionData) => void;
-  updateSelector: (index: number, newSelector: string) => void;
-  updatePayload: (index: number, payload: Record<string, unknown>) => void;
   generateWorkflow: (name: string, projectId?: string, actionsOverride?: RecordedAction[], settings?: WorkflowSettingsTyped) => Promise<GenerateWorkflowResponse>;
   validateSelector: (selector: string) => Promise<SelectorValidation>;
   replayPreview: (options?: { limit?: number; stopOnFailure?: boolean }, actionsOverride?: RecordedAction[]) => Promise<ReplayPreviewResponse>;
   isReplaying: boolean;
-  lowConfidenceCount: number;
-  mediumConfidenceCount: number;
 }
-
-const CONFIDENCE = {
-  HIGH: 0.8,
-  MEDIUM: 0.5,
-};
-
-type ActionSetter = Dispatch<SetStateAction<RecordedAction[]>>;
 
 type UseRecordingTransportOptions = UseRecordModeOptions;
 
 interface UseRecordingTransportReturn {
   isRecording: boolean;
   recordingId: string | null;
-  actions: RecordedAction[];
-  setActions: ActionSetter;
   isLoading: boolean;
   isReplaying: boolean;
   error: string | null;
@@ -90,7 +63,6 @@ function useRecordingTransport({
 }: UseRecordingTransportOptions): UseRecordingTransportReturn {
   const [isRecording, setIsRecording] = useState(false);
   const [recordingId, setRecordingId] = useState<string | null>(null);
-  const [actions, setActions] = useState<RecordedAction[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isReplaying, setIsReplaying] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -100,27 +72,46 @@ function useRecordingTransport({
 
   // AbortController for request cancellation
   const abortControllerRef = useRef<AbortController | null>(null);
+  const mountedRef = useRef(false);
+  const ownerRef = useRef({ sessionId, generation: 0, adoptingSessionId: null as string | null });
+  if (ownerRef.current.sessionId !== sessionId) {
+    const adopting = ownerRef.current.sessionId === null && ownerRef.current.adoptingSessionId === sessionId;
+    ownerRef.current = { sessionId, generation: ownerRef.current.generation + (adopting ? 0 : 1), adoptingSessionId: null };
+  }
+  const controllerGenerationRef = useRef(-1);
+  const captureOwner = useCallback(() => {
+    const generation = ownerRef.current.generation;
+    const signal = abortControllerRef.current?.signal;
+    return { signal, isCurrent: () => mountedRef.current && generation === ownerRef.current.generation && !signal?.aborted };
+  }, []);
 
   // Clean up abort controller on unmount
   useEffect(() => {
+    mountedRef.current = true;
     return () => {
+      mountedRef.current = false;
+      ownerRef.current = { ...ownerRef.current, generation: ownerRef.current.generation + 1, adoptingSessionId: null };
       abortControllerRef.current?.abort();
     };
   }, []);
 
-  // Reset state when session changes
+  // Reset only when the session lifetime changes. Adopting the explicitly
+  // created session keeps its recording, whether start completed before or after.
   useEffect(() => {
-    // Abort any pending requests when session changes
-    abortControllerRef.current?.abort();
-    abortControllerRef.current = new AbortController();
-
-    setActions([]);
-    setRecordingId(null);
-    setIsRecording(false);
-    setError(null);
+    if (controllerGenerationRef.current !== ownerRef.current.generation) {
+      abortControllerRef.current?.abort();
+      abortControllerRef.current = new AbortController();
+      controllerGenerationRef.current = ownerRef.current.generation;
+      setIsLoading(false);
+      setIsReplaying(false);
+      setRecordingId(null);
+      setIsRecording(false);
+      setError(null);
+    }
   }, [sessionId]);
 
   const startRecording = useCallback(async (sessionIdOverride?: string) => {
+    if (!mountedRef.current) return;
     const currentSessionId = sessionIdOverride ?? sessionIdRef.current;
     if (!currentSessionId?.trim()) {
       setError('No session ID provided');
@@ -129,10 +120,14 @@ function useRecordingTransport({
 
     setIsLoading(true);
     setError(null);
+    if (sessionIdOverride && sessionIdRef.current === null) ownerRef.current.adoptingSessionId = currentSessionId;
+    const owner = captureOwner();
 
     const result = await recordingApi.startRecording(currentSessionId, {
-      signal: abortControllerRef.current?.signal,
+      signal: owner.signal,
     });
+
+    if (!owner.isCurrent()) return;
 
     setIsLoading(false);
 
@@ -145,17 +140,15 @@ function useRecordingTransport({
     setRecordingId(result.data.recording_id);
     setIsRecording(true);
 
-    // Only clear actions for new recordings, not for 409 reconnections
-    // (check if we were already recording - if so, don't clear)
     if (!isRecording) {
-      setActions([]);
       toast.success('Recording started', { duration: 2000 });
     } else {
       toast.success('Reconnected to existing session', { duration: 2000 });
     }
-  }, [isRecording]);
+  }, [isRecording, captureOwner]);
 
   const stopRecording = useCallback(async () => {
+    if (!mountedRef.current) return;
     const currentSessionId = sessionIdRef.current;
     if (!currentSessionId) {
       setError('No session ID provided');
@@ -164,10 +157,13 @@ function useRecordingTransport({
 
     setIsLoading(true);
     setError(null);
+    const owner = captureOwner();
 
     const result = await recordingApi.stopRecording(currentSessionId, {
-      signal: abortControllerRef.current?.signal,
+      signal: owner.signal,
     });
+
+    if (!owner.isCurrent()) return;
 
     setIsLoading(false);
 
@@ -178,10 +174,11 @@ function useRecordingTransport({
 
     setIsRecording(false);
     console.log('Recording stopped:', result.data);
-  }, []);
+  }, [captureOwner]);
 
   const generateWorkflow = useCallback(
     async (name: string, projectId?: string, actionsOverride?: RecordedAction[], settings?: WorkflowSettingsTyped): Promise<GenerateWorkflowResponse> => {
+      if (!mountedRef.current) throw new DOMException('Recording session retired', 'AbortError');
       const currentSessionId = sessionIdRef.current;
       if (!currentSessionId) {
         const error = 'No session ID provided';
@@ -189,7 +186,7 @@ function useRecordingTransport({
         throw new Error(error);
       }
 
-      const actionsToSend = actionsOverride ?? actions;
+      const actionsToSend = actionsOverride ?? [];
       if (actionsToSend.length === 0) {
         const error = 'No actions to generate workflow from';
         setError(error);
@@ -198,12 +195,15 @@ function useRecordingTransport({
 
       setIsLoading(true);
       setError(null);
+      const owner = captureOwner();
 
       const result = await recordingApi.generateWorkflow(
         currentSessionId,
         { name, projectId, actions: actionsToSend, settings },
-        { signal: abortControllerRef.current?.signal }
+        { signal: owner.signal }
       );
+
+      if (!owner.isCurrent()) throw new DOMException('Recording session retired', 'AbortError');
 
       setIsLoading(false);
 
@@ -214,7 +214,7 @@ function useRecordingTransport({
 
       return result.data;
     },
-    [actions]
+    [captureOwner]
   );
 
   const validateSelector = useCallback(
@@ -239,6 +239,7 @@ function useRecordingTransport({
 
   const replayPreview = useCallback(
     async (options?: { limit?: number; stopOnFailure?: boolean }, actionsOverride?: RecordedAction[]): Promise<ReplayPreviewResponse> => {
+      if (!mountedRef.current) throw new DOMException('Recording session retired', 'AbortError');
       const currentSessionId = sessionIdRef.current;
       if (!currentSessionId) {
         const error = 'No session ID provided';
@@ -246,7 +247,7 @@ function useRecordingTransport({
         throw new Error(error);
       }
 
-      const actionsToSend = actionsOverride ?? actions;
+      const actionsToSend = actionsOverride ?? [];
       if (actionsToSend.length === 0) {
         const error = 'No actions to replay';
         setError(error);
@@ -255,6 +256,7 @@ function useRecordingTransport({
 
       setIsReplaying(true);
       setError(null);
+      const owner = captureOwner();
 
       const result = await recordingApi.replayPreview(
         currentSessionId,
@@ -263,8 +265,10 @@ function useRecordingTransport({
           limit: options?.limit,
           stopOnFailure: options?.stopOnFailure,
         },
-        { signal: abortControllerRef.current?.signal }
+        { signal: owner.signal }
       );
+
+      if (!owner.isCurrent()) throw new DOMException('Recording session retired', 'AbortError');
 
       setIsReplaying(false);
 
@@ -275,14 +279,12 @@ function useRecordingTransport({
 
       return result.data;
     },
-    [actions]
+    [captureOwner]
   );
 
   return {
     isRecording,
     recordingId,
-    actions,
-    setActions,
     isLoading,
     isReplaying,
     error,
@@ -294,102 +296,6 @@ function useRecordingTransport({
   };
 }
 
-interface UseActionEditingReturn {
-  clearActions: () => void;
-  deleteAction: (index: number) => void;
-  insertAction: (data: InsertActionData) => void;
-  updateSelector: (index: number, newSelector: string) => void;
-  updatePayload: (index: number, payload: Record<string, unknown>) => void;
-  lowConfidenceCount: number;
-  mediumConfidenceCount: number;
-}
-
-function useActionEditing(actions: RecordedAction[], setActions: ActionSetter): UseActionEditingReturn {
-  const updateSelector = useCallback(
-    (index: number, newSelector: string) => {
-      setActions((prev) =>
-        prev.map((action, i) => {
-          if (i !== index) return action;
-
-          const updatedSelector: SelectorSet = action.selector
-            ? { ...action.selector, primary: newSelector }
-            : { primary: newSelector, candidates: [] };
-
-          const matchingCandidate = action.selector?.candidates.find((c) => c.value === newSelector);
-          const newConfidence = matchingCandidate?.confidence ?? 0.7;
-
-          return { ...action, selector: updatedSelector, confidence: newConfidence };
-        })
-      );
-    },
-    [setActions]
-  );
-
-  const updatePayload = useCallback(
-    (index: number, payload: Record<string, unknown>) => {
-      setActions((prev) =>
-        prev.map((action, i) => {
-          if (i !== index) return action;
-          return {
-            ...action,
-            payload: { ...action.payload, ...payload } as RecordedAction['payload'],
-          };
-        })
-      );
-    },
-    [setActions]
-  );
-
-  const clearActions = useCallback(() => {
-    setActions([]);
-  }, [setActions]);
-
-  const deleteAction = useCallback(
-    (index: number) => {
-      setActions((prev) => prev.filter((_, i) => i !== index));
-    },
-    [setActions]
-  );
-
-  const insertAction = useCallback(
-    (data: InsertActionData) => {
-      setActions((prev) => {
-        const newAction: RecordedAction = {
-          id: `manual-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
-          sessionId: '',
-          sequenceNum: prev.length,
-          timestamp: new Date().toISOString(),
-          actionType: data.actionType,
-          confidence: 1.0, // Manual actions have full confidence
-          url: '',
-          payload: data.payload as RecordedAction['payload'],
-          selector: data.selector ? { primary: data.selector, candidates: [] } : undefined,
-        };
-        return [...prev, newAction];
-      });
-    },
-    [setActions]
-  );
-
-  const { lowConfidenceCount, mediumConfidenceCount } = useMemo(() => {
-    const low = actions.filter((a) => a.selector && a.confidence < CONFIDENCE.MEDIUM).length;
-    const medium = actions.filter(
-      (a) => a.selector && a.confidence >= CONFIDENCE.MEDIUM && a.confidence < CONFIDENCE.HIGH
-    ).length;
-    return { lowConfidenceCount: low, mediumConfidenceCount: medium };
-  }, [actions]);
-
-  return {
-    clearActions,
-    deleteAction,
-    insertAction,
-    updateSelector,
-    updatePayload,
-    lowConfidenceCount,
-    mediumConfidenceCount,
-  };
-}
-
 export function useRecordMode({
   sessionId,
 }: UseRecordModeOptions): UseRecordModeReturn {
@@ -397,26 +303,16 @@ export function useRecordMode({
     sessionId,
   });
 
-  const editing = useActionEditing(transport.actions, transport.setActions);
-
   return {
     isRecording: transport.isRecording,
     recordingId: transport.recordingId,
-    actions: transport.actions,
     isLoading: transport.isLoading,
     error: transport.error,
     startRecording: transport.startRecording,
     stopRecording: transport.stopRecording,
-    clearActions: editing.clearActions,
-    deleteAction: editing.deleteAction,
-    insertAction: editing.insertAction,
-    updateSelector: editing.updateSelector,
-    updatePayload: editing.updatePayload,
     generateWorkflow: transport.generateWorkflow,
     validateSelector: transport.validateSelector,
     replayPreview: transport.replayPreview,
     isReplaying: transport.isReplaying,
-    lowConfidenceCount: editing.lowConfidenceCount,
-    mediumConfidenceCount: editing.mediumConfidenceCount,
   };
 }

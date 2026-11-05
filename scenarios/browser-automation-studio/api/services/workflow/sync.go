@@ -28,7 +28,8 @@
 //
 // # Related Files
 //
-// - ui/src/domains/recording/utils/mergeActions.ts (frontend action merging)
+// - ui/src/domains/recording/sidebar/TimelineTab.tsx (unified timeline owner)
+// - ui/src/domains/recording/timeline/TimelineEventCard.tsx (UnifiedTimeline projection)
 // - ui/src/domains/recording/types/timeline-unified.ts (AI step reconciliation)
 // - ui/src/domains/recording/RecordingSession.tsx (usage context)
 package workflow

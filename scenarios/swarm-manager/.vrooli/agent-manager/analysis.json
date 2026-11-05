@@ -1,0 +1,19 @@
+{
+  "schemaVersion": "agent-profile/v1",
+  "name": "swarm-manager-analysis",
+  "profileKey": "swarm-manager/analysis",
+  "description": "Read-mostly profile for Swarm Manager workflow classification and acceptance-review phases",
+  "roleRef": "code.smart",
+  "roleReason": "Workflow classification and acceptance review require deep reasoning over durable evidence and competing outcomes.",
+  "maxTurns": 450,
+  "timeout": "2700s",
+  "allowedTools": ["read", "glob", "grep", "shell", "web_search", "web_fetch"],
+  "toolRestrictionPolicy": "advisory",
+  "skipPermissionPrompt": false,
+  "sandboxConfig": {
+    "mode": "SANDBOX_MODE_PROTECTED"
+  },
+  "spawnPolicy": {"axisOrder": ["sandboxMode", "executionMode"], "sandboxMode": {"prefer": ["protected", "tracking", "off"]}, "executionMode": {"prefer": ["codec_pipe", "interactive"]}, "require": []},
+  "createdBy": "swarm-manager",
+  "effort": "medium"
+}

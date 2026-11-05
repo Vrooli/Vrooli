@@ -1,4 +1,5 @@
 import { describe, it, expect } from "vitest";
+import { create, type MessageInitShape } from "@bufbuild/protobuf";
 import {
   buildPreflightPipelineConfig,
   validatePreflightConfig,
@@ -11,7 +12,22 @@ import {
   getPreflightBlockingReason,
   type PreflightRunConfig,
 } from "./preflightController";
-import type { VerbosePipelineStatus, BundlePreflightResponse, BundlePreflightStep } from "../lib/api";
+import type { VerbosePipelineStatus } from "../lib/api";
+import {
+  StageName,
+  StageStatus,
+} from "@vrooli/proto-types/scenario-to-desktop/v1/shared/common_pb";
+import { createPipelineStatus } from "../test-utils/mocks";
+import type { PreflightJobStep } from "../lib/preflight-status";
+import {
+  PreflightResponseSchema,
+  PreflightSecretSchema,
+} from "@vrooli/proto-types/scenario-to-desktop/v1/shared/preflight_results_pb";
+
+const preflight = (init: MessageInitShape<typeof PreflightResponseSchema>) =>
+  create(PreflightResponseSchema, init);
+const secret = (init: MessageInitShape<typeof PreflightSecretSchema>) =>
+  create(PreflightSecretSchema, init);
 
 describe("preflightController", () => {
   describe("buildPreflightPipelineConfig", () => {
@@ -22,7 +38,7 @@ describe("preflightController", () => {
       };
       const result = buildPreflightPipelineConfig(config);
 
-      expect(result.bundle_manifest_path).toBe("/path/to/manifest.json");
+      expect(result.bundleManifestPath).toBe("/path/to/manifest.json");
     });
 
     it("filters empty secrets", () => {
@@ -38,7 +54,7 @@ describe("preflightController", () => {
       };
       const result = buildPreflightPipelineConfig(config);
 
-      expect(result.preflight_secrets).toEqual({
+      expect(result.preflightSecrets).toEqual({
         API_KEY: "secret123",
         VALID_KEY: "value",
       });
@@ -52,7 +68,7 @@ describe("preflightController", () => {
       };
       const result = buildPreflightPipelineConfig(config);
 
-      expect(result.preflight_secrets).toBeUndefined();
+      expect(result.preflightSecrets).toBeUndefined();
     });
 
     it("omits secrets if undefined", () => {
@@ -62,7 +78,7 @@ describe("preflightController", () => {
       };
       const result = buildPreflightPipelineConfig(config);
 
-      expect(result.preflight_secrets).toBeUndefined();
+      expect(result.preflightSecrets).toBeUndefined();
     });
 
     it("includes additional config", () => {
@@ -70,12 +86,12 @@ describe("preflightController", () => {
         scenarioName: "test-scenario",
         bundleManifestPath: "/manifest.json",
         additionalConfig: {
-          stop_after_stage: "preflight",
+          stopAfterStage: StageName.PREFLIGHT,
         },
       };
       const result = buildPreflightPipelineConfig(config);
 
-      expect(result.stop_after_stage).toBe("preflight");
+      expect(result.stopAfterStage).toBe(StageName.PREFLIGHT);
     });
   });
 
@@ -130,11 +146,11 @@ describe("preflightController", () => {
     });
 
     it("maps bundle stage to validation", () => {
-      const status = {
+      const status = createPipelineStatus({
         stages: {
-          bundle: { status: "completed" },
+          bundle: { stage: StageName.BUNDLE, status: StageStatus.COMPLETED },
         },
-      } as unknown as VerbosePipelineStatus;
+      });
       const map = buildJobStepMap(status);
 
       expect(map.has("validation")).toBe(true);
@@ -142,11 +158,14 @@ describe("preflightController", () => {
     });
 
     it("maps preflight stage to multiple steps", () => {
-      const status = {
+      const status = createPipelineStatus({
         stages: {
-          preflight: { status: "running" },
+          preflight: {
+            stage: StageName.PREFLIGHT,
+            status: StageStatus.RUNNING,
+          },
         },
-      } as unknown as VerbosePipelineStatus;
+      });
       const map = buildJobStepMap(status);
 
       expect(map.has("secrets")).toBe(true);
@@ -157,11 +176,15 @@ describe("preflightController", () => {
     });
 
     it("maps failed status correctly", () => {
-      const status = {
+      const status = createPipelineStatus({
         stages: {
-          bundle: { status: "failed", error: "Validation failed" },
+          bundle: {
+            stage: StageName.BUNDLE,
+            status: StageStatus.FAILED,
+            error: "Validation failed",
+          },
         },
-      } as unknown as VerbosePipelineStatus;
+      });
       const map = buildJobStepMap(status);
 
       expect(map.get("validation")?.state).toBe("fail");
@@ -169,22 +192,25 @@ describe("preflightController", () => {
     });
 
     it("maps cancelled status to fail", () => {
-      const status = {
+      const status = createPipelineStatus({
         stages: {
-          preflight: { status: "cancelled" },
+          preflight: {
+            stage: StageName.PREFLIGHT,
+            status: StageStatus.CANCELLED,
+          },
         },
-      } as unknown as VerbosePipelineStatus;
+      });
       const map = buildJobStepMap(status);
 
       expect(map.get("secrets")?.state).toBe("fail");
     });
 
     it("maps skipped status correctly", () => {
-      const status = {
+      const status = createPipelineStatus({
         stages: {
-          bundle: { status: "skipped" },
+          bundle: { stage: StageName.BUNDLE, status: StageStatus.SKIPPED },
         },
-      } as unknown as VerbosePipelineStatus;
+      });
       const map = buildJobStepMap(status);
 
       expect(map.get("validation")?.state).toBe("skipped");
@@ -193,40 +219,44 @@ describe("preflightController", () => {
 
   describe("resolveAllStepStatuses", () => {
     it("uses job step status when available", () => {
-      const jobStepById = new Map<string, BundlePreflightStep>();
-      jobStepById.set("validation", { id: "validation", name: "validation", state: "pass" });
+      const jobStepById = new Map<string, PreflightJobStep>();
+      jobStepById.set("validation", {
+        id: "validation",
+        name: "validation",
+        state: "pass",
+      });
 
       const statuses = resolveAllStepStatuses(
         jobStepById,
         false,
         null,
         true,
-        { validation: { valid: false } } as BundlePreflightResponse,
+        preflight({ validation: { valid: false } }),
         false,
-        0
+        0,
       );
 
       expect(statuses.validation.state).toBe("pass");
     });
 
     it("falls back to computed status when no job step", () => {
-      const jobStepById = new Map<string, BundlePreflightStep>();
+      const jobStepById = new Map<string, PreflightJobStep>();
 
       const statuses = resolveAllStepStatuses(
         jobStepById,
         false,
         null,
         true,
-        { validation: { valid: true } } as BundlePreflightResponse,
+        preflight({ validation: { valid: true } }),
         false,
-        0
+        0,
       );
 
       expect(statuses.validation.state).toBe("pass");
     });
 
     it("shows testing status when pending", () => {
-      const jobStepById = new Map<string, BundlePreflightStep>();
+      const jobStepById = new Map<string, PreflightJobStep>();
 
       const statuses = resolveAllStepStatuses(
         jobStepById,
@@ -235,7 +265,7 @@ describe("preflightController", () => {
         false,
         null,
         false,
-        0
+        0,
       );
 
       expect(statuses.validation.state).toBe("testing");
@@ -243,7 +273,7 @@ describe("preflightController", () => {
     });
 
     it("shows fail status on error", () => {
-      const jobStepById = new Map<string, BundlePreflightStep>();
+      const jobStepById = new Map<string, PreflightJobStep>();
 
       const statuses = resolveAllStepStatuses(
         jobStepById,
@@ -252,7 +282,7 @@ describe("preflightController", () => {
         true,
         null,
         false,
-        0
+        0,
       );
 
       expect(statuses.validation.state).toBe("fail");
@@ -261,22 +291,21 @@ describe("preflightController", () => {
 
   describe("buildPreflightSectionState", () => {
     it("builds state with missing secrets", () => {
-      const preflightResult: BundlePreflightResponse = {
-        status: "completed",
+      const preflightResult = preflight({
         validation: { valid: true },
-        ready: { ready: false, details: {} },
+        ready: { ready: false },
         secrets: [
-          { id: "API_KEY", name: "API Key", required: true, has_value: false },
-          { id: "OPTIONAL", name: "Optional", required: false, has_value: false },
+          secret({ id: "API_KEY", required: true, hasValue: false }),
+          secret({ id: "OPTIONAL", required: false, hasValue: false }),
         ],
-      } as BundlePreflightResponse;
+      });
 
       const state = buildPreflightSectionState(
         "/path/to/manifest.json",
         preflightResult,
         null,
         null,
-        false
+        false,
       );
 
       expect(state.missingSecrets).toHaveLength(1);
@@ -289,48 +318,48 @@ describe("preflightController", () => {
         null,
         null,
         null,
-        false
+        false,
       );
 
       expect(state.bundleRootPreview).toContain("my-app");
     });
 
     it("includes export payload", () => {
-      const preflightResult: BundlePreflightResponse = {
-        status: "completed",
+      const preflightResult = preflight({
         validation: { valid: true },
-      } as BundlePreflightResponse;
+      });
 
       const state = buildPreflightSectionState(
         "/manifest.json",
         preflightResult,
         null,
         null,
-        false
+        false,
       );
 
-      expect(state.exportPayload.bundle_manifest_path).toBe("/manifest.json");
+      expect(state.exportPayload.bundleManifestPath).toBe("/manifest.json");
       expect(state.exportPayload.result).toBe(preflightResult);
     });
   });
 
   describe("exportPreflightAsJson", () => {
     it("exports valid JSON string", () => {
-      const preflightResult: BundlePreflightResponse = {
-        status: "completed",
+      const preflightResult = preflight({
         validation: { valid: true },
-      } as BundlePreflightResponse;
+      });
 
       const json = exportPreflightAsJson(
         "/manifest.json",
         preflightResult,
         null,
-        []
+        [],
       );
 
       const parsed = JSON.parse(json) as Record<string, unknown>;
-      expect(parsed.bundle_manifest_path).toBe("/manifest.json");
-      const result = parsed.result as Record<string, Record<string, unknown>> | undefined;
+      expect(parsed.bundleManifestPath).toBe("/manifest.json");
+      const result = parsed.result as
+        | Record<string, Record<string, unknown>>
+        | undefined;
       expect(result?.validation?.valid).toBe(true);
     });
 
@@ -339,7 +368,7 @@ describe("preflightController", () => {
         "/manifest.json",
         null,
         "Validation failed",
-        []
+        [],
       );
 
       const parsed = JSON.parse(json) as Record<string, unknown>;
@@ -347,15 +376,12 @@ describe("preflightController", () => {
     });
 
     it("includes missing secrets", () => {
-      const json = exportPreflightAsJson(
-        "/manifest.json",
-        null,
-        null,
-        [{ id: "API_KEY", name: "API Key", required: true, has_value: false }]
-      );
+      const json = exportPreflightAsJson("/manifest.json", null, null, [
+        secret({ id: "API_KEY", required: true, hasValue: false }),
+      ]);
 
       const parsed = JSON.parse(json) as Record<string, unknown>;
-      expect(parsed.missing_secrets).toHaveLength(1);
+      expect(parsed.missingSecrets).toHaveLength(1);
     });
   });
 
@@ -378,21 +404,19 @@ describe("preflightController", () => {
     });
 
     it("returns true when preflight complete", () => {
-      const result: BundlePreflightResponse = {
-        status: "completed",
+      const result = preflight({
         validation: { valid: true },
-        ready: { ready: true, details: {} },
-        secrets: [{ id: "KEY", name: "Key", required: true, has_value: true }],
-      } as BundlePreflightResponse;
+        ready: { ready: true },
+        secrets: [secret({ id: "KEY", required: true, hasValue: true })],
+      });
 
       expect(isPreflightReadyForGeneration(result, false)).toBe(true);
     });
 
     it("returns false when preflight incomplete", () => {
-      const result: BundlePreflightResponse = {
-        status: "completed",
+      const result = preflight({
         validation: { valid: false },
-      } as BundlePreflightResponse;
+      });
 
       expect(isPreflightReadyForGeneration(result, false)).toBe(false);
     });
@@ -409,48 +433,44 @@ describe("preflightController", () => {
     });
 
     it("returns reason for failed validation", () => {
-      const result: BundlePreflightResponse = {
-        status: "completed",
+      const result = preflight({
         validation: { valid: false },
-      } as BundlePreflightResponse;
+      });
 
       const reason = getPreflightBlockingReason(result);
       expect(reason).toBe("Bundle validation failed");
     });
 
     it("returns reason for missing secrets", () => {
-      const result: BundlePreflightResponse = {
-        status: "completed",
+      const result = preflight({
         validation: { valid: true },
         secrets: [
-          { id: "KEY1", name: "Key 1", required: true, has_value: false },
-          { id: "KEY2", name: "Key 2", required: true, has_value: false },
+          secret({ id: "KEY1", required: true, hasValue: false }),
+          secret({ id: "KEY2", required: true, hasValue: false }),
         ],
-      } as BundlePreflightResponse;
+      });
 
       const reason = getPreflightBlockingReason(result);
       expect(reason).toBe("Missing 2 required secret(s)");
     });
 
     it("returns reason for not ready services", () => {
-      const result: BundlePreflightResponse = {
-        status: "completed",
+      const result = preflight({
         validation: { valid: true },
         secrets: [],
-        ready: { ready: false, details: {} },
-      } as BundlePreflightResponse;
+        ready: { ready: false },
+      });
 
       const reason = getPreflightBlockingReason(result);
       expect(reason).toBe("Services are not ready");
     });
 
     it("returns null when ready", () => {
-      const result: BundlePreflightResponse = {
-        status: "completed",
+      const result = preflight({
         validation: { valid: true },
         secrets: [],
-        ready: { ready: true, details: {} },
-      } as BundlePreflightResponse;
+        ready: { ready: true },
+      });
 
       const reason = getPreflightBlockingReason(result);
       expect(reason).toBeNull();

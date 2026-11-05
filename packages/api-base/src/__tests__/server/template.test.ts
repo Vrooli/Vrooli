@@ -12,6 +12,7 @@ import * as http from 'node:http'
 import * as fs from 'node:fs'
 import * as path from 'node:path'
 import * as os from 'node:os'
+import * as zlib from 'node:zlib'
 
 // Helper to make HTTP requests to test server
 async function makeRequest(server: Server, path: string, method: string = 'GET'): Promise<{
@@ -44,6 +45,46 @@ async function makeRequest(server: Server, path: string, method: string = 'GET')
         } catch {
           resolve({ status: res.statusCode || 500, body: body, headers: res.headers })
         }
+      })
+    })
+
+    req.on('error', reject)
+    req.setTimeout(1000, () => {
+      req.destroy()
+      reject(new Error('Request timeout'))
+    })
+    req.end()
+  })
+}
+
+async function makeRawRequest(server: Server, path: string, headers?: http.OutgoingHttpHeaders): Promise<{
+  status: number
+  body: Buffer
+  headers: http.IncomingHttpHeaders
+}> {
+  const address = server.address()
+  if (!address || typeof address === 'string') {
+    throw new Error('Server not listening')
+  }
+
+  return new Promise((resolve, reject) => {
+    const req = http.request({
+      hostname: 'localhost',
+      port: address.port,
+      path,
+      method: 'GET',
+      headers,
+    }, (res) => {
+      const chunks: Buffer[] = []
+      res.on('data', chunk => {
+        chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk))
+      })
+      res.on('end', () => {
+        resolve({
+          status: res.statusCode || 500,
+          body: Buffer.concat(chunks),
+          headers: res.headers,
+        })
       })
     })
 
@@ -748,6 +789,34 @@ describe('createScenarioServer HTTP endpoints', () => {
     }
   })
 
+  it('compresses static JavaScript assets when the client accepts gzip', async () => {
+    const source = `console.log("${'compressible '.repeat(300)}")`
+    const temp = createTempDist('<html><body>assets</body></html>', {
+      'assets/app-main-abc12345.js': source,
+    })
+
+    try {
+      const app = createScenarioServer({
+        uiPort: 33015,
+        apiPort: 8080,
+        distDir: temp.distDir,
+      })
+
+      server = app.listen(0)
+      const result = await makeRawRequest(server, '/assets/app-main-abc12345.js', {
+        'Accept-Encoding': 'gzip',
+      })
+
+      expect(result.status).toBe(200)
+      expect(result.headers['content-encoding']).toBe('gzip')
+      expect(result.headers['vary']).toContain('Accept-Encoding')
+      expect(result.headers['content-length']).toBeUndefined()
+      expect(zlib.gunzipSync(result.body).toString('utf-8')).toBe(source)
+    } finally {
+      temp.cleanup()
+    }
+  })
+
   it('caches index.html between SPA fallback requests when enabled', async () => {
     const temp = createTempDist('<html><body>version-one</body></html>')
     const originalLog = console.log
@@ -864,6 +933,139 @@ describe('createScenarioServer HTTP endpoints', () => {
 
     expect(result.status).toBe(200)
     expect(result.body).toEqual({ raw: 'hello world' })
+  })
+})
+
+describe('createScenarioServer Connect-RPC proxy', () => {
+  let uiServer: Server | null = null
+  let apiServer: Server | null = null
+  let apiPort = 0
+  const apiRequests: Array<{ method: string; url: string; body: string }> = []
+
+  beforeEach(async () => {
+    apiRequests.length = 0
+    apiServer = http.createServer((req, res) => {
+      let body = ''
+      req.on('data', (chunk) => {
+        body += chunk
+      })
+      req.on('end', () => {
+        apiRequests.push({ method: req.method || '', url: req.url || '', body })
+        // Echo back the request so the test can verify the path was forwarded
+        // unchanged and the body survived intact.
+        res.writeHead(200, { 'Content-Type': 'application/json' })
+        res.end(JSON.stringify({ receivedPath: req.url, receivedBody: body }))
+      })
+    })
+    await new Promise<void>((resolve) => {
+      apiServer!.listen(0, () => {
+        const addr = apiServer!.address()
+        if (addr && typeof addr !== 'string') {
+          apiPort = addr.port
+        }
+        resolve()
+      })
+    })
+  })
+
+  afterEach(async () => {
+    const stops: Array<Promise<void>> = []
+    if (uiServer) {
+      const s = uiServer
+      uiServer = null
+      stops.push(new Promise<void>((resolve) => s.close(() => resolve())))
+    }
+    if (apiServer) {
+      const s = apiServer
+      apiServer = null
+      stops.push(new Promise<void>((resolve) => s.close(() => resolve())))
+    }
+    await Promise.all(stops)
+  })
+
+  it('proxies Connect-RPC paths (dotted package + UpperCamel method) to the API unchanged', async () => {
+    const app = createScenarioServer({
+      uiPort: 34001,
+      apiPort,
+      distDir: './dist',
+    })
+    uiServer = app.listen(0)
+
+    const result = await postJson(
+      uiServer,
+      '/vrooli.example.v1.demo.DemoService/Echo',
+      { hello: 'world' },
+    )
+
+    expect(result.status).toBe(200)
+    expect(apiRequests).toHaveLength(1)
+    expect(apiRequests[0].method).toBe('POST')
+    expect(apiRequests[0].url).toBe('/vrooli.example.v1.demo.DemoService/Echo')
+    expect(JSON.parse(apiRequests[0].body)).toEqual({ hello: 'world' })
+    expect(result.body.receivedPath).toBe('/vrooli.example.v1.demo.DemoService/Echo')
+  })
+
+  it('still proxies legacy /api paths alongside Connect paths', async () => {
+    const app = createScenarioServer({
+      uiPort: 34002,
+      apiPort,
+      distDir: './dist',
+    })
+    uiServer = app.listen(0)
+
+    const result = await postJson(uiServer, '/api/v1/legacy', { ok: true })
+
+    expect(result.status).toBe(200)
+    expect(apiRequests).toHaveLength(1)
+    expect(apiRequests[0].url).toBe('/api/v1/legacy')
+  })
+
+  it('does not match SPA routes or non-dotted paths', async () => {
+    const temp = createTempDist('<html><body>spa</body></html>')
+    try {
+      const app = createScenarioServer({
+        uiPort: 34003,
+        apiPort,
+        distDir: temp.distDir,
+      })
+      uiServer = app.listen(0)
+
+      // Plain SPA route — no dot in first segment.
+      const spa = await makeRequest(uiServer, '/login')
+      expect(spa.status).toBe(200)
+      expect(typeof spa.body).toBe('string')
+      expect(spa.body).toContain('spa')
+
+      // Dotted first segment but lowercase second segment (asset-like).
+      const asset = await makeRequest(uiServer, '/foo.bar/baz')
+      // Falls through to SPA fallback, not proxied.
+      expect(asset.status).toBe(200)
+      expect(typeof asset.body).toBe('string')
+
+      expect(apiRequests).toHaveLength(0)
+    } finally {
+      temp.cleanup()
+    }
+  })
+
+  it('does not match static asset paths', async () => {
+    const temp = createTempDist('<html><body>x</body></html>', {
+      'assets/app-main-abc12345.js': 'console.log("ok")',
+    })
+    try {
+      const app = createScenarioServer({
+        uiPort: 34004,
+        apiPort,
+        distDir: temp.distDir,
+      })
+      uiServer = app.listen(0)
+
+      const result = await makeRequest(uiServer, '/assets/app-main-abc12345.js')
+      expect(result.status).toBe(200)
+      expect(apiRequests).toHaveLength(0)
+    } finally {
+      temp.cleanup()
+    }
   })
 })
 

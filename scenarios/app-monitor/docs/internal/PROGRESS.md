@@ -21,3 +21,8 @@
 - Removed unused legacy hooks.
 - Updated stale `ui/README.md` script commands to current `pnpm` workflow.
 - Added docs navigation manifest and internal seam/problem/progress notes.
+
+## 2026-10-28
+- Consolidated six diagnostic/document response handlers through `api/handlers/helpers.go`, preserving each endpoint's 400/404/500 mapping, original error text, and success envelope.
+- Added table coverage for missing app identifiers across scenario status, health, documents, document search, interop compliance, and completeness in `api/handlers/apps_test.go`.
+- Paired `go test -json ./handlers` baseline and candidate results matched (136 normalized events, zero failures). Scoped Test Genie run `20261028-151313-83e0a011` passed tidiness; its unit phase failed on two `services` tests requiring a running `scenario-auditor`.

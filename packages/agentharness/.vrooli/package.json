@@ -1,0 +1,23 @@
+{
+  "$schema": "schemas/package.schema.json",
+  "version": "1.0.0",
+  "package": {
+    "name": "agentharness",
+    "display_name": "github.com/vrooli/agentharness",
+    "description": "Offline coding-agent policy runtime and resource command harness.",
+    "kind": "go_runtime",
+    "language": "go",
+    "module_identifiers": ["github.com/vrooli/agentharness"],
+    "adoption": {
+      "scenario_adoptable": false,
+      "allowed_consumers": ["resource_runtime", "internal_platform"],
+      "adoption_modes": ["go_module_replace"]
+    },
+    "lifecycle": {},
+    "refresh": {
+      "strategy": "restart_running_consumers",
+      "restart_running_consumers": true
+    },
+    "docs": ["packages/agentharness/README.md", "docs/package-governance.md"]
+  }
+}

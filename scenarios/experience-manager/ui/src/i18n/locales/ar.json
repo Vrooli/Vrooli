@@ -1,0 +1,179 @@
+{
+  "_comment": "محرران للاستيفاء في هذا الملف. (1) وقت التوليد: العلامات مثل Experience Manager هي عناصر نائبة بأحرف كبيرة وفواصل تحت السطر يستبدلها `vrooli scenario generate` قبل بناء السيناريو، فتظهر في وقت التشغيل كقيم عرض حرفية. (2) وقت التشغيل: العلامات مثل {{count}} هي استيفاء i18next يُستبدل عند التصيير عبر `t(key, { count })`. المفاتيح التي تبدأ بشرطة سفلية (مثل هذا المفتاح) عناصر حارسة — يتجاهلها مولّد الكود واختبار التطابق وتدقيق المفاتيح غير المستخدمة.",
+  "app": {
+    "title": "Experience Manager",
+    "eyebrow": "قالب السيناريو",
+    "description": "واجهة المستخدم البدائية هذه بسيطة عن قصد. استبدلها بتجربة خاصة بالسيناريو مع الحفاظ على اتفاقيات التصميم (Tailwind + shadcn) وتوصيل API كما هو."
+  },
+  "layout": {
+    "sidebarLabel": "التنقل الرئيسي",
+    "bottomNavLabel": "التنقل الرئيسي",
+    "mainLabel": "المحتوى الرئيسي",
+    "nav": {
+      "fleet": "الأسطول",
+      "explorer": "المستكشف",
+      "evidence": "الأدلة",
+      "studio": "الاستوديو",
+      "findings": "الملاحظات",
+      "settings": "الإعدادات"
+    }
+  },
+  "theme": {
+    "switcherLabel": "المظهر",
+    "choice": {
+      "light": "فاتح",
+      "dark": "داكن",
+      "system": "النظام"
+    }
+  },
+  "pages": {
+    "settings": {
+      "title": "الإعدادات",
+      "themeHeading": "المظهر",
+      "localeHeading": "اللغة"
+    }
+  },
+  "experience": {
+    "common": {
+      "scenario": "السيناريو",
+      "page": "الصفحة",
+      "depth": "العمق",
+      "debt": "الدين",
+      "status": "الحالة",
+      "claims": "الادعاءات",
+      "tier": "المستوى",
+      "viewEvidence": "عرض الدليل"
+    },
+    "fleet": {
+      "title": "الأسطول",
+      "description": "دين التجربة عبر السيناريوهات بترتيب الأسوأ أولاً، مع إظهار العمق والتغطية قبل التفاصيل.",
+      "depthLabel": "عمق الأسطول",
+      "specCoverage": "تغطية المواصفة",
+      "depthDistribution": "توزيع العمق",
+      "refresh": "تحديث المسح",
+      "tableLabel": "دين التجربة",
+      "pagesTracked": "{{count}} صفحات قيد التتبع",
+      "loadingData": "جارٍ تحميل بيانات الأسطول",
+      "emptyFleet": "لم يتم العثور على سيناريوهات تحتوي على مواصفات تجربة. أضف مجلد experience/ لبدء تتبع الدين.",
+      "loadError": "تعذر تحميل مسح الأسطول.",
+      "staleData": "بيانات مسح الأسطول أقدم من نافذة الحداثة.",
+      "filterStatus": "تصفية الحالة",
+      "filterAll": "كل الحالات",
+      "filterFindings": "نتائج",
+      "filterClean": "نظيف",
+      "sortBy": "فرز حسب {{column}}"
+    },
+    "explorer": {
+      "title": "مستكشف السيناريو",
+      "description": "الصفحات والحالات والفجوات والادعاءات ومسارات الانتقال المعلنة لسيناريو واحد.",
+      "gridLabel": "الصفحات حسب الحالة",
+      "gapsLabel": "فجوات التغطية",
+      "openStudio": "فتح في الاستوديو",
+      "claimsLabel": "الادعاءات",
+      "defaultState": "الافتراضية",
+      "emptyState": "الفارغة",
+      "staleState": "القديمة",
+      "loadingSpec": "جارٍ تحميل مواصفة السيناريو",
+      "emptySpec": "لا توجد صفحات معلنة في مواصفة التجربة هذه",
+      "loadError": "تعذر تحميل مواصفة السيناريو.",
+      "emptyGap": "أضف مواصفة صفحة قبل ترتيب الفجوات.",
+      "staleData": "بيانات المواصفة أقدم من نافذة الحداثة.",
+      "summary": "{{claims}} ادعاءات machine عبر {{pages}} صفحات.",
+      "refreshing": "جارٍ التحديث",
+      "loadingClaims": "جارٍ تحميل الادعاءات",
+      "emptyClaims": "لا توجد ادعاءات من مستوى machine."
+    },
+    "evidence": {
+      "title": "الأدلة",
+      "description": "أدلة اللقطة وشجرة إمكانية الوصول لكل حكم.",
+      "captureLabel": "لقطة الصفحة",
+      "treeLabel": "شجرة إمكانية الوصول",
+      "verdictsLabel": "أحكام الادعاءات",
+      "recapture": "إعادة الالتقاط",
+      "refreshing": "جارٍ التحديث",
+      "loadingEvidence": "جارٍ تحميل الأدلة",
+      "emptyEvidence": "لا توجد أدلة لقطة محفوظة لهذه الصفحة بعد. تُسجل عمليات تخطي BAS كدليل وليست فشلاً.",
+      "emptyVerdicts": "لم تُحفظ أي أحكام لهذه الصفحة بعد.",
+      "emptyTree": "اختر حكماً يحتوي على حمولة عقدة إمكانية الوصول لفحص الشجرة.",
+      "loadError": "تعذر تحميل الأدلة.",
+      "staleEvidence": "هذا الدليل أقدم من نافذة الحداثة.",
+      "captureReference": "مرجع اللقطة"
+    },
+    "studio": {
+      "title": "الاستوديو",
+      "description": "تأليف المواصفة في نموذج بجانب معاينة حتمية ومسار للبدائل.",
+      "formLabel": "محرر المواصفة",
+      "validationLabel": "ملخص التحقق",
+      "validationCopy": "لا توجد ملاحظات عقد في المسودة الحالية.",
+      "wireframeLabel": "معاينة الإطار السلكي",
+      "variantsLabel": "البدائل",
+      "save": "حفظ المواصفة",
+      "saving": "جارٍ الحفظ…",
+      "promote": "ترقية البديل",
+      "pageTitle": "عنوان الصفحة",
+      "defaultPage": "الأسطول",
+      "defaultClaim": "يظهر جدول دين التجربة كجدول حقيقي له اسم قابل للوصول.",
+      "emptyClaim": "صف الادعاء الذي يجب أن تثبته هذه الصفحة.",
+      "loadingSpec": "جارٍ تحميل صفحات المواصفة…",
+      "emptySpec": "لا توجد مواصفات صفحات متاحة.",
+      "loadError": "تعذر تحميل مواصفة الاستوديو.",
+      "loadingPreview": "جارٍ عرض المعاينة…",
+      "emptyPreview": "اختر صفحة لعرض معاينة الإطار السلكي.",
+      "emptyVariants": "لا توجد بدائل معروضة بعد.",
+      "variantError": "تعذر عرض البدائل.",
+      "evidenceForwardVariant": "الأدلة أولاً",
+      "suggestionsLabel": "اقتراحات الربط",
+      "loadingSuggestions": "جارٍ تحميل الاقتراحات…",
+      "emptySuggestions": "لا توجد اقتراحات ربط متاحة بعد."
+    },
+    "findings": {
+      "title": "الملاحظات والإصلاحات",
+      "description": "اختلافات التجربة مع روابط الأدلة وإصلاحات تبدأ بالمعاينة قبل التطبيق.",
+      "listLabel": "ملاحظات التجربة",
+      "preview": "معاينة الإصلاح",
+      "apply": "تطبيق الإصلاح",
+      "loadingFindings": "جارٍ تحميل الملاحظات",
+      "emptyFindings": "لا توجد ملاحظات تجربة حالياً.",
+      "loadError": "تعذر تحميل الملاحظات.",
+      "fixPreviewLabel": "معاينة الإصلاح",
+      "previewEmpty": "عاين الإصلاحات الحتمية قبل تطبيقها.",
+      "previewError": "فشلت معاينة الإصلاح.",
+      "applyError": "فشل تطبيق الإصلاح.",
+      "providerMaturity": "نضج المزوّد",
+      "providerLoading": "جارٍ تحميل ملخص نضج المزوّد…",
+      "providerUnavailable": "ملخص النضج المشترك للمزوّد غير متاح. يظل تقرير التجربة الأصلي متاحًا.",
+      "providerHistorical": "أعاد المزوّد عقد عرض تاريخيًا أو غير مدعوم ({{version}})؛ لم يُنشأ ملخص نضج بديل.",
+      "providerContract": "عقد العرض المقدم من المزوّد {{version}}",
+      "providerNorthStar": "الهدف الأسمى:",
+      "providerNextAction": "الإجراء التالي:",
+      "providerCapabilities": "نضج قدرات المزوّد",
+      "providerDocumentation": "التوثيق: {{topics}}"
+    }
+  },
+  "errors": {
+    "canceled": "Operation canceled.",
+    "unknown": "An unknown error occurred.",
+    "invalid_argument": "Invalid input: {{message}}",
+    "deadline_exceeded": "Operation timed out.",
+    "not_found": "Resource not found.",
+    "already_exists": "Already exists.",
+    "permission_denied": "Permission denied.",
+    "resource_exhausted": "Resource limit reached.",
+    "failed_precondition": "Cannot perform this action: {{message}}",
+    "aborted": "Operation aborted.",
+    "out_of_range": "Out of range.",
+    "unimplemented": "Not yet implemented.",
+    "internal": "Something went wrong. Please try again.",
+    "unavailable": "Service temporarily unavailable.",
+    "data_loss": "Data loss detected.",
+    "unauthenticated": "Please sign in to continue."
+  },
+  "locale": {
+    "switcherLabel": "اللغة"
+  },
+  "errorBoundary": {
+    "title": "حدث خطأ ما",
+    "message": "حدث خطأ غير متوقع أثناء عرض الصفحة. حاول مرة أخرى، أو أعد تحميل الصفحة إذا استمرت المشكلة.",
+    "retry": "إعادة المحاولة"
+  }
+}

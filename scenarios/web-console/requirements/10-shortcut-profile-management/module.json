@@ -1,83 +1,85 @@
 {
-  "description": "Shortcut catalog is configuration-driven (service/workspace/parent context) rather than hardcoded UI constants",
-  "module_id": "MOD-P1-010",
-  "prd_ref": "OT-P1-002",
-  "priority": "P1",
+  "_metadata": {
+    "last_validated_at": "2026-08-26T09:02:31-04:00"
+  },
   "requirements": [
     {
-      "category": "core",
-      "children": ["REQ-P1-002b"],
-      "description": "Shortcut profiles stored in-memory with service/workspace/parent scope hierarchy. API supports CRUD for shortcut profiles with scope-based resolution.",
       "id": "REQ-P1-002a",
-      "prd_ref": "OT-P1-002",
-      "status": "passed",
       "title": "Shortcut Profile Storage",
-      "validation": [
-        {
-          "notes": "Test CRUD operations for profiles — shortcut_profiles_test.go (16 tests) + shortcut-profiles.test.ts (8 tests)",
-          "phase": "unit",
-          "ref": "api/shortcut_profiles_test.go",
-          "status": "passing",
-          "type": "test"
-        },
-        {
-          "notes": "Config resolution <50ms — BenchmarkEffectiveShortcuts in shortcut_profiles_test.go",
-          "phase": "performance",
-          "ref": "api/shortcut_profiles_test.go:BenchmarkEffectiveShortcuts",
-          "status": "passing",
-          "type": "test"
-        }
-      ]
-    },
-    {
-      "category": "ui",
-      "children": ["REQ-P1-002b-i"],
-      "description": "TerminalLauncher fetches effective shortcuts from API on open, falling back to DEFAULT_SHORTCUTS. Scope hierarchy resolution happens server-side.",
-      "id": "REQ-P1-002b",
+      "status": "in_progress",
       "prd_ref": "OT-P1-002",
-      "status": "passed",
-      "title": "Shortcut Profile Management UI",
+      "category": "core",
+      "description": "Shortcut profiles stored in-memory with service/workspace/parent scope hierarchy. API supports CRUD for shortcut profiles with scope-based resolution.",
+      "children": [
+        "REQ-P1-002b"
+      ],
       "validation": [
         {
-          "notes": "Verify API-driven shortcuts fetch + fallback — launcher.test.ts, shortcut-profiles.test.ts",
-          "phase": "integration",
-          "ref": "ui/src/__tests__/shortcut-profiles.test.ts",
-          "status": "passing",
-          "type": "test"
-        },
-        {
-          "notes": "All shortcuts configurable via PUT /api/v1/shortcuts/profiles — API CRUD tests",
-          "phase": "business",
-          "ref": "api/shortcut_profiles_test.go:TestHandleUpsertShortcutProfile",
-          "status": "passing",
-          "type": "test"
-        },
-        {
-          "notes": "SettingsPage renders profiles, dirty tracking, save/delete/create, error recovery with refetch",
+          "type": "test",
+          "ref": "api/shortcut_profiles_test.go",
           "phase": "unit",
-          "ref": "ui/src/__tests__/settings-page.test.tsx",
-          "status": "passing",
-          "type": "test"
+          "status": "failing",
+          "notes": "Test CRUD operations for profiles — shortcut_profiles_test.go (16 tests) + shortcut-profiles.test.ts (8 tests)"
+        },
+        {
+          "type": "test",
+          "ref": "api/shortcut_profiles_test.go:BenchmarkEffectiveShortcuts",
+          "phase": "performance",
+          "status": "failing",
+          "notes": "Config resolution \u003c50ms — BenchmarkEffectiveShortcuts in shortcut_profiles_test.go"
         }
       ]
     },
     {
+      "id": "REQ-P1-002b",
+      "title": "Shortcut Profile Management UI",
+      "status": "in_progress",
+      "prd_ref": "OT-P1-002",
+      "category": "ui",
+      "description": "TerminalLauncher fetches effective shortcuts from API on open, falling back to DEFAULT_SHORTCUTS. Scope hierarchy resolution happens server-side.",
+      "children": [
+        "REQ-P1-002b-i"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "ui/src/__tests__/terminal-launcher.test.tsx",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Terminal launcher fetches effective shortcuts from the API and falls back to defaults on failure"
+        },
+        {
+          "type": "test",
+          "ref": "api/shortcut_profiles_test.go:TestHandleUpsertShortcutProfile",
+          "phase": "business",
+          "status": "implemented",
+          "notes": "All shortcuts configurable via PUT /api/v1/shortcuts/profiles — API CRUD tests"
+        },
+        {
+          "type": "test",
+          "ref": "ui/src/__tests__/settings-page.test.tsx",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "SettingsPage renders profiles, dirty tracking, save/delete/create, error recovery with refetch"
+        }
+      ]
+    },
+    {
+      "id": "REQ-P1-002b-i",
+      "title": "Fallback Shortcut Resolution",
+      "status": "in_progress",
+      "prd_ref": "OT-P1-002",
       "category": "ui",
       "description": "When API shortcut fetch fails, launcher falls back to DEFAULT_SHORTCUTS defined in consts/shortcuts.ts without error display.",
-      "id": "REQ-P1-002b-i",
-      "prd_ref": "OT-P1-002",
-      "status": "passed",
-      "title": "Fallback Shortcut Resolution",
       "validation": [
         {
-          "notes": "Default shortcuts exported with correct entries",
-          "phase": "unit",
+          "type": "test",
           "ref": "ui/src/__tests__/shortcuts.test.ts",
-          "status": "passing",
-          "type": "test"
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Default shortcuts exported with correct entries"
         }
       ]
     }
-  ],
-  "title": "Shortcut Profile Management"
+  ]
 }

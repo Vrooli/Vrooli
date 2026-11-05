@@ -1,0 +1,16 @@
+# A 3D controller (PCI class 0x0302, no display output) with no driver bound:
+# no kernel module has claimed it, so it exposes no DRM node. It is still a
+# graphics-class device and must be enumerated, with an empty driver.
+
+>>> file devices/pci0000:00/0000:00:03.0/uevent
+DRIVER=pcieport
+PCI_CLASS=60400
+PCI_SLOT_NAME=0000:00:03.0
+
+>>> file devices/pci0000:00/0000:00:03.0/0000:04:00.0/uevent
+PCI_CLASS=30200
+PCI_ID=10DE:20B5
+PCI_SLOT_NAME=0000:04:00.0
+
+>>> file devices/pci0000:00/0000:00:03.0/0000:04:00.0/class
+0x030200

@@ -1,0 +1,60 @@
+{
+  "kind": "unaided-agent-baseline-set",
+  "purpose": "The control side of the blind comparison: one capable agent, one call per draft, same model and same brief as the scenario path, without any Prose Studio machinery. Several drafts because one sample of a stochastic writer is not its behaviour.",
+  "generated_at": "2026-08-19T05:31:50Z",
+  "subject": "How Vrooli's server-owned test runs make long-running validation durable",
+  "gateway_role": "write.default",
+  "draft_count": 3,
+  "drafts": [
+    {
+      "path": "evals/baselines/unaided-agent-draft-1.md",
+      "sha256": "c5ca8d5a48b6a96259f829910ab2523120a872365ace4cecc32cc6ff8ded7819",
+      "word_count": 920,
+      "cost_micros": 5898,
+      "provider": "openrouter",
+      "model": "google/gemini-3.7-flash",
+      "draws": 1,
+      "discarded_draws": []
+    },
+    {
+      "path": "evals/baselines/unaided-agent-draft-2.md",
+      "sha256": "3f46b1053627027fe666dcdac8cadf1066a67db015e449401a3753f0c8942903",
+      "word_count": 911,
+      "cost_micros": 4560,
+      "provider": "openrouter",
+      "model": "google/gemini-3.7-flash",
+      "draws": 1,
+      "discarded_draws": []
+    },
+    {
+      "path": "evals/baselines/unaided-agent-draft-3.md",
+      "sha256": "a36e8ce2961873aa1077642271053d3e69642f5f59b7d35cf593f3d9f4fbde73",
+      "word_count": 1023,
+      "cost_micros": 5463,
+      "provider": "openrouter",
+      "model": "google/gemini-3.7-flash",
+      "draws": 1,
+      "discarded_draws": []
+    }
+  ],
+  "evidence_source": "evals/baselines/server-owned-test-runs.md",
+  "evidence_sha256": "ff6a0f599eec8d6a293fe355b0f04849d7fbd478b6a116a8b31e768407e7b0df",
+  "artifacts": [
+    "vrooli scenario test -- starts a scenario suite and returns once the run is registered",
+    "test-genie runs wait --json -- blocks once on a server-owned run",
+    "the documented alternative to polling",
+    "vrooli scenario test abort -- ends the run itself, as opposed to cancelling the client",
+    "docs/TESTING.md -- the protocol this article summarises"
+  ],
+  "machinery_withheld": [
+    "outline stage",
+    "section decomposition",
+    "candidate set",
+    "deterministic measurement",
+    "eligibility gating",
+    "selection policy",
+    "reroll under negative conditioning",
+    "coherence repair"
+  ],
+  "instruction": "You are an experienced engineer writing a dev-log post for your company's engineering blog. Write in first person with a builder's voice grounded in shipped work. Explain why the change matters, not only what changed. Use a hook, an introduction, a body, and a conclusion, with short paragraphs. Introduce any internal system name by translating its purpose for the reader before you rely on it.\n\nWrite the best article you can. Aim for roughly 1250 words, and no fewer than 900.\n\nUse only factual claims supported by the evidence brief below. Do not invent metrics, infrastructure, failure incidents, or outcomes. Every number, command, path, and identifier you write must appear either in the brief or in the artifact list below; anything else is invention. Show the artifacts rather than describing them: quote them verbatim inside the sentence that explains what they do.\n\nArtifacts: vrooli scenario test -- starts a scenario suite and returns once the run is registered; test-genie runs wait --json -- blocks once on a server-owned run; the documented alternative to polling; vrooli scenario test abort -- ends the run itself, as opposed to cancelling the client; docs/TESTING.md -- the protocol this article summarises\n\nEvidence claims to cover: test-genie owns a scenario test run after the command returns; operators start the suite, record its run identifier, and wait once on the server-owned run; a cancelled client is not the same thing as an aborted run\n\nEvidence brief:\n# Durable validation is a product capability\n\nVrooli's test-genie owns a scenario test run after the command returns. That matters when a suite takes longer than an agent session: the run keeps its identity, logs, and result instead of disappearing with the caller.\n\nThe workflow is simple. Start the scenario suite, record the run identifier, and wait once on the server-owned run. A cancelled client is not the same thing as an aborted run. This gives operators durable evidence for long-running validation and makes a later handoff possible.\n\nThe distinction is operational, not cosmetic. A system that treats every disconnected terminal as a failed test loses the difference between infrastructure interruption and a product defect. Server-owned runs preserve that distinction so the next operator can inspect the evidence and make a grounded decision.\n\nThe result is a control plane that can improve itself without asking every agent to stay attached to a terminal. Durable runs turn waiting into a governed capability: the work continues, the evidence remains addressable, and the final decision can be made from the same record that produced it.\n\nReturn the article as prose only, with no preamble, no title block, and no commentary about the task."
+}

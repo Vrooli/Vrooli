@@ -1,0 +1,507 @@
+﻿Personal Planner Design and Readiness Review
+Evidence grounded review candidate 1
+Oct 2, 2026 · Owner review pending
+Recommendation and current answer
+Keep the Observatory direction and concentrate the next implementation decision on a trustworthy daily loop. The current product is more than a visual shell: synthetic work capture persisted, an Open timer session survived pause and reopening, and its ended state, active time and note were independently read from the isolated database. But the ordinary path is not ready to rely on. Default Countdown cannot start, and accepting a feasible placement hangs without saving. A well-presented forecast or capacity card cannot compensate for those failures.
+The strongest next design makes the next useful action obvious, distinguishes accepted facts from drafts, and gives saving and recovery the same care as the scenic interface. Retain the expressive typography, calm palette and observatory setting. Reduce large instructional banners, restore useful content above the phone fold, keep completion attached to the task/session it affects, and show precise status rather than generic reassurance.
+This dossier separates observed runtime, current source diagnosis, accepted product requirements and proposed design. Proposed screens are synthetic and unimplemented. The owner released the investigation and private design-document work; that is not approval of these pixels or behavior, permission to implement the proposals, or certification of R1. The scope is one coherent review, with testing, design and reusable capability learning inside it.
+Two bounded runtime sweeps now establish eight concrete defects and a complete P01–P42 disposition inventory. The second sweep operated fifteen BAS flows, including failed attempts retained as evidence. This candidate incorporates those results; independent substantive and visual critique informed the revisions; exact delivery checks are recorded with the final artifact. Product readiness remains blocked, while the reusable access/testing capability is established within its documented scope.
+Expanded scope review: open Integrated planning and calendar repair proposal for calendars, goals and deadlines, project work, actuals, forecasts and learning, with the current evidence and implementation decision. Earlier D1–D7 design choices remain open.
+________________
+
+
+Contents and review route
+Recommendation and current answer
+A short route through the decisions
+What the current product actually demonstrated
+The two primary runtime defects
+The broader second sweep
+Observatory continuity and the main design gap
+Proposed Today and phone behavior
+Placement and saving as a coherent experience
+Focus is a session and a task is a result
+Review should make the next plan easier
+Commitments capacity and wider product rules
+Reusable access testing and evidence return
+Coverage and remaining acceptance
+Sources and exact review basis
+Critique and revision record
+________________
+
+
+A short route through the decisions
+Start with the observed daily loop, then inspect the Today and mobile proposals, placement recovery, and Focus wrap-up. The whole-product coverage inventory and reusable access guide are available afterward. The following choices organize review without requiring approval of the entire dossier at once.
+Choice
+	Recommendation
+	Why it matters
+	What stays open
+	D1 First usable outcome
+	Make capture, accepted placement, focus/actuals, review and reopen reliable before expanding assistance
+	Placement currently blocks the coherent daily loop
+	A separate implementation release and regression evidence
+	D2 Today hierarchy
+	One dominant next action, explicit capacity scope, compact commitment context, truthful timeline and phone agenda
+	Current action detachment and phone empty-state order obscure what to do
+	Exact visual acceptance and measured responsive behavior
+	D3 Saving and recovery
+	Treat uncertain submission as a first-class state with retained input and a status check
+	A spinner without outcome encourages duplicate attempts
+	Supported status lookup and command/idempotency semantics
+	D4 Session completion
+	Show concise Done, More to do and Blocked wrap-up after ending; preserve independently entered remaining effort
+	Current note capture does not complete the intended learning loop
+	More to do, Blocked and remaining-effort correction were not reachable; exact interaction remains a proposal
+	D5 Capacity language
+	Separate usable time, planned occupancy, reserve, spare budget and unknown demand
+	Blank space and reserve are easily mistaken for free capacity
+	Current kernel/UI parity after placement becomes testable
+	D6 First-use and no-fit states
+	Capture first when empty; explain fragmentation when no continuous interval fits
+	Empty data and impossible fit require different next actions
+	Owner preference between proposed presentation variants
+	D7 Product breadth
+	Preserve the full R1 requirements but stage work around the reliable daily loop
+	Forty-two coverage families are not forty-two immediate implementation jobs
+	Provider, sharing, portability and full release gates remain separate
+	
+
+None of these recommendations changes an accepted source rule. D1 is a proposed next implementation focus; the completed investigation remains distinct from any future implementation. Choosing a design does not automatically authorize applying it to code or live data.
+What the current product actually demonstrated
+The local investigation used swarminator, repository HEAD 6173505a87cb9a32e888bb049450fa86231221ac and served build SHA256 2953bcaf487fec9d7eb4a6e86a0a235e00f4490703c06ce657dd9fb9a1e38620. The shared working tree was dirty, so HEAD is a source anchor rather than proof that every running byte matches that commit. The first-pass observation receipt was recorded at 04:48:48 UTC.
+The live product used API 17604, UI 20003 and its existing populated database. The isolated shadow used API 17778, UI 24816 and a separate SQLite path/namespace. Process environment, open database handles and the UI’s actual upstream were checked before synthetic writes. The public secured domain remained live and read-only. No test-header write was used.
+Journey
+	Observed result
+	Evidence and limit
+	Capture a 45 minute task
+	One synthetic task persisted and reopened
+	Work ID 38e91bee-32f8-48dd-92a6-efffcc7da788; actual database readback
+	Cancel another draft
+	No second task was created
+	At the end of the first sweep, shadow work count remained one; broad body-text assertions alone were discarded
+	Preview and accept placement
+	Preview was feasible; Accept stayed pending and no allocation persisted
+	Failed BAS execution e0a45fc2-687a-4222-a33a-f28720f0ef39, local Chrome reproduction and independent CLI timeout
+	Start default Countdown
+	HTTP 400 invalid_argument with no visible error
+	Client sends countdown; service accepts open, pomodoro, timed or untimed
+	Start Open timer
+	One running session was created
+	Verified local fallback, then BAS flow c4b066df-6b32-40c2-b9d4-367e89368f75
+	Pause twice and reopen
+	One pause event; paused state survived reopening
+	Data conservation passed; a contradictory-looking failure message appeared after the second click
+	Resume, end and note
+	Ended revision 4, 55 active seconds and 65 wall seconds; note persisted
+	One session and one note; task remained open with 45 minutes remaining
+	Review
+	One session and unknown unrecorded time were shown; stored note/reason content rendered blank
+	Persistence passed, display failed; 55 seconds rounded down to 0 minutes
+	Wider behavior
+	Fifteen-flow second sweep completed with scoped passes and failures
+	Capture, Goals, reversible settings, themes, keyboard, history and 360-pixel routes; no full family or R1 pass
+	
+
+Corrected local runbook and receipt
+First pass original evidence bundle
+Original observed Focus recording
+The 17-step BAS flow is evidence of a bounded executed sequence, not an unqualified UX pass. It began with an already running session, and independent database observations establish the material effects. The complete requested planning loop remains blocked at placement. The successful focus branch does not validate split conservation, accepted-capacity arithmetic or the missing More to do path.
+The two primary runtime defects
+PP UX 01 Default focus start fails silently
+The visible default is Countdown. Start focus sends mode=countdown, while focus/service.go accepts open, pomodoro, timed and untimed. Independent API feedback was “mode: must be open, pomodoro, timed, or untimed.” Repeated UI attempts created no session. Local Chrome reproduced the failure without a visible error or accessibility-state change. Source inspection found no start-card mutation error renderer; error copy was nested under the existing-session branch.
+Severity is high because the primary default action cannot achieve its outcome and the interface does not explain why. The Open timer workaround is verified, but it is not a fix or permission to hide the broken option. A proposed repair must reconcile the user-facing name with the supported domain mode, show pending/canonical/error states in every entry branch, retain the selected task and mode after failure, and test all supported start paths. That repair remains unimplemented by this investigation.
+PP UX 02 Placement acceptance never establishes an outcome
+A synthetic 45-minute placement preview at 09:00 was feasible. Accept remained Placing or Checking, and allocations stayed empty. A separate shadow CLI call with proposal 7a1fa32d-f675-44eb-93a5-c623d3390071, revision 1 and a unique idempotency key timed out after eight seconds without output. Both BAS and local Chrome observed the pending state. The final database receipt contained no accepted allocation.
+Severity is high because it prevents the daily plan from becoming an accepted fact and blocks downstream capacity/split validation. The source diagnosis is a hypothesis, not a proven stack trace: the application configures one open SQLite connection; ApplyProposal starts a transaction and calls a routine lookup through the database outside that transaction. Waiting for a connection already held by the same transaction could explain the hang. A separately authorized repair should inspect transaction-bound reads and verify the full command/recovery contract.
+The UI recommendation is broader than changing a spinner. Preserve entered values, identify an uncertain submission, and reconcile the command outcome before inviting another write. A client timeout is not proof that the server did nothing. The proposed recovery screen below expresses that distinction.
+ Observed shadow Plan during the failed placement. Two pending controls, no accepted allocation and no useful recovery explanation. This original capture is runtime evidence, not the proposed design. 
+
+Observed shadow Plan during the failed placement. Two pending controls, no accepted allocation and no useful recovery explanation. This original capture is runtime evidence, not the proposed design.
+The broader second sweep
+The second preflight at 05:06:36 UTC verified the same source/build, shadow process/SQLite handle, UI 24816 → API 17778 and healthy BAS shadow 15372. No restart was needed. The served work API remained responsive after blocked list calls were cancelled. The manifest and report finalized the bounded 05:06–05:30 sweep and subsequent exact-feedback review; the live tunnel was healthy at 05:44. The local specification freshly matched the recovered 194,794-byte plan hash.
+The operator created and reopened a native goal, edited its target date, cancelled another goal draft with focus returning to New goal, exercised repeated invalid timezone errors then saved 450 minutes and restored 480, switched Day/Night on the same data, tested art-free and reduced scenery, selected every Plan projection and both Review periods, followed browser Back/Forward/reload, and operated the shell with keyboard focus and capture cancellation. All six main destinations were captured at 360 × 800 with no document-level horizontal overflow; nested scrolling and all hit targets were not fully measured.
+Failures and tool friction remain in the result. Double Save created two identical name-only tasks. A milestone was stored but its populated list hung. Invalid 1445-minute capture was rejected without a persisted row; an ambiguous Close selector hit the backdrop, and a Ctrl spelling was unsupported by BAS. Corrected scoped/label/modifier routes were then tested. These automation mistakes are not product defects and the original failed runs remain discoverable.
+A critical containment lesson is that visiting Settings initialized a default shadow planning profile. A read-looking page can have an implicit effect. The verified live read-only evidence concerns the observed Today route; no claim is made that every live page is mutation-free. BAS browser timezone was America/New_York while the profile was UTC. Same visible date in this observation does not validate timezone or DST behavior.
+Native 200 percent zoom shortcuts did not change viewport, DPR or scale. The 720 × 450 capture is explicitly an effective-reflow approximation, not a genuine zoom test. Full contrast, screen-reader, trap behavior, crowded/DST geometry, offline injection, provider/sharing/notification/import/restore/security tests remain unverified or outside the safe facilities used.
+Second sweep exact report and evidence
+Finding
+	Observed consequence
+	Severity and proposed response
+	PP UX 03 Repeated Save duplicates work
+	Two open name-only rows share title and creation instant; no allocation was created
+	Medium. Guard one submission intent with a stable command identity and canonical result, not only a disabled button
+	PP UX 04 Duration validity contradicts default 45
+	min 1 and step 5 make 45 natively invalid, nearest 41/46; preview still succeeded
+	Low. Align semantic units/defaults/constraints. It is not the cause of the acceptance hang
+	PP UX 05 Milestone persists but cannot be listed
+	One milestone exists; UI remains loading and independent list read times out after 6 seconds
+	High. Investigate transaction/connection lifetime; distinguish saved record from failed list and prohibit blind duplicate creation
+	PP UX 06 Reflection content renders blank
+	REST returns Note/Reason-style fields; UI reads note/reason; stored content survives
+	Medium. Normalize the contract and test actual rendered values, not only save acknowledgment
+	PP UX 07 Duplicate Pause feedback is ambiguous
+	First 200 saves revision 2; second 409 rejects revision 1; one pause event
+	Medium. Reconcile to paused and explain the repeated request without implying the successful save was lost
+	PP UX 08 Guidance mismatches the selected mode
+	New draft selects Countdown while fixed text describes Open timer; ended server mode stays open
+	Low. Derive guidance from the selected draft mode and label the previous session separately
+	
+
+Each proposed response above is unimplemented. It addresses the observed user impact without claiming a verified root cause where only a source hypothesis exists. PP-UX-01, 02 and 05 are the strongest barriers to ordinary reliable use; duplicate capture and hidden reflection content also deserve early correction in the same bounded follow-up implementation decision.
+Observatory continuity and the main design gap
+The accepted direction has a clear identity: an expressive serif date, narrow navigation, one prominent next action, quieter capacity/commitment information, a truthful time horizon and a scenic place that remains in the background. The observed runtime retains meaningful parts of that direction. It should not be dismissed as a generic dashboard merely because it needs substantial interaction repair.
+The working screens nevertheless spend considerable space describing their own intentions. “A day you can keep,” “A truthful look back,” large Signals/learning banners and repeated explanation panels compete with the actual task. The most valuable content is the action, the relevant numbers, what changed and what can be done next. Retain the necessary explanation through short local labels and progressive disclosure; avoid turning every screen into an instruction sheet.
+The detached Mark complete button below the next-action surface weakens the relationship between action and object. The runtime’s capacity uses available and breathing room without a nearby decomposition; this invites a mistaken reading that all blank or unallocated time is spare. The proposed Today design keeps the principal action inside its task card, places secondary actions in context and explicitly labels whole-day capacity. Detailed calculation belongs one step away, not in an ambiguous third total.
+ Selected historical Today day reference. Exact pixels and source hash are preserved. Its illustrative arithmetic, geometry and slogans are not behavioral authority, and exact historical image-revision approval remains unknown. 
+
+Selected historical Today day reference. Exact pixels and source hash are preserved. Its illustrative arithmetic, geometry and slogans are not behavioral authority, and exact historical image-revision approval remains unknown.
+________________
+
+
+ Observed live Today through the existing secured cloud route, captured read-only at 04:43 UTC. Private task content is visible only in this owner-only review. This establishes presentation at one instant, not the behavior of its controls or data provenance. 
+
+Observed live Today through the existing secured cloud route, captured read-only at 04:43 UTC. Private task content is visible only in this owner-only review. This establishes presentation at one instant, not the behavior of its controls or data provenance.
+Proposed Today and phone behavior
+The selected fixture is deliberately checkable. Availability from 09:00 to 17:00 is 480 minutes. Overlapping meetings occupy a 90-minute union; protected lunch occupies 60 minutes; transitions occupy 30 minutes. Usable time is 300 minutes. A 60-minute reserve leaves 240 allocatable. Timed occupancy of 120 plus 90 assigned without a time gives 210 planned and 30 spare. “Unallocated room” would be 90, but 60 of it is reserve. The screen uses 5 h usable, 3 h 30 planned, 1 h reserve and 30 min spare, all explicitly scoped to the whole day.
+Draft field notes has a 30-minute accepted session from 11:30 to 12:00. The session objective is Outline three observations. Start focus starts that session; it does not silently reschedule other work, complete the task or claim that every minute will be active work. Task details exposes status/history and completion. Choose another task changes the recommendation, not the accepted schedule. Global Capture remains quiet so Start focus is the dominant action.
+The generated timeline is a layout concept, not an exact pixel-geometry acceptance specimen. Its 30/60/90-minute blocks are approximately proportional but do not pass a measured 1:2:3 geometry gate. The implementation contract is exact: at a shared scale, widths derive from elapsed instants; label wrapping never changes occupied duration. This limitation must be corrected in an implementation or precise native-design specimen before visual acceptance. The accessible agenda and numeric labels retain the intended values. The precise timeline specimen below provides the numerical contract separately from the generative mockup.
+The original agenda-first alternative is retained for comparison. It improves immediate reading but removes the desktop time geometry required by the current specification. Recommendation: retain the timeline on desktop and expose an agenda/list alternative; use agenda as the primary phone experience. Adopting agenda-first desktop would be a visible product decision, not a silent substitution.
+Agenda alternative retained for review
+Empty and no fit are different states
+Empty first use should not require a goal hierarchy or optional integration. Capture a task and optionally set availability; an unconfigured calendar is not zero capacity and not a guaranteed workday. Spontaneous untimed focus is a legitimate separate action, with optional classification afterward. Where the current implementation cannot support it, show that prerequisite instead of an enabled dead end.
+For no-fit, name the constraint and the next permitted choice. “No continuous window fits” can be proven for the displayed gaps and unsplittable demand. A solver failing to find a complex schedule is a different result and should say so. Review smaller sessions proposes a policy/placement change and previews consequences; it does not silently relax the task’s constraints.
+ Proposed Today desktop and phone, version 2. Synthetic scenario; unimplemented and unreviewed by the owner. Desktop retains a short horizontal time horizon, while phone uses a vertical agenda. Both depict the same task, objective, session, capacity figures and dated demand. The phone still needs persistent timezone context beside its agenda before visual acceptance. 
+
+Proposed Today desktop and phone, version 2. Synthetic scenario; unimplemented and unreviewed by the owner. Desktop retains a short horizontal time horizon, while phone uses a vertical agenda. Both depict the same task, objective, session, capacity figures and dated demand. The phone still needs persistent timezone context beside its agenda before visual acceptance.
+________________
+
+
+ Exact synthetic elapsed-time specimen: 30, 60 and 90 minutes share one scale, so their widths are 1:2:3. It validates this diagram’s geometry only; it does not validate the running Planner timeline. 
+
+Exact synthetic elapsed-time specimen: 30, 60 and 90 minutes share one scale, so their widths are 1:2:3. It validates this diagram’s geometry only; it does not validate the running Planner timeline.
+ Observed 390 by 844 shadow Today in an empty workspace. The large empty timeline appears before the capture card. A Start focus action is visible in the capture-oriented card. This makes the first useful action harder to discover; it does not itself prove an unavailable command or measured accessibility failure. 
+
+Observed 390 by 844 shadow Today in an empty workspace. The large empty timeline appears before the capture card. A Start focus action is visible in the capture-oriented card. This makes the first useful action harder to discover; it does not itself prove an unavailable command or measured accessibility failure.
+________________
+
+
+ Two proposed phone states. Empty workspace prioritizes capture and keeps unavailable capacity unknown. No-fit explains fragmentation and offers a preview of smaller sessions. Six 15-minute gaps are 90 minutes in total, but cannot hold one unsplittable 90-minute session. Review smaller sessions proposes allowing splitting and previews the change; it does not relax the current one-continuous-session constraint automatically. Neither state fabricates a booking or a personal plan. 
+
+Two proposed phone states. Empty workspace prioritizes capture and keeps unavailable capacity unknown. No-fit explains fragmentation and offers a preview of smaller sessions. Six 15-minute gaps are 90 minutes in total, but cannot hold one unsplittable 90-minute session. Review smaller sessions proposes allowing splitting and previews the change; it does not relax the current one-continuous-session constraint automatically. Neither state fabricates a booking or a personal plan.
+Placement and saving as a coherent experience
+State
+	What the person sees
+	Permitted behavior
+	Draft
+	Editable fields and exact interpreted values
+	Preview, edit or discard only the draft
+	Preview ready
+	Proposed interval, demand removed/added, conflicts and affected commitments
+	Apply the reviewed revision; cancel without accepted-plan mutation
+	Submitting
+	Immediate pending feedback with retained input
+	Prevent duplicate submissions; keep request identity
+	Uncertain response
+	Placement not confirmed; last confirmed plan clearly labeled
+	Query the original command/result before another write
+	Confirmed committed
+	Canonical placement and resulting revision
+	Reconcile dependent capacity/history; offer supported undo
+	Confirmed not committed
+	Explained failure, retained draft and safe retry option
+	Retry under documented idempotency/revision rules
+	Still unknown
+	Honest unresolved state and resumable draft
+	Leave without claiming cancellation or success; preserve the original identity
+	Stale preview
+	Changed inputs and a refresh action
+	Recompute; never apply under silently changed assumptions
+	
+
+Keep draft and leave preserves the local draft. It must not be labeled Cancel placement if it cannot cancel a possible server effect. Undo is also conditional: a compensating change can be applied only when its affected revisions still match; otherwise show a reverse preview. The same command policy applies in UI, CLI and tools.
+These states should be designed once and reused for material actions. Simple reversible text edits may use scoped optimistic feedback, but placement, focus start, source completion and share creation need canonical confirmation. A Save badge is meaningful only for the object or field actually saved.
+ Proposed recovery for an uncertain placement, version 2. The message now says the outcome could not be confirmed and asks the person to check status before another attempt. The entered work, time and duration remain intact. The last confirmed plan is labeled, capacity is awaiting an update, and Check status is a read operation. This is a synthetic failure fixture, distinct from the populated Today example. 
+
+Proposed recovery for an uncertain placement, version 2. The message now says the outcome could not be confirmed and asks the person to check status before another attempt. The entered work, time and duration remain intact. The last confirmed plan is labeled, capacity is awaiting an update, and Check status is a read operation. This is a synthetic failure fixture, distinct from the populated Today example.
+Focus is a session and a task is a result
+The successful current Open timer branch is valuable. One session survived pause and reopen, ended with 55 active seconds across 65 wall seconds, and retained a note. The task stayed open with its independently stored 45 minutes remaining. This respects an essential distinction: time passing does not establish completion.
+Current screenshots reveal two presentation questions. After double Pause, paused/Server saved appears beside “That transition did not save. Nothing was assumed.” Reopening clears the warning. After End and note save, Countdown is selected while nearby summary text says Open timer. The second sweep clarified both observations; the UX defects remain open. The first Pause returned 200 and paused revision 2; the second returned 409 because it reused expected revision 1. One pause event persisted. The generic warning fails to identify the redundant rejected command, so conservation passes while feedback remains a medium UX defect. Open timer guidance is hardcoded in FocusStartGuidance; Countdown is the next-session draft default. The ended server session stayed open mode at revision 4. This is misleading guidance, not backend mode corruption.
+End should close the session and present a small outcome decision at the boundary. Done, More to do and Blocked answer different questions. Remaining effort and a next step are optional except where the chosen action truly requires them. Save later preserves a clearly unsaved wrap-up and does not erase the ended session. Starting another timer should not dominate the screen before the person has understood what was recorded.
+Distinguish session lifecycle from segment type and task status. Running, paused and ended describe the session; work, break, interruption and unclassified describe segments; open, blocked and done describe work. A break must not silently start counting active work while the person is away. A concurrent second device should reconcile to one authoritative current session. The first-pass repeated Pause test is not proof of that complete cross-device contract.
+Correcting a forgotten timer must preserve the original recording and correction provenance. Approximate manual duration is valid without fabricated timestamps. If intervals overlap, ask whether one corrects or duplicates the other. Recompute effective totals and learning eligibility; never automatically assign the elapsed overnight period to productive work.
+ Observed paused session after reopening. The same session remained paused and server-saved. The earlier double-Pause capture also contained a generic failure sentence; exact requests show first 200 / second 409, with one saved pause. Data conservation and UX feedback have different verdicts. 
+
+Observed paused session after reopening. The same session remained paused and server-saved. The earlier double-Pause capture also contained a generic failure sentence; exact requests show first 200 / second 409, with one saved pause. Data conservation and UX feedback have different verdicts.
+________________
+
+
+ Proposed wrap-up, using a continuation of the Today synthetic scenario. Session 11:30–12:00 contains 25 active and five paused minutes. The person explicitly selects More to do and enters 65 remaining minutes; the system does not infer that number by subtraction. The task remains open and future accepted sessions remain unchanged. 
+
+Proposed wrap-up, using a continuation of the Today synthetic scenario. Session 11:30–12:00 contains 25 active and five paused minutes. The person explicitly selects More to do and enters 65 remaining minutes; the system does not infer that number by subtraction. The task remains open and future accepted sessions remain unchanged.
+Review should make the next plan easier
+Recommendation: use “Less than 1 min” or show seconds for a short recorded session, rather than visually collapsing known positive activity into zero. Show recorded and unknown coverage before insights. Keep the next useful action near the actual difference: revise remaining effort, select carry-forward, inspect the changed commitment or skip review. Remove the large generic “Notice what the day is telling you” banner when it displaces those facts.
+A daily review is brief and optional. Unfinished work does not automatically become an endless overdue queue, and a day is not successful only when every task is done. Deliberate scope reduction, protected personal time and early renegotiation can be useful decisions without being mislabeled as fulfillment of the original promise.
+Weekly learning must show its denominator. If ten tasks are complete but only four have adequate actual coverage, the sample is four. Unfinished long tasks cannot be counted as zero effort. Changed-scope work must be separated or excluded from like-for-like estimate calibration. Before enough history exists, describe the evidence and keep editable manual defaults; do not manufacture statistical confidence or a personal diagnosis.
+ Observed shadow Review after the first-pass focus branch. It shows one session, unknown unrecorded time and zero displayed active minutes even though the stored session contains 55 seconds. The number is a display-rounding issue; the receipt does not show loss of those seconds. The second sweep also found a separate functional defect: stored note and interruption-reason cards render blank because REST field names are capitalized while the UI expects snake_case. This is PP-UX-06, a display-contract failure, not deleted data. 
+
+Observed shadow Review after the first-pass focus branch. It shows one session, unknown unrecorded time and zero displayed active minutes even though the stored session contains 55 seconds. The number is a display-rounding issue; the receipt does not show loss of those seconds. The second sweep also found a separate functional defect: stored note and interruption-reason cards render blank because REST field names are capitalized while the UI expects snake_case. This is PP-UX-06, a display-contract failure, not deleted data.
+Commitments capacity and wider product rules
+A commitment is an explicit promise with a result, completion criteria and boundary. A forecast is a derived outlook under current assumptions. A changed forecast must not rewrite an original/current promise or imply that another person agreed to a revision. Show original promise, latest accepted revision, forecast, freshness and acknowledgment status as separate fields.
+Capacity is both an interval set and a budget. Fixed obligations subtract their union, not the sum of overlaps. Reserve is counted once. Date-assigned work consumes demand even without a clock time; converting part to a timed session must remove the same dated demand. Forecast placements are hypothetical and do not become accepted reservations. Unknown estimates remain visible in the queried scope instead of becoming zero.
+Source apps retain domain ownership. Personal Planner owns accepted schedule allocations and private planning records; a source app owns its content and authoritative completion. A meal’s unattended cooking or an agent’s runtime is not automatically exclusive human work. Filtered views must still account for other authorized busy time. A source outage retains last-known constraints and freshness, not an empty calendar.
+The wider R1 design also needs routine occurrence identity, civil-time/DST rules, read-only provider health, explicit sharing previews, narrow recipient-bound guest views, export/import previews and safe restored state. They matter to a complete personal product, but are not reasons to call the first daily-loop repair a full R1 release. The coverage inventory keeps those obligations discoverable without inventing current implementation.
+Reusable access testing and evidence return
+Use the current project RUNBOOK, TESTING and PROBLEMS as the local procedure and results record. Their first-pass updates and final second-sweep runbook snapshot are preserved in the two evidence bundles. A final documentation-only correction replaced the stale health/notes-only introduction and marked historical operating assertions as intended contracts. The corrected runbook snapshot hash is 7d73818cd5284b29e736de5146b39cf729a4c8551f6e024327979d0617371d51. This dossier is the review and cross-executor explanation, not a competing runtime manual. The project entry and Product Map link exact evidence. The existing Interaction and Presentation Guide now contains the verified access, isolation, assertion and transfer lessons, pointing back to project-owned details.
+Verified route and important boundaries
+The existing secured domain is https://personal-planner.itsagitime.com. It redirects unauthenticated access to the existing Cloudflare Access team and remained connected to live UI 20003. Cloud sign-in succeeded at 04:41 and a read-only Today capture was obtained. Local BAS recording is proven by transferred bytes, full decoding and inspected frames. Recording through the cloud-browser route remains unverified; successful sign-in and a still capture do not establish that separate capability. The email reader withheld the one-time code; the owner supplied it for that sign-in. No code, credential or authentication policy belongs in the guide or evidence bundle.
+Read-only live observation requires no synthetic setup. Mutating tests used the verified shadow UI at localhost:24816, upstream API 17778 and database /home/matthalloran8/.vrooli/data/vrooli/personal-planner_shadow/personal-planner.db. The live path remained /home/matthalloran8/Vrooli/scenarios/personal-planner/data/personal-planner.db. Instance labels alone are insufficient: check process environment, actual open handles, namespace and UI upstream before each changed execution context.
+BAS live was unhealthy, but BAS shadow API 15372 supported capture and ad hoc flows. Its instance flag selects the automation service, not the target application. Always name the verified target URL explicitly. The local Chrome extension is a tested alternative for freeform interaction. A default sandbox loopback denial was resolved through the already approved execution mode; that observation does not create standing permission to bypass denied actions.
+The test header is an unsafe shortcut without a proven active leased pool: source routing falls back to primary storage when the pool is absent or expires. The existing routed-smoke file was a scaffold without the promised seed. No live mutation was used to demonstrate that hazard. Keep this warning beside the setup recipe so a future reviewer cannot confuse “test header present” with containment.
+A repeatable bounded sequence
+1. Identify the machine, project owner, checkout/dirty tree, served build and relevant source instructions. Record current process health and active consumers before a lifecycle change.
+2. Choose read-only live or mutating shadow by the intended effect. Verify the actual target storage and upstream. Inspect aggregate live and shadow baselines without copying private live records.
+3. Run a tiny uniquely identified synthetic canary only in shadow. Retain its ID and read it back independently. Track every later synthetic object, keeping effects bounded to the stated cases.
+4. Prefer BAS for repeatable journeys and local browser interaction for exploration. Keep both run receipts. A page body includes hidden text and CSS; use visible scoped state assertions and independent API/database confirmation for material writes.
+5. Inspect every step outcome. A BAS terminal completed label can coexist with failed or misleading assertions. Preserve failed attempts and the corrected flow rather than replacing their history.
+6. Capture original bytes with viewport/DPR/theme/readiness and source/data pins. Export through the supported route, materialize through Library on the consuming executor and verify size/hash there. A path from swarminator is not automatically cloud-local.
+7. Open the delivered image, decode the video and test playback in the actual destination. Keep a still and case transcript when playback is unavailable. A container-converted video is a derivative, with its own identity and hash.
+8. Reconcile synthetic records and temporary resources. Do not delete live rows, reset shared databases, stop a concurrently used service or turn scoped access repair into infrastructure rehabilitation. Report anything deliberately retained for replay.
+The local guide includes actual command shapes for managed scenario start/status, tunnel route/status, BAS capture and workflows execute-adhoc. Those commands must be rediscovered or checked for the next scenario; the recipe generalizes the proof obligations, not these exact ports, paths or assumptions. No recurring monitor or generic orchestrator was installed.
+What the evidence round trip proves
+The complete first-pass bundle and standalone video were materialized through Library with their identities and metadata. All thirteen artifact sizes and SHA256 hashes in the isolation receipt matched. The standalone video equals the bundled video. It is VP8, 1440 by 900, 25 frames per second, 27.6 seconds, and fully decodes; sampled frames show running, paused, ended/note and Review states. That establishes bytes and content, not every recorded command’s correctness.
+The private Drive player recognized a 28-second video but returned an unexpected-error message during the first playback test. This is a destination-player limitation, not a corrupt-file conclusion or a Planner defect. The original remains preserved. A separately retained H.264/yuv420p MP4 derivative (27.6 seconds, 3,200,033 bytes) also fully decoded and its actual frames were inspected. At 06:00 UTC the private Drive player failed the same way for both formats. Native Library delivery of the MP4 was prepared successfully; in-client playback remains unverified. Download and use a compatible local player if Drive cannot play it. This is an explicit delivery limitation, not a reason to substitute a generated demonstration for the observed recording.
+The second bundle contained 113 ZIP entries; all 111 manifest-listed files matched their byte count and SHA256 on this consuming executor. Its 32-second keyboard/navigation clip also fully decoded. The exact second-sweep report, final local guide, coverage JSON, raw flow timelines and independent readbacks are preserved together.
+MP4 compatibility playback derivative
+The first-pass live aggregate counts remained two work items, four focus sessions and zero allocations; no live write test ran. That is a scoped non-mutation observation, not a whole-database hash proof. At the end of the first sweep, the shadow retained one synthetic task, one ended session, one pause event and one note. The second sweep then added three work records (including the duplicate pair), one goal, one milestone and one default planning profile; its final-readback receipt reports four work items, one session, one note, one pause, one goal, one milestone, one profile and zero allocations. Five placement proposals and one forecast snapshot also remain. These final-sweep counts supersede the first-sweep totals for current inventory. These records are deliberately identifiable for replay and are not personal account truth.
+Coverage and remaining acceptance
+The project catalogue already owns P01–P42. Retain those identities and distinguish a visible screen from a tested command. The second-sweep inventory supplies exact current dispositions below. Every family remains full_family_passed=false: operating an empty view or one command does not certify every state in that family.
+Family and source sections
+	Runtime disposition
+	Evidence and remaining limit
+	P01 Application shell and primary navigation · §5.1; 6.2; 6.7; 22.2
+	observed and tested
+	Six routes reopened; shell Tab→Settings, Back/Forward/reload, 360 px navigation. Full route keyboard/zoom matrix unverified.
+	P02 First-use setup and first draft · §5.2
+	absent/not reachable
+	No skippable onboarding/first-draft flow found. Settings lazily creates a default shadow profile; not onboarding proof.
+	P03 Today desktop and phone · §6.2; 6.7; 7.1
+	observed and tested
+	Empty and long unknown-effort Today; Day/Night same task/capacity, narrow 360 px. Crowded/DST/accepted geometry blocked.
+	P04 NextActionCard · §7.1; 13.1; 22.2
+	observed but untested
+	Long unknown task and Open draft observed; alternative selection/source-owned/feasibility/Today Start/Resume variants untested.
+	P05 CapacitySummary and explanation · §7.1; 10.1–10.5; 22.2
+	observed but untested
+	0 planned/7 havailable/7 hbreathing rendered. No accepted allocations or union fixture; unknown demand count absent from this summary.
+	P06 Today TimeHorizon · §6.6; 7.1; 22.2
+	observed but untested
+	Empty Today timeline and Day/Focus buttons rendered. No 1:2:3 geometry, collision, DST or legend proof.
+	P07 Global quick capture and inbox/backlog · §7.2; 22.5
+	observed and tested
+	Name-only, long Unicode, invalid 1445, repeated Save (duplicate defect), cancel/reopen; global parsed 30 min preview cancelled. No interpreted dated apply.
+	P08 Task detail and WorkItemRow/Card · §7.3–7.4; 22.2
+	observed and tested
+	Limited read-only detail dialog and Escape return; persisted titles/unknown effort. Full editor/ownership/estimate history absent from this dialog.
+	P09 Task/session operations and impact previews · §7.4; 8.1; 8.3
+	blocked
+	Feasible preview exists; PP-UX-02 Accept hangs. Split/move/unschedule/undo not executed; no forcing downstream fixtures.
+	P10 Plan — Day · §5.1; 8.2–8.3
+	observed and tested
+	Empty view and navigation tested; accepted editing and populated time geometry blocked by placement.
+	P11 Plan — Week · §5.1; 6.7; 8.2–8.3
+	observed and tested
+	Selected empty Week projection; populated placement/filter/deep-link behavior untested.
+	P12 Plan — Month · §5.1; 8.2
+	observed and tested
+	Selected empty Month projection; RangeView returns empty before drawing a month grid. Populated view untested.
+	P13 Plan — Agenda · §5.1; 8.2
+	observed and tested
+	Selected empty Agenda projection; accepted entries and accessible operation/deep links untested.
+	P14 Plan — Timeline · §5.1; 8.2; 9.4
+	observed and tested
+	Empty selection tested. Source RangeView is accepted-allocation list; required dependency/milestone timeline not found.
+	P15 Plan — Capacity · §5.1; 8.2; 10
+	observed and tested
+	Selected current capacity view with no allocations. Multi-day accounting/fragmentation/reserve scenario untested.
+	P16 Plan — Commitments · §5.1; 8.2; 9.3; 12.2
+	observed and tested
+	Empty commitments tab observed after selection; no populated risk/history/filter tests.
+	P17 Event and allocation editor · §8.1; 8.3; 8.5
+	absent/not reachable
+	Time/duration/work placement controls exist (apply blocked). No native event editor, provider detail or DST-resolution interface found.
+	P18 Routine editor and occurrence scope · §8.4–8.5
+	observed but untested
+	Fixed/flexible builder and weekday controls rendered, no routine creation, recurrence or occurrence-scope tests.
+	P19 Goals and initiative overview/detail · §5.1; 9.1
+	observed and tested
+	One native goal/purpose created, target date edited/reopened; progress 0 retained. No title/purpose edit or initiative detail found; progress slider untested.
+	P20 Milestones and dependency/wait editor · §9.2; 9.4
+	blocked
+	One milestone persisted; populated ListMilestones timed out independently 6 s and UI remained loading. Dependency/wait/cycle tests not run.
+	P21 CommitmentStatus and commitment editor · §7.1; 9.3; 12.1–12.5; 22.2
+	absent/not reachable
+	Empty list exists; no commitment creation/renegotiation/status editor found in operated destinations. Domain code is not operated UI proof.
+	P22 ProposalDiff and apply/undo · §11.4; 20.4–20.5; 22.2
+	blocked
+	First-pass preview observed, apply hangs. Full ProposalDiff/selective apply/undo/stale recovery not demonstrated.
+	P23 What-if comparison · §11.5–11.6
+	absent/not reachable
+	Outlook is not a what-if input/comparison editor; no what-if UI found.
+	P24 Forecast detail and HistoryDrawer · §12.1–12.5; 22.2
+	observed but untested
+	Known 45 min, 28 dayhorizon, central/cautious scenario and recent outlook rendered. No history drawer, revision comparison or changed-input forecast correctness proof.
+	P25 Focus screen and FocusPanel · §13.1–13.4; 22.2
+	observed and tested
+	First pass Countdown 400 silent; supported Open timer running/doublepause/reopen/resume/end 17 steps with database readback. Second pass idle/reopen/narrow; Pomodoro/break/overrun/untimed not run. Original trace duplicate Pause 200 then 409 conserved one pause; generic failed-transition feedback PP-UX-07. Countdown selected with hardcoded Open timer guidance PP-UX-08.
+	P26 Focus wrap-up and actuals correction · §13.2–13.6
+	observed and tested
+	Note persisted; second sweep reveals blank Review note/reason display (PP-UX-06). More to do/Blocked/remaining/correction not found in operated wrap-up; ledger not operated. Original trace duplicate Pause 200 then 409 conserved one pause; generic failed-transition feedback PP-UX-07. Countdown selected with hardcoded Open timer guidance PP-UX-08.
+	P27 Review — Daily · §14.1
+	observed and tested
+	Daily/unknown-history read, reload, narrow; focus-note blank defect. No reflection/win write or selective carry-forward (no accepted allocations).
+	P28 Review — Weekly · §14.2–14.4
+	observed and tested
+	Week selection renders 7 day table, 1 session, 0 rounded minutes, unknown unrecorded. Drilldown/completion/calibrated learning untested.
+	P29 InsightCard and learning adjustment review · §14.3–14.5; 22.2
+	observed but untested
+	Insufficient-activity copy observed. No learning-adjustment accept/dismiss/reset flow or eligible-history fixture operated.
+	P30 Settings — Availability and planning policy · §5.1; 5.2; 10; 28.1
+	observed and tested
+	Invalid timezone twice→visible error; UTC recovery; capacity 480→450→reload→480, database revision 3. Availability/reserve/exception controls observed only; no impact preview.
+	P31 Appearance controls and settings · §6.4–6.5
+	observed and tested
+	Visible label clicks Day/Night, art-free/reload/restored Auto; selected checked states retained in context. Reduced scenery persisted/reopened/restored with independent checked/storage readback; focus-deferred transition untested.
+	P32 Settings — Focus and notifications · §13.1–13.4; 18.1
+	observed but untested
+	Focus length, quiet hours, lead, Show reminders rendered. No notifications changed/sent or permissions granted.
+	P33 Settings — Learning controls · §14.5
+	absent/not reachable
+	No dedicated learning-controls/history/exclusions/reset/export group found; Review calibration copy is not this settings flow.
+	P34 Settings — Integrations and health · §15.2; 15.6; 16.1; 16.6; 23.7
+	observed and tested
+	Empty connection boundary and healthy readout; mobile health section navigation. Sample calendar not added, no OAuth/reconnect/disconnect/provider tests.
+	P35 Embedded source agenda/capacity and deep-link context · §15.6–15.8
+	outside authorized execution
+	No source agenda/capacity/deep-link fixture established; no external accounts/source mutations. Six-route shell has no embedded context surface.
+	P36 SharePreview and sharing management · §17.1–17.4; 22.2
+	outside authorized execution
+	No recipient/grant fixture, share creation/send or exposure authorized. SharePreview UI not found in six routes.
+	P37 Read-only guest commitment page · §17.1–17.4
+	outside authorized execution
+	No proven isolated guest grant/recipient route; no security/access guessing or public exposure changes.
+	P38 Settings — Data, import/export, restore and retention · §16.7; 23.4–23.5
+	absent/not reachable
+	No data import/export/restore/retention controls found. No import/restore/permanent deletion performed; command/API capabilities not certified here.
+	P39 Global search and results · §22.5
+	absent/not reachable
+	Global Capture exists; no global search/results UI found. Work dropdown discovery is not search certification.
+	P40 State and recovery families · §7.5; 18.1; 20.5; 22.4; 23.2; 23.6–23.7
+	observed and tested
+	Empty states, invalid input, duplicates, cancel, reopen, repeated timezone failure/recovery, Back/Forward/reload. Placement and milestone pending defects; offline/staleprovider/lost response unsupported/not run. Original trace duplicate Pause 200 then 409 conserved one pause; generic failed-transition feedback PP-UX-07. Countdown selected with hardcoded Open timer guidance PP-UX-08.
+	P41 Landscape and visual foundation · §6.3–6.8; 22.4
+	observed and tested
+	Actual same-data scene screenshots and art-free fallback. Long title wraps desktop/truncates phone; failed-art/reduced motion/contrast measurement not run.
+	P42 Accessibility and responsive state matrix · §6.7–6.8; 22.5; 25.4
+	observed and tested
+	Shell keyboard focus 2 px outlines, Control+K/Escape return, allmainphonecaptures. Native 200% zoom shortcut unchanged;720×450 is approximation only; full F14/contrast/screen-reader/trap matrix unverified.
+	
+
+The required first-outcome gate is a complete safe round trip or a reproducible blocking failure. PP-UX-02 supports the latter: this review can conclude that the ordinary daily loop is not yet dependable without pretending all downstream behavior was tested. Fixing that product defect belongs to a separately released implementation task. The access/testing evidence can still be reusable while product correctness remains partial.
+Delivery verification covers the exact native document, figure bytes, source links and consumer evidence. Remaining visual/runtime acceptance gaps are explicit above. A proposed fix is not a closed defect; a screenshot is not persistence; a self-review is not owner acceptance. Completed artifacts should remain unreviewed for the morning report.
+Sources and exact review basis
+Personal Planner design and actual product review work brief
+Personal Planner project start here
+Full recovered v1 specification
+Source and asset catalogue
+Personal Planner Product Map
+Private review evidence and proposals
+Specification hash: 1ae18bb79a5f38398dfc36625e0a04b616f806fca786edff8bdcecc807402092. Selected Today reference hash: dcd6d9687b2bfb0fd84729de6933ef79a18fb9a6d72411d795463c72f3952063. Local first-pass task 01a0fae0-1742-71ef-8b48-033ca8a3d034, turn 01a0fae0-1f25-7742-8d2f-9447485ea422. Second-sweep turn: 01a0faff-af67-7004-95b7-f245899121b8. Second bundle SHA256: 6733f69f4e653e4b0e6c77f336dc9de9e3aacc711f0f8f09b2dec7f64314954e. Catalogue v0.5 source basis SHA256: ae4fa3adabdb21f13f24a6790edbccb80a7cb7160eef8f6dcf806deaf5e136bc. Historical source snapshots and current runtime observations are not silently merged.
+Exact proposed visual inputs and version manifest
+New proposed visual versions preserve their exact prompts, source references, synthetic state briefs and byte hashes in the same private project area. They are produced and author-inspected, with owner approval unreviewed and implementation not applied. Historical Today selection is unchanged. Shared capability records receive observed lessons rather than a replacement project schema.
+Critique and revision record
+The commissioning brief received an independent full cold read. Targeted changes strengthened visible assertion discipline, one-time-code boundaries, real cloud-video verification and the requirement to link proposed UX fixes to actual findings. The document and runtime investigation then remained separate work products.
+Author visual critique rejected the first Today agenda proposal as the default because it removed the required desktop time horizon and gave Capture competing primary emphasis. Version 2 restored a timeline and quiet capture; its exact geometric limitation remains explicit. An independently specified 1:2:3 diagram provides the exact interval contract without presenting a generated timeline as pixel-accurate. The first mobile state image omitted Auto and used a play icon for Capture; version 2 corrected both. Proposed Focus and placement-recovery screens were checked for state consistency, matched desktop/phone content and absence of false save/completion claims.
+Independent full-manuscript review confirmed the evidence/design separation and requested explicit per-sweep counts and cloud-recording limits; both were corrected. Independent inspection of all four proposed state boards found coherent hierarchy and internally consistent figures. It requested a clearer awaiting-status message for placement, explicit proposed splitting in the no-fit caption, and visible phone timezone context. Placement copy was revised in version 2 and rechecked; the no-fit caption now makes the policy choice explicit. The phone timezone presentation and generated Today geometric precision remain open visual acceptance items, with a precise companion diagram supplied. No agreement among assistant reviewers will be treated as owner approval.
+Integrated planning and calendar repair proposal
+Prepared for scope review on Oct 3, 2026. Recommended option A accepts one finite Planner repair covering native calendar, goals/deadlines and progress, recorded actuals, capacity-based forecasts, honest learning and interface identity, retaining the accepted read-only provider boundary. It also delegates native ownership selection and conditional execution on verified existing subscription-included capacity in isolated local work/tests. Options and limits appear below. This recommendation is awaiting owner approval; no implementation has started.
+The outcome to review
+Make Personal Planner useful for one connected journey: define a goal and its evidence of success; break it into a project, milestones and work; fit that work around real calendar obligations; record what actually happened; and explain what the remaining work means for deadlines and future estimates. Calendars, progress and forecasts must agree about the same records while showing their different meanings.
+The accepted specification already calls for this. Native tasks/events and correct time semantics belong to R0. Goals, milestones, commitments, dependencies, explainable forecasts, actuals and basic history-based learning belong to R1. This proposal repairs that integrated product, with demonstrable increments inside one outcome. It does not reduce Planner to a calendar or turn the coverage inventory into separate work orders.
+Keep Google Calendar as the working event store during preparation. Apple Calendar should access the same Google-backed calendar after its device setup is verified. Planner remains the intended Vrooli scheduling authority for native planning and source-app scheduling; Google owns its provider events. Drive retains project requirements, evidence and decisions. No connection or automatic synchronization is established by linking these records.
+Preserve the owner's actual goals and calendar
+The Income and Job Campaign source sets two distinct milestones:
+* First $1,000 confirmed earnings by Nov 30, 2026. One-off earnings are acceptable. A confirmed Stripe payout can count before bank deposit when the owner knows it is payable.
+* Separate repeatable income of $1,000 per month by Dec 31, 2026. One successful one-off payment does not establish a repeatable monthly income stream.
+Both use earnings after direct earning costs and platform fees, before personal taxes. Tax reserves are not deducted from these target metrics. Proposals, unsigned work, speculative sales, expected wages and funds earmarked for third-party media are not automatically qualifying earnings. The owning source establishes neither achieved earnings nor an exclusive execution route. Planner must show current progress as unknown until supported by observations; it must not manufacture a zero baseline, achieved percentage or income forecast from completed tasks or hours.
+These are planning references to the Income owner's definitions and evidence. Planner may hold the scheduling projection and an explicitly sourced metric observation, but must not become a second editable financial ledger or select an earning strategy. The Income source favors written/asynchronous work; its current screen permits written or recorded communication and does not assume calls or live presentations. Custom-automation service sales remain paused. The source allows 5–10 flexible paid-work hours per week for the approved earning/founder screen; this is not universal calendar availability.
+The real calendar request now has 21 reconciled Google entries. The linked Planner evidence now contains all 21 verified calendar/event identity pairs and color-reconciliation states; use those identities for duplicate-safe future ingestion. The earlier local inspection created no Planner events. Future ingestion must use their known provider/calendar/event identities and preserve civil dates, exclusive all-day ends and each source's privacy, attendees, reminder and free/busy settings. The privately created personal markers have no attendees or reminders and are free/transparent; the reused holiday retains its own read-only source. Whereabouts-awareness markers do not automatically reserve the owner's attention. Unknown event times remain unknown.
+The verified Google palette distinguishes owner travel, girlfriend whereabouts, shared plans, celebrations and other-family whereabouts; work has a reserved color with no current in-scope work events. These meanings must remain readable without color and must not be assumed to survive every Apple client. The reused birthday's occurrence color change was rejected and left unchanged; read-only Thanksgiving was untouched. Colors are presentation evidence, not a Planner integration.
+One coherent repair, with explicit boundaries
+1. Establish identity and calendar truth. Reconcile the UI/CLI/Connect profile discrepancy, authenticated actor/workspace, endpoint and source revisions. Reuse existing domain code and supported native commands. Preserve original records and explain inconsistent observations before personal-data migration. Deliver native timed, ordinary date-only and multiday events, useful empty Month navigation, stable reopen context, revision-aware edits and visible save/retry results. Keep events, work allocations, routines and source-owned content distinct. Respect the specification’s already-required native-event baseline and the already documented retired-calendar transition; no revival or further deletion follows from this proposal.
+2. Make goals and project plans actionable. A goal has a purpose, target horizon, status and declared progress method: manual assessment, an explicit numerical metric or milestone completion. Numerical observations preserve baseline, target, unit, direction, date and origin; absent observations stay unknown. Milestones state observable completion criteria, prerequisite work, target/promise and evidence. Support lightweight native projects when needed, and source-owned project references when an existing app owns the work. Show unlinked goals and unlinked work honestly rather than requiring every obligation to be a productivity goal.
+3. Connect planning to actuals and revised outlook. Keep original estimates, revisions, explicit remaining effort, desired targets, accepted promises, accepted allocations, current forecasts, actual finish and completion evidence distinct. A completed session, task, milestone and income outcome are different facts. Preserve manual approximate durations, interruptions and correction provenance; do not convert unrecorded time, unattended agent runtime or event attendance into productive human effort. Project timelines include finish-to-start dependencies, waiting and unresolved source states, with cycle rejection and clear source ownership.
+4. Explain slippage and support better estimates. Compare original plan, latest accepted plan and current forecast without rewriting history. Forecast all competing accepted work against shared usable capacity, including calendar constraints and human review time. Show central/cautious scenarios, assumptions, remaining-effort uncertainty, dependency waits, source freshness and horizon limits. Explain material changes in scope, effort, capacity, interruptions or waiting. Forecast updates may happen automatically; accepted rescheduling, promise revisions and planning-policy adjustments require their proper explicit command.
+5. Integrate provider events and verify the whole journey. Reuse the existing Google adapter rather than build a second one. The accepted D04/R1 boundary is read-only provider access; create/edit/delete across Planner, Google Calendar and Apple Calendar requires an explicit expansion to the later R3 writeback scope. An existing ChatGPT connection is not Planner's OAuth grant. Provisioning, authentication and any material persistent access remain separately authorized actions.
+These five grouped outcomes form one repair commission. Small correctness fixes stay inside the relevant outcome; they do not become a fragmented set of work orders. A capable local producer can adjust internal sequence or epoch size while preserving the integrated result and acceptance. A finite delivery effort is proposed because the current inventory found no existing Planner execution plan or team; none has been created.
+What approval releases and what still needs qualification
+Approve or revise the integrated repair boundary and its implementation terms, rather than authorize another general planning pass. The recommended boundary includes the five outcomes above and R1 read-only provider ingestion. It excludes provider writeback, household editing, billing/accounting systems, R2 statistical forecasting, broad visual redesign and unrelated whole-release certification. Approval of this repair does not accept the earlier unreviewed screen designs.
+The local qualification found no Personal Planner match in the canonical inventory of 1,222 plans, no items in the supported backlog query's default view, and no Planner team among 18 registered teams. The accepted product specification is not an accepted execution plan. The supported route is one finite delivery effort through Prompt Manager and Agent Manager, with one delivery-orchestrator and one delivery-epoch-worker at a time and independently reviewable acceptance. No team, binding or run is provisioned. Existing BAS work is unrelated.
+Effort remains unestimated: the five outcomes range from medium-to-high to high complexity, and no comparable measured Planner delivery history establishes elapsed-time, work-unit or token totals. Estimate each admitted module from its actual source boundary. The native finite-delivery method and profiles are qualified; availability of a subscription-included execution route has not been verified.
+A — Recommended: accept the integrated repair contract and delegate selection of native Planner execution and independent acceptance owners, plus commissioning and execution of one finite delivery effort. Use only verified existing subscription-included capacity and isolated local implementation/tests. This permits the five outcomes and accepted R1 read-only provider baseline within those limits, after ordinary source, backup/restore and isolation preflight passes.
+A does not permit paid APIs, paid overflow or other new spend; production provider writes; OAuth or security changes; incompatible migration; deployment; real-data migration; or cross-owner changes. Verify that the chosen route cannot silently fall back to a paid path. Unverified included capacity or an unverified no-paid-fallback guarantee blocks dispatch; if that protection later ceases to hold, pause affected execution and report the blocker. If no compliant route can be verified, report the specific blocker and the narrow decision it requires. Do not request another generic scope vote for this same contract.
+B — Accept the integrated scope only. Leave execution/acceptance owner selection, allowance policy and permitted runtime effects for the owner to choose or delegate before dispatch.
+C — Revise or defer the integrated repair. Keep the prepared proposal and its evidence; do not dispatch implementation.
+Current native method bounds are a qualified snapshot, not new global rules: a refactor must close at net runtime lines ≤0; feature growth stays within 1.5× its expected size. Step-back signals include an unchanged exit metric over 10 work units, exceeding 2× the work-unit estimate, refactor growth above 300 lines or feature growth above 1.5× expected size. Twenty-four hours triggers review rather than forced stopping. Spend thresholds are calibrated after three epochs. The configured 43,200-second worker timeout is not a delivery estimate. Re-read the owning worker method and measure the admitted source boundary before relying on these values.
+Ordinary preparation can proceed under the existing authority: refresh source/build identity, verify the actual shadow SQLite handle and UI upstream, qualify profiles/contracts, measure initial module scope, and prepare isolated fixtures and backup/restore. Converting the diagnostic probes into maintained product regressions belongs to the eventual implementation release. No other proposal commission is needed for those preparations.
+Migration/rollback must preserve user and source-owned data. Rehearse backup and restore in disposable storage, favor additive compatible schema changes, retain IDs/provenance/original estimates/deadlines and correction history, and prevent repeated imports from duplicating records. Application rollback must not erase records created under a newer schema. An incompatible downgrade or cross-owner repair needs its own explicit recovery/authority decision.
+Two narrower questions remain bounded to their actual consequences:
+* Provider direction: the recommended repair retains accepted read-only access. The owner's ideal create/edit/delete workflow across Planner, Google Calendar and Apple Calendar is a documented design/research direction for the later R3 writeback expansion. It does not imply OAuth or write permission. Fixture-backed R1 work can proceed without live credentials; live provider acceptance remains open until separately authorized access and selected calendars are available.
+* Repeatable-income measurement: the Income owner defines the observation window and evidence for the already-set $1,000/month goal. That definition is needed before evaluating this metric. Independent calendar, identity, actuals and other repairs can proceed with income progress unknown; this is not a gate on the entire repair.
+The earlier dossier's D1–D7 are unreviewed design choices about the daily loop, Today layout, saving, session wrap-up, capacity language, empty/no-fit states and breadth. They are distinct from the accepted specification's D01–D09 product rules. The accepted Observatory direction means the calm interface with coordinated day/night scenery; the pending screen/layout alternatives remain for their own review.
+Evidence that would make the result dependable
+Use a supported isolated workspace and clearly synthetic records for mutating tests. The real income targets and 21-event manifest are source constraints; copying them into production or submitting provider writes is not part of preparation.
+* Complete the whole journey through the ordinary UI and supported command/API surface: goal → project/milestone → work with a deadline → proposed and accepted allocation → session or manual actual → explicit remaining/completion update → forecast → review. Reopen and independently read the same durable records. Explicitly retest default Countdown, accepted placement, populated milestone listing, duplicate submission and displayed reflection content; each known defect must be resolved or remain visibly failed. A manual-actual or Open-timer path alone cannot close those findings. A screen, populated table or individual passing endpoint is insufficient.
+* Demonstrate each goal-progress method and its provenance. Unknown income observations remain unknown. Task completion and linked hours cannot increase monetary progress. A one-off payment can satisfy the first milestone under its source rules without marking recurring monthly income achieved. Source-owned status updates remain pending when the owner is unavailable.
+* Preserve the original promise, deadline and estimate when remaining work or scope changes, with revision checks, reason and history. Show the revised outlook and reason; distinguish a target change, proposal, accepted reschedule, renegotiation and acknowledgment. Reject dependency cycles and show unknown waits rather than invented finish dates. An unfinished goal must never receive completed-goal variance.
+* Compare planned and actual duration on the same scale, with accessible tabular detail, covered/unrecorded time, corrected versus original activity, and active effort versus elapsed waiting. Completion without recorded actual evidence must remain unknown; estimate subtraction is not an actual. Define how overlapping timer/manual records are reconciled. A forgotten overnight timer must not become an overnight block of productive work.
+* Exercise overload, overlapping calendar constraints, date-assigned demand, interrupted work, partial completion, changed scope, stale sources, concurrent edits, duplicate retries, lost responses and reopen/recovery. Proposal application must revalidate material inputs, reject stale proposals, and commit accepted allocations with their history atomically. Moving date-assigned effort into timed sessions must conserve demand without double counting. Zero usable capacity cannot produce an on-track finish inside the same horizon. Forecasts are hypothetical and never double-count as accepted reservations. A sleeping local computer or disconnected source must not imply live freshness.
+* Keep learning descriptive until the history supports more. Match estimates to completed work units and aggregate each unit's eligible actual entries before comparing them; two partial activity entries are not two completed-work samples. Show comparable group, sample size, time window, excluded/missing records, scope changes and rule version. The source's example of eight comparable completed records across three days is a guardrail to evaluate, not a scientific guarantee. Below a qualified threshold, say that history is insufficient. Offer inspect/dismiss/reset and scoped future adjustments; do not silently multiply all estimates or claim calibrated deadline probabilities. Those statistical claims remain R2.
+* For calendars, verify all-day exclusive ends, arbitrary month navigation, overlapping entries, DST and named zones, stable identity, recurrence exceptions and deletion recovery. Preserve the existing Google identities and semantics without title/date-based duplication. Reconcile those provider identities against the current authorized source before any import; repeated ingestion must not recreate events. Test real-provider behavior only after its required authorization.
+* For the accepted read-only provider path, verify authorized identity and selected calendars, paginated initial/incremental reads, durable cursor advancement only after data is committed, deletions and moved recurrence instances. HTTP 410 rebuild replaces only that provider projection; retain last-known stale constraints when the replacement fails. Test revocation/reconnect and repeated refresh, and show visible freshness. These are baseline read-only requirements.
+* For an explicitly approved writeback expansion, additionally test create/edit/delete from Planner, Google Calendar and Apple Calendar, ETag/HTTP 412 write conflicts, uncertain creates and offline deletion without resurrection. Preserve unsent local work separately, along with unrelated provider fields. Apple account/device setup and visual color behavior need their own observed evidence.
+Retain the accepted Observatory visual direction and the unreviewed D1–D7 alternatives. Test desktop, narrow layout, keyboard operation and meaningful empty/unknown/stale/error states. The integrated result needs both correct records and a comprehensible path through goals, plans, calendar and review. A negative result should identify the blocking ordinary journey and remaining usable portions without claiming the whole product is ready.
+Intended capability and current evidence
+The expanded local review inspected unchanged domain/proto source at commit c8e4a67baafcb11b7495377eee7c0fab56c0d487 and exercised disposable Go overlays with in-memory databases. Existing dirty documentation was preserved. No live calendar, income or other user records were written. Its findings qualify older status prose:
+* Goals and milestones have real implementation: purpose, manual percentage or milestone-count progress, target/due dates, completion criteria, linked work, prerequisites and revision-guarded milestone completion. Existing goals tests pass. The inspected contracts lack governed currency/current-value/net-income/recurring-window fields and a first-class project-plan entity. Goal deadline updates use REST but lack a revision guard and baseline history. General editing/interrupted-save behavior is untested.
+* Work stores original estimates, revised remaining effort/reasons, completion history and a linked completion cascade. Original-estimate preservation passes. Completion/re-estimation/snooze are absent from the inspected CLI routes; the completion history has a reproduced actual-time error below.
+* Focus and actuals have durable timers, pause/resume, active versus wall time, approximate manual records and correction provenance. Focus tests pass; no defect was demonstrated in that tested lifecycle. Cross-device/interrupted saves and New York midnight/DST aggregation remain unverified.
+* Forecasts persist central/cautious scenarios and promise comparisons. Existing tests pass, but the kernel uses fixed daily capacity instead of the full personal availability/routines/calendar/calibration context. Goal drift is a linear heuristic; the additional occupied-capacity probe exposes a contradictory result below.
+* Review/learning has calibration, goal variance, overdue/drift signals, reflection and an agent read model. Existing review tests pass. Source inspection finds timer actuals excluded from calibration, empty categories and unordered trend observations; the additional split-actual and unfinished-goal probes fail. Adaptive estimation and calibrated statistical forecasting are not verified.
+* Calendar still exposes allocations/routines rather than the requested ordinary all-day/multiday event journey. UI and CLI disagree on profile, connections and goals. Existing QA issue knw-1790983555151947761 remains the identity/parity lineage; its cause is unresolved.
+Four deterministic probes demonstrate why the fields above are not enough for reliable planning:
+1. Original estimate 60 minutes, remaining 30, no recorded actuals: completion stores final_actual_minutes=30. Actual activity was invented from estimate arithmetic.
+2. Two 30-minute actual entries for one 60-minute allocation: calibration reports −50% and two samples, rather than aggregating one matched unit.
+3. An active goal due Nov 30, 2026, with one milestone completed Oct 3, 2026 and another still open: review reports “58 days early.” An incomplete goal received completion variance.
+4. A horizon from Nov 1, 2026 through Nov 2, 2026 with 600 work minutes and 840 occupied minutes: available capacity is zero, yet the result combines beyond_horizon, on_track and central/cautious finishes on Nov 2, 2026.
+These prove defects in the inspected implementation, not their frequency in live use. The work suite also fails its snooze regression because its read uses SQLite date('now','localtime') while its write uses the injected clock. This demonstrates a fake-clock mismatch, not universal failure of live future snoozes. Protobuf committed-generation verification and goals/review/focus/forecast suites passed; UI tests and whole-scenario Test Genie certification were not run.
+The earlier design/readiness evidence remains distinct: an Open timer persisted through pause/reopen/end, but elapsed time did not complete its task. The ordinary placement path hung without an established save, and default Countdown failed. A goal/purpose and target-date revision were demonstrated in an isolated fixture; milestone persistence did not make its timed-out populated listing usable. The new domain tests do not close these dated UI defects or certify the integrated journey.
+Supporting sources and traceability
+Required reading begins with the owner's expanded request, the Income project's two metric definitions, the accepted recovered specification (§§4, 8–14, 15–16 and 21), this dossier's current defects/design choices and the exact calendar manifest. Then read the fresh local evidence and current project-owned plan/backlog before commissioning implementation. Local implementation phases are P02 calendar, P03 goals, P05 forecasts, P06 focus, P07 learning, P08 integrations and P10 CLI parity. They are distinct from this dossier's P01–P42 visual coverage labels.
+Income authority: Income and Job Campaign start here — current planning constraints and the two milestone records. Accepted recovered specification: https://drive.google.com/file/d/1monqC1Z1XT9mADJGwXObCT5mQq9ViL0F/view — retained source hash 1ae18bb79a5f38398dfc36625e0a04b616f806fca786edff8bdcecc807402092. Existing 21-event evidence: https://drive.google.com/file/d/1JGnJNcVLjNT9qzzUgwTXz0mIdxT6VNAe/view — 24,350 bytes, SHA-256 7d5e8b33a46da4c8303cf22ab9b07e6ea34827075600639aff12d8c373849b38. The same-ID JSON was refreshed under explicit owner permission and downloaded readback matched these bytes and all 21 unique provider/calendar/event pairs. Its owner-only access and folder are unchanged. The JSON covers calendar evidence and palette, not the later expanded goal/actuals probes.
+Expanded local evidence: task 01a0feeb-5527-703e-a010-98bbf5e8401e, turn 01a0ff60-db9e-71e5-bfbe-029c8d2f723a, work journal 125d7f53-ad37-4a3c-9352-e49112be5053, source HEAD c8e4a67baafcb11b7495377eee7c0fab56c0d487. Reproduction source points under scenarios/personal-planner/: api/internal/work/sqlite.go:141; api/internal/review/service.go:266 and :335; api/internal/forecasts/kernel.go. Disposable overlays and a Review screenshot are retained in the original local task directory; they were not transferred to Library or represented as owner-accessible Drive attachments. This section preserves the completed report's findings and limits. The read-only admission follow-up is turn 01a0ff70-db07-712d-9eb5-1b69ae20388f in the same task; its source references include docs/reference/source-implementation-plan.md:6 and docs/internal/DECISIONS.md:21, the canonical Plan Manager inventory, GET /api/v1/backlog?scenario=personal-planner, registered-team inventory and large-effort-orchestration/references/worker.md with the declared delivery profiles.
+The existing calendar evidence remains part of this same proposal: missing native-event parity, UI/CLI identity mismatch, retired predecessor, reusable Google listing code and its normalization/sync gaps. Preserve its exact source pins and the official Google/Apple integration references below. ICS import is not bidirectional synchronization, and a Google account in Apple Calendar is not a Google-to-iCloud replication bridge.
+Preparation and reconciliation are already authorized. The pending decision offers conditional execution delegation under A, scope-only acceptance under B, or revision/deferral under C. Saving this document does not select any option. If A is approved and its ordinary preflight conditions pass, proceed within its finite effort and explicit limits without a second scope vote. No claimed milestone or product acceptance follows merely from approval or commissioning.
+
+
+Retained calendar evidence detail
+The earlier calendar inspection below remains dated evidence. The expanded domain review above does not certify a provider connection or close these calendar gaps.
+The latest local inspection found only work allocations and weekday routines in the CalendarService/UI/CLI, not ordinary dated-event creation, all-day events or multiday events. Month lacks navigation; an empty range hides its grid; reopening resets Day. No Planner events or IDs were created. CLI UTC/revision 3/no connections disagrees with UI and anonymous Connect America/New_York/revision 2/synthetic fixture 1789878002478075841. No actual provider account or live Google connection was observed. The identity/parity cause remains unconfirmed; QA item knw-1790983555151947761 preserves the finding.
+The old calendar scenario is actually retired: commit 2d7387d75926f8f245d139dd02aeface34452ba6 removed 88 files and 26,323 lines; the inspected checkout, scenario lookup and installed CLI no longer contained it. Its historical code included substantial CRUD, UI, sync and automation, with a production-ready PRD claim; that claim is not fresh certification, and it would be wrong to say the predecessor was never implemented. Current functional cutover to Planner is incomplete.
+Local Planner DECISIONS.md D07 establishes one Vrooli scheduling authority. PRD/DECISIONS/DATA record the old scenario as unused with no live data, but historical databases were not independently audited. Calendar references remain in secrets-manager/electron bundle catalogs, storage-manager migration proposals and Prompt Manager classification. No exact old dependency was found in the bounded top-level manifest/caller search; this is not full retirement certification or permission to delete data.
+The recovered v1 specification independently requires native tasks/events in R0, one scheduling source in D07 and §15, and an explicit owner map/cutover in §3. Its D04/R1 scope permits optional read-only external calendars; provider writing is R3. Local phase P02 concerns temporal/manual calendar behavior and P08 external integration; these phase IDs are distinct from this dossier’s P01–P42 visual-coverage IDs. Shared scheduling for Daily/Cadence/agent work and real external integration remain unchecked in the current PRD.
+GoogleAdapter already supports calendar/event list pagination, singleEvents expansion, nextSyncToken and a 410 reset signal. Reuse that work rather than describe integration as wholly absent. The inspected ImportedEvent/normalizer loses a separate all-day end date, all-day flag, calendar/series/original-start identity, ETag and named timezone; multiday events are reduced to duration on the first date. Cancelled payloads without valid start/end would be omitted. SQLiteRepository.Sync currently writes synthetic fixtures rather than invoking Google ingestion. These are source-reviewed gaps, not real-provider reproductions; durable cursor/credential refresh and provider writes were not found in the bounded inspection.
+Apple device setup remains a separate verification. A Google account in Apple Calendar is a client connection, not Google↔iCloud replication. ICS imports do not stay synchronized; subscribed calendars are read-only. Push notifications may reduce latency later but need renewed channels and do not replace incremental reconciliation; a sleeping local machine cannot promise immediate updates.
+Calendar source locators: packages/proto/schemas/personal-planner/v1/calendar/calendar.proto:10; scenarios/personal-planner/ui/src/pages/PlanPage.tsx:44,100,121; ui/src/components/RangeView.tsx:17; api/internal/integrations/google.go:29,108 and sqlite.go:49; cli/domains/workspace/handlers.go:23. Abbreviated paths are under scenarios/personal-planner. Accepted source plan: docs/reference/source-implementation-plan.md:392,427,889,903; local DECISIONS.md D04/D07, PRD.md and DATA.md retain lifecycle intent. The original local calendar artifact is /home/matthalloran8/Documents/Codex/2026-10-02/task-10/planner-calendar-evidence.json. Its transferred Drive edition was updated in place with the 21-event Google reconciliation; the calendar observations and source-reviewed gaps are not fresh live-provider tests. No implementation resource estimate is established.
+Primary integration references: Google account setup; Apple calendar account settings; Google event identity and time semantics; incremental synchronization; conditional updates; recurring events; OAuth scopes; Google import limits; Apple subscribed calendars.
+
+
+Personal Planner  ·  Owner review pending  ·

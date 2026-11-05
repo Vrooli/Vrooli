@@ -1,0 +1,55 @@
+# Device Studio implementation and validation approach
+
+2026-10-19. Design proposal after the operator selected all seven A answers with desktop, monetization and AI-disclosure additions. This is an investigation handoff, not a registered implementation plan or evidence that the scenario exists. Read decisions.json, interaction-contract.md and the owner research reports before authoring the delivery plan. Formal scenario generation must follow the owning plan/scaffold workflow.
+
+## Product target and architecture
+
+Deliver a local-first device-shot application with browser UI, CLI/Connect API and downloadable desktop architecture. The first complete release covers eight representative device groups, guided and advanced shot editing, 1080p SDR video at 24/30 fps in landscape/portrait, high-resolution stills when supported, real phone rotation, real laptop opening/closing and budgeted AI creation/refinement. Library breadth includes explicit variant/support cases for monitor/TV and smart display/frame. Broader schema coverage does not claim all assets or motions are qualified. Initial runtime proof uses this host; Windows/macOS/Linux interfaces and build paths are part of the first implementation. Each distributed target must pass its own release qualification.
+
+Use the governed Go/React/Connect scenario template after checking its current owner readiness. Store project/domain state through engine-independent repositories and shared api-core storage/blob primitives. Native workers are separate processes with owned lifecycle, bounded resources and versioned input/output artifacts. Blender is the controlled 3D final renderer; a deterministic compositor replays pinned photographic plates; a dedicated browser stage previews the same pose/source clocks with explicitly approximate lighting. Keep renderer adapters replaceable without rewriting domain data.
+
+| Domain | Authoritative content |
+|---|---|
+| Device definitions and adaptations | Exact/generic identity, measurement uncertainty/evidence, units, parts/joints, display surfaces, occlusions, attachments and permitted poses |
+| Scene recipes | Physical supports/mounts, environment, lights/cameras, props, clearances, compatible placement constraints and qualified look |
+| Presentation profiles | Actual app viewport, OS/status/home/browser/desktop chrome, edge-color policy, fit/crop, display mask and source timing |
+| Motion recipes | Camera/device/joint tracks, units, constraints, easing, time sampling and supported device capabilities |
+| Shots and compilation | Immutable revisions joining all inputs, strategy eligibility, frame schedule, output/color profile, dependency hashes and review scope |
+| Render/creation jobs | Durable state, checkpoints, source/worker/provider receipts, cancellation, reconciliation, budget scope and retained candidates |
+| Catalog qualification | Reference comparisons, visual/temporal acceptance and allowed device/scene/motion combinations; generic media publication remains with Asset Studio |
+
+BAS continues to capture authentic app media. Image Tools/AI Gateway own model/provider routing and execution receipts; LPBS owns credit authorization and accounting. The existing metered text integration does not qualify the separate media route: account-scoped funded media needs its own trusted adapter and proof. Asset Studio remains the generic shared publication owner, with required byte-reference/media-admission fixes at that owner. Backdrop Studio supplies suitable ambient assets. Launch-video/HyperFrames composes returned shots into the final film, audio and CTA. Device Studio must not become a second account service, payment ledger, provider router, host installer or general mesh editor.
+
+## Delivery sequence
+
+1. **Resolve the expensive uncertainties while establishing the contract.** Create scenario target docs, requirement-to-evidence mapping, versioned device/shot/job schemas and the formal implementation work shape. Qualify a supported Blender build with GPU kernels through the control-plane tool/dependency owners. In parallel, prove the intended account-link → scoped paid-operation → reservation/settlement route and fix concrete shared account/provider gaps at their owners. Produce one professionally art-directed 3D phone motion and laptop hinge sequence early, before expanding the library. A weak look here is a design feedback signal, not a reason to inflate the sample count or defer all quality work to the end.
+2. **Ship a usable saved-shot slice.** Import capture and pinned plate; calibrate screen/mask; apply configurable phone or desktop/browser presentation; preview, render, export PNG/MP4 and reopen the project. Include job progress/cancel/error states, receipts and portable project packaging. Put the same operations behind API/CLI. The accepted v6 artifacts serve as reproduction references. This milestone is useful but does not complete the scenario.
+3. **Complete physical motion and direct editing.** Import/adapt immutable models, qualify device parts/pivots and support placement, implement the browser stage, camera/lighting/keyframe controls and native final render. Phone spin, laptop close and actual screen-entry handoff must work continuously at final output size. Build Windows/macOS/Linux tool and path boundaries here, not as a later rewrite.
+4. **Build the reviewed representative library and creation workflow.** Acquire suitable free assets or author accurate/generic alternatives from references. Complete the eight-group acceptance matrix. Implement bounded agent search/import/build/compare/refine with immutable candidates, reference views, child-work accounting, pause/cancel/resume and review before shared release. The UI labels AI calls and agent starts before initiation; normal editing/rendering stays predictable.
+5. **Complete paid-service and desktop delivery surfaces.** Integrate the qualified shared account components and scoped Vrooli-credit route, BYOK secure-storage route and local execution. Assemble minimal desktop bundles through scenario-to-desktop/deployment owners, with declared optional services and renderer packs. Support offline local projects, portable import/export, updates/migration and signed installers for each claimed release target. Keep rendering/model creation independent of a running development checkout or the full scenario fleet.
+6. **Validate real consumer delivery and finish the product.** Have the launch-video workflow create/reopen/render a saved shot through the public contract; consume its media and credits/provenance receipt. Complete visual review, failure/recovery checks, account/metering qualification and per-platform packaged-app validation. Migrate reusable experiment mechanisms into owners and update the launch-video skill to call the stable operations. Retain historical experiments and rejected candidates.
+
+Steps describe dependency-aware implementation, not six isolated waterfalls. Desktop packaging, budget/privacy enforcement and visual reviews are exercised throughout. Photographic delivery can proceed before a provider account is configured using imported plates; it cannot close outstanding paid-flow, controlled-motion, AI creation or desktop release obligations.
+
+## Validation and release evidence
+
+Use docs/TESTING.md for focused owner regressions and relevant Test Genie phases during development. Run broader release certification only when the actual release boundary warrants it. Test desired behavior and enforce shared generated-artifact freshness before interpreting consumer compilation failures. The planned checks below are obligations, not claims that tests have already run.
+
+| Boundary | Required evidence |
+|---|---|
+| Domain generalization | Positive and rejected compatibility fixtures for round/multiple/curved screens, folds, physical occlusions, stands/wall mounts, embedded vehicle hosts and unsupported optical cases |
+| Measurement and fidelity | Pinned manufacturer/source data; calibrated reference views with fixed measured dimensions; held-out angles; deviations/uncertainty recorded separately from beauty lighting |
+| Screen correctness | Bright-background island diagnostic, independent OS/browser layers, fit/crop/aspect checks, color test patterns, masks/UVs, frame timestamps and source authenticity |
+| Motion and craft | Actual renderer still plus continuous phone rotation/laptop hinge/screen-entry footage; support, collisions, temporal flicker/aliasing, changing reflection and readable holds; human approval against selected visual benchmarks |
+| Reproducibility | Immutable recipe/input/tool/color hashes; reopen/export/reimport; same pose/time semantics across preview/final; no promise of bit-identical path-tracer pixels on different hardware |
+| Jobs | Cancellation of owned work, restart/checkpoint recovery, disk-full/tool failure, timeout, partial outputs, concurrent queue budgets and no orphan processes |
+| AI/privacy | Visible AI/agent labels, total nested budget enforcement, no hidden auto-generation, default external capture redaction, uploaded-byte evidence, no secrets in project archives or logs |
+| Credits and account | Scoped account linking/revocation, signed-out/offline behavior, expired token/lease recovery, unauthorized spending rejection, idempotent reserve/settle/release/retry and honest unknown usage; isolated tests before a configured capped live proof |
+| Desktop | Fresh-user install without checkout, launch/import/save/render/export/offline/restart/update/uninstall behavior; writable per-user paths, Unicode/spaces, secure store and loopback isolation; signing/notarization and CPU/GPU checks on each target actually advertised |
+| Consumer | Real launch-video shot request and returned artifact consumption through documented public API/CLI; app media unchanged by generated scene logic except declared mapping/color/encode |
+
+Measure preview responsiveness, final render time, peak memory/VRAM and storage at the selected 1080p profiles on the qualified renderer. Do not extrapolate earlier constrained CPU timings into product promises. An approved art-directed native still precedes a long video render; a short continuous render must pass before expensive batch output. 4K video, HDR and hybrid room reconstruction are not initial completion requirements.
+
+## Readiness and unresolved engineering facts
+
+User preference questions are resolved. Remaining uncertainty belongs to implementation and validation: professional 3D scene quality, mechanical laptop adaptation, generalized compiler behavior, supported GPU renderer provisioning, shared paid-account operation integration, provider controls/cost receipts, actual broad-library acquisition and packaging on each OS. These are explicit early gates, not further speculative questions for the operator. Actual spending requires configured credentials and caps; actual distribution requires the selected platform's signing/release setup. Neither was exercised by this research.

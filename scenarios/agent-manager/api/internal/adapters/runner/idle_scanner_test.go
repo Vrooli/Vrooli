@@ -2,16 +2,17 @@ package runner
 
 import (
 	"bufio"
+	"io"
+	"os"
 	"os/exec"
 	"strings"
-	"syscall"
 	"testing"
 	"time"
 )
 
 func TestManagedProcess_NormalEOF(t *testing.T) {
 	cmd := exec.Command("printf", "line1\nline2\nline3\n")
-	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+	cmd.SysProcAttr = managedProcessSysProcAttr()
 
 	mp, err := startManagedProcess(cmd, 2*time.Second)
 	if err != nil {
@@ -39,12 +40,39 @@ func TestManagedProcess_NormalEOF(t *testing.T) {
 	}
 }
 
+// TestManagedProcess_StderrRemainsReadableAfterChildExit pins the ownership
+// boundary needed by the durable transcript drainer: the background cmd.Wait
+// may finish before a consumer reads stderr, but it must not close the
+// consumer's pipe first.
+func TestManagedProcess_StderrRemainsReadableAfterChildExit(t *testing.T) {
+	cmd := exec.Command("sh", "-c", "printf retained >&2")
+	cmd.SysProcAttr = managedProcessSysProcAttr()
+
+	mp, err := startManagedProcess(cmd, 2*time.Second)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer mp.Wait()
+
+	// Give the short-lived child enough time to exit and the background
+	// cmd.Wait to run. With exec.Cmd.StderrPipe this read would fail because
+	// cmd.Wait closes the pipe before the transcript drainer can consume it.
+	time.Sleep(20 * time.Millisecond)
+	got, err := io.ReadAll(mp.Stderr())
+	if err != nil {
+		t.Fatalf("read stderr after child exit: %v", err)
+	}
+	if string(got) != "retained" {
+		t.Fatalf("stderr = %q, want retained", got)
+	}
+}
+
 func TestManagedProcess_GrandchildPipe(t *testing.T) {
 	// Process that exits but leaves a grandchild holding stdout open.
 	// With old StdoutPipe: scanner blocks forever.
 	// With managedProcess: scanner gets EOF promptly after main process exits.
 	cmd := exec.Command("bash", "-c", `bash -c "sleep 300" & echo "done"`)
-	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+	cmd.SysProcAttr = managedProcessSysProcAttr()
 
 	mp, err := startManagedProcess(cmd, 10*time.Second)
 	if err != nil {
@@ -79,7 +107,7 @@ func TestManagedProcess_GrandchildPipe(t *testing.T) {
 func TestManagedProcess_SafetyTimeout(t *testing.T) {
 	// Process that writes one line then hangs — short timeout fires
 	cmd := exec.Command("bash", "-c", `echo "hello"; sleep 300`)
-	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+	cmd.SysProcAttr = managedProcessSysProcAttr()
 
 	mp, err := startManagedProcess(cmd, 500*time.Millisecond)
 	if err != nil {
@@ -110,7 +138,7 @@ func TestManagedProcess_SafetyTimeout(t *testing.T) {
 func TestManagedProcess_TimerReset(t *testing.T) {
 	// Process writes a line every 200ms — should NOT time out with 500ms timeout
 	cmd := exec.Command("bash", "-c", `for i in 1 2 3 4 5; do echo "line$i"; sleep 0.2; done`)
-	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+	cmd.SysProcAttr = managedProcessSysProcAttr()
 
 	mp, err := startManagedProcess(cmd, 500*time.Millisecond)
 	if err != nil {
@@ -137,7 +165,7 @@ func TestManagedProcess_TimerReset(t *testing.T) {
 
 func TestManagedProcess_NoTimeout(t *testing.T) {
 	cmd := exec.Command("printf", "a\nb\n")
-	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+	cmd.SysProcAttr = managedProcessSysProcAttr()
 
 	mp, err := startManagedProcess(cmd, 0)
 	if err != nil {
@@ -161,9 +189,79 @@ func TestManagedProcess_NoTimeout(t *testing.T) {
 	}
 }
 
+func TestManagedProcessWithFiles_OutputGrowthResetsIdleTimeout(t *testing.T) {
+	dir := t.TempDir()
+	stdout, err := os.Create(dir + "/stdout.log")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer stdout.Close()
+	stderr, err := os.Create(dir + "/stderr.log")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer stderr.Close()
+	cmd := exec.Command("sh", "-c", "printf 'one\\n'; sleep 0.14; printf 'two\\n'; sleep 0.14; printf 'three\\n'; sleep 0.14")
+	cmd.SysProcAttr = managedProcessSysProcAttr()
+	cmd.Stdout, cmd.Stderr = stdout, stderr
+	mp, err := startManagedProcessWithFiles(cmd, 300*time.Millisecond, stdout)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := mp.Wait(); err != nil {
+		t.Fatalf("command failed despite continued output: %v", err)
+	}
+	if mp.TimedOut() {
+		t.Fatal("continued durable output did not reset idle timeout")
+	}
+	content, err := os.ReadFile(stdout.Name())
+	if err != nil || string(content) != "one\ntwo\nthree\n" {
+		t.Fatalf("durable output=%q err=%v", content, err)
+	}
+}
+
+func TestObserveFileActivityGrowthAtDeadlineResetsBeforeTimeout(t *testing.T) {
+	lastActivity := time.Unix(100, 0)
+	timeout := 200 * time.Millisecond
+	deadline := lastActivity.Add(timeout)
+	lastSize, nextActivity, expired := observeFileActivity(11, 10, deadline, lastActivity, timeout)
+	if expired || lastSize != 11 || !nextActivity.Equal(deadline) {
+		t.Fatalf("fresh boundary write was treated as expired: size=%d activity=%s expired=%v", lastSize, nextActivity, expired)
+	}
+	_, _, expired = observeFileActivity(11, 11, deadline.Add(timeout), nextActivity, timeout)
+	if !expired {
+		t.Fatal("unchanged output at the next full deadline was not expired")
+	}
+}
+
+func TestManagedProcessWithFiles_SilentOutputTimesOut(t *testing.T) {
+	dir := t.TempDir()
+	stdout, err := os.Create(dir + "/stdout.log")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer stdout.Close()
+	stderr, err := os.Create(dir + "/stderr.log")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer stderr.Close()
+	cmd := exec.Command("sh", "-c", "sleep 5")
+	cmd.SysProcAttr = managedProcessSysProcAttr()
+	cmd.Stdout, cmd.Stderr = stdout, stderr
+	mp, err := startManagedProcessWithFiles(cmd, 100*time.Millisecond, stdout)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_ = mp.Wait()
+	if !mp.TimedOut() {
+		t.Fatal("silent process did not fire configured idle timeout")
+	}
+}
+
 func TestManagedProcess_Kill(t *testing.T) {
 	cmd := exec.Command("bash", "-c", `echo "start"; sleep 300`)
-	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+	cmd.SysProcAttr = managedProcessSysProcAttr()
 
 	mp, err := startManagedProcess(cmd, 0) // no timer
 	if err != nil {
@@ -192,7 +290,7 @@ func TestManagedProcess_Kill(t *testing.T) {
 func TestManagedProcess_LargeBuffer(t *testing.T) {
 	longLine := strings.Repeat("x", 100000)
 	cmd := exec.Command("printf", longLine+"\n")
-	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+	cmd.SysProcAttr = managedProcessSysProcAttr()
 
 	mp, err := startManagedProcess(cmd, 2*time.Second)
 	if err != nil {
@@ -221,7 +319,7 @@ func TestManagedProcess_LargeBuffer(t *testing.T) {
 
 func TestManagedProcess_WaitIdempotent(t *testing.T) {
 	cmd := exec.Command("true")
-	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+	cmd.SysProcAttr = managedProcessSysProcAttr()
 
 	mp, err := startManagedProcess(cmd, 2*time.Second)
 	if err != nil {

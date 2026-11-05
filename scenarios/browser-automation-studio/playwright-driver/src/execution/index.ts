@@ -16,7 +16,6 @@
 export {
   executeInstruction,
   validateInstruction,
-  createInstructionKey,
   type ExecutionContext,
   type ExecutionResult,
   type ValidationResult,

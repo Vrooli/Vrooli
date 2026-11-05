@@ -1,29 +1,42 @@
 import { ReactNode } from 'react';
+import { SiteShell } from '../../surfaces/public-landing/site/SiteShell';
+import '../../surfaces/user-auth/auth.css';
 
 interface AuthPageLayoutProps {
   children: ReactNode;
+  /** Visible card heading, when the children do not render their own. */
   title?: string;
   subtitle?: string;
+  /** Document title when the visible heading lives in the children. */
+  pageTitle?: string;
+  description?: string;
+  /** Explanatory panel beside the card on wide screens. */
+  aside?: ReactNode;
+  chrome?: 'full' | 'minimal';
+  /** Changes when the step changes, so the card animates between steps. */
+  stepKey?: string;
 }
 
-export function AuthPageLayout({ children, title, subtitle }: AuthPageLayoutProps) {
+/** Sign-in surfaces share the public site chrome and are never indexed. */
+export function AuthPageLayout({ children, title, subtitle, pageTitle, description, aside, chrome = 'full', stepKey }: AuthPageLayoutProps) {
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center p-4">
-      <div className="w-full max-w-md">
-        <div className="bg-slate-800/50 backdrop-blur-sm border border-slate-700/50 rounded-2xl p-8 shadow-2xl">
+    <SiteShell
+      meta={{ title: pageTitle ?? title ?? 'Sign in', description: description ?? subtitle ?? 'Sign in to your account.', noindex: true }}
+      width={aside ? 'wide' : 'narrow'}
+      chrome={chrome}
+    >
+      <div className={`auth-layout ${aside ? 'auth-layout-split' : 'auth-layout-single'}`}>
+        {aside}
+        <section className="site-card site-auth auth-card" key={stepKey} data-step={stepKey}>
           {(title || subtitle) && (
-            <div className="text-center mb-8">
-              {title && (
-                <h1 className="text-2xl font-bold text-white mb-2">{title}</h1>
-              )}
-              {subtitle && (
-                <p className="text-slate-400">{subtitle}</p>
-              )}
-            </div>
+            <header className="site-auth-head auth-head">
+              {title && <h1>{title}</h1>}
+              {subtitle && <p>{subtitle}</p>}
+            </header>
           )}
           {children}
-        </div>
+        </section>
       </div>
-    </div>
+    </SiteShell>
   );
 }

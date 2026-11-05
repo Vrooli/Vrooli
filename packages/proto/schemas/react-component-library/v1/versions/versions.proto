@@ -1,0 +1,128 @@
+syntax = "proto3";
+
+package vrooli.react_component_library.v1.versions;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/versions;versions_v1";
+
+// =============================================================================
+// VERSIONS DOMAIN — per-component version history + structured diffs
+// =============================================================================
+//
+// @layer 5  (api surface)
+// @stability stable
+//
+// Reads release artifacts indexed from component manifest version folders.
+// Diff is computed server-side as paired aligned rows so the UI can
+// render side-by-side without bundling a diff library.
+//
+// Consumed by:
+//   - API: handlers/versions/connect_handler.go
+//   - UI:  ui/src/api/versions.ts
+//   - CLI: cli/domains/versions/handlers.go
+// =============================================================================
+
+service VersionsService {
+  rpc ListVersions(ListVersionsRequest) returns (ListVersionsResponse);
+  rpc GetVersion(GetVersionRequest) returns (GetVersionResponse);
+  rpc DiffVersions(DiffVersionsRequest) returns (DiffVersionsResponse);
+}
+
+message Version {
+  string id = 1;
+  // Soft FK to components.id.
+  string component_id = 2;
+  string library_id = 7;
+  string version = 3;
+  // Hex sha256 of the recorded content.
+  string content_sha256 = 4;
+  // Optional human note attached by the recorder (e.g. "auto-recorded
+  // on save"). Empty by default.
+  string changelog_md = 5;
+  // Deprecated compatibility field. Use created_at for the first-seen time.
+  google.protobuf.Timestamp recorded_at = 6 [deprecated = true];
+  string status = 8;
+  string source_path = 9;
+  google.protobuf.Timestamp released_at = 10;
+	google.protobuf.Timestamp created_at = 11;
+	// CSS custom properties referenced by the version but not defined by its
+	// own source files. Derived at catalog index time.
+	repeated string required_tokens = 12;
+	repeated string required_token_patterns = 13;
+	// Storage placement independent of lifecycle status: materialized or evicted.
+	string presence = 14;
+}
+
+message ListVersionsRequest {
+  string component_id = 1;
+  // Max rows newest-first. 0 = server default.
+  int32 limit = 2;
+  // When true, list every recorded version across the catalog.
+  bool all = 3;
+}
+
+message ListVersionsResponse {
+  repeated Version versions = 1;
+}
+
+message GetVersionRequest {
+  string component_id = 1;
+  // The `@version` value. Identifies the row within the component.
+  string version = 2;
+  // Optional: when true, include the full recorded `content`. Default
+  // false to keep list pages cheap.
+  bool include_content = 3;
+}
+
+message GetVersionResponse {
+  Version version = 1;
+  // Populated only when include_content was true.
+  string content = 2;
+}
+
+// Op tags each aligned diff row. The client renders left vs right;
+// EMPTY is a filler cell used to keep paired rows aligned on the side
+// without that line.
+enum DiffOp {
+  DIFF_OP_UNSPECIFIED = 0;
+  DIFF_OP_EQUAL = 1;
+  DIFF_OP_REMOVE = 2;
+  DIFF_OP_ADD = 3;
+  DIFF_OP_EMPTY = 4;
+}
+
+message DiffCell {
+  // 1-indexed line number on this side, 0 for EMPTY cells.
+  int32 line_number = 1;
+  string text = 2;
+  DiffOp op = 3;
+}
+
+message DiffRow {
+  DiffCell left = 1;
+  DiffCell right = 2;
+}
+
+message DiffVersionsRequest {
+  string component_id = 1;
+  // `from` and `to` accept either a `@version` value or the prefixed
+  // form `adoption:<adoption_id>` to compare the library version
+  // against an adopted copy on disk. Either side may use the adoption
+  // prefix; both being adoption references is valid (compares two
+  // adopted copies).
+  string from = 2;
+  string to = 3;
+}
+
+message DiffVersionsResponse {
+  // Aligned diff rows from top to bottom.
+  repeated DiffRow rows = 1;
+  // Counts to drive a summary header in the UI.
+  int32 additions = 2;
+  int32 removals = 3;
+  // Echoed from inputs so the client can label sides without a second
+  // round-trip; "v1.2.3" or "adoption:<id>".
+  string from_label = 4;
+  string to_label = 5;
+}

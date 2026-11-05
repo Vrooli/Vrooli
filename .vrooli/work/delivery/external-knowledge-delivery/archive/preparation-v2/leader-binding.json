@@ -1,0 +1,20 @@
+{
+  "schedule": "*/30 * * * *",
+  "profileKey": "prompt-manager/delivery-orchestrator",
+  "finiteLeader": {
+    "effortRef": "effort:external-knowledge-search",
+    "acceptedRevision": "preparation-v1:sha256:3c5b6d987132b9a42efef7cedaaf8f6995202f2d281a73f2a69f8292593452df",
+    "coordinatorPromptRef": "path:docs/internal/external-knowledge-delivery/GOAL.md",
+    "sourceRefs": [
+      "path:docs/architecture/external-knowledge-search.md",
+      "path:docs/internal/external-knowledge-delivery/RESEARCH.md",
+      "path:docs/internal/external-knowledge-delivery/QUEUE.md",
+      "path:docs/internal/external-knowledge-delivery/SETUP.md",
+      "path:docs/internal/external-knowledge-delivery/EMAIL-DESIGN-PROMPT.md"
+    ],
+    "keepAlive": true,
+    "checkin": {
+      "mode": "parked"
+    }
+  }
+}

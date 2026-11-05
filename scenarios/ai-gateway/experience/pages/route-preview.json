@@ -1,0 +1,47 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.0.0",
+  "page": {
+    "id": "route-preview",
+    "title": "Route Preview",
+    "routes": ["/routes/preview"],
+    "purpose": "Let an operator or agent test a role, profile, and constraint set before execution and inspect the selected route, rejected candidates, and policy reasons.",
+    "prd_refs": ["OT-P0-001", "OT-P0-004"]
+  },
+  "priorities": [
+    {
+      "statement": "Make the selected provider path and resource role obvious."
+    },
+    {
+      "statement": "Explain rejected candidates with policy reasons instead of hiding them."
+    },
+    {
+      "statement": "Keep execution separate from preview so operators can reason safely before running inference."
+    }
+  ],
+  "states": [
+    { "id": "default", "description": "The preview form is ready and no preview result is required yet." },
+    { "id": "submitting", "description": "The route preview request is in flight." },
+    { "id": "success", "description": "Selected route, candidates, and policy reasons are visible." },
+    { "id": "request-error", "description": "The preview call failed and the error is visible." }
+  ],
+  "elements": [
+    { "id": "preview-region", "role": "region", "name": "Route preview" }
+  ],
+  "claims": [
+    {
+      "id": "preview-region-present",
+      "type": "element-present",
+      "statement": "The route preview page exposes a named operator region.",
+      "tier": "machine",
+      "elements": ["preview-region"],
+      "states": ["default", "submitting", "success", "request-error"]
+    }
+  ],
+  "bindings": {
+    "elements": {
+      "preview-region": { "testid": "page-route-preview" }
+    }
+  }
+}

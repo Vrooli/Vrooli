@@ -1,0 +1,35 @@
+{
+  "metadata": {
+    "name": "experience-variation-board-spec-smoke",
+    "description": "Observer smoke for the measured candidate variation board.",
+    "requirement": "OT-P0-012",
+    "version": "1",
+    "labels": { "reset": "none", "spec_entry_id": "variation-board", "surface": "experience-variation-board" },
+    "execution_mode": "observer"
+  },
+  "settings": { "viewport_width": 1280, "viewport_height": 800 },
+  "nodes": [
+    {
+      "id": "navigate-variation",
+      "action": {
+        "type": "ACTION_TYPE_NAVIGATE",
+        "navigate": {
+          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+          "scenario": "prose-studio",
+          "scenario_path": "/variation",
+          "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE",
+          "timeout_ms": 30000
+        },
+        "metadata": { "label": "Open Variation Board" }
+      }
+    },
+    {
+      "id": "wait-variation-page",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": { "selector": "@selector/pages.variation", "state": "WAIT_STATE_VISIBLE", "timeout_ms": 15000 },
+        "metadata": { "label": "Variation Board visible" }
+      }
+    }
+  ]
+}

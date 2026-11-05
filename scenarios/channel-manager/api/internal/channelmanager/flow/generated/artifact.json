@@ -1,0 +1,721 @@
+{
+  "schemaVersion": 6,
+  "flowId": "channelmanager.action-lifecycle.api",
+  "source": {
+    "contractPath": "api/internal/channelmanager/flow/flow.json",
+    "contractSha256": "9325ef3f4f6fe3db9fe5f23a3761f840f4b5909335f5fa91558258d968b103c9",
+    "generatorPath": "flow-verifier",
+    "generatorSha256": "2f4bdb4736a693e8d45276b8ad50a7f9078816d749b1d31b315d67302d62b864",
+    "generatorVersion": 7,
+    "modelPath": "api/internal/channelmanager/flow/generated/model.qnt",
+    "modelSha256": "41fec01a0d4cee6326dd84c8b1f08a79499ba32bdcbe6cb63bee806f204b6268",
+    "quintVersion": "0.32.0",
+    "verificationBackend": "apalache"
+  },
+  "commands": {
+    "run": [
+      "quint",
+      "run",
+      "api/internal/channelmanager/flow/generated/model.qnt",
+      "--mbt",
+      "--seed",
+      "2026072801",
+      "--max-samples",
+      "8",
+      "--n-traces",
+      "8",
+      "--max-steps",
+      "7",
+      "--out-itf",
+      "<temp-itf-pattern>"
+    ],
+    "test": [
+      "quint",
+      "test",
+      "api/internal/channelmanager/flow/generated/model.qnt",
+      "--seed",
+      "2026072801"
+    ],
+    "typecheck": [
+      "quint",
+      "typecheck",
+      "api/internal/channelmanager/flow/generated/model.qnt"
+    ],
+    "verify": [
+      "quint",
+      "verify",
+      "api/internal/channelmanager/flow/generated/model.qnt",
+      "--invariants",
+      "TypeOK",
+      "TerminalClosure",
+      "IllegalTransitionsPreserveState",
+      "--max-steps",
+      "7"
+    ]
+  },
+  "states": [
+    "scheduled",
+    "due",
+    "executing",
+    "succeeded",
+    "failed",
+    "cancelled"
+  ],
+  "events": [
+    "make_due",
+    "begin",
+    "succeed",
+    "fail",
+    "cancel"
+  ],
+  "transitions": [
+    {
+      "from": "scheduled",
+      "event": "make_due",
+      "to": "due",
+      "wantError": false
+    },
+    {
+      "from": "scheduled",
+      "event": "begin",
+      "to": "scheduled",
+      "wantError": true
+    },
+    {
+      "from": "scheduled",
+      "event": "succeed",
+      "to": "scheduled",
+      "wantError": true
+    },
+    {
+      "from": "scheduled",
+      "event": "fail",
+      "to": "scheduled",
+      "wantError": true
+    },
+    {
+      "from": "scheduled",
+      "event": "cancel",
+      "to": "cancelled",
+      "wantError": false
+    },
+    {
+      "from": "due",
+      "event": "make_due",
+      "to": "due",
+      "wantError": true
+    },
+    {
+      "from": "due",
+      "event": "begin",
+      "to": "executing",
+      "wantError": false
+    },
+    {
+      "from": "due",
+      "event": "succeed",
+      "to": "due",
+      "wantError": true
+    },
+    {
+      "from": "due",
+      "event": "fail",
+      "to": "due",
+      "wantError": true
+    },
+    {
+      "from": "due",
+      "event": "cancel",
+      "to": "cancelled",
+      "wantError": false
+    },
+    {
+      "from": "executing",
+      "event": "make_due",
+      "to": "executing",
+      "wantError": true
+    },
+    {
+      "from": "executing",
+      "event": "begin",
+      "to": "executing",
+      "wantError": true
+    },
+    {
+      "from": "executing",
+      "event": "succeed",
+      "to": "succeeded",
+      "wantError": false
+    },
+    {
+      "from": "executing",
+      "event": "fail",
+      "to": "failed",
+      "wantError": false
+    },
+    {
+      "from": "executing",
+      "event": "cancel",
+      "to": "cancelled",
+      "wantError": false
+    },
+    {
+      "from": "succeeded",
+      "event": "make_due",
+      "to": "succeeded",
+      "wantError": true
+    },
+    {
+      "from": "succeeded",
+      "event": "begin",
+      "to": "succeeded",
+      "wantError": true
+    },
+    {
+      "from": "succeeded",
+      "event": "succeed",
+      "to": "succeeded",
+      "wantError": true
+    },
+    {
+      "from": "succeeded",
+      "event": "fail",
+      "to": "succeeded",
+      "wantError": true
+    },
+    {
+      "from": "succeeded",
+      "event": "cancel",
+      "to": "succeeded",
+      "wantError": true
+    },
+    {
+      "from": "failed",
+      "event": "make_due",
+      "to": "failed",
+      "wantError": true
+    },
+    {
+      "from": "failed",
+      "event": "begin",
+      "to": "failed",
+      "wantError": true
+    },
+    {
+      "from": "failed",
+      "event": "succeed",
+      "to": "failed",
+      "wantError": true
+    },
+    {
+      "from": "failed",
+      "event": "fail",
+      "to": "failed",
+      "wantError": true
+    },
+    {
+      "from": "failed",
+      "event": "cancel",
+      "to": "failed",
+      "wantError": true
+    },
+    {
+      "from": "cancelled",
+      "event": "make_due",
+      "to": "cancelled",
+      "wantError": true
+    },
+    {
+      "from": "cancelled",
+      "event": "begin",
+      "to": "cancelled",
+      "wantError": true
+    },
+    {
+      "from": "cancelled",
+      "event": "succeed",
+      "to": "cancelled",
+      "wantError": true
+    },
+    {
+      "from": "cancelled",
+      "event": "fail",
+      "to": "cancelled",
+      "wantError": true
+    },
+    {
+      "from": "cancelled",
+      "event": "cancel",
+      "to": "cancelled",
+      "wantError": true
+    }
+  ],
+  "namedTraces": [
+    {
+      "name": "manual_success",
+      "initial": "scheduled",
+      "steps": [
+        {
+          "event": "make_due",
+          "want": "due",
+          "wantError": false
+        },
+        {
+          "event": "begin",
+          "want": "executing",
+          "wantError": false
+        },
+        {
+          "event": "succeed",
+          "want": "succeeded",
+          "wantError": false
+        }
+      ]
+    },
+    {
+      "name": "manual_failure",
+      "initial": "scheduled",
+      "steps": [
+        {
+          "event": "make_due",
+          "want": "due",
+          "wantError": false
+        },
+        {
+          "event": "begin",
+          "want": "executing",
+          "wantError": false
+        },
+        {
+          "event": "fail",
+          "want": "failed",
+          "wantError": false
+        }
+      ]
+    },
+    {
+      "name": "safety_cancel",
+      "initial": "scheduled",
+      "steps": [
+        {
+          "event": "cancel",
+          "want": "cancelled",
+          "wantError": false
+        }
+      ]
+    }
+  ],
+  "generatedTraces": [
+    {
+      "name": "generated_model_001",
+      "initial": "scheduled",
+      "steps": [
+        {
+          "event": "make_due",
+          "want": "due",
+          "wantError": false
+        },
+        {
+          "event": "make_due",
+          "want": "due",
+          "wantError": true
+        },
+        {
+          "event": "begin",
+          "want": "executing",
+          "wantError": false
+        },
+        {
+          "event": "fail",
+          "want": "failed",
+          "wantError": false
+        },
+        {
+          "event": "cancel",
+          "want": "failed",
+          "wantError": true
+        },
+        {
+          "event": "fail",
+          "want": "failed",
+          "wantError": true
+        },
+        {
+          "event": "begin",
+          "want": "failed",
+          "wantError": true
+        }
+      ]
+    },
+    {
+      "name": "generated_model_002",
+      "initial": "scheduled",
+      "steps": [
+        {
+          "event": "begin",
+          "want": "scheduled",
+          "wantError": true
+        },
+        {
+          "event": "begin",
+          "want": "scheduled",
+          "wantError": true
+        },
+        {
+          "event": "make_due",
+          "want": "due",
+          "wantError": false
+        },
+        {
+          "event": "make_due",
+          "want": "due",
+          "wantError": true
+        },
+        {
+          "event": "succeed",
+          "want": "due",
+          "wantError": true
+        },
+        {
+          "event": "fail",
+          "want": "due",
+          "wantError": true
+        },
+        {
+          "event": "succeed",
+          "want": "due",
+          "wantError": true
+        }
+      ]
+    },
+    {
+      "name": "generated_model_003",
+      "initial": "scheduled",
+      "steps": [
+        {
+          "event": "fail",
+          "want": "scheduled",
+          "wantError": true
+        },
+        {
+          "event": "succeed",
+          "want": "scheduled",
+          "wantError": true
+        },
+        {
+          "event": "succeed",
+          "want": "scheduled",
+          "wantError": true
+        },
+        {
+          "event": "begin",
+          "want": "scheduled",
+          "wantError": true
+        },
+        {
+          "event": "succeed",
+          "want": "scheduled",
+          "wantError": true
+        },
+        {
+          "event": "succeed",
+          "want": "scheduled",
+          "wantError": true
+        },
+        {
+          "event": "succeed",
+          "want": "scheduled",
+          "wantError": true
+        }
+      ]
+    },
+    {
+      "name": "generated_model_004",
+      "initial": "scheduled",
+      "steps": [
+        {
+          "event": "succeed",
+          "want": "scheduled",
+          "wantError": true
+        },
+        {
+          "event": "make_due",
+          "want": "due",
+          "wantError": false
+        },
+        {
+          "event": "begin",
+          "want": "executing",
+          "wantError": false
+        },
+        {
+          "event": "cancel",
+          "want": "cancelled",
+          "wantError": false
+        },
+        {
+          "event": "begin",
+          "want": "cancelled",
+          "wantError": true
+        },
+        {
+          "event": "cancel",
+          "want": "cancelled",
+          "wantError": true
+        },
+        {
+          "event": "succeed",
+          "want": "cancelled",
+          "wantError": true
+        }
+      ]
+    },
+    {
+      "name": "generated_model_005",
+      "initial": "scheduled",
+      "steps": [
+        {
+          "event": "fail",
+          "want": "scheduled",
+          "wantError": true
+        },
+        {
+          "event": "cancel",
+          "want": "cancelled",
+          "wantError": false
+        },
+        {
+          "event": "fail",
+          "want": "cancelled",
+          "wantError": true
+        },
+        {
+          "event": "succeed",
+          "want": "cancelled",
+          "wantError": true
+        },
+        {
+          "event": "succeed",
+          "want": "cancelled",
+          "wantError": true
+        },
+        {
+          "event": "begin",
+          "want": "cancelled",
+          "wantError": true
+        },
+        {
+          "event": "cancel",
+          "want": "cancelled",
+          "wantError": true
+        }
+      ]
+    },
+    {
+      "name": "generated_model_006",
+      "initial": "scheduled",
+      "steps": [
+        {
+          "event": "succeed",
+          "want": "scheduled",
+          "wantError": true
+        },
+        {
+          "event": "begin",
+          "want": "scheduled",
+          "wantError": true
+        },
+        {
+          "event": "make_due",
+          "want": "due",
+          "wantError": false
+        },
+        {
+          "event": "begin",
+          "want": "executing",
+          "wantError": false
+        },
+        {
+          "event": "succeed",
+          "want": "succeeded",
+          "wantError": false
+        },
+        {
+          "event": "succeed",
+          "want": "succeeded",
+          "wantError": true
+        },
+        {
+          "event": "cancel",
+          "want": "succeeded",
+          "wantError": true
+        }
+      ]
+    },
+    {
+      "name": "generated_model_007",
+      "initial": "scheduled",
+      "steps": [
+        {
+          "event": "make_due",
+          "want": "due",
+          "wantError": false
+        },
+        {
+          "event": "make_due",
+          "want": "due",
+          "wantError": true
+        },
+        {
+          "event": "make_due",
+          "want": "due",
+          "wantError": true
+        },
+        {
+          "event": "succeed",
+          "want": "due",
+          "wantError": true
+        },
+        {
+          "event": "begin",
+          "want": "executing",
+          "wantError": false
+        },
+        {
+          "event": "cancel",
+          "want": "cancelled",
+          "wantError": false
+        },
+        {
+          "event": "make_due",
+          "want": "cancelled",
+          "wantError": true
+        }
+      ]
+    },
+    {
+      "name": "generated_model_008",
+      "initial": "scheduled",
+      "steps": [
+        {
+          "event": "fail",
+          "want": "scheduled",
+          "wantError": true
+        },
+        {
+          "event": "make_due",
+          "want": "due",
+          "wantError": false
+        },
+        {
+          "event": "cancel",
+          "want": "cancelled",
+          "wantError": false
+        },
+        {
+          "event": "begin",
+          "want": "cancelled",
+          "wantError": true
+        },
+        {
+          "event": "cancel",
+          "want": "cancelled",
+          "wantError": true
+        },
+        {
+          "event": "fail",
+          "want": "cancelled",
+          "wantError": true
+        },
+        {
+          "event": "begin",
+          "want": "cancelled",
+          "wantError": true
+        }
+      ]
+    }
+  ],
+  "invariants": [
+    "TypeOK",
+    "TerminalClosure",
+    "IllegalTransitionsPreserveState"
+  ],
+  "generatedChecks": [
+    "transitionTable"
+  ],
+  "coverage": {
+    "transitionMatrixComplete": true,
+    "terminalTransitionsChecked": true,
+    "namedTraces": {
+      "allStatesCovered": true,
+      "allEventsCovered": true,
+      "coveredStates": [
+        "scheduled",
+        "due",
+        "executing",
+        "succeeded",
+        "failed",
+        "cancelled"
+      ],
+      "coveredEvents": [
+        "make_due",
+        "begin",
+        "succeed",
+        "fail",
+        "cancel"
+      ]
+    },
+    "generatedTraces": {
+      "allStatesCovered": true,
+      "allEventsCovered": true,
+      "coveredStates": [
+        "scheduled",
+        "due",
+        "executing",
+        "succeeded",
+        "failed",
+        "cancelled"
+      ],
+      "coveredEvents": [
+        "make_due",
+        "begin",
+        "succeed",
+        "fail",
+        "cancel"
+      ],
+      "coveredPairs": [
+        "scheduled/make_due",
+        "scheduled/begin",
+        "scheduled/succeed",
+        "scheduled/fail",
+        "scheduled/cancel",
+        "due/make_due",
+        "due/begin",
+        "due/succeed",
+        "due/fail",
+        "due/cancel",
+        "executing/succeed",
+        "executing/fail",
+        "executing/cancel",
+        "succeeded/succeed",
+        "succeeded/cancel",
+        "failed/begin",
+        "failed/fail",
+        "failed/cancel",
+        "cancelled/make_due",
+        "cancelled/begin",
+        "cancelled/succeed",
+        "cancelled/fail",
+        "cancelled/cancel"
+      ],
+      "allPairsCovered": false
+    }
+  },
+  "checks": {
+    "typechecked": true,
+    "tested": true,
+    "verified": true,
+    "generatedFromContract": true,
+    "generatedFromModel": true
+  }
+}

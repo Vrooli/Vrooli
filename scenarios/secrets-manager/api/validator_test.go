@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"testing"
 )
 
@@ -9,7 +10,7 @@ import (
 func TestNewSecretValidator(t *testing.T) {
 	validator := NewSecretValidator(nil)
 	if validator == nil {
-		t.Error("NewSecretValidator() returned nil")
+		t.Fatal("NewSecretValidator() returned nil")
 	}
 	if validator.db != nil {
 		t.Error("Expected nil database, got non-nil")
@@ -70,194 +71,13 @@ func TestValidateSecret(t *testing.T) {
 	cleanup := setupTestLogger()
 	defer cleanup()
 
-	t.Run("ValidEnvironmentVariable", func(t *testing.T) {
-		validator := NewSecretValidator(nil)
-
-		// Set up environment variable
-		testKey := "TEST_API_KEY_12345"
-		testValue := "test-api-key-value-123456"
-		t.Setenv(testKey, testValue)
-
-		secret := ResourceSecret{
-			ID:         "test-id",
-			SecretKey:  testKey,
-			SecretType: "api_key",
-			Required:   true,
-		}
-
-		result := validator.validateSecret(secret)
-
-		if result.ValidationStatus != "valid" {
-			t.Errorf("Expected status 'valid', got '%s'", result.ValidationStatus)
-		}
-
-		if result.ValidationMethod != string(ValidationMethodEnv) {
-			t.Errorf("Expected method 'env', got '%s'", result.ValidationMethod)
-		}
-	})
-
-	t.Run("MissingRequiredSecret", func(t *testing.T) {
-		validator := NewSecretValidator(nil)
-
-		secret := ResourceSecret{
-			ID:         "test-id",
-			SecretKey:  "NONEXISTENT_SECRET_KEY",
-			SecretType: "password",
-			Required:   true,
-		}
-
-		result := validator.validateSecret(secret)
-
-		if result.ValidationStatus != "missing" {
-			t.Errorf("Expected status 'missing', got '%s'", result.ValidationStatus)
-		}
-
-		if result.ErrorMessage == nil {
-			t.Error("Expected error message for missing secret")
-		}
-	})
-
-	t.Run("MissingOptionalSecret", func(t *testing.T) {
-		validator := NewSecretValidator(nil)
-
-		secret := ResourceSecret{
-			ID:         "test-id",
-			SecretKey:  "OPTIONAL_SECRET_KEY",
-			SecretType: "token",
-			Required:   false,
-		}
-
-		result := validator.validateSecret(secret)
-
-		if result.ValidationStatus != "optional_missing" {
-			t.Errorf("Expected status 'optional_missing', got '%s'", result.ValidationStatus)
-		}
-	})
-}
-
-// TestValidateEnvironmentVariable tests environment variable validation
-func TestValidateEnvironmentVariable(t *testing.T) {
-	cleanup := setupTestLogger()
-	defer cleanup()
-
-	t.Run("ValidAPIKey", func(t *testing.T) {
-		validator := NewSecretValidator(nil)
-
-		testKey := "VALID_API_KEY"
-		testValue := "this-is-a-valid-api-key-value"
-		t.Setenv(testKey, testValue)
-
-		secret := ResourceSecret{
-			SecretKey:  testKey,
-			SecretType: "api_key",
-		}
-
-		valid, err := validator.validateEnvironmentVariable(secret)
-		if !valid {
-			t.Errorf("Expected valid=true, got valid=%v, err=%v", valid, err)
-		}
-	})
-
-	t.Run("MissingEnvironmentVariable", func(t *testing.T) {
-		validator := NewSecretValidator(nil)
-
-		secret := ResourceSecret{
-			SecretKey:  "MISSING_ENV_VAR",
-			SecretType: "password",
-		}
-
-		valid, err := validator.validateEnvironmentVariable(secret)
-		if valid {
-			t.Error("Expected valid=false for missing env var")
-		}
-		if err == nil {
-			t.Error("Expected error for missing env var")
-		}
-	})
-
-	t.Run("InvalidPasswordLength", func(t *testing.T) {
-		validator := NewSecretValidator(nil)
-
-		testKey := "SHORT_PASSWORD"
-		testValue := "short" // Less than 8 characters
-		t.Setenv(testKey, testValue)
-
-		secret := ResourceSecret{
-			SecretKey:  testKey,
-			SecretType: "password",
-		}
-
-		valid, err := validator.validateEnvironmentVariable(secret)
-		if valid {
-			t.Error("Expected valid=false for short password")
-		}
-		if err == nil {
-			t.Error("Expected error for short password")
-		}
-	})
-}
-
-// TestValidateSecretValue tests secret value validation logic
-func TestValidateSecretValue(t *testing.T) {
-	cleanup := setupTestLogger()
-	defer cleanup()
-	validator := NewSecretValidator(nil)
-
-	t.Run("EmptyValue", func(t *testing.T) {
-		secret := ResourceSecret{SecretType: "password"}
-		err := validator.validateSecretValue("", secret)
-		if err == nil {
-			t.Error("Expected error for empty value")
-		}
-	})
-
-	t.Run("ValidPassword", func(t *testing.T) {
-		secret := ResourceSecret{SecretType: "password"}
-		err := validator.validateSecretValue("validpassword123", secret)
-		if err != nil {
-			t.Errorf("Expected no error for valid password, got: %v", err)
-		}
-	})
-
-	t.Run("ShortPassword", func(t *testing.T) {
-		secret := ResourceSecret{SecretType: "password"}
-		err := validator.validateSecretValue("short", secret)
-		if err == nil {
-			t.Error("Expected error for short password")
-		}
-	})
-
-	t.Run("ValidAPIKey", func(t *testing.T) {
-		secret := ResourceSecret{SecretType: "api_key"}
-		err := validator.validateSecretValue("this-is-a-valid-api-key", secret)
-		if err != nil {
-			t.Errorf("Expected no error for valid API key, got: %v", err)
-		}
-	})
-
-	t.Run("ShortAPIKey", func(t *testing.T) {
-		secret := ResourceSecret{SecretType: "api_key"}
-		err := validator.validateSecretValue("short", secret)
-		if err == nil {
-			t.Error("Expected error for short API key")
-		}
-	})
-
-	t.Run("ValidToken", func(t *testing.T) {
-		secret := ResourceSecret{SecretType: "token"}
-		err := validator.validateSecretValue("valid-token-123", secret)
-		if err != nil {
-			t.Errorf("Expected no error for valid token, got: %v", err)
-		}
-	})
-
-	t.Run("ShortToken", func(t *testing.T) {
-		secret := ResourceSecret{SecretType: "token"}
-		err := validator.validateSecretValue("short", secret)
-		if err == nil {
-			t.Error("Expected error for short token")
-		}
-	})
+	prior := credentialStatusCommand
+	credentialStatusCommand = func(_ context.Context, _, _ string) ([]byte, error) { return []byte(`{"configured":true}`), nil }
+	t.Cleanup(func() { credentialStatusCommand = prior })
+	result := NewSecretValidator(nil).validateSecret(ResourceSecret{ID: "test-id", ResourceName: "openrouter", SecretKey: "OPENROUTER_API_KEY", Required: true})
+	if result.ValidationStatus != "valid" || result.ValidationMethod != string(ValidationMethodAuthority) {
+		t.Fatalf("validation = %#v", result)
+	}
 }
 
 // TestStoreValidationResult tests validation result storage
@@ -471,42 +291,6 @@ func TestSecretValidationStructures(t *testing.T) {
 	})
 }
 
-// TestVaultValidationIntegration tests vault validation integration
-func TestVaultValidationIntegration(t *testing.T) {
-	cleanup := setupTestLogger()
-	defer cleanup()
-
-	t.Run("GetVaultSecretsStatus", func(t *testing.T) {
-		t.Skip("Requires vault CLI - integration test only")
-	})
-
-	t.Run("GetVaultSecretsStatus_WithFilter", func(t *testing.T) {
-		t.Skip("Requires vault CLI - integration test only")
-	})
-
-	t.Run("GetVaultSecretsStatusFromCLI", func(t *testing.T) {
-		t.Skip("Requires vault CLI - integration test only")
-	})
-}
-
-// TestValidationErrorCases tests error handling in validation
-func TestValidationErrorCases(t *testing.T) {
-	cleanup := setupTestLogger()
-	defer cleanup()
-
-	t.Run("InvalidResourceFilter", func(t *testing.T) {
-		t.Skip("Requires database connection - integration test only")
-	})
-
-	t.Run("VeryLongResourceName", func(t *testing.T) {
-		t.Skip("Requires database connection - integration test only")
-	})
-
-	t.Run("SpecialCharacters", func(t *testing.T) {
-		t.Skip("Requires database connection - integration test only")
-	})
-}
-
 // TestValidationPatterns tests systematic validation patterns
 func TestValidationPatterns(t *testing.T) {
 	t.Run("RequiredSecretValidation", func(t *testing.T) {
@@ -516,7 +300,7 @@ func TestValidationPatterns(t *testing.T) {
 		for _, key := range secretKeys {
 			required := IsLikelyRequired(key)
 			if !required {
-				t.Logf("Secret '%s' not marked as required (may be intentional)", key)
+				t.Errorf("IsLikelyRequired(%q) = false, want true", key)
 			}
 		}
 	})
@@ -528,7 +312,7 @@ func TestValidationPatterns(t *testing.T) {
 		for _, key := range secretKeys {
 			required := IsLikelyRequired(key)
 			if required {
-				t.Logf("Secret '%s' marked as required (may be intentional)", key)
+				t.Errorf("IsLikelyRequired(%q) = true, want false", key)
 			}
 		}
 	})
@@ -541,15 +325,14 @@ func TestValidationPatterns(t *testing.T) {
 			{"API_KEY", "api_key"},
 			{"DATABASE_PASSWORD", "password"},
 			{"AUTH_TOKEN", "token"},
-			{"API_ENDPOINT", "endpoint"},
+			{"API_ENDPOINT", "env_var"},
 			{"SSL_CERTIFICATE", "certificate"},
 		}
 
 		for _, tc := range testCases {
 			actualType := ClassifySecretType(tc.key)
 			if actualType != tc.expectedType {
-				t.Logf("Secret '%s' classified as '%s', expected '%s'",
-					tc.key, actualType, tc.expectedType)
+				t.Errorf("ClassifySecretType(%q) = %q, want %q", tc.key, actualType, tc.expectedType)
 			}
 		}
 	})
@@ -616,23 +399,23 @@ func TestValidationResponseStructure(t *testing.T) {
 			t.Error("Empty response should have 0 total secrets")
 		}
 
-		if response.HealthSummary != nil && len(response.HealthSummary) > 0 {
+		if len(response.HealthSummary) > 0 {
 			t.Error("Empty response should have no health summaries")
 		}
 	})
 }
 
-// TestVaultResourceStatus tests vault resource status structures
-func TestVaultResourceStatus(t *testing.T) {
+// TestCredentialResourceStatus tests vault resource status structures
+func TestCredentialResourceStatus(t *testing.T) {
 	t.Run("ConfiguredStatus", func(t *testing.T) {
-		status := VaultResourceStatus{
+		status := CredentialResourceStatus{
 			ResourceName:    "postgres",
 			SecretsTotal:    5,
 			SecretsFound:    5,
 			SecretsMissing:  0,
 			SecretsOptional: 0,
 			HealthStatus:    "healthy",
-			AllSecrets:      []VaultSecret{},
+			AllSecrets:      []CredentialStatus{},
 		}
 
 		if status.HealthStatus != "healthy" {
@@ -649,14 +432,14 @@ func TestVaultResourceStatus(t *testing.T) {
 	})
 
 	t.Run("PartiallyConfiguredStatus", func(t *testing.T) {
-		status := VaultResourceStatus{
+		status := CredentialResourceStatus{
 			ResourceName:    "openai",
 			SecretsTotal:    3,
 			SecretsFound:    2,
 			SecretsMissing:  1,
 			SecretsOptional: 0,
 			HealthStatus:    "degraded",
-			AllSecrets:      []VaultSecret{},
+			AllSecrets:      []CredentialStatus{},
 		}
 
 		if status.HealthStatus == "healthy" {
@@ -670,14 +453,14 @@ func TestVaultResourceStatus(t *testing.T) {
 	})
 
 	t.Run("UnconfiguredStatus", func(t *testing.T) {
-		status := VaultResourceStatus{
+		status := CredentialResourceStatus{
 			ResourceName:    "new-resource",
 			SecretsTotal:    4,
 			SecretsFound:    0,
 			SecretsMissing:  4,
 			SecretsOptional: 0,
 			HealthStatus:    "critical",
-			AllSecrets:      []VaultSecret{},
+			AllSecrets:      []CredentialStatus{},
 		}
 
 		if status.SecretsFound != 0 {

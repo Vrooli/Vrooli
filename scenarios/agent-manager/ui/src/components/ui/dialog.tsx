@@ -73,6 +73,8 @@ export function DialogContent({
 }: DialogContentProps) {
   return (
     <div
+      role="dialog"
+      aria-modal="true"
       className={cn(
         "relative bg-card shadow-xl flex flex-col",
         fullScreenMobile
@@ -111,7 +113,7 @@ export function DialogHeader({
       {onClose && (
         <button
           onClick={onClose}
-          className="rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-sm opacity-70 sm:h-6 sm:w-6 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
           aria-label="Close"
         >
           <X className="h-4 w-4" />

@@ -26,11 +26,13 @@ const SECTION_GROUPS: SectionGroup[] = [
 const ALL_SECTIONS = SECTION_GROUPS.flatMap((group) => group.sections);
 
 interface PreviewSettingsSidebarProps {
+  idPrefix: string;
   activeSection: SectionId;
   onSectionChange: (section: SectionId) => void;
 }
 
 export function PreviewSettingsSidebar({
+  idPrefix,
   activeSection,
   onSectionChange,
 }: PreviewSettingsSidebarProps) {
@@ -52,8 +54,9 @@ export function PreviewSettingsSidebar({
                 : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800'
             }`}
             role="tab"
+            id={`${idPrefix}-${section.id}-tab`}
             aria-selected={isActive}
-            aria-controls={`${section.id}-panel`}
+            aria-controls={`${idPrefix}-${section.id}-panel`}
           >
             <span className={isActive ? 'text-blue-600 dark:text-blue-400' : ''}>
               {section.icon}

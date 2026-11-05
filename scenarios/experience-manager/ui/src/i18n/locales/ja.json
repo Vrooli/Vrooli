@@ -1,0 +1,179 @@
+{
+  "_comment": "このファイルには2種類の補間があります。(1) 生成時: Experience Manager のような大文字スネークケースのプレースホルダーは、`vrooli scenario generate` がシナリオビルド前に置換します。実行時にはリテラル表示値として扱われます。(2) 実行時: {{count}} のようなトークンは i18next の補間で、`t(key, { count })` によりレンダー時に置換されます。アンダースコアで始まるキー（このキーのような）はセンチネルで、コード生成・パリティテスト・未使用キー監査からスキップされます。",
+  "app": {
+    "title": "Experience Manager",
+    "eyebrow": "シナリオテンプレート",
+    "description": "このスターター UI は意図的に最小限です。Tailwind + shadcn のスタイル規約と API 接続を維持しながら、シナリオ固有の体験に置き換えてください。"
+  },
+  "layout": {
+    "sidebarLabel": "メインナビゲーション",
+    "bottomNavLabel": "メインナビゲーション",
+    "mainLabel": "メインコンテンツ",
+    "nav": {
+      "fleet": "フリート",
+      "explorer": "エクスプローラー",
+      "evidence": "エビデンス",
+      "studio": "スタジオ",
+      "findings": "検出事項",
+      "settings": "設定"
+    }
+  },
+  "theme": {
+    "switcherLabel": "テーマ",
+    "choice": {
+      "light": "ライト",
+      "dark": "ダーク",
+      "system": "システム"
+    }
+  },
+  "pages": {
+    "settings": {
+      "title": "設定",
+      "themeHeading": "外観",
+      "localeHeading": "言語"
+    }
+  },
+  "experience": {
+    "common": {
+      "scenario": "シナリオ",
+      "page": "ページ",
+      "depth": "深度",
+      "debt": "負債",
+      "status": "状態",
+      "claims": "クレーム",
+      "tier": "階層",
+      "viewEvidence": "エビデンスを見る"
+    },
+    "fleet": {
+      "title": "フリート",
+      "description": "シナリオ全体の体験負債を悪い順に表示し、詳細より前に深度とカバレッジを示します。",
+      "depthLabel": "フリート深度",
+      "specCoverage": "仕様カバレッジ",
+      "depthDistribution": "深度分布",
+      "refresh": "スイープを更新",
+      "tableLabel": "体験負債",
+      "pagesTracked": "{{count}} ページを追跡中",
+      "loadingData": "フリートデータを読み込み中",
+      "emptyFleet": "体験仕様を持つシナリオは見つかりません。experience/ フォルダーを追加すると負債追跡が始まります。",
+      "loadError": "フリートスイープを読み込めませんでした。",
+      "staleData": "フリートスイープデータは鮮度ウィンドウより古くなっています。",
+      "filterStatus": "ステータスで絞り込み",
+      "filterAll": "すべてのステータス",
+      "filterFindings": "検出あり",
+      "filterClean": "クリーン",
+      "sortBy": "{{column}}で並べ替え"
+    },
+    "explorer": {
+      "title": "シナリオエクスプローラー",
+      "description": "1 つのシナリオの宣言済みページ、状態、ギャップ、クレーム、引き継ぎを表示します。",
+      "gridLabel": "状態別ページ",
+      "gapsLabel": "カバレッジギャップ",
+      "openStudio": "スタジオで開く",
+      "claimsLabel": "クレーム",
+      "defaultState": "既定",
+      "emptyState": "空",
+      "staleState": "古い",
+      "loadingSpec": "シナリオ仕様を読み込み中",
+      "emptySpec": "この体験仕様にはページが宣言されていません",
+      "loadError": "シナリオ仕様を読み込めませんでした。",
+      "emptyGap": "ギャップを順位付けする前にページ仕様を追加してください。",
+      "staleData": "仕様データは鮮度ウィンドウより古くなっています。",
+      "summary": "{{pages}} ページに {{claims}} 件の machine クレームがあります。",
+      "refreshing": "更新中",
+      "loadingClaims": "クレームを読み込み中",
+      "emptyClaims": "machine ティアのクレームは宣言されていません。"
+    },
+    "evidence": {
+      "title": "エビデンス",
+      "description": "すべての判定に対するキャプチャとアクセシビリティツリーのエビデンス。",
+      "captureLabel": "ページキャプチャ",
+      "treeLabel": "アクセシビリティツリー",
+      "verdictsLabel": "クレーム判定",
+      "recapture": "再キャプチャ",
+      "refreshing": "更新中",
+      "loadingEvidence": "エビデンスを読み込み中",
+      "emptyEvidence": "このページには永続化されたキャプチャエビデンスがまだありません。BAS のスキップは失敗ではなくエビデンスとして記録されます。",
+      "emptyVerdicts": "このページには永続化された判定行がまだありません。",
+      "emptyTree": "アクセシビリティノードのペイロードを持つ判定を選択すると、ツリーを確認できます。",
+      "loadError": "エビデンスを読み込めませんでした。",
+      "staleEvidence": "このエビデンスは鮮度ウィンドウより古くなっています。",
+      "captureReference": "キャプチャ参照"
+    },
+    "studio": {
+      "title": "スタジオ",
+      "description": "決定的プレビューとバリアントレールの横で、フォームから仕様を作成します。",
+      "formLabel": "仕様エディター",
+      "validationLabel": "検証サマリー",
+      "validationCopy": "現在のドラフトには契約検出事項がありません。",
+      "wireframeLabel": "ワイヤーフレームプレビュー",
+      "variantsLabel": "バリアント",
+      "save": "仕様を保存",
+      "saving": "保存中…",
+      "promote": "バリアントを昇格",
+      "pageTitle": "ページタイトル",
+      "defaultPage": "フリート",
+      "defaultClaim": "体験負債テーブルは、アクセシブル名を持つ実テーブルとして公開されます。",
+      "emptyClaim": "このページで証明するクレームを記述してください。",
+      "loadingSpec": "仕様ページを読み込み中…",
+      "emptySpec": "利用できるページ仕様がありません。",
+      "loadError": "Studio の仕様を読み込めませんでした。",
+      "loadingPreview": "プレビューを描画中…",
+      "emptyPreview": "ページを選択してワイヤーフレームプレビューを描画します。",
+      "emptyVariants": "描画済みのバリアントはまだありません。",
+      "variantError": "バリアントを描画できませんでした。",
+      "evidenceForwardVariant": "エビデンス優先",
+      "suggestionsLabel": "バインディング候補",
+      "loadingSuggestions": "候補を読み込み中…",
+      "emptySuggestions": "利用できるバインディング候補はまだありません。"
+    },
+    "findings": {
+      "title": "検出事項と修正",
+      "description": "エビデンスリンクとプレビュー優先の修正を含む体験の差分。",
+      "listLabel": "体験の検出事項",
+      "preview": "修正をプレビュー",
+      "apply": "修正を適用",
+      "loadingFindings": "検出事項を読み込み中",
+      "emptyFindings": "現在報告されている体験の検出事項はありません。",
+      "loadError": "検出事項を読み込めませんでした。",
+      "fixPreviewLabel": "修正プレビュー",
+      "previewEmpty": "適用前に決定的な修正をプレビューします。",
+      "previewError": "修正プレビューに失敗しました。",
+      "applyError": "修正の適用に失敗しました。",
+      "providerMaturity": "プロバイダー成熟度",
+      "providerLoading": "プロバイダー成熟度の要約を読み込んでいます…",
+      "providerUnavailable": "共有プロバイダー成熟度の要約を利用できません。ネイティブのエクスペリエンス報告は引き続き利用できます。",
+      "providerHistorical": "プロバイダーが履歴上または未対応の表示契約（{{version}}）を返しました。成熟度の要約は再構築されませんでした。",
+      "providerContract": "プロバイダー提供の表示契約 {{version}}",
+      "providerNorthStar": "ノーススター:",
+      "providerNextAction": "次のアクション:",
+      "providerCapabilities": "プロバイダー能力の成熟度",
+      "providerDocumentation": "ドキュメント: {{topics}}"
+    }
+  },
+  "errors": {
+    "canceled": "Operation canceled.",
+    "unknown": "An unknown error occurred.",
+    "invalid_argument": "Invalid input: {{message}}",
+    "deadline_exceeded": "Operation timed out.",
+    "not_found": "Resource not found.",
+    "already_exists": "Already exists.",
+    "permission_denied": "Permission denied.",
+    "resource_exhausted": "Resource limit reached.",
+    "failed_precondition": "Cannot perform this action: {{message}}",
+    "aborted": "Operation aborted.",
+    "out_of_range": "Out of range.",
+    "unimplemented": "Not yet implemented.",
+    "internal": "Something went wrong. Please try again.",
+    "unavailable": "Service temporarily unavailable.",
+    "data_loss": "Data loss detected.",
+    "unauthenticated": "Please sign in to continue."
+  },
+  "locale": {
+    "switcherLabel": "言語"
+  },
+  "errorBoundary": {
+    "title": "問題が発生しました",
+    "message": "ページの表示中に予期しないエラーが発生しました。再試行するか、解決しない場合はページを再読み込みしてください。",
+    "retry": "再試行"
+  }
+}

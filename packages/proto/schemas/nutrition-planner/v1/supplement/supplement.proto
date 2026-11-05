@@ -1,0 +1,53 @@
+syntax = "proto3";
+package vrooli.nutrition_planner.v1.supplement;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/nutrition-planner/v1/supplement;supplement_v1";
+
+service SupplementService {
+  rpc ListSchedules(ListSchedulesRequest) returns (ListSchedulesResponse);
+  rpc CreateSchedule(CreateScheduleRequest) returns (CreateScheduleResponse);
+  rpc UpdateSchedule(UpdateScheduleRequest) returns (UpdateScheduleResponse);
+  rpc GetSchedule(GetScheduleRequest) returns (GetScheduleResponse);
+}
+
+message Schedule {
+  string id = 1;
+  int64 revision = 2;
+  string product_revision_id = 3;
+  string dose = 4;
+  string dose_unit = 5;
+  repeated int32 weekdays = 6;
+  string start_date = 7;
+  string end_date = 8;
+  bool paused = 9;
+  bool confirmed = 10;
+  string created_at = 11;
+}
+message ListSchedulesRequest { string workspace_id = 1; }
+message ListSchedulesResponse { repeated Schedule schedules = 1; }
+message CreateScheduleRequest {
+  string workspace_id = 1;
+  string product_revision_id = 2;
+  string dose = 3;
+  string dose_unit = 4;
+  repeated int32 weekdays = 5;
+  string start_date = 6;
+  string end_date = 7;
+  bool confirmed = 8;
+}
+message CreateScheduleResponse { Schedule schedule = 1; }
+message UpdateScheduleRequest {
+  string workspace_id = 1;
+  string id = 2;
+  int64 expected_revision = 3;
+  string dose = 4;
+  string dose_unit = 5;
+  repeated int32 weekdays = 6;
+  string start_date = 7;
+  string end_date = 8;
+  bool paused = 9;
+  bool confirmed = 10;
+}
+message UpdateScheduleResponse { Schedule schedule = 1; }
+message GetScheduleRequest { string workspace_id = 1; string id = 2; int64 revision = 3; }
+message GetScheduleResponse { Schedule schedule = 1; }

@@ -103,11 +103,11 @@ func CollectDetailedFileMetricsWithLangMetrics(scenarioPath string, files []stri
 
 		// Build test file map for this language to check test coverage
 		allFilesForLang := languages[lang].Files
-		testFiles := codeMetricsAnalyzer.buildTestFileMap(allFilesForLang, lang)
+		testFiles, sourceFiles := codeMetricsAnalyzer.buildTestFileMaps(allFilesForLang, lang)
 
 		// If this file itself is a test file, mark hasTest as true
 		// Otherwise, check if it has a corresponding test file
-		hasTest := testFiles[relPath] || codeMetricsAnalyzer.hasTestFile(relPath, testFiles, lang)
+		hasTest := testFiles[relPath] || codeMetricsAnalyzer.hasTestFile(relPath, testFiles, sourceFiles, lang)
 
 		detailed := DetailedFileMetrics{
 			FilePath:              relPath,

@@ -1,0 +1,13 @@
+{
+  "id": "sess_e48302931d490738",
+  "title": "Discuss Scaffold the portal scenario + transplant the chat core",
+  "kind": "operating_mode_authoring",
+  "status": "draft",
+  "skill_id": "swarm-manager-operating-mode-authoring",
+  "profile_key": "swarm-manager/default",
+  "created_at": "2026-07-13T23:33:52Z",
+  "updated_at": "2026-07-13T23:33:52Z",
+  "created_by": {
+    "type": "operator"
+  }
+}

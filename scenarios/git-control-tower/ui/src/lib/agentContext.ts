@@ -1,17 +1,18 @@
-import type { AgentContextItem, AuditorViolation, AuditorViolationSummary, ScenarioEnvelopeData } from "./api";
-import type { TestPhaseResult, TidinessIssue, SnapshotSetMeta, SnapshotFile, RepoFileStats } from "./api";
+import type { AgentContextItem, ScenarioEnvelopeData } from "./api";
+import type { SnapshotSetMeta, SnapshotFile, RepoFileStats } from "./api";
 import { fetchScreenshotPath } from "./api";
 import { aggregateFileStats, formatNetLines } from "./metrics";
+import type { ArtifactRef, PhaseInfo, RunInfo, RunPhaseDescriptor } from "@vrooli/proto-types/test-genie/v1/runs/runs_pb";
+import type { DiffResult } from "@vrooli/proto-types/git-control-tower/v1/baselines/baselines_pb";
 
 const _MAX_PROMPT_CHARS = 50_000;
-const MAX_ERROR_LINES = 200;
 
 // =============================================================================
 // Verification hints
 // =============================================================================
 
 /** Context kinds that have a meaningful re-verification command. */
-export type VerifiableContextKind = "test-failure" | "code-quality-issue" | "rule-violation" | "rules-summary";
+export type VerifiableContextKind = "test-failure";
 
 /**
  * Returns a markdown blockquote with the command that detected this issue
@@ -26,15 +27,81 @@ export function verificationHint(kind: VerifiableContextKind, scenarioName: stri
         `\n> **Verify fix:** \`vrooli scenario test ${scenarioName}\` (detected by test-genie)\n` +
         `> **For guidance:** \`prompt-manager skill read test\`\n`
       );
-    case "code-quality-issue":
-      return (
-        `\n> **Verify fix:** \`tidiness-manager scan ${scenarioName}\` (detected by tidiness-manager)\n` +
-        `> **For guidance:** \`prompt-manager skill read refactor\`\n`
-      );
-    case "rule-violation":
-    case "rules-summary":
-      return `\n> **Verify fix:** \`scenario-auditor scan ${scenarioName}\` (detected by scenario-auditor)\n`;
   }
+}
+
+/** Build stable Agent context from the canonical run snapshot, not a tab-only projection. */
+export function runPhaseContextItem(
+  run: RunInfo,
+  phase: PhaseInfo,
+  descriptor: RunPhaseDescriptor | undefined,
+  scenarioName: string,
+): AgentContextItem {
+  const findings = phase.findingsSummary;
+  const markdown = [
+    `## Test phase: ${descriptor?.displayName || phase.name}`,
+    "",
+    `- Run: \`${run.runId}\``,
+    `- Phase: \`${phase.name}\``,
+    `- Status: **${phase.status}**`,
+    descriptor?.provider ? `- Provider: \`${descriptor.provider}\`` : "",
+    findings ? `- Findings: ${findings.total} total (${findings.blockers} blockers, ${findings.errors} errors, ${findings.warnings} warnings)` : "",
+    verificationHint("test-failure", scenarioName),
+  ].filter(Boolean).join("\n");
+  return {
+    kind: "test-failure",
+    id: `test-phase:${run.runId}:${phase.name}`,
+    label: `${descriptor?.displayName || phase.name} (${phase.status})`,
+    markdown,
+  };
+}
+
+/** Build path-free Agent context for one opaque artifact reference. */
+export function runArtifactContextItem(run: RunInfo, artifact: ArtifactRef): AgentContextItem {
+  const relationships = (artifact.relationships ?? []).slice(0, 20).map((relationship) =>
+    `- Relationship: ${relationship.type || "related"} → \`${relationship.targetArtifactId}\``,
+  );
+  return {
+    kind: artifact.kind === "screenshot" ? "screenshot" : "test-failure",
+    id: `artifact:${run.runId}:${artifact.id}`,
+    label: artifact.label || artifact.kind,
+    markdown: [
+      "## Test evidence",
+      "",
+      `- Run: \`${run.runId}\``,
+      `- Artifact: \`${artifact.id}\``,
+      `- Kind: \`${artifact.kind}\``,
+      `- Producing phase: \`${artifact.producingPhase || "unknown"}\``,
+      `- Media type: \`${artifact.mediaType || "unknown"}\``,
+      `- Provenance: \`${artifact.provenance}\``,
+      ...relationships,
+    ].join("\n"),
+  };
+}
+
+/** Build bounded, identity-rich Agent context for a baseline comparison. */
+export function baselineComparisonContextItem(diff: DiffResult): AgentContextItem {
+  const baseRunId = diff.baseline?.run?.runId || "unavailable";
+  const currentRunId = diff.evidence?.currentRunId || "unavailable";
+  const attention = diff.phases.filter((phase) => phase.verdict !== "clean");
+  return {
+    kind: "test-failure",
+    id: `baseline-comparison:${baseRunId}:${currentRunId}`,
+    label: `Baseline comparison (${diff.verdict})`,
+    markdown: [
+      "## Baseline comparison",
+      "",
+      `- Baseline: \`${diff.baseline?.name || "unknown"}\``,
+      `- Base run: \`${baseRunId}\``,
+      `- Current run: \`${currentRunId}\``,
+      `- Verdict: **${diff.verdict}**`,
+      `- Current SHA: \`${diff.currentGit?.sha || "unavailable"}\``,
+      `- Needs attention: ${attention.length} phase(s)`,
+      "",
+      ...attention.slice(0, 20).map((phase) => `- \`${phase.phase}\`: ${phase.verdict}${phase.reasons[0]?.detail ? ` — ${phase.reasons[0].detail}` : ""}`),
+      attention.length > 20 ? `- …and ${attention.length - 20} more phase(s)` : "",
+    ].filter(Boolean).join("\n"),
+  };
 }
 
 // =============================================================================
@@ -109,68 +176,6 @@ export function buildScenarioEnvelope(data: ScenarioEnvelopeData): string {
 // =============================================================================
 // Context item builders
 // =============================================================================
-
-/**
- * Build context items from failed test phases.
- *
- * @param phases - Test phase results (only failed phases produce items).
- * @param scenarioName - Scenario slug, used to generate the verification hint.
- */
-export function testFailureContextItems(phases: TestPhaseResult[], scenarioName: string): AgentContextItem[] {
-  return phases
-    .filter((p) => p.status === "failed")
-    .map((phase) => {
-      let md = `### Fix: Test failure in "${phase.name}"\n`;
-      md += `- **Duration:** ${phase.durationSeconds}s\n`;
-      if (phase.classification) md += `- **Classification:** ${phase.classification}\n`;
-      if (phase.remediation) md += `- **Remediation:** ${phase.remediation}\n`;
-      if (phase.error) {
-        const lines = phase.error.split("\n");
-        const truncated = lines.length > MAX_ERROR_LINES
-          ? [...lines.slice(0, MAX_ERROR_LINES), `\n... (${lines.length - MAX_ERROR_LINES} more lines truncated)`]
-          : lines;
-        md += `\n\`\`\`\n${truncated.join("\n")}\n\`\`\`\n`;
-      }
-      if (phase.logPath) md += `\n_Log file:_ \`${phase.logPath}\`\n`;
-
-      md += verificationHint("test-failure", scenarioName);
-
-      return {
-        kind: "test-failure" as const,
-        id: `test-${phase.name}`,
-        label: `Test failure: ${phase.name}`,
-        markdown: md,
-      };
-    });
-}
-
-/**
- * Build context items from code quality issues.
- *
- * @param issues - Tidiness issues from the tidiness-manager.
- * @param scenarioName - Scenario slug, used to generate the verification hint.
- */
-export function codeQualityContextItems(issues: TidinessIssue[], scenarioName: string): AgentContextItem[] {
-  return issues.map((issue) => {
-    let md = `### Fix: ${issue.title}\n`;
-    md += `- **File:** \`${issue.file_path}\``;
-    if (issue.line_number) md += `:${issue.line_number}`;
-    md += "\n";
-    md += `- **Category:** ${issue.category}\n`;
-    md += `- **Severity:** ${issue.severity}\n`;
-    if (issue.description) md += `\n${issue.description}\n`;
-    if (issue.remediation_steps) md += `\n**Remediation:** ${issue.remediation_steps}\n`;
-
-    md += verificationHint("code-quality-issue", scenarioName);
-
-    return {
-      kind: "code-quality-issue" as const,
-      id: `quality-${issue.id}`,
-      label: `${issue.category}: ${issue.file_path}${issue.line_number ? `:${issue.line_number}` : ""}`,
-      markdown: md,
-    };
-  });
-}
 
 /** Build a context item for a screenshot. */
 export function screenshotContextItem(snapshot: SnapshotSetMeta, file: SnapshotFile): AgentContextItem {
@@ -269,78 +274,6 @@ export function scenarioQualityContextItem(scoreData: {
     kind: "scenario-quality" as const,
     id: "scenario-quality",
     label: `Code Quality: ${Math.round(scoreData.score)}/100 (${scoreData.violations} violations)`,
-    markdown: md,
-  };
-}
-
-/**
- * Build context items from auditor rule violations.
- *
- * @param violations - Individual violations from the scenario-auditor.
- * @param scenarioName - Scenario slug, used to generate the verification hint.
- */
-export function ruleViolationContextItems(violations: AuditorViolation[], scenarioName: string): AgentContextItem[] {
-  return violations.map((v, i) => {
-    let md = `### Fix: ${v.title}\n`;
-    md += `- **Rule:** ${v.type}\n`;
-    md += `- **Severity:** ${v.severity}\n`;
-    if (v.file_path) {
-      md += `- **File:** \`${v.file_path}\``;
-      if (v.line_number) md += `:${v.line_number}`;
-      md += "\n";
-    }
-    if (v.description) md += `\n${v.description}\n`;
-    if (v.code_snippet) md += `\n\`\`\`\n${v.code_snippet}\n\`\`\`\n`;
-    if (v.recommendation) md += `\n**Recommendation:** ${v.recommendation}\n`;
-    if (v.source) md += `\n_Source: ${v.source}_\n`;
-
-    md += verificationHint("rule-violation", scenarioName);
-
-    return {
-      kind: "rule-violation" as const,
-      id: `rule-${v.id || `${v.type}-${i}`}`,
-      label: `${v.severity}: ${v.type} — ${v.title.slice(0, 60)}`,
-      markdown: md,
-    };
-  });
-}
-
-/**
- * Build a summary context item from auditor violations.
- *
- * @param violations - All violations (used for counting if summary is absent).
- * @param summary - Pre-computed summary with severity breakdown and recommended steps.
- * @param scenarioName - Scenario slug, used to generate the verification hint.
- */
-export function rulesSummaryContextItem(
-  violations: AuditorViolation[],
-  summary: AuditorViolationSummary | undefined,
-  scenarioName: string,
-): AgentContextItem {
-  const total = summary?.total ?? violations.length;
-  const bySev = summary?.by_severity ?? {};
-  const high = bySev["high"] ?? violations.filter(v => v.severity === "high").length;
-  const medium = bySev["medium"] ?? violations.filter(v => v.severity === "medium").length;
-  const low = bySev["low"] ?? violations.filter(v => v.severity === "low").length;
-
-  let md = `### Fix: ${total} standards compliance violations\n\n`;
-  md += `- **Total:** ${total}\n`;
-  md += `- **High:** ${high}\n`;
-  md += `- **Medium:** ${medium}\n`;
-  md += `- **Low:** ${low}\n`;
-  if (summary?.recommended_steps?.length) {
-    md += `\n**Recommended steps:**\n`;
-    for (const step of summary.recommended_steps) {
-      md += `- ${step}\n`;
-    }
-  }
-
-  md += verificationHint("rules-summary", scenarioName);
-
-  return {
-    kind: "rules-summary" as const,
-    id: "rules-summary",
-    label: `Rules: ${total} violations (${high}H/${medium}M/${low}L)`,
     markdown: md,
   };
 }

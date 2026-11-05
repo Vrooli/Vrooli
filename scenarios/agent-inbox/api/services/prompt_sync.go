@@ -4,9 +4,8 @@
 package services
 
 import (
-	"encoding/json"
+	"context"
 	"fmt"
-	"io"
 	"log"
 	"net/http"
 	"sync"
@@ -14,6 +13,9 @@ import (
 
 	"agent-inbox/config"
 	"agent-inbox/resilience"
+
+	"connectrpc.com/connect"
+	skillsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/prompt-manager/v1/skills"
 )
 
 // PromptSyncService syncs skills from prompt-manager and provides read access.
@@ -113,19 +115,16 @@ func (s *PromptSyncService) Sync() error {
 		return err
 	}
 
-	resp, err := s.doHTTPWithRetry("GET", "/api/v1/skills/sync?tag=skill", nil)
+	client, err := s.promptManagerSkillsClient()
 	if err != nil {
 		return fmt.Errorf("failed to fetch prompts: %w", err)
 	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(resp.Body)
-		return fmt.Errorf("prompt-manager returned status %d: %s", resp.StatusCode, string(body))
+	resp, err := client.SyncSkills(context.Background(), connect.NewRequest(&skillsv1.SyncSkillsRequest{}))
+	if err != nil {
+		return fmt.Errorf("failed to fetch prompts: %w", err)
 	}
-
 	var syncResp SyncResponse
-	if err := json.NewDecoder(resp.Body).Decode(&syncResp); err != nil {
+	if err := convertPromptManagerProto(resp.Msg, &syncResp); err != nil {
 		return fmt.Errorf("failed to decode sync response: %w", err)
 	}
 

@@ -29,7 +29,7 @@ export interface UseLinkManagementResult {
   /** The current link URL being edited */
   linkUrl: string
   /** Ref for the link input element */
-  linkInputRef: React.RefObject<HTMLInputElement>
+  linkInputRef: React.RefObject<HTMLInputElement | null>
   /** Open the link dialog, optionally with existing URL */
   openDialog: () => void
   /** Close the link dialog */

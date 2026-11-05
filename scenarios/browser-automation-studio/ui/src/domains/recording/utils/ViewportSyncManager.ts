@@ -12,7 +12,7 @@
  * Types are imported from the consolidated types/viewport.ts module.
  */
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { getConfig } from '@/config';
 import type { ViewportDimensions, ViewportSyncState } from '../types/viewport';
 
@@ -29,6 +29,8 @@ export { viewportsEqual, getAspectRatio, fitViewportToBounds } from '../types/vi
 export interface ViewportSyncConfig {
   /** Session ID for API calls */
   sessionId: string | null;
+  /** Canonical selected page; null suspends browser mutations. */
+  pageId: string | null;
   /** Debounce delay for viewport sync (default: 200ms) */
   debounceMs?: number;
   /** Threshold for detecting rapid resize (default: 100ms) */
@@ -61,6 +63,10 @@ const DEFAULT_RESIZE_THRESHOLD_MS = 100;
 const DEFAULT_MIN_DIMENSION = 320;
 const DEFAULT_MAX_DIMENSION = 3840;
 
+function sameViewport(a: ViewportDimensions | null, b: ViewportDimensions | null): boolean {
+  return Boolean(a && b && a.width === b.width && a.height === b.height);
+}
+
 // =============================================================================
 // Hook Implementation
 // =============================================================================
@@ -72,6 +78,7 @@ const DEFAULT_MAX_DIMENSION = 3840;
  * ```tsx
  * const { state, updateFromBounds, forceSync } = useViewportSyncManager({
  *   sessionId,
+ *   pageId,
  *   debounceMs: 200,
  * });
  *
@@ -83,197 +90,127 @@ const DEFAULT_MAX_DIMENSION = 3840;
  * ```
  */
 export function useViewportSyncManager(config: ViewportSyncConfig): ViewportSyncManager {
-  const {
-    sessionId,
-    debounceMs = DEFAULT_DEBOUNCE_MS,
-    resizeThresholdMs = DEFAULT_RESIZE_THRESHOLD_MS,
-    minDimension = DEFAULT_MIN_DIMENSION,
-    maxDimension = DEFAULT_MAX_DIMENSION,
-  } = config;
-
-  // State
+  const {sessionId, pageId, debounceMs = DEFAULT_DEBOUNCE_MS,
+    resizeThresholdMs = DEFAULT_RESIZE_THRESHOLD_MS, minDimension = DEFAULT_MIN_DIMENSION,
+    maxDimension = DEFAULT_MAX_DIMENSION} = config;
   const [viewport, setViewport] = useState<ViewportDimensions | null>(null);
   const [isResizing, setIsResizing] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
   const [lastSyncTime, setLastSyncTime] = useState<number | null>(null);
   const [syncError, setSyncError] = useState<string | null>(null);
-
-  // Refs for tracking resize behavior
-  const lastUpdateTimeRef = useRef<number>(0);
+  const lastUpdateTimeRef = useRef(0);
   const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const resizeEndTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pendingViewportRef = useRef<ViewportDimensions | null>(null);
   const lastSyncedViewportRef = useRef<ViewportDimensions | null>(null);
+  const viewportRef = useRef<ViewportDimensions | null>(null);
+  const owner = useMemo(() => ({sessionId, pageId, disposed: false, request: null as AbortController | null}), [sessionId, pageId]);
+  const ownerRef = useRef(owner);
+  ownerRef.current = owner;
 
-  // Clamp viewport dimensions
-  const getClampedViewport = useCallback(
-    (bounds: ViewportDimensions): ViewportDimensions => ({
-      width: Math.min(maxDimension, Math.max(minDimension, Math.round(bounds.width))),
-      height: Math.min(maxDimension, Math.max(minDimension, Math.round(bounds.height))),
-    }),
-    [minDimension, maxDimension]
-  );
+  const clearTimers = useCallback(() => {
+    if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
+    if (resizeEndTimerRef.current) clearTimeout(resizeEndTimerRef.current);
+    debounceTimerRef.current = null;
+    resizeEndTimerRef.current = null;
+  }, []);
 
-  // Sync viewport to backend
-  const syncToBackend = useCallback(
-    async (viewportToSync: ViewportDimensions): Promise<void> => {
-      if (!sessionId) return;
+  const getClampedViewport = useCallback((bounds: ViewportDimensions): ViewportDimensions => ({
+    width: Math.min(maxDimension, Math.max(minDimension, Math.round(bounds.width))),
+    height: Math.min(maxDimension, Math.max(minDimension, Math.round(bounds.height))),
+  }), [minDimension, maxDimension]);
 
-      // Skip if viewport hasn't changed from last sync
-      if (
-        lastSyncedViewportRef.current &&
-        lastSyncedViewportRef.current.width === viewportToSync.width &&
-        lastSyncedViewportRef.current.height === viewportToSync.height
-      ) {
-        return;
+  const syncToBackend = useCallback(async (desired: ViewportDimensions): Promise<void> => {
+    if (!owner.sessionId || !owner.pageId || owner.disposed || sameViewport(lastSyncedViewportRef.current, desired)) return;
+    owner.request?.abort();
+    const controller = new AbortController();
+    owner.request = controller;
+    const current = () => !owner.disposed && !controller.signal.aborted && owner.request === controller && sameViewport(pendingViewportRef.current, desired);
+    setIsSyncing(true);
+    setSyncError(null);
+    try {
+      const appConfig = await getConfig();
+      if (!current()) return;
+      // Once sent, an aborted command may still change the browser.
+      lastSyncedViewportRef.current = null;
+      const response = await fetch(`${appConfig.API_URL}/recordings/live/${owner.sessionId}/viewport`, {
+        method: 'POST', headers: {'Content-Type': 'application/json'}, signal: controller.signal,
+        body: JSON.stringify({...desired, page_id: owner.pageId}),
+      });
+      if (!current()) return;
+      if (!response.ok) throw new Error(await response.text() || `Viewport sync failed (${response.status})`);
+      const actual: unknown = await response.json();
+      if (!current()) return;
+      if (!actual || typeof actual !== 'object' || !('width' in actual) || !('height' in actual) || actual.width !== desired.width || actual.height !== desired.height) {
+        throw new Error('Browser did not confirm the requested viewport');
       }
-
-      setIsSyncing(true);
-      setSyncError(null);
-
-      try {
-        const appConfig = await getConfig();
-        const response = await fetch(`${appConfig.API_URL}/recordings/live/${sessionId}/viewport`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            width: viewportToSync.width,
-            height: viewportToSync.height,
-          }),
-        });
-
-        if (!response.ok) {
-          const errorText = await response.text();
-          throw new Error(errorText || `Viewport sync failed (${response.status})`);
-        }
-
-        lastSyncedViewportRef.current = viewportToSync;
-        setLastSyncTime(Date.now());
-      } catch (error) {
-        const message = error instanceof Error ? error.message : 'Viewport sync failed';
-        setSyncError(message);
-        console.warn('[ViewportSyncManager] Sync failed:', message);
-      } finally {
-        setIsSyncing(false);
-      }
-    },
-    [sessionId]
-  );
-
-  // Update viewport from bounds (with debouncing and resize detection)
-  const updateFromBounds = useCallback(
-    (bounds: ViewportDimensions) => {
-      const now = performance.now();
-      const timeSinceLastUpdate = now - lastUpdateTimeRef.current;
-      lastUpdateTimeRef.current = now;
-
-      // Detect rapid resize (e.g., sidebar drag)
-      if (timeSinceLastUpdate < resizeThresholdMs) {
-        setIsResizing(true);
-
-        // Clear existing resize end timer
-        if (resizeEndTimerRef.current) {
-          clearTimeout(resizeEndTimerRef.current);
-        }
-
-        // Set new resize end timer
-        resizeEndTimerRef.current = setTimeout(() => {
-          setIsResizing(false);
-          resizeEndTimerRef.current = null;
-        }, resizeThresholdMs * 2);
-      }
-
-      // Compute clamped viewport
-      const clampedViewport = getClampedViewport(bounds);
-
-      // Update local state immediately for responsive UI
-      setViewport(clampedViewport);
-      pendingViewportRef.current = clampedViewport;
-
-      // Debounce backend sync
-      if (debounceTimerRef.current) {
-        clearTimeout(debounceTimerRef.current);
-      }
-
-      debounceTimerRef.current = setTimeout(() => {
-        if (pendingViewportRef.current) {
-          void syncToBackend(pendingViewportRef.current);
-        }
-        debounceTimerRef.current = null;
-      }, debounceMs);
-    },
-    [getClampedViewport, syncToBackend, debounceMs, resizeThresholdMs]
-  );
-
-  // Force immediate sync
-  const forceSync = useCallback(async () => {
-    if (pendingViewportRef.current) {
-      // Clear debounce timer
-      if (debounceTimerRef.current) {
-        clearTimeout(debounceTimerRef.current);
-        debounceTimerRef.current = null;
-      }
-
-      await syncToBackend(pendingViewportRef.current);
+      lastSyncedViewportRef.current = desired;
+      setLastSyncTime(Date.now());
+    } catch (error) {
+      if (current()) setSyncError(error instanceof Error ? error.message : 'Viewport sync failed');
+    } finally {
+      if (current()) setIsSyncing(false);
     }
+  }, [owner]);
+
+  const updateFromBounds = useCallback((bounds: ViewportDimensions) => {
+    if (owner.disposed) return;
+    const now = performance.now();
+    if (now - lastUpdateTimeRef.current < resizeThresholdMs) {
+      setIsResizing(true);
+      if (resizeEndTimerRef.current) clearTimeout(resizeEndTimerRef.current);
+      resizeEndTimerRef.current = setTimeout(() => {setIsResizing(false);resizeEndTimerRef.current = null;}, resizeThresholdMs * 2);
+    }
+    lastUpdateTimeRef.current = now;
+    const next = getClampedViewport(bounds);
+    if (sameViewport(viewportRef.current, next) && sameViewport(pendingViewportRef.current, next)) return;
+    owner.request?.abort();
+    setIsSyncing(false);
+    viewportRef.current = next;
+    pendingViewportRef.current = next;
+    setViewport(next);
+    if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
+    debounceTimerRef.current = setTimeout(() => {
+      if (pendingViewportRef.current) void syncToBackend(pendingViewportRef.current);
+      debounceTimerRef.current = null;
+    }, debounceMs);
+  }, [owner, getClampedViewport, resizeThresholdMs, debounceMs, syncToBackend]);
+
+  const forceSync = useCallback(async () => {
+    if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
+    debounceTimerRef.current = null;
+    if (pendingViewportRef.current) await syncToBackend(pendingViewportRef.current);
   }, [syncToBackend]);
 
-  // Reset state (call on session change)
   const reset = useCallback(() => {
+    ownerRef.current.request?.abort();
+    clearTimers();
+    viewportRef.current = null;
+    pendingViewportRef.current = null;
+    lastSyncedViewportRef.current = null;
     setViewport(null);
     setIsResizing(false);
     setIsSyncing(false);
     setLastSyncTime(null);
     setSyncError(null);
-    pendingViewportRef.current = null;
+  }, [clearTimers]);
+
+  useLayoutEffect(() => {
+    owner.disposed = false;
     lastSyncedViewportRef.current = null;
-
-    if (debounceTimerRef.current) {
-      clearTimeout(debounceTimerRef.current);
-      debounceTimerRef.current = null;
-    }
-
-    if (resizeEndTimerRef.current) {
-      clearTimeout(resizeEndTimerRef.current);
-      resizeEndTimerRef.current = null;
-    }
-  }, []);
-
-  // Reset when session changes
+    setIsSyncing(false);
+    setIsResizing(false);
+    setLastSyncTime(null);
+    setSyncError(null);
+    return () => {owner.disposed = true;owner.request?.abort();clearTimers();};
+  }, [owner, clearTimers]);
+  useEffect(() => {reset();}, [sessionId, reset]);
+  // A new selection needs the retained container bounds even without a resize.
   useEffect(() => {
-    reset();
-  }, [sessionId, reset]);
+    if (pendingViewportRef.current) void syncToBackend(pendingViewportRef.current);
+  }, [syncToBackend]);
 
-  // Cleanup on unmount
-  useEffect(() => {
-    return () => {
-      if (debounceTimerRef.current) {
-        clearTimeout(debounceTimerRef.current);
-      }
-      if (resizeEndTimerRef.current) {
-        clearTimeout(resizeEndTimerRef.current);
-      }
-    };
-  }, []);
-
-  // Memoize state object
-  const state = useMemo<ViewportSyncState>(
-    () => ({
-      viewport,
-      isResizing,
-      isSyncing,
-      lastSyncTime,
-      syncError,
-    }),
-    [viewport, isResizing, isSyncing, lastSyncTime, syncError]
-  );
-
-  return {
-    state,
-    updateFromBounds,
-    forceSync,
-    reset,
-    getClampedViewport,
-  };
+  const state = useMemo<ViewportSyncState>(() => ({viewport, isResizing, isSyncing, lastSyncTime, syncError}),
+    [viewport, isResizing, isSyncing, lastSyncTime, syncError]);
+  return {state, updateFromBounds, forceSync, reset, getClampedViewport};
 }
-

@@ -4,11 +4,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"net/http/httptest"
 	"testing"
 )
 
-// TestWeatherHandlerDatabaseErrors tests weather handler with database scenarios
+// [REQ:REQ-P0-004] Weather handler covers database-backed and fallback edge cases.
 func TestWeatherHandlerDatabaseErrors(t *testing.T) {
 	cleanup := setupTestLogger()
 	defer cleanup()
@@ -22,7 +21,6 @@ func TestWeatherHandlerDatabaseErrors(t *testing.T) {
 			INSERT INTO weather_data (region_id, date, temperature_high_c, temperature_low_c, precipitation_mm, humidity_percent)
 			VALUES ($1, $2, $3, $4, $5, $6)
 		`, 1, "2025-10-01", 18.5, 8.2, 2.5, 65)
-
 		if err != nil {
 			t.Skipf("Cannot insert weather data: %v", err)
 		}
@@ -36,7 +34,6 @@ func TestWeatherHandlerDatabaseErrors(t *testing.T) {
 				"date":      "2025-10-01",
 			},
 		}, weatherHandler)
-
 		if err != nil {
 			t.Fatalf("Failed to make request: %v", err)
 		}
@@ -76,7 +73,6 @@ func TestWeatherHandlerDatabaseErrors(t *testing.T) {
 				"date":      "1900-01-01",
 			},
 		}, weatherHandler)
-
 		if err != nil {
 			t.Fatalf("Failed to make request: %v", err)
 		}
@@ -89,6 +85,7 @@ func TestWeatherHandlerDatabaseErrors(t *testing.T) {
 }
 
 // TestRegionsHandlerDatabaseError tests regions handler database error paths
+// [REQ:REQ-P0-003] Regions handler falls back when database queries fail.
 func TestRegionsHandlerDatabaseError(t *testing.T) {
 	cleanup := setupTestLogger()
 	defer cleanup()
@@ -108,7 +105,6 @@ func TestRegionsHandlerDatabaseError(t *testing.T) {
 			Method: "GET",
 			Path:   "/api/regions",
 		}, regionsHandler)
-
 		if err != nil {
 			t.Fatalf("Failed to make request: %v", err)
 		}
@@ -131,6 +127,7 @@ func TestRegionsHandlerDatabaseError(t *testing.T) {
 }
 
 // TestGetReportsDatabaseError tests report retrieval database error paths
+// [REQ:REQ-P1-001] Reports handler returns stored crowd reports from database.
 func TestGetReportsDatabaseError(t *testing.T) {
 	cleanup := setupTestLogger()
 	defer cleanup()
@@ -156,7 +153,6 @@ func TestGetReportsDatabaseError(t *testing.T) {
 			Path:        "/api/reports",
 			QueryParams: map[string]string{"region_id": fmt.Sprintf("%d", regionID)},
 		}, reportsHandler)
-
 		if err != nil {
 			t.Fatalf("Failed to make request: %v", err)
 		}
@@ -178,6 +174,7 @@ func TestGetReportsDatabaseError(t *testing.T) {
 }
 
 // TestGetTripsDatabaseError tests trip retrieval database error paths
+// [REQ:REQ-P1-003] Trips handler returns stored trip plans from database.
 func TestGetTripsDatabaseError(t *testing.T) {
 	cleanup := setupTestLogger()
 	defer cleanup()
@@ -199,7 +196,6 @@ func TestGetTripsDatabaseError(t *testing.T) {
 			Method: "GET",
 			Path:   "/api/trips",
 		}, tripsHandler)
-
 		if err != nil {
 			t.Fatalf("Failed to make request: %v", err)
 		}
@@ -220,7 +216,7 @@ func TestGetTripsDatabaseError(t *testing.T) {
 	})
 }
 
-// TestFoliageHandlerWithPrediction tests foliage handler with prediction data
+// [REQ:REQ-P0-003][REQ:REQ-P0-005] Foliage handler can include stored prediction context.
 func TestFoliageHandlerWithPrediction(t *testing.T) {
 	cleanup := setupTestLogger()
 	defer cleanup()
@@ -247,7 +243,6 @@ func TestFoliageHandlerWithPrediction(t *testing.T) {
 			Path:        "/api/foliage",
 			QueryParams: map[string]string{"region_id": fmt.Sprintf("%d", regionID)},
 		}, foliageHandler)
-
 		if err != nil {
 			t.Fatalf("Failed to make request: %v", err)
 		}
@@ -272,23 +267,14 @@ func TestFoliageHandlerWithPrediction(t *testing.T) {
 	})
 }
 
-// TestGenerateFoliagePredictionEdgeCases tests prediction generation edge cases
+// [REQ:REQ-P0-005][REQ:REQ-P2-001] Prediction generation handles model and response edge cases.
 func TestGenerateFoliagePredictionEdgeCases(t *testing.T) {
 	cleanup := setupTestLogger()
 	defer cleanup()
 
 	t.Run("WithInvalidOllamaResponse", func(t *testing.T) {
-		// Mock server returning invalid JSON in response
-		mockServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			response := map[string]interface{}{
-				"response": `invalid json response`,
-			}
-			json.NewEncoder(w).Encode(response)
-		}))
-		defer mockServer.Close()
-
-		restoreEnv := setTestEnv(t, "OLLAMA_URL", mockServer.URL)
-		defer restoreEnv()
+		restoreGateway := mockResourceOllamaGateway(t, `{"response":"invalid json response"}`, 0)
+		defer restoreGateway()
 
 		elevation := 500
 		typicalWeek := 41
@@ -309,17 +295,8 @@ func TestGenerateFoliagePredictionEdgeCases(t *testing.T) {
 	})
 
 	t.Run("WithInvalidDate", func(t *testing.T) {
-		// Mock server returning invalid date format
-		mockServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			response := map[string]interface{}{
-				"response": `{"predicted_date": "not-a-date", "confidence": 0.5}`,
-			}
-			json.NewEncoder(w).Encode(response)
-		}))
-		defer mockServer.Close()
-
-		restoreEnv := setTestEnv(t, "OLLAMA_URL", mockServer.URL)
-		defer restoreEnv()
+		restoreGateway := mockResourceOllamaGateway(t, `{"response":"{\"predicted_date\":\"not-a-date\",\"confidence\":0.5}"}`, 0)
+		defer restoreGateway()
 
 		elevation := 500
 		typicalWeek := 41
@@ -340,17 +317,8 @@ func TestGenerateFoliagePredictionEdgeCases(t *testing.T) {
 	})
 
 	t.Run("WithOutOfRangeConfidence", func(t *testing.T) {
-		// Mock server returning confidence > 1
-		mockServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			response := map[string]interface{}{
-				"response": `{"predicted_date": "2025-10-15", "confidence": 2.5}`,
-			}
-			json.NewEncoder(w).Encode(response)
-		}))
-		defer mockServer.Close()
-
-		restoreEnv := setTestEnv(t, "OLLAMA_URL", mockServer.URL)
-		defer restoreEnv()
+		restoreGateway := mockResourceOllamaGateway(t, `{"response":"{\"predicted_date\":\"2025-10-15\",\"confidence\":2.5}"}`, 0)
+		defer restoreGateway()
 
 		elevation := 500
 		typicalWeek := 41

@@ -1,3 +1,5 @@
+// DOC: docs/guides/creating-subscriptions.md
+// DOC: docs/internal/INVARIANTS.md
 package subscription
 
 import (
@@ -5,6 +7,7 @@ import (
 	"database/sql"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/vrooli/vrooli/scenarios/vrooli-events/internal/sqlutil"
 	_ "modernc.org/sqlite"
@@ -35,16 +38,35 @@ CREATE TABLE IF NOT EXISTS subscription_health (
   last_failed_at TEXT NOT NULL DEFAULT '',
   status TEXT NOT NULL DEFAULT 'active'
 );
+CREATE TABLE IF NOT EXISTS subscription_deliveries (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  subscription_id INTEGER NOT NULL REFERENCES subscriptions(id) ON DELETE CASCADE,
+  event_id TEXT NOT NULL,
+  payload_json TEXT NOT NULL,
+  attempts INTEGER NOT NULL DEFAULT 0,
+  next_attempt_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f','now')),
+  status TEXT NOT NULL DEFAULT 'pending',
+  last_error TEXT NOT NULL DEFAULT '',
+  created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f','now')),
+  updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f','now')),
+  UNIQUE(subscription_id, event_id)
+);
+CREATE INDEX IF NOT EXISTS idx_subscription_deliveries_due ON subscription_deliveries(status, next_attempt_at);
 `
 
 // SQLiteStore implements subscription.Store using SQLite.
 type SQLiteStore struct {
-	db *sql.DB
+	db sqlutil.DB
 }
 
+// Schema returns the subscription schema for the routed database registry.
+func Schema() string { return subscriptionSchema }
+
 // NewSQLiteStore creates subscription tables in the provided database.
-func NewSQLiteStore(db *sql.DB) (*SQLiteStore, error) {
-	if _, err := db.Exec(subscriptionSchema); err != nil {
+
+func NewSQLiteStore(db sqlutil.DB) (*SQLiteStore, error) {
+	ctx := context.Background()
+	if _, err := db.ExecContext(ctx, subscriptionSchema); err != nil {
 		return nil, fmt.Errorf("apply subscription schema: %w", err)
 	}
 	return &SQLiteStore{db: db}, nil
@@ -79,6 +101,19 @@ func (s *SQLiteStore) Get(ctx context.Context, id int64) (Subscription, error) {
 }
 
 func (s *SQLiteStore) List(ctx context.Context, f ListFilters) ([]Subscription, error) {
+	return s.list(ctx, s.db, f)
+}
+
+// ListTx reads the subscription snapshot through the caller's transaction.
+func (s *SQLiteStore) ListTx(ctx context.Context, tx *sql.Tx, f ListFilters) ([]Subscription, error) {
+	return s.list(ctx, tx, f)
+}
+
+type subscriptionQueryer interface {
+	QueryContext(context.Context, string, ...any) (*sql.Rows, error)
+}
+
+func (s *SQLiteStore) list(ctx context.Context, q subscriptionQueryer, f ListFilters) ([]Subscription, error) {
 	var clauses []string
 	var args []any
 
@@ -101,7 +136,7 @@ func (s *SQLiteStore) List(ctx context.Context, f ListFilters) ([]Subscription, 
 	}
 	query += " ORDER BY id ASC"
 
-	rows, err := s.db.QueryContext(ctx, query, args...)
+	rows, err := q.QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, fmt.Errorf("list subscriptions: %w", err)
 	}
@@ -151,6 +186,101 @@ func (s *SQLiteStore) GetHealth(ctx context.Context, id int64) (Health, error) {
 		return h, err
 	}
 	return h, nil
+}
+
+func (s *SQLiteStore) Enqueue(ctx context.Context, subscriptionID int64, eventID, payload string) error {
+	_, err := s.db.ExecContext(ctx, `INSERT INTO subscription_deliveries (subscription_id, event_id, payload_json) VALUES (?, ?, ?) ON CONFLICT(subscription_id, event_id) DO NOTHING`, subscriptionID, eventID, payload)
+	return err
+}
+
+// EnqueueTx adds a delivery row inside the caller's admission transaction.
+func (s *SQLiteStore) EnqueueTx(ctx context.Context, tx *sql.Tx, subscriptionID int64, eventID, payload string) error {
+	_, err := tx.ExecContext(ctx, `INSERT INTO subscription_deliveries (subscription_id, event_id, payload_json) VALUES (?, ?, ?) ON CONFLICT(subscription_id, event_id) DO NOTHING`, subscriptionID, eventID, payload)
+	return err
+}
+
+func (s *SQLiteStore) Due(ctx context.Context, limit int) ([]QueuedDelivery, error) {
+	if limit <= 0 || limit > 100 {
+		limit = 25
+	}
+	rows, err := s.db.QueryContext(ctx, `SELECT id, subscription_id, event_id, payload_json, attempts, next_attempt_at FROM subscription_deliveries WHERE status = 'pending' AND next_attempt_at <= strftime('%Y-%m-%dT%H:%M:%f','now') ORDER BY id LIMIT ?`, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []QueuedDelivery
+	for rows.Next() {
+		var d QueuedDelivery
+		var next string
+		if err := rows.Scan(&d.ID, &d.SubscriptionID, &d.EventID, &d.PayloadJSON, &d.Attempts, &next); err != nil {
+			return nil, err
+		}
+		d.NextAttemptAt = sqlutil.ParseTime(next)
+		out = append(out, d)
+	}
+	return out, rows.Err()
+}
+
+func (s *SQLiteStore) GetDelivery(ctx context.Context, subscriptionID int64, eventID string) (DeliveryMetadata, error) {
+	var delivery DeliveryMetadata
+	err := s.db.QueryRowContext(ctx, `SELECT subscription_id, event_id, status, attempts FROM subscription_deliveries WHERE subscription_id=? AND event_id=?`, subscriptionID, eventID).Scan(
+		&delivery.SubscriptionID, &delivery.EventID, &delivery.Status, &delivery.Attempts,
+	)
+	if err != nil {
+		return DeliveryMetadata{}, err
+	}
+	return delivery, nil
+}
+
+// RetryDeadLetter atomically starts one new retry cycle for exactly the
+// observed exhausted row generation. Retryable rows have completed five
+// failed deliveries in the current five-attempt cycle; this makes cumulative
+// attempts the durable cycle boundary without another schema field. It
+// preserves the stored payload and cumulative attempts, and a stale request
+// cannot reopen a later cycle.
+func (s *SQLiteStore) RetryDeadLetter(ctx context.Context, subscriptionID int64, eventID string, expectedAttempts int) error {
+	if expectedAttempts <= 0 {
+		return ErrDeliveryNotRetryable
+	}
+	res, err := s.db.ExecContext(ctx, `UPDATE subscription_deliveries
+		SET status='pending',
+		    next_attempt_at=strftime('%Y-%m-%dT%H:%M:%f','now'), updated_at=strftime('%Y-%m-%dT%H:%M:%f','now')
+		WHERE subscription_id=? AND event_id=? AND status='dead_letter' AND attempts=? AND attempts > 0 AND attempts % ? = 0
+		AND EXISTS (SELECT 1 FROM subscriptions WHERE subscriptions.id=subscription_deliveries.subscription_id AND delivery_type='webhook' AND enabled=1)`,
+		subscriptionID, eventID, expectedAttempts, DeliveryAttemptsPerCycle)
+	if err != nil {
+		return err
+	}
+	changed, err := res.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if changed != 1 {
+		return ErrDeliveryNotRetryable
+	}
+	return nil
+}
+
+func (s *SQLiteStore) MarkDelivered(ctx context.Context, deliveryID, subscriptionID int64, at time.Time) error {
+	_, err := s.db.ExecContext(ctx, `UPDATE subscription_deliveries SET status='delivered', updated_at=? WHERE id=? AND status='pending'`, at.UTC().Format(time.RFC3339Nano), deliveryID)
+	if err != nil {
+		return err
+	}
+	_, err = s.db.ExecContext(ctx, `UPDATE subscription_health SET total_delivered=total_delivered+1, consecutive_failures=0, last_delivered_at=?, status='active' WHERE subscription_id=?`, at.UTC().Format(time.RFC3339Nano), subscriptionID)
+	return err
+}
+
+func (s *SQLiteStore) MarkFailed(ctx context.Context, deliveryID, subscriptionID int64, reason string, next time.Time, deadLetter bool) error {
+	status := "pending"
+	if deadLetter {
+		status = "dead_letter"
+	}
+	_, err := s.db.ExecContext(ctx, `UPDATE subscription_deliveries SET status=?, attempts=attempts+1, last_error=?, next_attempt_at=?, updated_at=? WHERE id=? AND status='pending'`, status, reason, next.UTC().Format(time.RFC3339Nano), time.Now().UTC().Format(time.RFC3339Nano), deliveryID)
+	if err != nil {
+		return err
+	}
+	_, err = s.db.ExecContext(ctx, `UPDATE subscription_health SET total_failed=total_failed+1, consecutive_failures=consecutive_failures+1, last_failed_at=?, status=? WHERE subscription_id=?`, time.Now().UTC().Format(time.RFC3339Nano), map[bool]string{true: "circuit_broken", false: "active"}[deadLetter], subscriptionID)
+	return err
 }
 
 func (s *SQLiteStore) Close() error {

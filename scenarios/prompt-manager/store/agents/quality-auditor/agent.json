@@ -7,11 +7,17 @@
   "status": "active",
   "appearance": {
     "body": "#059669",
-    "head": "#10B981",
-    "accent": "#6EE7B7"
+    "head": "#34D399",
+    "accent": "#D1FAE5"
   },
-  "tags": ["quality", "auditing", "structural-analysis"],
-  "fileOrder": ["SOUL.md", "AGENTS.md"],
+  "tags": [
+    "quality",
+    "auditing",
+    "structural-analysis"
+  ],
+  "fileOrder": [
+    "AGENT.md"
+  ],
   "revision": 1,
   "createdAt": "2026-04-07T00:00:00Z",
   "updatedAt": "2026-04-07T00:00:00Z"

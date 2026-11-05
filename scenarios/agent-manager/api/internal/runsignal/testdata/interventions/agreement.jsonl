@@ -1,0 +1,60 @@
+{"id": "8979956a0fe8", "category_b": "instruction_ignored", "confidence_b": "low", "rationale_b": "agent recommended committing though agents are forbidden from commits"}
+{"id": "585124520c40", "category_b": "approval_or_info", "confidence_b": "low", "rationale_b": "tests whether agent sees answers"}
+{"id": "de9fc6aa4daf", "category_b": "false_inability", "confidence_b": "high", "rationale_b": "tells agent to test it itself instead of asking"}
+{"id": "258dfacd0c24", "category_b": "scope_change", "confidence_b": "low", "rationale_b": "new instruction to pause all teams"}
+{"id": "57854d52233e", "category_b": "quality_miss", "confidence_b": "high", "rationale_b": "still dislikes the result"}
+{"id": "d810d471eef0", "category_b": "wrong_claim", "confidence_b": "high", "rationale_b": "agent misread what was asked"}
+{"id": "94c7182f1661", "category_b": "quality_miss", "confidence_b": "high", "rationale_b": "link did not open web console"}
+{"id": "24b8ba7292b8", "category_b": "approval_or_info", "confidence_b": "high", "rationale_b": "approval"}
+{"id": "40df2779f671", "category_b": "false_inability", "confidence_b": "low", "rationale_b": "asks why the agent cannot check the API itself; still not working"}
+{"id": "aa5222491137", "category_b": "quality_miss", "confidence_b": "high", "rationale_b": "toggle button still not fixed"}
+{"id": "1e831f184334", "category_b": "early_stop", "confidence_b": "high", "rationale_b": "keep going after the agent offered to continue"}
+{"id": "077b7d36cb74", "category_b": "approval_or_info", "confidence_b": "high", "rationale_b": "answer to agent question"}
+{"id": "6e204d8bedd8", "category_b": "approval_or_info", "confidence_b": "high", "rationale_b": "tells agent to wait"}
+{"id": "d412d717488f", "category_b": "wrong_claim", "confidence_b": "low", "rationale_b": "corrects agent's assumption about health endpoints"}
+{"id": "4b5e0113b9c4", "category_b": "approval_or_info", "confidence_b": "high", "rationale_b": "approves option A with constraint"}
+{"id": "e21a2ba8e400", "category_b": "approval_or_info", "confidence_b": "high", "rationale_b": "approval to implement"}
+{"id": "10b2bd9ab0c8", "category_b": "approval_or_info", "confidence_b": "high", "rationale_b": "approval"}
+{"id": "3d2cd265847d", "category_b": "false_inability", "confidence_b": "low", "rationale_b": "questions the claimed need to sign before proceeding"}
+{"id": "35e11865f2ab", "category_b": "approval_or_info", "confidence_b": "high", "rationale_b": "answers question"}
+{"id": "c93b5d2b3cc4", "category_b": "scope_change", "confidence_b": "low", "rationale_b": "new direction to spawn sub agents"}
+{"id": "fe34448104a6", "category_b": "approval_or_info", "confidence_b": "high", "rationale_b": "yes inspect"}
+{"id": "22758d920b1a", "category_b": "approval_or_info", "confidence_b": "low", "rationale_b": "confirms understanding and asks follow-up"}
+{"id": "90413ce3e8c2", "category_b": "approval_or_info", "confidence_b": "low", "rationale_b": "asks whether to continue or move on"}
+{"id": "a2106c3bf00d", "category_b": "scope_change", "confidence_b": "high", "rationale_b": "new issue to look into"}
+{"id": "50ad7597f856", "category_b": "instruction_ignored", "confidence_b": "high", "rationale_b": "don't file bug reports; fix directly"}
+{"id": "f2533fe4e9cc", "category_b": "scope_change", "confidence_b": "high", "rationale_b": "new commit request"}
+{"id": "21fe1a6b8672", "category_b": "approval_or_info", "confidence_b": "high", "rationale_b": "information request"}
+{"id": "e7ce9ffc1679", "category_b": "approval_or_info", "confidence_b": "high", "rationale_b": "status request"}
+{"id": "860ad178eccc", "category_b": "approval_or_info", "confidence_b": "low", "rationale_b": "questions the agent's stated limitation"}
+{"id": "526f2d619cb4", "category_b": "approval_or_info", "confidence_b": "high", "rationale_b": "answers agent's question"}
+{"id": "b8054db2254c", "category_b": "wrong_claim", "confidence_b": "low", "rationale_b": "insists the API is running; agent's diagnosis wrong"}
+{"id": "2e3f0174a8b3", "category_b": "scope_change", "confidence_b": "low", "rationale_b": "picks dig-in option and raises new robustness topic"}
+{"id": "d41a4f4ece83", "category_b": "early_stop", "confidence_b": "high", "rationale_b": "agent keeps stopping early"}
+{"id": "e94c44ae5d0a", "category_b": "scope_change", "confidence_b": "low", "rationale_b": "pushes back on the 120-second cap and proposes a new design"}
+{"id": "071869c37a34", "category_b": "approval_or_info", "confidence_b": "high", "rationale_b": "go ahead"}
+{"id": "6365a576f654", "category_b": "scope_change", "confidence_b": "low", "rationale_b": "new instruction to stop and archive a team"}
+{"id": "ab5cb37c992d", "category_b": "approval_or_info", "confidence_b": "high", "rationale_b": "approves with quality guidance"}
+{"id": "aa817ddfe204", "category_b": "instruction_ignored", "confidence_b": "high", "rationale_b": "standing rule to use make commands"}
+{"id": "e5ff065b82e2", "category_b": "approval_or_info", "confidence_b": "high", "rationale_b": "go ahead"}
+{"id": "1d095d1717fd", "category_b": "scope_change", "confidence_b": "high", "rationale_b": "new request for better device models"}
+{"id": "c2994d79e666", "category_b": "quality_miss", "confidence_b": "high", "rationale_b": "song choices not good enough"}
+{"id": "651ee5d962be", "category_b": "approval_or_info", "confidence_b": "low", "rationale_b": "supplies information about a running agent"}
+{"id": "00f21ed4c0ff", "category_b": "false_inability", "confidence_b": "high", "rationale_b": "tells the agent it is allowed to inspect memory use"}
+{"id": "8572fc41bd64", "category_b": "approval_or_info", "confidence_b": "low", "rationale_b": "asks for status and friction analysis"}
+{"id": "bf4664ab971a", "category_b": "wrong_claim", "confidence_b": "high", "rationale_b": "agent misunderstood the operator's point about team ownership"}
+{"id": "55bd9489b527", "category_b": "quality_miss", "confidence_b": "low", "rationale_b": "approval link did not work"}
+{"id": "b802f7ec81ab", "category_b": "wrong_claim", "confidence_b": "low", "rationale_b": "approves recommendations and corrects agent's false claim about TV research pause"}
+{"id": "8ca69f1fe0cd", "category_b": "quality_miss", "confidence_b": "high", "rationale_b": "bottom nav issue persists"}
+{"id": "3d1f84c5278c", "category_b": "scope_change", "confidence_b": "low", "rationale_b": "new constraint on dependencies"}
+{"id": "e148663128b1", "category_b": "approval_or_info", "confidence_b": "high", "rationale_b": "answers agent's question with pasted guidance"}
+{"id": "c661b8993e6e", "category_b": "early_stop", "confidence_b": "high", "rationale_b": "agent stopped early; operator said to take it as far as possible"}
+{"id": "7d00b171ccb5", "category_b": "approval_or_info", "confidence_b": "high", "rationale_b": "asks for next steps"}
+{"id": "d6c748154874", "category_b": "approval_or_info", "confidence_b": "high", "rationale_b": "answers question"}
+{"id": "bffd23b62e3e", "category_b": "scope_change", "confidence_b": "high", "rationale_b": "new documentation task"}
+{"id": "0714c6092f5b", "category_b": "approval_or_info", "confidence_b": "high", "rationale_b": "picks option B"}
+{"id": "da9a9dd24773", "category_b": "approval_or_info", "confidence_b": "high", "rationale_b": "status request"}
+{"id": "f493354124e5", "category_b": "instruction_ignored", "confidence_b": "high", "rationale_b": "must start via lifecycle commands"}
+{"id": "1785b448fc52", "category_b": "quality_miss", "confidence_b": "high", "rationale_b": "bug not fixed"}
+{"id": "45d7938a00b2", "category_b": "wrong_claim", "confidence_b": "high", "rationale_b": "agent explained the wrong referent"}
+{"id": "87f344dfb011", "category_b": "quality_miss", "confidence_b": "high", "rationale_b": "did not fix, over-complicating"}

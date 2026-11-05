@@ -161,7 +161,7 @@ describe("circuit breaker override", () => {
 
 // [REQ:REQ-UI-009B] Glob pattern tester
 describe("subscription glob pattern", () => {
-  it("wildcard pattern matches any event type", () => {
+  it("wildcard pattern matches every event type", () => {
     const pattern = "*";
     expect(pattern).toBe("*");
   });

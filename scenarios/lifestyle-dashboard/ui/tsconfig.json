@@ -2,6 +2,7 @@
   "extends": "./tsconfig.node.json",
   "compilerOptions": {
     "jsx": "react-jsx",
+    "moduleResolution": "bundler",
     "types": ["vite/client", "vitest/globals", "@testing-library/jest-dom"],
     "noUncheckedIndexedAccess": true
   },

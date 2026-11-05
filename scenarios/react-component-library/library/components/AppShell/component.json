@@ -1,0 +1,29 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
+  "assetKind": "component",
+  "catalogId": "navigation.app-shell",
+  "deprecatedVersions": [
+    "1.0.3",
+    "1.0.5",
+    "1.0.4",
+    "1.0.6",
+    "1.0.0"
+  ],
+  "description": "The one application frame a generated scenario mounts: brand, a SidebarShell-owned navigation column (resizable sidebar or icon rail), a BottomNav-owned phone tab bar or drawer, an optional header strip, a skip link, and the routed main pane in scroll or fill mode. Navigation is data; the router plugs in through renderLink and onNavigate.",
+  "designStyles": [
+    {
+      "affinity": "native",
+      "reason": "token-native operational-console baseline",
+      "styleId": "vrooli-default"
+    }
+  ],
+  "displayName": "AppShell",
+  "draft": "",
+  "evictedVersions": [
+    "2.1.1",
+    "2.1.0"
+  ],
+  "latest": "2.1.2",
+  "libraryId": "react-component-library:AppShell",
+  "tags": []
+}

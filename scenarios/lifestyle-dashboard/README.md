@@ -151,7 +151,7 @@ The lifecycle exports everything automatically when you run `vrooli scenario run
 
 ## CLI Usage
 
-Install the CLI with `./cli/install.sh`. Commands:
+The control plane installs the declared Go CLI when the scenario starts. Commands:
 - `lifestyle-dashboard status` — Show dashboard and domain health
 - `lifestyle-dashboard events list` — Query recent events
 - `lifestyle-dashboard brief morning` — Get morning brief

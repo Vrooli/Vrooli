@@ -8,7 +8,7 @@ import type { CombineMode, CombineEntityType } from '@/stores/combineStore'
 const STORAGE_KEY = 'pm.selection'
 
 const VALID_MODES = new Set<string>(['skill-combine', 'ai-select'])
-const VALID_ENTITY_TYPES = new Set<string>(['skills', 'agents', 'teams', 'topics'])
+const VALID_ENTITY_TYPES = new Set<string>(['skills', 'agents', 'teams', 'topics', 'actions'])
 
 export interface PersistedSelection {
   isActive: boolean

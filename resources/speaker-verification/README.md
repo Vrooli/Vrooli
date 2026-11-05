@@ -1,126 +1,103 @@
 # Speaker Verification Resource
 
-Local-first speaker verification and target speaker extraction using NVIDIA NeMo TitaNet and SpeechBrain SepFormer. Provides enrolled-speaker verification, embedding management, and target speaker extraction as a reusable Vrooli capability.
+Managed SpeechBrain ECAPA-TDNN speaker-embedding runtime for local speaker
+enrollment and verification workflows.
 
-## Quick Start
+## Intent
 
-```bash
-# Install and start
-resource-speaker-verification manage install
+- Resource ID: `speaker-verification`
+- Category: `ai`
+- Driver: `managed-service`
+- Portability tier: `native Linux amd64` (CPU and CUDA targets)
 
-# Check status
-resource-speaker-verification status
+## Model
 
-# Enroll a speaker profile
-resource-speaker-verification content enroll --profile default --file enrollment.wav
+- Model: `speechbrain/spkrec-ecapa-voxceleb` (ECAPA-TDNN)
+- Embedding dimension: **192**
+- Input sample rate: **16000 Hz** mono
+- Verification: cosine similarity vs a caller-supplied threshold
+- Reported EER: 0.8% on VoxCeleb1-test (cleaned)
+- GPU-accelerated when an NVIDIA GPU is detected; falls back to CPU automatically
 
-# Verify a speaker
-resource-speaker-verification content verify --profile default --file clip.wav
+## Use Cases
 
-# List profiles
-resource-speaker-verification content profiles list
-```
-
-## Core Commands
-
-```bash
-# Lifecycle
-resource-speaker-verification manage install
-resource-speaker-verification manage start
-resource-speaker-verification manage stop
-resource-speaker-verification manage restart
-resource-speaker-verification manage uninstall
-
-# Information
-resource-speaker-verification status
-resource-speaker-verification logs
-resource-speaker-verification help
-
-# Content/Domain
-resource-speaker-verification content enroll --profile <id> --file <audio.wav>
-resource-speaker-verification content verify --profile <id> --file <audio.wav> [--threshold 0.7]
-resource-speaker-verification content profiles list
-resource-speaker-verification content profiles get --profile <id>
-resource-speaker-verification content profiles remove --profile <id>
-resource-speaker-verification content info
-
-# Testing
-resource-speaker-verification test smoke
-resource-speaker-verification test integration
-resource-speaker-verification test unit
-resource-speaker-verification test all
-```
-
-## API Endpoints
-
-| Method | Path | Description |
-|--------|------|-------------|
-| GET | `/health` | Liveness check |
-| GET | `/ready` | Readiness check (model loaded) |
-| GET | `/v1/info` | Backend/model info |
-| POST | `/v1/profiles` | Enroll a speaker profile |
-| GET | `/v1/profiles` | List all profiles |
-| GET | `/v1/profiles/{id}` | Get one profile |
-| DELETE | `/v1/profiles/{id}` | Remove a profile |
-| POST | `/v1/verify` | Verify audio against profile |
-| POST | `/v1/extract` | Extract target speaker from audio mixture |
-| POST | `/v1/embeddings` | Extract raw embeddings (debug) |
-
-Default API URL: `http://localhost:8891`
-
-## Configuration
-
-Key environment variables:
-
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `SPEAKER_VERIFICATION_PORT` | `8891` | API port |
-| `SPEAKER_VERIFICATION_DEVICE` | `auto` | Compute device (auto/cpu/cuda) |
-| `SPEAKER_VERIFICATION_MODEL` | `nvidia/speakerverification_en_titanet_large` | NeMo model |
-| `SPEAKER_VERIFICATION_DEFAULT_THRESHOLD` | `0.7` | Cosine similarity threshold |
-| `SPEAKER_VERIFICATION_TSE_ENABLED` | `true` | Enable target speaker extraction |
-| `SPEAKER_VERIFICATION_TSE_MODEL` | `speechbrain/sepformer-wsj02mix` | SpeechBrain separation model |
-| `SPEAKER_VERIFICATION_TSE_MIN_OUTPUT_RMS` | `1e-4` | Silence detection threshold for separated sources |
-| `SPEAKER_VERIFICATION_TSE_MIN_SPEAKER_SCORE` | `0.25` | Minimum cosine similarity to accept a separated source |
-
-See `docs/CONFIGURATION.md` for the full list.
+- Enroll a speaker once, then gate downstream actions on "is this the same
+  voice?" (cosine similarity against the enrolled voiceprint).
+- Pair with `whisper` to attribute or gate transcription by speaker identity.
+- Provide a reusable speaker-recognition service for voice scenarios such as
+  `audio-tools`.
 
 ## Architecture
 
-The resource runs as a Docker container with a FastAPI service backed by NeMo TitaNet for speaker embedding extraction and SpeechBrain SepFormer for target speaker extraction. Profiles (embeddings + metadata) are stored on the host filesystem and mounted into the container.
+This resource follows the native `managed-service` structure.
 
-## Target Speaker Extraction (TSE)
+- `resource.json` is the declarative authority for lifecycle, native artifact
+  acquisition, ports, exports, health, storage, and freshness metadata.
+- `server/` holds the FastAPI contract and VAD implementation. The native
+  artifact composes these sources with the checksum-pinned CPython runtime and
+  the CPU or CUDA hash-locked wheel set.
+- `requirements.lock` and `requirements-gpu.lock` are generated, hash-pinned
+  Python inputs. PyTorch and torchaudio are selected from the declared CPU or
+  CUDA index; no container image supplies the runtime.
+- `cli/` is the thin binary entrypoint and delegated command wiring surface.
+- `cli/internal/` is the home for Speaker Verification-specific Go logic when the
+  manifest and shared control plane are not enough.
 
-TSE isolates an enrolled speaker's voice from audio containing multiple speakers or background audio (TV, music). When enabled, the `/v1/extract` endpoint:
+Internal package boundaries:
 
-1. **Separates** the audio mixture into individual source signals using SpeechBrain SepFormer (blind source separation)
-2. **Identifies** which separated source matches the enrolled speaker by extracting TitaNet embeddings and comparing via cosine similarity
-3. **Returns** the best-matching source as 16kHz mono WAV, optionally with speaker verification score
+- `cli/internal/topology`: service dependency and readiness semantics
+- `cli/internal/runtime`: runtime shaping helpers
+- `cli/internal/health`: readiness helpers
+- `cli/internal/env`: environment export helpers
 
-This approach reuses existing TitaNet embeddings — no enrollment changes are needed.
+## Usage
 
-### `/v1/extract` Endpoint
+```bash
+# Install the native artifact and start it
+vrooli resource install speaker-verification
 
-**Request:** Multipart form-data with `audio` (file), `profile_id` (string), `verify` (bool, default true).
+# Check status through the shared control plane
+resource-speaker-verification status
+```
 
-**Response (200):** Raw WAV audio bytes with metadata headers:
-- `X-Speaker-Score` — verification score of extracted audio against profile
-- `X-Speaker-Matched` — whether the score exceeds the threshold
-- `X-Duration-Ms` — server-side processing time
-- `X-Audio-Seconds` — duration of the extracted audio
+Default endpoint:
 
-**Error codes:** 404 (profile not found), 400 (audio too short/invalid), 503 (TSE model not loaded).
+- API: `http://localhost:11452`
 
-### Performance
+Exported environment variable for consumers:
 
-- SepFormer adds ~1–3s per segment on CPU, ~0.3–1s on GPU
-- Combined with TitaNet embedding extraction: ~2–5s total on CPU
-- Additional memory: ~200–500MB for the SepFormer model
-- The readiness endpoint (`/ready`) includes `tse_model_loaded` status
+- `SPEAKER_VERIFICATION_URL` (e.g. `http://localhost:11452`) — audio-tools reads
+  this to resolve the service.
 
-## Documentation
+## API
 
-- [API Reference](docs/API.md)
-- [Configuration](docs/CONFIGURATION.md)
-- [Troubleshooting](docs/TROUBLESHOOTING.md)
-- [Testing](docs/TESTING.md)
+See [docs/API.md](docs/API.md) for the full endpoint contract (`/ready`,
+`/v1/info`, `/v1/profiles` (enroll/list/detail/clips), `/v1/verify`,
+`/v1/extract`, `DELETE /v1/profiles/{id}` and `DELETE /v1/profiles/{id}/clips/{clip_id}`)
+and [docs/USAGE_EXAMPLES.md](docs/USAGE_EXAMPLES.md) for worked examples.
+
+> A profile is **one identity holding N labeled enrollment clips** (different
+> devices / speaking styles). Enroll *appends* a clip and recomputes the L2
+> centroid; verify scores the test clip against the centroid and each clip and
+> returns the best (hybrid aggregation). Both enroll and verify embed only the
+> **voiced** span (energy VAD trim) and enforce a minimum voiced duration —
+> verify returns `sufficient:false` rather than a fabricated score below it.
+
+> Target-speaker **extraction** (`/v1/extract`) is **implemented**: it isolates
+> the enrolled speaker from a mixture via SepFormer source separation + ECAPA
+> target-selection against the profile centroid, returning cleaned 16 kHz mono
+> s16le PCM. See [docs/extraction.md](docs/extraction.md).
+
+## Notes
+
+- Keep `cli/main.go` thin. Do not treat it as the implementation surface.
+- The HTTP contract in `server/server.py` is consumed byte-for-byte by
+  audio-tools; do not let endpoint paths, multipart field names, or response
+  JSON keys drift. See [docs/internal/SEAMS.md](docs/internal/SEAMS.md).
+- Keep runtime state (enrolled profiles, model cache) in the declared resource
+  data directory rather than repo-local mutable directories.
+- Use [docs/OPERATIONS.md](docs/OPERATIONS.md) as the architecture boundary for
+  future migrations.
+## Maturity
+
+M4 (2026-08-05): lifecycle, health, platform gates, and Go CLI test evidence are covered by the fleet contract.

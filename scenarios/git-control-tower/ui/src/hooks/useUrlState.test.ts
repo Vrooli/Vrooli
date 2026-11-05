@@ -1,9 +1,12 @@
-import { parseUrlState, buildUrlSearch } from "./useUrlState";
+import { parseUrlState, buildUrlSearch, VALID_REVIEW_TABS } from "./useUrlState";
 import type { UrlState } from "./useUrlState";
 
 // --- parseUrlState ---
 
 describe("parseUrlState", () => {
+  test("defines exactly the eight retained review tabs", () => {
+    expect(VALID_REVIEW_TABS).toEqual(["overview", "baselines", "metrics", "screenshots", "workflows", "tests", "ai-provenance", "agent"]);
+  });
   test("returns empty state for empty search string", () => {
     expect(parseUrlState("")).toEqual({});
   });
@@ -62,9 +65,14 @@ describe("parseUrlState", () => {
   });
 
   test("parses valid reviewTab values", () => {
-    for (const tab of ["overview", "metrics", "screenshots", "workflows", "tests", "code-quality", "agent"]) {
+    for (const tab of ["overview", "baselines", "metrics", "screenshots", "workflows", "tests", "ai-provenance", "agent"]) {
       expect(parseUrlState(`?reviewTab=${tab}`).reviewTab).toBe(tab);
     }
+  });
+
+  test("rejects removed review tabs", () => {
+    expect(parseUrlState("?reviewTab=code-quality").reviewTab).toBeUndefined();
+    expect(parseUrlState("?reviewTab=rules").reviewTab).toBeUndefined();
   });
 
   test("ignores invalid reviewTab values", () => {
@@ -228,4 +236,11 @@ describe("round-trip: parseUrlState → buildUrlSearch", () => {
     const rebuilt = buildUrlSearch(state);
     expect(parseUrlState(rebuilt)).toEqual(state);
   });
+});
+
+describe("proposal URL state", () => {
+ it("preserves proposal, literal path and retained revision across reload", () => {
+  const state = { proposal: "gctp-123456789abc", proposalFile: "a path+name.ts", proposalRevision: 3 };
+  expect(parseUrlState(buildUrlSearch(state))).toEqual(state);
+ });
 });

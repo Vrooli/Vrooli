@@ -1,0 +1,65 @@
+{
+  "metadata": {
+    "name": "e3-disposable-recipient-isolated",
+    "description": "Reads the deterministic unanswered fixture through a verified routed testpool.",
+    "requirement": "OT-P0-001",
+    "version": "1",
+    "labels": {
+      "reset": "none",
+      "routed_isolation": "true",
+      "spec_entry_id": "dashboard",
+      "surface": "experience-dashboard"
+    },
+    "execution_mode": "observer"
+  },
+  "settings": {
+    "viewport_width": 1280,
+    "viewport_height": 800
+  },
+  "nodes": [
+    {
+      "id": "open-disposable-updates",
+      "action": {
+        "type": "ACTION_TYPE_NAVIGATE",
+        "navigate": {
+          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+          "scenario": "notification-hub",
+          "scenario_path": "/updates?vrooli_test_mode=1",
+          "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE",
+          "timeout_ms": 30000
+        },
+        "metadata": { "label": "Open routed updates" }
+      }
+    },
+    {
+      "id": "wait-dashboard-page",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "@selector/pages.dashboard",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 15000
+        },
+        "metadata": { "label": "Dashboard is visible" }
+      }
+    },
+    {
+      "id": "assert-disposable-notification",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "@selector/pages.dashboard",
+          "mode": "ASSERTION_MODE_TEXT_CONTAINS",
+          "expected": { "string_value": "Test fixture" },
+          "timeout_ms": 5000,
+          "failure_message": "Expected the deterministic routed disposable notification fixture to be present"
+        },
+        "metadata": { "label": "Disposable notification fixture is present" }
+      }
+    }
+  ],
+  "edges": [
+    { "id": "e1", "source": "open-disposable-updates", "target": "wait-dashboard-page", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e2", "source": "wait-dashboard-page", "target": "assert-disposable-notification", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" }
+  ]
+}

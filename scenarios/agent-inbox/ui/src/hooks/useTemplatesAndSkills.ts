@@ -88,79 +88,119 @@ export interface UseTemplatesAndSkillsReturn {
 export function useTemplatesAndSkills(): UseTemplatesAndSkillsReturn {
   const templateState = useTemplateState();
   const skillsState = useSkillsState();
+  const {
+    activeTemplate,
+    clearTemplate,
+    createTemplate,
+    currentModePath,
+    deleteTemplate,
+    error,
+    getFilledTemplateContent,
+    getSubmodesAtPath,
+    getTemplateMissingFields,
+    getTemplatesAtPath,
+    isLoading,
+    isTemplateValid,
+    navigateBack,
+    navigateToMode,
+    refreshTemplates,
+    resetModePath,
+    resetTemplate,
+    setActiveTemplate: setTemplateActive,
+    setCurrentModePath,
+    templates,
+    updateTemplate,
+    updateTemplateVariables,
+  } = templateState;
+  const {
+    addSkill,
+    addSuggestedSkills,
+    buildSkillPayloads,
+    clearSkills,
+    filterCommands: filterSkillCommands,
+    getAllCommands: getAllSkillCommands,
+    getSelectedSkills,
+    refreshSkills,
+    removeSkill,
+    selectedSkillIds,
+    skills,
+    skillsLoading,
+    syncSkills,
+    toggleSkill,
+  } = skillsState;
 
   // Wrap setActiveTemplate to auto-attach suggested skills
   const setActiveTemplate = useCallback(
     (template: Template | null) => {
-      templateState.setActiveTemplate(template, (skillIds) => {
-        skillsState.addSuggestedSkills(skillIds);
+      setTemplateActive(template, (skillIds) => {
+        addSuggestedSkills(skillIds);
       });
     },
-    [templateState.setActiveTemplate, skillsState.addSuggestedSkills]
+    [addSuggestedSkills, setTemplateActive]
   );
 
   // Wrap slash command methods to pass templates automatically
   const getAllCommands = useCallback(
-    () => skillsState.getAllCommands(templateState.templates),
-    [skillsState.getAllCommands, templateState.templates]
+    () => getAllSkillCommands(templates),
+    [getAllSkillCommands, templates]
   );
 
   const filterCommands = useCallback(
-    (query: string) => skillsState.filterCommands(query, templateState.templates),
-    [skillsState.filterCommands, templateState.templates]
+    (query: string) => filterSkillCommands(query, templates),
+    [filterSkillCommands, templates]
   );
 
   // Reset all state
   const resetAll = useCallback(() => {
-    templateState.clearTemplate();
-    skillsState.clearSkills();
-  }, [templateState.clearTemplate, skillsState.clearSkills]);
+    clearTemplate();
+    clearSkills();
+  }, [clearSkills, clearTemplate]);
 
   return {
     // Data
-    templates: templateState.templates,
-    skills: skillsState.skills,
-    isLoading: templateState.isLoading,
-    skillsLoading: skillsState.skillsLoading,
-    error: templateState.error,
+    templates,
+    skills,
+    isLoading,
+    skillsLoading,
+    error,
 
     // Skills sync and refresh
-    refreshSkills: skillsState.refreshSkills,
-    syncSkills: skillsState.syncSkills,
+    refreshSkills,
+    syncSkills,
 
     // Template state
-    activeTemplate: templateState.activeTemplate,
+    activeTemplate,
     setActiveTemplate,
-    updateTemplateVariables: templateState.updateTemplateVariables,
-    getFilledTemplateContent: templateState.getFilledTemplateContent,
-    clearTemplate: templateState.clearTemplate,
-    isTemplateValid: templateState.isTemplateValid,
-    getTemplateMissingFields: templateState.getTemplateMissingFields,
+    updateTemplateVariables,
+    getFilledTemplateContent,
+    clearTemplate,
+    isTemplateValid,
+    getTemplateMissingFields,
 
     // Template CRUD
-    createTemplate: templateState.createTemplate,
-    updateTemplate: templateState.updateTemplate,
-    deleteTemplate: templateState.deleteTemplate,
-    resetTemplate: templateState.resetTemplate,
-    refreshTemplates: templateState.refreshTemplates,
+    createTemplate,
+    updateTemplate,
+    deleteTemplate,
+    resetTemplate,
+    refreshTemplates,
 
     // Mode navigation
-    currentModePath: templateState.currentModePath,
-    setCurrentModePath: templateState.setCurrentModePath,
-    getTemplatesAtPath: templateState.getTemplatesAtPath,
-    getSubmodesAtPath: templateState.getSubmodesAtPath,
-    navigateToMode: templateState.navigateToMode,
-    navigateBack: templateState.navigateBack,
-    resetModePath: templateState.resetModePath,
+    currentModePath,
+    setCurrentModePath,
+    getTemplatesAtPath,
+    getSubmodesAtPath,
+    navigateToMode,
+    navigateBack,
+    resetModePath,
 
     // Skills state
-    selectedSkillIds: skillsState.selectedSkillIds,
-    addSkill: skillsState.addSkill,
-    removeSkill: skillsState.removeSkill,
-    toggleSkill: skillsState.toggleSkill,
-    clearSkills: skillsState.clearSkills,
-    getSelectedSkills: skillsState.getSelectedSkills,
-    buildSkillPayloads: skillsState.buildSkillPayloads,
+    selectedSkillIds,
+    addSkill,
+    removeSkill,
+    toggleSkill,
+    clearSkills,
+    getSelectedSkills,
+    buildSkillPayloads,
 
     // Slash commands
     getAllCommands,

@@ -1,0 +1,12 @@
+:root { color-scheme: dark; font: 14px system-ui, sans-serif; }
+body { width: 340px; margin: 0; background: #0e141c; color: #dce5ef; }
+main { display: grid; gap: 12px; padding: 16px; }
+h1 { margin: 0; font-size: 18px; }
+h2 { margin: 0 0 8px; font-size: 14px; }
+p { margin: 4px 0 0; color: #91a0b8; overflow-wrap: anywhere; }
+section { display: grid; gap: 8px; padding: 12px; border: 1px solid #273044; border-radius: 8px; }
+label { display: grid; gap: 4px; color: #c6d0dc; }
+input, select, button { min-height: 34px; box-sizing: border-box; border: 1px solid #53667a; border-radius: 5px; background: #151d2b; color: #f3f7fb; padding: 6px 8px; }
+button { cursor: pointer; background: #193e3a; border-color: #2a5b51; }
+button:hover, button:focus-visible { background: #2a5b51; }
+.danger { background: #3b1b24; border-color: #7e3648; }

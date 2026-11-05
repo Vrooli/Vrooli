@@ -10,6 +10,7 @@ import (
 	"math/rand"
 	"net/http"
 	"os"
+	schema "picker-wheel/internal/wheel"
 	"time"
 
 	"github.com/vrooli/api-core/database"
@@ -113,6 +114,10 @@ func main() {
 	logger.Info("picker wheel API starting",
 		"service", "picker-wheel-api",
 		"version", "1.0.0")
+
+	if err := database.EnsureSchemas(context.Background(), db, database.SchemaProviderFunc(schema.Schema)); err != nil {
+		log.Fatalf("database schema initialization failed: %v", err)
+	}
 	if err := server.Run(server.Config{
 		Handler: handler,
 		Cleanup: func(ctx context.Context) error {

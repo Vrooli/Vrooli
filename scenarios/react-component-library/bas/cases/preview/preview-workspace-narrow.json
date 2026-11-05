@@ -1,0 +1,112 @@
+{
+  "metadata": {
+    "name": "preview-workspace-narrow",
+    "description": "Opens the seeded StatusBadge workbench at a narrow phone viewport and proves its compact Appearance, Viewport, canvas, and selected-state controls remain usable without a separate playground mode.",
+    "requirement": "PR-001",
+    "version": "1",
+    "labels": {
+      "reset": "none",
+      "surface": "component-editor-preview-narrow",
+      "spec_entry_id": "component-preview-workspace",
+      "requires_confirmation": "true",
+      "routed_isolation": "true",
+      "requirements_json": "[\"PR-001\",\"VP-001\",\"DV-001\"]"
+    },
+    "execution_mode": "mutating"
+  },
+  "settings": {
+    "viewport_width": 390,
+    "viewport_height": 844
+  },
+  "nodes": [
+    {
+      "id": "navigate-status-badge-editor",
+      "action": {
+        "type": "ACTION_TYPE_NAVIGATE",
+        "navigate": {
+          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+          "scenario": "react-component-library",
+          "scenario_path": "/assets/react-component-library%3AStatusBadge?tab=preview",
+          "wait_until": "NAVIGATE_WAIT_EVENT_DOMCONTENTLOADED",
+          "timeout_ms": 30000
+        },
+        "metadata": { "label": "Open StatusBadge editor at phone width" }
+      }
+    },
+    {
+      "id": "wait-editor-panel",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "@selector/components.editor.panel",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 15000
+        },
+        "metadata": { "label": "Editor panel visible" }
+      }
+    },
+    {
+      "id": "open-preview",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": { "selector": "@selector/assets.componentPreviewTab" },
+        "metadata": { "label": "Open Preview workspace" }
+      }
+    },
+    {
+      "id": "assert-appearance-trigger",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "@selector/components.themeSwitcher.appearanceToggle",
+          "mode": "ASSERTION_MODE_VISIBLE",
+          "timeout_ms": 5000,
+          "failure_message": "The compact Appearance & visual checks entry point is unavailable at narrow width."
+        },
+        "metadata": { "label": "Appearance trigger remains usable" }
+      }
+    },
+    {
+      "id": "assert-viewport-trigger",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "@selector/components.emulator.viewportToggle",
+          "mode": "ASSERTION_MODE_VISIBLE",
+          "timeout_ms": 5000,
+          "failure_message": "The compact Viewport entry point is unavailable at narrow width."
+        },
+        "metadata": { "label": "Viewport trigger remains usable" }
+      }
+    },
+    {
+      "id": "assert-gallery",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "@selector/components.editor.gallery",
+          "mode": "ASSERTION_MODE_VISIBLE",
+          "timeout_ms": 20000,
+          "failure_message": "The responsive specimen gallery did not remain available at narrow width."
+        },
+        "metadata": { "label": "Specimen gallery remains available" }
+      }
+    },
+    {
+      "id": "capture-workspace",
+      "action": {
+        "type": "ACTION_TYPE_SCREENSHOT",
+        "screenshot": { "full_page": false },
+        "metadata": { "label": "Capture narrow Preview Workspace" }
+      }
+    }
+  ],
+  "edges": [
+    { "id": "edge-navigate-wait", "source": "navigate-status-badge-editor", "target": "wait-editor-panel", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "edge-open-preview", "source": "wait-editor-panel", "target": "open-preview", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "edge-appearance", "source": "open-preview", "target": "assert-appearance-trigger", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "edge-viewport", "source": "assert-appearance-trigger", "target": "assert-viewport-trigger", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "edge-gallery", "source": "assert-viewport-trigger", "target": "assert-gallery", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "edge-capture", "source": "assert-gallery", "target": "capture-workspace", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" }
+  ]
+}

@@ -1,0 +1,89 @@
+{
+  "description": "Expose every cartographer capability through proto+Connect-RPC with CLI and UI as translation layers; no REST/JSON workarounds permitted.",
+  "module_id": "MOD-P0-010",
+  "prd_ref": "OT-P0-010",
+  "priority": "P0",
+  "requirements": [
+    {
+      "category": "api",
+      "description": "All cartographer capabilities must be exposed through proto+Connect-RPC service definitions (AC-PROTO-FIRST). CLI commands must map 1:1 to proto methods with no intermediate REST/JSON translation layer (AC-CLI-PROTO-PARITY). The UI must consume only generated Connect clients (AC-UI-PROTO-PARITY). Proto files must be registered in a registry-driven registration system (AC-PROTO-REGISTRY). REST/JSON workarounds are forbidden. All cross-scenario calls to go-code-graph and typescript-code-graph also use Connect-RPC.",
+      "id": "REQ-P0-010",
+      "prd_ref": "OT-P0-010",
+      "status": "draft",
+      "title": "Connect-RPC Proto-First Service Definitions with CLI and UI Parity",
+      "validation": [
+        {
+          "notes": "AC-PROTO-FIRST: Every cartographer capability (extract, detect, resolve, apply, history, stats) has a corresponding proto RPC definition",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "AC-CLI-PROTO-PARITY: Each CLI command invokes exactly one proto method and passes its flags as proto request fields",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "AC-CLI-PROTO-PARITY: No CLI command constructs a raw HTTP request or JSON payload directly",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "AC-UI-PROTO-PARITY: UI source contains no fetch/axios calls to cartographer endpoints; only generated Connect client calls",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "AC-PROTO-REGISTRY: A new proto file added to the registry is automatically included in generated client/server code without manual registration steps",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Cross-scenario Connect-RPC call from cartographer to go-code-graph fixture server returns a valid graph response",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Cross-scenario Connect-RPC call from cartographer to typescript-code-graph fixture server returns a valid graph response",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "CLI round-trip: arch-cart detect invokes the DetectConflicts RPC and returns proto-shaped conflict envelopes",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "A new capability added to cartographer is immediately available in both CLI and UI without a separate API integration task",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "No REST/JSON workaround is merged; code review enforces this via lint rule or CI check",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Connect-RPC + CLI + UI Parity"
+}

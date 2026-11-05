@@ -1,0 +1,179 @@
+{
+  "description": "`ui-health validate scenario \u003cname\u003e --json` validates `ui/manifest.json` + overlay against the `scenario-ui-manifest/v1` JSON schema, the on-disk slot directories, and the template-vs-overlay rules; emits a structured `Report` with `Finding`s for schema violations, missing slot directories, unknown slot names in overlays, missing template references, orphan files, and overlapping slot pathPatterns; exits 0 on a clean scenario.",
+  "module_id": "MOD-P0-001",
+  "prd_ref": "OT-P0-001",
+  "priority": "P0",
+  "requirements": [
+    {
+      "category": "cli",
+      "description": "The CLI command `ui-health validate scenario \u003cname\u003e --json` must validate the `ui/manifest.json` file and any overlay configuration against the `scenario-ui-manifest/v1` JSON schema. Validation must check on-disk slot directories exist, enforce template-vs-overlay rules, and detect orphan files and overlapping slot pathPatterns.",
+      "id": "REQ-P0-001",
+      "prd_ref": "OT-P0-001",
+      "status": "draft",
+      "title": "Manifest Schema Validation Command",
+      "validation": [
+        {
+          "notes": "Schema violations in manifest.json produce a Finding with type=SCHEMA_VIOLATION",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Missing slot directories produce a Finding with type=MISSING_SLOT_DIRECTORY",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Unknown slot names in overlays produce a Finding with type=UNKNOWN_SLOT_NAME",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Missing template references produce a Finding with type=MISSING_TEMPLATE_REFERENCE",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Orphan files (not referenced by any slot) produce a Finding with type=ORPHAN_FILE",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Overlapping slot pathPatterns produce a Finding with type=OVERLAPPING_PATH_PATTERN",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "A fully valid scenario causes the command to exit with code 0",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "A scenario with any violation causes the command to exit with a non-zero code",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Run `ui-health validate scenario \u003cvalid-scenario\u003e --json` and confirm output is a well-formed Report JSON object with zero Findings and exit code 0",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Run `ui-health validate scenario \u003cinvalid-scenario\u003e --json` with a manifest missing required schema fields and confirm at least one SCHEMA_VIOLATION Finding is present in the JSON output",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Run against a scenario with a declared slot whose directory does not exist on disk and confirm MISSING_SLOT_DIRECTORY Finding is emitted",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Run against a scenario with an overlay referencing a slot name not present in the manifest and confirm UNKNOWN_SLOT_NAME Finding is emitted",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Validation of a scenario with 500 files completes within 5 seconds",
+          "phase": "performance",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "All Finding types described in the operational target are representable in the Report output",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "The --json flag always produces machine-parseable JSON to stdout even when Findings exist",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    },
+    {
+      "category": "core",
+      "dependencies": [
+        "REQ-P0-001"
+      ],
+      "description": "The `ui-health validate` command must emit a structured `Report` object containing a list of `Finding` objects. Each Finding must include at minimum: finding type, affected file or path, a human-readable message, and severity. The Report must be serializable to JSON and must be the sole output to stdout when --json is passed.",
+      "id": "REQ-P0-002",
+      "prd_ref": "OT-P0-001",
+      "status": "draft",
+      "title": "Structured Report and Finding Data Model",
+      "validation": [
+        {
+          "notes": "Report struct serializes to valid JSON with fields: scenario_name, findings[], summary counts",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Finding struct includes: type (enum), path, message, severity fields",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "All defined Finding type enum values are covered by unit tests",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Output from `--json` flag parses without error using standard JSON tooling (e.g., jq)",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Non-json mode (no flag) emits human-readable text to stdout while still exiting with correct code",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Report format is stable and versioned so downstream consumers (e.g., test-genie) can rely on its schema",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Deterministic manifest validation"
+}

@@ -1,0 +1,12 @@
+{
+  "kind": "team-roles",
+  "schemaVersion": 1,
+  "teamId": "desktop-packaging-delivery",
+  "roles": [
+    {
+      "id": "desktop-packaging-orchestrator",
+      "name": "Desktop Packaging Orchestrator",
+      "description": "Long-lived epoch orchestrator for the native-feel desktop packaging goal; never implements product work."
+    }
+  ]
+}

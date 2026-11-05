@@ -1,0 +1,82 @@
+{
+  "metadata": {
+    "name": "secrets-manager-vault-daily-workflow",
+    "description": "Open the vault and verify that its collection renders without mutating credential state.",
+    "labels": {
+      "reset": "none",
+      "requirements_json": "[\"SEC-UI-001\"]",
+      "purpose": "credential-dashboard-smoke"
+    },
+    "execution_mode": "observer"
+  },
+  "settings": {
+    "viewport_width": 1440,
+    "viewport_height": 900
+  },
+  "nodes": [
+    {
+      "id": "navigate-vault",
+      "action": {
+        "type": "ACTION_TYPE_NAVIGATE",
+        "navigate": {
+          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+          "scenario": "secrets-manager",
+          "scenario_path": "/vault",
+          "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE",
+          "timeout_ms": 30000
+        },
+        "metadata": {"label": "Open the vault"}
+      }
+    },
+    {
+      "id": "wait-collection",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "[data-experience-surface=\"vault-collection\"][data-experience-state=\"ready\"]",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 15000
+        },
+        "metadata": {"label": "Wait for the vault collection"}
+      }
+    },
+    {
+      "id": "wait-collection-loading",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "[data-experience-surface=\"vault-collection\"][data-experience-state=\"loading\"], [data-experience-surface=\"vault-collection\"][data-experience-state=\"ready\"]",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 15000
+        },
+        "metadata": {"label": "Observe the vault collection loading state"}
+      }
+    },
+    {
+      "id": "capture-vault",
+      "action": {
+        "type": "ACTION_TYPE_SCREENSHOT",
+        "screenshot": {"full_page": true},
+        "metadata": {"label": "Capture the rendered vault"}
+      }
+    },
+    {
+      "id": "wait-inspector",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "[data-experience-surface=\"vault-inspector\"]",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 15000
+        },
+        "metadata": {"label": "Wait for the vault inspector"}
+      }
+    }
+  ],
+  "edges": [
+    {"id": "e1", "source": "navigate-vault", "target": "wait-collection-loading"},
+    {"id": "e2", "source": "wait-collection-loading", "target": "wait-collection"},
+    {"id": "e3", "source": "wait-collection", "target": "wait-inspector"},
+    {"id": "e4", "source": "wait-inspector", "target": "capture-vault"}
+  ]
+}

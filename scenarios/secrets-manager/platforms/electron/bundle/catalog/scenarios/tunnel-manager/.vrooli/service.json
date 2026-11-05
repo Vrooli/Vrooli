@@ -1,0 +1,243 @@
+{
+  "$schema": "../../../../.vrooli/schemas/service.schema.json",
+  "version": "1.0.0",
+  "storage": {
+    "entries": {
+      "data": {
+        "rung": "owned",
+        "kind": "dir",
+        "class": "data",
+        "regenerable": false,
+        "rationale": "Scenario-owned durable data observed in the canonical data directory.",
+        "budget": {
+          "max_bytes": "5GiB",
+          "rationale": "Durable storage is bounded by the workload byte ceiling; it is alarm-only because the data is not regenerable."
+        }
+      }
+    },
+    "rationale": "Storage surfaces are declared from observed canonical scenario directories; external resource databases are not claimed by this scenario."
+  },
+  "service": {
+    "parent": "vrooli",
+    "name": "tunnel-manager",
+    "displayName": "Tunnel Manager",
+    "description": "Central management, monitoring, and self-healing for the Cloudflare secure tunnel that provides remote access to all Vrooli scenarios.",
+    "version": "0.0.1",
+    "type": "business-application",
+    "category": "ai_tools",
+    "tags": [
+      "react-ui",
+      "go-api"
+    ]
+  },
+  "generation": {
+    "template": {
+      "id": "react-vite",
+      "version": "1.1.0"
+    },
+    "generated_at": "2026-06-18T23:37:26Z",
+    "design": {
+      "id": "vrooli-default",
+      "version": "0.2.0",
+      "adapter": "react-vite-tailwind"
+    },
+    "manifest_sha": "f70bc94203f839ba4825223e7d60f8c5cb8983442653a68a6f7f07d3726f00cd",
+    "content_sha": "20365b05955bff63caf0fcfc98c7f0e475e4c958a031f27a60934f3d15a6ff9c"
+  },
+  "cli": {
+    "enabled": true,
+    "command": "tunnel-manager",
+    "adapter": {
+      "kind": "go_module",
+      "module_dir": "cli"
+    },
+    "artifacts": {
+      "manifest": {},
+      "build_metadata": {}
+    },
+    "invoke": {
+      "kind": "installed_command",
+      "command": "tunnel-manager"
+    },
+    "freshness": {
+      "inputs": [
+        "cli/**",
+        ".vrooli/service.json"
+      ]
+    },
+    "source_build": {
+      "kind": "go_module"
+    }
+  },
+  "ports": {
+    "api": {
+      "env_var": "API_PORT",
+      "description": "Go API server",
+      "range": "15000-19999"
+    },
+    "ui": {
+      "env_var": "UI_PORT",
+      "description": "React UI (FIXED — Tunnel Manager is publicly exposed and must obey the fixed-UI-port contract it enforces on others)",
+      "port": 21240
+    }
+  },
+  "lifecycle": {
+    "version": "2.0.0",
+    "health": {
+      "description": "Standard API/UI health checks",
+      "endpoints": {
+        "api": "/health",
+        "ui": "/health"
+      },
+      "checks": [
+        {
+          "name": "api_endpoint",
+          "type": "http",
+          "target": "http://localhost:${API_PORT}/health",
+          "critical": true,
+          "timeout": 10000,
+          "interval": 30000
+        },
+        {
+          "name": "ui_endpoint",
+          "type": "http",
+          "target": "http://localhost:${UI_PORT}/health",
+          "timeout": 5000,
+          "interval": 30000
+        }
+      ],
+      "startup_grace_period": 15000
+    }
+  },
+  "dependencies": {
+    "resources": {
+      "cloudflared": {
+        "type": "cloudflared",
+        "enabled": true,
+        "required": true,
+        "description": "Vrooli-managed tunnel connector and its exported readiness/metrics endpoint.",
+        "startup_policy": "must_start"
+      }
+    },
+    "scenarios": {
+      "structure-health": {
+        "type": "scenario",
+        "enabled": true,
+        "required": false,
+        "description": "Assigns a free in-band fixed UI port (range→fixed) so a ranged scenario can be exposed as a scenario route, and releases it on revoke. Best-effort: already-fixed scenarios expose without it.",
+        "startup_policy": "try_start"
+      }
+    }
+  },
+  "environment": {
+    "TUNNEL_METRICS_URL": "${CLOUDFLARED_METRICS_URL}",
+    "TUNNEL_READY_URL": "${CLOUDFLARED_METRICS_URL}/ready"
+  },
+  "credentials": {
+    "descriptors": [
+      {
+        "logical_id": "vrooli/tunnel-manager",
+        "field": "cloudflare-account-id",
+        "label": "Cloudflare Account ID",
+        "description": "Identifies the Cloudflare account that owns the tunnel. Resolved directly by this scenario through credential-authority-go, so it is never injected into the process environment.",
+        "required": true,
+        "provisioning": "derived",
+        "derived_from": "cloudflare-api-token",
+        "obtain_url": "https://dash.cloudflare.com/"
+      },
+      {
+        "logical_id": "vrooli/tunnel-manager",
+        "field": "cloudflare-tunnel-id",
+        "label": "Cloudflare Tunnel ID",
+        "description": "Identifies the named tunnel this scenario manages.",
+        "required": true,
+        "provisioning": "derived",
+        "derived_from": "cloudflare-api-token",
+        "obtain_url": "https://one.dash.cloudflare.com/"
+      },
+      {
+        "logical_id": "vrooli/tunnel-manager",
+        "field": "cloudflare-api-token",
+        "label": "Cloudflare API Token",
+        "description": "Authorizes tunnel and DNS changes. Re-resolved per operation so a rotated token takes effect without restarting the scenario.",
+        "required": true,
+        "provisioning": "operator",
+        "obtain_url": "https://dash.cloudflare.com/profile/api-tokens"
+      },
+    {
+      "logical_id": "vrooli/tunnel-manager",
+      "field": "cloudflare-connector-token",
+        "label": "Cloudflare Connector Token",
+        "description": "Derived token used by the managed cloudflared connector; never requested from the operator.",
+        "required": true,
+      "provisioning": "derived",
+      "derived_from": "cloudflare-api-token"
+      }
+    ],
+    "consumers": [
+      {
+        "logical_id": "vrooli/tunnel-manager",
+        "field": "cloudflare-api-token",
+        "kind": "authority",
+        "consumer": "Cloudflare tunnel configuration store",
+        "source_ref": "api/internal/config/service.go:279",
+        "required": true
+      },
+      {
+        "logical_id": "vrooli/tunnel-manager",
+        "field": "cloudflare-account-id",
+        "kind": "dynamic",
+        "consumer": "Cloudflare tunnel configuration store",
+        "source_ref": "api/internal/config/service.go:283",
+        "required": true
+      },
+      {
+        "logical_id": "vrooli/tunnel-manager",
+        "field": "cloudflare-tunnel-id",
+        "kind": "dynamic",
+        "consumer": "Cloudflare tunnel configuration store",
+        "source_ref": "api/internal/config/service.go:284",
+        "required": true
+      },
+      {
+        "logical_id": "vrooli/tunnel-manager",
+        "field": "cloudflare-connector-token",
+        "kind": "dynamic",
+        "consumer": "managed cloudflared connector",
+        "source_ref": "api/internal/config/service.go:285",
+        "required": true
+      }
+    ]
+  },
+  "components": {
+    "api": {
+      "role": "api",
+      "build": {
+        "kind": "go_module",
+        "dir": "api"
+      },
+      "run": {
+        "argv": [
+          "{{bin.api}}"
+        ],
+        "port": "api",
+        "cwd": "api"
+      }
+    },
+    "ui": {
+      "role": "ui",
+      "build": {
+        "kind": "pnpm_vite",
+        "dir": "ui"
+      },
+      "run": {
+        "argv": [
+          "node",
+          "server.js"
+        ],
+        "cwd": "ui",
+        "port": "ui"
+      }
+    }
+  }
+}

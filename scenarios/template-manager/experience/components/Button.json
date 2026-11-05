@@ -1,0 +1,34 @@
+{
+  "contract": {
+    "kind": "rcl-component-experience-contract",
+    "schema": "scenario-experience-spec/v1",
+    "provenance": "react-component-library/Button@2.0.0"
+  },
+  "component": {
+    "id": "button",
+    "title": "Button",
+    "purpose": "Provide a token-bound action control whose accessible name, spacing, state treatment, and size remain consistent across reuse."
+  },
+  "states": [
+    { "id": "primary", "example": "primary", "description": "Primary action." },
+    { "id": "disabled", "example": "disabled-long-label", "description": "Disabled action with a retained label." },
+    { "id": "icon-start", "example": "start-icon", "description": "Icon-leading action with deliberate icon-to-label spacing." }
+  ],
+  "elements": [
+    { "id": "action", "role": "button", "description": "The native button." },
+    { "id": "icon", "role": "x-icon", "description": "The optional leading icon." },
+    { "id": "label", "role": "x-label", "description": "The visible action label." }
+  ],
+  "claims": [
+    { "id": "action-present", "type": "element-present", "statement": "The primary story exposes a named button action.", "tier": "machine", "elements": ["action"], "states": ["primary"] },
+    { "id": "start-icon-spacing", "type": "spacing", "statement": "A leading icon and its action label maintain a visible inline separation.", "tier": "machine", "elements": ["icon", "label"], "states": ["icon-start"], "params": { "axis": "inline", "minSeparation": 4 } },
+    { "id": "disabled-state-reflected", "type": "custom", "statement": "The disabled action retains its visible label and cannot be activated.", "tier": "manual", "elements": ["action"], "states": ["disabled"] }
+  ],
+  "bindings": {
+    "elements": {
+      "action": { "selector": "button" },
+      "icon": { "selector": "[data-control-slot=icon]" },
+      "label": { "selector": "[data-control-slot=label]" }
+    }
+  }
+}

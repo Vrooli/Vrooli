@@ -1,0 +1,8 @@
+{
+ "cols": 79,
+ "rows": 47,
+ "cursor_x": 2,
+ "cursor_y": 44,
+ "in_alt_buffer": true,
+ "plain_text": "              \"Existing late terminal accounting tests cover reservation\n    settlement through the gen\n\n• Ran plan-manager exec context db114ae3-7594-4848-972c-46eb5a25621e --json |\n  │ jq\n  │ '.phase_assessments[\"a4fbcc44-3b9f-43cd-a950-724c37404c92\"], .next_action\n  │ … +1 lines\n  └ null\n    null\n\n• Ran plan-manager exec context db114ae3-7594-4848-972c-46eb5a25621e --json |\n  │ jq 'keys'\n  └ [\n      \"context\",\n      \"execution\",\n      \"step\"\n    ]\n\n• Ran plan-manager exec context db114ae3-7594-4848-972c-46eb5a25621e --json |\n  │ jq '.context | keys'\n  └ [\n      \"change_boundary\",\n    … +9 lines (ctrl + t to view transcript)\n      \"scope_generation\"\n    ]\n\n• Ran plan-manager exec context db114ae3-7594-4848-972c-46eb5a25621e --json |\n  │ jq\n  │ '{current_phase:.context.current_phase,next_phase:.context.next_phase,com\n  │ … +2 lines\n  └ {\n      \"current_phase\": {\n    … +129 lines (ctrl + t to view transcript)\n          {\n            \"kind\": \"REFERENCE_KIND_DOC\",\n\n• Explored\n  └ Read PROCEDURE.md\n    List 00-baseline\n    List adaptive-qualification-20260911-goal\n\n• Working (20m 10s • esc to interrupt)\n\n\n› Ask Codex to do anything\n\n[wc-c15cd50:node*                              [0,0] \"⠋ Vrooli\" 03:58 11-Sep-26"
+}

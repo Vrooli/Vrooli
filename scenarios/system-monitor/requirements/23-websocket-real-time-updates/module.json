@@ -1,0 +1,11 @@
+{
+  "requirements": [{
+    "id": "REQ-P2-004",
+    "title": "WebSocket real-time updates",
+    "status": "planned",
+    "prd_ref": "OT-P2-004",
+    "category": "api",
+    "description": "Provide push-based real-time monitoring updates over WebSocket.",
+    "validation": [{"type": "test", "phase": "integration", "status": "not_implemented", "notes": "Validate update delivery and reconnect behavior."}]
+  }]
+}

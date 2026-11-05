@@ -1,6 +1,6 @@
 import type { Edge, Node } from 'reactflow';
 import { describe, expect, it } from 'vitest';
-import { autoLayoutNodes } from './workflowNormalizers';
+import { autoLayoutNodes } from './normalizers';
 
 describe('autoLayoutNodes', () => {
     const createNode = (id: string, x = 0, y = 0): Node => ({
@@ -124,7 +124,7 @@ describe('autoLayoutNodes', () => {
     });
 
     it('detects default diagonal layout and re-layouts', () => {
-        // Simulate normalizeNodes default output
+        // Simulate workflow codec default output
         const nodes = [
             createNode('A', 100, 100),
             createNode('B', 300, 220), // 100 + 1*200, 100 + 1*120

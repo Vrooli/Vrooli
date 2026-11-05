@@ -1,0 +1,296 @@
+{
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
+  "args": {
+    "fields": [
+      {
+        "default": "idle",
+        "kind": "enum",
+        "label": "State",
+        "options": [
+          "idle",
+          "preparing",
+          "recording",
+          "recovering",
+          "transcribing",
+          "unavailable",
+          "error"
+        ],
+        "path": "state",
+        "required": true
+      },
+      {
+        "default": "always-on",
+        "kind": "enum",
+        "label": "Mode",
+        "options": [
+          "always-on",
+          "timeout"
+        ],
+        "path": "mode",
+        "required": true
+      },
+      {
+        "default": "sm",
+        "kind": "enum",
+        "label": "Size",
+        "options": [
+          "xs",
+          "sm",
+          "md",
+          "lg",
+          "xl",
+          "icon"
+        ],
+        "path": "size",
+        "required": true
+      },
+      {
+        "default": "comfortable",
+        "kind": "enum",
+        "label": "Density",
+        "options": [
+          "comfortable",
+          "compact"
+        ],
+        "path": "density",
+        "required": true
+      },
+      {
+        "default": 0.65,
+        "kind": "number",
+        "label": "Input level",
+        "maximum": 1,
+        "minimum": 0,
+        "path": "level"
+      },
+      {
+        "default": 0.5,
+        "kind": "number",
+        "label": "Timeout progress",
+        "maximum": 1,
+        "minimum": 0,
+        "path": "timeoutProgress"
+      }
+    ]
+  },
+  "environment": {
+    "fixtures": [
+      {
+        "adapter": "voice-input",
+        "key": "voiceInput",
+        "options": [
+          "idle",
+          "recording",
+          "permission-denied"
+        ]
+      }
+    ]
+  },
+  "kind": "component",
+  "schemaVersion": 5,
+  "stories": [
+    {
+      "args": {
+        "size": "sm",
+        "state": "idle"
+      },
+      "composition": {
+        "specimen": {
+          "export": "VoiceAnatomy",
+          "module": "./story.tsx"
+        }
+      },
+      "environment": {
+        "voiceInput": "idle"
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "name": "Start voice input",
+          "role": "button"
+        }
+      ],
+      "id": "idle",
+      "mode": "live",
+      "name": "Idle",
+      "role": "anatomy"
+    },
+    {
+      "args": {
+        "state": "preparing"
+      },
+      "axis": "state",
+      "composition": {
+        "specimen": {
+          "export": "VoiceStateMatrix",
+          "module": "./story.tsx"
+        }
+      },
+      "covers": {
+        "state": [
+          "idle",
+          "preparing",
+          "recording",
+          "recovering",
+          "transcribing",
+          "unavailable",
+          "error"
+        ]
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "name": "Preparing microphone",
+          "role": "button"
+        }
+      ],
+      "id": "preparing",
+      "mode": "live",
+      "name": "Preparing",
+      "role": "axis"
+    },
+    {
+      "args": {
+        "level": 0.65,
+        "mode": "always-on",
+        "state": "recording"
+      },
+      "axis": "mode",
+      "composition": {
+        "specimen": {
+          "export": "VoiceModeMatrix",
+          "module": "./story.tsx"
+        }
+      },
+      "covers": {
+        "mode": [
+          "always-on",
+          "timeout"
+        ]
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "name": "Stop voice input",
+          "role": "button"
+        }
+      ],
+      "id": "recording",
+      "mode": "live",
+      "name": "Recording",
+      "role": "axis"
+    },
+    {
+      "args": {
+        "level": 0.35,
+        "state": "recovering"
+      },
+      "axis": "size",
+      "composition": {
+        "specimen": {
+          "export": "VoiceSizeMatrix",
+          "module": "./story.tsx"
+        }
+      },
+      "covers": {
+        "size": [
+          "xs",
+          "sm",
+          "md",
+          "lg",
+          "xl",
+          "icon"
+        ]
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "name": "Listening for voice input",
+          "role": "button"
+        }
+      ],
+      "id": "recovering",
+      "mode": "live",
+      "name": "Recovering",
+      "role": "axis"
+    },
+    {
+      "args": {
+        "state": "transcribing"
+      },
+      "axis": "density",
+      "composition": {
+        "specimen": {
+          "export": "VoiceDensityMatrix",
+          "module": "./story.tsx"
+        }
+      },
+      "covers": {
+        "density": [
+          "comfortable",
+          "compact"
+        ]
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "name": "Cancel transcription",
+          "role": "button"
+        }
+      ],
+      "id": "transcribing",
+      "mode": "live",
+      "name": "Transcribing",
+      "role": "axis"
+    },
+    {
+      "args": {
+        "mode": "timeout",
+        "state": "recording",
+        "timeoutProgress": 0.5
+      },
+      "composition": {
+        "specimen": {
+          "export": "VoiceAnatomy",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "visible",
+          "selector": "[data-rcl-voice-timeout-ring]"
+        }
+      ],
+      "id": "timeout",
+      "mode": "live",
+      "name": "Timeout progress",
+      "role": "boundary"
+    },
+    {
+      "args": {
+        "state": "unavailable"
+      },
+      "composition": {
+        "specimen": {
+          "export": "VoiceAnatomy",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "name": "Voice input unavailable",
+          "role": "button"
+        }
+      ],
+      "id": "unavailable",
+      "mode": "live",
+      "name": "Unavailable",
+      "role": "boundary",
+      "states": [
+        "error"
+      ]
+    }
+  ],
+  "title": "VoiceInputButton"
+}

@@ -1,0 +1,5 @@
+command=GOMAXPROCS=2 GOFLAGS=-p=1 go test -json -count=1 -run TestAppendURLPathPreservesEscapedBasePathPrefix|TestBASInspectionUsesJoinedHealthRequestPath|TestBASCaptureExecutorProbeRequiresHealthyBoundary|TestBASCaptureExecutorParsesStoryAndEvidence|TestBASCaptureExecutorCapturesBoundedStorySheet ./internal/componenttests
+started=2026-10-17T13:54:04Z
+ended=2026-10-17T13:54:04Z
+exit=0
+elapsed_ns=778961186

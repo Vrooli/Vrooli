@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"swarm-manager/internal/testutil"
+	"github.com/vrooli/api-core/apihttptest"
 )
 
 func TestHandler_UpdateInvalidJSON(t *testing.T) {
@@ -17,6 +17,5 @@ func TestHandler_UpdateInvalidJSON(t *testing.T) {
 	req := httptest.NewRequest(http.MethodPut, "/api/v1/settings", bytes.NewBufferString("{"))
 	rec := httptest.NewRecorder()
 	handler.Update(rec, req)
-
-	testutil.AssertStatusBadRequest(t, rec)
+	apihttptest.AssertStatus(t, rec.Result(), 400)
 }

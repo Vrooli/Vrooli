@@ -11,6 +11,9 @@ export function createMockPage(overrides?: Partial<Page>): jest.Mocked<Page> {
     boundingBox: jest.fn().mockResolvedValue({ x: 0, y: 0, width: 100, height: 50 }),
     scrollIntoViewIfNeeded: jest.fn().mockResolvedValue(undefined),
     screenshot: jest.fn().mockResolvedValue(Buffer.from('element-screenshot')),
+    // Resolves by default so waiting for an element is a no-op; a test that
+    // wants the absent case rejects it explicitly.
+    waitFor: jest.fn().mockResolvedValue(undefined),
   };
 
   const mockLocator = {
@@ -24,6 +27,25 @@ export function createMockPage(overrides?: Partial<Page>): jest.Mocked<Page> {
     scrollIntoViewIfNeeded: jest.fn().mockResolvedValue(undefined),
     screenshot: jest.fn().mockResolvedValue(Buffer.from('element-screenshot')),
   };
+  const mockCDPSession = {
+    send: jest.fn().mockResolvedValue({
+      result: {
+        type: 'string',
+        value: JSON.stringify({
+          loaded: true,
+          loadTime: Date.now(),
+          version: 'test-recording-script',
+          ready: true,
+          handlersCount: 1,
+          inMainContext: true,
+        }),
+      },
+    }),
+    detach: jest.fn().mockResolvedValue(undefined),
+  };
+  const mockPageContext = {
+    newCDPSession: jest.fn().mockResolvedValue(mockCDPSession),
+  };
 
   const mockPage = {
     goto: jest.fn().mockResolvedValue(null),
@@ -35,6 +57,7 @@ export function createMockPage(overrides?: Partial<Page>): jest.Mocked<Page> {
     focus: jest.fn().mockResolvedValue(undefined),
     waitForEvent: jest.fn().mockResolvedValue(null),
     waitForSelector: jest.fn().mockResolvedValue(null),
+    waitForLoadState: jest.fn().mockResolvedValue(undefined),
     waitForTimeout: jest.fn().mockResolvedValue(undefined),
     screenshot: jest.fn().mockResolvedValue(Buffer.from('fake-screenshot')),
     content: jest.fn().mockResolvedValue('<html><body>Test</body></html>'),
@@ -44,6 +67,8 @@ export function createMockPage(overrides?: Partial<Page>): jest.Mocked<Page> {
     evaluate: jest.fn().mockResolvedValue({ result: 'test' }),
     setInputFiles: jest.fn().mockResolvedValue(undefined),
     on: jest.fn(),
+    once: jest.fn(),
+    off: jest.fn(),
     removeListener: jest.fn(),
     close: jest.fn().mockResolvedValue(undefined),
     isClosed: jest.fn().mockReturnValue(false),
@@ -51,7 +76,7 @@ export function createMockPage(overrides?: Partial<Page>): jest.Mocked<Page> {
     title: jest.fn().mockResolvedValue('Test Page'),
     viewport: jest.fn().mockReturnValue({ width: 1280, height: 720 }),
     viewportSize: jest.fn().mockReturnValue({ width: 1280, height: 720 }),
-    context: jest.fn().mockReturnValue({}),
+    context: jest.fn().mockReturnValue(mockPageContext),
     frames: jest.fn().mockReturnValue([]),
     mainFrame: jest.fn(),
     isVisible: jest.fn().mockResolvedValue(true),
@@ -81,6 +106,7 @@ export function createMockContext(overrides?: Partial<BrowserContext>): jest.Moc
     close: jest.fn().mockResolvedValue(undefined),
     clearCookies: jest.fn().mockResolvedValue(undefined),
     clearPermissions: jest.fn().mockResolvedValue(undefined),
+    grantPermissions: jest.fn().mockResolvedValue(undefined),
     addCookies: jest.fn().mockResolvedValue(undefined),
     cookies: jest.fn().mockResolvedValue([]),
     storageState: jest.fn().mockResolvedValue({ cookies: [], origins: [] }),

@@ -1,0 +1,115 @@
+{
+  "description": "Implement `Rewrite(plan_id?, operations: []FileMove|ImportRewrite) → RewriteResponse`. First call returns a `plan_id` plus a normalized operation log and no disk change. A second call with the `plan_id` and explicit `--apply` flag mutates the filesystem via `ts-morph` (which preserves formatting). The scenario never invokes git and never invokes `tsc`.",
+  "module_id": "MOD-P0-004",
+  "prd_ref": "OT-P0-004",
+  "priority": "P0",
+  "requirements": [
+    {
+      "category": "core",
+      "dependencies": [
+        "REQ-P0-005",
+        "REQ-P0-009",
+        "REQ-P1-002"
+      ],
+      "description": "Implement Rewrite(plan_id?, operations: []FileMove|ImportRewrite) → RewriteResponse as a two-phase operation. Phase 1 (Plan): When called without a plan_id, generate and persist a plan_id, return a normalized and deduplicated operation log describing all intended mutations, and make zero filesystem changes. Phase 2 (Apply): When called with a valid plan_id and the explicit --apply flag, execute the planned mutations against the filesystem using ts-morph (which preserves code formatting). The scenario must never invoke git, tsc, or pnpm at any point. Apply is idempotent within a session but makes no atomicity guarantees on crash; operators recover via git externally.",
+      "id": "REQ-P0-004",
+      "prd_ref": "OT-P0-004",
+      "status": "draft",
+      "title": "Two-Step Rewrite: Plan Generation and Filesystem Apply",
+      "validation": [
+        {
+          "notes": "Test plan_id generation produces unique, stable identifiers across calls",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Test that a Plan call returns a normalized operation log with deduplication of redundant moves",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Test that a Plan call with FileMove operations returns zero filesystem mutations",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Test that an Apply call without --apply flag is rejected with a typed error",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Test that an Apply call with an unknown plan_id returns a typed NOT_FOUND error",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Test ImportRewrite operation normalization (path resolution, canonical form)",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Test that ts-morph formatting is preserved after an Apply (indentation, quote style unchanged)",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "TCG-REWRITE-PLAN: Call Rewrite without plan_id on a fixture project, assert no files are modified, assert plan_id is returned",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "TCG-REWRITE-APPLY: Call Rewrite with valid plan_id and --apply flag, assert filesystem reflects all planned operations",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Verify that applying a FileMove correctly updates all import references in consuming files via ts-morph",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Verify that git, tsc, and pnpm are never spawned during any Rewrite operation (process spy in CI)",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "An operator can plan a migration, review the operation log, and apply it in two distinct CLI invocations",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Applied rewrites leave the project in a compilable state for a representative migration scenario",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Two-Step Rewrite (Plan + Apply)"
+}

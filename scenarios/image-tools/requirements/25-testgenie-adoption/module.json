@@ -1,0 +1,27 @@
+{
+  "description": "test-genie adopts the image-diff capability as its visual-regression backend; image-tools owns it, test-genie consumes it.",
+  "module_id": "MOD-P2-002",
+  "prd_ref": "OT-P2-002",
+  "priority": "P2",
+  "requirements": [
+    {
+      "category": "integration",
+      "dependencies": [],
+      "description": "test-genie adopts the image-diff capability as its visual-regression backend; image-tools owns it, test-genie consumes it.",
+      "id": "IMG-P2-002",
+      "prd_ref": "OT-P2-002",
+      "status": "planned",
+      "title": "test-genie Visual-Comparison Adoption",
+      "validation": [
+        {
+          "notes": "Adoption contract for test-genie documented",
+          "phase": "manual",
+          "ref": "docs/concepts/INTEGRATIONS.md",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    }
+  ],
+  "title": "test-genie Visual-Comparison Adoption"
+}

@@ -46,7 +46,7 @@ func (s *Server) DiffHandlerV1(w http.ResponseWriter, r *http.Request) {
 
 	// Process diff (v1 logic)
 	response := s.processDiffV1(req)
-	
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(response)
 }
@@ -67,7 +67,7 @@ func (s *Server) SearchHandlerV1(w http.ResponseWriter, r *http.Request) {
 
 	// Process search (v1 logic)
 	response := s.processSearchV1(req)
-	
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(response)
 }
@@ -88,7 +88,7 @@ func (s *Server) TransformHandlerV1(w http.ResponseWriter, r *http.Request) {
 
 	// Process transformation (v1 logic)
 	response := s.processTransformV1(req)
-	
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(response)
 }
@@ -109,7 +109,7 @@ func (s *Server) ExtractHandlerV1(w http.ResponseWriter, r *http.Request) {
 
 	// Process extraction (v1 logic)
 	response := s.processExtractV1(req)
-	
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(response)
 }
@@ -130,7 +130,7 @@ func (s *Server) AnalyzeHandlerV1(w http.ResponseWriter, r *http.Request) {
 
 	// Process analysis (v1 logic)
 	response := s.processAnalyzeV1(req)
-	
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(response)
 }
@@ -139,131 +139,48 @@ func (s *Server) AnalyzeHandlerV1(w http.ResponseWriter, r *http.Request) {
 
 // DiffHandlerV2 handles text diff requests (v2 with enhanced features)
 func (s *Server) DiffHandlerV2(w http.ResponseWriter, r *http.Request) {
-	var req DiffRequestV2
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		sendErrorResponseV2(w, "Invalid request body", http.StatusBadRequest)
-		return
-	}
-
-	// Enhanced validation
-	if err := req.Validate(); err != nil {
-		sendErrorResponseV2(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-
-	// Process diff with v2 enhancements
-	response := s.processDiffV2(req)
-	
-	w.Header().Set("Content-Type", "application/json")
-	w.Header().Set("X-API-Version", "2.0")
-	json.NewEncoder(w).Encode(response)
+	handleV2(w, r, s.processDiffV2)
 }
 
 // SearchHandlerV2 handles text search requests (v2 with vector search)
 func (s *Server) SearchHandlerV2(w http.ResponseWriter, r *http.Request) {
-	var req SearchRequestV2
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		sendErrorResponseV2(w, "Invalid request body", http.StatusBadRequest)
-		return
-	}
-
-	// Enhanced validation
-	if err := req.Validate(); err != nil {
-		sendErrorResponseV2(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-
-	// Process search with v2 enhancements (including vector search)
-	response := s.processSearchV2(req)
-	
-	w.Header().Set("Content-Type", "application/json")
-	w.Header().Set("X-API-Version", "2.0")
-	json.NewEncoder(w).Encode(response)
+	handleV2(w, r, s.processSearchV2)
 }
 
 // TransformHandlerV2 handles text transformation requests (v2 with chaining)
 func (s *Server) TransformHandlerV2(w http.ResponseWriter, r *http.Request) {
-	var req TransformRequestV2
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		sendErrorResponseV2(w, "Invalid request body", http.StatusBadRequest)
-		return
-	}
-
-	// Enhanced validation
-	if err := req.Validate(); err != nil {
-		sendErrorResponseV2(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-
-	// Process transformation with v2 chaining support
-	response := s.processTransformV2(req)
-	
-	w.Header().Set("Content-Type", "application/json")
-	w.Header().Set("X-API-Version", "2.0")
-	json.NewEncoder(w).Encode(response)
+	handleV2(w, r, s.processTransformV2)
 }
 
 // ExtractHandlerV2 handles text extraction requests (v2 with streaming)
 func (s *Server) ExtractHandlerV2(w http.ResponseWriter, r *http.Request) {
-	var req ExtractRequestV2
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		sendErrorResponseV2(w, "Invalid request body", http.StatusBadRequest)
-		return
-	}
-
-	// Enhanced validation
-	if err := req.Validate(); err != nil {
-		sendErrorResponseV2(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-
-	// Process extraction with v2 streaming support
-	response := s.processExtractV2(req)
-	
-	w.Header().Set("Content-Type", "application/json")
-	w.Header().Set("X-API-Version", "2.0")
-	json.NewEncoder(w).Encode(response)
+	handleV2(w, r, s.processExtractV2)
 }
 
 // AnalyzeHandlerV2 handles text analysis requests (v2 with AI enhancements)
 func (s *Server) AnalyzeHandlerV2(w http.ResponseWriter, r *http.Request) {
-	var req AnalyzeRequestV2
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		sendErrorResponseV2(w, "Invalid request body", http.StatusBadRequest)
-		return
-	}
-
-	// Enhanced validation
-	if err := req.Validate(); err != nil {
-		sendErrorResponseV2(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-
-	// Process analysis with v2 AI enhancements
-	response := s.processAnalyzeV2(req)
-	
-	w.Header().Set("Content-Type", "application/json")
-	w.Header().Set("X-API-Version", "2.0")
-	json.NewEncoder(w).Encode(response)
+	handleV2(w, r, s.processAnalyzeV2)
 }
 
 // PipelineHandler handles text processing pipelines (v2 only)
 func (s *Server) PipelineHandler(w http.ResponseWriter, r *http.Request) {
-	var req PipelineRequest
+	handleV2(w, r, s.processPipeline)
+}
+
+func handleV2[Request any, Validatable interface {
+	*Request
+	Validate() error
+}, Response any](w http.ResponseWriter, r *http.Request, process func(Request) Response) {
+	var req Request
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		sendErrorResponseV2(w, "Invalid request body", http.StatusBadRequest)
 		return
 	}
-
-	// Validate pipeline
-	if err := req.Validate(); err != nil {
+	if err := Validatable(&req).Validate(); err != nil {
 		sendErrorResponseV2(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-
-	// Process pipeline
-	response := s.processPipeline(req)
-	
+	response := process(req)
 	w.Header().Set("Content-Type", "application/json")
 	w.Header().Set("X-API-Version", "2.0")
 	json.NewEncoder(w).Encode(response)
@@ -339,12 +256,7 @@ func (s *Server) processDiffV1(req DiffRequest) DiffResponse {
 	case "character":
 		changes, similarity = performCharDiff(text1, text2, req.Options)
 	case "semantic":
-		if s.config.OllamaURL != "" {
-			changes, similarity = performSemanticDiff(text1, text2, req.Options, s.config.OllamaURL)
-		} else {
-			// Fallback to line diff if Ollama not available
-			changes, similarity = performLineDiff(text1, text2, req.Options)
-		}
+		changes, similarity = performSemanticDiff(text1, text2, req.Options)
 	}
 
 	// Store in database if available
@@ -362,8 +274,8 @@ func (s *Server) processDiffV1(req DiffRequest) DiffResponse {
 func (s *Server) processDiffV2(req DiffRequestV2) DiffResponseV2 {
 	// V2 includes additional features like visual diff, patch generation, etc.
 	response := DiffResponseV2{
-		DiffResponse: s.processDiffV1(req.DiffRequest),
-		RequestID:    uuid.New().String(),
+		DiffResponse:   s.processDiffV1(req.DiffRequest),
+		RequestID:      uuid.New().String(),
 		ProcessingTime: 0, // Will be calculated
 	}
 
@@ -398,7 +310,7 @@ func (s *Server) processSearchV2(req SearchRequestV2) SearchResponseV2 {
 	}
 
 	// Add semantic search if available
-	if req.Options.Semantic && s.config.OllamaURL != "" {
+	if req.Options.Semantic {
 		response.SemanticMatches = performSemanticSearch(req.Text, req.Pattern, s.config)
 	}
 
@@ -416,7 +328,7 @@ func (s *Server) processTransformV1(req TransformRequest) TransformResponse {
 	}
 
 	return TransformResponse{
-		Result:                result,
+		Result:                 result,
 		TransformationsApplied: applied,
 	}
 }
@@ -491,8 +403,8 @@ func (s *Server) processAnalyzeV2(req AnalyzeRequestV2) AnalyzeResponseV2 {
 	}
 
 	// Add AI-powered analysis if Ollama is available
-	if s.config.OllamaURL != "" && req.Options.UseAI {
-		response.AIInsights = generateAIInsights(req.Text, s.config.OllamaURL)
+	if req.Options.UseAI {
+		response.AIInsights = generateAIInsights(req.Text)
 	}
 
 	return response

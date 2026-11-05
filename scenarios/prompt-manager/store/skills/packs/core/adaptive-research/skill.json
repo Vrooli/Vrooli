@@ -1,0 +1,35 @@
+{
+  "createdAt": "2026-10-21T00:00:00Z",
+  "description": "Develop an uncertain research direction through evidence, analysis, experiments or authorized construction; choose consequential follow-ups and preserve understanding across sessions.",
+  "entry": "SKILL.md",
+  "icon": "search",
+  "id": "adaptive-research",
+  "kind": "skill",
+  "license": "CC-BY-4.0",
+  "modes": [
+    "practice"
+  ],
+  "name": "adaptive-research",
+  "origin": {
+    "kind": "authored"
+  },
+  "requires": {
+    "commands": [
+      "search-hub query",
+      "prompt-manager skill read"
+    ],
+    "scenarios": [
+      "prompt-manager"
+    ]
+  },
+  "revision": 14,
+  "schemaVersion": 1,
+  "status": "active",
+  "tags": [
+    "research",
+    "experiment",
+    "evidence",
+    "optimization"
+  ],
+  "updatedAt": "2026-11-04T17:10:00Z"
+}

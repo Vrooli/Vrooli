@@ -5,6 +5,11 @@
 /** Narrow an unknown value to string, or undefined. */
 export const str = (v: unknown): string | undefined => (typeof v === 'string' ? v : undefined);
 
+/** Narrow a JSON object while rejecting null and arrays. */
+export function isRecord(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === 'object' && !Array.isArray(value);
+}
+
 /** Narrow an unknown value to number, or undefined. */
 export const num = (v: unknown): number | undefined => (typeof v === 'number' ? v : undefined);
 

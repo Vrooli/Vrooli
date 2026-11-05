@@ -102,7 +102,7 @@ export function DetailModal({ open, onClose, title, headerLeft, headerRight, chi
             {headerRight}
             <button
               onClick={handleClose}
-              className="rounded-sm p-1 opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+              className="flex h-11 w-11 items-center justify-center rounded-sm opacity-70 sm:h-auto sm:w-auto sm:p-1 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
               aria-label="Close"
             >
               <X className="h-5 w-5" />

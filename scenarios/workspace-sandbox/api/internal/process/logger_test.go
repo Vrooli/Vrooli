@@ -10,267 +10,228 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+
+	"github.com/vrooli/api-core/schedule"
 )
 
-// TestLoggerCreateAndRead tests basic log creation and reading.
-func TestLoggerCreateAndRead(t *testing.T) {
-	// Setup temp directory
-	tmpDir := t.TempDir()
-	cfg := LogConfig{
-		BaseDir:    tmpDir,
-		MaxLogSize: 1024 * 1024,
+// withPair is a small helper that creates a pending log pair, finalises it
+// against a synthetic PID, and returns the registered writers + tracked
+// paths so individual tests don't repeat the boilerplate.
+func withPair(t *testing.T, logger *Logger, sandboxID uuid.UUID, pid int) (*PendingLogPair, string, string) {
+	t.Helper()
+	pending, err := logger.CreatePendingLogPair(sandboxID)
+	if err != nil {
+		t.Fatalf("CreatePendingLogPair: %v", err)
 	}
-	logger := NewLogger(cfg)
+	stdoutPath, stderrPath, err := logger.FinalizePair(pending, pid)
+	if err != nil {
+		t.Fatalf("FinalizePair: %v", err)
+	}
+	return pending, stdoutPath, stderrPath
+}
+
+// TestLogger_CreateAndReadStreams verifies that stdout and stderr are
+// kept on separate disk files and that ReadLog can return either.
+func TestLogger_CreateAndReadStreams(t *testing.T) {
+	tmpDir := t.TempDir()
+	logger := NewLogger(LogConfig{BaseDir: tmpDir}, schedule.System())
 
 	sandboxID := uuid.New()
 	pid := 12345
 
-	// Create log
-	writer, err := logger.CreateLog(sandboxID, pid)
+	pending, stdoutPath, stderrPath := withPair(t, logger, sandboxID, pid)
+
+	if _, err := pending.Stdout.Write([]byte("stdout content\n")); err != nil {
+		t.Fatalf("write stdout: %v", err)
+	}
+	if _, err := pending.Stderr.Write([]byte("stderr content\n")); err != nil {
+		t.Fatalf("write stderr: %v", err)
+	}
+
+	if _, err := os.Stat(stdoutPath); err != nil {
+		t.Errorf("stdout file missing: %v", err)
+	}
+	if _, err := os.Stat(stderrPath); err != nil {
+		t.Errorf("stderr file missing: %v", err)
+	}
+	if stdoutPath == stderrPath {
+		t.Errorf("expected separate paths, got same: %s", stdoutPath)
+	}
+
+	stdoutContent, err := logger.ReadLog(sandboxID, pid, StreamStdout, 0, 0)
 	if err != nil {
-		t.Fatalf("CreateLog failed: %v", err)
+		t.Fatalf("ReadLog stdout: %v", err)
+	}
+	if !strings.Contains(string(stdoutContent), "stdout content") {
+		t.Errorf("stdout content missing")
+	}
+	if strings.Contains(string(stdoutContent), "stderr content") {
+		t.Errorf("stdout file contains stderr text — streams not separated")
 	}
 
-	// Write some content
-	testContent := "test log line 1\ntest log line 2\n"
-	_, err = writer.Write([]byte(testContent))
+	stderrContent, err := logger.ReadLog(sandboxID, pid, StreamStderr, 0, 0)
 	if err != nil {
-		t.Fatalf("Write failed: %v", err)
+		t.Fatalf("ReadLog stderr: %v", err)
 	}
-
-	// Verify log file exists
-	logPath := logger.LogPath(sandboxID, pid)
-	if _, err := os.Stat(logPath); os.IsNotExist(err) {
-		t.Fatalf("Log file was not created at %s", logPath)
-	}
-
-	// Close the writer
-	err = writer.Close()
-	if err != nil {
-		t.Fatalf("Close failed: %v", err)
-	}
-
-	// Read back the log
-	content, err := logger.ReadLog(sandboxID, pid, 0, 0)
-	if err != nil {
-		t.Fatalf("ReadLog failed: %v", err)
-	}
-
-	if !strings.Contains(string(content), "test log line 1") {
-		t.Errorf("Log content missing expected text, got: %s", string(content))
-	}
-	if !strings.Contains(string(content), "test log line 2") {
-		t.Errorf("Log content missing expected text, got: %s", string(content))
+	if !strings.Contains(string(stderrContent), "stderr content") {
+		t.Errorf("stderr content missing")
 	}
 }
 
-// TestLoggerGetLog tests retrieving log metadata.
-func TestLoggerGetLog(t *testing.T) {
+// TestLogger_RejectsInvalidStream verifies the Stream type guard.
+func TestLogger_RejectsInvalidStream(t *testing.T) {
 	tmpDir := t.TempDir()
-	cfg := LogConfig{BaseDir: tmpDir}
-	logger := NewLogger(cfg)
+	logger := NewLogger(LogConfig{BaseDir: tmpDir}, schedule.System())
+
+	sandboxID := uuid.New()
+	if _, err := logger.GetLog(sandboxID, 1, "stdoutXXX"); err == nil {
+		t.Error("GetLog with invalid stream should fail")
+	}
+	if _, err := logger.ReadLog(sandboxID, 1, "merged", 0, 0); err == nil {
+		t.Error("ReadLog with invalid stream should fail")
+	}
+}
+
+// TestLogger_GetLogReportsBothStreams confirms ListLogs returns both
+// stdout and stderr per process.
+func TestLogger_GetLogReportsBothStreams(t *testing.T) {
+	tmpDir := t.TempDir()
+	logger := NewLogger(LogConfig{BaseDir: tmpDir}, schedule.System())
 
 	sandboxID := uuid.New()
 	pid := 54321
+	pending, _, _ := withPair(t, logger, sandboxID, pid)
+	_, _ = pending.Stdout.Write([]byte("o"))
+	_, _ = pending.Stderr.Write([]byte("e"))
 
-	// Create and write log
-	writer, err := logger.CreateLog(sandboxID, pid)
-	if err != nil {
-		t.Fatalf("CreateLog failed: %v", err)
-	}
-
-	if _, err := writer.Write([]byte("some content")); err != nil {
-		t.Fatalf("Write failed: %v", err)
-	}
-	if err := writer.Close(); err != nil {
-		t.Fatalf("Close failed: %v", err)
-	}
-
-	// Get log metadata
-	logInfo, err := logger.GetLog(sandboxID, pid)
-	if err != nil {
-		t.Fatalf("GetLog failed: %v", err)
-	}
-
-	if logInfo.PID != pid {
-		t.Errorf("PID mismatch: got %d, want %d", logInfo.PID, pid)
-	}
-	if logInfo.SandboxID != sandboxID {
-		t.Errorf("SandboxID mismatch: got %s, want %s", logInfo.SandboxID, sandboxID)
-	}
-	if logInfo.SizeBytes == 0 {
-		t.Error("SizeBytes should be > 0")
-	}
-}
-
-// TestLoggerListLogs tests listing logs for a sandbox.
-func TestLoggerListLogs(t *testing.T) {
-	tmpDir := t.TempDir()
-	cfg := LogConfig{BaseDir: tmpDir}
-	logger := NewLogger(cfg)
-
-	sandboxID := uuid.New()
-
-	// Create multiple logs
-	for _, pid := range []int{100, 200, 300} {
-		writer, err := logger.CreateLog(sandboxID, pid)
-		if err != nil {
-			t.Fatalf("CreateLog failed for PID %d: %v", pid, err)
-		}
-		if _, err := writer.Write([]byte("content")); err != nil {
-			t.Fatalf("Write failed for PID %d: %v", pid, err)
-		}
-		if err := writer.Close(); err != nil {
-			t.Fatalf("Close failed for PID %d: %v", pid, err)
-		}
-	}
-
-	// List logs
 	logs, err := logger.ListLogs(sandboxID)
 	if err != nil {
-		t.Fatalf("ListLogs failed: %v", err)
+		t.Fatalf("ListLogs: %v", err)
 	}
-
-	if len(logs) != 3 {
-		t.Errorf("Expected 3 logs, got %d", len(logs))
+	if len(logs) != 2 {
+		t.Fatalf("expected 2 logs (stdout + stderr); got %d", len(logs))
+	}
+	streams := map[Stream]bool{}
+	for _, l := range logs {
+		streams[l.Stream] = true
+	}
+	if !streams[StreamStdout] || !streams[StreamStderr] {
+		t.Errorf("missing stream in ListLogs output: %v", streams)
 	}
 }
 
-// TestLoggerReadTail tests reading last N lines.
-func TestLoggerReadTail(t *testing.T) {
+// TestLogger_LogPathSeparatesStreams pins the on-disk naming convention.
+func TestLogger_LogPathSeparatesStreams(t *testing.T) {
 	tmpDir := t.TempDir()
-	cfg := LogConfig{BaseDir: tmpDir}
-	logger := NewLogger(cfg)
+	logger := NewLogger(LogConfig{BaseDir: tmpDir}, schedule.System())
+
+	sandboxID := uuid.New()
+	want := filepath.Join(tmpDir, sandboxID.String(), "logs", "123.stdout.log")
+	if got := logger.LogPath(sandboxID, 123, StreamStdout); got != want {
+		t.Errorf("LogPath stdout = %q; want %q", got, want)
+	}
+	want = filepath.Join(tmpDir, sandboxID.String(), "logs", "123.stderr.log")
+	if got := logger.LogPath(sandboxID, 123, StreamStderr); got != want {
+		t.Errorf("LogPath stderr = %q; want %q", got, want)
+	}
+}
+
+// TestLogger_ReadTail returns the last N lines from a single stream.
+func TestLogger_ReadTail(t *testing.T) {
+	tmpDir := t.TempDir()
+	logger := NewLogger(LogConfig{BaseDir: tmpDir}, schedule.System())
 
 	sandboxID := uuid.New()
 	pid := 999
+	pending, _, _ := withPair(t, logger, sandboxID, pid)
 
-	// Create log with multiple lines
-	writer, err := logger.CreateLog(sandboxID, pid)
-	if err != nil {
-		t.Fatalf("CreateLog failed: %v", err)
-	}
-
-	lines := []string{
-		"line 1",
-		"line 2",
-		"line 3",
-		"line 4",
-		"line 5",
-	}
-	for _, line := range lines {
-		if _, err := writer.Write([]byte(line + "\n")); err != nil {
-			t.Fatalf("Write failed: %v", err)
+	for _, line := range []string{"line 1", "line 2", "line 3", "line 4", "line 5"} {
+		if _, err := pending.Stdout.Write([]byte(line + "\n")); err != nil {
+			t.Fatalf("write: %v", err)
 		}
 	}
-	if err := writer.Close(); err != nil {
-		t.Fatalf("Close failed: %v", err)
+	if err := pending.Stdout.Close(); err != nil {
+		t.Fatalf("close: %v", err)
 	}
 
-	// Read last 2 lines
-	content, err := logger.ReadLog(sandboxID, pid, 2, 0)
+	content, err := logger.ReadLog(sandboxID, pid, StreamStdout, 2, 0)
 	if err != nil {
-		t.Fatalf("ReadLog with tail failed: %v", err)
+		t.Fatalf("ReadLog tail: %v", err)
 	}
-
-	contentStr := string(content)
-	if !strings.Contains(contentStr, "line 4") || !strings.Contains(contentStr, "line 5") {
-		t.Errorf("Tail content doesn't contain expected lines, got: %s", contentStr)
+	got := string(content)
+	if !strings.Contains(got, "line 4") || !strings.Contains(got, "line 5") {
+		t.Errorf("tail missing expected lines, got: %s", got)
 	}
 }
 
-// TestLoggerCloseLog tests closing log with exit code.
-func TestLoggerCloseLog(t *testing.T) {
+// TestLogger_CloseLogPair writes the exit footer to both streams.
+func TestLogger_CloseLogPair(t *testing.T) {
 	tmpDir := t.TempDir()
-	cfg := LogConfig{BaseDir: tmpDir}
-	logger := NewLogger(cfg)
+	logger := NewLogger(LogConfig{BaseDir: tmpDir}, schedule.System())
 
 	sandboxID := uuid.New()
 	pid := 777
+	withPair(t, logger, sandboxID, pid)
 
-	// Create log
-	_, err := logger.CreateLog(sandboxID, pid)
-	if err != nil {
-		t.Fatalf("CreateLog failed: %v", err)
+	if err := logger.CloseLogPair(sandboxID, pid, ExitInfo{ExitCode: 42, Signal: 9, OOMKilled: true}); err != nil {
+		t.Fatalf("CloseLogPair: %v", err)
 	}
 
-	// Close with exit code
-	err = logger.CloseLog(sandboxID, pid, 42)
-	if err != nil {
-		t.Fatalf("CloseLog failed: %v", err)
-	}
-
-	// Verify exit code in log
-	content, err := logger.ReadLog(sandboxID, pid, 0, 0)
-	if err != nil {
-		t.Fatalf("ReadLog failed: %v", err)
-	}
-
-	if !strings.Contains(string(content), "code 42") {
-		t.Errorf("Log should contain exit code 42, got: %s", string(content))
+	for _, stream := range []Stream{StreamStdout, StreamStderr} {
+		content, err := logger.ReadLog(sandboxID, pid, stream, 0, 0)
+		if err != nil {
+			t.Fatalf("ReadLog %s: %v", stream, err)
+		}
+		got := string(content)
+		if !strings.Contains(got, "code 42") || !strings.Contains(got, "signal 9") || !strings.Contains(got, "oom true") {
+			t.Errorf("%s log missing exit info, got: %s", stream, got)
+		}
 	}
 }
 
-// TestLoggerCleanupSandboxLogs tests cleaning up all logs for a sandbox.
-func TestLoggerCleanupSandboxLogs(t *testing.T) {
+// TestLogger_CleanupSandboxLogs removes all stream files.
+func TestLogger_CleanupSandboxLogs(t *testing.T) {
 	tmpDir := t.TempDir()
-	cfg := LogConfig{BaseDir: tmpDir}
-	logger := NewLogger(cfg)
+	logger := NewLogger(LogConfig{BaseDir: tmpDir}, schedule.System())
 
 	sandboxID := uuid.New()
-
-	// Create logs
 	for _, pid := range []int{1, 2, 3} {
-		writer, err := logger.CreateLog(sandboxID, pid)
-		if err != nil {
-			t.Fatalf("CreateLog failed for PID %d: %v", pid, err)
-		}
-		if err := writer.Close(); err != nil {
-			t.Fatalf("Close failed for PID %d: %v", pid, err)
-		}
+		pending, _, _ := withPair(t, logger, sandboxID, pid)
+		_ = pending.Stdout.Close()
+		_ = pending.Stderr.Close()
 	}
 
-	// Verify logs exist
 	logDir := logger.LogDir(sandboxID)
-	if _, err := os.Stat(logDir); os.IsNotExist(err) {
-		t.Fatalf("Log directory should exist")
+	if _, err := os.Stat(logDir); err != nil {
+		t.Fatalf("log dir should exist: %v", err)
 	}
 
-	// Cleanup
-	err := logger.CleanupSandboxLogs(sandboxID)
-	if err != nil {
-		t.Fatalf("CleanupSandboxLogs failed: %v", err)
+	if err := logger.CleanupSandboxLogs(sandboxID); err != nil {
+		t.Fatalf("CleanupSandboxLogs: %v", err)
 	}
-
-	// Verify logs are gone
 	if _, err := os.Stat(logDir); !os.IsNotExist(err) {
-		t.Errorf("Log directory should be removed after cleanup")
+		t.Errorf("log dir should be removed after cleanup")
 	}
 }
 
-// TestLoggerConcurrentWrites tests concurrent writes to the same log.
-func TestLoggerConcurrentWrites(t *testing.T) {
+// TestLogger_ConcurrentWrites verifies the writer's mutex protects against
+// torn writes from multiple goroutines.
+func TestLogger_ConcurrentWrites(t *testing.T) {
 	tmpDir := t.TempDir()
-	cfg := LogConfig{BaseDir: tmpDir}
-	logger := NewLogger(cfg)
+	logger := NewLogger(LogConfig{BaseDir: tmpDir}, schedule.System())
 
 	sandboxID := uuid.New()
 	pid := 888
+	pending, _, _ := withPair(t, logger, sandboxID, pid)
 
-	writer, err := logger.CreateLog(sandboxID, pid)
-	if err != nil {
-		t.Fatalf("CreateLog failed: %v", err)
-	}
-
-	// Write concurrently
 	var wg sync.WaitGroup
 	errCh := make(chan error, 1)
 	for i := 0; i < 10; i++ {
 		wg.Add(1)
-		go func(n int) {
+		go func() {
 			defer wg.Done()
 			for j := 0; j < 100; j++ {
-				if _, err := writer.Write([]byte("write from goroutine\n")); err != nil {
+				if _, err := pending.Stdout.Write([]byte("write from goroutine\n")); err != nil {
 					select {
 					case errCh <- err:
 					default:
@@ -278,354 +239,192 @@ func TestLoggerConcurrentWrites(t *testing.T) {
 					return
 				}
 			}
-		}(i)
+		}()
 	}
-
 	wg.Wait()
 	close(errCh)
 	if err := <-errCh; err != nil {
-		t.Fatalf("Concurrent write failed: %v", err)
+		t.Fatalf("concurrent write: %v", err)
 	}
-	if err := writer.Close(); err != nil {
-		t.Fatalf("Close failed: %v", err)
+	if err := pending.Stdout.Close(); err != nil {
+		t.Fatalf("close stdout: %v", err)
 	}
 
-	// Verify log exists and has content
-	logInfo, err := logger.GetLog(sandboxID, pid)
+	logInfo, err := logger.GetLog(sandboxID, pid, StreamStdout)
 	if err != nil {
-		t.Fatalf("GetLog failed: %v", err)
+		t.Fatalf("GetLog: %v", err)
 	}
-
-	// Each write is ~20 bytes, 10*100 writes + header
 	if logInfo.SizeBytes < 10000 {
-		t.Errorf("Log seems too small for concurrent writes: %d bytes", logInfo.SizeBytes)
+		t.Errorf("stdout too small for concurrent writes: %d", logInfo.SizeBytes)
 	}
 }
 
-// TestLoggerStreamLog tests log streaming functionality.
-func TestLoggerStreamLog(t *testing.T) {
+// TestLogger_StreamLogReceivesPushChunks verifies that bytes appended to
+// the writer reach a Subscribe channel without polling.
+func TestLogger_StreamLogReceivesPushChunks(t *testing.T) {
 	tmpDir := t.TempDir()
-	cfg := LogConfig{BaseDir: tmpDir}
-	logger := NewLogger(cfg)
+	logger := NewLogger(LogConfig{BaseDir: tmpDir}, schedule.System())
 
 	sandboxID := uuid.New()
 	pid := 666
+	pending, _, _ := withPair(t, logger, sandboxID, pid)
 
-	// Create log and keep writer open (simulating active process)
-	writer, err := logger.CreateLog(sandboxID, pid)
-	if err != nil {
-		t.Fatalf("CreateLog failed: %v", err)
-	}
-
-	// Start streaming in background
-	ctx, cancel := context.WithTimeout(context.Background(), 500*time.Millisecond)
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
 
-	var chunks []string
-	var streamErr error
+	chunks := make(chan string, 16)
 	done := make(chan struct{})
-
+	var streamErr error
 	go func() {
-		streamErr = logger.StreamLog(ctx, sandboxID, pid, func(chunk []byte) {
-			chunks = append(chunks, string(chunk))
+		streamErr = logger.StreamLog(ctx, sandboxID, pid, StreamStdout, func(chunk []byte) {
+			chunks <- string(chunk)
 		})
 		close(done)
 	}()
 
-	// Write some data
-	time.Sleep(50 * time.Millisecond)
-	if _, err := writer.Write([]byte("streaming line 1\n")); err != nil {
-		t.Fatalf("Write failed: %v", err)
-	}
-	time.Sleep(150 * time.Millisecond)
-	if _, err := writer.Write([]byte("streaming line 2\n")); err != nil {
-		t.Fatalf("Write failed: %v", err)
-	}
+	// Give StreamLog a tick to subscribe.
+	time.Sleep(20 * time.Millisecond)
 
-	// Close the writer to signal process ended
-	if err := writer.Close(); err != nil {
-		t.Fatalf("Close failed: %v", err)
+	if _, err := pending.Stdout.Write([]byte("alpha\n")); err != nil {
+		t.Fatalf("write: %v", err)
+	}
+	if _, err := pending.Stdout.Write([]byte("beta\n")); err != nil {
+		t.Fatalf("write: %v", err)
 	}
 
-	// Wait for stream to finish
-	<-done
+	// Collect at least the two new chunks (replay may include header).
+	gotChunk := func(want string) bool {
+		deadline := time.Now().Add(500 * time.Millisecond)
+		var buf strings.Builder
+		for time.Now().Before(deadline) {
+			select {
+			case c := <-chunks:
+				buf.WriteString(c)
+				if strings.Contains(buf.String(), want) {
+					return true
+				}
+			case <-time.After(50 * time.Millisecond):
+			}
+		}
+		return false
+	}
+	if !gotChunk("alpha") {
+		t.Errorf("did not receive alpha within 500ms (push not working)")
+	}
+	if !gotChunk("beta") {
+		t.Errorf("did not receive beta")
+	}
 
-	// Stream should have ended due to timeout or process end
-	if streamErr != nil && streamErr != context.DeadlineExceeded {
-		t.Logf("Stream ended with: %v (expected)", streamErr)
+	// Closing the pair signals EOF to subscribers.
+	if err := logger.CloseLogPair(sandboxID, pid, ExitInfo{ExitCode: 0}); err != nil {
+		t.Fatalf("CloseLogPair: %v", err)
+	}
+	select {
+	case <-done:
+	case <-time.After(2 * time.Second):
+		t.Fatal("StreamLog did not return after CloseLogPair")
+	}
+	if streamErr != nil && streamErr != context.Canceled && streamErr != context.DeadlineExceeded {
+		t.Errorf("StreamLog err = %v", streamErr)
 	}
 }
 
-// TestLoggerNonExistentLog tests reading a non-existent log.
-func TestLoggerNonExistentLog(t *testing.T) {
+// TestLogger_NonExistentLog returns an error when the file is missing.
+func TestLogger_NonExistentLog(t *testing.T) {
 	tmpDir := t.TempDir()
-	cfg := LogConfig{BaseDir: tmpDir}
-	logger := NewLogger(cfg)
+	logger := NewLogger(LogConfig{BaseDir: tmpDir}, schedule.System())
 
 	sandboxID := uuid.New()
-	pid := 99999
-
-	_, err := logger.GetLog(sandboxID, pid)
-	if err == nil {
-		t.Error("Expected error for non-existent log")
+	if _, err := logger.GetLog(sandboxID, 99999, StreamStdout); err == nil {
+		t.Error("expected error for non-existent log")
 	}
-
-	_, err = logger.ReadLog(sandboxID, pid, 0, 0)
-	if err == nil {
-		t.Error("Expected error reading non-existent log")
+	if _, err := logger.ReadLog(sandboxID, 99999, StreamStdout, 0, 0); err == nil {
+		t.Error("expected error reading non-existent log")
 	}
 }
 
-// TestLoggerEmptySandbox tests listing logs for sandbox with no logs.
-func TestLoggerEmptySandbox(t *testing.T) {
+// TestLogger_EmptySandbox returns no logs.
+func TestLogger_EmptySandbox(t *testing.T) {
 	tmpDir := t.TempDir()
-	cfg := LogConfig{BaseDir: tmpDir}
-	logger := NewLogger(cfg)
+	logger := NewLogger(LogConfig{BaseDir: tmpDir}, schedule.System())
 
-	sandboxID := uuid.New()
-
-	logs, err := logger.ListLogs(sandboxID)
+	logs, err := logger.ListLogs(uuid.New())
 	if err != nil {
-		t.Fatalf("ListLogs failed: %v", err)
+		t.Fatalf("ListLogs: %v", err)
 	}
-
 	if len(logs) != 0 {
-		t.Errorf("Expected 0 logs for empty sandbox, got %d", len(logs))
+		t.Errorf("expected 0 logs, got %d", len(logs))
 	}
 }
 
-// TestLoggerLogPath tests log path generation.
-func TestLoggerLogPath(t *testing.T) {
+// TestPendingLogPair_AbortRemovesBothFiles ensures AbortPair cleans both
+// pending stream files.
+func TestPendingLogPair_AbortRemovesBothFiles(t *testing.T) {
 	tmpDir := t.TempDir()
-	cfg := LogConfig{BaseDir: tmpDir}
-	logger := NewLogger(cfg)
+	logger := NewLogger(LogConfig{BaseDir: tmpDir}, schedule.System())
 
-	sandboxID := uuid.New()
-	pid := 123
+	pending, err := logger.CreatePendingLogPair(uuid.New())
+	if err != nil {
+		t.Fatalf("CreatePendingLogPair: %v", err)
+	}
+	stdoutPath := pending.Stdout.path
+	stderrPath := pending.Stderr.path
 
-	path := logger.LogPath(sandboxID, pid)
+	if _, err := os.Stat(stdoutPath); err != nil {
+		t.Fatalf("stdout pending file missing: %v", err)
+	}
+	if _, err := os.Stat(stderrPath); err != nil {
+		t.Fatalf("stderr pending file missing: %v", err)
+	}
 
-	expectedPath := filepath.Join(tmpDir, sandboxID.String(), "logs", "123.log")
-	if path != expectedPath {
-		t.Errorf("LogPath mismatch: got %s, want %s", path, expectedPath)
+	if err := logger.AbortPair(pending); err != nil {
+		t.Fatalf("AbortPair: %v", err)
+	}
+	if _, err := os.Stat(stdoutPath); !os.IsNotExist(err) {
+		t.Errorf("stdout pending file should be removed")
+	}
+	if _, err := os.Stat(stderrPath); !os.IsNotExist(err) {
+		t.Errorf("stderr pending file should be removed")
 	}
 }
 
-// TestDefaultLogConfig tests the default config values.
-func TestDefaultLogConfig(t *testing.T) {
-	cfg := DefaultLogConfig("/test/dir")
-
-	if cfg.BaseDir != "/test/dir" {
-		t.Errorf("BaseDir mismatch: got %s, want /test/dir", cfg.BaseDir)
-	}
-
-	if cfg.MaxLogSize != 50*1024*1024 {
-		t.Errorf("MaxLogSize mismatch: got %d, want %d", cfg.MaxLogSize, 50*1024*1024)
-	}
-}
-
-// TestPendingLogCreateAndFinalize tests the two-phase log creation workflow.
-func TestPendingLogCreateAndFinalize(t *testing.T) {
+// TestPendingLogPair_FinalizeRenamesAndPreservesContent verifies the
+// two-phase create→finalize path.
+func TestPendingLogPair_FinalizeRenamesAndPreservesContent(t *testing.T) {
 	tmpDir := t.TempDir()
-	cfg := LogConfig{BaseDir: tmpDir}
-	logger := NewLogger(cfg)
+	logger := NewLogger(LogConfig{BaseDir: tmpDir}, schedule.System())
 
 	sandboxID := uuid.New()
 	pid := 12345
 
-	// Phase 1: Create pending log BEFORE process starts
-	pending, err := logger.CreatePendingLog(sandboxID)
+	pending, err := logger.CreatePendingLogPair(sandboxID)
 	if err != nil {
-		t.Fatalf("CreatePendingLog failed: %v", err)
+		t.Fatalf("CreatePendingLogPair: %v", err)
+	}
+	if _, err := pending.Stdout.Write([]byte("early stdout output\n")); err != nil {
+		t.Fatalf("write stdout: %v", err)
 	}
 
-	if pending.TempID == "" {
-		t.Error("TempID should not be empty")
-	}
-	if pending.Writer == nil {
-		t.Error("Writer should not be nil")
-	}
-
-	// Verify temp file exists
-	tempPath := pending.Writer.path
-	if _, err := os.Stat(tempPath); os.IsNotExist(err) {
-		t.Fatalf("Temp log file should exist at %s", tempPath)
-	}
-
-	// Write some content (simulating process output)
-	testContent := "simulated process output\n"
-	_, err = pending.Writer.Write([]byte(testContent))
+	stdoutPath, _, err := logger.FinalizePair(pending, pid)
 	if err != nil {
-		t.Fatalf("Write to pending log failed: %v", err)
+		t.Fatalf("FinalizePair: %v", err)
+	}
+	if want := logger.LogPath(sandboxID, pid, StreamStdout); stdoutPath != want {
+		t.Errorf("stdout path = %q; want %q", stdoutPath, want)
 	}
 
-	// Phase 2: Finalize with actual PID after process starts
-	logPath, err := logger.FinalizeLog(pending, pid)
+	if _, err := pending.Stdout.Write([]byte("late stdout output\n")); err != nil {
+		t.Fatalf("write stdout (post-finalize): %v", err)
+	}
+
+	content, err := logger.ReadLog(sandboxID, pid, StreamStdout, 0, 0)
 	if err != nil {
-		t.Fatalf("FinalizeLog failed: %v", err)
+		t.Fatalf("ReadLog: %v", err)
 	}
-
-	// Verify final path is correct
-	expectedPath := logger.LogPath(sandboxID, pid)
-	if logPath != expectedPath {
-		t.Errorf("Log path mismatch: got %s, want %s", logPath, expectedPath)
+	if !strings.Contains(string(content), "early stdout output") {
+		t.Errorf("missing early content")
 	}
-
-	// Verify file was renamed (temp file should not exist)
-	if _, err := os.Stat(tempPath); !os.IsNotExist(err) {
-		t.Errorf("Temp file should be renamed/removed")
-	}
-
-	// Verify final file exists
-	if _, err := os.Stat(logPath); os.IsNotExist(err) {
-		t.Fatalf("Final log file should exist at %s", logPath)
-	}
-
-	// Verify content is preserved
-	content, err := logger.ReadLog(sandboxID, pid, 0, 0)
-	if err != nil {
-		t.Fatalf("ReadLog failed: %v", err)
-	}
-	if !strings.Contains(string(content), "simulated process output") {
-		t.Errorf("Log content missing expected text, got: %s", string(content))
-	}
-
-	// Verify log is registered and can be retrieved
-	logInfo, err := logger.GetLog(sandboxID, pid)
-	if err != nil {
-		t.Fatalf("GetLog failed: %v", err)
-	}
-	if logInfo.PID != pid {
-		t.Errorf("PID mismatch: got %d, want %d", logInfo.PID, pid)
-	}
-}
-
-// TestPendingLogAbort tests aborting a pending log when process fails to start.
-func TestPendingLogAbort(t *testing.T) {
-	tmpDir := t.TempDir()
-	cfg := LogConfig{BaseDir: tmpDir}
-	logger := NewLogger(cfg)
-
-	sandboxID := uuid.New()
-
-	// Create pending log
-	pending, err := logger.CreatePendingLog(sandboxID)
-	if err != nil {
-		t.Fatalf("CreatePendingLog failed: %v", err)
-	}
-
-	tempPath := pending.Writer.path
-
-	// Verify temp file exists
-	if _, err := os.Stat(tempPath); os.IsNotExist(err) {
-		t.Fatalf("Temp log file should exist")
-	}
-
-	// Abort the pending log (process failed to start)
-	err = logger.AbortPendingLog(pending)
-	if err != nil {
-		t.Fatalf("AbortPendingLog failed: %v", err)
-	}
-
-	// Verify temp file is removed
-	if _, err := os.Stat(tempPath); !os.IsNotExist(err) {
-		t.Errorf("Temp log file should be removed after abort")
-	}
-}
-
-// TestPendingLogWriteDuringProcess tests writing to log while process runs.
-func TestPendingLogWriteDuringProcess(t *testing.T) {
-	tmpDir := t.TempDir()
-	cfg := LogConfig{BaseDir: tmpDir}
-	logger := NewLogger(cfg)
-
-	sandboxID := uuid.New()
-	pid := 54321
-
-	// Create pending log
-	pending, err := logger.CreatePendingLog(sandboxID)
-	if err != nil {
-		t.Fatalf("CreatePendingLog failed: %v", err)
-	}
-
-	// Write before finalize (simulating early process output)
-	if _, err := pending.Writer.Write([]byte("output before finalize\n")); err != nil {
-		t.Fatalf("Write before finalize failed: %v", err)
-	}
-
-	// Finalize
-	_, err = logger.FinalizeLog(pending, pid)
-	if err != nil {
-		t.Fatalf("FinalizeLog failed: %v", err)
-	}
-
-	// Continue writing after finalize (simulating ongoing process output)
-	if _, err := pending.Writer.Write([]byte("output after finalize\n")); err != nil {
-		t.Fatalf("Write after finalize failed: %v", err)
-	}
-
-	// Close log
-	if err := pending.Writer.Close(); err != nil {
-		t.Fatalf("Close failed: %v", err)
-	}
-
-	// Verify all content is present
-	content, err := logger.ReadLog(sandboxID, pid, 0, 0)
-	if err != nil {
-		t.Fatalf("ReadLog failed: %v", err)
-	}
-
-	contentStr := string(content)
-	if !strings.Contains(contentStr, "output before finalize") {
-		t.Errorf("Missing content written before finalize")
-	}
-	if !strings.Contains(contentStr, "output after finalize") {
-		t.Errorf("Missing content written after finalize")
-	}
-}
-
-// TestPendingLogIsActiveStatus tests that finalized pending logs show as active.
-func TestPendingLogIsActiveStatus(t *testing.T) {
-	tmpDir := t.TempDir()
-	cfg := LogConfig{BaseDir: tmpDir}
-	logger := NewLogger(cfg)
-
-	sandboxID := uuid.New()
-	pid := 11111
-
-	// Create and finalize pending log
-	pending, err := logger.CreatePendingLog(sandboxID)
-	if err != nil {
-		t.Fatalf("CreatePendingLog failed: %v", err)
-	}
-
-	_, err = logger.FinalizeLog(pending, pid)
-	if err != nil {
-		t.Fatalf("FinalizeLog failed: %v", err)
-	}
-
-	// Check that log shows as active (writer still open)
-	logInfo, err := logger.GetLog(sandboxID, pid)
-	if err != nil {
-		t.Fatalf("GetLog failed: %v", err)
-	}
-	if !logInfo.IsActive {
-		t.Error("Log should be active while writer is open")
-	}
-
-	// Close the writer
-	if err := pending.Writer.Close(); err != nil {
-		t.Fatalf("Close failed: %v", err)
-	}
-
-	// Check that log shows as inactive
-	logInfo, err = logger.GetLog(sandboxID, pid)
-	if err != nil {
-		t.Fatalf("GetLog failed: %v", err)
-	}
-	// Note: After closing, the log may still appear in the map briefly
-	// but the file is closed
-	if logInfo.Path == "" {
-		t.Error("Log path should be set after close")
+	if !strings.Contains(string(content), "late stdout output") {
+		t.Errorf("missing late content")
 	}
 }

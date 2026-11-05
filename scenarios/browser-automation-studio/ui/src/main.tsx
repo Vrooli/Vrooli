@@ -1,5 +1,11 @@
+import { LibraryStringsProvider } from "@vrooli/react-component-library/useLocale/1";
+import { BaseStyles } from "@vrooli/react-component-library/BaseStyles/1";
+import { i18n } from "./i18n";
+import React from 'react';
+import { installChunkReloadGuard } from '@vrooli/api-base';
 import { initIframeBridgeChild } from '@vrooli/iframe-bridge';
 import { mountApp } from './renderApp';
+import { onProfilerRender } from './lib/profiler';
 import { logger } from './utils/logger';
 
 // ╔══════════════════════════════════════════════════════════════╗
@@ -38,6 +44,11 @@ if (
   window.__browserAutomationStudioBridgeInitialized = true;
 }
 
+// Code-split routes use lazy(); after a rebuild the old hashed chunks are
+// gone, so a tab opened before the deploy would crash on its next
+// navigation. This guard reloads once (rate-limited) instead.
+installChunkReloadGuard();
+
 const container = document.getElementById('root');
 
 if (!container) {
@@ -55,5 +66,17 @@ if (pathname.startsWith('/export/replay') || pathname.startsWith('/export/compos
       logger.error('Failed to bootstrap replay export view', { component: 'main' }, error);
     });
 } else {
-  mountApp(container, { strictMode: true });
+  mountApp(container, {
+    strictMode: true,
+    rootWrapper: (children) => (
+    // vrooli:library-strings-provider start
+    <LibraryStringsProvider translate={(key, fallback) => i18n.t(key, { defaultValue: fallback })}>
+      <BaseStyles />
+      <React.Profiler id="App" onRender={onProfilerRender}>
+        {children}
+      </React.Profiler>
+    </LibraryStringsProvider>
+    // vrooli:library-strings-provider end
+  ),
+  });
 }

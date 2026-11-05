@@ -5,8 +5,6 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
-
-	"agent-manager/internal/domain"
 )
 
 // =============================================================================
@@ -17,6 +15,46 @@ func TestDefaultOrchestrationSettings_IsValid(t *testing.T) {
 	s := DefaultOrchestrationSettings()
 	if err := s.Validate(); err != nil {
 		t.Fatalf("default settings should be valid: %v", err)
+	}
+}
+
+func TestOperationApprovalsPersistAndLegacySettingsDefaultOff(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "orchestration.json")
+	legacy, err := json.Marshal(DefaultOrchestrationSettings())
+	if err != nil {
+		t.Fatal(err)
+	}
+	var fields map[string]json.RawMessage
+	if err := json.Unmarshal(legacy, &fields); err != nil {
+		t.Fatal(err)
+	}
+	delete(fields, "operationApprovals")
+	legacy, err = json.Marshal(fields)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, legacy, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	store, err := NewOrchestrationSettingsStore(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	settings := store.Get()
+	if settings.OperationApprovals != (OperationApprovalSettings{}) {
+		t.Fatal("legacy settings must default operation approvals to off")
+	}
+	settings.OperationApprovals.RunCreation = true
+	settings.OperationApprovals.RunManagement = true
+	if err := store.Update(settings); err != nil {
+		t.Fatal(err)
+	}
+	reloaded, err := NewOrchestrationSettingsStore(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if reloaded.Get().OperationApprovals != settings.OperationApprovals {
+		t.Fatal("operation approval settings were not persisted")
 	}
 }
 
@@ -151,9 +189,11 @@ func TestOrchestrationSettings_Validate_ProcessTermination(t *testing.T) {
 		{"orphanGracePeriodSeconds below min", func(s *OrchestrationSettings) { s.ProcessTermination.OrphanGracePeriodSeconds = 29 }, true},
 		{"orphanGracePeriodSeconds above max", func(s *OrchestrationSettings) { s.ProcessTermination.OrphanGracePeriodSeconds = 10000 }, true},
 		{"terminationMaxRetries at min", func(s *OrchestrationSettings) { s.ProcessTermination.TerminationMaxRetries = 1 }, false},
-		{"terminationMaxRetries at max", func(s *OrchestrationSettings) {
+		{"terminationMaxRetries at max", func(s *OrchestrationSettings) { s.ProcessTermination.TerminationMaxRetries = 99 }, false},
+		{"termination retries exceed stale threshold", func(s *OrchestrationSettings) {
+			s.HealthDetection.StaleThresholdSeconds = 300
 			s.ProcessTermination.TerminationMaxRetries = 99
-		}, true}, // cross-field: 5 * 99 >= 300
+		}, true}, // cross-field: 5 * 99 >= explicit 300-second stale threshold
 		{"terminationMaxRetries below min", func(s *OrchestrationSettings) { s.ProcessTermination.TerminationMaxRetries = 0 }, true},
 		{"terminationMaxRetries above max", func(s *OrchestrationSettings) { s.ProcessTermination.TerminationMaxRetries = 100 }, true},
 	}
@@ -255,9 +295,9 @@ func TestOrchestrationSettings_Validate_CrossField(t *testing.T) {
 				t.Fatalf("Validate() error = %v, wantErr %v", err, tt.wantErr)
 			}
 			if tt.wantErr && tt.errField != "" {
-				cfgErr, ok := err.(*domain.ConfigError)
+				cfgErr, ok := err.(*Error)
 				if !ok {
-					t.Fatalf("expected *domain.ConfigError, got %T", err)
+					t.Fatalf("expected *Error, got %T", err)
 				}
 				if cfgErr.Setting == "" {
 					t.Fatal("expected non-empty Setting on ConfigError")

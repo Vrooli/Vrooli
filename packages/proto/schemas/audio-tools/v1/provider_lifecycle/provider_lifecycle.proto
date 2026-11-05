@@ -1,0 +1,171 @@
+syntax = "proto3";
+
+package vrooli.audio_tools.v1.provider_lifecycle;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/provider_lifecycle;provider_lifecycle_v1";
+
+// =============================================================================
+// PROVIDER_LIFECYCLE DOMAIN — operator-facing lifecycle actions for the
+//                              local-tier providers audio-tools owns.
+// =============================================================================
+//
+// @layer 5  (api surface)
+// @domain provider_lifecycle
+// @stability stable
+//
+// Wraps `vrooli resource start|stop|restart|logs <slug>` (and the
+// `ollama pull` helper) behind a typed Connect surface so the UI and CLI
+// can offer remediation affordances without shelling out from the front
+// end. The single shell-out chokepoint lives in
+// scenarios/audio-tools/api/internal/capabilities/lifecycle_cli.go; all
+// other packages call through this RPC service.
+//
+// provider_id namespace matches capabilities.Known[].ID
+// (e.g. "whisper-stt", "kokoro-tts", "ollama"); it is NOT the resource
+// slug. The provider_id → slug mapping lives in
+// internal/capabilities/mapping.go.
+// =============================================================================
+
+service ProviderLifecycleService {
+  // ListLocalProviders returns the local-tier providers audio-tools
+  // owns, their current process_state, and which actions the operator
+  // can take on each. Excludes BYOK and cloud providers.
+  rpc ListLocalProviders(ListLocalProvidersRequest) returns (ListLocalProvidersResponse);
+
+  // StartProvider invokes `vrooli resource start <slug>` for the
+  // resource backing the provider_id. Honors X-Dry-Run: true.
+  rpc StartProvider(StartProviderRequest) returns (StartProviderResponse);
+
+  // StopProvider invokes `vrooli resource stop <slug>`. Honors
+  // X-Dry-Run: true.
+  rpc StopProvider(StopProviderRequest) returns (StopProviderResponse);
+
+  // RestartProvider invokes `vrooli resource restart <slug>`. Honors
+  // X-Dry-Run: true.
+  rpc RestartProvider(RestartProviderRequest) returns (RestartProviderResponse);
+
+  // PullModel triggers a model pull on the provider. Only valid for
+  // `ollama`; other provider_ids return FAILED_PRECONDITION. Honors
+  // X-Dry-Run: true.
+  rpc PullModel(PullModelRequest) returns (PullModelResponse);
+
+  // GetProviderLogs streams stdout/stderr lines from the provider's
+  // backing resource. Closes on context cancel or EOF.
+  rpc GetProviderLogs(GetProviderLogsRequest) returns (stream LogLine);
+}
+
+// ProcessState is the coarse runtime state of the provider's backing
+// resource process. Derived from the capabilities.Registry rollup:
+//
+//   StatusAvailable   → RUNNING
+//   StatusUnavailable → STOPPED
+//   StatusUnknown     → UNKNOWN
+enum ProcessState {
+  PROCESS_STATE_UNSPECIFIED = 0;
+  PROCESS_STATE_RUNNING = 1;
+  PROCESS_STATE_STOPPED = 2;
+  PROCESS_STATE_UNKNOWN = 3;
+}
+
+// Action enumerates the lifecycle actions the UI/CLI may render
+// against a given provider row. Each provider advertises a subset.
+enum Action {
+  ACTION_UNSPECIFIED = 0;
+  ACTION_START = 1;
+  ACTION_STOP = 2;
+  ACTION_RESTART = 3;
+  ACTION_PULL_MODEL = 4;
+  ACTION_VIEW_LOGS = 5;
+}
+
+// LogStream identifies which stream a LogLine arrived on. Stdout is
+// the default; stderr surfaces fault diagnostics.
+enum LogStream {
+  LOG_STREAM_UNSPECIFIED = 0;
+  LOG_STREAM_STDOUT = 1;
+  LOG_STREAM_STDERR = 2;
+}
+
+message LocalProvider {
+  // Stable id from capabilities.Known[].ID.
+  string provider_id = 1;
+  // Display name suitable for UI labels (capabilities.Def.Name).
+  string display_name = 2;
+  // Resource slug passed to `vrooli resource <verb> <slug>`. Exposed
+  // so the UI can render a deep-link to the resource if desired.
+  string resource_slug = 3;
+  ProcessState process_state = 4;
+  repeated Action supported_actions = 5;
+}
+
+message ListLocalProvidersRequest {}
+
+message ListLocalProvidersResponse {
+  repeated LocalProvider providers = 1;
+}
+
+message StartProviderRequest {
+  string provider_id = 1;
+}
+
+message StartProviderResponse {
+  string provider_id = 1;
+  // True iff the request was processed in dry-run mode (X-Dry-Run: true).
+  bool dry_run = 2;
+  // Human-readable status message; mirrors the controller stdout when
+  // applicable.
+  string message = 3;
+}
+
+message StopProviderRequest {
+  string provider_id = 1;
+}
+
+message StopProviderResponse {
+  string provider_id = 1;
+  bool dry_run = 2;
+  string message = 3;
+}
+
+message RestartProviderRequest {
+  string provider_id = 1;
+}
+
+message RestartProviderResponse {
+  string provider_id = 1;
+  bool dry_run = 2;
+  string message = 3;
+}
+
+message PullModelRequest {
+  // Currently ollama-only; other provider_ids return FAILED_PRECONDITION.
+  string provider_id = 1;
+  string model_name = 2;
+}
+
+message PullModelResponse {
+  string provider_id = 1;
+  string model_name = 2;
+  bool dry_run = 3;
+  string message = 4;
+}
+
+message GetProviderLogsRequest {
+  string provider_id = 1;
+  // When true the server keeps the stream open and continues to emit
+  // lines as they arrive (analogous to `tail -f`). When false the
+  // stream closes after the tail buffer is drained.
+  bool follow = 2;
+  // Number of historical lines to emit before tailing. 0 means
+  // controller default.
+  int32 tail_lines = 3;
+}
+
+message LogLine {
+  // Raw log line; no embedded newline. May contain ANSI sequences.
+  string line = 1;
+  // Producer timestamp in milliseconds since unix epoch. 0 when the
+  // controller doesn't expose timestamps.
+  int64 ts_unix_ms = 2;
+  LogStream stream = 3;
+}

@@ -1,73 +1,66 @@
 /**
- * LensNav - Hierarchical lens navigation with Topology as the primary "atlas" tab.
- * Flow and Operations are contextual sub-views that may require a focus node.
+ * LensNav - Operator navigation between the Plan board and the single Graph
+ * surface. Rendered as lightweight icon + short-label tabs so it reads as
+ * navigation, while Focus stays graph mode state inside Graph rather than a
+ * separate tab.
  */
 
-import { cn } from "../../../lib/utils";
-import { Breadcrumb } from "./Breadcrumb";
+import { BarChart3, Bot, Columns3, Network, type LucideIcon } from "lucide-react";
+import { CompactTabBar, type CompactTabItem } from "../../../components/ui/compact-tab-bar";
+import type { AppGraphLens } from "../../../app/routes/route-paths";
 import type { GraphLens } from "../stores/graph-data-store";
 
 interface LensNavProps {
-  activeLens: GraphLens;
-  focusNodeLabel: string | null;
-  onLensChange: (lens: GraphLens) => void;
-  onReturnToAtlas: () => void;
+  activeLens: AppGraphLens | GraphLens;
+  onLensChange: (lens: AppGraphLens) => void;
+  badges?: Partial<Record<AppGraphLens, number>>;
 }
 
 const LENSES: Array<{
-  id: GraphLens;
+  id: AppGraphLens;
   label: string;
-  shortLabel: string;
+  icon: LucideIcon;
   shortcut: string;
   primary?: boolean;
 }> = [
-  { id: "focus", label: "Focus", shortLabel: "Focus", shortcut: "1", primary: true },
-  { id: "topology", label: "Topology", shortLabel: "Topo", shortcut: "2" },
-  { id: "operations", label: "Operations", shortLabel: "Ops", shortcut: "3" },
+  { id: "plan", label: "Plan", icon: Columns3, shortcut: "1", primary: true },
+  { id: "graph", label: "Graph", icon: Network, shortcut: "2" },
+  { id: "stats", label: "Stats", icon: BarChart3, shortcut: "3" },
 ];
 
-export function LensNav({
-  activeLens,
-  focusNodeLabel,
-  onLensChange,
-  onReturnToAtlas,
-}: LensNavProps) {
+export function LensNav({ activeLens, onLensChange, badges = {} }: LensNavProps) {
+  const activeSurface: AppGraphLens = activeLens === "plan" ? "plan" : activeLens === "stats" ? "stats" : "graph";
+  const items: CompactTabItem<AppGraphLens>[] = LENSES.map((lens) => {
+    const badge = badges[lens.id] ?? 0;
+    return {
+      value: lens.id,
+      label: lens.label,
+      icon: lens.icon,
+      badge: badge > 0 ? (
+        // Bot icon marks this as a running-agent count, not a generic
+        // notification tally.
+        <span
+          className="ml-0.5 inline-flex items-center gap-0.5 rounded-full bg-emerald-500/15 px-1.5 py-0.5 text-[11px] leading-none text-emerald-300 data-[active=true]:bg-emerald-500/25 data-[active=true]:text-emerald-200"
+          data-active={activeSurface === lens.id}
+          data-testid={`lens-${lens.id}-badge`}
+        >
+          <Bot className="h-3 w-3" aria-hidden />
+          {badge}
+        </span>
+      ) : null,
+    };
+  });
+
   return (
-    <div className="flex w-fit flex-col gap-1" data-testid="lens-nav">
-      <div
-        className="flex items-center rounded-lg border border-slate-700/80 bg-slate-900/60 p-0.5"
-        role="tablist"
-        aria-label="Graph lens"
-      >
-        {LENSES.map((lens) => (
-            <button
-              key={lens.id}
-              type="button"
-              role="tab"
-              aria-selected={activeLens === lens.id}
-              onClick={() => onLensChange(lens.id)}
-              className={cn(
-                "px-2 md:px-3 py-1 md:py-1.5 text-xs md:text-sm rounded-md transition-colors",
-                lens.primary ? "font-semibold" : "font-medium",
-                activeLens === lens.id
-                  ? "bg-slate-700/80 text-cyan-400"
-                  : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/50",
-              )}
-              data-testid={`lens-${lens.id}`}
-            >
-              <span className="md:hidden">{lens.shortLabel}</span>
-              <span className="hidden md:inline">{lens.label}</span>
-              <span className="hidden lg:inline text-xs ml-1 text-slate-500">
-                ({lens.shortcut})
-              </span>
-            </button>
-        ))}
-      </div>
-      <Breadcrumb
-        lens={activeLens}
-        focusNodeLabel={focusNodeLabel}
-        onNavigateHome={onReturnToAtlas}
-      />
-    </div>
+    <CompactTabBar
+      items={items}
+      activeValue={activeSurface}
+      onValueChange={onLensChange}
+      aria-label="Workspace view"
+      className="gap-1"
+      hideLabelsOnMobile
+      tabTestIdPrefix="lens"
+      data-testid="lens-nav"
+    />
   );
 }

@@ -1,0 +1,51 @@
+{
+  "schemaVersion": 6,
+  "kind": "temporal",
+  "flowId": "authorization.lifecycle",
+  "domain": "authorization",
+  "description": "A proposed charge is refused, held pending approval, approved directly, released, or settled without resurrecting closed authority.",
+  "model": {
+    "module": "AuthorizationLifecycle",
+    "seed": "2026081802",
+    "maxSteps": 5,
+    "traceCount": 10,
+    "verify": {"invariants": ["TypeOK", "TerminalClosure", "IllegalTransitionsPreserveState"]}
+  },
+  "states": [
+    {"id": "evaluating", "quint": "Evaluating", "initial": true},
+    {"id": "refused", "quint": "Refused", "terminal": true},
+    {"id": "pending", "quint": "Pending"},
+    {"id": "approved", "quint": "Approved"},
+    {"id": "released", "quint": "Released", "terminal": true},
+    {"id": "settled", "quint": "Settled", "terminal": true}
+  ],
+  "events": [
+    {"id": "refuse", "quint": "Refuse"},
+    {"id": "require_approval", "quint": "RequireApproval"},
+    {"id": "approve", "quint": "Approve"},
+    {"id": "release", "quint": "Release"},
+    {"id": "settle", "quint": "Settle"}
+  ],
+  "transitionDefaults": {"invalid": {"to": "self", "wantError": true}, "terminal": {"to": "self", "wantError": true}},
+  "transitions": [
+    {"from": "evaluating", "event": "refuse", "to": "refused"},
+    {"from": "evaluating", "event": "require_approval", "to": "pending"},
+    {"from": "evaluating", "event": "approve", "to": "approved"},
+    {"from": "pending", "event": "approve", "to": "approved"},
+    {"from": "pending", "event": "release", "to": "released"},
+    {"from": "approved", "event": "release", "to": "released"},
+    {"from": "approved", "event": "settle", "to": "settled"}
+  ],
+  "invariants": [
+    {"id": "type_ok", "quint": "TypeOK", "description": "Status remains in the declared state set."},
+    {"id": "terminal_closure", "quint": "TerminalClosure", "description": "Refused, released, and settled authorizations cannot transition."},
+    {"id": "illegal_transitions_preserve_state", "quint": "IllegalTransitionsPreserveState", "description": "Rejected transitions preserve the prior status."}
+  ],
+  "traces": [
+    {"name": "direct_settlement", "initial": "evaluating", "steps": [{"event": "approve", "want": "approved", "wantError": false}, {"event": "settle", "want": "settled", "wantError": false}]},
+    {"name": "approval_then_release", "initial": "evaluating", "steps": [{"event": "require_approval", "want": "pending", "wantError": false}, {"event": "approve", "want": "approved", "wantError": false}, {"event": "release", "want": "released", "wantError": false}]},
+    {"name": "policy_refusal", "initial": "evaluating", "steps": [{"event": "refuse", "want": "refused", "wantError": false}]}
+  ],
+  "runtime": {"go": {"package": "flow", "statusType": "AuthorizationStatus", "eventType": "AuthorizationEvent", "constantPrefix": "Authorization"}, "sideEffects": ["Identity verification occurs before policy evaluation.", "Pending and approved states reserve headroom until release, expiry, or settlement."]},
+  "replay": {"transition": {"function": "TransitionAuthorization", "stateType": "AuthorizationState", "statusField": "Status"}}
+}

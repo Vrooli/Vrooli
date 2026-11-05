@@ -1,0 +1,35 @@
+{
+  "id": "revenue_mrr",
+  "label": "Monthly recurring revenue",
+  "description": "Rolling MRR computed from Stripe subscriptions.",
+  "unit": "currency",
+  "format": "currency.compact",
+  "shape": "series",
+  "source": {
+    "team": "director-swarm",
+    "binding": "scenario:landing-page-business-suite",
+    "read": "/api/v1/admin/dashboard/revenue",
+    "select": "revenue_mrr",
+    "ttlSeconds": 300,
+    "integrationId": "landing-page-business-suite",
+    "origin": "production",
+    "featureId": "revenue_mrr",
+    "contractVersion": "revenue-summary.v1",
+    "selector": "revenue_mrr",
+    "expectedUnit": "currency",
+    "sourceTimePolicy": "producer_required"
+  },
+  "coverage": "NOW",
+  "sample": {
+    "value": 12400,
+    "series": [
+      8100,
+      8800,
+      9600,
+      10200,
+      11300,
+      12400
+    ],
+    "basis": "hand-authored, mid-scale, reviewed 2026-09-01"
+  }
+}

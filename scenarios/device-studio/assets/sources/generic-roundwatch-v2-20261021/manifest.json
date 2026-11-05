@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "asset_id": "vrooli-generic-round-watch-concept-v2",
+  "output": {
+    "file": "generic-roundwatch-v2.glb",
+    "bytes": 223684,
+    "sha256": "a609b435f5f4485504f1071e35cf74e95ba56095e5420aaa242255267c87750e"
+  },
+  "generator": "generate.py; Python standard library only; deterministic",
+  "authorship": {"creator":"Vrooli","license":"AGPL-3.0-only","identity":"Generic concept, no Samsung product identity, CAD, endorsement or compatibility claim."},
+  "reference_inputs": [
+    {"url":"https://www.samsung.com/ae/watches/galaxy-watch/galaxy-watch-ultra-titanium-gray-lte-sm-l705fdaaxsg/","kind":"official product gallery","use":"Held-out visual comparison for circular body, bezel, side crown, strap attachment and finish; no photo or logo is redistributed or embedded."},
+    {"url":"https://www.samsung.com/uk/watches/galaxy-watch/galaxy-watch-ultra-titanium-grey-lte-sm-l705fdaaeua/","kind":"official published specifications","published_case_mm":[47.4,47.1,12.1],"published_display_diameter_mm":37.3,"use":"Comparison dimensions only; model is independently authored and nominal geometry is not a measurement."}
+  ],
+  "screen_binding": {"node":"One clean circular replaceable display","node_index":3,"mesh_index":2,"primitive_index":0,"material_index":2,"normal_local":[0,0,1],"uv_min":[0,0],"uv_max":[1,1],"image_origin":"top-left; V=0 at top"},
+  "candidate_limits": ["No manufacturer identity or geometry claim.","No independent dimensional, strap-contact, tabletop-stability, display-calibration, or motion verification.","Candidate-only until exact root-owned native review passes."]
+}

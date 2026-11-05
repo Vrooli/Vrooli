@@ -5,11 +5,13 @@ package requirements
 import "test-genie/internal/requirements/types"
 
 // Type aliases for requirement types
-type Requirement = types.Requirement
-type AggregatedStatus = types.AggregatedStatus
-type ValidationSummary = types.ValidationSummary
-type Validation = types.Validation
-type LiveDetails = types.LiveDetails
+type (
+	Requirement       = types.Requirement
+	AggregatedStatus  = types.AggregatedStatus
+	ValidationSummary = types.ValidationSummary
+	Validation        = types.Validation
+	LiveDetails       = types.LiveDetails
+)
 
 // Function re-exports
 var ComputeValidationSummary = types.ComputeValidationSummary

@@ -63,6 +63,10 @@ export function CopyButton({ text, label, className }: { text: string; label?: s
 // ============================================================================
 
 export function EventRow({ event }: { event: RunEvent }) {
+  if (event.raw && !event.payloadType) return <GenericEvent event={event} />
+  if (event.payloadType && event.payloadType !== 'data' && event.payloadType !== event.eventType) {
+    return <GenericEvent event={event} />
+  }
   switch (event.eventType) {
     case 'message':
       return <MessageEvent event={event} />
@@ -130,12 +134,14 @@ export function ToolCallEvent({ event }: { event: RunEvent }) {
 
 export function ToolResultEvent({ event }: { event: RunEvent }) {
   const [open, setOpen] = useState(false)
-  const success = event.data.success !== false && !event.data.error
+  const success = event.data.success === true && !event.data.error
+  const failed = event.data.success === false || !!event.data.error
   const output = event.data.output ?? event.data.result ?? event.data.content
   return (
     <div className={cn(
       'rounded-lg border p-3',
-      success ? 'border-emerald-500/20 bg-emerald-500/5' : 'border-red-500/20 bg-red-500/5',
+      success ? 'border-emerald-500/20 bg-emerald-500/5'
+        : failed ? 'border-red-500/20 bg-red-500/5' : 'border-slate-500/20 bg-slate-500/5',
     )}>
       <button
         type="button"
@@ -143,8 +149,8 @@ export function ToolResultEvent({ event }: { event: RunEvent }) {
         className="flex items-center gap-2 w-full text-left"
       >
         {open ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
-        <span className={cn('text-xs font-medium', success ? 'text-emerald-400' : 'text-red-400')}>
-          {success ? 'Success' : 'Failed'}
+        <span className={cn('text-xs font-medium', success ? 'text-emerald-400' : failed ? 'text-red-400' : 'text-muted-foreground')}>
+          {success ? 'Success' : failed ? 'Failed' : 'Outcome unknown'}
         </span>
         <span className="text-[10px] text-muted-foreground">tool result</span>
       </button>

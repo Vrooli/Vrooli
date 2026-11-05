@@ -20,7 +20,11 @@ import {
   type GeneratorFormState,
 } from "../services/generator.service";
 import { validateFormInputs, type ValidationError } from "../domain/generator";
-import type { SigningConfig, BundlePreflightResponse, SigningReadinessResponse } from "../lib/api";
+import type {
+  SigningConfig,
+  SigningReadinessResponse,
+} from "../domain/signing";
+import type { PreflightResponse } from "@vrooli/proto-types/scenario-to-desktop/v1/shared/preflight_results_pb";
 import {
   buildPipelineConfig,
   getEffectivePreflightResult,
@@ -58,7 +62,7 @@ export interface ProxyConnectionTestResult {
  */
 export async function loadGeneratorPageData(
   scenarioName: string | null,
-  bundleManifestPath: string | null
+  bundleManifestPath: string | null,
 ): Promise<GeneratorPageData> {
   try {
     // Fetch scenarios (always needed)
@@ -97,7 +101,8 @@ export async function loadGeneratorPageData(
       scenarios: [],
       proxyHints: null,
       bundleManifest: null,
-      error: error instanceof Error ? error.message : "Failed to load page data",
+      error:
+        error instanceof Error ? error.message : "Failed to load page data",
     };
   }
 }
@@ -115,7 +120,8 @@ export async function loadScenarios(): Promise<{
   } catch (error) {
     return {
       scenarios: [],
-      error: error instanceof Error ? error.message : "Failed to load scenarios",
+      error:
+        error instanceof Error ? error.message : "Failed to load scenarios",
     };
   }
 }
@@ -124,7 +130,7 @@ export async function loadScenarios(): Promise<{
  * Load proxy hints for a scenario.
  */
 export async function loadProxyHints(
-  scenarioName: string
+  scenarioName: string,
 ): Promise<{ hints: ProxyHintsResponse | null; error: string | null }> {
   if (!scenarioName) {
     return { hints: null, error: null };
@@ -136,7 +142,8 @@ export async function loadProxyHints(
   } catch (error) {
     return {
       hints: null,
-      error: error instanceof Error ? error.message : "Failed to load proxy hints",
+      error:
+        error instanceof Error ? error.message : "Failed to load proxy hints",
     };
   }
 }
@@ -145,7 +152,7 @@ export async function loadProxyHints(
  * Load bundle manifest.
  */
 export async function loadBundleManifest(
-  manifestPath: string
+  manifestPath: string,
 ): Promise<{ manifest: BundleManifestResponse | null; error: string | null }> {
   const path = manifestPath.trim();
   if (!path) {
@@ -158,7 +165,10 @@ export async function loadBundleManifest(
   } catch (error) {
     return {
       manifest: null,
-      error: error instanceof Error ? error.message : "Failed to load bundle manifest",
+      error:
+        error instanceof Error
+          ? error.message
+          : "Failed to load bundle manifest",
     };
   }
 }
@@ -174,11 +184,11 @@ export async function loadBundleManifest(
 export async function submitGeneratorForm(
   formState: GeneratorFormState,
   scenarioName: string,
-  preflightResult: BundlePreflightResponse | null,
+  preflightResult: PreflightResponse | null,
   preflightOk: boolean,
   preflightOverride: boolean,
   signingConfig: SigningConfig | null | undefined,
-  signingReadiness: { ready?: boolean; issues?: string[] } | undefined
+  signingReadiness: { ready?: boolean; issues?: string[] } | undefined,
 ): Promise<{
   pipelineId: string | null;
   validationErrors: ValidationError[];
@@ -191,7 +201,7 @@ export async function submitGeneratorForm(
     preflightResult,
     preflightOk,
     signingConfig,
-    signingReadiness
+    signingReadiness,
   );
 
   // Add preflightOverride from store
@@ -213,7 +223,7 @@ export async function submitGeneratorForm(
     const response = await runPipeline(pipelineConfig);
 
     return {
-      pipelineId: response.pipeline_id,
+      pipelineId: response.pipelineId,
       validationErrors: [],
       error: null,
     };
@@ -234,7 +244,7 @@ export async function submitGeneratorForm(
  * Test proxy connection.
  */
 export async function testProxyConnection(
-  proxyUrl: string
+  proxyUrl: string,
 ): Promise<ProxyConnectionTestResult> {
   if (!proxyUrl) {
     return {
@@ -263,7 +273,7 @@ export async function testProxyConnection(
  */
 export function findScenarioByName(
   scenarios: ScenarioDesktopStatus[],
-  name: string
+  name: string,
 ): ScenarioDesktopStatus | undefined {
   return scenarios.find((s) => s.name === name);
 }
@@ -271,7 +281,9 @@ export function findScenarioByName(
 /**
  * Get default values from a scenario.
  */
-export function getScenarioDefaults(scenario: ScenarioDesktopStatus | undefined): {
+export function getScenarioDefaults(
+  scenario: ScenarioDesktopStatus | undefined,
+): {
   displayName: string;
   description: string;
   iconPath: string;
@@ -306,8 +318,8 @@ export interface PrepareFormSubmissionParams {
   signingEnabledForBuild: boolean;
   signingConfig: SigningConfig | null | undefined;
   signingReadiness: SigningReadinessResponse | null | undefined;
-  storePreflightResult: BundlePreflightResponse | null;
-  serverPreflightResult: BundlePreflightResponse | null | undefined;
+  storePreflightResult: PreflightResponse | null;
+  serverPreflightResult: PreflightResponse | null | undefined;
   missingSecretsCount: number;
   preflightOverride: boolean;
 }
@@ -321,7 +333,9 @@ export interface FormSubmissionResult {
  * Prepare form submission by validating inputs and building pipeline config.
  * This consolidates the validation and config building logic from useGeneratorPage.
  */
-export function prepareFormSubmission(params: PrepareFormSubmissionParams): FormSubmissionResult {
+export function prepareFormSubmission(
+  params: PrepareFormSubmissionParams,
+): FormSubmissionResult {
   const {
     scenarioName,
     selectedTemplate,

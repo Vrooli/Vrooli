@@ -1,0 +1,15 @@
+{
+  "$schema": "../../../.vrooli/schemas/tool.schema.json",
+  "name": "triposr-source",
+  "description": "Pinned data-only TripoSR source profile, acquired through the native archive verifier and SDA governance",
+  "commands": ["vrooli"],
+  "versionArgs": [],
+  "version": "107cefdc244c39106fa830359024f6a2f1c78871",
+  "handler": "triposr_source",
+  "platforms": ["linux"],
+  "bundling": "host-required",
+  "installHint": "vrooli host install triposr-source delegates the approved SDA source-profile route",
+  "capability": "developer-utility",
+  "capability_role": "control",
+  "notes": "Data-only upstream source; no executable is placed on PATH. Runtime use requires the pinned model and Python closure."
+}

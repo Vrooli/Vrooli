@@ -58,6 +58,12 @@ func (s *Server) handleDocsHeal(w http.ResponseWriter, r *http.Request) {
 		s.respondError(w, http.StatusServiceUnavailable, "Documentation healing service unavailable")
 		return
 	}
+	ctx, authErr := s.authorizeCreateRunCaller(r)
+	if authErr != nil {
+		s.respondError(w, http.StatusUnauthorized, "verified agent-manager caller required")
+		return
+	}
+	r = r.WithContext(ctx)
 	vars := mux.Vars(r)
 	scenarioName := vars["name"]
 	if scenarioName == "" {

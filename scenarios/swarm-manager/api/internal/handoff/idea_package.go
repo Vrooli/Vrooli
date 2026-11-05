@@ -11,7 +11,8 @@ import (
 	"strings"
 	"time"
 
-	"swarm-manager/internal/workshop"
+	"swarm-manager/internal/pathredact"
+	"swarm-manager/internal/planworkshop"
 )
 
 const (
@@ -32,13 +33,14 @@ type BuildRequest struct {
 	BacklogTitle            string
 	BacklogDescription      string
 	ItemFolder              string
-	DeliverableFileName     string
+	DeliverablePath         string
 	TargetScenario          string
 	Operation               string
 	SuggestedSteerProfileID string
 	AcceptanceAllow         []string
 	AcceptanceDeny          []string
 	GeneratedAt             time.Time
+	PlanWorkshopDataRoot    string
 }
 
 // Package represents the generated idea handoff package and its primary
@@ -101,13 +103,11 @@ type OpenDecision struct {
 // SourceIndex enumerates the authoritative source artifacts that were used to
 // derive the package.
 type SourceIndex struct {
-	ItemFolder          string   `json:"item_folder"`
-	PlanPath            string   `json:"plan_path"`
-	SpecPath            string   `json:"spec_path"`
-	NotesPath           string   `json:"notes_path,omitempty"`
-	ResearchSummaryPath string   `json:"research_summary_path,omitempty"`
-	ArchiveDir          string   `json:"archive_dir,omitempty"`
-	WorkshopRoundPaths  []string `json:"workshop_round_paths,omitempty"`
+	ItemFolder string `json:"item_folder"`
+	PlanPath   string `json:"plan_path"`
+	SpecPath   string `json:"spec_path"`
+	NotesPath  string `json:"notes_path,omitempty"`
+	ArchiveDir string `json:"archive_dir,omitempty"`
 }
 
 // BuildIdeaPackage derives and writes the authoritative handoff package for an
@@ -120,13 +120,9 @@ func BuildIdeaPackage(req BuildRequest) (*Package, error) {
 	if itemFolder == "" {
 		return nil, fmt.Errorf("item folder is required")
 	}
-	deliverableName := strings.TrimSpace(req.DeliverableFileName)
-	if deliverableName == "" {
-		deliverableName = "plan.md"
-	}
-	deliverablePath := filepath.Join(itemFolder, deliverableName)
-	if _, err := os.Stat(deliverablePath); err != nil {
-		return nil, fmt.Errorf("deliverable not available for idea handoff: %w", err)
+	deliverablePath := strings.TrimSpace(req.DeliverablePath)
+	if deliverablePath == "" {
+		return nil, fmt.Errorf("deliverable path is required for idea handoff")
 	}
 
 	generatedAt := req.GeneratedAt
@@ -134,29 +130,38 @@ func BuildIdeaPackage(req BuildRequest) (*Package, error) {
 		generatedAt = time.Now()
 	}
 
-	rounds, err := workshop.LoadRounds(itemFolder)
-	if err != nil {
-		return nil, fmt.Errorf("load workshop rounds: %w", err)
+	workshopDataRoot := strings.TrimSpace(req.PlanWorkshopDataRoot)
+	if workshopDataRoot == "" {
+		workshopDataRoot = filepath.Dir(filepath.Dir(itemFolder))
 	}
-	locked, open := summarizeDecisions(rounds)
+	session, err := loadPlanWorkshopSession(workshopDataRoot, req.BacklogKind, req.BacklogName)
+	if err != nil {
+		return nil, fmt.Errorf("load plan workshop session: %w", err)
+	}
+	locked, open := summarizeDecisions(session)
 
 	handoffDir := filepath.Join(itemFolder, handoffDirName)
-	if err := os.MkdirAll(handoffDir, 0o755); err != nil {
+	if err := os.MkdirAll(handoffDir, 0o750); err != nil {
 		return nil, fmt.Errorf("create handoff dir: %w", err)
 	}
 
 	briefPath := filepath.Join(handoffDir, briefFileName)
 	manifestPath := filepath.Join(handoffDir, manifestFileName)
 	sourceIndexPath := filepath.Join(handoffDir, sourceIndexFileName)
+	redactor := pathredact.NewForArtifactPath(itemFolder)
+	ref := func(path string) string {
+		if strings.TrimSpace(path) == "" {
+			return ""
+		}
+		return redactor.RedactString(path)
+	}
 
 	sourceIndex := SourceIndex{
-		ItemFolder:          itemFolder,
-		PlanPath:            deliverablePath,
-		SpecPath:            filepath.Join(itemFolder, "spec.json"),
-		NotesPath:           fileIfExists(filepath.Join(itemFolder, "notes.md")),
-		ResearchSummaryPath: fileIfExists(filepath.Join(itemFolder, "research", "summary.md")),
-		ArchiveDir:          dirIfExists(filepath.Join(itemFolder, "archive")),
-		WorkshopRoundPaths:  buildRoundPaths(itemFolder, rounds),
+		ItemFolder: ref(itemFolder),
+		PlanPath:   deliverablePath,
+		SpecPath:   ref(filepath.Join(itemFolder, "spec.json")),
+		NotesPath:  ref(fileIfExists(filepath.Join(itemFolder, "notes.md"))),
+		ArchiveDir: ref(dirIfExists(filepath.Join(itemFolder, "archive"))),
 	}
 
 	manifest := Manifest{
@@ -167,14 +172,14 @@ func BuildIdeaPackage(req BuildRequest) (*Package, error) {
 		BacklogName:             strings.TrimSpace(req.BacklogName),
 		BacklogTitle:            strings.TrimSpace(req.BacklogTitle),
 		BacklogDescription:      strings.TrimSpace(req.BacklogDescription),
-		ItemFolder:              itemFolder,
+		ItemFolder:              ref(itemFolder),
 		TargetScenario:          strings.TrimSpace(req.TargetScenario),
 		Operation:               strings.TrimSpace(req.Operation),
 		SuggestedSteerProfileID: strings.TrimSpace(req.SuggestedSteerProfileID),
 		DeliverablePath:         deliverablePath,
-		ManifestPath:            manifestPath,
-		BriefPath:               briefPath,
-		SourceIndexPath:         sourceIndexPath,
+		ManifestPath:            ref(manifestPath),
+		BriefPath:               ref(briefPath),
+		SourceIndexPath:         ref(sourceIndexPath),
 		LockedDecisions:         locked,
 		OpenDecisions:           open,
 		AcceptanceAllow:         append([]string(nil), req.AcceptanceAllow...),
@@ -190,7 +195,7 @@ func BuildIdeaPackage(req BuildRequest) (*Package, error) {
 	if err := writeJSONFile(manifestPath, manifest); err != nil {
 		return nil, err
 	}
-	if err := os.WriteFile(briefPath, []byte(brief), 0o644); err != nil {
+	if err := os.WriteFile(briefPath, []byte(brief), 0o600); err != nil {
 		return nil, fmt.Errorf("write brief: %w", err)
 	}
 
@@ -209,8 +214,21 @@ func renderBrief(manifest Manifest, sourceIndex SourceIndex) string {
 	var b strings.Builder
 
 	b.WriteString("# Idea Execution Handoff\n\n")
-	b.WriteString("This package captures the finalized swarm-manager idea context for downstream ecosystem-manager execution. It is regenerated from the latest finalized backlog state when idea execution begins so downstream work starts from a stable contract rather than scattered workshop artifacts.\n\n")
+	b.WriteString("This package captures finalized swarm-manager idea context for downstream plan execution. It is regenerated from the latest finalized backlog state when execution begins so work starts from a stable contract rather than scattered workshop artifacts.\n\n")
 
+	writeBriefExecutionContract(&b, manifest, sourceIndex)
+	writeBriefDownstreamRequirements(&b)
+	writeBriefProductIntent(&b, manifest)
+	writeBriefLockedDecisions(&b, manifest)
+	writeBriefOpenDecisions(&b, manifest)
+	writeBriefExecutionBoundaries(&b, manifest)
+	writeBriefValidation(&b, manifest)
+	writeBriefSupportingSources(&b, sourceIndex)
+
+	return b.String()
+}
+
+func writeBriefExecutionContract(b *strings.Builder, manifest Manifest, sourceIndex SourceIndex) {
 	b.WriteString("## Execution Contract\n\n")
 	b.WriteString(fmt.Sprintf("- Backlog item: `%s/%s`\n", manifest.BacklogKind, manifest.BacklogName))
 	if manifest.BacklogTitle != "" {
@@ -220,64 +238,74 @@ func renderBrief(manifest Manifest, sourceIndex SourceIndex) string {
 		b.WriteString(fmt.Sprintf("- Target scenario: `%s`\n", manifest.TargetScenario))
 	}
 	if manifest.Operation != "" {
-		b.WriteString(fmt.Sprintf("- Recommended ecosystem operation: `%s`\n", manifest.Operation))
+		b.WriteString(fmt.Sprintf("- Recommended plan operation: `%s`\n", manifest.Operation))
 	}
 	if manifest.SuggestedSteerProfileID != "" {
-		b.WriteString(fmt.Sprintf("- Recommended steer profile: `%s`\n", manifest.SuggestedSteerProfileID))
+		b.WriteString(fmt.Sprintf("- Suggested execution profile: `%s`\n", manifest.SuggestedSteerProfileID))
 	}
 	b.WriteString(fmt.Sprintf("- Item folder: `%s`\n", manifest.ItemFolder))
-	b.WriteString(fmt.Sprintf("- Plan: `%s`\n", sourceIndex.PlanPath))
+	b.WriteString(fmt.Sprintf("- Plan projection: `%s`\n", sourceIndex.PlanPath))
 	b.WriteString(fmt.Sprintf("- Manifest: `%s`\n", manifest.ManifestPath))
 	b.WriteString(fmt.Sprintf("- Source index: `%s`\n", manifest.SourceIndexPath))
 	b.WriteString("\n")
+}
 
+func writeBriefDownstreamRequirements(b *strings.Builder) {
 	b.WriteString("## Downstream Requirements\n\n")
-	b.WriteString("- Read `plan.md` and `manifest.json` before creating the ecosystem-manager task.\n")
-	b.WriteString("- Use this `brief.md` file as the ecosystem-manager task notes.\n")
-	b.WriteString("- Preserve the origin metadata so later ecosystem-manager loops can trace back to the swarm-manager source artifacts.\n\n")
+	b.WriteString("- Read the rendered plan block in the execution prompt and `manifest.json` before starting the next bounded plan slice.\n")
+	b.WriteString("- Use this `brief.md` file as supporting execution context, not as a replacement for the canonical plan.\n")
+	b.WriteString("- Preserve provenance and the true frontier in the swarm-manager handoff so later workflow rounds can trace back to these artifacts.\n\n")
+}
 
+func writeBriefProductIntent(b *strings.Builder, manifest Manifest) {
 	if manifest.BacklogDescription != "" {
 		b.WriteString("## Product Intent\n\n")
 		b.WriteString(manifest.BacklogDescription)
 		b.WriteString("\n\n")
 	}
+}
 
+func writeBriefLockedDecisions(b *strings.Builder, manifest Manifest) {
 	b.WriteString("## Locked Decisions\n\n")
 	if len(manifest.LockedDecisions) == 0 {
 		b.WriteString("- None captured in workshop state.\n\n")
-	} else {
-		for _, decision := range manifest.LockedDecisions {
-			line := fmt.Sprintf("- Round %03d `%s`: %s", decision.Round, decision.ID, decision.Topic)
-			if decision.SelectedLabel != "" {
-				line += fmt.Sprintf(" -> %s", decision.SelectedLabel)
-			} else if decision.SelectedKey != "" {
-				line += fmt.Sprintf(" -> option %s", decision.SelectedKey)
-			}
-			b.WriteString(line + "\n")
-			if decision.Freeform != "" {
-				b.WriteString(fmt.Sprintf("  Freeform: %s\n", decision.Freeform))
-			}
-			if decision.Notes != "" {
-				b.WriteString(fmt.Sprintf("  Notes: %s\n", decision.Notes))
-			}
-		}
-		b.WriteString("\n")
+		return
 	}
+	for _, decision := range manifest.LockedDecisions {
+		line := fmt.Sprintf("- Round %03d `%s`: %s", decision.Round, decision.ID, decision.Topic)
+		if decision.SelectedLabel != "" {
+			line += fmt.Sprintf(" -> %s", decision.SelectedLabel)
+		} else if decision.SelectedKey != "" {
+			line += fmt.Sprintf(" -> option %s", decision.SelectedKey)
+		}
+		b.WriteString(line + "\n")
+		if decision.Freeform != "" {
+			b.WriteString(fmt.Sprintf("  Freeform: %s\n", decision.Freeform))
+		}
+		if decision.Notes != "" {
+			b.WriteString(fmt.Sprintf("  Notes: %s\n", decision.Notes))
+		}
+	}
+	b.WriteString("\n")
+}
 
+func writeBriefOpenDecisions(b *strings.Builder, manifest Manifest) {
 	b.WriteString("## Remaining Open Decisions\n\n")
 	if len(manifest.OpenDecisions) == 0 {
 		b.WriteString("- None.\n\n")
-	} else {
-		for _, decision := range manifest.OpenDecisions {
-			line := fmt.Sprintf("- Round %03d `%s`: %s", decision.Round, decision.ID, decision.Topic)
-			if decision.Context != "" {
-				line += fmt.Sprintf(" — %s", decision.Context)
-			}
-			b.WriteString(line + "\n")
-		}
-		b.WriteString("\n")
+		return
 	}
+	for _, decision := range manifest.OpenDecisions {
+		line := fmt.Sprintf("- Round %03d `%s`: %s", decision.Round, decision.ID, decision.Topic)
+		if decision.Context != "" {
+			line += fmt.Sprintf(" — %s", decision.Context)
+		}
+		b.WriteString(line + "\n")
+	}
+	b.WriteString("\n")
+}
 
+func writeBriefExecutionBoundaries(b *strings.Builder, manifest Manifest) {
 	b.WriteString("## Execution Boundaries\n\n")
 	if len(manifest.AcceptanceAllow) == 0 {
 		b.WriteString("- acceptance_allow: none recorded\n")
@@ -296,33 +324,35 @@ func renderBrief(manifest Manifest, sourceIndex SourceIndex) string {
 		}
 	}
 	b.WriteString("\n")
+}
 
+func writeBriefValidation(b *strings.Builder, manifest Manifest) {
 	b.WriteString("## Validation Starting Point\n\n")
 	for _, command := range manifest.ValidationCommands {
 		b.WriteString(fmt.Sprintf("- `%s`\n", command))
 	}
 	b.WriteString("\n")
+}
 
+func writeBriefSupportingSources(b *strings.Builder, sourceIndex SourceIndex) {
 	b.WriteString("## Supporting Sources\n\n")
 	b.WriteString(fmt.Sprintf("- Spec: `%s`\n", sourceIndex.SpecPath))
 	if sourceIndex.NotesPath != "" {
 		b.WriteString(fmt.Sprintf("- Processing notes: `%s`\n", sourceIndex.NotesPath))
 	}
-	if sourceIndex.ResearchSummaryPath != "" {
-		b.WriteString(fmt.Sprintf("- Research summary: `%s`\n", sourceIndex.ResearchSummaryPath))
-	}
 	if sourceIndex.ArchiveDir != "" {
 		b.WriteString(fmt.Sprintf("- Archive dir: `%s`\n", sourceIndex.ArchiveDir))
 	}
-	if len(sourceIndex.WorkshopRoundPaths) > 0 {
-		b.WriteString("- Workshop rounds:\n")
-		for _, path := range sourceIndex.WorkshopRoundPaths {
-			b.WriteString(fmt.Sprintf("  - `%s`\n", path))
-		}
-	}
 	b.WriteString("\n")
+}
 
-	return b.String()
+func loadPlanWorkshopSession(dataRoot, kind, name string) (planworkshop.Session, error) {
+	subject := planworkshop.Subject{Kind: planworkshop.SubjectBacklog, Ref: strings.TrimSpace(kind) + "/" + strings.TrimSpace(name)}
+	session, err := planworkshop.NewStore(dataRoot).Load(planworkshop.WorkshopID(subject))
+	if os.IsNotExist(err) {
+		return planworkshop.Session{}, nil
+	}
+	return session, err
 }
 
 func validationCommands(target string) []string {

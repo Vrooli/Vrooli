@@ -1,0 +1,46 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
+  "assetKind": "component",
+  "catalogId": "feedback.empty-state",
+  "deprecatedVersions": [
+    "1.7.5",
+    "1.1.0",
+    "1.7.6",
+    "1.2.0",
+    "1.7.4",
+    "1.7.10",
+    "1.7.11",
+    "1.7.12",
+    "1.7.13",
+    "1.7.7",
+    "1.7.8",
+    "1.7.9"
+  ],
+  "description": "The contextual no-results composition explaining why nothing is shown, distinguishing an empty collection from a filtered-out one, and offering the most relevant next action.",
+  "designStyles": [
+    {
+      "styleId": "vrooli-default",
+      "affinity": "native",
+      "reason": "token-native operational-console baseline"
+    }
+  ],
+  "displayName": "EmptyState",
+  "draft": "",
+  "evictedVersions": [
+    "1.7.6",
+    "1.7.5",
+    "1.1.0",
+    "1.2.0",
+    "1.7.4",
+    "1.7.10",
+    "1.7.11",
+    "1.7.12",
+    "1.7.13",
+    "1.7.7",
+    "1.7.8",
+    "1.7.9"
+  ],
+  "latest": "1.8.0",
+  "libraryId": "react-component-library:EmptyState",
+  "tags": []
+}

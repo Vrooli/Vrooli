@@ -1,0 +1,19 @@
+{
+  "$schema": "../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-index",
+  "contract": {
+    "kind": "scenario-experience",
+    "schema": "scenario-experience-spec/v1"
+  },
+  "schemaVersion": "1.0.0",
+  "scenario": "business-health",
+  "description": "Experience spec seed for business-health, authored as spike page 2/3 for the scenario-experience-spec/v1 vocabulary. Only the flagship Matrix page is specced; the remaining routes (/, /fleet, /wizard, /findings, /settings) are deliberate coverage debt for the experience-manager parser to surface. The Matrix spec is written to INTENT, not to the current build: the operator verdict is that the current UX is directionally correct but unpolished, so several machine-tier claims are expected to fail reconciliation — that expected-failure list is the calibration test that experience-manager detects real issues (see x-spike in pages/matrix.json).",
+  "pages": [
+    {
+      "id": "matrix",
+      "path": "pages/matrix.json",
+      "title": "Traceability Matrix",
+      "status": "draft"
+    }
+  ]
+}

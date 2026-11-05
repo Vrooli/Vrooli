@@ -1,0 +1,11 @@
+syntax = "proto3";
+
+package vrooli.treasury.v1.identity;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/treasury/v1/identity;identity_v1";
+
+message VerifiedClaims {
+  string subject = 1;
+  repeated string scopes = 2;
+  map<string, string> meta = 3;
+}

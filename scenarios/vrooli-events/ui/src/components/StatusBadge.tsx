@@ -1,3 +1,4 @@
+// DOC: docs/internal/COHERENCE-NOTES.md
 interface StatusBadgeProps {
   active: boolean;
   activeLabel?: string;

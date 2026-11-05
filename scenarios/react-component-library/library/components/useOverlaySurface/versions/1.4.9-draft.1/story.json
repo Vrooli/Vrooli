@@ -1,0 +1,128 @@
+{
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
+  "args": {
+    "fields": []
+  },
+  "environment": {
+    "fixtures": []
+  },
+  "kind": "component",
+  "schemaVersion": 5,
+  "stories": [
+    {
+      "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Default",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "visible",
+          "selector": "[data-testid='runtime.use-overlay-surface']"
+        },
+        {
+          "kind": "visible",
+          "selector": "[data-testid='runtime.use-overlay-surface.backdrop']"
+        }
+      ],
+      "id": "default",
+      "mode": "live",
+      "name": "Default",
+      "role": "anatomy"
+    },
+    {
+      "args": {},
+      "composition": {
+        "specimen": {
+          "export": "WithSwipeDismissal",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "visible",
+          "selector": "[data-testid='runtime.use-overlay-surface.grabber']"
+        }
+      ],
+      "id": "with-swipe-dismissal",
+      "mode": "live",
+      "name": "With swipe dismissal",
+      "role": "boundary"
+    },
+    {
+      "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Loading",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "visible",
+          "selector": "[data-testid='runtime.use-overlay-surface']"
+        },
+        {
+          "kind": "visible",
+          "selector": "[data-testid='runtime.use-overlay-surface.loading']"
+        },
+        {
+          "kind": "text",
+          "selector": "[data-testid='runtime.use-overlay-surface.loading']",
+          "value": "Loading content…"
+        },
+        {
+          "kind": "role",
+          "role": "dialog"
+        },
+        {
+          "kind": "role",
+          "role": "status"
+        }
+      ],
+      "id": "loading",
+      "mode": "live",
+      "name": "Loading overlay",
+      "role": "boundary"
+    },
+    {
+      "args": {},
+      "composition": {
+        "specimen": {
+          "export": "ErrorState",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "visible",
+          "selector": "[data-testid='runtime.use-overlay-surface']"
+        },
+        {
+          "kind": "visible",
+          "selector": "[data-testid='runtime.use-overlay-surface.error']"
+        },
+        {
+          "kind": "text",
+          "selector": "[data-testid='runtime.use-overlay-surface.error']",
+          "value": "Unable to load content."
+        },
+        {
+          "kind": "role",
+          "role": "dialog"
+        },
+        {
+          "kind": "role",
+          "role": "alert"
+        }
+      ],
+      "id": "error",
+      "mode": "live",
+      "name": "Overlay error",
+      "role": "boundary"
+    }
+  ],
+  "title": "useOverlaySurface"
+}

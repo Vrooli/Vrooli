@@ -1,0 +1,33 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "adapters.permissions",
+    "name": "PermissionsAdapter",
+    "kind": "adapter",
+    "domain": "adapters",
+    "description": "Connects feature and authorization gates to the scenario's capability and policy system so no component ever learns what a role is.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "adapter",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P0",
+      "maturity": "production-ready",
+      "plannedBy": "2026-12-31"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "foundations.contracts",
+        "reason": "Boundary types come from the shared framework-light vocabulary rather than being redeclared per adapter."
+      }
+    ]
+  },
+  "satisfies": [
+    "permissions-adapter"
+  ]
+}

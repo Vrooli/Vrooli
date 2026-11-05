@@ -1,0 +1,15 @@
+interface:
+  display_name: Design Dossiers
+  short_description: Design reviewable product, service and system dossiers
+  default_prompt: Use $design-product-dossier to create a source-grounded, visually
+    polished dossier with tailored coverage, explicit choices and documented critical
+    review.
+  icon_small: assets/icon.svg
+  icon_large: assets/icon.svg
+policy:
+  products:
+  - chatgpt
+  - codex
+  - api
+  - atlas
+  allow_implicit_invocation: true

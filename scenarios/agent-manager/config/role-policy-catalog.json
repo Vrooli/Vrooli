@@ -1,0 +1,164 @@
+{
+  "schemaVersion": 1,
+  "metadata": {
+    "catalogId": "agent-manager-coding-role-policy",
+    "updatedAt": "2026-10-29"
+  },
+  "defaultRole": "code.default",
+  "roles": {
+    "code.economy.delivery": {
+      "description": "GPT-6.1 Terra at medium effort. Delivery-team implementation.",
+      "intent": "economical sustained delivery",
+      "orderingReason": "One operator-selected subscription route; fail visibly instead of silently changing model or provider.",
+      "candidates": [
+        {
+          "runner": "codex",
+          "resourceRole": "code.delivery"
+        }
+      ]
+    },
+    "code.supervision": {
+      "description": "GPT-6.1 Terra at medium effort. Effort supervision.",
+      "intent": "independent delivery supervision",
+      "orderingReason": "One operator-selected subscription route; fail visibly instead of silently changing model or provider.",
+      "candidates": [
+        {
+          "runner": "codex",
+          "resourceRole": "judgment.supervision"
+        }
+      ]
+    },
+    "code.economy.judgment": {
+      "description": "GPT-6.1 Terra at medium effort. Delivery judgment; use code.inspection for read-only evidence.",
+      "intent": "economical judgment",
+      "orderingReason": "One operator-selected subscription route; fail visibly instead of silently changing model or provider.",
+      "candidates": [
+        {
+          "runner": "codex",
+          "resourceRole": "code.judgment"
+        }
+      ]
+    },
+    "code.flatrate": {
+      "description": "GPT-6.1 Terra at high effort. Flat-rate subscription route.",
+      "intent": "subscription-route long-horizon coding (legacy role alias)",
+      "orderingReason": "One operator-selected subscription route; fail visibly instead of silently changing model or provider.",
+      "candidates": [
+        {
+          "runner": "codex",
+          "resourceRole": "code.longrun"
+        }
+      ]
+    },
+    "code.default": {
+      "description": "GPT-6.1 Terra at high effort. Implementation, coordination and judgment.",
+      "intent": "balanced coding",
+      "orderingReason": "One operator-selected subscription route; fail visibly instead of silently changing model or provider.",
+      "candidates": [
+        {
+          "runner": "codex",
+          "resourceRole": "code.default"
+        }
+      ]
+    },
+    "code.fast": {
+      "description": "GPT-6.1 Terra at medium effort. Bounded implementation; same model as code.default at lower effort, not a cheaper model.",
+      "intent": "fast coding",
+      "orderingReason": "One operator-selected subscription route; fail visibly instead of silently changing model or provider.",
+      "candidates": [
+        {
+          "runner": "codex",
+          "resourceRole": "code.fast"
+        }
+      ]
+    },
+    "code.smart": {
+      "description": "GPT-6.1 Terra at high effort. Hard implementation and design; same model and effort as code.default.",
+      "intent": "high capability coding",
+      "orderingReason": "One operator-selected subscription route; fail visibly instead of silently changing model or provider.",
+      "candidates": [
+        {
+          "runner": "codex",
+          "resourceRole": "code.smart"
+        }
+      ]
+    },
+    "code.cheap": {
+      "description": "GPT-6 Luna at medium effort. Default for read-only lookup, inventory and evidence gathering; about 5x cheaper per quota point than Terra.",
+      "intent": "cost-conscious coding",
+      "orderingReason": "One operator-selected subscription route; fail visibly instead of silently changing model or provider.",
+      "candidates": [
+        {
+          "runner": "codex",
+          "resourceRole": "code.cheap"
+        }
+      ]
+    },
+    "code.ux": {
+      "description": "GPT-6.1 Terra at high effort. UI and experience implementation.",
+      "intent": "user experience coding",
+      "orderingReason": "One operator-selected subscription route; fail visibly instead of silently changing model or provider.",
+      "candidates": [
+        {
+          "runner": "codex",
+          "resourceRole": "code.ux"
+        }
+      ]
+    },
+    "code.longrun": {
+      "description": "GPT-6.1 Terra at high effort. Long-running implementation; restart the worker at slice boundaries (large-effort-orchestration).",
+      "intent": "long-horizon coding",
+      "orderingReason": "One operator-selected subscription route; fail visibly instead of silently changing model or provider.",
+      "candidates": [
+        {
+          "runner": "codex",
+          "resourceRole": "code.longrun"
+        }
+      ]
+    },
+    "code.judgment": {
+      "description": "GPT-6.1 Terra at medium effort. Judgment and acceptance decisions; use code.inspection for read-only evidence.",
+      "intent": "judgment and reasoning",
+      "orderingReason": "One operator-selected subscription route; fail visibly instead of silently changing model or provider.",
+      "candidates": [
+        {
+          "runner": "codex",
+          "resourceRole": "code.judgment"
+        }
+      ]
+    },
+    "code.inspection": {
+      "description": "GPT-6 Luna at high effort. Default for read-only inspection and review evidence; about 5x cheaper per quota point than Terra.",
+      "intent": "inspection and execution",
+      "orderingReason": "One operator-selected subscription route; fail visibly instead of silently changing model or provider.",
+      "candidates": [
+        {
+          "runner": "codex",
+          "resourceRole": "code.inspection"
+        }
+      ]
+    },
+    "code.research": {
+      "description": "GPT-6 Luna at medium effort. Default for research and investigation that writes no code; about 5x cheaper per quota point than Terra.",
+      "intent": "research",
+      "orderingReason": "Explicit role; no automatic fallback.",
+      "candidates": [
+        {
+          "runner": "codex",
+          "resourceRole": "code.research"
+        }
+      ]
+    },
+    "code.fallback": {
+      "description": "GPT-6.1 Sol only after a recorded native or managed harness failure.",
+      "intent": "fallback",
+      "orderingReason": "Explicit role; no automatic fallback.",
+      "candidates": [
+        {
+          "runner": "codex",
+          "resourceRole": "code.fallback"
+        }
+      ]
+    }
+  }
+}

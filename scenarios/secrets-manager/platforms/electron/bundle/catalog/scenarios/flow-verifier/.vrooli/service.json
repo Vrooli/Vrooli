@@ -1,0 +1,177 @@
+{
+  "$schema": "../../../../.vrooli/schemas/service.schema.json",
+  "version": "1.0.0",
+  "storage": {
+    "entries": {
+      "data": {
+        "rung": "owned",
+        "kind": "dir",
+        "class": "data",
+        "regenerable": false,
+        "rationale": "Scenario-owned durable data observed in the canonical data directory.",
+        "budget": {
+          "max_bytes": "5GiB",
+          "rationale": "Durable storage is bounded by the workload byte ceiling; it is alarm-only because the data is not regenerable."
+        }
+      }
+    },
+    "rationale": "Storage surfaces are declared from observed canonical scenario directories; external resource databases are not claimed by this scenario."
+  },
+  "service": {
+    "parent": "vrooli",
+    "name": "flow-verifier",
+    "displayName": "Flow Verifier",
+    "description": "Formal-method verification of state-machine flows across Vrooli scenarios, with visual Quint trace inspection.",
+    "version": "0.0.1",
+    "type": "business-application",
+    "category": "ai_tools",
+    "tags": [
+      "react-ui",
+      "go-api"
+    ]
+  },
+  "generation": {
+    "template": {
+      "id": "react-vite",
+      "version": "0.1.0"
+    },
+    "generated_at": "2026-05-12T02:39:22Z",
+    "design": {
+      "id": "vrooli-default",
+      "version": "0.2.0",
+      "adapter": "react-vite-tailwind"
+    },
+    "manifest_sha": "56ebeae608251c87b0ebd6856dfb30f81d28bd68e2d4b55f37f9ed0a2ae7501d",
+    "content_sha": "50ef788c5cb88ad1ef27062a361ab77edda41bc5d737ae32f37620c7d226a871"
+  },
+  "cli": {
+    "enabled": true,
+    "command": "flow-verifier",
+    "adapter": {
+      "kind": "go_module",
+      "module_dir": "cli"
+    },
+    "artifacts": {
+      "manifest": {},
+      "build_metadata": {}
+    },
+    "invoke": {
+      "kind": "installed_command",
+      "command": "flow-verifier"
+    },
+    "freshness": {
+      "inputs": [
+        "api/**",
+        "cli/**",
+        ".vrooli/service.json"
+      ]
+    },
+    "source_build": {
+      "kind": "go_module"
+    }
+  },
+  "ports": {
+    "api": {
+      "env_var": "API_PORT",
+      "description": "Go API server",
+      "range": "15000-19999"
+    },
+    "ui": {
+      "env_var": "UI_PORT",
+      "description": "React UI",
+      "range": "20000-24999"
+    }
+  },
+  "lifecycle": {
+    "version": "2.0.0",
+    "health": {
+      "description": "Standard API/UI health checks",
+      "endpoints": {
+        "api": "/health",
+        "ui": "/health"
+      },
+      "checks": [
+        {
+          "name": "api_endpoint",
+          "type": "http",
+          "target": "http://localhost:${API_PORT}/health",
+          "critical": true,
+          "timeout": 10000,
+          "interval": 30000
+        },
+        {
+          "name": "ui_endpoint",
+          "type": "http",
+          "target": "http://localhost:${UI_PORT}/health",
+          "timeout": 5000,
+          "interval": 30000
+        }
+      ],
+      "startup_grace_period": 15000
+    }
+  },
+  "dependencies": {
+    "resources": {},
+    "scenarios": {}
+  },
+  "environment": {},
+  "hostTools": [
+    {
+      "name": "java",
+      "required": true,
+      "reason": "Provide Java 17+ for Quint verify during formal temporal-flow validation",
+      "when": [
+        "setup",
+        "test"
+      ],
+      "environments": [
+        "development"
+      ],
+      "notes": "Required by flow-verifier's Quint-based formal verification pipeline."
+    },
+    {
+      "name": "quint",
+      "required": true,
+      "reason": "Check Quint temporal-flow models and generated conformance artifacts",
+      "when": [
+        "setup",
+        "test"
+      ],
+      "environments": [
+        "development"
+      ],
+      "notes": "Required by flow-verifier's Quint-based formal verification pipeline."
+    }
+  ],
+  "components": {
+    "api": {
+      "role": "api",
+      "build": {
+        "kind": "go_module",
+        "dir": "api"
+      },
+      "run": {
+        "argv": [
+          "{{bin.api}}"
+        ],
+        "port": "api",
+        "cwd": "api"
+      }
+    },
+    "ui": {
+      "role": "ui",
+      "build": {
+        "kind": "pnpm_vite",
+        "dir": "ui"
+      },
+      "run": {
+        "argv": [
+          "node",
+          "server.js"
+        ],
+        "cwd": "ui",
+        "port": "ui"
+      }
+    }
+  }
+}

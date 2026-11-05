@@ -1,0 +1,18 @@
+{
+  "module_id": "MOD-P1-002",
+  "prd_ref": "OT-P1-002",
+  "priority": "P1",
+  "title": "Skill Maturity Score",
+  "description": "Per-skill maturity score derived from rolling duration + token-cost trends across validation runs. Declining trend = higher maturity; rising or persistent-failure trend = lower.",
+  "requirements": [
+    {
+      "id": "REQ-P1-002",
+      "prd_ref": "OT-P1-002",
+      "title": "Trend computation service",
+      "description": "Service that windows validation records by skill, computes rolling averages for duration_ms and tokens_used, derives a trend slope and a verdict-pass-rate, and combines them into a 0–100 score with documented weights.",
+      "category": "core",
+      "status": "planned",
+      "validation": []
+    }
+  ]
+}

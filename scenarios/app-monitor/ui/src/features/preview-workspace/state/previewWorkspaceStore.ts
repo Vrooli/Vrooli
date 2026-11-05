@@ -4,7 +4,7 @@ import { isAppMonitorScenarioId } from '@/utils/appPreview';
 import { fromPortablePreviewUrl, toPortablePreviewUrl } from '@/utils/previewUrl';
 import { reconcileTrackFractions, resolveWorkspaceLayout } from '../utils/layout';
 
-// AI_CHECK: APP_MONITOR_RENDER_PERF=2 | LAST: 2026-02-13
+// AI_CHECK: APP_MONITOR_RENDER_PERF=3 | LAST: 2026-05-04
 export type PreviewWorkspaceInteractionMode = 'browse' | 'arrange';
 export type PreviewWorkspacePinnedColumn = 'left' | 'right';
 export const PREVIEW_WORKSPACE_ZOOM_LEVELS = [0.5, 0.67, 0.75, 0.9, 1, 1.1, 1.25, 1.5] as const;
@@ -81,6 +81,10 @@ export interface PreviewWorkspaceState {
 
 const MIN_PANES = 1;
 const MAX_PANES = 50;
+const MAX_RUNTIME_HISTORY_ENTRIES = 50;
+const MAX_RUNTIME_URL_LENGTH = 8192;
+const MAX_PERSISTED_HISTORY_ENTRIES = 0;
+const MAX_PERSISTED_URL_LENGTH = 2048;
 const PREVIEW_WORKSPACE_STORAGE_KEY = 'app-monitor:preview-workspace-v1';
 
 const createPaneId = (): string => {
@@ -130,6 +134,93 @@ const noopStorage: StateStorage = {
   removeItem: () => undefined,
 };
 
+const isQuotaExceededError = (error: unknown): boolean => (
+  error instanceof DOMException && (
+    error.name === 'QuotaExceededError'
+    || error.name === 'NS_ERROR_DOM_QUOTA_REACHED'
+    || error.code === 22
+    || error.code === 1014
+  )
+);
+
+const warnStorageFailure = (message: string, error: unknown) => {
+  if (typeof console !== 'undefined' && typeof console.warn === 'function') {
+    console.warn(message, error);
+  }
+};
+
+const normalizeStorageUrl = (value: unknown, maxLength: number): string | null => {
+  if (typeof value !== 'string') {
+    return null;
+  }
+  const trimmed = value.trim();
+  if (trimmed.length === 0 || trimmed.length > maxLength) {
+    return null;
+  }
+  return trimmed;
+};
+
+const normalizeHistoryForStorage = (
+  entries: unknown,
+  historyIndex: unknown,
+  maxEntries: number,
+  maxUrlLength: number,
+): Pick<PreviewWorkspacePaneViewState, 'history' | 'historyIndex'> => {
+  if (maxEntries <= 0) {
+    return { history: [], historyIndex: -1 };
+  }
+  if (!Array.isArray(entries)) {
+    return { history: [], historyIndex: -1 };
+  }
+
+  const inputIndex = typeof historyIndex === 'number' && Number.isFinite(historyIndex)
+    ? Math.max(-1, Math.min(entries.length - 1, Math.floor(historyIndex)))
+    : entries.length - 1;
+  const indexedHistory = entries
+    .map((entry, index) => ({ entry: normalizeStorageUrl(entry, maxUrlLength), index }))
+    .filter((item): item is { entry: string; index: number } => Boolean(item.entry))
+    .slice(-maxEntries);
+
+  const nextHistory = indexedHistory.map((item) => item.entry);
+  const retainedIndex = indexedHistory.findIndex((item) => item.index === inputIndex);
+
+  return {
+    history: nextHistory,
+    historyIndex: retainedIndex >= 0 ? retainedIndex : nextHistory.length - 1,
+  };
+};
+
+const createBoundedStorage = (storage: Storage): StateStorage => ({
+  getItem: (name) => storage.getItem(name),
+  setItem: (name, value) => {
+    try {
+      storage.setItem(name, value);
+      return;
+    } catch (error) {
+      if (!isQuotaExceededError(error)) {
+        warnStorageFailure('[preview-workspace] Failed to persist workspace state', error);
+        return;
+      }
+
+      try {
+        const parsed = JSON.parse(value) as { state?: unknown; version?: unknown };
+        const compacted = JSON.stringify({
+          ...parsed,
+          state: compactPersistedWorkspaceState(parsed.state, {
+            historyEntries: 4,
+            urlLength: 1024,
+          }),
+        });
+        storage.removeItem(name);
+        storage.setItem(name, compacted);
+      } catch (retryError) {
+        warnStorageFailure('[preview-workspace] Workspace state exceeded browser storage quota; skipped persistence', retryError);
+      }
+    }
+  },
+  removeItem: (name) => storage.removeItem(name),
+});
+
 const previewWorkspaceStorage = createJSONStorage<Pick<
   PreviewWorkspaceState,
   | 'interactionMode'
@@ -144,7 +235,7 @@ const previewWorkspaceStorage = createJSONStorage<Pick<
   | 'rowFractions'
 >>(() => {
   if (typeof window !== 'undefined' && window.localStorage) {
-    return window.localStorage;
+    return createBoundedStorage(window.localStorage);
   }
   return noopStorage;
 });
@@ -172,7 +263,7 @@ const reconcileFractionsForWorkspace = (
   };
 };
 
-const createDefaultPaneViewState = (): PreviewWorkspacePaneViewState => ({
+export const createDefaultPaneViewState = (): PreviewWorkspacePaneViewState => ({
   previewUrl: null,
   previewUrlInput: '',
   hasCustomPreviewUrl: false,
@@ -212,30 +303,33 @@ const isPaneViewStateEqual = (
   && areStringArraysEqual(previous.history, next.history)
 );
 
-const normalizePersistedPaneViewState = (value: unknown): PreviewWorkspacePaneViewState => {
+export const normalizePreviewPaneViewState = (
+  value: unknown,
+  options: {
+    historyEntries?: number;
+    urlLength?: number;
+  } = {},
+): PreviewWorkspacePaneViewState => {
   if (!value || typeof value !== 'object') {
     return createDefaultPaneViewState();
   }
 
   const record = value as Partial<PreviewWorkspacePaneViewState>;
-  const history = Array.isArray(record.history)
-    ? record.history.filter((entry): entry is string => typeof entry === 'string' && entry.trim().length > 0)
-    : [];
-  const historyIndex = typeof record.historyIndex === 'number' && Number.isFinite(record.historyIndex)
-    ? Math.max(-1, Math.min(history.length - 1, Math.floor(record.historyIndex)))
-    : history.length - 1;
+  const maxUrlLength = options.urlLength ?? MAX_RUNTIME_URL_LENGTH;
+  const { history, historyIndex } = normalizeHistoryForStorage(
+    record.history,
+    record.historyIndex,
+    options.historyEntries ?? MAX_RUNTIME_HISTORY_ENTRIES,
+    maxUrlLength,
+  );
 
   return {
-    previewUrl: typeof record.previewUrl === 'string' && record.previewUrl.trim().length > 0
-      ? record.previewUrl.trim()
-      : null,
-    previewUrlInput: typeof record.previewUrlInput === 'string' ? record.previewUrlInput : '',
+    previewUrl: normalizeStorageUrl(record.previewUrl, maxUrlLength),
+    previewUrlInput: normalizeStorageUrl(record.previewUrlInput, maxUrlLength) ?? '',
     hasCustomPreviewUrl: Boolean(record.hasCustomPreviewUrl),
     history,
     historyIndex,
-    initialPreviewUrl: typeof record.initialPreviewUrl === 'string' && record.initialPreviewUrl.trim().length > 0
-      ? record.initialPreviewUrl.trim()
-      : null,
+    initialPreviewUrl: normalizeStorageUrl(record.initialPreviewUrl, maxUrlLength),
     isLogsVisible: Boolean(record.isLogsVisible),
     isFullView: Boolean(record.isFullView),
   };
@@ -325,7 +419,7 @@ const normalizePersistedWorkspaceState = (value: unknown): Pick<
         if (!allowedPaneIds.has(paneId)) {
           return accumulator;
         }
-        accumulator[paneId] = normalizePersistedPaneViewState(paneState);
+        accumulator[paneId] = normalizePreviewPaneViewState(paneState);
         return accumulator;
       }, {});
   const focusedPaneId = typeof record.focusedPaneId === 'string' && ensuredPanes.some((pane) => pane.id === record.focusedPaneId)
@@ -356,6 +450,40 @@ const normalizePersistedWorkspaceState = (value: unknown): Pick<
     pinnedColumn,
     columnFractions: reconciled.columnFractions,
     rowFractions: reconciled.rowFractions,
+  };
+};
+
+const compactPersistedWorkspaceState = (
+  value: unknown,
+  options: {
+    historyEntries?: number;
+    urlLength?: number;
+  } = {},
+): Pick<
+  PreviewWorkspaceState,
+  | 'interactionMode'
+  | 'workspaceZoom'
+  | 'isWorkspaceMinimapVisible'
+  | 'panes'
+  | 'paneViewState'
+  | 'focusedPaneId'
+  | 'pinnedPaneId'
+  | 'pinnedColumn'
+  | 'columnFractions'
+  | 'rowFractions'
+> => {
+  const normalized = normalizePersistedWorkspaceState(value);
+  return {
+    ...normalized,
+    paneViewState: Object.fromEntries(
+      Object.entries(normalized.paneViewState).map(([paneId, paneState]) => [
+        paneId,
+        normalizePreviewPaneViewState(paneState, {
+          historyEntries: options.historyEntries ?? MAX_PERSISTED_HISTORY_ENTRIES,
+          urlLength: options.urlLength ?? MAX_PERSISTED_URL_LENGTH,
+        }),
+      ]),
+    ),
   };
 };
 
@@ -532,17 +660,13 @@ export const usePreviewWorkspaceStore = create<PreviewWorkspaceState>()(persist(
       return state;
     }
     const previous = state.paneViewState[paneId] ?? createDefaultPaneViewState();
-    const merged: PreviewWorkspacePaneViewState = {
+    const merged = normalizePreviewPaneViewState({
       ...previous,
       ...partial,
       history: Array.isArray(partial.history)
-        ? partial.history.filter((entry): entry is string => typeof entry === 'string' && entry.trim().length > 0)
+        ? partial.history
         : previous.history,
-    };
-    if (!Number.isFinite(merged.historyIndex)) {
-      merged.historyIndex = merged.history.length - 1;
-    }
-    merged.historyIndex = Math.max(-1, Math.min(merged.history.length - 1, Math.floor(merged.historyIndex)));
+    });
 
     if (isPaneViewStateEqual(previous, merged)) {
       return state;
@@ -638,18 +762,7 @@ export const usePreviewWorkspaceStore = create<PreviewWorkspaceState>()(persist(
   name: PREVIEW_WORKSPACE_STORAGE_KEY,
   storage: previewWorkspaceStorage,
   version: 1,
-  partialize: (state) => ({
-    interactionMode: state.interactionMode,
-    workspaceZoom: state.workspaceZoom,
-    isWorkspaceMinimapVisible: state.isWorkspaceMinimapVisible,
-    panes: state.panes,
-    paneViewState: state.paneViewState,
-    focusedPaneId: state.focusedPaneId,
-    pinnedPaneId: state.pinnedPaneId,
-    pinnedColumn: state.pinnedColumn,
-    columnFractions: state.columnFractions,
-    rowFractions: state.rowFractions,
-  }),
+  partialize: (state) => compactPersistedWorkspaceState(state),
   migrate: (persisted) => normalizePersistedWorkspaceState(persisted),
 }));
 

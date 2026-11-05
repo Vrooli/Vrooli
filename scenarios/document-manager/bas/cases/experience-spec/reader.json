@@ -1,0 +1,50 @@
+{
+  "metadata": {
+    "description": "Generated observer smoke for active experience page reader.",
+    "execution_mode": "observer",
+    "labels": {
+      "reset": "none",
+      "spec_entry_id": "reader",
+      "surface": "experience-reader"
+    },
+    "name": "experience-reader-spec-smoke",
+    "requirement": "OT-P0-021",
+    "version": "1"
+  },
+  "nodes": [
+    {
+      "action": {
+        "metadata": {
+          "label": "Open Reader"
+        },
+        "navigate": {
+          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+          "scenario": "document-manager",
+          "scenario_path": "/reader",
+          "timeout_ms": 30000,
+          "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE"
+        },
+        "type": "ACTION_TYPE_NAVIGATE"
+      },
+      "id": "navigate-reader"
+    },
+    {
+      "action": {
+        "metadata": {
+          "label": "Primary binding visible"
+        },
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "@selector/pages.reader",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 15000
+        }
+      },
+      "id": "wait-reader-primary-binding"
+    }
+  ],
+  "settings": {
+    "viewport_height": 800,
+    "viewport_width": 1280
+  }
+}

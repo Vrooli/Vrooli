@@ -2,11 +2,15 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
 	"os"
+	"os/exec"
+	"strings"
+	"time"
 )
 
 type VectorSearchRequest struct {
@@ -47,69 +51,39 @@ type QdrantSearchResult struct {
 	Payload map[string]interface{} `json:"payload"`
 }
 
-type EmbeddingRequest struct {
-	Model string `json:"model"`
-	Input string `json:"input"`
-}
-
-type EmbeddingResponse struct {
-	Embeddings [][]float64 `json:"embeddings"`
-}
-
+// getEmbedding produces an embedding via the resource-ollama gateway CLI. All
+// daemon traffic goes through the CLI so the host-wide semaphore can bound
+// fleet-wide parallelism — never call Ollama HTTP directly.
 func getEmbedding(text string) ([]float64, error) {
-	// OLLAMA_HOST: Configurable via environment variable (default: localhost:11434)
-	// Override in service.json or .env to use a different Ollama instance
-	ollamaHost := os.Getenv("OLLAMA_HOST")
-	if ollamaHost == "" {
-		ollamaHost = "localhost:11434" // Standard Ollama default port
+	role := os.Getenv("OLLAMA_EMBEDDING_ROLE")
+	if role == "" {
+		role = "embedding.default"
 	}
 
-	// Use nomic-embed-text model for embeddings
-	reqBody := EmbeddingRequest{
-		Model: "nomic-embed-text",
-		Input: text,
-	}
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
 
-	jsonData, err := json.Marshal(reqBody)
+	cmd := exec.CommandContext(ctx, "resource-ollama", "gateway", "embed",
+		"--role", role, "--json", "--input-stdin")
+	cmd.Stdin = strings.NewReader(text)
+	out, err := cmd.Output()
 	if err != nil {
-		return nil, err
-	}
-
-	resp, err := http.Post(
-		fmt.Sprintf("http://%s/api/embed", ollamaHost),
-		"application/json",
-		bytes.NewBuffer(jsonData),
-	)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, err
-	}
-
-	// Ollama returns a different format
-	var ollamaResp map[string]interface{}
-	if err := json.Unmarshal(body, &ollamaResp); err != nil {
-		return nil, err
-	}
-
-	// Extract embeddings from Ollama response
-	if embeddings, ok := ollamaResp["embeddings"].([]interface{}); ok && len(embeddings) > 0 {
-		if embedding, ok := embeddings[0].([]interface{}); ok {
-			result := make([]float64, len(embedding))
-			for i, v := range embedding {
-				if val, ok := v.(float64); ok {
-					result[i] = val
-				}
-			}
-			return result, nil
+		if exitErr, ok := err.(*exec.ExitError); ok && len(exitErr.Stderr) > 0 {
+			return nil, fmt.Errorf("resource-ollama gateway embed failed: %w: %s", err, strings.TrimSpace(string(exitErr.Stderr)))
 		}
+		return nil, fmt.Errorf("resource-ollama gateway embed failed: %w", err)
 	}
 
-	return nil, fmt.Errorf("failed to parse embedding response")
+	var decoded struct {
+		Embedding []float64 `json:"embedding"`
+	}
+	if err := json.Unmarshal(bytes.TrimSpace(out), &decoded); err != nil {
+		return nil, fmt.Errorf("decode gateway embed response: %w", err)
+	}
+	if len(decoded.Embedding) == 0 {
+		return nil, fmt.Errorf("ollama returned empty embedding")
+	}
+	return decoded.Embedding, nil
 }
 
 func searchQdrant(vector []float64, userID string, limit int) ([]QdrantSearchResult, error) {

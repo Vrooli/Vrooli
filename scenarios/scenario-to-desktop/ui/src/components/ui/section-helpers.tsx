@@ -1,6 +1,12 @@
 import type { LucideIcon } from "lucide-react";
 
-export function SectionTitle({ icon: Icon, children }: { icon: LucideIcon; children: React.ReactNode }) {
+export function SectionTitle({
+  icon: Icon,
+  children,
+}: {
+  icon: LucideIcon;
+  children: React.ReactNode;
+}) {
   return (
     <h3 className="flex items-center gap-2 text-sm font-semibold text-slate-100">
       <Icon className="h-4 w-4 text-slate-400" />
@@ -34,7 +40,13 @@ export function ActionRow({
   );
 }
 
-export function InfoItem({ label, value }: { label: string; value: string | undefined }) {
+export function InfoItem({
+  label,
+  value,
+}: {
+  label: string;
+  value: string | undefined;
+}) {
   return (
     <div className="space-y-0.5">
       <p className="text-xs text-slate-500">{label}</p>

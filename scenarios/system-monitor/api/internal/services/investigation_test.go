@@ -8,29 +8,50 @@ import (
 	"testing"
 	"time"
 
-	"system-monitor-api/internal/agentmanager"
-	"system-monitor-api/internal/apierrors"
-	"system-monitor-api/internal/config"
-	"system-monitor-api/internal/models"
-	"system-monitor-api/internal/repository"
-	"system-monitor-api/internal/repository/memory"
-	"system-monitor-api/internal/services/mocks"
+	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/agentmanager"
+	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/apierrors"
+	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/config"
+	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/models"
+	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/repository"
+	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/repository/memory"
+	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/services/mocks"
 )
 
 func newTestInvestigationService(t *testing.T, clock Clock) *InvestigationService {
 	t.Helper()
 	cfg := &config.Config{}
 	repo := memory.NewRepository()
-	configStore := NewMemoryConfigStore()
 	promptStore := NewMemoryConfigStore()
 	if err := promptStore.WriteConfig("anomaly-check.md", []byte("Investigation {{INVESTIGATION_ID}}")); err != nil {
 		t.Fatalf("seed prompt store: %v", err)
 	}
-	return NewInvestigationService(cfg, repo, nil, mocks.NewAgentExecutor().WithAvailable(true),
+	svc, err := NewInvestigationService(cfg, repo, nil, mocks.NewAgentExecutor().WithAvailable(true), NewSettingsManager(WithSettingsConfigStore(NewMemoryConfigStore())),
 		WithInvestigationClock(clock),
-		WithConfigStore(configStore),
 		WithPromptStore(promptStore),
 	)
+	if err != nil {
+		t.Fatalf("NewInvestigationService: %v", err)
+	}
+	return svc
+}
+
+func TestDetachedCleanupContextPreservesValuesAndBoundsWork(t *testing.T) {
+	type contextKey struct{}
+	parent, cancelParent := context.WithCancel(context.WithValue(context.Background(), contextKey{}, "trace-id"))
+	cancelParent()
+
+	cleanup, cancelCleanup := detachedCleanupContext(parent, time.Second)
+	defer cancelCleanup()
+	if err := cleanup.Err(); err != nil {
+		t.Fatalf("cleanup inherited cancellation: %v", err)
+	}
+	if got := cleanup.Value(contextKey{}); got != "trace-id" {
+		t.Fatalf("cleanup lost parent value: %v", got)
+	}
+	deadline, ok := cleanup.Deadline()
+	if !ok || time.Until(deadline) > time.Second {
+		t.Fatalf("cleanup deadline = %v, present=%v; want a one-second bound", deadline, ok)
+	}
 }
 
 func TestCooldownEnforced(t *testing.T) {
@@ -40,7 +61,7 @@ func TestCooldownEnforced(t *testing.T) {
 	ctx := context.Background()
 
 	// First trigger should succeed
-	inv, err := svc.TriggerInvestigation(ctx, false, "")
+	inv, err := svc.TriggerInvestigation(auth01FixtureCaller(t, ctx), false, "")
 	if err != nil {
 		t.Fatalf("first trigger failed: %v", err)
 	}
@@ -52,7 +73,7 @@ func TestCooldownEnforced(t *testing.T) {
 	clk.Advance(3 * time.Minute)
 
 	// Second trigger should fail due to cooldown
-	_, err = svc.TriggerInvestigation(ctx, false, "")
+	_, err = svc.TriggerInvestigation(auth01FixtureCaller(t, ctx), false, "")
 	if err == nil {
 		t.Fatal("expected cooldown error, got nil")
 	}
@@ -64,7 +85,7 @@ func TestCooldownEnforced(t *testing.T) {
 	clk.Advance(3 * time.Minute) // total 6 min > 5 min cooldown
 
 	// Third trigger should succeed
-	inv2, err := svc.TriggerInvestigation(ctx, false, "")
+	inv2, err := svc.TriggerInvestigation(auth01FixtureCaller(t, ctx), false, "")
 	if err != nil {
 		t.Fatalf("third trigger (post-cooldown) failed: %v", err)
 	}
@@ -80,7 +101,7 @@ func TestCooldownReset(t *testing.T) {
 	ctx := context.Background()
 
 	// Trigger to start cooldown
-	_, err := svc.TriggerInvestigation(ctx, false, "")
+	_, err := svc.TriggerInvestigation(auth01FixtureCaller(t, ctx), false, "")
 	if err != nil {
 		t.Fatalf("first trigger failed: %v", err)
 	}
@@ -94,7 +115,7 @@ func TestCooldownReset(t *testing.T) {
 	}
 
 	// Should be able to trigger immediately
-	inv, err := svc.TriggerInvestigation(ctx, false, "")
+	inv, err := svc.TriggerInvestigation(auth01FixtureCaller(t, ctx), false, "")
 	if err != nil {
 		t.Fatalf("trigger after reset failed: %v", err)
 	}
@@ -109,7 +130,7 @@ func TestInvestigationIDDeterministic(t *testing.T) {
 	svc := newTestInvestigationService(t, clk)
 
 	ctx := context.Background()
-	inv, err := svc.TriggerInvestigation(ctx, false, "")
+	inv, err := svc.TriggerInvestigation(auth01FixtureCaller(t, ctx), false, "")
 	if err != nil {
 		t.Fatalf("trigger failed: %v", err)
 	}
@@ -142,7 +163,7 @@ func TestCooldownStatus(t *testing.T) {
 	}
 
 	// Trigger
-	_, _ = svc.TriggerInvestigation(ctx, false, "")
+	_, _ = svc.TriggerInvestigation(auth01FixtureCaller(t, ctx), false, "")
 
 	// Advance 2 minutes
 	clk.Advance(2 * time.Minute)
@@ -159,51 +180,45 @@ func TestCooldownStatus(t *testing.T) {
 	}
 }
 
-func TestGetTriggers_Defaults(t *testing.T) {
+func TestInvestigationCooldownUsesCanonicalSettings(t *testing.T) {
 	clk := NewStubClock(time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC))
 	svc := newTestInvestigationService(t, clk)
-
-	triggers, err := svc.GetTriggers(context.Background())
+	settings := svc.settings
+	updated := settings.GetSettings()
+	updated.CooldownPeriodSeconds = 60
+	if err := settings.UpdateSettings(updated); err != nil {
+		t.Fatalf("set canonical cooldown: %v", err)
+	}
+	ctx := auth01FixtureCaller(t, context.Background())
+	if _, err := svc.TriggerInvestigation(ctx, false, ""); err != nil {
+		t.Fatalf("trigger investigation: %v", err)
+	}
+	status, err := svc.GetCooldownStatus(context.Background())
 	if err != nil {
-		t.Fatalf("get triggers failed: %v", err)
+		t.Fatalf("GetCooldownStatus: %v", err)
 	}
-	if len(triggers) == 0 {
-		t.Fatal("expected default triggers")
+	if status.CooldownPeriodSeconds != 60 || status.RemainingSeconds != 60 {
+		t.Fatalf("cooldown status = %+v, want 60 second canonical cooldown", status)
 	}
-	if _, ok := triggers["high_cpu"]; !ok {
-		t.Error("expected high_cpu trigger in defaults")
+	if err := svc.UpdateCooldownPeriod(context.Background(), 120); err != nil {
+		t.Fatalf("UpdateCooldownPeriod: %v", err)
+	}
+	if got := settings.GetSettings().CooldownPeriodSeconds; got != 120 {
+		t.Fatalf("canonical cooldown = %d after compatibility update, want 120", got)
 	}
 }
 
-func TestUpdateTrigger(t *testing.T) {
+func TestLegacyTriggerEndpointsReturnMigrationError(t *testing.T) {
 	clk := NewStubClock(time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC))
 	svc := newTestInvestigationService(t, clk)
 
-	ctx := context.Background()
 	enabled := false
 	threshold := 95.0
-	err := svc.UpdateTrigger(ctx, "high_cpu", &enabled, nil, &threshold)
-	if err != nil {
-		t.Fatalf("update trigger failed: %v", err)
+	if _, err := svc.GetTriggers(context.Background()); err == nil || !strings.Contains(err.Error(), "Notification Hub") {
+		t.Fatalf("GetTriggers error = %v, want migration guidance", err)
 	}
-
-	triggers, _ := svc.GetTriggers(ctx)
-	trigger := triggers["high_cpu"]
-	if trigger.Enabled {
-		t.Error("expected trigger to be disabled")
-	}
-	if trigger.Threshold != 95.0 {
-		t.Errorf("expected threshold 95.0, got %f", trigger.Threshold)
-	}
-}
-
-func TestUpdateTrigger_NotFound(t *testing.T) {
-	clk := NewStubClock(time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC))
-	svc := newTestInvestigationService(t, clk)
-
-	err := svc.UpdateTrigger(context.Background(), "nonexistent", nil, nil, nil)
-	if err == nil {
-		t.Fatal("expected error for nonexistent trigger")
+	if err := svc.UpdateTrigger(context.Background(), "high_cpu", &enabled, nil, &threshold); err == nil || !strings.Contains(err.Error(), "System Settings") {
+		t.Fatalf("UpdateTrigger error = %v, want migration guidance", err)
 	}
 }
 
@@ -249,9 +264,12 @@ func TestPanicRecovery_MarksInvestigationFailed(t *testing.T) {
 	cfg := &config.Config{}
 	agent := &panicAgentExecutor{*mocks.NewAgentExecutor().WithAvailable(true)}
 
-	svc := NewInvestigationService(cfg, repo, nil, agent, WithInvestigationClock(clk))
+	svc, err := NewInvestigationService(cfg, repo, nil, agent, NewSettingsManager(WithSettingsConfigStore(NewMemoryConfigStore())), WithInvestigationClock(clk))
+	if err != nil {
+		t.Fatal(err)
+	}
 
-	inv, err := svc.TriggerInvestigation(context.Background(), false, "")
+	inv, err := svc.TriggerInvestigation(auth01FixtureCaller(t, context.Background()), false, "")
 	if err != nil {
 		t.Fatalf("trigger failed: %v", err)
 	}
@@ -283,9 +301,12 @@ func TestExecuteError_MarksInvestigationFailed(t *testing.T) {
 		WithAvailable(true).
 		WithExecuteError(context.DeadlineExceeded)
 
-	svc := NewInvestigationService(cfg, repo, nil, agent, WithInvestigationClock(clk))
+	svc, err := NewInvestigationService(cfg, repo, nil, agent, NewSettingsManager(WithSettingsConfigStore(NewMemoryConfigStore())), WithInvestigationClock(clk))
+	if err != nil {
+		t.Fatal(err)
+	}
 
-	inv, err := svc.TriggerInvestigation(context.Background(), false, "")
+	inv, err := svc.TriggerInvestigation(auth01FixtureCaller(t, context.Background()), false, "")
 	if err != nil {
 		t.Fatalf("trigger failed: %v", err)
 	}
@@ -341,7 +362,7 @@ func TestAddInvestigationStep_Success(t *testing.T) {
 	ctx := context.Background()
 
 	// First create an investigation
-	inv, err := svc.TriggerInvestigation(ctx, false, "")
+	inv, err := svc.TriggerInvestigation(auth01FixtureCaller(t, ctx), false, "")
 	if err != nil {
 		t.Fatalf("trigger failed: %v", err)
 	}
@@ -379,12 +400,15 @@ func TestTriggerInvestigation_RepoFailureDoesNotConsumeCooldown(t *testing.T) {
 	badRepo := &failCreateRepo{realRepo}
 	agent := mocks.NewAgentExecutor().WithAvailable(true)
 
-	svc := NewInvestigationService(cfg, badRepo, nil, agent, WithInvestigationClock(clk))
+	svc, err := NewInvestigationService(cfg, badRepo, nil, agent, NewSettingsManager(WithSettingsConfigStore(NewMemoryConfigStore())), WithInvestigationClock(clk))
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	ctx := context.Background()
 
 	// First trigger fails because the repo rejects CreateInvestigation.
-	_, err := svc.TriggerInvestigation(ctx, false, "")
+	_, err = svc.TriggerInvestigation(auth01FixtureCaller(t, ctx), false, "")
 	if err == nil {
 		t.Fatal("expected error from failing repo, got nil")
 	}
@@ -393,7 +417,7 @@ func TestTriggerInvestigation_RepoFailureDoesNotConsumeCooldown(t *testing.T) {
 	svc.repo = realRepo
 
 	// The cooldown must NOT have been consumed by the failed attempt.
-	inv, err := svc.TriggerInvestigation(ctx, false, "")
+	inv, err := svc.TriggerInvestigation(auth01FixtureCaller(t, ctx), false, "")
 	if err != nil {
 		t.Fatalf("second trigger should succeed (no cooldown consumed), got: %v", err)
 	}

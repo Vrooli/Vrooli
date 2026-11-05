@@ -1,0 +1,409 @@
+{
+  "schema_version": 1,
+  "profile_id": "device-studio-innerscene-ultrawide-monitor-source-v1",
+  "identity": {
+    "display_name": "Generic ultrawide desktop monitor",
+    "manufacturer": null,
+    "manufacturer_model": null,
+    "generic_asset": true,
+    "source_title": "Wide View - Ultrawide Monitor",
+    "source_creator": "Innerscene (original model)",
+    "product_identity_claim": "None. Do not present this as a named manufacturer model."
+  },
+  "rights": {
+    "license": "CC0 1.0 Universal / public domain, as stated by the source page and Innerscene library terms",
+    "source_page": "https://www.innerscene.com/tools/library/3d-parts/wide-view-ultrawide-monitor-e43c45f7",
+    "library_terms": "https://www.innerscene.com/tools/library/terms",
+    "attribution": "Innerscene, Wide View - Ultrawide Monitor (CC0 1.0; attribution not required, retained as provenance)",
+    "license_evidence": "scenarios/device-studio/docs/internal/goal/evidence/E4/free-models/anonymous-candidates-20261020/innerscene-ultrawide-monitor/",
+    "limits": "CC0 for the contributed model does not grant separate trademark, patent, or third-party product-design rights. No manufacturer identity or endorsement is asserted."
+  },
+  "source": {
+    "filename": "ultrawide-computer-monitor.glb",
+    "sha256": "67e5c979d6755dd561c291f39ae5748849cb26f7bb78f97821166ecbd05e2bed",
+    "size_bytes": 109512,
+    "download_url": "https://www.innerscene.com/api/library/wide-view-ultrawide-monitor-e43c45f7/download",
+    "access": "Anonymous HTTP download; exact original bytes retained unchanged.",
+    "access_date": "2026-10-20",
+    "source_page_preview": "Creator page exposes one anonymous 1200x630 angled preview and an anonymous interactive 3D viewer. Separate static front, side, and rear reference images were not found."
+  },
+  "model_inventory": {
+    "glb_version": "2.0",
+    "coordinate_basis": "Source GLB coordinates: +X width/right, +Y up/height, +Z depth/front; metres assumed by glTF; screen faces +Z.",
+    "nodes": 6,
+    "meshes": 5,
+    "materials": 3,
+    "triangles": 1500,
+    "extensions_used": [],
+    "extensions_required": [],
+    "animations": 0,
+    "skins": 0,
+    "cameras": 0,
+    "external_uris": false,
+    "embedded_images": [
+      {
+        "index": 0,
+        "name": "surface_normal",
+        "mime_type": "image/png",
+        "size_bytes": 63876,
+        "dimensions_pixels": [
+          256,
+          256
+        ],
+        "sha256": "a00fdd9032e2a8e62d59989302d59b056e3b6e017af189d6a5e8a5bc6c7927f0"
+      },
+      {
+        "index": 1,
+        "name": "9fa33565fec230fa",
+        "mime_type": "image/png",
+        "size_bytes": 440,
+        "dimensions_pixels": [
+          128,
+          128
+        ],
+        "sha256": "e162545918e00556f54513f87393a2feb3e56a26e7ce745ce33d8e54b9b20ad6"
+      },
+      {
+        "index": 2,
+        "name": "c5f795dd110b9797",
+        "mime_type": "image/png",
+        "size_bytes": 443,
+        "dimensions_pixels": [
+          128,
+          128
+        ],
+        "sha256": "0b74aff970849671d649c27fa7c01de09ad3b19504237440d8903c96f7b21b14"
+      },
+      {
+        "index": 3,
+        "name": "793f26666fded2eb",
+        "mime_type": "image/png",
+        "size_bytes": 442,
+        "dimensions_pixels": [
+          128,
+          128
+        ],
+        "sha256": "f336f709f7c325c00ede669775434b53dfe163691de7508db31329ee9ae72855"
+      }
+    ],
+    "triangle_and_bounds_evidence": "scenarios/device-studio/docs/internal/goal/evidence/E4/free-models/anonymous-candidates-20261020/innerscene-monitor-measurements.json",
+    "source_glb_inventory": "scenarios/device-studio/docs/internal/goal/evidence/E4/free-models/anonymous-candidates-20261020/innerscene-ultrawide-monitor/glb-inventory.json",
+    "source_glb_inventory_sha256": "2e856d5b04906be701277e576f3623a2622248681b85dbea3a8dc66a32e9ebf8"
+  },
+  "dimensions": {
+    "creator_claim": {
+      "width_m": 0.7,
+      "depth_m": 0.219,
+      "height_m": 0.452,
+      "units_wording": "70 x 21.9 x 45.2 cm (W x D x H)"
+    },
+    "measured_source_world_aabb_m": {
+      "x_min": -0.3499999940395355,
+      "x_max": 0.3499999940395355,
+      "y_min": -5.7827454e-09,
+      "y_max": 0.4518334170570597,
+      "z_min": -0.08578230035090968,
+      "z_max": 0.13334315679577347,
+      "width_x": 0.699999988079071,
+      "height_y": 0.4518334228398051,
+      "depth_z": 0.21912545714668316
+    },
+    "delta_from_creator_claim_mm_width_height_depth": [
+      -0.012,
+      -0.166577,
+      0.125457
+    ],
+    "qualification": "The GLB vertex envelope agrees closely with the creator's rounded generic dimensions. It is not an independent measurement of a physical monitor or manufacturer tolerance. No manufacturer was identifiable, so no manufacturer-spec comparison is applicable."
+  },
+  "semantic_nodes": [
+    {
+      "node_index": 0,
+      "node_name": "Display enclosure",
+      "mesh_index": 0,
+      "primitive_count": 1,
+      "role": "display enclosure; static"
+    },
+    {
+      "node_index": 1,
+      "node_name": "Display glass",
+      "mesh_index": 1,
+      "primitive_count": 1,
+      "role": "display/glass geometry and material; static"
+    },
+    {
+      "node_index": 2,
+      "node_name": "Display neck",
+      "mesh_index": 2,
+      "primitive_count": 1,
+      "role": "stand neck; static"
+    },
+    {
+      "node_index": 3,
+      "node_name": "Split display foot",
+      "mesh_index": 3,
+      "primitive_count": 1,
+      "role": "stand foot; static"
+    },
+    {
+      "node_index": 4,
+      "node_name": "Split display foot.001",
+      "mesh_index": 4,
+      "primitive_count": 1,
+      "role": "stand foot; static"
+    }
+  ],
+  "screen_binding": {
+    "display_id_suggestion": "display-main",
+    "part_id_suggestion": "display-glass",
+    "node_index": 1,
+    "node_name": "Display glass",
+    "mesh_index": 1,
+    "primitive_index": 0,
+    "material_index": 1,
+    "material_name": "Dark inactive display glass",
+    "position_accessor": 4,
+    "uv0_accessor": 6,
+    "uv_buffer_view": 8,
+    "uv_vertex_count": 216,
+    "front_face_triangles": 2,
+    "front_face_normal": [
+      0,
+      0,
+      1
+    ],
+    "front_face_world_bounds_m": {
+      "x_min": -0.33983999490737915,
+      "x_max": 0.33983999490737915,
+      "y_min": 0.16049342358019203,
+      "y_max": 0.44017340743448585,
+      "z": 0.026500000385567546,
+      "width_m": 0.6796799898147583,
+      "height_m": 0.2796799838542938
+    },
+    "base_color_texture_index": 3,
+    "base_color_image_index": 2,
+    "normal_texture_index": 2,
+    "normal_image_index": 0,
+    "source_uv0_min": [
+      0.00028384834877215326,
+      0.000688016414642334
+    ],
+    "source_uv0_max": [
+      0.9997161626815796,
+      0.9993119835853577
+    ],
+    "front_face_source_uv_min": [
+      0.0009691704763099551,
+      0.002348780632019043
+    ],
+    "front_face_source_uv_max": [
+      0.9990308284759521,
+      0.997651219367981
+    ],
+    "active_pixel_area": "Not separately identified by the source. The measured front planar glass face is only a geometric screen-area proxy."
+  },
+  "screen_uv_derivative": {
+    "profile_id": "innerscene-monitor-screen-uv-affine-v1",
+    "script": "normalize_monitor_screen_uv.py",
+    "script_sha256": "5a3496043716a712c343b639ec36c51c8491132e2d8d516487c4ef0950e260e1",
+    "output_filename": "ultrawide-computer-monitor-screen-uv-v1.glb",
+    "output_sha256": "eff6e9a20a4fd26003046e7f0c7b5d0ea737d83d4ce9adb66b1c118561155266",
+    "output_size_bytes": 109512,
+    "output_uv0_bounds": {
+      "min": [
+        0,
+        0
+      ],
+      "max": [
+        1,
+        1
+      ]
+    },
+    "operation": "Affine-map all values in the single unshared display TEXCOORD_0 accessor from its exact source min/max to [0,1] on both axes. This satisfies the current full-rectangle UV0 binding profile without geometry or texture edits.",
+    "source_front_face_uv_after_mapping_min": [
+      0.0006857113960691809,
+      0.0016630526323957139
+    ],
+    "source_front_face_uv_after_mapping_max": [
+      0.9993142765189807,
+      0.9983369473676043
+    ],
+    "preservation": "The source GLB is retained unchanged. The derivative differs only within BIN-relative byte range [78212,79940), the 216 float32 UV0 pairs. JSON, all POSITION/NORMAL/index payloads, node transforms, materials, textures, and four embedded images are byte-identical. No display artwork was added or removed; image 2 is an existing plain dark screen field."
+  },
+  "support_and_use_scope": {
+    "use": "Generic desktop monitor on its supplied split-foot stand; desk/table presentation only.",
+    "support_nodes": [
+      3,
+      4
+    ],
+    "measured_lowest_vertices": {
+      "world_y_m": -5.7827454e-09,
+      "count_within_1um": 4,
+      "mesh_nodes": [
+        3,
+        4
+      ]
+    },
+    "limitations": "This geometric minimum does not prove contact stability, load distribution, adjustability, or support on an uneven desk. No VESA/wall-mount interface is identified or qualified. No motion is defined."
+  },
+  "reference_views": {
+    "anonymous_source_preview": "scenarios/device-studio/docs/internal/goal/evidence/E4/free-models/anonymous-candidates-20261020/innerscene-ultrawide-monitor/references/creator-angled-preview.jpg",
+    "preview_sha256": "e334002fa2db5a6e99cf02e5d70f7a7be685fa3345ec0dceb6d968fb1307e37b",
+    "preview_dimensions_pixels": [
+      1200,
+      630
+    ],
+    "viewer_url": "https://www.innerscene.com/tools/library/3d-parts/wide-view-ultrawide-monitor-e43c45f7",
+    "available_static_views": [
+      "angled front-three-quarter preview"
+    ],
+    "missing_static_views": [
+      "orthographic front",
+      "side profile",
+      "rear"
+    ],
+    "visual_review_status": "Not visually qualified. The anonymous source page provides one angled preview and an interactive viewer, but distinct real front/side/rear reference images were not found. Do not synthesize them or treat a render of this model as an independent reference."
+  },
+  "candidate_status": "Source and UV-normalized derivative are ready for owner integration as a generic desktop-stand monitor input, pending the owner's actual InspectPhysicalGLB/ResolvePhysicalScreenGeometry checks and visual review. This package does not qualify the model, active display dimensions, physical support, animation, wall mounting, or look fidelity.",
+  "source_node_frames": [
+    {
+      "node_index": 0,
+      "parent_node_index": 5,
+      "name": "Display enclosure",
+      "mesh_index": 0,
+      "translation_m": [
+        0,
+        0.30149999260902405,
+        0
+      ],
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "node_index": 1,
+      "parent_node_index": 5,
+      "name": "Display glass",
+      "mesh_index": 1,
+      "translation_m": [
+        0,
+        0.30149999260902405,
+        0.02500000037252903
+      ],
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "node_index": 2,
+      "parent_node_index": 5,
+      "name": "Display neck",
+      "mesh_index": 2,
+      "translation_m": [
+        0,
+        0.10999999940395355,
+        -0.054999999701976776
+      ],
+      "rotation_xyzw": [
+        0.08248051255941391,
+        0,
+        0,
+        0.9965927004814148
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "node_index": 3,
+      "parent_node_index": 5,
+      "name": "Split display foot",
+      "mesh_index": 3,
+      "translation_m": [
+        -0.10999999940395355,
+        0.017500000074505806,
+        0.02499999850988388
+      ],
+      "rotation_xyzw": [
+        0.659324586391449,
+        -0.28658774495124817,
+        0.30175742506980896,
+        0.6261796951293945
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "node_index": 4,
+      "parent_node_index": 5,
+      "name": "Split display foot.001",
+      "mesh_index": 4,
+      "translation_m": [
+        0.10999999940395355,
+        0.017500000074505806,
+        0.02499999850988388
+      ],
+      "rotation_xyzw": [
+        0.659324586391449,
+        0.28658774495124817,
+        -0.30175742506980896,
+        0.6261796951293945
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "node_index": 5,
+      "parent_node_index": null,
+      "name": "Wide View",
+      "children": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ],
+      "translation_m": [
+        0,
+        -0.0011665771016851068,
+        0
+      ],
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ]
+    }
+  ],
+  "measurements_and_rights_status": "No manufacturer or model was identifiable on the source. The publisher describes this as an original generic monitor; therefore its 70 x 21.9 x 45.2 cm claim was compared only with the GLB mesh, not a manufacturer specification."
+}

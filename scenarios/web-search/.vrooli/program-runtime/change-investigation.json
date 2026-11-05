@@ -1,0 +1,124 @@
+{
+  "$schema": "../../../program-runtime/schemas/program-contract.schema.json",
+  "name": "web-search.change-investigation",
+  "version": "1",
+  "helpers": {
+    "program": "1"
+  },
+  "purpose": "Compare bounded immutable comparison cells with a prior investigation and classify change without confusing missing evidence or effective dates.",
+  "inputs": {
+    "prior_investigation_id": {
+      "type": "string",
+      "required": true
+    },
+    "prior_cells": {
+      "type": "array",
+      "required": true
+    },
+    "current_cells": {
+      "type": "array",
+      "required": true
+    }
+  },
+  "assumptions": [
+    "Cell evidence and effective dates are owner-produced observations; the program does not infer fact validity from retrieval time."
+  ],
+  "invariants": [
+    "At most 32 cells per side.",
+    "Missing evidence is unverified.",
+    "Conflicting effective dates are incomparable.",
+    "No polling or retry loop."
+  ],
+  "bindings": [],
+  "verbs": [
+    "lib",
+    "tasks.get",
+    "validate"
+  ],
+  "outputs": {
+    "status": {
+      "enum": [
+        "ok",
+        "partial",
+        "failed"
+      ]
+    },
+    "phase": {
+      "enum": [
+        "validate",
+        "act",
+        "report"
+      ]
+    },
+    "signals": {
+      "results": "One changed, unchanged, unverified, or incomparable result per cell",
+      "unresolved": "Cells lacking a trustworthy comparison"
+    },
+    "errors": {
+      "classes": [
+        "invalid_input",
+        "remote_error",
+        "no_governed_binding"
+      ]
+    },
+    "evidence": "Prior investigation identity and bounded evidence references"
+  },
+  "budget": {
+    "wall_ms": 30000,
+    "inference_calls": 0,
+    "delegated_runs": 0,
+    "materialize_limit": 64,
+    "output_bytes": 65536
+  },
+  "fixtures": [
+    {
+      "id": "missing-prior",
+      "inputs": {
+        "prior_investigation_id": "i",
+        "prior_cells": [],
+        "current_cells": [
+          {
+            "cell_id": "c",
+            "claim": "new"
+          }
+        ]
+      },
+      "expect": {
+        "status": [
+          "partial"
+        ]
+      },
+      "requires": [
+        "web-search"
+      ]
+    },
+    {
+      "id": "same-claim",
+      "inputs": {
+        "prior_investigation_id": "i",
+        "prior_cells": [
+          {
+            "cell_id": "c",
+            "claim": "same"
+          }
+        ],
+        "current_cells": [
+          {
+            "cell_id": "c",
+            "claim": "same"
+          }
+        ]
+      },
+      "expect": {
+        "status": [
+          "ok"
+        ]
+      },
+      "requires": [
+        "web-search"
+      ]
+    }
+  ],
+  "rung": "S3",
+  "owner_skill": "web-search"
+}

@@ -86,6 +86,7 @@ func BenchmarkReportsHandlerGET(b *testing.B) {
 }
 
 // TestPerformanceResponseTime validates API response times meet targets
+// [REQ:REQ-P0-001][REQ:REQ-P0-003][REQ:REQ-P0-004] Core API reads meet response-time expectations.
 func TestPerformanceResponseTime(t *testing.T) {
 	cleanup := setupTestLogger()
 	defer cleanup()
@@ -156,6 +157,7 @@ func TestPerformanceResponseTime(t *testing.T) {
 }
 
 // TestConcurrentRequests validates API handles concurrent requests
+// [REQ:REQ-P0-003] Region reads tolerate concurrent request load.
 func TestConcurrentRequests(t *testing.T) {
 	cleanup := setupTestLogger()
 	defer cleanup()
@@ -251,7 +253,6 @@ func TestMemoryUsage(t *testing.T) {
 				Method: "GET",
 				Path:   "/health",
 			}, healthHandler)
-
 			if err != nil {
 				t.Fatalf("Request %d failed: %v", i, err)
 			}
@@ -267,6 +268,7 @@ func TestMemoryUsage(t *testing.T) {
 }
 
 // TestDatabaseConnectionPool validates connection pool performance
+// [REQ:REQ-P0-002] Database-backed reads tolerate concurrent pool usage.
 func TestDatabaseConnectionPool(t *testing.T) {
 	cleanup := setupTestLogger()
 	defer cleanup()
@@ -315,6 +317,7 @@ func TestDatabaseConnectionPool(t *testing.T) {
 }
 
 // TestAPIThroughput measures API throughput
+// [REQ:REQ-P0-001] Health endpoint sustains basic throughput.
 func TestAPIThroughput(t *testing.T) {
 	cleanup := setupTestLogger()
 	defer cleanup()
@@ -329,7 +332,6 @@ func TestAPIThroughput(t *testing.T) {
 				Method: "GET",
 				Path:   "/health",
 			}, healthHandler)
-
 			if err != nil {
 				t.Fatalf("Request failed: %v", err)
 			}
@@ -350,6 +352,7 @@ func TestAPIThroughput(t *testing.T) {
 }
 
 // TestErrorHandlingPerformance validates error paths don't degrade performance
+// [REQ:REQ-P0-003] Validation errors stay fast under repeated bad requests.
 func TestErrorHandlingPerformance(t *testing.T) {
 	cleanup := setupTestLogger()
 	defer cleanup()

@@ -4,6 +4,8 @@ import (
 	"path/filepath"
 	"testing"
 
+	"landing-page-business-suite/cli/internal/support"
+
 	"github.com/vrooli/cli-core/cliapp"
 	"github.com/vrooli/cli-core/cliutil"
 )
@@ -30,17 +32,17 @@ func TestAdminSessionPersistence_PreservesOtherBaseSessions(t *testing.T) {
 	}
 	app := &App{core: core}
 
-	if err := app.saveAdminSession(adminSessionConfig{Session: "local-cookie"}); err != nil {
+	if err := app.dependencies().SaveAdminSession(support.AdminSessionConfig{Session: "local-cookie"}); err != nil {
 		t.Fatalf("save local session: %v", err)
 	}
 
 	base = "https://vrooli.com"
-	if err := app.saveAdminSession(adminSessionConfig{Session: "remote-cookie"}); err != nil {
+	if err := app.dependencies().SaveAdminSession(support.AdminSessionConfig{Session: "remote-cookie"}); err != nil {
 		t.Fatalf("save remote session: %v", err)
 	}
 
 	base = "http://localhost:1234"
-	cfg, err := app.loadAdminSession()
+	cfg, err := app.dependencies().LoadAdminSession()
 	if err != nil {
 		t.Fatalf("load local session: %v", err)
 	}
@@ -48,4 +50,3 @@ func TestAdminSessionPersistence_PreservesOtherBaseSessions(t *testing.T) {
 		t.Fatalf("expected local-cookie, got %q", cfg.Session)
 	}
 }
-

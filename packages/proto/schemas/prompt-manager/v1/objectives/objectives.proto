@@ -1,0 +1,176 @@
+syntax = "proto3";
+
+package vrooli.prompt_manager.v1.objectives;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/prompt-manager/v1/objectives;objectives_v1";
+
+// ObjectivesService is the generated transport edge for the objective domain,
+// the single owner of objective definitions, team attachments, ordering,
+// relation rules and acknowledgements. Every read and mutation here resolves
+// through the same application service, so all clients observe one validation.
+service ObjectivesService {
+  rpc ListObjectives(ListObjectivesRequest) returns (ListObjectivesResponse);
+  rpc GetObjective(GetObjectiveRequest) returns (Objective);
+  rpc UpsertObjective(UpsertObjectiveRequest) returns (Objective);
+  rpc DeleteObjective(DeleteObjectiveRequest) returns (DeleteObjectiveResponse);
+  rpc ReorderObjectives(ReorderObjectivesRequest) returns (ListObjectivesResponse);
+
+  rpc ListTeamAttachments(ListTeamAttachmentsRequest) returns (ListTeamAttachmentsResponse);
+  rpc GetTeamAttachmentRevision(GetTeamAttachmentRevisionRequest) returns (GetTeamAttachmentRevisionResponse);
+  rpc AttachObjective(AttachObjectiveRequest) returns (Attachment);
+  rpc UpdateAttachment(UpdateAttachmentRequest) returns (Attachment);
+  rpc DetachObjective(DetachObjectiveRequest) returns (DetachObjectiveResponse);
+  rpc ReorderTeamAttachments(ReorderTeamAttachmentsRequest) returns (ListTeamAttachmentsResponse);
+  rpc AcknowledgeObjective(AcknowledgeObjectiveRequest) returns (Attachment);
+
+  rpc ListRelations(ListRelationsRequest) returns (ListRelationsResponse);
+  rpc AddRelation(AddRelationRequest) returns (AddRelationResponse);
+  rpc DeleteRelation(DeleteRelationRequest) returns (DeleteRelationResponse);
+
+  rpc ValidateObjectives(ValidateObjectivesRequest) returns (ValidationResult);
+}
+
+// Objective is one operator objective with its persisted global order and the
+// revision of its current meaning. The statement itself stays prose; this is
+// identity, class, evidence expectation and ordering.
+message Objective {
+  string id = 1;
+  string title = 2;
+  string class = 3;
+  string evidence_source = 4;
+  bool has_evidence = 5;
+  string gap_marker = 6;
+  int32 global_order = 7;
+  string meaning_revision = 8;
+}
+
+message ObjectiveInput {
+  string id = 1;
+  string title = 2;
+  string class = 3;
+  string evidence_source = 4;
+  string gap_marker = 5;
+}
+
+// Attachment links one team to one objective. Priority is the team's own order;
+// acknowledged_revision records the objective meaning revision the team has
+// confirmed. attachment_revision is the team-wide links/order revision.
+message Attachment {
+  string objective_id = 1;
+  string team_id = 2;
+  string role = 3;
+  string coverage = 4;
+  string note = 5;
+  int32 priority = 6;
+  string acknowledged_revision = 7;
+  string attachment_revision = 8;
+  bool restatement_pending = 9;
+}
+
+message AttachmentInput {
+  string objective_id = 1;
+  string team_id = 2;
+  string role = 3;
+  string coverage = 4;
+  string note = 5;
+}
+
+// Relation is a directed support edge from an instrumental objective toward
+// another objective. The graph stays acyclic.
+message Relation {
+  string from_objective_id = 1;
+  string to_objective_id = 2;
+}
+
+message Finding {
+  string rule = 1;
+  string severity = 2;
+  string objective_id = 3;
+  string team_id = 4;
+  string detail = 5;
+}
+
+message ValidationResult {
+  repeated Finding findings = 1;
+  int32 errors = 2;
+  int32 warnings = 3;
+}
+
+message ListObjectivesRequest {}
+message ListObjectivesResponse { repeated Objective objectives = 1; }
+
+message GetObjectiveRequest { string id = 1; }
+
+message UpsertObjectiveRequest {
+  ObjectiveInput objective = 1;
+  // Empty for a create; the caller's view of the current meaning revision for
+  // an update, so a concurrent edit cannot be silently overwritten.
+  string expected_meaning_revision = 2;
+}
+
+message DeleteObjectiveRequest {
+  string id = 1;
+  string expected_meaning_revision = 2;
+}
+message DeleteObjectiveResponse {}
+
+message ReorderObjectivesRequest { repeated string objective_ids = 1; }
+
+message ListTeamAttachmentsRequest { string team_id = 1; }
+message ListTeamAttachmentsResponse {
+  string team_id = 1;
+  string attachment_revision = 2;
+  repeated Attachment attachments = 3;
+}
+
+message GetTeamAttachmentRevisionRequest { string team_id = 1; }
+message GetTeamAttachmentRevisionResponse {
+  string team_id = 1;
+  string attachment_revision = 2;
+}
+
+message AttachObjectiveRequest {
+  AttachmentInput attachment = 1;
+  string expected_team_revision = 2;
+}
+
+message UpdateAttachmentRequest {
+  AttachmentInput attachment = 1;
+  string expected_team_revision = 2;
+}
+
+message DetachObjectiveRequest {
+  string objective_id = 1;
+  string team_id = 2;
+  string expected_team_revision = 3;
+}
+message DetachObjectiveResponse {}
+
+message ReorderTeamAttachmentsRequest {
+  string team_id = 1;
+  repeated string objective_ids = 2;
+  string expected_team_revision = 3;
+}
+
+message AcknowledgeObjectiveRequest {
+  string objective_id = 1;
+  string team_id = 2;
+  string revision = 3;
+}
+
+message ListRelationsRequest {}
+message ListRelationsResponse { repeated Relation relations = 1; }
+
+message AddRelationRequest {
+  string from_objective_id = 1;
+  string to_objective_id = 2;
+}
+message AddRelationResponse {}
+
+message DeleteRelationRequest {
+  string from_objective_id = 1;
+  string to_objective_id = 2;
+}
+message DeleteRelationResponse {}
+
+message ValidateObjectivesRequest {}

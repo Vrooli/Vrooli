@@ -7,8 +7,7 @@
 Before committing test scripts:
 
 - [ ] All `rm` commands are guarded with path validation
-- [ ] BATS setup() sets variables before skip conditions
-- [ ] BATS teardown() validates variables before cleanup
+- [ ] Cleanup functions set/validate variables before deleting
 - [ ] Test files are created under `/tmp` or other safe location
 - [ ] Wildcard patterns (`*`) are never used with empty variables
 
@@ -17,18 +16,17 @@ Before committing test scripts:
 | Document | Description |
 |----------|-------------|
 | [GUIDELINES.md](GUIDELINES.md) | Complete safety rules and patterns |
-| [bats-teardown-bug.md](bats-teardown-bug.md) | Real incident case study |
 | [agent-spawning-security.md](agent-spawning-security.md) | Agent spawning security model and limitations |
 
 ## Critical Rules
 
 1. **NEVER** use unguarded `rm` commands in test scripts
 2. **ALWAYS** validate variables before file operations
-3. **SET** critical variables before skip conditions in BATS
+3. **SET** critical variables before any early-exit conditions in shell scripts
 4. **PREFER** Go tests over bash scripts for new development
 5. **REVIEW** shell scripts carefully before committing
 
-> **Note**: For new development, prefer Go tests which have safer patterns. Shell scripts are still used for CLI testing (BATS) but require extra care.
+> **Note**: For new development, prefer Go tests. Any remaining shell scripts (install/lib helpers) require extra care around cleanup and file operations.
 
 ---
 

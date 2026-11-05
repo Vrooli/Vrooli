@@ -1,0 +1,80 @@
+{
+  "schema_version": "v0.1",
+  "target": "desktop",
+  "app": {
+    "name": "Agent Manager usage",
+    "scenario": "agent-manager",
+    "version": "0.0.1",
+    "description": "Provider-reported coding agent usage, without Agent Manager orchestration or a desktop shell"
+  },
+  "ipc": {
+    "mode": "http",
+    "host": "127.0.0.1",
+    "port": 0,
+    "auth_token_path": "runtime/auth-token"
+  },
+  "telemetry": {
+    "file": "telemetry/usage.jsonl"
+  },
+  "catalog_requirements": [
+    "catalog/resources/claude-code",
+    "catalog/resources/codex"
+  ],
+  "services": [
+    {
+      "id": "usage",
+      "type": "api-binary",
+      "description": "Agent Manager live quota handler and resource-owned usage feed reader",
+      "binaries": {
+        "linux-x64": {
+          "path": "api/bin/linux-amd64/usage"
+        },
+        "linux-arm64": {
+          "path": "api/bin/linux-arm64/usage"
+        },
+        "darwin-x64": {
+          "path": "api/bin/darwin-amd64/usage"
+        },
+        "darwin-arm64": {
+          "path": "api/bin/darwin-arm64/usage"
+        },
+        "win-x64": {
+          "path": "api/bin/windows-amd64/usage.exe"
+        }
+      },
+      "build": {
+        "type": "go",
+        "source_dir": "api",
+        "entry_point": "./cmd/usage",
+        "output_pattern": "bin/{{platform}}/usage{{ext}}"
+      },
+      "ports": {
+        "requested": [
+          {
+            "name": "api",
+            "env_var": "API_PORT",
+            "range": {
+              "min": 20000,
+              "max": 50000
+            }
+          }
+        ]
+      },
+      "health": {
+        "type": "http",
+        "port_name": "api",
+        "path": "/health",
+        "interval_ms": 5000,
+        "timeout_ms": 3000,
+        "retries": 3
+      },
+      "readiness": {
+        "type": "health_success",
+        "timeout_ms": 15000
+      },
+      "env": {
+        "API_PORT": "${usage.api}"
+      }
+    }
+  ]
+}

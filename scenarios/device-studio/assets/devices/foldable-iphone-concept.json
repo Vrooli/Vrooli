@@ -1,0 +1,158 @@
+{
+  "schema_version": "device-definition/v1",
+  "id": "foldable-iphone-concept",
+  "group": "foldable",
+  "kind": "foldable_phone_concept",
+  "identity_status": "concept",
+  "manufacturer": "Unspecified",
+  "model": "Foldable iPhone concept (non-product)",
+  "dimensions": {
+    "open": {
+      "width": {
+        "value": null,
+        "unit": "mm",
+        "meaning": "left-to-right in front reference pose",
+        "configuration": "open",
+        "method": "unknown",
+        "uncertainty": {
+          "status": "unknown",
+          "explanation": "No source-backed numeric value established."
+        },
+        "evidence": []
+      },
+      "height": {
+        "value": null,
+        "unit": "mm",
+        "meaning": "bottom-to-top in front reference pose",
+        "configuration": "open",
+        "method": "unknown",
+        "uncertainty": {
+          "status": "unknown",
+          "explanation": "No source-backed numeric value established."
+        },
+        "evidence": []
+      },
+      "depth": {
+        "value": null,
+        "unit": "mm",
+        "meaning": "front-to-back in front reference pose",
+        "configuration": "open",
+        "method": "unknown",
+        "uncertainty": {
+          "status": "unknown",
+          "explanation": "No source-backed numeric value established."
+        },
+        "evidence": []
+      }
+    },
+    "closed": {
+      "width": {
+        "value": null,
+        "unit": "mm",
+        "meaning": "left-to-right in front reference pose",
+        "configuration": "closed",
+        "method": "unknown",
+        "uncertainty": {
+          "status": "unknown",
+          "explanation": "No source-backed numeric value established."
+        },
+        "evidence": []
+      },
+      "height": {
+        "value": null,
+        "unit": "mm",
+        "meaning": "bottom-to-top in front reference pose",
+        "configuration": "closed",
+        "method": "unknown",
+        "uncertainty": {
+          "status": "unknown",
+          "explanation": "No source-backed numeric value established."
+        },
+        "evidence": []
+      },
+      "depth": {
+        "value": null,
+        "unit": "mm",
+        "meaning": "front-to-back in front reference pose",
+        "configuration": "closed",
+        "method": "unknown",
+        "uncertainty": {
+          "status": "unknown",
+          "explanation": "No source-backed numeric value established."
+        },
+        "evidence": []
+      }
+    }
+  },
+  "displays": [
+    {
+      "id": "inner-concept",
+      "topology": "unknown",
+      "physical_boundary": {
+        "status": "unknown"
+      },
+      "active_area": {
+        "status": "unknown"
+      },
+      "app_safe_area": {
+        "status": "unknown"
+      },
+      "hardware_occlusions": []
+    },
+    {
+      "id": "cover-concept",
+      "topology": "unknown",
+      "physical_boundary": {
+        "status": "unknown"
+      },
+      "active_area": {
+        "status": "unknown"
+      },
+      "app_safe_area": {
+        "status": "unknown"
+      },
+      "hardware_occlusions": []
+    }
+  ],
+  "joints": [
+    {
+      "id": "concept-hinge",
+      "parent_part": "left-concept-half",
+      "child_part": "right-concept-half",
+      "status": "unknown"
+    }
+  ],
+  "supported_poses": [
+    {
+      "name": "open",
+      "status": "unknown"
+    },
+    {
+      "name": "closed",
+      "status": "unknown"
+    }
+  ],
+  "supported_motion": [
+    {
+      "name": "fold_transition",
+      "status": "unknown"
+    }
+  ],
+  "supported_profiles": [],
+  "supports": [
+    {
+      "kind": "tabletop",
+      "status": "unknown"
+    }
+  ],
+  "model_candidates": [],
+  "provenance": [
+    {
+      "source": "/home/matthalloran8/.vrooli/evidence/device-presentation-2026-10-18/v7/research/device-domain-input.md",
+      "kind": "historical_concept_reference",
+      "qualifier": "Concept labels must not be treated as official Apple specifications; all physical values intentionally unknown."
+    }
+  ],
+  "qualification": "unqualified",
+  "description": "Illustrative concept only. This definition does not claim Apple has released an iPhone Duo and contains no Apple dimensions."
+}

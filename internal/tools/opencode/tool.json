@@ -1,0 +1,34 @@
+{
+  "$schema": "../../../.vrooli/schemas/tool.schema.json",
+  "name": "opencode",
+  "storage": {
+    "entries": {},
+    "rationale": "This tool has no tool-owned persistent storage in the supported Vrooli workflow; the explicit empty declaration records that caches or credentials are owned by the invoking workflow."
+  },
+  "description": "OpenCode command-line client supplied by the operator",
+  "commands": [
+    "opencode"
+  ],
+  "versionArgs": [
+    "--version"
+  ],
+  "installHint": "Install and authenticate OpenCode before using this host-managed resource.",
+  "manual": true,
+  "bundling": "host-required",
+  "capability": "ai-cli",
+  "capability_role": "primary",
+  "platform_status": {
+    "linux": {
+      "status": "unqualified",
+      "evidence": null
+    },
+    "macos": {
+      "status": "unqualified",
+      "evidence": null
+    },
+    "windows": {
+      "status": "unqualified",
+      "evidence": null
+    }
+  }
+}

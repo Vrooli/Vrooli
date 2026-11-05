@@ -1,0 +1,140 @@
+{
+  "_metadata": {
+    "description": "Logo candidates: explore, import, refine with lineage, pick, reject and restore. A pick promotes a candidate to the brand's canonical mark, vectorizing a raster pick first.",
+    "module": "candidates",
+    "prd_ref": "PRD.md",
+    "priority": "P0",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "CAND-001",
+      "title": "Explore logo candidates in one request",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-011",
+      "category": "candidates",
+      "criticality": "P0",
+      "description": "Explore takes a brief, a list of concepts and a variations count (1..4) and produces one stored candidate per concept and variation, each recording its prompt, concept, role, model, seed and origin. The service caps concepts at 8 and variations at 4.",
+      "tags": [
+        "candidates",
+        "ai",
+        "image-tools"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "phase": "unit",
+          "status": "pending",
+          "notes": "Domain implemented and live-verified (brand aquila explore/import/pick, styles seed); unit tests with a fake image-tools client are still to be written."
+        }
+      ]
+    },
+    {
+      "id": "CAND-002",
+      "title": "Import an existing image as a candidate",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-011",
+      "category": "candidates",
+      "criticality": "P0",
+      "description": "Import creates a proposed candidate from uploaded bytes or an existing asset, with origin IMPORTED and a concept label, optionally recording a parent candidate.",
+      "tags": [
+        "candidates",
+        "import"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "phase": "unit",
+          "status": "pending",
+          "notes": "Domain implemented and live-verified (brand aquila explore/import/pick, styles seed); unit tests with a fake image-tools client are still to be written."
+        }
+      ]
+    },
+    {
+      "id": "CAND-003",
+      "title": "Refine a candidate with lineage",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-011",
+      "category": "candidates",
+      "criticality": "P0",
+      "description": "Refine always creates a new proposed candidate whose parent_id points at its source. An instruction calls edit_instruct; a mask calls object_removal; remove_background calls background_removal; vectorize calls the image-tools vectorize op.",
+      "tags": [
+        "candidates",
+        "refine",
+        "image-tools"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "phase": "unit",
+          "status": "pending",
+          "notes": "Domain implemented and live-verified (brand aquila explore/import/pick, styles seed); unit tests with a fake image-tools client are still to be written."
+        }
+      ]
+    },
+    {
+      "id": "CAND-004",
+      "title": "Pick a candidate and set the brand mark",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-011",
+      "category": "candidates",
+      "criticality": "P0",
+      "description": "Pick moves the current pick to superseded then sets the new candidate to picked in one transaction, and sets brand.mark_asset_id to the picked mark. A raster pick is vectorized first and the VECTORIZED child is the one picked.",
+      "tags": [
+        "candidates",
+        "pick",
+        "vectorize"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "phase": "unit",
+          "status": "pending",
+          "notes": "Domain implemented and live-verified (brand aquila explore/import/pick, styles seed); unit tests with a fake image-tools client are still to be written."
+        }
+      ]
+    },
+    {
+      "id": "CAND-005",
+      "title": "Reject and restore candidates",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-011",
+      "category": "candidates",
+      "criticality": "P0",
+      "description": "Reject and restore are status changes only and never mutate the underlying asset.",
+      "tags": [
+        "candidates",
+        "lifecycle"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "phase": "unit",
+          "status": "pending",
+          "notes": "Domain implemented and live-verified (brand aquila explore/import/pick, styles seed); unit tests with a fake image-tools client are still to be written."
+        }
+      ]
+    },
+    {
+      "id": "CAND-006",
+      "title": "One picked candidate per brand",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-011",
+      "category": "candidates",
+      "criticality": "P0",
+      "description": "A unique partial index enforces exactly one picked candidate per brand, so a concurrent or repeated pick cannot leave two canonical marks.",
+      "tags": [
+        "candidates",
+        "storage"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "phase": "unit",
+          "status": "pending",
+          "notes": "Domain implemented and live-verified (brand aquila explore/import/pick, styles seed); unit tests with a fake image-tools client are still to be written."
+        }
+      ]
+    }
+  ]
+}

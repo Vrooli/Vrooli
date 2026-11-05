@@ -1,0 +1,396 @@
+syntax = "proto3";
+
+package vrooli.token_economy.v1.access;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/token-economy/v1/access;accessv1";
+
+import "google/protobuf/timestamp.proto";
+
+// =============================================================================
+// ACCESS SERVICES
+// =============================================================================
+//
+// @stability stable
+//
+// Defines the two authenticated service surfaces and their transport-owned
+// DTOs. Handlers translate these messages into the seven product domains so
+// public contract evolution never couples those bounded contexts together.
+//
+// =============================================================================
+
+enum SupplyPolicy {
+  SUPPLY_POLICY_UNSPECIFIED = 0;
+  SUPPLY_POLICY_UNBOUNDED = 1;
+  SUPPLY_POLICY_CAPPED = 2;
+  SUPPLY_POLICY_FIXED = 3;
+}
+
+message MinterAuthority {
+  string token_type_id = 1;
+  string subject = 2;
+}
+
+message TokenType {
+  string id = 1;
+  string name = 2;
+  string symbol = 3;
+  string color = 4;
+  SupplyPolicy supply_policy = 5;
+  int64 cap_amount = 6;
+  int64 minted_amount = 7;
+  MinterAuthority authority = 8;
+  bool retired = 9;
+  google.protobuf.Timestamp created_at = 10;
+  google.protobuf.Timestamp retired_at = 11;
+}
+
+message CreateTokenTypeRequest {
+  string name = 1;
+  string symbol = 2;
+  string color = 3;
+  SupplyPolicy supply_policy = 4;
+  int64 cap_amount = 5;
+  string minter_subject = 6;
+}
+
+message CreateTokenTypeResponse { TokenType token_type = 1; }
+message GetTokenTypeRequest { string id = 1; }
+message GetTokenTypeResponse { TokenType token_type = 1; }
+message ListTokenTypesRequest { bool include_retired = 1; }
+message ListTokenTypesResponse { repeated TokenType token_types = 1; }
+message RetireTokenTypeRequest { string id = 1; }
+message RetireTokenTypeResponse { TokenType token_type = 1; }
+
+message MintSupplyRequest {
+  string token_type_id = 1;
+  int64 amount = 2;
+}
+
+message MintSupplyResponse { TokenType token_type = 1; }
+
+enum GrantStatus {
+  GRANT_STATUS_UNSPECIFIED = 0;
+  GRANT_STATUS_DRAFT = 1;
+  GRANT_STATUS_LIVE = 2;
+  GRANT_STATUS_EXHAUSTED = 3;
+  GRANT_STATUS_EXPIRED = 4;
+  GRANT_STATUS_REVOKED = 5;
+}
+
+enum RuleCondition {
+  RULE_CONDITION_UNSPECIFIED = 0;
+  RULE_CONDITION_CATALOG_SCOPE_ALLOWED = 1;
+  RULE_CONDITION_CATALOG_SCOPE_DENIED = 2;
+  RULE_CONDITION_BEFORE_EXPIRY = 3;
+  RULE_CONDITION_REQUIRED_EVIDENCE = 4;
+  RULE_CONDITION_SUFFICIENT_BALANCE = 5;
+}
+
+message GrantRule {
+  string id = 1;
+  RuleCondition condition = 2;
+  repeated string operands = 3;
+  int64 amount_limit = 4;
+}
+
+message Grant {
+  string id = 1;
+  string token_type_id = 2;
+  string grant_source_id = 3;
+  string authorizer = 4;
+  int64 amount_minor = 5;
+  repeated string allowed_catalog_scopes = 7;
+  repeated string denied_catalog_scopes = 8;
+  google.protobuf.Timestamp expires_at = 9;
+  google.protobuf.Timestamp issued_at = 11;
+  GrantStatus status = 12;
+  string idempotency_key = 13;
+  repeated string required_evidence = 14;
+  int64 recurrence_seconds = 15;
+  google.protobuf.Timestamp next_issue_at = 16;
+  google.protobuf.Timestamp cancelled_at = 17;
+  string holder_id = 18;
+  repeated GrantRule rules = 19;
+}
+
+message CreateGrantRequest {
+  string token_type_id = 1;
+  string grant_source_id = 2;
+  string authorizer = 3;
+  string holder_id = 4;
+  int64 amount_minor = 5;
+  repeated string allowed_catalog_scopes = 6;
+  repeated string denied_catalog_scopes = 7;
+  google.protobuf.Timestamp expires_at = 8;
+  string idempotency_key = 9;
+  repeated string required_evidence = 10;
+  repeated GrantRule rules = 11;
+}
+
+message CreateGrantResponse { Grant grant = 1; }
+message GetGrantRequest { string id = 1; }
+message GetGrantResponse { Grant grant = 1; }
+
+message ListGrantsRequest {
+  string holder_id = 1;
+  string token_type_id = 2;
+  bool include_inactive = 3;
+}
+message ListGrantsResponse { repeated Grant grants = 1; }
+message RevokeGrantRequest {
+  string id = 1;
+  string reason = 2;
+  string idempotency_key = 3;
+}
+message RevokeGrantResponse { Grant grant = 1; }
+
+enum ApprovalPosture {
+  APPROVAL_POSTURE_UNSPECIFIED = 0;
+  APPROVAL_POSTURE_IMMEDIATE = 1;
+  APPROVAL_POSTURE_REQUIRES_APPROVAL = 2;
+}
+
+message Availability {
+  google.protobuf.Timestamp available_from = 1;
+  google.protobuf.Timestamp available_until = 2;
+  optional int64 remaining_quantity = 3;
+}
+
+message CatalogEntry {
+  string id = 1;
+  string token_type_id = 2;
+  string title = 3;
+  string description = 4;
+  int64 cost_amount = 5;
+  Availability availability = 6;
+  ApprovalPosture approval_posture = 7;
+  bool retired = 8;
+  google.protobuf.Timestamp created_at = 9;
+  google.protobuf.Timestamp updated_at = 10;
+  google.protobuf.Timestamp retired_at = 11;
+}
+message Holder {
+  string id = 1;
+  string display_name = 2;
+  string authenticator_subject = 3;
+  google.protobuf.Timestamp created_at = 4;
+}
+
+enum EventKind {
+  EVENT_KIND_UNSPECIFIED = 0;
+  EVENT_KIND_MINT = 1;
+  EVENT_KIND_CREDIT = 2;
+  EVENT_KIND_DEBIT = 3;
+  EVENT_KIND_REVERSAL = 4;
+  EVENT_KIND_EXPIRY = 5;
+}
+
+enum ActorKind {
+  ACTOR_KIND_UNSPECIFIED = 0;
+  ACTOR_KIND_OPERATOR = 1;
+  ACTOR_KIND_AGENT = 2;
+}
+
+enum VerificationStatus {
+  VERIFICATION_STATUS_UNSPECIFIED = 0;
+  VERIFICATION_STATUS_VERIFIED = 1;
+  VERIFICATION_STATUS_UNAVAILABLE = 2;
+  VERIFICATION_STATUS_INVALID = 3;
+  VERIFICATION_STATUS_ABSENT = 4;
+}
+
+message Event {
+  string id = 1;
+  string token_type_id = 2;
+  int64 amount = 3;
+  EventKind kind = 4;
+  string reason = 5;
+  google.protobuf.Timestamp created_at = 6;
+  string actor_identity = 7;
+  string cause_reference = 8;
+  ActorKind actor_kind = 9;
+  VerificationStatus actor_verification_status = 10;
+  string actor_run_id = 11;
+}
+
+message Balance {
+  string token_type_id = 1;
+  int64 amount = 2;
+}
+message Redemption {
+  string id = 1;
+  string catalog_entry_id = 2;
+  string holder_id = 3;
+  string token_type_id = 4;
+  string grant_id = 5;
+  int64 amount = 6;
+  string idempotency_key = 7;
+  RedemptionState state = 8;
+  string decider_subject = 9;
+  string decision_reason = 10;
+  google.protobuf.Timestamp requested_at = 11;
+  google.protobuf.Timestamp decided_at = 12;
+  google.protobuf.Timestamp settled_at = 13;
+}
+
+enum RedemptionState {
+  REDEMPTION_STATE_UNSPECIFIED = 0;
+  REDEMPTION_STATE_PENDING_APPROVAL = 1;
+  REDEMPTION_STATE_SETTLED = 2;
+  REDEMPTION_STATE_DENIED = 3;
+}
+
+message CreateCatalogEntryRequest {
+  CatalogEntry entry = 1;
+  string idempotency_key = 2;
+}
+
+message CreateCatalogEntryResponse {
+  CatalogEntry entry = 1;
+}
+
+message UpdateCatalogEntryRequest {
+  CatalogEntry entry = 1;
+  string idempotency_key = 2;
+}
+
+message UpdateCatalogEntryResponse { CatalogEntry entry = 1; }
+message GetCatalogEntryRequest { string id = 1; }
+message GetCatalogEntryResponse { CatalogEntry entry = 1; }
+message ListCatalogEntriesRequest { bool include_retired = 1; }
+message ListCatalogEntriesResponse { repeated CatalogEntry entries = 1; }
+message RetireCatalogEntryRequest {
+  string id = 1;
+  string idempotency_key = 2;
+}
+message RetireCatalogEntryResponse { CatalogEntry entry = 1; }
+
+message UpdateGrantRuleRequest {
+  string grant_id = 1;
+  GrantRule rule = 2;
+  string idempotency_key = 3;
+}
+
+message UpdateGrantRuleResponse {
+  Grant grant = 1;
+}
+
+message ViewEconomyRequest {}
+
+message ViewEconomyResponse {
+  Holder holder = 1;
+  repeated Event events = 2;
+  repeated Balance balances = 3;
+  repeated Redemption redemptions = 4;
+}
+
+message CreateHolderRequest {
+  string display_name = 1;
+  string authenticator_subject = 2;
+  string idempotency_key = 3;
+}
+message CreateHolderResponse { Holder holder = 1; }
+message GetHolderRequest { string id = 1; }
+message GetHolderResponse { Holder holder = 1; }
+message ListHoldersRequest {}
+message ListHoldersResponse { repeated Holder holders = 1; }
+
+message ListJournalEventsRequest {
+  string holder_id = 1;
+  string token_type_id = 2;
+}
+message ListJournalEventsResponse { repeated Event events = 1; }
+message ShowBalanceRequest {
+  string holder_id = 1;
+  string token_type_id = 2;
+}
+message ShowBalanceResponse { Balance balance = 1; }
+message ExportJournalRequest {
+  string holder_id = 1;
+  string token_type_id = 2;
+}
+message ExportJournalResponse { repeated Event events = 1; }
+
+message BrowseCatalogRequest {}
+
+message BrowseCatalogResponse {
+  repeated CatalogEntry entries = 1;
+}
+
+message RequestRedemptionRequest {
+  Redemption redemption = 1;
+  string idempotency_key = 2;
+  repeated string evidence = 3;
+}
+
+message RequestRedemptionResponse {
+  Redemption redemption = 1;
+}
+
+message ListPendingRedemptionsRequest {}
+message ListPendingRedemptionsResponse { repeated Redemption redemptions = 1; }
+
+message ApproveRedemptionRequest {
+  string redemption_id = 1;
+  string reason = 2;
+  string idempotency_key = 3;
+}
+message ApproveRedemptionResponse { Redemption redemption = 1; }
+
+message DenyRedemptionRequest {
+  string redemption_id = 1;
+  string reason = 2;
+  string idempotency_key = 3;
+}
+message DenyRedemptionResponse { Redemption redemption = 1; }
+
+message ReverseEventRequest {
+  string original_event_id = 1;
+  string reason = 2;
+  string idempotency_key = 3;
+}
+message ReverseEventResponse { Event reversal = 1; }
+
+message SubmitRequestRequest {
+  string reason = 1;
+  string idempotency_key = 2;
+}
+
+message SubmitRequestResponse {
+  string request_id = 1;
+}
+
+service MinterService {
+  rpc CreateTokenType(CreateTokenTypeRequest) returns (CreateTokenTypeResponse);
+  rpc GetTokenType(GetTokenTypeRequest) returns (GetTokenTypeResponse);
+  rpc ListTokenTypes(ListTokenTypesRequest) returns (ListTokenTypesResponse);
+  rpc RetireTokenType(RetireTokenTypeRequest) returns (RetireTokenTypeResponse);
+  rpc MintSupply(MintSupplyRequest) returns (MintSupplyResponse);
+  rpc CreateGrant(CreateGrantRequest) returns (CreateGrantResponse);
+  rpc GetGrant(GetGrantRequest) returns (GetGrantResponse);
+  rpc ListGrants(ListGrantsRequest) returns (ListGrantsResponse);
+  rpc RevokeGrant(RevokeGrantRequest) returns (RevokeGrantResponse);
+  rpc CreateHolder(CreateHolderRequest) returns (CreateHolderResponse);
+  rpc GetHolder(GetHolderRequest) returns (GetHolderResponse);
+  rpc ListHolders(ListHoldersRequest) returns (ListHoldersResponse);
+  rpc ListJournalEvents(ListJournalEventsRequest) returns (ListJournalEventsResponse);
+  rpc ShowBalance(ShowBalanceRequest) returns (ShowBalanceResponse);
+  rpc ExportJournal(ExportJournalRequest) returns (ExportJournalResponse);
+  rpc CreateCatalogEntry(CreateCatalogEntryRequest) returns (CreateCatalogEntryResponse);
+  rpc UpdateCatalogEntry(UpdateCatalogEntryRequest) returns (UpdateCatalogEntryResponse);
+  rpc GetCatalogEntry(GetCatalogEntryRequest) returns (GetCatalogEntryResponse);
+  rpc ListCatalogEntries(ListCatalogEntriesRequest) returns (ListCatalogEntriesResponse);
+  rpc RetireCatalogEntry(RetireCatalogEntryRequest) returns (RetireCatalogEntryResponse);
+  rpc ListPendingRedemptions(ListPendingRedemptionsRequest) returns (ListPendingRedemptionsResponse);
+  rpc ApproveRedemption(ApproveRedemptionRequest) returns (ApproveRedemptionResponse);
+  rpc DenyRedemption(DenyRedemptionRequest) returns (DenyRedemptionResponse);
+  rpc ReverseEvent(ReverseEventRequest) returns (ReverseEventResponse);
+  rpc UpdateGrantRule(UpdateGrantRuleRequest) returns (UpdateGrantRuleResponse);
+}
+
+service HolderService {
+  rpc ViewEconomy(ViewEconomyRequest) returns (ViewEconomyResponse);
+  rpc BrowseCatalog(BrowseCatalogRequest) returns (BrowseCatalogResponse);
+  rpc RequestRedemption(RequestRedemptionRequest) returns (RequestRedemptionResponse);
+  rpc SubmitRequest(SubmitRequestRequest) returns (SubmitRequestResponse);
+}

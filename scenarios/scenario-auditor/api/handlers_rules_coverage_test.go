@@ -6,8 +6,6 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
-
-	re "scenario-auditor/internal/ruleengine"
 )
 
 func TestGetTestCoverageHandler_NoNaN(t *testing.T) {
@@ -36,10 +34,5 @@ func TestGetTestCoverageHandler_NoNaN(t *testing.T) {
 // projectRootDir attempts to find the repo root for tests.
 func projectRootDir(t *testing.T) string {
 	t.Helper()
-
-	root, err := re.DiscoverRepoRoot()
-	if err != nil {
-		t.Fatalf("resolveVrooliRoot failed: %v", err)
-	}
-	return root
+	return liveRepoRootForTest(t)
 }

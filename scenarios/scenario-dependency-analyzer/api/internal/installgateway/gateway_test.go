@@ -1,0 +1,727 @@
+package installgateway
+
+import (
+	"bytes"
+	"context"
+	"encoding/json"
+	"fmt"
+	"os"
+	"path/filepath"
+	"reflect"
+	"strings"
+	"testing"
+)
+
+func mkSurface(t *testing.T, repoRoot, scenario, surface string, files map[string]string) {
+	t.Helper()
+	dir := filepath.Join(repoRoot, "scenarios", scenario, surface)
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	for name, body := range files {
+		if err := os.WriteFile(filepath.Join(dir, name), []byte(body), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+}
+
+func mkResourceSurface(t *testing.T, repoRoot, resource, surface string, files map[string]string) string {
+	t.Helper()
+	dir := filepath.Join(repoRoot, "resources", resource, surface)
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	for name, body := range files {
+		if err := os.WriteFile(filepath.Join(dir, name), []byte(body), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	return dir
+}
+
+func TestResolveSupportsResourceSurface(t *testing.T) {
+	repoRoot := t.TempDir()
+	resourceRoot := mkResourceSurface(t, repoRoot, "doc-parse", "cli", map[string]string{
+		"go.mod": "module resource-doc-parse/cli\n",
+	})
+
+	r, err := Resolve(repoRoot, "doc-parse", "cli", "go", "github.com/tetratelabs/wazero", "v1.9.0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if r.SurfaceRoot != resourceRoot {
+		t.Fatalf("resource surface root = %q, want %q", r.SurfaceRoot, resourceRoot)
+	}
+	if r.ManifestPath != filepath.Join(resourceRoot, "go.mod") {
+		t.Fatalf("resource manifest = %q, want %q", r.ManifestPath, filepath.Join(resourceRoot, "go.mod"))
+	}
+	if got, want := r.Command(), "go get github.com/tetratelabs/wazero@v1.9.0"; got != want {
+		t.Fatalf("resource install command = %q, want %q", got, want)
+	}
+}
+
+func TestResolveSupportsResourceRootSurface(t *testing.T) {
+	repoRoot := t.TempDir()
+	resourceRoot := filepath.Join(repoRoot, "resources", "speaker-verification")
+	if err := os.MkdirAll(resourceRoot, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(resourceRoot, "requirements.txt"), []byte("speechbrain==1.0.2\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	r, err := Resolve(repoRoot, "speaker-verification", "resource", "pip", "speechbrain", "1.0.2")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if r.SurfaceRoot != resourceRoot || r.ManifestPath != filepath.Join(resourceRoot, "requirements.txt") {
+		t.Fatalf("resource-root resolution = %+v, want root requirements manifest", r)
+	}
+}
+
+func TestResolveSupportsGovernedResourcePythonLockUpdates(t *testing.T) {
+	repoRoot := t.TempDir()
+	resourceRoot := filepath.Join(repoRoot, "resources", "kokoro")
+	if err := os.MkdirAll(resourceRoot, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	for _, name := range []string{"requirements.lock", "requirements-gpu.lock"} {
+		if err := os.WriteFile(filepath.Join(resourceRoot, name), []byte("num2words==0.5.14\n"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	resourceJSON := `{"managed_service":{"acquisition":{"targets":[{"compose":[{"kind":"python-wheels","lockfile":"requirements.lock","index_url":"https://download.pytorch.org/whl/cpu","extra_index_url":["https://www.piwheels.org/simple"]},{"kind":"python-wheels","lockfile":"requirements-gpu.lock","index_url":"https://download.pytorch.org/whl/cu126","extra_index_url":["https://www.piwheels.org/simple"]}]}]}}}`
+	if err := os.WriteFile(filepath.Join(resourceRoot, "resource.json"), []byte(resourceJSON), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	r, err := Resolve(repoRoot, "kokoro", "resource", "pip", "docopt", "0.6.2")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if r.PackageManager != "uv-lock" || len(r.PythonLockfiles) != 2 || len(r.PythonIndexSets) != 2 {
+		t.Fatalf("resource lock resolution = %+v", r)
+	}
+	if r.PythonIndexSets["requirements.lock"].Primary != "https://download.pytorch.org/whl/cpu" || !reflect.DeepEqual(r.PythonIndexSets["requirements.lock"].Extras, []string{"https://www.piwheels.org/simple"}) {
+		t.Fatalf("CPU index config = %+v", r.PythonIndexSets["requirements.lock"])
+	}
+	if !strings.Contains(r.Command(), "--only-binary :all:") || !strings.Contains(r.Command(), "requirements-gpu.lock") {
+		t.Fatalf("lock update command = %q", r.Command())
+	}
+}
+
+func TestPythonLockRequirementReplacementDropsStaleHashes(t *testing.T) {
+	lock := "other==1.0 \\\n+    --hash=sha256:0123456789abcdef\n" +
+		"docopt==0.6.2 \\\n+    --hash=sha256:49b3a825280bd66c84\n    # via\n    #   num2words\n" +
+		"tail==2.0\n"
+	lock = strings.ReplaceAll(lock, "\n+", "\n")
+	updated, err := replacePythonRequirement(lock, "docopt", "0.6.2")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(updated, "docopt==0.6.2\n") || strings.Contains(updated, "49b3a825") || !strings.Contains(updated, "other==1.0") || !strings.Contains(updated, "tail==2.0") {
+		t.Fatalf("unexpected requirements input: %s", updated)
+	}
+}
+
+func TestCanonicalPythonLockOutputDoesNotRetainTemporaryInputPath(t *testing.T) {
+	generated := []byte("# generated by uv\n# command: /tmp/.sda-python-lock-123/requirements.in\n\ndocopt==0.6.2 \\\n    --hash=sha256:abc\n    # via -r .sda-python-lock-123/requirements.in\n")
+	got := canonicalizePythonLockOutput(generated, "/tmp/.sda-python-lock-123/requirements.in", "resources/kokoro/requirements.lock")
+	if strings.Contains(got, "/tmp/sda") || strings.Contains(got, ".sda-python-lock") || !strings.Contains(got, "# via -r resources/kokoro/requirements.lock") || !strings.Contains(got, "--hash=sha256:abc") {
+		t.Fatalf("non-canonical generated lock: %s", got)
+	}
+}
+
+func TestResolvePrefersScenarioSurfaceWhenNamesOverlap(t *testing.T) {
+	repoRoot := t.TempDir()
+	mkSurface(t, repoRoot, "doc-parse", "cli", map[string]string{"go.mod": "module scenario-doc-parse/cli\n"})
+	resourceRoot := mkResourceSurface(t, repoRoot, "doc-parse", "cli", map[string]string{"go.mod": "module resource-doc-parse/cli\n"})
+
+	r, err := Resolve(repoRoot, "doc-parse", "cli", "go", "github.com/tetratelabs/wazero", "v1.9.0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if r.SurfaceRoot == resourceRoot {
+		t.Fatal("scenario surface was shadowed by resource surface")
+	}
+}
+
+func TestResolveBuildsArgvPerEcosystem(t *testing.T) {
+	repoRoot := t.TempDir()
+	mkSurface(t, repoRoot, "demo", "ui", map[string]string{"pnpm-lock.yaml": "", "package.json": "{}"})
+	mkSurface(t, repoRoot, "demo", "api", map[string]string{"go.mod": "module demo\n", "uv.lock": "", "pyproject.toml": "[project]\nname='demo'\n"})
+	mkSurface(t, repoRoot, "demo", "cli", map[string]string{"requirements.txt": ""})
+	mkSurface(t, repoRoot, "demo", "tools/mermaid-lint", map[string]string{"pnpm-lock.yaml": "", "package.json": "{}"})
+	mkSurface(t, repoRoot, "demo", "platforms/electron", map[string]string{"package-lock.json": "", "package.json": "{}"})
+
+	cases := []struct {
+		surface, ecosystem, pkg, version string
+		wantManager                      string
+		wantArgv                         string
+	}{
+		{"ui", "npm", "react-hook-form", "7.0.0", "pnpm", "pnpm add --ignore-scripts react-hook-form@7.0.0"},
+		{"ui", "npm", "zod", "", "pnpm", "pnpm add --ignore-scripts zod"},
+		{"api", "go", "github.com/foo/bar", "v1.2.3", "go", "go get github.com/foo/bar@v1.2.3"},
+		{"cli", "pip", "requests", "2.31.0", "pip", "pip install requests==2.31.0"},
+		{"api", "pip", "mypy", "", "uv", "uv add --dev mypy"},
+		{"tools/mermaid-lint", "npm", "mermaid", "11.13.0", "pnpm", "pnpm add --ignore-scripts mermaid@11.13.0"},
+		{"platforms/electron", "npm", "brace-expansion", "^5.0.8", "npm", "npm install --ignore-scripts brace-expansion@^5.0.8"},
+	}
+	for _, tc := range cases {
+		r, err := Resolve(repoRoot, "demo", tc.surface, tc.ecosystem, tc.pkg, tc.version)
+		if err != nil {
+			t.Fatalf("%s/%s: %v", tc.ecosystem, tc.pkg, err)
+		}
+		if r.PackageManager != tc.wantManager {
+			t.Errorf("%s/%s manager = %q, want %q", tc.ecosystem, tc.pkg, r.PackageManager, tc.wantManager)
+		}
+		if r.RepositoryRoot != repoRoot || r.PackageName != tc.pkg {
+			t.Errorf("%s/%s install context = repo %q package %q", tc.ecosystem, tc.pkg, r.RepositoryRoot, r.PackageName)
+		}
+		if r.Command() != tc.wantArgv {
+			t.Errorf("%s/%s argv = %q, want %q", tc.ecosystem, tc.pkg, r.Command(), tc.wantArgv)
+		}
+	}
+}
+
+func TestResolveSupportsSharedPackageToolsSurface(t *testing.T) {
+	repoRoot := t.TempDir()
+	packageRoot := filepath.Join(repoRoot, "packages", "api-base")
+	if err := os.MkdirAll(packageRoot, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(packageRoot, "package.json"), []byte(`{"name":"@vrooli/api-base"}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(packageRoot, "pnpm-lock.yaml"), nil, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	r, err := Resolve(repoRoot, "api-base", "tools/api-base", "npm", "react", "^18.3.1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if r.SurfaceRoot != packageRoot || r.ManifestPath != filepath.Join(packageRoot, "package.json") {
+		t.Fatalf("package resolution = %+v, want root %s", r, packageRoot)
+	}
+}
+
+func TestResolveSharedPackageWorkspaceDoesNotDisableWorkspaceMode(t *testing.T) {
+	repoRoot := t.TempDir()
+	packageRoot := filepath.Join(repoRoot, "packages", "audio-capture-browser")
+	if err := os.MkdirAll(packageRoot, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(packageRoot, "package.json"), []byte(`{"name":"@vrooli/audio-capture-browser"}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(packageRoot, "pnpm-lock.yaml"), nil, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(packageRoot, "pnpm-workspace.yaml"), []byte("packages:\n  - .\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	r, err := Resolve(repoRoot, "audio-tools", "tools/audio-capture-browser", "npm", "@types/react", "^18.2.47")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got, want := r.Command(), "pnpm add --ignore-scripts --workspace-root @types/react@^18.2.47"; got != want {
+		t.Fatalf("command = %q, want %q", got, want)
+	}
+}
+
+func TestResolveAddsPnpmWorkspaceRootForSurfaceWorkspace(t *testing.T) {
+	repoRoot := t.TempDir()
+	mkSurface(t, repoRoot, "demo", "ui", map[string]string{
+		"package.json":        "{}",
+		"pnpm-lock.yaml":      "",
+		"pnpm-workspace.yaml": "packages:\n  - .\n",
+	})
+
+	r, err := Resolve(repoRoot, "demo", "ui", "npm", "helmet", "^6.1.0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if r.Command() != "pnpm add --ignore-scripts --workspace-root helmet@^6.1.0" {
+		t.Fatalf("command = %q", r.Command())
+	}
+}
+
+func TestResolveNpmOverrideAndPersistOverride(t *testing.T) {
+	repoRoot := t.TempDir()
+	mkSurface(t, repoRoot, "demo", "ui", map[string]string{
+		"package.json":        `{"name":"demo"}`,
+		"pnpm-lock.yaml":      "",
+		"pnpm-workspace.yaml": "packages:\n  - .\n",
+	})
+
+	r, err := ResolveNpmOverride(repoRoot, "demo", "ui")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if r.Command() != "pnpm install --ignore-scripts --workspace-root" {
+		t.Fatalf("command = %q", r.Command())
+	}
+	if err := SetNpmOverride(r.ManifestPath, "minimatch", "^10.2.6"); err != nil {
+		t.Fatal(err)
+	}
+	data, err := os.ReadFile(r.ManifestPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(data), `"minimatch": "^10.2.6"`) {
+		t.Fatalf("override was not recorded: %s", data)
+	}
+}
+
+func TestResolveNpmOverrideRejectsNonPnpmSurface(t *testing.T) {
+	repoRoot := t.TempDir()
+	mkSurface(t, repoRoot, "demo", "platforms/electron", map[string]string{"package.json": "{}", "package-lock.json": ""})
+	if _, err := ResolveNpmOverride(repoRoot, "demo", "platforms/electron"); err == nil {
+		t.Fatal("expected npm override to reject an npm-lock surface")
+	}
+}
+
+func TestPackageOverrideRetiresSupersededVersionPolicies(t *testing.T) {
+	for _, pkg := range []string{"js-yaml", "@scope/parser"} {
+		t.Run(pkg, func(t *testing.T) {
+			dir := t.TempDir()
+			path := filepath.Join(dir, "package.json")
+			preserved := map[string]string{
+				"unrelated@^1":     "1.9.0",
+				pkg + "-extra@^4":  "4.0.0",
+				"parent@^2>" + pkg: "3.15.2",
+				pkg + "@^4>child":  "2.0.0",
+			}
+			overrides := map[string]string{}
+			for key, value := range preserved {
+				overrides[key] = value
+			}
+			for _, suffix := range []string{"@^3.13.0", "@~4.0.0", "@>=4.0.0", "@4.3.1"} {
+				overrides[pkg+suffix] = "4.3.1"
+			}
+			manifest := map[string]any{"name": "fixture", "pnpm": map[string]any{"overrides": overrides}}
+			data, err := json.Marshal(manifest)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(path, data, 0o600); err != nil {
+				t.Fatal(err)
+			}
+			if err := SetNpmOverride(path, pkg, "4.3.2"); err != nil {
+				t.Fatal(err)
+			}
+			data, err = os.ReadFile(path)
+			if err != nil {
+				t.Fatal(err)
+			}
+			var got struct {
+				Name string `json:"name"`
+				Pnpm struct {
+					Overrides map[string]string `json:"overrides"`
+				} `json:"pnpm"`
+			}
+			if err := json.Unmarshal(data, &got); err != nil {
+				t.Fatal(err)
+			}
+			if got.Name != "fixture" || len(got.Pnpm.Overrides) != len(preserved)+1 {
+				t.Fatalf("superseded policies remain or manifest data lost: %s", data)
+			}
+			preserved[pkg] = "4.3.2"
+			for key, want := range preserved {
+				if got.Pnpm.Overrides[key] != want {
+					t.Errorf("override %q = %q, want %q", key, got.Pnpm.Overrides[key], want)
+				}
+			}
+		})
+	}
+}
+
+func TestResolvePreservesExistingJSDevDependencyClassification(t *testing.T) {
+	repoRoot := t.TempDir()
+	mkSurface(t, repoRoot, "demo", "ui", map[string]string{
+		"package.json":   `{"devDependencies":{"vite":"^5.4.0"}}`,
+		"pnpm-lock.yaml": "",
+	})
+
+	r, err := Resolve(repoRoot, "demo", "ui", "npm", "vite", "6.4.3")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if r.Command() != "pnpm add --ignore-scripts -D vite@6.4.3" {
+		t.Fatalf("command = %q, want pnpm dev-dependency upgrade", r.Command())
+	}
+}
+
+func TestExecInstallerRunsInSurfaceRoot(t *testing.T) {
+	dir := t.TempDir()
+	binDir := filepath.Join(dir, "bin")
+	surfaceRoot := filepath.Join(dir, "surface")
+	if err := os.MkdirAll(binDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(surfaceRoot, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	cwdFile := filepath.Join(dir, "cwd.txt")
+	fakeTool := filepath.Join(binDir, "fake-tool")
+	if err := os.WriteFile(fakeTool, []byte("#!/bin/sh\npwd > \"$1\"\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	t.Setenv("PATH", binDir+string(os.PathListSeparator)+os.Getenv("PATH"))
+	_, err := (ExecInstaller{}).Install(context.Background(), Resolution{
+		SurfaceRoot: surfaceRoot,
+		Argv:        []string{"fake-tool", cwdFile},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	got, err := os.ReadFile(cwdFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.TrimSpace(string(got)) != surfaceRoot {
+		t.Fatalf("installer cwd = %q, want %q", strings.TrimSpace(string(got)), surfaceRoot)
+	}
+}
+
+func TestResolveRejectsBadSurfaceAndEcosystem(t *testing.T) {
+	repoRoot := t.TempDir()
+	mkSurface(t, repoRoot, "demo", "ui", map[string]string{"pnpm-lock.yaml": ""})
+
+	if _, err := Resolve(repoRoot, "demo", "worker", "npm", "x", ""); err == nil {
+		t.Fatal("expected error for non-installable surface")
+	}
+	if _, err := Resolve(repoRoot, "demo", "tools", "npm", "x", ""); err == nil {
+		t.Fatal("expected tools root to be rejected; a tools package is required")
+	}
+	if _, err := Resolve(repoRoot, "demo", "platforms", "npm", "x", ""); err == nil {
+		t.Fatal("expected platforms root to be rejected; a platform package is required")
+	}
+	if _, err := Resolve(repoRoot, "demo", "tools/../api", "npm", "x", ""); err == nil {
+		t.Fatal("expected tools traversal to be rejected")
+	}
+	if _, err := Resolve(repoRoot, "demo", "api", "npm", "x", ""); err == nil || !strings.Contains(err.Error(), "surface directory not found") {
+		t.Fatalf("expected missing-surface error, got %v", err)
+	}
+	if _, err := Resolve(repoRoot, "demo", "ui", "cargo", "x", ""); err == nil || !strings.Contains(err.Error(), "Cargo.toml") {
+		t.Fatalf("cargo without manifest should be rejected, got %v", err)
+	}
+}
+
+func TestResolveSupportsFixedVrooliControlPlaneGoTarget(t *testing.T) {
+	repoRoot := t.TempDir()
+	if err := os.WriteFile(filepath.Join(repoRoot, "go.mod"), []byte("module example.test/vrooli\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	r, err := Resolve(repoRoot, "vrooli", "control-plane", "go", "github.com/ulikunitz/xz", "v0.5.17")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if r.SurfaceRoot != repoRoot || r.ManifestPath != filepath.Join(repoRoot, "go.mod") {
+		t.Fatalf("control-plane target root/manifest = %q/%q, want %q/go.mod", r.SurfaceRoot, r.ManifestPath, repoRoot)
+	}
+	if r.PackageManager != "go" || r.Command() != "go get github.com/ulikunitz/xz@v0.5.17" {
+		t.Fatalf("control-plane plan = manager %q command %q", r.PackageManager, r.Command())
+	}
+}
+
+func TestResolveRestrictsControlPlaneTarget(t *testing.T) {
+	repoRoot := t.TempDir()
+	if err := os.WriteFile(filepath.Join(repoRoot, "go.mod"), []byte("module example.test/vrooli\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	for _, tc := range []struct{ scenario, surface, ecosystem string }{
+		{"device-studio", "control-plane", "go"},
+		{"vrooli", "control-plane", "npm"},
+		{"vrooli", "control-plane/../api", "go"},
+		{"vrooli", "control-plane/child", "go"},
+		{"vrooli", "control-plane\\child", "go"},
+	} {
+		t.Run(tc.scenario+"/"+tc.surface+"/"+tc.ecosystem, func(t *testing.T) {
+			if _, err := Resolve(repoRoot, tc.scenario, tc.surface, tc.ecosystem, "github.com/ulikunitz/xz", "v0.5.17"); err == nil {
+				t.Fatal("unsafe control-plane target was accepted")
+			}
+		})
+	}
+}
+
+func TestResolveNeverGuessesManagerFromLanguageAlone(t *testing.T) {
+	repoRoot := t.TempDir()
+	mkSurface(t, repoRoot, "demo", "ui", map[string]string{"package.json": "{}"})
+	for _, ecosystem := range []string{"npm", "pip", "cargo", "go"} {
+		t.Run(ecosystem, func(t *testing.T) {
+			if _, err := Resolve(repoRoot, "demo", "ui", ecosystem, "safe-package", ""); err == nil {
+				t.Fatalf("%s request was accepted without manager evidence", ecosystem)
+			}
+		})
+	}
+}
+
+func TestResolveRejectsScenarioAndPackageFlagInjection(t *testing.T) {
+	repoRoot := t.TempDir()
+	mkSurface(t, repoRoot, "demo", "ui", map[string]string{"pnpm-lock.yaml": ""})
+	for _, tc := range []struct {
+		name, scenario, packageName, version string
+	}{
+		{"scenario traversal", "../outside", "safe", ""},
+		{"package flag", "demo", "--ignore-scripts", ""},
+		{"version flag", "demo", "safe", "--registry=https://evil"},
+		{"shell syntax", "demo", "safe;curl", ""},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			if _, err := Resolve(repoRoot, tc.scenario, "ui", "npm", tc.packageName, tc.version); err == nil {
+				t.Fatal("unsafe install request was accepted")
+			}
+		})
+	}
+}
+
+func TestAdapterRegistryMakesUnsupportedNativeManagersExplicit(t *testing.T) {
+	for _, ecosystem := range []string{"npm", "pnpm", "yarn", "bun", "python", "go", "rust", "c", "cpp"} {
+		adapter, err := AdapterFor(ecosystem)
+		if err != nil {
+			t.Fatalf("%s: %v", ecosystem, err)
+		}
+		if (ecosystem == "c" || ecosystem == "cpp") && adapter.MutationSupported() {
+			t.Fatalf("%s must not claim a universal mutation adapter", ecosystem)
+		}
+	}
+}
+
+func TestSafeInstallProfileAndProtectedException(t *testing.T) {
+	profile := SafeProfileFor("pnpm", []string{"pnpm", "add", "--ignore-scripts", "pkg"})
+	if !profile.ScriptsDisabled || profile.LifecycleMode != "scripts-disabled-by-default" || profile.Governance != "scenario-dependency-analyzer" {
+		t.Fatalf("unexpected install profile: %+v", profile)
+	}
+	if err := ValidateProtectedBuildException(ProtectedBuildException{Owner: "release", Reason: "native build", Command: "pnpm rebuild", PolicyMode: "guarded"}); err != nil {
+		t.Fatal(err)
+	}
+	if err := ValidateProtectedBuildException(ProtectedBuildException{Owner: "release", Command: "pnpm rebuild", PolicyMode: "guarded"}); err == nil {
+		t.Fatal("missing exception reason should be rejected")
+	}
+}
+
+func TestFrozenReproductionArgsAreScriptSafe(t *testing.T) {
+	tests := map[string][]string{
+		"npm":    {"npm", "ci", "--ignore-scripts"},
+		"pnpm":   {"pnpm", "install", "--frozen-lockfile", "--ignore-scripts"},
+		"yarn":   {"yarn", "install", "--immutable", "--ignore-scripts"},
+		"bun":    {"bun", "install", "--frozen-lockfile", "--ignore-scripts"},
+		"cargo":  {"cargo", "fetch", "--locked"},
+		"go":     {"go", "mod", "download"},
+		"poetry": {"poetry", "install", "--sync", "--no-root"},
+	}
+	for manager, want := range tests {
+		got, err := FrozenReproductionArgs(manager)
+		if err != nil {
+			t.Fatalf("%s: %v", manager, err)
+		}
+		if strings.Join(got, " ") != strings.Join(want, " ") {
+			t.Errorf("%s = %v, want %v", manager, got, want)
+		}
+		profile := SafeProfileFor(manager, got)
+		if !profile.FrozenLockfile || !profile.ScriptsDisabled && manager != "go" && manager != "cargo" && manager != "poetry" {
+			t.Errorf("%s profile = %+v", manager, profile)
+		}
+	}
+}
+
+func TestTemplateInstallUsesGovernedTemplateSurface(t *testing.T) {
+	root := t.TempDir()
+	ui := filepath.Join(root, "templates", "scenarios", "react-vite", "ui")
+	if err := os.MkdirAll(ui, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	surface, err := normalizedSurface("template/react-vite")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := resolveSurfaceRoot(root, "template-manager", surface); got != ui {
+		t.Fatalf("root=%s", got)
+	}
+	if _, err := normalizedSurface("template/../escape"); err == nil {
+		t.Fatal("unsafe template path accepted")
+	}
+}
+
+func TestScenarioOwnedCanonicalTemplateResolvesToItsSourceDirectory(t *testing.T) {
+	root := t.TempDir()
+	template := filepath.Join(root, "scenarios", "scenario-to-desktop", "templates", "vanilla")
+	if err := os.MkdirAll(template, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(template, "package.json"), []byte(`{"name":"desktop-template","devDependencies":{"electron":"33.0.0"}}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(template, "package-lock.json"), []byte(`{"lockfileVersion":3,"packages":{}}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	got, err := Resolve(root, "scenario-to-desktop", "template/vanilla", "npm", "electron", "42.11.11")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.SurfaceRoot != template || got.ManifestPath != filepath.Join(template, "package.json") || got.PackageManager != "npm" {
+		t.Fatalf("resolved wrong canonical template surface: %+v", got)
+	}
+	if strings.Contains(strings.Join(got.Argv, " "), "--prefix") || !strings.Contains(strings.Join(got.Argv, " "), "electron@42.11.11") {
+		t.Fatalf("install plan is not scoped to the canonical template: %+v", got.Argv)
+	}
+	if _, err := installTemplate(context.Background(), got, npmTemplateLockInstaller{}); err != nil {
+		t.Fatal(err)
+	}
+	manifest, err := os.ReadFile(got.ManifestPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(manifest), `"electron":"42.11.11"`) && !strings.Contains(string(manifest), `"electron": "42.11.11"`) {
+		t.Fatalf("Electron version was not persisted in canonical manifest: %s", manifest)
+	}
+	lock, err := os.ReadFile(filepath.Join(template, "package-lock.json"))
+	if err != nil || !strings.Contains(string(lock), "42.11.11") {
+		t.Fatalf("canonical npm lock was not persisted: %s, err=%v", lock, err)
+	}
+}
+
+func TestExactGovernedVersionUpdatesGeneratedElectronManifest(t *testing.T) {
+	root := t.TempDir()
+	template := filepath.Join(root, "scenarios", "scenario-to-desktop", "templates", "vanilla")
+	if err := os.MkdirAll(template, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(template, "package.json"), []byte(`{"name":"desktop-template","devDependencies":{"electron":"42.11.11"}}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(template, "package-lock.json"), []byte(`{"lockfileVersion":3,"packages":{}}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	generatedManifest := filepath.Join(template, "package.json.template")
+	generated := `{"name":"{{APP_NAME}}","devDependencies":{"electron":"42.11.11"},"build":{"afterAllArtifactBuild":{{LINUX_ARTIFACT_SIGNER_HOOK}}}}`
+	if err := os.WriteFile(generatedManifest, []byte(generated), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	for _, name := range []string{"electron", "electron-mksnapshot"} {
+		resolution, err := Resolve(root, "scenario-to-desktop", "template/vanilla", "npm", name, "44.7.2")
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := ApplyExactVersion(&resolution, "44.7.2"); err != nil {
+			t.Fatal(err)
+		}
+		if !strings.Contains(strings.Join(resolution.Argv, " "), "--save-exact") {
+			t.Fatalf("install plan omitted exact-save flag: %v", resolution.Argv)
+		}
+		if _, err := installTemplate(context.Background(), resolution, npmTemplateLockInstaller{}); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	manifest, err := os.ReadFile(generatedManifest)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var parsed struct {
+		DevDependencies map[string]string `json:"devDependencies"`
+	}
+	if err := json.Unmarshal(bytes.ReplaceAll(manifest, []byte(`{{LINUX_ARTIFACT_SIGNER_HOOK}}`), []byte(`null`)), &parsed); err != nil {
+		t.Fatalf("generated manifest must retain valid template structure: %v\n%s", err, manifest)
+	}
+	for _, name := range []string{"electron", "electron-mksnapshot"} {
+		if parsed.DevDependencies[name] != "44.7.2" {
+			t.Errorf("generated manifest %s = %q, want exact 44.7.2", name, parsed.DevDependencies[name])
+		}
+	}
+	if !bytes.Contains(manifest, []byte(`{{APP_NAME}}`)) || !bytes.Contains(manifest, []byte(`{{LINUX_ARTIFACT_SIGNER_HOOK}}`)) {
+		t.Fatalf("template placeholders were altered: %s", manifest)
+	}
+}
+
+func TestGovernedTemplateDeclarationRetainsGeneratedScenarioPath(t *testing.T) {
+	root := t.TempDir()
+	ui := filepath.Join(root, "templates", "scenarios", "react-vite", "ui")
+	if err := os.MkdirAll(ui, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(ui, "package.json"), []byte(`{"name":"{{SCENARIO_ID}}-ui","dependencies":{"react":"18.3.1"}}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(ui, "pnpm-lock.yaml"), []byte("lockfileVersion: '9.0'\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	r, err := Resolve(root, "template-manager", "template/react-vite", "npm", "@vrooli/ui-selectors", "file:../../../packages/ui-selectors")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err = installTemplate(context.Background(), r, templateLockInstaller{}); err != nil {
+		t.Fatal(err)
+	}
+	data, err := os.ReadFile(r.ManifestPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(data), `"@vrooli/ui-selectors": "file:../../../packages/ui-selectors"`) || !strings.Contains(string(data), `"react": "18.3.1"`) {
+		t.Fatalf("unexpected declaration: %s", data)
+	}
+	if _, err := os.Stat(filepath.Join(ui, "node_modules")); !os.IsNotExist(err) {
+		t.Fatal("template declaration ran an installer")
+	}
+}
+
+type templateLockInstaller struct{}
+
+type npmTemplateLockInstaller struct{}
+
+func (npmTemplateLockInstaller) Install(_ context.Context, r Resolution) (string, error) {
+	if r.PackageManager != "npm" || !strings.Contains(strings.Join(r.Argv, " "), "--lockfile-only") || !strings.Contains(strings.Join(r.Argv, " "), "--ignore-scripts") {
+		return "", fmt.Errorf("unsafe npm template lock plan: %+v", r.Argv)
+	}
+	raw, err := os.ReadFile(r.ManifestPath)
+	if err != nil {
+		return "", err
+	}
+	var m map[string]any
+	if err = json.Unmarshal(raw, &m); err != nil {
+		return "", err
+	}
+	version := ""
+	for _, arg := range r.Argv {
+		if strings.HasPrefix(arg, r.PackageName+"@") {
+			version = strings.TrimPrefix(arg, r.PackageName+"@")
+		}
+	}
+	if version == "" {
+		return "", fmt.Errorf("template test install has no exact package version in argv: %v", r.Argv)
+	}
+	dev := m["devDependencies"].(map[string]any)
+	dev[r.PackageName] = version
+	raw, err = json.Marshal(m)
+	if err != nil {
+		return "", err
+	}
+	if err = os.WriteFile(r.ManifestPath, raw, 0o644); err != nil {
+		return "", err
+	}
+	return "", os.WriteFile(filepath.Join(r.SurfaceRoot, "package-lock.json"), []byte(fmt.Sprintf(`{"lockfileVersion":3,"packages":{"node_modules/%s":{"version":"%s"}}}`, r.PackageName, version)), 0o644)
+}
+
+func (templateLockInstaller) Install(_ context.Context, r Resolution) (string, error) {
+	if r.TemplateVersion != "" || !strings.Contains(strings.Join(r.Argv, " "), "--lockfile-only") {
+		return "", fmt.Errorf("unsafe template install plan")
+	}
+	raw, err := os.ReadFile(r.ManifestPath)
+	if err != nil {
+		return "", err
+	}
+	var m map[string]any
+	if err = json.Unmarshal(raw, &m); err != nil {
+		return "", err
+	}
+	m["dependencies"].(map[string]any)[r.PackageName] = "file:../../../packages/ui-selectors"
+	raw, err = json.Marshal(m)
+	if err != nil {
+		return "", err
+	}
+	return "", os.WriteFile(r.ManifestPath, raw, 0o644)
+}

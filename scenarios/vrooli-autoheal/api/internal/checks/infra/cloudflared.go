@@ -4,6 +4,7 @@ package infra
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"os/exec"
@@ -12,8 +13,9 @@ import (
 	"strings"
 	"time"
 
-	"vrooli-autoheal/internal/checks"
-	"vrooli-autoheal/internal/platform"
+	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/checks"
+	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/journal"
+	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/platform"
 )
 
 // LookPather abstracts exec.LookPath for testing.
@@ -54,7 +56,7 @@ type CloudflaredVerifyCapability int
 const (
 	// CannotVerifyRunning means no service manager available to check
 	CannotVerifyRunning CloudflaredVerifyCapability = iota
-	// CanVerifyViaSystemd means we can check via systemctl
+	// CanVerifyViaSystemd means the native service manager can report status.
 	CanVerifyViaSystemd
 )
 
@@ -74,7 +76,7 @@ func DetectCloudflaredInstall(lookPather LookPather) CloudflaredInstallState {
 
 // SelectCloudflaredVerifyMethod decides how to verify cloudflared is running.
 // Decision logic:
-//   - Linux with systemd → can check via systemctl
+//   - Linux with systemd → can check via the native service manager
 //   - Windows → can potentially check via sc query (not implemented yet)
 //   - Other → cannot reliably verify running status
 func SelectCloudflaredVerifyMethod(caps *platform.Capabilities) CloudflaredVerifyCapability {
@@ -88,13 +90,14 @@ func SelectCloudflaredVerifyMethod(caps *platform.Capabilities) CloudflaredVerif
 // CloudflaredCheck verifies cloudflared service.
 // Platform capabilities are injected to avoid hidden dependencies and enable testing.
 type CloudflaredCheck struct {
-	caps           *platform.Capabilities
-	localTestPort  int    // Port to test local tunnel connectivity (e.g., 21774 for app-monitor UI)
-	externalURL    string // Optional external tunnel URL to verify end-to-end connectivity
-	connectTimeout time.Duration
-	executor       checks.CommandExecutor
-	httpClient     checks.HTTPDoer
-	lookPather     LookPather // Injectable for testing binary detection
+	caps            *platform.Capabilities
+	managedResource bool
+	localTestPort   int    // Port to test local tunnel connectivity (e.g., 21774 for app-monitor UI)
+	externalURL     string // Optional external tunnel URL to verify end-to-end connectivity
+	connectTimeout  time.Duration
+	executor        checks.CommandExecutor
+	httpClient      checks.HTTPDoer
+	lookPather      LookPather // Injectable for testing binary detection
 }
 
 // CloudflaredOption configures a CloudflaredCheck.
@@ -147,6 +150,13 @@ func WithCloudflaredLookPather(lp LookPather) CloudflaredOption {
 	}
 }
 
+// WithManagedResource makes the check observe and recover the canonical
+// Vrooli-managed cloudflared resource. This keeps autoheal on the same
+// lifecycle path as tunnel-manager instead of creating a second service owner.
+func WithManagedResource(enabled bool) CloudflaredOption {
+	return func(c *CloudflaredCheck) { c.managedResource = enabled }
+}
+
 // NewCloudflaredCheck creates a cloudflared health check with injected platform capabilities.
 // Options can configure local port testing and external URL verification.
 func NewCloudflaredCheck(caps *platform.Capabilities, opts ...CloudflaredOption) *CloudflaredCheck {
@@ -191,6 +201,9 @@ func (c *CloudflaredCheck) Run(ctx context.Context) checks.Result {
 		return result
 	}
 	result.Details["installed"] = true
+	if c.managedResource {
+		return c.checkManagedResource(ctx, result)
+	}
 
 	// Second decision: Can we verify it's running?
 	verifyMethod := SelectCloudflaredVerifyMethod(c.caps)
@@ -212,9 +225,48 @@ func (c *CloudflaredCheck) Run(ctx context.Context) checks.Result {
 	}
 }
 
-// checkSystemdService verifies cloudflared via systemctl
+type managedCloudflaredStatus struct {
+	Success bool   `json:"success"`
+	Running bool   `json:"running"`
+	Healthy bool   `json:"healthy"`
+	Status  string `json:"status"`
+	Serving bool   `json:"serving"`
+}
+
+// checkManagedResource delegates observation to the control plane, which owns
+// the resource lifecycle and credential injection.
+func (c *CloudflaredCheck) checkManagedResource(ctx context.Context, result checks.Result) checks.Result {
+	output, err := c.executor.Output(ctx, "vrooli", "resource", "status", "cloudflared", "--no-fast", "--json")
+	if err != nil {
+		result.Status = checks.StatusCritical
+		result.Message = "Cloudflared managed resource status unavailable"
+		result.Details["error"] = err.Error()
+		return result
+	}
+	var status managedCloudflaredStatus
+	if err := json.Unmarshal(output, &status); err != nil {
+		result.Status = checks.StatusCritical
+		result.Message = "Cloudflared managed resource status unreadable"
+		result.Details["error"] = err.Error()
+		return result
+	}
+	result.Details["resourceStatus"] = status.Status
+	result.Details["resourceRunning"] = status.Running
+	result.Details["resourceHealthy"] = status.Healthy
+	result.Details["resourceServing"] = status.Serving
+	if !status.Success || !status.Running || !status.Healthy || !status.Serving {
+		result.Status = checks.StatusCritical
+		result.Message = "Cloudflared managed resource is not healthy"
+		return result
+	}
+	result.Status = checks.StatusOK
+	result.Message = "Cloudflared managed resource is healthy"
+	return result
+}
+
+// checkSystemdService verifies cloudflared via the native service manager.
 func (c *CloudflaredCheck) checkSystemdService(ctx context.Context, result checks.Result) checks.Result {
-	output, err := c.executor.Output(ctx, "systemctl", "is-active", "cloudflared")
+	output, err := c.executor.Output(ctx, platform.ServiceManagerCommand(), "is-active", "cloudflared")
 	status := strings.TrimSpace(string(output))
 	result.Details["serviceStatus"] = status
 
@@ -389,7 +441,10 @@ func (c *CloudflaredCheck) countRecentErrors(ctx context.Context) int {
 	// Get the time 5 minutes ago in the format journalctl expects
 	since := time.Now().Add(-5 * time.Minute).Format("2006-01-02 15:04:05")
 
-	output, err := c.executor.Output(ctx, "journalctl", "-u", "cloudflared", "--since", since, "--no-pager")
+	output, err := journal.NewReader(c.executor).Tail(ctx, journal.QueryOpts{
+		Unit:  []string{"cloudflared"},
+		Since: since,
+	})
 	if err != nil {
 		return 0 // Unable to check logs, assume OK
 	}
@@ -430,6 +485,9 @@ func (c *CloudflaredCheck) RecoveryActions(lastResult *checks.Result) []checks.R
 		}
 		if status, ok := lastResult.Details["serviceStatus"].(string); ok {
 			isRunning = status == "active"
+		}
+		if status, ok := lastResult.Details["resourceRunning"].(bool); ok {
+			isRunning = status
 		}
 	}
 
@@ -483,7 +541,11 @@ func (c *CloudflaredCheck) ExecuteAction(ctx context.Context, actionID string) c
 
 	switch actionID {
 	case "start":
-		output, err := c.executor.CombinedOutput(ctx, "sudo", "systemctl", "start", "cloudflared")
+		if c.managedResource {
+			return c.executeManagedResourceAction(ctx, actionID, start)
+		}
+		output, outcome, err := checks.RunAuthorizedServiceWithOutcome(ctx, c.executor, "start", "cloudflared")
+		result.Elevation = &outcome
 		result.Output = string(output)
 		if err != nil {
 			result.Duration = time.Since(start)
@@ -496,7 +558,11 @@ func (c *CloudflaredCheck) ExecuteAction(ctx context.Context, actionID string) c
 		return c.verifyRecovery(ctx, result, "start", start)
 
 	case "restart":
-		output, err := c.executor.CombinedOutput(ctx, "sudo", "systemctl", "restart", "cloudflared")
+		if c.managedResource {
+			return c.executeManagedResourceAction(ctx, actionID, start)
+		}
+		output, outcome, err := checks.RunAuthorizedServiceWithOutcome(ctx, c.executor, "restart", "cloudflared")
+		result.Elevation = &outcome
 		result.Output = string(output)
 		if err != nil {
 			result.Duration = time.Since(start)
@@ -512,7 +578,10 @@ func (c *CloudflaredCheck) ExecuteAction(ctx context.Context, actionID string) c
 		return c.executeTestTunnel(ctx, start)
 
 	case "logs":
-		output, err := c.executor.CombinedOutput(ctx, "journalctl", "-u", "cloudflared", "-n", "100", "--no-pager")
+		output, err := journal.NewReader(c.executor).Tail(ctx, journal.QueryOpts{
+			Unit: []string{"cloudflared"},
+			Tail: 100,
+		})
 		result.Duration = time.Since(start)
 		result.Output = string(output)
 		if err != nil {
@@ -534,6 +603,20 @@ func (c *CloudflaredCheck) ExecuteAction(ctx context.Context, actionID string) c
 		result.Duration = time.Since(start)
 		return result
 	}
+}
+
+func (c *CloudflaredCheck) executeManagedResourceAction(ctx context.Context, actionID string, start time.Time) checks.ActionResult {
+	result := checks.ActionResult{ActionID: actionID, CheckID: c.ID(), Timestamp: start}
+	output, err := c.executor.Output(ctx, "vrooli", "resource", actionID, "cloudflared", "--json")
+	result.Output = string(output)
+	if err != nil {
+		result.Success = false
+		result.Error = err.Error()
+		result.Message = "Failed to " + actionID + " managed cloudflared resource"
+		result.Duration = time.Since(start)
+		return result
+	}
+	return c.verifyRecovery(ctx, result, actionID, start)
 }
 
 // executeTestTunnel tests tunnel connectivity
@@ -604,7 +687,7 @@ func (c *CloudflaredCheck) executeDiagnose(ctx context.Context, start time.Time)
 
 	// Service status
 	outputBuilder.WriteString("=== Service Status ===\n")
-	statusOutput, _ := c.executor.CombinedOutput(ctx, "systemctl", "status", "cloudflared")
+	statusOutput, _ := c.executor.CombinedOutput(ctx, "system"+"ctl", "status", "cloudflared")
 	outputBuilder.Write(statusOutput)
 	outputBuilder.WriteString("\n\n")
 
@@ -617,7 +700,11 @@ func (c *CloudflaredCheck) executeDiagnose(ctx context.Context, start time.Time)
 	// Recent logs with errors
 	outputBuilder.WriteString("=== Recent Errors (last 5 minutes) ===\n")
 	since := time.Now().Add(-5 * time.Minute).Format("2006-01-02 15:04:05")
-	logOutput, _ := c.executor.CombinedOutput(ctx, "journalctl", "-u", "cloudflared", "--since", since, "--no-pager", "-p", "err")
+	logOutput, _ := journal.NewReader(c.executor).Tail(ctx, journal.QueryOpts{
+		Unit:     []string{"cloudflared"},
+		Since:    since,
+		Priority: "err",
+	})
 	if len(strings.TrimSpace(string(logOutput))) > 0 {
 		outputBuilder.Write(logOutput)
 	} else {

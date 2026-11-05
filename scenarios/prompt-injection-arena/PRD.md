@@ -431,7 +431,7 @@ direct_execution:
   supported: true
   structure_compliance:
     - service.json with complete metadata
-    - All required initialization files (postgres schema)
+    - All required API schema-provider files (PostgreSQL schema)
     - Deployment scripts (startup.sh, monitor.sh)
     - Health check endpoints
     
@@ -501,14 +501,14 @@ structure:
     - api/go.mod
     - cli/prompt-injection-arena
     - cli/install.sh
-    - initialization/postgres/schema.sql
+    - api/internal/<domain>/schema.sql
     - scenario-test.yaml
     
   required_dirs:
     - api
     - cli  
     - initialization
-    - initialization/postgres
+    - api/internal/<domain>/postgres
     - ui
 
 # Resource validation:

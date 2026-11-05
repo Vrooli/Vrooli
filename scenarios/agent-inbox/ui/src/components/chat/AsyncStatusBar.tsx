@@ -96,19 +96,6 @@ export function AsyncStatusBar({
     }
   };
 
-  const _handleRefreshOne = async (toolCallId: string) => {
-    setRefreshingIds((prev) => new Set(prev).add(toolCallId));
-    try {
-      await onRefresh(toolCallId);
-    } finally {
-      setRefreshingIds((prev) => {
-        const next = new Set(prev);
-        next.delete(toolCallId);
-        return next;
-      });
-    }
-  };
-
   if (isCollapsed) {
     // Collapsed view - just show count and expand button
     return (
@@ -195,7 +182,7 @@ export function AsyncStatusBar({
             <Button
               variant="ghost"
               size="sm"
-              onClick={handleRefreshAll}
+              onClick={() => { void handleRefreshAll(); }}
               disabled={refreshingIds.size > 0}
               className="h-6 w-6 p-0 text-slate-400 hover:text-slate-200"
             >

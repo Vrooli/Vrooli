@@ -1,0 +1,144 @@
+{
+  "_metadata": {
+    "module": "attestation",
+    "description": "Attestation produces the trust artifacts a registry and a consuming agent verify: scanner verdict, signature, provenance, and SBOM. It runs only after conformance passes.",
+    "prd_ref": "PRD.md",
+    "priority": "P0",
+    "auto_sync_enabled": true,
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "PLG-ATTEST-ORDER",
+      "title": "If conformance has not passed for a package, then the ramp shall refuse to sign it.",
+      "status": "planned",
+      "prd_ref": "OT-P0-005",
+      "category": "attestation.ordering",
+      "description": "A signature asserts that this artifact came from Vrooli's pipeline. Signing an unconformant package would make that assertion true and misleading at once, so ordering is enforced in the domain rather than left to caller discipline.",
+      "tags": [
+        "ordering",
+        "fail-closed",
+        "signing"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "ref": "docs/internal/TESTING.md",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "Not implemented. Planned automated layers \u2014 api: api/internal/attestation/ordering_test.go; api: api/handlers/attestation/module_test.go. Approach and fixtures: docs/internal/TESTING.md."
+        }
+      ]
+    },
+    {
+      "id": "PLG-ATTEST-SCAN",
+      "title": "When a configured scanner returns a critical or high finding, the ramp shall fail the package rather than record a warning.",
+      "status": "planned",
+      "prd_ref": "OT-P0-005",
+      "category": "attestation.scan",
+      "description": "One flagged Vrooli plugin lowers the trust score of every other Vrooli plugin, so the blast radius of a permissive scanner policy is the whole channel rather than one artifact. A scanner finding is a gate, not a note.",
+      "tags": [
+        "scanner",
+        "fail-closed",
+        "trust"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "ref": "docs/internal/TESTING.md",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "Not implemented. Planned automated layers \u2014 api: api/internal/attestation/scan_test.go; ui: ui/src/features/attestation/__tests__/ScanVerdict.test.tsx. Approach and fixtures: docs/internal/TESTING.md."
+        }
+      ]
+    },
+    {
+      "id": "PLG-ATTEST-SIGN",
+      "title": "When a package passes conformance and scanning, the ramp shall produce a Cosign signature bound to the artifact digest through the managed release-signing authority.",
+      "status": "planned",
+      "prd_ref": "OT-P0-005",
+      "category": "attestation.signature",
+      "description": "Signing goes through the managed release authority rather than a scenario-held key so that key custody, rotation, and revocation stay with the platform authority that already owns them.",
+      "tags": [
+        "cosign",
+        "sigstore",
+        "release-authority"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "ref": "docs/internal/TESTING.md",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "Not implemented. Planned automated layers \u2014 api: api/internal/attestation/signature_test.go; cli: cli/domains/attestation/register_test.go. Approach and fixtures: docs/internal/TESTING.md."
+        }
+      ]
+    },
+    {
+      "id": "PLG-ATTEST-PROV",
+      "title": "The ramp shall attach an SLSA provenance attestation that names the source commit and the build environment for the signed digest.",
+      "status": "planned",
+      "prd_ref": "OT-P0-005",
+      "category": "attestation.provenance",
+      "description": "Provenance is what lets a consumer answer 'which source produced this' without trusting the publisher's description of it. It is also what makes post-publish tampering detectable rather than merely improbable.",
+      "tags": [
+        "slsa",
+        "provenance",
+        "supply-chain"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "ref": "docs/internal/TESTING.md",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "Not implemented. Planned automated layers \u2014 api: api/internal/attestation/provenance_test.go; ui: ui/src/features/attestation/__tests__/ProvenanceCard.test.tsx. Approach and fixtures: docs/internal/TESTING.md."
+        }
+      ]
+    },
+    {
+      "id": "PLG-ATTEST-SBOM",
+      "title": "The ramp shall attach a CycloneDX SBOM enumerating the package's direct and transitive dependencies.",
+      "status": "planned",
+      "prd_ref": "OT-P0-005",
+      "category": "attestation.sbom",
+      "description": "The SBOM is what lets a downstream scanner correlate a newly disclosed vulnerability against an already-published artifact. Without it, a consumer cannot answer whether an installed plugin is affected.",
+      "tags": [
+        "sbom",
+        "cyclonedx",
+        "supply-chain"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "ref": "docs/internal/TESTING.md",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "Not implemented. Planned automated layers \u2014 api: api/internal/attestation/sbom_test.go; ui: ui/src/features/attestation/__tests__/SbomSummary.test.tsx. Approach and fixtures: docs/internal/TESTING.md."
+        }
+      ]
+    },
+    {
+      "id": "PLG-ATTEST-NO-SECRETS",
+      "title": "If a credential literal appears in an artifact, an SBOM, or an attestation, then the ramp shall fail the package before publication.",
+      "status": "planned",
+      "prd_ref": "OT-P0-005",
+      "category": "attestation.redaction",
+      "description": "Attestations and SBOMs are published alongside the artifact and are permanently retrievable. A credential that reaches one of them cannot be recalled by deleting the artifact, so the check runs before anything leaves the host.",
+      "tags": [
+        "secrets",
+        "redaction",
+        "fail-closed"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "ref": "docs/internal/TESTING.md",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "Not implemented. Planned automated layers \u2014 api: api/internal/attestation/redaction_test.go; e2e: bas/cases/04-attestation/secret-blocks-publish.json. Approach and fixtures: docs/internal/TESTING.md."
+        }
+      ]
+    }
+  ]
+}

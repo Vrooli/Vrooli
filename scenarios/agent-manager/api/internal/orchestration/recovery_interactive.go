@@ -1,0 +1,458 @@
+// This file restores interactive run state during recovery.
+package orchestration
+
+import (
+	"agent-manager/internal/adapters/event"
+	"agent-manager/internal/invocationreadmodel"
+	"context"
+	"fmt"
+	"strings"
+	"time"
+
+	"agent-manager/internal/adapters/runner"
+	"agent-manager/internal/domain"
+	"agent-manager/internal/orchestration/interactive"
+	"agent-manager/internal/orchestration/obs"
+
+	"github.com/google/uuid"
+)
+
+// recoverInteractiveRun re-adopts an interactive run (ExecutionMode=interactive)
+// after an agent-manager restart or a stale-heartbeat detection. It mirrors the
+// codec-pipe recovery trust model (drain the transcript for a terminal marker)
+// but resolves liveness from the web-console session rather than a local pgid:
+//
+//   - a failure terminal already on disk finalizes the run Failed;
+//   - otherwise the session decides: gone => (success terminal ? Complete :
+//     Failed with an explicit reason so the run is never orphaned); alive =>
+//     reattach the interactive tailer from the persisted cursor and let its
+//     turn-boundary debounce drive true completion.
+//
+// When the web-console session controller is not wired, interactive recovery is
+// a logged idempotent no-op: it never falsely completes or fails the run.
+func (r *Reconciler) recoverInteractiveRun(ctx context.Context, run *domain.Run, allowTail bool) (*RecoverResult, error) {
+	recoveryLog := obs.Component("recovery")
+
+	if r.sessions == nil {
+		recoveryLog.Warn("interactive recovery not configured; leaving run untouched",
+			obs.KeyRunID, run.ID.String())
+		return &RecoverResult{Run: run, Idempotent: true, Message: "interactive recovery not configured"}, nil
+	}
+
+	// Join an old recovery observer before taking any transcript cut. The
+	// continuation owner holds the same mutex while it admits and delivers work.
+	if !r.interactiveRecoveryMu.TryLock() {
+		return &RecoverResult{Run: run, Idempotent: true, Message: "interactive continuation or recovery owner is in flight"}, nil
+	}
+	defer r.interactiveRecoveryMu.Unlock()
+	if r.interactiveLiveDrivers != nil && r.interactiveLiveDrivers.has(run.ID) {
+		return &RecoverResult{Run: run, Idempotent: true, Message: "live interactive driver owns completion"}, nil
+	}
+	coord := r.interactiveCoordinator(interactiveContinuationRecoveryOptions(run))
+	if run.ResolvedConfig != nil && strings.TrimSpace(run.ResolvedConfig.Until) != "" {
+		joinCtx, cancel := context.WithTimeout(ctx, 4*time.Second)
+		hadTailer, joinErr := r.cancelInteractiveTailAndWait(joinCtx, run.ID)
+		cancel()
+		if joinErr != nil {
+			return &RecoverResult{Run: run, Message: "interactive tailer join is pending: " + joinErr.Error()}, nil
+		}
+		// Tail callbacks may have persisted one final cursor or terminal. Never
+		// overwrite that newer state with the pre-cancellation caller snapshot.
+		current, err := r.runs.Get(ctx, run.ID)
+		if err != nil {
+			return nil, err
+		}
+		run = current
+		if run == nil {
+			return nil, domain.NewNotFoundErrorWithID("Run", "interactive recovery")
+		}
+		// The joined invocation may have changed while recovery waited for its
+		// previous tailer. Rebind completion behavior only to the freshly loaded
+		// running row and its exact invocation policy.
+		coord = r.interactiveCoordinator(interactiveContinuationRecoveryOptions(run))
+		if !run.Status.LivenessPolicy().ExpectsProcess {
+			return &RecoverResult{Run: run, Idempotent: true, Message: "interactive owner already finalized"}, nil
+		}
+		// Legacy rows predate the atomic invocation boundary. Retained owner start
+		// events provide a conservative later cutoff without altering their history.
+		inspection := *run
+		if inspection.InteractiveInvocationStartedAt == nil && r.events != nil {
+			starts, err := r.events.Get(ctx, run.ID, event.GetOptions{AfterSequence: -1, EventTypes: []domain.RunEventType{domain.EventTypeStatus}, Limit: 1025})
+			if err != nil || len(starts) > 1024 {
+				return r.retainInteractiveOnEvidenceUnavailable(ctx, run, coord, allowTail, hadTailer,
+					"interactive invocation evidence unavailable or exceeds replay bound")
+			}
+			for _, item := range starts {
+				if invocationreadmodel.BeginsRunInvocation(item) && !item.Timestamp.IsZero() && (inspection.InteractiveInvocationStartedAt == nil || item.Timestamp.After(*inspection.InteractiveInvocationStartedAt)) {
+					stamp := item.Timestamp
+					inspection.InteractiveInvocationStartedAt = &stamp
+				}
+			}
+		}
+		var evidence *interactive.RetainedGoalEvidence
+		var inspectErr error
+		if run.ResolvedConfig != nil && run.ResolvedConfig.RunnerType == domain.RunnerTypeCodex {
+			tailContext, contextErr := loadInteractiveTailContextForRun(ctx, run, r.resolveRunStateRoot)
+			if contextErr != nil {
+				return r.retainInteractiveOnEvidenceUnavailable(ctx, run, coord, allowTail, hadTailer,
+					"run-scoped transcript discovery context unavailable: "+contextErr.Error())
+			}
+			evidence, inspectErr = coord.InspectCurrentRetainedGoal(ctx, &inspection, tailContext)
+		} else {
+			evidence, inspectErr = coord.InspectRetainedGoal(ctx, &inspection)
+		}
+		if inspectErr != nil {
+			return r.retainInteractiveOnEvidenceUnavailable(ctx, run, coord, allowTail, hadTailer,
+				"retained native goal evidence unavailable: "+inspectErr.Error())
+		}
+		// Codex recovery may have durably selected a newer run-scoped rollout
+		// while inspecting the copy with a legacy invocation cutoff. Continue
+		// all drain, session, and tail work from that same owner path/cursor.
+		run.TranscriptPath = inspection.TranscriptPath
+		run.TranscriptCursor = inspection.TranscriptCursor
+		if evidence != nil {
+			if err := r.recordRetainedGoalStatus(ctx, run, evidence); err != nil {
+				return nil, err
+			}
+			if err := coord.Finalize(ctx, run, evidence.Terminal, nil); err != nil {
+				return nil, err
+			}
+			return &RecoverResult{Run: run, Recovered: true, Message: "reconciled accepted native goal from exact retained session and invocation"}, nil
+		}
+		if interactiveContinuationRecoveryOptions(run).CompleteAfterFirstSuccessfulTurnWithoutGoalMarker {
+			continuation, continuationErr := coord.InspectRetainedContinuation(ctx, run)
+			if continuationErr != nil {
+				return r.retainInteractiveOnEvidenceUnavailable(ctx, run, coord, allowTail, hadTailer,
+					"retained continuation evidence unavailable: "+continuationErr.Error())
+			}
+			if continuation != nil && continuation.Terminal != nil {
+				if continuation.Terminal.TerminalReason == "" {
+					continuation.Terminal.TerminalReason = "post_goal_continuation"
+				}
+				if err := coord.Finalize(ctx, run, continuation.Terminal, nil); err != nil {
+					return nil, err
+				}
+				return &RecoverResult{Run: run, Recovered: true, Message: "finalized terminal from the exact retained continuation segment"}, nil
+			}
+		}
+		// A joined observer owned this run even for a read-triggered recovery call.
+		// Preserve that ownership when new work superseded historical completion.
+		allowTail = allowTail || hadTailer
+	}
+
+	// If a reattached tailer is already driving this run, do not re-drain or
+	// restart it every reconcile cycle — it owns completion.
+	if r.hasTailer(run.ID) {
+		return &RecoverResult{Run: run, Recovered: true, Message: "interactive tail already in flight"}, nil
+	}
+
+	// 1. Drain any already-written transcript for a terminal marker, reusing the
+	//    codec-pipe drain (same parser seam, same cursor persistence).
+	terminal := r.drainInteractiveTranscript(ctx, run)
+
+	// 2. A failure terminal is authoritative regardless of session state.
+	if terminal != nil && !terminal.Success {
+		return r.finalizeRecoveredRun(ctx, run, terminal)
+	}
+
+	// 3. Session liveness decides the rest.
+	alive, err := coord.VerifySession(ctx, run)
+	if err != nil {
+		// Transient RPC failure — leave the run for the next reconcile cycle
+		// rather than risk falsely failing a live run.
+		recoveryLog.Warn("interactive session check failed",
+			obs.KeyRunID, run.ID.String(), obs.KeyError, err.Error())
+		return &RecoverResult{Run: run, Recovered: false, Message: "interactive session check failed: " + err.Error()}, nil
+	}
+
+	if !alive {
+		if terminal != nil {
+			// Last turn completed, then the session was cleaned up.
+			return r.finalizeRecoveredRun(ctx, run, terminal)
+		}
+		return r.recordRecoveredInterruption(ctx, run, fmt.Sprintf(
+			"web-console session %s no longer exists; interactive run cannot be recovered", run.WebConsoleSessionID))
+	}
+
+	// 4. Session alive — reattach the tailer to drive true completion.
+	if allowTail {
+		if err := r.startInteractiveTailer(ctx, run, coord); err != nil {
+			return &RecoverResult{Run: run, Message: "interactive tailer was not attached: " + err.Error()}, nil
+		}
+		return &RecoverResult{Run: run, Recovered: true, Message: fmt.Sprintf(
+			"reattached interactive tailer for run %s at offset %d", run.ID, run.TranscriptCursor)}, nil
+	}
+	return &RecoverResult{Run: run, Recovered: true, Message: "interactive session alive"}, nil
+}
+
+func (r *Reconciler) recordRetainedGoalStatus(ctx context.Context, run *domain.Run, evidence *interactive.RetainedGoalEvidence) error {
+	if r.events == nil {
+		return fmt.Errorf("goal recovery cannot converge observed status without the event store")
+	}
+	if run == nil || evidence == nil || evidence.Terminal == nil || evidence.At.IsZero() {
+		return fmt.Errorf("goal recovery evidence is incomplete")
+	}
+	marker := evidence.Marker
+	if marker.Objective == "" || !marker.Status.Valid() || evidence.Terminal.TerminalReason != "goal_"+string(marker.Status) {
+		return fmt.Errorf("goal recovery evidence does not match its terminal verdict")
+	}
+
+	// A live tail may have persisted this exact marker just before recovery
+	// joined it. Query only the small event-time suffix at the marker boundary
+	// to avoid emitting a duplicate. A different later marker means this retained
+	// verdict was superseded and must not overwrite the newer observation.
+	since := evidence.At.Add(-time.Nanosecond)
+	existing, err := r.events.Get(ctx, run.ID, event.GetOptions{
+		AfterSequence: -1,
+		EventTypes:    []domain.RunEventType{domain.EventTypeGoalStatusChanged},
+		Since:         &since,
+		Limit:         1025,
+	})
+	if err != nil {
+		return fmt.Errorf("read retained goal status events: %w", err)
+	}
+	if len(existing) > 1024 {
+		return fmt.Errorf("retained goal status suffix exceeds the 1024-event reconciliation bound")
+	}
+	if len(existing) > 0 {
+		last := existing[len(existing)-1]
+		goal, ok := last.Data.(*domain.GoalStatusChangedEventData)
+		if !ok || goal == nil || goal.Objective != marker.Objective || goal.Status != string(marker.Status) || goal.Iteration != marker.Iteration || goal.LastReason != marker.LastReason {
+			return fmt.Errorf("retained goal verdict was superseded by a later observed goal status")
+		}
+		run.ObservedGoalStatus = goal.Status
+		observedAt := last.Timestamp
+		run.ObservedGoalAt = &observedAt
+		return nil
+	}
+
+	eventID := uuid.NewSHA1(run.ID, []byte(fmt.Sprintf("goal-status:%s:%s:%d:%s:%s", marker.Objective, marker.Status, marker.Iteration, marker.LastReason, evidence.At.UTC().Format(time.RFC3339Nano))))
+	event := domain.NewGoalStatusChangedEvent(run.ID, marker.Objective, string(marker.Status), marker.Iteration, marker.LastReason)
+	event.ID = eventID
+	event.Timestamp = evidence.At
+	if err := r.recoveryEventSink(run.ID).Emit(event); err != nil {
+		return fmt.Errorf("persist retained goal status: %w", err)
+	}
+	run.ObservedGoalStatus = string(marker.Status)
+	observedAt := event.Timestamp
+	run.ObservedGoalAt = &observedAt
+	return nil
+}
+
+func (r *Reconciler) reconcileCompletedInteractiveGoal(ctx context.Context, run *domain.Run) (*RecoverResult, error) {
+	if !r.interactiveRecoveryMu.TryLock() {
+		return &RecoverResult{Run: run, Idempotent: true, Message: "interactive goal observation reconciliation is already in flight"}, nil
+	}
+	defer r.interactiveRecoveryMu.Unlock()
+
+	evidence, err := r.interactiveCoordinator(interactive.TailCompletionOptions{}).InspectRetainedGoal(ctx, run)
+	if err != nil {
+		return nil, fmt.Errorf("inspect retained completed interactive goal: %w", err)
+	}
+	if evidence == nil || evidence.Terminal == nil || run.Result == nil || evidence.Terminal.TerminalReason != run.Result.TerminalReason ||
+		run.EndedAt == nil || evidence.At.After(*run.EndedAt) {
+		return &RecoverResult{Run: run, Idempotent: true, Message: fmt.Sprintf("completed interactive run has no matching retained native goal evidence (evidence=%t terminal=%q result=%q ended=%v after=%v)", evidence != nil, func() string {
+			if evidence == nil || evidence.Terminal == nil {
+				return ""
+			}
+			return evidence.Terminal.TerminalReason
+		}(), func() string {
+			if run.Result == nil {
+				return ""
+			}
+			return run.Result.TerminalReason
+		}(), run.EndedAt, evidence != nil && run.EndedAt != nil && evidence.At.After(*run.EndedAt))}, nil
+	}
+	if err := r.recordRetainedGoalStatus(ctx, run, evidence); err != nil {
+		return nil, err
+	}
+	return &RecoverResult{Run: run, Recovered: true, Message: "reconciled observed goal status for an already-completed interactive run"}, nil
+}
+
+func (r *Reconciler) retainInteractiveOnEvidenceUnavailable(ctx context.Context, run *domain.Run, coord *interactive.Coordinator, allowTail, hadTailer bool, evidenceMessage string) (*RecoverResult, error) {
+	alive, err := coord.VerifySession(ctx, run)
+	if err != nil {
+		if hadTailer {
+			if tailErr := r.startInteractiveTailer(ctx, run, coord); tailErr != nil {
+				evidenceMessage += "; recovery tailer was not attached: " + tailErr.Error()
+			}
+		}
+		return &RecoverResult{Run: run, Message: evidenceMessage + "; session liveness unknown: " + err.Error()}, nil
+	}
+	if !alive {
+		return r.recordRecoveredInterruption(ctx, run, fmt.Sprintf(
+			"web-console session %s no longer exists; %s; completion remains unproven",
+			run.WebConsoleSessionID, evidenceMessage))
+	}
+	if allowTail || hadTailer {
+		if tailErr := r.startInteractiveTailer(ctx, run, coord); tailErr != nil {
+			evidenceMessage += "; recovery tailer was not attached: " + tailErr.Error()
+		}
+	}
+	return &RecoverResult{Run: run, Message: evidenceMessage + "; web-console session remains present"}, nil
+}
+
+// drainInteractiveTranscript drains the run's on-disk transcript from the
+// persisted cursor and returns a terminal marker if one is already present.
+// Reuses the codec-pipe recovery drain (recoveryParser + drainTranscript) so
+// interactive runs share the same parser + cursor-persistence machinery.
+func (r *Reconciler) drainInteractiveTranscript(ctx context.Context, run *domain.Run) *runner.TranscriptTerminal {
+	if run.TranscriptPath == "" {
+		return nil
+	}
+	parser, transcriptPath, state, err := r.recoveryParser(ctx, run)
+	if err != nil || parser == nil {
+		return nil
+	}
+	terminal, err := r.drainTranscript(ctx, run, transcriptPath, state, parser)
+	if err != nil {
+		return nil
+	}
+	return terminal
+}
+
+// interactiveCoordinator builds a recovery-flavoured interactive coordinator: no
+// substrate (reattach never launches), heartbeat disabled (the run is not owned
+// live), and the recovery event sink + summary builder wired in.
+func (r *Reconciler) interactiveCoordinator(options interactive.TailCompletionOptions) *interactive.Coordinator {
+	return interactive.NewCoordinator(interactive.CoordinatorDeps{
+		Tailer:      interactive.NewTailer(interactive.RegistryParser(r.runners)),
+		Sessions:    r.sessions,
+		Runs:        r.runs,
+		Broadcaster: r.broadcaster,
+		NewSink: func(runID uuid.UUID) runner.EventSink {
+			return r.recoveryEventSink(runID)
+		},
+		Result:                r.recoveredResult,
+		CompletionOptions:     options,
+		Heartbeat:             -1,
+		Debounce:              r.interactiveDebounce,
+		SessionPoll:           r.interactiveSessionPoll,
+		SessionReattachWindow: r.interactiveSessionReattachWindow,
+	})
+}
+
+func interactiveContinuationRecoveryOptions(run *domain.Run) interactive.TailCompletionOptions {
+	if run == nil || run.Status != domain.RunStatusRunning || run.ExecutionMode.Normalized() != domain.ExecutionModeInteractive ||
+		run.InteractiveInvocationStartedAt == nil || run.ResolvedConfig == nil || run.ResolvedConfig.InteractiveContinuation == nil {
+		return interactive.TailCompletionOptions{}
+	}
+	policy := run.ResolvedConfig.InteractiveContinuation
+	if !policy.CompleteAfterFirstSuccessfulTurnWithoutGoalMarker || policy.TranscriptStartCursor == nil || *policy.TranscriptStartCursor < 0 || *policy.TranscriptStartCursor > run.TranscriptCursor || !policy.InvocationStartedAt.Equal(*run.InteractiveInvocationStartedAt) {
+		return interactive.TailCompletionOptions{}
+	}
+	return interactive.TailCompletionOptions{CompleteAfterFirstSuccessfulTurnWithoutGoalMarker: true}
+}
+
+func (r *Reconciler) recoveredResult(ctx context.Context, runID uuid.UUID, success bool, exitCode int, terminalReason string) (*domain.RunResult, *domain.RunSummary) {
+	result, summary, err := r.buildRecoveredResult(ctx, runID, success, exitCode, terminalReason)
+	if err != nil {
+		return nil, nil
+	}
+	return result, summary
+}
+
+// startInteractiveTailer reattaches an interactive tailer to a live run in the
+// background, mirroring startTailer's dedupe-by-cancel bookkeeping. The tailer
+// drives the run to completion (terminal marker + turn-boundary debounce) and
+// finalizes it.
+func (r *Reconciler) startInteractiveTailer(ownerCtx context.Context, run *domain.Run, coord *interactive.Coordinator) error {
+	tailContext, contextErr := loadInteractiveTailContext(ownerCtx, run.ID, r.resolveRunStateRoot)
+	if contextErr != nil {
+		obs.Component("recovery").Warn("interactive recovery could not load run-state metadata",
+			obs.KeyRunID, run.ID.String(), obs.KeyError, contextErr.Error())
+	}
+	if run.ResolvedConfig != nil && run.ResolvedConfig.RunnerType == domain.RunnerTypeCodex && strings.TrimSpace(tailContext.RunDir) == "" {
+		if contextErr != nil {
+			return fmt.Errorf("cannot reattach Codex tailer without its run-scoped transcript directory: %w", contextErr)
+		}
+		return fmt.Errorf("cannot reattach Codex tailer without its run-scoped transcript directory")
+	}
+	r.recoveryMu.Lock()
+	if cancel, ok := r.tailers[run.ID]; ok {
+		cancel()
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	done := make(chan struct{})
+	if r.interactiveTailDone == nil {
+		r.interactiveTailDone = make(map[uuid.UUID]chan struct{})
+	}
+	r.interactiveTailDone[run.ID] = done
+	r.tailers[run.ID] = cancel
+	if r.tailerOwners == nil {
+		r.tailerOwners = make(map[uuid.UUID]context.Context)
+	}
+	r.tailerOwners[run.ID] = ctx
+	r.recoveryMu.Unlock()
+
+	runCopy := *run
+	run = &runCopy
+	go func() {
+		defer close(done)
+		defer func() {
+			r.recoveryMu.Lock()
+			if r.tailerOwners[run.ID] == ctx {
+				delete(r.tailers, run.ID)
+				delete(r.tailerOwners, run.ID)
+				delete(r.interactiveTailDone, run.ID)
+			}
+			r.recoveryMu.Unlock()
+		}()
+		// Log-only containment: the session may still be healthy, so the run
+		// must not be failed here; the stale sweep is the backstop.
+		defer obs.RecoverToFailure("interactive reattach tailer", nil)
+		if err := coord.TailAndFinalize(ctx, run, tailContext, interactiveContinuationRecoveryOptions(run)); err != nil {
+			obs.Component("recovery").Warn("interactive reattach finalize failed",
+				obs.KeyRunID, run.ID.String(), obs.KeyError, err.Error())
+		}
+	}()
+	return nil
+}
+
+// hasTailer reports whether a transcript tailer (codec-pipe or interactive) is
+// currently attached to the run.
+func (r *Reconciler) hasTailer(runID uuid.UUID) bool {
+	r.recoveryMu.Lock()
+	defer r.recoveryMu.Unlock()
+	_, ok := r.tailers[runID]
+	return ok
+}
+
+// CancelInteractiveTail cancels and deregisters a recovery-reattached tailer for
+// a run, joining its final callbacks before returning. It lets StopRun tear down a run whose interactive
+// tailer was reattached by restart recovery (rather than the live Execute path).
+// Returns whether a tailer was present. The cancelled tailer's coordinator
+// observes context cancellation and finalizes as a no-op, leaving StopRun to
+// write the terminal status.
+func (r *Reconciler) CancelInteractiveTail(runID uuid.UUID) bool {
+	present, _ := r.cancelInteractiveTailAndWait(context.Background(), runID)
+	return present
+}
+
+// Cancellation alone is not an ownership transfer: onAdvance can still be
+// writing under context.Background. Retain registration until the owner joins.
+func (r *Reconciler) cancelInteractiveTailAndWait(ctx context.Context, runID uuid.UUID) (bool, error) {
+	r.recoveryMu.Lock()
+	cancel, ok := r.tailers[runID]
+	done, owner := r.interactiveTailDone[runID], r.tailerOwners[runID]
+	r.recoveryMu.Unlock()
+	if !ok {
+		return false, nil
+	}
+	cancel()
+	if done != nil {
+		select {
+		case <-done:
+		case <-ctx.Done():
+			return true, ctx.Err()
+		}
+	}
+	r.recoveryMu.Lock()
+	if r.tailerOwners[runID] == owner {
+		delete(r.tailers, runID)
+		delete(r.tailerOwners, runID)
+		delete(r.interactiveTailDone, runID)
+	}
+	r.recoveryMu.Unlock()
+	return true, nil
+}

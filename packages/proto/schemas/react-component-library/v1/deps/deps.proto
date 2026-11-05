@@ -1,0 +1,91 @@
+syntax = "proto3";
+
+package vrooli.react_component_library.v1.deps;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/deps;deps_v1";
+
+// =============================================================================
+// DEPS DOMAIN — declared component dependencies + adoption verdicts
+// =============================================================================
+//
+// @layer 5  (api surface)
+// @stability stable
+//
+// Indexer-populated declarations parsed from each component's @deps
+// header field. ValidateAdoption intersects those declarations against
+// a target scenario's package.json to produce an adoption verdict:
+//
+//   ok    — every declared dep is present and the declared range
+//           intersects the scenario's resolved version.
+//   warn  — at least one dep is missing or its range does not intersect,
+//           but no incompatible-major issue was found.
+//   block — at least one declared major version is incompatible with
+//           the scenario's resolved version (the operator should not
+//           proceed without an explicit override).
+//
+// Consumed by:
+//   - API: handlers/deps/connect_handler.go implements DepsServiceHandler.
+//   - UI:  ui/src/features/adoptions/AdoptionsPage.tsx surfaces the
+//          verdict before the operator confirms an adoption.
+// =============================================================================
+
+service DepsService {
+  rpc ListDeclarations(ListDeclarationsRequest) returns (ListDeclarationsResponse);
+  rpc ValidateAdoption(ValidateAdoptionRequest) returns (ValidateAdoptionResponse);
+}
+
+// VerdictKind mirrors the internal deps.VerdictKind string.
+enum VerdictKind {
+  VERDICT_KIND_UNSPECIFIED = 0;
+  VERDICT_KIND_OK = 1;
+  VERDICT_KIND_WARN = 2;
+  VERDICT_KIND_BLOCK = 3;
+}
+
+// IssueKind mirrors the internal deps.IssueKind string.
+enum IssueKind {
+  ISSUE_KIND_UNSPECIFIED = 0;
+  ISSUE_KIND_MISSING_DEP = 1;
+  ISSUE_KIND_RANGE_DOES_NOT_MATCH = 2;
+  ISSUE_KIND_INCOMPATIBLE_MAJOR = 3;
+  ISSUE_KIND_UNPARSEABLE_RANGE = 4;
+  ISSUE_KIND_UNPARSEABLE_TARGET = 5;
+}
+
+message DepDeclaration {
+  string component_id = 1;
+  string library_id = 2;
+  string dep_name = 3;
+  string version_range = 4;
+  string version = 5;
+  string kind = 6;
+}
+
+message DepIssue {
+  string dep_name = 1;
+  string declared_range = 2;
+  string scenario_version = 3;
+  IssueKind kind = 4;
+  string detail = 5;
+  string version = 6;
+  string dep_kind = 7;
+}
+
+message ListDeclarationsRequest {
+  string component_id = 1;
+}
+
+message ListDeclarationsResponse {
+  repeated DepDeclaration declarations = 1;
+}
+
+message ValidateAdoptionRequest {
+  string component_id = 1;
+  string scenario = 2;
+  string version = 3;
+}
+
+message ValidateAdoptionResponse {
+  VerdictKind kind = 1;
+  repeated DepIssue issues = 2;
+}

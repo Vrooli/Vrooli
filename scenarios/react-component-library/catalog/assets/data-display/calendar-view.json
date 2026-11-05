@@ -1,0 +1,67 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "data-display.calendar-view",
+    "name": "CalendarView",
+    "kind": "component",
+    "surface": "raised",
+    "domain": "data-display",
+    "description": "The day, week, month, agenda, or resource calendar with virtualization, selection, drag and resize editing, timezone handling, responsive modes, and overlap layout.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "ui-primitive",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P1",
+      "maturity": "verified",
+      "plannedBy": "2026-12-31"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "forms.calendar",
+        "reason": "Date grid, localization, and keyboard traversal are shared."
+      },
+      {
+        "asset": "manipulation.resizable",
+        "reason": "Event resizing composes the shared primitive."
+      }
+    ]
+  },
+  "expects": [
+    {
+      "capability": "date-time-adapter"
+    },
+    {
+      "capability": "virtualization-adapter",
+      "optional": true
+    }
+  ],
+  "requiredCapabilities": [
+    "semantic-structure",
+    "keyboard-operable",
+    "focus-order",
+    "accessible-naming",
+    "no-horizontal-overflow",
+    "content-reflow",
+    "responsive-transformation",
+    "reading-order-honest",
+    "gesture-alternative",
+    "status-announced"
+  ],
+  "requiredStates": [
+    "default",
+    "loading",
+    "empty",
+    "partial",
+    "request-error"
+  ],
+  "qualityGates": [
+    "performance"
+  ],
+  "rationale": "Overlap layout is the hard part and the reason this cannot be a thin wrapper: correctly packing concurrent events into columns without hiding any is a real algorithm, and getting it wrong silently loses appointments."
+}

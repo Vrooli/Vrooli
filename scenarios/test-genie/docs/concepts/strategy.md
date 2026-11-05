@@ -182,7 +182,7 @@ describe('WorkflowStore [REQ:BAS-WORKFLOW-STATE]', () => {
 | API endpoints | HTTP responses correct | POST /projects returns 201 |
 | Database integration | Data persists correctly | Project saved to the scenario's configured datastore (for example, embedded SQLite) |
 | UI workflows | User flows complete | Create project via form |
-| Cross-scenario | Inter-scenario communication | BAS executes Browserless |
+| Cross-scenario | Inter-scenario communication | BAS drives the browser engine |
 
 ### Implementation Patterns
 
@@ -313,7 +313,7 @@ Choose preset based on feedback speed needed:
 |-----------|---------|---------|---------|
 | API | Config validation | Go unit tests | Integration tests |
 | UI | Package.json valid | Vitest tests | BAS workflows |
-| CLI | service.json valid | BATS tests | Integration tests |
+| CLI | service.json valid | Go CLI tests | Integration tests |
 
 ---
 
@@ -453,6 +453,6 @@ graph LR
 
 - [Phased Testing Guide](../guides/phased-testing.md) - How phases execute
 - [Scenario Unit Testing](../phases/unit/scenario-unit-testing.md) - Layer 2 implementation
-- [UI Automation with BAS](../phases/playbooks/ui-automation-with-bas.md) - Layer 3 implementation
+- [Workflow Phase](../phases/workflow/README.md) - Layer 3 implementation
 - [Validation Best Practices](../guides/validation-best-practices.md) - Multi-layer requirements
 - [Presets Reference](../reference/presets.md) - Quick/Smoke/Comprehensive definitions

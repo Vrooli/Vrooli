@@ -1,0 +1,230 @@
+{
+  "$schema": "../../.vrooli/schemas/resource.schema.json",
+  "name": "orcarouter",
+  "display_name": "OrcaRouter API",
+  "description": "Hosted OrcaRouter gateway exposing an OpenAI-compatible API across multiple upstream model providers.",
+  "storage": {
+    "entries": {},
+    "rationale": "No additional host storage is owned by this resource; the explicit empty declaration prevents an implicit-storage assumption."
+  },
+  "cli": {
+    "enabled": true,
+    "command": "resource-orcarouter",
+    "adapter": {
+      "kind": "go_module",
+      "module_dir": "cli"
+    },
+    "artifacts": {
+      "manifest": {
+        "location": "sibling"
+      },
+      "build_metadata": {
+        "location": "sibling"
+      }
+    },
+    "distribution": {
+      "kind": "prebuilt_artifact",
+      "artifact_name": "resource-orcarouter_${os}_${arch}"
+    },
+    "invoke": {
+      "kind": "installed_command",
+      "command": "resource-orcarouter"
+    },
+    "freshness": {
+      "inputs": [
+        "cli/**",
+        "docs/**",
+        "README.md",
+        "resource.json",
+        "model-policy.json",
+        "../../packages/ai-provider-go/**",
+        "../../internal/aiproviderapp/**"
+      ]
+    },
+    "source_build": {
+      "kind": "go_module"
+    }
+  },
+  "driver": "cloud-api",
+  "deployment": {
+    "profiles": {
+      "desktop": {
+        "linux": {
+          "support": "conditional",
+          "mode": "bundled-client",
+          "architectures": [
+            "amd64",
+            "arm64"
+          ],
+          "requires": [],
+          "limitations": [
+            "Requires an OrcaRouter account and network access."
+          ],
+          "evidence": [
+            "manifest-validation",
+            "resource-cli-unit-tests"
+          ]
+        },
+        "macos": {
+          "support": "conditional",
+          "mode": "bundled-client",
+          "architectures": [
+            "amd64",
+            "arm64"
+          ],
+          "requires": [],
+          "limitations": [
+            "Requires an OrcaRouter account and network access."
+          ],
+          "evidence": [
+            "manifest-validation",
+            "resource-cli-unit-tests"
+          ]
+        },
+        "windows": {
+          "support": "conditional",
+          "mode": "bundled-client",
+          "architectures": [
+            "amd64",
+            "arm64"
+          ],
+          "requires": [],
+          "limitations": [
+            "Requires an OrcaRouter account and network access."
+          ],
+          "evidence": [
+            "manifest-validation",
+            "resource-cli-unit-tests"
+          ]
+        }
+      }
+    }
+  },
+  "endpoint": "https://api.orcarouter.ai/v1/models",
+  "credentials": {
+    "descriptors": [
+      {
+        "logical_id": "vrooli/orcarouter",
+        "field": "api-key",
+        "env": "ORCAROUTER_API_KEY",
+        "label": "OrcaRouter API Key",
+        "provisioning": "operator",
+        "description": "OrcaRouter OpenAI-compatible gateway across multiple model providers.",
+        "placeholder": "sk-orca-a1b2c3d4e5f6...",
+        "required": true,
+        "obtain_url": "https://www.orcarouter.ai"
+      }
+    ],
+    "consumers": [
+      {
+        "logical_id": "vrooli/orcarouter",
+        "field": "api-key",
+        "kind": "environment",
+        "consumer": "OrcaRouter CLI credential resolver",
+        "source_ref": "cli/main.go:1",
+        "required": true
+      }
+    ]
+  },
+  "orchestration": {
+    "startup_order": 645,
+    "startup_timeout_seconds": 15,
+    "startup_time_estimate": "3-8s",
+    "dependencies": [],
+    "recovery_attempts": 2,
+    "priority": "medium"
+  },
+  "environment_exports": {
+    "static": {
+      "ORCAROUTER_API_BASE": "https://api.orcarouter.ai/v1",
+      "ORCAROUTER_DEFAULT_ROLE": "chat.default"
+    },
+    "derived": {
+      "ORCAROUTER_URL": {
+        "template": "${ORCAROUTER_API_BASE}"
+      },
+      "RESOURCE_ORCAROUTER_URL": {
+        "template": "${ORCAROUTER_API_BASE}"
+      }
+    }
+  },
+  "category": "hosted-service",
+  "requirements": {
+    "ram_mb": 128,
+    "disk_mb": 128,
+    "cpu_cores": 0.25,
+    "network": "required",
+    "bucket": "small",
+    "source": "estimated",
+    "confidence": "low",
+    "class": "hosted-service",
+    "weight": 1
+  },
+  "platforms": {
+    "linux": "supported",
+    "macos": "build-verified",
+    "windows": "build-verified"
+  },
+  "health_checks": [
+    {
+      "type": "http",
+      "kind": "readiness",
+      "target": "https://api.orcarouter.ai/v1/models",
+      "headers": {
+        "Authorization": "Bearer ${ORCAROUTER_API_KEY}"
+      },
+      "expected_status": [
+        200
+      ],
+      "timeout_seconds": 15
+    }
+  ],
+  "capabilities": {
+    "supports_logs": false,
+    "supports_content_ops": false,
+    "supports_ensure": true
+  },
+  "dependency_schema": {
+    "type": "object",
+    "description": "Scenario-specific OrcaRouter dependency settings. Roles only; concrete model slugs are resolved by resource-orcarouter.",
+    "properties": {
+      "model_roles": {
+        "type": "array",
+        "description": "Logical OrcaRouter model roles resolved through resources/orcarouter/model-policy.json.",
+        "items": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "object",
+              "properties": {
+                "role": {
+                  "type": "string"
+                },
+                "reason": {
+                  "type": "string"
+                },
+                "required": {
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "role"
+              ],
+              "additionalProperties": false
+            }
+          ]
+        }
+      },
+      "configuration": {
+        "type": "object",
+        "additionalProperties": true
+      }
+    },
+    "additionalProperties": false
+  },
+  "template_version": "2",
+  "privilege": "user",
+  "bundling": "host-required"
+}

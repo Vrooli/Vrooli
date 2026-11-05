@@ -1,0 +1,8 @@
+id: no-safeguard-notes-control-flow
+language: Go
+severity: error
+message: Control flow must use typed ItemStatus fields, not prose Notes.
+files:
+  - "**/handler.go"
+rule:
+  pattern: strings.Contains(strings.Join($STATUS.Notes, $$$ARGS), $$$NEEDLE)

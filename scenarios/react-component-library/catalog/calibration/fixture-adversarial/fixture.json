@@ -1,0 +1,1 @@
+{"gate":"fixture-adversarial","assetId":"calibration-fixture-adversarial","kind":"fixture","runner":"static","requiredFailureCode":"catalog.fixture_adversarial","catalogAsset":"asset.json","description":"Declares only a happy-path shape."}

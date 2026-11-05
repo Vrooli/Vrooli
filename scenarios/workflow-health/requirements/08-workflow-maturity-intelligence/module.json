@@ -1,0 +1,27 @@
+{
+  "description": "Workflow Health grades workflow readiness with a documented maturity ladder and stable findings.",
+  "module_id": "MOD-P2-008",
+  "prd_ref": "OT-P2-001",
+  "priority": "P2",
+  "requirements": [
+    {
+      "id": "REQ-P2-001",
+      "title": "Assess Workflow Maturity",
+      "status": "planned",
+      "prd_ref": "OT-P2-001",
+      "category": "maturity",
+      "criticality": "P2",
+      "description": "Workflow Health must grade scenarios from L0 no workflow surface through L5 operationally rich workflows, mapping validation rules to stable finding IDs, severities, remediation, and maturity-go assessment output.",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "pending",
+          "ref": "",
+          "notes": "Maturity golden tests cover L0 through L5 scenarios and assert stable finding IDs, severities, recommended fixes, and assessment fields."
+        }
+      ]
+    }
+  ],
+  "title": "Workflow maturity intelligence"
+}

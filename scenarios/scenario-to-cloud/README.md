@@ -1,6 +1,6 @@
 # scenario-to-cloud
 
-Deploy a single Vrooli scenario and its analyzer-derived dependencies to cloud targets. P0 focuses on **Ubuntu VPS** using **SSH + scp tarball** and a “mini Vrooli” install (native resources, no Docker).
+Deploy a single Vrooli scenario and its declaration-derived dependency closure to an enrolled cloud target. The managed path uses shared reach, the target-owned `cloud-target` control plane, and typed durable operations; a bounded SSH adapter remains available when the target is not Bridge-enrolled.
 
 This scenario is designed to be invoked by `deployment-manager` (mirroring the “scenario-to-* packager” pattern used by `scenario-to-desktop`).
 
@@ -17,8 +17,8 @@ make start
 ## CLI (via Vrooli lifecycle)
 
 ```bash
-# Validate manifest
-scenario-to-cloud manifest validate manifest.json
+# Validate a manifest
+scenario-to-cloud manifest validate cloud-manifest.json
 
 # Generate starter manifest + inspect schema
 scenario-to-cloud manifest init --scenario landing-page-business-suite --host 203.0.113.10 --domain example.com --out cloud-manifest.json
@@ -26,19 +26,17 @@ scenario-to-cloud manifest schema
 scenario-to-cloud manifest doctor cloud-manifest.json
 scenario-to-cloud manifest fix cloud-manifest.json --write
 
-# Preflight + bundle + VPS setup (upload + extract + setup + autoheal scope)
-scenario-to-cloud preflight run cloud-manifest.json
-scenario-to-cloud bundle build cloud-manifest.json
-scenario-to-cloud vps setup plan cloud-manifest.json /path/to/bundle.tar.gz
-scenario-to-cloud vps setup apply cloud-manifest.json /path/to/bundle.tar.gz
+# Resolve the declaration-derived closure and review the executable plan
+scenario-to-cloud deployment resolve --scenario landing-page-business-suite --environment production
+scenario-to-cloud deployment plan --scenario landing-page-business-suite --environment production
 
-# Deploy/start (Caddy + TLS + fixed ports + health verification)
-scenario-to-cloud vps deploy plan cloud-manifest.json
-scenario-to-cloud vps deploy apply cloud-manifest.json
+# Apply the reviewed plan and wait on its durable operation
+scenario-to-cloud deployment apply --scenario landing-page-business-suite --environment production --plan-digest "$PLAN_DIGEST" --request-key "launch-$REQUEST_ID"
+scenario-to-cloud operation wait "$OPERATION_ID" --timeout 600
 
-# Inspect (status + logs over SSH)
-scenario-to-cloud inspect plan cloud-manifest.json
-scenario-to-cloud inspect status <deployment-id>
+# Inspect target-owned health and operation receipts
+scenario-to-cloud deployment health "$DEPLOYMENT_ID"
+scenario-to-cloud operation list "$DEPLOYMENT_ID"
 ```
 
 ## Docs
@@ -48,11 +46,33 @@ scenario-to-cloud inspect status <deployment-id>
 - Research: `scenarios/scenario-to-cloud/docs/internal/RESEARCH.md`
 - Problems/Risks: `scenarios/scenario-to-cloud/docs/internal/PROBLEMS.md`
 
-## P0 Deployment Intent (VPS)
+## Deployment contract
 
-P0 will:
-- Use `scenario-dependency-analyzer` to compute required scenarios + resources for a target scenario (plus always include `vrooli-autoheal`).
-- Build a “mini Vrooli” tarball containing required `scenarios/`, required `resources/`, and all `packages/`.
-- `scp` the tarball to the VPS and run Vrooli setup + start required resources + start the scenario.
-- Force fixed ports at start time: `UI_PORT=3000`, `API_PORT=3001`, `WS_PORT=3002`.
-- Configure Caddy + Let’s Encrypt to expose the UI over HTTPS (DNS is manual prerequisite in P0).
+The deployment path:
+
+- Resolves scenarios, resources, host tools, safeguards, credentials and persistent-data bindings from declarations and the analyzer.
+- Builds a digest-bound release bundle from that closure without unrelated repository packages.
+- Delivers the bundle through the deployment's selected reach adapter and delegates setup, activation, health and host actions to their owning control-plane services.
+- Allocates declared listeners through the target-owned deployment contract; it does not assume fixed listener ports.
+- Applies edge, credential and recovery actions through typed durable operations. Missing authority or an unsupported target produces an explicit refusal or onboarding handoff.
+
+The UI, CLI and API are equivalent deployment surfaces. The UI is a required professional operator surface, and all three surfaces consume the same closure, plan, operation and evidence identities.
+
+## Identity topology
+
+Cloud deployment must preserve the target scenario's declared identity mode.
+For self-hosted LPBS, the dependency snapshot may include
+`scenario-authenticator`, producing one installation-scoped identity realm in
+the mini-Vrooli bundle. For a public hosted LPBS deployment, use the approved
+hosted/shared identity boundary instead of creating one private authenticator
+instance per request or customer by accident.
+
+The deployed scenario's authentication metadata remains the source of truth
+for `personal_local`, `local_multi_user`, `remote_vrooli`, or
+`shared_provider`. The deployment manifest carries dependency and deployment
+intent; it must not contain passwords, private keys, refresh tokens, or LPBS
+website sessions. A required provider that cannot be resolved is a deployment
+failure, not permission to fall back to an unauthenticated shared mode.
+
+See the [manifest identity topology](docs/guides/manifest-reference.md#identity-topology)
+and the project [identity contract](../../docs/concepts/IDENTITY-AND-AUTHENTICATION.md).

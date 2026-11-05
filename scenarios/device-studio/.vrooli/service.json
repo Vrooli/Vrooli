@@ -1,0 +1,251 @@
+{
+  "$schema": "../../../../.vrooli/schemas/service.schema.json",
+  "version": "1.0.0",
+  "service": {
+    "parent": "vrooli",
+    "name": "device-studio",
+    "displayName": "Device Studio",
+    "description": "Create reproducible photographic and 3D device presentations from authentic app captures, qualified device models and saved shot recipes.",
+    "version": "0.0.1",
+    "type": "business-application",
+    "category": "ai_tools",
+    "tags": [
+      "device-presentation",
+      "launch-video",
+      "authentic-capture",
+      "react-ui",
+      "go-api"
+    ],
+    "class": "interface-enabler"
+  },
+  "ports": {
+    "api": {
+      "env_var": "API_PORT",
+      "description": "Go API server",
+      "range": "15000-19999"
+    },
+    "ui": {
+      "env_var": "UI_PORT",
+      "description": "React UI",
+      "range": "20000-24999"
+    }
+  },
+  "lifecycle": {
+    "version": "2.0.0",
+    "health": {
+      "description": "Standard API/UI health checks",
+      "endpoints": {
+        "api": "/health",
+        "ui": "/health"
+      },
+      "checks": [
+        {
+          "name": "api_endpoint",
+          "type": "http",
+          "target": "http://localhost:${API_PORT}/health",
+          "critical": true,
+          "timeout": 10000,
+          "interval": 30000
+        },
+        {
+          "name": "ui_endpoint",
+          "type": "http",
+          "target": "http://localhost:${UI_PORT}/health",
+          "timeout": 5000,
+          "interval": 30000
+        }
+      ],
+      "startup_grace_period": 15000
+    }
+  },
+  "dependencies": {
+    "resources": {},
+    "scenarios": {
+      "audio-tools": {
+        "required": false,
+        "startup_policy": "try_start",
+        "degraded_behavior": "Availability is inferred from source evidence; verify this scenario's capability contract before relying on it.",
+        "versionRange": ">=0.0.1",
+        "description": "Auto-detected dependency via vrooli_cli"
+      },
+      "ai-gateway": {
+        "required": false,
+        "startup_policy": "try_start",
+        "degraded_behavior": "Availability is inferred from source evidence; verify this scenario's capability contract before relying on it.",
+        "versionRange": ">=0.0.1",
+        "description": "Auto-detected dependency via scenario_url_discovery"
+      },
+      "workspace-sandbox": {
+        "required": false,
+        "startup_policy": "try_start",
+        "degraded_behavior": "Availability is inferred from source evidence; verify this scenario's capability contract before relying on it.",
+        "versionRange": ">=0.0.1",
+        "description": "Auto-detected dependency via scenario_url_discovery"
+      }
+    }
+  },
+  "generation": {
+    "template": {
+      "id": "react-vite",
+      "version": "5.0.0"
+    },
+    "generated_at": "2026-10-20T01:01:01Z",
+    "design": {
+      "id": "vrooli-default",
+      "version": "0.2.0",
+      "adapter": "react-vite-tailwind"
+    },
+    "manifest_sha": "5b6c7d6becb3a9c5cd815a9cacf5a43119f52c8ea4b4578bfdfd776518a37be6",
+    "content_sha": "b942bb5b43a7caa0b9b9b658bb852c16a86647c5791913ab24b66ad48381703b"
+  },
+  "cli": {
+    "enabled": true,
+    "command": "device-studio",
+    "adapter": {
+      "kind": "go_module",
+      "module_dir": "cli"
+    },
+    "artifacts": {
+      "manifest": {},
+      "build_metadata": {}
+    },
+    "source_build": {
+      "kind": "go_module"
+    },
+    "invoke": {
+      "kind": "installed_command",
+      "command": "device-studio"
+    },
+    "freshness": {
+      "inputs": [
+        "cli/**",
+        ".vrooli/service.json"
+      ]
+    }
+  },
+  "components": {
+    "api": {
+      "role": "api",
+      "build": {
+        "kind": "go_module",
+        "dir": "api"
+      },
+      "run": {
+        "argv": [
+          "{{bin.api}}"
+        ],
+        "cwd": "api",
+        "port": "api"
+      }
+    },
+    "ui": {
+      "role": "ui",
+      "build": {
+        "kind": "pnpm_vite",
+        "dir": "ui"
+      },
+      "run": {
+        "argv": [
+          "node",
+          "server.js"
+        ],
+        "cwd": "ui",
+        "port": "ui"
+      }
+    }
+  },
+  "credentials": {
+    "descriptors": [
+      {
+        "logical_id": "vrooli/lpbs-account",
+        "field": "entitlement-lease",
+        "label": "Vrooli desktop account link",
+        "description": "Signed, scoped desktop link lease stored by the credential owner; it is not an inference bearer token.",
+        "required": false,
+        "provisioning": "operator"
+      },
+      {
+        "logical_id": "vrooli/lpbs-account",
+        "field": "refresh-token",
+        "label": "Vrooli credits session for AI Gateway",
+        "description": "Only provisioned after an explicit desktop-owner choice to share the signed-in LPBS session with AI Gateway. The token is never exposed to the Device Studio renderer or API.",
+        "required": false,
+        "provisioning": "operator",
+        "obtain_url": "https://github.com/Vrooli/Vrooli/tree/master/scenarios/landing-page-business-suite/docs/guides/CONFIGURATION_GUIDE.md"
+      }
+    ]
+  },
+  "branding": {
+    "brand": "device-studio",
+    "targets": [
+      "web-public-v1"
+    ]
+  },
+  "storage": {
+    "entries": {
+      "database": {
+        "rung": "owned",
+        "kind": "file",
+        "class": "data",
+        "subpath": "device-studio.db",
+        "regenerable": false,
+        "format": "sqlite",
+        "rationale": "Durable Device Studio project, job, note, and capability state in the scenario-owned SQLite database.",
+        "budget": {
+          "max_bytes": "1GiB",
+          "rationale": "Measured at 40,960 bytes on 2026-10-20; alarm-only ceiling for durable project and scenario state, never auto-prune."
+        }
+      },
+      "database_wal": {
+        "rung": "owned",
+        "kind": "file",
+        "class": "data",
+        "subpath": "device-studio.db-wal",
+        "regenerable": false,
+        "rationale": "Live SQLite WAL sidecar; retained with the database and never removed while it is open.",
+        "budget": {
+          "max_bytes": "256MiB",
+          "rationale": "Measured at 0 bytes on 2026-10-20; alarm-only ceiling for the live WAL sidecar, never remove while SQLite is open."
+        }
+      },
+      "database_shm": {
+        "rung": "owned",
+        "kind": "file",
+        "class": "data",
+        "subpath": "device-studio.db-shm",
+        "regenerable": false,
+        "rationale": "Live SQLite shared-memory sidecar; retained with the database and never removed while it is open.",
+        "budget": {
+          "max_bytes": "16MiB",
+          "rationale": "Measured at 32,768 bytes on 2026-10-20; alarm-only ceiling for the live shared-memory sidecar, never remove while SQLite is open."
+        }
+      },
+      "deployment_reports": {
+        "rung": "owned",
+        "kind": "dir",
+        "class": "data",
+        "subpath": "deployment",
+        "regenerable": false,
+        "rationale": "Retained lifecycle deployment decisions and verification reports under the scenario data root.",
+        "budget": {
+          "max_bytes": "128MiB",
+          "rationale": "Measured at 5,469 bytes on 2026-10-20; alarm-only ceiling for retained lifecycle deployment evidence, never auto-prune."
+        }
+      },
+      "retention_receipt": {
+        "rung": "owned",
+        "kind": "file",
+        "class": "state",
+        "subpath": "retention/enforcement-receipt.json",
+        "regenerable": false,
+        "format": "json",
+        "rationale": "Durable control-plane receipt documenting storage retention enforcement for this scenario.",
+        "budget": {
+          "max_bytes": "1MiB",
+          "rationale": "Measured at 147 bytes on 2026-10-20; alarm-only ceiling for durable enforcement evidence, never auto-prune."
+        }
+      }
+    },
+    "rationale": "Device Studio owns durable project and example-domain data in SQLite and retained lifecycle deployment evidence. SQLite and deployment records are source state and have no automatic prune budget."
+  }
+}

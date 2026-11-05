@@ -1,0 +1,18 @@
+version: '3'
+
+vars:
+  APP_NAME: "{{APP_NAME}}"
+  BIN_DIR: bin
+  BUILD_TAGS: 'production,{{.EXTRA_TAGS | default "gtk3"}}'
+
+tasks:
+  build:
+    summary: Build the Wails in-process application
+    cmds:
+      - mkdir -p "{{.BIN_DIR}}"
+      - go build -tags {{.BUILD_TAGS}} -trimpath -buildvcs=false -ldflags="-w -s" -o "{{.BIN_DIR}}/{{.APP_NAME}}"
+
+  package:
+    summary: Package the Wails application binary for scenario-to-desktop
+    cmds:
+      - task: build

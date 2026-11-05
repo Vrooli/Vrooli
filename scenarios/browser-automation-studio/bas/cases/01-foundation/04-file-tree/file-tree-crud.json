@@ -63,11 +63,17 @@
   ],
   "metadata": {
     "description": "Validates file tree CRUD operations: switch to tree view, create folder, create workflow file, rename, and delete",
+    "execution_mode": "mutating",
     "labels": {
-      "reset": "full"
+      "requirements_json": "[\"BAS-WORKFLOW-PERSIST-CRUD\"]",
+      "requires_confirmation": "true",
+      "reset": "full",
+      "routed_isolation": "true",
+      "seed": "bas/seeds/seed.go",
+      "spec_entry_id": "project-detail"
     },
-    "version": "1",
-    "execution_mode": "mutating"
+    "name": "File Tree Crud",
+    "version": "1"
   },
   "nodes": [
     {
@@ -92,9 +98,6 @@
         },
         "type": "ACTION_TYPE_CLICK"
       },
-      "execution_settings": {
-        "wait_after_ms": 300
-      },
       "id": "ensure-workflows-tab"
     },
     {
@@ -106,9 +109,6 @@
           "label": "Switch to File Tree view"
         },
         "type": "ACTION_TYPE_CLICK"
-      },
-      "execution_settings": {
-        "wait_after_ms": 500
       },
       "id": "switch-to-tree-view"
     },
@@ -136,9 +136,6 @@
           "label": "Open New file menu"
         },
         "type": "ACTION_TYPE_CLICK"
-      },
-      "execution_settings": {
-        "wait_after_ms": 300
       },
       "id": "click-new-menu"
     },
@@ -181,9 +178,6 @@
           "label": "Click away to close menu"
         },
         "type": "ACTION_TYPE_CLICK"
-      },
-      "execution_settings": {
-        "wait_after_ms": 300
       },
       "id": "click-away-to-close-menu"
     },

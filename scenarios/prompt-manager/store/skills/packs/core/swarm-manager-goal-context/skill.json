@@ -1,0 +1,35 @@
+{
+  "createdAt": "2026-07-22T00:00:00Z",
+  "description": "Shared reference for loading a goal, its derived scope, and milestones before proposing goal changes or reviewing milestone delivery.",
+  "entry": "SKILL.md",
+  "id": "swarm-manager-goal-context",
+  "kind": "skill",
+  "license": "CC-BY-4.0",
+  "modes": [
+    "tools",
+    "conversation"
+  ],
+  "name": "Swarm Manager Goal Context",
+  "origin": {
+    "kind": "authored"
+  },
+  "requires": {
+    "commands": [
+      "swarm-manager backlog",
+      "swarm-manager goals"
+    ],
+    "scenarios": [
+      "swarm-manager"
+    ]
+  },
+  "revision": 1,
+  "schemaVersion": 1,
+  "status": "active",
+  "tags": [
+    "swarm-manager",
+    "goal",
+    "milestone",
+    "context"
+  ],
+  "updatedAt": "2026-07-22T00:00:00Z"
+}

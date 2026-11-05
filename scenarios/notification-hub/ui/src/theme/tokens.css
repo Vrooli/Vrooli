@@ -1,0 +1,68 @@
+/*
+ * Hub-owned semantic mapping from the selected Night signal palette into the
+ * shared shell's canonical tokens. Values come from the selected originals,
+ * with the approved HISTORY-COMPLETE amendment correcting light text contrast;
+ * the generated design kit and shared RCL release remain untouched.
+ *
+ * ThemeProvider publishes data-resolved-theme for explicit and system choices.
+ * The media fallback covers the page before React mounts.
+ */
+
+:root {
+  --color-background: #f7f9fc;
+  --color-shell: #f7f9fc;
+  --color-surface: #ffffff;
+  --color-surface-muted: #f7f9fc;
+  --color-surface-raised: #ffffff;
+  --color-field: #ffffff;
+  --color-foreground: #172332;
+  --color-muted-foreground: #5c6c7d;
+  --color-border: #8594a4;
+  --color-primary: #466dd5;
+  --color-primary-foreground: #ffffff;
+  --color-focus: #466dd5;
+
+  --surface-app: var(--color-background);
+  --surface-elevated: var(--color-surface);
+  --surface-muted: var(--color-surface-muted);
+  --text-primary: var(--color-foreground);
+  --text-muted: var(--color-muted-foreground);
+  --border-subtle: var(--color-border);
+  --accent: var(--color-primary);
+  --accent-foreground: var(--color-primary-foreground);
+}
+
+:root[data-resolved-theme="dark"],
+:root[data-theme="dark"] {
+  --color-background: #10181e;
+  --color-shell: #10181e;
+  --color-surface: #17232c;
+  --color-surface-muted: #17232c;
+  --color-surface-raised: #17232c;
+  --color-field: #15222c;
+  --color-foreground: #f1f4f7;
+  --color-muted-foreground: #b3c1cc;
+  --color-border: #354653;
+  --color-primary: #466dd5;
+  --color-primary-foreground: #ffffff;
+  --color-focus: #7294ec;
+  color-scheme: dark;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-resolved-theme="light"]):not([data-theme="light"]) {
+    --color-background: #10181e;
+    --color-shell: #10181e;
+    --color-surface: #17232c;
+    --color-surface-muted: #17232c;
+    --color-surface-raised: #17232c;
+    --color-field: #15222c;
+    --color-foreground: #f1f4f7;
+    --color-muted-foreground: #b3c1cc;
+    --color-border: #354653;
+    --color-primary: #466dd5;
+    --color-primary-foreground: #ffffff;
+    --color-focus: #7294ec;
+    color-scheme: dark;
+  }
+}

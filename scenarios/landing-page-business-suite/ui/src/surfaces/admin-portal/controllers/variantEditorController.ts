@@ -1,6 +1,6 @@
 import {
   createVariant,
-  getAdminSections,
+  getVariantSections,
   getVariant,
   getVariantSpace,
   exportVariantSnapshot,
@@ -30,11 +30,7 @@ export interface VariantFormState {
 
 export async function loadVariantEditorData(slug: string): Promise<VariantEditorData> {
   const variant = await getVariant(slug);
-  if (!variant.id) {
-    throw new Error('Variant payload missing ID');
-  }
-
-  const { sections } = await getAdminSections(variant.id);
+  const { sections } = await getVariantSections(slug);
   return { variant, sections };
 }
 
@@ -55,10 +51,15 @@ export function buildAxesSelection(space: VariantSpace, existing?: VariantAxes):
 }
 
 export function hydrateFormFromVariant(variant: Variant): VariantFormState {
+  // Normalize persisted legacy values explicitly; generated contracts describe
+  // the current API, while imported snapshots can contain malformed strings.
+  const rawName: unknown = variant.name;
+  const rawSlug: unknown = variant.slug;
+  const rawDescription: unknown = variant.description;
   return {
-    name: variant.name ?? '',
-    slug: variant.slug ?? '',
-    description: variant.description ?? '',
+    name: typeof rawName === 'string' ? rawName : '',
+    slug: typeof rawSlug === 'string' ? rawSlug : '',
+    description: typeof rawDescription === 'string' ? rawDescription : '',
     weight: variant.weight ?? 50,
   };
 }

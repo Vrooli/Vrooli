@@ -1,0 +1,19 @@
+{
+  "program": {
+    "id": "prog_d55c45a4-3d45-42de-b982-4657e3a7aab2",
+    "session_id": "sess_27ff2f1f-ee1f-437f-949b-a9bb431e184a",
+    "provenance": "PROVENANCE_OPERATOR",
+    "status": "PROGRAM_STATUS_SUCCEEDED",
+    "stdout": "{\"errors\": [], \"evidence\": [\"test-genie:web-search/20260905-071043-3130f23a/unit/TestAnswerStoredPolicy\"], \"phase\": \"report\", \"program\": \"web-search.record-attempt\", \"signals\": {\"contributing_finding_ids\": [], \"entry_id\": \"7e6e675b-9466-43fb-b8fe-8ec38f825124\", \"existing\": false, \"quality\": {}}, \"status\": \"ok\", \"version\": \"1\"}\n",
+    "context_bytes": "329",
+    "created_at": "2026-09-05T07:23:03.250781377Z",
+    "output_limit_bytes": "65536",
+    "agent_bytes": "329",
+    "completed_at": "2026-09-05T07:23:03.944627832Z",
+    "wall_time_millis": "693",
+    "cpu_time_millis": "50",
+    "library_version": "batch-inference@1,concurrent-fanout@1,delegated-run@1,failure-triage@1,fleet-fanout@1,handle-shaping@1,morning-vision-walk-prep@5,probe@1,registry-sweep@1,typed-inference@1"
+  },
+  "terminal": true,
+  "waited_millis": "695"
+}

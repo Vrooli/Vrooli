@@ -1,0 +1,195 @@
+{
+  "metadata": {
+    "name": "e22-order-channel-editor-dark-narrow-p2",
+    "description": "Capture selected dark narrow escalation-order editor continuation p2 at 360 by 740 through the lease-pinned fixture.",
+    "requirement": "NOTIFICA-P1-011",
+    "version": "1",
+    "labels": {
+      "reset": "none",
+      "routed_isolation": "true",
+      "requires_confirmation": "true",
+      "surface": "settings-e22-order-channel-editor-dark-narrow-p2"
+    },
+    "execution_mode": "mutating"
+  },
+  "flow_definition": {
+    "metadata": {
+      "description": "Capture selected dark narrow escalation-order editor continuation p2 at 360 by 740 through the lease-pinned fixture.",
+      "requirement": "NOTIFICA-P1-011",
+      "version": "1",
+      "execution_mode": "mutating",
+      "owner": "notification-hub"
+    },
+    "settings": {
+      "viewport_width": 360,
+      "viewport_height": 740
+    },
+    "nodes": [
+      {
+        "id": "open-settings",
+        "action": {
+          "type": "ACTION_TYPE_NAVIGATE",
+          "navigate": {
+            "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+            "scenario": "notification-hub",
+            "scenario_path": "/settings?vrooli_test_mode=1&e22_fixture=settings-owner&e22_order=canonical&e22_case=e22-order-channel-editor-dark-narrow-p2",
+            "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE"
+          },
+          "metadata": {
+            "label": "Open the leased owner fixture with canonical Web Push then Email order"
+          }
+        }
+      },
+      {
+        "id": "wait-settings",
+        "action": {
+          "type": "ACTION_TYPE_WAIT",
+          "wait": {
+            "selector": "@selector/escalationOrder.root",
+            "state": "WAIT_STATE_VISIBLE"
+          },
+          "metadata": {
+            "label": "Wait for the routed escalation-order read"
+          }
+        }
+      },
+      {
+        "id": "select-dark-theme",
+        "action": {
+          "type": "ACTION_TYPE_CLICK",
+          "click": {
+            "selector": "@selector/settingsPage.themeOption(choice=dark)"
+          },
+          "metadata": {
+            "label": "Set dark appearance for selected 360 by 740 narrow viewport"
+          }
+        }
+      },
+      {
+        "id": "open-editor",
+        "action": {
+          "type": "ACTION_TYPE_CLICK",
+          "click": {
+            "selector": "@selector/escalationOrder.openButton"
+          },
+          "metadata": {
+            "label": "Open the focused escalation-order editor"
+          }
+        }
+      },
+      {
+        "id": "stage-email-first",
+        "action": {
+          "type": "ACTION_TYPE_CLICK",
+          "click": {
+            "selector": "@selector/escalationOrder.moveDown(channel=web_push)"
+          },
+          "metadata": {
+            "label": "Stage Email before Web Push without saving"
+          }
+        }
+      },
+      {
+        "id": "assert-draft",
+        "action": {
+          "type": "ACTION_TYPE_EVALUATE",
+          "evaluate": {
+            "expression": "(()=>{const root=document.querySelector(\"[data-testid=\\\"escalation-order-root\\\"]\");const rows=[...document.querySelectorAll(\"[data-testid^=\\\"escalation-order-channel-\\\"] h3\")].map(n=>n.textContent||\"\");const text=root?.textContent||\"\";if(rows.length!==2||!rows[0].includes(\"Email\")||!rows[1].includes(\"Web Push\")||!text.includes(\"Saved order\")||!text.includes(\"Web Push\")||!text.includes(\"Only overdue critical asks use this order.\")||!text.includes(\"Non-critical asks expire unless a separately governed reversible default applies\"))throw new Error(`draft order or critical-only policy disclosure mismatch rows=${JSON.stringify(rows)} text=${text}`);return {rows,savedOrderVisible:true,criticalOnlyDisclosureVisible:true}})()"
+          },
+          "metadata": {
+            "label": "Verify Email then Web Push is a local draft and saved order plus held eligibility remain disclosed"
+          }
+        }
+      },
+      {
+        "id": "scroll-order-continuation",
+        "action": {
+          "type": "ACTION_TYPE_SCROLL",
+          "scroll": {
+            "behavior": "SCROLL_BEHAVIOR_AUTO",
+            "selector": "[data-testid=\"escalation-order-scroll-region\"]",
+            "y": 46
+          },
+          "metadata": {
+            "label": "Scroll to the selected second narrow viewport continuation"
+          }
+        }
+      },
+      {
+        "id": "assert-selected-zero-insets",
+        "action": {
+          "type": "ACTION_TYPE_EVALUATE",
+          "evaluate": {
+            "expression": "(()=>{const root=document.documentElement;for(const key of ['top','right','bottom','left'])root.style.setProperty('--safe-area-inset-'+key,'0px');const insets=Object.fromEntries(['top','right','bottom','left'].map(key=>[key,getComputedStyle(root).getPropertyValue('--safe-area-inset-'+key).trim()]));if(innerWidth!==360||innerHeight!==740||Object.values(insets).some(value=>value!=='0px'))throw new Error('selected viewport/inset mismatch '+JSON.stringify({width:innerWidth,height:innerHeight,insets}));return {viewport:{width:innerWidth,height:innerHeight},insets}})()",
+            "store_result": "selectedCaptureEnvironment"
+          },
+          "metadata": {
+            "label": "Assert selected 360 by 740 CSS viewport with zero safe-area insets before screenshot"
+          }
+        }
+      },
+      {
+        "id": "capture-order-editor",
+        "action": {
+          "type": "ACTION_TYPE_SCREENSHOT",
+          "screenshot": {
+            "full_page": false
+          },
+          "metadata": {
+            "label": "Capture selected dark narrow order editor part 2 at 360 by 740 CSS pixels"
+          }
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "e22-order-desktop-00",
+        "source": "open-settings",
+        "target": "wait-settings",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e22-order-desktop-01",
+        "source": "wait-settings",
+        "target": "select-dark-theme",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e22-order-desktop-02",
+        "source": "select-dark-theme",
+        "target": "open-editor",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e22-order-desktop-03",
+        "source": "open-editor",
+        "target": "stage-email-first",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e22-order-desktop-04",
+        "source": "stage-email-first",
+        "target": "assert-draft",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e22-order-desktop-05",
+        "source": "assert-draft",
+        "target": "scroll-order-continuation",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e22-dark-narrow-p2-capture",
+        "source": "assert-selected-zero-insets",
+        "target": "capture-order-editor",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e22-order-editor-safe-area",
+        "source": "scroll-order-continuation",
+        "target": "assert-selected-zero-insets",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      }
+    ]
+  }
+}

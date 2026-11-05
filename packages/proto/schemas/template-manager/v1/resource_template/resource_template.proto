@@ -1,0 +1,102 @@
+syntax = "proto3";
+
+package vrooli.template_manager.v1.resource_template;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/template-manager/v1/resource_template;resource_template_v1";
+
+// ResourceTemplateService owns resource-template discovery, validation, and
+// generation for templates/resources/.
+service ResourceTemplateService {
+  rpc ListResourceTemplates(ListResourceTemplatesRequest) returns (ListResourceTemplatesResponse);
+  rpc GetResourceTemplate(GetResourceTemplateRequest) returns (GetResourceTemplateResponse);
+  rpc ValidateResourceTemplates(ValidateResourceTemplatesRequest) returns (ValidateResourceTemplatesResponse);
+  rpc GenerateResourceTemplate(GenerateResourceTemplateRequest) returns (GenerateResourceTemplateResponse);
+}
+
+message ResourceTemplateVar {
+  string flag = 1;
+  string description = 2;
+  string default = 3;
+}
+
+message ResourceTemplateManifest {
+  string name = 1;
+  string display_name = 2;
+  string description = 3;
+  string driver = 4;
+  map<string, ResourceTemplateVar> required_vars = 5;
+  map<string, ResourceTemplateVar> optional_vars = 6;
+  map<string, string> docs = 7;
+  repeated string platform_expectations = 8;
+  bool transitional = 9;
+}
+
+message ResourceTemplateInfo {
+  string name = 1;
+  string path = 2;
+  ResourceTemplateManifest manifest = 3;
+}
+
+message ResourceTemplateSummary {
+  string name = 1;
+  string display_name = 2;
+  string driver = 3;
+  bool transitional = 4;
+  string description = 5;
+}
+
+message ListResourceTemplatesRequest {}
+
+message ListResourceTemplatesResponse {
+  repeated ResourceTemplateInfo templates = 1;
+}
+
+message GetResourceTemplateRequest {
+  string name = 1;
+}
+
+message GetResourceTemplateResponse {
+  ResourceTemplateInfo template = 1;
+}
+
+message ValidateResourceTemplatesRequest {}
+
+message ResourceTemplateValidationResult {
+  string name = 1;
+  string driver = 2;
+  bool transitional = 3;
+  // status is "pass" when the template produced no issues, "fail" otherwise.
+  string status = 4;
+  repeated string issues = 5;
+}
+
+message ValidateResourceTemplatesResponse {
+  // count is the number of resource templates validated.
+  int32 count = 1;
+  // status is the overall verdict: "pass" when no issues were found, "fail"
+  // otherwise.
+  string status = 2;
+  int32 issues_count = 3;
+  repeated ResourceTemplateValidationResult results = 4;
+  // issues carries fleet-level problems not tied to one template, such as a
+  // missing canonical template.
+  repeated string issues = 5;
+}
+
+message GenerateResourceTemplateRequest {
+  string template = 1;
+  string from_blueprint = 2;
+  string destination = 3;
+  bool force = 4;
+  bool dry_run = 5;
+  map<string, string> values = 6;
+}
+
+message GenerateResourceTemplateResponse {
+  ResourceTemplateSummary template = 1;
+  string blueprint_name = 2;
+  string destination = 3;
+  map<string, string> values = 4;
+  repeated string files = 5;
+  bool dry_run = 6;
+}

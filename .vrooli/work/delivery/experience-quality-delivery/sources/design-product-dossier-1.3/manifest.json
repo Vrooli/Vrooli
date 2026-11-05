@@ -1,0 +1,58 @@
+{
+  "skill": "design-product-dossier",
+  "method_revision": "1.3",
+  "source_revision": "17b26cdb3e5d5ac6c94cbcd5a1b88f1c20908e37",
+  "source_role": "Immutable verified snapshot of the canonical owned skill; not a second method or loader repair. Preserve project adoption pins.",
+  "files": [
+    {
+      "path": "SKILL.md",
+      "bytes": 9767,
+      "sha256": "802449de08d25fa268af0358fc1ac47b9823ba66504b4747f8e5036248b75285"
+    },
+    {
+      "path": "agents/openai.yaml",
+      "bytes": 455,
+      "sha256": "2e00bd2f3036e8c338b11293920e5e4189a465aa035fb40d6f205ca6810505ee"
+    },
+    {
+      "path": "assets/icon.svg",
+      "bytes": 420,
+      "sha256": "e9301497fa98ef56aaca7ede0857b9a18dc06c34040f0679c609a6bf49b1d38b"
+    },
+    {
+      "path": "references/coverage-and-traceability.md",
+      "bytes": 7883,
+      "sha256": "dbdd989c3d69c87da6e321f455fd4a76ae2dbd6fdf231c51fe0f21bcccc9c016"
+    },
+    {
+      "path": "references/critical-review.md",
+      "bytes": 4660,
+      "sha256": "619fa9434f621deb76fcf5689329a0e9bfaa6b5befc4887617ea1a4176c3a4dd"
+    },
+    {
+      "path": "references/document-and-visual-craft.md",
+      "bytes": 9360,
+      "sha256": "441085257ce8bc15867908bf8390ed0e8e8ddb16cd19ee57e13e267975b825b9"
+    },
+    {
+      "path": "references/mockup-craft-and-lifecycle.md",
+      "bytes": 7556,
+      "sha256": "de9c82c4011552edff3ca5a37def8269f5bffaa85bc15d1f8e4144801f830e4c"
+    },
+    {
+      "path": "references/service-and-business-design.md",
+      "bytes": 4542,
+      "sha256": "1565aed9ba65e2b4236e4f2180c2ee565eae6860159c4f0c6cabb2a8478b2c91"
+    },
+    {
+      "path": "references/sources-and-adoption.md",
+      "bytes": 3664,
+      "sha256": "eae32caa98a0358b22b5ade1531de2adf68b5c8aaf65120a1c61d3bd3395077c"
+    },
+    {
+      "path": "references/systems-and-infrastructure-design.md",
+      "bytes": 5465,
+      "sha256": "80ea59b4fd3b43de4e3abf709eaa193210d8e41e8864b7dfbf8a33f5c5fcef8f"
+    }
+  ]
+}

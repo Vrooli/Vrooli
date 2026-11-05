@@ -1,0 +1,28 @@
+{
+  "_metadata": {
+    "module": "capability-adapter-model",
+    "description": "OS-agnostic control plane with capability-reported adapters.",
+    "prd_ref": "OT-P0-006",
+    "priority": "P0",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "NM-P0-006",
+      "title": "Adapters report capabilities before actions are offered",
+      "status": "planned",
+      "prd_ref": "OT-P0-006",
+      "category": "architecture",
+      "criticality": "P0",
+      "description": "The scenario shall route host, resolver, router, and manual operations through adapters that report supported actions, required privileges, rollback support, platform identity, and unsupported reasons before UI, CLI, or optimization flows offer the action.",
+      "tags": ["adapter", "cross-platform", "capabilities"],
+      "validation": [
+        {
+          "type": "planned",
+          "status": "planned",
+          "notes": "Add adapter registry tests tagged [REQ:NM-P0-006] that verify capability discovery and unsupported-action handling across fake Linux, macOS, Windows, resolver, router, and manual adapters."
+        }
+      ]
+    }
+  ]
+}

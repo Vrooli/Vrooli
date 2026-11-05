@@ -272,7 +272,7 @@ func TestValidateAlgorithmHandler(t *testing.T) {
 	defer func() { db = oldDB }()
 
 	// Initialize processor
-	algorithmProcessor = NewAlgorithmProcessor("")
+	algorithmProcessor = NewAlgorithmProcessor()
 
 	reqBody := ValidationRequest{
 		AlgorithmID: "quicksort",

@@ -1,0 +1,11 @@
+{
+  "gate": "surface-discipline",
+  "assetId": "calibration.surface-discipline",
+  "kind": "component",
+  "runner": "static",
+  "requiredFailureCode": "catalog.surface_hard_coded",
+  "description": "A captured raised surface matches the pixels but the source bypasses the published elevation recipe.",
+  "source": "broken.tsx",
+  "catalogAsset": "asset.json",
+  "mutation": "surface-hard-coded"
+}

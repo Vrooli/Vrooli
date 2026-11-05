@@ -1,0 +1,201 @@
+{
+  "_metadata": {
+    "description": "P1 capabilities to add after the P0 backbone is proven.",
+    "last_validated_at": "2026-06-01T10:39:28-04:00",
+    "module": "post-launch",
+    "prd_ref": "OT-P1-001",
+    "priority": "P1",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "DBM-HOOK-001",
+      "title": "Quiesce pre/post hooks for app-consistent snapshots",
+      "status": "planned",
+      "prd_ref": "OT-P1-001",
+      "category": "consistency",
+      "criticality": "P1",
+      "description": "A target can declare pre/post hooks (e.g. flush, pause writes) so live databases and stateful scenarios get application-consistent snapshots.",
+      "tags": [
+        "quiesce",
+        "consistency",
+        "hooks"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "status": "planned",
+          "notes": "Deferred: implement target-owned pre/post quiesce hooks, then prove ordering and failure rollback against a live source adapter."
+        }
+      ]
+    },
+    {
+      "id": "DBM-RET-001",
+      "title": "GFS retention policies per plan",
+      "status": "planned",
+      "prd_ref": "OT-P1-002",
+      "category": "retention",
+      "criticality": "P1",
+      "description": "Grandfather-father-son retention configurable per plan, applied through kopia snapshot policies.",
+      "tags": [
+        "retention",
+        "gfs"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "status": "planned",
+          "notes": "Deferred: replace keep-latest-only policy with explicit grandfather-father-son retention and prove the kept set over simulated time."
+        }
+      ]
+    },
+    {
+      "id": "DBM-DEST-DRYRUN",
+      "title": "Destination reachability dry-run",
+      "status": "complete",
+      "prd_ref": "OT-P1-003",
+      "category": "destination",
+      "criticality": "P1",
+      "description": "Verify a destination is reachable and writable before a plan depends on it.",
+      "tags": [
+        "destination",
+        "dry-run",
+        "preflight"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Implemented and covered: dry-run validates the preparation plan without invoking the preparer; missing destinations fail closed during readiness analysis."
+        }
+      ]
+    },
+    {
+      "id": "DBM-RST-GRAN",
+      "title": "Restore granularity (path / point-in-time)",
+      "status": "planned",
+      "prd_ref": "OT-P1-004",
+      "category": "restore",
+      "criticality": "P1",
+      "description": "Restore a single path or a chosen point-in-time from a snapshot, not just the whole artifact.",
+      "tags": [
+        "restore",
+        "granularity",
+        "point-in-time"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "status": "planned",
+          "notes": "Deferred: add path-level and point-in-time restore selection, then prove content and version selection against multiple snapshots."
+        }
+      ]
+    },
+    {
+      "id": "DBM-MIG-PM",
+      "title": "prompt-manager store migration (first customer)",
+      "status": "planned",
+      "prd_ref": "OT-P1-005",
+      "category": "adoption",
+      "criticality": "P1",
+      "description": "prompt-manager registers store/teams/** as a target, a verified restore is proven, and the data stops being committed to git.",
+      "tags": [
+        "adoption",
+        "prompt-manager",
+        "migration"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "status": "planned",
+          "notes": "Register prompt-manager store target; run verified restore; confirm git no longer tracks the churned runtime files."
+        }
+      ]
+    },
+    {
+      "id": "DBM-RECOVERY-001",
+      "title": "Identity-bound drive recovery with operator decision callback",
+      "status": "in_progress",
+      "prd_ref": "OT-P1-007",
+      "category": "recovery",
+      "criticality": "P1",
+      "description": "DBM MUST automatically remount a registered filesystem destination only after a positive read-only consistency check, using the canonical control-plane volume owner and a persisted strong device identity. If safe recovery cannot be proven and repair is supported, DBM MUST raise an exact Notification Hub decision; only a signed callback for that ask with a verified human approval may execute the revalidated repair. Refusal, Other, dismissal, expiry, stale identity, or changed preconditions MUST NOT repair the volume. Every terminal outcome MUST produce a retryable result notification without replaying host mutations.",
+      "tags": [
+        "volume-recovery",
+        "control-plane",
+        "notification-hub",
+        "operator-decision"
+      ],
+      "validation": [
+        {
+          "type": "unit",
+          "phase": "unit",
+          "status": "implemented",
+          "ref": "api/handlers/destinations/recovery_decision_test.go::TestVolumeRecoveryWorkerMountsOnlyAfterPositiveReadOnlyCheck",
+          "notes": "Fixture proof that automatic remount follows only a positive check; dirty/unknown state raises a decision instead."
+        },
+        {
+          "type": "unit",
+          "phase": "unit",
+          "status": "implemented",
+          "ref": "api/handlers/destinations/recovery_decision_test.go::TestRecoveryDecisionVerifiedHumanExecutesOnceAndNotifies",
+          "notes": "Fixture proof for verified-human callback, one repair execution and result notification; retry coverage confirms notification retry does not replay repair."
+        },
+        {
+          "type": "unit",
+          "phase": "unit",
+          "status": "implemented",
+          "ref": "api/internal/destinationreadiness/recovery_test.go::TestFileRecoveryEpisodePersistsUntilMountedThenStartsFresh",
+          "notes": "Recovery episode identity is stable across repeated unmounted polls and process restart, then rotates after a mounted observation and later outage."
+        },
+        {
+          "type": "unit",
+          "phase": "unit",
+          "status": "implemented",
+          "ref": "api/internal/destinationreadiness/recovery_test.go::TestFileRecoveryEpisodeAdoptsIncompleteLegacyJournalAndAdvancesCompletedOne",
+          "notes": "Upgrade adopts an incomplete legacy journal and advances a completed unmounted episode exactly once."
+        },
+        {
+          "type": "unit",
+          "phase": "unit",
+          "status": "implemented",
+          "ref": "api/handlers/destinations/recovery_decision_test.go::TestVolumeRecoveryWorkerRaisesFreshDecisionAfterCompletedEpisodeAndAvoidsDuplicateAsks",
+          "notes": "The worker raises a new decision after a later outage, while repeated polls during that outage do not duplicate the decision."
+        },
+        {
+          "type": "unit",
+          "phase": "unit",
+          "status": "implemented",
+          "ref": "api/handlers/destinations/recovery_decision_test.go::TestRecoveryDecisionOtherAndDismissalNeverRepair",
+          "notes": "A custom Other direction is preserved in the result notice and dismissal closes without answering; neither disposition executes host remediation."
+        },
+        {
+          "type": "manual",
+          "status": "implemented",
+          "notes": "Linux Elements recovery was approved through the exact Notification Hub decision, repaired and mounted once through the control plane, then reported by a delivered follow-up notification. Native macOS/Windows runtime recovery remains unverified; NTFS read/write is unsupported on macOS."
+        }
+      ]
+    },
+    {
+      "id": "DBM-ALERT-001",
+      "title": "Alerting integration",
+      "status": "planned",
+      "prd_ref": "OT-P1-006",
+      "category": "observability",
+      "criticality": "P1",
+      "description": "Stale and failed backups surface through platform monitoring/notifications.",
+      "tags": [
+        "alerting",
+        "notifications"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "status": "planned",
+          "notes": "Deferred: connect grouped posture incidents to a real platform notification sink. Current logging/event seams are diagnostic evidence, not notification delivery."
+        }
+      ]
+    }
+  ]
+}

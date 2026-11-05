@@ -1,0 +1,175 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.0.0",
+  "page": {
+    "id": "dashboard",
+    "title": "Economy Overview",
+    "routes": [
+      "/"
+    ],
+    "purpose": "Give the minter the state of the whole economy at a glance and make what needs a decision impossible to miss.",
+    "prd_refs": [
+      "OT-P0-013",
+      "OT-P0-006",
+      "OT-P0-004"
+    ]
+  },
+  "priorities": [
+    {
+      "statement": "Anything waiting on a decision is the first thing seen.",
+      "notes": "A pending redemption a child is waiting on outranks every other piece of information on this page."
+    },
+    {
+      "statement": "Every holder and their balance is visible without navigating away."
+    },
+    {
+      "statement": "Whether the economy is healthy — earning happening, redemptions settling — is readable without opening the journal."
+    },
+    {
+      "statement": "The dashboard reports state and never editorialises about a holder's behaviour."
+    }
+  ],
+  "states": [
+    {
+      "id": "default",
+      "description": "Economy has holders, activity and possibly pending approvals."
+    },
+    {
+      "id": "loading",
+      "description": "Overview is being fetched."
+    },
+    {
+      "id": "empty",
+      "description": "No token type has been minted yet; the page routes the minter to creating one."
+    },
+    {
+      "id": "partial",
+      "description": "Some panels resolved and others failed; each panel reports its own state rather than blanking the page."
+    },
+    {
+      "id": "stale",
+      "description": "Showing cached figures after a failed refresh, labelled as such."
+    },
+    {
+      "id": "request-error",
+      "description": "Overview could not be loaded."
+    },
+    {
+      "id": "permission-denied",
+      "description": "The authenticated identity is a holder, not a minter; the minter console is not rendered."
+    }
+  ],
+  "elements": [
+    {
+      "id": "pending-approvals-summary",
+      "role": "alert",
+      "name": "Waiting for you",
+      "description": "Count of and link to redemptions awaiting a decision."
+    },
+    {
+      "id": "holder-summary",
+      "role": "table",
+      "name": "Holders",
+      "description": "Each holder with their spendable and reserved balance."
+    },
+    {
+      "id": "economy-health",
+      "role": "status",
+      "name": "Economy activity",
+      "description": "Recent earning and redemption volume."
+    },
+    {
+      "id": "token-type-summary",
+      "role": "status",
+      "name": "Token types",
+      "description": "The types in play and their supply state."
+    },
+    {
+      "id": "go-to-approvals",
+      "role": "link",
+      "name": "Review approvals",
+      "description": "Primary action into the approval queue."
+    }
+  ],
+  "claims": [
+    {
+      "id": "approvals-first",
+      "type": "reading-order",
+      "statement": "Pending approvals are read before holder balances and before economy activity.",
+      "tier": "aspirational",
+      "elements": [
+        "pending-approvals-summary",
+        "holder-summary",
+        "economy-health"
+      ],
+      "locales": [
+        "en"
+      ]
+    },
+    {
+      "id": "approvals-visible-without-scroll",
+      "type": "visible-without-scroll",
+      "statement": "The pending-approval summary is visible without scrolling on a desktop viewport.",
+      "tier": "aspirational",
+      "viewports": [
+        "desktop",
+        "wide"
+      ],
+      "elements": [
+        "pending-approvals-summary"
+      ]
+    },
+    {
+      "id": "panels-degrade-independently",
+      "type": "state-covered",
+      "statement": "In the partial state each panel reports its own failure rather than blanking the whole page.",
+      "tier": "aspirational",
+      "states": [
+        "partial"
+      ]
+    },
+    {
+      "id": "empty-routes-to-mint",
+      "type": "state-covered",
+      "statement": "The empty state routes the minter to creating a token type rather than showing an empty console.",
+      "tier": "aspirational",
+      "states": [
+        "empty"
+      ]
+    },
+    {
+      "id": "holder-balances-tabular",
+      "type": "affordance-present",
+      "statement": "Holder balances are presented in a scannable tabular form with sortable columns.",
+      "tier": "aspirational",
+      "elements": [
+        "holder-summary"
+      ],
+      "params": {
+        "affordances": [
+          "sort"
+        ]
+      }
+    }
+  ],
+  "bindings": {
+    "elements": {
+      "pending-approvals-summary": {
+        "testid": "dashboard-pending-approvals"
+      },
+      "holder-summary": {
+        "testid": "dashboard-holder-summary"
+      },
+      "economy-health": {
+        "testid": "dashboard-economy-health"
+      },
+      "token-type-summary": {
+        "testid": "dashboard-token-types"
+      },
+      "go-to-approvals": {
+        "testid": "dashboard-go-to-approvals"
+      }
+    }
+  }
+}

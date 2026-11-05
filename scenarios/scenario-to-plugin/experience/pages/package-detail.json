@@ -1,0 +1,289 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.0.0",
+  "page": {
+    "id": "package-detail",
+    "title": "Package Detail",
+    "routes": [
+      "/packages/:packageId"
+    ],
+    "purpose": "Show one package's gate ladder so the operator can see exactly which rung it stands on, what evidence each passed rung carries, and what unblocks the next one.",
+    "prd_refs": [
+      "OT-P0-001",
+      "OT-P0-007"
+    ]
+  },
+  "priorities": [
+    {
+      "statement": "The operator sees which gate closed and what unblocks it, without opening another page.",
+      "notes": "This is the centerpiece of the product. Everything else is a drill-down from here."
+    },
+    {
+      "statement": "A rung never reads as passed unless evidence backs it.",
+      "notes": "An unrun check is 'not yet run', never green. This is the single most important honesty property in the UI."
+    },
+    {
+      "statement": "The next available action is unambiguous, and unavailable actions explain why rather than disappearing."
+    }
+  ],
+  "states": [
+    {
+      "id": "default",
+      "description": "A package part-way up the ladder with earlier rungs passed."
+    },
+    {
+      "id": "loading",
+      "description": "Package detail is loading."
+    },
+    {
+      "id": "partial",
+      "description": "Some rungs have run and later rungs have not."
+    },
+    {
+      "id": "stale",
+      "description": "A gate ran against an earlier commit than the one displayed."
+    },
+    {
+      "id": "request-error",
+      "description": "Package detail could not be loaded."
+    },
+    {
+      "id": "permission-denied",
+      "description": "The viewer may read the package but may not publish it."
+    },
+    {
+      "id": "blocked",
+      "description": "A gate is closed and the package cannot advance."
+    },
+    {
+      "id": "empty",
+      "description": "The package has no gate results yet \u2014 composition has just completed."
+    }
+  ],
+  "elements": [
+    {
+      "id": "gate-ladder",
+      "role": "list",
+      "name": "Gate ladder"
+    },
+    {
+      "id": "ladder-rung",
+      "role": "listitem",
+      "name": "Gate rung"
+    },
+    {
+      "id": "rung-disposition",
+      "role": "status",
+      "name": "Gate disposition"
+    },
+    {
+      "id": "rung-evidence-link",
+      "role": "link",
+      "name": "Evidence for this gate"
+    },
+    {
+      "id": "blocking-explanation",
+      "role": "alert",
+      "name": "What blocks this package"
+    },
+    {
+      "id": "remedy-text",
+      "role": "note",
+      "name": "How to unblock"
+    },
+    {
+      "id": "primary-action",
+      "role": "button",
+      "name": "Advance to the next gate"
+    },
+    {
+      "id": "disabled-action-reason",
+      "role": "note",
+      "name": "Why this action is unavailable"
+    },
+    {
+      "id": "artifact-digest",
+      "role": "note",
+      "name": "Artifact digest"
+    },
+    {
+      "id": "source-commit",
+      "role": "note",
+      "name": "Source commit"
+    },
+    {
+      "id": "not-yet-run-marker",
+      "role": "status",
+      "name": "Not yet run"
+    }
+  ],
+  "claims": [
+    {
+      "id": "ladder-present",
+      "type": "element-present",
+      "statement": "The gate ladder is present.",
+      "tier": "aspirational",
+      "elements": [
+        "gate-ladder"
+      ]
+    },
+    {
+      "id": "ladder-above-fold",
+      "type": "visible-without-scroll",
+      "statement": "The full ladder is visible without scrolling on a desktop viewport.",
+      "tier": "aspirational",
+      "elements": [
+        "gate-ladder"
+      ],
+      "states": [
+        "default"
+      ],
+      "params": {
+        "viewport": "desktop"
+      }
+    },
+    {
+      "id": "ladder-single-dominant-action",
+      "type": "single-dominant-action",
+      "statement": "Exactly one action is visually dominant: the next gate the package can attempt.",
+      "tier": "aspirational",
+      "elements": [
+        "primary-action"
+      ],
+      "states": [
+        "default"
+      ]
+    },
+    {
+      "id": "ladder-reading-order",
+      "type": "reading-order",
+      "statement": "The ladder reads in pipeline order: composition, conformance, attestation, rehearsal, publication.",
+      "tier": "aspirational",
+      "elements": [
+        "gate-ladder",
+        "ladder-rung",
+        "rung-disposition"
+      ]
+    },
+    {
+      "id": "blocking-explanation-present",
+      "type": "element-present",
+      "statement": "When a gate is closed, the page states what blocks the package.",
+      "tier": "aspirational",
+      "elements": [
+        "blocking-explanation"
+      ],
+      "states": [
+        "blocked"
+      ]
+    },
+    {
+      "id": "remedy-accompanies-refusal",
+      "type": "element-present",
+      "statement": "Every refusal names its remedy in the same view as the refusal.",
+      "tier": "aspirational",
+      "elements": [
+        "remedy-text"
+      ],
+      "states": [
+        "blocked"
+      ],
+      "rationale": "A refusal without a remedy converts a working gate into a dead end."
+    },
+    {
+      "id": "not-run-is-not-green",
+      "type": "state-distinct",
+      "statement": "A gate that has not run is visually distinct from a gate that passed.",
+      "tier": "aspirational",
+      "elements": [
+        "not-yet-run-marker",
+        "rung-disposition"
+      ],
+      "states": [
+        "partial",
+        "default"
+      ],
+      "rationale": "A green rung derived from an absent check would make the whole ladder untrustworthy."
+    },
+    {
+      "id": "disabled-action-explains",
+      "type": "element-present",
+      "statement": "An unavailable action states why it is unavailable rather than being hidden.",
+      "tier": "aspirational",
+      "elements": [
+        "disabled-action-reason"
+      ],
+      "states": [
+        "permission-denied",
+        "blocked"
+      ]
+    },
+    {
+      "id": "digest-is-selectable-text",
+      "type": "element-present",
+      "statement": "The artifact digest is selectable text rather than an image.",
+      "tier": "aspirational",
+      "elements": [
+        "artifact-digest"
+      ],
+      "rationale": "An operator must be able to copy a digest to verify it elsewhere."
+    },
+    {
+      "id": "evidence-reachable-from-every-passed-rung",
+      "type": "element-present",
+      "statement": "Every passed rung links to the evidence that passed it.",
+      "tier": "aspirational",
+      "elements": [
+        "rung-evidence-link"
+      ]
+    },
+    {
+      "id": "ladder-keyboard",
+      "type": "keyboard-reachable",
+      "statement": "Every rung and the primary action are keyboard reachable.",
+      "tier": "aspirational",
+      "elements": [
+        "ladder-rung",
+        "primary-action"
+      ]
+    }
+  ],
+  "bindings": {
+    "elements": {
+      "gate-ladder": {
+        "testid": "gate-ladder"
+      },
+      "ladder-rung": {
+        "testid": "ladder-rung"
+      },
+      "rung-disposition": {
+        "testid": "rung-disposition"
+      },
+      "rung-evidence-link": {
+        "testid": "rung-evidence-link"
+      },
+      "blocking-explanation": {
+        "testid": "blocking-explanation"
+      },
+      "remedy-text": {
+        "testid": "remedy-text"
+      },
+      "primary-action": {
+        "testid": "primary-action"
+      },
+      "disabled-action-reason": {
+        "testid": "disabled-action-reason"
+      },
+      "artifact-digest": {
+        "testid": "artifact-digest"
+      },
+      "source-commit": {
+        "testid": "source-commit"
+      },
+      "not-yet-run-marker": {
+        "testid": "not-yet-run-marker"
+      }
+    }
+  }
+}

@@ -1,0 +1,36 @@
+{
+  "id": "credit_margin_30d",
+  "label": "Credit margin · 30 days",
+  "description": "Credit top-up revenue less provider-reported inference cost, calculated at read time.",
+  "unit": "currency",
+  "format": "currency.compact",
+  "kind": "scalar",
+  "shape": "series",
+  "source": {
+    "team": "monetization",
+    "binding": "scenario:landing-page-business-suite",
+    "read": "/api/v1/admin/dashboard/revenue",
+    "select": "credit_margin_30d",
+    "ttlSeconds": 300,
+    "integrationId": "landing-page-business-suite",
+    "origin": "production",
+    "featureId": "credit_margin_30d",
+    "contractVersion": "revenue-summary.v1",
+    "selector": "credit_margin_30d",
+    "expectedUnit": "currency",
+    "sourceTimePolicy": "producer_required"
+  },
+  "coverage": "IN-REACH",
+  "sample": {
+    "value": 957.25,
+    "series": [
+      640,
+      710,
+      780,
+      840,
+      900,
+      957.25
+    ],
+    "basis": "read-time credit top-up revenue minus provider cost, reviewed 2026-09-16"
+  }
+}

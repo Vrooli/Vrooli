@@ -1,0 +1,117 @@
+{
+  "metadata": {
+    "name": "perf-grouped-changes",
+    "description": "Capture grouped Changes view switching and scrolling with measured virtual group/category/file rows.",
+    "labels": {
+      "intent": "performance",
+      "reset": "none"
+    },
+    "version": "1",
+    "execution_mode": "observer"
+  },
+  "settings": {
+    "viewport_width": 1440,
+    "viewport_height": 900
+  },
+  "nodes": [
+    {
+      "id": "wait-shell",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "[data-testid=git-control-tower]",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 15000
+        },
+        "metadata": {
+          "label": "Wait for the workspace shell"
+        }
+      }
+    },
+    {
+      "id": "wait-grouping",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "[data-testid=view-mode-cycle-button][aria-label=\"Flat view (click for grouped)\"]",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 20000
+        }
+      }
+    },
+    {
+      "id": "open-grouped",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": "[data-testid=view-mode-cycle-button]"
+        }
+      }
+    },
+    {
+      "id": "wait-group",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "[data-testid^=\"file-group-\"]",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 20000
+        }
+      }
+    },
+    {
+      "id": "scroll-changes",
+      "action": {
+        "type": "ACTION_TYPE_SCROLL",
+        "scroll": {
+          "selector": "[data-testid=changes-scroll-region]",
+          "delta_y": 900
+        },
+        "metadata": {
+          "label": "Scroll the Changes list"
+        }
+      }
+    },
+    {
+      "id": "settle-after-scroll",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "[data-testid=changes-scroll-region]",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 15000
+        },
+        "metadata": {
+          "label": "Allow the Changes list to settle"
+        }
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "edge-0",
+      "source": "wait-shell",
+      "target": "wait-grouping"
+    },
+    {
+      "id": "edge-1",
+      "source": "wait-grouping",
+      "target": "open-grouped"
+    },
+    {
+      "id": "edge-2",
+      "source": "open-grouped",
+      "target": "wait-group"
+    },
+    {
+      "id": "edge-3",
+      "source": "wait-group",
+      "target": "scroll-changes"
+    },
+    {
+      "id": "edge-4",
+      "source": "scroll-changes",
+      "target": "settle-after-scroll"
+    }
+  ]
+}

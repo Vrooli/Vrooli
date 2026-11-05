@@ -1,0 +1,549 @@
+package validation
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"log"
+	"os"
+	"path/filepath"
+	"strings"
+
+	"connectrpc.com/connect"
+	"google.golang.org/protobuf/types/known/anypb"
+
+	"unit-health/internal/adapters/gotest"
+	internaldiscovery "unit-health/internal/discovery"
+	"unit-health/internal/testquality/mutation"
+	internalvalidation "unit-health/internal/validation"
+
+	"github.com/vrooli/api-core/metrics"
+	"github.com/vrooli/api-core/storage"
+	"github.com/vrooli/maturity-go/assessment"
+	architecturev1 "github.com/vrooli/vrooli/packages/proto/gen/go/architecture/v1"
+	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
+	scenariovalidationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1"
+	validationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/unit-health/v1/validation"
+	validationconnect "github.com/vrooli/vrooli/packages/proto/gen/go/unit-health/v1/validation/validation_v1connect"
+)
+
+// Deps are the handler's collaborators.
+type Deps struct {
+	Service      *internalvalidation.Service
+	Logger       *log.Logger
+	MaturitySpec *assessment.Spec
+	// Environment is the host CaptureEnvironment captured once at module init
+	// (os/arch/cpu/mem/present-GPUs). nil is safe — the metrics collector
+	// backfills os/arch/num_cpu from the stdlib.
+	Environment     *commonv1.CaptureEnvironment
+	CalibrationRoot string
+}
+
+// Handler implements the generated ValidationServiceHandler.
+type Handler struct {
+	validationconnect.UnimplementedValidationServiceHandler
+	svc             *internalvalidation.Service
+	logger          *log.Logger
+	spec            *assessment.Spec
+	env             *commonv1.CaptureEnvironment
+	calibrationRoot string
+}
+
+// NewHandlerWithDeps builds a Handler, defaulting nil collaborators.
+func NewHandlerWithDeps(deps Deps) *Handler {
+	if deps.Logger == nil {
+		deps.Logger = log.Default()
+	}
+	if deps.Service == nil {
+		deps.Service = internalvalidation.New()
+	}
+	return &Handler{svc: deps.Service, logger: deps.Logger, spec: deps.MaturitySpec, env: deps.Environment, calibrationRoot: deps.CalibrationRoot}
+}
+
+var _ validationconnect.ValidationServiceHandler = (*Handler)(nil)
+
+// ValidateScenario discovers, plans, executes, and analyzes the target's tests.
+func (h *Handler) ValidateScenario(ctx context.Context, req *connect.Request[validationv1.ValidateScenarioRequest]) (*connect.Response[validationv1.ValidateScenarioResponse], error) {
+	if req.Msg.GetScenario() == "" && req.Msg.GetPath() == "" {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("scenario or path is required"))
+	}
+	report, err := h.svc.Validate(ctx, internalvalidation.Request{
+		Scenario:         req.Msg.GetScenario(),
+		TargetKind:       "scenario",
+		Path:             req.Msg.GetPath(),
+		Workspaces:       req.Msg.GetWorkspaces(),
+		IncludeExecution: req.Msg.GetIncludeExecution(),
+		UseCache:         req.Msg.GetUseCache(),
+		FastTestOnly:     req.Msg.GetFastTestOnly(),
+		ReviewedCohortID: req.Msg.GetReviewedCohortId(), ReviewedSourceIdentity: req.Msg.GetReviewedSourceIdentity(), ReviewedObservationCount: req.Msg.GetReviewedObservationCount(),
+	})
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, err)
+	}
+	resp, err := responseToProto(report, h.spec)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("build maturity assessment: %w", err))
+	}
+	return connect.NewResponse(resp), nil
+}
+
+// ReadTestBody returns one privacy-checked, bounded source excerpt for the
+// sampled-review program. The owner resolves the scenario and workspace; the
+// program never reads the filesystem directly.
+func (h *Handler) ReadTestBody(ctx context.Context, req *connect.Request[validationv1.ReadTestBodyRequest]) (*connect.Response[validationv1.ReadTestBodyResponse], error) {
+	if req.Msg.GetScenario() == "" || req.Msg.GetWorkspace() == "" || req.Msg.GetFile() == "" || req.Msg.GetTestId() == "" {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("scenario, workspace, file, and test_id are required"))
+	}
+	locator := internaldiscovery.Locator(internaldiscovery.DefaultLocator{})
+	if h.svc != nil && h.svc.Locator != nil {
+		locator = h.svc.Locator
+	}
+	_, _, scenarioRoot, err := locator.Locate(ctx, req.Msg.GetScenario(), "")
+	if err != nil {
+		return nil, connect.NewError(connect.CodeNotFound, err)
+	}
+	workspaceRoot := filepath.Join(scenarioRoot, filepath.Clean(req.Msg.GetWorkspace()))
+	if info, statErr := os.Stat(workspaceRoot); statErr != nil || !info.IsDir() {
+		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("workspace %q not found", req.Msg.GetWorkspace()))
+	}
+	body, err := gotest.ReadTestBody(gotest.BodyRequest{
+		Root: workspaceRoot, Workspace: req.Msg.GetWorkspace(), File: req.Msg.GetFile(), TestID: req.Msg.GetTestId(), MaxBytes: req.Msg.GetMaxBytes(),
+	})
+	if err != nil {
+		if strings.Contains(err.Error(), "not found") {
+			return nil, connect.NewError(connect.CodeNotFound, err)
+		}
+		return nil, connect.NewError(connect.CodeInvalidArgument, err)
+	}
+	return connect.NewResponse(&validationv1.ReadTestBodyResponse{
+		TestIdentity: body.TestIdentity, BodyExcerpt: body.BodyExcerpt, BodyBytes: body.BodyBytes,
+		Redactions: body.Redactions, Refused: body.Refused, RefusalReason: body.RefusalReason,
+	}), nil
+}
+
+// RunMutationPilot runs bounded owner-side mutations in disposable cache
+// workspaces. The shared scenario checkout is never used as a mutation target.
+func (h *Handler) RunMutationPilot(ctx context.Context, req *connect.Request[validationv1.RunMutationPilotRequest]) (*connect.Response[validationv1.RunMutationPilotResponse], error) {
+	if req.Msg.GetScenario() == "" || req.Msg.GetWorkspace() == "" || req.Msg.GetPackage() == "" {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("scenario, workspace, and package are required"))
+	}
+	locator := internaldiscovery.Locator(internaldiscovery.DefaultLocator{})
+	if h.svc != nil && h.svc.Locator != nil {
+		locator = h.svc.Locator
+	}
+	_, _, scenarioRoot, err := locator.Locate(ctx, req.Msg.GetScenario(), "")
+	if err != nil {
+		return nil, connect.NewError(connect.CodeNotFound, err)
+	}
+	workspaceRoot, err := workspacePath(scenarioRoot, req.Msg.GetWorkspace())
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, err)
+	}
+	if info, statErr := os.Stat(workspaceRoot); statErr != nil || !info.IsDir() {
+		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("workspace %q not found", req.Msg.GetWorkspace()))
+	}
+	resolver, err := storage.NewResolver(storage.ResolverConfig{AppID: "vrooli"})
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("resolve mutation cache: %w", err))
+	}
+	paths, err := resolver.Resolve(storage.Options{ScenarioID: req.Msg.GetScenario()})
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("resolve mutation cache: %w", err))
+	}
+	pilot, err := mutation.Run(ctx, mutation.PilotRequest{
+		WorkspaceRoot: workspaceRoot,
+		Package:       req.Msg.GetPackage(),
+		Operators:     req.Msg.GetOperators(),
+		MaxMutants:    req.Msg.GetMaxMutants(),
+		Seed:          req.Msg.GetSeed(),
+		CacheRoot:     paths.CacheDir,
+		Executor:      h.svc.Executor,
+	})
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, err)
+	}
+	receipts := make([]*validationv1.MutantReceipt, 0, len(pilot.Receipts))
+	for _, receipt := range pilot.Receipts {
+		receipts = append(receipts, &validationv1.MutantReceipt{Id: receipt.ID, Operator: receipt.Operator, File: receipt.File, Line: receipt.Line, Disposition: string(receipt.Disposition), Detail: receipt.Detail, OwningTest: receipt.OwningTest})
+	}
+	return connect.NewResponse(&validationv1.RunMutationPilotResponse{
+		RunId: pilot.RunID, WorkspacePath: pilot.WorkspacePath, Receipts: receipts,
+		Summary:     &validationv1.MutationSummary{Generated: pilot.Summary.Generated, Killed: pilot.Summary.Killed, Survived: pilot.Summary.Survived, Invalid: pilot.Summary.Invalid, Equivalent: pilot.Summary.Equivalent, OutOfContract: pilot.Summary.OutOfContract, InfrastructureFailure: pilot.Summary.InfrastructureFailure, Unknown: pilot.Summary.Unknown, KillRate: pilot.Summary.KillRate},
+		Limitations: pilot.Limitations,
+	}), nil
+}
+
+func workspacePath(scenarioRoot, workspace string) (string, error) {
+	if filepath.IsAbs(workspace) {
+		return "", fmt.Errorf("workspace must be relative: %q", workspace)
+	}
+	clean := filepath.Clean(workspace)
+	if clean == "." || clean == ".." || strings.HasPrefix(clean, ".."+string(filepath.Separator)) {
+		return "", fmt.Errorf("workspace must stay inside scenario: %q", workspace)
+	}
+	root, err := filepath.Abs(scenarioRoot)
+	if err != nil {
+		return "", err
+	}
+	path, err := filepath.Abs(filepath.Join(root, clean))
+	if err != nil || (path != root && !strings.HasPrefix(path, root+string(filepath.Separator))) {
+		return "", fmt.Errorf("workspace must stay inside scenario: %q", workspace)
+	}
+	return path, nil
+}
+
+// SharedHandler adapts Unit Health's rich validation RPC to the shared
+// ScenarioValidationService contract consumed by Test Genie.
+type SharedHandler struct {
+	handler *Handler
+}
+
+func NewSharedHandler(handler *Handler) *SharedHandler {
+	return &SharedHandler{handler: handler}
+}
+
+func (h *SharedHandler) ValidateScenario(ctx context.Context, req *connect.Request[scenariovalidationv1.ValidateScenarioRequest]) (*connect.Response[scenariovalidationv1.ValidateScenarioResponse], error) {
+	if h == nil || h.handler == nil {
+		return nil, connect.NewError(connect.CodeUnimplemented, errors.New("unit validation handler not wired"))
+	}
+	collector := metrics.Start(metrics.WithEnvironment(h.handler.env))
+	native, err := h.handler.ValidateScenario(internalvalidation.WithMetrics(ctx, collector), connect.NewRequest(&validationv1.ValidateScenarioRequest{
+		Scenario:         req.Msg.GetScenario(),
+		Path:             req.Msg.GetPath(),
+		IncludeExecution: req.Msg.GetIncludeExecution(),
+		// Test Genie owns suite-level phase caching. Reusing Unit Health's
+		// target evidence here can serve a stale policy/discovery result to the
+		// shared contract, especially after a testing.json change.
+		UseCache:     false,
+		FastTestOnly: false,
+	}))
+	if err != nil {
+		collector.Stop()
+		return nil, err
+	}
+	execMetrics := collector.Stop()
+	resp, err := assessment.BuildValidationResponse(
+		native.Msg.GetScenario(),
+		native.Msg.GetAssessment(),
+		native.Msg,
+		execMetrics,
+		statusOverride(native.Msg)...,
+	)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("build shared validation response: %w", err))
+	}
+	return connect.NewResponse(resp), nil
+}
+
+func (h *SharedHandler) ValidateTarget(ctx context.Context, req *connect.Request[scenariovalidationv1.ValidateTargetRequest]) (*connect.Response[scenariovalidationv1.ValidateTargetResponse], error) {
+	target := req.Msg.GetTarget()
+	if target == nil || target.GetId() == "" {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("target is required"))
+	}
+	path := req.Msg.GetPath()
+	if path == "" {
+		path = target.GetRoot()
+	}
+	targetKind := validationTargetKindString(target.GetKind())
+	report, err := h.handler.svc.Validate(ctx, internalvalidation.Request{
+		Scenario:         target.GetId(),
+		TargetKind:       targetKind,
+		Path:             path,
+		IncludeExecution: req.Msg.GetIncludeExecution(),
+		UseCache:         true,
+	})
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, err)
+	}
+	native, err := responseToProto(report, h.handler.spec)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("build target validation response: %w", err))
+	}
+	detail, err := anypb.New(native)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("pack target validation response: %w", err))
+	}
+	return connect.NewResponse(&scenariovalidationv1.ValidateTargetResponse{
+		Target:       target,
+		Status:       validationStatusFromString(native.GetStatus()),
+		Assessment:   native.GetAssessment(),
+		NativeDetail: detail,
+	}), nil
+}
+
+func validationStatusFromString(status string) scenariovalidationv1.ValidationStatus {
+	switch strings.ToLower(strings.TrimSpace(status)) {
+	case "passed":
+		return scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_PASSED
+	case "failed", "failing":
+		return scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_FAILED
+	case "degraded":
+		return scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_DEGRADED
+	case "error":
+		return scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_ERROR
+	default:
+		return scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_UNSPECIFIED
+	}
+}
+
+func validationTargetKindString(kind commonv1.ValidationTargetKind) string {
+	switch kind {
+	case commonv1.ValidationTargetKind_VALIDATION_TARGET_KIND_SCENARIO:
+		return "scenario"
+	case commonv1.ValidationTargetKind_VALIDATION_TARGET_KIND_PACKAGE:
+		return "package"
+	case commonv1.ValidationTargetKind_VALIDATION_TARGET_KIND_CONTROL_PLANE:
+		return "control-plane"
+	case commonv1.ValidationTargetKind_VALIDATION_TARGET_KIND_RESOURCE:
+		return "resource"
+	case commonv1.ValidationTargetKind_VALIDATION_TARGET_KIND_TOOL:
+		return "tool"
+	case commonv1.ValidationTargetKind_VALIDATION_TARGET_KIND_SAFEGUARD:
+		return "safeguard"
+	case commonv1.ValidationTargetKind_VALIDATION_TARGET_KIND_TEAM:
+		return "team"
+	case commonv1.ValidationTargetKind_VALIDATION_TARGET_KIND_DOCS:
+		return "docs"
+	case commonv1.ValidationTargetKind_VALIDATION_TARGET_KIND_PROJECT:
+		return "project"
+	default:
+		return "unspecified"
+	}
+}
+
+func statusOverride(resp *validationv1.ValidateScenarioResponse) []assessment.ValidationResponseOption {
+	switch strings.ToLower(strings.TrimSpace(resp.GetStatus())) {
+	case "degraded":
+		return []assessment.ValidationResponseOption{assessment.WithValidationStatus(scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_DEGRADED)}
+	case "error":
+		return []assessment.ValidationResponseOption{assessment.WithValidationStatus(scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_ERROR)}
+	default:
+		return nil
+	}
+}
+
+func responseToProto(in internalvalidation.Response, spec *assessment.Spec) (*validationv1.ValidateScenarioResponse, error) {
+	errCount, warnCount, infoCount := findingCounts(in.Findings)
+	maturityAssessment, err := buildMaturityAssessment(in, spec)
+	if err != nil {
+		return nil, err
+	}
+	out := &validationv1.ValidateScenarioResponse{
+		RunId:                      in.RunID,
+		Status:                     in.Status,
+		Summary:                    in.Summary,
+		Scenario:                   in.Scenario,
+		TargetKind:                 in.TargetKind,
+		TargetPath:                 in.TargetPath,
+		DegradedReason:             in.DegradedReason,
+		CacheHit:                   in.CacheHit,
+		CacheMissReason:            in.CacheMissReason,
+		CacheInvalidatedDimensions: in.CacheInvalidatedDimensions,
+		CacheSavedWallTimeMs:       in.CacheSavedWallTimeMS,
+		CacheSavedCpuTimeMs:        in.CacheSavedCPUTimeMS,
+		CacheRetainedBytes:         in.CacheRetainedBytes,
+		TestQuality:                qualityReportToProto(in.TestQuality),
+		Traceability:               traceabilityToProto(in.Traceability),
+		EvidenceStages:             evidenceStagesToProto(in.EvidenceStages),
+		Plan:                       planToProto(in.Plan),
+		Maturity: &validationv1.MaturitySummary{
+			Rung:      int32(in.Maturity.Rung),
+			Label:     in.Maturity.Label,
+			Rationale: in.Maturity.Rationale,
+		},
+		Counts: &validationv1.ValidationCounts{
+			Errors:             int32(errCount),
+			Warnings:           int32(warnCount),
+			Infos:              int32(infoCount),
+			Surfaces:           int32(len(in.Surfaces)),
+			Workspaces:         int32(len(in.Workspaces)),
+			CoverageTargets:    int32(len(in.Coverage)),
+			SuppressedFindings: int32(len(in.SuppressedFindings)),
+		},
+		NextSteps:  in.NextSteps,
+		Assessment: maturityAssessment,
+	}
+	for _, s := range in.Surfaces {
+		out.Surfaces = append(out.Surfaces, surfaceToProto(s))
+	}
+	for _, w := range in.Workspaces {
+		out.Workspaces = append(out.Workspaces, workspaceToProto(w))
+	}
+	for _, r := range in.CommandResults {
+		out.CommandResults = append(out.CommandResults, commandToProto(r))
+	}
+	for _, c := range in.Coverage {
+		out.Coverage = append(out.Coverage, coverageToProto(c))
+	}
+	for _, p := range in.ProjectionChecks {
+		out.ProjectionChecks = append(out.ProjectionChecks, projectionCheckToProto(p))
+	}
+	for _, f := range in.Findings {
+		out.Findings = append(out.Findings, findingToProto(f))
+	}
+	for _, f := range in.SuppressedFindings {
+		out.SuppressedFindings = append(out.SuppressedFindings, findingToProto(f))
+	}
+	for _, d := range in.Diagnostics {
+		out.Diagnostics = append(out.Diagnostics, diagnosticToProto(d))
+	}
+	for _, a := range in.Artifacts {
+		out.Artifacts = append(out.Artifacts, artifactToProto(a))
+	}
+	return out, nil
+}
+
+func artifactToProto(in internalvalidation.Artifact) *validationv1.Artifact {
+	return &validationv1.Artifact{Label: in.Label, Kind: in.Kind, Reference: in.Reference}
+}
+
+func buildMaturityAssessment(in internalvalidation.Response, spec *assessment.Spec) (*commonv1.MaturityAssessment, error) {
+	if spec == nil {
+		return nil, fmt.Errorf("maturity spec is required")
+	}
+	findings := make([]assessment.Finding, 0, len(in.Findings))
+	for _, f := range in.Findings {
+		var evidence []*commonv1.AssessmentEvidence
+		if detail := strings.TrimSpace(f.Evidence); detail != "" {
+			kind := "finding.evidence"
+			locator := strings.TrimSpace(f.FilePath)
+			if command := strings.TrimSpace(f.SourceCommand); command != "" {
+				kind = "command.output"
+				locator = command
+			}
+			evidence = []*commonv1.AssessmentEvidence{{
+				Kind:    kind,
+				Summary: strings.ToValidUTF8(detail, "�"),
+				Locator: strings.ToValidUTF8(locator, "�"),
+			}}
+		}
+		findings = append(findings, assessment.Finding{
+			Code:        f.Code,
+			Severity:    severityToAssessment(f.Severity),
+			Title:       f.Code,
+			Message:     f.Message,
+			Location:    f.FilePath,
+			Remediation: f.Remediation,
+			Source:      findingSource(f.Code, spec),
+			Phase:       spec.Phase,
+			Evidence:    evidence,
+		})
+	}
+	return assessment.BuildProtoAssessment(assessment.BuildInput{
+		Scenario: in.Scenario,
+		Spec:     *spec,
+		Findings: findings,
+	})
+}
+
+// findingSource resolves the architecture finding source from the finding's
+// declared dimension: coverage-dimension findings are coverage signals, all
+// other Unit Health findings are test-standard signals.
+func findingSource(code string, spec *assessment.Spec) architecturev1.FindingSource {
+	if spec != nil {
+		if mapping, ok := spec.Findings[code]; ok && mapping.Dimension == "coverage" {
+			return architecturev1.FindingSource_FINDING_SOURCE_COVERAGE
+		}
+	}
+	return architecturev1.FindingSource_FINDING_SOURCE_STANDARDS
+}
+
+func severityToAssessment(severity string) string {
+	switch strings.ToLower(strings.TrimSpace(severity)) {
+	case "error":
+		return architecturev1.FindingSeverity_FINDING_SEVERITY_ERROR.String()
+	case "warning", "warn":
+		return architecturev1.FindingSeverity_FINDING_SEVERITY_WARNING.String()
+	case "info":
+		return architecturev1.FindingSeverity_FINDING_SEVERITY_INFO.String()
+	default:
+		return severity
+	}
+}
+
+func surfaceToProto(in internalvalidation.Surface) *validationv1.TestSurface {
+	return &validationv1.TestSurface{Id: in.ID, Kind: in.Kind, Language: in.Language, Framework: in.Framework, RootPath: in.RootPath, PackageManager: in.PackageManager, Status: in.Status, Confidence: in.Confidence}
+}
+
+func workspaceToProto(in internalvalidation.Workspace) *validationv1.TestWorkspace {
+	return &validationv1.TestWorkspace{Id: in.ID, Language: in.Language, RootPath: in.RootPath, Framework: in.Framework, CanonicalFramework: in.CanonicalFramework, TestCommand: in.TestCommand, CoverageCommand: in.CoverageCommand, PackageManager: in.PackageManager, Status: in.Status, DegradedReason: in.DegradedReason, RunnerProfile: in.RunnerProfile, Resources: &validationv1.ResourceLimits{CpuWeight: int32(in.Resource.CPUWeight), MemoryBytes: in.Resource.MemoryBytes, MaxWorkers: int32(in.Resource.MaxWorkers)}, AdapterId: in.AdapterID, AdapterVersion: in.AdapterVersion, TestKind: in.TestKind}
+}
+
+func planToProto(in internalvalidation.ExecutionPlan) *validationv1.ExecutionPlan {
+	out := &validationv1.ExecutionPlan{Notes: in.Notes}
+	for _, c := range in.Commands {
+		artifacts := make([]*validationv1.CommandArtifact, 0, len(c.Artifacts))
+		for _, artifact := range c.Artifacts {
+			artifacts = append(artifacts, &validationv1.CommandArtifact{Label: artifact.Label, Kind: artifact.Kind, Path: artifact.Reference})
+		}
+		out.Commands = append(out.Commands, &validationv1.PlannedCommand{
+			WorkspaceId: c.WorkspaceID, Name: c.Name, Command: c.Command,
+			WorkingDirectory: c.WorkingDirectory, TimeoutSeconds: int32(c.TimeoutSeconds),
+			Executable: c.Executable, Args: c.Args, Environment: c.Env,
+			Artifacts: artifacts, Kind: c.Kind,
+			Resources:              &validationv1.ResourceLimits{CpuWeight: int32(c.Resource.CPUWeight), MemoryBytes: c.Resource.MemoryBytes, MaxWorkers: int32(c.Resource.MaxWorkers)},
+			NoOutputTimeoutSeconds: int32(c.NoOutputTimeoutSeconds),
+			TestKind:               c.TestKind,
+			Hermetic:               &validationv1.HermeticPolicy{Network: c.Hermetic.Network, Filesystem: c.Hermetic.Filesystem, TemporaryRoot: c.Hermetic.TemporaryRoot, RestoreEnvironment: c.Hermetic.RestoreEnvironment, DetectChildLeaks: c.Hermetic.DetectChildLeaks, DetectOpenHandles: c.Hermetic.DetectOpenHandles, OrderIndependent: c.Hermetic.OrderIndependent},
+		})
+	}
+	return out
+}
+
+func commandToProto(in internalvalidation.CommandResult) *validationv1.CommandResult {
+	return &validationv1.CommandResult{Name: in.Name, Command: in.Command, WorkingDirectory: in.WorkingDirectory, Status: in.Status, ExitCode: int32(in.ExitCode), StdoutExcerpt: in.StdoutExcerpt, StderrExcerpt: in.StderrExcerpt, TimeoutSeconds: int32(in.TimeoutSeconds), FailureReason: in.FailureReason, FailureClass: in.FailureClass, DurationMs: in.DurationMS, CpuTimeMs: in.CPUTimeMS, PeakRssBytes: in.PeakRSSBytes}
+}
+
+func coverageToProto(in internalvalidation.CoverageTarget) *validationv1.CoverageTarget {
+	return &validationv1.CoverageTarget{Id: in.ID, Language: in.Language, SurfaceId: in.SurfaceID, FilePath: in.FilePath, CoveredLines: in.CoveredLines, TotalLines: in.TotalLines, CoveragePercent: in.CoveragePercent, Threshold: in.Threshold, Status: in.Status}
+}
+
+func projectionCheckToProto(in internalvalidation.ProjectionCheck) *validationv1.ProjectionCheck {
+	return &validationv1.ProjectionCheck{Id: in.ID, WorkspaceId: in.WorkspaceID, SurfaceId: in.SurfaceID, Key: in.Key, Owner: in.Owner, FilePath: in.FilePath, PolicyValue: in.PolicyValue, NativeValue: in.NativeValue, Status: in.Status, Remediation: in.Remediation, FindingCode: in.FindingCode}
+}
+
+func findingToProto(in internalvalidation.Finding) *validationv1.ValidationFinding {
+	out := &validationv1.ValidationFinding{Id: in.ID, Scenario: in.Scenario, SurfaceId: in.SurfaceID, WorkspaceId: in.WorkspaceID, Language: in.Language, Framework: in.Framework, Code: in.Code, Category: in.Category, Severity: in.Severity, FilePath: in.FilePath, Symbol: in.Symbol, Message: in.Message, Evidence: in.Evidence, Expected: in.Expected, Observed: in.Observed, WhyItMatters: in.WhyItMatters, Remediation: in.Remediation, SourceCommand: in.SourceCommand, CreatedAt: in.CreatedAt}
+	for _, reason := range in.SuppressionReasons {
+		out.SuppressionReasons = append(out.SuppressionReasons, &validationv1.SuppressionReason{Reason: reason.Reason, Owner: reason.Owner, Evidence: reason.Evidence, ExpiresAt: reason.ExpiresAt, Revisit: reason.Revisit})
+	}
+	return out
+}
+
+func diagnosticToProto(in internalvalidation.Diagnostic) *validationv1.Diagnostic {
+	out := &validationv1.Diagnostic{Kind: in.Kind, WorkspaceId: in.WorkspaceID, Message: in.Message, Evidence: in.Evidence, Severity: in.Severity}
+	if r := in.Reliability; r != nil {
+		out.Reliability = &validationv1.ReliabilityObservation{
+			State: r.State, Scope: r.Scope, CohortDigest: r.CohortDigest,
+			SampleCount: int32(r.SampleCount), Passed: int32(r.Passed), Failed: int32(r.Failed),
+			ExcludedInfrastructure: int32(r.ExcludedInfrastructure), ExcludedIncompatible: int32(r.ExcludedIncompatible), Seed: r.Seed,
+		}
+		if r.RetryOrdinal != nil {
+			ordinal := int32(*r.RetryOrdinal)
+			out.Reliability.RetryOrdinal = &ordinal
+		}
+	}
+	return out
+}
+
+func evidenceStagesToProto(in *internalvalidation.EvidenceStages) *validationv1.EvidenceStages {
+	if in == nil {
+		return nil
+	}
+	stages := in.Normalized()
+	return &validationv1.EvidenceStages{Configured: stages.Configured, Analyzed: stages.Analyzed, Executed: stages.Executed, Reviewed: stages.Reviewed, SourceRunId: stages.SourceRunID}
+}
+
+func findingCounts(findings []internalvalidation.Finding) (errCount, warnCount, infoCount int) {
+	for _, f := range findings {
+		switch strings.ToLower(f.Severity) {
+		case "error":
+			errCount++
+		case "warning", "warn":
+			warnCount++
+		default:
+			infoCount++
+		}
+	}
+	return errCount, warnCount, infoCount
+}

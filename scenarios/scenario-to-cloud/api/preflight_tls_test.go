@@ -7,7 +7,9 @@ import (
 
 	"scenario-to-cloud/dns"
 	"scenario-to-cloud/domain"
-	"scenario-to-cloud/ssh"
+	"scenario-to-cloud/identity"
+	"scenario-to-cloud/reach"
+	"scenario-to-cloud/reach/sshadapter"
 	"scenario-to-cloud/vps/preflight"
 )
 
@@ -42,10 +44,11 @@ func TestVPSPreflightProxyModeRequiresDNS01(t *testing.T) {
 			"www.example.com":       {"104.16.0.2"},
 			"do-origin.example.com": {"203.0.113.10"},
 		}}),
-		&FakeSSHRunner{Responses: basePreflightResponses()},
+		preflightReach(&FakeSSHRunner{Responses: preflightObservationResponses()}),
+		domain.TargetRefFromManifest(manifest),
 		preflight.RunOptions{
 			PortProbe: func(_ context.Context, _ string, _ int, _ time.Duration) error { return nil },
-			TLSALPNProbe: func(_ context.Context, _ string, _ string, _ int, _ time.Duration) (string, error) {
+			TLSALPNProbe: func(_ context.Context, _, _ string, _ int, _ time.Duration) (string, error) {
 				return "acme-tls/1", nil
 			},
 		},
@@ -100,10 +103,11 @@ func TestVPSPreflightProxyModeWarnPolicy(t *testing.T) {
 			"www.example.com":       {"104.16.0.2"},
 			"do-origin.example.com": {"203.0.113.10"},
 		}}),
-		&FakeSSHRunner{Responses: basePreflightResponses()},
+		preflightReach(&FakeSSHRunner{Responses: preflightObservationResponses()}),
+		domain.TargetRefFromManifest(manifest),
 		preflight.RunOptions{
 			PortProbe: func(_ context.Context, _ string, _ int, _ time.Duration) error { return nil },
-			TLSALPNProbe: func(_ context.Context, _ string, _ string, _ int, _ time.Duration) (string, error) {
+			TLSALPNProbe: func(_ context.Context, _, _ string, _ int, _ time.Duration) (string, error) {
 				return "acme-tls/1", nil
 			},
 		},
@@ -158,10 +162,11 @@ func TestVPSPreflightALPNWarnOnWrongProtocol(t *testing.T) {
 			"www.example.com":       {"203.0.113.10"},
 			"do-origin.example.com": {"203.0.113.10"},
 		}}),
-		&FakeSSHRunner{Responses: basePreflightResponses()},
+		preflightReach(&FakeSSHRunner{Responses: preflightObservationResponses()}),
+		domain.TargetRefFromManifest(manifest),
 		preflight.RunOptions{
 			PortProbe:    func(_ context.Context, _ string, _ int, _ time.Duration) error { return nil },
-			TLSALPNProbe: func(_ context.Context, _ string, _ string, _ int, _ time.Duration) (string, error) { return "h2", nil },
+			TLSALPNProbe: func(_ context.Context, _, _ string, _ int, _ time.Duration) (string, error) { return "h2", nil },
 		},
 	)
 
@@ -180,20 +185,26 @@ func TestVPSPreflightALPNWarnOnWrongProtocol(t *testing.T) {
 	}
 }
 
-func basePreflightResponses() map[string]ssh.Result {
-	return map[string]ssh.Result{
-		"echo ok":             {ExitCode: 0, Stdout: "ok"},
-		"cat /etc/os-release": {ExitCode: 0, Stdout: "ID=ubuntu\nVERSION_ID=\"24.04\"\n"},
-		"ss -ltnH '( sport = :80 or sport = :443 )'": {ExitCode: 0, Stdout: ""},
-		"ufw status": {ExitCode: 0, Stdout: "Status: inactive\n"},
-		"curl -fsS --max-time 5 https://example.com >/dev/null": {ExitCode: 0, Stdout: ""},
-		"df -Pk / | tail -n 1 | awk '{print $4}'":               {ExitCode: 0, Stdout: "9999999"},
-		"awk '/MemTotal/ {print $2}' /proc/meminfo":             {ExitCode: 0, Stdout: "2097152"},
-		"which curl":  {ExitCode: 0, Stdout: "/usr/bin/curl"},
-		"which git":   {ExitCode: 0, Stdout: "/usr/bin/git"},
-		"which unzip": {ExitCode: 0, Stdout: "/usr/bin/unzip"},
-		"which tar":   {ExitCode: 0, Stdout: "/bin/tar"},
-		"which jq":    {ExitCode: 0, Stdout: "/usr/bin/jq"},
-		"apt-get update --print-uris &> /tmp/apt-check.log && head -1 /tmp/apt-check.log": {ExitCode: 0, Stdout: ""},
+func preflightObservationResponses() map[string]sshadapter.Result {
+	quoted := func(argv ...string) string { return sshadapter.ObservationCommand(argv) }
+	return map[string]sshadapter.Result{
+		quoted("uname", "-s"):            {ExitCode: 0, Stdout: "Linux"},
+		quoted("cat", "/etc/os-release"): {ExitCode: 0, Stdout: "ID=ubuntu\nVERSION_ID=\"24.04\"\n"},
+		quoted("ss", "-ltnpH", "(", "sport", "=", ":80", "or", "sport", "=", ":443", ")"): {ExitCode: 0, Stdout: ""},
+		quoted("cat", "/etc/ufw/ufw.conf"):                                                {ExitCode: 0, Stdout: "ENABLED=no\n"},
+		quoted("df", "-Pk", "/"):                                                          {ExitCode: 0, Stdout: "Filesystem 1024-blocks Used Available Capacity Mounted on\n/dev/vda1 40000000 30000001 9999999 76% /"},
+		quoted("grep", "MemTotal", "/proc/meminfo"):                                       {ExitCode: 0, Stdout: "MemTotal:        2097152 kB"},
+		quoted("find", "/usr/bin", "/usr/local/bin", "/bin", "/usr/sbin", "/sbin", "/snap/bin", "-maxdepth", "1", "(", "-name", "curl", "-o", "-name", "git", "-o", "-name", "unzip", "-o", "-name", "tar", "-o", "-name", "jq", "-o", "-name", "apt-get", "-o", "-name", "docker", "-o", "-name", "systemctl", ")"): {ExitCode: 0, Stdout: "/usr/bin/curl\n/usr/bin/git\n/usr/bin/unzip\n/bin/tar\n/usr/bin/jq\n/usr/bin/apt-get\n/usr/bin/docker\n/usr/bin/systemctl"},
+		quoted("stat", "--", "/var/run/docker.sock"):               {ExitCode: 0, Stdout: "  File: /var/run/docker.sock"},
+		quoted("stat", "--", "/run/systemd/system"):                {ExitCode: 0, Stdout: "  File: /run/systemd/system"},
+		quoted("pgrep", "-a", "-f", "landing-page-business-suite"): {ExitCode: 1, Stdout: ""},
 	}
+}
+
+// preflightReach runs preflight through the bounded SSH adapter over a fake
+// runner, exactly as the server does when no router is wired.
+func preflightReach(runner sshadapter.Runner) reach.Reach {
+	return &sshadapter.Adapter{Runner: runner, Config: func(_ context.Context, target identity.TargetRef) (sshadapter.ConnectionConfig, error) {
+		return sshadapter.NewConfig(target.Locator.Host, target.Locator.Port, target.Locator.User, ""), nil
+	}}
 }

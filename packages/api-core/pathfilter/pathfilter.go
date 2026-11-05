@@ -11,7 +11,7 @@ var skipDirs = map[string]bool{
 	// Dependencies
 	"node_modules": true, "vendor": true,
 	// Runtime data
-	"data": true, "logs": true, "coverage": true, "playwright-driver": true,
+	"data": true, "logs": true, "coverage": true,
 	// Language caches
 	"__pycache__": true, "target": true, "obj": true,
 	// Temporary

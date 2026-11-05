@@ -191,9 +191,7 @@ This document describes the architectural seams and responsibility boundaries in
        │
        └─► maybeStartAsyncTracking()
                │
-               ├─► toolRegistry.GetToolByName() - check for AsyncBehavior
-               │
-               └─► asyncTracker.StartTracking()
+               └─► asyncTracker.StartTracking() when runtime async config is present
 
 2. TRACKING INITIALIZATION
    ─────────────────────────────────────────────────────────────────────────
@@ -473,14 +471,15 @@ Defined in `services/interfaces.go` for dependency injection and testing:
 type AsyncTrackerInterface interface {
     GetActiveOperations(chatID string) []*AsyncOperation
     GetOperation(toolCallID string) *AsyncOperation
-    StartTracking(ctx, toolCallID, chatID, toolName, scenario string,
-                  toolResult interface{}, asyncBehavior *toolspb.AsyncBehavior) error
+    StartTracking(ctx context.Context, toolCallID, chatID, toolName, scenario string,
+                  toolResult interface{}, asyncBehavior *AsyncBehavior) error
 }
 ```
 
-### Proto-Based Configuration
+### Runtime Async Configuration
 
-Tool async behavior is defined in `packages/proto/schemas/agent-inbox/v1/domain/tool.proto`:
+Tool async behavior is represented by agent-inbox runtime structs in
+`services/async_tracker_types.go`:
 
 - `AsyncBehavior` - Top-level async configuration
 - `StatusPolling` - How to poll for status
@@ -634,7 +633,7 @@ const handlers = [
 │                              App                                         │
 │  ┌────────────────────────────────────────────────────────────────────┐ │
 │  │                       Global State                                  │ │
-│  │  - ToolsContext (tool registry, refresh)                           │ │
+│  │  - No global provider-tool registry                                │ │
 │  │  - No Redux/MobX - minimal global state                            │ │
 │  └────────────────────────────────────────────────────────────────────┘ │
 │                                                                          │
@@ -715,7 +714,6 @@ The `useCompletion` hook uses several patterns to prevent render storms:
 |---------|------|--------------|
 | `CompletionService` | Completion orchestration, tool call coordination | `ToolExecutor`, `AsyncTracker`, `Repository` |
 | `AsyncTrackerService` | Operation lifecycle, polling, notifications | `ToolExecutor` (for status calls), `Repository` |
-| `ToolRegistry` | Tool metadata cache, enabled state | `Repository` (for configs) |
 | `ReconciliationService` | Startup recovery | `Repository` |
 
 ### Handler → Service → Repository Pattern

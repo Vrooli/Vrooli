@@ -1,0 +1,72 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vrooli.local/schemas/monetization.schema.json",
+  "title": "Vrooli monetization declaration",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["version", "bundle_key", "app_key", "features", "meters"],
+  "properties": {
+    "$schema": { "type": "string", "minLength": 1 },
+    "version": { "type": "integer", "const": 2 },
+    "bundle_key": { "type": "string", "minLength": 1 },
+    "app_key": { "type": "string", "minLength": 1 },
+    "requires_entitlement": { "type": "boolean", "default": true },
+    "account_surface_paths": { "type": "array", "items": { "$ref": "#/$defs/path" } },
+    "journey_probe_paths": { "type": "array", "items": { "$ref": "#/$defs/path" } },
+    "tier_feasibility": { "type": "object", "additionalProperties": { "type": "integer", "minimum": 0, "maximum": 100 } },
+    "features": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/feature" }
+    },
+    "ai_features": {
+      "description": "Scenario-owned bounded AI feature contracts. The hosted registry is generated from these declarations and contains no prompt text.",
+      "type": "array",
+      "items": { "$ref": "#/$defs/ai_feature" }
+    },
+    "meters": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/meter" }
+    }
+  },
+  "$defs": {
+    "path": { "type": "string", "minLength": 1 },
+    "feature": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["key", "class", "enforcement_paths"],
+      "properties": {
+        "key": { "type": "string", "minLength": 1 },
+        "class": { "type": "string", "enum": ["A", "B"] },
+        "min_plan_rank": { "type": "integer", "minimum": 0 },
+        "enforcement_paths": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/path" } }
+      }
+    },
+    "ai_feature": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "role", "profile", "max_input_bytes", "max_output_bytes", "max_user_turns", "schema"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "pattern": "^[a-z][a-z0-9._-]*$" },
+        "role": { "type": "string", "minLength": 1 },
+        "profile": { "type": "string", "minLength": 1 },
+        "max_input_bytes": { "type": "integer", "minimum": 1 },
+        "max_output_bytes": { "type": "integer", "minimum": 1 },
+        "max_user_turns": { "type": "integer", "const": 1 },
+        "schema": { "type": "object" },
+        "pinned_instruction_digest": { "type": "string", "pattern": "^[a-f0-9]{64}$" }
+      }
+    },
+    "meter": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["limit_key", "class", "enforcement_paths"],
+      "properties": {
+        "limit_key": { "type": "string", "minLength": 1 },
+        "class": { "type": "string", "enum": ["A", "B"] },
+        "outbox": { "$ref": "#/$defs/path" },
+        "byok": { "type": "boolean" },
+        "enforcement_paths": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/path" } }
+      }
+    }
+  }
+}

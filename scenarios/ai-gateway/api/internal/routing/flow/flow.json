@@ -1,0 +1,434 @@
+{
+  "schemaVersion": 6,
+  "kind": "temporal",
+  "flowId": "routing.media-receipt.api",
+  "domain": "routing",
+  "description": "Gateway media receipt identity is durable before dispatch; restart never replays a RUNNING provider operation with unknown outcome. Retry creates a separate receipt only when the retained source permits it.",
+  "model": {
+    "module": "MediaReceiptLifecycle",
+    "seed": "2026110102",
+    "maxSteps": 8,
+    "traceCount": 24,
+    "verify": {
+      "invariants": [
+        "TypeOK",
+        "TerminalClosure",
+        "IllegalTransitionsPreserveState"
+      ]
+    }
+  },
+  "states": [
+    {
+      "id": "queued",
+      "quint": "Queued",
+      "initial": true
+    },
+    {
+      "id": "running",
+      "quint": "Running"
+    },
+    {
+      "id": "succeeded",
+      "quint": "Succeeded",
+      "terminal": true
+    },
+    {
+      "id": "failed",
+      "quint": "Failed",
+      "terminal": true
+    },
+    {
+      "id": "outcome_unknown",
+      "quint": "OutcomeUnknown",
+      "terminal": true
+    },
+    {
+      "id": "cancelled",
+      "quint": "Cancelled",
+      "terminal": true
+    }
+  ],
+  "events": [
+    {
+      "id": "dispatch",
+      "quint": "Dispatch"
+    },
+    {
+      "id": "succeed",
+      "quint": "Succeed"
+    },
+    {
+      "id": "fail",
+      "quint": "Fail"
+    },
+    {
+      "id": "cancel",
+      "quint": "Cancel"
+    },
+    {
+      "id": "restart",
+      "quint": "Restart"
+    },
+    {
+      "id": "retry",
+      "quint": "Retry"
+    }
+  ],
+  "transitionDefaults": {
+    "invalid": {
+      "to": "self",
+      "wantError": true
+    },
+    "terminal": {
+      "to": "self",
+      "wantError": true
+    }
+  },
+  "transitions": [
+    {
+      "from": "queued",
+      "event": "dispatch",
+      "to": "running"
+    },
+    {
+      "from": "queued",
+      "event": "fail",
+      "to": "failed"
+    },
+    {
+      "from": "queued",
+      "event": "cancel",
+      "to": "cancelled"
+    },
+    {
+      "from": "queued",
+      "event": "restart",
+      "to": "queued"
+    },
+    {
+      "from": "running",
+      "event": "succeed",
+      "to": "succeeded"
+    },
+    {
+      "from": "running",
+      "event": "fail",
+      "to": "failed"
+    },
+    {
+      "from": "running",
+      "event": "cancel",
+      "to": "cancelled"
+    },
+    {
+      "from": "running",
+      "event": "restart",
+      "to": "outcome_unknown"
+    },
+    {
+      "from": "succeeded",
+      "event": "cancel",
+      "to": "succeeded"
+    },
+    {
+      "from": "succeeded",
+      "event": "restart",
+      "to": "succeeded"
+    },
+    {
+      "from": "succeeded",
+      "event": "retry",
+      "to": "succeeded"
+    },
+    {
+      "from": "failed",
+      "event": "cancel",
+      "to": "failed"
+    },
+    {
+      "from": "failed",
+      "event": "restart",
+      "to": "failed"
+    },
+    {
+      "from": "failed",
+      "event": "retry",
+      "to": "failed"
+    },
+    {
+      "from": "outcome_unknown",
+      "event": "cancel",
+      "to": "outcome_unknown"
+    },
+    {
+      "from": "outcome_unknown",
+      "event": "restart",
+      "to": "outcome_unknown"
+    },
+    {
+      "from": "cancelled",
+      "event": "cancel",
+      "to": "cancelled"
+    },
+    {
+      "from": "cancelled",
+      "event": "restart",
+      "to": "cancelled"
+    },
+    {
+      "from": "cancelled",
+      "event": "retry",
+      "to": "cancelled"
+    }
+  ],
+  "invariants": [
+    {
+      "id": "type_ok",
+      "quint": "TypeOK",
+      "description": "States and events stay inside the media receipt vocabulary."
+    },
+    {
+      "id": "terminal_closure",
+      "quint": "TerminalClosure",
+      "description": "A terminal receipt cannot change status or erase an unknown outcome."
+    },
+    {
+      "id": "illegal_transitions_preserve_state",
+      "quint": "IllegalTransitionsPreserveState",
+      "description": "Rejected dispatch, retry, and stale completion preserve the retained receipt."
+    }
+  ],
+  "traces": [
+    {
+      "name": "success_is_retained",
+      "initial": "queued",
+      "steps": [
+        {
+          "event": "dispatch",
+          "want": "running",
+          "wantError": false
+        },
+        {
+          "event": "succeed",
+          "want": "succeeded",
+          "wantError": false
+        },
+        {
+          "event": "cancel",
+          "want": "succeeded",
+          "wantError": false
+        },
+        {
+          "event": "restart",
+          "want": "succeeded",
+          "wantError": false
+        },
+        {
+          "event": "retry",
+          "want": "succeeded",
+          "wantError": false
+        },
+        {
+          "event": "fail",
+          "want": "succeeded",
+          "wantError": true
+        }
+      ]
+    },
+    {
+      "name": "pre_dispatch_failure",
+      "initial": "queued",
+      "steps": [
+        {
+          "event": "fail",
+          "want": "failed",
+          "wantError": false
+        },
+        {
+          "event": "retry",
+          "want": "failed",
+          "wantError": false
+        },
+        {
+          "event": "cancel",
+          "want": "failed",
+          "wantError": false
+        },
+        {
+          "event": "restart",
+          "want": "failed",
+          "wantError": false
+        },
+        {
+          "event": "succeed",
+          "want": "failed",
+          "wantError": true
+        }
+      ]
+    },
+    {
+      "name": "cancel_before_dispatch",
+      "initial": "queued",
+      "steps": [
+        {
+          "event": "cancel",
+          "want": "cancelled",
+          "wantError": false
+        },
+        {
+          "event": "dispatch",
+          "want": "cancelled",
+          "wantError": true
+        },
+        {
+          "event": "succeed",
+          "want": "cancelled",
+          "wantError": true
+        },
+        {
+          "event": "fail",
+          "want": "cancelled",
+          "wantError": true
+        },
+        {
+          "event": "cancel",
+          "want": "cancelled",
+          "wantError": false
+        },
+        {
+          "event": "restart",
+          "want": "cancelled",
+          "wantError": false
+        },
+        {
+          "event": "retry",
+          "want": "cancelled",
+          "wantError": false
+        }
+      ]
+    },
+    {
+      "name": "completed_result_lost",
+      "initial": "queued",
+      "steps": [
+        {
+          "event": "dispatch",
+          "want": "running",
+          "wantError": false
+        },
+        {
+          "event": "restart",
+          "want": "outcome_unknown",
+          "wantError": false
+        },
+        {
+          "event": "retry",
+          "want": "outcome_unknown",
+          "wantError": true
+        },
+        {
+          "event": "cancel",
+          "want": "outcome_unknown",
+          "wantError": false
+        },
+        {
+          "event": "restart",
+          "want": "outcome_unknown",
+          "wantError": false
+        },
+        {
+          "event": "succeed",
+          "want": "outcome_unknown",
+          "wantError": true
+        },
+        {
+          "event": "fail",
+          "want": "outcome_unknown",
+          "wantError": true
+        },
+        {
+          "event": "dispatch",
+          "want": "outcome_unknown",
+          "wantError": true
+        }
+      ]
+    },
+    {
+      "name": "failure_after_dispatch",
+      "initial": "queued",
+      "steps": [
+        {
+          "event": "dispatch",
+          "want": "running",
+          "wantError": false
+        },
+        {
+          "event": "fail",
+          "want": "failed",
+          "wantError": false
+        },
+        {
+          "event": "dispatch",
+          "want": "failed",
+          "wantError": true
+        }
+      ]
+    },
+    {
+      "name": "resume_undispatched",
+      "initial": "queued",
+      "steps": [
+        {
+          "event": "restart",
+          "want": "queued",
+          "wantError": false
+        },
+        {
+          "event": "retry",
+          "want": "queued",
+          "wantError": true
+        },
+        {
+          "event": "dispatch",
+          "want": "running",
+          "wantError": false
+        },
+        {
+          "event": "retry",
+          "want": "running",
+          "wantError": true
+        },
+        {
+          "event": "dispatch",
+          "want": "running",
+          "wantError": true
+        },
+        {
+          "event": "cancel",
+          "want": "cancelled",
+          "wantError": false
+        }
+      ]
+    }
+  ],
+  "runtime": {
+    "go": {
+      "package": "flow",
+      "statusType": "MediaStatus",
+      "eventType": "MediaEvent",
+      "constantPrefix": "Media"
+    },
+    "sideEffects": [
+      "MediaService owns SQL state CAS, request identity comparison, executor dispatch and retained evidence.",
+      "Startup recovery quarantines RUNNING before reading request payload; QUEUED can resume through the normal CAS.",
+      "The outcome_unknown state maps to public FAILED plus error_code=outcome_unknown. Failed is not evidence of zero provider charge."
+    ]
+  },
+  "replay": {
+    "transition": {
+      "function": "TransitionMedia",
+      "stateType": "MediaState",
+      "statusField": "Status"
+    }
+  }
+}

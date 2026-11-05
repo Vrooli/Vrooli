@@ -265,18 +265,19 @@ export const OrchestrationTab = React.forwardRef<OrchestrationTabHandle, Orchest
                 </div>
               </label>
 
-              <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-border p-3 transition-colors hover:bg-accent/50">
+              <label className="flex items-start gap-3 rounded-lg border border-border p-3">
                 <Checkbox
                   checked={draft.safetyIsolation.requireApproval}
+                  disabled
                   onCheckedChange={(checked) =>
                     updateDraft("safetyIsolation", "requireApproval", checked === true)
                   }
                 />
                 <div>
-                  <div className="text-sm font-medium">Require Approval</div>
+                  <div className="text-sm font-medium">Sandbox change review</div>
                   <p className="text-xs text-muted-foreground">
-                    Require human review before applying changes. Disabling enables fully autonomous
-                    operation.
+                    This saved setting is not currently applied to runs. Sandbox review is governed
+                    by each run's configuration. This does not control permission to start or manage runs.
                   </p>
                 </div>
               </label>
@@ -305,6 +306,36 @@ export const OrchestrationTab = React.forwardRef<OrchestrationTabHandle, Orchest
                 </p>
               </div>
             </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium">Operation permissions</CardTitle>
+            <CardDescription className="text-xs">
+              Require an additional operator grant for these agent operations. Identity,
+              run scope, existing direct-lineage permissions, and human-only review decisions still apply.
+              {!draft.operationApprovals && " These controls require an updated Agent Manager server."}
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="grid gap-3 sm:grid-cols-2">
+            {([
+              ["runCreation", "Create runs and tasks"],
+              ["runManagement", "Manage runs and tasks"],
+              ["runDeletion", "Delete runs"],
+              ["investigation", "Investigate runs"],
+              ["effortDelivery", "Manage delivery"],
+              ["effortMetadata", "Change effort metadata"],
+            ] as const).map(([field, label]) => (
+              <label key={field} className="flex items-center gap-3 rounded-lg border border-border p-3">
+                <Checkbox
+                  checked={draft.operationApprovals?.[field] ?? false}
+                  disabled={!draft.operationApprovals}
+                  onCheckedChange={(checked) => updateDraft("operationApprovals", field, checked === true)}
+                />
+                <span className="text-sm">{label}</span>
+              </label>
+            ))}
           </CardContent>
         </Card>
 

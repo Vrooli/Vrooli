@@ -1231,7 +1231,12 @@ async function handleExtensionTesting(event) {
         // Show results
         displayTestResults(result);
         
-        if (result.success) {
+        if (result.status === 'unavailable') {
+            NotificationManager.warning(
+                'Browser validation unavailable',
+                result.reason || 'Configure a browser runner before requesting validation.'
+            );
+        } else if (result.success) {
             NotificationManager.success(
                 'Tests Passed',
                 `All ${result.summary.passed} tests completed successfully!`
@@ -1259,8 +1264,12 @@ function displayTestResults(results) {
     const resultsContent = document.getElementById('test-results-content');
     
     const { summary, test_results } = results;
+    const statusMessage = results.status === 'unavailable'
+        ? `<div class="test-errors"><div class="error-text">Browser validation unavailable: ${results.reason || 'runner not configured'}</div></div>`
+        : '';
     
     resultsContent.innerHTML = `
+        ${statusMessage}
         <div class="test-summary">
             <div class="test-stat">
                 <div class="test-stat-value">${summary.total_tests}</div>

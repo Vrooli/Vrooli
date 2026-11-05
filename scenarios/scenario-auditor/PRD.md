@@ -27,13 +27,13 @@ The Scenario Auditor adds the permanent capability to **comprehensively enforce 
 ### Functional Requirements
 - **Must Have (P0)**
   - [x] service.json validation against schema and lifecycle requirements
-  - [x] UI testing best practices enforcement from browserless documentation
+  - [x] UI testing best practices enforcement from browser-automation-studio (BAS/Playwright) documentation
   - [x] Phase-based testing structure validation (unit, integration, business, etc.)
   - [x] API security standards enforcement (existing functionality enhanced)
   - [x] Toggleable rule system with persistent user preferences
   - [x] AI-powered rule creation capabilities (via `/api/v1/rules/create` endpoint)
   - [x] AI-powered rule editing capabilities (via `/api/v1/rules/ai/edit/{ruleId}` endpoint)
-  - [x] Standards rules organized by category (api, config, ui, testing)
+  - [x] Standards rules organized by category (api, cli, test, makefile; structure/config/ui migrated to the `structure-health` scenario)
   
 - **Should Have (P1)**
   - [ ] Real-time standards violations dashboard
@@ -60,12 +60,12 @@ The Scenario Auditor adds the permanent capability to **comprehensively enforce 
 ### Quality Gates
 - [x] All P0 requirements implemented and tested (75.2% rules coverage, 34.4% overall)
 - [x] Rule engine validates service.json files correctly (validated via CLI scans)
-- [x] UI practices validation matches browserless documentation (rules implemented and tested)
+- [x] UI practices validation matches browser-automation-studio (BAS/Playwright) documentation (rules implemented and tested)
 - [x] Phase-based testing structure properly detected (comprehensive test phase structure exists)
 - [x] AI rule creation working (createRuleHandler implemented, endpoint functional)
 - [x] AI rule editing working (editRuleWithAIHandler implemented, endpoint functional)
 - [x] Preferences system maintains state across sessions (rule-preferences.json persistence working)
-- [x] All rule categories have comprehensive coverage (api, config, ui, testing categories all populated)
+- [x] All rule categories have comprehensive coverage (api, cli, test, makefile categories all populated; structure/config/ui migrated to the `structure-health` scenario)
 - [x] **FIXED (2025-10-11)**: Service lifecycle environment isolation implemented - multi-scenario environments now work correctly (see PROBLEMS.md "Environment Variable Pollution (RESOLVED)")
 
 ## 🏗️ Technical Architecture
@@ -79,9 +79,11 @@ The Scenario Auditor adds the permanent capability to **comprehensively enforce 
 
 ### Rule Categories
 1. **API Standards**: Go best practices, security patterns, documentation requirements
-2. **Configuration Standards**: service.json schema compliance, lifecycle completeness
-3. **UI Standards**: Browserless testing practices, accessibility, performance
-4. **Testing Standards**: Phase-based structure, coverage requirements, integration patterns
+2. **CLI Standards**: CLI conventions and output patterns
+3. **Testing Standards**: Phase-based structure, coverage requirements, integration patterns
+4. **Makefile Standards**: Makefile conventions and required targets
+
+> **Note**: The structure, config, and UI rule packs (`required_layout`, `env_validation`, `service_ports`, `ui_lifecycle`, `focus_visible`, etc.) were migrated to the **`structure-health`** scenario, which now backs test-genie's Structure phase. Scenario Auditor retains only the cross-cutting policy/content standards categories: api, cli, test, makefile.
 
 ### Resource Dependencies
 - **PostgreSQL**: Rule definitions, scan results, user preferences, audit history
@@ -191,7 +193,7 @@ The Scenario Auditor adds the permanent capability to **comprehensively enforce 
 
 ### Capability Validated When:
 - [x] Successfully validates service.json files against all defined rules (config rules validate lifecycle, ports, health checks)
-- [x] Enforces UI testing best practices from browserless documentation (UI rules check component structure, accessibility)
+- [x] Enforces UI testing best practices from browser-automation-studio (BAS/Playwright) documentation (UI rules check component structure, accessibility)
 - [x] Detects and validates phase-based testing structures (test rules validate directory structure and phase scripts)
 - [x] Provides AI-powered rule creation capabilities (createRuleHandler working, tested via integration tests)
 - [x] Provides AI-powered rule editing capabilities (editRuleWithAIHandler working, tested via integration tests)
@@ -313,7 +315,7 @@ scenario-auditor scan scenario-auditor  # 1368 violations, 189 files, ~21s
 
 ---
 
-### 2025-10-11 16:10: Final Ecosystem Manager Validation - No Action Required
+### 2025-10-11 16:10: Final Swarm Manager Validation - No Action Required
 **Analysis**: Complete validation pass confirms scenario-auditor requires no improvements
 
 **Validation Performed**:
@@ -339,7 +341,7 @@ scenario-auditor scan scenario-auditor  # 1368 violations, 189 files, ~21s
 ---
 
 ### 2025-10-11 15:50: Comprehensive Re-Validation Confirms Production Readiness
-**Issue**: Ecosystem manager requested thorough validation pass to confirm scenario completion
+**Issue**: Swarm Manager requested thorough validation pass to confirm scenario completion
 
 **Validation Performed**:
 - ✅ **Service Health**: Clean restart confirmed both API and UI healthy
@@ -380,8 +382,8 @@ scenario-auditor health
 
 ---
 
-### 2025-10-11 15:33: Routine Validation and Documentation Update (Ecosystem Manager)
-**Issue**: Ecosystem manager requested validation pass with documentation updates
+### 2025-10-11 15:33: Routine Validation and Documentation Update (Swarm Manager)
+**Issue**: Swarm Manager requested validation pass with documentation updates
 
 **Validation Performed**:
 - ✅ **Service Health**: Clean restart confirmed both API and UI healthy
@@ -423,8 +425,8 @@ curl -X POST http://localhost:18507/api/v1/standards/check/scenario-auditor
 
 **Production Impact**: ✅ **VALIDATED** - No changes needed, scenario fully operational
 
-### 2025-10-05 20:13: Production Stability Verification (Ecosystem Manager)
-**Issue**: Ecosystem manager requested validation pass with focus on stability and code quality
+### 2025-10-05 20:13: Production Stability Verification (Swarm Manager)
+**Issue**: Swarm Manager requested validation pass with focus on stability and code quality
 
 **Validation Performed**:
 - ✅ **Service Health**: Clean restart confirmed both API and UI healthy
@@ -472,14 +474,14 @@ make test
 # Result: 6/6 phases passing ✅
 
 # Standards baseline
-scenario-auditor audit scenario-auditor --timeout 240 --standards-only
+scenario-auditor standards scan scenario-auditor --wait --timeout 240s
 # Result: 1315 violations (4 critical, 17 high, 1294 medium) ✅
 ```
 
 **Production Impact**: ✅ **VALIDATED + STABLE** - No changes needed, code quality verified
 
-### 2025-10-05 20:06: Final Production Validation (Ecosystem Manager)
-**Issue**: Ecosystem manager requested final validation and tidying pass
+### 2025-10-05 20:06: Final Production Validation (Swarm Manager)
+**Issue**: Swarm Manager requested final validation and tidying pass
 
 **Validation Performed**:
 - ✅ **Service Health**: Clean restart confirmed both API and UI healthy
@@ -519,14 +521,14 @@ make test
 # Result: 6/6 phases passing ✅
 
 # Standards baseline
-scenario-auditor audit scenario-auditor --timeout 240 --standards-only
+scenario-auditor standards scan scenario-auditor --wait --timeout 240s
 # Result: 1315 violations (4 critical, 17 high, 1294 medium) ✅
 ```
 
 **Production Impact**: ✅ **VALIDATED** - No changes needed, scenario fully operational
 
-### 2025-10-05 19:58: Production Readiness Validation (Ecosystem Manager)
-**Issue**: Ecosystem manager requested validation and tidying pass
+### 2025-10-05 19:58: Production Readiness Validation (Swarm Manager)
+**Issue**: Swarm Manager requested validation and tidying pass
 
 **Validation Performed**:
 - ✅ **Service Health**: Clean restart confirmed both API and UI healthy
@@ -564,14 +566,14 @@ make test
 # Result: 6/6 phases passing ✅
 
 # Standards baseline
-scenario-auditor audit scenario-auditor --timeout 240 --standards-only
+scenario-auditor standards scan scenario-auditor --wait --timeout 240s
 # Result: 1315 violations (4 critical, 17 high, 1294 medium) ✅
 ```
 
 **Production Impact**: ✅ **VALIDATED** - No changes needed, scenario fully operational
 
-### 2025-10-05 19:49: Documentation Tidying and Final Validation (Ecosystem Manager)
-**Issue**: Ecosystem manager requested final tidying and validation pass
+### 2025-10-05 19:49: Documentation Tidying and Final Validation (Swarm Manager)
+**Issue**: Swarm Manager requested final tidying and validation pass
 
 **Actions Performed**:
 - ✅ **Documentation Cleanup**: Removed obsolete documentation files
@@ -611,8 +613,8 @@ make test
 
 **Production Impact**: ✅ **TIDIED** - Cleaner documentation structure, no functional changes
 
-### 2025-10-05 19:34: Production Readiness Final Confirmation (Ecosystem Manager)
-**Issue**: Ecosystem manager requested final validation pass and production readiness confirmation
+### 2025-10-05 19:34: Production Readiness Final Confirmation (Swarm Manager)
+**Issue**: Swarm Manager requested final validation pass and production readiness confirmation
 
 **Validation Performed**:
 - ✅ **Service Health**: Clean restart confirmed both API and UI healthy
@@ -651,14 +653,14 @@ make test
 # Result: 6/6 phases passing ✅
 
 # Standards baseline
-scenario-auditor audit scenario-auditor --timeout 240 --standards-only
+scenario-auditor standards scan scenario-auditor --wait --timeout 240s
 # Result: 1318 violations (4 critical, 17 high, 1297 medium) ✅
 ```
 
 **Production Impact**: ✅ **VALIDATED** - No changes needed, scenario fully operational
 
-### 2025-10-05 19:28: Final Tidying and Production Validation (Ecosystem Manager)
-**Issue**: Ecosystem manager requested final tidying pass and production readiness confirmation
+### 2025-10-05 19:28: Final Tidying and Production Validation (Swarm Manager)
+**Issue**: Swarm Manager requested final tidying pass and production readiness confirmation
 
 **Validation Performed**:
 - ✅ **Service Health**: Clean restart confirmed both API and UI healthy
@@ -702,8 +704,8 @@ scenario-auditor rules | jq '{total: .categories | to_entries | map(.value | len
 
 **Production Impact**: ✅ **VALIDATED** - No changes needed, scenario fully operational
 
-### 2025-10-05 19:15: Final Production Validation (Ecosystem Manager)
-**Issue**: Ecosystem manager requested final tidying pass and production readiness confirmation
+### 2025-10-05 19:15: Final Production Validation (Swarm Manager)
+**Issue**: Swarm Manager requested final tidying pass and production readiness confirmation
 
 **Validation Performed**:
 - ✅ **All Test Suites**: 6/6 test phases passing (100% pass rate)
@@ -746,7 +748,7 @@ scenario-auditor health
 **Production Impact**: ✅ **VALIDATED** - No changes needed, scenario fully operational
 
 ### 2025-10-05 19:04: Production Readiness Re-Validation
-**Issue**: Ecosystem manager validation pass to confirm production readiness
+**Issue**: Swarm Manager validation pass to confirm production readiness
 
 **Validation Performed**:
 - ✅ **All Test Suites**: 6/6 test phases passing (100% pass rate)
@@ -784,7 +786,7 @@ curl http://localhost:18507/api/v1/health | jq '{status, readiness}'
 # Result: {"status": "healthy", "readiness": true} ✅
 
 # Baseline audit
-scenario-auditor audit scenario-auditor --timeout 180
+scenario-auditor standards scan scenario-auditor --wait --timeout 180s
 # Result: 8 security findings, 1318 standards violations ✅
 
 # Lifecycle restart
@@ -823,7 +825,7 @@ make test
 # Result: 6/6 phases passing ✅
 
 # Audit confirms improvement
-scenario-auditor audit scenario-auditor --standards-only
+scenario-auditor standards scan scenario-auditor --wait
 # Result: handlers_health.go Content-Type violation resolved ✅
 ```
 
@@ -1032,8 +1034,8 @@ curl http://localhost:36224/health | jq '{status, readiness}'         # healthy,
 
 **Production Impact**: ✅ **IMPROVEMENT** - Test infrastructure more reliable, no production functionality affected
 
-### 2025-10-05 15:28: Ecosystem Manager Re-Validation - Production Ready Confirmed
-**Analysis**: Complete ecosystem manager validation confirms scenario-auditor is production-ready with all systems operational
+### 2025-10-05 15:28: Swarm Manager Re-Validation - Production Ready Confirmed
+**Analysis**: Complete Swarm Manager validation confirms scenario-auditor is production-ready with all systems operational
 
 **Validation Performed**:
 - ✅ **All Test Suites Passing**: Structure, dependencies, unit (75.4% rules coverage), integration, business
@@ -1087,11 +1089,11 @@ curl http://localhost:36224/health | jq '{status, readiness}'         # healthy,
 **Validation**:
 ```bash
 # Test with large result set
-scenario-auditor audit scenario-auditor --timeout 240
+scenario-auditor standards scan scenario-auditor --wait --timeout 240s
 # Result: ✅ Successfully processes 1368 violations
 
 # Verify standards scan summary
-scenario-auditor audit scenario-auditor --standards-only --timeout 120 | jq '.standards.status.result.statistics'
+scenario-auditor standards scan scenario-auditor --wait --timeout 120s --json | jq '.result.statistics'
 # Result: {"critical": 4, "high": 20, "medium": 1344, "total": 1368}
 ```
 
@@ -1141,7 +1143,7 @@ scenario-auditor scan scenario-auditor
 
 **Production Impact**: ✅ **MAJOR IMPROVEMENT** - Rule validation system now accurately reflects implementation quality
 
-### 2025-10-05 14:30: Ecosystem Manager Validation Pass - Production Ready Confirmed
+### 2025-10-05 14:30: Swarm Manager Validation Pass - Production Ready Confirmed
 **Analysis**: Complete validation pass confirms scenario-auditor remains production-ready with all systems operational
 
 **Validation Performed**:
@@ -1166,7 +1168,7 @@ scenario-auditor scan scenario-auditor
 3. **Known Issue**: API process occasionally requires restart after initial launch (non-blocking, documented in PROBLEMS.md)
 
 ### 2025-10-05: Comprehensive Validation and Production Readiness Confirmation
-**Analysis**: Full ecosystem manager validation confirms scenario-auditor is production-ready with all systems operational
+**Analysis**: Full Swarm Manager validation confirms scenario-auditor is production-ready with all systems operational
 
 **Validation Performed**:
 - ✅ **All Test Phases Passing**: structure, dependencies, unit (75.4% rules coverage), integration tests
@@ -1299,7 +1301,7 @@ curl http://localhost:36224/health         # healthy
 **Validation**:
 ```bash
 # Verify reduced violations
-scenario-auditor audit scenario-auditor --standards-only
+scenario-auditor standards scan scenario-auditor --wait
 # Result: 1356 violations (down from 1368)
 
 # Verify tests pass
@@ -1312,7 +1314,7 @@ scenario-auditor audit scenario-auditor --standards-only
 **Issue**: CLI unable to connect to API due to conflicting `API_PORT` environment variable from other scenarios
 
 **Root Cause**:
-- Generic `API_PORT` environment variable set globally (e.g., 17364 from ecosystem-manager)
+- Generic `API_PORT` environment variable set globally (e.g., 17364 from swarm-manager)
 - CLI prioritized generic `API_PORT` over scenario-specific port
 - No auto-detection of actual running process port
 - CLI reported "API is not running" even when scenario-auditor was active on port 18507

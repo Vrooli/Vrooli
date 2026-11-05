@@ -1,0 +1,17 @@
+syntax = "proto3";
+
+package vrooli.command_center.v1.integrations;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/command-center/v1/integrations;integrations_v1";
+
+import "common/v1/integrations.proto";
+
+// Operational integrations are lifecycle dependencies enriched with
+// feature-level compatibility and bounded recovery metadata. Coverage and
+// metric trust intentionally do not belong in this shared contract.
+service IntegrationsService {
+  rpc List(common.v1.integrations.ListIntegrationsRequest) returns (common.v1.integrations.ListIntegrationsResponse);
+  rpc Get(common.v1.integrations.GetIntegrationRequest) returns (common.v1.integrations.GetIntegrationResponse);
+  rpc Refresh(common.v1.integrations.RefreshIntegrationsRequest) returns (common.v1.integrations.ListIntegrationsResponse);
+  rpc RunAction(common.v1.integrations.RunIntegrationActionRequest) returns (common.v1.integrations.RunIntegrationActionResponse);
+}

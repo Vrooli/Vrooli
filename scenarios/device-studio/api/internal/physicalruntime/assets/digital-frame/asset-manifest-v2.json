@@ -1,0 +1,39 @@
+{
+  "schema_version": 1,
+  "status": "candidate_only_unqualified",
+  "source": {
+    "name": "Innerscene Frame Stand - Picture Frame",
+    "path": "scenarios/device-studio/assets/sources/innerscene-picture-frame/picture-frame.glb",
+    "sha256": "7c9f5cf3e63c7f01cc911b1db9eea2c95b5e1bdadd9b75c3076b10dca70cef10",
+    "license": "CC0-1.0",
+    "rights_record": "scenarios/device-studio/assets/sources/innerscene-picture-frame/README.md",
+    "authored_source_geometry": "The source is a generic blank picture frame with glazing, an insert, rear strut, and easel cord; its embedded description reports units meters and geometry-derived source dimensions."
+  },
+  "adaptation": {
+    "creator": "Vrooli",
+    "license": "CC0-1.0 for retained CC0 source portions; AGPL-3.0-only for Vrooli-authored wall cleat and candidate integration",
+    "screen": "Replace only mesh 7 material 4 with an appended neutral display material; append and reference a private TEXCOORD_0 accessor normalizing only screen-mesh-7 referenced UVs to [0,1]. The original binary chunk remains an exact prefix. The previous source UV accessor remains intact.",
+    "tabletop": {
+      "artifact_id": "innerscene-frame-digital-neutral-tabletop-v2",
+      "path": "scenarios/device-studio/api/internal/physicalruntime/assets/digital-frame/innerscene-frame-tabletop-v2.glb",
+      "sha256": "bc6b22fb722672b0601dc2ea4424517e6bed589e3ebf40de9ecd0257d20fb4f4",
+      "size_bytes": 789152,
+      "pose": "Retain the source rear easel strut and limiting cord; candidate tabletop use only."
+    },
+    "wall": {
+      "artifact_id": "innerscene-frame-digital-neutral-wall-v2",
+      "path": "scenarios/device-studio/api/internal/physicalruntime/assets/digital-frame/innerscene-frame-wall-v2.glb",
+      "sha256": "c15635e055380b85dbaa00b6bce86ca29fc91fbb21d0bd9e9db3a96e7857e884",
+      "size_bytes": 790808,
+      "pose": "Remove source easel cord/strut from active root children and add a generic Vrooli-authored rear cleat; candidate wall-supported use only. No wall fastener or load rating is represented."
+    }
+  },
+  "reproduction": {
+    "command": "python3 scenarios/device-studio/assets/sources/screen-device-concepts-20261021/derive_candidates.py",
+    "script_sha256": "b38f24de7169a183e4f3d69e400825cfa9823c7e10e0bd730361ae7828bb30b1"
+  },
+  "qualification_limits": [
+    "This adapts a generic picture frame into an electronic-display concept; it is not an Innerscene electronic product or measured digital frame.",
+    "The source preview and GLB dimensions are not independent physical measurements. Exact contact, stability, wall anchoring, active pixels, and product fit remain unqualified."
+  ]
+}

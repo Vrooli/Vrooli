@@ -1,0 +1,154 @@
+{
+  "_comment": "このファイルには2種類の補間があります。(1) 生成時: Code Facts のような大文字スネークケースのプレースホルダーは、`vrooli scenario generate` がシナリオビルド前に置換します。実行時にはリテラル表示値として扱われます。(2) 実行時: {{count}} のようなトークンは i18next の補間で、`t(key, { count })` によりレンダー時に置換されます。アンダースコアで始まるキー（このキーのような）はセンチネルで、コード生成・パリティテスト・未使用キー監査からスキップされます。",
+  "app": {
+    "title": "Code Facts"
+  },
+  "layout": {
+    "mainContentLabel": "メインコンテンツ",
+    "sidebarLabel": "メインナビゲーション",
+    "bottomNavLabel": "メインナビゲーション",
+    "nav": {
+      "dashboard": "ダッシュボード",
+      "facts": "ファクト",
+      "settings": "設定"
+    }
+  },
+  "theme": {
+    "switcherLabel": "テーマ",
+    "choice": {
+      "light": "ライト",
+      "dark": "ダーク",
+      "system": "システム"
+    }
+  },
+  "pages": {
+    "dashboard": {
+      "title": "ダッシュボード",
+      "description": "シナリオのヘルスと主要指標の概要。製品の成長に合わせてこれらのカードを実際のサーフェスに置き換えてください。",
+      "statPlaceholderLabel": "指標"
+    },
+    "facts": {
+      "title": "ファクト",
+      "description": "現在のターゲットのサーフェス、解析単位、エビデンス、警告、キャッシュメタデータを確認します。"
+    },
+    "settings": {
+      "title": "設定",
+      "themeHeading": "外観",
+      "localeHeading": "言語"
+    }
+  },
+  "health": {
+    "title": "API ステータス",
+    "loading": "API のステータスを確認中…",
+    "error": "API に接続できません。`vrooli scenario start` でシナリオが起動していることを確認してください。",
+    "refresh": "再読み込み",
+    "refreshCount": "{{count}} 回更新しました",
+    "statusLabel": "ステータス:",
+    "serviceLabel": "サービス:",
+    "timestampLabel": "タイムスタンプ:"
+  },
+  "notifications": {
+    "summary": "{{count}} 件の通知"
+  },
+  "facts": {
+    "title": "Code Facts レポート",
+    "description": "バリデータと同じ証拠パイプラインで、シナリオ、モジュール、プロジェクト、パスを調査します。",
+    "loading": "分析中",
+    "loadingDetail": "ターゲットを解決し、グラフプロバイダーを仲介し、証拠を合成しています…",
+    "empty": "ターゲットを選んで分析すると、サーフェス、facts、警告、キャッシュメタデータ、生の証拠を確認できます。",
+    "analyze": "分析",
+    "cacheHit": "キャッシュヒット",
+    "cacheMiss": "キャッシュミス",
+    "targetKind": "ターゲット種別",
+    "targetValue": "ターゲット",
+    "targetPlaceholder": "code-facts または /absolute/path",
+    "useCache": "キャッシュを使う",
+    "familyControls": "Fact ファミリーフィルター",
+    "target": {
+      "scenario": "シナリオ",
+      "path": "パス",
+      "module": "Go モジュール",
+      "project": "TS プロジェクト"
+    },
+    "family": {
+      "surfaces": "サーフェス",
+      "parseUnits": "解析単位",
+      "imports": "インポート",
+      "symbols": "シンボル",
+      "references": "参照",
+      "calls": "呼び出し",
+      "protoAdoption": "Proto 採用",
+      "endpointProofs": "エンドポイント証明"
+    },
+    "surfaces": "サーフェス",
+    "parseUnits": "解析単位",
+    "facts": "Facts",
+    "evidence": "証拠",
+    "warnings": "警告",
+    "targetContext": "ターゲットコンテキスト",
+    "resolvedKind": "解決種別",
+    "scenario": "シナリオ",
+    "scenarioAware": "シナリオ認識",
+    "rootPath": "ルートパス",
+    "cachePanel": "キャッシュ動作",
+    "cacheState": "キャッシュ状態",
+    "cacheKey": "キャッシュキー",
+    "cacheReason": "理由",
+    "cacheScope": "スコープ",
+    "sourceHash": "ソースハッシュ",
+    "configHash": "設定ハッシュ",
+    "providerVersion": "プロバイダー",
+    "hitCount": "ヒット数",
+    "surfaceInventory": "サーフェス一覧",
+    "parseUnitInventory": "解析単位",
+    "factsTable": "Facts",
+    "evidenceTable": "証拠",
+    "warningsPanel": "警告と劣化したプロバイダー",
+    "rawJson": "Raw JSON",
+    "noSurfaces": "このターゲットのサーフェスは見つかりませんでした。",
+    "noParseUnits": "このターゲットの解析単位は見つかりませんでした。",
+    "noFacts": "選択したファミリーに一致する facts はありません。",
+    "noEvidence": "証拠レコードは返されませんでした。",
+    "noWarnings": "警告または劣化したプロバイダーはありません。",
+    "table": {
+      "id": "ID",
+      "kind": "種別",
+      "status": "状態",
+      "path": "パス",
+      "language": "言語",
+      "family": "ファミリー",
+      "subject": "対象",
+      "attributes": "属性",
+      "file": "ファイル",
+      "range": "範囲",
+      "analyzer": "アナライザー",
+      "message": "メッセージ"
+    }
+  },
+  "errors": {
+    "canceled": "Operation canceled.",
+    "unknown": "An unknown error occurred.",
+    "invalid_argument": "Invalid input: {{message}}",
+    "deadline_exceeded": "Operation timed out.",
+    "not_found": "Resource not found.",
+    "already_exists": "Already exists.",
+    "permission_denied": "Permission denied.",
+    "resource_exhausted": "Resource limit reached.",
+    "failed_precondition": "Cannot perform this action: {{message}}",
+    "aborted": "Operation aborted.",
+    "out_of_range": "Out of range.",
+    "unimplemented": "Not yet implemented.",
+    "internal": "Something went wrong. Please try again.",
+    "unavailable": "Service temporarily unavailable.",
+    "data_loss": "Data loss detected.",
+    "unauthenticated": "Please sign in to continue."
+  },
+  "locale": {
+    "switcherLabel": "言語"
+  },
+  "errorBoundary": {
+    "title": "問題が発生しました",
+    "message": "ページの表示中に予期しないエラーが発生しました。再試行するか、解決しない場合はページを再読み込みしてください。",
+    "retry": "再試行"
+  }
+}

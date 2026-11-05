@@ -111,7 +111,8 @@ func selectRequirementEstimate(aggregates map[string]struct {
 		DiskMB   float64 `json:"disk_mb"`
 		CPUCores float64 `json:"cpu_cores"`
 	} `json:"estimated_requirements"`
-}) (string, requirementEstimate, bool) {
+},
+) (string, requirementEstimate, bool) {
 	if len(aggregates) == 0 {
 		return "", requirementEstimate{}, false
 	}

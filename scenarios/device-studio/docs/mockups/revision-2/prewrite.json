@@ -1,0 +1,21 @@
+{
+  "captured_utc": "2026-10-20T02:20:21Z",
+  "target_directory": "/home/matthalloran8/Vrooli/scenarios/device-studio/docs/mockups/revision-2",
+  "target_directory_existed": false,
+  "planned_paths": [
+    "projects-desktop.svg",
+    "projects-desktop.png",
+    "projects-mobile.svg",
+    "projects-mobile.png",
+    "shot-desktop.svg",
+    "shot-desktop.png",
+    "shot-mobile.svg",
+    "shot-mobile.png",
+    "projects-paired.svg",
+    "projects-paired.png",
+    "shot-paired.svg",
+    "shot-paired.png",
+    "README.md"
+  ],
+  "capture_method": "os.path.exists exact directory check before any write"
+}

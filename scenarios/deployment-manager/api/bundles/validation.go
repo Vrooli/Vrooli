@@ -4,14 +4,17 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"net/url"
 	"os"
 	"path/filepath"
-	"runtime"
+	"strings"
 	"sync"
 
 	"deployment-manager/shared"
 
 	"github.com/santhosh-tekuri/jsonschema/v5"
+	repocontract "github.com/vrooli/repo-contract-go"
+	runtimeManifest "github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/manifest"
 )
 
 var (
@@ -35,6 +38,18 @@ func ValidateManifestBytes(data []byte) error {
 		return fmt.Errorf("invalid JSON: %w", err)
 	}
 
+	var runtimeContract runtimeManifest.Manifest
+	if err := json.Unmarshal(data, &runtimeContract); err != nil {
+		return fmt.Errorf("decode runtime contract: %w", err)
+	}
+	if err := runtimeManifest.ValidateFeatureExports(runtimeContract.Features, runtimeContract.Services); err != nil {
+		return err
+	}
+
+	if err := runtimeManifest.ValidatePeerFeatureExports(append(append([]runtimeManifest.Peer(nil), runtimeContract.Peers...), runtimeContract.ProgramBindingPeers...), runtimeContract.Services); err != nil {
+		return err
+	}
+
 	// Validate schema version using domain decision helper
 	if !shared.IsValidSchemaVersion(manifest.SchemaVersion) {
 		return fmt.Errorf("schema_version must be %s", shared.BundleSchemaVersionV01)
@@ -50,14 +65,17 @@ func ValidateManifestBytes(data []byte) error {
 	}
 
 	// Validate IPC mode using domain decision helper
-	if !shared.IsValidIPCMode(manifest.IPC.Mode) || manifest.IPC.Host == "" || manifest.IPC.Port == 0 || manifest.IPC.AuthTokenPath == "" {
-		return fmt.Errorf("ipc must define %s host, port, and auth_token_path", shared.IPCModeLoopbackHTTP)
+	if !shared.IsValidIPCMode(manifest.IPC.Mode) || manifest.IPC.Host == "" || manifest.IPC.Port < 0 || manifest.IPC.AuthTokenPath == "" {
+		return fmt.Errorf("ipc must define %s host, a non-negative allocator input, and auth_token_path", shared.IPCModeLoopbackHTTP)
 	}
 	if manifest.Telemetry.File == "" {
 		return fmt.Errorf("telemetry.file is required")
 	}
 	if len(manifest.Services) == 0 {
 		return fmt.Errorf("at least one service is required")
+	}
+	if err := validateAuthentication(manifest.Authentication, manifest.Services); err != nil {
+		return err
 	}
 
 	for _, secret := range manifest.Secrets {
@@ -73,6 +91,114 @@ func ValidateManifestBytes(data []byte) error {
 	}
 	if err := validateAgainstDesktopSchema(data); err != nil {
 		return err
+	}
+	return nil
+}
+
+func validateAuthentication(profile *AuthenticationProfile, services []ServiceEntry) error {
+	if profile == nil {
+		return nil
+	}
+	if err := validateAuthenticationProfile(profile, services); err != nil {
+		return err
+	}
+	for mode := range profile.ModeProfiles {
+		alternate, ok := profile.profileForMode(mode)
+		if !ok {
+			return fmt.Errorf("authentication.mode_profiles[%q] is not readable", mode)
+		}
+		if err := validateAuthenticationProfile(alternate, services); err != nil {
+			return fmt.Errorf("authentication.mode_profiles[%q]: %w", mode, err)
+		}
+	}
+	return nil
+}
+
+func (profile *AuthenticationProfile) profileForMode(mode string) (*AuthenticationProfile, bool) {
+	if profile == nil {
+		return nil, false
+	}
+	if mode == profile.Mode {
+		copy := *profile
+		copy.ModeProfiles = nil
+		return &copy, true
+	}
+	config, ok := profile.ModeProfiles[mode]
+	if !ok {
+		return nil, false
+	}
+	return &AuthenticationProfile{
+		Version:               profile.Version,
+		Mode:                  mode,
+		Provider:              config.Provider,
+		Resource:              config.Resource,
+		Audience:              config.Audience,
+		ProviderEndpoint:      config.ProviderEndpoint,
+		ProviderServiceID:     config.ProviderServiceID,
+		HumanSignIn:           config.HumanSignIn,
+		Offline:               config.Offline,
+		PublicRoutes:          append([]string(nil), config.PublicRoutes...),
+		ProtectedRoutes:       append([]string(nil), config.ProtectedRoutes...),
+		LeasePath:             config.LeasePath,
+		RecoveryURL:           config.RecoveryURL,
+		RequiresAuthenticator: config.RequiresAuthenticator,
+	}, true
+}
+
+func validateAuthenticationProfile(profile *AuthenticationProfile, services []ServiceEntry) error {
+	if profile.Version != 1 {
+		return fmt.Errorf("authentication.version must be 1")
+	}
+	switch profile.Mode {
+	case "personal_local":
+		if profile.Provider != "" || !profile.Offline || profile.RequiresAuthenticator {
+			return fmt.Errorf("personal_local authentication must be offline, provider-free, and authenticator-free")
+		}
+	case "local_multi_user":
+		if profile.Provider != "scenario-authenticator" || profile.HumanSignIn != "required" {
+			return fmt.Errorf("local_multi_user authentication requires scenario-authenticator and human sign-in")
+		}
+	case "remote_vrooli":
+		if profile.Provider != "scenario-authenticator" || profile.HumanSignIn != "required" || strings.TrimSpace(profile.ProviderEndpoint) == "" {
+			return fmt.Errorf("remote_vrooli authentication requires scenario-authenticator, an endpoint, and human sign-in")
+		}
+		if err := validateProviderEndpoint(profile.ProviderEndpoint); err != nil {
+			return fmt.Errorf("remote_vrooli authentication provider endpoint: %w", err)
+		}
+	case "shared_provider":
+		if profile.Provider == "" || profile.HumanSignIn != "required" || strings.TrimSpace(profile.ProviderEndpoint) == "" || strings.TrimSpace(profile.LeasePath) == "" {
+			return fmt.Errorf("shared_provider authentication requires a provider, endpoint, lease path, and human sign-in")
+		}
+		if err := validateProviderEndpoint(profile.ProviderEndpoint); err != nil {
+			return fmt.Errorf("shared_provider authentication provider endpoint: %w", err)
+		}
+	default:
+		return fmt.Errorf("authentication.mode %q is unsupported", profile.Mode)
+	}
+	if profile.Mode != "personal_local" && strings.TrimSpace(profile.Resource) == "" {
+		return fmt.Errorf("authentication.resource is required for networked modes")
+	}
+	if profile.RequiresAuthenticator {
+		if strings.TrimSpace(profile.ProviderServiceID) == "" {
+			return fmt.Errorf("authentication.provider_service_id is required when authenticator startup is required")
+		}
+		for _, service := range services {
+			if service.ID == profile.ProviderServiceID {
+				return nil
+			}
+		}
+		return fmt.Errorf("authentication provider service %q is not bundled", profile.ProviderServiceID)
+	}
+	return nil
+}
+
+func validateProviderEndpoint(raw string) error {
+	parsed, err := url.Parse(strings.TrimSpace(raw))
+	if err != nil || parsed.Host == "" || (parsed.Scheme != "http" && parsed.Scheme != "https") || parsed.User != nil {
+		return fmt.Errorf("must be an HTTP(S) URL with a host and no credentials")
+	}
+	if strings.ContainsAny(raw, "\r\n\"'\\") {
+		return fmt.Errorf("must not contain control characters or quoting")
 	}
 	return nil
 }
@@ -106,12 +232,15 @@ func validateService(svc ServiceEntry) error {
 		return err
 	}
 
-	if len(svc.Binaries) == 0 {
-		return fmt.Errorf("at least one platform binary is required")
-	}
-	for platform, bin := range svc.Binaries {
-		if bin.Path == "" {
-			return fmt.Errorf("binary path is required for platform %s", platform)
+	requiresBinary := svc.Type != shared.ServiceTypeEmbeddedStorage
+	if requiresBinary {
+		if len(svc.Binaries) == 0 {
+			return fmt.Errorf("at least one platform binary is required")
+		}
+		for platform, bin := range svc.Binaries {
+			if bin.Path == "" {
+				return fmt.Errorf("binary path is required for platform %s", platform)
+			}
 		}
 	}
 	if svc.Health.Type == "" {
@@ -140,12 +269,17 @@ func validateAgainstDesktopSchema(data []byte) error {
 
 func loadDesktopBundleSchema() (*jsonschema.Schema, error) {
 	desktopSchemaOnce.Do(func() {
-		_, currentFile, _, ok := runtime.Caller(0)
-		if !ok {
-			desktopSchemaErr = fmt.Errorf("unable to resolve schema path from caller")
+		repoRoot, err := repocontract.ResolveRepoRoot()
+		if err != nil {
+			desktopSchemaErr = fmt.Errorf("resolve repository root: %w", err)
 			return
 		}
-		schemaPath := filepath.Clean(filepath.Join(filepath.Dir(currentFile), "..", "..", "docs", "schemas", "bundle-schema.desktop.v0.1.json"))
+		scenarioRoot, err := repocontract.ResolveScenarioPath(repoRoot, "deployment-manager")
+		if err != nil {
+			desktopSchemaErr = fmt.Errorf("resolve deployment-manager path: %w", err)
+			return
+		}
+		schemaPath := filepath.Join(scenarioRoot, "docs", "schemas", "bundle-schema.desktop.v0.1.json")
 		schemaBytes, readErr := os.ReadFile(schemaPath)
 		if readErr != nil {
 			desktopSchemaErr = fmt.Errorf("failed to read bundle schema: %w", readErr)

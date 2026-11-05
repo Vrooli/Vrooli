@@ -1,0 +1,54 @@
+{
+  "schema_version": 1,
+  "artifact_id": "innerscene-ultrawide-monitor-screen-split-v2",
+  "source_original_sha256": "67e5c979d6755dd561c291f39ae5748849cb26f7bb78f97821166ecbd05e2bed",
+  "source_v1_sha256": "eff6e9a20a4fd26003046e7f0c7b5d0ea737d83d4ce9adb66b1c118561155266",
+  "source_manifest_sha256": "507989d4027b4a31f18629b03fa67c12eaed5c30bdab5ef8246f716e40c10e54",
+  "output_sha256": "d077d0e5433f8058f0c7d09c7dfae423af6412ffdedeb6f2af34a2f7e766deb9",
+  "output_size_bytes": 113844,
+  "mesh_index": 1,
+  "source_primitive_index": 0,
+  "display_primitive_index": 0,
+  "display_material_index": 3,
+  "bezel_primitive_index": 1,
+  "bezel_material_index": 1,
+  "display_source_triangle_indices": [
+    292,
+    293
+  ],
+  "display_source_vertex_indices": [
+    1,
+    27,
+    110,
+    136
+  ],
+  "source_triangle_count": 300,
+  "display_triangle_count": 2,
+  "bezel_triangle_count": 298,
+  "index_partition_exact": true,
+  "position_normal_and_original_uv_accessors_unchanged": true,
+  "source_bin_prefix_sha256": "12f93699b669f276818b53c90764dc55112e06ca65c531fc6c3163be7c7f5f5b",
+  "source_bin_prefix_bytes": 103364,
+  "display_uv_adaptation": "A new TEXCOORD_0 accessor is used only by the planar display primitive. It clones v1 UV0 values and remaps the four referenced display corners to [0,1]; original UV0 accessor and every bezel UV reference remain unchanged.",
+  "display_uv_corners": [
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      1.0
+    ],
+    [
+      1.0,
+      0.0
+    ],
+    [
+      1.0,
+      1.0
+    ]
+  ],
+  "material_adaptation": "The front primitive uses a clone of original neutral glass material 1 so the screen binder can replace only that slot. All 298 bevel/chassis triangles retain original material 1 and its textures.",
+  "identity": "Generic Innerscene CC0 monitor design; no manufacturer or model claim.",
+  "qualification": "candidate_only_unqualified"
+}

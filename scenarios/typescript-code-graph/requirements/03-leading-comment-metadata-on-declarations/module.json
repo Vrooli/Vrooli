@@ -1,0 +1,107 @@
+{
+  "description": "Every declaration node carries a `leading_comments: string[]` field containing the verbatim leading JSDoc/comment blocks as they appear in source. This is the load-bearing contract that unblocks `react-component-library`'s migration off `@vrooliWidget*` / `@vrooliComponent*` regex scraping.",
+  "module_id": "MOD-P0-003",
+  "prd_ref": "OT-P0-003",
+  "priority": "P0",
+  "requirements": [
+    {
+      "category": "core",
+      "dependencies": [
+        "REQ-P0-001",
+        "REQ-P0-002"
+      ],
+      "description": "Every declaration node in the extracted graph must carry a leading_comments field containing a string array of verbatim leading JSDoc and comment blocks exactly as they appear in source, including whitespace-normalized block delimiters. This is a load-bearing contract: react-component-library depends on this field to replace its existing regex-based scraping of @vrooliWidget* and @vrooliComponent* annotations. Comments must be extracted from JSDoc blocks (/** ... */), line comments (//), and block comments (/* ... */) that directly precede the declaration with no intervening non-comment tokens.",
+      "id": "REQ-P0-003",
+      "prd_ref": "OT-P0-003",
+      "status": "draft",
+      "title": "Leading-Comment Metadata on All Declaration Nodes",
+      "validation": [
+        {
+          "notes": "Test leading_comments extraction for a JSDoc block preceding a function declaration",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Test leading_comments extraction for multiple consecutive line comments preceding an interface",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Test leading_comments extraction for a class with both a JSDoc block and a preceding line comment",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Test that a declaration with no leading comment produces an empty leading_comments array, not null",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Test that comments separated from a declaration by a blank line or another statement are not included",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Test verbatim extraction of @vrooliWidget and @vrooliComponent tag annotations within JSDoc blocks",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Table-driven tests covering all declaration kinds (component, hook, class, interface, type, function, var, const) each with JSDoc",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "TCG-LEADING-COMMENTS: Extract ts-jsdoc-tags fixture and assert leading_comments on every annotated declaration matches expected-graph.json byte-for-byte",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Verify that react-component-library's known @vrooliWidget annotations are correctly captured in extracted comments for a representative fixture",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Assert leading_comments field is present in the proto Graph envelope for all node kinds",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "react-component-library team confirms that leading_comments output for their existing annotated components matches what their regex parser previously extracted",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "ts-jsdoc-tags golden fixture with hand-curated expected-graph.json passes CI determinism gate",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Leading-Comment Metadata On Declarations"
+}

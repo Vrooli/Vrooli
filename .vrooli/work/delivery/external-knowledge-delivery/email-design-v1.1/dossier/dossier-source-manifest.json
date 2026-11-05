@@ -1,0 +1,115 @@
+{
+  "version": "1.1",
+  "created_date": "2026-10-14",
+  "files": [
+    {
+      "path": "dossier/README.txt",
+      "bytes": 2469,
+      "sha256": "04dabdff16dd8b9a76dcd35052bc581de4b9c0cad0c15f2e1217d075af0db3e7"
+    },
+    {
+      "path": "dossier/spec.txt",
+      "bytes": 77861,
+      "sha256": "a39188e377c10ab6f38de34cac1dba649bd824bc70214b954733540b6bd02c54"
+    },
+    {
+      "path": "dossier/atlas-source-text.txt",
+      "bytes": 18858,
+      "sha256": "370b41e4f9cd1ccb4da86c7a36b71c2013bf6be02d2081a5b48a8db2f41cb8bd"
+    },
+    {
+      "path": "dossier/start.txt",
+      "bytes": 8426,
+      "sha256": "7dbc1f1d89c401fadb19ba3e8f00d995bb79f5189aed52b7873e9a2d9fca875c"
+    },
+    {
+      "path": "dossier/EMAIL-DESIGN-PROMPT.recovered.md",
+      "bytes": 10296,
+      "sha256": "bb781f870960baf980dc4fb6d8e2cebb5ab7678f9f5d9a9afc05575dde9619d6"
+    },
+    {
+      "path": "dossier/native-source-register.md",
+      "bytes": 8228,
+      "sha256": "31c22d7d270d1045ca5a107636e254d196e5163e671d8c8186a0160b15443ac7"
+    },
+    {
+      "path": "dossier/native-specialist-observation.md",
+      "bytes": 11119,
+      "sha256": "d1bd637c03bcdb5341a35911eedb7a4840f606f509eba4050677594e67b04dab"
+    },
+    {
+      "path": "dossier/source-map-owner-direction.txt",
+      "bytes": 3080,
+      "sha256": "94f399dca2793e46204a6fd0df9e910d1666be0868f20ef5a2a265205b19cd9a"
+    },
+    {
+      "path": "dossier/design-mapping.json",
+      "bytes": 9673,
+      "sha256": "5052933e858fc52e0a956cee6e585ec34ce600113bf8c038cffaff9fe4eae09b"
+    },
+    {
+      "path": "dossier/spec-qa-receipt.json",
+      "bytes": 1238,
+      "sha256": "6b10b0e6b94a79eb84e56001f4bd0bec683419520c5348f0b56e8141bad40a36"
+    },
+    {
+      "path": "dossier/spec-v1.1-native-export.pdf",
+      "bytes": 413949,
+      "sha256": "80a8d8635a9c1915f2ba7fdc487a377ba735a0e1bdd3f0c79f193d25e7a566a9"
+    },
+    {
+      "path": "dossier/start-v1.1-native-export.pdf",
+      "bytes": 74025,
+      "sha256": "b00fa7a1747fdddb192e242dbfb173a66d5f32194888b99eeac173d32d280283"
+    },
+    {
+      "path": "dossier/owner-amendment-v1.1.txt",
+      "bytes": 1456,
+      "sha256": "2fb63dc27b792d13fbe42ee3e78e515c83746ed79f10f219c16c32d42b49e14d"
+    },
+    {
+      "path": "dossier/source-map-v1.1-amendment.txt",
+      "bytes": 1222,
+      "sha256": "828f52b68b6c7597dfe27abca52243904f75f1336607acc976edd84c363e7681"
+    },
+    {
+      "path": "dossier/revision-v1.1-delta.json",
+      "bytes": 17751,
+      "sha256": "7676262dde8320eadef94d8d5895fe4e62ad3bfd43e11c4698ec13238482e6f8"
+    },
+    {
+      "path": "dossier/families.json",
+      "bytes": 11216,
+      "sha256": "cf7412b88af225f14cea9b1843db06886d517e8ea3694c2dc8612b36f60c9deb"
+    },
+    {
+      "path": "dossier/spec-final-native-readback.json",
+      "bytes": 118174,
+      "sha256": "977c0e8e903f2e10343427853f3415d557200f88c5b0091633762958f08c65ff"
+    },
+    {
+      "path": "dossier/atlas-final-native-readback.json",
+      "bytes": 37819,
+      "sha256": "438efbf5fa89d442e1427d301537f15fe419c2fc88ea344a5843d485224bb8cb"
+    },
+    {
+      "path": "dossier/entry-final-native-readback.json",
+      "bytes": 14941,
+      "sha256": "cafe0c67aadf08a870b3a8d933a6866f8810d1af4d094956b819cfef72bff768"
+    },
+    {
+      "path": "dossier/atlas-qa-receipt.json",
+      "bytes": 1668,
+      "sha256": "8e2a94036cd9f0cfbbf7adf70d5f6e3d9ad318ffeba775c1d747c67a51e8ce63"
+    },
+    {
+      "path": "dossier/delivery-receipt.json",
+      "bytes": 950,
+      "sha256": "2af7a346b31d76c69ea31d5d5f58367eafdcddae95448c32b1e4f47bc726ab93"
+    }
+  ],
+  "visual_originals": "visual-originals/manifest.json",
+  "authority": "Owner endorsed overall visual direction and selected first-release multi-Gmail scope on 2026-10-14 at 20:59 UTC. Revised artifact set and implementation acceptance remain separate.",
+  "source_note": "Recovered original prompt text is dated before later local edits; native source hashes and recovered text hash are intentionally separate.",
+  "native_import": "Pending. Team and heartbeat remain disabled."
+}

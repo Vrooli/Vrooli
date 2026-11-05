@@ -1,8 +1,0 @@
-{
-  "startup_order": 420,
-  "startup_timeout": 35,
-  "startup_time_estimate": "10-20s",
-  "dependencies": ["postgres"],
-  "recovery_attempts": 2,
-  "priority": "low"
-}

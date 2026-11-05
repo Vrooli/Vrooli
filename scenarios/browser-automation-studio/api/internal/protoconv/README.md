@@ -11,12 +11,13 @@ internal/
 ├── protoconv/       ← Proto object conversions (depends on workflow, export, etc.)
 │   ├── enum_convert.go   ← Re-exports from internal/enums for backward compat
 │   ├── convert.go        ← Execution, timeline, project conversions
-│   ├── driver_convert.go ← StepOutcome, Screenshot, DOM conversions
 │   ├── workflows.go      ← Workflow definition conversions
 │   └── README.md         ← This file
-└── typeconv/        ← Primitive type conversions (depends on enums)
-    ├── primitives.go     ← Any→int, Any→bool, JsonValue helpers
-    └── builders.go       ← Proto parameter builders
+
+Action parameter conversion is owned by `automation/compiler` and derives action
+and oneof fields from generated schema metadata. JsonValue and generic contract
+value conversions are owned by `automation/contracts`; timeline projection DTOs
+are owned by `services/export`.
 ```
 
 ## Enum Conversions
@@ -30,11 +31,10 @@ import "github.com/vrooli/browser-automation-studio/internal/enums"
 actionType := enums.StringToActionType("click")
 status := enums.StringToExecutionStatus("COMPLETED")
 
-// Deprecated: These still work but delegate to enums internally
-import "github.com/vrooli/browser-automation-studio/internal/protoconv"
-
-actionType := protoconv.StringToActionType("click")  // → enums.StringToActionType
 ```
+
+`protoconv` retains re-exports for other enum conversions that still have
+callers. Action type conversions are provided only by `internal/enums`.
 
 ### Available Enum Converters
 
@@ -99,8 +99,8 @@ browser-automation-studio/v1/
 ```
 Human Browser Action
     ↓
-livecapture.RecordedAction (Go struct with live-capture types)
-    ↓ [events/recording_convert.go]
+record-mode action handler (maps captured data at the producer seam)
+    ↓
 bastimeline.TimelineEntry (unified proto format)
     ↓
 WebSocket → UI Timeline
@@ -113,7 +113,7 @@ Workflow Definition (V2 flow JSON)
 basexecution.ExecutionPlan (compiled instructions)
     ↓ [executor/simple_executor.go]
 contracts.StepOutcome (native Go struct with time.Time)
-    ↓ [events/unified_convert.go]
+    ↓ [events/ws_sink.go]
 bastimeline.TimelineEntry (unified proto format)
     ↓
 WebSocket → UI Timeline
@@ -157,7 +157,7 @@ pb.CompletedAt = contracts.TimePtrToTimestamp(tPtr)
 |---------|---------|--------------|
 | `internal/enums` | String↔enum conversions | Proto types only |
 | `internal/protoconv` | Complex proto object conversions | workflow, export, database |
-| `internal/typeconv` | Primitive conversions, JsonValue | enums |
+| `automation/contracts` | Generic value and JsonValue conversions | Generated common proto types |
 | `automation/events` | Timeline building, event streaming | enums, contracts |
 
 ## Migration Notes

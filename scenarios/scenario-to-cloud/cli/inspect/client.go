@@ -227,11 +227,12 @@ func (c *Client) Files(id string, opts FilesOptions) ([]byte, FilesResponse, err
 	if opts.Path != "" {
 		query.Set("path", opts.Path)
 	}
+	endpoint := fmt.Sprintf("/api/v1/deployments/%s/files", id)
 	if opts.Content {
-		query.Set("content", "true")
+		endpoint += "/content"
 	}
 
-	body, err := c.api.Get(fmt.Sprintf("/api/v1/deployments/%s/files", id), query)
+	body, err := c.api.Get(endpoint, query)
 	if err != nil {
 		return nil, FilesResponse{}, err
 	}

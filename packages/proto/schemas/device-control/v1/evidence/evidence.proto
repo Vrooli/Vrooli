@@ -1,0 +1,26 @@
+syntax = "proto3";
+package vrooli.device_control.v1.evidence;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/device-control/v1/evidence;evidence_v1";
+service EvidenceService {
+  rpc ListAudit(ListAuditRequest) returns (ListAuditResponse);
+}
+message ListAuditRequest {
+  string session_id = 1;
+}
+message ListAuditResponse {
+  repeated AuditRecord records = 1;
+}
+message AuditRecord {
+  string id = 1;
+  string actor = 2;
+  string device_id = 3;
+  string lease_id = 4;
+  string verb = 5;
+  string outcome = 6;
+  google.protobuf.Timestamp created_at = 7;
+  bool redaction_verified = 8;
+  bool redaction_opted_out = 9;
+}

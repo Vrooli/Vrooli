@@ -1,0 +1,671 @@
+{
+  "$schema": "../../../../scripts/scenarios/schemas/endpoints.schema.json",
+  "version": "1.0.0",
+  "endpoints": [
+    {
+      "id": "health",
+      "path": "/health",
+      "method": "GET",
+      "summary": "Service health check",
+      "description": "Returns API readiness plus dependency status (also mounted at /api/v1/health for client callers).",
+      "category": "system",
+      "response": {
+        "type": "Response",
+        "properties": {
+          "dependencies": "object",
+          "readiness": "boolean",
+          "status": "string"
+        }
+      },
+      "examples": [
+        {
+          "name": "Check health",
+          "curl": "curl http://localhost:${API_PORT}/health"
+        }
+      ],
+      "rest_exception": {
+        "reason": "ops_probe",
+        "note": "Plain GET /health for lifecycle systems, load balancers, and curl probes that cannot use a generated Connect client.",
+        "proto_payloads": {
+          "request": {
+            "transport": "none",
+            "conformance": "none"
+          },
+          "response": {
+            "proto_full_name": "vrooli.ai_gateway.v1.shared.Response",
+            "transport": "json",
+            "conformance": "protojson"
+          },
+          "error": {
+            "proto_full_name": "vrooli.ai_gateway.v1.shared.ErrorEnvelope",
+            "transport": "json",
+            "conformance": "protojson"
+          }
+        }
+      }
+    },
+    {
+      "id": "validation_validate_target",
+      "path": "/vrooli.scenario_validation.v1.ScenarioValidationService/ValidateTarget",
+      "method": "POST",
+      "summary": "Validate a first-class repository target",
+      "description": "",
+      "category": "validation"
+    },
+    {
+      "id": "conformance_scan_scenario",
+      "path": "/vrooli.ai_gateway.v1.conformance.ConformanceService/ScanScenario",
+      "method": "POST",
+      "summary": "Scan a scenario for AI gateway conformance",
+      "description": "Scans a scenario tree for unsafe AI/provider coupling, embedding metadata risks, and gateway adoption signals.",
+      "category": "conformance",
+      "request": {
+        "type": "ScanScenarioRequest",
+        "properties": {
+          "path": "string",
+          "scenario": "string"
+        }
+      },
+      "response": {
+        "type": "ScanScenarioResponse",
+        "properties": {
+          "findings": "array<ConformanceFinding>",
+          "maturity_level": "string",
+          "recommendations": "array<string>",
+          "scenario": "string"
+        }
+      }
+    },
+    {
+      "id": "conformance_validate_scenario",
+      "path": "/vrooli.scenario_validation.v1.ScenarioValidationService/ValidateScenario",
+      "method": "POST",
+      "summary": "Validate AI conformance through Test Genie contract",
+      "description": "Scans a target scenario for unsafe AI/provider coupling and returns a shared scenario-validation maturity assessment for Test Genie.",
+      "category": "conformance",
+      "request": {
+        "type": "ValidateScenarioRequest",
+        "properties": {
+          "include_execution": "bool",
+          "path": "string",
+          "scenario": "string"
+        }
+      },
+      "response": {
+        "type": "ValidateScenarioResponse",
+        "properties": {
+          "assessment": "common.v1.MaturityAssessment",
+          "metrics": "common.v1.ExecutionMetrics",
+          "native_detail": "google.protobuf.Any",
+          "scenario": "string",
+          "status": "scenario_validation.v1.ValidationStatus"
+        }
+      }
+    },
+    {
+      "id": "validation_describe_provider",
+      "path": "/vrooli.scenario_validation.v1.ScenarioValidationService/DescribeProvider",
+      "method": "POST",
+      "summary": "Describe this provider's identity and contract",
+      "description": "Reports provider identity, backed phase, maturity spec version, contract, build provenance, and capabilities. Inspects no target, so readiness consumers can confirm this provider is live and current without paying for a full validation run.",
+      "category": "validation",
+      "request": {
+        "type": "object"
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "build": "scenario_validation.v1.ProviderBuild",
+          "capabilities": "scenario_validation.v1.ProviderCapabilities",
+          "contract": "string",
+          "phase": "string",
+          "provider": "string",
+          "spec_version": "string"
+        }
+      },
+      "examples": [
+        {
+          "name": "Describe provider",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.scenario_validation.v1.ScenarioValidationService/DescribeProvider -H 'Content-Type: application/json' -d '{}'"
+        }
+      ]
+    },
+    {
+      "id": "conformance_preview_fix",
+      "path": "/vrooli.scenario_validation.v1.ScenarioValidationService/PreviewFix",
+      "method": "POST",
+      "summary": "Preview AI conformance migration guidance",
+      "description": "Reports that deterministic source rewrites are not implemented and points callers at scan migration guidance.",
+      "category": "conformance",
+      "request": {
+        "type": "FixRequest",
+        "properties": {
+          "path": "string",
+          "rule_ids": "array<string>",
+          "scenario": "string"
+        }
+      },
+      "response": {
+        "type": "FixResponse",
+        "properties": {
+          "applied": "bool",
+          "candidates": "array<scenario_validation.v1.FixCandidate>",
+          "messages": "array<string>",
+          "scenario": "string"
+        }
+      }
+    },
+    {
+      "id": "conformance_apply_fix",
+      "path": "/vrooli.scenario_validation.v1.ScenarioValidationService/ApplyFix",
+      "method": "POST",
+      "summary": "Apply AI conformance migration guidance",
+      "description": "No-op apply endpoint reserved for future deterministic AI Gateway migrations.",
+      "category": "conformance",
+      "request": {
+        "type": "FixRequest",
+        "properties": {
+          "path": "string",
+          "rule_ids": "array<string>",
+          "scenario": "string"
+        }
+      },
+      "response": {
+        "type": "FixResponse",
+        "properties": {
+          "applied": "bool",
+          "candidates": "array<scenario_validation.v1.FixCandidate>",
+          "messages": "array<string>",
+          "scenario": "string"
+        }
+      }
+    },
+    {
+      "id": "gateway_validate_gateway_request",
+      "path": "/vrooli.ai_gateway.v1.gateway.GatewayService/ValidateGatewayRequest",
+      "method": "POST",
+      "summary": "Validate a provider-neutral gateway request",
+      "description": "Validates role/profile/privacy constraints and rejects provider-specific fields before provider adapters can run.",
+      "category": "gateway",
+      "request": {
+        "type": "ValidateGatewayRequestRequest",
+        "properties": {
+          "request": "GatewayRequest"
+        }
+      },
+      "response": {
+        "type": "ValidateGatewayRequestResponse",
+        "properties": {
+          "accepted_profiles": "array<string>",
+          "issues": "array<ValidationIssue>",
+          "valid": "bool"
+        }
+      },
+      "errors": [
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Unexpected validation failure"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Validate gateway request",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.ai_gateway.v1.gateway.GatewayService/ValidateGatewayRequest -H 'Content-Type: application/json' -d '{\"request\":{\"kind\":\"REQUEST_KIND_TEXT_GENERATION\",\"role\":\"chat.default\",\"profile\":\"PROFILE_LOCAL_FIRST\",\"privacyClass\":\"PRIVACY_CLASS_INTERNAL\"}}'"
+        }
+      ]
+    },
+    {
+      "id": "inference_run",
+      "path": "/vrooli.ai_gateway.v1.inference.InferenceService/Run",
+      "method": "POST",
+      "summary": "Run schema-constrained typed inference",
+      "description": "Executes one provider-neutral inference request and locally validates the returned JSON before marking it successful.",
+      "category": "inference",
+      "request": {
+        "type": "RunRequest",
+        "properties": {
+          "instruction": "string",
+          "role": "string",
+          "schema_json": "string",
+          "source": "string"
+        }
+      },
+      "response": {
+        "type": "RunResponse",
+        "properties": {
+          "error": "InferenceError",
+          "model": "string",
+          "provider": "string",
+          "usage": "Usage",
+          "validated": "bool",
+          "value_json": "string"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "The source, role, or schema is invalid"
+        }
+      ]
+    },
+    {
+      "id": "inference_run_batch",
+      "path": "/vrooli.ai_gateway.v1.inference.InferenceService/RunBatch",
+      "method": "POST",
+      "summary": "Run ordered schema-constrained typed inference batch",
+      "description": "Runs up to 256 sources against one schema and returns ordered results with aggregate usage.",
+      "category": "inference",
+      "request": {
+        "type": "RunBatchRequest",
+        "properties": {
+          "instruction": "string",
+          "items": "RunBatchItem[]",
+          "role": "string",
+          "schema_json": "string"
+        }
+      },
+      "response": {
+        "type": "RunBatchResponse",
+        "properties": {
+          "results": "RunResponse[]",
+          "usage": "Usage"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "The batch size or schema is invalid"
+        }
+      ]
+    },
+    {
+      "id": "inventory_list_provider_roles",
+      "path": "/vrooli.ai_gateway.v1.inventory.InventoryService/ListProviderRoles",
+      "method": "POST",
+      "summary": "List provider role inventory",
+      "description": "List provider role inventory from resource-owned policy command output.",
+      "category": "inventory",
+      "request": {
+        "type": "ListProviderRolesRequest",
+        "properties": {
+          "provider": "string"
+        }
+      },
+      "response": {
+        "type": "ListProviderRolesResponse",
+        "properties": {
+          "roles": "array<ProviderRole>",
+          "warnings": "array<string>"
+        }
+      }
+    },
+    {
+      "id": "inventory_smoke_provider",
+      "path": "/vrooli.ai_gateway.v1.inventory.InventoryService/SmokeProvider",
+      "method": "POST",
+      "summary": "Smoke test provider inventory command",
+      "description": "Runs a bounded provider policy command through the resource CLI seam and maps failures to typed inventory status.",
+      "category": "inventory",
+      "request": {
+        "type": "SmokeProviderRequest",
+        "properties": {
+          "provider": "string"
+        }
+      },
+      "response": {
+        "type": "SmokeProviderResponse",
+        "properties": {
+          "code": "string",
+          "message": "string",
+          "provider": "string",
+          "status": "string",
+          "warnings": "array<string>"
+        }
+      }
+    },
+    {
+      "id": "measures_count_route_events",
+      "path": "/vrooli.ai_gateway.v1.measures.MeasuresService/CountRouteEvents",
+      "method": "POST",
+      "summary": "Count AI routes executed in a window",
+      "description": "Count AI routes executed in a window: a read-only, run-eligible, full-tier measure over route_events, parameterized by the canonical time_window. Backed by the same compute path as the /measures serve registry.",
+      "category": "measures",
+      "request": {
+        "type": "object",
+        "properties": {
+          "window": "vrooli.measures.v1.TimeWindow (optional; defaults to this_week)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "count": "int64 (scalar value_field)"
+        }
+      }
+    },
+    {
+      "id": "measures_route_success_rate",
+      "path": "/vrooli.ai_gateway.v1.measures.MeasuresService/RouteSuccessRate",
+      "method": "POST",
+      "summary": "Fraction of AI routes that succeeded in a window",
+      "description": "Fraction of AI routes that succeeded in a window: a read-only, run-eligible, full-tier measure over route_events, parameterized by the canonical time_window. Backed by the same compute path as the /measures serve registry.",
+      "category": "measures",
+      "request": {
+        "type": "object",
+        "properties": {
+          "window": "vrooli.measures.v1.TimeWindow (optional; defaults to this_week)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "rate": "double in [0,1] (scalar value_field)"
+        }
+      }
+    },
+    {
+      "id": "measures_route_fallback_rate",
+      "path": "/vrooli.ai_gateway.v1.measures.MeasuresService/RouteFallbackRate",
+      "method": "POST",
+      "summary": "Fraction of successful routes that used a fallback in a window",
+      "description": "Fraction of successful routes that used a fallback in a window: a read-only, run-eligible, full-tier measure over route_events, parameterized by the canonical time_window. Backed by the same compute path as the /measures serve registry.",
+      "category": "measures",
+      "request": {
+        "type": "object",
+        "properties": {
+          "window": "vrooli.measures.v1.TimeWindow (optional; defaults to this_week)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "rate": "double in [0,1] (scalar value_field)"
+        }
+      }
+    },
+    {
+      "id": "measures_route_failure_rate",
+      "path": "/vrooli.ai_gateway.v1.measures.MeasuresService/RouteFailureRate",
+      "method": "POST",
+      "summary": "Fraction of AI routes that failed in a window",
+      "description": "Fraction of AI routes that failed in a window: a read-only, run-eligible, full-tier measure over route_events, parameterized by the canonical time_window. Backed by the same compute path as the /measures serve registry.",
+      "category": "measures",
+      "request": {
+        "type": "object",
+        "properties": {
+          "window": "vrooli.measures.v1.TimeWindow (optional; defaults to this_week)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "rate": "double in [0,1] (scalar value_field)"
+        }
+      }
+    },
+    {
+      "id": "measures_count_breaker_open_routes",
+      "path": "/vrooli.ai_gateway.v1.measures.MeasuresService/CountBreakerOpenRoutes",
+      "method": "POST",
+      "summary": "Count routes blocked by an open provider breaker in a window",
+      "description": "Count routes blocked by an open provider breaker in a window: a read-only, run-eligible, full-tier measure over route_events, parameterized by the canonical time_window. Backed by the same compute path as the /measures serve registry.",
+      "category": "measures",
+      "request": {
+        "type": "object",
+        "properties": {
+          "window": "vrooli.measures.v1.TimeWindow (optional; defaults to this_week)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "count": "int64 (scalar value_field)"
+        }
+      }
+    },
+    {
+      "id": "measures_count_capacity_rejections",
+      "path": "/vrooli.ai_gateway.v1.measures.MeasuresService/CountCapacityRejections",
+      "method": "POST",
+      "summary": "Count local routes rejected for insufficient capacity in a window",
+      "description": "Count local routes rejected for insufficient capacity in a window: a read-only, run-eligible, full-tier measure over route_events, parameterized by the canonical time_window. Backed by the same compute path as the /measures serve registry.",
+      "category": "measures",
+      "request": {
+        "type": "object",
+        "properties": {
+          "window": "vrooli.measures.v1.TimeWindow (optional; defaults to this_week)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "count": "int64 (scalar value_field)"
+        }
+      }
+    },
+    {
+      "id": "measures_route_latency_p95",
+      "path": "/vrooli.ai_gateway.v1.measures.MeasuresService/RouteLatencyP95",
+      "method": "POST",
+      "summary": "p95 AI route latency in milliseconds over a window",
+      "description": "p95 AI route latency in milliseconds over a window: a read-only, run-eligible, full-tier measure over route_events, parameterized by the canonical time_window. Backed by the same compute path as the /measures serve registry.",
+      "category": "measures",
+      "request": {
+        "type": "object",
+        "properties": {
+          "window": "vrooli.measures.v1.TimeWindow (optional; defaults to this_week)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "latency_ms": "int64 (scalar value_field)"
+        }
+      }
+    },
+    {
+      "id": "routing_preview_route",
+      "path": "/vrooli.ai_gateway.v1.routing.RoutingService/PreviewRoute",
+      "method": "POST",
+      "summary": "Preview routing policy for a gateway request",
+      "description": "Validates the gateway request and returns deterministic provider candidates, selected route, fallback eligibility, and policy reasons without running inference.",
+      "category": "routing",
+      "request": {
+        "type": "PreviewRouteRequest",
+        "properties": {
+          "request": "GatewayRequest"
+        }
+      },
+      "response": {
+        "type": "PreviewRouteResponse",
+        "properties": {
+          "candidates": "array<RouteCandidate>",
+          "fallback_allowed": "bool",
+          "issues": "array<ValidationIssue>",
+          "policy_reasons": "array<string>",
+          "route_plan_id": "string",
+          "valid": "bool"
+        }
+      }
+    },
+    {
+      "id": "routing_execute_route",
+      "path": "/vrooli.ai_gateway.v1.routing.RoutingService/ExecuteRoute",
+      "method": "POST",
+      "summary": "Execute a routed gateway request",
+      "description": "Executes a provider-neutral request through the selected resource command and persists redacted route evidence before returning provider output.",
+      "category": "routing",
+      "request": {
+        "type": "ExecuteRouteRequest",
+        "properties": {
+          "input_text": "string",
+          "request": "GatewayRequest"
+        }
+      },
+      "response": {
+        "type": "ExecuteRouteResponse",
+        "properties": {
+          "evidence": "RouteEvidence",
+          "issues": "array<ValidationIssue>",
+          "output_text": "string",
+          "policy_reasons": "array<string>",
+          "valid": "bool"
+        }
+      }
+    },
+    {
+      "id": "routing_submit_media",
+      "path": "/vrooli.ai_gateway.v1.routing.RoutingService/SubmitMedia",
+      "method": "POST",
+      "summary": "Submit asynchronous provider-neutral media work",
+      "description": "Creates a durable image or video execution receipt. The executor owns output bytes and returns only stable output references, route evidence, and terminal accounting.",
+      "category": "routing",
+      "request": {
+        "type": "SubmitMediaRequest",
+        "properties": {
+          "idempotency_key": "string",
+          "inputs": "array<MediaInput>",
+          "output_count": "int32",
+          "prompt": "string",
+          "request": "GatewayRequest"
+        }
+      },
+      "response": {
+        "type": "SubmitMediaResponse",
+        "properties": {
+          "execution": "MediaExecution"
+        }
+      }
+    },
+    {
+      "id": "routing_get_media_execution",
+      "path": "/vrooli.ai_gateway.v1.routing.RoutingService/GetMediaExecution",
+      "method": "POST",
+      "summary": "Inspect a media execution receipt",
+      "description": "Returns the durable lifecycle, route evidence, output references, and terminal accounting for one media execution.",
+      "category": "routing",
+      "request": {
+        "type": "GetMediaExecutionRequest",
+        "properties": {
+          "execution_id": "string"
+        }
+      },
+      "response": {
+        "type": "GetMediaExecutionResponse",
+        "properties": {
+          "execution": "MediaExecution"
+        }
+      }
+    },
+    {
+      "id": "routing_wait_media_execution",
+      "path": "/vrooli.ai_gateway.v1.routing.RoutingService/WaitMediaExecution",
+      "method": "POST",
+      "summary": "Wait for a durable media execution to become terminal",
+      "description": "Blocks server-side until a queued or running media receipt reaches succeeded, failed, or cancelled.",
+      "category": "routing"
+    },
+    {
+      "id": "routing_cancel_media_execution",
+      "path": "/vrooli.ai_gateway.v1.routing.RoutingService/CancelMediaExecution",
+      "method": "POST",
+      "summary": "Cancel a queued or running media execution",
+      "description": "Requests cancellation through the registered media executor and returns the updated durable receipt.",
+      "category": "routing",
+      "request": {
+        "type": "CancelMediaExecutionRequest",
+        "properties": {
+          "execution_id": "string"
+        }
+      },
+      "response": {
+        "type": "CancelMediaExecutionResponse",
+        "properties": {
+          "execution": "MediaExecution"
+        }
+      }
+    },
+    {
+      "id": "routing_retry_media_execution",
+      "path": "/vrooli.ai_gateway.v1.routing.RoutingService/RetryMediaExecution",
+      "method": "POST",
+      "summary": "Retry a terminal media execution",
+      "description": "Creates a new media receipt from a failed or cancelled execution with an explicit idempotency key.",
+      "category": "routing",
+      "request": {
+        "type": "RetryMediaExecutionRequest",
+        "properties": {
+          "execution_id": "string",
+          "idempotency_key": "string"
+        }
+      },
+      "response": {
+        "type": "RetryMediaExecutionResponse",
+        "properties": {
+          "execution": "MediaExecution"
+        }
+      }
+    },
+    {
+      "id": "routing_list_route_evidence",
+      "path": "/vrooli.ai_gateway.v1.routing.RoutingService/ListRouteEvidence",
+      "method": "POST",
+      "summary": "List route evidence events",
+      "description": "Lists redacted route evidence metadata for recent gateway executions.",
+      "category": "routing",
+      "request": {
+        "type": "ListRouteEvidenceRequest",
+        "properties": {
+          "limit": "int32",
+          "scenario": "string"
+        }
+      },
+      "response": {
+        "type": "ListRouteEvidenceResponse",
+        "properties": {
+          "events": "array<RouteEvidence>"
+        }
+      }
+    },
+    {
+      "id": "routing_get_route_evidence",
+      "path": "/vrooli.ai_gateway.v1.routing.RoutingService/GetRouteEvidence",
+      "method": "POST",
+      "summary": "Inspect one route evidence event",
+      "description": "Returns one redacted route evidence metadata event by ID.",
+      "category": "routing",
+      "request": {
+        "type": "GetRouteEvidenceRequest",
+        "properties": {
+          "event_id": "string"
+        }
+      },
+      "response": {
+        "type": "GetRouteEvidenceResponse",
+        "properties": {
+          "event": "RouteEvidence"
+        }
+      }
+    },
+    {
+      "id": "routing_list_provider_health",
+      "path": "/vrooli.ai_gateway.v1.routing.RoutingService/ListProviderHealth",
+      "method": "POST",
+      "summary": "List provider circuit-breaker health",
+      "description": "Returns persisted provider circuit-breaker state per (provider, role, kind) with the effective state at read time, so operators can see which providers are suppressed and why without reading logs or database rows.",
+      "category": "routing",
+      "request": {
+        "type": "ListProviderHealthRequest"
+      },
+      "response": {
+        "type": "ListProviderHealthResponse",
+        "properties": {
+          "items": "array<ProviderHealth>"
+        }
+      }
+    }
+  ]
+}

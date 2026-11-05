@@ -1,0 +1,76 @@
+{
+  "$schema": "../../../../.vrooli/schemas/safeguard.schema.json",
+  "name": "vrooli_launcher",
+  "storage": {
+    "entries": {
+      "launcher": {
+        "rung": "pinned",
+        "path": {
+          "linux": "/usr/local/bin/vrooli",
+          "macos": "/usr/local/bin/vrooli",
+          "windows": null
+        },
+        "kind": "file",
+        "regenerable": false,
+        "class": "state",
+        "sensitive": false,
+        "rationale": "The safeguard installs the POSIX launcher on Linux and macOS.",
+        "budget": {
+          "max_bytes": "64MiB",
+          "rationale": "Durable state storage ceiling is derived from the expected working set and raises an alarm before host capacity is threatened."
+        }
+      }
+    },
+    "rationale": "The launcher is an explicitly verified host installation artifact."
+  },
+  "description": "Install a POSIX shim at /usr/local/bin/vrooli so `sudo vrooli` works. See package doc for design rationale.",
+  "handler": "vrooli_launcher",
+  "risk": "low",
+  "verificationCheck": {
+    "files": [
+      "/usr/local/bin/vrooli"
+    ]
+  },
+  "privilege": "elevated",
+  "bundling": "prohibited",
+  "capability": "developer-utility",
+  "capability_role": "control",
+  "deployment": {
+    "profiles": {
+      "desktop": {
+        "linux": {
+          "support": "unsupported",
+          "mode": "manual",
+          "reason": "Host safeguards mutate host state and cannot ship in a desktop bundle."
+        },
+        "macos": {
+          "support": "unsupported",
+          "mode": "manual",
+          "reason": "Host safeguards mutate host state and cannot ship in a desktop bundle."
+        },
+        "windows": {
+          "support": "unsupported",
+          "mode": "manual",
+          "reason": "Host safeguards mutate host state and cannot ship in a desktop bundle."
+        }
+      }
+    }
+  },
+  "platform_status": {
+    "linux": {
+      "status": "unqualified",
+      "evidence": null
+    },
+    "macos": {
+      "status": "unqualified",
+      "evidence": null
+    },
+    "windows": {
+      "status": "not_implemented",
+      "evidence": "The Windows launcher provider is not wired into this safeguard yet; the host mechanism is the Windows process creation surface.",
+      "mechanism": "windows_process_launcher",
+      "since": "2026-08-26"
+    }
+  },
+  "risk_class": "restore_absent"
+}

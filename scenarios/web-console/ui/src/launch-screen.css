@@ -1,0 +1,41 @@
+/* Critical launch styles are inlined into index.html and shared by every
+ * loading boundary. They must work before the app tokens or JavaScript load. */
+:root {
+  --wc-launch-background: #0f172a;
+  --wc-launch-foreground: #f8fafc;
+  --wc-launch-accent: #22d3ee;
+  background-color: var(--wc-launch-background);
+}
+
+html:has([data-wc-launch]),
+html:has([data-wc-launch]) body,
+html:has([data-wc-launch]) #root {
+  margin: 0;
+  height: var(--wc-app-height, 100lvh);
+  background-color: var(--wc-launch-background);
+}
+
+.wc-launch {
+  box-sizing: border-box;
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: var(--wc-app-height, 100lvh);
+  /* The identity stays in the center, clear of unsafe edges. Symmetric
+   * padding also keeps it aligned with the static native launch image. */
+  padding: 24px;
+  background: var(--wc-launch-background);
+  color: var(--wc-launch-foreground);
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+.wc-launch__identity { display: grid; justify-items: center; gap: 20px; }
+.wc-launch__mark { display: block; width: 76px; height: 76px; border-radius: 20px; }
+.wc-launch__name { margin: 0; font-size: 24px; font-weight: 600; line-height: 30px; letter-spacing: .02em; }
+.wc-launch__progress { display: flex; gap: 6px; padding-top: 4px; }
+.wc-launch__progress span { width: 4px; height: 4px; border-radius: 50%; background: var(--wc-launch-accent); opacity: .35; animation: wc-launch-pulse 1.5s ease-in-out infinite; }
+.wc-launch__progress span:nth-child(2) { animation-delay: .16s; }
+.wc-launch__progress span:nth-child(3) { animation-delay: .32s; }
+html:has([data-wc-launch]) .wc-ios-tint-edge { display: none; }
+@keyframes wc-launch-pulse { 50% { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .wc-launch__progress span { animation: none; opacity: .65; } }

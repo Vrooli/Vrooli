@@ -18,8 +18,7 @@ func TestAttachRunActionsList_ActionsPopulated(t *testing.T) {
 
 	profile := mustCreateProfile(t, svc, ctx, &domain.AgentProfile{
 		Name:       "test-actions",
-		ProfileKey: "test-actions-" + uuid.New().String()[:8],
-		RunnerType: domain.RunnerTypeClaudeCode,
+		ProfileKey: "test-actions-" + uuid.New().String()[:8], RoleRef: "code.default",
 	})
 
 	task := mustCreateTask(t, svc, ctx, &domain.Task{
@@ -30,11 +29,11 @@ func TestAttachRunActionsList_ActionsPopulated(t *testing.T) {
 
 	// Create two runs
 	for i := 0; i < 2; i++ {
-		_, _ = svc.CreateRun(ctx, orchestration.CreateRunRequest{
+		_, _ = svc.CreateRun(ctx, authenticatedCreateRunFixture(orchestration.CreateRunRequest{
 			TaskID:         task.ID,
 			AgentProfileID: &profile.ID,
 			Prompt:         "Test prompt",
-		})
+		}))
 	}
 
 	runs, err := svc.ListRuns(ctx, orchestration.RunListOptions{})

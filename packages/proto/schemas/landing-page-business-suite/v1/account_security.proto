@@ -1,0 +1,84 @@
+syntax = "proto3";
+
+package landing_page_business_suite.v1;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-business-suite/v1;landing_page_business_suite_v1";
+
+// AccountSecurityService exposes customer-owned session and reauthentication
+// controls. Identity is always taken from the authenticated request context.
+service AccountSecurityService {
+  rpc ListSessions(ListSessionsRequest) returns (ListSessionsResponse);
+  rpc RevokeSession(RevokeSessionRequest) returns (RevokeSessionResponse);
+  rpc RevokeOtherSessions(RevokeOtherSessionsRequest) returns (RevokeOtherSessionsResponse);
+  rpc StartReauthentication(StartReauthenticationRequest) returns (StartReauthenticationResponse);
+  rpc Reauthenticate(ReauthenticateRequest) returns (ReauthenticateResponse);
+  rpc GetSignInDeliveryStatus(GetSignInDeliveryStatusRequest) returns (GetSignInDeliveryStatusResponse);
+}
+
+message AccountSession {
+  string id = 1;
+  google.protobuf.Timestamp created_at = 2;
+  google.protobuf.Timestamp last_used_at = 3;
+  google.protobuf.Timestamp expires_at = 4;
+  google.protobuf.Timestamp absolute_expires_at = 5;
+  string device_label = 6;
+  string ip_hint = 7;
+  string auth_method = 8;
+  bool current = 9;
+}
+
+message ListSessionsRequest {}
+
+message ListSessionsResponse {
+  repeated AccountSession sessions = 1;
+}
+
+message RevokeSessionRequest {
+  string session_id = 1;
+}
+
+message RevokeSessionResponse {
+  bool revoked = 1;
+}
+
+message RevokeOtherSessionsRequest {}
+
+message RevokeOtherSessionsResponse {
+  int32 revoked_count = 1;
+}
+
+message StartReauthenticationRequest {}
+
+message StartReauthenticationResponse {
+  google.protobuf.Timestamp expires_at = 1;
+  string passkey_options_json = 2;
+  string passkey_ceremony_id = 3;
+}
+
+message ReauthenticateRequest {
+  string code = 1;
+  string email = 2;
+  bytes passkey_assertion = 3;
+  string password = 4;
+  string totp_code = 5;
+  string recovery_code = 6;
+  string passkey_ceremony_id = 7;
+}
+
+message ReauthenticateResponse {
+  google.protobuf.Timestamp authenticated_at = 1;
+  bool reauthenticated = 2;
+}
+
+message GetSignInDeliveryStatusRequest {
+  string email = 1;
+  string browser_binding = 2;
+}
+
+message GetSignInDeliveryStatusResponse {
+  string status = 1;
+  google.protobuf.Timestamp expires_at = 2;
+  string reason_class = 3;
+}

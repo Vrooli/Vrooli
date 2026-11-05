@@ -1,0 +1,178 @@
+{
+  "_metadata": {
+    "description": "Composition as a batch that produces candidate takes, the style library those batches are configured with, the provenance every take carries, and the maintained inventory built on top.",
+    "last_validated_at": "2026-09-19T05:29:54-04:00",
+    "module": "batch-selection",
+    "prd_ref": "OT-P0-008",
+    "priority": "P0",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "MUS-P0-017",
+      "title": "A composition request returns a set of takes",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-008",
+      "category": "core",
+      "criticality": "P0",
+      "description": "A composition request accepts a count and returns that many independently seeded takes from one job. Each take is separately addressable and separately retained. A response shape that assumes one output per job does not satisfy this requirement.",
+      "tags": [
+        "composition",
+        "batch"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/composition/batch_test.go",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Batch take generation is covered by the shipped composition tests"
+        },
+        {
+          "type": "test",
+          "ref": "cli/domains/domains_test.go",
+          "phase": "integration",
+          "status": "not_implemented",
+          "notes": "CLI batch dispatch is covered by the shipped CLI tests"
+        }
+      ]
+    },
+    {
+      "id": "MUS-P0-018",
+      "title": "Selection is recorded as a fact, never interpreted",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-008",
+      "category": "core",
+      "criticality": "P0",
+      "description": "Selecting a take records which take was chosen and which were passed over. The scenario exposes that record and does not rank, score, reorder, or otherwise infer preference from it. Preference modelling belongs to consuming scenarios, and this record is the seam they read.",
+      "tags": [
+        "composition",
+        "boundary"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/composition/selection_test.go",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Selection persistence and non-ranking behavior are covered by the shipped tests"
+        }
+      ]
+    },
+    {
+      "id": "MUS-P0-019",
+      "title": "Every take carries the caption the model actually received",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-009",
+      "category": "core",
+      "criticality": "P0",
+      "description": "A take records the caption as authored and the caption as sent to the model, alongside model, licence lane, applied capacity rung, and seed. When the two captions differ the difference is visible to the caller. This exists because the upstream planner rewrites captions by default and measurably ruins authored briefs; see docs/internal/PROBLEMS.md (2026-09-18).",
+      "tags": [
+        "provenance",
+        "composition"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/composition/provenance_test.go",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Caption and take provenance are covered by the shipped tests"
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/composition/rung_test.go",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Applied degradation rung propagation is covered by the shipped tests"
+        }
+      ]
+    },
+    {
+      "id": "MUS-P0-020",
+      "title": "A style compiles to a caption plus parameters",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-007",
+      "category": "core",
+      "criticality": "P0",
+      "description": "Styles are data, not code. A style compiles deterministically to a caption and generation parameters, so a house sound is captured once and reused as the unit a batch is configured with. Compiling the same style twice yields the same caption and parameters.",
+      "tags": [
+        "styles",
+        "composition"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/styles/compile_test.go",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Deterministic style compilation is covered by the shipped tests"
+        }
+      ]
+    },
+    {
+      "id": "MUS-P1-008",
+      "title": "Inventory depth is declared policy with a pluggable trigger",
+      "status": "in_progress",
+      "prd_ref": "OT-P1-005",
+      "category": "core",
+      "criticality": "P1",
+      "description": "For a named style the scenario holds a declared target depth of ready takes and a replenish threshold, and exposes both the current depth and the decision to replenish. The trigger that actually runs replenishment is pluggable, because no platform facility can currently schedule idle-time work; see docs/internal/PROBLEMS.md (2026-09-18). The policy must be testable without any scheduler present.",
+      "tags": [
+        "inventory",
+        "composition"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/composition/inventory_test.go",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Inventory depth and replenishment decisions are covered by the shipped tests"
+        }
+      ]
+    },
+    {
+      "id": "MUS-P2-001",
+      "title": "A larger composition tier remains an explicit future option",
+      "status": "complete",
+      "prd_ref": "OT-P2-001",
+      "category": "roadmap",
+      "criticality": "P2",
+      "description": "When hardware has the required headroom, a larger composition model may be selectable without changing the operation contract.",
+      "tags": [
+        "composition",
+        "roadmap"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "phase": "business",
+          "status": "implemented",
+          "notes": "Future hardware-gated model tier; not part of the current delivery."
+        }
+      ]
+    },
+    {
+      "id": "MUS-P2-002",
+      "title": "Adapter training remains an explicit future option",
+      "status": "complete",
+      "prd_ref": "OT-P2-002",
+      "category": "roadmap",
+      "criticality": "P2",
+      "description": "When a host has sufficient headroom, adapter training may run over a confirmed-favourites corpus behind the same governed resource boundary.",
+      "tags": [
+        "training",
+        "roadmap"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "phase": "business",
+          "status": "implemented",
+          "notes": "Future training capability; not part of the current delivery."
+        }
+      ]
+    }
+  ]
+}

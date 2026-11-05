@@ -1,0 +1,50 @@
+{
+  "name": "cache",
+  "privilege": "user",
+  "bundling": "vendorable",
+  "requirements": {
+    "ram_mb": 256,
+    "disk_mb": 512,
+    "cpu_cores": 0.25,
+    "class": "cache"
+  },
+  "dependencies": [],
+  "deployment": {
+    "profiles": {
+      "desktop": {
+        "linux": {
+          "support": "supported",
+          "mode": "bundled-service",
+          "architectures": [
+            "amd64",
+            "arm64"
+          ],
+          "limitations": [
+            "none"
+          ],
+          "evidence": [
+            "manifest-validation"
+          ]
+        },
+        "macos": {
+          "support": "unsupported",
+          "mode": "manual",
+          "reason": "linux only fixture"
+        },
+        "windows": {
+          "support": "unsupported",
+          "mode": "manual",
+          "reason": "linux only fixture"
+        }
+      }
+    }
+  },
+  "managed_service": {
+    "artifact": {
+      "path": "server/cache",
+      "version": "7",
+      "sha256": "e495022187d70554a26e83311146b847ee3477e972a97ae4224658e52ab299ef",
+      "bundle_artifact": "cache_${os}_${arch}"
+    }
+  }
+}

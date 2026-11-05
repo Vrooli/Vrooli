@@ -1,0 +1,19 @@
+{
+  "schemaVersion": "agent-profile/v1",
+  "name": "swarm-manager-deep-work",
+  "profileKey": "swarm-manager/deep-work",
+  "description": "High-capability profile for Swarm Manager goal investigation, planning, and repo-editing phases",
+  "roleRef": "code.smart",
+  "roleReason": "Goal investigation, planning, and repository edits are explicitly multi-file deep-work tasks.",
+  "maxTurns": 900,
+  "timeout": "5400s",
+  "allowedTools": ["read", "write", "edit", "glob", "grep", "shell", "web_search", "web_fetch"],
+  "toolRestrictionPolicy": "advisory",
+  "skipPermissionPrompt": false,
+  "sandboxConfig": {
+    "mode": "SANDBOX_MODE_PROTECTED"
+  },
+  "spawnPolicy": {"axisOrder": ["sandboxMode", "executionMode"], "sandboxMode": {"prefer": ["protected", "tracking", "off"]}, "executionMode": {"prefer": ["codec_pipe", "interactive"]}, "require": []},
+  "createdBy": "swarm-manager",
+  "effort": "medium"
+}

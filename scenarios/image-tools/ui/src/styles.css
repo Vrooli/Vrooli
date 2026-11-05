@@ -1,0 +1,118 @@
+@import "./design-tokens.css";
+@import "./theme/tokens.css";
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: light;
+}
+
+/*
+ * Full-height chain (INTEROP-CRITICAL): the app shell uses `h-full`
+ * (height: 100%), never `h-screen`/`100vh`, so it sizes to the iframe element
+ * in the app-monitor proxy context instead of the outer viewport. That only
+ * works if every ancestor establishes a height — hence 100% on html/body/#root.
+ */
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  background: var(--color-background);
+  color: var(--color-foreground);
+  font-family: var(--font-sans);
+  margin: 0;
+}
+
+:where(a, button, input, textarea, select, [tabindex]):focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+/*
+ * Transparency checkerboard for the Workspace canvas — a real-image-tool
+ * signal. Driven by the Lume `--canvas-checker-*` tokens so it tracks
+ * light/dark like every other surface.
+ */
+.canvas-checker {
+  background-color: var(--canvas-checker-a);
+  background-image:
+    linear-gradient(45deg, var(--canvas-checker-b) 25%, transparent 25%),
+    linear-gradient(-45deg, var(--canvas-checker-b) 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, var(--canvas-checker-b) 75%),
+    linear-gradient(-45deg, transparent 75%, var(--canvas-checker-b) 75%);
+  background-size: 16px 16px;
+  background-position:
+    0 0,
+    0 8px,
+    8px -8px,
+    -8px 0;
+}
+
+/*
+ * Lume motion — calm, photographic. Every animation here is auto-neutralized
+ * by the global `prefers-reduced-motion: reduce` block in design-tokens.css
+ * (it forces animation/transition durations to ~0), so these never block task
+ * completion and degrade to instant static states.
+ */
+
+/* The signature "develop" reveal — a result eases in like a print coming up in
+ * a tray. Used when an image or result lands in the canvas / a grid slot. */
+@keyframes lume-develop {
+  from {
+    opacity: 0;
+    transform: scale(0.985);
+    filter: saturate(0.6) brightness(1.04);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+    filter: none;
+  }
+}
+.animate-develop {
+  animation: lume-develop var(--motion-develop) var(--ease-develop) both;
+}
+
+/* The gold "luminous dot" pulse — the first-run / primary-call invitation. */
+@keyframes lume-pulse-gold {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(228, 199, 122, 0);
+  }
+  50% {
+    box-shadow: 0 0 0 6px rgba(228, 199, 122, 0.28);
+  }
+}
+.animate-pulse-gold {
+  animation: lume-pulse-gold 2.4s ease-in-out infinite;
+}
+
+/* Skeleton shimmer for loading thumbnails / grid slots. */
+@keyframes lume-shimmer {
+  100% {
+    transform: translateX(100%);
+  }
+}
+.skeleton-shimmer {
+  position: relative;
+  overflow: hidden;
+  background-color: var(--color-surface-muted);
+}
+.skeleton-shimmer::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background-image: linear-gradient(
+    90deg,
+    transparent 0,
+    rgba(228, 199, 122, 0.14) 50%,
+    transparent 100%
+  );
+  animation: lume-shimmer 1.6s ease-in-out infinite;
+}

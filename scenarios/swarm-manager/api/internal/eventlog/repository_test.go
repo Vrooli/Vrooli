@@ -7,19 +7,21 @@ import (
 	"testing"
 	"time"
 
-	_ "modernc.org/sqlite"
-
 	"swarm-manager/internal/eventlog"
+
+	"github.com/vrooli/api-core/database"
+	_ "modernc.org/sqlite"
 )
 
-func setupTestDB(t *testing.T) *sql.DB {
+func setupTestDB(t *testing.T) *database.RoutedDB {
 	t.Helper()
-	db, err := sql.Open("sqlite", ":memory:")
+	sqldb, err := sql.Open("sqlite", ":memory:")
 	if err != nil {
 		t.Fatalf("open in-memory sqlite: %v", err)
 	}
-	t.Cleanup(func() { db.Close() })
+	t.Cleanup(func() { sqldb.Close() })
 
+	db := database.NewFromPrimary(sqldb)
 	repo := eventlog.NewSQLiteRepository(db)
 	if err := repo.InitSchema(context.Background()); err != nil {
 		t.Fatalf("init schema: %v", err)
@@ -34,6 +36,52 @@ func TestInitSchemaIdempotent(t *testing.T) {
 	// Calling InitSchema a second time must not fail.
 	if err := repo.InitSchema(context.Background()); err != nil {
 		t.Fatalf("second InitSchema call failed: %v", err)
+	}
+}
+
+func TestInitSchemaMigratesLegacyEvidenceTables(t *testing.T) {
+	sqldb, err := sql.Open("sqlite", ":memory:")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = sqldb.Close() })
+	legacy := []string{
+		`CREATE TABLE evidence_observations (id INTEGER PRIMARY KEY AUTOINCREMENT, source_system TEXT NOT NULL, source_event_id TEXT NOT NULL, run_id TEXT NOT NULL, subject_kind TEXT NOT NULL, subject_id TEXT NOT NULL, action TEXT NOT NULL, confidence TEXT NOT NULL, verification TEXT NOT NULL, content_digest TEXT NOT NULL DEFAULT '', metadata_json TEXT NOT NULL DEFAULT '{}', observed_at TEXT NOT NULL, ownership_status TEXT NOT NULL, actor TEXT NOT NULL DEFAULT '', reason TEXT NOT NULL DEFAULT '')`,
+		`CREATE TABLE evidence_links (observation_id INTEGER NOT NULL, owner_kind TEXT NOT NULL, owner_id TEXT NOT NULL, owner_round INTEGER NOT NULL DEFAULT 0, linked_at TEXT NOT NULL, PRIMARY KEY(observation_id, owner_kind, owner_id, owner_round))`,
+		`CREATE TABLE evidence_migration_audits (migration_key TEXT PRIMARY KEY, source_count INTEGER NOT NULL, projected_count INTEGER NOT NULL, source_digest TEXT NOT NULL, projected_digest TEXT NOT NULL, completed_at TEXT NOT NULL)`,
+		`CREATE TABLE evidence_checkpoints (producer_id TEXT NOT NULL, run_id TEXT NOT NULL, fact_kind TEXT NOT NULL, cursor TEXT NOT NULL, updated_at TEXT NOT NULL, PRIMARY KEY(producer_id, run_id, fact_kind))`,
+		`CREATE TABLE evidence_watermarks (producer_id TEXT NOT NULL, run_id TEXT NOT NULL, fact_kind TEXT NOT NULL, coverage TEXT NOT NULL, completed_at TEXT NOT NULL, PRIMARY KEY(producer_id, run_id, fact_kind))`,
+		`INSERT INTO evidence_observations (source_system, source_event_id, run_id, subject_kind, subject_id, action, confidence, verification, metadata_json, observed_at, ownership_status) VALUES ('old-review', 'event-1', 'run-1', 'criterion', 'execute/item/criterion', 'settled', 'reported', 'none', '{"legacy":true}', '2026-07-30T00:00:00Z', 'owned')`,
+		`INSERT INTO evidence_links (observation_id, owner_kind, owner_id, owner_round, linked_at) VALUES (1, 'backlog', 'execute/item', 2, '2026-07-30T00:00:00Z')`,
+		`INSERT INTO evidence_migration_audits (migration_key, source_count, projected_count, source_digest, projected_digest, completed_at) VALUES ('old/v1', 1, 1, 'source', 'projection', '2026-07-30T00:00:00Z')`,
+		`INSERT INTO evidence_checkpoints (producer_id, run_id, fact_kind, cursor, updated_at) VALUES ('old-review', 'run-1', 'review_evidence', '0', '2026-07-30T00:00:00Z')`,
+		`INSERT INTO evidence_watermarks (producer_id, run_id, fact_kind, coverage, completed_at) VALUES ('old-review', 'run-1', 'review_evidence', 'complete', '2026-07-30T00:00:00Z')`,
+	}
+	for _, statement := range legacy {
+		if _, err := sqldb.Exec(statement); err != nil {
+			t.Fatal(err)
+		}
+	}
+	repo := eventlog.NewSQLiteRepository(database.NewFromPrimary(sqldb))
+	if err := repo.InitSchema(context.Background()); err != nil {
+		t.Fatalf("InitSchema: %v", err)
+	}
+	var producer, attemptRef string
+	if err := sqldb.QueryRow(`SELECT producer FROM evidence_observations WHERE id = 'legacy/1'`).Scan(&producer); err != nil {
+		t.Fatal(err)
+	}
+	if err := sqldb.QueryRow(`SELECT attempt_ref FROM evidence_links WHERE observation_id = 'legacy/1'`).Scan(&attemptRef); err != nil {
+		t.Fatal(err)
+	}
+	if producer != "legacy:old-review" || attemptRef != "legacy/backlog/execute/item/2" {
+		t.Fatalf("migrated evidence = producer %q, attempt %q", producer, attemptRef)
+	}
+	var parity bool
+	if err := sqldb.QueryRow(`SELECT parity_proven FROM evidence_migration_audits WHERE migration_key = 'old/v1'`).Scan(&parity); err != nil {
+		t.Fatal(err)
+	}
+	if !parity {
+		t.Fatal("expected migrated parity audit")
 	}
 }
 
@@ -97,6 +145,14 @@ func TestAppendAndSince(t *testing.T) {
 	}
 }
 
+func TestAppendAttributedRequiresActorID(t *testing.T) {
+	db := setupTestDB(t)
+	repo := eventlog.NewSQLiteRepository(db)
+	if _, err := repo.AppendAttributed(context.Background(), eventlog.Event{EntityType: eventlog.EntitySystem, EntityID: "test", EventType: eventlog.EventBacklogCreated}); err == nil {
+		t.Fatal("AppendAttributed() error = nil, want actor_id validation")
+	}
+}
+
 func TestAll(t *testing.T) {
 	db := setupTestDB(t)
 	repo := eventlog.NewSQLiteRepository(db)
@@ -137,6 +193,30 @@ func TestAll(t *testing.T) {
 		if events[i].ID <= events[i-1].ID {
 			t.Errorf("events not ordered: ID %d <= %d", events[i].ID, events[i-1].ID)
 		}
+	}
+}
+
+func TestQueryByEntityUsesCursorAndEntityScope(t *testing.T) {
+	db := setupTestDB(t)
+	repo := eventlog.NewSQLiteRepository(db)
+	ctx := context.Background()
+	first, err := repo.Append(ctx, eventlog.Event{Timestamp: time.Now().UTC(), EntityType: eventlog.EntityBacklogItem, EntityID: "execute/item-a", EventType: eventlog.EventBacklogCreated})
+	if err != nil {
+		t.Fatal(err)
+	}
+	second, err := repo.Append(ctx, eventlog.Event{Timestamp: time.Now().UTC(), EntityType: eventlog.EntityBacklogItem, EntityID: "execute/item-a", EventType: eventlog.EventBacklogStatusChanged})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := repo.Append(ctx, eventlog.Event{Timestamp: time.Now().UTC(), EntityType: eventlog.EntityBacklogItem, EntityID: "execute/item-b", EventType: eventlog.EventBacklogCreated}); err != nil {
+		t.Fatal(err)
+	}
+	events, err := repo.QueryByEntity(ctx, eventlog.EntityBacklogItem, "execute/item-a", first, 10)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(events) != 1 || events[0].ID != second {
+		t.Fatalf("QueryByEntity() = %#v, want only event %d", events, second)
 	}
 }
 

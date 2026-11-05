@@ -1,0 +1,135 @@
+{
+  "schema_version": "device-definition/v1",
+  "id": "ipad-pro-13-m4-2024",
+  "group": "tablet",
+  "kind": "slab_tablet",
+  "identity_status": "documented_product",
+  "manufacturer": "Apple",
+  "model": "iPad Pro 13-inch (M4, 2024)",
+  "dimensions": {
+    "portrait_bare": {
+      "width": {
+        "value": 215.5,
+        "unit": "mm",
+        "meaning": "left-to-right in front reference pose",
+        "configuration": "portrait_bare",
+        "method": "manufacturer",
+        "uncertainty": {
+          "status": "source_unspecified",
+          "explanation": "Manufacturer publishes nominal value; tolerance and protrusion envelope are not provided in this source record."
+        },
+        "evidence": [
+          {
+            "source": "https://support.apple.com/en-us/119891",
+            "kind": "manufacturer_specification",
+            "qualifier": "Bare tablet portrait, no keyboard or cover."
+          }
+        ]
+      },
+      "height": {
+        "value": 281.6,
+        "unit": "mm",
+        "meaning": "bottom-to-top in front reference pose",
+        "configuration": "portrait_bare",
+        "method": "manufacturer",
+        "uncertainty": {
+          "status": "source_unspecified",
+          "explanation": "Manufacturer publishes nominal value; tolerance and protrusion envelope are not provided in this source record."
+        },
+        "evidence": [
+          {
+            "source": "https://support.apple.com/en-us/119891",
+            "kind": "manufacturer_specification",
+            "qualifier": "Bare tablet portrait, no keyboard or cover."
+          }
+        ]
+      },
+      "depth": {
+        "value": 5.1,
+        "unit": "mm",
+        "meaning": "front-to-back in front reference pose",
+        "configuration": "portrait_bare",
+        "method": "manufacturer",
+        "uncertainty": {
+          "status": "source_unspecified",
+          "explanation": "Manufacturer publishes nominal value; tolerance and protrusion envelope are not provided in this source record."
+        },
+        "evidence": [
+          {
+            "source": "https://support.apple.com/en-us/119891",
+            "kind": "manufacturer_specification",
+            "qualifier": "Bare tablet portrait, no keyboard or cover."
+          }
+        ]
+      }
+    }
+  },
+  "displays": [
+    {
+      "id": "front",
+      "topology": "planar",
+      "physical_boundary": {
+        "status": "unknown"
+      },
+      "active_area": {
+        "status": "unknown"
+      },
+      "app_safe_area": {
+        "status": "unknown"
+      },
+      "hardware_occlusions": []
+    }
+  ],
+  "joints": [],
+  "supported_poses": [
+    {
+      "name": "portrait-front",
+      "status": "candidate_only"
+    },
+    {
+      "name": "landscape-front",
+      "status": "candidate_only"
+    }
+  ],
+  "supported_motion": [
+    {
+      "name": "whole_device_rotation",
+      "status": "unknown"
+    }
+  ],
+  "supported_profiles": [],
+  "supports": [
+    {
+      "kind": "tabletop",
+      "status": "unknown"
+    },
+    {
+      "kind": "folio",
+      "status": "unknown"
+    }
+  ],
+  "model_candidates": [
+    {
+      "id": "ipad-pro-13-2024-free-listing",
+      "status": "not_acquired",
+      "listing_url": "https://www.blendkit.com/asset-gallery-detail/3ecc3f83-2a7d-45d5-bf15-cf930a0a75a4/",
+      "author": "Steven Yap",
+      "license": "Royalty-free listing; full terms not archived here",
+      "rights_notes": "Listing metadata only; no bytes acquired/inspected; rights and physical match require review."
+    }
+  ],
+  "provenance": [
+    {
+      "source": "https://support.apple.com/en-us/119891",
+      "kind": "manufacturer_specification",
+      "qualifier": "13-inch M4 tablet dimensions; bare enclosure only."
+    },
+    {
+      "source": "/home/matthalloran8/.vrooli/evidence/device-presentation-2026-10-18/model-sourcing/large-devices.json",
+      "kind": "archived_source_record",
+      "qualifier": "Candidate listing not acquired; rounded screen and attachments require separate calibration."
+    }
+  ],
+  "qualification": "unqualified",
+  "description": "Active corners, camera aperture, screen outline, keyboard/folio, stand, and attachment anchors remain unknown."
+}

@@ -19,7 +19,7 @@ interface BacklogFormStoreState {
   reset: () => void;
 }
 
-const buildFormValues = (
+export const buildBacklogFormValues = (
   defaultKind: BacklogKind,
   initialValues?: BacklogFormValues
 ): BacklogFormValues => {
@@ -33,15 +33,19 @@ const buildFormValues = (
     tags: initialValues?.tags ?? [],
     kind: nextKind,
     dependsOn: initialValues?.dependsOn ?? [],
-    initiative: initialValues?.initiative ?? "",
+    milestone: initialValues?.milestone ?? "",
     effort: initialValues?.effort ?? "",
     acceptanceAllow: initialValues?.acceptanceAllow ?? [],
     acceptanceDeny: initialValues?.acceptanceDeny ?? [],
+    executionMode: initialValues?.executionMode ?? "sliced",
+    executionLimits: initialValues?.executionLimits,
+    continuation: initialValues?.continuation ?? "manual",
+    scopePolicy: initialValues?.scopePolicy ?? "fixed",
   };
 };
 
 export const backlogFormInitialState = {
-  values: buildFormValues("idea"),
+  values: buildBacklogFormValues("idea"),
   tagsInput: "",
   nameDirty: false,
   error: null,
@@ -72,7 +76,7 @@ export const useBacklogFormStore = create<BacklogFormStoreState>((set) => ({
   setError: (error) => set({ error }),
 
   initialize: ({ isEditMode, defaultKind, initialValues }) => {
-    const nextValues = buildFormValues(defaultKind, initialValues);
+    const nextValues = buildBacklogFormValues(defaultKind, initialValues);
     set({
       values: nextValues,
       tagsInput: tagsToInput(nextValues.tags),

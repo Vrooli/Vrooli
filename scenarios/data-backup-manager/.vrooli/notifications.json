@@ -1,0 +1,10 @@
+{
+  "displayName": "Data Backup Manager",
+  "icon": "data-backup-manager",
+  "appDelivery": true,
+  "categories": [
+    { "key": "volume-mount-failed", "displayName": "Backup drive could not be mounted", "description": "Identity-bound automatic remount failed and the drive needs review.", "defaultEnabled": true, "defaultMinUrgency": "high" },
+    { "key": "volume-recovery-completed", "displayName": "Backup drive recovery completed", "description": "A requested drive recovery sequence completed and its resulting state was verified.", "defaultEnabled": true, "defaultMinUrgency": "normal" },
+    { "key": "volume-recovery-failed", "displayName": "Backup drive recovery needs attention", "description": "An approved or automatic recovery action failed, was refused, or needs inspection before it can safely continue.", "defaultEnabled": true, "defaultMinUrgency": "high" }
+  ]
+}

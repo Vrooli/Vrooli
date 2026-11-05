@@ -1,0 +1,83 @@
+{
+  "$comment": "Shared golden contract for the asset-stamp transformer. Two implementations exist for good reasons: the Vite plugin (TypeScript AST) stamps the production UI build, and the Go injector (api/internal/preview) stamps preview bundles that esbuild compiles outside the Vite graph. They must agree on WHICH node gets the marker, or the preview harness and the production oracle disagree about what was measured. Byte-identical output is not required — both implementations must satisfy every assertion below. Adding a case here is the way to pin a shared behaviour; it fails in both languages or neither.",
+  "version": 1,
+  "cases": [
+    {
+      "name": "stamps the owned root and removes forged authored markers",
+      "source": "export function Card() { return (<div data-rcl-asset=\"forged\"><span data-rcl-asset=\"child\" /></div>); }",
+      "sourcePath": "library/components/Card/versions/1.1.0/Card.tsx",
+      "asset": "primitives.card",
+      "version": "1.1.0",
+      "componentName": "Card",
+      "mustContain": ["data-rcl-asset=\"primitives.card\"", "data-rcl-version=\"1.1.0\"", "data-rcl-stamp=\"vite\""],
+      "mustNotContain": ["forged", "data-rcl-asset=\"child\""],
+      "assetMarkerCount": 1
+    },
+    {
+      "name": "skips a provider and a style element to reach the owned root",
+      "source": "export function Live() { return <Context.Provider value={null}><style>{\"\"}</style><div /></Context.Provider>; }",
+      "sourcePath": "library/services/Live/versions/1.0.0/Live.tsx",
+      "asset": "services.live",
+      "version": "1.0.0",
+      "componentName": "Live",
+      "mustContain": ["data-rcl-asset=\"services.live\""],
+      "mustNotContain": [],
+      "assetMarkerCount": 1
+    },
+    {
+      "name": "stamps a dynamic createElement root through its props object",
+      "source": "import { createElement } from \"react\"; export function Presence({ Component }) { return createElement(Component, { className: \"x\" }); }",
+      "sourcePath": "library/primitives/Presence/versions/1.0.0/Presence.tsx",
+      "asset": "motion.presence",
+      "version": "1.0.0",
+      "componentName": "Presence",
+      "mustContain": ["\"data-rcl-asset\": \"motion.presence\"", "\"data-rcl-version\": \"1.0.0\""],
+      "mustNotContain": [],
+      "assetMarkerCount": 1
+    },
+    {
+      "name": "does not let an earlier style helper hide the component root",
+      "source": "import { createElement } from \"react\"; export function Helper({ Component }) { createElement(\"style\", {}); return createElement(Component, {}); }",
+      "sourcePath": "library/primitives/Helper/versions/1.0.0/Helper.tsx",
+      "asset": "fixtures.dynamic-after-helper",
+      "version": "1.0.0",
+      "componentName": "Helper",
+      "mustContain": ["\"data-rcl-asset\": \"fixtures.dynamic-after-helper\""],
+      "mustNotContain": [],
+      "assetMarkerCount": 1
+    },
+    {
+      "name": "searches past a conditional fragment for an owned root",
+      "source": "export function Conditional({ visible }) { if (!visible) return <>{null}</>; return <main data-rcl-asset=\"forged\" />; }",
+      "sourcePath": "library/components/Conditional/versions/1.0.0/Conditional.tsx",
+      "asset": "fixtures.conditional-root",
+      "version": "1.0.0",
+      "componentName": "Conditional",
+      "mustContain": ["data-rcl-asset=\"fixtures.conditional-root\""],
+      "mustNotContain": ["forged"],
+      "assetMarkerCount": 1
+    },
+    {
+      "name": "stamps a self-closing owned root without breaking the tag",
+      "source": "export function Divider() { return <hr className=\"rule\" />; }",
+      "sourcePath": "library/primitives/Divider/versions/1.0.0/Divider.tsx",
+      "asset": "primitives.divider",
+      "version": "1.0.0",
+      "componentName": "Divider",
+      "mustContain": ["data-rcl-asset=\"primitives.divider\"", "/>"],
+      "mustNotContain": ["<hr className=\"rule\" data-rcl-asset=\"primitives.divider\" data-rcl-version=\"1.0.0\" data-rcl-stamp=\"vite\"/ >"],
+      "assetMarkerCount": 1
+    },
+    {
+      "name": "skips forwardRef type arguments to stamp the rendered root",
+      "source": "export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button(props, ref) { return <Pressable ref={ref} {...props} />; });",
+      "sourcePath": "library/components/Button/versions/2.2.0/Button.tsx",
+      "asset": "controls.button",
+      "version": "2.2.0",
+      "componentName": "Button",
+      "mustContain": ["data-rcl-asset=\"controls.button\"", "<Pressable ref={ref} {...props}"],
+      "mustNotContain": ["ButtonProps data-rcl-asset"],
+      "assetMarkerCount": 1
+    }
+  ]
+}

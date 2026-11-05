@@ -1,0 +1,812 @@
+{
+  "metadata": {
+    "name": "e21-channel-address-readback",
+    "description": "Edit a disposable owner channel address, review sensitivity changes, verify exact readback after reload, and discard a later draft without external effects. Also edit the existing Web Push content-access scope by exact row, never render its endpoint, and confirm owner-scoped readback.",
+    "requirement": "NOTIFICA-P0-005",
+    "version": "1",
+    "labels": {
+      "reset": "none",
+      "routed_isolation": "true",
+      "requires_confirmation": "true",
+      "surface": "settings-e21-channel-address-readback"
+    },
+    "execution_mode": "mutating"
+  },
+  "flow_definition": {
+    "metadata": {
+      "description": "Owner-routed disposable Reach channel update and discard recovery, with no enrollment or delivery effect.",
+      "requirement": "NOTIFICA-P0-005",
+      "version": "1",
+      "execution_mode": "mutating",
+      "owner": "notification-hub"
+    },
+    "settings": {
+      "viewport_width": 390,
+      "viewport_height": 844
+    },
+    "nodes": [
+      {
+        "id": "open-reach",
+        "action": {
+          "type": "ACTION_TYPE_NAVIGATE",
+          "navigate": {
+            "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+            "scenario": "notification-hub",
+            "scenario_path": "/settings/reach?vrooli_test_mode=1&e22_fixture=settings-owner&e22_case=e21-channel-address-readback",
+            "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE"
+          },
+          "metadata": {
+            "label": "Open the leased owner Reach editor fixture"
+          }
+        }
+      },
+      {
+        "id": "wait-reach",
+        "action": {
+          "type": "ACTION_TYPE_WAIT",
+          "wait": {
+            "selector": "[data-testid=\"reach-settings\"]",
+            "state": "WAIT_STATE_VISIBLE"
+          },
+          "metadata": {
+            "label": "Wait for owner-scoped Reach controls"
+          }
+        }
+      },
+      {
+        "id": "wait-device",
+        "action": {
+          "type": "ACTION_TYPE_WAIT",
+          "wait": {
+            "selector": "[data-testid=\"reach-device-e22-settings-device\"]",
+            "state": "WAIT_STATE_VISIBLE"
+          },
+          "metadata": {
+            "label": "Wait for the disposable fixture device and saved channels"
+          }
+        }
+      },
+      {
+        "id": "open-email-editor",
+        "action": {
+          "type": "ACTION_TYPE_CLICK",
+          "click": {
+            "selector": "text=Edit content access"
+          },
+          "metadata": {
+            "label": "Open the existing email destination by its saved owner row"
+          }
+        }
+      },
+      {
+        "id": "assert-starting-channel",
+        "action": {
+          "type": "ACTION_TYPE_EVALUATE",
+          "evaluate": {
+            "expression": "(()=>{const root=document.querySelector(\"[data-testid=reach-channel-editor]\");const input=root?.querySelector(\"input[type=email]\");const checked=[...(root?.querySelectorAll(\"input[type=checkbox]\")||[])].filter(x=>x.checked).length;if(input?.value!==\"owner@example.test\"||checked!==4)throw new Error(`fixture channel mismatch value=${input?.value} labels=${checked}`);return {address:input.value,approvedLabels:checked,editByExistingRow:true}})()"
+          },
+          "metadata": {
+            "label": "Verify the reserved example destination and existing approved-label state"
+          }
+        }
+      },
+      {
+        "id": "replace-email-address",
+        "action": {
+          "type": "ACTION_TYPE_INPUT",
+          "input": {
+            "selector": "[data-testid=\"reach-channel-editor\"] input[type=email]",
+            "value": "changed@example.test",
+            "clear_first": true
+          },
+          "metadata": {
+            "label": "Replace the destination with a reserved example address"
+          }
+        }
+      },
+      {
+        "id": "remove-sensitive-label",
+        "action": {
+          "type": "ACTION_TYPE_CLICK",
+          "click": {
+            "selector": "label:has-text(\"Sensitive\") input[type=checkbox]"
+          },
+          "metadata": {
+            "label": "Remove Sensitive approval in the editable draft"
+          }
+        }
+      },
+      {
+        "id": "remove-critical-label",
+        "action": {
+          "type": "ACTION_TYPE_CLICK",
+          "click": {
+            "selector": "label:has-text(\"Critical\") input[type=checkbox]"
+          },
+          "metadata": {
+            "label": "Remove Critical approval in the editable draft"
+          }
+        }
+      },
+      {
+        "id": "review-channel-change",
+        "action": {
+          "type": "ACTION_TYPE_CLICK",
+          "click": {
+            "selector": "text=Review changes"
+          },
+          "metadata": {
+            "label": "Review the destination and reduced content access before saving"
+          }
+        }
+      },
+      {
+        "id": "assert-channel-review",
+        "action": {
+          "type": "ACTION_TYPE_EVALUATE",
+          "evaluate": {
+            "expression": "(()=>{const root=document.querySelector(\"[data-testid=reach-channel-editor]\");const text=root?.textContent||\"\";const expected=[\"changed@example.test\",\"Approval change: adds no labels; removes sensitive, critical.\"];if(expected.some(part=>!text.includes(part)))throw new Error(`channel review mismatch ${text}`);return {address:\"changed@example.test\",approvedLabels:[\"public\",\"private\"],removalSummaryConfirmed:true,reviewed:true}})()"
+          },
+          "metadata": {
+            "label": "Confirm the reviewed destination and changed sensitivity"
+          }
+        }
+      },
+      {
+        "id": "save-channel-change",
+        "action": {
+          "type": "ACTION_TYPE_CLICK",
+          "click": {
+            "selector": "text=Save destination"
+          },
+          "metadata": {
+            "label": "Save the owner-scoped exact-ID address update"
+          }
+        }
+      },
+      {
+        "id": "wait-save-readback",
+        "action": {
+          "type": "ACTION_TYPE_WAIT",
+          "wait": {
+            "selector": "text=Destination and approved labels saved and confirmed by owner-scoped readback.",
+            "state": "WAIT_STATE_VISIBLE"
+          },
+          "metadata": {
+            "label": "Wait for authoritative owner-scoped channel save readback"
+          }
+        }
+      },
+      {
+        "id": "assert-save-readback",
+        "action": {
+          "type": "ACTION_TYPE_ASSERT",
+          "assert": {
+            "selector": "[role=\"status\"]",
+            "mode": "ASSERTION_MODE_TEXT_CONTAINS",
+            "expected": {
+              "string_value": "Destination and approved labels saved and confirmed by owner-scoped readback."
+            },
+            "timeout_ms": 10000,
+            "failure_message": "Confirm the latest owner-scoped address readback before reload"
+          },
+          "metadata": {
+            "label": "Confirm the latest owner-scoped address readback before reload"
+          }
+        }
+      },
+      {
+        "id": "reload-reach",
+        "action": {
+          "type": "ACTION_TYPE_NAVIGATE",
+          "navigate": {
+            "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+            "scenario": "notification-hub",
+            "scenario_path": "/settings/reach?vrooli_test_mode=1&e22_fixture=settings-owner&e22_case=e21-channel-address-readback",
+            "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE"
+          },
+          "metadata": {
+            "label": "Reload the same leased fixture to verify persisted destination and labels"
+          }
+        }
+      },
+      {
+        "id": "wait-reloaded-reach",
+        "action": {
+          "type": "ACTION_TYPE_WAIT",
+          "wait": {
+            "selector": "[data-testid=\"reach-device-e22-settings-device\"]",
+            "state": "WAIT_STATE_VISIBLE"
+          },
+          "metadata": {
+            "label": "Wait for authoritative device and channel readback after reload"
+          }
+        }
+      },
+      {
+        "id": "reopen-email-editor",
+        "action": {
+          "type": "ACTION_TYPE_CLICK",
+          "click": {
+            "selector": "text=Edit content access"
+          },
+          "metadata": {
+            "label": "Reopen the saved owner-scoped email row"
+          }
+        }
+      },
+      {
+        "id": "assert-persisted-channel",
+        "action": {
+          "type": "ACTION_TYPE_EVALUATE",
+          "evaluate": {
+            "expression": "(()=>{const root=document.querySelector(\"[data-testid=reach-channel-editor]\");const input=root?.querySelector(\"input[type=email]\");const checked=[...(root?.querySelectorAll(\"input[type=checkbox]\")||[])].filter(x=>x.checked).length;if(input?.value!==\"changed@example.test\"||checked!==2)throw new Error(`saved channel mismatch value=${input?.value} labels=${checked}`);return {address:input.value,approvedLabels:[\"public\",\"private\"],persistedAfterReload:true}})()"
+          },
+          "metadata": {
+            "label": "Verify updated address and sensitivity survived refresh"
+          }
+        }
+      },
+      {
+        "id": "stage-discarded-address",
+        "action": {
+          "type": "ACTION_TYPE_INPUT",
+          "input": {
+            "selector": "[data-testid=\"reach-channel-editor\"] input[type=email]",
+            "value": "changed@example.test",
+            "clear_first": true
+          },
+          "metadata": {
+            "label": "Keep the saved address unchanged while staging a label-only draft for the selected review state"
+          }
+        }
+      },
+      {
+        "id": "add-sensitive-to-discard-draft",
+        "action": {
+          "type": "ACTION_TYPE_CLICK",
+          "click": {
+            "selector": "label:has-text(\"Sensitive\") input[type=\"checkbox\"]"
+          },
+          "metadata": {
+            "label": "Stage a sensitivity addition to review against saved approvals"
+          }
+        }
+      },
+      {
+        "id": "request-discard",
+        "action": {
+          "type": "ACTION_TYPE_CLICK",
+          "click": {
+            "selector": "text=Cancel"
+          },
+          "metadata": {
+            "label": "Ask to discard the unsaved address draft"
+          }
+        }
+      },
+      {
+        "id": "wait-discard-review",
+        "action": {
+          "type": "ACTION_TYPE_WAIT",
+          "wait": {
+            "selector": "[data-testid=\"reach-channel-discard-review\"]",
+            "state": "WAIT_STATE_VISIBLE"
+          },
+          "metadata": {
+            "label": "Wait for the explicit draft-discard review"
+          }
+        }
+      },
+      {
+        "id": "assert-discard-summary",
+        "action": {
+          "type": "ACTION_TYPE_EVALUATE",
+          "evaluate": {
+            "expression": "(()=>{const root=document.querySelector(\"[data-testid=reach-channel-discard-review]\");const text=root?.innerText||\"\";const header=document.querySelector(\"[data-selected-quiet-editor-header]\");const buttons=[...(root?.querySelectorAll(\"button\")||[])].map(button=>button.innerText.trim());const expected=[\"Public, Private\",\"Draft adds Sensitive\",\"Your draft adds Sensitive to the full-content labels for this device.\",\"before returning to Devices\"];if(expected.some(part=>!text.includes(part))||text.includes(\"Saved destination\")||text.includes(\"Draft destination\")||text.includes(\"Draft removes\"))throw new Error(`discard review differs from the selected label-only state: ${text}`);if(!header?.innerText.includes(\"Content access\")||!header.innerText.includes(\"E22 settings fixture device\"))throw new Error(\"content-access device header is missing\");if(!buttons.some(label=>label===\"Keep editing\")||!buttons.some(label=>label===\"Discard changes\"))throw new Error(\"discard actions are missing\");return {savedApprovals:[\"Public\",\"Private\"],draftAdds:[\"Sensitive\"],contextHeader:header.innerText,unchangedDestinationsHidden:true,visibleActions:buttons}})()"
+          },
+          "metadata": {
+            "label": "Verify exact saved and unsaved channel values and visible recovery actions"
+          }
+        }
+      },
+      {
+        "id": "normalize-discard-capture-safe-area",
+        "action": {
+          "type": "ACTION_TYPE_EVALUATE",
+          "evaluate": {
+            "expression": "(()=>{document.activeElement instanceof HTMLElement&&document.activeElement.blur();const root=document.documentElement;root.style.setProperty(\"--safe-area-inset-top\",\"0px\");root.style.setProperty(\"--safe-area-inset-bottom\",\"0px\");const theme=root.getAttribute(\"data-resolved-theme\")||root.getAttribute(\"data-theme\");const top=getComputedStyle(root).getPropertyValue(\"--safe-area-inset-top\").trim(),bottom=getComputedStyle(root).getPropertyValue(\"--safe-area-inset-bottom\").trim();if(innerWidth!==390||innerHeight!==844||theme!==\"light\"||top!==\"0px\"||bottom!==\"0px\")throw new Error(`Selected discard capture viewport mismatch ${innerWidth}x${innerHeight},${theme},${top},${bottom}`);return {viewport:{width:innerWidth,height:innerHeight},theme,top,bottom}})()"
+          },
+          "metadata": {
+            "label": "Match the selected light phone viewport with zero safe-area insets before capture"
+          }
+        }
+      },
+      {
+        "id": "capture-discard-review",
+        "action": {
+          "type": "ACTION_TYPE_SCREENSHOT",
+          "screenshot": {
+            "full_page": false
+          },
+          "metadata": {
+            "label": "Capture the dedicated owner channel draft discard review before confirmation"
+          }
+        }
+      },
+      {
+        "id": "confirm-discard",
+        "action": {
+          "type": "ACTION_TYPE_CLICK",
+          "click": {
+            "selector": "text=Discard changes"
+          },
+          "metadata": {
+            "label": "Discard only the unsaved local draft"
+          }
+        }
+      },
+      {
+        "id": "reopen-after-discard",
+        "action": {
+          "type": "ACTION_TYPE_CLICK",
+          "click": {
+            "selector": "text=Edit content access"
+          },
+          "metadata": {
+            "label": "Reopen the saved row after discarding its draft"
+          }
+        }
+      },
+      {
+        "id": "assert-discard-preserved-saved",
+        "action": {
+          "type": "ACTION_TYPE_EVALUATE",
+          "evaluate": {
+            "expression": "(()=>{const root=document.querySelector(\"[data-testid=reach-channel-editor]\");const input=root?.querySelector(\"input[type=email]\");if(input?.value!==\"changed@example.test\")throw new Error(`discard changed saved address to ${input?.value}`);return {savedAddressStill:\"changed@example.test\",draftDiscarded:true}})()"
+          },
+          "metadata": {
+            "label": "Confirm discard left the persisted destination unchanged"
+          }
+        }
+      },
+      {
+        "id": "capture-channel-readback",
+        "action": {
+          "type": "ACTION_TYPE_SCREENSHOT",
+          "screenshot": {
+            "full_page": false
+          },
+          "metadata": {
+            "label": "Capture the current light phone Reach channel editor after persistence readback"
+          }
+        }
+      },
+      {
+        "id": "reload-reach-for-webpush",
+        "action": {
+          "type": "ACTION_TYPE_NAVIGATE",
+          "navigate": {
+            "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+            "scenario": "notification-hub",
+            "scenario_path": "/settings/reach?vrooli_test_mode=1&e22_fixture=settings-owner&e22_case=e21-channel-address-readback",
+            "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE"
+          },
+          "metadata": {
+            "label": "Return to the device list before switching channel editors"
+          }
+        }
+      },
+      {
+        "id": "wait-device-for-webpush",
+        "action": {
+          "type": "ACTION_TYPE_WAIT",
+          "wait": {
+            "selector": "[data-testid=\"reach-device-e22-settings-device\"]",
+            "state": "WAIT_STATE_VISIBLE"
+          },
+          "metadata": {
+            "label": "Wait for the disposable owner device before opening Web Push"
+          }
+        }
+      },
+      {
+        "id": "open-webpush-content-access",
+        "action": {
+          "type": "ACTION_TYPE_CLICK",
+          "click": {
+            "selector": "#reach-channel-entry-e22-settings-device-web_push"
+          },
+          "metadata": {
+            "label": "Open Web Push content access from its existing owner row"
+          }
+        }
+      },
+      {
+        "id": "assert-webpush-private-editor",
+        "action": {
+          "type": "ACTION_TYPE_EVALUATE",
+          "evaluate": {
+            "expression": "(()=>{const root=document.querySelector(\"[data-testid=reach-channel-editor]\");const header=document.querySelector(\"[data-testid=reach-email-focused-header]\");const text=root?.innerText||\"\";const headerText=header?.innerText||\"\";const page=document.body.innerText||\"\";if(!root||!header||!headerText.includes(\"This browser · unchanged\")||page.includes(\"fixture://web_push\")||!text.includes(\"Saved: Public, Private, Sensitive, Critical\"))throw new Error(`private Web Push editor mismatch: header=${headerText}; editor=${text}`);return {editor:\"web_push\",endpointRendered:false,destinationUnchanged:true,savedLabels:[\"public\",\"private\",\"sensitive\",\"critical\"]}})()"
+          },
+          "metadata": {
+            "label": "Verify the existing Web Push row opens a private endpoint editor"
+          }
+        }
+      },
+      {
+        "id": "capture-webpush-editor",
+        "action": {
+          "type": "ACTION_TYPE_SCREENSHOT",
+          "screenshot": {
+            "full_page": false
+          },
+          "metadata": {
+            "label": "Capture the selected current Web Push content-access editor state"
+          }
+        }
+      },
+      {
+        "id": "remove-webpush-sensitive",
+        "action": {
+          "type": "ACTION_TYPE_CLICK",
+          "click": {
+            "selector": "[data-testid=\"reach-channel-editor\"] label:has-text(\"Sensitive\") input[type=\"checkbox\"]"
+          },
+          "metadata": {
+            "label": "Change one supported content-access label"
+          }
+        }
+      },
+      {
+        "id": "review-webpush-content-access",
+        "action": {
+          "type": "ACTION_TYPE_CLICK",
+          "click": {
+            "selector": "text=Review changes"
+          },
+          "metadata": {
+            "label": "Review the Web Push scope change before saving"
+          }
+        }
+      },
+      {
+        "id": "assert-webpush-review",
+        "action": {
+          "type": "ACTION_TYPE_EVALUATE",
+          "evaluate": {
+            "expression": "(()=>{const root=document.querySelector(\"[data-testid=reach-channel-editor]\");const text=root?.innerText||\"\";const header=document.querySelector(\"[data-testid=reach-email-focused-header]\");const headerText=header?.innerText||\"\";const page=document.body.innerText||\"\";const expected=[\"Before: Public, Private, Sensitive, Critical\",\"After: Public, Private, Critical\"];if(!root||!text.toLowerCase().includes(\"content-access change\")||!text.includes(\"browser destination stays unchanged\")||!headerText.includes(\"This browser · unchanged\")||expected.some(part=>!text.includes(part))||page.includes(\"fixture://web_push\"))throw new Error(`Web Push review mismatch: header=${headerText}; review=${text}`);return {endpointRendered:false,destinationUnchanged:true,reviewed:true,approvedLabels:[\"public\",\"private\",\"critical\"]}})()"
+          },
+          "metadata": {
+            "label": "Confirm the review keeps the browser endpoint private"
+          }
+        }
+      },
+      {
+        "id": "save-webpush-content-access",
+        "action": {
+          "type": "ACTION_TYPE_CLICK",
+          "click": {
+            "selector": "text=Save content access"
+          },
+          "metadata": {
+            "label": "Save the exact Web Push row content-access change"
+          }
+        }
+      },
+      {
+        "id": "wait-webpush-readback",
+        "action": {
+          "type": "ACTION_TYPE_WAIT",
+          "wait": {
+            "selector": "text=Content access saved and confirmed by owner-scoped readback. The browser destination is unchanged.",
+            "state": "WAIT_STATE_VISIBLE"
+          },
+          "metadata": {
+            "label": "Wait for authoritative owner-scoped content-access readback"
+          }
+        }
+      },
+      {
+        "id": "reload-webpush-readback",
+        "action": {
+          "type": "ACTION_TYPE_NAVIGATE",
+          "navigate": {
+            "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+            "scenario": "notification-hub",
+            "scenario_path": "/settings/reach?vrooli_test_mode=1&e22_fixture=settings-owner&e22_case=e21-channel-address-readback",
+            "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE"
+          },
+          "metadata": {
+            "label": "Reload Reach to prove saved Web Push content access persists"
+          }
+        }
+      },
+      {
+        "id": "wait-webpush-device",
+        "action": {
+          "type": "ACTION_TYPE_WAIT",
+          "wait": {
+            "selector": "[data-testid=\"reach-device-e22-settings-device\"]",
+            "state": "WAIT_STATE_VISIBLE"
+          },
+          "metadata": {
+            "label": "Wait for the owner-scoped device after reload"
+          }
+        }
+      },
+      {
+        "id": "reopen-webpush-content-access",
+        "action": {
+          "type": "ACTION_TYPE_CLICK",
+          "click": {
+            "selector": "#reach-channel-entry-e22-settings-device-web_push"
+          },
+          "metadata": {
+            "label": "Reopen the same Web Push address row after reload"
+          }
+        }
+      },
+      {
+        "id": "assert-webpush-persisted",
+        "action": {
+          "type": "ACTION_TYPE_EVALUATE",
+          "evaluate": {
+            "expression": "(()=>{const root=document.querySelector(\"[data-testid=reach-channel-editor]\");const header=document.querySelector(\"[data-testid=reach-email-focused-header]\");const text=root?.innerText||\"\";const headerText=header?.innerText||\"\";const checks=[...(root?.querySelectorAll(\"input[type=checkbox]\")||[])];const checkedLabels=checks.filter(x=>x.checked).map(x=>x.closest(\"label\")?.innerText.trim()).sort();const summary=root?.querySelector(\"[data-testid=reach-content-access-draft-diff]\")?.innerText||\"\";const page=document.body.innerText||\"\";const expected=[\"Critical\",\"Private\",\"Public\"];if(!root||!header||!headerText.includes(\"This browser · unchanged\")||page.includes(\"fixture://web_push\")||JSON.stringify(checkedLabels)!==JSON.stringify(expected)||!summary.includes(\"Saved: Public, Private, Critical\"))throw new Error(`Web Push saved readback mismatch: header=${headerText}; editor=${text}; checked=${checkedLabels.join(\",\")}; summary=${summary}`);return {endpointRendered:false,destinationUnchanged:true,approvedLabels:[\"public\",\"private\",\"critical\"],persistedAfterReload:true}})()"
+          },
+          "metadata": {
+            "label": "Verify the exact Web Push scope and private destination after reload"
+          }
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "e21-channel-00",
+        "source": "open-reach",
+        "target": "wait-reach",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e21-channel-01",
+        "source": "wait-reach",
+        "target": "wait-device",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e21-channel-02",
+        "source": "wait-device",
+        "target": "open-email-editor",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e21-channel-03",
+        "source": "open-email-editor",
+        "target": "assert-starting-channel",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e21-channel-04",
+        "source": "assert-starting-channel",
+        "target": "replace-email-address",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e21-channel-05",
+        "source": "replace-email-address",
+        "target": "remove-sensitive-label",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e21-channel-07",
+        "source": "remove-sensitive-label",
+        "target": "remove-critical-label",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e21-channel-08",
+        "source": "remove-critical-label",
+        "target": "review-channel-change",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e21-channel-09",
+        "source": "review-channel-change",
+        "target": "assert-channel-review",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e21-channel-10",
+        "source": "assert-channel-review",
+        "target": "save-channel-change",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e21-channel-11",
+        "source": "save-channel-change",
+        "target": "wait-save-readback",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e21-channel-12",
+        "source": "assert-save-readback",
+        "target": "reload-reach",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e21-channel-13",
+        "source": "reload-reach",
+        "target": "wait-reloaded-reach",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e21-channel-14",
+        "source": "wait-reloaded-reach",
+        "target": "reopen-email-editor",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e21-channel-15",
+        "source": "reopen-email-editor",
+        "target": "assert-persisted-channel",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e21-channel-16",
+        "source": "assert-persisted-channel",
+        "target": "stage-discarded-address",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e21-channel-17",
+        "source": "stage-discarded-address",
+        "target": "add-sensitive-to-discard-draft",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e21-channel-18",
+        "source": "add-sensitive-to-discard-draft",
+        "target": "request-discard",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e21-channel-19",
+        "source": "request-discard",
+        "target": "wait-discard-review",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e21-channel-20",
+        "source": "wait-discard-review",
+        "target": "assert-discard-summary",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e21-channel-21",
+        "source": "assert-discard-summary",
+        "target": "normalize-discard-capture-safe-area",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e21-channel-22",
+        "source": "confirm-discard",
+        "target": "reopen-after-discard",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e21-channel-23",
+        "source": "reopen-after-discard",
+        "target": "assert-discard-preserved-saved",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e21-channel-24",
+        "source": "assert-discard-preserved-saved",
+        "target": "capture-channel-readback",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e21-channel-25",
+        "source": "wait-save-readback",
+        "target": "assert-save-readback",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e21-channel-26",
+        "source": "capture-discard-review",
+        "target": "confirm-discard",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e21-channel-27",
+        "source": "normalize-discard-capture-safe-area",
+        "target": "capture-discard-review",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e21-channel-webpush-01",
+        "source": "open-webpush-content-access",
+        "target": "assert-webpush-private-editor",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e21-channel-webpush-03",
+        "source": "remove-webpush-sensitive",
+        "target": "review-webpush-content-access",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e21-channel-webpush-04",
+        "source": "review-webpush-content-access",
+        "target": "assert-webpush-review",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e21-channel-webpush-05",
+        "source": "assert-webpush-review",
+        "target": "save-webpush-content-access",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e21-channel-webpush-06",
+        "source": "save-webpush-content-access",
+        "target": "wait-webpush-readback",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e21-channel-webpush-07",
+        "source": "wait-webpush-readback",
+        "target": "reload-webpush-readback",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e21-channel-webpush-08",
+        "source": "reload-webpush-readback",
+        "target": "wait-webpush-device",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e21-channel-webpush-09",
+        "source": "wait-webpush-device",
+        "target": "reopen-webpush-content-access",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e21-channel-webpush-10",
+        "source": "reopen-webpush-content-access",
+        "target": "assert-webpush-persisted",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e21-channel-webpush-00",
+        "source": "capture-channel-readback",
+        "target": "reload-reach-for-webpush",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e21-channel-webpush-00a",
+        "source": "reload-reach-for-webpush",
+        "target": "wait-device-for-webpush",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e21-channel-webpush-00b",
+        "source": "wait-device-for-webpush",
+        "target": "open-webpush-content-access",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e21-channel-webpush-capture-00",
+        "source": "assert-webpush-private-editor",
+        "target": "capture-webpush-editor",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e21-channel-webpush-capture-01",
+        "source": "capture-webpush-editor",
+        "target": "remove-webpush-sensitive",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      }
+    ]
+  }
+}

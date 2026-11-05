@@ -51,7 +51,7 @@ func (h *Handlers) maybeAutoNameChat(ctx context.Context, chatID string) {
 		return
 	}
 
-	if _, err := h.Repo.UpdateChat(ctx, chatID, &name, nil, nil); err != nil {
+	if _, err := h.Repo.UpdateChat(ctx, chatID, &name, nil); err != nil {
 		log.Printf("[DEBUG] maybeAutoNameChat update failed for chat %s: %v", chatID, err)
 	}
 }

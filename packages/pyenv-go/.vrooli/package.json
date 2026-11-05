@@ -1,0 +1,19 @@
+{
+  "$schema": "schemas/package.schema.json",
+  "version": "1.0.0",
+  "package": {
+    "name": "pyenv-go",
+    "display_name": "github.com/vrooli/pyenv-go",
+    "description": "Python environment provisioning contract for scenario APIs.",
+    "kind": "go_runtime",
+    "language": "go",
+    "module_identifiers": ["github.com/vrooli/pyenv-go"],
+    "adoption": {
+      "scenario_adoptable": true,
+      "allowed_consumers": ["scenario_api"],
+      "adoption_modes": ["go_module_replace"]
+    },
+    "lifecycle": {},
+    "refresh": {"strategy": "none", "restart_running_consumers": false}
+  }
+}

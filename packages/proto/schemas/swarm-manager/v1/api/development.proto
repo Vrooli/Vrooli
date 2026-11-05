@@ -1,0 +1,177 @@
+syntax = "proto3";
+package vrooli.swarm_manager.v1.api;
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api;api";
+
+// Retained governed-work decisions. None of these operations launches work.
+service DevelopmentService {
+  rpc GetDevelopment(GetDevelopmentRequest) returns (GetDevelopmentResponse);
+  rpc GetDevelopmentArtifact(GetDevelopmentArtifactRequest) returns (GetDevelopmentArtifactResponse);
+  rpc ApproveDevelopment(ApproveDevelopmentRequest) returns (DevelopmentDecisionResponse);
+  rpc RevokeDevelopment(RevokeDevelopmentRequest) returns (DevelopmentDecisionResponse);
+  rpc AcceptDevelopment(AcceptDevelopmentRequest) returns (DevelopmentDecisionResponse);
+}
+message DevelopmentReference {
+  string effort_id = 1;
+  int64 revision = 2;
+  string authority_digest = 3;
+  // Owner-computed authored contract and full finite commission subject bindings.
+  string contract_digest = 4;
+  string commission_subject_digest = 5;
+}
+message DevelopmentArtifact {
+  string id = 1;
+  string relative_path = 2;
+  string sha256 = 3;
+  int64 size_bytes = 4;
+  string media_type = 5;
+  string captured_at = 6;
+  string snapshot_digest = 7;
+}
+message DevelopmentLimits {
+  int32 max_workers = 1;
+  int32 max_concurrency = 2;
+  int32 max_depth = 3;
+  int32 max_active_descendants = 4;
+  int32 max_premium_descendants = 5;
+  int64 max_tokens = 6;
+  int64 max_charge_micro_usd = 7;
+  int64 max_wall_seconds = 8;
+  int32 max_wait_seconds = 9;
+  string deadline = 10;
+}
+message DevelopmentView {
+  DevelopmentReference reference = 1;
+  string work_shape = 2;
+  // Compatibility display mirror of owner.subject, never alternate authority.
+  string owner_subject = 3;
+  repeated string scope_allow = 4;
+  repeated string scope_deny = 5;
+  DevelopmentLimits limits = 6;
+  // Canonical finite commission generation; outcome acceptance never changes it.
+  uint64 generation = 7;
+  bool approved = 8;
+  bool revoked = 9;
+  repeated DevelopmentArtifact artifacts = 10;
+  repeated string launch_blockers = 11;
+  bool outcome_accepted = 12;
+  string tested_product_digest = 13;
+  repeated string evidence_receipt_ids = 14;
+  // Unknown accounting remains unknown. A view never reconciles reservations.
+  string accounting_status = 15;
+  DevelopmentActor owner = 16;
+  string evidence_set_digest = 17;
+  repeated DevelopmentCriterionEvidence criteria = 18;
+  uint64 disposition_version = 19;
+  repeated DevelopmentDecisionResponse retained_decisions = 20;
+  DevelopmentAccounting accounting = 21;
+  repeated string required_criterion_ids = 22;
+}
+message GetDevelopmentRequest { string effort_id = 1; }
+message GetDevelopmentResponse { DevelopmentView development = 1; }
+message GetDevelopmentArtifactRequest {
+  DevelopmentReference reference = 1;
+  string artifact_id = 2;
+}
+message GetDevelopmentArtifactResponse {
+  DevelopmentArtifact artifact = 1;
+  bytes content = 2;
+  DevelopmentReference reference = 3;
+}
+message ApproveDevelopmentRequest {
+  DevelopmentReference reference = 1;
+  optional uint64 expected_generation = 2;
+  string request_id = 3;
+}
+message RevokeDevelopmentRequest {
+  DevelopmentReference reference = 1;
+  optional uint64 expected_generation = 2;
+  string request_id = 3;
+}
+message AcceptDevelopmentRequest {
+  DevelopmentReference reference = 1;
+  optional uint64 expected_generation = 2;
+  string request_id = 3;
+  // Expected owner-read product state, never evidence supplied by the caller.
+  string tested_product_digest = 4;
+  optional uint64 expected_disposition_version = 5;
+}
+message DevelopmentDecisionResponse {
+  string request_id = 1;
+  string action = 2;
+  DevelopmentReference reference = 3;
+  uint64 generation = 4;
+  // Compatibility display mirror of actor.subject, never alternate authority.
+  string actor_subject = 5;
+  string decided_at = 6;
+  string evidence_set_digest = 7;
+  DevelopmentActor actor = 8;
+  string tested_product_digest = 9;
+  repeated DevelopmentCriterionEvidence criteria = 10;
+  // Immutable fingerprint of the exact reference/action/request/result.
+  string receipt_digest = 11;
+  uint64 disposition_version = 12;
+}
+// A preview is a caller proposal, never an owner-approved or retained artifact.
+// The server chooses the root and visibility; paths cannot choose host roots.
+message DevelopmentProposal {
+  string work_shape = 1;
+  string title = 2;
+  string description = 3;
+  repeated string required_criterion_ids = 4;
+  repeated string scope_allow = 5;
+  repeated string scope_deny = 6;
+  DevelopmentLimits limits = 7;
+  repeated string source_relative_paths = 8;
+  // Canonical baseline ceilings still apply; preview cannot grant these effects.
+  repeated string proposed_effects = 9;
+  string target_subject_ref = 10;
+}
+message PreviewDevelopmentRequest {
+  DevelopmentReference reference = 1;
+  DevelopmentProposal proposal = 2;
+}
+message PreviewDevelopmentResponse {
+  DevelopmentReference reference = 1;
+  // Read-only observations at preview time, never retained snapshot claims.
+  repeated DevelopmentSourceObservation observed_sources = 2;
+  string proposal_digest = 3;
+  repeated string launch_blockers = 4;
+  DevelopmentProposal proposal = 5;
+  repeated string completeness_findings = 6;
+  repeated string conflicts = 7;
+}
+
+// Output only: all actor fields come from the shared verified authn principal.
+// Neither subject strings nor caller-provided headers are identity proof.
+message DevelopmentActor {
+  string subject = 1;
+  string provider = 2;
+  string realm = 3;
+  string source = 4;
+}
+// Output only, resolved and freshness-fenced by the actual evidence owner.
+// Required criterion IDs come from the authored contract, not this request.
+message DevelopmentCriterionEvidence {
+  string criterion_id = 1;
+  repeated string receipt_ids = 2;
+  string receipt_set_digest = 3;
+  string tested_product_digest = 4;
+  bool satisfied = 5;
+  string unavailable_reason = 6;
+}
+
+message DevelopmentSourceObservation {
+  string relative_path = 1;
+  string sha256 = 2;
+  int64 size_bytes = 3;
+  string media_type = 4;
+}
+// Numbers are present only when the canonical accounting owner knows them.
+// The read adapter never reconciles or defaults unknown usage to zero.
+message DevelopmentAccounting {
+  string status = 1;
+  optional int64 tokens = 2;
+  optional int64 charge_micro_usd = 3;
+  optional int64 wall_seconds = 4;
+  optional int32 active_descendants = 5;
+}

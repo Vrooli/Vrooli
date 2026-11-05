@@ -1,0 +1,62 @@
+{
+  "$schema": "../../../../.vrooli/schemas/safeguard.schema.json",
+  "name": "keyring_daemon_limits",
+  "storage": {
+    "entries": {},
+    "rationale": "The safeguard writes one systemd user drop-in inside the invoking user's home and restarts a user unit; it needs no privilege and creates no host-wide state."
+  },
+  "description": "Raise gnome-keyring-daemon's file-descriptor limit through a systemd user drop-in and restart the daemon when it nears the limit, so a client leak cannot wedge secret access, console login, and the system log",
+  "handler": "keyring_daemon_limits",
+  "risk": "medium",
+  "config": {
+    "nofile_limit": 65536,
+    "restart_saturation_percent": 50
+  },
+  "verificationCheck": {
+    "files": [
+      "$USER_HOME/.config/systemd/user/gnome-keyring-daemon.service.d/99-vrooli-limits.conf"
+    ]
+  },
+  "privilege": "user",
+  "bundling": "prohibited",
+  "capability": "credential-storage",
+  "capability_role": "control",
+  "deployment": {
+    "profiles": {
+      "desktop": {
+        "linux": {
+          "support": "unsupported",
+          "mode": "manual",
+          "reason": "Host safeguards mutate host state and cannot ship in a desktop bundle."
+        },
+        "macos": {
+          "support": "unsupported",
+          "mode": "manual",
+          "reason": "Host safeguards mutate host state and cannot ship in a desktop bundle."
+        },
+        "windows": {
+          "support": "unsupported",
+          "mode": "manual",
+          "reason": "Host safeguards mutate host state and cannot ship in a desktop bundle."
+        }
+      }
+    }
+  },
+  "platform_status": {
+    "linux": {
+      "status": "unqualified",
+      "evidence": null
+    },
+    "macos": {
+      "status": "not_applicable",
+      "evidence": "macOS keeps credentials in Keychain Services, which has no per-daemon descriptor limit failure mode.",
+      "review_by": "2027-09-01"
+    },
+    "windows": {
+      "status": "not_applicable",
+      "evidence": "Windows keeps credentials in Credential Manager / DPAPI, which has no per-daemon descriptor limit failure mode.",
+      "review_by": "2027-09-01"
+    }
+  },
+  "risk_class": "reload_live"
+}

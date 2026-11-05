@@ -1,0 +1,19 @@
+{
+  "kind": "agent",
+  "schemaVersion": 1,
+  "id": "vega-redesign-orchestrator",
+  "displayName": "Vega Redesign Orchestrator",
+  "description": "Own the full Vega redesign destination in .vrooli/work/delivery/vega-redesign-delivery/CHARTER.md; delegate substantial implementation outcomes and independently verify the effective design target. Preparation only; no execution before owner enablement.",
+  "status": "active",
+  "appearance": {
+    "body": "#3B82F6",
+    "head": "#F59E0B",
+    "accent": "#10B981"
+  },
+  "fileOrder": [
+    "AGENT.md"
+  ],
+  "revision": 1,
+  "createdAt": "2026-10-25T18:42:09Z",
+  "updatedAt": "2026-10-25T18:42:09Z"
+}

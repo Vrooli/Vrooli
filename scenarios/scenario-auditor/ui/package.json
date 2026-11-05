@@ -4,8 +4,9 @@
   "version": "2.0.0",
   "type": "module",
   "scripts": {
-    "dev": "bash -c '${VROOLI_ROOT:-$(git rev-parse --show-toplevel)}/scripts/lib/ui-guard.sh vite'",
-    "build": "tsc -b && vite build",
+    "dev": "vrooli lifecycle protect -- vite",
+    "build": "npm run typecheck && vite build",
+    "lint": "eslint . --max-warnings 0",
     "preview": "vite preview --host 0.0.0.0",
     "typecheck": "tsc --noEmit"
   },

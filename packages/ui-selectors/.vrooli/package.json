@@ -1,0 +1,56 @@
+{
+  "$schema": "schemas/package.schema.json",
+  "version": "1.0.0",
+  "package": {
+    "name": "ui-selectors",
+    "display_name": "@vrooli/ui-selectors",
+    "description": "Framework-independent UI selector definitions and portable manifest contract.",
+    "kind": "js_runtime",
+    "language": "javascript",
+    "module_identifiers": [
+      "@vrooli/ui-selectors"
+    ],
+    "adoption": {
+      "scenario_adoptable": true,
+      "allowed_consumers": [
+        "scenario_ui",
+        "template_ui"
+      ],
+      "adoption_modes": [
+        "file_dependency"
+      ]
+    },
+    "lifecycle": {
+      "build": [
+        {
+          "name": "build",
+          "run": [
+            "node",
+            "scripts/build.mjs"
+          ],
+          "outputs": [
+            "dist/**"
+          ]
+        }
+      ],
+      "test": [
+        {
+          "name": "test",
+          "run": [
+            "node",
+            "--test",
+            "test/registry.test.mjs",
+            "test/discovery.test.mjs"
+          ]
+        }
+      ]
+    },
+    "refresh": {
+      "strategy": "scenario_setup",
+      "restart_running_consumers": false
+    },
+    "docs": [
+      "packages/ui-selectors/README.md"
+    ]
+  }
+}

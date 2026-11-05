@@ -1,0 +1,35 @@
+{
+  "catalogId": "data-display.time-mention",
+  "category": "uncategorized",
+  "deprecatedVersions": [
+    "1.0.0",
+    "1.0.1",
+    "1.0.2"
+  ],
+  "description": "Times, dates and durations in prose, put into the reader's frame: local time beside the original, live deadline countdowns, and a details card.",
+  "designStyles": [
+    {
+      "affinity": "native",
+      "reason": "token-native operational-console baseline",
+      "styleId": "vrooli-default"
+    }
+  ],
+  "displayName": "TimeMention",
+  "draft": "",
+  "entry": "TimeMention.tsx",
+  "evictedVersions": [
+    "1.0.0",
+    "1.0.1",
+    "1.0.2"
+  ],
+  "kind": "control",
+  "latest": "1.0.3",
+  "libraryId": "react-component-library:TimeMention",
+  "slot": "ui-primitive",
+  "tags": [
+    "data-display",
+    "markdown",
+    "time",
+    "i18n"
+  ]
+}

@@ -1,0 +1,1 @@
+{"_source":"t0 + 10s under memory exhaustion; host has no paging file counter","pages_input_total":81284567,"page_reads_total":20355678,"paging_file_error":"PdhAddEnglishCounterW(\\Paging File(_Total)\\% Usage): PDH status 0xc0000bb8","commit_charge":33285996544,"commit_limit":34359738368,"low_memory":true}

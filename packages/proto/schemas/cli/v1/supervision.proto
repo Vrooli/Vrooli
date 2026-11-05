@@ -1,0 +1,35 @@
+syntax = "proto3";
+
+package vrooli.cli.v1;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/cli/v1;cliv1";
+
+// One link from a supervised member back toward its operator-granted seed.
+message SupervisionAttributionStep {
+  string name = 1;
+  string kind = 2;
+  string declared_by = 3;
+  string supervision_intent = 4;
+  string source = 5;
+}
+
+// One scenario or resource in the computed supervision set.
+message SupervisionMember {
+  string name = 1;
+  string kind = 2;
+  string supervision_intent = 3;
+  repeated SupervisionAttributionStep attribution_chain = 4;
+}
+
+// Database-free supervision closure derived from operator authority and
+// canonical manifests. This is an output contract, not a stored authority.
+message SupervisionSetResponse {
+  string source = 1;
+  repeated string core_set = 2;
+  repeated string seed = 3;
+  repeated string added_by_closure = 4;
+  repeated string trusted_base = 5;
+  repeated SupervisionMember members = 6;
+  map<string, int32> member_counts = 7;
+  map<string, string> load_errors = 8;
+}

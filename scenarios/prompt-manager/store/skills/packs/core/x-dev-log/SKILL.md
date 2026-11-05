@@ -1,3 +1,23 @@
+---
+name: "x-dev-log"
+description: "Generate X/Twitter dev log threads by mining Vrooli scenario activity (git-control-tower, agent-manager, swarm-manager, app-issue-tracker)"
+license: "CC-BY-4.0"
+metadata:
+  kind: "skill"
+  schemaVersion: 1
+  modes: ["tools"]
+  tags: ["skill"]
+  icon: "messagecircle"
+  status: "active"
+  revision: 43
+  createdAt: "2026-01-29T00:00:00Z"
+  updatedAt: "2026-02-04T13:13:54Z"
+  requires:
+    scenarios: ["git-control-tower", "prompt-manager", "swarm-manager", "vrooli"]
+    commands: ["git-control-tower", "prompt-manager work", "swarm-manager", "vrooli scenario"]
+  origin:
+    kind: "authored"
+---
 ## Tools focus: X Dev Log Generator
 
 Generate engaging X/Twitter dev log threads by mining activity data from Vrooli scenarios for a given time period. Outputs draft content for review before posting.
@@ -28,6 +48,16 @@ Required scenarios (check with `vrooli scenario status`):
 - **agent-manager** - agent runs, events, costs
 - **swarm-manager** - backlog items and transitions
 - **app-issue-tracker** - issues and investigations
+
+Required reading (every run):
+- `docs/marketing/catalogs/post-types/text/dev-log.md` — type-level strategic canon (purpose, audience, conversion goal, voice rules, what→why framing, contrarian failure modes). **Load-bearing.**
+- `docs/marketing/operating/OPERATING_MODEL.md` — team workflow canon: advertiser lanes draft from evidence, publisher releases, brand-manager owns canon and artifact requests.
+- `docs/marketing/strategy/STRATEGY.md` — voice canon (Voice section, Voice samples, Anti-patterns).
+- `docs/marketing/methods/post-techniques/essay-shape.md`
+- `docs/marketing/methods/post-techniques/hook-vs-body-asymmetry.md`
+- `docs/marketing/methods/post-techniques/intro-on-first-mention.md`
+- `docs/marketing/methods/post-techniques/inter-post-linkage.md`
+- `docs/marketing/methods/post-techniques/no-internal-numbering-externally.md`
 
 ---
 
@@ -93,7 +123,7 @@ Select top items aiming for 3-7 tweets per thread. Balance variety - don't just 
 
 ### **7. Output Contract**
 
-Return structured JSON for review:
+Return structured JSON for review. The caller is responsible for turning an accepted result into the marketing team's draft/proposal workflow; this skill never publishes directly.
 
 ```json
 {
@@ -157,7 +187,7 @@ Return structured JSON for review:
 **Always:**
 - Sanitize paths before including
 - Output as draft only - no auto-posting
-- Show character counts (warn if >280)
+- Show character counts per tweet (warn only if the **hook** tweet exceeds 280)
 - Cite sources for traceability
 
 **Rate limiting:**
@@ -169,7 +199,7 @@ Return structured JSON for review:
 ### **10. Verification**
 
 Before presenting output:
-1. **Character count** - Flag any tweet >280 chars
+1. **Character count** - Flag the hook tweet if >280 chars. Do not flag body tweets for length — the account's tier in `docs/marketing/strategy/CHANNELS.md` sets the real cap, and per `docs/marketing/methods/post-techniques/hook-vs-body-asymmetry.md` body tweets routinely run 400-600+. Counts that stay flat near 280 across the thread indicate over-trimming, not compliance.
 2. **Sensitive data scan** - Check for paths, keys, emails
 3. **Source validation** - Verify cited sources exist
 4. **Tone check** - Does it read like a builder talking?

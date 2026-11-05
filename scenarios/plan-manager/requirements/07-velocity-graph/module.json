@@ -1,0 +1,153 @@
+{
+  "_metadata": {
+    "description": "OT-P1-002 — per-plan velocity emitted as a signal, plus the plan supersession/dependency graph.",
+    "last_validated_at": "2026-09-06T08:58:30-04:00",
+    "module": "velocity-graph",
+    "prd_ref": "PRD.md",
+    "priority": "P1",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "PM-VEL-001",
+      "title": "Track per-plan velocity and emit it to meta-optimization trials",
+      "status": "in_progress",
+      "prd_ref": "OT-P1-002",
+      "category": "analytics",
+      "description": "Capture per-plan velocity (wall-time + tokens + iterations to complete; full vs partial) as a historical signal and emit it to meta-optimization-manager trials, so plan throughput becomes a measurable local-model-readiness input.",
+      "tags": [
+        "velocity",
+        "analytics",
+        "meta-optimization"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/execution/execution_test.go::TestCompleteAssemblesHandoffAndCapturesVelocity",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Completion captures local velocity and emits it through the velocity sink seam."
+        }
+      ]
+    },
+    {
+      "id": "PM-GRAPH-001",
+      "title": "Maintain a plan supersession/dependency graph and per-surface templates",
+      "status": "in_progress",
+      "prd_ref": "OT-P1-002",
+      "category": "plans",
+      "description": "Track supersession/dependency edges between plans (using the stored content hash) and provide per-surface plan templates (CLI/proto/UI) so a new plan starts pre-scaffolded for its surface.",
+      "tags": [
+        "plans",
+        "graph",
+        "templates"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/plans/plans_test.go::TestContentHashDerivesSupersession",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Matching content hashes derive supersession edges."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/plans/plans_test.go::TestLinkDependencyCreatesGraphEdge",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Dependency links are first-class graph edges."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/plans/plans_test.go::TestTemplates",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Per-surface templates seed structured plan phases."
+        }
+      ]
+    },
+    {
+      "id": "PM-FAMILY-001",
+      "title": "The Plan Manager should preserve related plans in a durable reviewed family aggregate.",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-006",
+      "category": "families",
+      "description": "When an operator groups independently executable plans under one initiative, the Plan Manager should round-trip the shared outcome, context, unchanged child-plan identities, typed claims, graph revisions, and immutable review decisions.",
+      "tags": [
+        "plans",
+        "families",
+        "graph",
+        "review"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/families/service_test.go::TestFamilyRoundTripsIdentityContextClaimsGraphAndReview",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "The production SQLite repository and service round-trip the aggregate, graph, and review without changing child identity metadata."
+        }
+      ]
+    },
+    {
+      "id": "PM-FAMILY-002",
+      "title": "If a family graph is unsafe or unreviewed, then the Plan Manager should withhold a launchable frontier.",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-006",
+      "category": "families",
+      "description": "If a graph contains a cycle, dangling member, overlapping exclusive claim, unresolved interaction, stale revision, or missing review, then the Plan Manager should return typed diagnostics and should not co-schedule the unsafe plans; independent plans should remain eligible after an unrelated dependency failure.",
+      "tags": [
+        "plans",
+        "families",
+        "scheduling",
+        "safety"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/families/service_test.go::TestFamilyRejectsDanglingEdgesCyclesAndStaleWrites",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "The service rejects dangling edges, cyclic approval, and stale optimistic writes."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/families/frontier_property_test.go::TestFrontierPropertyNeverCoSchedulesDependenciesOrConflicts",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Deterministic generated DAGs prove dependencies and conflicts never share a batch."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/families/frontier_property_test.go::TestFrontierPartialFailureKeepsIndependentWorkRunnable",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "A failed prerequisite blocks reachable dependents without suppressing independent work."
+        }
+      ]
+    },
+    {
+      "id": "PM-SKILL-001",
+      "title": "When agents discover plan judgment, Prompt Manager shall resolve each stable public name to one Plan Manager-owned source.",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-007",
+      "category": "skills",
+      "description": "Plan Manager owns implementation-plan-authoring, implementation-plan-execution, plan-family-orchestration, and plan-manager-improve. Registry projection preserves the public names and rejects duplicate authoritative sources.",
+      "tags": [
+        "plans",
+        "skills",
+        "ownership",
+        "registry"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "../prompt-manager/api/internal/skills/topology_integrity_test.go::TestSkillIDHasOneAuthoritativeSource",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "The repository-wide ratchet rejects any skill id that exists in both a scenario-owned source and a Prompt Manager pack."
+        }
+      ]
+    }
+  ]
+}

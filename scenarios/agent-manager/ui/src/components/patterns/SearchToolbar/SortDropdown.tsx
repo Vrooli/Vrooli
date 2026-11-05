@@ -58,7 +58,7 @@ export function SortDropdown({
         aria-label={label}
         aria-expanded={open}
         className={cn(
-          "flex items-center justify-between w-full h-9 rounded-md border border-input bg-background px-3 text-sm",
+          "flex items-center justify-between w-full h-11 sm:h-9 rounded-md border border-input bg-background px-3 text-sm",
           "hover:bg-accent/50 transition-colors",
           "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
         )}

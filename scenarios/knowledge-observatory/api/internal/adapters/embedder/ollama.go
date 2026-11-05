@@ -2,73 +2,60 @@ package embedder
 
 // DOC: docs/concepts/ARCHITECTURE.md#integrations
 // DOC: docs/reference/configuration.md#api-runtime-configuration
+
 import (
 	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
-	"net/http"
+	"os/exec"
 	"strings"
-	"time"
 )
 
+// Ollama embeds text via the resource-ollama gateway CLI. All HTTP traffic to
+// the Ollama daemon is funnelled through that CLI so the host-wide semaphore
+// can bound fleet-wide parallelism — never call the daemon directly.
 type Ollama struct {
-	BaseURL string
-	Model   string
-	Client  *http.Client
-}
+	Role string
 
-type embeddingRequest struct {
-	Model  string `json:"model"`
-	Prompt string `json:"prompt"`
-}
-
-type embeddingResponse struct {
-	Embedding []float64 `json:"embedding"`
+	// Runner is an optional seam for tests. Production callers leave it nil and
+	// the default exec-based runner is used.
+	Runner func(ctx context.Context, args []string, stdin string) ([]byte, error)
 }
 
 func (o *Ollama) Embed(ctx context.Context, text string) ([]float64, error) {
-	baseURL := strings.TrimRight(strings.TrimSpace(o.BaseURL), "/")
-	if baseURL == "" {
-		return nil, fmt.Errorf("ollama base url is required")
-	}
-	model := strings.TrimSpace(o.Model)
-	if model == "" {
-		model = "nomic-embed-text"
+	role := strings.TrimSpace(o.Role)
+	if role == "" {
+		role = "embedding.default"
 	}
 
-	client := o.Client
-	if client == nil {
-		client = &http.Client{Timeout: 30 * time.Second}
-	}
-
-	body, err := json.Marshal(embeddingRequest{Model: model, Prompt: text})
+	args := []string{"gateway", "embed", "--role", role, "--json", "--input-stdin"}
+	out, err := o.run(ctx, args, text)
 	if err != nil {
-		return nil, fmt.Errorf("failed to marshal request: %w", err)
+		return nil, fmt.Errorf("resource-ollama gateway embed failed: %w", err)
 	}
 
-	req, err := http.NewRequestWithContext(ctx, "POST", baseURL+"/api/embeddings", bytes.NewReader(body))
-	if err != nil {
-		return nil, fmt.Errorf("failed to create request: %w", err)
+	var decoded struct {
+		Embedding []float64 `json:"embedding"`
 	}
-	req.Header.Set("Content-Type", "application/json")
-
-	resp, err := client.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("ollama request failed: %w", err)
+	if err := json.Unmarshal(bytes.TrimSpace(out), &decoded); err != nil {
+		return nil, fmt.Errorf("decode gateway embed response: %w", err)
 	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		raw, _ := io.ReadAll(resp.Body)
-		return nil, fmt.Errorf("ollama returned status %d: %s", resp.StatusCode, strings.TrimSpace(string(raw)))
-	}
-
-	var decoded embeddingResponse
-	if err := json.NewDecoder(resp.Body).Decode(&decoded); err != nil {
-		return nil, fmt.Errorf("failed to decode response: %w", err)
-	}
-
 	return decoded.Embedding, nil
+}
+
+func (o *Ollama) run(ctx context.Context, args []string, stdin string) ([]byte, error) {
+	if o.Runner != nil {
+		return o.Runner(ctx, args, stdin)
+	}
+	cmd := exec.CommandContext(ctx, "resource-ollama", args...)
+	cmd.Stdin = strings.NewReader(stdin)
+	out, err := cmd.Output()
+	if err != nil {
+		if exitErr, ok := err.(*exec.ExitError); ok && len(exitErr.Stderr) > 0 {
+			return nil, fmt.Errorf("%w: %s", err, strings.TrimSpace(string(exitErr.Stderr)))
+		}
+		return nil, err
+	}
+	return out, nil
 }

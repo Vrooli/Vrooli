@@ -1,0 +1,45 @@
+{
+  "version": "1.1.1",
+  "kind": "Additive acceptance correction",
+  "owner_source": "Sentinel_75c15b8279fc81919b44c92534c34c17,2026-10-14T23:38:00Z",
+  "supersedes": "v1.1 A01/A15\u2013A18 evidence and real-account burden only; multi-account product scope retained",
+  "frozen_v1_1_atlas_sha256": "ecdc8b6202d752a930c7b653a8fb2764f18e76e331171f5b183ba0ebcba11836",
+  "frozen_v1_1_source_zip_sha256": "0fc4f19418b9b0ea238f300c8ef8c0b8cb2908b51038b21b2316820b7c6065dc",
+  "files": [
+    {
+      "path": "README.txt",
+      "bytes": 2515,
+      "sha256": "399bb754a79065393ec084ad5a13b6de5653d74f0d5f45b2b823e4d9ee40cbef"
+    },
+    {
+      "path": "acceptance-delta.json",
+      "bytes": 8295,
+      "sha256": "4e3369b33258783b50aefa07d67aa96f78ee9126291e040f0842c6c539cd262c"
+    },
+    {
+      "path": "source-map-correction.txt",
+      "bytes": 1173,
+      "sha256": "a0fa60737ff078511c6d23a172387cd8b2b027ebddd49ecf4e5ca552cd780044"
+    },
+    {
+      "path": "spec.txt",
+      "bytes": 79487,
+      "sha256": "026d115cfd464f7e2bdfb9301cefcb6f13d967c0610faee6bede62f7d519e3f0"
+    },
+    {
+      "path": "spec-native-readback.json",
+      "bytes": 120110,
+      "sha256": "dfee3689e56ae71caee13878f6a9f1ec0f800a504d087394274ebddda92553c7"
+    },
+    {
+      "path": "spec-v1.1.1-native-export.pdf",
+      "bytes": 421820,
+      "sha256": "345d92b413a1d7b5c2a151ef7ff68f9b0a841f6d76395a0be152da537d9c3c9b"
+    },
+    {
+      "path": "qa-receipt.json",
+      "bytes": 1394,
+      "sha256": "ca2b999da4f85b022c37c3c8695669e60efddd9e12c20e0e60ffe4eb29f649b3"
+    }
+  ]
+}

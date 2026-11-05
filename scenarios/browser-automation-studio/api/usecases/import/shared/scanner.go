@@ -128,7 +128,6 @@ func (s *FilesystemScanner) ScanForPattern(ctx context.Context, root string, pat
 
 		return nil
 	})
-
 	if err != nil {
 		return nil, fmt.Errorf("failed to scan directory: %w", err)
 	}
@@ -162,7 +161,7 @@ func (s *FilesystemScanner) WriteFile(ctx context.Context, path string, content 
 	}
 
 	// Ensure parent directory exists
-	if err := EnsureDir(filepath.Dir(absPath), 0755); err != nil {
+	if err := EnsureDir(filepath.Dir(absPath), 0o755); err != nil {
 		return fmt.Errorf("failed to create parent directory: %w", err)
 	}
 
@@ -199,7 +198,7 @@ func (s *FilesystemScanner) CopyFile(ctx context.Context, src, dst string) error
 	}
 
 	// Ensure parent directory exists
-	if err := EnsureDir(filepath.Dir(absDst), 0755); err != nil {
+	if err := EnsureDir(filepath.Dir(absDst), 0o755); err != nil {
 		return fmt.Errorf("failed to create parent directory: %w", err)
 	}
 

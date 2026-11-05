@@ -1,0 +1,1 @@
+Versioned generic thin-bezel television candidate v3. The GLB is generated deterministically from `televisionThinBezelRecipe` in `television_starter.go` and remains candidate-only pending native review.

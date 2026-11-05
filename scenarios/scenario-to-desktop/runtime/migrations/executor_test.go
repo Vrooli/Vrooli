@@ -8,20 +8,20 @@ import (
 	"path/filepath"
 	"testing"
 
-	"scenario-to-desktop-runtime/infra"
-	"scenario-to-desktop-runtime/manifest"
-	"scenario-to-desktop-runtime/testutil"
+	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/infra"
+	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/manifest"
+	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/testutil"
 )
 
 // mockEnvRenderer implements EnvRenderer for testing.
 type mockEnvRenderer struct{}
 
-func (m *mockEnvRenderer) RenderValue(input string) string {
-	return input
+func (m *mockEnvRenderer) RenderValue(input string) (string, error) {
+	return input, nil
 }
 
-func (m *mockEnvRenderer) RenderArgs(args []string) []string {
-	return args
+func (m *mockEnvRenderer) RenderArgs(args []string) ([]string, error) {
+	return args, nil
 }
 
 // mockLogProvider implements LogProvider for testing.

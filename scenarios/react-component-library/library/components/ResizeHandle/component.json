@@ -1,0 +1,18 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
+  "assetKind": "component",
+  "catalogId": "manipulation.resize-handle",
+  "deprecatedVersions": [
+    "1.0.1",
+    "1.0.0",
+    "1.0.2"
+  ],
+  "draft": "",
+  "evictedVersions": [
+    "1.0.1",
+    "1.0.0",
+    "1.0.2"
+  ],
+  "latest": "1.0.3",
+  "libraryId": "react-component-library:ResizeHandle"
+}

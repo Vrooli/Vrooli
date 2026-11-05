@@ -1,0 +1,81 @@
+{
+  "description": "Stable proto ScoreService (GetScore) consumed by the test-genie report supplement (2s budget, silent skip) and discoverable via cli-health/ui-health manifests.",
+  "module_id": "MOD-P1-008",
+  "prd_ref": "OT-P1-002",
+  "priority": "P1",
+  "requirements": [
+    {
+      "category": "api",
+      "dependencies": [
+        "REQ-P0-001",
+        "REQ-P0-003",
+        "REQ-P0-004",
+        "REQ-P0-005"
+      ],
+      "description": "A stable proto service ScoreService with at minimum a GetScore unary RPC must be defined under packages/proto/schemas/scenario-completeness-scoring/v1. The GetScore request must accept a scenario identifier and return the full score payload (composite score, rung, breakdown, freshness block, recommendations, optional importance line). The service must be consumed by test-genie's report supplement with a 2-second budget and silent skip on failure. The service endpoint must be registered in and discoverable via cli-health and ui-health manifests. The proto contract must remain backward-compatible across minor versions.",
+      "id": "REQ-P1-002",
+      "prd_ref": "OT-P1-002",
+      "status": "draft",
+      "title": "Stable ScoreService Proto Contract with GetScore RPC and Service Discovery Registration",
+      "validation": [
+        {
+          "notes": "packages/proto/schemas/scenario-completeness-scoring/v1/score_service_test.go [REQ:OT-P1-002]: compile-time assertion that ScoreService interface is implemented by the server struct",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "api/internal/scoring/get_score_handler_test.go: table test for GetScore handler returns correct proto message fields for fixture inputs",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "cmd/score/score_integration_test.go: Connect-RPC GetScore end-to-end over a real listener returns HTTP 200 with valid ScoreResponse proto",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "cli-health manifest integration test: assert scenario-completeness-scoring service endpoint appears in cli-health service list after startup",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "ui-health manifest integration test: assert scenario-completeness-scoring service endpoint appears in ui-health manifest",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "test-genie integration test: simulate 2s budget exceeded → test-genie report generates without score supplement, no fatal error",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "GetScore RPC must respond within 2s under test-genie caller budget constraints",
+          "phase": "performance",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Downstream consumers (test-genie, UI dashboard) can reliably discover and call a stable, versioned score endpoint without bespoke integration work",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Consumer Contract"
+}

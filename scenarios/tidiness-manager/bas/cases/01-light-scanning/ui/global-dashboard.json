@@ -8,138 +8,139 @@
     "surface": "ui",
     "capability": "01-light-scanning",
     "reset": "none",
-    "version": 1,
+    "version": "1",
     "execution_mode": "observer"
   },
   "settings": {
-    "executionViewport": {
-      "width": 1440,
-      "height": 900,
-      "preset": "desktop"
-    }
+    "viewport_width": 1440,
+    "viewport_height": 900
   },
   "nodes": [
     {
       "id": "navigate-dashboard",
-      "type": "navigate",
-      "data": {
-        "label": "Navigate to global dashboard",
-        "destinationType": "url",
-        "url": "http://localhost:{{UI_PORT}}/dashboard"
+      "action": {
+        "type": "ACTION_TYPE_NAVIGATE",
+        "navigate": {
+          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+          "scenario": "tidiness-manager",
+          "scenario_path": "/dashboard",
+          "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE",
+          "timeout_ms": 30000
+        },
+        "metadata": {
+          "label": "Navigate to global dashboard"
+        }
       }
     },
     {
       "id": "wait-for-table",
-      "type": "wait",
-      "data": {
-        "label": "Wait for scenario table to load",
-        "waitType": "duration",
-        "durationMs": 5000,
-        "timeoutMs": 10000
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "@selector/scenarioTable",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 10000
+        },
+        "metadata": {
+          "label": "Wait for scenario table"
+        }
       }
     },
     {
       "id": "assert-name-header",
-      "type": "assert",
-      "data": {
-        "label": "Verify scenario name column header exists",
-        "selector": "@selector/scenarioTableHeader.name",
-        "assertMode": "exists",
-        "failureMessage": "Scenario name column header should be visible"
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "@selector/scenarioTableHeader.name",
+          "mode": "ASSERTION_MODE_EXISTS",
+          "timeout_ms": 5000,
+          "failure_message": "Scenario name column header should be visible"
+        },
+        "metadata": {
+          "label": "Verify scenario name column header exists"
+        }
       }
     },
     {
       "id": "assert-light-issues-header",
-      "type": "assert",
-      "data": {
-        "label": "Verify light issues column header exists",
-        "selector": "@selector/scenarioTableHeader.lightIssues",
-        "assertMode": "exists",
-        "failureMessage": "Light issues column header should be visible"
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "@selector/scenarioTableHeader.lightIssues",
+          "mode": "ASSERTION_MODE_EXISTS",
+          "timeout_ms": 5000,
+          "failure_message": "Light issues column header should be visible"
+        },
+        "metadata": {
+          "label": "Verify light issues column header exists"
+        }
       }
     },
     {
       "id": "assert-ai-issues-header",
-      "type": "assert",
-      "data": {
-        "label": "Verify AI issues column header exists",
-        "selector": "@selector/scenarioTableHeader.aiIssues",
-        "assertMode": "exists",
-        "failureMessage": "AI issues column header should be visible"
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "@selector/scenarioTableHeader.aiIssues",
+          "mode": "ASSERTION_MODE_EXISTS",
+          "timeout_ms": 5000,
+          "failure_message": "AI issues column header should be visible"
+        },
+        "metadata": {
+          "label": "Verify AI issues column header exists"
+        }
       }
     },
     {
       "id": "assert-long-files-header",
-      "type": "assert",
-      "data": {
-        "label": "Verify long files column header exists",
-        "selector": "@selector/scenarioTableHeader.longFiles",
-        "assertMode": "exists",
-        "failureMessage": "Long files column header should be visible"
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "@selector/scenarioTableHeader.longFiles",
+          "mode": "ASSERTION_MODE_EXISTS",
+          "timeout_ms": 5000,
+          "failure_message": "Long files column header should be visible"
+        },
+        "metadata": {
+          "label": "Verify long files column header exists"
+        }
       }
     },
     {
       "id": "assert-scenario-row",
-      "type": "assert",
-      "data": {
-        "label": "Verify at least one scenario row exists",
-        "selector": "@selector/scenarioTableRow",
-        "assertMode": "exists",
-        "failureMessage": "At least one scenario row should be displayed"
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "@selector/scenarioTableRow",
+          "mode": "ASSERTION_MODE_EXISTS",
+          "timeout_ms": 5000,
+          "failure_message": "At least one scenario row should be displayed"
+        },
+        "metadata": {
+          "label": "Verify at least one scenario row exists"
+        }
       }
     },
     {
       "id": "capture-dashboard",
-      "type": "screenshot",
-      "data": {
-        "label": "Capture dashboard state",
-        "fullPage": true,
-        "waitForMs": 500
+      "action": {
+        "type": "ACTION_TYPE_SCREENSHOT",
+        "screenshot": {
+          "full_page": true
+        },
+        "metadata": {
+          "label": "Capture dashboard state"
+        }
       }
     }
   ],
   "edges": [
-    {
-      "id": "e1",
-      "source": "navigate-dashboard",
-      "target": "wait-for-table",
-      "type": "smoothstep"
-    },
-    {
-      "id": "e2",
-      "source": "wait-for-table",
-      "target": "assert-name-header",
-      "type": "smoothstep"
-    },
-    {
-      "id": "e3",
-      "source": "assert-name-header",
-      "target": "assert-light-issues-header",
-      "type": "smoothstep"
-    },
-    {
-      "id": "e4",
-      "source": "assert-light-issues-header",
-      "target": "assert-ai-issues-header",
-      "type": "smoothstep"
-    },
-    {
-      "id": "e5",
-      "source": "assert-ai-issues-header",
-      "target": "assert-long-files-header",
-      "type": "smoothstep"
-    },
-    {
-      "id": "e6",
-      "source": "assert-long-files-header",
-      "target": "assert-scenario-row",
-      "type": "smoothstep"
-    },
-    {
-      "id": "e7",
-      "source": "assert-scenario-row",
-      "target": "capture-dashboard",
-      "type": "smoothstep"
-    }
+    { "id": "e1", "source": "navigate-dashboard", "target": "wait-for-table", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e2", "source": "wait-for-table", "target": "assert-name-header", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e3", "source": "assert-name-header", "target": "assert-light-issues-header", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e4", "source": "assert-light-issues-header", "target": "assert-ai-issues-header", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e5", "source": "assert-ai-issues-header", "target": "assert-long-files-header", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e6", "source": "assert-long-files-header", "target": "assert-scenario-row", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e7", "source": "assert-scenario-row", "target": "capture-dashboard", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" }
   ]
 }

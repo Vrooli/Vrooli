@@ -77,7 +77,6 @@ Output of an execution:
 ```go
 type SuiteExecutionResult struct {
     ExecutionID    uuid.UUID              // Assigned after persistence
-    SuiteRequestID *uuid.UUID             // Linked queue request (if any)
     ScenarioName   string
     StartedAt      time.Time
     CompletedAt    time.Time
@@ -130,15 +129,33 @@ sequenceDiagram
 
 ## Phase Planning
 
+### Phase Vocabulary
+
+The descriptor-backed registry work separates decisions that were historically
+folded into catalog metadata:
+
+- **Applicability**: should this phase judge this target at all?
+- **Selection**: is this applicable phase included by preset, explicit request,
+  or target testing config?
+- **Provider readiness**: can the selected provider be used for this execution?
+- **Freshness**: is the provider current enough to trust for this run?
+- **Runnability**: can this applicable selected phase execute in the current
+  environment after target surfaces and resources are known?
+- **Gating**: does this phase's result affect the suite verdict?
+- **Unavailable behavior**: what should happen when the provider cannot be
+  reached or fails its readiness contract?
+
 Phase selection follows this precedence:
 
 1. **Explicit phases** — If `request.Phases` is provided, use those
 2. **Preset** — If `request.Preset` is provided, expand to its phase list
 3. **All phases** — If neither, run all discovered phases
 
-Phase discovery merges:
-- **Catalog phases** — Go-native runners from `phases.NewDefaultCatalog()`
-- **Script phases** — `coverage/phases/test-*.sh` files in the scenario
+Phase discovery is catalog-only. `phases.NewDefaultCatalog()` declares the
+provider-backed phases, their order, timeout, skip environment variable,
+runnability contract, and finding source. Scenario-local
+`coverage/phases/test-*.sh` files are ignored by suite planning; add or change a
+phase by changing the catalog and its validation provider.
 
 After selection, `request.Skip` filters out unwanted phases.
 

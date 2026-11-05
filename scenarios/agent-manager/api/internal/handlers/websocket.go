@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"agent-manager/internal/domain"
+	"agent-manager/internal/orchestration/obs"
 	"agent-manager/internal/protoconv"
 
 	"github.com/google/uuid"
@@ -42,6 +43,7 @@ type WebSocketClient struct {
 	hub           *WebSocketHub
 	conn          *websocket.Conn
 	send          chan []byte
+	mu            sync.RWMutex
 	subscriptions map[string]bool // runID -> subscribed
 	allEvents     bool            // subscribe to all events
 }
@@ -87,14 +89,9 @@ func (h *WebSocketHub) Run() {
 			var stale []*WebSocketClient
 			h.mu.RLock()
 			for client := range h.clients {
-				// Check if client should receive this message
-				if message.RunId != nil && !client.allEvents {
-					runID := message.GetRunId()
-					if runID == "" || !client.subscriptions[runID] {
-						continue
-					}
+				if !client.shouldReceive(message) {
+					continue
 				}
-
 				select {
 				case client.send <- data:
 				default:
@@ -134,15 +131,23 @@ func (h *WebSocketHub) BroadcastEvent(event *domain.RunEvent) {
 // BroadcastRunStatus broadcasts a run status change
 func (h *WebSocketHub) BroadcastRunStatus(run *domain.Run) {
 	runID := run.ID.String()
+	selectionStatus := domainpb.FinalOutputSelectionStatus_FINAL_OUTPUT_SELECTION_STATUS_UNSPECIFIED
+	selectionRule := ""
+	if run.Result != nil {
+		selectionStatus = protoconv.FinalOutputSelectionStatusToProto(run.Result.Selection.Status)
+		selectionRule = run.Result.Selection.Rule
+	}
 	h.broadcast <- &domainpb.AgentManagerWsMessage{
 		Type:  domainpb.AgentManagerWsMessageType_AGENT_MANAGER_WS_MESSAGE_TYPE_RUN_STATUS,
 		RunId: &runID,
 		Payload: &domainpb.AgentManagerWsMessage_RunStatus{
 			RunStatus: &domainpb.RunStatusUpdate{
-				RunId:         runID,
-				Status:        protoconv.RunStatusToProto(run.Status),
-				TaskId:        run.TaskID.String(),
-				PromptPreview: run.PromptPreview,
+				RunId:                 runID,
+				Status:                protoconv.RunStatusToProto(run.Status),
+				TaskId:                run.TaskID.String(),
+				PromptPreview:         run.PromptPreview,
+				ResultSelectionStatus: selectionStatus,
+				ResultSelectionRule:   selectionRule,
 			},
 		},
 	}
@@ -181,6 +186,23 @@ func (h *WebSocketHub) BroadcastProgress(runID uuid.UUID, phase domain.RunPhase,
 			},
 		},
 	}
+}
+
+func (h *WebSocketHub) BroadcastWorkflowLifecycle(event *domain.WorkflowLifecycleEvent) {
+	if event == nil {
+		return
+	}
+	update := &domainpb.WorkflowLifecycleUpdate{ExecutionId: event.ExecutionID.String(), DefinitionDigest: event.DefinitionDigest, Status: string(event.Status), NodeId: event.NodeID, Strategy: string(event.Strategy), ProfileIdentity: event.ProfileIdentity, ConversationId: event.ConversationID, JournalSequence: event.JournalSequence, JournalKind: string(event.JournalKind), JournalPayloadDigest: event.JournalPayloadDigest, BudgetUsage: &domainpb.WorkflowBudgetUsage{Turns: int32(event.BudgetUsage.Turns), Tokens: int32(event.BudgetUsage.Tokens), CostUsd: event.BudgetUsage.CostUSD, NodeAttempts: int32(event.BudgetUsage.NodeAttempts), Children: int32(event.BudgetUsage.Children), Retries: int32(event.BudgetUsage.Retries)}}
+	if event.RunID != nil {
+		update.RunId = event.RunID.String()
+	}
+	if event.SourceAttemptID != nil {
+		update.SourceAttemptId = event.SourceAttemptID.String()
+	}
+	if event.TerminalReason != nil {
+		update.TerminalReason = &domainpb.WorkflowTerminalReason{Code: event.TerminalReason.Code, Message: event.TerminalReason.Message, Retryable: event.TerminalReason.Retryable, BudgetName: event.TerminalReason.BudgetName}
+	}
+	h.broadcast <- &domainpb.AgentManagerWsMessage{Type: domainpb.AgentManagerWsMessageType_AGENT_MANAGER_WS_MESSAGE_TYPE_WORKFLOW_LIFECYCLE, Payload: &domainpb.AgentManagerWsMessage_WorkflowLifecycle{WorkflowLifecycle: update}}
 }
 
 // HandleWebSocket handles WebSocket connections
@@ -227,6 +249,8 @@ func (c *WebSocketClient) readPump() {
 		c.hub.unregister <- c
 		c.conn.Close()
 	}()
+	// A pump panic disconnects this client only, never the API.
+	defer obs.RecoverToFailure("websocket read pump", nil)
 
 	c.conn.SetReadLimit(512 * 1024) // 512KB max message size
 	_ = c.conn.SetReadDeadline(time.Now().Add(60 * time.Second))
@@ -265,10 +289,10 @@ func (c *WebSocketClient) readPump() {
 			case "unsubscribe":
 				updateSubscription(c, legacy.Payload.RunID, false)
 			case "subscribe_all":
-				c.allEvents = true
+				updateAllEventsSubscription(c, true)
 				log.Printf("[ws] Client subscribed to all events")
 			case "unsubscribe_all":
-				c.allEvents = false
+				updateAllEventsSubscription(c, false)
 				log.Printf("[ws] Client unsubscribed from all events")
 			}
 			continue
@@ -285,11 +309,11 @@ func (c *WebSocketClient) readPump() {
 			updateSubscription(c, msg.GetRunSubscription().GetRunId(), false)
 
 		case domainpb.AgentManagerWsClientMessageType_AGENT_MANAGER_WS_CLIENT_MESSAGE_TYPE_SUBSCRIBE_ALL:
-			c.allEvents = true
+			updateAllEventsSubscription(c, true)
 			log.Printf("[ws] Client subscribed to all events")
 
 		case domainpb.AgentManagerWsClientMessageType_AGENT_MANAGER_WS_CLIENT_MESSAGE_TYPE_UNSUBSCRIBE_ALL:
-			c.allEvents = false
+			updateAllEventsSubscription(c, false)
 			log.Printf("[ws] Client unsubscribed from all events")
 		}
 	}
@@ -315,6 +339,8 @@ func updateSubscription(c *WebSocketClient, runID string, subscribe bool) {
 	if _, err := uuid.Parse(runID); err != nil {
 		return
 	}
+	c.mu.Lock()
+	defer c.mu.Unlock()
 	if subscribe {
 		c.subscriptions[runID] = true
 		log.Printf("[ws] Client subscribed to run: %s", runID)
@@ -324,6 +350,30 @@ func updateSubscription(c *WebSocketClient, runID string, subscribe bool) {
 	log.Printf("[ws] Client unsubscribed from run: %s", runID)
 }
 
+func updateAllEventsSubscription(c *WebSocketClient, subscribe bool) {
+	c.mu.Lock()
+	c.allEvents = subscribe
+	c.mu.Unlock()
+}
+
+func (c *WebSocketClient) shouldReceive(message *domainpb.AgentManagerWsMessage) bool {
+	runID := message.GetRunId()
+	if runID == "" {
+		return true
+	}
+
+	// Status updates are small list-level invalidation messages. They are
+	// intentionally global so the UI can keep run lists fresh without receiving
+	// every run event body.
+	if message.Type == domainpb.AgentManagerWsMessageType_AGENT_MANAGER_WS_MESSAGE_TYPE_RUN_STATUS {
+		return true
+	}
+
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	return c.allEvents || c.subscriptions[runID]
+}
+
 // writePump handles outgoing messages to a client
 func (c *WebSocketClient) writePump() {
 	ticker := time.NewTicker(30 * time.Second)
@@ -331,6 +381,8 @@ func (c *WebSocketClient) writePump() {
 		ticker.Stop()
 		c.conn.Close()
 	}()
+	// A pump panic disconnects this client only, never the API.
+	defer obs.RecoverToFailure("websocket write pump", nil)
 
 	for {
 		select {

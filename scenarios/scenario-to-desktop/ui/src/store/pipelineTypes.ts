@@ -5,27 +5,22 @@
 
 import type {
   VerbosePipelineStatus,
-  BundleStageDetails,
-  BundlePreflightResponse,
+  PreflightStageDetails,
   GenerateStageDetails,
   BuildStageDetails,
   SmokeTestStageDetails,
   DeployStageDetails,
   PipelineConfig,
 } from "../lib/api";
+import type { StageName } from "@vrooli/proto-types/scenario-to-desktop/v1/shared/common_pb";
+import type { BundleStageDetails } from "@vrooli/proto-types/scenario-to-desktop/v1/pipeline/types_pb";
 
 // ============================================================================
 // Stage Types
 // ============================================================================
 
-/** Pipeline stages available for stop_after_stage */
-export type PipelineStage =
-  | "bundle"
-  | "preflight"
-  | "generate"
-  | "build"
-  | "smoketest"
-  | "deploy";
+/** Pipeline stages use the generated Proto enum end-to-end. */
+export type PipelineStage = StageName;
 
 /** Pipeline run status (simplified for UI consumption) */
 export type PipelineRunStatus =
@@ -55,6 +50,8 @@ export interface PipelineErrorInfo {
   category?: PipelineErrorCategory;
   suggestions?: string[];
   raw?: unknown;
+  /** Connect/HTTP error detail retained for copyable operator diagnostics. */
+  details?: Record<string, unknown>;
 }
 
 // ============================================================================
@@ -92,7 +89,7 @@ export interface PipelineStoreState {
 
   // Stage-specific results (extracted from verbose pipeline status)
   bundleResult: BundleStageDetails | null;
-  preflightResult: BundlePreflightResponse | null;
+  preflightResult: PreflightStageDetails | null;
   generateResult: GenerateStageDetails | null;
   buildResult: BuildStageDetails | null;
   smokeTestResult: SmokeTestStageDetails | null;
@@ -136,7 +133,10 @@ export interface PipelineStoreActions {
   setScenario: (name: string | null) => void;
 
   // Pipeline execution
-  runStage: (stage: PipelineStage, config?: Partial<PipelineConfig>) => Promise<string>;
+  runStage: (
+    stage: PipelineStage,
+    config?: Partial<PipelineConfig>,
+  ) => Promise<string>;
   runFullPipeline: (config?: Partial<PipelineConfig>) => Promise<string>;
   cancelPipeline: () => Promise<void>;
   resumePipeline: (pipelineId: string) => Promise<string>;
@@ -179,7 +179,9 @@ export interface PipelineStoreActions {
    * Create a new pipeline for the current scenario.
    * Archives the current active pipeline if one exists.
    */
-  createNewPipelineForScenario: (config?: Partial<PipelineConfig>) => Promise<string>;
+  createNewPipelineForScenario: (
+    config?: Partial<PipelineConfig>,
+  ) => Promise<string>;
   /**
    * Reset the current pipeline (archive and clear active).
    */
@@ -195,7 +197,10 @@ export interface PipelineStoreActions {
   _notifySubscribers: () => void;
   _updateCache: () => void;
   _pruneCache: () => void;
-  _startPipeline: (config: Partial<import("../lib/api").PipelineConfig>, label: string) => Promise<string>;
+  _startPipeline: (
+    config: Partial<import("../lib/api").PipelineConfig>,
+    label: string,
+  ) => Promise<string>;
 }
 
 export type PipelineStore = PipelineStoreState & PipelineStoreActions;

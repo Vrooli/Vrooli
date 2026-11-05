@@ -1,0 +1,4 @@
+package example
+import "testing"
+func TestBroken(t *testing.T) {
+ if (

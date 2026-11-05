@@ -1,7 +1,12 @@
 import type { Reporter, File, Task } from 'vitest';
+import type { Vitest } from 'vitest/node';
+import { nativeObservations } from './native-observations.js';
+export { nativeAssertionOptions, supportedNativeVersion, nativeObservations, mergeNativeObservationReports } from './native-observations.js';
+export type { NativeObservation, NativeObservationReport } from './native-observations.js';
 import { existsSync, mkdirSync, writeFileSync, readFileSync, rmSync } from 'fs';
-import { dirname, relative, join, basename } from 'path';
+import { dirname, relative, join, basename, resolve } from 'path';
 import { execSync } from 'child_process';
+import { createHash } from 'crypto';
 import type {
   RequirementReporterOptions,
   RequirementResult,
@@ -35,6 +40,7 @@ export default class RequirementReporter implements Reporter {
   private requirementMap: Map<string, RequirementResult> = new Map();
   private stats = { total: 0, passed: 0, failed: 0, skipped: 0 };
   private startTime = 0;
+  private context?: Vitest;
   private failures: TestFailure[] = [];
   private projectStats: Map<string, { passed: number; failed: number; duration: number }> = new Map();
 
@@ -90,7 +96,8 @@ export default class RequirementReporter implements Reporter {
   /**
    * Initialize reporter state at the start of test run
    */
-  onInit(): void {
+  onInit(context?: Vitest): void {
+    this.context = context;
     this.startTime = Date.now();
     this.requirementMap.clear();
     this.stats = { total: 0, passed: 0, failed: 0, skipped: 0 };
@@ -314,6 +321,7 @@ export default class RequirementReporter implements Reporter {
     cleanErrorMessage = this.stripAnsi(cleanErrorMessage);
 
     this.failures.push({
+      taskId: task.id,
       projectName: this.getProjectName(file),
       testPath,
       filePath: relativePath,
@@ -330,7 +338,7 @@ export default class RequirementReporter implements Reporter {
   /**
    * Generate and write final report after all tests complete
    */
-  async onFinished(files?: File[]): Promise<void> {
+  async onFinished(files?: File[], errors?: unknown[]): Promise<void> {
     if (!files) return;
 
     // Process all test files
@@ -339,6 +347,13 @@ export default class RequirementReporter implements Reporter {
     });
 
     const report: RequirementReport = {
+      native_observations: [nativeObservations(files, this.context?.version ?? 'unknown', project => {
+        try { return this.context?.getProjectByName(project).config.expect?.requireAssertions === true; }
+        catch { return false; }
+      }, errors, process.env.VROOLI_TEST_RUN_ID ?? '', task => this.extractRequirements(task), project => {
+        try { return this.context?.getProjectByName(project).config.sequence.seed; }
+        catch { return undefined; }
+      })],
       generated_at: new Date().toISOString(),
       scenario: this.options.scenario,
       phase: 'unit',
@@ -363,6 +378,12 @@ export default class RequirementReporter implements Reporter {
 
     // Write JSON report
     writeFileSync(this.options.outputFile, JSON.stringify(finalReport, null, 2));
+    // A command-scoped handoff is separate from appendable requirement history.
+    const qualityOutput = process.env.VROOLI_TEST_QUALITY_OUTPUT;
+    if (qualityOutput) {
+      mkdirSync(dirname(qualityOutput), { recursive: true });
+      writeFileSync(qualityOutput, JSON.stringify(report.native_observations![0], null, 2));
+    }
 
     // Generate failure artifacts if in concise mode
     if (this.options.conciseMode) {
@@ -395,17 +416,25 @@ export default class RequirementReporter implements Reporter {
   }
 
   /**
-   * Sanitize test name for use in directory/file names
+   * Keep readable, bounded paths without collapsing different failure identities.
    */
-  private sanitizeTestName(testPath: string): string {
+  private sanitizeTestName(testPath: string, taskId?: string): string {
     // First extract just the test name (no file path)
     const testName = this.extractTestName(testPath);
 
-    return testName
+    const label = testName
       .replace(/[^a-zA-Z0-9-_]/g, '-')
       .replace(/-+/g, '-')
       .replace(/^-|-$/g, '')
-      .substring(0, 80); // Reduced from 100 to leave room for prefix
+      .substring(0, 80) || 'test';
+    // Include the full file/suite/test identity: truncation, punctuation and
+    // identical names in different files must not overwrite failure evidence.
+    const identity = createHash('sha256').update(JSON.stringify([testPath, taskId ?? null])).digest('hex').substring(0, 16);
+    return `${label}-${identity}`;
+  }
+
+  private failureArtifactDir(failure: TestFailure): string {
+    return resolve(this.options.artifactsDir, failure.projectName, this.sanitizeTestName(failure.testPath, failure.taskId));
   }
 
   /**
@@ -554,8 +583,7 @@ export default class RequirementReporter implements Reporter {
     if (this.failures.length === 0) return;
 
     this.failures.forEach(failure => {
-      const sanitizedName = this.sanitizeTestName(failure.testPath);
-      const artifactDir = join(this.options.artifactsDir, failure.projectName, sanitizedName);
+      const artifactDir = this.failureArtifactDir(failure);
 
       // Create artifact directory
       mkdirSync(artifactDir, { recursive: true });
@@ -582,6 +610,7 @@ export default class RequirementReporter implements Reporter {
 
       // Write test-context.json
       const context = {
+        taskId: failure.taskId,
         projectName: failure.projectName,
         testPath: failure.testPath,
         filePath: failure.filePath,
@@ -656,11 +685,7 @@ export default class RequirementReporter implements Reporter {
         // Show failed test paths for this project
         const projectFailures = this.failures.filter(f => f.projectName === project);
         projectFailures.forEach(failure => {
-          const sanitizedName = this.sanitizeTestName(failure.testPath);
-          // Construct absolute path: if running from ui/, go up one level to scenario root
-          const cwd = process.cwd();
-          const scenarioRoot = cwd.endsWith('/ui') ? dirname(cwd) : cwd;
-          const artifactPath = join(scenarioRoot, this.options.artifactsDir, project, sanitizedName, 'README.md');
+          const artifactPath = join(this.failureArtifactDir(failure), 'README.md');
           // Show clean test name in console (without file path)
           const cleanTestName = this.extractTestName(failure.testPath);
           console.log(`   ↳ ${cleanTestName}`);
@@ -755,6 +780,7 @@ export default class RequirementReporter implements Reporter {
     current.requirements.forEach(addRequirement);
 
     return {
+      native_observations: [...(previous.native_observations ?? []), ...(current.native_observations ?? [])],
       generated_at: current.generated_at,
       scenario: current.scenario || previous.scenario,
       phase: current.phase,

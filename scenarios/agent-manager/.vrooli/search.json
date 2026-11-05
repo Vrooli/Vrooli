@@ -1,0 +1,128 @@
+{
+  "$schema": "../../../.vrooli/schemas/search.schema.json",
+  "version": "1.0.0",
+  "providers": [
+    {
+      "provider_id": "agent-manager.runs",
+      "lifecycle": "production",
+      "provider_group": "agent-manager",
+      "bucket": "BUCKET_STATE",
+      "type": "run",
+      "description": "Answers what was discussed or attempted in previous agent conversations and prior runs, searchable by exact language or intent to recover prompts, decisions, corrections, and outcomes with attributable run and event context.",
+      "routing_profile": {
+        "answer_spaces": ["agent conversation history", "prior run", "prompt and response", "reasoning correction"],
+        "intents": ["recall", "find_prior_work", "recover_context", "trace_decision"],
+        "positive_examples": ["which previous conversation corrected the analysis", "what did an earlier agent say about adaptive phase scheduling", "recover a prior prompt and its outcome"],
+        "exclusions": ["live agent execution", "current scenario health", "source-code symbol lookup"]
+      },
+      "scope": "SCOPE_PROJECT",
+      "class": "local_index",
+      "index_timestamp_field": "lastIndexedAt",
+      "freshness_budget": "24h",
+      "endpoint": {
+        "http_json": {
+          "scenario_id": "agent-manager",
+          "path": "/agent_manager.v1.ConversationSearchService/SearchConversations",
+          "method": "HTTP_METHOD_POST",
+          "body_template": "{\"query\":\"{{query}}\",\"pageSize\":{{limit}},\"mode\":\"CONVERSATION_SEARCH_MODE_HYBRID\",\"filters\":{\"projectScopes\":[\"{{scope_value}}\"]}}",
+          "headers": {"Content-Type": "application/json"}
+        }
+      },
+      "status_endpoint": {
+        "http_json": {
+          "scenario_id": "agent-manager",
+          "path": "/agent_manager.v1.ConversationSearchService/GetConversationIndexStatus",
+          "method": "HTTP_METHOD_POST",
+          "body_template": "{}",
+          "headers": {"Content-Type": "application/json"}
+        }
+      },
+      "result_mapping": {
+        "results_path": "hits",
+        "id_field": "stableHitId",
+        "title_field": "run.label",
+        "score_field": "rankEvidence.0.score",
+        "snippet_field": "snippet",
+        "path_field": "deepLink",
+        "weak_field": "weak",
+        "metadata_fields": {
+          "run_id": "runId",
+          "event_id": "eventId",
+          "message_id": "messageId",
+          "chunk_id": "chunkId",
+          "chunk_index": "chunkIndex",
+          "event_sequence": "eventSequence",
+          "role": "role",
+          "occurred_at": "occurredAt",
+          "content_class": "contentClass",
+          "provenance": "provenance"
+        },
+        "rank_evidence_field": "rankEvidence",
+        "coverage_field": "coverage",
+        "degradations_field": "degradations",
+        "next_cursor_field": "nextPageCursor",
+        "score_scale": "SCORE_SCALE_RAW"
+      },
+      "reindex_endpoint": {
+        "http_json": {
+          "scenario_id": "agent-manager",
+          "path": "/vrooli.search_hub.v1.control.SearchControlService/Reindex",
+          "method": "HTTP_METHOD_POST",
+          "body_template": "{\"scope\":\"{{scope}}\",\"dry_run\":false}",
+          "headers": {"Content-Type": "application/json"}
+        }
+      },
+      "config_endpoint": {
+        "http_json": {
+          "scenario_id": "agent-manager",
+          "path": "/vrooli.search_hub.v1.control.SearchControlService/WriteConfig",
+          "method": "HTTP_METHOD_POST",
+          "body_template": "{}",
+          "headers": {"Content-Type": "application/json"}
+        }
+      },
+      "tuning": {
+        "engine": "hybrid",
+        "embed_model": "nomic-embed-text",
+        "embed_task_prefix": false,
+        "rerank_enabled": false,
+        "rerank_blend": false,
+        "rerank_shortlist": 50,
+        "hybrid_fusion": "rrf",
+        "floor": {"max_gap": 0, "hard_floor": 0}
+      },
+      "scoring": {"recall_at": 5, "recall_target": 0.8, "mrr_at": 3, "deep_k": 50},
+      "performance": {"p95_ms": 1500, "degraded_rate_max": 0.05, "telemetry_required": true, "minimum_samples": 8},
+      "tests": {
+        "suite_id": "agent-manager.runs.primary",
+        "name": "Agent conversation recall — primary golden corpus",
+        "description": "Synthetic, reviewed run-recall cases spanning literal, paraphrase, correction, filtering, privacy, and junk-rejection behavior. Expected IDs are run IDs because the provider returns prior runs; individual hits retain stable chunk IDs for deduplication and context expansion.",
+        "minimum": {"reviewed_positive": 12, "negative": 3, "required_tags": ["literal", "paraphrase", "correction", "privacy", "filter"]},
+        "coverage": {
+          "required_tags": ["literal", "paraphrase", "correction", "privacy", "filter"],
+          "required_tag_groups": [
+            {"id": "retrieval-shape", "tags": ["literal", "paraphrase"], "min_reviewed_positive": 2},
+            {"id": "trust", "tags": ["correction", "privacy"], "min_reviewed_positive": 2}
+          ]
+        },
+        "cases": [
+          {"id": "phase-monitor-keywords", "query": "which previous conversation discussed phase resource usage and the system monitor", "tags": ["literal", "strong", "reviewed"], "expect_ids": ["fixture-run-adaptive-scheduler"], "expect_within_top_k": 5},
+          {"id": "adaptive-correction-paraphrase", "query": "find the prior agent discussion that initially said fixed concurrency but later found adaptive phase scheduling", "tags": ["paraphrase", "correction", "hard", "reviewed"], "expect_ids": ["fixture-run-adaptive-scheduler"], "expect_within_top_k": 5},
+          {"id": "corrected-test-analysis", "query": "which previous conversation corrected the analysis about test execution", "tags": ["paraphrase", "correction", "weak", "reviewed"], "expect_ids": ["fixture-run-adaptive-scheduler"], "expect_within_top_k": 5},
+          {"id": "shared-capacity-ledger", "query": "find the prior run that mentioned the shared capacity ledger", "tags": ["literal", "strong", "reviewed"], "expect_ids": ["fixture-run-adaptive-scheduler"], "expect_within_top_k": 3},
+          {"id": "resource-history-admission", "query": "what earlier agent conversation said measured history controls whether another phase can start", "tags": ["paraphrase", "weak", "reviewed"], "expect_ids": ["fixture-run-adaptive-scheduler"], "expect_within_top_k": 5},
+          {"id": "incomplete-fixed-concurrency-quote", "query": "in which prior run was the statement about fixed execution called incomplete", "tags": ["correction", "hard", "reviewed"], "expect_ids": ["fixture-run-adaptive-scheduler"], "expect_within_top_k": 5},
+          {"id": "release-signature", "query": "find the previous agent run about a signed release artifact ready for staged publication", "tags": ["literal", "strong", "reviewed"], "expect_ids": ["fixture-run-unrelated-release"], "expect_within_top_k": 3},
+          {"id": "project-beta-capacity", "query": "which prior run discussed capacity ledger admission token", "scope": "path:/workspace/beta", "tags": ["filter", "hard", "reviewed"], "expect_ids": ["fixture-run-equal-score-b"], "expect_within_top_k": 1},
+          {"id": "title-mismatch-throughput", "query": "find the past conversation about machine pressure changing when more work may begin", "tags": ["paraphrase", "title_mismatch", "hard", "reviewed"], "expect_ids": ["fixture-run-adaptive-scheduler"], "expect_within_top_k": 5},
+          {"id": "two-harness-equal-score", "query": "which prior agent runs from different harnesses discussed admission token in the capacity ledger", "tags": ["ambiguity", "multi_harness", "hard", "reviewed"], "expect_ids": ["fixture-run-equal-score-a", "fixture-run-equal-score-b"], "expect_within_top_k": 2},
+          {"id": "recover-outcome-not-title", "query": "what outcome in an earlier conversation replaced the fixed concurrency explanation", "tags": ["outcome", "correction", "weak", "reviewed"], "expect_ids": ["fixture-run-adaptive-scheduler"], "expect_within_top_k": 5},
+          {"id": "visible-history-privacy-boundary", "query": "find visible corrected analysis from retained prior conversation history", "tags": ["privacy", "weak-real", "reviewed"], "expect_ids": ["fixture-run-adaptive-scheduler"], "expect_within_top_k": 5, "note": "Positive privacy control: retained visible history remains searchable while the negative cases prove deleted or purged content stays absent."},
+          {"id": "deleted-secret-negative", "query": "secret-shaped example", "tags": ["privacy", "negative", "reviewed"], "expect_no_strong_hit": true, "expect_max_score": 0.2},
+          {"id": "purged-run-negative", "query": "purged sentinel phrase", "tags": ["privacy", "negative", "reviewed"], "expect_no_strong_hit": true, "expect_max_score": 0.2},
+          {"id": "gibberish-negative", "query": "zxqv jklp 9981 nonsensical recall", "tags": ["gibberish", "negative", "reviewed"], "expect_no_strong_hit": true, "expect_max_score": 0.2}
+        ]
+      }
+    }
+  ]
+}

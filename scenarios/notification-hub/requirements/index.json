@@ -1,3 +1,12 @@
 {
-  "requirements": []
+  "_metadata": {
+    "auto_sync_enabled": true,
+    "description": "Parent registry linking operational targets to technical requirements",
+    "schema_version": "1.0.0"
+  },
+  "imports": [
+    "01-must-ship/module.json",
+    "02-post-launch/module.json",
+    "03-future/module.json"
+  ]
 }

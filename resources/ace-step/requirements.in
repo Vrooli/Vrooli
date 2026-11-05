@@ -1,0 +1,26 @@
+# ACE-Step 1.5 runtime. This file deliberately excludes flash-attn: it does not
+# declare torch as a build dependency and is not required by the PyTorch path.
+torch==2.10.0+cu128
+torchaudio==2.10.0+cu128
+transformers>=4.51.0,<4.58.0
+diffusers
+safetensors==0.7.0
+soundfile>=0.13.1
+loguru>=0.7.3
+einops>=0.8.1
+accelerate>=1.12.0
+fastapi>=0.110.0
+uvicorn[standard]>=0.27.0
+python-multipart>=0.0.18
+numba>=0.63.1
+vector-quantize-pytorch>=1.27.15
+torchcodec>=0.9.1
+torchao>=0.16.0,<0.17.0
+toml
+modelscope
+peft>=0.18.0
+lycoris-lora
+lightning>=2.0.0
+tensorboard>=2.0.0
+triton>=3.0.0
+xxhash

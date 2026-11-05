@@ -1,0 +1,647 @@
+{
+  "metadata": {
+    "name": "e4-delivery-dark-states",
+    "description": "Given the leased disposable recipient fixture on a phone, when the owner uses the destination drawer, then dark Delivery details distinguish state, adapter receipts and unavailable evidence.",
+    "requirement": "OT-P0-001",
+    "version": "2",
+    "labels": {
+      "reset": "none",
+      "routed_isolation": "true",
+      "requires_confirmation": "true",
+      "surface": "delivery-dark-states"
+    },
+    "execution_mode": "mutating"
+  },
+  "settings": {
+    "viewport_width": 390,
+    "viewport_height": 844
+  },
+  "nodes": [
+    {
+      "id": "open-updates",
+      "action": {
+        "type": "ACTION_TYPE_NAVIGATE",
+        "navigate": {
+          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+          "scenario": "notification-hub",
+          "scenario_path": "/settings?view=all&vrooli_test_mode=1",
+          "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE",
+          "timeout_ms": 30000
+        },
+        "metadata": {
+          "label": "Open routed Settings to apply the dark theme"
+        }
+      }
+    },
+    {
+      "id": "set-dark",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": "@selector/settingsPage.themeOption(choice=dark)"
+        },
+        "metadata": {
+          "label": "Choose dark with the registered Settings theme control"
+        }
+      }
+    },
+    {
+      "id": "return-to-updates-after-theme",
+      "action": {
+        "type": "ACTION_TYPE_NAVIGATE",
+        "navigate": {
+          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+          "scenario": "notification-hub",
+          "scenario_path": "/updates?vrooli_test_mode=1",
+          "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE",
+          "timeout_ms": 30000
+        },
+        "metadata": {
+          "label": "Return to routed Updates before testing Delivery"
+        }
+      }
+    },
+    {
+      "id": "open-menu-for-open-delivery",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": "@selector/layout.menu"
+        },
+        "metadata": {
+          "label": "Open the mobile destination drawer"
+        }
+      }
+    },
+    {
+      "id": "open-delivery",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": "@selector/layout.navLink(key=delivery)"
+        },
+        "metadata": {
+          "label": "Open Delivery in mobile navigation"
+        }
+      }
+    },
+    {
+      "id": "assert-delivery-list",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "@selector/pages.delivery",
+          "mode": "ASSERTION_MODE_TEXT_CONTAINS",
+          "expected": {
+            "string_value": "E4 delivery receipt fixture"
+          },
+          "timeout_ms": 15000,
+          "failure_message": "Disposable Delivery records are present"
+        },
+        "metadata": {
+          "label": "Disposable Delivery records are present"
+        }
+      }
+    },
+    {
+      "id": "assert-state-pending",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "@selector/pages.delivery",
+          "mode": "ASSERTION_MODE_TEXT_CONTAINS",
+          "expected": {
+            "string_value": "Pending"
+          },
+          "timeout_ms": 15000,
+          "failure_message": "Dark theme shows Pending"
+        },
+        "metadata": {
+          "label": "Dark theme shows Pending"
+        }
+      }
+    },
+    {
+      "id": "assert-state-held",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "@selector/pages.delivery",
+          "mode": "ASSERTION_MODE_TEXT_CONTAINS",
+          "expected": {
+            "string_value": "Held"
+          },
+          "timeout_ms": 15000,
+          "failure_message": "Dark theme shows Held"
+        },
+        "metadata": {
+          "label": "Dark theme shows Held"
+        }
+      }
+    },
+    {
+      "id": "assert-state-routed",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "@selector/pages.delivery",
+          "mode": "ASSERTION_MODE_TEXT_CONTAINS",
+          "expected": {
+            "string_value": "Routed"
+          },
+          "timeout_ms": 15000,
+          "failure_message": "Dark theme shows Routed"
+        },
+        "metadata": {
+          "label": "Dark theme shows Routed"
+        }
+      }
+    },
+    {
+      "id": "assert-state-delivered",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "@selector/pages.delivery",
+          "mode": "ASSERTION_MODE_TEXT_CONTAINS",
+          "expected": {
+            "string_value": "Delivered"
+          },
+          "timeout_ms": 15000,
+          "failure_message": "Dark theme shows Delivered"
+        },
+        "metadata": {
+          "label": "Dark theme shows Delivered"
+        }
+      }
+    },
+    {
+      "id": "assert-state-failed",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "@selector/pages.delivery",
+          "mode": "ASSERTION_MODE_TEXT_CONTAINS",
+          "expected": {
+            "string_value": "Failed"
+          },
+          "timeout_ms": 15000,
+          "failure_message": "Dark theme shows Failed"
+        },
+        "metadata": {
+          "label": "Dark theme shows Failed"
+        }
+      }
+    },
+    {
+      "id": "assert-state-unroutable",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "@selector/pages.delivery",
+          "mode": "ASSERTION_MODE_TEXT_CONTAINS",
+          "expected": {
+            "string_value": "Unroutable"
+          },
+          "timeout_ms": 15000,
+          "failure_message": "Dark theme shows Unroutable"
+        },
+        "metadata": {
+          "label": "Dark theme shows Unroutable"
+        }
+      }
+    },
+    {
+      "id": "assert-state-suppressed",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "@selector/pages.delivery",
+          "mode": "ASSERTION_MODE_TEXT_CONTAINS",
+          "expected": {
+            "string_value": "Suppressed"
+          },
+          "timeout_ms": 15000,
+          "failure_message": "Dark theme shows Suppressed"
+        },
+        "metadata": {
+          "label": "Dark theme shows Suppressed"
+        }
+      }
+    },
+    {
+      "id": "scroll-delivery-states-bottom",
+      "action": {
+        "type": "ACTION_TYPE_SCROLL",
+        "scroll": {
+          "behavior": "SCROLL_BEHAVIOR_AUTO",
+          "selector": "@selector/layout.main",
+          "y": 40
+        },
+        "metadata": {
+          "label": "Capture the lower state guide viewport"
+        }
+      }
+    },
+    {
+      "id": "assert-lower-states",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "@selector/pages.delivery",
+          "mode": "ASSERTION_MODE_TEXT_CONTAINS",
+          "expected": {
+            "string_value": "Suppressed"
+          },
+          "timeout_ms": 10000,
+          "failure_message": "Expected the lower transport states to remain visible after scrolling"
+        },
+        "metadata": {
+          "label": "Lower delivery state meanings remain reachable"
+        }
+      }
+    },
+    {
+      "id": "open-receipt-detail",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": "@selector/delivery.recordDetailsLink(id=e4-test-delivered)"
+        },
+        "metadata": {
+          "label": "Open delivered detail"
+        }
+      }
+    },
+    {
+      "id": "assert-receipt",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "@selector/pages.deliveryDetail",
+          "mode": "ASSERTION_MODE_TEXT_CONTAINS",
+          "expected": {
+            "string_value": "Adapter accepted"
+          },
+          "timeout_ms": 15000,
+          "failure_message": "Dark detail retains adapter receipt wording"
+        },
+        "metadata": {
+          "label": "Dark detail retains adapter receipt wording"
+        }
+      }
+    },
+    {
+      "id": "open-menu-for-return-delivery",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": "@selector/layout.menu"
+        },
+        "metadata": {
+          "label": "Open the mobile destination drawer"
+        }
+      }
+    },
+    {
+      "id": "return-delivery",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": "@selector/layout.navLink(key=delivery)"
+        },
+        "metadata": {
+          "label": "Return to Delivery list"
+        }
+      }
+    },
+    {
+      "id": "open-no-receipt",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": "@selector/delivery.recordDetailsLink(id=DEMO-N043)"
+        },
+        "metadata": {
+          "label": "Open state with no receipt"
+        }
+      }
+    },
+    {
+      "id": "assert-no-receipt",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "@selector/pages.deliveryDetail",
+          "mode": "ASSERTION_MODE_TEXT_CONTAINS",
+          "expected": {
+            "string_value": "No receipt does not mean unread, offline or a failed answer."
+          },
+          "timeout_ms": 15000,
+          "failure_message": "Missing receipt does not imply delivery"
+        },
+        "metadata": {
+          "label": "Missing receipt does not imply delivery"
+        }
+      }
+    },
+    {
+      "id": "open-menu-for-return-delivery-unknown",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": "@selector/layout.menu"
+        },
+        "metadata": {
+          "label": "Open the mobile destination drawer"
+        }
+      }
+    },
+    {
+      "id": "return-delivery-unknown",
+      "action": {
+        "type": "ACTION_TYPE_NAVIGATE",
+        "navigate": {
+          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+          "scenario": "notification-hub",
+          "scenario_path": "/updates?vrooli_test_mode=1&e4_fixture=delivery-unknown-state",
+          "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE",
+          "timeout_ms": 30000
+        },
+        "metadata": {
+          "label": "Select the leased unknown-state fixture from Updates"
+        }
+      }
+    },
+    {
+      "id": "open-menu-for-unknown-delivery",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": "@selector/layout.menu"
+        },
+        "metadata": {
+          "label": "Open destination drawer after selecting unknown state"
+        }
+      }
+    },
+    {
+      "id": "navigate-to-unknown-delivery",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": "@selector/layout.navLink(key=delivery)"
+        },
+        "metadata": {
+          "label": "Open Delivery with the leased unknown state"
+        }
+      }
+    },
+    {
+      "id": "open-unknown",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": "@selector/delivery.recordDetailsLink(id=DEMO-N043)"
+        },
+        "metadata": {
+          "label": "Open future state detail"
+        }
+      }
+    },
+    {
+      "id": "assert-unknown",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "@selector/pages.deliveryDetail",
+          "mode": "ASSERTION_MODE_TEXT_CONTAINS",
+          "expected": {
+            "string_value": "The returned state isn\u2019t recognized"
+          },
+          "timeout_ms": 15000,
+          "failure_message": "Unknown future delivery state remains explicit"
+        },
+        "metadata": {
+          "label": "Unknown future delivery state remains explicit"
+        }
+      }
+    },
+    {
+      "id": "assert-no-success-from-unknown",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "@selector/pages.deliveryDetail",
+          "mode": "ASSERTION_MODE_TEXT_CONTAINS",
+          "expected": {
+            "string_value": "No delivery success is assumed"
+          },
+          "timeout_ms": 15000,
+          "failure_message": "An unrecognized delivery state must not imply delivery success"
+        },
+        "metadata": {
+          "label": "Unrecognized state does not imply success"
+        }
+      }
+    },
+    {
+      "id": "set-selected-capture-safe-area",
+      "action": {
+        "type": "ACTION_TYPE_EVALUATE",
+        "evaluate": {
+          "expression": "(()=>{const root=document.documentElement;root.style.setProperty('--safe-area-inset-top','0px');root.style.setProperty('--safe-area-inset-bottom','0px');const top=getComputedStyle(root).getPropertyValue('--safe-area-inset-top').trim(),bottom=getComputedStyle(root).getPropertyValue('--safe-area-inset-bottom').trim();if(top!=='0px'||bottom!=='0px')throw new Error('Selected artwork comparison requires the zero-inset phone viewport');return {top,bottom,viewport:{width:innerWidth,height:innerHeight}}})()",
+          "store_result": "selectedCaptureSafeArea"
+        },
+        "metadata": {
+          "label": "Match the selected phone artwork\u2019s zero-inset viewport while retaining separate nonzero-inset shell coverage"
+        }
+      }
+    },
+    {
+      "id": "set-unknown-capture-safe-area",
+      "action": {
+        "type": "ACTION_TYPE_EVALUATE",
+        "evaluate": {
+          "expression": "(()=>{const root=document.documentElement;root.style.setProperty('--safe-area-inset-top','0px');root.style.setProperty('--safe-area-inset-bottom','0px');const top=getComputedStyle(root).getPropertyValue('--safe-area-inset-top').trim(),bottom=getComputedStyle(root).getPropertyValue('--safe-area-inset-bottom').trim();if(top!=='0px'||bottom!=='0px')throw new Error('Selected artwork comparison requires the zero-inset phone viewport');return {top,bottom,viewport:{width:innerWidth,height:innerHeight}}})()",
+          "store_result": "unknownCaptureSafeArea"
+        },
+        "metadata": {
+          "label": "Reapply the selected artwork\u2019s zero-inset viewport after the direct unknown-state navigation"
+        }
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "source": "open-updates",
+      "target": "set-dark",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e2-theme-route",
+      "source": "set-dark",
+      "target": "return-to-updates-after-theme",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e2",
+      "source": "return-to-updates-after-theme",
+      "target": "set-selected-capture-safe-area",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e3",
+      "source": "open-delivery",
+      "target": "assert-delivery-list",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e4",
+      "source": "assert-delivery-list",
+      "target": "assert-state-pending",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e5",
+      "source": "assert-state-pending",
+      "target": "assert-state-held",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e6",
+      "source": "assert-state-held",
+      "target": "assert-state-routed",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e7",
+      "source": "assert-state-routed",
+      "target": "assert-state-delivered",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e8",
+      "source": "assert-state-delivered",
+      "target": "assert-state-failed",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e9",
+      "source": "assert-state-failed",
+      "target": "assert-state-unroutable",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e10",
+      "source": "assert-state-unroutable",
+      "target": "assert-state-suppressed",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e11",
+      "source": "assert-state-suppressed",
+      "target": "scroll-delivery-states-bottom",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e12",
+      "source": "scroll-delivery-states-bottom",
+      "target": "assert-lower-states",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e13",
+      "source": "assert-lower-states",
+      "target": "open-receipt-detail",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e14",
+      "source": "open-receipt-detail",
+      "target": "assert-receipt",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e15",
+      "source": "assert-receipt",
+      "target": "open-menu-for-return-delivery",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e16",
+      "source": "return-delivery",
+      "target": "open-no-receipt",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e17",
+      "source": "open-no-receipt",
+      "target": "assert-no-receipt",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e18",
+      "source": "assert-no-receipt",
+      "target": "open-menu-for-return-delivery-unknown",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e19",
+      "source": "return-delivery-unknown",
+      "target": "open-menu-for-unknown-delivery",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e20",
+      "source": "open-unknown",
+      "target": "set-unknown-capture-safe-area",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "open-menu-for-open-delivery-edge",
+      "source": "open-menu-for-open-delivery",
+      "target": "open-delivery",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "open-menu-for-return-delivery-edge",
+      "source": "open-menu-for-return-delivery",
+      "target": "return-delivery",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "open-menu-for-return-delivery-unknown-edge",
+      "source": "open-menu-for-return-delivery-unknown",
+      "target": "return-delivery-unknown",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "assert-no-success-from-unknown-edge",
+      "source": "assert-unknown",
+      "target": "assert-no-success-from-unknown",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "source": "open-menu-for-unknown-delivery",
+      "target": "navigate-to-unknown-delivery"
+    },
+    {
+      "source": "navigate-to-unknown-delivery",
+      "target": "open-unknown"
+    },
+    {
+      "id": "selected-capture-safe-area-to-destination",
+      "source": "set-selected-capture-safe-area",
+      "target": "open-menu-for-open-delivery",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "unknown-capture-safe-area-to-assert",
+      "source": "set-unknown-capture-safe-area",
+      "target": "assert-unknown",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    }
+  ]
+}

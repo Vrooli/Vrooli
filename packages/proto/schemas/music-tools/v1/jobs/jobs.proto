@@ -1,0 +1,30 @@
+syntax = "proto3";
+
+package vrooli.music_tools.v1.jobs;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/music-tools/v1/jobs;jobs_v1";
+
+service JobsService {
+  rpc Get(GetJobRequest) returns (Job);
+  rpc List(ListJobsRequest) returns (ListJobsResponse);
+  rpc Wait(WaitJobRequest) returns (Job);
+  rpc Cancel(CancelJobRequest) returns (Job);
+}
+
+message Job {
+  string id = 1;
+  string kind = 2;
+  string state = 3;
+  string lane = 4;
+  string error = 5;
+  int32 total = 6;
+  int32 completed = 7;
+  string result_ref = 8;
+  map<string, string> meta = 9;
+}
+
+message GetJobRequest { string id = 1; }
+message WaitJobRequest { string id = 1; }
+message CancelJobRequest { string id = 1; }
+message ListJobsRequest { string state = 1; string kind = 2; }
+message ListJobsResponse { repeated Job jobs = 1; }

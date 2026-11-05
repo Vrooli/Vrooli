@@ -1,0 +1,132 @@
+syntax = "proto3";
+
+package vrooli.infrastructure_manager.v1.condition;
+
+import "google/protobuf/timestamp.proto";
+import "infrastructure-manager/v1/coverage/coverage.proto";
+import "infrastructure-manager/v1/shared/cell.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/infrastructure-manager/v1/condition;condition_v1";
+
+// Condition qualifies live readings from coverage legs. Trust is evaluated at
+// read time and band verdicts are derived against the current setpoint; no
+// mutating operation is exposed by this service.
+
+service ConditionService {
+  rpc GetCondition(GetConditionRequest) returns (GetConditionResponse);
+  rpc GetTrustDistribution(GetTrustDistributionRequest) returns (GetTrustDistributionResponse);
+  rpc ExplainCell(ExplainCellRequest) returns (ExplainCellResponse);
+  rpc GetHistory(GetHistoryRequest) returns (GetHistoryResponse);
+}
+
+enum TrustVerdict {
+  TRUST_VERDICT_UNSPECIFIED = 0;
+  TRUST_VERDICT_VALID = 1;
+  TRUST_VERDICT_GHOST = 2;
+  TRUST_VERDICT_SATURATED = 3;
+  TRUST_VERDICT_SHELVED = 4;
+  TRUST_VERDICT_UNIT_MISMATCH = 5;
+  TRUST_VERDICT_UNAVAILABLE = 6;
+  TRUST_VERDICT_UNTRUSTED = 7;
+}
+
+enum BandVerdict {
+  BAND_VERDICT_UNSPECIFIED = 0;
+  BAND_VERDICT_IN_BAND = 1;
+  BAND_VERDICT_OUT_OF_BAND = 2;
+  BAND_VERDICT_PENDING_SUSTAIN = 3;
+  BAND_VERDICT_NEEDS_BASELINE = 4;
+  BAND_VERDICT_NOT_EVALUATED = 5;
+  // A bar exists for the cell but authors no threshold. Distinct from
+  // NOT_EVALUATED (the reading could not be trusted) and NEEDS_BASELINE
+  // (no bar was found at all).
+  BAND_VERDICT_NOT_GRADEABLE = 6;
+}
+
+message Leg {
+  string cell_ref = 1;
+  coverage.Projection projection = 2;
+  string owner = 3;
+  string unit = 4;
+  string source = 5;
+}
+
+message Reading {
+  string id = 1;
+  string cell_ref = 2;
+  double value = 3;
+  string unit = 4;
+  string source = 5;
+  google.protobuf.Timestamp observed_at = 6;
+  TrustVerdict trust_verdict = 7;
+  BandVerdict band_verdict = 8;
+  string unavailable_reason = 9;
+  // band_explanation states why a reading was not graded, so an ungraded cell
+  // is explainable instead of merely blank.
+  string band_explanation = 10;
+  // out_of_scope marks a reading whose target exists but sits outside the
+  // derived should-be-supervised set. It never lowers trust.
+  bool out_of_scope = 11;
+}
+
+message TrustCount {
+  TrustVerdict verdict = 1;
+  int32 count = 2;
+}
+
+// TrustTriple is one composite value. Consumers cannot receive a distribution
+// without the denominator that was checked to produce it.
+message TrustTriple {
+  repeated TrustCount distribution = 1;
+  int32 checked_denominator = 2;
+  int32 total = 3;
+  google.protobuf.Timestamp checked_at = 4;
+}
+
+message SourceAvailability {
+  string source = 1;
+  bool available = 2;
+  string reason = 3;
+  google.protobuf.Timestamp checked_at = 4;
+}
+
+message GetConditionRequest {
+  coverage.Projection projection = 1;
+  string cell_ref = 2;
+}
+
+message GetConditionResponse {
+  repeated Reading readings = 1;
+  repeated Leg legs = 2;
+  repeated SourceAvailability sources = 3;
+  google.protobuf.Timestamp computed_at = 4;
+}
+
+message GetTrustDistributionRequest {
+  coverage.Projection projection = 1;
+}
+
+message GetTrustDistributionResponse {
+  TrustTriple trust = 1;
+}
+
+message ExplainCellRequest {
+  string cell_ref = 1;
+}
+
+message ExplainCellResponse {
+  shared.Cell cell = 1;
+  Reading reading = 2;
+  repeated SourceAvailability sources = 3;
+}
+
+message GetHistoryRequest {
+  string cell_ref = 1;
+  int32 limit = 2;
+}
+
+message GetHistoryResponse {
+  repeated Reading readings = 1;
+  bool measurable = 2;
+  string unmeasurable_reason = 3;
+}

@@ -1,12 +1,42 @@
 package execute
 
 import (
+	"os"
+	"path/filepath"
 	"reflect"
+	"strings"
 	"testing"
-	"time"
 
 	execTypes "test-genie/cli/internal/execute"
 )
+
+func TestResolveWorkspacePathsUsesSandboxHostAndLogicalRoots(t *testing.T) {
+	hostMerged := t.TempDir()
+	scenarioPath := filepath.Join(hostMerged, "scenarios", "demo")
+	if err := os.MkdirAll(scenarioPath, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("VROOLI_SANDBOX_MERGED_HOST", hostMerged)
+	t.Setenv("VROOLI_SANDBOX_REPO_ROOT", "/canonical/Vrooli")
+	parsed := Args{Scenario: "demo"}
+	got, err := resolveWorkspacePaths(&parsed)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got != scenarioPath || parsed.LogicalRepoRoot != "/canonical/Vrooli" || parsed.LogicalScenarioRelPath != "scenarios/demo" {
+		t.Fatalf("resolved path contract disagrees: path=%q parsed=%+v", got, parsed)
+	}
+}
+
+func TestResolveWorkspacePathsNamesUnreachablePhysicalRoot(t *testing.T) {
+	missing := filepath.Join(t.TempDir(), "missing", "scenarios", "demo")
+	t.Setenv("VROOLI_SANDBOX_MERGED_HOST", filepath.Dir(filepath.Dir(missing)))
+	parsed := Args{Scenario: "demo"}
+	_, err := resolveWorkspacePaths(&parsed)
+	if err == nil || !strings.Contains(err.Error(), missing) {
+		t.Fatalf("error = %v, want unreachable path %q", err, missing)
+	}
+}
 
 func TestPlannedPhaseNamesPreservesServerOrder(t *testing.T) {
 	preview := execTypes.PlanPreview{
@@ -24,22 +54,152 @@ func TestPlannedPhaseNamesPreservesServerOrder(t *testing.T) {
 	}
 }
 
-func TestPhaseTimingTargetsBuildsEstimateAndTimeoutMaps(t *testing.T) {
-	preview := execTypes.PlanPreview{
-		Phases: []execTypes.PlanPhase{
-			{Name: "unit", EstimatedDurationSeconds: 12, TimeoutSeconds: 90},
-			{Name: "e2e", EstimatedDurationSeconds: 30, TimeoutSeconds: 120},
+func TestParseArgsAcceptsAbsoluteScenarioPath(t *testing.T) {
+	scenarioPath := filepath.Join(t.TempDir(), "scenarios", "demo")
+	parsed, err := ParseArgs([]string{"demo", "--scenario-path", scenarioPath, "--preset", "comprehensive"})
+	if err != nil {
+		t.Fatalf("ParseArgs() error = %v", err)
+	}
+	if parsed.ScenarioPath != scenarioPath {
+		t.Fatalf("ScenarioPath = %q, want %q", parsed.ScenarioPath, scenarioPath)
+	}
+	if parsed.Preset != "comprehensive" {
+		t.Fatalf("Preset = %q", parsed.Preset)
+	}
+}
+
+func TestParseArgsPreservesRuntimeURLOverridesAfterPhaseSelectors(t *testing.T) {
+	parsed, err := ParseArgs([]string{
+		"device-control",
+		"workflow",
+		"--ui-url", "http://127.0.0.1:20698",
+		"--api-url", "http://127.0.0.1:16465",
+		"--json",
+	})
+	if err != nil {
+		t.Fatalf("ParseArgs() error = %v", err)
+	}
+	if parsed.UIURL != "http://127.0.0.1:20698" || parsed.APIURL != "http://127.0.0.1:16465" {
+		t.Fatalf("runtime URL overrides were lost: ui=%q api=%q", parsed.UIURL, parsed.APIURL)
+	}
+	if len(parsed.Phases) != 1 || parsed.Phases[0] != "workflow" {
+		t.Fatalf("phase selector was not preserved: %#v", parsed.Phases)
+	}
+}
+
+func TestStartRunRequestCarriesRuntimeURLOverrides(t *testing.T) {
+	req := toStartRunRequest(Request{
+		ScenarioName: "device-control",
+		UIURL:        "http://127.0.0.1:20698",
+		APIURL:       "http://127.0.0.1:16465",
+	})
+	if req.GetUiUrl() != "http://127.0.0.1:20698" || req.GetApiUrl() != "http://127.0.0.1:16465" {
+		t.Fatalf("StartRun request lost runtime URL overrides: ui=%q api=%q", req.GetUiUrl(), req.GetApiUrl())
+	}
+}
+
+func TestStartRunRequestCarriesReleaseIdentity(t *testing.T) {
+	req := toStartRunRequest(Request{
+		ScenarioName:                 "demo",
+		ReleaseProfileID:             "profile-1",
+		ReleaseCandidateCommit:       "commit-1",
+		ReleaseArtifactDigest:        "sha256:artifact",
+		ReleaseTargets:               []string{"linux-x64", "windows-x64"},
+		ReleaseChannel:               "stable",
+		ReleasePolicyVersion:         4,
+		ReleaseCandidateID:           "candidate-1",
+		ReleaseDestinationRevisionID: "destination-1",
+		ReleaseAuthorizationEpoch:    7,
+		ReleasePredecessorRunID:      "run-before",
+	})
+	if req.GetReleaseProfileId() != "profile-1" || req.GetReleaseCandidateCommit() != "commit-1" || req.GetReleaseArtifactDigest() != "sha256:artifact" || req.GetReleaseChannel() != "stable" || req.GetReleasePolicyVersion() != 4 || req.GetReleaseCandidateId() != "candidate-1" || req.GetReleaseDestinationRevisionId() != "destination-1" || req.GetReleaseAuthorizationEpoch() != 7 || req.GetReleasePredecessorRunId() != "run-before" {
+		t.Fatalf("StartRun request lost release identity: %v", req)
+	}
+	if got := req.GetReleaseTargets(); len(got) != 2 || got[0] != "linux-x64" || got[1] != "windows-x64" {
+		t.Fatalf("release targets = %#v", got)
+	}
+}
+
+func TestParseArgsRejectsRelativeScenarioPath(t *testing.T) {
+	if _, err := ParseArgs([]string{"demo", "--scenario-path", "scenarios/demo"}); err == nil {
+		t.Fatal("expected relative --scenario-path to fail")
+	}
+}
+
+func TestParseArgsAcceptsLogicalPlacement(t *testing.T) {
+	scenarioPath := filepath.Join(t.TempDir(), "scenarios", "demo")
+	repoRoot := t.TempDir()
+	parsed, err := ParseArgs([]string{
+		"demo",
+		"--scenario-path", scenarioPath,
+		"--logical-repo-root", repoRoot,
+		"--logical-scenario-relpath", "scenarios/demo",
+	})
+	if err != nil {
+		t.Fatalf("ParseArgs() error = %v", err)
+	}
+	if parsed.LogicalRepoRoot != repoRoot {
+		t.Fatalf("LogicalRepoRoot = %q, want %q", parsed.LogicalRepoRoot, repoRoot)
+	}
+	if parsed.LogicalScenarioRelPath != "scenarios/demo" {
+		t.Fatalf("LogicalScenarioRelPath = %q", parsed.LogicalScenarioRelPath)
+	}
+}
+
+func TestParseArgsRejectsInvalidLogicalPlacement(t *testing.T) {
+	tests := []struct {
+		name string
+		args []string
+	}{
+		{
+			name: "missing relative placement",
+			args: []string{"demo", "--logical-repo-root", t.TempDir()},
+		},
+		{
+			name: "relative repo root",
+			args: []string{"demo", "--logical-repo-root", "repo", "--logical-scenario-relpath", "scenarios/demo"},
+		},
+		{
+			name: "absolute scenario relpath",
+			args: []string{"demo", "--logical-repo-root", t.TempDir(), "--logical-scenario-relpath", filepath.Join(t.TempDir(), "scenarios/demo")},
+		},
+		{
+			name: "escaping scenario relpath",
+			args: []string{"demo", "--logical-repo-root", t.TempDir(), "--logical-scenario-relpath", "../demo"},
+		},
+		{
+			name: "scenario name mismatch",
+			args: []string{"demo", "--logical-repo-root", t.TempDir(), "--logical-scenario-relpath", "scenarios/other"},
 		},
 	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if _, err := ParseArgs(tt.args); err == nil {
+				t.Fatalf("expected ParseArgs(%v) to fail", tt.args)
+			}
+		})
+	}
+}
 
-	estimates, timeouts := phaseTimingTargets(preview)
-	if got := estimates["unit"]; got != 12*time.Second {
-		t.Fatalf("expected unit estimate 12s, got %s", got)
+func TestExecutionResultErrorFailsUnsuccessfulJSONResult(t *testing.T) {
+	if err := executionResultError(Response{Success: true}); err != nil {
+		t.Fatalf("executionResultError(success) error = %v", err)
 	}
-	if got := estimates["playbooks"]; got != 30*time.Second {
-		t.Fatalf("expected e2e alias to map to playbooks, got %s", got)
+	if err := executionResultError(Response{Success: false}); err == nil {
+		t.Fatal("expected unsuccessful execution result to fail")
 	}
-	if got := timeouts["playbooks"]; got != 120*time.Second {
-		t.Fatalf("expected playbooks timeout 120s, got %s", got)
+}
+
+func TestExtractErrorMessageIncludesStructuredDetails(t *testing.T) {
+	got := extractErrorMessage([]byte(`{
+		"success": false,
+		"error": "suite execution failed",
+		"errors": ["start target scenario demo: exit status 2"]
+	}`))
+
+	for _, want := range []string{"suite execution failed", "start target scenario demo: exit status 2"} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("extractErrorMessage() = %q, want %q", got, want)
+		}
 	}
 }

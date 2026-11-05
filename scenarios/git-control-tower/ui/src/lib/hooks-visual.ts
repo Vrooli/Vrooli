@@ -11,11 +11,6 @@ import {
   fetchCaptureStorageStats,
   deleteVisualCapture,
   clearAllCaptureStorage,
-  fetchWorkflowCaptures,
-  triggerWorkflowCapture,
-  fetchTestExecutions,
-  fetchTestExecution,
-  triggerTestExecution,
   fetchTidinessScore,
   fetchTidinessIssues,
   fetchTidinessStaleness,
@@ -28,12 +23,6 @@ import type {
   SnapshotSetMeta,
   SnapshotSetDetail,
   CaptureStorageStats,
-  WorkflowCaptureResult,
-  WorkflowCaptureListResponse,
-  ExecutionMode,
-  TestExecutionRequest,
-  TestExecutionResult,
-  TestExecutionListResponse,
   TidinessScoreResponse,
   TidinessIssue,
   TidinessStalenessInfo,
@@ -63,9 +52,9 @@ export function useVisualCaptureDetail(id: string, slug: string, enabled = true,
 
 export function useTriggerVisualCapture(repoId?: string | null) {
   const queryClient = useQueryClient();
-  return useMutation<SnapshotSetMeta, Error, { scenarioSlug: string; mode: "baseline" | "capture"; presets: CapturePreset[] }>({
-    mutationFn: async ({ scenarioSlug, mode, presets }) => {
-      const meta = await triggerVisualCapture(scenarioSlug, mode, repoId ?? undefined, presets);
+  return useMutation<SnapshotSetMeta, Error, { scenarioSlug: string; presets: CapturePreset[] }>({
+    mutationFn: async ({ scenarioSlug, presets }) => {
+      const meta = await triggerVisualCapture(scenarioSlug, repoId ?? undefined, presets);
       if (meta.status === "failed") {
         throw new Error(meta.error || "Capture failed — no screenshots were captured");
       }
@@ -102,66 +91,6 @@ export function useClearAllCaptureStorage(repoId?: string | null) {
     mutationFn: () => clearAllCaptureStorage(repoId ?? undefined),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.captureStorage(repoId) });
-    },
-  });
-}
-
-// ── Workflow Capture ───────────────────────────────────────────────────
-
-export function useWorkflowCaptures(slug: string, enabled = true, repoId?: string | null) {
-  return useQuery<WorkflowCaptureListResponse, Error>({
-    queryKey: queryKeys.workflowCaptures(slug, repoId),
-    queryFn: () => fetchWorkflowCaptures(slug, repoId ?? undefined),
-    enabled: enabled && Boolean(slug),
-    refetchInterval: 10_000,
-  });
-}
-
-export function useTriggerWorkflowCapture(repoId?: string | null) {
-  const queryClient = useQueryClient();
-  return useMutation<WorkflowCaptureResult, Error, { scenarioSlug: string; mode: "baseline" | "capture"; executionModes: ExecutionMode[] }>({
-    mutationFn: async ({ scenarioSlug, mode, executionModes }) => {
-      const result = await triggerWorkflowCapture(scenarioSlug, mode, executionModes, repoId ?? undefined);
-      if (result.status === "failed") {
-        throw new Error(result.error || "Workflow capture failed");
-      }
-      return result;
-    },
-    onSuccess: (_data, { scenarioSlug }) => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.workflowCaptures(scenarioSlug, repoId) });
-    },
-  });
-}
-
-// ── Test Execution ─────────────────────────────────────────────────────
-
-export function useTestExecutions(scenarioName: string, enabled = true, repoId?: string | null) {
-  return useQuery<TestExecutionListResponse, Error>({
-    queryKey: queryKeys.testExecutions(scenarioName, repoId),
-    queryFn: () => fetchTestExecutions(scenarioName, 10, repoId ?? undefined),
-    enabled: enabled && Boolean(scenarioName),
-    refetchInterval: 15_000,
-  });
-}
-
-export function useTestExecution(id: string, enabled = true, repoId?: string | null) {
-  return useQuery<TestExecutionResult, Error>({
-    queryKey: queryKeys.testExecution(id, repoId),
-    queryFn: () => fetchTestExecution(id, repoId ?? undefined),
-    enabled: enabled && Boolean(id),
-    staleTime: 30_000,
-  });
-}
-
-export function useTriggerTestExecution(repoId?: string | null) {
-  const queryClient = useQueryClient();
-  return useMutation<TestExecutionResult, Error, TestExecutionRequest>({
-    mutationFn: (request: TestExecutionRequest) =>
-      triggerTestExecution(request, repoId ?? undefined),
-    onSuccess: (_data, request) => {
-      queryClient.invalidateQueries({
-        queryKey: queryKeys.testExecutions(request.scenarioName, repoId),
-      });
     },
   });
 }

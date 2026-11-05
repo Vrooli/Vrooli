@@ -1,0 +1,701 @@
+{
+  "$schema": "https://vrooli.dev/schemas/test-genie-phase-descriptor.schema.json",
+  "schemaVersion": "1.0.0",
+  "scenario": "search-hub",
+  "phase": "search",
+  "displayName": "Search",
+  "description": "Validates search-enabled scenarios through Search Hub's search maturity contract.",
+  "source": "validation-provider",
+  "orderHint": 19,
+  "timeout": "90s",
+  "findingSource": null,
+  "validation": {
+    "contract": "scenario-validation/v1",
+    "includeExecution": true
+  },
+  "targets": {"kinds": ["scenario"], "selection": "enumerate",
+    "notApplicableKinds": [
+      {
+        "kind": "control-plane",
+        "reason": "This provider requires search registration, indexed scenario content, and resource metadata; the control plane has no search-enabled scenario contract."
+      }
+    ]},
+  "applicability": {
+    "default": "not_applicable",
+    "any": [
+      {
+        "serviceCapability": "search"
+      },
+      {
+        "serviceCapability": "ai-search"
+      }
+    ]
+  },
+  "policy": {
+    "selection": "default_when_applicable",
+    "providerReadiness": "required_when_applicable",
+    "providerLifecycle": "start_if_needed",
+    "freshness": "require_live_contract",
+    "resultGating": "gating",
+    "unavailable": "fail"
+  },
+  "runnability": {},
+  "docs": {
+    "path": "scenarios/test-genie/docs/phases/search/README.md"
+  },
+  "maturity": {
+    "version": "2.0.0",
+    "levels": [
+      {
+        "id": "L0",
+        "name": "Search maturity unavailable",
+        "description": "The target declares search ownership but Search Hub cannot inspect the search descriptor or provider corpus contract.",
+        "entry_criteria": [
+          "Search applicability is declared."
+        ],
+        "exit_criteria": [
+          "A readable .vrooli/search.json exists with at least one provider descriptor."
+        ]
+      },
+      {
+        "id": "L1",
+        "name": "Search maturity inspectable",
+        "description": "The target's search descriptor is readable and provider entries can be inspected.",
+        "entry_criteria": [
+          "Search descriptor parses."
+        ],
+        "exit_criteria": [
+          "Provider descriptors satisfy Search Hub registry invariants."
+        ]
+      },
+      {
+        "id": "L2",
+        "name": "Search maturity governed",
+        "description": "Search providers are routable and carry enough eval/readiness metadata to detect degraded search.",
+        "entry_criteria": [
+          "Provider descriptors are registry-valid."
+        ],
+        "exit_criteria": [
+          "Eval corpus and operational metadata are present."
+        ]
+      },
+      {
+        "id": "L3",
+        "name": "Search maturity baseline clean",
+        "description": "Search descriptor and baseline quality checks are clean enough for ordinary routing.",
+        "entry_criteria": [
+          "No required search maturity findings remain."
+        ],
+        "exit_criteria": [
+          "Production-quality AI search evidence is present."
+        ]
+      },
+      {
+        "id": "L4",
+        "name": "Search maturity production-ready",
+        "description": "Search providers have credible reviewed corpora, fresh live evidence, operational endpoint posture, tuning provenance, and enforced performance posture.",
+        "entry_criteria": [
+          "No production-readiness search maturity findings remain."
+        ],
+        "exit_criteria": [
+          "Maximum local search maturity."
+        ]
+      }
+    ],
+    "capabilities": [
+      {
+        "id": "search_descriptor",
+        "label": "Search Descriptor",
+        "description": "Presence, parseability, scenario ownership, and registry-valid provider descriptors in .vrooli/search.json.",
+        "levels": [
+          {
+            "id": "L0",
+            "name": "Search descriptor missing",
+            "status_label": "Unavailable",
+            "description": "The target declares search ownership but has no readable search descriptor.",
+            "capability_summary": "Search Hub cannot inspect the target's searchable corpora.",
+            "next_unlock": "A readable .vrooli/search.json with at least one provider descriptor."
+          },
+          {
+            "id": "L1",
+            "name": "Search descriptor readable",
+            "status_label": "Foundation",
+            "description": "The search descriptor parses and declares provider entries.",
+            "capability_summary": "Search ownership is inspectable.",
+            "next_unlock": "Provider descriptors satisfy Search Hub's registry contract."
+          },
+          {
+            "id": "L2",
+            "name": "Provider descriptors valid",
+            "status_label": "Ready",
+            "description": "Provider descriptors are active, scenario-owned, and registry-valid.",
+            "capability_summary": "Search providers are routable.",
+            "next_unlock": "Eval corpus and readiness/control posture are declared."
+          },
+          {
+            "id": "L3",
+            "name": "Search descriptor clean",
+            "status_label": "Complete",
+            "description": "Search descriptor checks are clean.",
+            "capability_summary": "Search descriptor maturity is clean.",
+            "next_unlock": "No production-readiness search descriptor findings remain."
+          },
+          {
+            "id": "L4",
+            "name": "Search descriptor production-ready",
+            "status_label": "Production",
+            "description": "Search descriptor checks are production-ready.",
+            "capability_summary": "Search descriptor maturity is production-ready."
+          }
+        ]
+      },
+      {
+        "id": "search_governance",
+        "label": "Search Governance",
+        "description": "Provider ownership and declared governance metadata that make a search provider accountable to one scenario.",
+        "levels": [
+          {
+            "id": "L0",
+            "name": "Search governance absent",
+            "status_label": "Ungoverned",
+            "description": "Search provider ownership is missing or contradicts the owning scenario.",
+            "capability_summary": "Search provider ownership is not trustworthy.",
+            "next_unlock": "Provider ownership metadata matches the target scenario."
+          },
+          {
+            "id": "L1",
+            "name": "Search governance aligned",
+            "status_label": "Foundation",
+            "description": "Provider ownership metadata is coherent.",
+            "capability_summary": "Search ownership is accountable to the target scenario.",
+            "next_unlock": "Maximum search-governance maturity."
+          },
+          {
+            "id": "L2",
+            "name": "Search governance clean",
+            "status_label": "Complete",
+            "description": "Search governance checks are clean.",
+            "capability_summary": "Search governance maturity is clean.",
+            "next_unlock": "No production-readiness search governance findings remain."
+          },
+          {
+            "id": "L3",
+            "name": "Search governance production-ready",
+            "status_label": "Production",
+            "description": "Search governance checks are production-ready.",
+            "capability_summary": "Search governance maturity is production-ready."
+          }
+        ]
+      },
+      {
+        "id": "search_eval_performance",
+        "label": "Search Eval Performance",
+        "description": "Declared eval corpus evidence used to prove and later refresh retrieval-quality maturity.",
+        "levels": [
+          {
+            "id": "L0",
+            "name": "Search eval evidence absent",
+            "status_label": "Unproven",
+            "description": "No eval corpus or an invalid corpus prevents retrieval-quality regression checks.",
+            "capability_summary": "Search eval quality cannot be measured.",
+            "next_unlock": "A labelled tests corpus with reviewed positive or negative cases."
+          },
+          {
+            "id": "L1",
+            "name": "Search eval corpus inspectable",
+            "status_label": "Foundation",
+            "description": "Search eval inputs are declared and parseable.",
+            "capability_summary": "Search Hub can inspect search eval inputs.",
+            "next_unlock": "Live eval freshness and threshold evidence."
+          },
+          {
+            "id": "L2",
+            "name": "Search eval evidence baseline clean",
+            "status_label": "Complete",
+            "description": "Static eval corpus checks are clean. Live eval execution is reported separately when explicitly requested.",
+            "capability_summary": "Search eval-performance maturity is clean.",
+            "next_unlock": "Reviewed corpus depth, difficulty spread, fresh live-labelled runs, and performance evidence prove production-quality retrieval."
+          },
+          {
+            "id": "L3",
+            "name": "Search eval evidence production-ready",
+            "status_label": "Production",
+            "description": "Reviewed corpus size, difficulty spread, live labels, fresh runs, and performance evidence prove production-quality retrieval.",
+            "capability_summary": "Search eval-performance maturity is production-ready."
+          }
+        ]
+      },
+      {
+        "id": "search_operability",
+        "label": "Search Operability",
+        "description": "Status/control endpoint posture and bounded tuning metadata for operating a search provider.",
+        "levels": [
+          {
+            "id": "L0",
+            "name": "Search operability undeclared",
+            "status_label": "Limited",
+            "description": "Status or control endpoints are missing, or tuning exceeds declared query-budget posture.",
+            "capability_summary": "Search provider operations are not fully inspectable.",
+            "next_unlock": "Status/control endpoints and bounded tuning posture."
+          },
+          {
+            "id": "L1",
+            "name": "Search operability inspectable",
+            "status_label": "Ready",
+            "description": "Readiness/control posture and tuning metadata are declared enough for operators to inspect provider health.",
+            "capability_summary": "Search provider operations are inspectable.",
+            "next_unlock": "Maximum search-operability maturity."
+          },
+          {
+            "id": "L2",
+            "name": "Search operability baseline clean",
+            "status_label": "Complete",
+            "description": "Search operability checks are clean.",
+            "capability_summary": "Search operability maturity is clean.",
+            "next_unlock": "Endpoint posture, tuning provenance, and measured latency/degradation budgets are production-ready."
+          },
+          {
+            "id": "L3",
+            "name": "Search operability production-ready",
+            "status_label": "Production",
+            "description": "Endpoint posture, tuning provenance, and measured latency/degradation budgets are production-ready.",
+            "capability_summary": "Search operability maturity is production-ready."
+          }
+        ]
+      }
+    ],
+    "findings": {
+      "SEARCH_CONFIG_MISSING": {
+        "capability_id": "search_descriptor",
+        "local_level_impact": "L0",
+        "global_impact": "capability_gap",
+        "dimension": "operational-targets",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "recommended_skill_ids": [
+          "ecosystem-fit"
+        ],
+        "fix_class": "manual",
+        "reason": "The provider owner must decide whether the scenario should expose search."
+      },
+      "SEARCH_GOVERNANCE_EVIDENCE_MISSING": {
+        "capability_id": "search_governance",
+        "local_level_impact": "L0",
+        "global_impact": "capability_gap",
+        "dimension": "operational-targets",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "recommended_skill_ids": ["ecosystem-fit"],
+        "fix_class": "manual",
+        "reason": "Provider ownership cannot be assessed until the scenario declares its descriptor."
+      },
+      "SEARCH_EVAL_EVIDENCE_MISSING": {
+        "capability_id": "search_eval_performance",
+        "local_level_impact": "L0",
+        "global_impact": "capability_gap",
+        "dimension": "operational-targets",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "recommended_skill_ids": ["test"],
+        "fix_class": "manual",
+        "reason": "Retrieval quality cannot be assessed until the scenario declares its corpus contract."
+      },
+      "SEARCH_OPERABILITY_EVIDENCE_MISSING": {
+        "capability_id": "search_operability",
+        "local_level_impact": "L0",
+        "global_impact": "capability_gap",
+        "dimension": "operational-targets",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "recommended_skill_ids": ["ecosystem-fit"],
+        "fix_class": "manual",
+        "reason": "Endpoint and tuning posture cannot be assessed until the scenario declares its descriptor."
+      },
+      "SEARCH_CONFIG_INVALID": {
+        "capability_id": "search_descriptor",
+        "local_level_impact": "L1",
+        "global_impact": "capability_gap",
+        "dimension": "operational-targets",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "recommended_skill_ids": [
+          "scientific-debugging"
+        ],
+        "fix_class": "manual",
+        "reason": "Descriptor repair depends on the owning provider's intended corpus."
+      },
+      "SEARCH_PROVIDER_DESCRIPTOR_MISSING": {
+        "capability_id": "search_descriptor",
+        "local_level_impact": "L0",
+        "global_impact": "capability_gap",
+        "dimension": "operational-targets",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "recommended_skill_ids": ["ecosystem-fit"],
+        "fix_class": "manual",
+        "reason": "A registered provider without its scenario-owned descriptor cannot be audited."
+      },
+      "SEARCH_PROVIDER_INVALID": {
+        "capability_id": "search_descriptor",
+        "local_level_impact": "L1",
+        "global_impact": "capability_gap",
+        "dimension": "operational-targets",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "recommended_skill_ids": [
+          "ecosystem-fit"
+        ],
+        "fix_class": "manual",
+        "reason": "Provider endpoint and mapping choices are scenario-owned contracts."
+      },
+      "SEARCH_PROVIDER_CLASS_MISSING": {
+        "capability_id": "search_descriptor",
+        "local_level_impact": "L2",
+        "global_impact": "capability_gap",
+        "dimension": "operational-targets",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "recommended_skill_ids": [
+          "ecosystem-fit"
+        ],
+        "fix_class": "manual",
+        "reason": "The operability class depends on whether the provider owns a tunable index, computes live, or is external — a provider-owner judgment."
+      },
+      "SEARCH_PROVIDER_GROUP_MISMATCH": {
+        "capability_id": "search_governance",
+        "local_level_impact": "L0",
+        "global_impact": "capability_gap",
+        "dimension": "operational-targets",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "recommended_skill_ids": [
+          "ecosystem-fit"
+        ],
+        "fix_class": "manual",
+        "reason": "Ownership mismatch must be reconciled by the provider owner."
+      },
+      "SEARCH_EVAL_CORPUS_MISSING": {
+        "capability_id": "search_eval_performance",
+        "local_level_impact": "L0",
+        "global_impact": "capability_gap",
+        "dimension": "operational-targets",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "recommended_skill_ids": [
+          "test"
+        ],
+        "fix_class": "manual",
+        "reason": "Useful eval cases require domain judgment about expected search results."
+      },
+      "SEARCH_EVAL_CORPUS_INVALID": {
+        "capability_id": "search_eval_performance",
+        "local_level_impact": "L0",
+        "global_impact": "capability_gap",
+        "dimension": "operational-targets",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "recommended_skill_ids": [
+          "test"
+        ],
+        "fix_class": "manual",
+        "reason": "Corpus semantics require provider-owner review."
+      },
+      "SEARCH_EVAL_CORPUS_INADEQUATE": {
+        "capability_id": "search_eval_performance",
+        "local_level_impact": "L0",
+        "global_impact": "capability_gap",
+        "dimension": "operational-targets",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "recommended_skill_ids": [
+          "test"
+        ],
+        "fix_class": "manual",
+        "reason": "Certification requires at least one reviewed positive and one junk negative; adding meaningful cases needs domain judgment."
+      },
+      "SEARCH_EVAL_CORPUS_THIN": {
+        "capability_id": "search_eval_performance",
+        "local_level_impact": "L3",
+        "global_impact": "hardening_gap",
+        "dimension": "operational-targets",
+        "severity_default": "SEVERITY_WARNING",
+        "clean_requirement": "required",
+        "recommended_skill_ids": [
+          "test"
+        ],
+        "fix_class": "manual",
+        "reason": "Duplicate queries and single-band difficulty over-report recall; production certification requires a reviewed corpus with coverage depth."
+      },
+      "SEARCH_EVAL_CORPUS_DEGENERATE": {
+        "capability_id": "search_eval_performance",
+        "local_level_impact": "L3",
+        "global_impact": "hardening_gap",
+        "dimension": "operational-targets",
+        "severity_default": "SEVERITY_WARNING",
+        "clean_requirement": "required",
+        "recommended_skill_ids": ["test"],
+        "fix_class": "manual",
+        "reason": "A corpus whose query echoes its expected id or covers only one declared question family over-reports retrieval quality."
+      },
+      "SEARCH_EVAL_CORPUS_COVERAGE": {
+        "capability_id": "search_eval_performance",
+        "local_level_impact": "L3",
+        "global_impact": "hardening_gap",
+        "dimension": "operational-targets",
+        "severity_default": "SEVERITY_WARNING",
+        "clean_requirement": "required",
+        "recommended_skill_ids": [
+          "test"
+        ],
+        "fix_class": "manual",
+        "reason": "Declared provider coverage groups are production-readiness evidence; satisfying them requires provider-owner review."
+      },
+      "SEARCH_EVAL_RUN_MISSING": {
+        "capability_id": "search_eval_performance",
+        "local_level_impact": "L1",
+        "global_impact": "capability_gap",
+        "dimension": "operational-targets",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "recommended_skill_ids": [
+          "test"
+        ],
+        "fix_class": "manual",
+        "reason": "The provider owner must run the eval suite to create trustworthy freshness evidence."
+      },
+      "SEARCH_EVAL_RUN_STALE": {
+        "capability_id": "search_eval_performance",
+        "local_level_impact": "L1",
+        "global_impact": "capability_gap",
+        "dimension": "operational-targets",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "recommended_skill_ids": [
+          "test"
+        ],
+        "fix_class": "manual",
+        "reason": "Certification requires fresh eval evidence; refreshing it means running the provider-owned suite against live data."
+      },
+      "SEARCH_EVAL_RUN_OUTDATED": {
+        "capability_id": "search_eval_performance",
+        "local_level_impact": "L1",
+        "global_impact": "capability_gap",
+        "dimension": "operational-targets",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "recommended_skill_ids": [
+          "test"
+        ],
+        "fix_class": "manual",
+        "reason": "The latest run was produced under a tuning that no longer matches the descriptor; re-run under current tuning."
+      },
+      "SEARCH_EVAL_RECALL_BELOW_TARGET": {
+        "capability_id": "search_eval_performance",
+        "local_level_impact": "L1",
+        "global_impact": "capability_gap",
+        "dimension": "operational-targets",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "recommended_skill_ids": [
+          "scientific-debugging",
+          "test"
+        ],
+        "fix_class": "manual",
+        "reason": "Aggregate recall below the declared target means retrieval quality or corpus expectations need repair."
+      },
+      "SEARCH_EVAL_ASSERT_FAILED": {
+        "capability_id": "search_eval_performance",
+        "local_level_impact": "L1",
+        "global_impact": "capability_gap",
+        "dimension": "operational-targets",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "recommended_skill_ids": [
+          "scientific-debugging",
+          "test"
+        ],
+        "fix_class": "manual",
+        "reason": "A failed eval may require retrieval repair, corpus correction, or provider tuning."
+      },
+      "SEARCH_EVAL_LABELS_STALE": {
+        "capability_id": "search_eval_performance",
+        "local_level_impact": "L1",
+        "global_impact": "capability_gap",
+        "dimension": "operational-targets",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "recommended_skill_ids": [
+          "test"
+        ],
+        "fix_class": "manual",
+        "reason": "Stale labels require provider-owner judgment about expected ids and corpus drift."
+      },
+      "SEARCH_EVAL_PROVIDER_UNAVAILABLE": {
+        "capability_id": "search_eval_performance",
+        "local_level_impact": "L1",
+        "global_impact": "capability_gap",
+        "dimension": "operational-targets",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "recommended_skill_ids": [
+          "failure-topography-and-graceful-degradation"
+        ],
+        "fix_class": "external",
+        "reason": "Provider or eval-store liveness must be restored before Search Hub can prove live eval maturity."
+      },
+      "SEARCH_REINDEX_ENDPOINT_MISSING": {
+        "capability_id": "search_operability",
+        "local_level_impact": "L1",
+        "global_impact": "capability_gap",
+        "dimension": "operational-targets",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "recommended_skill_ids": [
+          "failure-topography-and-graceful-degradation"
+        ],
+        "fix_class": "manual",
+        "reason": "An indexed (local_index/async) provider owns a rebuildable corpus; without a reindex endpoint Search Hub cannot reconcile or re-evaluate it. Reclassify as local_live if it computes results live."
+      },
+      "SEARCH_STATUS_ENDPOINT_MISSING": {
+        "capability_id": "search_operability",
+        "local_level_impact": "L3",
+        "global_impact": "hardening_gap",
+        "dimension": "operational-targets",
+        "severity_default": "SEVERITY_WARNING",
+        "clean_requirement": "required",
+        "recommended_skill_ids": [
+          "failure-topography-and-graceful-degradation"
+        ],
+        "fix_class": "manual",
+        "reason": "Production readiness requires a declared readiness posture; endpoint shape depends on the provider's live indexing architecture."
+      },
+      "SEARCH_CONTROL_ENDPOINT_MISSING": {
+        "capability_id": "search_operability",
+        "local_level_impact": "L3",
+        "global_impact": "hardening_gap",
+        "dimension": "operational-targets",
+        "severity_default": "SEVERITY_WARNING",
+        "clean_requirement": "required",
+        "recommended_skill_ids": [
+          "failure-topography-and-graceful-degradation"
+        ],
+        "fix_class": "manual",
+        "reason": "Production readiness requires either config write-back or a validated pinned/non-writable reason; the descriptor must make that posture explicit."
+      },
+      "SEARCH_PERF_BUDGET_UNPROVEN": {
+        "capability_id": "search_operability",
+        "local_level_impact": "L1",
+        "global_impact": "capability_gap",
+        "dimension": "operational-targets",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "recommended_skill_ids": [
+          "performance"
+        ],
+        "fix_class": "manual",
+        "reason": "The provider declared telemetry_required but produced no measurable latency; it opted in and must deliver evidence."
+      },
+      "SEARCH_PERF_BUDGET_BREACH": {
+        "capability_id": "search_operability",
+        "local_level_impact": "L3",
+        "global_impact": "hardening_gap",
+        "dimension": "operational-targets",
+        "severity_default": "SEVERITY_WARNING",
+        "clean_requirement": "required",
+        "recommended_skill_ids": [
+          "performance"
+        ],
+        "fix_class": "manual",
+        "reason": "Production readiness requires measured performance to satisfy the provider's declared p95 budget."
+      },
+      "SEARCH_PERF_SAMPLES_UNPROVEN": {
+        "capability_id": "search_operability",
+        "local_level_impact": "L1",
+        "global_impact": "capability_gap",
+        "dimension": "operational-targets",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "recommended_skill_ids": [
+          "performance",
+          "test"
+        ],
+        "fix_class": "manual",
+        "reason": "A p95 or degradation rate derived from fewer cases than the provider declared is not production evidence."
+      },
+      "SEARCH_PERF_DEGRADED": {
+        "capability_id": "search_operability",
+        "local_level_impact": "L3",
+        "global_impact": "hardening_gap",
+        "dimension": "operational-targets",
+        "severity_default": "SEVERITY_WARNING",
+        "clean_requirement": "required",
+        "recommended_skill_ids": [
+          "failure-topography-and-graceful-degradation"
+        ],
+        "fix_class": "manual",
+        "reason": "Production readiness requires empty-result degradation to stay within the provider's declared budget."
+      },
+      "SEARCH_LIVE_DEGRADED": {
+        "capability_id": "search_operability",
+        "local_level_impact": "L3",
+        "global_impact": "hardening_gap",
+        "dimension": "operational-targets",
+        "severity_default": "SEVERITY_WARNING",
+        "clean_requirement": "required",
+        "recommended_skill_ids": [
+          "failure-topography-and-graceful-degradation"
+        ],
+        "fix_class": "manual",
+        "reason": "Production readiness requires the live provider route to be reachable and not open-circuit."
+      },
+      "SEARCH_LIVE_ZERO_YIELD": {
+        "capability_id": "search_operability",
+        "local_level_impact": "L3",
+        "global_impact": "hardening_gap",
+        "dimension": "operational-targets",
+        "severity_default": "SEVERITY_WARNING",
+        "clean_requirement": "required",
+        "recommended_skill_ids": [
+          "failure-topography-and-graceful-degradation"
+        ],
+        "fix_class": "manual",
+        "reason": "Production readiness requires repeated live routing to demonstrate hit yield."
+      },
+      "SEARCH_TUNING_BUDGET_INVALID": {
+        "capability_id": "search_operability",
+        "local_level_impact": "L0",
+        "global_impact": "hardening_gap",
+        "dimension": "operational-targets",
+        "severity_default": "SEVERITY_WARNING",
+        "clean_requirement": "advisory",
+        "recommended_skill_ids": [
+          "test"
+        ],
+        "fix_class": "manual",
+        "reason": "Latency budget tradeoffs need measured provider-specific evidence."
+      }
+    },
+    "fallback": {
+      "capability_id": "search_descriptor",
+      "local_level_impact": "L1",
+      "global_impact": "unknown",
+      "dimension": "operational-targets",
+      "severity_default": "SEVERITY_WARNING",
+      "clean_requirement": "advisory"
+    }
+  },
+  "profileMembership": [],
+  "freshnessRequirement": "never",
+  "phaseClass": "quality",
+  "runtimeClass": "static",
+  "concurrency": {
+    "mode": "provider-serial"
+  },
+  "determinism": {
+    "default": "file-determined",
+    "inputs": ["**"]
+  },
+  "dimensions": [
+    "operational-targets"
+  ]
+}

@@ -1,0 +1,12 @@
+{
+  "kind": "team-roles",
+  "schemaVersion": 1,
+  "teamId": "fleet-storage-disk-health",
+  "roles": [
+    {
+      "id": "fleet-storage-disk-health-coordinator",
+      "name": "fleet-storage-disk-health-coordinator",
+      "description": "Make portable disk-wear monitoring truthful, demonstrate the required alert-before-repair sequence, fix write amplification, and address the remaining recorded storage/host-health obligations through their owning scenarios and control plane."
+    }
+  ]
+}

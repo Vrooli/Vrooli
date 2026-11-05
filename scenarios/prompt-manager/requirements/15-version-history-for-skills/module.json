@@ -13,7 +13,7 @@
       "description": "Implement version history system for tracking skill changes over time using history.jsonl",
       "id": "REQ-P2-004",
       "prd_ref": "prompt-manager-nice-to-have-version-history-for-skills",
-      "status": "draft",
+      "status": "planned",
       "title": "Skill Version Control",
       "validation": [
         {

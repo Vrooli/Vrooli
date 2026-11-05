@@ -1,0 +1,48 @@
+syntax = "proto3";
+package vrooli.deployment_manager.v1.releases;
+
+import "deployment-manager/v1/releases/contracts.proto";
+import "buf/validate/validate.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/deployment-manager/v1/releases;releasesv1";
+service ReleasesService {
+  rpc List(ListReleasesRequest) returns (ListReleasesResponse);
+  rpc Get(GetReleaseRequest) returns (GetReleaseResponse);
+  rpc GetOperation(GetReleaseOperationRequest) returns (GetReleaseOperationResponse);
+  rpc Dossier(GetReleaseDossierRequest) returns (GetReleaseDossierResponse);
+  rpc Reverify(ReverifyReleaseRequest) returns (ReverifyReleaseResponse);
+  rpc Reconcile(ReconcileReleaseRequest) returns (ReconcileReleaseResponse);
+  rpc Recover(RecoverReleaseRequest) returns (RecoverReleaseResponse);
+  rpc Start(StartReleaseRequest) returns (StartReleaseResponse);
+  rpc RegisterCandidate(RegisterCandidateRequest) returns (RegisterCandidateResponse);
+  rpc RegisterDestinationRevision(RegisterDestinationRevisionRequest)
+      returns (RegisterDestinationRevisionResponse);
+  rpc RecordClientUpdateReceipt(RecordClientUpdateReceiptRequest)
+      returns (RecordClientUpdateReceiptResponse);
+}
+
+message RegisterCandidateRequest {
+  Candidate candidate = 1 [(buf.validate.field).required = true];
+}
+
+message RegisterCandidateResponse {
+  CandidateRecord candidate = 1 [(buf.validate.field).required = true];
+}
+
+message RegisterDestinationRevisionRequest {
+  DestinationRevision revision = 1 [(buf.validate.field).required = true];
+}
+
+message RegisterDestinationRevisionResponse {
+  DestinationRevisionRecord destination = 1 [(buf.validate.field).required = true];
+}
+
+message RecordClientUpdateReceiptRequest {
+  string release_id = 1 [(buf.validate.field).string.min_len = 1];
+  ClientUpdateReceipt receipt = 2 [(buf.validate.field).required = true];
+}
+
+message RecordClientUpdateReceiptResponse {
+  string release_id = 1 [(buf.validate.field).string.min_len = 1];
+  bool accepted = 2;
+}

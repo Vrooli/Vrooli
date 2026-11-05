@@ -1,0 +1,1224 @@
+{
+  "flowId": "commerce.funding-payment-reversal",
+  "domain": "commerce",
+  "states": [
+    "",
+    "warning_needs_response",
+    "warning_under_review",
+    "warning_closed",
+    "needs_response",
+    "under_review",
+    "appeal_needs_response",
+    "appeal_under_review",
+    "won",
+    "lost",
+    "prevented"
+  ],
+  "terminal": [
+    "won",
+    "warning_closed",
+    "prevented"
+  ],
+  "invariants": [
+    "Delayed inquiry snapshots cannot demote formal chargebacks; won closure cannot regress, and a genuine late win may recover a lost dispute.",
+    "Each dispute ID owns its closure and fees; winning one cannot thaw another active dispute on the same funding lot.",
+    "Cumulative refunds never decrease and never exceed the paid amount.",
+    "An identical provider event has one atomic effect; a conflicting replay fails.",
+    "An existing reservation may settle against restricted funding; a new reservation cannot spend it.",
+    "One loss rollup per lot prevents duplicate consumed cost across a refund and a dispute.",
+    "Lot mutations, loss rollups and immutable ledger deltas commit together.",
+    "Ledger delivery retries preserve amount, currency, source category and external identity.",
+    "Immutable Stripe balance-transaction IDs own actual principal and fee movement; partial reinstatements remain financial corrections even if dispute status stays lost, and older snapshots cannot erase them.",
+    "An actual open-to-frozen transition or additional refund refreshes the restriction frontier; all previously admitted holds remain eligible, while an already-frozen event cannot move the frontier to include newly admitted spending. Admission and restriction fences use database statement time after acquiring the account lock, not transaction-start time."
+  ],
+  "traces": [
+    {
+      "initial": "",
+      "incoming": [
+        "needs_response",
+        "under_review",
+        "won",
+        "needs_response"
+      ],
+      "expected": [
+        "needs_response",
+        "under_review",
+        "won",
+        "won"
+      ],
+      "id": "win-and-stale-create"
+    },
+    {
+      "initial": "",
+      "incoming": [
+        "lost",
+        "needs_response",
+        "won"
+      ],
+      "expected": [
+        "lost",
+        "lost",
+        "won"
+      ],
+      "id": "lost-late-win"
+    },
+    {
+      "initial": "",
+      "incoming": [
+        "warning_needs_response",
+        "warning_closed",
+        "warning_under_review"
+      ],
+      "expected": [
+        "warning_needs_response",
+        "warning_closed",
+        "warning_closed"
+      ],
+      "id": "inquiry-closed"
+    },
+    {
+      "initial": "needs_response",
+      "incoming": [
+        "warning_needs_response",
+        "warning_closed",
+        "lost",
+        "won",
+        "needs_response"
+      ],
+      "expected": [
+        "needs_response",
+        "needs_response",
+        "lost",
+        "won",
+        "won"
+      ],
+      "id": "formal-rejects-stale-inquiry"
+    }
+  ],
+  "formalModel": "not_adopted",
+  "conformance": "funding_reversal_test.go validates exact production dispute vocabulary, every explicit pair and terminal/stale traces. journeytest/funding_test.go consumes the checkout matrix and traces through the real CheckoutService, signed webhook, topup, and Postgres; journeytest/fraud_test.go replays every declared dispute trace through those real components. Existing J16 tests retain refund, restriction, concurrency and Money Ledger invariant evidence. journeytest/fraud_test.go additionally consumes every refund pair and its monotone/reordered trace; no alternate production workflow or store is introduced.",
+  "initial": "",
+  "events": [
+    "warning_needs_response",
+    "warning_under_review",
+    "warning_closed",
+    "needs_response",
+    "under_review",
+    "appeal_needs_response",
+    "appeal_under_review",
+    "won",
+    "lost",
+    "prevented"
+  ],
+  "transitions": [
+    {
+      "fromState": "",
+      "event": "warning_needs_response",
+      "to": "warning_needs_response"
+    },
+    {
+      "fromState": "",
+      "event": "warning_under_review",
+      "to": "warning_under_review"
+    },
+    {
+      "fromState": "",
+      "event": "warning_closed",
+      "to": "warning_closed"
+    },
+    {
+      "fromState": "",
+      "event": "needs_response",
+      "to": "needs_response"
+    },
+    {
+      "fromState": "",
+      "event": "under_review",
+      "to": "under_review"
+    },
+    {
+      "fromState": "",
+      "event": "appeal_needs_response",
+      "to": "appeal_needs_response"
+    },
+    {
+      "fromState": "",
+      "event": "appeal_under_review",
+      "to": "appeal_under_review"
+    },
+    {
+      "fromState": "",
+      "event": "won",
+      "to": "won"
+    },
+    {
+      "fromState": "",
+      "event": "lost",
+      "to": "lost"
+    },
+    {
+      "fromState": "",
+      "event": "prevented",
+      "to": "prevented"
+    },
+    {
+      "fromState": "warning_needs_response",
+      "event": "warning_needs_response",
+      "to": "warning_needs_response"
+    },
+    {
+      "fromState": "warning_needs_response",
+      "event": "warning_under_review",
+      "to": "warning_under_review"
+    },
+    {
+      "fromState": "warning_needs_response",
+      "event": "warning_closed",
+      "to": "warning_closed"
+    },
+    {
+      "fromState": "warning_needs_response",
+      "event": "needs_response",
+      "to": "needs_response"
+    },
+    {
+      "fromState": "warning_needs_response",
+      "event": "under_review",
+      "to": "under_review"
+    },
+    {
+      "fromState": "warning_needs_response",
+      "event": "appeal_needs_response",
+      "to": "appeal_needs_response"
+    },
+    {
+      "fromState": "warning_needs_response",
+      "event": "appeal_under_review",
+      "to": "appeal_under_review"
+    },
+    {
+      "fromState": "warning_needs_response",
+      "event": "won",
+      "to": "won"
+    },
+    {
+      "fromState": "warning_needs_response",
+      "event": "lost",
+      "to": "lost"
+    },
+    {
+      "fromState": "warning_needs_response",
+      "event": "prevented",
+      "to": "prevented"
+    },
+    {
+      "fromState": "warning_under_review",
+      "event": "warning_needs_response",
+      "to": "warning_needs_response"
+    },
+    {
+      "fromState": "warning_under_review",
+      "event": "warning_under_review",
+      "to": "warning_under_review"
+    },
+    {
+      "fromState": "warning_under_review",
+      "event": "warning_closed",
+      "to": "warning_closed"
+    },
+    {
+      "fromState": "warning_under_review",
+      "event": "needs_response",
+      "to": "needs_response"
+    },
+    {
+      "fromState": "warning_under_review",
+      "event": "under_review",
+      "to": "under_review"
+    },
+    {
+      "fromState": "warning_under_review",
+      "event": "appeal_needs_response",
+      "to": "appeal_needs_response"
+    },
+    {
+      "fromState": "warning_under_review",
+      "event": "appeal_under_review",
+      "to": "appeal_under_review"
+    },
+    {
+      "fromState": "warning_under_review",
+      "event": "won",
+      "to": "won"
+    },
+    {
+      "fromState": "warning_under_review",
+      "event": "lost",
+      "to": "lost"
+    },
+    {
+      "fromState": "warning_under_review",
+      "event": "prevented",
+      "to": "prevented"
+    },
+    {
+      "fromState": "warning_closed",
+      "event": "warning_needs_response",
+      "to": "warning_closed"
+    },
+    {
+      "fromState": "warning_closed",
+      "event": "warning_under_review",
+      "to": "warning_closed"
+    },
+    {
+      "fromState": "warning_closed",
+      "event": "warning_closed",
+      "to": "warning_closed"
+    },
+    {
+      "fromState": "warning_closed",
+      "event": "needs_response",
+      "to": "warning_closed"
+    },
+    {
+      "fromState": "warning_closed",
+      "event": "under_review",
+      "to": "warning_closed"
+    },
+    {
+      "fromState": "warning_closed",
+      "event": "appeal_needs_response",
+      "to": "warning_closed"
+    },
+    {
+      "fromState": "warning_closed",
+      "event": "appeal_under_review",
+      "to": "warning_closed"
+    },
+    {
+      "fromState": "warning_closed",
+      "event": "won",
+      "to": "warning_closed"
+    },
+    {
+      "fromState": "warning_closed",
+      "event": "lost",
+      "to": "warning_closed"
+    },
+    {
+      "fromState": "warning_closed",
+      "event": "prevented",
+      "to": "warning_closed"
+    },
+    {
+      "fromState": "needs_response",
+      "event": "warning_needs_response",
+      "to": "needs_response"
+    },
+    {
+      "fromState": "needs_response",
+      "event": "warning_under_review",
+      "to": "needs_response"
+    },
+    {
+      "fromState": "needs_response",
+      "event": "warning_closed",
+      "to": "needs_response"
+    },
+    {
+      "fromState": "needs_response",
+      "event": "needs_response",
+      "to": "needs_response"
+    },
+    {
+      "fromState": "needs_response",
+      "event": "under_review",
+      "to": "under_review"
+    },
+    {
+      "fromState": "needs_response",
+      "event": "appeal_needs_response",
+      "to": "appeal_needs_response"
+    },
+    {
+      "fromState": "needs_response",
+      "event": "appeal_under_review",
+      "to": "appeal_under_review"
+    },
+    {
+      "fromState": "needs_response",
+      "event": "won",
+      "to": "won"
+    },
+    {
+      "fromState": "needs_response",
+      "event": "lost",
+      "to": "lost"
+    },
+    {
+      "fromState": "needs_response",
+      "event": "prevented",
+      "to": "prevented"
+    },
+    {
+      "fromState": "under_review",
+      "event": "warning_needs_response",
+      "to": "under_review"
+    },
+    {
+      "fromState": "under_review",
+      "event": "warning_under_review",
+      "to": "under_review"
+    },
+    {
+      "fromState": "under_review",
+      "event": "warning_closed",
+      "to": "under_review"
+    },
+    {
+      "fromState": "under_review",
+      "event": "needs_response",
+      "to": "needs_response"
+    },
+    {
+      "fromState": "under_review",
+      "event": "under_review",
+      "to": "under_review"
+    },
+    {
+      "fromState": "under_review",
+      "event": "appeal_needs_response",
+      "to": "appeal_needs_response"
+    },
+    {
+      "fromState": "under_review",
+      "event": "appeal_under_review",
+      "to": "appeal_under_review"
+    },
+    {
+      "fromState": "under_review",
+      "event": "won",
+      "to": "won"
+    },
+    {
+      "fromState": "under_review",
+      "event": "lost",
+      "to": "lost"
+    },
+    {
+      "fromState": "under_review",
+      "event": "prevented",
+      "to": "prevented"
+    },
+    {
+      "fromState": "appeal_needs_response",
+      "event": "warning_needs_response",
+      "to": "appeal_needs_response"
+    },
+    {
+      "fromState": "appeal_needs_response",
+      "event": "warning_under_review",
+      "to": "appeal_needs_response"
+    },
+    {
+      "fromState": "appeal_needs_response",
+      "event": "warning_closed",
+      "to": "appeal_needs_response"
+    },
+    {
+      "fromState": "appeal_needs_response",
+      "event": "needs_response",
+      "to": "needs_response"
+    },
+    {
+      "fromState": "appeal_needs_response",
+      "event": "under_review",
+      "to": "under_review"
+    },
+    {
+      "fromState": "appeal_needs_response",
+      "event": "appeal_needs_response",
+      "to": "appeal_needs_response"
+    },
+    {
+      "fromState": "appeal_needs_response",
+      "event": "appeal_under_review",
+      "to": "appeal_under_review"
+    },
+    {
+      "fromState": "appeal_needs_response",
+      "event": "won",
+      "to": "won"
+    },
+    {
+      "fromState": "appeal_needs_response",
+      "event": "lost",
+      "to": "lost"
+    },
+    {
+      "fromState": "appeal_needs_response",
+      "event": "prevented",
+      "to": "prevented"
+    },
+    {
+      "fromState": "appeal_under_review",
+      "event": "warning_needs_response",
+      "to": "appeal_under_review"
+    },
+    {
+      "fromState": "appeal_under_review",
+      "event": "warning_under_review",
+      "to": "appeal_under_review"
+    },
+    {
+      "fromState": "appeal_under_review",
+      "event": "warning_closed",
+      "to": "appeal_under_review"
+    },
+    {
+      "fromState": "appeal_under_review",
+      "event": "needs_response",
+      "to": "needs_response"
+    },
+    {
+      "fromState": "appeal_under_review",
+      "event": "under_review",
+      "to": "under_review"
+    },
+    {
+      "fromState": "appeal_under_review",
+      "event": "appeal_needs_response",
+      "to": "appeal_needs_response"
+    },
+    {
+      "fromState": "appeal_under_review",
+      "event": "appeal_under_review",
+      "to": "appeal_under_review"
+    },
+    {
+      "fromState": "appeal_under_review",
+      "event": "won",
+      "to": "won"
+    },
+    {
+      "fromState": "appeal_under_review",
+      "event": "lost",
+      "to": "lost"
+    },
+    {
+      "fromState": "appeal_under_review",
+      "event": "prevented",
+      "to": "prevented"
+    },
+    {
+      "fromState": "won",
+      "event": "warning_needs_response",
+      "to": "won"
+    },
+    {
+      "fromState": "won",
+      "event": "warning_under_review",
+      "to": "won"
+    },
+    {
+      "fromState": "won",
+      "event": "warning_closed",
+      "to": "won"
+    },
+    {
+      "fromState": "won",
+      "event": "needs_response",
+      "to": "won"
+    },
+    {
+      "fromState": "won",
+      "event": "under_review",
+      "to": "won"
+    },
+    {
+      "fromState": "won",
+      "event": "appeal_needs_response",
+      "to": "won"
+    },
+    {
+      "fromState": "won",
+      "event": "appeal_under_review",
+      "to": "won"
+    },
+    {
+      "fromState": "won",
+      "event": "won",
+      "to": "won"
+    },
+    {
+      "fromState": "won",
+      "event": "lost",
+      "to": "won"
+    },
+    {
+      "fromState": "won",
+      "event": "prevented",
+      "to": "won"
+    },
+    {
+      "fromState": "lost",
+      "event": "warning_needs_response",
+      "to": "lost"
+    },
+    {
+      "fromState": "lost",
+      "event": "warning_under_review",
+      "to": "lost"
+    },
+    {
+      "fromState": "lost",
+      "event": "warning_closed",
+      "to": "lost"
+    },
+    {
+      "fromState": "lost",
+      "event": "needs_response",
+      "to": "lost"
+    },
+    {
+      "fromState": "lost",
+      "event": "under_review",
+      "to": "lost"
+    },
+    {
+      "fromState": "lost",
+      "event": "appeal_needs_response",
+      "to": "lost"
+    },
+    {
+      "fromState": "lost",
+      "event": "appeal_under_review",
+      "to": "lost"
+    },
+    {
+      "fromState": "lost",
+      "event": "won",
+      "to": "won"
+    },
+    {
+      "fromState": "lost",
+      "event": "lost",
+      "to": "lost"
+    },
+    {
+      "fromState": "lost",
+      "event": "prevented",
+      "to": "lost"
+    },
+    {
+      "fromState": "prevented",
+      "event": "warning_needs_response",
+      "to": "prevented"
+    },
+    {
+      "fromState": "prevented",
+      "event": "warning_under_review",
+      "to": "prevented"
+    },
+    {
+      "fromState": "prevented",
+      "event": "warning_closed",
+      "to": "prevented"
+    },
+    {
+      "fromState": "prevented",
+      "event": "needs_response",
+      "to": "prevented"
+    },
+    {
+      "fromState": "prevented",
+      "event": "under_review",
+      "to": "prevented"
+    },
+    {
+      "fromState": "prevented",
+      "event": "appeal_needs_response",
+      "to": "prevented"
+    },
+    {
+      "fromState": "prevented",
+      "event": "appeal_under_review",
+      "to": "prevented"
+    },
+    {
+      "fromState": "prevented",
+      "event": "won",
+      "to": "prevented"
+    },
+    {
+      "fromState": "prevented",
+      "event": "lost",
+      "to": "prevented"
+    },
+    {
+      "fromState": "prevented",
+      "event": "prevented",
+      "to": "prevented"
+    }
+  ],
+  "checkout": {
+    "flowId": "commerce.credit-checkout-settlement",
+    "scope": "Credit top-up checkout only. Session status and funding are separate from dispute status. Unpaid/async-pending is an unfunded open (or legacy pending) session, not an invented persisted state. Creation is the real CheckoutService prelude; rows exercise the signed webhook transition owner. Subscription renewals are not this checkout machine.",
+    "states": [
+      "absent",
+      "open",
+      "pending",
+      "complete"
+    ],
+    "initial": "absent",
+    "terminal": [
+      "complete"
+    ],
+    "events": [
+      {
+        "id": "completed_paid",
+        "kind": "checkout.session.completed",
+        "payment": "paid"
+      },
+      {
+        "id": "completed_unpaid",
+        "kind": "checkout.session.completed",
+        "payment": "unpaid"
+      },
+      {
+        "id": "completed_no_payment_required",
+        "kind": "checkout.session.completed",
+        "payment": "no_payment_required"
+      },
+      {
+        "id": "async_paid",
+        "kind": "checkout.session.async_payment_succeeded",
+        "payment": "paid"
+      },
+      {
+        "id": "async_unpaid",
+        "kind": "checkout.session.async_payment_succeeded",
+        "payment": "unpaid"
+      },
+      {
+        "id": "async_failed",
+        "kind": "checkout.session.async_payment_failed",
+        "payment": "unpaid"
+      },
+      {
+        "id": "expired",
+        "kind": "checkout.session.expired",
+        "payment": "unpaid"
+      },
+      {
+        "id": "unknown",
+        "kind": "fixture.unknown",
+        "payment": "paid"
+      },
+      {
+        "id": "bad_signature",
+        "kind": "checkout.session.completed",
+        "payment": "paid",
+        "invalidSignature": true
+      }
+    ],
+    "transitions": [
+      {
+        "fromState": "absent",
+        "event": "completed_paid",
+        "to": "absent",
+        "reject": true
+      },
+      {
+        "fromState": "absent",
+        "event": "completed_unpaid",
+        "to": "absent",
+        "reject": true
+      },
+      {
+        "fromState": "absent",
+        "event": "completed_no_payment_required",
+        "to": "absent",
+        "reject": true
+      },
+      {
+        "fromState": "absent",
+        "event": "async_paid",
+        "to": "absent",
+        "reject": true
+      },
+      {
+        "fromState": "absent",
+        "event": "async_unpaid",
+        "to": "absent",
+        "reject": true
+      },
+      {
+        "fromState": "absent",
+        "event": "async_failed",
+        "to": "absent",
+        "reject": false
+      },
+      {
+        "fromState": "absent",
+        "event": "expired",
+        "to": "absent",
+        "reject": false
+      },
+      {
+        "fromState": "absent",
+        "event": "unknown",
+        "to": "absent",
+        "reject": false
+      },
+      {
+        "fromState": "absent",
+        "event": "bad_signature",
+        "to": "absent",
+        "reject": true
+      },
+      {
+        "fromState": "open",
+        "event": "completed_paid",
+        "to": "complete",
+        "reject": false
+      },
+      {
+        "fromState": "open",
+        "event": "completed_unpaid",
+        "to": "open",
+        "reject": false
+      },
+      {
+        "fromState": "open",
+        "event": "completed_no_payment_required",
+        "to": "open",
+        "reject": false
+      },
+      {
+        "fromState": "open",
+        "event": "async_paid",
+        "to": "complete",
+        "reject": false
+      },
+      {
+        "fromState": "open",
+        "event": "async_unpaid",
+        "to": "open",
+        "reject": false
+      },
+      {
+        "fromState": "open",
+        "event": "async_failed",
+        "to": "open",
+        "reject": false
+      },
+      {
+        "fromState": "open",
+        "event": "expired",
+        "to": "open",
+        "reject": false
+      },
+      {
+        "fromState": "open",
+        "event": "unknown",
+        "to": "open",
+        "reject": false
+      },
+      {
+        "fromState": "open",
+        "event": "bad_signature",
+        "to": "open",
+        "reject": true
+      },
+      {
+        "fromState": "pending",
+        "event": "completed_paid",
+        "to": "complete",
+        "reject": false
+      },
+      {
+        "fromState": "pending",
+        "event": "completed_unpaid",
+        "to": "pending",
+        "reject": false
+      },
+      {
+        "fromState": "pending",
+        "event": "completed_no_payment_required",
+        "to": "pending",
+        "reject": false
+      },
+      {
+        "fromState": "pending",
+        "event": "async_paid",
+        "to": "complete",
+        "reject": false
+      },
+      {
+        "fromState": "pending",
+        "event": "async_unpaid",
+        "to": "pending",
+        "reject": false
+      },
+      {
+        "fromState": "pending",
+        "event": "async_failed",
+        "to": "pending",
+        "reject": false
+      },
+      {
+        "fromState": "pending",
+        "event": "expired",
+        "to": "pending",
+        "reject": false
+      },
+      {
+        "fromState": "pending",
+        "event": "unknown",
+        "to": "pending",
+        "reject": false
+      },
+      {
+        "fromState": "pending",
+        "event": "bad_signature",
+        "to": "pending",
+        "reject": true
+      },
+      {
+        "fromState": "complete",
+        "event": "completed_paid",
+        "to": "complete",
+        "reject": false
+      },
+      {
+        "fromState": "complete",
+        "event": "completed_unpaid",
+        "to": "complete",
+        "reject": false
+      },
+      {
+        "fromState": "complete",
+        "event": "completed_no_payment_required",
+        "to": "complete",
+        "reject": false
+      },
+      {
+        "fromState": "complete",
+        "event": "async_paid",
+        "to": "complete",
+        "reject": false
+      },
+      {
+        "fromState": "complete",
+        "event": "async_unpaid",
+        "to": "complete",
+        "reject": false
+      },
+      {
+        "fromState": "complete",
+        "event": "async_failed",
+        "to": "complete",
+        "reject": false
+      },
+      {
+        "fromState": "complete",
+        "event": "expired",
+        "to": "complete",
+        "reject": false
+      },
+      {
+        "fromState": "complete",
+        "event": "unknown",
+        "to": "complete",
+        "reject": false
+      },
+      {
+        "fromState": "complete",
+        "event": "bad_signature",
+        "to": "complete",
+        "reject": true
+      }
+    ],
+    "invariants": [
+      "Only a signed paid completed/async-success event for an attributed known credit checkout grants funding.",
+      "Unpaid and async-pending sessions remain unfunded; failed/expired notifications are currently ignored, never evidence of payment.",
+      "A completed checkout never regresses or grants another lot on repeated or reordered notifications.",
+      "One funding lot, one immutable grant transaction, and one conversion correspond to a completed payment.",
+      "Checkout creation persists the authorized account and remains unfunded."
+    ],
+    "traces": [
+      {
+        "id": "delayed-payment-and-replay",
+        "initial": "open",
+        "events": [
+          "completed_unpaid",
+          "async_unpaid",
+          "async_paid",
+          "async_paid",
+          "completed_unpaid"
+        ],
+        "expected": [
+          "open",
+          "open",
+          "complete",
+          "complete",
+          "complete"
+        ],
+        "prelude": "create"
+      },
+      {
+        "id": "immediate-payment-and-stale-failure",
+        "initial": "open",
+        "events": [
+          "completed_paid",
+          "async_failed",
+          "expired",
+          "completed_paid"
+        ],
+        "expected": [
+          "complete",
+          "complete",
+          "complete",
+          "complete"
+        ],
+        "prelude": "create"
+      },
+      {
+        "id": "unpaid-failure-never-grants",
+        "initial": "open",
+        "events": [
+          "completed_no_payment_required",
+          "async_failed",
+          "expired"
+        ],
+        "expected": [
+          "open",
+          "open",
+          "open"
+        ],
+        "prelude": "create"
+      }
+    ],
+    "formalModel": "not_adopted",
+    "creation": {
+      "owner": "CheckoutService.CreateForBusinessAccount",
+      "from": "absent",
+      "to": "open",
+      "identity": "New provider session ID; factory prelude, not an event addressed to an existing session."
+    }
+  },
+  "refund": {
+    "flowId": "commerce.cumulative-refund",
+    "initial": "unrefunded",
+    "terminal": [
+      "full"
+    ],
+    "states": [
+      "unrefunded",
+      "partial",
+      "full"
+    ],
+    "events": [
+      "zero",
+      "half",
+      "full",
+      "negative",
+      "overpaid"
+    ],
+    "transitions": [
+      {
+        "fromState": "unrefunded",
+        "event": "zero",
+        "to": "unrefunded",
+        "reject": false
+      },
+      {
+        "fromState": "unrefunded",
+        "event": "half",
+        "to": "partial",
+        "reject": false
+      },
+      {
+        "fromState": "unrefunded",
+        "event": "full",
+        "to": "full",
+        "reject": false
+      },
+      {
+        "fromState": "unrefunded",
+        "event": "negative",
+        "to": "unrefunded",
+        "reject": true
+      },
+      {
+        "fromState": "unrefunded",
+        "event": "overpaid",
+        "to": "unrefunded",
+        "reject": true
+      },
+      {
+        "fromState": "partial",
+        "event": "zero",
+        "to": "partial",
+        "reject": false
+      },
+      {
+        "fromState": "partial",
+        "event": "half",
+        "to": "partial",
+        "reject": false
+      },
+      {
+        "fromState": "partial",
+        "event": "full",
+        "to": "full",
+        "reject": false
+      },
+      {
+        "fromState": "partial",
+        "event": "negative",
+        "to": "partial",
+        "reject": true
+      },
+      {
+        "fromState": "partial",
+        "event": "overpaid",
+        "to": "partial",
+        "reject": true
+      },
+      {
+        "fromState": "full",
+        "event": "zero",
+        "to": "full",
+        "reject": false
+      },
+      {
+        "fromState": "full",
+        "event": "half",
+        "to": "full",
+        "reject": false
+      },
+      {
+        "fromState": "full",
+        "event": "full",
+        "to": "full",
+        "reject": false
+      },
+      {
+        "fromState": "full",
+        "event": "negative",
+        "to": "full",
+        "reject": true
+      },
+      {
+        "fromState": "full",
+        "event": "overpaid",
+        "to": "full",
+        "reject": true
+      }
+    ],
+    "invariants": [
+      "Refund totals are monotone and bounded by the paid amount.",
+      "Only the positive cumulative increase removes funding and writes the immutable refund delta.",
+      "A fully refunded lot remains reversed; stale partial events cannot restore credits.",
+      "Invalid amounts leave funding, loss rollup and outbox unchanged."
+    ],
+    "traces": [
+      {
+        "id": "refund-increases-reorders-replays",
+        "initial": "unrefunded",
+        "events": [
+          "half",
+          "zero",
+          "half",
+          "full",
+          "half",
+          "full",
+          "overpaid"
+        ],
+        "expected": [
+          "partial",
+          "partial",
+          "partial",
+          "full",
+          "full",
+          "full",
+          "full"
+        ]
+      }
+    ],
+    "formalModel": "not_adopted"
+  },
+  "fraudWarning": {
+    "flowId": "commerce.early-fraud-warning",
+    "states": [
+      "clear",
+      "warned"
+    ],
+    "initial": "clear",
+    "terminal": [
+      "warned"
+    ],
+    "events": [
+      "radar.early_fraud_warning.created",
+      "radar.early_fraud_warning.updated"
+    ],
+    "transitions": [
+      {
+        "fromState": "clear",
+        "event": "radar.early_fraud_warning.created",
+        "to": "warned"
+      },
+      {
+        "fromState": "clear",
+        "event": "radar.early_fraud_warning.updated",
+        "to": "warned"
+      },
+      {
+        "fromState": "warned",
+        "event": "radar.early_fraud_warning.created",
+        "to": "warned"
+      },
+      {
+        "fromState": "warned",
+        "event": "radar.early_fraud_warning.updated",
+        "to": "warned"
+      }
+    ],
+    "invariants": [
+      "Either signed warning freezes open funding without changing the granted or remaining amount.",
+      "Warnings remain sticky across duplicate and updated notifications; no implicit thaw exists."
+    ],
+    "traces": [
+      {
+        "id": "warning-update-and-replay",
+        "initial": "clear",
+        "events": [
+          "radar.early_fraud_warning.created",
+          "radar.early_fraud_warning.updated",
+          "radar.early_fraud_warning.created"
+        ],
+        "expected": [
+          "warned",
+          "warned",
+          "warned"
+        ]
+      }
+    ],
+    "formalModel": "not_adopted"
+  },
+  "webhookEventKinds": [
+    "checkout.session.completed",
+    "checkout.session.async_payment_succeeded",
+    "charge.dispute.created",
+    "charge.dispute.updated",
+    "charge.dispute.closed",
+    "charge.dispute.funds_withdrawn",
+    "charge.dispute.funds_reinstated",
+    "charge.refunded",
+    "radar.early_fraud_warning.created",
+    "radar.early_fraud_warning.updated"
+  ]
+}

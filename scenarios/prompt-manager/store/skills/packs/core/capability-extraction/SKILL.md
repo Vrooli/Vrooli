@@ -1,9 +1,30 @@
+---
+name: "capability-extraction"
+description: "Methodology for auditing agent files to identify embedded methodologies that should be extracted into reusable, optimizable skills. Covers the 'Agent instructions to Skills' half of the promotion pipeline."
+license: "CC-BY-4.0"
+metadata:
+  kind: "skill"
+  schemaVersion: 1
+  modes: ["practice"]
+  tags: ["practice","meta-optimization","extraction","methodology","agents"]
+  icon: "package"
+  status: "active"
+  revision: 1
+  createdAt: "2026-02-11T00:00:00Z"
+  updatedAt: "2026-02-11T00:00:00Z"
+  requires:
+    scenarios: ["prompt-manager"]
+    commands: ["prompt-manager skill", "prompt-manager skill read"]
+  origin:
+    kind: "authored"
+---
 ## Practice focus: Capability Extraction
 
-Audit agent files (SOUL.md, AGENTS.md, TOOLS.md) to **identify embedded methodologies that should be extracted into reusable skills**. This methodology covers the first half of the promotion pipeline: `Agent instructions → Skills`. Once capabilities are extracted into skills, they enter the meta-optimization layer where `leader-research-analyze-plan` can identify CLI promotion opportunities (`Skills → CLI capabilities`).
+Audit agent files (SOUL.md, AGENTS.md, TOOLS.md) to **identify embedded methodologies that should be extracted into reusable skills**. This methodology covers the first half of the promotion pipeline: `Agent instructions -> Skills`. Deterministic operations should continue toward Vrooli-controlled CLI implementation and Action exposure, while judgment stays in skills.
 
 Required reading:
-- `prompt-manager skill read skill-principles`
+- `docs/agent-system/SKILL_AUTHORING.md`
+- `docs/agent-system/PROMOTION_LADDER.md`
 - `prompt-manager skill read skill-authoring-practice`
 
 Optional reading:
@@ -21,14 +42,14 @@ Optional reading:
 | Known duplication across multiple agents | Yes | **Phase 2: Classify** (skip broad audit) |
 | Friction report showing agents re-inventing methodology | Yes | Use as input to **Phase 1: Audit** |
 | Single skill needs improvement | No | Use `skill-improvement-suggestions` directly |
-| Need to find CLI promotion candidates from existing skills | No | Use `leader-research-analyze-plan` |
+| Need to find CLI/Action promotion candidates from existing skills | No | Use meta-optimization's Action conversion workflow |
 | Agent identity/personality tuning | No | That's SOUL.md content, not extractable methodology |
 | Agent TOOLS.md needs skill references added | No | That's a consequence of extraction, not a trigger for it |
 
 #### **When NOT to use this methodology**
 
 - **Single-skill improvement** — Use `skill-improvement-suggestions` directly.
-- **CLI promotion of existing skills** — Use `leader-research-analyze-plan` (different scope: skills→CLI, not agents→skills).
+- **CLI/Action promotion of existing skills** — Use meta-optimization's Action conversion workflow (different scope: skills -> CLI -> Action, not agents -> skills).
 - **Agent personality/identity design** — SOUL.md defines *who* the agent is; that's not extractable methodology.
 - **Skill authoring** — This methodology identifies *what* to extract; use `skill-authoring-practice` for *how* to write the skill.
 - **Skill validation** — Use `skill-validation` after the extracted skill is created.
@@ -74,7 +95,7 @@ Optional reading:
 5. **Identify embedded patterns** — look for:
    - Numbered workflow steps (especially with delegation points)
    - Decision frameworks with structured criteria
-   - Inline decision tables mapping inputs to actions
+   - Inline work tables mapping inputs to actions
    - Communication formats or status protocols
    - Delegation protocols or assignment templates
    - Verification checklists embedded in workflow prose
@@ -135,7 +156,7 @@ Optional reading:
    |---|---|---|
    | `agents_who_benefit` | 1-8 | Count of agents with the same or similar embedded pattern |
    | `promotion_potential` | 1 (Low), 2 (Medium), 3 (High) | How likely is this to eventually become a CLI capability? Deterministic patterns score High. |
-   | `extraction_cost` | 1 (Low), 2 (Medium), 3 (High) | How complex is the extraction? Single decision table = Low. Multi-phase pipeline = High. |
+   | `extraction_cost` | 1 (Low), 2 (Medium), 3 (High) | How complex is the extraction? Single work table = Low. Multi-phase pipeline = High. |
 
 2. **Rank candidates** by compound impact score (descending)
 3. **Draw the extraction threshold** — candidates above the line are worth extracting now; below are deferred
@@ -159,7 +180,7 @@ Optional reading:
 
 **Actions:**
 1. **For each candidate above threshold:**
-   a. **Determine: new skill or extend existing?** — Apply the `skill-principles` sprawl check:
+   a. **Determine: new skill or extend existing?** — Apply the sprawl check from `docs/agent-system/SKILL_AUTHORING.md`:
       - Does an existing skill already cover this area? → Extend
       - Would adding this exceed the existing skill's scope? → New skill
       - Is this a distinct, reusable mental model? → New skill
@@ -264,7 +285,7 @@ Apply before creating a new skill for a candidate.
 | **Extracting agent identity** | Skills are methodology, not personality | SOUL.md defines *who*; skills define *how*. Keep them separate. |
 | **Creating one skill per agent** | Defeats the reuse purpose; skill sprawl | Group by methodology, not by source agent. Cross-agent patterns → one skill. |
 | **Extracting without checking existing skills** | Creates duplicates that diverge over time | Always run the "Already Covered" check before creating |
-| **Extracting deterministic logic into a skill** | Skills are for judgment; deterministic logic belongs in CLI | Flag as CLI candidate, route to `leader-research-analyze-plan` |
+| **Extracting deterministic logic into a skill** | Skills are for judgment; deterministic execution belongs in Action contracts over CLIs | Flag as CLI/Action candidate and route to meta-optimization's Action conversion workflow |
 | **Not verifying after extraction** | Agent may lose capabilities silently | Always run the Shrink Verification after implementation |
 | **Extracting too early** | Pattern appears once, may not generalize | Wait until a pattern appears in ≥2 agents before extracting (unless the methodology is clearly general) |
 | **Skipping prioritization** | Low-impact extractions consume effort that could improve high-impact ones | Always score compound impact; respect the threshold |
@@ -277,7 +298,7 @@ This methodology covers **identifying and planning the extraction of embedded ag
 
 **Does NOT cover:**
 - **Actually authoring the extracted skill** — Use `skill-authoring-practice` (and the appropriate category-specific guide: `skill-authoring-practice` for practice skills, `skill-authoring-tools` for tools skills, etc.)
-- **CLI promotion of skills** — Use `leader-research-analyze-plan` (that pipeline handles `Skills → CLI capabilities`)
+- **CLI/Action promotion of skills** — Use meta-optimization's Action conversion workflow (that pipeline handles `Skills -> CLI -> Action`)
 - **Agent personality/identity design** — SOUL.md is not extractable; it defines agent character
 - **Skill validation after creation** — Use `skill-validation` to verify the extracted skill meets quality bars
 - **Skill improvement** — Use `skill-improvement-suggestions` for existing skills that need optimization

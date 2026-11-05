@@ -1,0 +1,104 @@
+{
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
+  "schemaVersion": 5,
+  "kind": "component",
+  "title": "Settings List",
+  "args": {
+    "fields": []
+  },
+  "environment": {
+    "fixtures": []
+  },
+  "stories": [
+    {
+      "id": "width-320",
+      "name": "320px container",
+      "role": "anatomy",
+      "mode": "live",
+      "args": {},
+      "composition": {
+        "specimen": {
+          "module": "./story.tsx",
+          "export": "Width320"
+        }
+      },
+      "expect": [
+        {
+          "kind": "text",
+          "selector": "[data-testid='settings-list-measurement']",
+          "value": "width=320; border=0px; min-height=48px"
+        }
+      ]
+    },
+    {
+      "id": "width-390",
+      "name": "390px compact control",
+      "role": "boundary",
+      "mode": "live",
+      "args": {},
+      "composition": {
+        "specimen": {
+          "module": "./story.tsx",
+          "export": "Width390"
+        }
+      },
+      "expect": [
+        {
+          "kind": "text",
+          "selector": "[data-testid='settings-list-measurement']",
+          "value": "width=390; border=0px; min-height=48px"
+        },
+        {
+          "kind": "attribute",
+          "selector": "[data-rcl-settings-row-control]",
+          "attribute": "data-measured-trailing",
+          "value": "false"
+        }
+      ]
+    },
+    {
+      "id": "width-700",
+      "name": "700px card",
+      "role": "boundary",
+      "mode": "live",
+      "args": {},
+      "composition": {
+        "specimen": {
+          "module": "./story.tsx",
+          "export": "Width700"
+        }
+      },
+      "expect": [
+        {
+          "kind": "text",
+          "selector": "[data-testid='settings-list-measurement']",
+          "value": "width=700; border=1px; min-height=48px"
+        }
+      ]
+    },
+    {
+      "id": "width-1100",
+      "name": "1100px description column",
+      "role": "boundary",
+      "mode": "live",
+      "args": {},
+      "composition": {
+        "specimen": {
+          "module": "./story.tsx",
+          "export": "Width1100"
+        }
+      },
+      "expect": [
+        {
+          "kind": "text",
+          "selector": "[data-testid='settings-list-measurement']",
+          "value": "width=1100; border=1px; min-height=48px"
+        },
+        {
+          "kind": "visible",
+          "selector": "[data-testid='settings-list-arbitrary-child']"
+        }
+      ]
+    }
+  ]
+}

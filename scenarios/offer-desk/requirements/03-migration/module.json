@@ -1,0 +1,104 @@
+{
+  "_metadata": {
+    "description": "Importing the source catalog without losing anything, and retiring it safely.",
+    "last_validated_at": "2026-08-13T23:59:16-04:00",
+    "module": "migration",
+    "prd_ref": "PRD.md",
+    "priority": "P0",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "MIG-001",
+      "title": "Import verifies counts per source file",
+      "status": "complete",
+      "prd_ref": "OT-P0-006",
+      "category": "migration",
+      "criticality": "P0",
+      "description": "The importer reports, per source file, how many records it read and how many it wrote, and fails loudly on a mismatch. The ordering rule is absolute: import, verify, then delete. Removing a source before its import is verified destroys the importer's only input.",
+      "tags": [
+        "migration",
+        "evidence"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/catalog/importer_test.go",
+          "status": "implemented",
+          "notes": "Import a fixture copy of the source tree and assert per-file read/write parity."
+        },
+        {
+          "type": "manual",
+          "status": "implemented",
+          "notes": "Operator reviews the per-file count report before any source file is deleted."
+        }
+      ]
+    },
+    {
+      "id": "MIG-002",
+      "title": "Broken source references are reported, not silently dropped",
+      "status": "complete",
+      "prd_ref": "OT-P0-006",
+      "category": "migration",
+      "criticality": "P0",
+      "description": "The source catalog has a measured 19% broken internal-link rate. The importer records every unresolvable reference as a finding attached to the imported node rather than discarding it, so the drift is visible after the move instead of disappearing with it.",
+      "tags": [
+        "migration",
+        "honesty"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/catalog/importer_test.go",
+          "status": "implemented",
+          "notes": "A fixture with a known-dangling reference produces exactly one finding and still imports the node."
+        }
+      ]
+    },
+    {
+      "id": "MIG-003",
+      "title": "Judgment prose is not imported",
+      "status": "complete",
+      "prd_ref": "OT-P0-006",
+      "category": "migration",
+      "criticality": "P0",
+      "description": "Only fields with a state or a lifecycle move: status, trigger, identifiers, and membership. Hypotheses, positioning, value propositions and portfolio-role narrative stay in the plan of record, because judgment frames belong in prose permanently.",
+      "tags": [
+        "migration",
+        "boundary"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "ref": "api/internal/catalog/operator_import.go",
+          "status": "implemented",
+          "notes": "The declared manifest marks narrative files none; the rehearsal report reads and writes only lifecycle, tier, and membership records."
+        }
+      ]
+    },
+    {
+      "id": "MIG-004",
+      "title": "Reconciliation is a runnable adoption gate",
+      "status": "complete",
+      "prd_ref": "OT-P0-006",
+      "category": "migration",
+      "criticality": "P0",
+      "description": "The operator can run a read-only catalog verification command that reports per-file count drift, duplicate identities, orphan edges, and extra live nodes. Adoption is not complete while the gate reports drift.",
+      "tags": ["migration", "reconciliation", "evidence"],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/catalog/importer_test.go",
+          "status": "implemented",
+          "notes": "Verification detects duplicate-containing catalogs and orphan edges, and passes on a reconciled catalog."
+        },
+        {
+          "type": "manual",
+          "ref": "docs/monetization/governance/adoption-validation.md",
+          "status": "implemented",
+          "notes": "The adoption receipt requires catalog-verify to return reconciled=true and total_drift=0."
+        }
+      ]
+    }
+  ]
+}

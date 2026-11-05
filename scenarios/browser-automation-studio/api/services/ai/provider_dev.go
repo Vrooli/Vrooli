@@ -22,7 +22,10 @@ type DevProvider struct {
 // DevProviderOptions configures the dev mode provider.
 type DevProviderOptions struct {
 	Logger *logrus.Logger
-	Model  string // Optional - defaults to BAS_OPENROUTER_MODEL or gpt-4o-mini
+	// Model is an optional explicit model override. When empty, the effective
+	// model is resolved through the OpenRouter resource policy (role based) at
+	// execution time — there is no baked-in default slug.
+	Model string
 }
 
 // NewDevProvider creates a new dev mode provider using resource-openrouter.
@@ -71,6 +74,17 @@ func (p *DevProvider) ExecutePrompt(ctx context.Context, prompt string) (string,
 	}
 
 	return p.client.ExecutePrompt(ctx, prompt)
+}
+
+// ExecutePromptWithModel runs a prompt using an explicit, already-resolved model
+// slug (typically resolved by the provider chain through the OpenRouter resource
+// policy). This avoids mutating the shared client's model under concurrency.
+func (p *DevProvider) ExecutePromptWithModel(ctx context.Context, model, prompt string) (string, error) {
+	if !p.IsAvailable(ctx) {
+		return "", ErrProviderUnavailable
+	}
+
+	return p.client.ExecutePromptWithModel(ctx, model, prompt)
 }
 
 // Model implements AIProvider.

@@ -3,6 +3,7 @@ package strategies
 import (
 	"context"
 	"errors"
+	"fmt"
 	"testing"
 )
 
@@ -22,7 +23,7 @@ func TestNewVrooliStrategy(t *testing.T) {
 
 	t.Run("with custom executor", func(t *testing.T) {
 		exec := &mockExecutor{}
-		strategy := NewVrooliStrategy(VrooliScenario, "landing-manager", exec)
+		strategy := NewVrooliStrategy(VrooliScenario, "template-manager", exec)
 		if strategy.executor != exec {
 			t.Error("expected custom executor to be used")
 		}
@@ -62,9 +63,9 @@ func TestVrooliStrategy_Start(t *testing.T) {
 		exec := &mockExecutor{
 			combinedOutputResult: []byte("scenario started"),
 		}
-		strategy := NewVrooliStrategy(VrooliScenario, "landing-manager", exec)
+		strategy := NewVrooliStrategy(VrooliScenario, "template-manager", exec)
 
-		result := strategy.Start(context.Background(), "scenario-landing-manager")
+		result := strategy.Start(context.Background(), "scenario-template-manager")
 
 		if !result.Success {
 			t.Errorf("expected success, got error: %s", result.Error)
@@ -109,14 +110,36 @@ func TestVrooliStrategy_Stop(t *testing.T) {
 	})
 }
 
+func TestVrooliStrategy_RespawnCompanion(t *testing.T) {
+	exec := &mockExecutor{
+		combinedOutputResult: []byte("started"),
+	}
+	strategy := NewVrooliStrategy(VrooliResource, "whisper", exec)
+
+	result := strategy.RespawnCompanion(context.Background(), "resource-whisper")
+
+	if !result.Success {
+		t.Errorf("expected success, got error: %s", result.Error)
+	}
+	if result.ActionID != "respawn-companion" {
+		t.Errorf("ActionID = %q, want respawn-companion", result.ActionID)
+	}
+	if exec.lastCommand != "vrooli" {
+		t.Errorf("expected command 'vrooli', got %s", exec.lastCommand)
+	}
+	if len(exec.lastArgs) < 3 || exec.lastArgs[0] != "resource" || exec.lastArgs[1] != "start" || exec.lastArgs[2] != "whisper" {
+		t.Errorf("expected 'resource start whisper', got %v", exec.lastArgs)
+	}
+}
+
 func TestVrooliStrategy_Restart(t *testing.T) {
 	t.Run("successful restart", func(t *testing.T) {
 		exec := &mockExecutor{
 			combinedOutputResult: []byte("restarted"),
 		}
-		strategy := NewVrooliStrategy(VrooliScenario, "landing-manager", exec)
+		strategy := NewVrooliStrategy(VrooliScenario, "template-manager", exec)
 
-		result := strategy.Restart(context.Background(), "scenario-landing-manager")
+		result := strategy.Restart(context.Background(), "scenario-template-manager")
 
 		if !result.Success {
 			t.Errorf("expected success, got error: %s", result.Error)
@@ -163,9 +186,9 @@ func TestVrooliStrategy_Logs(t *testing.T) {
 		exec := &mockExecutor{
 			combinedOutputResult: []byte("log line 1\nlog line 2"),
 		}
-		strategy := NewVrooliStrategy(VrooliScenario, "landing-manager", exec)
+		strategy := NewVrooliStrategy(VrooliScenario, "template-manager", exec)
 
-		result := strategy.Logs(context.Background(), "scenario-landing-manager", 50)
+		result := strategy.Logs(context.Background(), "scenario-template-manager", 50)
 
 		if !result.Success {
 			t.Errorf("expected success, got error: %s", result.Error)
@@ -202,9 +225,9 @@ func TestVrooliStrategy_GetPorts(t *testing.T) {
 		exec := &mockExecutor{
 			combinedOutputResult: []byte("8080\n8081"),
 		}
-		strategy := NewVrooliStrategy(VrooliScenario, "landing-manager", exec)
+		strategy := NewVrooliStrategy(VrooliScenario, "template-manager", exec)
 
-		result := strategy.GetPorts(context.Background(), "scenario-landing-manager")
+		result := strategy.GetPorts(context.Background(), "scenario-template-manager")
 
 		if !result.Success {
 			t.Errorf("expected success, got error: %s", result.Error)
@@ -216,7 +239,7 @@ func TestVrooliStrategy_GetPorts(t *testing.T) {
 }
 
 func TestVrooliStrategy_CleanupPorts(t *testing.T) {
-	t.Run("no ports to cleanup", func(t *testing.T) {
+	t.Run("runs core cleanup even without ports", func(t *testing.T) {
 		exec := &mockExecutor{
 			combinedOutputResult: []byte("no ports configured"),
 		}
@@ -227,8 +250,17 @@ func TestVrooliStrategy_CleanupPorts(t *testing.T) {
 		if !result.Success {
 			t.Errorf("expected success, got error: %s", result.Error)
 		}
-		if result.Message != "No ports found to cleanup for scenario test" {
+		if result.Message != "Core cleanup completed for scenario test" {
 			t.Errorf("unexpected message: %s", result.Message)
+		}
+		if len(exec.callLog) < 3 {
+			t.Fatalf("expected cleanup sequence, got %v", exec.callLog)
+		}
+		if exec.callLog[1] != "vrooli cleanup locks" {
+			t.Fatalf("expected second command to clean locks, got %q", exec.callLog[1])
+		}
+		if exec.callLog[2] != "vrooli cleanup orphans" {
+			t.Fatalf("expected third command to clean orphans, got %q", exec.callLog[2])
 		}
 	})
 
@@ -255,9 +287,9 @@ func TestVrooliStrategy_Diagnose(t *testing.T) {
 		exec := &mockExecutor{
 			combinedOutputResult: []byte("status output"),
 		}
-		strategy := NewVrooliStrategy(VrooliScenario, "landing-manager", exec)
+		strategy := NewVrooliStrategy(VrooliScenario, "template-manager", exec)
 
-		result := strategy.Diagnose(context.Background(), "scenario-landing-manager")
+		result := strategy.Diagnose(context.Background(), "scenario-template-manager")
 
 		if !result.Success {
 			t.Errorf("expected success, got error: %s", result.Error)
@@ -295,6 +327,18 @@ func TestVrooliStrategy_CleanRestart(t *testing.T) {
 		if !containsSubstr(result.Output, "Starting") {
 			t.Error("expected output to contain 'Starting'")
 		}
+		if len(exec.callLog) < 4 {
+			t.Fatalf("expected stop, cleanup, and start commands; got %v", exec.callLog)
+		}
+		if exec.callLog[1] != "vrooli scenario port test" {
+			t.Fatalf("expected cleanup to query scenario ports, got %q", exec.callLog[1])
+		}
+		if exec.callLog[2] != "vrooli cleanup locks" {
+			t.Fatalf("expected cleanup locks command, got %q", exec.callLog[2])
+		}
+		if exec.callLog[3] != "vrooli cleanup orphans" {
+			t.Fatalf("expected cleanup orphans command, got %q", exec.callLog[3])
+		}
 	})
 }
 
@@ -327,7 +371,7 @@ func TestVrooliStrategy_IsRunning(t *testing.T) {
 		for _, tc := range testCases {
 			t.Run(tc.output, func(t *testing.T) {
 				exec := &mockExecutor{
-					combinedOutputResult: []byte(tc.output),
+					outputResult: []byte(fmt.Sprintf(`{"success":true,"name":"postgres","installed":true,"running":%t,"healthy":%t,"status":"%s"}`, tc.expected, tc.expected, tc.output)),
 				}
 				strategy := NewVrooliStrategy(VrooliResource, "postgres", exec)
 
@@ -341,7 +385,7 @@ func TestVrooliStrategy_IsRunning(t *testing.T) {
 
 	t.Run("command fails", func(t *testing.T) {
 		exec := &mockExecutor{
-			combinedOutputErr: errors.New("command failed"),
+			outputErr: errors.New("command failed"),
 		}
 		strategy := NewVrooliStrategy(VrooliResource, "postgres", exec)
 

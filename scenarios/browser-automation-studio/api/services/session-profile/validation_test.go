@@ -345,8 +345,8 @@ func TestValidateBrowserProfile_Behavior_TypingPasteThreshold(t *testing.T) {
 		threshold int
 		wantErr   bool
 	}{
-		{"always_paste", -1, false},  // -1 = always paste
-		{"always_type", 0, false},    // 0 = always type
+		{"always_paste", -1, false}, // -1 = always paste
+		{"always_type", 0, false},   // 0 = always type
 		{"threshold_100", 100, false},
 		{"at_max", 10000, false},
 		{"below_min", -2, true},

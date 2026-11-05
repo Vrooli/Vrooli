@@ -1,0 +1,22 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
+  "assetKind": "component",
+  "catalogId": "data-display.hero-readout",
+  "deprecatedVersions": [
+    "0.1.1"
+  ],
+  "designStyles": [
+    {
+      "styleId": "vrooli-command-display",
+      "affinity": "native",
+      "reason": "Designed for the immersive Command Center figure layer."
+    }
+  ],
+  "draft": "",
+  "evictedVersions": [
+    "0.1.0",
+    "0.1.1"
+  ],
+  "latest": "0.1.2",
+  "libraryId": "react-component-library:HeroReadout"
+}

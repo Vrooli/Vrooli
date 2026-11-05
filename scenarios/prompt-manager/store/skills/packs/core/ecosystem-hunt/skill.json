@@ -1,0 +1,47 @@
+{
+  "createdAt": "2026-11-05T01:50:00Z",
+  "description": "Hunt bugs, debt, friction and inconsistency across all of Vrooli in rounds, and remove each defect class at its root: rotate territory and lens so ground is not re-hunted, pull prey from friction and failure evidence before scans, size every fix to its defect class rather than to caution, and leave the ecosystem measurably simpler. For open-ended 'improve Vrooli' and debt-reduction mandates, not for one known bug.",
+  "entry": "SKILL.md",
+  "icon": "crosshair",
+  "id": "ecosystem-hunt",
+  "kind": "skill",
+  "license": "CC-BY-4.0",
+  "modes": [
+    "practice"
+  ],
+  "name": "ecosystem-hunt",
+  "origin": {
+    "kind": "authored"
+  },
+  "requires": {
+    "commands": [
+      "prompt-manager skill read",
+      "search-hub query",
+      "visited-tracker attention claim",
+      "vrooli-memory journal note",
+      "vrooli-memory recall wake",
+      "agent-manager"
+    ],
+    "scenarios": [
+      "prompt-manager",
+      "search-hub",
+      "visited-tracker",
+      "vrooli-memory",
+      "agent-manager"
+    ]
+  },
+  "revision": 3,
+  "schemaVersion": 1,
+  "status": "active",
+  "tags": [
+    "debt-reduction",
+    "bug-hunt",
+    "tidiness",
+    "state-machines",
+    "migrations",
+    "docs",
+    "ecosystem",
+    "maturity"
+  ],
+  "updatedAt": "2026-11-05T02:27:00Z"
+}

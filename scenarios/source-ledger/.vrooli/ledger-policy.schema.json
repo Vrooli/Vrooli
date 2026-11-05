@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vrooli.local/schemas/source-ledger/ledger-policy.schema.json",
+  "title": "Source Ledger policy defaults",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "frontierTarget",
+    "wakeBudgetLines",
+    "wakeBudgetChars",
+    "maxEntryLines",
+    "maxEntryChars"
+  ],
+  "properties": {
+    "$schema": { "type": "string" },
+    "frontierTarget": { "type": "integer", "minimum": 1 },
+    "wakeBudgetLines": { "type": "integer", "minimum": 1 },
+    "wakeBudgetChars": { "type": "integer", "minimum": 1 },
+    "maxEntryLines": { "type": "integer", "minimum": 1 },
+    "maxEntryChars": { "type": "integer", "minimum": 1 }
+  }
+}

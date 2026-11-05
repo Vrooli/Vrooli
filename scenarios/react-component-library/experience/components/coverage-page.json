@@ -1,0 +1,38 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-component",
+  "schemaVersion": "1.1.0",
+  "component": {
+    "id": "coverage-page",
+    "title": "Catalog coverage",
+    "purpose": "Local catalog coverage page composition.",
+    "storyRef": "../../ui/src/pages/CoveragePage.story.json"
+  },
+  "states": [
+    {
+      "id": "service-unavailable",
+      "example": "service-unavailable",
+      "description": "Coverage service unavailable"
+    },
+    {
+      "id": "report",
+      "example": "report",
+      "description": "Coverage report"
+    }
+  ],
+  "elements": [
+    {
+      "id": "surface",
+      "role": "generic",
+      "description": "Catalog coverage"
+    }
+  ],
+  "claims": [],
+  "bindings": {
+    "elements": {
+      "surface": {
+        "selector": "[data-testid=\"coverage-page\"]"
+      }
+    }
+  }
+}

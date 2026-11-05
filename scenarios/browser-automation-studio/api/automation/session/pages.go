@@ -49,19 +49,58 @@ func NewPageTracker(sessionID, initialURL string) *PageTracker {
 	}
 }
 
-// AddPage adds a new page to the tracker.
-func (pt *PageTracker) AddPage(page *domain.Page) {
+// AddPage atomically registers a page and its driver mapping. Creation receipts
+// and asynchronous callbacks for the same browser page share one identity.
+// Returned snapshots do not expose the registry's mutable storage.
+func (pt *PageTracker) AddPage(page *domain.Page) *domain.Page {
 	pt.mu.Lock()
 	defer pt.mu.Unlock()
-	pt.pages[page.ID] = page
+	if id, ok := pt.driverToVrooli[page.DriverPageID]; ok {
+		return clonePage(pt.pages[id])
+	}
+	stored := clonePage(page)
+	if stored.ID == uuid.Nil {
+		stored.ID = uuid.New()
+	}
+	stored.SessionID = pt.pages[pt.initialPageID].SessionID
+	if stored.CreatedAt.IsZero() {
+		stored.CreatedAt = time.Now()
+	}
+	if stored.Status == "" {
+		stored.Status = domain.PageStatusActive
+	}
+	pt.pages[stored.ID] = stored
+	if stored.DriverPageID != "" {
+		pt.driverToVrooli[stored.DriverPageID] = stored.ID
+		pt.vrooliToDriver[stored.ID] = stored.DriverPageID
+	}
+	return clonePage(stored)
 }
 
-// GetPage returns a page by its Vrooli ID.
+// clonePage detaches every mutable field; callers must hold the lock when
+// copying a record owned by the tracker.
+func clonePage(page *domain.Page) *domain.Page {
+	if page == nil {
+		return nil
+	}
+	copy := *page
+	if page.OpenerID != nil {
+		opener := *page.OpenerID
+		copy.OpenerID = &opener
+	}
+	if page.ClosedAt != nil {
+		closed := *page.ClosedAt
+		copy.ClosedAt = &closed
+	}
+	return &copy
+}
+
+// GetPage returns a detached page by its Vrooli ID.
 func (pt *PageTracker) GetPage(pageID uuid.UUID) (*domain.Page, bool) {
 	pt.mu.RLock()
 	defer pt.mu.RUnlock()
 	page, ok := pt.pages[pageID]
-	return page, ok
+	return clonePage(page), ok
 }
 
 // GetActivePageID returns the currently active page ID.
@@ -71,11 +110,11 @@ func (pt *PageTracker) GetActivePageID() uuid.UUID {
 	return pt.activePageID
 }
 
-// GetActivePage returns the currently active page.
+// GetActivePage returns a detached active page, or nil if none is open.
 func (pt *PageTracker) GetActivePage() *domain.Page {
 	pt.mu.RLock()
 	defer pt.mu.RUnlock()
-	return pt.pages[pt.activePageID]
+	return clonePage(pt.pages[pt.activePageID])
 }
 
 // GetInitialPageID returns the initial page ID.
@@ -102,23 +141,34 @@ func (pt *PageTracker) SetActivePage(pageID uuid.UUID) error {
 	return nil
 }
 
-// ClosePage marks a page as closed.
-// If the closed page was active, switches to another open page.
-func (pt *PageTracker) ClosePage(pageID uuid.UUID) error {
+// ClosePage records closure and returns its stable observation receipt.
+// Repeated callbacks/commands preserve the original timestamp and journal ID.
+func (pt *PageTracker) ClosePage(pageID uuid.UUID) (*domain.PageEvent, error) {
+	return pt.ClosePageAt(pageID, time.Now())
+}
+
+// ClosePageAt records the browser-observed close time when the driver reports
+// lifecycle events; repeated receipts retain the first close time.
+func (pt *PageTracker) ClosePageAt(pageID uuid.UUID, closedAt time.Time) (*domain.PageEvent, error) {
 	pt.mu.Lock()
 	defer pt.mu.Unlock()
 
 	page, ok := pt.pages[pageID]
 	if !ok {
-		return fmt.Errorf("page %s not found", pageID)
+		return nil, fmt.Errorf("page %s not found", pageID)
 	}
 
-	now := time.Now()
-	page.ClosedAt = &now
+	if page.ClosedAt == nil {
+		if closedAt.IsZero() {
+			closedAt = time.Now()
+		}
+		page.ClosedAt = &closedAt
+	}
 	page.Status = domain.PageStatusClosed
 
 	// If active page closed, switch to another open page
 	if pt.activePageID == pageID {
+		pt.activePageID = uuid.Nil
 		for id, p := range pt.pages {
 			if p.Status == domain.PageStatusActive {
 				pt.activePageID = id
@@ -126,39 +176,29 @@ func (pt *PageTracker) ClosePage(pageID uuid.UUID) error {
 			}
 		}
 	}
-	return nil
+	return &domain.PageEvent{
+		ID: uuid.NewSHA1(pageID, []byte("closed")), Type: domain.PageEventClosed,
+		PageID: pageID, Timestamp: *page.ClosedAt,
+	}, nil
 }
 
-// ListPages returns all pages sorted by creation time.
-func (pt *PageTracker) ListPages() []*domain.Page {
+// Snapshot captures detached pages and their selected ID under one lock.
+// Closed pages are included unless openOnly is true. Sorting private copies
+// after unlocking keeps serialization and sorting outside the registry lock.
+func (pt *PageTracker) Snapshot(openOnly bool) ([]*domain.Page, uuid.UUID) {
 	pt.mu.RLock()
-	defer pt.mu.RUnlock()
-
 	pages := make([]*domain.Page, 0, len(pt.pages))
 	for _, p := range pt.pages {
-		pages = append(pages, p)
-	}
-	sort.Slice(pages, func(i, j int) bool {
-		return pages[i].CreatedAt.Before(pages[j].CreatedAt)
-	})
-	return pages
-}
-
-// ListOpenPages returns all pages that are not closed.
-func (pt *PageTracker) ListOpenPages() []*domain.Page {
-	pt.mu.RLock()
-	defer pt.mu.RUnlock()
-
-	pages := make([]*domain.Page, 0)
-	for _, p := range pt.pages {
-		if p.Status == domain.PageStatusActive {
-			pages = append(pages, p)
+		if !openOnly || p.Status == domain.PageStatusActive {
+			pages = append(pages, clonePage(p))
 		}
 	}
+	active := pt.activePageID
+	pt.mu.RUnlock()
 	sort.Slice(pages, func(i, j int) bool {
 		return pages[i].CreatedAt.Before(pages[j].CreatedAt)
 	})
-	return pages
+	return pages, active
 }
 
 // PageCount returns the total number of pages (including closed).
@@ -182,20 +222,6 @@ func (pt *PageTracker) OpenPageCount() int {
 	return count
 }
 
-// MapDriverPageID creates a bidirectional mapping between driver page ID and Vrooli page ID.
-func (pt *PageTracker) MapDriverPageID(driverPageID string, vrooliPageID uuid.UUID) {
-	pt.mu.Lock()
-	defer pt.mu.Unlock()
-
-	pt.driverToVrooli[driverPageID] = vrooliPageID
-	pt.vrooliToDriver[vrooliPageID] = driverPageID
-
-	// Also update the page's DriverPageID field
-	if page, ok := pt.pages[vrooliPageID]; ok {
-		page.DriverPageID = driverPageID
-	}
-}
-
 // GetPageIDByDriverID returns the Vrooli page ID for a driver page ID.
 func (pt *PageTracker) GetPageIDByDriverID(driverPageID string) *uuid.UUID {
 	pt.mu.RLock()
@@ -214,12 +240,19 @@ func (pt *PageTracker) GetDriverPageID(vrooliPageID uuid.UUID) string {
 	return pt.vrooliToDriver[vrooliPageID]
 }
 
-// UpdatePageInfo updates the URL and title of a page.
-func (pt *PageTracker) UpdatePageInfo(pageID uuid.UUID, url, title string) {
+// UpdatePageInfo updates browser metadata. Missing icons survive same-URL title
+// observations; a different document or explicit empty icon clears stale metadata.
+func (pt *PageTracker) UpdatePageInfo(pageID uuid.UUID, url, title string, faviconURL *string) {
 	pt.mu.Lock()
 	defer pt.mu.Unlock()
 
 	if page, ok := pt.pages[pageID]; ok {
+		if url != "" && url != page.URL {
+			page.FaviconURL = ""
+		}
+		if faviconURL != nil {
+			page.FaviconURL = *faviconURL
+		}
 		if url != "" {
 			page.URL = url
 		}

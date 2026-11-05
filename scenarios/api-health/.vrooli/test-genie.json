@@ -1,0 +1,549 @@
+{
+  "$schema": "https://vrooli.dev/schemas/test-genie-phase-descriptor.schema.json",
+  "schemaVersion": "1.0.0",
+  "scenario": "api-health",
+  "phase": "api",
+  "displayName": "API Health",
+  "description": "Validates API readiness, health contracts, route semantics, and runtime hygiene through api-health.",
+  "source": "validation-provider",
+  "orderHint": 3,
+  "timeout": "120s",
+  "findingSource": "standards",
+  "validation": {
+    "contract": "scenario-validation/v1"
+  },
+  "targets": {"kinds": ["scenario", "control-plane"], "selection": "enumerate"},
+  "applicability": {
+    "default": "applies"
+  },
+  "policy": {
+    "selection": "default_when_applicable",
+    "providerReadiness": "required_when_applicable",
+    "providerLifecycle": "start_if_needed",
+    "freshness": "require_live_contract",
+    "resultGating": "gating",
+    "unavailable": "fail"
+  },
+  "runnability": {},
+  "docs": {
+    "path": "scenarios/test-genie/docs/phases/api/README.md"
+  },
+  "maturity": {
+    "version": "0.1.0",
+    "levels": [
+      {
+        "id": "L0",
+        "name": "API readiness unavailable",
+        "status_label": "Unavailable",
+        "description": "API Health cannot resolve or inspect the target scenario.",
+        "capability_summary": "API readiness cannot be evaluated.",
+        "next_unlock": "Resolve a readable target scenario and classify API applicability."
+      },
+      {
+        "id": "L1",
+        "name": "API readiness inspectable",
+        "status_label": "Foundation",
+        "description": "The target is readable and API Health can report applicability without false clean passes.",
+        "capability_summary": "API readiness inputs are visible.",
+        "next_unlock": "Satisfy lifecycle and health contract checks."
+      },
+      {
+        "id": "L2",
+        "name": "API readiness baseline enforced",
+        "status_label": "Ready",
+        "description": "Provider-owned API lifecycle, health, HTTP, runtime, and fixability checks are implemented.",
+        "capability_summary": "API readiness baseline is enforced.",
+        "next_unlock": "Resolve all required provider-owned findings."
+      },
+      {
+        "id": "L3",
+        "name": "API readiness clean",
+        "status_label": "Complete",
+        "description": "API Health has no required provider-owned findings for the target scenario.",
+        "capability_summary": "API readiness is clean."
+      }
+    ],
+    "capabilities": [
+      {
+        "id": "target_resolution",
+        "label": "Target Resolution",
+        "description": "Scenario lookup, API surface discovery, and honest no-API degradation.",
+        "levels": [
+          {
+            "id": "L0",
+            "name": "No API target",
+            "status_label": "Unavailable",
+            "description": "The target scenario cannot be resolved or has no readable source tree.",
+            "capability_summary": "API Health cannot inspect a target scenario.",
+            "next_unlock": "A readable scenario directory with service metadata."
+          },
+          {
+            "id": "L1",
+            "name": "Target readable",
+            "status_label": "Foundation",
+            "description": "The target resolves, but API surface applicability is unknown or absent.",
+            "capability_summary": "API Health can read the target and classify API applicability.",
+            "next_unlock": "A declared or discoverable API surface, or an explicit no-API non-applicability result."
+          },
+          {
+            "id": "L2",
+            "name": "API surface classified",
+            "status_label": "Complete",
+            "description": "API applicability is known and no unevaluated target is reported as clean.",
+            "capability_summary": "API Health has an honest target-resolution result."
+          }
+        ]
+      },
+      {
+        "id": "api_lifecycle_contract",
+        "label": "API Lifecycle Contract",
+        "description": "Vrooli lifecycle health metadata, preflight ordering, and graceful server runner adoption.",
+        "levels": [
+          {
+            "id": "L0",
+            "name": "Lifecycle contract unavailable",
+            "status_label": "Unavailable",
+            "description": "API lifecycle metadata or entrypoint source cannot be inspected.",
+            "capability_summary": "API lifecycle compatibility cannot be evaluated.",
+            "next_unlock": "Readable .vrooli/service.json and API entrypoint source."
+          },
+          {
+            "id": "L1",
+            "name": "Lifecycle inputs inspectable",
+            "status_label": "Foundation",
+            "description": "Lifecycle metadata and entrypoint source are inspectable.",
+            "capability_summary": "API lifecycle inputs are visible.",
+            "next_unlock": "Standard API health metadata, preflight, and api-core/server adoption."
+          },
+          {
+            "id": "L2",
+            "name": "Lifecycle baseline enforced",
+            "status_label": "Ready",
+            "description": "The API is compatible with Vrooli lifecycle startup, health, and shutdown expectations.",
+            "capability_summary": "API lifecycle contract is enforced.",
+            "next_unlock": "Maximum lifecycle-contract maturity."
+          },
+          {
+            "id": "L3",
+            "name": "Lifecycle clean",
+            "status_label": "Complete",
+            "description": "API lifecycle findings are clean.",
+            "capability_summary": "API lifecycle readiness is clean."
+          }
+        ]
+      },
+      {
+        "id": "health_runtime_contract",
+        "label": "Health Runtime Contract",
+        "description": "Static and live validation of the standard /health readiness surface.",
+        "levels": [
+          {
+            "id": "L0",
+            "name": "Health contract unavailable",
+            "status_label": "Unavailable",
+            "description": "The health endpoint cannot be inspected or probed.",
+            "capability_summary": "API health readiness cannot be evaluated.",
+            "next_unlock": "A declared /health endpoint and, for execution mode, a reachable lifecycle API."
+          },
+          {
+            "id": "L1",
+            "name": "Health surface present",
+            "status_label": "Foundation",
+            "description": "A health surface is declared or detected, but schema/runtime findings remain.",
+            "capability_summary": "API health surface is visible.",
+            "next_unlock": "Schema-valid, lifecycle-reachable health response."
+          },
+          {
+            "id": "L2",
+            "name": "Health response valid",
+            "status_label": "Ready",
+            "description": "Static and live health checks satisfy API Health's readiness contract.",
+            "capability_summary": "API health response is valid.",
+            "next_unlock": "Maximum health-runtime maturity."
+          },
+          {
+            "id": "L3",
+            "name": "Health clean",
+            "status_label": "Complete",
+            "description": "Health runtime findings are clean.",
+            "capability_summary": "API health runtime readiness is clean."
+          }
+        ]
+      },
+      {
+        "id": "http_response_contract",
+        "label": "HTTP Response Contract",
+        "description": "Low-ambiguity HTTP status, content-type, and route-version semantics.",
+        "levels": [
+          {
+            "id": "L0",
+            "name": "HTTP contract unavailable",
+            "status_label": "Unavailable",
+            "description": "API routes and response paths cannot be inspected.",
+            "capability_summary": "HTTP semantics cannot be evaluated.",
+            "next_unlock": "Readable API route and handler source."
+          },
+          {
+            "id": "L1",
+            "name": "HTTP surface inspectable",
+            "status_label": "Foundation",
+            "description": "Routes and response writers are inspectable.",
+            "capability_summary": "HTTP response contract inputs are visible.",
+            "next_unlock": "Status, content-type, and versioning findings resolved or explicitly non-applicable."
+          },
+          {
+            "id": "L2",
+            "name": "HTTP baseline enforced",
+            "status_label": "Ready",
+            "description": "First-party HTTP semantics are consistent for supported patterns.",
+            "capability_summary": "HTTP response contract is enforced.",
+            "next_unlock": "Maximum HTTP-response maturity."
+          },
+          {
+            "id": "L3",
+            "name": "HTTP clean",
+            "status_label": "Complete",
+            "description": "HTTP response contract findings are clean.",
+            "capability_summary": "HTTP response semantics are clean."
+          }
+        ]
+      },
+      {
+        "id": "runtime_hygiene",
+        "label": "Runtime Hygiene",
+        "description": "API-runtime timeout, close, context, cancellation, and structured logging discipline.",
+        "levels": [
+          {
+            "id": "L0",
+            "name": "Runtime hygiene unavailable",
+            "status_label": "Unavailable",
+            "description": "API runtime source cannot be inspected.",
+            "capability_summary": "API runtime hygiene cannot be evaluated.",
+            "next_unlock": "Readable API runtime source."
+          },
+          {
+            "id": "L1",
+            "name": "Runtime source inspectable",
+            "status_label": "Foundation",
+            "description": "API runtime source is inspectable for supported hygiene checks.",
+            "capability_summary": "API runtime hygiene inputs are visible.",
+            "next_unlock": "Timeout, close, context, cancellation, and logging findings resolved."
+          },
+          {
+            "id": "L2",
+            "name": "Runtime baseline enforced",
+            "status_label": "Ready",
+            "description": "Supported API runtime hygiene checks are clean or explicitly non-applicable.",
+            "capability_summary": "API runtime hygiene baseline is enforced.",
+            "next_unlock": "Maximum runtime-hygiene maturity."
+          },
+          {
+            "id": "L3",
+            "name": "Runtime clean",
+            "status_label": "Complete",
+            "description": "Runtime hygiene findings are clean.",
+            "capability_summary": "API runtime hygiene is clean."
+          }
+        ]
+      },
+      {
+        "id": "autofix_readiness",
+        "label": "Autofix Readiness",
+        "description": "Deterministic fix coverage and safe preview/apply behavior for unambiguous API Health findings.",
+        "levels": [
+          {
+            "id": "L0",
+            "name": "Fix contract unavailable",
+            "status_label": "Unavailable",
+            "description": "Fixability declarations or the fix RPC are absent.",
+            "capability_summary": "Autofix readiness cannot be evaluated.",
+            "next_unlock": "Finding fix_class declarations and shared Fix RPC wiring."
+          },
+          {
+            "id": "L1",
+            "name": "Fixability declared",
+            "status_label": "Foundation",
+            "description": "All findings declare fixability, but implemented fixers may be missing.",
+            "capability_summary": "Fixability is visible.",
+            "next_unlock": "Implemented fixers for every auto-fixable unambiguous finding."
+          },
+          {
+            "id": "L2",
+            "name": "Fixers preview safely",
+            "status_label": "Ready",
+            "description": "Implemented fixers support dry-run previews and explicit apply with idempotent results.",
+            "capability_summary": "Autofix behavior is safe for operators and agents.",
+            "next_unlock": "Maximum autofix maturity."
+          },
+          {
+            "id": "L3",
+            "name": "Autofix clean",
+            "status_label": "Complete",
+            "description": "Autofix declarations and implementations are complete for current findings.",
+            "capability_summary": "API Health autofix readiness is clean."
+          }
+        ]
+      }
+    ],
+    "findings": {
+      "api_health.target_unresolved": {
+        "capability_id": "target_resolution",
+        "local_level_impact": "L1",
+        "global_impact": "foundation_blocker",
+        "dimension": "standards",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "recommended_skill_ids": [
+          "ecosystem-fit"
+        ],
+        "fix_class": "manual",
+        "reason": "Choosing or creating the correct scenario target requires operator or calling-agent judgment."
+      },
+      "api_health.api_surface_absent": {
+        "capability_id": "target_resolution",
+        "local_level_impact": "L1",
+        "global_impact": "advisory",
+        "dimension": "standards",
+        "severity_default": "SEVERITY_INFO",
+        "clean_requirement": "advisory",
+        "recommended_skill_ids": [
+          "ecosystem-fit"
+        ],
+        "fix_class": "manual",
+        "reason": "A scenario may intentionally have no API; adding one is a product architecture decision."
+      },
+      "api_health.service_health_missing": {
+        "capability_id": "api_lifecycle_contract",
+        "local_level_impact": "L2",
+        "global_impact": "hardening_gap",
+        "dimension": "standards",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "recommended_skill_ids": [
+          "api-steer"
+        ],
+        "fix_class": "auto",
+        "fixer_status": "implemented"
+      },
+      "api_health.preflight_missing_or_late": {
+        "capability_id": "api_lifecycle_contract",
+        "local_level_impact": "L2",
+        "global_impact": "hardening_gap",
+        "dimension": "standards",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "recommended_skill_ids": [
+          "api-steer"
+        ],
+        "fix_class": "manual",
+        "reason": "Moving or inserting preflight in api/main.go can depend on startup ordering and side effects."
+      },
+      "api_health.server_runner_missing": {
+        "capability_id": "api_lifecycle_contract",
+        "local_level_impact": "L2",
+        "global_impact": "hardening_gap",
+        "dimension": "standards",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "recommended_skill_ids": [
+          "api-steer"
+        ],
+        "fix_class": "manual",
+        "reason": "Migrating server startup to api-core/server.Run requires understanding handler construction and shutdown hooks."
+      },
+      "api_health.health_endpoint_missing": {
+        "capability_id": "health_runtime_contract",
+        "local_level_impact": "L1",
+        "global_impact": "hardening_gap",
+        "dimension": "standards",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "recommended_skill_ids": [
+          "api-steer"
+        ],
+        "fix_class": "auto",
+        "fixer_status": "implemented"
+      },
+      "api_health.health_probe_failed": {
+        "capability_id": "health_runtime_contract",
+        "local_level_impact": "L1",
+        "global_impact": "hardening_gap",
+        "dimension": "standards",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "recommended_skill_ids": [
+          "api-steer"
+        ],
+        "fix_class": "manual",
+        "reason": "A failed live probe may require starting lifecycle services, fixing runtime dependencies, or repairing API code."
+      },
+      "api_health.health_schema_invalid": {
+        "capability_id": "health_runtime_contract",
+        "local_level_impact": "L2",
+        "global_impact": "hardening_gap",
+        "dimension": "standards",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "recommended_skill_ids": [
+          "api-steer"
+        ],
+        "fix_class": "manual",
+        "reason": "Repairing a malformed health payload can require changing the handler response model and dependency status semantics."
+      },
+      "api_health.raw_status_code": {
+        "capability_id": "http_response_contract",
+        "local_level_impact": "L2",
+        "global_impact": "evolvability_gap",
+        "dimension": "standards",
+        "severity_default": "SEVERITY_WARNING",
+        "clean_requirement": "required",
+        "recommended_skill_ids": [
+          "api-steer"
+        ],
+        "fix_class": "auto",
+        "fixer_status": "implemented"
+      },
+      "api_health.error_response_implicit_success": {
+        "capability_id": "http_response_contract",
+        "local_level_impact": "L2",
+        "global_impact": "hardening_gap",
+        "dimension": "standards",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "recommended_skill_ids": [
+          "api-steer"
+        ],
+        "fix_class": "manual",
+        "reason": "Choosing the correct error status and envelope can depend on API semantics."
+      },
+      "api_health.content_type_missing": {
+        "capability_id": "http_response_contract",
+        "local_level_impact": "L2",
+        "global_impact": "hardening_gap",
+        "dimension": "standards",
+        "severity_default": "SEVERITY_WARNING",
+        "clean_requirement": "required",
+        "recommended_skill_ids": [
+          "api-steer"
+        ],
+        "fix_class": "auto",
+        "fixer_status": "implemented"
+      },
+      "api_health.unversioned_feature_endpoint": {
+        "capability_id": "http_response_contract",
+        "local_level_impact": "L2",
+        "global_impact": "evolvability_gap",
+        "dimension": "standards",
+        "severity_default": "SEVERITY_WARNING",
+        "clean_requirement": "required",
+        "recommended_skill_ids": [
+          "api-steer"
+        ],
+        "fix_class": "manual",
+        "reason": "Changing endpoint paths is an API compatibility decision."
+      },
+      "api_health.http_client_unbounded": {
+        "capability_id": "runtime_hygiene",
+        "local_level_impact": "L2",
+        "global_impact": "hardening_gap",
+        "dimension": "standards",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "recommended_skill_ids": [
+          "api-steer"
+        ],
+        "fix_class": "manual",
+        "reason": "Timeout values and client ownership depend on call semantics and retry policy."
+      },
+      "api_health.response_body_unclosed": {
+        "capability_id": "runtime_hygiene",
+        "local_level_impact": "L2",
+        "global_impact": "hardening_gap",
+        "dimension": "standards",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "recommended_skill_ids": [
+          "api-steer"
+        ],
+        "fix_class": "auto",
+        "fixer_status": "implemented"
+      },
+      "api_health.request_context_dropped": {
+        "capability_id": "runtime_hygiene",
+        "local_level_impact": "L2",
+        "global_impact": "hardening_gap",
+        "dimension": "standards",
+        "severity_default": "SEVERITY_WARNING",
+        "clean_requirement": "required",
+        "recommended_skill_ids": [
+          "api-steer"
+        ],
+        "fix_class": "manual",
+        "reason": "Correct context propagation can require changing service signatures across a call graph."
+      },
+      "api_health.goroutine_not_cancellable": {
+        "capability_id": "runtime_hygiene",
+        "local_level_impact": "L2",
+        "global_impact": "hardening_gap",
+        "dimension": "standards",
+        "severity_default": "SEVERITY_WARNING",
+        "clean_requirement": "required",
+        "recommended_skill_ids": [
+          "api-steer"
+        ],
+        "fix_class": "manual",
+        "reason": "Adding cancellation requires understanding goroutine ownership and shutdown semantics."
+      },
+      "api_health.unstructured_api_logging": {
+        "capability_id": "runtime_hygiene",
+        "local_level_impact": "L2",
+        "global_impact": "hardening_gap",
+        "dimension": "standards",
+        "severity_default": "SEVERITY_WARNING",
+        "clean_requirement": "required",
+        "recommended_skill_ids": [
+          "api-steer"
+        ],
+        "fix_class": "manual",
+        "reason": "Logging architecture and field vocabulary require local API design judgment."
+      },
+      "api_health.autofix_contract_incomplete": {
+        "capability_id": "autofix_readiness",
+        "local_level_impact": "L1",
+        "global_impact": "capability_gap",
+        "dimension": "standards",
+        "severity_default": "SEVERITY_WARNING",
+        "clean_requirement": "required",
+        "recommended_skill_ids": [
+          "api-steer"
+        ],
+        "fix_class": "manual",
+        "reason": "Building deterministic fixers is provider implementation work."
+      }
+    },
+    "fallback": {
+      "capability_id": "target_resolution",
+      "local_level_impact": "L1",
+      "global_impact": "foundation_blocker",
+      "dimension": "standards",
+      "severity_default": "SEVERITY_ERROR",
+      "clean_requirement": "required"
+    }
+  },
+  "profileMembership": [
+    "architecture-audit"
+  ],
+  "freshnessRequirement": "never",
+  "phaseClass": "architecture",
+  "runtimeClass": "static",
+  "concurrency": {
+    "mode": "provider-serial"
+  },
+  "determinism": {
+    "default": "file-determined",
+    "inputs": ["**"]
+  },
+  "dimensions": [
+    "contracts"
+  ]
+}

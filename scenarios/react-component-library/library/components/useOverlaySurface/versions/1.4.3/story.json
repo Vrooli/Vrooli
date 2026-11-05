@@ -1,0 +1,36 @@
+{
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
+  "schemaVersion": 5,
+  "kind": "component",
+  "title": "useOverlaySurface",
+  "args": { "fields": [] },
+  "environment": { "fixtures": [] },
+  "stories": [
+    {
+      "id": "default",
+      "name": "Default",
+      "role": "anatomy",
+      "mode": "live",
+      "args": {},
+      "composition": { "specimen": { "module": "./story.tsx", "export": "Default" } },
+      "expect": [
+        { "kind": "visible", "selector": "[data-testid='runtime.use-overlay-surface']" },
+        { "kind": "visible", "selector": "[data-testid='runtime.use-overlay-surface.backdrop']" }
+      ]
+    },
+    {
+      "id": "with-swipe-dismissal",
+      "name": "With swipe dismissal",
+      "role": "boundary",
+      "mode": "live",
+      "args": {},
+      "composition": { "specimen": { "module": "./story.tsx", "export": "WithSwipeDismissal" } },
+      "expect": [
+        { "kind": "visible", "selector": "[data-testid='runtime.use-overlay-surface.grabber']" }
+      ]
+    }
+    ,
+    {"id":"loading","name":"Loading overlay","args":{"state":"loading"},"expect":[{"kind":"visible","selector":"[data-testid='runtime.use-overlay-surface']"}],"role":"boundary","mode":"pinned"},
+    {"id":"error","name":"Overlay error","args":{"state":"error"},"expect":[{"kind":"visible","selector":"[data-testid='runtime.use-overlay-surface']"}],"role":"boundary","mode":"pinned"}
+  ]
+}

@@ -33,11 +33,14 @@
   ],
   "metadata": {
     "description": "Validates zoom in button increases canvas zoom level",
+    "execution_mode": "mutating",
     "labels": {
-      "reset": "none"
+      "requires_confirmation": "true",
+      "reset": "none",
+      "routed_isolation": "true"
     },
-    "version": "1",
-    "execution_mode": "observer"
+    "name": "Toolbar Zoom In",
+    "version": "1"
   },
   "nodes": [
     {
@@ -75,7 +78,7 @@
     {
       "action": {
         "evaluate": {
-          "expression": "(() => { const viewport = document.querySelector('.react-flow__viewport'); if (!viewport) return null; const transform = viewport.style.transform || 'translate(0px, 0px) scale(1)'; const match = transform.match(/scale\\(([\\d.]+)\\)/); return match ? parseFloat(match[1]) : 1; })()",
+          "expression": "(() =\u003e { const viewport = document.querySelector('.react-flow__viewport'); if (!viewport) return null; const transform = viewport.style.transform || 'translate(0px, 0px) scale(1)'; const match = transform.match(/scale\\(([\\d.]+)\\)/); return match ? parseFloat(match[1]) : 1; })()",
           "store_result": "initialZoom"
         },
         "metadata": {
@@ -106,7 +109,7 @@
     {
       "action": {
         "evaluate": {
-          "expression": "(() => { const viewport = document.querySelector('.react-flow__viewport'); if (!viewport) return null; const transform = viewport.style.transform || 'translate(0px, 0px) scale(1)'; const match = transform.match(/scale\\(([\\d.]+)\\)/); return match ? parseFloat(match[1]) : 1; })()",
+          "expression": "(() =\u003e { const viewport = document.querySelector('.react-flow__viewport'); if (!viewport) return null; const transform = viewport.style.transform || 'translate(0px, 0px) scale(1)'; const match = transform.match(/scale\\(([\\d.]+)\\)/); return match ? parseFloat(match[1]) : 1; })()",
           "store_result": "zoomedLevel"
         },
         "metadata": {

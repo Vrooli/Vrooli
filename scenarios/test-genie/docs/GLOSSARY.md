@@ -254,8 +254,8 @@ go tool cover -func=coverage.out
 # Vitest coverage
 cd ui && npm test -- --coverage
 
-# test-genie coverage analysis
-test-genie coverage my-scenario --depth deep
+# Use a completed execution's findings to plan remediation.
+test-genie execute my-scenario --preset comprehensive
 ```
 
 ## Related Documentation
@@ -271,7 +271,6 @@ test-genie coverage my-scenario --depth deep
 
 ### Implementation
 - [Scenario Unit Testing](phases/unit/scenario-unit-testing.md) - Go, Node, Python tests
-- [CLI Testing](phases/integration/cli-testing.md) - BATS testing patterns
 - [UI Testability](guides/ui-testability.md) - BAS workflow testing
 
 ---

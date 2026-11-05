@@ -49,12 +49,14 @@ export function mapJsonPathsToLines(jsonString: string): PathLineMapping {
 
   for (let lineIndex = 0; lineIndex < lines.length; lineIndex++) {
     const line = lines[lineIndex];
+    if (line === undefined) continue;
     const lineNum = lineIndex + 1;
 
     // Check for key-value pair
     const keyMatch = line.match(keyPattern);
     if (keyMatch) {
       const key = keyMatch[1];
+      if (key === undefined) continue;
       const column = line.indexOf('"');
 
       // Count braces/brackets before the key to determine depth adjustment

@@ -1,0 +1,222 @@
+{
+  "purpose": "delivery",
+  "lifetime": "finite",
+  "effortRefs": [
+    "effort:external-knowledge-search"
+  ],
+  "kind": "team",
+  "schemaVersion": 1,
+  "id": "external-knowledge-delivery",
+  "displayName": "External Knowledge Delivery",
+  "mission": "Deliver selected Drive-folder knowledge first and later approved Gmail and Personal Planner extensions through shared Google connection infrastructure, format/question-aware indexing and authorized generic federation. Preparation only: stay disabled until the operator activates the qualified commission.",
+  "enabled": false,
+  "archived": false,
+  "runtime": {
+    "mode": "multi-process"
+  },
+  "coordination": {
+    "pattern": "leader-led",
+    "leadAgentId": "external-knowledge-orchestrator",
+    "reportingMode": "leader",
+    "messagingMode": "async-inbox",
+    "capabilities": {
+      "showOrgContext": true,
+      "injectInbox": true,
+      "allowPeerTriggers": false,
+      "showTaskBoardGuidance": false,
+      "showKnowledgeLogGuidance": false,
+      "requireHandoff": true
+    }
+  },
+  "execution": {
+    "queuePolicy": "serialized",
+    "maxConcurrentRuns": 1
+  },
+  "operatingContract": {
+    "schemaVersion": 1,
+    "governance": {},
+    "documents": {
+      "planOfRecord": [
+        {
+          "id": "external-search-direction",
+          "hub": {
+            "base": "repo-root",
+            "path": "docs/architecture/external-knowledge-search.md"
+          },
+          "paths": [
+            {
+              "base": "repo-root",
+              "path": "docs/architecture/external-knowledge-search.md"
+            }
+          ],
+          "writePolicy": "Preparation is authorized. Later product/design amendments follow their existing owner routes; this commission stays disabled.",
+          "consumers": [
+            "external-knowledge-delivery",
+            "external-knowledge-orchestrator"
+          ],
+          "useFor": "Accepted architecture, domain ownership and desired source/search behavior.",
+          "required": true
+        },
+        {
+          "id": "external-search-goal",
+          "hub": {
+            "base": "repo-root",
+            "path": "docs/internal/external-knowledge-delivery/GOAL.md"
+          },
+          "paths": [
+            {
+              "base": "repo-root",
+              "path": "docs/internal/external-knowledge-delivery/GOAL.md"
+            }
+          ],
+          "writePolicy": "Preparation is authorized. Later product/design amendments follow their existing owner routes; this commission stays disabled.",
+          "consumers": [
+            "external-knowledge-delivery",
+            "external-knowledge-orchestrator"
+          ],
+          "useFor": "Destination and preparation versus execution authority.",
+          "required": true
+        },
+        {
+          "id": "external-search-research",
+          "hub": {
+            "base": "repo-root",
+            "path": "docs/internal/external-knowledge-delivery/RESEARCH.md"
+          },
+          "paths": [
+            {
+              "base": "repo-root",
+              "path": "docs/internal/external-knowledge-delivery/RESEARCH.md"
+            }
+          ],
+          "writePolicy": "Preparation is authorized. Later product/design amendments follow their existing owner routes; this commission stays disabled.",
+          "consumers": [
+            "external-knowledge-delivery",
+            "external-knowledge-orchestrator"
+          ],
+          "useFor": "Dated facts, official sources, hypotheses and maturity limits.",
+          "required": true
+        },
+        {
+          "id": "external-search-setup",
+          "hub": {
+            "base": "repo-root",
+            "path": "docs/internal/external-knowledge-delivery/SETUP.md"
+          },
+          "paths": [
+            {
+              "base": "repo-root",
+              "path": "docs/internal/external-knowledge-delivery/SETUP.md"
+            }
+          ],
+          "writePolicy": "Preparation is authorized. Later product/design amendments follow their existing owner routes; this commission stays disabled.",
+          "consumers": [
+            "external-knowledge-delivery",
+            "external-knowledge-orchestrator"
+          ],
+          "useFor": "Operator OAuth staging, source qualification and later activation route.",
+          "required": true
+        },
+        {
+          "id": "external-email-design",
+          "hub": {
+            "base": "repo-root",
+            "path": "docs/internal/external-knowledge-delivery/EMAIL-DESIGN-PROMPT.md"
+          },
+          "paths": [
+            {
+              "base": "repo-root",
+              "path": "docs/internal/external-knowledge-delivery/EMAIL-DESIGN-PROMPT.md"
+            }
+          ],
+          "writePolicy": "Preparation is authorized. Later product/design amendments follow their existing owner routes; this commission stays disabled.",
+          "consumers": [
+            "external-knowledge-delivery",
+            "external-knowledge-orchestrator"
+          ],
+          "useFor": "Pending email product/UX design inputs; this is a prompt, not a selected product specification.",
+          "required": true
+        }
+      ],
+      "sharedState": [
+        {
+          "id": "external-queue",
+          "path": {
+            "base": "repo-root",
+            "path": "docs/internal/external-knowledge-delivery/QUEUE.md"
+          },
+          "kind": "working-register",
+          "required": true
+        },
+        {
+          "id": "external-feedback",
+          "path": {
+            "base": "repo-root",
+            "path": "docs/internal/external-knowledge-delivery/FEEDBACK.md"
+          },
+          "kind": "operator-input",
+          "required": true
+        },
+        {
+          "id": "external-workarounds",
+          "path": {
+            "base": "repo-root",
+            "path": "docs/internal/external-knowledge-delivery/WORKAROUNDS.md"
+          },
+          "kind": "working-register",
+          "required": true
+        },
+        {
+          "id": "external-installs",
+          "path": {
+            "base": "repo-root",
+            "path": "docs/internal/external-knowledge-delivery/INSTALLS.md"
+          },
+          "kind": "working-register",
+          "required": true
+        },
+        {
+          "id": "external-targets",
+          "path": {
+            "base": "repo-root",
+            "path": "docs/internal/external-knowledge-delivery/TARGETS.md"
+          },
+          "kind": "working-register",
+          "required": true
+        }
+      ]
+    },
+    "knowledgeTopics": {},
+    "members": {
+      "external-knowledge-orchestrator": {
+        "lane": "Orchestrate the finite external-search effort through substantial outcome epochs; maintain this goal home, reconcile canonical domain contracts, coordinate existing planner ownership, and independently accept source-backed gates. Never implement product code.",
+        "allowedWrites": [
+          {
+            "kind": "handoff"
+          },
+          {
+            "base": "repo-root",
+            "path": "docs/internal/external-knowledge-delivery"
+          }
+        ],
+        "safetyCriticalRules": [
+          "Keep the team and leader heartbeat disabled during preparation; do not dispatch, connect accounts or acquire credentials until separately authorized.",
+          "Read the approved architecture and dated research before admitting work. Drive-selected-folder delivery is first priority.",
+          "Use large-effort-orchestration and existing delivery profiles; orchestrator owns acceptance and goal home, epoch workers own product code.",
+          "Source grants and verified caller identity precede private retrieval, ranking, snippets and context. Never substitute principals after a native refusal.",
+          "Coordinate Calendar with the existing Personal Planner delivery owner. Required shared contracts/generated outputs remain in whole-outcome scope; worker exclusions do not discard them.",
+          "Email implementation requires operator-selected UX/specification and accessible governing originals, not the design prompt alone.",
+          "Preserve unrelated authored edits and user data. Dependency additions use Scenario Dependency Analyzer; generated artifacts use governed owner generation and verification.",
+          "Native identity, permissions, budgets and safeguards govern activation and dispatch; no Swarm or Plan Manager dispatch for this delivery team."
+        ],
+        "readOnlyModeBehavior": {
+          "stillWriteKnowledge": false,
+          "stillWriteHandoff": true
+        }
+      }
+    }
+  },
+  "revision": 1,
+  "createdAt": "2026-10-14T14:31:54Z",
+  "updatedAt": "2026-10-14T14:31:54Z"
+}

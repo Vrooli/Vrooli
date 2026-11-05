@@ -6,6 +6,30 @@ How to embed one scenario inside another using `@vrooli/api-base`.
 
 **Parent Scenario** (Dashboard) embeds **Child Scenario** (Widget) in an iframe with proper proxy metadata injection.
 
+## Built-in embedded proxy request bodies
+
+`createScenarioServer({ embeddedProxy: true })` also forwards requests below
+`/embedded/<scenario>/`, including Connect JSON POSTs. The exported
+`createEmbeddedProxyRouter()` supports mounting after an Express JSON, text, or
+raw body parser. Unconsumed requests stream directly, including binary uploads.
+For consumed requests, the router forwards the retained buffer or serializes the
+parsed JSON/text, sets the actual byte length, and removes the original transfer
+and content encoding. JSON/text is emitted as UTF-8. Original JSON whitespace is
+not retained after parsing; mount before parsers when original bytes are required.
+A consumed body without a supported retained representation returns 400 instead
+of sending a truncated request upstream.
+
+Regression evidence (2026-09-12): a real HTTP test with `express.json()` before
+the router reproduced a Connect request timing out with its original content
+length; chunked JSON instead arrived empty. Both reached the expected upstream
+route, ruling out path resolution as the cause. The parser had consumed the
+stream and the router ended the upstream request without forwarding `req.body`.
+The regression in `src/__tests__/server/embedded.test.ts` checks Unicode bytes,
+framing, and binary delivery before upload completion. Its 45 tests pass after
+the fix, including compressed JSON, retained raw/text bodies, empty requests,
+unrecoverable consumed bodies, upstream failures, and timeouts. Package build
+and type-check also pass; live scenario adoption is a separate owner operation.
+
 ---
 
 ## Parent: Dashboard Scenario

@@ -2,7 +2,7 @@
 //
 // This file consolidates the business logic for determining secret types,
 // required status, and keyword-based classification. Previously this logic
-// was duplicated across scanner.go and vault_fallback.go.
+// was duplicated across scanner.go and credential_coverage.go.
 package main
 
 import (

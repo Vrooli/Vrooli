@@ -1,0 +1,27 @@
+{
+  "version": "1.1",
+  "checked_at": "2026-10-14T21:23:00Z",
+  "native_atlas_document": "1FGEwJtpi67XDCfqpzb4FwkL4isVEXRDNhlsC3Q7FtjU",
+  "native_revision": "AHj4eMQP3U_gMEaIvoxbxnKkwSUWrh7clEgXWJM82MzmxDs2b3VS0K3Jv2vN-0g2R79ThghvrpzbpVqq4xvURet-0L5ZPqB4I4CrJ6mmyg",
+  "native_embedded_boards": 21,
+  "native_overview_pages": 24,
+  "native_overview_sha256": "97640261d9e380b8ba561927b2d4f37b178dc6e42f283b2b98ec9e612e5a84b1",
+  "full_resolution_pdf_sha256": "ecdc8b6202d752a930c7b653a8fb2764f18e76e331171f5b183ba0ebcba11836",
+  "full_resolution_pdf_bytes": 1629134,
+  "full_resolution_pdf_pages": 112,
+  "actual_coverage": "84 rendered variants of 21 representative screens in four viewport/theme combinations",
+  "checks": [
+    "21 image objects confirmed by native readback; zero placeholders.",
+    "All 24 native overview pages reviewed in contact sheets; changed final pages21/24 checked at readable scale.",
+    "Independent full atlas and all 26 specification pages passed exact-byte review.",
+    "Visual manifest/source hashes, ZIP CRC and embedded PDF/manifest/CSS bytes verified.",
+    "Native entry export3pages checked for layout and current scope/version."
+  ],
+  "limits": [
+    "Personal-only inbox and Work-prefilled new compose are specified but not individually rendered.",
+    "Expanded loading/error/permission substates are not exhaustively pictured.",
+    "Static design only; no native-phone, assistive-technology, security or provider-runtime acceptance.",
+    "Owner endorsed visual direction and selected amendment; exact revised-artifact and implementation acceptance are separate.",
+    "Native import pending; no team activation."
+  ]
+}

@@ -1,0 +1,45 @@
+{
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
+  "args": {
+    "fields": []
+  },
+  "environment": {
+    "fixtures": []
+  },
+  "kind": "component",
+  "schemaVersion": 5,
+  "stories": [
+    {
+      "args": {
+        "rungs": [
+          {
+            "complete": true,
+            "id": "implemented",
+            "label": "Implemented"
+          },
+          {
+            "complete": false,
+            "current": true,
+            "id": "verified",
+            "label": "Verified"
+          }
+        ]
+      },
+      "expect": [
+        {
+          "kind": "text",
+          "value": "Implemented"
+        },
+        {
+          "kind": "text",
+          "value": "Verified"
+        }
+      ],
+      "id": "default",
+      "mode": "pinned",
+      "name": "Default",
+      "role": "anatomy"
+    }
+  ],
+  "title": "ProgressLadder"
+}

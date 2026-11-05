@@ -1,0 +1,41 @@
+{
+  "id": "ee5740d3-a4e6-4145-a8a1-ca5d053bfd71",
+  "project_id": "0c037e4d-dd01-4c3b-a23b-0e6a9e3ac9ff",
+  "name": "capture-session-baseline",
+  "folder_path": "/bas/actions",
+  "description": "Record the session ids that already exist so a case can delete only what it creates. Deletes nothing: the operator's sessions are never a test's to remove.",
+  "metadata": {
+    "name": "capture-session-baseline",
+    "description": "Record the session ids that already exist so a case can delete only what it creates. Deletes nothing: the operator's sessions are never a test's to remove.",
+    "execution_mode": "mutating",
+    "reset": "none",
+    "labels": {
+      "reset": "none",
+      "requires_confirmation": "true",
+      "routed_isolation": "true"
+    }
+  },
+  "tags": [
+    "reset:none"
+  ],
+  "version": 1,
+  "created_at": "2026-07-12T19:31:13.433448419Z",
+  "updated_at": "2026-07-12T19:31:13.433448419Z",
+  "flow_definition": {
+    "settings": {},
+    "nodes": [
+      {
+        "id": "capture-session-baseline",
+        "action": {
+          "type": "ACTION_TYPE_EVALUATE",
+          "evaluate": {
+            "expression": "(async () => { const listIds = async () => { try { const res = await fetch('/vrooli.web_console.v1.sessions.SessionsService/List', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}', cache: 'no-store' }); if (!res.ok) return null; const body = await res.json(); const rows = Array.isArray(body) ? body : (body && body.sessions) || []; return rows.map((s) => s && s.id).filter(Boolean); } catch { return null; } }; const ids = await listIds(); if (ids) { try { sessionStorage.setItem('__bas_baseline_sessions', JSON.stringify(ids)); } catch {} } window.__bas_baseline_sessions = ids || []; document.body.setAttribute('data-bas-baseline-count', String((ids || []).length)); document.body.setAttribute('data-bas-baseline-ready', ids === null ? 'false' : 'true'); })()"
+          },
+          "metadata": {
+            "label": "Capture existing session ids"
+          }
+        }
+      }
+    ]
+  }
+}

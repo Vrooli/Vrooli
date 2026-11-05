@@ -1,0 +1,148 @@
+{
+  "_comment": "このファイルには2種類の補間があります。(1) 生成時: Structure Health のような大文字スネークケースのプレースホルダーは、`vrooli scenario generate` がシナリオビルド前に置換します。実行時にはリテラル表示値として扱われます。(2) 実行時: {{count}} のようなトークンは i18next の補間で、`t(key, { count })` によりレンダー時に置換されます。アンダースコアで始まるキー（このキーのような）はセンチネルで、コード生成・パリティテスト・未使用キー監査からスキップされます。",
+  "app": {
+    "title": "Structure Health"
+  },
+  "layout": {
+    "mainLabel": "メインコンテンツ",
+    "sidebarLabel": "メインナビゲーション",
+    "bottomNavLabel": "モバイルナビゲーション",
+    "nav": {
+      "dashboard": "ダッシュボード",
+      "fleet": "フリート",
+      "validate": "検証",
+      "settings": "設定"
+    }
+  },
+  "theme": {
+    "switcherLabel": "テーマ",
+    "choice": {
+      "light": "ライト",
+      "dark": "ダーク",
+      "system": "システム"
+    }
+  },
+  "pages": {
+    "dashboard": {
+      "title": "ダッシュボード",
+      "description": "シナリオのヘルスと主要指標の概要。製品の成長に合わせてこれらのカードを実際のサーフェスに置き換えてください。",
+      "statPlaceholderLabel": "指標"
+    },
+    "settings": {
+      "title": "設定",
+      "themeHeading": "外観",
+      "localeHeading": "言語"
+    },
+    "fleet": {
+      "title": "フリート",
+      "description": "検出されたすべてのリポジトリターゲットの構造適合性。構造ゲートに失敗したターゲット、違反の多いルール、プロファイル別の内訳を確認できます。"
+    },
+    "validation": {
+      "title": "検証ワークベンチ",
+      "description": "共有ターゲット種別コントラクトを通じて、管理対象リポジトリを検証します。",
+      "statPlaceholderLabel": "指標"
+    }
+  },
+  "health": {
+    "title": "API ステータス",
+    "loading": "API のステータスを確認中…",
+    "error": "API に接続できません。`vrooli scenario start` でシナリオが起動していることを確認してください。",
+    "refresh": "再読み込み",
+    "refreshCount": "{{count}} 回更新しました",
+    "statusLabel": "ステータス:",
+    "serviceLabel": "サービス:",
+    "timestampLabel": "タイムスタンプ:"
+  },
+  "notifications": {
+    "summary": "{{count}} 件の通知"
+  },
+  "errors": {
+    "canceled": "Operation canceled.",
+    "unknown": "An unknown error occurred.",
+    "invalid_argument": "Invalid input: {{message}}",
+    "deadline_exceeded": "Operation timed out.",
+    "not_found": "Resource not found.",
+    "already_exists": "Already exists.",
+    "permission_denied": "Permission denied.",
+    "resource_exhausted": "Resource limit reached.",
+    "failed_precondition": "Cannot perform this action: {{message}}",
+    "aborted": "Operation aborted.",
+    "out_of_range": "Out of range.",
+    "unimplemented": "Not yet implemented.",
+    "internal": "Something went wrong. Please try again.",
+    "unavailable": "Service temporarily unavailable.",
+    "data_loss": "Data loss detected.",
+    "unauthenticated": "Please sign in to continue."
+  },
+  "locale": {
+    "switcherLabel": "言語"
+  },
+  "errorBoundary": {
+    "title": "問題が発生しました",
+    "message": "ページの表示中に予期しないエラーが発生しました。再試行するか、解決しない場合はページを再読み込みしてください。",
+    "retry": "再試行"
+  },
+  "fleet": {
+    "title": "フリート適合性",
+    "refresh": "再読み込み",
+    "loading": "フリートをスキャン中…",
+    "empty": "評価されたシナリオがありません。",
+    "summary": {
+      "scenarios": "ターゲット",
+      "passing": "合格",
+      "autofixable": "自動修正可能"
+    },
+    "profiles": {
+      "title": "プロファイル分布",
+      "unrecognized": "未認識",
+      "countLabel": "{{count}} 件のターゲット"
+    },
+    "rules": {
+      "title": "ルール適合性",
+      "empty": "フリート全体でルールの検出はありません。",
+      "col": {
+        "code": "ルール",
+        "severity": "重大度",
+        "offenders": "ターゲット",
+        "findings": "検出数",
+        "autofixable": "自動修正可能"
+      }
+    },
+    "scenarios": {
+      "title": "違反ターゲット",
+      "passed": "合格",
+      "failed": "不合格",
+      "recognized": "認識済み",
+      "unrecognized": "アドバイザリ",
+      "col": {
+        "scenario": "シナリオ",
+        "target": "ターゲット",
+        "verdict": "判定",
+        "profile": "プロファイル",
+        "errors": "エラー",
+        "warnings": "警告",
+        "autofixable": "自動修正可能"
+      }
+    },
+    "errors": {
+      "title": "未評価のターゲット"
+    }
+  },
+  "validation": {
+    "kind": "ターゲット種別",
+    "id": "ターゲット ID",
+    "idPlaceholder": "structure-health",
+    "root": "リポジトリルート",
+    "rootPlaceholder": "scenarios/structure-health",
+    "path": "解決済みパス（任意）",
+    "pathPlaceholder": "絶対パスを入力、または空欄",
+    "submit": "ターゲットを検証",
+    "loading": "検証中…",
+    "resultTitle": "検証結果",
+    "unknownStatus": "不明",
+    "noRoot": "リポジトリルートが返されませんでした",
+    "maturity": "成熟度: {{current}} · 次: {{next}}",
+    "findingsTitle": "検出事項",
+    "noFindings": "検出事項なし"
+  }
+}

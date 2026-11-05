@@ -48,6 +48,19 @@ type capturingService struct {
 	lastConfig *generation.DesktopConfig
 }
 
+func TestBuildDesktopConfigCarriesStrategyOverride(t *testing.T) {
+	analyzer := &mockAnalyzer{metadata: &generation.ScenarioMetadata{Name: "test-app", DisplayName: "Test App", HasUI: true}}
+	stage := NewGenerateStage(WithScenarioAnalyzer(analyzer))
+	input := &StageInput{Config: &PipelineConfig{ScenarioName: "test-app", DeploymentMode: DeploymentModeProxy, StrategyID: generation.DefaultStrategyID}}
+	config, err := stage.buildDesktopConfig(input, analyzer.metadata, &StageResult{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if config.StrategyID != generation.DefaultStrategyID {
+		t.Fatalf("strategy_id=%q", config.StrategyID)
+	}
+}
+
 func (s *capturingService) Generate(buildID string, config *generation.DesktopConfig) {
 	// No-op for tests
 }
@@ -86,7 +99,7 @@ func TestGenerateStage_BundledMode_SetsScenarioPathToBundle(t *testing.T) {
 	)
 
 	input := &StageInput{
-		Config: &Config{
+		Config: &PipelineConfig{
 			ScenarioName:   "test-app",
 			DeploymentMode: "bundled", // Bundled mode
 			Platforms:      []string{"linux"},
@@ -146,7 +159,7 @@ func TestGenerateStage_NonBundledMode_PreservesSourcePath(t *testing.T) {
 	)
 
 	input := &StageInput{
-		Config: &Config{
+		Config: &PipelineConfig{
 			ScenarioName:   "test-app",
 			DeploymentMode: "external-server", // Non-bundled mode
 			Platforms:      []string{"linux"},
@@ -206,7 +219,7 @@ func TestGenerateStage_BundledMode_ExtractsBundleIPC(t *testing.T) {
 	}
 
 	input := &StageInput{
-		Config: &Config{
+		Config: &PipelineConfig{
 			ScenarioName:   "test-app",
 			DeploymentMode: "bundled",
 			Platforms:      []string{"linux"},
@@ -285,7 +298,7 @@ func TestGenerateStage_BundledMode_NilManifestContent(t *testing.T) {
 	)
 
 	input := &StageInput{
-		Config: &Config{
+		Config: &PipelineConfig{
 			ScenarioName:   "test-app",
 			DeploymentMode: "bundled",
 			Platforms:      []string{"linux"},

@@ -13,7 +13,7 @@ import (
 // TestCancelAsyncOperation_MissingParams verifies 400 for missing parameters.
 func TestCancelAsyncOperation_MissingParams(t *testing.T) {
 	h := &Handlers{
-		AsyncTracker: services.NewAsyncTrackerService(nil, nil, nil),
+		AsyncTracker: services.NewAsyncTrackerService(nil, nil),
 	}
 
 	tests := []struct {

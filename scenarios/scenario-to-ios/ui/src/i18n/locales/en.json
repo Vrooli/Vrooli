@@ -1,0 +1,196 @@
+{
+  "_comment": "Two interpolation surfaces live in this file. (1) Generator-time: tokens like Scenario to iOS are uppercase-snake-case placeholders replaced by `template-manager generate` before the scenario is built — they appear as literal display values at runtime. (2) Runtime: tokens like {{count}} are i18next interpolation, replaced by `t(key, { count })` at render time. Keys that start with an underscore (like this one) are sentinels — skipped by the codegen, parity test, and unused-key audit.",
+  "app": {
+    "title": "Scenario to iOS"
+  },
+  "delivery": {
+    "blockedAt": "Blocked at",
+    "chapters": "declared chapters",
+    "conformance": "Conformance plan",
+    "description": "Live target, conformance, and Apple release readiness from the backend.",
+    "loading": "Loading delivery reports…",
+    "missingCapability": "Missing capability",
+    "nextAction": "Next action",
+    "readiness": "Apple readiness",
+    "targets": "Available targets",
+    "title": "iOS delivery readiness",
+    "unavailable": "Delivery report unavailable"
+  },
+  "errorBoundary": {
+    "message": "An unexpected error occurred while rendering the page. Try again, or reload if the problem persists.",
+    "retry": "Try again",
+    "title": "Something went wrong"
+  },
+  "errors": {
+    "aborted": "Operation aborted.",
+    "already_exists": "Already exists.",
+    "canceled": "Operation canceled.",
+    "data_loss": "Data loss detected.",
+    "deadline_exceeded": "Operation timed out.",
+    "failed_precondition": "Cannot perform this action: {{message}}",
+    "internal": "Something went wrong. Please try again.",
+    "invalid_argument": "Invalid input: {{message}}",
+    "not_found": "Resource not found.",
+    "out_of_range": "Out of range.",
+    "permission_denied": "Permission denied.",
+    "resource_exhausted": "Resource limit reached.",
+    "unauthenticated": "Please sign in to continue.",
+    "unavailable": "Service temporarily unavailable.",
+    "unimplemented": "Not yet implemented.",
+    "unknown": "An unknown error occurred."
+  },
+  "experience": {
+    "adHoc": "Ad Hoc",
+    "annualProgram": "$99 annual program",
+    "appStore": "App Store",
+    "appStoreConnect": "App Store Connect",
+    "appStoreReview": "App Store review",
+    "appleHardwareRequired": "Apple hardware required",
+    "appleID": "Apple ID",
+    "appleReview": "Apple review",
+    "appleToolchain": "Apple toolchain",
+    "applicationLaunches": "expected: application launches",
+    "artifactPending": "Artifact: pending · iOS bundle · semantic evidence",
+    "available": "available",
+    "blockedNoMacNode": "blocked-no-mac-node",
+    "blockedOnAppleID": "blocked-on-Apple-ID",
+    "blockedOnMacOSBridge": "blocked on macOS bridge",
+    "cannotGateRelease": "This run cannot gate a release.",
+    "capabilities": "capabilities: Xcode, simulator, signing",
+    "channels": "Channels",
+    "completePrecedingRung": "complete the preceding rung",
+    "connectMacOSBridge": "connect a macOS bridge",
+    "deliveryEvidence": "Delivery evidence",
+    "developerProgram": "Developer Program",
+    "deviceIdentity": "device identity",
+    "disposition": "disposition",
+    "distribution": "Distribution",
+    "enrollDeveloperProgram": "enroll the Apple Developer Program",
+    "evidenceCannotGateRelease": "This evidence cannot gate a release.",
+    "evidenceGrade": "Evidence grade",
+    "executingNode": "Executing node",
+    "expectedObservedEvidence": "Expected and observed evidence for each chapter.",
+    "generateProject": "Generate project",
+    "hostLease": "host enrollment expires with its lease",
+    "incomplete": "incomplete",
+    "independentAppleChannelVerdicts": "Independent Apple channel verdicts.",
+    "installSimulatorRuntime": "install the simulator runtime",
+    "leaseHolderNone": "lease holder: none",
+    "leaseHolderOtherConsumer": "lease holder: another consumer",
+    "leaseLostInfrastructure": "Device lease was lost; this is an infrastructure interruption.",
+    "linuxHost": "Linux host",
+    "localLinuxHost": "local Linux host",
+    "logIntoGuiSession": "log in to the GUI session",
+    "loggedInGuiSession": "logged-in GUI session",
+    "macOSBridge": "macOS bridge",
+    "macOSBridgeNode": "macOS bridge node",
+    "macOSBuildHost": "macOS build host",
+    "manageTestFlightTesters": "manage TestFlight testers",
+    "missingCapability": "missing capability",
+    "noAdditionalCost": "no additional cost",
+    "orderedAppleLadder": "The ordered Apple readiness ladder.",
+    "owner": "owner",
+    "ownerAndApple": "owner and Apple",
+    "partial": "partial",
+    "passed": "passed",
+    "passedNonPromotable": "passed with non-promotable evidence",
+    "pending": "pending",
+    "pixelGradeMirror": "pixel-grade mirror (non-promotable)",
+    "probed": "probed",
+    "probedAt": "probed at: current snapshot",
+    "probedCapabilitySnapshot": "The probed capability snapshot and driving strategy.",
+    "recordingUnavailable": "recording: unavailable",
+    "registerInspectBridge": "register or inspect the macOS bridge",
+    "releaseGate": "Release gate",
+    "releaseReadiness": "Release readiness",
+    "releaseReadinessHeading": "Release readiness",
+    "requiresAppleDeveloperEnrollment": "requires Apple Developer enrollment",
+    "requiresChannelReview": "requires channel-specific review",
+    "requiresEnrollmentAndSigning": "requires Apple Developer enrollment and signing",
+    "requiresReachableMacOSBridge": "requires a reachable macOS bridge",
+    "runReview": "Run review",
+    "semantic": "semantic",
+    "semanticMirror": "Until then, semantic mirror evidence remains available.",
+    "semanticObservation": "observed: semantic observation",
+    "settleBound": "settle bound: 30 seconds",
+    "signInAppleID": "sign in with Apple ID",
+    "strategyMirrorSemantic": "strategy: ios-mirror · semantic",
+    "strategyUnsupported": "unsupported",
+    "submitAppStoreReview": "submit for App Store review",
+    "targetDetail": "Target detail",
+    "targetDisposition": "Target disposition",
+    "targetMatrix": "Target matrix",
+    "terminal": "terminal",
+    "testFlight": "TestFlight",
+    "unavailable": "unavailable",
+    "unsupported": "unsupported",
+    "validateOnly": "validate-only",
+    "waitForAppleDecision": "wait for Apple decision",
+    "waitingOnApple": "waiting-on-Apple",
+    "wkwebviewUnavailable": "WKWebView unavailable",
+    "x86SimulatorRuntime": "x86_64 simulator runtime"
+  },
+  "health": {
+    "error": "Unable to reach the API. Make sure the scenario is running through `vrooli scenario start`.",
+    "loading": "Checking API status…",
+    "refresh": "Refresh",
+    "refreshCount": "Refreshed {{count}} times",
+    "refreshCount_one": "Refreshed once",
+    "serviceLabel": "Service:",
+    "statusLabel": "Status:",
+    "timestampLabel": "Timestamp:",
+    "title": "API Health"
+  },
+  "layout": {
+    "bottomNavLabel": "Mobile navigation",
+    "mainLabel": "Main content",
+    "nav": {
+      "dashboard": "Dashboard",
+      "settings": "Settings"
+    },
+    "sidebarLabel": "Primary navigation"
+  },
+  "locale": {
+    "switcherLabel": "Language"
+  },
+  "navigation": {
+    "app-shell": {
+      "close-navigation": "Close navigation",
+      "mobile-navigation": "Mobile navigation",
+      "open-navigation": "Open navigation",
+      "primary-navigation": "Primary navigation",
+      "skip-to-content": "Skip to content"
+    }
+  },
+  "notifications": {
+    "summary": "{{count}} notifications",
+    "summary_one": "1 notification",
+    "summary_zero": "No notifications"
+  },
+  "pages": {
+    "dashboard": {
+      "description": "Overview of the scenario's health and key metrics. Replace these cards with real surfaces as your product grows.",
+      "title": "Dashboard"
+    },
+    "settings": {
+      "localeHeading": "Language",
+      "themeHeading": "Appearance",
+      "title": "Settings"
+    }
+  },
+  "settingsDetails": {
+    "defaultSigningIdentity": "vrooli/scenario-to-ios/apple-developer",
+    "defaultTransport": "Default transport: macOS bridge",
+    "localeControl": "Locale control",
+    "signingIdentity": "Signing identity",
+    "unresolvedSecretReference": "unresolved secret reference"
+  },
+  "theme": {
+    "choice": {
+      "dark": "Dark",
+      "light": "Light",
+      "system": "System"
+    },
+    "switcherLabel": "Theme"
+  }
+}

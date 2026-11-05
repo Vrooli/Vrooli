@@ -1,0 +1,36 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "primitives.truncate",
+    "name": "Truncate",
+    "kind": "primitive",
+    "surface": "base",
+    "domain": "primitives",
+    "description": "The text-overflow primitive supporting single-line ellipsis and multi-line clamping while keeping the full value available to assistive technology.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "ui-primitive",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P1",
+      "maturity": "verified",
+      "plannedBy": "2026-12-31"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "foundations.tokens",
+        "reason": "Every spacing, size, and radius value resolves to a declared ramp rather than a literal."
+      }
+    ]
+  },
+  "requiredCapabilities": [
+    "text-balance",
+    "no-horizontal-overflow",
+    "accessible-naming"
+  ]
+}

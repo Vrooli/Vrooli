@@ -1,21 +1,11 @@
 import { useState, useCallback } from 'react';
 import { logger } from '@utils/logger';
 import { Monitor, Search, ChevronRight, ChevronDown, Code, Loader, X } from 'lucide-react';
-import { getConfig } from '@/config';
+import { aiClient } from '@/api/ai';
 import toast from 'react-hot-toast';
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null;
-
-const safeJson = async (response: Response): Promise<unknown> => {
-  const text = await response.text();
-  if (!text) return null;
-  try {
-    return JSON.parse(text);
-  } catch {
-    return null;
-  }
-};
 
 interface DOMNode {
   tagName: string;
@@ -92,21 +82,10 @@ const BrowserInspectorTab: React.FC<BrowserInspectorTabProps> = ({ url, onSelect
 
     setIsLoading(true);
     try {
-      const config = await getConfig();
-      const response = await fetch(`${config.API_URL}/dom-tree`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ url }),
-      });
-
-      if (!response.ok) {
-        throw new Error(`Failed to fetch DOM tree: ${response.status}`);
-      }
-
-      const payload = await safeJson(response);
-      const data = parseDOMNode(payload);
+      const resp = await aiClient.getDOMTree({ url });
+      // resp.tree is generated as JsonObject (google.protobuf.Struct);
+      // parseDOMNode accepts unknown and treats it as a plain JS object.
+      const data = parseDOMNode(resp.tree ?? null);
       setDomTree(data);
       
       // Auto-expand first few levels

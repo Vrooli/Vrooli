@@ -1,0 +1,227 @@
+// Package capabilities is the HTTP-handler home for the capabilities
+// domain. It exposes the generated Connect-RPC CapabilitiesService
+// (proto schema: packages/proto/schemas/web-console/v1/capabilities).
+//
+// RPCs (mounted at /vrooli.web_console.v1.capabilities.CapabilitiesService/...):
+//
+//	Get      — full capability snapshot. Includes session backends and
+//	           the active default backend.
+//	Liveness — fast probe. Uses cached full-check results when fresh,
+//	           otherwise lightweight health checkers only.
+//	RunAction — explicit user-initiated scenario lifecycle action for
+//	            declared dependencies only.
+//	AgentUpdate — one agent's install state, eligibility and versions.
+//	RunAgentUpdateAction — one operator-only action on that install.
+package capabilities
+
+import (
+	"context"
+	"log"
+	"net/http"
+
+	"github.com/gorilla/mux"
+	"github.com/vrooli/api-core/connectx"
+	capreg "github.com/vrooli/vrooli/packages/capability-registry-go"
+
+	capabilitiesconnect "github.com/vrooli/vrooli/packages/proto/gen/go/web-console/v1/capabilities/capabilities_v1connect"
+
+	"web-console/internal/module"
+)
+
+// Service is the seam the Connect handler depends on. Implemented in
+// package main by capabilitiesAdapter, which bridges to the existing
+// CapabilityRegistry and BackendRegistry.
+type Service interface {
+	Resolve(ctx context.Context) Snapshot
+	Liveness(ctx context.Context) Snapshot
+	RunAction(ctx context.Context, req ActionRequest) (ActionResult, error)
+}
+
+// Snapshot is the transport-neutral capabilities view. BackendOptions
+// and DefaultBackend are zero-valued for liveness probes.
+type Snapshot struct {
+	Capabilities   []CapabilityState
+	Timestamp      string
+	BackendOptions []BackendOption
+	DefaultBackend string
+}
+
+// CapabilityState mirrors the proto CapabilityState message.
+type CapabilityState struct {
+	Uses                   []capreg.Use
+	Installation           *capreg.Installation
+	ID                     string
+	Name                   string
+	Description            string
+	DependencyKind         string
+	DependencySlug         string
+	Features               []string
+	Status                 string
+	Message                string
+	CheckedAt              string
+	ReasonCode             string
+	ActionKind             string
+	ActionLabel            string
+	OperatorCommand        string
+	FeatureStatus          map[string]string
+	FeatureReason          map[string]string
+	FeatureOperatorCommand map[string]string
+	ProviderStatus         map[string]string
+	ProviderFeatures       map[string]string
+}
+
+type ActionRequest struct {
+	CapabilityID string
+	ActionKind   string
+	TargetID     string
+}
+
+type ActionResult struct {
+	Success      bool
+	Status       string
+	Message      string
+	OperationID  string
+	CapabilityID string
+	ActionKind   string
+	Snapshot     Snapshot
+}
+
+// AgentUpdateResult is a target-scoped installed-tool observation. A matching
+// probe does not establish what an operator's custom command will execute.
+type AgentUpdateResult struct {
+	TargetID, AgentID, Resource                                              string
+	Installed, Pinned, Latest, Status, CheckedAt, SourceKind, SourceID, Note string
+	ProbeVerified                                                            bool
+	State, PrimaryAction, OperatorCommand, Reason, InstallKind               string
+	InstallState, SignInState, UpdateState                                   string
+	RollbackVersion                                                          string
+	NewerThanReviewed                                                        bool
+	Checks                                                                   []AgentUpdateCheck
+}
+
+// AgentUpdateCheck is one update precondition; the ID is stable.
+type AgentUpdateCheck struct {
+	ID, Message string
+	Passed      bool
+}
+
+// AgentUpdateActionResult is an action's outcome and the observation after it.
+type HarnessCleanupPlan struct {
+	ID                string
+	Remove, Preserved []string
+}
+
+type AgentUpdateActionResult struct {
+	CleanupPlan *HarnessCleanupPlan
+	Success     bool
+	Message     string
+	OperationID string
+	Update      AgentUpdateResult
+}
+
+type AgentUsageWindow struct {
+	Pool          string
+	WindowMinutes int64
+	UsedPercent   float64
+	ResetsAt      string
+	// ObservedAt is when this window's reading was taken.
+	ObservedAt string
+}
+
+type AgentUsageResult struct {
+	TargetID, AgentID, Match, Reason, Source, ObservedAt string
+	Windows                                              []AgentUsageWindow
+}
+
+// HarnessUsageWindow is a window a harness is expected to report. It only
+// reserves card space.
+type HarnessUsageWindow struct {
+	ID            string
+	WindowMinutes int64
+}
+
+// HarnessDescriptor is one harness's identity and features on a target.
+type HarnessDescriptor struct {
+	AgentID, Resource, DisplayName, Icon string
+	UsageWindows                         []HarnessUsageWindow
+	SupportsContextLimit                 bool
+	SupportsUsageMode                    bool
+	SupportsModelSelection               bool
+	SupportsProviderSelection            bool
+}
+
+// BackendOption mirrors the proto BackendOption message and the
+// api.BackendDescriptor struct.
+type BackendOption struct {
+	ID              string
+	DisplayName     string
+	Description     string
+	SurvivesRestart bool
+	Available       bool
+	Reason          string
+}
+
+// Module wires the capabilities domain into the API server.
+func Module(svc Service, logger *log.Logger) module.Module {
+	if logger == nil {
+		logger = log.Default()
+	}
+	connectPath, connectHandler := capabilitiesconnect.NewCapabilitiesServiceHandler(NewConnectHandler(Deps{
+		Service: svc,
+		Logger:  logger,
+	}))
+	guarded := guardAgentUpdateActions(svc, connectHandler)
+	return module.Module{
+		Name: "capabilities",
+		Mount: func(r *mux.Router) {
+			connectx.RegisterServices(r, connectx.ServiceMount{Path: connectPath, Handler: guarded})
+			r.HandleFunc("/api/v1/capabilities/describe", describe(svc)).Methods(http.MethodGet)
+		},
+		Endpoints: Endpoints,
+	}
+}
+
+type agentUpdateActionGuard interface {
+	GuardAgentUpdateAction(http.ResponseWriter, *http.Request) bool
+}
+
+// guardAgentUpdateActions decides admission where the request still exists:
+// same-origin needs the Host and peer address, which a Connect request hides, and
+// extending the write deadline needs the ResponseWriter. Reads pass untouched. A
+// service with no guard cannot run an action.
+func guardAgentUpdateActions(svc Service, next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == capabilitiesconnect.CapabilitiesServiceRunAgentUpdateActionProcedure {
+			guard, ok := svc.(agentUpdateActionGuard)
+			if !ok {
+				http.Error(w, "agent update actions are not available", http.StatusForbidden)
+				return
+			}
+			if !guard.GuardAgentUpdateAction(w, r) {
+				return
+			}
+		}
+		next.ServeHTTP(w, r)
+	})
+}
+
+type registryDescriber interface {
+	Describe(context.Context) ([]byte, error)
+}
+
+func describe(svc Service) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		describer, ok := svc.(registryDescriber)
+		if !ok {
+			http.Error(w, "capabilities registry description is unavailable", http.StatusServiceUnavailable)
+			return
+		}
+		data, err := describer.Describe(r.Context())
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusServiceUnavailable)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write(data)
+	}
+}

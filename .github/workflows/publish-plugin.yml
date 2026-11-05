@@ -1,0 +1,36 @@
+name: Publish Agent Plugin
+
+on:
+  push:
+    tags:
+      - 'plugin-*-v*'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+  packages: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - name: Validate plugin ramp
+        shell: bash
+        run: |
+          set -euo pipefail
+          # The scenario's testing contract does not define a quick preset;
+          # use the server-owned comprehensive suite so all delivery gates
+          # (including requirements and experience evidence) are exercised.
+          vrooli scenario test scenario-to-plugin --preset comprehensive
+      - name: Record immutable release gate
+        shell: bash
+        env:
+          SOURCE_REVISION: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          test -n "$SOURCE_REVISION"
+          test "$(printf '%s' "$SOURCE_REVISION" | wc -c)" -eq 40
+          echo "deployment-manager must approve source revision $SOURCE_REVISION before publication"

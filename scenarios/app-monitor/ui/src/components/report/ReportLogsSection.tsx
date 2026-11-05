@@ -55,8 +55,8 @@ const ReportLogsSection = ({
   statusPanelId,
   completenessPanelId,
 }: ReportLogsSectionProps) => {
-  const hasLogsCapability = bridgeCaps.includes('logs') || consoleLogs.fromFallback;
-  const hasNetworkCapability = bridgeCaps.includes('network') || network.fromFallback;
+  const hasLogsCapability = bridgeCaps.includes('logs');
+  const hasNetworkCapability = bridgeCaps.includes('network');
 
   const renderHealthStatusIcon = (status: 'pass' | 'warn' | 'fail') => {
     switch (status) {
@@ -234,24 +234,13 @@ const ReportLogsSection = ({
           )}
         </button>
       </div>
-      {!hasLogsCapability && !consoleLogs.fromFallback && (
+      {!hasLogsCapability && (
         <div className="report-dialog__logs-alert report-dialog__logs-alert--warning" role="alert">
           <AlertTriangle aria-hidden size={18} />
           <div>
             <p className="report-dialog__logs-alert-title">Console capture unavailable</p>
             <p>
               Runtime diagnostics flagged that this preview&apos;s iframe bridge did not advertise log support. Restart the scenario to refresh the UI bundle, or include diagnostics in the issue so follow-up agents are notified.
-            </p>
-          </div>
-        </div>
-      )}
-      {consoleLogs.fromFallback && (
-        <div className="report-dialog__logs-alert report-dialog__logs-alert--warning" role="alert">
-          <AlertTriangle aria-hidden size={18} />
-          <div>
-            <p className="report-dialog__logs-alert-title">Retrieved via fallback diagnostics</p>
-            <p>
-              The iframe bridge didn&apos;t respond, so these logs were captured directly from the browser using Chrome DevTools Protocol. This works even when the page fails to load.
             </p>
           </div>
         </div>
@@ -362,24 +351,13 @@ const ReportLogsSection = ({
           )}
         </button>
       </div>
-      {!hasNetworkCapability && !network.fromFallback && (
+      {!hasNetworkCapability && (
         <div className="report-dialog__logs-alert report-dialog__logs-alert--warning" role="alert">
           <AlertTriangle aria-hidden size={18} />
           <div>
             <p className="report-dialog__logs-alert-title">Network capture unavailable</p>
             <p>
               Runtime diagnostics flagged that this preview&apos;s iframe bridge did not advertise network request support. Restart the scenario to refresh the UI bundle, or include diagnostics in the issue so follow-up agents are notified.
-            </p>
-          </div>
-        </div>
-      )}
-      {network.fromFallback && (
-        <div className="report-dialog__logs-alert report-dialog__logs-alert--warning" role="alert">
-          <AlertTriangle aria-hidden size={18} />
-          <div>
-            <p className="report-dialog__logs-alert-title">Retrieved via fallback diagnostics</p>
-            <p>
-              The iframe bridge didn&apos;t respond, so these network requests were captured directly from the browser using Chrome DevTools Protocol. This works even when the page fails to load.
             </p>
           </div>
         </div>

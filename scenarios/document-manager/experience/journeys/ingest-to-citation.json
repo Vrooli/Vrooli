@@ -1,0 +1,75 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-journey",
+  "schemaVersion": "1.0.0",
+  "journey": {
+    "id": "ingest-to-citation",
+    "title": "Ingest a document and cite a passage from it",
+    "purpose": "The path the product is actually for: a document arrives, the machine reads it, a human checks what it understood, and the result is a passage that can be cited with proof of where it was processed. Every surface appears once, in the order a real user meets them.",
+    "prd_refs": ["OT-P0-001", "OT-P0-004", "OT-P0-023", "OT-P0-021", "OT-P0-014", "OT-P0-025"]
+  },
+  "steps": [
+    {
+      "page": "corpus",
+      "state": "empty",
+      "intent": "Create a collection and choose its default privacy class, which every document added to it will inherit.",
+      "via": "new-collection"
+    },
+    {
+      "page": "corpus",
+      "state": "default",
+      "intent": "Add a PDF. It is content-addressed, classified, and routed to the cheapest correct parse tier — visibly, with the tier and locality shown in the row.",
+      "via": "document-table"
+    },
+    {
+      "page": "corpus",
+      "state": "default",
+      "intent": "Search the corpus for a passage. Results come back as anchored units rather than whole documents.",
+      "via": "search-input"
+    },
+    {
+      "page": "reader",
+      "state": "results",
+      "intent": "Open a result. Its source region highlights on the page, so the operator can confirm the machine read the passage correctly before relying on it.",
+      "via": "units-pane"
+    },
+    {
+      "page": "reader",
+      "state": "results",
+      "intent": "Correct a unit the parser got wrong. The correction mints a new derivation version; the previous reading is preserved and still selectable.",
+      "via": "correct-unit"
+    },
+    {
+      "page": "receipt",
+      "state": "default",
+      "intent": "Check where every step ran before citing the passage anywhere that matters, and export the record if a reviewer needs it.",
+      "via": "export-attestation"
+    }
+  ],
+  "claims": [
+    {
+      "id": "journey-privacy-inherited",
+      "type": "custom",
+      "statement": "A document added to a collection carries that collection's default privacy class without the operator setting it per document.",
+      "tier": "manual",
+      "states": ["default"],
+      "rationale": "OT-P0-025. The inheritance is what stops a single missed classification from voiding the residency guarantee."
+    },
+    {
+      "id": "journey-result-to-source",
+      "type": "custom",
+      "statement": "A retrieval result opens in the Reader at the exact region it came from, with no manual searching within the document.",
+      "tier": "manual",
+      "states": ["default", "results"],
+      "rationale": "Retrieval that cannot be traced back to a page produces quotes, not citations. The join between the two surfaces is the product."
+    },
+    {
+      "id": "journey-ends-in-checkable-evidence",
+      "type": "custom",
+      "statement": "The journey ends with a record the operator can read and export, stating where each step executed.",
+      "tier": "manual",
+      "states": ["default"],
+      "rationale": "The product claim is falsifiable by design. A journey that ended at the passage would be asking the user to trust it instead."
+    }
+  ]
+}

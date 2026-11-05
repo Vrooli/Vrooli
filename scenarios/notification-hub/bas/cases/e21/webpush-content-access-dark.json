@@ -1,0 +1,418 @@
+{
+  "metadata": {
+    "name": "e21-webpush-content-access-dark",
+    "description": "Dark phone capture and owner-routed disposable Web Push content-access review, exact readback and reload recovery. No enrollment or delivery effects.",
+    "requirement": "NOTIFICA-P0-003",
+    "version": "1",
+    "labels": {
+      "reset": "none",
+      "routed_isolation": "true",
+      "requires_confirmation": "true",
+      "surface": "settings-e21-webpush-content-access-dark"
+    },
+    "execution_mode": "mutating"
+  },
+  "flow_definition": {
+    "metadata": {
+      "description": "Match the selected dark Work browser Web Push review, preserve unknown sensitivity labels, and confirm owner-scoped readback without rendering or replacing the private endpoint.",
+      "requirement": "NOTIFICA-P0-003",
+      "version": "1",
+      "execution_mode": "mutating",
+      "owner": "notification-hub"
+    },
+    "settings": {
+      "viewport_width": 390,
+      "viewport_height": 844
+    },
+    "nodes": [
+      {
+        "id": "open-settings-theme",
+        "action": {
+          "type": "ACTION_TYPE_NAVIGATE",
+          "navigate": {
+            "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+            "scenario": "notification-hub",
+            "scenario_path": "/settings?view=all&vrooli_test_mode=1&e22_fixture=settings-owner&e22_case=e21-webpush-content-access&e21_fixture=webpush-content-access",
+            "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE"
+          },
+          "metadata": {
+            "label": "Open Settings in the leased disposable owner fixture"
+          }
+        }
+      },
+      {
+        "id": "wait-settings-theme",
+        "action": {
+          "type": "ACTION_TYPE_WAIT",
+          "wait": {
+            "selector": "@selector/layout.main",
+            "state": "WAIT_STATE_VISIBLE"
+          },
+          "metadata": {
+            "label": "Wait for the managed Settings page"
+          }
+        }
+      },
+      {
+        "id": "select-theme-dark",
+        "action": {
+          "type": "ACTION_TYPE_CLICK",
+          "click": {
+            "selector": "@selector/settingsPage.themeOption(choice=dark)"
+          },
+          "metadata": {
+            "label": "Set dark appearance for selected Web Push review"
+          }
+        }
+      },
+      {
+        "id": "assert-theme-dark",
+        "action": {
+          "type": "ACTION_TYPE_EVALUATE",
+          "evaluate": {
+            "expression": "(()=>{const theme=document.documentElement.getAttribute(\"data-theme\");if(theme!==\"dark\")throw new Error(`selected theme mismatch: ${theme}`);return {theme,viewport:{width:innerWidth,height:innerHeight}}})()"
+          },
+          "metadata": {
+            "label": "Confirm the selected dark appearance"
+          }
+        }
+      },
+      {
+        "id": "open-reach",
+        "action": {
+          "type": "ACTION_TYPE_NAVIGATE",
+          "navigate": {
+            "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+            "scenario": "notification-hub",
+            "scenario_path": "/settings/reach?vrooli_test_mode=1&e22_fixture=settings-owner&e22_case=e21-webpush-content-access&e21_fixture=webpush-content-access",
+            "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE"
+          },
+          "metadata": {
+            "label": "Open the leased selected-state Web Push owner fixture"
+          }
+        }
+      },
+      {
+        "id": "wait-reach",
+        "action": {
+          "type": "ACTION_TYPE_WAIT",
+          "wait": {
+            "selector": "[data-testid=\"reach-settings\"]",
+            "state": "WAIT_STATE_VISIBLE"
+          },
+          "metadata": {
+            "label": "Wait for owner-routed Reach controls"
+          }
+        }
+      },
+      {
+        "id": "wait-device",
+        "action": {
+          "type": "ACTION_TYPE_WAIT",
+          "wait": {
+            "selector": "[data-testid=\"reach-device-device-demo-work\"]",
+            "state": "WAIT_STATE_VISIBLE"
+          },
+          "metadata": {
+            "label": "Wait for the selected Work browser device"
+          }
+        }
+      },
+      {
+        "id": "open-webpush",
+        "action": {
+          "type": "ACTION_TYPE_CLICK",
+          "click": {
+            "selector": "#reach-channel-entry-device-demo-work-web_push"
+          },
+          "metadata": {
+            "label": "Open Web Push content access by its exact saved row"
+          }
+        }
+      },
+      {
+        "id": "assert-saved-private-labels",
+        "action": {
+          "type": "ACTION_TYPE_EVALUATE",
+          "evaluate": {
+            "expression": "(()=>{const root=document.querySelector(\"[data-testid=reach-channel-editor]\");const text=root?.innerText||\"\";const page=(document.body.innerText||\"\").replace(/\\s+/g,\" \").trim();const checked=[...(root?.querySelectorAll(\"input[type=checkbox]\")||[])].filter(x=>x.checked).length;if(!root||checked!==2||!text.includes(\"team-internal\")||!page.includes(\"Destination: This browser · unchanged\")||page.includes(\"fixture://web_push\"))throw new Error(\"selected Web Push saved state mismatch: checked=\"+checked+\" \"+text+\" page=\"+page);return {savedKnownLabels:[\"public\",\"private\"],preservedUnknownLabel:\"team-internal\",endpointRendered:false,destinationUnchanged:true}})()"
+          },
+          "metadata": {
+            "label": "Verify saved known labels, preserved unknown label and hidden endpoint"
+          }
+        }
+      },
+      {
+        "id": "add-sensitive",
+        "action": {
+          "type": "ACTION_TYPE_CLICK",
+          "click": {
+            "selector": "[data-testid=\"reach-channel-editor\"] label:has-text(\"Sensitive\") input[type=\"checkbox\"]"
+          },
+          "metadata": {
+            "label": "Add Sensitive to the draft without dropping unknown labels"
+          }
+        }
+      },
+      {
+        "id": "assert-draft",
+        "action": {
+          "type": "ACTION_TYPE_EVALUATE",
+          "evaluate": {
+            "expression": "(()=>{const root=document.querySelector(\"[data-testid=reach-channel-editor]\");const text=root?.innerText||\"\";const checked=[...(root?.querySelectorAll(\"input[type=checkbox]\")||[])].filter(x=>x.checked).length;if(checked!==3||!text.includes(\"team-internal\")||!text.includes(\"Saved: Public, Private. This draft adds Sensitive.\")||text.includes(\"fixture://web_push\"))throw new Error(`selected Web Push draft mismatch: checked=${checked} ${text}`);return {draftAdds:\"sensitive\",savedDraftDisclosure:true,unknownLabelPreserved:true,endpointRendered:false}})()"
+          },
+          "metadata": {
+            "label": "Verify the selected draft matches the source label state"
+          }
+        }
+      },
+      {
+        "id": "capture-editor",
+        "action": {
+          "type": "ACTION_TYPE_SCREENSHOT",
+          "screenshot": {
+            "full_page": false
+          },
+          "metadata": {
+            "label": "Capture the selected Web Push editor state for visual review"
+          }
+        }
+      },
+      {
+        "id": "review-changes",
+        "action": {
+          "type": "ACTION_TYPE_CLICK",
+          "click": {
+            "selector": "text=Review changes"
+          },
+          "metadata": {
+            "label": "Review the content-access delta before saving"
+          }
+        }
+      },
+      {
+        "id": "capture-disclosure-review",
+        "action": {
+          "type": "ACTION_TYPE_SCREENSHOT",
+          "screenshot": {
+            "full_page": false
+          },
+          "metadata": {
+            "label": "Capture the selected Web Push disclosure-review state for visual comparison"
+          }
+        }
+      },
+      {
+        "id": "assert-review",
+        "action": {
+          "type": "ACTION_TYPE_EVALUATE",
+          "evaluate": {
+            "expression": "(()=>{const root=document.querySelector(\"[data-testid=reach-channel-editor]\");const text=root?.innerText||\"\";const page=(document.body.innerText||\"\").replace(/\\s+/g,\" \").trim();if(!text.includes(\"Allow Sensitive content?\")||!text.includes(\"Before: Public, Private\")||!text.includes(\"After: Public, Private, Sensitive\")||!text.includes(\"More content can appear outside the Hub.\")||!text.includes(\"Sensitive titles and bodies may be displayed by your browser.\")||!text.includes(\"team-internal\")||!text.includes(\"Critical stays unchecked.\")||!page.includes(\"Destination: This browser · unchanged\")||page.includes(\"fixture://web_push\"))throw new Error(`Web Push review mismatch: ${text} page=${page}`);return {reviewed:true,selectedPrivacyDisclosure:true,unknownLabelPreserved:true,criticalUnchecked:true,endpointRendered:false}})()"
+          },
+          "metadata": {
+            "label": "Confirm the policy delta and private unchanged endpoint"
+          }
+        }
+      },
+      {
+        "id": "save",
+        "action": {
+          "type": "ACTION_TYPE_CLICK",
+          "click": {
+            "selector": "text=Save content access"
+          },
+          "metadata": {
+            "label": "Save the exact Web Push row content-access update"
+          }
+        }
+      },
+      {
+        "id": "wait-readback",
+        "action": {
+          "type": "ACTION_TYPE_WAIT",
+          "wait": {
+            "selector": "text=Content access saved and confirmed by owner-scoped readback. The browser destination is unchanged.",
+            "state": "WAIT_STATE_VISIBLE"
+          },
+          "metadata": {
+            "label": "Wait for exact owner-scoped readback confirmation"
+          }
+        }
+      },
+      {
+        "id": "reload",
+        "action": {
+          "type": "ACTION_TYPE_NAVIGATE",
+          "navigate": {
+            "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+            "scenario": "notification-hub",
+            "scenario_path": "/settings/reach?vrooli_test_mode=1&e22_fixture=settings-owner&e22_case=e21-webpush-content-access&e21_fixture=webpush-content-access",
+            "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE"
+          },
+          "metadata": {
+            "label": "Reload Reach to verify persistence across navigation"
+          }
+        }
+      },
+      {
+        "id": "wait-reloaded-device",
+        "action": {
+          "type": "ACTION_TYPE_WAIT",
+          "wait": {
+            "selector": "[data-testid=\"reach-device-device-demo-work\"]",
+            "state": "WAIT_STATE_VISIBLE"
+          },
+          "metadata": {
+            "label": "Wait for the same selected owner device after reload"
+          }
+        }
+      },
+      {
+        "id": "reopen",
+        "action": {
+          "type": "ACTION_TYPE_CLICK",
+          "click": {
+            "selector": "#reach-channel-entry-device-demo-work-web_push"
+          },
+          "metadata": {
+            "label": "Reopen the same saved Web Push row"
+          }
+        }
+      },
+      {
+        "id": "assert-persisted",
+        "action": {
+          "type": "ACTION_TYPE_EVALUATE",
+          "evaluate": {
+            "expression": "(()=>{const root=document.querySelector(\"[data-testid=reach-channel-editor]\");const text=root?.innerText||\"\";const checked=[...(root?.querySelectorAll(\"input[type=checkbox]\")||[])].filter(x=>x.checked).length;if(!root||checked!==3||!text.includes(\"team-internal\")||text.includes(\"fixture://web_push\"))throw new Error(`Web Push readback mismatch: checked=${checked} ${text}`);return {savedKnownLabels:[\"public\",\"private\",\"sensitive\"],preservedUnknownLabel:\"team-internal\",endpointRendered:false,persistedAfterReload:true}})()"
+          },
+          "metadata": {
+            "label": "Verify exact label readback while retaining unknown label and endpoint privacy"
+          }
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "webpush-dark-00",
+        "source": "open-settings-theme",
+        "target": "wait-settings-theme",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "webpush-dark-01",
+        "source": "wait-settings-theme",
+        "target": "select-theme-dark",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "webpush-dark-02",
+        "source": "select-theme-dark",
+        "target": "open-reach",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "webpush-dark-04",
+        "source": "wait-reach",
+        "target": "assert-theme-dark",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "webpush-dark-03",
+        "source": "open-reach",
+        "target": "wait-reach",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "webpush-01",
+        "source": "assert-theme-dark",
+        "target": "wait-device",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "webpush-02",
+        "source": "wait-device",
+        "target": "open-webpush",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "webpush-03",
+        "source": "open-webpush",
+        "target": "assert-saved-private-labels",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "webpush-04",
+        "source": "assert-saved-private-labels",
+        "target": "add-sensitive",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "webpush-05",
+        "source": "add-sensitive",
+        "target": "assert-draft",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "webpush-06",
+        "source": "assert-draft",
+        "target": "capture-editor",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "webpush-07",
+        "source": "capture-editor",
+        "target": "review-changes",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "webpush-08",
+        "source": "review-changes",
+        "target": "capture-disclosure-review",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "webpush-08a",
+        "source": "capture-disclosure-review",
+        "target": "assert-review",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "webpush-09",
+        "source": "assert-review",
+        "target": "save",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "webpush-10",
+        "source": "save",
+        "target": "wait-readback",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "webpush-11",
+        "source": "wait-readback",
+        "target": "reload",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "webpush-12",
+        "source": "reload",
+        "target": "wait-reloaded-device",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "webpush-13",
+        "source": "wait-reloaded-device",
+        "target": "reopen",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "webpush-14",
+        "source": "reopen",
+        "target": "assert-persisted",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      }
+    ]
+  }
+}

@@ -20,11 +20,7 @@ From the Dashboard, click **Start New Deployment** to launch the deployment wiza
 Use `manifest init` to generate a starter manifest:
 
 ```bash
-scenario-to-cloud manifest init \
-  --scenario your-scenario-name \
-  --host your-server.com \
-  --domain app.your-domain.com \
-  --out cloud-manifest.json
+scenario-to-cloud manifest init --scenario your-scenario-name --host your-server.com --domain app.your-domain.com --out cloud-manifest.json
 ```
 
 Equivalent minimal contract:
@@ -88,18 +84,24 @@ scenario-to-cloud preflight requirements
 The plan shows exactly what will happen during deployment:
 1. Bundle creation
 2. File transfer to VPS
-3. Vrooli setup
-4. Resource startup
-5. Scenario deployment
-6. HTTPS configuration
+3. Native `vrooli` CLI upload to the deployment workdir
+4. Vrooli setup
+5. Resource startup
+6. Scenario deployment
+7. HTTPS configuration
 
 ## Step 5: Build Bundle
 
 The bundle is a minimal Vrooli installation containing:
-- Core Vrooli scripts
 - Your scenario files
 - Required resources
-- Configuration files
+- Shared package modules required by the deployment
+- Generated deployment metadata
+
+The setup flow then uploads a deployment-local native `vrooli` binary to
+`<workdir>/.vrooli/bin/vrooli` and uses that exact binary for all remote setup,
+deploy, inspect, and stop operations. It does not rely on a legacy bootstrap
+script or a preinstalled global CLI on the VPS.
 
 ## Step 6: Preflight Checks
 
@@ -109,10 +111,12 @@ Preflight verifies your VPS is ready:
 - Required tools
 - Port availability
 
-Before deploy, validate SSH access path:
+Target access is either a Bridge enrollment (`vrooli-bridge onboard`) or an
+SSH credential binding; see [VPS Setup](guides/vps-setup.md) "Target Access".
+Then run preflight against the manifest:
 
 ```bash
-scenario-to-cloud ssh bootstrap your-server.com --user root --non-interactive
+scenario-to-cloud preflight run scenarios/your-scenario-name/.vrooli/cloud/manifest.prod.json
 ```
 
 ## Step 7: Resolve + Deploy If Needed
@@ -122,15 +126,13 @@ Check current state by selector (no manifest required). If deployment is missing
 ```bash
 scenario-to-cloud deployment health --host your-server.com --scenario your-scenario-name --json
 
-scenario-to-cloud manifest init \
-  --scenario your-scenario-name \
-  --host your-server.com \
-  --domain app.your-domain.com \
-  --out scenarios/your-scenario-name/.vrooli/cloud/manifest.prod.json
+scenario-to-cloud manifest init --scenario your-scenario-name --host your-server.com --domain app.your-domain.com --out scenarios/your-scenario-name/.vrooli/cloud/manifest.prod.json
 
 scenario-to-cloud manifest validate scenarios/your-scenario-name/.vrooli/cloud/manifest.prod.json
-scenario-to-cloud redeploy scenarios/your-scenario-name/.vrooli/cloud/manifest.prod.json --if-needed --preflight --wait
+scenario-to-cloud redeploy scenarios/your-scenario-name/.vrooli/cloud/manifest.prod.json
 ```
+
+`redeploy` creates or updates the deployment record, compiles the executable plan, prints the review (plan digest, changes, data effects, downtime, recovery strategy), applies exactly that digest and waits once on the admitted operation. Exit `0` is done (or `no change`), `3` means input is required (the printed handoff is the next step), `124` means the wait bound elapsed: reattach with the printed `scenario-to-cloud operation wait <operation-id>`. See [CLI Commands](reference/cli-commands.md) for every command, selector form and exit code.
 
 This typically takes 2-5 minutes when deployment is required.
 
@@ -140,4 +142,5 @@ Once complete, your scenario will be live at `https://your-domain.com`!
 
 - [Manifest Reference](guides/manifest-reference.md) - Full configuration options
 - [Troubleshooting](guides/troubleshooting.md) - Common issues and fixes
-- [Deployment Lifecycle](reference/deployment-lifecycle.md) - Understanding status transitions
+- [Operation Lifecycle](reference/operation-lifecycle.md) - Durable operations and the deployment status projection
+- [Operator Runbooks](guides/runbooks/README.md) - Deploy, update, rotate, restore, incident, retire

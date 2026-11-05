@@ -1,18 +1,17 @@
 package convert
 
 import (
-	"system-monitor-api/internal/models"
-
-	domain "github.com/vrooli/vrooli/packages/proto/gen/go/system-monitor/v1/domain"
+	investigationspb "github.com/vrooli/vrooli/packages/proto/gen/go/system-monitor/v1/investigations"
+	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/models"
 	"google.golang.org/protobuf/types/known/structpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
-func InvestigationToProto(inv *models.Investigation) *domain.Investigation {
+func InvestigationToProto(inv *models.Investigation) *investigationspb.Investigation {
 	if inv == nil {
 		return nil
 	}
-	pb := &domain.Investigation{
+	pb := &investigationspb.Investigation{
 		Id:        inv.ID,
 		Status:    investigationStatusToProto(inv.Status),
 		AnomalyId: inv.AnomalyID,
@@ -29,7 +28,7 @@ func InvestigationToProto(inv *models.Investigation) *domain.Investigation {
 		}
 	}
 	if len(inv.Steps) > 0 {
-		pb.Steps = make([]*domain.InvestigationStep, len(inv.Steps))
+		pb.Steps = make([]*investigationspb.InvestigationStep, len(inv.Steps))
 		for i, step := range inv.Steps {
 			pb.Steps[i] = InvestigationStepToProto(step)
 		}
@@ -37,16 +36,16 @@ func InvestigationToProto(inv *models.Investigation) *domain.Investigation {
 	return pb
 }
 
-func InvestigationsToProto(invs []*models.Investigation) []*domain.Investigation {
-	result := make([]*domain.Investigation, len(invs))
+func InvestigationsToProto(invs []*models.Investigation) []*investigationspb.Investigation {
+	result := make([]*investigationspb.Investigation, len(invs))
 	for i, inv := range invs {
 		result[i] = InvestigationToProto(inv)
 	}
 	return result
 }
 
-func InvestigationStepToProto(step models.InvestigationStep) *domain.InvestigationStep {
-	pb := &domain.InvestigationStep{
+func InvestigationStepToProto(step models.InvestigationStep) *investigationspb.InvestigationStep {
+	pb := &investigationspb.InvestigationStep{
 		Name:      step.Name,
 		Status:    investigationStepStatusToProto(step.Status),
 		StartTime: timestamppb.New(step.StartTime),
@@ -58,11 +57,11 @@ func InvestigationStepToProto(step models.InvestigationStep) *domain.Investigati
 	return pb
 }
 
-func CooldownStatusToProto(cs *models.CooldownStatus) *domain.CooldownStatus {
+func CooldownStatusToProto(cs *models.CooldownStatus) *investigationspb.CooldownStatus {
 	if cs == nil {
 		return nil
 	}
-	return &domain.CooldownStatus{
+	return &investigationspb.CooldownStatus{
 		CooldownPeriodSeconds: int32(cs.CooldownPeriodSeconds),
 		RemainingSeconds:      int32(cs.RemainingSeconds),
 		LastTriggerTime:       timestamppb.New(cs.LastTriggerTime),
@@ -70,11 +69,11 @@ func CooldownStatusToProto(cs *models.CooldownStatus) *domain.CooldownStatus {
 	}
 }
 
-func TriggerConfigToProto(tc *models.TriggerConfig) *domain.TriggerConfig {
+func TriggerConfigToProto(tc *models.TriggerConfig) *investigationspb.TriggerConfig {
 	if tc == nil {
 		return nil
 	}
-	return &domain.TriggerConfig{
+	return &investigationspb.TriggerConfig{
 		Id:          tc.ID,
 		Name:        tc.Name,
 		Description: tc.Description,
@@ -87,11 +86,11 @@ func TriggerConfigToProto(tc *models.TriggerConfig) *domain.TriggerConfig {
 	}
 }
 
-func TriggerConfigsMapToProto(tcs map[string]*models.TriggerConfig) map[string]*domain.TriggerConfig {
+func TriggerConfigsMapToProto(tcs map[string]*models.TriggerConfig) map[string]*investigationspb.TriggerConfig {
 	if tcs == nil {
 		return nil
 	}
-	result := make(map[string]*domain.TriggerConfig, len(tcs))
+	result := make(map[string]*investigationspb.TriggerConfig, len(tcs))
 	for k, v := range tcs {
 		result[k] = TriggerConfigToProto(v)
 	}

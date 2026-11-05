@@ -38,7 +38,7 @@ export function LabelWithHelp({ label, help, htmlFor, className }: LabelWithHelp
         {label}
         <button
           type="button"
-          onClick={() => setShowHelp(!showHelp)}
+          onClick={() => { setShowHelp(!showHelp); }}
           className="text-slate-500 hover:text-slate-300"
           aria-label={`Help for ${label}`}
         >
@@ -50,7 +50,7 @@ export function LabelWithHelp({ label, help, htmlFor, className }: LabelWithHelp
           {help}
           <button
             type="button"
-            onClick={() => setShowHelp(false)}
+            onClick={() => { setShowHelp(false); }}
             className="absolute right-2 top-2 text-slate-500 hover:text-slate-300"
             aria-label="Close help"
           >

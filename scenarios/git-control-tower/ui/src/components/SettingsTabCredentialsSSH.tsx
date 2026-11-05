@@ -44,10 +44,10 @@ export function SettingsTabCredentialsSSH({
   onCredentialsSaved,
 }: SettingsTabCredentialsSSHProps) {
   const sshKeysQuery = useSSHKeys();
-  const generateKeyMutation = useGenerateSSHKey();
+  const generateKeyMutation = useGenerateSSHKey(repoId);
   const getPublicKeyMutation = useGetSSHPublicKey();
   const testSSHMutation = useTestSSHConnection();
-  const deleteKeyMutation = useDeleteSSHKey();
+  const deleteKeyMutation = useDeleteSSHKey(repoId);
   const saveMutation = useSaveCredential(repoId);
 
   const sshKeys = sshKeysQuery.data?.keys ?? EMPTY_SSH_KEYS;

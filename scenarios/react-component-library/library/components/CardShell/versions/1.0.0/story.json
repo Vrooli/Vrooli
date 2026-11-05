@@ -1,0 +1,1 @@
+{"schemaVersion":5,"kind":"component","args":{"fields":[]},"environment":{"fixtures":[]},"stories":[{"id":"default","name":"Card shell","args":{},"role":"anatomy","composition":{"specimen":{"module":"./story.tsx","export":"CardShellStory"}},"expect":[{"kind":"text","value":"Scenario-owned card content"}]}]}

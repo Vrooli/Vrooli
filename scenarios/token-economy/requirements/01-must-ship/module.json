@@ -1,0 +1,505 @@
+{
+  "_metadata": {
+    "auto_sync_enabled": true,
+    "description": "P0 requirements — the mint, journal, grant, holder, earning, catalog and redemption spine that must exist for a household economy to be trustworthy.",
+    "last_validated_at": "2026-08-19T23:22:08-04:00",
+    "module": "P0-targets",
+    "priority": "P0",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "TKE-P0-001",
+      "title": "The API shall reject any token creation that does not name a declared token type.",
+      "status": "complete",
+      "prd_ref": "OT-P0-001",
+      "category": "mints.contract",
+      "criticality": "P0",
+      "description": "A token type is the root object of the economy. It carries a stable identifier, a display identity (name, symbol, color), a supply policy (unbounded, capped, or fixed), and exactly one named minter authority. If a mint, grant, or earning event arrives naming a type that does not exist, the API shall return a typed not-found error rather than creating the type implicitly. Supply policy is enforced at mint time: a capped type that would exceed its cap shall be refused with a typed error naming the cap and the attempted amount.",
+      "tags": [
+        "mints",
+        "contract",
+        "spine"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/mints/service_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Covers type creation, supply-policy enforcement at the cap boundary, and refusal of implicit type creation. Tag [REQ:TKE-P0-001]."
+        },
+        {
+          "type": "test",
+          "ref": "api/handlers/mints/handler_test.go",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Connect-level assertion that an unknown type returns a typed not-found rather than a 500 or a silent create. Tag [REQ:TKE-P0-001]."
+        }
+      ]
+    },
+    {
+      "id": "TKE-P0-002",
+      "title": "The API shall admit tokens to a holder only through one typed grant carrying holder, amount, rules, expiry and provenance.",
+      "status": "complete",
+      "prd_ref": "OT-P0-002",
+      "category": "grants.contract",
+      "criticality": "P0",
+      "description": "There shall be exactly one inbound shape that increases a holder's balance, and every path that does so — a minter grant, an earning adapter, a rule program, a transfer — shall satisfy it rather than writing to the journal directly. The shape is deliberately congruent with the mandate treasury uses to authorize real spend: subject (holder), amount, scope (what it may be redeemed for), expiry, and the provenance of the authority. Any intentional divergence from the treasury mandate shape shall be recorded in docs/internal/DECISIONS.md at the time it is introduced.",
+      "tags": [
+        "grants",
+        "contract",
+        "spine",
+        "treasury-parity"
+      ],
+      "depends_on": [
+        "TKE-P0-001"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/grants/service_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Every balance-increasing service operation routes through the typed grant constructor; direct append, credit, and mint methods are absent. Tag [REQ:TKE-P0-002]."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/grants/contract_parity_test.go",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Asserts the generated grant field set against Treasury's live 17-field mandate descriptor and the recorded divergence ledger. Tag [REQ:TKE-P0-002]."
+        }
+      ]
+    },
+    {
+      "id": "TKE-P0-003",
+      "title": "The API shall evaluate every redemption against its grant rules server-side and shall not accept a client-supplied authorization decision.",
+      "status": "complete",
+      "prd_ref": "OT-P0-003",
+      "category": "grants.policy",
+      "criticality": "P0",
+      "description": "Rule evaluation — what a grant may be redeemed for, from whom, until when, and up to how much — happens inside the service. If a request carries any field asserting that a rule was already satisfied, the API shall ignore it. This is the same structural posture treasury takes against prompt injection: the surface that read untrusted input never holds the decision. Refusals shall name the rule that refused them so both the holder view and the CLI can explain the denial rather than reporting a generic failure.",
+      "tags": [
+        "grants",
+        "policy",
+        "security",
+        "spine"
+      ],
+      "depends_on": [
+        "TKE-P0-002"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/grants/rules_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Table-driven server evaluation covers expiry, scope, evidence, and balance; each refusal names its rule and condition. Tag [REQ:TKE-P0-003]."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/grants/service_test.go",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "The real evaluator returns the identical refusal with or without a caller's pre-authorization assertion. Tag [REQ:TKE-P0-003]."
+        }
+      ]
+    },
+    {
+      "id": "TKE-P0-004",
+      "title": "The system shall compute every balance from the append-only journal and shall never treat a stored balance as authoritative.",
+      "status": "complete",
+      "prd_ref": "OT-P0-004",
+      "category": "journal.projection",
+      "criticality": "P0",
+      "description": "Mint, grant, redemption, transfer and reversal are events. A balance is a projection over them. A cached or materialized balance may exist for read performance, but it shall be reconstructible from events alone, and a test shall prove that reconstruction matches the cache for a non-trivial event history. If the two ever disagree, the journal wins. This is the same discipline money-ledger applies to financial position and it exists for the same reason: a stored total is an assertion nobody can audit.",
+      "tags": [
+        "journal",
+        "projection",
+        "spine",
+        "auditability"
+      ],
+      "depends_on": [
+        "TKE-P0-001"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/journal/projection_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Replays a mixed multi-holder, multi-token history, corrupts the cache, and proves event truth plus rebuild equality. Tag [REQ:TKE-P0-004]."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/journal/projection_test.go",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Exercises the real SQLite journal and derived cache, then truncates and rebuilds the projection from events alone. Tag [REQ:TKE-P0-004]."
+        }
+      ]
+    },
+    {
+      "id": "TKE-P0-005",
+      "title": "The holder-facing service shall expose no method that mints, grants, or alters rules.",
+      "status": "complete",
+      "prd_ref": "OT-P0-005",
+      "category": "mints.authority",
+      "criticality": "P0",
+      "description": "Authority separation is a service boundary visible in the proto, not a runtime permission check. Two Connect services: a holder-facing service that can view, redeem and request, and a minter service bound to a distinct authenticated role that owns minting, granting, catalog and rule mutation. A holder presenting a valid token still cannot mint, because the RPC does not exist on the service they can reach. This mirrors the capability separation treasury uses for its autonomy toggle and is the single most important structural control in the scenario.",
+      "tags": [
+        "mints",
+        "authority",
+        "security",
+        "spine"
+      ],
+      "depends_on": [
+        "TKE-P0-001"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/handlers/mints/authority_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Asserts the holder service descriptor contains no mint, grant, catalog-write or rule-write method. Tag [REQ:TKE-P0-005]."
+        },
+        {
+          "type": "test",
+          "ref": "api/handlers/mints/authority_test.go",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "A valid holder-scope token calling a minter method is refused by the Connect interceptor before the domain delegate runs. Tag [REQ:TKE-P0-005]."
+        }
+      ]
+    },
+    {
+      "id": "TKE-P0-006",
+      "title": "If a holder requests another holder's balance or history, then the API shall refuse the request and record no data in the response.",
+      "status": "complete",
+      "prd_ref": "OT-P0-006",
+      "category": "holders.isolation",
+      "criticality": "P0",
+      "description": "Multiple holders share one instance, each authenticated through scenario-authenticator, each with their own balance and their own view. Cross-holder reads shall be refused at the repository layer as well as the handler layer, so a future handler written without the check still cannot leak. Refusal shall not disclose whether the other holder exists. The minter may read every holder; a holder may read only themselves. This is the boundary whose failure would end trust in a household product, so it is tested as an authorization property rather than as a happy path.",
+      "tags": [
+        "holders",
+        "isolation",
+        "security",
+        "spine"
+      ],
+      "depends_on": [
+        "TKE-P0-004"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/holders/repository_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Repository-layer scoping returns the same empty shape for a foreign holder and an absent holder, without any handler in the path. Tag [REQ:TKE-P0-006]."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/journal/holder_history_test.go",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "The scoped history repository refuses cross-holder event reads and makes foreign and absent results indistinguishable. Tag [REQ:TKE-P0-006]."
+        },
+        {
+          "type": "test",
+          "ref": "api/handlers/holders/connect_handler_test.go",
+          "phase": "security",
+          "status": "implemented",
+          "notes": "Authenticated holder requests fail closed before a delegate runs when scenario-authenticator validation is unavailable. Tag [REQ:TKE-P0-006]."
+        }
+      ]
+    },
+    {
+      "id": "TKE-P0-007",
+      "title": "The API shall admit earned tokens through one adapter contract that grants no satisfier a privileged path.",
+      "status": "complete",
+      "prd_ref": "OT-P0-007",
+      "category": "earning.contract",
+      "criticality": "P0",
+      "description": "An earning surface declares what was done, by which holder, and under which token type; the scenario decides whether that produces a grant. A chore scenario, a habit tracker, an external webhook and an adult pressing a button in the console shall all satisfy the same contract, and operator entry shall be an ordinary adapter rather than a degraded fallback — several real earning sources will never have an API. Re-submitting the same earning event shall be idempotent so an adapter that retries cannot inflate a balance.",
+      "tags": [
+        "earning",
+        "contract",
+        "adapters",
+        "spine"
+      ],
+      "depends_on": [
+        "TKE-P0-002"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/earning/service_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Operator and programmatic identities traverse the same Submit method; replay returns the first result, stores only a summarized payload, and issues one grant. Tag [REQ:TKE-P0-007]."
+        },
+        {
+          "type": "test",
+          "ref": "api/handlers/earning/handler_test.go",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Operator and scenario credentials call the same adapter-only Connect RPC; the authenticated subject becomes adapter identity and a holder token is refused. The internal integration test proves identity reaches the journal. Tag [REQ:TKE-P0-007]."
+        }
+      ]
+    },
+    {
+      "id": "TKE-P0-008",
+      "title": "The API shall resolve what a token buys from minter-declared catalog entries and shall not hardcode any redeemable.",
+      "status": "complete",
+      "prd_ref": "OT-P0-008",
+      "category": "catalog.contract",
+      "criticality": "P0",
+      "description": "A catalog entry carries a title, a cost in a named token type, an availability window or quantity, and an approval posture. The product ships no built-in redeemables — an economy about screen time, a trip, or a chore traded between siblings is expressed entirely in minter-declared entries. Availability shall be enforced server-side: an entry that is out of stock or outside its window shall refuse redemption with a typed reason rather than being hidden only in the UI.",
+      "tags": [
+        "catalog",
+        "contract",
+        "spine"
+      ],
+      "depends_on": [
+        "TKE-P0-001"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/catalog/service_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Covers service-owned availability windows, stock quantity, empty-by-default declarations, retained retirement, and structural absence of monetary fields. Tag [REQ:TKE-P0-008]."
+        },
+        {
+          "type": "test",
+          "ref": "api/handlers/catalog/handler_test.go",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "A direct holder redemption preflight for an out-of-stock entry is refused over Connect before redemption can run. Tag [REQ:TKE-P0-008]."
+        }
+      ]
+    },
+    {
+      "id": "TKE-P0-009",
+      "title": "When a redemption is retried with an idempotency key already committed, the API shall return the original result and shall not debit again.",
+      "status": "complete",
+      "prd_ref": "OT-P0-009",
+      "category": "redemption.settlement",
+      "criticality": "P0",
+      "description": "Every mutation takes a caller-supplied idempotency key. The debit and its journal event commit in one transaction under a row lock; a repeated key is a successful no-op returning the first result, and distinct keys remain independent. This follows the landing-page-business-suite credit-wallet invariant, which is the proven in-house pattern for exactly this problem. The property shall be tested against induced failure between debit and event write, not merely under happy-path retry, because the failure that corrupts an append-only store has no repair verb by design.",
+      "tags": [
+        "redemption",
+        "settlement",
+        "idempotency",
+        "spine"
+      ],
+      "depends_on": [
+        "TKE-P0-004",
+        "TKE-P0-003"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/redemption/settlement_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Repeated keys return the first committed redemption without a second debit; distinct keys settle independently. Tag [REQ:TKE-P0-009]."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/redemption/settlement_test.go",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "An induced failure at the journal boundary rolls back redemption, reservation, stock consumption, and debit. Tag [REQ:TKE-P0-009]."
+        }
+      ]
+    },
+    {
+      "id": "TKE-P0-010",
+      "title": "The system shall correct a mistaken event with a compensating event and shall expose no verb that deletes or rewrites journal history.",
+      "status": "complete",
+      "prd_ref": "OT-P0-010",
+      "category": "journal.integrity",
+      "criticality": "P0",
+      "description": "A wrong mint, grant or redemption is reversed by appending a compensating event that references the original and carries a reason. The original remains readable. No API method, CLI command or repository function shall update or delete a journal row. A holder viewing their history sees both the mistake and its correction, which is the behavior that makes the economy teachable rather than arbitrary.",
+      "tags": [
+        "journal",
+        "integrity",
+        "auditability",
+        "spine"
+      ],
+      "depends_on": [
+        "TKE-P0-004"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/journal/reversal_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Reversal appends and references; balance reflects both events; original row remains readable and unchanged. Tag [REQ:TKE-P0-010]."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/journal/append_only_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Structural assertion that the repository surface and SQL expose no update or delete for journal rows. Tag [REQ:TKE-P0-010]."
+        }
+      ]
+    },
+    {
+      "id": "TKE-P0-011",
+      "title": "The system shall record on every journal event which actor caused it and how that actor was verified.",
+      "status": "complete",
+      "prd_ref": "OT-P0-011",
+      "category": "journal.provenance",
+      "criticality": "P0",
+      "description": "An event carries the acting identity and a verification status, so an agent-initiated grant is distinguishable from an operator-initiated one after the fact. Agent callers resolve through the shared packages/cli-core identity verifier against agent-manager's signed run claims; a caller that cannot present a valid token is recorded as unverified rather than promoted, following the ecosystem's existing runtime-attribution contract. The scenario shall not invent a second attribution model.",
+      "tags": [
+        "journal",
+        "provenance",
+        "attribution",
+        "spine"
+      ],
+      "depends_on": [
+        "TKE-P0-004"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/journal/provenance_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "The append choke point records verified, unavailable, invalid and absent using the shared runtime-attribution vocabulary. Tag [REQ:TKE-P0-011]."
+        },
+        {
+          "type": "test",
+          "ref": "api/handlers/journal/connect_handler_test.go",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "A minter reversal carrying an Agent Manager identity token persists verified agent subject and run provenance end to end. Tag [REQ:TKE-P0-011]."
+        }
+      ]
+    },
+    {
+      "id": "TKE-P0-012",
+      "title": "The holder view shall present every event affecting the holder's balance with its reason.",
+      "status": "complete",
+      "prd_ref": "OT-P0-012",
+      "category": "holders.view",
+      "criticality": "P0",
+      "description": "A holder can see why their balance is what it is: each earn, grant, redemption and reversal, in order, with the reason recorded at the time. A balance shown without its history is an assertion, and the scenario's whole premise is that balances are derived and explainable. The view shall degrade honestly — an empty economy, a holder with no events, and a failed load are distinct perceivable states rather than one blank panel.",
+      "tags": [
+        "holders",
+        "view",
+        "ux",
+        "transparency"
+      ],
+      "depends_on": [
+        "TKE-P0-004",
+        "TKE-P0-006"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/journal/holder_history_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Projects every ordered holder event and reason into balances from the complete scoped history. Tag [REQ:TKE-P0-012]."
+        },
+        {
+          "type": "test",
+          "ref": "api/handlers/holders/connect_handler_test.go",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "The authenticated HolderService response contains the complete ordered history with reasons and event-derived balances. Tag [REQ:TKE-P0-012]."
+        }
+      ]
+    },
+    {
+      "id": "TKE-P0-013",
+      "title": "A catalog entry shall declare whether redeeming it settles immediately or waits on minter approval, and the API shall honor that declaration.",
+      "status": "complete",
+      "prd_ref": "OT-P0-013",
+      "category": "redemption.approval",
+      "criticality": "P0",
+      "description": "Approval posture is per entry, not global: a small reward settles instantly while a large one waits. A pending redemption reserves balance so it cannot be double-spent while queued, and the queue is a first-class surface in the minter console rather than a notification that can be missed. Approval and denial both append events; a denied redemption releases the reservation and records the reason. notification-hub may relay the request when present and its absence shall not block approval.",
+      "tags": [
+        "redemption",
+        "approval",
+        "catalog",
+        "spine"
+      ],
+      "depends_on": [
+        "TKE-P0-008",
+        "TKE-P0-009"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/handlers/redemption/approval_posture_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "The generated redemption-facing contract requires an explicit immediate or requires-approval catalog posture. Full queue settlement remains Phase 9. Tag [REQ:TKE-P0-013]."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/redemption/settlement_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Immediate and gated postures, reservation double-spend refusal, denial release, inventory restoration, queue settlement, and failed relay tolerance. Tag [REQ:TKE-P0-013]."
+        },
+        {
+          "type": "test",
+          "ref": "api/handlers/redemption/approval_test.go",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Generated holder and minter clients complete the approval flow with authenticated identities and no notification relay mounted. Tag [REQ:TKE-P0-013]."
+        },
+        {
+          "type": "test",
+          "phase": "business",
+          "status": "implemented",
+          "notes": "Planned test file: `bas/cases/redemption-approval.json`. Holder requests a gated redemption; minter approves; balance and history reflect it. Tag [REQ:TKE-P0-013]."
+        }
+      ]
+    },
+    {
+      "id": "TKE-P0-014",
+      "title": "If a request would assign monetary value to a token or move it off the instance, then the API shall have no method to accept it.",
+      "status": "complete",
+      "prd_ref": "OT-P0-014",
+      "category": "mints.constraints",
+      "criticality": "P0",
+      "description": "No token carries a price, no redemption path produces money, and no transfer leaves the instance. The constraint is enforced by the capability being absent from the service surface rather than by a policy check that a later change could relax quietly — which is what keeps multi-holder balances clear of money transmission. A test shall assert the absence structurally, so introducing a monetary path requires a visible contract change and a recorded decision rather than a field addition.",
+      "tags": [
+        "mints",
+        "constraints",
+        "regulatory",
+        "spine"
+      ],
+      "depends_on": [
+        "TKE-P0-001"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/mints/no_monetary_value_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Structural assertion: no proto field or service method expresses price, payout or external transfer. Tag [REQ:TKE-P0-014]."
+        },
+        {
+          "type": "manual",
+          "ref": "packages/proto/schemas/token-economy/v1/mints/mints.proto",
+          "status": "implemented",
+          "notes": "Phase 2 contract review confirms the surface contains no price, payout, currency, withdrawal, or off-instance transfer. A future decision to open a monetary path must be recorded in docs/internal/DECISIONS.md before code lands."
+        }
+      ]
+    }
+  ]
+}

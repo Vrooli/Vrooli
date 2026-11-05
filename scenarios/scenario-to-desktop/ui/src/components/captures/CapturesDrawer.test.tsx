@@ -1,17 +1,22 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen, fireEvent } from "@/test-utils";
 import { CapturesDrawer } from "./CapturesDrawer";
 
 // Mock the Drawer to render children directly (avoids portal/animation issues)
 vi.mock("../ui/drawer", () => ({
   Drawer: ({ open, children }: { open: boolean; children: React.ReactNode }) =>
     open ? <div data-testid="drawer">{children}</div> : null,
-  DrawerBody: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
-  DrawerHeader: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+  DrawerBody: ({ children }: { children: React.ReactNode }) => (
+    <div>{children}</div>
+  ),
+  DrawerHeader: ({ children }: { children: React.ReactNode }) => (
+    <div>{children}</div>
+  ),
 }));
 
 vi.mock("../../lib/api/captures", () => ({
-  buildCaptureFileUrl: (scenario: string, id: string) => `/mock/${scenario}/${id}`,
+  buildCaptureFileUrl: (scenario: string, id: string) =>
+    `/mock/${scenario}/${id}`,
 }));
 
 const mockState = {
@@ -19,15 +24,15 @@ const mockState = {
   close: vi.fn(),
   scenarioName: "my-app",
   captures: [] as Array<{
-    id: string;
-    scenario_name: string;
-    type: "screenshot" | "recording";
+    captureId: string;
+    scenarioName: string;
+    kind: "screenshot" | "recording";
     filename: string;
-    file_size_bytes: number;
-    source_session: string;
-    created_at: string;
+    fileSizeBytes: bigint;
+    sourceSessionId: string;
+    createdAt: { seconds: bigint; nanos: number };
   }>,
-  summary: { count: 0, total_bytes: 0 },
+  summary: { count: 0, totalBytes: 0n },
   selectedIds: new Set<string>(),
   loading: false,
   error: null as string | null,
@@ -40,17 +45,21 @@ const mockState = {
 };
 
 vi.mock("../../store/capturesStore", () => ({
-  useCapturesStore: (selector: (s: typeof mockState) => unknown) => selector(mockState),
+  useCapturesStore: (selector: (s: typeof mockState) => unknown) =>
+    selector(mockState),
 }));
 
-const sampleCapture = (id: string, type: "screenshot" | "recording" = "screenshot") => ({
-  id,
-  scenario_name: "my-app",
-  type,
+const sampleCapture = (
+  id: string,
+  type: "screenshot" | "recording" = "screenshot",
+) => ({
+  captureId: id,
+  scenarioName: "my-app",
+  kind: type,
   filename: `${type}-123.${type === "screenshot" ? "png" : "mp4"}`,
-  file_size_bytes: 1024,
-  source_session: "session-1",
-  created_at: new Date().toISOString(),
+  fileSizeBytes: 1024n,
+  sourceSessionId: "session-1",
+  createdAt: { seconds: BigInt(Math.floor(Date.now() / 1_000)), nanos: 0 },
 });
 
 beforeEach(() => {
@@ -59,7 +68,7 @@ beforeEach(() => {
   mockState.selectedIds = new Set();
   mockState.loading = false;
   mockState.error = null;
-  mockState.summary = { count: 0, total_bytes: 0 };
+  mockState.summary = { count: 0, totalBytes: 0n };
   vi.clearAllMocks();
 });
 
@@ -71,7 +80,7 @@ describe("CapturesDrawer", () => {
 
   it("renders capture cards", () => {
     mockState.captures = [sampleCapture("cap-1"), sampleCapture("cap-2")];
-    mockState.summary = { count: 2, total_bytes: 2048 };
+    mockState.summary = { count: 2, totalBytes: 2048n };
     render(<CapturesDrawer />);
     const sizeLabels = screen.getAllByText("1 KB");
     expect(sizeLabels.length).toBe(2);

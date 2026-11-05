@@ -1,0 +1,246 @@
+[
+  {
+    "resource": "antigravity",
+    "id": "agy",
+    "aliases": [
+      "antigravity"
+    ],
+    "binary": "agy",
+    "display_name": "Antigravity",
+    "icon": "agy",
+    "home_isolation": {
+      "kind": "none"
+    },
+    "features": {
+      "resume": true,
+      "mcp": true,
+      "hooks": true
+    }
+  },
+  {
+    "native_artifacts": {
+      "darwin_amd64": {
+        "dependency": "@anthropic-ai/claude-code-darwin-x64",
+        "executable": "claude"
+      },
+      "darwin_arm64": {
+        "dependency": "@anthropic-ai/claude-code-darwin-arm64",
+        "executable": "claude"
+      },
+      "linux_amd64": {
+        "dependency": "@anthropic-ai/claude-code-linux-x64",
+        "executable": "claude"
+      },
+      "linux_arm64": {
+        "dependency": "@anthropic-ai/claude-code-linux-arm64",
+        "executable": "claude"
+      }
+    },
+    "resource": "claude-code",
+    "id": "claude",
+    "aliases": [
+      "claude-code"
+    ],
+    "binary": "claude",
+    "display_name": "Claude Code",
+    "icon": "claude",
+    "session_env": [
+      "CLAUDE_CODE_SESSION_ID"
+    ],
+    "home_isolation": {
+      "kind": "none"
+    },
+    "usage_windows": [
+      {
+        "id": "five_hour",
+        "minutes": 300
+      },
+      {
+        "id": "seven_day",
+        "minutes": 10080
+      }
+    ],
+    "features": {
+      "context_limit": {
+        "kind": "env",
+        "key": "CLAUDE_CODE_AUTO_COMPACT_WINDOW",
+        "minimum": 100000
+      },
+      "context_window_source": "claude-statusline",
+      "usage_mode": {
+        "provider": "anthropic"
+      },
+      "model_selection": {
+        "flag": "--model",
+        "sources": [
+          "claude-subscription"
+        ]
+      },
+      "resume": true,
+      "goal_mode": true,
+      "mcp": true,
+      "hooks": true
+    }
+  },
+  {
+    "sign_in_probe": {
+      "args": [
+        "login",
+        "status"
+      ],
+      "signed_in_prefixes": [
+        "Logged in using "
+      ],
+      "signed_out_lines": [
+        "Not logged in"
+      ]
+    },
+    "native_artifacts": {
+      "darwin_amd64": {
+        "dependency": "@openai/codex-darwin-x64",
+        "executable": "vendor/x86_64-apple-darwin/bin/codex"
+      },
+      "darwin_arm64": {
+        "dependency": "@openai/codex-darwin-arm64",
+        "executable": "vendor/aarch64-apple-darwin/bin/codex"
+      },
+      "linux_amd64": {
+        "dependency": "@openai/codex-linux-x64",
+        "executable": "vendor/x86_64-unknown-linux-musl/bin/codex"
+      },
+      "linux_arm64": {
+        "dependency": "@openai/codex-linux-arm64",
+        "executable": "vendor/aarch64-unknown-linux-musl/bin/codex"
+      }
+    },
+    "resource": "codex",
+    "id": "codex",
+    "binary": "codex",
+    "display_name": "Codex",
+    "icon": "codex",
+    "session_env": [
+      "CODEX_THREAD_ID"
+    ],
+    "home_isolation": {
+      "kind": "env",
+      "env": "CODEX_HOME",
+      "shared_dir": ".codex",
+      "state_dir": "codex",
+      "sessions_env": "WC_CODEX_SESSIONS_DIR",
+      "layout": "allowlist"
+    },
+    "usage_windows": [
+      {
+        "id": "weekly",
+        "minutes": 10080
+      }
+    ],
+    "features": {
+      "context_limit": {
+        "kind": "arg",
+        "key": "model_auto_compact_token_limit",
+        "minimum": 0
+      },
+      "context_window_source": "codex-models-cache",
+      "usage_mode": {
+        "provider": "openai"
+      },
+      "model_selection": {
+        "flag": "-m",
+        "sources": [
+          "codex-subscription"
+        ]
+      },
+      "resume": true,
+      "goal_mode": true,
+      "mcp": true,
+      "hooks": true
+    }
+  },
+  {
+    "native_artifacts": {
+      "darwin_amd64": {
+        "dependency": "@xai-official/grok-darwin-x64",
+        "executable": "bin/grok.br",
+        "compression": "brotli"
+      },
+      "darwin_arm64": {
+        "dependency": "@xai-official/grok-darwin-arm64",
+        "executable": "bin/grok.br",
+        "compression": "brotli"
+      },
+      "linux_amd64": {
+        "dependency": "@xai-official/grok-linux-x64",
+        "executable": "bin/grok.br",
+        "compression": "brotli"
+      },
+      "linux_arm64": {
+        "dependency": "@xai-official/grok-linux-arm64",
+        "executable": "bin/grok.br",
+        "compression": "brotli"
+      }
+    },
+    "resource": "grok",
+    "id": "grok",
+    "binary": "grok",
+    "display_name": "Grok",
+    "icon": "grok",
+    "home_isolation": {
+      "kind": "env",
+      "env": "GROK_HOME",
+      "shared_dir": ".grok",
+      "state_dir": "grok",
+      "layout": "mirror"
+    },
+    "features": {
+      "resume": true,
+      "mcp": true,
+      "hooks": true
+    }
+  },
+  {
+    "native_artifacts": {
+      "darwin_amd64": {
+        "dependency": "opencode-darwin-x64-baseline",
+        "executable": "bin/opencode"
+      },
+      "darwin_arm64": {
+        "dependency": "opencode-darwin-arm64",
+        "executable": "bin/opencode"
+      },
+      "linux_amd64": {
+        "dependency": "opencode-linux-x64-baseline",
+        "executable": "bin/opencode"
+      },
+      "linux_arm64": {
+        "dependency": "opencode-linux-arm64",
+        "executable": "bin/opencode"
+      }
+    },
+    "resource": "opencode",
+    "id": "opencode",
+    "binary": "opencode",
+    "display_name": "OpenCode",
+    "icon": "opencode",
+    "home_isolation": {
+      "kind": "none"
+    },
+    "features": {
+      "model_selection": {
+        "flag": "-m",
+        "sources": [
+          "opencode-go",
+          "openrouter",
+          "ollama",
+          "orcarouter",
+          "abliteration"
+        ],
+        "prefix_source": true
+      },
+      "provider_selection": true,
+      "resume": true,
+      "mcp": true,
+      "hooks": true
+    }
+  }
+]

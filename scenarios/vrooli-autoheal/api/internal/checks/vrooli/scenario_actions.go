@@ -1,0 +1,530 @@
+package vrooli
+
+import (
+	"context"
+	"fmt"
+	"net/http"
+	"os"
+	"path/filepath"
+	"strconv"
+	"strings"
+	"time"
+	"vrooli-autoheal-langrecover"
+
+	"github.com/vrooli/vrooli/internal/process"
+	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/checks"
+	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/reporoot"
+)
+
+func (c *ScenarioCheck) verifyRecovery(ctx context.Context, result checks.ActionResult, actionID string, start time.Time) checks.ActionResult {
+	// Configure polling
+	timeout := c.recoveryPoll.timeout
+	interval := c.recoveryPoll.interval
+	initialDelay := c.recoveryPoll.initialDelay
+
+	// Wait initial delay for scenario startup
+	select {
+	case <-ctx.Done():
+		result.Duration = time.Since(start)
+		result.Success = false
+		result.Error = "context cancelled during initial delay"
+		result.Message = fmt.Sprintf("%s scenario %s cancelled", c.scenarioName, actionID)
+		return result
+	case <-time.After(initialDelay):
+	}
+
+	// Poll for scenario health using the current CLI contract.
+	deadline := time.Now().Add(timeout - initialDelay)
+	attempts := 0
+	var lastErr string
+
+	for time.Now().Before(deadline) {
+		attempts++
+
+		// Check context
+		select {
+		case <-ctx.Done():
+			result.Duration = time.Since(start)
+			result.Success = false
+			result.Error = "context cancelled during verification"
+			result.Output += fmt.Sprintf("\n\n=== Verification Cancelled ===\n(after %d attempts)", attempts)
+			return result
+		default:
+		}
+
+		status, _, err := c.client.ScenarioStatus(ctx, c.scenarioName)
+		if err == nil {
+			scenarioStatus := strings.ToLower(strings.TrimSpace(status.Scenario.Status))
+			healthStatus, healthErr := status.Scenario.NormalizedHealthStatus()
+			if healthErr == nil && scenarioStatus == "running" && (healthStatus == "healthy" || healthStatus == "running") {
+				result.Duration = time.Since(start)
+				result.Success = true
+				result.Message = fmt.Sprintf("%s scenario %s successful and verified healthy", c.scenarioName, actionID)
+				result.Output += fmt.Sprintf("\n\n=== Verification ===\nScenario status=%s health=%s\n(verified after %d attempts in %s)",
+					scenarioStatus, healthStatus, attempts, time.Since(start).Round(time.Millisecond))
+				return result
+			}
+			if healthErr != nil {
+				lastErr = healthErr.Error()
+			} else {
+				lastErr = fmt.Sprintf("scenario status=%s health=%s", scenarioStatus, healthStatus)
+			}
+		} else {
+			lastErr = err.Error()
+		}
+
+		// Wait before next attempt
+		select {
+		case <-ctx.Done():
+			break
+		case <-time.After(interval):
+		}
+	}
+
+	// Verification failed
+	result.Duration = time.Since(start)
+	result.Success = false
+	result.Error = "Scenario not healthy after " + actionID
+	result.Message = fmt.Sprintf("%s scenario %s completed but verification failed", c.scenarioName, actionID)
+	if lastErr != "" {
+		result.Output += fmt.Sprintf("\n\n=== Verification Failed ===\n%s", lastErr)
+	}
+	result.Output += fmt.Sprintf("\n(failed after %d attempts in %s)", attempts, time.Since(start).Round(time.Millisecond))
+
+	return result
+}
+
+// checkScenarioHealthDirect checks if a scenario is healthy without using vrooli scenario status.
+// This is necessary because vrooli scenario status requires the main Vrooli API to be running.
+// Returns (healthy bool, errorDetail string)
+func (c *ScenarioCheck) checkScenarioHealthDirect(ctx context.Context) (bool, string) {
+	// Method 1: Check if PID files exist and processes are running
+	homeDir, err := process.HomeDir()
+	if err != nil {
+		return false, "could not determine home directory"
+	}
+
+	scenarioProcessDir, err := process.ScenarioProcessDir(homeDir, c.scenarioName)
+	if err != nil {
+		return false, "could not resolve scenario process directory"
+	}
+
+	// Check if the scenario process directory exists
+	if _, err := os.Stat(scenarioProcessDir); os.IsNotExist(err) {
+		return false, "scenario process directory does not exist"
+	}
+
+	// Look for PID files
+	pidFiles, err := filepath.Glob(filepath.Join(scenarioProcessDir, "*.pid"))
+	if err != nil || len(pidFiles) == 0 {
+		return false, "no PID files found for scenario"
+	}
+
+	// Check if at least one process is running
+	runningProcesses := 0
+	for _, pidFile := range pidFiles {
+		pidBytes, err := os.ReadFile(pidFile)
+		if err != nil {
+			continue
+		}
+		pid := strings.TrimSpace(string(pidBytes))
+		if pid == "" {
+			continue
+		}
+
+		// Check if process is running using kill -0
+		checkOutput, err := c.executor.CombinedOutput(ctx, "kill", "-0", pid)
+		if err == nil {
+			runningProcesses++
+		} else {
+			// Process not running, check if it's a parse error
+			_ = checkOutput // Ignore output
+		}
+	}
+
+	if runningProcesses == 0 {
+		return false, fmt.Sprintf("no running processes found (checked %d PID files)", len(pidFiles))
+	}
+
+	// Method 2: Try to get scenario port and check health endpoint directly.
+	// A live PID is only a precondition; it is not proof that the scenario serves
+	// its purpose. Returning success after a failed probe is the false-green
+	// behavior this verifier exists to prevent.
+	portOutput, err := c.executor.Output(ctx, "vrooli", "scenario", "port", c.scenarioName, "API_PORT")
+	if err == nil {
+		port := strings.TrimSpace(string(portOutput))
+		if port != "" && port != "null" && port != "0" {
+			// Try to hit the health endpoint directly
+			healthURL := fmt.Sprintf("http://127.0.0.1:%s/health", port)
+			client := &http.Client{Timeout: 5 * time.Second}
+			req, _ := http.NewRequestWithContext(ctx, "GET", healthURL, nil)
+			resp, err := client.Do(req)
+			if err == nil {
+				resp.Body.Close()
+				if resp.StatusCode >= 200 && resp.StatusCode < 300 {
+					return true, ""
+				}
+			}
+			return false, "health endpoint did not answer successfully"
+		}
+	}
+
+	return false, "scenario API port was unavailable"
+}
+
+// executeCleanRestart performs a stop, core cleanup, and restart.
+func (c *ScenarioCheck) executeCleanRestart(ctx context.Context, start time.Time) checks.ActionResult {
+	return c.strategy().CleanRestart(ctx, c.id)
+}
+
+// executeSetupRestart performs a setup pass before restarting the scenario.
+// This is intended for dependency/build drift issues where plain restart loops.
+func (c *ScenarioCheck) executeSetupRestart(ctx context.Context, start time.Time) checks.ActionResult {
+	result := checks.ActionResult{
+		ActionID:  "setup-restart",
+		CheckID:   c.id,
+		Timestamp: start,
+	}
+
+	var outputBuilder strings.Builder
+
+	// Step 1: Stop the scenario. Best effort - setup/start may still recover.
+	outputBuilder.WriteString("=== Stopping scenario ===\n")
+	stopOutput, _ := c.executor.CombinedOutput(ctx, "vrooli", "scenario", "stop", c.scenarioName)
+	outputBuilder.Write(stopOutput)
+	outputBuilder.WriteString("\n")
+
+	// Step 2: Run setup to refresh local file dependencies and rebuild bundles.
+	outputBuilder.WriteString("=== Running setup ===\n")
+	setupOutput, err := c.executor.CombinedOutput(ctx, "vrooli", "scenario", "setup", c.scenarioName)
+	outputBuilder.Write(setupOutput)
+	outputBuilder.WriteString("\n")
+	if err != nil {
+		result.Duration = time.Since(start)
+		result.Output = outputBuilder.String()
+		result.Success = false
+		result.Error = err.Error()
+		result.Message = "Setup failed for " + c.scenarioName
+		return result
+	}
+
+	// Step 3: Start with --best-effort to avoid blocking on unrelated dependencies.
+	outputBuilder.WriteString("=== Starting scenario ===\n")
+	startOutput, err := c.executor.CombinedOutput(ctx, "vrooli", "scenario", "start", c.scenarioName, "--best-effort")
+	outputBuilder.Write(startOutput)
+	result.Output = outputBuilder.String()
+	if err != nil {
+		result.Duration = time.Since(start)
+		result.Success = false
+		result.Error = err.Error()
+		result.Message = "Setup + restart failed for " + c.scenarioName
+		return result
+	}
+
+	return c.verifyRecovery(ctx, result, "setup-restart", start)
+}
+
+// executePortCleanup delegates stale lock/orphan cleanup to core maintenance.
+func (c *ScenarioCheck) executePortCleanup(ctx context.Context, start time.Time) checks.ActionResult {
+	return c.strategy().CleanupPorts(ctx, c.id)
+}
+
+// executeDiagnose gathers diagnostic information about the scenario
+func (c *ScenarioCheck) executeDiagnose(ctx context.Context, start time.Time) checks.ActionResult {
+	result := checks.ActionResult{
+		ActionID:  "diagnose",
+		CheckID:   c.id,
+		Timestamp: start,
+	}
+
+	var outputBuilder strings.Builder
+
+	// Status
+	outputBuilder.WriteString("=== Scenario Status ===\n")
+	statusOutput, _ := c.executor.CombinedOutput(ctx, "vrooli", "scenario", "status", c.scenarioName)
+	outputBuilder.Write(statusOutput)
+	outputBuilder.WriteString("\n\n")
+
+	// Ports
+	outputBuilder.WriteString("=== Scenario Ports ===\n")
+	portOutput, _ := c.executor.CombinedOutput(ctx, "vrooli", "scenario", "port", c.scenarioName)
+	outputBuilder.Write(portOutput)
+	outputBuilder.WriteString("\n\n")
+
+	// Recent logs (last 50 lines)
+	outputBuilder.WriteString("=== Recent Logs (last 50 lines) ===\n")
+	logsOutput, _ := c.executor.CombinedOutput(ctx, "vrooli", "scenario", "logs", c.scenarioName, "--tail", "50")
+	outputBuilder.Write(logsOutput)
+	outputBuilder.WriteString("\n")
+
+	result.Duration = time.Since(start)
+	result.Output = outputBuilder.String()
+	result.Success = true
+	result.Message = "Diagnostic information gathered for " + c.scenarioName
+	return result
+}
+
+// applyDriftSignature records the first matching drift signature into result.Details
+// (rootCause + recommendedAction), choosing the cheapest applicable recovery action.
+//
+// The CLI's `scenario status` output rarely contains build-failure text — when a
+// scenario is stopped, the failure cause lives in the lifecycle run log written
+// during the previous start/setup attempt. We try the status output first (it
+// occasionally contains drift hints from the CLI), and fall back to the
+// lifecycle log tail when the scenario is non-running and no signature was
+// found in the status output.
+func (c *ScenarioCheck) applyDriftSignature(result *checks.Result, statusOutput, scenarioStatus string) {
+	if c.recordDriftFromOutput(result, statusOutput, "status-output") {
+		return
+	}
+	if scenarioStatus == "running" {
+		return
+	}
+	if c.readLifecycleLog == nil {
+		return
+	}
+	logTail := c.readLifecycleLog()
+	if logTail == "" {
+		return
+	}
+	c.recordDriftFromOutput(result, logTail, "lifecycle-log")
+}
+
+// recordDriftFromOutput returns true if a signature was matched and recorded.
+func (c *ScenarioCheck) recordDriftFromOutput(result *checks.Result, output, source string) bool {
+	switch {
+	case langrecover.DetectGoSignature(output) != langrecover.GoSignatureNone:
+		result.Details["rootCause"] = rootCauseGoModuleDrift
+		result.Details["recommendedAction"] = recommendedActionRecoverGo
+		result.Details["driftSource"] = source
+		return true
+	case langrecover.DetectPnpmSignature(output) != langrecover.PnpmSignatureNone:
+		result.Details["rootCause"] = rootCausePnpmInstallDrift
+		result.Details["recommendedAction"] = recommendedActionRecoverPnpm
+		result.Details["driftSource"] = source
+		return true
+	case hasSharedPackageDriftSignature(output):
+		result.Details["rootCause"] = rootCauseSharedPackageDrift
+		result.Details["recommendedAction"] = recommendedActionSetupRestart
+		result.Details["driftSource"] = source
+		return true
+	}
+	return false
+}
+
+// readAPIPID reads the start-api PID for this scenario from the lifecycle
+// process directory. Returns 0 if unavailable.
+func (c *ScenarioCheck) readAPIPID() int {
+	homeDir, err := process.HomeDir()
+	if err != nil {
+		return 0
+	}
+	processDir, err := process.ScenarioProcessDir(homeDir, c.scenarioName)
+	if err != nil {
+		return 0
+	}
+	pidFile := filepath.Join(processDir, "start-api.pid")
+	data, err := os.ReadFile(pidFile)
+	if err != nil {
+		return 0
+	}
+	pid, err := strconv.Atoi(strings.TrimSpace(string(data)))
+	if err != nil {
+		return 0
+	}
+	return pid
+}
+
+// extractPorts extracts port numbers from CLI output
+func extractPorts(output string) []int {
+	var ports []int
+	seen := make(map[int]bool)
+
+	// Look for common port patterns in the output
+	// Patterns: "port: 8080", "PORT=8080", ":8080", "8080/tcp"
+	lines := strings.Split(output, "\n")
+	for _, line := range lines {
+		fields := strings.Fields(line)
+		for _, field := range fields {
+			// Remove common prefixes/suffixes
+			field = strings.TrimPrefix(field, ":")
+			field = strings.TrimSuffix(field, "/tcp")
+			field = strings.TrimSuffix(field, "/udp")
+
+			// Try to parse as port number (valid range: 1-65535)
+			if port, err := strconv.Atoi(field); err == nil && port > 0 && port <= 65535 {
+				// Filter out likely non-port numbers (too small or reserved)
+				if port >= 1024 && !seen[port] {
+					ports = append(ports, port)
+					seen[port] = true
+				}
+			}
+		}
+	}
+
+	return ports
+}
+
+// scenarioDir returns the absolute path to this scenario's source directory
+// under the repo, or "" if the repo root cannot be resolved. The langrecover
+// strategies operate against api/ and ui/ subdirectories underneath it.
+func (c *ScenarioCheck) scenarioDir() string {
+	root := reporoot.ResolveFromOS()
+	if root == "" {
+		return ""
+	}
+	return filepath.Join(root, "scenarios", c.scenarioName)
+}
+
+func (c *ScenarioCheck) scenarioHasGoAPI() bool {
+	dir := c.scenarioDir()
+	if dir == "" {
+		return false
+	}
+	_, err := os.Stat(filepath.Join(dir, "api", "go.mod"))
+	return err == nil
+}
+
+func (c *ScenarioCheck) scenarioHasPnpmUI() bool {
+	dir := c.scenarioDir()
+	if dir == "" {
+		return false
+	}
+	_, err := os.Stat(filepath.Join(dir, "ui", "package.json"))
+	return err == nil
+}
+
+// executeLangRecover runs a language-specific dependency recovery against the
+// scenario, then performs a normal restart. The recovery itself is gated on
+// detecting a healable signature in the prior failure output — if no
+// signature is detected, the action returns a failure result rather than
+// silently rebuilding world. ModifiedTrackedFiles/ModifiedPaths from the
+// strategy are surfaced in Output so autoheal incident logs make the
+// dependency mutation visible.
+func (c *ScenarioCheck) executeLangRecover(ctx context.Context, start time.Time, kind langrecover.Kind) checks.ActionResult {
+	actionID := "recover-go"
+	if kind == langrecover.KindPnpm {
+		actionID = "recover-pnpm"
+	}
+	result := checks.ActionResult{
+		ActionID:  actionID,
+		CheckID:   c.id,
+		Timestamp: start,
+	}
+
+	scenarioDir := c.scenarioDir()
+	if scenarioDir == "" {
+		result.Duration = time.Since(start)
+		result.Success = false
+		result.Error = "could not resolve repo root"
+		result.Message = "Recovery aborted: repo root unavailable"
+		return result
+	}
+
+	failureLog := c.recentFailureLog(ctx)
+	decision := langrecover.Decide(failureLog, scenarioDir)
+	if !decision.Has() || decision.Kind != kind {
+		result.Duration = time.Since(start)
+		result.Success = false
+		result.Error = "no healable " + string(kind) + " signature detected in recent failure output"
+		result.Message = "Recovery skipped: failure output does not match a known healable pattern"
+		result.Output = capRecoveryLog(failureLog)
+		return result
+	}
+
+	var outputBuilder strings.Builder
+	outputBuilder.WriteString("=== Language recovery (" + string(kind) + ") ===\n")
+
+	// Step 1: stop scenario so the recovery does not race a live process.
+	outputBuilder.WriteString("=== Stopping scenario ===\n")
+	stopOutput, _ := c.executor.CombinedOutput(ctx, "vrooli", "scenario", "stop", c.scenarioName)
+	outputBuilder.Write(stopOutput)
+	outputBuilder.WriteString("\n")
+
+	// Step 2: invoke the language strategy.
+	var (
+		strategyResult langrecover.Result
+		strategyErr    error
+	)
+	switch kind {
+	case langrecover.KindGo:
+		strategyResult, strategyErr = langrecover.RecoverGo(ctx, langrecover.DefaultRunner, scenarioDir, decision.GoSig)
+	case langrecover.KindPnpm:
+		strategyResult, strategyErr = langrecover.RecoverPnpm(ctx, langrecover.DefaultRunner, scenarioDir, decision.PnpmSig)
+	}
+	if strategyErr != nil {
+		result.Duration = time.Since(start)
+		result.Success = false
+		result.Error = strategyErr.Error()
+		result.Message = "Recovery strategy setup failed for " + c.scenarioName
+		outputBuilder.WriteString("\n=== Strategy setup error ===\n")
+		outputBuilder.WriteString(strategyErr.Error())
+		result.Output = outputBuilder.String()
+		return result
+	}
+
+	outputBuilder.WriteString("=== " + strategyResult.Command + " (in " + strategyResult.WorkingDir + ") ===\n")
+	outputBuilder.WriteString(strategyResult.Output)
+	outputBuilder.WriteString("\n")
+	outputBuilder.WriteString("=== Modified tracked files: ")
+	if strategyResult.ModifiedTrackedFiles {
+		outputBuilder.WriteString("yes ===\n")
+		for _, p := range strategyResult.ModifiedPaths {
+			outputBuilder.WriteString("  - ")
+			outputBuilder.WriteString(p)
+			outputBuilder.WriteString("\n")
+		}
+	} else {
+		outputBuilder.WriteString("no ===\n")
+	}
+
+	if strategyResult.Err != nil {
+		result.Duration = time.Since(start)
+		result.Success = false
+		result.Error = strategyResult.Err.Error()
+		result.Message = "Language recovery command failed for " + c.scenarioName
+		result.Output = outputBuilder.String()
+		return result
+	}
+
+	// Step 3: restart with --best-effort.
+	outputBuilder.WriteString("=== Starting scenario ===\n")
+	startOutput, err := c.executor.CombinedOutput(ctx, "vrooli", "scenario", "start", c.scenarioName, "--best-effort")
+	outputBuilder.Write(startOutput)
+	result.Output = outputBuilder.String()
+	if err != nil {
+		result.Duration = time.Since(start)
+		result.Success = false
+		result.Error = err.Error()
+		result.Message = "Restart failed after " + string(kind) + " recovery for " + c.scenarioName
+		return result
+	}
+
+	return c.verifyRecovery(ctx, result, actionID, start)
+}
+
+// recentFailureLog gathers a best-effort tail of the most recent failure
+// output for signature detection. Falls back to scenario status output if the
+// log fetch fails. Bounded to keep autoheal latency predictable.
+func (c *ScenarioCheck) recentFailureLog(ctx context.Context) string {
+	logsCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	defer cancel()
+	if out, err := c.executor.CombinedOutput(logsCtx, "vrooli", "scenario", "logs", c.scenarioName, "--tail", "200"); err == nil {
+		return string(out)
+	}
+	statusCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+	out, _ := c.executor.CombinedOutput(statusCtx, "vrooli", "scenario", "status", c.scenarioName, "--json")
+	return string(out)
+}
+
+func capRecoveryLog(value string) string {
+	const cap = 4000
+	if len(value) <= cap {
+		return value
+	}
+	return value[len(value)-cap:]
+}
+
+// Ensure ScenarioCheck implements HealableCheck
+var _ checks.HealableCheck = (*ScenarioCheck)(nil)

@@ -5,10 +5,12 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/gorilla/mux"
-	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api"
 	"swarm-manager/internal/agentmanager"
 	"swarm-manager/internal/testutil"
+
+	"github.com/gorilla/mux"
+	"github.com/vrooli/api-core/apihttptest"
+	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api"
 )
 
 func setupHandlerTest(t *testing.T, records []Record, raw *stubAgentService) (*mux.Router, *Service) {
@@ -24,9 +26,17 @@ func setupHandlerTest(t *testing.T, records []Record, raw *stubAgentService) (*m
 	return router, service
 }
 
+// [REQ:SWM-P1-007] unified per-item activity feed retrieval and filtering
 func TestHandlerList_FiltersAgentActivities(t *testing.T) {
 	t.Parallel()
 
+	raw := &stubAgentService{
+		enabled: true,
+		runStates: map[string]agentmanager.RunState{
+			"run-active": {RunID: "run-active", Status: "running"},
+			"run-other":  {RunID: "run-other", Status: "running"},
+		},
+	}
 	router, _ := setupHandlerTest(t, []Record{
 		{
 			ActivityID:      "act-match",
@@ -71,20 +81,13 @@ func TestHandlerList_FiltersAgentActivities(t *testing.T) {
 			UpdatedAt:       "2026-03-28T11:05:00Z",
 			FinishedAt:      "2026-03-28T11:05:00Z",
 		},
-	}, &stubAgentService{
-		enabled: true,
-		runStates: map[string]agentmanager.RunState{
-			"run-active": {RunID: "run-active", Status: "running"},
-			"run-other":  {RunID: "run-other", Status: "running"},
-		},
-	})
+	}, raw)
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/agent-activities?owner_type=backlog&owner_kind=execute&owner_name=task-a&execution_id=exec-1&purpose=process&status=running&run_id=run-active&active=true", nil)
 	rec := httptest.NewRecorder()
 
 	router.ServeHTTP(rec, req)
-
-	testutil.AssertStatusOK(t, rec)
+	apihttptest.AssertStatus(t, rec.Result(), 200)
 	if contentType := rec.Header().Get("Content-Type"); contentType != "application/json" {
 		t.Fatalf("expected content-type application/json, got %q", contentType)
 	}
@@ -99,6 +102,9 @@ func TestHandlerList_FiltersAgentActivities(t *testing.T) {
 	if got := resp.GetItems()[0].GetExecutionId(); got != "exec-1" {
 		t.Fatalf("expected execution exec-1, got %q", got)
 	}
+	if raw.runStateCalls != 0 {
+		t.Fatalf("list handler refreshed run state %d times, want snapshot-only read", raw.runStateCalls)
+	}
 }
 
 func TestHandlerList_RejectsInvalidActiveQuery(t *testing.T) {
@@ -110,8 +116,7 @@ func TestHandlerList_RejectsInvalidActiveQuery(t *testing.T) {
 	rec := httptest.NewRecorder()
 
 	router.ServeHTTP(rec, req)
-
-	testutil.AssertStatusBadRequest(t, rec)
+	apihttptest.AssertStatus(t, rec.Result(), 400)
 }
 
 func TestHandlerGet_ReturnsAgentActivity(t *testing.T) {
@@ -141,8 +146,7 @@ func TestHandlerGet_ReturnsAgentActivity(t *testing.T) {
 	rec := httptest.NewRecorder()
 
 	router.ServeHTTP(rec, req)
-
-	testutil.AssertStatusOK(t, rec)
+	apihttptest.AssertStatus(t, rec.Result(), 200)
 	resp := testutil.DecodeProtoJSON(t, rec, &apipb.AgentActivityResponse{})
 	if resp.GetActivity().GetActivityId() != "act-1" {
 		t.Fatalf("expected activity act-1, got %q", resp.GetActivity().GetActivityId())
@@ -164,6 +168,5 @@ func TestHandlerGet_NotFound(t *testing.T) {
 	rec := httptest.NewRecorder()
 
 	router.ServeHTTP(rec, req)
-
-	testutil.AssertStatusNotFound(t, rec)
+	apihttptest.AssertStatus(t, rec.Result(), 404)
 }

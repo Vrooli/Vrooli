@@ -1,0 +1,579 @@
+package handlers
+
+import (
+	"bytes"
+	"context"
+	"encoding/json"
+	"net/http"
+	"net/http/httptest"
+	"strings"
+	"testing"
+
+	"agent-manager/internal/adapters/event"
+	"agent-manager/internal/adapters/runner"
+	"agent-manager/internal/domain"
+	"agent-manager/internal/identity"
+	"agent-manager/internal/orchestration"
+
+	"github.com/google/uuid"
+	"github.com/vrooli/cli-core/cliutil"
+
+	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/api"
+	pb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
+	eventpb "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-events/v1/domain"
+)
+
+type createIdentityCapture struct {
+	orchestration.RunService
+	request orchestration.CreateRunRequest
+}
+
+func (s *createIdentityCapture) CreateRun(_ context.Context, req orchestration.CreateRunRequest) (*domain.Run, error) {
+	s.request = req
+	return nil, domain.NewValidationError("test_capture", "request reached owner")
+}
+
+func TestCreateRunPreservesExplicitIdentityNarrowing(t *testing.T) {
+	for _, narrowing := range []string{`{"scopes":[],"expectedOwnerSubject":"owner-a"}`, `{"scopes":["agent-manager:supervise"],"expectedOwnerSubject":"owner-a"}`} {
+		capture := &createIdentityCapture{}
+		h := New(orchestration.HandlerServices{RunService: capture})
+		body := `{"taskId":"` + uuid.NewString() + `","requestedScopes":` + narrowing + `}`
+		req := httptest.NewRequest(http.MethodPost, "/api/v1/runs", strings.NewReader(body))
+		req.Header.Set("Authorization", "Bearer private-owner-bearer")
+		response := httptest.NewRecorder()
+		h.CreateRun(response, req)
+		if capture.request.OwnerToken != "private-owner-bearer" || capture.request.ExpectedOwnerSubject != "owner-a" || capture.request.RequestedScopes == nil {
+			t.Fatal("transport dropped owner credential or explicit narrowing", response.Body.String())
+		}
+		if strings.Contains(response.Body.String(), "private-owner-bearer") {
+			t.Fatal("credential leaked into response")
+		}
+	}
+}
+
+func TestCreateRunPreservesWorkloadInstanceFromEnvironment(t *testing.T) {
+	capture := &createIdentityCapture{}
+	h := New(orchestration.HandlerServices{RunService: capture})
+	body := `{"taskId":"` + uuid.NewString() + `","environment":{"VROOLI_WORKLOAD_KIND":"scheduled","VROOLI_WORKLOAD_KEY":"effort:test","VROOLI_WORKLOAD_INSTANCE":"attempt-1"}}`
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/runs", strings.NewReader(body))
+	req.Header.Set("Authorization", "Bearer private-owner-bearer")
+	response := httptest.NewRecorder()
+	h.CreateRun(response, req)
+	if capture.request.WorkloadKind != domain.WorkloadKindScheduled || capture.request.WorkloadKey != "effort:test" || capture.request.WorkloadInstance != "attempt-1" {
+		t.Fatalf("workload identity was not preserved: %+v body=%s", capture.request, response.Body.String())
+	}
+}
+
+func TestCreateRunAllowsOnlyVerifiedParentLinkedChildren(t *testing.T) {
+	parentID := uuid.New()
+	capture := &createIdentityCapture{}
+	h := New(orchestration.HandlerServices{
+		RunService: capture,
+		IdentityService: guardIdentityService{result: &orchestration.IdentityVerifyResult{
+			Valid:  true,
+			Claims: &identity.Claims{RunID: parentID},
+		}},
+	})
+	body := `{"taskId":"` + uuid.NewString() + `","parentRunId":"` + parentID.String() + `"}`
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/runs", strings.NewReader(body))
+	req.Header.Set(cliutil.HeaderAgentIdentityToken, "parent-token")
+	response := httptest.NewRecorder()
+	h.CreateRun(response, req)
+	if capture.request.ParentRunID == nil || *capture.request.ParentRunID != parentID {
+		t.Fatalf("parent run identity was not preserved: %+v body=%s", capture.request, response.Body.String())
+	}
+
+	denied := &createIdentityCapture{}
+	h = New(orchestration.HandlerServices{
+		RunService: denied,
+		IdentityService: guardIdentityService{result: &orchestration.IdentityVerifyResult{
+			Valid:  true,
+			Claims: &identity.Claims{RunID: parentID},
+		}},
+	})
+	req = httptest.NewRequest(http.MethodPost, "/api/v1/runs", strings.NewReader(`{"taskId":"`+uuid.NewString()+`"}`))
+	req.Header.Set(cliutil.HeaderAgentIdentityToken, "parent-token")
+	response = httptest.NewRecorder()
+	h.CreateRun(response, req)
+	if response.Code != http.StatusForbidden {
+		t.Fatalf("unlinked child status = %d, want %d", response.Code, http.StatusForbidden)
+	}
+	if !strings.Contains(response.Body.String(), "set parent_run_id (CLI: --parent-run-id)") {
+		t.Fatalf("missing-parent refusal lacks exact-parent guidance: %s", response.Body.String())
+	}
+	if denied.request.TaskID != uuid.Nil {
+		t.Fatal("unlinked run reached the owner")
+	}
+
+	mismatched := &createIdentityCapture{}
+	h = New(orchestration.HandlerServices{
+		RunService: mismatched,
+		IdentityService: guardIdentityService{result: &orchestration.IdentityVerifyResult{
+			Valid:  true,
+			Claims: &identity.Claims{RunID: parentID},
+		}},
+	})
+	req = httptest.NewRequest(http.MethodPost, "/api/v1/runs", strings.NewReader(`{"taskId":"`+uuid.NewString()+`","parentRunId":"`+uuid.NewString()+`"}`))
+	req.Header.Set(cliutil.HeaderAgentIdentityToken, "parent-token")
+	response = httptest.NewRecorder()
+	h.CreateRun(response, req)
+	if response.Code != http.StatusForbidden {
+		t.Fatalf("mismatched parent status = %d, want %d", response.Code, http.StatusForbidden)
+	}
+	if !strings.Contains(response.Body.String(), "parent_run_id (CLI: --parent-run-id) must match the authenticated caller run ID") {
+		t.Fatalf("mismatched-parent refusal is not specific: %s", response.Body.String())
+	}
+	if mismatched.request.TaskID != uuid.Nil {
+		t.Fatal("mismatched child reached the owner")
+	}
+}
+
+func TestCreateRun_Success(t *testing.T) {
+	_, router := setupTestHandler(t)
+
+	// First create a profile
+	body := encodeProtoJSON(t, &apipb.CreateProfileRequest{
+		Profile: &pb.AgentProfile{
+			Name:       "runner-profile",
+			ProfileKey: "runner-profile-key", RoleRef: "code.default",
+		},
+	})
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/profiles", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	rr := httptest.NewRecorder()
+	router.ServeHTTP(rr, req)
+
+	var createdProfileResp apipb.CreateProfileResponse
+	decodeProtoJSON(t, rr.Body.Bytes(), &createdProfileResp)
+	createdProfile := createdProfileResp.Profile
+
+	// Create a task
+	body = encodeProtoJSON(t, &apipb.CreateTaskRequest{
+		Task: &pb.Task{
+			Title:       "Test task for run",
+			Description: "Run the handler test task.",
+			ScopePath:   "src/",
+		},
+	})
+	req = httptest.NewRequest(http.MethodPost, "/api/v1/tasks", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	rr = httptest.NewRecorder()
+	router.ServeHTTP(rr, req)
+
+	var createdTaskResp apipb.CreateTaskResponse
+	decodeProtoJSON(t, rr.Body.Bytes(), &createdTaskResp)
+	createdTask := createdTaskResp.Task
+
+	// Create a run
+	agentProfileID := createdProfile.Id
+	body = encodeProtoJSON(t, &apipb.CreateRunRequest{
+		TaskId:         createdTask.Id,
+		AgentProfileId: &agentProfileID,
+		WorkReferences: []*eventpb.WorkReference{{Kind: "effort", Id: "effort:arbitrary", Revision: "target", Relationship: "supervisor", Verified: true, Visibility: eventpb.WorkReferenceVisibility_WORK_REFERENCE_VISIBILITY_PUBLIC, State: eventpb.WorkReferenceState_WORK_REFERENCE_STATE_ACTIVE}},
+		InlineConfig: &pb.RunConfigOverrides{ResultSpec: &pb.ResultSpec{
+			Version: "result-spec/v1", Kind: pb.ResultSpecKind_RESULT_SPEC_KIND_CLASSIFICATION,
+			ClassificationValues: []string{"complete", "blocked"},
+		}, Model: func() *string { model := "model-override"; return &model }()},
+	})
+	req = authenticatedRunTestRequest(bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	rr = httptest.NewRecorder()
+	router.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusCreated {
+		t.Errorf("expected status %d, got %d: %s", http.StatusCreated, rr.Code, rr.Body.String())
+	}
+
+	var createdRunResp apipb.CreateRunResponse
+	decodeProtoJSON(t, rr.Body.Bytes(), &createdRunResp)
+	createdRun := createdRunResp.Run
+	if len(createdRun.GetWorkReferences()) != 1 || createdRun.WorkReferences[0].GetId() != "effort:arbitrary" || createdRun.WorkReferences[0].GetRelationship() != "supervisor" {
+		t.Fatal("run creation lost attributable effort membership")
+	}
+
+	if createdRun.GetTaskId() != createdTask.Id {
+		t.Errorf("expected task ID %s, got %s", createdTask.Id, createdRun.GetTaskId())
+	}
+	if createdRun.AgentProfileId == nil || *createdRun.AgentProfileId != createdProfile.Id {
+		t.Errorf("expected profile ID %s, got %v", createdProfile.Id, createdRun.AgentProfileId)
+	}
+	if createdRun.ResolvedConfig == nil || createdRun.ResolvedConfig.ResultSpec == nil || createdRun.ResolvedConfig.ResultSpec.SchemaDigest == "" {
+		t.Fatalf("expected normalized result spec in create response, got %+v", createdRun.ResolvedConfig)
+	}
+	if len(createdRun.ResolvedConfig.ResultSpec.ClassificationValues) != 0 || len(createdRun.ResolvedConfig.ResultSpec.Schema) == 0 {
+		t.Fatalf("result spec was not canonicalized: %+v", createdRun.ResolvedConfig.ResultSpec)
+	}
+	if got := createdRun.GetResolvedConfig().GetModel(); got != "model-override" {
+		t.Fatalf("expected inline model override to be resolved, got %q", got)
+	}
+}
+
+func TestCreateRunReplayConflictUsesTypedOwnerStatus(t *testing.T) {
+	_, router, repos, _ := setupTestHandlerWithRunnerAndRepos(t, runner.NewMockRunner(domain.RunnerTypeClaudeCode))
+	profileBody := encodeProtoJSON(t, &apipb.CreateProfileRequest{Profile: &pb.AgentProfile{
+		Name: "replay-conflict-profile", ProfileKey: "replay-conflict-profile", RoleRef: "code.default",
+	}})
+	profileResponse := httptest.NewRecorder()
+	router.ServeHTTP(profileResponse, httptest.NewRequest(http.MethodPost, "/api/v1/profiles", bytes.NewReader(profileBody)))
+	if profileResponse.Code != http.StatusCreated {
+		t.Fatalf("create profile status=%d body=%s", profileResponse.Code, profileResponse.Body.String())
+	}
+	var profileResult apipb.CreateProfileResponse
+	decodeProtoJSON(t, profileResponse.Body.Bytes(), &profileResult)
+
+	taskBody := encodeProtoJSON(t, &apipb.CreateTaskRequest{Task: &pb.Task{Title: "replay conflict task", ScopePath: "src/"}})
+	taskResponse := httptest.NewRecorder()
+	router.ServeHTTP(taskResponse, httptest.NewRequest(http.MethodPost, "/api/v1/tasks", bytes.NewReader(taskBody)))
+	if taskResponse.Code != http.StatusCreated {
+		t.Fatalf("create task status=%d body=%s", taskResponse.Code, taskResponse.Body.String())
+	}
+	var taskResult apipb.CreateTaskResponse
+	decodeProtoJSON(t, taskResponse.Body.Bytes(), &taskResult)
+
+	key := "typed-replay-conflict-" + uuid.NewString()
+	profileID := profileResult.Profile.Id
+	create := func(prompt string) *httptest.ResponseRecorder {
+		t.Helper()
+		idempotencyKey := key
+		body := encodeProtoJSON(t, &apipb.CreateRunRequest{
+			TaskId: taskResult.Task.Id, AgentProfileId: &profileID,
+			IdempotencyKey: &idempotencyKey, Prompt: &prompt,
+		})
+		response := httptest.NewRecorder()
+		router.ServeHTTP(response, authenticatedRunTestRequest(bytes.NewReader(body)))
+		return response
+	}
+
+	first := create("original request")
+	if first.Code != http.StatusCreated {
+		t.Fatalf("first run status=%d body=%s", first.Code, first.Body.String())
+	}
+	var firstResult apipb.CreateRunResponse
+	decodeProtoJSON(t, first.Body.Bytes(), &firstResult)
+	if firstResult.Run == nil {
+		t.Fatal("first create did not return its run")
+	}
+
+	conflict := create("changed request")
+	if conflict.Code != http.StatusConflict {
+		t.Fatalf("replay status=%d body=%s; want typed conflict", conflict.Code, conflict.Body.String())
+	}
+	var errorBody struct {
+		Code string `json:"code"`
+	}
+	if err := json.Unmarshal(conflict.Body.Bytes(), &errorBody); err != nil || errorBody.Code != string(domain.ErrCodeStateIdempotencyReplayConflict) {
+		t.Fatalf("replay error code=%q err=%v body=%s", errorBody.Code, err, conflict.Body.String())
+	}
+	stored, err := repos.Runs.GetByIdempotencyKey(t.Context(), key)
+	if err != nil || stored == nil || stored.ID.String() != firstResult.Run.Id {
+		t.Fatalf("original accepted run changed: stored=%+v err=%v", stored, err)
+	}
+}
+
+func TestPartialApproveRunRejectsInvalidRequestsBeforeCallingService(t *testing.T) {
+	_, router := setupTestHandler(t)
+	runID := uuid.New()
+	otherRunID := uuid.New()
+	fileID := uuid.New()
+
+	tests := []struct {
+		name string
+		path string
+		body []byte
+	}{
+		{
+			name: "invalid URL run ID",
+			path: "/api/v1/runs/not-a-uuid/partial-approve",
+			body: encodeProtoJSON(t, &apipb.PartialApproveRunRequest{FileIds: []string{fileID.String()}}),
+		},
+		{
+			name: "malformed JSON",
+			path: "/api/v1/runs/" + runID.String() + "/partial-approve",
+			body: []byte(`{`),
+		},
+		{
+			name: "mismatched run ID",
+			path: "/api/v1/runs/" + runID.String() + "/partial-approve",
+			body: encodeProtoJSON(t, &apipb.PartialApproveRunRequest{RunId: otherRunID.String(), FileIds: []string{fileID.String()}}),
+		},
+		{
+			name: "no selected files",
+			path: "/api/v1/runs/" + runID.String() + "/partial-approve",
+			body: encodeProtoJSON(t, &apipb.PartialApproveRunRequest{RunId: runID.String()}),
+		},
+		{
+			name: "invalid file ID",
+			path: "/api/v1/runs/" + runID.String() + "/partial-approve",
+			body: encodeProtoJSON(t, &apipb.PartialApproveRunRequest{RunId: runID.String(), FileIds: []string{"not-a-uuid"}}),
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			rr := httptest.NewRecorder()
+			router.ServeHTTP(rr, httptest.NewRequest(http.MethodPost, tt.path, bytes.NewReader(tt.body)))
+			if rr.Code != http.StatusBadRequest {
+				t.Fatalf("status=%d body=%s", rr.Code, rr.Body.String())
+			}
+		})
+	}
+}
+
+func TestSyncRunFromSandboxRejectsInvalidRequestsBeforeCallingService(t *testing.T) {
+	_, router := setupTestHandler(t)
+	runID := uuid.New()
+	otherRunID := uuid.New()
+
+	tests := []struct {
+		name string
+		path string
+		body string
+	}{
+		{name: "invalid URL run ID", path: "/api/v1/runs/not-a-uuid/sandbox-sync", body: `{"status":"approved"}`},
+		{name: "malformed JSON", path: "/api/v1/runs/" + runID.String() + "/sandbox-sync", body: `{`},
+		{name: "mismatched run ID", path: "/api/v1/runs/" + runID.String() + "/sandbox-sync", body: `{"runId":"` + otherRunID.String() + `","status":"approved"}`},
+		{name: "missing status", path: "/api/v1/runs/" + runID.String() + "/sandbox-sync", body: `{}`},
+		{name: "invalid sandbox ID", path: "/api/v1/runs/" + runID.String() + "/sandbox-sync", body: `{"status":"approved","sandboxId":"not-a-uuid"}`},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			rr := httptest.NewRecorder()
+			router.ServeHTTP(rr, httptest.NewRequest(http.MethodPost, tt.path, strings.NewReader(tt.body)))
+			if rr.Code != http.StatusBadRequest {
+				t.Fatalf("status=%d body=%s", rr.Code, rr.Body.String())
+			}
+		})
+	}
+}
+
+func TestSyncRunFromSandboxUpdatesApprovalState(t *testing.T) {
+	_, router, repos, _ := setupTestHandlerWithRunnerAndRepos(t, runner.NewMockRunner(domain.RunnerTypeClaudeCode))
+	// Approval events concern a retained candidate, not a concurrently starting
+	// executor. Seed the real repository so this HTTP contract cannot race the
+	// worker's lifecycle-version writes or pass by winning that race.
+	task := &domain.Task{ID: uuid.New(), Title: "sandbox review", ScopePath: ".", Status: domain.TaskStatusQueued}
+	if err := repos.Tasks.Create(t.Context(), task); err != nil {
+		t.Fatal(err)
+	}
+	newReviewRun := func() string {
+		t.Helper()
+		sandboxID := uuid.New()
+		run := &domain.Run{
+			ID: uuid.New(), TaskID: task.ID, SandboxID: &sandboxID,
+			Status: domain.RunStatusNeedsReview, Phase: domain.RunPhaseAwaitingReview,
+			ApprovalState: domain.ApprovalStatePending,
+		}
+		if err := repos.Runs.Create(t.Context(), run); err != nil {
+			t.Fatal(err)
+		}
+		return run.ID.String()
+	}
+
+	t.Run("fully approved", func(t *testing.T) {
+		runID := newReviewRun()
+		rr := httptest.NewRecorder()
+		body := `{"runId":"` + runID + `","status":"approved","actor":"reviewer"}`
+		router.ServeHTTP(rr, httptest.NewRequest(http.MethodPost, "/api/v1/runs/"+runID+"/sandbox-sync", strings.NewReader(body)))
+		if rr.Code != http.StatusOK {
+			t.Fatalf("status=%d body=%s", rr.Code, rr.Body.String())
+		}
+		var response map[string]string
+		if err := json.Unmarshal(rr.Body.Bytes(), &response); err != nil {
+			t.Fatalf("decode response: %v", err)
+		}
+		if response["status"] != "synced" || response["runStatus"] != string(domain.RunStatusComplete) || response["approvalState"] != string(domain.ApprovalStateApproved) {
+			t.Fatalf("unexpected response=%v", response)
+		}
+	})
+
+	t.Run("partially approved", func(t *testing.T) {
+		runID := newReviewRun()
+		rr := httptest.NewRecorder()
+		body := `{"status":"approved","isPartial":true}`
+		router.ServeHTTP(rr, httptest.NewRequest(http.MethodPost, "/api/v1/runs/"+runID+"/sandbox-sync", strings.NewReader(body)))
+		if rr.Code != http.StatusOK {
+			t.Fatalf("status=%d body=%s", rr.Code, rr.Body.String())
+		}
+		var response map[string]string
+		if err := json.Unmarshal(rr.Body.Bytes(), &response); err != nil {
+			t.Fatalf("decode response: %v", err)
+		}
+		if response["approvalState"] != string(domain.ApprovalStatePartiallyApproved) {
+			t.Fatalf("unexpected response=%v", response)
+		}
+	})
+
+	t.Run("unsupported status", func(t *testing.T) {
+		runID := newReviewRun()
+		rr := httptest.NewRecorder()
+		router.ServeHTTP(rr, httptest.NewRequest(http.MethodPost, "/api/v1/runs/"+runID+"/sandbox-sync", strings.NewReader(`{"status":"unknown"}`)))
+		if rr.Code != http.StatusBadRequest {
+			t.Fatalf("status=%d body=%s", rr.Code, rr.Body.String())
+		}
+	})
+}
+
+func TestDeleteRunMessageDeletesFirstMessageThroughHTTPContract(t *testing.T) {
+	_, router, repos, eventStore := setupTestHandlerWithRunnerAndRepos(t, runner.NewMockRunner(domain.RunnerTypeClaudeCode))
+	ctx := context.Background()
+	task := &domain.Task{ID: uuid.New(), Title: "message delete", ScopePath: ".", Status: domain.TaskStatusQueued}
+	if err := repos.Tasks.Create(ctx, task); err != nil {
+		t.Fatal(err)
+	}
+	run := &domain.Run{ID: uuid.New(), TaskID: task.ID, Status: domain.RunStatusComplete, Phase: domain.RunPhaseCompleted}
+	if err := repos.Runs.Create(ctx, run); err != nil {
+		t.Fatal(err)
+	}
+	message := domain.NewMessageEvent(run.ID, "assistant", "first durable message")
+	if err := eventStore.Append(ctx, run.ID, message); err != nil {
+		t.Fatal(err)
+	}
+
+	rr := httptest.NewRecorder()
+	path := "/api/v1/runs/" + run.ID.String() + "/messages/" + message.ID.String() + "/delete"
+	router.ServeHTTP(rr, httptest.NewRequest(http.MethodPost, path, nil))
+	if rr.Code != http.StatusOK {
+		t.Fatalf("delete message status=%d body=%s", rr.Code, rr.Body.String())
+	}
+	var response pb.DeleteRunMessageResponse
+	decodeProtoJSON(t, rr.Body.Bytes(), &response)
+	if !response.GetSuccess() {
+		t.Fatalf("delete response=%+v", &response)
+	}
+	events, err := eventStore.Get(ctx, run.ID, event.GetOptions{AfterSequence: -1})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(events) != 2 || events[1].EventType != domain.EventTypeMessageDeleted {
+		t.Fatalf("events=%+v", events)
+	}
+
+	for _, badPath := range []string{
+		"/api/v1/runs/not-a-uuid/messages/" + message.ID.String() + "/delete",
+		"/api/v1/runs/" + run.ID.String() + "/messages/not-a-uuid/delete",
+	} {
+		invalid := httptest.NewRecorder()
+		router.ServeHTTP(invalid, httptest.NewRequest(http.MethodPost, badPath, nil))
+		if invalid.Code != http.StatusBadRequest {
+			t.Fatalf("%s status=%d body=%s", badPath, invalid.Code, invalid.Body.String())
+		}
+	}
+}
+
+func TestDeletePendingRunIsRejectedWithLifecycleGuidance(t *testing.T) {
+	_, router, repos, _ := setupTestHandlerWithRunnerAndRepos(t, runner.NewMockRunner(domain.RunnerTypeClaudeCode))
+	ctx := context.Background()
+	task := &domain.Task{ID: uuid.New(), Title: "delete pending run", ScopePath: ".", Status: domain.TaskStatusQueued}
+	if err := repos.Tasks.Create(ctx, task); err != nil {
+		t.Fatal(err)
+	}
+	// Seed the required lifecycle state without starting an unrelated executor.
+	run := &domain.Run{ID: uuid.New(), TaskID: task.ID, Status: domain.RunStatusPending, Phase: domain.RunPhaseQueued}
+	if err := repos.Runs.Create(ctx, run); err != nil {
+		t.Fatal(err)
+	}
+	deleteRR := httptest.NewRecorder()
+	router.ServeHTTP(deleteRR, httptest.NewRequest(http.MethodDelete, "/api/v1/runs/"+run.ID.String(), nil))
+	if deleteRR.Code != http.StatusConflict || !strings.Contains(deleteRR.Body.String(), "only terminal runs can be deleted") {
+		t.Fatalf("delete pending status=%d body=%s", deleteRR.Code, deleteRR.Body.String())
+	}
+	retained, err := repos.Runs.Get(ctx, run.ID)
+	if err != nil || retained == nil || retained.Status != domain.RunStatusPending {
+		t.Fatalf("rejected deletion changed pending run: run=%+v error=%v", retained, err)
+	}
+}
+
+func TestCreateRun_InvalidNestedEnumIncludesParseDetail(t *testing.T) {
+	_, router := setupTestHandler(t)
+
+	body := []byte(`{
+		"task_id":"11111111-1111-1111-1111-111111111111",
+		"profile_ref":{
+			"profile_key":"probe",
+			"defaults":{
+				"name":"Probe",
+				"profile_key":"probe",
+				"role_ref":"code.default",
+				"sandbox_config":{"mode":"off"}
+			}
+		}
+	}`)
+	req := authenticatedRunTestRequest(bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	rr := httptest.NewRecorder()
+	router.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusBadRequest {
+		t.Fatalf("expected status %d, got %d: %s", http.StatusBadRequest, rr.Code, rr.Body.String())
+	}
+	if !strings.Contains(rr.Body.String(), "enum field mode") || !strings.Contains(rr.Body.String(), "off") {
+		t.Fatalf("expected parse detail to identify nested enum value, got: %s", rr.Body.String())
+	}
+}
+
+// TestListRuns tests listing runs.
+// [REQ:REQ-P0-004] Test run listing
+func TestListRuns(t *testing.T) {
+	_, router := setupTestHandler(t)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/runs", nil)
+	rr := httptest.NewRecorder()
+	router.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Errorf("expected status %d, got %d", http.StatusOK, rr.Code)
+	}
+}
+
+// TestGetRunnerStatus tests the runner status endpoint.
+// [REQ:REQ-P0-006] Test runner status
+func TestGetRunnerStatus(t *testing.T) {
+	_, router := setupTestHandler(t)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/runners", nil)
+	rr := httptest.NewRecorder()
+	router.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Errorf("expected status %d, got %d", http.StatusOK, rr.Code)
+	}
+
+	var response apipb.GetRunnerStatusResponse
+	decodeProtoJSON(t, rr.Body.Bytes(), &response)
+
+	// Should have at least one runner (the mock)
+	if len(response.Runners) == 0 {
+		t.Error("expected at least one runner status")
+	}
+}
+
+// =============================================================================
+// REQUEST ID MIDDLEWARE TESTS
+// =============================================================================
+
+// TestRequestIDMiddleware tests that request IDs are properly assigned.
+
+// AUTH-01: a body-named parent and a previous denial cannot establish caller
+// authority. A nil service is deliberate: any service call on rejection panics.
+func TestCreateRunRefusesMissingCallerBeforeServiceEffects(t *testing.T) {
+	for _, header := range []string{"", " ", "\t"} {
+		t.Run("absent-or-blank-"+header, func(t *testing.T) {
+			h := New(orchestration.HandlerServices{})
+			for _, body := range []string{
+				`{"taskId":"` + uuid.NewString() + `"}`,
+				`{"taskId":"` + uuid.NewString() + `","parentRunId":"` + uuid.NewString() + `","idempotencyKey":"prior-denial"}`,
+				`{`,
+			} {
+				req := httptest.NewRequest(http.MethodPost, "/api/v1/runs", strings.NewReader(body))
+				req.Header.Set(cliutil.HeaderAgentIdentityToken, header)
+				req.Header.Set("Authorization", header)
+				response := httptest.NewRecorder()
+				h.CreateRun(response, req)
+				if response.Code != http.StatusUnauthorized {
+					t.Fatalf("missing caller status=%d body=%s", response.Code, response.Body.String())
+				}
+			}
+		})
+	}
+}

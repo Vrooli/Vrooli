@@ -2,19 +2,61 @@ package livedesktop
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"log/slog"
 	"os"
 	"os/exec"
+	"path/filepath"
+	"strings"
 	"sync"
 	"testing"
 	"time"
 
+	"scenario-to-desktop-api/procmetrics"
+	"scenario-to-desktop-api/target"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-
-	"scenario-to-desktop-api/procmetrics"
 )
+
+type testProcess struct {
+	mu       sync.Mutex
+	waitOnce sync.Once
+	cmd      *exec.Cmd
+}
+
+func (p *testProcess) PID() int {
+	if p != nil && p.cmd != nil && p.cmd.Process != nil {
+		return p.cmd.Process.Pid
+	}
+	return 0
+}
+
+func (p *testProcess) IsRunning() bool {
+	if p == nil {
+		return false
+	}
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	return p.cmd != nil && p.cmd.ProcessState == nil && p.cmd.Process != nil
+}
+
+func (p *testProcess) killAndWait() {
+	if p == nil {
+		return
+	}
+	p.waitOnce.Do(func() {
+		p.mu.Lock()
+		defer p.mu.Unlock()
+		if p.cmd == nil || p.cmd.Process == nil {
+			return
+		}
+		_ = p.cmd.Process.Kill()
+		_ = p.cmd.Wait()
+	})
+}
 
 // --- Mock PlatformBackend ---
 
@@ -77,17 +119,16 @@ func (b *mockPlatformBackend) LaunchApp(ctx context.Context, display PlatformDis
 	if err := cmd.Start(); err != nil {
 		return nil, err
 	}
-	return &linuxProcess{cmd: cmd}, nil
+	return &testProcess{cmd: cmd}, nil
 }
 
 func (b *mockPlatformBackend) KillApp(proc PlatformProcess) {
 	b.mu.Lock()
 	b.killCalled = true
 	b.mu.Unlock()
-	lp, ok := proc.(*linuxProcess)
-	if ok && lp != nil && lp.cmd != nil && lp.cmd.Process != nil {
-		_ = lp.cmd.Process.Kill()
-		_ = lp.cmd.Wait()
+	lp, ok := proc.(*testProcess)
+	if ok {
+		lp.killAndWait()
 	}
 }
 
@@ -138,6 +179,56 @@ func newTestService(store Store, backend PlatformBackend) *Service {
 	return NewService(store, backend, newTestLogger(), "")
 }
 
+func TestFindArtifactByDigestSearchesStaging(t *testing.T) {
+	root := t.TempDir()
+	stagingRoot := filepath.Join(root, "cache", "staging")
+	artifact := filepath.Join(stagingRoot, "demo", "pipeline-1", "platforms", "electron", "dist-electron", "Demo.AppImage")
+	require.NoError(t, os.MkdirAll(filepath.Dir(artifact), 0o755))
+	payload := []byte("exact validation artifact")
+	require.NoError(t, os.WriteFile(artifact, payload, 0o755))
+	digest := sha256.Sum256(payload)
+
+	service := NewService(NewInMemoryStore(), newMockBackend(), newTestLogger(), root)
+	service.WithArtifactStagingRoot(stagingRoot)
+	resolved, err := service.FindArtifactByDigest("demo", "sha256:"+hex.EncodeToString(digest[:]))
+
+	require.NoError(t, err)
+	assert.Equal(t, artifact, resolved)
+
+	_, err = service.FindArtifactByDigest("demo", "sha256:"+strings.Repeat("0", 64))
+	assert.Error(t, err)
+}
+
+func TestBundledElectronValidationSkipsScenarioPortResolvers(t *testing.T) {
+	service := newTestService(NewInMemoryStore(), newMockBackend())
+	session, err := service.StartSession(context.Background(), SessionConfig{Width: 640, Height: 480, ScenarioName: "bundled-demo"})
+	require.NoError(t, err)
+	apiCalls, rendererCalls := 0, 0
+	service.WithValidationAPIPortResolver(func(context.Context, string) (int, error) {
+		apiCalls++
+		return 0, fmt.Errorf("must not resolve scenario API port")
+	})
+	service.WithRendererURLResolver(func(context.Context, string) (string, error) {
+		rendererCalls++
+		return "", fmt.Errorf("must not resolve scenario renderer")
+	})
+	_, err = service.LaunchElectronValidation(context.Background(), session.ID, "/missing/app", target.ElectronLaunchOptions{
+		ContextID: "ctx", ScenarioName: "bundled-demo", ArtifactDigest: "sha256:artifact", TargetID: "target",
+		JourneyID: "journey", ProfileID: "profile", IsolationLeaseID: "lease", BundledRuntime: true,
+	}, target.RendererExpectation{URLPrefix: "http://127.0.0.1:0"})
+	require.Error(t, err) // The nonexistent artifact is rejected after routing selection.
+	require.Zero(t, apiCalls)
+	require.Zero(t, rendererCalls)
+}
+
+func TestValidationRuntimeOverridesPreserveLegacyAndOmitBundledEndpoints(t *testing.T) {
+	renderer := target.RendererExpectation{URLPrefix: "http://127.0.0.1:41235/projects"}
+	legacy := validationRuntimeOverrides(false, 19349, renderer)
+	require.Equal(t, "http://127.0.0.1:19349", legacy["VROOLI_VALIDATION_API_URL"])
+	require.Equal(t, renderer.URLPrefix, legacy["VROOLI_VALIDATION_RENDERER_URL"])
+	require.Empty(t, validationRuntimeOverrides(true, 19349, renderer))
+}
+
 // --- Tests ---
 
 func TestStartSession_Success(t *testing.T) {
@@ -159,6 +250,19 @@ func TestStartSession_Success(t *testing.T) {
 	assert.Equal(t, 5900, session.VNCPort)
 	assert.Equal(t, 6080, session.WSPort)
 	assert.Equal(t, "linux", session.Platform)
+}
+
+func TestStartSession_RejectsCancelledContext(t *testing.T) {
+	store := NewInMemoryStore()
+	svc := newTestService(store, newMockBackend())
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	session, err := svc.StartSession(ctx, SessionConfig{ScenarioName: "test"})
+
+	require.ErrorIs(t, err, context.Canceled)
+	assert.Nil(t, session)
+	assert.Empty(t, store.List())
 }
 
 func TestStartSession_ExplicitLinuxPlatform(t *testing.T) {
@@ -310,7 +414,7 @@ func TestStopSession_KillsAppProcess(t *testing.T) {
 	cmd := exec.Command("sleep", "3600")
 	require.NoError(t, cmd.Start())
 	session.mu.Lock()
-	session.AppProcess = &linuxProcess{cmd: cmd}
+	session.AppProcess = &testProcess{cmd: cmd}
 	session.AppRunning = true
 	session.mu.Unlock()
 
@@ -335,7 +439,7 @@ func TestLaunchApp_KillsPreviousApp(t *testing.T) {
 	oldCmd := exec.Command("sleep", "3600")
 	require.NoError(t, oldCmd.Start())
 	session.mu.Lock()
-	session.AppProcess = &linuxProcess{cmd: oldCmd}
+	session.AppProcess = &testProcess{cmd: oldCmd}
 	session.AppRunning = true
 	session.mu.Unlock()
 
@@ -508,7 +612,7 @@ func TestKillApp_StopsMonitor(t *testing.T) {
 	cmd := exec.Command("sleep", "3600")
 	require.NoError(t, cmd.Start())
 	session.mu.Lock()
-	session.AppProcess = &linuxProcess{cmd: cmd}
+	session.AppProcess = &testProcess{cmd: cmd}
 	session.AppRunning = true
 	session.mu.Unlock()
 
@@ -575,4 +679,11 @@ func TestLaunchApp_NoMonitorFactory_NoError(t *testing.T) {
 	assert.Nil(t, session.GetMonitor())
 
 	svc.killAppProcess(session)
+}
+
+func TestSessionViewIncludesOwnerDisplayIdentity(t *testing.T) {
+	session := &Session{Display: &mockDisplay{id: ":123", running: true}}
+	if got := session.View().DisplayID; got != ":123" {
+		t.Fatalf("display identity = %q", got)
+	}
 }

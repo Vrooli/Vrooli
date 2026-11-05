@@ -8,6 +8,14 @@ import {
   PreserveFilesRequestSchema,
   SpecSyncArchiveRequestSchema,
   SpecSyncArchiveResponseSchema,
+  PreviewScenarioRemediationRequestSchema,
+  PreviewScenarioRemediationResponseSchema,
+  ApplyScenarioRemediationRequestSchema,
+  ApplyScenarioRemediationResponseSchema,
+  PreviewScenarioMaturityCampaignRequestSchema,
+  PreviewScenarioMaturityCampaignResponseSchema,
+  ApplyScenarioMaturityCampaignRequestSchema,
+  ApplyScenarioMaturityCampaignResponseSchema,
   type DeleteScenarioResponse,
   type SpecSyncArchiveResponse,
 } from "@vrooli/proto-types/swarm-manager/v1/api/scenarios_pb";
@@ -46,8 +54,12 @@ export const scenarioFilesResponseSchema = createProtoSchema(
   ScenarioFilesResponseSchema,
   "scenario files"
 );
+export const previewScenarioRemediationResponseSchema = createProtoSchema(PreviewScenarioRemediationResponseSchema, "scenario remediation preview");
+export const applyScenarioRemediationResponseSchema = createProtoSchema(ApplyScenarioRemediationResponseSchema, "scenario remediation apply");
+export const previewScenarioMaturityCampaignResponseSchema = createProtoSchema(PreviewScenarioMaturityCampaignResponseSchema, "scenario maturity campaign preview");
+export const applyScenarioMaturityCampaignResponseSchema = createProtoSchema(ApplyScenarioMaturityCampaignResponseSchema, "scenario maturity campaign apply");
 
-export { DeleteScenarioRequestSchema, PreserveFilesRequestSchema, SpecSyncArchiveRequestSchema };
+export { DeleteScenarioRequestSchema, PreserveFilesRequestSchema, SpecSyncArchiveRequestSchema, PreviewScenarioRemediationRequestSchema, ApplyScenarioRemediationRequestSchema, PreviewScenarioMaturityCampaignRequestSchema, ApplyScenarioMaturityCampaignRequestSchema };
 
 export function mapProtoScenario(protoScenario: Scenario): ScenarioDomain {
   const status = isScenarioStatus(protoScenario.status) ? protoScenario.status : "unknown";
@@ -65,6 +77,7 @@ export function mapProtoScenario(protoScenario: Scenario): ScenarioDomain {
     tags: protoScenario.tags ?? [],
     lastReviewClassification: protoScenario.lastReviewClassification ?? undefined,
     lastReviewAt: protoScenario.lastReviewAt ?? undefined,
+    health: protoScenario.health ?? undefined,
   };
 }
 

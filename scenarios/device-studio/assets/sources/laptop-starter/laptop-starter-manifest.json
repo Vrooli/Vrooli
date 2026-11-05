@@ -1,0 +1,220 @@
+{
+  "schema_version": 1,
+  "profile_id": "device-studio-laptop-starter-derive-v9",
+  "blender_version": [
+    5,
+    2,
+    2
+  ],
+  "blender_version_string": "5.2.2 LTS",
+  "backend": "CPU",
+  "blender_profile": {
+    "profile_id": "blender-5.2.2-linux-x64",
+    "artifact_identity": "a1660c40fcc34e79aaa339f846b95d5973981a23b9e4b87e50ee2c633159762e",
+    "binary_sha256": "bafec183e960819c76fe213c000cdb2284c53a87ef6791812f8728b51f07145b",
+    "tree_sha256": "5fca420feab408276778511a84d7a2f5659bbc09aa5cb43b6d24ae59b220cb55"
+  },
+  "source": {
+    "path": "/home/matthalloran8/.vrooli/evidence/device-presentation-2026-10-18/v3/imported-laptop/normalized-macbook.glb",
+    "staged_name": "normalized-macbook.glb",
+    "sha256": "4b7a6736e12e105b00556ca6397f3dffe559a1c518954209df08828f186d8a78",
+    "size_bytes": 6712244,
+    "triangle_count": 112502,
+    "mesh_node_count": 19,
+    "embedded_images": [
+      ["image/png",13365,"99696e1d0d199ef787cf5d43e71169451644bcfef48692b0954551bd886c751e",512,512],
+      ["image/jpeg",18596,"1c3c1410e95503597103f6844b13dcdeda7200afb5601ff5662cf72b5064c2cc",0,0],
+      ["image/png",218657,"abea03c8a38e213bd42f8da9f2a45fa12ccbb245fa1125c0a143ad24f1dcf26a",512,512],
+      ["image/png",56955,"428f1ed2e4626296556eeea864140d2f7a2a19cdabeaf0f5ab99979b99231783",256,256],
+      ["image/png",31821,"c2f631d5d0fcbf86648be968401018726f5fe6477dda7ecb4ff876bc12a13b2b",256,256],
+      ["image/jpeg",2789,"94e2cecb11afd2108b10deac1287c292276b360920b2fb76b20c38200615d35b",0,0],
+      ["image/png",278347,"e11fed0a01193950625cff856491a3d158c152dbd8cb420c0908bb6ac4bee1bc",512,512],
+      ["image/jpeg",9496,"6632d68991fff23e064093d849cf89d514500c8f841849a929fe67e32ba2e299",0,0],
+      ["image/png",113702,"ab916763cff1276f25b19c8732fe043d0c09da9a4aff05ce391a33bb1bdd4f43",1024,1024],
+      ["image/jpeg",4010,"a75fbcece3f340791a30896751180c674f08f7aa992e3bf73277b3bf2bc11e34",0,0],
+      ["image/png",8600,"e322e81cee35fc0f3f2beee2073a1522f3d5e313889fdb8bf94a98f3fcbc9693",256,256],
+      ["image/jpeg",14434,"635838ab77c6814a66ef6cfb16ad14c58c15d060edc19d0523f0891eaf209f9b",0,0],
+      ["image/png",172745,"dac812c9d4839da53d5927e313f438d1bbbbe6c5ed7d2e35352ec8d97abe9b9c",512,512],
+      ["image/png",2150,"e7d72d26ee1e6c07d7c722be08df890cd16752f8525b5c1bf496d8d23f828f49",256,256],
+      ["image/png",122061,"b717b7a795896812a34dcd8dc3514fde3da4199052fca537e9105488a94ee63f",1024,512],
+      ["image/png",13517,"b233caae2ee1a8aa17b26d18041f0c06d535357061d5c9a8304f02d7571274cd",256,256],
+      ["image/png",221,"fe2c57db1a8431d863a64a38564ae7156fa2eb51912591ad4cf76aec61606c32",128,4],
+      ["image/png",366,"a168201326356216af575cd7ce56669a300131131bb11badcff23c14ed8d278e",128,4]
+    ],
+    "screen_binding": {
+      "node_index": 17,
+      "node_name": "Object_123",
+      "mesh_index": 17,
+      "mesh_name": "Object_56",
+      "material_index": 14,
+      "material_name": "sfCQkHOWyrsLmor",
+      "texture_index": 14,
+      "image_index": 14,
+      "dimensions_pixels": [
+        1024,
+        512
+      ],
+      "evidence": "Object_123 is the 90-triangle screen-plane mesh; its emissive texture is image14. The source image is neutralized. All other 17 embedded images are pinned and preserved."
+    }
+  },
+  "component_inventory": {
+    "path": "/home/matthalloran8/Vrooli/scenarios/device-studio/docs/internal/goal/evidence/E3/scene-studies/laptop/component-candidates.json",
+    "staged_name": "component-candidates.json",
+    "sha256": "cfe2d0a9e9b03809a07cfdc4d4d823080216c74a1fc025cf73370109be343af4",
+    "size_bytes": 302401,
+    "component_count": 587,
+    "triangle_count": 112502,
+    "weld_rounding_m": 1e-07
+  },
+  "mesh_node_map": [
+    [0,"Object_10",0,0,40938],
+    [1,"Object_16",1,0,1222],
+    [2,"Object_20",2,0,7444],
+    [3,"Object_22",3,0,5940],
+    [4,"Object_30",4,0,5038],
+    [5,"Object_32",5,0,186],
+    [6,"Object_34",6,0,3700],
+    [7,"Object_38",7,0,384],
+    [8,"Object_42",8,0,8971],
+    [9,"Object_48",9,0,270],
+    [10,"Object_54",10,0,2988],
+    [11,"Object_58",11,0,28436],
+    [12,"Object_66",12,0,4],
+    [13,"Object_74",13,0,5088],
+    [14,"Object_82",14,0,1487],
+    [15,"Object_96",15,0,132],
+    [16,"Object_107",16,0,176],
+    [17,"Object_123",17,0,90],
+    [18,"Object_127",18,0,8]
+  ],
+  "role_assignment": {
+    "source": "component-candidates.json labels remain immutable; three exact connected components override hinge-review to lid from source-open screen-plane alignment and fitted closed-pose geometry",
+    "source_open_geometry_tolerance_m": 1e-7,
+    "base_triangles": 99866,
+    "lid_triangles": 8470,
+    "hinge_review_triangles": 4166,
+    "hinge_review_behavior": "Object_22/0 chassis sidewall remains fixed; Object_42/12 and residual review parts remain fixed and unresolved",
+    "lid_component_overrides": [
+      {"source_node_index": 0, "source_object": "Object_10", "source_component": 310, "source_candidate_role": "hinge-review", "candidate_role": "lid", "triangle_count": 184},
+      {"source_node_index": 0, "source_object": "Object_10", "source_component": 313, "source_candidate_role": "hinge-review", "candidate_role": "lid", "triangle_count": 148},
+      {"source_node_index": 2, "source_object": "Object_20", "source_component": 92, "source_candidate_role": "hinge-review", "candidate_role": "lid", "triangle_count": 456}
+    ],
+    "override_evidence": {
+      "method": "Source GLB transformed component triangles into world space; area-weighted normals compared with Object_123 screen-plane normal; vertex signed distances measured to that plane; closed-pose normals and vertex signed gaps compared with fitted deck plane.",
+      "screen_plane_normal_world": [-0.0000076, 0.341690, 0.939813],
+      "fitted_closed_angle_degrees": 109.9807869,
+      "fitted_axis_glb_m": [0.0, -0.0007040767, -0.1219446287],
+      "deck_normal_world": [0.0, 1.0, 0.0],
+      "closed_vertex_gap_mm_range_over_all_overrides": [0.28, 0.64],
+      "components": [
+        {"source_object": "Object_10", "source_component": 310, "triangle_count": 184, "normal_dot_screen": 0.999929, "source_vertex_signed_distance_mm": [-0.042, -0.030, -0.018], "closed_normal_dot_opposite_deck": 0.999929},
+        {"source_object": "Object_10", "source_component": 313, "triangle_count": 148, "normal_dot_screen": 0.999913, "source_vertex_signed_distance_mm": [0.006, 0.159, 0.170], "closed_normal_dot_opposite_deck": 0.999913},
+        {"source_object": "Object_20", "source_component": 92, "triangle_count": 456, "normal_dot_screen": 0.998811, "source_vertex_signed_distance_mm": [-0.185, -0.164, 0.173], "closed_normal_dot_opposite_deck": 0.998811}
+      ],
+      "interpretation": "Visual ownership hypothesis only; source-open geometry is verified per source triangle within 1e-7 m despite possible 1e-7 m rounded-signature mismatches, and this does not establish physical hinge construction or continuous collision clearance."
+    }
+  },
+  "rig": {
+    "source_axis_glb_m": [
+      0.0,
+      0.00373,
+      -0.12858
+    ],
+    "diagnostic_angles_degrees": [
+      0,
+      30
+    ],
+    "base_top_percentile": 0.9,
+    "base_plane_band_m": 0.002,
+    "depth_percentile": 0.995,
+    "target_screen_deck_gap_m": 0.00045,
+    "minimum_screen_deck_gap_m": 0.0003,
+    "maximum_screen_deck_gap_m": 0.0006,
+    "fixed_trim_alignment": {
+      "source_object": "Object_42",
+      "source_component": 12,
+      "transform": "fitted_axis_delta",
+      "parent": "LaptopHingeReview",
+      "rotates_with_lid": false
+    },
+    "maximum_depth_center_error_m": 0.0005,
+    "max_axis_adjustment_m": 0.02,
+    "rotation_axis": "X-parallel, transformed through the pinned Blender Y-up conversion",
+    "claim": "screen-to-deck median signed-gap fit candidate only; lid-geometry global minimum (screen reported separately) and discrete local witnesses are diagnostics, not measured or manufacturer pivot, limit, or clearance qualification"
+  },
+  "neutral_screen_linear_rgba": [
+    0.34,
+    0.34,
+    0.34,
+    1.0
+  ],
+  "render": {
+    "engine": "CYCLES",
+    "width": 960,
+    "height": 540,
+    "samples": 16,
+    "seed": 1307,
+    "threads": 2,
+    "view_transform": "Standard",
+    "film_transparent": false,
+    "world_background_linear_rgba": [0.06, 0.06, 0.06, 1.0],
+    "world_background_strength": 1.0,
+    "ortho_width_m": 0.54,
+    "macro_width": 1280,
+    "macro_height": 720,
+    "macro_ortho_width_m": 0.16,
+    "component_macro_anchor": {
+      "rule": "closed-hinge-material-macro-v1",
+      "base_z_percentile": 0.9,
+      "base_z_offset_m": 0.006,
+      "target_uses_keyed_components": false,
+      "full_sidewall_context_component": "Object_22/0"
+    },
+    "minimum_projected_margin_fraction": 0.04,
+    "key_energy_watts": 28.0,
+    "fill_energy_watts": 12.0,
+    "rim_energy_watts": 16.0,
+    "views": [
+      "side",
+      "rear"
+    ]
+  },
+  "output": {
+    "glb_name": "laptop-neutral-rig.glb",
+    "receipt_name": "laptop-starter-inventory.json",
+    "max_glb_bytes": 33554432,
+    "max_png_bytes": 8388608,
+    "max_png_aggregate_bytes": 67108864,
+    "max_receipt_bytes": 1048576,
+    "diagnostic_pngs": [
+      "source-open-side.png",
+      "source-open-rear.png",
+      "intermediate-side.png",
+      "intermediate-rear.png",
+      "closed-side.png",
+      "closed-rear.png",
+      "closed-hinge-material-macro.png",
+      "closed-front-material-macro.png",
+      "closed-component-key-side.png",
+      "closed-component-key-hinge-macro.png"
+    ],
+    "component_diagnostic_bindings": [
+      {"source_node_index": 0, "source_object": "Object_10", "source_component": 310, "candidate_role": "lid", "derived_mesh_name": "LaptopLidGeometry", "triangle_count": 184, "label": "Object_10 component 310", "color_rgba": [0.9, 0.15, 0.7, 1.0]},
+      {"source_node_index": 0, "source_object": "Object_10", "source_component": 313, "candidate_role": "lid", "derived_mesh_name": "LaptopLidGeometry", "triangle_count": 148, "label": "Object_10 component 313", "color_rgba": [0.1, 0.75, 0.9, 1.0]},
+      {"source_node_index": 2, "source_object": "Object_20", "source_component": 92, "candidate_role": "lid", "derived_mesh_name": "LaptopLidGeometry", "triangle_count": 456, "label": "Object_20 component 92", "color_rgba": [0.4, 0.9, 0.18, 1.0]},
+      {"source_node_index": 8, "source_object": "Object_42", "source_component": 12, "candidate_role": "hinge-review", "derived_mesh_name": "LaptopHingeTrimCandidate", "triangle_count": 584, "label": "Object_42 component 12", "color_rgba": [1.0, 0.38, 0.06, 1.0]},
+      {"source_node_index": 3, "source_object": "Object_22", "source_component": 0, "candidate_role": "hinge-review", "derived_mesh_name": "LaptopHingeReviewGeometry", "triangle_count": 3582, "label": "Object_22 component 0", "color_rgba": [0.62, 0.27, 0.94, 1.0]},
+      {"source_node_index": 0, "source_object": "Object_10", "source_component": 316, "candidate_role": "lid", "derived_mesh_name": "LaptopLidGeometry", "triangle_count": 298, "label": "Object_10 component 316", "color_rgba": [0.98, 0.82, 0.08, 1.0]}
+    ]
+  },
+  "provenance": {
+    "creator": "Jack Baeten (@jackbaeten)",
+    "source_title": "Macbook Pro M3 16 inch 2024 (creator title retained as attribution only)",
+    "source_url": "https://sketchfab.com/3d-models/macbook-pro-m3-16-inch-2024-8e34fc2b303144f78490007d91ff57c4",
+    "license": "CC BY 4.0",
+    "license_url": "https://creativecommons.org/licenses/by/4.0/",
+    "normalization": "The source GLB width is normalized to a nominal reference and is not independently validated.",
+    "derivation": "Vrooli-authored heuristic base/lid split, pose-fit pivot, fixed unresolved trim, and neutral display replacement. No manufacturer CAD or physical sample."
+  },
+  "limits": "Unreviewed local candidate. Three exact source-connected components follow the lid as a plane-supported visual ownership hypothesis; Object_22/0 remains chassis and Object_42/12 remains unresolved fixed trim. Discrete BVH surface-pair observations are not continuous swept collision or clearance proof. Screen is neutral, not browser content."
+}

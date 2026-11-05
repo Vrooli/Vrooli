@@ -25,7 +25,7 @@ This scenario transforms Vrooli into an intelligent product management platform 
 This scenario relies on several other Vrooli capabilities:
 - **mind-maps**: For organizing product strategies and feature relationships
 - **research-assistant**: For deep market and competitor research
-- **task-planner**: For breaking down features into actionable tasks
+- **plan-manager**: For breaking down features into implementation plans with ordered phases
 - **stream-of-consciousness-analyzer**: For processing unstructured product ideas
 
 ## UX Design

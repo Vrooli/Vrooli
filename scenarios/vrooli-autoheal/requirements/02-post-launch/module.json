@@ -1,0 +1,153 @@
+{
+  "_metadata": {
+    "description": "Requirement stubs scaffolded from the P1 operational targets.",
+    "module": "P1-targets",
+    "priority": "P1",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "criticality": "P1",
+      "description": "The supervisor should monitor network connectivity, DNS resolution, and time synchronization.",
+      "id": "AUTOHEAL-P1-001",
+      "prd_ref": "OT-P1-001",
+      "status": "planned",
+      "title": "Infrastructure checks",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:AUTOHEAL-P1-001] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P1",
+      "description": "The supervisor should monitor disk, swap, zombie-process, and port-exhaustion conditions.",
+      "id": "AUTOHEAL-P1-002",
+      "prd_ref": "OT-P1-002",
+      "status": "planned",
+      "title": "System resource checks",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:AUTOHEAL-P1-002] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P1",
+      "description": "Where remote access is configured, the supervisor should monitor and repair the platform-specific service.",
+      "id": "AUTOHEAL-P1-003",
+      "prd_ref": "OT-P1-003",
+      "status": "planned",
+      "title": "Remote access health",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:AUTOHEAL-P1-003] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P1",
+      "description": "Where Docker is required, the supervisor should monitor and repair an unresponsive daemon.",
+      "id": "AUTOHEAL-P1-004",
+      "prd_ref": "OT-P1-004",
+      "status": "planned",
+      "title": "Docker daemon health",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:AUTOHEAL-P1-004] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P1",
+      "description": "Where a Cloudflare tunnel is configured, the supervisor should monitor its service and connectivity.",
+      "id": "AUTOHEAL-P1-005",
+      "prd_ref": "OT-P1-005",
+      "status": "planned",
+      "title": "Cloudflared tunnel health",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:AUTOHEAL-P1-005] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P1",
+      "description": "The supervisor should expose retained health and availability history for dashboards and trend analysis.",
+      "id": "AUTOHEAL-P1-006",
+      "prd_ref": "OT-P1-006",
+      "status": "planned",
+      "title": "Health history window",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:AUTOHEAL-P1-006] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P1",
+      "description": "The web UI should present current health, recent events, repair actions, outages, and incidents accessibly.",
+      "id": "AUTOHEAL-P1-007",
+      "prd_ref": "OT-P1-007",
+      "status": "planned",
+      "title": "Web UI dashboard",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:AUTOHEAL-P1-007] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P1",
+      "description": "The supervisor should schedule each check using its configured interval and avoid running it before it is due.",
+      "id": "AUTOHEAL-P1-008",
+      "prd_ref": "OT-P1-008",
+      "status": "planned",
+      "title": "Configurable check intervals",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:AUTOHEAL-P1-008] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P1",
+      "description": "When receiving SIGINT or SIGTERM, the supervisor should stop scheduling work and shut down cleanly.",
+      "id": "AUTOHEAL-P1-009",
+      "prd_ref": "OT-P1-009",
+      "status": "in_progress",
+      "title": "Graceful shutdown",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "cli/loop/lifecycle_test.go::TestSigtermDuringLifecycleCancelsChildWithinWaitDelay",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "See INFRA-SHUTDOWN-001 (same evidence). Passing 2026-09-02 (`go test ./scenarios/vrooli-autoheal/cli/loop/`). Loop tests carry no [REQ:AUTOHEAL-P1-009] tag yet."
+        },
+        {
+          "type": "test",
+          "ref": "cli/loop/loop_test.go::TestSignalDuringSleepExitsZero",
+          "phase": "unit",
+          "status": "implemented"
+        }
+      ]
+    }
+  ]
+}

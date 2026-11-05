@@ -14,3 +14,15 @@ func TestPreflightDocCases(t *testing.T) {
 		return []Violation{*v}, nil
 	})
 }
+
+func TestPreflightSkipsTemplateLocalTools(t *testing.T) {
+	input := `package main
+
+func main() {
+	runTool()
+}
+`
+	if violation := CheckPreflight([]byte(input), "tools/temporal-model/main.go", "demo-app"); violation != nil {
+		t.Fatalf("expected template-local tool main to be skipped, got %+v", violation)
+	}
+}

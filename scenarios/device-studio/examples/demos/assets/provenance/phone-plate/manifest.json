@@ -1,0 +1,155 @@
+{
+  "created_utc": "2026-10-19T13:47:36.677137+00:00",
+  "strategy": "Generated photographic fixed plate with deterministic authentic screen insertion; no 3D rendering in v6.",
+  "primary": {
+    "still": "hero.png",
+    "clip": "phone-photographic.mp4",
+    "clip_spec": "1536x1024, 24fps, 96 frames, 4 seconds, H264 SDR BT709 limited-range, square pixels, silent"
+  },
+  "provenance": {
+    "plate": "imagegen-receipt.json",
+    "plate_qualification": "Generated approximate iPhone Pro style, not derived from the qualified v4 GLB, not exact Apple geometry. Model/seed/cost not reported by tool.",
+    "real_screen": "Retained responsive frontend capture with fictional Meridian fixture data; not native-phone/backend proof.",
+    "original_source": "../../inputs/phone.mp4",
+    "real_frame_directory": "../../v2/phone/screen",
+    "simulated_os": "source-profile.json: separate status/home regions around whole actual app capture; constant 9:41, Wi-Fi/signal/battery.",
+    "representative_source": "source-screen.png, actual capture frame 84; pixel-identical to ../../v4/phone/default/imported-screen.png"
+  },
+  "calibration": {
+    "method": "Manual initial plane then robust straight-edge line fits to neutral gray component; conservative 1px mask inset excludes rounded corners, hardware and physical black pill/lens.",
+    "parameters": "calibration.json",
+    "fitting_canvas": [
+      1206,
+      2622
+    ],
+    "unknowns": [
+      "Physical display dimensions and aspect are not calibrated; fitted approximately to generated plane.",
+      "Generated body is not identified with the imported v4 phone mesh."
+    ],
+    "source_profile_modified": false,
+    "checks": "still-validation.json proves full app containment and no status glyph intersecting physical pill."
+  },
+  "composition": {
+    "recipe": "compose.py",
+    "antialias": "2x plate-space Lanczos4 warp, premultiplied alpha area resolve; exact original pixels restored outside binary active mask.",
+    "source_clock": "96 sequential source frames at 24fps, no timing remap; simulated OS clock constant.",
+    "determinism": "Deterministic given pinned plate, source frames, config, mask and listed OpenCV/Numpy versions; image generation itself is not reproducible from seed.",
+    "color": "PNG source RGB; FFmpeg explicit full RGB to limited BT709 conversion and stream tags.",
+    "identity": "All pixels outside active screen remain exact before lossy encode, including hardware/pill/background.",
+    "reproduction": "Run prep_sources.py via PYTHONNOUSERSITE=1 /usr/bin/python3 (system Pillow FreeType); calibrate.py and compose.py via /usr/bin/python3 with existing OpenCV. All encoding/decoding via ../../tools/run_owned.py, new output scope per run."
+  },
+  "iterations": [
+    {
+      "id": "first",
+      "hero": "hero-first.png",
+      "clip": "phone-photographic-first.mp4",
+      "recipe": "compose-first.py",
+      "validation": "composition-validation-first.json"
+    },
+    {
+      "id": "supersampled-final",
+      "hero": "hero.png",
+      "clip": "phone-photographic.mp4",
+      "change": "Single bounded 2x antialias refinement; no camera, geometry, source layout or generated plate changes."
+    }
+  ],
+  "limits": {
+    "camera": "Static; only real screen recording changes.",
+    "unsupported": [
+      "Orbit/parallax",
+      "Device articulation",
+      "Scene relighting",
+      "Native editable scene/GLB",
+      "Measured/calibrated hardware geometry"
+    ],
+    "small_text": "Perspective reduces source pixel density; inspected encoded samples retained.",
+    "validation": "validation.json",
+    "resources": "Owned CPU scopes: 2 CPU quota, 3G RAM, 128 tasks; declared timeouts and terminal receipts retained."
+  },
+  "artifacts": {
+    "hero.png": {
+      "sha256": "1634e2392de2647e13dfb995c01f8da6c36cfe9c5fb978218d0f86961df75639",
+      "bytes": 2538754
+    },
+    "phone-photographic.mp4": {
+      "sha256": "92bfc2c5ece8ad8129739c233f4e87aaaf3a8f8508abfb0ab14cb41faf2270d8",
+      "bytes": 854190
+    },
+    "plate.png": {
+      "sha256": "9d1c223677a610b9e63c13ccba51c8a5d44f87d0d087fc5e977e58897ceccf4a",
+      "bytes": 2516367
+    },
+    "prompt.txt": {
+      "sha256": "5b21b0345fc1573579c8760324b4e768e341e11bddaedcf79ecdfd5d61890a5b",
+      "bytes": 2316
+    },
+    "imagegen-receipt.json": {
+      "sha256": "19c7a3b86f69ff1855e905cf63ee345f4fdec313fd2807ee47354c401ccc1065",
+      "bytes": 998
+    },
+    "source-screen.png": {
+      "sha256": "05cec1476f7c16a40bae8c8eabd965ce2d871f2d6260b3e43d8c9148e89cca13",
+      "bytes": 850071
+    },
+    "source-profile.json": {
+      "sha256": "dcc499f56c72af5b0dec33d7f7033580786d499cb474b32f2a075d870efdba05",
+      "bytes": 847
+    },
+    "source-clock.json": {
+      "sha256": "b39366903f7b15c8cf7d345809f99926cdac1132c08a1f7d91bf94e7b0f22c41",
+      "bytes": 22624
+    },
+    "active-mask.png": {
+      "sha256": "63b8751df790f9ad2145a1ee7fc9320473d8da682025c7ab5636c421a553dcf2",
+      "bytes": 7346
+    },
+    "physical-pill-mask.png": {
+      "sha256": "a122e0ec5193cb45a7cb3660715d0fbec04938bb69f64ce5bdf942c3b5260470",
+      "bytes": 3516
+    },
+    "mask-overlay.png": {
+      "sha256": "97e8613d9512a6f26f1b7fadbc841271345b0ae30e044143c45528e4b2bf791f",
+      "bytes": 2516597
+    },
+    "calibration.json": {
+      "sha256": "9f631aa22bc57e404ab6e0dfcab472a31b673dad57d87227feece8613afaa21e",
+      "bytes": 1719
+    },
+    "prep_sources.py": {
+      "sha256": "72e7ae7bbce296ec9e5d83a0416b11b26adff82d63bff870c32a61724289e4b8",
+      "bytes": 1622
+    },
+    "calibrate.py": {
+      "sha256": "41d1229b5bbe2b39c72603cd35ab5a11f8a1ced0c4a367320b189e50d01330a2",
+      "bytes": 3751
+    },
+    "compose.py": {
+      "sha256": "a606216d3b0ac5205da5997143c63a98ed7a0dc37421b86cc62f73fd063ecd33",
+      "bytes": 3591
+    },
+    "finalize.py": {
+      "sha256": "5b3c8fe3ac9c9cc8be356994750d6533a9bd38b520ccbac3c033a93b2ffebad6",
+      "bytes": 7082
+    },
+    "composition-validation.json": {
+      "sha256": "41c7ab9304f1a3bd6841d031fb95a5202653daff2d1bdb532257ea38c75a2468",
+      "bytes": 15986
+    },
+    "still-validation.json": {
+      "sha256": "66be14d8dcc97ce0476f9fd6d54b7ce97288b92f871d94f7aad4c52b0b31e65c",
+      "bytes": 646
+    },
+    "validation.json": {
+      "sha256": "11250a6cbf4bb4ea90a7dfc3e34770cce09c21861dda0ca18f70003153e3004d",
+      "bytes": 1251
+    },
+    "probe.json": {
+      "sha256": "55fb91a134e43beaa2b852efb9a989db8c6e5beee47dae5d79cbd8ac2a901fd4",
+      "bytes": 391
+    },
+    "encoded-contact-sheet.png": {
+      "sha256": "ffc8c62a73f1e544b6f5a85c77fd73a98ff6353035f1866f8b05eccff205b07a",
+      "bytes": 1606328
+    }
+  }
+}

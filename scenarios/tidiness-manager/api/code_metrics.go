@@ -43,7 +43,7 @@ type FileCodeMetrics struct {
 	CodeLines             int     `json:"code_lines"`
 	CommentLines          int     `json:"comment_lines"`
 	CommentToCodeRatio    float64 `json:"comment_to_code_ratio"`
-	HasTestFile           bool    `json:"has_test_file"`
+	HasTestFile           bool    `json:"has_test_file"` // Filename heuristic only; it does not prove behavioral coverage.
 	AsAnyCount            int     `json:"as_any_count"`
 	AsTypeAssertionCount  int     `json:"as_type_assertion_count"`
 	TsIgnoreCount         int     `json:"ts_ignore_count"`
@@ -76,7 +76,7 @@ func (cma *CodeMetricsAnalyzer) AnalyzeFiles(files []string, lang Language) (*Co
 	var totalAsAny, totalAsType, totalTsIgnore, totalNonNull int
 
 	// Build test file map for this language
-	testFiles := cma.buildTestFileMap(files, lang)
+	testFiles, sourceFiles := cma.buildTestFileMaps(files, lang)
 
 	for _, relPath := range files {
 		// Skip test files themselves when counting coverage
@@ -91,7 +91,7 @@ func (cma *CodeMetricsAnalyzer) AnalyzeFiles(files []string, lang Language) (*Co
 		}
 
 		// Check if this source file has a test
-		fileMetrics.HasTestFile = cma.hasTestFile(relPath, testFiles, lang)
+		fileMetrics.HasTestFile = cma.hasTestFile(relPath, testFiles, sourceFiles, lang)
 
 		totalTodos += fileMetrics.TodoCount
 		totalFixmes += fileMetrics.FixmeCount
@@ -441,15 +441,18 @@ func (cma *CodeMetricsAnalyzer) isCommentLine(line string, lang Language, inMult
 	}
 }
 
-// buildTestFileMap creates a map of test files for quick lookup
-func (cma *CodeMetricsAnalyzer) buildTestFileMap(files []string, lang Language) map[string]bool {
+// buildTestFileMaps separates test paths from source paths for companion lookup.
+func (cma *CodeMetricsAnalyzer) buildTestFileMaps(files []string, lang Language) (map[string]bool, map[string]bool) {
 	testFiles := make(map[string]bool)
+	sourceFiles := make(map[string]bool)
 	for _, file := range files {
 		if cma.isTestFile(file, lang) {
 			testFiles[file] = true
+		} else {
+			sourceFiles[file] = true
 		}
 	}
-	return testFiles
+	return testFiles, sourceFiles
 }
 
 // IsTestFilePath checks if a file path looks like a test file based on common
@@ -508,8 +511,9 @@ func (cma *CodeMetricsAnalyzer) isTestFile(filePath string, lang Language) bool 
 	}
 }
 
-// hasTestFile checks if a source file has a corresponding test file
-func (cma *CodeMetricsAnalyzer) hasTestFile(sourceFile string, testFiles map[string]bool, lang Language) bool {
+// hasTestFile matches by exact stem or same-directory longest source stem.
+// This filename heuristic does not prove that tests cover the source behavior.
+func (cma *CodeMetricsAnalyzer) hasTestFile(sourceFile string, testFiles, sourceFiles map[string]bool, lang Language) bool {
 	dir := filepath.Dir(sourceFile)
 	base := filepath.Base(sourceFile)
 	ext := filepath.Ext(base)
@@ -517,9 +521,41 @@ func (cma *CodeMetricsAnalyzer) hasTestFile(sourceFile string, testFiles map[str
 
 	switch lang {
 	case LanguageGo:
-		// Go: file.go -> file_test.go
+		// Go: file.go -> file_test.go or file_behavior_test.go.
 		testFile := filepath.Join(dir, nameWithoutExt+"_test.go")
-		return testFiles[testFile]
+		if testFiles[testFile] {
+			return true
+		}
+		// A descriptive suffix is common for package tests that cover one
+		// production file (for example, overlap_agree_behavior_test.go).
+		for candidate := range testFiles {
+			if filepath.Dir(candidate) != dir {
+				continue
+			}
+			candidateBase := filepath.Base(candidate)
+			if !strings.HasPrefix(candidateBase, nameWithoutExt+"_") || !strings.HasSuffix(candidateBase, "_test.go") {
+				continue
+			}
+			candidateStem := strings.TrimSuffix(candidateBase, "_test.go")
+			mostSpecificSource := ""
+			if sourceFiles[filepath.Join(dir, candidateStem+".go")] {
+				mostSpecificSource = filepath.Join(dir, candidateStem+".go")
+			}
+			for i, char := range candidateStem {
+				if char != '_' {
+					continue
+				}
+				possibleSource := filepath.Join(dir, candidateStem[:i]+".go")
+				if sourceFiles[possibleSource] && len(candidateStem[:i]) > len(strings.TrimSuffix(filepath.Base(mostSpecificSource), ".go")) {
+					mostSpecificSource = possibleSource
+				}
+			}
+			if mostSpecificSource != "" && mostSpecificSource != sourceFile {
+				continue
+			}
+			return true
+		}
+		return false
 
 	case LanguageTypeScript, LanguageJavaScript:
 		// TS/JS: multiple possible test file patterns

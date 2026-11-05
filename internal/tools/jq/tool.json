@@ -1,0 +1,38 @@
+{
+  "$schema": "../../../.vrooli/schemas/tool.schema.json",
+  "name": "jq",
+  "storage": {
+    "entries": {},
+    "rationale": "This tool has no tool-owned persistent storage in the supported Vrooli workflow; the explicit empty declaration records that caches or credentials are owned by the invoking workflow."
+  },
+  "description": "Lightweight JSON processor for setup and resource flows",
+  "commands": [
+    "jq"
+  ],
+  "versionArgs": [
+    "--version"
+  ],
+  "defaultPackage": "jq",
+  "packages": {
+    "winget": "jqlang.jq",
+    "brew": "jq"
+  },
+  "installHint": "Install jq for JSON processing in setup and resource flows",
+  "bundling": "host-required",
+  "capability": "data-query",
+  "capability_role": "primary",
+  "platform_status": {
+    "linux": {
+      "status": "unqualified",
+      "evidence": null
+    },
+    "macos": {
+      "status": "unqualified",
+      "evidence": null
+    },
+    "windows": {
+      "status": "unqualified",
+      "evidence": null
+    }
+  }
+}

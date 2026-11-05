@@ -1,0 +1,521 @@
+{
+  "id": "routing.provider-rule-admission",
+  "domain": "ai-gateway/routing",
+  "initial_state": "proposed",
+  "terminal_states": [],
+  "formal_model_status": "not_adopted",
+  "scope": "Read-derived projection only. Catalog observations may carry a new owner revision; no durable proposal/promotion commands or store are modeled.",
+  "states": [
+    "proposed",
+    "pending_review",
+    "approved",
+    "reopened",
+    "expired",
+    "denied"
+  ],
+  "events": [
+    "catalog_proposed",
+    "catalog_pending_review",
+    "catalog_reopened",
+    "catalog_expired",
+    "catalog_denied",
+    "approval_verified",
+    "approval_unverified",
+    "review_due",
+    "window_expired"
+  ],
+  "invariants": [
+    "Only an approved catalog declaration with a freshly verified exact human receipt projects approved.",
+    "A changed clause or lost/mismatched/agent/defaulted/expired approval projects reopened; no new route is admitted.",
+    "All nonapproved owner statuses remain nonapproved even with a prior approval.",
+    "Policy expiry and review deadlines close admission at the end of the declared UTC day.",
+    "Observation does not mutate catalog data, trust, prices, or Hub decisions."
+  ],
+  "transitions": [
+    {
+      "state": "proposed",
+      "event": "catalog_proposed",
+      "next": "proposed"
+    },
+    {
+      "state": "proposed",
+      "event": "catalog_pending_review",
+      "next": "pending_review"
+    },
+    {
+      "state": "proposed",
+      "event": "catalog_reopened",
+      "next": "reopened"
+    },
+    {
+      "state": "proposed",
+      "event": "catalog_expired",
+      "next": "expired"
+    },
+    {
+      "state": "proposed",
+      "event": "catalog_denied",
+      "next": "denied"
+    },
+    {
+      "state": "proposed",
+      "event": "approval_verified",
+      "next": "approved"
+    },
+    {
+      "state": "proposed",
+      "event": "approval_unverified",
+      "next": "reopened"
+    },
+    {
+      "state": "proposed",
+      "event": "review_due",
+      "next": "reopened"
+    },
+    {
+      "state": "proposed",
+      "event": "window_expired",
+      "next": "expired"
+    },
+    {
+      "state": "pending_review",
+      "event": "catalog_proposed",
+      "next": "proposed"
+    },
+    {
+      "state": "pending_review",
+      "event": "catalog_pending_review",
+      "next": "pending_review"
+    },
+    {
+      "state": "pending_review",
+      "event": "catalog_reopened",
+      "next": "reopened"
+    },
+    {
+      "state": "pending_review",
+      "event": "catalog_expired",
+      "next": "expired"
+    },
+    {
+      "state": "pending_review",
+      "event": "catalog_denied",
+      "next": "denied"
+    },
+    {
+      "state": "pending_review",
+      "event": "approval_verified",
+      "next": "approved"
+    },
+    {
+      "state": "pending_review",
+      "event": "approval_unverified",
+      "next": "reopened"
+    },
+    {
+      "state": "pending_review",
+      "event": "review_due",
+      "next": "reopened"
+    },
+    {
+      "state": "pending_review",
+      "event": "window_expired",
+      "next": "expired"
+    },
+    {
+      "state": "approved",
+      "event": "catalog_proposed",
+      "next": "proposed"
+    },
+    {
+      "state": "approved",
+      "event": "catalog_pending_review",
+      "next": "pending_review"
+    },
+    {
+      "state": "approved",
+      "event": "catalog_reopened",
+      "next": "reopened"
+    },
+    {
+      "state": "approved",
+      "event": "catalog_expired",
+      "next": "expired"
+    },
+    {
+      "state": "approved",
+      "event": "catalog_denied",
+      "next": "denied"
+    },
+    {
+      "state": "approved",
+      "event": "approval_verified",
+      "next": "approved"
+    },
+    {
+      "state": "approved",
+      "event": "approval_unverified",
+      "next": "reopened"
+    },
+    {
+      "state": "approved",
+      "event": "review_due",
+      "next": "reopened"
+    },
+    {
+      "state": "approved",
+      "event": "window_expired",
+      "next": "expired"
+    },
+    {
+      "state": "reopened",
+      "event": "catalog_proposed",
+      "next": "proposed"
+    },
+    {
+      "state": "reopened",
+      "event": "catalog_pending_review",
+      "next": "pending_review"
+    },
+    {
+      "state": "reopened",
+      "event": "catalog_reopened",
+      "next": "reopened"
+    },
+    {
+      "state": "reopened",
+      "event": "catalog_expired",
+      "next": "expired"
+    },
+    {
+      "state": "reopened",
+      "event": "catalog_denied",
+      "next": "denied"
+    },
+    {
+      "state": "reopened",
+      "event": "approval_verified",
+      "next": "approved"
+    },
+    {
+      "state": "reopened",
+      "event": "approval_unverified",
+      "next": "reopened"
+    },
+    {
+      "state": "reopened",
+      "event": "review_due",
+      "next": "reopened"
+    },
+    {
+      "state": "reopened",
+      "event": "window_expired",
+      "next": "expired"
+    },
+    {
+      "state": "expired",
+      "event": "catalog_proposed",
+      "next": "proposed"
+    },
+    {
+      "state": "expired",
+      "event": "catalog_pending_review",
+      "next": "pending_review"
+    },
+    {
+      "state": "expired",
+      "event": "catalog_reopened",
+      "next": "reopened"
+    },
+    {
+      "state": "expired",
+      "event": "catalog_expired",
+      "next": "expired"
+    },
+    {
+      "state": "expired",
+      "event": "catalog_denied",
+      "next": "denied"
+    },
+    {
+      "state": "expired",
+      "event": "approval_verified",
+      "next": "approved"
+    },
+    {
+      "state": "expired",
+      "event": "approval_unverified",
+      "next": "reopened"
+    },
+    {
+      "state": "expired",
+      "event": "review_due",
+      "next": "reopened"
+    },
+    {
+      "state": "expired",
+      "event": "window_expired",
+      "next": "expired"
+    },
+    {
+      "state": "denied",
+      "event": "catalog_proposed",
+      "next": "proposed"
+    },
+    {
+      "state": "denied",
+      "event": "catalog_pending_review",
+      "next": "pending_review"
+    },
+    {
+      "state": "denied",
+      "event": "catalog_reopened",
+      "next": "reopened"
+    },
+    {
+      "state": "denied",
+      "event": "catalog_expired",
+      "next": "expired"
+    },
+    {
+      "state": "denied",
+      "event": "catalog_denied",
+      "next": "denied"
+    },
+    {
+      "state": "denied",
+      "event": "approval_verified",
+      "next": "approved"
+    },
+    {
+      "state": "denied",
+      "event": "approval_unverified",
+      "next": "reopened"
+    },
+    {
+      "state": "denied",
+      "event": "review_due",
+      "next": "reopened"
+    },
+    {
+      "state": "denied",
+      "event": "window_expired",
+      "next": "expired"
+    }
+  ],
+  "traces": [
+    {
+      "id": "proposal-review-human-change-reopen",
+      "source": "J3 ApprovedFixtureRecordAllows, ChangedClauseReopensRecord; successive isolated catalog observations",
+      "steps": [
+        {
+          "catalog": "proposed",
+          "event": "catalog_proposed",
+          "next": "proposed",
+          "receipt": "human"
+        },
+        {
+          "catalog": "pending_review",
+          "event": "catalog_pending_review",
+          "next": "pending_review",
+          "receipt": "human"
+        },
+        {
+          "catalog": "approved",
+          "event": "approval_verified",
+          "next": "approved",
+          "receipt": "human"
+        },
+        {
+          "catalog": "approved",
+          "event": "approval_verified",
+          "next": "approved",
+          "receipt": "human"
+        },
+        {
+          "catalog": "approved",
+          "event": "approval_unverified",
+          "next": "reopened",
+          "receipt": "changed_clause"
+        },
+        {
+          "catalog": "reopened",
+          "event": "catalog_reopened",
+          "next": "reopened",
+          "receipt": "human"
+        },
+        {
+          "catalog": "pending_review",
+          "event": "catalog_pending_review",
+          "next": "pending_review",
+          "receipt": "human"
+        },
+        {
+          "catalog": "approved",
+          "event": "approval_verified",
+          "next": "approved",
+          "receipt": "human"
+        }
+      ]
+    },
+    {
+      "id": "agent-cannot-promote",
+      "source": "J3 AgentCannotReachApproved and Hub verified-human attribution contract",
+      "steps": [
+        {
+          "catalog": "proposed",
+          "event": "catalog_proposed",
+          "next": "proposed",
+          "receipt": "human"
+        },
+        {
+          "catalog": "approved",
+          "event": "approval_unverified",
+          "next": "reopened",
+          "receipt": "agent"
+        },
+        {
+          "catalog": "approved",
+          "event": "approval_unverified",
+          "next": "reopened",
+          "receipt": "unknown_identity"
+        },
+        {
+          "catalog": "approved",
+          "event": "approval_unverified",
+          "next": "reopened",
+          "receipt": "defaulted"
+        },
+        {
+          "catalog": "approved",
+          "event": "approval_unverified",
+          "next": "reopened",
+          "receipt": "denied"
+        },
+        {
+          "catalog": "denied",
+          "event": "catalog_denied",
+          "next": "denied",
+          "receipt": "human"
+        }
+      ]
+    },
+    {
+      "id": "expiry-and-new-owner-revision",
+      "source": "ProviderTerms inclusive UTC policy dates and exact Hub approval deadline",
+      "steps": [
+        {
+          "catalog": "approved",
+          "event": "approval_verified",
+          "next": "approved",
+          "receipt": "human",
+          "expires_at": "2026-11-02"
+        },
+        {
+          "catalog": "approved",
+          "event": "window_expired",
+          "next": "expired",
+          "receipt": "human",
+          "expires_at": "2026-11-01"
+        },
+        {
+          "catalog": "expired",
+          "event": "catalog_expired",
+          "next": "expired",
+          "receipt": "human"
+        },
+        {
+          "catalog": "pending_review",
+          "event": "catalog_pending_review",
+          "next": "pending_review",
+          "receipt": "human"
+        },
+        {
+          "catalog": "approved",
+          "event": "approval_verified",
+          "next": "approved",
+          "receipt": "human"
+        }
+      ]
+    },
+    {
+      "id": "review-due-and-authority-loss",
+      "source": "fresh exact Hub verification on each admission",
+      "steps": [
+        {
+          "catalog": "approved",
+          "event": "review_due",
+          "next": "reopened",
+          "receipt": "human",
+          "next_review_at": "2026-11-01"
+        },
+        {
+          "catalog": "approved",
+          "event": "approval_unverified",
+          "next": "reopened",
+          "receipt": "expired_receipt"
+        },
+        {
+          "catalog": "approved",
+          "event": "approval_unverified",
+          "next": "reopened",
+          "receipt": "missing"
+        },
+        {
+          "catalog": "approved",
+          "event": "approval_unverified",
+          "next": "reopened",
+          "receipt": "wrong_reference"
+        },
+        {
+          "catalog": "approved",
+          "event": "approval_unverified",
+          "next": "reopened",
+          "receipt": "wrong_scope"
+        },
+        {
+          "catalog": "approved",
+          "event": "approval_verified",
+          "next": "approved",
+          "receipt": "human"
+        }
+      ]
+    },
+    {
+      "id": "stale-approval-does-not-change-owner-declaration",
+      "source": "nonapproved owner records stay closed despite available approval receipt",
+      "steps": [
+        {
+          "catalog": "proposed",
+          "event": "catalog_proposed",
+          "next": "proposed",
+          "receipt": "human"
+        },
+        {
+          "catalog": "pending_review",
+          "event": "catalog_pending_review",
+          "next": "pending_review",
+          "receipt": "human"
+        },
+        {
+          "catalog": "reopened",
+          "event": "catalog_reopened",
+          "next": "reopened",
+          "receipt": "human"
+        },
+        {
+          "catalog": "expired",
+          "event": "catalog_expired",
+          "next": "expired",
+          "receipt": "human"
+        },
+        {
+          "catalog": "denied",
+          "event": "catalog_denied",
+          "next": "denied",
+          "receipt": "human"
+        }
+      ]
+    }
+  ]
+}

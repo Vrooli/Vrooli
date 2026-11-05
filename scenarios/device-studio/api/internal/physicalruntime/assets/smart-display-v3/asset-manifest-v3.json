@@ -1,0 +1,48 @@
+{
+  "schema_version": 1,
+  "status": "candidate_only_unqualified",
+  "artifact_id": "vrooli-generic-smart-display-concept-v3",
+  "output": {
+    "path": "scenarios/device-studio/api/internal/physicalruntime/assets/smart-display-v3/generic-smart-display-v3.glb",
+    "sha256": "9890e82e4ded55f098fb2eb99548bb3d0331c1a599193ee2041c9773a338cf50",
+    "size_bytes": 219856
+  },
+  "authorship": {
+    "creator": "Vrooli",
+    "license": "AGPL-3.0-only",
+    "use_scope": "Internal local candidate review; explicit opt-in Library candidate only.",
+    "identity": "Generic authored smart-display concept; no Google identity, product CAD, or endorsement."
+  },
+  "design_envelope_mm": [177.4, 120.4, 69.5],
+  "geometry": {
+    "source_bounds_mm": [177.4, 120.4, 69.5],
+    "axes": { "up": "Y", "front": "+Z" },
+    "screen_node": "MainDisplayActivePlane",
+    "screen_mesh_index": 6,
+    "screen_primitive_index": 0,
+    "screen_material_index": 2,
+    "screen_position_bounds_m": [[-0.0765, 0.02445, 0.0149565], [0.0765, 0.11385, 0.0243435]],
+    "screen_uv": { "attribute": "TEXCOORD_0", "min": [0, 0], "max": [1, 1], "v_orientation": "0 at top; 1 at bottom" },
+    "screen_active_area_estimate_mm": [153, 89.4],
+    "screen_active_area_basis": "7-inch class diagonal and 1024:600 aspect ratio; estimated, not a measured active boundary",
+    "parts": ["rounded display shell and continuous bezel", "tilted active display plane", "speaker base and acoustic grille", "contact pads", "small sensor/control details"]
+  },
+  "comparison_reference": {
+    "device": "Google Nest Hub (2nd gen)",
+    "published_envelope_mm": [177.4, 120.4, 69.5],
+    "published_display": { "diagonal_label": "7 inch", "raster": [1024, 600] },
+    "use": "Comparison context for a generic authored concept only; not product CAD, measured candidate dimensions, active-area proof, or shipped source media."
+  },
+  "reproduction": {
+    "source_packet": "scenarios/device-studio/assets/sources/generic-smart-display-v3-20261021/",
+    "generator": "derive_smart_display.py",
+    "generator_sha256": "cde1b0fc9e7b3464624e72aa2acaab369452e86cb8cd0bebd5b11d55a2d6722c",
+    "runtime": "Python standard library; generation is offline and not invoked by Device Studio runtime"
+  },
+  "qualification_limits": [
+    "This authored geometry is a conceptual candidate whose envelope intentionally follows the published comparison dimensions; it is not a measurement of the Google product or any physical unit.",
+    "The active display rectangle is estimated from diagonal class and aspect ratio; physical boundary, active corners, app-safe mask, and pixel calibration remain unknown.",
+    "The tabletop support pose and contact pads are authored visual geometry, not measured stability, acoustic performance, electronics, or product qualification.",
+    "Official reference imagery is retained for private comparison only and is not embedded in the candidate asset or Library bundle."
+  ]
+}

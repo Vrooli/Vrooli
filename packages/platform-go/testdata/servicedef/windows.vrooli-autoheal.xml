@@ -1,0 +1,44 @@
+<!-- Fixture derived 2026-09-02 on swarminator (Linux) from platform-go RenderDefinition for target windows; not host-verified on macOS or Windows. Regenerate: PLATFORM_GO_UPDATE_FIXTURES=1 go test -run TestDarwinAndWindowsRenderersMatchFixtures -->
+<?xml version="1.0" encoding="UTF-8"?>
+<Task version="1.4" xmlns="http://schemas.microsoft.com/windows/2004/02/mit/task">
+  <RegistrationInfo>
+    <Description>Vrooli Autoheal - Self-healing infrastructure supervisor</Description>
+    <Author>Vrooli</Author>
+    <Documentation>https://github.com/Vrooli/Vrooli/blob/master/internal/safeguards/autoheal-watchdog/handler.go</Documentation>
+  </RegistrationInfo>
+  <Triggers>
+    <BootTrigger>
+      <Enabled>true</Enabled>
+      <Delay>PT30S</Delay>
+    </BootTrigger>
+  </Triggers>
+  <Principals>
+    <Principal id="Author">
+      <UserId>alice</UserId>
+      <LogonType>S4U</LogonType>
+      <RunLevel>HighestAvailable</RunLevel>
+    </Principal>
+  </Principals>
+  <Settings>
+    <MultipleInstancesPolicy>IgnoreNew</MultipleInstancesPolicy>
+    <DisallowStartIfOnBatteries>false</DisallowStartIfOnBatteries>
+    <StopIfGoingOnBatteries>false</StopIfGoingOnBatteries>
+    <AllowHardTerminate>true</AllowHardTerminate>
+    <StartWhenAvailable>true</StartWhenAvailable>
+    <AllowStartOnDemand>true</AllowStartOnDemand>
+    <Enabled>true</Enabled>
+    <Hidden>false</Hidden>
+    <Priority>4</Priority>
+    <ExecutionTimeLimit>PT0S</ExecutionTimeLimit>
+    <RestartOnFailure>
+      <Interval>PT1M</Interval>
+      <Count>5</Count>
+    </RestartOnFailure>
+  </Settings>
+  <Actions Context="Author">
+    <Exec>
+      <Command>C:\Users\alice\Vrooli\scenarios\vrooli-autoheal\cli\vrooli-autoheal-loop.exe</Command>
+      <WorkingDirectory>C:\Users\alice\Vrooli\scenarios\vrooli-autoheal</WorkingDirectory>
+    </Exec>
+  </Actions>
+</Task>

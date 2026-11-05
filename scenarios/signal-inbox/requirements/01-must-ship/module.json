@@ -1,0 +1,526 @@
+{
+  "_metadata": {
+    "description": "P0 requirements — the journal, capture, categorization, disposition, retrieval, and the two consumption surfaces. All planned; validation entries declare intended evidence without asserting refs that do not exist yet.",
+    "last_validated_at": "2026-08-31T00:36:22-04:00",
+    "module": "P0-targets",
+    "priority": "P0",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "SIG-P0-001",
+      "title": "Immutable signal journal",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-001",
+      "category": "storage",
+      "criticality": "P0",
+      "description": "Every captured signal appends to a journal whose rows are never updated and never deleted. Source, captured_at, raw payload, extracted content, and a content hash are written once. Deduplication is by content hash over the normalized source identity, so importing the same export twice is a no-op rather than a doubling. The journal is the sole authority for what was captured; category, disposition, and annotations are separate mutable or append-only structures that reference it and never rewrite it.",
+      "tags": [
+        "journal",
+        "storage",
+        "invariant"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "A capture of content already present under the same normalized source identity returns the existing signal id and appends no row."
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "No code path issues UPDATE or DELETE against the signal table; category, disposition, and annotation writes touch only their own tables."
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Two signals whose source URLs differ only by tracking parameters normalize to one identity and deduplicate."
+        }
+      ]
+    },
+    {
+      "id": "SIG-P0-002",
+      "title": "Manual capture",
+      "status": "planned",
+      "prd_ref": "OT-P0-002",
+      "category": "capture",
+      "criticality": "P0",
+      "description": "The operator supplies a signal directly as a URL, as pasted text, or as a pasted or uploaded image, with an optional note recorded at capture time. This path never depends on an adapter, credential, or network integration, so it remains available when every automated source is broken or disabled. The capture surface does not ask the operator to declare which of the three kinds they are supplying — the kind is inferred from the payload.",
+      "tags": [
+        "capture",
+        "manual",
+        "ui",
+        "cli"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "A bare URL, a text blob, and an image each produce a signal with the correct inferred kind and no operator type declaration."
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "A capture-time note is stored as the signal's first annotation, not as a mutable field on the signal."
+        },
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "Manual capture succeeds with every source adapter disabled, proving it has no adapter dependency."
+        }
+      ]
+    },
+    {
+      "id": "SIG-P0-003",
+      "title": "Content extraction with empty-result detection",
+      "status": "planned",
+      "prd_ref": "OT-P0-003",
+      "category": "enrichment",
+      "criticality": "P0",
+      "description": "A signal carrying a resolvable source has its text content extracted. Image sources are delegated to image-tools rather than extracted in-process. The load-bearing rule, inherited from the predecessor scenario's reverse-engineering notes, is that an empty extraction is a failure and not an empty document: when extraction yields no content the signal is marked needs-attention and surfaced for manual entry, never stored as a blank body. Silent empty extraction is the failure mode that makes a capture system quietly lossy.",
+      "tags": [
+        "enrichment",
+        "extraction",
+        "image-tools",
+        "invariant"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "An extraction returning zero content units marks the signal needs-attention and stores no empty body."
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "An image signal routes to image-tools; no OCR library is linked into this scenario."
+        },
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "A client-rendered page whose body is not in the fetched HTML is detected as needs-attention rather than imported blank."
+        }
+      ]
+    },
+    {
+      "id": "SIG-P0-004",
+      "title": "Operator-defined categories",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-004",
+      "category": "categories",
+      "criticality": "P0",
+      "description": "Categories are runtime data, created, renamed, and retired by the operator without a code change or a redeploy. The set is open and domain-agnostic: alpha-shaped categories such as app-ideas and marketing coexist with unrelated ones such as meals, and the system privileges none of them. Retiring a category does not delete its signals; they revert to uncategorized and remain fully searchable. A reserved uncategorized category always exists and cannot be retired.",
+      "tags": [
+        "categories",
+        "operator",
+        "extensibility"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Creating, renaming, and retiring a category all take effect without restart and with no code reference to any category name."
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Retiring a category leaves its signals in the journal, reassigns them to uncategorized, and keeps them retrievable by search."
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "The reserved uncategorized category cannot be retired or renamed."
+        }
+      ]
+    },
+    {
+      "id": "SIG-P0-005",
+      "title": "Assisted classification with operator override",
+      "status": "planned",
+      "prd_ref": "OT-P0-005",
+      "category": "classification",
+      "criticality": "P0",
+      "description": "On capture, a classifier proposes one category with a confidence score by embedding the signal's extracted content and comparing it against the operator's category definitions. The proposal is never authoritative on its own: assignment becomes authoritative only on operator confirmation, and reassignment stays available forever. Every override is recorded as an annotation naming the proposed and chosen categories, which accumulates the labeled corpus that SIG-P1-008 later measures against. The classifier is advisory because a wrong category is the error that hides a signal from the consumer who needed it.",
+      "tags": [
+        "classification",
+        "ai-gateway",
+        "operator",
+        "override"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "A proposed category is stored as a proposal with its confidence and does not satisfy queries filtering on confirmed category until confirmed."
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "An override records an annotation carrying both the proposed and the chosen category."
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Reassigning a category on a signal dispositioned done succeeds and leaves the journal row untouched."
+        },
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "Classification degrades to uncategorized with a recorded reason when ai-gateway is unavailable, and capture still succeeds."
+        }
+      ]
+    },
+    {
+      "id": "SIG-P0-006",
+      "title": "Annotation thread",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-006",
+      "category": "annotation",
+      "criticality": "P0",
+      "description": "Annotations are append-only and many-per-signal. They carry operator notes, agent notes, and typed outcome links that name what the signal produced — a created scenario, a backlog item, an idea-pipeline entry, a knowledge topic. Outcome links are what turn a signal from a saved artifact into a traceable origin: the question \"where did this idea come from\" becomes a query rather than a recollection. Annotations are never edited in place; a correction is a new annotation.",
+      "tags": [
+        "annotation",
+        "provenance",
+        "outcome-link"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Annotations accumulate in order and no code path updates or deletes an existing annotation."
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "A typed outcome link validates its target kind and stores an identifier rather than a copied payload."
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "A signal with multiple outcome links reports all of them, since one signal may produce several results."
+        }
+      ]
+    },
+    {
+      "id": "SIG-P0-007",
+      "title": "Disposition lifecycle",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-007",
+      "category": "disposition",
+      "criticality": "P0",
+      "description": "Exactly one disposition per signal across new, triaged, routed, done, and dropped, plus an optional revisit_at that defers a signal without resolving it. Disposition governs ambient surfacing only — it never governs storage or search. This is the mechanism that stops a handled signal from re-consuming agent context on every heartbeat while keeping it permanently queryable, and it is the reason a dropped signal is still a searchable signal rather than a deleted one.",
+      "tags": [
+        "disposition",
+        "lifecycle",
+        "invariant"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Disposition transitions are validated and an unknown transition is rejected with a specific error."
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "A signal dispositioned done or dropped is still returned by both structured query and semantic search."
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "A signal deferred with revisit_at is excluded from the ambient view until that date and included after it."
+        }
+      ]
+    },
+    {
+      "id": "SIG-P0-008",
+      "title": "Idempotent archive import",
+      "status": "planned",
+      "prd_ref": "OT-P0-008",
+      "category": "ingestion",
+      "criticality": "P0",
+      "description": "Operator-supplied platform exports import as signals — the X archive, a Reddit export, a browser bookmarks HTML file. This is the tier-0 automated path: it requires no credential, makes no request to any platform, and therefore carries no account risk. Re-running an import over unchanged source data creates no duplicates, which is what makes repeated import safe as a routine operation. Import is also what supplies the first real corpus, without which classification quality and search relevance are unmeasurable.",
+      "tags": [
+        "ingestion",
+        "import",
+        "tier-0",
+        "idempotency"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Importing the same export file twice produces the same signal count as importing it once."
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "An import of a partially-overlapping newer export adds only the new entries."
+        },
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "After importing a real export, the corpus is large enough that classification and search can be evaluated against it rather than against fixtures."
+        },
+        {
+          "type": "manual",
+          "status": "planned",
+          "notes": "Verify each supported export format against a real file exported from the platform; formats are owned by the platforms and drift without notice."
+        }
+      ]
+    },
+    {
+      "id": "SIG-P0-009",
+      "title": "Structured query contract",
+      "status": "planned",
+      "prd_ref": "OT-P0-009",
+      "category": "retrieval",
+      "criticality": "P0",
+      "description": "Filtering by category, disposition, source, capture date, and tag, exposed identically through API and CLI. This is the consumption contract other scenarios depend on, not an internal convenience: a future meal-planning scenario reads its signals through it, and category names are therefore part of the contract's surface. Structured query answers exact questions that semantic search answers badly, such as everything from one source in one month that is still unresolved.",
+      "tags": [
+        "retrieval",
+        "api",
+        "cli",
+        "contract"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Every documented filter dimension is honored, and filters compose conjunctively."
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "The CLI and the API return equivalent result sets for the same filter, since the CLI is a thin wrapper over the API."
+        },
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "A consumer query by category and disposition returns a stable, paginated result set."
+        }
+      ]
+    },
+    {
+      "id": "SIG-P0-010",
+      "title": "Semantic search over signals",
+      "status": "planned",
+      "prd_ref": "OT-P0-010",
+      "category": "retrieval",
+      "criticality": "P0",
+      "description": "Each signal's extracted content is embedded through ai-gateway and answers natural-language queries. The corpus searched is the whole journal: a signal is never excluded from the index because of its category, its confidence, or its disposition. Classification is a display and routing device, never a storage device — a category assignment that later proves wrong must not have cost the signal its retrievability, and re-indexing may be impossible if the source is gone.",
+      "tags": [
+        "retrieval",
+        "embedding",
+        "ai-gateway",
+        "invariant"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Indexing covers every signal regardless of category, confidence, or disposition, including uncategorized and dropped."
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Embeddings request the document task prefix for indexing and the query prefix for retrieval."
+        },
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "A natural-language query retrieves a semantically related signal that shares no keyword with the query."
+        }
+      ]
+    },
+    {
+      "id": "SIG-P0-011",
+      "title": "Federated retrieval registration",
+      "status": "planned",
+      "prd_ref": "OT-P0-011",
+      "category": "integration",
+      "criticality": "P0",
+      "description": "The corpus registers with search-hub through a declarative `.vrooli/search.json` descriptor carrying provider id, bucket, scope, endpoint, result mapping, tuning, scoring, and an eval corpus — the same shape every existing provider uses. Registration adds a registry row and changes no router code. The descriptor is the scenario's search declaration; a scenario owning one is search-applicable to fleet scan and to the test-genie search phase.",
+      "tags": [
+        "search-hub",
+        "federation",
+        "descriptor",
+        "integration"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "The descriptor validates against the search schema and declares the search and status endpoints the router calls."
+        },
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "After registration, a federated query routed to this provider returns signals with correctly mapped id, title, score, and snippet fields."
+        },
+        {
+          "type": "test",
+          "phase": "search",
+          "status": "planned",
+          "notes": "The declared eval corpus carries at least one reviewed positive case and at least one junk negative, so the provider can certify."
+        }
+      ]
+    },
+    {
+      "id": "SIG-P0-012",
+      "title": "Budgeted ambient view",
+      "status": "planned",
+      "prd_ref": "OT-P0-012",
+      "category": "retrieval",
+      "criticality": "P0",
+      "description": "The ambient view returns only signals dispositioned new or triaged, bounded by a configured budget, optionally scoped to a category. It is the surface an agent reads without being asked — the vision-walk prep member is the first consumer. The budget exists because the cost of this view is paid on every heartbeat by every consumer: an unbounded view converts a growing corpus into a growing per-run context tax. A done signal never appears here and always appears in search; that split is the whole point of disposition.",
+      "tags": [
+        "retrieval",
+        "ambient",
+        "budget",
+        "agent-facing"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "The ambient view excludes done and dropped signals and honors the configured budget exactly."
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Scoping the ambient view to a category returns only that category's unresolved signals."
+        },
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "Marking a surfaced signal done removes it from the next ambient view while leaving it retrievable by search."
+        }
+      ]
+    },
+    {
+      "id": "SIG-P0-013",
+      "title": "Triage surface",
+      "status": "planned",
+      "prd_ref": "OT-P0-013",
+      "category": "ui",
+      "criticality": "P0",
+      "description": "A keyboard-operable review queue presenting one unresolved signal at a time with its extracted content, proposed category, and numeric confidence, supporting accept, override, annotate, and drop without leaving the queue. This is the signature surface and the highest-frequency operator job in the product, so it is optimized for speed rather than density. Source content, extraction output, and operator annotations are visually distinct so a reader never mistakes one for another, and a proposal is never styled as a confirmed assignment.",
+      "tags": [
+        "ui",
+        "triage",
+        "operator",
+        "accessibility"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "ui",
+          "status": "planned",
+          "notes": "The queue renders loading, empty, partial, and error states."
+        },
+        {
+          "type": "test",
+          "phase": "ui",
+          "status": "planned",
+          "notes": "Accept, override, annotate, and drop are each reachable and completable by keyboard alone."
+        },
+        {
+          "type": "test",
+          "phase": "ui",
+          "status": "planned",
+          "notes": "A proposed category is rendered distinctly from a confirmed one, and confidence is rendered as a number."
+        },
+        {
+          "type": "test",
+          "phase": "ui",
+          "status": "planned",
+          "notes": "Extracted content and operator annotations are distinguishable without relying on color alone."
+        }
+      ]
+    },
+    {
+      "id": "SIG-P0-014",
+      "title": "Risk-tiered source adapters",
+      "status": "planned",
+      "prd_ref": "OT-P0-014",
+      "category": "ingestion",
+      "criticality": "P0",
+      "description": "Every source adapter declares a risk tier in its descriptor, and the runner enforces the tier rather than trusting the adapter to behave. Tier 0 (manual entry, operator-supplied export) is enabled by default and carries no account risk; tier 1 (official API under operator credentials) and tier 2 (authenticated session replay) ship disabled and require an explicit per-adapter operator action to enable. The enforced behaviour that actually protects the operator's accounts is auto-disable on anomaly: any rate-limit, forbidden, or challenge response disables the adapter and raises an alert instead of retrying, because retrying through a soft block is what escalates a throttle into a ban. This contract exists at P0 even though only tier-0 adapters ship at P0, so the first networked adapter has a tier to declare rather than a precedent to set.",
+      "tags": [
+        "ingestion",
+        "safety",
+        "adapters",
+        "account-risk"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "An adapter registered without a declared risk tier is rejected at load."
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Adapters above tier 0 report disabled on a fresh install and cannot run until explicitly enabled."
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "A 429, a 403, and a challenge-page response each disable the adapter and record an alert; none produces a retry."
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "An auto-disabled adapter stays disabled across restart until an operator re-enables it."
+        },
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "The tier-0 import adapter exercises the full adapter contract, proving the runner enforces it before any networked adapter exists."
+        }
+      ]
+    }
+  ]
+}

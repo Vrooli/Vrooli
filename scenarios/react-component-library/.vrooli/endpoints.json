@@ -3,18 +3,1610 @@
   "version": "1.0.0",
   "endpoints": [
     {
+      "id": "adoptions_list_scenarios",
+      "path": "/vrooli.react_component_library.v1.adoptions.AdoptionsService/ListScenarios",
+      "method": "POST",
+      "summary": "List available scenarios for guided adoption workflows",
+      "description": "Returns scenario names discovered from the repository scenarios directory.",
+      "category": "adoptions",
+      "request": {
+        "type": "object"
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "scenarios": "array<ScenarioOption>"
+        }
+      },
+      "errors": [
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Repository read failure"
+        }
+      ]
+    },
+    {
+      "id": "adoptions_reconcile",
+      "path": "/vrooli.react_component_library.v1.adoptions.AdoptionsService/ReconcileAdoptions",
+      "method": "POST",
+      "summary": "Backfill adoption records from on-disk provenance",
+      "description": "Scans scenario UI source read-only. Dry-run is default; apply writes only RCL adoption records without backlog reporting.",
+      "category": "adoptions",
+      "request": {
+        "type": "object",
+        "properties": {
+          "apply": "boolean"
+        }
+      },
+      "response": {
+        "type": "object"
+      }
+    },
+    {
+      "id": "adoptions_reconverge",
+      "path": "/vrooli.react_component_library.v1.adoptions.AdoptionsService/ReconvergeAdoptions",
+      "method": "POST",
+      "summary": "Reconverge BEHIND adoptions to the current library version",
+      "description": "Batch-reconverges BEHIND adoptions: re-applies CLEAN copies through the validated Reapply path and flags MODIFIED copies for human review without overwriting them. Dry-run is default; apply performs the re-applies. Reports per-adoption and per-file outcomes.",
+      "category": "adoptions",
+      "request": {
+        "type": "object",
+        "properties": {
+          "apply": "boolean",
+          "scenario": "string (filter)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "outcomes": "array<ReconvergeOutcome>"
+        }
+      }
+    },
+    {
+      "id": "adoptions_list",
+      "path": "/vrooli.react_component_library.v1.adoptions.AdoptionsService/ListAdoptions",
+      "method": "POST",
+      "summary": "List adoption records",
+      "description": "Returns adoption records matching optional component_id / scenario / limit filters.",
+      "category": "adoptions",
+      "request": {
+        "type": "object",
+        "properties": {
+          "component_id": "string (filter)",
+          "limit": "int32 (max rows, 0 = server default)",
+          "scenario": "string (filter)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "adoptions": "array<Adoption>"
+        }
+      },
+      "errors": [
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Repository read failure"
+        }
+      ]
+    },
+    {
+      "id": "adoptions_preflight",
+      "path": "/vrooli.react_component_library.v1.adoptions.AdoptionsService/PreflightAdoption",
+      "method": "POST",
+      "summary": "Preflight an adoption",
+      "description": "Returns the dependency, style-fit, token, version-status, and maturity verdict without writing files.",
+      "category": "adoptions",
+      "request": {
+        "type": "object",
+        "properties": {
+          "component_id": "string",
+          "scenario": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "verdict": "AdoptionVerdict"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Missing component_id or scenario"
+        },
+        {
+          "status": 412,
+          "code": "failed_precondition",
+          "description": "Adoption requirements are not satisfied"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Repository or filesystem failure"
+        }
+      ]
+    },
+    {
+      "id": "adoptions_list_effective",
+      "path": "/vrooli.react_component_library.v1.adoptions.AdoptionsService/ListEffectiveAdoptions",
+      "method": "POST",
+      "summary": "List direct and mediated adoptions for a component",
+      "description": "Returns every adoption that makes the selected component present in a scenario, including provenance through a parent component adoption.",
+      "category": "adoptions",
+      "request": {
+        "type": "object",
+        "properties": {
+          "component_id": "string (required)",
+          "limit": "int32 (max rows, 0 = server default)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "adoptions": "array<EffectiveAdoption>"
+        }
+      },
+      "errors": [
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Repository read failure"
+        }
+      ]
+    },
+    {
+      "id": "adoptions_sync_tokens",
+      "path": "/vrooli.react_component_library.v1.adoptions.AdoptionsService/SyncScenarioTokens",
+      "method": "POST",
+      "summary": "Synchronize a scenario token ramp",
+      "description": "Adds missing library-required custom properties to the scenario's managed token region; dry-run is the default.",
+      "category": "adoptions",
+      "request": {
+        "type": "object",
+        "properties": {
+          "dry_run": "boolean",
+          "scenario": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "added": "array<string>",
+          "changed": "boolean",
+          "collisions": "array<string>",
+          "scenario": "string"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Missing scenario or token-ramp contract error"
+        }
+      ]
+    },
+    {
+      "id": "adoptions_prune_tokens",
+      "path": "/vrooli.react_component_library.v1.adoptions.AdoptionsService/PruneScenarioTokens",
+      "method": "POST",
+      "summary": "Prune unused scenario token declarations",
+      "description": "Reports and optionally removes managed custom properties no adoption still requires.",
+      "category": "adoptions",
+      "request": {
+        "type": "object",
+        "properties": {
+          "apply": "boolean",
+          "scenario": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "changed": "boolean",
+          "removed": "array<string>",
+          "retained": "array<string>",
+          "scenario": "string"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Missing scenario or token-ramp contract error"
+        }
+      ]
+    },
+    {
+      "id": "adoptions_link",
+      "path": "/vrooli.react_component_library.v1.adoptions.AdoptionsService/LinkAdoption",
+      "method": "POST",
+      "summary": "Link a pinned component version through the governed package",
+      "description": "Adds the file dependency to the adopter and records a linked adoption without copying source files.",
+      "category": "adoptions",
+      "request": {
+        "type": "object",
+        "properties": {
+          "component_id": "string",
+          "import_subpath": "string",
+          "scenario": "string",
+          "version": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "adoption": "Adoption",
+          "import_subpath": "string",
+          "package_path": "string"
+        }
+      }
+    },
+    {
+      "id": "adoptions_eject",
+      "path": "/vrooli.react_component_library.v1.adoptions.AdoptionsService/EjectAdoption",
+      "method": "POST",
+      "summary": "Eject a component with an explicit reason",
+      "description": "Copies source into the adopter only when the operator supplies a durable fork reason.",
+      "category": "adoptions",
+      "request": {
+        "type": "object",
+        "properties": {
+          "adopted_path": "string",
+          "component_id": "string",
+          "reason": "string",
+          "scenario": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "adoption": "Adoption",
+          "written_path": "string"
+        }
+      }
+    },
+    {
+      "id": "adoptions_apply",
+      "path": "/vrooli.react_component_library.v1.adoptions.AdoptionsService/ApplyAdoption",
+      "method": "POST",
+      "summary": "Apply a component to a scenario",
+      "description": "Copies a selected component version into a target scenario, stamps provenance, and records the adoption.",
+      "category": "adoptions",
+      "request": {
+        "type": "object",
+        "properties": {
+          "adopted_path": "string",
+          "component_id": "string",
+          "confirm_overwrite": "bool",
+          "override_validation": "bool (explicitly allow a blocking dependency verdict)",
+          "replace_existing": "bool (explicitly replace an existing source file)",
+          "scenario": "string",
+          "version": "string (optional)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "adoption": "Adoption",
+          "import_sites": "array<string>",
+          "written_path": "string"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Missing required field or unknown component_id"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Repository write failure"
+        }
+      ]
+    },
+    {
+      "id": "adoptions_batch_apply",
+      "path": "/vrooli.react_component_library.v1.adoptions.AdoptionsService/BatchApplyAdoptions",
+      "method": "POST",
+      "summary": "Apply several components to scenarios as one batch",
+      "description": "Validates the union of dependency closures and target collisions before writing the batch.",
+      "category": "adoptions",
+      "request": {
+        "type": "object",
+        "properties": {
+          "items": "array<BatchApplyItem>"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "results": "array<BatchApplyItemResult>",
+          "shared_dependencies": "array<string>"
+        }
+      }
+    },
+    {
+      "id": "adoptions_reapply",
+      "path": "/vrooli.react_component_library.v1.adoptions.AdoptionsService/ReapplyAdoption",
+      "method": "POST",
+      "summary": "Reapply an adoption",
+      "description": "Overwrites an adopted file from a selected library version. Local modifications require explicit confirmation.",
+      "category": "adoptions",
+      "request": {
+        "type": "object",
+        "properties": {
+          "confirm_local_overwrite": "bool",
+          "id": "string",
+          "override_validation": "bool (explicitly allow a blocking dependency verdict)",
+          "version": "string (optional)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "adoption": "Adoption",
+          "written_path": "string"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Missing id or local edits without confirmation"
+        },
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "No adoption with that id"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Repository or filesystem failure"
+        }
+      ]
+    },
+    {
+      "id": "adoptions_delete",
+      "path": "/vrooli.react_component_library.v1.adoptions.AdoptionsService/DeleteAdoption",
+      "method": "POST",
+      "summary": "Delete an adoption record",
+      "description": "Removes the adoption record matching the id.",
+      "category": "adoptions",
+      "request": {
+        "type": "object",
+        "properties": {
+          "id": "string"
+        }
+      },
+      "response": {
+        "type": "object"
+      },
+      "errors": [
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "No adoption with that id"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Repository write failure"
+        }
+      ]
+    },
+    {
+      "id": "adoptions_refresh",
+      "path": "/vrooli.react_component_library.v1.adoptions.AdoptionsService/RefreshAdoptions",
+      "method": "POST",
+      "summary": "Refresh drift status for adoption records",
+      "description": "Recomputes library-version and local-edit drift statuses for every adoption record, or just those for a single component when component_id is supplied.",
+      "category": "adoptions",
+      "request": {
+        "type": "object",
+        "properties": {
+          "component_id": "string (optional filter)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "adoptions": "array<Adoption>",
+          "library_behind": "int32",
+          "library_current": "int32",
+          "local_clean": "int32",
+          "local_modified": "int32"
+        }
+      },
+      "errors": [
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Repository or filesystem failure"
+        }
+      ]
+    },
+    {
+      "id": "adoptions_fork_report",
+      "path": "/vrooli.react_component_library.v1.adoptions.AdoptionsService/ForkReportAdoptions",
+      "method": "POST",
+      "summary": "Classify adoption fork dispositions",
+      "description": "Computes the four-way fork report for the complete adoption registry. The report is read-only unless apply is requested.",
+      "category": "adoptions",
+      "request": {
+        "type": "object",
+        "properties": {
+          "apply": "bool",
+          "component_id": "string (optional filter)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "adoptions": "array<Adoption>",
+          "fork_status": "four-way classification on each adoption"
+        }
+      },
+      "errors": [
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Repository or filesystem failure"
+        }
+      ]
+    },
+    {
+      "id": "adoptions_resolve_path",
+      "path": "/vrooli.react_component_library.v1.adoptions.AdoptionsService/ResolveAdoptionPath",
+      "method": "POST",
+      "summary": "Resolve the canonical adopted path for a component+scenario",
+      "description": "Computes the filesystem path an adoption would land at, using the target scenario's UI manifest (template-manifest source), a heuristic, or a fallback. Read-only.",
+      "category": "adoptions",
+      "request": {
+        "type": "object",
+        "properties": {
+          "component_id": "string",
+          "feature": "string (optional, when slot requiresFeature)",
+          "override_path": "string (optional)",
+          "scenario": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "path": "string (relative to scenario root)",
+          "slot": "string (slot name used)",
+          "source": "ResolveSource enum",
+          "warnings": "array<string>"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Missing component_id, scenario, or unsubstituted path token"
+        },
+        {
+          "status": 501,
+          "code": "unimplemented",
+          "description": "Resolver not configured (server lacks repo-root wiring)"
+        }
+      ]
+    },
+    {
+      "id": "adoptions_suggest",
+      "path": "/vrooli.react_component_library.v1.adoptions.AdoptionsService/SuggestAdoptions",
+      "method": "POST",
+      "summary": "Suggest catalog components a scenario should adopt",
+      "description": "Returns non-adopted catalog components using real UI inventory matches, design-style fit, and dependency compatibility. Every candidate carries human-readable reasons; no opaque score is emitted.",
+      "category": "adoptions",
+      "request": {
+        "type": "object",
+        "properties": {
+          "limit": "int32 (optional)",
+          "scenario": "string (optional)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "suggestions": "array<AdoptionSuggestion>"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Invalid scenario"
+        },
+        {
+          "status": 501,
+          "code": "unimplemented",
+          "description": "Suggestion dependencies not configured"
+        }
+      ]
+    },
+    {
+      "id": "adoptions_discover",
+      "path": "/vrooli.react_component_library.v1.adoptions.AdoptionsService/DiscoverAdoptions",
+      "method": "POST",
+      "summary": "Discover header-less vendored copies by content similarity",
+      "description": "Walks scenario UI trees for source files with no @vrooliComponentSource header and scores each against every library component version (Sørensen–Dice line similarity). Read-only: candidates carry similarity evidence for operator review; ConfirmDiscovery performs any write.",
+      "category": "adoptions",
+      "request": {
+        "type": "object",
+        "properties": {
+          "limit": "int32 (optional)",
+          "min_similarity": "double (0 = server default 0.6)",
+          "scenario": "string (optional)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "candidates": "array<DiscoveryCandidate>",
+          "min_similarity": "double",
+          "scanned": "int32"
+        }
+      },
+      "errors": [
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Scanner or repository failure"
+        }
+      ]
+    },
+    {
+      "id": "adoptions_confirm_discovery",
+      "path": "/vrooli.react_component_library.v1.adoptions.AdoptionsService/ConfirmDiscovery",
+      "method": "POST",
+      "summary": "Confirm a discovery candidate and backfill its provenance",
+      "description": "Injects an @vrooliComponentSource header into a header-less scenario file and creates its adoption record, attributed to the named component + version. Refuses files that already carry a header or are already tracked.",
+      "category": "adoptions",
+      "request": {
+        "type": "object",
+        "properties": {
+          "adopted_path": "string",
+          "component_id": "string",
+          "scenario": "string",
+          "version": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "adoption": "Adoption",
+          "similarity": "double",
+          "written_path": "string"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Missing field, file already tagged, or already tracked"
+        },
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "Unknown component_id or version"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Repository or filesystem failure"
+        }
+      ]
+    },
+    {
+      "id": "catalog_coverage",
+      "path": "/vrooli.react_component_library.v1.catalog.CatalogService/GetCoverage",
+      "method": "POST",
+      "summary": "Report achieved catalog maturity",
+      "description": "",
+      "category": "catalog"
+    },
+    {
+      "id": "catalog_next",
+      "path": "/vrooli.react_component_library.v1.catalog.CatalogService/ListNextWork",
+      "method": "POST",
+      "summary": "Rank catalog next work",
+      "description": "",
+      "category": "catalog"
+    },
+    {
+      "id": "catalog_gate",
+      "path": "/vrooli.react_component_library.v1.catalog.CatalogService/RunGate",
+      "method": "POST",
+      "summary": "Run a declarative catalog gate",
+      "description": "",
+      "category": "catalog"
+    },
+    {
+      "id": "catalog_graph",
+      "path": "/vrooli.react_component_library.v1.catalog.CatalogService/GetAssetRelationships",
+      "method": "POST",
+      "summary": "Read catalog asset relationships",
+      "description": "",
+      "category": "catalog"
+    },
+    {
+      "id": "catalog_structure",
+      "path": "/vrooli.react_component_library.v1.catalog.CatalogService/GetCatalogStructure",
+      "method": "POST",
+      "summary": "Read catalog structure",
+      "description": "",
+      "category": "catalog"
+    },
+    {
+      "id": "catalog_reconcile",
+      "path": "/vrooli.react_component_library.v1.catalog.CatalogService/ReconcileGraph",
+      "method": "POST",
+      "summary": "Reconcile catalog dependency graphs",
+      "description": "",
+      "category": "catalog"
+    },
+    {
+      "id": "catalog_ports",
+      "path": "/vrooli.react_component_library.v1.catalog.CatalogService/GetAssetPortContract",
+      "method": "POST",
+      "summary": "Read asset host obligations",
+      "description": "",
+      "category": "catalog"
+    },
+    {
+      "id": "catalog_score_history",
+      "path": "/vrooli.react_component_library.v1.catalog.CatalogService/GetScoreHistory",
+      "method": "POST",
+      "summary": "Read carried-forward asset score history",
+      "description": "",
+      "category": "catalog"
+    },
+    {
+      "id": "catalog_health",
+      "path": "/vrooli.react_component_library.v1.catalog.CatalogService/GetHealthOverview",
+      "method": "POST",
+      "summary": "Read server-computed catalog health",
+      "description": "",
+      "category": "catalog"
+    },
+    {
+      "id": "catalog_readiness",
+      "path": "/vrooli.react_component_library.v1.catalog.CatalogService/GetReadiness",
+      "method": "POST",
+      "summary": "Report catalog readiness and triage",
+      "description": "",
+      "category": "catalog"
+    },
+    {
+      "id": "catalog_capture_evidence",
+      "path": "/vrooli.react_component_library.v1.catalog.CatalogService/CaptureEvidence",
+      "method": "POST",
+      "summary": "Capture declared visual evidence",
+      "description": "",
+      "category": "catalog"
+    },
+    {
+      "id": "components_list",
+      "path": "/vrooli.react_component_library.v1.components.ComponentsService/ListComponents",
+      "method": "POST",
+      "summary": "List components",
+      "description": "Returns components matching optional match / tag / limit filters through the generated Connect-RPC ComponentsService.",
+      "category": "components",
+      "request": {
+        "type": "object",
+        "properties": {
+          "limit": "int32 (max rows, 0 = server default)",
+          "match": "string (case-insensitive substring filter)",
+          "tag": "string (exact tag filter)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "components": "array<Component>"
+        }
+      },
+      "errors": [
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Repository read failure"
+        }
+      ]
+    },
+    {
+      "id": "components_get",
+      "path": "/vrooli.react_component_library.v1.components.ComponentsService/GetComponent",
+      "method": "POST",
+      "summary": "Get a component by id",
+      "description": "Returns the component matching the request id. Set include_experience to include its declared contract and latest evidence projection.",
+      "category": "components",
+      "request": {
+        "type": "object",
+        "properties": {
+          "id": "string",
+          "include_experience": "bool (optional contract and evidence projection)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "component": "Component",
+          "experience": "ComponentExperience (when requested)"
+        }
+      },
+      "errors": [
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "No component with that id"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Repository read failure"
+        }
+      ]
+    },
+    {
+      "id": "components_get_by_library_id",
+      "path": "/vrooli.react_component_library.v1.components.ComponentsService/GetComponentByLibraryId",
+      "method": "POST",
+      "summary": "Get a component by libraryId",
+      "description": "Returns the component matching the @libraryId header value.",
+      "category": "components",
+      "request": {
+        "type": "object",
+        "properties": {
+          "library_id": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "component": "Component"
+        }
+      },
+      "errors": [
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "No component with that libraryId"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Repository read failure"
+        }
+      ]
+    },
+    {
+      "id": "components_index",
+      "path": "/vrooli.react_component_library.v1.components.ComponentsService/IndexComponents",
+      "method": "POST",
+      "summary": "Re-index components from disk",
+      "description": "Walks the configured source root for *.tsx files with @libraryId headers and upserts them into the registry. Removes rows whose files have been deleted.",
+      "category": "components",
+      "response": {
+        "type": "object",
+        "properties": {
+          "deleted": "int32",
+          "errors": "array<string>",
+          "indexed": "int32",
+          "library_ids": "array<string>",
+          "scanned": "int32",
+          "skipped": "int32"
+        }
+      },
+      "errors": [
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Walk or upsert failure"
+        }
+      ]
+    },
+    {
+      "id": "components_initialize",
+      "path": "/vrooli.react_component_library.v1.components.ComponentsService/InitializeComponent",
+      "method": "POST",
+      "summary": "Initialize a component",
+      "description": "Creates component.json plus an initial version TSX file under the Git-tracked library source root, indexes it, and returns the new registry row.",
+      "category": "components",
+      "request": {
+        "type": "object",
+        "properties": {
+          "description": "string",
+          "display_name": "string",
+          "file_name": "string",
+          "initial_source": "string",
+          "initial_version": "string",
+          "library_id": "string",
+          "slug": "string",
+          "tags": "array<string>"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "component": "Component",
+          "manifest_path": "string",
+          "source_path": "string"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Invalid slug, version, file name, or source header"
+        },
+        {
+          "status": 409,
+          "code": "already_exists",
+          "description": "Component libraryId or slug already exists"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Filesystem or repository failure"
+        }
+      ]
+    },
+    {
+      "id": "components_ingest",
+      "path": "/vrooli.react_component_library.v1.components.ComponentsService/IngestComponent",
+      "method": "POST",
+      "summary": "Ingest a scenario component",
+      "description": "Copies a scenario-local TSX file into an indexed library component, creates a draft working version, and returns static de-scenario-ification findings.",
+      "category": "components",
+      "request": {
+        "type": "object",
+        "properties": {
+          "description": "string",
+          "display_name": "string",
+          "scenario": "string",
+          "slot": "string",
+          "slug": "string",
+          "source_file": "string",
+          "tags": "array<string>"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "checklist_path": "string",
+          "component": "Component",
+          "draft_version": "string",
+          "findings": "array<IngestFinding>",
+          "manifest_path": "string",
+          "source_path": "string"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Invalid scenario, source file, or component metadata"
+        },
+        {
+          "status": 409,
+          "code": "already_exists",
+          "description": "Component libraryId or slug already exists"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Filesystem or repository failure"
+        }
+      ]
+    },
+    {
+      "id": "components_version_begin",
+      "path": "/vrooli.react_component_library.v1.components.ComponentsService/BeginComponentVersion",
+      "method": "POST",
+      "summary": "Begin a mutable component draft",
+      "description": "Resolves a stable libraryId or UUID, computes the requested semver bump, copies the complete current version artifact set, indexes the draft, and returns its edit paths and preview path.",
+      "category": "components",
+      "request": {
+        "type": "object",
+        "properties": {
+          "bump": "major|minor|patch",
+          "component": "string (libraryId or UUID)",
+          "version": "explicit release semver"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "artifact_paths": "array<string>",
+          "component": "Component",
+          "preview_path": "string",
+          "version": "ComponentVersion"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Invalid bump/version or an active draft already exists"
+        },
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "No component with that selector"
+        }
+      ]
+    },
+    {
+      "id": "components_version_check",
+      "path": "/vrooli.react_component_library.v1.components.ComponentsService/CheckComponentVersion",
+      "method": "POST",
+      "summary": "Check one component version",
+      "description": "Runs source, dependency-closure, story-contract, enum-coverage, and preview-bundle checks for one explicit component version without scanning unrelated catalog assets.",
+      "category": "components",
+      "request": {
+        "type": "object",
+        "properties": {
+          "component": "string (libraryId or UUID)",
+          "version": "string (defaults draft then latest)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "checks": "array<ComponentVersionCheck>",
+          "component": "Component",
+          "passed": "bool",
+          "preview_path": "string",
+          "version": "string"
+        }
+      },
+      "errors": [
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "No component or version with that selector"
+        }
+      ]
+    },
+    {
+      "id": "components_version_publish",
+      "path": "/vrooli.react_component_library.v1.components.ComponentsService/PublishComponentVersion",
+      "method": "POST",
+      "summary": "Publish a validated component draft",
+      "description": "Checks the active draft, compiles its preview, preserves every version artifact, updates the release pointers, and rolls back the filesystem mutation if indexing fails.",
+      "category": "components",
+      "request": {
+        "type": "object",
+        "properties": {
+          "changelog_md": "string",
+          "component": "string (libraryId or UUID)",
+          "draft_version": "string",
+          "version": "release semver"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "artifact_paths": "array<string>",
+          "component": "Component",
+          "preview_path": "string",
+          "version": "ComponentVersion"
+        }
+      },
+      "errors": [
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "No component or draft with that selector"
+        },
+        {
+          "status": 412,
+          "code": "failed_precondition",
+          "description": "Draft checks, preview compilation, or parity policy failed"
+        }
+      ]
+    },
+    {
+      "id": "components_version_create",
+      "path": "/vrooli.react_component_library.v1.components.ComponentsService/CreateComponentVersion",
+      "method": "POST",
+      "summary": "Create a component version",
+      "description": "Creates a new version folder for an existing component, updates component.json latest/draft pointers, indexes the library, and returns the version row.",
+      "category": "components",
+      "request": {
+        "type": "object",
+        "properties": {
+          "changelog_md": "string",
+          "component_id": "string",
+          "file_name": "string",
+          "from_version": "string",
+          "intent": "ComponentVersionIntent",
+          "source": "string",
+          "version": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "component": "Component",
+          "source_path": "string",
+          "version": "ComponentVersion"
+        }
+      },
+      "errors": [
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "No component with that id"
+        },
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Invalid version, file name, or source header"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Filesystem or repository failure"
+        }
+      ]
+    },
+    {
+      "id": "components_styles_list",
+      "path": "/vrooli.react_component_library.v1.components.ComponentsService/ListDesignStyles",
+      "method": "POST",
+      "summary": "List design styles",
+      "description": "Loads canonical design-style metadata from templates/design and returns the style IDs components may reference.",
+      "category": "components",
+      "response": {
+        "type": "object",
+        "properties": {
+          "styles": "array<DesignStyle>"
+        }
+      },
+      "errors": [
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Design metadata read failure"
+        }
+      ]
+    },
+    {
+      "id": "components_style_fit_validate",
+      "path": "/vrooli.react_component_library.v1.components.ComponentsService/ValidateStyleFit",
+      "method": "POST",
+      "summary": "Validate component design-style fit",
+      "description": "Reads the target scenario's .vrooli/service.json generation.design.id and returns a style-fit verdict for the selected component version.",
+      "category": "components",
+      "request": {
+        "type": "object",
+        "properties": {
+          "component_id": "string",
+          "scenario": "string",
+          "version": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "affinity": "DesignAffinity",
+          "component_id": "string",
+          "detail": "string",
+          "kind": "StyleFitVerdictKind",
+          "scenario": "string",
+          "scenario_style": "string",
+          "version": "string"
+        }
+      },
+      "errors": [
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "No component or component version with that id/version"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Scenario service.json read or parse failure"
+        }
+      ]
+    },
+    {
+      "id": "components_manifest_update",
+      "path": "/vrooli.react_component_library.v1.components.ComponentsService/UpdateComponentManifest",
+      "method": "POST",
+      "summary": "Update a component manifest",
+      "description": "Updates component.json metadata/latest/draft/deprecation fields, re-indexes the library, and returns the refreshed component row.",
+      "category": "components",
+      "request": {
+        "type": "object",
+        "properties": {
+          "component_id": "string",
+          "deprecated_versions": "array<string>",
+          "description": "string",
+          "display_name": "string",
+          "draft_version": "string",
+          "latest_version": "string",
+          "tags": "array<string>"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "component": "Component"
+        }
+      },
+      "errors": [
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "No component with that id"
+        },
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Invalid manifest values"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Filesystem or repository failure"
+        }
+      ]
+    },
+    {
+      "id": "components_content_get",
+      "path": "/vrooli.react_component_library.v1.components.ComponentsService/GetComponentContent",
+      "method": "POST",
+      "summary": "Read a component's source file",
+      "description": "Returns the raw TSX content of the component's source file plus a SHA-256 digest. Path-traversal guard rejects rows whose source_path escapes the configured root.",
+      "category": "components",
+      "request": {
+        "type": "object",
+        "properties": {
+          "id": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "content": "string (utf-8 source)",
+          "sha256": "string (hex digest)",
+          "source_path": "string"
+        }
+      },
+      "errors": [
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "No component with that id"
+        },
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Component source_path escapes configured root"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Filesystem read failure"
+        }
+      ]
+    },
+    {
+      "id": "components_content_set",
+      "path": "/vrooli.react_component_library.v1.components.ComponentsService/UpdateComponentContent",
+      "method": "POST",
+      "summary": "Write a component's source file",
+      "description": "Overwrites the component's TSX file in place. Pass expected_sha256 from a prior read for optimistic concurrency. Re-run `index` afterward if the @libraryId header changed.",
+      "category": "components",
+      "request": {
+        "type": "object",
+        "properties": {
+          "content": "string (utf-8 source)",
+          "expected_sha256": "string (optional)",
+          "id": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "sha256": "string (hex digest of written content)",
+          "source_path": "string"
+        }
+      },
+      "errors": [
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "No component with that id"
+        },
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Component source_path escapes configured root"
+        },
+        {
+          "status": 412,
+          "code": "failed_precondition",
+          "description": "expected_sha256 did not match on-disk digest"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Filesystem write failure"
+        }
+      ]
+    },
+    {
+      "id": "components_versions_list",
+      "path": "/vrooli.react_component_library.v1.components.ComponentsService/ListComponentVersions",
+      "method": "POST",
+      "summary": "List component versions",
+      "description": "Returns release and draft artifacts indexed from the component manifest's version folders.",
+      "category": "components",
+      "request": {
+        "type": "object",
+        "properties": {
+          "component_id": "string",
+          "limit": "int32"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "versions": "array<ComponentVersion>"
+        }
+      },
+      "errors": [
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Repository read failure"
+        }
+      ]
+    },
+    {
+      "id": "components_version_content_get",
+      "path": "/vrooli.react_component_library.v1.components.ComponentsService/GetComponentVersionContent",
+      "method": "POST",
+      "summary": "Read component version source",
+      "description": "Returns the indexed source body for a specific component version.",
+      "category": "components",
+      "request": {
+        "type": "object",
+        "properties": {
+          "component_id": "string",
+          "version": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "content": "string",
+          "version": "ComponentVersion"
+        }
+      },
+      "errors": [
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "No component version with that component_id/version pair"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Repository read failure"
+        }
+      ]
+    },
+    {
+      "id": "components_library_import_resolve",
+      "path": "/vrooli.react_component_library.v1.components.ComponentsService/ResolveLibraryImport",
+      "method": "POST",
+      "summary": "Resolve a library import",
+      "description": "Resolves a published React Component Library package specifier to its catalog asset, pinned version, export kind, description, and source path. Relative imports return an explicit unresolved diagnostic.",
+      "category": "components",
+      "request": {
+        "type": "object",
+        "properties": {
+          "from_path": "string (optional source path)",
+          "specifier": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "asset_id": "string",
+          "description": "string",
+          "diagnostic": "string",
+          "export_kind": "string",
+          "library_id": "string",
+          "resolved": "bool",
+          "source_path": "string",
+          "version": "string"
+        }
+      },
+      "errors": [
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Catalog read failure"
+        }
+      ]
+    },
+    {
+      "id": "components_stories_list",
+      "path": "/vrooli.react_component_library.v1.components.ComponentsService/ListComponentStories",
+      "method": "POST",
+      "summary": "List validated story contracts",
+      "description": "Returns typed, indexed story contracts for one component and optional version.",
+      "category": "components",
+      "request": {
+        "type": "object",
+        "properties": {
+          "component_id": "string",
+          "limit": "int32",
+          "version": "string (optional)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "stories": "array<ComponentStory>"
+        }
+      },
+      "errors": [
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Repository read failure"
+        }
+      ]
+    },
+    {
+      "id": "components_preview_frames_list",
+      "path": "/vrooli.react_component_library.v1.components.ComponentsService/ListPreviewFrames",
+      "method": "POST",
+      "summary": "List compatible Preview frames",
+      "description": "Returns catalog-backed frame candidates with stable compatibility diagnostics. Selection is temporary until explicitly persisted in a story contract.",
+      "category": "components",
+      "request": {
+        "type": "object",
+        "properties": {
+          "component_id": "string",
+          "story_id": "string (optional)",
+          "version": "string (optional)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "candidates": "array<PreviewFrameCandidate>"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "component_id is required"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Catalog or component registry read failure"
+        }
+      ]
+    },
+    {
+      "id": "components_preview_frame_persist",
+      "path": "/vrooli.react_component_library.v1.components.ComponentsService/PersistPreviewFrame",
+      "method": "POST",
+      "summary": "Persist a Preview frame choice",
+      "description": "Creates or updates a draft story contract with an exact compatible frame reference; released versions remain immutable.",
+      "category": "components",
+      "request": {
+        "type": "object",
+        "properties": {
+          "asset": "string",
+          "capability": "string (optional)",
+          "component_id": "string",
+          "fixture": "string (optional)",
+          "frame_version": "string",
+          "region": "string",
+          "story_id": "string",
+          "version": "string (optional)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "component_id": "string",
+          "source_path": "string",
+          "story_id": "string",
+          "story_json": "string",
+          "version": "string"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "component, story, asset, frame version, and region are required"
+        },
+        {
+          "status": 412,
+          "code": "failed_precondition",
+          "description": "frame or story cannot be persisted"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Catalog or source write failure"
+        }
+      ]
+    },
+    {
+      "id": "validation_validate_target",
+      "path": "/vrooli.scenario_validation.v1.ScenarioValidationService/ValidateTarget",
+      "method": "POST",
+      "summary": "Validate a first-class repository target",
+      "description": "",
+      "category": "validation"
+    },
+    {
+      "id": "component_tests_run",
+      "path": "/vrooli.react_component_library.v1.componenttests.ComponentTestsService/RunComponentTest",
+      "method": "POST",
+      "summary": "Run a version-pinned component or hook contract",
+      "description": "",
+      "category": "component-tests"
+    },
+    {
+      "id": "component_tests_rerun",
+      "path": "/vrooli.react_component_library.v1.componenttests.ComponentTestsService/RerunComponentTest",
+      "method": "POST",
+      "summary": "Rerun a durable component test report",
+      "description": "",
+      "category": "component-tests"
+    },
+    {
+      "id": "component_tests_get",
+      "path": "/vrooli.react_component_library.v1.componenttests.ComponentTestsService/GetComponentTestReport",
+      "method": "POST",
+      "summary": "Get a durable component test report",
+      "description": "",
+      "category": "component-tests"
+    },
+    {
+      "id": "component_tests_list",
+      "path": "/vrooli.react_component_library.v1.componenttests.ComponentTestsService/ListComponentTestReports",
+      "method": "POST",
+      "summary": "List durable component test reports",
+      "description": "",
+      "category": "component-tests"
+    },
+    {
+      "id": "component_tests_sweep",
+      "path": "/vrooli.react_component_library.v1.componenttests.ComponentTestsService/SweepComponentTests",
+      "method": "POST",
+      "summary": "Run the resumable full-corpus component-test sweep",
+      "description": "",
+      "category": "component-tests"
+    },
+    {
+      "id": "component_tests_validate_scenario",
+      "path": "/vrooli.scenario_validation.v1.ScenarioValidationService/ValidateScenario",
+      "method": "POST",
+      "summary": "Run the catalog component-test suite for Test Genie",
+      "description": "",
+      "category": "component-tests"
+    },
+    {
+      "id": "component_tests_preview_fix",
+      "path": "/vrooli.scenario_validation.v1.ScenarioValidationService/PreviewFix",
+      "method": "POST",
+      "summary": "Preview component-test fixes",
+      "description": "",
+      "category": "component-tests"
+    },
+    {
+      "id": "component_tests_apply_fix",
+      "path": "/vrooli.scenario_validation.v1.ScenarioValidationService/ApplyFix",
+      "method": "POST",
+      "summary": "Apply component-test fixes",
+      "description": "",
+      "category": "component-tests"
+    },
+    {
+      "id": "deps_list_declarations",
+      "path": "/vrooli.react_component_library.v1.deps.DepsService/ListDeclarations",
+      "method": "POST",
+      "summary": "List parsed @deps declarations for a component",
+      "description": "Returns the declarations the indexer recorded for the component's @deps header field. Empty slice when the header was absent or the component has not been indexed.",
+      "category": "deps",
+      "request": {
+        "type": "object",
+        "properties": {
+          "component_id": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "declarations": "array<DepDeclaration>"
+        }
+      },
+      "errors": [
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Repository read failure"
+        }
+      ]
+    },
+    {
+      "id": "deps_validate_adoption",
+      "path": "/vrooli.react_component_library.v1.deps.DepsService/ValidateAdoption",
+      "method": "POST",
+      "summary": "Validate a component's declared deps against a target scenario",
+      "description": "Reads the target scenario's package.json (via the storage resolver) and intersects each declared semver range against the resolved version. Returns ok / warn / block plus a per-dep issues list the UI surfaces in the adoption modal.",
+      "category": "deps",
+      "request": {
+        "type": "object",
+        "properties": {
+          "component_id": "string",
+          "scenario": "string (target scenario id)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "issues": "array<DepIssue>",
+          "kind": "VerdictKind (ok|warn|block)"
+        }
+      },
+      "errors": [
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "Target scenario's package.json missing"
+        },
+        {
+          "status": 412,
+          "code": "failed_precondition",
+          "description": "Component has no declarations on file (re-run components index)"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Repository or filesystem failure"
+        }
+      ]
+    },
+    {
       "id": "health",
       "path": "/health",
       "method": "GET",
       "summary": "Service health check",
-      "description": "Returns API readiness plus dependency status",
+      "description": "Returns API readiness plus dependency status (also mounted at /api/v1/health for client callers).",
       "category": "system",
       "response": {
         "type": "object",
         "properties": {
-          "status": "string",
+          "dependencies": "object",
           "readiness": "boolean",
-          "dependencies": "object"
+          "status": "string"
         }
       },
       "examples": [
@@ -23,16 +1615,446 @@
           "curl": "curl http://localhost:${API_PORT}/health"
         }
       ],
-      "cli_mapping": {
-        "command": "react-component-library status"
+      "rest_exception": {
+        "reason": "ops_probe",
+        "note": "Plain GET /health for lifecycle systems, load balancers, and curl probes that cannot use a generated Connect client."
       }
-    }
-  ],
-  "cli_commands": [
+    },
     {
-      "name": "status",
-      "description": "Check API and dependency health",
-      "endpoint_id": "health"
+      "id": "inventory_scan_subjects",
+      "path": "/vrooli.ui_health.v1.inventory.InventoryService/Scan",
+      "method": "POST",
+      "summary": "Scan a bounded list of UI asset subjects",
+      "description": "Returns one subject-keyed result for every supplied asset subject.",
+      "category": "inventory"
+    },
+    {
+      "id": "inventory_scan_scenario",
+      "path": "/vrooli.ui_health.v1.inventory.InventoryService/ScanScenario",
+      "method": "POST",
+      "summary": "Scan a scenario's UI tree for provenance + widgets + surfaces",
+      "description": "Implements ui-health's InventoryService.ScanScenario for React scenarios. SQLite adoptions store is authoritative; JSDoc blocks are the heal-from signal.",
+      "category": "inventory",
+      "request": {
+        "type": "object",
+        "properties": {
+          "scenario": "string (required)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "provenance": "array<ComponentProvenance>",
+          "scenario": "string",
+          "surfaces": "array<SurfaceRecord>",
+          "widgets": "array<WidgetDeclaration>"
+        }
+      },
+      "examples": [
+        {
+          "name": "Scan scenario",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.ui_health.v1.inventory.InventoryService/ScanScenario -H 'Content-Type: application/json' -d '{\"scenario\":\"ui-health\"}'"
+        }
+      ]
+    },
+    {
+      "id": "preview_get_bundle",
+      "path": "/vrooli.react_component_library.v1.preview.PreviewService/GetPreviewBundle",
+      "method": "POST",
+      "summary": "Bundle a component for preview",
+      "description": "Transpiles a component's TSX source to an ES module via esbuild. Used by the CLI for diagnostics and by the harness HTML route for iframe rendering. Externals: react, react-dom, react-dom/client.",
+      "category": "preview",
+      "request": {
+        "type": "object",
+        "properties": {
+          "id": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "js": "string (ES module text)",
+          "sha256": "string (hex digest of js)",
+          "source_path": "string",
+          "warnings": "array<string>"
+        }
+      },
+      "errors": [
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "No component with that id"
+        },
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Bundler rejected the file (syntax error or unresolved import) or source_path escapes root"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Filesystem read or bundler internal failure"
+        }
+      ]
+    },
+    {
+      "id": "themes_list_builtin",
+      "path": "/vrooli.react_component_library.v1.themes.ThemesService/ListBuiltinThemes",
+      "method": "POST",
+      "summary": "List built-in themes",
+      "description": "Returns the seeded built-in themes (vrooli-default, neutral-light, neutral-dark, high-contrast).",
+      "category": "themes",
+      "request": {
+        "type": "object"
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "themes": "array<Theme>"
+        }
+      },
+      "errors": [
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Repository read failure"
+        }
+      ]
+    },
+    {
+      "id": "themes_get_builtin",
+      "path": "/vrooli.react_component_library.v1.themes.ThemesService/GetBuiltinTheme",
+      "method": "POST",
+      "summary": "Get a built-in theme by id",
+      "description": "Returns the named built-in theme including its flat token map.",
+      "category": "themes",
+      "request": {
+        "type": "object",
+        "properties": {
+          "id": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "theme": "Theme"
+        }
+      },
+      "errors": [
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "No built-in theme with that id"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Repository read failure"
+        }
+      ]
+    },
+    {
+      "id": "themes_get_from_scenario",
+      "path": "/vrooli.react_component_library.v1.themes.ThemesService/GetThemeFromScenario",
+      "method": "POST",
+      "summary": "Resolve a theme from a target scenario's DESIGN.md",
+      "description": "Reads <scenarios-root>/<scenario_id>/DESIGN.md via the storage resolver, parses the YAML front-matter, and projects it into a flat CSS-custom-property token map. Client never builds the URL or parses DESIGN.md directly.",
+      "category": "themes",
+      "request": {
+        "type": "object",
+        "properties": {
+          "scenario_id": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "theme": "Theme"
+        }
+      },
+      "errors": [
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "Target scenario's DESIGN.md missing"
+        },
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "DESIGN.md is malformed or does not project to a recognizable theme"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Filesystem read or parse failure"
+        }
+      ]
+    },
+    {
+      "id": "versions_list",
+      "path": "/vrooli.react_component_library.v1.versions.VersionsService/ListVersions",
+      "method": "POST",
+      "summary": "List recorded versions for a component",
+      "description": "Returns version rows newest-first for the given component_id.",
+      "category": "versions",
+      "request": {
+        "type": "object",
+        "properties": {
+          "component_id": "string",
+          "limit": "int32 (max rows, 0 = server default)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "versions": "array<Version>"
+        }
+      },
+      "errors": [
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Repository read failure"
+        }
+      ]
+    },
+    {
+      "id": "versions_get",
+      "path": "/vrooli.react_component_library.v1.versions.VersionsService/GetVersion",
+      "method": "POST",
+      "summary": "Get a specific recorded version",
+      "description": "Returns the row matching (component_id, version). Set include_content=true to receive the full recorded body.",
+      "category": "versions",
+      "request": {
+        "type": "object",
+        "properties": {
+          "component_id": "string",
+          "include_content": "bool",
+          "version": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "content": "string (populated only when include_content was true)",
+          "version": "Version"
+        }
+      },
+      "errors": [
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "No version with that component_id/version pair"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Repository read failure"
+        }
+      ]
+    },
+    {
+      "id": "versions_diff",
+      "path": "/vrooli.react_component_library.v1.versions.VersionsService/DiffVersions",
+      "method": "POST",
+      "summary": "Diff two versions or a version and an adopted copy",
+      "description": "Returns paired left/right diff cells (equal/add/remove/empty). `from` and `to` accept either a @version value or `adoption:<id>` to compare against an adopted copy on disk.",
+      "category": "versions",
+      "request": {
+        "type": "object",
+        "properties": {
+          "component_id": "string",
+          "from": "string (version or adoption:<id>)",
+          "to": "string (version or adoption:<id>)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "additions": "int32",
+          "from_label": "string",
+          "removals": "int32",
+          "rows": "array<DiffRow>",
+          "to_label": "string"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Missing from/to or invalid adoption reference"
+        },
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "Referenced version or adoption does not exist"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Repository or filesystem failure"
+        }
+      ]
+    },
+    {
+      "id": "versions_progression",
+      "path": "/vrooli.react_component_library.v1.versions.VersionLifecycleService/ListVersionLedger",
+      "method": "POST",
+      "summary": "List durable version progression ledger",
+      "description": "",
+      "category": "versions"
+    },
+    {
+      "id": "versions_retire_candidates",
+      "path": "/vrooli.react_component_library.v1.versions.VersionLifecycleService/ListRetireCandidates",
+      "method": "POST",
+      "summary": "List safe version retirement candidates",
+      "description": "",
+      "category": "versions"
+    },
+    {
+      "id": "versions_plan_cleanup",
+      "path": "/vrooli.react_component_library.v1.versions.VersionLifecycleService/PlanCleanup",
+      "method": "POST",
+      "summary": "Plan safe batch version cleanup",
+      "description": "",
+      "category": "versions"
+    },
+    {
+      "id": "versions_cleanup",
+      "path": "/vrooli.react_component_library.v1.versions.VersionLifecycleService/CleanupVersions",
+      "method": "POST",
+      "summary": "Apply confirmed batch version cleanup",
+      "description": "",
+      "category": "versions"
+    },
+    {
+      "id": "versions_cleanup_draft",
+      "path": "/vrooli.react_component_library.v1.versions.VersionLifecycleService/CleanupDraft",
+      "method": "POST",
+      "summary": "Discard a confirmed abandoned draft",
+      "description": "",
+      "category": "versions"
+    },
+    {
+      "id": "versions_deprecate",
+      "path": "/vrooli.react_component_library.v1.versions.VersionLifecycleService/DeprecateVersion",
+      "method": "POST",
+      "summary": "Deprecate a version",
+      "description": "",
+      "category": "versions"
+    },
+    {
+      "id": "versions_archive",
+      "path": "/vrooli.react_component_library.v1.versions.VersionLifecycleService/ArchiveVersion",
+      "method": "POST",
+      "summary": "Archive a version",
+      "description": "",
+      "category": "versions"
+    },
+    {
+      "id": "versions_retire",
+      "path": "/vrooli.react_component_library.v1.versions.VersionLifecycleService/RetireVersion",
+      "method": "POST",
+      "summary": "Retire an unreferenced version",
+      "description": "",
+      "category": "versions"
+    },
+    {
+      "id": "versions_materialize",
+      "path": "/vrooli.react_component_library.v1.versions.VersionLifecycleService/MaterializeVersion",
+      "method": "POST",
+      "summary": "Materialize version bytes from the durable mirror",
+      "description": "",
+      "category": "versions"
+    },
+    {
+      "id": "versions_reconcile_presence",
+      "path": "/vrooli.react_component_library.v1.versions.VersionLifecycleService/ReconcilePresence",
+      "method": "POST",
+      "summary": "Reconcile materialized and evicted version presence",
+      "description": "",
+      "category": "versions"
+    },
+    {
+      "id": "versions_export_archive",
+      "path": "/vrooli.react_component_library.v1.versions.VersionLifecycleService/ExportArchive",
+      "method": "POST",
+      "summary": "Export the version ledger archive",
+      "description": "",
+      "category": "versions"
+    },
+    {
+      "id": "versions_import_archive",
+      "path": "/vrooli.react_component_library.v1.versions.VersionLifecycleService/ImportArchive",
+      "method": "POST",
+      "summary": "Import the version ledger archive",
+      "description": "",
+      "category": "versions"
+    },
+    {
+      "id": "versions_doctor",
+      "path": "/vrooli.react_component_library.v1.versions.VersionLifecycleService/Doctor",
+      "method": "POST",
+      "summary": "Check evicted version mirror integrity",
+      "description": "",
+      "category": "versions"
+    },
+    {
+      "id": "workflows_start",
+      "path": "/vrooli.react_component_library.v1.workflows.WorkflowsService/StartWorkflow",
+      "method": "POST",
+      "summary": "Start assisted catalog work",
+      "description": "",
+      "category": "workflows"
+    },
+    {
+      "id": "workflows_list",
+      "path": "/vrooli.react_component_library.v1.workflows.WorkflowsService/ListWorkflows",
+      "method": "POST",
+      "summary": "List assisted catalog work",
+      "description": "",
+      "category": "workflows"
+    },
+    {
+      "id": "workflows_get",
+      "path": "/vrooli.react_component_library.v1.workflows.WorkflowsService/GetWorkflow",
+      "method": "POST",
+      "summary": "Get assisted catalog work",
+      "description": "",
+      "category": "workflows"
+    },
+    {
+      "id": "workflows_refresh",
+      "path": "/vrooli.react_component_library.v1.workflows.WorkflowsService/RefreshWorkflow",
+      "method": "POST",
+      "summary": "Refresh assisted catalog work",
+      "description": "",
+      "category": "workflows"
+    },
+    {
+      "id": "workflows_stop",
+      "path": "/vrooli.react_component_library.v1.workflows.WorkflowsService/StopWorkflow",
+      "method": "POST",
+      "summary": "Stop assisted catalog work",
+      "description": "",
+      "category": "workflows"
+    },
+    {
+      "id": "workflows_retry",
+      "path": "/vrooli.react_component_library.v1.workflows.WorkflowsService/RetryWorkflow",
+      "method": "POST",
+      "summary": "Retry assisted catalog work",
+      "description": "",
+      "category": "workflows"
+    },
+    {
+      "id": "workflows_promotion_readiness",
+      "path": "/vrooli.react_component_library.v1.workflows.WorkflowsService/GetPromotionReadiness",
+      "method": "POST",
+      "summary": "Read promotion readiness evidence",
+      "description": "",
+      "category": "workflows"
     }
   ]
 }

@@ -1,0 +1,36 @@
+{
+  "_metadata": {
+    "module": "attested-search",
+    "description": "OT-P2-002 — readiness answerable via search. Satisfied by cli-health command federation; dedicated attested-answer provider descoped.",
+    "prd_ref": "PRD.md",
+    "priority": "P2",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "MOM-SEARCH-001",
+      "title": "readiness answers discoverable via search-hub (cli-health command federation)",
+      "status": "in_progress",
+      "prd_ref": "OT-P2-002",
+      "category": "coverage",
+      "description": "The user need — 'how ready are we / where should I work' answerable through search — is already satisfied by cli-health's command federation: a federated search-hub query surfaces meta-optimization-manager's coverage/focus commands (e.g. `status`, `validate-docs`, `list-cells`) with their descriptions, routing the agent to the right command. A dedicated MoM search provider that emits the AttestedAnswer envelope (confidence + citations inline in the search result) is DESCOPED as redundant for this need — see docs/internal/DECISIONS.md (2026-06-24). The additive `AttestedAnswer` carrier on search-hub `SearchHit` stays available for any future provider that wants inline attestation, but MoM does not self-register one.",
+      "tags": ["search-hub", "cli-health", "descoped"],
+      "validation": [
+        { "type": "manual", "phase": "integration", "status": "pending", "notes": "Previously verified live, but current revalidation returns a provider HTTP 500 while the shared vector substrate is stopped/degraded; re-attest after healthy-substrate restoration." }
+      ]
+    },
+    {
+      "id": "MOM-SEARCH-002",
+      "title": "agent work history appears in the Answer projection with honest condition evidence",
+      "status": "complete",
+      "prd_ref": "OT-P2-002",
+      "category": "coverage",
+      "description": "Answer cell 37 maps the prior-work question to agent-manager.runs. Meta Optimization Manager reuses Search Hub registry, reachability, index degradation, and tiered eval evidence; it does not create a second registry, a dedicated conversation provider, or a Meta Optimization search endpoint.",
+      "tags": ["search-hub", "agent-manager", "answer-projection", "condition"],
+      "validation": [
+        { "type": "test", "phase": "integration", "status": "complete", "ref": "api/internal/coverage/numeratorclient_test.go::TestAgentWorkHistoryAnswerConditionStates", "notes": "Pins absent/capability-gap, unreachable, unproven, failing, degraded lexical-only, and passing evidence without treating unknown as success or failure." },
+        { "type": "manual", "phase": "integration", "status": "pending", "notes": "Capture the live Answer-board cell after the Agent Manager direct and federated overlay evals complete." }
+      ]
+    }
+  ]
+}

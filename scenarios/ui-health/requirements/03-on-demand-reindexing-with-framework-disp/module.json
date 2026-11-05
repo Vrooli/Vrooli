@@ -1,0 +1,156 @@
+{
+  "description": "`ui-health reindex run` walks every scenario, dispatches `InventoryService.ScanScenario` to the appropriate per-framework component-library scenario (today: `react-component-library`), aggregates `ScanResponse`, embeds each `SurfaceRecord` via the Ollama `embedding.default` role, and upserts to Qdrant collection `ui-health-surface`.",
+  "module_id": "MOD-P0-003",
+  "prd_ref": "OT-P0-003",
+  "priority": "P0",
+  "requirements": [
+    {
+      "category": "integration",
+      "dependencies": [
+        "REQ-P0-003",
+        "REQ-P2-001"
+      ],
+      "description": "The CLI command `ui-health reindex run` must walk every registered scenario, dispatch `InventoryService.ScanScenario` to the appropriate per-framework component-library scenario (initially `react-component-library`), aggregate the returned `ScanResponse`, embed each `SurfaceRecord` via the Ollama `embedding.default` role, and upsert the resulting vectors and payloads to the Qdrant collection `ui-health-surface`.",
+      "id": "REQ-P0-004",
+      "prd_ref": "OT-P0-003",
+      "status": "draft",
+      "title": "On-Demand Reindex with Framework Dispatch and Qdrant Upsert",
+      "validation": [
+        {
+          "notes": "Framework dispatcher correctly routes to `react-component-library` scenario for React-based scenarios",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "ScanResponse aggregation merges SurfaceRecords from multiple scenarios without duplication",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Each SurfaceRecord is embedded individually via the Ollama embedding role before upsert",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Qdrant upsert operation targets the `ui-health-surface` collection",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Run `ui-health reindex run` against a test corpus and confirm all scenarios are walked",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Confirm `InventoryService.ScanScenario` is invoked once per scenario with correct parameters",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Confirm all returned SurfaceRecords appear as points in the `ui-health-surface` Qdrant collection after reindex",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Confirm that re-running reindex updates existing points rather than creating duplicates (upsert semantics)",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Reindex of 50 scenarios with 200 surface records each completes within 10 minutes",
+          "phase": "performance",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Embedding calls are batched where Ollama API supports batching to minimize round-trip overhead",
+          "phase": "performance",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Search results reflect the latest component inventory after a reindex run",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    },
+    {
+      "category": "cli",
+      "dependencies": [
+        "REQ-P0-004",
+        "REQ-P1-002"
+      ],
+      "description": "The `ui-health reindex run` command must create a trackable job with a unique job_id returned on start. The job must record per-scenario progress so that status can be queried.",
+      "id": "REQ-P0-005",
+      "prd_ref": "OT-P0-003",
+      "status": "draft",
+      "title": "Reindex Job Lifecycle and Progress Reporting",
+      "validation": [
+        {
+          "notes": "A unique job_id is generated and printed to stdout when `reindex run` starts",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Job state transitions: PENDING → RUNNING → COMPLETED or FAILED",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Partial scenario completion is recorded incrementally so status reflects real-time progress",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Start a reindex job and immediately query status; confirm state is RUNNING and scenarios_completed \u003c scenarios_total",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Wait for reindex completion and query status; confirm state is COMPLETED",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Operators can monitor long-running reindex operations without blocking the terminal",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "On-demand reindexing with framework dispatch"
+}

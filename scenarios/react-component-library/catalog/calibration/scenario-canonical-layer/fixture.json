@@ -1,0 +1,1 @@
+{"gate":"scenario-canonical-layer","assetId":"__corpus__.scenario-canonical-layer","kind":"corpus","runner":"static","requiredFailureCode":"catalog.scenario_canonical_layer_unmounted","mutation":"scenario-canonical-layer","description":"A scenario imports a library asset without mounting the canonical BaseStyles provider."}

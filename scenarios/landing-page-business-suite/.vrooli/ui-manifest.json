@@ -1,0 +1,10 @@
+{
+  "files": {
+    "selectorRegistry": {
+      "path": "ui/src/consts/selectors.ts"
+    },
+    "librarySelectors": {
+      "path": "ui/src/consts/selectors.library.ts"
+    }
+  }
+}

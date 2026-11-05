@@ -12,6 +12,7 @@ export interface VariantSessionSnapshot {
   name?: string;
   surface: 'variant' | 'section';
   sectionId?: number;
+  sectionKey?: string;
   sectionType?: string;
   lastVisitedAt: string;
 }
@@ -82,6 +83,7 @@ export function rememberVariantSession(params: {
   name?: string;
   surface: 'variant' | 'section';
   sectionId?: number;
+  sectionKey?: string;
   sectionType?: string;
 }) {
   const lastVisitedAt = new Date().toISOString();
@@ -91,6 +93,7 @@ export function rememberVariantSession(params: {
       name: params.name,
       surface: params.surface,
       sectionId: params.sectionId,
+      sectionKey: params.sectionKey,
       sectionType: params.sectionType,
       lastVisitedAt,
     };

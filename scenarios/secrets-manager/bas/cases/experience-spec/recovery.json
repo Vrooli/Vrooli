@@ -1,0 +1,79 @@
+{
+  "metadata": {
+    "description": "Generated observer smoke for active experience page recovery.",
+    "execution_mode": "observer",
+    "labels": {
+      "reset": "none",
+      "spec_entry_id": "recovery",
+      "surface": "experience-recovery"
+    },
+    "name": "experience-recovery-spec-smoke",
+    "requirement": "OT-P1-001",
+    "version": "1"
+  },
+  "nodes": [
+    {
+      "action": {
+        "metadata": {
+          "label": "Open Recovery"
+        },
+        "navigate": {
+          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+          "scenario": "secrets-manager",
+          "scenario_path": "/recovery",
+          "timeout_ms": 30000,
+          "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE"
+        },
+        "type": "ACTION_TYPE_NAVIGATE"
+      },
+      "id": "navigate-recovery"
+    },
+    {
+      "action": {
+        "metadata": {
+          "label": "Primary binding visible"
+        },
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "@selector/navigation.recovery",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 15000
+        }
+      },
+      "id": "wait-recovery-primary-binding"
+    },
+    {
+      "action": {
+        "metadata": { "label": "Recovery workspace exposes its authored lifecycle" },
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "[data-experience-surface=\"recovery-workspace\"][data-experience-state=\"loading\"], [data-experience-surface=\"recovery-workspace\"][data-experience-state=\"ready\"]",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 15000
+        }
+      },
+      "id": "wait-recovery-lifecycle"
+    },
+    {
+      "action": {
+        "metadata": { "label": "Recovery workspace reaches ready" },
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "[data-experience-surface=\"recovery-workspace\"][data-experience-state=\"ready\"]",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 15000
+        }
+      },
+      "id": "wait-recovery-ready"
+    }
+  ],
+  "edges": [
+    {"id": "e1", "source": "navigate-recovery", "target": "wait-recovery-primary-binding"},
+    {"id": "e2", "source": "wait-recovery-primary-binding", "target": "wait-recovery-lifecycle"},
+    {"id": "e3", "source": "wait-recovery-lifecycle", "target": "wait-recovery-ready"}
+  ],
+  "settings": {
+    "viewport_height": 800,
+    "viewport_width": 1280
+  }
+}

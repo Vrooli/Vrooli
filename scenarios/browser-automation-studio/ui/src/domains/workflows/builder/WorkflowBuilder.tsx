@@ -13,7 +13,6 @@ import ReactFlow, {
   MiniMap,
   Node,
   NodeChange,
-  NodeTypes,
   ReactFlowProvider,
   useEdgesState,
   useNodesState,
@@ -31,86 +30,17 @@ import type {
   WorkflowValidationResult,
 } from "@/types/workflow";
 import { logger } from "@utils/logger";
-import { autoLayoutNodes, normalizeEdges, normalizeNodes } from "../utils/normalizers";
-import { buildActionDefinition } from "@utils/actionBuilder";
+import { autoLayoutNodes } from "../utils/normalizers";
+import { workflowDefinitionToCanvas } from "@/stores/workflow/utils/codec";
+import { buildActionDefinition } from "@/domains/workflows/utils/normalizers";
 import { validateWorkflowDefinition } from "../validation/workflowValidation";
 import { CustomConnectionLine } from "../components";
-import AssertNode from "../nodes/AssertNode";
-import BlurNode from "../nodes/BlurNode";
-import BrowserActionNode from "../nodes/BrowserActionNode";
-import ClearCookieNode from "../nodes/ClearCookieNode";
-import ClearStorageNode from "../nodes/ClearStorageNode";
-import ClickNode from "../nodes/ClickNode";
-import ConditionalNode from "../nodes/ConditionalNode";
-import DragDropNode from "../nodes/DragDropNode";
-import ExtractNode from "../nodes/ExtractNode";
-import FocusNode from "../nodes/FocusNode";
-import FrameSwitchNode from "../nodes/FrameSwitchNode";
-import GestureNode from "../nodes/GestureNode";
-import GetCookieNode from "../nodes/GetCookieNode";
-import GetStorageNode from "../nodes/GetStorageNode";
-import HoverNode from "../nodes/HoverNode";
-import KeyboardNode from "../nodes/KeyboardNode";
-import LoopNode from "../nodes/LoopNode";
-import NavigateNode from "../nodes/NavigateNode";
-import NetworkMockNode from "../nodes/NetworkMockNode";
-import RotateNode from "../nodes/RotateNode";
-import ScreenshotNode from "../nodes/ScreenshotNode";
-import ScriptNode from "../nodes/ScriptNode";
-import ScrollNode from "../nodes/ScrollNode";
-import SelectNode from "../nodes/SelectNode";
-import SetCookieNode from "../nodes/SetCookieNode";
-import SetStorageNode from "../nodes/SetStorageNode";
-import SetVariableNode from "../nodes/SetVariableNode";
-import ShortcutNode from "../nodes/ShortcutNode";
-import TabSwitchNode from "../nodes/TabSwitchNode";
-import TypeNode from "../nodes/TypeNode";
-import UploadFileNode from "../nodes/UploadFileNode";
-import UseVariableNode from "../nodes/UseVariableNode";
-import WaitNode from "../nodes/WaitNode";
-import SubflowNode from "../nodes/SubflowNode";
+import { nodeTypes } from "./nodeTypes";
 import WorkflowToolbar from "./WorkflowToolbar";
 import { ViewportDialog, normalizeViewportSetting, CodeEditorPanel } from "./components";
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null;
-
-const nodeTypes: NodeTypes = {
-  browserAction: BrowserActionNode,
-  navigate: NavigateNode,
-  click: ClickNode,
-  hover: HoverNode,
-  dragDrop: DragDropNode,
-  focus: FocusNode,
-  blur: BlurNode,
-  scroll: ScrollNode,
-  select: SelectNode,
-  uploadFile: UploadFileNode,
-  rotate: RotateNode,
-  gesture: GestureNode,
-  tabSwitch: TabSwitchNode,
-  frameSwitch: FrameSwitchNode,
-  conditional: ConditionalNode,
-  setVariable: SetVariableNode,
-  setCookie: SetCookieNode,
-  getCookie: GetCookieNode,
-  clearCookie: ClearCookieNode,
-  setStorage: SetStorageNode,
-  getStorage: GetStorageNode,
-  clearStorage: ClearStorageNode,
-  networkMock: NetworkMockNode,
-  type: TypeNode,
-  shortcut: ShortcutNode,
-  keyboard: KeyboardNode,
-  evaluate: ScriptNode,
-  screenshot: ScreenshotNode,
-  wait: WaitNode,
-  extract: ExtractNode,
-  assert: AssertNode,
-  useVariable: UseVariableNode,
-  subflow: SubflowNode,
-  loop: LoopNode,
-};
 
 // Edge marker colors by theme - darker for light mode, lighter for dark mode
 const EDGE_MARKER_COLORS = {
@@ -167,6 +97,17 @@ function WorkflowBuilderInner({ projectId, onStartRecording }: WorkflowBuilderPr
   const [nodes, setNodes, onNodesChange] = useNodesState(storeNodes || []);
   const [edges, setEdges, onEdgesChange] = useEdgesState(storeEdges || []);
   const reactFlowInstance = useReactFlow();
+
+  // React Flow wrapper classes are an integration seam, not workflow state.
+  // Derive them from the canonical node type on every render so persistence and
+  // normalization cannot erase stable automation hooks.
+  const renderedNodes = useMemo(
+    () => nodes.map((node) => ({
+      ...node,
+      className: [node.className, `workflow-node--${node.type}`].filter(Boolean).join(" "),
+    })),
+    [nodes],
+  );
 
   const graphContainerRef = useRef<HTMLDivElement | null>(null);
   const [graphWidth, setGraphWidth] = useState(0);
@@ -392,9 +333,9 @@ function WorkflowBuilderInner({ projectId, onStartRecording }: WorkflowBuilderPr
       let parsedDefinition: WorkflowDefinition = { nodes: [], edges: [] };
       try {
         parsedDefinition = JSON.parse(codeValue || "{}") as WorkflowDefinition;
-        const initialNodes = normalizeNodes(parsedDefinition?.nodes ?? []);
-        parsedEdges = normalizeEdges(parsedDefinition?.edges ?? []);
-        parsedNodes = autoLayoutNodes(initialNodes, parsedEdges);
+        const canvas = workflowDefinitionToCanvas(parsedDefinition);
+        parsedEdges = canvas.edges;
+        parsedNodes = autoLayoutNodes(canvas.nodes, parsedEdges);
       } catch (error) {
         const message = error instanceof Error ? error.message : "Invalid JSON";
         setCodeError(message);
@@ -801,10 +742,10 @@ function WorkflowBuilderInner({ projectId, onStartRecording }: WorkflowBuilderPr
         (node) => !nodesWithOutgoingEdges.has(node.id)
       );
 
-      setNodes((nds) => nds.concat(newNode));
-
       // If there's exactly one chain end, auto-connect it to the new node
       const sourceNode = chainEndNodes[0];
+      const nextNodes = [...nodes, newNode];
+      const nextEdges = [...edges];
       if (chainEndNodes.length === 1 && sourceNode) {
         const newEdge: Edge = {
           id: `edge-${sourceNode.id}-${newNodeId}`,
@@ -819,10 +760,34 @@ function WorkflowBuilderInner({ projectId, onStartRecording }: WorkflowBuilderPr
             color: EDGE_MARKER_COLORS[effectiveTheme],
           },
         };
-        setEdges((eds) => eds.concat(newEdge));
+        nextEdges.push(newEdge);
       }
+
+      // History stores complete workflow states, including the state after the
+      // edit. Recording only the pre-drop state enabled Undo but made Redo
+      // restore the same pre-drop snapshot.
+      const currentState: WorkflowState = { nodes: [...nodes], edges: [...edges] };
+      const nextState: WorkflowState = { nodes: nextNodes, edges: nextEdges };
+      const retainedHistory = history.length === 0
+        ? [currentState]
+        : history.slice(0, historyIndex + 1);
+      const nextHistory = [...retainedHistory, nextState].slice(-50);
+
+      setNodes(nextNodes);
+      setEdges(nextEdges);
+      setHistory(nextHistory);
+      setHistoryIndex(nextHistory.length - 1);
     },
-    [reactFlowInstance, setNodes, setEdges, nodes, edges, effectiveTheme],
+    [
+      reactFlowInstance,
+      setNodes,
+      setEdges,
+      nodes,
+      edges,
+      effectiveTheme,
+      history,
+      historyIndex,
+    ],
   );
 
   const onDragOver = useCallback((event: React.DragEvent) => {
@@ -836,6 +801,8 @@ function WorkflowBuilderInner({ projectId, onStartRecording }: WorkflowBuilderPr
       className="flex-1 relative"
       data-testid={selectors.workflowBuilder.canvas.root}
       data-builder-ready={viewMode === "visual" && isReactFlowReady ? "true" : "false"}
+      onDropCapture={onDrop}
+      onDragOverCapture={onDragOver}
     >
       {viewMode === "visual" && (
         <WorkflowToolbar
@@ -887,15 +854,13 @@ function WorkflowBuilderInner({ projectId, onStartRecording }: WorkflowBuilderPr
 
       {viewMode === "visual" ? (
         <ReactFlow
-          nodes={nodes}
+          nodes={renderedNodes}
           edges={edges}
           onNodesChange={onNodesChangeHandler}
           onEdgesChange={onEdgesChangeHandler}
           onConnect={onConnect}
           onConnectStart={onConnectStart}
           onConnectEnd={onConnectEnd}
-          onDrop={onDrop}
-          onDragOver={onDragOver}
           nodeTypes={nodeTypes}
           defaultEdgeOptions={defaultEdgeOptions}
           fitView

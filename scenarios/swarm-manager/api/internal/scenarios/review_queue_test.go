@@ -9,10 +9,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/gorilla/mux"
 	"swarm-manager/internal/backlog"
 	"swarm-manager/internal/execution"
-	"swarm-manager/internal/testutil"
+
+	"github.com/gorilla/mux"
+	"github.com/vrooli/api-core/apihttptest"
 )
 
 // --- Stubs ---
@@ -371,8 +372,7 @@ func TestReviewQueue_HTTPHandler(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/scenarios/review-queue?limit=5", nil)
 	rec := httptest.NewRecorder()
 	router.ServeHTTP(rec, req)
-
-	testutil.AssertStatusOK(t, rec)
+	apihttptest.AssertStatus(t, rec.Result(), 200)
 
 	var resp struct {
 		Items          []json.RawMessage `json:"items"`

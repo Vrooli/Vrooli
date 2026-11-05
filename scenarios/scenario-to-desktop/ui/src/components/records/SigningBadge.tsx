@@ -1,20 +1,29 @@
 import { useQuery } from "@tanstack/react-query";
 import { RefreshCw, AlertCircle, CheckCircle2 } from "lucide-react";
-import type { SigningReadinessResponse } from "../../lib/api";
-import { checkSigningReadiness } from "../../lib/api";
+import { signingConnectClient } from "../../lib/api/connect";
+import {
+  presentSigningReadiness,
+  type SigningReadinessResponse,
+} from "../../domain/signing";
 import { Badge } from "../ui/badge";
 
 export function SigningBadge({ scenarioName }: { scenarioName: string }) {
   const { data, isFetching } = useQuery<SigningReadinessResponse>({
     queryKey: ["signing-readiness-record", scenarioName],
-    queryFn: () => checkSigningReadiness(scenarioName),
+    queryFn: async () =>
+      presentSigningReadiness(
+        await signingConnectClient.getSigningReadiness({ scenarioName }),
+      ),
     enabled: Boolean(scenarioName),
     staleTime: 30000,
   });
 
   if (isFetching) {
     return (
-      <Badge variant="outline" className="gap-1 border-slate-700 text-slate-200">
+      <Badge
+        variant="outline"
+        className="gap-1 border-slate-700 text-slate-200"
+      >
         <RefreshCw className="h-3.5 w-3.5 animate-spin" />
         Checking signing…
       </Badge>
@@ -23,7 +32,10 @@ export function SigningBadge({ scenarioName }: { scenarioName: string }) {
 
   if (!data || !data.ready) {
     return (
-      <Badge variant="outline" className="gap-1 border-amber-800 text-amber-200">
+      <Badge
+        variant="outline"
+        className="gap-1 border-amber-800 text-amber-200"
+      >
         <AlertCircle className="h-3.5 w-3.5" />
         Signing not ready
       </Badge>

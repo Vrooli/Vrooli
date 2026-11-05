@@ -14,7 +14,8 @@
  * catch such issues before they reach production.
  */
 
-import { chromium, Browser, BrowserContext, Page } from 'rebrowser-playwright';
+import { BrowserContext, Page } from 'rebrowser-playwright';
+import { ownBrowser } from './support/browser-fixture';
 import * as http from 'http';
 import {
   createRecordingContextInitializer,
@@ -25,6 +26,19 @@ import {
 } from '../../src/recording';
 import { waitForScriptReady } from '../../src/recording';
 import { ActionType } from '../../src/proto/recording';
+import { timelineEntryToHandlerInstruction } from '../../src/recording/handler-adapter';
+import { InteractionHandler } from '../../src/handlers/interaction';
+import { KeyboardHandler } from '../../src/handlers/keyboard';
+import type { HandlerContext } from '../../src/handlers/base';
+import { createTestConfig } from '../helpers';
+import { logger, metrics } from '../../src/utils';
+import { create } from '@bufbuild/protobuf';
+import {
+  ActionDefinitionSchema,
+  ClickParamsSchema,
+  KeyboardModifier,
+  MouseButton,
+} from '@vrooli/proto-types/browser-automation-studio/v1/actions/action_pb';
 
 // Increase timeout for comprehensive E2E testing
 jest.setTimeout(120000);
@@ -190,17 +204,15 @@ async function simulateRealScroll(page: Page, deltaY: number = 200): Promise<voi
 }
 
 describe('End-to-End Timeline Validation (Integration)', () => {
-  let browser: Browser;
+  const browserOwner = ownBrowser({ headless: true });
   let server: TimelineTestServer;
 
   beforeAll(async () => {
-    browser = await chromium.launch({ headless: true });
     server = new TimelineTestServer();
     await server.start();
   });
 
   afterAll(async () => {
-    await browser.close();
     await server.stop();
   });
 
@@ -212,7 +224,7 @@ describe('End-to-End Timeline Validation (Integration)', () => {
     let capturedEntries: TimelineEntry[];
 
     beforeEach(async () => {
-      context = await browser.newContext();
+      context = await browserOwner.browser.newContext();
       initializer = createRecordingContextInitializer({});
       await initializer.initialize(context);
       page = await context.newPage();
@@ -230,6 +242,208 @@ describe('End-to-End Timeline Validation (Integration)', () => {
         await pipelineManager.stopRecording();
       }
       await context.close();
+    });
+
+    const replayCapturedEntries = async (replayPage: Page, sessionId: string): Promise<void> => {
+      const interactionHandler = new InteractionHandler();
+      const keyboardHandler = new KeyboardHandler();
+      const replayContext: HandlerContext = {
+        page: replayPage,
+        browserContext: context,
+        config: createTestConfig(),
+        logger,
+        metrics,
+        sessionId,
+      };
+      for (const entry of capturedEntries) {
+        if (entry.action?.type === ActionType.NAVIGATE) continue;
+        const instruction = timelineEntryToHandlerInstruction(entry);
+        const handler =
+          entry.action?.type === ActionType.KEYBOARD ? keyboardHandler : interactionHandler;
+        const result = await handler.execute(instruction, replayContext);
+        expect(result.success).toBe(true);
+      }
+    };
+
+    it('replays recorded replacement text instead of appending it', async () => {
+      const url = server.getUrl('/interactive-page');
+      await page.goto(url);
+      await waitForScriptReady(page, 5000);
+      await page.locator('#text-input').fill('original');
+
+      await pipelineManager.startRecording({
+        sessionId: 'e2e-test-session',
+        recordingId: 'replacement-input',
+        onEntry: (entry) => capturedEntries.push(entry),
+      });
+
+      await page.click('#text-input');
+      await page.keyboard.press('Control+A');
+      await page.keyboard.type('replacement');
+      await page.waitForTimeout(500);
+      await pipelineManager.stopRecording();
+
+      const inputEntry = capturedEntries.find((entry) => entry.action?.params?.case === 'input');
+      expect(inputEntry).toBeDefined();
+      if (!inputEntry) throw new Error('Recording did not produce a typed input action');
+      if (inputEntry.action?.params?.case !== 'input')
+        throw new Error('Recording input action has no typed input params');
+      expect(inputEntry.action.params.value.value).toBe('replacement');
+      expect(inputEntry.action.params.value.clearFirst).toBe(true);
+
+      const replayPage = await context.newPage();
+      await replayPage.goto(url);
+      await replayPage.locator('#text-input').fill('original');
+      await replayPage.evaluate(() => {
+        (
+          window as Window & { __replayedKeys?: { key: string; ctrlKey: boolean }[] }
+        ).__replayedKeys = [];
+        document.addEventListener(
+          'keydown',
+          (event) => {
+            (
+              window as Window & { __replayedKeys?: { key: string; ctrlKey: boolean }[] }
+            ).__replayedKeys?.push({
+              key: event.key,
+              ctrlKey: event.ctrlKey,
+            });
+          },
+          true
+        );
+      });
+      await replayCapturedEntries(replayPage, 'replacement-input-replay');
+
+      expect(await replayPage.locator('#text-input').inputValue()).toBe('replacement');
+      const replayedKeys = await replayPage.evaluate(
+        () =>
+          (window as Window & { __replayedKeys?: { key: string; ctrlKey: boolean }[] })
+            .__replayedKeys ?? []
+      );
+      expect(replayedKeys).toContainEqual({ key: 'A', ctrlKey: true });
+    });
+
+    it('replays a cleared field as empty when recording stops immediately', async () => {
+      const url = server.getUrl('/interactive-page');
+      await page.goto(url);
+      await waitForScriptReady(page, 5000);
+      await page.locator('#text-input').fill('original');
+
+      await pipelineManager.startRecording({
+        sessionId: 'e2e-test-session',
+        recordingId: 'cleared-input',
+        onEntry: (entry) => capturedEntries.push(entry),
+      });
+
+      await page.click('#text-input');
+      await page.keyboard.press('Control+A');
+      await page.keyboard.press('Backspace');
+      expect(await page.locator('#text-input').inputValue()).toBe('');
+      await pipelineManager.stopRecording();
+
+      const inputEntry = capturedEntries.find((entry) => entry.action?.params?.case === 'input');
+      expect(inputEntry?.action?.params).toMatchObject({
+        case: 'input',
+        value: { value: '', clearFirst: true },
+      });
+
+      const replayPage = await context.newPage();
+      await replayPage.goto(url);
+      await replayPage.locator('#text-input').fill('original');
+      await replayCapturedEntries(replayPage, 'cleared-input-replay');
+
+      expect(await replayPage.locator('#text-input').inputValue()).toBe('');
+    });
+
+    it('executes typed right-button count, delay, and modifier options in Chromium', async () => {
+      await page.goto(server.getUrl('/interactive-page'));
+      await page.evaluate(() => {
+        (
+          window as Window & {
+            __mouseEvents?: {
+              type: string;
+              button: number;
+              shiftKey: boolean;
+              detail: number;
+              time: number;
+            }[];
+          }
+        ).__mouseEvents = [];
+        for (const type of ['mousedown', 'mouseup']) {
+          document.addEventListener(
+            type,
+            (event) => {
+              const mouse = event as MouseEvent;
+              (
+                window as Window & {
+                  __mouseEvents?: {
+                    type: string;
+                    button: number;
+                    shiftKey: boolean;
+                    detail: number;
+                    time: number;
+                  }[];
+                }
+              ).__mouseEvents?.push({
+                type,
+                button: mouse.button,
+                shiftKey: mouse.shiftKey,
+                detail: mouse.detail,
+                time: mouse.timeStamp,
+              });
+            },
+            true
+          );
+        }
+      });
+
+      const action = create(ActionDefinitionSchema, {
+        type: ActionType.CLICK,
+        params: {
+          case: 'click',
+          value: create(ClickParamsSchema, {
+            selector: '#btn-3',
+            button: MouseButton.RIGHT,
+            clickCount: 2,
+            delayMs: 80,
+            modifiers: [KeyboardModifier.SHIFT],
+          }),
+        },
+      });
+      const handler = new InteractionHandler();
+      const result = await handler.execute(
+        { index: 0, nodeId: 'typed-right-double-click', action },
+        {
+          page,
+          browserContext: context,
+          config: createTestConfig(),
+          logger,
+          metrics,
+          sessionId: 'typed-click-semantics',
+        }
+      );
+
+      expect(result.success).toBe(true);
+      const events = await page.evaluate(
+        () =>
+          (
+            window as Window & {
+              __mouseEvents?: {
+                type: string;
+                button: number;
+                shiftKey: boolean;
+                detail: number;
+                time: number;
+              }[];
+            }
+          ).__mouseEvents ?? []
+      );
+      const downs = events.filter((event) => event.type === 'mousedown');
+      const ups = events.filter((event) => event.type === 'mouseup');
+      expect(downs).toHaveLength(2);
+      expect(ups).toHaveLength(2);
+      expect([...downs, ...ups].every((event) => event.button === 2 && event.shiftKey)).toBe(true);
+      expect(downs.map((event) => event.detail)).toEqual([1, 2]);
+      expect(downs.every((down, index) => ups[index].time - down.time >= 50)).toBe(true);
     });
 
     it('[CRITICAL] should capture click events in timeline', async () => {
@@ -411,7 +625,9 @@ describe('End-to-End Timeline Validation (Integration)', () => {
       await pipelineManager.stopRecording();
 
       // Verify sequence numbers are ascending
-      const sequenceNums = capturedEntries.map((e) => e.sequenceNum).filter((n): n is number => n !== undefined);
+      const sequenceNums = capturedEntries
+        .map((e) => e.sequenceNum)
+        .filter((n): n is number => n !== undefined);
 
       for (let i = 1; i < sequenceNums.length; i++) {
         const current = sequenceNums[i];
@@ -471,7 +687,12 @@ describe('End-to-End Timeline Validation (Integration)', () => {
       const lastClick = clickEvents[clickEvents.length - 1];
       const firstNav = navEvents.find((entry) => getEntryUrl(entry)?.includes('/page-2'));
 
-      if (lastClick && firstNav && lastClick.sequenceNum !== undefined && firstNav.sequenceNum !== undefined) {
+      if (
+        lastClick &&
+        firstNav &&
+        lastClick.sequenceNum !== undefined &&
+        firstNav.sequenceNum !== undefined
+      ) {
         expect(lastClick.sequenceNum).toBeLessThan(firstNav.sequenceNum);
       }
     });
@@ -535,7 +756,7 @@ describe('End-to-End Timeline Validation (Integration)', () => {
       await pipelineManager.stopRecording();
 
       // Specifically validate NAVIGATE action type
-      const navEvents = capturedEntries.filter(e => getActionType(e) === ActionType.NAVIGATE);
+      const navEvents = capturedEntries.filter((e) => getActionType(e) === ActionType.NAVIGATE);
 
       expect(navEvents.length).toBeGreaterThan(0);
 
@@ -581,7 +802,7 @@ describe('End-to-End Timeline Validation (Integration)', () => {
     let capturedEntries: TimelineEntry[];
 
     beforeEach(async () => {
-      context = await browser.newContext();
+      context = await browserOwner.browser.newContext();
       initializer = createRecordingContextInitializer({});
       await initializer.initialize(context);
       page = await context.newPage();
@@ -639,7 +860,6 @@ describe('End-to-End Timeline Validation (Integration)', () => {
         expect(clickEntry.context).toBeDefined();
         expect(clickEntry.context?.origin?.case).toBe('sessionId');
         expect(clickEntry.context?.origin?.value).toBe('structure-test-session');
-
       }
     });
 
@@ -709,7 +929,6 @@ describe('End-to-End Timeline Validation (Integration)', () => {
         // Selectors are stored in action.metadata.selectorCandidates (per proto schema)
         expect(clickEntry.action?.metadata?.selectorCandidates).toBeDefined();
         expect(clickEntry.action?.metadata?.selectorCandidates?.length).toBeGreaterThan(0);
-
       }
     });
   });

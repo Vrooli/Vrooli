@@ -1,0 +1,362 @@
+package admin
+
+import (
+	"context"
+	"encoding/json"
+	"flag"
+	"fmt"
+	"io"
+	"net/http"
+	"os"
+	"strings"
+	"time"
+
+	"connectrpc.com/connect"
+	"landing-page-business-suite/cli/internal/support"
+
+	"github.com/vrooli/cli-core/cliapp"
+	"github.com/vrooli/cli-core/cliutil"
+	lpbsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-business-suite/v1"
+	lpbsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-business-suite/v1/landing_page_business_suite_v1connect"
+	"google.golang.org/protobuf/encoding/protojson"
+)
+
+func Register(deps support.Dependencies) cliapp.CommandGroup {
+	commands := []cliapp.Command{
+		{Name: "admin-login", NeedsAPI: true, Description: "Admin login (stores session)", Run: func(args []string) error { return runLogin(deps, args) }},
+		{Name: "admin-logout", NeedsAPI: true, Description: "Admin logout (clears session)", Run: func(args []string) error { return runLogout(deps, args) }},
+		{Name: "admin-session", NeedsAPI: true, Description: "Admin session status", Run: func(args []string) error { return runSession(deps, args) }},
+		{Name: "admin-reauthenticate", NeedsAPI: true, Description: "Reauthenticate the stored administrator session for sensitive operations", Run: func(args []string) error { return runReauthenticate(deps, args) }},
+		{Name: "admin-mfa-reset", NeedsAPI: true, Description: "Turn off admin two-factor authentication (operator recovery; uses the service credential)", Run: func(args []string) error { return runMFAReset(deps, args) }},
+		{Name: "admin-credential-reset", NeedsAPI: true, Description: "Reset the admin sign-in credential (operator recovery; local service credential or a remote profile)", Run: func(args []string) error { return runCredentialReset(deps, args) }},
+	}
+	commands = append(commands, deps.EndpointCommands([]support.EndpointDef{
+		{Name: "admin-profile", Method: "GET", Path: "/admin/profile", Description: "Admin profile"},
+		{Name: "admin-profile-update", Method: "PUT", Path: "/admin/profile", Description: "Update admin profile"},
+		{Name: "admin-mfa-status", Method: "GET", Path: "/admin/mfa", Description: "Admin two-factor authentication status"},
+		{Name: "admin-sign-in-delivery", Method: "GET", Path: "/admin/auth/delivery", Description: "Recent sign-in email delivery outcomes"},
+		{Name: "admin-email-readiness", Method: "GET", Path: "/admin/auth/email-readiness", Description: "Read-only sign-in email DNS and webhook readiness"},
+		{Name: "admin-stripe-verify-price", Method: "GET", Path: "/admin/stripe/verify-price", Description: "Verify Stripe price"},
+		{Name: "admin-reset-demo-data", Method: "POST", Path: "/admin/reset-demo-data", Description: "Reset demo data"},
+	})...)
+	commands = append(commands, stripeSettingsCommands(deps)...)
+	commands = append(commands, cliapp.Command{Name: "admin-sign-in-delivery-probe", NeedsAPI: true, Description: "Send a sign-in delivery probe and wait for provider feedback", Args: cliapp.ArgSchema{Flags: []cliapp.Flag{{Name: "to", Description: "Destination email address", Required: true}}}, Run: func(args []string) error { return runDeliveryProbe(deps, args) }})
+	return cliapp.CommandGroup{Title: "Admin Core", Commands: commands}
+}
+
+func runReauthenticate(deps support.Dependencies, args []string) error {
+	fs := flag.NewFlagSet("admin-reauthenticate", flag.ContinueOnError)
+	passwordStdin := fs.Bool("password-stdin", false, "Read the administrator password from stdin")
+	totp := fs.String("totp", "", "Current authenticator code")
+	recovery := fs.String("recovery-code", "", "Administrator recovery code")
+	if err := support.ParseFlagSetInterspersed(fs, args); err != nil {
+		return err
+	}
+	if !*passwordStdin || (strings.TrimSpace(*totp) == "" && strings.TrimSpace(*recovery) == "") {
+		return fmt.Errorf("usage: admin-reauthenticate --password-stdin --totp <code> | --recovery-code <code>")
+	}
+	passwordBytes, err := io.ReadAll(io.LimitReader(os.Stdin, 4<<10))
+	if err != nil {
+		return fmt.Errorf("read password: %w", err)
+	}
+	httpClient, baseURL, err := deps.AdminConnectHTTPClient()
+	if err != nil {
+		return err
+	}
+	client := lpbsconnect.NewAdminAuthServiceClient(httpClient, baseURL)
+	response, err := client.Reauthenticate(context.Background(), connect.NewRequest(&lpbsv1.ReauthenticateRequest{Password: strings.TrimSpace(string(passwordBytes)), TotpCode: strings.TrimSpace(*totp), RecoveryCode: strings.TrimSpace(*recovery)}))
+	if err != nil {
+		return cliapp.WrapAPIError("admin reauthentication", err, nil)
+	}
+	if response == nil || !response.Msg.GetReauthenticated() {
+		return fmt.Errorf("admin reauthentication was not accepted")
+	}
+	fmt.Fprintln(os.Stdout, "administrator session reauthenticated")
+	return nil
+}
+
+func runDeliveryProbe(deps support.Dependencies, args []string) error {
+	fs := flag.NewFlagSet("admin-sign-in-delivery-probe", flag.ContinueOnError)
+	to := fs.String("to", "", "Destination email address")
+	if err := support.ParseFlagSetInterspersed(fs, args); err != nil {
+		return err
+	}
+	if strings.TrimSpace(*to) == "" {
+		return fmt.Errorf("--to is required")
+	}
+	body, _ := json.Marshal(map[string]string{"to": strings.TrimSpace(*to)})
+	data, err := deps.RequestAdmin(http.MethodPost, "/admin/auth/delivery-probe", nil, body)
+	if err != nil {
+		return err
+	}
+	var started struct {
+		RequestID string `json:"request_id"`
+	}
+	if err := json.Unmarshal(data, &started); err != nil {
+		return fmt.Errorf("decode probe response: %w", err)
+	}
+	fmt.Fprintf(os.Stdout, "request_id=%s\n", started.RequestID)
+	// The request is accepted before provider feedback arrives. Polling is
+	// intentionally bounded and reports the last normalized status only.
+	httpClient, baseURL, err := deps.AdminConnectHTTPClient()
+	if err != nil {
+		return err
+	}
+	client := lpbsconnect.NewAccountSecurityServiceClient(httpClient, baseURL)
+	deadline := time.Now().Add(5 * time.Minute)
+	for time.Now().Before(deadline) {
+		response, pollErr := client.GetSignInDeliveryStatus(context.Background(), connect.NewRequest(&lpbsv1.GetSignInDeliveryStatusRequest{Email: *to}))
+		if pollErr == nil && response != nil {
+			status := response.Msg.GetStatus()
+			fmt.Fprintf(os.Stdout, "status=%s reason_class=%s\n", status, response.Msg.GetReasonClass())
+			if status == "delivered" || status == "rejected" {
+				return nil
+			}
+		}
+		time.Sleep(5 * time.Second)
+	}
+	return fmt.Errorf("delivery probe timed out; request_id=%s", started.RequestID)
+}
+
+func stripeSettingsClient(deps support.Dependencies) (lpbsconnect.StripeSettingsServiceClient, error) {
+	httpClient, baseURL, err := deps.AdminConnectHTTPClient()
+	if err != nil {
+		return nil, err
+	}
+	return lpbsconnect.NewStripeSettingsServiceClient(httpClient, baseURL), nil
+}
+
+func stripeSettingsCommands(deps support.Dependencies) []cliapp.Command {
+	get := cliapp.ProtoList(
+		func(ctx cliapp.OperationContext) (*lpbsv1.GetStripeSettingsResponse, error) {
+			client, err := stripeSettingsClient(deps)
+			if err != nil {
+				return nil, err
+			}
+			response, err := client.GetStripeSettings(context.Background(), connect.NewRequest(&lpbsv1.GetStripeSettingsRequest{}))
+			if err != nil {
+				return nil, cliapp.WrapAPIError("get Stripe settings", err, nil)
+			}
+			return response.Msg, nil
+		},
+		func(cliapp.OperationContext, *lpbsv1.GetStripeSettingsResponse) cliapp.ListReport {
+			return cliapp.ListReport{Summary: []string{"Stripe settings (credentials redacted)."}, ResultsHeading: "Settings"}
+		},
+	)
+	update := cliapp.ProtoMutation(
+		func(ctx cliapp.OperationContext) (*lpbsv1.UpdateStripeSettingsResponse, error) {
+			payload, err := support.ParseBody(ctx.Flag("body"))
+			if err != nil {
+				return nil, err
+			}
+			request := &lpbsv1.UpdateStripeSettingsRequest{}
+			if err := protojson.Unmarshal(payload, request); err != nil {
+				return nil, fmt.Errorf("decode Stripe settings: %w", err)
+			}
+			client, err := stripeSettingsClient(deps)
+			if err != nil {
+				return nil, err
+			}
+			response, err := client.UpdateStripeSettings(context.Background(), connect.NewRequest(request))
+			if err != nil {
+				return nil, cliapp.WrapAPIError("update Stripe settings", err, nil)
+			}
+			return response.Msg, nil
+		},
+		func(cliapp.OperationContext, *lpbsv1.UpdateStripeSettingsResponse) cliapp.MutationReport {
+			return cliapp.MutationReport{Result: []string{"Stripe settings updated."}, Changes: []string{"Runtime configuration refreshed."}}
+		},
+	)
+	reveal := cliapp.ProtoOperational(
+		func(ctx cliapp.OperationContext) (*lpbsv1.RevealStripeSecretResponse, error) {
+			field := ctx.Flag("field")
+			if field == "" && ctx.FlagProvided("query") {
+				query, err := support.ParseQueries([]string{ctx.Flag("query")})
+				if err != nil {
+					return nil, err
+				}
+				field = query.Get("field")
+			}
+			if field == "" {
+				return nil, fmt.Errorf("--field or --query field=<field> is required")
+			}
+			client, err := stripeSettingsClient(deps)
+			if err != nil {
+				return nil, err
+			}
+			response, err := client.RevealStripeSecret(context.Background(), connect.NewRequest(&lpbsv1.RevealStripeSecretRequest{Field: field}))
+			if err != nil {
+				return nil, cliapp.WrapAPIError("reveal Stripe secret", err, nil)
+			}
+			return response.Msg, nil
+		},
+		func(ctx cliapp.OperationContext, response *lpbsv1.RevealStripeSecretResponse) cliapp.OperationalReport {
+			return cliapp.OperationalReport{Status: []string{fmt.Sprintf("Revealed %s.", response.GetField())}, NextSteps: []string{"Treat the revealed value as sensitive."}}
+		},
+	)
+	return []cliapp.Command{
+		(cliapp.Command{Name: "admin-stripe-settings", NeedsAPI: true, Description: "Get redacted Stripe settings", Architecture: cliapp.CommandArchitecture{Primitive: cliapp.PrimitiveProtoList}}).WithPrimitive(get),
+		(cliapp.Command{Name: "admin-stripe-settings-update", NeedsAPI: true, Description: "Update Stripe settings", Args: cliapp.ArgSchema{Flags: []cliapp.Flag{{Name: "body", Description: "JSON body payload or @file.json", Required: true}}}, Architecture: cliapp.CommandArchitecture{Primitive: cliapp.PrimitiveProtoMutation}}).WithPrimitive(update),
+		(cliapp.Command{Name: "admin-stripe-secret", NeedsAPI: true, Description: "Reveal one Stripe setting", Args: cliapp.ArgSchema{Flags: []cliapp.Flag{{Name: "field", Description: "secret_key, webhook_secret, publishable_key, or anomaly_webhook_url"}, {Name: "query", Description: "Legacy query form: field=<field>"}}}, Architecture: cliapp.CommandArchitecture{Primitive: cliapp.PrimitiveOperational}}).WithPrimitive(reveal),
+	}
+}
+
+func runLogin(deps support.Dependencies, args []string) error {
+	fs := flag.NewFlagSet("admin-login", flag.ContinueOnError)
+	email := fs.String("email", "", "Admin email (defaults to admin@localhost or ADMIN_DEFAULT_EMAIL)")
+	password := fs.String("password", "", "Admin password, @file, or omit to resolve from the credential authority")
+	code := fs.String("code", "", "Authenticator or recovery code, required when two-factor authentication is on")
+	jsonOut := cliutil.JSONFlag(fs)
+	if err := support.ParseFlagSetInterspersed(fs, args); err != nil {
+		return err
+	}
+	if len(fs.Args()) > 0 {
+		return fmt.Errorf("usage: admin-login [--email <email>] [--password <password|@file>] [--code <code>] [--json]")
+	}
+
+	// admin-login resolves the seeded administrator identity from the
+	// credential authority so a single command works after the operator
+	// provisions admin-default-password once.
+	emailValue := support.ResolveAdminEmail(*email)
+	passwordValue, err := support.ResolveAdminPassword(*password)
+	if err != nil {
+		return err
+	}
+
+	base := strings.TrimRight(strings.TrimSpace(deps.ScenarioApp().APIClient.BaseURL()), "/")
+	if base == "" {
+		return fmt.Errorf("api base URL is empty; configure an API base first")
+	}
+
+	httpClient, connectBase := cliapp.NewConnectHTTPClient(deps.ScenarioApp())
+	client := lpbsconnect.NewAdminAuthServiceClient(httpClient, connectBase)
+	response, err := client.Login(context.Background(), connect.NewRequest(&lpbsv1.LoginRequest{
+		Email:    emailValue,
+		Password: passwordValue,
+		TotpCode: strings.TrimSpace(*code),
+	}))
+	if err != nil {
+		if connect.CodeOf(err) == connect.CodeFailedPrecondition {
+			return fmt.Errorf("two-factor authentication is on for %s; rerun with --code <authenticator code>", emailValue)
+		}
+		return err
+	}
+	if response == nil || response.Msg == nil || !response.Msg.GetAuthenticated() {
+		return fmt.Errorf("admin login failed")
+	}
+
+	// The admin session is an HTTP cookie carried on the Connect response
+	// headers; it is never part of the protobuf message.
+	cookie := support.FindCookie((&http.Response{Header: response.Header()}).Cookies(), "admin_session")
+	if cookie == nil || strings.TrimSpace(cookie.Value) == "" {
+		return fmt.Errorf("admin login did not return a session cookie")
+	}
+
+	cfg := support.AdminSessionConfig{
+		APIBase:   base,
+		Session:   cookie.Value,
+		Email:     response.Msg.GetEmail(),
+		ExpiresAt: support.DeriveCookieExpiry(cookie),
+	}
+	if strings.TrimSpace(cfg.Email) == "" {
+		cfg.Email = emailValue
+	}
+	if err := deps.SaveAdminSession(cfg); err != nil {
+		return err
+	}
+
+	if *jsonOut {
+		encoded, err := protojson.Marshal(response.Msg)
+		if err != nil {
+			return fmt.Errorf("encode response: %w", err)
+		}
+		cliutil.PrintJSON(encoded)
+		return nil
+	}
+	return cliapp.RenderMutationReport(os.Stdout, cliapp.MutationReport{
+		Result: []string{fmt.Sprintf("Admin session stored for %s", cfg.Email)},
+		Changes: func() []string {
+			if cfg.ExpiresAt == nil {
+				return []string{"Session persisted for the current API base"}
+			}
+			return []string{
+				"Session persisted for the current API base",
+				fmt.Sprintf("Session expires at %s", cfg.ExpiresAt.Format(time.RFC3339)),
+			}
+		}(),
+		NextCommand: []string{"landing-page-business-suite admin-session"},
+	})
+}
+
+func runLogout(deps support.Dependencies, args []string) error {
+	fs := flag.NewFlagSet("admin-logout", flag.ContinueOnError)
+	jsonOut := cliutil.JSONFlag(fs)
+	if err := support.ParseFlagSetInterspersed(fs, args); err != nil {
+		return err
+	}
+	if len(fs.Args()) > 0 {
+		return fmt.Errorf("usage: admin-logout [--json]")
+	}
+
+	session, err := deps.LoadAdminSession()
+	if err != nil {
+		return err
+	}
+	if strings.TrimSpace(session.Session) == "" {
+		return fmt.Errorf("no admin session configured. Run admin-login first")
+	}
+
+	resp, err := deps.RequestAdmin("POST", "/admin/logout", nil, nil)
+	if err != nil {
+		if apiErr, ok := err.(*cliutil.APIError); ok {
+			if apiErr.StatusCode == http.StatusUnauthorized || apiErr.StatusCode == http.StatusForbidden {
+				_ = deps.ClearAdminSession()
+				if *jsonOut {
+					cliutil.PrintJSON([]byte(`{"success":true}`))
+					return nil
+				}
+				return cliapp.RenderMutationReport(os.Stdout, cliapp.MutationReport{
+					Result:      []string{"Admin session cleared"},
+					Changes:     []string{"Stale local session cookie removed"},
+					NextCommand: []string{"landing-page-business-suite admin-login"},
+				})
+			}
+		}
+		return err
+	}
+
+	if err := deps.ClearAdminSession(); err != nil {
+		return err
+	}
+	if *jsonOut {
+		cliutil.PrintJSON(resp)
+		return nil
+	}
+	return cliapp.RenderMutationReport(os.Stdout, cliapp.MutationReport{
+		Result:      []string{"Admin session cleared"},
+		Changes:     []string{"Local admin session cookie removed for the current API base"},
+		NextCommand: []string{"landing-page-business-suite admin-login"},
+	})
+}
+
+func runSession(deps support.Dependencies, args []string) error {
+	fs := flag.NewFlagSet("admin-session", flag.ContinueOnError)
+	jsonOut := cliutil.JSONFlag(fs)
+	if err := support.ParseFlagSetInterspersed(fs, args); err != nil {
+		return err
+	}
+	if len(fs.Args()) > 0 {
+		return fmt.Errorf("usage: admin-session [--json]")
+	}
+
+	resp, err := deps.RequestAdmin("GET", "/admin/session", nil, nil)
+	if err != nil {
+		return err
+	}
+	if *jsonOut {
+		cliutil.PrintJSON(resp)
+		return nil
+	}
+	cliutil.PrintJSON(resp)
+	return nil
+}

@@ -1,0 +1,22 @@
+{
+  "id": "swarm_active_agents",
+  "label": "Agent executions",
+  "description": "Agent executions recorded by Swarm Manager.",
+  "unit": "count",
+  "format": "integer",
+  "shape": "scalar",
+  "source": {
+    "team": "director-swarm",
+    "binding": "scenario:swarm-manager",
+    "read": "/api/v1/stats",
+    "select": "swarm_active_agents",
+    "ttlSeconds": 30,
+    "integrationId": "swarm-manager",
+    "featureId": "swarm_active_agents",
+    "contractVersion": "legacy.v1",
+    "selector": "swarm_active_agents",
+    "expectedUnit": "count",
+    "sourceTimePolicy": "producer_required"
+  },
+  "coverage": "NOW"
+}

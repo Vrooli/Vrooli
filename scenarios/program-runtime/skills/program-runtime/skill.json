@@ -1,0 +1,70 @@
+{
+  "createdAt": "2026-08-06T00:00:00Z",
+  "description": "Use for high-arity, multi-scenario, or bounded AI decision workflows: compose governed capabilities and reusable subprograms, run them in a fresh session, and branch on every result envelope and failure explicitly.",
+  "entry": "SKILL.md",
+  "icon": "terminal",
+  "id": "program-runtime",
+  "kind": "skill",
+  "learning": {
+    "capture": "every attempt",
+    "scope": "program-runtime-usage"
+  },
+  "license": "CC-BY-4.0",
+  "modes": [
+    "tools"
+  ],
+  "name": "program-runtime",
+  "origin": {
+    "kind": "authored"
+  },
+  "requires": {
+    "commands": [
+      "program-runtime bindings",
+      "program-runtime sessions",
+      "program-runtime programs",
+      "program-runtime library",
+      "program-runtime space",
+      "vrooli-memory recall",
+      "vrooli-memory journal",
+      "prompt-manager skill read",
+      "vrooli scenario"
+    ],
+    "scenarios": [
+      "program-runtime",
+      "prompt-manager",
+      "vrooli-memory",
+      "ai-gateway",
+      "agent-manager",
+      "search-hub"
+    ]
+  },
+  "revision": 14,
+  "schemaVersion": 1,
+  "status": "active",
+  "tags": [
+    "skill",
+    "program",
+    "python",
+    "session",
+    "binding",
+    "typed inference",
+    "governance",
+    "runtime",
+    "high arity",
+    "multi-scenario",
+    "cross-scenario",
+    "fan-out",
+    "bounded results",
+    "return bounded results",
+    "discard intermediates",
+    "discard intermediate data",
+    "tool-call compression",
+    "library",
+    "shape",
+    "nomination",
+    "delegation",
+    "bounded AI decision",
+    "subprogram"
+  ],
+  "updatedAt": "2026-11-05T01:02:00Z"
+}

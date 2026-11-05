@@ -327,16 +327,24 @@ export async function fetchScenarioDocTree(scenarioName: string): Promise<DocTre
   return normalizeDocTreeNode(data);
 }
 
+// fetchScenarioDocHealth posts to the KnowledgeObservatoryService.DocHealth
+// Connect-RPC endpoint (Connect protocol's JSON unary form: POST
+// /<package>.<service>/<method> with `Content-Type: application/json`).
+// The legacy REST GET endpoint was removed; this is the only doc-health
+// surface.
 export async function fetchScenarioDocHealth(scenarioName: string): Promise<ScenarioDocHealth> {
   const trimmed = scenarioName.trim();
   if (!trimmed) {
     throw new Error("Scenario name is required");
   }
-  const url = buildApiUrl(`/api/v1/scenarios/${encodeURIComponent(trimmed)}/docs/health`, {
-    baseUrl: API_BASE,
-  });
+  const url = buildApiUrl(
+    "/knowledge_observatory.v1.KnowledgeObservatoryService/DocHealth",
+    { baseUrl: API_BASE },
+  );
   const res = await fetch(url, {
+    method: "POST",
     headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ scenarioName: trimmed }),
     cache: "no-store",
   });
 
@@ -350,17 +358,100 @@ export async function fetchScenarioDocHealth(scenarioName: string): Promise<Scen
     throw new Error("Invalid doc health response");
   }
 
+  // Proto uses camelCase by default for JSON serialization.
+  const scenarioNameOut = toNonEmptyString(data.scenarioName) ?? trimmed;
+  const healthScore = toFiniteNumber(data.healthScore) ?? 0;
+  const totalDocs = toFiniteNumber(data.totalDocs) ?? 0;
+  const misplaced = normalizeMisplacedDocsProto(data.misplacedDocs);
+  const missing = normalizeMissingDocIdentifiers(data.missingDocs);
+  const extra = normalizeStringList(data.extraDocs);
+  const temporary = normalizeStringList(data.temporaryDocs);
+  const warnings = normalizeFindings(data.contractFindings)
+    .concat(normalizeFindings(data.contentFindings))
+    .concat(normalizeFindings(data.referenceFindings))
+    .concat(normalizeFindings(data.manifestFindings));
+
   return {
-    scenario_name: toNonEmptyString(data.scenario_name) ?? trimmed,
-    health_score: toFiniteNumber(data.health_score) ?? 0,
-    total_docs: toFiniteNumber(data.total_docs) ?? 0,
-    misplaced_docs: normalizeMisplacedDocs(data.misplaced_docs),
-    missing_docs: normalizeStringList(data.missing_docs),
-    extra_docs: normalizeStringList(data.extra_docs),
-    warnings: normalizeWarnings(data.warnings),
-    can_auto_fix: toBoolean(data.can_auto_fix) ?? false,
-    fix_category: toNonEmptyString(data.fix_category) ?? "none",
+    scenario_name: scenarioNameOut,
+    health_score: healthScore,
+    total_docs: totalDocs,
+    misplaced_docs: misplaced,
+    missing_docs: missing,
+    extra_docs: extra,
+    warnings,
+    can_auto_fix: misplaced.length > 0,
+    fix_category: deriveFixCategory(misplaced.length, missing.length, extra.length, temporary.length),
   };
+}
+
+function normalizeMisplacedDocsProto(raw: unknown): MisplacedDoc[] {
+  if (!Array.isArray(raw)) return [];
+  const out: MisplacedDoc[] = [];
+  for (const item of raw) {
+    if (!isRecord(item)) continue;
+    const actual = toNonEmptyString(item.actualPath);
+    const expected = toNonEmptyString(item.expectedPath);
+    const docType = toNonEmptyString(item.docType) ?? "";
+    const severity = severityProtoToString(toNonEmptyString(item.severity));
+    if (!actual || !expected) continue;
+    out.push({ actual_path: actual, expected_path: expected, doc_type: docType, severity });
+  }
+  return out;
+}
+
+function normalizeMissingDocIdentifiers(raw: unknown): string[] {
+  if (!Array.isArray(raw)) {
+    return [];
+  }
+  const out: string[] = [];
+  for (const entry of raw) {
+    if (!isRecord(entry)) continue;
+    const docType = toNonEmptyString(entry.docType);
+    if (docType) out.push(docType);
+  }
+  return out;
+}
+
+function normalizeFindings(raw: unknown): DocWarning[] {
+  if (!Array.isArray(raw)) {
+    return [];
+  }
+  const out: DocWarning[] = [];
+  for (const entry of raw) {
+    if (!isRecord(entry)) continue;
+    const code = toNonEmptyString(entry.code) ?? "finding";
+    const rawMessage = toNonEmptyString(entry.message) ?? "";
+    const path = toNonEmptyString(entry.path);
+    const docType = toNonEmptyString(entry.docType);
+    const severity = severityProtoToString(toNonEmptyString(entry.severity));
+    const parts: string[] = [rawMessage];
+    if (path) parts.push(`(${path})`);
+    if (docType) parts.push(`[${docType}]`);
+    out.push({ type: code, message: parts.filter(Boolean).join(" "), severity });
+  }
+  return out;
+}
+
+function severityProtoToString(value: string | null | undefined): string {
+  switch (value) {
+    case "DOC_HEALTH_SEVERITY_INFO":
+      return "info";
+    case "DOC_HEALTH_SEVERITY_WARNING":
+      return "warning";
+    case "DOC_HEALTH_SEVERITY_FAILURE":
+      return "error";
+    default:
+      return "warning";
+  }
+}
+
+function deriveFixCategory(misplaced: number, missing: number, extra: number, temporary: number): string {
+  const hasMisplaced = misplaced > 0;
+  const hasAgent = missing > 0 || extra > 0 || temporary > 0;
+  if (hasMisplaced && !hasAgent) return "all_auto";
+  if (!hasMisplaced && hasAgent) return "all_agent";
+  if (hasMisplaced && hasAgent) return "mixed";
+  return "none";
 }
 
 export async function searchDocFiles(request: DocFileSearchRequest): Promise<DocFileSearchResult[]> {

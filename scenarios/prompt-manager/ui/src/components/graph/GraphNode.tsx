@@ -31,6 +31,7 @@ const TYPE_SHAPES: Record<NodeType, string> = {
   team: 'rounded-lg',        // Rectangle
   agent: 'rounded-full',     // Circle
   skill: 'rotate-45',        // Diamond (rotated square)
+  action: 'rounded-md',       // Operational command contract
   cli: 'clip-hexagon',       // Hexagon
 }
 

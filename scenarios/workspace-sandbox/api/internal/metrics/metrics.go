@@ -15,16 +15,18 @@ type Collector struct {
 	mu sync.RWMutex
 
 	// Operation counters
-	sandboxCreatedTotal   int64
-	sandboxStoppedTotal   int64
-	sandboxApprovedTotal  int64
-	sandboxRejectedTotal  int64
-	sandboxDeletedTotal   int64
-	sandboxErrorsTotal    int64
-	gcRunsTotal           int64
-	gcSandboxesDeleted    int64
-	diffGenerationsTotal  int64
-	patchApplicationTotal int64
+	sandboxCreatedTotal     int64
+	sandboxStoppedTotal     int64
+	sandboxApprovedTotal    int64
+	sandboxRejectedTotal    int64
+	sandboxDeletedTotal     int64
+	sandboxErrorsTotal      int64
+	gcRunsTotal             int64
+	gcSandboxesDeleted      int64
+	diffGenerationsTotal    int64
+	patchApplicationTotal   int64
+	daemonReapedAPICrash    int64
+	daemonReapedDeleteScope int64
 
 	// Latency histograms (simplified - store last N values for avg)
 	createLatencies []float64
@@ -104,6 +106,20 @@ func (c *Collector) IncDiffGenerations() {
 // IncPatchApplications increments the patch applications counter.
 func (c *Collector) IncPatchApplications() {
 	atomic.AddInt64(&c.patchApplicationTotal, 1)
+}
+
+// IncDaemonReaped increments the daemon-reaped counter for the given
+// cause. cause is one of "api_crash" (reaper found a daemon whose
+// owning sandbox was already deleted — Delete crashed mid-flight) or
+// "delete_scope" (Service.Delete found a live daemon and killed it
+// deterministically as part of its own teardown sequence).
+func (c *Collector) IncDaemonReaped(cause string) {
+	switch cause {
+	case "api_crash":
+		atomic.AddInt64(&c.daemonReapedAPICrash, 1)
+	case "delete_scope":
+		atomic.AddInt64(&c.daemonReapedDeleteScope, 1)
+	}
 }
 
 // --- Gauge Updates ---
@@ -199,6 +215,11 @@ func (c *Collector) ExportPrometheus() string {
 	b.WriteString("# TYPE workspace_sandbox_patch_applications_total counter\n")
 	b.WriteString(fmt.Sprintf("workspace_sandbox_patch_applications_total %d\n", atomic.LoadInt64(&c.patchApplicationTotal)))
 
+	b.WriteString("# HELP workspace_sandbox_daemon_reaped_total Total fuse-overlayfs daemons reaped, labelled by cause.\n")
+	b.WriteString("# TYPE workspace_sandbox_daemon_reaped_total counter\n")
+	b.WriteString(fmt.Sprintf("workspace_sandbox_daemon_reaped_total{cause=\"api_crash\"} %d\n", atomic.LoadInt64(&c.daemonReapedAPICrash)))
+	b.WriteString(fmt.Sprintf("workspace_sandbox_daemon_reaped_total{cause=\"delete_scope\"} %d\n", atomic.LoadInt64(&c.daemonReapedDeleteScope)))
+
 	// Gauges
 	b.WriteString("# HELP workspace_sandbox_active Active sandboxes count\n")
 	b.WriteString("# TYPE workspace_sandbox_active gauge\n")
@@ -236,21 +257,23 @@ func (c *Collector) Snapshot() map[string]interface{} {
 	defer c.mu.RUnlock()
 
 	snapshot := map[string]interface{}{
-		"sandbox_created_total":      atomic.LoadInt64(&c.sandboxCreatedTotal),
-		"sandbox_stopped_total":      atomic.LoadInt64(&c.sandboxStoppedTotal),
-		"sandbox_approved_total":     atomic.LoadInt64(&c.sandboxApprovedTotal),
-		"sandbox_rejected_total":     atomic.LoadInt64(&c.sandboxRejectedTotal),
-		"sandbox_deleted_total":      atomic.LoadInt64(&c.sandboxDeletedTotal),
-		"sandbox_errors_total":       atomic.LoadInt64(&c.sandboxErrorsTotal),
-		"gc_runs_total":              atomic.LoadInt64(&c.gcRunsTotal),
-		"gc_sandboxes_deleted_total": atomic.LoadInt64(&c.gcSandboxesDeleted),
-		"diff_generations_total":     atomic.LoadInt64(&c.diffGenerationsTotal),
-		"patch_applications_total":   atomic.LoadInt64(&c.patchApplicationTotal),
-		"active_sandboxes":           atomic.LoadInt64(&c.activeSandboxes),
-		"total_disk_usage_bytes":     atomic.LoadInt64(&c.totalDiskUsageBytes),
-		"process_count":              atomic.LoadInt64(&c.processCount),
-		"create_latency_samples":     len(c.createLatencies),
-		"diff_latency_samples":       len(c.diffLatencies),
+		"sandbox_created_total":             atomic.LoadInt64(&c.sandboxCreatedTotal),
+		"sandbox_stopped_total":             atomic.LoadInt64(&c.sandboxStoppedTotal),
+		"sandbox_approved_total":            atomic.LoadInt64(&c.sandboxApprovedTotal),
+		"sandbox_rejected_total":            atomic.LoadInt64(&c.sandboxRejectedTotal),
+		"sandbox_deleted_total":             atomic.LoadInt64(&c.sandboxDeletedTotal),
+		"sandbox_errors_total":              atomic.LoadInt64(&c.sandboxErrorsTotal),
+		"gc_runs_total":                     atomic.LoadInt64(&c.gcRunsTotal),
+		"gc_sandboxes_deleted_total":        atomic.LoadInt64(&c.gcSandboxesDeleted),
+		"diff_generations_total":            atomic.LoadInt64(&c.diffGenerationsTotal),
+		"patch_applications_total":          atomic.LoadInt64(&c.patchApplicationTotal),
+		"daemon_reaped_total{api_crash}":    atomic.LoadInt64(&c.daemonReapedAPICrash),
+		"daemon_reaped_total{delete_scope}": atomic.LoadInt64(&c.daemonReapedDeleteScope),
+		"active_sandboxes":                  atomic.LoadInt64(&c.activeSandboxes),
+		"total_disk_usage_bytes":            atomic.LoadInt64(&c.totalDiskUsageBytes),
+		"process_count":                     atomic.LoadInt64(&c.processCount),
+		"create_latency_samples":            len(c.createLatencies),
+		"diff_latency_samples":              len(c.diffLatencies),
 	}
 
 	if len(c.createLatencies) > 0 {

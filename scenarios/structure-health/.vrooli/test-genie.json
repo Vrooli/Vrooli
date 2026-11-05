@@ -1,0 +1,1067 @@
+{
+  "$schema": "https://vrooli.dev/schemas/test-genie-phase-descriptor.schema.json",
+  "schemaVersion": "1.0.0",
+  "scenario": "structure-health",
+  "phase": "structure",
+  "displayName": "Structure",
+  "description": "Validates scenario skeleton and lifecycle wiring through structure-health.",
+  "source": "validation-provider",
+  "orderHint": 0,
+  "timeout": "60s",
+  "findingSource": "structure",
+  "validation": {
+    "contract": "scenario-validation/v1"
+  },
+  "targets": {
+    "kinds": ["scenario", "resource", "tool", "safeguard", "package", "control-plane", "docs", "team", "project"],
+    "selection": "enumerate"
+  },
+  "applicability": {
+    "default": "applies"
+  },
+  "policy": {
+    "selection": "default_when_applicable",
+    "providerReadiness": "required_when_applicable",
+    "providerLifecycle": "start_if_needed",
+    "freshness": "require_live_contract",
+    "resultGating": "gating",
+    "unavailable": "fail"
+  },
+  "runnability": {},
+  "docs": {
+    "path": "scenarios/test-genie/docs/phases/structure/README.md"
+  },
+	"maturity": {
+	  "version": "2.0.0",
+	  "capabilities": [
+	    {
+	      "id": "cross_kind_structure",
+	      "label": "Cross-Kind Structure",
+	      "description": "Structural conformance across scenario, resource, tool, safeguard, package, control-plane, docs, team, and project targets.",
+	      "levels": [
+	        {
+	          "id": "L0",
+	          "name": "Target structure unavailable",
+	          "status_label": "Unavailable",
+	          "description": "The target kind or its governing manifest cannot be resolved.",
+	          "capability_summary": "Cross-kind structural conformance is unavailable.",
+	          "next_unlock": "A resolvable target with a readable kind-specific intent source."
+	        },
+	        {
+	          "id": "L1",
+	          "name": "Target structure readable",
+	          "status_label": "Foundation",
+	          "description": "The target's declared intent and structural surface can be inspected.",
+	          "capability_summary": "The target structure can be evaluated.",
+	          "next_unlock": "Declared and observed target structure reconcile without foundation findings."
+	        },
+	        {
+	          "id": "L2",
+	          "name": "Target structure conformant",
+	          "status_label": "Ready",
+	          "description": "The target satisfies the structural rules for its kind.",
+	          "capability_summary": "The target is structurally conformant.",
+	          "next_unlock": "A clean target with no required structural findings."
+	        },
+	        {
+	          "id": "L3",
+	          "name": "Target structure clean",
+	          "status_label": "Complete",
+	          "description": "The target emits no required structural findings.",
+	          "capability_summary": "Cross-kind structural conformance is clean.",
+          "next_unlock": "Maximum cross-kind structure maturity."
+	        }
+	      ]
+	    },
+      {
+        "id": "identity_contract",
+        "label": "Identity Contract",
+        "description": "Scenario resolution, service.json validity, service name alignment, and detectable surface identity.",
+        "levels": [
+          {
+            "id": "L0",
+            "name": "Scenario identity unavailable",
+            "status_label": "Unavailable",
+            "description": "The target scenario cannot be resolved, service.json is missing or invalid, or service.name does not match the directory.",
+            "capability_summary": "Structure Health cannot trust the scenario identity contract.",
+            "next_unlock": "A readable service.json with canonical service.name and detectable surfaces."
+          },
+          {
+            "id": "L1",
+            "name": "Identity readable",
+            "status_label": "Foundation",
+            "description": "The scenario identity contract is readable and internally consistent.",
+            "capability_summary": "The scenario identity contract can be trusted.",
+            "next_unlock": "Maximum identity-contract maturity."
+          },
+          {
+            "id": "L2",
+            "name": "Identity clean",
+            "status_label": "Complete",
+            "description": "Scenario identity checks are clean.",
+            "capability_summary": "Scenario identity is clean."
+          }
+        ]
+      },
+      {
+        "id": "surface_skeleton",
+        "label": "Surface Skeleton",
+        "description": "Required top-level files, per-surface directories, and declared-vs-actual surface skeleton alignment.",
+        "levels": [
+          {
+            "id": "L0",
+            "name": "Skeleton unavailable",
+            "status_label": "Unavailable",
+            "description": "The scenario skeleton cannot be inspected.",
+            "capability_summary": "Required files and surface directories cannot be trusted.",
+            "next_unlock": "Readable scenario tree with declared surfaces."
+          },
+          {
+            "id": "L1",
+            "name": "Skeleton present",
+            "status_label": "Foundation",
+            "description": "Required top-level files and per-surface directories exist for declared surfaces.",
+            "capability_summary": "The scenario skeleton is present.",
+            "next_unlock": "Declared and actual surfaces reconcile cleanly."
+          },
+          {
+            "id": "L2",
+            "name": "Surfaces aligned",
+            "status_label": "Ready",
+            "description": "Declared surfaces and actual implementations reconcile cleanly.",
+            "capability_summary": "Surface skeletons are aligned with service metadata.",
+            "next_unlock": "Maximum surface-skeleton maturity."
+          },
+          {
+            "id": "L3",
+            "name": "Skeleton clean",
+            "status_label": "Complete",
+            "description": "Scenario skeleton checks are clean.",
+            "capability_summary": "Surface skeleton is clean."
+          }
+        ]
+      },
+      {
+        "id": "lifecycle_wiring",
+        "label": "Lifecycle Wiring",
+        "description": "Build/start/port/env/health/freshness wiring for declared surfaces and valid dependency declarations.",
+        "levels": [
+          {
+            "id": "L0",
+            "name": "Lifecycle unknown",
+            "status_label": "Unavailable",
+            "description": "Lifecycle wiring cannot be evaluated.",
+            "capability_summary": "Lifecycle readiness is unknown.",
+            "next_unlock": "Readable lifecycle declarations for declared surfaces."
+          },
+          {
+            "id": "L1",
+            "name": "Lifecycle inspectable",
+            "status_label": "Foundation",
+            "description": "Lifecycle declarations can be inspected for each declared surface.",
+            "capability_summary": "Lifecycle wiring can be checked.",
+            "next_unlock": "Complete build/start/port/env/health/freshness chain and valid dependency declarations."
+          },
+          {
+            "id": "L2",
+            "name": "Lifecycle complete",
+            "status_label": "Ready",
+            "description": "Declared surfaces carry complete lifecycle wiring and dependency declarations are valid.",
+            "capability_summary": "Lifecycle wiring is complete enough for scenario orchestration.",
+            "next_unlock": "Maximum lifecycle-wiring maturity."
+          },
+          {
+            "id": "L3",
+            "name": "Lifecycle clean",
+            "status_label": "Complete",
+            "description": "Lifecycle wiring checks are clean.",
+            "capability_summary": "Lifecycle wiring is clean."
+          }
+        ]
+      },
+      {
+        "id": "production_serving",
+        "label": "Production Serving",
+        "description": "Production-mode UI serving, canonical ports, binary naming, and deployable surface conventions.",
+        "levels": [
+          {
+            "id": "L0",
+            "name": "Serving posture unknown",
+            "status_label": "Unavailable",
+            "description": "Production-serving posture cannot be evaluated.",
+            "capability_summary": "Production serving posture is unknown.",
+            "next_unlock": "Surface lifecycle and serve commands can be inspected."
+          },
+          {
+            "id": "L1",
+            "name": "Serving inspectable",
+            "status_label": "Foundation",
+            "description": "Serving commands, port bands, and surface binaries can be inspected.",
+            "capability_summary": "Production-serving conventions can be checked.",
+            "next_unlock": "Production bundle serving, canonical ports, and binary naming."
+          },
+          {
+            "id": "L2",
+            "name": "Production conformant",
+            "status_label": "Ready",
+            "description": "Surfaces serve production-ready artifacts and follow canonical port and binary conventions.",
+            "capability_summary": "Production-serving posture is conformant.",
+            "next_unlock": "Maximum production-serving maturity."
+          },
+          {
+            "id": "L3",
+            "name": "Serving clean",
+            "status_label": "Complete",
+            "description": "Production-serving checks are clean.",
+            "capability_summary": "Production-serving posture is clean."
+          }
+        ]
+      },
+      {
+        "id": "profile_conformance",
+        "label": "Profile Conformance",
+        "description": "Detected profile conventions for required structure, tests, UI lifecycle, ports, setup, environment, hardcoded values, and runtime storage.",
+        "levels": [
+          {
+            "id": "L0",
+            "name": "Profile unknown",
+            "status_label": "Unavailable",
+            "description": "The scenario profile cannot be evaluated.",
+            "capability_summary": "Profile conformance is unknown.",
+            "next_unlock": "Detected profile and pack rules can be evaluated."
+          },
+          {
+            "id": "L1",
+            "name": "Profile inspectable",
+            "status_label": "Foundation",
+            "description": "Profile rules can be evaluated for the scenario.",
+            "capability_summary": "Profile conformance can be checked.",
+            "next_unlock": "Required profile structure, lifecycle, test, port, setup, environment, and storage conventions."
+          },
+          {
+            "id": "L2",
+            "name": "Profile conformant",
+            "status_label": "Ready",
+            "description": "The scenario conforms to required conventions for its detected profile.",
+            "capability_summary": "Profile conformance is ready for fleet-level comparisons.",
+            "next_unlock": "Maximum profile-conformance maturity."
+          },
+          {
+            "id": "L3",
+            "name": "Profile clean",
+            "status_label": "Complete",
+            "description": "Profile conformance checks are clean.",
+            "capability_summary": "Profile conformance is clean."
+          }
+        ]
+      }
+    ],
+    "findings": {
+      "CROSS_KIND_STRUCTURE_UNAVAILABLE": {
+        "capability_id": "cross_kind_structure",
+        "local_level_impact": "L0",
+        "global_impact": "foundation_blocker",
+        "dimension": "structure",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "fix_class": "manual",
+        "reason": "Target resolution and governing intent availability are provider-owned detection concerns."
+      },
+      "CROSS_KIND_STRUCTURE_READABLE": {
+        "capability_id": "cross_kind_structure",
+        "local_level_impact": "L1",
+        "global_impact": "evolvability_gap",
+        "dimension": "structure",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "fix_class": "manual",
+        "reason": "Cross-kind structural readability is established by the provider's typed target assessment."
+      },
+      "CROSS_KIND_STRUCTURE_NONCONFORMANT": {
+        "capability_id": "cross_kind_structure",
+        "local_level_impact": "L2",
+        "global_impact": "evolvability_gap",
+        "dimension": "structure",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "fix_class": "manual",
+        "reason": "Cross-kind structural reconciliation remains provider-owned unless a finding has a specific deterministic fixer."
+      },
+      "SERVICE_JSON_MISSING": {
+        "capability_id": "identity_contract",
+        "local_level_impact": "L0",
+        "global_impact": "foundation_blocker",
+        "dimension": "structure",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "fix_class": "manual",
+        "reason": "A missing identity manifest requires target-owner judgment."
+      },
+      "SERVICE_JSON_INVALID": {
+        "capability_id": "identity_contract",
+        "local_level_impact": "L0",
+        "global_impact": "foundation_blocker",
+        "dimension": "structure",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "fix_class": "manual",
+        "reason": "Repairing an invalid identity manifest must preserve target-specific intent."
+      },
+      "SERVICE_NAME_MISMATCH": {
+        "capability_id": "identity_contract",
+        "local_level_impact": "L0",
+        "global_impact": "foundation_blocker",
+        "dimension": "structure",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "fix_class": "auto",
+        "fixer_status": "implemented"
+      },
+      "REQUIRED_FILE_MISSING": {
+        "capability_id": "surface_skeleton",
+        "local_level_impact": "L1",
+        "global_impact": "evolvability_gap",
+        "dimension": "structure",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "fix_class": "auto",
+        "fixer_status": "implemented"
+      },
+      "SURFACE_DIR_MISSING": {
+        "capability_id": "surface_skeleton",
+        "local_level_impact": "L1",
+        "global_impact": "evolvability_gap",
+        "dimension": "structure",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "fix_class": "auto",
+        "fixer_status": "implemented"
+      },
+      "SURFACE_RECONCILE_MISMATCH": {
+        "capability_id": "surface_skeleton",
+        "local_level_impact": "L2",
+        "global_impact": "evolvability_gap",
+        "dimension": "structure",
+        "severity_default": "SEVERITY_WARNING",
+        "clean_requirement": "required",
+        "fix_class": "manual",
+        "reason": "Declared and observed surfaces require target-owner intent reconciliation."
+      },
+      "LIFECYCLE_STEP_MISSING": {
+        "capability_id": "lifecycle_wiring",
+        "local_level_impact": "L2",
+        "global_impact": "evolvability_gap",
+        "dimension": "structure",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "fix_class": "manual",
+        "reason": "Lifecycle steps must preserve target-specific startup behavior."
+      },
+      "FRESHNESS_CHECK_MISSING": {
+        "capability_id": "lifecycle_wiring",
+        "local_level_impact": "L2",
+        "global_impact": "evolvability_gap",
+        "dimension": "structure",
+        "severity_default": "SEVERITY_WARNING",
+        "clean_requirement": "required",
+        "fix_class": "auto",
+        "fixer_status": "implemented"
+      },
+      "HEALTH_CHECK_MISSING": {
+        "capability_id": "lifecycle_wiring",
+        "local_level_impact": "L2",
+        "global_impact": "evolvability_gap",
+        "dimension": "structure",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "fix_class": "auto",
+        "fixer_status": "implemented"
+      },
+      "HEALTH_CHECK_MALFORMED": {
+        "capability_id": "lifecycle_wiring",
+        "local_level_impact": "L2",
+        "global_impact": "evolvability_gap",
+        "dimension": "structure",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "fix_class": "auto",
+        "fixer_status": "implemented"
+      },
+      "HEALTH_ENDPOINT_MISSING": {
+        "capability_id": "lifecycle_wiring",
+        "local_level_impact": "L2",
+        "global_impact": "evolvability_gap",
+        "dimension": "structure",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "fix_class": "manual",
+        "reason": "Mounting /health safely depends on the target API router/framework and cannot be synthesized generically."
+      },
+      "API_PREFLIGHT_MISSING": {
+        "capability_id": "lifecycle_wiring",
+        "local_level_impact": "L2",
+        "global_impact": "evolvability_gap",
+        "dimension": "structure",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "fix_class": "manual",
+        "reason": "Inserting preflight requires import and control-flow placement in target Go code; Structure Health reports exact guidance but does not rewrite arbitrary main functions."
+      },
+      "API_PREFLIGHT_MALFORMED": {
+        "capability_id": "lifecycle_wiring",
+        "local_level_impact": "L2",
+        "global_impact": "evolvability_gap",
+        "dimension": "structure",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "fix_class": "manual",
+        "reason": "Correct placement depends on preserving existing initialization order in api/main.go."
+      },
+      "DEPENDENCY_DECLARATION_INVALID": {
+        "capability_id": "lifecycle_wiring",
+        "local_level_impact": "L2",
+        "global_impact": "evolvability_gap",
+        "dimension": "structure",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "fix_class": "manual",
+        "reason": "Dependency declarations require Scenario Dependency Analyzer governance."
+      },
+      "PRODUCTION_SERVE_NONCONFORMANT": {
+        "capability_id": "production_serving",
+        "local_level_impact": "L2",
+        "global_impact": "evolvability_gap",
+        "dimension": "structure",
+        "severity_default": "SEVERITY_WARNING",
+        "clean_requirement": "required",
+        "fix_class": "auto",
+        "fixer_status": "implemented"
+      },
+      "PORT_BAND_NONCONFORMANT": {
+        "capability_id": "production_serving",
+        "local_level_impact": "L2",
+        "global_impact": "evolvability_gap",
+        "dimension": "structure",
+        "severity_default": "SEVERITY_WARNING",
+        "clean_requirement": "required",
+        "fix_class": "auto",
+        "fixer_status": "implemented"
+      },
+      "API_BINARY_NAME_NONCONFORMANT": {
+        "capability_id": "production_serving",
+        "local_level_impact": "L2",
+        "global_impact": "evolvability_gap",
+        "dimension": "structure",
+        "severity_default": "SEVERITY_WARNING",
+        "clean_requirement": "required",
+        "fix_class": "auto",
+        "fixer_status": "implemented"
+      },
+      "API_SERVER_RUN_NONCONFORMANT": {
+        "capability_id": "production_serving",
+        "local_level_impact": "L2",
+        "global_impact": "evolvability_gap",
+        "dimension": "structure",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "fix_class": "manual",
+        "reason": "Migrating to api-core/server.Run requires preserving the target handler, logger, and cleanup lifecycle."
+      },
+      "PROFILE_CONFORMANCE_VIOLATION": {
+        "capability_id": "profile_conformance",
+        "local_level_impact": "L2",
+        "global_impact": "evolvability_gap",
+        "dimension": "structure",
+        "severity_default": "SEVERITY_WARNING",
+        "clean_requirement": "required",
+        "fix_class": "manual",
+        "reason": "Profile-specific conformance requires target-owner judgment."
+      },
+      "PROFILE_REQUIRED_STRUCTURE": {
+        "capability_id": "profile_conformance",
+        "local_level_impact": "L2",
+        "global_impact": "evolvability_gap",
+        "dimension": "structure",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "fix_class": "manual",
+        "reason": "Profile structure changes must preserve the selected UI/backend convention."
+      },
+      "PROFILE_TEST_COVERAGE": {
+        "capability_id": "profile_conformance",
+        "local_level_impact": "L2",
+        "global_impact": "evolvability_gap",
+        "dimension": "structure",
+        "severity_default": "SEVERITY_WARNING",
+        "clean_requirement": "required",
+        "fix_class": "manual",
+        "reason": "Test coverage additions require target-specific behavior and fixtures."
+      },
+      "PROFILE_UI_STRUCTURE": {
+        "capability_id": "profile_conformance",
+        "local_level_impact": "L2",
+        "global_impact": "evolvability_gap",
+        "dimension": "structure",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "fix_class": "manual",
+        "reason": "UI structure changes require target-owner design judgment."
+      },
+      "PROFILE_UI_LIFECYCLE_LAUNCH": {
+        "capability_id": "profile_conformance",
+        "local_level_impact": "L2",
+        "global_impact": "evolvability_gap",
+        "dimension": "structure",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "fix_class": "manual",
+        "reason": "UI lifecycle launch wiring is framework-specific."
+      },
+      "PROFILE_DEVELOP_STEPS": {
+        "capability_id": "profile_conformance",
+        "local_level_impact": "L2",
+        "global_impact": "evolvability_gap",
+        "dimension": "structure",
+        "severity_default": "SEVERITY_WARNING",
+        "clean_requirement": "required",
+        "fix_class": "manual",
+        "reason": "Development-step changes must preserve local workflow intent."
+      },
+      "PROFILE_HEALTH_LIFECYCLE": {
+        "capability_id": "profile_conformance",
+        "local_level_impact": "L2",
+        "global_impact": "evolvability_gap",
+        "dimension": "structure",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "fix_class": "manual",
+        "reason": "Profile health lifecycle changes are target-specific."
+      },
+      "PROFILE_PORTS": {
+        "capability_id": "profile_conformance",
+        "local_level_impact": "L2",
+        "global_impact": "evolvability_gap",
+        "dimension": "structure",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "fix_class": "manual",
+        "reason": "Port wiring changes require lifecycle and collision review."
+      },
+      "PROFILE_SETUP_CONDITIONS": {
+        "capability_id": "profile_conformance",
+        "local_level_impact": "L2",
+        "global_impact": "evolvability_gap",
+        "dimension": "structure",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "fix_class": "manual",
+        "reason": "Setup conditions must preserve resource and dependency semantics."
+      },
+      "PROFILE_TEST_STEPS": {
+        "capability_id": "profile_conformance",
+        "local_level_impact": "L2",
+        "global_impact": "evolvability_gap",
+        "dimension": "structure",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "fix_class": "manual",
+        "reason": "Test-step changes require target-specific verification intent."
+      },
+      "PROFILE_SETUP_STEPS": {
+        "capability_id": "profile_conformance",
+        "local_level_impact": "L2",
+        "global_impact": "evolvability_gap",
+        "dimension": "structure",
+        "severity_default": "SEVERITY_WARNING",
+        "clean_requirement": "required",
+        "fix_class": "manual",
+        "reason": "Setup-step changes require target-specific provisioning judgment."
+      },
+      "PROFILE_ENV_VALIDATION": {
+        "capability_id": "profile_conformance",
+        "local_level_impact": "L2",
+        "global_impact": "evolvability_gap",
+        "dimension": "structure",
+        "severity_default": "SEVERITY_WARNING",
+        "clean_requirement": "required",
+        "fix_class": "manual",
+        "reason": "Environment changes require secret and deployment review."
+      },
+      "PROFILE_HARDCODED_VALUES": {
+        "capability_id": "profile_conformance",
+        "local_level_impact": "L2",
+        "global_impact": "evolvability_gap",
+        "dimension": "structure",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "fix_class": "manual",
+        "reason": "Replacing hardcoded values requires target-specific configuration semantics."
+      },
+      "PROFILE_RUNTIME_STORAGE": {
+        "capability_id": "profile_conformance",
+        "local_level_impact": "L2",
+        "global_impact": "evolvability_gap",
+        "dimension": "structure",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "fix_class": "manual",
+        "reason": "Runtime storage changes require persistence and ownership review."
+      },
+      "RESOURCE_MANIFEST_INVALID": {
+        "capability_id": "surface_skeleton",
+        "local_level_impact": "L1",
+        "global_impact": "foundation_blocker",
+        "dimension": "structure",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "fix_class": "manual",
+        "reason": "Resource manifest repair depends on the resource's declared driver and lifecycle semantics."
+      },
+      "RESOURCE_HEALTH_KIND_MISSING": {
+        "capability_id": "surface_skeleton",
+        "local_level_impact": "L1",
+        "global_impact": "evolvability_gap",
+        "dimension": "structure",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "fix_class": "manual",
+        "reason": "Choosing readiness versus liveness requires resource-specific operational intent."
+      },
+      "RESOURCE_SHELL_FORBIDDEN": {
+        "capability_id": "surface_skeleton",
+        "local_level_impact": "L1",
+        "global_impact": "evolvability_gap",
+        "dimension": "structure",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "fix_class": "manual",
+        "reason": "Removing a shell file requires migrating its behavior to the resource control plane."
+      },
+      "RESOURCE_IMAGE_UNPINNED": {
+        "capability_id": "surface_skeleton",
+        "local_level_impact": "L1",
+        "global_impact": "evolvability_gap",
+        "dimension": "structure",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "fix_class": "manual",
+        "reason": "The correct image digest must be selected and reviewed for the resource."
+      },
+      "TOOL_MANIFEST_INVALID": {
+        "capability_id": "surface_skeleton",
+        "local_level_impact": "L1",
+        "global_impact": "foundation_blocker",
+        "dimension": "structure",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "fix_class": "manual",
+        "reason": "Tool manifest repair depends on the host tool's installation and verification contract."
+      },
+      "TOOL_NAME_MISMATCH": {
+        "capability_id": "surface_skeleton",
+        "local_level_impact": "L1",
+        "global_impact": "foundation_blocker",
+        "dimension": "structure",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "fix_class": "manual",
+        "reason": "Renaming a tool affects handler registration and operator-facing command identity."
+      },
+      "TOOL_HANDLER_MISSING": {
+        "capability_id": "surface_skeleton",
+        "local_level_impact": "L1",
+        "global_impact": "foundation_blocker",
+        "dimension": "structure",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "fix_class": "manual",
+        "reason": "A handler implementation must match the tool's declared custom behavior."
+      },
+      "SAFEGUARD_MANIFEST_INVALID": {
+        "capability_id": "surface_skeleton",
+        "local_level_impact": "L1",
+        "global_impact": "foundation_blocker",
+        "dimension": "structure",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "fix_class": "manual",
+        "reason": "Safeguard manifest repair depends on host privilege, risk, and deployment semantics."
+      },
+      "SAFEGUARD_NAME_MISMATCH": {
+        "capability_id": "surface_skeleton",
+        "local_level_impact": "L1",
+        "global_impact": "foundation_blocker",
+        "dimension": "structure",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "fix_class": "manual",
+        "reason": "Renaming a safeguard affects handler registration and operator-facing identity."
+      },
+      "SAFEGUARD_HANDLER_MISSING": {
+        "capability_id": "surface_skeleton",
+        "local_level_impact": "L1",
+        "global_impact": "foundation_blocker",
+        "dimension": "structure",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "fix_class": "manual",
+        "reason": "A safeguard handler must implement the declared host-state operation safely."
+      },
+      "PACKAGE_MANIFEST_MISSING": {
+        "capability_id": "surface_skeleton",
+        "local_level_impact": "L1",
+        "global_impact": "foundation_blocker",
+        "dimension": "structure",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "fix_class": "manual",
+        "reason": "Package governance must be authored by the package owner."
+      },
+      "PACKAGE_MANIFEST_INVALID": {
+        "capability_id": "surface_skeleton",
+        "local_level_impact": "L1",
+        "global_impact": "foundation_blocker",
+        "dimension": "structure",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "fix_class": "manual",
+        "reason": "Package manifest semantics cannot be synthesized safely."
+      },
+      "PACKAGE_NAME_MISMATCH": {
+        "capability_id": "surface_skeleton",
+        "local_level_impact": "L1",
+        "global_impact": "foundation_blocker",
+        "dimension": "structure",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "fix_class": "manual",
+        "reason": "Renaming a governed package affects consumers and module identity."
+      },
+      "PACKAGE_LAYOUT_MISSING": {
+        "capability_id": "surface_skeleton",
+        "local_level_impact": "L1",
+        "global_impact": "evolvability_gap",
+        "dimension": "structure",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "fix_class": "manual",
+        "reason": "Package layout depends on its language and build system."
+      },
+      "PACKAGE_MODULE_PATH_MISMATCH": {
+        "capability_id": "surface_skeleton",
+        "local_level_impact": "L1",
+        "global_impact": "evolvability_gap",
+        "dimension": "structure",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "fix_class": "manual",
+        "reason": "Module identifier reconciliation requires package-specific dependency changes."
+      },
+      "CONTROL_PLANE_LAYOUT_MISSING": {
+        "capability_id": "surface_skeleton",
+        "local_level_impact": "L1",
+        "global_impact": "evolvability_gap",
+        "dimension": "structure",
+        "severity_default": "SEVERITY_WARNING",
+        "clean_requirement": "required",
+        "fix_class": "manual",
+        "reason": "Control-plane source layout is governed by the command or internal subsystem owner."
+      },
+      "DOCS_MANIFEST_INVALID": {
+        "capability_id": "surface_skeleton",
+        "local_level_impact": "L1",
+        "global_impact": "evolvability_gap",
+        "dimension": "structure",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "fix_class": "manual",
+        "reason": "Documentation navigation and ownership require human-authored manifest semantics."
+      },
+      "DOCS_LAYOUT_MISSING": {
+        "capability_id": "surface_skeleton",
+        "local_level_impact": "L1",
+        "global_impact": "evolvability_gap",
+        "dimension": "structure",
+        "severity_default": "SEVERITY_WARNING",
+        "clean_requirement": "required",
+        "fix_class": "manual",
+        "reason": "Documentation hub placement is an authoring decision."
+      },
+      "TEAM_MANIFEST_INVALID": {
+        "capability_id": "surface_skeleton",
+        "local_level_impact": "L1",
+        "global_impact": "foundation_blocker",
+        "dimension": "structure",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "fix_class": "manual",
+        "reason": "Team plan-of-record content is owned by the team."
+      },
+      "TEAM_OWNER_MISSING": {
+        "capability_id": "surface_skeleton",
+        "local_level_impact": "L1",
+        "global_impact": "foundation_blocker",
+        "dimension": "structure",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "fix_class": "manual",
+        "reason": "A stable team owner id must be assigned by the team manifest owner."
+      },
+      "TEAM_OWNER_MISMATCH": {
+        "capability_id": "surface_skeleton",
+        "local_level_impact": "L1",
+        "global_impact": "foundation_blocker",
+        "dimension": "structure",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "fix_class": "manual",
+        "reason": "Changing team identity affects durable target references."
+      },
+      "TEAM_LAYOUT_MISSING": {
+        "capability_id": "surface_skeleton",
+        "local_level_impact": "L1",
+        "global_impact": "evolvability_gap",
+        "dimension": "structure",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "fix_class": "manual",
+        "reason": "Team plan-of-record layout is team-owned documentation."
+      },
+      "PROJECT_CONTRACT_INVALID": {
+        "capability_id": "surface_skeleton",
+        "local_level_impact": "L0",
+        "global_impact": "foundation_blocker",
+        "dimension": "structure",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "fix_class": "manual",
+        "reason": "The repository contract is the project target's structural authority."
+      },
+      "PROJECT_PHASE1_SEMANTICS": {
+        "capability_id": "surface_skeleton",
+        "local_level_impact": "L1",
+        "global_impact": "foundation_blocker",
+        "dimension": "structure",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "fix_class": "manual",
+        "reason": "Phase-1 contract semantics are repository-wide invariants."
+      },
+      "PROJECT_CANONICAL_LAYOUT": {
+        "capability_id": "surface_skeleton",
+        "local_level_impact": "L1",
+        "global_impact": "foundation_blocker",
+        "dimension": "structure",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "fix_class": "manual",
+        "reason": "Canonical markers and paths are repository structure invariants."
+      },
+      "PROJECT_RUNTIME_HOME": {
+        "capability_id": "surface_skeleton",
+        "local_level_impact": "L1",
+        "global_impact": "foundation_blocker",
+        "dimension": "structure",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "fix_class": "manual",
+        "reason": "Runtime-home metadata must have one durable authority."
+      },
+      "PROJECT_LIVE_STRUCTURE": {
+        "capability_id": "surface_skeleton",
+        "local_level_impact": "L1",
+        "global_impact": "foundation_blocker",
+        "dimension": "structure",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "fix_class": "manual",
+        "reason": "The live repository must satisfy its declared markers."
+      },
+      "PROJECT_CONFIG_SURFACE": {
+        "capability_id": "surface_skeleton",
+        "local_level_impact": "L1",
+        "global_impact": "foundation_blocker",
+        "dimension": "structure",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "fix_class": "auto",
+        "fixer_status": "implemented",
+        "reason": "Preview adds observed project configuration entries to the explicit allowlist; apply is operator-controlled."
+      },
+      "PROJECT_EXCLUDED_LEGACY": {
+        "capability_id": "surface_skeleton",
+        "local_level_impact": "L1",
+        "global_impact": "evolvability_gap",
+        "dimension": "structure",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "fix_class": "manual",
+        "reason": "Retired paths and contract entries must not return."
+      },
+      "PROJECT_PROFILE_ROOTS": {
+        "capability_id": "surface_skeleton",
+        "local_level_impact": "L1",
+        "global_impact": "evolvability_gap",
+        "dimension": "structure",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "fix_class": "manual",
+        "reason": "Bundle profiles must remain inside canonical roots."
+      },
+      "PROJECT_BUNDLE_PROFILE": {
+        "capability_id": "surface_skeleton",
+        "local_level_impact": "L1",
+        "global_impact": "evolvability_gap",
+        "dimension": "structure",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "fix_class": "manual",
+        "reason": "The mini bundle policy controls reproducible repository packaging."
+      },
+      "PROJECT_DOCS_ALIGNMENT": {
+        "capability_id": "surface_skeleton",
+        "local_level_impact": "L1",
+        "global_impact": "evolvability_gap",
+        "dimension": "structure",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "fix_class": "manual",
+        "reason": "Repository contract documentation must describe the enforced surface."
+      },
+      "PROJECT_RESOURCE_ARTIFACTS": {
+        "capability_id": "surface_skeleton",
+        "local_level_impact": "L1",
+        "global_impact": "evolvability_gap",
+        "dimension": "structure",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "fix_class": "manual",
+        "reason": "Resource schema artifacts must be present and parseable."
+      },
+      "CROSS_KIND_STRUCTURE_CLEAN": {
+        "capability_id": "cross_kind_structure",
+        "local_level_impact": "L3",
+        "global_impact": "evolvability_gap",
+        "dimension": "structure",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "fix_class": "manual",
+        "reason": "A clean typed target is established by the provider's complete cross-kind assessment."
+      },
+      "IDENTITY_CONTRACT_READABLE": {
+        "capability_id": "identity_contract",
+        "local_level_impact": "L1",
+        "global_impact": "evolvability_gap",
+        "dimension": "structure",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "fix_class": "manual",
+        "reason": "Readable identity is established by the provider's valid target intent and identity assessment."
+      },
+      "IDENTITY_CONTRACT_CLEAN": {
+        "capability_id": "identity_contract",
+        "local_level_impact": "L2",
+        "global_impact": "evolvability_gap",
+        "dimension": "structure",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "fix_class": "manual",
+        "reason": "A clean scenario identity contract is established by the provider's complete assessment."
+      },
+      "LIFECYCLE_WIRING_READABLE": {
+        "capability_id": "lifecycle_wiring",
+        "local_level_impact": "L1",
+        "global_impact": "evolvability_gap",
+        "dimension": "structure",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "fix_class": "manual",
+        "reason": "Readable lifecycle wiring is established by the provider's inspectable target contract."
+      },
+      "SURFACE_SKELETON_CLEAN": {
+        "capability_id": "surface_skeleton",
+        "local_level_impact": "L3",
+        "global_impact": "evolvability_gap",
+        "dimension": "structure",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "fix_class": "manual",
+        "reason": "A clean target skeleton is established by the provider's complete assessment."
+      },
+      "PRODUCTION_SERVING_READABLE": {
+        "capability_id": "production_serving",
+        "local_level_impact": "L1",
+        "global_impact": "evolvability_gap",
+        "dimension": "structure",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "fix_class": "manual",
+        "reason": "Readable serving posture is established by the provider's inspectable target contract."
+      },
+      "LIFECYCLE_WIRING_CLEAN": {
+        "capability_id": "lifecycle_wiring",
+        "local_level_impact": "L3",
+        "global_impact": "evolvability_gap",
+        "dimension": "structure",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "fix_class": "manual",
+        "reason": "A clean lifecycle contract is established by the provider's complete assessment."
+      },
+      "PROFILE_CONFORMANCE_READABLE": {
+        "capability_id": "profile_conformance",
+        "local_level_impact": "L1",
+        "global_impact": "evolvability_gap",
+        "dimension": "structure",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "fix_class": "manual",
+        "reason": "Readable profile posture is established by the provider's inspectable target contract."
+      },
+      "PRODUCTION_SERVING_CLEAN": {
+        "capability_id": "production_serving",
+        "local_level_impact": "L3",
+        "global_impact": "evolvability_gap",
+        "dimension": "structure",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "fix_class": "manual",
+        "reason": "A clean production-serving contract is established by the provider's complete assessment."
+      },
+      "PROFILE_CONFORMANCE_CLEAN": {
+        "capability_id": "profile_conformance",
+        "local_level_impact": "L3",
+        "global_impact": "evolvability_gap",
+        "dimension": "structure",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "fix_class": "manual",
+        "reason": "A clean profile contract is established by the provider's complete assessment."
+      }
+    },
+    "fallback": {
+      "capability_id": "profile_conformance",
+      "local_level_impact": "L2",
+      "global_impact": "evolvability_gap",
+      "dimension": "structure",
+      "severity_default": "SEVERITY_WARNING",
+      "clean_requirement": "required"
+    }
+  },
+  "profileMembership": [
+    "architecture-audit"
+  ],
+  "freshnessRequirement": "when_applicable",
+  "phaseClass": "architecture",
+  "runtimeClass": "static",
+  "concurrency": {
+    "mode": "provider-serial"
+  },
+  "determinism": {
+    "default": "file-determined",
+    "inputs": ["**"]
+  },
+  "dimensions": [
+    "structure"
+  ]
+}

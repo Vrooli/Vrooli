@@ -1,0 +1,446 @@
+{
+  "$schema": "https://vrooli.dev/schemas/test-genie-phase-descriptor.schema.json",
+  "schemaVersion": "1.0.0",
+  "scenario": "performance-health",
+  "phase": "performance",
+  "displayName": "Performance",
+  "description": "Validates API/UI build performance and Lighthouse budgets through performance-health.",
+  "source": "validation-provider",
+  "orderHint": 9,
+  "timeout": "300s",
+  "findingSource": "unspecified",
+  "validation": {
+    "contract": "scenario-validation/v1",
+    "includeExecution": true
+  },
+  "targets": {"kinds": ["scenario", "control-plane"], "selection": "enumerate"},
+  "applicability": {
+    "default": "applies"
+  },
+  "policy": {
+    "selection": "default_when_applicable",
+    "providerReadiness": "best_effort",
+    "providerLifecycle": "start_if_needed",
+    "freshness": "require_live_contract",
+    "resultGating": "gating",
+    "unavailable": "skip_without_failing"
+  },
+  "runnability": {
+    "needsUI": true
+  },
+  "docs": {
+    "path": "scenarios/test-genie/docs/phases/performance/README.md"
+  },
+  "maturity": {
+    "version": "2.0.0",
+    "capabilities": [
+      {
+        "id": "surface_resolution",
+        "label": "Surface Resolution",
+        "description": "Scenario resolution, Code Facts surface discovery, UI framework detection, and capture-tier selection.",
+        "levels": [
+          {
+            "id": "L0",
+            "name": "Performance surface unavailable",
+            "status_label": "Unavailable",
+            "description": "The target scenario cannot be resolved or no performance surface can be classified.",
+            "capability_summary": "Performance Health cannot classify a measurable target surface.",
+            "next_unlock": "A resolvable scenario with Code Facts-backed performance axes."
+          },
+          {
+            "id": "L1",
+            "name": "Capture tier decided",
+            "status_label": "Foundation",
+            "description": "Performance Health can decide the reachable capture tier from Code Facts.",
+            "capability_summary": "The target performance surface and capture tier are known.",
+            "next_unlock": "Maximum surface-resolution maturity."
+          },
+          {
+            "id": "L2",
+            "name": "Surface resolution clean",
+            "status_label": "Complete",
+            "description": "Performance surface resolution is clean and downstream checks can run from known axes.",
+            "capability_summary": "Performance surface resolution is clean."
+          }
+        ]
+      },
+      {
+        "id": "profiling_infra",
+        "label": "Profiling Infrastructure",
+        "description": "React Tier-1 perf-build instrumentation for component commit attribution.",
+        "levels": [
+          {
+            "id": "L0",
+            "name": "Profiling infra unavailable",
+            "status_label": "Unavailable",
+            "description": "Tier-1 profiling infrastructure cannot be evaluated.",
+            "capability_summary": "Component-commit attribution cannot be trusted yet.",
+            "next_unlock": "A React UI surface where perf-build instrumentation can be inspected."
+          },
+          {
+            "id": "L1",
+            "name": "Profiling inspectable",
+            "status_label": "Foundation",
+            "description": "React perf-build files can be inspected for profiling instrumentation.",
+            "capability_summary": "Profiling infrastructure can be checked.",
+            "next_unlock": "Vite profiling aliases, build:profile script, profiler utility, and React.Profiler boundary."
+          },
+          {
+            "id": "L2",
+            "name": "Profiling ready",
+            "status_label": "Ready",
+            "description": "Tier-1 React profiling infrastructure is present or vacuously not applicable.",
+            "capability_summary": "Component-commit profiling infrastructure is ready.",
+            "next_unlock": "Maximum profiling-infrastructure maturity."
+          },
+          {
+            "id": "L3",
+            "name": "Profiling clean",
+            "status_label": "Complete",
+            "description": "Profiling infrastructure checks are clean.",
+            "capability_summary": "Profiling infrastructure is clean."
+          }
+        ]
+      },
+      {
+        "id": "budget_gates",
+        "label": "Budget Gates",
+        "description": "Synchronous and per-flow performance budget breaches for build time, bundle size, LCP, startup, and component commits.",
+        "levels": [
+          {
+            "id": "L0",
+            "name": "Budget gate unavailable",
+            "status_label": "Unavailable",
+            "description": "Performance budgets cannot be evaluated.",
+            "capability_summary": "Budget gating cannot be trusted yet.",
+            "next_unlock": "Readable performance budgets and latest measurement samples."
+          },
+          {
+            "id": "L1",
+            "name": "Budget gate active",
+            "status_label": "Foundation",
+            "description": "Performance budgets and measurement samples can be evaluated.",
+            "capability_summary": "Performance budget gates are active.",
+            "next_unlock": "No build, bundle, LCP, startup, component-commit, or per-flow budget breach."
+          },
+          {
+            "id": "L2",
+            "name": "Budgets honored",
+            "status_label": "Ready",
+            "description": "Declared performance budgets are honored by the newest gated measurement.",
+            "capability_summary": "Performance budgets are currently honored.",
+            "next_unlock": "Maximum budget-gate maturity."
+          },
+          {
+            "id": "L3",
+            "name": "Budget gates clean",
+            "status_label": "Complete",
+            "description": "Budget gate checks are clean.",
+            "capability_summary": "Performance budget gates are clean."
+          }
+        ]
+      },
+      {
+        "id": "runtime_measurement",
+        "label": "Runtime Measurement",
+        "description": "Execution-mode producer health, Lighthouse thresholds, and trace-analysis hot spots.",
+        "levels": [
+          {
+            "id": "L0",
+            "name": "Runtime measurement unavailable",
+            "status_label": "Unavailable",
+            "description": "Runtime performance measurement cannot run or cannot produce usable findings.",
+            "capability_summary": "Runtime measurement is unavailable.",
+            "next_unlock": "Build/Lighthouse/trace producers can execute or read artifacts."
+          },
+          {
+            "id": "L1",
+            "name": "Runtime measurement active",
+            "status_label": "Foundation",
+            "description": "Runtime performance producers can evaluate execution-mode or trace artifacts.",
+            "capability_summary": "Runtime measurement is active.",
+            "next_unlock": "Successful execution producers, Lighthouse thresholds, and component hot-spot checks."
+          },
+          {
+            "id": "L2",
+            "name": "Runtime measured",
+            "status_label": "Ready",
+            "description": "Runtime performance producers and trace analysis report no blocking regressions.",
+            "capability_summary": "Runtime performance measurement is clean enough for local validation.",
+            "next_unlock": "Maximum runtime-measurement maturity."
+          },
+          {
+            "id": "L3",
+            "name": "Runtime clean",
+            "status_label": "Complete",
+            "description": "Runtime measurement checks are clean.",
+            "capability_summary": "Runtime performance measurement is clean."
+          }
+        ]
+      },
+      {
+        "id": "trend_coverage",
+        "label": "Trend Coverage",
+        "description": "Continuous capture, persisted trend coverage, and visibility when a declared budget axis is measured out of band.",
+        "levels": [
+          {
+            "id": "L0",
+            "name": "Trend coverage unavailable",
+            "status_label": "Unavailable",
+            "description": "Persisted trend coverage cannot be evaluated.",
+            "capability_summary": "Performance trend coverage is unavailable.",
+            "next_unlock": "Persisted performance samples for out-of-band axes."
+          },
+          {
+            "id": "L1",
+            "name": "Trend visibility",
+            "status_label": "Advisory",
+            "description": "Out-of-band performance axes and trend coverage are visible.",
+            "capability_summary": "Performance trend coverage is visible.",
+            "next_unlock": "Advisory continuous-capture gaps are resolved."
+          },
+          {
+            "id": "L2",
+            "name": "Trend covered",
+            "status_label": "Complete",
+            "description": "Persisted trend coverage is present for applicable out-of-band axes.",
+            "capability_summary": "Performance trend coverage is clean."
+          }
+        ]
+      }
+    ],
+    "findings": {
+      "perf_build_vite_profile_mode": {
+        "capability_id": "profiling_infra",
+        "local_level_impact": "L2",
+        "global_impact": "evolvability_gap",
+        "dimension": "performance",
+        "severity_default": "SEVERITY_WARNING",
+        "clean_requirement": "required",
+        "fix_class": "auto",
+        "fixer_status": "implemented",
+        "recommended_skill_ids": [
+          "performance",
+          "failure-topography-and-graceful-degradation"
+        ]
+      },
+      "perf_build_profile_script": {
+        "capability_id": "profiling_infra",
+        "local_level_impact": "L2",
+        "global_impact": "evolvability_gap",
+        "dimension": "performance",
+        "severity_default": "SEVERITY_WARNING",
+        "clean_requirement": "required",
+        "fix_class": "auto",
+        "fixer_status": "implemented",
+        "recommended_skill_ids": [
+          "performance",
+          "failure-topography-and-graceful-degradation"
+        ]
+      },
+      "perf_build_profiler_util": {
+        "capability_id": "profiling_infra",
+        "local_level_impact": "L2",
+        "global_impact": "evolvability_gap",
+        "dimension": "performance",
+        "severity_default": "SEVERITY_WARNING",
+        "clean_requirement": "required",
+        "fix_class": "auto",
+        "fixer_status": "implemented",
+        "recommended_skill_ids": [
+          "performance",
+          "failure-topography-and-graceful-degradation"
+        ]
+      },
+      "perf_build_profiler_boundary": {
+        "capability_id": "profiling_infra",
+        "local_level_impact": "L2",
+        "global_impact": "evolvability_gap",
+        "dimension": "performance",
+        "severity_default": "SEVERITY_WARNING",
+        "clean_requirement": "required",
+        "fix_class": "auto",
+        "fixer_status": "implemented",
+        "recommended_skill_ids": [
+          "performance",
+          "failure-topography-and-graceful-degradation"
+        ]
+      },
+      "PERF_BUDGET_BREACH_GO_BUILD": {
+        "capability_id": "budget_gates",
+        "local_level_impact": "L2",
+        "global_impact": "hardening_gap",
+        "dimension": "performance",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "fix_class": "manual",
+        "reason": "A build-time-budget breach is a real performance regression that requires investigation, not a mechanical fix.",
+        "recommended_skill_ids": [
+          "performance"
+        ]
+      },
+      "PERF_BUDGET_BREACH_UI_BUILD": {
+        "capability_id": "budget_gates",
+        "local_level_impact": "L2",
+        "global_impact": "hardening_gap",
+        "dimension": "performance",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "fix_class": "manual",
+        "reason": "A UI-build-budget breach is a real performance regression that requires investigation, not a mechanical fix.",
+        "recommended_skill_ids": [
+          "performance"
+        ]
+      },
+      "PERF_BUDGET_BREACH_BUNDLE": {
+        "capability_id": "budget_gates",
+        "local_level_impact": "L2",
+        "global_impact": "hardening_gap",
+        "dimension": "performance",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "fix_class": "manual",
+        "reason": "A bundle-size-budget breach is a real performance regression that requires investigation, not a mechanical fix.",
+        "recommended_skill_ids": [
+          "performance"
+        ]
+      },
+      "PERF_BUDGET_BREACH_LCP": {
+        "capability_id": "budget_gates",
+        "local_level_impact": "L2",
+        "global_impact": "hardening_gap",
+        "dimension": "performance",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "fix_class": "manual",
+        "reason": "An LCP-budget breach is a real performance regression that requires investigation, not a mechanical fix.",
+        "recommended_skill_ids": [
+          "performance"
+        ]
+      },
+      "PERF_BUDGET_BREACH_STARTUP": {
+        "capability_id": "budget_gates",
+        "local_level_impact": "L2",
+        "global_impact": "hardening_gap",
+        "dimension": "performance",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "fix_class": "manual",
+        "reason": "A startup time-to-healthy budget breach is a real performance regression that requires investigation, not a mechanical fix.",
+        "recommended_skill_ids": [
+          "performance"
+        ]
+      },
+      "PERF_BUDGET_BREACH_COMPONENT_COMMIT_AVG": {
+        "capability_id": "budget_gates",
+        "local_level_impact": "L2",
+        "global_impact": "hardening_gap",
+        "dimension": "performance",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "fix_class": "manual",
+        "reason": "A component-commit-average budget breach is a real UI performance regression that requires investigation, not a mechanical fix.",
+        "recommended_skill_ids": [
+          "performance",
+          "failure-topography-and-graceful-degradation"
+        ]
+      },
+      "PERF_BUDGET_BREACH_COMPONENT_COMMIT_MAX": {
+        "capability_id": "budget_gates",
+        "local_level_impact": "L2",
+        "global_impact": "hardening_gap",
+        "dimension": "performance",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "fix_class": "manual",
+        "reason": "A component-commit-max budget breach is a real UI performance regression that requires investigation, not a mechanical fix.",
+        "recommended_skill_ids": [
+          "performance",
+          "failure-topography-and-graceful-degradation"
+        ]
+      },
+      "PERF_LIGHTHOUSE_BELOW_ERROR_THRESHOLD": {
+        "capability_id": "runtime_measurement",
+        "local_level_impact": "L2",
+        "global_impact": "hardening_gap",
+        "dimension": "performance",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "fix_class": "manual",
+        "reason": "A Lighthouse category scoring below its configured error threshold (in .vrooli/lighthouse.json) is a real UI quality/performance regression that requires investigation, not a mechanical fix. This restores the native test-genie perf phase's Lighthouse gating.",
+        "recommended_skill_ids": [
+          "performance",
+          "failure-topography-and-graceful-degradation"
+        ]
+      },
+      "PERF_BUILD_FAILED": {
+        "capability_id": "runtime_measurement",
+        "local_level_impact": "L0",
+        "global_impact": "hardening_gap",
+        "dimension": "performance",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "fix_class": "manual",
+        "reason": "A build that fails to compile during execution-mode benchmarking is a hard regression: the scenario cannot ship. This restores the native test-genie perf phase's early-exit-on-broken-build behavior.",
+        "recommended_skill_ids": [
+          "performance"
+        ]
+      },
+      "PERF_COMPONENT_COMMIT_OVER_BUDGET": {
+        "capability_id": "runtime_measurement",
+        "local_level_impact": "L2",
+        "global_impact": "hardening_gap",
+        "dimension": "performance",
+        "severity_default": "SEVERITY_WARNING",
+        "clean_requirement": "required",
+        "fix_class": "manual",
+        "reason": "A slow component commit hot spot requires product and profiling investigation, not a mechanical edit.",
+        "recommended_skill_ids": [
+          "performance",
+          "failure-topography-and-graceful-degradation"
+        ]
+      },
+      "PERF_BUDGET_AXIS_UNGATED": {
+        "capability_id": "trend_coverage",
+        "local_level_impact": "L1",
+        "global_impact": "advisory",
+        "dimension": "performance",
+        "severity_default": "SEVERITY_INFO",
+        "clean_requirement": "advisory",
+        "fix_class": "manual",
+        "reason": "An out-of-band measurement axis is visibility debt; changing capture cadence or synchronous coverage is an operational tradeoff.",
+        "recommended_skill_ids": [
+          "performance"
+        ]
+      }
+    },
+    "fallback": {
+      "capability_id": "budget_gates",
+      "local_level_impact": "L2",
+      "global_impact": "hardening_gap",
+      "dimension": "performance",
+      "severity_default": "SEVERITY_WARNING",
+      "clean_requirement": "required"
+    }
+  },
+  "profileMembership": [],
+  "freshnessRequirement": "never",
+  "phaseClass": "runtime",
+  "runtimeClass": "execution",
+  "concurrency": {
+    "mode": "exclusive",
+    "reason": "Concurrent load changes build time and Lighthouse measurements."
+  },
+  "determinism": {
+    "default": "observational",
+    "reason": "Performance measurements depend on external runtime state and are not completely represented by a file digest."
+  },
+  "dimensions": [
+    "performance"
+  ],
+  "evidenceKinds": [
+    "command.output",
+    "findings.report",
+    "trace"
+  ]
+}

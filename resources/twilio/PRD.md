@@ -11,7 +11,7 @@
 
 ### P0 Requirements (Must Have)
 - [x] **SMS Sending**: Send SMS messages via API with delivery confirmation
-- [x] **Credential Management**: Secure storage of Twilio API credentials using Vault secrets standard
+- [x] **Credential Management**: Secure storage and runtime injection of Twilio API credentials through the Vrooli credential authority
 - [x] **Health Check**: Validate API connectivity and credentials with <5s response time
 - [x] **Lifecycle Management**: Full start/stop/restart/install/uninstall support
 - [x] **Phone Number Management**: List and configure Twilio phone numbers
@@ -64,14 +64,14 @@
 ### Architecture
 - **Type**: Stateless API wrapper
 - **Language**: Bash + Twilio CLI
-- **Dependencies**: Node.js (for Twilio CLI), Vault (for secrets)
+- **Dependencies**: Node.js (for Twilio CLI); the Vrooli credential authority is a platform contract, not a Vault resource dependency
 - **Ports**: None (API-only service)
 
 ### API Endpoints
 N/A - CLI-based service
 
 ### Security Requirements
-- [x] API credentials stored in Vault only
+- [x] API credentials stored through the credential authority and injected only into the resource process
 - [x] No hardcoded secrets or fallback credentials
 - [x] Secure credential validation without exposing tokens
 - [x] Audit logging for all message sends
@@ -81,7 +81,7 @@ N/A - CLI-based service
   - Search and statistics capabilities
 
 ### Integration Points
-- **Vault**: Credential storage and retrieval
+- **Credential authority**: Credential storage, provider diagnostics, and runtime injection
 - **Scenarios**: Can be called by any scenario for notifications
 - **N8n**: Webhook integration for automated workflows
 
@@ -107,8 +107,8 @@ N/A - CLI-based service
 ## Implementation Roadmap
 
 ### Phase 1: Core Infrastructure (Current)
-1. Add v2.0 contract compliance (lib/core.sh, lib/test.sh)
-2. Implement secrets.yaml for Vault integration
+1. Add v2.0 contract compliance through the Go CLI and declarative manifest
+2. Declare the credential-authority fields in `resource.json` and use the shared runtime injection path
 3. Create proper test suite structure
 4. Fix health check implementation
 
@@ -140,7 +140,6 @@ N/A - CLI-based service
 ## Dependencies
 
 ### Required Resources
-- Vault (for secure credential storage)
 - Node.js (for Twilio CLI installation)
 
 ### External Services
@@ -159,7 +158,7 @@ N/A - CLI-based service
 ### Integration Tests  
 - API connectivity
 - Message sending (test mode)
-- Vault secrets retrieval
+- Credential-authority resolution and provider diagnostics
 
 ### Smoke Tests
 - Health check responds in <5s
@@ -248,8 +247,8 @@ N/A - CLI-based service
 - Progress: 46% → 54% complete
 
 ### 2025-01-11 - Major Improvement
-- ✅ Implemented v2.0 contract compliance (lib/core.sh, lib/test.sh)
-- ✅ Added Vault secrets integration (config/secrets.yaml)
+- ✅ Replaced obsolete v2.0 shell contract references with the Go CLI contract
+- ✅ Added declarative credential descriptors and credential-authority integration
 - ✅ Created comprehensive test suite (smoke/integration/unit tests)
 - ✅ Fixed lifecycle management (start/stop/restart)
 - ✅ Updated documentation with setup and usage guides

@@ -1,0 +1,55 @@
+{
+  "archived": false,
+  "coordination": {
+    "pattern": "independent",
+    "reportingMode": "none",
+    "messagingMode": "disabled",
+    "capabilities": {
+      "showOrgContext": false,
+      "injectInbox": false,
+      "allowPeerTriggers": false,
+      "showTaskBoardGuidance": true,
+      "showKnowledgeLogGuidance": true,
+      "requireHandoff": true
+    }
+  },
+  "createdAt": "2026-10-28T15:21:34Z",
+  "creationProof": {
+    "kind": "agent",
+    "subject": "336c7854-72fd-4058-a5cb-6c95cf212157",
+    "owner": "d47163a3-1ba3-5e7b-96dd-e6f8fc450b3f",
+    "source": "agent_provenance"
+  },
+  "displayName": "Synthetic Event Memory Identity Correction 20261028",
+  "enabled": false,
+  "execution": {
+    "queuePolicy": "bounded-parallel",
+    "maxConcurrentRuns": 2
+  },
+  "id": "synthetic-event-memory-identity-correction-20261028",
+  "kind": "team",
+  "lifetime": "finite",
+  "mission": "Isolated synthetic validation of superseding event memory and owner-to-owner task handoff; no heartbeat execution.",
+  "operatingContract": {
+    "schemaVersion": 1,
+    "governance": {},
+    "documents": {
+      "planOfRecord": null,
+      "sharedState": null
+    },
+    "knowledgeTopics": {
+      "heartbeat-note": {
+        "ownerMemberId": "unassigned",
+        "supersedesPrevious": false,
+        "retention": "append-only"
+      }
+    },
+    "members": {}
+  },
+  "revision": 9,
+  "runtime": {
+    "mode": "multi-process"
+  },
+  "schemaVersion": 1,
+  "updatedAt": "2026-10-28T15:41:16Z"
+}

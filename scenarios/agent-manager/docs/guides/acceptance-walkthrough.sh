@@ -1,0 +1,26 @@
+#!/usr/bin/env bash
+# CLI-only acceptance walkthrough for the investigation evidence spine.
+set -euo pipefail
+
+run_id="${1:-0a573109-4555-46b0-aec6-611c2fd98177}"
+search_hub_run_id="${2:-71d0abf3-89c0-4da2-a9d2-270eac15f3fe}"
+test_genie_run_id="${3:-42b12338-364c-4f9d-a39c-a9b1861de4ed}"
+prompt_manager_run_id="${4:-149541d0-bdb2-4d06-83ad-da8a66e67d6f}"
+self_report_run_id="${5:-09822a7b-da48-415b-8d12-91d8d9e1fb18}"
+
+require() { jq -e "$1" >/dev/null; }
+require_verified_receipt() {
+  local run="$1" target="$2"
+  agent-manager run ledger "$run" --json | jq -e --arg target "$target" '[.calls[] | select(.target_scenario == $target and .verified == true and .outcome == "success")] | length > 0' >/dev/null
+}
+
+report="$(agent-manager run report "$run_id" --json)"
+echo '1. Time attribution'; printf '%s' "$report" | require '.time_accounting.model_generating_ms > 0 and .time_accounting.tool_executing_ms > 0 and .time_accounting.idle_waiting_ms > 0 and .time_accounting.awaiting_human_ms > 0'
+echo '2. Tool correctness'; agent-manager run report "$run_id" --facts --json | require '[.facts[] | select(.outcome == "failure" and .resultEventId != "" and .failureSignature != "")] | length > 0'
+echo '3. Tool friction profiles'; agent-manager measures get tool-profiles --window last_7d --json | require '[.fields[] | select((.calls | tonumber) > 0 and .command_path != "")] | length > 0'
+echo '4. Self-reported friction'; agent-manager run report "$self_report_run_id" --json | require '[.selfReportSpans[]? | select(.text != "" and .ruleId != "")] | length > 0'
+echo '5. Owned versus external tooling'; printf '%s' "$report" | require '.project_owned_tool_calls != null and .external_tool_calls > 0'
+echo '6. Per-run cross-scenario evidence'; require_verified_receipt "$search_hub_run_id" search-hub; require_verified_receipt "$test_genie_run_id" test-genie; require_verified_receipt "$prompt_manager_run_id" prompt-manager
+echo '7. Cohort report'; agent-manager measures cohort-report --json | require '[.signals[] | select((.count | tonumber) > 0)] | length > 0'
+echo '8. Owner-level friction with coverage'; agent-manager usage friction --json | require '.coverage.sentence != ""'
+echo 'Acceptance walkthrough passed.'

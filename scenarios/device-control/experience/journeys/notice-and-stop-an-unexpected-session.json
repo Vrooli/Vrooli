@@ -1,0 +1,63 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-journey",
+  "schemaVersion": "1.0.0",
+  "journey": {
+    "id": "notice-and-stop-an-unexpected-session",
+    "title": "Notice a session you did not start, and stop it",
+    "purpose": "The safety loop. A consumer the operator did not personally launch — a delivery ramp, an agent run, a scheduled flow — is driving a personal device. The operator must be able to notice it without looking for it, understand who holds it, and stop it immediately.",
+    "prd_refs": [
+      "OT-P0-004",
+      "OT-P0-009"
+    ]
+  },
+  "steps": [
+    {
+      "page": "fleet",
+      "state": "session-active",
+      "intent": "Notice, without having navigated anywhere in particular, that a device is under a held lease and see who holds it.",
+      "via": "lease bar"
+    },
+    {
+      "page": "device-detail",
+      "state": "session-active",
+      "intent": "Identify which device is held, on which host and transport, and what it is currently permitted to do.",
+      "via": "lease bar device link"
+    },
+    {
+      "page": "session",
+      "state": "default",
+      "intent": "Read the running verb audit to understand what has already been done to the device.",
+      "via": "view session"
+    },
+    {
+      "page": "session",
+      "state": "killed",
+      "intent": "Terminate the session immediately and confirm the audit record survives the termination.",
+      "via": "kill session"
+    }
+  ],
+  "claims": [
+    {
+      "id": "unexpected-session-is-noticed-not-discovered",
+      "type": "custom",
+      "statement": "The operator learns that a device is being driven without navigating to that device, and without having been the one who started the session.",
+      "tier": "manual",
+      "rationale": "SECURITY.md's 'a session is left running unnoticed' threat. If noticing requires opening the right page, the mitigation depends on suspicion the operator has no reason to have."
+    },
+    {
+      "id": "kill-reachable-from-first-step",
+      "type": "custom",
+      "statement": "Termination is available from the moment the session is noticed, without first navigating to the session page.",
+      "tier": "manual",
+      "rationale": "The kill control lives in the lease bar rather than on the session screen so the distance between noticing and stopping is zero."
+    },
+    {
+      "id": "audit-survives-termination",
+      "type": "custom",
+      "statement": "After the session is killed, the record of what was already done to the device remains readable.",
+      "tier": "manual",
+      "rationale": "DVC-P0-009. Killing a session must not destroy the accountability record it produced, which is the only way to answer 'what did it do' afterwards."
+    }
+  ]
+}

@@ -1,0 +1,11 @@
+# The repo-root .gitignore has a bare `coverage` rule for test-coverage OUTPUT
+# (the top-level coverage/ run dir, *.out profiles). That pattern also matches
+# this scenario's source directories that are legitimately named `coverage`
+# (the readiness-scoreboard domain). Re-include the domain source — the
+# coverage/ output dir and *.out profiles stay ignored via the root rule.
+!api/handlers/coverage
+!api/handlers/coverage/**
+!api/internal/coverage
+!api/internal/coverage/**
+!cli/domains/coverage
+!cli/domains/coverage/**

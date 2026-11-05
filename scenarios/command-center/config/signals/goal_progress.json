@@ -1,0 +1,72 @@
+{
+  "id": "goal_progress",
+  "label": "Goal progress",
+  "description": "Progress rows and ETA bands reported by Swarm Manager.",
+  "unit": "count",
+  "format": "integer",
+  "kind": "panel",
+  "shape": "rows",
+  "columns": {
+    "key": {
+      "type": "string"
+    },
+    "value": {
+      "type": "number"
+    },
+    "share": {
+      "type": "number"
+    },
+    "label": {
+      "type": "string",
+      "optional": true
+    },
+    "detail": {
+      "type": "string",
+      "optional": true
+    }
+  },
+  "source": {
+    "team": "director-swarm",
+    "binding": "scenario:swarm-manager",
+    "read": "/api/v1/goals",
+    "select": "goal_progress",
+    "ttlSeconds": 300,
+    "integrationId": "swarm-manager",
+    "featureId": "goal_progress",
+    "contractVersion": "legacy.v1",
+    "selector": "goal_progress",
+    "expectedUnit": "count",
+    "sourceTimePolicy": "producer_required"
+  },
+  "coverage": "IN-REACH",
+  "sample": {
+    "value": 6,
+    "series": [
+      6
+    ],
+    "rows": [
+      {
+        "key": "scenario-readiness",
+        "label": "Scenario readiness",
+        "value": 6,
+        "share": 0.6,
+        "detail": "4.0h–9.0h ETA"
+      },
+      {
+        "key": "traffic-instrument",
+        "label": "Traffic instrument",
+        "value": 3,
+        "share": 0.3,
+        "detail": "8.0h–16.0h ETA"
+      },
+      {
+        "key": "release-proof",
+        "label": "Release proof",
+        "value": 1,
+        "share": 0.1,
+        "detail": "2.0h–4.0h ETA"
+      }
+    ],
+    "basis": "hand-authored structural sample, reviewed 2026-09-03"
+  }
+}

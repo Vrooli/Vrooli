@@ -1,20 +1,24 @@
 /**
- * GraphHelpPanel - FloatingPanel explaining the graph's visual language.
+ * GraphHelpPanel - guide explaining the graph's visual language, rendered in
+ * the shared HelpPanel shell (popover anchored to the header's help button on
+ * desktop, bottom sheet on mobile).
  *
  * Sections: node shapes, status colors, edge types, interactions, lenses.
  */
 
-import { useEffect, useRef } from "react";
-import { HelpCircle, X, Mouse, MousePointerClick } from "lucide-react";
+import type { RefObject } from "react";
+import { Mouse, MousePointerClick } from "lucide-react";
 import { ENTITY_SHAPE_INFO } from "../lib/entity-shapes";
 import { STATUS_GROUP_INFO } from "../lib/status-colors";
 import { EDGE_STYLES } from "../lib/edge-styles";
 import { cn } from "../../../lib/utils";
-import { useSpatialNavContext } from "../../../hooks/SpatialNavContext";
+import { HelpPanel } from "../../../components/ui/help-panel";
 
 interface GraphHelpPanelProps {
   isOpen: boolean;
   onClose: () => void;
+  /** Header help button the desktop popover anchors to */
+  triggerRef?: RefObject<HTMLElement | null>;
 }
 
 function ShapePreview({ cssClass, clipPath }: { cssClass: string; clipPath: string | null }) {
@@ -29,43 +33,16 @@ function ShapePreview({ cssClass, clipPath }: { cssClass: string; clipPath: stri
   );
 }
 
-export function GraphHelpPanel({ isOpen, onClose }: GraphHelpPanelProps) {
-  // Push a spatial nav modal scope so D-pad navigation is trapped inside.
-  const spatialNavRef = useSpatialNavContext();
-  const panelRef = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    const ctrl = spatialNavRef?.current;
-    const el = panelRef.current;
-    if (!isOpen || !ctrl || !el) return;
-    ctrl.pushScope(el);
-    return () => { ctrl.popScope(); };
-  }, [isOpen, spatialNavRef]);
-
-  if (!isOpen) return null;
-
+export function GraphHelpPanel({ isOpen, onClose, triggerRef }: GraphHelpPanelProps) {
   return (
-    <div
-      ref={panelRef}
-      className="absolute right-14 top-14 z-40 w-80 max-h-[70vh] overflow-y-auto rounded-lg border border-slate-700/60 bg-slate-900/95 backdrop-blur-sm shadow-xl"
-      data-testid="graph-help-panel"
+    <HelpPanel
+      isOpen={isOpen}
+      onClose={onClose}
+      title="Graph Guide"
+      triggerRef={triggerRef}
+      testId="graph-help-panel"
     >
-      {/* Header */}
-      <div className="sticky top-0 z-10 flex items-center justify-between border-b border-slate-700/60 bg-slate-900/95 px-3 py-2">
-        <div className="flex items-center gap-2">
-          <HelpCircle className="h-4 w-4 text-slate-400" />
-          <span className="text-sm font-semibold text-slate-100">Graph Guide</span>
-        </div>
-        <button
-          type="button"
-          onClick={onClose}
-          className="rounded p-1 text-slate-400 hover:bg-slate-800 hover:text-slate-200"
-          aria-label="Close help"
-        >
-          <X className="h-4 w-4" />
-        </button>
-      </div>
-
-      <div className="space-y-4 p-3">
+      <div className="space-y-4">
         {/* Node Shapes */}
         <section>
           <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-slate-400">Node Shapes</h3>
@@ -152,12 +129,11 @@ export function GraphHelpPanel({ isOpen, onClose }: GraphHelpPanelProps) {
         <section>
           <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-slate-400">Lenses</h3>
           <div className="space-y-1.5 text-[11px] text-slate-400">
-            <p><strong className="text-slate-300">Topology</strong> — Dependencies, initiatives, and relationships between all items</p>
-            <p><strong className="text-slate-300">Flow</strong> — Execution flow from backlog to completion</p>
-            <p><strong className="text-slate-300">Operations</strong> — Active agent runs and their activities</p>
+            <p><strong className="text-slate-300">Plan</strong> — Now / Next / Later / Done board: what is running, what is actionable, and what each blocker unblocks</p>
+            <p><strong className="text-slate-300">Focus</strong> — Attention-filtered graph neighborhood: items needing input plus their structural context</p>
           </div>
         </section>
       </div>
-    </div>
+    </HelpPanel>
   );
 }

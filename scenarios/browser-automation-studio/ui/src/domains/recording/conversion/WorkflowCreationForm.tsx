@@ -17,7 +17,7 @@
 
 import { useEffect, useMemo, useState, useCallback } from 'react';
 import { ChevronDown, ChevronRight, Settings2, ArrowLeft, Play, Sparkles, CheckCircle2, XCircle, AlertTriangle } from 'lucide-react';
-import { useProjectStore, type Project } from '@/domains/projects';
+import { useProjectStore, type Project } from '@/domains/projects/store';
 import type { RecordedAction, RecordingSessionProfile, ReplayPreviewResponse } from '../types/types';
 import type { NavigationWaitUntil, WorkflowSettingsTyped } from '@/types/workflow';
 import { ProjectSelector } from './ProjectSelector';

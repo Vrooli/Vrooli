@@ -56,10 +56,6 @@ func (h *Handlers) handleToolCallsStreamingFull(r *http.Request, sw *StreamWrite
 	}
 	res.MessageID = messageID
 
-	// Fetch active template tool IDs for template deactivation detection
-	activeTemplateToolIDs, _ := h.Repo.GetActiveTemplateToolIDs(ctx, chatID)
-	templateDeactivated := false
-
 	var toolErrors []error
 	var allAsyncOps []domain.AsyncOperationInfo
 
@@ -86,15 +82,6 @@ func (h *Handlers) handleToolCallsStreamingFull(r *http.Request, sw *StreamWrite
 
 			if len(outcome.Results) > 0 {
 				toolResult := outcome.Results[0]
-
-				// Check if this tool matches an active template's suggested tool
-				if !templateDeactivated && len(activeTemplateToolIDs) > 0 {
-					templateDeactivated = checkAndDeactivateTemplate(
-						ctx, h.Repo, chatID, tc.Function.Name,
-						activeTemplateToolIDs, &toolResult,
-					)
-				}
-
 				sw.WriteToolCallResult(toolResult)
 			}
 		}

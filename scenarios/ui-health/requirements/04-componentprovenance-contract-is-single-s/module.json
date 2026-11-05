@@ -1,0 +1,144 @@
+{
+  "description": "`ComponentProvenance` proto in `packages/proto/schemas/ui-health/v1/contracts/provenance.proto` defines the canonical adoption-metadata shape. The SQLite store in `react-component-library` is authoritative; the JSDoc block on adopted source files is the heal-from signal. Both round-trip losslessly with the proto message.",
+  "module_id": "MOD-P0-004",
+  "prd_ref": "OT-P0-004",
+  "priority": "P0",
+  "requirements": [
+    {
+      "category": "core",
+      "description": "A `ComponentProvenance` protobuf message must be defined in `packages/proto/schemas/ui-health/v1/contracts/provenance.proto`. It is the single source of truth for adoption metadata and must include at minimum: adoption_status enum (CUSTOM, ADOPTED_UNMODIFIED, ADOPTED_MODIFIED, UNKNOWN), library, library_version, source_sha256, and drift_hash fields. The SQLite store in `react-component-library` is authoritative for runtime data, and the JSDoc block on adopted source files is the heal-from signal. Both must round-trip losslessly with the proto message.",
+      "id": "REQ-P0-006",
+      "prd_ref": "OT-P0-004",
+      "status": "draft",
+      "title": "ComponentProvenance Proto as Canonical Adoption Metadata Shape",
+      "validation": [
+        {
+          "notes": "Proto file compiles without errors using protoc",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "All required fields (adoption_status, library, library_version, source_sha256, drift_hash) are present in the proto definition",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "AdoptionStatus enum values CUSTOM, ADOPTED_UNMODIFIED, ADOPTED_MODIFIED, UNKNOWN are defined",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "A ComponentProvenance message serialized from a SQLite row deserializes back to identical field values (round-trip test)",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "A ComponentProvenance message serialized from a JSDoc block deserializes back to identical field values (round-trip test)",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Read a row from the SQLite adoption store, convert to ComponentProvenance proto, serialize to binary, deserialize, and compare all fields",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Parse a JSDoc provenance block from an adopted source file, convert to ComponentProvenance proto, and confirm all fields are populated correctly",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "All ui-health subsystems (validate, search, reindex) reference this proto as the shared contract for provenance data",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    },
+    {
+      "category": "core",
+      "dependencies": [
+        "REQ-P0-006"
+      ],
+      "description": "The SQLite adoption store in `react-component-library` must be the authoritative source for ComponentProvenance data. The JSDoc block on adopted source files must serve as the heal-from signal. Both representations must map to and from the ComponentProvenance proto without data loss, ensuring consistency between the two stores.",
+      "id": "REQ-P0-007",
+      "prd_ref": "OT-P0-004",
+      "status": "draft",
+      "title": "SQLite Store and JSDoc Block Provenance Round-Trip Fidelity",
+      "validation": [
+        {
+          "notes": "SQLite adoption row schema includes columns for all ComponentProvenance proto fields",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "JSDoc block parser extracts all ComponentProvenance fields from a well-formed JSDoc comment",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "JSDoc block writer serializes all ComponentProvenance fields into a well-formed JSDoc comment",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Round-trip: SQLite → proto → SQLite produces identical row data",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Round-trip: JSDoc → proto → JSDoc produces identical comment content",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Simulate adoption of a component, write JSDoc block, read it back via parser, and confirm proto field equality with the originating SQLite row",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Confirm that a missing JSDoc block on an adopted file triggers a DRIFT finding during validation",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Developers can recover authoritative provenance state by reading JSDoc blocks when the SQLite database is lost or corrupted",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "ComponentProvenance contract is single source of truth"
+}

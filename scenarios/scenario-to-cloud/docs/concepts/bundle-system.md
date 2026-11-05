@@ -8,16 +8,14 @@ How mini-Vrooli bundles work.
 
 A bundle is a self-contained tarball containing everything needed to run a Vrooli scenario on a fresh VPS. It's a "mini-Vrooli" - the smallest possible installation that can run your scenario.
 
+The bundle is intentionally a repo subset plus generated deployment metadata. The
+native `vrooli` executable is uploaded as a separate deployment-local artifact
+during VPS setup so the remote host does not need a preinstalled global CLI.
+
 ## Bundle Contents
 
 ```
 vrooli-bundle-{scenario}-{timestamp}.tar.gz
-├── scripts/
-│   ├── manage.sh           # Main CLI entry point
-│   ├── main/
-│   │   └── setup.sh        # Setup orchestration
-│   └── lib/
-│       └── lifecycle/      # Process management
 ├── scenarios/
 │   └── {scenario}/         # Your scenario files
 │       ├── api/
@@ -28,7 +26,8 @@ vrooli-bundle-{scenario}-{timestamp}.tar.gz
 ├── packages/
 │   └── (optional npm/go)   # Pre-built dependencies
 └── .vrooli/
-    └── config.json         # Bundle configuration
+    ├── service.json        # Generated mini-root manifest for native setup
+    └── cloud/              # Embedded deployment manifest + bundle metadata
 ```
 
 ## Bundle Creation Process
@@ -44,10 +43,10 @@ The system analyzes your manifest to determine:
 ### 2. File Collection
 
 Files are collected from:
-- Core Vrooli scripts (always included)
 - Target scenario directory
 - Required resource directories
 - Dependency scenarios (if any)
+- Shared project directories still required by the native runtime
 
 ### 3. Optimization
 
@@ -83,6 +82,15 @@ On the VPS:
 mkdir -p ~/Vrooli
 tar -xzf bundle.tar.gz -C ~/Vrooli
 ```
+
+Then `scenario-to-cloud` uploads a deployment-local native CLI binary to:
+
+```bash
+~/Vrooli/.vrooli/bin/vrooli
+```
+
+All remote lifecycle operations use that exact binary path. The deployment does
+not depend on a legacy bootstrap script.
 
 ## Bundle Caching
 

@@ -1,0 +1,442 @@
+{
+  "$schema": "../../.vrooli/schemas/resource.schema.json",
+  "name": "ollaya",
+  "display_name": "Ollaya",
+  "description": "Managed decision-model service. Runs the checksum-pinned Ollaya daemon (open, non-generative decision models such as Laya and Winnow behind a TypeSafe-compatible API) and owns the System One wire client for credential-gated hosted decision upstreams (TypeSafe Jev directly, Jev through Eden AI, Cloudflare Clef). Consumed by ai-gateway's decide.* roles.",
+  "storage": {
+    "entries": {
+      "models": {
+        "rung": "relocatable",
+        "path": {
+          "linux": "$USER_HOME/.local/share/vrooli/resources/ollaya/models",
+          "macos": "$USER_HOME/Library/Application Support/vrooli/resources/ollaya/models",
+          "windows": "$USER_HOME/AppData/Local/vrooli/resources/ollaya/models"
+        },
+        "kind": "dir",
+        "class": "cache",
+        "regenerable": true,
+        "relocation": {
+          "key": "RESOURCE_DATA_DIR",
+          "scope": "container"
+        },
+        "rationale": "The Ollaya daemon pulls digest-pinned decision-model manifests and the authors' weights (sha256-verified) into OLLAYA_MODELS; every blob is re-downloadable.",
+        "budget": {
+          "max_age": "30d",
+          "rationale": "Regenerable storage is retained for 30 days and reclaimed by age; the window is the workload retention requirement."
+        }
+      }
+    }
+  },
+  "cli": {
+    "enabled": true,
+    "command": "resource-ollaya",
+    "adapter": {
+      "kind": "go_module",
+      "module_dir": "cli"
+    },
+    "artifacts": {
+      "manifest": {
+        "location": "sibling"
+      },
+      "build_metadata": {
+        "location": "sibling"
+      }
+    },
+    "distribution": {
+      "kind": "prebuilt_artifact",
+      "artifact_name": "resource-ollaya_${os}_${arch}"
+    },
+    "invoke": {
+      "kind": "installed_command",
+      "command": "resource-ollaya"
+    },
+    "freshness": {
+      "inputs": [
+        "cli/**",
+        "cli/internal/**",
+        "docs/**",
+        "README.md",
+        "resource.json",
+        "model-policy.json"
+      ]
+    },
+    "source_build": {
+      "kind": "go_module"
+    }
+  },
+  "driver": "managed-service",
+  "managed_service": {
+    "provider_policy": {
+      "target_defaults": {
+        "control-plane": "managed-private",
+        "desktop-bundle": "managed-private"
+      },
+      "allowed_modes": [
+        "managed-private",
+        "managed-shared",
+        "attach-only",
+        "remote-vrooli",
+        "managed-discovered"
+      ],
+      "shared_reuse_requires_consent": true,
+      "external_management": "forbidden",
+      "external_access_capabilities": [
+        "read-only",
+        "read-write"
+      ]
+    },
+    "artifact": {
+      "path": "server/ollaya",
+      "version": "0.18.0",
+      "layout": "dir",
+      "entry_path": "bin/ollaya",
+      "sha256_by_platform": {
+        "linux-amd64": "a311d7429b4ab69de2f88aaaf2722071d552d7541d05b7b956c2efc9a37a291b"
+      },
+      "bundle_artifact": "ollaya_${os}_${arch}"
+    },
+    "acquisition": {
+      "kind": "composed",
+      "license": "Apache-2.0 (Ollaya); bundled llama.cpp MIT and ONNX Runtime MIT; NVIDIA CUDA/cuDNN redistributables under the NVIDIA license; each decision model keeps its author's license (see model-policy.json)",
+      "provenance": {
+        "kind": "none"
+      },
+      "targets": [
+        {
+          "when": {
+            "os": "linux",
+            "arch": "amd64",
+            "gpu.cuda_compute": ">=7.5"
+          },
+          "layout": "dir",
+          "artifact_sha256": "a311d7429b4ab69de2f88aaaf2722071d552d7541d05b7b956c2efc9a37a291b",
+          "compose": [
+            {
+              "role": "runtime",
+              "kind": "url",
+              "dest": ".",
+              "url": "https://github.com/ollaya-dev/ollaya/releases/download/v0.18.0/ollaya-linux-amd64.tar.zst",
+              "sha256": "9d1d13cc16437a2748e1cc7af7e98cc31a5dea23a9cd82705f374abf49d7b084",
+              "archive": "tar.zst"
+            },
+            {
+              "role": "cuda-pack",
+              "kind": "url",
+              "dest": "lib/ollaya/cuda_v13",
+              "bin_path": "lib/ollaya/cuda_v13",
+              "url": "https://github.com/ollaya-dev/ollaya/releases/download/v0.18.0/ollaya-linux-amd64-cuda.tar.zst",
+              "sha256": "b0aae9ee60769d93990e42e2d06baf29d3fa13a2301604ed717240901c47302a",
+              "archive": "tar.zst"
+            }
+          ]
+        },
+        {
+          "when": {
+            "os": "linux",
+            "arch": "amd64"
+          },
+          "kind": "url",
+          "url": "https://github.com/ollaya-dev/ollaya/releases/download/v0.18.0/ollaya-linux-amd64.tar.zst",
+          "sha256": "9d1d13cc16437a2748e1cc7af7e98cc31a5dea23a9cd82705f374abf49d7b084",
+          "archive": "tar.zst",
+          "layout": "dir",
+          "artifact_sha256": "a8c8ee30243128969e7b96e5ac9126b8ddb90e7f92faa28bf0b95cf4e380ba00"
+        },
+        {
+          "when": {
+            "os": "linux",
+            "arch": "arm64"
+          },
+          "unsupported": "Ollaya publishes linux-arm64 archives, but no Vrooli host has exercised them; add a pinned target with start evidence before advertising support."
+        },
+        {
+          "when": {
+            "os": "macos"
+          },
+          "unsupported": "Ollaya publishes a darwin-arm64 archive, but no Vrooli host has exercised it; add a pinned target with start evidence before advertising support."
+        },
+        {
+          "when": {
+            "os": "windows"
+          },
+          "unsupported": "Ollaya publishes Windows archives, but no Vrooli host has exercised them; add a pinned target with start evidence before advertising support."
+        }
+      ]
+    },
+    "attach_health_path": "/api/version",
+    "arguments": [
+      "serve"
+    ],
+    "environment": {
+      "OLLAYA_HOST": "127.0.0.1:${RESOURCE_PORT_HTTP}",
+      "OLLAYA_MODELS": "${RESOURCE_DATA_DIR}/models",
+      "OLLAYA_KEEP_ALIVE": "30m",
+      "OLLAYA_MAX_LOADED_MODELS": "2",
+      "OLLAYA_LOG": "info"
+    }
+  },
+  "lifecycle": {
+    "start_timeout_seconds": 60,
+    "stop_timeout_seconds": 30
+  },
+  "deployment": {
+    "profiles": {
+      "desktop": {
+        "linux": {
+          "support": "unsupported",
+          "mode": "manual",
+          "architectures": [
+            "amd64"
+          ],
+          "requires": [],
+          "limitations": [
+            "The pinned Ollaya 0.18.0 tree is exercised on Linux amd64 with an NVIDIA CUDA 13 driver (R580+) and on the CPU archive; hosts with R525-R575 drivers need the separate cuda12 pack, which is not pinned."
+          ],
+          "evidence": [],
+          "reason": "Desktop bundling remains unsupported until target smoke evidence is published."
+        },
+        "macos": {
+          "support": "unsupported",
+          "mode": "manual",
+          "architectures": [
+            "arm64"
+          ],
+          "requires": [],
+          "limitations": [
+            "A darwin-arm64 Ollaya archive has not been pinned or exercised."
+          ],
+          "evidence": [],
+          "reason": "Native macOS delivery remains pending a pinned artifact and target smoke evidence."
+        },
+        "windows": {
+          "support": "unsupported",
+          "mode": "manual",
+          "architectures": [
+            "amd64"
+          ],
+          "requires": [],
+          "limitations": [
+            "A Windows Ollaya archive has not been pinned or exercised."
+          ],
+          "evidence": [],
+          "reason": "Native Windows delivery remains pending a pinned artifact and target smoke evidence."
+        }
+      }
+    }
+  },
+  "acceleration": {
+    "backends": [
+      "cuda",
+      "cpu"
+    ],
+    "require": "preferred",
+    "cuda": {
+      "min_compute": "7.5"
+    },
+    "cpu": {
+      "env": {
+        "OLLAYA_DEVICE": "cpu",
+        "CUDA_VISIBLE_DEVICES": "-1"
+      }
+    },
+    "claim": {
+      "resource_kind": "vram",
+      "default_preferred_bytes": 2147483648,
+      "floor_bytes": 0,
+      "default_priority": "service",
+      "confidence": "estimated",
+      "yield_when_idle": true,
+      "idle_grace_seconds": 1800,
+      "profile": {
+        "steps": [
+          {
+            "label": "gpu",
+            "default_amount_bytes": 2147483648
+          },
+          {
+            "label": "cpu",
+            "default_amount_bytes": 0
+          }
+        ],
+        "apply": {
+          "verb": "capacity",
+          "argv": [
+            "degrade",
+            "--to",
+            "{label}"
+          ]
+        },
+        "upshift": true
+      }
+    }
+  },
+  "companions": [
+    {
+      "name": "capacity-sync",
+      "command": "resource-ollaya",
+      "args": [
+        "capacity-sync"
+      ]
+    }
+  ],
+  "credentials": {
+    "descriptors": [
+      {
+        "logical_id": "vrooli/typesafe",
+        "field": "api-key",
+        "env": "TYPESAFE_API_KEY",
+        "label": "TypeSafe API key (hosted Jev)",
+        "provisioning": "operator",
+        "description": "Optional. Enables the hosted Jev decision upstream at api.typesafe.ai (waitlisted). Without it the decide.jev.typesafe role reports unconfigured and ai-gateway skips the candidate.",
+        "required": false,
+        "obtain_url": "https://typesafe.ai"
+      },
+      {
+        "logical_id": "vrooli/edenai",
+        "field": "api-key",
+        "env": "EDENAI_API_KEY",
+        "label": "Eden AI API key (Jev through Eden AI)",
+        "provisioning": "operator",
+        "description": "Optional. Enables Jev through Eden AI's alpha /v3/alpha/decisions endpoint. Without it the decide.jev.edenai role reports unconfigured and ai-gateway skips the candidate.",
+        "required": false,
+        "obtain_url": "https://app.edenai.run/admin/iam/api-keys"
+      },
+      {
+        "logical_id": "vrooli/cloudflare-workers-ai",
+        "field": "api-token",
+        "env": "CLOUDFLARE_WORKERS_AI_API_TOKEN",
+        "label": "Cloudflare Workers AI API token (Clef)",
+        "provisioning": "operator",
+        "description": "Optional. A Workers AI-scoped token that enables Cloudflare's hosted Clef-flash decision model. Requires the account id field as well.",
+        "required": false,
+        "obtain_url": "https://dash.cloudflare.com/profile/api-tokens"
+      },
+      {
+        "logical_id": "vrooli/cloudflare-workers-ai",
+        "field": "account-id",
+        "env": "CLOUDFLARE_WORKERS_AI_ACCOUNT_ID",
+        "label": "Cloudflare account id (Clef)",
+        "provisioning": "operator",
+        "description": "Optional. The Cloudflare account that owns the Workers AI token; forms the /accounts/<id>/ai/run path.",
+        "required": false,
+        "obtain_url": "https://developers.cloudflare.com/fundamentals/account/find-account-and-zone-ids/"
+      }
+    ],
+    "consumers": [
+      {
+        "logical_id": "vrooli/typesafe",
+        "field": "api-key",
+        "kind": "environment",
+        "consumer": "Ollaya CLI hosted System One upstream",
+        "source_ref": "cli/internal/policy/policy.go",
+        "required": false
+      },
+      {
+        "logical_id": "vrooli/edenai",
+        "field": "api-key",
+        "kind": "environment",
+        "consumer": "Ollaya CLI hosted System One upstream",
+        "source_ref": "cli/internal/policy/policy.go",
+        "required": false
+      },
+      {
+        "logical_id": "vrooli/cloudflare-workers-ai",
+        "field": "api-token",
+        "kind": "environment",
+        "consumer": "Ollaya CLI hosted System One upstream",
+        "source_ref": "cli/internal/policy/policy.go",
+        "required": false
+      },
+      {
+        "logical_id": "vrooli/cloudflare-workers-ai",
+        "field": "account-id",
+        "kind": "environment",
+        "consumer": "Ollaya CLI hosted System One upstream",
+        "source_ref": "cli/internal/policy/policy.go",
+        "required": false
+      }
+    ]
+  },
+  "category": "ai",
+  "requirements": {
+    "ram_mb": 3072,
+    "disk_mb": 6144,
+    "cpu_cores": 2,
+    "network": "required",
+    "bucket": "large",
+    "source": "estimated",
+    "confidence": "low",
+    "class": "ai",
+    "weight": 2
+  },
+  "platforms": {
+    "linux": "supported",
+    "macos": "unsupported",
+    "windows": "unsupported"
+  },
+  "ports": [
+    {
+      "name": "http",
+      "container": 11435,
+      "host": 11435
+    }
+  ],
+  "orchestration": {
+    "startup_order": 567,
+    "startup_timeout_seconds": 60,
+    "startup_time_estimate": "daemon starts in seconds; models load on first decision (laya ~2s, winnow:e4b tens of seconds)",
+    "dependencies": [],
+    "recovery_attempts": 2,
+    "priority": "medium"
+  },
+  "environment_exports": {
+    "static": {
+      "OLLAYA_DECIDE_HOST": "localhost"
+    },
+    "from_ports": {
+      "OLLAYA_PORT": "http"
+    },
+    "derived": {
+      "OLLAYA_URL": {
+        "template": "http://${OLLAYA_DECIDE_HOST}:${OLLAYA_PORT}"
+      }
+    }
+  },
+  "health_checks": [
+    {
+      "type": "http",
+      "kind": "readiness",
+      "target": "http://127.0.0.1:${RESOURCE_PORT_HTTP}/api/version",
+      "interval_seconds": 10,
+      "timeout_seconds": 10
+    },
+    {
+      "type": "http",
+      "kind": "liveness",
+      "target": "http://127.0.0.1:${RESOURCE_PORT_HTTP}/",
+      "interval_seconds": 30,
+      "timeout_seconds": 10
+    }
+  ],
+  "capabilities": {
+    "supports_logs": true
+  },
+  "template_version": "2",
+  "privilege": "user",
+  "bundling": "host-required",
+  "hostSafeguards": [
+    {
+      "name": "nvidia_driver",
+      "required": false,
+      "when": [
+        "setup",
+        "develop"
+      ],
+      "platforms": [
+        "linux"
+      ],
+      "reason": "This resource declares a CUDA backend. The safeguard proves the host driver is ready, that the compute device nodes survive a boot with no client attached, and that this user can open them.",
+      "notes": "Optional: decision models run on the CPU archive when no validated CUDA target is available."
+    }
+  ]
+}

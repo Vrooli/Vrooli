@@ -1,0 +1,136 @@
+{
+  "_metadata": {
+    "module": "contracts",
+    "description": "Immutable domain and shot contracts. First-release contract; completion follows requirement-linked behavior and retained protocol evidence.",
+    "schema_version": "1.0.0",
+    "auto_sync_enabled": true
+  },
+  "requirements": [
+    {
+      "id": "DS-CONTRACT-IDENTITY",
+      "title": "The system shall retain evidence-backed product identity.",
+      "description": "The device definition shall distinguish documented product, generic design, concept and unresolved identity and preserve original units, axes, configuration, uncertainty and evidence for each physical fact.",
+      "prd_ref": "OT-P0-001",
+      "criticality": "P0",
+      "delivery_scope": "committed",
+      "status": "not_implemented",
+      "category": "contracts",
+      "tags": [
+        "accepted-first-release",
+        "unimplemented"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "phase": "business",
+          "status": "planned",
+          "ref": "requirements/verification-protocols.md",
+          "notes": "NOT EXECUTED. Follow the named DS-CONTRACT-IDENTITY protocol, including its counterexample, and retain actual inputs, commands, receipts, results and reviewer verdict. The protocol is a verification plan, not passing evidence.",
+          "metadata": {
+            "protocol_id": "DS-CONTRACT-IDENTITY",
+            "planned_automation": "Unit/property tests of identity and measurement normalization.",
+            "evidence_status": "not_run"
+          }
+        }
+      ]
+    },
+    {
+      "id": "DS-CONTRACT-ASSEMBLY",
+      "title": "The compiler shall validate physical assembly references.",
+      "description": "The compiler shall resolve multiple device instances with stable part, joint, display and attachment IDs in explicit local frames and reject dangling references, invalid limits, incompatible mounts and unsupported optical targets with typed reasons.",
+      "prd_ref": "OT-P0-001",
+      "criticality": "P0",
+      "delivery_scope": "committed",
+      "status": "not_implemented",
+      "category": "contracts",
+      "tags": [
+        "accepted-first-release",
+        "unimplemented"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "phase": "business",
+          "status": "planned",
+          "ref": "requirements/verification-protocols.md",
+          "notes": "NOT EXECUTED. Follow the named DS-CONTRACT-ASSEMBLY protocol, including its counterexample, and retain actual inputs, commands, receipts, results and reviewer verdict. The protocol is a verification plan, not passing evidence.",
+          "metadata": {
+            "protocol_id": "DS-CONTRACT-ASSEMBLY",
+            "planned_automation": "Contract and property tests for graph references, transforms and capability negotiation.",
+            "evidence_status": "not_run"
+          }
+        }
+      ]
+    },
+    {
+      "id": "DS-CONTRACT-SURFACES",
+      "title": "The compiler shall preserve physical display topology.",
+      "description": "The compiler shall keep glass, active pixels, masks, cutouts, logical app viewports and per-surface orientation separate and require a supported evaluated mapping for curved or deforming surfaces.",
+      "prd_ref": "OT-P0-001",
+      "criticality": "P0",
+      "delivery_scope": "committed",
+      "status": "not_implemented",
+      "category": "contracts",
+      "tags": [
+        "accepted-first-release",
+        "unimplemented"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "phase": "business",
+          "status": "planned",
+          "ref": "requirements/verification-protocols.md",
+          "notes": "NOT EXECUTED. Follow the named DS-CONTRACT-SURFACES protocol, including its counterexample, and retain actual inputs, commands, receipts, results and reviewer verdict. The protocol is a verification plan, not passing evidence.",
+          "metadata": {
+            "protocol_id": "DS-CONTRACT-SURFACES",
+            "planned_automation": "Mask/UV tests and rendered diagnostic fixtures.",
+            "evidence_status": "not_run"
+          }
+        }
+      ]
+    },
+    {
+      "id": "DS-CONTRACT-SHOT",
+      "title": "The compiler shall pin every shot input revision.",
+      "description": "When a draft is submitted, the compiler shall freeze sources, libraries, presentation, motion, strategy, clocks, output and worker requirements with hashes and a readable capability decision; later edits shall create a new revision.",
+      "prd_ref": "OT-P0-001",
+      "criticality": "P0",
+      "delivery_scope": "committed",
+      "status": "not_implemented",
+      "category": "contracts",
+      "tags": [
+        "accepted-first-release",
+        "unimplemented"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "phase": "business",
+          "status": "planned",
+          "ref": "requirements/verification-protocols.md",
+          "notes": "NOT EXECUTED. Follow the named DS-CONTRACT-SHOT protocol, including its counterexample, and retain actual inputs, commands, receipts, results and reviewer verdict. The protocol is a verification plan, not passing evidence.",
+          "metadata": {
+            "protocol_id": "DS-CONTRACT-SHOT",
+            "planned_automation": "Repository/serialization and immutable-revision integration tests.",
+            "evidence_status": "not_run"
+          }
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "ref": "api/internal/shots/service_test.go",
+          "notes": "Partial evidence only. Specific tagged test case(s): TestCreateSaveConflictAndImmutableRevision, TestSemanticDigestsBindContentRatherThanMutableMediaIds. This does not establish the full requirement."
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "ref": "api/internal/rendering/worker_test.go",
+          "notes": "Partial evidence only. Specific tagged test case(s): TestRunManifestV2ComposesRawPhoneCaptureAndRecordsLayoutReceipt. This does not establish the full requirement."
+        }
+      ]
+    }
+  ]
+}

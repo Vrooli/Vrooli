@@ -1,0 +1,156 @@
+{
+  "_metadata": {
+    "module": "catalog",
+    "description": "The style catalog: five-axis classification, generation-strategy declaration, reserved-region geometry, versioning, and remix lineage. The vocabulary layer everything else is specified against.",
+    "prd_ref": "PRD.md",
+    "priority": "P0",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "CAT-001",
+      "title": "The system shall persist a style with a validated five-axis classification",
+      "status": "planned",
+      "prd_ref": "OT-P0-001",
+      "category": "catalog",
+      "criticality": "P0",
+      "description": "The system shall persist a style record carrying role, subject, treatment, lineage, and placement values. The system shall refuse a write whose axis value is absent from the declared enum for that axis, and shall name the offending axis and value in the refusal.",
+      "tags": [
+        "taxonomy",
+        "validation",
+        "schema"
+      ],
+      "validation": [
+        {
+          "type": "unit",
+          "status": "planned",
+          "notes": "Table test: each axis accepts every declared enum member and rejects an undeclared value, with the axis name present in the error."
+        }
+      ]
+    },
+    {
+      "id": "CAT-002",
+      "title": "The system shall require exactly one generation strategy per style and shall enforce its field shape",
+      "status": "planned",
+      "prd_ref": "OT-P0-002",
+      "category": "catalog",
+      "criticality": "P0",
+      "description": "The system shall require every style to declare one strategy from `procedural`, `procedural-treated`, `guided`, or `synthesized`. If a style declares `guided` without a scaffold, or declares `procedural` while carrying a generation block, then the system shall refuse the write and shall name the contradiction.",
+      "tags": [
+        "strategy",
+        "validation",
+        "invariant"
+      ],
+      "validation": [
+        {
+          "type": "unit",
+          "status": "planned",
+          "notes": "One case per strategy for the valid shape, plus the two contradiction cases named in the description."
+        }
+      ]
+    },
+    {
+      "id": "CAT-003",
+      "title": "The system shall return styles matching an axis filter",
+      "status": "planned",
+      "prd_ref": "OT-P0-003",
+      "category": "catalog",
+      "criticality": "P0",
+      "description": "When given a filter naming one or more axis values, the system shall return every style matching all of them. The system shall accept a filter on any of the five axes and shall treat an empty filter as unfiltered.",
+      "tags": [
+        "query",
+        "discovery"
+      ],
+      "validation": [
+        {
+          "type": "integration",
+          "status": "planned",
+          "notes": "Seeded catalog; assert filters on each axis independently and in combination return the expected identifier set."
+        }
+      ]
+    },
+    {
+      "id": "CAT-004",
+      "title": "The system shall hold reserved regions on every style with a declared occlusion kind",
+      "status": "planned",
+      "prd_ref": "OT-P0-010",
+      "category": "catalog",
+      "criticality": "P0",
+      "description": "The system shall persist reserved regions on a style as proportional rectangles, each declaring whether foreground content overlays it or occludes it. An overlay region carries text and is subject to the legibility gate. An occlusion region is covered by a device frame or card, so contrast there is irrelevant but focal detail placed under it is wasted. The system shall reject a region whose kind is not declared, because a region with no kind cannot be gated correctly either way.",
+      "tags": [
+        "placement",
+        "legibility",
+        "schema",
+        "geometry"
+      ],
+      "validation": [
+        {
+          "type": "unit",
+          "status": "planned",
+          "notes": "Boundary cases: full-frame region accepted; negative extent, zero extent, and out-of-range origin each rejected."
+        }
+      ]
+    },
+    {
+      "id": "CAT-005",
+      "title": "The system shall refuse to mutate a style version that a released backdrop references",
+      "status": "planned",
+      "prd_ref": "OT-P0-019",
+      "category": "catalog",
+      "criticality": "P0",
+      "description": "If a style version is referenced by any released backdrop, then the system shall refuse an in-place edit and shall require a new version instead. This preserves the meaning of the provenance recorded against already-released work.",
+      "tags": [
+        "versioning",
+        "provenance",
+        "immutability"
+      ],
+      "validation": [
+        {
+          "type": "integration",
+          "status": "planned",
+          "notes": "Release a backdrop against style v1; assert edit of v1 is refused and that creating v2 succeeds and leaves the release pointing at v1."
+        }
+      ]
+    },
+    {
+      "id": "CAT-006",
+      "title": "The system should record a parent reference when a style is forked",
+      "status": "planned",
+      "prd_ref": "OT-P1-001",
+      "category": "catalog",
+      "criticality": "P1",
+      "description": "When an operator forks a style and mutates one or more axes, the system should persist the new style carrying a reference to the style version it was derived from, so that a catalog accumulates a traceable family.",
+      "tags": [
+        "remix",
+        "lineage"
+      ],
+      "validation": [
+        {
+          "type": "integration",
+          "status": "planned",
+          "notes": "Fork a style, assert the child records the parent version and that the parent is unmodified."
+        }
+      ]
+    },
+    {
+      "id": "CAT-007",
+      "title": "The system should exchange a set of styles as a portable pack",
+      "status": "planned",
+      "prd_ref": "OT-P1-007",
+      "category": "catalog",
+      "criticality": "P1",
+      "description": "The system should export a selected set of styles as a self-describing pack and should import such a pack. On import the system should apply the same axis and strategy validation it applies to a direct write, and should report each rejected style rather than failing the whole pack.",
+      "tags": [
+        "portability",
+        "monetization"
+      ],
+      "validation": [
+        {
+          "type": "integration",
+          "status": "planned",
+          "notes": "Round-trip export and import; assert equality of the surviving set and a per-style report for a pack containing one invalid entry."
+        }
+      ]
+    }
+  ]
+}

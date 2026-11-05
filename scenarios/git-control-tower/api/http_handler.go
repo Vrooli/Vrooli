@@ -103,6 +103,12 @@ func RepoWrite(w http.ResponseWriter, r *http.Request, git GitRunner, repos *Rep
 			if unlock != nil {
 				unlock()
 			}
+			// Every RepoWrite caller represents a possible worktree or index
+			// mutation. Invalidate after releasing the lock so the next status
+			// poll observes the completed operation.
+			if repos != nil {
+				repos.InvalidateStatus(repoDir)
+			}
 		},
 	}
 }

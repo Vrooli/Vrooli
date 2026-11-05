@@ -1,0 +1,102 @@
+{
+  "description": "An accessibility (axe/WCAG) standard. Static checks verify a11y test files and the `axe-core` devDependency are present. Runtime checks verify `axe.run(container)` returns an empty violations array. There is no auto-fix for accessibility; findings are report-only.",
+  "module_id": "MOD-P1-021",
+  "prd_ref": "OT-P1-007",
+  "priority": "P1",
+  "requirements": [
+    {
+      "category": "core",
+      "description": "Static accessibility checks must verify the presence of a11y test files and the `axe-core` devDependency. Absence of either must produce a Finding.",
+      "id": "REQ-P1-011",
+      "prd_ref": "OT-P1-007",
+      "status": "draft",
+      "title": "Static a11y presence",
+      "validation": [
+        {
+          "notes": "Absence of a11y test files produces a Finding",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "A missing axe-core devDependency produces a Finding",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "A scenario with both a11y tests and axe-core present produces no static a11y Findings",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Run ui-health against a scenario missing axe-core and confirm the a11y presence Finding is emitted",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "The a11y static standard ensures every UI scenario ships accessibility tooling",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    },
+    {
+      "category": "ui",
+      "dependencies": [
+        "REQ-P1-011"
+      ],
+      "description": "Runtime accessibility checks must run `axe.run(container)` against the live UI and require the violations array to be empty. Accessibility findings are report-only; no auto-fix is offered.",
+      "id": "REQ-P1-012",
+      "prd_ref": "OT-P1-007",
+      "status": "draft",
+      "title": "Runtime axe violations empty",
+      "validation": [
+        {
+          "notes": "axe.run(container) returning any violation produces a runtime a11y Finding",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "A11y findings are marked report-only with no autofix_available",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "An empty axe violations array yields a passing runtime a11y verdict",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Run ui-health runtime checks against a UI with a known a11y violation and confirm it is reported",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Runtime axe/WCAG validation enforces zero accessibility violations as the standard",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "accessibility (axe/WCAG) standard"
+}

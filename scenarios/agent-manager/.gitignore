@@ -1,2 +1,8 @@
 cli/agent-manager
 cli/cli
+coverage.out
+cov.out
+api/coverage.out
+api/cov.out
+api/agent-manager-api
+*.test

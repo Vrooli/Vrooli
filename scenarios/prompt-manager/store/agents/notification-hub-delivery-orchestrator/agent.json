@@ -1,0 +1,19 @@
+{
+  "kind": "agent",
+  "schemaVersion": 1,
+  "id": "notification-hub-delivery-orchestrator",
+  "displayName": "Notification Hub Delivery Orchestrator",
+  "status": "active",
+  "appearance": {
+    "body": "#3B82F6",
+    "head": "#F59E0B",
+    "accent": "#10B981"
+  },
+  "fileOrder": [
+    "AGENT.md"
+  ],
+  "revision": 2,
+  "createdAt": "2026-10-20T12:40:58Z",
+  "updatedAt": "2026-10-24T03:15:34.545803Z",
+  "description": "Product-delivery orchestrator for notification-hub-delivery; current home: .vrooli/work/delivery/notification-hub-delivery/. Own strategy, substantial outcome delegation and independent acceptance."
+}

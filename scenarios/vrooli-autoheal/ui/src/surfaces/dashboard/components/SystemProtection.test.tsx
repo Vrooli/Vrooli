@@ -1,8 +1,8 @@
 // SystemProtection component tests
 // [REQ:WATCH-DETECT-001]
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { screen, waitFor } from '@testing-library/react';
-import { SystemProtection } from './SystemProtection';
+import { fireEvent, screen, waitFor } from '@testing-library/react';
+import { SystemProtection, useProtectionStatus } from './SystemProtection';
 import * as api from '../../../lib/api';
 import { renderWithProviders } from "../../../test-utils";
 import { createWatchdogStatus } from "../../../test-utils";
@@ -11,6 +11,8 @@ import { createWatchdogStatus } from "../../../test-utils";
 vi.mock('../../../lib/api', () => ({
   fetchWatchdogStatus: vi.fn(),
   fetchWatchdogTemplate: vi.fn(),
+  installWatchdog: vi.fn(),
+  uninstallWatchdog: vi.fn(),
 }));
 
 const mockWatchdogStatusFull: api.WatchdogStatus = createWatchdogStatus();
@@ -178,5 +180,53 @@ describe('SystemProtection - compact mode', () => {
       const compactElement = container.querySelector('[data-testid="autoheal-system-protection-compact"]');
       expect(compactElement).toHaveClass('bg-accent-danger/20');
     });
+  });
+});
+
+describe('SystemProtection interactions', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    Object.assign(navigator, { clipboard: { writeText: vi.fn().mockResolvedValue(undefined) } });
+    vi.mocked(api.fetchWatchdogTemplate).mockResolvedValue({
+      platform: "linux",
+      oneLiner: "install --watchdog",
+      instructions: "Step one\nStep two",
+      template: "service template",
+    });
+    vi.mocked(api.installWatchdog).mockResolvedValue({ success: true, message: "Installed" });
+    vi.mocked(api.uninstallWatchdog).mockResolvedValue({ success: true, message: "Removed" });
+  });
+
+  it("covers install, manual instructions, lingering copy, uninstall, and status hook", async () => {
+    const userService = createWatchdogStatus({
+      canInstall: true,
+      watchdogInstalled: true,
+      isUserService: true,
+      lingeringEnabled: false,
+      username: "operator",
+    });
+    vi.mocked(api.fetchWatchdogStatus).mockResolvedValue(userService);
+    renderWithProviders(<SystemProtection />);
+    await waitFor(() => expect(screen.getByText("Reinstall")).toBeInTheDocument());
+    fireEvent.click(screen.getByText("Reinstall"));
+    expect(await screen.findByText("Install Watchdog")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /show manual/i }));
+    expect(screen.getByText("Step one")).toBeInTheDocument();
+    for (const copyButton of screen.getAllByTitle("Copy command")) fireEvent.click(copyButton);
+    fireEvent.click(screen.getByTitle("Copy template"));
+    fireEvent.click(screen.getByRole("button", { name: /user service/i }));
+    await waitFor(() => expect(api.installWatchdog).toHaveBeenCalled());
+    fireEvent.click(screen.getByRole("button", { name: "Close" }));
+
+    fireEvent.click(screen.getByRole("button", { name: /uninstall/i }));
+    fireEvent.click(screen.getByRole("button", { name: /confirm uninstall/i }));
+    await waitFor(() => expect(api.uninstallWatchdog).toHaveBeenCalled());
+
+    function HookConsumer() {
+      const value = useProtectionStatus();
+      return <span>{value.status?.watchdogType ?? "loading"}</span>;
+    }
+    renderWithProviders(<HookConsumer />);
+    expect(await screen.findByText(userService.watchdogType)).toBeInTheDocument();
   });
 });

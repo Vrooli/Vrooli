@@ -1,0 +1,175 @@
+{
+  "_metadata": {
+    "description": "The single inbound contract every money source satisfies.",
+    "last_validated_at": "2026-08-13T23:50:33-04:00",
+    "module": "contract",
+    "prd_ref": "PRD.md",
+    "priority": "P0",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "CTR-001",
+      "title": "One contract admits every event",
+      "status": "complete",
+      "prd_ref": "OT-P0-004",
+      "category": "contract",
+      "criticality": "P0",
+      "description": "There is exactly one typed inbound path into the journal, and every source uses it. No adapter, and no internal caller, has a privileged path. This is the decision the whole scenario's generality rests on: standardising the shape of a money event is what makes any upstream pluggable without requiring anyone else to conform to an API.",
+      "tags": [
+        "contract",
+        "architecture"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/ledger/store_test.go",
+          "status": "implemented",
+          "notes": "Architecture test asserts the journal writer is reachable only through the contract type."
+        },
+        {
+          "type": "test",
+          "status": "implemented",
+          "notes": "Two different adapters produce byte-identical journal shapes for equivalent events."
+        }
+      ]
+    },
+    {
+      "id": "CTR-002",
+      "title": "Every event carries provenance and basis",
+      "status": "complete",
+      "prd_ref": "OT-P0-005",
+      "category": "contract",
+      "criticality": "P0",
+      "description": "An event records its adapter, external id, fetch time, and a basis of `authoritative`, `derived`, or `operator-asserted`. Basis is what lets a hand-typed cash sale sit in the same journal as a settled charge without the two being treated as equally trustworthy.",
+      "tags": [
+        "contract",
+        "honesty"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/ledger/store_test.go",
+          "status": "implemented",
+          "notes": "An event missing any provenance field is rejected; each basis value round-trips."
+        },
+        {
+          "type": "test",
+          "status": "implemented",
+          "notes": "A position response can attribute every contributing figure to a basis."
+        }
+      ]
+    },
+    {
+      "id": "CTR-003",
+      "title": "Manual and file adapters are ordinary adapters",
+      "status": "complete",
+      "prd_ref": "OT-P0-006",
+      "category": "adapter",
+      "criticality": "P0",
+      "description": "Operator entry and file import implement the same contract as any API-backed source and receive no special handling. Several real revenue sources — resale on marketplaces hostile to automation, consulting, cash — have no API at all, so a design where manual entry is a fallback fails for exactly those sources.",
+      "tags": [
+        "adapter",
+        "boundary"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/ingest/store_test.go",
+          "status": "implemented",
+          "notes": "The manual and file adapters satisfy the same interface as an API adapter, asserted structurally."
+        },
+        {
+          "type": "test",
+          "status": "implemented",
+          "notes": "A file import and an API sync produce equivalent journal entries for equivalent input."
+        }
+      ]
+    },
+    {
+      "id": "CTR-004",
+      "title": "Ingestion is idempotent",
+      "status": "complete",
+      "prd_ref": "OT-P0-007",
+      "category": "adapter",
+      "criticality": "P0",
+      "description": "Re-running an adapter over an overlapping window creates no duplicates, keyed on adapter plus external id. Adapters retry, backfill, and overlap by nature; without this the journal silently inflates and every downstream figure is wrong.",
+      "tags": [
+        "adapter",
+        "integrity"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/ledger/store_test.go",
+          "status": "implemented",
+          "notes": "Ingesting the same payload twice yields one posting set."
+        },
+        {
+          "type": "test",
+          "status": "implemented",
+          "notes": "Overlapping windows across two runs produce no duplicate entries."
+        }
+      ]
+    },
+    {
+      "id": "CTR-005",
+      "title": "Adapters may only emit events",
+      "status": "complete",
+      "prd_ref": "OT-P0-004",
+      "category": "architecture",
+      "criticality": "P0",
+      "description": "An adapter cannot write a balance, alter a goal, or reach any domain other than ingestion. Keeping adapters to one verb is what stops the most volatile part of the system from becoming the part that owns state.",
+      "tags": [
+        "architecture",
+        "boundary"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/ledger/store_test.go",
+          "status": "implemented",
+          "notes": "Architecture test asserts no adapter package imports a non-ingestion domain."
+        }
+      ]
+    },
+    {
+      "id": "CTR-006",
+      "title": "The operator-inputs import is verified before the sources are retired",
+      "status": "complete",
+      "prd_ref": "OT-P0-006",
+      "category": "adapter",
+      "criticality": "P0",
+      "description": "The financial cutover moves two source surfaces into this scenario: `scenarios/prompt-manager/store/teams/monetization/shared/operator-inputs.json` (cash, the four burn categories, time allocation) and the eleven-field per-heartbeat snapshot schema plus the goal thresholds in `docs/monetization/evidence/FINANCIAL_MODEL.md`. The ordering is absolute and mirrors Offer Desk's OT-P0-006 on the catalog side: import, verify field-by-field against the source with counts, then retire the source. Retiring first, or retiring on an unverified import, destroys operator-supplied data that exists nowhere else — this dataset is not regenerable, which the PRD states and which is exactly why the discipline is a requirement rather than a convention. Every imported figure enters as an ordinary event with basis `operator-asserted`; none is promoted to `authoritative` by virtue of having been canon. Goal thresholds currently carried in prose — default-alive at three consecutive months, the 1.25 buffer multiple, services capacity at 30 percent of the time budget for three consecutive weeks, and services revenue exceeding subscription revenue for two consecutive months — become declared goals under POS-002 rather than being re-typed as text.",
+      "tags": [
+        "adapter",
+        "migration",
+        "honesty"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/ingest/store_test.go",
+          "status": "implemented",
+          "notes": "Import of a fixture operator-inputs file yields one event per populated field, each with basis operator-asserted and provenance naming the source file and its read time."
+        },
+        {
+          "type": "test",
+          "status": "implemented",
+          "notes": "A field present in the source and absent from the import produces a verification failure, not a silent skip."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/ingest/store_test.go",
+          "status": "implemented",
+          "notes": "Fields marked pending-operator in the source import as absent rather than as zero."
+        },
+        {
+          "type": "test",
+          "status": "implemented",
+          "notes": "The verification report emits per-field counts sufficient to authorise source retirement, and reports any mismatch as a blocking finding."
+        }
+      ]
+    }
+  ]
+}

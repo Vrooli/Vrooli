@@ -1,0 +1,145 @@
+{
+  "_comment": "このファイルには2種類の補間があります。(1) 生成時: Security Health のような大文字スネークケースのプレースホルダーは、`vrooli scenario generate` がシナリオビルド前に置換します。実行時にはリテラル表示値として扱われます。(2) 実行時: {{count}} のようなトークンは i18next の補間で、`t(key, { count })` によりレンダー時に置換されます。アンダースコアで始まるキー（このキーのような）はセンチネルで、コード生成・パリティテスト・未使用キー監査からスキップされます。",
+  "app": {
+    "title": "Security Health"
+  },
+  "layout": {
+    "sidebarLabel": "メインナビゲーション",
+    "bottomNavLabel": "メイン",
+    "nav": {
+      "posture": "態勢",
+      "dependencies": "依存関係",
+      "secrets": "シークレット",
+      "settings": "設定"
+    }
+  },
+  "theme": {
+    "switcherLabel": "テーマ",
+    "choice": {
+      "light": "ライト",
+      "dark": "ダーク",
+      "system": "システム"
+    }
+  },
+  "pages": {
+    "posture": {
+      "title": "セキュリティ態勢",
+      "description": "シナリオをスキャンし、深刻度ごとに分類された正規化済みの検出結果と修正ガイダンスを確認します。"
+    },
+    "dependencies": {
+      "title": "依存関係",
+      "description": "フリート全体の依存関係インデックスを検索し、エコシステムで絞り込み、既知の脆弱性を表示します。"
+    },
+    "secrets": {
+      "title": "シークレット",
+      "description": "シナリオのシークレットスキャナー検出結果。場所のみ — 値は決して表示されません。"
+    },
+    "settings": {
+      "title": "設定",
+      "themeHeading": "外観",
+      "localeHeading": "言語"
+    }
+  },
+  "health": {
+    "title": "API ステータス",
+    "loading": "API のステータスを確認中…",
+    "error": "API に接続できません。`vrooli scenario start` でシナリオが起動していることを確認してください。",
+    "refresh": "再読み込み",
+    "refreshCount": "{{count}} 回更新しました",
+    "statusLabel": "ステータス:",
+    "serviceLabel": "サービス:",
+    "timestampLabel": "タイムスタンプ:"
+  },
+  "notifications": {
+    "summary": "{{count}} 件の通知"
+  },
+  "posture": {
+    "title": "セキュリティ態勢",
+    "scenarioLabel": "シナリオ",
+    "scenarioPlaceholder": "シナリオ ID（例: security-health）",
+    "scan": "スキャン",
+    "scanning": "スキャン中…",
+    "loading": "スキャナーを実行中…",
+    "empty": "検出結果なし — このシナリオはクリーンです。",
+    "passed": "合格",
+    "failed": "不合格",
+    "lastScan": "最終スキャン:",
+    "summary": "エラー {{errors}} 件 · 警告 {{warnings}} 件 · 情報 {{infos}} 件",
+    "skippedScanners": "スキップ（未インストール）: {{scanners}}",
+    "remediationLabel": "修正方法",
+    "fileLabel": "ファイル:",
+    "severity": {
+      "error": "エラー",
+      "warning": "警告",
+      "info": "情報"
+    }
+  },
+  "dependencies": {
+    "title": "依存関係",
+    "queryLabel": "検索",
+    "queryPlaceholder": "パッケージ名または自然言語クエリ",
+    "search": "検索",
+    "searching": "検索中…",
+    "vulnerableOnly": "脆弱性のみ",
+    "ecosystem": "エコシステム",
+    "ecosystemAll": "すべて",
+    "ecosystemGo": "Go",
+    "ecosystemNpm": "npm",
+    "ecosystemYarn": "Yarn",
+    "ecosystemBun": "Bun",
+    "ecosystemPython": "Python",
+    "ecosystemRust": "Rust",
+    "ecosystemC": "C",
+    "ecosystemCpp": "C++",
+    "empty": "一致する依存関係はありません。",
+    "textModeHint": "テキストモード — セマンティック検索は利用できませんが、構造化フィルターは引き続き適用されます。",
+    "indexedCount": "{{count}} 件の依存関係をインデックス済み",
+    "vulnerableCount": "{{count}} 件が脆弱",
+    "indexBuilding": "インデックス構築中… {{percent}}%",
+    "indexReady": "インデックス準備完了 ({{percent}}%)",
+    "coverageTooltip": "AIセマンティック検索はベクトルインデックスがカバレッジしきい値に達した後にのみ提供されます。それまでクエリは決定論的なテキスト検索にフォールバックします。",
+    "lastReconcile": "最終調整:",
+    "columns": {
+      "scenario": "シナリオ",
+      "name": "パッケージ",
+      "version": "バージョン",
+      "ecosystem": "エコシステム",
+      "vulns": "脆弱性"
+    }
+  },
+  "secrets": {
+    "redactedNote": "シークレットの値は表示されません — 検出された file:line のみです。"
+  },
+  "widget": {
+    "title": "セキュリティ態勢",
+    "loading": "確認中…",
+    "error": "利用不可",
+    "clean": "クリーン"
+  },
+  "errors": {
+    "canceled": "Operation canceled.",
+    "unknown": "An unknown error occurred.",
+    "invalid_argument": "Invalid input: {{message}}",
+    "deadline_exceeded": "Operation timed out.",
+    "not_found": "Resource not found.",
+    "already_exists": "Already exists.",
+    "permission_denied": "Permission denied.",
+    "resource_exhausted": "Resource limit reached.",
+    "failed_precondition": "Cannot perform this action: {{message}}",
+    "aborted": "Operation aborted.",
+    "out_of_range": "Out of range.",
+    "unimplemented": "Not yet implemented.",
+    "internal": "Something went wrong. Please try again.",
+    "unavailable": "Service temporarily unavailable.",
+    "data_loss": "Data loss detected.",
+    "unauthenticated": "Please sign in to continue."
+  },
+  "locale": {
+    "switcherLabel": "言語"
+  },
+  "errorBoundary": {
+    "title": "問題が発生しました",
+    "message": "ページの表示中に予期しないエラーが発生しました。再試行するか、解決しない場合はページを再読み込みしてください。",
+    "retry": "再試行"
+  }
+}

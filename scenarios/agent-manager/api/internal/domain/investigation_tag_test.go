@@ -1,6 +1,9 @@
 package domain
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 func TestMatchesInvestigationTag_DefaultAllowlist(t *testing.T) {
 	tests := []struct {
@@ -36,5 +39,11 @@ func TestMatchesInvestigationTag_RegexCaseSensitive(t *testing.T) {
 	}
 	if MatchesInvestigationTag("investigation", rules) != false {
 		t.Fatalf("expected case-sensitive regex mismatch")
+	}
+}
+
+func TestDefaultInvestigationPromptTreatsRunIdentityLifecycleDenialAsBoth(t *testing.T) {
+	if !strings.Contains(DefaultInvestigationPromptTemplate, "classify **Both**") {
+		t.Fatal("fallback investigation prompt lost the run-identity lifecycle classification")
 	}
 }

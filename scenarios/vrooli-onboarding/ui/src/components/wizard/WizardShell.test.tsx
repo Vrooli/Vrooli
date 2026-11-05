@@ -1,193 +1,120 @@
-// [REQ:REQ-P0-003] Wizard Shell Component
-import { render, screen, fireEvent } from "@testing-library/react";
-import { vi } from "vitest";
-import { WizardShell } from "./WizardShell";
+import { cleanup, fireEvent, screen } from "../../test-utils";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { renderWithProviders } from "@vrooli/api-base/testing";
+import { WizardShell, actForStep } from "./WizardShell";
+import type { WizardStep } from "../../api/session";
 
-const defaultProps = {
-  currentStep: 0,
-  onNext: vi.fn(),
-  onPrev: vi.fn(),
-};
+afterEach(cleanup);
+
+const steps: WizardStep[] = [
+  { id: "welcome", ordinal: 0, title: "Welcome", route: "/", deferred: false },
+  { id: "scenarios", ordinal: 1, title: "Capabilities", route: "/setup/scenarios", deferred: false },
+  { id: "apply", ordinal: 2, title: "Apply", route: "/setup/apply", deferred: false },
+];
+
+function renderShell(currentStep = 1, saveState?: "idle" | "saving" | "saved" | "failed" | "conflict", onRetry?: () => void) {
+  const onGoToStep = vi.fn();
+  renderWithProviders(
+    <WizardShell currentStep={currentStep} steps={steps} onNext={vi.fn()} onPrev={vi.fn()} onGoToStep={onGoToStep} operatorStateSaveState={saveState} onRetryOperatorStateSave={onRetry}>
+      <div>Content</div>
+    </WizardShell>,
+  );
+  return onGoToStep;
+}
 
 describe("WizardShell", () => {
-  it("renders wizard shell container", () => {
-    render(<WizardShell {...defaultProps}>Content</WizardShell>);
-    expect(screen.getByTestId("wizard-shell")).toBeInTheDocument();
+  it.each([
+    ["welcome", "decide"],
+    ["plan", "decide"],
+    ["scenarios", "adjust"],
+    ["core-set", "adjust"],
+    ["resources", "adjust"],
+    ["operating-mode", "adjust"],
+    ["host", "adjust"],
+    ["apply", "commit"],
+    [undefined, "commit"],
+  ] as const)("maps %s to the %s operator act", (stepID, expected) => {
+    expect(actForStep(stepID)).toBe(expected);
   });
 
-  it("renders children content", () => {
-    render(<WizardShell {...defaultProps}><p>Test Content</p></WizardShell>);
-    expect(screen.getByText("Test Content")).toBeInTheDocument();
+  it("renders one compact progress affordance", () => {
+    renderShell();
+    expect(screen.getByLabelText("Adjust: Capabilities")).toBeInTheDocument();
+    expect(screen.queryByRole("navigation", { name: "Wizard steps" })).not.toBeInTheDocument();
+    expect(screen.getByText("2 / 3")).toBeInTheDocument();
+    expect(screen.queryByTestId("wizard-target-chrome")).not.toBeInTheDocument();
   });
 
-  it("renders step indicators for all 4 steps", () => {
-    render(<WizardShell {...defaultProps}>Content</WizardShell>);
-    expect(screen.getByTestId("step-indicator-0")).toBeInTheDocument();
-    expect(screen.getByTestId("step-indicator-1")).toBeInTheDocument();
-    expect(screen.getByTestId("step-indicator-2")).toBeInTheDocument();
-    expect(screen.getByTestId("step-indicator-3")).toBeInTheDocument();
+  it("uses the commit act label for the terminal step", () => {
+    renderShell(2);
+    expect(screen.getByLabelText("Commit: Apply")).toBeInTheDocument();
   });
 
-  it("renders ordered list for step indicators", () => {
-    render(<WizardShell {...defaultProps}>Content</WizardShell>);
-    const stepList = screen.getByTestId("wizard-steps-desktop");
-    expect(stepList).toBeInTheDocument();
-    expect(stepList.tagName).toBe("OL");
+  it("renders the setup fallback when no active step exists", () => {
+    renderWithProviders(
+      <WizardShell currentStep={0} steps={[]} onNext={vi.fn()} onPrev={vi.fn()}>
+        <div>Content</div>
+      </WizardShell>,
+    );
+    expect(screen.getByLabelText("Commit: Setup")).toBeInTheDocument();
   });
 
-  it("marks current step with aria-current", () => {
-    render(<WizardShell {...defaultProps} currentStep={1}>Content</WizardShell>);
-    const desktopSteps = screen.getByTestId("wizard-steps-desktop");
-    const listItems = desktopSteps.querySelectorAll("li");
-    expect(listItems[1]).toHaveAttribute("aria-current", "step");
-    expect(listItems[0]).not.toHaveAttribute("aria-current");
+  it("allows navigation back through the library footer", () => {
+    const onGoToStep = renderShell();
+    const previousControls = screen.getAllByTestId("wizard-prev");
+    fireEvent.click(previousControls[previousControls.length - 1]!);
+    expect(onGoToStep).toHaveBeenCalledWith(0);
   });
 
-  it("renders progress bar with correct aria attributes", () => {
-    render(<WizardShell {...defaultProps} currentStep={2}>Content</WizardShell>);
-    const progressBar = screen.getByRole("progressbar");
-    expect(progressBar).toHaveAttribute("aria-valuenow", "2");
-    expect(progressBar).toHaveAttribute("aria-valuemin", "0");
-    expect(progressBar).toHaveAttribute("aria-valuemax", "3");
+  it("exposes every progress segment as a navigation control", () => {
+    const onGoToStep = renderShell(0);
+    const segments = screen.getAllByRole("button", { name: /^\d+\. / });
+    expect(segments).toHaveLength(3);
+    fireEvent.click(segments[1]!);
+    expect(onGoToStep).toHaveBeenCalledWith(1);
   });
 
-  it("shows Next button by default", () => {
-    render(<WizardShell {...defaultProps}>Content</WizardShell>);
-    expect(screen.getByTestId("wizard-next")).toBeInTheDocument();
-  });
-
-  it("hides Next button when showNext is false", () => {
-    render(<WizardShell {...defaultProps} showNext={false}>Content</WizardShell>);
-    expect(screen.queryByTestId("wizard-next")).not.toBeInTheDocument();
-  });
-
-  it("shows Back button when showPrev is true and step > 0", () => {
-    render(<WizardShell {...defaultProps} currentStep={1} showPrev={true}>Content</WizardShell>);
-    expect(screen.getByTestId("wizard-prev")).toBeInTheDocument();
-  });
-
-  it("hides Back button on first step", () => {
-    render(<WizardShell {...defaultProps} showPrev={false}>Content</WizardShell>);
-    expect(screen.queryByTestId("wizard-prev")).not.toBeInTheDocument();
-  });
-
-  it("disables Next button when nextDisabled is true", () => {
-    render(<WizardShell {...defaultProps} nextDisabled={true}>Content</WizardShell>);
-    expect(screen.getByTestId("wizard-next")).toBeDisabled();
-  });
-
-  it("displays custom next label", () => {
-    render(<WizardShell {...defaultProps} nextLabel="Generate Config">Content</WizardShell>);
-    expect(screen.getByTestId("wizard-next")).toHaveTextContent("Generate Config");
-  });
-
-  it("Back button has accessible label", () => {
-    render(<WizardShell {...defaultProps} currentStep={1} showPrev={true}>Content</WizardShell>);
-    expect(screen.getByTestId("wizard-prev")).toHaveAttribute("aria-label", "Go to previous step");
-  });
-
-  it("Next button has accessible label matching nextLabel", () => {
-    render(<WizardShell {...defaultProps} nextLabel="Get Started">Content</WizardShell>);
-    expect(screen.getByTestId("wizard-next")).toHaveAttribute("aria-label", "Get Started");
-  });
-
-  it("shows checkmark for completed steps", () => {
-    render(<WizardShell {...defaultProps} currentStep={2}>Content</WizardShell>);
-    // Steps 0 and 1 should show checkmarks
-    expect(screen.getByTestId("step-indicator-0")).toHaveTextContent("\u2713");
-    expect(screen.getByTestId("step-indicator-1")).toHaveTextContent("\u2713");
-    // Step 2 should show number
-    expect(screen.getByTestId("step-indicator-2")).toHaveTextContent("3");
-  });
-
-  it("renders mobile compact step label with current step name", () => {
-    render(<WizardShell {...defaultProps} currentStep={1}>Content</WizardShell>);
-    expect(screen.getByText("Step 2: Select Resources")).toBeInTheDocument();
-  });
-
-  it("renders mobile step counter", () => {
-    render(<WizardShell {...defaultProps} currentStep={2}>Content</WizardShell>);
-    expect(screen.getByText("3/4")).toBeInTheDocument();
-  });
-
-  it("renders mobile dot progress indicators", () => {
-    render(<WizardShell {...defaultProps} currentStep={1}>Content</WizardShell>);
-    const mobileProgress = screen.getByRole("list", { name: /step progress/i });
-    expect(mobileProgress).toBeInTheDocument();
-    const dots = mobileProgress.querySelectorAll("[role='listitem']");
-    expect(dots).toHaveLength(4);
-  });
-
-  it("makes completed step indicators clickable when onGoToStep is provided", () => {
-    const goToStep = vi.fn();
-    render(<WizardShell {...defaultProps} currentStep={2} onGoToStep={goToStep}>Content</WizardShell>);
-    // Step 0 (completed) should be clickable
-    const step0 = screen.getByTestId("step-indicator-0");
-    fireEvent.click(step0);
-    expect(goToStep).toHaveBeenCalledWith(0);
-  });
-
-  it("does not make future step indicators clickable", () => {
-    const goToStep = vi.fn();
-    render(<WizardShell {...defaultProps} currentStep={1} onGoToStep={goToStep}>Content</WizardShell>);
-    // Step 2 (future) should not call onGoToStep
-    const step2 = screen.getByTestId("step-indicator-2");
-    fireEvent.click(step2);
-    expect(goToStep).not.toHaveBeenCalled();
-  });
-
-  it("completed step indicators have accessible label for navigation", () => {
-    const goToStep = vi.fn();
-    render(<WizardShell {...defaultProps} currentStep={2} onGoToStep={goToStep}>Content</WizardShell>);
-    const step0 = screen.getByTestId("step-indicator-0");
-    expect(step0).toHaveAttribute("aria-label", "Go back to Welcome");
-  });
-
-  it("calls onNext when Next button is clicked", () => {
+  it("falls back to directional callbacks when step segments are not directly navigable", () => {
     const onNext = vi.fn();
-    render(<WizardShell {...defaultProps} onNext={onNext}>Content</WizardShell>);
-    fireEvent.click(screen.getByTestId("wizard-next"));
-    expect(onNext).toHaveBeenCalledTimes(1);
-  });
-
-  it("calls onPrev when Back button is clicked", () => {
     const onPrev = vi.fn();
-    render(<WizardShell {...defaultProps} currentStep={1} onPrev={onPrev} showPrev={true}>Content</WizardShell>);
-    fireEvent.click(screen.getByTestId("wizard-prev"));
+    renderWithProviders(
+      <WizardShell currentStep={1} steps={steps} onNext={onNext} onPrev={onPrev}>
+        <div>Content</div>
+      </WizardShell>,
+    );
+    expect(screen.getAllByRole("button", { name: /^\d+\. / })[0]).toBeDisabled();
+    const nextControls = screen.getAllByTestId("wizard-next");
+    const previousControls = screen.getAllByTestId("wizard-prev");
+    fireEvent.click(nextControls[nextControls.length - 1]!);
+    fireEvent.click(previousControls[previousControls.length - 1]!);
+    expect(onNext).toHaveBeenCalledTimes(1);
     expect(onPrev).toHaveBeenCalledTimes(1);
   });
 
-  it("progress bar width reflects step position", () => {
-    render(<WizardShell {...defaultProps} currentStep={1}>Content</WizardShell>);
-    const progressFill = screen.getByTestId("progress-bar");
-    // Step 1 of 4 steps (0-indexed): 1/3 * 100 ≈ 33.33%
-    expect(progressFill.style.width).toMatch(/33\.3/);
+  it("does not render a retry control when a failed save has no retry callback", () => {
+    renderShell(1, "failed");
+    expect(screen.queryByTestId("operator-state-save-retry")).not.toBeInTheDocument();
   });
 
-  it("shows step number for non-completed future steps", () => {
-    render(<WizardShell {...defaultProps} currentStep={0}>Content</WizardShell>);
-    // Step 0 is current (shows "1"), steps 1-3 are future
-    expect(screen.getByTestId("step-indicator-0")).toHaveTextContent("1");
-    expect(screen.getByTestId("step-indicator-3")).toHaveTextContent("4");
+  it("reports explicit save errors as alerts and measures selection indicators", () => {
+    renderWithProviders(
+      <WizardShell currentStep={1} steps={steps} onNext={vi.fn()} onPrev={vi.fn()} operatorStateError="Conflict from another session" operatorStateSaveState="conflict">
+        <div data-rcl-selection-indicator="true">Content</div>
+      </WizardShell>,
+    );
+    expect(screen.getByRole("alert")).toHaveTextContent("Conflict from another session");
   });
 
-  it("progress bar width is 0% on first step", () => {
-    render(<WizardShell {...defaultProps} currentStep={0}>Content</WizardShell>);
-    const progressFill = screen.getByTestId("progress-bar");
-    expect(progressFill.style.width).toBe("0%");
-  });
-
-  it("progress bar width is 100% on last step", () => {
-    render(<WizardShell {...defaultProps} currentStep={3}>Content</WizardShell>);
-    const progressFill = screen.getByTestId("progress-bar");
-    expect(progressFill.style.width).toBe("100%");
-  });
-
-  it("does not call onGoToStep for current step", () => {
-    const goToStep = vi.fn();
-    render(<WizardShell {...defaultProps} currentStep={1} onGoToStep={goToStep}>Content</WizardShell>);
-    const step1 = screen.getByTestId("step-indicator-1");
-    fireEvent.click(step1);
-    expect(goToStep).not.toHaveBeenCalled();
+  it.each([
+    ["saving", "Saving preferences…"],
+    ["saved", "Preferences saved locally. Host effects require review and apply."],
+    ["failed", "Preferences not saved. Your edit is retained for retry."],
+    ["conflict", "Preferences conflict. Your edit is retained for rebase and retry."],
+  ] as const)("exposes the %s durable save state", (state, message) => {
+    const onRetry = vi.fn();
+    renderShell(1, state, onRetry);
+    expect(screen.getByTestId("operator-state-save-state")).toHaveTextContent(message);
+    if (state === "failed" || state === "conflict") fireEvent.click(screen.getByTestId("operator-state-save-retry"));
+    if (state === "failed" || state === "conflict") expect(onRetry).toHaveBeenCalledTimes(1);
   });
 });

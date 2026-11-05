@@ -1,0 +1,44 @@
+{
+  "metadata": {
+    "name": "Repository Change Groups API",
+    "description": "Validates typed RepoService.GetRepoGroups exposes resolved changed-file buckets",
+    "tags": ["e2e", "api", "groups"],
+    "requirements": [
+      "GCT-OT-P0-002B"
+    ],
+    "labels": {
+      "safety": "observer",
+      "mutates_repository": "false",
+      "requirements_json": "[\"GCT-OT-P0-002B\"]"
+    },
+    "reset": "none",
+    "execution_mode": "observer"
+  },
+  "settings": {},
+  "nodes": [
+    {
+      "id": "groups",
+      "type": "http_request",
+      "data": {
+        "label": "POST RepoService/GetRepoGroups",
+        "method": "POST",
+        "url": "{{API_URL}}/vrooli.git_control_tower.v1.repo.RepoService/GetRepoGroups",
+        "body": {},
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "assertions": [
+          {
+            "type": "status_code",
+            "expected": 200
+          },
+          {
+            "type": "json_path_exists",
+            "path": "$.groups"
+          }
+        ]
+      }
+    }
+  ],
+  "edges": []
+}

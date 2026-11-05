@@ -14,9 +14,11 @@ import (
 	"time"
 
 	"github.com/vrooli/api-core/database"
+
 	"github.com/vrooli/api-core/health"
 	"github.com/vrooli/api-core/preflight"
 	"github.com/vrooli/api-core/server"
+	assistantSchema "vrooli-assistant/internal/assistant"
 
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
@@ -75,8 +77,9 @@ func main() {
 	// Initialize database connection
 	initDB()
 
-	// Create tables if they don't exist
-	createTables()
+	if err := database.EnsureSchemas(context.Background(), db, database.SchemaProviderFunc(assistantSchema.Schema)); err != nil {
+		log.Fatal("Database schema initialization failed:", err)
+	}
 
 	// Serve embedded web UI assets
 	webFS, err := fs.Sub(embeddedWebUI, "webui")
@@ -217,43 +220,6 @@ func initDB() {
 	})
 	if err != nil {
 		log.Fatal("Database connection failed:", err)
-	}
-}
-
-func createTables() {
-	queries := []string{
-		`CREATE TABLE IF NOT EXISTS issues (
-			id UUID PRIMARY KEY,
-			timestamp TIMESTAMP NOT NULL,
-			screenshot_path TEXT,
-			scenario_name VARCHAR(255),
-			url TEXT,
-			description TEXT NOT NULL,
-			context_data JSONB,
-			agent_session_id UUID,
-			status VARCHAR(50) NOT NULL,
-			resolution_notes TEXT,
-			tags TEXT[]
-		)`,
-		`CREATE TABLE IF NOT EXISTS agent_sessions (
-			id UUID PRIMARY KEY,
-			issue_id UUID REFERENCES issues(id),
-			agent_type VARCHAR(50) NOT NULL,
-			start_time TIMESTAMP NOT NULL,
-			end_time TIMESTAMP,
-			status VARCHAR(50) NOT NULL,
-			output TEXT
-		)`,
-		`CREATE INDEX IF NOT EXISTS idx_issues_status ON issues(status)`,
-		`CREATE INDEX IF NOT EXISTS idx_issues_scenario ON issues(scenario_name)`,
-		`CREATE INDEX IF NOT EXISTS idx_agent_sessions_issue ON agent_sessions(issue_id)`,
-	}
-
-	for _, query := range queries {
-		_, err := db.Exec(query)
-		if err != nil {
-			log.Printf("Failed to create table: %v", err)
-		}
 	}
 }
 

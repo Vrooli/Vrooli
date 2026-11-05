@@ -1,4 +1,5 @@
 package httputil
+
 // DOC: docs/internal/ERROR-SEMANTICS.md#writeerror
 
 import (
@@ -6,23 +7,47 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"log/slog"
 	"net/http"
 
 	"google.golang.org/protobuf/proto"
 
-	"system-monitor-api/internal/apierrors"
+	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/apierrors"
+	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/logx"
 )
 
+// secureHeaders applies the OWASP security header floor to a response. CORS
+// policy is owned by the middleware and is intentionally not synthesized here.
+func secureHeaders(w http.ResponseWriter) {
+	if w.Header().Get("X-Frame-Options") == "" {
+		w.Header().Set("X-Content-Type-Options", "nosniff")
+		w.Header().Set("X-Frame-Options", "DENY")
+		w.Header().Set("X-XSS-Protection", "1; mode=block")
+		w.Header().Set("Strict-Transport-Security", "max-age=31536000")
+	}
+}
+
 func JSON(w http.ResponseWriter, data any) error {
+	secureHeaders(w)
 	w.Header().Set("Content-Type", "application/json")
 	return json.NewEncoder(w).Encode(data)
 }
 
 func JSONWithStatus(w http.ResponseWriter, status int, data any) error {
+	secureHeaders(w)
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
 	return json.NewEncoder(w).Encode(data)
+}
+
+// WriteRaw writes a pre-marshaled body with the standard header floor. It is the
+// single low-level write path other helpers (e.g. proto JSON) delegate to so
+// proto responses do not need their own direct ResponseWriter writes.
+func WriteRaw(w http.ResponseWriter, status int, contentType string, payload []byte) error {
+	secureHeaders(w)
+	w.Header().Set("Content-Type", contentType)
+	w.WriteHeader(status)
+	_, err := w.Write(payload)
+	return err
 }
 
 // ErrorDetail is the wire-format error detail.
@@ -92,7 +117,7 @@ func isStatusRetryable(status int) bool {
 }
 
 // WriteError writes a structured JSON error response.
-func WriteError(w http.ResponseWriter, log *slog.Logger, r *http.Request, status int, code, userMessage, logDetail string) {
+func WriteError(w http.ResponseWriter, log logx.Logger, r *http.Request, status int, code, userMessage, logDetail string) {
 	reqID := r.Header.Get("X-Request-ID")
 	if log != nil && logDetail != "" {
 		log.Error(logDetail, "status", status, "code", code, "path", r.URL.Path, "request_id", reqID)
@@ -106,13 +131,14 @@ func WriteError(w http.ResponseWriter, log *slog.Logger, r *http.Request, status
 			RequestID: reqID,
 		},
 	}
+	secureHeaders(w)
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
-	json.NewEncoder(w).Encode(body) //nolint:errcheck
+	json.NewEncoder(w).Encode(body) //nolint:errcheck // a failed response write cannot be recovered after disconnect
 }
 
 // WriteAPIError maps an APIError to the correct HTTP status and writes JSON.
-func WriteAPIError(w http.ResponseWriter, log *slog.Logger, r *http.Request, apiErr *apierrors.APIError) {
+func WriteAPIError(w http.ResponseWriter, log logx.Logger, r *http.Request, apiErr *apierrors.APIError) {
 	status := categoryToStatus(apiErr.Category)
 	reqID := r.Header.Get("X-Request-ID")
 	if log != nil && apiErr.InternalDetail != "" {
@@ -133,15 +159,16 @@ func WriteAPIError(w http.ResponseWriter, log *slog.Logger, r *http.Request, api
 	if apiErr.RetryAfterSecs > 0 && (status == http.StatusTooManyRequests || status == http.StatusServiceUnavailable) {
 		w.Header().Set("Retry-After", fmt.Sprintf("%d", apiErr.RetryAfterSecs))
 	}
+	secureHeaders(w)
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
-	json.NewEncoder(w).Encode(body) //nolint:errcheck
+	json.NewEncoder(w).Encode(body) //nolint:errcheck // a failed response write cannot be recovered after disconnect
 }
 
 // HandleError checks for *apierrors.APIError via errors.As and writes the appropriate response.
 // Context cancellation and deadline exceeded errors are mapped to 503.
 // Untyped errors become 500 with a generic message (no internal detail leak).
-func HandleError(w http.ResponseWriter, log *slog.Logger, r *http.Request, err error) {
+func HandleError(w http.ResponseWriter, log logx.Logger, r *http.Request, err error) {
 	var apiErr *apierrors.APIError
 	if errors.As(err, &apiErr) {
 		WriteAPIError(w, log, r, apiErr)
@@ -163,7 +190,7 @@ func HandleError(w http.ResponseWriter, log *slog.Logger, r *http.Request, err e
 }
 
 // SafeProtoJSON writes a proto message as JSON. On marshal failure it writes a 500 error.
-func SafeProtoJSON(w http.ResponseWriter, log *slog.Logger, r *http.Request, msg proto.Message) {
+func SafeProtoJSON(w http.ResponseWriter, log logx.Logger, r *http.Request, msg proto.Message) {
 	if err := ProtoJSON(w, msg); err != nil {
 		log.Error("proto marshal failed", "error", err, "path", r.URL.Path)
 		// Only attempt error response if headers haven't been sent
@@ -171,8 +198,18 @@ func SafeProtoJSON(w http.ResponseWriter, log *slog.Logger, r *http.Request, msg
 	}
 }
 
+// SafeProtoJSONCamel is the lowerCamelCase REST counterpart to SafeProtoJSON.
+// Keep the existing snake_case helper stable for legacy REST consumers while
+// allowing typed browser clients to consume proto responses directly.
+func SafeProtoJSONCamel(w http.ResponseWriter, log logx.Logger, r *http.Request, msg proto.Message) {
+	if err := ProtoJSONCamel(w, msg); err != nil {
+		log.Error("proto marshal failed", "error", err, "path", r.URL.Path)
+		WriteError(w, nil, r, http.StatusInternalServerError, "internal", "An internal error occurred", "")
+	}
+}
+
 // SafeProtoJSONWithStatus writes a proto message with a status code. On failure it writes a 500 error.
-func SafeProtoJSONWithStatus(w http.ResponseWriter, log *slog.Logger, r *http.Request, status int, msg proto.Message) {
+func SafeProtoJSONWithStatus(w http.ResponseWriter, log logx.Logger, r *http.Request, status int, msg proto.Message) {
 	if err := ProtoJSONWithStatus(w, status, msg); err != nil {
 		log.Error("proto marshal failed", "error", err, "path", r.URL.Path)
 		WriteError(w, nil, r, http.StatusInternalServerError, "internal", "An internal error occurred", "")

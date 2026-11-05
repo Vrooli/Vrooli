@@ -1,3 +1,8 @@
 cli/cli
 cli/browser-automation-studio
 bundle/runtime/linux-x64/runtime
+/api/browser-automation-studio
+/bas/seeds/seeds
+/bundle/runtime/linux-x64/runtimectl
+/seeds
+/api/movie-spec-gen

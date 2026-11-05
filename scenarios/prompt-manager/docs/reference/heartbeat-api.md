@@ -11,7 +11,156 @@ the agent is currently a member of the team. Requests for non-members return `40
 
 ---
 
+## Heartbeat Control
+
+Heartbeat control manages global and per-team auto-pause state. Pause state is independent from member heartbeat config `enabled` flags.
+
+### Get Global Control Status
+
+```
+GET /heartbeats/control
+```
+
+Returns global policy/state plus per-team summaries.
+
+```json
+{
+  "scope": "global",
+  "status": "active",
+  "effectivePolicy": {
+    "enabled": true,
+    "pauseAfterDaysWithoutHumanEngagement": 14,
+    "warningAfterDaysWithoutHumanEngagement": 10,
+    "resumeMode": "manual"
+  },
+  "lastHumanEngagementAt": "2026-06-19T12:00:00Z",
+  "lastHumanEngagementReason": "work-dispositioned",
+  "warningAt": "2026-06-29T12:00:00Z",
+  "autoPauseAt": "2026-07-03T12:00:00Z",
+  "teams": []
+}
+```
+
+### Update Global Policy
+
+```
+PUT /heartbeats/control/policy
+```
+
+Requires `X-Vrooli-Attribution` with `kind=operator-direct`.
+
+```json
+{
+  "enabled": true,
+  "pauseAfterDaysWithoutHumanEngagement": 14,
+  "warningAfterDaysWithoutHumanEngagement": 10,
+  "resumeMode": "manual"
+}
+```
+
+### Pause or Resume Global Scheduling
+
+```
+POST /heartbeats/control/pause
+POST /heartbeats/control/resume
+```
+
+Pause accepts an optional reason:
+
+```json
+{ "reason": "operator requested quiet period" }
+```
+
+### Team Control
+
+```
+GET /teams/{teamId}/heartbeats/control
+PUT /teams/{teamId}/heartbeats/control/policy
+POST /teams/{teamId}/heartbeats/control/pause
+POST /teams/{teamId}/heartbeats/control/resume
+```
+
+Team pause/resume requires canonical authority for this exact team: a capable verified
+human, its current verified creator, or another verified agent with exact
+`team.manage` coverage. The same team-owner decision governs membership and
+heartbeat configuration. Attribution headers alone grant no authority. Global control and policy writes keep their human-only paths.
+Agent calls retain their caller/owner in audit logs and do not count as human engagement.
+An explicit team resume after a global manual pause releases only that team; a later
+global pause holds it again. Automatic inactivity holds remain effective for agent calls.
+The global pause and other teams' states are preserved.
+
+Team policy accepts an override:
+
+```json
+{
+  "mode": "custom",
+  "pauseAfterDaysWithoutHumanEngagement": 21,
+  "warningAfterDaysWithoutHumanEngagement": 14,
+  "resumeMode": "manual"
+}
+```
+
+`mode=inherit` follows the global policy. `mode=disabled` disables team-specific auto-pause, but a global pause still blocks the team.
+
+### Paused Error Contract
+
+Manual trigger endpoints return `423 Locked` when blocked by heartbeat control:
+
+```json
+{
+  "error": "heartbeat_paused",
+  "scope": "global",
+  "status": "paused-auto-idle",
+  "message": "Heartbeats are auto-paused because no human engagement was recorded since 2026-06-01T00:00:00Z.",
+  "resumeHint": "Run prompt-manager heartbeat-control resume or use the UI Resume button."
+}
+```
+
+---
+
 ## Heartbeat Configuration
+
+### Ordinary wake admission
+
+Create and update requests may include `wakeAdmission` for ordinary (non-finite
+leader) heartbeats:
+
+```json
+{
+  "wakeAdmission": {
+    "mode": "on-change",
+    "changeSources": ["team", "member", "inbox", "corpus"]
+  }
+}
+```
+
+`mode=on-change` requires at least one source. Supported sources are `team`,
+`member`, `inbox`, and `corpus`; their bounded identities are compared between
+scheduled ticks. The first tick admits, unchanged identities are skipped, and a
+changed identity admits. Omitted `wakeAdmission` and `mode=always` preserve
+legacy cadence. Runtime admission state is not configuration state and is not
+returned as a configuration revision. Manual triggers bypass scheduled wake
+admission. Evidence and baseline read failures admit work rather than silently
+suppressing it.
+
+### Team-native effort identity
+
+Prompt Manager has no separate finite-leader heartbeat API. A team declares its
+effort reference and leader through the existing team contract, while its member
+heartbeat selects the profile. Before dispatching that configured finite
+delivery lead, PM requires a valid contract, active membership, matching
+profile, and exact current Agent Manager enrollment. The matching non-withdrawn
+target revision is included in the frozen CreateRun request's WorkReferences;
+this descriptive reference does not grant authority. Missing, unavailable, or
+mismatched identity fails admission before task/run creation. When a prior run
+ID exists, PM retains that exact owner obligation as uncertain rather than
+creating competing work. Verified active/parked owners remain on the existing
+watch path, while a verified terminal owner allows a fresh dispatch under the
+current contract. Finite non-lead members and ordinary standing/non-delivery
+heartbeats remain supported without effort association. For receiver
+qualification and source handoff, follow §6.1 of the canonical
+[`large-effort-orchestration` skill](../../store/skills/packs/core/large-effort-orchestration/SKILL.md#61-commission-an-accurate-accessible-handoff)
+for the specific effort's goal home and source manifest.
 
 ### List Heartbeats
 
@@ -29,8 +178,15 @@ GET /teams/{teamId}/heartbeats
     "agentId": "agent-1",
     "enabled": true,
     "schedule": "0 */6 * * *",
-    "profileKey": "prompt-manager-heartbeat",
+    "profileKey": "prompt-manager/heartbeat",
     "lastExecution": {
+      "startedAt": "2026-02-01T10:00:00Z",
+      "endedAt": "2026-02-01T10:05:32Z",
+      "status": "completed",
+      "runId": "abc123",
+      "logPath": "2026-02-01T10-00-00Z.log"
+    },
+    "lastSuccessfulExecution": {
       "startedAt": "2026-02-01T10:00:00Z",
       "endedAt": "2026-02-01T10:05:32Z",
       "status": "completed",
@@ -43,6 +199,26 @@ GET /teams/{teamId}/heartbeats
   }
 ]
 ```
+
+`lastExecution` is the current or most recent attempt. `lastSuccessfulExecution` remains unchanged while a newer attempt is running or failed, so rolling fleet-health calculations do not lose valid success evidence.
+
+### List Heartbeat Attempts
+
+Read newest-first logical attempt projections from the shared event stream.
+
+```http
+GET /heartbeat-attempts?team_id=<team-id>&agent_id=<member-id>&limit=20&offset=0
+```
+
+The response includes `attempts`, `total`, `totalExact`, `hasMore`, and
+`scannedEvents`. The endpoint scans at most the newest 1,000 heartbeat-attempt
+event records across members, then applies team/member/status/profile filters.
+When `totalExact` is false, `total` is a lower bound observed in that
+bounded recent window and `hasMore` indicates either an incomplete scan or
+additional known output. `offset` pages the currently observed window; it does
+not provide a stable cursor through all retained history. The window combines
+durable event projections with eligible pre-run configuration records before
+applying `limit` and `offset`. Counts are not global lifetime totals.
 
 ---
 
@@ -61,7 +237,7 @@ GET /teams/{teamId}/heartbeats/{agentId}
   "agentId": "agent-1",
   "enabled": true,
   "schedule": "0 */6 * * *",
-  "profileKey": "prompt-manager-heartbeat",
+  "profileKey": "prompt-manager/heartbeat",
   "lastExecution": null,
   "nextExecution": "2026-02-01T16:00:00Z",
   "createdAt": "2026-01-15T00:00:00Z",
@@ -166,6 +342,7 @@ POST /teams/{teamId}/heartbeats/{agentId}/trigger
 **Errors:**
 - `404 Not Found` - Team, member, or heartbeat config not found
 - `409 Conflict` - Team is disabled, or member is already queued/running
+- `423 Locked` - Heartbeat control is paused (`heartbeat_paused`)
 
 ---
 
@@ -203,6 +380,7 @@ POST /teams/{teamId}/trigger
 - `400 Bad Request` - Invalid leader-led single-process configuration, inactive/missing lead member, or missing lead heartbeat config
 - `404 Not Found` - Team not found
 - `409 Conflict` - Team is disabled, or the requested member is already queued/running
+- `423 Locked` - Heartbeat control is paused (`heartbeat_paused`)
 - `503 Service Unavailable` - Executor not configured
 
 ---
@@ -223,7 +401,13 @@ GET /teams/{teamId}/execution-status
   "runningAgentIds": ["agent-1", "agent-2"],
   "queue": ["agent-3"],
   "queuePolicy": "bounded-parallel",
-  "maxConcurrentRuns": 2
+  "maxConcurrentRuns": 2,
+  "preparationInterruptedAgentIds": ["agent-3"],
+  "admissionDeferredAgentIds": ["agent-4"],
+  "owners": [
+    {"agentId": "agent-1", "phase": "retained", "state": "dispatch_uncertain", "dispatchStage": "task_intent", "taskId": "task-123"},
+    {"agentId": "agent-3", "phase": "queued", "dispatchStage": "preparing"}
+  ]
 }
 ```
 
@@ -234,12 +418,49 @@ GET /teams/{teamId}/execution-status
 | `queue` | string[] | Agent IDs waiting to execute (FIFO order) |
 | `queuePolicy` | string | `serialized` or `bounded-parallel` |
 | `maxConcurrentRuns` | integer | Concurrency cap for the team execution context |
+| `preparationInterruptedAgentIds` | string[] | Accepted pre-dispatch work retained after a restart; requires a fresh, normally gated admission and is not currently executing |
+| `admissionDeferredAgentIds` | string[] | Exact heartbeat task/run intent retained after Agent Manager definitively refuses only because the current grant capacity is full; it is not a running model and is replayed on an otherwise eligible scheduled callback |
+| `owners` | object[] | Current in-memory owner entries for retained slots (`phase: retained`) and queued members (`phase: queued`); includes only member ID, phase/state, dispatch stage, task/run IDs, admission origin, owner start time, and obligation ID. It omits task/request snapshots and caller bindings. |
+
+`owners` is the diagnostic detail behind the category arrays. A retained slot does not prove that an external process is active. A missing run ID is meaningful for pre-dispatch or uncertain entries; it does not prove that no external run exists.
+
+An otherwise eligible scheduled callback retries only an intent whose persisted
+admission origin is scheduled. An explicit manual trigger can retry a retained
+manual intent before completed-trigger deduplication. Both paths preserve the
+original task/run request bytes and idempotency key. Manual retry still passes
+the existing request authorization, team/member and pause gates. Caller-backed
+intents require the same freshly verified caller binding. Service-backed intents
+mint fresh Prompt Manager service proof through the existing owner client and
+retain service authority even when a newly authorized agent triggers the retry. Service proof qualification preserves initiating attribution, cancellation and deadlines while removing forwardable triggering-agent credentials from the outbound service context. The task, token exchange and run requests carry service proof without an unrelated agent baseline or operation token.
+An unknown origin or authority mode is never inferred from a new request. A retry
+does not replace a retained owner, bypass a service limit or create a second run.
+
+---
+
+### Clear One Retained Queue Owner
+
+`prompt-manager team queue-clear <team-id> <agent-id>` uses
+`DELETE /teams/{teamId}/queue/running/{agentId}` under exact-team management.
+The default path requires Agent Manager to confirm the recorded run is terminal.
+For a task-only dispatch intent, Agent Manager must instead confirm the exact task
+is cancelled, has no current run and has a complete empty task-filtered attempt
+inventory. The retained slot is checked again after these owner reads and removed
+durably before any queued work is admitted. A failed persistence write restores it.
+Missing, mismatched, active, attempted, partial or unreachable owners remain retained.
+
+When an obsolete task prompt should never execute, approve cancellation of that
+exact task through Agent Manager first, cancel it natively, then clear this queue
+owner without `--force`. Task cancellation requires its separate exact
+`agent.manage` authority; team management does not confer it. These operations can
+be performed by an agent after browser consent; the operator need not run commands.
+The existing explicit force recovery remains an operator escape hatch, not the
+normal activation procedure.
 
 ---
 
 ### Get Member Context
 
-Get the full context prompt for a team member (excludes HEARTBEAT.md task instructions). Used by leader-led single-process teams for teammate bootstrapping and by operators who want to inspect the resolved prompt context.
+Get standing context for a team member without the active `HEARTBEAT.md` task instructions. Used by leader-led single-process teams or external workflows that need taskless teammate bootstrapping. Use `/prompt-preview` or `/prompt-preview-structured` to audit the full runtime heartbeat prompt.
 
 ```
 GET /teams/{teamId}/members/{agentId}/context
@@ -592,130 +813,23 @@ Deletes a task from the board.
 
 **Response**: `204 No Content`
 
-## Decision Log
+## Swarm Manager work and disposition
 
-### Decision Statuses
-
-Decisions follow a lifecycle with these statuses:
-- `pending` — awaiting review (set automatically on creation)
-- `accepted` — approved by a human reviewer
-- `rejected` — declined by a human reviewer
-- `running` — agent is actively working on an accepted decision
-- `completed` — agent has finished the work
-
-### Decision Approval Modes
-
-Teams can be configured with a `decisionMode` field in `team.json`:
-
-- `yolo` (default) — agents can set any status, no restrictions
-- `approval` — agents are restricted:
-  - Can set: `pending`, `running` (only if current is `accepted`), `completed` (only if current is `running`)
-  - Cannot set: `accepted`, `rejected` — these require human action
-  - Blocked transitions return `403` with an instructive JSON error body
-
-Caller identification uses the `X-Caller-ID` request header. Agents should send their agent ID; the UI sends nothing or `"ui-user"`. The handler checks if the caller ID matches a team member agent ID to determine if it's an agent call.
-
-### Add Decision
-`POST /teams/{teamId}/decisions`
-
-Records a decision in the team's decision log. Status is always set to `pending` regardless of request body.
-
-**Request Body**:
-```json
-{
-  "by": "string (agent ID, required)",
-  "decision": "string (required)",
-  "rationale": "string (required)",
-  "context": "string (optional — tag for grouping)",
-  "supersedes": "string (optional — ID of decision this replaces)"
-}
-```
-
-**Response**: `201 Created` — returns the created decision entry with `status: "pending"`.
-
-### Get Decisions
-`GET /teams/{teamId}/decisions`
-
-Returns decision log entries.
-
-**Query Parameters**:
-- `context` (optional) — filter by context tag
-- `status` (optional) — filter by status (e.g., `pending`, `accepted`, `running`)
-- `last` (optional, default: 20) — number of entries to return
-
-**Response**: `200 OK`
-```json
-{
-  "teamId": "string",
-  "entries": [
-    {
-      "id": "string",
-      "at": "string (RFC3339)",
-      "by": "string",
-      "decision": "string",
-      "rationale": "string",
-      "context": "string",
-      "supersedes": "string",
-      "status": "string"
-    }
-  ]
-}
-```
-
-### Get All Pending Decisions
-`GET /v1/decisions/pending`
-
-Returns all pending decisions across all teams in a single request. Used by the UI sidebar to show a global pending count.
-
-**Response**: `200 OK`
-```json
-{
-  "teams": [
-    {
-      "teamId": "string",
-      "teamName": "string",
-      "entries": [ /* DecisionEntry[] */ ]
-    }
-  ],
-  "totalCount": 3
-}
-```
-
-### Update Decision
-`PATCH /teams/{teamId}/decisions/{decisionId}`
-
-Updates a decision entry. In `approval` mode, agent callers (identified via `X-Caller-ID` header) are restricted from setting `accepted` or `rejected`, and must follow the status transition rules.
-
-**Request Headers**:
-- `X-Caller-ID` (optional) — agent ID for approval enforcement
-
-**Request Body**: Partial update — only include fields to change.
-```json
-{
-  "decision": "string",
-  "rationale": "string",
-  "context": "string",
-  "status": "string",
-  "supersedes": "string"
-}
-```
-
-**Response**: `200 OK` — returns the updated decision entry.
-**Error**: `403 Forbidden` — when approval mode blocks the transition:
-```json
-{
-  "error": "decision_approval_required",
-  "message": "This team requires human approval. Do not proceed with this decision until a human sets the status to 'accepted'.",
-  "currentStatus": "pending"
-}
-```
+Prompt Manager does not expose a local approval stream. A member records its
+evidence in the team's Source Ledger scope and files one work item or capture
+through Swarm Manager when an outcome or operator judgment is needed. The
+operator dispositions that item in Swarm Manager's next-action feed. On a later
+heartbeat the member reads `swarm-manager backlog list --actor-id=<verified-profile-key>`
+and `swarm-manager backlog get <item-id> --json` to continue, follow up, or
+archive. This return path is a member-side poll; Swarm Manager does not call
+back into Prompt Manager.
 
 ---
 
 ## Implementation Reference
 
 - [CODE: api/heartbeat/handlers.go] - HTTP handlers
-- [CODE: api/heartbeat/handlers_pending.go] - Aggregate pending decisions handler
+- [CODE: api/heartbeat/prompt_builder.go] - Generated team-scope and work guidance
 - [CODE: api/heartbeat/scheduler.go] - Cron scheduler
 - [CODE: api/heartbeat/executor.go] - Execution logic
 - [CODE: api/heartbeat/client.go] - Agent-manager client

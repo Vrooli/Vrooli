@@ -219,7 +219,7 @@ func TestGenerateStage_BundledMode_ExtractsBundleUIService(t *testing.T) {
 	}
 
 	input := &StageInput{
-		Config: &Config{
+		Config: &PipelineConfig{
 			ScenarioName:   "test-app",
 			DeploymentMode: "bundled",
 			Platforms:      []string{"linux"},
@@ -289,7 +289,7 @@ func TestGenerateStage_EmptyDeploymentMode_UsesPipelineDefault(t *testing.T) {
 	)
 
 	input := &StageInput{
-		Config: &Config{
+		Config: &PipelineConfig{
 			ScenarioName: "test-app",
 			// DeploymentMode is intentionally empty - should use pipeline default "bundled"
 			Platforms: []string{"linux"},

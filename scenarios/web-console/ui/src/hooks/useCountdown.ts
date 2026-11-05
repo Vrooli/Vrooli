@@ -1,6 +1,6 @@
-// DOC: docs/concepts/GLOSSARY.md#policy
+// DOC: docs/concepts/GLOSSARY.md#core-terms
 import { useState, useEffect } from "react";
-import type { PolicyMode } from "../lib/api";
+import type { PolicyMode } from "../api/sessions";
 import { parseDurationMs, formatCountdown } from "../lib/format";
 
 // [REQ:P1-001b] Policy Configuration UI - countdown display

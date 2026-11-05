@@ -15,6 +15,7 @@ import {
   collectLimitKeys,
   validateNewLimitForm,
   buildCreateLimitPayload,
+  getAppMeterKind,
   getSelectedAppLabel,
   type NewLimitFormState,
 } from './appLimits.service';
@@ -221,7 +222,7 @@ describe('appLimits.service', () => {
       const result = buildCreateLimitPayload(form, 'browser-automation-studio');
 
       expect(result.tier_id).toBe('pro');
-      expect(result.limit_type).toBe('app_specific');
+      expect(result.limit_type).toBe('cost_based');
       expect(result.limit_key).toBe('workflow_exports');
       expect(result.limit_value).toBe(10000000000); // 100 * 100 * 1000000
       expect(result.cost_multiplier).toBe(1000000);
@@ -251,15 +252,18 @@ describe('appLimits.service', () => {
       expect(result.limit_value).toBe(0);
     });
 
-    it('handles invalid display_dollars as 0', () => {
+    it('rejects an invalid dollar value before creating a cap', () => {
       const form: NewLimitFormState = {
         tier_id: 'solo',
         limit_key: 'test',
         display_dollars: 'invalid',
       };
 
-      const result = buildCreateLimitPayload(form, 'test-app');
-      expect(result.limit_value).toBe(0);
+      expect(() => buildCreateLimitPayload(form, 'test-app')).toThrow('non-negative dollar');
+    });
+
+    it('preserves unlimited cost limits without changing their units', () => {
+      for (const display_dollars of ['unlimited', '-1']) expect(buildCreateLimitPayload({ tier_id: 'pro', limit_key: 'ai_credits', display_dollars }, 'app').limit_value).toBe(-1);
     });
   });
 
@@ -301,4 +305,10 @@ describe('appLimits.service', () => {
       expect(getSelectedAppLabel('unknown-app')).toBe('unknown-app');
     });
   });
+  it('uses only the server-declared meter kind for presentation', () => {
+    expect(getAppMeterKind(createMockLimit({ limit_type: 'count_based' }))).toBe('count_based');
+    expect(getAppMeterKind(createMockLimit({ limit_type: 'cost_based' }))).toBe('cost_based');
+    expect(getAppMeterKind(createMockLimit({ limit_type: 'app_specific', limit_key: 'ai_credits' }))).toBeNull();
+  });
+
 });

@@ -31,7 +31,7 @@ export const HelpDialog = ({ title, children }: HelpDialogProps) => {
           >
             <div className="flex items-center justify-between">
               <h3 className="text-xl font-semibold text-white">{title}</h3>
-              <Button variant="ghost" size="sm" onClick={() => setIsOpen(false)}>
+              <Button variant="ghost" size="sm" aria-label="Close help dialog" onClick={() => setIsOpen(false)}>
                 <X className="h-5 w-5" />
               </Button>
             </div>

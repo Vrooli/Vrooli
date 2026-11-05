@@ -32,7 +32,7 @@ interface DialogInternalState<T> {
 const CLOSED_STATE: DialogInternalState<never> = { isOpen: false, mode: "create", editing: null };
 
 export function useDialogState<TEditing = unknown>(): UseDialogStateReturn<TEditing> {
-  const [state, setState] = useState<DialogInternalState<TEditing>>(
+  const [state, setState] = useState(
     CLOSED_STATE as DialogInternalState<TEditing>,
   );
 

@@ -23,7 +23,7 @@ The hardware appliance line represents fully self-contained Vrooli servers for h
    - Procedures for secure disposal or re-provisioning.
 
 5. **Integration Points**
-   - Tie into Tier 5 roadmap (`docs/deployment/tiers/tier-5-enterprise.md`).
+   - Tie into the [Tier 5 enterprise target](../tiers/tier-5-enterprise.md).
    - Coordinate with secrets-manager for appliance-specific secret rotations.
 
 As hardware experiments progress, expand this doc with concrete BOMs, manufacturing notes, and deployment-manager module requirements.

@@ -1,25 +1,32 @@
 package records
 
-import "time"
+import (
+	"time"
+
+	deliveryramp "github.com/vrooli/vrooli/packages/delivery-ramp-go"
+)
 
 // DesktopAppRecord captures where a generated desktop wrapper currently lives
 // and where it is intended to move.
 type DesktopAppRecord struct {
-	ID              string    `json:"id"`
-	BuildID         string    `json:"build_id"`
-	ScenarioName    string    `json:"scenario_name"`
-	AppDisplayName  string    `json:"app_display_name,omitempty"`
-	TemplateType    string    `json:"template_type,omitempty"`
-	Framework       string    `json:"framework,omitempty"`
-	LocationMode    string    `json:"location_mode,omitempty"`
-	OutputPath      string    `json:"output_path"`
-	DestinationPath string    `json:"destination_path,omitempty"`
-	StagingPath     string    `json:"staging_path,omitempty"`
-	CustomPath      string    `json:"custom_path,omitempty"`
-	DeploymentMode  string    `json:"deployment_mode,omitempty"`
-	Icon            string    `json:"icon,omitempty"`
-	CreatedAt       time.Time `json:"created_at"`
-	UpdatedAt       time.Time `json:"updated_at"`
+	ID              string                                 `json:"id"`
+	BuildID         string                                 `json:"build_id"`
+	ScenarioName    string                                 `json:"scenario_name"`
+	AppDisplayName  string                                 `json:"app_display_name,omitempty"`
+	TemplateType    string                                 `json:"template_type,omitempty"`
+	Framework       string                                 `json:"framework,omitempty"`
+	StrategyID      string                                 `json:"strategy_id,omitempty"`
+	OptimizationProfile map[string]bool `json:"optimization_profile,omitempty"`
+	Selection       *deliveryramp.PackagingSelectionRecord `json:"strategy_selection,omitempty"`
+	LocationMode    string                                 `json:"location_mode,omitempty"`
+	OutputPath      string                                 `json:"output_path"`
+	DestinationPath string                                 `json:"destination_path,omitempty"`
+	StagingPath     string                                 `json:"staging_path,omitempty"`
+	CustomPath      string                                 `json:"custom_path,omitempty"`
+	DeploymentMode  string                                 `json:"deployment_mode,omitempty"`
+	Icon            string                                 `json:"icon,omitempty"`
+	CreatedAt       time.Time                              `json:"created_at"`
+	UpdatedAt       time.Time                              `json:"updated_at"`
 }
 
 // RecordWithBuild combines a record with its associated build status.
@@ -35,6 +42,7 @@ type RecordWithBuild struct {
 // ScreenRecordingView is a simplified view of screen recording data for record responses.
 type ScreenRecordingView struct {
 	Recorded      bool   `json:"recorded"`
+	CaptureID     string `json:"capture_id,omitempty"`
 	DurationMS    int64  `json:"duration_ms,omitempty"`
 	FileSizeBytes int64  `json:"file_size_bytes,omitempty"`
 	Error         string `json:"error,omitempty"`

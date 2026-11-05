@@ -2,9 +2,10 @@ package testutil
 
 import (
 	"encoding/json"
-	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/vrooli/api-core/storage"
 )
 
 // WriteExecutableFile creates an executable file for test scenarios.
@@ -12,7 +13,7 @@ func WriteExecutableFile(t *testing.T, dir, name, content string) string {
 	t.Helper()
 
 	path := filepath.Join(dir, name)
-	if err := os.WriteFile(path, []byte(content), 0o755); err != nil {
+	if err := storage.WriteFileAtomic(path, []byte(content), 0o755); err != nil {
 		t.Fatalf("write executable file %q: %v", path, err)
 	}
 	return path

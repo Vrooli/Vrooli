@@ -1,0 +1,42 @@
+{
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
+  "args": {
+    "fields": []
+  },
+  "environment": {
+    "fixtures": []
+  },
+  "kind": "component",
+  "schemaVersion": 5,
+  "stories": [
+    {
+      "args": {},
+      "composition": {
+        "specimen": {
+          "export": "AuthSection",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "name": "Sign in",
+          "role": "button"
+        }
+      ],
+      "id": "account",
+      "mode": "live",
+      "name": "Signed-out account",
+      "role": "anatomy"
+    },
+    {"args": {}, "composition": {"specimen": {"export": "UsageState", "module": "./story.tsx"}}, "expect": [{"kind": "role", "name": "credits usage", "role": "region"}], "id": "usage", "mode": "live", "name": "Entitled usage", "role": "boundary"},
+    {"args": {}, "composition": {"specimen": {"export": "UnauthorizedState", "module": "./story.tsx"}}, "expect": [{"kind": "visible", "selector": "[data-error-type=unauthorized]"}], "id": "unauthorized", "mode": "live", "name": "Unauthorized", "role": "boundary"},
+    {"args": {}, "composition": {"specimen": {"export": "SubscriptionRequiredState", "module": "./story.tsx"}}, "expect": [{"kind": "visible", "selector": "[data-error-type=subscription_required]"}], "id": "subscription-required", "mode": "live", "name": "Subscription required", "role": "boundary"},
+    {"args": {}, "composition": {"specimen": {"export": "CreditsRequiredState", "module": "./story.tsx"}}, "expect": [{"kind": "visible", "selector": "[data-error-type=credits_required]"}], "id": "credits-required", "mode": "live", "name": "Credits required", "role": "boundary"},
+    {"args": {}, "composition": {"specimen": {"export": "AuthorityUnavailableState", "module": "./story.tsx"}}, "expect": [{"kind": "visible", "selector": "[data-error-type=authority_unavailable]"}], "id": "authority-unavailable", "mode": "live", "name": "Authority unavailable", "role": "boundary"},
+    {"args": {}, "composition": {"specimen": {"export": "RateLimitedState", "module": "./story.tsx"}}, "expect": [{"kind": "visible", "selector": "[data-error-type=rate_limited]"}], "id": "rate-limited", "mode": "live", "name": "Rate limited", "role": "boundary"},
+    {"args": {}, "composition": {"specimen": {"export": "RankRequiredState", "module": "./story.tsx"}}, "expect": [{"kind": "visible", "selector": "[data-error-type=rank_required]"}], "id": "rank-required", "mode": "live", "name": "Plan rank required", "role": "boundary"},
+    {"args": {}, "composition": {"specimen": {"export": "UnknownErrorState", "module": "./story.tsx"}}, "expect": [{"kind": "visible", "selector": "[data-error-type=unknown]"}], "id": "unknown", "mode": "live", "name": "Unknown entitlement error", "role": "boundary"}
+  ],
+  "title": "MonetizationAccount"
+}

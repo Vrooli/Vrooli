@@ -69,6 +69,11 @@
           "path": "guides/host-scenario-pattern.md",
           "title": "Host Scenario Pattern",
           "description": "Building scenarios that embed other scenarios"
+        },
+        {
+          "path": "guides/app-notifications.md",
+          "title": "App Notifications",
+          "description": "Letting a scenario's installed app show its own notifications instead of Chimesail"
         }
       ]
     },

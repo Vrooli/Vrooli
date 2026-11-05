@@ -33,10 +33,11 @@ describe("Shortcut definitions (change axis: shortcut profiles)", () => {
     expect(new Set(commands).size).toBe(commands.length);
   });
 
-  it("includes claude and codex shortcuts per PRD", () => {
+  it("includes a launcher for every captured agent runtime", () => {
     const labels = DEFAULT_SHORTCUTS.map((s) => s.label.toLowerCase());
-    expect(labels.some((l) => l.includes("claude"))).toBe(true);
-    expect(labels.some((l) => l.includes("codex"))).toBe(true);
+    for (const agent of ["claude", "codex", "opencode", "grok"]) {
+      expect(labels.some((l) => l.includes(agent))).toBe(true);
+    }
   });
 
   it("custom ShortcutEntry can be created with minimal fields", () => {

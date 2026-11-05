@@ -1,0 +1,17 @@
+syntax = "proto3";
+package vrooli.browser_automation_studio.v1.domain;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/domain;domain";
+
+// ExecutionMetrics is the durable computed step-metric domain.
+message ExecutionMetrics {
+  string id = 1;
+  string execution_id = 2;
+  int64 step_count = 3;
+  int64 failed_steps = 4;
+  int64 total_retries = 5;
+  double average_step_duration_ms = 6;
+  double overall_friction_score = 7;
+  string computed_at = 8;
+  string created_at = 9;
+}

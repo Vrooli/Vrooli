@@ -2,13 +2,20 @@ package smoketest_test
 
 import (
 	"context"
+	"fmt"
+	"os"
+	"os/exec"
+	"path/filepath"
 	"runtime"
 	"strings"
+	"syscall"
 	"testing"
 	"time"
 
 	"scenario-to-desktop-api/smoketest"
 	"scenario-to-desktop-api/smoketest/mocks"
+
+	"github.com/vrooli/repo-contract-go/repocontracttest"
 )
 
 func TestProcessExecutor_Execute_Success(t *testing.T) {
@@ -30,6 +37,74 @@ func TestProcessExecutor_Execute_Success(t *testing.T) {
 	}
 	if !strings.Contains(output, "hello") {
 		t.Errorf("Execute() output = %q, want to contain 'hello'", output)
+	}
+}
+
+func TestProcessExecutor_Execute_CleansDescendantsAfterSuccessfulLeaderExit(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		repocontracttest.SkipPlatform(t, "process-group cleanup is Unix-specific")
+	}
+
+	pidFile := filepath.Join(t.TempDir(), "child.pid")
+	executor := smoketest.NewProcessExecutor(mocks.NewMockLogger(), smoketest.WithKillGracePeriod(25*time.Millisecond))
+	result, err := executor.ExecuteWithResult(context.Background(), "", "sh", []string{"-c", "sleep 300 >/dev/null 2>&1 & echo $! > \"$1\"; exit 0", "sh", pidFile}, nil, 5*time.Second)
+	if err != nil || result == nil || result.ExitCode != 0 {
+		t.Fatalf("successful launcher result = %#v, %v", result, err)
+	}
+
+	data, err := os.ReadFile(pidFile)
+	if err != nil {
+		t.Fatalf("read child pid: %v", err)
+	}
+	var pid int
+	if _, err := fmt.Sscanf(strings.TrimSpace(string(data)), "%d", &pid); err != nil || pid <= 0 {
+		t.Fatalf("parse child pid %q: %v", data, err)
+	}
+	deadline := time.Now().Add(time.Second)
+	for {
+		err = syscall.Kill(pid, 0)
+		if err == syscall.ESRCH {
+			return
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("descendant pid %d survived successful launcher cleanup: %v", pid, err)
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+}
+
+func TestProcessExecutor_Execute_CleansEscapedSessionDescendantsAfterLeaderExit(t *testing.T) {
+	if runtime.GOOS != "linux" {
+		repocontracttest.SkipPlatform(t, "launch-session cleanup across process groups is Linux-specific")
+	}
+
+	pidFile := filepath.Join(t.TempDir(), "escaped-child.pid")
+	executor := smoketest.NewProcessExecutor(mocks.NewMockLogger(), smoketest.WithKillGracePeriod(25*time.Millisecond))
+	result, err := executor.ExecuteWithResult(context.Background(), "", "sh", []string{"-c", "setsid sh -c 'sleep 300' >/dev/null 2>&1 & echo $! > \"$1\"; exit 0", "sh", pidFile}, nil, 5*time.Second)
+	if err != nil || result == nil || result.ExitCode != 0 {
+		t.Fatalf("successful launcher result = %#v, %v", result, err)
+	}
+	if result.ProcessSessionID == "" || len(result.RemainingDescendantPIDs) != 0 {
+		t.Fatalf("post-launch assertion evidence = session %q, remaining %v", result.ProcessSessionID, result.RemainingDescendantPIDs)
+	}
+	data, err := os.ReadFile(pidFile)
+	if err != nil {
+		t.Fatalf("read escaped child pid: %v", err)
+	}
+	var pid int
+	if _, err := fmt.Sscanf(strings.TrimSpace(string(data)), "%d", &pid); err != nil || pid <= 0 {
+		t.Fatalf("parse escaped child pid %q: %v", data, err)
+	}
+	deadline := time.Now().Add(time.Second)
+	for {
+		err = syscall.Kill(pid, 0)
+		if err == syscall.ESRCH {
+			return
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("escaped descendant pid %d survived session cleanup: %v", pid, err)
+		}
+		time.Sleep(10 * time.Millisecond)
 	}
 }
 
@@ -440,5 +515,80 @@ func TestProcessExecutor_OptionsChaining(t *testing.T) {
 	}
 	if !hookCalled {
 		t.Error("OnProcessStarted hook was not called")
+	}
+}
+
+func TestProcessExecutorReportsCombinedOutputTruncation(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("shell fixture")
+	}
+	executor := smoketest.NewProcessExecutor(mocks.NewMockLogger(), smoketest.WithOutputLimit(8))
+	result, err := executor.ExecuteWithResult(context.Background(), t.TempDir(), "sh", []string{"-c", "printf 'abcdef'; printf 'ghijkl' >&2"}, nil, time.Second)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !result.Truncated || result.TruncatedBytes != 4 || len(result.Combined) != 8 || len(result.Stdout) != 6 || len(result.Stderr) != 6 {
+		t.Fatalf("combined truncation hidden: %+v", result)
+	}
+}
+
+func TestProcessExecutorCleansOwnedExecutableAfterMarkersAreCleared(t *testing.T) {
+	if runtime.GOOS != "linux" {
+		repocontracttest.SkipPlatform(t, "owned executable cleanup uses Linux procfs")
+	}
+	id := fmt.Sprintf("scope-test-%d", time.Now().UnixNano())
+	root := filepath.Join(os.TempDir(), "s2d-"+id)
+	if err := os.MkdirAll(root, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.RemoveAll(root) })
+	sleepPath, err := exec.LookPath("sleep")
+	if err != nil {
+		t.Fatal(err)
+	}
+	contents, err := os.ReadFile(sleepPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	helper := filepath.Join(root, "owned-helper")
+	if err := os.WriteFile(helper, contents, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	sibling := root + "-sibling"
+	if err := os.MkdirAll(sibling, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.RemoveAll(sibling) })
+	siblingHelper := filepath.Join(sibling, "unrelated-helper")
+	if err := os.WriteFile(siblingHelper, contents, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	unrelated := exec.Command(siblingHelper, "300")
+	unrelated.Env = []string{}
+	if err := unrelated.Start(); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = unrelated.Process.Kill(); _ = unrelated.Wait() })
+	pidFile := filepath.Join(t.TempDir(), "escaped.pid")
+	executor := smoketest.NewProcessExecutor(mocks.NewMockLogger(), smoketest.WithKillGracePeriod(25*time.Millisecond))
+	script := "setsid env -i \"$1\" 300 >/dev/null 2>&1 & child=$!; echo \"$child\" > \"$2\"; while [ \"$(readlink /proc/$child/exe)\" != \"$1\" ]; do sleep 0.01; done; exit 0"
+	result, err := executor.ExecuteWithResult(context.Background(), "", "sh", []string{"-c", script, "sh", helper, pidFile}, []string{"SMOKE_TEST_RUN_ID=" + id, "TMPDIR=" + root}, 5*time.Second)
+	data, readErr := os.ReadFile(pidFile)
+	if readErr != nil {
+		t.Fatal(readErr)
+	}
+	var pid int
+	if _, err := fmt.Sscanf(string(data), "%d", &pid); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = syscall.Kill(pid, syscall.SIGKILL) })
+	if err != nil || result == nil || len(result.RemainingDescendantPIDs) != 0 {
+		t.Fatalf("launcher result = %+v, %v", result, err)
+	}
+	if target, err := os.Readlink(fmt.Sprintf("/proc/%d/exe", pid)); err == nil && target == helper {
+		t.Fatalf("environment-cleared owned child survived: pid %d", pid)
+	}
+	if err := unrelated.Process.Signal(syscall.Signal(0)); err != nil {
+		t.Fatalf("sibling executable outside the owned root was stopped: %v", err)
 	}
 }

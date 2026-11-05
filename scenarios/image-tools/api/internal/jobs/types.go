@@ -1,0 +1,111 @@
+// Package jobs is image-tools' server-owned, durable async job system. It
+// mirrors the test-genie run-lifecycle philosophy: a submit returns a job id +
+// ETA immediately, work runs under a server-lifetime context (so a client
+// disconnect never destroys it), callers block ONCE on Wait (no polling), and
+// progress streams over a subscription for SSE. Local AI work uses one
+// serialized queue; lightweight CPU work and remote jobs use separate pools.
+package jobs
+
+import "time"
+
+// MetaGatewayExecutionEvidence is the only runner metadata the manager may
+// retain when an AI job finalizes as failed or canceled.
+const MetaGatewayExecutionEvidence = "gateway_execution_evidence_v1"
+
+// State is a job's lifecycle state.
+type State string
+
+const (
+	// StateQueued: accepted, waiting for a worker.
+	StateQueued State = "queued"
+	// StateRunning: a worker is executing it.
+	StateRunning State = "running"
+	// StateSucceeded: finished successfully (terminal).
+	StateSucceeded State = "succeeded"
+	// StateFailed: finished with an error, incl. restart-interruption (terminal).
+	StateFailed State = "failed"
+	// StateCanceled: aborted by request before completing (terminal).
+	StateCanceled State = "canceled"
+)
+
+// Terminal reports whether s is a final state.
+func (s State) Terminal() bool {
+	switch s {
+	case StateSucceeded, StateFailed, StateCanceled:
+		return true
+	default:
+		return false
+	}
+}
+
+// Lane selects the scheduler queue. The legacy LaneGPU value is the serialized
+// local queue, including CPU-backed inference; it does not identify hardware.
+// LaneCPU is a concurrent pool for lightweight CPU work, while remote BYOK-cloud
+// jobs use their own bounded pool.
+type Lane string
+
+const (
+	// LaneGPU is the legacy name for the serialized local queue. Local inference
+	// may execute on CPU or GPU; the queue name does not identify the device.
+	LaneGPU Lane = "gpu"
+	// LaneCPU runs cheap work concurrently.
+	LaneCPU Lane = "cpu"
+	// LaneNetwork runs remote-tier work on a bounded worker pool, independent of
+	// the serialized local queue.
+	LaneNetwork Lane = "network"
+)
+
+// Spec describes a unit of work to submit.
+type Spec struct {
+	// Operation is the op name (e.g. "upscale", "resize"). Informational +
+	// surfaced in status; the Runner decides what to do with it.
+	Operation string
+	// Lane selects GPU (serialized) or CPU (concurrent).
+	Lane Lane
+	// Payload is opaque JSON the Runner interprets (request params, refs).
+	Payload []byte
+	// ClientOperationID and RequestFingerprint deduplicate caller retries when set.
+	ClientOperationID  string
+	RequestFingerprint string
+	// EstimatedSeconds is the caller's pre-run estimate, surfaced as the initial
+	// ETA. 0 means "unknown".
+	EstimatedSeconds int
+	// ExecutionTimeoutSeconds bounds work after a lane worker starts it; 0 is unbounded.
+	ExecutionTimeoutSeconds int
+}
+
+// Job is the persisted, observable record of a submitted unit of work.
+type Job struct {
+	ID        string
+	Operation string
+	Lane      Lane
+	State     State
+	Progress  int    // 0..100
+	Message   string // latest progress / status message
+	Error     string // failure detail when State == failed
+	ResultRef string // output ref (blob key / path) when succeeded
+	// Meta is the backend's record of the run: which model served it, which
+	// tier it ran on, and what the route cost. Successful jobs retain backend
+	// metadata. Failed/canceled jobs retain only the approved partial Gateway
+	// execution-evidence entry, when present. See Result.Meta.
+	Meta               map[string]string
+	Payload            []byte
+	ClientOperationID  string
+	RequestFingerprint string
+	// TestMode pins persistence and execution to the active routed test pool.
+	TestMode                bool
+	EstimatedSeconds        int
+	ExecutionTimeoutSeconds int
+	CreatedAt               time.Time
+	StartedAt               *time.Time
+	FinishedAt              *time.Time
+}
+
+// ProgressEvent is one progress update streamed to subscribers (SSE).
+type ProgressEvent struct {
+	JobID    string
+	State    State
+	Progress int
+	Message  string
+	At       time.Time
+}

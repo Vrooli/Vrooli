@@ -1,0 +1,8 @@
+{
+  "proto_to_handler": {
+	"admin": "administration",
+    "billing": "commerce",
+    "download": "delivery",
+    "variant": "experimentation"
+  }
+}

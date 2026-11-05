@@ -1,4 +1,4 @@
-import { BaseHandler, type HandlerContext, type HandlerResult } from './base';
+import { BaseHandler, getDocument, type HandlerContext, type HandlerResult } from './base';
 import type { HandlerInstruction } from '../types';
 import { getSelectParams } from '../types';
 import { DEFAULT_TIMEOUT_MS } from '../constants';
@@ -31,9 +31,9 @@ export class SelectHandler extends BaseHandler {
     instruction: HandlerInstruction,
     context: HandlerContext
   ): Promise<HandlerResult> {
-    const { page, logger } = context;
-
+    const { logger } = context;
     try {
+      const page = getDocument(context);
       // Get typed params from instruction.action (required after migration)
       const typedParams = instruction.action ? getSelectParams(instruction.action) : undefined;
       type SelectParams = NonNullable<ReturnType<typeof getSelectParams>>;
@@ -90,7 +90,7 @@ export class SelectHandler extends BaseHandler {
         if (behavior.getMouseMovementStyle() !== 'linear') {
           const center = await getElementCenter(page, params.selector, timeout);
           if (center) {
-            await moveMouseNaturally(page, center.x, center.y, behavior);
+            await moveMouseNaturally(context.page, center.x, center.y, behavior);
           }
         }
       }

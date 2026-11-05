@@ -1,0 +1,726 @@
+{
+  "schemaVersion": 1,
+  "team": "external-knowledge-delivery",
+  "effortRef": "effort:external-knowledge-search",
+  "observedAt": "2026-10-14T14:36:37.322267+00:00",
+  "repoRoot": "/home/matthalloran8/Vrooli",
+  "status": "disabled-preparation",
+  "selectedVisualSources": [],
+  "visualScope": "No email visuals or UX specification selected yet. No image is required to read this preparation; original-asset qualification remains required before visual implementation admission.",
+  "sources": [
+    {
+      "id": "S001",
+      "role": "governing-preparation",
+      "path": "docs/architecture/external-knowledge-search.md",
+      "executorRoute": "repo-root filesystem read; native team/heartbeat through prompt-manager CLI",
+      "version": "sha256:3c5b6d987132b9a42efef7cedaaf8f6995202f2d281a73f2a69f8292593452df",
+      "bytes": 17682,
+      "format": "md",
+      "dimensions": null,
+      "openedUtf8": true
+    },
+    {
+      "id": "S002",
+      "role": "governing-preparation",
+      "path": "docs/internal/external-knowledge-delivery/GOAL.md",
+      "executorRoute": "repo-root filesystem read; native team/heartbeat through prompt-manager CLI",
+      "version": "sha256:c4b46ab5beebc2201f0418e2d205378d9dc500f7eb38713484d0de663f2171da",
+      "bytes": 1924,
+      "format": "md",
+      "dimensions": null,
+      "openedUtf8": true
+    },
+    {
+      "id": "S003",
+      "role": "governing-preparation",
+      "path": "docs/internal/external-knowledge-delivery/QUEUE.md",
+      "executorRoute": "repo-root filesystem read; native team/heartbeat through prompt-manager CLI",
+      "version": "sha256:8dfa409ebf0ec80e5d9c8d6126d465d84acd1343206b4205e6569611202a0aed",
+      "bytes": 6438,
+      "format": "md",
+      "dimensions": null,
+      "openedUtf8": true
+    },
+    {
+      "id": "S004",
+      "role": "governing-preparation",
+      "path": "docs/internal/external-knowledge-delivery/FEEDBACK.md",
+      "executorRoute": "repo-root filesystem read; native team/heartbeat through prompt-manager CLI",
+      "version": "sha256:a4b83fbc565aa54f5eb410bdc8a0c0dbd40c3605ca4b92fb618618fdc9c6d5b9",
+      "bytes": 4661,
+      "format": "md",
+      "dimensions": null,
+      "openedUtf8": true
+    },
+    {
+      "id": "S005",
+      "role": "governing-preparation",
+      "path": "docs/internal/external-knowledge-delivery/RESEARCH.md",
+      "executorRoute": "repo-root filesystem read; native team/heartbeat through prompt-manager CLI",
+      "version": "sha256:f690102be7c4a2e10ff8f31195d50dcd39418706417fb08873e3da8afebe7c18",
+      "bytes": 11912,
+      "format": "md",
+      "dimensions": null,
+      "openedUtf8": true
+    },
+    {
+      "id": "S006",
+      "role": "governing-preparation",
+      "path": "docs/internal/external-knowledge-delivery/SETUP.md",
+      "executorRoute": "repo-root filesystem read; native team/heartbeat through prompt-manager CLI",
+      "version": "sha256:14be8757a282370a752d00d52da2ac6e96659ab41e7cd4a48cac227574bb5a66",
+      "bytes": 5391,
+      "format": "md",
+      "dimensions": null,
+      "openedUtf8": true
+    },
+    {
+      "id": "S007",
+      "role": "governing-preparation",
+      "path": "docs/internal/external-knowledge-delivery/TARGETS.md",
+      "executorRoute": "repo-root filesystem read; native team/heartbeat through prompt-manager CLI",
+      "version": "sha256:2db64827f94886006baa2b49ff2b814e1d1a26c88d634117eb7f5b952274d5dd",
+      "bytes": 1991,
+      "format": "md",
+      "dimensions": null,
+      "openedUtf8": true
+    },
+    {
+      "id": "S008",
+      "role": "governing-preparation",
+      "path": "docs/internal/external-knowledge-delivery/WORKAROUNDS.md",
+      "executorRoute": "repo-root filesystem read; native team/heartbeat through prompt-manager CLI",
+      "version": "sha256:e0430d1894ed38b43a6648bb8097c76ee2d0ff51bf69689fc16d75199f9766db",
+      "bytes": 403,
+      "format": "md",
+      "dimensions": null,
+      "openedUtf8": true
+    },
+    {
+      "id": "S009",
+      "role": "governing-preparation",
+      "path": "docs/internal/external-knowledge-delivery/INSTALLS.md",
+      "executorRoute": "repo-root filesystem read; native team/heartbeat through prompt-manager CLI",
+      "version": "sha256:f66f13110861b761b8d7eef027372cb5fe93915945766bf3659246b5cc0b0719",
+      "bytes": 247,
+      "format": "md",
+      "dimensions": null,
+      "openedUtf8": true
+    },
+    {
+      "id": "S010",
+      "role": "governing-preparation",
+      "path": "docs/internal/external-knowledge-delivery/EMAIL-DESIGN-PROMPT.md",
+      "executorRoute": "repo-root filesystem read; native team/heartbeat through prompt-manager CLI",
+      "version": "sha256:bb781f870960baf980dc4fb6d8e2cebb5ab7678f9f5d9a9afc05575dde9619d6",
+      "bytes": 10296,
+      "format": "md",
+      "dimensions": null,
+      "openedUtf8": true
+    },
+    {
+      "id": "S011",
+      "role": "governing-preparation",
+      "path": "docs/internal/external-knowledge-delivery/leader-binding.json",
+      "executorRoute": "repo-root filesystem read; native team/heartbeat through prompt-manager CLI",
+      "version": "sha256:7e1bebdeac814619944f8ff0ec8a698cfadea690fe1c1fba76a31fe5dbc7493b",
+      "bytes": 800,
+      "format": "json",
+      "dimensions": null,
+      "openedUtf8": true
+    },
+    {
+      "id": "S012",
+      "role": "governing-preparation",
+      "path": "scenarios/prompt-manager/store/teams/external-knowledge-delivery/team.json",
+      "executorRoute": "repo-root filesystem read; native team/heartbeat through prompt-manager CLI",
+      "version": "sha256:6ec43b545bec4445a0174b45582566ee7d567d3f0d82abe1be27920379449fef",
+      "bytes": 8684,
+      "format": "json",
+      "dimensions": null,
+      "openedUtf8": true
+    },
+    {
+      "id": "S013",
+      "role": "governing-preparation",
+      "path": "scenarios/prompt-manager/store/teams/external-knowledge-delivery/members/external-knowledge-orchestrator/HEARTBEAT.md",
+      "executorRoute": "repo-root filesystem read; native team/heartbeat through prompt-manager CLI",
+      "version": "sha256:cfda15bc956be9b480ef033df5997209e93c582e40816e0be77721e77d969636",
+      "bytes": 2270,
+      "format": "md",
+      "dimensions": null,
+      "openedUtf8": true
+    },
+    {
+      "id": "S014",
+      "role": "governing-preparation",
+      "path": "scenarios/prompt-manager/store/teams/external-knowledge-delivery/members/external-knowledge-orchestrator/RESPONSIBILITIES.md",
+      "executorRoute": "repo-root filesystem read; native team/heartbeat through prompt-manager CLI",
+      "version": "sha256:afcca237599e5bc3edb607e084ec41dcbe847b9e1f2abb82d7f7e47f4dbdc3f5",
+      "bytes": 346,
+      "format": "md",
+      "dimensions": null,
+      "openedUtf8": true
+    },
+    {
+      "id": "S015",
+      "role": "governing-preparation",
+      "path": "scenarios/prompt-manager/store/agents/external-knowledge-orchestrator/AGENT.md",
+      "executorRoute": "repo-root filesystem read; native team/heartbeat through prompt-manager CLI",
+      "version": "sha256:600cf2e9cbef89d2fcfb501bb9388291d80e3fa386e3d83149f1fd447651e131",
+      "bytes": 754,
+      "format": "md",
+      "dimensions": null,
+      "openedUtf8": true
+    },
+    {
+      "id": "S016",
+      "role": "governing-preparation",
+      "path": "scenarios/prompt-manager/store/agents/external-knowledge-orchestrator/agent.json",
+      "executorRoute": "repo-root filesystem read; native team/heartbeat through prompt-manager CLI",
+      "version": "sha256:c10e63dbf859437772472272a2f3be2f942af460369684c6a5e3e369a5511c43",
+      "bytes": 727,
+      "format": "json",
+      "dimensions": null,
+      "openedUtf8": true
+    },
+    {
+      "id": "S017",
+      "role": "canonical-owner-observation",
+      "path": "docs/TESTING.md",
+      "executorRoute": "repo-root filesystem read; native team/heartbeat through prompt-manager CLI",
+      "version": "sha256:e86be65f329cb973c849e308040237367293fd20cb2a4fd9620a214b0eac1efe",
+      "bytes": 17768,
+      "format": "md",
+      "dimensions": null,
+      "openedUtf8": true
+    },
+    {
+      "id": "S018",
+      "role": "canonical-owner-observation",
+      "path": "docs/concepts/IDENTITY-AND-AUTHENTICATION.md",
+      "executorRoute": "repo-root filesystem read; native team/heartbeat through prompt-manager CLI",
+      "version": "sha256:3812497adb0ef8d2be6cf690177b4f79443e9dd4ff17253563869625ed10c283",
+      "bytes": 18575,
+      "format": "md",
+      "dimensions": null,
+      "openedUtf8": true
+    },
+    {
+      "id": "S019",
+      "role": "canonical-owner-observation",
+      "path": "docs/concepts/AUTHORIZATION.md",
+      "executorRoute": "repo-root filesystem read; native team/heartbeat through prompt-manager CLI",
+      "version": "sha256:52d32b129eaff0b2d5cb070b5f057bf71af11945f52dc1cb8ee9c0051606f857",
+      "bytes": 26385,
+      "format": "md",
+      "dimensions": null,
+      "openedUtf8": true
+    },
+    {
+      "id": "S020",
+      "role": "canonical-owner-observation",
+      "path": "docs/configuration/integrations/connectors.md",
+      "executorRoute": "repo-root filesystem read; native team/heartbeat through prompt-manager CLI",
+      "version": "sha256:5bb745c680e0f136a7e0c6a77cd507fcf9f5e11f725faf1049c71a9658a6e050",
+      "bytes": 9879,
+      "format": "md",
+      "dimensions": null,
+      "openedUtf8": true
+    },
+    {
+      "id": "S021",
+      "role": "canonical-owner-observation",
+      "path": "docs/configuration/integrations/connections.md",
+      "executorRoute": "repo-root filesystem read; native team/heartbeat through prompt-manager CLI",
+      "version": "sha256:7f292863d1b8fe2c87b862d623ab00cec031168923af3e44962a5784868efae3",
+      "bytes": 10282,
+      "format": "md",
+      "dimensions": null,
+      "openedUtf8": true
+    },
+    {
+      "id": "S022",
+      "role": "canonical-owner-observation",
+      "path": "docs/configuration/integrations/external-auth.md",
+      "executorRoute": "repo-root filesystem read; native team/heartbeat through prompt-manager CLI",
+      "version": "sha256:dc4e8aed9abb2baf78ecf4f647ed09d9a64b03055fd5078dbed84b5b0f72c814",
+      "bytes": 8478,
+      "format": "md",
+      "dimensions": null,
+      "openedUtf8": true
+    },
+    {
+      "id": "S023",
+      "role": "canonical-owner-observation",
+      "path": "scenarios/search-hub/docs/concepts/ARCHITECTURE.md",
+      "executorRoute": "repo-root filesystem read; native team/heartbeat through prompt-manager CLI",
+      "version": "sha256:d8573a3d673ee6aa9db36c267721b9ad42b324a0e78679a67b3625359f2331df",
+      "bytes": 23615,
+      "format": "md",
+      "dimensions": null,
+      "openedUtf8": true
+    },
+    {
+      "id": "S024",
+      "role": "canonical-owner-observation",
+      "path": "scenarios/meta-optimization-manager/docs/concepts/COVERAGE-MODEL.md",
+      "executorRoute": "repo-root filesystem read; native team/heartbeat through prompt-manager CLI",
+      "version": "sha256:c5d8b6dedb9c5d9bdcabfa5d6133a177cc3c3b173f847171596f2e30ad17df43",
+      "bytes": 21082,
+      "format": "md",
+      "dimensions": null,
+      "openedUtf8": true
+    },
+    {
+      "id": "S025",
+      "role": "canonical-owner-observation",
+      "path": "scenarios/integration-hub/README.md",
+      "executorRoute": "repo-root filesystem read; native team/heartbeat through prompt-manager CLI",
+      "version": "sha256:c71428ec73a0a57b1b4768548229b9f415c371dca0721c5af84f1d81d8a76a66",
+      "bytes": 685,
+      "format": "md",
+      "dimensions": null,
+      "openedUtf8": true
+    },
+    {
+      "id": "S026",
+      "role": "canonical-owner-observation",
+      "path": "scenarios/integration-hub/api/hub.go",
+      "executorRoute": "repo-root filesystem read; native team/heartbeat through prompt-manager CLI",
+      "version": "sha256:3e356780eb83f9247e97a62000b8e0e0a52bdab069a827edf73807cbb4d8eb16",
+      "bytes": 21716,
+      "format": "go",
+      "dimensions": null,
+      "openedUtf8": true
+    },
+    {
+      "id": "S027",
+      "role": "canonical-owner-observation",
+      "path": "scenarios/integration-hub/api/credential_cli.go",
+      "executorRoute": "repo-root filesystem read; native team/heartbeat through prompt-manager CLI",
+      "version": "sha256:cd711ab93c1491a52f0722cebd083df35acdc260591f65dda1ce58976dc2bf71",
+      "bytes": 1599,
+      "format": "go",
+      "dimensions": null,
+      "openedUtf8": true
+    },
+    {
+      "id": "S028",
+      "role": "canonical-owner-observation",
+      "path": "scenarios/document-manager/PRD.md",
+      "executorRoute": "repo-root filesystem read; native team/heartbeat through prompt-manager CLI",
+      "version": "sha256:507fa7299481d4535ab63a8c40e8e5a699673210dc0fabcf84c8aaf139c74cf5",
+      "bytes": 36488,
+      "format": "md",
+      "dimensions": null,
+      "openedUtf8": true
+    },
+    {
+      "id": "S029",
+      "role": "canonical-owner-observation",
+      "path": "scenarios/document-manager/docs/concepts/DOMAINS.md",
+      "executorRoute": "repo-root filesystem read; native team/heartbeat through prompt-manager CLI",
+      "version": "sha256:df0e4a94f32b452a2f435b7cd681ae64b17d5c351e67af878f5b95a2ed15f51a",
+      "bytes": 42109,
+      "format": "md",
+      "dimensions": null,
+      "openedUtf8": true
+    },
+    {
+      "id": "S030",
+      "role": "canonical-owner-observation",
+      "path": "scenarios/document-manager/docs/concepts/DATA.md",
+      "executorRoute": "repo-root filesystem read; native team/heartbeat through prompt-manager CLI",
+      "version": "sha256:94ded2018adaeaada802ae21b4dacde8d15ff67484b230a2b5c1f0d462ec7997",
+      "bytes": 24803,
+      "format": "md",
+      "dimensions": null,
+      "openedUtf8": true
+    },
+    {
+      "id": "S031",
+      "role": "canonical-owner-observation",
+      "path": "scenarios/document-manager/docs/concepts/INTEGRATIONS.md",
+      "executorRoute": "repo-root filesystem read; native team/heartbeat through prompt-manager CLI",
+      "version": "sha256:783b5179d6f4a0c8879e453f23064c7b49c286959980e2fe7b5abfddda61ac2e",
+      "bytes": 19849,
+      "format": "md",
+      "dimensions": null,
+      "openedUtf8": true
+    },
+    {
+      "id": "S032",
+      "role": "canonical-owner-observation",
+      "path": "scenarios/document-manager/docs/reference/format-matrix.md",
+      "executorRoute": "repo-root filesystem read; native team/heartbeat through prompt-manager CLI",
+      "version": "sha256:df949c94801ff210d6832dc992c24113f8feef6ecbc3839228f87fb6d9a341cc",
+      "bytes": 18144,
+      "format": "md",
+      "dimensions": null,
+      "openedUtf8": true
+    },
+    {
+      "id": "S033",
+      "role": "canonical-owner-observation",
+      "path": "scenarios/document-manager/docs/reference/anchor-uri.md",
+      "executorRoute": "repo-root filesystem read; native team/heartbeat through prompt-manager CLI",
+      "version": "sha256:42e1d7a6f0d549a4f86a812eeef062ac96c78cebd353c1f55153d85f32a766ec",
+      "bytes": 16366,
+      "format": "md",
+      "dimensions": null,
+      "openedUtf8": true
+    },
+    {
+      "id": "S034",
+      "role": "canonical-owner-observation",
+      "path": "scenarios/document-manager/api/internal/derivation/registry.json",
+      "executorRoute": "repo-root filesystem read; native team/heartbeat through prompt-manager CLI",
+      "version": "sha256:8779eaaec0bb0f14cda5b22a7ffd06a20c48fcf98c83c0bec8f05c66ccea7e95",
+      "bytes": 1028,
+      "format": "json",
+      "dimensions": null,
+      "openedUtf8": true
+    },
+    {
+      "id": "S035",
+      "role": "canonical-owner-observation",
+      "path": "scenarios/document-manager/api/internal/intake/types.go",
+      "executorRoute": "repo-root filesystem read; native team/heartbeat through prompt-manager CLI",
+      "version": "sha256:f73d0214989c5c99dc1e22e2c7ed68dd86e10a999d7bcd1c5c7dc85f2d468d6b",
+      "bytes": 756,
+      "format": "go",
+      "dimensions": null,
+      "openedUtf8": true
+    },
+    {
+      "id": "S036",
+      "role": "canonical-owner-observation",
+      "path": "scenarios/document-manager/api/internal/retrieval/types.go",
+      "executorRoute": "repo-root filesystem read; native team/heartbeat through prompt-manager CLI",
+      "version": "sha256:a4acb58087c3ab73960c384a7e5b7a4637801af0a07163b1708b71a5dc372234",
+      "bytes": 1198,
+      "format": "go",
+      "dimensions": null,
+      "openedUtf8": true
+    },
+    {
+      "id": "S037",
+      "role": "canonical-owner-observation",
+      "path": "scenarios/document-manager/api/internal/retrieval/registration.go",
+      "executorRoute": "repo-root filesystem read; native team/heartbeat through prompt-manager CLI",
+      "version": "sha256:acdab3aa978073e71d9a5f0ddf4b158aa7f824fde30400de1bd9d1d5e12302c9",
+      "bytes": 1402,
+      "format": "go",
+      "dimensions": null,
+      "openedUtf8": true
+    },
+    {
+      "id": "S038",
+      "role": "canonical-owner-observation",
+      "path": "scenarios/document-manager/docs/internal/DECISIONS.md",
+      "executorRoute": "repo-root filesystem read; native team/heartbeat through prompt-manager CLI",
+      "version": "sha256:8a1170569a4892dd595aefe9bee0c0683207ca20b9f7ccb4d6ce7255183761e7",
+      "bytes": 50467,
+      "format": "md",
+      "dimensions": null,
+      "openedUtf8": true
+    },
+    {
+      "id": "S039",
+      "role": "canonical-owner-observation",
+      "path": "scenarios/personal-planner/docs/concepts/INTEGRATIONS.md",
+      "executorRoute": "repo-root filesystem read; native team/heartbeat through prompt-manager CLI",
+      "version": "sha256:56dd973715e43d216fa534e272723bc45da186e6a66a5b7c975a242f7d1f3eff",
+      "bytes": 10060,
+      "format": "md",
+      "dimensions": null,
+      "openedUtf8": true
+    },
+    {
+      "id": "S040",
+      "role": "canonical-owner-observation",
+      "path": "scenarios/personal-planner/api/internal/integrations/google.go",
+      "executorRoute": "repo-root filesystem read; native team/heartbeat through prompt-manager CLI",
+      "version": "sha256:c2fe90b1217b2ef58a1d33bc7f3b6f8f1062b6eac563ee4c6a8e2b2479553b7d",
+      "bytes": 5418,
+      "format": "go",
+      "dimensions": null,
+      "openedUtf8": true
+    },
+    {
+      "id": "S041",
+      "role": "canonical-owner-observation",
+      "path": "scenarios/personal-planner/api/internal/integrations/sqlite.go",
+      "executorRoute": "repo-root filesystem read; native team/heartbeat through prompt-manager CLI",
+      "version": "sha256:5a189bf6ec0d7fdd6f888fca41c251a741445508d54af16690204aa38920792c",
+      "bytes": 5789,
+      "format": "go",
+      "dimensions": null,
+      "openedUtf8": true
+    },
+    {
+      "id": "S042",
+      "role": "canonical-owner-observation",
+      "path": "scenarios/agent-inbox/PRD.md",
+      "executorRoute": "repo-root filesystem read; native team/heartbeat through prompt-manager CLI",
+      "version": "sha256:c16260d420cb10ef21b20731225063088ebf4bc59f881670164f3c3392c7f30e",
+      "bytes": 5671,
+      "format": "md",
+      "dimensions": null,
+      "openedUtf8": true
+    },
+    {
+      "id": "S043",
+      "role": "canonical-owner-observation",
+      "path": "scenarios/signal-inbox/PRD.md",
+      "executorRoute": "repo-root filesystem read; native team/heartbeat through prompt-manager CLI",
+      "version": "sha256:99ec760d3d289d5f6c6fe6ed5b33b42a6ae6aaa799ebfc02f5ecaf2a0b74a56d",
+      "bytes": 13317,
+      "format": "md",
+      "dimensions": null,
+      "openedUtf8": true
+    },
+    {
+      "id": "S044",
+      "role": "canonical-owner-observation",
+      "path": "packages/ai-go/search/README.md",
+      "executorRoute": "repo-root filesystem read; native team/heartbeat through prompt-manager CLI",
+      "version": "sha256:437747326d095886b407926c4394d2040c5d01b121f8d8068997376f019fa056",
+      "bytes": 25650,
+      "format": "md",
+      "dimensions": null,
+      "openedUtf8": true
+    },
+    {
+      "id": "S045",
+      "role": "canonical-owner-observation",
+      "path": "packages/ai-go/search/markdown.go",
+      "executorRoute": "repo-root filesystem read; native team/heartbeat through prompt-manager CLI",
+      "version": "sha256:10697f36b5aa842b7c295c56ad6727bea87584624a5c9b78c83d898fb1a17dd2",
+      "bytes": 10750,
+      "format": "go",
+      "dimensions": null,
+      "openedUtf8": true
+    },
+    {
+      "id": "S046",
+      "role": "canonical-owner-observation",
+      "path": "packages/ai-go/search/contracts.go",
+      "executorRoute": "repo-root filesystem read; native team/heartbeat through prompt-manager CLI",
+      "version": "sha256:78d71481cd5a4685db842012e3ed1d92541b90e52149ae72cbefd834e4384496",
+      "bytes": 21918,
+      "format": "go",
+      "dimensions": null,
+      "openedUtf8": true
+    },
+    {
+      "id": "S047",
+      "role": "canonical-owner-observation",
+      "path": "packages/ai-go/search/searchjson.go",
+      "executorRoute": "repo-root filesystem read; native team/heartbeat through prompt-manager CLI",
+      "version": "sha256:85f8969a1d8f1e7f9805128a2a0164bfa08e91386ae42a54f0948bc65f153d13",
+      "bytes": 26196,
+      "format": "go",
+      "dimensions": null,
+      "openedUtf8": true
+    },
+    {
+      "id": "S048",
+      "role": "canonical-owner-observation",
+      "path": "packages/ai-go/search/docs/reference/search-json.md",
+      "executorRoute": "repo-root filesystem read; native team/heartbeat through prompt-manager CLI",
+      "version": "sha256:7e3c302fde672339441376e29f7cee990575101458ee18d7acc688bd19d8faf0",
+      "bytes": 19144,
+      "format": "md",
+      "dimensions": null,
+      "openedUtf8": true
+    },
+    {
+      "id": "S049",
+      "role": "canonical-owner-observation",
+      "path": "scenarios/architecture-cartographer/api/internal/aisearch/domain_index.go",
+      "executorRoute": "repo-root filesystem read; native team/heartbeat through prompt-manager CLI",
+      "version": "sha256:3be5fa59183c57da6b10f539161b7d5fc1de3ba10ad4853eb20e943af6262983",
+      "bytes": 7330,
+      "format": "go",
+      "dimensions": null,
+      "openedUtf8": true
+    },
+    {
+      "id": "S050",
+      "role": "canonical-owner-observation",
+      "path": "packages/proto/README.md",
+      "executorRoute": "repo-root filesystem read; native team/heartbeat through prompt-manager CLI",
+      "version": "sha256:cc6b9466e0ec73c822ba5615ffa3f17823719b65c0da1c0bebb10d4b826638da",
+      "bytes": 14940,
+      "format": "md",
+      "dimensions": null,
+      "openedUtf8": true
+    },
+    {
+      "id": "S051",
+      "role": "canonical-owner-observation",
+      "path": "docs/package-governance.md",
+      "executorRoute": "repo-root filesystem read; native team/heartbeat through prompt-manager CLI",
+      "version": "sha256:9e9d1fb9062583d8c778ae197b5c57c2623003fa299f945858105f4d36c89699",
+      "bytes": 9763,
+      "format": "md",
+      "dimensions": null,
+      "openedUtf8": true
+    },
+    {
+      "id": "S052",
+      "role": "canonical-owner-observation",
+      "path": "scenarios/prompt-manager/store/skills/packs/core/large-effort-orchestration/SKILL.md",
+      "executorRoute": "repo-root filesystem read; native team/heartbeat through prompt-manager CLI",
+      "version": "sha256:409222bd1d368ad637a30b50fcbfbe9a7d7727f17e9f39290ef3a8d4cd060f95",
+      "bytes": 25562,
+      "format": "md",
+      "dimensions": null,
+      "openedUtf8": true
+    },
+    {
+      "id": "S053",
+      "role": "canonical-owner-observation",
+      "path": "scenarios/prompt-manager/store/skills/packs/core/large-effort-orchestration/references/worker.md",
+      "executorRoute": "repo-root filesystem read; native team/heartbeat through prompt-manager CLI",
+      "version": "sha256:f186e2447a00e9868c18e26af23ff8cb16c9920059f5dc0567f66e1b85465680",
+      "bytes": 6251,
+      "format": "md",
+      "dimensions": null,
+      "openedUtf8": true
+    },
+    {
+      "id": "S054",
+      "role": "canonical-owner-observation",
+      "path": "scenarios/prompt-manager/.vrooli/agent-manager/delivery-orchestrator.json",
+      "executorRoute": "repo-root filesystem read; native team/heartbeat through prompt-manager CLI",
+      "version": "sha256:a20272465c796a0a329d317105f12f00a922a43f839e1e527dfb62df49aace01",
+      "bytes": 1091,
+      "format": "json",
+      "dimensions": null,
+      "openedUtf8": true
+    },
+    {
+      "id": "S055",
+      "role": "canonical-owner-observation",
+      "path": "scenarios/prompt-manager/.vrooli/agent-manager/delivery-epoch-worker.json",
+      "executorRoute": "repo-root filesystem read; native team/heartbeat through prompt-manager CLI",
+      "version": "sha256:c381b574f9a21abde4e799a72a83a350046d9801475a71cc762678ce831989ab",
+      "bytes": 1344,
+      "format": "json",
+      "dimensions": null,
+      "openedUtf8": true
+    },
+    {
+      "id": "S056",
+      "role": "canonical-owner-observation",
+      "path": "scenarios/prompt-manager/store/teams/personal-planner-delivery/team.json",
+      "executorRoute": "repo-root filesystem read; native team/heartbeat through prompt-manager CLI",
+      "version": "sha256:31d3b6657fe7f93e6061254c52073ab4bd157fa8946ef47f743425990d81b5ed",
+      "bytes": 6584,
+      "format": "json",
+      "dimensions": null,
+      "openedUtf8": true
+    }
+  ],
+  "obligationMap": [
+    {
+      "id": "O1",
+      "targetSection": "Ownership; Connection and authorization model",
+      "sourceIds": [
+        "S001",
+        "S025",
+        "S021"
+      ]
+    },
+    {
+      "id": "O2",
+      "targetSection": "Drive selection, identity and retention",
+      "sourceIds": [
+        "S001",
+        "S030"
+      ]
+    },
+    {
+      "id": "O3",
+      "targetSection": "Synchronization and freshness",
+      "sourceIds": [
+        "S001",
+        "S046"
+      ]
+    },
+    {
+      "id": "O4",
+      "targetSection": "Document processing and chunking",
+      "sourceIds": [
+        "S001",
+        "S045",
+        "S032"
+      ]
+    },
+    {
+      "id": "O5",
+      "targetSection": "Anticipated questions and retrieval views",
+      "sourceIds": [
+        "S001",
+        "S047",
+        "S049"
+      ]
+    },
+    {
+      "id": "O6",
+      "targetSection": "Private federation and agent access",
+      "sourceIds": [
+        "S001",
+        "S023",
+        "S028",
+        "S019"
+      ]
+    },
+    {
+      "id": "O7",
+      "targetSection": "Calendar ownership and coordination",
+      "sourceIds": [
+        "S039",
+        "S056"
+      ]
+    },
+    {
+      "id": "O8",
+      "targetSection": "Email design and future mailbox owner",
+      "sourceIds": [
+        "S010",
+        "S042",
+        "S043"
+      ]
+    },
+    {
+      "id": "O9",
+      "targetSection": "Qualification and canonical generated work",
+      "sourceIds": [
+        "S007",
+        "S017",
+        "S050",
+        "S051"
+      ]
+    },
+    {
+      "id": "O10",
+      "targetSection": "Preparation versus activation",
+      "sourceIds": [
+        "S006",
+        "S011"
+      ]
+    }
+  ],
+  "openGaps": [
+    "No Google OAuth driver/client/consent qualified for this effort.",
+    "Exact selected Drive folder IDs and agent grants pending.",
+    "Email name, selected product specification and governing original visual assets pending.",
+    "Calendar implementation slice must be coordinated with existing Personal Planner delivery owner.",
+    "Scenario contract reconciliation and live/API/MCP qualification remain execution admission gates.",
+    "No general independent anticipated-question multi-view implementation established by current investigation."
+  ]
+}

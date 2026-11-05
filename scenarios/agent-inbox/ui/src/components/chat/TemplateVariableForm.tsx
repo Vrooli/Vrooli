@@ -57,8 +57,8 @@ export function TemplateVariableForm({
     [onTabOut]
   );
 
-  // Defensive: guard against undefined/empty variables array
-  const variables = template.variables ?? [];
+  // Defensive: guard against empty variables array
+  const variables = template.variables;
   if (variables.length === 0) {
     return null;
   }

@@ -1,0 +1,209 @@
+{
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
+  "args": {
+    "fields": []
+  },
+  "environment": {
+    "fixtures": []
+  },
+  "kind": "component",
+  "schemaVersion": 5,
+  "stories": [
+    {
+      "args": {},
+      "composition": {
+        "specimen": {
+          "export": "AllReadyPhone",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "layout",
+          "noOverflow": true,
+          "selector": "[data-rcl-integrations]"
+        },
+        {
+          "kind": "text",
+          "selector": "[data-rcl-integrations-summary-title]",
+          "value": "All 6 ready"
+        },
+        {
+          "kind": "count",
+          "selector": "[data-rcl-settings-row]",
+          "value": "6"
+        },
+        {
+          "kind": "count",
+          "selector": "[data-rcl-integrations-attention]",
+          "value": "0"
+        },
+        {
+          "kind": "role",
+          "name": "Voice",
+          "role": "button"
+        }
+      ],
+      "id": "all-ready-phone",
+      "mode": "live",
+      "name": "Phone, everything ready",
+      "role": "anatomy"
+    },
+    {
+      "args": {},
+      "composition": {
+        "specimen": {
+          "export": "NeedsAttentionPhone",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "layout",
+          "noOverflow": true,
+          "selector": "[data-rcl-integrations]"
+        },
+        {
+          "kind": "text",
+          "selector": "[data-rcl-integrations-summary-title]",
+          "value": "4 of 6 ready"
+        },
+        {
+          "kind": "count",
+          "selector": "[data-rcl-integrations-attention]",
+          "value": "1"
+        },
+        {
+          "kind": "role",
+          "name": "Start Bridge",
+          "role": "button"
+        },
+        {
+          "kind": "role",
+          "name": "Install",
+          "role": "button"
+        }
+      ],
+      "id": "needs-attention-phone",
+      "mode": "live",
+      "name": "Phone, one service off and one tool missing",
+      "role": "boundary"
+    },
+    {
+      "args": {},
+      "composition": {
+        "specimen": {
+          "export": "DetailPhone",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "layout",
+          "noOverflow": true,
+          "selector": "[data-rcl-integrations]"
+        },
+        {
+          "kind": "role",
+          "name": "Voice",
+          "role": "heading"
+        },
+        {
+          "kind": "role",
+          "name": "Back",
+          "role": "button"
+        },
+        {
+          "kind": "text",
+          "selector": "[data-rcl-integrations-meta]",
+          "value": "Provided by Audio Tools"
+        },
+        {
+          "kind": "count",
+          "selector": "[data-rcl-integrations-feature-icon][data-available='false']",
+          "value": "1"
+        }
+      ],
+      "id": "detail-phone",
+      "mode": "live",
+      "name": "Phone, a service's detail view",
+      "role": "anatomy"
+    },
+    {
+      "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Desktop",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "layout",
+          "noOverflow": true,
+          "selector": "[data-rcl-integrations]"
+        },
+        {
+          "kind": "count",
+          "selector": "[data-rcl-integrations-group][data-width='half']",
+          "value": "2"
+        },
+        {
+          "kind": "role",
+          "name": "Start Bridge",
+          "role": "button"
+        }
+      ],
+      "id": "desktop",
+      "mode": "live",
+      "name": "Desktop, paired groups",
+      "role": "anatomy"
+    },
+    {
+      "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Loading",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "text",
+          "selector": "[data-rcl-integrations-summary-title]",
+          "value": "Checking…"
+        }
+      ],
+      "id": "loading",
+      "mode": "live",
+      "name": "First check still running",
+      "role": "boundary"
+    },
+    {
+      "args": {},
+      "composition": {
+        "specimen": {
+          "export": "LoadFailed",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "text",
+          "selector": "[data-rcl-integrations-summary-title]",
+          "value": "Couldn't check what's connected"
+        },
+        {
+          "kind": "role",
+          "name": "Check again",
+          "role": "button"
+        }
+      ],
+      "id": "load-failed",
+      "mode": "live",
+      "name": "Check failed",
+      "role": "boundary"
+    }
+  ],
+  "title": "Integrations overview"
+}

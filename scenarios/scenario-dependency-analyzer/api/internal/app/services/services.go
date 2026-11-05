@@ -1,6 +1,9 @@
 package services
 
-import types "scenario-dependency-analyzer/internal/types"
+import (
+	"context"
+	types "github.com/vrooli/vrooli/scenarios/scenario-dependency-analyzer/api/internal/types"
+)
 
 // AnalysisService exposes dependency analysis operations.
 type AnalysisService interface {
@@ -23,6 +26,7 @@ type ScanService interface {
 // GraphService generates dependency graph exports.
 type GraphService interface {
 	GenerateGraph(graphType string) (*types.DependencyGraph, error)
+	GraphCentrality(coreSeeds []string, scenario string) (*types.GraphCentralityReport, error)
 }
 
 // OptimizationService coordinates optimization recommendation workflows.
@@ -41,7 +45,7 @@ type DependencyService interface {
 	StoredDependencies(name string) (map[string][]types.ScenarioDependency, error)
 	DependencyImpact(name string) (*types.DependencyImpactReport, error)
 	AnalysisMetrics() (map[string]interface{}, error)
-	UpdateScenarioMetadata(name string, cfg *types.ServiceConfig, scenarioPath string) error
+	UpdateScenarioMetadata(name string, cfg *types.Manifest, scenarioPath string) error
 	RefreshCatalogs()
 	CleanupInvalidDependencies()
 }
@@ -49,6 +53,7 @@ type DependencyService interface {
 // DeploymentService provides access to computed deployment reports.
 type DeploymentService interface {
 	GetDeploymentReport(name string, refresh bool) (*types.DeploymentAnalysisReport, error)
+	GetBundleManifest(context.Context, string) (*types.BundleManifest, error)
 }
 
 // ProposalService handles proposed scenario analysis requests.

@@ -1,0 +1,5 @@
+{
+  "schema_version": 1,
+  "note": "Approved pristine base images for the local-qemu lane. Operators record path, sha256 (64 hex, optional sha256: prefix), os and arch after acquiring the image; the provider only reads this file. Empty means EXT-06 is open.",
+  "images": []
+}

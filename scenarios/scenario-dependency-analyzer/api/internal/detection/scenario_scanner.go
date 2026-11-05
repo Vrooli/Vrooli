@@ -1,20 +1,24 @@
 package detection
 
 import (
+	"encoding/json"
+	"go/ast"
+	"go/parser"
+	"go/token"
 	"io/fs"
 	"os"
 	"path/filepath"
-	"regexp"
+	"strconv"
 	"strings"
 
-	types "scenario-dependency-analyzer/internal/types"
+	types "github.com/vrooli/vrooli/scenarios/scenario-dependency-analyzer/api/internal/types"
 )
 
 // scenario_scanner.go - Scenario dependency detection
 //
 // This file contains the logic for scanning scenario files to detect
-// inter-scenario dependencies through CLI calls, port resolutions, and
-// shared workflow references.
+// inter-scenario dependencies through explicit Vrooli commands and shared
+// workflow references.
 
 // scenarioScanner handles scenario-to-scenario dependency detection
 type scenarioScanner struct {
@@ -45,13 +49,17 @@ func (s *scenarioScanner) walkCodeFiles(
 			}
 			return nil
 		}
-
-		ext := strings.ToLower(filepath.Ext(path))
-		if !contains(scenarioDetectionExtensions, ext) {
+		if entry.Type()&fs.ModeSymlink != 0 {
 			return nil
 		}
 
-		content, err := os.ReadFile(path)
+		ext := strings.ToLower(filepath.Ext(path))
+		contract := ext == ".json" && filepath.Dir(path) == filepath.Join(scenarioPath, ".vrooli", "program-runtime")
+		if !contains(scenarioDetectionExtensions, ext) && !contract {
+			return nil
+		}
+
+		content, err := os.ReadFile(path) // #nosec G304,G122 -- path comes from WalkDir under scenarioPath and symlink entries are skipped.
 		if err != nil {
 			return nil
 		}
@@ -74,10 +82,9 @@ func (s *scenarioScanner) scanDependencies(scenarioPath, scenarioName string) ([
 	var dependencies []types.ScenarioDependency
 
 	normalizedScenario := normalizeName(scenarioName)
-	aliasCatalog := s.buildAliasCatalog(scenarioPath)
 
 	err := s.walkCodeFiles(scenarioPath, func(rel string, content []byte) error {
-		deps := s.scanFile(string(content), rel, scenarioName, normalizedScenario, aliasCatalog)
+		deps := s.scanFile(string(content), rel, scenarioName, normalizedScenario)
 		dependencies = append(dependencies, deps...)
 		return nil
 	})
@@ -88,23 +95,120 @@ func (s *scenarioScanner) scanDependencies(scenarioPath, scenarioName string) ([
 // scanFile scans a single file for scenario references
 func (s *scenarioScanner) scanFile(
 	content, relPath, scenarioName, normalizedScenario string,
-	aliasCatalog map[string]string,
 ) []types.ScenarioDependency {
 	var dependencies []types.ScenarioDependency
 
-	// Detect "vrooli scenario run/test/status <name>" patterns
+	if filepath.Ext(relPath) == ".json" {
+		return s.detectProgramBindings(content, relPath, scenarioName, normalizedScenario)
+	}
 	dependencies = append(dependencies, s.detectVrooliCommands(content, relPath, scenarioName, normalizedScenario)...)
-
-	// Detect CLI script references (e.g., "chart-generator-cli.sh")
-	dependencies = append(dependencies, s.detectCLIReferences(content, relPath, scenarioName, normalizedScenario)...)
-
-	// Detect scenario port resolution calls
-	dependencies = append(dependencies, s.detectPortCalls(content, relPath, scenarioName, normalizedScenario, aliasCatalog)...)
+	if strings.EqualFold(filepath.Ext(relPath), ".go") {
+		dependencies = append(dependencies, s.detectScenarioURLResolvers(content, relPath, scenarioName, normalizedScenario)...)
+	}
 
 	return dependencies
 }
 
-// detectVrooliCommands finds "vrooli scenario ..." command usage
+// A governed program's binding declaration is direct dependency evidence, even
+// when its Python companion never resolves a URL or invokes the target CLI.
+// Restrict this to canonical contract files rather than searching arbitrary JSON.
+func (s *scenarioScanner) detectProgramBindings(content, relPath, scenarioName, normalizedScenario string) []types.ScenarioDependency {
+	if filepath.ToSlash(filepath.Dir(relPath)) != ".vrooli/program-runtime" {
+		return nil
+	}
+	var contract struct {
+		Name     string `json:"name"`
+		Bindings []struct {
+			ID string `json:"id"`
+		} `json:"bindings"`
+	}
+	if json.Unmarshal([]byte(content), &contract) != nil || !strings.HasPrefix(contract.Name, scenarioName+".") {
+		return nil
+	}
+	var dependencies []types.ScenarioDependency
+	seen := map[string]bool{}
+	for _, binding := range contract.Bindings {
+		parts := strings.Split(binding.ID, "/")
+		if len(parts) < 3 || parts[0] == "" || parts[1] == "" || parts[2] == "" {
+			continue
+		}
+		target := parts[0]
+		if target != normalizeName(target) || target == normalizedScenario || seen[target] || !s.catalog.isKnownScenario(target) {
+			continue
+		}
+		seen[target] = true
+		dependencies = append(dependencies, newScenarioDependency(scenarioName, target, "governed program binding", "program_binding", relPath))
+	}
+	return dependencies
+}
+
+// detectScenarioURLResolvers recognizes literal targets passed to the canonical
+// api-core discovery resolver. Parsing Go syntax prevents comments, strings,
+// and unrelated similarly named calls from becoming dependency evidence.
+func (s *scenarioScanner) detectScenarioURLResolvers(content, relPath, scenarioName, normalizedScenario string) []types.ScenarioDependency {
+	fset := token.NewFileSet()
+	file, err := parser.ParseFile(fset, relPath, content, 0)
+	if err != nil {
+		return nil
+	}
+
+	resolverNames := map[string]struct{}{}
+	for _, spec := range file.Imports {
+		importPath, err := strconv.Unquote(spec.Path.Value)
+		if err != nil || importPath != "github.com/vrooli/api-core/discovery" {
+			continue
+		}
+		name := "discovery"
+		if spec.Name != nil {
+			name = spec.Name.Name
+		}
+		if name != "_" && name != "." {
+			resolverNames[name] = struct{}{}
+		}
+	}
+	if len(resolverNames) == 0 {
+		return nil
+	}
+
+	dependencies := []types.ScenarioDependency{}
+	ast.Inspect(file, func(node ast.Node) bool {
+		call, ok := node.(*ast.CallExpr)
+		if !ok || len(call.Args) != 2 {
+			return true
+		}
+		selector, ok := call.Fun.(*ast.SelectorExpr)
+		if !ok || selector.Sel.Name != "ResolveScenarioURLDefault" {
+			return true
+		}
+		pkg, ok := selector.X.(*ast.Ident)
+		if !ok {
+			return true
+		}
+		if _, ok := resolverNames[pkg.Name]; !ok {
+			return true
+		}
+		literal, ok := call.Args[1].(*ast.BasicLit)
+		if !ok || literal.Kind != token.STRING {
+			return true
+		}
+		dependencyName, err := strconv.Unquote(literal.Value)
+		if err != nil {
+			return true
+		}
+		dependencyName = normalizeName(dependencyName)
+		if dependencyName == "" || dependencyName == normalizedScenario || !s.catalog.isKnownScenario(dependencyName) {
+			return true
+		}
+		dependencies = append(dependencies, newScenarioDependency(scenarioName, dependencyName, "scenario URL discovery", "scenario_url_discovery", relPath))
+		return true
+	})
+	return dependencies
+}
+
+// detectVrooliCommands is the remaining interim runtime scenario signal. Import-level
+// usage is now sourced from code-facts/proto-health through interfacegraph; this
+// command-shell signal is pending replacement by AST facts in the
+// scenario-dependency-analyzer-code-evidence-via-ast-facts follow-up.
 func (s *scenarioScanner) detectVrooliCommands(
 	content, relPath, scenarioName, normalizedScenario string,
 ) []types.ScenarioDependency {
@@ -130,165 +234,4 @@ func (s *scenarioScanner) detectVrooliCommands(
 	}
 
 	return dependencies
-}
-
-// detectCLIReferences finds scenario CLI script references
-func (s *scenarioScanner) detectCLIReferences(
-	content, relPath, scenarioName, normalizedScenario string,
-) []types.ScenarioDependency {
-	var dependencies []types.ScenarioDependency
-
-	for _, match := range cliScenarioPattern.FindAllStringSubmatch(content, -1) {
-		ref := ""
-		if match[1] != "" {
-			ref = match[1]
-		} else if match[2] != "" {
-			ref = match[2]
-		}
-
-		ref = normalizeName(ref)
-
-		// Skip empty, self-references, and unknown scenarios
-		if ref == "" || ref == normalizedScenario || !s.catalog.isKnownScenario(ref) {
-			continue
-		}
-
-		dependencies = append(dependencies, newScenarioDependency(
-			scenarioName,
-			ref,
-			"CLI reference in "+filepath.Base(relPath),
-			"direct_cli",
-			relPath,
-		))
-	}
-
-	return dependencies
-}
-
-// detectPortCalls finds scenario port resolution calls
-func (s *scenarioScanner) detectPortCalls(
-	content, relPath, scenarioName, normalizedScenario string,
-	aliasCatalog map[string]string,
-) []types.ScenarioDependency {
-	var dependencies []types.ScenarioDependency
-
-	for _, match := range scenarioPortCallPattern.FindAllStringSubmatch(content, -1) {
-		depName := ""
-
-		// Extract scenario name from direct string or variable
-		if len(match) > 1 && match[1] != "" {
-			depName = normalizeName(match[1])
-		} else if len(match) > 2 && match[2] != "" {
-			// Try to resolve variable name via alias catalog
-			if alias, ok := aliasCatalog[match[2]]; ok {
-				depName = alias
-			} else {
-				depName = normalizeName(match[2])
-			}
-		}
-
-		// Skip empty, self-references, and unknown scenarios
-		if depName == "" || depName == normalizedScenario || !s.catalog.isKnownScenario(depName) {
-			continue
-		}
-
-		dependencies = append(dependencies, newScenarioDependency(
-			scenarioName,
-			depName,
-			"References "+depName+" port via CLI",
-			"scenario_port_cli",
-			relPath,
-		))
-	}
-
-	return dependencies
-}
-
-// scanWorkflows scans for shared workflow references in initialization files
-func (s *scenarioScanner) scanWorkflows(scenarioPath, scenarioName string) ([]types.ScenarioDependency, error) {
-	var dependencies []types.ScenarioDependency
-
-	initPath := filepath.Join(scenarioPath, "initialization")
-	if _, err := os.Stat(initPath); os.IsNotExist(err) {
-		return dependencies, nil
-	}
-
-	err := filepath.WalkDir(initPath, func(path string, entry fs.DirEntry, walkErr error) error {
-		if walkErr != nil {
-			return nil
-		}
-
-		// Only look at JSON files
-		if !strings.HasSuffix(path, ".json") {
-			return nil
-		}
-
-		content, err := os.ReadFile(path)
-		if err != nil {
-			return nil
-		}
-
-		// Find shared workflow references
-		matches := sharedWorkflowPattern.FindAllStringSubmatch(string(content), -1)
-		for _, match := range matches {
-			if len(match) > 1 {
-				dep := newScenarioDependency(
-					scenarioName,
-					match[1],
-					"Shared workflow dependency",
-					"workflow_trigger",
-					strings.TrimPrefix(path, scenarioPath),
-				)
-				dep.DependencyType = "shared_workflow"
-				dependencies = append(dependencies, dep)
-			}
-		}
-
-		return nil
-	})
-
-	return dependencies, err
-}
-
-// buildAliasCatalog scans for variable declarations that map to scenario names
-// This helps resolve indirect references like: `const API_NAME = "chart-generator"`
-func (s *scenarioScanner) buildAliasCatalog(scenarioPath string) map[string]string {
-	aliases := map[string]string{}
-
-	addAlias := func(identifier, scenario string) {
-		if identifier == "" {
-			return
-		}
-
-		normalized := normalizeName(scenario)
-		if !s.catalog.isKnownScenario(normalized) {
-			return
-		}
-
-		aliases[identifier] = normalized
-	}
-
-	aliasPatterns := []*regexp.Regexp{
-		scenarioAliasDeclPattern,
-		scenarioAliasShortPattern,
-		scenarioAliasBlockPattern,
-	}
-
-	scanForAliases := func(content string) {
-		for _, pattern := range aliasPatterns {
-			for _, match := range pattern.FindAllStringSubmatch(content, -1) {
-				if len(match) >= 3 {
-					addAlias(match[1], match[2])
-				}
-			}
-		}
-	}
-
-	// Walk the directory to find alias declarations
-	_ = s.walkCodeFiles(scenarioPath, func(_ string, content []byte) error {
-		scanForAliases(string(content))
-		return nil
-	})
-
-	return aliases
 }

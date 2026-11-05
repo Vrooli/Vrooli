@@ -5,7 +5,7 @@
 
 ## Target Tiers
 - [x] Tier 2 Desktop (Electron) — ready (CORS, storage, static build all handled)
-- [ ] Tier 3 Mobile — PTY requires Unix; no Windows PTY support
+- [ ] Tier 3 Mobile — mobile clients use the remote/bridge terminal path
 - [x] Tier 4 Cloud/SaaS
 - [x] Tier 5 Enterprise
 
@@ -47,7 +47,7 @@
 - [x] Hook token via api-core/storage (ClassState)
 - [x] Session state via api-core/storage (ClassState)
 - [x] Upload directory via api-core/storage (ClassCache)
-- [x] All storage paths have binary-relative fallbacks when api-core/storage unavailable
+- [x] All runtime storage paths resolve through `api-core/storage` class directories
 
 ## Network Status
 - [x] API port configurable via API_PORT env var (default: 8080)
@@ -64,7 +64,7 @@
 | POSTGRES_PASSWORD | infrastructure | Not needed — using SQLite |
 
 ## Issues Resolved
-1. `upload_handler.go` — Hardcoded `/tmp/web-console-uploads` replaced with api-core/storage (ClassCache)
+1. `upload_handler.go` — Hardcoded temp upload directory replaced with `api-core/storage` (ClassCache)
 2. `voice_transcribe.go` — Package-level `whisperURL` now reads WHISPER_URL env var at init
 3. `main.go:Handler()` — Added CORS middleware accepting both localhost and 127.0.0.1
 4. `service.json` — Added `capabilities` section with `offline_capable` and AI provider documentation
@@ -72,9 +72,9 @@
 6. `Workspace.tsx` — Fixed missing `syncPaneUpdate` dependency in useEffect
 
 ## Known Limitations
-1. PTY support requires Unix-like OS (creack/pty) — no Windows native support
-2. Shell fallback is `/bin/sh` — not available on Windows without WSL
-3. `initSchema` reads SQL files relative to binary — desktop bundles must ship `initialization/` directory alongside binary (candidate for `//go:embed` in future)
+1. Unix PTYs use creack/pty; Windows uses the native ConPTY adapter
+2. Shell fallback is platform-resolved (`$SHELL`/`/bin/sh` on Unix, PowerShell on Windows)
+3. `initSchema` reads SQL files relative to binary — desktop bundles must ship `api/internal/<domain>/` directory alongside binary (candidate for `//go:embed` in future)
 
 ## Required Changes for Tier 3 (Mobile)
 1. PTY replacement needed — mobile cannot run shell processes

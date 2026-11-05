@@ -12,7 +12,7 @@
       "description": "The system must maintain default policies in agent profiles, including execution limits, resource quotas, and security boundaries. These policies should be inheritable by derived profiles and overridable when needed.",
       "id": "REQ-P1-005",
       "prd_ref": "OT-P1-005",
-      "status": "draft",
+      "status": "planned",
       "title": "Store Default Policy Configurations",
       "validation": [
         {

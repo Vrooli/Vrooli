@@ -1,0 +1,58 @@
+syntax = "proto3";
+
+package vrooli.token_economy.v1.redemption;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/token-economy/v1/redemption;redemptionv1";
+
+import "google/protobuf/timestamp.proto";
+
+// =============================================================================
+// REDEMPTION
+// =============================================================================
+//
+// @stability experimental
+//
+// Owns redemption requests, reservations and settlement.
+//
+// =============================================================================
+
+enum RedemptionState {
+  REDEMPTION_STATE_UNSPECIFIED = 0;
+  REDEMPTION_STATE_PENDING_APPROVAL = 1;
+  REDEMPTION_STATE_SETTLED = 2;
+  REDEMPTION_STATE_DENIED = 3;
+}
+
+enum ReservationState {
+  RESERVATION_STATE_UNSPECIFIED = 0;
+  RESERVATION_STATE_ACTIVE = 1;
+  RESERVATION_STATE_SETTLED = 2;
+  RESERVATION_STATE_RELEASED = 3;
+}
+
+message Redemption {
+  string id = 1;
+  string holder_id = 2;
+  string catalog_entry_id = 3;
+  string token_type_id = 4;
+  string grant_id = 5;
+  int64 amount = 6;
+  string idempotency_key = 7;
+  RedemptionState state = 8;
+  string decider_subject = 9;
+  string decision_reason = 10;
+  google.protobuf.Timestamp requested_at = 11;
+  google.protobuf.Timestamp decided_at = 12;
+  google.protobuf.Timestamp settled_at = 13;
+}
+
+message Reservation {
+  string id = 1;
+  string redemption_id = 2;
+  string holder_id = 3;
+  string token_type_id = 4;
+  int64 amount = 5;
+  ReservationState state = 6;
+  google.protobuf.Timestamp created_at = 7;
+  google.protobuf.Timestamp released_at = 8;
+}

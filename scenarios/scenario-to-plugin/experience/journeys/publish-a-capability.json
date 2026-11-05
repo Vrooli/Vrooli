@@ -1,0 +1,52 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-journey",
+  "schemaVersion": "1.0.0",
+  "journey": {
+    "id": "publish-a-capability",
+    "title": "Publish a capability",
+    "purpose": "Walk an operator from 'which scenarios may publish' to a confirmed publication, passing through every gate so that no rung is reached without evidence.",
+    "prd_refs": [
+      "OT-P0-001",
+      "OT-P0-006",
+      "OT-P0-007"
+    ]
+  },
+  "steps": [
+    {
+      "page": "readiness",
+      "state": "default",
+      "intent": "Identify a scenario that is eligible to publish."
+    },
+    {
+      "page": "packages",
+      "state": "default",
+      "intent": "Compose a package and find it in the list."
+    },
+    {
+      "page": "package-detail",
+      "state": "partial",
+      "intent": "Read the gate ladder and start the next gate."
+    },
+    {
+      "page": "conformance-findings",
+      "state": "success",
+      "intent": "Confirm every conformance rule passed."
+    },
+    {
+      "page": "rehearsal-detail",
+      "state": "success",
+      "intent": "Read the clean-room evidence as an outsider would."
+    },
+    {
+      "page": "publication",
+      "state": "permission-denied",
+      "intent": "See that publish is blocked until a release decision exists for this commit."
+    },
+    {
+      "page": "publication",
+      "state": "success",
+      "intent": "Publish and confirm the artifact is retrievable at its digest."
+    }
+  ]
+}

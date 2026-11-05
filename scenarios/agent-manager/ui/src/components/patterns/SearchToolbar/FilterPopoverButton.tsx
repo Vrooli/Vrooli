@@ -98,7 +98,7 @@ export function FilterPopoverButton({
         aria-label="Filter and sort options"
         aria-expanded={open}
         className={cn(
-          "relative inline-flex items-center justify-center h-9 w-9 rounded-md border border-input bg-background text-sm font-medium",
+          "relative inline-flex items-center justify-center h-11 w-11 rounded-md sm:h-9 sm:w-9 border border-input bg-background text-sm font-medium",
           "hover:bg-accent/50 transition-colors",
           "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
           open && "bg-accent/50 text-accent-foreground"

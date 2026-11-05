@@ -1,0 +1,128 @@
+// provider-free-exception: the hook tests supply their own provider wrappers and isolate task state.
+import { CompanionPresentation } from "../companion/CompanionPresentation";
+import { createElement, type ReactNode } from "react";
+import { act, renderHook, render, cleanup, waitFor } from "@testing-library/react";
+import { afterEach, beforeEach, expect, it, vi } from "vitest";
+const api = vi.hoisted(() => ({ listPortalAgentAdmissions: vi.fn(), getPortalAgentRun: vi.fn(), stopPortalAgentRun: vi.fn() }));
+vi.mock("../../api/chat", () => api);
+import { AgentTasksProvider, useAgentTask } from "./useAgentTask";
+import { ChatAccountProvider } from "./ChatAccount";
+beforeEach(() => { vi.resetAllMocks(); api.listPortalAgentAdmissions.mockResolvedValue({admissions:[],nextPageToken:""}); });
+afterEach(cleanup);
+it("retains exact task after lost Stop and reads back without resending", async () => {
+ const {result}=renderHook(useAgentTask, {wrapper:({children}:{children:ReactNode})=>createElement(AgentTasksProvider,{children})});
+ await waitFor(()=>expect(result.current.recovering).toBe(false));
+ act(()=>result.current.begin("chat-1","message-1"));
+ api.stopPortalAgentRun.mockRejectedValueOnce(new Error("lost reply"));
+ await act(async()=>{await result.current.stop();});
+ expect(result.current.task).toEqual({chatId:"chat-1",messageId:"message-1"});
+ expect(result.current.uncertain).toBe(true);
+ api.getPortalAgentRun.mockResolvedValueOnce({runId:"run-1",status:"cancelled",terminal:true});
+ await act(async()=>{await result.current.stop();});
+ expect(api.stopPortalAgentRun).toHaveBeenCalledTimes(1);
+ expect(api.getPortalAgentRun).toHaveBeenCalledWith("chat-1","message-1");
+ expect(result.current.task).toBeNull();
+});
+it("keeps a disconnected but still-running task registered and refuses replacement", async()=>{
+ const {result}=renderHook(useAgentTask, {wrapper:({children}:{children:ReactNode})=>createElement(AgentTasksProvider,{children})});
+ await waitFor(()=>expect(result.current.recovering).toBe(false));
+ act(()=>result.current.begin("original-chat","original-message"));
+ api.getPortalAgentRun.mockResolvedValue({runId:"run-1",status:"running",terminal:false});
+ await act(async()=>{await result.current.inspect();});
+ expect(result.current.task?.chatId).toBe("original-chat");
+ expect(()=>result.current.begin("new-chat","new-message")).toThrow("unresolved");
+ expect(api.stopPortalAgentRun).not.toHaveBeenCalled();
+});
+it("serializes Stop and keeps missing owner state unresolved", async()=>{
+ const {result}=renderHook(useAgentTask, {wrapper:({children}:{children:ReactNode})=>createElement(AgentTasksProvider,{children})});
+ await waitFor(()=>expect(result.current.recovering).toBe(false));
+ act(()=>result.current.begin("chat","message"));
+ let release!:()=>void;
+ api.stopPortalAgentRun.mockImplementation(()=>new Promise(resolve=>{release=()=>resolve({terminal:true});}));
+ let pending!:Promise<boolean>;
+ act(()=>{pending=result.current.stop();});
+ await act(async()=>{await result.current.stop();});
+ expect(api.stopPortalAgentRun).toHaveBeenCalledTimes(1);
+ await act(async()=>{release();await pending;});
+ expect(result.current.task).not.toBeNull();expect(result.current.uncertain).toBe(true);
+});
+it("recovers all pages and retains unknown tasks until terminal owner readback", async () => {
+ api.listPortalAgentAdmissions.mockResolvedValueOnce({admissions:[{chatId:"old",messageId:"done"},{chatId:"lost",messageId:"unknown"}],nextPageToken:"next"}).mockResolvedValueOnce({admissions:[{chatId:"other",messageId:"running"}],nextPageToken:""});
+ api.getPortalAgentRun.mockImplementation((_chat:string,message:string)=>message==="unknown"?Promise.reject(new Error("owner unavailable")):Promise.resolve({runId:message,status:message==="done"?"completed":"running",terminal:message==="done"}));
+ const {result,unmount}=renderHook(useAgentTask,{wrapper:({children}:{children:ReactNode})=>createElement(AgentTasksProvider,{children})});
+ await waitFor(()=>expect(result.current.recovering).toBe(false));
+ expect(api.listPortalAgentAdmissions.mock.calls).toEqual([[""],["next"]]);
+ expect(result.current.task).toEqual({chatId:"lost",messageId:"unknown"});
+ expect(result.current.uncertain).toBe(true);
+ expect(api.stopPortalAgentRun).not.toHaveBeenCalled();
+ api.getPortalAgentRun.mockResolvedValueOnce({runId:"resolved",status:"cancelled",terminal:true});
+ await act(async()=>{await result.current.stop();});
+ expect(result.current.task).toEqual({chatId:"other",messageId:"running"});
+ expect(api.stopPortalAgentRun).not.toHaveBeenCalled();
+ unmount();
+});
+it("holds Quit during failed enumeration and retries only reads", async () => {
+ let requestQuit:(id:number)=>void=()=>{};const decide=vi.fn().mockResolvedValue(undefined);
+ window.desktopPresentation={get:()=>Promise.resolve({version:1,mode:"expanded",canHide:true}),set:mode=>Promise.resolve({version:1,mode}),onQuit:listener=>{requestQuit=listener;return()=>{};},decideQuit:decide};
+ api.listPortalAgentAdmissions.mockRejectedValueOnce(new Error("offline"));
+ const {result}=renderHook(useAgentTask,{wrapper:({children}:{children:ReactNode})=>createElement(CompanionPresentation,{children:createElement(AgentTasksProvider,{children})})});
+ await waitFor(()=>expect(result.current.recoveryFailed).toBe(true));
+ act(()=>requestQuit(9));
+ expect(decide).not.toHaveBeenCalled();
+ expect(()=>result.current.begin("chat","message")).toThrow("recovery");
+ await act(async()=>{await result.current.recover();});
+ await waitFor(()=>expect(decide).toHaveBeenCalledWith(9,"quit"));
+ expect(api.stopPortalAgentRun).not.toHaveBeenCalled();
+ delete window.desktopPresentation;
+});
+it("keeps shell-owned work when its route unmounts and reconstructs after reload", async () => {
+ let current!:ReturnType<typeof useAgentTask>;
+ function Route(){current=useAgentTask();return null;}
+ const shell=(visible:boolean)=>createElement(AgentTasksProvider,{children:visible?createElement(Route):null});
+ const view=render(shell(true));
+ await waitFor(()=>expect(current.recovering).toBe(false));
+ act(()=>current.begin("retained-chat","retained-message"));
+ view.rerender(shell(false));view.rerender(shell(true));
+ expect(current.task).toEqual({chatId:"retained-chat",messageId:"retained-message"});
+ view.unmount();
+ api.listPortalAgentAdmissions.mockResolvedValue({admissions:[{chatId:"retained-chat",messageId:"retained-message"}],nextPageToken:""});
+ api.getPortalAgentRun.mockResolvedValue({runId:"owner-run",status:"running",terminal:false});
+ render(shell(true));
+ await waitFor(()=>expect(current.recovering).toBe(false));
+ expect(current.task).toEqual({chatId:"retained-chat",messageId:"retained-message"});
+ expect(api.stopPortalAgentRun).not.toHaveBeenCalled();
+});
+it("retains earlier-page work when a later page fails and refuses a repeated cursor", async () => {
+ api.listPortalAgentAdmissions.mockResolvedValueOnce({admissions:[{chatId:"first",messageId:"pending"}],nextPageToken:"later"}).mockRejectedValueOnce(new Error("page unavailable"));
+ const {result}=renderHook(useAgentTask,{wrapper:({children}:{children:ReactNode})=>createElement(AgentTasksProvider,{children})});
+ await waitFor(()=>expect(result.current.recoveryFailed).toBe(true));
+ expect(result.current.recovering).toBe(true);
+ expect(result.current.task).toEqual({chatId:"first",messageId:"pending"});
+ expect(api.getPortalAgentRun).not.toHaveBeenCalled();
+ api.listPortalAgentAdmissions.mockResolvedValue({admissions:[],nextPageToken:"loop"});
+ await act(async()=>{await result.current.recover();});
+ expect(result.current.recoveryFailed).toBe(true);
+ expect(result.current.task?.messageId).toBe("pending");
+ expect(api.listPortalAgentAdmissions).toHaveBeenCalledTimes(4);
+ expect(api.stopPortalAgentRun).not.toHaveBeenCalled();
+});
+
+it("keeps unresolved work owner-scoped across account changes", async () => {
+ const alice={id:"alice",realm:"local",token:"alice-token",expires:Date.now()+60000};
+ const bob={id:"bob",realm:"local",token:"bob-token",expires:Date.now()+60000};
+ api.getPortalAgentRun.mockResolvedValue({runId:"run",status:"running",terminal:false});
+ let currentAccount=alice;
+ const wrapper=({children}:{children:ReactNode})=>createElement(ChatAccountProvider,{account:currentAccount,children:createElement(AgentTasksProvider,{children})});
+ const view=renderHook(useAgentTask,{wrapper});
+ await waitFor(()=>expect(view.result.current.recovering).toBe(false));
+ act(()=>view.result.current.begin("alice-chat","alice-message"));
+ currentAccount=bob;view.rerender();
+ await waitFor(()=>expect(view.result.current.recovering).toBe(false));
+ expect(view.result.current.task).toBeNull();
+ act(()=>view.result.current.begin("bob-chat","bob-message"));
+ await act(async()=>{await view.result.current.inspect();});
+ expect(api.getPortalAgentRun).toHaveBeenLastCalledWith("bob-chat","bob-message",expect.objectContaining({account:{token:"bob-token",expires:bob.expires}}));
+ currentAccount=alice;view.rerender();
+ await waitFor(()=>expect(view.result.current.recovering).toBe(false));
+ expect(view.result.current.task).toEqual({chatId:"alice-chat",messageId:"alice-message"});
+});

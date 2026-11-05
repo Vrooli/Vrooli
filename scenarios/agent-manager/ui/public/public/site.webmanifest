@@ -1,0 +1,41 @@
+{
+  "_brand": {
+    "slug": "mizar",
+    "version": 4
+  },
+  "background_color": "#0f172a",
+  "description": "Orchestration, supervision, and run management for the agent fleet.",
+  "display": "standalone",
+  "icons": [
+    {
+      "purpose": "any",
+      "sizes": "192x192",
+      "src": "icon-192.png",
+      "type": "image/png"
+    },
+    {
+      "purpose": "any",
+      "sizes": "512x512",
+      "src": "icon-512.png",
+      "type": "image/png"
+    },
+    {
+      "purpose": "maskable",
+      "sizes": "192x192",
+      "src": "maskable-icon-192.png",
+      "type": "image/png"
+    },
+    {
+      "purpose": "maskable",
+      "sizes": "512x512",
+      "src": "maskable-icon-512.png",
+      "type": "image/png"
+    }
+  ],
+  "id": "/",
+  "name": "Mizar",
+  "scope": "/",
+  "short_name": "Mizar",
+  "start_url": "/",
+  "theme_color": "#0f172a"
+}

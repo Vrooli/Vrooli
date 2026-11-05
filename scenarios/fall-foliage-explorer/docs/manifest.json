@@ -1,0 +1,389 @@
+{
+  "version": "2.0.0",
+  "title": "Fall Foliage Explorer Documentation",
+  "description": "Documentation contract for operating, validating, and maintaining the Fall Foliage Explorer scenario.",
+  "defaultDocument": "START-HERE.md",
+  "contract": {
+    "kind": "scenario-docs",
+    "template": "react-vite",
+    "schema": "scenario-docs-manifest/v2",
+    "maturityValues": ["missing", "stub", "draft", "active", "not-applicable", "deferred", "retired"],
+    "stages": ["generated", "oriented", "implemented", "validated", "deployable", "monetizable"],
+    "extensionRule": "Register every durable scenario document here. Use concepts for mental models, reference for stable contracts, operations for runtime procedures, business for commercial context, and internal for developer/agent memory."
+  },
+  "sections": [
+    {
+      "id": "getting-started",
+      "title": "Getting Started",
+      "icon": "rocket",
+      "description": "Entrypoints and first-run documentation.",
+      "purpose": "Help users, developers, operators, and agents orient quickly.",
+      "extensionPolicy": "Add only entrypoint-level documents here.",
+      "documents": [
+        {
+          "path": "../README.md",
+          "docType": "readme",
+          "title": "README",
+          "description": "Top-level scenario summary and primary human entrypoint.",
+          "audience": ["users", "operators", "developers", "agents"],
+          "canonicalFor": ["scenario-summary", "entrypoint"],
+          "maturity": "active",
+          "requiredBy": ["generated"],
+          "completion": "required"
+        },
+        {
+          "path": "START-HERE.md",
+          "docType": "start-here",
+          "title": "Start Here",
+          "description": "Scenario orientation and documentation map.",
+          "audience": ["developers", "agents"],
+          "canonicalFor": ["orientation", "documentation-map"],
+          "maturity": "active",
+          "requiredBy": ["generated", "oriented"],
+          "completion": "required"
+        },
+        {
+          "path": "QUICKSTART.md",
+          "docType": "quickstart",
+          "title": "Quick Start",
+          "description": "Lifecycle commands for setup, start, validation, and shutdown.",
+          "audience": ["users", "operators", "developers", "agents"],
+          "canonicalFor": ["local-runbook", "first-run"],
+          "maturity": "active",
+          "requiredBy": ["generated"],
+          "completion": "required"
+        },
+        {
+          "path": "../PRD.md",
+          "docType": "prd",
+          "title": "Product Requirements",
+          "description": "Scenario purpose, users, operational targets, dependencies, and UX direction.",
+          "audience": ["developers", "agents", "operators"],
+          "canonicalFor": ["product-requirements", "operational-targets"],
+          "maturity": "active",
+          "requiredBy": ["oriented"],
+          "completion": "required"
+        },
+        {
+          "path": "../DESIGN.md",
+          "docType": "design",
+          "title": "Design Contract",
+          "description": "UI design language and interaction rules for this scenario.",
+          "audience": ["developers", "agents", "designers"],
+          "canonicalFor": ["design-language", "ui-tokens"],
+          "maturity": "active",
+          "requiredBy": ["generated", "oriented"],
+          "completion": "required"
+        },
+        {
+          "path": "manifest.json",
+          "docType": "manifest",
+          "title": "Documentation Manifest",
+          "description": "Machine-readable documentation contract.",
+          "audience": ["developers", "agents", "tools"],
+          "canonicalFor": ["documentation-contract"],
+          "maturity": "active",
+          "requiredBy": ["generated"],
+          "completion": "required"
+        }
+      ]
+    },
+    {
+      "id": "concepts",
+      "title": "Concepts",
+      "icon": "compass",
+      "description": "Durable product and system mental models.",
+      "purpose": "Document how the scenario is put together and where future changes belong.",
+      "extensionPolicy": "Add durable cross-cutting concept docs here.",
+      "documents": [
+        {
+          "path": "concepts/ARCHITECTURE.md",
+          "docType": "architecture",
+          "title": "Architecture",
+          "description": "Runtime surfaces, component ownership, and data flow.",
+          "audience": ["developers", "agents"],
+          "canonicalFor": ["system-architecture", "surface-responsibilities"],
+          "maturity": "active",
+          "requiredBy": ["generated", "oriented", "implemented"],
+          "completion": "required"
+        },
+        {
+          "path": "concepts/DATA.md",
+          "docType": "data",
+          "title": "Data",
+          "description": "Primary database tables, fallback data, and ownership.",
+          "audience": ["developers", "agents", "operators"],
+          "canonicalFor": ["data-model", "storage-ownership"],
+          "maturity": "active",
+          "requiredBy": ["oriented", "implemented", "deployable"],
+          "completion": "required"
+        },
+        {
+          "path": "concepts/DOMAINS.md",
+          "docType": "domains",
+          "title": "Domains",
+          "description": "Business domains and their API, UI, and CLI surfaces.",
+          "audience": ["developers", "agents"],
+          "canonicalFor": ["bounded-contexts", "capability-ownership"],
+          "maturity": "active",
+          "requiredBy": ["oriented", "implemented"],
+          "completion": "required"
+        },
+        {
+          "path": "concepts/FLOWS.md",
+          "docType": "flows",
+          "title": "Flows",
+          "description": "User and system workflows validated by existing tests.",
+          "audience": ["developers", "agents"],
+          "canonicalFor": ["workflows", "temporal-flows"],
+          "maturity": "active",
+          "requiredBy": ["implemented", "validated"],
+          "completion": "conditional"
+        },
+        {
+          "path": "concepts/INTEGRATIONS.md",
+          "docType": "integrations",
+          "title": "Integrations",
+          "description": "PostgreSQL, Redis, Ollama, and app-monitor bridge notes.",
+          "audience": ["developers", "agents", "operators"],
+          "canonicalFor": ["resources", "integration-contracts"],
+          "maturity": "active",
+          "requiredBy": ["oriented", "implemented", "deployable"],
+          "completion": "required"
+        }
+      ]
+    },
+    {
+      "id": "reference",
+      "title": "Reference",
+      "icon": "book-open",
+      "description": "Stable API, CLI, and configuration lookup material.",
+      "purpose": "Centralize contracts consumed by code, operators, and agents.",
+      "extensionPolicy": "Add stable lookup docs here; task walkthroughs belong in guides or operations.",
+      "documents": [
+        {
+          "path": "reference/api-endpoints.md",
+          "docType": "api-reference",
+          "title": "API Endpoints",
+          "description": "REST endpoint contracts and requirement traceability.",
+          "audience": ["developers", "agents", "operators"],
+          "canonicalFor": ["api-contract"],
+          "maturity": "active",
+          "requiredBy": ["generated", "implemented"],
+          "completion": "required"
+        },
+        {
+          "path": "reference/cli-commands.md",
+          "docType": "cli-reference",
+          "title": "CLI Commands",
+          "description": "Scenario CLI domains and lifecycle wrappers.",
+          "audience": ["developers", "agents", "operators"],
+          "canonicalFor": ["cli-contract"],
+          "maturity": "active",
+          "requiredBy": ["generated", "implemented"],
+          "completion": "required"
+        },
+        {
+          "path": "reference/configuration.md",
+          "docType": "configuration-reference",
+          "title": "Configuration",
+          "description": "Ports, environment variables, resources, and health checks.",
+          "audience": ["developers", "agents", "operators"],
+          "canonicalFor": ["configuration"],
+          "maturity": "active",
+          "requiredBy": ["generated", "deployable"],
+          "completion": "required"
+        }
+      ]
+    },
+    {
+      "id": "operations",
+      "title": "Operations",
+      "icon": "activity",
+      "description": "Runtime operation and deployment guidance.",
+      "purpose": "Keep startup, validation, deployment, and observability procedures discoverable.",
+      "extensionPolicy": "Add runtime procedures here.",
+      "documents": [
+        {
+          "path": "operations/RUNBOOK.md",
+          "docType": "runbook",
+          "title": "Runbook",
+          "description": "Operational checks and recovery commands.",
+          "audience": ["operators", "developers", "agents"],
+          "canonicalFor": ["operations-runbook"],
+          "maturity": "active",
+          "requiredBy": ["deployable"],
+          "completion": "required"
+        },
+        {
+          "path": "operations/DEPLOYMENT.md",
+          "docType": "deployment",
+          "title": "Deployment",
+          "description": "Lifecycle-managed deployment expectations.",
+          "audience": ["operators", "developers", "agents"],
+          "canonicalFor": ["deployment"],
+          "maturity": "active",
+          "requiredBy": ["deployable"],
+          "completion": "required"
+        },
+        {
+          "path": "operations/OBSERVABILITY.md",
+          "docType": "observability",
+          "title": "Observability",
+          "description": "Health, logs, test artifacts, and coverage outputs.",
+          "audience": ["operators", "developers", "agents"],
+          "canonicalFor": ["observability"],
+          "maturity": "active",
+          "requiredBy": ["deployable", "monetizable"],
+          "completion": "required"
+        }
+      ]
+    },
+    {
+      "id": "business",
+      "title": "Business",
+      "icon": "briefcase",
+      "description": "Commercial and launch context.",
+      "purpose": "Preserve PRD business intent without driving code behavior.",
+      "extensionPolicy": "Add only durable business context here.",
+      "documents": [
+        {
+          "path": "business/MONETIZATION.md",
+          "docType": "monetization",
+          "title": "Monetization",
+          "description": "Revenue model from the PRD.",
+          "audience": ["operators", "agents"],
+          "canonicalFor": ["monetization"],
+          "maturity": "active",
+          "requiredBy": ["monetizable"],
+          "completion": "conditional"
+        },
+        {
+          "path": "business/GO-TO-MARKET.md",
+          "docType": "go-to-market",
+          "title": "Go To Market",
+          "description": "Launch audiences and sequencing.",
+          "audience": ["operators", "agents"],
+          "canonicalFor": ["go-to-market"],
+          "maturity": "active",
+          "requiredBy": ["monetizable"],
+          "completion": "conditional"
+        }
+      ]
+    },
+    {
+      "id": "internal",
+      "title": "Internal",
+      "icon": "lock",
+      "description": "Developer-only and agent memory documents.",
+      "purpose": "Record constraints, problems, decisions, and validation history for future maintainers.",
+      "extensionPolicy": "Add internal memory here; user-facing docs belong elsewhere.",
+      "visibility": "developers-only",
+      "documents": [
+        {
+          "path": "internal/SEAMS.md",
+          "docType": "seams",
+          "title": "Seams",
+          "description": "Boundaries future agents should preserve.",
+          "audience": ["developers", "agents"],
+          "canonicalFor": ["integration-seams"],
+          "maturity": "active",
+          "requiredBy": ["generated", "implemented", "validated"],
+          "completion": "required"
+        },
+        {
+          "path": "internal/PROBLEMS.md",
+          "docType": "problems",
+          "title": "Known Problems",
+          "description": "Open defects, risks, and follow-up work.",
+          "audience": ["developers", "agents"],
+          "canonicalFor": ["known-problems"],
+          "maturity": "active",
+          "requiredBy": ["generated", "implemented", "validated"],
+          "completion": "required"
+        },
+        {
+          "path": "internal/PROGRESS.md",
+          "docType": "progress",
+          "title": "Progress",
+          "description": "Persistent implementation history.",
+          "audience": ["developers", "agents"],
+          "canonicalFor": ["progress-log"],
+          "maturity": "active",
+          "requiredBy": ["generated", "implemented", "validated"],
+          "completion": "required"
+        },
+        {
+          "path": "internal/DECISIONS.md",
+          "docType": "decisions",
+          "title": "Decisions",
+          "description": "Current architectural and product decisions.",
+          "audience": ["developers", "agents"],
+          "canonicalFor": ["decisions"],
+          "maturity": "active",
+          "requiredBy": ["generated", "implemented"],
+          "completion": "required"
+        },
+        {
+          "path": "internal/ERROR-HANDLING.md",
+          "docType": "error-handling",
+          "title": "Error Handling",
+          "description": "Expected error categories and recovery behavior.",
+          "audience": ["developers", "agents"],
+          "canonicalFor": ["error-handling"],
+          "maturity": "active",
+          "requiredBy": ["generated", "validated"],
+          "completion": "required"
+        },
+        {
+          "path": "internal/SECURITY.md",
+          "docType": "security",
+          "title": "Security",
+          "description": "Security posture and audit-sensitive notes.",
+          "audience": ["developers", "agents", "operators"],
+          "canonicalFor": ["security-posture"],
+          "maturity": "active",
+          "requiredBy": ["deployable"],
+          "completion": "required"
+        },
+        {
+          "path": "internal/TESTING.md",
+          "docType": "testing",
+          "title": "Testing",
+          "description": "Validation commands and requirement coverage map.",
+          "audience": ["developers", "agents"],
+          "canonicalFor": ["testing"],
+          "maturity": "active",
+          "requiredBy": ["generated", "validated"],
+          "completion": "required"
+        },
+        {
+          "path": "internal/PERFORMANCE.md",
+          "docType": "performance",
+          "title": "Performance",
+          "description": "Performance targets and validation evidence.",
+          "audience": ["developers", "agents", "operators"],
+          "canonicalFor": ["performance"],
+          "maturity": "active",
+          "requiredBy": ["validated", "deployable"],
+          "completion": "conditional"
+        },
+        {
+          "path": "RESEARCH.md",
+          "docType": "research",
+          "title": "Research",
+          "description": "Research notes and references discovered during scenario work.",
+          "audience": ["developers", "agents"],
+          "canonicalFor": ["research-notes"],
+          "maturity": "active",
+          "requiredBy": ["validated"],
+          "completion": "conditional"
+        }
+      ]
+    }
+  ],
+  "navigation": {
+    "primary": ["getting-started", "concepts", "reference", "operations"],
+    "secondary": ["business", "internal"]
+  }
+}

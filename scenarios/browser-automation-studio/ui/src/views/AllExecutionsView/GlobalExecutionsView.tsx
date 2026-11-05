@@ -34,6 +34,11 @@ const formatDuration = (ms: number): string => {
 
 type StatusFilter = 'all' | ExecutionStatus;
 
+interface ExecutionListItemProps {
+  execution: GlobalExecutionItem;
+  onViewExecution: (executionId: string, workflowId: string) => void;
+}
+
 const StatusIcon: React.FC<{ status: ExecutionStatus; size?: number }> = ({ status, size = 16 }) => {
   switch (status) {
     case 'completed':
@@ -68,6 +73,42 @@ const StatusBadge: React.FC<{ status: ExecutionStatus }> = ({ status }) => {
     </span>
   );
 };
+
+const ExecutionListItem = React.memo(function ExecutionListItem({
+  execution,
+  onViewExecution,
+}: ExecutionListItemProps) {
+  return (
+    <div
+      onClick={() => onViewExecution(execution.id, execution.workflowId)}
+      className="group flex items-center gap-3 p-3 rounded-lg hover:bg-gray-700/50 cursor-pointer transition-colors border border-transparent hover:border-gray-600"
+    >
+      <div className="flex items-center justify-center w-10 h-10 bg-gray-700/50 rounded-lg transition-colors">
+        <StatusIcon status={execution.status} size={20} />
+      </div>
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2">
+          <span className="text-sm font-medium text-surface truncate">{execution.workflowName}</span>
+          <StatusBadge status={execution.status} />
+        </div>
+        <div className="text-xs text-gray-500 truncate">
+          {execution.projectName && <span>{execution.projectName} &middot; </span>}
+          <Clock className="inline w-3 h-3 mr-1" />
+          {formatRelativeTime(execution.startedAt)}
+          {execution.duration && (
+            <span> &middot; {formatDuration(execution.duration)}</span>
+          )}
+        </div>
+        {execution.error && (
+          <div className="text-xs text-red-400 truncate mt-1">{execution.error}</div>
+        )}
+      </div>
+      <svg className="w-4 h-4 text-gray-500 group-hover:text-gray-300 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+      </svg>
+    </div>
+  );
+});
 
 export const GlobalExecutionsView: React.FC<GlobalExecutionsViewProps> = ({
   onBack,
@@ -118,68 +159,30 @@ export const GlobalExecutionsView: React.FC<GlobalExecutionsViewProps> = ({
     return () => clearInterval(interval);
   }, [fetchAllExecutions, executions]);
 
-  // Filter executions
-  const filteredExecutions = useMemo(() => {
-    let result = executions;
+  const { filteredExecutions, stats } = useMemo(() => {
+    const term = searchTerm.trim().toLowerCase();
+    const filtered: GlobalExecutionItem[] = [];
+    const nextStats = { running: 0, completed: 0, failed: 0, total: executions.length };
 
-    // Filter by status
-    if (statusFilter !== 'all') {
-      result = result.filter((e) => e.status === statusFilter);
+    for (const execution of executions) {
+      if (execution.status === 'running' || execution.status === 'pending') nextStats.running += 1;
+      if (execution.status === 'completed') nextStats.completed += 1;
+      if (execution.status === 'failed') nextStats.failed += 1;
+
+      const matchesStatus = statusFilter === 'all' || execution.status === statusFilter;
+      const matchesSearch =
+        term.length === 0 ||
+        execution.workflowName.toLowerCase().includes(term) ||
+        execution.projectName?.toLowerCase().includes(term) ||
+        execution.id.toLowerCase().includes(term);
+
+      if (matchesStatus && matchesSearch) {
+        filtered.push(execution);
+      }
     }
 
-    // Filter by search term
-    if (searchTerm) {
-      const term = searchTerm.toLowerCase();
-      result = result.filter(
-        (e) =>
-          e.workflowName.toLowerCase().includes(term) ||
-          e.projectName?.toLowerCase().includes(term) ||
-          e.id.toLowerCase().includes(term)
-      );
-    }
-
-    return result;
+    return { filteredExecutions: filtered, stats: nextStats };
   }, [executions, statusFilter, searchTerm]);
-
-  // Stats
-  const stats = useMemo(() => {
-    const running = executions.filter((e) => e.status === 'running' || e.status === 'pending').length;
-    const completed = executions.filter((e) => e.status === 'completed').length;
-    const failed = executions.filter((e) => e.status === 'failed').length;
-    return { running, completed, failed, total: executions.length };
-  }, [executions]);
-
-  const renderExecutionItem = (execution: GlobalExecutionItem) => (
-    <div
-      key={execution.id}
-      onClick={() => onViewExecution(execution.id, execution.workflowId)}
-      className="group flex items-center gap-3 p-3 rounded-lg hover:bg-gray-700/50 cursor-pointer transition-colors border border-transparent hover:border-gray-600"
-    >
-      <div className="flex items-center justify-center w-10 h-10 bg-gray-700/50 rounded-lg transition-colors">
-        <StatusIcon status={execution.status} size={20} />
-      </div>
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2">
-          <span className="text-sm font-medium text-surface truncate">{execution.workflowName}</span>
-          <StatusBadge status={execution.status} />
-        </div>
-        <div className="text-xs text-gray-500 truncate">
-          {execution.projectName && <span>{execution.projectName} &middot; </span>}
-          <Clock className="inline w-3 h-3 mr-1" />
-          {formatRelativeTime(execution.startedAt)}
-          {execution.duration && (
-            <span> &middot; {formatDuration(execution.duration)}</span>
-          )}
-        </div>
-        {execution.error && (
-          <div className="text-xs text-red-400 truncate mt-1">{execution.error}</div>
-        )}
-      </div>
-      <svg className="w-4 h-4 text-gray-500 group-hover:text-gray-300 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-      </svg>
-    </div>
-  );
 
   return (
     <div className="flex-1 flex flex-col min-h-[100svh] overflow-hidden bg-flow-bg">
@@ -355,7 +358,13 @@ export const GlobalExecutionsView: React.FC<GlobalExecutionsViewProps> = ({
           </div>
         ) : (
           <div className="space-y-1">
-            {filteredExecutions.map((execution) => renderExecutionItem(execution))}
+            {filteredExecutions.map((execution) => (
+              <ExecutionListItem
+                key={execution.id}
+                execution={execution}
+                onViewExecution={onViewExecution}
+              />
+            ))}
           </div>
         )}
       </div>

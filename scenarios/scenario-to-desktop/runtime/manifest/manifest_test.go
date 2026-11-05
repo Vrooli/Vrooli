@@ -1,10 +1,101 @@
 package manifest
 
 import (
+	"encoding/json"
+	"errors"
 	"os"
 	"path/filepath"
+	"reflect"
+	"strings"
 	"testing"
+
+	"github.com/vrooli/repo-contract-go/repocontracttest"
 )
+
+func TestManifestValidateRejectsNonLoopbackIPCHost(t *testing.T) {
+	m := Manifest{
+		SchemaVersion: "desktop.v0.1",
+		Target:        "desktop",
+		App:           App{Name: "demo", Version: "1.0.0"},
+		IPC:           IPC{Host: "0.0.0.0", Port: 47710},
+		Services: []Service{{
+			ID: "api", Binaries: map[string]Binary{"linux-x64": {Path: "bin/api"}},
+			Health: HealthCheck{Type: "tcp"}, Readiness: ReadinessCheck{Type: "tcp"},
+		}},
+	}
+	var hostErr InvalidIPCHostError
+	if err := m.Validate("linux", "amd64"); !errors.As(err, &hostErr) || hostErr.Host != "0.0.0.0" {
+		t.Fatalf("Validate() error = %v, want InvalidIPCHostError for 0.0.0.0", err)
+	}
+}
+
+func TestValidateToolProfilesUsesFinitePathlessDeclarations(t *testing.T) {
+	valid := []ToolProfilePackage{{ToolID: "blender", ProfileID: "blender-5.2.2-linux-x64", OS: "linux", Architecture: "amd64", TreeSHA256: strings.Repeat("a", 64)}}
+	if err := ValidateToolProfiles(valid); err != nil {
+		t.Fatalf("valid renderer declaration rejected: %v", err)
+	}
+	tests := []struct {
+		name     string
+		profiles []ToolProfilePackage
+	}{
+		{"unknown selector", []ToolProfilePackage{{ToolID: "custom", ProfileID: "x", OS: "linux", Architecture: "amd64", TreeSHA256: strings.Repeat("a", 64)}}},
+		{"duplicate selector", append(valid, valid[0])},
+		{"bad digest", []ToolProfilePackage{{ToolID: "blender", ProfileID: "x", OS: "linux", Architecture: "amd64", TreeSHA256: "../../outside"}}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if err := ValidateToolProfiles(tt.profiles); err == nil {
+				t.Fatal("expected declaration rejection")
+			}
+		})
+	}
+}
+
+func TestManifestValidateAuthenticationModes(t *testing.T) {
+	base := func(profile *AuthenticationProfile) Manifest {
+		return Manifest{
+			SchemaVersion: "desktop.v0.1", Target: "desktop",
+			App: App{Name: "demo", Version: "1.0.0"}, IPC: IPC{Host: "127.0.0.1", Port: 47710},
+			Authentication: profile,
+			Services:       []Service{{ID: "api", Binaries: map[string]Binary{"linux-x64": {Path: "bin/api"}}, Health: HealthCheck{Type: "tcp"}, Readiness: ReadinessCheck{Type: "tcp"}}},
+		}
+	}
+	t.Run("personal local is provider free", func(t *testing.T) {
+		profile := &AuthenticationProfile{Version: 1, Mode: "personal_local", HumanSignIn: "disabled", Offline: true}
+		m := base(profile)
+		if err := m.Validate("linux", "amd64"); err != nil {
+			t.Fatalf("personal_local validation: %v", err)
+		}
+	})
+	t.Run("remote requires explicit provider endpoint", func(t *testing.T) {
+		profile := &AuthenticationProfile{Version: 1, Mode: "remote_vrooli", Provider: "scenario-authenticator", HumanSignIn: "required", Resource: "demo"}
+		m := base(profile)
+		if err := m.Validate("linux", "amd64"); err == nil || !strings.Contains(err.Error(), "endpoint") {
+			t.Fatalf("remote validation = %v", err)
+		}
+	})
+	t.Run("local multi user requires bundled provider service", func(t *testing.T) {
+		profile := &AuthenticationProfile{Version: 1, Mode: "local_multi_user", Provider: "scenario-authenticator", HumanSignIn: "required", Resource: "demo", RequiresAuthenticator: true, ProviderServiceID: "scenario-authenticator"}
+		m := base(profile)
+		if err := m.Validate("linux", "amd64"); err == nil || !strings.Contains(err.Error(), "not bundled") {
+			t.Fatalf("local_multi_user validation = %v", err)
+		}
+	})
+	t.Run("shared provider requires lease path", func(t *testing.T) {
+		profile := &AuthenticationProfile{Version: 1, Mode: "shared_provider", Provider: "landing-page-business-suite", ProviderEndpoint: "https://provider.example", HumanSignIn: "required", Resource: "demo"}
+		m := base(profile)
+		if err := m.Validate("linux", "amd64"); err == nil || !strings.Contains(err.Error(), "lease path") {
+			t.Fatalf("shared_provider validation = %v", err)
+		}
+	})
+	t.Run("remote rejects credentials in provider endpoint", func(t *testing.T) {
+		profile := &AuthenticationProfile{Version: 1, Mode: "remote_vrooli", Provider: "scenario-authenticator", ProviderEndpoint: "https://user:pass@provider.example", HumanSignIn: "required", Resource: "demo"}
+		m := base(profile)
+		if err := m.Validate("linux", "amd64"); err == nil || !strings.Contains(err.Error(), "no credentials") {
+			t.Fatalf("remote endpoint validation = %v", err)
+		}
+	})
+}
 
 // =============================================================================
 // LoadManifest Tests
@@ -133,6 +224,15 @@ func TestManifestValidateEnforcesStructureAndPlatforms(t *testing.T) {
 			t.Fatalf("Validate() error = %v, want http health port_name requirement", err)
 		}
 	})
+
+	t.Run("rejects duplicate service ids", func(t *testing.T) {
+		m := makeBaseManifest()
+		m.Services = append(m.Services, m.Services[0])
+		err := m.Validate("windows", "amd64")
+		if err == nil || !strings.Contains(err.Error(), `service id "api" is declared more than once`) {
+			t.Fatalf("Validate() error = %v, want duplicate service ID rejection", err)
+		}
+	})
 }
 
 func TestValidate_MissingSchemaVersion(t *testing.T) {
@@ -234,7 +334,22 @@ func TestValidate_MissingIPCHost(t *testing.T) {
 	}
 }
 
-func TestValidate_MissingIPCPort(t *testing.T) {
+func TestDeclaredModesDeduplicatesPrimaryProfile(t *testing.T) {
+	profile := &AuthenticationProfile{
+		Mode: "personal_local",
+		ModeProfiles: map[string]AuthenticationModeProfile{
+			"personal_local": {},
+			"remote_vrooli":  {},
+		},
+	}
+	got := profile.DeclaredModes()
+	want := []string{"personal_local", "remote_vrooli"}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("DeclaredModes() = %v, want %v", got, want)
+	}
+}
+
+func TestValidate_AllocatorAssignedIPCPort(t *testing.T) {
 	m := Manifest{
 		SchemaVersion: "desktop.v0.1",
 		Target:        "desktop",
@@ -248,9 +363,27 @@ func TestValidate_MissingIPCPort(t *testing.T) {
 		}},
 	}
 
-	err := m.Validate("linux", "amd64")
-	if err == nil {
-		t.Fatal("Validate() expected error for missing ipc.port")
+	if err := m.Validate("linux", "amd64"); err != nil {
+		t.Fatalf("Validate() should accept allocator input port 0: %v", err)
+	}
+}
+
+func TestValidate_DiscoverPeerUsesCallTimeLookupWithoutBindings(t *testing.T) {
+	m := Manifest{
+		SchemaVersion: "desktop.v0.1",
+		Target:        "desktop",
+		App:           App{Name: "demo", Version: "1.0.0"},
+		IPC:           IPC{Host: "127.0.0.1"},
+		Peers:         []Peer{{Scenario: "authority", BundlePolicy: "discover"}},
+		Services: []Service{{
+			ID:        "api",
+			Binaries:  map[string]Binary{"linux-x64": {Path: "bin/api"}},
+			Health:    HealthCheck{Type: "tcp"},
+			Readiness: ReadinessCheck{Type: "port_open"},
+		}},
+	}
+	if err := m.Validate("linux", "amd64"); err != nil {
+		t.Fatalf("Validate() should accept call-time discovery without bindings: %v", err)
 	}
 }
 
@@ -404,7 +537,7 @@ func TestResolveBinary(t *testing.T) {
 	// This test is platform-dependent, so just verify it returns something
 	bin, found := m.ResolveBinary(svc)
 	if !found {
-		t.Skip("No binary for current platform, skipping")
+		repocontracttest.SkipPlatform(t, "No binary for current platform, skipping")
 	}
 	if bin.Path == "" {
 		t.Error("ResolveBinary() returned empty path")
@@ -553,5 +686,114 @@ func TestResolvePath_MixedSeparators(t *testing.T) {
 
 	if got != want {
 		t.Errorf("ResolvePath() = %q, want %q", got, want)
+	}
+}
+
+func TestManifestParsesProgramBindingPeersWithoutStaticBindings(t *testing.T) {
+	var parsed Manifest
+	if err := json.Unmarshal([]byte(`{"schema_version":"v0.1","target":"desktop","app":{"name":"demo","version":"1"},"ipc":{"mode":"loopback-http","host":"127.0.0.1","port":0,"auth_token_path":"token"},"telemetry":{"file":"events.jsonl"},"services":[],"program_binding_peers":[{"scenario":"vrooli-memory","bundle_policy":"discover"}]}`), &parsed); err != nil {
+		t.Fatal(err)
+	}
+	if len(parsed.ProgramBindingPeers) != 1 || parsed.ProgramBindingPeers[0].Scenario != "vrooli-memory" {
+		t.Fatalf("program binding peers = %#v", parsed.ProgramBindingPeers)
+	}
+	if len(parsed.Peers) != 0 {
+		t.Fatalf("ordinary peers changed = %#v", parsed.Peers)
+	}
+	data, err := json.Marshal(parsed)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(data), `"bindings"`) {
+		t.Fatalf("static peer bindings reappeared in manifest output: %s", data)
+	}
+}
+
+func TestVersionSatisfiesRangeUsesScenarioDependencyContract(t *testing.T) {
+	tests := []struct {
+		version, constraint string
+		want                bool
+	}{
+		{"1.4.2", ">=1.2.0 <2.0.0", true},
+		{"2.0.0", ">=1.2.0 <2.0.0", false},
+		{"1.2.0", "^1.2.0", true},
+		{"1.3.0", "~1.2.0", false},
+		{"1.2.3", "*", true},
+		{"1.2.3", ">=1.2, <2", true},
+		{"1.2.3", "1.2", false},
+		{"invalid", ">=1.0.0", false},
+		{"1.2.3", ">=1.2", true},
+		{"1.2.3", "", true},
+		{"1.2.3", "   ", true},
+		{"1.2.3", ",", false},
+		{"1.2.3", ",>=1.2", false},
+		{"1.2.3", ">=1.2,", false},
+		{"1.2.3", ">=1.2,,<2", false},
+		{"1.2.3", ", ,", false},
+	}
+	for _, tc := range tests {
+		if got := VersionSatisfiesRange(tc.version, tc.constraint); got != tc.want {
+			t.Errorf("VersionSatisfiesRange(%q, %q) = %t, want %t", tc.version, tc.constraint, got, tc.want)
+		}
+	}
+}
+
+func TestFeatureExportsRequireExplicitRootOwnerService(t *testing.T) {
+	valid := Service{ID: "api", Health: HealthCheck{Type: "http"}, Readiness: ReadinessCheck{Type: "port"}, Ports: &ServicePorts{Requested: []PortRequest{{Name: "api"}}}}
+	for _, tc := range []struct {
+		name     string
+		feature  FeatureExport
+		services []Service
+		want     bool
+	}{
+		{"explicit root", FeatureExport{OwnerVersion: "0.0.1", Service: "api", Port: "api"}, []Service{valid}, true},
+		{"missing owner version", FeatureExport{Service: "api", Port: "api"}, []Service{valid}, false},
+		{"invalid owner version", FeatureExport{OwnerVersion: "broken", Service: "api", Port: "api"}, []Service{valid}, false},
+		{"unknown service", FeatureExport{OwnerVersion: "0.0.1", Service: "other", Port: "api"}, []Service{valid}, false},
+		{"unknown port", FeatureExport{OwnerVersion: "0.0.1", Service: "api", Port: "other"}, []Service{valid}, false},
+		{"duplicate service", FeatureExport{OwnerVersion: "0.0.1", Service: "api", Port: "api"}, []Service{valid, valid}, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			err := ValidateFeatureExports(map[string]FeatureExport{"usage.live": tc.feature}, tc.services)
+			if (err == nil) != tc.want {
+				t.Fatalf("valid=%v err=%v", tc.want, err)
+			}
+		})
+	}
+	for _, change := range []func(*Service){func(s *Service) { s.ComponentSlice = "usage" }, func(s *Service) { s.Health = HealthCheck{} }, func(s *Service) { s.Readiness = ReadinessCheck{} }, func(s *Service) { s.ID = "other--api" }} {
+		service := valid
+		change(&service)
+		if err := ValidateFeatureExports(map[string]FeatureExport{"usage.live": {OwnerVersion: "0.0.1", Service: service.ID, Port: "api"}}, []Service{service}); err == nil {
+			t.Fatalf("unqualified service accepted: %#v", service)
+		}
+	}
+}
+
+func TestEmbeddedPeerFeatureExportsRequireExactOwnerService(t *testing.T) {
+	service := Service{ID: "audio-tools--api", Health: HealthCheck{Type: "http"}, Readiness: ReadinessCheck{Type: "port"}, Ports: &ServicePorts{Requested: []PortRequest{{Name: "api"}}}}
+	for _, tc := range []struct {
+		name, policy, ownerVersion, serviceID string
+		component                             bool
+		want                                  bool
+	}{
+		{"embedded", "embed", "0.0.1", "audio-tools--api", false, true},
+		{"either embedded", "either", "0.0.1", "audio-tools--api", false, true},
+		{"discover has no local capabilities", "discover", "0.0.1", "audio-tools--api", false, false},
+		{"root service cannot impersonate owner", "embed", "0.0.1", "api", false, false},
+		{"other owner cannot impersonate owner", "embed", "0.0.1", "agent-manager--api", false, false},
+		{"component cannot impersonate full owner", "embed", "0.0.1", "audio-tools--api", true, false},
+		{"owner release required", "embed", "", "audio-tools--api", false, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			candidate := service
+			if tc.component {
+				candidate.ComponentSlice = "audio.processing"
+			}
+			peer := Peer{Scenario: "audio-tools", BundlePolicy: tc.policy, EmbeddedVersion: "9.9.9", Features: map[string]FeatureExport{"audio.processing": {OwnerVersion: tc.ownerVersion, Service: tc.serviceID, Port: "api"}}}
+			err := ValidatePeerFeatureExports([]Peer{peer}, []Service{candidate})
+			if (err == nil) != tc.want {
+				t.Fatalf("valid=%t err=%v", tc.want, err)
+			}
+		})
 	}
 }

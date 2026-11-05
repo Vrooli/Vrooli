@@ -50,34 +50,3 @@ func (s *ScenarioIndex) AddToHistory(pipelineID string) {
 		s.History = s.History[:maxSize]
 	}
 }
-
-// ActivePipelineResponse is the HTTP response for getting the active pipeline.
-type ActivePipelineResponse struct {
-	Pipeline *Status `json:"pipeline"`
-	Created  bool    `json:"created"`
-}
-
-// CreatePipelineResponse is the HTTP response for creating a new pipeline.
-type CreatePipelineResponse struct {
-	Pipeline   *Status `json:"pipeline"`
-	ArchivedID string  `json:"archived_id,omitempty"`
-}
-
-// ResetPipelineResponse is the HTTP response for resetting the active pipeline.
-type ResetPipelineResponse struct {
-	ArchivedID string `json:"archived_id,omitempty"`
-	Cleared    bool   `json:"cleared"`
-}
-
-// PipelineHistoryResponse is the HTTP response for getting pipeline history.
-type PipelineHistoryResponse struct {
-	Pipelines []*Status `json:"pipelines"`
-	Total     int       `json:"total"`
-}
-
-// StartActivePipelineResponse is the HTTP response for starting the active pipeline.
-type StartActivePipelineResponse struct {
-	Pipeline  *Status `json:"pipeline"`
-	StatusURL string  `json:"status_url"`
-	Message   string  `json:"message,omitempty"`
-}

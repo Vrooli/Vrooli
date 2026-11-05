@@ -6,9 +6,11 @@ import (
 
 // FakePlatform implements Platform for testing.
 type FakePlatform struct {
-	SSHDirPath  string
-	HomeDirPath string
-	Err         error
+	SSHDirPath   string
+	HomeDirPath  string
+	SSHKeygenBin string
+	SSHBin       string
+	Err          error
 }
 
 func (p *FakePlatform) GetSSHDir() (string, error) {
@@ -26,10 +28,16 @@ func (p *FakePlatform) GetHomeDir() (string, error) {
 }
 
 func (p *FakePlatform) SSHKeygenPath() string {
+	if p.SSHKeygenBin != "" {
+		return p.SSHKeygenBin
+	}
 	return "ssh-keygen"
 }
 
 func (p *FakePlatform) SSHPath() string {
+	if p.SSHBin != "" {
+		return p.SSHBin
+	}
 	return "ssh"
 }
 

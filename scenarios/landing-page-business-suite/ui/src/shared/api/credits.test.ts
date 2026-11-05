@@ -1,4 +1,9 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
+
+const administrationClient = vi.hoisted(() => ({
+  listAPIKeys: vi.fn(), createAPIKey: vi.fn(), deleteAPIKey: vi.fn(), testAPIKey: vi.fn(), setAPIKeyActive: vi.fn(),
+}));
+vi.mock('@connectrpc/connect', () => ({ createClient: vi.fn(() => administrationClient) }));
 import {
   listAPIKeys,
   createAPIKey,
@@ -22,7 +27,6 @@ import {
   type TierLimit,
   type UsageSummary,
 } from './credits';
-import { ApiError } from './common';
 import { createFetchMock, mockResponses, installFetchMock, getFetchCall, parseJsonBody } from '../test-utils/api-mocks';
 
 describe('credits API', () => {
@@ -51,7 +55,7 @@ describe('credits API', () => {
             updated_at: '2024-01-01T00:00:00Z',
           },
         ];
-        fetchMock.mockResolvedValue(mockResponses.success({ keys }));
+        administrationClient.listAPIKeys.mockResolvedValue({ keys: [{ id: '1', provider: 'anthropic', keyHint: 'sk-ant-...abc', isActive: true, createdAt: '2024-01-01T00:00:00Z', updatedAt: '2024-01-01T00:00:00Z' }] });
 
         const result = await listAPIKeys();
 
@@ -60,7 +64,7 @@ describe('credits API', () => {
       });
 
       it('returns empty array when no keys', async () => {
-        fetchMock.mockResolvedValue(mockResponses.success({ keys: [] }));
+        administrationClient.listAPIKeys.mockResolvedValue({ keys: [] });
 
         const result = await listAPIKeys();
 
@@ -69,7 +73,7 @@ describe('credits API', () => {
     });
 
     describe('createAPIKey', () => {
-      it('sends POST request with provider and key', async () => {
+      it('sends the generated request with provider and key', async () => {
         const newKey: APIKey = {
           id: '2',
           provider: 'openai',
@@ -78,16 +82,11 @@ describe('credits API', () => {
           created_at: '2024-01-01T00:00:00Z',
           updated_at: '2024-01-01T00:00:00Z',
         };
-        fetchMock.mockResolvedValue(mockResponses.success(newKey));
+        administrationClient.createAPIKey.mockResolvedValue({ key: { id: '2', provider: 'openai', keyHint: 'sk-...xyz', isActive: true, createdAt: '2024-01-01T00:00:00Z', updatedAt: '2024-01-01T00:00:00Z' } });
 
         await createAPIKey({ provider: 'openai', key: 'sk-full-key-value' });
 
-        const [, options] = getFetchCall(fetchMock);
-        expect(options.method).toBe('POST');
-        expect(parseJsonBody(options.body)).toEqual({
-          provider: 'openai',
-          key: 'sk-full-key-value',
-        });
+        expect(administrationClient.createAPIKey).toHaveBeenCalledWith({ provider: 'openai', key: 'sk-full-key-value' });
       });
 
       it('returns created key', async () => {
@@ -99,7 +98,7 @@ describe('credits API', () => {
           created_at: '2024-01-01T00:00:00Z',
           updated_at: '2024-01-01T00:00:00Z',
         };
-        fetchMock.mockResolvedValue(mockResponses.success(newKey));
+        administrationClient.createAPIKey.mockResolvedValue({ key: { id: '2', provider: 'openai', keyHint: 'sk-...xyz', isActive: true, createdAt: '2024-01-01T00:00:00Z', updatedAt: '2024-01-01T00:00:00Z' } });
 
         const result = await createAPIKey({ provider: 'openai', key: 'sk-full-key' });
 
@@ -109,47 +108,41 @@ describe('credits API', () => {
     });
 
     describe('deleteAPIKey', () => {
-      it('sends DELETE request with provider in query string', async () => {
-        fetchMock.mockResolvedValue(mockResponses.empty());
+      it('sends the generated delete request', async () => {
+        administrationClient.deleteAPIKey.mockResolvedValue({});
 
         await deleteAPIKey('anthropic');
 
-        const [url, options] = getFetchCall(fetchMock);
-        expect(options.method).toBe('DELETE');
-        expect(url).toContain('provider=anthropic');
+        expect(administrationClient.deleteAPIKey).toHaveBeenCalledWith({ provider: 'anthropic' });
       });
 
-      it('URL encodes provider', async () => {
-        fetchMock.mockResolvedValue(mockResponses.empty());
+      it('preserves provider exactly in the typed request', async () => {
+        administrationClient.deleteAPIKey.mockResolvedValue({});
 
         await deleteAPIKey('provider/with/special+chars');
 
-        const [url] = getFetchCall(fetchMock);
-        expect(url).toContain(encodeURIComponent('provider/with/special+chars'));
+        expect(administrationClient.deleteAPIKey).toHaveBeenCalledWith({ provider: 'provider/with/special+chars' });
       });
 
-      it('throws ApiError on failure', async () => {
-        fetchMock.mockResolvedValue(mockResponses.notFound('API key not found'));
+      it('propagates generated client errors', async () => {
+        administrationClient.deleteAPIKey.mockRejectedValue(new Error('API key not found'));
 
-        await expect(deleteAPIKey('nonexistent')).rejects.toBeInstanceOf(ApiError);
+        await expect(deleteAPIKey('nonexistent')).rejects.toThrow('API key not found');
       });
     });
 
     describe('testAPIKey', () => {
-      it('sends POST request to test endpoint', async () => {
+      it('sends the generated test request', async () => {
         const result = {
           success: true,
           message: 'API key is valid',
           provider: 'anthropic',
         };
-        fetchMock.mockResolvedValue(mockResponses.success(result));
+        administrationClient.testAPIKey.mockResolvedValue(result);
 
         await testAPIKey('anthropic');
 
-        const [url, options] = getFetchCall(fetchMock);
-        expect(options.method).toBe('POST');
-        expect(url).toContain('/api/v1/admin/api-keys/test');
-        expect(url).toContain('provider=anthropic');
+        expect(administrationClient.testAPIKey).toHaveBeenCalledWith({ provider: 'anthropic' });
       });
 
       it('returns test result', async () => {
@@ -158,7 +151,7 @@ describe('credits API', () => {
           message: 'API key is valid',
           provider: 'anthropic',
         };
-        fetchMock.mockResolvedValue(mockResponses.success(testResult));
+        administrationClient.testAPIKey.mockResolvedValue(testResult);
 
         const result = await testAPIKey('anthropic');
 
@@ -172,7 +165,7 @@ describe('credits API', () => {
           message: 'Invalid API key',
           provider: 'anthropic',
         };
-        fetchMock.mockResolvedValue(mockResponses.success(testResult));
+        administrationClient.testAPIKey.mockResolvedValue(testResult);
 
         const result = await testAPIKey('anthropic');
 
@@ -181,17 +174,12 @@ describe('credits API', () => {
     });
 
     describe('toggleAPIKey', () => {
-      it('sends POST request with provider and active state', async () => {
-        fetchMock.mockResolvedValue(mockResponses.empty());
+      it('sends the generated active-state request', async () => {
+        administrationClient.setAPIKeyActive.mockResolvedValue({});
 
         await toggleAPIKey('anthropic', false);
 
-        const [, options] = getFetchCall(fetchMock);
-        expect(options.method).toBe('POST');
-        expect(parseJsonBody(options.body)).toEqual({
-          provider: 'anthropic',
-          active: false,
-        });
+        expect(administrationClient.setAPIKeyActive).toHaveBeenCalledWith({ provider: 'anthropic', active: false });
       });
     });
   });

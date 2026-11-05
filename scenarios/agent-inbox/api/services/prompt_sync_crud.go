@@ -4,11 +4,12 @@
 package services
 
 import (
-	"encoding/json"
+	"context"
 	"fmt"
-	"io"
 	"log"
-	"net/http"
+
+	"connectrpc.com/connect"
+	skillsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/prompt-manager/v1/skills"
 )
 
 // CreateSkill creates a new skill via prompt-manager.
@@ -73,24 +74,17 @@ func (s *PromptSyncService) CreateSkillInPromptManager(req *CreateSkillRequest) 
 		return nil, err
 	}
 
-	body, err := json.Marshal(buildCreatePayload(req))
-	if err != nil {
-		return nil, fmt.Errorf("failed to marshal request: %w", err)
-	}
-
-	resp, err := s.doHTTPWithRetry("POST", "/api/v1/skills", body)
+	client, err := s.promptManagerSkillsClient()
 	if err != nil {
 		return nil, fmt.Errorf("failed to create skill in prompt-manager: %w", err)
 	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
-		respBody, _ := io.ReadAll(resp.Body)
-		return nil, fmt.Errorf("prompt-manager returned status %d: %s", resp.StatusCode, string(respBody))
+	rpcReq := &skillsv1.CreateSkillRequest{Id: req.ID, Name: req.Name, Description: req.Description, Content: req.Content, Modes: req.Modes, Tags: req.Tags, Icon: req.Icon, Draft: req.Draft, Folder: req.Folder}
+	resp, err := client.CreateSkill(context.Background(), connect.NewRequest(rpcReq))
+	if err != nil {
+		return nil, fmt.Errorf("failed to create skill in prompt-manager: %w", err)
 	}
-
 	var pmResp PromptResponse
-	if err := json.NewDecoder(resp.Body).Decode(&pmResp); err != nil {
+	if err := convertPromptManagerProto(resp.Msg.GetSkill(), &pmResp); err != nil {
 		return nil, fmt.Errorf("failed to decode response: %w", err)
 	}
 
@@ -141,25 +135,17 @@ func (s *PromptSyncService) UpdateSkillInPromptManager(id string, updates *Skill
 		return nil, err
 	}
 
-	body, err := json.Marshal(buildUpdatePayload(updates))
-	if err != nil {
-		return nil, fmt.Errorf("failed to marshal request: %w", err)
-	}
-
-	path := fmt.Sprintf("/api/v1/skills/%s", id)
-	resp, err := s.doHTTPWithRetry(http.MethodPut, path, body)
+	client, err := s.promptManagerSkillsClient()
 	if err != nil {
 		return nil, fmt.Errorf("failed to update skill in prompt-manager: %w", err)
 	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		respBody, _ := io.ReadAll(resp.Body)
-		return nil, fmt.Errorf("prompt-manager returned status %d: %s", resp.StatusCode, string(respBody))
+	rpcReq := &skillsv1.UpdateSkillRequest{Id: id, Name: optionalString(updates.Name), Description: optionalString(updates.Description), Content: optionalString(updates.Content), Icon: optionalString(updates.Icon), Modes: updates.Modes, ReplaceModes: updates.Modes != nil, Tags: updates.Tags, ReplaceTags: updates.Tags != nil, Draft: &updates.Draft}
+	resp, err := client.UpdateSkill(context.Background(), connect.NewRequest(rpcReq))
+	if err != nil {
+		return nil, fmt.Errorf("failed to update skill in prompt-manager: %w", err)
 	}
-
 	var pmResp PromptResponse
-	if err := json.NewDecoder(resp.Body).Decode(&pmResp); err != nil {
+	if err := convertPromptManagerProto(resp.Msg.GetSkill(), &pmResp); err != nil {
 		return nil, fmt.Errorf("failed to decode response: %w", err)
 	}
 
@@ -208,16 +194,12 @@ func (s *PromptSyncService) DeleteSkillInPromptManager(id string) error {
 		return err
 	}
 
-	path := fmt.Sprintf("/api/v1/skills/%s", id)
-	resp, err := s.doHTTPWithRetry(http.MethodDelete, path, nil)
+	client, err := s.promptManagerSkillsClient()
 	if err != nil {
 		return fmt.Errorf("failed to delete skill from prompt-manager: %w", err)
 	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusNoContent {
-		respBody, _ := io.ReadAll(resp.Body)
-		return fmt.Errorf("prompt-manager returned status %d: %s", resp.StatusCode, string(respBody))
+	if _, err := client.DeleteSkill(context.Background(), connect.NewRequest(&skillsv1.DeleteSkillRequest{Id: id})); err != nil {
+		return fmt.Errorf("failed to delete skill from prompt-manager: %w", err)
 	}
 
 	if err := s.Sync(); err != nil {
@@ -233,16 +215,17 @@ func (s *PromptSyncService) RecordUsage(id string) error {
 		return nil
 	}
 
-	path := fmt.Sprintf("/api/v1/skills/%s/use", id)
-	resp, err := s.doHTTPWithRetry("POST", path, nil)
+	client, err := s.promptManagerSkillsClient()
 	if err != nil {
 		return fmt.Errorf("failed to record usage: %w", err)
 	}
-	defer resp.Body.Close()
+	_, err = client.RecordSkillUsage(context.Background(), connect.NewRequest(&skillsv1.RecordSkillUsageRequest{Id: id}))
+	return err
+}
 
-	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("failed to record usage: status %d", resp.StatusCode)
+func optionalString(value string) *string {
+	if value == "" {
+		return nil
 	}
-
-	return nil
+	return &value
 }

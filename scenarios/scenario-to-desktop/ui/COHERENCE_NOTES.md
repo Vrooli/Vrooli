@@ -2,7 +2,7 @@
 
 ## Summary
 
-The scenario-to-desktop UI codebase demonstrates **strong architectural coherence**. It follows established React patterns from the react-stability skill and shows mature state management practices. The codebase is well-organized with clear separation of concerns.
+The scenario-to-desktop UI codebase demonstrates **strong architectural coherence**. It follows established React patterns from the ui-health skill and shows mature state management practices. The codebase is well-organized with clear separation of concerns.
 
 ## State Management
 
@@ -38,7 +38,7 @@ No Context found - state management is properly centralized in Zustand stores.
 
 ## Architecture Alignment
 
-The codebase follows the **react-stability** architecture pattern:
+The codebase follows the **ui-health** architecture pattern:
 
 ```
 src/

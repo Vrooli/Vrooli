@@ -1,0 +1,66 @@
+{
+  "metadata": {
+    "description": "Generated observer smoke for active experience page focus.",
+    "execution_mode": "observer",
+    "labels": {
+      "reset": "none",
+      "spec_entry_id": "focus",
+      "surface": "experience-focus"
+    },
+    "name": "experience-focus-spec-smoke",
+    "requirement": "OT-P0-004",
+    "version": "1"
+  },
+  "nodes": [
+    {
+      "action": {
+        "metadata": {
+          "label": "Open Focus"
+        },
+        "navigate": {
+          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+          "scenario": "infrastructure-manager",
+          "scenario_path": "/focus",
+          "timeout_ms": 30000,
+          "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE"
+        },
+        "type": "ACTION_TYPE_NAVIGATE"
+      },
+      "id": "navigate-focus"
+    },
+    {
+      "action": {
+        "metadata": {
+          "label": "Primary binding visible"
+        },
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "[data-testid=\"focus-efficacy\"]",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 15000
+        }
+      },
+      "id": "wait-focus-primary-binding"
+    },
+    {
+      "id": "wait-focus-rationale",
+      "action": { "metadata": { "label": "Focus ranking rationale" }, "type": "ACTION_TYPE_WAIT", "wait": { "selector": "[data-testid=\"focus-rationale\"]", "state": "WAIT_STATE_VISIBLE", "timeout_ms": 15000 } }
+    },
+    {
+      "id": "wait-focus-ranked-lifecycle",
+      "action": { "metadata": { "label": "Focus ranked surface lifecycle" }, "type": "ACTION_TYPE_WAIT", "wait": { "selector": "[data-testid=\"focus-surface\"][data-experience-state=\"loading\"], [data-testid=\"focus-surface\"][data-experience-state=\"ready\"], [data-testid=\"focus-surface\"][data-experience-state=\"empty\"]", "state": "WAIT_STATE_VISIBLE", "timeout_ms": 15000 } }
+    },
+    {
+      "id": "wait-focus-sources-lifecycle",
+      "action": { "metadata": { "label": "Focus source health lifecycle" }, "type": "ACTION_TYPE_WAIT", "wait": { "selector": "[data-testid=\"focus-sources\"][data-experience-state=\"loading\"], [data-testid=\"focus-sources\"][data-experience-state=\"ready\"], [data-testid=\"focus-sources\"][data-experience-state=\"empty\"]", "state": "WAIT_STATE_VISIBLE", "timeout_ms": 15000 } }
+    },
+    {
+      "id": "wait-focus-efficacy-lifecycle",
+      "action": { "metadata": { "label": "Focus efficacy lifecycle" }, "type": "ACTION_TYPE_WAIT", "wait": { "selector": "[data-testid=\"focus-efficacy\"][data-experience-state=\"loading\"], [data-testid=\"focus-efficacy\"][data-experience-state=\"empty\"]", "state": "WAIT_STATE_VISIBLE", "timeout_ms": 15000 } }
+    }
+  ],
+  "settings": {
+    "viewport_height": 800,
+    "viewport_width": 1280
+  }
+}

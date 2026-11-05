@@ -7,7 +7,6 @@ import (
 	"path/filepath"
 	"testing"
 
-	"knowledge-observatory/internal/docschema"
 	"knowledge-observatory/internal/services/dochealth"
 )
 
@@ -119,7 +118,7 @@ func TestAutoFix_HappyPath(t *testing.T) {
 	if len(result.Moved) == 0 {
 		t.Fatal("expected at least one moved file")
 	}
-	if result.Moved[0].DocType != string(docschema.DocTypeArchitecture) {
+	if result.Moved[0].DocType != "architecture" {
 		t.Errorf("expected architecture doc type, got %s", result.Moved[0].DocType)
 	}
 	if len(result.Skipped) != 0 {

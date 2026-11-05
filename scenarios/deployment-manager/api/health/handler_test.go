@@ -40,10 +40,8 @@ func TestHealth_Returns200_WhenDBIsHealthy(t *testing.T) {
 	}
 	defer db.Close()
 
-	// The health checker calls db.PingContext, then SELECT current_database().
+	// The standardized health checker probes database liveness with PingContext.
 	mock.ExpectPing()
-	mock.ExpectQuery("SELECT current_database").
-		WillReturnRows(sqlmock.NewRows([]string{"current_database"}).AddRow("testdb"))
 
 	h := NewHandler(db)
 
@@ -69,8 +67,6 @@ func TestHealth_ContentType_IsJSON(t *testing.T) {
 	defer db.Close()
 
 	mock.ExpectPing()
-	mock.ExpectQuery("SELECT current_database").
-		WillReturnRows(sqlmock.NewRows([]string{"current_database"}).AddRow("testdb"))
 
 	h := NewHandler(db)
 
@@ -93,8 +89,6 @@ func TestHealth_ResponseBody_ContainsExpectedFields(t *testing.T) {
 	defer db.Close()
 
 	mock.ExpectPing()
-	mock.ExpectQuery("SELECT current_database").
-		WillReturnRows(sqlmock.NewRows([]string{"current_database"}).AddRow("testdb"))
 
 	h := NewHandler(db)
 
@@ -140,8 +134,6 @@ func TestHealth_ResponseBody_ContainsDependencies(t *testing.T) {
 	defer db.Close()
 
 	mock.ExpectPing()
-	mock.ExpectQuery("SELECT current_database").
-		WillReturnRows(sqlmock.NewRows([]string{"current_database"}).AddRow("testdb"))
 
 	h := NewHandler(db)
 
@@ -178,8 +170,6 @@ func TestHealth_ResponseBody_ContainsMetrics(t *testing.T) {
 	defer db.Close()
 
 	mock.ExpectPing()
-	mock.ExpectQuery("SELECT current_database").
-		WillReturnRows(sqlmock.NewRows([]string{"current_database"}).AddRow("testdb"))
 
 	h := NewHandler(db)
 

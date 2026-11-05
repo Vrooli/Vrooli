@@ -1,0 +1,26 @@
+{
+  "kind": "action",
+  "schemaVersion": 1,
+  "id": "searxng.engine-health",
+  "name": "searxng-engine-health",
+  "description": "Probe SearXNG engine-level health: runs a canary query and reports responsive/unresponsive engines plus recorded error classes (healthy \u003e=2 engines, degraded =1, critical =0). The container /healthz stays 200 even when every engine is suspended — use this to diagnose 'searxng results look bad'.",
+  "status": "active",
+  "owner": {
+    "type": "resource",
+    "id": "searxng"
+  },
+  "command": {
+    "argv": [
+      "resource-searxng",
+      "engine-health",
+      "--json"
+    ]
+  },
+  "permissions": {},
+  "validation": {
+    "mode": "contract"
+  },
+  "revision": 1,
+  "createdAt": "2026-06-10T06:32:50Z",
+  "updatedAt": "2026-06-10T06:32:50Z"
+}

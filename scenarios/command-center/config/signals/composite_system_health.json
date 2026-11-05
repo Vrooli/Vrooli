@@ -1,0 +1,22 @@
+{
+  "id": "composite_system_health",
+  "label": "Healthy apps",
+  "description": "Running apps passing their health probe, fleet-wide.",
+  "unit": "count",
+  "format": "integer",
+  "shape": "scalar",
+  "source": {
+    "team": "director-swarm",
+    "binding": "scenario:vrooli-core",
+    "read": "/scenarios",
+    "select": "composite_system_health",
+    "ttlSeconds": 60,
+    "integrationId": "vrooli-core",
+    "featureId": "composite_system_health",
+    "contractVersion": "legacy.v1",
+    "selector": "composite_system_health",
+    "expectedUnit": "count",
+    "sourceTimePolicy": "producer_required"
+  },
+  "coverage": "NOW"
+}

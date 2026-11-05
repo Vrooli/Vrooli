@@ -1,0 +1,52 @@
+{
+  "captured_utc": "2026-10-19T22:40:34.281387+00:00",
+  "scope": "Pinned local evidence used for pre-implementation research, not a claim of scenario implementation.",
+  "files": [
+    {
+      "path": "v2/device-domain.md",
+      "sha256": "0d65d7323005f805201838464b8b791508c6bea8b1821c2313e28fbb2195d464",
+      "bytes": 52888,
+      "retained_snapshot": "device-domain-input.md"
+    },
+    {
+      "path": "v3/imported/manifest.json",
+      "sha256": "1c6f49d4bc46d5973f4f1fcb6fe43cf8e1560b5adb2a5c99d386427324f787b5",
+      "bytes": 11003
+    },
+    {
+      "path": "v3/imported-laptop/experiment.json",
+      "sha256": "c612a4c84a746437f0a363649edfe45d8de87a09f88400ffcc09f37acb55a70c",
+      "bytes": 2346
+    },
+    {
+      "path": "v4/experiment.json",
+      "sha256": "4e043ab6c9b97e46f50c3eefc1a58826fd7f8fd7bd1c4b753d7abb48a96b12ec",
+      "bytes": 1899
+    },
+    {
+      "path": "v5/experiment.json",
+      "sha256": "7e87679f2d3a36a272c5ce2e5b610c5a9853691e07fe8b00ee3bbaf0f2fc8759",
+      "bytes": 1940
+    },
+    {
+      "path": "v6/experiment.json",
+      "sha256": "f2a2de8ffc5279094c72769ea4d9f83c69a3759621ee6b5d6905919b53b175ff",
+      "bytes": 2360
+    },
+    {
+      "path": "v6/parent-review.json",
+      "sha256": "3944f5d2d4e8f5fd2c4984a867594903c3843fcb13e3b6e94a77ad505b5e5ee8",
+      "bytes": 2546
+    },
+    {
+      "path": "v6/laptop/video-validation.json",
+      "sha256": "393f2318d58b451ccc380346f6f8f00850a7c10460cf982f5789fc2810fb69eb",
+      "bytes": 4826
+    },
+    {
+      "path": "v6/phone/validation.json",
+      "sha256": "11250a6cbf4bb4ea90a7dfc3e34770cce09c21861dda0ca18f70003153e3004d",
+      "bytes": 1251
+    }
+  ]
+}

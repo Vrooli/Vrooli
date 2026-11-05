@@ -7,6 +7,8 @@ import (
 	"os/exec"
 	"strings"
 	"time"
+
+	"github.com/vrooli/envkit-go"
 )
 
 // OrchestratorManager handles profile activation and resource orchestration
@@ -54,15 +56,15 @@ func (om *OrchestratorManager) ActivateProfile(profileName string, options map[s
 			Error:       err.Error(),
 		}, err
 	}
-	
+
 	om.logger.Info(fmt.Sprintf("Starting activation of profile: %s", profileName))
-	
+
 	// Deactivate any existing active profile first
 	if err := om.DeactivateCurrentProfile(); err != nil {
 		om.logger.Error("Failed to deactivate current profile", err)
 		// Continue anyway - non-critical error
 	}
-	
+
 	result := &ActivationResult{
 		ProfileName:     profileName,
 		Success:         true,
@@ -70,7 +72,7 @@ func (om *OrchestratorManager) ActivateProfile(profileName string, options map[s
 		ScenariosStatus: make(map[string]interface{}),
 		BrowserActions:  []string{},
 	}
-	
+
 	// Start resources
 	if len(profile.Resources) > 0 {
 		om.logger.Info(fmt.Sprintf("Starting %d resources", len(profile.Resources)))
@@ -82,13 +84,13 @@ func (om *OrchestratorManager) ActivateProfile(profileName string, options map[s
 			}
 		}
 	}
-	
+
 	// Wait for resources to be ready
 	if result.Success {
 		om.logger.Info("Waiting for resources to be ready...")
 		time.Sleep(3 * time.Second) // Give resources time to start
 	}
-	
+
 	// Start scenarios
 	if len(profile.Scenarios) > 0 && result.Success {
 		om.logger.Info(fmt.Sprintf("Starting %d scenarios", len(profile.Scenarios)))
@@ -100,7 +102,7 @@ func (om *OrchestratorManager) ActivateProfile(profileName string, options map[s
 			}
 		}
 	}
-	
+
 	// Handle browser automation
 	if len(profile.AutoBrowser) > 0 && result.Success {
 		om.logger.Info(fmt.Sprintf("Opening %d browser tabs", len(profile.AutoBrowser)))
@@ -109,7 +111,7 @@ func (om *OrchestratorManager) ActivateProfile(profileName string, options map[s
 			result.BrowserActions = append(result.BrowserActions, action)
 		}
 	}
-	
+
 	// Set environment variables
 	if profile.EnvironmentVars != nil {
 		om.logger.Info("Setting environment variables")
@@ -117,7 +119,7 @@ func (om *OrchestratorManager) ActivateProfile(profileName string, options map[s
 			os.Setenv(key, value)
 		}
 	}
-	
+
 	// Mark profile as active if everything succeeded
 	if result.Success {
 		if err := om.profileManager.SetActiveProfile(profile.ID); err != nil {
@@ -132,7 +134,7 @@ func (om *OrchestratorManager) ActivateProfile(profileName string, options map[s
 		result.Error = "Some resources or scenarios failed to start"
 		result.Message = fmt.Sprintf("Profile '%s' activation completed with errors", profileName)
 	}
-	
+
 	return result, nil
 }
 
@@ -143,14 +145,14 @@ func (om *OrchestratorManager) DeactivateCurrentProfile() error {
 	if err != nil {
 		return fmt.Errorf("failed to get active profile: %w", err)
 	}
-	
+
 	if activeProfile == nil {
 		om.logger.Info("No active profile to deactivate")
 		return nil
 	}
-	
+
 	om.logger.Info(fmt.Sprintf("Deactivating profile: %s", activeProfile.Name))
-	
+
 	// Stop scenarios
 	if len(activeProfile.Scenarios) > 0 {
 		om.logger.Info(fmt.Sprintf("Stopping %d scenarios", len(activeProfile.Scenarios)))
@@ -158,7 +160,7 @@ func (om *OrchestratorManager) DeactivateCurrentProfile() error {
 			om.stopScenario(scenario)
 		}
 	}
-	
+
 	// Stop resources
 	if len(activeProfile.Resources) > 0 {
 		om.logger.Info(fmt.Sprintf("Stopping %d resources", len(activeProfile.Resources)))
@@ -166,12 +168,12 @@ func (om *OrchestratorManager) DeactivateCurrentProfile() error {
 			om.stopResource(resource)
 		}
 	}
-	
+
 	// Clear active profile
 	if err := om.profileManager.ClearActiveProfile(); err != nil {
 		return fmt.Errorf("failed to clear active profile: %w", err)
 	}
-	
+
 	om.logger.Info(fmt.Sprintf("Profile '%s' deactivated successfully", activeProfile.Name))
 	return nil
 }
@@ -183,7 +185,7 @@ func (om *OrchestratorManager) GetDeactivationResult() (*DeactivationResult, err
 		ResourcesStatus: make(map[string]interface{}),
 		ScenariosStatus: make(map[string]interface{}),
 	}
-	
+
 	if err := om.DeactivateCurrentProfile(); err != nil {
 		result.Success = false
 		result.Error = err.Error()
@@ -191,143 +193,130 @@ func (om *OrchestratorManager) GetDeactivationResult() (*DeactivationResult, err
 	} else {
 		result.Message = "Profile deactivated successfully"
 	}
-	
+
 	return result, nil
 }
 
 // startResource starts a specific resource
 func (om *OrchestratorManager) startResource(resourceName string) map[string]interface{} {
 	om.logger.Info(fmt.Sprintf("Starting resource: %s", resourceName))
-	
+
 	cmd := exec.Command("vrooli", "resource", resourceName, "start")
-	cmd.Env = append(os.Environ(), "VROOLI_ORCHESTRATOR_MODE=true")
-	
+	cmd.Env = envkit.WithOverlay(envkit.Env(os.Environ()), envkit.SameScenario, envkit.Env{"VROOLI_ORCHESTRATOR_MODE=true"})
+
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()
 	cmd = exec.CommandContext(ctx, cmd.Args[0], cmd.Args[1:]...)
-	
+
 	output, err := cmd.CombinedOutput()
-	
+
 	status := map[string]interface{}{
 		"resource": resourceName,
 		"output":   string(output),
 		"success":  err == nil,
 	}
-	
+
 	if err != nil {
 		status["error"] = err.Error()
 		om.logger.Error(fmt.Sprintf("Failed to start resource %s", resourceName), err)
 	} else {
 		om.logger.Info(fmt.Sprintf("Successfully started resource: %s", resourceName))
 	}
-	
+
 	return status
 }
 
 // stopResource stops a specific resource
 func (om *OrchestratorManager) stopResource(resourceName string) map[string]interface{} {
 	om.logger.Info(fmt.Sprintf("Stopping resource: %s", resourceName))
-	
+
 	cmd := exec.Command("vrooli", "resource", resourceName, "stop")
-	cmd.Env = append(os.Environ(), "VROOLI_ORCHESTRATOR_MODE=true")
-	
+	cmd.Env = envkit.WithOverlay(envkit.Env(os.Environ()), envkit.SameScenario, envkit.Env{"VROOLI_ORCHESTRATOR_MODE=true"})
+
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 	cmd = exec.CommandContext(ctx, cmd.Args[0], cmd.Args[1:]...)
-	
+
 	output, err := cmd.CombinedOutput()
-	
+
 	status := map[string]interface{}{
 		"resource": resourceName,
 		"output":   string(output),
 		"success":  err == nil,
 	}
-	
+
 	if err != nil {
 		status["error"] = err.Error()
 		om.logger.Error(fmt.Sprintf("Failed to stop resource %s", resourceName), err)
 	} else {
 		om.logger.Info(fmt.Sprintf("Successfully stopped resource: %s", resourceName))
 	}
-	
+
 	return status
 }
 
 // startScenario starts a specific scenario
 func (om *OrchestratorManager) startScenario(scenarioName string) map[string]interface{} {
 	om.logger.Info(fmt.Sprintf("Starting scenario: %s", scenarioName))
-	
+
 	cmd := exec.Command("vrooli", "scenario", "run", scenarioName)
-	cmd.Env = append(os.Environ(), "VROOLI_ORCHESTRATOR_MODE=true")
-	
+	cmd.Env = envkit.WithOverlay(envkit.Env(os.Environ()), envkit.SameScenario, envkit.Env{"VROOLI_ORCHESTRATOR_MODE=true"})
+
 	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
 	cmd = exec.CommandContext(ctx, cmd.Args[0], cmd.Args[1:]...)
-	
+
 	output, err := cmd.CombinedOutput()
-	
+
 	status := map[string]interface{}{
 		"scenario": scenarioName,
 		"output":   string(output),
 		"success":  err == nil,
 	}
-	
+
 	if err != nil {
 		status["error"] = err.Error()
 		om.logger.Error(fmt.Sprintf("Failed to start scenario %s", scenarioName), err)
 	} else {
 		om.logger.Info(fmt.Sprintf("Successfully started scenario: %s", scenarioName))
 	}
-	
+
 	return status
 }
 
 // stopScenario stops a specific scenario
 func (om *OrchestratorManager) stopScenario(scenarioName string) map[string]interface{} {
 	om.logger.Info(fmt.Sprintf("Stopping scenario: %s", scenarioName))
-	
+
 	cmd := exec.Command("vrooli", "scenario", "stop", scenarioName)
-	cmd.Env = append(os.Environ(), "VROOLI_ORCHESTRATOR_MODE=true")
-	
+	cmd.Env = envkit.WithOverlay(envkit.Env(os.Environ()), envkit.SameScenario, envkit.Env{"VROOLI_ORCHESTRATOR_MODE=true"})
+
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()
 	cmd = exec.CommandContext(ctx, cmd.Args[0], cmd.Args[1:]...)
-	
+
 	output, err := cmd.CombinedOutput()
-	
+
 	status := map[string]interface{}{
 		"scenario": scenarioName,
 		"output":   string(output),
 		"success":  err == nil,
 	}
-	
+
 	if err != nil {
 		status["error"] = err.Error()
 		om.logger.Error(fmt.Sprintf("Failed to stop scenario %s", scenarioName), err)
 	} else {
 		om.logger.Info(fmt.Sprintf("Successfully stopped scenario: %s", scenarioName))
 	}
-	
+
 	return status
 }
 
-// openBrowserTab opens a URL in browser using browserless if available
+// openBrowserTab surfaces a URL for the user to open in their browser.
 func (om *OrchestratorManager) openBrowserTab(url string) string {
 	om.logger.Info(fmt.Sprintf("Opening browser tab: %s", url))
-	
-	// Try browserless first
-	browserlessPort := getResourcePort("browserless")
-	if browserlessPort != "" {
-		browserlessURL := fmt.Sprintf("http://localhost:%s", browserlessPort)
-		
-		// Simple approach - just log the URL and instruction
-		// A full implementation would use browserless API to open the tab
-		action := fmt.Sprintf("Browser tab requested: %s (via browserless at %s)", url, browserlessURL)
-		om.logger.Info(action)
-		return action
-	}
-	
-	// Fallback - just provide the URL to user
+
 	action := fmt.Sprintf("Please open: %s", url)
 	om.logger.Info(action)
 	return action
@@ -336,21 +325,21 @@ func (om *OrchestratorManager) openBrowserTab(url string) string {
 // ValidateProfile validates that a profile's resources and scenarios exist
 func (om *OrchestratorManager) ValidateProfile(profile *Profile) []string {
 	var issues []string
-	
+
 	// Validate resources
 	for _, resource := range profile.Resources {
 		if !om.isResourceAvailable(resource) {
 			issues = append(issues, fmt.Sprintf("Resource '%s' is not available", resource))
 		}
 	}
-	
+
 	// Validate scenarios
 	for _, scenario := range profile.Scenarios {
 		if !om.isScenarioAvailable(scenario) {
 			issues = append(issues, fmt.Sprintf("Scenario '%s' is not available", scenario))
 		}
 	}
-	
+
 	return issues
 }
 
@@ -361,7 +350,7 @@ func (om *OrchestratorManager) isResourceAvailable(resourceName string) bool {
 	if err != nil {
 		return false
 	}
-	
+
 	return strings.Contains(string(output), resourceName)
 }
 
@@ -372,6 +361,6 @@ func (om *OrchestratorManager) isScenarioAvailable(scenarioName string) bool {
 	if err != nil {
 		return false
 	}
-	
+
 	return strings.Contains(string(output), scenarioName)
 }

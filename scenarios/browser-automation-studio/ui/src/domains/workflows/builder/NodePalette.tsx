@@ -1,6 +1,9 @@
 import {
   Fragment,
+  Profiler,
+  memo,
   useCallback,
+  useDeferredValue,
   useEffect,
   useMemo,
   useRef,
@@ -14,7 +17,9 @@ import {
   type WorkflowNodeDefinition,
 } from "@constants/nodeCategories";
 import { selectors } from "@constants/selectors";
-import { getNodeDocumentation, MarkdownRenderer } from "@/domains/docs";
+import { MarkdownRenderer } from "@/domains/docs/MarkdownRenderer";
+import { getNodeDocumentation } from "@/domains/docs/content/nodeDocumentation";
+import { onProfilerRender } from "@/lib/profiler";
 
 const FAVORITES_KEY = "bas.palette.favorites";
 const RECENTS_KEY = "bas.palette.recents";
@@ -95,7 +100,7 @@ interface NodeCardProps {
   searchTerm: string;
 }
 
-function NodeCard({
+const NodeCard = memo(function NodeCard({
   node,
   onDragStart,
   onToggleFavorite,
@@ -104,71 +109,83 @@ function NodeCard({
   searchTerm,
 }: NodeCardProps) {
   const Icon = node.icon;
+  const highlightedLabel = useMemo(
+    () => highlightText(node.label, searchTerm),
+    [node.label, searchTerm],
+  );
+  const highlightedDescription = useMemo(
+    () => highlightText(node.description, searchTerm),
+    [node.description, searchTerm],
+  );
 
   return (
-    <div
-      data-node-type={node.type}
-      draggable
-      onDragStart={(event) => onDragStart(event, node.type)}
-      className="relative bg-flow-bg border border-gray-700 rounded-lg p-3 cursor-move hover:border-flow-accent transition-colors group"
-      data-testid={selectors.nodePalette.card({ type: node.type })}
-    >
-      {/* Action buttons */}
-      <div className="absolute right-2 top-2 flex items-center gap-1">
-        <button
-          type="button"
-          aria-label={`View ${node.label} documentation`}
-          className="text-gray-500 hover:text-flow-accent opacity-0 group-hover:opacity-100 transition-opacity"
-          onClick={(event) => {
-            event.stopPropagation();
-            event.preventDefault();
-            onShowHelp(node.type);
-          }}
-          data-testid={selectors.nodePalette.helpButton({
-            type: node.type,
-          })}
-        >
-          <HelpCircle size={14} />
-        </button>
-        <button
-          type="button"
-          aria-label={`${isFavorite ? "Remove" : "Add"} ${node.label} ${isFavorite ? "from" : "to"} favorites`}
-          aria-pressed={isFavorite}
-          className="text-gray-500 hover:text-yellow-300"
-          onClick={(event) => {
-            event.stopPropagation();
-            event.preventDefault();
-            onToggleFavorite(node.type);
-          }}
-          data-testid={selectors.nodePalette.favoriteButton({
-            type: node.type,
-          })}
-        >
-          <Star
-            size={14}
-            className={isFavorite ? "text-yellow-300" : "text-gray-500"}
-            fill={isFavorite ? "currentColor" : "none"}
-          />
-        </button>
-      </div>
-      <div className="flex items-start gap-3">
-        <div
-          className={`mt-0.5 ${node.color} group-hover:scale-110 transition-transform`}
-        >
-          <Icon size={18} />
+    <Profiler id="NodeCard" onRender={onProfilerRender}>
+      <div
+        data-node-type={node.type}
+        draggable
+        onDragStart={(event) => onDragStart(event, node.type)}
+        className="relative bg-flow-bg border border-gray-700 rounded-lg p-3 cursor-move hover:border-flow-accent transition-colors group"
+        data-testid={selectors.nodePalette.card({ type: node.type })}
+      >
+        {/* Action buttons */}
+        <div className="absolute right-2 top-2 flex items-center gap-1">
+          <button
+            type="button"
+            aria-label={`View ${node.label} documentation`}
+            className="text-gray-500 hover:text-flow-accent opacity-0 group-hover:opacity-100 transition-opacity"
+            onClick={(event) => {
+              event.stopPropagation();
+              event.preventDefault();
+              onShowHelp(node.type);
+            }}
+            data-testid={selectors.nodePalette.helpButton({
+              type: node.type,
+            })}
+          >
+            <HelpCircle size={14} />
+          </button>
+          <button
+            type="button"
+            aria-label={`${isFavorite ? "Remove" : "Add"} ${node.label} ${isFavorite ? "from" : "to"} favorites`}
+            aria-pressed={isFavorite}
+            className="text-gray-500 hover:text-yellow-300"
+            onClick={(event) => {
+              event.stopPropagation();
+              event.preventDefault();
+              onToggleFavorite(node.type);
+            }}
+            data-testid={selectors.nodePalette.favoriteButton({
+              type: node.type,
+            })}
+          >
+            <Star
+              size={14}
+              className={isFavorite ? "text-yellow-300" : "text-gray-500"}
+              fill={isFavorite ? "currentColor" : "none"}
+            />
+          </button>
         </div>
-        <div className="flex-1 pr-10">
-          <div className="font-medium text-sm text-surface mb-0.5">
-            {highlightText(node.label, searchTerm)}
+        <div className="flex items-start gap-3">
+          <div
+            className={`mt-0.5 ${node.color} group-hover:scale-110 transition-transform`}
+          >
+            <Icon size={18} />
           </div>
-          <div className="text-xs text-gray-500">
-            {highlightText(node.description, searchTerm)}
+          <div className="flex-1 pr-10">
+            <div className="font-medium text-sm text-surface mb-0.5">
+              {highlightedLabel}
+            </div>
+            <div className="text-xs text-gray-500">
+              {highlightedDescription}
+            </div>
           </div>
         </div>
       </div>
-    </div>
+    </Profiler>
   );
-}
+});
+
+NodeCard.displayName = "NodeCard";
 
 /**
  * Node Help Panel - Shows documentation for a specific node type
@@ -240,7 +257,11 @@ function NodePalette() {
   const [helpNodeType, setHelpNodeType] = useState<string | null>(null);
   const searchInputRef = useRef<HTMLInputElement | null>(null);
 
-  const normalizedQuery = normalizeQuery(searchTerm);
+  const deferredSearchTerm = useDeferredValue(searchTerm);
+  const normalizedQuery = useMemo(
+    () => normalizeQuery(deferredSearchTerm),
+    [deferredSearchTerm],
+  );
 
   const showHelp = useCallback((nodeType: string) => {
     setHelpNodeType(nodeType);
@@ -343,7 +364,7 @@ function NodePalette() {
   // The Cmd+K shortcut is now handled globally in App.tsx
   // which will dispatch focus to this input when in workflow-builder context
 
-  const toggleFavorite = (nodeType: string) => {
+  const toggleFavorite = useCallback((nodeType: string) => {
     setFavorites((prev) => {
       const next = new Set(prev);
       if (next.has(nodeType)) {
@@ -359,29 +380,29 @@ function NodePalette() {
       next.add(nodeType);
       return next;
     });
-  };
+  }, []);
 
-  const recordRecent = (nodeType: string) => {
+  const recordRecent = useCallback((nodeType: string) => {
     setRecents((prev) => {
       const filtered = prev.filter((value) => value !== nodeType);
       filtered.unshift(nodeType);
       return filtered.slice(0, MAX_RECENTS);
     });
-  };
+  }, []);
 
-  const handleDragStart = (
-    event: React.DragEvent<HTMLDivElement>,
-    nodeType: string,
-  ) => {
-    event.dataTransfer.setData("nodeType", nodeType);
-    event.dataTransfer.effectAllowed = "move";
-    recordRecent(nodeType);
-    if (normalizedQuery) {
-      setSearchTerm("");
-    }
-  };
+  const handleDragStart = useCallback(
+    (event: React.DragEvent<HTMLDivElement>, nodeType: string) => {
+      event.dataTransfer.setData("nodeType", nodeType);
+      event.dataTransfer.effectAllowed = "move";
+      recordRecent(nodeType);
+      if (normalizedQuery) {
+        setSearchTerm("");
+      }
+    },
+    [normalizedQuery, recordRecent],
+  );
 
-  const toggleCategory = (categoryId: string) => {
+  const toggleCategory = useCallback((categoryId: string) => {
     setExpandedCategories((prev) => {
       const next = new Set(prev);
       if (next.has(categoryId)) {
@@ -391,7 +412,7 @@ function NodePalette() {
       }
       return next;
     });
-  };
+  }, []);
 
   const filteredCategories = useMemo<CategoryWithNodes[]>(() => {
     return NODE_CATEGORIES.map((category) => {
@@ -425,17 +446,21 @@ function NodePalette() {
     [recents, favorites],
   );
 
-  const totalVisibleNodes = filteredCategories.reduce(
-    (sum, category) => sum + category.resolvedNodes.length,
-    0,
+  const totalVisibleNodes = useMemo(
+    () => filteredCategories.reduce(
+      (sum, category) => sum + category.resolvedNodes.length,
+      0,
+    ),
+    [filteredCategories],
   );
   const showQuickAccess = favoriteNodes.length > 0 || recentNodes.length > 0;
 
   return (
-    <div
-      className="flex-1 overflow-y-auto p-3"
-      data-testid={selectors.nodePalette.container}
-    >
+    <Profiler id="NodePalette" onRender={onProfilerRender}>
+      <div
+        className="flex-1 overflow-y-auto p-3"
+        data-testid={selectors.nodePalette.container}
+      >
       <div className="mb-3">
         <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
           Node Library
@@ -456,7 +481,7 @@ function NodePalette() {
               }
             }}
             placeholder="Search nodes (Cmd/Ctrl + K)"
-          className="w-full bg-flow-bg border border-gray-700 rounded-lg py-2 pl-9 pr-3 text-sm text-surface placeholder:text-gray-500 focus:outline-none focus:border-flow-accent"
+            className="w-full bg-flow-bg border border-gray-700 rounded-lg py-2 pl-9 pr-3 text-sm text-surface placeholder:text-gray-500 focus:outline-none focus:border-flow-accent"
             data-testid={selectors.nodePalette.searchInput}
           />
         </div>
@@ -644,7 +669,8 @@ function NodePalette() {
           </div>
         </div>
       )}
-    </div>
+      </div>
+    </Profiler>
   );
 }
 

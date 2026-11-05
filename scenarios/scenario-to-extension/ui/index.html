@@ -370,15 +370,15 @@
 
     <!-- Scripts -->
     <!-- API Resolver must load first (provides proxy detection) -->
-    <script src="api-resolver.js"></script>
-
     <script type="importmap">
       {
         "imports": {
+          "@vrooli/api-base": "./node_modules/@vrooli/api-base/dist/client/resolve.js",
           "@vrooli/iframe-bridge/child": "./node_modules/@vrooli/iframe-bridge/dist/iframeBridgeChild.js"
         }
       }
     </script>
+    <script type="module" src="api-resolver.js"></script>
     <script type="module" src="bridge-init.js"></script>
     <script type="module" src="app.js"></script>
 </body>

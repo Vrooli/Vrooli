@@ -1,0 +1,5 @@
+command=GOMAXPROCS=2 GOFLAGS=-p=1 go test -json -count=1 ./handlers/componenttests
+started=2026-10-17T13:52:37Z
+ended=2026-10-17T13:52:39Z
+exit=1
+elapsed_ns=1244887563

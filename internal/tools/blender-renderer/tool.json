@@ -1,0 +1,30 @@
+{
+  "$schema": "../../../.vrooli/schemas/tool.schema.json",
+  "name": "blender-renderer",
+  "capability": "media-processing",
+  "capability_role": "peer",
+  "description": "Digest-pinned Blender renderer runtime for local physical-device scenes",
+  "commands": ["blender-renderer"],
+  "versionArgs": ["--version"],
+  "bundling": "host-required",
+  "acquisition": {
+    "kind": "url",
+    "license": "Blender GPL-3.0-or-later; bundled components have separate license notices; redistribution review pending",
+    "targets": [
+      {
+        "when": {"os": "linux", "arch": "amd64"},
+        "url": "https://download.blender.org/release/Blender5.2/blender-5.2.2-linux-x64.tar.xz",
+        "sha256": "84098912789dc450e95697c4184fb8a90acbe5111c2ba4aede3fecb57806a168",
+        "archive": "tar.xz",
+        "layout": "dir",
+        "bin_path": "blender-5.2.2-linux-x64/blender",
+        "mode": "0755"
+      }
+    ]
+  },
+  "platform_status": {
+    "linux": {"status": "experimental", "evidence": "E3 official Blender 5.2.2 archive inspection; installed profile and render workflow remain unqualified"},
+    "macos": {"status": "unqualified", "evidence": null},
+    "windows": {"status": "unqualified", "evidence": null}
+  }
+}

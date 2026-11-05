@@ -78,7 +78,7 @@ A comprehensive reference for terminology used throughout the Landing Page Busin
 | **Live Preview** | Real-time preview updates as admin edits content (debounced 300ms) |
 | **Seam** | Testability boundary in code where components can be isolated for testing |
 | **Styling.json** | Configuration file (`.vrooli/styling.json`) containing design tokens |
-| **Variant Space JSON** | Configuration file (`.vrooli/variant_space.json`) defining available axes |
+| **Variant Space JSON** | Configuration file (`config/variant_space.json`) defining available axes |
 
 ---
 
@@ -101,15 +101,15 @@ A comprehensive reference for terminology used throughout the Landing Page Busin
 
 | Term | Definition |
 |------|------------|
-| **branding.json** | Site branding configuration (`.vrooli/branding.json`) |
+| **branding.json** | Site branding configuration (`config/branding.json`) |
 | **endpoints.json** | API endpoint specifications (`.vrooli/endpoints.json`) |
 | **fallback.json** | Offline-safe landing payload (`.vrooli/fallback/fallback.json`) |
 | **lighthouse.json** | Performance targets configuration (`.vrooli/lighthouse.json`) |
 | **service.json** | Scenario lifecycle configuration (`.vrooli/service.json`) |
 | **style-packs/** | Design variation presets (`.vrooli/style-packs/`) |
 | **styling.json** | Design tokens and CSS theming (`.vrooli/styling.json`) |
-| **variant_space.json** | A/B testing axes configuration (`.vrooli/variant_space.json`) |
-| **variants/*.json** | Variant content snapshots (`.vrooli/variants/`) |
+| **variant_space.json** | A/B testing axes configuration (`config/variant_space.json`) |
+| **variants/*.json** | Variant content snapshots (`config/variants/`) |
 
 ---
 
@@ -118,4 +118,4 @@ A comprehensive reference for terminology used throughout the Landing Page Busin
 - [Core Concepts](CONCEPTS.md) - Detailed explanations with diagrams
 - [Architecture](ARCHITECTURE.md) - System design and component relationships
 - [Configuration Guide](../guides/CONFIGURATION_GUIDE.md) - All config file formats
-- [API Reference](../reference/api/README.md) - Endpoint documentation
+- [API Reference](../reference/api/OVERVIEW.md) - Endpoint documentation

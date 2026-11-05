@@ -18,7 +18,7 @@
 import { useMemo, useState } from 'react';
 import type { FrameStats } from '../hooks/useFrameStats';
 import { formatBytes, formatBandwidth } from '../hooks/useFrameStats';
-import type { FrameStatsAggregated, BottleneckType } from '../hooks/usePerfStats';
+import type { FrameStatsAggregated, BottleneckType } from '../frame-streaming/types';
 import { getBottleneckSeverity, formatMs } from '../hooks/usePerfStats';
 import { DEFAULT_STREAM_FPS } from '../constants';
 
@@ -58,6 +58,7 @@ function getBottleneckDisplay(bottleneck: BottleneckType): {
   const severity = getBottleneckSeverity(bottleneck);
 
   const labels: Record<BottleneckType, string> = {
+    processing: 'Processing',
     capture: 'Capture',
     encode: 'Encode',
     network: 'Network',
@@ -119,7 +120,7 @@ export function FrameStatsDisplay({
 
   // Memoize debug stats formatting
   const formattedDebugStats = useMemo(() => {
-    if (!debugStats) return null;
+    if (!debugStats || debugStats.frame_count === 0) return null;
 
     const bottleneckDisplay = getBottleneckDisplay(debugStats.primary_bottleneck);
 
@@ -309,10 +310,10 @@ export function FrameStatsDisplay({
                   </div>
                 </div>
 
-                {/* E2E latency */}
+                {/* Measured server processing; transit and client rendering are separate. */}
                 <div className="mt-2">
                   <div className="flex justify-between items-center text-xs text-gray-500 dark:text-gray-400 mb-1">
-                    <span>End-to-End Latency</span>
+                    <span title="Driver and API processing only; network transit and browser rendering are not measured.">Server Processing</span>
                   </div>
                   <div className="flex gap-2 text-xs">
                     <div className="flex-1 bg-gray-50 dark:bg-gray-900/50 rounded px-2 py-1">
@@ -338,7 +339,7 @@ export function FrameStatsDisplay({
 
                 {/* Skipped frames */}
                 <div className="flex justify-between items-center mt-2">
-                  <span className="text-xs text-gray-500 dark:text-gray-400">Frames Skipped</span>
+                  <span className="text-xs text-gray-500 dark:text-gray-400" title="Only received frames are available to these API diagnostics; driver-side skips are not measured.">Skipped in Sample</span>
                   <span className="text-xs tabular-nums text-gray-600 dark:text-gray-300">
                     {formattedDebugStats.skippedCount} ({formattedDebugStats.skippedPercent}%)
                   </span>

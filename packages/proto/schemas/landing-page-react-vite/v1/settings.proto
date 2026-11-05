@@ -96,6 +96,18 @@ message StripeSettings {
   optional string dashboard_url = 4;
   // When settings were last updated.
   google.protobuf.Timestamp updated_at = 5;
+  // Outbound webhook URL that receives payment anomaly alerts.
+  // SENSITIVE: Never expose to frontend or log; redacted in GET responses.
+  // @format url
+  string anomaly_webhook_url = 6;
+  // True when anomaly webhook dispatch is enabled.
+  bool anomaly_webhook_enabled = 7;
+  // Per-anomaly-type rate limit overrides, encoded as JSON object:
+  //   {"<anomaly_type>": {"burst": N, "refill_seconds": M}}
+  // Empty string falls back to built-in defaults (burst=5, refill=60s).
+  string anomaly_rate_limits = 8;
+  // True when anomaly_webhook_url is configured (redaction indicator).
+  bool anomaly_webhook_url_set = 9;
 }
 
 // =============================================================================
@@ -136,6 +148,15 @@ message UpdateStripeSettingsRequest {
   // Dashboard URL to set. If unset, current value is retained.
   // @format url
   optional string dashboard_url = 4;
+  // Anomaly webhook URL to set. If unset, current value is retained.
+  // @format url
+  optional string anomaly_webhook_url = 5;
+  // Enable or disable anomaly webhook dispatch. If unset, current value is retained.
+  optional bool anomaly_webhook_enabled = 6;
+  // Per-type rate limit overrides as JSON object:
+  //   {"<anomaly_type>": {"burst": N, "refill_seconds": M}}
+  // If unset, current value is retained.
+  optional string anomaly_rate_limits = 7;
 }
 
 // UpdateStripeSettingsResponse returns the resulting settings and snapshot.

@@ -44,7 +44,7 @@ export function useChatMutations({
       return createChat(params);
     },
     onSuccess: (newChat) => {
-      queryClient.invalidateQueries({ queryKey: ["chats"] });
+      void queryClient.invalidateQueries({ queryKey: ["chats"] });
       setSelectedChatId(newChat.id);
       onChatChange?.(newChat.id);
     },
@@ -53,7 +53,7 @@ export function useChatMutations({
   const deleteChatMutation = useMutation({
     mutationFn: deleteChat,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["chats"] });
+      void queryClient.invalidateQueries({ queryKey: ["chats"] });
       setSelectedChatId(null);
       onChatChange?.(null);
     },
@@ -62,8 +62,8 @@ export function useChatMutations({
   const deleteAllChatsMutation = useMutation({
     mutationFn: deleteAllChats,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["chats"] });
-      queryClient.invalidateQueries({ queryKey: ["chat"] });
+      void queryClient.invalidateQueries({ queryKey: ["chats"] });
+      void queryClient.invalidateQueries({ queryKey: ["chat"] });
       setSelectedChatId(null);
       onChatChange?.(null);
     },
@@ -73,23 +73,23 @@ export function useChatMutations({
     mutationFn: ({ chatId, data }: { chatId: string; data: { name?: string; model?: string } }) =>
       updateChat(chatId, data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["chat", selectedChatId] });
-      queryClient.invalidateQueries({ queryKey: ["chats"] });
+      void queryClient.invalidateQueries({ queryKey: ["chat", selectedChatId] });
+      void queryClient.invalidateQueries({ queryKey: ["chats"] });
     },
   });
 
   const toggleReadMutation = useMutation({
     mutationFn: ({ chatId, value }: { chatId: string; value?: boolean }) => toggleRead(chatId, value),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["chats"] });
-      queryClient.invalidateQueries({ queryKey: ["chat", selectedChatId] });
+      void queryClient.invalidateQueries({ queryKey: ["chats"] });
+      void queryClient.invalidateQueries({ queryKey: ["chat", selectedChatId] });
     },
   });
 
   const toggleArchiveMutation = useMutation({
     mutationFn: ({ chatId, value }: { chatId: string; value?: boolean }) => toggleArchive(chatId, value),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["chats"] });
+      void queryClient.invalidateQueries({ queryKey: ["chats"] });
       if (currentView === "inbox" || currentView === "archived") {
         setSelectedChatId(null);
         onChatChange?.(null);
@@ -100,15 +100,15 @@ export function useChatMutations({
   const toggleStarMutation = useMutation({
     mutationFn: ({ chatId, value }: { chatId: string; value?: boolean }) => toggleStar(chatId, value),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["chats"] });
+      void queryClient.invalidateQueries({ queryKey: ["chats"] });
     },
   });
 
   const autoNameChatMutation = useMutation({
     mutationFn: (chatId: string) => autoNameChat(chatId),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["chat", selectedChatId] });
-      queryClient.invalidateQueries({ queryKey: ["chats"] });
+      void queryClient.invalidateQueries({ queryKey: ["chat", selectedChatId] });
+      void queryClient.invalidateQueries({ queryKey: ["chats"] });
     },
   });
 
@@ -116,7 +116,7 @@ export function useChatMutations({
     mutationFn: ({ chatId, messageId }: { chatId: string; messageId: string }) =>
       apiSelectBranch(chatId, messageId),
     onSuccess: (_data, variables) => {
-      queryClient.invalidateQueries({ queryKey: ["chat", variables.chatId] });
+      void queryClient.invalidateQueries({ queryKey: ["chat", variables.chatId] });
     },
   });
 
@@ -131,8 +131,8 @@ export function useChatMutations({
       labelId?: string;
     }) => apiBulkOperateChats(chatIds, operation, labelId),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["chats"] });
-      queryClient.invalidateQueries({ queryKey: ["chat"] });
+      void queryClient.invalidateQueries({ queryKey: ["chats"] });
+      void queryClient.invalidateQueries({ queryKey: ["chat"] });
     },
   });
 
@@ -140,7 +140,7 @@ export function useChatMutations({
     mutationFn: ({ chatId, messageId }: { chatId: string; messageId: string }) =>
       apiForkChat(chatId, messageId),
     onSuccess: (newChat) => {
-      queryClient.invalidateQueries({ queryKey: ["chats"] });
+      void queryClient.invalidateQueries({ queryKey: ["chats"] });
       setSelectedChatId(newChat.id);
       onChatChange?.(newChat.id);
     },

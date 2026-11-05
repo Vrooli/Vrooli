@@ -38,24 +38,17 @@ func TestLinuxCollector_ParseSystemState_MeminfoPreferred(t *testing.T) {
 	}
 }
 
-func TestLinuxCollector_ParseSystemState_FreeFallbackUsesAvailable(t *testing.T) {
+func TestLinuxCollector_ParseSystemState_WithoutMeminfoLeavesMemoryEmpty(t *testing.T) {
 	t.Parallel()
 
 	c := linuxCollector{}
-	state := c.ParseSystemState(map[string]CommandResult{
-		"free": {
-			Stdout: "Mem:           3944        2048        1024         100         872        1700\nSwap:          2048         512        1536",
-		},
-	})
+	state := c.ParseSystemState(map[string]CommandResult{})
 
-	if state.Memory.TotalMB != 3944 {
-		t.Fatalf("total memory mismatch: got %d", state.Memory.TotalMB)
+	if state.Memory.TotalMB != 0 || state.Memory.TotalBytes != 0 {
+		t.Fatalf("expected empty memory when remote meminfo snapshot is absent, got %+v", state.Memory)
 	}
-	if state.Memory.FreeMB != 1700 {
-		t.Fatalf("expected FreeMB to use available column, got %d", state.Memory.FreeMB)
-	}
-	if state.Memory.UsedMB != 2244 {
-		t.Fatalf("expected UsedMB=total-available, got %d", state.Memory.UsedMB)
+	if state.Swap.TotalMB != 0 || state.Swap.UsedMB != 0 {
+		t.Fatalf("expected empty swap when remote meminfo snapshot is absent, got %+v", state.Swap)
 	}
 }
 

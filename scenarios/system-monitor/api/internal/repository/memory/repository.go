@@ -7,8 +7,8 @@ import (
 	"sync"
 	"time"
 
-	"system-monitor-api/internal/models"
-	"system-monitor-api/internal/repository"
+	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/models"
+	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/repository"
 )
 
 // MemoryRepository provides an in-memory implementation of all repositories
@@ -22,9 +22,28 @@ type MemoryRepository struct {
 	anomalies       map[string]*models.Anomaly
 	thresholds      map[string]*models.Threshold
 	violations      []models.ThresholdViolation
+	processSamples  []repository.ProcessSample
+	processRollups  []processRollup
+}
+
+// processRollup is the in-memory analog of the SQLite process_sample_rollups
+// row (one per owner+comm+minute).
+type processRollup struct {
+	Minute                  time.Time
+	Owner                   string
+	Comm                    string
+	AvgCPUPct               float64
+	MaxCPUPct               float64
+	CPUSeconds              float64
+	AvgRSSKB                int64
+	MaxRSSKB                int64
+	AvgMajorFaultsPerSecond float64
+	MaxMajorFaultsPerSecond float64
+	SampleCount             int64
 }
 
 type metricEntry struct {
+	CycleID       string
 	CollectorName string
 	Timestamp     time.Time
 	Values        map[string]interface{}
@@ -46,15 +65,28 @@ func NewRepository() *MemoryRepository {
 
 // MetricsRepository implementation
 
-func (r *MemoryRepository) SaveMetrics(ctx context.Context, collectorName string, metrics map[string]interface{}) error {
+func (r *MemoryRepository) SaveMetricCycle(ctx context.Context, cycleID string, observedAt time.Time, observations []repository.MetricObservation) error {
+	if cycleID == "" {
+		return fmt.Errorf("cycle id is required")
+	}
+	if observedAt.IsZero() {
+		return fmt.Errorf("observation time is required")
+	}
 	r.mu.Lock()
 	defer r.mu.Unlock()
+	for _, entry := range r.metrics {
+		if entry.CycleID == cycleID {
+			return fmt.Errorf("metric cycle %q already exists", cycleID)
+		}
+	}
 
-	r.metrics = append(r.metrics, metricEntry{
-		CollectorName: collectorName,
-		Timestamp:     time.Now(),
-		Values:        metrics,
-	})
+	for _, observation := range observations {
+		values := make(map[string]interface{}, len(observation.Values))
+		for key, value := range observation.Values {
+			values[key] = value
+		}
+		r.metrics = append(r.metrics, metricEntry{CycleID: cycleID, CollectorName: observation.CollectorName, Timestamp: observedAt.UTC(), Values: values})
+	}
 
 	// Keep only last 1000 entries
 	if len(r.metrics) > 1000 {
@@ -69,7 +101,7 @@ func (r *MemoryRepository) GetMetrics(ctx context.Context, filter repository.Met
 	defer r.mu.RUnlock()
 
 	// Group metrics by timestamp to combine collectors
-	metricsMap := make(map[time.Time]*models.MetricsResponse)
+	metricsMap := make(map[string]*models.MetricsResponse)
 
 	for _, entry := range r.metrics {
 		if filter.CollectorName != "" && entry.CollectorName != filter.CollectorName {
@@ -85,41 +117,20 @@ func (r *MemoryRepository) GetMetrics(ctx context.Context, filter repository.Met
 		}
 
 		// Get or create response for this timestamp
-		response, exists := metricsMap[entry.Timestamp]
+		key := entry.CycleID
+		if key == "" {
+			key = entry.Timestamp.UTC().Format(time.RFC3339Nano)
+		}
+		response, exists := metricsMap[key]
 		if !exists {
 			response = &models.MetricsResponse{
+				CycleID:   entry.CycleID,
 				Timestamp: entry.Timestamp,
 			}
-			metricsMap[entry.Timestamp] = response
+			metricsMap[key] = response
 		}
 
-		// CPU metrics - check for the correct field name based on collector
-		if entry.CollectorName == "cpu" {
-			if cpu, ok := entry.Values["usage_percent"].(float64); ok {
-				response.CPUUsage = cpu
-			}
-		}
-
-		// Memory metrics
-		if entry.CollectorName == "memory" {
-			if mem, ok := entry.Values["usage_percent"].(float64); ok {
-				response.MemoryUsage = mem
-			}
-		}
-
-		// Network metrics
-		if entry.CollectorName == "network" {
-			if tcp, ok := entry.Values["tcp_connections"].(int); ok {
-				response.TCPConnections = tcp
-			}
-		}
-
-		if entry.CollectorName == "gpu" {
-			if usage, ok := entry.Values["total_usage_percent"].(float64); ok {
-				value := usage
-				response.GPUUsage = &value
-			}
-		}
+		repository.HydrateMetricObservation(response, entry.CycleID, entry.Timestamp, entry.CollectorName, entry.Values)
 	}
 
 	// Convert map to slice
@@ -130,12 +141,29 @@ func (r *MemoryRepository) GetMetrics(ctx context.Context, filter repository.Met
 
 	// Sort by timestamp
 	sort.Slice(results, func(i, j int) bool {
+		if results[i].Timestamp.Equal(results[j].Timestamp) {
+			return results[i].CycleID < results[j].CycleID
+		}
 		return results[i].Timestamp.Before(results[j].Timestamp)
 	})
+	if len(filter.SampleBuckets) > 0 {
+		buckets := filter.SampleBuckets
+		if len(buckets) > filter.EffectiveLimit() {
+			buckets = buckets[len(buckets)-filter.EffectiveLimit():]
+		}
+		selected := make([]*models.MetricsResponse, 0, len(buckets))
+		for _, bucket := range buckets {
+			index := sort.Search(len(results), func(i int) bool { return results[i].Timestamp.After(bucket.EndTime) }) - 1
+			if index >= 0 && results[index].Timestamp.After(bucket.StartTime) {
+				selected = append(selected, results[index])
+			}
+		}
+		results = selected
+	}
 
-	// Apply limit if specified
-	if filter.Limit > 0 && len(results) > filter.Limit {
-		results = results[len(results)-filter.Limit:]
+	// Keep the newest cycles; the limit is always bounded.
+	if limit := filter.EffectiveLimit(); len(results) > limit {
+		results = results[len(results)-limit:]
 	}
 
 	return results, nil
@@ -149,56 +177,23 @@ func (r *MemoryRepository) GetLatestMetrics(ctx context.Context) (*models.Metric
 		return nil, fmt.Errorf("no metrics available")
 	}
 
-	// Combine latest metrics from different collectors
-	response := &models.MetricsResponse{
-		Timestamp: time.Now(),
-	}
-
-	// Get latest CPU metrics
+	latest := make(map[string]metricEntry)
 	for i := len(r.metrics) - 1; i >= 0; i-- {
 		entry := r.metrics[i]
-		if entry.CollectorName == "cpu" {
-			if cpu, ok := entry.Values["usage_percent"].(float64); ok {
-				response.CPUUsage = cpu
-				break
-			}
+		if _, exists := latest[entry.CollectorName]; !exists {
+			latest[entry.CollectorName] = entry
 		}
 	}
-
-	// Get latest Memory metrics
-	for i := len(r.metrics) - 1; i >= 0; i-- {
-		entry := r.metrics[i]
-		if entry.CollectorName == "memory" {
-			if mem, ok := entry.Values["usage_percent"].(float64); ok {
-				response.MemoryUsage = mem
-				break
-			}
-		}
+	if len(latest) == 0 {
+		return nil, fmt.Errorf("no metrics available")
 	}
-
-	// Get latest Network metrics
-	for i := len(r.metrics) - 1; i >= 0; i-- {
-		entry := r.metrics[i]
-		if entry.CollectorName == "network" {
-			if tcp, ok := entry.Values["tcp_connections"].(int); ok {
-				response.TCPConnections = tcp
-				break
-			}
+	response := &models.MetricsResponse{}
+	for collector, entry := range latest {
+		if entry.Timestamp.After(response.Timestamp) {
+			response.CycleID, response.Timestamp = entry.CycleID, entry.Timestamp
 		}
+		repository.HydrateMetricObservation(response, entry.CycleID, entry.Timestamp, collector, entry.Values)
 	}
-
-	// Get latest GPU metrics
-	for i := len(r.metrics) - 1; i >= 0; i-- {
-		entry := r.metrics[i]
-		if entry.CollectorName == "gpu" {
-			if usage, ok := entry.Values["total_usage_percent"].(float64); ok {
-				value := usage
-				response.GPUUsage = &value
-				break
-			}
-		}
-	}
-
 	return response, nil
 }
 
@@ -252,351 +247,3 @@ func (r *MemoryRepository) GetEarliestMetricTime(ctx context.Context) (time.Time
 }
 
 // InvestigationRepository implementation
-
-func (r *MemoryRepository) CreateInvestigation(ctx context.Context, investigation *models.Investigation) error {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-
-	r.investigations[investigation.ID] = investigation
-	return nil
-}
-
-func (r *MemoryRepository) GetInvestigation(ctx context.Context, id string) (*models.Investigation, error) {
-	r.mu.RLock()
-	defer r.mu.RUnlock()
-
-	if inv, exists := r.investigations[id]; exists {
-		return inv, nil
-	}
-	return nil, fmt.Errorf("investigation %s: %w", id, repository.ErrNotFound)
-}
-
-func (r *MemoryRepository) UpdateInvestigation(ctx context.Context, investigation *models.Investigation) error {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-
-	r.investigations[investigation.ID] = investigation
-	return nil
-}
-
-func (r *MemoryRepository) ListInvestigations(ctx context.Context, filter repository.InvestigationFilter) ([]*models.Investigation, error) {
-	r.mu.RLock()
-	defer r.mu.RUnlock()
-
-	var results []*models.Investigation
-	for _, inv := range r.investigations {
-		if filter.Status != "" && inv.Status != filter.Status {
-			continue
-		}
-		results = append(results, inv)
-	}
-
-	return results, nil
-}
-
-func (r *MemoryRepository) GetLatestInvestigation(ctx context.Context) (*models.Investigation, error) {
-	r.mu.RLock()
-	defer r.mu.RUnlock()
-
-	var latest *models.Investigation
-	var latestTime time.Time
-
-	for _, inv := range r.investigations {
-		if inv.StartTime.After(latestTime) {
-			latest = inv
-			latestTime = inv.StartTime
-		}
-	}
-
-	if latest == nil {
-		return nil, fmt.Errorf("no investigations: %w", repository.ErrNotFound)
-	}
-
-	return latest, nil
-}
-
-func (r *MemoryRepository) SaveInvestigationStep(ctx context.Context, investigationID string, step *models.InvestigationStep) error {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-
-	if inv, exists := r.investigations[investigationID]; exists {
-		inv.Steps = append(inv.Steps, *step)
-		return nil
-	}
-
-	return fmt.Errorf("investigation %s: %w", investigationID, repository.ErrNotFound)
-}
-
-// ReportRepository implementation
-
-func (r *MemoryRepository) CreateReport(ctx context.Context, report *models.Report) error {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-
-	r.reports[report.ID] = report
-	return nil
-}
-
-func (r *MemoryRepository) GetReport(ctx context.Context, id string) (*models.Report, error) {
-	r.mu.RLock()
-	defer r.mu.RUnlock()
-
-	if report, exists := r.reports[id]; exists {
-		return report, nil
-	}
-	return nil, fmt.Errorf("report %s: %w", id, repository.ErrNotFound)
-}
-
-func (r *MemoryRepository) ListReports(ctx context.Context, filter repository.ReportFilter) ([]*models.Report, error) {
-	r.mu.RLock()
-	defer r.mu.RUnlock()
-
-	var results []*models.Report
-	for _, report := range r.reports {
-		if filter.Type != "" && report.Type != filter.Type {
-			continue
-		}
-		results = append(results, report)
-	}
-
-	return results, nil
-}
-
-func (r *MemoryRepository) SaveDetailedReport(ctx context.Context, report *models.DetailedSystemReport) error {
-	// Convert to basic report for storage
-	basicReport := &models.Report{
-		ID:          report.ReportID,
-		Type:        report.ReportType,
-		GeneratedAt: report.GeneratedAt,
-		TimeRange:   report.TimeRange,
-		Data:        map[string]interface{}{"detailed": report},
-	}
-
-	return r.CreateReport(ctx, basicReport)
-}
-
-func (r *MemoryRepository) GetDetailedReport(ctx context.Context, id string) (*models.DetailedSystemReport, error) {
-	report, err := r.GetReport(ctx, id)
-	if err != nil {
-		return nil, err
-	}
-
-	if detailed, ok := report.Data["detailed"].(*models.DetailedSystemReport); ok {
-		return detailed, nil
-	}
-
-	return nil, fmt.Errorf("detailed report: %w", repository.ErrNotFound)
-}
-
-func (r *MemoryRepository) SaveEnhancedReport(ctx context.Context, report *models.EnhancedSystemReport) error {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-
-	r.enhancedReports[report.ReportID] = report
-	return nil
-}
-
-func (r *MemoryRepository) GetEnhancedReport(ctx context.Context, id string) (*models.EnhancedSystemReport, error) {
-	r.mu.RLock()
-	defer r.mu.RUnlock()
-
-	if report, exists := r.enhancedReports[id]; exists {
-		return report, nil
-	}
-
-	return nil, fmt.Errorf("enhanced report: %w", repository.ErrNotFound)
-}
-
-func (r *MemoryRepository) ListEnhancedReports(ctx context.Context) ([]*models.EnhancedSystemReport, error) {
-	r.mu.RLock()
-	defer r.mu.RUnlock()
-
-	var reports []*models.EnhancedSystemReport
-	for _, report := range r.enhancedReports {
-		reports = append(reports, report)
-	}
-
-	return reports, nil
-}
-
-// ThresholdRepository implementation
-
-func (r *MemoryRepository) GetActiveThresholds(ctx context.Context) ([]*models.Threshold, error) {
-	r.mu.RLock()
-	defer r.mu.RUnlock()
-
-	var results []*models.Threshold
-	for _, threshold := range r.thresholds {
-		if threshold.Enabled {
-			results = append(results, threshold)
-		}
-	}
-
-	// Return default thresholds if none configured
-	if len(results) == 0 {
-		results = []*models.Threshold{
-			{
-				MetricName:        "cpu_usage",
-				Min:               0,
-				Max:               100,
-				WarningThreshold:  80,
-				CriticalThreshold: 95,
-				CheckInterval:     60,
-				Enabled:           true,
-			},
-			{
-				MetricName:        "memory_usage",
-				Min:               0,
-				Max:               100,
-				WarningThreshold:  85,
-				CriticalThreshold: 95,
-				CheckInterval:     60,
-				Enabled:           true,
-			},
-		}
-	}
-
-	return results, nil
-}
-
-func (r *MemoryRepository) GetThreshold(ctx context.Context, metricName string) (*models.Threshold, error) {
-	r.mu.RLock()
-	defer r.mu.RUnlock()
-
-	if threshold, exists := r.thresholds[metricName]; exists {
-		return threshold, nil
-	}
-	return nil, fmt.Errorf("threshold %s: %w", metricName, repository.ErrNotFound)
-}
-
-func (r *MemoryRepository) SaveThreshold(ctx context.Context, threshold *models.Threshold) error {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-
-	r.thresholds[threshold.MetricName] = threshold
-	return nil
-}
-
-func (r *MemoryRepository) DeleteThreshold(ctx context.Context, metricName string) error {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-
-	delete(r.thresholds, metricName)
-	return nil
-}
-
-func (r *MemoryRepository) SaveThresholdViolation(ctx context.Context, violation *models.ThresholdViolation) error {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-
-	r.violations = append(r.violations, *violation)
-
-	// Keep only last 100 violations
-	if len(r.violations) > 100 {
-		r.violations = r.violations[len(r.violations)-100:]
-	}
-
-	return nil
-}
-
-func (r *MemoryRepository) GetThresholdViolations(ctx context.Context, timeRange repository.TimeRange) ([]*models.ThresholdViolation, error) {
-	r.mu.RLock()
-	defer r.mu.RUnlock()
-
-	var results []*models.ThresholdViolation
-	for _, violation := range r.violations {
-		if violation.Timestamp.After(timeRange.StartTime) && violation.Timestamp.Before(timeRange.EndTime) {
-			v := violation // Create copy
-			results = append(results, &v)
-		}
-	}
-
-	return results, nil
-}
-
-// AlertRepository implementation
-
-func (r *MemoryRepository) CreateAlert(ctx context.Context, alert *models.Alert) error {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-
-	r.alerts[alert.ID] = alert
-	return nil
-}
-
-func (r *MemoryRepository) GetAlert(ctx context.Context, id string) (*models.Alert, error) {
-	r.mu.RLock()
-	defer r.mu.RUnlock()
-
-	if alert, exists := r.alerts[id]; exists {
-		return alert, nil
-	}
-	return nil, fmt.Errorf("alert %s: %w", id, repository.ErrNotFound)
-}
-
-func (r *MemoryRepository) UpdateAlert(ctx context.Context, alert *models.Alert) error {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-
-	r.alerts[alert.ID] = alert
-	return nil
-}
-
-func (r *MemoryRepository) ListAlerts(ctx context.Context, filter repository.AlertFilter) ([]*models.Alert, error) {
-	r.mu.RLock()
-	defer r.mu.RUnlock()
-
-	var results []*models.Alert
-	for _, alert := range r.alerts {
-		if filter.Type != "" && alert.Type != filter.Type {
-			continue
-		}
-		if filter.Severity != "" && alert.Severity != filter.Severity {
-			continue
-		}
-		results = append(results, alert)
-	}
-
-	return results, nil
-}
-
-func (r *MemoryRepository) AcknowledgeAlert(ctx context.Context, id string, ackedBy string) error {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-
-	if alert, exists := r.alerts[id]; exists {
-		now := time.Now()
-		alert.AckedAt = &now
-		alert.AckedBy = ackedBy
-		return nil
-	}
-
-	return fmt.Errorf("alert %s: %w", id, repository.ErrNotFound)
-}
-
-func (r *MemoryRepository) ResolveAlert(ctx context.Context, id string) error {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-
-	if alert, exists := r.alerts[id]; exists {
-		now := time.Now()
-		alert.ResolvedAt = &now
-		return nil
-	}
-
-	return fmt.Errorf("alert %s: %w", id, repository.ErrNotFound)
-}
-
-func (r *MemoryRepository) GetActiveAlerts(ctx context.Context) ([]*models.Alert, error) {
-	r.mu.RLock()
-	defer r.mu.RUnlock()
-
-	var results []*models.Alert
-	for _, alert := range r.alerts {
-		if alert.ResolvedAt == nil {
-			results = append(results, alert)
-		}
-	}
-
-	return results, nil
-}

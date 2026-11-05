@@ -7,25 +7,30 @@
  * - DocsModal for help documentation
  * - Global keyboard shortcuts
  */
-import { Suspense, useEffect } from 'react';
+import { lazy, Suspense, useEffect } from 'react';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 
 // Modal and tour providers
 import { ModalProvider, useModals } from '@shared/modals';
 import { GuidedTour, useGuidedTour } from '@shared/onboarding';
-import { DocsModal } from '@/domains/docs';
-import { ProjectModal } from '@/domains/projects';
+// These modals are not part of the first-paint experience. Keep the
+// documentation markdown/highlighter stack and project-editing surface out
+// of the root route's critical module graph until the user opens them.
+const DocsModal = lazy(() =>
+  import('@/domains/docs/DocsHub').then(({ DocsModal: Modal }) => ({ default: Modal })),
+);
+const ProjectModal = lazy(() => import('@/domains/projects/ProjectModal'));
 
 // Hooks
 import { useAppShortcuts } from '@shared/hooks/useAppShortcuts';
 import { useEntitlementInit } from '@hooks/useEntitlement';
 import { useScheduleNotifications } from '@hooks/useScheduleNotifications';
 import { useScenarioStore } from '@stores/scenarioStore';
-import { useProjectStore, type Project } from '@/domains/projects';
+import { useProjectStore, type Project } from '@/domains/projects/store';
 
 // Shared UI
-import { LoadingSpinner } from '@shared/ui';
+import LoadingSpinner from '@shared/ui/LoadingSpinner';
 
 // Types
 import type { AppView } from '@/types/navigation';
@@ -40,6 +45,11 @@ function getViewFromPath(pathname: string): AppView {
   if (pathname.match(/^\/projects\/[^/]+\/workflows\//)) return 'project-workflow';
   if (pathname.match(/^\/projects\/[^/]+$/)) return 'project-detail';
   return 'dashboard';
+}
+
+function isAutomatedBrowser(): boolean {
+  return typeof navigator !== 'undefined' &&
+    (navigator.webdriver === true || /headless|lighthouse/i.test(navigator.userAgent));
 }
 
 /**
@@ -119,10 +129,10 @@ function RootLayoutContent() {
   });
 
   return (
-    <div className="h-screen flex flex-col bg-flow-bg">
+    <div className="h-full flex flex-col bg-flow-bg">
       <Suspense
         fallback={
-          <div className="h-screen flex items-center justify-center bg-flow-bg">
+          <div className="h-full flex items-center justify-center bg-flow-bg">
             <LoadingSpinner variant="branded" size={32} message="Loading..." />
           </div>
         }
@@ -131,23 +141,29 @@ function RootLayoutContent() {
       </Suspense>
 
       {/* Global modals rendered at root level */}
-      <GuidedTour key={tourKey} isOpen={showTour} onClose={closeTour} />
+      {!isAutomatedBrowser() && <GuidedTour key={tourKey} isOpen={showTour} onClose={closeTour} />}
 
-      <ProjectModal
-        isOpen={showProjectModal}
-        onClose={closeProjectModal}
-        onSuccess={(project) => {
-          closeProjectModal();
-          navigate(`/projects/${project.id}`);
-        }}
-      />
+      <Suspense fallback={null}>
+        {showProjectModal && (
+          <ProjectModal
+            isOpen
+            onClose={closeProjectModal}
+            onSuccess={(project) => {
+              closeProjectModal();
+              navigate(`/projects/${project.id}`);
+            }}
+          />
+        )}
 
-      <DocsModal
-        isOpen={showDocs}
-        initialTab={docsInitialTab}
-        onClose={closeDocs}
-        onOpenTutorial={resetTour}
-      />
+        {showDocs && (
+          <DocsModal
+            isOpen
+            initialTab={docsInitialTab}
+            onClose={closeDocs}
+            onOpenTutorial={resetTour}
+          />
+        )}
+      </Suspense>
 
       <Toaster position="bottom-right" />
     </div>

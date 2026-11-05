@@ -1,15 +1,16 @@
 package main
 
 import (
-	"github.com/vrooli/api-core/database"
-	"github.com/vrooli/api-core/health"
-	"github.com/vrooli/api-core/preflight"
 	"context"
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/health"
+	"github.com/vrooli/api-core/preflight"
 	"log"
 	"net/http"
+	schema "notes-api/internal/notes"
 	"os"
 	"strings"
 	"time"
@@ -244,6 +245,10 @@ func main() {
 		"search":    2,
 		"health":    1,
 	})
+
+	if err := database.EnsureSchemas(context.Background(), db, database.SchemaProviderFunc(schema.Schema)); err != nil {
+		logger.Fatal("Database schema initialization failed", "error", err.Error())
+	}
 
 	if err := http.ListenAndServe(":"+port, handler); err != nil {
 		logger.Fatal("Server failed to start", "port", port, "error", err.Error())

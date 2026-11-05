@@ -1,0 +1,304 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.0.0",
+  "page": {
+    "id": "agent-detail",
+    "title": "Agent",
+    "routes": [
+      "/agents/:agentId"
+    ],
+    "purpose": "One agent in full: who it is, what it may do, where it can be reached, and what it has been doing. The grant section is the page's centre of gravity because it is the only thing here that can cause harm.",
+    "prd_refs": [
+      "OT-P0-008",
+      "OT-P0-011",
+      "OT-P1-007",
+      "OT-P1-005",
+      "OT-P1-006"
+    ]
+  },
+  "priorities": [
+    {
+      "statement": "What this agent is permitted to do, stated in terms a person can judge"
+    },
+    {
+      "statement": "Which grants are owner-only and therefore unreachable from any other tier"
+    },
+    {
+      "statement": "Where it is reachable, and which of those handles are live"
+    },
+    {
+      "statement": "What it has actually done recently"
+    },
+    {
+      "statement": "That the profile is owned elsewhere and edited through a typed action"
+    }
+  ],
+  "states": [
+    {
+      "id": "default",
+      "description": "The agent renders with its grant, channels and recent activity."
+    },
+    {
+      "id": "loading",
+      "description": "The agent is resolving."
+    },
+    {
+      "id": "saving",
+      "description": "A grant change is being written."
+    },
+    {
+      "id": "success",
+      "description": "A grant change was written and is reflected."
+    },
+    {
+      "id": "validation-error",
+      "description": "A grant change was rejected; the reason sits beside the control."
+    },
+    {
+      "id": "request-error",
+      "description": "The write failed; the previous grant state is restored and stated."
+    },
+    {
+      "id": "permission-denied",
+      "description": "The signed-in person may not change this agent's grant."
+    },
+    {
+      "id": "stale",
+      "description": "Activity is cached; its age is stated."
+    },
+    {
+      "id": "empty",
+      "description": "Nothing to show yet; the surface says so and offers the action that would fill it."
+    },
+    {
+      "id": "partial",
+      "description": "One region failed while the rest resolved; the failure is named and the page stays usable."
+    }
+  ],
+  "elements": [
+    {
+      "id": "agent-header",
+      "role": "region",
+      "name": "Agent identity"
+    },
+    {
+      "id": "agent-avatar",
+      "role": "img",
+      "name": "Agent avatar"
+    },
+    {
+      "id": "grant-section",
+      "role": "region",
+      "name": "What this agent may do"
+    },
+    {
+      "id": "grant-toggle",
+      "role": "switch",
+      "name": "Capability"
+    },
+    {
+      "id": "owner-only-note",
+      "role": "note",
+      "name": "Owner-only, unreachable from other tiers"
+    },
+    {
+      "id": "channel-list",
+      "role": "list",
+      "name": "Reachable at"
+    },
+    {
+      "id": "budget-section",
+      "role": "region",
+      "name": "Budgets and caps"
+    },
+    {
+      "id": "activity-timeline",
+      "role": "list",
+      "name": "Recent activity"
+    },
+    {
+      "id": "profile-source-link",
+      "role": "link",
+      "name": "Edit profile in Prompt Manager"
+    },
+    {
+      "id": "save-action",
+      "role": "button",
+      "name": "Save changes"
+    }
+  ],
+  "claims": [
+    {
+      "id": "grant-dominates",
+      "type": "reading-order",
+      "statement": "The capability grant is read before channels, budgets or activity.",
+      "tier": "aspirational",
+      "elements": [
+        "grant-section",
+        "channel-list",
+        "budget-section",
+        "activity-timeline"
+      ],
+      "states": [
+        "default"
+      ],
+      "rationale": "Everything else on this page is informational. Only the grant changes what the agent can do to the world."
+    },
+    {
+      "id": "grants-in-plain-language",
+      "type": "custom",
+      "statement": "Every grant is stated in terms of what the agent can do, with the underlying scope name available but secondary.",
+      "tier": "manual",
+      "elements": [
+        "grant-toggle"
+      ],
+      "states": [
+        "default"
+      ],
+      "rationale": "A person cannot judge a risk expressed only as a scope identifier."
+    },
+    {
+      "id": "owner-only-is-not-a-toggle",
+      "type": "element-absent",
+      "statement": "An owner-only capability is never rendered as a control that a non-owner tier could be granted.",
+      "tier": "aspirational",
+      "elements": [
+        "owner-only-note"
+      ],
+      "states": [
+        "default"
+      ],
+      "rationale": "OT-P0-011 requires this by construction. A disabled toggle still implies the grant is reachable."
+    },
+    {
+      "id": "profile-is-a-pointer",
+      "type": "element-present",
+      "statement": "The page states that the profile is owned by prompt-manager and links out rather than editing a local copy.",
+      "tier": "aspirational",
+      "elements": [
+        "profile-source-link"
+      ],
+      "states": [
+        "default"
+      ],
+      "rationale": "OT-P0-008. A local editor here would fork the descriptor the moment somebody used it."
+    },
+    {
+      "id": "optimistic-write-is-reversible",
+      "type": "custom",
+      "statement": "A failed grant write restores the previous state visibly rather than leaving the control in the attempted position.",
+      "tier": "manual",
+      "elements": [
+        "grant-toggle"
+      ],
+      "states": [
+        "request-error"
+      ]
+    },
+    {
+      "id": "no-silent-widening",
+      "type": "custom",
+      "statement": "No control on this page can widen a grant beyond what the signed-in person holds.",
+      "tier": "manual",
+      "elements": [
+        "grant-toggle"
+      ]
+    },
+    {
+      "id": "save-busy",
+      "type": "affordance-present",
+      "statement": "The save action shows a busy state and prevents duplicate submission.",
+      "tier": "aspirational",
+      "elements": [
+        "save-action"
+      ],
+      "states": [
+        "saving"
+      ]
+    },
+    {
+      "id": "dark-parity",
+      "type": "dark-parity",
+      "statement": "Granted, denied and owner-only treatments stay distinct in both themes.",
+      "tier": "aspirational"
+    }
+  ],
+  "regions": [
+    {
+      "id": "grant-region",
+      "purpose": "The capability grant read from the agent descriptor.",
+      "required": true,
+      "component": {
+        "local": "async-region"
+      },
+      "lifecycle": {
+        "kind": "async",
+        "states": [
+          "loading",
+          "ready",
+          "error"
+        ]
+      }
+    },
+    {
+      "id": "activity-region",
+      "purpose": "Recent turns and refusals for this agent.",
+      "required": false,
+      "component": {
+        "local": "activity-timeline"
+      },
+      "lifecycle": {
+        "kind": "async",
+        "states": [
+          "loading",
+          "ready",
+          "empty",
+          "error"
+        ]
+      }
+    }
+  ],
+  "bindings": {
+    "elements": {
+      "agent-header": {
+        "testid": "agent-header"
+      },
+      "agent-avatar": {
+        "testid": "agent-avatar"
+      },
+      "grant-section": {
+        "testid": "agent-grant"
+      },
+      "grant-toggle": {
+        "testid": "agent-grant-toggle"
+      },
+      "owner-only-note": {
+        "testid": "agent-owner-only"
+      },
+      "channel-list": {
+        "testid": "agent-channels"
+      },
+      "budget-section": {
+        "testid": "agent-budgets"
+      },
+      "activity-timeline": {
+        "testid": "agent-activity"
+      },
+      "profile-source-link": {
+        "testid": "agent-profile-link"
+      },
+      "save-action": {
+        "testid": "agent-save"
+      }
+    },
+    "regions": {
+      "grant-region": {
+        "testid": "agent-detail-grant-region"
+      },
+      "activity-region": {
+        "testid": "agent-detail-activity-region"
+      }
+    }
+  }
+}

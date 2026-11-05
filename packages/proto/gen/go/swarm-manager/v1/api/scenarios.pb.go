@@ -9,6 +9,7 @@ package api
 import (
 	_ "buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go/buf/validate"
 	domain "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/domain"
+	shared "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/shared"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	reflect "reflect"
@@ -638,7 +639,7 @@ func (x *ScenarioReviewQueueRequest) GetExcludeTag() string {
 // ScenarioReviewQueueItem represents a single scenario's review priority.
 type ScenarioReviewQueueItem struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Scenario name.
+	// domain.Scenario name.
 	ScenarioName string `protobuf:"bytes,1,opt,name=scenario_name,json=scenarioName,proto3" json:"scenario_name,omitempty"`
 	// Number of pending (non-terminal) backlog items targeting this scenario.
 	PendingBacklogCount int32 `protobuf:"varint,2,opt,name=pending_backlog_count,json=pendingBacklogCount,proto3" json:"pending_backlog_count,omitempty"`
@@ -808,24 +809,786 @@ func (x *ScenarioReviewQueueResponse) GetExcludedCount() int32 {
 	return 0
 }
 
+// ScenarioRemediationTarget names one stable provider-owned phase/capability
+// target. It intentionally cannot carry raw findings or locally computed
+// scores, which prevents Swarm from becoming a competing evidence authority.
+type ScenarioRemediationTarget struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	ScenarioName  string                 `protobuf:"bytes,1,opt,name=scenario_name,json=scenarioName,proto3" json:"scenario_name,omitempty"`
+	ProviderPhase string                 `protobuf:"bytes,2,opt,name=provider_phase,json=providerPhase,proto3" json:"provider_phase,omitempty"`
+	CapabilityId  string                 `protobuf:"bytes,3,opt,name=capability_id,json=capabilityId,proto3" json:"capability_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ScenarioRemediationTarget) Reset() {
+	*x = ScenarioRemediationTarget{}
+	mi := &file_swarm_manager_v1_api_scenarios_proto_msgTypes[13]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ScenarioRemediationTarget) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ScenarioRemediationTarget) ProtoMessage() {}
+
+func (x *ScenarioRemediationTarget) ProtoReflect() protoreflect.Message {
+	mi := &file_swarm_manager_v1_api_scenarios_proto_msgTypes[13]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ScenarioRemediationTarget.ProtoReflect.Descriptor instead.
+func (*ScenarioRemediationTarget) Descriptor() ([]byte, []int) {
+	return file_swarm_manager_v1_api_scenarios_proto_rawDescGZIP(), []int{13}
+}
+
+func (x *ScenarioRemediationTarget) GetScenarioName() string {
+	if x != nil {
+		return x.ScenarioName
+	}
+	return ""
+}
+
+func (x *ScenarioRemediationTarget) GetProviderPhase() string {
+	if x != nil {
+		return x.ProviderPhase
+	}
+	return ""
+}
+
+func (x *ScenarioRemediationTarget) GetCapabilityId() string {
+	if x != nil {
+		return x.CapabilityId
+	}
+	return ""
+}
+
+// ScenarioRemediationProposal is the source-neutral vocabulary for preview and
+// later apply flows. The same fingerprint must be emitted for equivalent
+// manual and automated inputs.
+type ScenarioRemediationProposal struct {
+	state                protoimpl.MessageState     `protogen:"open.v1"`
+	Target               *ScenarioRemediationTarget `protobuf:"bytes,1,opt,name=target,proto3" json:"target,omitempty"`
+	Fingerprint          string                     `protobuf:"bytes,2,opt,name=fingerprint,proto3" json:"fingerprint,omitempty"`
+	Provenance           string                     `protobuf:"bytes,3,opt,name=provenance,proto3" json:"provenance,omitempty"`
+	Title                string                     `protobuf:"bytes,4,opt,name=title,proto3" json:"title,omitempty"`
+	Description          string                     `protobuf:"bytes,5,opt,name=description,proto3" json:"description,omitempty"`
+	AcceptanceCriteria   []string                   `protobuf:"bytes,6,rep,name=acceptance_criteria,json=acceptanceCriteria,proto3" json:"acceptance_criteria,omitempty"`
+	AcceptanceAllow      []string                   `protobuf:"bytes,7,rep,name=acceptance_allow,json=acceptanceAllow,proto3" json:"acceptance_allow,omitempty"`
+	RecommendedWorkflows []string                   `protobuf:"bytes,8,rep,name=recommended_workflows,json=recommendedWorkflows,proto3" json:"recommended_workflows,omitempty"`
+	unknownFields        protoimpl.UnknownFields
+	sizeCache            protoimpl.SizeCache
+}
+
+func (x *ScenarioRemediationProposal) Reset() {
+	*x = ScenarioRemediationProposal{}
+	mi := &file_swarm_manager_v1_api_scenarios_proto_msgTypes[14]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ScenarioRemediationProposal) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ScenarioRemediationProposal) ProtoMessage() {}
+
+func (x *ScenarioRemediationProposal) ProtoReflect() protoreflect.Message {
+	mi := &file_swarm_manager_v1_api_scenarios_proto_msgTypes[14]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ScenarioRemediationProposal.ProtoReflect.Descriptor instead.
+func (*ScenarioRemediationProposal) Descriptor() ([]byte, []int) {
+	return file_swarm_manager_v1_api_scenarios_proto_rawDescGZIP(), []int{14}
+}
+
+func (x *ScenarioRemediationProposal) GetTarget() *ScenarioRemediationTarget {
+	if x != nil {
+		return x.Target
+	}
+	return nil
+}
+
+func (x *ScenarioRemediationProposal) GetFingerprint() string {
+	if x != nil {
+		return x.Fingerprint
+	}
+	return ""
+}
+
+func (x *ScenarioRemediationProposal) GetProvenance() string {
+	if x != nil {
+		return x.Provenance
+	}
+	return ""
+}
+
+func (x *ScenarioRemediationProposal) GetTitle() string {
+	if x != nil {
+		return x.Title
+	}
+	return ""
+}
+
+func (x *ScenarioRemediationProposal) GetDescription() string {
+	if x != nil {
+		return x.Description
+	}
+	return ""
+}
+
+func (x *ScenarioRemediationProposal) GetAcceptanceCriteria() []string {
+	if x != nil {
+		return x.AcceptanceCriteria
+	}
+	return nil
+}
+
+func (x *ScenarioRemediationProposal) GetAcceptanceAllow() []string {
+	if x != nil {
+		return x.AcceptanceAllow
+	}
+	return nil
+}
+
+func (x *ScenarioRemediationProposal) GetRecommendedWorkflows() []string {
+	if x != nil {
+		return x.RecommendedWorkflows
+	}
+	return nil
+}
+
+type PreviewScenarioRemediationRequest struct {
+	state         protoimpl.MessageState     `protogen:"open.v1"`
+	Target        *ScenarioRemediationTarget `protobuf:"bytes,1,opt,name=target,proto3" json:"target,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *PreviewScenarioRemediationRequest) Reset() {
+	*x = PreviewScenarioRemediationRequest{}
+	mi := &file_swarm_manager_v1_api_scenarios_proto_msgTypes[15]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PreviewScenarioRemediationRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PreviewScenarioRemediationRequest) ProtoMessage() {}
+
+func (x *PreviewScenarioRemediationRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_swarm_manager_v1_api_scenarios_proto_msgTypes[15]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PreviewScenarioRemediationRequest.ProtoReflect.Descriptor instead.
+func (*PreviewScenarioRemediationRequest) Descriptor() ([]byte, []int) {
+	return file_swarm_manager_v1_api_scenarios_proto_rawDescGZIP(), []int{15}
+}
+
+func (x *PreviewScenarioRemediationRequest) GetTarget() *ScenarioRemediationTarget {
+	if x != nil {
+		return x.Target
+	}
+	return nil
+}
+
+type PreviewScenarioRemediationResponse struct {
+	state    protoimpl.MessageState       `protogen:"open.v1"`
+	Proposal *ScenarioRemediationProposal `protobuf:"bytes,1,opt,name=proposal,proto3" json:"proposal,omitempty"`
+	// Existing reconciliation state is returned rather than silently creating
+	// a duplicate proposal or work item.
+	Existing      *shared.ScenarioRemediationSummary `protobuf:"bytes,2,opt,name=existing,proto3,oneof" json:"existing,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *PreviewScenarioRemediationResponse) Reset() {
+	*x = PreviewScenarioRemediationResponse{}
+	mi := &file_swarm_manager_v1_api_scenarios_proto_msgTypes[16]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PreviewScenarioRemediationResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PreviewScenarioRemediationResponse) ProtoMessage() {}
+
+func (x *PreviewScenarioRemediationResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_swarm_manager_v1_api_scenarios_proto_msgTypes[16]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PreviewScenarioRemediationResponse.ProtoReflect.Descriptor instead.
+func (*PreviewScenarioRemediationResponse) Descriptor() ([]byte, []int) {
+	return file_swarm_manager_v1_api_scenarios_proto_rawDescGZIP(), []int{16}
+}
+
+func (x *PreviewScenarioRemediationResponse) GetProposal() *ScenarioRemediationProposal {
+	if x != nil {
+		return x.Proposal
+	}
+	return nil
+}
+
+func (x *PreviewScenarioRemediationResponse) GetExisting() *shared.ScenarioRemediationSummary {
+	if x != nil {
+		return x.Existing
+	}
+	return nil
+}
+
+type ApplyScenarioRemediationRequest struct {
+	state         protoimpl.MessageState     `protogen:"open.v1"`
+	Target        *ScenarioRemediationTarget `protobuf:"bytes,1,opt,name=target,proto3" json:"target,omitempty"`
+	Fingerprint   string                     `protobuf:"bytes,2,opt,name=fingerprint,proto3" json:"fingerprint,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ApplyScenarioRemediationRequest) Reset() {
+	*x = ApplyScenarioRemediationRequest{}
+	mi := &file_swarm_manager_v1_api_scenarios_proto_msgTypes[17]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ApplyScenarioRemediationRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ApplyScenarioRemediationRequest) ProtoMessage() {}
+
+func (x *ApplyScenarioRemediationRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_swarm_manager_v1_api_scenarios_proto_msgTypes[17]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ApplyScenarioRemediationRequest.ProtoReflect.Descriptor instead.
+func (*ApplyScenarioRemediationRequest) Descriptor() ([]byte, []int) {
+	return file_swarm_manager_v1_api_scenarios_proto_rawDescGZIP(), []int{17}
+}
+
+func (x *ApplyScenarioRemediationRequest) GetTarget() *ScenarioRemediationTarget {
+	if x != nil {
+		return x.Target
+	}
+	return nil
+}
+
+func (x *ApplyScenarioRemediationRequest) GetFingerprint() string {
+	if x != nil {
+		return x.Fingerprint
+	}
+	return ""
+}
+
+type ApplyScenarioRemediationResponse struct {
+	state         protoimpl.MessageState       `protogen:"open.v1"`
+	Proposal      *ScenarioRemediationProposal `protobuf:"bytes,1,opt,name=proposal,proto3" json:"proposal,omitempty"`
+	WorkRef       string                       `protobuf:"bytes,2,opt,name=work_ref,json=workRef,proto3" json:"work_ref,omitempty"`
+	Created       bool                         `protobuf:"varint,3,opt,name=created,proto3" json:"created,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ApplyScenarioRemediationResponse) Reset() {
+	*x = ApplyScenarioRemediationResponse{}
+	mi := &file_swarm_manager_v1_api_scenarios_proto_msgTypes[18]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ApplyScenarioRemediationResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ApplyScenarioRemediationResponse) ProtoMessage() {}
+
+func (x *ApplyScenarioRemediationResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_swarm_manager_v1_api_scenarios_proto_msgTypes[18]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ApplyScenarioRemediationResponse.ProtoReflect.Descriptor instead.
+func (*ApplyScenarioRemediationResponse) Descriptor() ([]byte, []int) {
+	return file_swarm_manager_v1_api_scenarios_proto_rawDescGZIP(), []int{18}
+}
+
+func (x *ApplyScenarioRemediationResponse) GetProposal() *ScenarioRemediationProposal {
+	if x != nil {
+		return x.Proposal
+	}
+	return nil
+}
+
+func (x *ApplyScenarioRemediationResponse) GetWorkRef() string {
+	if x != nil {
+		return x.WorkRef
+	}
+	return ""
+}
+
+func (x *ApplyScenarioRemediationResponse) GetCreated() bool {
+	if x != nil {
+		return x.Created
+	}
+	return false
+}
+
+// ScenarioMaturityCampaignTarget is an operator-selected broad outcome. It is
+// intentionally separate from a provider phase/capability remediation target.
+type ScenarioMaturityCampaignTarget struct {
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	ScenarioName   string                 `protobuf:"bytes,1,opt,name=scenario_name,json=scenarioName,proto3" json:"scenario_name,omitempty"`
+	MaturityTarget string                 `protobuf:"bytes,2,opt,name=maturity_target,json=maturityTarget,proto3" json:"maturity_target,omitempty"`
+	ProviderPhases []string               `protobuf:"bytes,3,rep,name=provider_phases,json=providerPhases,proto3" json:"provider_phases,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *ScenarioMaturityCampaignTarget) Reset() {
+	*x = ScenarioMaturityCampaignTarget{}
+	mi := &file_swarm_manager_v1_api_scenarios_proto_msgTypes[19]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ScenarioMaturityCampaignTarget) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ScenarioMaturityCampaignTarget) ProtoMessage() {}
+
+func (x *ScenarioMaturityCampaignTarget) ProtoReflect() protoreflect.Message {
+	mi := &file_swarm_manager_v1_api_scenarios_proto_msgTypes[19]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ScenarioMaturityCampaignTarget.ProtoReflect.Descriptor instead.
+func (*ScenarioMaturityCampaignTarget) Descriptor() ([]byte, []int) {
+	return file_swarm_manager_v1_api_scenarios_proto_rawDescGZIP(), []int{19}
+}
+
+func (x *ScenarioMaturityCampaignTarget) GetScenarioName() string {
+	if x != nil {
+		return x.ScenarioName
+	}
+	return ""
+}
+
+func (x *ScenarioMaturityCampaignTarget) GetMaturityTarget() string {
+	if x != nil {
+		return x.MaturityTarget
+	}
+	return ""
+}
+
+func (x *ScenarioMaturityCampaignTarget) GetProviderPhases() []string {
+	if x != nil {
+		return x.ProviderPhases
+	}
+	return nil
+}
+
+type ScenarioMaturityCampaignProposal struct {
+	state               protoimpl.MessageState          `protogen:"open.v1"`
+	Target              *ScenarioMaturityCampaignTarget `protobuf:"bytes,1,opt,name=target,proto3" json:"target,omitempty"`
+	Fingerprint         string                          `protobuf:"bytes,2,opt,name=fingerprint,proto3" json:"fingerprint,omitempty"`
+	Title               string                          `protobuf:"bytes,3,opt,name=title,proto3" json:"title,omitempty"`
+	Description         string                          `protobuf:"bytes,4,opt,name=description,proto3" json:"description,omitempty"`
+	AcceptanceCriteria  []string                        `protobuf:"bytes,5,rep,name=acceptance_criteria,json=acceptanceCriteria,proto3" json:"acceptance_criteria,omitempty"`
+	DeclaredWorkflow    string                          `protobuf:"bytes,6,opt,name=declared_workflow,json=declaredWorkflow,proto3" json:"declared_workflow,omitempty"`
+	TrackerAvailability string                          `protobuf:"bytes,7,opt,name=tracker_availability,json=trackerAvailability,proto3" json:"tracker_availability,omitempty"`
+	TrackerRef          *string                         `protobuf:"bytes,8,opt,name=tracker_ref,json=trackerRef,proto3,oneof" json:"tracker_ref,omitempty"`
+	unknownFields       protoimpl.UnknownFields
+	sizeCache           protoimpl.SizeCache
+}
+
+func (x *ScenarioMaturityCampaignProposal) Reset() {
+	*x = ScenarioMaturityCampaignProposal{}
+	mi := &file_swarm_manager_v1_api_scenarios_proto_msgTypes[20]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ScenarioMaturityCampaignProposal) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ScenarioMaturityCampaignProposal) ProtoMessage() {}
+
+func (x *ScenarioMaturityCampaignProposal) ProtoReflect() protoreflect.Message {
+	mi := &file_swarm_manager_v1_api_scenarios_proto_msgTypes[20]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ScenarioMaturityCampaignProposal.ProtoReflect.Descriptor instead.
+func (*ScenarioMaturityCampaignProposal) Descriptor() ([]byte, []int) {
+	return file_swarm_manager_v1_api_scenarios_proto_rawDescGZIP(), []int{20}
+}
+
+func (x *ScenarioMaturityCampaignProposal) GetTarget() *ScenarioMaturityCampaignTarget {
+	if x != nil {
+		return x.Target
+	}
+	return nil
+}
+
+func (x *ScenarioMaturityCampaignProposal) GetFingerprint() string {
+	if x != nil {
+		return x.Fingerprint
+	}
+	return ""
+}
+
+func (x *ScenarioMaturityCampaignProposal) GetTitle() string {
+	if x != nil {
+		return x.Title
+	}
+	return ""
+}
+
+func (x *ScenarioMaturityCampaignProposal) GetDescription() string {
+	if x != nil {
+		return x.Description
+	}
+	return ""
+}
+
+func (x *ScenarioMaturityCampaignProposal) GetAcceptanceCriteria() []string {
+	if x != nil {
+		return x.AcceptanceCriteria
+	}
+	return nil
+}
+
+func (x *ScenarioMaturityCampaignProposal) GetDeclaredWorkflow() string {
+	if x != nil {
+		return x.DeclaredWorkflow
+	}
+	return ""
+}
+
+func (x *ScenarioMaturityCampaignProposal) GetTrackerAvailability() string {
+	if x != nil {
+		return x.TrackerAvailability
+	}
+	return ""
+}
+
+func (x *ScenarioMaturityCampaignProposal) GetTrackerRef() string {
+	if x != nil && x.TrackerRef != nil {
+		return *x.TrackerRef
+	}
+	return ""
+}
+
+type PreviewScenarioMaturityCampaignRequest struct {
+	state         protoimpl.MessageState          `protogen:"open.v1"`
+	Target        *ScenarioMaturityCampaignTarget `protobuf:"bytes,1,opt,name=target,proto3" json:"target,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *PreviewScenarioMaturityCampaignRequest) Reset() {
+	*x = PreviewScenarioMaturityCampaignRequest{}
+	mi := &file_swarm_manager_v1_api_scenarios_proto_msgTypes[21]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PreviewScenarioMaturityCampaignRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PreviewScenarioMaturityCampaignRequest) ProtoMessage() {}
+
+func (x *PreviewScenarioMaturityCampaignRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_swarm_manager_v1_api_scenarios_proto_msgTypes[21]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PreviewScenarioMaturityCampaignRequest.ProtoReflect.Descriptor instead.
+func (*PreviewScenarioMaturityCampaignRequest) Descriptor() ([]byte, []int) {
+	return file_swarm_manager_v1_api_scenarios_proto_rawDescGZIP(), []int{21}
+}
+
+func (x *PreviewScenarioMaturityCampaignRequest) GetTarget() *ScenarioMaturityCampaignTarget {
+	if x != nil {
+		return x.Target
+	}
+	return nil
+}
+
+type PreviewScenarioMaturityCampaignResponse struct {
+	state           protoimpl.MessageState            `protogen:"open.v1"`
+	Proposal        *ScenarioMaturityCampaignProposal `protobuf:"bytes,1,opt,name=proposal,proto3" json:"proposal,omitempty"`
+	ExistingGoalRef *string                           `protobuf:"bytes,2,opt,name=existing_goal_ref,json=existingGoalRef,proto3,oneof" json:"existing_goal_ref,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
+}
+
+func (x *PreviewScenarioMaturityCampaignResponse) Reset() {
+	*x = PreviewScenarioMaturityCampaignResponse{}
+	mi := &file_swarm_manager_v1_api_scenarios_proto_msgTypes[22]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PreviewScenarioMaturityCampaignResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PreviewScenarioMaturityCampaignResponse) ProtoMessage() {}
+
+func (x *PreviewScenarioMaturityCampaignResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_swarm_manager_v1_api_scenarios_proto_msgTypes[22]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PreviewScenarioMaturityCampaignResponse.ProtoReflect.Descriptor instead.
+func (*PreviewScenarioMaturityCampaignResponse) Descriptor() ([]byte, []int) {
+	return file_swarm_manager_v1_api_scenarios_proto_rawDescGZIP(), []int{22}
+}
+
+func (x *PreviewScenarioMaturityCampaignResponse) GetProposal() *ScenarioMaturityCampaignProposal {
+	if x != nil {
+		return x.Proposal
+	}
+	return nil
+}
+
+func (x *PreviewScenarioMaturityCampaignResponse) GetExistingGoalRef() string {
+	if x != nil && x.ExistingGoalRef != nil {
+		return *x.ExistingGoalRef
+	}
+	return ""
+}
+
+type ApplyScenarioMaturityCampaignRequest struct {
+	state         protoimpl.MessageState          `protogen:"open.v1"`
+	Target        *ScenarioMaturityCampaignTarget `protobuf:"bytes,1,opt,name=target,proto3" json:"target,omitempty"`
+	Fingerprint   string                          `protobuf:"bytes,2,opt,name=fingerprint,proto3" json:"fingerprint,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ApplyScenarioMaturityCampaignRequest) Reset() {
+	*x = ApplyScenarioMaturityCampaignRequest{}
+	mi := &file_swarm_manager_v1_api_scenarios_proto_msgTypes[23]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ApplyScenarioMaturityCampaignRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ApplyScenarioMaturityCampaignRequest) ProtoMessage() {}
+
+func (x *ApplyScenarioMaturityCampaignRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_swarm_manager_v1_api_scenarios_proto_msgTypes[23]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ApplyScenarioMaturityCampaignRequest.ProtoReflect.Descriptor instead.
+func (*ApplyScenarioMaturityCampaignRequest) Descriptor() ([]byte, []int) {
+	return file_swarm_manager_v1_api_scenarios_proto_rawDescGZIP(), []int{23}
+}
+
+func (x *ApplyScenarioMaturityCampaignRequest) GetTarget() *ScenarioMaturityCampaignTarget {
+	if x != nil {
+		return x.Target
+	}
+	return nil
+}
+
+func (x *ApplyScenarioMaturityCampaignRequest) GetFingerprint() string {
+	if x != nil {
+		return x.Fingerprint
+	}
+	return ""
+}
+
+type ApplyScenarioMaturityCampaignResponse struct {
+	state               protoimpl.MessageState            `protogen:"open.v1"`
+	Proposal            *ScenarioMaturityCampaignProposal `protobuf:"bytes,1,opt,name=proposal,proto3" json:"proposal,omitempty"`
+	GoalRef             string                            `protobuf:"bytes,2,opt,name=goal_ref,json=goalRef,proto3" json:"goal_ref,omitempty"`
+	Created             bool                              `protobuf:"varint,3,opt,name=created,proto3" json:"created,omitempty"`
+	TrackerAvailability string                            `protobuf:"bytes,4,opt,name=tracker_availability,json=trackerAvailability,proto3" json:"tracker_availability,omitempty"`
+	TrackerRef          *string                           `protobuf:"bytes,5,opt,name=tracker_ref,json=trackerRef,proto3,oneof" json:"tracker_ref,omitempty"`
+	unknownFields       protoimpl.UnknownFields
+	sizeCache           protoimpl.SizeCache
+}
+
+func (x *ApplyScenarioMaturityCampaignResponse) Reset() {
+	*x = ApplyScenarioMaturityCampaignResponse{}
+	mi := &file_swarm_manager_v1_api_scenarios_proto_msgTypes[24]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ApplyScenarioMaturityCampaignResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ApplyScenarioMaturityCampaignResponse) ProtoMessage() {}
+
+func (x *ApplyScenarioMaturityCampaignResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_swarm_manager_v1_api_scenarios_proto_msgTypes[24]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ApplyScenarioMaturityCampaignResponse.ProtoReflect.Descriptor instead.
+func (*ApplyScenarioMaturityCampaignResponse) Descriptor() ([]byte, []int) {
+	return file_swarm_manager_v1_api_scenarios_proto_rawDescGZIP(), []int{24}
+}
+
+func (x *ApplyScenarioMaturityCampaignResponse) GetProposal() *ScenarioMaturityCampaignProposal {
+	if x != nil {
+		return x.Proposal
+	}
+	return nil
+}
+
+func (x *ApplyScenarioMaturityCampaignResponse) GetGoalRef() string {
+	if x != nil {
+		return x.GoalRef
+	}
+	return ""
+}
+
+func (x *ApplyScenarioMaturityCampaignResponse) GetCreated() bool {
+	if x != nil {
+		return x.Created
+	}
+	return false
+}
+
+func (x *ApplyScenarioMaturityCampaignResponse) GetTrackerAvailability() string {
+	if x != nil {
+		return x.TrackerAvailability
+	}
+	return ""
+}
+
+func (x *ApplyScenarioMaturityCampaignResponse) GetTrackerRef() string {
+	if x != nil && x.TrackerRef != nil {
+		return *x.TrackerRef
+	}
+	return ""
+}
+
 var File_swarm_manager_v1_api_scenarios_proto protoreflect.FileDescriptor
 
 const file_swarm_manager_v1_api_scenarios_proto_rawDesc = "" +
 	"\n" +
-	"$swarm-manager/v1/api/scenarios.proto\x12\x10swarm_manager.v1\x1a\x1bbuf/validate/validate.proto\x1a&swarm-manager/v1/domain/scenario.proto\"Q\n" +
-	"\x15ListScenariosResponse\x128\n" +
-	"\tscenarios\x18\x01 \x03(\v2\x1a.swarm_manager.v1.ScenarioR\tscenarios\"J\n" +
-	"\x10ScenarioResponse\x126\n" +
-	"\bscenario\x18\x01 \x01(\v2\x1a.swarm_manager.v1.ScenarioR\bscenario\"[\n" +
+	"$swarm-manager/v1/api/scenarios.proto\x12\x1bvrooli.swarm_manager.v1.api\x1a\x1bbuf/validate/validate.proto\x1a&swarm-manager/v1/domain/scenario.proto\x1a$swarm-manager/v1/shared/health.proto\"_\n" +
+	"\x15ListScenariosResponse\x12F\n" +
+	"\tscenarios\x18\x01 \x03(\v2(.vrooli.swarm_manager.v1.domain.ScenarioR\tscenarios\"X\n" +
+	"\x10ScenarioResponse\x12D\n" +
+	"\bscenario\x18\x01 \x01(\v2(.vrooli.swarm_manager.v1.domain.ScenarioR\bscenario\"[\n" +
 	"\x1dUpdateScenarioMetadataRequest\x12(\n" +
 	"\ris_greenfield\x18\x01 \x01(\bH\x00R\fisGreenfield\x88\x01\x01B\x10\n" +
 	"\x0e_is_greenfield\"\x92\x01\n" +
 	"\x14PreserveFilesRequest\x12\x14\n" +
 	"\x05paths\x18\x01 \x03(\tR\x05paths\x12Y\n" +
 	"\x06preset\x18\x02 \x01(\tB<\xbaH9r7R\x00R\rdocumentationR\frequirementsR\bplanningR\fall-planningH\x00R\x06preset\x88\x01\x01B\t\n" +
-	"\a_preset\"~\n" +
-	"\x15DeleteScenarioRequest\x12R\n" +
-	"\x0epreserve_files\x18\x01 \x01(\v2&.swarm_manager.v1.PreserveFilesRequestH\x00R\rpreserveFiles\x88\x01\x01B\x11\n" +
+	"\a_preset\"\x89\x01\n" +
+	"\x15DeleteScenarioRequest\x12]\n" +
+	"\x0epreserve_files\x18\x01 \x01(\v21.vrooli.swarm_manager.v1.api.PreserveFilesRequestH\x00R\rpreserveFiles\x88\x01\x01B\x11\n" +
 	"\x0f_preserve_files\"\xe4\x01\n" +
 	"\x16DeleteScenarioResponse\x12\x1b\n" +
 	"\x04name\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x04name\x12\x1a\n" +
@@ -833,18 +1596,18 @@ const file_swarm_manager_v1_api_scenarios_proto_rawDesc = "" +
 	"\amessage\x18\x03 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\amessage\x12/\n" +
 	"\x11backlog_idea_name\x18\x04 \x01(\tH\x00R\x0fbacklogIdeaName\x88\x01\x01\x12'\n" +
 	"\x0fpreserved_files\x18\x05 \x03(\tR\x0epreservedFilesB\x14\n" +
-	"\x12_backlog_idea_name\"\xd2\x01\n" +
+	"\x12_backlog_idea_name\"\xdd\x01\n" +
 	"\fScenarioFile\x12\x1b\n" +
 	"\x04name\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x04name\x12\x1b\n" +
 	"\x04path\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x04path\x12*\n" +
 	"\x04type\x18\x03 \x01(\tB\x16\xbaH\x13r\x11R\x04fileR\tdirectoryR\x04type\x12\x17\n" +
-	"\x04size\x18\x04 \x01(\x03H\x00R\x04size\x88\x01\x01\x12:\n" +
-	"\bchildren\x18\x05 \x03(\v2\x1e.swarm_manager.v1.ScenarioFileR\bchildrenB\a\n" +
-	"\x05_size\"M\n" +
-	"\x15ScenarioFilesResponse\x124\n" +
-	"\x05files\x18\x01 \x03(\v2\x1e.swarm_manager.v1.ScenarioFileR\x05files\"\x7f\n" +
-	"\x16SpecSyncArchiveRequest\x12R\n" +
-	"\x0epreserve_files\x18\x01 \x01(\v2&.swarm_manager.v1.PreserveFilesRequestH\x00R\rpreserveFiles\x88\x01\x01B\x11\n" +
+	"\x04size\x18\x04 \x01(\x03H\x00R\x04size\x88\x01\x01\x12E\n" +
+	"\bchildren\x18\x05 \x03(\v2).vrooli.swarm_manager.v1.api.ScenarioFileR\bchildrenB\a\n" +
+	"\x05_size\"X\n" +
+	"\x15ScenarioFilesResponse\x12?\n" +
+	"\x05files\x18\x01 \x03(\v2).vrooli.swarm_manager.v1.api.ScenarioFileR\x05files\"\x8a\x01\n" +
+	"\x16SpecSyncArchiveRequest\x12]\n" +
+	"\x0epreserve_files\x18\x01 \x01(\v21.vrooli.swarm_manager.v1.api.PreserveFilesRequestH\x00R\rpreserveFiles\x88\x01\x01B\x11\n" +
 	"\x0f_preserve_files\"\x89\x01\n" +
 	"\x17SpecSyncArchiveResponse\x12*\n" +
 	"\fexecution_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\vexecutionId\x12\x1f\n" +
@@ -867,11 +1630,71 @@ const file_swarm_manager_v1_api_scenarios_proto_rawDesc = "" +
 	"\x0ecooldown_until\x18\b \x01(\tH\x02R\rcooldownUntil\x88\x01\x01B\x1d\n" +
 	"\x1b_last_review_classificationB\x11\n" +
 	"\x0f_last_review_atB\x11\n" +
-	"\x0f_cooldown_until\"\xae\x01\n" +
-	"\x1bScenarioReviewQueueResponse\x12?\n" +
-	"\x05items\x18\x01 \x03(\v2).swarm_manager.v1.ScenarioReviewQueueItemR\x05items\x12'\n" +
+	"\x0f_cooldown_until\"\xb9\x01\n" +
+	"\x1bScenarioReviewQueueResponse\x12J\n" +
+	"\x05items\x18\x01 \x03(\v24.vrooli.swarm_manager.v1.api.ScenarioReviewQueueItemR\x05items\x12'\n" +
 	"\x0ftotal_scenarios\x18\x02 \x01(\x05R\x0etotalScenarios\x12%\n" +
-	"\x0eexcluded_count\x18\x03 \x01(\x05R\rexcludedCountBIZGgithub.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api;apib\x06proto3"
+	"\x0eexcluded_count\x18\x03 \x01(\x05R\rexcludedCount\"\xa7\x01\n" +
+	"\x19ScenarioRemediationTarget\x12,\n" +
+	"\rscenario_name\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\fscenarioName\x12.\n" +
+	"\x0eprovider_phase\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\rproviderPhase\x12,\n" +
+	"\rcapability_id\x18\x03 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\fcapabilityId\"\xa4\x03\n" +
+	"\x1bScenarioRemediationProposal\x12V\n" +
+	"\x06target\x18\x01 \x01(\v26.vrooli.swarm_manager.v1.api.ScenarioRemediationTargetB\x06\xbaH\x03\xc8\x01\x01R\x06target\x12)\n" +
+	"\vfingerprint\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\vfingerprint\x12'\n" +
+	"\n" +
+	"provenance\x18\x03 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\n" +
+	"provenance\x12\x1d\n" +
+	"\x05title\x18\x04 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x05title\x12)\n" +
+	"\vdescription\x18\x05 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\vdescription\x12/\n" +
+	"\x13acceptance_criteria\x18\x06 \x03(\tR\x12acceptanceCriteria\x12)\n" +
+	"\x10acceptance_allow\x18\a \x03(\tR\x0facceptanceAllow\x123\n" +
+	"\x15recommended_workflows\x18\b \x03(\tR\x14recommendedWorkflows\"{\n" +
+	"!PreviewScenarioRemediationRequest\x12V\n" +
+	"\x06target\x18\x01 \x01(\v26.vrooli.swarm_manager.v1.api.ScenarioRemediationTargetB\x06\xbaH\x03\xc8\x01\x01R\x06target\"\xec\x01\n" +
+	"\"PreviewScenarioRemediationResponse\x12\\\n" +
+	"\bproposal\x18\x01 \x01(\v28.vrooli.swarm_manager.v1.api.ScenarioRemediationProposalB\x06\xbaH\x03\xc8\x01\x01R\bproposal\x12[\n" +
+	"\bexisting\x18\x02 \x01(\v2:.vrooli.swarm_manager.v1.shared.ScenarioRemediationSummaryH\x00R\bexisting\x88\x01\x01B\v\n" +
+	"\t_existing\"\xa4\x01\n" +
+	"\x1fApplyScenarioRemediationRequest\x12V\n" +
+	"\x06target\x18\x01 \x01(\v26.vrooli.swarm_manager.v1.api.ScenarioRemediationTargetB\x06\xbaH\x03\xc8\x01\x01R\x06target\x12)\n" +
+	"\vfingerprint\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\vfingerprint\"\xbe\x01\n" +
+	" ApplyScenarioRemediationResponse\x12\\\n" +
+	"\bproposal\x18\x01 \x01(\v28.vrooli.swarm_manager.v1.api.ScenarioRemediationProposalB\x06\xbaH\x03\xc8\x01\x01R\bproposal\x12\"\n" +
+	"\bwork_ref\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\aworkRef\x12\x18\n" +
+	"\acreated\x18\x03 \x01(\bR\acreated\"\xa9\x01\n" +
+	"\x1eScenarioMaturityCampaignTarget\x12,\n" +
+	"\rscenario_name\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\fscenarioName\x120\n" +
+	"\x0fmaturity_target\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x0ematurityTarget\x12'\n" +
+	"\x0fprovider_phases\x18\x03 \x03(\tR\x0eproviderPhases\"\xcd\x03\n" +
+	" ScenarioMaturityCampaignProposal\x12[\n" +
+	"\x06target\x18\x01 \x01(\v2;.vrooli.swarm_manager.v1.api.ScenarioMaturityCampaignTargetB\x06\xbaH\x03\xc8\x01\x01R\x06target\x12)\n" +
+	"\vfingerprint\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\vfingerprint\x12\x1d\n" +
+	"\x05title\x18\x03 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x05title\x12)\n" +
+	"\vdescription\x18\x04 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\vdescription\x12/\n" +
+	"\x13acceptance_criteria\x18\x05 \x03(\tR\x12acceptanceCriteria\x124\n" +
+	"\x11declared_workflow\x18\x06 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x10declaredWorkflow\x12:\n" +
+	"\x14tracker_availability\x18\a \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x13trackerAvailability\x12$\n" +
+	"\vtracker_ref\x18\b \x01(\tH\x00R\n" +
+	"trackerRef\x88\x01\x01B\x0e\n" +
+	"\f_tracker_ref\"\x85\x01\n" +
+	"&PreviewScenarioMaturityCampaignRequest\x12[\n" +
+	"\x06target\x18\x01 \x01(\v2;.vrooli.swarm_manager.v1.api.ScenarioMaturityCampaignTargetB\x06\xbaH\x03\xc8\x01\x01R\x06target\"\xd3\x01\n" +
+	"'PreviewScenarioMaturityCampaignResponse\x12a\n" +
+	"\bproposal\x18\x01 \x01(\v2=.vrooli.swarm_manager.v1.api.ScenarioMaturityCampaignProposalB\x06\xbaH\x03\xc8\x01\x01R\bproposal\x12/\n" +
+	"\x11existing_goal_ref\x18\x02 \x01(\tH\x00R\x0fexistingGoalRef\x88\x01\x01B\x14\n" +
+	"\x12_existing_goal_ref\"\xae\x01\n" +
+	"$ApplyScenarioMaturityCampaignRequest\x12[\n" +
+	"\x06target\x18\x01 \x01(\v2;.vrooli.swarm_manager.v1.api.ScenarioMaturityCampaignTargetB\x06\xbaH\x03\xc8\x01\x01R\x06target\x12)\n" +
+	"\vfingerprint\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\vfingerprint\"\xba\x02\n" +
+	"%ApplyScenarioMaturityCampaignResponse\x12a\n" +
+	"\bproposal\x18\x01 \x01(\v2=.vrooli.swarm_manager.v1.api.ScenarioMaturityCampaignProposalB\x06\xbaH\x03\xc8\x01\x01R\bproposal\x12\"\n" +
+	"\bgoal_ref\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\agoalRef\x12\x18\n" +
+	"\acreated\x18\x03 \x01(\bR\acreated\x12:\n" +
+	"\x14tracker_availability\x18\x04 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x13trackerAvailability\x12$\n" +
+	"\vtracker_ref\x18\x05 \x01(\tH\x00R\n" +
+	"trackerRef\x88\x01\x01B\x0e\n" +
+	"\f_tracker_refBIZGgithub.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api;apib\x06proto3"
 
 var (
 	file_swarm_manager_v1_api_scenarios_proto_rawDescOnce sync.Once
@@ -885,36 +1708,60 @@ func file_swarm_manager_v1_api_scenarios_proto_rawDescGZIP() []byte {
 	return file_swarm_manager_v1_api_scenarios_proto_rawDescData
 }
 
-var file_swarm_manager_v1_api_scenarios_proto_msgTypes = make([]protoimpl.MessageInfo, 13)
+var file_swarm_manager_v1_api_scenarios_proto_msgTypes = make([]protoimpl.MessageInfo, 25)
 var file_swarm_manager_v1_api_scenarios_proto_goTypes = []any{
-	(*ListScenariosResponse)(nil),         // 0: swarm_manager.v1.ListScenariosResponse
-	(*ScenarioResponse)(nil),              // 1: swarm_manager.v1.ScenarioResponse
-	(*UpdateScenarioMetadataRequest)(nil), // 2: swarm_manager.v1.UpdateScenarioMetadataRequest
-	(*PreserveFilesRequest)(nil),          // 3: swarm_manager.v1.PreserveFilesRequest
-	(*DeleteScenarioRequest)(nil),         // 4: swarm_manager.v1.DeleteScenarioRequest
-	(*DeleteScenarioResponse)(nil),        // 5: swarm_manager.v1.DeleteScenarioResponse
-	(*ScenarioFile)(nil),                  // 6: swarm_manager.v1.ScenarioFile
-	(*ScenarioFilesResponse)(nil),         // 7: swarm_manager.v1.ScenarioFilesResponse
-	(*SpecSyncArchiveRequest)(nil),        // 8: swarm_manager.v1.SpecSyncArchiveRequest
-	(*SpecSyncArchiveResponse)(nil),       // 9: swarm_manager.v1.SpecSyncArchiveResponse
-	(*ScenarioReviewQueueRequest)(nil),    // 10: swarm_manager.v1.ScenarioReviewQueueRequest
-	(*ScenarioReviewQueueItem)(nil),       // 11: swarm_manager.v1.ScenarioReviewQueueItem
-	(*ScenarioReviewQueueResponse)(nil),   // 12: swarm_manager.v1.ScenarioReviewQueueResponse
-	(*domain.Scenario)(nil),               // 13: swarm_manager.v1.Scenario
+	(*ListScenariosResponse)(nil),                   // 0: vrooli.swarm_manager.v1.api.ListScenariosResponse
+	(*ScenarioResponse)(nil),                        // 1: vrooli.swarm_manager.v1.api.ScenarioResponse
+	(*UpdateScenarioMetadataRequest)(nil),           // 2: vrooli.swarm_manager.v1.api.UpdateScenarioMetadataRequest
+	(*PreserveFilesRequest)(nil),                    // 3: vrooli.swarm_manager.v1.api.PreserveFilesRequest
+	(*DeleteScenarioRequest)(nil),                   // 4: vrooli.swarm_manager.v1.api.DeleteScenarioRequest
+	(*DeleteScenarioResponse)(nil),                  // 5: vrooli.swarm_manager.v1.api.DeleteScenarioResponse
+	(*ScenarioFile)(nil),                            // 6: vrooli.swarm_manager.v1.api.ScenarioFile
+	(*ScenarioFilesResponse)(nil),                   // 7: vrooli.swarm_manager.v1.api.ScenarioFilesResponse
+	(*SpecSyncArchiveRequest)(nil),                  // 8: vrooli.swarm_manager.v1.api.SpecSyncArchiveRequest
+	(*SpecSyncArchiveResponse)(nil),                 // 9: vrooli.swarm_manager.v1.api.SpecSyncArchiveResponse
+	(*ScenarioReviewQueueRequest)(nil),              // 10: vrooli.swarm_manager.v1.api.ScenarioReviewQueueRequest
+	(*ScenarioReviewQueueItem)(nil),                 // 11: vrooli.swarm_manager.v1.api.ScenarioReviewQueueItem
+	(*ScenarioReviewQueueResponse)(nil),             // 12: vrooli.swarm_manager.v1.api.ScenarioReviewQueueResponse
+	(*ScenarioRemediationTarget)(nil),               // 13: vrooli.swarm_manager.v1.api.ScenarioRemediationTarget
+	(*ScenarioRemediationProposal)(nil),             // 14: vrooli.swarm_manager.v1.api.ScenarioRemediationProposal
+	(*PreviewScenarioRemediationRequest)(nil),       // 15: vrooli.swarm_manager.v1.api.PreviewScenarioRemediationRequest
+	(*PreviewScenarioRemediationResponse)(nil),      // 16: vrooli.swarm_manager.v1.api.PreviewScenarioRemediationResponse
+	(*ApplyScenarioRemediationRequest)(nil),         // 17: vrooli.swarm_manager.v1.api.ApplyScenarioRemediationRequest
+	(*ApplyScenarioRemediationResponse)(nil),        // 18: vrooli.swarm_manager.v1.api.ApplyScenarioRemediationResponse
+	(*ScenarioMaturityCampaignTarget)(nil),          // 19: vrooli.swarm_manager.v1.api.ScenarioMaturityCampaignTarget
+	(*ScenarioMaturityCampaignProposal)(nil),        // 20: vrooli.swarm_manager.v1.api.ScenarioMaturityCampaignProposal
+	(*PreviewScenarioMaturityCampaignRequest)(nil),  // 21: vrooli.swarm_manager.v1.api.PreviewScenarioMaturityCampaignRequest
+	(*PreviewScenarioMaturityCampaignResponse)(nil), // 22: vrooli.swarm_manager.v1.api.PreviewScenarioMaturityCampaignResponse
+	(*ApplyScenarioMaturityCampaignRequest)(nil),    // 23: vrooli.swarm_manager.v1.api.ApplyScenarioMaturityCampaignRequest
+	(*ApplyScenarioMaturityCampaignResponse)(nil),   // 24: vrooli.swarm_manager.v1.api.ApplyScenarioMaturityCampaignResponse
+	(*domain.Scenario)(nil),                         // 25: vrooli.swarm_manager.v1.domain.Scenario
+	(*shared.ScenarioRemediationSummary)(nil),       // 26: vrooli.swarm_manager.v1.shared.ScenarioRemediationSummary
 }
 var file_swarm_manager_v1_api_scenarios_proto_depIdxs = []int32{
-	13, // 0: swarm_manager.v1.ListScenariosResponse.scenarios:type_name -> swarm_manager.v1.Scenario
-	13, // 1: swarm_manager.v1.ScenarioResponse.scenario:type_name -> swarm_manager.v1.Scenario
-	3,  // 2: swarm_manager.v1.DeleteScenarioRequest.preserve_files:type_name -> swarm_manager.v1.PreserveFilesRequest
-	6,  // 3: swarm_manager.v1.ScenarioFile.children:type_name -> swarm_manager.v1.ScenarioFile
-	6,  // 4: swarm_manager.v1.ScenarioFilesResponse.files:type_name -> swarm_manager.v1.ScenarioFile
-	3,  // 5: swarm_manager.v1.SpecSyncArchiveRequest.preserve_files:type_name -> swarm_manager.v1.PreserveFilesRequest
-	11, // 6: swarm_manager.v1.ScenarioReviewQueueResponse.items:type_name -> swarm_manager.v1.ScenarioReviewQueueItem
-	7,  // [7:7] is the sub-list for method output_type
-	7,  // [7:7] is the sub-list for method input_type
-	7,  // [7:7] is the sub-list for extension type_name
-	7,  // [7:7] is the sub-list for extension extendee
-	0,  // [0:7] is the sub-list for field type_name
+	25, // 0: vrooli.swarm_manager.v1.api.ListScenariosResponse.scenarios:type_name -> vrooli.swarm_manager.v1.domain.Scenario
+	25, // 1: vrooli.swarm_manager.v1.api.ScenarioResponse.scenario:type_name -> vrooli.swarm_manager.v1.domain.Scenario
+	3,  // 2: vrooli.swarm_manager.v1.api.DeleteScenarioRequest.preserve_files:type_name -> vrooli.swarm_manager.v1.api.PreserveFilesRequest
+	6,  // 3: vrooli.swarm_manager.v1.api.ScenarioFile.children:type_name -> vrooli.swarm_manager.v1.api.ScenarioFile
+	6,  // 4: vrooli.swarm_manager.v1.api.ScenarioFilesResponse.files:type_name -> vrooli.swarm_manager.v1.api.ScenarioFile
+	3,  // 5: vrooli.swarm_manager.v1.api.SpecSyncArchiveRequest.preserve_files:type_name -> vrooli.swarm_manager.v1.api.PreserveFilesRequest
+	11, // 6: vrooli.swarm_manager.v1.api.ScenarioReviewQueueResponse.items:type_name -> vrooli.swarm_manager.v1.api.ScenarioReviewQueueItem
+	13, // 7: vrooli.swarm_manager.v1.api.ScenarioRemediationProposal.target:type_name -> vrooli.swarm_manager.v1.api.ScenarioRemediationTarget
+	13, // 8: vrooli.swarm_manager.v1.api.PreviewScenarioRemediationRequest.target:type_name -> vrooli.swarm_manager.v1.api.ScenarioRemediationTarget
+	14, // 9: vrooli.swarm_manager.v1.api.PreviewScenarioRemediationResponse.proposal:type_name -> vrooli.swarm_manager.v1.api.ScenarioRemediationProposal
+	26, // 10: vrooli.swarm_manager.v1.api.PreviewScenarioRemediationResponse.existing:type_name -> vrooli.swarm_manager.v1.shared.ScenarioRemediationSummary
+	13, // 11: vrooli.swarm_manager.v1.api.ApplyScenarioRemediationRequest.target:type_name -> vrooli.swarm_manager.v1.api.ScenarioRemediationTarget
+	14, // 12: vrooli.swarm_manager.v1.api.ApplyScenarioRemediationResponse.proposal:type_name -> vrooli.swarm_manager.v1.api.ScenarioRemediationProposal
+	19, // 13: vrooli.swarm_manager.v1.api.ScenarioMaturityCampaignProposal.target:type_name -> vrooli.swarm_manager.v1.api.ScenarioMaturityCampaignTarget
+	19, // 14: vrooli.swarm_manager.v1.api.PreviewScenarioMaturityCampaignRequest.target:type_name -> vrooli.swarm_manager.v1.api.ScenarioMaturityCampaignTarget
+	20, // 15: vrooli.swarm_manager.v1.api.PreviewScenarioMaturityCampaignResponse.proposal:type_name -> vrooli.swarm_manager.v1.api.ScenarioMaturityCampaignProposal
+	19, // 16: vrooli.swarm_manager.v1.api.ApplyScenarioMaturityCampaignRequest.target:type_name -> vrooli.swarm_manager.v1.api.ScenarioMaturityCampaignTarget
+	20, // 17: vrooli.swarm_manager.v1.api.ApplyScenarioMaturityCampaignResponse.proposal:type_name -> vrooli.swarm_manager.v1.api.ScenarioMaturityCampaignProposal
+	18, // [18:18] is the sub-list for method output_type
+	18, // [18:18] is the sub-list for method input_type
+	18, // [18:18] is the sub-list for extension type_name
+	18, // [18:18] is the sub-list for extension extendee
+	0,  // [0:18] is the sub-list for field type_name
 }
 
 func init() { file_swarm_manager_v1_api_scenarios_proto_init() }
@@ -930,13 +1777,17 @@ func file_swarm_manager_v1_api_scenarios_proto_init() {
 	file_swarm_manager_v1_api_scenarios_proto_msgTypes[8].OneofWrappers = []any{}
 	file_swarm_manager_v1_api_scenarios_proto_msgTypes[10].OneofWrappers = []any{}
 	file_swarm_manager_v1_api_scenarios_proto_msgTypes[11].OneofWrappers = []any{}
+	file_swarm_manager_v1_api_scenarios_proto_msgTypes[16].OneofWrappers = []any{}
+	file_swarm_manager_v1_api_scenarios_proto_msgTypes[20].OneofWrappers = []any{}
+	file_swarm_manager_v1_api_scenarios_proto_msgTypes[22].OneofWrappers = []any{}
+	file_swarm_manager_v1_api_scenarios_proto_msgTypes[24].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_swarm_manager_v1_api_scenarios_proto_rawDesc), len(file_swarm_manager_v1_api_scenarios_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   13,
+			NumMessages:   25,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

@@ -1,13 +1,35 @@
 package handlers
 
 import (
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/docker/docker/client"
 	"github.com/gin-gonic/gin"
 )
+
+func deterministicDockerServer(t *testing.T) *httptest.Server {
+	t.Helper()
+	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		switch {
+		case strings.HasSuffix(r.URL.Path, "/_ping"):
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write([]byte("OK"))
+		case strings.HasSuffix(r.URL.Path, "/version"):
+			_ = json.NewEncoder(w).Encode(map[string]string{"ApiVersion": "1.41", "Version": "test"})
+		case strings.HasSuffix(r.URL.Path, "/info"):
+			_ = json.NewEncoder(w).Encode(map[string]interface{}{"ID": "test-daemon", "Containers": 0})
+		case strings.HasSuffix(r.URL.Path, "/containers/json"):
+			_ = json.NewEncoder(w).Encode([]interface{}{})
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+}
 
 func TestNewDockerHandler(t *testing.T) {
 	t.Run("WithDockerClient", func(t *testing.T) {
@@ -62,10 +84,11 @@ func TestGetDockerInfo(t *testing.T) {
 	})
 
 	t.Run("WithDockerClient", func(t *testing.T) {
-		// Try to create a Docker client
-		dockerClient, err := client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
+		server := deterministicDockerServer(t)
+		defer server.Close()
+		dockerClient, err := client.NewClientWithOpts(client.WithHost(server.URL), client.WithAPIVersionNegotiation())
 		if err != nil {
-			t.Skipf("Skipping Docker test, client creation failed: %v", err)
+			t.Fatal(err)
 		}
 
 		handler := NewDockerHandler(dockerClient)
@@ -77,10 +100,11 @@ func TestGetDockerInfo(t *testing.T) {
 		w := httptest.NewRecorder()
 		router.ServeHTTP(w, req)
 
-		// Could be 200 OK if Docker is running, or error if not
-		// We just verify it doesn't panic
-		if w.Code != http.StatusOK && w.Code != http.StatusInternalServerError {
-			t.Logf("Got status: %d (OK if Docker daemon not running)", w.Code)
+		if w.Code != http.StatusOK {
+			t.Fatalf("expected deterministic Docker info success, got %d: %s", w.Code, w.Body.String())
+		}
+		if !strings.Contains(w.Body.String(), "test-daemon") {
+			t.Fatalf("missing daemon payload: %s", w.Body.String())
 		}
 	})
 }
@@ -109,10 +133,11 @@ func TestGetContainers(t *testing.T) {
 	})
 
 	t.Run("WithDockerClient", func(t *testing.T) {
-		// Try to create a Docker client
-		dockerClient, err := client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
+		server := deterministicDockerServer(t)
+		defer server.Close()
+		dockerClient, err := client.NewClientWithOpts(client.WithHost(server.URL), client.WithAPIVersionNegotiation())
 		if err != nil {
-			t.Skipf("Skipping Docker test, client creation failed: %v", err)
+			t.Fatal(err)
 		}
 
 		handler := NewDockerHandler(dockerClient)
@@ -124,18 +149,11 @@ func TestGetContainers(t *testing.T) {
 		w := httptest.NewRecorder()
 		router.ServeHTTP(w, req)
 
-		// Could be 200 OK if Docker is running, or error if not
-		// We just verify it doesn't panic
-		if w.Code != http.StatusOK && w.Code != http.StatusInternalServerError {
-			t.Logf("Got status: %d (OK if Docker daemon not running)", w.Code)
+		if w.Code != http.StatusOK {
+			t.Fatalf("expected deterministic container success, got %d: %s", w.Code, w.Body.String())
 		}
-
-		// If successful, response should be valid JSON array
-		if w.Code == http.StatusOK {
-			body := w.Body.String()
-			if body != "" && body[0] != '[' {
-				t.Errorf("Expected JSON array response, got: %s", body)
-			}
+		if body := w.Body.String(); body == "" || body[0] != '[' {
+			t.Errorf("expected JSON array response, got: %s", body)
 		}
 	})
 }
@@ -155,7 +173,7 @@ func TestDockerHandlerEdgeCases(t *testing.T) {
 		router.ServeHTTP(w, req)
 
 		if w.Code != http.StatusNotFound && w.Code != http.StatusMethodNotAllowed {
-			t.Logf("Got status: %d for invalid method", w.Code)
+			t.Errorf("expected 404 or 405 for invalid method, got %d", w.Code)
 		}
 	})
 
@@ -190,9 +208,11 @@ func TestDockerHandlerIntegration(t *testing.T) {
 	t.Run("InfoAndContainersCombined", func(t *testing.T) {
 		gin.SetMode(gin.TestMode)
 
-		dockerClient, err := client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
+		server := deterministicDockerServer(t)
+		defer server.Close()
+		dockerClient, err := client.NewClientWithOpts(client.WithHost(server.URL), client.WithAPIVersionNegotiation())
 		if err != nil {
-			t.Skipf("Skipping Docker integration test: %v", err)
+			t.Fatal(err)
 		}
 
 		handler := NewDockerHandler(dockerClient)
@@ -211,9 +231,8 @@ func TestDockerHandlerIntegration(t *testing.T) {
 		containersW := httptest.NewRecorder()
 		router.ServeHTTP(containersW, containersReq)
 
-		// Both should return same availability status
-		if (infoW.Code == http.StatusOK) != (containersW.Code == http.StatusOK) {
-			t.Log("Note: Info and containers returned different availability status")
+		if infoW.Code != http.StatusOK || containersW.Code != http.StatusOK {
+			t.Fatalf("deterministic Docker endpoints failed: info=%d containers=%d", infoW.Code, containersW.Code)
 		}
 	})
 }

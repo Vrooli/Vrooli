@@ -1,0 +1,13 @@
+{
+  "path": "internal/safeguards/example/safeguard.json",
+  "name": "example",
+  "capability": "host-metrics",
+  "capability_role": "control",
+  "platform_status": {
+    "macos": {
+      "status": "not_applicable",
+      "evidence": "This safeguard has no implementation for the macOS host mechanism; the capability is not applicable on this host OS.",
+      "review_by": "2027-08-26"
+    }
+  }
+}

@@ -75,7 +75,7 @@ export function useYoloMode(enabled = true): UseYoloModeReturn {
     },
     onSettled: () => {
       // Refetch to ensure consistency
-      queryClient.invalidateQueries({ queryKey: settingsQueryKeys.yoloMode() });
+      void queryClient.invalidateQueries({ queryKey: settingsQueryKeys.yoloMode() });
     },
   });
 
@@ -83,7 +83,7 @@ export function useYoloMode(enabled = true): UseYoloModeReturn {
     yoloMode,
     isLoading,
     isUpdating: mutation.isPending,
-    error: error as Error | null,
+    error,
     setYoloMode: async (enabled) => {
       await mutation.mutateAsync(enabled);
     },

@@ -51,11 +51,11 @@ describe("graphService", () => {
           },
         },
         {
-          id: "initiative/graph-adoption",
-          type: "Initiative",
+          id: "goal/graph-adoption",
+          type: "Goal",
           position: { x: 0, y: 0 },
           data: {
-            initiative: {
+            goal: {
               name: "graph-adoption",
               title: "Graph Adoption",
               status: "active",
@@ -120,7 +120,7 @@ describe("graphService", () => {
         {
           id: "member_of:one",
           source: "backlog-item/execute/my-feature",
-          target: "initiative/graph-adoption",
+          target: "goal/graph-adoption",
           type: "member_of",
         },
       ],
@@ -143,7 +143,7 @@ describe("graphService", () => {
 
     expect(graph.nodes.map((node) => node.type)).toEqual([
       "backlog",
-      "initiative",
+      "goal",
       "execution",
       "agent-activity",
       "agent-run",
@@ -182,8 +182,6 @@ describe("graphService", () => {
       edgeCount: 1,
       generatedAt: "2026-03-28T00:00:00Z",
       agentManagerAvailable: true,
-      focusNodeId: null,
-      focusNodeType: null,
       hint: null,
     });
   });

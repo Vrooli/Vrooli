@@ -11,12 +11,12 @@ import (
 	"path/filepath"
 	"testing"
 
+	"scenario-to-desktop-api/captures"
+	"scenario-to-desktop-api/screenrecording"
+
 	"github.com/gorilla/mux"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-
-	"scenario-to-desktop-api/captures"
-	"scenario-to-desktop-api/screenrecording"
 
 	"github.com/vrooli/api-core/storage"
 )
@@ -61,6 +61,9 @@ func newTestServiceForActions() *Service {
 	backend := newMockBackend()
 	svc := NewService(store, backend, newTestLogger(), "")
 	svc.dataDir = os.TempDir()
+	svc.WithVideoInspector(func(context.Context, string) (screenrecording.MediaInspection, error) {
+		return screenrecording.MediaInspection{Container: "mp4", Codec: "h264", Width: 1280, Height: 720, DurationMs: 5000, UsefulFrame: true}, nil
+	})
 	return svc
 }
 
@@ -192,11 +195,10 @@ func TestStopRecordingAction_Success(t *testing.T) {
 	session.CaptureID = "cap-123"
 
 	action := &StopRecordingAction{}
-	result, err := action.Execute(context.Background(), session, svc, nil)
-	require.NoError(t, err)
-	assert.Equal(t, "ok", result.Status)
+	_, err := action.Execute(context.Background(), session, svc, nil)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "capture storage is unavailable")
 	assert.False(t, session.IsRecording)
-	assert.Contains(t, result.Data["video_url"], "recording-123.mp4")
 }
 
 func TestStopRecordingAction_NotRecording(t *testing.T) {
@@ -208,6 +210,22 @@ func TestStopRecordingAction_NotRecording(t *testing.T) {
 	_, err := action.Execute(context.Background(), session, svc, nil)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "not recording")
+}
+
+func TestStopRecordingAction_RejectsInvalidVideo(t *testing.T) {
+	svc := newTestServiceForActions()
+	svc.WithVideoInspector(func(context.Context, string) (screenrecording.MediaInspection, error) {
+		return screenrecording.MediaInspection{}, fmt.Errorf("recording has no useful application frames")
+	})
+	svc.recorder = &mockRecorder{result: &screenrecording.CaptureResult{VideoPath: "/tmp/invalid.mp4"}}
+	session := newTestSession()
+	session.IsRecording = true
+	session.CaptureID = "cap-invalid"
+
+	_, err := (&StopRecordingAction{}).Execute(context.Background(), session, svc, nil)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "validating recorded video")
+	assert.False(t, session.IsRecording)
 }
 
 // ===================== OfflineModeAction Tests =====================
@@ -561,9 +579,11 @@ func newCapturesService(t *testing.T) *captures.Service {
 	opts := storage.Options{ScenarioID: "scenario-to-desktop-captures"}
 	metaPath, err := resolver.Path(opts, storage.ClassData, "captures_meta.json")
 	require.NoError(t, err)
+	filesDir, err := resolver.Path(opts, storage.ClassData, "captures")
+	require.NoError(t, err)
 	store, err := captures.NewFileStore(metaPath)
 	require.NoError(t, err)
-	return captures.NewService(resolver, opts, store)
+	return captures.NewService(resolver, opts, filesDir, store)
 }
 
 // screenshotCreatingBackend creates the screenshot file when CaptureScreenshot is called.

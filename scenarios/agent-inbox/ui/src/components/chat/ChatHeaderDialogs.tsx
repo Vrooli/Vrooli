@@ -106,15 +106,15 @@ export function ExportDialog({ open, onClose, chatId, chatName }: ExportDialogPr
       <DialogBody>
         <p className="text-slate-400 text-sm mb-4">Choose a format to export "{chatName}"</p>
         <div className="space-y-2">
-          <button onClick={() => handleExport("markdown")} disabled={isExporting} className="w-full flex items-center gap-3 p-3 rounded-lg bg-white/5 hover:bg-white/10 transition-colors text-left" data-testid="export-markdown-button">
+          <button onClick={() => { void handleExport("markdown"); }} disabled={isExporting} className="w-full flex items-center gap-3 p-3 rounded-lg bg-white/5 hover:bg-white/10 transition-colors text-left" data-testid="export-markdown-button">
             <FileText className="h-5 w-5 text-indigo-400" />
             <div><div className="font-medium text-white">Markdown (.md)</div><div className="text-xs text-slate-500">Best for documentation and readability</div></div>
           </button>
-          <button onClick={() => handleExport("json")} disabled={isExporting} className="w-full flex items-center gap-3 p-3 rounded-lg bg-white/5 hover:bg-white/10 transition-colors text-left" data-testid="export-json-button">
+          <button onClick={() => { void handleExport("json"); }} disabled={isExporting} className="w-full flex items-center gap-3 p-3 rounded-lg bg-white/5 hover:bg-white/10 transition-colors text-left" data-testid="export-json-button">
             <FileJson className="h-5 w-5 text-emerald-400" />
             <div><div className="font-medium text-white">JSON (.json)</div><div className="text-xs text-slate-500">Complete data with all metadata</div></div>
           </button>
-          <button onClick={() => handleExport("txt")} disabled={isExporting} className="w-full flex items-center gap-3 p-3 rounded-lg bg-white/5 hover:bg-white/10 transition-colors text-left" data-testid="export-txt-button">
+          <button onClick={() => { void handleExport("txt"); }} disabled={isExporting} className="w-full flex items-center gap-3 p-3 rounded-lg bg-white/5 hover:bg-white/10 transition-colors text-left" data-testid="export-txt-button">
             <File className="h-5 w-5 text-slate-400" />
             <div><div className="font-medium text-white">Plain Text (.txt)</div><div className="text-xs text-slate-500">Simple format for any text editor</div></div>
           </button>

@@ -1,0 +1,120 @@
+{
+  "metadata": {
+    "name": "evidence-workspace-readiness",
+    "description": "Prove that index trust, bounded search controls, corpus readiness, and the evidence report are visible without documentation.",
+    "requirement": "CF-P0-021",
+    "version": 1,
+    "execution_mode": "observer",
+    "labels": { "reset": "none", "requirements_json": "[\"CF-P0-021\"]" }
+  },
+  "id": "bedc81be-b716-4f43-9058-3f7f0eb0a80e",
+  "project_id": "10d4c288-8990-4bde-96df-87368dbd0b9a",
+  "name": "evidence-workspace-readiness",
+  "folder_path": "/flows",
+  "description": "Prove that index trust, bounded search controls, corpus readiness, and the evidence report are visible without documentation.",
+  "tags": [
+    "reset:none",
+    "requirements_json:[\"CF-P0-021\"]"
+  ],
+  "version": 1,
+  "created_at": "2026-08-21T02:27:04.240536339Z",
+  "updated_at": "2026-08-21T02:27:04.240536339Z",
+  "flow_definition": {
+    "settings": {
+      "viewport_width": 1440,
+      "viewport_height": 900
+    },
+    "nodes": [
+      {
+        "id": "navigate-facts",
+        "action": {
+          "type": "ACTION_TYPE_NAVIGATE",
+          "navigate": {
+            "timeout_ms": 30000,
+            "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE",
+            "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+            "scenario": "code-facts",
+            "scenario_path": "/facts"
+          },
+          "metadata": {
+            "label": "Open the evidence workspace"
+          }
+        }
+      },
+      {
+        "id": "wait-workspace",
+        "action": {
+          "type": "ACTION_TYPE_WAIT",
+          "wait": {
+            "selector": "@selector/facts.searchWorkspace",
+            "state": "WAIT_STATE_VISIBLE",
+            "timeout_ms": 15000
+          },
+          "metadata": {
+            "label": "Wait for the showcase workspace"
+          }
+        }
+      },
+      {
+        "id": "assert-index-trust",
+        "action": {
+          "type": "ACTION_TYPE_ASSERT",
+          "assert": {
+            "selector": "@selector/facts.indexStatus",
+            "mode": "ASSERTION_MODE_VISIBLE",
+            "failure_message": "Index trust must be visible beside search",
+            "timeout_ms": 10000
+          },
+          "metadata": {
+            "label": "Index trust is visible"
+          }
+        }
+      },
+      {
+        "id": "assert-report",
+        "action": {
+          "type": "ACTION_TYPE_ASSERT",
+          "assert": {
+            "selector": "@selector/facts.workbench",
+            "mode": "ASSERTION_MODE_VISIBLE",
+            "failure_message": "The evidence report must remain available",
+            "timeout_ms": 10000
+          },
+          "metadata": {
+            "label": "Evidence report is visible"
+          }
+        }
+      },
+      {
+        "id": "capture-readiness",
+        "action": {
+          "type": "ACTION_TYPE_SCREENSHOT",
+          "screenshot": {
+            "full_page": true
+          },
+          "metadata": {
+            "label": "Capture the complete evidence workspace"
+          }
+        }
+      }
+    ],
+    "edges": [
+      {
+        "source": "navigate-facts",
+        "target": "wait-workspace"
+      },
+      {
+        "source": "wait-workspace",
+        "target": "assert-index-trust"
+      },
+      {
+        "source": "assert-index-trust",
+        "target": "assert-report"
+      },
+      {
+        "source": "assert-report",
+        "target": "capture-readiness"
+      }
+    ]
+  }
+}

@@ -95,7 +95,7 @@ export function useProfileForm(): UseProfileFormReturn {
 
   // Load profile on mount
   useEffect(() => {
-    loadProfile();
+    void loadProfile();
   }, [loadProfile]);
 
   /**

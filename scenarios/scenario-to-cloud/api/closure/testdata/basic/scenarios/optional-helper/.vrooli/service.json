@@ -1,0 +1,19 @@
+{
+  "service": {
+    "name": "optional-helper",
+    "version": "0.1.0"
+  },
+  "runtime": {
+    "kind": "one_shot",
+    "auto_restart_default": false
+  },
+  "credentials": {
+    "descriptors": [
+      {
+        "logical_id": "fixture/app",
+        "field": "session-secret",
+        "required": false
+      }
+    ]
+  }
+}

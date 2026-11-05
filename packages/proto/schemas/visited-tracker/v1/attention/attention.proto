@@ -1,0 +1,88 @@
+syntax = "proto3";
+package vrooli.visited_tracker.v1.attention;
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/visited-tracker/v1/attention;attentionv1";
+
+// Attention is scoped to a campaign and a captured file revision. Worker names
+// identify coordination participants; invocation authority is governed upstream.
+service AttentionService {
+  rpc EnsureCampaign(EnsureCampaignRequest) returns (CampaignResponse);
+  rpc Preview(PreviewRequest) returns (PreviewResponse);
+  rpc Claim(ClaimRequest) returns (ClaimResponse);
+  rpc Complete(CompleteRequest) returns (ClaimResponse);
+}
+message EnsureCampaignRequest {
+  string location = 1;
+  string tag = 2;
+  repeated string patterns = 3;
+  int32 max_files = 4;
+}
+message CampaignResponse { string campaign_id = 1; uint64 revision = 2; }
+message PreviewRequest { string campaign_id = 1; int32 limit = 2; }
+message Candidate {
+  string file_id = 1;
+  string path = 2;
+  string revision = 3;
+  double score = 4;
+  double priority = 5;
+  bool reviewed = 6;
+}
+message PreviewResponse {
+  repeated Candidate candidates = 1;
+  uint64 campaign_revision = 2;
+  string observed_at = 3;
+  uint32 eligible_count = 4;
+  uint32 active_claim_count = 5;
+  uint64 oldest_eligible_age_seconds = 6;
+  uint64 oldest_active_claim_age_seconds = 7;
+  ClaimIntegrity integrity = 8;
+  StorageWriteObservation storage_writes = 9;
+}
+// Current active-claim invariants in this campaign snapshot. This is not a
+// historical correctness certificate and does not count guarded rejections.
+message ClaimIntegrity {
+  uint32 check_schema_version = 1;
+  string observed_at = 2;
+  uint32 examined_claims = 3;
+  uint32 violations = 4;
+}
+// Completed file replacement attempts in this API process, across campaigns.
+// A failed attempt can have replaced a file before directory sync failed.
+// Epoch changes reset counters; missing or stale samples are not healthy zero.
+message StorageWriteObservation {
+  string epoch = 1;
+  string observed_at = 2;
+  uint64 completed_total = 3;
+  uint64 failed_total = 4;
+  uint64 consecutive_failures = 5;
+  string last_completed_at = 6;
+  uint64 last_completed_age_seconds = 7;
+  bool durable_sync_supported = 8;
+}
+message ClaimRequest {
+  string campaign_id = 1;
+  string request_id = 2;
+  string worker = 3;
+  int32 ttl_seconds = 4;
+}
+message Claim {
+  string id = 1;
+  string request_id = 2;
+  string worker = 3;
+  string file_id = 4;
+  string path = 5;
+  string revision = 6;
+  string expires_at = 7;
+  string outcome = 8;
+  string evidence = 9;
+  string completed_at = 10;
+}
+// no_work means no eligible candidate at this observation; claim absence never
+// means an expired claim was silently replaced with fresh work.
+message ClaimResponse { Claim claim = 1; bool no_work = 2; }
+message CompleteRequest {
+  string campaign_id = 1;
+  string claim_id = 2;
+  string worker = 3;
+  string outcome = 4;
+  string evidence = 5;
+}

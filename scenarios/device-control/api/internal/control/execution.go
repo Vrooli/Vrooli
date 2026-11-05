@@ -1,0 +1,1751 @@
+package control
+
+import (
+	"bytes"
+	"context"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"reflect"
+	"strconv"
+	"strings"
+	"time"
+
+	authdomain "device-control/internal/auth"
+	"device-control/internal/evidence"
+	internalflows "device-control/internal/flows"
+	sessionsdomain "device-control/internal/sessions"
+	"device-control/strategy"
+
+	"github.com/google/uuid"
+)
+
+func (s *Service) Validate(ctx context.Context, flow Flow, strategyID string) GapReport {
+	// A device id may be supplied for preflight so validation sees the same
+	// promoted, endpoint-scoped adapter that execution will use. This matters
+	// for wireless devices: the registry's generic android-adb strategy has no
+	// live capabilities until it is bound to the device's restored transport.
+	if strat, ok := s.strategyForFlow(strategyID, flow.Transport); ok {
+		report, transportUnavailable := validateAgainstDeclarationDetailed(ctx, flow, strat)
+		_, fallbackReport, fallback := s.preflightUSBForImplicitWireless(ctx, strategyID, flow, report)
+		if fallback {
+			return fallbackReport
+		}
+		if transportUnavailable && !report.Runnable && strings.TrimSpace(flow.Transport) == "" && s.recoverWirelessBeforeUse(ctx, strategyID) {
+			if recovered, ok := s.strategyForFlow(strategyID, "wireless"); ok {
+				recoveredReport, _ := validateAgainstDeclarationDetailed(ctx, flow, recovered)
+				return recoveredReport
+			}
+		}
+		return report
+	}
+	d, ok := s.strategyForDevice(strategyID)
+	if !ok {
+		return GapReport{Gaps: []string{"unknown strategy " + strategyID}}
+	}
+	return validateAgainstDeclaration(ctx, flow, d)
+}
+
+// preflightUSBForImplicitWireless only selects the serial-bound USB strategy
+// before execution starts. A requested transport is never silently replaced.
+func (s *Service) preflightUSBForImplicitWireless(ctx context.Context, deviceID string, flow Flow, report GapReport) (strategy.Strategy, GapReport, bool) {
+	if report.Runnable || strings.TrimSpace(flow.Transport) != "" {
+		return nil, report, false
+	}
+	candidate, ok := s.knownSerialAndroidUSB(deviceID)
+	if !ok {
+		return nil, report, false
+	}
+	usbFlow := flow
+	usbFlow.Transport = "usb"
+	if usbReport := validateAgainstDeclaration(ctx, usbFlow, candidate); usbReport.Runnable {
+		return candidate, usbReport, true
+	}
+	return nil, report, false
+}
+
+func (s *Service) knownSerialAndroidUSB(deviceID string) (strategy.Strategy, bool) {
+	record, found := s.devices.Get(deviceID)
+	if !found || !strings.EqualFold(record.Transport, "wireless") || record.StrategyID != "android-adb" || record.Serial == "" {
+		return nil, false
+	}
+	base, baseOK := s.registry.Get(record.StrategyID)
+	if _, scoped := base.(strategy.DeviceScoped); !baseOK || !scoped {
+		return nil, false
+	}
+	for _, profile := range record.Transports {
+		if profile.Name == "usb" && profile.StrategyID == record.StrategyID {
+			return s.strategyForFlow(deviceID, "usb")
+		}
+	}
+	return nil, false
+}
+
+// recoverWirelessBeforeUse reconnects only an existing Android wireless
+// identity. The reconnect owner verifies its serial before changing the saved
+// endpoint; callers must invoke this before any device effect.
+func (s *Service) recoverWirelessBeforeUse(ctx context.Context, deviceID string) bool {
+	record, ok := s.devices.Get(deviceID)
+	if !ok || record.StrategyID != "android-adb" || !strings.EqualFold(record.Transport, "wireless") {
+		return false
+	}
+	reconnectCtx, cancel := context.WithTimeout(ctx, 8*time.Second)
+	defer cancel()
+	_, err := s.ReconnectWireless(reconnectCtx, deviceID)
+	return err == nil
+}
+
+func observedStateKey(deviceID, transport, attribute string) string {
+	return deviceID + "\x00" + transport + "\x00" + attribute
+}
+
+func (s *Service) rememberObservedState(deviceID, transport, attribute string, value any) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.observedStates == nil {
+		s.observedStates = map[string]any{}
+	}
+	s.observedStates[observedStateKey(deviceID, transport, attribute)] = value
+}
+
+func (s *Service) observeState(deviceID, transport, attribute string, value any) (old any, changed, hadPrevious bool) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.observedStates == nil {
+		s.observedStates = map[string]any{}
+	}
+	key := observedStateKey(deviceID, transport, attribute)
+	old, hadPrevious = s.observedStates[key]
+	changed = hadPrevious && !reflect.DeepEqual(old, value)
+	s.observedStates[key] = value
+	return old, changed, hadPrevious
+}
+
+func validateAgainstDeclaration(ctx context.Context, flow Flow, d strategy.Strategy) GapReport {
+	report, _ := validateAgainstDeclarationDetailed(ctx, flow, d)
+	return report
+}
+
+// validateAgainstDeclarationDetailed separates a transport that cannot currently
+// be observed from a healthy transport that lacks a requested capability. Only
+// the former is eligible for automatic reconnect; reconnecting cannot add support
+// for a capability the adapter does not provide.
+func validateAgainstDeclarationDetailed(ctx context.Context, flow Flow, d strategy.Strategy) (GapReport, bool) {
+	var decl strategy.Declaration
+	if prober, ok := d.(strategy.CaptureDescriber); ok && simpleCaptureKind(flow) != "" {
+		decl, _ = prober.DescribeCapture(ctx, simpleCaptureKind(flow))
+	} else {
+		decl, _ = d.Describe(ctx)
+	}
+	g := GapReport{Runnable: true, Gaps: []string{}, Warnings: []string{}}
+	if err := validateFlowContract(flow); err != nil {
+		g.Runnable = false
+		g.Gaps = append(g.Gaps, err.Error())
+	}
+	for _, step := range flow.Steps {
+		if (step.Kind == "wireless-debugging" || step.Kind == "wireless-debugging-assert") && step.Target != "enable" && step.Target != "disable" {
+			g.Runnable = false
+			g.Gaps = append(g.Gaps, fmt.Sprintf("step %s requires target enable or disable", step.ID))
+		}
+		if value, present := step.Arguments["require_audio"]; present {
+			if _, ok := value.(bool); !ok || step.Kind != "recording-start" {
+				g.Runnable = false
+				g.Gaps = append(g.Gaps, fmt.Sprintf("step %s requires a boolean require_audio on recording-start", step.ID))
+			}
+		}
+		if !knownStepKind(step.Kind) {
+			g.Runnable = false
+			g.Gaps = append(g.Gaps, fmt.Sprintf("step %s uses unsupported kind %q", step.ID, step.Kind))
+		}
+		if step.Kind == "semantic-target" && decl.Capabilities[strategy.CapSemanticTree].Status != strategy.StatusAvailable {
+			g.Runnable = false
+			g.Gaps = append(g.Gaps, fmt.Sprintf("step %s requires %s", step.ID, strategy.CapSemanticTree))
+		}
+		if step.Kind == "observe" && decl.Capabilities[strategy.CapScreenshot].Status != strategy.StatusAvailable {
+			g.Runnable = false
+			g.Gaps = append(g.Gaps, fmt.Sprintf("step %s requires %s", step.ID, strategy.CapScreenshot))
+		}
+		if (step.Kind == "recording-start" || step.Kind == "recording-stop") && decl.Capabilities[strategy.CapScreenRecording].Status != strategy.StatusAvailable && decl.Capabilities[strategy.CapNativeRecording].Status != strategy.StatusAvailable {
+			g.Runnable = false
+			g.Gaps = append(g.Gaps, fmt.Sprintf("step %s requires %s", step.ID, strategy.CapScreenRecording))
+		}
+		if required, _ := step.Arguments["require_audio"].(bool); step.Kind == "recording-start" && required {
+			if _, ok := d.(strategy.AudioSessionRecorder); !ok || decl.Capabilities[strategy.CapRecordingAudio].Status != strategy.StatusAvailable {
+				g.Runnable = false
+				g.Gaps = append(g.Gaps, fmt.Sprintf("step %s requires recording with audio", step.ID))
+			}
+		}
+		if step.Kind == "pinch" && decl.Capabilities[strategy.CapMultiTouch].Status != strategy.StatusAvailable {
+			g.Runnable = false
+			g.Gaps = append(g.Gaps, fmt.Sprintf("step %s requires %s", step.ID, strategy.CapMultiTouch))
+		}
+		for _, cap := range step.RequiredCapabilities {
+			if decl.Capabilities[cap].Status != strategy.StatusAvailable {
+				g.Runnable = false
+				g.Gaps = append(g.Gaps, fmt.Sprintf("step %s requires %s (%s)", step.ID, cap, decl.Capabilities[cap].NextAction))
+			}
+		}
+		if capability, ok := capabilityForDerivedStep(step.Kind); ok && decl.Capabilities[capability].Status != strategy.StatusAvailable {
+			g.Runnable = false
+			detail := decl.Capabilities[capability].Reason
+			if detail == "" {
+				detail = decl.Capabilities[capability].NextAction
+			}
+			if detail == "" {
+				g.Gaps = append(g.Gaps, fmt.Sprintf("step %s requires %s", step.ID, capability))
+			} else {
+				g.Gaps = append(g.Gaps, fmt.Sprintf("step %s requires %s (%s)", step.ID, capability, detail))
+			}
+		}
+	}
+	return g, decl.Status != strategy.StatusAvailable
+}
+
+// Only the exact simple capture shapes use targeted preflight. Complex flows
+// retain the full declaration, including every explicitly required capability.
+func simpleCaptureKind(flow Flow) string {
+	if len(flow.Steps) == 1 {
+		step := flow.Steps[0]
+		kind, cap := "", ""
+		switch step.Kind {
+		case "observe":
+			kind, cap = "screenshot", strategy.CapScreenshot
+		case "device-logs":
+			kind, cap = "logs", strategy.CapDeviceLogs
+		}
+		if kind == "" {
+			return ""
+		}
+		for _, required := range step.RequiredCapabilities {
+			if required != cap {
+				return ""
+			}
+		}
+		return kind
+	}
+	if len(flow.Steps) == 3 && flow.Steps[0].Kind == "recording-start" && flow.Steps[1].Kind == "wait" && flow.Steps[2].Kind == "recording-stop" {
+		for _, step := range flow.Steps {
+			for _, required := range step.RequiredCapabilities {
+				if required != strategy.CapScreenRecording && required != strategy.CapNativeRecording {
+					return ""
+				}
+			}
+		}
+		return "recording"
+	}
+	return ""
+}
+
+const (
+	maxFlowSteps      = 64
+	maxFlowDurationMS = int64(5 * time.Minute / time.Millisecond)
+	maxStepTimeoutMS  = int64(2 * time.Minute / time.Millisecond)
+	maxRetryBudget    = 3
+)
+
+// FlowHTTPWriteTimeout leaves time to serialize evidence after the bounded
+// flow execution window. The API server must not close a response while a
+// valid maximum-duration flow is still producing its result.
+func FlowHTTPWriteTimeout() time.Duration {
+	return time.Duration(maxFlowDurationMS)*time.Millisecond + time.Minute
+}
+
+func validateFlowContract(flow Flow) error {
+	if len(flow.Steps) > maxFlowSteps {
+		return fmt.Errorf("flow exceeds %d steps", maxFlowSteps)
+	}
+	if flow.MaxDurationMS < 0 || flow.MaxDurationMS > maxFlowDurationMS {
+		return fmt.Errorf("flow max_duration_ms must be between 0 and %d", maxFlowDurationMS)
+	}
+	if flow.RetryBudget < 0 || flow.RetryBudget > maxRetryBudget {
+		return fmt.Errorf("flow retry_budget must be between 0 and %d", maxRetryBudget)
+	}
+	ids := map[string]struct{}{}
+	reversePorts := map[int]bool{}
+	for _, step := range flow.Steps {
+		if step.Kind == "install-artifact" {
+			artifactRef, _ := step.Arguments["artifact_ref"].(string)
+			packageName, _ := step.Arguments["package"].(string)
+			versionName, hasVersion := step.Arguments["version_name"].(string)
+			if step.Target != "" || !androidArtifactRef.MatchString(artifactRef) || !androidPackageName.MatchString(packageName) || len(step.Arguments) < 2 || len(step.Arguments) > 3 || (hasVersion && (strings.TrimSpace(versionName) != versionName || len(versionName) > 128)) || (!hasVersion && step.Arguments["version_name"] != nil) {
+				return fmt.Errorf("step %q install-artifact requires an immutable Android ref, fully-qualified package, and optional version_name", step.ID)
+			}
+			if step.RetryBudget != 0 || flow.RetryBudget != 0 {
+				return fmt.Errorf("step %q install-artifact cannot be retried automatically", step.ID)
+			}
+		}
+		if step.Kind == "home-set" && (!flow.RequireUnlocked || step.RetryBudget != 0 || flow.RetryBudget != 0) {
+			return fmt.Errorf("home-set requires an unlocked flow without retries")
+		}
+		if step.Kind == "home-set" {
+			prior, _ := step.Arguments["value"].(string)
+			if !androidPackageName.MatchString(step.Target) || len(step.Arguments) != 1 || prior == "" || len(prior) > 512 {
+				return fmt.Errorf("home-set requires one package target and expected prior Home value")
+			}
+		}
+		if step.Kind == "restart-device" && (len(flow.Steps) != 1 || !flow.RequireUnlocked || step.Target != "" || len(step.Arguments) != 0 || step.RetryBudget != 0 || flow.RetryBudget != 0) {
+			return fmt.Errorf("restart-device requires one unlocked, argument-free step without retries")
+		}
+		if step.Kind == "assert-foreground" && (strings.TrimSpace(step.Target) == "" || len(step.Target) > 256) {
+			return fmt.Errorf("step %q requires a bounded foreground application identity", step.ID)
+		}
+		if step.Kind == "reverse-tcp" || step.Kind == "reverse-tcp-remove" {
+			devicePort, _, err := reverseTCPPorts(step)
+			if err != nil {
+				return fmt.Errorf("step %q: %w", step.ID, err)
+			}
+			if reversePorts[devicePort] || len(reversePorts) >= 4 {
+				return fmt.Errorf("reverse-tcp requires at most four distinct device ports")
+			}
+			reversePorts[devicePort] = true
+		}
+		if strings.TrimSpace(step.ID) == "" {
+			return fmt.Errorf("flow step id is required")
+		}
+		if _, exists := ids[step.ID]; exists {
+			return fmt.Errorf("flow step id %q is duplicated", step.ID)
+		}
+		ids[step.ID] = struct{}{}
+		if step.TimeoutMS < 0 || step.TimeoutMS > maxStepTimeoutMS {
+			return fmt.Errorf("step %q timeout_ms must be between 0 and %d", step.ID, maxStepTimeoutMS)
+		}
+		if step.RetryBudget < 0 || step.RetryBudget > maxRetryBudget {
+			return fmt.Errorf("step %q retry_budget must be between 0 and %d", step.ID, maxRetryBudget)
+		}
+		if key := strings.TrimSpace(step.IdempotencyKey); key != "" {
+			if len(key) > 128 {
+				return fmt.Errorf("step %q idempotency_key exceeds 128 bytes", step.ID)
+			}
+		}
+		for _, condition := range append(append([]Condition{}, step.Preconditions...), step.Postconditions...) {
+			if err := validateCondition(condition); err != nil {
+				return fmt.Errorf("step %q: %w", step.ID, err)
+			}
+		}
+	}
+	return nil
+}
+
+// Numeric TCP endpoints only; no shell, privileged ports, or socket paths.
+func reverseTCPPorts(step Step) (int, int, error) {
+	devicePort, err := strconv.Atoi(step.Target)
+	raw, ok := step.Arguments["host_port"].(float64)
+	hostPort := int(raw)
+	if err != nil || !ok || raw != float64(hostPort) || devicePort < 1024 || devicePort > 65535 || hostPort < 1024 || hostPort > 65535 {
+		return 0, 0, fmt.Errorf("reverse-tcp requires integer device/host TCP ports from 1024 through 65535")
+	}
+	return devicePort, hostPort, nil
+}
+
+func validateCondition(condition Condition) error {
+	kind := strings.ToLower(strings.TrimSpace(condition.Kind))
+	switch kind {
+	case "device-unlocked", "screen-on", "screen-off", "frame-different":
+		return nil
+	case "capability", "property-equals":
+		if strings.TrimSpace(condition.Target) == "" {
+			return fmt.Errorf("condition %q requires a target", condition.Kind)
+		}
+		if kind == "property-equals" && condition.Expected == nil {
+			return fmt.Errorf("property-equals condition requires expected")
+		}
+		return nil
+	default:
+		return fmt.Errorf("unsupported condition kind %q", condition.Kind)
+	}
+}
+
+func claimClassForStep(step Step) string {
+	if value, ok := step.Arguments["claim_class"].(string); ok {
+		switch value {
+		case string(strategy.ClaimStatic), string(strategy.ClaimTransition), string(strategy.ClaimAnimation):
+			return value
+		}
+	}
+	return string(strategy.ClaimTransition)
+}
+
+func (s *Service) Run(ctx context.Context, flow Flow, deviceID, actor string) (RunResult, error) {
+	return s.execute(ctx, flow, deviceID, actor, Session{}, true, false)
+}
+
+func (s *Service) RunWithLease(ctx context.Context, flow Flow, deviceID, actor, leaseToken string) (RunResult, error) {
+	return s.RunWithLeaseConfirmed(ctx, flow, deviceID, actor, leaseToken, false)
+}
+
+// RunWithLeaseConfirmed keeps one-shot operator confirmation outside the
+// replayable flow definition. It is required for artifact installation.
+func (s *Service) RunWithLeaseConfirmed(ctx context.Context, flow Flow, deviceID, actor, leaseToken string, confirmed bool) (RunResult, error) {
+	if flowRequiresConfirmation(flow) && !confirmed {
+		return RunResult{}, fmt.Errorf("flow contains install-artifact and requires explicit confirmation")
+	}
+	if leaseToken == "" {
+		return s.execute(ctx, flow, deviceID, actor, Session{}, true, confirmed)
+	}
+	sess, err := s.sessionForLease(ctx, deviceID, leaseToken)
+	if err != nil {
+		return RunResult{}, err
+	}
+	return s.execute(ctx, flow, deviceID, actor, sess, false, confirmed)
+}
+
+func flowRequiresConfirmation(flow Flow) bool {
+	for _, step := range flow.Steps {
+		if step.Kind == "install-artifact" {
+			return true
+		}
+	}
+	return false
+}
+
+func (s *Service) execute(ctx context.Context, flow Flow, deviceID, actor string, sess Session, releaseLease, confirmed bool) (RunResult, error) {
+	requestedFlow := flow
+	transport, routeErr := s.requireCurrentEffectRoute(deviceID, flow.Transport)
+	if routeErr != nil {
+		return RunResult{}, routeErr
+	}
+	flow.Transport = transport
+	strat, ok := s.strategyForFlow(deviceID, flow.Transport)
+	if !ok {
+		if flow.Transport == "" {
+			return RunResult{}, fmt.Errorf("unknown device %q", deviceID)
+		}
+		return RunResult{}, fmt.Errorf("transport %q is unavailable for device %q; request usb or promote the device before requesting wireless", flow.Transport, deviceID)
+	}
+	if strings.TrimSpace(flow.Transport) == "" {
+		if record, found := s.devices.Get(deviceID); found {
+			flow.Transport = record.Transport
+			if strings.EqualFold(flow.Transport, "wireless") && !s.hasTransportStrategy(deviceID) {
+				flow.Transport = "usb"
+			}
+		}
+	}
+	g, transportUnavailable := validateAgainstDeclarationDetailed(ctx, flow, strat)
+	if candidate, usbReport, fallback := s.preflightUSBForImplicitWireless(ctx, deviceID, requestedFlow, g); fallback {
+		strat, g = candidate, usbReport
+		flow.Transport = "usb"
+	}
+	if transportUnavailable && !g.Runnable && strings.TrimSpace(requestedFlow.Transport) == "" && s.recoverWirelessBeforeUse(ctx, deviceID) {
+		if candidate, candidateOK := s.strategyForFlow(deviceID, "wireless"); candidateOK {
+			wirelessFlow := requestedFlow
+			wirelessFlow.Transport = "wireless"
+			if wirelessReport, _ := validateAgainstDeclarationDetailed(ctx, wirelessFlow, candidate); wirelessReport.Runnable {
+				strat, flow, g = candidate, wirelessFlow, wirelessReport
+			}
+		}
+	}
+	if !g.Runnable {
+		return RunResult{RunID: uuid.NewString(), Disposition: "capability_gap", Chapters: []Chapter{{ID: "preflight", Title: "Capability preflight", Disposition: "failed", Message: strings.Join(g.Gaps, "; ")}}}, nil
+	}
+	if flow.AllowUnredactedCapture {
+		if err := evidence.ValidateOptOut(actor); err != nil {
+			return RunResult{}, err
+		}
+	}
+	if sess.ID == "" {
+		acquired, acquireErr := s.AcquireContext(ctx, deviceID, actor, 10*time.Minute)
+		if acquireErr != nil {
+			return RunResult{}, acquireErr
+		}
+		sess = acquired
+		releaseLease = true
+	}
+	if releaseLease {
+		defer func() { _, _ = s.ReleaseContext(ctx, sess.ID) }()
+	}
+	runDuration := time.Duration(maxFlowDurationMS) * time.Millisecond
+	if flow.MaxDurationMS > 0 && time.Duration(flow.MaxDurationMS)*time.Millisecond < runDuration {
+		runDuration = time.Duration(flow.MaxDurationMS) * time.Millisecond
+	}
+	runctx, finishRun, err := s.registerSessionOperation(ctx, sess, deviceID, runDuration)
+	if err != nil {
+		return RunResult{}, err
+	}
+	defer finishRun()
+	result := RunResult{RunID: uuid.NewString(), Disposition: "passed", Chapters: []Chapter{}, Resolutions: []Resolution{}, Evidence: []evidence.Reference{}, Binding: RunBinding{DeviceID: deviceID, Transport: flow.Transport, LeaseID: sess.ID, ApplicationID: flow.ApplicationID, ApplicationRevision: flow.ApplicationRevision}}
+	stateManager := &sessionsdomain.StateManager{}
+	stateRestorer, hasStateRestorer := strat.(strategy.StateRestorer)
+	restorationPrepared := false
+	var restorationState strategy.DeviceState
+	prepareRestoration := func(snapshot strategy.DeviceState, snapshotErr error) {
+		if snapshotErr != nil || !hasStateRestorer {
+			return
+		}
+		if snapshot.LockState == "locked" {
+			restorationState.LockState = snapshot.LockState
+		}
+		if snapshot.Orientation != "" && restorationState.Orientation == "" {
+			restorationState.Orientation = snapshot.Orientation
+			restorationState.AutoRotate = snapshot.AutoRotate
+			restorationState.AutoRotateKnown = snapshot.AutoRotateKnown
+			restorationState.RotationSettings = snapshot.RotationSettings
+		}
+		if restorationPrepared {
+			return
+		}
+		stateManager.Push("device-state", func(restoreCtx context.Context) error {
+			return stateRestorer.RestoreState(restoreCtx, restorationState)
+		})
+		restorationPrepared = true
+	}
+	restoreBeforeReturn := func() {
+		// A cancelled flow still owns a device state that must be restored. Detach
+		// only cancellation, retain request values, and keep the cleanup bounded.
+		restoreCtx, cancelRestore := context.WithTimeout(context.WithoutCancel(ctx), 5*time.Second)
+		defer cancelRestore()
+		result.Restoration = stateManager.Restore(restoreCtx)
+		for _, event := range result.Restoration {
+			if event.Status == "failed" {
+				result.Disposition = "failed"
+				result.Chapters = append(result.Chapters, Chapter{ID: "restoration-" + event.Name, Title: "state restoration", Disposition: "failed", Message: event.Reason})
+			}
+		}
+	}
+	authFailure := func(message string) (RunResult, error) {
+		result.Disposition = "auth_failed"
+		result.Chapters = append(result.Chapters, Chapter{ID: "authentication", Title: "Require unlocked device", Disposition: "failed", Message: message})
+		restoreBeforeReturn()
+		return result, nil
+	}
+	if flow.RequireUnlocked || flow.AuthProfileID != "" {
+		reader, readerOK := strat.(strategy.StateReader)
+		if !readerOK {
+			return authFailure("strategy does not expose live lock-state verification")
+		}
+		state, stateErr := reader.ReadState(runctx)
+		if stateErr != nil || (state.LockState != "locked" && state.LockState != "unlocked") {
+			return authFailure("device lock state is unknown; flow stopped")
+		}
+		if state.LockState == "locked" {
+			if flow.AuthProfileID == "" {
+				return authFailure("device is locked and no authentication profile was supplied")
+			}
+			// Register cleanup before unlocking, including partial failures. An
+			// authentication flow owns keyguard cleanup, not orientation settings.
+			prepareRestoration(strategy.DeviceState{LockState: "locked"}, nil)
+			unlock, unlockErr := s.UnlockDevice(runctx, flow.AuthProfileID, deviceID, actor, sess.LeaseToken)
+			if unlockErr != nil || (unlock.Outcome != authdomain.OutcomeUnlocked && unlock.Outcome != authdomain.OutcomeAlreadyUnlocked) {
+				message := unlock.Outcome
+				if unlockErr != nil {
+					message = unlockErr.Error()
+				}
+				return authFailure("unlock precondition failed: " + message)
+			}
+		}
+	}
+	recordingHandles := map[string]strategy.RecordingHandle{}
+	recordingAudioRequired := map[string]bool{}
+	recorder, hasRecorder := strat.(strategy.SessionRecorder)
+	markRecordingUncertain := func(handle strategy.RecordingHandle) {
+		if handle.ID == "" {
+			return
+		}
+		s.mu.Lock()
+		defer s.mu.Unlock()
+		if _, exists := s.externalRecordings[handle.ID]; !exists {
+			s.externalRecordings[handle.ID] = externalRecording{DeviceID: deviceID, LeaseID: sess.ID, Actor: actor, Recorder: recorder, Handle: handle, Uncertain: true}
+		}
+	}
+	storeRecording := func(step Step, artifact strategy.RecordingArtifact, requireAudio bool) error {
+		redacted, redactErr := evidence.CaptureWithPolicy(artifact.Bytes, "video/mp4", evidence.DefaultPolicy, flow.RedactSensitiveContent, flow.AllowUnredactedCapture, actor, nil)
+		if redactErr != nil {
+			return redactErr
+		}
+		frameCount, duration, effectiveFPS, measureErr := evidence.MeasureVideo(redacted.Bytes)
+		if measureErr != nil {
+			return measureErr
+		}
+		if artifact.Method == "screenshot-fallback" && artifact.EffectiveFPS > 0 && artifact.EffectiveFPS < effectiveFPS {
+			effectiveFPS = artifact.EffectiveFPS
+		}
+		artifact.FrameCount, artifact.Duration, artifact.EffectiveFPS = frameCount, duration, effectiveFPS
+		id := uuid.NewString()
+		class := evidence.ClaimClass(artifact.ClaimClass)
+		if class == "" {
+			class = evidence.ClaimClass(claimClassForStep(step))
+		}
+		ref, refErr := evidence.NewClaimedVideoReference(id, redacted.Bytes, redacted, artifact.Method, artifact.EffectiveFPS, class)
+		if refErr != nil {
+			return refErr
+		}
+		if refErr = s.persistRecording(ctx, id, redacted.Bytes, deviceID, sess.ID); refErr != nil {
+			return refErr
+		}
+		if requireAudio && (ref.AudioTrackPresent == nil || !*ref.AudioTrackPresent) {
+			ref.Disposition = evidence.DispositionDegraded
+			ref.DispositionReason = "requested audio track was absent or could not be verified"
+			result.Evidence = append(result.Evidence, ref)
+			return &strategy.EvidenceUnavailableError{Reason: ref.DispositionReason}
+		}
+		minimumMS, _ := number(step.Arguments["minimum_duration_ms"])
+		if class != evidence.ClaimStatic && (frameCount < 2 || minimumMS > 0 && duration < time.Duration(minimumMS)*time.Millisecond) {
+			ref.Disposition = evidence.DispositionDegraded
+			ref.DispositionReason = "recording is too short to establish the requested interval"
+			result.Evidence = append(result.Evidence, ref)
+			return &strategy.EvidenceUnavailableError{Reason: fmt.Sprintf("recording contains %d frame(s) over %s; the requested interval was not observed", frameCount, duration)}
+		}
+		if ref.Disposition == evidence.DispositionDegraded {
+			result.Evidence = append(result.Evidence, ref)
+			return &strategy.EvidenceUnavailableError{Reason: ref.DispositionReason}
+		}
+		result.Evidence = append(result.Evidence, ref)
+		return nil
+	}
+	var previousFrame, lastFrame []byte
+	stepCausationID := ""
+	seenIdempotencyKeys := map[string]string{}
+	dispatch := func(stepctx context.Context, event strategy.Actuation) error {
+		if flow.SuppressActuation {
+			return nil
+		}
+		if event.Action == "device-logs" && event.Package != "" && event.Value == "" {
+			if logReader, ok := strat.(strategy.ApplicationLogReader); ok {
+				output, err := logReader.ReadApplicationLogs(stepctx, event.Package)
+				if err == nil && event.Output != nil {
+					*event.Output = output
+				}
+				return err
+			}
+		}
+		if event.Action == "rotate" && restorationState.Orientation == "" {
+			reader, readable := strat.(strategy.StateReader)
+			if !readable || !hasStateRestorer {
+				return fmt.Errorf("rotation requires a restorable state snapshot")
+			}
+			snapshot, err := reader.ReadState(stepctx)
+			if err != nil || snapshot.Orientation == "" || (snapshot.RotationSettings != nil && len(snapshot.RotationSettings) != 2) {
+				return fmt.Errorf("rotation baseline is unavailable")
+			}
+			snapshot.LockState = ""
+			prepareRestoration(snapshot, nil)
+		}
+		if lifecycleFlowAction(event.Action) {
+			lifecycle, lifecycleOK := strat.(strategy.AppLifecycle)
+			if !lifecycleOK {
+				return &strategy.UnsupportedCapabilityError{Capability: strategy.CapAppLifecycle, Operation: event.Action}
+			}
+			lifecycleResult, lifecycleErr := lifecycle.AppLifecycle(stepctx, strategy.AppLifecycleRequest{Operation: event.Action, Package: event.Package, Permission: event.Permission, Value: event.Value})
+			if lifecycleErr != nil {
+				return lifecycleErr
+			}
+			if lifecycleResult.Status != strategy.StatusAvailable {
+				return &strategy.AvailabilityError{Reason: lifecycleResult.Reason, NextAction: "re-probe app lifecycle capability before retrying"}
+			}
+			return nil
+		}
+		actuator, ok := strat.(strategy.InputActuator)
+		if !ok {
+			return &strategy.UnsupportedCapabilityError{Capability: strategy.CapInput, Operation: "actuate"}
+		}
+		if strings.TrimSpace(event.CausationID) == "" {
+			event.CausationID = stepCausationID
+			if event.CausationID == "" {
+				event.CausationID = uuid.NewString()
+			}
+		}
+		return actuator.Actuate(stepctx, event)
+	}
+	for _, step := range flow.Steps {
+		chapter := Chapter{ID: step.ID, Title: step.Kind, Disposition: "passed", Message: "completed"}
+		stepEvidenceStart := len(result.Evidence)
+		if err := runctx.Err(); err != nil {
+			chapter.Disposition = "cancelled"
+			chapter.Message = "flow stopped: " + err.Error()
+			result.Disposition = "cancelled"
+			result.Chapters = append(result.Chapters, chapter)
+			break
+		}
+		if step.TimeoutMS <= 0 {
+			step.TimeoutMS = 30000
+		}
+		if key := strings.TrimSpace(step.IdempotencyKey); key != "" {
+			if prior, seen := seenIdempotencyKeys[key]; seen {
+				chapter.Message = "deduplicated from step " + prior
+				result.Chapters = append(result.Chapters, chapter)
+				continue
+			}
+			seenIdempotencyKeys[key] = step.ID
+			if s.db != nil {
+				claimed, claimErr := s.claimCommandReceipt(ctx, deviceID, flow.Transport, key, step.Kind, result.RunID)
+				if claimErr != nil {
+					chapter.Disposition = "failed"
+					chapter.Message = claimErr.Error()
+					chapter.FailureClass = classifyFlowFailure(claimErr)
+					result.Disposition = "failed"
+					result.Chapters = append(result.Chapters, chapter)
+					break
+				}
+				if !claimed {
+					chapter.Message = "deduplicated from a prior command receipt"
+					result.Chapters = append(result.Chapters, chapter)
+					continue
+				}
+			}
+		}
+		stepctx, cancel := context.WithTimeout(runctx, time.Duration(step.TimeoutMS)*time.Millisecond)
+		stepCausationID = uuid.NewString()
+		var stepErr error
+		redactionVerified := false
+		noEvidence := false
+		executeAttempt := func() error {
+			stepErr = nil
+			redactionVerified = false
+			if requiresVisibleSurface(step.Kind) {
+				if stateReader, stateOK := strat.(strategy.StateReader); stateOK {
+					state, stateErr := stateReader.ReadState(stepctx)
+					if stateErr != nil || state.LockState != "unlocked" || state.ScreenState != "on" {
+						stepErr = fmt.Errorf("visible surface unavailable: lock state is %q and screen state is %q", state.LockState, state.ScreenState)
+					}
+				}
+			}
+			if stepErr == nil && step.ObservationRequired && len(lastFrame) == 0 {
+				stepErr = fmt.Errorf("step %q requires a prior observation", step.ID)
+			}
+			if stepErr == nil {
+				for _, condition := range step.Preconditions {
+					if conditionErr := s.evaluateFlowCondition(stepctx, strat, condition, previousFrame, lastFrame); conditionErr != nil {
+						stepErr = fmt.Errorf("precondition %q failed: %w", condition.Kind, conditionErr)
+						break
+					}
+				}
+			}
+			// Do not dispatch screenshot-dependent work until a fresh state probe
+			// proves the device is awake and unlocked.
+			if stepErr == nil {
+				switch step.Kind {
+				case "wireless-debugging-assert":
+					reader, supported := strat.(strategy.StateReader)
+					if !supported {
+						stepErr = fmt.Errorf("strategy cannot observe wireless debugging state")
+						break
+					}
+					observed, err := reader.ReadState(stepctx)
+					if err != nil || observed.WirelessDebugging == nil || observed.WirelessDebugging.NativeEnabled == nil || *observed.WirelessDebugging.NativeEnabled != (step.Target == "enable") {
+						stepErr = fmt.Errorf("native wireless debugging expected state was not observed")
+					}
+				case "wireless-debugging":
+					if flow.SuppressActuation {
+						break
+					}
+					controller, supported := strat.(strategy.WirelessDebuggingController)
+					if !supported {
+						stepErr = fmt.Errorf("strategy does not implement native wireless debugging control")
+						break
+					}
+					stepErr = controller.SetWirelessDebugging(stepctx, step.Target == "enable")
+				case "reverse-tcp-remove":
+					remover, ok := strat.(strategy.ReverseTCPRemover)
+					if !ok {
+						stepErr = fmt.Errorf("selected strategy does not support reverse TCP recovery")
+						break
+					}
+					devicePort, hostPort, parseErr := reverseTCPPorts(step)
+					if parseErr != nil {
+						stepErr = parseErr
+						break
+					}
+					stepErr = remover.RemoveReverseTCP(stepctx, devicePort, hostPort)
+
+				case "reverse-tcp":
+					forwarder, supported := strat.(strategy.ReverseTCPForwarder)
+					if !supported {
+						stepErr = fmt.Errorf("strategy does not implement reverse TCP forwarding")
+						break
+					}
+					devicePort, hostPort, parseErr := reverseTCPPorts(step)
+					if parseErr != nil {
+						stepErr = parseErr
+						break
+					}
+					cleanup, openErr := forwarder.OpenReverseTCP(stepctx, devicePort, hostPort)
+					if cleanup != nil {
+						stateManager.Push(fmt.Sprintf("reverse-tcp-%d", devicePort), cleanup)
+					}
+					stepErr = openErr
+				case "tap":
+					x, y, e := coordinates(step)
+					if e != nil {
+						stepErr = e
+					} else {
+						stepErr = dispatch(stepctx, strategy.Actuation{Pointer: &strategy.PointerEvent{Kind: "tap", X: x, Y: y, Normalized: !pixelStep(step)}})
+					}
+				case "key":
+					stepErr = dispatch(stepctx, strategy.Actuation{Key: &strategy.KeyEvent{Kind: "press", Key: step.Target}})
+				case "swipe", "long-press", "double-tap", "drag", "fling":
+					stepErr = executeGesture(stepctx, dispatch, step)
+				case "pinch":
+					stepErr = executePinch(stepctx, dispatch, step)
+				case "scroll-to":
+					stepErr = executeScrollTo(stepctx, dispatch, step)
+				case "text":
+					stepErr = dispatch(stepctx, strategy.Actuation{Text: step.Target})
+				case "observe":
+					observer, observerOK := strat.(strategy.Observer)
+					if !observerOK {
+						stepErr = &strategy.UnsupportedCapabilityError{Capability: strategy.CapScreenshot, Operation: "observe"}
+						break
+					}
+					frame, e := observer.Observe(stepctx)
+					stepErr = e
+					if stepErr == nil {
+						redacted, re := evidence.CaptureWithPolicy(frame.Bytes, frame.MediaType, evidence.DefaultPolicy, flow.RedactSensitiveContent, flow.AllowUnredactedCapture, actor, sensitiveRegions(step))
+						if re != nil {
+							stepErr = re
+							redactionVerified = false
+						} else {
+							id := uuid.NewString()
+							ref, re := evidence.NewReference(id, redacted.Bytes, redacted)
+							if re != nil {
+								stepErr = re
+								redactionVerified = false
+							} else if re = s.persistArtifact(ctx, id, redacted.Bytes, "image"); re != nil {
+								stepErr = re
+								redactionVerified = false
+							} else {
+								previousFrame = lastFrame
+								lastFrame = append([]byte(nil), redacted.Bytes...)
+								result.Evidence = append(result.Evidence, ref)
+								redactionVerified = ref.RedactionVerified
+								if ref.Disposition == evidence.DispositionDegraded {
+									stepErr = &strategy.EvidenceUnavailableError{Reason: ref.DispositionReason}
+								}
+							}
+						}
+					}
+				case "assert-frame-different":
+					if len(previousFrame) == 0 || len(lastFrame) == 0 {
+						stepErr = fmt.Errorf("frame-difference assertion requires two observe captures")
+					} else if bytes.Equal(previousFrame, lastFrame) {
+						stepErr = fmt.Errorf("frame-difference assertion failed: before and after captures are identical")
+					}
+				case "wait":
+					settle := 25 * time.Millisecond
+					if raw, ok := step.Arguments["settle_ms"].(float64); ok && raw > 0 {
+						settle = time.Duration(raw) * time.Millisecond
+					}
+					timer := time.NewTimer(settle)
+					select {
+					case <-timer.C:
+					case <-stepctx.Done():
+						stepErr = fmt.Errorf("bounded wait exceeded %dms", step.TimeoutMS)
+					}
+					if !timer.Stop() {
+						select {
+						case <-timer.C:
+						default:
+						}
+					}
+				case "property-assert":
+					property, ok := strat.(strategy.PropertyActuator)
+					if !ok {
+						stepErr = &strategy.UnsupportedCapabilityError{Capability: strategy.CapProperty, Operation: "assert-property"}
+						break
+					}
+					name := step.Target
+					if v, ok := step.Arguments["name"].(string); ok && v != "" {
+						name = v
+					}
+					expected, supplied := step.Arguments["equals"]
+					if name == "" || !supplied {
+						stepErr = fmt.Errorf("property assertion requires name and equals")
+						break
+					}
+					actual, err := property.GetProperty(stepctx, name)
+					if err != nil {
+						stepErr = err
+					} else if !reflect.DeepEqual(actual, expected) {
+						stepErr = fmt.Errorf("property assertion failed for %s", name)
+					}
+				case "property-get":
+					property, ok := strat.(strategy.PropertyActuator)
+					if !ok {
+						stepErr = &strategy.UnsupportedCapabilityError{Capability: strategy.CapProperty, Operation: "get-property"}
+						break
+					}
+					name := step.Target
+					if value, ok := step.Arguments["name"].(string); ok && value != "" {
+						name = value
+					}
+					_, stepErr = property.GetProperty(stepctx, name)
+				case "property-set":
+					property, ok := strat.(strategy.PropertyActuator)
+					if !ok {
+						stepErr = &strategy.UnsupportedCapabilityError{Capability: strategy.CapProperty, Operation: "set-property"}
+						break
+					}
+					name := step.Target
+					if value, ok := step.Arguments["name"].(string); ok && value != "" {
+						name = value
+					}
+					value, valueOK := step.Arguments["value"]
+					if !valueOK {
+						value = step.Target
+					}
+					oldValue, oldErr := property.GetProperty(stepctx, name)
+					if oldErr != nil {
+						stepErr = oldErr
+						break
+					}
+					stepErr = property.SetProperty(stepctx, strategy.PropertySet{Name: name, Value: value, CausationID: stepCausationID})
+					if stepErr == nil {
+						s.rememberObservedState(deviceID, flow.Transport, name, value)
+						stateClass := strategy.StateBearing
+						if declaration, describeErr := strat.Describe(stepctx); describeErr == nil {
+							for _, descriptor := range declaration.Properties {
+								if descriptor.Name == name && descriptor.StateClass != "" {
+									stateClass = descriptor.StateClass
+								}
+							}
+						}
+						s.EmitStateChange(strategy.StateChangeEvent{DeviceID: deviceID, Transport: flow.Transport, Attribute: name, OldValue: oldValue, NewValue: value, CausationID: stepCausationID, StateClass: stateClass})
+					}
+				case "sensor-read":
+					reader, ok := strat.(strategy.SensorReader)
+					if !ok {
+						stepErr = &strategy.UnsupportedCapabilityError{Capability: strategy.CapSensor, Operation: "read-sensors"}
+						break
+					}
+					var readings []strategy.SensorReading
+					readings, stepErr = reader.ReadSensors(stepctx)
+					if stepErr == nil {
+						for _, reading := range readings {
+							oldValue, changed, hadPrevious := s.observeState(deviceID, flow.Transport, reading.Name, reading.Value)
+							if !hadPrevious || !changed {
+								continue
+							}
+							observedAt := reading.ObservedAt
+							if observedAt.IsZero() {
+								observedAt = time.Now().UTC()
+							}
+							stateClass := reading.StateClass
+							if stateClass == "" {
+								stateClass = strategy.StateBearing
+							}
+							s.EmitStateChange(strategy.StateChangeEvent{DeviceID: deviceID, Transport: flow.Transport, Attribute: reading.Name, OldValue: oldValue, NewValue: reading.Value, ObservedAt: observedAt, CausationID: stepCausationID, StateClass: stateClass})
+						}
+					}
+				case "media-play", "media-pause", "media-stop", "media-next", "media-previous", "media-volume":
+					media, ok := strat.(strategy.MediaController)
+					if !ok {
+						stepErr = &strategy.UnsupportedCapabilityError{Capability: strategy.CapMedia, Operation: "control-media"}
+						break
+					}
+					action := strings.TrimPrefix(step.Kind, "media-")
+					var value any
+					if raw, present := step.Arguments["value"]; present {
+						value = raw
+					} else if step.Target != "" {
+						value = step.Target
+					}
+					stepErr = media.ControlMedia(stepctx, strategy.MediaCommand{Action: action, Value: value, CausationID: stepCausationID})
+					if stepErr == nil {
+						s.EmitStateChange(strategy.StateChangeEvent{DeviceID: deviceID, Transport: flow.Transport, Attribute: "media." + action, NewValue: value, CausationID: stepCausationID, StateClass: strategy.EventBearing})
+					}
+				case "semantic-target":
+					semantic, ok := strat.(strategy.SemanticResolver)
+					if !ok {
+						stepErr = fmt.Errorf("strategy does not implement deterministic semantic resolution")
+						break
+					}
+					observer, observerOK := strat.(strategy.Observer)
+					if !observerOK {
+						stepErr = &strategy.UnsupportedCapabilityError{Capability: strategy.CapScreenshot, Operation: "semantic-target"}
+						break
+					}
+					frame, observeErr := observer.Observe(stepctx)
+					if observeErr != nil {
+						stepErr = observeErr
+						break
+					}
+					resolver := internalflows.NewResolverWithAnchors(nil, s.anchors)
+					resolved, resolveErr := resolver.Resolve(stepctx, internalflows.Request{
+						Target: step.Target,
+						Frame:  internalflows.Frame{Bytes: frame.Bytes, MediaType: frame.MediaType, Width: frame.Width, Height: frame.Height, OriginalWidth: frame.Width, OriginalHeight: frame.Height},
+						Semantic: func(ctx context.Context, target string) (internalflows.SemanticMatch, error) {
+							match, err := semantic.ResolveSemantic(ctx, target)
+							return internalflows.SemanticMatch{Bounds: match.Bounds, Confidence: match.Confidence}, err
+						},
+					})
+					if resolveErr != nil {
+						stepErr = resolveErr
+						break
+					}
+					if len(resolved.DeviceBounds) != 4 {
+						stepErr = fmt.Errorf("semantic resolver returned invalid device bounds")
+						break
+					}
+					result.Resolutions = append(result.Resolutions, Resolution{Target: step.Target, Rung: resolved.Rung, Confidence: resolved.Confidence})
+					stepErr = dispatch(stepctx, strategy.Actuation{Pointer: &strategy.PointerEvent{Kind: "semantic-target", X: float64((resolved.DeviceBounds[0] + resolved.DeviceBounds[2]) / 2), Y: float64((resolved.DeviceBounds[1] + resolved.DeviceBounds[3]) / 2)}})
+				case "semantic-assert":
+					expected, _ := step.Arguments["expected"].(string)
+					stepErr = dispatch(stepctx, strategy.Actuation{Action: step.Kind, Value: step.Target, Expected: expected})
+				case "restart-device":
+					restarter, ok := strat.(strategy.DeviceRestarter)
+					if !ok {
+						stepErr = &strategy.UnsupportedCapabilityError{Capability: strategy.CapDeviceRestart, Operation: step.Kind}
+						break
+					}
+					if !flow.SuppressActuation {
+						stepErr = restarter.RestartDevice(stepctx)
+					}
+				case "assert-foreground":
+					reader, ok := strat.(strategy.StateReader)
+					if !ok {
+						stepErr = fmt.Errorf("strategy does not expose live foreground state")
+						break
+					}
+					if strings.TrimSpace(step.Target) == "" {
+						stepErr = fmt.Errorf("foreground assertion requires an application identity")
+						break
+					}
+					state, err := reader.ReadState(stepctx)
+					if err != nil {
+						stepErr = err
+						break
+					}
+					if state.ForegroundPackage == "" || state.Unavailable["foreground_package"] != "" {
+						stepErr = fmt.Errorf("foreground application is unknown")
+						break
+					}
+					if state.ForegroundPackage != step.Target {
+						stepErr = fmt.Errorf("foreground application %q does not match %q", state.ForegroundPackage, step.Target)
+					}
+				case "rotate", "network":
+					stepErr = dispatch(stepctx, strategy.Actuation{Action: step.Kind, Value: step.Target})
+				case "deep-link":
+					packageName, _ := step.Arguments["package"].(string)
+					stepErr = dispatch(stepctx, strategy.Actuation{Action: step.Kind, Value: step.Target, Package: packageName})
+				case "share":
+					packageName, _ := step.Arguments["package"].(string)
+					stepErr = dispatch(stepctx, strategy.Actuation{Action: step.Kind, Value: step.Target, Package: packageName})
+				case "screen":
+					if flow.SuppressActuation {
+						break
+					}
+					if screen, ok := strat.(strategy.ScreenController); ok && (step.Target == "wake" || step.Target == "sleep") {
+						wanted := "on"
+						if step.Target == "sleep" {
+							wanted = "off"
+						}
+						stepErr = screen.SetScreenState(stepctx, wanted)
+					} else {
+						stepErr = dispatch(stepctx, strategy.Actuation{Action: step.Kind, Value: step.Target})
+					}
+				case "logcat-start", "clipboard-write":
+					stepErr = dispatch(stepctx, strategy.Actuation{Action: step.Kind, Value: step.Target})
+				case "recording-start":
+					if !hasRecorder {
+						stepErr = fmt.Errorf("strategy does not support session-scoped recording")
+						break
+					}
+					class := strategy.ClaimClass(claimClassForStep(step))
+					var handle strategy.RecordingHandle
+					requireAudio, _ := step.Arguments["require_audio"].(bool)
+					if requireAudio {
+						if audioRecorder, ok := strat.(strategy.AudioSessionRecorder); ok {
+							handle, stepErr = audioRecorder.StartRecordingWithAudio(stepctx, class)
+						} else {
+							stepErr = fmt.Errorf("strategy does not support recording with audio")
+						}
+					} else {
+						handle, stepErr = recorder.StartRecording(stepctx, class)
+					}
+					if stepErr == nil {
+						recordingHandles[step.ID] = handle
+						recordingAudioRequired[step.ID] = requireAudio
+					}
+				case "recording-stop":
+					if !hasRecorder {
+						stepErr = fmt.Errorf("strategy does not support session-scoped recording")
+						break
+					}
+					key := step.Target
+					if key == "" {
+						key = step.ID
+					}
+					handle, ok := recordingHandles[key]
+					if !ok {
+						stepErr = fmt.Errorf("recording %q is not active", key)
+						break
+					}
+					// Stop may consume a native handle even on error; never replay it.
+					delete(recordingHandles, key)
+					requireAudio := recordingAudioRequired[key]
+					delete(recordingAudioRequired, key)
+					var artifact strategy.RecordingArtifact
+					artifact, stepErr = recorder.StopRecording(stepctx, handle)
+					if stepErr != nil {
+						markRecordingUncertain(handle)
+						result.Incomplete = true
+					}
+					if stepErr == nil {
+						stepErr = storeRecording(step, artifact, requireAudio)
+					}
+				case "device-logs", "framework-logs", "logcat-stop", "clock-sample", "screenshot", "clipboard-read", "screenrecord":
+					var output []byte
+					packageName, _ := step.Arguments["package"].(string)
+					component, _ := step.Arguments["component"].(string)
+					logTag, _ := step.Arguments["tag"].(string)
+					logPriority, _ := step.Arguments["priority"].(string)
+					stepErr = dispatch(stepctx, strategy.Actuation{Action: step.Kind, Value: step.Target, Package: packageName, Component: component, LogTag: logTag, LogPriority: logPriority, Output: &output})
+					if stepErr == nil && len(output) == 0 {
+						if step.Kind == "device-logs" {
+							noEvidence = true
+							result.Disposition = "no_evidence"
+							chapter.Disposition = "unavailable"
+							chapter.Message = "No application log entries were available in the bounded snapshot."
+							break
+						}
+						stepErr = fmt.Errorf("%s produced no output", step.Kind)
+					}
+					if stepErr == nil && (step.Kind == "device-logs" || step.Kind == "framework-logs" || step.Kind == "logcat-stop" || step.Kind == "clock-sample") {
+						redacted, redactErr := evidence.CaptureWithPolicy(output, "text/plain", evidence.DefaultPolicy, flow.RedactSensitiveContent, flow.AllowUnredactedCapture, actor, nil)
+						if redactErr != nil {
+							stepErr = redactErr
+						} else {
+							id := uuid.NewString()
+							ref, refErr := evidence.NewLogReference(id, redacted.Bytes, redacted)
+							if refErr != nil {
+								stepErr = refErr
+							} else if refErr = s.persistArtifact(ctx, id, redacted.Bytes, "log"); refErr != nil {
+								stepErr = refErr
+							} else {
+								result.Evidence = append(result.Evidence, ref)
+								redactionVerified = ref.RedactionVerified
+							}
+						}
+					}
+					if stepErr == nil && step.Kind == "screenshot" {
+						redacted, redactErr := evidence.CaptureWithPolicy(output, "image/png", evidence.DefaultPolicy, flow.RedactSensitiveContent, flow.AllowUnredactedCapture, actor, nil)
+						if redactErr != nil {
+							stepErr = redactErr
+						} else {
+							id := uuid.NewString()
+							ref, refErr := evidence.NewReference(id, redacted.Bytes, redacted)
+							if refErr != nil {
+								stepErr = refErr
+							} else if refErr = s.persistArtifact(ctx, id, redacted.Bytes, "screenshot"); refErr != nil {
+								stepErr = refErr
+							} else {
+								result.Evidence = append(result.Evidence, ref)
+								redactionVerified = ref.RedactionVerified
+							}
+						}
+					}
+					if stepErr == nil && step.Kind == "screenrecord" {
+						redacted, redactErr := evidence.CaptureWithPolicy(output, "video/mp4", evidence.DefaultPolicy, flow.RedactSensitiveContent, flow.AllowUnredactedCapture, actor, nil)
+						if redactErr != nil {
+							stepErr = redactErr
+						} else {
+							id := uuid.NewString()
+							_, _, effectiveFPS, measureErr := evidence.MeasureVideo(redacted.Bytes)
+							if measureErr != nil {
+								stepErr = measureErr
+								break
+							}
+							ref, refErr := evidence.NewClaimedVideoReference(id, redacted.Bytes, redacted, "native", effectiveFPS, evidence.ClaimClass(claimClassForStep(step)))
+							if refErr != nil {
+								stepErr = refErr
+							} else if refErr = s.persistRecording(ctx, id, redacted.Bytes, deviceID, sess.ID); refErr != nil {
+								stepErr = refErr
+							} else {
+								result.Evidence = append(result.Evidence, ref)
+								redactionVerified = ref.RedactionVerified
+							}
+						}
+					}
+				case "home-set", "install", "launch", "stop", "uninstall", "clear-data", "grant-permission", "revoke-permission", "package-state":
+					packageName := step.Target
+					if value, ok := step.Arguments["package"].(string); ok && value != "" {
+						packageName = value
+					}
+					permission := step.Target
+					if value, ok := step.Arguments["permission"].(string); ok && value != "" {
+						permission = value
+					}
+					value := step.Target
+					if argumentValue, ok := step.Arguments["value"].(string); ok && argumentValue != "" {
+						value = argumentValue
+					}
+					if step.Kind == "package-state" {
+						value, _ = step.Arguments["expected"].(string)
+					}
+					stepErr = dispatch(stepctx, strategy.Actuation{Action: step.Kind, Package: packageName, Permission: permission, Value: value})
+				case "install-artifact":
+					chapter.ArtifactInstall, stepErr = s.installVerifiedAndroidArtifact(stepctx, deviceID, sess, strat, step)
+					if stepErr == nil {
+						proof := chapter.ArtifactInstall
+						chapter.Message = fmt.Sprintf("installed and verified %s version %s from %s", proof.PackageName, proof.VersionName, proof.ImmutableRef)
+					}
+				}
+			}
+			if stepErr == nil {
+				for _, condition := range step.Postconditions {
+					conditionErr := s.evaluateFlowCondition(stepctx, strat, condition, previousFrame, lastFrame)
+					kind := strings.ToLower(strings.TrimSpace(condition.Kind))
+					if conditionErr != nil && step.Kind == "screen" && (kind == "screen-on" || kind == "screen-off") {
+						conditionErr = s.waitForScreenPostcondition(stepctx, strat, condition, previousFrame, lastFrame, conditionErr)
+					}
+					if conditionErr != nil {
+						stepErr = fmt.Errorf("postcondition %q failed: %w", condition.Kind, conditionErr)
+						break
+					}
+				}
+			}
+			return stepErr
+		}
+		retryBudget := step.RetryBudget
+		if flow.RetryBudget > 0 && (retryBudget == 0 || flow.RetryBudget < retryBudget) {
+			retryBudget = flow.RetryBudget
+		}
+		attempts := 0
+		for {
+			stepErr = executeAttempt()
+			if stepErr == nil || attempts >= retryBudget || !retryableFlowStep(step.Kind) {
+				break
+			}
+			attempts++
+			select {
+			case <-time.After(10 * time.Millisecond):
+			case <-stepctx.Done():
+				stepErr = stepctx.Err()
+			}
+		}
+		if key := strings.TrimSpace(step.IdempotencyKey); key != "" && s.db != nil {
+			outcome := "passed"
+			if stepErr != nil {
+				outcome = "failed"
+				if runctx.Err() != nil {
+					outcome = "unknown"
+				}
+			}
+			if receiptErr := s.finishCommandReceipt(ctx, deviceID, flow.Transport, key, outcome); receiptErr != nil && stepErr == nil {
+				stepErr = receiptErr
+			}
+		}
+		chapter.Attempts = attempts + 1
+		if stepErr != nil && runctx.Err() == nil && (step.Kind == "semantic-assert" || step.Kind == "semantic-target" || step.Kind == "assert-foreground") {
+			var unavailable *strategy.AvailabilityError
+			if !errors.As(stepErr, &unavailable) {
+				diagnosticCtx, stopDiagnostic := context.WithTimeout(runctx, 3*time.Second)
+				ref, captureErr := s.captureAssertionFailure(diagnosticCtx, strat, flow, step, actor)
+				stopDiagnostic()
+				if captureErr == nil {
+					result.Evidence = append(result.Evidence, *ref)
+				} else {
+					// Keep the original failure; diagnostic capture never changes it to a pass.
+					stepErr = fmt.Errorf("%w; failure frame unavailable", stepErr)
+				}
+			}
+		}
+		cancel()
+		var evidenceUnavailable *strategy.EvidenceUnavailableError
+		if errors.As(stepErr, &evidenceUnavailable) {
+			noEvidence = true
+			result.Disposition = "no_evidence"
+			chapter.Disposition = "unavailable"
+			chapter.Message = evidenceUnavailable.Reason
+			stepErr = nil
+		}
+		disconnected := false
+		var availability *strategy.AvailabilityError
+		if stepErr != nil && errors.As(stepErr, &availability) {
+			disconnected = true
+			result.Disposition = "device_disconnected"
+			result.Incomplete = true
+			result.DisconnectReason = availability.Reason
+			result.DisconnectStep = step.ID
+			chapter.Disposition = "device_disconnected"
+			chapter.Message = "device transport stopped answering: " + availability.Reason
+			_, _ = s.ReleaseContext(ctx, sess.ID)
+		}
+		outcome := "success"
+		if noEvidence {
+			outcome = "no_evidence"
+		}
+		if stepErr != nil {
+			outcome = "failure"
+			chapter.FailureClass = classifyFlowFailure(stepErr)
+			if !disconnected {
+				chapter.Disposition = "failed"
+				chapter.Message = stepErr.Error()
+				result.Disposition = "failed"
+			}
+			if runctx.Err() != nil && !disconnected {
+				chapter.Disposition = "cancelled"
+				chapter.Message = "flow stopped: " + runctx.Err().Error()
+				result.Disposition = "cancelled"
+			}
+		}
+		for _, ref := range result.Evidence[stepEvidenceStart:] {
+			chapter.EvidenceIDs = append(chapter.EvidenceIDs, ref.ID)
+		}
+		s.mu.Lock()
+		audit := Audit{ID: uuid.NewString(), Actor: actor, DeviceID: deviceID, Transport: flow.Transport, CausationID: stepCausationID, LeaseID: sess.ID, Verb: step.Kind, Outcome: outcome, CreatedAt: time.Now().UTC(), RedactionVerified: redactionVerified, RedactionOptedOut: flow.AllowUnredactedCapture}
+		if install := chapter.ArtifactInstall; install != nil {
+			audit.Details = map[string]string{
+				"immutable_ref":                        install.ImmutableRef,
+				"artifact_checksum":                    install.ArtifactChecksum,
+				"apk_checksum":                         install.APKChecksum,
+				"signing_certificate_sha256":           install.SigningCertificateSHA256,
+				"installed_signing_certificate_sha256": install.InstalledSigningCertificateSHA256,
+				"package_name":                         install.PackageName,
+				"version_name":                         install.VersionName,
+				"version_code":                         strconv.FormatInt(install.VersionCode, 10),
+				"installed_version_code":               strconv.FormatInt(install.InstalledVersionCode, 10),
+				"install_accepted":                     strconv.FormatBool(install.InstallAccepted),
+				"installed":                            strconv.FormatBool(install.Installed),
+				"installed_version":                    install.InstalledVersion,
+				"post_install_verified":                strconv.FormatBool(install.PostInstallVerified),
+			}
+		}
+		if s.db != nil {
+			details, _ := json.Marshal(audit.Details)
+			_, _ = s.db.ExecContext(ctx, `INSERT INTO device_control_audits (id, actor, device_id, transport, causation_id, lease_id, verb, outcome, created_at, redaction_verified, redaction_opted_out, details_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, audit.ID, audit.Actor, audit.DeviceID, audit.Transport, audit.CausationID, audit.LeaseID, audit.Verb, audit.Outcome, audit.CreatedAt.Format(time.RFC3339Nano), boolInt(redactionVerified), boolInt(flow.AllowUnredactedCapture), string(details))
+		}
+		s.audits = append(s.audits, audit)
+		s.mu.Unlock()
+		result.Chapters = append(result.Chapters, chapter)
+		if stepErr != nil || noEvidence {
+			break
+		}
+	}
+	// A failed, cancelled, or incomplete flow still owns its active recorder.
+	// Stop each remaining handle once under a bounded cleanup context. A failed
+	// stop remains an uncertain owner marker and is never replayed implicitly.
+	for key, handle := range recordingHandles {
+		cleanupCtx, cancelCleanup := context.WithTimeout(context.WithoutCancel(ctx), 5*time.Second)
+		_, stopErr := recorder.StopRecording(cleanupCtx, handle)
+		cancelCleanup()
+		chapter := Chapter{ID: "cleanup-recording-" + key, Title: "recording cleanup", Disposition: "passed", Message: "recording stopped during cleanup; no recording evidence retained"}
+		if stopErr != nil {
+			markRecordingUncertain(handle)
+			chapter.Disposition, chapter.Message = "failed", "recording stop outcome uncertain: "+stopErr.Error()
+		}
+		result.Chapters = append(result.Chapters, chapter)
+		result.Incomplete = true
+		if result.Disposition == "passed" {
+			result.Disposition = "failed"
+		}
+	}
+	restoreBeforeReturn()
+	s.mu.Lock()
+	s.runs[result.RunID] = result
+	s.flowRuns[result.RunID] = flow
+	s.runDevices[result.RunID] = deviceID
+	s.mu.Unlock()
+	return result, nil
+}
+
+// Screen transitions can be reported shortly after the key is accepted. Retry
+// only the observation, never the input effect, within a small bounded window.
+func (s *Service) waitForScreenPostcondition(ctx context.Context, strat strategy.Strategy, condition Condition, previousFrame, lastFrame []byte, lastErr error) error {
+	waitCtx, cancel := context.WithTimeout(ctx, 3*time.Second)
+	defer cancel()
+	for {
+		timer := time.NewTimer(200 * time.Millisecond)
+		select {
+		case <-waitCtx.Done():
+			timer.Stop()
+			return lastErr
+		case <-timer.C:
+		}
+		if err := s.evaluateFlowCondition(waitCtx, strat, condition, previousFrame, lastFrame); err == nil {
+			return nil
+		} else {
+			lastErr = err
+		}
+	}
+}
+
+type FlowExport struct {
+	RunID    string            `json:"run_id"`
+	Flow     Flow              `json:"flow"`
+	Rungs    map[string]string `json:"rungs"`
+	Excluded []string          `json:"excluded_steps,omitempty"`
+}
+
+func (s *Service) ExportFlow(id string) (FlowExport, error) {
+	s.mu.Lock()
+	result, ok := s.runs[id]
+	flow, flowOK := s.flowRuns[id]
+	s.mu.Unlock()
+	if (!ok || !flowOK) && s.retainedRuns != nil {
+		retained, err := s.retainedRuns.Get(context.Background(), id)
+		if err == nil {
+			result, flow, ok, flowOK = retained.Result, retained.Flow, true, true
+		} else if !errors.Is(err, internalflows.ErrInvalidRequest) {
+			return FlowExport{}, fmt.Errorf("read retained run: %w", err)
+		}
+	}
+	if !ok || !flowOK {
+		return FlowExport{}, fmt.Errorf("run %q not found: %w", id, internalflows.ErrInvalidRequest)
+	}
+	export := FlowExport{RunID: id, Flow: flow, Rungs: map[string]string{}, Excluded: []string{}}
+	failed := map[string]bool{}
+	for _, chapter := range result.Chapters {
+		if chapter.Disposition == "failed" || chapter.Disposition == "cancelled" || chapter.Disposition == "device_disconnected" {
+			failed[chapter.ID] = true
+			export.Excluded = append(export.Excluded, chapter.ID+": "+chapter.Message)
+		}
+	}
+	steps := make([]Step, 0, len(flow.Steps))
+	for _, step := range flow.Steps {
+		if !failed[step.ID] {
+			steps = append(steps, step)
+		}
+	}
+	export.Flow.Steps = steps
+	for _, resolution := range result.Resolutions {
+		export.Rungs[resolution.Target] = resolution.Rung
+	}
+	return export, nil
+}
+
+func (s *Service) evaluateFlowCondition(ctx context.Context, strat strategy.Strategy, condition Condition, previousFrame, lastFrame []byte) error {
+	switch strings.ToLower(strings.TrimSpace(condition.Kind)) {
+	case "device-unlocked":
+		reader, ok := strat.(strategy.StateReader)
+		if !ok {
+			return fmt.Errorf("strategy does not expose state")
+		}
+		state, err := reader.ReadState(ctx)
+		if err != nil {
+			return err
+		}
+		if state.LockState != "unlocked" {
+			return fmt.Errorf("lock state is %q", state.LockState)
+		}
+		return nil
+	case "screen-on", "screen-off":
+		reader, ok := strat.(strategy.StateReader)
+		if !ok {
+			return fmt.Errorf("strategy does not expose state")
+		}
+		state, err := reader.ReadState(ctx)
+		if err != nil {
+			return err
+		}
+		want := strings.TrimPrefix(strings.ToLower(strings.TrimSpace(condition.Kind)), "screen-")
+		if state.ScreenState != want {
+			return fmt.Errorf("screen state is %q; %s was not verified", state.ScreenState, want)
+		}
+		return nil
+	case "capability":
+		declaration, err := strat.Describe(ctx)
+		if err != nil {
+			return err
+		}
+		capability, ok := declaration.Capabilities[condition.Target]
+		if !ok || capability.Status != strategy.StatusAvailable {
+			return fmt.Errorf("capability %q is unavailable", condition.Target)
+		}
+		return nil
+	case "property-equals":
+		property, ok := strat.(strategy.PropertyActuator)
+		if !ok {
+			return fmt.Errorf("strategy does not expose properties")
+		}
+		actual, err := property.GetProperty(ctx, condition.Target)
+		if err != nil {
+			return err
+		}
+		if !reflect.DeepEqual(actual, condition.Expected) {
+			return fmt.Errorf("property %q is %v, expected %v", condition.Target, actual, condition.Expected)
+		}
+		return nil
+	case "frame-different":
+		if len(previousFrame) == 0 || len(lastFrame) == 0 {
+			return fmt.Errorf("frame-difference requires two observations")
+		}
+		if bytes.Equal(previousFrame, lastFrame) {
+			return fmt.Errorf("observations are identical")
+		}
+		return nil
+	default:
+		return fmt.Errorf("unsupported condition kind %q", condition.Kind)
+	}
+}
+
+func retryableFlowStep(kind string) bool {
+	switch kind {
+	case "wait", "property-get", "property-assert", "sensor-read", "semantic-assert", "assert-foreground", "wireless-debugging-assert":
+		// These operations are observational or locally repeatable. Native
+		// effects remain one-shot unless their strategy supplies a stronger
+		// idempotency contract.
+		return true
+	default:
+		return false
+	}
+}
+
+func classifyFlowFailure(err error) string {
+	if err == nil {
+		return ""
+	}
+	var availability *strategy.AvailabilityError
+	if errors.As(err, &availability) {
+		return "transport"
+	}
+	var unsupported *strategy.UnsupportedCapabilityError
+	if errors.As(err, &unsupported) {
+		return "capability"
+	}
+	message := strings.ToLower(err.Error())
+	switch {
+	case strings.Contains(message, "precondition"), strings.Contains(message, "postcondition"), strings.Contains(message, "lock state"), strings.Contains(message, "screen"):
+		return "app-state"
+	case strings.Contains(message, "coordinate"), strings.Contains(message, "semantic"), strings.Contains(message, "target"):
+		return "target"
+	case strings.Contains(message, "lease"), strings.Contains(message, "session"), strings.Contains(message, "admission"):
+		return "host-session"
+	default:
+		return "execution"
+	}
+}
+
+func (s *Service) claimCommandReceipt(ctx context.Context, deviceID, transport, key, stepKind, runID string) (bool, error) {
+	if s.db == nil {
+		return true, nil
+	}
+	now := time.Now().UTC().Format(time.RFC3339Nano)
+	result, err := s.db.ExecContext(ctx, `INSERT INTO device_control_command_receipts
+ (device_id, transport, idempotency_key, step_kind, run_id, outcome, created_at, updated_at)
+ VALUES (?, ?, ?, ?, ?, 'in_flight', ?, ?) ON CONFLICT(device_id, transport, idempotency_key) DO NOTHING`, deviceID, transport, key, stepKind, runID, now, now)
+	if err != nil {
+		return false, fmt.Errorf("claim idempotency receipt: %w", err)
+	}
+	inserted, err := result.RowsAffected()
+	if err != nil {
+		return false, fmt.Errorf("read idempotency receipt claim: %w", err)
+	}
+	if inserted == 1 {
+		return true, nil
+	}
+	rows, err := s.db.QueryContext(ctx, `SELECT step_kind, outcome FROM device_control_command_receipts WHERE device_id=? AND transport=? AND idempotency_key=?`, deviceID, transport, key)
+	if err != nil {
+		return false, fmt.Errorf("read idempotency receipt: %w", err)
+	}
+	defer rows.Close()
+	if !rows.Next() {
+		if err := rows.Err(); err != nil {
+			return false, fmt.Errorf("read idempotency receipt: %w", err)
+		}
+		return false, fmt.Errorf("idempotency receipt disappeared for %q", key)
+	}
+	var existingKind, existingOutcome string
+	if err := rows.Scan(&existingKind, &existingOutcome); err != nil {
+		return false, fmt.Errorf("read idempotency receipt: %w", err)
+	}
+	if existingKind != stepKind {
+		return false, fmt.Errorf("idempotency key %q was previously bound to step %q", key, existingKind)
+	}
+	if existingOutcome != "passed" {
+		return false, fmt.Errorf("idempotency key %q has prior outcome %q; refusing replay", key, existingOutcome)
+	}
+	return false, nil
+}
+
+func (s *Service) finishCommandReceipt(ctx context.Context, deviceID, transport, key, outcome string) error {
+	if s.db == nil {
+		return nil
+	}
+	result, err := s.db.ExecContext(ctx, `UPDATE device_control_command_receipts SET outcome=?, updated_at=? WHERE device_id=? AND transport=? AND idempotency_key=?`, outcome, time.Now().UTC().Format(time.RFC3339Nano), deviceID, transport, key)
+	if err != nil {
+		return fmt.Errorf("record idempotency receipt: %w", err)
+	}
+	updated, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("read idempotency receipt update: %w", err)
+	}
+	if updated != 1 {
+		return fmt.Errorf("idempotency receipt disappeared for %q", key)
+	}
+	return nil
+}
+
+func requiresVisibleSurface(kind string) bool {
+	switch kind {
+	case "observe", "screenshot", "semantic-target", "semantic-assert", "assert-foreground", "recording-start", "screenrecord":
+		return true
+	default:
+		return false
+	}
+}
+
+func (s *Service) strategyForDevice(deviceID string) (strategy.Strategy, bool) {
+	if strat, ok := s.registry.Get(deviceID); ok {
+		return strat, true
+	}
+	record, ok := s.devices.Get(deviceID)
+	if !ok {
+		return nil, false
+	}
+	strat, ok := s.registry.Get(record.StrategyID)
+	if !ok {
+		return nil, false
+	}
+	if scoped, ok := strat.(strategy.DeviceScoped); ok && record.Serial != "" {
+		return scoped.ForDevice(record.Serial), true
+	}
+	return strat, true
+}
+
+func pixelStep(step Step) bool {
+	space, _ := step.Arguments["coordinate_space"].(string)
+	return strings.EqualFold(space, "pixel")
+}
+
+func gesturePoint(step Step, prefix string) (float64, float64, error) {
+	x, xok := number(step.Arguments[prefix+"x"])
+	y, yok := number(step.Arguments[prefix+"y"])
+	if prefix == "" {
+		x, xok = number(step.Arguments["x"])
+		y, yok = number(step.Arguments["y"])
+	}
+	if !xok || !yok || x < 0 || x > 1 || y < 0 || y > 1 {
+		return 0, 0, fmt.Errorf("gesture %s requires normalized %s coordinates", step.ID, prefix)
+	}
+	return x, y, nil
+}
+
+func gestureDuration(step Step, fallback int) int {
+	if value, ok := number(step.Arguments["duration_ms"]); ok && value > 0 {
+		return int(value)
+	}
+	return fallback
+}
+
+func executeGesture(ctx context.Context, dispatch func(context.Context, strategy.Actuation) error, step Step) error {
+	x0, y0, err := gesturePoint(step, "start_")
+	if step.Kind == "long-press" || step.Kind == "double-tap" {
+		x0, y0, err = gesturePoint(step, "")
+	}
+	if err != nil {
+		return err
+	}
+	x1, y1 := x0, y0
+	if step.Kind == "drag" || step.Kind == "fling" || step.Kind == "swipe" {
+		x1, y1, err = gesturePoint(step, "end_")
+		if err != nil {
+			return err
+		}
+	}
+	duration := gestureDuration(step, 300)
+	if step.Kind == "long-press" {
+		duration = gestureDuration(step, 800)
+	}
+	if step.Kind == "double-tap" {
+		for i := 0; i < 2; i++ {
+			if err := dispatch(ctx, strategy.Actuation{Pointer: &strategy.PointerEvent{Kind: "tap", X: x0, Y: y0, Normalized: true}}); err != nil {
+				return err
+			}
+		}
+		return nil
+	}
+	return dispatch(ctx, strategy.Actuation{Pointer: &strategy.PointerEvent{Kind: step.Kind, X: x0, Y: y0, Button: fmt.Sprintf("%f,%f", x1, y1), Normalized: true, DurationMS: duration}})
+}
+
+func executePinch(ctx context.Context, dispatch func(context.Context, strategy.Actuation) error, step Step) error {
+	x0, y0, err := gesturePoint(step, "start_")
+	if err != nil {
+		return err
+	}
+	x1, y1, err := gesturePoint(step, "end_")
+	if err != nil {
+		return err
+	}
+	return dispatch(ctx, strategy.Actuation{Action: "pinch", Value: fmt.Sprintf("%f,%f,%f,%f", x0, y0, x1, y1)})
+}
+
+func executeScrollTo(ctx context.Context, dispatch func(context.Context, strategy.Actuation) error, step Step) error {
+	// Target re-resolution is owned by the flow layer; this bounded adapter
+	// action only performs one scroll attempt.
+	return dispatch(ctx, strategy.Actuation{Action: "scroll-to", Value: step.Target})
+}
+
+// hasTransportStrategy reports whether an endpoint-bound transport strategy is
+// registered (restoring persisted state first) for the device. It is used to
+// decide whether an unselected transport can default to wireless.
+func (s *Service) hasTransportStrategy(deviceID string) bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.restoreTransportStrategies()
+	_, ok := s.transportStrategies[deviceID]
+	return ok
+}
+
+// strategyForFlow resolves a requested transport profile against the durable
+// identity. Promotion keeps the legacy wireless endpoint-bound strategy
+// separate, while ordinary composed identities can select any named profile.
+func (s *Service) strategyForFlow(deviceID, requestedTransport string) (strategy.Strategy, bool) {
+	requestedTransport = strings.ToLower(strings.TrimSpace(requestedTransport))
+	record, ok := s.devices.Get(deviceID)
+	if !ok {
+		if requestedTransport == "" || requestedTransport == "usb" {
+			return s.strategyForDevice(deviceID)
+		}
+		return nil, false
+	}
+	if requestedTransport == "" {
+		// Default an unselected transport to the device's current transport. A
+		// composed identity's selected REST/mDNS transport is the natural default
+		// for a modality-specific device. A wireless device resolves to its
+		// endpoint-bound transport when one is registered — this covers both a
+		// USB-promoted phone and a directly-onboarded network TV/box, the latter
+		// of which has no USB base to fall back to. USB remains the default only
+		// when no wireless strategy is available.
+		requestedTransport = strings.ToLower(strings.TrimSpace(record.Transport))
+		if requestedTransport == "" {
+			requestedTransport = "usb"
+		}
+		if requestedTransport == "wireless" && !s.hasTransportStrategy(deviceID) {
+			requestedTransport = "usb"
+		}
+	}
+	if requestedTransport == "wireless" {
+		if record.Transport != "wireless" {
+			return nil, false
+		}
+		s.mu.Lock()
+		s.restoreTransportStrategies()
+		deferred, promoted := s.transportStrategies[deviceID]
+		s.mu.Unlock()
+		return deferred, promoted
+	}
+	for _, profile := range record.Transports {
+		name := strings.ToLower(strings.TrimSpace(profile.Name))
+		strategyID := strings.ToLower(strings.TrimSpace(profile.StrategyID))
+		if requestedTransport != name && requestedTransport != strategyID {
+			continue
+		}
+		base, found := s.registry.Get(profile.StrategyID)
+		if !found {
+			return nil, false
+		}
+		// Preserve both pieces of routing context.  A composed identity may
+		// have a stale mDNS endpoint after restart, while the serial remains
+		// the durable certificate lookup key.  DeviceScoped must be applied
+		// before endpoint scoping so ForEndpoint does not erase that serial.
+		if scoped, scopedOK := base.(strategy.DeviceScoped); scopedOK && record.Serial != "" {
+			base = scoped.ForDevice(record.Serial)
+		}
+		if endpointScoped, endpointOK := base.(interface {
+			ForEndpoint(string) strategy.Strategy
+		}); endpointOK && profile.Endpoint != "" {
+			base = endpointScoped.ForEndpoint(profile.Endpoint)
+		}
+		return base, true
+	}
+	if requestedTransport != "usb" && requestedTransport != strings.ToLower(strings.TrimSpace(record.Transport)) && requestedTransport != strings.ToLower(strings.TrimSpace(record.StrategyID)) {
+		return nil, false
+	}
+	base, ok := s.registry.Get(record.StrategyID)
+	if !ok {
+		return nil, false
+	}
+	if scoped, ok := base.(strategy.DeviceScoped); ok && record.Serial != "" {
+		return scoped.ForDevice(record.Serial), true
+	}
+	return base, true
+}

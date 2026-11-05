@@ -16,6 +16,8 @@ export function useGuidedTour() {
   const [tourKey, setTourKey] = useState(0);
 
   useEffect(() => {
+    let shouldAutoOpen = false;
+
     try {
       // Suppress auto-opening during automated runs
       const isAutomatedRun =
@@ -32,12 +34,20 @@ export function useGuidedTour() {
       const wasActive = sessionStorage.getItem(TOUR_ACTIVE_KEY);
 
       if (completed !== TOUR_VERSION || wasActive === "true") {
-        setShowTour(true);
+        shouldAutoOpen = true;
       }
     } catch {
       // storage unavailable
     }
     setHasCheckedStorage(true);
+
+    // Keep first paint focused on the dashboard. The tour remains available
+    // through Help/Tutorial and opens automatically once the initial page has
+    // settled, so it cannot become the measured LCP element.
+    if (shouldAutoOpen) {
+      const timeoutId = window.setTimeout(() => setShowTour(true), 6000);
+      return () => window.clearTimeout(timeoutId);
+    }
   }, []);
 
   // Listen for global open event (allows opening from any component)

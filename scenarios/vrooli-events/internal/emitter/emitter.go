@@ -1,3 +1,5 @@
+// DOC: docs/guides/integrating-a-scenario.md
+// DOC: docs/internal/TEMPORAL-FLOWS.md
 package emitter
 
 import (

@@ -1,0 +1,292 @@
+{
+  "$schema": "../../../program-runtime/schemas/program-contract.schema.json",
+  "name": "image-tools.scene-preparation-stage",
+  "version": "1",
+  "helpers": {
+    "program": "1"
+  },
+  "purpose": "Submit, reconcile or cancel a local scene-preparation stage, then assemble and review immutable photographic assets through their native owners.",
+  "inputs": {
+    "action": {
+      "type": "string",
+      "required": true,
+      "enum": [
+        "submit",
+        "observe",
+        "cancel",
+        "assemble",
+        "inspect-preparation",
+        "review",
+        "assess-repair",
+        "import-scene"
+      ]
+    },
+    "operation": {
+      "type": "string"
+    },
+    "operation_id": {
+      "type": "string"
+    },
+    "job_id": {
+      "type": "string"
+    },
+    "input_ref": {
+      "type": "string"
+    },
+    "mask_ref": {
+      "type": "string"
+    },
+    "params": {
+      "type": "object",
+      "default": {}
+    },
+    "preparation_id": {
+      "type": "string"
+    },
+    "request": {
+      "type": "object",
+      "default": {}
+    }
+  },
+  "assumptions": [
+    "Input and mask refs identify artifacts already owned by Image Tools.",
+    "The caller pins an installed model and retains the exact inputs plus stable UUID before dispatch.",
+    "Native jobs own inference, cancellation, restart failure and results; this program does not introduce another queue.",
+    "A successful operation is mechanical evidence; a visual review is required before scene or film promotion.",
+    "PreparationService owns immutable bundles/review revisions; a prepared source is retained separately from disposable stage output blobs.",
+    "Device Studio conversion is an optional downstream stage; inference and preparation review remain usable when that scenario is unavailable."
+  ],
+  "invariants": [
+    "One invocation makes at most one owner request, never polls or retries.",
+    "Local-only stages explicitly prohibit paid provider fallback and reclaim of other resources.",
+    "Lost admission responses are recovered using the same operation identity and source bytes, not a replacement job.",
+    "Changing source bytes or typed parameters requires a new stage identity and invalidates downstream preparation.",
+    "A cancellation acknowledgement does not prove that a running process has exited; observe or wait on the retained job.",
+    "Result references remain opaque owner references; the program never opens host paths or downloads models.",
+    "Source changes create a pending preparation; completed reviews are immutable child revisions and never mutate their parent."
+  ],
+  "bindings": [
+    {
+      "id": "image-tools/ai/submit-stored",
+      "effect": "write"
+    },
+    {
+      "id": "image-tools/jobs/get",
+      "effect": "read"
+    },
+    {
+      "id": "image-tools/jobs/cancel",
+      "effect": "write"
+    },
+    {
+      "id": "image-tools/preparation/create",
+      "effect": "write"
+    },
+    {
+      "id": "image-tools/preparation/get",
+      "effect": "read"
+    },
+    {
+      "id": "image-tools/preparation/review",
+      "effect": "write"
+    },
+    {
+      "id": "image-tools/preparation/assess-repair",
+      "effect": "read"
+    },
+    {
+      "id": "device-studio/scenes/from-preparation",
+      "effect": "write",
+      "optional": true
+    }
+  ],
+  "outputs": {
+    "status": {
+      "enum": [
+        "ok",
+        "partial",
+        "unavailable",
+        "refused",
+        "failed"
+      ]
+    },
+    "phase": {
+      "enum": [
+        "validate",
+        "act",
+        "report"
+      ]
+    },
+    "signals": {
+      "job_id": "Native durable job checkpoint.",
+      "stage_state": "Admitted or native job state.",
+      "result_ref": "Native owned output reference when available.",
+      "review_required": "Always true: inference success does not qualify visual quality.",
+      "recovery": "Exact original stage identity to reconcile uncertain admission.",
+      "cancel_terminal": "Whether cancellation readback is terminal, never a capacity-release claim.",
+      "preparation_id": "Content-addressed immutable asset/review checkpoint.",
+      "bundle_ref": "Owned retained ZIP for Device Studio conversion.",
+      "repair_assessment": "Read-only actual removal-mask/context measurements; no quality acceptance.",
+      "scene_revision": "Exact Device Studio candidate revision; separate scene/motion review remains required.",
+      "library_revision": "Immutable asset publication under the declared edit and optional local-render source uses; visual qualification remains separate."
+    },
+    "errors": {
+      "classes": [
+        "invalid_input",
+        "owner_identity_mismatch",
+        "stage_failed",
+        "binding_error",
+        "scenario_unreachable",
+        "deadline_exceeded",
+        "kernel_runtime",
+        "no_grant",
+        "not_run_eligible",
+        "remote_error",
+        "ambiguous_response",
+        "no_governed_binding",
+        "inference_spend_exceeded",
+        "delegated_run_spend_exceeded"
+      ]
+    },
+    "evidence": "Native job ID and stable operation UUID; no image bodies."
+  },
+  "budget": {
+    "wall_ms": 30000,
+    "inference_calls": 1,
+    "delegated_runs": 0,
+    "materialize_limit": 1,
+    "output_bytes": 4096
+  },
+  "fixtures": [
+    {
+      "id": "missing-retry-identity",
+      "inputs": {
+        "action": "submit",
+        "operation": "segment",
+        "input_ref": "input/example",
+        "params": {
+          "modelOverride": "sam2.1-hiera-tiny"
+        }
+      },
+      "expect": {
+        "status": [
+          "failed"
+        ],
+        "errors": [
+          {
+            "class": "invalid_input"
+          }
+        ]
+      },
+      "requires": []
+    },
+    {
+      "id": "live-missing-owner-job",
+      "inputs": {
+        "action": "observe",
+        "job_id": "00000000-0000-0000-0000-000000000000"
+      },
+      "expect": {
+        "status": [
+          "failed"
+        ],
+        "errors": [
+          {
+            "class": "remote_error"
+          }
+        ]
+      },
+      "requires": [
+        "image-tools"
+      ]
+    },
+    {
+      "id": "missing-preparation-identity",
+      "inputs": {
+        "action": "inspect-preparation"
+      },
+      "expect": {
+        "status": [
+          "failed"
+        ],
+        "errors": [
+          {
+            "class": "invalid_input"
+          }
+        ]
+      },
+      "requires": []
+    },
+    {
+      "id": "missing-repair-mask",
+      "inputs": {
+        "action": "assess-repair"
+      },
+      "expect": {
+        "status": [
+          "failed"
+        ],
+        "errors": [
+          {
+            "class": "invalid_input"
+          }
+        ]
+      },
+      "requires": []
+    },
+    {
+      "id": "import-requires-matching-bundle",
+      "inputs": {
+        "action": "import-scene",
+        "request": {
+          "preparationId": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "expectedBundleSha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "licenseId": "operator-generated",
+          "attribution": "test fixture",
+          "sourceLabel": "fixture"
+        }
+      },
+      "expect": {
+        "status": [
+          "failed"
+        ],
+        "errors": [
+          {
+            "class": "invalid_input"
+          }
+        ]
+      },
+      "requires": []
+    },
+    {
+      "id": "local-render-requires-source-use-rationale",
+      "inputs": {
+        "action": "import-scene",
+        "request": {
+          "preparationId": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "expectedBundleSha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "licenseId": "operator-generated",
+          "attribution": "fixture",
+          "sourceLabel": "fixture",
+          "allowLocalRender": true
+        }
+      },
+      "expect": {
+        "status": [
+          "failed"
+        ],
+        "errors": [
+          {
+            "class": "invalid_input"
+          }
+        ]
+      },
+      "requires": []
+    }
+  ],
+  "rung": "S3",
+  "owner_skill": "launch-video",
+  "verbs": [
+    "lib"
+  ]
+}

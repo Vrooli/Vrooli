@@ -1,0 +1,520 @@
+{
+  "schemaVersion": 6,
+  "flowId": "mandate.lifecycle",
+  "source": {
+    "contractPath": "api/internal/mandate/flow/flow.json",
+    "contractSha256": "0ad6be102f10e4f85b2cbacb603bb935c8a2a090309db6cba5baa6e7c0133710",
+    "generatorPath": "flow-verifier",
+    "generatorSha256": "2f4bdb4736a693e8d45276b8ad50a7f9078816d749b1d31b315d67302d62b864",
+    "generatorVersion": 7,
+    "modelPath": "api/internal/mandate/flow/generated/model.qnt",
+    "modelSha256": "743a706f7d6fbf8f00cd63d2342d162cbabce1621f27f518c9a9d2b80d54c1fd",
+    "quintVersion": "0.32.0",
+    "verificationBackend": "apalache"
+  },
+  "commands": {
+    "run": [
+      "quint",
+      "run",
+      "api/internal/mandate/flow/generated/model.qnt",
+      "--mbt",
+      "--seed",
+      "2026081801",
+      "--max-samples",
+      "8",
+      "--n-traces",
+      "8",
+      "--max-steps",
+      "4",
+      "--out-itf",
+      "<temp-itf-pattern>"
+    ],
+    "test": [
+      "quint",
+      "test",
+      "api/internal/mandate/flow/generated/model.qnt",
+      "--seed",
+      "2026081801"
+    ],
+    "typecheck": [
+      "quint",
+      "typecheck",
+      "api/internal/mandate/flow/generated/model.qnt"
+    ],
+    "verify": [
+      "quint",
+      "verify",
+      "api/internal/mandate/flow/generated/model.qnt",
+      "--invariants",
+      "TypeOK",
+      "TerminalClosure",
+      "IllegalTransitionsPreserveState",
+      "ExpiredNeverReturnsLive",
+      "--max-steps",
+      "4"
+    ]
+  },
+  "states": [
+    "draft",
+    "live",
+    "exhausted",
+    "expired",
+    "revoked"
+  ],
+  "events": [
+    "issue",
+    "exhaust",
+    "reach_expiry",
+    "revoke"
+  ],
+  "transitions": [
+    {
+      "from": "draft",
+      "event": "issue",
+      "to": "live",
+      "wantError": false
+    },
+    {
+      "from": "draft",
+      "event": "exhaust",
+      "to": "draft",
+      "wantError": true
+    },
+    {
+      "from": "draft",
+      "event": "reach_expiry",
+      "to": "draft",
+      "wantError": true
+    },
+    {
+      "from": "draft",
+      "event": "revoke",
+      "to": "draft",
+      "wantError": true
+    },
+    {
+      "from": "live",
+      "event": "issue",
+      "to": "live",
+      "wantError": true
+    },
+    {
+      "from": "live",
+      "event": "exhaust",
+      "to": "exhausted",
+      "wantError": false
+    },
+    {
+      "from": "live",
+      "event": "reach_expiry",
+      "to": "expired",
+      "wantError": false
+    },
+    {
+      "from": "live",
+      "event": "revoke",
+      "to": "revoked",
+      "wantError": false
+    },
+    {
+      "from": "exhausted",
+      "event": "issue",
+      "to": "exhausted",
+      "wantError": true
+    },
+    {
+      "from": "exhausted",
+      "event": "exhaust",
+      "to": "exhausted",
+      "wantError": true
+    },
+    {
+      "from": "exhausted",
+      "event": "reach_expiry",
+      "to": "exhausted",
+      "wantError": true
+    },
+    {
+      "from": "exhausted",
+      "event": "revoke",
+      "to": "exhausted",
+      "wantError": true
+    },
+    {
+      "from": "expired",
+      "event": "issue",
+      "to": "expired",
+      "wantError": true
+    },
+    {
+      "from": "expired",
+      "event": "exhaust",
+      "to": "expired",
+      "wantError": true
+    },
+    {
+      "from": "expired",
+      "event": "reach_expiry",
+      "to": "expired",
+      "wantError": true
+    },
+    {
+      "from": "expired",
+      "event": "revoke",
+      "to": "expired",
+      "wantError": true
+    },
+    {
+      "from": "revoked",
+      "event": "issue",
+      "to": "revoked",
+      "wantError": true
+    },
+    {
+      "from": "revoked",
+      "event": "exhaust",
+      "to": "revoked",
+      "wantError": true
+    },
+    {
+      "from": "revoked",
+      "event": "reach_expiry",
+      "to": "revoked",
+      "wantError": true
+    },
+    {
+      "from": "revoked",
+      "event": "revoke",
+      "to": "revoked",
+      "wantError": true
+    }
+  ],
+  "namedTraces": [
+    {
+      "name": "issue_then_expire",
+      "initial": "draft",
+      "steps": [
+        {
+          "event": "issue",
+          "want": "live",
+          "wantError": false
+        },
+        {
+          "event": "reach_expiry",
+          "want": "expired",
+          "wantError": false
+        }
+      ]
+    },
+    {
+      "name": "issue_then_revoke",
+      "initial": "draft",
+      "steps": [
+        {
+          "event": "issue",
+          "want": "live",
+          "wantError": false
+        },
+        {
+          "event": "revoke",
+          "want": "revoked",
+          "wantError": false
+        }
+      ]
+    },
+    {
+      "name": "issue_then_exhaust",
+      "initial": "draft",
+      "steps": [
+        {
+          "event": "issue",
+          "want": "live",
+          "wantError": false
+        },
+        {
+          "event": "exhaust",
+          "want": "exhausted",
+          "wantError": false
+        }
+      ]
+    }
+  ],
+  "generatedTraces": [
+    {
+      "name": "generated_model_001",
+      "initial": "draft",
+      "steps": [
+        {
+          "event": "revoke",
+          "want": "draft",
+          "wantError": true
+        },
+        {
+          "event": "reach_expiry",
+          "want": "draft",
+          "wantError": true
+        },
+        {
+          "event": "revoke",
+          "want": "draft",
+          "wantError": true
+        },
+        {
+          "event": "issue",
+          "want": "live",
+          "wantError": false
+        }
+      ]
+    },
+    {
+      "name": "generated_model_002",
+      "initial": "draft",
+      "steps": [
+        {
+          "event": "exhaust",
+          "want": "draft",
+          "wantError": true
+        },
+        {
+          "event": "revoke",
+          "want": "draft",
+          "wantError": true
+        },
+        {
+          "event": "revoke",
+          "want": "draft",
+          "wantError": true
+        },
+        {
+          "event": "revoke",
+          "want": "draft",
+          "wantError": true
+        }
+      ]
+    },
+    {
+      "name": "generated_model_003",
+      "initial": "draft",
+      "steps": [
+        {
+          "event": "issue",
+          "want": "live",
+          "wantError": false
+        },
+        {
+          "event": "reach_expiry",
+          "want": "expired",
+          "wantError": false
+        },
+        {
+          "event": "reach_expiry",
+          "want": "expired",
+          "wantError": true
+        },
+        {
+          "event": "revoke",
+          "want": "expired",
+          "wantError": true
+        }
+      ]
+    },
+    {
+      "name": "generated_model_004",
+      "initial": "draft",
+      "steps": [
+        {
+          "event": "revoke",
+          "want": "draft",
+          "wantError": true
+        },
+        {
+          "event": "exhaust",
+          "want": "draft",
+          "wantError": true
+        },
+        {
+          "event": "issue",
+          "want": "live",
+          "wantError": false
+        },
+        {
+          "event": "reach_expiry",
+          "want": "expired",
+          "wantError": false
+        }
+      ]
+    },
+    {
+      "name": "generated_model_005",
+      "initial": "draft",
+      "steps": [
+        {
+          "event": "revoke",
+          "want": "draft",
+          "wantError": true
+        },
+        {
+          "event": "revoke",
+          "want": "draft",
+          "wantError": true
+        },
+        {
+          "event": "exhaust",
+          "want": "draft",
+          "wantError": true
+        },
+        {
+          "event": "revoke",
+          "want": "draft",
+          "wantError": true
+        }
+      ]
+    },
+    {
+      "name": "generated_model_006",
+      "initial": "draft",
+      "steps": [
+        {
+          "event": "revoke",
+          "want": "draft",
+          "wantError": true
+        },
+        {
+          "event": "exhaust",
+          "want": "draft",
+          "wantError": true
+        },
+        {
+          "event": "exhaust",
+          "want": "draft",
+          "wantError": true
+        },
+        {
+          "event": "exhaust",
+          "want": "draft",
+          "wantError": true
+        }
+      ]
+    },
+    {
+      "name": "generated_model_007",
+      "initial": "draft",
+      "steps": [
+        {
+          "event": "issue",
+          "want": "live",
+          "wantError": false
+        },
+        {
+          "event": "exhaust",
+          "want": "exhausted",
+          "wantError": false
+        },
+        {
+          "event": "exhaust",
+          "want": "exhausted",
+          "wantError": true
+        },
+        {
+          "event": "revoke",
+          "want": "exhausted",
+          "wantError": true
+        }
+      ]
+    },
+    {
+      "name": "generated_model_008",
+      "initial": "draft",
+      "steps": [
+        {
+          "event": "issue",
+          "want": "live",
+          "wantError": false
+        },
+        {
+          "event": "reach_expiry",
+          "want": "expired",
+          "wantError": false
+        },
+        {
+          "event": "issue",
+          "want": "expired",
+          "wantError": true
+        },
+        {
+          "event": "exhaust",
+          "want": "expired",
+          "wantError": true
+        }
+      ]
+    }
+  ],
+  "invariants": [
+    "TypeOK",
+    "TerminalClosure",
+    "IllegalTransitionsPreserveState",
+    "ExpiredNeverReturnsLive"
+  ],
+  "generatedChecks": [
+    "transitionTable"
+  ],
+  "coverage": {
+    "transitionMatrixComplete": true,
+    "terminalTransitionsChecked": true,
+    "namedTraces": {
+      "allStatesCovered": true,
+      "allEventsCovered": true,
+      "coveredStates": [
+        "draft",
+        "live",
+        "exhausted",
+        "expired",
+        "revoked"
+      ],
+      "coveredEvents": [
+        "issue",
+        "exhaust",
+        "reach_expiry",
+        "revoke"
+      ]
+    },
+    "generatedTraces": {
+      "allStatesCovered": false,
+      "allEventsCovered": true,
+      "coveredStates": [
+        "draft",
+        "live",
+        "exhausted",
+        "expired"
+      ],
+      "coveredEvents": [
+        "issue",
+        "exhaust",
+        "reach_expiry",
+        "revoke"
+      ],
+      "coveredPairs": [
+        "draft/issue",
+        "draft/exhaust",
+        "draft/reach_expiry",
+        "draft/revoke",
+        "live/exhaust",
+        "live/reach_expiry",
+        "exhausted/exhaust",
+        "exhausted/revoke",
+        "expired/issue",
+        "expired/exhaust",
+        "expired/reach_expiry",
+        "expired/revoke"
+      ],
+      "allPairsCovered": false
+    }
+  },
+  "checks": {
+    "typechecked": true,
+    "tested": true,
+    "verified": true,
+    "generatedFromContract": true,
+    "generatedFromModel": true
+  }
+}

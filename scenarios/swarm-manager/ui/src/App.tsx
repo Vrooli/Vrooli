@@ -6,31 +6,68 @@
  * - BrowserRouter: Client-side routing
  * - 404 handler: Catches unknown routes
  *
- * The primary route is /graph (GraphWorkspace), which hosts detail pages
- * as state-driven overlays. Legacy routes redirect to /graph with
- * appropriate query params.
+ * Fullscreen experiences are first-class routes. The graph, entity details,
+ * Command Post, and Decision Stream all participate in browser history.
  */
 
 import { lazy, Suspense } from "react";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { getProxyInfo } from "@vrooli/api-base";
 import { ErrorBoundary } from "./components/ui/error-boundary";
 import { PageErrorBoundary } from "./components/ui/page-error-boundary";
 import { NotFoundPage } from "./pages/NotFoundPage";
-import {
-  BacklogRedirect,
-  BacklogDetailsRedirect,
-  ScenariosRedirect,
-  ScenarioDetailsRedirect,
-  ExecutionRedirect,
-  PromptsRedirect,
-  SettingsRedirect,
-} from "./surfaces/graph/components/LegacyRedirect";
+import { AppShell } from "./app/shell/AppShell";
+
+/**
+ * Redirect that carries the query string along — old /operations filter
+ * links (status/lane/owner_type/q/window_seconds/view) use the same param
+ * names the Plan board reads, so shared bookmarks keep their filters.
+ */
+function RedirectPreservingSearch({ to }: { to: string }) {
+  const location = useLocation();
+  return <Navigate to={`${to}${location.search}`} replace />;
+}
+
+function LegacyGraphLensRedirect({ mode }: { mode?: "focus" }) {
+  const location = useLocation();
+  const params = new URLSearchParams(location.search);
+  if (mode) {
+    params.set("mode", mode);
+  } else {
+    params.delete("mode");
+  }
+  const search = params.toString();
+  return <Navigate to={`/graph${search ? `?${search}` : ""}`} replace />;
+}
 
 const GraphWorkspace = lazy(() =>
   import("./surfaces/graph/components/GraphWorkspace").then((m) => ({
     default: m.GraphWorkspace,
   })),
+);
+const BacklogDetailsPage = lazy(() =>
+  import("./pages/BacklogDetailsPage").then((m) => ({ default: m.BacklogDetailsPage })),
+);
+const ScenarioDetailsPage = lazy(() =>
+  import("./pages/ScenarioDetailsPage").then((m) => ({ default: m.ScenarioDetailsPage })),
+);
+const ExecutionDetailsPage = lazy(() =>
+  import("./pages/ExecutionDetailsPage").then((m) => ({ default: m.ExecutionDetailsPage })),
+);
+const GoalDetailsPage = lazy(() =>
+  import("./pages/GoalDetailsPage").then((m) => ({ default: m.GoalDetailsPage })),
+);
+const CaptureDetailsPage = lazy(() =>
+  import("./pages/CaptureDetailsPage").then((m) => ({ default: m.CaptureDetailsPage })),
+);
+const RecordsPage = lazy(() =>
+  import("./pages/RecordsPage").then((m) => ({ default: m.RecordsPage })),
+);
+const RecordDetailsPage = lazy(() =>
+  import("./pages/RecordDetailsPage").then((m) => ({ default: m.RecordDetailsPage })),
+);
+const SessionDetailsPage = lazy(() =>
+  import("./pages/SessionDetailsPage").then((m) => ({ default: m.SessionDetailsPage })),
 );
 
 /**
@@ -65,28 +102,42 @@ export default function App() {
           }
         >
           <Routes>
-            {/* Primary route: graph workspace (detail pages render as overlays inside) */}
-            <Route path="/graph" element={<PageErrorBoundary pageName="Graph"><GraphWorkspace /></PageErrorBoundary>} />
+            <Route element={<AppShell />}>
+              {/* Plan is a first-class top-level route. /graph is the single
+                  graph surface; focus is query state inside it. */}
+              <Route path="/plan" element={<PageErrorBoundary pageName="Plan"><GraphWorkspace /></PageErrorBoundary>} />
+              <Route path="/graph" element={<PageErrorBoundary pageName="Graph"><GraphWorkspace /></PageErrorBoundary>} />
+              <Route path="/stats" element={<PageErrorBoundary pageName="Stats"><GraphWorkspace /></PageErrorBoundary>} />
 
-            {/* Root redirects to /graph */}
-            <Route index element={<Navigate to="/graph" replace />} />
+              <Route index element={<Navigate to="/plan" replace />} />
 
-            {/* Legacy route redirects */}
-            <Route path="backlog" element={<BacklogRedirect />} />
-            <Route path="backlog/:kind/:name" element={<BacklogDetailsRedirect />} />
-            <Route path="scenarios" element={<ScenariosRedirect />} />
-            <Route path="scenarios/:name" element={<ScenarioDetailsRedirect />} />
-            <Route path="execution" element={<ExecutionRedirect />} />
-            <Route path="prompts" element={<PromptsRedirect />} />
-            <Route path="settings" element={<SettingsRedirect />} />
+              {/* Legacy graph paths — the plan board moved to /plan and graph
+                  modes moved to /graph query state. Preserve query state
+                  (?focus/?select/?drawer) so deep links and bookmarks survive. */}
+              <Route path="/graph/plan" element={<RedirectPreservingSearch to="/plan" />} />
+              <Route path="/graph/focus" element={<LegacyGraphLensRedirect mode="focus" />} />
+              <Route path="/graph/topology" element={<LegacyGraphLensRedirect />} />
 
-            {/* Legacy detail page routes redirect to graph with detail params */}
-            <Route path="details/backlog/:kind/:name" element={<BacklogDetailsRedirect />} />
-            <Route path="details/scenario/:name" element={<ScenarioDetailsRedirect />} />
-            <Route path="details/execution/:executionId" element={<Navigate to="/graph" replace />} />
-            <Route path="details/initiative/:name" element={<Navigate to="/graph" replace />} />
+              <Route path="backlog/:kind/:name" element={<PageErrorBoundary pageName="Backlog Details"><BacklogDetailsPage /></PageErrorBoundary>} />
+              <Route path="scenarios/:name" element={<PageErrorBoundary pageName="Scenario Details"><ScenarioDetailsPage /></PageErrorBoundary>} />
+              <Route path="executions/:executionId" element={<PageErrorBoundary pageName="Execution Details"><ExecutionDetailsPage /></PageErrorBoundary>} />
+              <Route path="goals/:name" element={<PageErrorBoundary pageName="Goal Details"><GoalDetailsPage /></PageErrorBoundary>} />
+              <Route path="captures/:captureId" element={<PageErrorBoundary pageName="Capture Details"><CaptureDetailsPage /></PageErrorBoundary>} />
+              <Route path="records" element={<PageErrorBoundary pageName="Records"><RecordsPage /></PageErrorBoundary>} />
+              <Route path="records/:recordId" element={<PageErrorBoundary pageName="Record Details"><RecordDetailsPage /></PageErrorBoundary>} />
+              <Route path="sessions/:sessionId" element={<PageErrorBoundary pageName="Session Details"><SessionDetailsPage /></PageErrorBoundary>} />
+              {/* Retired surfaces — absorbed by the Plan lens board. Old
+                  deep links and bookmarks redirect rather than 404. */}
+              <Route path="command-post" element={<Navigate to="/plan" replace />} />
+              <Route path="command-post/decisions" element={<Navigate to="/plan?drawer=decisions" replace />} />
+              <Route path="operations" element={<RedirectPreservingSearch to="/plan" />} />
+              {/* Retired list pages (ExecutionPage, ScenariosPage) — their
+                  content is surfaced by the Plan board and graph. Detail routes
+                  (/executions/:id, /scenarios/:name) are unaffected. */}
+              <Route path="executions" element={<RedirectPreservingSearch to="/plan" />} />
+              <Route path="scenarios" element={<RedirectPreservingSearch to="/plan" />} />
+            </Route>
 
-            {/* 404 handler */}
             <Route path="*" element={<NotFoundPage />} />
           </Routes>
         </Suspense>

@@ -1,7 +1,7 @@
 package main
 
 import (
-	"encoding/json"
+	"fmt"
 	"net/http"
 	"testing"
 	"time"
@@ -24,10 +24,10 @@ func TestHealthHandler(t *testing.T) {
 		w := makeHTTPRequest(t, testApp.App, req)
 
 		var response map[string]interface{}
-		assertJSONResponse(t, w, http.StatusOK, &response)
+		assertJSONResponse(t, w, http.StatusServiceUnavailable, &response)
 
-		if response["service"] != "product-manager-api" {
-			t.Errorf("Expected service name 'product-manager-api', got %v", response["service"])
+		if response["service"] != "product-manager-agent-api" {
+			t.Errorf("Expected service name 'product-manager-agent-api', got %v", response["service"])
 		}
 
 		if _, ok := response["timestamp"]; !ok {
@@ -446,10 +446,7 @@ func TestSprintPlanHandler(t *testing.T) {
 
 		w := makeHTTPRequest(t, testApp.App, req)
 
-		// With 0 capacity, should still return 200 with an empty or minimal sprint plan
-		if w.Code != http.StatusOK && w.Code != http.StatusInternalServerError {
-			t.Errorf("Expected status 200 or 500, got %d", w.Code)
-		}
+		assertErrorResponse(t, w, http.StatusBadRequest)
 	})
 }
 
@@ -497,11 +494,12 @@ func TestMarketAnalysisHandler(t *testing.T) {
 			Body:   reqBody,
 		}
 
+		setOllamaJSONGenerateFixture(t, `{"market_size":"$1B","growth_rate":"10%","competitors":["Acme"],"demographics":"builders","opportunities":["automation"],"challenges":["competition"]}`, nil)
 		w := makeHTTPRequest(t, testApp.App, req)
-
-		// Ollama might not be running, so accept either success or error
-		if w.Code != http.StatusOK && w.Code != http.StatusInternalServerError {
-			t.Errorf("Expected status 200 or 500, got %d", w.Code)
+		var analysis MarketAnalysis
+		assertJSONResponse(t, w, http.StatusOK, &analysis)
+		if analysis.ProductName != "Test Product" || analysis.MarketSize != "$1B" || len(analysis.Competitors) != 1 {
+			t.Fatalf("unexpected market analysis: %#v", analysis)
 		}
 	})
 
@@ -516,10 +514,18 @@ func TestMarketAnalysisHandler(t *testing.T) {
 
 		w := makeHTTPRequest(t, testApp.App, req)
 
-		// Should handle missing product name
-		if w.Code != http.StatusOK && w.Code != http.StatusInternalServerError && w.Code != http.StatusBadRequest {
-			t.Errorf("Unexpected status code: %d", w.Code)
+		assertErrorResponse(t, w, http.StatusBadRequest)
+	})
+
+	t.Run("DependencyFailure", func(t *testing.T) {
+		setOllamaJSONGenerateFixture(t, "", fmt.Errorf("fixture gateway unavailable"))
+		req := HTTPTestRequest{
+			Method: "POST",
+			Path:   "/api/market/analyze",
+			Body:   map[string]interface{}{"product_name": "Test Product"},
 		}
+		w := makeHTTPRequest(t, testApp.App, req)
+		assertErrorResponse(t, w, http.StatusInternalServerError)
 	})
 }
 
@@ -543,11 +549,12 @@ func TestCompetitorAnalysisHandler(t *testing.T) {
 			Body:   reqBody,
 		}
 
+		setOllamaJSONGenerateFixture(t, `{"features":["search"],"pricing":"usage","target_market":"teams","strengths":["speed"],"weaknesses":["cost"],"market_share":"12%"}`, nil)
 		w := makeHTTPRequest(t, testApp.App, req)
-
-		// Ollama might not be running
-		if w.Code != http.StatusOK && w.Code != http.StatusInternalServerError {
-			t.Errorf("Expected status 200 or 500, got %d", w.Code)
+		var analysis CompetitorAnalysis
+		assertJSONResponse(t, w, http.StatusOK, &analysis)
+		if analysis.CompetitorName != "Competitor Inc" || analysis.Pricing != "usage" || len(analysis.Features) != 1 {
+			t.Fatalf("unexpected competitor analysis: %#v", analysis)
 		}
 	})
 }
@@ -573,11 +580,12 @@ func TestFeedbackAnalysisHandler(t *testing.T) {
 			Body:   reqBody,
 		}
 
+		setOllamaJSONGenerateFixture(t, `{"sentiment":"positive","sentiment_score":90,"themes":["speed"],"feature_requests":["export"],"pain_points":[]}`, nil)
 		w := makeHTTPRequest(t, testApp.App, req)
-
-		// Ollama might not be running
-		if w.Code != http.StatusOK && w.Code != http.StatusInternalServerError {
-			t.Errorf("Expected status 200 or 500, got %d", w.Code)
+		var analysis FeedbackAnalysis
+		assertJSONResponse(t, w, http.StatusOK, &analysis)
+		if analysis.TotalItems != len(feedback) || analysis.Sentiment != "positive" || analysis.SentimentScore != 90 {
+			t.Fatalf("unexpected feedback analysis: %#v", analysis)
 		}
 	})
 
@@ -594,10 +602,7 @@ func TestFeedbackAnalysisHandler(t *testing.T) {
 
 		w := makeHTTPRequest(t, testApp.App, req)
 
-		// Should handle empty feedback
-		if w.Code != http.StatusOK && w.Code != http.StatusInternalServerError {
-			t.Errorf("Unexpected status code: %d", w.Code)
-		}
+		assertErrorResponse(t, w, http.StatusBadRequest)
 	})
 }
 
@@ -648,12 +653,7 @@ func TestROICalculationHandler(t *testing.T) {
 
 		w := makeHTTPRequest(t, testApp.App, req)
 
-		// Should handle zero effort gracefully
-		if w.Code == http.StatusOK {
-			var calculation ROICalculation
-			json.NewDecoder(w.Body).Decode(&calculation)
-			// ROI might be infinite or very high
-		}
+		assertErrorResponse(t, w, http.StatusBadRequest)
 	})
 }
 
@@ -674,11 +674,12 @@ func TestDecisionAnalysisHandler(t *testing.T) {
 			Body:   decision,
 		}
 
+		setOllamaJSONGenerateFixture(t, `{"options":[{"pros":["fast"],"cons":["cost"],"risk_level":"low","complexity":"medium","timeline":"2 weeks","success_probability":80,"recommendation_score":90}]}`, nil)
 		w := makeHTTPRequest(t, testApp.App, req)
-
-		// Ollama might not be running
-		if w.Code != http.StatusOK && w.Code != http.StatusInternalServerError {
-			t.Errorf("Expected status 200 or 500, got %d", w.Code)
+		var analysis DecisionAnalysis
+		assertJSONResponse(t, w, http.StatusOK, &analysis)
+		if analysis.DecisionID != decision.ID || len(analysis.Options) != len(decision.Options) || analysis.Options[0].Score != 90 {
+			t.Fatalf("unexpected decision analysis: %#v", analysis)
 		}
 	})
 
@@ -694,10 +695,7 @@ func TestDecisionAnalysisHandler(t *testing.T) {
 
 		w := makeHTTPRequest(t, testApp.App, req)
 
-		// Should handle decisions with no options
-		if w.Code != http.StatusOK && w.Code != http.StatusInternalServerError {
-			t.Errorf("Unexpected status code: %d", w.Code)
-		}
+		assertErrorResponse(t, w, http.StatusBadRequest)
 	})
 }
 

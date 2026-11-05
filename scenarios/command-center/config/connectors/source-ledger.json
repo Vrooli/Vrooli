@@ -1,0 +1,8 @@
+{
+  "id": "source-ledger",
+  "name": "Source Ledger",
+  "enabled": true,
+  "transport": "http-json",
+  "baseUrlEnv": "SOURCE_LEDGER_BASE_URL",
+  "paths": ["/api/v1/sources"]
+}

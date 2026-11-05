@@ -37,6 +37,33 @@ const statusStyles: Record<string, string> = {
  */
 function OrgChartNodeComponent({ data }: OrgChartNodeProps) {
   const { member, appearance, teamRoles, isSelected, onSelect, managerName, directReportCount, heartbeatEnabled, heartbeatStatus } = data
+  const unresolvedHeartbeat = heartbeatStatus === 'approval_pending'
+    || heartbeatStatus === 'needs_review'
+    || heartbeatStatus === 'observer_unavailable'
+    || heartbeatStatus === 'preparation_interrupted'
+    || heartbeatStatus === 'uncertain'
+    || heartbeatStatus === 'unreachable'
+    || heartbeatStatus === 'unavailable'
+    || heartbeatStatus === 'degraded'
+    || heartbeatStatus === 'broken'
+  const unknownHeartbeat = heartbeatStatus === 'unknown'
+  const waitingForCapacity = heartbeatStatus === 'admission_deferred'
+  const showHeartbeat = heartbeatEnabled === true || unresolvedHeartbeat || waitingForCapacity || heartbeatStatus === 'running' || unknownHeartbeat
+  const heartbeatLabel = heartbeatStatus?.replace(/_/g, ' ') ?? 'enabled'
+  const heartbeatTitle = unknownHeartbeat
+    ? 'Heartbeat status unavailable'
+    : waitingForCapacity
+      ? 'Heartbeat waiting for capacity; scheduled retry will reuse the retained request'
+      : `Heartbeat ${heartbeatLabel}`
+  const heartbeatTone = heartbeatStatus === 'running'
+    ? 'text-green-400 animate-pulse'
+    : heartbeatStatus === 'broken'
+      ? 'text-red-400'
+      : heartbeatStatus === 'failed' || unresolvedHeartbeat
+      ? 'text-amber-400'
+      : unknownHeartbeat || waitingForCapacity
+        ? 'text-muted-foreground/50'
+      : 'text-primary/50'
 
   // Get roles that this member has
   const memberRoles: TeamRole[] = teamRoles.filter((role) => member.roles.includes(role.id))
@@ -84,15 +111,13 @@ function OrgChartNodeComponent({ data }: OrgChartNodeProps) {
             >
               {member.status}
             </span>
-            {heartbeatEnabled !== undefined && (
-              heartbeatEnabled ? (
-                <span title={heartbeatStatus === 'running' ? 'Heartbeat running' : 'Heartbeat enabled'}>
+            {(showHeartbeat || heartbeatEnabled === false) && (
+              showHeartbeat ? (
+                <span title={heartbeatTitle}>
                   <Heart
                     className={cn(
                       'h-3 w-3 flex-shrink-0',
-                      heartbeatStatus === 'running'
-                        ? 'text-green-400 animate-pulse'
-                        : 'text-primary/50'
+                      heartbeatTone,
                     )}
                   />
                 </span>

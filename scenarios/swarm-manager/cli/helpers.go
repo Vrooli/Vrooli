@@ -6,42 +6,19 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"net/url"
 	"strings"
 	"time"
 
 	"github.com/vrooli/cli-core/cliutil"
+	"google.golang.org/protobuf/types/known/structpb"
 )
 
-func (a *App) resolveV1Endpoint(endpointPath string) string {
-	endpointPath = strings.TrimSpace(endpointPath)
-	if endpointPath == "" {
-		return ""
-	}
-	if !strings.HasPrefix(endpointPath, "/") {
-		endpointPath = "/" + endpointPath
-	}
-	base := strings.TrimRight(strings.TrimSpace(a.core.HTTPClient.BaseURL()), "/")
-	if strings.HasSuffix(base, "/api/v1") {
-		return endpointPath
-	}
-	return "/api/v1" + endpointPath
-}
-
-func (a *App) getV1(path string, query url.Values) ([]byte, error) {
-	return a.core.APIClient.Get(a.resolveV1Endpoint(path), query)
-}
-
-func (a *App) requestV1(method, path string, query url.Values, payload any) ([]byte, error) {
-	return a.core.APIClient.Request(method, a.resolveV1Endpoint(path), query, payload)
-}
-
-func (a *App) requestMultipartV1(method, path string, payload []byte, contentType string) ([]byte, error) {
-	base := strings.TrimRight(strings.TrimSpace(a.core.APIClient.BaseURL()), "/")
+func (a *App) requestMultipart(method, path string, payload []byte, contentType string) ([]byte, error) {
+	base := strings.TrimRight(strings.TrimSpace(a.core.APIRootBase()), "/")
 	if base == "" {
 		return nil, fmt.Errorf("api base URL is empty; configure an API base or set an API port")
 	}
-	endpoint := base + a.resolveV1Endpoint(path)
+	endpoint := base + a.core.APIPath(path)
 
 	req, err := http.NewRequest(method, endpoint, bytes.NewReader(payload))
 	if err != nil {
@@ -53,8 +30,8 @@ func (a *App) requestMultipartV1(method, path string, payload []byte, contentTyp
 	for key, value := range a.core.APIClient.AuthHeaders() {
 		req.Header.Set(key, value)
 	}
-	if a.identity.IsIdentityPresent() {
-		req.Header.Set(headerAgentIdentityToken, a.identity.Token)
+	if a.core.HTTPClient != nil {
+		a.core.HTTPClient.ApplyRequestHeaders(req)
 	}
 
 	timeout := a.core.HTTPClient.Timeout()
@@ -178,6 +155,31 @@ func parseJSONString(raw string) (json.RawMessage, error) {
 	return json.RawMessage(raw), nil
 }
 
+func parseProtoStructJSON(raw string) (*structpb.Struct, error) {
+	if strings.TrimSpace(raw) == "" {
+		return nil, nil
+	}
+	var value map[string]any
+	decoder := json.NewDecoder(strings.NewReader(raw))
+	decoder.UseNumber()
+	if err := decoder.Decode(&value); err != nil {
+		return nil, fmt.Errorf("inputs must be a JSON object: %w", err)
+	}
+	normalized, err := json.Marshal(value)
+	if err != nil {
+		return nil, fmt.Errorf("normalize inputs: %w", err)
+	}
+	var protoValue map[string]any
+	if err := json.Unmarshal(normalized, &protoValue); err != nil {
+		return nil, fmt.Errorf("normalize inputs: %w", err)
+	}
+	result, err := structpb.NewStruct(protoValue)
+	if err != nil {
+		return nil, fmt.Errorf("inputs must contain JSON values: %w", err)
+	}
+	return result, nil
+}
+
 func printTree[T any](items []T, childFn func(T) []T, lineFn func(T) string, level int) {
 	for _, item := range items {
 		fmt.Printf("%s%s\n", strings.Repeat("  ", level), lineFn(item))
@@ -199,6 +201,29 @@ func cliCommand(parts ...string) string {
 		segments = append(segments, trimmed)
 	}
 	return strings.Join(segments, " ")
+}
+
+func proposalTargetPayload(value, name string) (map[string]any, error) {
+	targetType, targetRef, ok := strings.Cut(strings.TrimSpace(value), "/")
+	if !ok || strings.TrimSpace(targetType) == "" || strings.TrimSpace(targetRef) == "" {
+		return nil, fmt.Errorf("target %q must use TYPE/REF", value)
+	}
+	if strings.TrimSpace(name) == "" {
+		name = targetRef
+	}
+	return map[string]any{"type": strings.TrimSpace(targetType), "ref": strings.TrimSpace(targetRef), "name": strings.TrimSpace(name)}, nil
+}
+
+func parseSessionEntities(values []string) ([]cliAgentSessionContextRef, error) {
+	refs := make([]cliAgentSessionContextRef, 0, len(values))
+	for _, raw := range values {
+		contextType, ref, ok := strings.Cut(strings.TrimSpace(raw), "/")
+		if !ok || strings.TrimSpace(contextType) == "" || strings.TrimSpace(ref) == "" {
+			return nil, fmt.Errorf("entity %q must use TYPE/REF", raw)
+		}
+		refs = append(refs, cliAgentSessionContextRef{Type: strings.TrimSpace(contextType), Ref: strings.TrimSpace(ref)})
+	}
+	return refs, nil
 }
 
 func printSection(title string) {

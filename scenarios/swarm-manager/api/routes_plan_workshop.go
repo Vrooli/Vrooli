@@ -1,0 +1,574 @@
+package main
+
+import (
+	"context"
+	"crypto/sha256"
+	"encoding/hex"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"log"
+	"os"
+	"strings"
+	"time"
+
+	"swarm-manager/internal/agentsessions"
+	"swarm-manager/internal/backlog"
+	"swarm-manager/internal/execution"
+	"swarm-manager/internal/planclient"
+	"swarm-manager/internal/planworkshop"
+	"swarm-manager/internal/review"
+	"swarm-manager/internal/transitionrun"
+	"swarm-manager/internal/transitionrunner"
+
+	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/plan-manager/v1/shared"
+	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/types/known/structpb"
+)
+
+func (s *Server) registerPlanWorkshopRoutes(dataRoot string) *planworkshop.Service {
+	if s.backlogHandler == nil {
+		return nil
+	}
+	plans := planclient.NewConnectClient(nil, nil)
+	service := planworkshop.NewService(planworkshop.NewStore(dataRoot), func(subject planworkshop.Subject) (string, string, string, error) {
+		switch subject.Kind {
+		case planworkshop.SubjectBacklog:
+			parts := strings.SplitN(subject.Ref, "/", 2)
+			if len(parts) != 2 {
+				return "", "", "", fmt.Errorf("backlog subject ref must be kind/name")
+			}
+			kind, err := backlog.ParseBacklogKind(parts[0])
+			if err != nil {
+				return "", "", "", err
+			}
+			item, err := s.backlogHandler.Store().LoadItem(kind, parts[1])
+			if err != nil {
+				return "", "", "", err
+			}
+			id := planID(item.PlanRef)
+			hash, err := currentPlanHash(context.Background(), plans, id)
+			if err != nil {
+				return "", "", "", err
+			}
+			return workshopSubjectVersion(item), id, hash, nil
+		default:
+			return "", "", "", fmt.Errorf("unsupported workshop subject")
+		}
+	})
+	runner := s.transitionRunner
+	if runner == nil {
+		panic("transition runner must be configured before plan workshop routes")
+	}
+	runner.RegisterInput("plan.workshop.review", func(ctx context.Context, subjectRef string) (transitionrunner.Snapshot, error) {
+		session, err := service.Get(subjectRef)
+		if err != nil {
+			return transitionrunner.Snapshot{}, err
+		}
+		planSnapshot, err := planWorkshopCanonicalPlanSnapshot(ctx, plans, session.PlanID)
+		if err != nil {
+			return transitionrunner.Snapshot{}, err
+		}
+		input, err := structpb.NewValue(map[string]any{"subject": session.Subject, "snapshot": map[string]any{"workshopId": session.ID, "subjectVersion": session.SubjectVersion, "planId": session.PlanID, "planContentHash": session.PlanContentHash, "plan": planSnapshot}})
+		return transitionrunner.Snapshot{Input: input, EntityVersion: session.SubjectVersion}, err
+	})
+	runner.RegisterInput("plan.workshop.reconcile", func(ctx context.Context, subjectRef string) (transitionrunner.Snapshot, error) {
+		parts := strings.SplitN(subjectRef, "/", 2)
+		if len(parts) != 2 {
+			return transitionrunner.Snapshot{}, fmt.Errorf("invalid workshop reconciliation subject %q", subjectRef)
+		}
+		session, err := service.Get(parts[0])
+		if err != nil {
+			return transitionrunner.Snapshot{}, err
+		}
+		var response planworkshop.Response
+		found := false
+		for _, item := range session.Responses {
+			if item.ID == parts[1] {
+				response, found = item, true
+				break
+			}
+		}
+		if !found {
+			return transitionrunner.Snapshot{}, fmt.Errorf("workshop response %q not found", parts[1])
+		}
+		accepted, err := planWorkshopAcceptedProposalPayloads(s.agentSessionStore, response.Accepted)
+		if err != nil {
+			return transitionrunner.Snapshot{}, err
+		}
+		planSnapshot, err := planWorkshopCanonicalPlanSnapshot(ctx, plans, session.PlanID)
+		if err != nil {
+			return transitionrunner.Snapshot{}, err
+		}
+		input, err := structpb.NewValue(map[string]any{"subject": session.Subject, "snapshot": map[string]any{"workshopId": session.ID, "subjectVersion": session.SubjectVersion, "planId": session.PlanID, "planContentHash": session.PlanContentHash, "plan": planSnapshot, "packet": session.Packet}, "response": response, "accepted_proposals": accepted})
+		return transitionrunner.Snapshot{Input: input, EntityVersion: session.SubjectVersion}, err
+	})
+	runner.RegisterApply("record_plan_workshop_packet", func(ctx context.Context, subjectRef string, outcome transitionrunner.Outcome) error {
+		var result planworkshop.ReviewResult
+		if err := json.Unmarshal(outcome.Result, &result); err != nil {
+			return err
+		}
+		_, _, err := service.ApplyReviewResult(ctx, subjectRef, result)
+		return err
+	})
+	runner.RegisterApply("record_plan_workshop_candidate", func(ctx context.Context, subjectRef string, outcome transitionrunner.Outcome) error {
+		parts := strings.SplitN(subjectRef, "/", 2)
+		if len(parts) != 2 {
+			return fmt.Errorf("invalid workshop reconciliation subject %q", subjectRef)
+		}
+		var result planworkshop.ReconciliationResult
+		if err := json.Unmarshal(outcome.Result, &result); err != nil {
+			return err
+		}
+		_, _, err := service.ApplyReconciliationResult(ctx, parts[0], parts[1], result)
+		return err
+	})
+	service.SetReviewTransitionApplier(func(ctx context.Context, _ planworkshop.Session, provenance planworkshop.WorkflowProvenance) error {
+		_, err := runner.ApplyExecution(ctx, provenance.ExecutionID)
+		return err
+	})
+	service.SetReconciliationTransitionApplier(func(ctx context.Context, _ planworkshop.Session, _ planworkshop.Response, provenance planworkshop.WorkflowProvenance) error {
+		_, err := runner.ApplyExecution(ctx, provenance.ExecutionID)
+		return err
+	})
+	service.SetReconciliationStarter(func(ctx context.Context, session planworkshop.Session, response planworkshop.Response) (planworkshop.WorkflowProvenance, error) {
+		started, err := runner.Start(ctx, "plan.workshop.reconcile", session.ID+"/"+response.ID)
+		if err != nil {
+			return planworkshop.WorkflowProvenance{}, err
+		}
+		return planWorkshopWorkflowProvenance(started), nil
+	})
+	service.SetReviewStarter(func(ctx context.Context, session planworkshop.Session) (planworkshop.WorkflowProvenance, error) {
+		started, err := runner.Start(ctx, "plan.workshop.review", session.ID)
+		if err != nil {
+			return planworkshop.WorkflowProvenance{}, err
+		}
+		return planWorkshopWorkflowProvenance(started), nil
+	})
+	service.SetCandidateCreator(func(ctx context.Context, workshop planworkshop.Session, response planworkshop.Response, provenance planworkshop.WorkflowProvenance, raw json.RawMessage) (planworkshop.CandidateReference, error) {
+		candidatePlan := &sharedv1.Plan{}
+		if err := protojson.Unmarshal(raw, candidatePlan); err != nil {
+			return planworkshop.CandidateReference{}, fmt.Errorf("decode whole-plan reconciliation candidate: %w", err)
+		}
+		candidatePlan.Id = ""
+		candidate, err := plans.CreateCandidateRevision(ctx, planclient.CandidateRevisionInput{PlanID: workshop.PlanID, ExpectedBaseContentHash: workshop.PlanContentHash, ProposalProvenance: "swarm-manager:plan-workshop/" + workshop.ID + "/" + response.ID + "/" + provenance.ExecutionID, CandidatePlan: candidatePlan})
+		if err != nil {
+			return planworkshop.CandidateReference{}, err
+		}
+		if candidate == nil || strings.TrimSpace(candidate.GetId()) == "" {
+			return planworkshop.CandidateReference{}, fmt.Errorf("plan manager omitted the reconciliation candidate id")
+		}
+		preview, err := plans.PreviewCandidateRevision(ctx, candidate.GetId())
+		if err != nil {
+			return planworkshop.CandidateReference{}, err
+		}
+		findings := make([]string, 0, len(preview.GetDiagnostics()))
+		diagnostics := make([]planworkshop.CandidateDiagnostic, 0, len(preview.GetDiagnostics()))
+		for _, diagnostic := range preview.GetDiagnostics() {
+			if diagnostic == nil {
+				continue
+			}
+			diagnostics = append(diagnostics, planworkshop.CandidateDiagnostic{Severity: diagnostic.GetSeverity(), Code: diagnostic.GetCode(), Location: diagnostic.GetLocation(), Message: diagnostic.GetMessage(), Guidance: diagnostic.GetGuidance()})
+			if strings.TrimSpace(diagnostic.GetMessage()) != "" {
+				findings = append(findings, diagnostic.GetMessage())
+			}
+		}
+		changes := make([]planworkshop.CandidateFieldChange, 0, len(preview.GetDiff().GetChanges()))
+		for _, change := range preview.GetDiff().GetChanges() {
+			if change != nil {
+				changes = append(changes, planworkshop.CandidateFieldChange{Field: change.GetField(), BeforeJSON: change.GetBeforeJson(), AfterJSON: change.GetAfterJson()})
+			}
+		}
+		impact := preview.GetImpact()
+		return planworkshop.CandidateReference{ID: candidate.GetId(), PlanID: workshop.PlanID, ExpectedBaseContentHash: workshop.PlanContentHash, QualityStatus: preview.GetQualityStatus(), QualityFindings: findings, Diff: changes, Diagnostics: diagnostics, Impact: planworkshop.CandidateImpact{BeforeGrade: impact.GetBeforeGrade(), AfterGrade: impact.GetAfterGrade(), AddedIssueCodes: impact.GetAddedIssueCodes(), ClearedIssueCodes: impact.GetClearedIssueCodes(), ExecutionGradeRegression: impact.GetExecutionGradeRegression()}}, nil
+	})
+	service.SetCandidateApplier(func(ctx context.Context, workshop planworkshop.Session, candidate planworkshop.CandidateReference, acknowledgeQualityImpact bool) error {
+		result, err := plans.ApplyCandidateRevision(ctx, candidate.ID, candidate.ExpectedBaseContentHash, acknowledgeQualityImpact)
+		if err != nil {
+			return err
+		}
+		if result.GetPlan() == nil || result.GetPlan().GetId() != workshop.PlanID {
+			return fmt.Errorf("candidate does not apply to this workshop's canonical plan")
+		}
+		if workshop.Subject.Kind != planworkshop.SubjectBacklog {
+			return nil
+		}
+		parts := strings.SplitN(workshop.Subject.Ref, "/", 2)
+		if len(parts) != 2 {
+			return fmt.Errorf("backlog workshop subject ref must be kind/name")
+		}
+		kind, err := backlog.ParseBacklogKind(parts[0])
+		if err != nil {
+			return err
+		}
+		item, err := s.backlogHandler.Store().LoadItem(kind, parts[1])
+		if err != nil {
+			return err
+		}
+		if item.PlanRef == nil || item.PlanRef.PlanID != workshop.PlanID {
+			return fmt.Errorf("backlog item no longer owns this canonical plan")
+		}
+		item.PlanAcceptance = nil
+		item.Updated = time.Now().UTC().Format(time.RFC3339)
+		return s.backlogHandler.Store().SaveItem(item)
+	})
+	service.SetCandidateDiscarder(func(ctx context.Context, _ planworkshop.Session, candidate planworkshop.CandidateReference, reason string) error {
+		if strings.TrimSpace(reason) == "" {
+			reason = "ignored by operator in Plan Workshop"
+		}
+		_, err := plans.DiscardCandidateRevision(ctx, candidate.ID, reason)
+		return err
+	})
+	service.SetProposalRecorder(func(ctx context.Context, workshop planworkshop.Session, provenance planworkshop.WorkflowProvenance, drafts []planworkshop.ProposalDraft) (string, []planworkshop.ProposalRef, error) {
+		if s.agentSessionStore == nil {
+			return "", nil, fmt.Errorf("Agent Session proposal store is not configured")
+		}
+		sessionID := planWorkshopAgentSessionID(workshop.ID, provenance.ExecutionID)
+		target := planWorkshopProposalTarget(workshop.Subject)
+		_, err := s.agentSessionStore.LoadSession(sessionID)
+		if err != nil {
+			if !errors.Is(err, agentsessions.ErrNotFound) {
+				return "", nil, err
+			}
+			now := time.Now().UTC().Format(time.RFC3339Nano)
+			stored := agentsessions.Session{ID: sessionID, Title: "Plan Workshop review for " + workshop.Subject.Ref, Kind: agentsessions.KindSwarmOperations, Status: agentsessions.StatusProposalReady, SkillID: agentsessions.SkillProposals, RunID: provenance.RunID, CreatedAt: now, UpdatedAt: now, ProposalTarget: &target}
+			if err := s.agentSessionStore.CreateSession(stored); err != nil {
+				return "", nil, err
+			}
+		}
+		refs := make([]planworkshop.ProposalRef, 0, len(drafts))
+		createdAt := time.Now().UTC().Format(time.RFC3339Nano)
+		for index, draft := range drafts {
+			proposalID := planWorkshopProposalID(provenance.ExecutionID, index)
+			proposal := agentsessions.Proposal{
+				ID: proposalID, Kind: agentsessions.ProposalMutationList, Status: agentsessions.ProposalStatusReady,
+				Summary: strings.TrimSpace(draft.Summary), PayloadJSON: string(draft.Payload), Target: &target,
+				CreatedAt: createdAt, UpdatedAt: createdAt,
+				Attribution: &agentsessions.Attribution{Type: agentsessions.AttributionAgent, RunID: provenance.RunID, SessionID: sessionID, SessionKind: agentsessions.KindSwarmOperations, Source: "plan-workshop/" + workshop.ID},
+			}
+			if err := s.agentSessionStore.SaveProposal(sessionID, proposal); err != nil {
+				return "", nil, err
+			}
+			refs = append(refs, planworkshop.ProposalRef{SessionID: sessionID, ProposalID: proposalID, ApplyMode: draft.ApplyMode})
+		}
+		return sessionID, refs, nil
+	})
+	service.SetDirectProposalApplier(func(ctx context.Context, ref planworkshop.ProposalRef, actor string) error {
+		if s.agentSessionSvc == nil || s.agentSessionStore == nil {
+			return fmt.Errorf("Agent Session mutation proposal service is not configured")
+		}
+		session, err := s.agentSessionStore.LoadSession(ref.SessionID)
+		if err != nil {
+			return err
+		}
+		for _, proposal := range session.Proposals {
+			if proposal.ID != ref.ProposalID {
+				continue
+			}
+			if proposal.Status == agentsessions.ProposalStatusApplied {
+				return nil
+			}
+			if followUp, ok := decodeFollowUpProposal(proposal.PayloadJSON); ok {
+				if s.executionSvc == nil {
+					return fmt.Errorf("execution service is not configured for follow-up proposal")
+				}
+				if err := followUp.Validate(); err != nil {
+					return err
+				}
+				followUpType := "followup"
+				if followUp.Route == "work.correct" {
+					followUpType = "fixup"
+				}
+				if _, err := s.executionSvc.FollowUp(ctx, execution.FollowUpRequest{
+					ExecutionID:      followUp.SourceExecutionID,
+					FollowUpType:     followUpType,
+					Context:          followUp.Rationale,
+					SourceProposalID: ref.ProposalID,
+					SourceReviewRef:  followUp.SourceReviewRef,
+				}); err != nil {
+					return err
+				}
+				proposal.Status = agentsessions.ProposalStatusApplied
+				proposal.UpdatedAt = time.Now().UTC().Format(time.RFC3339Nano)
+				proposal.Decisions = append(proposal.Decisions, agentsessions.ProposalDecision{Kind: "apply", Note: "accepted in Plan Workshop by " + strings.TrimSpace(actor), DecidedAt: proposal.UpdatedAt})
+				return s.agentSessionStore.SaveProposal(ref.SessionID, proposal)
+			}
+			if proposal.Kind != agentsessions.ProposalMutationList {
+				return fmt.Errorf("direct Plan Workshop proposal is not a mutation list")
+			}
+			_, err := s.agentSessionSvc.DecideMutationListProposal(ctx, ref.SessionID, ref.ProposalID, nil, "accepted in Plan Workshop by "+strings.TrimSpace(actor))
+			return err
+		}
+		return fmt.Errorf("direct Plan Workshop proposal is missing from its Agent Session")
+	})
+	attachReviewFinding := func(ctx context.Context, kind, name string, round review.Round) {
+		subjectKind := planworkshop.SubjectBacklog
+		subjectRef := kind + "/" + name
+		summary := strings.TrimSpace(round.AgentAssessment)
+		if summary == "" {
+			summary = "Review result requires operator attention"
+		}
+		disposition := planWorkshopDisposition(round)
+		severity := "info"
+		if disposition.Kind == "attention" {
+			severity = "attention"
+		}
+		finding := planworkshop.Finding{
+			ID: "review/" + kind + "/" + name + "/" + fmt.Sprint(round.RoundNum), Severity: severity, Summary: summary,
+			Evidence: "review/" + kind + "/" + name + "/round/" + fmt.Sprint(round.RoundNum), Disposition: &disposition,
+		}
+		if _, err := service.AttachFinding(planworkshop.Subject{Kind: subjectKind, Ref: subjectRef}, finding); err != nil {
+			log.Printf("plan workshop review evidence projection %s/%s round %d: %v", kind, name, round.RoundNum, err)
+			return
+		}
+		if err := s.attachFollowUpProposal(ctx, service, planworkshop.Subject{Kind: subjectKind, Ref: subjectRef}, finding.Evidence, review.ExecutionIDFromSnapshot(round.AgentWorkflowSnapshot), disposition); err != nil {
+			log.Printf("plan workshop review follow-up proposal %s/%s round %d: %v", kind, name, round.RoundNum, err)
+		}
+	}
+	if s.reviewSvc != nil {
+		s.reviewSvc.SetRoundTerminalObserver(attachReviewFinding)
+	}
+	planworkshop.NewHandler(service).RegisterRoutes(s.router)
+	return service
+}
+
+func planWorkshopDisposition(round review.Round) planworkshop.Disposition {
+	if round.Disposition != nil {
+		return planworkshop.Disposition{Kind: round.Disposition.Kind, Rationale: round.Disposition.Rationale, Confidence: round.Disposition.Confidence, Scope: round.Disposition.Scope}
+	}
+	switch round.Classification {
+	case "ready", "ready_with_notes", "delivered":
+		return planworkshop.Disposition{Kind: "archive", Rationale: "Review evidence supports the completed result.", Confidence: "medium"}
+	case "needs_work", "partial":
+		return planworkshop.Disposition{Kind: "follow_up", Rationale: "Review evidence identifies remaining work.", Confidence: "medium"}
+	default:
+		return planworkshop.Disposition{Kind: "attention", Rationale: "Review did not produce a safe terminal recommendation.", Confidence: "low"}
+	}
+}
+
+type followUpProposalEnvelope struct {
+	Form     string                        `json:"form"`
+	FollowUp planworkshop.FollowUpProposal `json:"follow_up"`
+	Policy   string                        `json:"policy"`
+}
+
+func decodeFollowUpProposal(payload string) (planworkshop.FollowUpProposal, bool) {
+	var envelope followUpProposalEnvelope
+	if json.Unmarshal([]byte(payload), &envelope) != nil || envelope.Form != "follow_up" {
+		return planworkshop.FollowUpProposal{}, false
+	}
+	return envelope.FollowUp, true
+}
+
+// attachFollowUpProposal persists a typed, attributable current-work proposal
+// in the one Agent Session proposal store and projects its reference into the
+// Plan Workshop. It never creates a run merely because a review finished.
+// An explicit, opt-in bounded policy may create only high-confidence current
+// work; otherwise the proposal remains operator-authorized.
+func (s *Server) attachFollowUpProposal(ctx context.Context, workshop *planworkshop.Service, subject planworkshop.Subject, sourceRef, executionID string, disposition planworkshop.Disposition) error {
+	if disposition.Kind != "follow_up" || strings.TrimSpace(executionID) == "" || s.agentSessionStore == nil {
+		return nil
+	}
+	route := "work.follow_up"
+	if strings.Contains(strings.ToLower(disposition.Scope), "correct") {
+		route = "work.correct"
+	}
+	proposal := planworkshop.FollowUpProposal{
+		Route: route, Target: "current_work", SourceReviewRef: sourceRef, SourceExecutionID: executionID,
+		Rationale: disposition.Rationale, Confidence: disposition.Confidence, Scope: disposition.Scope,
+	}
+	if err := proposal.Validate(); err != nil {
+		return err
+	}
+	policy := "operator_required"
+	if automaticFollowUpAllowed(proposal) {
+		policy = "automatic_allowed"
+	}
+	session, err := workshop.OpenOrGet(subject, nil)
+	if err != nil {
+		return err
+	}
+	agentSessionID := planWorkshopAgentSessionID(session.ID, sourceRef)
+	target := planWorkshopProposalTarget(subject)
+	if _, err := s.agentSessionStore.LoadSession(agentSessionID); err != nil {
+		if !errors.Is(err, agentsessions.ErrNotFound) {
+			return err
+		}
+		now := time.Now().UTC().Format(time.RFC3339Nano)
+		if err := s.agentSessionStore.CreateSession(agentsessions.Session{ID: agentSessionID, Title: "Follow-up proposal for " + subject.Ref, Kind: agentsessions.KindSwarmOperations, Status: agentsessions.StatusProposalReady, SkillID: agentsessions.SkillProposals, CreatedAt: now, UpdatedAt: now, ProposalTarget: &target}); err != nil {
+			return err
+		}
+	}
+	payload, err := json.Marshal(followUpProposalEnvelope{Form: "follow_up", FollowUp: proposal, Policy: policy})
+	if err != nil {
+		return err
+	}
+	proposalID := planWorkshopProposalID(sourceRef, 0)
+	alreadyStored := false
+	if saved, err := s.agentSessionStore.LoadSession(agentSessionID); err == nil {
+		for _, existing := range saved.Proposals {
+			if existing.ID == proposalID {
+				alreadyStored = true
+				break
+			}
+		}
+	} else {
+		return err
+	}
+	now := time.Now().UTC().Format(time.RFC3339Nano)
+	stored := agentsessions.Proposal{ID: proposalID, Kind: agentsessions.ProposalMutationList, Status: agentsessions.ProposalStatusReady, Summary: "Follow up on " + subject.Ref, PayloadJSON: string(payload), Target: &target, CreatedAt: now, UpdatedAt: now, Attribution: &agentsessions.Attribution{Type: agentsessions.AttributionAgent, SessionID: agentSessionID, SessionKind: agentsessions.KindSwarmOperations, Source: sourceRef}}
+	if !alreadyStored {
+		if err := s.agentSessionStore.SaveProposal(agentSessionID, stored); err != nil {
+			return err
+		}
+		if s.emitter != nil {
+			s.emitter.EmitAgentSessionProposalCreated(agentSessionID, map[string]any{"proposal_id": proposalID, "source_review_ref": sourceRef, "route": proposal.Route, "policy": policy, "confidence": proposal.Confidence, "scope": proposal.Scope})
+		}
+	}
+	if _, err := workshop.AttachProposal(subject, planworkshop.ProposalRef{SessionID: agentSessionID, ProposalID: proposalID, ApplyMode: "direct"}); err != nil {
+		return err
+	}
+	if alreadyStored || policy != "automatic_allowed" || s.executionSvc == nil {
+		return nil
+	}
+	followUpType := "followup"
+	if proposal.Route == "work.correct" {
+		followUpType = "fixup"
+	}
+	if _, err := s.executionSvc.FollowUp(ctx, execution.FollowUpRequest{ExecutionID: proposal.SourceExecutionID, FollowUpType: followUpType, Context: proposal.Rationale, SourceProposalID: proposalID, SourceReviewRef: proposal.SourceReviewRef}); err != nil {
+		return err
+	}
+	stored.Status = agentsessions.ProposalStatusApplied
+	stored.UpdatedAt = time.Now().UTC().Format(time.RFC3339Nano)
+	stored.Decisions = append(stored.Decisions, agentsessions.ProposalDecision{Kind: "automatic_apply", Note: "bounded follow-up policy", DecidedAt: stored.UpdatedAt})
+	if err := s.agentSessionStore.SaveProposal(agentSessionID, stored); err != nil {
+		return err
+	}
+	if s.emitter != nil {
+		s.emitter.EmitAgentSessionProposalApplied(agentSessionID, map[string]any{"proposal_id": proposalID, "source_review_ref": sourceRef, "policy": policy})
+	}
+	return nil
+}
+
+// automaticFollowUpAllowed is intentionally narrow and disabled by default.
+// The opt-in environment policy is bounded to one high-confidence correction
+// of the current execution; FollowUp's source-proposal deduplication provides
+// the durable once-only guard and the proposal/event records provide audit.
+func automaticFollowUpAllowed(proposal planworkshop.FollowUpProposal) bool {
+	switch strings.ToLower(strings.TrimSpace(os.Getenv("SWARM_MANAGER_AUTO_FOLLOW_UP"))) {
+	case "1", "true", "yes", "on":
+	default:
+		return false
+	}
+	return proposal.Target == "current_work" && proposal.Confidence == "high"
+}
+
+func planWorkshopWorkflowProvenance(correlation transitionrun.Correlation) planworkshop.WorkflowProvenance {
+	runID := ""
+	if len(correlation.Attempts) > 0 {
+		runID = correlation.Attempts[0].RunID
+	}
+	return planworkshop.WorkflowProvenance{
+		Transition:       correlation.TransitionKey,
+		ExecutionID:      correlation.ExecutionID,
+		DefinitionDigest: correlation.DefinitionDigest,
+		RunID:            runID,
+		StartedAt:        time.Now().UTC().Format(time.RFC3339Nano),
+	}
+}
+
+func planWorkshopAcceptedProposalPayloads(store agentsessions.Store, refs []planworkshop.ProposalRef) ([]map[string]any, error) {
+	if store == nil {
+		return nil, fmt.Errorf("Agent Session proposal store is not configured")
+	}
+	accepted := make([]map[string]any, 0, len(refs))
+	for _, ref := range refs {
+		session, err := store.LoadSession(ref.SessionID)
+		if err != nil {
+			return nil, err
+		}
+		found := false
+		for _, proposal := range session.Proposals {
+			if proposal.ID != ref.ProposalID {
+				continue
+			}
+			var payload any
+			if err := json.Unmarshal([]byte(proposal.PayloadJSON), &payload); err != nil {
+				return nil, fmt.Errorf("decode accepted proposal %q payload: %w", ref.ProposalID, err)
+			}
+			accepted = append(accepted, map[string]any{"session_id": ref.SessionID, "proposal_id": ref.ProposalID, "apply_mode": ref.ApplyMode, "summary": proposal.Summary, "payload": payload})
+			found = true
+			break
+		}
+		if !found {
+			return nil, fmt.Errorf("accepted proposal %q is missing from Agent Session %q", ref.ProposalID, ref.SessionID)
+		}
+	}
+	return accepted, nil
+}
+
+func planWorkshopCanonicalPlanSnapshot(ctx context.Context, plans planclient.PlanReader, planID string) (any, error) {
+	if strings.TrimSpace(planID) == "" {
+		return nil, nil
+	}
+	plan, err := plans.GetPlan(ctx, planID)
+	if err != nil {
+		return nil, fmt.Errorf("load canonical plan review snapshot: %w", err)
+	}
+	if plan == nil {
+		return nil, fmt.Errorf("canonical plan review snapshot is missing")
+	}
+	raw, err := protojson.Marshal(plan)
+	if err != nil {
+		return nil, fmt.Errorf("encode canonical plan review snapshot: %w", err)
+	}
+	var snapshot any
+	if err := json.Unmarshal(raw, &snapshot); err != nil {
+		return nil, fmt.Errorf("decode canonical plan review snapshot: %w", err)
+	}
+	return snapshot, nil
+}
+
+func planWorkshopAgentSessionID(workshopID, executionID string) string {
+	sum := sha256.Sum256([]byte(workshopID + "\x00" + executionID))
+	return "sess_pw_" + hex.EncodeToString(sum[:8])
+}
+
+func planWorkshopProposalID(executionID string, index int) string {
+	sum := sha256.Sum256([]byte(fmt.Sprintf("%s\x00%d", executionID, index)))
+	return "prop_pw_" + hex.EncodeToString(sum[:8])
+}
+
+func planWorkshopProposalTarget(subject planworkshop.Subject) agentsessions.ProposalTarget {
+	return agentsessions.ProposalTarget{Type: agentsessions.ContextBacklogItem, Ref: subject.Ref, Name: subject.Ref}
+}
+
+func currentPlanHash(ctx context.Context, plans planclient.PlanReader, id string) (string, error) {
+	if strings.TrimSpace(id) == "" {
+		return "", nil
+	}
+	if plans == nil {
+		return "", fmt.Errorf("plan-manager client is not configured")
+	}
+	plan, err := plans.GetPlan(ctx, id)
+	if err != nil {
+		return "", fmt.Errorf("load canonical plan: %w", err)
+	}
+	if plan == nil || strings.TrimSpace(plan.GetContentHash()) == "" {
+		return "", fmt.Errorf("canonical plan has no content hash")
+	}
+	return strings.TrimSpace(plan.GetContentHash()), nil
+}
+
+func workshopSubjectVersion(value any) string {
+	raw, _ := json.Marshal(value)
+	sum := sha256.Sum256(raw)
+	return "sha256:" + hex.EncodeToString(sum[:])
+}
+
+func planID(ref *backlog.PlanRef) string {
+	if ref == nil {
+		return ""
+	}
+	return ref.PlanID
+}

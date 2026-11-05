@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title desc">
+  <title id="title">Persona Identity Console</title>
+  <desc id="desc">A cyan identity shield with a connected person mark.</desc>
+  <defs>
+    <linearGradient id="identity" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#22d3ee" />
+      <stop offset="1" stop-color="#2563eb" />
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="112" fill="#020617" />
+  <path fill="url(#identity)" d="M256 76 390 128v111c0 103-65 158-134 197-69-39-134-94-134-197V128L256 76Z" />
+  <circle cx="256" cy="218" r="39" fill="#020617" />
+  <path fill="#020617" d="M176 342c12-47 42-71 80-71s68 24 80 71c-25 19-52 32-80 48-28-16-55-29-80-48Z" />
+  <circle cx="391" cy="126" r="17" fill="#f8fafc" />
+  <path stroke="#f8fafc" stroke-linecap="round" stroke-width="10" d="m391 126 31 31" />
+</svg>

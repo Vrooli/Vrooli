@@ -1,0 +1,50 @@
+{
+  "_brand_display_name": "Agent Treasury",
+  "_brand_icons_version": 2,
+  "_brand_id": "9855aacb-2ff1-4452-907c-e06a0fb97987",
+  "_brand_tagline": "Bounded authority for agent commerce.",
+  "_brand_version": 2,
+  "background_color": "#f8fafc",
+  "description": "Bounded authority for agent commerce.",
+  "icons": [
+    {
+      "sizes": "16x16",
+      "src": "/public/favicon-16.png",
+      "type": "image/png"
+    },
+    {
+      "sizes": "32x32",
+      "src": "/public/favicon-32.png",
+      "type": "image/png"
+    },
+    {
+      "sizes": "196x196",
+      "src": "/public/favicon-196.png",
+      "type": "image/png"
+    },
+    {
+      "sizes": "180x180",
+      "src": "/public/apple-touch-icon.png",
+      "type": "image/png"
+    },
+    {
+      "purpose": "maskable",
+      "sizes": "192x192",
+      "src": "/public/maskable-icon-192.png",
+      "type": "image/png"
+    },
+    {
+      "purpose": "maskable",
+      "sizes": "512x512",
+      "src": "/public/maskable-icon-512.png",
+      "type": "image/png"
+    }
+  ],
+  "display": "standalone",
+  "id": ".",
+  "name": "Agent Treasury",
+  "scope": ".",
+  "short_name": "Treasury",
+  "start_url": ".",
+  "theme_color": "#ffffff"
+}

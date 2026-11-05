@@ -19,6 +19,9 @@ import type { SkillSearchMode } from '@/types'
 /** localStorage key for sidebar state */
 const STORAGE_KEY = 'pm.sidebarState'
 
+/** Bump when persisted sidebar state should be reset for existing users. */
+const STORAGE_SCHEMA_VERSION = 2
+
 /** Debounce delay for localStorage writes (ms) */
 const DEBOUNCE_MS = 300
 
@@ -79,6 +82,9 @@ export function loadSidebarState(): SidebarPersistedState {
     if (!stored) return DEFAULT_STATE
 
     const parsed = JSON.parse(stored) as Record<string, unknown>
+    if (parsed.schemaVersion !== STORAGE_SCHEMA_VERSION) {
+      return DEFAULT_STATE
+    }
 
     return {
       isCollapsed: typeof parsed.isCollapsed === 'boolean' ? parsed.isCollapsed : DEFAULT_STATE.isCollapsed,
@@ -157,7 +163,10 @@ export function saveSidebarState(state: SidebarPersistedState): void {
   if (typeof window === 'undefined') return
 
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state))
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({
+      schemaVersion: STORAGE_SCHEMA_VERSION,
+      ...state,
+    }))
   } catch {
     // Ignore localStorage errors (quota exceeded, etc.)
   }

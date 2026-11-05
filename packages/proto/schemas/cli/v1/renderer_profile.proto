@@ -1,0 +1,75 @@
+syntax = "proto3";
+
+package vrooli.cli.v1;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/cli/v1;cliv1";
+
+// RendererToolProfile is a read-only observation of the separately managed
+// FFmpeg/FFprobe video-renderer pair. Content identity excludes host paths and
+// observation time. An artifact-present profile is not render-workflow or
+// redistribution qualification.
+message RendererToolProfile {
+  uint32 schema_version = 1;
+  string profile_id = 2;
+  RendererToolProfileState state = 3;
+  string artifact_identity = 4;
+  string environment_identity = 5;
+  string os = 6;
+  string architecture = 7;
+  string archive_sha256 = 8;
+  RendererToolBinary ffmpeg = 9;
+  RendererToolBinary ffprobe = 10;
+  string license_id = 11;
+  string license_sha256 = 12;
+  repeated string runtime_prerequisites = 13;
+  string qualification_scope = 14;
+  string detail = 15;
+  string observed_at = 16;
+  uint64 archive_size_bytes = 17;
+  string license_details = 18;
+}
+
+enum RendererToolProfileState {
+  RENDERER_TOOL_PROFILE_STATE_UNSPECIFIED = 0;
+  RENDERER_TOOL_PROFILE_STATE_UNSUPPORTED_PLATFORM = 1;
+  RENDERER_TOOL_PROFILE_STATE_MISSING = 2;
+  RENDERER_TOOL_PROFILE_STATE_UNMANAGED = 3;
+  RENDERER_TOOL_PROFILE_STATE_PARTIAL = 4;
+  RENDERER_TOOL_PROFILE_STATE_TAMPERED = 5;
+  RENDERER_TOOL_PROFILE_STATE_PROBE_FAILED = 6;
+  RENDERER_TOOL_PROFILE_STATE_ARTIFACT_PRESENT = 7;
+}
+
+message RendererToolBinary {
+  string path = 1;
+  string sha256 = 2;
+  uint64 size_bytes = 3;
+  string version = 4;
+  string build_config_sha256 = 5;
+  string build_config = 6;
+  string archive_member_path = 7;
+}
+
+// BlenderToolProfile is a read-only observation of the separately managed
+// Blender archive tree. Artifact-present means only that the pinned tree and
+// fixed version probe match; it does not qualify OS prerequisites or rendering.
+message BlenderToolProfile {
+  uint32 schema_version = 1;
+  string profile_id = 2;
+  RendererToolProfileState state = 3;
+  string artifact_identity = 4;
+  string environment_identity = 5;
+  string os = 6;
+  string architecture = 7;
+  string archive_sha256 = 8;
+  uint64 archive_size_bytes = 9;
+  string expected_tree_sha256 = 10;
+  RendererToolBinary blender = 11;
+  string license_id = 12;
+  string license_sha256 = 13;
+  string license_details = 14;
+  repeated string runtime_prerequisites = 15;
+  string qualification_scope = 16;
+  string detail = 17;
+  string observed_at = 18;
+}

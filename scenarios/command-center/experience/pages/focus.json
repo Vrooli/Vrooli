@@ -1,0 +1,308 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.1.0",
+  "page": {
+    "id": "focus",
+    "title": "Focus",
+    "routes": [
+      "/focus"
+    ],
+    "purpose": "Present the one ranked answer to 'which sensor is worth building next'. Merges coverage gaps, untrusted readings, unavailable sources and unregistered outcomes into a single ordered list, each entry naming its owning team and stating why it ranks where it does. This is the surface read at the vision walk.",
+    "prd_refs": [
+      "OT-P0-006",
+      "OT-P0-002"
+    ]
+  },
+  "regions": [
+    {
+      "id": "ranked-list",
+      "purpose": "The ordered findings. One list, not one per room. Each entry carries its kind, owner, the rooms it affects, how long it has stood, and the stated reason for its rank.",
+      "required": true,
+      "component": {
+        "library": {
+          "component": "experience-surface",
+          "version": "1.0.3"
+        }
+      },
+      "lifecycle": {
+        "kind": "async",
+        "states": [
+          "loading",
+          "ready",
+          "empty",
+          "partial",
+          "error"
+        ]
+      }
+    },
+    {
+      "id": "ranking-basis",
+      "purpose": "The ranking rule, stated on the page rather than implied by the order — including that source integrity outranks coverage breadth.",
+      "required": true,
+      "component": {
+        "library": {
+          "component": "experience-surface",
+          "version": "1.0.3"
+        }
+      },
+      "lifecycle": {
+        "kind": "static",
+        "states": [
+          "static"
+        ]
+      }
+    },
+    {
+      "id": "source-availability",
+      "purpose": "Which sources could not be read while this ranking was computed, so a reader knows the ranking's own completeness.",
+      "required": true,
+      "component": {
+        "library": {
+          "component": "experience-surface",
+          "version": "1.0.3"
+        }
+      },
+      "lifecycle": {
+        "kind": "async",
+        "states": [
+          "ready",
+          "partial"
+        ]
+      }
+    }
+  ],
+  "states": [
+    {
+      "id": "ready",
+      "description": "All sources read. The full ranked list renders with its basis stated.",
+      "setup": {
+        "route": "/focus"
+      }
+    },
+    {
+      "id": "partial",
+      "description": "One or more sources unreadable. The list renders from what was readable and states which sources are missing from it, so the ranking is not mistaken for complete.",
+      "setup": {
+        "route": "/focus",
+        "query": {
+          "state": "partial"
+        }
+      }
+    },
+    {
+      "id": "empty",
+      "description": "No findings. The surface says the board found nothing rather than rendering an empty list, and states the denominator it searched.",
+      "setup": {
+        "route": "/focus",
+        "query": {
+          "state": "empty"
+        }
+      }
+    },
+    {
+      "id": "error",
+      "description": "The ranking could not be computed. States the failure and its reason; shows no partial ordering that could be mistaken for the answer.",
+      "setup": {
+        "route": "/focus",
+        "query": {
+          "state": "error"
+        }
+      }
+    }
+  ],
+  "elements": [
+    {
+      "id": "ranked-list",
+      "role": "region",
+      "name": "Ranked findings",
+      "description": "The ordered list of what to build next."
+    },
+    {
+      "id": "ranking-basis",
+      "role": "region",
+      "name": "Ranking basis",
+      "description": "The stated rule behind the order."
+    },
+    {
+      "id": "source-availability",
+      "role": "region",
+      "name": "Source availability",
+      "description": "Which sources this ranking could and could not see."
+    }
+  ],
+  "priorities": [
+    {
+      "statement": "One list, not six.",
+      "notes": "Six per-room gap lists make 'what is worth building next' a judgement call made freshly at every vision walk. One ranked surface makes it a read. This is the entire point of the page."
+    },
+    {
+      "statement": "Every finding names its owner.",
+      "notes": "A finding without an owner is an observation. The owner is read from the source's team, not guessed from the room it appears in."
+    },
+    {
+      "statement": "A missing control loop is distinguished from a missing pipeline.",
+      "notes": "'This team has no instrument' and 'this reading was never wired' carry different work, different cost and different owners. Rendering them identically — which the previous red-chip model did — points effort at the wrong thing."
+    },
+    {
+      "statement": "The ranking rule is on the page.",
+      "notes": "An order a reader cannot interrogate is an order they will either follow blindly or ignore. Stating the rule invites the argument that improves it."
+    },
+    {
+      "statement": "This page proposes; it never acts.",
+      "notes": "The gap-closure loop assigns proposal to outcome-strategist and approval to the operator. A file-this button here would move the approval boundary into the UI."
+    }
+  ],
+  "claims": [
+    {
+      "id": "single-ordered-surface",
+      "type": "ordering",
+      "tier": "aspirational",
+      "statement": "Findings from every room and every kind appear in one ordered list, not grouped into per-room sections.",
+      "rationale": "Grouping by room restores the judgement call the ranking exists to remove.",
+      "states": [
+        "ready",
+        "partial"
+      ],
+      "elements": [
+        "ranked-list"
+      ],
+      "x-intended-tier": "machine",
+      "x-check-plan": "Exactly one ranked list renders and its DOM order matches the rank field the surface returned."
+    },
+    {
+      "id": "every-finding-has-an-owner",
+      "type": "element-presence",
+      "tier": "aspirational",
+      "statement": "Every entry names the team responsible for closing it.",
+      "rationale": "An unowned finding cannot become work.",
+      "states": [
+        "ready",
+        "partial"
+      ],
+      "elements": [
+        "ranked-list"
+      ],
+      "x-intended-tier": "machine",
+      "x-check-plan": "Every finding row contains a non-empty owner node."
+    },
+    {
+      "id": "finding-kinds-are-distinguishable",
+      "type": "manual-review",
+      "tier": "aspirational",
+      "statement": "no-instrument, no-pipeline, untrusted-reading, source-unavailable and unregistered-outcome are visibly distinct kinds, not one undifferentiated severity.",
+      "rationale": "They carry different work and different owners; collapsing them is how the previous model made every gap look like the same red chip.",
+      "states": [
+        "ready"
+      ],
+      "elements": [
+        "ranked-list"
+      ],
+      "x-intended-tier": "manual"
+    },
+    {
+      "id": "gaps-carry-their-age",
+      "type": "element-presence",
+      "tier": "aspirational",
+      "statement": "Every entry shows how long its condition has stood.",
+      "rationale": "A gap open for two hundred days and one opened last week are not the same finding. Without dates, declared-and-dated degrades into declared-once-and-forgotten.",
+      "states": [
+        "ready"
+      ],
+      "elements": [
+        "ranked-list"
+      ],
+      "x-intended-tier": "machine",
+      "x-check-plan": "Every gap row contains a non-empty age node."
+    },
+    {
+      "id": "ranking-is-stated",
+      "type": "element-presence",
+      "tier": "aspirational",
+      "statement": "The ranking rule is presented on the page, including that source integrity outranks coverage breadth.",
+      "rationale": "A reading nobody can trust is worse than a reading that does not exist, because the first one is believed. That is a claim worth exposing to disagreement.",
+      "states": [
+        "ready",
+        "partial",
+        "empty"
+      ],
+      "elements": [
+        "ranking-basis"
+      ],
+      "x-intended-tier": "machine",
+      "x-check-plan": "The ranking basis renders as non-empty text on the surface."
+    },
+    {
+      "id": "partial-ranking-says-so",
+      "type": "element-presence",
+      "tier": "aspirational",
+      "statement": "When a source could not be read, the page states that the ranking is incomplete and names the missing sources.",
+      "rationale": "A ranking computed over a partial view, presented as complete, is a confident wrong answer.",
+      "states": [
+        "partial"
+      ],
+      "elements": [
+        "ranked-list",
+        "source-availability"
+      ],
+      "x-intended-tier": "machine",
+      "x-check-plan": "In the partial state the surface renders an explicit partial-ranking notice."
+    },
+    {
+      "id": "empty-states-its-denominator",
+      "type": "element-presence",
+      "tier": "aspirational",
+      "statement": "When there are no findings, the page states what it searched rather than rendering an empty list.",
+      "rationale": "An empty list is indistinguishable from a broken query.",
+      "states": [
+        "empty"
+      ],
+      "elements": [
+        "ranked-list"
+      ],
+      "x-intended-tier": "machine",
+      "x-check-plan": "In the empty state a denominator and its confidence render."
+    },
+    {
+      "id": "no-file-action",
+      "type": "element-absence",
+      "tier": "aspirational",
+      "statement": "No entry offers a control that files work, assigns an owner, or writes to any upstream.",
+      "rationale": "This is the single most tempting place in the scenario to add a write path, and adding one would make the instrument a controller.",
+      "states": [
+        "ready",
+        "partial",
+        "empty"
+      ],
+      "elements": [
+        "ranked-list"
+      ],
+      "x-intended-tier": "machine",
+      "x-check-plan": "No control files work or issues a mutating request."
+    }
+  ],
+  "bindings": {
+    "elements": {
+      "ranked-list": {
+        "testid": "focus-ranked-list"
+      },
+      "ranking-basis": {
+        "testid": "focus-ranking-basis"
+      },
+      "source-availability": {
+        "testid": "focus-source-availability"
+      }
+    },
+    "regions": {
+      "ranked-list": {
+        "testid": "focus-ranked-list"
+      },
+      "ranking-basis": {
+        "testid": "focus-ranking-basis"
+      },
+      "source-availability": {
+        "testid": "focus-source-availability"
+      }
+    }
+  }
+}

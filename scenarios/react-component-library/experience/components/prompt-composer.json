@@ -1,0 +1,116 @@
+{
+  "$schema": "../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-component",
+  "schemaVersion": "1.1.0",
+  "component": {
+    "id": "prompt-composer",
+    "title": "Prompt Composer",
+    "purpose": "Compose and send messages without losing drafts or attachments when transport fails.",
+    "storyRef": "../../library/components/PromptComposer/versions/1.0.2/story.json"
+  },
+  "states": [
+    {
+      "id": "default",
+      "example": "default",
+      "description": "Default composer."
+    },
+    {
+      "id": "submitting",
+      "example": "submitting",
+      "description": "Activate Send message to exercise submitting."
+    },
+    {
+      "id": "success",
+      "example": "success",
+      "description": "Activate Send message to exercise success."
+    },
+    {
+      "id": "validation-error",
+      "example": "validation-error",
+      "description": "Validation error composer."
+    },
+    {
+      "id": "request-error",
+      "example": "request-error",
+      "description": "Activate Send message to exercise request-error."
+    },
+    {
+      "id": "offline",
+      "example": "offline",
+      "description": "Offline composer."
+    },
+    {
+      "id": "retry",
+      "example": "retry",
+      "description": "Activate Send message to exercise retry."
+    },
+    {
+      "id": "attachments",
+      "example": "attachments",
+      "description": "Attachments composer."
+    }
+  ],
+  "elements": [
+    {
+      "id": "message",
+      "role": "textbox",
+      "description": "Named multiline message input."
+    },
+    {
+      "id": "status",
+      "role": "status",
+      "description": "Send, validation and connectivity feedback."
+    }
+  ],
+  "claims": [
+    {
+      "id": "draft-preservation",
+      "type": "manual-review",
+      "statement": "A rejected send retains text and attachments; successful sends clear only the submitted text when it has not changed.",
+      "tier": "manual",
+      "states": [
+        "success",
+        "request-error",
+        "retry"
+      ]
+    },
+    {
+      "id": "keyboard-send",
+      "type": "manual-review",
+      "statement": "Enter sends once; Shift+Enter inserts a newline; IME composition does not send.",
+      "tier": "manual",
+      "states": [
+        "default"
+      ]
+    },
+    {
+      "id": "disabled-reason",
+      "type": "manual-review",
+      "statement": "Offline and attachment recovery conditions explain why sending is unavailable while text remains editable.",
+      "tier": "manual",
+      "states": [
+        "offline",
+        "attachments"
+      ]
+    },
+    {
+      "id": "motion-preference",
+      "type": "manual-review",
+      "statement": "The composer disables its focus transition when reduced motion is requested.",
+      "tier": "manual",
+      "states": [
+        "default"
+      ]
+    }
+  ],
+  "bindings": {
+    "elements": {
+      "message": {
+        "selector": "[data-rcl-prompt-composer] textarea"
+      },
+      "status": {
+        "selector": "[data-rcl-composer-feedback]"
+      }
+    }
+  }
+}

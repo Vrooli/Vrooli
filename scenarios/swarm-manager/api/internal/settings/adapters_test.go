@@ -14,11 +14,15 @@ func testStore(t *testing.T) *Store {
 	s := DefaultSettings()
 	s.AgentMaxTurns = 42
 	s.AgentTimeoutSeconds = 300
-	s.AgentRequiresApproval = true
 	s.DefaultMode = "yolo"
 	s.AutoFixup = true
 	s.MaxFixupAttempts = 3
-	s.MaxConcurrentExecutions = 5
+	s.LaneConcurrencyLimits = map[string]int{
+		"investigate": 6,
+		"execute":     5,
+		"review":      8,
+		"reconcile":   2,
+	}
 	s.MaxQueueDepth = 25
 	s.CircuitBreakerThreshold = 4
 	s.CircuitBreakerCooldownMinutes = 30
@@ -30,29 +34,13 @@ func testStore(t *testing.T) *Store {
 	s.ReviewMaxWarnings = 10
 	s.ReviewRequireScreenshots = true
 	s.ReviewRequireTests = true
+	s.FixBeforeFeature = FixBeforeFeatureBlock
+	s.AutoFiler.Enabled = true
+	s.AutoFiler.Strategy = AutoFilerStrategyFeaturePending
 	if err := store.Save(s); err != nil {
 		t.Fatalf("save test settings: %v", err)
 	}
 	return store
-}
-
-func TestAgentAdapter(t *testing.T) {
-	store := testStore(t)
-	adapter := NewAgentAdapter(store)
-
-	maxTurns, timeout, approval, err := adapter.LoadAgentSettings()
-	if err != nil {
-		t.Fatalf("LoadAgentSettings: %v", err)
-	}
-	if maxTurns != 42 {
-		t.Errorf("maxTurns = %d, want 42", maxTurns)
-	}
-	if timeout != 300 {
-		t.Errorf("timeout = %d, want 300", timeout)
-	}
-	if !approval {
-		t.Error("requiresApproval should be true")
-	}
 }
 
 func TestPolicyAdapter(t *testing.T) {
@@ -103,8 +91,14 @@ func TestGovernanceAdapter(t *testing.T) {
 	if err != nil {
 		t.Fatalf("LoadGovernance: %v", err)
 	}
-	if gov.MaxConcurrentExecutions != 5 {
-		t.Errorf("MaxConcurrentExecutions = %d, want 5", gov.MaxConcurrentExecutions)
+	if got := gov.LaneLimits["execute"]; got != 5 {
+		t.Errorf("LaneLimits[execute] = %d, want 5", got)
+	}
+	if got := gov.LaneLimits["investigate"]; got != 6 {
+		t.Errorf("LaneLimits[investigate] = %d, want 6", got)
+	}
+	if got := gov.LaneLimits["reconcile"]; got != 2 {
+		t.Errorf("LaneLimits[reconcile] = %d, want 2", got)
 	}
 	if gov.MaxQueueDepth != 25 {
 		t.Errorf("MaxQueueDepth = %d, want 25", gov.MaxQueueDepth)
@@ -117,6 +111,15 @@ func TestGovernanceAdapter(t *testing.T) {
 	}
 	if gov.AgentMaxTurns != 42 {
 		t.Errorf("AgentMaxTurns = %d, want 42", gov.AgentMaxTurns)
+	}
+	if gov.FixBeforeFeature != execution.FixBeforeFeatureBlock {
+		t.Errorf("FixBeforeFeature = %q, want block", gov.FixBeforeFeature)
+	}
+	if !gov.AutoFilerEnabled {
+		t.Errorf("AutoFilerEnabled = false, want true")
+	}
+	if gov.AutoFilerStrategy != execution.AutoFilerStrategyFeaturePending {
+		t.Errorf("AutoFilerStrategy = %q, want feature_pending", gov.AutoFilerStrategy)
 	}
 }
 

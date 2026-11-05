@@ -123,7 +123,7 @@ User ← formatted output ← healthResponse ← JSON ←───────�
 | Spawn agents | Use `agent-manager` scenario |
 | Perform scenario lifecycle actions | Use Vrooli lifecycle commands through Swarm Manager API/CLI |
 | Run tests | Use `test-genie` scenario |
-| Track issues | Use `app-issue-tracker` scenario |
+| Track issues | Use Swarm Manager backlog items, goals, and the unified decision stream |
 | Scan PROBLEMS.md | Use `knowledge-observatory` scenario |
 
 ## Current Implementation Status

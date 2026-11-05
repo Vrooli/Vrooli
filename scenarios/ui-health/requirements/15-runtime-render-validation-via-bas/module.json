@@ -1,0 +1,95 @@
+{
+  "description": "When BAS is reachable and the scenario UI is up, ui-health drives a real browser over Connect-RPC to validate the handshake, storage-shim, console errors, asset/proxy load, theme application, axe/WCAG, shortcut relay, and spatial focus. This runtime/render validation replaces the test-genie native `smoke` phase.",
+  "module_id": "MOD-P0-015",
+  "prd_ref": "OT-P0-009",
+  "priority": "P0",
+  "requirements": [
+    {
+      "category": "core",
+      "description": "When BAS is reachable and the scenario UI is running, ui-health must drive a real browser via BAS over Connect-RPC, resolved through discovery, to validate the handshake, storage-shim, console errors, asset/proxy load, theme application, axe/WCAG, shortcut relay, and spatial focus, emitting Findings under the runtime/render check group.",
+      "id": "REQ-P0-015",
+      "prd_ref": "OT-P0-009",
+      "status": "draft",
+      "title": "Runtime checks run via BAS over discovery",
+      "validation": [
+        {
+          "notes": "ui-health resolves BAS via discovery and drives a real browser over Connect-RPC when BAS and UI are up",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Runtime check group covers handshake, storage-shim, console errors, asset/proxy load, theme apply, axe/WCAG, shortcut relay, and spatial focus",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Run ui-health against a running scenario UI with BAS up and confirm runtime/render Findings are produced for the browser-driven checks",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "A console error in the running UI surfaces as a runtime/render Finding",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "ui-health is the runtime/render validator for scenario UIs via BAS",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    },
+    {
+      "category": "core",
+      "dependencies": [
+        "REQ-P0-015"
+      ],
+      "description": "The ui-health runtime/render validation owns browser-driven UI validation through ui-health. Test Genie delegates UI runtime coverage to ui-health.",
+      "id": "REQ-P0-016",
+      "prd_ref": "OT-P0-009",
+      "status": "draft",
+      "title": "Owns browser-driven UI validation",
+      "validation": [
+        {
+          "notes": "The ui-health runtime/render group covers browser-driven render and iframe-bridge validation",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "test-genie delegates browser-driven UI validation to ui-health",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Run test-genie for a scenario and confirm runtime UI coverage comes from ui-health",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Runtime/render validation is owned by ui-health",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Runtime/render validation via BAS"
+}

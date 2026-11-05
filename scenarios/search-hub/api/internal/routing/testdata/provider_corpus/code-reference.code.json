@@ -1,0 +1,11 @@
+{
+ "provider_id": "code-reference.code",
+  "lifecycle": "LIFECYCLE_PRODUCTION",
+  "provider_group": "code-reference",
+  "bucket": "BUCKET_REUSE",
+  "type": "code",
+  "description": "Code and reference implementations searchable by intent — 'how have we solved X before in code?'. No semantic search exists yet; today this means ast-grep / grep, with structural-only lookups via go/ts-code-graph.",
+  "intended_home": "code-reference",
+  "state": "PROVIDER_STATE_CAPABILITY_GAP",
+  "scope": "SCOPE_PROJECT"
+}

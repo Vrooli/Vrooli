@@ -1,0 +1,30 @@
+{
+  "scenario": "architecture-cartographer",
+  "languages": ["go"],
+  "files": [
+    { "id": "f-graph-types",         "path": "api/internal/graph/types.go",                    "package_id": "p-graph",         "language": "go" },
+    { "id": "f-domains-types",       "path": "api/internal/domains/types.go",                  "package_id": "p-domains",       "language": "go" },
+    { "id": "f-conflicts-types",     "path": "api/internal/conflicts/types.go",                "package_id": "p-conflicts",     "language": "go" },
+    { "id": "f-signals-types",       "path": "api/internal/signals/types.go",                  "package_id": "p-signals",       "language": "go" },
+    { "id": "f-apply-types",         "path": "api/internal/apply/types.go",                    "package_id": "p-apply",         "language": "go" },
+    { "id": "f-analytics-types",     "path": "api/internal/analytics/types.go",                "package_id": "p-analytics",     "language": "go" }
+  ],
+  "packages": [
+    { "id": "p-graph",     "import_path": "architecture-cartographer/internal/graph",     "repo_path": "api/internal/graph",     "language": "go" },
+    { "id": "p-domains",   "import_path": "architecture-cartographer/internal/domains",   "repo_path": "api/internal/domains",   "language": "go" },
+    { "id": "p-conflicts", "import_path": "architecture-cartographer/internal/conflicts", "repo_path": "api/internal/conflicts", "language": "go" },
+    { "id": "p-signals",   "import_path": "architecture-cartographer/internal/signals",   "repo_path": "api/internal/signals",   "language": "go" },
+    { "id": "p-apply",     "import_path": "architecture-cartographer/internal/apply",     "repo_path": "api/internal/apply",     "language": "go" },
+    { "id": "p-analytics", "import_path": "architecture-cartographer/internal/analytics", "repo_path": "api/internal/analytics", "language": "go" }
+  ],
+  "symbols": [],
+  "imports": [
+    { "from": "p-conflicts", "to_package_id": "p-graph" },
+    { "from": "p-conflicts", "to_package_id": "p-domains" },
+    { "from": "p-conflicts", "to_package_id": "p-analytics" },
+    { "from": "p-signals",   "to_package_id": "p-graph" },
+    { "from": "p-signals",   "to_package_id": "p-domains" },
+    { "from": "p-apply",     "to_package_id": "p-conflicts" },
+    { "from": "p-apply",     "to_package_id": "p-graph" }
+  ]
+}

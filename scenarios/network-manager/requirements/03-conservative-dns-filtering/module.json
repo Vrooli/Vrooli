@@ -1,0 +1,28 @@
+{
+  "_metadata": {
+    "module": "conservative-dns-filtering",
+    "description": "Low-risk DNS filtering controls with preview and rollback.",
+    "prd_ref": "OT-P0-003",
+    "priority": "P0",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "NM-P0-003",
+      "title": "DNS filtering changes are previewable and reversible",
+      "status": "planned",
+      "prd_ref": "OT-P0-003",
+      "category": "policy",
+      "criticality": "P0",
+      "description": "The scenario shall provide allowlist, denylist, blocklist, pause/resume, and policy preview controls that show intended resolver changes before apply and preserve a rollback path after apply.",
+      "tags": ["filtering", "policy", "rollback"],
+      "validation": [
+        {
+          "type": "planned",
+          "status": "planned",
+          "notes": "Add service and UI tests tagged [REQ:NM-P0-003] that verify preview, apply, pause/resume, and rollback records for fake resolver policies."
+        }
+      ]
+    }
+  ]
+}

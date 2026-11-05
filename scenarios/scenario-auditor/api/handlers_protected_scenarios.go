@@ -15,9 +15,9 @@ func getProtectedScenariosHandler(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 
 	response := map[string]any{
-		"success":            true,
+		"success":             true,
 		"protected_scenarios": scenarios,
-		"count":              len(scenarios),
+		"count":               len(scenarios),
 	}
 
 	if err := json.NewEncoder(w).Encode(response); err != nil {

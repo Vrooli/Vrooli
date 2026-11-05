@@ -1,0 +1,235 @@
+{
+  "schemaVersion": 1,
+  "selectors": {
+    "app.title": {
+      "testId": "app-title",
+      "selector": "[data-testid=\"app-title\"]"
+    },
+    "app.eyebrow": {
+      "testId": "app-eyebrow",
+      "selector": "[data-testid=\"app-eyebrow\"]"
+    },
+    "app.description": {
+      "testId": "app-description",
+      "selector": "[data-testid=\"app-description\"]"
+    },
+    "health.card": {
+      "testId": "health-card",
+      "selector": "[data-testid=\"health-card\"]"
+    },
+    "health.loading": {
+      "testId": "health-loading",
+      "selector": "[data-testid=\"health-loading\"]"
+    },
+    "health.error": {
+      "testId": "health-error",
+      "selector": "[data-testid=\"health-error\"]"
+    },
+    "health.statusValue": {
+      "testId": "health-status-value",
+      "selector": "[data-testid=\"health-status-value\"]"
+    },
+    "health.serviceValue": {
+      "testId": "health-service-value",
+      "selector": "[data-testid=\"health-service-value\"]"
+    },
+    "health.timestampValue": {
+      "testId": "health-timestamp-value",
+      "selector": "[data-testid=\"health-timestamp-value\"]"
+    },
+    "health.refreshButton": {
+      "testId": "health-refresh-button",
+      "selector": "[data-testid=\"health-refresh-button\"]"
+    },
+    "health.refreshCount": {
+      "testId": "health-refresh-count",
+      "selector": "[data-testid=\"health-refresh-count\"]"
+    },
+    "notifications.summary": {
+      "testId": "notifications-summary",
+      "selector": "[data-testid=\"notifications-summary\"]"
+    },
+    "protoHealth.panel": {
+      "testId": "proto-health-panel",
+      "selector": "[data-testid=\"proto-health-panel\"]"
+    },
+    "protoHealth.scenarioInput": {
+      "testId": "proto-health-scenario-input",
+      "selector": "[data-testid=\"proto-health-scenario-input\"]"
+    },
+    "protoHealth.runButton": {
+      "testId": "proto-health-run-button",
+      "selector": "[data-testid=\"proto-health-run-button\"]"
+    },
+    "protoHealth.loading": {
+      "testId": "proto-health-loading",
+      "selector": "[data-testid=\"proto-health-loading\"]"
+    },
+    "protoHealth.error": {
+      "testId": "proto-health-error",
+      "selector": "[data-testid=\"proto-health-error\"]"
+    },
+    "protoHealth.empty": {
+      "testId": "proto-health-empty",
+      "selector": "[data-testid=\"proto-health-empty\"]"
+    },
+    "protoHealth.status": {
+      "testId": "proto-health-status",
+      "selector": "[data-testid=\"proto-health-status\"]"
+    },
+    "protoHealth.finding": {
+      "testId": "proto-health-finding",
+      "selector": "[data-testid=\"proto-health-finding\"]"
+    },
+    "locale.switcher": {
+      "testId": "locale-switcher",
+      "selector": "[data-testid=\"locale-switcher\"]"
+    },
+    "layout.shell": {
+      "testId": "layout-shell",
+      "selector": "[data-testid=\"layout-shell\"]"
+    },
+    "layout.topBar": {
+      "testId": "layout-shell-header",
+      "selector": "[data-testid=\"layout-shell-header\"]"
+    },
+    "layout.sidebar": {
+      "testId": "layout-shell-sidebar",
+      "selector": "[data-testid=\"layout-shell-sidebar\"]"
+    },
+    "layout.bottomNav": {
+      "testId": "layout-shell-tabs",
+      "selector": "[data-testid=\"layout-shell-tabs\"]"
+    },
+    "layout.main": {
+      "testId": "layout-shell-main",
+      "selector": "[data-testid=\"layout-shell-main\"]"
+    },
+    "theme.switcher": {
+      "testId": "theme-switcher",
+      "selector": "[data-testid=\"theme-switcher\"]"
+    },
+    "theme.select": {
+      "testId": "theme-select",
+      "selector": "[data-testid=\"theme-select\"]"
+    },
+    "pages.dashboard": {
+      "testId": "page-dashboard",
+      "selector": "[data-testid=\"page-dashboard\"]"
+    },
+    "pages.settings": {
+      "testId": "page-settings",
+      "selector": "[data-testid=\"page-settings\"]"
+    },
+    "errorBoundary.root": {
+      "testId": "error-boundary-root",
+      "selector": "[data-testid=\"error-boundary-root\"]"
+    },
+    "errorBoundary.retryButton": {
+      "testId": "error-boundary-retry",
+      "selector": "[data-testid=\"error-boundary-retry\"]"
+    }
+  },
+  "dynamicSelectors": {
+    "locale.toggle": {
+      "description": "Locale toggle button by language code",
+      "selectorPattern": "[data-testid=\"locale-toggle-${code}\"]",
+      "testIdPattern": "locale-toggle-${code}",
+      "params": [
+        {
+          "name": "code",
+          "type": "enum",
+          "values": [
+            "en",
+            "ja",
+            "ar"
+          ]
+        }
+      ]
+    },
+    "layout.sidebarLink": {
+      "description": "Sidebar navigation link by canonical nav key",
+      "selectorPattern": "[data-testid=\"layout-sidebar-link-${key}\"]",
+      "testIdPattern": "layout-sidebar-link-${key}",
+      "params": [
+        {
+          "name": "key",
+          "type": "enum",
+          "values": [
+            "dashboard",
+            "settings"
+          ]
+        }
+      ]
+    },
+    "layout.bottomNavLink": {
+      "description": "Bottom-nav link by canonical nav key",
+      "selectorPattern": "[data-testid=\"layout-sidebar-link-${key}-tab\"]",
+      "testIdPattern": "layout-sidebar-link-${key}-tab",
+      "params": [
+        {
+          "name": "key",
+          "type": "enum",
+          "values": [
+            "dashboard",
+            "settings"
+          ]
+        }
+      ]
+    },
+    "protoHealth.quickTarget": {
+      "description": "Quick target scenario button",
+      "selectorPattern": "[data-testid=\"proto-health-quick-target-${scenario}\"]",
+      "testIdPattern": "proto-health-quick-target-${scenario}",
+      "params": [
+        {
+          "name": "scenario",
+          "type": "enum",
+          "values": [
+            "proto-health",
+            "cli-health",
+            "measures-health",
+            "agent-manager"
+          ]
+        }
+      ]
+    },
+    "settingsPage.themeOption": {
+      "description": "Theme choice radio button on the settings page",
+      "selectorPattern": "[data-testid=\"page-settings-theme-${choice}\"]",
+      "testIdPattern": "page-settings-theme-${choice}",
+      "params": [
+        {
+          "name": "choice",
+          "type": "enum",
+          "values": [
+            "light",
+            "dark",
+            "system"
+          ]
+        }
+      ]
+    },
+    "settingsPage.localeOption": {
+      "description": "Locale choice radio button on the settings page",
+      "selectorPattern": "[data-testid=\"page-settings-locale-${code}\"]",
+      "testIdPattern": "page-settings-locale-${code}",
+      "params": [
+        {
+          "name": "code",
+          "type": "enum",
+          "values": [
+            "en",
+            "ja",
+            "ar"
+          ]
+        }
+      ]
+    }
+  },
+  "sources": {
+    "ui/src/consts/selectors.library.ts": "f32319b4f20977779fe5bca6416d524a062d3247d963df70661fc945c716c2ad",
+    "ui/src/consts/selectors.ts": "9e2d95a3fa0fee8e4d53db6d9cf972894471fea2eaa32c2634f8f8b75bf5344e",
+    "ui/src/i18n/locales.ts": "1c6b3983d8b3b59460629079f96c0982b6b6d341add5acbddb3db845919d1ca6"
+  }
+}

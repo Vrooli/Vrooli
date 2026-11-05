@@ -1,0 +1,75 @@
+syntax = "proto3";
+
+package vrooli.vrooli_autoheal.v1.actions;
+
+import "google/protobuf/timestamp.proto";
+import "vrooli-autoheal/v1/checks/checks.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-autoheal/v1/actions;actions_v1";
+
+service ActionsService {
+  rpc GetEventWeightedUptime(GetEventWeightedUptimeRequest) returns (GetEventWeightedUptimeResponse);
+  rpc GetPerCheckTrends(GetPerCheckTrendsRequest) returns (GetPerCheckTrendsResponse);
+  rpc GetHistory(GetHistoryRequest) returns (GetHistoryResponse);
+  rpc GetTransitions(GetTransitionsRequest) returns (GetTransitionsResponse);
+}
+
+// EventWeightedUptime is valid for alarm-flood accounting only. It is a
+// deliberately different message from PerCheckTrend so unit mismatches are
+// not representable by accidentally reusing a response type.
+message EventWeightedUptime {
+  int32 total_events = 1;
+  int32 ok_events = 2;
+  int32 warning_events = 3;
+  int32 critical_events = 4;
+  double uptime_percentage = 5;
+  int32 window_hours = 6;
+  google.protobuf.Timestamp computed_at = 7;
+}
+
+message PerCheckTrend {
+  string check_id = 1;
+  int32 total = 2;
+  int32 ok = 3;
+  int32 warning = 4;
+  int32 critical = 5;
+  double uptime_percent = 6;
+  checks.CheckStatus current_status = 7;
+  repeated checks.CheckStatus recent_statuses = 8;
+  google.protobuf.Timestamp last_checked = 9;
+}
+
+message ActionHistoryEntry {
+  int64 id = 1;
+  string check_id = 2;
+  string action_id = 3;
+  bool success = 4;
+  bool timed_out = 5;
+  string message = 6;
+  string error = 7;
+  int64 duration_ms = 8;
+  google.protobuf.Timestamp observed_at = 9;
+}
+
+message Transition {
+  string check_id = 1;
+  checks.CheckStatus from_status = 2;
+  checks.CheckStatus to_status = 3;
+  string message = 4;
+  google.protobuf.Timestamp observed_at = 5;
+}
+
+message GetEventWeightedUptimeRequest { int32 window_hours = 1; }
+message GetEventWeightedUptimeResponse { EventWeightedUptime uptime = 1; }
+
+message GetPerCheckTrendsRequest { int32 window_hours = 1; }
+message GetPerCheckTrendsResponse {
+  repeated PerCheckTrend trends = 1;
+  int32 window_hours = 2;
+}
+
+message GetHistoryRequest { string check_id = 1; int32 limit = 2; }
+message GetHistoryResponse { repeated ActionHistoryEntry entries = 1; }
+
+message GetTransitionsRequest { int32 window_hours = 1; int32 limit = 2; }
+message GetTransitionsResponse { repeated Transition transitions = 1; }

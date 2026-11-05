@@ -33,6 +33,8 @@ export interface DialogProps {
   descriptionId?: string
   /** Additional CSS classes for the dialog panel */
   className?: string
+  /** Use the current application palette instead of the legacy dark panel. */
+  appearance?: 'dark' | 'theme'
 }
 
 /**
@@ -50,6 +52,7 @@ export function Dialog({
   titleId: customTitleId,
   descriptionId,
   className,
+  appearance = 'dark',
 }: DialogProps) {
   const dialogRef = useRef<HTMLDivElement>(null)
   const generatedTitleId = useId()
@@ -76,7 +79,8 @@ export function Dialog({
         className={cn(
           'relative w-full mx-4 p-6',
           maxWidth,
-          'bg-slate-900 border border-white/10 rounded-xl shadow-2xl',
+          'border rounded-xl shadow-2xl',
+          appearance === 'theme' ? 'bg-background text-foreground border-border' : 'bg-slate-900 border-white/10',
           'animate-in fade-in-0 zoom-in-95 duration-150',
           'max-h-[85vh] overflow-y-auto',
           className,
@@ -94,7 +98,8 @@ export function Dialog({
           disabled={isLoading}
           className={cn(
             'absolute top-4 right-4 p-1 rounded',
-            'text-slate-400 hover:text-white hover:bg-white/10 transition-colors',
+            'transition-colors',
+            appearance === 'theme' ? 'text-muted-foreground hover:text-foreground hover:bg-muted' : 'text-slate-400 hover:text-white hover:bg-white/10',
             isLoading && 'opacity-50 cursor-not-allowed',
           )}
           aria-label="Close dialog"
@@ -106,7 +111,7 @@ export function Dialog({
         {title && (
           <h2
             id={effectiveTitleId}
-            className="text-xl font-semibold text-white mb-6 pr-8"
+            className={cn('text-xl font-semibold mb-6 pr-8', appearance === 'theme' ? 'text-foreground' : 'text-white')}
           >
             {title}
           </h2>

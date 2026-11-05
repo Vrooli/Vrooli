@@ -1,0 +1,45 @@
+syntax = "proto3";
+
+package vrooli.source_ledger.v1.shared;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/source-ledger/v1/shared;shared_v1";
+
+// =============================================================================
+// ERROR ENVELOPE — canonical REST-exception non-2xx body
+// =============================================================================
+//
+// @stability stable
+//
+// Connect-RPC methods use Connect's canonical error envelope and code set.
+// Deliberate REST exceptions, such as multipart uploads and operational
+// endpoints, return this shape for non-2xx responses. The thin writer at
+// api/internal/httpx/errors.go::WriteError marshals it with protojson; UI and
+// CLI REST clients decode via fromJson / protojson.Unmarshal and surface the
+// typed `code` + `message` to callers.
+//
+// Codes are short snake_case strings categorising the failure ("invalid_request",
+// "not_found", "internal"). Add new codes by extending the canonical list
+// in api/internal/httpx/errors.go — keep wire-side and writer-side in sync.
+//
+// `details` is reserved for structured field-violation reporting once a
+// validation framework lands; ship empty for now.
+// =============================================================================
+
+message ErrorEnvelope {
+  string code = 1;
+  string message = 2;
+  map<string, string> details = 3;
+}
+
+// DomainErrorCode documents the stable application codes returned inside
+// ErrorEnvelope.code. Connect transport errors retain Connect's code set.
+enum DomainErrorCode {
+  DOMAIN_ERROR_CODE_UNSPECIFIED = 0;
+  DOMAIN_ERROR_CODE_INVALID_FACET = 1;
+  DOMAIN_ERROR_CODE_PIN_BUDGET_EXCEEDED = 2;
+  DOMAIN_ERROR_CODE_IMPORT_SOURCE_UNREADABLE = 3;
+  DOMAIN_ERROR_CODE_IMPORT_FORMAT_CHANGED = 4;
+  DOMAIN_ERROR_CODE_PROJECTION_OVERFLOW = 5;
+  DOMAIN_ERROR_CODE_WORK_RECORD_INVALID = 6;
+  DOMAIN_ERROR_CODE_TOKEN_REQUIRED = 7;
+}

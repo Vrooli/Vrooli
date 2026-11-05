@@ -1,0 +1,107 @@
+{
+  "description": "Deterministically compare the actual graph against the manifest target and emit a typed Conflict envelope (id, type, severity, locations, description, suggested_fixes, evidence) via a pluggable detector registry that accepts new conflict types without changing the envelope.",
+  "module_id": "MOD-P0-003",
+  "prd_ref": "OT-P0-003",
+  "priority": "P0",
+  "requirements": [
+    {
+      "category": "core",
+      "dependencies": [
+        "REQ-P0-001",
+        "REQ-P0-002"
+      ],
+      "description": "Cartographer must deterministically compare the actual code graph against the manifest target and emit typed Conflict envelopes (AC-CONFLICT-ENVELOPE) containing: id, type, severity, locations, description, suggested_fixes, evidence, resolved, and resolution fields. A pluggable Detector interface and registry (AC-DETECTOR-REGISTRY) must allow new conflict types to be registered without modifying the envelope schema. Day-one detectors must include cycle detection (AC-DETECTOR-CYCLE) and mislocated_file detection (AC-DETECTOR-MISLOCATED). Severity classification and aggregation logic (AC-CONFLICT-SEVERITY) must map detector findings to severities defined in the manifest or built-in thresholds. The envelope schema must be considered stable across versions.",
+      "id": "REQ-P0-003",
+      "prd_ref": "OT-P0-003",
+      "status": "draft",
+      "title": "Drift Findings Engine with Pluggable Detector Registry",
+      "validation": [
+        {
+          "notes": "AC-CONFLICT-ENVELOPE: Serialization round-trip (struct → JSON/proto → struct) preserves all fields including resolved and resolution",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "AC-CONFLICT-ENVELOPE: Adding a new detector does not require changes to the envelope struct or serialization code",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "AC-DETECTOR-REGISTRY: Registering a new detector via the registry interface makes it invocable without modifying core engine code",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "AC-DETECTOR-REGISTRY: Detectors are invoked in deterministic order (sorted by type ID) to ensure reproducible output",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "AC-DETECTOR-CYCLE: A fixture graph with a known 3-node import cycle produces a conflict envelope with type=cycle and correct locations",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "AC-DETECTOR-MISLOCATED: A fixture graph with a file in domain A importing exclusively from domain B produces a mislocated_file conflict",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "AC-CONFLICT-SEVERITY: Severity is classified as error/warning/info based on manifest thresholds; default thresholds apply when manifest omits them",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "End-to-end: extract graph from bas/fixtures/go-cycles/ → run drift engine → output matches hand-curated expected-conflicts.json",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "End-to-end: extract graph from bas/fixtures/ts-junk-drawer/ → run drift engine → mislocated_file conflicts detected and envelopes are valid",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Plugging in a test-only detector via registry produces its conflicts in the output alongside built-in detector conflicts",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "An agent reviewing conflicts receives a fully self-contained Conflict envelope with enough information to understand and act on the finding without reading source code",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Conflict IDs are stable across re-runs when the underlying violation has not changed, enabling deduplication in downstream systems",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Drift Findings Engine"
+}

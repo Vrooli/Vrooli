@@ -13,7 +13,7 @@
 ## Runtime Behavior
 
 1. The automation compiler/executor forwards selector/timeout/wait values as-authored; validation runs in the workflow validator/UI.
-2. Browserless scrolls the element into view (if needed) and calls DOM `focus()` via CDP, capturing any errors from the page.
+2. The Playwright driver scrolls the element into view (if needed) and calls DOM `focus()` via CDP, capturing any errors from the page.
 3. Execution artifacts store the focused selector and timing for debugging.
 
 ## Use Cases

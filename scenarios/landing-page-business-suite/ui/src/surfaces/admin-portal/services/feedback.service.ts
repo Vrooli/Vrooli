@@ -74,11 +74,19 @@ export const STATUS_CONFIG: Record<FeedbackStatus, StatusConfig> = {
   },
 };
 
+function isFeedbackType(type: string): type is FeedbackType {
+  return Object.prototype.hasOwnProperty.call(TYPE_CONFIG, type);
+}
+
+function isFeedbackStatus(status: string): status is FeedbackStatus {
+  return Object.prototype.hasOwnProperty.call(STATUS_CONFIG, status);
+}
+
 /**
  * Get type configuration for feedback
  */
 export function getTypeConfig(type: string): TypeConfig {
-  return TYPE_CONFIG[type as FeedbackType] || TYPE_CONFIG.general;
+  return isFeedbackType(type) ? TYPE_CONFIG[type] : TYPE_CONFIG.general;
 }
 
 /**
@@ -93,7 +101,7 @@ export function getTypeColor(type: string): string {
  * Get status configuration for feedback
  */
 export function getStatusConfig(status: string): StatusConfig {
-  return STATUS_CONFIG[status as FeedbackStatus] || STATUS_CONFIG.pending;
+  return isFeedbackStatus(status) ? STATUS_CONFIG[status] : STATUS_CONFIG.pending;
 }
 
 /**

@@ -1,0 +1,40 @@
+{
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
+  "args": {},
+  "environment": {
+    "fixtures": []
+  },
+  "kind": "component",
+  "schemaVersion": 5,
+  "stories": [
+    {
+      "args": {
+        "value": "component-id"
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "name": "Copy text",
+          "role": "button"
+        }
+      ],
+      "id": "ready",
+      "interactions": [
+        {
+          "kind": "click",
+          "target": {
+            "name": "Copy text",
+            "role": "button"
+          }
+        },
+        {
+          "kind": "settle"
+        }
+      ],
+      "mode": "pinned",
+      "name": "Ready",
+      "role": "anatomy"
+    }
+  ],
+  "title": "CopyableText"
+}

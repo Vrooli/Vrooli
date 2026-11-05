@@ -9,6 +9,15 @@
 
 import { vi, beforeEach } from 'vitest'
 import '@testing-library/jest-dom'
+import { installStorageMock, resetStorageMock } from './storage'
+
+const originalConsoleWarn = console.warn.bind(console)
+console.warn = (...args: unknown[]) => {
+  if (args[0] === 'WARNING: Multiple instances of Three.js being imported.') {
+    return
+  }
+  originalConsoleWarn(...args)
+}
 
 // Mock matchMedia for components using media queries
 Object.defineProperty(window, 'matchMedia', {
@@ -37,16 +46,15 @@ Object.defineProperty(window, 'ResizeObserver', {
   value: MockResizeObserver,
 })
 
-// Mock localStorage
-const localStorageMock = {
-  getItem: vi.fn(),
-  setItem: vi.fn(),
-  removeItem: vi.fn(),
-  clear: vi.fn(),
-}
-Object.defineProperty(window, 'localStorage', {
-  value: localStorageMock,
+// axe-core probes canvas text metrics for color-contrast checks. jsdom does
+// not implement a canvas context; returning null keeps the probe deterministic
+// without installing a native canvas dependency unrelated to these tests.
+Object.defineProperty(HTMLCanvasElement.prototype, 'getContext', {
+  configurable: true,
+  value: () => null,
 })
+
+const localStorageMock = installStorageMock()
 
 // ============================================================================
 // TipTap DOM API Requirements
@@ -220,7 +228,7 @@ if (typeof DataTransfer === 'undefined') {
 // Reset mocks between tests
 beforeEach(() => {
   vi.clearAllMocks()
-  localStorageMock.getItem.mockReturnValue(null)
+  resetStorageMock(localStorageMock)
   // Reset selection state
   mockSelection.removeAllRanges()
 })

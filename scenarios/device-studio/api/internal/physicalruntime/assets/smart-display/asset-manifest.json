@@ -1,0 +1,36 @@
+{
+  "schema_version": 1,
+  "status": "candidate_only_unqualified",
+  "artifact_id": "vrooli-generic-wedge-smart-display-concept-v1",
+  "output": {
+    "path": "scenarios/device-studio/api/internal/physicalruntime/assets/smart-display/generic-wedge-smart-display.glb",
+    "sha256": "1b1364a137fc99545080dca69104c4f4d2a6b8821ad4ebc709981da4df89830f",
+    "size_bytes": 25088
+  },
+  "authorship": {
+    "creator": "Vrooli",
+    "license": "AGPL-3.0-only",
+    "use_scope": "Internal local candidate review; explicit opt-in Library candidate only.",
+    "identity": "Generic authored wedge smart-display concept; no product geometry or endorsement."
+  },
+  "design_envelope_mm": [180, 125, 90],
+  "geometry": {
+    "screen_node": "MainDisplay",
+    "screen_dimensions_mm": [151, 85],
+    "support": "Integrated flat bottom, candidate tabletop pose",
+    "parts": ["wedge enclosure", "angled neutral display", "speaker grille and port field", "lower display trim"]
+  },
+  "comparison_reference": {
+    "url": "https://store.google.com/ie/product/nest_hub_2nd_gen_specs?hl=en-GB",
+    "published_envelope_mm": [177.4, 120.4, 69.5],
+    "use": "Scale/context comparison only; candidate dimensions remain explicit Vrooli design parameters."
+  },
+  "reproduction": {
+    "command": "python3 scenarios/device-studio/assets/sources/screen-device-concepts-20261021/derive_candidates.py",
+    "script_sha256": "b38f24de7169a183e4f3d69e400825cfa9823c7e10e0bd730361ae7828bb30b1"
+  },
+  "qualification_limits": [
+    "No Nest Hub or other branded identity, electronics, microphone, assistant behavior, microphone privacy state, physical measurement, or manufacturer fit is claimed.",
+    "Screen plane and tabletop support are authored geometry, not a physical display boundary or contact qualification."
+  ]
+}

@@ -326,9 +326,10 @@ test-genie execute my-scenario --preset ci-fast --timeout 180s
 ```bash
 API_PORT=$(vrooli scenario port test-genie API_PORT)
 
-curl -X POST "http://localhost:${API_PORT}/api/v1/test-suite/my-scenario/execute-sync" \
+curl -X POST "http://localhost:${API_PORT}/api/v1/executions" \
   -H "Content-Type: application/json" \
   -d '{
+    "scenarioName": "my-scenario",
     "preset": "ci-fast",
     "failFast": true
   }'
@@ -362,7 +363,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Setup
-        run: ./scripts/manage.sh setup --yes yes --resources none
+        run: vrooli setup --yes yes --resources none
       - name: Quick tests
         run: test-genie execute my-scenario --preset ci-fast
 
@@ -372,7 +373,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Setup
-        run: ./scripts/manage.sh setup --yes yes
+        run: vrooli setup --yes yes
       - name: Start scenario
         run: vrooli scenario start my-scenario
       - name: Full tests

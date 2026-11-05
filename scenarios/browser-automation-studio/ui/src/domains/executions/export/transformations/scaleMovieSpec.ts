@@ -5,11 +5,12 @@
  * while maintaining proper aspect ratios and scaling all frame viewports.
  */
 
-import type {
-  ReplayMovieFrame,
-  ReplayMoviePresentation,
-  ReplayMovieSpec,
-} from "@/types/export";
+import type { ReplayFrame as ReplayMovieFrame, ReplayPresentation as ReplayMoviePresentation, ReplaySpec as ReplayMovieSpec } from "@vrooli/generated-proto/browser-automation-studio/v1/exports/exports_pb";
+import { create } from "@bufbuild/protobuf";
+import {
+  ReplayDimensionsSchema,
+  ReplayPresentationSchema,
+} from "@vrooli/generated-proto/browser-automation-studio/v1/exports/exports_pb";
 import {
   calculateScaleFactors,
   extractCanvasDimensions,
@@ -54,27 +55,27 @@ export function scalePresentation(
   };
 
   const browserFrameFallback: Dimensions = {
-    width: basePresentation?.browser_frame?.width ?? baseDimensions.width,
-    height: basePresentation?.browser_frame?.height ?? baseDimensions.height,
+    width: basePresentation?.browserFrame?.width ?? baseDimensions.width,
+    height: basePresentation?.browserFrame?.height ?? baseDimensions.height,
   };
 
-  return {
-    canvas: {
+  return create(ReplayPresentationSchema, {
+    canvas: create(ReplayDimensionsSchema, {
       width: targetDimensions.width,
       height: targetDimensions.height,
-    },
-    viewport: scaleDimensions(basePresentation?.viewport, scaleFactors, viewportFallback),
-    browser_frame: scaleFrameRect(
-      basePresentation?.browser_frame,
+    }),
+    viewport: create(ReplayDimensionsSchema, scaleDimensions(basePresentation?.viewport, scaleFactors, viewportFallback)),
+    browserFrame: scaleFrameRect(
+      basePresentation?.browserFrame,
       scaleFactors,
       browserFrameFallback,
-      basePresentation?.browser_frame?.radius ?? 24,
+      basePresentation?.browserFrame?.radius ?? 24,
     ),
-    device_scale_factor:
-      basePresentation?.device_scale_factor && basePresentation.device_scale_factor > 0
-        ? basePresentation.device_scale_factor
+    deviceScaleFactor:
+      basePresentation?.deviceScaleFactor && basePresentation.deviceScaleFactor > 0
+        ? basePresentation.deviceScaleFactor
         : 1,
-  };
+  });
 }
 
 /**
@@ -93,7 +94,7 @@ export function scaleFrameViewport(
 
   return {
     ...frame,
-    viewport: scaleDimensions(frame.viewport, scaleFactors, fallback),
+    viewport: create(ReplayDimensionsSchema, scaleDimensions(frame.viewport, scaleFactors, fallback)),
   };
 }
 

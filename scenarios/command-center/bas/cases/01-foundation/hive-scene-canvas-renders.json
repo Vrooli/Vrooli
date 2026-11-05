@@ -1,0 +1,115 @@
+{
+  "metadata": {
+    "name": "hive-scene-canvas-renders",
+    "description": "Navigates to /hive and asserts the scene surface reports a painted first frame: the engine samples its own canvas and stamps data-scene-state='ready' only when pixels were drawn (CC-UI-003). A mounted scene that draws nothing is a failure.",
+    "labels": {
+      "reset": "none",
+      "requirements_json": "[\"CC-UI-003\"]"
+    },
+    "version": "2",
+    "execution_mode": "observer"
+  },
+  "settings": {
+    "viewport_width": 1440,
+    "viewport_height": 900
+  },
+  "nodes": [
+    {
+      "id": "navigate",
+      "action": {
+        "type": "ACTION_TYPE_NAVIGATE",
+        "navigate": {
+          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+          "scenario": "command-center",
+          "scenario_path": "/hive",
+          "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE",
+          "timeout_ms": 30000
+        },
+        "metadata": {
+          "label": "Navigate to /hive"
+        }
+      }
+    },
+    {
+      "id": "wait-scene",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "[data-testid='scene-canvas'] canvas",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 15000
+        },
+        "metadata": {
+          "label": "Wait for the scene canvas"
+        }
+      }
+    },
+    {
+      "id": "wait-painted",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "[data-testid='scene-canvas'][data-scene-state='ready']",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 15000
+        },
+        "metadata": {
+          "label": "Wait for the first painted frame"
+        }
+      }
+    },
+    {
+      "id": "assert-painted",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "[data-testid='scene-canvas'][data-scene-state='ready']",
+          "mode": "ASSERTION_MODE_EXISTS",
+          "timeout_ms": 5000,
+          "failure_message": "Expected the /hive scene to paint a non-blank first frame (data-scene-state='ready')"
+        },
+        "metadata": {
+          "label": "Scene painted a non-blank first frame"
+        }
+      }
+    },
+    {
+      "id": "capture",
+      "action": {
+        "type": "ACTION_TYPE_SCREENSHOT",
+        "screenshot": {
+          "full_page": false
+        },
+        "metadata": {
+          "label": "Capture /hive scene"
+        }
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "source": "navigate",
+      "target": "wait-scene",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e2",
+      "source": "wait-scene",
+      "target": "wait-painted",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e3",
+      "source": "wait-painted",
+      "target": "assert-painted",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e4",
+      "source": "assert-painted",
+      "target": "capture",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    }
+  ]
+}

@@ -1,0 +1,11 @@
+{
+  "id": "ledger-river",
+  "slotManifest": "ledger-river.slots.json",
+  "slots": {
+    "posture": {
+      "shape": "meta",
+      "role": "primary",
+      "whenUnbound": "decorative"
+    }
+  }
+}

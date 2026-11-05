@@ -1,61 +1,59 @@
 {
-  "description": "Forbid creating sandbox for path P if any active sandbox has scope S where S is ancestor of P or P is ancestor of S",
-  "module_id": "MOD-P0-004",
-  "prd_ref": "OT-P0-004",
-  "priority": "P0",
+  "_metadata": {
+    "last_validated_at": "2026-07-13T22:51:14-04:00"
+  },
   "requirements": [
     {
+      "id": "REQ-P0-005",
+      "title": "Scope Path Validation",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-004",
       "category": "core",
       "description": "Implement bidirectional ancestor/descendant path checking for sandbox scope conflicts",
-      "id": "REQ-P0-005",
-      "prd_ref": "OT-P0-004",
-      "status": "complete",
-      "title": "Scope Path Validation",
       "validation": [
         {
-          "notes": "Test path comparison logic for overlap detection",
-          "phase": "unit",
+          "type": "test",
           "ref": "api/internal/sandbox/pathutil_test.go::TestCheckPathOverlap",
-          "status": "implemented",
-          "type": "test"
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Test path comparison logic for overlap detection"
         },
         {
-          "notes": "Verify ancestor/descendant conflict detection",
-          "phase": "unit",
+          "type": "test",
           "ref": "api/internal/sandbox/pathutil_test.go::TestFindConflicts",
-          "status": "implemented",
-          "type": "test"
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Verify ancestor/descendant conflict detection"
         },
         {
-          "notes": "Verify path within project boundary detection",
-          "phase": "unit",
+          "type": "test",
           "ref": "api/internal/sandbox/pathutil_test.go::TestIsWithinProject",
-          "status": "implemented",
-          "type": "test"
-        },
-        {
-          "notes": "API returns 409 Conflict for overlapping scope",
           "phase": "unit",
+          "status": "failing",
+          "notes": "Verify path within project boundary detection"
+        },
+        {
+          "type": "test",
           "ref": "api/internal/handlers/handlers_test.go::TestCreateSandboxScopeConflict",
-          "status": "implemented",
-          "type": "test"
+          "phase": "unit",
+          "status": "failing",
+          "notes": "API returns 409 Conflict for overlapping scope"
         },
         {
-          "notes": "Path check completes in <10ms",
-          "phase": "performance",
+          "type": "test",
           "ref": "api/internal/sandbox/pathutil_test.go::BenchmarkCheckPathOverlap",
+          "phase": "performance",
           "status": "implemented",
-          "type": "test"
+          "notes": "Path check completes in \u003c10ms"
         },
         {
-          "notes": "integration: Create sandbox validates scope path required",
-          "phase": "api",
+          "type": "test",
           "ref": "bas/cases/sandbox-lifecycle/api/sandbox_crud.bats::create sandbox requires scope path",
+          "phase": "api",
           "status": "implemented",
-          "type": "test"
+          "notes": "integration: Create sandbox validates scope path required"
         }
       ]
     }
-  ],
-  "title": "Path-Scoped Mutual Exclusion"
+  ]
 }

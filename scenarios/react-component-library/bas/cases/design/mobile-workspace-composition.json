@@ -1,0 +1,92 @@
+{
+  "metadata": {
+    "name": "RCL mobile workspace composition",
+    "description": "Proves the design workspace opens with the composition-first mobile hierarchy and does not introduce horizontal page overflow at 390px.",
+    "labels": {
+      "reset": "none",
+      "requires_confirmation": "true",
+      "routed_isolation": "true",
+      "fixture_only": "true"
+    },
+    "requirement": "UX-CAMPAIGN-004",
+    "execution_mode": "EXECUTION_MODE_MUTATING"
+  },
+  "settings": {
+    "viewport_width": 390,
+    "viewport_height": 844
+  },
+  "nodes": [
+    {
+      "id": "open",
+      "action": {
+        "type": "ACTION_TYPE_NAVIGATE",
+        "navigate": {
+          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+          "scenario": "react-component-library",
+          "scenario_path": "/design/switchboard/dashboard",
+          "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE",
+          "timeout_ms": 30000
+        }
+      }
+    },
+    {
+      "id": "ready",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "@selector/designWorkspace",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 15000
+        }
+      }
+    },
+    {
+      "id": "assert-workspace",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "@selector/designWorkspace",
+          "mode": "ASSERTION_MODE_VISIBLE",
+          "timeout_ms": 15000,
+          "failure_message": "Mobile design workspace region is not visible"
+        }
+      }
+    },
+    {
+      "id": "brief-collapsed",
+      "action": {
+        "type": "ACTION_TYPE_EVALUATE",
+        "evaluate": {
+          "expression": "(()=>{const brief=document.querySelector('#design-brief');if(!brief)throw Error('Design brief missing');if(brief.open)throw Error('Mobile design brief should start collapsed so the workspace remains canvas-first');return {briefOpen:brief.open,viewport:window.innerWidth,horizontalOverflow:document.documentElement.scrollWidth>window.innerWidth};})()"
+        }
+      }
+    },
+    {
+      "id": "canvas-anchor",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "#design-canvas",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 15000
+        }
+      }
+    },
+    {
+      "id": "no-overflow",
+      "action": {
+        "type": "ACTION_TYPE_EVALUATE",
+        "evaluate": {
+          "expression": "(()=>{if(document.documentElement.scrollWidth>window.innerWidth)throw Error(`Horizontal overflow: ${document.documentElement.scrollWidth}px > ${window.innerWidth}px`);return true;})()"
+        }
+      }
+    }
+  ],
+  "edges": [
+    { "id": "e1", "source": "open", "target": "ready" },
+    { "id": "e2", "source": "ready", "target": "assert-workspace" },
+    { "id": "e3", "source": "assert-workspace", "target": "brief-collapsed" },
+    { "id": "e4", "source": "brief-collapsed", "target": "canvas-anchor" },
+    { "id": "e5", "source": "canvas-anchor", "target": "no-overflow" }
+  ]
+}

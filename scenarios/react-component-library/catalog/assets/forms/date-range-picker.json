@@ -1,0 +1,53 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "forms.date-range-picker",
+    "name": "DateRangePicker",
+    "kind": "component",
+    "surface": "raised",
+    "domain": "forms",
+    "description": "The range-selection field with start and end semantics, hover preview, presets, constraints, optional comparison ranges, and keyboard operation for both endpoints.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "ui-primitive",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P1",
+      "maturity": "verified",
+      "plannedBy": "2026-12-31"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "forms.date-picker",
+        "reason": "Entry, constraints, and timezone policy are shared."
+      }
+    ]
+  },
+  "expects": [
+    {
+      "capability": "date-time-adapter"
+    }
+  ],
+  "requiredCapabilities": [
+    "accessible-naming",
+    "keyboard-operable",
+    "focus-visible-indicator",
+    "error-association",
+    "tap-target-size",
+    "contrast-floor",
+    "ramp-conformance",
+    "text-scale-resilience",
+    "input-preservation",
+    "responsive-transformation",
+    "pointer-independence"
+  ],
+  "requiredStates": [
+    "default",
+    "validation-error"
+  ]
+}

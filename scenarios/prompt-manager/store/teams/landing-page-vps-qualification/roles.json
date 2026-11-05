@@ -1,0 +1,12 @@
+{
+  "kind": "team-roles",
+  "schemaVersion": 1,
+  "teamId": "landing-page-vps-qualification",
+  "roles": [
+    {
+      "id": "landing-page-vps-qualification-coordinator",
+      "name": "Landing Page VPS Qualification Coordinator",
+      "description": "Qualify and mature the complete governed VPS deployment lifecycle for landing-page-business-suite, including distinct SSH and Bridge transports, recovery, security, resource envelope and an honest final readiness decision."
+    }
+  ]
+}

@@ -1,0 +1,58 @@
+{
+  "$schema": "../../../program-runtime/schemas/program-contract.schema.json",
+  "name": "device-studio.launch-video-shot",
+  "version": "1",
+  "purpose": "Save and reopen one immutable Device Studio shot revision, submit or inspect its owner render job, and hand the verified export to Launch Video.",
+  "inputs": {
+    "action": {"type": "string", "required": true, "enum": ["save", "submit", "observe", "cancel"]},
+    "project_id": {"type": "string", "required": true},
+    "shot_id": {"type": "string"},
+    "revision": {"type": "integer"},
+    "expected_revision": {"type": "integer"},
+    "name": {"type": "string"},
+    "snapshot": {"type": "object"},
+    "render_mode": {"type": "string", "enum": ["RENDER_MODE_STILL", "RENDER_MODE_VIDEO_SAMPLE_PNG", "RENDER_MODE_VIDEO_FINAL_MP4", "RENDER_MODE_PHYSICAL_STILL_PNG", "RENDER_MODE_PHYSICAL_VIDEO_FINAL_MP4", "RENDER_MODE_PHYSICAL_PREVIEW_PNG"]},
+    "idempotency_key": {"type": "string"},
+    "render_id": {"type": "string"},
+    "expected_version": {"type": "integer"}
+  },
+  "assumptions": [
+    "The caller supplies a project and source-media IDs already owned by Device Studio.",
+    "The shot snapshot and render idempotency key are immutable for a given submission.",
+    "A render job is asynchronous; each invocation performs one owner request and one bounded read, never a private polling loop."
+  ],
+  "invariants": [
+    "Save uses the caller's expected shot revision and never retries a conflicting save.",
+    "Submission pins the exact revision returned by SaveShot and uses the caller's stable idempotency key.",
+    "Observe and cancel address only the supplied project and render job; cancellation uses the owner's expected version.",
+    "Only a succeeded owner job yields an export command; the existing CLI verifies and publishes the bytes.",
+    "A timeout or transport error is reported as an uncertain owner outcome with the same identity required for reconciliation."
+  ],
+  "bindings": [
+    {"id": "device-studio/shots/save", "effect": "write"},
+    {"id": "device-studio/shots/get", "effect": "read"},
+    {"id": "device-studio/shots/revision-get", "effect": "read"},
+    {"id": "device-studio/renders/submit", "effect": "write"},
+    {"id": "device-studio/renders/get", "effect": "read"},
+    {"id": "device-studio/renders/cancel", "effect": "write"}
+  ],
+  "outputs": {
+    "status": {"enum": ["ok", "partial", "unavailable", "refused", "failed"]},
+    "phase": {"enum": ["validate", "act", "report"]},
+    "signals": {
+      "shot": "Project, shot, exact revision, recipe/source identity and reopened immutable revision.",
+      "render": "Owner job status, version, output profile, verified output metadata and opaque content URL when available.",
+      "next_command": "Owner CLI command to export a succeeded job to a new local path.",
+      "recovery": "Same job/idempotency identity to observe or cancel after an uncertain response."
+    },
+    "errors": {"classes": ["invalid_input", "save_outcome_uncertain", "revision_mismatch", "submit_outcome_uncertain", "owner_read_failed", "owner_cancel_uncertain", "owner_rejected"]},
+    "evidence": "Exact owner project/shot/revision/job IDs, revisions, recipe and media digests, and output digest."
+  },
+  "budget": {"wall_ms": 30000, "inference_calls": 0, "delegated_runs": 0, "materialize_limit": 1, "output_bytes": 4096},
+  "fixtures": [
+    {"id": "invalid-action", "inputs": {"action": "render-everything", "project_id": "p"}, "expect": {"admission_error": "invalid_argument"}}
+  ],
+  "rung": "S3",
+  "owner_skill": "launch-video",
+  "verbs": ["lib"]
+}

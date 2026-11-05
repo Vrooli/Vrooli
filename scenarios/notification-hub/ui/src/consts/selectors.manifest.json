@@ -1,0 +1,738 @@
+{
+  "schemaVersion": 1,
+  "selectors": {
+    "app.title": {
+      "testId": "app-title",
+      "selector": "[data-testid=\"app-title\"]"
+    },
+    "app.eyebrow": {
+      "testId": "app-eyebrow",
+      "selector": "[data-testid=\"app-eyebrow\"]"
+    },
+    "app.description": {
+      "testId": "app-description",
+      "selector": "[data-testid=\"app-description\"]"
+    },
+    "health.card": {
+      "testId": "health-card",
+      "selector": "[data-testid=\"health-card\"]"
+    },
+    "health.loading": {
+      "testId": "health-loading",
+      "selector": "[data-testid=\"health-loading\"]"
+    },
+    "health.error": {
+      "testId": "health-error",
+      "selector": "[data-testid=\"health-error\"]"
+    },
+    "health.statusValue": {
+      "testId": "health-status-value",
+      "selector": "[data-testid=\"health-status-value\"]"
+    },
+    "health.serviceValue": {
+      "testId": "health-service-value",
+      "selector": "[data-testid=\"health-service-value\"]"
+    },
+    "health.timestampValue": {
+      "testId": "health-timestamp-value",
+      "selector": "[data-testid=\"health-timestamp-value\"]"
+    },
+    "health.refreshButton": {
+      "testId": "health-refresh-button",
+      "selector": "[data-testid=\"health-refresh-button\"]"
+    },
+    "health.refreshCount": {
+      "testId": "health-refresh-count",
+      "selector": "[data-testid=\"health-refresh-count\"]"
+    },
+    "layout.shell": {
+      "testId": "layout-shell",
+      "selector": "[data-testid=\"layout-shell\"]"
+    },
+    "layout.main": {
+      "testId": "layout-shell-main",
+      "selector": "[data-testid=\"layout-shell-main\"]"
+    },
+    "layout.menu": {
+      "testId": "layout-shell-menu",
+      "selector": "[data-testid=\"layout-shell-menu\"]"
+    },
+    "theme.switcher": {
+      "testId": "theme-switcher",
+      "selector": "[data-testid=\"theme-switcher\"]"
+    },
+    "theme.select": {
+      "testId": "theme-select",
+      "selector": "[data-testid=\"theme-select\"]"
+    },
+    "pages.dashboard": {
+      "testId": "page-dashboard",
+      "selector": "[data-testid=\"page-dashboard\"]"
+    },
+    "pages.settings": {
+      "testId": "page-settings",
+      "selector": "[data-testid=\"page-settings\"]"
+    },
+    "pages.asks": {
+      "testId": "page-asks",
+      "selector": "[data-testid=\"page-asks\"]"
+    },
+    "pages.ask": {
+      "testId": "page-ask",
+      "selector": "[data-testid=\"page-ask\"]"
+    },
+    "pages.history": {
+      "testId": "page-history",
+      "selector": "[data-testid=\"page-history\"]"
+    },
+    "pages.delivery": {
+      "testId": "page-delivery",
+      "selector": "[data-testid=\"page-delivery\"]"
+    },
+    "pages.deliveryDetail": {
+      "testId": "page-delivery-detail",
+      "selector": "[data-testid=\"page-delivery-detail\"]"
+    },
+    "delivery.analyticsRecordsAction": {
+      "testId": "delivery-analytics-records-link",
+      "selector": "[data-testid=\"delivery-analytics-records-link\"]"
+    },
+    "delivery.analyticsRetry": {
+      "testId": "delivery-analytics-retry",
+      "selector": "[data-testid=\"delivery-analytics-retry\"]"
+    },
+    "asks.list": {
+      "testId": "asks-list",
+      "selector": "[data-testid=\"asks-list\"]"
+    },
+    "asks.item": {
+      "testId": "asks-item",
+      "selector": "[data-testid=\"asks-item\"]"
+    },
+    "asks.empty": {
+      "testId": "asks-empty",
+      "selector": "[data-testid=\"asks-empty\"]"
+    },
+    "asks.question": {
+      "testId": "ask-question",
+      "selector": "[data-testid=\"ask-question\"]"
+    },
+    "asks.option": {
+      "testId": "ask-option",
+      "selector": "[data-testid=\"ask-option\"]"
+    },
+    "asks.note": {
+      "testId": "ask-note",
+      "selector": "[data-testid=\"ask-note\"]"
+    },
+    "asks.status": {
+      "testId": "ask-status",
+      "selector": "[data-testid=\"ask-status\"]"
+    },
+    "asks.defaultNotice": {
+      "testId": "ask-default-notice",
+      "selector": "[data-testid=\"ask-default-notice\"]"
+    },
+    "reach.root": {
+      "testId": "reach-settings",
+      "selector": "[data-testid=\"reach-settings\"]"
+    },
+    "reach.emptyDevices": {
+      "testId": "reach-empty-devices",
+      "selector": "[data-testid=\"reach-empty-devices\"]"
+    },
+    "reach.addBrowser": {
+      "testId": "reach-add-browser",
+      "selector": "[data-testid=\"reach-add-browser\"]"
+    },
+    "reach.refreshDevices": {
+      "testId": "reach-refresh-devices",
+      "selector": "[data-testid=\"reach-refresh-devices\"]"
+    },
+    "reach.permissionRecovery": {
+      "testId": "reach-permission-recovery",
+      "selector": "[data-testid=\"reach-permission-recovery\"]"
+    },
+    "reach.permissionRecoveryBack": {
+      "testId": "reach-permission-recovery-back",
+      "selector": "[data-testid=\"reach-permission-recovery-back\"]"
+    },
+    "session.form": {
+      "testId": "session-form",
+      "selector": "[data-testid=\"session-form\"]"
+    },
+    "session.email": {
+      "testId": "session-email",
+      "selector": "[data-testid=\"session-email\"]"
+    },
+    "session.password": {
+      "testId": "session-password",
+      "selector": "[data-testid=\"session-password\"]"
+    },
+    "session.submit": {
+      "testId": "session-submit",
+      "selector": "[data-testid=\"session-submit\"]"
+    },
+    "session.error": {
+      "testId": "session-error",
+      "selector": "[data-testid=\"session-error\"]"
+    },
+    "session.signedIn": {
+      "testId": "session-signed-in",
+      "selector": "[data-testid=\"session-signed-in\"]"
+    },
+    "session.signOut": {
+      "testId": "session-sign-out",
+      "selector": "[data-testid=\"session-sign-out\"]"
+    },
+    "errorBoundary.root": {
+      "testId": "error-boundary-root",
+      "selector": "[data-testid=\"error-boundary-root\"]"
+    },
+    "errorBoundary.retryButton": {
+      "testId": "error-boundary-retry",
+      "selector": "[data-testid=\"error-boundary-retry\"]"
+    },
+    "quietHours.root": {
+      "testId": "quiet-hours-root",
+      "selector": "[data-testid=\"quiet-hours-root\"]"
+    },
+    "quietHours.openWeek": {
+      "testId": "quiet-hours-open-week",
+      "selector": "[data-testid=\"quiet-hours-open-week\"]"
+    },
+    "quietHours.saveButton": {
+      "testId": "quiet-hours-save",
+      "selector": "[data-testid=\"quiet-hours-save\"]"
+    },
+    "quietHours.stageRemoval": {
+      "testId": "quiet-hours-stage-removal",
+      "selector": "[data-testid=\"quiet-hours-stage-removal\"]"
+    },
+    "quietHours.review": {
+      "testId": "quiet-hours-review",
+      "selector": "[data-testid=\"quiet-hours-review\"]"
+    },
+    "quietHours.reviewButton": {
+      "testId": "quiet-hours-review-button",
+      "selector": "[data-testid=\"quiet-hours-review-button\"]"
+    },
+    "quietHours.message": {
+      "testId": "quiet-hours-message",
+      "selector": "[data-testid=\"quiet-hours-message\"]"
+    },
+    "quietHours.checkSavedButton": {
+      "testId": "quiet-hours-check-saved",
+      "selector": "[data-testid=\"quiet-hours-check-saved\"]"
+    },
+    "quietHours.timezoneReview": {
+      "testId": "quiet-hours-timezone-review",
+      "selector": "[data-testid=\"quiet-hours-timezone-review\"]"
+    },
+    "quietHours.timezoneReviewStage": {
+      "testId": "quiet-hours-timezone-review-stage",
+      "selector": "[data-testid=\"quiet-hours-timezone-review-stage\"]"
+    },
+    "quietHours.timezoneReviewKeepEditing": {
+      "testId": "quiet-hours-timezone-review-keep-editing",
+      "selector": "[data-testid=\"quiet-hours-timezone-review-keep-editing\"]"
+    },
+    "deviceApps.root": {
+      "testId": "device-apps-root",
+      "selector": "[data-testid=\"device-apps-root\"]"
+    },
+    "deviceApps.removeButton": {
+      "testId": "device-apps-remove",
+      "selector": "[data-testid=\"device-apps-remove\"]"
+    },
+    "deviceApps.message": {
+      "testId": "device-apps-message",
+      "selector": "[data-testid=\"device-apps-message\"]"
+    },
+    "escalationOrder.root": {
+      "testId": "escalation-order-root",
+      "selector": "[data-testid=\"escalation-order-root\"]"
+    },
+    "escalationOrder.openButton": {
+      "testId": "escalation-order-open",
+      "selector": "[data-testid=\"escalation-order-open\"]"
+    },
+    "escalationOrder.list": {
+      "testId": "escalation-order-list",
+      "selector": "[data-testid=\"escalation-order-list\"]"
+    },
+    "escalationOrder.addSelect": {
+      "testId": "escalation-order-add-select",
+      "selector": "[data-testid=\"escalation-order-add-select\"]"
+    },
+    "escalationOrder.addButton": {
+      "testId": "escalation-order-add",
+      "selector": "[data-testid=\"escalation-order-add\"]"
+    },
+    "escalationOrder.clearButton": {
+      "testId": "escalation-order-clear",
+      "selector": "[data-testid=\"escalation-order-clear\"]"
+    },
+    "escalationOrder.confirmClear": {
+      "testId": "escalation-order-confirm-clear",
+      "selector": "[data-testid=\"escalation-order-confirm-clear\"]"
+    },
+    "escalationOrder.cancelClear": {
+      "testId": "escalation-order-cancel-clear",
+      "selector": "[data-testid=\"escalation-order-cancel-clear\"]"
+    },
+    "escalationOrder.saveButton": {
+      "testId": "escalation-order-save",
+      "selector": "[data-testid=\"escalation-order-save\"]"
+    },
+    "escalationOrder.checkSavedButton": {
+      "testId": "escalation-order-check-saved",
+      "selector": "[data-testid=\"escalation-order-check-saved\"]"
+    },
+    "escalationOrder.editButton": {
+      "testId": "escalation-order-edit",
+      "selector": "[data-testid=\"escalation-order-edit\"]"
+    },
+    "escalationOrder.review": {
+      "testId": "escalation-order-review",
+      "selector": "[data-testid=\"escalation-order-review\"]"
+    },
+    "escalationOrder.message": {
+      "testId": "escalation-order-message",
+      "selector": "[data-testid=\"escalation-order-message\"]"
+    },
+    "library.forms.textarea.root": {
+      "testId": "forms.textarea",
+      "selector": "[data-testid=\"forms.textarea\"]"
+    },
+    "library.forms.textarea.probe": {
+      "testId": "forms.textarea.probe",
+      "selector": "[data-testid=\"forms.textarea.probe\"]"
+    },
+    "library.forms.textarea.t": {
+      "testId": "forms.textarea.t",
+      "selector": "[data-testid=\"forms.textarea.t\"]"
+    },
+    "library.statusbadge.root": {
+      "testId": "statusbadge",
+      "selector": "[data-testid=\"statusbadge\"]"
+    },
+    "library.navigation.sidebar.root": {
+      "testId": "navigation.sidebar",
+      "selector": "[data-testid=\"navigation.sidebar\"]"
+    },
+    "library.navigation.sidebar.backdrop": {
+      "testId": "navigation.sidebar.backdrop",
+      "selector": "[data-testid=\"navigation.sidebar.backdrop\"]"
+    },
+    "library.navigation.sidebar.close": {
+      "testId": "navigation.sidebar.close",
+      "selector": "[data-testid=\"navigation.sidebar.close\"]"
+    },
+    "library.navigation.sidebar.resizeHandle": {
+      "testId": "navigation.sidebar.resize-handle",
+      "selector": "[data-testid=\"navigation.sidebar.resize-handle\"]"
+    },
+    "library.forms.select.root": {
+      "testId": "forms.select",
+      "selector": "[data-testid=\"forms.select\"]"
+    },
+    "library.feedback.empty-state.root": {
+      "testId": "feedback.empty-state",
+      "selector": "[data-testid=\"feedback.empty-state\"]"
+    },
+    "library.data-display.data-table.root": {
+      "testId": "data-display.data-table",
+      "selector": "[data-testid=\"data-display.data-table\"]"
+    },
+    "library.controls.button.root": {
+      "testId": "controls.button",
+      "selector": "[data-testid=\"controls.button\"]"
+    },
+    "library.controls.button.icon": {
+      "testId": "controls.button.icon",
+      "selector": "[data-testid=\"controls.button.icon\"]"
+    },
+    "library.controls.button.label": {
+      "testId": "controls.button.label",
+      "selector": "[data-testid=\"controls.button.label\"]"
+    },
+    "library.navigation.bottom-navigation.root": {
+      "testId": "navigation.bottom-navigation",
+      "selector": "[data-testid=\"navigation.bottom-navigation\"]"
+    },
+    "library.controls.switch.root": {
+      "testId": "controls.switch",
+      "selector": "[data-testid=\"controls.switch\"]"
+    },
+    "library.forms.form-field.root": {
+      "testId": "forms.form-field",
+      "selector": "[data-testid=\"forms.form-field\"]"
+    }
+  },
+  "dynamicSelectors": {
+    "layout.navLink": {
+      "description": "Sidebar navigation link by canonical nav key",
+      "selectorPattern": "[data-testid=\"layout-nav-link-${key}\"]",
+      "testIdPattern": "layout-nav-link-${key}",
+      "params": [
+        {
+          "name": "key",
+          "type": "enum",
+          "values": [
+            "dashboard",
+            "asks",
+            "history",
+            "delivery",
+            "settings"
+          ]
+        }
+      ]
+    },
+    "layout.visibleNavLink": {
+      "description": "Visible primary destination in sidebar, compact menu or bottom navigation",
+      "selectorPattern": "[data-testid=\"layout-nav-link-${key}\"]:visible, [data-testid=\"layout-nav-link-${key}-tab\"]:visible",
+      "params": [
+        {
+          "name": "key",
+          "type": "enum",
+          "values": [
+            "dashboard",
+            "asks",
+            "history",
+            "delivery",
+            "settings"
+          ]
+        }
+      ]
+    },
+    "delivery.recordDetailsLink": {
+      "description": "Delivery detail link for one notification record ID",
+      "selectorPattern": "[data-testid=\"delivery-record-${id}-details\"]",
+      "testIdPattern": "delivery-record-${id}-details",
+      "params": [
+        {
+          "name": "id",
+          "type": "string"
+        }
+      ]
+    },
+    "history.filterLink": {
+      "description": "History filter link by request lifecycle state",
+      "selectorPattern": "[data-testid=\"history-filter-${state}\"]",
+      "testIdPattern": "history-filter-${state}",
+      "params": [
+        {
+          "name": "state",
+          "type": "enum",
+          "values": [
+            "all",
+            "awaiting",
+            "answered",
+            "defaulted",
+            "expired",
+            "withdrawn"
+          ]
+        }
+      ]
+    },
+    "settingsPage.themeOption": {
+      "description": "Theme choice radio button on the settings page",
+      "selectorPattern": "[data-testid=\"page-settings-theme-${choice}\"]",
+      "testIdPattern": "page-settings-theme-${choice}",
+      "params": [
+        {
+          "name": "choice",
+          "type": "enum",
+          "values": [
+            "light",
+            "dark",
+            "system"
+          ]
+        }
+      ]
+    },
+    "settingsPage.localeOption": {
+      "description": "Locale choice radio button on the settings page",
+      "selectorPattern": "[data-testid=\"page-settings-locale-${code}\"]",
+      "testIdPattern": "page-settings-locale-${code}",
+      "params": [
+        {
+          "name": "code",
+          "type": "enum",
+          "values": [
+            "en",
+            "ja",
+            "ar"
+          ]
+        }
+      ]
+    },
+    "quietHours.timezoneReviewInput": {
+      "description": "New timezone input on a quiet-window timezone review",
+      "selectorPattern": "[data-testid=\"quiet-hours-timezone-review-input-${day}\"]",
+      "testIdPattern": "quiet-hours-timezone-review-input-${day}",
+      "params": [
+        {
+          "name": "day",
+          "type": "enum",
+          "values": [
+            "0",
+            "1",
+            "2",
+            "3",
+            "4",
+            "5",
+            "6"
+          ]
+        }
+      ]
+    },
+    "quietHours.timezoneReviewOpen": {
+      "description": "Open the explicit quiet-window timezone review for a weekday index",
+      "selectorPattern": "[data-testid=\"quiet-hours-timezone-review-open-${day}\"]",
+      "testIdPattern": "quiet-hours-timezone-review-open-${day}",
+      "params": [
+        {
+          "name": "day",
+          "type": "enum",
+          "values": [
+            "0",
+            "1",
+            "2",
+            "3",
+            "4",
+            "5",
+            "6"
+          ]
+        }
+      ]
+    },
+    "quietHours.editDay": {
+      "description": "Open the quiet-hours editor for a weekday index",
+      "selectorPattern": "[data-testid=\"quiet-hours-edit-day-${day}\"]",
+      "testIdPattern": "quiet-hours-edit-day-${day}",
+      "params": [
+        {
+          "name": "day",
+          "type": "enum",
+          "values": [
+            "0",
+            "1",
+            "2",
+            "3",
+            "4",
+            "5",
+            "6"
+          ]
+        }
+      ]
+    },
+    "quietHours.doneDay": {
+      "description": "Stage and close the quiet-hours editor for a weekday index",
+      "selectorPattern": "[data-testid=\"quiet-hours-done-${day}\"]",
+      "testIdPattern": "quiet-hours-done-${day}",
+      "params": [
+        {
+          "name": "day",
+          "type": "enum",
+          "values": [
+            "0",
+            "1",
+            "2",
+            "3",
+            "4",
+            "5",
+            "6"
+          ]
+        }
+      ]
+    },
+    "quietHours.cancelDay": {
+      "description": "Discard and close the quiet-hours editor for a weekday index",
+      "selectorPattern": "[data-testid=\"quiet-hours-cancel-${day}\"]",
+      "testIdPattern": "quiet-hours-cancel-${day}",
+      "params": [
+        {
+          "name": "day",
+          "type": "enum",
+          "values": [
+            "0",
+            "1",
+            "2",
+            "3",
+            "4",
+            "5",
+            "6"
+          ]
+        }
+      ]
+    },
+    "quietHours.dayEnabled": {
+      "description": "Quiet-hours enabled checkbox by weekday index",
+      "selectorPattern": "[data-testid=\"quiet-hours-enabled-${day}\"]",
+      "testIdPattern": "quiet-hours-enabled-${day}",
+      "params": [
+        {
+          "name": "day",
+          "type": "enum",
+          "values": [
+            "0",
+            "1",
+            "2",
+            "3",
+            "4",
+            "5",
+            "6"
+          ]
+        }
+      ]
+    },
+    "quietHours.dayStart": {
+      "description": "Quiet-hours start-time input by weekday index",
+      "selectorPattern": "[data-testid=\"quiet-hours-start-${day}\"]",
+      "testIdPattern": "quiet-hours-start-${day}",
+      "params": [
+        {
+          "name": "day",
+          "type": "enum",
+          "values": [
+            "0",
+            "1",
+            "2",
+            "3",
+            "4",
+            "5",
+            "6"
+          ]
+        }
+      ]
+    },
+    "quietHours.dayEnd": {
+      "description": "Quiet-hours end-time input by weekday index",
+      "selectorPattern": "[data-testid=\"quiet-hours-end-${day}\"]",
+      "testIdPattern": "quiet-hours-end-${day}",
+      "params": [
+        {
+          "name": "day",
+          "type": "enum",
+          "values": [
+            "0",
+            "1",
+            "2",
+            "3",
+            "4",
+            "5",
+            "6"
+          ]
+        }
+      ]
+    },
+    "quietHours.dayTimezone": {
+      "description": "Quiet-hours timezone input by weekday index",
+      "selectorPattern": "[data-testid=\"quiet-hours-timezone-${day}\"]",
+      "testIdPattern": "quiet-hours-timezone-${day}",
+      "params": [
+        {
+          "name": "day",
+          "type": "enum",
+          "values": [
+            "0",
+            "1",
+            "2",
+            "3",
+            "4",
+            "5",
+            "6"
+          ]
+        }
+      ]
+    },
+    "quietHours.removeDay": {
+      "description": "Stage removal of the saved quiet window for a weekday index",
+      "selectorPattern": "[data-testid=\"quiet-hours-remove-${day}\"]",
+      "testIdPattern": "quiet-hours-remove-${day}",
+      "params": [
+        {
+          "name": "day",
+          "type": "enum",
+          "values": [
+            "0",
+            "1",
+            "2",
+            "3",
+            "4",
+            "5",
+            "6"
+          ]
+        }
+      ]
+    },
+    "escalationOrder.channelChoice": {
+      "description": "Supported channel choice in the escalation-order Add a channel view",
+      "selectorPattern": "[data-testid=\"escalation-order-channel-choice-${channel}\"]",
+      "testIdPattern": "escalation-order-channel-choice-${channel}",
+      "params": [
+        {
+          "name": "channel",
+          "type": "enum",
+          "values": [
+            "browser",
+            "email",
+            "webhook",
+            "web_push"
+          ]
+        }
+      ]
+    },
+    "escalationOrder.channelRow": {
+      "description": "Escalation channel row by stable channel key",
+      "selectorPattern": "[data-testid=\"escalation-order-channel-${channel}\"]",
+      "testIdPattern": "escalation-order-channel-${channel}",
+      "params": [
+        {
+          "name": "channel",
+          "type": "string"
+        }
+      ]
+    },
+    "escalationOrder.moveUp": {
+      "description": "Escalation channel move-up control by stable channel key",
+      "selectorPattern": "[data-testid=\"escalation-order-up-${channel}\"]",
+      "testIdPattern": "escalation-order-up-${channel}",
+      "params": [
+        {
+          "name": "channel",
+          "type": "string"
+        }
+      ]
+    },
+    "escalationOrder.moveDown": {
+      "description": "Escalation channel move-down control by stable channel key",
+      "selectorPattern": "[data-testid=\"escalation-order-down-${channel}\"]",
+      "testIdPattern": "escalation-order-down-${channel}",
+      "params": [
+        {
+          "name": "channel",
+          "type": "string"
+        }
+      ]
+    },
+    "escalationOrder.remove": {
+      "description": "Escalation channel removal control by stable channel key",
+      "selectorPattern": "[data-testid=\"escalation-order-remove-${channel}\"]",
+      "testIdPattern": "escalation-order-remove-${channel}",
+      "params": [
+        {
+          "name": "channel",
+          "type": "string"
+        }
+      ]
+    }
+  },
+  "sources": {
+    "ui/src/consts/selectors.library.ts": "3ec3c9838278fa31a4c7b468f3121b5d00a1d188e8aa63447c8569d44a97a293",
+    "ui/src/consts/selectors.ts": "f79e0c683532cc1a049fc0b1ba919e1e16a6e7f52c98729d3f74ba717a0837e3",
+    "ui/src/i18n/locales.ts": "1c6b3983d8b3b59460629079f96c0982b6b6d341add5acbddb3db845919d1ca6"
+  }
+}

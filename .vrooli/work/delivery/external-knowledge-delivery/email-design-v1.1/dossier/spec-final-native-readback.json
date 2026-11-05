@@ -1,0 +1,1913 @@
+{
+  "documentId": "1b-XsCToyltcrFWZuHQIo-M6DQVOASP6pjafOpPk9nbY",
+  "title": "10 Vrooli Mail — Product specification and decisions v1.1",
+  "revisionId": "AHj4eMShh1DEhhKmSdaSyHGUTM2M3QhTeRgsV_siowfimKtfWFujyE-otBFbIlhIFAALnmSmDI1xoGYmA9rG-SiVbmR9wXZcB-0PHCFnug",
+  "tabId": null,
+  "paragraphs": [
+    {
+      "text": "Vrooli Mail",
+      "startIndex": 1,
+      "endIndex": 12,
+      "tabId": "t.0",
+      "namedStyleType": "TITLE",
+      "isListItem": false
+    },
+    {
+      "text": "Full product specification and design decisions",
+      "startIndex": 13,
+      "endIndex": 60,
+      "tabId": "t.0",
+      "namedStyleType": "SUBTITLE",
+      "isListItem": false
+    },
+    {
+      "text": "Version 1.1 • 14 October 2026 • Owner-selected multi-account amendment; design deliverable, not implemented-product acceptance",
+      "startIndex": 61,
+      "endIndex": 187,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "1. Read this first",
+      "startIndex": 188,
+      "endIndex": 206,
+      "tabId": "t.0",
+      "namedStyleType": "HEADING_1",
+      "isListItem": false
+    },
+    {
+      "text": "The selected product is a complete local email client: familiar inbox, reading and composing, precise and semantic search, useful classifications, and asynchronous agent proposals grounded in source mail. The first release supports multiple Gmail accounts, an All inboxes combined view and account-specific filtering/switching behind a minimal provider-neutral email scenario. The current working route remains the connected Gmail plugin until the local client’s real journeys are qualified. Drive remains the project and context home.",
+      "startIndex": 207,
+      "endIndex": 742,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "The recommendation is a calm, fast mail workspace with progressive assistance. Reading mail never requires reading an AI summary; suggestions never obscure the original; sending always has a visible sender, recipients, content and authority. Mailbox facts, model inferences and proposed actions have different visual treatments and different persistence rules. A full client is the destination, while the first provider integration is read-only indexing. Those are separate scope layers, not conflicting product positions.",
+      "startIndex": 743,
+      "endIndex": 1265,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "Use the visual atlas to review the experience and this specification to understand behavior, contracts, decisions and acceptance. Open the Visual atlas or Email project entry. Routine design decisions have been made so the dossier can be completed without another positioning question. They are identified as designer selections under delegated design authority, rather than falsely described as individual owner approvals. The owner endorsed the overall visual direction at 20:59 UTC and selected the multi-account amendment. Final acceptance of the revised artifact and live implementation remains separate.",
+      "startIndex": 1266,
+      "endIndex": 1875,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "Nothing in this package authorizes connecting an account, sending email, enabling a delivery team, rewriting a canonical PRD, publishing a product or changing production permissions. The external-knowledge-delivery team and its heartbeat are to remain disabled. Future execution must reconcile the dossier with canonical product and native ownership records through the established receiving route.",
+      "startIndex": 1876,
+      "endIndex": 2274,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "1.1 How to use the package",
+      "startIndex": 2275,
+      "endIndex": 2301,
+      "tabId": "t.0",
+      "namedStyleType": "HEADING_2",
+      "isListItem": false
+    },
+    {
+      "text": "For a five-minute review, read sections 1–3, inspect the Inbox, Thread, Search, Proposal and mobile examples in the atlas, then read the decision log in section 14. For a build handoff, also read ownership, data lifecycle, permission matrix, state inventory, acceptance scenarios and source register. Read the original source brief and fixed architecture before implementation; this design does not replace them.",
+      "startIndex": 2302,
+      "endIndex": 2714,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "The design’s central promise is retrieval you can verify and assistance you can control. Success means finding the right original message, understanding what changed, completing an ordinary reply confidently, and seeing only worthwhile agent proposals. It does not mean maximizing generated summaries, badges or the number of review items.",
+      "startIndex": 2715,
+      "endIndex": 3054,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "2. Authority, evidence and boundaries",
+      "startIndex": 3055,
+      "endIndex": 3092,
+      "tabId": "t.0",
+      "namedStyleType": "HEADING_1",
+      "isListItem": false
+    },
+    {
+      "text": "OWNER-SELECTED DIRECTION. The Biosphere project and source map, amended 14 October 2026, explicitly selects a full local email client with familiar inbox/read/compose, semantic search, classification and asynchronous local-agent proposals integrated with the existing approval and notification systems. It identifies Gmail as today’s route and local-client-first use only after real journey qualification. It names future Communications expansion to Slack, Discord and other channels without adding those channels to the present build.",
+      "startIndex": 3093,
+      "endIndex": 3628,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "FIXED ARCHITECTURE. integration-hub owns OAuth, refresh, revoke, credentials and capabilities. The new email scenario owns accounts, messages, threads, labels, MIME, sync, classifications and corpus. document-manager owns supported attachment derivation while preserving source permissions and provenance. personal-planner owns calendar/task scheduling. search-hub federates and ranks scenario-owned providers, enforcing identity and grants before private scoring, snippets or reranking. Existing search and AI Gateway facilities are reused. Agent Inbox is AI conversation; Signal Inbox is immutable capture; neither is repurposed as the mailbox.",
+      "startIndex": 3629,
+      "endIndex": 4275,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "DESIGNER SELECTED. The Mail working UI name, information architecture, visual language, page behavior, permission presentation, phase sequence, default density, filters, interaction details and deferred feature choices are recommendations selected to satisfy the authorized brief. They are reviewable design decisions, not evidence that the owner separately approved every color, threshold or operational tradeoff.",
+      "startIndex": 4276,
+      "endIndex": 4690,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "VERIFIED EXTERNAL CONSTRAINTS. Gmail labels apply to messages; thread labels are a union, and thread-level label modification affects existing messages rather than all later replies. Expired history cursors can require a full resync. Gmail draft IDs remain stable while replacement draft-message IDs change; sending removes the draft and creates a new sent message. Design contracts below accommodate these constraints.",
+      "startIndex": 4691,
+      "endIndex": 5110,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "LIMITS. This package contains fictional mail and generated design specimens. No private mailbox data was copied into the mockups. Source inspection and technical documentation inform feasibility; they do not establish deployed adapters, real account authorization, synchronization completeness, secure rendering, accessibility conformance or successful sending. Every live acceptance test remains to be run in an appropriately authorized implementation.",
+      "startIndex": 5111,
+      "endIndex": 5564,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "3. Product scope and delivery sequence",
+      "startIndex": 5565,
+      "endIndex": 5603,
+      "tabId": "t.0",
+      "namedStyleType": "HEADING_1",
+      "isListItem": false
+    },
+    {
+      "text": "3.1 The complete designed product",
+      "startIndex": 5604,
+      "endIndex": 5637,
+      "tabId": "t.0",
+      "namedStyleType": "HEADING_2",
+      "isListItem": false
+    },
+    {
+      "text": "R01 — Familiar mail: first-release multi-Gmail Inbox, All inboxes, account-specific Inbox, All mail, Sent, Drafts, labels, unread/read state, thread reading, archive and reversible organization. Preserve provider identities and message-level differences; do not conceal partial success behind a thread count.",
+      "startIndex": 5638,
+      "endIndex": 5946,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "R02 — Communication: new message, reply, reply-all, forward, rich/plain compose, attachments, draft recovery, sender selection and deliberate send review. Show supported capabilities and grants, rather than a button that silently escalates authority.",
+      "startIndex": 5947,
+      "endIndex": 6197,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "R03 — Retrieval: exact lexical search, visible filters and sortable results; optional semantic recall with cited passages; attachment search where derivation is allowed. Exact search remains useful when models or embeddings are unavailable.",
+      "startIndex": 6198,
+      "endIndex": 6438,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "R04 — Assistance: explainable classifications, correctable importance/action/waiting/project/deadline signals, summaries labeled as derivations, and bounded asynchronous proposals. Human corrections outrank a stale inference without mutating original mail.",
+      "startIndex": 6439,
+      "endIndex": 6695,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "R05 — Work continuity: Waiting, project-scoped collections and accepted handoff of tasks/commitments to Planner. Mail is evidence and communication context, not a competing task scheduler or calendar store.",
+      "startIndex": 6696,
+      "endIndex": 6902,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "R06 — Trust: explicit account identity, least-privilege capabilities, sync and inference freshness, safe HTML, remote-content controls, provenance, retention, reversible actions, auditable receipts and failure recovery.",
+      "startIndex": 6903,
+      "endIndex": 7122,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "R07 — Experience: desktop and dedicated mobile layouts, light and dark themes, accessible controls, keyboard operation, full source/code viewers and reduced-motion behavior.",
+      "startIndex": 7123,
+      "endIndex": 7296,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "3.2 Feasible implementation slices",
+      "startIndex": 7297,
+      "endIndex": 7331,
+      "tabId": "t.0",
+      "namedStyleType": "HEADING_2",
+      "isListItem": false
+    },
+    {
+      "text": "The current native FB004 direction supersedes the earlier bootstrap framing: after eventual authorized activation, the team first builds Integration Hub’s repeatable commercial API/CLI/UI connection capability. User consent gates dependent live-account evidence, not all preparatory engineering. FB005 originally concerned a guarded native preparation amendment. A later receipt records preparation-v2 applied at 19:27:58.683 UTC; the earlier pending sources.json snapshot is stale. The receipt and leader binding agree that the team remains disabled, unscheduled, idle and undispatched. This is not a blocker to the design. Team activation is not part of this package.",
+      "startIndex": 7332,
+      "endIndex": 8001,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "Slice A — Foundation and read-only client. Qualify integration-hub’s Google capability first; implement multiple Gmail account setup, combined and account-specific views, independent bounded full/incremental sync, safe full-message rendering, message/thread/label models, on-demand attachment retrieval, exact search, freshness and reconnect. Indexing is read-only. No provider write is inferred from successful connection. This slice may be useful alongside Gmail but does not satisfy full-client acceptance.",
+      "startIndex": 8002,
+      "endIndex": 8511,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "Slice B — Retrieval and assistance. Add approved local derivations, semantic retrieval, cited summaries, correction-aware classification, project and Waiting views, bounded agent-read access and proposal preparation. Qualify privacy and authorization before private content reaches any remote model. Existing approval/notification infrastructure carries consequential proposals; it is not replaced by a second action queue.",
+      "startIndex": 8512,
+      "endIndex": 8935,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "Slice C — Full communication and organization. Qualify separate draft, modify and send grants, MIME round trips, draft conflict recovery, recipient and sender validation, send uncertainty reconciliation, archive/label/read-state actions and undo. Only this slice can meet the selected replacement-client direction. Receiving owner decides admission and release from evidence, not this staged outline.",
+      "startIndex": 8936,
+      "endIndex": 9336,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "Slice D — Mature route qualification. Run real end-to-end journeys and privacy/recovery tests; compare remaining gaps with Gmail fallback; update the project’s preferred route only for qualified capabilities. Retain exact provider links, IDs and fallback instructions. A healthy endpoint, static specimen or passing unit test does not establish cutover.",
+      "startIndex": 9337,
+      "endIndex": 9690,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "3.3 Chosen scope for secondary features",
+      "startIndex": 9691,
+      "endIndex": 9730,
+      "tabId": "t.0",
+      "namedStyleType": "HEADING_2",
+      "isListItem": false
+    },
+    {
+      "text": "Unified accounts: owner-selected first-release requirement as of 14 October 2026 20:59 UTC. Connect multiple Gmail accounts, show a combined All inboxes view and switch/filter to a specific account. First-run default is All inboxes; afterward preserve the user’s explicitly selected viewing scope. Viewing scope is not sending identity. Every unified row identifies its owning account; each account retains independent sync, errors, grants and capabilities. Cost: account-aware queries, partial-result handling and stronger isolation/recovery tests. This supersedes v1.0’s optional-unified design choice.",
+      "startIndex": 9731,
+      "endIndex": 10335,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "Snooze: include local reminder-style snooze after core sync; make clear that it changes the local view and does not promise provider parity. Planner owns an accepted scheduled commitment; Mail owns its presentation filter. No duplicate calendar events are generated.",
+      "startIndex": 10336,
+      "endIndex": 10602,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "Send later: defer. A durable schedule, exact recipient/content snapshot, clock and time-zone handling, offline execution, cancellation and retry uncertainty require a separately qualified scheduler contract. The design leaves a disabled explanatory entry rather than pretending a browser timer is reliable sending.",
+      "startIndex": 10603,
+      "endIndex": 10917,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "Templates: defer a reusable template library; permit a signature and ordinary draft duplication. Contact completion: include recipients from allowed account address history and connected contact capability where available; preserve provenance and never infer a new permission. Full contact management is outside Mail.",
+      "startIndex": 10918,
+      "endIndex": 11235,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "Rules: include visible saved search/filter collections and user-corrected classification. Defer automatic provider-changing rules and background bulk actions until dry-run previews, scoped authority and audit/rollback are qualified. Slack, Discord, campaigns, newsletters, CRM automation, permanent deletion, autonomous sending and a new general-purpose approval engine are outside the present delivery.",
+      "startIndex": 11236,
+      "endIndex": 11639,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "3.4 First-release multi-account contract",
+      "startIndex": 11640,
+      "endIndex": 11680,
+      "tabId": "t.0",
+      "namedStyleType": "HEADING_2",
+      "isListItem": false
+    },
+    {
+      "text": "R08 — Multiple Gmail accounts are a first-release requirement. All inboxes is a projection across the owner’s permitted connected mailboxes, not a new mailbox, data owner or merged grant. Account-specific Inbox/search/navigation remains available on desktop and mobile. The account chooser lists account identity, selected scope, relevant health and Add account; first run uses All inboxes, then restores the owner’s deliberate last scope.",
+      "startIndex": 11681,
+      "endIndex": 12120,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "A unified list retains a durable account chip/name for every thread. Search results, badges, counts, notification links, reply actions and opened attachments resolve that same owning account. Switching the account filter preserves explicit context and invalidates incompatible search pagination/selection; it never moves messages or drafts. Two copies of the same email in different accounts remain separate account-owned records. Optional related-conversation links can be added later without merging records or authority.",
+      "startIndex": 12121,
+      "endIndex": 12644,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "Each account owns sync cursor, capture/index watermarks, local retention policy, cached content, capabilities and error/reconnect state. Unified results can be partial: name only visible accounts, show which are current, stale, reconnecting or unavailable and which result counts are incomplete. Continue showing authorized cached mail with its timestamp where policy permits. A successful Work sync does not mark Personal current, and one failed account does not blank healthy accounts. When revocation is observed or locally requested, immediately block new access and withdraw that account’s protected content and derived results under policy; do not present cached content as a workaround. Provider revocation can take time to propagate, so show confirmed, pending or unknown status honestly.",
+      "startIndex": 12645,
+      "endIndex": 13441,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "Bulk actions over multiple accounts show target groups and per-account supported/authorized actions. The command pipeline splits by owning account, rechecks grants and records per-account receipts and failures. Same-named provider labels are not a universal label; unsupported or denied account actions remain explicit. Retry targets only unresolved eligible items; undo reflects each provider/account’s actual outcome. One account’s success never masks another account’s failure.",
+      "startIndex": 13442,
+      "endIndex": 13922,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "New account connection is provider-neutral in the interface but offers only Gmail as supported now. Choosing an already connected Google identity updates/renews the existing binding rather than creating a duplicate mailbox. Renewal never broadens scopes automatically; any access expansion follows explicit Integration Hub consent. Adding a different identity creates a new account after explicit identity/capability/mailbox-scope confirmation. Removing or reconnecting one account explains its own local data, drafts, source access and any broader Google-project revocation impact. Unified view does not grant an agent access to every account; each agent request retains its allowed account_ids and collection/object grants.",
+      "startIndex": 13923,
+      "endIndex": 14648,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "4. Information architecture and navigation",
+      "startIndex": 14650,
+      "endIndex": 14692,
+      "tabId": "t.0",
+      "namedStyleType": "HEADING_1",
+      "isListItem": false
+    },
+    {
+      "text": "Desktop uses an application rail, a compact mailbox/navigation column, a dense list and a reading area when space supports it. Search is always reachable. The selected account or All accounts scope remains visible above results. Navigation groups Mail (Inbox, Sent, Drafts, All mail), Work (Waiting, Projects), Assistance (Proposals) and Settings. Unread counts describe mail; proposal counts describe unresolved suggestions and never masquerade as unread messages.",
+      "startIndex": 14693,
+      "endIndex": 15158,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "Mobile is a different composition: edge-to-edge message list, a full-page thread, a full-page composer and discrete search/filters/settings screens. Opening a row replaces the list; Back restores its exact query, selection and scroll position. Do not stack desktop panes vertically. A compact top bar names the current context, the bottom action area respects the safe area, and the keyboard never covers the draft’s active field or Send review action.",
+      "startIndex": 15159,
+      "endIndex": 15611,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "The navigation preserves provider scope in URLs and saved state without placing message bodies or sensitive content in URLs. Deep links include stable local identity and resolve the current permission before showing content. An inaccessible item shows a safe unavailable state without leaking subject or snippet. Browser history reflects meaningful navigation but not every keystroke.",
+      "startIndex": 15612,
+      "endIndex": 15996,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "Projects are scoped collections and evidence groupings. They may show explicit user assignment, a suggested association, or rule-derived membership as separate states. A user can inspect why a thread is present and remove a local project association without removing provider labels. Waiting is a view of unresolved expectation evidence, not an authoritative promise that the recipient owes a response.",
+      "startIndex": 15997,
+      "endIndex": 16399,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "Mailbox navigation includes Trash and Spam/Junk under More/mailboxes, preserving provider state. Not spam / Move to Inbox is an explicit recovery action under modify capability; opening spam never automatically loads remote content. Mailbox tabs include Trash for viewing provider-trash state. Move to Trash is a separately permitted, reversible organization action; Gmail normally retains it for up to 30 days, while permanent deletion and expiry are not recoverable. Permanent delete is excluded. Deleted Gmail drafts do not go to Trash, so a local recoverable draft copy or an explicit loss warning is necessary.",
+      "startIndex": 16400,
+      "endIndex": 17015,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "Single selection opens a thread. Multi-select changes the toolbar to clear, scoped bulk actions with a visible selected count; scrolling never silently adds selection. Select all visible and select all matching are distinct. A filtered search and a stale corpus must disclose the scope before a bulk action. Keyboard focus and selection remain distinct; an item is not marked read merely because the user tabs through the list.",
+      "startIndex": 17016,
+      "endIndex": 17443,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "5. Inbox and reading experience",
+      "startIndex": 17444,
+      "endIndex": 17475,
+      "tabId": "t.0",
+      "namedStyleType": "HEADING_1",
+      "isListItem": false
+    },
+    {
+      "text": "5.1 Inbox anatomy",
+      "startIndex": 17476,
+      "endIndex": 17493,
+      "tabId": "t.0",
+      "namedStyleType": "HEADING_2",
+      "isListItem": false
+    },
+    {
+      "text": "Each row shows sender or participants, subject, a useful original-body snippet, time, unread marker, attachment cue and restrained classification hints. Account identity is persistent on every unified row and accessible label. A thread belongs to exactly one account; identical subjects, participants, RFC Message-ID values or provider IDs across accounts never merge conversations or grants. Importance uses a label or icon plus text; color alone is insufficient. Dates become absolute on focus/hover and in the message header. The latest activity timestamp is not confused with first received time.",
+      "startIndex": 17494,
+      "endIndex": 18094,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "The toolbar offers visible Archive, Mark read/unread and Labels where the account has modify authority. Permission-limited actions stay discoverable with a short explanation and a connection/settings route. A first read-only integration has usable reading/search and an honest read-only banner; it must not display fake working organize/send controls. Hover actions supplement, never replace, keyboard/touch alternatives.",
+      "startIndex": 18095,
+      "endIndex": 18516,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "Density has Comfortable and Compact choices. Comfortable is the initial default; Compact reduces row padding while preserving an adequate hit target. Column resizing and unread-only filtering persist per device. On mobile, swipe gestures are optional conveniences with a corresponding visible menu and reversible result; destructive gestures are excluded.",
+      "startIndex": 18517,
+      "endIndex": 18872,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "5.2 Thread and message anatomy",
+      "startIndex": 18873,
+      "endIndex": 18903,
+      "tabId": "t.0",
+      "namedStyleType": "HEADING_2",
+      "isListItem": false
+    },
+    {
+      "text": "The thread header names subject, participants and source account, with thread-level actions whose effects are explicit. Each message retains its sender, To/Cc/Bcc visibility as actually available, sent/received time and zone, body format, attachments and provider identity. Expand/collapse preserves quoted history and signatures; collapsed content remains discoverable with meaningful labels such as “Show quoted reply” and a complete plain-text/source route.",
+      "startIndex": 18904,
+      "endIndex": 19364,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "Render the full sanitized HTML or full plain-text body, including meaningful formatting, tables, links, inline images and attachments. Use plain text as a faithful fallback, not a truncated summary. Large content is virtualized or paginated without silently omitting text. Embedded message attachments open as distinct message documents with their own provenance. Calendar invitations are displayed as source content; accepting an event routes through the qualified Planner/calendar flow.",
+      "startIndex": 19365,
+      "endIndex": 19853,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "Summary is optional, visibly marked “AI summary,” and includes generated time, source-message coverage and a path to the cited passages. A partial thread summary says which messages were included. New mail marks old summaries stale rather than silently presenting them as current. Model text cannot alter subject, recipients, source dates or the original body.",
+      "startIndex": 19854,
+      "endIndex": 20214,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "When a message body is not locally present, show “Body not downloaded” and an explicit fetch action. Offline cached mail remains readable. A blocked remote image is not a failed attachment download; the interface distinguishes those causes. Copy link and Open in Gmail resolve the selected account and known provider identity without assuming a browser account index.",
+      "startIndex": 20215,
+      "endIndex": 20582,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "5.3 Safe rendering and external content",
+      "startIndex": 20583,
+      "endIndex": 20622,
+      "tabId": "t.0",
+      "namedStyleType": "HEADING_2",
+      "isListItem": false
+    },
+    {
+      "text": "Message HTML is untrusted content. Render it in an isolated surface after removing scripts, forms, active embeds, navigation traps and unsafe URL schemes. Do not allow email styles to alter the host application. External images and tracking resources are blocked by default with per-message loading and a clear privacy explanation. Persisting a sender trust choice is a separate explicit setting.",
+      "startIndex": 20623,
+      "endIndex": 21019,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "Show link destination on hover/focus and before opening suspicious mismatches; external navigation cannot automatically execute mail actions or commands. Distinguish content warnings from authoritative security verdicts. Attachment filenames and HTML are escaped; misleading extensions, active documents, unsupported formats and scanning status are visible. A preview is not proof that a file is safe. The attachment API does not establish a malware-scanning verdict: do not fabricate a “Scanned” or “Safe” badge. Sanitize filenames as names, never paths, and never overwrite an existing file from a sender-supplied filename. The custom client does not automatically inherit Gmail’s image proxy protection.",
+      "startIndex": 21020,
+      "endIndex": 21726,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "Plain text, original headers and MIME/source remain available in a full viewer. Source view is non-executable, searchable, copyable and line-numbered; long lines have wrap and horizontal-scroll options. Credentials or tokens in technical source are not sent to a model merely because the user opened the source viewer.",
+      "startIndex": 21727,
+      "endIndex": 22045,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "6. Compose, drafts and sending",
+      "startIndex": 22046,
+      "endIndex": 22076,
+      "tabId": "t.0",
+      "namedStyleType": "HEADING_1",
+      "isListItem": false
+    },
+    {
+      "text": "6.1 Composer contract",
+      "startIndex": 22077,
+      "endIndex": 22098,
+      "tabId": "t.0",
+      "namedStyleType": "HEADING_2",
+      "isListItem": false
+    },
+    {
+      "text": "Compose shows the sending account prominently before recipient entry. Reply/reply-all is bound to the source mailbox and its verified receiving identity/alias; a global last-used account never overrides it. New compose in a specific-account view uses that account visibly. New compose from All inboxes asks for a sending account unless the user deliberately chose an explicit default; do not infer one from sync order, recent background activity or the last message read. Switching the viewing scope leaves an open draft’s account unchanged. If the source account cannot send or the verified alias is ambiguous, preserve the draft and require an explicit valid identity choice; never fall through silently to a different connected account. To, Cc and Bcc resolve to explicit addresses, with display names secondary; unusual addresses, cross-account aliases and reply-all expansion are reviewable. Reply-all reflects the actual message headers and excludes the sender’s own verified identity where appropriate. Forwarding includes clearly separated quoted content and attachment choices.",
+      "startIndex": 22099,
+      "endIndex": 23185,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "The editor supports paragraphs, modest formatting, links, lists, paste sanitization, plain-text mode, signature and attachment upload. It preserves original quoted text and does not insert AI text without visible acceptance. Subject is required for deliberate review but users may consciously send an empty subject if the provider supports it. Missing attachment references, empty body and external recipients are warnings, not unexplained failures.",
+      "startIndex": 23186,
+      "endIndex": 23635,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "Draft status distinguishes Saving locally, Saved locally, Saving to Gmail, Saved to Gmail, Offline local draft, Conflict and Save failed. Local autosave does not claim remote persistence. Before sender selection, an unassigned compose buffer may be saved recoverably on this device; it has no provider-draft mapping, send capability or implied account/agent access. After explicit assignment, a local draft is owned by one account_id and maps separately to that account’s stable provider draft ID and each replaceable provider message ID. Draft lookup, autosave and recovery always carry account_id; identical provider IDs in other accounts cannot collide. Changing account creates an explicit re-scoping operation; attachments and permissions are revalidated rather than silently copied across accounts.",
+      "startIndex": 23636,
+      "endIndex": 24440,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "Closing the composer preserves a recoverable local draft. Discard moves a local draft into a recoverable state where supported and discloses if deleting a remote draft is also requested. Conflicts show local and provider versions with timestamps and a compare/recover path. Never overwrite a changed draft because an old model proposal arrived late.",
+      "startIndex": 24441,
+      "endIndex": 24790,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "6.2 Send preview and authority",
+      "startIndex": 24791,
+      "endIndex": 24821,
+      "tabId": "t.0",
+      "namedStyleType": "HEADING_2",
+      "isListItem": false
+    },
+    {
+      "text": "Send opens a focused review surface showing account/alias, To/Cc/Bcc, subject, final content, attachment names/sizes and any consequential warning. The primary action says “Send email” and is separate from “Save draft.” The preview identifies any model-authored content and the exact approved revision. Approval binds provider_id, account_id, connection/binding identity, sender/alias, exact recipients, subject, body, attachment identities and target revision. Any change to those fields or the chosen account after approval invalidates that approval. An agent-prepared draft does not receive send authority from read or draft access.",
+      "startIndex": 24822,
+      "endIndex": 25457,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "Ordinary direct-user sending follows the existing permission and confirmation system; high-impact content, sensitive sharing, new access and other protected actions retain their applicable gates. The UI must display the exact action and audience required by that system rather than invent a parallel blanket “approve everything” switch. Preview is useful even where the current instruction already authorizes sending; avoid redundant confirmation loops while preserving binding scope.",
+      "startIndex": 25458,
+      "endIndex": 25942,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "Sending states: Ready → Queued locally (only before provider submission) → Submitting → Sent, Failed or Checking whether sent. The local command has a stable idempotency identity and immutable approved-content digest. Where the provider cannot guarantee idempotency, reconcile from the sent record or provider receipt before a user-directed retry. A timeout is not proof of failure. Do not automatically resend an uncertain message.",
+      "startIndex": 25943,
+      "endIndex": 26375,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "Undo Send means a configured local hold before submission, visibly counting down; it does not promise recall after provider acceptance. Gmail messages.send documents no idempotency key or recall endpoint; a local command key is not a provider guarantee. Persist the hold deadline and specify app-shutdown behavior: the initial recommendation cancels an unsubmitted hold on unsafe shutdown and restores the draft for explicit review. Archive/labels/read-state have separate undo semantics. A successful send receipt links to the actual provider message and records account, recipients, content revision and time without logging unnecessary secrets. Sent state is based on receipt/reconciliation, not a button animation.",
+      "startIndex": 26376,
+      "endIndex": 27094,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "7. Search that stays exact and inspectable",
+      "startIndex": 27095,
+      "endIndex": 27137,
+      "tabId": "t.0",
+      "namedStyleType": "HEADING_1",
+      "isListItem": false
+    },
+    {
+      "text": "7.1 Exact retrieval baseline",
+      "startIndex": 27138,
+      "endIndex": 27166,
+      "tabId": "t.0",
+      "namedStyleType": "HEADING_2",
+      "isListItem": false
+    },
+    {
+      "text": "Search accepts ordinary text and explicit filters for All accounts or one selected account, sender, recipient, subject, date range, provider label, local project, unread/read, attachment presence/type and sort. The visible account scope is carried into exact and semantic requests, pagination, citations and result counts; switching account invalidates old result/cache scope. Provider label filters are namespaced by account and never equate same-named labels across accounts without an explicit user-level mapping. IDs, exact quoted phrases and numeric references use lexical retrieval; semantic expansion must not rewrite an invoice number or broaden an exact quote invisibly. Visible filter chips show the interpreted query and can be edited or cleared independently.",
+      "startIndex": 27167,
+      "endIndex": 27938,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "Exact mode supports deterministic date and relevance sorting with a stable tie-break. The result row names account, thread/message, matching passage, match location and data freshness. Subject-only, body and attachment matches are distinguishable. Preview opens the actual message passage with a highlight; it does not replace the source with generated prose. A body that was never captured cannot count as a body-search miss.",
+      "startIndex": 27939,
+      "endIndex": 28365,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "No results has three different explanations: no matching results within a complete allowed scope; results may be missing because capture/indexing is incomplete; or the query service is unavailable. Preserve the query and offer bounded recovery. Do not present an empty state after a permissions error as proof that the mail does not exist.",
+      "startIndex": 28366,
+      "endIndex": 28705,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "7.2 Semantic recall and answer evidence",
+      "startIndex": 28706,
+      "endIndex": 28745,
+      "tabId": "t.0",
+      "namedStyleType": "HEADING_2",
+      "isListItem": false
+    },
+    {
+      "text": "Natural-language questions can find relevant messages and optional synthesized answers. The result cites source passages with account, thread, message, attachment if applicable, sent time, captured time and index/derivation freshness. Each factual statement in an answer is linked to evidence or clearly labeled inference. “I found no evidence” is not a claim of complete absence when the corpus is partial.",
+      "startIndex": 28746,
+      "endIndex": 29153,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "Enforce identity and grants before private scoring, snippets, embeddings lookup or reranking. Collapse duplicate derived vectors to the canonical source so one message does not dominate results through multiple derivations. A thread summary uses the intersection of grants on included content. Recheck access when opening a citation; a denied state must not disclose a hidden account, title or even existence. No-result private searches never fall through automatically to web or remote services. Generated-question enrichment is off until measured useful; do not add per-item enrichment approval noise. Search-hub federates email-owned providers; it must not become another mailbox store. An account or grant removal invalidates cached snippets/results and derived access. Local and remote model destinations obey the declared inference policy; remote fallback is never silent.",
+      "startIndex": 29154,
+      "endIndex": 30032,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "When semantic infrastructure is unavailable or pending, retain the query and show “Semantic search unavailable; showing exact matches” with the actual mode and coverage. The system does not fabricate an answer. If natural language produced explicit filter choices, show them for review before broadening. The exact fallback remains usable with IDs, quoted phrases and numbers.",
+      "startIndex": 30033,
+      "endIndex": 30409,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "Feedback records “wrong source,” “missing context,” “not relevant,” or a corrected association against the query and source revision. It does not train on private mail or transmit feedback externally without the relevant policy. Search latency and completeness are measured per mode and scope rather than concealed by one global confidence score.",
+      "startIndex": 30410,
+      "endIndex": 30756,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "8. Classifications, Waiting and Projects",
+      "startIndex": 30757,
+      "endIndex": 30797,
+      "tabId": "t.0",
+      "namedStyleType": "HEADING_1",
+      "isListItem": false
+    },
+    {
+      "text": "8.1 Classification model",
+      "startIndex": 30798,
+      "endIndex": 30822,
+      "tabId": "t.0",
+      "namedStyleType": "HEADING_2",
+      "isListItem": false
+    },
+    {
+      "text": "The local classification vocabulary includes importance, action required, waiting, project, deadline and uncertainty. A classification record stores source-message/version IDs, derivation version, rationale, observed time, confidence or uncertainty category, and user correction. These are local inferences, distinct from Gmail labels. Provider labels are shown with provider provenance; a local correction does not modify them.",
+      "startIndex": 30823,
+      "endIndex": 31251,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "Important means likely useful to this user, not simply urgent phrasing in a message. Action required states who appears to need to act and cites the relevant request. Waiting states who is expected to respond and the evidence of an open loop. Deadline includes parsed date, time zone, source quote and ambiguity; an ambiguous “next Friday” is not silently converted to a calendar commitment.",
+      "startIndex": 31252,
+      "endIndex": 31643,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "Users can correct or remove a classification in place with low effort. Corrections are scoped: this message, this thread or future matching suggestions are different choices. Defaults do not establish automatic rules. New contradictory mail marks the classification superseded or needs review; it never resurrects a dismissed proposal solely because a model reran.",
+      "startIndex": 31644,
+      "endIndex": 32008,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "8.2 Waiting view",
+      "startIndex": 32009,
+      "endIndex": 32025,
+      "tabId": "t.0",
+      "namedStyleType": "HEADING_2",
+      "isListItem": false
+    },
+    {
+      "text": "Waiting shows conversation, expected responder, what is awaited, last relevant activity, source evidence and an optional user-confirmed follow-up date. It distinguishes “Suggested waiting” from “Tracking” and “Resolved.” A new reply prompts reconciliation; it does not automatically prove the requested outcome arrived. Mark resolved removes the local tracking item without archiving the source thread.",
+      "startIndex": 32026,
+      "endIndex": 32428,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "Follow-up draft preparation is useful; sending requires its own authority. Reminders respect user-selected timing and existing notification settings. Snoozed local items show their return time and time zone, can be unsnoozed and do not disappear from search. A single source-derived waiting item can be linked to a Planner commitment without duplicating ownership.",
+      "startIndex": 32429,
+      "endIndex": 32793,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "8.3 Project collections and Planner handoff",
+      "startIndex": 32794,
+      "endIndex": 32837,
+      "tabId": "t.0",
+      "namedStyleType": "HEADING_2",
+      "isListItem": false
+    },
+    {
+      "text": "Projects show threads, decisions/evidence, attached documents and proposed tasks within an explicit account/scope boundary. Suggested project membership is visually provisional and explainable. Cross-account collections preserve account provenance and do not grant access across identities merely because a project has a familiar name.",
+      "startIndex": 32838,
+      "endIndex": 33173,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "“Create task in Planner” presents the proposed title, due date/time zone, source link, project and any inferred commitment separately from quoted evidence. Acceptance creates or links one canonical Planner record with a receipt. Updating or canceling it follows Planner authority; Mail may show a projection and freshness, not maintain a second mutable task. Retries use the same handoff identity to avoid duplicate tasks.",
+      "startIndex": 33174,
+      "endIndex": 33596,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "Calendar invitations, meeting suggestions and promised dates remain suggestions until explicitly accepted into the owner’s planning system. The interface offers source context without automatically creating an event or emailing a reply.",
+      "startIndex": 33597,
+      "endIndex": 33833,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "9. Asynchronous agent assistance",
+      "startIndex": 33834,
+      "endIndex": 33866,
+      "tabId": "t.0",
+      "namedStyleType": "HEADING_1",
+      "isListItem": false
+    },
+    {
+      "text": "Agents work on scoped accounts, projects or collections. A run begins with an explicit purpose, allowed data scope, allowed capabilities, inference destination, resource bounds and expiration. Read, derive, draft, organize and send are separate capabilities. A broad project name cannot implicitly grant all mailbox content or every future action.",
+      "startIndex": 33867,
+      "endIndex": 34214,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "The visible progression is Queued, Reading allowed sources, Preparing suggestion, Ready for review, Stale, Applied, Dismissed, Failed or Canceled. The UI is not a chat transcript masquerading as a mailbox. It links the actual work/approval record through existing integrations and preserves source evidence, action identity and receipt.",
+      "startIndex": 34215,
+      "endIndex": 34551,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "A proposal contains one coherent useful outcome: the evidence, why it matters now, expected benefit, exact target, before/after or draft preview, affected account/people, authority required and a clear outcome after acceptance. For a multi-message label action, show affected messages and exceptions. For a reply, show exact recipients and final text. For a task, show the Planner destination and date ambiguity.",
+      "startIndex": 34552,
+      "endIndex": 34964,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "Avoid review-queue exhaustion. Deduplicate by source version and intended effect; suppress proposals already acted on or dismissed; group truly homogeneous reversible changes; require a freshness/benefit gate; use a small digest of non-urgent findings and reserve interrupts for time-sensitive, consequential items. Do not create a proposal merely because a model can summarize a message.",
+      "startIndex": 34965,
+      "endIndex": 35353,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "No consequential action is applied because a proposal was generated. Existing approval/notification integration owns approval state; Mail provides a contextual presentation and routes the response. An expired or changed source invalidates the proposal and asks for regeneration, not an approval of stale text. An already approved exact action can be executed within its scope without asking the same question again.",
+      "startIndex": 35354,
+      "endIndex": 35769,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "User controls include pause this run, cancel, dismiss this suggestion, explain why, correct evidence and narrow scope. A run canceled during provider submission becomes a reconciliation problem, not an assertion that nothing happened. Logs omit unnecessary message bodies and retain enough provenance to explain the action. External instructions inside email or attachments are treated as untrusted content, never agent authority.",
+      "startIndex": 35770,
+      "endIndex": 36200,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "10. System ownership and data contracts",
+      "startIndex": 36201,
+      "endIndex": 36240,
+      "tabId": "t.0",
+      "namedStyleType": "HEADING_1",
+      "isListItem": false
+    },
+    {
+      "text": "10.1 Ownership map",
+      "startIndex": 36241,
+      "endIndex": 36259,
+      "tabId": "t.0",
+      "namedStyleType": "HEADING_2",
+      "isListItem": false
+    },
+    {
+      "text": "integration-hub: account connection, OAuth consent and scopes, credential storage, refresh/revoke and available-capability projection. Email references a connection identity; it does not store or independently refresh provider secrets. Google support is a planned/qualification dependency, not presumed live.",
+      "startIndex": 36260,
+      "endIndex": 36568,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "Email scenario: provider adapters; local account and mailbox entities; MIME parsing and safe source retention; provider message/thread/label identities; draft mappings; sync cursors and watermarks; content/attachment metadata; classifications; email corpus and search provider; organization and send command/receipt state where qualified.",
+      "startIndex": 36569,
+      "endIndex": 36907,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "document-manager: supported attachment extraction, preview/OCR or text derivation and derived document identity, always inheriting parent mail grants and provenance. An attachment does not become globally searchable because extraction succeeded. Failed, unsupported, password-protected and not-downloaded states remain explicit. Show page/range coverage and a precise incomplete reason such as size limit, policy, unsupported type or OCR failure. A historical extracted passage may remain evidence while original layout is unavailable; label this distinction. Spreadsheet previews distinguish formula, effective, displayed and cached values rather than showing an unqualified number.",
+      "startIndex": 36908,
+      "endIndex": 37591,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "search-hub: authorized federation, ranking and routing across scenario-owned search providers. Shared search primitives and AI Gateway handle reusable retrieval/inference infrastructure under the relevant policies. Email retains original facts and provider truth; search retains no independent authority to widen access.",
+      "startIndex": 37592,
+      "endIndex": 37912,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "personal-planner: accepted tasks, commitments, calendar events, scheduling and follow-up plans. Approval and notification owners: existing shared mechanisms for authorization requests, receipts and delivery. Mail integrates with them rather than inventing replacements.",
+      "startIndex": 37913,
+      "endIndex": 38182,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "10.2 Required entities and provenance",
+      "startIndex": 38183,
+      "endIndex": 38220,
+      "tabId": "t.0",
+      "namedStyleType": "HEADING_2",
+      "isListItem": false
+    },
+    {
+      "text": "Account has stable local account_id, provider_id, provider account identity, Integration Hub connection/binding reference, capabilities, selected scopes, status and freshness. Message and thread keys include provider_id and account_id plus opaque provider IDs; each message, thread, MIME part, attachment, label, draft, classification, proposal, command, receipt, sync cursor, index document and grant carries its owning account_id. Cursor/checkpoint and idempotency scope never cross accounts. Thread is a grouping within one account, not a synthetic cross-account merge or overwrite of message history.",
+      "startIndex": 38221,
+      "endIndex": 38825,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "Attachment has parent message identity, MIME part, filename, declared/observed type, size, download state, content digest and derivation references. Derivation has source digest/version, method/model, inference policy/destination, generated time, coverage, uncertainty and invalidation state. Classification adds correction history and separate local/provider semantics.",
+      "startIndex": 38826,
+      "endIndex": 39196,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "Command has target scope, approved-content/action digest, initiating identity, capabilities, idempotency key, preconditions, state and receipt. Proposal references original evidence and a command candidate, not a free-floating text instruction. Sync cursor has provider scope, last successful watermark, capture/index status, retry/backoff and reset reason.",
+      "startIndex": 39197,
+      "endIndex": 39554,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "Canonical provider IDs remain opaque strings, namespaced by provider_id and account_id. A same-named label, reused cursor token or identical provider thread/message ID in a different account is a different resource. Message versions, draft identities and thread identities are not interchangeable. Store time zones or absolute timestamps where known; preserve original header text when parsing is uncertain. Derived dates are labeled. Never fabricate a provider URL from a guessed Gmail account index.",
+      "startIndex": 39555,
+      "endIndex": 40056,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "10.3 Minimal provider-neutral seam",
+      "startIndex": 40057,
+      "endIndex": 40091,
+      "tabId": "t.0",
+      "namedStyleType": "HEADING_2",
+      "isListItem": false
+    },
+    {
+      "text": "Reuse the existing Integration Hub connection/capability owner and one email-owned provider adapter interface. The adapter covers account identity, advertised capabilities, message/thread/label reads, bounded full/incremental sync, attachment retrieval, and qualified draft/modify/send commands with receipts. Each operation receives an explicit account/connection context and returns provider-native identifiers plus normalized domain records. Do not add a separate connector registry, token store or generic workflow framework solely to anticipate a second provider.",
+      "startIndex": 40092,
+      "endIndex": 40660,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "The shared model defines only stable mail concepts and the UI’s needed capabilities. Preserve provider extensions for Gmail label unions, history cursors, draft replacement and send uncertainty. A later provider may use folders, different conversation grouping, cursor formats or operation constraints; expose capabilities and clear unsupported states rather than pretending every provider behaves like Gmail. Provider-neutral does not mean lowest-common-denominator rendering or a promise of exact behavioral parity. Future non-Gmail adapters remain out of first-release scope.",
+      "startIndex": 40661,
+      "endIndex": 41239,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "Authorization keys, search partitions, cache keys, deep links, background jobs and action receipts include provider_id plus account_id and the current grants/revision. No ambient global active account is allowed in the service contract. The visible account chooser is presentation state; it is never authority for a previously created command or draft.",
+      "startIndex": 41240,
+      "endIndex": 41592,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "11. Sync, offline behavior and failure recovery",
+      "startIndex": 41594,
+      "endIndex": 41641,
+      "tabId": "t.0",
+      "namedStyleType": "HEADING_1",
+      "isListItem": false
+    },
+    {
+      "text": "11.1 State machine and freshness",
+      "startIndex": 41642,
+      "endIndex": 41674,
+      "tabId": "t.0",
+      "namedStyleType": "HEADING_2",
+      "isListItem": false
+    },
+    {
+      "text": "Disconnected → Connecting → Connected, initial capture → Captured → Exact searchable → Semantic pending/ready describes separate progress. Online, Offline, Stale, Reconnect required, Throttled and Error are orthogonal availability conditions, not substitutes for coverage. A message may be readable and exactly searchable while semantic indexing is pending.",
+      "startIndex": 41675,
+      "endIndex": 42032,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "Initial full sync is bounded and resumable with visible scope, date range and progress. Incremental sync applies message changes, label changes, trash/deletion state and new arrivals idempotently. A progress bar never claims completion based only on downloaded IDs if bodies or indexes are incomplete. Present last successful provider sync and indexing watermark separately.",
+      "startIndex": 42033,
+      "endIndex": 42407,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "Expired history/cursors trigger a controlled resync. Keep cached reading available, mark scope stale, avoid duplicate messages, and retain local corrections/drafts/receipts. Gmail history expiry is not a reason to wipe the local corpus first. Source deletion and grant revocation invalidate or remove derived searchable material according to retention policy, including embedding and snippet caches.",
+      "startIndex": 42408,
+      "endIndex": 42807,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "Provider throttling uses backoff and a visible retry time without alarming repeated notifications. Transient network failure is distinct from expired authorization. Reconnect routes to integration-hub and requests only required capabilities; a failed renewal attempt can coexist with a still-usable prior grant. Renewing the same account is different from replacing it with another account. Successful callback leads to explicit mailbox/account selection before capture begins; it does not quietly upgrade read-only access. A successful login does not establish a finished resync.",
+      "startIndex": 42808,
+      "endIndex": 43388,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "11.2 Offline and uncertain mutations",
+      "startIndex": 43389,
+      "endIndex": 43425,
+      "tabId": "t.0",
+      "namedStyleType": "HEADING_2",
+      "isListItem": false
+    },
+    {
+      "text": "Offline reading/search works only on the captured corpus, with a coverage banner. Draft editing saves locally. Sending is not queued for later unattended execution by default; the user sees that submission has not occurred and can choose the qualified policy. If an explicit future queued-send capability is introduced, it needs a durable approved snapshot and cancellation contract.",
+      "startIndex": 43426,
+      "endIndex": 43809,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "Archive/label/read-state can be shown as Pending only where the command pipeline is qualified. Display the local pending change and provider state distinctly. Reconcile conflicting provider updates instead of silently winning with the stale local copy. Bulk partial success names which targets changed and which need attention; retry only remaining eligible targets.",
+      "startIndex": 43810,
+      "endIndex": 44176,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "Crash recovery restores local drafts, cursor checkpoints and in-flight command receipts. Unknown outcomes enter reconciliation before retry. An interrupted send must never be duplicated by a generic retry job. An interrupted attachment extraction resumes from its derivation identity without duplicating the source file.",
+      "startIndex": 44177,
+      "endIndex": 44497,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "12. Privacy, permissions and retention",
+      "startIndex": 44498,
+      "endIndex": 44536,
+      "tabId": "t.0",
+      "namedStyleType": "HEADING_1",
+      "isListItem": false
+    },
+    {
+      "text": "12.1 Capability presentation",
+      "startIndex": 44537,
+      "endIndex": 44565,
+      "tabId": "t.0",
+      "namedStyleType": "HEADING_2",
+      "isListItem": false
+    },
+    {
+      "text": "Read mail allows capture and rendering of the specified account/scope. Derive/search allows only the configured indexing and inference destinations. Draft allows preparing local or provider drafts as separately implemented. Modify allows archive, labels and read-state on the specified targets. Send allows explicit communication under the existing approval policy. None implies another at the product policy layer. Provider OAuth scopes are not one-to-one with these product capabilities: gmail.modify includes reading, composing, sending and mailbox changes, while gmail.compose also permits sending. The UI must disclose the actual granted provider scope, then apply narrower local policy. Use read-only scopes for the initial integration; add full-client scope only through authorized consent. Do not request the full mail.google.com scope merely for convenience or permanent deletion.",
+      "startIndex": 44566,
+      "endIndex": 45455,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "Settings shows account, provider connection, granted scopes, effective capabilities, source coverage and last successful sync in compact rows. “Why unavailable?” explains whether the issue is missing grant, unsupported provider capability, offline state, policy or an unimplemented feature. Disable with explanation rather than remove an expected action with no clue.",
+      "startIndex": 45456,
+      "endIndex": 45823,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "Agent scopes show account/project/collection, permitted data classes, read/derive/draft/modify/send actions, duration and revocation. Escalating persistent access uses the established action-time consent route. Local policy revocation immediately blocks new access and invalidates derived projections; provider revocation can take time and may affect sibling Drive/Calendar grants in the same Google project. Pause or unbind, remove local mail and revoke Google access are three different actions with different consequences; in-flight actions are reconciled and reported honestly.",
+      "startIndex": 45824,
+      "endIndex": 46405,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "12.2 Inference and data handling",
+      "startIndex": 46406,
+      "endIndex": 46438,
+      "tabId": "t.0",
+      "namedStyleType": "HEADING_2",
+      "isListItem": false
+    },
+    {
+      "text": "Local-first inference is the selected default recommendation. Remote embedding, summarization, classification, reranking and attachment vision require an explicit policy identifying permitted data and destinations. “Use AI” is insufficient disclosure. If local inference is unavailable, show pending/degraded behavior; do not silently send private mail to a remote fallback.",
+      "startIndex": 46439,
+      "endIndex": 46813,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "Settings separates message capture, attachment download, local retention, derived-index retention, diagnostic logging and inference destinations. Residency is configured per embedding, generation, reranking and OCR operation, not reduced to a misleading blanket local toggle. Proposed Drive retention or extraction budgets are not automatically Email defaults. The initial design recommends retaining source mail locally only within the selected account policy, downloading large attachments on demand, and keeping derivations no longer than their parent access allows. Exact retention duration and encryption/key custody remain engineering/security decisions to qualify; do not imply that a browser checkbox creates encrypted storage.",
+      "startIndex": 46814,
+      "endIndex": 47549,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "Disconnect stops provider access; revoke asks integration-hub to revoke the provider grant; remove local data is a separate explained action. Each explains what remains with Gmail, what is retained locally, what is recoverable and which derived caches are removed. Permanent purge requires its applicable confirmation and is outside the default mailbox flow. No permanent-delete action is placed in the ordinary toolbar.",
+      "startIndex": 47550,
+      "endIndex": 47970,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "Diagnostics default to metadata and redacted identifiers, with an explicit preview before sharing a support bundle. Search terms, body text, recipients, attachments and inference prompts are treated as private. Raw private search queries are not persistently logged by default. Telemetry needed for reliability is minimized and cannot be sold or used for unrelated model training by implication.",
+      "startIndex": 47971,
+      "endIndex": 48366,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "13. Visual system, accessibility and interaction",
+      "startIndex": 48367,
+      "endIndex": 48415,
+      "tabId": "t.0",
+      "namedStyleType": "HEADING_1",
+      "isListItem": false
+    },
+    {
+      "text": "The visual recommendation uses warm porcelain surfaces, deep ink typography and restrained evergreen actions. Dark mode uses true dark surfaces with visible elevation and muted borders, not a simple color inversion. Classification and status color always has an icon or text counterpart. Fictional Aster Studio mail demonstrates realistic density without private content.",
+      "startIndex": 48416,
+      "endIndex": 48787,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "Desktop type hierarchy favors compact sans-serif controls and body text with a restrained editorial title treatment. Important content appears through spacing and typography rather than oversized cards. Settings is a compact sectioned list. Metadata is secondary but readable. Row actions use recognizable icons with labels/tooltips and accessible names; icons are never the only explanation for a consequential action.",
+      "startIndex": 48788,
+      "endIndex": 49207,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "Responsive breakpoints are behavior-driven. Wide desktop can show list and reader; medium desktop uses one content pane with an optional drawer; mobile always navigates into full-page detail. Test at 320, 375, 430, 768, 1024 and 1440 CSS pixels, with 200% zoom and text enlargement. Long subjects, addresses, code and filenames must wrap or scroll intentionally without hiding actions.",
+      "startIndex": 49208,
+      "endIndex": 49593,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "Keyboard: / focuses search outside editable fields; C composes; J/K or arrows move through a focused list; Enter opens; Escape closes the current non-destructive layer; R replies and A reply-all only when shortcuts are enabled and focus is in a safe context; E archives only with explicit shortcut setting and undo; ? opens the reference. Cmd/Ctrl+Enter opens send review, never silently sends from an editor. Shortcuts are discoverable, configurable and disabled in text inputs.",
+      "startIndex": 49594,
+      "endIndex": 50073,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "Focus order follows visible reading order. Dialogs trap focus, have named headings, expose escape/cancel and return focus to the trigger. Thread updates do not steal focus. Live regions announce save/sync/action results with restraint. Virtualized lists preserve semantic row counts and active item identity. HTML mail is isolated while retaining a meaningful reading order and a plain-text route.",
+      "startIndex": 50074,
+      "endIndex": 50471,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "Touch targets should be at least 44 CSS pixels where practical; compact desktop targets still need adequate separation and accessible alternatives. Text contrast target is WCAG AA; focus indicators are clearly visible in both themes. Status must survive grayscale. Screen-reader labels include account context where a unified mailbox could otherwise be ambiguous.",
+      "startIndex": 50472,
+      "endIndex": 50835,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "Motion is functional and brief: selection, navigation and status transitions clarify continuity. Reduced-motion removes pane slides, parallax and animated progress shimmer while preserving immediate state feedback. Loading uses skeletons only where layout is predictable; never simulate fresh content with an indefinitely moving spinner.",
+      "startIndex": 50836,
+      "endIndex": 51173,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "14. Decision log and tradeoffs",
+      "startIndex": 51174,
+      "endIndex": 51204,
+      "tabId": "t.0",
+      "namedStyleType": "HEADING_1",
+      "isListItem": false
+    },
+    {
+      "text": "D01 — Full local client. Owner-selected. Companion-only design would fail the chosen destination; phased read-only delivery remains a technical sequence. Evidence: source map amendment and original brief. Revisit only if the owner changes product scope.",
+      "startIndex": 51205,
+      "endIndex": 51458,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "D02 — Minimal provider-neutral, Gmail-first boundary. Fixed architecture, reaffirmed by the owner at 20:59 UTC. Multiple Gmail accounts ship first. Reuse Integration Hub and a small email-owned adapter contract; preserve Gmail-specific label/thread/history/draft semantics behind capability extensions. Future providers can be added without another token store or premature universal connector framework. No non-Gmail provider ships in this release.",
+      "startIndex": 51459,
+      "endIndex": 51908,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "D03 — Mail as working interface name; Email as project home. Designer selected. Clear and familiar now, with Communications as a future umbrella. Avoid renaming/moving project history or exposing placeholder Slack/Discord navigation.",
+      "startIndex": 51909,
+      "endIndex": 52142,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "D04 — Dedicated mobile navigation. Owner-quality constraint, implemented in specimens. Full-page detail preserves reading and composing room. Tradeoff: more navigation than a wide desktop split; Back must restore context exactly.",
+      "startIndex": 52143,
+      "endIndex": 52372,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "D05 — Exact search is foundational; semantic is additive. Owner brief plus designer behavior contract. Prevents model outages and imprecise identifiers from blocking retrieval. Tradeoff: two retrieval modes and explicit coverage presentation.",
+      "startIndex": 52373,
+      "endIndex": 52615,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "D06 — Classification distinct from provider labels. Fixed/required semantic boundary. Avoid unapproved mailbox mutation and let users correct inference cheaply. Tradeoff: two clearly named concepts rather than one misleading tag vocabulary.",
+      "startIndex": 52616,
+      "endIndex": 52856,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "D07 — Local-first derivation; explicit remote policy. Designer privacy recommendation under brief constraints. Avoid silent transmission. Tradeoff: pending states, local model availability and slower low-resource devices.",
+      "startIndex": 52857,
+      "endIndex": 53078,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "D08 — Separate read, derive, draft, modify and send capabilities. Required permission boundary. Progressive consent is more work than broad Gmail access, but makes early read-only delivery honest and agent scope reviewable.",
+      "startIndex": 53079,
+      "endIndex": 53302,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "D09 — One existing approval/notification flow. Fixed architecture. Mail embeds evidence and action context, then links canonical state/receipt. Avoid competing queues, duplicate approval requests and divergent decisions.",
+      "startIndex": 53303,
+      "endIndex": 53523,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "D10 — Human-confirmed Planner handoff. Required ownership boundary. Mail can suggest commitments but personal-planner owns accepted tasks/calendars. Tradeoff: an explicit acceptance step and handoff recovery contract.",
+      "startIndex": 53524,
+      "endIndex": 53741,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "D11 — Multiple Gmail accounts and unified Inbox. Owner-selected first-release requirement, 14 October 2026 20:59 UTC, superseding v1.0’s optional-unified designer recommendation. First run opens All inboxes; preserve an explicitly selected account/view thereafter. Unified rows keep account identity; replies bind to the receiving account; new messages choose an explicit sender/default. Per-account authorization, sync and partial results remain independent.",
+      "startIndex": 53742,
+      "endIndex": 54201,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "D12 — Snooze after core; send later deferred. Designer selected. Local snooze is manageable as view/reminder state; reliable scheduled sending materially expands durability and authority. Revisit after the sending pipeline and scheduler contracts are qualified.",
+      "startIndex": 54202,
+      "endIndex": 54463,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "D13 — Templates, automatic modify rules and full contact management deferred. Designer selected. Core communication quality matters more than surface breadth. Keep signature, recipient completion, saved searches and draft duplication.",
+      "startIndex": 54464,
+      "endIndex": 54698,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "D14 — Complete source viewer and attachment derivation states. Owner-quality requirement. Supports technical mail and trustworthy provenance. Tradeoff: secure large-content rendering and accessible code controls need dedicated tests.",
+      "startIndex": 54699,
+      "endIndex": 54932,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "D15 — Comfortable default, optional compact density; porcelain/ink/evergreen visual language. Designer selection. Supports long work sessions and clear focus. Revisit based on actual usability/contrast testing rather than an assumption that one mockup proves fit.",
+      "startIndex": 54933,
+      "endIndex": 55196,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "D16 — Release and cutover remain evidence gates. Owner direction. Design completion does not enable the disabled team or establish account access. Gmail remains the current working route for any local-client capability not yet qualified. Receiving owner must reconcile canonical PRD and assets before a future execution assignment.",
+      "startIndex": 55197,
+      "endIndex": 55528,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "15. Screen and state inventory",
+      "startIndex": 55529,
+      "endIndex": 55559,
+      "tabId": "t.0",
+      "namedStyleType": "HEADING_1",
+      "isListItem": false
+    },
+    {
+      "text": "Every family applies to desktop light, desktop dark, mobile light and mobile dark. The atlas records which representative state is actually rendered. The expanded states below are specified acceptance obligations; a representative mockup does not claim all variants of every error were captured or tested.",
+      "startIndex": 55560,
+      "endIndex": 55865,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "EM01 Inbox — populated, unread-only, all-account, single account, list loading, partial capture, permission-limited, multi-select, all-matching selection, empty filter, bulk pending/partial failure/undo; Trash, Spam/Junk and explicit Not spam recovery.",
+      "startIndex": 55866,
+      "endIndex": 56118,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "EM02 Thread — multi-message, expanded quoted history, sanitized HTML, full plain text, inline images blocked/loaded, body not downloaded, cached offline, stale summary, unsupported content, inaccessible source, newly arrived message.",
+      "startIndex": 56119,
+      "endIndex": 56352,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "EM03 Compose — new, reply, reply-all, forward, plain/rich, Cc/Bcc expanded, local save, provider save, offline, conflict, failed save, missing recipient, attachment upload, wrong sender warning, recovered draft.",
+      "startIndex": 56353,
+      "endIndex": 56564,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "EM04 Search — exact, numeric/ID/quoted phrase, filters, attachment match, semantic evidence, partial corpus, permission filtered, no match, loading, canceled query, stale index, error and mode fallback.",
+      "startIndex": 56565,
+      "endIndex": 56767,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "EM05 Proposals — evidence-backed ready, grouped reversible action, send draft, Planner task, stale, permission blocked, approved, applying, applied receipt, dismissed, canceled, failed and uncertain result.",
+      "startIndex": 56768,
+      "endIndex": 56974,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "EM06 Waiting — suggested, tracking, follow-up due, snoozed, reply received but unresolved, resolved, no waiting items and Planner-linked projection stale.",
+      "startIndex": 56975,
+      "endIndex": 57129,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "EM07 Projects — explicit membership, suggested association, corrected association, mixed-account scope, thread collection, linked files, accepted task links and no project mail.",
+      "startIndex": 57130,
+      "endIndex": 57307,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "EM08 Attachments — not downloaded, downloading, preview ready, extracted text, OCR pending, unsupported, encrypted/password-protected, failed derivation, revoked parent, too large, dangerous-content warning and downloaded original.",
+      "startIndex": 57308,
+      "endIndex": 57539,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "EM09 Accounts — manage multiple Gmail accounts, first/additional setup, provider selection, read-only scope, requested capability explanation, consent canceled, connecting, per-account capture progress, complete, unsupported provider, account-specific identity/capabilities and removal impact.",
+      "startIndex": 57540,
+      "endIndex": 57833,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "EM10 Settings/privacy — compact sections, effective grants, local/remote policy, retention controls, density/theme/shortcuts, notifications, agent scope, revoke/disconnect explanation and dirty/saved/error setting states.",
+      "startIndex": 57834,
+      "endIndex": 58055,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "EM11 Sync/error — partial capture, exact indexing, semantic pending, stale, offline cached, throttled, expired cursor/full resync, conflict, transient provider failure and retry scheduled.",
+      "startIndex": 58056,
+      "endIndex": 58244,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "EM12 Original/source viewer — full headers, MIME/raw text, code/JSON pretty/raw, search, line numbers, wrap toggle, copy feedback, large-file virtualized content, invalid JSON and inaccessible original.",
+      "startIndex": 58245,
+      "endIndex": 58447,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "EX01 Reconnect — expired/revoked grant, minimum-scope explanation, canceled consent, reconnect success with resync pending and failed reconnect.",
+      "startIndex": 58448,
+      "endIndex": 58592,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "EX02 Empty — genuinely empty Inbox, zero matches, no connected account, no captured content and no permission. Each must have distinct copy and next action.",
+      "startIndex": 58593,
+      "endIndex": 58749,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "EX03 Search degraded — local exact results while semantic service unavailable, model disabled by policy, semantic indexing pending and partial attachment coverage.",
+      "startIndex": 58750,
+      "endIndex": 58913,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "EX04 Send review — complete preview, sensitive/high-impact route, missing send capability, changed content invalidation, pre-submit hold/undo, submitting, sent, failed and checking whether sent.",
+      "startIndex": 58914,
+      "endIndex": 59108,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "MA01 Account chooser — All inboxes, a selected Gmail account, searchable chooser, selected account indicator, readable account health, keyboard/touch selection and restored viewing scope.",
+      "startIndex": 59109,
+      "endIndex": 59296,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "MA02 Add account — generic connection entry with Gmail available now, non-Gmail providers clearly future/unsupported, existing-identity renewal versus new account, consent/callback confirmation and explicit mailbox binding.",
+      "startIndex": 59297,
+      "endIndex": 59520,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "MA03 Account-specific Inbox — selected account header/chip, filtered list/counts/search, account-owned labels/drafts, explicit scoped new-compose sender and return to unified view.",
+      "startIndex": 59521,
+      "endIndex": 59701,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "MA04 Partial unified Inbox — healthy account plus stale/offline/reconnect-required account, per-account freshness, partial counts/results, authorized cached content and grant-withdrawal behavior.",
+      "startIndex": 59702,
+      "endIndex": 59897,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "MA05 New message without a sender — unified compose with Choose sending account, deliberate default setting, account-specific validated selection and no inferred sender from background activity or last-read mail.",
+      "startIndex": 59898,
+      "endIndex": 60110,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "16. Acceptance plan and evidence requirements",
+      "startIndex": 60112,
+      "endIndex": 60157,
+      "tabId": "t.0",
+      "namedStyleType": "HEADING_1",
+      "isListItem": false
+    },
+    {
+      "text": "Acceptance is a future implementation obligation. Record exact build/commit, serving artifact, provider/test account, scenario, viewport/theme, initial data/grants, steps, observed result, screenshots/receipts and independent reviewer. A screenshot proves an observed appearance, not account permission or live behavior. No item below is marked passed by this dossier.",
+      "startIndex": 60158,
+      "endIndex": 60526,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "A01 — Account boundary. With at least two Gmail accounts, deliberately colliding provider/thread/message/label IDs and a revoked grant, demonstrate that unauthorized bodies, snippets, embeddings, cached results and attachments are inaccessible before scoring/rendering. Confirm deep links do not leak subjects. Evidence: grant audit, negative tests, source/query traces and UI.",
+      "startIndex": 60527,
+      "endIndex": 60904,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "A02 — First sync and resume. Interrupt a bounded full sync at several checkpoints; resume without loss/duplication, show real capture and index watermarks, and preserve drafts/corrections. Expire a Gmail history cursor and demonstrate cached reading plus controlled full resync. Evidence: provider fixtures, cursor transitions and counts with defined scope.",
+      "startIndex": 60905,
+      "endIndex": 61262,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "A03 — MIME fidelity and safety. Render long multipart mail, quoted replies, signatures, HTML tables, inline CID images, Unicode/RTL content, malformed HTML and plain text. Active scripts/forms/resources cannot escape isolation. Remote images are blocked until chosen. Evidence: fixture corpus, DOM/security checks and visual captures.",
+      "startIndex": 61263,
+      "endIndex": 61597,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "A04 — Exact retrieval. Find known message IDs, numeric references, exact phrases and attachments under every filter; verify stable sort and account scope. Remove semantic services and repeat. Distinguish no match from missing coverage. Evidence: fixed query/result set and indexed-source watermark.",
+      "startIndex": 61598,
+      "endIndex": 61896,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "A05 — Semantic grounding. Trace each answer claim to the exact passage/source revision. Introduce contradictory/new mail and observe stale/recomputed results. Deny remote policy and verify no private content leaves the permitted route. Evidence: source citations, policy decisions and request traces without unnecessary content.",
+      "startIndex": 61897,
+      "endIndex": 62225,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "A06 — Classification correction. Correct importance, action, waiting, project and ambiguous deadline; verify provider labels unchanged, correction persistence and new-message reconciliation. Evidence: before/after records and provider label readback.",
+      "startIndex": 62226,
+      "endIndex": 62476,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "A07 — Draft round trip. Create/edit/recover local and Gmail drafts, preserve stable draft identity through changed message IDs, handle remote conflict and account change, and verify attachments/recipients. Evidence: local/provider mapping and conflict UI.",
+      "startIndex": 62477,
+      "endIndex": 62732,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "A08 — Send reliability. Show exact final preview and grant; invalidate on recipient/content change. Exercise provider success, rejection, timeout, crash and uncertain response. Prove no duplicate automatic resend and honest post-submit undo semantics. Evidence: approved digest, command IDs, provider receipts and sent reconciliation.",
+      "startIndex": 62733,
+      "endIndex": 63067,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "A09 — Organization. Archive, mark read/unread and label one message, a thread and a bulk selection; inspect Trash and Spam/Junk and explicitly restore a misclassified message. Verify Gmail label union and future replies behave accurately; show partial failure and available undo. Evidence: provider message-level readback plus UI state.",
+      "startIndex": 63068,
+      "endIndex": 63404,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "A10 — Agent proposal quality. On a defined realistic mail fixture, verify evidence, freshness, deduplication, dismissal retention, scoped read/draft/modify/send authority and canonical approval receipt. Demonstrate no action from email instructions and no stale approval execution. Measure useful proposals and false/duplicate burden, not just proposal count.",
+      "startIndex": 63405,
+      "endIndex": 63764,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "A11 — Planner handoff. Accept one task/commitment, retry once, then update the source. Confirm a single canonical Planner item, source link, date/time zone and projection freshness. Mail does not create a second scheduler or silently accept an ambiguous deadline.",
+      "startIndex": 63765,
+      "endIndex": 64028,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "A12 — Attachment lifecycle. Download on demand, derive allowed types, fail unsupported/encrypted content clearly, display full code/JSON, revoke parent access and verify derived search/preview invalidation. Evidence: hashes, parent-grant joins and actual viewer captures.",
+      "startIndex": 64029,
+      "endIndex": 64300,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "A13 — Responsive accessibility. Verify complete primary journeys at 320/375/430/768/1024/1440 CSS pixels, both themes, keyboard-only, screen reader, 200% zoom, text enlargement and reduced motion. Mobile must use full-page navigation, preserve Back context and keep controls above safe areas/keyboard. Evidence: recorded interaction checks, contrast measurements and device captures.",
+      "startIndex": 64301,
+      "endIndex": 64684,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "A14 — Recovery/privacy. Disconnect/revoke/remove local data independently; inspect diagnostics preview and retention invalidation. Show source-versus-derivation ownership, no silent remote fallback and no permanent-delete default. Evidence: storage/permission tests and user-visible explanations.",
+      "startIndex": 64685,
+      "endIndex": 64981,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "A15 — Preferred-route cutover. Complete read/search/compose/send/organize/attachment/agent/Planner journeys on at least two real authorized Gmail accounts, including unified and account-specific routes; document gaps and fallback. A single-account build or read-only foundation slice cannot satisfy first-release full-client acceptance. Only then amend project guidance for qualified paths. Preserve Gmail navigation and provider identities. Owner acceptance and native delivery acceptance are separate recorded outcomes.",
+      "startIndex": 64982,
+      "endIndex": 65503,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "A16 — Unified/account switching. Connect two Gmail accounts and independently populate Inbox, Sent, Drafts and labels. Verify first-run All inboxes, persisted explicit account filter, correct counts, account badges and desktop/mobile Back restoration. Deliberately reuse provider IDs and subjects; no cross-account thread, label or draft merge is allowed. Search, links and pagination retain the chosen account scope.",
+      "startIndex": 65504,
+      "endIndex": 65921,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "A17 — Partial unified results and recovery. Put one account offline, throttled, stale, reconnect-required and revoked in separate tests. Healthy account mail remains usable; authorized cached stale mail is timestamped; protected revoked content is withdrawn. Unified counts and search coverage disclose incompleteness. Reconnect, remove and duplicate-account detection affect only the intended binding except explicitly disclosed provider-project effects.",
+      "startIndex": 65922,
+      "endIndex": 66377,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "A18 — Sender and multi-account actions. Reply from each source account despite a different global viewing/default account. Start new compose from All inboxes without a default and require account choice; preserve draft identity when switching views. Change account after review and prove approval invalidation. Bulk-label/archive actions split by account, preserve differing labels/capabilities and report partial failure/undo accurately. A send retry or receipt can never target another account.",
+      "startIndex": 66378,
+      "endIndex": 66874,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "16.1 Quality targets to qualify",
+      "startIndex": 66876,
+      "endIndex": 66907,
+      "tabId": "t.0",
+      "namedStyleType": "HEADING_2",
+      "isListItem": false
+    },
+    {
+      "text": "Proposed performance budgets: cached list navigation feels immediate; keypress-to-render interactions target under 100 ms on a defined reference device; exact first results target under one second for the agreed mailbox fixture; search always shows progress/cancel for longer work. These are design targets, not measured results. Establish mailbox sizes, attachment distributions, resource limits and reference hardware before committing release thresholds.",
+      "startIndex": 66908,
+      "endIndex": 67365,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "Measure sync lag, capture/index coverage, retry/error rate, draft-loss incidents, duplicate-send incidents, search precision on known queries, source-citation correctness and useful/duplicate proposal rate. Do not optimize open rate, time spent or generated text volume as product success. Zero lost drafts and zero duplicate sends are critical invariants to test under injected failures.",
+      "startIndex": 67366,
+      "endIndex": 67754,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "17. Implementation handoff, gaps and next use",
+      "startIndex": 67755,
+      "endIndex": 67800,
+      "tabId": "t.0",
+      "namedStyleType": "HEADING_1",
+      "isListItem": false
+    },
+    {
+      "text": "Before future admission, the receiving owner reconciles current canonical PRD, requirements, architecture, acceptance and disabled team binding with this design. Append exact owner decisions and link the governing version and assets in the existing FEEDBACK/architecture/QUEUE route where authorized. Do not manually replace the PRD, start a competing team or claim a queued item is running. Scope and admission remain with the native owner.",
+      "startIndex": 67801,
+      "endIndex": 68242,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "Required handoff package: source brief, this exact specification revision, atlas version, original HTML/CSS/source assets, full-resolution PNGs, PDF, manifest with dimensions/hashes/viewport/theme/state IDs, requirement mappings, source evidence and QA receipt. Preserve original bytes and distinguish generated specimens from governing accepted assets. The receiver must cold-open them through its real execution route before enabling work.",
+      "startIndex": 68243,
+      "endIndex": 68684,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "Open engineering questions are bounded qualification items: actual integration-hub Google readiness and supported scopes; safe-rendering library choice and security testing; local storage/encryption/key ownership; provider draft and send uncertainty reconciliation; available approval/notification interfaces; search provider authorization/cache invalidation; document-manager format coverage; local inference availability and remote policy enforcement; packaging/device constraints and real performance. They do not reopen the selected full-client position.",
+      "startIndex": 68685,
+      "endIndex": 69243,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "Current native observation, 14 October 2026 19:27 UTC: selectedVisualSources is empty; no selected email specification/assets were present locally, and the full-client source-map amendment had not yet been reconciled into local documents. The 19:27 observation recorded disabled-preparation-awaiting-native-consent, superseded moments later by the verified preparation-v2 amendment receipt at 19:27:58.683 UTC. The team remains disabled, unscheduled, idle and undispatched; no activation is claimed. A future design import must use the current v2 expected revision and a guarded native operation, never replay the earlier v1 amendment. API runtime observation was blocked by socket permission and unavailable AM authority, so no runtime certification follows. Shared transport now forwards verified Agent Manager provenance to trusted loopback; human identity, audience, object grants and authorization-aware caches still require qualification. Earlier blanket claims that caller propagation was absent are superseded. Document OCR placeholders and publication/enrichment wiring are not completed capabilities.",
+      "startIndex": 69244,
+      "endIndex": 70354,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "Reuse existing React Component Library source/story specimens before creating new primitives: BaseStyles 1.3.0; SidebarShell 2.7.2; SplitPane 2.0.5; SplitView 1.0.4; CollectionList 1.3.4; useCollection 1.1.1; ContextMenu 1.3.2; SearchInput 1.1.1; SearchFilterResults 1.0.5; SearchResults 1.0.7; CommandPalette 1.1.10; GlobalCommandSystem 1.0.6; ResponsiveDialog 1.3.1; BottomSheet 1.3.3; AlertDialog 2.0.10; Button 2.2.12; Input 1.3.6; Textarea 1.1.1; StatusBadge 1.2.2. Presence and version are source evidence, not blanket suitability or accessibility qualification. Use split primitives only on suitable desktop widths; mobile uses dedicated route-level pages.",
+      "startIndex": 70355,
+      "endIndex": 71018,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "No owner decision is needed to finish this design package. Consequential choices uncovered during implementation, such as a new remote data processor, broad new account grants or materially different retention/security model, require the appropriate specific review. Routine implementation details can follow authorized native controls and the selected design.",
+      "startIndex": 71019,
+      "endIndex": 71379,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "18. Source register and provenance",
+      "startIndex": 71380,
+      "endIndex": 71414,
+      "tabId": "t.0",
+      "namedStyleType": "HEADING_1",
+      "isListItem": false
+    },
+    {
+      "text": "S01 — Biosphere project and source map, capability maturation amendment, modified 14 October 2026 18:21:30 UTC. Authoritative owner direction for full local email client, current Gmail route, qualification before cutover and future Communications. https://docs.google.com/document/d/1_f-6wZSetVj_AawGdtSdGJet6pvF6dtAflTfyjcs0-0/edit#heading=h.wokxix5heine",
+      "startIndex": 71415,
+      "endIndex": 71770,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "S02 — Original local EMAIL-DESIGN-PROMPT.md and external-knowledge-delivery architecture/requirements, recovered through the authorized native task. Source locators, exact hashes and observation receipt are recorded in the package evidence addendum. The recovered requirement extract informs this design; source inspection does not establish deployed behavior. This source is a brief, not proof of implementation.",
+      "startIndex": 71771,
+      "endIndex": 72184,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "S02a — Native task observation 14 October 2026 19:27 UTC, source manifest observed 19:14:48 UTC. Preparation architecture v2 SHA-256 ad31c53a71676fae6e4af743f3f1bb29d5a5c7f5e5d070b895ecf19c9eeb264d; accepted native v1 SHA-256 3c5b6d987132b9a42efef7cedaaf8f6995202f2d281a73f2a69f8292593452df. Specialist inputs in the same native goal home: INTEGRATION-HUB-GOOGLE-DESIGN.md, DOCUMENT-FIDELITY-DESIGN.md, QUESTION-AWARE-RETRIEVAL-DESIGN.md and PRIVATE-FEDERATION-DESIGN.md. The versions differ and must be reconciled, not silently overwritten. The later PLATFORM-AMENDMENT.md receipt records preparation-v2 applied at 19:27:58.683 UTC, superseding the earlier pending state. Exact complete source receipt is retained with the package provenance.",
+      "startIndex": 72185,
+      "endIndex": 72928,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "S03 — Vrooli project start here, current launch/project route and source/asset acceptance guidance, modified 13 October 2026. Confirms existing implementation first, preserving native ownership, exact asset handoff and separate admission/running/acceptance. https://docs.google.com/document/d/1WC5yhsOqV9LiRsaxRfTUMqXe4Sj5G43483jMBRSZ-LQ/edit",
+      "startIndex": 72929,
+      "endIndex": 73271,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "S04 — Gmail label guide, official provider documentation checked 14 October 2026. Message-level labels, thread union and current-message modification semantics. https://developers.google.com/workspace/gmail/api/guides/labels",
+      "startIndex": 73272,
+      "endIndex": 73496,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "S05 — Gmail synchronization guide, official provider documentation checked 14 October 2026. Full/partial sync and expired history recovery. https://developers.google.com/workspace/gmail/api/guides/sync",
+      "startIndex": 73497,
+      "endIndex": 73698,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "S06 — Gmail drafts guide, official provider documentation checked 14 October 2026. Stable draft identity, replaced message identity and send transition. https://developers.google.com/workspace/gmail/api/guides/drafts",
+      "startIndex": 73699,
+      "endIndex": 73915,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "S07 — Review artifact presentation and PDF production, native review/PDF method counterpart revision cedc649, read 14 October 2026. Applied to source-grounded entry, required reading, exact delivery verification and honest test limits. https://docs.google.com/document/d/1Xa_n6J_LyskwhqbhoRb2GyUETCByv82uPwz1TtwRYw4/edit",
+      "startIndex": 73916,
+      "endIndex": 74236,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "S08 — Gmail OAuth scopes, official capability and classification reference, checked 14 October 2026. Restricted/sensitive scopes and server-side handling may impose verification/security-assessment obligations; local-first claims require a verified data-flow boundary. https://developers.google.com/workspace/gmail/api/auth/scopes",
+      "startIndex": 74237,
+      "endIndex": 74567,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "S09 — Gmail send method and HTTP retry semantics, checked 14 October 2026. https://developers.google.com/workspace/gmail/api/reference/rest/v1/users.messages/send ; https://www.rfc-editor.org/rfc/rfc9110.html#section-9.2.2",
+      "startIndex": 74568,
+      "endIndex": 74790,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "S10 — Safe HTML and external image boundaries. https://cheatsheetseries.owasp.org/cheatsheets/Cross_Site_Scripting_Prevention_Cheat_Sheet ; https://support.google.com/mail/answer/145919",
+      "startIndex": 74791,
+      "endIndex": 74976,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "S11 — Attachment payload, safe disposition and filename handling. https://developers.google.com/workspace/gmail/api/reference/rest/v1/users.messages.attachments ; https://www.rfc-editor.org/info/rfc2183/",
+      "startIndex": 74977,
+      "endIndex": 75180,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "S12 — OAuth native-app and token best practices; revocation may affect project grants and is distinct from local erasure. https://developers.google.com/identity/protocols/oauth2/native-app ; https://developers.google.com/identity/protocols/oauth2/resources/best-practices",
+      "startIndex": 75181,
+      "endIndex": 75452,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "S13 — WCAG target size, reflow and focus. 44-pixel mobile targets are a product recommendation; the AA pointer target floor is 24 CSS pixels or its spacing exceptions. https://www.w3.org/WAI/WCAG22/Understanding/target-size-minimum ; https://www.w3.org/WAI/WCAG21/Understanding/reflow ; https://www.w3.org/WAI/WCAG22/Understanding/focus-not-obscured-minimum",
+      "startIndex": 75453,
+      "endIndex": 75810,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "S14 — Gmail Trash and discard behavior. https://support.google.com/mail/answer/7401",
+      "startIndex": 75811,
+      "endIndex": 75894,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "Discovery record: exact-name Drive search for Email/email/Communications and today’s modified native Docs found no existing email-client design package before creation. The new Email folder sits inside the verified existing Vrooli home; historical Vrooli files and source map were preserved. The website-email-delivery implementation report is a separate historical workstream, not this mailbox-client specification.",
+      "startIndex": 75895,
+      "endIndex": 76311,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "S15 — Owner design review, 14 October 2026 20:59 UTC. The owner liked the overall design and explicitly requested multiple Gmail accounts, a unified combined Inbox, specific-account filtering/switching and a generic connection boundary for future providers while Gmail alone ships first. Source: owner message Sentinel_8b2ce5ce30a481918720892c59086626; verbatim wording is preserved in owner-amendment-v1.1.txt in the source package. This is design scope, not permission to connect accounts or activate implementation.",
+      "startIndex": 76312,
+      "endIndex": 76830,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "Change history: v1.0 established the complete design, selected decisions, screen/state requirements, phased build boundaries and acceptance contract. v1.1 records the owner’s 20:59 UTC review: the overall design was liked, and multiple Gmail accounts, combined Inbox, explicit account switching/filtering and future-provider extensibility are now explicit first-release requirements. D11’s optional-unified recommendation is superseded; v1.0 artifacts are retained in History. No native implementation, account connection, team enablement or live mailbox mutation is claimed.",
+      "startIndex": 76831,
+      "endIndex": 77406,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    }
+  ],
+  "document_url": "https://docs.google.com/document/d/1b-XsCToyltcrFWZuHQIo-M6DQVOASP6pjafOpPk9nbY"
+}

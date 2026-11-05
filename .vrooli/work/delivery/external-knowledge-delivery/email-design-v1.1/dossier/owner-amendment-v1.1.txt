@@ -1,0 +1,7 @@
+Owner design review — 14 October 2026, 20:59 UTC
+Source message: Sentinel_8b2ce5ce30a481918720892c59086626
+Verbatim owner request:
+Nice the design here looks really clean. I like it. The only potential issue I see is that it looks like it’s designed to only connect to a single Gmail account. I wanna make sure this gets designed properly so that like like yes we’re only supporting Gmail at first, but even so you should know a theory be able to connect multiple accounts and switch between them and you know like similar to the actual Gmail app like I’m pretty sure it shows the inbox and everything as like the unified combined view, but then you can switch it to a filter to like a specific account and then also you make make sure that the connection to the email. Client is generic so that if we want to support other things besides Gmail in the future, it should be architected to make that natural, even though we’d only be supporting Gmail at first.
+
+Selected amendment, v1.1:
+First release supports multiple Gmail accounts, a combined unified inbox and deliberate account filtering/switching. Keep a minimal provider-neutral domain/adapter boundary so another provider can be added later without inventing a second connection framework. Gmail alone ships first. The owner liked the overall visual design; this request does not establish acceptance of unbuilt behavior or approve connections, sending, team activation or implementation.

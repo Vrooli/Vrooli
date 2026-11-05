@@ -121,7 +121,7 @@ export function useSearch(options: UseSearchOptions = {}): UseSearchReturn {
     setQuery,
     results: shouldSearch && mode === "content" ? results : EMPTY_RESULTS,
     isSearching: mode === "content" && isActive && (isContentSearching || query !== debouncedQuery),
-    error: error as Error | null,
+    error,
     isActive,
     clear,
     mode,

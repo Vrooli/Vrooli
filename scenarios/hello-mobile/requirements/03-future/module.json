@@ -1,0 +1,53 @@
+{
+  "_metadata": {
+    "module": "future",
+    "description": "Future mobile fixture expansion requirements for native-shell parity and variant coverage.",
+    "prd_ref": "PRD.md",
+    "priority": "P2",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "MOBILE-005",
+      "title": "Provide native shell parity assertions",
+      "status": "planned",
+      "prd_ref": "OT-P2-001",
+      "category": "native-shell",
+      "criticality": "P2",
+      "description": "Add equivalent Android and iOS native-shell assertions as the delivery ramps mature.",
+      "tags": [
+        "mobile",
+        "native-shell",
+        "future"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "status": "planned",
+          "notes": "Future Android and iOS ramp conformance coverage will validate equivalent native-shell behavior once the corresponding platform fixtures are expanded."
+        }
+      ]
+    },
+    {
+      "id": "MOBILE-006",
+      "title": "Provide focused fixture variants",
+      "status": "planned",
+      "prd_ref": "OT-P2-002",
+      "category": "fixture-variants",
+      "criticality": "P2",
+      "description": "Add focused permission, migration, and deep-link variants without changing the base fixture contract.",
+      "tags": [
+        "mobile",
+        "fixture",
+        "future"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "status": "planned",
+          "notes": "Future fixture-specific conformance cases will validate permission, migration, and deep-link variants independently from the base flow."
+        }
+      ]
+    }
+  ]
+}

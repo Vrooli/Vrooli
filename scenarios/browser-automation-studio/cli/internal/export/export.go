@@ -21,7 +21,7 @@ func ExportExecution(ctx *appctx.Context, executionID, outputDir string) error {
 	}
 
 	status, body, err := api.Do(ctx, "POST",
-		ctx.APIPath("/executions/"+executionID+"/export"),
+		"/executions/"+executionID+"/export",
 		nil, bodyPayload, nil)
 	if err != nil {
 		return err

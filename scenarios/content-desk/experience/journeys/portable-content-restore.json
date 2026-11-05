@@ -1,0 +1,38 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-journey",
+  "schemaVersion": "1.0.0",
+  "journey": {
+    "id": "portable-content-restore",
+    "title": "Portable content restore",
+    "purpose": "Demonstrate the accepted portable content restore outcome with exact identities, authority and adverse branches.",
+    "prd_refs": [
+      "OT-P0-030",
+      "OT-P0-032",
+      "OT-P0-036"
+    ]
+  },
+  "steps": [
+    {
+      "page": "content",
+      "state": "record-detail",
+      "intent": "Choose readable or machine archive of permitted records with missing-dependency warnings."
+    },
+    {
+      "page": "settings",
+      "state": "export-preview",
+      "intent": "Inspect credentials/private-context exclusions and explicit archive schema/version."
+    },
+    {
+      "page": "settings",
+      "state": "restore-conflict",
+      "intent": "Dry-run namespace/mapping, same-title conflict and partial restore without unrelated overwrite."
+    },
+    {
+      "page": "content",
+      "state": "restore-preview",
+      "intent": "Verify representative restored identity relationships and archive/deletion recovery limits."
+    }
+  ],
+  "x-i16-source": "package/documents/dossier-accepted-basis/document-text.md chapter 13 and package/documents/commission-accepted-basis/document-text.md implementation acceptance."
+}

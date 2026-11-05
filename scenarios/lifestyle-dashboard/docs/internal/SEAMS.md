@@ -121,8 +121,6 @@ db, err := database.Connect(ctx, database.Config{
 **Configuration**:
 | Env Var | Purpose |
 |---------|---------|
-| SQLITE_PATH | Path to SQLite database file |
-| SQLITE_DB | Alternative path variable |
 | SCENARIO_DATA_DIR | Default data directory |
 
 ### 4. HTTP Routing Seam

@@ -1,0 +1,63 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.0.0",
+  "page": {
+    "id": "compose",
+    "title": "Composer",
+    "routes": ["/compose"],
+    "purpose": "Bind a style to a brief and show the fully resolved execution plan before anything runs. This is the surface where money is spent, so the cost of a decision must be visible before it is incurred.",
+    "prd_refs": ["OT-P0-005", "OT-P0-006", "OT-P0-016", "OT-P0-017"]
+  },
+  "priorities": [
+    {
+      "statement": "Resolve and render are two distinct stages, and the operator sees the plan between them.",
+      "notes": "The resolved plan names the strategy, ordered operations, merged parameters, conditioning inputs, and expected execution path. Nothing executes until the operator asks. This mirrors image-tools' own explain-before-execute pattern and is what makes an unexpected result readable rather than mysterious."
+    },
+    {
+      "statement": "Palette slots show what they resolved to, against the active brand.",
+      "notes": "A $brand.primary slot displays both the slot name and the concrete colour it bound to, so the operator can see the palette lock working rather than trusting it."
+    },
+    {
+      "statement": "A refusal is as informative as a success.",
+      "notes": "An unresolved slot, a restrictive adapter licence, or a missing scaffold parameter each names the specific condition and what would fix it."
+    }
+  ],
+  "states": [
+    { "id": "loading", "description": "Style and palette data load without collapsing the plan frame.", "setup": { "route": "/compose" } },
+    { "id": "stale", "description": "The last resolved plan remains visible with an explicit freshness notice.", "setup": { "route": "/compose" } },
+    { "id": "request-error", "description": "Plan resolution names the failed dependency and offers retry.", "setup": { "route": "/compose" } },
+    { "id": "partial", "description": "The resolved portion of a plan remains inspectable while optional metadata is pending.", "setup": { "route": "/compose" } },
+    { "id": "empty", "description": "No style is selected and the operator is routed to the catalog.", "setup": { "route": "/compose" } },
+    {
+      "id": "no-style-selected",
+      "description": "Prompts the operator to pick a style, with a route back to the catalog.",
+      "setup": { "route": "/compose" }
+    },
+    {
+      "id": "brief-incomplete",
+      "description": "A style is bound but required brief fields are unfilled. Names each missing field rather than disabling the resolve control silently.",
+      "setup": { "route": "/compose", "query": {"style": "cyanotype-arcade"} }
+    },
+    {
+      "id": "plan-resolved",
+      "description": "The full plan is shown: strategy, operations in order, merged parameters, resolved palette bindings, conditioning inputs, expected execution path, and whether the run is free or metered. Render is available.",
+      "setup": { "route": "/compose", "query": {"style": "cyanotype-arcade", "brief": "draft"} }
+    },
+    {
+      "id": "unresolved-palette-slot",
+      "description": "A slot does not resolve against the active brand. Names the slot and the brand, and offers to switch brand or amend the style. No default colour is substituted.",
+      "setup": { "route": "/compose", "query": {"style": "cyanotype-arcade", "brand": "unset"} }
+    },
+    {
+      "id": "licence-blocked",
+      "description": "The plan depends on an adapter whose licensing forbids commercial use. Names the adapter and its restriction, and marks the plan unreleasable before any spend occurs.",
+      "setup": { "route": "/compose", "query": {"style": "guided-noncommercial"} }
+    },
+    {
+      "id": "rendering",
+      "description": "Work is in flight. Shows which execution path is being used and allows cancellation.",
+      "setup": { "route": "/compose", "query": {"style": "cyanotype-arcade", "job": "active"} }
+    }
+  ]
+}

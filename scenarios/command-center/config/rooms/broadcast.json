@@ -1,0 +1,107 @@
+{
+  "id": "broadcast",
+  "title": "Broadcast",
+  "category": "broadcast",
+  "theme": "signal-tower",
+  "composition": "signal-constellation",
+  "metricIds": [
+    "funnel_30d",
+    "visitors",
+    "cta_clicks",
+    "conversions",
+    "traffic_referrers",
+    "traffic_campaigns",
+    "traffic_landing_paths",
+    "traffic_devices",
+    "traffic_variants",
+    "experiment_leaderboard",
+    "app_downloads",
+    "app_update_checks",
+    "signups_30d",
+    "waitlist_joins_30d",
+    "new_paid_subscriptions_30d",
+    "traffic_countries",
+    "social_reach",
+    "seo_rankings",
+    "campaign_metrics"
+  ],
+  "beats": [
+    {
+      "hero": "funnel_30d",
+      "readingIds": [
+        "funnel_30d",
+        "visitors",
+        "cta_clicks",
+        "conversions"
+      ],
+      "composition": "conversion-funnel",
+      "dwellSeconds": 12
+    },
+    {
+      "hero": "traffic_referrers",
+      "readingIds": [
+        "traffic_referrers",
+        "traffic_campaigns",
+        "traffic_landing_paths",
+        "traffic_devices",
+        "traffic_variants"
+      ],
+      "dwellSeconds": 14
+    },
+    {
+      "hero": "traffic_campaigns",
+      "readingIds": [
+        "traffic_campaigns",
+        "traffic_referrers",
+        "traffic_landing_paths",
+        "traffic_devices",
+        "traffic_variants"
+      ],
+      "dwellSeconds": 14
+    },
+    {
+      "hero": "experiment_leaderboard",
+      "readingIds": [
+        "experiment_leaderboard",
+        "traffic_variants",
+        "visitors",
+        "cta_clicks",
+        "conversions"
+      ],
+      "dwellSeconds": 14
+    },
+    {
+      "hero": "app_downloads",
+      "readingIds": [
+        "app_downloads",
+        "app_update_checks"
+      ],
+      "dwellSeconds": 12
+    },
+    {
+      "hero": "signups_30d",
+      "readingIds": [
+        "signups_30d",
+        "waitlist_joins_30d",
+        "new_paid_subscriptions_30d"
+      ],
+      "dwellSeconds": 10
+    },
+    {
+      "hero": "traffic_countries",
+      "readingIds": [
+        "traffic_countries",
+        "social_reach",
+        "seo_rankings",
+        "campaign_metrics"
+      ],
+      "composition": "meridian-arc",
+      "dwellSeconds": 12
+    }
+  ],
+  "bind": {
+    "visitors": "visitors",
+    "conversions": "conversions",
+    "ctaClicks": "cta_clicks"
+  }
+}

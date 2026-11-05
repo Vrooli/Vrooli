@@ -134,23 +134,12 @@
     },
     {
       "id": "sqlite",
-      "type": "resource",
-      "description": "Embedded SQLite process for picker-wheel",
-      "binaries": {
-        "darwin-arm64": { "path": "resources/sqlite/macos-arm64/sqlite-server" },
-        "darwin-x64": { "path": "resources/sqlite/macos-x64/sqlite-server" },
-        "linux-x64": { "path": "resources/sqlite/linux-x64/sqlite-server" },
-        "win-x64": { "path": "resources\\sqlite\\windows-x64\\sqlite-server.exe" }
-      },
+      "type": "embedded-storage",
+      "description": "Embedded SQLite database file for picker-wheel",
       "env": {
         "DB_FILE": "data/picker-wheel/picker-wheel.db"
       },
       "data_dirs": ["data/picker-wheel"],
-      "ports": {
-        "requested": [
-          { "name": "sql", "range": { "min": 47080, "max": 47095 } }
-        ]
-      },
       "assets": [
         {
           "path": "data/picker-wheel/seed.sql",

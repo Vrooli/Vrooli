@@ -1,0 +1,288 @@
+{
+  "metadata": {
+    "name": "e21-reach-channel-read-gap-light-phone",
+    "description": "Verify the selected light-phone focused recovery when owner-scoped channel addresses cannot be read; preserve device facts, block editing, and restore focus on return.",
+    "requirement": "NOTIFICA-P0-003",
+    "version": "1",
+    "labels": {
+      "reset": "none",
+      "routed_isolation": "true",
+      "requires_confirmation": "true",
+      "surface": "e21-reach-channel-read-recovery"
+    },
+    "execution_mode": "mutating"
+  },
+  "flow_definition": {
+    "metadata": {
+      "description": "Capture the selected light-phone channel-read gap with a disposable owner fixture and a browser-local synthetic read failure; no enrollment or notification effects.",
+      "requirement": "NOTIFICA-P0-003",
+      "version": "1",
+      "execution_mode": "mutating",
+      "owner": "notification-hub"
+    },
+    "settings": {
+      "viewport_width": 390,
+      "viewport_height": 844
+    },
+    "nodes": [
+      {
+        "id": "open-settings",
+        "action": {
+          "type": "ACTION_TYPE_NAVIGATE",
+          "navigate": {
+            "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+            "scenario": "notification-hub",
+            "scenario_path": "/settings?view=all&vrooli_test_mode=1&e22_fixture=settings-owner&e22_case=e21-reach-channel-read-gap-light-phone&e22_fault=channel-address-read-failure&e21_fixture=webpush-content-access",
+            "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE"
+          },
+          "metadata": {
+            "label": "Open owner-routed Settings with the leased disposable fixture"
+          }
+        }
+      },
+      {
+        "id": "wait-settings",
+        "action": {
+          "type": "ACTION_TYPE_WAIT",
+          "wait": {
+            "selector": "@selector/layout.main",
+            "state": "WAIT_STATE_VISIBLE"
+          },
+          "metadata": {
+            "label": "Wait for Settings"
+          }
+        }
+      },
+      {
+        "id": "select-light-theme",
+        "action": {
+          "type": "ACTION_TYPE_CLICK",
+          "click": {
+            "selector": "@selector/settingsPage.themeOption(choice=light)"
+          },
+          "metadata": {
+            "label": "Select light appearance"
+          }
+        }
+      },
+      {
+        "id": "open-reach",
+        "action": {
+          "type": "ACTION_TYPE_NAVIGATE",
+          "navigate": {
+            "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+            "scenario": "notification-hub",
+            "scenario_path": "/settings/reach?vrooli_test_mode=1&e22_fixture=settings-owner&e22_case=e21-reach-channel-read-gap-light-phone&e22_fault=channel-address-read-failure&e21_fixture=webpush-content-access",
+            "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE"
+          },
+          "metadata": {
+            "label": "Open the selected owner-scoped Reach view"
+          }
+        }
+      },
+      {
+        "id": "wait-device",
+        "action": {
+          "type": "ACTION_TYPE_WAIT",
+          "wait": {
+            "selector": "#reach-device-option-device-demo-work",
+            "state": "WAIT_STATE_VISIBLE"
+          },
+          "metadata": {
+            "label": "Wait for the leased owner device row"
+          }
+        }
+      },
+      {
+        "id": "select-device-after-failure",
+        "action": {
+          "type": "ACTION_TYPE_CLICK",
+          "click": {
+            "selector": "#reach-device-option-device-demo-work"
+          },
+          "metadata": {
+            "label": "Select the owner device while the address read is unresolved"
+          }
+        }
+      },
+      {
+        "id": "wait-channel-address-error",
+        "action": {
+          "type": "ACTION_TYPE_WAIT",
+          "wait": {
+            "selector": "text=Saved destination and approved labels could not be read.",
+            "state": "WAIT_STATE_VISIBLE"
+          },
+          "metadata": {
+            "label": "Wait until the exact owner channel-address read is confirmed failed"
+          }
+        }
+      },
+      {
+        "id": "open-device-recovery",
+        "action": {
+          "type": "ACTION_TYPE_CLICK",
+          "click": {
+            "selector": "#reach-device-option-device-demo-work"
+          },
+          "metadata": {
+            "label": "Open the focused device recovery after the channel read has failed"
+          }
+        }
+      },
+      {
+        "id": "wait-channel-gap",
+        "action": {
+          "type": "ACTION_TYPE_WAIT",
+          "wait": {
+            "selector": "[data-testid=reach-channel-read-gap]",
+            "state": "WAIT_STATE_VISIBLE"
+          },
+          "metadata": {
+            "label": "Wait for the focused saved-access recovery state"
+          }
+        }
+      },
+      {
+        "id": "assert-preserved-unknown-values",
+        "action": {
+          "type": "ACTION_TYPE_EVALUATE",
+          "evaluate": {
+            "expression": "(()=>{const root=document.querySelector('[data-testid=reach-channel-read-gap]');const text=root?.innerText||'';const body=document.body.innerText||'';const heading=root?.querySelector('h1');const channelLabel=[...(root?.querySelectorAll('dt')||[])].find(x=>x.textContent==='Channel');const channelValue=channelLabel?.nextElementSibling?.textContent?.trim();const buttons=[...(document.querySelector('footer')?.querySelectorAll('button')||[])];const edit=buttons.find(x=>x.textContent?.includes('Edit content access'));const back=buttons.find(x=>x.textContent?.includes('Back to device'));const editLabel=edit?.querySelector('[data-rcl-pressable-label]');if(!root||!text.includes('Saved access isn’t available')||!text.includes('device-demo-work')||!text.includes('demo-workstation')||!body.includes('Work browser')||channelValue!=='Web Push'||!heading||heading.getBoundingClientRect().height>82||!text.includes('Existing values are preserved')||!text.includes('No content labels have been assumed.')||text.includes('fixture://')||text.includes('@')||!edit?.disabled||!back||!editLabel||editLabel.textContent?.trim()!=='Edit content access'||editLabel.scrollWidth>editLabel.clientWidth+1||document.documentElement.scrollWidth>innerWidth+1||(()=>{const f=document.querySelector('footer')?.getBoundingClientRect();const rs=[edit,back].map(x=>x.getBoundingClientRect());return !f||f.left<0||f.right>innerWidth||f.top<0||f.bottom>innerHeight||rs.some(r=>r.width<44||r.height<44)})())throw new Error('channel-read gap failed safe review: '+text);return {deviceId:'device-demo-work',machineId:'demo-workstation',savedAddress:'unknown-not-rendered',approvedLabels:'unknown-not-assumed',editDisabled:true,returnAction:true,noEnrollmentOrPermissionAction:true}})()"
+          },
+          "metadata": {
+            "label": "Confirm unknown values, disabled edit, untruncated action label, responsive bounds and 44px targets"
+          }
+        }
+      },
+      {
+        "id": "normalize-capture",
+        "action": {
+          "type": "ACTION_TYPE_EVALUATE",
+          "evaluate": {
+            "expression": "(()=>{document.activeElement instanceof HTMLElement&&document.activeElement.blur();const r=document.documentElement;r.style.setProperty('--safe-area-inset-top','0px');r.style.setProperty('--safe-area-inset-bottom','0px');const theme=r.getAttribute('data-theme');if(innerWidth!==390||innerHeight!==844||theme!=='light')throw new Error('selected viewport/theme mismatch');return {viewport:{width:innerWidth,height:innerHeight},theme,safeAreaInsets:'0px'}})()"
+          },
+          "metadata": {
+            "label": "Confirm selected phone viewport, light appearance, and zero safe-area insets"
+          }
+        }
+      },
+      {
+        "id": "capture-channel-gap",
+        "action": {
+          "type": "ACTION_TYPE_SCREENSHOT",
+          "screenshot": {
+            "full_page": false
+          },
+          "metadata": {
+            "label": "Capture the selected light-phone channel-read recovery state"
+          }
+        }
+      },
+      {
+        "id": "return-to-device",
+        "action": {
+          "type": "ACTION_TYPE_CLICK",
+          "click": {
+            "selector": "text=Back to device"
+          },
+          "metadata": {
+            "label": "Return to the device row"
+          }
+        }
+      },
+      {
+        "id": "assert-focus-restored",
+        "action": {
+          "type": "ACTION_TYPE_EVALUATE",
+          "evaluate": {
+            "expression": "(()=>{const option=document.querySelector('#reach-device-option-device-demo-work');if(document.querySelector('[data-testid=reach-channel-read-gap]')||document.activeElement!==option)throw new Error('return did not restore the focused device row');return {returnedToDevice:true,focusRestored:true,noEnrollmentOrPermissionPrompt:true}})()"
+          },
+          "metadata": {
+            "label": "Confirm Back returns to the device row and restores keyboard focus"
+          }
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "channel-gap-01",
+        "source": "open-settings",
+        "target": "wait-settings",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "channel-gap-02",
+        "source": "wait-settings",
+        "target": "select-light-theme",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "channel-gap-03",
+        "source": "select-light-theme",
+        "target": "open-reach",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "channel-gap-04",
+        "source": "open-reach",
+        "target": "wait-device",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "channel-gap-05b",
+        "source": "select-device-after-failure",
+        "target": "wait-channel-address-error",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "channel-gap-05c",
+        "source": "wait-channel-address-error",
+        "target": "open-device-recovery",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "channel-gap-05",
+        "source": "wait-device",
+        "target": "select-device-after-failure",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "channel-gap-06",
+        "source": "open-device-recovery",
+        "target": "wait-channel-gap",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "channel-gap-07",
+        "source": "wait-channel-gap",
+        "target": "assert-preserved-unknown-values",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "channel-gap-08",
+        "source": "assert-preserved-unknown-values",
+        "target": "normalize-capture",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "channel-gap-09",
+        "source": "normalize-capture",
+        "target": "capture-channel-gap",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "channel-gap-10",
+        "source": "capture-channel-gap",
+        "target": "return-to-device",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "channel-gap-11",
+        "source": "return-to-device",
+        "target": "assert-focus-restored",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      }
+    ]
+  }
+}

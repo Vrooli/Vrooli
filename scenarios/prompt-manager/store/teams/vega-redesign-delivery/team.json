@@ -1,0 +1,173 @@
+{
+  "archived": false,
+  "coordination": {
+    "pattern": "leader-led",
+    "leadAgentId": "vega-redesign-orchestrator",
+    "reportingMode": "leader",
+    "messagingMode": "async-inbox",
+    "capabilities": {
+      "showOrgContext": true,
+      "injectInbox": true,
+      "allowPeerTriggers": false,
+      "showTaskBoardGuidance": true,
+      "showKnowledgeLogGuidance": true,
+      "requireHandoff": true
+    }
+  },
+  "createdAt": "2026-10-25T18:42:16Z",
+  "displayName": "Vega Redesign Delivery",
+  "effortRefs": [
+    "effort:vega-redesign"
+  ],
+  "enabled": true,
+  "execution": {
+    "queuePolicy": "bounded-parallel",
+    "maxConcurrentRuns": 3
+  },
+  "homePath": ".vrooli/work/delivery/vega-redesign-delivery",
+  "id": "vega-redesign-delivery",
+  "kind": "team",
+  "lifetime": "finite",
+  "mission": "Deliver the full existing Vega experience across thirteen surfaces with Signal Workbench / Optical Observatory A styling, complete phone/desktop workflows and independently verified refinements over the atlas.",
+  "operatingContract": {
+    "schemaVersion": 1,
+    "governance": {},
+    "documents": {
+      "planOfRecord": [
+        {
+          "id": "product-charter",
+          "hub": {
+            "base": "repo-root",
+            "path": ".vrooli/work/delivery/vega-redesign-delivery/CHARTER.md"
+          },
+          "paths": [
+            {
+              "base": "repo-root",
+              "path": ".vrooli/work/delivery/vega-redesign-delivery/CHARTER.md"
+            }
+          ],
+          "writePolicy": "Operator-owned product destination; preparation does not enable execution.",
+          "consumers": [
+            "vega-redesign-delivery",
+            "effort-supervision"
+          ],
+          "useFor": "Full redesign outcome, scope, acceptance and proposed commission.",
+          "required": true
+        },
+        {
+          "id": "current-vega-design",
+          "hub": {
+            "base": "repo-root",
+            "path": "scenarios/system-monitor/docs/internal/DESIGN-ADOPTION.md"
+          },
+          "paths": [
+            {
+              "base": "repo-root",
+              "path": "scenarios/system-monitor/docs/internal/DESIGN-ADOPTION.md"
+            },
+            {
+              "base": "repo-root",
+              "path": ".vrooli/work/delivery/vega-redesign-delivery/sources/commissioning-source-map.json"
+            },
+            {
+              "base": "repo-root",
+              "path": "scenarios/system-monitor/docs/mockups/vega-redesign/assets-manifest.json"
+            }
+          ],
+          "writePolicy": "Current target and traceable evidence-based refinements through the product owner; originals remain unchanged.",
+          "consumers": [
+            "vega-redesign-delivery"
+          ],
+          "useFor": "Effective design, complete source/requirement joins and exact original assets.",
+          "required": true
+        }
+      ],
+      "sharedState": [
+        {
+          "id": "status",
+          "path": {
+            "base": "repo-root",
+            "path": ".vrooli/work/delivery/vega-redesign-delivery/STATUS.md"
+          },
+          "kind": "working-register",
+          "required": true
+        },
+        {
+          "id": "log",
+          "path": {
+            "base": "repo-root",
+            "path": ".vrooli/work/delivery/vega-redesign-delivery/LOG.md"
+          },
+          "kind": "working-register",
+          "required": true
+        },
+        {
+          "id": "feedback",
+          "path": {
+            "base": "repo-root",
+            "path": ".vrooli/work/delivery/vega-redesign-delivery/FEEDBACK.md"
+          },
+          "kind": "operator-input",
+          "required": true
+        }
+      ]
+    },
+    "knowledgeTopics": {},
+    "members": {
+      "vega-redesign-orchestrator": {
+        "lane": "Own whole-product strategy, evolving complete-outcome allocation and independent acceptance; delegate product implementation to admitted workers.",
+        "allowedWrites": [
+          {
+            "kind": "handoff"
+          },
+          {
+            "base": "repo-root",
+            "path": ".vrooli/work/delivery/vega-redesign-delivery/STATUS.md"
+          },
+          {
+            "base": "repo-root",
+            "path": ".vrooli/work/delivery/vega-redesign-delivery/LOG.md"
+          },
+          {
+            "base": "repo-root",
+            "path": ".vrooli/work/delivery/vega-redesign-delivery/FEEDBACK.md"
+          },
+          {
+            "base": "repo-root",
+            "path": ".vrooli/work/delivery/vega-redesign-delivery/epochs"
+          },
+          {
+            "base": "repo-root",
+            "path": ".vrooli/work/delivery/vega-redesign-delivery/evidence"
+          },
+          {
+            "base": "repo-root",
+            "path": ".vrooli/work/delivery/vega-redesign-delivery/archive"
+          }
+        ],
+        "safetyCriticalRules": [
+          "Keep team and heartbeat disabled until deliberate owner enablement and native commission.",
+          "Use one retained orchestrator and bounded native workers; no duplicate owner or identity substitution.",
+          "Improve the atlas within the current target using verified refinements while preserving all existing operations and truthful evidence.",
+          "Required shared work excluded from a child returns to its owner; no invented whole-outcome ban.",
+          "Independently accept complete operated outcomes; no claim from tests, screenshots or self-report alone.",
+          "Preserve user data, live peer ownership, authority boundaries and unique test protection.",
+          "Use governed dependency, generated-artifact and lifecycle owner routes; host remediation belongs to the control plane.",
+          "No unrequested purchases, external publication, model-policy widening or human-only decisions.",
+          "At native HARD STOP preserve accepted, partial, remaining and unverified outcomes and hand back honestly."
+        ],
+        "readOnlyModeBehavior": {
+          "stillWriteKnowledge": false,
+          "stillWriteHandoff": true
+        }
+      }
+    }
+  },
+  "purpose": "delivery",
+  "revision": 3,
+  "runtime": {
+    "mode": "multi-process"
+  },
+  "schemaVersion": 1,
+  "updatedAt": "2026-10-26T00:23:25Z"
+}

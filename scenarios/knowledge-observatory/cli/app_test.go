@@ -21,11 +21,10 @@ func TestRegisterCommands(t *testing.T) {
 		t.Fatalf("NewApp() failed: %v", err)
 	}
 
-	groups := app.registerCommands()
-	if len(groups) != 4 {
-		t.Fatalf("expected 4 command groups, got %d", len(groups))
+	groups := app.commandGroups()
+	if len(groups) != 3 {
+		t.Fatalf("expected 3 command groups, got %d", len(groups))
 	}
-
 	if groups[0].Title != "Health" {
 		t.Fatalf("expected Health group, got %q", groups[0].Title)
 	}
@@ -35,9 +34,6 @@ func TestRegisterCommands(t *testing.T) {
 	if groups[2].Title != "Documentation" {
 		t.Fatalf("expected Documentation group, got %q", groups[2].Title)
 	}
-	if groups[3].Title != "Configuration" {
-		t.Fatalf("expected Configuration group, got %q", groups[3].Title)
-	}
 }
 
 func TestAPIPath(t *testing.T) {
@@ -46,10 +42,10 @@ func TestAPIPath(t *testing.T) {
 		t.Fatalf("NewApp() failed: %v", err)
 	}
 
-	if got := app.apiPath(""); got != "" {
+	if got := app.core.APIPath(""); got != "" {
 		t.Fatalf("expected empty path for empty input, got %q", got)
 	}
-	if got := app.apiPath("health"); got != "/api/v1/health" {
+	if got := app.core.APIPath("health"); got != "/api/v1/health" {
 		t.Fatalf("expected /api/v1/health, got %q", got)
 	}
 }

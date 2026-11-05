@@ -1,0 +1,80 @@
+{
+  "description": "Roll up per-scenario cartographer findings into a maturity level (Opaque → Documented → Capability map → Domain-owned → Boundary+seams → Programmatic drift checks) per the screaming-architecture audit doctrine.",
+  "module_id": "MOD-P2-021",
+  "prd_ref": "OT-P2-006",
+  "priority": "P2",
+  "requirements": [
+    {
+      "category": "core",
+      "dependencies": [
+        "REQ-P0-002",
+        "REQ-P0-003",
+        "REQ-P0-009"
+      ],
+      "description": "Cartographer must roll up per-scenario findings into a maturity level score following the screaming-architecture audit doctrine progression: Opaque → Documented → Capability map → Domain-owned → Boundary+seams → Programmatic drift checks. The score must be derivable from cartographer findings and manifest completeness metrics. The score must be surfaced via arch-cart maturity and in the UI, with a breakdown of which criteria are met and which are not.",
+      "id": "REQ-P2-006",
+      "prd_ref": "OT-P2-006",
+      "status": "draft",
+      "title": "Architecture Maturity Scoring per Scenario",
+      "validation": [
+        {
+          "notes": "Maturity scoring function maps conflict counts, manifest completeness, and domain coverage to the correct maturity level",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "A scenario with no manifest scores Opaque regardless of graph quality",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "A scenario with a complete manifest, zero drift conflicts, and active drift checks scores Programmatic drift checks",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "arch-cart maturity against bas/fixtures/medium-realistic/ returns a maturity level with a per-criterion breakdown",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Maturity score decreases when a new cross-domain cycle is introduced into the fixture scenario",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Maturity score is included in the UI scenario overview alongside conflict counts",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "An engineering leader can compare maturity scores across scenarios to prioritize architectural investment",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Maturity score criteria are documented so teams can self-assess without running cartographer",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Architecture Maturity Scoring"
+}

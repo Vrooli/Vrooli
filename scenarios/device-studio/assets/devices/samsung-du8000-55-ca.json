@@ -1,0 +1,180 @@
+{
+  "schema_version": "device-definition/v1",
+  "id": "samsung-du8000-55-ca",
+  "group": "monitor_tv",
+  "kind": "television",
+  "identity_status": "documented_product",
+  "manufacturer": "Samsung",
+  "model": "55-inch DU8000, Canadian SKU UN55DU8000FXZC",
+  "dimensions": {
+    "with_stand": {
+      "width": {
+        "value": 1232.1,
+        "unit": "mm",
+        "meaning": "left-to-right in front reference pose",
+        "configuration": "with_stand",
+        "method": "manufacturer",
+        "uncertainty": {
+          "status": "source_unspecified",
+          "explanation": "Manufacturer publishes nominal value; tolerance and protrusion envelope are not provided in this source record."
+        },
+        "evidence": [
+          {
+            "source": "https://www.samsung.com/ca/tvs/uhd-4k-tv/du8000-55-inch-crystal-uhd-4k-tizen-os-smart-tv-un55du8000fxzc/",
+            "kind": "manufacturer_specification",
+            "qualifier": "Canadian SKU UN55DU8000FXZC, with standard stand."
+          }
+        ]
+      },
+      "height": {
+        "value": 747.8,
+        "unit": "mm",
+        "meaning": "bottom-to-top in front reference pose",
+        "configuration": "with_stand",
+        "method": "manufacturer",
+        "uncertainty": {
+          "status": "source_unspecified",
+          "explanation": "Manufacturer publishes nominal value; tolerance and protrusion envelope are not provided in this source record."
+        },
+        "evidence": [
+          {
+            "source": "https://www.samsung.com/ca/tvs/uhd-4k-tv/du8000-55-inch-crystal-uhd-4k-tizen-os-smart-tv-un55du8000fxzc/",
+            "kind": "manufacturer_specification",
+            "qualifier": "Canadian SKU UN55DU8000FXZC, with standard stand."
+          }
+        ]
+      },
+      "depth": {
+        "value": 228.8,
+        "unit": "mm",
+        "meaning": "front-to-back in front reference pose",
+        "configuration": "with_stand",
+        "method": "manufacturer",
+        "uncertainty": {
+          "status": "source_unspecified",
+          "explanation": "Manufacturer publishes nominal value; tolerance and protrusion envelope are not provided in this source record."
+        },
+        "evidence": [
+          {
+            "source": "https://www.samsung.com/ca/tvs/uhd-4k-tv/du8000-55-inch-crystal-uhd-4k-tizen-os-smart-tv-un55du8000fxzc/",
+            "kind": "manufacturer_specification",
+            "qualifier": "Canadian SKU UN55DU8000FXZC, with standard stand."
+          }
+        ]
+      }
+    },
+    "without_stand": {
+      "width": {
+        "value": 1232.1,
+        "unit": "mm",
+        "meaning": "left-to-right in front reference pose",
+        "configuration": "without_stand",
+        "method": "manufacturer",
+        "uncertainty": {
+          "status": "source_unspecified",
+          "explanation": "Manufacturer publishes nominal value; tolerance and protrusion envelope are not provided in this source record."
+        },
+        "evidence": [
+          {
+            "source": "https://www.samsung.com/ca/tvs/uhd-4k-tv/du8000-55-inch-crystal-uhd-4k-tizen-os-smart-tv-un55du8000fxzc/",
+            "kind": "manufacturer_specification",
+            "qualifier": "Canadian SKU UN55DU8000FXZC, without stand."
+          }
+        ]
+      },
+      "height": {
+        "value": 708.8,
+        "unit": "mm",
+        "meaning": "bottom-to-top in front reference pose",
+        "configuration": "without_stand",
+        "method": "manufacturer",
+        "uncertainty": {
+          "status": "source_unspecified",
+          "explanation": "Manufacturer publishes nominal value; tolerance and protrusion envelope are not provided in this source record."
+        },
+        "evidence": [
+          {
+            "source": "https://www.samsung.com/ca/tvs/uhd-4k-tv/du8000-55-inch-crystal-uhd-4k-tizen-os-smart-tv-un55du8000fxzc/",
+            "kind": "manufacturer_specification",
+            "qualifier": "Canadian SKU UN55DU8000FXZC, without stand."
+          }
+        ]
+      },
+      "depth": {
+        "value": 25.7,
+        "unit": "mm",
+        "meaning": "front-to-back in front reference pose",
+        "configuration": "without_stand",
+        "method": "manufacturer",
+        "uncertainty": {
+          "status": "source_unspecified",
+          "explanation": "Manufacturer publishes nominal value; tolerance and protrusion envelope are not provided in this source record."
+        },
+        "evidence": [
+          {
+            "source": "https://www.samsung.com/ca/tvs/uhd-4k-tv/du8000-55-inch-crystal-uhd-4k-tizen-os-smart-tv-un55du8000fxzc/",
+            "kind": "manufacturer_specification",
+            "qualifier": "Canadian SKU UN55DU8000FXZC, without stand."
+          }
+        ]
+      }
+    }
+  },
+  "displays": [
+    {
+      "id": "panel",
+      "topology": "planar",
+      "physical_boundary": {
+        "status": "unknown"
+      },
+      "active_area": {
+        "status": "unknown"
+      },
+      "app_safe_area": {
+        "status": "unknown"
+      },
+      "hardware_occlusions": []
+    }
+  ],
+  "joints": [],
+  "supported_poses": [
+    {
+      "name": "landscape",
+      "status": "candidate_only"
+    }
+  ],
+  "supported_motion": [
+    {
+      "name": "screen-tilt",
+      "status": "unknown"
+    }
+  ],
+  "supported_profiles": [],
+  "supports": [
+    {
+      "kind": "tabletop",
+      "status": "candidate_only",
+      "interface_id": "integrated-stand"
+    },
+    {
+      "kind": "wall_mount",
+      "status": "candidate_only",
+      "interface_id": "vesa-200x200"
+    }
+  ],
+  "model_candidates": [],
+  "provenance": [
+    {
+      "source": "https://www.samsung.com/ca/tvs/uhd-4k-tv/du8000-55-inch-crystal-uhd-4k-tizen-os-smart-tv-un55du8000fxzc/",
+      "kind": "manufacturer_specification",
+      "qualifier": "55-inch Canadian SKU with/without stand dimensions and listed 200×200 mm VESA interface; other regional SKUs may differ."
+    },
+    {
+      "source": "/home/matthalloran8/.vrooli/evidence/device-presentation-2026-10-18/model-sourcing/large-devices.json",
+      "kind": "archived_source_record",
+      "qualifier": "Active screen bounds and stand/mount scene envelopes remain separate."
+    }
+  ],
+  "qualification": "unqualified",
+  "description": "VESA interface is retained as manufacturer interface metadata; wall-load, bracket, screw, and complete mount qualification are not established."
+}

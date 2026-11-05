@@ -4,7 +4,7 @@ import (
 	"log"
 	"strings"
 
-	types "scenario-dependency-analyzer/internal/types"
+	types "github.com/vrooli/vrooli/scenarios/scenario-dependency-analyzer/api/internal/types"
 )
 
 func analyzeProposedScenario(req types.ProposedScenarioRequest) (map[string]interface{}, error) {
@@ -18,14 +18,6 @@ func analyzeProposedScenario(req types.ProposedScenarioRequest) (map[string]inte
 			"confidence":    0.9,
 			"reasoning":     "Explicitly mentioned in requirements",
 		})
-	}
-
-	claudeAnalysis, err := analyzeWithClaudeCode(req.Name, req.Description)
-	if err != nil {
-		log.Printf("Claude Code analysis failed: %v", err)
-	} else {
-		predictedResources = append(predictedResources, claudeAnalysis.PredictedResources...)
-		recommendations = append(recommendations, claudeAnalysis.Recommendations...)
 	}
 
 	qdrantMatches, err := findSimilarScenariosQdrant(req.Description, req.SimilarScenarios)

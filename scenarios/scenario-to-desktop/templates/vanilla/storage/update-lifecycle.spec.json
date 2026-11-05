@@ -1,0 +1,234 @@
+{
+  "flowId": "desktop.update-installation",
+  "domain": "desktop-update",
+  "initial": "idle",
+  "states": [
+    "idle",
+    "offered",
+    "downloading",
+    "verified",
+    "apply_pending",
+    "applying",
+    "installing",
+    "recovering",
+    "relaunched",
+    "healthy",
+    "failed"
+  ],
+  "events": [
+    "offered",
+    "downloading",
+    "verified",
+    "apply_pending",
+    "applying",
+    "installing",
+    "recovering",
+    "relaunched",
+    "healthy",
+    "failed"
+  ],
+  "terminal": [
+    "healthy",
+    "recovering",
+    "failed"
+  ],
+  "terminalPolicy": "A subsequent offer starts a new update attempt; recovery may replay a retained intent until its receipt is durable.",
+  "transitionMatrix": {
+    "idle": {
+      "offered": "offered",
+      "downloading": null,
+      "verified": null,
+      "apply_pending": null,
+      "applying": null,
+      "installing": null,
+      "recovering": "recovering",
+      "relaunched": "relaunched",
+      "healthy": null,
+      "failed": "failed"
+    },
+    "offered": {
+      "offered": "offered",
+      "downloading": "downloading",
+      "verified": "verified",
+      "apply_pending": null,
+      "applying": null,
+      "installing": null,
+      "recovering": "recovering",
+      "relaunched": "relaunched",
+      "healthy": null,
+      "failed": "failed"
+    },
+    "downloading": {
+      "offered": "offered",
+      "downloading": "downloading",
+      "verified": "verified",
+      "apply_pending": null,
+      "applying": null,
+      "installing": null,
+      "recovering": "recovering",
+      "relaunched": "relaunched",
+      "healthy": null,
+      "failed": "failed"
+    },
+    "verified": {
+      "offered": "offered",
+      "downloading": null,
+      "verified": "verified",
+      "apply_pending": "apply_pending",
+      "applying": null,
+      "installing": null,
+      "recovering": "recovering",
+      "relaunched": "relaunched",
+      "healthy": null,
+      "failed": "failed"
+    },
+    "apply_pending": {
+      "offered": null,
+      "downloading": null,
+      "verified": null,
+      "apply_pending": null,
+      "applying": "applying",
+      "installing": null,
+      "recovering": "recovering",
+      "relaunched": "relaunched",
+      "healthy": null,
+      "failed": "failed"
+    },
+    "applying": {
+      "offered": null,
+      "downloading": null,
+      "verified": null,
+      "apply_pending": null,
+      "applying": null,
+      "installing": "installing",
+      "recovering": "recovering",
+      "relaunched": "relaunched",
+      "healthy": null,
+      "failed": "failed"
+    },
+    "installing": {
+      "offered": null,
+      "downloading": null,
+      "verified": null,
+      "apply_pending": null,
+      "applying": null,
+      "installing": null,
+      "recovering": "recovering",
+      "relaunched": "relaunched",
+      "healthy": null,
+      "failed": "failed"
+    },
+    "recovering": {
+      "offered": "offered",
+      "downloading": null,
+      "verified": null,
+      "apply_pending": null,
+      "applying": null,
+      "installing": null,
+      "recovering": "recovering",
+      "relaunched": "relaunched",
+      "healthy": null,
+      "failed": "failed"
+    },
+    "relaunched": {
+      "offered": null,
+      "downloading": null,
+      "verified": null,
+      "apply_pending": null,
+      "applying": null,
+      "installing": null,
+      "recovering": null,
+      "relaunched": "relaunched",
+      "healthy": "healthy",
+      "failed": "failed"
+    },
+    "healthy": {
+      "offered": "offered",
+      "downloading": null,
+      "verified": null,
+      "apply_pending": null,
+      "applying": null,
+      "installing": null,
+      "recovering": null,
+      "relaunched": null,
+      "healthy": null,
+      "failed": "failed"
+    },
+    "failed": {
+      "offered": "offered",
+      "downloading": null,
+      "verified": null,
+      "apply_pending": null,
+      "applying": null,
+      "installing": null,
+      "recovering": "recovering",
+      "relaunched": "relaunched",
+      "healthy": null,
+      "failed": "failed"
+    }
+  },
+  "invariants": [
+    "Only a verified download can begin a new apply intent.",
+    "The apply intent and applying/installing state must persist before calling the external installer.",
+    "Repeated quit and restart requests share one applying operation; downloads cannot replace it.",
+    "A successful receipt requires a successor identity and readiness; a predecessor restart is classified as interrupted.",
+    "Interrupted installation preserves previously saved user data.",
+    "New update offers begin only after startup recovery."
+  ],
+  "traces": [
+    {
+      "name": "restart-now-or-later-quit",
+      "initial": "idle",
+      "events": [
+        "offered",
+        "downloading",
+        "verified",
+        "apply_pending",
+        "applying",
+        "installing",
+        "relaunched",
+        "healthy"
+      ]
+    },
+    {
+      "name": "interrupted-before-state-flush",
+      "initial": "idle",
+      "events": [
+        "offered",
+        "verified",
+        "recovering"
+      ]
+    },
+    {
+      "name": "interrupted-installer",
+      "initial": "idle",
+      "events": [
+        "offered",
+        "verified",
+        "apply_pending",
+        "applying",
+        "installing",
+        "recovering"
+      ]
+    },
+    {
+      "name": "persistence-failure-and-new-offer",
+      "initial": "idle",
+      "events": [
+        "offered",
+        "verified",
+        "apply_pending",
+        "failed",
+        "offered",
+        "verified",
+        "apply_pending",
+        "applying",
+        "installing",
+        "relaunched",
+        "healthy"
+      ]
+    }
+  ],
+  "formalModel": "not_adopted",
+  "conformance": "update-recovery.test.ts checks every state/event pair against production transitionUpdateState and replays traces; desktop_update_journey_test.go validates the real persisted AppImage transitions, receipts and saved data."
+}

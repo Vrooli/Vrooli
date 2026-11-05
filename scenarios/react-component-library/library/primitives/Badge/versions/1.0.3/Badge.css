@@ -1,0 +1,11 @@
+[data-rcl-badge] {
+  border: var(--badge-border);
+  border-radius: var(--radius-pill);
+  padding-block: var(--space-3xs);
+  padding-inline: var(--space-sm);
+}
+[data-rcl-badge][data-tone="neutral"] { color: var(--color-muted-foreground); }
+[data-rcl-badge][data-tone="info"] { color: var(--color-info); }
+[data-rcl-badge][data-tone="success"] { color: var(--color-success); }
+[data-rcl-badge][data-tone="warning"] { color: var(--color-warning); }
+[data-rcl-badge][data-tone="danger"] { color: var(--color-danger); }

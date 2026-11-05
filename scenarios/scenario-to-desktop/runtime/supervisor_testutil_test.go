@@ -15,11 +15,11 @@ import (
 	"testing"
 	"time"
 
-	"scenario-to-desktop-runtime/api"
-	"scenario-to-desktop-runtime/gpu"
-	"scenario-to-desktop-runtime/health"
-	"scenario-to-desktop-runtime/manifest"
-	"scenario-to-desktop-runtime/secrets"
+	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/api"
+	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/gpu"
+	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/health"
+	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/manifest"
+	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/secrets"
 )
 
 // mockSupervisorRuntime wraps a Supervisor to implement api.Runtime for testing.

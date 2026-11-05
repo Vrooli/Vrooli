@@ -4,8 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/vrooli/browser-automation-studio/internal/testutil"
 	"net/http"
-	"net/http/httptest"
 	"strings"
 	"testing"
 	"time"
@@ -39,7 +39,7 @@ func TestSeedCleanupManager_CleansUpCompletedExecution(t *testing.T) {
 
 	errCh := make(chan error, 1)
 	cleanupCalled := make(chan struct{}, 1)
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := testutil.StartHTTPServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			errCh <- fmt.Errorf("expected POST, got %s", r.Method)
 			http.Error(w, "invalid method", http.StatusMethodNotAllowed)
@@ -71,7 +71,6 @@ func TestSeedCleanupManager_CleansUpCompletedExecution(t *testing.T) {
 			"run_id":   "run-1",
 		})
 	}))
-	defer server.Close()
 
 	resolver := discovery.NewStaticResolver(server.URL)
 	client := NewClient(resolver, server.Client())
