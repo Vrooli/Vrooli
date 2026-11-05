@@ -12,6 +12,14 @@ authority. Other teams cite this canon rather than maintaining private copies.
 
 ## Status
 
+[Effort supervision](EFFORT_SUPERVISION.md) defines how a Sol supervisor sits
+above delivery orchestrators: infrastructure repair, sampled epoch audits, a daily
+trend check and weighted cost. The epoch standard and orchestrator role live only
+in the `large-effort-orchestration` skill; the supervisor method is in
+`large-effort-supervision`. The [delivery reliability program](DELIVERY_RELIABILITY.md)
+records why the loop still needs operator rescue and tracks the workstreams that
+move its rules into tools.
+
 This is the live plan-of-record for the prompt-manager agent system. The Phase 1 canon migration has landed: the old duplicated doctrine was moved here, fully absorbed skills were deleted, and the PoR coherence test now guards against skills restating this canon.
 
 The topic-flow data layer is implemented as per-member `topics.json` files and surfaced through `prompt-manager graph topics`. The schema canon lives at `TOPICS_SCHEMA.md` (promoted from drafts during the inbox-flow refactor); the human registry of every topic in active use lives at `TOPICS.md`. The inbox-flow refactor split per-member router skills into portable classifier skills + per-domain taxonomies; see `INTAKE_PIPELINE.md` and the [Active taxonomies](#active-taxonomies) registry below.
@@ -51,7 +59,7 @@ The ratchet applies to this folder too. Canon that grows to explain a capability
 
 ### The signal loop
 
-The agent system is one self-improving loop. Signals enter through team inboxes; router skills drain them into one of a small set of outcomes; evidence-backed work enters Swarm Manager for operator disposition and execution; every change feeds back into the meta-optimization audit, which keeps the loop honest.
+The agent system is one self-improving loop. Signals enter through team inboxes; router skills drain them into one of a small set of outcomes; evidence-backed work enters Swarm Manager for operator disposition (today no autonomous lane executes stewardship-team items: they wait in `backlog` until the operator moves, queues, or drops them); every change feeds back into the meta-optimization audit, which keeps the loop honest.
 
 ```mermaid
 flowchart TB

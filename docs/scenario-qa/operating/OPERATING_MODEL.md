@@ -58,16 +58,26 @@ actor_alias.work owners: none
 -->
 ```mermaid
 flowchart LR
+  %% @node AQUILACOMMER team:aquila-commercial-release
+  AQUILACOMMER[[aquila-commercial-release]]
+  %% @node AQUILAMARKET team:aquila-marketing-and-capability-maturity
+  AQUILAMARKET[[aquila-marketing-and-capability-maturity]]
+  %% @node AQUILAPRODUC team:aquila-product-presentation
+  AQUILAPRODUC[[aquila-product-presentation]]
   %% @node BACKLOG process:swarm-manager-backlog-routing
   BACKLOG([Swarm Manager backlog routing])
   %% @node BI member:bug-investigator
   BI[Bug Investigator]
+  %% @node BROWSERAUTOM team:browser-automation-studio-delivery
+  BROWSERAUTOM[[browser-automation-studio-delivery]]
   %% @node BUGINBOX topic:bug-inbox/*
   BUGINBOX[(bug-inbox/*)]
   %% @node BUGINVESTIGA topic:bug-investigation-report/*
   BUGINVESTIGA[(bug-investigation-report/*)]
   %% @node BUGREP topic:bug-investigation-report/<slug>
   BUGREP[(bug-investigation-report/<slug>)]
+  %% @node DESKTOPPACKA team:desktop-packaging-delivery
+  DESKTOPPACKA[[desktop-packaging-delivery]]
   %% @node DIR team:director-swarm
   DIR[[Director Swarm]]
   %% @node DOCSSCENARIO por:docs/scenario-qa/README.md
@@ -80,18 +90,36 @@ flowchart LR
   DOCSSCENARIO4[/docs/scenario-qa/governance/editing.md/]
   %% @node DOCSSCENARIO5 por:docs/scenario-qa/operating/OPERATING_MODEL.md
   DOCSSCENARIO5[/docs/scenario-qa/operating/OPERATING_MODEL.md/]
+  %% @node EFFORTSUPERV team:effort-supervision
+  EFFORTSUPERV[[effort-supervision]]
+  %% @node EXPERIENCEQU team:experience-quality-delivery
+  EXPERIENCEQU[[experience-quality-delivery]]
+  %% @node EXTERNALKNOW team:external-knowledge-delivery
+  EXTERNALKNOW[[external-knowledge-delivery]]
+  %% @node FLEETSTORAGE team:fleet-storage-disk-health
+  FLEETSTORAGE[[fleet-storage-disk-health]]
   %% @node GAPROUTE process:work-item-routing
   GAPROUTE([Capability work routing])
   %% @node INFRA team:infra-health
   INFRA[[Infra Health]]
+  %% @node LANDINGPAGEV team:landing-page-vps-qualification
+  LANDINGPAGEV[[landing-page-vps-qualification]]
+  %% @node MARKETINGI16 team:marketing-i16-delivery
+  MARKETINGI16[[marketing-i16-delivery]]
   %% @node META_IN team:meta-optimization
   META_IN[[Meta Optimization]]
   %% @node MKT team:marketing-crew
   MKT[[Marketing Crew]]
   %% @node MON team:monetization
   MON[[Monetization]]
+  %% @node NOOCHDELIVER team:nooch-delivery
+  NOOCHDELIVER[[nooch-delivery]]
+  %% @node NOTIFICATION team:notification-hub-delivery
+  NOTIFICATION[[notification-hub-delivery]]
   %% @node OP external:operator
   OP([Operator])
+  %% @node PERSONALPLAN team:personal-planner-delivery
+  PERSONALPLAN[[personal-planner-delivery]]
   %% @node QA member:quality-auditor
   QA[Quality Auditor]
   %% @node QUALITYAUDIT topic:quality-audit/*
@@ -100,8 +128,14 @@ flowchart LR
   QUAUD[(quality-audit/<scenario-id>/<skill-id>)]
   %% @node RB external:report-bug
   RB([report-bug skill])
+  %% @node RCLPROMPTMAN team:rcl-prompt-manager-ux-design-campaign
+  RCLPROMPTMAN[[rcl-prompt-manager-ux-design-campaign]]
   %% @node SWARM external:swarm-manager
   SWARM([Swarm Manager])
+  %% @node UNATTENDEDSE team:unattended-self-improvement
+  UNATTENDEDSE[[unattended-self-improvement]]
+  %% @node VEGAREDESIGN team:vega-redesign-delivery
+  VEGAREDESIGN[[vega-redesign-delivery]]
 
   OP --> QA
   RB --> BI
@@ -110,11 +144,28 @@ flowchart LR
   QA --> QUALITYAUDIT
   BACKLOG --> SWARM
   GAPROUTE --> META_IN
+  AQUILACOMMER --> BUGINBOX
+  AQUILAMARKET --> BUGINBOX
+  AQUILAPRODUC --> BUGINBOX
+  BROWSERAUTOM --> BUGINBOX
+  DESKTOPPACKA --> BUGINBOX
   DIR --> BUGINBOX
+  EFFORTSUPERV --> BUGINBOX
+  EXPERIENCEQU --> BUGINBOX
+  EXTERNALKNOW --> BUGINBOX
+  FLEETSTORAGE --> BUGINBOX
   INFRA --> BUGINBOX
+  LANDINGPAGEV --> BUGINBOX
   MKT --> BUGINBOX
+  MARKETINGI16 --> BUGINBOX
   META_IN --> BUGINBOX
   MON --> BUGINBOX
+  NOOCHDELIVER --> BUGINBOX
+  NOTIFICATION --> BUGINBOX
+  PERSONALPLAN --> BUGINBOX
+  RCLPROMPTMAN --> BUGINBOX
+  UNATTENDEDSE --> BUGINBOX
+  VEGAREDESIGN --> BUGINBOX
   BUGINBOX --> BI
   BUGREP --> BI
   QUAUD --> QA

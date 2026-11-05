@@ -177,6 +177,11 @@ The operating-model Topic Catalog table is a human-readable projection of this s
 
 Implemented in `path:scenarios/prompt-manager/api/memberflow/validation.go`. Run via `prompt-manager graph topics`.
 
+The `team_role_member_drift` rule checks roster parity between
+`team.json::operatingContract.members` and `relations/team-member/*.json`.
+`roles.json` is an optional catalog of role definitions, not a roster; role
+definitions may be shared and need not correspond one-to-one with members.
+
 <!-- BEGIN GENERATED: rule-catalog topic -->
 _Generated from the validation rule catalog by `prompt-manager graph rules`. Do not edit inside the markers; edit the catalog in `scenarios/prompt-manager/api/memberflow` and regenerate._
 
@@ -204,7 +209,7 @@ _Generated from the validation rule catalog by `prompt-manager graph rules`. Do 
 | `stalled_drain` | `topic` | `warning` | `runtime` | A declared intake has unrouted entries older than the team's drain threshold. | Route the declaration or runtime-state correction through the owning team |
 | `sweep_population_missing` | `topic` | `warning` | `declaration` | A sweep loop does not declare its population. | Route the declaration or runtime-state correction through the owning team |
 | `sweep_without_ledger` | `topic` | `error` | `declaration` | A sweep loop has no evidence ledger. | Route the declaration or runtime-state correction through the owning team |
-| `team_role_member_drift` | `topic` | `error` | `declaration` | A team's membership surfaces disagree: roles.json, the team contract, and the relation store must name the same members. | Route the declaration or runtime-state correction through the owning team |
+| `team_role_member_drift` | `topic` | `error` | `declaration` | A team's declared members and membership relation records disagree. | Route the declaration or runtime-state correction through the owning team |
 | `topic_key_prefix_mismatch` | `topic` | `warning` | `runtime` | A live knowledge key does not match the prefix its member declares. | Route the declaration or runtime-state correction through the owning team |
 | `topic_key_query_unavailable` | `topic` | `warning` | `runtime` | The knowledge key query failed, so prefix conformance is unknown this cycle. | Route the declaration or runtime-state correction through the owning team |
 | `unknown_taxonomy` | `topic` | `error` | `declaration` | A topic declaration names an unregistered taxonomy. | Route the declaration or runtime-state correction through the owning team |

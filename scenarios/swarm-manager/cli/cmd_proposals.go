@@ -52,13 +52,14 @@ type cliProposal struct {
 }
 
 type cliProposalSession struct {
-	ID             string             `json:"id"`
-	Title          string             `json:"title"`
-	Kind           string             `json:"kind"`
-	Status         string             `json:"status"`
-	UpdatedAt      string             `json:"updated_at"`
-	Proposals      []cliProposal      `json:"proposals,omitempty"`
-	ProposalTarget *cliProposalTarget `json:"proposal_target,omitempty"`
+	ID                  string             `json:"id"`
+	Title               string             `json:"title"`
+	Kind                string             `json:"kind"`
+	Status              string             `json:"status"`
+	UpdatedAt           string             `json:"updated_at"`
+	Proposals           []cliProposal      `json:"proposals,omitempty"`
+	ProposalTarget      *cliProposalTarget `json:"proposal_target,omitempty"`
+	DecisionTermsSHA256 map[string]string  `json:"decision_terms_sha256,omitempty"`
 }
 
 type cliProposalSessionsResponse struct {
@@ -196,9 +197,10 @@ func (a *App) cmdProposalsList(args []string) error {
 	}
 
 	type row struct {
-		SessionID string      `json:"session_id"`
-		Target    string      `json:"target"`
-		Proposal  cliProposal `json:"proposal"`
+		SessionID           string      `json:"session_id"`
+		Target              string      `json:"target"`
+		Proposal            cliProposal `json:"proposal"`
+		DecisionTermsSHA256 string      `json:"decision_terms_sha256,omitempty"`
 	}
 	rows := make([]row, 0)
 	for _, session := range sessions {
@@ -215,7 +217,7 @@ func (a *App) cmdProposalsList(args []string) error {
 			if *pendingOnly && proposal.Status != "ready" && proposal.Status != "needs_revision" {
 				continue
 			}
-			rows = append(rows, row{SessionID: session.ID, Target: target, Proposal: proposal})
+			rows = append(rows, row{SessionID: session.ID, Target: target, Proposal: proposal, DecisionTermsSHA256: session.DecisionTermsSHA256[proposal.ID]})
 		}
 	}
 
@@ -279,7 +281,7 @@ func (a *App) cmdProposalsGet(args []string) error {
 		return err
 	}
 	if *jsonOut {
-		encoded, err := json.MarshalIndent(map[string]any{"session_id": session.ID, "proposal": proposal}, "", "  ")
+		encoded, err := json.MarshalIndent(map[string]any{"session_id": session.ID, "proposal": proposal, "decision_terms_sha256": session.DecisionTermsSHA256[proposal.ID]}, "", "  ")
 		if err != nil {
 			return err
 		}
@@ -291,6 +293,9 @@ func (a *App) cmdProposalsGet(args []string) error {
 		fmt.Printf("  Target: %s/%s\n", session.ProposalTarget.Type, session.ProposalTarget.Ref)
 	}
 	fmt.Printf("  Summary: %s\n", proposal.Summary)
+	if digest := session.DecisionTermsSHA256[proposal.ID]; digest != "" {
+		fmt.Printf("  Current decision terms SHA-256: %s\n", digest)
+	}
 	for _, problem := range proposal.ValidationErrors {
 		fmt.Printf("  Validation error: %s\n", problem)
 	}

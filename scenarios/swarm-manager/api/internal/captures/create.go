@@ -14,6 +14,8 @@ import (
 	"swarm-manager/internal/apierr"
 	"swarm-manager/internal/httputil"
 	"swarm-manager/internal/idgen"
+
+	"github.com/vrooli/api-core/authn"
 )
 
 // allowedImageTypes lists Content-Types accepted for capture attachments.
@@ -26,6 +28,11 @@ var allowedImageTypes = map[string]bool{
 
 // Create creates a new capture from a multipart form (text + optional image files).
 func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
+	if _, err := authn.RequireOperation(r.Context(), "swarm-manager:write", "swarm.bookkeeping", "swarm-manager:capture/intake"); err != nil {
+		apierr.MapError(w, "[captures] authorization", apierr.Forbidden("capture intake is outside the approved bookkeeping grant"))
+		return
+	}
+
 	if err := r.ParseMultipartForm(10 << 20); err != nil {
 		apierr.MapError(w, "[captures] create", apierr.BadRequest("invalid multipart form"))
 		return

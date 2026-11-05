@@ -60,6 +60,27 @@ authoritative for everything outside `/public`.
 - Open Graph / Twitter-card preview images (`og-image.png`).
 - `robots.txt`, `sitemap.xml`, and anything else meant to be world-readable.
 
+## Target profiles
+
+A scenario declares which icon targets it ships in
+`.vrooli/service.json` (`branding.brand` + `branding.targets`) and brand-manager
+`apply` writes them. The `web-public-v1` profile is the `/public/*` PWA set under
+`ui/public/public/`:
+
+| File | Size / format | Purpose |
+|---|---|---|
+| `logo.svg` | SVG, viewBox 512 | vector mark |
+| `favicon-16.png`, `favicon-32.png` | PNG at exact size | `<link rel="icon" sizes>` |
+| `favicon-196.png` | PNG 196×196 | file only |
+| `icon-192.png`, `icon-512.png` | PNG at exact size | manifest `purpose: any` |
+| `maskable-icon-192.png`, `maskable-icon-512.png` | PNG at exact size, opaque | manifest `purpose: maskable` |
+| `apple-touch-icon.png` | PNG 180×180, opaque | `<link rel="apple-touch-icon">` |
+| `og-image.png` | PNG 1200×630, opaque | `og:image` / `twitter:image` |
+| `site.webmanifest` | JSON | manifest, icon srcs relative |
+
+The complete definition, including the `electron-v1` desktop profile, is in
+`scenarios/brand-manager/docs/concepts/BRAND-ASSET-PIPELINE.md`.
+
 ## What must never go there
 
 - Anything private or sensitive (see the security contract above).

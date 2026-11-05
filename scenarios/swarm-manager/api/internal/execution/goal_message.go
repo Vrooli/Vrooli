@@ -7,18 +7,17 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/vrooli/vrooli/packages/proto/contracts"
 	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/plan-manager/v1/shared"
 )
 
-// GoalUntilMaxChars is Agent Manager's completion-condition cap. It applies to
-// the `until` field, not to the task prompt carrying the operating contract.
-const GoalUntilMaxChars = 2048
+// GoalUntilMaxBytes is the shared Agent Manager completion-condition safety
+// ceiling. It is deliberately independent from the composed task prompt.
+const GoalUntilMaxBytes = contracts.AgentManagerMaxGoalCompletionBytes
 
-// GoalPromptMaxChars bounds the durable task prompt independently from the
-// completion condition. Agent Manager accepts a substantially larger prompt;
-// keeping this guard prevents accidental unbounded operator notes while
-// allowing adaptive mandates to carry their full operating model.
-const GoalPromptMaxChars = 16384
+// GoalPromptMaxBytes bounds the durable task prompt independently from the
+// completion condition. Both are transport safety ceilings, not writing goals.
+const GoalPromptMaxBytes = contracts.AgentManagerMaxGoalPromptBytes
 
 // GoalMessageInput carries the values the harness-goal-authoring slots need.
 type GoalMessageInput struct {
@@ -37,12 +36,12 @@ type GoalMessageInput struct {
 // GoalMessageTooLongError names the overflow so preflight can block with a count
 // instead of silently truncating.
 type GoalMessageTooLongError struct {
-	Length int
-	Limit  int
+	Bytes int
+	Limit int
 }
 
 func (e *GoalMessageTooLongError) Error() string {
-	return fmt.Sprintf("goal message is %d characters, over the %d-character limit by %d", e.Length, e.Limit, e.Length-e.Limit)
+	return fmt.Sprintf("goal prompt is %d UTF-8 bytes, over the %d-byte limit by %d", e.Bytes, e.Limit, e.Bytes-e.Limit)
 }
 
 // setpointProgramPattern matches the scenario setpoint program an adaptive
@@ -184,8 +183,8 @@ func ComposeGoalMessage(in GoalMessageInput) (string, error) {
 	fmt.Fprintf(&b, "Operator note: %s", in.OperatorNote)
 
 	message := b.String()
-	if len([]rune(message)) > GoalPromptMaxChars {
-		return "", &GoalMessageTooLongError{Length: len([]rune(message)), Limit: GoalPromptMaxChars}
+	if len(message) > GoalPromptMaxBytes {
+		return "", &GoalMessageTooLongError{Bytes: len(message), Limit: GoalPromptMaxBytes}
 	}
 	return message, nil
 }

@@ -1,6 +1,6 @@
 # Meta Optimization Operating Model
 
-> **Loop status:** paused since ~2026-06; recorded in the heartbeat control plane as `paused-manual` on 2026-07-24 (resume via `prompt-manager team heartbeat-control meta-optimization resume`). The first heartbeat after resume follows each member's `HEARTBEAT.md` resume protocol — for the skill-and-Action lane, `skill-optimizer/HEARTBEAT.md`. The experiment lane additionally requires the substrate-validity rule (`skill-optimizer` RESPONSIBILITIES §"Skill Experiments") and the registered `skill-experiment-promotion` work-routing contract, both now in place.
+> **Loop status:** disabled — `team.json` has `enabled: false`, so no member heartbeat runs. Team-filed Swarm items wait on operator decision; no lane executes them. As of 2026-10-07 the instrument (`meta-optimization-manager`) is stopped and `development-toolchain-validator` is start-failed. Re-enabling is an operator decision that sets `enabled: true`. The first heartbeat after re-enable follows each member's `HEARTBEAT.md` resume protocol — for the skill-and-Action lane, `skill-optimizer/HEARTBEAT.md`. The experiment lane additionally requires the substrate-validity rule (`skill-optimizer` RESPONSIBILITIES §"Skill Experiments") and the registered `skill-experiment-promotion` work-routing contract, both now in place.
 
 **Status:** initial contract canon. This document defines how `meta-optimization` works as a coherent system: cross-team friction intake, audits of the prompt-manager meta-layer, programmatic conversion pressure, skeptical review, and durable improvement loops.
 
@@ -72,12 +72,12 @@ Projection of each member's `topics.json::loop_kind` — where that member's loo
 | `friction-curator` | `queue` | not applicable — the unrouted inbox is the record | — |
 | `skill-optimizer` | `sweep` | `topic:skill-visited/<skill-id>`, `topic:action-visited/<action-id>` | `skill`, `action` |
 | `team-agent-optimizer` | `sweep` | `topic:team-visited/<team-id>`, `topic:agent-visited/<agent-id>` | `team`, `agent` |
-| `debt-curator` | `pending-declaration` | — | — |
-| `meta-contrarian` | `pending-declaration` | — | — |
-| `run-introspector` | `pending-declaration` | — | — |
-| `toolchain-validator` | `pending-declaration` | — | — |
+| `debt-curator` | `reactive` | not applicable — reviews the peer audit records it reads | — |
+| `meta-contrarian` | `reactive` | not applicable — reviews the team's open items and member outputs | — |
+| `run-introspector` | `sweep` | `topic:run-lesson-report/*` (self-read) | not graph-resident (a time window over recent runs) |
+| `toolchain-validator` | `reactive` | not applicable — reviews the gaps the board ranks and the self-health trend | — |
 
-`pending-declaration` rows are the honest state, not an oversight: the value is a judgment call this team owns, and the four remaining members are genuinely arguable between `sweep` and `generative`. Each raises a `loop_kind_missing` warning until declared. A member declared `sweep` without a coverage ledger is an error, so the declaration and the ledger land together.
+All seven members declare `loop_kind` (declared 2026-10-07). `run-introspector` omits `population` deliberately because recent runs are not a graph node type, so it carries a `sweep_population_missing` warning by design.
 
 ## Operating Graph
 
@@ -113,12 +113,22 @@ flowchart LR
   AGENTVIS[(agent-visited/<agent-id>)]
   %% @node AGENTVISITED topic:agent-visited/*
   AGENTVISITED[(agent-visited/*)]
+  %% @node AQUILACOMMER team:aquila-commercial-release
+  AQUILACOMMER[[aquila-commercial-release]]
+  %% @node AQUILAMARKET team:aquila-marketing-and-capability-maturity
+  AQUILAMARKET[[aquila-marketing-and-capability-maturity]]
+  %% @node AQUILAPRODUC team:aquila-product-presentation
+  AQUILAPRODUC[[aquila-product-presentation]]
+  %% @node BROWSERAUTOM team:browser-automation-studio-delivery
+  BROWSERAUTOM[[browser-automation-studio-delivery]]
   %% @node DC member:debt-curator
   DC[Debt Curator]
   %% @node DEBT topic:debt-scan/YYYY-MM-DD
   DEBT[(debt-scan/YYYY-MM-DD)]
   %% @node DEBTSCAN topic:debt-scan/*
   DEBTSCAN[(debt-scan/*)]
+  %% @node DESKTOPPACKA team:desktop-packaging-delivery
+  DESKTOPPACKA[[desktop-packaging-delivery]]
   %% @node DIR team:director-swarm
   DIR[[Director Swarm]]
   %% @node DOCSMETAOPTI por:docs/meta-optimization/README.md
@@ -133,12 +143,20 @@ flowchart LR
   DOCSMETAOPTI5[/docs/meta-optimization/operating/OPERATING_MODEL.md/]
   %% @node DOCSMETAOPTI6 por:docs/meta-optimization/operating/README.md
   DOCSMETAOPTI6[/docs/meta-optimization/operating/README.md/]
+  %% @node EFFORTSUPERV team:effort-supervision
+  EFFORTSUPERV[[effort-supervision]]
+  %% @node EXPERIENCEQU team:experience-quality-delivery
+  EXPERIENCEQU[[experience-quality-delivery]]
+  %% @node EXTERNALKNOW team:external-knowledge-delivery
+  EXTERNALKNOW[[external-knowledge-delivery]]
   %% @node FC member:friction-curator
   FC[Friction Curator]
   %% @node FHAUD topic:framework-health-audit/YYYY-MM-DD
   FHAUD[(framework-health-audit/YYYY-MM-DD)]
   %% @node FIN topic:friction-inbox/<scope>/<slug>
   FIN[(friction-inbox/<scope>/<slug>)]
+  %% @node FLEETSTORAGE team:fleet-storage-disk-health
+  FLEETSTORAGE[[fleet-storage-disk-health]]
   %% @node FPTA topic:friction-report/prompt-team-agent-storage/<YYYY-MM-DD>/<slug>
   FPTA[(friction-report/prompt-team-agent-storage/<YYYY-MM-DD>/<slug>)]
   %% @node FRAMEWORKHEA topic:framework-health-audit/*
@@ -165,6 +183,10 @@ flowchart LR
   FTRI[(friction-triage-record/<YYYY-MM-DD>)]
   %% @node INFRA team:infra-health
   INFRA[[Infra Health]]
+  %% @node LANDINGPAGEV team:landing-page-vps-qualification
+  LANDINGPAGEV[[landing-page-vps-qualification]]
+  %% @node MARKETINGI16 team:marketing-i16-delivery
+  MARKETINGI16[[marketing-i16-delivery]]
   %% @node MC member:meta-contrarian
   MC[Meta Contrarian]
   %% @node METAOPTIMIZA instrument:meta-optimization-manager
@@ -173,12 +195,20 @@ flowchart LR
   MKT[[Marketing Crew]]
   %% @node MON team:monetization
   MON[[Monetization]]
+  %% @node NOOCHDELIVER team:nooch-delivery
+  NOOCHDELIVER[[nooch-delivery]]
+  %% @node NOTIFICATION team:notification-hub-delivery
+  NOTIFICATION[[notification-hub-delivery]]
   %% @node OP external:operator
   OP([Operator])
   %% @node OWN process:owner-routing
   OWN([Owning surface routing])
+  %% @node PERSONALPLAN team:personal-planner-delivery
+  PERSONALPLAN[[personal-planner-delivery]]
   %% @node QA_IN team:scenario-qa
   QA_IN[[Scenario QA]]
+  %% @node RCLPROMPTMAN team:rcl-prompt-manager-ux-design-campaign
+  RCLPROMPTMAN[[rcl-prompt-manager-ux-design-campaign]]
   %% @node RF external:report-friction
   RF([report-friction skill])
   %% @node RI member:run-introspector
@@ -221,8 +251,10 @@ flowchart LR
   TOOLCHAINAUD[(toolchain-audit/*)]
   %% @node TV member:toolchain-validator
   TV[Toolchain Validator]
-  %% @node EFFORTSUPERV team:effort-supervision
-  EFFORTSUPERV[[effort-supervision]]
+  %% @node UNATTENDEDSE team:unattended-self-improvement
+  UNATTENDEDSE[[unattended-self-improvement]]
+  %% @node VEGAREDESIGN team:vega-redesign-delivery
+  VEGAREDESIGN[[vega-redesign-delivery]]
 
   OP --> DC
   OP --> RI
@@ -251,12 +283,28 @@ flowchart LR
   TV --> SELFHEALTHTE
   TV --> TOOLCHAINAUD
   OWN --> ACCEPT
+  AQUILACOMMER --> FRICTIONINBO
+  AQUILAMARKET --> FRICTIONINBO
+  AQUILAPRODUC --> FRICTIONINBO
+  BROWSERAUTOM --> FRICTIONINBO
+  DESKTOPPACKA --> FRICTIONINBO
   DIR --> FRICTIONINBO
   EFFORTSUPERV --> FRICTIONINBO
+  EXPERIENCEQU --> FRICTIONINBO
+  EXTERNALKNOW --> FRICTIONINBO
+  FLEETSTORAGE --> FRICTIONINBO
   INFRA --> FRICTIONINBO
+  LANDINGPAGEV --> FRICTIONINBO
   MKT --> FRICTIONINBO
+  MARKETINGI16 --> FRICTIONINBO
   MON --> FRICTIONINBO
+  NOOCHDELIVER --> FRICTIONINBO
+  NOTIFICATION --> FRICTIONINBO
+  PERSONALPLAN --> FRICTIONINBO
+  RCLPROMPTMAN --> FRICTIONINBO
   QA_IN --> FRICTIONINBO
+  UNATTENDEDSE --> FRICTIONINBO
+  VEGAREDESIGN --> FRICTIONINBO
   ACTIONAUD --> DC
   ACTIONAUD --> SO
   ACTIONVIS --> SO

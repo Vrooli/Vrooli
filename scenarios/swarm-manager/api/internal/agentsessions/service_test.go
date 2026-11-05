@@ -1561,19 +1561,22 @@ func (f *fakeBacklogBatchApplier) ApplyAgentSessionBacklogBatchImport(_ context.
 }
 
 type fakeSessionSpawner struct {
-	spawnCalls          int
-	spawnReq            agentmanager.SessionSpawnRequest
-	spawnSpec           agentactivity.Spec
-	continueRunID       string
-	continueMessage     string
-	continueSpec        agentactivity.Spec
-	stoppedRunID        string
-	stopErr             error
-	runState            agentmanager.RunState
-	events              []*agentdomainpb.RunEvent
-	eventsHasMore       bool
-	eventsAfterSequence int64
-	eventsLimit         int32
+	spawnCalls             int
+	spawnReq               agentmanager.SessionSpawnRequest
+	spawnSpec              agentactivity.Spec
+	continueRunID          string
+	continueMessage        string
+	continueIdempotencyKey string
+	continueCalls          int
+	continueErr            error
+	continueSpec           agentactivity.Spec
+	stoppedRunID           string
+	stopErr                error
+	runState               agentmanager.RunState
+	events                 []*agentdomainpb.RunEvent
+	eventsHasMore          bool
+	eventsAfterSequence    int64
+	eventsLimit            int32
 }
 
 func (f *fakeSessionSpawner) SpawnSession(ctx context.Context, req agentmanager.SessionSpawnRequest) (agentmanager.RunResult, error) {
@@ -1584,10 +1587,22 @@ func (f *fakeSessionSpawner) SpawnSession(ctx context.Context, req agentmanager.
 }
 
 func (f *fakeSessionSpawner) ContinueRun(ctx context.Context, runID string, message string) error {
+	f.continueCalls++
 	f.continueRunID = runID
 	f.continueMessage = message
 	f.continueSpec = mustSpecFromContext(ctx)
-	return nil
+	return f.continueErr
+}
+
+func (f *fakeSessionSpawner) ContinueRunWithIdempotencyKey(ctx context.Context, runID, message, key string) error {
+	f.continueCalls++
+	f.continueRunID = runID
+	f.continueMessage = message
+	f.continueIdempotencyKey = key
+	f.continueSpec = mustSpecFromContext(ctx)
+	err := f.continueErr
+	f.continueErr = nil
+	return err
 }
 
 func (f *fakeSessionSpawner) GetRunState(context.Context, string) (agentmanager.RunState, error) {

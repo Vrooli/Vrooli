@@ -29,10 +29,91 @@ make validate-package-governance
 
 Use the smallest validation surface that honestly covers your change.
 
+## Generated-output freshness
+
+Generated files are an output of a declared owner, not an independent source
+tree. A compile failure that names a missing generated type, client, selector,
+registry, or descriptor is first a freshness signal; do not hand-edit the
+generated file or infer a product defect until the owner output has been
+checked.
+
+For a governed generated package, prefer the package boundary:
+
+```bash
+vrooli package test <package>
+```
+
+Package-target tests preflight the repository-level owner's declared generation
+or generated-output-owning build lifecycle before delegating to Test Genie.
+This rule is package-kind agnostic: Proto and future context-free schema,
+selector, registry, descriptor, or runtime owners are picked up by the same
+manifest contract. Scenario-scoped build artifacts remain owned by scenario shared-
+package setup, where the requesting scenario is available; they must not gain a
+Test-Genie-specific regeneration exception.
+
+Lifecycle setup and the `vrooli scenario test` entrypoint perform the same
+repository-generated owner preflight before a consumer is built or a run is
+handed to Test Genie. A stale owner therefore fails at the shared lifecycle
+boundary, regardless of which scenario, phase, or consumer will use the
+generated output. The preflight is freshness-gated and writes diagnostics to
+stderr, so current artifacts add no regeneration work and do not corrupt
+JSON/JSONL test output.
+
+When running a focused module test directly, use the owner's verifier or
+generation command first. For protobuf consumers, the read-only check is:
+
+```bash
+cd packages/proto && make verify-committed-gen
+```
+
+If it reports drift, run the governed scoped generator (`vrooli package
+generate proto` or `go run -mod=mod ./cmd/protogen generate --changed` from
+`packages/proto`) and verify again. Never use direct `buf generate` for routine
+work: it bypasses dependency closure, output-digest repair, locking, and the
+atomic publication boundary. Record the freshness check and artifact identity
+with the focused test evidence so stale-build failures cannot be mistaken for
+behavioral regressions.
+
 ## Ordinary iteration versus certification
 
 For an ordinary fix, reproduce the defect with a focused regression first.
-Run affected package checks while editing. Then run the relevant scenario phases:
+Run affected package checks while editing. For filtered tests, retain the names
+that actually ran (`go test -v` or JSON events), not only the package's `ok` line.
+Confirm each intended regression was selected and did not skip; an anchored exact
+name can silently exclude longer test names. Correct missing coverage once;
+do not count `no tests to run`, compilation alone, or another test as that proof.
+
+For long or noisy direct package checks, retain the complete output and exit
+status in the task's evidence before printing a bounded summary. Go JSON output
+must retain package and test failure events. Read that evidence before rerunning;
+a truncated terminal response can hide the failing test name and is not proof of
+a clean run. Use the server-owned artifacts for scenario suites instead of
+reconstructing their output from a terminal excerpt.
+
+For focused browser-case diagnosis, use Workflow Health's existing
+[selected-case route](../scenarios/workflow-health/docs/operations/RUNBOOK.md)
+(`workflow-health validate start-selected`, then its returned run's `validate wait`).
+Retain its isolation evidence and request/write counters. This provider-owned
+result is not a Test Genie phase receipt; run the required full workflow phase
+before claiming that gate. Use changed inputs and a new request key for another
+iteration, rather than repeating a failed full phase for each local correction.
+
+For UI test-helper or framework-policy changes, check the affected workspace with
+`unit-health validate scenario <name> --workspace ui` before the executing unit
+phase. Without `--execution`, this existing owner checks static framework and
+renderer policy without running test commands. It can catch projection drift
+before an expensive suite, but does not prove behavior, coverage, or
+execution-dependent quality checks.
+
+During ordinary iteration, when test execution is isolated to one workspace,
+Unit Health can run only that workspace with
+`unit-health validate scenario <name> --workspace <id> --execution`. This is a
+scoped Unit Health result, not a passing Test Genie unit phase: the selector
+limits planning, analysis, execution, and evidence scope, while required-role
+governance still observes the full inventory. `--fast-test-only` omits coverage.
+Use this result to avoid rerunning unrelated workspace suites while iterating;
+run the required Test Genie unit phase before claiming the scenario gate or
+certification is satisfied. Run the relevant scenario phases:
 
 ```bash
 vrooli scenario test device-control --phases unit,programs
@@ -40,7 +121,16 @@ program-runtime library run test-genie.iterate --input 'scenario=device-control,
 ```
 
 Choose phases from affected interfaces and obligations, not merely changed file
-extensions. Add shared dependency content roots to `iterate` when they affect the
+extensions. Shared Go source or import changes can also change the module metadata
+needed by consumers using local replacements, even when the shared module's
+`go.mod` is unchanged. Include the affected scenarios' `dependencies` phase for
+that boundary; it delegates module readiness to Scenario Dependency Analyzer.
+SDA's existing `freshness --touched --json` can identify affected Go surfaces.
+Review the selected set in a shared dirty checkout. Repair confirmed drift through
+the dependency owner's governed commands, not by copying the root `go.sum`.
+See [dependency governance](package-governance.md).
+
+Add shared dependency content roots to `iterate` when they affect the
 result. Explicit phases remain required even if their cost exceeds the budget.
 With no explicit phases, `iterate` requests Test Genie's targeted/quick profile;
 the existing owner planner uses historical durations to choose that profile's
@@ -94,7 +184,10 @@ The run is owned by the test-genie server, so it survives your command being can
 - **A quiet wait announces its attachment on stderr immediately.** Its JSON stdout deliberately stays empty until the terminal snapshot. If a coding tool/session returns after that attachment receipt but before terminal JSON, the session detached; it does **not** mean the waiter exited or the run is stuck. Read `test-genie runs status --json <scenario> <run-id>` once for durable state, then follow its typed action rather than treating the attachment loss as a blocker.
 - `test-genie runs status <scenario> <run-id>` is a snapshot, not a polling loop. While pending, human output prints the same one-wait command exactly once and JSON adds a typed `nextAction` (`kind=wait`, command, timeout, `doNotPoll=true`). Terminal status omits it. The `vrooli scenario test status` proxy has the same behavior.
 - **A terminal wait is a durable run read, not a reduced status summary.** For a terminal run, `runs wait --json` and `runs show --json` must project the same run id, verdict, phase set, per-phase statuses, and durations from the canonical persisted run snapshot. This invariant must still hold after the live run retires from memory and after Test Genie restarts. Missing or corrupt historical fields are explicit degraded/UNKNOWN evidence, never zero-filled success-shaped data.
-- **Run evidence is catalogued and path-free.** New runs atomically persist a typed artifact catalog over their existing run-owned files. Consumers list/filter evidence by open kind strings (not phase names) and fetch bytes with a run-scoped opaque artifact ID; provider relative/absolute paths never cross the API boundary. Historical runs without a catalog use explicit degraded legacy discovery. Missing bytes, unsafe symlinks, cross-run IDs, and incompatible catalogs are errors, never absent evidence interpreted as PASS.
+- **Run evidence is catalogued and path-free.** New runs atomically persist a typed artifact catalog over their existing run-owned files. List/filter evidence by open kind strings (not phase names), then use the Test Genie CLI to download bytes by run-scoped opaque artifact ID; provider relative/absolute paths never cross the API boundary. Historical runs without a catalog use explicit degraded legacy discovery. Missing bytes, unsafe symlinks, cross-run IDs, and incompatible catalogs are errors, never absent evidence interpreted as PASS. The commands are `test-genie runs artifacts --scenario <scenario> <run-id>` and `test-genie runs download-artifact --scenario <scenario> <run-id> <artifact-id> --out <path>`; use the catalog's ID as-is and do not reconstruct or request its internal access path.
+- Keep detailed run payloads with Test Genie's artifact owner; commit a concise finding, source identity, and artifact/run references instead of copying raw logs, source snapshots, or duplicate patches into scenario documentation. For immutable source comparison, use Git Control Tower's bounded path estimate before capture; snapshots are metadata/digest-only by default and use a bounded retention lease. Capture only a small exact source subset when content is required.
+- **Read detailed failures from the unfiltered run artifact catalog.** A producing-phase filter can omit the run-level `findings.report`. That artifact preserves provider `NativeDetail`, including bounded Unit Health command diagnostics. `runs findings` and phase log/result artifacts are summary views; inspect the unfiltered catalog before declaring error output missing or rerunning a failed phase.
+- **Artifact metadata is not the payload.** `runs artifact` returns typed metadata and an opaque access path; download the payload with `test-genie runs download-artifact` before classifying diagnostics. A provider `nativeDetail` can be a protobuf `Any` with `type_url` and base64 `value`; decode it with the matching generated type before searching its fields. Record the payload byte count/hash. Metadata-only reads or searches of the encoded value do not establish that command details are absent.
 - **If you must bound the wait, use `--timeout=<seconds>`.** On timeout it returns `124`, the JSON snapshot still carries `recommended_next_check_seconds`, and stderr prints the exact re-invoke line. **Re-call only after that many seconds — never poll faster, never re-run immediately.**
 - `test-genie runs follow <scenario> <run-id>` is the **human** live-watch verb (a continuous, heartbeating stream). Do not use it to "wait" as an agent — a backgrounded stream re-wakes you on every heartbeat. Use `runs wait --json`.
 - Cancel ≠ abort — to actually stop a run use `vrooli scenario test abort <scenario> <run-id>`.

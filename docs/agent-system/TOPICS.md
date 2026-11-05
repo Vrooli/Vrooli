@@ -123,6 +123,12 @@ Contrarian topics are work-item-feedback surfaces, not a global operator inbox. 
 
 Per team: the topics that team currently produces and drains, with first-principles observations on gaps. "Current state" is derived directly from each member's `topics.json`. "Observations" are draft notes; resolution is workshop-pending unless flagged as a structural error.
 
+### effort-supervision
+
+The `effort-supervisor` writes `supervision-assessment/*` as short links to its
+daily-check and audit results. Goal homes stay the ledger; the topic supports
+continuity only.
+
 ### director-swarm
 
 **Mission:** keep Vrooli's initiative portfolio flowing through swarm-manager and surface outcome-driven strategy. Director teams consume Swarm Manager work (not topics) and produce prep artifacts for downstream consumption.

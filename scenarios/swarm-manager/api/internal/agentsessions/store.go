@@ -10,6 +10,7 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"reflect"
 	"sort"
 	"strings"
 	"sync"
@@ -17,6 +18,7 @@ import (
 	"swarm-manager/internal/storage"
 
 	"github.com/vrooli/api-core/filerouting"
+	"github.com/vrooli/api-core/operatordecision"
 	corestorage "github.com/vrooli/api-core/storage"
 )
 
@@ -107,6 +109,46 @@ type Store interface {
 	ListArtifactsByEntity(artifactType ArtifactType, entityRef string) ([]Artifact, error)
 	SaveAttachment(sessionID string, attachment Attachment, reader io.Reader) error
 	AttachmentPath(sessionID string, attachmentID string) (string, Attachment, error)
+}
+
+// ProposalDecisionPageStore is the owner-scoped scan and atomic receipt seam
+// used by the proposal publisher. It is optional on Store so unrelated session
+// test stores and adapters do not need a new generic pagination API.
+type ProposalDecisionPageStore interface {
+	ListProposalDecisionPage(after ProposalDecisionCursor, limit int) (ProposalDecisionPage, error)
+	UpdateProposalDecisionPublication(sessionID, proposalID, expectedEventID string, next ProposalDecisionPublication) (bool, error)
+}
+
+// LegacyProposalDecisionGenerationStore atomically preserves a legacy marker
+// while freezing one explicit new decision request for unchanged current terms.
+type LegacyProposalDecisionGenerationStore interface {
+	BeginLegacyProposalDecisionGeneration(sessionID, proposalID, expectedTermsSHA256 string, next ProposalDecisionPublication) (bool, error)
+}
+
+type ProposalDecisionCursor struct {
+	SessionID  string
+	ProposalID string
+}
+
+type ProposalDecisionCandidate struct {
+	SessionID string
+	Proposal  Proposal
+}
+
+// ProposalDecisionPageIssue describes one proposal record that could not be
+// trusted for reconciliation. The file remains in place; the owner can advance
+// over it while making the unresolved record visible to operators.
+type ProposalDecisionPageIssue struct {
+	SessionID    string
+	ProposalFile string
+	Reason       string
+}
+
+type ProposalDecisionPage struct {
+	Candidates []ProposalDecisionCandidate
+	Issues     []ProposalDecisionPageIssue
+	Next       ProposalDecisionCursor
+	HasMore    bool
 }
 
 // ContextStore can derive a request-scoped store from the active routed
@@ -316,6 +358,15 @@ func (s *FileStore) AppendMessage(sessionID string, message Message) error {
 	if err != nil {
 		return err
 	}
+	for _, existing := range session.Messages {
+		if existing.ID != message.ID {
+			continue
+		}
+		if reflect.DeepEqual(existing, message) {
+			return nil
+		}
+		return validationError("message id already exists with different content")
+	}
 	if err := appendJSONL(filepath.Join(s.sessionDir(session.ID), messagesFileName), message); err != nil {
 		return err
 	}
@@ -338,7 +389,57 @@ func (s *FileStore) SaveProposal(sessionID string, proposal Proposal) error {
 	if err != nil {
 		return err
 	}
+	proposal.ID, err = safeProposalID(proposal.ID)
+	if err != nil {
+		return err
+	}
 	path := filepath.Join(s.sessionDir(session.ID), proposalsDirName, proposal.ID+".json")
+	var existing Proposal
+	exists, err := storage.ReadJSON(path, &existing)
+	if err != nil {
+		return err
+	}
+	if exists {
+		switch {
+		case existing.DecisionPublication != nil && proposal.DecisionPublication == nil:
+			proposal.DecisionPublication = existing.DecisionPublication
+		case existing.DecisionPublication != nil && proposal.DecisionPublication != nil:
+			if existing.DecisionPublication.State == ProposalDecisionPublicationLegacyUnresolved {
+				if proposal.DecisionPublication.State != ProposalDecisionPublicationLegacyUnresolved || proposal.DecisionPublication.EventID != "" || proposal.DecisionPublication.Event.Source != "" {
+					return validationError("legacy decision publication state is immutable")
+				}
+				proposal.DecisionPublication = existing.DecisionPublication
+				break
+			}
+			if existing.DecisionPublication.EventID != proposal.DecisionPublication.EventID || operatordecision.EventID(existing.DecisionPublication.Event) != existing.DecisionPublication.EventID || operatordecision.EventID(proposal.DecisionPublication.Event) != existing.DecisionPublication.EventID {
+				return validationError("decision publication snapshot is immutable")
+			}
+			// A status/decision write may have read before a publication receipt
+			// landed. Keep the newest owner receipt instead of replacing it with
+			// the caller's stale copy.
+			proposal.DecisionPublication = existing.DecisionPublication
+		case existing.DecisionPublication == nil && proposal.DecisionPublication != nil:
+			return validationError("decision publication snapshot cannot be added to an existing proposal")
+		}
+		if existing.DecisionPublication != nil && existing.DecisionPublication.DecisionTermsSHA256 != "" {
+			termsDigest, digestErr := proposalDecisionTermsSHA256(proposal)
+			if digestErr != nil {
+				return digestErr
+			}
+			if termsDigest != existing.DecisionPublication.DecisionTermsSHA256 {
+				return validationError("proposal facts bound to the active decision request are immutable")
+			}
+		}
+	}
+	if existing.PreviousDecisionPublication != nil {
+		if proposal.PreviousDecisionPublication == nil {
+			proposal.PreviousDecisionPublication = existing.PreviousDecisionPublication
+		} else if !reflect.DeepEqual(proposal.PreviousDecisionPublication, existing.PreviousDecisionPublication) {
+			return validationError("previous decision publication history is immutable")
+		}
+	} else if proposal.PreviousDecisionPublication != nil {
+		return validationError("previous decision publication history can only be added by the legacy generation owner operation")
+	}
 	if err := storage.WriteJSONAtomic(path, proposal); err != nil {
 		return err
 	}
@@ -348,6 +449,219 @@ func (s *FileStore) SaveProposal(sessionID string, proposal Proposal) error {
 		session.Status = StatusProposalReady
 	}
 	return s.saveSessionLocked(session)
+}
+
+func (s *FileStore) ListProposalDecisionPage(after ProposalDecisionCursor, limit int) (ProposalDecisionPage, error) {
+	if err := s.errUnroutedStore(); err != nil {
+		return ProposalDecisionPage{}, err
+	}
+	if limit <= 0 {
+		limit = proposalDecisionPageSize
+	} else if limit > proposalDecisionPageSize {
+		limit = proposalDecisionPageSize
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	entries, err := os.ReadDir(s.root)
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return ProposalDecisionPage{}, nil
+		}
+		return ProposalDecisionPage{}, err
+	}
+	page := ProposalDecisionPage{Candidates: make([]ProposalDecisionCandidate, 0, limit)}
+	scanned := 0
+	for _, sessionEntry := range entries { // os.ReadDir returns lexical order.
+		if !sessionEntry.IsDir() || sessionEntry.Name() < after.SessionID {
+			continue
+		}
+		if _, idErr := safeSessionID(sessionEntry.Name()); idErr != nil {
+			continue
+		}
+		proposalEntries, readErr := os.ReadDir(filepath.Join(s.root, sessionEntry.Name(), proposalsDirName))
+		if readErr != nil && !errors.Is(readErr, os.ErrNotExist) {
+			return ProposalDecisionPage{}, readErr
+		}
+		for _, proposalEntry := range proposalEntries {
+			if proposalEntry.IsDir() || filepath.Ext(proposalEntry.Name()) != ".json" {
+				continue
+			}
+			proposalID := strings.TrimSuffix(proposalEntry.Name(), ".json")
+			if sessionEntry.Name() == after.SessionID && proposalID <= after.ProposalID {
+				continue
+			}
+			if scanned == limit {
+				page.HasMore = true
+				return page, nil
+			}
+			scanned++
+			page.Next = ProposalDecisionCursor{SessionID: sessionEntry.Name(), ProposalID: proposalID}
+			if _, idErr := safeProposalID(proposalID); idErr != nil {
+				page.Issues = append(page.Issues, ProposalDecisionPageIssue{SessionID: sessionEntry.Name(), ProposalFile: proposalEntry.Name(), Reason: "invalid_proposal_id"})
+				continue
+			}
+			var proposal Proposal
+			exists, readErr := storage.ReadJSON(filepath.Join(s.root, sessionEntry.Name(), proposalsDirName, proposalEntry.Name()), &proposal)
+			if readErr != nil {
+				page.Issues = append(page.Issues, ProposalDecisionPageIssue{SessionID: sessionEntry.Name(), ProposalFile: proposalEntry.Name(), Reason: "proposal_unreadable"})
+				continue
+			}
+			if !exists {
+				page.Issues = append(page.Issues, ProposalDecisionPageIssue{SessionID: sessionEntry.Name(), ProposalFile: proposalEntry.Name(), Reason: "proposal_disappeared_during_read"})
+				continue
+			}
+			if proposal.ID != proposalID {
+				page.Issues = append(page.Issues, ProposalDecisionPageIssue{SessionID: sessionEntry.Name(), ProposalFile: proposalEntry.Name(), Reason: "proposal_id_path_mismatch"})
+				continue
+			}
+			candidate := ProposalDecisionCandidate{SessionID: sessionEntry.Name(), Proposal: proposal}
+			page.Candidates = append(page.Candidates, candidate)
+		}
+	}
+	return page, nil
+}
+
+// BeginLegacyProposalDecisionGeneration atomically preserves the unresolved
+// historical marker and installs a new immutable event only while the exact
+// current proposal terms still match the caller's digest.
+func (s *FileStore) BeginLegacyProposalDecisionGeneration(sessionID, proposalID, expectedTermsSHA256 string, next ProposalDecisionPublication) (bool, error) {
+	if err := s.errUnroutedStore(); err != nil {
+		return false, err
+	}
+	safeSession, err := safeSessionID(sessionID)
+	if err != nil {
+		return false, err
+	}
+	safeProposal, err := safeProposalID(proposalID)
+	if err != nil {
+		return false, err
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	path := filepath.Join(s.sessionDir(safeSession), proposalsDirName, safeProposal+".json")
+	var proposal Proposal
+	exists, err := storage.ReadJSON(path, &proposal)
+	if err != nil {
+		return false, err
+	}
+	if !exists {
+		return false, nil
+	}
+	if proposal.ID != safeProposal {
+		return false, validationError("proposal file id does not match its path")
+	}
+	if !eligibleProposalDecision(proposal) || len(proposal.Decisions) != 0 || proposal.PreviousDecisionPublication != nil || proposal.DecisionPublication == nil || proposal.DecisionPublication.State != ProposalDecisionPublicationLegacyUnresolved {
+		return false, nil
+	}
+	currentDigest, err := proposalDecisionTermsSHA256(proposal)
+	if err != nil {
+		return false, err
+	}
+	if !strings.EqualFold(strings.TrimSpace(expectedTermsSHA256), currentDigest) {
+		return false, nil
+	}
+	termsDigest, err := proposalDecisionTermsSHA256(proposal)
+	if err != nil {
+		return false, err
+	}
+	if !strings.EqualFold(strings.TrimSpace(next.DecisionTermsSHA256), termsDigest) {
+		return false, validationError("new legacy decision generation terms binding does not match the current proposal")
+	}
+	correlation, correlationOK := next.Event.Payload["correlation"].(map[string]any)
+	if next.Version != 1 || next.State != ProposalDecisionPublicationPending || next.EventID == "" ||
+		next.Event.Source != ProposalDecisionSource || next.Event.EventType != ProposalDecisionEventType || operatordecision.EventID(next.Event) != next.EventID || !correlationOK ||
+		correlation["session_id"] != safeSession || correlation["proposal_id"] != safeProposal || correlation["subject_ref"] != safeSession+"/"+safeProposal || correlation["subject_kind"] != AttemptSubjectProposal {
+		return false, validationError("new legacy decision generation is incomplete")
+	}
+	if err := proposal.Validate(); err != nil {
+		return false, err
+	}
+	prior := *proposal.DecisionPublication
+	proposal.PreviousDecisionPublication = &prior
+	proposal.DecisionPublication = &next
+	if err := proposal.Validate(); err != nil {
+		return false, err
+	}
+	if err := storage.WriteJSONAtomic(path, proposal); err != nil {
+		return false, err
+	}
+	s.recordWrite()
+	return true, nil
+}
+
+// UpdateProposalDecisionPublication changes only publication metadata while
+// holding the same owner mutex as proposal decisions. An empty expected ID
+// means mark a legacy eligible row unresolved; otherwise the exact frozen
+// event generation must still be current.
+func (s *FileStore) UpdateProposalDecisionPublication(sessionID, proposalID, expectedEventID string, next ProposalDecisionPublication) (bool, error) {
+	if err := s.errUnroutedStore(); err != nil {
+		return false, err
+	}
+	safeSession, err := safeSessionID(sessionID)
+	if err != nil {
+		return false, err
+	}
+	safeProposal, err := safeProposalID(proposalID)
+	if err != nil {
+		return false, err
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	path := filepath.Join(s.sessionDir(safeSession), proposalsDirName, safeProposal+".json")
+	var proposal Proposal
+	exists, err := storage.ReadJSON(path, &proposal)
+	if err != nil {
+		return false, err
+	}
+	if !exists {
+		return false, nil
+	}
+	if proposal.ID != safeProposal {
+		return false, validationError("proposal file id does not match its path")
+	}
+	if expectedEventID == "" {
+		if !eligibleProposalDecision(proposal) {
+			return false, nil
+		}
+		if proposal.DecisionPublication != nil {
+			return false, nil
+		}
+		if next.State != ProposalDecisionPublicationLegacyUnresolved {
+			return false, validationError("missing snapshot can only be marked legacy unresolved")
+		}
+	} else if proposal.DecisionPublication == nil || proposal.DecisionPublication.EventID != expectedEventID || proposal.DecisionPublication.State == ProposalDecisionPublicationLegacyUnresolved {
+		return false, nil
+	} else {
+		current := proposal.DecisionPublication
+		if next.EventID != current.EventID || operatordecision.EventID(next.Event) != current.EventID || operatordecision.EventID(current.Event) != current.EventID {
+			return false, validationError("decision publication event snapshot is immutable")
+		}
+		if next.DecisionTermsSHA256 != current.DecisionTermsSHA256 {
+			return false, validationError("decision publication terms binding is immutable")
+		}
+		// Attempts and failures may only be recorded for a proposal that is
+		// still pending human review. A successful publish receipt may land
+		// after a concurrent decision; updating this nested metadata preserves
+		// both that decision and the transport result.
+		if next.State != ProposalDecisionPublicationPublished && !eligibleProposalDecision(proposal) {
+			return false, nil
+		}
+		if current.State == ProposalDecisionPublicationPublished && next.State != ProposalDecisionPublicationPublished {
+			return false, nil
+		}
+		if next.Attempts < current.Attempts {
+			return false, nil
+		}
+	}
+	proposal.DecisionPublication = &next
+	if err := storage.WriteJSONAtomic(path, proposal); err != nil {
+		return false, err
+	}
+	s.recordWrite()
+	return true, nil
 }
 
 func (s *FileStore) ListArtifacts(sessionID string) ([]Artifact, error) {
@@ -616,6 +930,18 @@ func safeAttachmentID(attachmentID string) (string, error) {
 		return "", validationError("attachment_id is invalid")
 	}
 	return trimmed, nil
+}
+
+func safeProposalID(proposalID string) (string, error) {
+	trimmed := strings.TrimSpace(proposalID)
+	if trimmed == "" || trimmed == "." || trimmed == ".." || strings.Contains(trimmed, "/") || strings.Contains(trimmed, "\\") || filepath.Clean(trimmed) != trimmed {
+		return "", validationError("proposal_id is invalid")
+	}
+	return trimmed, nil
+}
+
+func eligibleProposalDecision(proposal Proposal) bool {
+	return proposal.Kind == ProposalMutationList && proposal.Status == ProposalStatusReady && !proposal.NeedsRevision && proposal.Target != nil
 }
 
 func sanitizeAttachmentFilename(name string) string {

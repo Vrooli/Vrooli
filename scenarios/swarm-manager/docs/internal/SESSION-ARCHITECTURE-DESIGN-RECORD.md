@@ -4,6 +4,11 @@
 > skill rework.** It is required reading for anyone executing that work. It is the session-side
 > sibling of [`CAPTURE-INTAKE-DESIGN-RECORD.md`](./CAPTURE-INTAKE-DESIGN-RECORD.md), and it applies
 > that record's thesis to the conversational half of intake.
+>
+> **Historical design record, not current-state documentation.** Section 4 records the 2026-08-11
+> baseline and contains findings that were subsequently fixed. For current behavior, read
+> [`AGENT-SESSIONS.md`](./AGENT-SESSIONS.md), especially “Prompt Construction”; the kind skill is
+> now inlined from Prompt Manager's cache when available, with an explicit skill-read fallback.
 
 - **Scope**: agent sessions · session kinds · prompt construction · startup briefs · starter prompts
 - **Dated**: 2026-08-11
@@ -119,7 +124,10 @@ the agent reads before it thinks.
 
 ---
 
-## 4. Current state
+## 4. Historical baseline at the 2026-08-11 design review
+
+The following diagram and findings describe the state before the implementation in §7. They are
+preserved to explain the design decisions; do not use them as a description of current behavior.
 
 ```mermaid
 flowchart TD

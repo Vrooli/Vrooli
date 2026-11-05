@@ -8,7 +8,7 @@ The current document adopts the generic team operating-model shape from `path:do
 Durable corpus belongs to the Source Ledger scope team:marketing-crew. Members file each actionable finding once through the unified Swarm Manager work feed; operator disposition is read from that same work item.
 **Revised after capability consolidation.** The roster collapsed from six members to three, and roughly half the former topic families moved into the `content-desk` scenario as queryable state. The method is recorded in `prompt-manager skill read team-capability-consolidation`. Topic families marked `future` are target-state surfaces and are not live declarations.
 
-The team is currently **paused** (`enabled: false`) pending completion of `content-desk` and `asset-studio`.
+The team is **disabled** (`enabled: false` in `team.json`); no member heartbeat runs. Its blockers are tracked in §"Current Implementation Gaps": the `content-desk` instrument is not kept running (it is stopped as of 2026-10-07), the I16 Content Desk overhaul will replace the Review/Plan surfaces the member contracts cite, and no wake gate matches the team's real trigger. `content-desk` is the team's operating surface for campaigns, artifact slots, drafts, claims, and publish history; `asset-studio` is substantially built. The single marketing read address now exists (`content-desk.board-read`; see § Instrument). Other open gaps are tracked in §"Current Implementation Gaps", including image/video post-type skills still `v0`.
 
 ## Mission
 
@@ -40,7 +40,7 @@ Three capabilities left the team contract and became scenario state. This is the
 |---|---|---|
 | Campaign records, artifact slots, drafts, claims, review verdicts, publish history, coverage, subject familiarity | `content-desk` | ~13 topic families and five `.jsonl` files in the team's shared store |
 | Character / scene / product identities, prompt specs, render provenance, produced assets, AI-UGC disclosure state | `asset-studio` | `path:docs/marketing/catalogs/rich-media/` JSON, hand-composed at production time |
-| Account activation, warming, cadence, credentials, posting execution | `social-media-scheduler` (not yet modernized) | unowned; deferred in every prior revision |
+| Platform identities, warming, and the release queue | `channel-manager` (`channel-manager channel`; approved drafts reach it through `content-desk artifacts submit-release`) | unowned; deferred in every prior revision |
 
 The rule that decided each row: **evidence and judgment stay knowledge topics; operational state with a lifecycle becomes scenario data.** A surface with a status, a gate, or a query worth running is modelled badly by an append-only topic family.
 
@@ -62,6 +62,23 @@ Marketing has five loops:
 The loops are sequential when a full campaign flows through the system, but members may also operate independently when their trigger fires. The producer can gather evidence without an open campaign; the brand-manager can promote or retire stale typed observations without changing a campaign.
 
 **The learning loop has never had data.** The publish history it is meant to consume is empty. It becomes real with the first published artifact recorded in `content-desk`, not before.
+
+## Instrument
+
+Content Desk is the team's instrument. It owns campaign, draft, claim, review, publish-history, and capability state, and it computes the current picture from that state. This document and its siblings hold what an instrument cannot compute — voice, audience, channel, brand, and campaign plans, and the rules for acting on them. **Do not copy a changing status, count, or next action into canon; read it from the instrument.**
+
+The single read address is the `content-desk.board-read` declared program. One call returns current campaign and draft work, the deterministic next action per draft, capability readiness gaps, offer release readiness for the active campaigns' scenarios, and the diff against an optional caller-supplied baseline.
+
+```bash
+program-runtime library run content-desk.board-read
+program-runtime library run content-desk.board-read --input 'baseline=<prior snapshot>'
+```
+
+The program's assumptions, invariants, draft-status to next-action mapping, and output fields are declared in `scenarios/content-desk/.vrooli/program-runtime/board-read.json` and summarized for agents in `scenarios/content-desk/skills/content-desk/SKILL.md` §"Single read address". That skill is the applied detail; this section is the routing rule.
+
+A qualified example (live read on 2026-09-12) returned `status=ok`, `campaign_total=21` all `active`, `draft_total=30` with `draft_status_counts={drafted:10, requested:20}`, `capability_read_status=read`, `offer_read_status=read` with `ladder_entries=14` and one launch target `web-console` rank 1 `TRIGGER_MET` (`readiness_goal_reported=false`, so the goal state stays unknown), and `changes_status=no_baseline` because no baseline was supplied. The `next_actions` list named one action per non-terminal draft.
+
+Read the boundaries honestly: a missing baseline reads `no_baseline`, never "unchanged"; an unavailable capability or offer read degrades the board to `partial` with an explicit error, never a fabricated count or goal state; an unknown draft status is reported as drift, never given an invented next action. The caller retains the returned `campaign_snapshot` and `draft_snapshot` and supplies them as the next run's `baseline`.
 
 ## Operating Graph
 
@@ -285,7 +302,7 @@ Primary responsibilities:
 - detect voice, positioning, campaign, or narrative drift from recent drafts and published artifacts;
 - prevent campaign sprawl when signal is weak.
 
-Temporary: `channel-update` is held here, inherited from the retired publisher role. It moves when account operations gain a scheduler-side home.
+Temporary: `channel-update` is held here, inherited from the retired publisher role. Account operations now have a home in `channel-manager`; moving `channel-update` there is open.
 
 ### Marketing Contrarian
 
@@ -322,12 +339,12 @@ If a marketing-craft observation family grows for multiple heartbeats without pr
 
 ## Current Implementation Gaps
 
-1. **The team is paused** via `enabled: false` in `scenarios/prompt-manager/store/teams/marketing-crew/team.json`. `content-desk` and `asset-studio` are under development. The roster and this document are migrated ahead of them deliberately — roster re-derivation needs the scenarios' domain maps and gates, not their code. *Target state: the team is enabled once step 9 of Adoption / Validation passes.*
-2. **No paired tool skill exists yet.** The producer's drafting mechanics are intentionally unversed in specific commands until `content-desk`'s CLI surface settles. *Target state: an `x-content-desk` tool skill authored through `team-tool-mapping`, cited in the producer's available skills.*
-3. **No state import has run.** The team's shared `.jsonl` files remain the only copy of publish, coverage, mention, and draft state, and must not be deleted before `content-desk`'s importer has consumed them. *Target state: import complete with counts verified per source file, and the shared files retired.*
+1. **The team is disabled.** `scenarios/prompt-manager/store/teams/marketing-crew/team.json` has `enabled: false`. Re-enable blockers: the `content-desk` instrument is not kept running (stopped as of 2026-10-07) and heartbeats have no availability gate; the I16 Content Desk overhaul will replace the Review/Plan surfaces and commands the member contracts cite; no wake gate matches the team's real trigger (operator review in `content-desk`); and the contrarian's model routing failed most runs. *Target state: `content-desk` kept running by lifecycle autostart, I16 Review/Plan landed, and an event-driven wake, then `enabled: true` by operator decision.*
+2. **The `content-desk` usage skill is not cited by the members.** `scenarios/content-desk/skills/content-desk/SKILL.md` exists, but the producer's `RESPONSIBILITIES.md` still lists commands instead of pointing at it. *Target state: member files cite the `content-desk` skill for instrument procedure.*
+3. **No verified state import is recorded.** The team's shared `.jsonl` files are no longer in the team store; they were moved to `~/.vrooli/data/vrooli/prompt-manager/decision-retirement-archive-20260808/teams/marketing-crew/shared/`. No record shows that `content-desk`'s importer consumed them with verified counts. *Target state: import counts verified per archived source file, or the archive explicitly declared historical-only.*
 4. **`research-inbox/*` is no longer declared by any member.** Raw signal now reaches the producer through direct member context, so the signal inbox is not a backed trigger. *Target state: either a declared intake family with the signal inbox listed in the producer's `external_producers`, or an explicit work item that direct context is sufficient.*
 5. **the content-desk approval record is no longer declared.** It tracked publisher follow-through on accepted publish work items. *Target state: retired permanently — with `content-publish-proposal` gone, its purpose is served by the approval record in `content-desk`.*
-6. **Account operations remain unowned.** Activation, warming, cadence, persona accounts, and credentials are deferred to `social-media-scheduler`, which is still pre-template. *Target state: those capabilities live in a modernized scheduler, and `channel-update` moves there from brand-manager.*
+6. **Account operations have an owner the team does not yet use.** `channel-manager` manages platform identities and manual warming actions, and approved drafts reach its durable release queue through `content-desk artifacts submit-release`. `social-media-scheduler` no longer exists. *Target state: `channel-update` moves from brand-manager to `channel-manager`.*
 7. **Publishing is manual.** An approved draft is posted by the operator and recorded in `content-desk`. *Target state: manual remains correct at current volume — one brand account, no persona accounts — and is revisited only when the scheduler exists.*
 8. **Ten of twelve post types are v0.** They have strategic canon and no paired skill, so `content-desk` will refuse to approve drafts of those types. *Target state: at least one image or video type activated to v1, giving `asset-studio` a consumer.*
 9. **The cross-team route to monetization is undeclared.** The producer writes `monetization-benchmark-adjacent-record/*` but no runtime relationship carries it to the monetization team. *Target state: a declared cross-team relationship, or an accepted work item that the monetization team polls the family itself.*

@@ -94,55 +94,56 @@ import (
 )
 
 type Server struct {
-	router              *mux.Router
-	agentSvc            *agentmanager.AgentService
-	agentActivitySvc    *agentactivity.Service
-	agentSessionSvc     *agentsessions.Service
-	agentSessionStore   agentsessions.Store
-	transitionRegistry  transitions.Registry
-	attemptDecisions    *attempt.Router
-	transitionRunner    *transitionrunner.Runner
-	transitionSweeper   *transitionrunner.Sweeper
-	transitionSweepStop chan struct{}
-	settingsStore       *settings.Store
-	integrationStatus   *integrationstatus.Provider
-	backlogHandler      *backlog.Handler
-	nextActions         *nextActionProjectionCache
-	capturesHandler     *captures.Handler
-	recordsService      *records.Service
-	recordsHandler      *records.Handler
-	recordsStore        records.Store
-	scenariosHandler    *scenarios.Handler
-	milestoneAssigner   backlog.ItemAttacher
-	goalService         *goals.Service
-	goalsHandler        *goals.Handler
-	overviewSvc         *overview.Service
-	executionSvc        *execution.Service
-	executionHandler    *execution.Handler
-	reviewSvc           *review.Service
-	reviewHandler       *review.Handler
-	executionStopChan   chan struct{}
-	graphBroker         *graph.Broker
-	graphDispatch       *graph.Dispatch
-	graphProjection     *graph.ProjectionService
-	queueHandler        *queue.Handler
-	scenarioRoot        string
-	dataRoot            string
-	cacheRoot           string
-	fileRoots           *filerouting.RoutedRoots
-	promptClient        promptmanager.Client
-	eventDB             *database.RoutedDB
-	emitter             *eventlog.Emitter
-	statsEngine         *stats.Engine
-	eventRepo           *eventlog.SQLiteRepository
-	aiSearchSvc         *aisearch.Service
-	aiSearchReconciler  *aisearch.Reconciler
-	aiSearchSyncLoop    *aisearch.SyncLoop
-	aiSearchStopChan    chan struct{}
-	autoFilerSweeper    *autofiler.Sweeper
-	autoFilerStopChan   chan struct{}
-	audioToolsResolver  audiotools.URLResolver
-	opsAggregator       *operations.Aggregator
+	router               *mux.Router
+	agentSvc             *agentmanager.AgentService
+	agentActivitySvc     *agentactivity.Service
+	agentSessionSvc      *agentsessions.Service
+	agentSessionStore    agentsessions.Store
+	transitionRegistry   transitions.Registry
+	attemptDecisions     *attempt.Router
+	transitionRunner     *transitionrunner.Runner
+	transitionSweeper    *transitionrunner.Sweeper
+	transitionSweepStop  chan struct{}
+	proposalDecisionStop chan struct{}
+	settingsStore        *settings.Store
+	integrationStatus    *integrationstatus.Provider
+	backlogHandler       *backlog.Handler
+	nextActions          *nextActionProjectionCache
+	capturesHandler      *captures.Handler
+	recordsService       *records.Service
+	recordsHandler       *records.Handler
+	recordsStore         records.Store
+	scenariosHandler     *scenarios.Handler
+	milestoneAssigner    backlog.ItemAttacher
+	goalService          *goals.Service
+	goalsHandler         *goals.Handler
+	overviewSvc          *overview.Service
+	executionSvc         *execution.Service
+	executionHandler     *execution.Handler
+	reviewSvc            *review.Service
+	reviewHandler        *review.Handler
+	executionStopChan    chan struct{}
+	graphBroker          *graph.Broker
+	graphDispatch        *graph.Dispatch
+	graphProjection      *graph.ProjectionService
+	queueHandler         *queue.Handler
+	scenarioRoot         string
+	dataRoot             string
+	cacheRoot            string
+	fileRoots            *filerouting.RoutedRoots
+	promptClient         promptmanager.Client
+	eventDB              *database.RoutedDB
+	emitter              *eventlog.Emitter
+	statsEngine          *stats.Engine
+	eventRepo            *eventlog.SQLiteRepository
+	aiSearchSvc          *aisearch.Service
+	aiSearchReconciler   *aisearch.Reconciler
+	aiSearchSyncLoop     *aisearch.SyncLoop
+	aiSearchStopChan     chan struct{}
+	autoFilerSweeper     *autofiler.Sweeper
+	autoFilerStopChan    chan struct{}
+	audioToolsResolver   audiotools.URLResolver
+	opsAggregator        *operations.Aggregator
 
 	// Audio ports — all backed by audio-tools. Mirrors web-console's
 	// audio integration: the UI talks same-origin to swarm-manager's own
@@ -364,18 +365,19 @@ func newServerWithRoot(scenarioRoot string, promptClient promptmanager.Client) *
 	})
 
 	srv := &Server{
-		router:              mux.NewRouter(),
-		agentSvc:            agentSvc,
-		executionStopChan:   make(chan struct{}),
-		aiSearchStopChan:    make(chan struct{}),
-		autoFilerStopChan:   make(chan struct{}),
-		transitionSweepStop: make(chan struct{}),
-		scenarioRoot:        scenarioRoot,
-		dataRoot:            dataRoot,
-		cacheRoot:           cacheRoot,
-		fileRoots:           filerouting.New(primaryPaths),
-		promptClient:        promptClient,
-		audioToolsResolver:  resolveAudioToolsResolver(),
+		router:               mux.NewRouter(),
+		agentSvc:             agentSvc,
+		executionStopChan:    make(chan struct{}),
+		aiSearchStopChan:     make(chan struct{}),
+		autoFilerStopChan:    make(chan struct{}),
+		transitionSweepStop:  make(chan struct{}),
+		proposalDecisionStop: make(chan struct{}),
+		scenarioRoot:         scenarioRoot,
+		dataRoot:             dataRoot,
+		cacheRoot:            cacheRoot,
+		fileRoots:            filerouting.New(primaryPaths),
+		promptClient:         promptClient,
+		audioToolsResolver:   resolveAudioToolsResolver(),
 	}
 
 	// Wire audioports against an audio-tools client. Mirrors web-console:
@@ -1291,6 +1293,10 @@ func main() {
 		}()
 	}
 
+	if srv.agentSessionSvc != nil {
+		go srv.startProposalDecisionReconciler()
+	}
+
 	if srv.agentSvc != nil && srv.agentSvc.IsEnabled() {
 		go initializeAgentManagerProfiles(srv.agentSvc)
 	}
@@ -1325,6 +1331,38 @@ func main() {
 	close(srv.aiSearchStopChan)
 	close(srv.autoFilerStopChan)
 	close(srv.transitionSweepStop)
+	close(srv.proposalDecisionStop)
+}
+
+func (s *Server) startProposalDecisionReconciler() {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	go func() {
+		<-s.proposalDecisionStop
+		cancel()
+	}()
+
+	const interval = 30 * time.Second
+	ticker := time.NewTicker(interval)
+	defer ticker.Stop()
+	cursor := agentsessions.ProposalDecisionCursor{}
+	for {
+		pageCtx, pageCancel := context.WithTimeout(ctx, 20*time.Second)
+		page, err := s.agentSessionSvc.ReconcileProposalDecisionPage(pageCtx, cursor, 10)
+		pageCancel()
+		if err != nil {
+			slog.Warn("proposal decision publication reconciliation failed", "err", err)
+		} else if page.HasMore {
+			cursor = page.Next
+		} else {
+			cursor = agentsessions.ProposalDecisionCursor{}
+		}
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+		}
+	}
 }
 
 // initializeAgentManagerProfiles keeps the API available while the required

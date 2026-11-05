@@ -1,6 +1,6 @@
 # Target Model
 
-**Status:** canon. The shape every Vrooli team is converging toward, the vocabulary for talking about it, and the named ways a team can deviate from it.
+**Status:** canon. The recurring domain-stewardship model, its vocabulary and its named deviations.
 
 This file states a **target**, not a description of how any team is currently arranged. That distinction is the whole point: a team that has never been told what good looks like can execute its lane flawlessly and still be structurally unable to notice that its own structure is wrong. Deviations named here are **error** — observable, reportable, and routed — rather than a matter of taste.
 
@@ -10,9 +10,30 @@ It is deliberately not enforcement. No validator requires a team to match this m
 
 ---
 
+## Scope: select the work model first
+
+Sections 1–9 describe recurring teams that regulate a capability domain. Finite delivery
+and direct assignments retain their own work models:
+
+| Work | Destination and state | Method |
+| --- | --- | --- |
+| Recurring domain stewardship | Capability obligations and the instrument's current gap board | The control-loop model below |
+| Finite product delivery | Operator-owned charter, evolving surface/outcome allocation, accepted evidence and native commission | `large-effort-orchestration`; central product home and Agent Manager |
+| Managed plan, family or qualification | The declared work owner's destination and managed state | Its existing execution/acceptance model |
+| Bounded task or investigation | The assignment's finish line and owning evidence | Direct work; no mandatory epoch, instrument or new plan |
+
+A finite product team may maintain its current STATUS and worker briefs. That approved
+work ledger and the absence of a recurring capability instrument are not deviations from
+this model. Apply the error catalogue below only within its recurring-domain scope.
+The [work entry point](../../.vrooli/work/README.md) describes owner selection and delivery.
+Purpose/lifetime identify a work model; they grant no execution authority. Native admission,
+operator commissioning and actual human-only decisions remain separate.
+
+---
+
 ## 1. The target, in one sentence
 
-**A team is a control loop: it regulates one plant against a setpoint it does not own, using one instrument it does not decide with, and it gets simpler as the system around it gets more capable.**
+**A recurring domain team is a control loop: it regulates one plant against a setpoint it does not own, using one instrument it does not decide with, and it gets simpler as the system around it gets more capable.**
 
 Every clause is load-bearing, and each one is a separate way to be wrong. Section 9 names them.
 

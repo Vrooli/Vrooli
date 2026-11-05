@@ -7,10 +7,17 @@ a reviewed target. The agent chooses and implements successive improvements
 within that authorization. It does not request a new backlog item for each
 engineering decision, and it does not need a human between sessions.
 
-This document owns the grant model, the two plan shapes, the two execution modes,
-and the documentation-first method. It does not declare a new runtime API.
+This document owns the plan-backed grant model, its two plan shapes and execution
+modes, and the documentation-first method. It does not declare a new runtime API.
 Documentation adoption is not runtime readiness; the
 [implementation status](#implementation-status) section states what runs today.
+
+This document describes plan-backed development, not every kind of work in the
+ecosystem. The shared work-shape rule may route a request to a discovered
+Action, bounded task, investigation/review, or orchestrated long-running effort
+without creating a Plan Manager plan. Family selection happens only after that
+routing decision and only when multiple independently executable plan-shaped
+units need family topology.
 
 An operator may authorize a direct session to apply this method. Record that
 authority without claiming a Swarm receipt exists. Workflow agents retain their
@@ -25,6 +32,7 @@ permits no implementation.
 | Development grant | Operator authorization to pursue one plan-backed item within its acceptance globs, effect policy, and aggregate limits. |
 | Plan-backed item | One Swarm backlog item linked to one canonical Plan Manager plan, with acceptance pinned to the plan's content hash. |
 | Plan shape | What the work is: `phased` (an implementation plan with ordered phases) or `mandate` (an adaptive mandate whose progress is the setpoint board). A field on the plan. |
+| Orchestrated effort | A long-running delivery goal run by a delivery team instead of a plan-backed item; see `large-effort-orchestration`. A mandate's setpoint board, where one exists, is its exit metric. |
 | Execution mode | How the item runs: `sliced` (an Agent Manager workflow of bounded slices with a review per slice) or `goal` (one Agent Manager run under a harness goal). Chosen when the item is run. |
 | Finish line | The condition in `/goal` and `until`. Phased: every phase recorded finished in Plan Manager with evidence. Mandate: every setpoint row in band and the evidence audit passes. |
 | Finalization | Swarm's item-level completion path after any execution: restart, health check, evidence gathering, review agent, then done, needs_review, or follow-up. |
@@ -32,13 +40,14 @@ permits no implementation.
 | Operator note | Free text on the item that reaches the agent verbatim: intent, reminders, and any authority beyond the plan's defaults. |
 
 A Swarm goal describes a product outcome and may span items. A harness goal is
-the `/goal` mechanism of a coding harness. Neither a harness "met" verdict nor
-completed plan phases alone proves that a scenario satisfies its target.
+the `/goal` mechanism of a coding harness.
+Neither a harness "met" verdict nor completed plan phases alone proves that a
+scenario satisfies its target.
 
 ### Two questions, answered separately
 
-Shape and mode are independent. Any shape runs under either mode. The Run dialog
-reads the shape off the plan, states it, and recommends a mode.
+Shape and mode are independent for plan-backed work. The Run dialog reads the
+shape off the plan, states it, and recommends a mode.
 
 ```mermaid
 flowchart LR
@@ -65,14 +74,14 @@ flowchart LR
 | --- | --- | --- |
 | Substrate | Workflow `swarm-manager/phased-plan-drain`: a fresh worker run per slice, bounded turns and time, an independent review per slice, a decision node, operator approval where a gate is manual. | One Agent Manager run. The harness loops itself under `/goal`; the finish line is also carried in the prompt for runners without native support. No workflow, no slice cap, no per-session reviewer. |
 | Context | Each slice starts cold with the plan reference and the last handoffs. | One warm conversation for the whole session. |
-| Worker instruction | `swarm-manager-workflow-phased-plan-slice`; for a mandate it reads the campaign and improve skills and picks the next in-scope repair. | A goal message composed from `harness-goal-authoring` (Shape A for phased, Shape B for mandate) plus the operator note. |
+| Worker instruction | `swarm-manager-workflow-phased-plan-slice`; for a mandate it reads the campaign and improve skills and picks the next in-scope repair. | A goal message composed from the `harness-goal-authoring` plan-backed or mandate template plus the operator note. |
 | Completion authority | Per-slice review, then finalization. | Finalization. |
 | Bounds | `max_slices` per execution; aggregate limits. | Aggregate limits only. |
 | Settings shown when run | Slice cap, approval mode, runner preferences. | Runner (native goal support required or forced), model, effort, allowance, continuation, scope policy, operator note. |
 
 ### Stopping, resuming, and trust
 
-Trust the agent's verdict. A run that ends `complete`, `blocked`, or `abstained`
+Trust the agent's verdict. A plan-backed run that ends `complete`, `blocked`, or `abstained`
 has stopped; it goes to finalization, and any follow-up is a Swarm disposition,
 never an automatic relaunch.
 
@@ -84,7 +93,7 @@ run with the last handoff when it does not. Three resumes without Plan Manager
 progress halt the item for an operator. Under `continuation: manual`, every stop
 is a stop.
 
-### Item contract
+### Plan-backed item contract
 
 | Field | Values | Rule |
 | --- | --- | --- |
@@ -99,15 +108,18 @@ is a stop.
 
 ### The goal message
 
-Swarm composes it; nobody types it. Slots, in order: destination (the finish
+Swarm composes it for plan-backed items; nobody types it ad hoc. Slots, in
+order: destination (the finish
 line), proof (the check whose output must appear in the transcript), sources
 (the plan, the scenario docs, the improve skill, the campaign skill), boundary
 (allow globs and scope policy), dials (validation and adjacent-defect posture),
 blocked (a decision, credential, or approval the agent lacks), budget (the
 allowance; an interruption is resumed under until-allowance; a verdict is final),
-handoff (Plan Manager checkpoint and the journal), non-goals, then the operator
-note verbatim. Under 2,048 characters. The design lives in the docs and the plan,
-never in the message. `harness-goal-authoring` owns the wording.
+handoff (the owner checkpoint and journal), non-goals, then the operator note
+verbatim. Agent Manager and Swarm currently allow up to 1 MiB of UTF-8 bytes
+for the completion condition; this is a transport ceiling, not a writing target.
+Keep the message concise and put durable design in the docs and plan.
+`harness-goal-authoring` owns the goal slots and proof standard.
 
 ### Implementation status
 
@@ -129,6 +141,10 @@ but never launch-ready. Scope and defect registers:
 [scope](https://claude.ai/code/artifact/9343ee6a-89c7-4d3f-ab0f-57d801b46e73).
 
 ## Sources of truth
+
+[Effort supervision](EFFORT_SUPERVISION.md) applies the same outcome, authority,
+and work-shape distinctions to orchestrators and their own overhead. Automatic
+discovery permits observation; it does not mint an execution grant or a plan.
 
 | Owner | Owns | Does not own |
 | --- | --- | --- |
@@ -229,7 +245,8 @@ the affected action, without blocking independent authorized work.
 | Proposed action | Disposition |
 | --- | --- |
 | Choose an in-scope implementation, experiment, refactor, or next repair. | Perform it and retain rationale under the same engagement. |
-| Repair a required sensor, binding, test, skill, or program within scope. | Use its owning method and continue; missing instrumentation does not force another item. |
+| Repair a required sensor, binding, test, skill, or program within scope. | Build or repair it through its owning method only when it is a reusable instrument: one command, used by a gate, reused by later work. Otherwise record the row unverified and continue. |
+| Repair an agent-system core capability within scope. | Use the owning scenario's write and validation route, preserve its contract, and continue; the repair does not require a separate promotion decision. |
 | Repair an explicitly authorized dependency. | Work at its owner and validate the affected contract. |
 | Correct documentation to express approved intent. | Update it within scope; preserve relevant contradictory evidence. |
 | Change an outcome, relax a floor, remove a required route/platform, or exceed a grant. | Request an amendment before that action; continue independent authorized work when useful. |

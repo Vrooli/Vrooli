@@ -17,7 +17,7 @@ func TestCmdSessionsCreateAndAttachUseScriptableContracts(t *testing.T) {
 		path   string
 		body   map[string]any
 	}
-	clitest.NewAPIServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := clitest.NewAPIServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		entry := struct {
 			method string
 			path   string
@@ -35,6 +35,7 @@ func TestCmdSessionsCreateAndAttachUseScriptableContracts(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	app.core.APIOverride = server.URL
 	if err := app.cmdSessionsCreate([]string{"--kind", "swarm_operations", "--starter-job", "operations-triage-staleness"}); err != nil {
 		t.Fatal(err)
 	}
@@ -55,7 +56,7 @@ func TestCmdSessionsCreateAndAttachUseScriptableContracts(t *testing.T) {
 
 func TestCmdSessionsCreateCanDeclareProposalTarget(t *testing.T) {
 	var requestBody map[string]any
-	clitest.NewAPIServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := clitest.NewAPIServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost || r.URL.Path != "/api/v1/proposal-sessions" {
 			t.Fatalf("request = %s %s", r.Method, r.URL.Path)
 		}
@@ -68,6 +69,7 @@ func TestCmdSessionsCreateCanDeclareProposalTarget(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	app.core.APIOverride = server.URL
 	if err := app.cmdSessionsCreate([]string{"--kind", "swarm_operations", "--starter-job", "proposal-reconcile-item", "--target", "backlog_item/research/item", "--target-name", "Research item"}); err != nil {
 		t.Fatal(err)
 	}
@@ -80,10 +82,14 @@ func TestCmdSessionsCreateCanDeclareProposalTarget(t *testing.T) {
 func TestCmdSessionsLifecycleAndProposalCommandsUseOwnedEndpoints(t *testing.T) {
 	var paths []string
 	var applyBody map[string]any
-	clitest.NewAPIServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	var reissueBody map[string]any
+	server := clitest.NewAPIServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		paths = append(paths, r.Method+" "+r.URL.RequestURI())
 		if strings.HasSuffix(r.URL.Path, "/apply") {
 			_ = json.NewDecoder(r.Body).Decode(&applyBody)
+		}
+		if strings.HasSuffix(r.URL.Path, "/reissue-decision-request") {
+			_ = json.NewDecoder(r.Body).Decode(&reissueBody)
 		}
 		if strings.HasSuffix(r.URL.Path, "/events") {
 			_, _ = w.Write([]byte(`{"events":[],"has_more":false,"next_after_sequence":0}`))
@@ -95,6 +101,9 @@ func TestCmdSessionsLifecycleAndProposalCommandsUseOwnedEndpoints(t *testing.T) 
 	if err != nil {
 		t.Fatal(err)
 	}
+	// Explicit override keeps this test on its local fake even when a generic
+	// API_BASE_URL is intentionally ignored in an agent-controlled process.
+	app.core.APIOverride = server.URL
 	commands := []func() error{
 		func() error { return app.cmdSessionsStart([]string{"--id", "sess_1", "--message", "Begin"}) },
 		func() error { return app.cmdSessionsContinue([]string{"--id", "sess_1", "--message", "Continue"}) },
@@ -110,6 +119,9 @@ func TestCmdSessionsLifecycleAndProposalCommandsUseOwnedEndpoints(t *testing.T) 
 		func() error {
 			return app.cmdSessionsProposalAcceptKeep([]string{"--id", "sess_1", "--proposal", "prop_1"})
 		},
+		func() error {
+			return app.cmdSessionsProposalReissueDecisionRequest([]string{"--id", "sess_1", "--proposal", "prop_1", "--expected-terms-sha256", strings.Repeat("a", 64)})
+		},
 	}
 	for _, command := range commands {
 		if err := command(); err != nil {
@@ -123,6 +135,7 @@ func TestCmdSessionsLifecycleAndProposalCommandsUseOwnedEndpoints(t *testing.T) 
 		"POST /api/v1/agent-sessions/sess_1/proposals/prop_1/apply",
 		"POST /api/v1/agent-sessions/sess_1/proposals/prop_1/revise",
 		"POST /api/v1/agent-sessions/sess_1/proposals/prop_1/accept-keep",
+		"POST /api/v1/agent-sessions/sess_1/proposals/prop_1/reissue-decision-request",
 	}
 	if strings.Join(paths, "\n") != strings.Join(wantPaths, "\n") {
 		t.Fatalf("paths = %v, want %v", paths, wantPaths)
@@ -131,38 +144,79 @@ func TestCmdSessionsLifecycleAndProposalCommandsUseOwnedEndpoints(t *testing.T) 
 	if !ok || len(accepted) != 1 || accepted[0] != "mutation_1" {
 		t.Fatalf("apply body = %+v", applyBody)
 	}
+	if reissueBody["expected_terms_sha256"] != strings.Repeat("a", 64) {
+		t.Fatalf("reissue body = %+v", reissueBody)
+	}
+}
+
+func TestCmdSessionsProposalReissueRequiresExactTermsDigest(t *testing.T) {
+	app, err := NewApp()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, tc := range []struct {
+		args []string
+		want string
+	}{
+		{args: []string{"--id", "sess_1", "--proposal", "prop_1"}, want: "--expected-terms-sha256 must be a 64-character SHA-256 digest"},
+		{args: []string{"--id", "sess_1", "--proposal", "prop_1", "--expected-terms-sha256", "short"}, want: "--expected-terms-sha256 must be a 64-character SHA-256 digest"},
+		{args: []string{"--id", "sess_1", "--proposal", "prop_1", "--expected-terms-sha256", strings.Repeat("z", 64)}, want: "--expected-terms-sha256 must be hexadecimal"},
+	} {
+		if err := app.cmdSessionsProposalReissueDecisionRequest(tc.args); err == nil || err.Error() != tc.want {
+			t.Fatalf("command error = %v for %v, want %q", err, tc.args, tc.want)
+		}
+	}
+}
+
+func TestProposalsGetExposesTheTermsDigestForReissue(t *testing.T) {
+	const digest = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+	server := clitest.NewAPIServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte(`{"sessions":[{"id":"sess_1","proposals":[{"id":"prop_1","kind":"mutation_list","status":"ready","summary":"Current work","payload_json":"{}"}],"decision_terms_sha256":{"prop_1":"` + digest + `"}}]}`))
+	}))
+	app, err := NewApp()
+	if err != nil {
+		t.Fatal(err)
+	}
+	app.core.APIOverride = server.URL
+	out := clitest.CaptureStdout(t, func() error {
+		return app.cmdProposalsGet([]string{"--id", "prop_1", "--session", "sess_1", "--json"})
+	})
+	if !strings.Contains(out, `"decision_terms_sha256": "`+digest+`"`) {
+		t.Fatalf("proposal read omitted decision terms digest:\n%s", out)
+	}
 }
 
 func TestEveryAgentSessionEndpointHasCLICommandOrRecordedReason(t *testing.T) {
 	capability := map[string]string{
-		"GET /api/v1/agent-sessions":                                                   "list",
-		"POST /api/v1/agent-sessions":                                                  "create",
-		"POST /api/v1/agent-sessions/batch":                                            "create-batch",
-		"GET /api/v1/agent-sessions/{session_id}":                                      "get",
-		"PATCH /api/v1/agent-sessions/{session_id}/kind":                               "reason:UI kind changes carry local composer state; the web client owns that interaction",
-		"POST /api/v1/agent-sessions/{session_id}/context":                             "attach",
-		"DELETE /api/v1/agent-sessions/{session_id}":                                   "delete",
-		"GET /api/v1/agent-sessions/{session_id}/startup-brief":                        "startup-brief",
-		"POST /api/v1/agent-sessions/{session_id}/startup-brief":                       "startup-brief",
-		"POST /api/v1/agent-sessions/{session_id}/attachments":                         "reason:binary multipart upload remains web-owned until the CLI has a governed file-stream primitive",
-		"GET /api/v1/agent-sessions/{session_id}/attachments/{attachment_id}":          "reason:binary attachment retrieval is exposed through the web transcript, not structured session automation",
-		"POST /api/v1/agent-sessions/{session_id}/start":                               "start",
-		"POST /api/v1/agent-sessions/{session_id}/continue":                            "continue",
-		"POST /api/v1/agent-sessions/{session_id}/complete":                            "complete",
-		"POST /api/v1/agent-sessions/reap":                                             "reap",
-		"POST /api/v1/agent-sessions/{session_id}/disposition":                         "disposition",
-		"POST /api/v1/agent-sessions/{session_id}/prompt-preview":                      "prompt-preview",
-		"GET /api/v1/agent-sessions/{session_id}/events":                               "events",
-		"POST /api/v1/agent-sessions/{session_id}/refresh":                             "get",
-		"POST /api/v1/agent-sessions/{session_id}/cancel":                              "reason:cancel remains an emergency lifecycle action available through Agent Manager run-stop",
-		"POST /api/v1/agent-sessions/{session_id}/proposals/{proposal_id}/apply":       "proposal-apply",
-		"POST /api/v1/agent-sessions/{session_id}/proposals/{proposal_id}/accept-keep": "proposal-accept-keep",
-		"POST /api/v1/agent-sessions/{session_id}/proposals/{proposal_id}/revise":      "proposal-revise",
-		"POST /api/v1/agent-sessions/{session_id}/proposals/{proposal_id}/wait":        "proposal-wait",
-		"POST /api/v1/proposal-sessions":                                               "create",
-		"GET /api/v1/proposal-sessions":                                                "reason:the existing proposals commands own proposal-session listing",
-		"GET /api/v1/agent-sessions/{session_id}/artifacts":                            "reason:proposal detail commands render session artifacts with their decisions",
-		"GET /api/v1/artifacts/by-entity":                                              "reason:entity-oriented proposal retrieval owns this cross-session index",
+		"GET /api/v1/agent-sessions":                                                                "list",
+		"POST /api/v1/agent-sessions":                                                               "create",
+		"POST /api/v1/agent-sessions/batch":                                                         "create-batch",
+		"GET /api/v1/agent-sessions/{session_id}":                                                   "get",
+		"PATCH /api/v1/agent-sessions/{session_id}/kind":                                            "reason:UI kind changes carry local composer state; the web client owns that interaction",
+		"POST /api/v1/agent-sessions/{session_id}/context":                                          "attach",
+		"DELETE /api/v1/agent-sessions/{session_id}":                                                "delete",
+		"GET /api/v1/agent-sessions/{session_id}/startup-brief":                                     "startup-brief",
+		"POST /api/v1/agent-sessions/{session_id}/startup-brief":                                    "startup-brief",
+		"POST /api/v1/agent-sessions/{session_id}/attachments":                                      "reason:binary multipart upload remains web-owned until the CLI has a governed file-stream primitive",
+		"GET /api/v1/agent-sessions/{session_id}/attachments/{attachment_id}":                       "reason:binary attachment retrieval is exposed through the web transcript, not structured session automation",
+		"POST /api/v1/agent-sessions/{session_id}/start":                                            "start",
+		"POST /api/v1/agent-sessions/{session_id}/continue":                                         "continue",
+		"POST /api/v1/agent-sessions/{session_id}/complete":                                         "complete",
+		"POST /api/v1/agent-sessions/reap":                                                          "reap",
+		"POST /api/v1/agent-sessions/{session_id}/disposition":                                      "disposition",
+		"POST /api/v1/agent-sessions/{session_id}/prompt-preview":                                   "prompt-preview",
+		"GET /api/v1/agent-sessions/{session_id}/events":                                            "events",
+		"POST /api/v1/agent-sessions/{session_id}/refresh":                                          "get",
+		"POST /api/v1/agent-sessions/{session_id}/cancel":                                           "reason:cancel remains an emergency lifecycle action available through Agent Manager run-stop",
+		"POST /api/v1/agent-sessions/{session_id}/proposals/{proposal_id}/apply":                    "proposal-apply",
+		"POST /api/v1/agent-sessions/{session_id}/proposals/{proposal_id}/accept-keep":              "proposal-accept-keep",
+		"POST /api/v1/agent-sessions/{session_id}/proposals/{proposal_id}/revise":                   "proposal-revise",
+		"POST /api/v1/agent-sessions/{session_id}/proposals/{proposal_id}/wait":                     "proposal-wait",
+		"POST /api/v1/agent-sessions/{session_id}/proposals/{proposal_id}/reissue-decision-request": "proposal-reissue-decision-request",
+		"POST /api/v1/proposal-sessions":                                                            "create",
+		"GET /api/v1/proposal-sessions":                                                             "reason:the existing proposals commands own proposal-session listing",
+		"GET /api/v1/agent-sessions/{session_id}/artifacts":                                         "reason:proposal detail commands render session artifacts with their decisions",
+		"GET /api/v1/artifacts/by-entity":                                                           "reason:entity-oriented proposal retrieval owns this cross-session index",
 	}
 	handlerSource, err := os.ReadFile("../api/internal/agentsessions/handler.go")
 	if err != nil {
@@ -214,7 +268,7 @@ func TestCmdSessionsDeleteRequiresConfirmation(t *testing.T) {
 
 func TestCmdSessionsDeleteCallsDeleteEndpoint(t *testing.T) {
 	var method, path string
-	clitest.NewAPIServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := clitest.NewAPIServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		method = r.Method
 		path = r.URL.Path
 		_, _ = w.Write([]byte(`{"session_id":"sess_1"}`))
@@ -223,6 +277,7 @@ func TestCmdSessionsDeleteCallsDeleteEndpoint(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewApp: %v", err)
 	}
+	app.core.APIOverride = server.URL
 
 	out := clitest.CaptureStdout(t, func() error {
 		return app.cmdSessionsDelete([]string{"--id", "sess_1", "--yes"})
@@ -238,7 +293,7 @@ func TestCmdSessionsDeleteCallsDeleteEndpoint(t *testing.T) {
 
 func TestCmdSessionsGetRefreshCallsRefreshEndpoint(t *testing.T) {
 	var method, path string
-	clitest.NewAPIServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := clitest.NewAPIServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		method = r.Method
 		path = r.URL.Path
 		_, _ = w.Write([]byte(`{"session":{"id":"sess_1","title":"Plan","kind":"meta_orchestration","status":"failed","run_id":"run-1","created_at":"2026-05-06T00:00:00Z","updated_at":"2026-05-06T00:01:00Z"}}`))
@@ -247,6 +302,7 @@ func TestCmdSessionsGetRefreshCallsRefreshEndpoint(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewApp: %v", err)
 	}
+	app.core.APIOverride = server.URL
 
 	out := clitest.CaptureStdout(t, func() error {
 		return app.cmdSessionsGet([]string{"--id", "sess_1", "--refresh"})
@@ -265,12 +321,13 @@ func TestSessionsCommandsRegistered(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewApp: %v", err)
 	}
-	for _, args := range [][]string{
-		{"sessions", "list"},
-		{"sessions", "get"},
-		{"sessions", "delete"},
-	} {
-		_ = app.Run(args)
+	out := clitest.CaptureStdout(t, func() error {
+		return app.Run([]string{"sessions", "--help"})
+	})
+	for _, name := range []string{"proposal-apply", "proposal-revise", "proposal-reissue-decision-request"} {
+		if !strings.Contains(out, name) {
+			t.Errorf("sessions help omitted %q:\n%s", name, out)
+		}
 	}
 }
 

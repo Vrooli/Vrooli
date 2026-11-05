@@ -108,6 +108,33 @@ func (c *HTTPClient) Health(ctx context.Context) (bool, error) {
 	return resp.StatusCode == http.StatusOK, nil
 }
 
+// ListProfiles reads a bounded page of existing Agent Manager profiles. It is
+// intentionally read-only: callers must not use this path to register or update
+// declaration-owned profiles.
+func (c *HTTPClient) ListProfiles(ctx context.Context, limit, offset int) (*apipb.ListProfilesResponse, error) {
+	if limit <= 0 || limit > 5000 || offset < 0 {
+		return nil, fmt.Errorf("%w: invalid profile list bounds", ErrRequestFailed)
+	}
+	query := url.Values{}
+	query.Set("limit", fmt.Sprintf("%d", limit))
+	if offset > 0 {
+		query.Set("offset", fmt.Sprintf("%d", offset))
+	}
+	resp, err := c.doRequest(ctx, http.MethodGet, "/api/v1/profiles?"+query.Encode(), nil)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return nil, readErrorResponse(resp)
+	}
+	var result apipb.ListProfilesResponse
+	if err := decodeProtoResponse(resp, &result); err != nil {
+		return nil, err
+	}
+	return &result, nil
+}
+
 // EnsureProfile resolves or creates a profile by key.
 func (c *HTTPClient) EnsureProfile(ctx context.Context, req *apipb.EnsureProfileRequest) (*apipb.EnsureProfileResponse, error) {
 	body, err := protoJSONMarshal.Marshal(req)
@@ -367,12 +394,29 @@ func (c *HTTPClient) ApproveRun(ctx context.Context, runID, actor, commitMsg str
 
 // ContinueRun sends a follow-up message to an existing run's conversation.
 func (c *HTTPClient) ContinueRun(ctx context.Context, runID string, message string) error {
+	return c.continueRun(ctx, runID, message, "")
+}
+
+// ContinueRunWithIdempotencyKey retries the same owner continuation safely
+// after a caller loses the response to an accepted request.
+func (c *HTTPClient) ContinueRunWithIdempotencyKey(ctx context.Context, runID, message, idempotencyKey string) error {
+	if strings.TrimSpace(idempotencyKey) == "" {
+		return fmt.Errorf("%w: idempotency key is required", ErrRequestFailed)
+	}
+	return c.continueRun(ctx, runID, message, strings.TrimSpace(idempotencyKey))
+}
+
+func (c *HTTPClient) continueRun(ctx context.Context, runID string, message string, idempotencyKey string) error {
 	trimmed := strings.TrimSpace(runID)
 	if trimmed == "" {
 		return fmt.Errorf("%w: run id is required", ErrRequestFailed)
 	}
 
-	body, err := json.Marshal(map[string]string{"runId": trimmed, "message": message})
+	request := map[string]string{"runId": trimmed, "message": message}
+	if idempotencyKey != "" {
+		request["idempotencyKey"] = idempotencyKey
+	}
+	body, err := json.Marshal(request)
 	if err != nil {
 		return fmt.Errorf("marshal continue request: %w", err)
 	}

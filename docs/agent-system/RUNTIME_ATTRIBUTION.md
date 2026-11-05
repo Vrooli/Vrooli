@@ -51,7 +51,7 @@ The harness observation path remains separate: a transcript-imported run carries
 
 ## The structured-attribution payload
 
-Every post-cutoff `KnowledgeEntry` carries an `attribution` object. This is the on-disk shape (see `path:scenarios/prompt-manager/api/store/models.go`):
+Every post-cutoff `KnowledgeEntry` carries an `attribution` object. This is the on-disk shape (see `path:scenarios/prompt-manager/api/internal/store/models.go`):
 
 ```jsonc
 {
@@ -133,6 +133,8 @@ Storing the derived string keeps list and search responses fast (no per-entry at
 ---
 
 ## HTTP header: `X-Vrooli-Attribution`
+
+Go producers and receivers share `packages/cli-core/teamattribution`: the DTO, vocabulary, parser, encoder, writer overlay and live-write validation. Prompt Manager store and CLI types alias that contract; the API retains knowledge state and caller display. These descriptive fields confer no authorization; verified caller and grant checks remain separate.
 
 Attribution flows over HTTP as a single base64-encoded JSON header:
 
@@ -366,7 +368,7 @@ The Knowledge tab in the prompt-manager UI currently renders `caller`. Surfacing
 
 ## On-disk shape
 
-The full `KnowledgeEntry` shape, with attribution, is defined in `path:scenarios/prompt-manager/api/store/models.go::KnowledgeEntry`. Reproduced here for cross-reference (the Go struct is canonical):
+The full `KnowledgeEntry` shape, with attribution, is defined in `path:scenarios/prompt-manager/api/internal/store/models.go::KnowledgeEntry`. Reproduced here for cross-reference (the Go struct is canonical):
 
 ```jsonc
 {
@@ -395,7 +397,7 @@ The full `KnowledgeEntry` shape, with attribution, is defined in `path:scenarios
 
 ## Components and entry points
 
-- **Storage shape** — `KnowledgeEntry.Caller`, `CallerNote`, `Attribution`: `path:scenarios/prompt-manager/api/store/models.go`.
+- **Storage shape** — `KnowledgeEntry.Caller`, `CallerNote`, `Attribution`: `path:scenarios/prompt-manager/api/internal/store/models.go`.
 - **Ledger adoption** — source-ledger scope registration preserves the durable entry body and records its source provenance.
 - **API handler validation** — `path:scenarios/prompt-manager/api/heartbeat/handlers.go::AddKnowledge` plus `path:scenarios/prompt-manager/api/heartbeat/attribution.go` (header decode, `validateAttribution`, conflict policy).
 - **CLI attribution forwarding** — `path:scenarios/prompt-manager/cli/internal/attribution` (env-var read, header set, `--caller-note` flag).

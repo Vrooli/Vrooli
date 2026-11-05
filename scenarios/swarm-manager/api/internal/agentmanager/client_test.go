@@ -2,6 +2,7 @@ package agentmanager
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"io"
 	"net/http"
@@ -46,6 +47,29 @@ func TestNewHTTPClientWithResolver_Defaults(t *testing.T) {
 	}
 	if client.httpClient == nil {
 		t.Fatalf("expected default http client")
+	}
+}
+
+func TestHTTPClientContinueRunWithIdempotencyKeySendsKey(t *testing.T) {
+	var gotPath, gotRunID, gotMessage, gotKey string
+	client := NewHTTPClientWithResolver(
+		func(_ context.Context) (string, error) { return "http://agent-manager.local", nil },
+		&mockHTTPDoer{doFunc: func(req *http.Request) (*http.Response, error) {
+			gotPath = req.URL.Path
+			var body map[string]string
+			if err := json.NewDecoder(req.Body).Decode(&body); err != nil {
+				return nil, err
+			}
+			gotRunID, gotMessage, gotKey = body["runId"], body["message"], body["idempotencyKey"]
+			return makeResponse(http.StatusOK, `{}`), nil
+		}},
+	)
+
+	if err := client.ContinueRunWithIdempotencyKey(context.Background(), "run-1", "review note", "ask-key"); err != nil {
+		t.Fatalf("ContinueRunWithIdempotencyKey: %v", err)
+	}
+	if gotPath != "/api/v1/runs/run-1/continue" || gotRunID != "run-1" || gotMessage != "review note" || gotKey != "ask-key" {
+		t.Fatalf("continue request = path %q run %q message %q key %q", gotPath, gotRunID, gotMessage, gotKey)
 	}
 }
 

@@ -1,0 +1,49 @@
+{
+  "schema_version": "1",
+  "recorded_at": "2026-08-17T05:22:45Z",
+  "purpose": "Acceptance measurement for verbalized candidate sampling versus direct sampling.",
+  "query": "Write a short builder voice dev-log paragraph about measuring candidate diversity in Prose Studio.",
+  "comparability": {
+    "provider": "openrouter",
+    "model": "google/gemini-3.7-flash",
+    "sampling_key": {
+      "k": 5,
+      "temperature_stance": "role_default",
+      "max_output_tokens_effective": 2048,
+      "max_output_tokens_source": "OUTPUT_CAP_SOURCE_REQUEST"
+    },
+    "metric": "set_measurements.diversity",
+    "basis": "lexical token 1-3 gram cosine/Jaccard blend; no embeddings available"
+  },
+  "results": {
+    "direct": {
+      "profile": "prose-studio/blog-direct-control@5",
+      "strategy": "direct",
+      "candidate_count": 5,
+      "diversity": 0.6176717127076274,
+      "mean_similarity": 0.3823282872923725,
+      "round_cost_micros": 5061
+    },
+    "verbalized_distribution": {
+      "profile": "prose-studio/blog-diverse@7",
+      "strategy": "vs_standard",
+      "candidate_count": 5,
+      "diversity": 0.8076600357998588,
+      "mean_similarity": 0.19233996420014124,
+      "round_cost_micros": 12880
+    }
+  },
+  "interpretation": "On this routed model and fixed comparable sampling key, vs_standard produced a higher lexical diversity value (0.8076600358 versus 0.6176717127). This is one observed run, not a general causal claim.",
+  "document": {
+    "id": "1d07e47c-1be2-43a0-8650-614c83b8bedd",
+    "profile": "content-desk/marketing-dev-log-profile@1",
+    "style": "content-desk/marketing-dev-log-style@1",
+    "status": "assembled",
+    "section_count": 5,
+    "coherence": {
+      "cross_section_repetition": 0.35483036487481084,
+      "style_drift": 0,
+      "basis": "textmetrics.CrossSectionRepetition and textmetrics.StyleDrift over committed section text"
+    }
+  }
+}

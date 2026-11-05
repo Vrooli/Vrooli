@@ -8,6 +8,38 @@ Style directives for AI-generated images (blog hero images, social cards, dev-lo
 
 ---
 
+## Scope and precedence
+
+This file governs the **Vrooli project brand**: imagery that speaks for Vrooli
+itself — dev-log headers, blog heroes, Vrooli social cards, deck backgrounds,
+conceptual illustrations.
+
+Individual products carry their own identity, owned by the `brand-manager`
+scenario, not by this file. A product's brand is declared in its scenario's
+`.vrooli/service.json` under `branding.brand`, and its palette comes from that
+brand's container style and product line — for example the star-named line
+(see [`PRODUCT-LINE.md`](PRODUCT-LINE.md)), whose members share the
+`constellation-midnight` container style defined in
+[`scenarios/brand-manager/docs/concepts/BRAND-ASSET-PIPELINE.md`](../../../scenarios/brand-manager/docs/concepts/BRAND-ASSET-PIPELINE.md).
+
+**Precedence rule.** When an image is *about a specific product* — its landing
+page hero, its OG or social card, its store or launch imagery, its in-app
+illustration — the **product's brand wins**, and this file's palette does not
+apply. When an image speaks for Vrooli as a whole, this file wins. Never blend
+the two palettes in one image.
+
+Two consequences worth stating plainly:
+
+- A branded scenario's shipped icons and `og-image.png` are **not** AI-generated
+  at all. They are rendered by `brand-manager apply run` from the brand's mark
+  and container style. Do not generate a replacement.
+- The "Bundle landing page hero", "campaign-specific OG variants" and
+  "scenario UI illustrations" uses named below apply only where no product brand
+  governs the surface. Check `branding.brand` in the scenario's
+  `.vrooli/service.json` first; if it is set, follow that brand instead.
+
+---
+
 ## Visual identity at a glance
 
 | Aspect | Value |
@@ -129,5 +161,6 @@ Trigger conditions for the brand-manager (member) to propose a `brand-guideline-
 
 - [`docs/marketing/strategy/ASSETS.md`](ASSETS.md) — canonical brand assets (logos, fonts, etc.)
 - [`docs/marketing/strategy/BRAND.md`](BRAND.md) — visual identity overview
+- [`docs/marketing/strategy/PRODUCT-LINE.md`](PRODUCT-LINE.md) — the star-named product line and its shared identity, which takes precedence over this file for product imagery
 - [`docs/marketing/strategy/STRATEGY.md`](STRATEGY.md) — voice canon (the linguistic counterpart to this file's visual canon)
 - [`scenarios/brand-manager/skills/brand-manager/SKILL.md`](../../../scenarios/brand-manager/skills/brand-manager/SKILL.md) — scenario interface that will consume this file's visual canon

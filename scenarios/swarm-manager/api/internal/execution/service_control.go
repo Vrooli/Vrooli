@@ -275,8 +275,8 @@ func (s *Service) launchGoalRun(ctx context.Context, records []Record, idx int, 
 	// from durable state rather than re-deriving it.
 	if strings.TrimSpace(record.ContinuationOf) != "" && strings.TrimSpace(record.LastHandoff) != "" {
 		message += "\n\nEarlier handoff:\n" + record.LastHandoff
-		if len([]rune(message)) > GoalPromptMaxChars {
-			return Record{}, apierr.BadRequest("goal_prompt_too_long: resume message with handoff is %d characters, over the %d limit", len([]rune(message)), GoalPromptMaxChars)
+		if len(message) > GoalPromptMaxBytes {
+			return Record{}, apierr.BadRequest("goal_prompt_too_long: resume message with handoff is %d UTF-8 bytes, over the %d-byte limit", len(message), GoalPromptMaxBytes)
 		}
 	}
 	runReq := agentmanager.GoalRunRequest{

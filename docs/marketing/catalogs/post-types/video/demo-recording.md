@@ -2,7 +2,7 @@
 
 **Status:** v0 (skeleton — strategic canon authored 2026-04-28).
 
-**Paired skill:** `x-demo-recording` *(planned)*
+**Paired skill:** `x-demo-recording` *(planned for general demos)*. Launch-film drafts use `prompt-manager skill read launch-video`; this does not activate publishing for the post type.
 **Primary lane/member:** `producer` — lane depends on demo subject. Release execution is unowned until account operations gain a scheduler-side home.
 **Craft observation topic:** `marketing-craft-observation/demo-recording/<slug>`
 
@@ -39,7 +39,7 @@ Long-form (2-15min):
 
 ## Asset requirements
 
-- **BAS-produced screen recording** is the canonical substrate (per `../text/scenario-spotlight.md`'s asset-production protocol). Known constraint: BAS recordVideo gray-bar issue with CDP workaround documented in BAS scenario docs.
+- **BAS-produced screen recording** is the canonical substrate (per `../text/scenario-spotlight.md`'s asset-production protocol). Read current capture/export limits in `scenarios/browser-automation-studio/api/services/export/README.md`; verify the actual export rather than relying on historical workarounds.
 - **Sanitization** per `x-dev-log` guardrails: no paths, emails, credentials, internal IDs in the recording.
 - **Brand assets** per [`../../../strategy/ASSETS.md`](../../../strategy/ASSETS.md), [`../../../strategy/IMAGE_STYLE.md`](../../../strategy/IMAGE_STYLE.md).
 - **Captions burned in** for short-form (sound-off viewing). Captions optional but recommended for long-form.
@@ -77,5 +77,50 @@ Honesty flags (mirrors scenario-spotlight):
 
 - [`../text/scenario-spotlight.md`](../text/scenario-spotlight.md) — text-led sibling; often consumes a demo-recording as its attached asset.
 - [`../../../strategy/ASSETS.md`](../../../strategy/ASSETS.md), [`../../../strategy/IMAGE_STYLE.md`](../../../strategy/IMAGE_STYLE.md).
-- Browser Automation Studio scenario at `path:scenarios/bas/` — asset substrate.
+- Browser Automation Studio scenario at `path:scenarios/browser-automation-studio/` — asset substrate.
 - Sibling video types: [`narrative-talking-head.md`](narrative-talking-head.md), [`comparison-reel.md`](comparison-reel.md).
+
+## Directed launch-film variant
+
+Before story selection, discover the useful customer workflows and resolve the
+intended offer and deployment targets. Evaluate feature reliability, dependencies
+and setup on that delivery path before ranking benefits. Retain valuable excluded
+capabilities with reasons. Link selected benefits, qualified claims and real proof
+through launch-video's versioned product brief. Discovery may propose overlooked
+value; it does not approve claims. A phone-sized player and depicted phone use
+are different decisions. Review a plain script or rough for product purpose and
+customer benefit before expensive production.
+
+Use an audience/context/promise brief, decisive genuine product proof and a usable
+next action for a launch film. The demo timing above is an example sequence, not
+a universal shot layout. Compare distinct timed directions before expensive
+polish. Mix readable product captures, purposeful type, source details, conceptual
+inserts and holds; select the footage balance from the story. Preserve shipped
+marks and mandatory restrictions without imposing a permanent corner-logo/footer
+layout. Keep fictional-data provenance in the report/share context and preserve
+truthful availability implications. Respect the operator's preference against
+persistent demo/mock/date labels.
+
+Carry the operator's current sound and pacing preference into a recorded brief.
+For this campaign, keep fast, hard, upbeat electronic music as the energy floor;
+variety can come from rhythm, timbre and arrangement within it. A nominal tempo
+or valid audio file does not establish perceived energy. Compare short excerpts
+at matched playback level and record actual listening separately. Preserve useful
+operator-rated techniques across tool changes: polished generated material plates
+with motivated camera/light motion are an available medium when they explain the
+story or add a deliberate visual payoff. Retain exact prompts, source dimensions
+and licensing/provenance; do not imply a moving still has animated geometry.
+Before full production, review a short representative sequence that combines the
+chosen sound, a conceptual scene, a real interaction/result and their transition.
+A technical pass cannot substitute for creative comparison with the stronger
+rated reference. Distinct colors alone do not make distinct shot grammar.
+
+Review technical correctness, first-time viewer understanding and individual-shot
+craft separately against the exact final export. Separate features, sample inputs
+and observed results. End with an explicit action and a full verified public URL;
+when using QR, decode compressed final-video frames at intended playback sizes.
+Retain raw takes, alternatives, costs, decisions, exact feedback and hashes.
+`launch-video` owns this draft-production procedure and its rated references.
+Operator ratings establish local quality references; future reliability and
+conversion need independent-brief and audience evidence. Publication authority,
+platform requirements and post-type activation remain separate.

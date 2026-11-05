@@ -20,6 +20,7 @@ import (
 	"github.com/vrooli/api-core/discovery"
 	"github.com/vrooli/api-core/owneridentity"
 	"github.com/vrooli/api-core/scenario"
+	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
 )
 
 // freshConversationID mints a new ConversationID for a swarm-manager-spawned
@@ -141,44 +142,68 @@ func (s *AgentService) ResolveURL(ctx context.Context) (string, error) {
 	return s.client.ResolveURL(ctx)
 }
 
-// Initialize resolves the swarm-manager profile IDs once at startup. Agent
-// Manager owns declaration registration through its own startup sweep, so there
-// is no per-start reconcile: this one-time call reconciles idempotently only to
-// resolve the stable profile-key -> id mapping the run surface reports.
+// Initialize resolves existing, scenario-owned profile IDs from a bounded read.
+// Agent Manager owns declaration registration; Swarm must not reconcile or
+// create profiles as a side effect of starting its own service.
 func (s *AgentService) Initialize(ctx context.Context) error {
 	if !s.enabled {
 		return nil
 	}
+	const profilePageSize = 128
+	const maxProfilePages = 8
+	var profiles []*domainpb.AgentProfile
+	coverageComplete := false
+	for page := 0; page < maxProfilePages; page++ {
+		resp, err := s.client.ListProfiles(ctx, profilePageSize, page*profilePageSize)
+		if err != nil {
+			return fmt.Errorf("read existing agent-manager profiles: %w", err)
+		}
+		if resp == nil {
+			return fmt.Errorf("read existing agent-manager profiles: empty response")
+		}
+		profiles = append(profiles, resp.Profiles...)
+		if len(resp.Profiles) < profilePageSize {
+			coverageComplete = true
+			break
+		}
+	}
 
-	resp, err := s.client.ReconcileScenarioProfiles(ctx, scenario.Name())
-	if err != nil {
-		return fmt.Errorf("reconcile scenario profiles: %w", err)
+	owner := scenario.Name()
+	prefix := owner + "/"
+	profileIDs := make(map[string]string)
+	for _, profile := range profiles {
+		if profile == nil || profile.GetOwnerScenario() != owner {
+			continue
+		}
+		key := strings.TrimSpace(profile.GetProfileKey())
+		id := strings.TrimSpace(profile.GetId())
+		if key == "" || id == "" || !strings.HasPrefix(key, prefix) {
+			return fmt.Errorf("read existing agent-manager profiles: owner %q returned an invalid profile identity", owner)
+		}
+		if prior, exists := profileIDs[key]; exists && prior != id {
+			return fmt.Errorf("read existing agent-manager profiles: duplicate owner profile key %q", key)
+		}
+		profileIDs[key] = id
+		if profile.GetLocalOverride() || (profile.GetSourcePath() != "" && profile.GetSourceHash() != profile.GetLastAppliedHash()) {
+			slog.Warn("agent-manager profile has declaration drift metadata; declaration owner must reconcile it", "profile_key", key)
+		}
+	}
+	if err := s.validateRequiredProfiles(profileIDs); err != nil {
+		coverage := "bounded read did not observe every required profile"
+		if coverageComplete {
+			coverage = "bounded read completed but required registration was not observed"
+		}
+		return fmt.Errorf("resolve existing agent-manager profiles: %w; %s; check the Agent Manager declaration owner; no profile was created or updated", err, coverage)
+	}
+	if !coverageComplete {
+		slog.Warn("agent-manager profile read reached its page bound; only observed owner keys are enabled", "scenario", owner, "pages", maxProfilePages)
 	}
 
 	s.mu.Lock()
-	found := false
-	profileIDs := make(map[string]string, len(resp.Results))
-	for _, item := range resp.Results {
-		profileIDs[item.ProfileKey] = item.ProfileId
-		if item.ProfileKey == s.profileKey {
-			s.profileID = item.ProfileId
-			found = true
-		}
-	}
 	s.profileIDs = profileIDs
+	s.profileID = profileIDs[s.profileKey]
 	s.mu.Unlock()
-	if resp.Failed > 0 {
-		return fmt.Errorf("reconcile scenario profiles: %d profile source(s) failed validation", resp.Failed)
-	}
-	if err := s.validateRequiredProfiles(profileIDs); err != nil {
-		return fmt.Errorf("reconcile scenario profiles: %w", err)
-	}
-	if !found {
-		return fmt.Errorf("profile %q was not returned", s.profileKey)
-	}
-
-	slog.Info("reconciled agent profiles", "scenario", resp.Scenario, "created", resp.Created, "updated", resp.Updated, "unchanged", resp.Unchanged, "failed", resp.Failed)
-
+	slog.Info("resolved existing scenario-owned agent-manager profiles", "scenario", owner, "profiles", len(profileIDs))
 	return nil
 }
 

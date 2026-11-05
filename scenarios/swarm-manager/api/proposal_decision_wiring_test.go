@@ -1,14 +1,20 @@
 package main
 
 import (
+	"crypto/hmac"
+	"crypto/sha256"
+	"encoding/hex"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"swarm-manager/internal/agentsessions"
 	"swarm-manager/internal/attempt"
+	"swarm-manager/internal/backlog"
 
 	"github.com/gorilla/mux"
+	"github.com/vrooli/api-core/operatordecision"
 )
 
 // newWiringTestServer builds the minimal Server the decision-rail wiring needs: a
@@ -60,6 +66,66 @@ func TestProposalDecisionWebhookMountsWhenSecretResolves(t *testing.T) {
 	if !decisionWebhookMounted(s) {
 		t.Fatal("decision webhook did not mount even though the secret resolved")
 	}
+}
+
+func TestDecisionWebhookPassesInteractiveGrantOnlyBehindHMAC(t *testing.T) {
+	const secret = "test-webhook-secret"
+	t.Setenv("VROOLI_EVENTS_WEBHOOK_SECRET", secret)
+	t.Setenv("API_PORT", "")
+	s := newWiringTestServer(t)
+	s.router.Use(backlog.InteractiveGrantMiddleware)
+	s.wireProposalDecisionRail()
+
+	for _, tc := range []struct {
+		name, signature string
+		wantStatus      int
+		wantBody        string
+	}{
+		{name: "missing signature", wantStatus: http.StatusUnauthorized, wantBody: "event webhook signature is invalid or unavailable"},
+		{name: "bad signature", signature: "deadbeef", wantStatus: http.StatusUnauthorized, wantBody: "event webhook signature is invalid or unavailable"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			request := httptest.NewRequest(http.MethodPost, decisionEventWebhookPath, strings.NewReader(`{}`))
+			if tc.signature != "" {
+				request.Header.Set(operatordecision.SignatureHeader, tc.signature)
+			}
+			response := httptest.NewRecorder()
+			s.router.ServeHTTP(response, request)
+			if response.Code != tc.wantStatus || !strings.Contains(response.Body.String(), tc.wantBody) {
+				t.Fatalf("status=%d body=%q; want %d containing %q", response.Code, response.Body.String(), tc.wantStatus, tc.wantBody)
+			}
+		})
+	}
+
+	// Non-POST methods on the exact webhook path remain outside the narrowly
+	// allowed signed delivery route and are denied by the global middleware.
+	wrongMethod := httptest.NewRequest(http.MethodPatch, decisionEventWebhookPath, strings.NewReader(`{}`))
+	wrongMethodResponse := httptest.NewRecorder()
+	backlog.InteractiveGrantMiddleware(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		t.Error("non-POST webhook unexpectedly passed the global middleware")
+		w.WriteHeader(http.StatusNoContent)
+	})).ServeHTTP(wrongMethodResponse, wrongMethod)
+	if wrongMethodResponse.Code != http.StatusUnauthorized {
+		t.Fatalf("non-POST webhook status=%d body=%q; want middleware denial", wrongMethodResponse.Code, wrongMethodResponse.Body.String())
+	}
+
+	// A correctly signed but unrelated resolution proves the exact webhook path
+	// traverses the global middleware and reaches the canonical handler. It is a
+	// no-op: the registered proposal effect does not claim this event type.
+	body := []byte(`{"event_id":"fixture-event","event_type":"notification_hub.ask.resolved.v1","source_scenario":"notification-hub","payload":{"ask_id":"fixture-ask","state":"answered","answer":"approve","source_event_type":"unrelated.decision_requested.v1","correlation":{}}}`)
+	request := httptest.NewRequest(http.MethodPost, decisionEventWebhookPath, strings.NewReader(string(body)))
+	request.Header.Set(operatordecision.SignatureHeader, signDecisionWebhook(body, secret))
+	response := httptest.NewRecorder()
+	s.router.ServeHTTP(response, request)
+	if response.Code != http.StatusOK || !strings.Contains(response.Body.String(), `"ignored":true`) {
+		t.Fatalf("signed benign resolution status=%d body=%q; want canonical no-op response", response.Code, response.Body.String())
+	}
+}
+
+func signDecisionWebhook(body []byte, secret string) string {
+	mac := hmac.New(sha256.New, []byte(secret))
+	_, _ = mac.Write(body)
+	return hex.EncodeToString(mac.Sum(nil))
 }
 
 // resolveEventsWebhookSecret honors the env override verbatim (the agent-manager

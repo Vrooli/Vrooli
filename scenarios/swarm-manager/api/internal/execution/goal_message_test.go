@@ -41,8 +41,8 @@ func TestComposeGoalMessageShapeARendersSlotsAndNoteVerbatim(t *testing.T) {
 		}
 		last = idx
 	}
-	if len([]rune(message)) > GoalPromptMaxChars {
-		t.Fatalf("message exceeds the prompt bound: %d", len([]rune(message)))
+	if len(message) > GoalPromptMaxBytes {
+		t.Fatalf("message exceeds the prompt byte bound: %d", len(message))
 	}
 }
 
@@ -126,7 +126,7 @@ func TestComposeGoalMessageMandateCarriesBoardProofAndImproveSkill(t *testing.T)
 	if !strings.HasSuffix(message, "Operator note: Run goal mode; one run.") {
 		t.Fatalf("operator note missing: %q", message)
 	}
-	if len([]rune(message)) > GoalPromptMaxChars {
+	if len(message) > GoalPromptMaxBytes {
 		t.Fatalf("message exceeds the prompt bound: %d", len([]rune(message)))
 	}
 }
@@ -146,18 +146,18 @@ func TestComposeGoalMessageCarriesExternalRepairAuthority(t *testing.T) {
 	}
 }
 
-func TestComposeGoalMessageAllowsPromptLongerThanUntil(t *testing.T) {
+func TestComposeGoalMessageAllowsLargePrompt(t *testing.T) {
 	message, err := ComposeGoalMessage(GoalMessageInput{
 		PlanShape:    "mandate",
 		ScenarioName: "audio-tools",
 		ProgramName:  "audio-tools-improve",
-		OperatorNote: strings.Repeat("x", GoalUntilMaxChars),
+		OperatorNote: strings.Repeat("x", 64<<10),
 	})
 	if err != nil {
-		t.Fatalf("long task prompt should be accepted independently of until: %v", err)
+		t.Fatalf("large task prompt should fit the raised prompt budget: %v", err)
 	}
-	if len([]rune(message)) <= GoalUntilMaxChars {
-		t.Fatalf("test prompt did not exceed until limit: %d", len([]rune(message)))
+	if len(message) <= 16<<10 || len(message) > GoalPromptMaxBytes {
+		t.Fatalf("test prompt did not exceed the former prompt budget or exceeded the new one: %d bytes", len(message))
 	}
 }
 
@@ -165,25 +165,45 @@ func TestComposeGoalMessageFailsLoudlyWhenPromptTooLong(t *testing.T) {
 	_, err := ComposeGoalMessage(GoalMessageInput{
 		PlanShape:    "phased",
 		PlanSlug:     "big",
-		OperatorNote: strings.Repeat("x", GoalPromptMaxChars+1),
+		OperatorNote: strings.Repeat("x", GoalPromptMaxBytes+1),
 	})
 	var tooLong *GoalMessageTooLongError
-	if err == nil || !strings.Contains(err.Error(), "over the 16384-character limit") {
+	if err == nil || !strings.Contains(err.Error(), "over the 1048576-byte limit") {
 		t.Fatalf("expected a typed overflow error, got %v", err)
 	}
 	if !errors.As(err, &tooLong) {
 		t.Fatalf("error is not *GoalMessageTooLongError: %T", err)
 	}
+	if tooLong.Bytes <= tooLong.Limit {
+		t.Fatalf("overflow measurement is not in bytes: %+v", tooLong)
+	}
 }
 
 func TestRenderFinishLineIsShortAndExplicit(t *testing.T) {
 	line := RenderFinishLine(GoalMessageInput{PlanShape: "mandate", ScenarioName: "audio-tools"})
-	if len([]rune(line)) > GoalUntilMaxChars {
-		t.Fatalf("finish line exceeds Agent Manager until limit: %d", len([]rune(line)))
+	if len(line) > GoalUntilMaxBytes {
+		t.Fatalf("finish line exceeds Agent Manager until byte limit: %d", len(line))
 	}
 	for _, want := range []string{"fresh owner-backed evidence", "exclusions are recorded", "evidence audit passes"} {
 		if !strings.Contains(line, want) {
 			t.Fatalf("finish line missing %q: %q", want, line)
 		}
+	}
+}
+
+func TestComposeGoalMessageAcceptsPromptAtByteLimit(t *testing.T) {
+	in := GoalMessageInput{PlanShape: "phased", PlanSlug: "bounded"}
+	base, err := ComposeGoalMessage(in)
+	if err != nil {
+		t.Fatal(err)
+	}
+	in.OperatorNote = strings.Repeat("x", GoalPromptMaxBytes-len(base))
+	message, err := ComposeGoalMessage(in)
+	if err != nil || len(message) != GoalPromptMaxBytes {
+		t.Fatalf("exact byte limit rejected: len=%d err=%v", len(message), err)
+	}
+	in.OperatorNote += "x"
+	if _, err := ComposeGoalMessage(in); err == nil {
+		t.Fatal("one byte over the prompt limit was accepted")
 	}
 }

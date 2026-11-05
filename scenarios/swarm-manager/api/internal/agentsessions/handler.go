@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/vrooli/api-core/authn"
 	"github.com/vrooli/api-core/discovery"
 	"github.com/vrooli/api-core/owneridentity"
 
@@ -50,6 +51,7 @@ func (h *Handler) RegisterRoutes(r *mux.Router) {
 	r.HandleFunc("/api/v1/agent-sessions/{session_id}/proposals/{proposal_id}/apply", h.ApplyProposal).Methods(http.MethodPost)
 	r.HandleFunc("/api/v1/agent-sessions/{session_id}/proposals/{proposal_id}/accept-keep", h.AcceptNoChangeRecommendation).Methods(http.MethodPost)
 	r.HandleFunc("/api/v1/agent-sessions/{session_id}/proposals/{proposal_id}/revise", h.ReviseMutationProposal).Methods(http.MethodPost)
+	r.HandleFunc("/api/v1/agent-sessions/{session_id}/proposals/{proposal_id}/reissue-decision-request", h.ReissueLegacyProposalDecision).Methods(http.MethodPost)
 	r.HandleFunc("/api/v1/agent-sessions/{session_id}/proposals/{proposal_id}/wait", h.WaitProposal).Methods(http.MethodPost)
 	r.HandleFunc("/api/v1/proposal-sessions", h.CreateProposalSession).Methods(http.MethodPost)
 	r.HandleFunc("/api/v1/proposal-sessions", h.ListProposalSessions).Methods(http.MethodGet)
@@ -121,7 +123,7 @@ func (h *Handler) ListProposalSessions(w http.ResponseWriter, r *http.Request) {
 		apierr.MapError(w, "[agent-sessions] list proposal sessions", err)
 		return
 	}
-	filtered := make([]Session, 0, len(sessions))
+	filtered := make([]proposalSessionRead, 0, len(sessions))
 	for _, session := range sessions {
 		if session.ProposalTarget == nil {
 			continue
@@ -132,9 +134,46 @@ func (h *Handler) ListProposalSessions(w http.ResponseWriter, r *http.Request) {
 		if targetRef != "" && session.ProposalTarget.Ref != targetRef {
 			continue
 		}
-		filtered = append(filtered, session)
+		digests := make(map[string]string)
+		for _, proposal := range session.Proposals {
+			if proposal.DecisionPublication != nil && proposal.DecisionPublication.State == ProposalDecisionPublicationLegacyUnresolved && eligibleProposalDecision(proposal) {
+				if digest, digestErr := proposalDecisionTermsSHA256(proposal); digestErr == nil {
+					digests[proposal.ID] = digest
+				}
+			}
+		}
+		filtered = append(filtered, proposalSessionRead{Session: session, DecisionTermsSHA256: digests})
 	}
 	_ = httputil.JSONWithStatus(w, http.StatusOK, map[string]any{"sessions": filtered})
+}
+
+type proposalSessionRead struct {
+	Session
+	DecisionTermsSHA256 map[string]string `json:"decision_terms_sha256,omitempty"`
+}
+
+type reissueLegacyProposalDecisionRequest struct {
+	ExpectedTermsSHA256 string `json:"expected_terms_sha256"`
+}
+
+func (h *Handler) ReissueLegacyProposalDecision(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	target := proposalDecisionAuthorizationTarget(vars["session_id"], vars["proposal_id"])
+	if _, err := authn.RequireOperation(r.Context(), "swarm-manager:write", "swarm.bookkeeping", target); err != nil {
+		apierr.MapError(w, "[agent-sessions] authorize legacy decision reissue", apierr.Forbidden("proposal decision reissue is outside the approved bookkeeping grant"))
+		return
+	}
+	var req reissueLegacyProposalDecisionRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		apierr.MapError(w, "[agent-sessions] reissue legacy decision request", apierr.BadRequest("invalid request body"))
+		return
+	}
+	session, err := h.service.ReissueLegacyProposalDecision(r.Context(), vars["session_id"], vars["proposal_id"], req.ExpectedTermsSHA256)
+	if err != nil {
+		apierr.MapError(w, "[agent-sessions] reissue legacy decision request", err)
+		return
+	}
+	_ = httputil.JSONWithStatus(w, http.StatusOK, session)
 }
 
 type mutationProposalDecisionRequest struct {

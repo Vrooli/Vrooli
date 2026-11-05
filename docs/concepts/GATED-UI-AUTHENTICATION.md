@@ -40,6 +40,19 @@ status while leaving read routes available. Domain handlers decide whether a
 verified human may perform an operation and retain any exact, single-use
 approval requirements.
 
+## Human approval crosses the scenario boundary
+
+A verified `Cf-Access` token proves a human at browser ingress, but on its own it
+does not reach a scenario the operator spawns work in. When a verified-human UI
+session launches a run, the session mints a short-lived, session-scoped
+`OperationGrant` bound to the human owner, and that grant is carried into the
+spawned agent's request — so the created run is attributed to the operator
+(non-empty creator) and the agent inherits the operator's authority, bounded to the
+session and to what it was launched to do. The grant expires with the session; a
+caller without a verified human session cannot obtain it. This is one of the three
+ways an `OperationGrant` comes to exist; see
+[`AUTHORIZATION.md`](AUTHORIZATION.md) for the full model.
+
 Tunnel-manager's existing `/public` capability is only an anonymous public
 asset exception. It is not a human-authentication provider, does not provision
 the primary identity application, and does not verify runtime user JWTs.

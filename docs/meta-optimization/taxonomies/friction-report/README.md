@@ -99,6 +99,21 @@ description: |
 honesty_flags: [<flags from honestyFlags below>]
 ```
 
+Producer body: three paragraphs explaining the attempted task, what happened
+(including output and recurrence evidence), and why it is friction rather than a
+bug or immediate fix, citing the expected contract. The structured CLI accepts
+these as `attempt`, `observation` and `explanation`. It also accepts
+`recurrence_count`, `prior_entry` and `currently_blocked` for mechanical severity
+checks. Reported identity is a declaration, separate from trusted runtime writer
+attribution. Authoring/review owns semantic truth. Inbox capture does not perform
+routing, authenticate the declared reporter or imply a running curator.
+
+The legacy typed operator route preserves its historical narrower contract:
+operator reporter/team, capture date, reduced context and no explanatory body.
+Use `--report-file` for complete reporting; do not reinterpret old entries as
+proof of the richer contract. See the canonical skill for exact invocation and
+bounded serial retry/500-entry historical-window limits.
+
 ### `friction-triage` (daily snapshot written by friction-curator)
 
 ```yaml

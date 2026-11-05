@@ -3,12 +3,14 @@
 package agentsessions
 
 import (
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
 	"time"
 
+	"github.com/vrooli/api-core/eventbus"
 	"swarm-manager/internal/transitions"
 )
 
@@ -212,20 +214,47 @@ type ContextItem struct {
 }
 
 type Proposal struct {
-	ID               string             `json:"id"`
-	Kind             ProposalKind       `json:"kind"`
-	Status           ProposalStatus     `json:"status"`
-	Summary          string             `json:"summary"`
-	PayloadJSON      string             `json:"payload_json"`
-	CreatedAt        string             `json:"created_at"`
-	UpdatedAt        string             `json:"updated_at"`
-	Attribution      *Attribution       `json:"attribution,omitempty"`
-	Target           *ProposalTarget    `json:"target,omitempty"`
-	NeedsRevision    bool               `json:"needs_revision,omitempty"`
-	ParseWarnings    []string           `json:"parse_warnings,omitempty"`
-	ValidationErrors []string           `json:"validation_errors,omitempty"`
-	Decisions        []ProposalDecision `json:"decisions,omitempty"`
+	ID                          string                       `json:"id"`
+	Kind                        ProposalKind                 `json:"kind"`
+	Status                      ProposalStatus               `json:"status"`
+	Summary                     string                       `json:"summary"`
+	PayloadJSON                 string                       `json:"payload_json"`
+	CreatedAt                   string                       `json:"created_at"`
+	UpdatedAt                   string                       `json:"updated_at"`
+	Attribution                 *Attribution                 `json:"attribution,omitempty"`
+	Target                      *ProposalTarget              `json:"target,omitempty"`
+	NeedsRevision               bool                         `json:"needs_revision,omitempty"`
+	ParseWarnings               []string                     `json:"parse_warnings,omitempty"`
+	ValidationErrors            []string                     `json:"validation_errors,omitempty"`
+	Decisions                   []ProposalDecision           `json:"decisions,omitempty"`
+	DecisionPublication         *ProposalDecisionPublication `json:"decision_publication,omitempty"`
+	PreviousDecisionPublication *ProposalDecisionPublication `json:"previous_decision_publication,omitempty"`
 }
+
+// ProposalDecisionPublication is the immutable event snapshot and publication
+// receipt for a proposal's operator decision. The proposal remains the single
+// durable owner; this is deliberately not a second pending-ask registry.
+type ProposalDecisionPublication struct {
+	Version int                  `json:"version"`
+	State   string               `json:"state"`
+	EventID string               `json:"event_id,omitempty"`
+	Event   eventbus.DomainEvent `json:"event,omitempty"`
+	// DecisionTermsSHA256 binds this frozen decision request to the immutable
+	// proposal facts represented by its event generation. Empty remains decodable
+	// for historical records, but the answer receiver treats an unbound record as
+	// unresolved. Status and receipt bookkeeping remain mutable; terms do not.
+	DecisionTermsSHA256 string `json:"decision_terms_sha256,omitempty"`
+	Attempts            int    `json:"attempts,omitempty"`
+	LastAttemptAt       string `json:"last_attempt_at,omitempty"`
+	PublishedAt         string `json:"published_at,omitempty"`
+	LastError           string `json:"last_error,omitempty"`
+}
+
+const (
+	ProposalDecisionPublicationPending          = "pending"
+	ProposalDecisionPublicationPublished        = "published"
+	ProposalDecisionPublicationLegacyUnresolved = "legacy_unresolved"
+)
 
 // ProposalTarget is the entity against which a proposal session reasons. A
 // backlog target is resolved to its owning milestone before validation and
@@ -246,6 +275,11 @@ type StartTransitionProposal struct {
 
 type ProposalDecision struct {
 	Kind                string            `json:"kind"`
+	AskID               string            `json:"ask_id,omitempty"`
+	RunID               string            `json:"run_id,omitempty"`
+	MessageID           string            `json:"message_id,omitempty"`
+	Prompt              string            `json:"prompt,omitempty"`
+	ContinuationAcked   bool              `json:"continuation_acked,omitempty"`
 	AcceptedMutationIDs []string          `json:"accepted_mutation_ids,omitempty"`
 	RejectedMutationIDs []string          `json:"rejected_mutation_ids,omitempty"`
 	Note                string            `json:"note,omitempty"`
@@ -454,6 +488,54 @@ func (p Proposal) Validate() error {
 		}
 		if err := p.Target.Validate(); err != nil {
 			return fmt.Errorf("%w: target: %v", ErrValidation, err)
+		}
+	}
+	if p.DecisionPublication != nil {
+		publication := p.DecisionPublication
+		if publication.Version != 1 {
+			return validationError("decision_publication version is unsupported")
+		}
+		switch publication.State {
+		case ProposalDecisionPublicationPending, ProposalDecisionPublicationPublished:
+			if len(publication.EventID) != 64 || publication.Event.Source == "" || publication.Event.EventType == "" || publication.Event.Occurred.IsZero() || len(publication.Event.Payload) == 0 {
+				return validationError("decision_publication event snapshot is incomplete")
+			}
+			if publication.DecisionTermsSHA256 != "" {
+				if len(publication.DecisionTermsSHA256) != 64 {
+					return validationError("decision_publication decision_terms_sha256 must be a SHA-256 digest")
+				}
+				if _, err := hex.DecodeString(publication.DecisionTermsSHA256); err != nil {
+					return validationError("decision_publication decision_terms_sha256 must be hexadecimal")
+				}
+			}
+			if publication.State == ProposalDecisionPublicationPublished {
+				if err := validateRFC3339("decision_publication.published_at", publication.PublishedAt); err != nil {
+					return err
+				}
+			}
+		case ProposalDecisionPublicationLegacyUnresolved:
+			if publication.EventID != "" || publication.Event.Source != "" || publication.PublishedAt != "" {
+				return validationError("legacy unresolved decision_publication cannot claim event terms or publication")
+			}
+		default:
+			return validationError("decision_publication state is invalid")
+		}
+		if publication.Attempts < 0 {
+			return validationError("decision_publication attempts cannot be negative")
+		}
+	}
+	if prior := p.PreviousDecisionPublication; prior != nil {
+		if p.DecisionPublication == nil || prior.State != ProposalDecisionPublicationLegacyUnresolved || prior.Version != 1 || prior.EventID != "" || prior.Event.Source != "" || prior.PublishedAt != "" {
+			return validationError("previous decision publication must preserve one legacy unresolved marker")
+		}
+		if p.DecisionPublication.State == ProposalDecisionPublicationLegacyUnresolved || len(p.DecisionPublication.EventID) != 64 {
+			return validationError("reissued decision publication must contain a current generation")
+		}
+		if len(p.DecisionPublication.DecisionTermsSHA256) != 64 {
+			return validationError("reissued decision publication must bind immutable proposal terms")
+		}
+		if _, err := hex.DecodeString(p.DecisionPublication.DecisionTermsSHA256); err != nil {
+			return validationError("reissued decision publication terms binding must be hexadecimal")
 		}
 	}
 	for i := range p.Decisions {

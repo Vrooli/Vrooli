@@ -48,6 +48,8 @@ func interactiveGrantRoute(r *http.Request) bool {
 	}
 	if r.Method == http.MethodPost {
 		switch r.URL.Path {
+		case "/api/v1/captures":
+			return true
 		case apiconnect.BacklogServiceListItemsProcedure, apiconnect.BacklogServiceGetItemProcedure,
 			apiconnect.BacklogServiceUpdateItemProcedure,
 			apiconnect.BacklogServiceArchiveTerminalItemsProcedure,
@@ -61,8 +63,11 @@ func interactiveGrantRoute(r *http.Request) bool {
 			apiconnect.GoalServiceAssignMilestoneItemsProcedure, apiconnect.GoalServiceUnassignMilestoneItemsProcedure,
 			apiconnect.RelatedServiceGetRelatedProcedure, apiconnect.EvidenceServiceListRunProcedure,
 			apiconnect.EvidenceServiceListEntityProcedure, apiconnect.TransitionServiceListTransitionsProcedure,
+			apiconnect.TransitionServiceStartTransitionProcedure, apiconnect.TransitionServiceApplyTransitionProcedure,
 			apiconnect.DevelopmentServiceGetDevelopmentProcedure, apiconnect.DevelopmentServiceGetDevelopmentArtifactProcedure,
-			"/api/v1/backlog/next-actions", "/api/v1/backlog/validate-globs", "/api/v1/backlog/export":
+			"/api/v1/backlog/next-actions", "/api/v1/backlog/validate-globs", "/api/v1/backlog/export",
+			"/api/v1/search/ai", "/api/v1/records/search",
+			"/api/v1/events/notification-hub":
 			return true
 		}
 	}
@@ -89,6 +94,8 @@ func interactiveGrantRoute(r *http.Request) bool {
 		return r.Method == http.MethodPost
 	case "/api/v1/goals/{name}/milestones/{milestone}":
 		return r.Method == http.MethodPut || r.Method == http.MethodDelete
+	case "/api/v1/agent-sessions/{session_id}/proposals/{proposal_id}/reissue-decision-request":
+		return r.Method == http.MethodPost
 	}
 	return false
 }

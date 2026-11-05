@@ -2,6 +2,8 @@ package agentsessions
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"strings"
 
@@ -242,10 +244,141 @@ func rejectedMutationIDs(payloadJSON string, accepted []string) []string {
 }
 
 func (s *Service) RequestMutationProposalRevision(ctx context.Context, sessionID, proposalID, note string) (Session, error) {
+	return s.requestMutationProposalRevision(ctx, sessionID, proposalID, note, "")
+}
+
+// RequestMutationProposalRevisionForDecision applies a Hub answer with a
+// stable decision identity. If delivery is retried after the proposal was
+// durably marked superseded, the same message and Agent Manager continuation
+// are replayed under the same idempotency key.
+func (s *Service) RequestMutationProposalRevisionForDecision(ctx context.Context, sessionID, proposalID, note, askID string) (Session, error) {
+	askID = strings.TrimSpace(askID)
+	if askID == "" {
+		return Session{}, apierr.BadRequest("request-changes decision requires an ask id")
+	}
+	if _, ok := s.spawner.(interface {
+		ContinueRunWithIdempotencyKey(context.Context, string, string, string) error
+	}); !ok {
+		return Session{}, apierr.Unavailable("idempotent proposal revision continuation is unavailable")
+	}
+	return s.requestMutationProposalRevision(ctx, sessionID, proposalID, note, askID)
+}
+
+func (s *Service) requestMutationProposalRevision(ctx context.Context, sessionID, proposalID, note, askID string) (Session, error) {
 	session, proposal, err := s.loadRevisableProposal(ctx, sessionID, proposalID)
 	if err != nil {
 		return Session{}, err
 	}
+	if askID == "" {
+		return s.requestMutationProposalRevisionLegacy(ctx, session, proposal, note)
+	}
+	if s.spawner == nil {
+		return Session{}, apierr.Conflict("proposal revision requires an attributed session run")
+	}
+	var priorDecision *ProposalDecision
+	priorDecisionIndex := -1
+	if askID != "" {
+		for i := range proposal.Decisions {
+			if proposal.Decisions[i].AskID == askID {
+				priorDecision = &proposal.Decisions[i]
+				priorDecisionIndex = i
+				break
+			}
+		}
+	}
+	var continuationRunID, prompt, messageID string
+	var decisionAt string
+	if priorDecision != nil {
+		if priorDecision.Kind != "request_changes" {
+			return Session{}, apierr.Conflict("ask id is already recorded for another proposal decision")
+		}
+		if strings.TrimSpace(priorDecision.RunID) == "" || strings.TrimSpace(priorDecision.MessageID) == "" || strings.TrimSpace(priorDecision.Prompt) == "" {
+			return Session{}, apierr.Conflict("stored proposal revision decision lacks its receiver identity")
+		}
+		if priorDecision.ContinuationAcked {
+			return s.loadSession(ctx, session.ID)
+		}
+		note = priorDecision.Note
+		continuationRunID, prompt, messageID = priorDecision.RunID, priorDecision.Prompt, priorDecision.MessageID
+		decisionAt = priorDecision.DecidedAt
+	} else {
+		if strings.TrimSpace(session.RunID) == "" {
+			return Session{}, apierr.Conflict("proposal revision requires an attributed session run")
+		}
+		if proposal.Status == ProposalStatusApplied || proposal.Status == ProposalStatusRejected || proposal.Status == ProposalStatusSuperseded {
+			return Session{}, apierr.Conflict("proposal cannot be revised in its current state")
+		}
+		note = strings.TrimSpace(note)
+		continuationRunID = strings.TrimSpace(session.RunID)
+		prompt = revisionPrompt(proposal, note)
+		messageID = proposalDecisionMessageID(askID)
+		proposal.Status = ProposalStatusSuperseded
+		proposal.UpdatedAt = nowRFC3339()
+		decisionAt = proposal.UpdatedAt
+		proposal.Decisions = append(proposal.Decisions, ProposalDecision{
+			Kind: "request_changes", AskID: askID, RunID: continuationRunID, MessageID: messageID,
+			Prompt: prompt, Note: note, DecidedAt: decisionAt,
+		})
+		priorDecisionIndex = len(proposal.Decisions) - 1
+		if err := s.saveProposal(ctx, session.ID, proposal); err != nil {
+			return Session{}, err
+		}
+	}
+	messageExists := false
+	for _, existing := range session.Messages {
+		if existing.ID == messageID {
+			messageExists = true
+			if existing.Content != prompt {
+				return Session{}, apierr.Conflict("stored revision message differs from the decision")
+			}
+			break
+		}
+	}
+	message := Message{ID: messageID, Role: MessageRoleUser, Content: prompt, CreatedAt: decisionAt}
+	store, err := s.storeFor(ctx)
+	if err != nil {
+		return Session{}, err
+	}
+	if !messageExists {
+		if err := store.AppendMessage(session.ID, message); err != nil {
+			return Session{}, err
+		}
+	}
+	// Only the initial request, or a retry while the session still belongs to
+	// the frozen receiver, updates session status. A later run must not be marked
+	// running on behalf of an earlier Ask.
+	if strings.TrimSpace(session.RunID) == continuationRunID {
+		session.Status, session.UpdatedAt, session.FailureReason = StatusRunning, nowRFC3339(), ""
+		if err := store.SaveSession(session); err != nil {
+			return Session{}, err
+		}
+	}
+	activityCtx := agentactivity.WithSpec(ctx, sessionActivitySpec(session, agentactivity.InteractionContinue))
+	var continueErr error
+	if spawner, ok := s.spawner.(interface {
+		ContinueRunWithIdempotencyKey(context.Context, string, string, string) error
+	}); !ok {
+		continueErr = apierr.Unavailable("idempotent proposal revision continuation is unavailable")
+	} else {
+		continueErr = spawner.ContinueRunWithIdempotencyKey(activityCtx, continuationRunID, prompt, "swarm-manager/proposal-revision/"+askID)
+	}
+	if continueErr != nil {
+		return Session{}, mapSpawnError(continueErr)
+	}
+	if priorDecisionIndex >= 0 {
+		proposal.Decisions[priorDecisionIndex].ContinuationAcked = true
+		proposal.UpdatedAt = nowRFC3339()
+		if err := s.saveProposal(ctx, session.ID, proposal); err != nil {
+			return Session{}, err
+		}
+	}
+	return s.loadSession(ctx, session.ID)
+}
+
+// requestMutationProposalRevisionLegacy preserves the existing owner API's
+// unkeyed behavior. Hub answers use the keyed path above because their stable
+// Ask ID allows durable retry and acknowledgement.
+func (s *Service) requestMutationProposalRevisionLegacy(ctx context.Context, session Session, proposal Proposal, note string) (Session, error) {
 	if strings.TrimSpace(session.RunID) == "" || s.spawner == nil {
 		return Session{}, apierr.Conflict("proposal revision requires an attributed session run")
 	}
@@ -275,6 +408,11 @@ func (s *Service) RequestMutationProposalRevision(ctx context.Context, sessionID
 		return Session{}, mapSpawnError(err)
 	}
 	return s.loadSession(ctx, session.ID)
+}
+
+func proposalDecisionMessageID(askID string) string {
+	sum := sha256.Sum256([]byte(strings.TrimSpace(askID)))
+	return "msg_decision_" + hex.EncodeToString(sum[:])
 }
 
 // MarkProposalWaiting records an explicit operator decision to leave a ready

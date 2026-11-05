@@ -15,6 +15,7 @@ import (
 
 	"connectrpc.com/connect"
 	"github.com/gorilla/mux"
+	"github.com/vrooli/api-core/authn"
 	"github.com/vrooli/api-core/connectx"
 	api "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api"
 	apiconnect "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api/apiconnect"
@@ -31,6 +32,7 @@ var subjectOwnedTransitions = map[string]bool{
 type Runner interface {
 	Start(context.Context, string, string) (transitionrun.Correlation, error)
 	Apply(context.Context, string, string) (transitionrun.Correlation, error)
+	GetCorrelation(string) (transitionrun.Correlation, error)
 }
 
 type DeterministicDispatcher interface {
@@ -79,7 +81,22 @@ func (s *Service) StartTransition(ctx context.Context, req *connect.Request[api.
 	if req == nil || req.Msg == nil || strings.TrimSpace(req.Msg.GetTransitionKey()) == "" {
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("transition_key is required"))
 	}
-	definition, ok := s.registry.Get(req.Msg.GetTransitionKey())
+	key := strings.TrimSpace(req.Msg.GetTransitionKey())
+	if key == "capture.classify" {
+		subjectRef, err := declaredSubjectReference(transitions.Definition{Key: key, Subject: "capture"}, req.Msg.GetSubjectRef())
+		if err != nil {
+			return nil, connect.NewError(connect.CodeInvalidArgument, err)
+		}
+		if !validCaptureReference(subjectRef) {
+			return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("capture subject must be a single path-safe ID"))
+		}
+		if err := authorizeCaptureClassification(ctx, subjectRef); err != nil {
+			return nil, err
+		}
+	} else if err := requireHumanTransitionOperator(ctx); err != nil {
+		return nil, err
+	}
+	definition, ok := s.registry.Get(key)
 	if !ok {
 		return nil, connect.NewError(connect.CodeNotFound, errors.New("transition is not declared"))
 	}
@@ -109,7 +126,7 @@ func (s *Service) StartTransition(ctx context.Context, req *connect.Request[api.
 	if s.runner == nil {
 		return nil, connect.NewError(connect.CodeUnavailable, errors.New("transition runner is not configured"))
 	}
-	correlation, err := s.runner.Start(ctx, req.Msg.GetTransitionKey(), subjectRef)
+	correlation, err := s.runner.Start(ctx, key, subjectRef)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeFailedPrecondition, err)
 	}
@@ -126,7 +143,23 @@ func (s *Service) ApplyTransition(ctx context.Context, req *connect.Request[api.
 	if s.runner == nil {
 		return nil, connect.NewError(connect.CodeUnavailable, errors.New("transition runner is not configured"))
 	}
-	correlation, err := s.runner.Apply(ctx, req.Msg.GetTransitionKey(), req.Msg.GetExecutionId())
+	key := strings.TrimSpace(req.Msg.GetTransitionKey())
+	executionID := strings.TrimSpace(req.Msg.GetExecutionId())
+	if key == "capture.classify" {
+		correlation, err := s.runner.GetCorrelation(executionID)
+		if err != nil {
+			return nil, connect.NewError(connect.CodePermissionDenied, errors.New("execution is not an authorized capture classification"))
+		}
+		if correlation.ExecutionID != executionID || correlation.SubjectKind != "capture" || correlation.TransitionKey != key || !validCaptureReference(correlation.SubjectRef) {
+			return nil, connect.NewError(connect.CodePermissionDenied, errors.New("execution is not an authorized capture classification"))
+		}
+		if err := authorizeCaptureClassification(ctx, correlation.SubjectRef); err != nil {
+			return nil, err
+		}
+	} else if err := requireHumanTransitionOperator(ctx); err != nil {
+		return nil, err
+	}
+	correlation, err := s.runner.Apply(ctx, key, executionID)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeFailedPrecondition, err)
 	}
@@ -135,6 +168,28 @@ func (s *Service) ApplyTransition(ctx context.Context, req *connect.Request[api.
 		Outcome: correlation.Outcome, TerminalCode: correlation.TerminalCode, AppliedTime: correlation.AppliedTime,
 		DefinitionDigest: correlation.DefinitionDigest, EntityVersion: correlation.EntityVersion, ApplyState: string(correlation.ApplyState),
 	}), nil
+}
+
+func authorizeCaptureClassification(ctx context.Context, captureID string) error {
+	target := "swarm-manager:capture/" + strings.TrimSpace(captureID)
+	if _, err := authn.RequireOperation(ctx, "swarm-manager:write", "swarm.bookkeeping", target); err != nil {
+		return connect.NewError(connect.CodePermissionDenied, err)
+	}
+	return nil
+}
+
+func validCaptureReference(captureID string) bool {
+	return captureID != "" && captureID == strings.TrimSpace(captureID) && captureID != "." && captureID != ".." && !strings.ContainsAny(captureID, `/\\`)
+}
+
+func requireHumanTransitionOperator(ctx context.Context) error {
+	if _, err := authn.RequireIndependentHuman(ctx); err != nil {
+		return connect.NewError(connect.CodePermissionDenied, err)
+	}
+	if _, err := authn.RequireCapability(ctx, "swarm-manager:write"); err != nil {
+		return connect.NewError(connect.CodePermissionDenied, err)
+	}
+	return nil
 }
 
 func declaredSubjectReference(definition transitions.Definition, reference *api.SubjectReference) (string, error) {

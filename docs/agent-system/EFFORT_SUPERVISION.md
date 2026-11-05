@@ -20,6 +20,27 @@ owns command/format details. Agent Manager computes the only pressure clock; the
 reads it. A team queue limit, commissioned worker limit, pause and heartbeat disablement
 are separate facts. Time never grants acceptance.
 
+Prompt Manager renders finite delivery guidance from declared purpose/lifetime. A product
+team's homePath selects its charter and evolving STATUS allocation; managed plans, families
+and investigations retain their declared owner model. These teams do not receive the
+recurring instrument-only model or an ordinary backlog/plan-authoring prerequisite for
+approved in-boundary delivery. This selection changes instructions, not native admission,
+permissions or activation. Current operator authority and team write boundaries still apply.
+
+Slice budgets and estimates are optional; large coherent outcomes are valid. Analyze actual
+friction and outcome progress, not duration or token totals alone. Slice time, token,
+work-unit and source-size estimates inform optimization only. An overrun
+does not stop execution, freeze source, require a partial return or block acceptance by
+itself. Review strategy and estimates while completing the admitted outcome and its proof.
+Actual authority/safety limits, explicit product requirements and the commissioned HARD STOP
+remain enforced. Budget classification is not a product-progress verdict.
+
+Heartbeat admission requires the running native commission for a declared product home,
+or when the enrollment already carries a commission. An existing stopped/paused commission
+cannot be bypassed by removing the home hint. Managed finite work without a product home
+or commission keeps its existing owner admission; exact enrollment/revision, active leader,
+matching profile, current authority and retained-owner reconciliation still bind it.
+
 ## Authority
 
 - The orchestrator selects, admits and accepts epochs. Independence comes from its
@@ -96,6 +117,18 @@ active work still needs the resource, remove the hold and return next-slice
 selection to the retained orchestrator; keep other admissible work moving.
 Native admission does not replace workload-specific host/device gates or
 genuine human decisions.
+
+When supervision needs an operator decision, send it through Notification Hub's
+decision flow. Present the actual choices, mark one recommendation with its
+reason, and include an operator-authored `Other` response so the recipient can
+provide a different answer. Include the full path to the supervisor's operator-
+actions file when one exists, so the decision is visible alongside other open
+actions. The recipient must also be able to dismiss an obsolete or inapplicable
+ask without recording an answer. Dismissal is a terminal non-approval: it must
+not execute the requested operation. For approval-bound work, the producer must
+verify the exact signed callback, identity, target and current plan before
+acting, then send a follow-up notification with the outcome.
+
 When the supervisor has completed its current due reads and authorized actions
 and only a future acknowledgement, external event, deadline, or changed evidence
 remains, it records the exact return condition and ends that invocation. It does

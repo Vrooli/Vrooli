@@ -18,7 +18,7 @@ type RunState struct {
 	ErrorMsg      string
 	SandboxID     string
 	Summary       string
-	TokensUsed    int32
+	TokensUsed    int64
 	TurnsUsed     int32
 	CostEstimate  float64
 	ChangedFiles  int32
@@ -188,6 +188,13 @@ func (s *AgentService) ContinueRun(ctx context.Context, runID string, message st
 		return ErrNotAvailable
 	}
 	return s.client.ContinueRun(ctx, runID, message)
+}
+
+func (s *AgentService) ContinueRunWithIdempotencyKey(ctx context.Context, runID, message, idempotencyKey string) error {
+	if !s.enabled {
+		return ErrNotAvailable
+	}
+	return s.client.ContinueRunWithIdempotencyKey(ctx, runID, message, idempotencyKey)
 }
 
 // StopRun requests cancellation of an in-flight run.

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"sync"
 	"time"
 
@@ -31,6 +32,10 @@ type sessionSpawner interface {
 
 type runContinuer interface {
 	ContinueRun(ctx context.Context, runID string, message string) error
+}
+
+type idempotentRunContinuer interface {
+	ContinueRunWithIdempotencyKey(ctx context.Context, runID, message, idempotencyKey string) error
 }
 
 type runDiffer interface {
@@ -268,7 +273,24 @@ func (s *Service) ContinueRun(ctx context.Context, runID string, message string)
 	if spec.OwnerType != OwnerSession {
 		return fmt.Errorf("ContinueRun requires owner_type=session")
 	}
-	return s.continueTracked(ctx, spec, runID, message)
+	return s.continueTracked(ctx, spec, runID, message, "")
+}
+
+func (s *Service) ContinueRunWithIdempotencyKey(ctx context.Context, runID, message, idempotencyKey string) error {
+	spec, err := specFromContext(ctx)
+	if err != nil {
+		return err
+	}
+	if spec.OwnerType != OwnerSession {
+		return fmt.Errorf("ContinueRunWithIdempotencyKey requires owner_type=session")
+	}
+	if strings.TrimSpace(idempotencyKey) == "" {
+		return fmt.Errorf("idempotency key is required")
+	}
+	if _, ok := s.continuer.(idempotentRunContinuer); !ok {
+		return fmt.Errorf("idempotent run continuation not available")
+	}
+	return s.continueTracked(ctx, spec, runID, message, strings.TrimSpace(idempotencyKey))
 }
 
 func (s *Service) GetRunState(ctx context.Context, runID string) (agentmanager.RunState, error) {

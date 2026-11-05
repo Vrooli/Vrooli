@@ -6,7 +6,30 @@ Index of currently-active and recently-closed marketing campaigns. Brand-manager
 
 ## Active campaigns
 
-_No active campaigns._
+Each entry below is the campaign **plan** approved by the operator: theme, audience, channels, hypotheses, and the artifact-slot budget. It is not the live status. Current campaign and draft status, the next action per draft, and coverage are computed by the instrument (`content-desk.board-read`); read them there. The plan-of-record holds the intention; a status line here is the declaration at approval time, not a running counter.
+
+### Aquila launch 2026-09-17
+
+**Slug:** `aquila-launch-2026-09-17`
+**Status:** active
+**Theme:** A truthful first-marketed look at Aquila, the browser-based terminal workspace with durable, reconnect-safe sessions — enough real evidence to prompt an operator to try it on their own instance.
+**Audience(s):** Primary: terminal-centric engineers and technical operators (Offer Desk `developer`, status `IDEA` — evidence pending). Secondary: operators who need terminal access from mobile or a second device. No persona is a validated customer segment until an owner supplies evidence.
+**Scenarios:** `web-console`
+**Launch window:** 2026-09-17
+**Duration:** open-ended through the September 17 target
+**Channels:** x-twitter (`launch-thread`, `single-image-ad`), blog (`long-form-essay`, `technical-tutorial`), youtube (`demo-recording`, `short-form-video`)
+**Acquisition hypothesis:** Reach terminal-centric engineers where they already read, then prove the product is real with unedited demo evidence.
+**Retention hypothesis:** Durable session continuity and multi-pane visibility give returning-operator value; measured through Channel Manager receipts and metrics.
+**Linked SKUs:** `web-console` (Offer Desk deliverable `82881311`, `TRIGGER_MET`, release rank 1)
+**Source decision:** operator execution authorization 2026-09-11; campaign registered directly in Content Desk (`campaign-launch-proposal` route not live — see effort `recovery.jsonl`)
+**Outstanding artifact slots:**
+- [x] x-twitter: launch-thread (draft `7713e7a5`)
+- [x] blog: technical-tutorial (draft `8d80f973`)
+- [x] blog: long-form-essay (draft `c3fe4048`)
+- [ ] x-twitter: single-image-ad (post type `v0` — needs paired skill)
+- [ ] youtube: demo-recording (post type `v0` — needs paired skill)
+- [ ] youtube: short-form-video (post type `v0` — needs paired skill)
+**Close note:** open
 
 When a `campaign-launch-proposal` is accepted, append an entry in the shape below.
 

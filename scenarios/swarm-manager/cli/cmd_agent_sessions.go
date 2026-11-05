@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/hex"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -504,6 +505,39 @@ func (a *App) cmdSessionsProposalWait(args []string) error {
 
 func (a *App) cmdSessionsProposalAcceptKeep(args []string) error {
 	return a.sessionProposalNoteAction(args, "sessions proposal-accept-keep", "accept-keep")
+}
+
+func (a *App) cmdSessionsProposalReissueDecisionRequest(args []string) error {
+	fs := flag.NewFlagSet("sessions proposal-reissue-decision-request", flag.ContinueOnError)
+	id := fs.String("id", "", "Session ID")
+	proposal := fs.String("proposal", "", "Proposal ID")
+	expectedTerms := fs.String("expected-terms-sha256", "", "SHA-256 digest returned for the exact current proposal terms")
+	jsonOut := cliutil.JSONFlag(fs)
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
+		return err
+	}
+	if err := requireFlag("id", *id); err != nil {
+		return err
+	}
+	if err := requireFlag("proposal", *proposal); err != nil {
+		return err
+	}
+	digest := strings.ToLower(strings.TrimSpace(*expectedTerms))
+	if len(digest) != 64 {
+		return fmt.Errorf("--expected-terms-sha256 must be a 64-character SHA-256 digest")
+	}
+	if _, err := hex.DecodeString(digest); err != nil {
+		return fmt.Errorf("--expected-terms-sha256 must be hexadecimal")
+	}
+	body, err := a.core.Request("POST", "/agent-sessions/"+strings.TrimSpace(*id)+"/proposals/"+strings.TrimSpace(*proposal)+"/reissue-decision-request", nil, map[string]string{"expected_terms_sha256": digest})
+	if err != nil {
+		return err
+	}
+	if printJSONIfRequested(*jsonOut, body) {
+		return nil
+	}
+	fmt.Printf("A new current-terms decision request was recorded for proposal %s; inspect its publication status before retrying.\n", strings.TrimSpace(*proposal))
+	return nil
 }
 
 func (a *App) sessionProposalNoteAction(args []string, command, action string) error {

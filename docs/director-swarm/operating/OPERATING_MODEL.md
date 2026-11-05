@@ -2,7 +2,7 @@
 
 **Status:** contract canon. This document defines how `director-swarm` works as a coherent system: portfolio hygiene, goal interpretation, outcome gap routing, prediction calibration, and morning vision-walk preparation.
 
-**Loop status:** paused — recorded in the heartbeat control plane as `paused-manual` on 2026-07-24 (resume via `prompt-manager team heartbeat-control director-swarm resume`). Current-state values across this PoR reflect the pause, not loop failure. On resume, the first heartbeat follows the resume protocol in `portfolio-manager/HEARTBEAT.md`.
+**Loop status:** disabled — `team.json` `enabled: false` since 2026-09-14 (the heartbeats ran through 2026-09-13), pending a consumer for the team's output. Team-filed Swarm items wait on operator decision; no autonomous executor drains them. Re-enabling is an operator decision that sets `enabled: true`. On re-enable, the first heartbeat follows the resume protocol in `portfolio-manager/HEARTBEAT.md`.
 
 The current document adopts the generic team operating-model shape from `path:docs/agent-system/OPERATING_GRAPHS.md`.
 
@@ -67,6 +67,12 @@ flowchart LR
   APPROVAL([Operator approval])
   %% @node CANON process:operator-curated-canon
   CANON([Operator-curated canon])
+  %% @node CONTRARIANSC topic:contrarian-scan/*
+  CONTRARIANSC[(contrarian-scan/*)]
+  %% @node CONTRARIANSC2 topic:contrarian-scan/YYYY-MM-DD
+  CONTRARIANSC2[(contrarian-scan/YYYY-MM-DD)]
+  %% @node DIRECTORCONT member:director-contrarian
+  DIRECTORCONT[director-contrarian]
   %% @node DOCSDIRECTOR por:docs/director-swarm/README.md
   DOCSDIRECTOR[/docs/director-swarm/README.md/]
   %% @node DOCSDIRECTOR10 por:docs/director-swarm/strategy/PORTFOLIO_PHILOSOPHY.md
@@ -125,12 +131,6 @@ flowchart LR
   VWP[Vision Walk Prep]
   %% @node WALK topic:vision-walk-record/<date>/<slug>
   WALK[(vision-walk-record/<date>/<slug>)]
-  %% @node DIRECTORCONT member:director-contrarian
-  DIRECTORCONT[director-contrarian]
-  %% @node CONTRARIANSC topic:contrarian-scan/*
-  CONTRARIANSC[(contrarian-scan/*)]
-  %% @node CONTRARIANSC2 topic:contrarian-scan/YYYY-MM-DD
-  CONTRARIANSC2[(contrarian-scan/YYYY-MM-DD)]
 
   OP --> OS
   OP --> PM
@@ -205,7 +205,7 @@ Swarm Manager goal state and Command Center metrics are tool-read surfaces, not 
 - The command-center CLI exposes no `gaps` or `dashboards` verb, so sensor reads are raw HTTP against an on-demand scenario; target-state is a thin CLI sensor verb raised through Swarm Manager work item (outcome-gap).
 - `goal:` references in `path:docs/director-swarm/strategy/ROADMAP.md` are validated only by the `member:portfolio-manager` heartbeat diff today; target-state is knowledge-observatory docs health resolving `goal:` markers against swarm-manager automatically (see `path:docs/reference/machine-readable-references.md` §"Validation Ownership").
 - `path:docs/director-swarm/manifest.json` is present, but target-state is for prompt-manager PoR manifest validation to run automatically against this folder.
-- Team heartbeats are paused; target-state is re-enabled heartbeats whose first pass follows the resume protocol in `portfolio-manager/HEARTBEAT.md`.
+- The team is disabled (`team.json` `enabled: false` since 2026-09-14) because nothing consumes its output; target-state is a named consumer for its Swarm items, then re-enabled heartbeats whose first pass follows the resume protocol in `portfolio-manager/HEARTBEAT.md`.
 - `member:vision-walk-prep` declares cross-team inbox outputs (`research-inbox/*` to marketing-crew, `opportunity-inbox/*` and `validation-inbox/*` to monetization) that are deliberately absent from this team's contract graph; target-state keeps them owned by the receiving teams' topic catalogs, so the validator's declared-output warnings on them are accepted.
 
 ## Adoption / Validation

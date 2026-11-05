@@ -16,6 +16,8 @@ Universal-source intake: `bug-inbox/*` declares `source_team: "*"` — any team'
 bug-inbox/<signal-type>/<short-slug>
 ```
 
+The typed capture owner honors an optional `idempotency_key` (CLI `--idempotency-key`) with a bounded hashed topic. Reusing that key returns the original immutable report even if its display title changes; distinct keys remain distinct when long titles share a prefix. Keyless captures retain title-based topics. A retry key identifies one observation, not a reporting batch.
+
 The producer (the agent invoking `report-bug`) picks the signal type from the fixed list below; the investigator validates the choice as the first step of investigation. There is **no separate classifier skill** — bug-inbox uses deterministic-prefix routing because investigation includes classification as its first sub-step. (Compare: `marketing-research` uses a separate classifier because the producer is a research scan that doesn't yet investigate. Bugs are different — every drainer also reads the entry to start work.)
 
 ## Signal types
@@ -46,17 +48,17 @@ The investigator may overrule severity based on actual scope of impact discovere
 - **A repro is mandatory.** If absent, the investigator first tries to reproduce. If reproduction fails, the action is `file-work` asking the reporter or operator to supply repro — not `drop`.
 - **Honesty flags are required when applicable.** If the reporter didn't try to reproduce, the entry must include `repro-not-attempted`. Other flags: `speculative-cause` (the reporter guessed at a cause), `minimal-context` (the reporter shipped a short report under time pressure), `ai-generated-summary` (the description was machine-summarized).
 - **Investigation outcomes cite the technique applied.** The `bug-investigation-report/<slug>` entry's `technique` front-matter field must name a registered investigation technique. This drives technique-graduation decisions on `meta-self-improvement` (e.g., "bisect-debugging recurred 8 times this month — promote to a registered technique").
-- **Bug entries are debt, not authority.** Investigation outcomes (`bug-investigation-report/<slug>`) are the durable audit log; the original bug-inbox entry is moved or deleted on close.
+- **Bug entries are debt, not authority.** Investigation outcomes (`bug-investigation-report/<slug>`) are the durable audit log. The knowledge store is append-only: create the investigation report as a distinct entry, then close the original bug-inbox entry by appending a closure record keyed by the original id (see `INTAKE_PIPELINE.md` §"Routing — drain duty"). Do not use a same-ID knowledge update to change an intake entry into a report. The report records the investigation; it does not itself close or retag the inbox entry.
 
 ## Action selection
 
 | Action                  | When                                                                                                            |
 |-------------------------|-----------------------------------------------------------------------------------------------------------------|
-| `drop`                  | Cannot reproduce + no clear scope; weak one-off. The investigator writes a short bug-investigation entry explaining the drop and deletes the bug-inbox entry. |
+| `drop`                  | Cannot reproduce + no clear scope; weak one-off. The investigator writes a short bug-investigation entry with actual multiline front matter and the required body sections, reads it back to verify storage, then closes the bug-inbox entry with a closure record. |
 | `observe`               | Confirmed bug; findings recorded in `bug-investigation-report/<slug>` but no fix this heartbeat (deprecated path, queued elsewhere, etc.). |
-| `file-backlog`          | Reproducible; investigator files a `swarm-manager` backlog item whose description states the outcome and its done-condition, attaches the investigation evidence as the item's `research/summary.md`, then closes the bug-inbox entry. Do not put the investigation narrative in `description`; follow the live Swarm Manager work-authoring contract. |
+| `file-backlog`          | Reproducible; investigator files a `swarm-manager` backlog item whose description states the outcome and its done-condition, attaches the investigation evidence as the item's `research/summary.md`, then closes the bug-inbox entry with a closure record. Do not put the investigation narrative in `description`; follow the live Swarm Manager work-authoring contract. |
 | `file-work`         | Cross-cutting; investigator raises `bug-resolution-proposal` for operator review (e.g., a recurring confusion that suggests renaming a CLI verb). |
-| `route-to-another-topic`| Misclassified — actually a documentation gap, capability-work, or skill-issue. Retag/rewrite to the appropriate inbox or file the appropriate decision. |
+| `route-to-another-topic`| Misclassified — actually a documentation gap, capability-work, or skill-issue. Write the entry to the appropriate inbox or file the appropriate decision, then close the bug-inbox entry with a closure record. |
 | `capability-work`        | Repro requires a missing tool/scenario/CLI; raise a `capability-work` decision and leave the inbox entry until the gap is closed. |
 
 ## Front-matter schemas

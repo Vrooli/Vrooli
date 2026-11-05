@@ -121,25 +121,36 @@ type MessageReferenceEnricher interface {
 }
 
 type Service struct {
-	store                     Store
-	spawner                   SessionSpawner
-	eventReader               RunEventReader
-	backlogBatchApplier       BacklogBatchApplier
-	contextResolver           ContextResolver
-	eventLogger               EventLogger
-	projectRoot               string
-	profileKey                string
-	mutationProposalProcessor MutationProposalProcessor
-	eventDispatcher           dispatch.Invalidator
-	transitionRegistry        transitions.Registry
-	transitionStarter         TransitionStarter
-	sourceLedger              SourceLedger
-	relatedWork               RelatedWorkSearcher
-	promptClient              promptmanager.Client
-	decisionPublisher         DecisionEventPublisher
-	runningSessionTTL         time.Duration
-	skillCacheMu              sync.Mutex
-	skillCache                map[string]cachedSkillText
+	store                      Store
+	spawner                    SessionSpawner
+	eventReader                RunEventReader
+	backlogBatchApplier        BacklogBatchApplier
+	contextResolver            ContextResolver
+	eventLogger                EventLogger
+	projectRoot                string
+	profileKey                 string
+	mutationProposalProcessor  MutationProposalProcessor
+	eventDispatcher            dispatch.Invalidator
+	transitionRegistry         transitions.Registry
+	transitionStarter          TransitionStarter
+	sourceLedger               SourceLedger
+	relatedWork                RelatedWorkSearcher
+	promptClient               promptmanager.Client
+	decisionPublisher          DecisionEventPublisher
+	proposalNoticeBaseResolver func(context.Context, string) (string, error)
+	runningSessionTTL          time.Duration
+	skillCacheMu               sync.Mutex
+	skillCache                 map[string]cachedSkillText
+}
+
+// SetProposalNoticeBaseResolver installs the trusted external-origin resolver
+// used to freeze a browser-openable review link in a proposal decision event.
+// A missing/failed resolver only omits the optional link; proposal context is
+// still carried in the decision facts.
+func (s *Service) SetProposalNoticeBaseResolver(resolve func(context.Context, string) (string, error)) {
+	if s != nil {
+		s.proposalNoticeBaseResolver = resolve
+	}
 }
 
 // storeFor is the only sanctioned way to reach session storage. The production

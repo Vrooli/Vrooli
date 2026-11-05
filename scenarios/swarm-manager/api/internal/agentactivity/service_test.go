@@ -20,6 +20,8 @@ type stubAgentService struct {
 	stopErr            error
 	continueErr        error
 	continueRuns       []string
+	continueMessages   []string
+	continueKeys       []string
 	stopRuns           []string
 }
 
@@ -69,8 +71,16 @@ func (s *stubAgentService) ApproveRun(_ context.Context, _ string, _ string, _ s
 	return nil
 }
 
-func (s *stubAgentService) ContinueRun(_ context.Context, runID string, _ string) error {
+func (s *stubAgentService) ContinueRun(_ context.Context, runID string, message string) error {
 	s.continueRuns = append(s.continueRuns, runID)
+	s.continueMessages = append(s.continueMessages, message)
+	return s.continueErr
+}
+
+func (s *stubAgentService) ContinueRunWithIdempotencyKey(_ context.Context, runID, message, key string) error {
+	s.continueRuns = append(s.continueRuns, runID)
+	s.continueMessages = append(s.continueMessages, message)
+	s.continueKeys = append(s.continueKeys, key)
 	return s.continueErr
 }
 
@@ -204,6 +214,19 @@ func TestServiceContinueRunCreatesContinuationActivity(t *testing.T) {
 	}
 	if record.StartedAt == "" {
 		t.Fatalf("expected started_at to be populated: %+v", record)
+	}
+}
+
+func TestServiceContinueRunWithIdempotencyKeyPropagatesReceiverIdentity(t *testing.T) {
+	t.Parallel()
+	raw := &stubAgentService{enabled: true}
+	service := newTestService(t, raw)
+	ctx := WithSpec(context.Background(), Spec{OwnerType: OwnerSession, OwnerName: "sess-a", Purpose: PurposeSwarmOperations})
+	if err := service.ContinueRunWithIdempotencyKey(ctx, "run-original", "frozen prompt", "ask-continuation-key"); err != nil {
+		t.Fatalf("ContinueRunWithIdempotencyKey: %v", err)
+	}
+	if len(raw.continueRuns) != 1 || raw.continueRuns[0] != "run-original" || raw.continueMessages[0] != "frozen prompt" || raw.continueKeys[0] != "ask-continuation-key" {
+		t.Fatalf("continuation did not preserve receiver identity: runs=%v messages=%v keys=%v", raw.continueRuns, raw.continueMessages, raw.continueKeys)
 	}
 }
 

@@ -81,6 +81,7 @@ func (s *Server) wireProposalDecisionRail() {
 	}
 	// The publisher resolves vrooli-events lazily, so it is safe to construct even
 	// before that scenario is ready.
+	s.agentSessionSvc.SetProposalNoticeBaseResolver(discovery.ResolveExternalURLForNotice)
 	publisher := eventbus.NewDiscoveredClient(context.Background())
 	s.agentSessionSvc.SetDecisionEventPublisher(publisher)
 

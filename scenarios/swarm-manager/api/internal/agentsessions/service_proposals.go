@@ -23,6 +23,13 @@ func (s *Service) RecordProposal(ctx context.Context, sessionID string, proposal
 		proposal.CreatedAt = now
 	}
 	proposal.UpdatedAt = now
+	if eligibleProposalDecision(proposal) && proposal.DecisionPublication == nil {
+		publication, err := s.newProposalDecisionPublication(ctx, sessionID, proposal)
+		if err != nil {
+			return Proposal{}, err
+		}
+		proposal.DecisionPublication = publication
+	}
 	if err := s.saveProposal(ctx, sessionID, proposal); err != nil {
 		return Proposal{}, err
 	}
@@ -32,7 +39,7 @@ func (s *Service) RecordProposal(ctx context.Context, sessionID string, proposal
 	// emitter guards kind/status itself, so every path that records a ready
 	// mutation-list proposal — agent ingestion and the workflow projection —
 	// raises exactly one decision. Best-effort: it never blocks the record.
-	s.emitProposalDecisionRequested(ctx, sessionID, proposal)
+	proposal.DecisionPublication = s.emitProposalDecisionRequested(ctx, sessionID, proposal)
 	return proposal, nil
 }
 

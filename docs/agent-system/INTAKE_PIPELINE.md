@@ -114,25 +114,18 @@ The choice is structural, recorded in `topics.json`: setting `intake[].classifie
 
 The draining member uses its taxonomy (`intake[].taxonomy`) and, when judgment is needed, its classifier skill (`intake[].classifier_skill`) to **route each entry exactly once**. The heartbeat builder generates a universal `# Inbox Flow` section that names the prefix, the loaded taxonomy, the classifier (if any), the destination schemas, and the dispatch table. The classifier is portable and team-agnostic — it returns a recommendation; the member's drain procedure picks the action.
 
-After routing, the entry must leave the inbox view (must no longer carry an `<inbox-name>/*` prefix) in one of two ways:
+After routing, the entry must leave the **unrouted set**. The knowledge store is append-only (Source Ledger), so an entry cannot be moved or removed:
 
-- **Promoted to permanent canon** — retag the entry to its destination prefix:
+- `prompt-manager team knowledge-delete <team> <id>` refuses with an append-only error; use `knowledge-close` instead.
+- `prompt-manager team knowledge-update <team> <id> --topic="<destination-topic>"` appends a new version under the new topic. The original row stays under `<inbox-name>/*`, so a retag alone does not take the entry out of the inbox listing.
 
-  ```bash
-  prompt-manager team knowledge-update <team> <id> --topic="<destination-topic>"
-  ```
+The routed outcome is therefore recorded, not enacted on the row:
 
-  e.g., `research-inbox/audience/foo` → `audience-scan/foo`. Destination topics use the canonical prefix for the surface (`audience-scan/<slug>`, `competitor-record/<slug>`, `hook-record/<slug>`, `monetization-benchmark-adjacent-record/<slug>`, etc.).
+- **Promoted to permanent canon** — write the durable entry under its destination prefix (`audience-scan/<slug>`, `competitor-record/<slug>`, `hook-record/<slug>`, `monetization-benchmark-adjacent-record/<slug>`, etc.), citing the inbox entry id.
+- **Filed as Swarm Manager work** — file the item and cite the inbox entry id in it.
+- **Dropped** as weak / duplicate / out-of-scope — record the drop and its reason, citing the inbox entry id.
 
-  If the routed action creates a new Swarm Manager work item, delete the inbox row instead of retagging it.
-
-- **Dropped** as weak / duplicate / out-of-scope:
-
-  ```bash
-  prompt-manager team knowledge-delete <team> <id>
-  ```
-
-The inbox view (`--topic-prefix=<inbox-name>/`) is therefore always the **unrouted set**. Permanent canon never uses any topic under `<inbox-name>/`; it lives under whichever destination prefix matches the routed surface.
+A **closure record** keyed by the inbox entry id is how an entry leaves the unrouted set: the unrouted set is the `<inbox-name>/*` rows minus the ids that carry a closure record. Write one with `prompt-manager team knowledge-close <team> <id> --reason=fixed|stale|duplicate-of|routed-to [--ref=<id-or-destination>] [--note="..."]` (`--ref` is required for `duplicate-of` and `routed-to`). Default `knowledge-list` output hides closed entries; `--include-closed` shows them. Close every entry in the same run that routes it. Permanent canon never uses any topic under `<inbox-name>/`; it lives under whichever destination prefix matches the routed surface.
 
 ### Drain conflicts
 
@@ -191,7 +184,7 @@ The draining member (using its taxonomy's `actionSelection` set, possibly inform
 
 | Condition | Action |
 |---|---|
-| Weak one-off signal | Drop/delete the inbox entry after noting it in the team scope if useful. If the weak signal has real audit value, retag it to a non-inbox audit prefix such as `topic[example]:low-signal/<slug>` or a domain-specific equivalent. Never leave routed material under `<inbox-name>/*`. |
+| Weak one-off signal | Record the drop (and, when the entry exists, its closure record) after noting it in the team scope if useful. If the weak signal has real audit value, write it under a non-inbox audit prefix such as `topic[example]:low-signal/<slug>` or a domain-specific equivalent. Never file new routed material under `<inbox-name>/*`. |
 | Concrete sourced observation | Add a knowledge entry under the canonical surface prefix (e.g., `audience-scan/<slug>`, `competitor-record/<slug>`). |
 | Capability already exists for this signal | Run the existing skill or Action; route the output as a knowledge observation. |
 | Trivial automation, no LLM judgment needed | Create + run a new Action. |

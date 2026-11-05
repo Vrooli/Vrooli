@@ -127,7 +127,7 @@ func (s *Service) spawnWithCallback(
 	return runResult, nil
 }
 
-func (s *Service) continueTracked(ctx context.Context, spec Spec, runID string, message string) error {
+func (s *Service) continueTracked(ctx context.Context, spec Spec, runID string, message string, idempotencyKey string) error {
 	if s.continuer == nil {
 		return fmt.Errorf("run continuation not available")
 	}
@@ -168,7 +168,17 @@ func (s *Service) continueTracked(ctx context.Context, spec Spec, runID string, 
 	s.dispatchStatusUpdate(record)
 	s.mu.Unlock()
 
-	continueErr := s.continuer.ContinueRun(ctx, trimmedRunID, message)
+	var continueErr error
+	if idempotencyKey != "" {
+		continuer, ok := s.continuer.(idempotentRunContinuer)
+		if !ok {
+			continueErr = fmt.Errorf("idempotent run continuation not available")
+		} else {
+			continueErr = continuer.ContinueRunWithIdempotencyKey(ctx, trimmedRunID, message, idempotencyKey)
+		}
+	} else {
+		continueErr = s.continuer.ContinueRun(ctx, trimmedRunID, message)
+	}
 
 	s.mu.Lock()
 	defer s.mu.Unlock()

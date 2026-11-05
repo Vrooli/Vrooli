@@ -15,6 +15,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/vrooli/api-core/identity"
 	"swarm-manager/internal/agentmanager"
 	"swarm-manager/internal/goals"
 	"swarm-manager/internal/transitions"
@@ -25,6 +26,7 @@ import (
 )
 
 type classificationWorkflowStub struct {
+	startCalls int
 	start      agentmanager.WorkflowStart
 	completion agentmanager.InvocationCompletion
 	invocation agentmanager.Invocation
@@ -42,6 +44,7 @@ func (s *proposalRecorderStub) RecordCaptureProposals(_ context.Context, _ strin
 }
 
 func (s *classificationWorkflowStub) StartWorkflow(_ context.Context, invocation agentmanager.Invocation) (agentmanager.WorkflowStart, error) {
+	s.startCalls++
 	s.invocation = invocation
 	return s.start, nil
 }
@@ -92,7 +95,12 @@ func newMultipartRequest(t *testing.T, text string, files map[string]string) *ht
 
 	req := httptest.NewRequest("POST", "/api/v1/captures", &buf)
 	req.Header.Set("Content-Type", w.FormDataContentType())
-	return req
+	return withCaptureOwner(req)
+}
+
+func withCaptureOwner(req *http.Request) *http.Request {
+	principal := identity.Principal{Kind: identity.ActorHuman, Subject: "operator:test", Verified: true, Scopes: []string{"swarm-manager:write"}}
+	return req.WithContext(identity.WithPrincipal(req.Context(), principal))
 }
 
 func TestList_Empty(t *testing.T) {
@@ -117,7 +125,8 @@ func TestList_Empty(t *testing.T) {
 
 func TestCreate_Success(t *testing.T) {
 	h, rootDir := setupTestHandler(t)
-	h.SetClassificationWorkflow(&classificationWorkflowStub{start: agentmanager.WorkflowStart{ExecutionID: "execution-create", DefinitionDigest: "sha256:capture"}})
+	workflow := &classificationWorkflowStub{start: agentmanager.WorkflowStart{ExecutionID: "execution-create", DefinitionDigest: "sha256:capture"}}
+	h.SetClassificationWorkflow(workflow)
 	req := newMultipartRequest(t, "we should add a backup cron", nil)
 	w := httptest.NewRecorder()
 
@@ -146,8 +155,11 @@ func TestCreate_Success(t *testing.T) {
 		t.Errorf("unexpected text: %v", capMap["text"])
 	}
 
-	// Starting a declared workflow leaves the capture classifying until its
-	// terminal typed result is explicitly applied.
+	// The real transition runner starts classification exactly once. The capture
+	// remains classifying until its terminal typed result is explicitly applied.
+	if workflow.startCalls != 1 {
+		t.Fatalf("classification starts=%d, want exactly one", workflow.startCalls)
+	}
 	if capMap["status"] != "classifying" {
 		t.Errorf("expected status classifying, got %v", capMap["status"])
 	}
@@ -174,7 +186,7 @@ func TestCreate_EmptyText(t *testing.T) {
 func TestCreate_InvalidForm(t *testing.T) {
 	h, _ := setupTestHandler(t)
 	// Send a non-multipart body.
-	req := httptest.NewRequest("POST", "/api/v1/captures", bytes.NewReader([]byte("not-multipart")))
+	req := withCaptureOwner(httptest.NewRequest("POST", "/api/v1/captures", bytes.NewReader([]byte("not-multipart"))))
 	req.Header.Set("Content-Type", "text/plain")
 	w := httptest.NewRecorder()
 

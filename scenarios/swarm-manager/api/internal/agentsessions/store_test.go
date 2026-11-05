@@ -6,6 +6,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"sync"
 	"testing"
 	"testing/fstest"
 	"time"
@@ -117,6 +118,44 @@ func TestFileStoreReadsLegacyArtifactsForMigration(t *testing.T) {
 	}
 	if len(artifacts) != 1 || artifacts[0].ID != "art-1" {
 		t.Fatalf("unexpected artifacts: %+v", artifacts)
+	}
+}
+
+func TestFileStoreAppendMessageDeduplicatesConcurrentStableID(t *testing.T) {
+	store := NewFileStore(t.TempDir())
+	session := validStoredSession("sess_message_idempotency")
+	if err := store.CreateSession(session); err != nil {
+		t.Fatal(err)
+	}
+	message := Message{ID: "msg_stable", Role: MessageRoleUser, Content: "same prompt", CreatedAt: testTimestamp}
+	const writers = 8
+	errs := make(chan error, writers)
+	var wg sync.WaitGroup
+	for i := 0; i < writers; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			errs <- store.AppendMessage(session.ID, message)
+		}()
+	}
+	wg.Wait()
+	close(errs)
+	for err := range errs {
+		if err != nil {
+			t.Fatalf("concurrent AppendMessage: %v", err)
+		}
+	}
+	loaded, err := store.LoadSession(session.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(loaded.Messages) != 1 || loaded.Messages[0].ID != message.ID {
+		t.Fatalf("stable message append produced %#v, want exactly one message", loaded.Messages)
+	}
+	conflict := message
+	conflict.Content = "different prompt"
+	if err := store.AppendMessage(session.ID, conflict); err == nil {
+		t.Fatal("same message id with different content was accepted")
 	}
 }
 

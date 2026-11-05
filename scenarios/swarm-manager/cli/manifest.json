@@ -612,7 +612,7 @@
         },
         {
           "name": "recover-review",
-          "description": "Recover an item stranded in_review with no live review round \u2192 review_pending (default) or backlog (--kind KIND --name NAME [--to review_pending|backlog] [--rationale MSG])",
+          "description": "Recover an item stranded in_review with no live review round → review_pending (default) or backlog (--kind KIND --name NAME [--to review_pending|backlog] [--rationale MSG])",
           "binding": {
             "kind": "local"
           },
@@ -2280,6 +2280,20 @@
         {
           "name": "proposal-accept-keep",
           "description": "Accept a no-change recommendation (--id ID --proposal ID) [--note TEXT] [--json]",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "proposal-reissue-decision-request",
+          "description": "Freeze one new decision request for exact current terms (--id ID --proposal ID --expected-terms-sha256 SHA256) [--json]",
           "binding": {
             "kind": "local"
           },

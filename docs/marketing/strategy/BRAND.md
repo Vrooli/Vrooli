@@ -12,7 +12,8 @@ This file is the navigation hub. The actual canonical content lives in dedicated
 |---|---|
 | **Voice canon** (positioning, audience framing, voice samples, anti-patterns, dev-log narrative principles) | [`STRATEGY.md`](STRATEGY.md) |
 | **Visual assets** (logos, favicons, OG image, fonts, usage rules) | [`ASSETS.md`](ASSETS.md) |
-| **AI image generation style** (palette, aesthetic, prompt directives) | [`IMAGE_STYLE.md`](IMAGE_STYLE.md) |
+| **AI image generation style** for the Vrooli project brand (palette, aesthetic, prompt directives) | [`IMAGE_STYLE.md`](IMAGE_STYLE.md) |
+| **Per-product identity** (the star-named line, its shared container style; wins over `IMAGE_STYLE.md` for product imagery) | [`PRODUCT-LINE.md`](PRODUCT-LINE.md) and the `brand-manager` scenario |
 | **Audience personas** | [`AUDIENCES.md`](AUDIENCES.md) |
 | **Channel rules** | [`CHANNELS.md`](CHANNELS.md) |
 | **Project-identity narrative** (pitch, story, FAQ, press kit, deck outline) | [`path:docs/narrative/`](../../narrative/) |

@@ -25,6 +25,7 @@ func Register(deps support.Dependencies) cliapp.SubcommandGroup {
 			support.APICommand("proposal-revise", "Request proposal revision (--id ID --proposal ID) [--note TEXT] [--json]", deps.SessionsProposalRevise),
 			support.APICommand("proposal-wait", "Record an explicit pending-review decision (--id ID --proposal ID --note TEXT) [--json]", deps.SessionsProposalWait),
 			support.APICommand("proposal-accept-keep", "Accept a no-change recommendation (--id ID --proposal ID) [--note TEXT] [--json]", deps.SessionsProposalAcceptKeep),
+			support.APICommand("proposal-reissue-decision-request", "Freeze one new decision request for exact current terms (--id ID --proposal ID --expected-terms-sha256 SHA256) [--json]", deps.SessionsProposalReissueDecisionRequest),
 			support.APICommand("startup-brief", "Get draft startup brief (--id ID) [--refresh] [--json]", deps.SessionsStartupBrief),
 			support.APICommand("prompt-preview", "Show the prompt a message would send, without sending it (--id ID) [--message TEXT] [--json]", deps.SessionsPromptPreview),
 			support.APICommand("delete", "Delete an agent session (--id ID --yes) [--json]", deps.SessionsDelete),

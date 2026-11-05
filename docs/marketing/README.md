@@ -4,6 +4,8 @@ This folder is the **plan of record** for Vrooli's external voice: subscription 
 
 It is maintained by the `marketing-crew` team and consumed by its members every heartbeat. The team's live operating rules are at [`scenarios/prompt-manager/store/teams/marketing-crew/shared/TEAM.md`](../../scenarios/prompt-manager/store/teams/marketing-crew/shared/TEAM.md); this folder is the strategic-canon side.
 
+> **The instrument, not this folder, holds the numbers.** Current campaign, draft, capability, and offer-readiness state is computed by `content-desk.board-read`. This folder holds what an instrument cannot compute: voice, audience, channel, and campaign plans, and the rules for acting on them. Do not copy a changing status, count, or next action into canon; read it from the instrument. See [§ Instrument](operating/OPERATING_MODEL.md#instrument) and the applied detail in [`scenarios/content-desk/skills/content-desk/SKILL.md`](../../scenarios/content-desk/skills/content-desk/SKILL.md).
+
 The local contract is [`manifest.json`](manifest.json), which instantiates the shared plan-of-record shape from [`docs/agent-system/team-plan-of-record.manifest.json`](../agent-system/team-plan-of-record.manifest.json).
 
 ## Start here for agents
@@ -12,6 +14,7 @@ Use this README first, then choose the module that matches the work:
 
 | Question | Start with |
 |---|---|
+| What work is current, and what is the next action? | `content-desk.board-read` (the instrument; see [§ Instrument](operating/OPERATING_MODEL.md#instrument)) |
 | How does the marketing team operate end to end? | [`operating/OPERATING_MODEL.md`](operating/OPERATING_MODEL.md) |
 | What should Vrooli sound like? | [`strategy/STRATEGY.md`](strategy/STRATEGY.md) |
 | Who is the audience? | [`strategy/AUDIENCES.md`](strategy/AUDIENCES.md) |

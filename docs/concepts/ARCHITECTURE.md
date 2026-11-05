@@ -118,7 +118,7 @@ The live device roster is a projection of session connections exposed by
 
 Vrooli computes one supervision set; consumers do not maintain private core
 lists. The operator grants the root authority in
-`.vrooli/operator-state.json` at `core.seed`. The control plane starts with
+`~/.vrooli/state/vrooli/vrooli-onboarding/operator-state.json` at `core.seed`. The control plane starts with
 those scenario seeds and follows enabled scenario and resource dependency
 edges whose effective supervision intent is `must_start` or `try_start`.
 `ignore` edges do not enter the closure. The computed result is an output, not

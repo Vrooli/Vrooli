@@ -135,12 +135,18 @@ func (s *Service) processPreflightForItem(ctx context.Context, item backlogItem,
 					appendPreflightBlocker(&preflight, "goal_runner_unavailable", "goal mode requires at least one available native-capable runner; force may bypass this capability preflight", true)
 				}
 			}
-			// The composed message must fit Agent Manager's until cap. Compose
-			// here so an oversized item is blocked at queue time, not at launch.
-			if _, composeErr := ComposeGoalMessage(s.goalMessageInput(ctx, item, "")); composeErr != nil {
+			// The authored prompt and engine-owned completion condition are
+			// separate fields with separate shared safety ceilings. Validate both
+			// at queue time so an oversized item is not admitted and rejected only
+			// when its goal run is launched.
+			goalInput := s.goalMessageInput(ctx, item, "")
+			if _, composeErr := ComposeGoalMessage(goalInput); composeErr != nil {
 				if tooLong, ok := composeErr.(*GoalMessageTooLongError); ok {
 					appendPreflightBlocker(&preflight, "goal_message_too_long", tooLong.Error(), false)
 				}
+			}
+			if finishLine := RenderFinishLine(goalInput); len(finishLine) > GoalUntilMaxBytes {
+				appendPreflightBlocker(&preflight, "goal_until_too_long", fmt.Sprintf("completion condition is %d UTF-8 bytes, over the %d-byte Agent Manager limit", len(finishLine), GoalUntilMaxBytes), false)
 			}
 		}
 	}
