@@ -1153,7 +1153,7 @@ func validateRuntimeMemoryLimit(value string) error {
 
 func validateHealthCheck(check ResourceHealthCheck) error {
 	switch strings.TrimSpace(check.Type) {
-	case "tcp", "http":
+	case "tcp", "http", "postgresql", "redis":
 		if strings.TrimSpace(check.Target) == "" {
 			return fmt.Errorf("health check target is required for %s checks", check.Type)
 		}

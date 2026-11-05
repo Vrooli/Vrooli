@@ -3,6 +3,7 @@ package cliutil
 import (
 	"context"
 	"errors"
+	"io"
 	"net/http"
 	"net/url"
 	"time"
@@ -147,6 +148,30 @@ func (c *APIClient) Request(method, path string, query url.Values, body interfac
 		c.client.SetToken(c.tokenSource())
 	}
 	return c.client.Do(method, path, query, body)
+}
+
+// DownloadTo streams an API response into dst without buffering its payload in
+// memory. It preserves the API base, bearer token, identity, and invocation
+// headers while using an isolated HTTPClient copy for per-request setup.
+func (c *APIClient) DownloadTo(ctx context.Context, path string, dst io.Writer) (int64, error) {
+	if c == nil {
+		return 0, errors.New("api client is nil")
+	}
+	if dst == nil {
+		return 0, errors.New("download destination is nil")
+	}
+	client := NewHTTPClient(HTTPClientOptions{})
+	if c.client != nil {
+		copyClient := *c.client
+		client = &copyClient
+	}
+	if c.baseResolver != nil {
+		client.SetBaseOptions(c.baseResolver())
+	}
+	if c.tokenSource != nil {
+		client.SetToken(c.tokenSource())
+	}
+	return client.DoToWithContext(ctx, http.MethodGet, path, nil, dst)
 }
 
 // BaseURL returns the resolved API base URL.

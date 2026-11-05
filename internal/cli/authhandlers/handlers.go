@@ -17,9 +17,9 @@ type statusService struct {
 }
 
 func RootHandler[C any](deps rootcli.HandlerDeps[C]) rootcli.Handler[C] {
-	commandHandlers := commandtree.BuildHandlerMap(buildCommandTable(deps))
+	specs := buildCommandTable(deps)
 	return func(ctx C, args []string) error {
-		return rootcli.RunSubcommandSet(ctx, args, authcli.RenderCommandHelp, "auth", commandHandlers, deps.Stdout)
+		return rootcli.RunSubcommandSpecs(ctx, args, authcli.RenderCommandHelp, "auth", specs, deps.Stdout)
 	}
 }
 

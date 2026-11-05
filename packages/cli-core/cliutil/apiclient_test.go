@@ -1,6 +1,7 @@
 package cliutil
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -13,6 +14,20 @@ import (
 	"testing"
 	"time"
 )
+
+type chunkCountingWriter struct {
+	buffer  bytes.Buffer
+	writes  int
+	maxSize int
+}
+
+func (w *chunkCountingWriter) Write(p []byte) (int, error) {
+	w.writes++
+	if len(p) > w.maxSize {
+		w.maxSize = len(p)
+	}
+	return w.buffer.Write(p)
+}
 
 func TestAPIClientAppliesBaseAndToken(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -33,6 +48,51 @@ func TestAPIClientAppliesBaseAndToken(t *testing.T) {
 	}
 	if string(body) != `{"ok":true}` {
 		t.Fatalf("unexpected body: %s", string(body))
+	}
+}
+
+func TestAPIClientDownloadToStreamsAndPreservesRequestHeaders(t *testing.T) {
+	payload := strings.Repeat("artifact-data-", 100_000)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/api/v1/artifacts/one" {
+			t.Errorf("download path = %q", r.URL.Path)
+		}
+		if r.Header.Get("Authorization") != "Bearer download-token" || r.Header.Get(HeaderInvocationCommand) != "runs download-artifact" {
+			t.Errorf("download request lost API headers: %#v", r.Header)
+		}
+		w.Header().Set("Content-Type", "application/octet-stream")
+		_, _ = io.WriteString(w, payload)
+	}))
+	defer server.Close()
+
+	httpClient := NewHTTPClient(HTTPClientOptions{})
+	httpClient.SetInvocationHeaderSource(func() map[string]string {
+		return map[string]string{HeaderInvocationCommand: "runs download-artifact"}
+	})
+	client := NewAPIClient(httpClient, func() APIBaseOptions {
+		return APIBaseOptions{DefaultBase: server.URL}
+	}, func() string { return "download-token" })
+	dst := &chunkCountingWriter{}
+	n, err := client.DownloadTo(context.Background(), "/api/v1/artifacts/one", dst)
+	if err != nil {
+		t.Fatalf("DownloadTo: %v", err)
+	}
+	if n != int64(len(payload)) || dst.buffer.Len() != len(payload) || dst.buffer.String() != payload {
+		t.Fatalf("streamed bytes=%d buffer bytes=%d want=%d", n, dst.buffer.Len(), len(payload))
+	}
+	if dst.writes < 2 || dst.maxSize >= len(payload) {
+		t.Fatalf("response was not streamed in chunks: writes=%d max_chunk=%d payload=%d", dst.writes, dst.maxSize, len(payload))
+	}
+}
+
+func TestAPIClientDownloadToRejectsNonOriginRelativePath(t *testing.T) {
+	client := NewAPIClient(NewHTTPClient(HTTPClientOptions{}), func() APIBaseOptions {
+		return APIBaseOptions{DefaultBase: "http://localhost:1234"}
+	}, nil)
+	for _, path := range []string{"https://example.com/file", "//example.com/file", "relative/file"} {
+		if _, err := client.DownloadTo(context.Background(), path, io.Discard); err == nil {
+			t.Errorf("DownloadTo(%q) unexpectedly succeeded", path)
+		}
 	}
 }
 

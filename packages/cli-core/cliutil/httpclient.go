@@ -432,22 +432,9 @@ func (h *HTTPClient) DoWithContext(ctx context.Context, method, path string, que
 	if body != nil {
 		req.Header.Set("Content-Type", "application/json")
 	}
-	h.ApplyRequestHeaders(req)
-	if h.identityPin != nil {
-		// Pin after all application/invocation headers and retain the marker
-		// through the ordinary identity-forwarding transport. Recheck the live
-		// authority; a responding refusal never falls back to the retained leaf.
-		req = req.WithContext(context.WithValue(req.Context(), agentCredentialPinKey{}, h.identityPin))
-		req.Header.Del("Authorization")
-		req.Header.Set(HeaderAgentIdentityToken, h.identityPin.token)
-		if h.identityPin.operationToken == "" {
-			req.Header.Del(HeaderAgentOperationToken)
-		} else {
-			req.Header.Set(HeaderAgentOperationToken, h.identityPin.operationToken)
-		}
-		if err := ApplyAgentIdentity(req); err != nil {
-			return nil, err
-		}
+	req, err = h.prepareRequest(req)
+	if err != nil {
+		return nil, err
 	}
 
 	resp, err := h.client.Do(req)
@@ -467,6 +454,86 @@ func (h *HTTPClient) DoWithContext(ctx context.Context, method, path string, que
 		return nil, ParseAPIError(resp.StatusCode, data)
 	}
 	return data, nil
+}
+
+// DoToWithContext streams a successful response body to dst instead of
+// buffering it in memory. Error bodies remain bounded and use the same typed
+// API error parser as DoWithContext.
+func (h *HTTPClient) DoToWithContext(ctx context.Context, method, path string, query url.Values, dst io.Writer) (int64, error) {
+	if dst == nil {
+		return 0, errors.New("response destination is nil")
+	}
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	base := strings.TrimSpace(h.BaseURL())
+	if base == "" {
+		return 0, fmt.Errorf("api base URL is empty; configure an API base or set an API port")
+	}
+	if parsed, err := url.Parse(base); err != nil || parsed.Scheme == "" || parsed.Host == "" {
+		return 0, fmt.Errorf("invalid api base URL %q", base)
+	}
+	if !strings.HasPrefix(path, "/") || strings.HasPrefix(path, "//") {
+		return 0, fmt.Errorf("API download path must be origin-relative")
+	}
+	endpoint := strings.TrimRight(base, "/") + path
+	if len(query) > 0 {
+		endpoint += "?" + query.Encode()
+	}
+	req, err := http.NewRequestWithContext(ctx, method, endpoint, nil)
+	if err != nil {
+		return 0, fmt.Errorf("create request: %w", err)
+	}
+	req, err = h.prepareRequest(req)
+	if err != nil {
+		return 0, err
+	}
+	resp, err := h.client.Do(req)
+	if err != nil {
+		return 0, fmt.Errorf("request failed: %w", err)
+	}
+	defer resp.Body.Close()
+	if h.rejectRedirectResponses && resp.StatusCode >= http.StatusMultipleChoices && resp.StatusCode < http.StatusBadRequest {
+		return 0, &APIError{StatusCode: resp.StatusCode, Message: "protected request redirect response refused"}
+	}
+	if resp.StatusCode >= http.StatusBadRequest {
+		const maxErrorBodyBytes = 64 << 10
+		body, readErr := io.ReadAll(io.LimitReader(resp.Body, maxErrorBodyBytes+1))
+		if readErr != nil {
+			return 0, fmt.Errorf("read error response: %w", readErr)
+		}
+		if len(body) > maxErrorBodyBytes {
+			body = append(body[:maxErrorBodyBytes], []byte("\n[error response truncated]")...)
+		}
+		return 0, ParseAPIError(resp.StatusCode, body)
+	}
+	n, err := io.Copy(dst, resp.Body)
+	if err != nil {
+		return n, fmt.Errorf("stream response: %w", err)
+	}
+	return n, nil
+}
+
+func (h *HTTPClient) prepareRequest(req *http.Request) (*http.Request, error) {
+	h.ApplyRequestHeaders(req)
+	if h.identityPin == nil {
+		return req, nil
+	}
+	// Pin after all application/invocation headers and retain the marker through
+	// the ordinary identity-forwarding transport. Recheck live authority; a
+	// responding refusal never falls back to the retained leaf.
+	req = req.WithContext(context.WithValue(req.Context(), agentCredentialPinKey{}, h.identityPin))
+	req.Header.Del("Authorization")
+	req.Header.Set(HeaderAgentIdentityToken, h.identityPin.token)
+	if h.identityPin.operationToken == "" {
+		req.Header.Del(HeaderAgentOperationToken)
+	} else {
+		req.Header.Set(HeaderAgentOperationToken, h.identityPin.operationToken)
+	}
+	if err := ApplyAgentIdentity(req); err != nil {
+		return nil, err
+	}
+	return req, nil
 }
 
 // ApplyRequestHeaders applies the configured authentication, dry-run, and

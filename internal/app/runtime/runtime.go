@@ -158,7 +158,7 @@ func installSupervisorService(ctx context.Context, home, exe, root string, userS
 	if !userService {
 		return runtimesupervisor.InstallService(ctx, runtimesupervisor.ServiceInstallOptions{HomeDir: home, Executable: exe, SourceRoot: root, User: false})
 	}
-	converged, err := runtimesupervisorsafeguard.Converge(ctx, runtimesupervisorsafeguard.ConvergeOptions{OS: runtime.GOOS, Home: home, Root: root, Executable: exe})
+	converged, err := runtimesupervisorsafeguard.Converge(ctx, runtimesupervisorsafeguard.ConvergeOptions{OS: runtime.GOOS, Home: home, Root: root, Executable: exe, Restart: true})
 	rendered := converged.Rendered
 	result := runtimesupervisor.ServiceInstallResult{
 		UnitName:              rendered.UnitName,

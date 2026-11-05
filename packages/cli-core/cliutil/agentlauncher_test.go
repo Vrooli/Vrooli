@@ -24,10 +24,18 @@ import (
 	"google.golang.org/protobuf/types/dynamicpb"
 )
 
+func isolateLauncherModelPolicy(t *testing.T) {
+	t.Helper()
+	t.Setenv(AgentManagerIdentityTokenEnv, "")
+	t.Setenv(ModelSourceEnvironment, "")
+	t.Setenv("VROOLI_HOME", t.TempDir())
+	t.Setenv("CODEX_HOME", t.TempDir())
+}
+
 func TestLaunchCodingAgentFallsBackWhenAgentManagerUnavailable(t *testing.T) {
 	// A token in the ambient environment would make the launcher adopt it and
 	// skip attaching, so pin it empty to keep this test about the attach path.
-	t.Setenv(AgentManagerIdentityTokenEnv, "")
+	isolateLauncherModelPolicy(t)
 	var ran bool
 	err := LaunchCodingAgent(context.Background(), AgentLaunchRequest{
 		Agent:   "codex",
@@ -62,7 +70,7 @@ func TestLaunchCodingAgentFallsBackWhenAgentManagerUnavailable(t *testing.T) {
 func TestLaunchCodingAgentTreatsHTTP500AndHangAsFallback(t *testing.T) {
 	// A token in the ambient environment would make the launcher adopt it and
 	// skip attaching, so pin it empty to keep this test about the attach path.
-	t.Setenv(AgentManagerIdentityTokenEnv, "")
+	isolateLauncherModelPolicy(t)
 	for _, tc := range []struct {
 		name    string
 		handler http.Handler
@@ -153,7 +161,7 @@ func TestLaunchCodingAgentReportsAttachmentFailureClass(t *testing.T) {
 func TestLaunchCodingAgentAttachesAddsOnlyTokenAndDetaches(t *testing.T) {
 	// A token in the ambient environment would make the launcher adopt it and
 	// skip attaching, so pin it empty to keep this test about the attach path.
-	t.Setenv(AgentManagerIdentityTokenEnv, "")
+	isolateLauncherModelPolicy(t)
 	source, err := descriptorimage.New(descriptorimage.Config{DescriptorPath: filepath.Join("..", "..", "proto", "gen", "descriptor", "image.binpb")})
 	if err != nil {
 		t.Fatal(err)

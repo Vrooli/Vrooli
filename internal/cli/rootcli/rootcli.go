@@ -832,41 +832,36 @@ func BindResourceCommand[C any, Req any, Resp any](
 	}
 }
 
-func RunSubcommandSet[C any](
+// RunSubcommandSpecs adds leaf-specific help to a subcommand group and keeps
+// unknown-command failures typed as usage errors. The same specs drive help and
+// dispatch so callers do not maintain a second usage table.
+func RunSubcommandSpecs[C any](
 	ctx C,
 	args []string,
 	usage func(io.Writer),
 	command string,
-	handlers map[string]Handler[C],
+	specs []commandtree.Spec[Handler[C]],
 	stdout func(C) io.Writer,
 ) error {
-	if len(args) == 0 || commandtree.WantsHelp(args) {
+	if len(args) == 0 || args[0] == "--help" || args[0] == "-h" {
 		usage(stdout(ctx))
 		return nil
 	}
-	handler, ok := handlers[commandtree.NormalizeName(args[0])]
-	if !ok {
-		return UsageErrorf(command, "unknown %s command: %s", command, args[0])
-	}
-	return handler(ctx, args[1:])
-}
 
-func RunResourceSubcommandSet[C any](
-	ctx C,
-	controller *resources.Controller,
-	args []string,
-	usage func(io.Writer),
-	command string,
-	handlers map[string]ResourceHandler[C],
-	stdout func(C) io.Writer,
-) error {
-	if len(args) == 0 || commandtree.WantsHelp(args) {
-		usage(stdout(ctx))
-		return nil
-	}
-	handler, ok := handlers[commandtree.NormalizeName(args[0])]
+	name := commandtree.NormalizeName(args[0])
+	specsByName := commandtree.BuildSpecMap(specs)
+	spec, ok := specsByName[name]
 	if !ok {
+		if commandtree.WantsHelp(args[1:]) {
+			usage(stdout(ctx))
+			return nil
+		}
 		return UsageErrorf(command, "unknown %s command: %s", command, args[0])
 	}
-	return handler(ctx, controller, args[1:])
+	if commandtree.WantsHelp(args[1:]) {
+		commandPath := strings.TrimSpace("vrooli " + command + " " + spec.Name)
+		commandtree.WriteHelp(stdout(ctx), commandtree.SpecHelpText("", commandPath, spec))
+		return nil
+	}
+	return commandtree.BuildHandlerMap(specs)[name](ctx, args[1:])
 }

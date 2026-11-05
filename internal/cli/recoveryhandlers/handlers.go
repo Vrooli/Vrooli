@@ -13,9 +13,9 @@ import (
 
 // RootHandler dispatches `vrooli recovery <subcommand>`.
 func RootHandler[C any](deps rootcli.HandlerDeps[C]) rootcli.Handler[C] {
-	handlers := commandtree.BuildHandlerMap(buildCommandTable(deps))
+	specs := buildCommandTable(deps)
 	return func(ctx C, args []string) error {
-		return rootcli.RunSubcommandSet(ctx, args, recoverycli.RenderCommandHelp, "recovery", handlers, deps.Stdout)
+		return rootcli.RunSubcommandSpecs(ctx, args, recoverycli.RenderCommandHelp, "recovery", specs, deps.Stdout)
 	}
 }
 

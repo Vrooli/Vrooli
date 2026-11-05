@@ -7,6 +7,7 @@ module FundingLotLifecycle {
   var event: Event
   var rejected: bool
 
+
   pure def isValid(s: Status, e: Event): bool =
     (s == Open and e == Debit) or
     (s == Open and e == Exhaust) or
@@ -27,16 +28,20 @@ module FundingLotLifecycle {
     else if (s == Frozen and e == Reverse) Reversed
     else s
 
+
+
   action init = all {
     status' = Open,
     event' = Debit,
     rejected' = false,
+
   }
 
   action apply(e: Event): bool = all {
     event' = e,
     status' = nextStatus(status, e),
     rejected' = not(isValid(status, e)),
+
   }
 
   action step = any {
@@ -62,6 +67,8 @@ module FundingLotLifecycle {
 
   val NoUnavailableDebit =
     not(isValid(Frozen, Debit)) and not(isValid(Frozen, Exhaust)) and not(isValid(Exhausted, Debit)) and not(isValid(Exhausted, Exhaust)) and not(isValid(Expired, Debit)) and not(isValid(Expired, Exhaust)) and not(isValid(Reversed, Debit)) and not(isValid(Reversed, Exhaust))
+
+
 
   run transitionTable = {
     assert(isValid(Open, Debit) and nextStatus(Open, Debit) == Open)
@@ -95,4 +102,5 @@ module FundingLotLifecycle {
       .then(assert(not(isValid(Reversed, Expire)) and nextStatus(Reversed, Expire) == Reversed))
       .then(assert(not(isValid(Reversed, Reverse)) and nextStatus(Reversed, Reverse) == Reversed))
   }
+
 }

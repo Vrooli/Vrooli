@@ -322,7 +322,7 @@ func (d managedServiceDriver) Run(ctx context.Context, controller *Controller, i
 						return err
 					}
 				}
-				return d.runUserHosted(ctx, controller, item, manifest, action, stdout)
+				return d.runUserHosted(ctx, controller, item, manifest, action, stdout, args...)
 			}
 			if mode == resourcedeployment.ProviderManagedDiscovered && (action == brokerTransportStart || action == brokerTransportRestart) {
 				return d.runDiscovered(ctx, controller, item, manifest, action, args)
@@ -335,7 +335,7 @@ func (d managedServiceDriver) Run(ctx context.Context, controller *Controller, i
 					return err
 				}
 			}
-			return d.runPrivate(ctx, controller, item, manifest, action, stdout)
+			return d.runPrivate(ctx, controller, item, manifest, action, stdout, args...)
 		})
 		if runErr == nil && mode == resourcedeployment.ProviderManagedPrivate && (action == brokerTransportStart || action == brokerTransportRestart || action == brokerTransportStop) {
 			event := "started"
@@ -354,7 +354,7 @@ func (d managedServiceDriver) Run(ctx context.Context, controller *Controller, i
 
 // runUserHosted owns shared lifecycle mechanics while a resource registration
 // owns its bootstrap protocol and management material.
-func (d managedServiceDriver) runUserHosted(ctx context.Context, controller *Controller, item Resource, manifest ResourceManifest, action string, stdout io.Writer) error {
+func (d managedServiceDriver) runUserHosted(ctx context.Context, controller *Controller, item Resource, manifest ResourceManifest, action string, stdout io.Writer, args ...string) error {
 	if err := ctx.Err(); err != nil {
 		return err
 	}
@@ -405,7 +405,7 @@ func (d managedServiceDriver) runUserHosted(ctx context.Context, controller *Con
 			return err
 		}
 	case brokerTransportStop, driversDockerUninstall, driversCliLogs:
-		return d.runPrivate(ctx, controller, item, manifest, action, stdout)
+		return d.runPrivate(ctx, controller, item, manifest, action, stdout, args...)
 	default:
 		return fmt.Errorf("unsupported shared managed-service action %q", action)
 	}
@@ -502,7 +502,7 @@ func managedServiceEndpointArg(args []string) (string, error) {
 	return "", fmt.Errorf("attach-only provider requires --endpoint <url>")
 }
 
-func (d managedServiceDriver) runPrivate(ctx context.Context, controller *Controller, item Resource, manifest ResourceManifest, action string, stdout io.Writer) error {
+func (d managedServiceDriver) runPrivate(ctx context.Context, controller *Controller, item Resource, manifest ResourceManifest, action string, stdout io.Writer, args ...string) error {
 	if err := ctx.Err(); err != nil {
 		return err
 	}
@@ -586,10 +586,26 @@ func (d managedServiceDriver) runPrivate(ctx context.Context, controller *Contro
 		defer cancel()
 		return capacity.ReleaseResourceAdmissionAfterStop(stopCtx, capacity.AdmitOptions{Root: controller.Root, ResourceName: manifest.Name, Log: os.Stderr}, func() error { return stopManagedService(stopCtx, manifest, supervisor) })
 	case "logs":
-		return supervisor.Logs(stdout)
+		return supervisor.LogsTail(stdout, managedServiceLogTailLines(args))
 	default:
 		return fmt.Errorf("unsupported private managed-service action %q", action)
 	}
+}
+
+func managedServiceLogTailLines(args []string) int {
+	for index, arg := range args {
+		if arg == "--tail" && index+1 < len(args) {
+			if lines, err := strconv.Atoi(args[index+1]); err == nil {
+				return lines
+			}
+		}
+		if value, ok := strings.CutPrefix(arg, "--tail="); ok {
+			if lines, err := strconv.Atoi(value); err == nil {
+				return lines
+			}
+		}
+	}
+	return 200
 }
 
 func (d managedServiceDriver) bootstrapPrivate(ctx context.Context, manifest ResourceManifest, supervisor *ManagedServiceSupervisor) error {

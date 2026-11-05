@@ -122,6 +122,10 @@ func RunCheck(ctx context.Context, check manifestpkg.ResourceHealthCheck, cfg Co
 		}
 		_ = conn.Close()
 		return Result{Healthy: true, Message: "healthy"}, nil
+	case "postgresql":
+		return runPostgreSQLReadiness(checkCtx, renderTarget(check.Target, cfg.Env), cfg.Env), nil
+	case "redis":
+		return runRedisReadiness(checkCtx, renderTarget(check.Target, cfg.Env)), nil
 	case "http":
 		target := renderTarget(check.Target, cfg.Env)
 		client := cfg.HTTPClient

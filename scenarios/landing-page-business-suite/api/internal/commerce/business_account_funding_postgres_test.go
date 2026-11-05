@@ -205,6 +205,79 @@ func TestFundingLotsPostgresSpendOrderAndIsolation(t *testing.T) {
 	if _, err := service.ReserveCredits(ctx, "acct", "buyer@example.com", "pro", "ai_credits", 1); err != nil {
 		t.Fatalf("remaining settled live lot should fund follow-up: %v", err)
 	}
+	t.Run("Given a hold and an unsettled lot, when the unsettled lot freezes, then settlement uses only settled funding", func(t *testing.T) {
+		const account = "acct-unsettled-freeze"
+		const settledLot = "00000000-0000-4000-8000-000000000601"
+		const pendingLot = "00000000-0000-4000-8000-000000000602"
+		if _, err := db.ExecContext(ctx, `INSERT INTO business_account_credit_wallets VALUES($1,'buyer@example.com',0,0,NOW())`, account); err != nil {
+			t.Fatal(err)
+		}
+		for _, lot := range []struct {
+			id, settlement string
+			expiresAt      time.Time
+		}{
+			{settledLot, "settled", now.Add(48 * time.Hour)},
+			{pendingLot, "pending", now.Add(24 * time.Hour)},
+		} {
+			if _, err := db.ExecContext(ctx, `INSERT INTO credit_funding_lots(id,business_account_id,source_kind,provider,provider_ref,livemode,settlement_state,granted,remaining,expires_at,status,created_at) VALUES($1,$2,'paid','stripe',$5,TRUE,$3,10,10,$4,'open',NOW())`, lot.id, account, lot.settlement, lot.expiresAt, lot.id); err != nil {
+				t.Fatal(err)
+			}
+		}
+		reservation, err := service.ReserveCredits(ctx, account, "buyer@example.com", "pro", "ai_credits", 10)
+		if err != nil {
+			t.Fatalf("reserve against the settled lot: %v", err)
+		}
+		tx, err := db.BeginTx(ctx, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := applyFundingReversal(ctx, tx, pendingLot, account, "radar.early_fraud_warning.created", map[string]interface{}{"id": "warning-pending"}); err != nil {
+			_ = tx.Rollback()
+			t.Fatalf("freeze unsettled lot through reversal owner: %v", err)
+		}
+		if err := tx.Commit(); err != nil {
+			t.Fatal(err)
+		}
+		if err := service.FinalizeReservationWithCost(ctx, account, reservation, 10, "console", "model", 100, 1, 1, "provider"); err != nil {
+			t.Fatalf("settle the prior hold: %v", err)
+		}
+		var allocatedLot string
+		if err := db.QueryRowContext(ctx, `SELECT lot_id FROM credit_lot_allocations WHERE operation_id=$1`, reservation).Scan(&allocatedLot); err != nil {
+			t.Fatal(err)
+		}
+		if allocatedLot != settledLot {
+			t.Fatalf("settlement used lot %s; want the only settled lot %s", allocatedLot, settledLot)
+		}
+		var pendingRemaining, settledRemaining, actual, charged, overrun, eventCredits, usageAmount int64
+		for _, check := range []struct {
+			lot  string
+			into *int64
+		}{
+			{pendingLot, &pendingRemaining}, {settledLot, &settledRemaining},
+		} {
+			if err := db.QueryRowContext(ctx, `SELECT remaining FROM credit_funding_lots WHERE id=$1`, check.lot).Scan(check.into); err != nil {
+				t.Fatal(err)
+			}
+		}
+		if err := db.QueryRowContext(ctx, `SELECT actual_amount,charged_amount,overrun_amount FROM business_account_credit_reservations WHERE id=$1`, reservation).Scan(&actual, &charged, &overrun); err != nil {
+			t.Fatal(err)
+		}
+		if err := db.QueryRowContext(ctx, `SELECT credits FROM business_account_usage_events WHERE operation_id=$1`, reservation).Scan(&eventCredits); err != nil {
+			t.Fatal(err)
+		}
+		if err := db.QueryRowContext(ctx, `SELECT usage_amount FROM business_account_usage_records WHERE business_account_id=$1`, account).Scan(&usageAmount); err != nil {
+			t.Fatal(err)
+		}
+		if pendingRemaining != 10 || settledRemaining != 0 || actual != 10 || charged != 10 || overrun != 0 || eventCredits != 10 || usageAmount != 10 {
+			t.Fatalf("money facts pending=%d settled=%d actual=%d charged=%d overrun=%d event=%d usage=%d", pendingRemaining, settledRemaining, actual, charged, overrun, eventCredits, usageAmount)
+		}
+		if err := service.FinalizeReservationWithCost(ctx, account, reservation, 10, "console", "model", 100, 1, 1, "provider"); err != nil {
+			t.Fatalf("exact settlement replay: %v", err)
+		}
+		if err := service.FinalizeReservationWithCost(ctx, account, reservation, 11, "console", "model", 100, 1, 1, "provider"); err == nil {
+			t.Fatal("conflicting terminal replay should fail")
+		}
+	})
 }
 
 func assertPostgresReservationOverrunCapped(t *testing.T, ctx context.Context, db *sql.DB, service *BusinessAccountUsageService) {

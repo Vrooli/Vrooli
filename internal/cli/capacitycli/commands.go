@@ -8,6 +8,7 @@ import (
 	"time"
 
 	capacityapp "github.com/vrooli/vrooli/internal/app/capacity"
+	"github.com/vrooli/vrooli/internal/cli/clipolicy"
 	"github.com/vrooli/vrooli/internal/cli/commandtree"
 )
 
@@ -58,7 +59,7 @@ func CommandSpecs() []commandtree.Spec[CommandID] {
 			Args: commandtree.ArgSchema{
 				Options: []commandtree.OptionArg{
 					{Name: "--owner-kind", ValueName: "kind", Description: "resource|scenario|op"},
-					{Name: "--owner-id", ValueName: "id", Description: "Owner identity (e.g. whisper, image-tools:job-1)"},
+					{Name: "--owner-id", ValueName: "id", Description: "Required stable owner identity (e.g. whisper, image-tools:job-1)"},
 					{Name: "--instance-id", ValueName: "id", Description: "Linked scenarioruntime instance id (optional)"},
 					{Name: "--resource-kind", ValueName: "kind", Description: "vram|ram|cpu (default vram)"},
 					{Name: "--gpu-index", ValueName: "n", Description: "GPU index for vram (default 0)"},
@@ -160,7 +161,7 @@ func CommandSpecs() []commandtree.Spec[CommandID] {
 		},
 		{
 			Name:    string(CommandFit),
-			Summary: "Evaluate the enabled resource set against measured or simulated host capacity",
+			Summary: "Evaluate enabled resources against host capacity; exit 1 carries an actionable non-fit verdict",
 			Group:   groupObserve,
 			Args: commandtree.ArgSchema{
 				Options: []commandtree.OptionArg{{Name: "--simulate-host", ValueName: "facts", Description: "Override host facts: vram=8GiB[,backends=cuda+cpu][,compute=8.9]"}, commandtree.JSONOption()},
@@ -256,6 +257,7 @@ func ParseFootprintRequest(args []string) (capacityapp.FootprintRequest, error) 
 }
 
 func parse(id CommandID, command string, args []string) (commandtree.ParsedArgs, error) {
+	command = strings.TrimPrefix(strings.TrimSpace(command), "vrooli ")
 	return commandtree.ParseArgs(command, commandHelpText(id), commandSpec(id).Args, args)
 }
 
@@ -264,6 +266,9 @@ func ParseClaimRequest(args []string) (capacityapp.ClaimRequest, error) {
 	parsed, err := parse(CommandClaim, "vrooli capacity claim", args)
 	if err != nil {
 		return capacityapp.ClaimRequest{}, err
+	}
+	if strings.TrimSpace(parsed.FlagValue("--owner-id")) == "" {
+		return capacityapp.ClaimRequest{}, clipolicy.UsageErrorf("capacity claim", "--owner-id is required (for example --owner-kind resource --owner-id image-tools:job-1)")
 	}
 	preferred, err := parseBytes(parsed.FlagValue("--preferred"))
 	if err != nil {
@@ -310,6 +315,7 @@ func ParseClaimRequest(args []string) (capacityapp.ClaimRequest, error) {
 
 // ParseRefRequest parses a claim-id + generation + verb-specific flags.
 func ParseRefRequest(id CommandID, command string, args []string) (capacityapp.Ref, error) {
+	command = strings.TrimPrefix(strings.TrimSpace(command), "vrooli ")
 	parsed, err := parse(id, command, args)
 	if err != nil {
 		return capacityapp.Ref{}, err
@@ -321,7 +327,7 @@ func ParseRefRequest(id CommandID, command string, args []string) (capacityapp.R
 		Reason:  parsed.FlagValue("--reason"),
 	}
 	if strings.TrimSpace(ref.ClaimID) == "" {
-		return capacityapp.Ref{}, fmt.Errorf("--claim-id is required")
+		return capacityapp.Ref{}, clipolicy.UsageErrorf(command, "--claim-id is required")
 	}
 	if gen := parsed.FlagValue("--generation"); gen != "" {
 		n, convErr := strconv.ParseInt(gen, 10, 64)

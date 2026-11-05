@@ -63,6 +63,34 @@ type Command struct {
 	primitiveEvidence PrimitiveClass
 }
 
+// UsageError marks an invalid command invocation without confusing it with a
+// runtime failure. Embedding CLIs can translate it into their native error
+// envelope and preserve a command-specific help target.
+type UsageError struct {
+	cause      error
+	helpTarget string
+}
+
+func NewUsageError(cause error, helpTarget string) *UsageError {
+	return &UsageError{cause: cause, helpTarget: strings.TrimSpace(helpTarget)}
+}
+
+func (e *UsageError) Error() string {
+	if e == nil || e.cause == nil {
+		return "invalid command usage"
+	}
+	return e.cause.Error()
+}
+
+func (e *UsageError) Unwrap() error { return e.cause }
+
+func (e *UsageError) HelpTarget() string {
+	if e == nil {
+		return ""
+	}
+	return e.helpTarget
+}
+
 // DryRunPolicy describes the signal a command actually honors. Only
 // DryRunHeader supports cli-core's global --dry-run flag; request-field and
 // command-local policies are recorded so preflight can point at the right
@@ -262,7 +290,11 @@ func (a *App) run(args []string) error {
 		} else if restarted {
 			return nil
 		}
-		return fmt.Errorf("Unknown command: %s%s%s", remaining[0], a.suggestCommand(remaining[0]), a.unknownCommandHint(remaining))
+		hint := a.unknownCommandHint(remaining)
+		if hint == "" {
+			hint = fmt.Sprintf("\n\nRun '%s --help' to see available commands.", a.opts.Name)
+		}
+		return fmt.Errorf("Unknown command: %s%s%s", remaining[0], a.suggestCommand(remaining[0]), hint)
 	}
 	if wantsHelp(remaining[1:]) {
 		a.printCommandHelp(a.opts.Name, cmd)
@@ -386,7 +418,9 @@ func (a *App) dispatchCommand(prefix string, cmd Command, cmdArgs []string) erro
 				a.printCommandHelp(prefix, cmd)
 				return nil
 			}
-			return err
+			helpTarget := strings.TrimSpace(prefix + " " + cmd.Name)
+			helpTarget = strings.TrimPrefix(helpTarget, "vrooli ")
+			return NewUsageError(err, helpTarget)
 		}
 		return renderCommandError(prefix, cmd.RunCtx(ctx))
 	}

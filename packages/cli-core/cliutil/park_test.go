@@ -14,13 +14,17 @@ import (
 // receives the decoded park body for assertions and returns the response it
 // produces.
 func parkTestServer(t *testing.T, runID string, parkHandler func(body map[string]any) (status int, resp map[string]any)) *httptest.Server {
+	return parkTestServerWithMeta(t, runID, nil, parkHandler)
+}
+
+func parkTestServerWithMeta(t *testing.T, runID string, meta map[string]string, parkHandler func(body map[string]any) (status int, resp map[string]any)) *httptest.Server {
 	t.Helper()
 	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch {
 		case r.Method == "POST" && r.URL.Path == "/api/v1/identity/verify":
 			json.NewEncoder(w).Encode(VerifyResult{
 				Valid:     true,
-				Claims:    &VerifiedClaims{RunID: runID},
+				Claims:    &VerifiedClaims{RunID: runID, Meta: meta},
 				RunStatus: "running",
 			})
 		case r.Method == "POST" && r.URL.Path == "/api/v1/runs/"+runID+"/park":
@@ -39,6 +43,24 @@ func parkTestServer(t *testing.T, runID string, parkHandler func(body map[string
 			w.WriteHeader(http.StatusNotFound)
 		}
 	}))
+}
+
+func TestParkForAwaitSkipsAttachedSessionBeforeParkRequest(t *testing.T) {
+	const runID = "run-attached-session"
+	server := parkTestServerWithMeta(t, runID, map[string]string{"execution_mode": "attached"}, func(map[string]any) (int, map[string]any) {
+		t.Error("attached identity must fall back inline without calling the park endpoint")
+		return http.StatusInternalServerError, nil
+	})
+	defer server.Close()
+
+	t.Setenv("TMPDIR", t.TempDir())
+	t.Setenv("AGENT_MANAGER_API_BASE", server.URL)
+	t.Setenv(EnvIdentityToken, credentialRoleTestToken(map[string]string{}))
+
+	result, parked, err := ParkForAwait(ParkRequest{Producer: ParkProducerLifecycle, Key: "template-manager/live"})
+	if err != nil || parked || result != nil {
+		t.Fatalf("attached ParkForAwait() = (%+v, %v, %v), want inline fallback", result, parked, err)
+	}
 }
 
 func TestParkForAwait_NotAgentControlled(t *testing.T) {

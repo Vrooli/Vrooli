@@ -1,6 +1,7 @@
 package resources
 
 import (
+	"bytes"
 	"context"
 	"crypto/rand"
 	"crypto/sha256"
@@ -366,6 +367,10 @@ func (s *ManagedServiceSupervisor) waitUntilStopped(ctx context.Context, pid int
 }
 
 func (s *ManagedServiceSupervisor) Logs(out io.Writer) error {
+	return s.LogsTail(out, 200)
+}
+
+func (s *ManagedServiceSupervisor) LogsTail(out io.Writer, maxTailLines int) error {
 	file, err := os.Open(s.logPath)
 	if os.IsNotExist(err) {
 		return nil
@@ -374,7 +379,57 @@ func (s *ManagedServiceSupervisor) Logs(out io.Writer) error {
 		return fmt.Errorf("open managed-service log: %w", err)
 	}
 	defer file.Close()
-	_, err = io.Copy(out, file)
+	if maxTailLines <= 0 {
+		maxTailLines = 200
+	}
+	if maxTailLines > 1000 {
+		maxTailLines = 1000
+	}
+	info, err := file.Stat()
+	if err != nil {
+		return fmt.Errorf("stat managed-service log: %w", err)
+	}
+	const maxTailBytes = 1 << 20
+	start := info.Size() - maxTailBytes
+	if start < 0 {
+		start = 0
+	}
+	data := make([]byte, info.Size()-start)
+	n, err := file.ReadAt(data, start)
+	if err != nil && !errors.Is(err, io.EOF) {
+		return fmt.Errorf("read managed-service log tail: %w", err)
+	}
+	data = data[:n]
+	bytesOmitted := start > 0
+	if bytesOmitted {
+		if newline := bytes.IndexByte(data, '\n'); newline >= 0 {
+			data = data[newline+1:]
+		}
+	}
+	lineStart := 0
+	lines := 0
+	for index := len(data) - 1; index >= 0; index-- {
+		if data[index] != '\n' {
+			continue
+		}
+		lines++
+		if lines == maxTailLines {
+			lineStart = index + 1
+			break
+		}
+	}
+	if lineStart > 0 {
+		data = data[lineStart:]
+	}
+	if _, err := fmt.Fprintf(out, "--- last up to %d lines (bounded to %d bytes); full log: %s ---\n", maxTailLines, maxTailBytes, s.logPath); err != nil {
+		return err
+	}
+	if bytesOmitted {
+		if _, err := fmt.Fprintln(out, "[older log bytes omitted]"); err != nil {
+			return err
+		}
+	}
+	_, err = out.Write(data)
 	return err
 }
 

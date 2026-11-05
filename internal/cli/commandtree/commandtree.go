@@ -375,25 +375,6 @@ func JSONOption() OptionArg {
 	return OptionArg{Name: "--json", Description: "Emit JSON output"}
 }
 
-func RunSubcommandSet[H any](
-	args []string,
-	usage func(io.Writer),
-	command string,
-	handlers map[string]H,
-	stdout io.Writer,
-	invoke func(H, []string) error,
-) error {
-	if len(args) == 0 || WantsHelp(args) {
-		usage(stdout)
-		return nil
-	}
-	handler, ok := handlers[NormalizeName(args[0])]
-	if !ok {
-		return fmt.Errorf("unknown %s command: %s", command, args[0])
-	}
-	return invoke(handler, args[1:])
-}
-
 func WantsHelp(args []string) bool {
 	for _, arg := range args {
 		if arg == "--help" || arg == "-h" {

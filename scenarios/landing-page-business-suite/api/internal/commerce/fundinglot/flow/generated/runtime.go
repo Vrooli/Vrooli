@@ -2,7 +2,9 @@
 
 package generated
 
-import "fmt"
+import (
+	"fmt"
+)
 
 type FundingLotStatus string
 type FundingLotEvent string
@@ -28,8 +30,8 @@ const FundingLotContractPath = "api/internal/commerce/fundinglot/flow/flow.json"
 const FundingLotModelPath = "api/internal/commerce/fundinglot/flow/generated/model.qnt"
 const FundingLotGeneratorPath = "flow-verifier"
 const FundingLotContractSHA256 = "5281e8e0e55c6ab2c79f3063d14312eba2a1cbf647ee90eb9ea38c511ce7ab20"
-const FundingLotModelSHA256 = "14d0eda550f0ecdbd852031e4e53727dcd12a6ed0749f5e16997266dbb8b405a"
-const FundingLotGeneratorSHA256 = "2f4bdb4736a693e8d45276b8ad50a7f9078816d749b1d31b315d67302d62b864"
+const FundingLotModelSHA256 = "d8ac8f91fab673366532f6f8b2515c8ce9f43ff4316e63ae888396f3910dd5c6"
+const FundingLotGeneratorSHA256 = "1737e2a389135a2c6b6ee2dcfa653680a67b7d237f2d701cc60af362864e3090"
 
 var fundingLotFormalInvariants = []string{"TypeOK", "TerminalClosure", "IllegalTransitionsPreserveState", "NoUnavailableDebit"}
 var fundingLotFormalGeneratedChecks = []string{"transitionTable"}

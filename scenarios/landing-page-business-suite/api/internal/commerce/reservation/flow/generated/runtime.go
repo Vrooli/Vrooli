@@ -2,7 +2,9 @@
 
 package generated
 
-import "fmt"
+import (
+	"fmt"
+)
 
 type ReservationStatus string
 type ReservationEvent string
@@ -27,8 +29,8 @@ const ReservationContractPath = "api/internal/commerce/reservation/flow/flow.jso
 const ReservationModelPath = "api/internal/commerce/reservation/flow/generated/model.qnt"
 const ReservationGeneratorPath = "flow-verifier"
 const ReservationContractSHA256 = "8499b13e8e4449bc6a682b1dd19f373d321f25efe159219405c105cdee2f0f50"
-const ReservationModelSHA256 = "b310f0a5b1b9b37bc83f4e1c2fa86ba9afc6f7f81ba9acc551701f4bda355cf3"
-const ReservationGeneratorSHA256 = "2f4bdb4736a693e8d45276b8ad50a7f9078816d749b1d31b315d67302d62b864"
+const ReservationModelSHA256 = "4eb652b7450b6fe55423f5d20d36816d085f8ffb7f39f79cbf13d787947a2a92"
+const ReservationGeneratorSHA256 = "1737e2a389135a2c6b6ee2dcfa653680a67b7d237f2d701cc60af362864e3090"
 
 var reservationFormalInvariants = []string{"TypeOK", "TerminalClosure", "IllegalTransitionsPreserveState"}
 var reservationFormalGeneratedChecks = []string{"transitionTable"}

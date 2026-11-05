@@ -434,7 +434,15 @@ type Ref struct {
 // Heartbeat renews a claim's liveness.
 func (s Service) Heartbeat(ctx context.Context, ref Ref) (ClaimView, error) {
 	return s.mutate(ctx, func(store Store) (engine.CapacityClaim, error) {
-		return store.HeartbeatClaim(ctx, ref.ClaimID, ref.Generation, ref.TTL)
+		generation := ref.Generation
+		if generation == 0 {
+			current, err := store.GetClaim(ctx, ref.ClaimID)
+			if err != nil {
+				return engine.CapacityClaim{}, err
+			}
+			generation = current.Generation
+		}
+		return store.HeartbeatClaim(ctx, ref.ClaimID, generation, ref.TTL)
 	})
 }
 
@@ -461,18 +469,22 @@ func (s Service) Activity(ctx context.Context, ref Ref) (ClaimView, error) {
 func (s Service) Degrade(ctx context.Context, ref Ref) (ClaimView, error) {
 	return s.mutate(ctx, func(store Store) (engine.CapacityClaim, error) {
 		amount := ref.AmountByte
-		if amount == 0 {
-			// Resolve the amount from the claim's profile by label.
+		if amount == 0 || ref.Generation == 0 {
+			// Resolve omitted values from one consistent current claim snapshot.
 			current, err := store.GetClaim(ctx, ref.ClaimID)
 			if err != nil {
 				return engine.CapacityClaim{}, err
 			}
-			resolved, ok := resolveStepAmount(current, ref.ToStep)
-			if !ok {
-				return engine.CapacityClaim{}, fmt.Errorf("step %q not found in claim profile", ref.ToStep)
+			if amount == 0 {
+				resolved, ok := resolveStepAmount(current, ref.ToStep)
+				if !ok {
+					return engine.CapacityClaim{}, fmt.Errorf("step %q not found in claim profile", ref.ToStep)
+				}
+				amount = resolved
 			}
-			amount = resolved
-			ref.Generation = current.Generation
+			if ref.Generation == 0 {
+				ref.Generation = current.Generation
+			}
 		}
 		return store.DegradeClaim(ctx, ref.ClaimID, ref.Generation, ref.ToStep, amount)
 	})

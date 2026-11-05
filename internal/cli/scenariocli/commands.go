@@ -141,7 +141,7 @@ func CommandSpecs() []commandtree.Spec[CommandID] {
 		},
 		{
 			Name: string(CommandSetup), Group: "Lifecycle and Utility Commands", Summary: "Run the setup lifecycle", Handler: CommandSetup, Suggestable: true, RootPolicy: commandtree.RootPolicy{RequiresRoot: true, CanRunWithoutRoot: HelpOnlyWithoutRoot},
-			Args: commandtree.ArgSchema{Positionals: []commandtree.PositionalArg{{Name: "scenario name", Required: true}}, Options: []commandtree.OptionArg{{Name: "--path", ValueName: "path"}}},
+			Args: commandtree.ArgSchema{Positionals: []commandtree.PositionalArg{{Name: "scenario name", Required: true}}, Options: []commandtree.OptionArg{{Name: "--path", ValueName: "path"}, commandtree.JSONOption()}},
 		},
 		{
 			Name: string(CommandRestart), Group: "Lifecycle and Utility Commands", Summary: "Restart a scenario", Handler: CommandRestart, Suggestable: true, RootPolicy: commandtree.RootPolicy{RequiresRoot: true, CanRunWithoutRoot: HelpOnlyWithoutRoot},
@@ -605,6 +605,9 @@ func ParsePhaseArgs(command string, args []string) (string, lifecycle.PhaseOptio
 			}
 			index++
 			opts.CustomPath = args[index]
+		case "--json":
+			// Setup's command spec accepts --json. Ignore the output flag while
+			// extracting lifecycle arguments.
 		default:
 			if strings.HasPrefix(arg, "-") {
 				return "", lifecycle.PhaseOptions{}, clipolicy.UsageErrorf("scenario "+command, "scenario %s does not accept %s", command, arg)

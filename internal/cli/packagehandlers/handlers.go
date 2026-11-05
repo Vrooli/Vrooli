@@ -17,14 +17,10 @@ type packageService struct {
 }
 
 func RootHandler[C any](deps rootcli.HandlerDeps[C]) rootcli.Handler[C] {
-	handlers := buildCommandHandlers(deps)
+	specs := buildCommandTable(deps)
 	return func(ctx C, args []string) error {
-		return rootcli.RunSubcommandSet(ctx, args, packagecli.RenderCommandHelp, "package", handlers, deps.Stdout)
+		return rootcli.RunSubcommandSpecs(ctx, args, packagecli.RenderCommandHelp, "package", specs, deps.Stdout)
 	}
-}
-
-func buildCommandHandlers[C any](deps rootcli.HandlerDeps[C]) map[string]rootcli.Handler[C] {
-	return commandtree.BuildHandlerMap(buildCommandTable(deps))
 }
 
 func buildCommandTable[C any](deps rootcli.HandlerDeps[C]) []commandtree.Spec[rootcli.Handler[C]] {

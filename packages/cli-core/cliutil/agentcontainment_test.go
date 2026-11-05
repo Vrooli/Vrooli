@@ -77,7 +77,7 @@ func TestLaunchSpawnBranchUsesRegisteredContainer(t *testing.T) {
 // A container that cannot set the ceiling up never blocks the launch: the
 // child runs uncontained and the result says why.
 func TestLaunchRunsUncontainedWhenTheContainerCannot(t *testing.T) {
-	t.Setenv(AgentManagerIdentityTokenEnv, "")
+	isolateLauncherModelPolicy(t)
 	withFakeContainer(t, true)
 	var stdout bytes.Buffer
 	result, err := LaunchCodingAgentResult(context.Background(), AgentLaunchRequest{

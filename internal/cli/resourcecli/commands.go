@@ -129,7 +129,10 @@ func CommandSpecs() []commandtree.Spec[CommandID] {
 		{Name: string(CommandStartAll), Summary: "Start all enabled resources", Handler: CommandStartAll},
 		{Name: string(CommandStop), Summary: "Stop a resource", Args: nameArgSchema("name"), Handler: CommandStop},
 		{Name: string(CommandStopAll), Summary: "Stop all running resources", Handler: CommandStopAll},
-		{Name: string(CommandLogs), Summary: "Show resource logs", Args: nameArgSchema("name"), Handler: CommandLogs},
+		{Name: string(CommandLogs), Summary: "Show a bounded tail of managed resource logs (default 200, maximum 1000 lines and 1 MiB)", Args: commandtree.ArgSchema{
+			Positionals: []commandtree.PositionalArg{{Name: "name", Required: true}},
+			Options:     []commandtree.OptionArg{{Name: "--tail", ValueName: "lines", Description: "Number of trailing lines to show (1..1000; output also capped at 1 MiB)"}},
+		}, Handler: CommandLogs},
 		{Name: string(CommandEnable), Summary: "Enable a resource in configuration", Args: nameArgSchema("name"), Handler: CommandEnable},
 		{Name: string(CommandDisable), Summary: "Disable a resource in configuration", Args: nameArgSchema("name"), Handler: CommandDisable},
 		{Name: string(CommandInfo), Summary: "Show resource metadata", Args: nameArgSchema("name"), Handler: CommandInfo},

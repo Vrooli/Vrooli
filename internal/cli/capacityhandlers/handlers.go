@@ -13,9 +13,9 @@ import (
 
 // RootHandler dispatches `vrooli capacity <subcommand>`.
 func RootHandler[C any](deps rootcli.HandlerDeps[C]) rootcli.Handler[C] {
-	handlers := commandtree.BuildHandlerMap(buildCommandTable(deps))
+	specs := buildCommandTable(deps)
 	return func(ctx C, args []string) error {
-		return rootcli.RunSubcommandSet(ctx, args, capacitycli.RenderCommandHelp, "capacity", handlers, deps.Stdout)
+		return rootcli.RunSubcommandSpecs(ctx, args, capacitycli.RenderCommandHelp, "capacity", specs, deps.Stdout)
 	}
 }
 

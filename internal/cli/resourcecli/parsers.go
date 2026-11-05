@@ -2,6 +2,7 @@ package resourcecli
 
 import (
 	"fmt"
+	"strconv"
 
 	resourceapp "github.com/vrooli/vrooli/internal/app/resource"
 	"github.com/vrooli/vrooli/internal/cli/commandtree"
@@ -239,6 +240,7 @@ func ParseSchemaSyncRequest(args []string) (NoArgsRequest, error) {
 type ControlRequest struct {
 	Name      string
 	NoReclaim bool
+	TailLines int
 }
 
 func ParseControlRequest(action string, args []string) (ControlRequest, error) {
@@ -250,5 +252,16 @@ func ParseControlRequest(action string, args []string) (ControlRequest, error) {
 	if len(parsed.Positionals) != 1 {
 		return ControlRequest{}, fmt.Errorf("resource %s requires exactly one resource name", action)
 	}
-	return ControlRequest{Name: parsed.Positionals[0], NoReclaim: parsed.HasFlag("--no-reclaim")}, nil
+	request := ControlRequest{Name: parsed.Positionals[0], NoReclaim: parsed.HasFlag("--no-reclaim")}
+	if id == CommandLogs {
+		request.TailLines = 200
+		if raw := parsed.FlagValue("--tail"); raw != "" {
+			lines, err := strconv.Atoi(raw)
+			if err != nil || lines < 1 || lines > 1000 {
+				return ControlRequest{}, fmt.Errorf("resource logs --tail must be an integer from 1 to 1000")
+			}
+			request.TailLines = lines
+		}
+	}
+	return request, nil
 }

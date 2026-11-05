@@ -29,6 +29,7 @@ require (
 	github.com/go-webauthn/webauthn v0.18.1
 	github.com/santhosh-tekuri/jsonschema/v5 v5.3.1
 	github.com/vrooli/platform-go v0.0.0
+	go.yaml.in/yaml/v3 v3.0.5
 	modernc.org/sqlite v1.50.1
 )
 
@@ -50,7 +51,6 @@ require (
 	github.com/vrooli/cliresolve v0.0.0 // indirect
 	github.com/vrooli/envkit-go v0.0.0 // indirect
 	github.com/x448/float16 v0.8.4 // indirect
-	go.yaml.in/yaml/v3 v3.0.5 // indirect
 	modernc.org/libc v1.72.3 // indirect
 	modernc.org/mathutil v1.7.1 // indirect
 	modernc.org/memory v1.11.0 // indirect
@@ -125,7 +125,7 @@ require (
 	github.com/tklauser/go-sysconf v0.3.16 // indirect
 	github.com/tklauser/numcpus v0.11.0 // indirect
 	github.com/vrooli/ai-go v0.0.0 // indirect
-	github.com/vrooli/cli-core v0.0.0 // indirect
+	github.com/vrooli/cli-core v0.0.0
 	github.com/vrooli/repo-contract-go v0.0.0 // indirect
 	github.com/vrooli/vrooli v0.0.0
 	github.com/yusufpapurcu/wmi v1.2.4 // indirect

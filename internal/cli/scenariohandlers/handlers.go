@@ -3,6 +3,7 @@ package scenariohandlers
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -81,7 +82,15 @@ func RootHandler[C any](stdout, stderr func(C) io.Writer, globals func(C) rootcl
 			return err
 		}
 		core := cliapp.NewApp(cliapp.AppOptions{Name: "vrooli scenario", Commands: []cliapp.CommandGroup{{Commands: loadedGroup.Subcommands}}})
-		return core.RunWithWriters(manifestdispatch.WithJSON(args, globals(ctx).JSON), stdout(ctx), stderr(ctx))
+		err = core.RunWithWriters(manifestdispatch.WithJSON(args, globals(ctx).JSON), stdout(ctx), stderr(ctx))
+		if err == nil {
+			return nil
+		}
+		var usageErr *cliapp.UsageError
+		if errors.As(err, &usageErr) {
+			return rootcli.NewUsageError(usageErr.Error(), usageErr.HelpTarget())
+		}
+		return err
 	}
 }
 

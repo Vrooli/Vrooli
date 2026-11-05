@@ -26,6 +26,7 @@ import (
 	"github.com/vrooli/vrooli/internal/maintenance"
 	"github.com/vrooli/vrooli/internal/network"
 	"github.com/vrooli/vrooli/internal/process"
+	runtimestorage "github.com/vrooli/vrooli/internal/resources/runtime/storage"
 	"github.com/vrooli/vrooli/internal/scenario"
 	"github.com/vrooli/vrooli/internal/scenarioruntime"
 	"github.com/vrooli/vrooli/internal/setpoint"
@@ -560,9 +561,9 @@ func (s *Service) reapOrphanedAgentSessions(ctx context.Context) AgentReapReport
 	return report
 }
 
-// boundLogs keeps every scenario log under the runtime logs root within
-// process.DefaultLogFileLimit. Detached scenario processes write straight into
-// these files, so nothing else bounds them while a process runs for weeks.
+// boundLogs keeps scenario and resource logs within process.DefaultLogFileLimit.
+// Detached processes write directly to their log files, so the supervisor owns
+// retention for both the runtime-home and platform resource-storage roots.
 func (s *Service) boundLogs() LogBoundReport {
 	now := s.now()
 	if !s.lastLogBound.IsZero() && now.Sub(s.lastLogBound) < logBoundInterval {
@@ -574,17 +575,47 @@ func (s *Service) boundLogs() LogBoundReport {
 		s.logf("log bound skipped: %v", err)
 		return LogBoundReport{}
 	}
-	result, err := process.BoundLogs(root, process.DefaultLogFileLimit, process.DefaultLogTailKeep)
+	roots := []string{root}
+	resolver, err := runtimestorage.NewResolver(runtimestorage.ResolverConfig{
+		AppID: "vrooli",
+		UserHomeDir: func() (string, error) {
+			if strings.TrimSpace(s.cfg.HomeDir) != "" {
+				return s.cfg.HomeDir, nil
+			}
+			return os.UserHomeDir()
+		},
+	})
 	if err != nil {
-		s.logf("log bound degraded: %v", err)
+		s.logf("resource log root resolution degraded: %v", err)
+	} else if resourceRoot, rootErr := resolver.ResourcesRoot(runtimestorage.ClassLogs, ""); rootErr != nil {
+		s.logf("resource log root resolution degraded: %v", rootErr)
+	} else {
+		roots = append(roots, resourceRoot)
 	}
-	for _, problem := range result.Errors {
-		s.logf("log bound could not trim %s", problem)
+	seen := make(map[string]struct{}, len(roots))
+	var report LogBoundReport
+	for _, candidate := range roots {
+		candidate = filepath.Clean(candidate)
+		if _, exists := seen[candidate]; exists {
+			continue
+		}
+		seen[candidate] = struct{}{}
+		result, boundErr := process.BoundLogs(candidate, process.DefaultLogFileLimit, process.DefaultLogTailKeep)
+		if boundErr != nil {
+			s.logf("log bound degraded for %s: %v", candidate, boundErr)
+			continue
+		}
+		report.Ran = true
+		report.Trimmed += len(result.Trimmed)
+		report.ReclaimedBytes += result.ReclaimedBytes
+		for _, problem := range result.Errors {
+			s.logf("log bound could not trim %s", problem)
+		}
+		if len(result.Trimmed) > 0 {
+			s.logf("log bound trimmed %d file(s) under %s, reclaimed %d bytes: %s", len(result.Trimmed), candidate, result.ReclaimedBytes, strings.Join(result.Trimmed, ", "))
+		}
 	}
-	if len(result.Trimmed) > 0 {
-		s.logf("log bound trimmed %d file(s), reclaimed %d bytes: %s", len(result.Trimmed), result.ReclaimedBytes, strings.Join(result.Trimmed, ", "))
-	}
-	return LogBoundReport{Ran: true, Trimmed: len(result.Trimmed), ReclaimedBytes: result.ReclaimedBytes}
+	return report
 }
 
 func listenerEvidenceFromActiveClaims(claims []scenarioruntime.PortClaim, inspect PortListenerFunc) map[int]scenarioruntime.ListenerEvidence {

@@ -242,13 +242,15 @@ func minInt64(a, b int64) int64 {
 // The immutable reservation timestamp fences out calls admitted after a freeze;
 // original grant minus allocations bounds every such settlement. Unfunded
 // provider cost is attributed to the same lot instead of making a wallet negative.
+// Restricted lots still require settled funding and eligibility at admission;
+// a later restriction cannot turn an unsettled or future lot into backing.
 func loadReservedSettlementLots(ctx context.Context, tx *sql.Tx, account, operation string, live bool, now time.Time) ([]spendableFundingLot, error) {
 	rows, err := tx.QueryContext(ctx, `SELECT l.id,l.source_kind,l.remaining,l.expires_at,l.reversal_window_ends,l.created_at,l.status,
  (p.restricted_at IS NOT NULL AND p.restricted_at>=r.created_at),
  l.granted-COALESCE((SELECT SUM(credits) FROM credit_lot_allocations WHERE lot_id=l.id),0)
  FROM credit_funding_lots l JOIN business_account_credit_reservations r ON r.id=$2 AND r.business_account_id=l.business_account_id
  LEFT JOIN funding_payment_states p ON p.lot_id=l.id
- WHERE l.business_account_id=$1 AND l.livemode=$3 AND ((l.status='open' AND l.settlement_state='settled' AND (l.spendable_after IS NULL OR l.spendable_after<=$4) AND (l.expires_at IS NULL OR l.expires_at>$4)) OR (p.restricted_at>=r.created_at))
+ WHERE l.business_account_id=$1 AND l.livemode=$3 AND l.settlement_state='settled' AND ((l.status='open' AND (l.spendable_after IS NULL OR l.spendable_after<=$4) AND (l.expires_at IS NULL OR l.expires_at>$4)) OR (p.restricted_at>=r.created_at AND l.created_at<=r.created_at AND (l.spendable_after IS NULL OR l.spendable_after<=r.created_at) AND (l.expires_at IS NULL OR l.expires_at>r.created_at)))
  ORDER BY l.expires_at NULLS LAST,l.reversal_window_ends NULLS FIRST,l.created_at,l.id FOR UPDATE OF l`, account, operation, live, now)
 	if err != nil {
 		return nil, err

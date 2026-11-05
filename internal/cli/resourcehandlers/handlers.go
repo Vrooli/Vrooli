@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"strconv"
 	"strings"
 	"time"
 
@@ -769,7 +770,11 @@ func singleResourceControlHandler[C any](deps rootcli.HandlerDeps[C], action str
 		}
 		operation := *controller
 		operation.NoReclaim = operation.NoReclaim || req.NoReclaim
-		if err := operation.RunContext(operationCtx, req.Name, []string{action}, deps.Stdout(ctx), deps.Stderr(ctx)); err != nil {
+		operationArgs := []string{action}
+		if action == "logs" && req.TailLines > 0 {
+			operationArgs = append(operationArgs, "--tail", strconv.Itoa(req.TailLines))
+		}
+		if err := operation.RunContext(operationCtx, req.Name, operationArgs, deps.Stdout(ctx), deps.Stderr(ctx)); err != nil {
 			return err
 		}
 		return nil

@@ -13,9 +13,9 @@ import (
 )
 
 func RootHandler[C any](deps rootcli.HandlerDeps[C]) rootcli.Handler[C] {
-	commandHandlers := commandtree.BuildHandlerMap(buildCommandTable(deps))
+	specs := buildCommandTable(deps)
 	return func(ctx C, args []string) error {
-		return rootcli.RunSubcommandSet(ctx, args, contractcli.RenderCommandHelp, "contract", commandHandlers, deps.Stdout)
+		return rootcli.RunSubcommandSpecs(ctx, args, contractcli.RenderCommandHelp, "contract", specs, deps.Stdout)
 	}
 }
 
@@ -68,9 +68,9 @@ func showHandler[C any](deps rootcli.HandlerDeps[C]) rootcli.Handler[C] {
 }
 
 func resolveHandler[C any](deps rootcli.HandlerDeps[C]) rootcli.Handler[C] {
-	resolveHandlers := commandtree.BuildHandlerMap(buildResolveCommandTable(deps))
+	specs := buildResolveCommandTable(deps)
 	return func(ctx C, args []string) error {
-		return rootcli.RunSubcommandSet(ctx, args, contractcli.RenderResolveHelp, "contract resolve", resolveHandlers, deps.Stdout)
+		return rootcli.RunSubcommandSpecs(ctx, args, contractcli.RenderResolveHelp, "contract resolve", specs, deps.Stdout)
 	}
 }
 

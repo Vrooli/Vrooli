@@ -7,6 +7,7 @@ module ReservationLifecycle {
   var event: Event
   var rejected: bool
 
+
   pure def isValid(s: Status, e: Event): bool =
     (s == Pending and e == Finalize) or
     (s == Pending and e == FinalizeOverrun) or
@@ -21,16 +22,20 @@ module ReservationLifecycle {
     else if (s == Pending and e == Expire) Expired
     else s
 
+
+
   action init = all {
     status' = Pending,
     event' = Finalize,
     rejected' = false,
+
   }
 
   action apply(e: Event): bool = all {
     event' = e,
     status' = nextStatus(status, e),
     rejected' = not(isValid(status, e)),
+
   }
 
   action step = any {
@@ -52,6 +57,8 @@ module ReservationLifecycle {
 
   val IllegalTransitionsPreserveState =
     not(rejected) or nextStatus(status, event) == status
+
+
 
 
 
@@ -82,4 +89,5 @@ module ReservationLifecycle {
       .then(assert(not(isValid(Expired, Expire)) and nextStatus(Expired, Expire) == Expired))
       .then(assert(not(isValid(Expired, Retain)) and nextStatus(Expired, Retain) == Expired))
   }
+
 }

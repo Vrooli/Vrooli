@@ -136,6 +136,13 @@ func ParkForAwait(in ParkRequest) (*ParkResult, bool, error) {
 		}
 		return nil, true, fmt.Errorf("park: %s", reason)
 	}
+	// Attached sessions are controlled by their native harness. Agent Manager
+	// deliberately cannot end their turn, so asking it to park only produces a
+	// predictable refusal before the caller falls back to this same inline wait.
+	// The mode comes from the verified identity response, never harness env vars.
+	if identityDeclaresAttachedExecution(verified.Claims) {
+		return nil, false, nil
+	}
 	runID := verified.Claims.RunID
 
 	baseURL := agentManagerAPIBase()
@@ -181,6 +188,10 @@ func ParkForAwait(in ParkRequest) (*ParkResult, bool, error) {
 		return nil, true, fmt.Errorf("park: agent-manager declined to park the run")
 	}
 	return &ParkResult{Message: resp.Message}, true, nil
+}
+
+func identityDeclaresAttachedExecution(claims *VerifiedClaims) bool {
+	return claims != nil && strings.EqualFold(strings.TrimSpace(claims.Meta["execution_mode"]), "attached")
 }
 
 // agentManagerAPIBase resolves the agent-manager REST base URL for the park
