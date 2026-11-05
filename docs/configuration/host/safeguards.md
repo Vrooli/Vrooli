@@ -3,6 +3,13 @@
 ## Log-volume bounds and disk watchdog
 
 `log_volume_bounds` limits the host log store and reports a platform verdict.
+
+`harness_file_ownership` hands root-owned coding-agent files back to the operator,
+which is what `sudo vrooli setup --include-optional` does for an agent in the
+`needs_setup` state. It changes ownership only and never follows a symlink. It acts
+only on paths whose parent resolves inside the invoking user's home, and ignores
+`GROK_HOME`. See
+[Coding-agent updates](tools.md#coding-agent-updates).
 On Linux it configures the supported rotation and rate-limit controls. On
 macOS and Windows the current handler reports `unsupported` because native
 log-store controls are not implemented yet.
@@ -29,7 +36,48 @@ Safeguards are idempotent host-state modifications Vrooli applies to make the ho
 | Top-level project requirements | `.vrooli/service.json` | `hostSafeguards[]` (each entry: `hostRequirement`) |
 | Per-scenario requirements | `scenarios/<name>/.vrooli/service.json` | `hostSafeguards[]` |
 | Per-resource requirements | `resources/<name>/resource.json` | `hostSafeguards[]` |
-| Operator opt-in | `.vrooli/operator-state.json` | `host_safeguards.<name>.opted_in` |
+| Operator opt-in | `~/.vrooli/state/vrooli/vrooli-onboarding/operator-state.json` | `host_safeguards.<name>.opted_in` |
+
+## Native bubblewrap namespaces
+
+`bubblewrap_userns` owns the AppArmor opt-in for `/usr/bin/bwrap` and
+`/bin/bwrap`. It is separate from `workspace_sandbox_userns`, which owns the
+Workspace Sandbox service launcher. Codex declares the native safeguard as a
+host requirement. Neither safeguard disables global AppArmor restrictions.
+
+Inspect with `vrooli host safeguard bubblewrap_userns --dry-run --json`.
+Apply with `vrooli host safeguard bubblewrap_userns --sudo-mode ask --json`
+from an operator terminal. Before the new CLI is installed, use
+`go run ./cmd/vrooli host safeguard bubblewrap_userns --sudo-mode ask --json`
+from the repository. Enter the sudo password only in that terminal.
+
+The handler probes actual user, mount, PID and network namespaces. It grants
+user namespaces only to the system bubblewrap executable through
+`/etc/apparmor.d/vrooli-bubblewrap`. Existing working distribution policy needs
+no rewrite. An unfamiliar file at the managed path is not overwritten. Root
+setup probes as the identified invoking user; root without that identity is
+unverified. macOS and native Windows are not applicable.
+
+Read `applied` and `execution_state` for the safeguard verdict. A successful
+repair marks an earlier namespace-probe error as `resolved pre-repair failure`
+only after the post-repair probe passes. Older output can contain the raw
+pre-repair error beside the success note. Run the read-only inspection above
+to verify the current state; do not infer a remaining failure from that old
+note. A failed post-repair probe reports `execution_state: failed`, not applied.
+The generic `installed` field describes tool installation, not this safeguard.
+
+After applying, run the no-model containment check from the repository:
+
+```bash
+go test ./internal/safeguards/bubblewrap-userns -run '^TestLiveNativeCodexSandbox$' -count=1 -v -args -live-native-codex-sandbox
+```
+
+It verifies allowed workspace writes, outside/symlink write denial, read-only
+mode and host-loopback denial. It removes only its temporary fixture. This is
+not qualification of agent tool hooks, remote tools or an entire delivery team.
+The profile persists across reboot; a reboot test is separate evidence. To
+unapply, an operator must unload the exact profile with `apparmor_parser -R`
+and remove `/etc/apparmor.d/vrooli-bubblewrap`; do not change the global sysctl.
 
 ## Repository-owned user cron
 
@@ -175,7 +223,7 @@ Identical to tools — a safeguard reference is a `hostRequirement` entry in a `
 A safeguard may declare a JSON Schema `config` object in its
 `internal/safeguards/<name>/safeguard.json` manifest. The operator's selected
 values live beside `opted_in` at
-`.vrooli/operator-state.json → host_safeguards.<name>.config`. Resolution
+`~/.vrooli/state/vrooli/vrooli-onboarding/operator-state.json → host_safeguards.<name>.config`. Resolution
 starts with manifest property defaults, overlays recorded values, validates the
 merged object, and passes it to the handler as `ResolvedRequirement.Config`.
 Invalid values are reported as an unsupported safeguard with an
@@ -236,6 +284,52 @@ confirms the passwordless state. This is a real security reduction: any
 process running as that user can read secrets stored in the keyring. The
 safeguard never accepts or transmits the remote-desktop password. Without
 autologin it reports `not_applicable` and changes nothing.
+
+### Selected local services
+
+`local_service_admission` is optional and Linux-only. Its `bindings` array
+contains at most sixteen objects with `id`, `scenario`, `listener` (`ui`),
+`source_ip`, `host_ip` and `interface`. Addresses must be canonical private IPv4
+addresses on the selected home interface; ports come from the live runtime
+registry. Each source is a single device address, not a CIDR or authenticated
+identity. Keep machine values in operator state. A consuming scenario can
+declare this safeguard in `hostSafeguards[]`; Portal does so for companion/TV
+access. Empty configuration is not applicable and does not expose a listener.
+
+After recording validated choices through the existing host/onboarding owner,
+`vrooli setup broker --sudo-mode=ask` installs the narrow root-controlled policy.
+The same installation occurs during full project setup. The focused command
+avoids applying unrelated pending safeguards. Read-only inspection is
+`vrooli host safeguard local_service_admission --dry-run --json`.
+Runtime convergence, exact managed-rule cleanup and persistent revocation belong
+to the [privilege broker](../../architecture/PRIVILEGE_BROKER.md#selected-local-service-admission).
+The current adapter and physical reachability must be qualified separately;
+an applied host policy is not a successful application session.
+
+### Graphical-session automatic login
+
+`graphical_session` reports the active desktop session, attached display, and
+configured automatic-login user. It never changes login policy unless
+`allow_enable_automatic_login` is explicitly opted in. The opt-in is a high-risk
+physical-security decision: anyone who can restart the host can reach the
+configured user's desktop.
+
+On macOS, a username preference alone may not enable automatic login for a
+passworded account. When the target user's password is available through an
+authorized, ephemeral Bridge credential injection, the safeguard invokes
+`/usr/sbin/sysadminctl` and feeds the password through stdin. It is never put in
+argv, a plist, a repository file, or the evidence bundle. The typed dispatch
+shape is:
+
+```text
+--credential-injection <logical-id>:<field>:VROOLI_GRAPHICAL_SESSION_PASSWORD
+```
+
+The injected credential is consumed for that bounded job and is not retained by
+the safeguard. Do not reuse the Bridge node-store passphrase as the macOS login
+password; they are different credentials. If no password injection is supplied,
+the safeguard retains the passwordless/defaults path and reports that a
+passworded account may still require the typed credential path after reboot.
 
 ## Autoheal boot protection
 
@@ -374,7 +468,7 @@ cross-safeguard visibility must match `systemd-sysctl`.
 
 ## Opt-in flow and operator-state states
 
-`.vrooli/operator-state.json` is the durable record of the operator's choice.
+`~/.vrooli/state/vrooli/vrooli-onboarding/operator-state.json` is the durable record of the operator's choice.
 For each optional safeguard, `host_safeguards.<name>.opted_in` has three
 observable states:
 

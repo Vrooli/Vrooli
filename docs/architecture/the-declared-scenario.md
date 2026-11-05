@@ -130,7 +130,8 @@ Projection preserves:
 - port ranges and `${service.port}` references;
 - data/log directories and readiness probes;
 - UI `dist_root`/assets;
-- peer bundle policy and bindings.
+- peer bundle policy and version constraints. Peer API/UI ports resolve at call
+  time; manifests do not contain static environment bindings.
 
 Desktop control IPC declares port `0`. The runtime allocates it from the same collision-safe manager used for service ports, so concurrently installed bundles start without a fixed-port collision. The runtime publishes the allocated IPC port in its peer record.
 
@@ -170,6 +171,11 @@ The contract requires no live shell syntax, no lifecycle-invoked shell reference
 and no canonical-schema violation. Run `structure-health fleet census` for the
 current population and verdict. The originally cited 2026-08-19 census is not
 available at its former repository path; see the evidence limitation below.
+
+`SCENARIO_PEER_BINDING_INVALID` remains a raw-manifest diagnostic: its
+structure-health parser checks stale `dependencies.scenarios.*.bindings` before
+the canonical service reader rejects that retired field. It does not authorize
+or accept static peer bindings.
 
 ## Shell artifacts that remain
 

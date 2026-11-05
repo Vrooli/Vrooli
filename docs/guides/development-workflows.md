@@ -13,6 +13,15 @@ vrooli status
 make test
 ```
 
+To reload only the root API after changing its Go source, rebuild first, then
+restart it through the project lifecycle. Existing scenarios and resources keep
+running:
+
+```bash
+vrooli build
+make develop DEVELOP_ARGS="--restart-api --resources none --scenarios none --onboarding none"
+```
+
 ## Scenario Workflow
 
 Use this when working on one scenario:

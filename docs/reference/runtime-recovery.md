@@ -278,6 +278,9 @@ and the emergency watchdog. The `runtime_supervisor` safeguard converges it on
 every `vrooli setup` and re-inspects it in the readiness phase, recording the
 native validator's verdict and the unit's `NRestarts` and `Result` as evidence.
 `vrooli runtime supervisor install --user` calls the same converge path.
+Reinstalling also restarts an active unit after updating its definition, so the
+daemon adopts the installed executable instead of continuing to run a replaced
+binary image.
 
 At start the supervisor retires any predecessor session whose PID is dead
 before it claims its own, and under the native unit it takes over a live peer

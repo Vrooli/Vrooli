@@ -45,6 +45,24 @@ The credential authority stores secrets. It does not become the user identity
 provider. The desktop supervisor authenticates the Electron shell to its local
 control API. It does not replace human authentication.
 
+### Operator-issued service principals
+
+Operator workflows that need a scenario-to-scenario credential must ask
+`scenario-authenticator` to issue a service principal for a registered resource
+audience. The issuer must authenticate and authorize the human operator before
+minting, constrain the requested capability set to a named owner-approved
+profile, and apply a short access-token lifetime. The relying scenario remains
+responsible for its operation-specific and object-level checks.
+
+The control plane may provision an issued value through the credential
+authority and inject it into the selected owner process at startup. It must not
+print or log the value. Rotation issues a replacement through the same
+authorized route and updates the authority-backed address; it never broadens
+the principal's audience or capability profile. This flow does not authorize
+secret-bearing bundle export by itself: Deployment Manager must continue to
+verify the service principal, its audience, its capability, and its
+release-preparation policy at the export boundary.
+
 ## Identity objects
 
 The following objects must remain distinct:
@@ -284,9 +302,10 @@ service or bundle manifest:
 The manifest declares the deployment contract. It does not contain passwords,
 private keys, refresh tokens, provider management credentials, or user data.
 Desktop bundles may additionally declare non-secret profiles for explicit
-operator-selected mode transitions. The desktop runtime persists only the
-selected mode and transition metadata; provider credentials and entitlement
-leases remain in their owning authority.
+operator-selected mode transitions. The desktop runtime persists website
+access/refresh tokens only through the platform's encrypted secure store
+(Electron `safeStorage`); provider credentials and entitlement leases remain
+in their owning authority.
 
 ## Migration contract
 

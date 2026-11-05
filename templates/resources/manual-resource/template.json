@@ -41,5 +41,6 @@
   "platformExpectations": [
     "The generated scaffold should document prerequisites and validation probes instead of pretending full install automation exists.",
     "Manual resources must state their limits explicitly."
-  ]
+  ],
+  "transitional": true
 }

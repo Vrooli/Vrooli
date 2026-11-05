@@ -554,6 +554,9 @@ scripts/main/generated/test-genie
 vrooli
 !cmd/vrooli/
 !cmd/vrooli/**
+# Device Control's Android companion sources are first-party project files.
+!/scenarios/device-control/android-capture/
+!/scenarios/device-control/android-capture/**
 # Autoheal's Vrooli packages are source, not compiled CLIs named vrooli.
 !/scenarios/vrooli-autoheal/api/internal/integrations/vrooli/
 !/scenarios/vrooli-autoheal/api/internal/integrations/vrooli/**

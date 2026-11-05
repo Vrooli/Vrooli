@@ -20,7 +20,36 @@ requests. `make refresh-vendor` is the only target that contacts buf.build (see
 [Refreshing vendored modules](#refreshing-vendored-modules)). Generation uses
 the Go `protogen` command, an advisory cross-process lock, a staging tree beside
 `gen/`, and publish-on-change semantics. Scoped runs include reverse dependents
-and shared imports.
+and the requested owner's complete import closure automatically; callers do not
+need to enumerate imported schema owners by hand.
+
+### Consumer compile preflight
+
+If a scenario consumer reports a missing generated RPC, message, field, or
+service after a schema change, treat generated-artifact drift as the first
+hypothesis. Do not hand-edit `packages/proto/gen/`, add a local compatibility
+type, or debug the consumer against a stale projection. From the repository
+root, refresh the affected closure and verify it before rerunning the consumer:
+
+```bash
+cd packages/proto
+go run -mod=mod ./cmd/protogen generate --changed
+go run -mod=mod ./cmd/protogen verify
+```
+
+If verification still fails, report the exact source/generated path and digest
+drift; the failure belongs to the shared proto owner rather than the scenario
+consumer. This preflight applies to Go, Connect, TypeScript, Python, CLI and
+runtime consumers alike.
+
+Lifecycle setup also materializes the selected immutable snapshot into the
+compatibility view at `packages/proto/gen/`. It writes the small
+`.vrooli-proto-artifact.json` selection stamp there. Governed CLI freshness
+contracts include that stamp, so an installed CLI is invalidated when the
+selected shared contract changes without hashing the large generated tree on
+every invocation. A standalone consumer build must therefore run the Proto
+preflight (or a repository lifecycle setup) first; direct `go build` is a
+diagnostic compile, not proof that the shared projection is current.
 
 ## Shared-worktree runtime artifact contract
 
@@ -181,8 +210,8 @@ descriptor image and lockfiles there, then publishes changed language files by
 atomic per-file rename while preserving their existing directory roots; the
 descriptor is published as one atomic file rename. Unchanged outputs are
 discarded without changing their modification times. Scoped runs publish only
-the selected scenarios, their reverse dependents, shared import outputs, and
-the global descriptor.
+the selected scenarios, their complete import closure, direct reverse
+dependents, shared import outputs, and the global descriptor.
 
 `packages/proto/gen/` is buf-output only. Keep scenario helpers, compatibility
 shims, hand-authored enum maps, debug renderings, and copied vendor files out
@@ -207,6 +236,18 @@ and reports stale inputs, edited outputs, or orphan generated files as
 `proto.gen_out_of_sync`. A missing lockfile is
 `proto.gen_manifest_missing`, and changed toolchain pins are advisory
 `proto.gen_toolchain_drift` until `make generate` refreshes the manifests.
+
+The runtime-only `.vrooli-proto-artifact.json` selection stamp beside `gen/` is
+not committed output and is intentionally excluded from `make verify-committed-gen`.
+This keeps artifact selection state from turning a healthy generated tree into a
+false drift failure.
+
+The incremental `protogen generate --changed` path uses the same output digests:
+an owner is selected for regeneration when any recorded generated file is
+edited, deleted, or unexpectedly added, even if its schema closure and toolchain
+are unchanged. This keeps routine lifecycle refreshes from silently trusting a
+damaged generated tree; dependency fan-out is then applied to the selected
+owner as usual.
 
 `make verify-committed-gen` is the authoritative boundary gate. It runs the
 same staged generation path under the same lock, compares every committed file

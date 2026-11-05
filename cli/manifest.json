@@ -37,12 +37,48 @@
           }
         },
         {
+          "name": "exec",
+          "description": "Run typed command argv inside a protected local native session without another coding model. No privileged executor identity is inferred.",
+          "flags": [
+            {
+              "name": "task",
+              "description": "Existing native task UUID; omit when no native task row exists."
+            },
+            {
+              "name": "cwd",
+              "description": "Command working directory."
+            }
+          ],
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:read",
+              "filesystem:write",
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "exception": {
+              "class": "external_delegation",
+              "reason": "Delegates explicit argv through protected zero-scope external-session custody; no shell construction or coding model launch."
+            }
+          }
+        },
+        {
           "name": "list",
-          "description": "List live coding-agent sessions from the runtime registry: session, agent, tree, scope, pid, age, claims, frozen.",
+          "description": "List coding-agent sessions from the runtime registry and the kernel: session, agent, state (live, idle, orphaned, agentless, unrecorded, ghost, undetermined), owner (agent-manager-run, web-console-session, desktop-app, terminal, unknown) and whether the owner is still there, tree, scope, pid, age, claims, frozen. JSON rows add memory_bytes/swap_bytes (VmRSS/VmSwap sums, null when unknown) with memory_status/swap_status, and reapable/reap_reason from the reap policy; summary carries totals.",
           "flags": [
             {
               "name": "json",
               "description": "Emit JSON output."
+            },
+            {
+              "name": "idle-after",
+              "description": "Report a live session idle after this long with no heartbeat or terminal activity (default 168h, VROOLI_TUNING_AGENT_SESSION_IDLE_AFTER)."
             }
           ],
           "binding": {
@@ -53,6 +89,41 @@
             "run_eligible": true,
             "permissions": [
               "filesystem:read"
+            ]
+          }
+        },
+        {
+          "name": "reap",
+          "description": "Stop coding-agent sessions whose owner is confirmed gone (terminal Agent Manager run, archived programmatic web-console session, exited desktop app) through the platform containment seam, with an audit row per stop. Never stops terminal, unknown-owner, idle-only or operator web-console sessions.",
+          "flags": [
+            {
+              "name": "orphaned",
+              "description": "Required: stop only sessions whose owner is confirmed gone."
+            },
+            {
+              "name": "older-than",
+              "description": "Only stop sessions at least this old (default 1h)."
+            },
+            {
+              "name": "dry-run",
+              "description": "List what would be stopped, with owner evidence, and stop nothing."
+            },
+            {
+              "name": "json",
+              "description": "Emit JSON output."
+            }
+          ],
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "destructive",
+            "run_eligible": false,
+            "permissions": [
+              "filesystem:read",
+              "filesystem:write",
+              "network:internal",
+              "admin"
             ]
           }
         }
@@ -156,6 +227,57 @@
           }
         },
         {
+          "name": "freshness",
+          "description": "Read one scenario's lifecycle artifact-freshness verdict.",
+          "positionals": [
+            {
+              "name": "name",
+              "required": true,
+              "description": "Scenario name."
+            }
+          ],
+          "flags": [
+            {
+              "name": "explain",
+              "bool": true,
+              "description": "Print every check (fresh and stale) plus resolved dependency policies."
+            },
+            {
+              "name": "inputs",
+              "bool": true,
+              "description": "Resolve declared build input closure and keys without evaluating artifacts."
+            },
+            {
+              "name": "path",
+              "description": "Resolve freshness for a scenario started from this physical scenario directory."
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ScenarioControlPlaneService",
+            "method": "GetScenarioFreshness"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list",
+            "primary_field": "checks"
+          },
+          "semantics": {
+            "kind": "verify",
+            "verdict": {
+              "path": "success",
+              "pass": "true",
+              "fail": "false"
+            }
+          }
+        },
+        {
           "name": "logs",
           "description": "Read a bounded tail of one scenario's lifecycle log.",
           "positionals": [
@@ -212,6 +334,11 @@
               "bool": true,
               "description": "Remove orphaned background logs",
               "local_only": true
+            },
+            {
+              "name": "instance",
+              "local_only": true,
+              "description": "Read the logs of a named instance (equivalent to name@variant)"
             }
           ],
           "binding": {
@@ -262,6 +389,10 @@
               "name": "accept-credential-loss",
               "bool": true,
               "description": "Explicitly permit witnessed generated-credential replacement"
+            },
+            {
+              "name": "variant-dependencies",
+              "description": "Comma-separated dependencies this non-live instance resolves at its own variant instead of live (no live fallback)"
             },
             {
               "name": "open",
@@ -381,13 +512,17 @@
               "description": "Explicitly permit witnessed generated-credential replacement"
             },
             {
+              "name": "variant-dependencies",
+              "description": "Comma-separated dependencies this non-live instance resolves at its own variant instead of live (no live fallback)"
+            },
+            {
               "name": "force-lifecycle",
               "bool": true,
-              "description": "Emergency restart: override drain-only lifecycle blockers"
+              "description": "Accept lifecycle replacement risk, including missing owner proof"
             },
             {
               "name": "lifecycle-override-reason",
-              "description": "Audit reason required with --force-lifecycle"
+              "description": "Audited reason required with --force-lifecycle"
             },
             {
               "name": "open",
@@ -416,6 +551,12 @@
               "name": "demand-managed",
               "bool": true,
               "description": "Tie this instance to caller-owned renewable demand leases"
+            },
+            {
+              "name": "deploy-report",
+              "bool": true,
+              "local_only": true,
+              "description": "Print the deploy report (changes since the running build) to stderr before restarting"
             }
           ],
           "binding": {
@@ -575,6 +716,20 @@
               }
             },
             {
+              "name": "deploy-report",
+              "description": "List source changes and new env switches since a scenario's running build (pre-restart check).",
+              "binding": {
+                "kind": "local"
+              },
+              "governance": {
+                "effect": "read",
+                "run_eligible": true,
+                "permissions": [
+                  "filesystem:read"
+                ]
+              }
+            },
+            {
               "name": "run",
               "description": "Scenario management command: run.",
               "binding": {
@@ -606,7 +761,7 @@
             },
             {
               "name": "wait",
-              "description": "Scenario management command: wait.",
+              "description": "Block once until the scenario's in-flight start or restart reaches a terminal state; with none in flight it returns current health at once.",
               "binding": {
                 "kind": "local"
               },
@@ -616,7 +771,8 @@
                 "permissions": [
                   "filesystem:read"
                 ]
-              }
+              },
+              "semantics": {"kind": "verify", "blocks": {"after": ["vrooli scenario start", "vrooli scenario restart", "make start", "make restart"], "replaces": ["vrooli scenario status"]}}
             },
             {
               "name": "stop-all",
@@ -647,6 +803,9 @@
                   "filesystem:read",
                   "filesystem:write"
                 ]
+              },
+              "semantics": {
+                "kind": "verify"
               }
             },
             {
@@ -1028,6 +1187,23 @@
           }
         },
         {
+          "name": "issue-service-principal",
+          "description": "Issue and provision the fixed short-lived Deployment Manager service principal, then restart its scenario-to-desktop consumer.",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:read",
+              "filesystem:write",
+              "network:internal",
+              "process:spawn"
+            ]
+          }
+        },
+        {
           "name": "tuning",
           "description": "Root command entry: tuning.",
           "binding": {
@@ -1076,8 +1252,8 @@
             "kind": "local"
           },
           "governance": {
-            "effect": "destructive",
-            "run_eligible": false,
+            "effect": "write",
+            "run_eligible": true,
             "permissions": [
               "filesystem:read",
               "filesystem:write"
@@ -1481,6 +1657,9 @@
               "filesystem:read",
               "filesystem:write"
             ]
+          },
+          "semantics": {
+            "kind": "verify"
           }
         },
         {
@@ -1757,6 +1936,35 @@
         {
           "name": "upstream-check",
           "description": "Resource management command: upstream-check.",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:read"
+            ]
+          }
+        },
+        {
+          "name": "update",
+          "description": "Update a coding agent, or repair or roll back how it is installed.",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:read",
+              "filesystem:write"
+            ]
+          }
+        },
+        {
+          "name": "update-check",
+          "description": "Report a coding agent's update state and eligibility.",
           "binding": {
             "kind": "local"
           },
@@ -2064,6 +2272,193 @@
           "description": "Resource acquisition inspection.",
           "commands": [
             {
+              "name": "runtime-probe",
+              "description": "Qualify managed Python imports in a bounded offline read-only runtime; no model acquisition.",
+              "positionals": [
+                {
+                  "name": "name",
+                  "required": true
+                }
+              ],
+              "flags": [
+                {
+                  "name": "imports",
+                  "required": true,
+                  "description": "Comma-separated import-only modules"
+                },
+                {
+                  "name": "out",
+                  "required": true,
+                  "description": "New receipt directory outside immutable artifact"
+                }
+              ],
+              "binding": {
+                "kind": "local"
+              },
+              "governance": {
+                "effect": "write",
+                "run_eligible": true,
+                "permissions": [
+                  "filesystem:read",
+                  "filesystem:write",
+                  "process:spawn"
+                ]
+              }
+            },
+            {
+              "name": "compose-candidate",
+              "description": "Prepare pinned composed inputs and report an uninstalled candidate digest; no service execution.",
+              "positionals": [
+                {
+                  "name": "name",
+                  "required": true
+                }
+              ],
+              "flags": [
+                {
+                  "name": "out",
+                  "description": "New candidate bundle directory; overwrite refused",
+                  "required": true
+                },
+                {
+                  "name": "offline",
+                  "description": "Require verified cached external parts; refuse network acquisition"
+                }
+              ],
+              "binding": {
+                "kind": "local"
+              },
+              "governance": {
+                "effect": "write",
+                "run_eligible": true,
+                "permissions": [
+                  "filesystem:read",
+                  "filesystem:write",
+                  "network:external",
+                  "process:spawn"
+                ]
+              }
+            },
+            {
+              "name": "data",
+              "description": "Acquire and verify exactly one declared resource data group without starting the resource.",
+              "positionals": [
+                {
+                  "name": "name",
+                  "required": true
+                }
+              ],
+              "flags": [
+                {
+                  "name": "group",
+                  "description": "Declared data group",
+                  "required": true
+                }
+              ],
+              "binding": {
+                "kind": "local"
+              },
+              "governance": {
+                "effect": "write",
+                "run_eligible": true,
+                "permissions": [
+                  "filesystem:read",
+                  "filesystem:write",
+                  "network:external",
+                  "process:spawn"
+                ]
+              }
+            },
+            {
+              "name": "model-cache",
+              "description": "Preview, pin, or apply owner-fenced model-cache retention. Deletion requires an exact reviewed preview and confirmed idle lifecycle history.",
+              "positionals": [
+                {
+                  "name": "name",
+                  "required": true
+                }
+              ],
+              "flags": [
+                {
+                  "name": "entry",
+                  "description": "Declared storage entry; defaults to models"
+                },
+                {
+                  "name": "apply-preview",
+                  "description": "Apply the exact saved preview JSON"
+                },
+                {
+                  "name": "pin",
+                  "description": "Set resource model-bundle pin to true or false"
+                }
+              ],
+              "binding": {
+                "kind": "local"
+              },
+              "governance": {
+                "effect": "write",
+                "run_eligible": true,
+                "permissions": [
+                  "filesystem:read",
+                  "filesystem:write"
+                ]
+              }
+            },
+            {
+              "name": "inspect-data",
+              "description": "Verify bounded pinned non-executable upstream data and emit SHA-256 receipt; never admit execution.",
+              "positionals": [
+                {
+                  "name": "name",
+                  "required": true
+                }
+              ],
+              "flags": [
+                {
+                  "name": "url",
+                  "description": "HTTPS metadata URL",
+                  "required": true
+                },
+                {
+                  "name": "git-blob-sha1",
+                  "description": "Expected40hex Git blob identity",
+                  "required": true
+                },
+                {
+                  "name": "max-bytes",
+                  "description": "Positive explicit bound, at most1048576",
+                  "required": true
+                },
+                {
+                  "name": "out",
+                  "description": "New output file; overwrite refused",
+                  "required": true
+                },
+                {
+                  "name": "logical-id",
+                  "description": "Declared resource credential identity",
+                  "required": true
+                },
+                {
+                  "name": "field",
+                  "description": "Declared resource credential field",
+                  "required": true
+                }
+              ],
+              "binding": {
+                "kind": "local"
+              },
+              "governance": {
+                "effect": "write",
+                "run_eligible": true,
+                "permissions": [
+                  "filesystem:read",
+                  "filesystem:write",
+                  "network:external"
+                ]
+              }
+            },
+            {
               "name": "explain",
               "description": "Explain host-fact acquisition target selection.",
               "binding": {
@@ -2124,9 +2519,24 @@
         {
           "name": "executor-scope",
           "description": "Read bounded physical executor exclusion evidence from JSON stdin; never signal processes.",
-          "flags": [{"name": "json", "description": "Emit executor-scope-v1 JSON.", "bool": true}],
-          "binding": {"kind": "local", "handler": "executor-scope"},
-          "governance": {"effect": "read", "run_eligible": true, "permissions": ["filesystem:read"]}
+          "flags": [
+            {
+              "name": "json",
+              "description": "Emit executor-scope-v1 JSON.",
+              "bool": true
+            }
+          ],
+          "binding": {
+            "kind": "local",
+            "handler": "executor-scope"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:read"
+            ]
+          }
         }
       ],
       "groups": [
@@ -2837,7 +3247,7 @@
         },
         {
           "name": "desktop-session",
-          "description": "Inspect live Linux desktop session and X-server peer association.",
+          "description": "Inspect a live Linux desktop session and X-server peer association using an explicit peer PID or display.",
           "flags": [
             {
               "name": "session-id",
@@ -2845,7 +3255,11 @@
             },
             {
               "name": "peer-pid",
-              "description": "Kernel-authenticated X-server peer PID."
+              "description": "Positive peer PID from a trusted local caller; select exactly one of peer-pid or display."
+            },
+            {
+              "name": "display",
+              "description": "Explicit local X11 display number (0 through 65535); peer identity is read from its Unix socket. Select exactly one of display or peer-pid."
             }
           ],
           "binding": {
@@ -2917,6 +3331,23 @@
             {
               "name": "sudo-mode",
               "description": "Privilege policy."
+            },
+            {
+              "name": "config-key",
+              "description": "Typed safeguard configuration key to persist before applying."
+            },
+            {
+              "name": "config-value-json",
+              "description": "JSON value for --config-key. Requires --opt-in."
+            },
+            {
+              "name": "config-value",
+              "description": "Plain string value for --config-key. Requires --opt-in."
+            },
+            {
+              "name": "opt-in",
+              "description": "Explicitly opt into this safeguard before applying.",
+              "bool": true
             }
           ],
           "binding": {
@@ -2932,13 +3363,41 @@
           }
         },
         {
+          "name": "reboot",
+          "description": "Request a governed host reboot after an explicitly authorized host change.",
+          "flags": [
+            {
+              "name": "confirm",
+              "description": "Confirm the immediate reboot.",
+              "bool": true
+            },
+            {
+              "name": "sudo-mode",
+              "description": "Privilege policy."
+            }
+          ],
+          "binding": {
+            "kind": "local",
+            "handler": "reboot"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:read",
+              "network:internal"
+            ],
+            "requires_confirmation": true
+          }
+        },
+        {
           "name": "volume",
           "description": "Inspect and manage host volume state.",
           "positionals": [
             {
               "name": "action",
               "required": true,
-              "description": "capabilities, inspect, check, repair, unmount, or mount-rw"
+              "description": "capabilities, inspect, check, smart, repair, unmount, or mount-rw"
             }
           ],
           "flags": [
@@ -2995,6 +3454,13 @@
         {
           "name": "storage",
           "description": "Inspect host storage state.",
+          "positionals": [
+            {
+              "name": "action",
+              "required": true,
+              "description": "candidates"
+            }
+          ],
           "binding": {
             "kind": "local",
             "handler": "storage"
@@ -3004,6 +3470,109 @@
             "run_eligible": true,
             "permissions": [
               "filesystem:read"
+            ]
+          }
+        },
+        {
+          "name": "hyperframes",
+          "description": "Render a frozen local composition with the managed HyperFrames tool.",
+          "flags": [
+            {
+              "name": "request",
+              "description": "Version-1 render request JSON file.",
+              "required": true
+            },
+            {
+              "name": "out",
+              "description": "New output bundle directory, or exact reusable bundle.",
+              "required": true
+            }
+          ],
+          "binding": {
+            "kind": "local",
+            "handler": "hyperframes"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:read",
+              "filesystem:write",
+              "process:spawn",
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "renderer-profile",
+          "description": "Read a digest-pinned FFmpeg/FFprobe or Blender renderer profile. This command never installs or falls back to PATH.",
+          "positionals": [
+            {
+              "name": "profile",
+              "description": "Renderer profile (ffmpeg-video or blender).",
+              "required": true
+            }
+          ],
+          "binding": {
+            "kind": "local",
+            "handler": "renderer-profile"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:read",
+              "process:spawn"
+            ]
+          }
+        },
+        {
+          "name": "triposr-source",
+          "description": "Read the managed, digest-pinned TripoSR source profile. This command never installs or resolves ambient paths.",
+          "positionals": [
+            {
+              "name": "action",
+              "description": "Use profile to return the verified source directory and provenance.",
+              "required": true
+            }
+          ],
+          "binding": {
+            "kind": "local",
+            "handler": "triposr-source"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true
+          }
+        },
+        {
+          "name": "renderer-cache-repair",
+          "description": "Quarantine only verified Blender Python bytecode caches from the exact managed archive after filtered-tree verification.",
+          "positionals": [
+            {
+              "name": "target",
+              "description": "Exact repair target: blender-python-cache.",
+              "required": true
+            }
+          ],
+          "flags": [
+            {
+              "name": "dry-run",
+              "description": "Verify ownership and the filtered pinned tree without moving cache directories.",
+              "bool": true
+            }
+          ],
+          "binding": {
+            "kind": "local",
+            "handler": "renderer-cache-repair"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:read",
+              "filesystem:write",
+              "process:spawn"
             ]
           }
         }
@@ -4845,10 +5414,18 @@
               "name": "bootstrap",
               "description": "Install or restart the setup-managed privilege broker from this target CLI.",
               "flags": [
-                {"name": "deployment"},
-                {"name": "operation"},
-                {"name": "step"},
-                {"name": "fence"}
+                {
+                  "name": "deployment"
+                },
+                {
+                  "name": "operation"
+                },
+                {
+                  "name": "step"
+                },
+                {
+                  "name": "fence"
+                }
               ],
               "binding": {
                 "kind": "local",

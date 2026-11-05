@@ -602,6 +602,71 @@ One consequence worth stating: membership in that group permits TPM use for any
 purpose, which is why the safeguard grants it to the account running Vrooli and
 nothing broader.
 
+### Bridge-managed nodes open their store from the control plane
+
+A node onboarded by vrooli-bridge never needs a person at the machine for its
+credential store. Onboarding generates a random store passphrase on the
+control plane, escrows it in the control plane's own credential authority at
+`vrooli-bridge/node-credential-store/<machineID>` (field `passphrase`), and
+initializes the node's store with it over the verified SSH connection's stdin.
+The node then adds whatever unattended wrap it supports (Keychain, DPAPI,
+TPM/host key).
+
+A headless node frequently has none: a Mac's login Keychain stays locked until
+someone logs in, and macOS has no session-scoped unlock cache, so an unlock
+there lasts one command. For those nodes the Bridge agent receives the
+escrowed passphrase sealed to the node's encryption key on every connection
+(an `infrastructure`/`ephemeral` credential grant), keeps it only in memory,
+and serves it over an owner-only unix socket at
+`<runtime state>/credential-unlock.sock` (`packages/platform-go/credentialunlock`).
+When no wrap opens and no passphrase was supplied, `securestore` asks that
+socket, verifying the socket and its directory belong to the same user; the
+agent answers only a peer whose kernel-reported UID is its own. Nothing secret
+is written to the node's disk.
+
+Consequences an operator should know:
+
+- The passphrase for a Bridge-managed node is held by the control plane, not by
+  the operator. This deliberately differs from the operator-held posture of
+  local recovery bundles below; losing the control plane's store loses the
+  escrow.
+- A headless node that reboots while it cannot reach the control plane keeps
+  its store locked until it reconnects, and readiness reports the store as
+  unavailable rather than guessing.
+- An operator-supplied passphrase (`store init` / `store unlock`) always takes
+  precedence over the agent's answer.
+
+A node whose store `vrooli setup` created behind an unattended wrap alone (a
+TPM or host key) is not left without a recovery path: onboarding escrows a new
+passphrase first, then adds it as a second wrap with
+`vrooli credentials store add-passphrase` (stdin). The unattended wrap is kept
+and still opens the store at boot. `vrooli credentials store verify-passphrase`
+checks a passphrase against the passphrase wrap only, which is how Bridge
+confirms its escrow still opens a node.
+
+Rotate a node's store passphrase from the control plane:
+
+```bash
+vrooli-bridge machines rotate-store <machine-id>
+```
+
+The new value is escrowed at the address's `passphrase-next` field before the
+node changes and promoted to `passphrase` only after the node proves it opens,
+then the agent's unlock grant is re-pushed. An interruption at any step leaves
+an escrowed value that opens the node; re-running the command, or reconnecting
+the machine, finishes it. A store with a passphrase this control plane does not
+hold is refused, never overwritten.
+
+Windows nodes are skipped: `vrooli setup` protects their store with DPAPI bound
+to the node user, and Bridge does not yet run the node CLI there. Keep a
+recovery bundle for a Windows node.
+
+The escrow is an ordinary entry in the control plane's own store file, so the
+[encrypted root copy](#encrypted-root-copy) backs it up; configure one on any
+control plane that manages nodes. `recovery export --all` covers only
+manifest-declared credentials, so export a node's escrow explicitly with
+`--entry vrooli-bridge/node-credential-store/<machineID>:passphrase`.
+
 ## Recovery
 
 Recovery export and restore are explicit encrypted operations protected by an

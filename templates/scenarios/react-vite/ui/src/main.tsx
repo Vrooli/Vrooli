@@ -4,6 +4,7 @@ import ReactDOM from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { initIframeBridgeChild } from "@vrooli/iframe-bridge";
 import { initSpatialNav } from "@vrooli/iframe-bridge/spatial";
+import { initAppNotifications } from "@vrooli/react-component-library/AppNotificationSettings/1";
 import "./styles.css";
 
 // INTEROP-CRITICAL: Embedded mounts identify themselves before React renders so
@@ -16,6 +17,12 @@ if (window.parent !== window) {
 // keyboard/gamepad control flows.
 const spatialNav = initSpatialNav();
 if (import.meta.hot) import.meta.hot.dispose(() => spatialNav.dispose());
+
+// Re-confirms this installed app with Notification Hub and opens the screen a
+// notification tap asked for. Does nothing until the scenario sets
+// "appDelivery": true in .vrooli/notifications.json and the operator turns
+// notifications on in Settings.
+initAppNotifications();
 
 if (import.meta.env.PROD && "serviceWorker" in navigator) {
   window.addEventListener("load", () => {

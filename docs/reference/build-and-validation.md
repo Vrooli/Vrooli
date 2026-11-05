@@ -236,7 +236,15 @@ These are the project-level Go entrypoints under `cmd/`.
 
 The project-level test target is the canonical project test entrypoint.
 
-It covers project-level Go test surfaces. Validation that has its own dedicated policy target should still be run explicitly when your change touches that area.
+Before compiling, it runs the Proto owner's committed-output verifier because
+the project-level control-plane modules import `packages/proto/gen`. The
+generic generated-owner preflight runs at lifecycle setup, package tests, and
+`vrooli scenario test`; those paths cover build-owned projections and future
+schema, selector, registry, descriptor, and runtime owners at their source
+boundary instead of reporting a misleading consumer compile failure. The root
+target then covers project-level Go test surfaces. Validation that has its own
+dedicated policy target should still be run explicitly when your change
+touches that area.
 
 For scenario-level testing, use:
 
@@ -280,6 +288,13 @@ Installed scenario CLI freshness and scenario runtime freshness are intentionall
 - Installed scenario CLIs are owned by `path:internal/cliinstall`.
 - `vrooli scenario ...` command entrypoints ensure the scenario CLI is installed and current before use.
 - Scenario runtime freshness is derived from `components.*.build`; builder inputs, outputs, and digest keys are the sole setup authority for runtime artifacts.
+
+Installed CLI checks use the `<binary>.freshness.json` manifest written by the
+shared cli-installer. Warm checks compare directory/file metadata and re-hash
+only changed inputs; an older install may take one full-hash compatibility
+check while the manifest is bootstrapped. This keeps large scenario inputs (for
+example BAS's `api/**`) out of every lifecycle command's critical path without
+weakening stale-source detection.
 
 Installed CLI freshness is therefore not a component runtime input during lifecycle start/restart decisions. That boundary prevents dependency restart loops where lifecycle marks a dependency stale because its installed CLI changed, while the component builder only owns runtime artifacts.
 

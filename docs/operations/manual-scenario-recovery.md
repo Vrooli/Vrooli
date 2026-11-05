@@ -47,6 +47,12 @@ Where every scenario's runtime state lives (all under `~/.vrooli/`):
 | Start-operation records (progress-only; inside the registry) | `runtime_start_operations` / `runtime_phase_durations` tables in `runtime.db` |
 | Scenario state | `~/.vrooli/state/scenarios/` |
 
+Every `*.log` and `*.log.bak` under `~/.vrooli/logs` is size-bounded by the
+runtime supervisor (`process.BoundLogs`, at most every five minutes). A file
+over 16 MiB of allocated space is truncated in place and its last 2 MiB are
+kept in `<file>.1`; the truncated file starts with a `[vrooli] log exceeded its
+size bound` marker. Look in `<file>.1` for output older than the marker.
+
 > **Start-operation records are safe to ignore during recovery.** They are derived
 > progress state for `vrooli scenario wait`/`status`, never authority: a record whose
 > initiator pid is dead reads as `abandoned` and the next `vrooli scenario start`
@@ -198,7 +204,10 @@ baseline promote  → re-point live off the baseline copy onto the blessed worki
                       restart resolves to the working tree (the copy is kept as the
                       rollback source until the health probe passes), then restart +
                       probe; on failure, flip back to shadow + restart = live re-resolves
-                      to the baseline copy (working tree keeps the Candidate, retryable)
+                      to the baseline copy (working tree keeps the Candidate, retryable);
+                      promote closes the engagement — re-create the shadow under the
+                      SAME name: `baseline start --name <same> --mode shadow`
+baseline cycle    → promote, then that same-name re-create (no anchor run) in one step
 baseline abandon  → restore the Baseline over the working tree (discard the Candidate),
                       tear down the shadow; live (still on the copy) is untouched
 ```

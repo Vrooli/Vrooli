@@ -22,6 +22,10 @@ restart failures).
 Fixed ports (e.g. Cloudflare-tunneled UIs) pin a single value inside the band
 for that role.
 
+A fixed `port` is a live Tier 1 privilege. Non-live variants and desktop bundles
+receive the role band through `internal/portspec`; they MUST NOT inherit a
+fixed Tier 1 listener port.
+
 The `ports` block declares listener ports that lifecycle should allocate and
 that runtime supervision should expect to observe as bound sockets. It is not
 endpoint metadata. HTTP routes, WebSocket routes, gRPC services, and UI proxy

@@ -51,9 +51,6 @@
             "amd64",
             "arm64"
           ],
-          "requires": [
-            "{{RESOURCE_BINARY}}"
-          ],
           "limitations": [
             "The upstream executable, licensing, authentication, and version policy are host-managed."
           ],
@@ -70,9 +67,6 @@
             "amd64",
             "arm64"
           ],
-          "requires": [
-            "{{RESOURCE_BINARY}}"
-          ],
           "limitations": [
             "The upstream executable, licensing, authentication, and version policy are host-managed."
           ],
@@ -88,9 +82,6 @@
           "architectures": [
             "amd64",
             "arm64"
-          ],
-          "requires": [
-            "{{RESOURCE_BINARY}}"
           ],
           "limitations": [
             "The upstream executable, licensing, authentication, and version policy are host-managed."

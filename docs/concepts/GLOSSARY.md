@@ -6,7 +6,43 @@ The root project-level system responsible for setup, lifecycle, diagnostics, and
 
 ## Resource
 
-A local or connected service that provides raw capability such as storage, inference, automation, search, or secret management.
+A local or connected service that provides a dependency such as storage, inference, automation, search, or secret management. In harness declarations, `resource` names that dependency relationship; it does not mean a coding-agent harness itself.
+
+## Commercial plan
+
+A billing offer or subscription plan. Use **implementation plan** for a Plan Manager artifact; do not use bare “plan” when both meanings are possible.
+
+## Optional component
+
+A separately installable desktop dependency. Use “RCL asset” for a React Component Library component so the two meanings remain distinct.
+
+## Component catalog
+
+The versioned catalog of optional desktop components, their supported ranges, and installation metadata. It does not describe RCL assets. See [desktop packaging](../architecture/packaging-strategies.md).
+
+## Supplier
+
+A company that supplies model access or routing. In the AI provider contract, `provider` is the technical provider family/configuration; use “supplier” for the company.
+
+## Provider rule
+
+A data record that states when a model provider may serve a verified AI use class, including its terms and eligibility conditions. An agent can propose a rule, but only an operator can approve it. See the [AI provider contract](../resources/ai-provider-contract.md).
+
+## Eligible route
+
+A route that passes the shared AI-use eligibility decision. Use “HTTP route” for an API endpoint and “router” for a routing service or harness selection.
+
+## Feature route
+
+The API endpoint that invokes a declared paid feature contract, such as `/v1/features/<id>`. It is distinct from an eligible model route, which is selected by AI provider policy.
+
+## Feature contract
+
+The declared behavior and billing boundary for a paid application feature. “Capability” retains the existing Vrooli meaning of reusable problem-solving power; it is not a synonym for a paid feature.
+
+## Route eligibility
+
+Whether a provider route is allowed for a verified AI use class and request. This is distinct from agent-run eligibility and reclaim eligibility.
 
 ## Accelerator
 
@@ -98,6 +134,18 @@ A scenario whose main job is to improve Vrooli itself by enhancing testing, depl
 
 A reusable piece of problem-solving power that the system can invoke again later. In Vrooli, scenarios, workflows, packages, and well-structured tooling can all become capabilities.
 
+## Operation Tier
+
+The sensitivity class of a cross-scenario operation — **read**, **cheap write**, or **costly write** — that decides how much authority it takes. Reads and cheap writes need only a verified caller; costly writes (create a run, global management, approvals) additionally need authority for the specific operation. See [Authorization](AUTHORIZATION.md).
+
+## Operation Grant
+
+The single representation of authority for a costly operation: a bounded operation + target + limits + expiry tied to an accountable owner, evaluated by `OperationGrant.Allows`. See [Authorization](AUTHORIZATION.md).
+
+## Standing Grant
+
+An operator-approved, durable Operation Grant keyed to a caller's verified identity, letting a trusted service or unattended agent perform a bounded costly operation (such as a team-heartbeat run) without a human present each time — explicit, limited, attributable, and revocable. See [Authorization](AUTHORIZATION.md).
+
 ## Operating Mode
 
 Historical name for Swarm Manager's declarative agent-work state machines.
@@ -117,6 +165,42 @@ The current mature deployment path: a full Vrooli stack running locally or on a 
 ## Tiered Deployment
 
 The model where different targets such as local stack, desktop, mobile, SaaS, and appliance deployments are treated as distinct deployment tiers with different fitness, secret, and dependency rules.
+
+## Coding-agent harness
+
+A user-operated coding agent, such as OpenCode, Codex, Claude Code, Grok, or Antigravity, that can be discovered and launched by a Vrooli app. A harness is distinct from its model provider: the harness owns its interaction and coding workflow, while provider configuration determines where model requests go. See [Coding agents](../configuration/coding-agents.md).
+
+## Model source
+
+The origin used to serve a model request: the user's account, a user-supplied key, local compute, or Vrooli credits where the use is eligible. A model source is distinct from the coding-agent harness that sends the request. See [connections](../configuration/integrations/connections.md) and the [agent policy runtime](../architecture/agent-policy-runtime.md).
+
+## Found copy
+
+A detected installation of a coding-agent harness. Detection does not mean Vrooli manages, can update, or owns that installation.
+
+## Managed copy
+
+A coding-agent harness installation for which Vrooli has an identified lifecycle owner and can report supported management actions. A found copy becomes managed only when its ownership and capabilities are established; do not infer management from detection alone. See [host tools](../configuration/host/tools.md#harness-state).
+
+## Vrooli credits
+
+The prepaid balance used for eligible AI requests routed through Vrooli's billing authority. Credits are not a coding-agent subscription and do not imply that every harness or provider is eligible. See [paid features](PAID_FEATURES.md) and the [AI provider contract](../resources/ai-provider-contract.md).
+
+## Billing authority
+
+The service boundary that decides whether a paid feature use is allowed, reserves and settles its charge, and records its usage receipt. This is the precise term for the billing concept; do not use “money boundary.” See [paid features](PAID_FEATURES.md).
+
+## AI use class
+
+A policy category describing why an AI request happens, as far as the server can verify. The classes are `own_account`, `bounded_feature`, `in_app`, and `harness_access`; they are distinct from deployment tiers and from a coding-agent harness. A request cannot choose its own class. See the [AI provider contract](../resources/ai-provider-contract.md).
+
+## Usage receipt
+
+The usage and cost record returned for an AI operation. This is distinct from a payment receipt, a signed entitlement lease, or an update verification receipt; qualify the kind of receipt in technical documentation.
+
+## Deployment tier
+
+A deployment target category. Prefer the specific names “full local deployment”, “desktop deployment”, “hosted deployment”, or “mobile deployment”; do not use bare “tier” for a deployment target, subscription rank, operation sensitivity class, or model-routing preference. Use “operation tier” only for the read/cheap-write/costly-write authority classes.
 
 ## Repo Contract
 
@@ -158,6 +242,11 @@ unsolicited status; `poll` means Device Control samples at a declared interval.
 
 A Source Ledger scope shared by one prompt-manager team. It holds durable team
 observations, handoffs, and guidance with scoped recall and compaction budgets.
+
+## Epoch
+
+One large, verifiable unit of an orchestrated delivery goal. See the
+`large-effort-orchestration` skill; no other work shape uses epochs.
 
 ## Gated Work Item
 
@@ -232,3 +321,27 @@ Tiered-consent removal of an abandoned workload through a cleanup provider with 
 ## Orphan
 
 An unparented Vrooli-owned process as computed by the legacy process snapshot. It is not the term for an undeclared workload.
+
+## Mark
+
+The figure of a logo without any container: for Aquila, the white eagle outline plus the cyan constellation stars, on a transparent background. Stored as SVG and owned by brand-manager.
+
+## Container style
+
+The deterministic frame a mark is composed into: tile shape and corner-radius ratio, background fill (solid or gradient stops), mark padding ratio, glow settings, and safe-zone scales. A record that several brands can share.
+
+## Product line
+
+A set of brands that share one container style and a naming theme, each with its own mark and accent colour. The first is the star-named line: Aquila, Vega, Rigel, Mizar, Pan, Messier.
+
+## Logo candidate
+
+A durable brand-manager record for one proposed mark: its asset, concept label, prompt, role or model, seed, origin (generated, uploaded, edited, vectorized), parent candidate, and status (proposed, picked, rejected, superseded).
+
+## Target profile
+
+A named, versioned list of icon targets defined once in brand-manager, for example `web-public-v1` (the `/public/*` PWA set) and `electron-v1` (the desktop set). Sizes and wiring live in `scenarios/brand-manager/docs/concepts/BRAND-ASSET-PIPELINE.md`.
+
+## Branding declaration
+
+The `branding` block in a scenario's `.vrooli/service.json` that names the brand and the target profiles the scenario ships.

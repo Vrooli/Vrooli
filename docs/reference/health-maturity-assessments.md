@@ -13,6 +13,14 @@ That RPC returns a shared layer and an optional native layer:
 - `native_detail`: an optional provider-specific `Any` payload for the provider's own CLI/UI. Test Genie ignores it.
 - `metrics`: a `common.v1.ExecutionMetrics` describing the *cost* of the validation (timing, profiling stages, best-effort CPU/RSS/GPU, and the host `CaptureEnvironment`). The whole delegated fleet now emits it (Plan 3); Test Genie persists it per run. The reliability ledger rolls it up, and a reachable provider that *drops* metrics is now a conformance hard-violation (see "Provider conformance" below).
 
+Severity normalization belongs to `packages/maturity-go/assessment`. Shared
+assessment count maps can contain current or legacy enum-prefixed keys, so
+consumers must use `report.CountFindingsBySeverity` instead of indexing the map
+with a locally assembled string. This keeps displayed error counts aligned with
+the same normalization used to derive the pass/fail status. The shared response
+builder refreshes top-level and capability severity counts from the findings;
+contract validation checks parity on assessments received from other providers.
+
 `ExecutionMetrics` is a generic primitive (it can measure any unit of work, not just validations). The reusable collector lives in `packages/api-core/metrics`; every resource area self-describes availability through a `Reliability` enum (`RELIABLE` / `BEST_EFFORT` / `UNAVAILABLE`) so a consumer can tell "measured 0" from "couldn't measure here". Stages are the attribution carrier and nest (the profiling-span / flamegraph model): the top-level `resources` is the whole-op rollup and is *not* required to equal the sum of stages. GPU is in the schema but sampled opt-in (it shells `nvidia-smi`/`rocm-smi`), so default provider validations leave it `UNAVAILABLE`. `proto-health` is the reference provider; every delegated provider now emits real metrics end-to-end via the same 3-file recipe (a ctx-threaded `metrics.go` seam, staged validator, and a collector wired in the handler).
 
 Implementation references:
@@ -60,6 +68,10 @@ The shared report renderer preserves legacy single-ladder output when `assessmen
 | `uncheckable` | Does not gate | Excluded from debt and surfaced through `local.unknown_count` |
 
 Severity still owns phase pass/fail. ERROR and BLOCKER findings fail the provider phase; WARNING and INFO findings do not. `local.clean` reports whether zero REQUIRED findings remain, so agents can continue convergence after a phase has passed.
+
+Provider status overrides can report additional states such as DEGRADED, ERROR,
+or SKIPPED. They cannot mark an assessment PASSED when its findings contain an
+ERROR or BLOCKER.
 
 ### Target scoping
 

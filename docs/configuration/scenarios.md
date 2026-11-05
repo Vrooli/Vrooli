@@ -6,21 +6,21 @@ Scenarios are the user-facing capability layer. An operator selects which scenar
 
 | Concern | File | Field |
 |---|---|---|
-| Whether the operator wants this scenario | `.vrooli/operator-state.json` | `scenarios.<name>.enabled` |
+| Whether the operator wants this scenario | `~/.vrooli/state/vrooli/vrooli-onboarding/operator-state.json` | `scenarios.<name>.enabled` |
 | Whether the scenario is part of Vrooli's own operation | `scenarios/<name>/.vrooli/service.json` | `service.system_required` |
 | Recommended runtime shape (long-running, on-demand, one-shot) | `scenarios/<name>/.vrooli/service.json` | `runtime.kind` |
 | Recommended default for auto-restart | `scenarios/<name>/.vrooli/service.json` | `runtime.auto_restart_default` |
-| Operator override for auto-restart | `.vrooli/operator-state.json` | `scenarios.<name>.auto_restart` |
+| Operator override for auto-restart | `~/.vrooli/state/vrooli/vrooli-onboarding/operator-state.json` | `scenarios.<name>.auto_restart` |
 | Other scenarios this one depends on | `scenarios/<name>/.vrooli/service.json` | `dependencies.scenarios.<name>` |
 | Integrations this scenario needs (deferred) | `scenarios/<name>/.vrooli/service.json` | `integrations[]` |
-| Which connection satisfies each integration on this install (deferred) | `.vrooli/operator-state.json` | `integrations.<scenario>.<connector>` |
+| Which connection satisfies each integration on this install (deferred) | `~/.vrooli/state/vrooli/vrooli-onboarding/operator-state.json` | `integrations.<scenario>.<connector>` |
 
 For the resolution order between manifest defaults and operator overrides, see [`architecture.md`](architecture.md#resolution-order).
 
 ## Runtime policy is separate from lifecycle configuration
 
 `service.json` is the declarative lifecycle and dependency contract. It does
-not hold mutable application policy. `.vrooli/operator-state.json` records
+not hold mutable application policy. `~/.vrooli/state/vrooli/vrooli-onboarding/operator-state.json` records
 which scenarios the operator selected and how the installation should run
 them. A running scenario owns its live runtime settings in its API-backed
 configuration store (and exposes the corresponding schema, CLI, and UI
@@ -28,6 +28,193 @@ surfaces). For example, notification-hub persists event patterns, templates,
 and severity-to-sensitivity mapping in its own SQLite store. Updating those
 settings changes behavior without rewriting `service.json`, changing operator
 selection, or restarting the scenario.
+
+## Restart and maintenance of an execution owner
+
+### Live API replacement fence
+
+When a restart replaces an authoritative live scenario that declares `API_PORT`,
+the control plane asks its API owner for lifecycle `Status`, closes request
+admission with `Prepare`, and waits for admitted work to drain before stopping
+the pinned process. Standard `api-core/server.Run` now installs the shared
+provider, loopback-only lifecycle endpoint, and ingress accounting by default.
+An API with work that outlives its HTTP request must register owner snapshot and
+quiesce/resume hooks. Services with richer domain inventories can install their
+own provider and admission gate through the same lifecycle protocol.
+
+This is a replacement safety check, not an authorization check. If `Status` is
+unsupported (`NotFound` or `Unimplemented`), the control plane logs a warning
+and continues without a provider fence for compatibility with older owners.
+Other status errors, malformed standings, or an incomplete drain proof still
+fail closed during a normal restart. An operator can explicitly accept that
+risk for a restart with
+`vrooli scenario restart <name> --force-lifecycle
+--lifecycle-override-reason '<reason>'`. The control plane records the reason
+and warns that in-flight or detached owner work may be interrupted. This option
+does not permit replacing a process whose runtime identity is non-authoritative.
+Use it for a deliberate recovery when the work-loss risk is understood.
+
+An ordinary operator-authorized `vrooli scenario restart agent-manager` uses a
+separate recovery-first path. The control plane stages a stale replacement before
+stopping the serving process, preserves detached Agent Manager API executors,
+and lets the new owner recover durable runs and Web Console sessions. This path
+does not require Agent Manager to close admission or drain itself. After restart,
+check the original run identities and recovery progress; process health alone is
+not proof that each run reconnected. See
+[runner transcript recovery](../../scenarios/agent-manager/docs/runner-transcript-recovery.md).
+
+The stricter maintenance proof below applies to operations such as standalone
+setup and dependency refresh, not to that ordinary restart path. Normal stop and
+explicit run cancellation also have different effects.
+
+Agent Manager owns admission and the inventory of accepted execution work. The
+control plane owns Stop, setup, replacement and the per-instance lifecycle lock.
+An empty run listing is not maintenance authorization: workflow lifetimes,
+admission in progress, finalization and physical executors can still be active.
+
+The bounded AM integration uses its existing read-only
+`GET /api/v1/maintenance/admission` contract. A replacement requires a closed
+positive revision, `admitting: 0`, `remaining: 0`, `drained: true`, and an
+`inventory` with explicit zero `remaining` and no work, executors or unknowns
+for the ordinary drained path. The accounting-only path below retains cancelled
+workflow records after separately proving their original children are terminal.
+The owner must also advertise `lifecycleInterlock: "scenario-lock-v1"` only after
+its explicit resume operation takes the same nonblocking lock as the lifecycle:
+`<home>/.vrooli/state/locks/scenario-agent-manager.lock` (variant suffixes follow
+the existing instance-key convention). Acquire that lock before the admission
+mutex. Hold it until resume persistence completes. A busy lock refuses resume.
+Status reads do not acquire this lock, so the lifecycle can read them while it
+holds the lock. Restart must retain the closed admission revision on disk.
+
+For operations requiring maintenance proof, the control plane reads this
+precondition under the target lock before setup or teardown and rechecks it
+where applicable. Missing
+fields, unsupported interlocks, unknown inventory and unavailable owner reads
+refuse the operation. For these maintenance-gated operations, an identified
+agent executor cannot maintain its own AM owner even if an inventory incorrectly
+reports zero. Dependency refresh follows
+the same precondition. When freshness arbitration degrades
+`restart_when_stale` to `rebuild_only` while owner admission is open, the
+control plane MUST reduce the action to `reuse_running`, retain the healthy
+existing process, and publish `EventDependencyStalePolicy` with reason
+`execution owner admission open; serving stale build`. A busy lifecycle lock
+uses the same `reuse_running` result with reason `dependency lock busy; serving
+stale build`. An automatic lifecycle invocation never enters maintenance,
+resumes admission or exchanges a local owner credential.
+
+Accounting-only maintenance (operator implementation amendment, 2026-09-13)
+uses the same closed revision and lifecycle interlock. A complete inventory with
+no executors or unknowns may retain cancelling workflows whose original child
+runs are terminal and whose finalization is inactive. The control plane MUST
+verify each exact workflow through the owner's bounded trace and original run
+reads. Every attempt MUST be bound to an observed terminal run; incomplete,
+duplicate, nested or uncertain dispatch bindings refuse this narrow path.
+The inventory counts and attempt counts MUST agree with the complete responses.
+The proof is repeated under the lifecycle lock immediately before teardown.
+This permits replacement while preserving original accounting records and
+unknown charges. It MUST NOT report those workflows as drained, settle their
+accounting, create a replacement child, or allow a live executor to be stopped.
+
+For operations requiring maintenance proof, current-executor protection
+recognizes an identity token, `VROOLI_RUN_ID`, or a nonempty `*_AGENT_TAG`;
+legacy runners do not gain destructive-maintenance authority merely because
+they predate identity-token wiring. This check does not prohibit the ordinary
+recovery-first restart described above.
+
+For an operation requiring this proof, an authorized operator uses AM's explicit
+maintenance begin/drain operations, runs the lifecycle operation, then explicitly
+resumes the retained revision.
+An unavailable owner requires its startup/recovery protocol; a failed inventory
+read cannot authorize destructive recovery. This contract covers standalone AM
+setup and applicable dependency adoption; ordinary AM restart follows the
+recovery-first path above. Other execution owners require their own qualified
+precondition; this is not a new manifest hook framework.
+
+`start` has one non-destructive stopped-owner recovery path: when the AM owner
+read is unavailable and its registry instance is non-authoritative, the control
+plane reads every active instance, managed PID/group, legacy process record and
+claimed listener under the lifecycle lock. Only positive managed-scope absence
+permits registry finalization and fresh startup. Unknown or live managed scope
+refuses. This path does not call Stop, clean fixed-port orphans, or sweep host
+processes on failure. Independent run-labelled executors outside the recorded
+service groups remain untouched. A partial failed restoration may require
+subsequent explicit maintenance; this read does not grant fresh run dispatch or
+resume admission. Stop, restart and explicit setup do not use this exception.
+
+Dependency serving health is separate from authored-source identity. A healthy
+optional dependency is reused without walking source freshness. Required
+dependencies apply their declared freshness policy to source drift, including
+`reuse_running`; they do not reinterpret dirty source as a failed health probe.
+Optional back-edges to an ancestor currently starting are reported as deferred;
+required cycles remain errors. Explicit target adoption still checks identity.
+
+### Physical executor exclusion
+
+The root maintenance controller owns the shared, read-only physical projection
+used by owner drain and fresh recovery. Invoke `vrooli runtime executor-scope
+--json` with JSON on stdin (8 MiB maximum):
+
+```json
+{"executors":[{"runId":"run-id","tag":"current-tag","legacyTag":"legacy-tag","pid":123,"pgid":123,"startedAt":"2026-09-12T12:00:00Z","endedAt":"2026-09-12T13:00:00Z"}]}
+```
+
+Requests contain 1–16,384 unique runs; timestamps are optional durable execution
+times. Gather the bounded owner inventory into one request instead of starting
+one host scan per row or database page. Database pagination does not limit the
+physical inventory to one page. Owners must match the root request and response
+limits; over-capacity inventories refuse rather than silently omit history.
+The response has `schemaVersion: "executor-scope-v1"`, `complete`, and an
+`executors` array containing each `runId`, `state` (`absent`, `present`, or
+`unknown`), bounded `pids` and `reasons`. Consumers must verify the version,
+complete requested-ID coverage, `complete: true`, and explicit `absent` for
+every candidate. Exit success alone or an empty/missing result is not exclusion.
+
+The response is limited to 8 MiB and never truncates requested identities. PID
+samples are capped at `min(64, floor(65536 / referenceCount))` per entry; they
+are evidence samples, not executor counts. Every `present` result retains at
+least one PID. Unknown reasons are bounded, and incomplete evidence remains
+fail-closed. Run/tag/PID/group indexes make matching linear in the request and
+host inventory, with a fixed sample budget even when many runs share a tag.
+The four-second deadline includes matching and wire processing; expired or
+oversized output fails without emitting usable partial JSON. A successful
+small request against an older installed CLI does not qualify its bulk capacity.
+
+The implementation reuses the canonical maintenance process table, native
+supervision birth-time evidence and stable platform process handles. Matching
+run identity and non-inherited current/legacy labels override terminal status. A numeric PID/group alone
+is unknown; stable birth outside the durable execution interval (with a
+two-second precision allowance) proves reuse. Group reuse requires leader
+evidence, not merely a later-born child. Exited historical roots with no group
+or labelled descendant can therefore be excluded without deleting history.
+
+For an ended run only, inherited labels can be attributed to an independently
+registered scenario service. Proof requires a read-only registry entry for the
+current boot, a running lifecycle/supervisor instance and process registration,
+exact PID/PGID, stable native birth within two seconds of the registered start,
+the canonical service scope, and matching instance, scenario and nonempty
+variant. A descendant must have stable birth and an observed parent chain to
+that root within the same service scope and instance. Any explicit run identity
+breaks inheritance. Only exact labels shared with the registered root qualify;
+independent child labels, exact run identities and numeric PID/group ambiguity
+remain executor evidence. Missing or mismatched proof retains the original
+positive or unknown result. Classification precedes sampling, so an excluded
+service cannot hide a real executor beyond the sample limit. This observation
+does not stop a process, settle accounting, or authorize scenario replacement.
+Unreadable same-user identities in potential execution scopes, unstable observations, cancellation and
+unsupported platforms remain unknown. Environment contents, credentials and
+command lines are not returned or logged. The read has a four-second host
+observation ceiling and never signals a process or exchanges owner authority.
+Kernel-attested unrelated native service scopes and the user manager's
+`init.scope` are outside managed execution scope, even when their credential
+environments are intentionally unreadable. This exception does not cover
+Vrooli slices, terminal scopes, or missing cgroup evidence; numeric PID/group
+ambiguity still requires the independent birth-time proof.
+
+This proof concerns local-user, identity-labelled managed execution. Callers
+must hold their admission/continuation fence across observation and dispatch;
+it is not a transferable authorization receipt or proof against deliberately
+identity-stripped executors. AM adapters must reuse this projection rather than
+maintaining private `/proc` walkers or treating PID liveness as run identity.
 
 ## Platform identity provider versus scenario policy
 
@@ -135,6 +322,30 @@ The binding (which concrete `connection_id` satisfies the requirement) is operat
 
 Don't pre-populate `integrations[]` on existing scenarios; the field is a no-op until the consumer scenario exists.
 
+## Branding declaration
+
+A scenario declares the brand it ships and the icon target profiles it wants in
+an optional `branding` block. brand-manager `apply` reads it and writes the
+files. The block is additive; scenarios without it stay valid.
+
+```json
+"branding": {
+  "brand": "aquila",
+  "targets": ["web-public-v1", "electron-v1"]
+}
+```
+
+Fields:
+
+- **`brand`** — the brand-manager brand slug (`^[a-z0-9][a-z0-9-]*$`).
+- **`targets`** — one or more target profile ids. Today: `web-public-v1` (the
+  `/public/*` PWA set under `ui/public/public/`) and `electron-v1` (the
+  `platforms/electron/assets/` desktop set, applied only when that directory
+  exists).
+
+Sizes and wiring live in brand-manager, not here; see
+`scenarios/brand-manager/docs/concepts/BRAND-ASSET-PIPELINE.md`.
+
 ## When to populate the new fields
 
 These fields are optional. Existing scenarios are valid without them. Population guidance:
@@ -171,3 +382,9 @@ not belong in scenario settings.
 
 `browser-automation-studio` is the reference conversion at
 `.vrooli/config.json`; its sidecar timing settings use this contract.
+
+Detached resource services and their companions receive their resource lifecycle
+identity. Their launch environment excludes the requesting agent's identity token,
+run ID, and runner agent tags. This prevents a long-lived service from retaining
+an obsolete agent's authority or being counted as that agent's live executor.
+Existing services adopt this boundary on their next owner-managed restart.

@@ -2,7 +2,8 @@
 
 Choose the work model from the outcome. Team definitions stay in Prompt Manager's common
 registry; the work owner retains authoritative state. This directory holds delivery product
-homes. Managed plans and experiments stay with their existing owners.
+homes and links the other work models. Retained research lives in the runtime research home,
+outside the shared checkout; managed plans and domain experiments keep their existing owners.
 
 | Work | Use | Authoritative state |
 | --- | --- | --- |
@@ -10,7 +11,12 @@ homes. Managed plans and experiments stay with their existing owners.
 | Ordered implementation | Plan Manager plan; family when several plans need coordination | Plan Manager managed store and its returned artifact directory |
 | Adaptive improvement | Approved mandate with target and sensors | Mandate owner; Swarm/Agent Manager own admitted execution |
 | Finite product delivery | One orchestrator and independent surface workers | Product home here; native commission in Agent Manager |
-| Experiment | Existing domain experiment owner | Its managed store; no second writable experiment register here |
+| Research / local experiment | One bounded research commission, using the research skills | [Research home](/home/matthalloran8/.vrooli/research/README.md): topics, runs, findings and evidence outside the checkout |
+| Domain-owned experiment | An existing scenario's experimental operation | Its existing managed store; no second writable register here |
+
+Research and delivery share this entry point, not an execution system. Research does not
+require a delivery team, Prompt Manager experiment record or new scheduler. See the
+[research storage decision](../../docs/internal/research-experimentation/STORAGE.md).
 
 ## Delivery ownership
 
@@ -39,6 +45,102 @@ Charter, feedback and durable source maps are eligible for Git. STATUS, LOG and 
 evidence are ignored. Preserve ignored runtime records through their owner; a source commit
 is not a backup of the current commission or evidence.
 
+## Product delivery loop
+
+The orchestrator owns delivery of the whole charter. It assesses the current product,
+chooses the architecture and implementation sequence, coordinates dependencies, and
+delegates substantial outcomes. Its plan must account for every required surface and
+behavior, including required behavior absent from the visual atlas. Selected originals
+are implementation targets for their matching states. Existing requirements and human
+decisions remain governing inputs. Resolve decisions by stable effort ID and run
+`agent-manager effort decision sync <home> --reconcile-recorded` to restore missing policy
+after a move or state compaction. Routine `sync` records new answers and preserves handled
+archives. Neither operation creates another operator ask.
+
+Inspect shared foundations before polishing individual screens. Reuse suitable components,
+assign necessary custom components or API changes, and remove superseded implementation.
+Give a complete journey one integration owner, including its required shared composition,
+API and fixtures. Agree interfaces with live peers and release ownership when they finish.
+Historical ownership must not prevent an admitted worker from closing a known mismatch. Then run independent outcomes concurrently within native limits. Shared builds, restarts,
+serving artifacts and routed fixtures still serialize through their owners; disjoint source
+files alone do not make their runtime independent. Keep one durable validation handle and
+wait for a busy resource rather than ending the outcome partial. A worker
+owns implementation, focused checks and handoff of its outcome; the orchestrator owns
+independent acceptance. An assignment can span many files. Do not create a dispatch for
+each edit, test, screenshot or bookkeeping step.
+
+Maintain the evolving allocation in STATUS: current evidence, independent outcomes and
+dependencies, assigned owners, remaining work and the forecast. The initial allocation is
+a hypothesis. Revise it when code inspection, a worker return or product review changes
+the evidence. Keep unknown progress unknown and retain unfinished scope when repartitioning. Current uses
+`## Current: <n> @ <ISO date>` or `- Current: unknown` under `## Current`. Scoreboard owner
+cells contain one run UUID or `-`; evidence uses a separate column. LOG uses one Accepted
+units section. Run `effort lint` after edits so projection loss is explicit.
+Do not create another plan or duplicate ledger for routine delivery planning.
+
+Use owner receipts for exact browser journey gates. Workflow Health records dependency
+snapshots and reports current applicability; Agent Manager derives the gate from linked
+run IDs. Reuse evidence whose declared inputs are unchanged rather than recapturing every
+state after a bundle change. Missing snapshots remain unverified, shared changes reopen
+affected proof, and visual/independent acceptance remain separate. The common
+`large-effort-orchestration` execution reference owns the brief syntax; Workflow Health's
+runbook owns the reviewed dependency declarations.
+
+Every worker receives the product mission, its user-visible outcome, exact source/image
+references, allowed ownership, dependencies, verification and return format in its task
+description. The worker reads that assignment and the short worker card. The orchestrator
+loads dispatch, commissioning or recovery details only for the operation it is performing.
+Historical briefs must be explicitly superseded before reuse; their old scheduling and
+process gates do not become a new commission's instructions.
+
+See `large-effort-orchestration` for the loop and its assignment template. Notification Hub's
+[prepared allocation](delivery/notification-hub-delivery/STATUS.md) demonstrates this model;
+it is not an admission, product assessment or authorization to start.
+
+### Slice estimates
+
+Slice budgets and estimates are optional. Large coherent outcomes are valid. Duration and
+token totals alone do not establish waste. Analyze repeated failures, blocked dependencies,
+handoff failures, duplicated checks and actual outcome progress. Time, token, work-unit and
+source-size estimates are optional observations, disabled by default in epoch-check. Review
+strategy and estimates while finishing the admitted outcome and required proof. Do not stop
+workers, freeze edits, force partial returns or refuse acceptance solely for overruns.
+Actual authority/safety limits, explicit product requirements and native commission HARD STOP
+remain applicable. A pressure phase classifies elapsed budget, not product progress.
+
+### Design amendments and refinements
+
+For UI work, build toward one current target in the product's existing design document:
+selected originals plus applicable user amendments, retained capabilities and verified
+agent refinements. The latest applicable explicit user decision supersedes an older
+visual choice within governing product, safety and authority constraints. A missing
+feature in a screenshot does not authorize its removal. Clear amendments do not require
+new mockups or another concept approval.
+
+`experiential-ui-design` §2a owns the judgment and recording method. Agents may improve
+awkward mockup details with suitable governed shared components, clearer hierarchy or
+secondary-tool menus when they preserve the chosen concept, operations, discoverability,
+accessibility and recovery. Record material choices, authorship, rationale, evidence and
+disposition in that existing target; never present agent preference as operator approval.
+Consequential unresolved choices return to their actual decision owner.
+
+Design acceptance includes completion of the approved task with realistic data, not just
+component presence and visual fidelity. Apply `experiential-ui-design` §2a to search scope,
+important lifecycle states, pagination and recovery. A bounded page is a performance choice;
+an arbitrary total-result cap or a disclaimer for missing behavior does not complete the
+task. Include authorized enabling API/data work through its owner and verify the affected
+journey. Use the current target when updating tests; do not preserve an obsolete limitation
+merely because an earlier screenshot or fixture encoded it.
+
+The orchestrator promotes feedback into that target and synchronizes affected briefs,
+review criteria and eligible native completion predicates. It verifies actual receiver
+acknowledgement and application; writing FEEDBACK alone does not prove adoption. Workers
+and reviewers compare the current served build against the effective target, including
+phone and desktop for responsive web UIs and applicable themes/states. Link expected
+differences to adopted amendment/refinement IDs in the existing comparison ledger;
+implemented verified differences do not remain completion failures. Missing requirements
+and unverified changes remain open. Original images and past evidence stay intact.
+
 ## Operate a delivery team
 
 1. Read its charter, status, open feedback and current native effort board. Reconcile retained
@@ -49,6 +151,9 @@ is not a backup of the current commission or evidence.
 3. Commission through `agent-manager effort delivery start --effort-ref <ref> --commission <id>
    --budget 24h --workers 2` under the existing operator owner path. Then enable only the intended
    team through Prompt Manager. No migration or source edit implicitly activates it.
+   Agents execute this sequence after browser consent: `delivery-management` for the exact
+   existing effort and `team-management` for the exact team. The operator need not run shell
+   commands. These grants preserve separate clock, scheduling and run-admission authority.
 4. Use `effort delivery pause|resume|stop --effort-ref <ref>` for the native clock; pause and stop
    require `--reason`. Disabling heartbeat prevents new heartbeat dispatch; it does not pause
    retained execution or the clock. Pausing requires parked/terminal owners. Blocked time counts
@@ -91,6 +196,15 @@ being finite does not require conversion into product epochs. The historical qua
 records are not reusable product teams; prepare a fresh isolated fixture for another test.
 Archiving preserves native evidence: the success fixture has terminal owner readback; the
 other exact effort was not returned, so its historical outcome remains unverified.
+
+The six retained managed teams have specific member duties and heartbeat tasks. Their
+README is the current entry point; plans/families retain their native lifecycle, and
+mixed work retains its existing requirement and handoff owner. Read the current owner
+before reusing a dated checkpoint. The VPS and unattended-improvement shell drivers remain
+stopped with original coordination docs archived in their managed homes. Product commission
+requirements apply to product homes and any existing native commission; they do not convert
+managed finite work into product delivery. Continuity scope registration prepares recall,
+not execution authority. All six remain disabled pending deliberate owner admission.
 
 The [reorganization record](../../docs/internal/delivery-reliability-research/DELIVERY_TEAM_REORG_PROPOSAL.md)
 retains decisions and receipts. Its migration sections explain history; this page and the owner

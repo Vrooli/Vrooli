@@ -20,6 +20,26 @@ toolchain; `mk/toolchain.mk` carries it into every Makefile and CI. The
 ast-grep rule `no-raw-toolchain-spawn` admits no allowlist entries, and the
 root Makefile refuses `./...` as a build goal. See `build-and-validation.md`.
 
+Lifecycle component builds also acquire an operation claim from the shared
+capacity broker only when a component is stale and about to install or build.
+The claim spans its install and declared build targets, and renews through the
+broker's operation lease. The current Go and pnpm reservation values are
+declared starting estimates (394 MiB and 752 MiB), not newly measured peaks;
+the broker is advisory and does not prove prevention of host OOM. Fresh
+components and skipped conditions do not acquire claims. This lifecycle path
+does not serialize direct ledger or resource-specific writers.
+
+The public operation broker, native CLI claims and resource lifecycle admission
+share `internal/capacity.MemoryPressurePolicy`. They classify memory pressure using the canonical memory-PSI setpoint
+when the Linux `some avg10` reading is available. A reading at or above the
+setpoint denies RAM admission. A known reading below the setpoint suppresses
+only the broker's legacy swap-occupancy hard gate; ordinary available-memory
+and ledger-capacity checks still apply. If PSI is unreadable or unsupported,
+the existing swap-occupancy gate remains in force. An invalid setpoint remains
+visible and blocks RAM admission rather than silently selecting a new numeric
+threshold. Swap occupancy is retained as fallback evidence, not treated as a
+measurement of current thrashing when fresh PSI is available.
+
 ## Layer B: contained sessions
 
 `platformgo.Containment` (`packages/platform-go/servicedef.go`) is the ceiling

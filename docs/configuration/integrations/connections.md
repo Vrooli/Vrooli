@@ -168,6 +168,17 @@ The `integration-hub` scenario now owns the pilot lifecycle. It persists only co
   the control-plane credential authority. See [`../secrets.md`](../secrets.md).
 - OAuth/device-flow drivers, connector manifests, onboarding binding, and multi-instance scenario consumption remain future slices.
 
+## Model source and account connections
+
+A coding-agent model source describes where a harness obtains inference: an
+account-bound subscription, a user-managed API key, local compute, or Vrooli
+credits. Account connections are only one of these source types. This page owns
+the account-bound connection lifecycle and safe metadata; it does not define
+the harness model selection or provider routing. See [coding agents](../coding-agents.md)
+for user-facing source choices and [the agent policy runtime](../../architecture/agent-policy-runtime.md)
+for the runtime policy boundary. Credential values remain in the canonical
+credential authority described above.
+
 ## See also
 
 - [`connectors.md`](connectors.md) — connector definitions, the type-side of the model

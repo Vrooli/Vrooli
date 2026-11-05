@@ -42,6 +42,38 @@
     "resourceConfig": {
       "type": "object",
       "properties": {
+        "uses": {
+            "type": "array",
+            "description": "Consumer capabilities supplied by this dependency; capability identity is independent of the provider slug.",
+            "items": {
+              "type": "object",
+              "required": [
+                "id",
+                "name",
+                "description",
+                "group"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "name": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "description": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "group": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              }
+            }
+          },
         "$schema": {
           "type": "string",
           "pattern": "^resource:\\w+$",

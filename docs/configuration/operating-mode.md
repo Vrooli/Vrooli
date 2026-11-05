@@ -8,8 +8,8 @@ This page covers the operator's runtime choices: which scenarios stay running, w
 |---|---|---|
 | Scenario's recommended runtime shape | `scenarios/<name>/.vrooli/service.json` | `runtime.kind` |
 | Scenario's recommended auto-restart default | `scenarios/<name>/.vrooli/service.json` | `runtime.auto_restart_default` |
-| Operator's auto-restart override | `.vrooli/operator-state.json` | `scenarios.<name>.auto_restart` |
-| Operator's enabled selection | `.vrooli/operator-state.json` | `scenarios.<name>.enabled`, `resources.<name>.enabled` |
+| Operator's auto-restart override | `~/.vrooli/state/vrooli/vrooli-onboarding/operator-state.json` | `scenarios.<name>.auto_restart` |
+| Operator's enabled selection | `~/.vrooli/state/vrooli/vrooli-onboarding/operator-state.json` | `scenarios.<name>.enabled`, `resources.<name>.enabled` |
 | Named configuration preset | control-plane configuration document | expands to desired scenario, resource, host, credential, and safeguard selections |
 | Global startup behavior | (deferred — see "open work" below) | — |
 
@@ -37,7 +37,7 @@ Per-scenario, declared in the scenario's own `service.json`:
 For any specific scenario, the effective auto-restart setting is computed from this order:
 
 ```
-1. .vrooli/operator-state.json → scenarios.<name>.auto_restart   (if present, use it)
+1. ~/.vrooli/state/vrooli/vrooli-onboarding/operator-state.json → scenarios.<name>.auto_restart   (if present, use it)
 2. scenarios/<name>/.vrooli/service.json → runtime.auto_restart_default   (if present, use it)
 3. schema default (false)
 ```

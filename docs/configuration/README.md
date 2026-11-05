@@ -14,7 +14,7 @@ There are three categories of configuration data, and every file in the system f
 |---|---|---|---|
 | **Declarative manifest** — what each thing *is* | `resources/<name>/resource.json`, `scenarios/<name>/.vrooli/service.json`, `internal/tools/<name>/tool.json`, `internal/safeguards/<name>/safeguard.json` | Humans, source-controlled | "This resource needs a Postgres dependency", "this safeguard writes to /etc/sysctl.d", "this scenario is system-required" |
 | **Computed analysis** — what an analyzer figured out | scenario-dependency-analyzer reports, `.vrooli/schemas/resource-definitions.json` | Tools, regenerable | "This scenario needs 2 GB RAM", "tier-3-mobile fitness score 0.4" |
-| **Operator state** — what this install *chose* | `.vrooli/operator-state.json` | The wizard, or hand | "swarm-manager is enabled", "kernel_config safeguard is opted in", "ollama resource is disabled" |
+| **Operator state** — what this install *chose* | `~/.vrooli/state/vrooli/vrooli-onboarding/operator-state.json` | The wizard, or hand | "swarm-manager is enabled", "kernel_config safeguard is opted in", "ollama resource is disabled" |
 
 Generated lifecycle/runtime state is not configuration. Setup markers, resource-populated markers, runtime databases (including the SQLite port-claim registry), logs, and process records belong under `~/.vrooli/`; per-project setup/resource markers use `~/.vrooli/state/projects/<project-key>/` so multiple local checkouts stay disambiguated.
 
@@ -53,4 +53,4 @@ Two rules keep this folder honest over time:
 - [`.vrooli/schemas/tool.schema.json`](../../.vrooli/schemas/tool.schema.json) — per-host-tool `tool.json`
 - [`.vrooli/schemas/safeguard.schema.json`](../../.vrooli/schemas/safeguard.schema.json) — per-safeguard `safeguard.json`
 - [`.vrooli/schemas/common.schema.json`](../../.vrooli/schemas/common.schema.json) — shared primitives, including `secretDescriptor`
-- [`.vrooli/schemas/operator-state.schema.json`](../../.vrooli/schemas/operator-state.schema.json) — `.vrooli/operator-state.json`
+- [`.vrooli/schemas/operator-state.schema.json`](../../.vrooli/schemas/operator-state.schema.json) — `~/.vrooli/state/vrooli/vrooli-onboarding/operator-state.json`

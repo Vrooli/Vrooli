@@ -202,3 +202,159 @@ Protected artifacts:
 | `docs/plans/source-artifacts/professional-integrations-monetization-contract-examples.md` | `e68b3570946623bf151b431e84e65285a6abc43fa090e7082826a70200a0bd5c` | `plan-artifacts/professional-integrations-monetization-ux/source-artifacts/` |
 | `PROBLEMS.md` | `44674596c913f91591f6e1868d9dd6d0936c6ff2d6fb54bb213dcd9f3c6845e9` | `plan-artifacts/docs-cleanup-20260908-opportunities-1-2/root-ledger/` |
 | `PROBLEMS_TEMPLATE.md` | `c3698cbff65db4c5f8bd5a89d33e99af3ae47bad2063321bf1403e9e981b6aaa` | `plan-artifacts/docs-cleanup-20260908-opportunities-1-2/root-ledger/` |
+
+## Nutrition planner full-day Today slots — 2026-09-18
+
+Extended the planning client and Today surface to request and display configured
+breakfast, lunch, dinner, and open snack slots. Open slots remain explicitly
+user-controlled; unresolved required slots remain visible without relaxing rules.
+Added client and UI regressions for meal-slot encoding and full-day rendering.
+UI validation passed with 34 files and 163 tests; coverage remained above the
+configured threshold at 89.77% statements and 85.01% branches.
+
+## Nutrition planner portability and transfer center — 2026-09-18
+
+Completed the portability slice for native recipe export/restore, including
+canonical yield, serving unit, ingredients, and preparation-map data. Added
+transfer-center cards for recipe JSON, workspace backup, weekly PDF, grocery
+CSV, and recipe PDF exports, plus staged restore and explicit omission/error
+messaging. Backend portability tests, endpoint drift validation, and the
+server-owned unit/API/storage run passed (`20260918-220119-cf66bf7c`). UI
+validation passed with 35 files and 170 tests at 94.81% statements and 85.88%
+branches. Added explicit A4/US Letter selection to server-side recipe and
+weekly PDF generation, with validated page-size input and page-count footers;
+generated proto clients were refreshed and portability regressions cover Letter
+output and invalid format rejection. Existing Test Genie advisories remain
+non-blocking, including the pre-existing injectable-seam and low-coverage
+findings.
+
+Browser Automation Studio captures also reached the live scenario successfully
+at mobile and desktop surfaces: Today mobile (`bd08663e-ebc7-4d01-829c-ab700c62cab9`),
+Week desktop (`e22b8aeb-cc75-40d9-b024-ed3af60ca021`), setup mobile
+(`bf536041-5605-4670-8a19-c9bb20abb004`), and transfer at both desktop
+(`df13920b-8cf4-445f-958b-278ebf550cfd`) and mobile
+(`29a6ada6-4c58-43d0-89ae-3d047e8a9f9b`) all returned ready snapshots without
+capture errors.
+
+Closed a concrete accessibility gap in Today and Week swap surfaces by adding
+shared dialog focus containment, Escape cancellation, focus restoration, and
+keyboard regressions. The transfer center retains its axe-clean regression;
+focused Today/Week validation now passes 19 tests.
+
+Reconciled the portability contract after validation: recipe exports now report
+only nutrition and cost as omissions, and staged native imports enforce the
+documented 200-recipe, 80-ingredient-use, 30-step, and 10,000-character note
+limits. Added regressions for the step and note limits; portability package
+tests remain green.
+
+Post-reconciliation validation passed: all Go packages, endpoint generation
+with no manifest drift, UI TypeScript, 35 UI test files / 173 tests, and the
+configured UI coverage gate (93.93% statements, 85.48% branches). The focused
+playbook run reached execution and found only the shared pre-existing BAS
+observer-content safety errors in performance example files.
+
+Closed the native recipe-import gap in the transfer center. Added preview and
+apply RPCs with duplicate/conflict counts, explicit keep/copy/replace policy,
+workspace revision barriers, atomic SQLite writes, idempotency replay, and
+remapped IDs for copied conflicts. The UI now auto-detects `daily.recipes`,
+stages the review, and routes the selected policy to apply. Targeted API/UI
+regressions, TypeScript, all Go packages, and endpoint-drift validation pass.
+
+Preserved known allocated cost when stock availability is unknown, while
+keeping checkout cost and completeness explicitly unresolved. `CalculateMany`
+now aggregates each independently known cost component instead of discarding
+known values because another item is unresolved; added R1 cost regressions.
+
+Raised the nutrition surface with persisted supplement schedule controls: create
+confirmed schedules, list them, and pause/resume through revision-checked
+updates. The UI states that schedules apply only on confirmed applicable dates
+and never rewrite prior intake; targeted nutrition UI tests and TypeScript pass.
+
+### 2026-09-19 — Accepted calendar allocation slice
+
+Added the first durable schedule boundary to `personal-planner`: a generated
+CalendarService with SQLite-backed, non-overlapping accepted allocations,
+measured daily capacity, and work-item enrichment. Plan now reads and places
+accepted allocations; Today reads the same calendar read model; Review measures
+planned minutes alongside recorded focus without inferring completion. API and
+UI tests pass, the managed runtime was restarted healthy (optional
+`notification-hub` remains degraded), and live Connect smoke created and read
+an allocation at 10:00 for 45 minutes. The CLI intentionally omits the new
+calendar procedures until its date/overlap interaction is designed. Plan now
+also exposes a durable accepted-placement form for choosing work item, start,
+and duration; overlap rejection remains explicit. The same Calendar record set
+now has an inclusive local-date range read used by Plan's Week and Agenda
+projections; no client-only schedule data is invented.
+
+### 2026-09-19 — Observatory checkpoint and durable Today focus
+
+The 1585×992 Day/Night checkpoint was captured and compared against the
+approved mockups. The shell was corrected from the generic wide
+“Personal Planner/Home” treatment to a narrow Planner/Observatory rail with
+Today navigation, editorial content width, and scene/card geometry closer to
+the oracle. Today’s primary focus control now calls the durable FocusService
+start/pause path and reports failed transitions without local fiction. UI
+coverage remains above all configured floors (95.13% statements, 86.20%
+branches, 86.72% functions; 132 tests). The visual gate still has a bounded
+responsive/accessibility sweep outstanding.
+
+### 2026-09-19 — Calendar range projection and Plan views
+
+Extended the accepted Calendar record set with an explicit inclusive local-date
+range RPC. Plan now offers Day, Week, and Agenda projections over that shared
+server data, with no client-only schedule records. Endpoint parity, CLI omission
+governance, API tests, UI coverage (95.13% statements, 86.20% branches,
+86.72% functions; 131 tests), live range read, and Test Genie unit/contracts/
+experience run `20260919-073604-28dfc4f6` all pass. The CLI evidence artifact was
+regenerated after the manifest changed.
+
+### 2026-09-19 — Settings product boundary and honest monetization story
+
+Extended Settings with a visible, localized product promise: the current
+personal planner core is included, local preferences remain private by default,
+and optional provider connections, forecasts, and assistance are future
+hypotheses rather than an active upgrade path. The UI presents no billing,
+payment, or non-functional upgrade controls. The English rendering regression
+and full UI suite pass: 29 files / 133 tests with 95.19% statements, 86.64%
+branches, and 86.72% functions. This is evidence for the product boundary, not
+a claim that deferred availability, integrations, learning, or billing domains
+are complete.
+
+### 2026-09-19 — Workspace planning profile vertical slice
+
+Added the first real workspace boundary behind Settings. The generated
+WorkspaceService persists a revisioned planning profile with IANA timezone,
+week-start policy, daily capacity, protected reserve, and preferred focus
+session length. Settings loads and saves those values through Connect with
+localized controls; the CLI exposes `workspace profile` and
+`workspace update-profile`. API, CLI, endpoint-parity, TypeScript, locale,
+and UI coverage checks pass. Live read/update/read smoke changed the profile
+from UTC/480 minutes to America/New_York/420 minutes at revision 2, and the
+CLI reported the same persisted values. Test Genie
+`20260919-081349-f61bca55` passed unit, contracts, and experience. Availability
+weekday intervals, exceptions, provider projections, and capacity integration
+remain deliberately open.
+
+The same profile now feeds Calendar's Today capacity read model: accepted
+schedule capacity subtracts the protected reserve, so Settings and Today no
+longer have competing availability assumptions. A SQLite regression asserts
+420 minutes capacity minus 60 reserve yields 360 available minutes and correct
+breathing room.
+
+### 2026-09-19 — Observatory surface consistency and runtime validation
+
+Applied semantic theme tokens across Plan, Goals, Focus, and Review secondary
+surfaces, migrated Review's weekly activity table to the shared DataTable, and
+moved the Today shared Dialog adapter into `ui/src/components/PlannerDialog.tsx`.
+Today capture now keeps a failed save honest and the accessibility regression
+waits for the shared overlay's exit lifecycle. Type-check/build passed, and
+Test Genie `20260919-191234-ffb49c1d` passed ui-health at L5 across all seven
+routes. Remaining findings are advisory: clipped short labels, existing raw
+palette literals, and the unused health component; a whole-file Dashboard test
+mock remains flaky while the isolated Dashboard suite passes.
+
+Focused Test Genie run `20260919-082216-446aa291` passed unit, contracts, and
+experience after this integration. The latest comprehensive run
+`20260919-081553-ed35b988` failed on repository-wide maturity/security findings;
+that failure is retained as a limitation rather than represented as a green
+scenario certification.

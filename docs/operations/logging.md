@@ -19,7 +19,11 @@ Preferred options:
 
 ```bash
 vrooli scenario logs <name>
+vrooli scenario logs <name> --follow
 ```
+
+Read one snapshot for past context; follow once for live output instead of
+repeatedly re-reading the log tail.
 
 Or the scenario-local workflow:
 
@@ -35,11 +39,13 @@ Scenario logs are commonly written under the Vrooli runtime area in the home dir
 Use:
 
 ```bash
-vrooli resource logs <name>
+vrooli resource logs <name> [--tail <lines>]
 vrooli resource status
 ```
 
-These are the primary surfaces for resource-specific troubleshooting.
+These are the primary surfaces for resource-specific troubleshooting. Managed
+resource logs show the last 200 lines by default; `--tail` accepts 1–1000 lines,
+with a 1 MiB output cap. The output names the full log path for deeper inspection.
 
 ## Guidance
 

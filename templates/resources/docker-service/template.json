@@ -47,5 +47,6 @@
     "Docker must be installed on any host that runs this resource.",
     "The Go control plane owns orchestration; shell wrappers are not required for generated scaffolds.",
     "Scenario-facing environment variables must be declared through environment_exports in resource.json."
-  ]
+  ],
+  "transitional": true
 }

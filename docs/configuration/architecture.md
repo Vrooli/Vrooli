@@ -8,7 +8,7 @@ Every configuration value in Vrooli fits exactly one category. Mixing them is th
 
 - **Declarative manifest** — what something *is*. Hand-edited, source-controlled, slow-changing. Lives in `service.json` / `resource.json` / `tool.json` / `safeguard.json`.
 - **Computed analysis** — what an analyzer *figured out* about something. Tool output is regenerable and lives in analyzer reports or generated schema artifacts, never in the authored scenario manifest's `tier_feasibility` input.
-- **Operator state** — what this install *chose*. Wizard- or hand-edited per machine. Lives in `.vrooli/operator-state.json`.
+- **Operator state** — what this install *chose*. Wizard- or hand-edited per machine. Lives in `~/.vrooli/state/vrooli/vrooli-onboarding/operator-state.json`.
 
 These don't reduce to each other. A scenario's manifest declares `runtime.kind = "long_running"`; the operator's state says `auto_restart: true`; an analyzer's output says `tier-3-mobile fitness 0.4`. Same scenario, three independent statements, three independent files.
 
@@ -20,26 +20,26 @@ For each operator-visible decision, exactly one file is the source of truth. Oth
 
 | Decision | Source of truth | Surfaced by |
 |---|---|---|
-| Whether a scenario is enabled | `.vrooli/operator-state.json` → `scenarios.<name>.enabled` (overrides manifest) | onboarding scenarios step |
+| Whether a scenario is enabled | `~/.vrooli/state/vrooli/vrooli-onboarding/operator-state.json` → `scenarios.<name>.enabled` (overrides manifest) | onboarding scenarios step |
 | Whether a scenario is system-required (uneditable) | `scenarios/<name>/.vrooli/service.json` → `service.system_required` | onboarding scenarios step (renders as locked-on) |
 | Scenario's recommended runtime shape | `scenarios/<name>/.vrooli/service.json` → `runtime.kind` | onboarding (filter/sort), lifecycle orchestrator |
 | Scenario's recommended auto-restart default | `scenarios/<name>/.vrooli/service.json` → `runtime.auto_restart_default` | onboarding (per-scenario toggle default) |
-| Scenario's actual auto-restart on this install | `.vrooli/operator-state.json` → `scenarios.<name>.auto_restart` (override of default) | onboarding operating-mode step |
+| Scenario's actual auto-restart on this install | `~/.vrooli/state/vrooli/vrooli-onboarding/operator-state.json` → `scenarios.<name>.auto_restart` (override of default) | onboarding operating-mode step |
 | Scenario → scenario dependencies | `scenarios/<name>/.vrooli/service.json` → `dependencies.scenarios` | onboarding scenarios step (cascade hint) |
-| Whether a resource is enabled | `.vrooli/operator-state.json` → `resources.<name>.enabled` | onboarding resources step |
+| Whether a resource is enabled | `~/.vrooli/state/vrooli/vrooli-onboarding/operator-state.json` → `resources.<name>.enabled` | onboarding resources step |
 | Resource → resource dependencies | `resources/<name>/resource.json` → `dependencies` | onboarding resources step (cascade) |
 | Resource credential descriptors | `resources/<name>/resource.json` → `credentials.descriptors[]` | onboarding secrets step |
 | Where an ordinary credential value is stored | probed native credential authority keyed by descriptor logical identity + field | control plane runtime injection |
-| Host tool opt-in | `.vrooli/operator-state.json` → `host_tools.<name>.opted_in` (override of manifest `required`) | onboarding host step |
-| Host safeguard opt-in | `.vrooli/operator-state.json` → `host_safeguards.<name>.opted_in` (override of manifest `required`) | onboarding host step |
+| Host tool opt-in | `~/.vrooli/state/vrooli/vrooli-onboarding/operator-state.json` → `host_tools.<name>.opted_in` (override of manifest `required`) | onboarding host step |
+| Host safeguard opt-in | `~/.vrooli/state/vrooli/vrooli-onboarding/operator-state.json` → `host_safeguards.<name>.opted_in` (override of manifest `required`) | onboarding host step |
 | Safeguard risk indicator | `internal/safeguards/<name>/safeguard.json` → `risk` | onboarding host step (risk column) |
 | What host tools/safeguards exist | filesystem: `internal/tools/<name>/tool.json`, `internal/safeguards/<name>/safeguard.json` (drift-protected by `internal/runtime/manifests_test.go`) | onboarding host step (registry source) |
 | What integration connector types exist | filesystem: `scenarios/integration-hub/connectors/<id>/connector.json` (pilot currently uses an API-key connector) | integration-hub UI; onboarding integrations step |
 | Connection instances (OAuth tokens, API keys for connectors) | Credential authority under identity `vrooli/integrations/<connector>/<connection_id>` + integration-hub metadata state | integration-hub UI |
 | Which integrations a scenario needs | `scenarios/<name>/.vrooli/service.json` → `integrations[]` (declared connector + scopes + purpose; binding contract in progress) | onboarding integrations step |
-| Which connection a scenario actually uses | `.vrooli/operator-state.json` → `integrations.<scenario>.<connector>` (binding contract in progress) | onboarding integrations step |
+| Which connection a scenario actually uses | `~/.vrooli/state/vrooli/vrooli-onboarding/operator-state.json` → `integrations.<scenario>.<connector>` (binding contract in progress) | onboarding integrations step |
 | Connector-level secrets (e.g. OAuth client_secret) | Credential authority under identity `vrooli/integrations/connectors/<connector_id>` (needed as drivers are added) | integration-hub setup, not user-facing |
-| Active profile | `.vrooli/operator-state.json` → `active_profile` | onboarding purpose intake and profile evaluator |
+| Active profile | `~/.vrooli/state/vrooli/vrooli-onboarding/operator-state.json` → `active_profile` | onboarding purpose intake and profile evaluator |
 
 Anything not in this table is out of scope for the wizard.
 
@@ -50,7 +50,7 @@ To answer "what is the *effective* value of X right now?", the system applies a 
 ### Per-scenario auto-restart
 
 ```
-1. .vrooli/operator-state.json → scenarios.<name>.auto_restart   (if present)
+1. ~/.vrooli/state/vrooli/vrooli-onboarding/operator-state.json → scenarios.<name>.auto_restart   (if present)
 2. scenarios/<name>/.vrooli/service.json → runtime.auto_restart_default   (if present)
 3. schema default (false)
 ```
@@ -59,14 +59,14 @@ To answer "what is the *effective* value of X right now?", the system applies a 
 
 ```
 1. scenarios/<name>/.vrooli/service.json → service.system_required = true   →   ALWAYS ENABLED (no operator override possible)
-2. .vrooli/operator-state.json → scenarios.<name>.enabled   (if present)
+2. ~/.vrooli/state/vrooli/vrooli-onboarding/operator-state.json → scenarios.<name>.enabled   (if present)
 3. default (disabled — operator must opt in)
 ```
 
 ### Whether a host safeguard is applied
 
 ```
-1. .vrooli/operator-state.json → host_safeguards.<name>.opted_in   (if present)
+1. ~/.vrooli/state/vrooli/vrooli-onboarding/operator-state.json → host_safeguards.<name>.opted_in   (if present)
 2. fall back to manifest's `required` field (which mirrors hostRequirement defaults in service.json)
 3. default (not applied — safeguards are opt-in by nature)
 ```
@@ -84,7 +84,7 @@ To answer "what is the *effective* value of X right now?", the system applies a 
 The Hub owns connection metadata today; scenario binding is the next contract:
 
 ```
-1. .vrooli/operator-state.json → integrations.<scenario>.<connector>   (operator binding)
+1. ~/.vrooli/state/vrooli/vrooli-onboarding/operator-state.json → integrations.<scenario>.<connector>   (operator binding)
 2. if absent and scenario marks the integration as required → wizard error: "no connection bound"
 3. if absent and scenario marks the integration as optional → scenario runs in degraded mode
 ```
@@ -107,7 +107,7 @@ The current control census has these authoritative owners:
 
 | Control family | Authority | Disposition | Durable source | Notes |
 |---|---|---|---|---|
-| scenario/resource enablement, capacity, update posture, trust posture, notifications | operator-state authority | configurable | `.vrooli/operator-state.json` | Validated by `operatorstate` and manifest-backed resolvers. |
+| scenario/resource enablement, capacity, update posture, trust posture, notifications | operator-state authority | configurable | `~/.vrooli/state/vrooli/vrooli-onboarding/operator-state.json` | Validated by `operatorstate` and manifest-backed resolvers. |
 | host tools and safeguards | host-requirement owner | configurable or required | manifests plus operator state | Optional decline is distinct from an absent choice and survives restart. |
 | credential-store access and escrow | credential authority | configurable | credential authority and capability evidence | Secret values are write-only for the action. |
 | storage recovery standing approvals | storage-manager | configurable | storage-manager approval owner | Approval is provider-scoped and revocable; it is not an arbitrary command grant. |
@@ -120,13 +120,13 @@ For a machine-readable descriptor inventory, use `vrooli capability catalog
 ## Host update-control modes
 
 The host update-control mode is operator state, not a manifest default. This
-host records `guard` in `.vrooli/operator-state.json`; the control plane owns
+host records `guard` in `~/.vrooli/state/vrooli/vrooli-onboarding/operator-state.json`; the control plane owns
 the guard, freeze, and coupled-set decisions. A scenario may observe and
 report update state, but it must not repair host packages privately.
 
 The effective mode resolves in this order:
 
-1. `.vrooli/operator-state.json` → `host_update_control.mode`.
+1. `~/.vrooli/state/vrooli/vrooli-onboarding/operator-state.json` → `host_update_control.mode`.
 2. The control-plane default (`observe` when no operator choice exists).
 
 `guard` preserves declared coupled sets and requires a maintenance window for
@@ -139,7 +139,7 @@ Scenario runtime configuration is distinct from all three source-of-truth
 categories above. A scenario's `.vrooli/config.json` and schema-backed API
 settings hold live application policy such as notification templates,
 sensitivity mapping, and event subscriptions. `service.json` declares the
-scenario and lifecycle contract; `.vrooli/operator-state.json` records
+scenario and lifecycle contract; `~/.vrooli/state/vrooli/vrooli-onboarding/operator-state.json` records
 installation choices. Neither file is a substitute for a scenario's live
 runtime configuration, and changing an API-backed setting must not require a
 scenario restart.

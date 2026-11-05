@@ -97,6 +97,8 @@ The complete timing override surface is generated from `vrooli tuning list --jso
 | `ActivityDebounce` | duration | `VROOLI_TUNING_ACTIVITY_DEBOUNCE` | `5s` | Controls activity debounce. |
 | `ActivityReadHeaderTimeout` | duration | `VROOLI_TUNING_ACTIVITY_READ_HEADER_TIMEOUT` | `15s` | Controls activity read header timeout. |
 | `AgentInstallDownloadTimeout` | duration | `VROOLI_TUNING_AGENT_INSTALL_DOWNLOAD_TIMEOUT` | `10m0s` | Controls agent install download timeout. |
+| `AgentOrphanReapInterval` | duration | `VROOLI_TUNING_AGENT_ORPHAN_REAP_INTERVAL` | `0s` | Controls agent orphan reap interval. |
+| `AgentSessionIdleAfter` | duration | `VROOLI_TUNING_AGENT_SESSION_IDLE_AFTER` | `168h0m0s` | Controls agent session idle after. |
 | `ArtifactRetentionWindow` | duration | `VROOLI_TUNING_ARTIFACT_RETENTION_WINDOW` | `720h0m0s` | Controls artifact retention window. |
 | `AttestationValidityWindow` | duration | `VROOLI_TUNING_ATTESTATION_VALIDITY_WINDOW` | `744h0m0s` | Controls attestation validity window. |
 | `BackgroundLaunchPollInterval` | duration | `VROOLI_TUNING_BACKGROUND_LAUNCH_POLL_INTERVAL` | `50ms` | Controls background launch poll interval. |
@@ -177,7 +179,7 @@ The complete timing override surface is generated from `vrooli tuning list --jso
 | `ScenarioWaitTimeout` | duration | `VROOLI_TUNING_SCENARIO_WAIT_TIMEOUT` | `10m0s` | Controls scenario wait timeout. |
 | `SecretToolTimeout` | duration | `VROOLI_TUNING_SECRET_TOOL_TIMEOUT` | `15s` | Controls secret tool timeout. |
 | `ServiceHealthTimeout` | duration | `VROOLI_TUNING_SERVICE_HEALTH_TIMEOUT` | `5s` | Controls service health timeout. |
-| `SetupExtendedOperationTimeout` | duration | `VROOLI_TUNING_SETUP_EXTENDED_OPERATION_TIMEOUT` | `2m0s` | Controls setup extended operation timeout. |
+| `SetupExtendedOperationTimeout` | duration | `VROOLI_TUNING_SETUP_EXTENDED_OPERATION_TIMEOUT` | `5m0s` | Controls setup extended operation timeout. |
 | `SetupFilesystemSettleDelay` | duration | `VROOLI_TUNING_SETUP_FILESYSTEM_SETTLE_DELAY` | `200ms` | Controls setup filesystem settle delay. |
 | `SetupHTTPProbeTimeout` | duration | `VROOLI_TUNING_SETUP_HTTP_PROBE_TIMEOUT` | `2s` | Controls setup http probe timeout. |
 | `SetupOperationTimeout` | duration | `VROOLI_TUNING_SETUP_OPERATION_TIMEOUT` | `30s` | Controls setup operation timeout. |

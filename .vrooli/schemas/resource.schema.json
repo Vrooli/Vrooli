@@ -77,6 +77,44 @@
       "additionalProperties": false,
       "required": ["id", "binary", "display_name", "icon", "home_isolation", "features"],
       "properties": {
+        "sign_in_probe": {
+          "type": "object",
+          "description": "Read-only native status command; only its classified state leaves the shared harness owner.",
+          "additionalProperties": false,
+          "required": ["args", "signed_in_prefixes", "signed_out_lines"],
+          "properties": {
+            "args": {"type":"array", "minItems":1, "items":{"type":"string", "minLength":1}},
+            "signed_in_prefixes": {"type":"array", "minItems":1, "items":{"type":"string", "minLength":1}},
+            "signed_out_lines": {"type":"array", "minItems":1, "items":{"type":"string", "minLength":1}}
+          }
+        },
+        "native_artifacts": {
+          "type": "object",
+          "description": "Verified native npm optional artifacts per OS/architecture for standalone desktop management.",
+          "additionalProperties": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "dependency",
+              "executable"
+            ],
+            "properties": {
+              "dependency": {
+                "type": "string",
+                "minLength": 1
+              },
+              "executable": {
+                "type": "string",
+                "minLength": 1
+              },
+              "compression": {
+                "enum": [
+                  "brotli"
+                ]
+              }
+            }
+          }
+        },
         "id": {
           "description": "Launcher agent ID, as used by capability probes and Web Console.",
           "$ref": "#/definitions/harnessName"
@@ -860,12 +898,14 @@
             "enum": [
               "http",
               "tcp",
-              "command"
+              "command",
+              "postgresql",
+              "redis"
             ]
           },
           "kind": {
             "type": "string",
-            "description": "Semantics of the check. readiness (the default interpretation) must fail until the resource can serve its primary capability, including model/data load; liveness means process-alive only.",
+            "description": "readiness (the default) fails until the resource can serve its primary capability. liveness checks whether a serving resource meets its declared runtime contract; a liveness failure marks it degraded while it remains serving.",
             "enum": [
               "readiness",
               "liveness"

@@ -254,3 +254,9 @@ Tier 3 is the only genuine second rail. Entitlements are therefore **source-agno
 - [`ECOSYSTEM.md`](./ECOSYSTEM.md) — where a scenario fits the whole; this doc is the monetization facet's engineering detail.
 - [`docs/monetization/README.md`](../monetization/README.md) — the monetization plan of record.
 - `scenarios/landing-page-business-suite/docs/integrations/subscription-entitlements-system.md` — LPBS-side subsystem design.
+
+## AI requests from coding-agent sessions
+
+Vrooli credits for a coding-agent session are a cost-bearing paid feature, separate from a harness's own subscription or a user's provider key. A session selects one model source at launch; usage modes may lower the model within that source but do not change the source. Credit-funded sessions route through the single public LPBS door and AI Gateway, and use a short-lived, scoped session key rather than an account key. Treat keys passed to a harness as visible to that harness and code it runs.
+
+For this path, exhausted-credit refusals use HTTP 402. Do not use 429 for a credit balance refusal: harness behavior differs, and tested harnesses can continue waiting on 429. This contract does not authorize Vrooli-funded Claude Code routing; Anthropic's written terms remain a prerequisite for changing that operator decision. Provider eligibility is owned by the AI provider contract, not by this document.

@@ -51,12 +51,8 @@
             "amd64",
             "arm64"
           ],
-          "requires": [
-            "network",
-            "resource credentials"
-          ],
           "limitations": [
-            "No offline capability; provider availability and account policy apply."
+            "Outbound network access and the configured API credential are required; no offline capability is available. Provider availability and account policy apply."
           ],
           "evidence": [
             "manifest-validation",
@@ -70,12 +66,8 @@
             "amd64",
             "arm64"
           ],
-          "requires": [
-            "network",
-            "resource credentials"
-          ],
           "limitations": [
-            "No offline capability; provider availability and account policy apply."
+            "Outbound network access and the configured API credential are required; no offline capability is available. Provider availability and account policy apply."
           ],
           "evidence": [
             "manifest-validation",
@@ -89,12 +81,8 @@
             "amd64",
             "arm64"
           ],
-          "requires": [
-            "network",
-            "resource credentials"
-          ],
           "limitations": [
-            "No offline capability; provider availability and account policy apply."
+            "Outbound network access and the configured API credential are required; no offline capability is available. Provider availability and account policy apply."
           ],
           "evidence": [
             "manifest-validation",

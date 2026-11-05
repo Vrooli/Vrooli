@@ -18,6 +18,27 @@ Execution preferences are hints, not pins. The server validates the runner and
 effort, applies preferences to fresh workflow run nodes, and records the
 actual selection and reason in the run policy snapshot.
 
+## Git Control Tower staged messages
+
+```bash
+git-control-tower message collect [--repo-id ID] --json
+git-control-tower message check --snapshot DIGEST [--repo-id ID] --json
+git-control-tower message start --collection COLLECTION --snapshot DIGEST \
+  --request-key KEY [--context-id CONTEXT ...] [--note TEXT] [--repo-id ID] --json
+git-control-tower message status JOB [--repo-id ID] --json
+git-control-tower message wait JOB [--timeout 45] [--repo-id ID] --json
+git-control-tower message cancel JOB [--repo-id ID] --json
+```
+
+Collection gathers bounded evidence and retained messages without starting an
+agent. Only `message start` explicitly admits drafting against the selected
+immutable snapshot; reusing its request key resumes the same admission. Status,
+wait and cancel also accept `--request-key KEY` instead of `JOB` after a lost
+response. Wait makes one server-owned call (1–55 seconds), without polling or
+starting another job. Cancellation stays pending until its owner confirms it.
+These commands never stage or commit. Omitting `--repo-id` uses the active
+registered repository; use an explicit ID when reconnecting across selections.
+
 ## Prompt-manager skill governance
 
 ```bash
@@ -28,10 +49,33 @@ VROOLI_SKILL_PROJECTION_DIRS="$HOME/.claude/skills:$HOME/.codex/skills:$HOME/.co
 ```
 
 `skill import` requires a local pinned source directory, immutable commit,
-SPDX license, exact `sha256:` checksum, importer, and skill ID. Imported skills
-land inactive in `packs/vendor` until `review-import` records a verdict from a
-different reviewer. `import-staleness` compares the recorded upstream version
-with a current version supplied by the operator.
+SPDX license, exact `sha256:` checksum of `SKILL.md`, importer, and skill ID.
+Imported skills land inactive in `packs/vendor` until `review-import` records a
+verdict from a different reviewer. `import-staleness` compares the recorded
+upstream version with a current version supplied by the operator.
+
+An imported skill is a **third-party skill**. Its rules:
+
+- The import copies the whole skill directory (`SKILL.md` plus `references/`,
+  `scripts/`, `assets/`). Symlinks and nested `SKILL.md` or `skill.json` files
+  are refused. The origin records a `tree_checksum` over every copied file.
+- The `packs/vendor` tree is git-ignored. A third-party skill is local to the
+  host. It is not part of the Vrooli repository.
+- `--external-tool 'name|url|purpose'` (repeatable) declares a tool the skill
+  needs that Vrooli does not provide or manage, such as a CLI fetched with
+  `npx`. External tools are recorded in `skill.json` as `externalTools`, apart
+  from the Vrooli-owned `requires` block, and `skill-requirements` sync skips
+  the vendor pack.
+- The API returns `origin` and `externalTools` on every skill. `skill read`
+  prints a third-party header with the source, license, commit, review verdict,
+  skill directory, and external tools before the content. The UI marks the
+  skill as "Third-party" and shows its attribution.
+- A passed review activates the `vendor` pack at the lowest precedence, so a
+  third-party skill never shadows an authored skill with the same ID. The review
+  verdict, reviewer, and time are written to the origin block in both
+  `skill.json` and the `SKILL.md` frontmatter.
+- The upstream bytes are immutable. Local changes go in the skill's
+  `overlays/` directory.
 
 `skill topology` reports every indexed skill's pack and whether its generated
 projection is resident in each configured target, including a resident
@@ -170,7 +214,7 @@ vrooli supervision-set --kind resource --json
 
 `vrooli supervision-set` is the control-plane authority for the live set of
 scenarios and resources that the platform supervises. It computes the answer
-from `.vrooli/operator-state.json` `core.seed` and canonical scenario
+from `~/.vrooli/state/vrooli/vrooli-onboarding/operator-state.json` `core.seed` and canonical scenario
 dependency manifests; it does not read a database and does not own another
 configuration file. Each member reports its kind, effective supervision
 intent, and an attribution chain back to the seed that included it.
@@ -252,7 +296,8 @@ vrooli scenario start <name>
 vrooli scenario start-all
 vrooli scenario run <name>
 vrooli scenario setup <name>
-vrooli scenario restart <name>
+vrooli scenario restart <name> [--deploy-report]
+vrooli scenario deploy-report <name> [--json]
 vrooli scenario wait <name> [--timeout <seconds>] [--json]
 vrooli scenario stop <name>
 vrooli scenario stop-all
@@ -303,6 +348,27 @@ rows (`scenario`, `operation`, `step`, `count`, `mean_ms`, `p50_ms`, `p90_ms`,
 unchanged setup work. Pass `--force` to rebuild unconditionally. The flag is
 also accepted by `scenario start`; it never changes the production artifact
 served by the scenario.
+
+For a deliberate restart that must proceed without an owner lifecycle proof,
+pass `--force-lifecycle --lifecycle-override-reason '<reason>'`. This is an
+explicit risk acceptance: active requests or detached owner work may be
+interrupted. The lifecycle log records the reason and the missing or overridden
+proof. It does not allow replacement when the control plane cannot establish
+which process owns the target scenario.
+
+`vrooli scenario deploy-report <name>` lists, without git, the source files
+and new environment switches that changed since each running build, so a
+coordinator can see other sessions' unfinished work before a restart ships
+it. `restart --deploy-report` prints the same report to stderr first. See
+[staleness-and-rebuild.md](staleness-and-rebuild.md#pre-deploy-report).
+
+Once a start, stop, or restart holds the scenario's lifecycle lock, it
+finishes even if whoever reads its output goes away (a `| head` that has its
+lines, a closed terminal): while the lock is held, a write to a broken stdout
+or stderr fails instead of ending the CLI, and the lifecycle log still records
+every line. Outside that window a broken pipe ends the CLI as usual. Read the
+outcome from `vrooli scenario freshness <name>` or the lifecycle log rather
+than from truncated output.
 
 ### Scenario start wait contract (anti-polling recipe)
 
@@ -385,6 +451,10 @@ vrooli resource status
 vrooli resource validate
 vrooli resource install <name>
 vrooli resource acquisition explain "<name>"
+# Check installed Python imports before model/weight preparation; new receipt directory required.
+vrooli resource acquisition runtime-probe "<name>" --imports numpy --out "<new-receipt-directory>"
+# Reuse verified compose parts; refuse network acquisition on any miss.
+vrooli resource acquisition compose-candidate "<name>" --out "<new-candidate-directory>" --offline
 vrooli resource acquisition prune
 vrooli resource acquisition prune "<name>"
 vrooli resource uninstall <name>
@@ -393,7 +463,7 @@ vrooli resource restart <name>
 vrooli resource start-all
 vrooli resource stop <name>
 vrooli resource stop-all
-vrooli resource logs <name>
+vrooli resource logs <name> [--tail <lines>]
 vrooli resource enable <name>
 vrooli resource disable <name>
 vrooli resource deprecate <name>
@@ -408,6 +478,16 @@ vrooli resource schema
 ```
 
 These commands are part of the current CLI help surface, though some of them are more administrative than day-to-day.
+
+Single-resource lifecycle commands preserve the CLI operation context through
+resource dispatch, transient CLI commands, readiness probes and lifecycle-lock
+waiting. Ctrl+C ends that operation's wait or transient subprocess; a cancelled
+start/restart readiness wait does not itself stop an already supervised service.
+Use `vrooli resource stop <name>` for owned shutdown. A cancelled queued lock
+waiter cannot release or bypass the active lifecycle owner. Cancellation and
+startup deadlines retain distinct causes plus the last readiness diagnostic.
+Authored startup budgets and normal stop escalation policy are unchanged.
+This does not extend cancellation to the bulk `start-all`/`stop-all` wrappers.
 
 ## Package Governance
 
@@ -451,6 +531,26 @@ vrooli contract show
 vrooli contract resolve
 vrooli contract match-glob
 ```
+
+## Agent sessions
+
+```bash
+vrooli agent launch --runner claude [--claim <path>]...
+vrooli agent list [--json] [--idle-after 168h]
+vrooli agent reap --orphaned --dry-run [--json]
+vrooli agent reap --orphaned [--older-than 1h] [--json]
+vrooli agent thaw <session-or-scope>
+```
+
+`agent list` shows each session's state (`live`, `idle`, `orphaned`,
+`agentless`, `unrecorded`, `ghost`, `undetermined`) and its owner
+(`agent-manager-run`, `web-console-session`, `desktop-app`, `terminal`,
+`unknown`) with whether the owner still exists. `agent reap --orphaned` stops
+only sessions whose owner is confirmed gone, through the platform containment
+seam, with one audit row per stop; `--dry-run` lists what would stop with the
+owner evidence and stops nothing. The unattended reap in the runtime
+supervisor is off unless `VROOLI_TUNING_AGENT_ORPHAN_REAP_INTERVAL` is set.
+Owner kinds, states and the reap policy: [Agent sessions](agent-sessions.md).
 
 ## Maintenance
 
@@ -617,6 +717,13 @@ make validate-package-governance
 ```
 
 These targets are confirmed in the current root `Makefile`.
+
+For a focused privilege-broker upgrade, use `vrooli setup broker --sudo-mode=ask`.
+This project-setup subcommand installs the broker and saved local-service policy
+through the existing setup elevation child. It excludes other host requirements,
+resources, credentials, onboarding and global completion markers. Inspect first
+with `vrooli setup broker --dry-run --json`; the result reports the running
+broker's current capability registry, not a claim that new policy is installed.
 
 `vrooli hygiene` is the root hygiene aggregator. Internally, hygiene checks are
 moving to a registered-provider pattern so scenario- or domain-specific checks

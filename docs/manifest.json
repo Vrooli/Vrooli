@@ -51,6 +51,26 @@
           "description": "Capability, domain authorization, agent delegation, and entitlement boundaries"
         },
         {
+          "path": "concepts/AUTHORIZATION-INVARIANTS.md",
+          "title": "Authorization Invariants",
+          "description": "Normative, test-pinned auth invariants (anonymous/forged/expired/over-limit refusal, no service-as-human, run-identity-cannot-create-runs, child-never-broadens-parent, one-decision-path, audience-mismatch, scope-catalog wildcard matrix), the cross-scenario auth smoke gate, and the Cf-Access binding startup self-check"
+        },
+        {
+          "path": "concepts/AUTHORIZATION-APPROVAL-LIFECYCLE.md",
+          "title": "Authorization Approval Lifecycle",
+          "description": "The authorization-request state machine (pending/approved/denied/expired/superseded), the two origins (standing-grant ask vs interactive), the notification-hub notify path, and retry-based resume semantics"
+        },
+        {
+          "path": "concepts/AUTHORIZATION-CROSS-BOUNDARY-PROPAGATION.md",
+          "title": "Authorization Cross-Boundary Propagation",
+          "description": "What authority crosses a scenario boundary (identity token, human delegation, service bearer, standing grant), how child runs attenuate (never broaden), the no-laundering/zero-scope-bare-attach rules, and the loopback-only transcript-continuity contract"
+        },
+        {
+          "path": "concepts/AUTHORIZATION-KEEP-SYNC-BOUNDARY.md",
+          "title": "Authorization Keep-Sync Boundary",
+          "description": "The rule for which human-approval gates stay synchronous-human-live and must NEVER move to the async operator-decision rail (mint/revoke a machine identity, standing grant, or the approval itself; release raw secrets; open an unbounded interactive session), the bootstrap/circularity argument, the enumerated protected gates, GCT's unchanged propose-then-apply git model, and the api-core table-driven boundary test that pins it"
+        },
+        {
           "path": "concepts/GATED-UI-AUTHENTICATION.md",
           "title": "Gated UI Authentication",
           "description": "Configured provider ingress and passive UI authentication status"
@@ -89,6 +109,26 @@
           "path": "architecture/agent-context-briefs.md",
           "title": "Agent Context Briefs",
           "description": "Portal-owned recall, trust gating, rendering, and runtime-hook architecture"
+        },
+        {
+          "path": "architecture/packaging-strategies.md",
+          "title": "Packaging Strategies",
+          "description": "Cross-ramp design for how scenarios are packaged per target: strategies, stack-fact eligibility, evidence-based selection, packaged-launch measurement and experiments"
+        },
+        {
+          "path": "architecture/remote-desktop-control.md",
+          "title": "Remote Desktop Control Architecture",
+          "description": "Canonical ownership, transport, security, readiness, and validation architecture for browser-operated desktops"
+        },
+        {
+          "path": "architecture/remote-desktop-control-decision-record.md",
+          "title": "Remote Desktop Control Decision Record",
+          "description": "Conversation-derived decisions, minimouse baseline, operator choices, and implementation context"
+        },
+        {
+          "path": "architecture/external-knowledge-search.md",
+          "title": "External Knowledge Search",
+          "description": "Approved Drive-first external search architecture, ownership, synchronization, format/question-aware indexing and access boundaries; disabled finite delivery preparation."
         }
       ]
     },
@@ -148,6 +188,11 @@
           "path": "testing/UNIT-TEST-AUTHORING.md",
           "title": "Authoring Tests That Protect Behavior",
           "description": "Choose test boundaries, independent expectations, deterministic fixtures, and honest evidence"
+        },
+        {
+          "path": "guides/working-on-auth-infra.md",
+          "title": "Working On Auth-Infra Safely",
+          "description": "How to change the shared auth stack without breaking the fleet: the cross-scenario smoke check and invariant suite, the Cf-Access binding startup self-check, kill-switch blast-radius facts, testing live grants, recovering a bad binding/key, and the invariant checklist"
         }
       ]
     },
@@ -174,7 +219,7 @@
         {
           "path": "reference/agent-sessions.md",
           "title": "Agent Sessions",
-          "description": "Editor leases, vrooli agent list, advisory claims, and freezing and thawing a session scope"
+          "description": "Editor leases, session owners and orphan states, vrooli agent list and reap, advisory claims, and freezing and thawing a session scope"
         },
         {
           "path": "reference/host-pressure.md",
@@ -274,6 +319,11 @@
           "path": "resources/README.md",
           "title": "Resources",
           "description": "Resource-system documentation"
+        },
+        {
+          "path": "resources/ai-provider-contract.md",
+          "title": "AI Provider Resource Contract",
+          "description": "Shared inference-provider contract for AI API resources and how to add one"
         },
         {
           "path": "deployment/README.md",
@@ -460,7 +510,13 @@
         {
           "path": "internal/IDENTITY-AUTHENTICATION-MIGRATION-LEDGER.md",
           "title": "Identity Authentication Migration Ledger",
-          "description": "Consumer matrix, transition boundaries, and retirement evidence for the identity migration",
+          "description": "Superseded (2026-10-15) historical provenance for the identity migration; the authoritative model is concepts/AUTHORIZATION.md",
+          "internal": true
+        },
+        {
+          "path": "internal/auth-consolidation/AUTHORIZATION-MODEL.md",
+          "title": "Authorization Model (promoted)",
+          "description": "Original one-page auth target model, now promoted into concepts/AUTHORIZATION.md; retained as consolidation provenance",
           "internal": true
         }
       ]

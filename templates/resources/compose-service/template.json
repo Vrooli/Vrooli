@@ -41,5 +41,6 @@
   "platformExpectations": [
     "Docker Compose or equivalent compose support must exist on the operator host.",
     "Generated readiness should model service dependencies explicitly instead of using ad hoc sleeps."
-  ]
+  ],
+  "transitional": true
 }

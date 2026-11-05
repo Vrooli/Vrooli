@@ -11,7 +11,7 @@ Host tools are command-line dependencies Vrooli expects to find on the host (or 
 | Top-level project requirements | `.vrooli/service.json` | `hostTools[]` (each entry: `hostRequirement`) |
 | Per-scenario requirements | `scenarios/<name>/.vrooli/service.json` | `hostTools[]` |
 | Per-resource requirements | `resources/<name>/resource.json` | `hostTools[]` |
-| Operator opt-in for non-required tools | `.vrooli/operator-state.json` | `host_tools.<name>.opted_in` |
+| Operator opt-in for non-required tools | `~/.vrooli/state/vrooli/vrooli-onboarding/operator-state.json` | `host_tools.<name>.opted_in` |
 
 ## How tools are discovered
 
@@ -182,6 +182,127 @@ vrooli auth status --check-expiry    # additionally validate against upstream
 ```
 
 New tools register a probe by implementing `auth.SignInProbe` in `path:internal/app/auth/` and adding it to `auth.DefaultProbes()`. The CLI surface stays fixed; only the probe set grows.
+
+## Coding-agent updates
+
+Full deployments invoke the control plane through `cliinvoke`. Standalone Web Console desktop builds embed `packages/harness-lifecycle`: they acquire native artifacts declared by each harness's `native_artifacts` data, verify the upstream registry SHA-512 or release-manifest digest, and write receipts in user-owned version prefixes. They do not call npm, Node, the Dependency Analyzer, or the `vrooli` wrapper. Grok's native artifact is decoded with the compiled portable Brotli reader, with cancellation and a 512 MiB output bound before version and receipt verification.
+
+Manage offers **Check installation** and **Review managed copies to remove**. Removal sends the preview identity back to the owner; a changed set requires a new preview. Found copies are listed as preserved and never renamed or removed. The CLI equivalent is `resource update <name> --action preview-cleanup`, then `--action uninstall --cleanup-plan <id>`; `--action doctor` is read-only.
+
+
+### Harness state
+
+Keep three facts separate when describing a coding-agent harness:
+
+| Fact | Meaning | Authority |
+|---|---|---|
+| Found copy | A harness executable is discoverable on this host. Discovery does not make the copy managed. | Host discovery |
+| Managed copy | A copy is installed and maintained through Vrooli's managed lifecycle. A found system or user copy can remain unmanaged. | Control-plane lifecycle |
+| Managed verbs | The lifecycle actions supported for this harness, such as install, update, repair, rollback, or remove. Support varies by harness and installation method. | Harness descriptor and lifecycle implementation |
+
+The update states below describe the update observation and available update action. They do not replace the found/managed distinction or imply that every harness supports every managed verb. The target implementation records these facts separately; do not infer management from discovery alone.
+
+`vrooli resource update <name>` updates a coding-agent resource and repairs how it
+is installed. It is the only owner of that work; Web Console and other scenarios
+invoke it. `<name>` is `claude-code`, `codex`, `opencode`, `grok` or `antigravity`.
+
+| Command | Effect |
+|---|---|
+| `vrooli resource update <name>` | Install the latest release and select it. Never downgrades. |
+| `vrooli resource update <name> --check`, or `vrooli resource update-check <name>` | Report state and checks. Changes nothing. Bridge admits `update-check` with read scope. |
+| `... --action use-managed-copy` | Make Vrooli's copy run first. |
+| `... --action link-managed-copy` | Replace a standalone file at `~/.local/bin/<binary>` with the link. |
+| `... --action rollback` | Link the previous version directory. |
+
+With `--json`, the result is under `harness_update`, with the observation in
+`report`. A failed action exits 1 and still prints the result.
+
+### States
+
+| State | Meaning | Primary action |
+|---|---|---|
+| `missing` | No copy on `PATH`. | `install` |
+| `shadowed` | Another copy runs first. The report names what runs and what is managed. | `use_managed_copy`, or none for a system package |
+| `unlinked` | `~/.local/bin/<binary>` is a standalone file or a foreign link. | `link_managed_copy` |
+| `needs_setup` | A file an action must change belongs to root. | None. `operator_command` is `sudo vrooli setup --include-optional`. |
+| `update_ready` | Vrooli's copy runs, it is behind, and every check passed. | `update` |
+| `up_to_date` | Vrooli's copy runs and it is current. | None |
+| `check_failed` | Something could not be verified, or something would fail the update. The reason says which. | `retry` |
+
+`update_ready` means the update can succeed. A denied package, an unreachable
+Dependency Analyzer, or a missing Node.js makes it `check_failed`.
+
+### What each repair does
+
+- **`use-managed-copy`** renames the shadowing file to
+  `<file>.vrooli-replaced-<UTC time>` beside itself. Shell startup files are never
+  edited, so the `PATH` line stays and resolution falls through to the Vrooli shim
+  and the managed link. To undo it, rename the file back. An upstream self-update
+  can recreate the file; the next check reports `shadowed` again.
+- **`link-managed-copy`** renames the standalone file the same way and links the
+  newest managed version. If that version is older than what runs, it installs the
+  latest instead. A failure restores the file.
+- **`rollback`** verifies the previous version directory against its receipt and
+  relinks it. It installs nothing. `update` still refuses to downgrade.
+- Replaced files in `PATH` stay beside themselves. Nothing here elevates.
+
+A file in `~/.opencode/bin` counts as running first when a shell startup file puts
+that directory on `PATH`, even when the caller's own `PATH` orders it later: that
+is what a session's shell runs.
+
+### Version sources
+
+The latest version is what an update can install: the npm registry for npm-acquired
+agents, and the per-platform release manifest for Antigravity, whose archive is
+verified against the manifest's SHA-512. Antigravity is not an npm package, so it
+does not pass through the Dependency Analyzer.
+
+npm approvals are exact, so each new release starts `out_of_range`. `update` then
+moves the existing record to that exact version through `deps approved upsert`,
+keeping its notes and scope. A `denied`, `deprecated` or scenario-restricted record
+blocks the update.
+
+The record says what happened. `approvedBy` names the actor and `rationale` reads
+"harness update to X by <actor>". `lastReviewed` stays and `approvedDate` is cleared,
+because an update is not a dependency review. The actor is the agent runtime and
+session when an agent signal is present, even if the caller claims otherwise. Web
+Console passes its verified operator with `--on-behalf-of`. This is attribution, not
+authentication. Agents may run this verb; agent identity alone is not a reason to
+refuse maintenance. `--action refresh-catalog` names the actor in the same way, in the
+policy's provenance.
+
+If anything fails after the record moves, the previous record goes back. `rollback`
+also restores it from `previous-approval.json` in the version directory, unless a
+later decision changed the record. A gateway outage does not block a rollback; the
+message says the approval still names the newer version.
+
+**Antigravity's trust decision.** It rests on TLS to the manifest service. That one
+service supplies the download location and the checksum, so the SHA-512 detects
+corruption, not a compromised service, and a compromised service gets code execution
+when the candidate's `--version` runs. Accepted because this is the channel upstream's
+own installer trusts, and Vrooli adds these limits: the download and every redirect
+must stay on the manifest host or under
+`https://storage.googleapis.com/antigravity-public/`; the archive is capped at 1 GiB
+and the executable at 2 GiB; and only a regular tar entry can become the executable.
+Updating past the `resource.json` pin is not reviewed by the Dependency Analyzer.
+
+`upstream_cli.version_pinned` is the version the permission policy was reviewed
+against. It never selects what installs. `newer_than_reviewed` compares it with the
+running version. An agent without that field uses its acquisition version.
+
+Grok's npm entry point runs `~/.grok/bin/grok` when that file exists and only
+otherwise unpacks the package's binary there. Installs disable lifecycle scripts, so
+an older file there outlives every package update, and the package reports the older
+version. The check reports this as `shadowed`. Updates, repairs and rollback retire
+the stale entry point and let the launcher rebuild it. Older `grok-<version>` files
+stay. A regular file at that path is kept until the rebuilt one verifies, and then
+removed; if the action fails, the old entry point goes back.
+
+### Effect on running sessions
+
+The update swaps a symlink and leaves the previous version directory in place, so a
+running session keeps its version. Every launch resolves the binary again, and a
+resumed session is a new process, so new and resumed sessions use the new version.
 
 ## See also
 

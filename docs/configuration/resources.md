@@ -6,11 +6,12 @@ Resources are local services scenarios compose with — Postgres, Redis, Vault, 
 
 | Concern | File | Field |
 |---|---|---|
-| Whether the operator wants this resource installed | `.vrooli/operator-state.json` | `resources.<name>.enabled` |
+| Whether the operator wants this resource installed | `~/.vrooli/state/vrooli/vrooli-onboarding/operator-state.json` | `resources.<name>.enabled` |
 | What this resource is and how it runs | `resources/<name>/resource.json` | top-level manifest |
 | Resources this one depends on | `resources/<name>/resource.json` | `dependencies` |
 | Optional dependencies (graceful degradation) | `resources/<name>/resource.json` | `optional_dependencies` |
 | Credential metadata | `resources/<name>/resource.json` | `credentials.descriptors[]` |
+| Coding-agent identity and features | `resources/<name>/resource.json` | `harness` |
 | Where credential values are stored | native credential authority | logical identity + field from the descriptor |
 
 ## Required vs optional resources
@@ -50,6 +51,8 @@ must not be added to new manifests. For field details see [`secrets.md`](secrets
 2. Declare what scenarios should depend on it (in those scenarios' manifests, not in this one).
 3. Use `secretDescriptor` form for any credentials.
 4. If the resource needs host tools or safeguards, declare them via `hostTools` / `hostSafeguards` arrays in the resource manifest. The operator opts into those via [`host/`](host/) docs.
+
+5. For a coding agent, set `execution.runner_type` and declare the `harness` block. Launching, shims, home isolation, capability probes, Web Console's harness list and model choices, and the catalog health audit read it through `packages/cli-core/agentcatalog/harness`, with no table to edit. Binaries that run without the repository use an embedded snapshot, so regenerate it with `go generate ./agentcatalog/harness` from `packages/cli-core`. Drift tests fail until the snapshot and the dependency-free `capabilityprobe.AITools` table match. Its resource CLI is built with `resources/internal/agentapp`, passing only what differs from the other coding agents, and adds `../internal/agentapp/**` to its freshness inputs.
 
 The wizard discovers the resource automatically once the manifest is in place.
 
