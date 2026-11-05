@@ -250,9 +250,10 @@ func (h handler) Apply(host hostreqkit.Host, status hostreqkit.ItemStatus, opts 
 
 // ConvergeOptions are the inputs to Converge.
 type ConvergeOptions struct {
-	OS   string
-	Home string
-	Root string
+	OS      string
+	Home    string
+	Root    string
+	Restart bool
 	// Executable is the binary to name when no installed CLI exists yet.
 	Executable string
 	Ensure     hostreqkit.EnsureOptions
@@ -269,9 +270,9 @@ type ConvergeResult struct {
 
 // Converge is the one install path for the supervisor unit: render, validate
 // (a rejected render never replaces a working unit), install as the invoking
-// user, reload, enable, and restart when the content changed so the running
-// process picks up the new definition. `vrooli runtime supervisor install
-// --user` and the setup safeguard both call it.
+// user, reload and enable. It restarts for changed unit content or when an
+// explicit reinstall requests a fresh executable. The setup safeguard remains
+// idempotent when the unit definition is already current.
 func Converge(ctx context.Context, options ConvergeOptions) (ConvergeResult, error) {
 	if err := ctx.Err(); err != nil {
 		return ConvergeResult{}, err
@@ -301,7 +302,7 @@ func Converge(ctx context.Context, options ConvergeOptions) (ConvergeResult, err
 	if err := enableUnit(rendered, options.Ensure); err != nil {
 		return result, fmt.Errorf("enable %s: %w", rendered.UnitName, err)
 	}
-	if result.Changed {
+	if result.Changed || options.Restart {
 		if err := restartUnit(rendered, options.Ensure); err != nil {
 			return result, fmt.Errorf("restart %s onto its new definition: %w", rendered.UnitName, err)
 		}

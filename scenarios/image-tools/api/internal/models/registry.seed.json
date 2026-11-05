@@ -1038,9 +1038,9 @@
       },
       "capability_labels": {
         "nsfw_capable": false,
-        "license": "Apache-2.0",
-        "commercial_use": "yes",
-        "commercial_use_notes": "Permissive.",
+        "license": "Apache-2.0 (repository code); pretrained-weight grant and training-data terms unverified",
+        "commercial_use": "conditional",
+        "commercial_use_notes": "The official repository states Apache-2.0 for the project and links separate pretrained weights, but does not state a model-weight grant in the reviewed README. Its listed classical SR training data includes DIV2K, whose dataset card says academic-research-only and that image copyrights remain with original owners. This does not establish the weight license; keep disabled until the exact weight and training-data rights are clarified. https://github.com/JingyunLiang/SwinIR https://huggingface.co/datasets/eugenesiow/Div2k",
         "base_model_lineage": "SwinIR (ETH Zurich)",
         "known_risks": "PyTorch-only; no first-party ONNX/ncnn; GPU-bound."
       },

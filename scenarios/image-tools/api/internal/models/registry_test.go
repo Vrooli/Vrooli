@@ -100,6 +100,28 @@ func TestBigLamaPretrainedWeightsRequireRightsConfirmation(t *testing.T) {
 	}
 }
 
+func TestSwinIRWeightsRequireSeparateRightsConfirmation(t *testing.T) {
+	r, err := Load()
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	model, ok := r.ByID("swinir")
+	if !ok {
+		t.Fatal("model \"swinir\" not found")
+	}
+	if model.Enabled || model.CapabilityLabels.CommercialUse != CommercialUseConditional {
+		t.Errorf("SwinIR rights = enabled:%t commercial_use:%q, want disabled/conditional until pretrained-weight terms are clear", model.Enabled, model.CapabilityLabels.CommercialUse)
+	}
+	license := strings.ToLower(model.CapabilityLabels.License)
+	if !strings.Contains(license, "repository code") || !strings.Contains(license, "pretrained-weight") {
+		t.Errorf("SwinIR license = %q, want code and pretrained-weight terms distinguished", model.CapabilityLabels.License)
+	}
+	notes := strings.ToLower(model.CapabilityLabels.CommercialUseNotes)
+	if !strings.Contains(notes, "academic-research-only") || !strings.Contains(notes, "original owners") || !strings.Contains(notes, "huggingface.co/datasets/eugenesiow/div2k") {
+		t.Errorf("SwinIR rights notes = %q, want official dataset-rights limitation and unresolved weight grant", model.CapabilityLabels.CommercialUseNotes)
+	}
+}
+
 func TestDefaultNSFWModelUsesPinnedRunnableONNXArtifact(t *testing.T) {
 	r, err := Load()
 	if err != nil {

@@ -373,20 +373,35 @@ ergonomics. Captured so the next scenario author doesn't re-discover it.
 identically: both produce an output with no EXIF/IPTC/XMP at all, not just GPS
 removed.
 
-**Root cause:** Selective GPS-IFD removal that preserves other EXIF requires
-rebuilding the EXIF block (dsoprea/go-exif IFD builder). v1 implements strip by
-re-encoding through Go's encoders, which write no metadata — so GPS is
-definitely gone, but so is everything else.
+**Original root cause:** v1 implemented strip by re-encoding through Go's
+encoders, which wrote no metadata. The PRD target permits this full-strip
+behavior; it does not promise benign metadata retention.
 
-**Workaround:** None needed for the privacy goal (location IS removed). Callers
-who must preserve non-GPS tags should not strip in v1.
+**Original workaround:** None was needed for the privacy goal (location was
+removed). Callers who needed non-GPS tags could not use the original behavior.
 
-**Real fix:** Surgically rebuild EXIF minus the GPS IFD via the go-exif builder
-and re-embed it; flip this entry to resolved. Tracked for a later enhancement.
+**Resolution (2026-11-04):** The authorized `StripGPS` extension now parses JPEG
+segments and keeps only EXIF Artist/Copyright, XMP dc:creator/dc:rights/
+xmpRights:UsageTerms/photoshop:Credit, and IPTC IIM By-line/Credit/Copyright
+Notice. It rebuilds recognized containers from this explicit allowlist, strips
+all other APP/COM metadata, preserves a valid JFIF APP0 header, and copies the
+SOS plus entropy-coded scan unchanged. Recognized malformed metadata fails
+closed with no output. Non-JPEG `StripGPS` retains the original full-strip
+re-encode behavior; `StripAll` is unchanged. The extension does not alter the
+PRD contract or claim that selective retention was previously required.
+
+Fixture-backed tests in `api/internal/ops/metadata_gps_test.go` exercise the
+allowlist, progressive scans, localized XMP alternatives, malformed metadata,
+JFIF density boundaries, and exact scan-byte preservation. Focused regressions
+passed, and Test Genie unit run `20261104-084948-b6effe25` passed at L2 Ready
+with 56 warnings remaining. These synthetic fixtures do not establish broad
+JPEG decoder interoperability or user-facing privacy outcomes. See the
+evidence checkpoint `~/.vrooli/research/topics/image-tools-foundation/runs/cohort-six-topic-20261104-gps-metadata-implementation-v4/checkpoint.md`.
 
 **Owner:** unassigned.
 
-**Refs:** `api/internal/ops/metadata.go` (`stripMetadata`); DECISIONS.md.
+**Refs:** `api/internal/ops/metadata.go`, `api/internal/ops/jpeg_metadata.go`,
+`api/internal/ops/metadata_gps_test.go`; DECISIONS.md.
 
 ### 2026-06-17 — Runtime measures: recorder built; per-model enrichment + query surface deferred — PARTIALLY RESOLVED
 

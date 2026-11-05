@@ -32,19 +32,23 @@ type MetaReport struct {
 // Go's decoders drop it).
 //
 // Modes (mutually-ordered): AutoOrient → apply EXIF orientation to pixels and
-// drop metadata; StripAll/StripGPS → re-encode to drop metadata; otherwise →
+// drop metadata; StripAll → re-encode to drop metadata; JPEG StripGPS → retain
+// only the documented authorship whitelist; otherwise →
 // read and return a JSON tag report.
-//
-// NOTE: in v1 a GPS-only strip is implemented as a full metadata strip (the
-// privacy-safe superset: removing all EXIF necessarily removes location).
-// Selective GPS removal that preserves other tags is a documented future
-// refinement (see docs/internal/PROBLEMS.md).
 func metadataRun(in RunInput) (RunResult, error) {
 	p := in.Params
 	switch {
 	case p.AutoOrient:
 		return autoOrient(in)
-	case p.StripAll || p.StripGPS:
+	case p.StripAll:
+		return stripMetadata(in)
+	case p.StripGPS && in.Meta.Format == FormatJPEG:
+		data, err := stripJPEGGPSMetadata(in.Bytes)
+		if err != nil {
+			return RunResult{}, err
+		}
+		return RunResult{Bytes: data, Format: FormatJPEG, Mime: MIMEFor(FormatJPEG), Width: in.Meta.Width, Height: in.Meta.Height}, nil
+	case p.StripGPS:
 		return stripMetadata(in)
 	default:
 		return readMetadata(in)

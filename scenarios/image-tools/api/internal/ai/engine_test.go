@@ -247,14 +247,19 @@ func (p unavailableProvider) Execute(context.Context, backends.Request) (backend
 	return backends.Result{}, errors.New("unavailable provider should not execute")
 }
 
-// newTestEngine builds an engine over the real model registry, a memory-backed
-// blob store, a fake host probe, and a single fake provider registered for op
-// under model's backend name (so selection matches it).
+// newTestEngine builds an engine over the model registry, a memory-backed blob
+// store, a fake host probe, and a single fake provider registered for op under
+// the model's backend name (so selection matches it). Upscale uses an explicit
+// synthetic test-only default because the shipped catalog intentionally has no
+// enabled default while SwinIR's rights remain unverified.
 func newTestEngine(t *testing.T, op string, fp *fakeProvider) (*Engine, *storage.Store, string) {
 	t.Helper()
 	registry, err := models.Load()
 	if err != nil {
 		t.Fatalf("load registry: %v", err)
+	}
+	if op == "upscale" {
+		registry = registryWithSyntheticUpscaleDefault(t, registry)
 	}
 	def, ok := registry.DefaultFor(op)
 	if !ok {
@@ -283,6 +288,37 @@ func newTestEngine(t *testing.T, op string, fp *fakeProvider) (*Engine, *storage
 		t.Fatalf("new engine: %v", err)
 	}
 	return eng, store, def.ID
+}
+
+func registryWithSyntheticUpscaleDefault(t *testing.T, base *models.Registry) *models.Registry {
+	t.Helper()
+	seed, ok := base.DefaultFor("denoise")
+	if !ok {
+		t.Fatal("synthetic upscale fixture requires the existing denoise default as a valid model template")
+	}
+	fixture := seed
+	fixture.ID = "test-synthetic-upscale"
+	fixture.Name = "Synthetic test-only upscale model"
+	fixture.Operations = []string{"upscale"}
+	fixture.DefaultFor = []string{"upscale"}
+	fixture.Enabled = true
+	fixture.CapabilityLabels.CommercialUse = models.CommercialUseYes
+	fixture.CapabilityLabels.CommercialUseNotes = ""
+
+	modelEntries := append(base.Models(), fixture)
+	encoded, err := json.Marshal(struct {
+		SchemaVersion string                  `json:"schema_version"`
+		Models        []models.Model          `json:"models"`
+		Blocklist     []models.BlocklistEntry `json:"blocklist"`
+	}{base.SchemaVersion(), modelEntries, base.Blocklist()})
+	if err != nil {
+		t.Fatalf("marshal synthetic upscale fixture: %v", err)
+	}
+	registry, err := models.Parse(encoded)
+	if err != nil {
+		t.Fatalf("parse synthetic upscale registry fixture: %v", err)
+	}
+	return registry
 }
 
 // runJob drives the op's runner with a payload, returning the result ref.

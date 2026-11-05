@@ -2,7 +2,9 @@ package models
 
 import (
 	"context"
+	"crypto/sha256"
 	"database/sql"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -302,7 +304,11 @@ type Installer struct {
 	// UseGate is shared with inference services so model files cannot be
 	// installed or removed while an operation is using them.
 	UseGate *ModelUseGate
-	gateMu  sync.Mutex
+	// removeAll is the filesystem seam for retiring model directories. Tests use
+	// it to represent interruption after the directory has been atomically moved
+	// out of the path readers resolve.
+	removeAll func(string) error
+	gateMu    sync.Mutex
 }
 
 func (in *Installer) useGate() *ModelUseGate {
@@ -324,6 +330,18 @@ func (in *Installer) now() time.Time {
 // modelDir is the absolute directory model id's weights live under.
 func (in *Installer) modelDir(id string) string {
 	return filepath.Join(in.Root, "models", id)
+}
+
+func (in *Installer) removalDir(id string) string {
+	sum := sha256.Sum256([]byte(id))
+	return filepath.Join(in.Root, ".image-tools-model-removals", hex.EncodeToString(sum[:]))
+}
+
+func (in *Installer) removePath(path string) error {
+	if in.removeAll != nil {
+		return in.removeAll(path)
+	}
+	return os.RemoveAll(path)
 }
 
 // Resolve returns the model entry for id from the seed or, failing that, the
@@ -692,14 +710,38 @@ func (in *Installer) Remove(ctx context.Context, id string) error {
 		return err
 	}
 	if m.Source.LocalPath == "" {
-		if rmErr := os.RemoveAll(in.modelDir(id)); rmErr != nil {
-			return fmt.Errorf("models: remove weights %q: %w", id, rmErr)
+		modelDir := in.modelDir(id)
+		// Rename the complete tree out of the serving path before recursive
+		// deletion. Rename is atomic within this parent directory, so a crash
+		// leaves either the intact installed tree or no tree at the path checked
+		// by Installed; a partially cleaned quarantine can never be served.
+		quarantineDir := in.removalDir(id)
+		if err := os.MkdirAll(filepath.Dir(quarantineDir), 0o755); err != nil {
+			return fmt.Errorf("models: create removal quarantine for %q: %w", id, err)
+		}
+		if err := in.removeExistingPath(quarantineDir); err != nil {
+			return fmt.Errorf("models: clean interrupted removal %q: %w", id, err)
+		}
+		if err := os.Rename(modelDir, quarantineDir); err != nil && !errors.Is(err, os.ErrNotExist) {
+			return fmt.Errorf("models: stage weights removal %q: %w", id, err)
+		}
+		if err := in.removeExistingPath(quarantineDir); err != nil {
+			return fmt.Errorf("models: remove weights %q: %w", id, err)
 		}
 	}
 	if in.State != nil {
 		return in.State.Delete(ctx, id)
 	}
 	return nil
+}
+
+func (in *Installer) removeExistingPath(path string) error {
+	if _, err := os.Lstat(path); errors.Is(err, os.ErrNotExist) {
+		return nil
+	} else if err != nil {
+		return err
+	}
+	return in.removePath(path)
 }
 
 // AddCustom registers a custom/local model entry. The id must not collide with a

@@ -332,6 +332,73 @@ func TestRemove_DeletesWeightsAndRecord(t *testing.T) {
 	}
 }
 
+func TestRemove_InterruptedCleanupDoesNotReportPartialModelInstalled(t *testing.T) {
+	ctx := context.Background()
+	f := newInstallFixture(t)
+	if _, err := f.in.Install(ctx, installTestModelID, nil); err != nil {
+		t.Fatalf("install: %v", err)
+	}
+	modelDir := f.in.modelDir(installTestModelID)
+	quarantineDir := f.in.removalDir(installTestModelID)
+	if err := os.WriteFile(filepath.Join(modelDir, "extra-weight.bin"), []byte("extra"), 0o644); err != nil {
+		t.Fatalf("add synthetic second weight: %v", err)
+	}
+
+	// Model the process stopping after the complete model directory is moved
+	// away from its serving path and cleanup has removed only part of it. The
+	// install row deliberately remains, matching the crash boundary before the
+	// final state deletion.
+	interrupted := errors.New("simulated interruption during quarantine cleanup")
+	f.in.removeAll = func(path string) error {
+		if path != quarantineDir {
+			t.Fatalf("cleanup path = %q, want quarantine %q", path, quarantineDir)
+		}
+		entries, err := os.ReadDir(path)
+		if err != nil {
+			return err
+		}
+		if len(entries) == 0 {
+			t.Fatal("quarantine has no file to partially remove")
+		}
+		if err := os.Remove(filepath.Join(path, entries[0].Name())); err != nil {
+			return err
+		}
+		return interrupted
+	}
+	if err := f.in.Remove(ctx, installTestModelID); !errors.Is(err, interrupted) {
+		t.Fatalf("Remove error = %v, want simulated interruption", err)
+	}
+	if dirExists(modelDir) {
+		t.Fatal("interrupted removal left the serving model path visible")
+	}
+	entries, err := os.ReadDir(quarantineDir)
+	if err != nil {
+		t.Fatalf("read partial quarantine: %v", err)
+	}
+	if len(entries) != 1 {
+		t.Fatalf("partial quarantine entries = %d, want one remaining synthetic weight", len(entries))
+	}
+	if _, ok, err := f.in.State.Get(ctx, installTestModelID); err != nil || !ok {
+		t.Fatalf("install row should remain at interrupted boundary: ok=%v err=%v", ok, err)
+	}
+
+	// A fresh gate and Installer represent API restart. The persisted record
+	// must not make the quarantined, partially removed tree available again.
+	restarted := &Installer{Root: f.root, Reg: f.in.Reg, Custom: f.in.Custom, State: f.in.State}
+	if restarted.Installed(ctx, installTestModelID) {
+		t.Fatal("partial quarantined model was reported installed after restart")
+	}
+	if err := restarted.Remove(ctx, installTestModelID); err != nil {
+		t.Fatalf("retry interrupted removal: %v", err)
+	}
+	if pathExists(quarantineDir) {
+		t.Fatal("retry left the interrupted quarantine behind")
+	}
+	if _, ok, err := f.in.State.Get(ctx, installTestModelID); err != nil || ok {
+		t.Fatalf("retry should clear the install row: ok=%v err=%v", ok, err)
+	}
+}
+
 func TestRemove_RefusesWhileModelIsInUse(t *testing.T) {
 	ctx := context.Background()
 	f := newInstallFixture(t)
@@ -452,6 +519,15 @@ func TestAddCustom_RoundTripAndLocalInstall(t *testing.T) {
 	}
 	if f.downloads != 0 {
 		t.Fatalf("custom local model must not download")
+	}
+	if err := f.in.Remove(ctx, "my-upscaler"); err != nil {
+		t.Fatalf("remove custom local model reference: %v", err)
+	}
+	if !pathExists(weights) {
+		t.Fatal("removing a custom local model deleted its referenced weights")
+	}
+	if _, ok, err := f.in.State.Get(ctx, "my-upscaler"); err != nil || ok {
+		t.Fatalf("custom local install reference was not removed: ok=%v err=%v", ok, err)
 	}
 }
 

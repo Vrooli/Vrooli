@@ -210,17 +210,37 @@ func TestResolveQualitySkipsUnavailableBYOKToLocalDefault(t *testing.T) {
 // or whether the support is native or derived. A derived high-weight edit must
 // not leak to a lower weight than the same op served natively.
 func TestResolutionWeightIsOperationKeyed(t *testing.T) {
-	for _, op := range []string{"text_to_image", "image_to_image", "inpaint", "outpaint", "edit_instruct", "upscale"} {
+	wantWeights := map[string]safety.Weight{
+		"text_to_image":  safety.WeightNone,
+		"image_to_image": safety.WeightHigh,
+		"inpaint":        safety.WeightHigh,
+		"outpaint":       safety.WeightHigh,
+		"edit_instruct":  safety.WeightHigh,
+		"upscale":        safety.WeightNone,
+	}
+	for op, wantWeight := range wantWeights {
+		if got := safety.OpWeight(op); got != wantWeight {
+			t.Fatalf("op %q: safety weight %q, want %q", op, got, wantWeight)
+		}
+		registry, err := models.Load()
+		if err != nil {
+			t.Fatalf("load registry: %v", err)
+		}
+		if _, ok := registry.DefaultFor(op); !ok {
+			// There is no model to resolve; the direct operation-keyed weight
+			// assertion above still covers this operation.
+			continue
+		}
 		r, _ := newResolver(t, op)
 		res, err := r.Resolve(context.Background(), Request{Operation: op, Host: cpuHost()})
 		if err != nil {
 			// Some ops have no enabled CPU-runnable default on this fixture host;
-			// the invariant under test is the weight mapping, which we still assert
-			// directly below — skip the resolution-level check for those.
+			// weight remains asserted directly above, while resolution-level
+			// assertions are skipped because no model resolution exists.
 			continue
 		}
-		if res.Weight != string(safety.OpWeight(op)) {
-			t.Fatalf("op %q: resolution weight %q != safety.OpWeight %q", op, res.Weight, safety.OpWeight(op))
+		if res.Weight != string(wantWeight) {
+			t.Fatalf("op %q: resolution weight %q != safety.OpWeight %q", op, res.Weight, wantWeight)
 		}
 	}
 	// The mapping itself is keyed only by op name (no native/derived dimension).

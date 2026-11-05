@@ -160,7 +160,7 @@ Legend: **D**=default · **Q**=quality tier · **V**=size/CPU variant · **N**=n
 |---|---|---|---|---|---|
 | upscale | 🟢 D | Real-ESRGAN (disabled; no default) | Conditional — pretrained-weight grant unresolved | ~10MB default pair | [open upstream weight question #1016](https://github.com/xinntao/Real-ESRGAN/issues/1016) · [official model zoo](https://github.com/xinntao/Real-ESRGAN/blob/master/docs/model_zoo.md) |
 | upscale (anime) | 🟢 V | Real-CUGAN (disabled; no pinned archive) | Conditional — pretrained-weight grant unverified | ~45MB | [official model docs](https://github.com/bilibili/ailab/blob/main/Real-CUGAN/README_EN.md) · [ncnn releases](https://github.com/nihui/realcugan-ncnn-vulkan/releases) |
-| upscale | 🔴 Q | SwinIR | Apache-2.0 ✅ | ~142MB | [repo](https://github.com/JingyunLiang/SwinIR) |
+| upscale | 🔴 Q | SwinIR (disabled; no default) | Conditional — repository code is Apache-2.0; pretrained-weight grant and training-data rights unverified | ~142MB | [official repo](https://github.com/JingyunLiang/SwinIR) · [DIV2K terms](https://huggingface.co/datasets/eugenesiow/Div2k) |
 | denoise | 🟢 D | DnCNN | BSD-3 / MIT ✅ | <5MB | [KAIR direct weight](https://github.com/cszn/KAIR/releases/download/v1.0/dncnn_color_blind.pth) |
 | denoise | 🟡 Q | SCUNet | Apache-2.0 ✅ | ~70MB | [repo](https://github.com/cszn/SCUNet) |
 | deblur | 🟢 D | NAFNet | MIT ✅ | ~92MB ONNX | [OpenCV ONNX export](https://huggingface.co/opencv/deblurring_nafnet/resolve/main/deblurring_nafnet_2025may.onnx) · [repo](https://github.com/megvii-research/NAFNet) |
