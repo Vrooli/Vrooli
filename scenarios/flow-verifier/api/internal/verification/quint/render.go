@@ -4,8 +4,14 @@ import (
 	"fmt"
 	"strings"
 
+	"flow-verifier/internal/flows/kinds/temporal/contract"
 	"flow-verifier/internal/flows/kinds/temporal/model"
 )
+
+type productRender struct {
+	Definitions      string
+	ApplyAssignments string
+}
 
 const TransitionTableRun = GeneratedCheckTransitionTable
 
@@ -87,6 +93,7 @@ func Render(flow model.Flow) string {
 		}
 		customInvariants = append(customInvariants, fmt.Sprintf("\n  val %s =\n    %s", invariant.Quint, expr))
 	}
+	productDecls, productInit, productUpdates, productTypeOK, productInvariants, productChecks := renderProduct(flow)
 
 	body := fmt.Sprintf(`%smodule %s {
   type Status = | %s
@@ -95,6 +102,7 @@ func Render(flow model.Flow) string {
   var status: Status
   var event: Event
   var rejected: bool
+%s
 
   pure def isValid(s: Status, e: Event): bool =
     %s
@@ -102,16 +110,20 @@ func Render(flow model.Flow) string {
   pure def nextStatus(s: Status, e: Event): Status =
 %s
 
+%s
+
   action init = all {
     status' = %s,
     event' = %s,
     rejected' = false,
+%s
   }
 
   action apply(e: Event): bool = all {
     event' = e,
     status' = nextStatus(status, e),
     rejected' = not(isValid(status, e)),
+%s
   }
 
   action step = any {
@@ -119,7 +131,7 @@ func Render(flow model.Flow) string {
   }
 
   val TypeOK = status.in(Set(%s)) and
-    event.in(Set(%s))
+    event.in(Set(%s))%s
 
   val TerminalClosure =
     %s
@@ -129,28 +141,157 @@ func Render(flow model.Flow) string {
 
 %s
 
+%s
+
   run %s = {
 %s
   }
+%s
 }
+
 `,
 		Header(flow),
 		flow.Model.Module,
 		strings.Join(stateTags, " | "),
 		strings.Join(eventTags, " | "),
+		productDecls,
 		joinOrFalse(validClauses),
 		joinOrSelf(transitionClauses),
+		productUpdates.Definitions,
 		flow.Initial.Quint,
 		eventTags[0],
+		productInit,
+		productUpdates.ApplyAssignments,
 		joinEventApplies(eventTags),
 		strings.Join(stateTags, ", "),
 		strings.Join(eventTags, ", "),
+		productTypeOK,
 		terminalClosure,
 		strings.Join(customInvariants, ""),
+		productInvariants,
 		TransitionTableRun,
 		strings.Join(transitionAssertions, "\n"),
+		productChecks,
 	)
-	return body
+	return strings.TrimRight(body, "\n") + "\n"
+}
+
+func renderProduct(flow model.Flow) (declarations, initAssignments string, updates productRender, typeOK, invariants, checks string) {
+	if flow.Product == nil {
+		return "", "", productRender{}, "", "", ""
+	}
+	p := flow.Product
+	var decl, init, defs, assignments strings.Builder
+	for _, variable := range p.Variables {
+		values := make([]string, 0, len(variable.Values))
+		for _, value := range variable.Values {
+			values = append(values, value.Quint)
+		}
+		fmt.Fprintf(&decl, "  type %s = | %s\n  var %s: %s\n", productType(variable), strings.Join(values, " | "), variable.Quint, productType(variable))
+		fmt.Fprintf(&init, "    %s' = %s,\n", variable.Quint, productValue(variable, p.Initial[variable.ID]))
+		valuesIn := make([]string, 0, len(p.Variables)+2)
+		valuesIn = append(valuesIn, "s: Status", "e: Event")
+		for _, other := range p.Variables {
+			valuesIn = append(valuesIn, other.Quint+": "+productType(other))
+		}
+		fmt.Fprintf(&defs, "  pure def next%s(%s): %s =\n", pascal(variable.ID), strings.Join(valuesIn, ", "), productType(variable))
+		clauses := make([]string, 0)
+		for _, transition := range p.Transitions {
+			conditions := []string{"s == " + quintState(flow, transition.FromStatus), "e == " + quintEvent(flow, transition.Event)}
+			for _, other := range p.Variables {
+				conditions = append(conditions, other.Quint+" == "+productValue(other, transition.From[other.ID]))
+			}
+			clauses = append(clauses, fmt.Sprintf("(%s) %s", strings.Join(conditions, " and "), productValue(variable, transition.To[variable.ID])))
+		}
+		for i, clause := range clauses {
+			predicate, result, _ := strings.Cut(strings.TrimPrefix(clause, "("), ") ")
+			if i == 0 {
+				fmt.Fprintf(&defs, "    if (%s) %s\n", predicate, result)
+			} else {
+				fmt.Fprintf(&defs, "    else if (%s) %s\n", predicate, result)
+			}
+		}
+		if len(clauses) > 0 {
+			defs.WriteString("    else " + variable.Quint + "\n")
+		} else {
+			defs.WriteString("    " + variable.Quint + "\n")
+		}
+		args := []string{"status", "e"}
+		for _, other := range p.Variables {
+			args = append(args, other.Quint)
+		}
+		fmt.Fprintf(&assignments, "    %s' = next%s(%s),\n", variable.Quint, pascal(variable.ID), strings.Join(args, ", "))
+	}
+	var typeChecks []string
+	for _, variable := range p.Variables {
+		values := make([]string, 0, len(variable.Values))
+		for _, value := range variable.Values {
+			values = append(values, value.Quint)
+		}
+		typeChecks = append(typeChecks, variable.Quint+".in(Set("+strings.Join(values, ", ")+"))")
+	}
+	var invariantBody strings.Builder
+	for _, invariant := range p.Invariants {
+		fmt.Fprintf(&invariantBody, "\n  val %s =\n    %s\n", invariant.Quint, invariant.Expression)
+	}
+	var traceChecks strings.Builder
+	for i, trace := range p.Traces {
+		if i > 0 {
+			traceChecks.WriteString("\n\n")
+		}
+		fmt.Fprintf(&traceChecks, "  run productTrace%s = {\n", pascal(trace.Name))
+		status, tuple := trace.InitialStatus, trace.Initial
+		for j, step := range trace.Steps {
+			parts := []string{"nextStatus(" + quintState(flow, status) + ", " + quintEvent(flow, step.Event) + ") == " + quintState(flow, step.WantStatus)}
+			for _, variable := range p.Variables {
+				args := []string{quintState(flow, status), quintEvent(flow, step.Event)}
+				for _, input := range p.Variables {
+					args = append(args, productValue(input, tuple[input.ID]))
+				}
+				parts = append(parts, "next"+pascal(variable.ID)+"("+strings.Join(args, ", ")+") == "+productValue(variable, step.State[variable.ID]))
+			}
+			if step.WantError {
+				parts = append([]string{"not(isValid(" + quintState(flow, status) + ", " + quintEvent(flow, step.Event) + "))"}, parts...)
+			}
+			if j == 0 {
+				fmt.Fprintf(&traceChecks, "    assert(%s)\n", strings.Join(parts, " and "))
+			} else {
+				fmt.Fprintf(&traceChecks, "      .then(assert(%s))\n", strings.Join(parts, " and "))
+			}
+			status, tuple = step.WantStatus, step.State
+		}
+		traceChecks.WriteString("  }")
+	}
+	typeOK = " and\n    " + strings.Join(typeChecks, " and\n    ")
+	return decl.String(), init.String(), productRender{Definitions: defs.String(), ApplyAssignments: assignments.String()}, typeOK, invariantBody.String(), "\n\n" + traceChecks.String()
+}
+
+func productType(variable contract.ProductVariable) string { return pascal(variable.ID) + "Domain" }
+
+func productValue(variable contract.ProductVariable, id string) string {
+	for _, value := range variable.Values {
+		if value.ID == id {
+			return value.Quint
+		}
+	}
+	return id
+}
+
+func pascal(value string) string {
+	var out strings.Builder
+	upper := true
+	for _, r := range value {
+		if r == '_' || r == '-' || r == ' ' {
+			upper = true
+			continue
+		}
+		if upper {
+			r = []rune(strings.ToUpper(string(r)))[0]
+			upper = false
+		}
+		out.WriteRune(r)
+	}
+	return out.String()
 }
 
 func Header(flow model.Flow) string {

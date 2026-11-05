@@ -43,7 +43,7 @@ func Compile(raw contract.Contract) (model.Flow, error) {
 		errs = append(errs, fmt.Sprintf("states must declare exactly one initial state, got %d", initialCount))
 	}
 	for _, invariant := range raw.Model.Verify.Invariants {
-		if _, ok := indexes.InvariantByQuint[invariant]; !ok {
+		if _, ok := indexes.InvariantByQuint[invariant]; !ok && !productInvariantExists(raw.Product, invariant) {
 			errs = append(errs, fmt.Sprintf("model.verify.invariants references unknown invariant %s", invariant))
 		}
 	}
@@ -62,6 +62,9 @@ func Compile(raw contract.Contract) (model.Flow, error) {
 	}
 	validateRuntime(&errs, raw)
 	validateReplayShape(&errs, raw)
+	if raw.Product != nil {
+		validateProduct(&errs, raw, indexes)
+	}
 	if len(errs) == 0 {
 		validateTraces(&errs, raw, matrix, indexes.StateByID, indexes.EventByID)
 	}
@@ -70,6 +73,243 @@ func Compile(raw contract.Contract) (model.Flow, error) {
 		return model.Flow{}, fmt.Errorf("  - %s", strings.Join(errs, "\n  - "))
 	}
 	return model.FromRaw(raw, initial, matrix, indexes), nil
+}
+
+func validateProduct(errs *[]string, raw contract.Contract, indexes model.Indexes) {
+	p := raw.Product
+	variables := make(map[string]contract.ProductVariable, len(p.Variables))
+	quintNames := make(map[string]bool)
+	allQuintNames := map[string]bool{}
+	for _, group := range quintNameMaps(indexes) {
+		for name := range group {
+			allQuintNames[name] = true
+		}
+	}
+	for i, variable := range p.Variables {
+		path := fmt.Sprintf("product.variables[%d]", i)
+		requireString(errs, path+".id", variable.ID)
+		if !quintIdentifierPattern.MatchString(variable.ID) {
+			*errs = append(*errs, path+".id must be a Go/Quint identifier")
+		}
+		requireString(errs, path+".quint", variable.Quint)
+		if _, ok := variables[variable.ID]; ok {
+			*errs = append(*errs, path+".id duplicates "+variable.ID)
+		}
+		if quintNames[variable.Quint] {
+			*errs = append(*errs, path+".quint duplicates "+variable.Quint)
+		}
+		validateProductQuint(errs, path+".quint", variable.Quint)
+		validateProductQuint(errs, path+" domain", variable.Quint+"Domain")
+		for _, name := range []string{variable.Quint, variable.Quint + "Domain"} {
+			if allQuintNames[name] {
+				*errs = append(*errs, path+" collides with declared Quint identifier "+name)
+			}
+			allQuintNames[name] = true
+		}
+		variables[variable.ID] = variable
+		quintNames[variable.Quint] = true
+		seen, seenQuint := map[string]bool{}, map[string]bool{}
+		for j, value := range variable.Values {
+			requireString(errs, fmt.Sprintf("%s.values[%d].id", path, j), value.ID)
+			requireString(errs, fmt.Sprintf("%s.values[%d].quint", path, j), value.Quint)
+			if seen[value.ID] || seenQuint[value.Quint] {
+				*errs = append(*errs, fmt.Sprintf("%s.values[%d] duplicates an id or Quint value", path, j))
+			}
+			validateProductQuint(errs, fmt.Sprintf("%s.values[%d].quint", path, j), value.Quint)
+			if allQuintNames[value.Quint] {
+				*errs = append(*errs, fmt.Sprintf("%s.values[%d].quint duplicates identifier %s", path, j, value.Quint))
+			}
+			allQuintNames[value.Quint] = true
+			seen[value.ID], seenQuint[value.Quint] = true, true
+		}
+	}
+	if len(p.Variables) == 0 {
+		*errs = append(*errs, "product.variables must not be empty")
+	}
+	validateProductTuple(errs, "product.initial", p.Initial, variables)
+	transitionKeys := map[string]bool{}
+	for i, transition := range p.Transitions {
+		path := fmt.Sprintf("product.transitions[%d]", i)
+		if _, ok := indexes.StateByID[transition.FromStatus]; !ok {
+			*errs = append(*errs, path+".fromStatus references unknown status "+transition.FromStatus)
+		}
+		if _, ok := indexes.EventByID[transition.Event]; !ok {
+			*errs = append(*errs, path+".event references unknown event "+transition.Event)
+		}
+		if _, ok := indexes.StateByID[transition.ToStatus]; !ok {
+			*errs = append(*errs, path+".toStatus references unknown status "+transition.ToStatus)
+		}
+		if !rawTransitionAllows(raw.Transitions, transition.FromStatus, transition.Event, transition.ToStatus) {
+			*errs = append(*errs, path+" does not match the scalar status transition contract")
+		}
+		key := transition.FromStatus + "/" + transition.Event + "/" + productTupleKey(transition.From)
+		if transitionKeys[key] {
+			*errs = append(*errs, path+" duplicates a product transition source")
+		}
+		transitionKeys[key] = true
+		validateProductTuple(errs, path+".from", transition.From, variables)
+		validateProductTuple(errs, path+".to", transition.To, variables)
+	}
+	for i, invariant := range p.Invariants {
+		path := fmt.Sprintf("product.invariants[%d]", i)
+		requireString(errs, path+".id", invariant.ID)
+		requireString(errs, path+".quint", invariant.Quint)
+		requireString(errs, path+".description", invariant.Description)
+		requireString(errs, path+".expression", invariant.Expression)
+		validateProductQuint(errs, path+".quint", invariant.Quint)
+		if quintNames[invariant.Quint] || allQuintNames[invariant.Quint] {
+			*errs = append(*errs, path+".quint duplicates a declared Quint identifier")
+		}
+		quintNames[invariant.Quint] = true
+		allQuintNames[invariant.Quint] = true
+	}
+	traceNames := map[string]bool{}
+	for i, trace := range p.Traces {
+		path := fmt.Sprintf("product.traces[%d]", i)
+		requireString(errs, path+".name", trace.Name)
+		validateProductQuint(errs, path+".name", trace.Name)
+		if traceNames[trace.Name] {
+			*errs = append(*errs, path+".name duplicates "+trace.Name)
+		}
+		traceNames[trace.Name] = true
+		if _, ok := indexes.StateByID[trace.InitialStatus]; !ok {
+			*errs = append(*errs, path+".initialStatus references unknown status "+trace.InitialStatus)
+		}
+		validateProductTuple(errs, path+".initial", trace.Initial, variables)
+		status, tuple := trace.InitialStatus, trace.Initial
+		for j, step := range trace.Steps {
+			stepPath := fmt.Sprintf("%s.steps[%d]", path, j)
+			if _, ok := indexes.EventByID[step.Event]; !ok {
+				*errs = append(*errs, stepPath+".event references unknown event "+step.Event)
+			}
+			if _, ok := indexes.StateByID[step.WantStatus]; !ok {
+				*errs = append(*errs, stepPath+".wantStatus references unknown status "+step.WantStatus)
+			}
+			validateProductTuple(errs, stepPath+".state", step.State, variables)
+			if step.WantError {
+				if rawTransitionAllowsAny(raw.Transitions, status, step.Event) {
+					*errs = append(*errs, stepPath+" expects an error for an event declared valid by the scalar contract")
+				}
+				if step.WantStatus != status || productTupleKey(step.State) != productTupleKey(tuple) {
+					*errs = append(*errs, stepPath+" error outcome must preserve the complete status and product tuple")
+				}
+			} else if !productTransitionExists(p.Transitions, status, step.Event, tuple, step.WantStatus, step.State) {
+				*errs = append(*errs, stepPath+" has no matching product transition")
+			}
+			status, tuple = step.WantStatus, step.State
+		}
+	}
+	if len(p.Transitions) == 0 || len(p.Invariants) == 0 || len(p.Traces) == 0 {
+		*errs = append(*errs, "product requires transitions, invariants, and traces")
+	}
+}
+
+func validateProductQuint(errs *[]string, path, value string) {
+	if value == "" {
+		return
+	}
+	if !quintIdentifierPattern.MatchString(value) {
+		*errs = append(*errs, path+" must be a valid Quint identifier")
+	}
+	if quint.QuintReservedIdentifiers[value] {
+		*errs = append(*errs, path+" uses reserved Quint identifier "+value)
+	}
+}
+
+func productInvariantExists(product *contract.Product, quintName string) bool {
+	if product == nil {
+		return false
+	}
+	for _, invariant := range product.Invariants {
+		if invariant.Quint == quintName {
+			return true
+		}
+	}
+	return false
+}
+
+func rawTransitionAllows(transitions []contract.Transition, from, event, to string) bool {
+	for _, transition := range transitions {
+		fromMatches, eventMatches := false, false
+		for _, id := range transition.From {
+			if id == from {
+				fromMatches = true
+			}
+		}
+		for _, id := range transition.Event {
+			if id == event {
+				eventMatches = true
+			}
+		}
+		if fromMatches && eventMatches && transition.To == to && (transition.WantError == nil || !*transition.WantError) {
+			return true
+		}
+	}
+	return false
+}
+
+func rawTransitionAllowsAny(transitions []contract.Transition, from, event string) bool {
+	for _, transition := range transitions {
+		if (transition.WantError != nil && *transition.WantError) || transition.To == "" {
+			continue
+		}
+		fromMatches, eventMatches := false, false
+		for _, id := range transition.From {
+			fromMatches = fromMatches || id == from
+		}
+		for _, id := range transition.Event {
+			eventMatches = eventMatches || id == event
+		}
+		if fromMatches && eventMatches {
+			return true
+		}
+	}
+	return false
+}
+
+func validateProductTuple(errs *[]string, path string, tuple map[string]string, variables map[string]contract.ProductVariable) {
+	if len(tuple) != len(variables) {
+		*errs = append(*errs, fmt.Sprintf("%s must specify all %d product variables", path, len(variables)))
+	}
+	for name, value := range tuple {
+		variable, ok := variables[name]
+		if !ok {
+			*errs = append(*errs, path+" references unknown product variable "+name)
+			continue
+		}
+		found := false
+		for _, candidate := range variable.Values {
+			if candidate.ID == value {
+				found = true
+				break
+			}
+		}
+		if !found {
+			*errs = append(*errs, path+"."+name+" references unknown value "+value)
+		}
+	}
+}
+
+func productTupleKey(tuple map[string]string) string {
+	keys := make([]string, 0, len(tuple))
+	for key := range tuple {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+	parts := make([]string, 0, len(keys))
+	for _, key := range keys {
+		parts = append(parts, key+"="+tuple[key])
+	}
+	return strings.Join(parts, ",")
+}
+
+func productTransitionExists(transitions []contract.ProductTransition, fromStatus, event string, from map[string]string, toStatus string, to map[string]string) bool {
+	for _, transition := range transitions {
+		if transition.FromStatus == fromStatus && transition.Event == event && transition.ToStatus == toStatus && productTupleKey(transition.From) == productTupleKey(from) && productTupleKey(transition.To) == productTupleKey(to) {
+			return true
+		}
+	}
+	return false
 }
 
 func buildIndexes(errs *[]string, raw contract.Contract) model.Indexes {

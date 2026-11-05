@@ -139,7 +139,7 @@ and the fixtures and calls `runFormalReplay({ transition, fixtures })`
 at top level. An AST-level lint in `flow-verifier verify check` rejects any
 file that imports the helper without calling it.
 
-Formal artifacts use schema v5 coverage metadata. `transitionMatrixComplete`
+Formal artifacts use schema v6 coverage metadata. `transitionMatrixComplete`
 and `terminalTransitionsChecked` describe the generated matrix. `namedTraces`
 describes required hand-authored trace coverage. `generatedTraces` reports
 what Quint MBT traces visited, including `coveredPairs` and
@@ -160,9 +160,18 @@ files, runtime typing, fixture contracts, topology, generated replay paths,
 fixture module expectations, coverage, and the exact commands to run next.
 
 A Quint/TLA+ model is only accepted when this full loop exists.
+
+For an opt-in v6 product flow, include a generic tuple fixture and bind each accepted product trace to typed owner observations. The generated Go adapter checks every declared variable and exact effect key/value; omitted state or effect keys fail. Keep SQL, Door, and external-effect projections in their owning scenario tests. Quint checks the finite tuple transition semantics; only those owner observations establish the modeled relation to production.
 Documentation-only formal specs are drift-prone and should not be
 added. Plain CRUD should stay plain; copy the Level 5 pattern only for
 flows with lifecycle states and illegal transitions.
+
+For an opt-in v6 `product` flow, include a generic tuple fixture and bind each
+accepted product trace to typed owner observations. The generated Go adapter
+checks every declared variable and exact effect key/value; omitted state or
+effect keys fail. Keep SQL, Door, and external-effect projections in their
+owning scenario tests. Quint checks the finite tuple transition semantics;
+only those owner observations establish the modeled relation to production.
 
 When adding or changing a Level 5 state/event:
 

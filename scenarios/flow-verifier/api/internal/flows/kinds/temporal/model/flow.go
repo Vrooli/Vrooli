@@ -26,6 +26,7 @@ type Flow struct {
 	Traces             []contract.Trace
 	Runtime            contract.Runtime
 	Replay             contract.Replay
+	Product            *contract.Product
 	Initial            contract.State
 	Matrix             TransitionMatrix
 	StateByID          map[string]contract.State
@@ -50,6 +51,7 @@ func FromRaw(raw contract.Contract, initial contract.State, matrix TransitionMat
 		Traces:             append([]contract.Trace(nil), raw.Traces...),
 		Runtime:            raw.Runtime,
 		Replay:             raw.Replay,
+		Product:            raw.Product,
 		Initial:            initial,
 		Matrix:             matrix,
 		StateByID:          indexes.StateByID,

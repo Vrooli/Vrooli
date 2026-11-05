@@ -4,6 +4,7 @@ import (
 	"fmt"
 	goformat "go/format"
 	"path/filepath"
+	"sort"
 	"strings"
 
 	"flow-verifier/internal/flows/kinds/temporal/contract"
@@ -25,7 +26,11 @@ func renderGoRuntime(flow model.Flow, built artifact.Artifact) (string, error) {
 	var b strings.Builder
 	b.WriteString(generatedHeader(flow))
 	fmt.Fprintf(&b, "package %s\n\n", pkg)
-	b.WriteString("import \"fmt\"\n\n")
+	b.WriteString("import (\n\t\"fmt\"\n")
+	if flow.Product != nil {
+		b.WriteString("\t\"github.com/vrooli/vrooli/packages/proto/modeltest\"\n")
+	}
+	b.WriteString(")\n\n")
 	fmt.Fprintf(&b, "type %s string\n", rt.StatusType)
 	fmt.Fprintf(&b, "type %s string\n\n", rt.EventType)
 	b.WriteString("const (\n")
@@ -38,6 +43,9 @@ func renderGoRuntime(flow model.Flow, built artifact.Artifact) (string, error) {
 		fmt.Fprintf(&b, "\t%s%s %s = %q\n", rt.ConstantPrefix, pascal(event.ID), rt.EventType, event.ID)
 	}
 	b.WriteString(")\n\n")
+	if flow.Product != nil {
+		b.WriteString(goProductTypes(flow.Product))
+	}
 	fmt.Fprintf(&b, "const %sContractPath = %q\n", rt.ConstantPrefix, built.Source.ContractPath)
 	fmt.Fprintf(&b, "const %sModelPath = %q\n", rt.ConstantPrefix, built.Source.ModelPath)
 	fmt.Fprintf(&b, "const %sGeneratorPath = %q\n", rt.ConstantPrefix, built.Source.GeneratorPath)
@@ -142,7 +150,77 @@ func renderGoReplayHelper(flow model.Flow, opts Options) (string, error) {
 	fmt.Fprintf(&b, "\tmodeltest.AssertFormalTransitionsReplay(t, artifact, All%sStatuses(), All%sEvents(), transition)\n", rt.ConstantPrefix, rt.ConstantPrefix)
 	fmt.Fprintf(&b, "\tmodeltest.AssertFormalTracesReplay(t, artifact, All%sStatuses(), All%sEvents(), transition)\n", rt.ConstantPrefix, rt.ConstantPrefix)
 	b.WriteString("}\n")
+	if flow.Product != nil {
+		b.WriteString("\n// AssertProductTraceObservations compares complete owner-provided production state/effect observations with the generated product contract.\n")
+		b.WriteString("func AssertProductTraceObservations(t *testing.T, trace string, got []ProductObservation) {\n\tt.Helper()\n")
+		fmt.Fprintf(&b, "\tartifact := modeltest.LoadFormalArtifact(t, %q)\n", artifactFile)
+		b.WriteString("\tmodeltest.AssertFormalArtifactFresh(t, artifact, modeltest.FormalArtifactExpectation{\n")
+		fmt.Fprintf(&b, "\t\tContractPath: %sContractPath, ContractSHA256: %sContractSHA256,\n", rt.ConstantPrefix, rt.ConstantPrefix)
+		fmt.Fprintf(&b, "\t\tModelPath: %sModelPath, ModelSHA256: %sModelSHA256,\n", rt.ConstantPrefix, rt.ConstantPrefix)
+		fmt.Fprintf(&b, "\t\tGeneratorPath: %sGeneratorPath, GeneratorSHA256: %sGeneratorSHA256,\n", rt.ConstantPrefix, rt.ConstantPrefix)
+		fmt.Fprintf(&b, "\t\tInvariants: %sFormalExpectedInvariants(), GeneratedChecks: %sFormalExpectedGeneratedChecks(),\n", rt.ConstantPrefix, rt.ConstantPrefix)
+		b.WriteString("\t})\n\tobserved := make([]modeltest.ProductObservation, len(got))\n\tfor i, item := range got { observed[i] = item.modeltestObservation() }\n\tswitch trace {\n")
+		for _, trace := range flow.Product.Traces {
+			fmt.Fprintf(&b, "\tcase %q:\n\t\twant := []modeltest.ProductObservation{\n", trace.Name)
+			for _, step := range trace.Steps {
+				fmt.Fprintf(&b, "\t\t\t{State: map[string]string{%s}, Effects: map[string]int64{%s}},\n", goStringMap(step.State), goIntMap(step.Effects))
+			}
+			b.WriteString("\t\t}\n")
+			b.WriteString("\t\tmodeltest.AssertProductTraceObservations(t, trace, want, observed)\n")
+		}
+		b.WriteString("\tdefault:\n\t\tt.Fatalf(\"unknown product trace %q\", trace)\n\t}\n}\n")
+	}
 	return formatGo(b.String())
+}
+
+func goProductTypes(product *contract.Product) string {
+	var b strings.Builder
+	for _, variable := range product.Variables {
+		typeName := pascal(variable.ID)
+		fmt.Fprintf(&b, "type %s string\nconst (\n", typeName)
+		for _, value := range variable.Values {
+			fmt.Fprintf(&b, "\tProduct%s%s %s = %q\n", typeName, pascal(value.ID), typeName, value.ID)
+		}
+		b.WriteString(")\n\n")
+	}
+	b.WriteString("type ProductState struct {\n")
+	for _, variable := range product.Variables {
+		fmt.Fprintf(&b, "\t%s %s\n", pascal(variable.ID), pascal(variable.ID))
+	}
+	b.WriteString("}\n\n")
+	b.WriteString("type ProductObservation struct {\n\tState ProductState\n\tEffects map[string]int64\n}\n\n")
+	b.WriteString("func (observation ProductObservation) modeltestObservation() modeltest.ProductObservation {\n\treturn modeltest.ProductObservation{State: map[string]string{\n")
+	for _, variable := range product.Variables {
+		fmt.Fprintf(&b, "\t\t%q: string(observation.State.%s),\n", variable.ID, pascal(variable.ID))
+	}
+	b.WriteString("\t}, Effects: observation.Effects}\n}\n\n")
+	return b.String()
+}
+
+func goStringMap(values map[string]string) string {
+	keys := make([]string, 0, len(values))
+	for key := range values {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+	parts := make([]string, 0, len(keys))
+	for _, key := range keys {
+		parts = append(parts, fmt.Sprintf("%q: %q", key, values[key]))
+	}
+	return strings.Join(parts, ", ")
+}
+
+func goIntMap(values map[string]int64) string {
+	keys := make([]string, 0, len(values))
+	for key := range values {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+	parts := make([]string, 0, len(keys))
+	for _, key := range keys {
+		parts = append(parts, fmt.Sprintf("%q: %d", key, values[key]))
+	}
+	return strings.Join(parts, ", ")
 }
 
 func formatGo(source string) (string, error) {

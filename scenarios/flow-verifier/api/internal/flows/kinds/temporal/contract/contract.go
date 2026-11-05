@@ -47,6 +47,7 @@ type Contract struct {
 	Traces             []Trace            `json:"traces"`
 	Runtime            Runtime            `json:"runtime"`
 	Replay             Replay             `json:"replay"`
+	Product            *Product           `json:"product,omitempty"`
 	ContractPath       string             `json:"-"`
 	Layout             layout.Layout      `json:"-"`
 }
@@ -147,6 +148,57 @@ type ReplayTransition struct {
 	StateType      string `json:"stateType,omitempty"`
 	StatusField    string `json:"statusField,omitempty"`
 	StatusAccessor string `json:"statusAccessor,omitempty"`
+}
+
+// Product describes an optional finite product-state extension. Existing
+// scalar contracts omit it and keep their v6 behavior unchanged.
+type Product struct {
+	Variables   []ProductVariable   `json:"variables"`
+	Initial     map[string]string   `json:"initial"`
+	Transitions []ProductTransition `json:"transitions"`
+	Invariants  []ProductInvariant  `json:"invariants"`
+	Traces      []ProductTrace      `json:"traces"`
+}
+
+type ProductVariable struct {
+	ID     string         `json:"id"`
+	Quint  string         `json:"quint"`
+	Values []ProductValue `json:"values"`
+}
+
+type ProductValue struct {
+	ID    string `json:"id"`
+	Quint string `json:"quint"`
+}
+
+type ProductTransition struct {
+	FromStatus string            `json:"fromStatus"`
+	Event      string            `json:"event"`
+	From       map[string]string `json:"from"`
+	ToStatus   string            `json:"toStatus"`
+	To         map[string]string `json:"to"`
+}
+
+type ProductInvariant struct {
+	ID          string `json:"id"`
+	Quint       string `json:"quint"`
+	Description string `json:"description"`
+	Expression  string `json:"expression"`
+}
+
+type ProductTrace struct {
+	Name          string             `json:"name"`
+	InitialStatus string             `json:"initialStatus"`
+	Initial       map[string]string  `json:"initial"`
+	Steps         []ProductTraceStep `json:"steps"`
+}
+
+type ProductTraceStep struct {
+	Event      string            `json:"event"`
+	WantStatus string            `json:"wantStatus"`
+	WantError  bool              `json:"wantError"`
+	State      map[string]string `json:"state"`
+	Effects    map[string]int64  `json:"effects"`
 }
 
 type StringList []string

@@ -64,9 +64,9 @@ export const conflictResolutionFormalExpectation = {
   contractPath: "api/src/features/conflicts/flow/flow.json",
   contractSha256: "800ddae140a2df4473fa0fb9377266a8fba0687b5ce78952d3afc25de98fdfe9",
   modelPath: "api/src/features/conflicts/flow/generated/model.qnt",
-  modelSha256: "e5d33d236c4bef5d720a29149ec131bad830f0faba2e633806c25858a70ca470",
+  modelSha256: "fed6275ea3901380fd997259d7a2bb336eb5eeba0acc4171b7831caa0736014d",
   generatorPath: "flow-verifier",
-  generatorSha256: "2f4bdb4736a693e8d45276b8ad50a7f9078816d749b1d31b315d67302d62b864",
+  generatorSha256: "1737e2a389135a2c6b6ee2dcfa653680a67b7d237f2d701cc60af362864e3090",
   invariants: ["TypeOK"],
   generatedChecks: ["transitionTable"],
 } as const;

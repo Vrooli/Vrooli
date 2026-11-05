@@ -164,6 +164,17 @@ coverage are separate fields. Do not treat generated trace
 the complete transition matrix and named traces, while generated trace
 coverage reports how much the model explorer happened to visit.
 
+Schema v6 contracts may opt into the additive `product` field. It declares
+finite typed variables, complete tuple transitions, invariants, and named
+product traces. Quint generation emits each finite domain, the tuple update
+relation, product invariants, and trace assertions. Go generation also emits
+typed product observations and `AssertProductTraceObservations`; the adapter
+requires the complete tuple and exact effect map projected by the production
+owner. Scalar contracts omit `product` and retain their existing model and
+replay behavior. A product trace is accepted only when its Go test supplies
+observations from the owning production path; generated expectations alone do
+not establish production equivalence.
+
 Schema v6 `flow.json` files carry no path or module information. The
 `replay` block declares only `transition.function` (plus
 `transition.statusAccessor` for TS or `transition.stateType` /

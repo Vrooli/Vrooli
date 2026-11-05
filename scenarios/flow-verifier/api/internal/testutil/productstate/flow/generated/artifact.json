@@ -1,0 +1,240 @@
+{
+  "schemaVersion": 6,
+  "flowId": "testutil.product-state.api",
+  "source": {
+    "contractPath": "api/internal/testutil/productstate/flow/flow.json",
+    "contractSha256": "39b2bbc1ace55229257e25bec4abd87d99e99eb188d1727d81180d49504f9ed2",
+    "generatorPath": "flow-verifier",
+    "generatorSha256": "1737e2a389135a2c6b6ee2dcfa653680a67b7d237f2d701cc60af362864e3090",
+    "generatorVersion": 7,
+    "modelPath": "api/internal/testutil/productstate/flow/generated/model.qnt",
+    "modelSha256": "70bf3ef33117560c1ff3454c13eaa7d179ac352876d9ed366cb110fdd626c729",
+    "quintVersion": "0.32.0",
+    "verificationBackend": "apalache"
+  },
+  "commands": {
+    "run": [
+      "quint",
+      "run",
+      "api/internal/testutil/productstate/flow/generated/model.qnt",
+      "--mbt",
+      "--seed",
+      "2026110401",
+      "--max-samples",
+      "4",
+      "--n-traces",
+      "4",
+      "--max-steps",
+      "4",
+      "--out-itf",
+      "<temp-itf-pattern>"
+    ],
+    "test": [
+      "quint",
+      "test",
+      "api/internal/testutil/productstate/flow/generated/model.qnt",
+      "--seed",
+      "2026110401"
+    ],
+    "typecheck": [
+      "quint",
+      "typecheck",
+      "api/internal/testutil/productstate/flow/generated/model.qnt"
+    ],
+    "verify": [
+      "quint",
+      "verify",
+      "api/internal/testutil/productstate/flow/generated/model.qnt",
+      "--invariants",
+      "TypeOK",
+      "ProductNonnegative",
+      "--max-steps",
+      "4"
+    ]
+  },
+  "states": [
+    "ready",
+    "settled"
+  ],
+  "events": [
+    "finalize"
+  ],
+  "transitions": [
+    {
+      "from": "ready",
+      "event": "finalize",
+      "to": "settled",
+      "wantError": false
+    },
+    {
+      "from": "settled",
+      "event": "finalize",
+      "to": "settled",
+      "wantError": true
+    }
+  ],
+  "namedTraces": [
+    {
+      "name": "finalize",
+      "initial": "ready",
+      "steps": [
+        {
+          "event": "finalize",
+          "want": "settled",
+          "wantError": false
+        }
+      ]
+    }
+  ],
+  "generatedTraces": [
+    {
+      "name": "generated_model_001",
+      "initial": "ready",
+      "steps": [
+        {
+          "event": "finalize",
+          "want": "settled",
+          "wantError": false
+        },
+        {
+          "event": "finalize",
+          "want": "settled",
+          "wantError": true
+        },
+        {
+          "event": "finalize",
+          "want": "settled",
+          "wantError": true
+        },
+        {
+          "event": "finalize",
+          "want": "settled",
+          "wantError": true
+        }
+      ]
+    },
+    {
+      "name": "generated_model_002",
+      "initial": "ready",
+      "steps": [
+        {
+          "event": "finalize",
+          "want": "settled",
+          "wantError": false
+        },
+        {
+          "event": "finalize",
+          "want": "settled",
+          "wantError": true
+        },
+        {
+          "event": "finalize",
+          "want": "settled",
+          "wantError": true
+        },
+        {
+          "event": "finalize",
+          "want": "settled",
+          "wantError": true
+        }
+      ]
+    },
+    {
+      "name": "generated_model_003",
+      "initial": "ready",
+      "steps": [
+        {
+          "event": "finalize",
+          "want": "settled",
+          "wantError": false
+        },
+        {
+          "event": "finalize",
+          "want": "settled",
+          "wantError": true
+        },
+        {
+          "event": "finalize",
+          "want": "settled",
+          "wantError": true
+        },
+        {
+          "event": "finalize",
+          "want": "settled",
+          "wantError": true
+        }
+      ]
+    },
+    {
+      "name": "generated_model_004",
+      "initial": "ready",
+      "steps": [
+        {
+          "event": "finalize",
+          "want": "settled",
+          "wantError": false
+        },
+        {
+          "event": "finalize",
+          "want": "settled",
+          "wantError": true
+        },
+        {
+          "event": "finalize",
+          "want": "settled",
+          "wantError": true
+        },
+        {
+          "event": "finalize",
+          "want": "settled",
+          "wantError": true
+        }
+      ]
+    }
+  ],
+  "invariants": [
+    "TypeOK",
+    "ProductNonnegative"
+  ],
+  "generatedChecks": [
+    "transitionTable"
+  ],
+  "coverage": {
+    "transitionMatrixComplete": true,
+    "terminalTransitionsChecked": true,
+    "namedTraces": {
+      "allStatesCovered": true,
+      "allEventsCovered": true,
+      "coveredStates": [
+        "ready",
+        "settled"
+      ],
+      "coveredEvents": [
+        "finalize"
+      ]
+    },
+    "generatedTraces": {
+      "allStatesCovered": true,
+      "allEventsCovered": true,
+      "coveredStates": [
+        "ready",
+        "settled"
+      ],
+      "coveredEvents": [
+        "finalize"
+      ],
+      "coveredPairs": [
+        "ready/finalize",
+        "settled/finalize"
+      ],
+      "allPairsCovered": true
+    }
+  },
+  "checks": {
+    "typechecked": true,
+    "tested": true,
+    "verified": true,
+    "generatedFromContract": true,
+    "generatedFromModel": true
+  }
+}

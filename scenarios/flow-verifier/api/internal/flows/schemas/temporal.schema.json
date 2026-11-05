@@ -100,6 +100,9 @@
       "properties": {
         "transition": { "$ref": "#/$defs/replayTransition" }
       }
+    },
+    "product": {
+      "$ref": "#/$defs/product"
     }
   },
   "oneOf": [
@@ -236,6 +239,81 @@
         "event": { "type": "string", "minLength": 1 },
         "want": { "type": "string", "minLength": 1 },
         "wantError": { "type": "boolean" }
+      }
+    },
+    "product": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["variables", "initial", "transitions", "invariants", "traces"],
+      "properties": {
+        "variables": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/productVariable" } },
+        "initial": { "$ref": "#/$defs/productTuple" },
+        "transitions": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/productTransition" } },
+        "invariants": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/productInvariant" } },
+        "traces": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/productTrace" } }
+      }
+    },
+    "productVariable": {
+      "type": "object", "additionalProperties": false,
+      "required": ["id", "quint", "values"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "quint": { "type": "string", "minLength": 1 },
+        "values": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/productValue" } }
+      }
+    },
+    "productValue": {
+      "type": "object", "additionalProperties": false,
+      "required": ["id", "quint"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "quint": { "type": "string", "minLength": 1 }
+      }
+    },
+    "productTuple": {
+      "type": "object", "minProperties": 1,
+      "additionalProperties": { "type": "string", "minLength": 1 }
+    },
+    "productTransition": {
+      "type": "object", "additionalProperties": false,
+      "required": ["fromStatus", "event", "from", "toStatus", "to"],
+      "properties": {
+        "fromStatus": { "type": "string", "minLength": 1 },
+        "event": { "type": "string", "minLength": 1 },
+        "from": { "$ref": "#/$defs/productTuple" },
+        "toStatus": { "type": "string", "minLength": 1 },
+        "to": { "$ref": "#/$defs/productTuple" }
+      }
+    },
+    "productInvariant": {
+      "type": "object", "additionalProperties": false,
+      "required": ["id", "quint", "description", "expression"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "quint": { "type": "string", "minLength": 1 },
+        "description": { "type": "string", "minLength": 1 },
+        "expression": { "type": "string", "minLength": 1 }
+      }
+    },
+    "productTrace": {
+      "type": "object", "additionalProperties": false,
+      "required": ["name", "initialStatus", "initial", "steps"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "initialStatus": { "type": "string", "minLength": 1 },
+        "initial": { "$ref": "#/$defs/productTuple" },
+        "steps": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/productTraceStep" } }
+      }
+    },
+    "productTraceStep": {
+      "type": "object", "additionalProperties": false,
+      "required": ["event", "wantStatus", "wantError", "state", "effects"],
+      "properties": {
+        "event": { "type": "string", "minLength": 1 },
+        "wantStatus": { "type": "string", "minLength": 1 },
+        "wantError": { "type": "boolean" },
+        "state": { "$ref": "#/$defs/productTuple" },
+        "effects": { "type": "object", "additionalProperties": { "type": "integer" } }
       }
     },
     "stringOrStringArray": {
