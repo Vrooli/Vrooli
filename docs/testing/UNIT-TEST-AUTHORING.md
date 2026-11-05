@@ -76,6 +76,15 @@ test server for flushing, streaming, hijacking, connection closure, and middlewa
 behavior that depends on transport capabilities. A recorder's convenience does
 not establish socket behavior, and a socket is unnecessary for pure mapping.
 
+For scenario CLI tests, explicitly bind the command to the fixture server before
+dispatch: set the owning `ScenarioApp.APIOverride` (often `app.core.APIOverride`)
+or pass `--api-base`. Setting only `API_BASE_URL` is insufficient: agent contexts
+intentionally ignore that generic variable and can discover a running scenario
+instead. Registration-only tests should inspect help without executing an API
+command. Decode typed Connect responses with `protojson`, including protobuf
+field names and string-encoded integer fields. See
+[CLI wiring](../../packages/cli-core/README.md#scenario-wiring-checklist).
+
 Do not wait for a scenario-wide architecture score before testing a pure function.
 Introduce a narrow seam when the selected behavior needs control of a real
 external dependency. Avoid interfaces and harness packages without a consumer.
@@ -265,13 +274,57 @@ universal behavioral adequacy. Apply documented exceptions through the policy
 owner; show their scope, reason, owner, evidence, and revisit trigger. An exception
 changes enforcement, not the underlying observation.
 
+## Mature a suite instead of growing it
+
+Actively simplify the affected test set alongside code and documentation work.
+Delete obsolete checks and inert support. Rewrite or migrate valuable claims
+that test the wrong boundary. Preserve admitted behavior and unique protection;
+do not retain a test merely to preserve counts or replace every deleted test.
+
+- Choose the smallest readable set of cases that protects the ongoing contract.
+  Use given/when/then (Gherkin-style) descriptions for user journeys. Use tables
+  or reproducible generators when they make relevant inputs clearer. Keep
+  separate cases when distinct inputs, outcomes, or temporal claims read better
+  separately; repetition alone does not justify consolidation.
+- Keep domain-local builders and fakes local. Share suitable cross-domain
+  mechanics through existing runners and harnesses. Extract repeated setup only
+  when it makes the claim clearer. Import incidental schema types and constants;
+  justify contractual expected values independently.
+- Delete redundant, obsolete, permanently inapplicable, or misleading cases and
+  inert fixtures when they provide no unique protective value. Getter,
+  constructor, helper, fake, or compile-only syntax alone neither qualifies nor
+  disqualifies a check. Preserve the special-kind oracles and limits above.
+  Preserve ongoing failure, safety, isolation, and recovery behavior; an error
+  or zero-effects assertion is not a tombstone merely because it is negative.
+  A justified deletion needs no replacement test.
+- Preserve admitted requirements and `[REQ:]` assertions when merging or moving
+  cases. A retired specification needs the criterion owner's amendment;
+  simplification does not authorize silently weakening required behavior.
+- Scale evidence to the effect under [Testing](../TESTING.md). For an inert-field
+  deletion with no behavioral effect, confirm usage and run the applicable
+  scoped build check. For consolidation, explain the retained unique claims.
+  For a cross-layer migration, name the retained claim, its new owning boundary,
+  and the affected consumer; qualify that boundary and consumer. A short
+  disposition in the existing receipt is sufficient; no new formal map is owed.
+- Use coverage comparisons or selected fault checks when they resolve a
+  consequential uncertainty within their supported profile. Neither is a
+  universal gate or proof of complete protection. Do not impose a test/runtime
+  line ratio or a test-count target. Retain asynchronous completion, cleanup,
+  and declared prerequisites.
+
+Record a justified retention as an assessment result. Claim simplification
+delivered only for an implemented deletion, consolidation, rewrite, or migration
+with its proportionate evidence. The existing owner decides acceptance.
+
 ## Review protection and extend the reference suite
 
-Before claiming a repair, run its unmodified control. Apply a selected plausible
-fault only in disposable source. Confirm that the intended behavioral assertion
-fails, then retain the control, fault identity, and failure explanation. Build
-errors, timeouts, and unrelated failures are not detected behavioral faults.
-Equivalent or out-of-contract mutations need an explicit exclusion rationale.
+When qualifying a repair with selected-fault evidence, run its unmodified
+control. Apply a selected plausible fault only in disposable source. Confirm
+that the intended behavioral assertion fails, then retain the control, fault
+identity, and failure explanation. Build errors, timeouts, and unrelated failures
+are not detected behavioral faults. Equivalent or out-of-contract mutations need
+an explicit exclusion rationale. Preserve any selected-fault proof explicitly
+required by admission.
 
 The source links above identify existing examples to review and extend. They are
 not claims that all examples already pass this guide. The reference work is:

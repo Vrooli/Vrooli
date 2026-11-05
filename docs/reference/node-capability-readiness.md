@@ -20,9 +20,14 @@ Each capability observation MUST use one of these states:
 | `unknown` | The target has not reported a fresh observation. | Refresh the probe and check node reporting. |
 
 The node agent owns observation. Bridge owns transport and durable inventory
-storage. Web Console owns projection and presentation. The launcher MUST read
-the selected target's capability facts and MUST refuse a missing, unsupported,
-or unknown agent before opening a PTY.
+storage. Web Console owns projection and presentation. For a remote target, the
+launcher and session owner MUST refuse a recognized coding agent with a missing,
+unsupported, or unknown capability before opening a PTY; recovery remains
+accessible. On the local target, an unknown observation MAY leave the configured
+command launchable because a failing probe is not proof that the command cannot
+run. Missing and unsupported agents remain non-launchable. Empty shells and
+custom commands that do not name a recognized agent remain available on a
+reachable target.
 
 ## Platform applicability
 

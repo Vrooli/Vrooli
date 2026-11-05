@@ -18,7 +18,7 @@
   ],
   "invariants": [
     "No domain operation is executed",
-    "Missing or truncated skill content is explicit",
+    "Owner skill content includes up to 40,000 UTF-8 bytes and truncation is explicit",
     "At most one program and one skill are read"
   ],
   "bindings": [
@@ -48,7 +48,7 @@
     },
     "signals": {
       "program": "Selected identity and input names",
-      "skill": "Bounded owning instructions and completeness",
+      "skill": "Up to 40,000 UTF-8 bytes of owning instructions and completeness",
       "run_command": "Invocation template requiring caller inputs"
     },
     "errors": {

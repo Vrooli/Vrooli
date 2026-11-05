@@ -42,6 +42,12 @@ vrooli scenario requirements report
 vrooli scenario requirements validate
 ```
 
+For lifecycle follow-up, read current state once with `vrooli scenario status <name>`.
+After `start` or `restart`, use `vrooli scenario wait <name>` once for that operation;
+it waits for the lifecycle result and health check. Use `vrooli scenario logs <name>
+--follow` for live output. Repeated status or log snapshots do not make a running
+operation progress faster.
+
 Preferred day-to-day workflow for one scenario:
 
 ```bash

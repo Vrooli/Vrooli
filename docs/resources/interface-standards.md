@@ -78,6 +78,12 @@ Declare semantics explicitly with the `kind` field (`readiness` or
 them at a real readiness endpoint (for example `/ready`, not `/health`) when
 the service distinguishes the two.
 
+The shared runner supports `tcp`, `http`, and `command` checks plus protocol
+readiness checks for PostgreSQL (`postgresql`) and Redis (`redis`). Prefer a
+protocol check when it can prove the service accepts its primary protocol
+without credentials or host-installed client binaries. Keep liveness separate
+when a listener check answers a distinct operational question.
+
 ## Declared Degradation
 
 A resource that can run in more than one mode (GPU/CPU device, model size,

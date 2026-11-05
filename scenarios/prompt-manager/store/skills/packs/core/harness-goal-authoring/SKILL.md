@@ -9,9 +9,9 @@ metadata:
   tags: [goal, harness, until, delegation, sub-agent, orchestration, prompt]
   icon: target
   status: active
-  revision: 16
+  revision: 23
   createdAt: "2026-09-11T00:00:00Z"
-  updatedAt: "2026-11-01T00:00:00Z"
+  updatedAt: "2026-11-05T01:50:00Z"
   requires:
     scenarios: [prompt-manager]
     commands: [prompt-manager skill read]
@@ -22,10 +22,11 @@ metadata:
 ## Practice focus: Harness Goal Authoring
 
 Write a goal message that a fresh agent can finish from, that a transcript-only
-evaluator can judge, and that stays under 2,048 characters (Agent Manager's
-`until` cap) because the design it serves lives in durable documentation and
-the selected work-shape artifact (a plan only when the shape requires one), not
-in the message.
+evaluator can judge. Keep design in durable documentation and the selected
+work-shape artifact (a plan only when the shape requires one), not in the
+message. Keep goals concise for token efficiency, while respecting the selected
+harness's actual limits; Agent Manager allows up to 1 MiB of UTF-8 bytes in
+`until`.
 
 Required reading:
 - `docs/TESTING.md` — validation scope. A goal selects a posture; it does not
@@ -34,6 +35,12 @@ Required reading:
   selected shape is plan-backed — the receiving agent's rules for adjacent
   defects and for the word "blocked". A goal selects among them; it does not
   rewrite them.
+
+Read registered skills with `prompt-manager skill read`. If that route is
+unavailable, read the canonical `SKILL.md` in the repository when accessible;
+record which source was read and continue. A registry/read outage is not a
+human blocker and does not stop independent work. Never claim a skill receipt
+from an assignment that only named the skill.
 
 ### 1. Scope
 
@@ -60,11 +67,23 @@ The receiving agent verifies paths before editing them.
 | Who decides "met" | A separate small model reads the transcript only. It runs no commands and opens no files. Verdicts: Not yet met, Met, Impossible. | The working model calls `update_goal(complete)`. Each continuation turn injects an audit: enumerate deliverables, reject proxy signals, treat uncertainty as not achieved. |
 | What this requires of the author | Proof must appear in the transcript. Name the command and require its output to be shown. | Proof must be enumerable. State deliverables the audit can tick one by one. |
 | Loop guards | Halts after several turns without tool use. The Stop hook is overridden after repeated consecutive blocks; the hooks guide states the cap. No turn cap exists; add one in the text. | A continuation turn with zero tool calls suppresses the next one. On budget exhaustion the goal becomes `budget_limited` and the model is told to wrap up. |
-| Size | 4,000 characters. `ProposeGoal` proposals: 500. | Agent Manager caps `until` at 2,048 characters. |
+| Size | 4,000 characters. `ProposeGoal` proposals: 500. | Agent Manager caps `until` at 1 MiB of UTF-8 bytes. `--until-file` supports large values without shell argument limits. |
 
-Agent Manager delivers `until` as prompt text on every runner and also types
-`/goal <until>` into the session when the runner declares native objective
-support for the selected sandbox mode. Write one text that works both ways.
+Agent Manager's delivery depends on runner support and the native field size:
+
+| Condition | Delivery |
+|---|---|
+| No native objective support, parser/watcher unavailable, or confirmed `/goal` submission lacks a matching acknowledgement | The task prompt carries the full `until`; the run records prompt-carried delivery. |
+| Native support and `until` fits the current 4,000-character Agent Manager native-objective bound | `/goal` carries the full `until`; the task prompt points to it. |
+| Native support and `until` exceeds that bound | `/goal` carries a short delegation, and the task prompt carries the full `until`. |
+
+An uncertain `/goal` command submission or a canceled launch is not treated as
+prompt fallback: task text is withheld because the native command may still be
+in the composer or executing. Write one condition that remains complete in
+either route: its full prompt-carried form is a contract; its native form is
+the complete objective when it fits, or a short delegation backed by the full
+prompt when bounded. A short pointer is not a substitute for the condition
+when the native field was bounded.
 
 In Swarm goal mode there is no per-session reviewer. Swarm's finalization
 reviews the item after the run ends, so the proof clause must still name the
@@ -85,8 +104,8 @@ predicate is not a report of current state.
 | **sources** | What to read first, by name: skills, the selected plan or epoch file when applicable, and the scenario docs. | Point; do not paste. Docs first, then code. |
 | **boundary** | Allowed paths and effects. Scope policy: `fixed` or `extend-with-record`. | Use the plan's `acceptance_allow` when a plan exists. |
 | **dials** | Validation posture (targeted by default; name the heavy runs that are owed). Adjacent-defect posture (fix when understood and blocking; otherwise file and continue). Quality bar (no shims, no dead code, docs updated with the code). | Select a posture. The tiers themselves live in `implementation-plan-execution`. |
-| **blocked** | "Blocked means a decision, credential, or approval you lack. Name it. Friction you can diagnose is not blocked." | Include this sentence verbatim or by skill reference. Agents define "blocked" for themselves when the goal does not. |
-| **budget** | A turn, time, or token clause, and the wrap-up action when it hits. | Claude Code has no turn cap of its own. Codex needs the wrap-up instruction to make `budget_limited` useful. State that an involuntary interruption (usage window, timeout, crash, session lost) is resumed by Swarm under `continuation: until-allowance`, and that a verdict (`complete`, `blocked`, `abstained`) is final. |
+| **blocked** | A human-owned decision, credential, or approval with no safe alternative. | Include this boundary. Diagnose tool, owner-read, model, and infrastructure failures; pursue materially different repairs or routes while they can safely advance the outcome. Retry only when the condition or evidence changes. Record unavailable proof honestly and continue independent work; an observation failure is not a portfolio-wide block. |
+| **budget** | A turn, time, or token clause, and the recovery or wrap-up action when it hits. | Claude Code has no turn cap of its own. Codex needs the wrap-up instruction to make `budget_limited` useful. Name only recovery the selected harness actually provides. If the run has no verified automatic continuation, require a checkpoint with the remaining work and exact resume route; do not assume Swarm or imply the limit is enforced. State that a verdict (`complete`, `blocked`, `abstained`) is final. |
 | **handoff** | Where to checkpoint (Plan Manager log for plan-backed work, the epoch file in an orchestrated effort, otherwise the scenario's tracking doc) and the final report shape: changed, verified, remaining, unverified. | A report shape turns completion prose into checkable fields. |
 | **non-goals** | What not to do: widen scope, weaken required behavior, remove uniquely protective checks merely for a greener result, or rerun unchanged validation for that result. | Cite `improvement-do-and-dont` for anti-gaming and `test` §5/§8 for justified simplification. |
 
@@ -153,7 +172,7 @@ Proof: the phase validation commands named in the plan, output shown. Targeted c
 Boundary: the plan's acceptance_allow. Scope policy: extend-with-record; run boundary-extend before any out-of-scope edit.
 Adjacent defects: fix when you understand the cause and it blocks a phase; otherwise file with plan-manager log bug-add and continue. Do not turn this into a dependency-repair project.
 Quality: production code, no shims or dead code, docs updated with the code.
-Blocked means a decision, credential, or approval you lack. Name it in the handoff. Friction you can diagnose is not blocked.
+Blocked means a consequential decision, credential, approval or external action the user alone owns, with no safe alternative. Infrastructure and owner-read failures are work for the agent to resolve or route around. Diagnose the failure, then choose a materially different repair, source, tool, execution path or useful pivot. Retry only when a changed condition or new evidence makes the attempt informative. Continue while a safe, authorized path can advance the outcome; when none remains, record the exact unresolved dependency and continue independent work. Never ask the user to debug infrastructure.
 Budget: stop after <N> turns or <time>; checkpoint through Plan Manager first and write what changed, what was verified, what remains.
 ```
 
@@ -174,7 +193,7 @@ Proof: show the board after each intervention; never edit a band or sensor to mo
 Iteration: one evidence-based falsifiable intervention at a time; checkpoint through Plan Manager.
 Adjacent defects in other scenarios: file them; repair at the owner only when the grant covers it.
 Mandate lane: use authorized local and simulated qualification paths; do not block on excluded private data, physical devices, live keys, or paid access. Build only reusable instruments; journal every other unavailable row as unverified.
-Blocked means only missing decision, credential, approval, or external access. In-boundary gaps: fix, validate, continue.
+Blocked means a consequential decision, credential, approval or external action the user alone owns, with no safe alternative. Missing tools, reads and infrastructure are friction for the agent to resolve or route around. Diagnose the failure, then pursue materially different repairs, sources, tools or execution paths while each can advance the outcome safely. Retry only after a changed condition or when new evidence makes the attempt informative. When no useful safe route remains, record unavailable proof as unknown and keep unaffected rows moving.
 Budget: <tokens or time>; when reached, checkpoint and summarize remaining rows.
 ```
 
@@ -189,7 +208,7 @@ shape.
 Context: read <doc paths> first. Touch only <paths>.
 Validation: <targeted command>. No full suite.
 Adjacent defects: file with the report-bug skill; do not fix.
-Blocked means a missing decision or credential; name it and stop.
+Blocked means a consequential decision, credential, approval or external action the user alone owns, with no safe alternative. For a failed command or unavailable service, diagnose the failure and pursue materially different repairs or routes while each can advance the outcome safely. Retry only after a changed condition or when new evidence makes the attempt informative. When no useful safe route remains, document the exact dependency and continue unrelated work.
 Stop after 30 turns with a written summary of changed, verified, remaining.
 Non-goals: <what not to touch or widen into>.
 ```
@@ -204,7 +223,7 @@ shape merely because the first action is research.
 
 Read first: <docs, plan, or the worker's handoff under review>.
 Label every statement fact, hypothesis, or recommendation. Quote; do not paraphrase claims you are judging.
-Blocked means a source you cannot access; name it and report what you could verify.
+If a source is unavailable, record it as unverified and continue with accessible sources. Ask only when the missing source requires a human-owned choice or authorization that no alternative can replace.
 Stop after 20 turns.
 ```
 
@@ -255,8 +274,16 @@ condition, not as a list of features that exist. Orchestrated efforts follow
   through friction; when progress stalls, step back — write why, then park,
   switch or shrink — instead of stopping or adding more of the same." Do not
   stack further persistence controls; each one lengthens every resume and pushes
-  agents toward accretion. Keep a continuous goal to about 800 characters and
-  point at docs for everything else.
+  agents toward accretion. Keep a continuous goal to about 800 characters,
+  excluding the stance line below, and point at docs for everything else.
+- **Stance is not a persistence control; carry it verbatim.** When the operator
+  states an ambition or posture ("be bold and ambitious", "exercise creative
+  thinking", "don't be afraid to tackle large issues"), put their own words in a
+  `Stance:` line of the goal, or in the receiving skill. Do not compress them
+  into neutral procedure: paraphrase strips the push, and the receiving agent
+  falls back to its cautious default. Name what the stance licenses in this
+  work (large changes, other agents' uncommitted files, deletions) so it is
+  actionable, not decorative. `ecosystem-hunt` `references/goal.md` is an example.
 - **State the real stakes.** Name why the work matters and what stays blocked
   while it is broken. Keep them true; invented stakes read as hollow.
 - **Operator feedback is a durable, gating input.** The receiving agent appends
@@ -311,8 +338,9 @@ receiving skill's doctrine from inside a goal.
   without tool use. Restate the next concrete action in the goal or the handoff.
 - **Codex reports `budget_limited`.** This is not completion. Read the wrap-up
   summary, then start a new session from the handoff.
-- **The goal is over 2,048 characters.** It is carrying design or doctrine. Move
-  that content to the docs or the receiving skill and point at it.
+- **The goal repeats design already held in docs.** Move the durable design to
+  the docs or receiving skill and point at it. Do not use the old 2,048-character
+  Agent Manager limit as a writing rule; its current transport ceiling is 1 MiB.
 - **Native support is absent.** Agent Manager still appends `until` to the
   prompt; the receiving skill's stop rules carry the loop. Do not invent a
   `--goal` flag; none exists.

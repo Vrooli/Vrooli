@@ -9,9 +9,9 @@ metadata:
   tags: ["skill","program","python","session","binding","typed inference","governance","runtime","high arity","multi-scenario","cross-scenario","fan-out","bounded results","return bounded results","discard intermediates","discard intermediate data","tool-call compression","library","shape","nomination","delegation","bounded AI decision","subprogram"]
   icon: "terminal"
   status: "active"
-  revision: 10
+  revision: 14
   createdAt: "2026-08-06T00:00:00Z"
-  updatedAt: "2026-10-28T20:43:00Z"
+  updatedAt: "2026-11-05T01:02:00Z"
   requires:
     scenarios: ["program-runtime", "prompt-manager", "vrooli-memory", "ai-gateway", "agent-manager", "search-hub"]
     commands: ["program-runtime bindings", "program-runtime sessions", "program-runtime programs", "program-runtime library", "program-runtime space", "vrooli-memory recall", "vrooli-memory journal", "prompt-manager skill read", "vrooli scenario"]
@@ -38,7 +38,7 @@ Out of scope: direct scenario process execution; ambient shell, model, or agent 
 
 ### Before acting
 
-For a discovered contract, `program-runtime library run program-runtime.prepare-operation --input name=<scenario>.<program>` reads its declared inputs and owning skill together. A partial result requires the indicated complete read before execution; this preparation never performs the domain action.
+For a discovered contract, `program-runtime library run program-runtime.prepare-operation --input name=<scenario>.<program>` reads its declared inputs and owning skill together, up to 40,000 UTF-8 bytes. A partial result means the owner skill exceeds that bound or another read is incomplete; read the indicated complete source before execution. Preparation never performs the domain action.
 
 Run `vrooli-memory recall wake --scope program-runtime-usage`. Apply a pinned note before choosing a leaf. For one binding or workflow, run `vrooli-memory recall recall "<binding id or task>" --scope program-runtime-usage --limit 5`. Memory mechanics are `prompt-manager skill read vrooli-memory`'s.
 
@@ -87,7 +87,7 @@ Is the task one command against one scenario?
         │       another authorized route when appropriate. Reconcile uncertain effects first.
         ├─ Why do my programs keep failing?
         │     → run program-runtime.failure-triage; branch on signals.top[0]                [S3]
-        │       inspect signals.evidence_by_shape[shape]; then read that sample program
+        │       inspect signals.evidence_by_shape[shape], then read the sample if accessible
         │       unresolved_name → programs mine-unresolved (typo vs missing binding)
         │       refused_no_grant → the grant step below
         │       partial → use only returned shape rows; the errors explain missing context
@@ -103,7 +103,7 @@ Is the task one command against one scenario?
                 .vrooli/program-runtime/ and name it in that scenario's usage skill          [S0]
 ```
 
-An `[S3]` leaf runs a contract program with `program-runtime library run <scenario>.<name> --input k=v`. The runner validates inputs, owns session creation, submits, waits once, prints the envelope, and reclaims the session. Branch only on the envelope's `status` and `errors[0].class`; the contract JSON beside the source declares every value. `unavailable` is unknown, never zero.
+An `[S3]` leaf runs a contract program with `program-runtime library run <scenario>.<name> --input k=v`. The runner validates inputs, owns session creation, submits, waits once, prints the envelope, and reclaims the session. Inputs are JSON-decoded when valid; quote numeric, boolean, or null strings as JSON strings (for example `--input 'window="7"'`). Branch only on the envelope's `status` and `errors[0].class`; the contract JSON beside the source declares every value. `unavailable` is unknown, never zero.
 
 ### Portfolio work and usage
 
@@ -306,7 +306,7 @@ A read that can fail on its own (one scenario down among five) is wrapped so the
 - Treat destructive operations as denied until the session has the exact grant and the request includes confirmation.
 - Use `operator` provenance only for direct operator work. Use `agent`, `test`, or `replay` only when the caller can identify that source.
 - Keep program output bounded: `count`, `head(n)`, `filter`, `group_by`, `meta()`; `materialize(limit)` only when rows are required and the limit is explicit.
-- Treat `discover` with an empty `binding_id` and `unavailable=False` as a null verdict: stop. `unavailable=True` means discovery itself failed: retry or downgrade to `mode="fast"`. Never shell out to bypass discovery.
+- Treat `discover` with an empty `binding_id` and `unavailable=False` as a null verdict: stop and read its reason. `unavailable=True` means the lookup failed, not that no capability exists. Retry once only after correcting an input or confirming the transient dependency recovered; do not repeat the same failed lookup. Continue independent repository, documentation, and CLI work from canonical sources, while preserving the live capability as unavailable. Never infer a binding or call an unregistered endpoint directly.
 - `ai.*` and `agent.*` are namespaces enabled only inside a live session with the governed bridge; they are not ambient capabilities.
 - No retry loop and no polling loop inside a program. Retry is the caller's decision, informed by the envelope.
 
@@ -331,6 +331,7 @@ One `vrooli-memory journal note --scope program-runtime-usage --kind task-record
 | Result is too large or the envelope is cut off | Eager row printing or a long list in `signals` | the program's `print` calls | Counts, `head(n)`, capped lists; the envelope must fit the output bound |
 | Delegation returns `NOT_FOUND_WORKFLOWREVISION` | The owner no longer declares that `workflow_key` | `agent-manager workflow` help for the owner's keys | Fix the request; do not retry the same key |
 | Discovery returns a null verdict | Nothing governed serves the intent | `result.head(1)[0]["reason"]` | Clarify the intent or read `bindings describe`; do not guess a path |
+| `programs get` denies a failure-triage sample | The sample belongs to another verified caller | The aggregate shape count and timestamp in `failure-triage` | Keep the aggregate as evidence; inspect another authorized sample or a source-level cause. Do not retry under another identity or stop unrelated work. |
 | `library promote` refused | Source program did not succeed, or name@version exists | `programs get <id>`; `library get <name>` | Promote a succeeded run under a new version |
 | A recurring shape has no declared program | The work recurs across non-test sessions | `program-runtime shapes list --uncovered --min-occurrences 3` | File the W1 obligation against the dominant scenario |
 

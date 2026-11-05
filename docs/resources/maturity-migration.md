@@ -341,7 +341,7 @@ README notes remain the source for runtime constraints.
 | ollama | M4 | `resource.json`, `cli/main_test.go` |
 | opencode | M4 | `resource.json`, `cli/main_test.go` |
 | openrouter | M4 | `resource.json`, `cli/main_test.go` |
-| postgres | M4 | `resource.json`, query readiness, `cli/main_test.go` |
+| postgres | M4 | `resource.json`, PostgreSQL startup-protocol readiness, `cli/main_test.go` |
 | qdrant | M4 | `resource.json`, managed artifact checks, `cli/main_test.go` |
 | redis | M4 | `resource.json`, `cli/main_test.go` |
 | reranker | M4 | `resource.json`, `cli/main_test.go` |

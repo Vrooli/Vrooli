@@ -894,7 +894,8 @@ Discover skills, Actions, or both. Omitting `type` preserves the legacy skill-on
 
 ### GET /api/v1/skills/sync
 
-Get all skills with hash for change detection.
+Get skills matching the optional `tag` filter with a hash for change detection.
+When `tag` is omitted, return all skills.
 
 **Query Parameters:**
 | Parameter | Type | Description |

@@ -28,7 +28,7 @@
       "test-genie"
     ]
   },
-  "revision": 1,
+  "revision": 2,
   "schemaVersion": 1,
   "status": "active",
   "tags": [
@@ -40,5 +40,5 @@
     "tidiness"
   ],
   "targetToolId": "run-agent",
-  "updatedAt": "2026-06-15T00:00:00Z"
+  "updatedAt": "2026-11-05T01:50:00Z"
 }

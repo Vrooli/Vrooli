@@ -60,7 +60,7 @@ def step_collect():
             first = next(i for i, line in enumerate(section) if line.startswith("### "))
             if any(line.strip() for line in section[:first]):
                 raise ValueError("unclassified actionable section preamble")
-        envelope["signals"] = {"coverage": "parsed_snapshot", "actionable_ids": ids, "count": len(ids), "sha256": hashlib.sha256(data).hexdigest(), "mtime_ns": str(after.st_mtime_ns)}
+        envelope["signals"] = {"coverage": "parsed_snapshot", "actionable_ids": ids, "sha256": hashlib.sha256(data).hexdigest()}
         envelope["status"] = "ok"
         envelope["evidence"] = [{"path": path, "scope": "explicit actionable section only"}]
     except (OSError, UnicodeError, ValueError) as exc:

@@ -28,6 +28,13 @@ It should not start from copying an old `resources/<name>/` directory unless you
 See [architecture.md](architecture.md) for the ownership model and layout
 expectations each scaffold must satisfy.
 
+Template Manager may retain older templates for inspection during migration.
+Those entries are marked `transitional`: list/show and catalog validation expose
+their state, while canonical validation and generation use only the four
+supported archetypes above. Migrate an existing resource by selecting the
+archetype that matches its current runtime contract; do not create new resources
+from a transitional template.
+
 `managed-service` is the canonical archetype for a Vrooli-managed local
 process that should not require Docker. Its generated manifest declares the
 signed server artifact, provider policy, and bundled-service delivery profile;

@@ -1,4 +1,5 @@
 {
+  "archived": true,
   "coordination": {
     "pattern": "leader-led",
     "leadAgentId": "rcl-delivery-orchestrator",
@@ -23,8 +24,8 @@
     "queuePolicy": "bounded-parallel",
     "maxConcurrentRuns": 3
   },
-  "id": "rcl-prompt-manager-ux-design-campaign",
   "homePath": ".vrooli/work/delivery/rcl-prompt-manager-ux-design-campaign",
+  "id": "rcl-prompt-manager-ux-design-campaign",
   "kind": "team",
   "lifetime": "finite",
   "mission": "Deliver the selected dependable React core, complete discoverable studio and safe component adoption and evolution in two real consumers.",
@@ -217,10 +218,10 @@
     }
   },
   "purpose": "delivery",
-  "revision": 18,
+  "revision": 19,
   "runtime": {
     "mode": "multi-process"
   },
   "schemaVersion": 1,
-  "updatedAt": "2026-10-24T03:15:34.545803Z"
+  "updatedAt": "2026-11-04T05:01:04Z"
 }

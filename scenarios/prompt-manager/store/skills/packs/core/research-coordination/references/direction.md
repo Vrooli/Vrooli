@@ -17,6 +17,17 @@ For a broad, open question, form an initial framing from the mission and current
 
 Name one first-read path in the topic or run guide. The first read must carry the mission, actual authority and current status. Point from it to one relevant map/brief and a short checkpoint when they change the next action. Keep source maps and historical evidence available for targeted lookup; do not require every linked file at startup. Reuse one file for several roles when that does not hide a real boundary.
 
+When fresh external evidence materially affects a study, read `web-search` and
+use its owner research program. Check `vrooli scenario status web-search` before
+the first live call; if the scenario is stopped, start it through
+`make -C scenarios/web-search start` and verify health. Search Hub's leaf status
+is separate: an open circuit or stale evaluation does not prove the direct
+Web Search owner is unavailable. If startup or the owner call fails, preserve
+the exact failure, try a materially different authorized source route, and
+limit any unresolved evidence gap to the dependent claims or study. Keep
+independent studies moving. At the first checkpoint, record the skill IDs
+actually read, route used, and evidence provenance.
+
 ### Prepare without commissioning
 
 When the operator asks to prepare a research folder but not start the research, prepare a reviewable handoff only. Do not create an active goal, start a worker, start a clock, acquire models/data or perform the proposed experiments. Record the proposed allowance separately from approval; leave actual start and deadline unset. Do not list a future approval as an active blocker or send an attention request unless the operator must make a specific decision now. State the exact action that will commission the work. A preparation task does not count as research progress or consume the proposed allowance.
@@ -81,7 +92,27 @@ Resolve the current research role through the launch owner. Choose the least cos
 
 ## Launch and continuation
 
-Use `prompt-manager skill read harness-goal-authoring` for the goal's size and proof contract. The goal points at the working brief; it does not repeat the design. Use a real native continuation route when the commission needs it. Guidance alone does not supply wakeups or hard limits.
+Use `prompt-manager skill read harness-goal-authoring` for the selected harness's goal composition, transport and proof rules. Keep the goal concise and point at the working brief instead of repeating its design. Use a real native continuation route when the commission needs it. Guidance alone does not supply wakeups or hard limits.
+
+### Generate a multi-study supervisor goal from ordinary language
+
+The operator supplies the mission, priorities and any real limits in ordinary language; the supervisor authors the goal and durable commission. Do not ask the operator to write a polished prompt or fill a generic goal form. Read `harness-goal-authoring` and this skill, then convert the request into one short goal that points at a reviewable cohort packet. The general skill owns goal slots, proof and path syntax; this section supplies the research-specific inputs and portfolio rules.
+
+Before writing the goal, give every study one concise card: user-valued outcome, current evidence and best next direction, freedom to change source/build a demonstration, proof of a consequential result, and any real human-only boundary. Do not replace a sustained question with a checklist, test quota or generic report. Encourage implementation or an end-to-end result when it is the strongest answer; do not impose code changes without evidence.
+
+The current agent is the supervisor, cohort writer and owner of synthesis; do not create a supervisor worker. Workers read `adaptive-research` and relevant method skills before substantive work. Their first checkpoint names the skill IDs and actual source paths used, so the supervisor can audit method without requiring a registry receipt. If `prompt-manager skill read` is unavailable, read the canonical `SKILL.md` from the repository when accessible; record the actual source and continue. A missing receipt is `unverified`, not proof that a worker skipped the skill or a reason to reject useful work or stop the portfolio. Review the work for the method's decisions; do not turn skill-read evidence into a new dispatch gate.
+
+Use the [cohort lifecycle](cohort-lifecycle.md) for current cohort and per-study states. The cohort ledger owns coordination; native goal state is a separate observation. A user-confirmed stop can authorize a fresh commission while unavailable native telemetry remains `unknown`; use fresh identities and clocks, hold only an uncertain dispatch, and keep independent rows moving.
+
+Review material returns against the outcome: inspect changed paths when code was expected, otherwise challenge the evidence and decision. A no-code result needs a clear reason it best answers the question. Do not use line quotas or accept activity, reports or green tests as success by themselves.
+
+Work around friction: diagnose a failed route, then choose a materially different repair, source, tool, execution path or useful pivot. Do not repeat the same failed attempt unless a changed condition or new evidence makes it informative. Keep pursuing safe, authorized options while they can advance the outcome; stop trying routes when none remain useful, record the exact unknown, and keep independent rows moving. Hold only the affected action when another attempt risks duplicate work or external effects. Ask the user only for a consequential human-owned choice, credential, approval or external action with no safe alternative. Never route infrastructure repair to the user. Keep all study rows visible; do not let one busy study hide the others.
+
+Compose the goal by replacing every bracketed value below with facts from the current commission and packet, then check it against `harness-goal-authoring` and the selected harness's actual transport limit and proof path. The goal is a portfolio finish line, not a substitute for the per-study briefs. Never copy predecessor counts, stop claims, durations, allowances or state from an example or prior cohort; source each from the current operator authorization and cohort packet. If one is genuinely unspecified, record it as unknown and ask only when progress or authority depends on the missing value.
+
+```text
+Work until each study in [cohort packet] reaches its stated outcome or evidence-backed closure. This session owns supervision, cohort record and synthesis; do not spawn a supervisor. Read research-coordination, harness-goal-authoring and packet. Workers read adaptive-research and named methods, recording sources in checkpoints. Advance or capacity-queue independent studies; hold only uncertain dispatches. Work around friction through owner repair, alternate routes or useful pivots; ask the user only for an unresolved human-owned choice. Follow the packet's allowance and stop conditions; keep cohort, worker and native-goal states separate. Run each study's packet-defined proof; record evidence, changed paths and validation when implementation is expected, remaining/unknown work, cleanup and next action. Leave cumulative synthesis and resume route.
+```
 
 A direction-bearing assignment states the outcome, brief and checkpoint paths, authorized freedom, proof, and original stopping conditions. For example, adapt this prose to the actual commission:
 

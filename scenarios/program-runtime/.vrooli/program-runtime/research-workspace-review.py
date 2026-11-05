@@ -98,9 +98,8 @@ def step_collect():
                 if len(signals["without_checkpoint_examples"]) < 8:
                     signals["without_checkpoint_examples"].append(shown)
             checkpoint = sizes["CHECKPOINT.md"]
-            current = sizes["CURRENT.md"]
             rows.append({"path": shown, "checkpoint_bytes": checkpoint,
-                         "current_view_bytes": checkpoint if current is None else current})
+                         "current_view_bytes": sizes["CURRENT.md"]})
     rows.sort(key=lambda row: row["checkpoint_bytes"] if isinstance(row["checkpoint_bytes"], int) else -1, reverse=True)
     signals["largest"] = rows[:8]
     signals["unique_runs"] = len(seen)

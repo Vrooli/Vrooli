@@ -124,6 +124,11 @@ authority storage.
 
 Generated runtime and lifecycle state is also intentionally outside the repo surface. Project-scoped setup/resource markers live under `~/.vrooli/state/projects/<project-key>/`, where `<project-key>` is derived from the cleaned absolute project root. This lets one operator keep separate state for multiple local checkouts without allowing `.vrooli/state/` to drift into the repository.
 
+The onboarding operator-state authority is likewise per-install runtime state at
+`~/.vrooli/state/vrooli/vrooli-onboarding/operator-state.json`. It is not a
+project configuration file and must not be recreated under the repository's
+`.vrooli/` directory.
+
 ## Operator Runtime Home (`~/.vrooli`)
 
 There are **two distinct `.vrooli` directories** and they must never be conflated:
@@ -271,5 +276,10 @@ and has a documented ten-second TTL in addition to contract-file mtime
 invalidation. Consumers should use this adapter instead of copying target
 roots or kind vocabularies. Unknown target kinds are skipped and recorded so a
 new contract entry cannot disable support for known kinds.
+
+The canonical scenario target excludes `scenarios/.*`. Private instance/source
+snapshots can contain copied manifests with the original scenario identity;
+they must not register a second fleet target or duplicate governed bindings.
+Explicit lifecycle instance paths continue to address those snapshots.
 
 One implementation detail remains intentionally local: `scenario-auditor/api/rules/structure/ui_structure.go` keeps stdlib-only rule-file discovery because the yaegi rule loader used for rule validation cannot resolve transitive third-party imports such as `repo-contract-go`. That rule-local fallback is not contract authority and does not change the shared runtime migration status.

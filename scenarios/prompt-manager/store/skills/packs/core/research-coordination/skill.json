@@ -22,7 +22,7 @@
       "prompt-manager"
     ]
   },
-  "revision": 14,
+  "revision": 26,
   "schemaVersion": 1,
   "status": "active",
   "tags": [
@@ -31,5 +31,5 @@
     "coordination",
     "supervision"
   ],
-  "updatedAt": "2026-11-03T16:01:00Z"
+  "updatedAt": "2026-11-05T00:28:27Z"
 }

@@ -17,12 +17,12 @@
     "commands": [],
     "scenarios": []
   },
-  "revision": 3,
+  "revision": 4,
   "schemaVersion": 1,
   "status": "active",
   "tags": [
     "skill",
     "anti-gaming"
   ],
-  "updatedAt": "2026-09-30T12:00:00Z"
+  "updatedAt": "2026-11-05T01:50:00Z"
 }

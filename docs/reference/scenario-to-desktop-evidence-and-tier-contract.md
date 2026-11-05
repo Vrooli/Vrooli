@@ -16,6 +16,16 @@ The Tier 1 and Tier 2 names in this document are **technical deployment tiers**.
 They are not the commercial monetization tiers described in
 `docs/monetization/strategy/TIERS.md`.
 
+## Packaging strategy prerequisites
+
+The shared packaging strategy contract may declare `capabilities.host_tools`
+for strategy-specific prerequisites. Scenario-wide lifecycle manifests must
+not mark those tools as required: doing so blocks every strategy before one is
+selected. The desktop build preflight checks only the selected strategy's
+requirements for the requested platform. Electron therefore remains buildable
+without WebKitGTK, while the Wails in-process strategy checks its Linux
+WebKitGTK and WebKitWebDriver prerequisites when selected.
+
 ## Terminology
 
 | Term | Meaning |
@@ -29,14 +39,30 @@ They are not the commercial monetization tiers described in
 
 ## Capability matrix
 
+### Capability selection
+
+The producer MUST select a journey in this order:
+
+1. Use an explicit `S2D_JOURNEY_CAPABILITY` selection when it names a
+   registered fixture.
+2. Use the deployment-mode baseline for the target.
+3. Use the scenario-specific registered fixture when the scenario declares
+   one.
+4. Use `desktop.launch.baseline`.
+
+The selected capability, deployment mode, and selection reason MUST be written
+to both the journey sidecar and the evidence manifest. An unsupported or
+unavailable selected capability MUST remain visible; the producer MUST NOT
+silently fall back after execution starts.
+
 | Capability | Provider / route | Machine assertions | Visual evidence | Status |
 |---|---|---|---|---|
-| Baseline launch and Hello Desktop interaction | Desktop app → local fixture API | usable window, semantic greeting, input, geometry, clean shutdown | versioned chaptered journey + useful MP4 | Implemented on native Linux when Xvfb/openbox/xdotool/ffmpeg are available |
-| Bundled private dependency | verified bundle manifest → desktop supervisor → private service | artifact digest, startup ordering, native readiness, operation response, shutdown | dependency readiness, operation result, provider chapter | Contract and supervisor implemented; native fixture journey is required before a release claim |
-| Tier 2 → Tier 1 thin-client | desktop scenario API → configured Tier 1 API | route class, response identity, no direct resource endpoint | route and result chapters | Supported as a deployment mode; communication journey remains environment-dependent |
-| Tier 2 → Tier 1 shared resource | consented broker → scoped lease → resource operation | provider identity, lease expiry, readiness, broker has no lifecycle mutation | provider/lease/result chapters | Provider selection, fallback, and redacted observation implemented; requires a live broker fixture for release evidence |
-| Private fallback | shared provider unavailable → verified private artifact | fallback decision, private digest, readiness, no expired credential reuse | fallback chapter and failure reason | Implemented and tested |
-| Tier 2 → Tier 2 peer | `[node/]scenario[@variant]` → `vrooli-bridge` relay → node-local scenario transport | authenticated versioned protocol, scoped authority, cancellation, loss isolation | both-side request/response evidence | Relay route implemented for bounded scenario calls; the ten-item peer bar below remains required before a full peer capability is claimable. |
+| Baseline launch and Hello Desktop interaction | Desktop app → local fixture API | usable window, semantic greeting, input, geometry, clean shutdown | versioned chaptered journey + useful MP4 | Certified by phase-16 pipeline `f65aeaf2-51f0-386f-a8e8-cf270ac35d7f` (`smoke-hello-desktop-1789551829909`) |
+| Bundled private dependency | verified bundle manifest → desktop supervisor → private service | artifact digest, startup ordering, native readiness, operation response, shutdown | dependency readiness, operation result, provider chapter | Certified by phase-16 Web Console pipeline `e8cb60e0-a6ec-70fc-39bf-16b09904cc00` (`smoke-web-console-1789552894526`) |
+| Tier 2 → Tier 1 thin-client | desktop scenario API → configured Tier 1 API | route class, response identity, no direct resource endpoint | route and result chapters | Supported as a deployment mode; pending phase-16 certification run ID |
+| Tier 2 → Tier 1 shared resource | consented broker → scoped lease → resource operation | provider identity, lease expiry, readiness, broker has no lifecycle mutation | provider/lease/result chapters | Provider selection, fallback, and redacted observation implemented; pending live-broker certification run ID |
+| Private fallback | shared provider unavailable → verified private artifact | fallback decision, private digest, readiness, no expired credential reuse | fallback chapter and failure reason | Implemented and tested; pending phase-16 certification run ID |
+| Tier 2 → Tier 2 peer | `[node/]scenario[@variant]` → `vrooli-bridge` relay → node-local scenario transport | authenticated versioned protocol, scoped authority, cancellation, loss isolation | both-side request/response evidence | Evidence-gated; pending a certifying run ID after the ten-item peer bar below is met. |
 
 Unsupported and unavailable are terminal evidence states, not degraded passes.
 An unavailable environment must include the missing capability and next action.
@@ -51,9 +77,114 @@ events and settle events are part of the same timeline.
 
 The manifest stores capture references, checksums, media-derived metadata, the
 timeline version/chapter IDs, ordering verification, and redaction status. It
-never sends video bytes or credentials to governance. A visual pass requires a
-persisted journey, useful decoded MP4, ordered chapters, and verified
-redaction. A missing video offset is shown as missing; it is never invented.
+never sends video bytes or credentials to governance. Every planned chapter
+MUST occur in the sidecar, manifest, CLI projection, and UI. A chapter that did
+not execute MUST have disposition `not_run`; the producer MUST retain its ID,
+purpose, action, assertion, and reason. A missing video offset is shown as
+missing; it is never invented.
+
+## Runtime request routing
+
+For a bundled application, the UI service MUST serve bundle assets and the
+health path from the bundle. It MUST route every other request to the bundled
+API service.
+
+The routing rule MUST NOT name a scenario, enumerate a path-prefix allowlist,
+or match a protocol-specific path shape. A navigation request MAY receive the
+bundle's application shell when the request accepts HTML. An API request MUST
+NOT receive the application shell.
+
+## Child process environment
+
+A bundled child MUST receive only the allowlisted environment variable names
+and the variables declared by its bundle manifest. The runtime MUST remove all
+other inherited names before it starts the child.
+
+The default allowlist is:
+
+| Name | Reason |
+|---|---|
+| `HOME` | Libraries need the user-scoped home for non-secret caches. |
+| `USER` | Tools use the logical account name for ownership and diagnostics. |
+| `LANG` | Child processes need the requested locale for stable text behavior. |
+| `LC_ALL` | Operators can force a deterministic locale for evidence. |
+| `TZ` | Time formatting must use the configured timezone. |
+| `TMPDIR` | Tools need the runtime's temporary workspace. |
+| `DISPLAY` | Native Linux children need the assigned display. |
+| `XAUTHORITY` | Native Linux children need the assigned display credentials. |
+| `PATH` | Executables need the platform tools and bundled binaries. |
+| `SSL_CERT_FILE` | TLS clients need the platform certificate file when configured. |
+| `SSL_CERT_DIR` | TLS clients need the platform certificate directory when configured. |
+
+## Isolation observation
+
+Each bundled child MUST report the paths and session adoption it resolved at
+readiness. The run MUST retain an isolation observation containing `state_root`,
+`socket_path`, `database_path`, `adopted_session_count`, and its `source`.
+
+`screen_content_source` MUST be derived from the isolation observation. A run
+with no observation MUST use `unknown`. If a child resolves a path under the
+operator home or the live session root, the run MUST fail with
+`live_state_resolved` and MUST name the resolved path.
+
+## Journey assertions
+
+An input chapter MUST fail with `surface_unchanged` when its before and after
+captures are identical and no application-level assertion passed.
+
+A chapter MUST fail when its captured frames contain an application surface
+error. The observed value MUST carry the error text. A journey MUST NOT report
+`pass` while a surface error is visible.
+
+Field redaction reports only inspection of journey and manifest fields. The
+manifest MUST also report `screen_content_source` for recorded pixels, with one
+of `isolated_instance`, `bundled_runtime`, `operator_declared_safe`, or
+`unknown`. A passed manifest MUST NOT use `unknown`. Screen-content inspection
+MUST NOT be inferred from field-redaction status.
+
+Each required gate MUST use its own signal:
+
+| Gate | Independent predicate |
+|---|---|
+| `protocol_readiness` | The smoke protocol emits its success marker and the producer records the matching readiness event. |
+| `visual_launch` | The target application window is usable, the demo trace contains `main_window_shown` and `app_ready`, and the recording has useful frames. |
+| `semantic_journey` | The selected journey reaches `pass` and every required chapter passes its assertion. |
+| `capture_integrity` | `ffprobe` and sampled-frame inspection prove a decodable, non-empty recording with useful frames. |
+| `artifact_persistence` | The journey and manifest are persisted, checksummed, and cross-referenced by non-empty capture IDs. |
+
+No gate MAY copy another gate's disposition or use a constant success value.
+
+### Bounded desktop-cell claim
+
+A passing desktop BAS cell proves only that the selected provider-owned journey
+executed against the packaged application, that the required machine and
+application assertions passed, and that the resulting journey and capture
+artifacts are bound to the same run, target, artifact, and cell identities.
+It does not prove an untested deployment tier, a live peer transport, or a
+release claim for a capability whose matrix status does not include a
+certifying run ID. Phase-16 certification is the authority for replacing the
+pending status text above with a run ID.
+
+### Smoke target isolation
+
+The smoke target MUST be an isolated instance. A thin-client run MUST start or
+discover a named isolated Tier 1 instance and MUST target its runtime-reported
+URL. A bundled run MUST target only ports reported by its private runtime. The
+producer MUST refuse a live Tier 1 port and report
+`live_instance_target_refused` when the target matches it.
+
+If an isolated instance cannot be started or identified, the run MUST fail with
+`isolated_instance_unavailable`. A probe that identifies another application
+MUST report `probe_app_mismatch`; a probe that cannot identify the application
+MUST report `probe_app_unidentified`. The producer MUST tear down the isolated
+instance after the run and retain its identity in the evidence.
+
+### Voided evidence
+
+When a capture is unsafe, superseded, or otherwise invalid, the producer MUST
+mark it void with a reason and `superseded_by` when applicable. It MUST NOT
+delete the capture. Voided evidence is excluded from release-gate selection but
+remains available for audit.
 
 ## Validation ownership and matrix surfaces
 
@@ -83,8 +214,52 @@ shared spine at:
 Bridge targets may dispatch an allowlisted durable job and preserve node,
 job, run, and artifact identity. Dispatch alone does not imply desktop
 execution, renderer access, or video evidence; those capabilities remain an
-explicit target disposition. Remote desktop streaming remains outside the
-bridge dispatch seam until its separately owned transport contract exists.
+explicit target disposition.
+
+### Remote desktop validation transport
+
+Remote desktop validation is batch validation of a built artifact on a target
+node with captured evidence. It does not provide live remote desktop
+streaming, interactive renderer access, or a VNC-like session over Bridge.
+Remote streaming remains out of scope for this contract.
+
+A remote cell MUST perform these steps:
+
+1. Place the named artifact on the Bridge target.
+2. Verify the artifact digest on the target node.
+3. Dispatch the typed desktop-artifact validation verb.
+4. Upload one bounded evidence bundle from the target-owned run.
+5. Retrieve the bundle through the Bridge run-artifact service.
+6. Expand the bundle into typed evidence on the caller side.
+
+The expanded bundle MUST provide `KIND_DESKTOP_RUNTIME`, `KIND_TARGET`,
+`KIND_MACHINE_ASSERTION`, and `KIND_BAS_WORKFLOW` evidence. The target command
+currently encodes these JSON members in a bounded gzip/tar archive named
+`evidence-bundle.tar.gz`; the archive is an implementation detail of the
+Bridge output binding, not a streaming protocol. Every evidence item MUST
+contain non-empty `evidence_id`, `uri`, and `sha256` values and MUST set
+`redacted` to true. The caller computes `sha256` from retrieved bytes; it MUST
+NOT trust a digest reported by the target.
+
+On macOS, the target validator MUST apply only artifact-scoped launch
+preparation before opening the placed application: remove the artifact's
+`com.apple.quarantine` attribute when present and apply an ad-hoc signature
+with `codesign --force --deep --sign -`. A read-only disk image MUST be copied
+to a private temporary staging location before those operations. The target
+MUST NOT change system Gatekeeper policy (including `spctl --master-disable`),
+and the preparation result belongs in the target-owned runtime trace.
+
+Cross-OS ownership is deliberately split:
+
+| Question | Owner |
+| --- | --- |
+| Does scenario source pass on each target OS at a revision? | Bridge `GateService` via deployment-manager `crossosgate` |
+| Does a built desktop artifact work on a platform? | `validationmatrix` release gate |
+| Is the local Linux desktop artifact good? | `validationmatrix` local cell |
+
+`unavailable` means the target could not be reached or lacks a required
+capability. `failed` means validation ran and did not pass. These dispositions
+MUST remain distinct and MUST NOT collapse into one another.
 
 Verdicts use these labels consistently: `pass`, `failed`, `degraded`,
 `unavailable`, `unsupported`, and `not_run`.

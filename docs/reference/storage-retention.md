@@ -117,9 +117,19 @@ the same relative locator on another machine requires transferring its retained
 artifacts. Repository source paths are relative to the checkout, not that home.
 
 The shared `.vrooli/repo-contract.json` is authoritative for control-plane
-runtime-home classes. `bin`, `cache`, `logs`, `metrics`, `processes`, `build`,
-and `test_runs` are regenerable and may be previewed or reclaimed by Storage
-Manager only when their contract retention policy permits it. `artifacts`,
+runtime-home classes. `bin`, `cache`, `logs`, `metrics`, and `build` are regenerable
+and may be previewed or reclaimed by Storage Manager
+only when their contract retention policy permits it. `test_runs` is also
+regenerable and retains its contract age and byte bounds, but Storage Manager
+does not offer its shared root to a generic whole-directory provider. Test
+Genie's existing `test-genie-run-retention` owner provider deletes eligible
+runs through the run lifecycle owner, which checks terminal state, keep-count,
+and pin leases. That provider is disabled by default; enabling it requires
+owner approval. Process ownership records are protected: a live companion can
+outlast its directory age, and deleting its records breaks readiness and can
+duplicate it on the next start. The control plane retires stale records using
+process identity and liveness. Generic storage cleanup has no authority over
+that shared root. `processes`, `artifacts`,
 `plans`, `plan-artifacts`, `state`, `config`, `data`, `runtime_db`, `secrets`,
 `secrets_enc`, and `backups` are protected and have no cleanup provider. Plan
 source material and execution evidence under `~/.vrooli/plan-artifacts` are

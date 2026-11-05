@@ -32,7 +32,7 @@ class PrepareTests(unittest.TestCase):
         self.assertEqual(result["signals"]["skill"]["content"], "owning instructions")
 
     def test_missing_or_truncated_skill_cannot_claim_complete_preparation(self):
-        for content in ("", "x" * 24001):
+        for content in ("", "x" * 40001):
             result, _ = self.invoke(content)
             self.assertEqual(result["status"], "partial")
             self.assertEqual(result["errors"][0]["class"], "skill_incomplete")

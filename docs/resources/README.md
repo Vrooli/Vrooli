@@ -14,6 +14,7 @@ Resource CLI behavior is manifest-driven. Implemented resources declare their CL
 - [deployment-contract.md](deployment-contract.md) for target artifact delivery, deployment profiles, desktop readiness, and scenario bundle decisions
 - [maturity-migration.md](maturity-migration.md) for assessing, ranking, and migrating resources to the target architecture
 - [interface-standards.md](interface-standards.md) for resource-surface expectations
+- [ai-provider-contract.md](ai-provider-contract.md) for the shared AI API provider contract and adding a provider
 - [integration-cookbook.md](integration-cookbook.md) for practical integration guidance
 - [resource-blueprints.md](resource-blueprints.md) for blueprint-backed future capability records
 - [resource-templates.md](resource-templates.md) for canonical scaffolding

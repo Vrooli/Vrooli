@@ -23,7 +23,7 @@ supervision decision. **`unavailable` is unknown, never zero.**
 | Retained delivery-effort obligations | `agent-manager.supervision-observation-read` | One bounded effort-board page; follow its continuation token and preserve partial, stale, and unknown states. It does not dispatch work or prove completion. |
 | Runtime measure summaries / failure shapes / reachable bindings | `program-runtime.fleet-fanout`, `program-runtime.failure-triage`, `program-runtime.registry-sweep` | |
 | Agent run efficiency / setpoint / one-subject diagnosis | `agent-manager.efficiency-report`, `agent-manager.setpoint-read`, `agent-manager.investigate` + `investigation-evidence` | agent-manager-owned; reuse, don't re-author. |
-| Selected research threads, runs and changed event counts | `program-runtime.research-supervision-read` | Caller supplies exact identities. Owner reports expose duration, event gaps, repeated calls, model, aggregate tokens and time-accounting as leads for the supervisor; they do not grade productivity. Optional cursors select one page of event counts; `has_more` means more pages remain. Missing receipts, stale imports and missing sources are not proof of health. Separate owner accounting exposes non-cache and cache tokens with completeness flags; missing accounting stays unknown. |
+| Selected research threads, runs and changed event counts | `program-runtime.research-supervision-read` | Optional telemetry only. Caller supplies exact identities. Owner reports are review leads, not productivity grades. Missing sources remain unknown and never block unrelated research. Optional cursors select one page of event counts; `has_more` means more pages remain. |
 | Research attention and retained decisions | `program-runtime.research-attention-index`, `program-runtime.research-attention-delivery` | Pass an authorized `research_root` and, where enrolled, exact `effort_ref` to `research-supervision-read`. The first reads only the explicit actionable section; the second joins one owner decision page to exact Hub asks and receipts. Follow `next_page_token` as `decision_page_token` until empty. Set `include_effort_board=true` when its slower free-form needs-operator projection is needed. `delivery_not_checked` means no effort was selected; `decision_unlinked_or_unobserved` means the selected page did not contain the ID, not proof a decision does not exist. An authorization request or other non-decision item is not automatically linked to an effort decision. The snapshot cannot detect needs never recorded, and neither read wakes or notifies anyone. |
 | Research workspace navigation signals | `program-runtime.research-workspace-review` | Pass an authorized absolute research root. Bounded missing-file and size signals are prompts to inspect, not judgments of research quality. |
 
@@ -39,7 +39,11 @@ program-runtime library run program-runtime.scenario-triage --input scenario=<sl
 Weekly, keep the layer honest: `portfolio-audit` + `usage-triage`.
 
 For research, `prompt-manager skill read research-coordination` owns the adaptive
-review cadence and response to uncertainty. For example, after resolving a run ID:
+review cadence and response to uncertainty. Native owner reads may be denied across
+sessions. Try `web-console continuity search --query <goal-id> --state any` once to
+find archived context; then proceed with available worker
+records and operator stop information. Do not repeat failed reads or make telemetry a
+prerequisite for independent studies. For example, after resolving a run ID:
 
 ```bash
 program-runtime library run program-runtime.research-supervision-read \
@@ -57,7 +61,7 @@ receipts. No program here wakes a supervisor or enforces a research cutoff.
 
 A bounded read or delegation program is not an always-on supervisor. `watch-set` starts up to eight declared workflows and collects each once; its declared wall budget is ten minutes. A managed Agent Manager supervisor can instead park on an owner-supported review timer and wake to review changed work; its durable workflow engine owns its execution and restart reconciliation. Attached chats do not acquire managed park/wake semantics. See `scenarios/agent-manager/docs/internal/TEMPORAL-FLOWS.md` and the research-coordination observation guide for qualification and limits.
 
-Program Runtime marks in-flight programs interrupted after its own restart and does not replay their effects. Reconcile the original operation before retrying. A terminal selected run in `research-supervision-read` is a review signal, not proof a study is idle. Native reads can be denied across sessions; missing identity, freshness, event coverage and receipts remain unknown. No observation packet or one successful wake proves a staffed research window, deadline enforcement, automatic recovery, or research quality. Qualify those through a bounded end-to-end trial of the actual managed route before promising them.
+Program Runtime marks in-flight programs interrupted after its own restart and does not replay their effects. Reconcile the original operation before retrying that operation. A terminal selected run in `research-supervision-read` is a review signal, not proof a study is idle. Native reads can be denied across sessions; missing identity, freshness, event coverage and receipts remain unknown. Use those limits to qualify claims, not to stop independent research. No observation packet or one successful wake proves a staffed research window, deadline enforcement, automatic recovery, or research quality.
 
 ## Deliberately NOT a program (honest boundaries)
 

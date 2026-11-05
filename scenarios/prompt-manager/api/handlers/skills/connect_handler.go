@@ -243,7 +243,7 @@ func (h *connectHandler) DeleteSkill(ctx context.Context, req *connect.Request[s
 }
 
 func (h *connectHandler) SyncSkills(ctx context.Context, req *connect.Request[skillsv1.SyncSkillsRequest]) (*connect.Response[skillsv1.SyncSkillsResponse], error) {
-	result, err := h.legacy.SyncSkills(ctx, "")
+	result, err := h.legacy.SyncSkills(ctx, req.Msg.GetTag())
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}

@@ -9,9 +9,9 @@ metadata:
   tags: ["experiment", "benchmark", "capacity", "reproducibility", "local"]
   icon: "flask-conical"
   status: "active"
-  revision: 14
+  revision: 15
   createdAt: "2026-10-20T00:00:00Z"
-  updatedAt: "2026-10-27T00:00:00Z"
+  updatedAt: "2026-11-04T16:15:22Z"
   requires:
     scenarios: ["prompt-manager", "scenario-dependency-analyzer"]
     commands: ["vrooli capacity", "scenario-dependency-analyzer deps", "search-hub query"]

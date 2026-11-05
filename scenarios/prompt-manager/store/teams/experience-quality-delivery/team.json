@@ -1,26 +1,5 @@
 {
-  "creationProof": {
-    "kind": "agent",
-    "subject": "c3f5135b-adbb-4e14-a7d5-fdef7b74474f",
-    "owner": "d47163a3-1ba3-5e7b-96dd-e6f8fc450b3f",
-    "source": "agent_provenance"
-  },
-  "purpose": "delivery",
-  "lifetime": "finite",
-  "effortRefs": [
-    "effort:experience-quality"
-  ],
-  "kind": "team",
-  "schemaVersion": 1,
-  "id": "experience-quality-delivery",
-  "homePath": ".vrooli/work/delivery/experience-quality-delivery",
-  "displayName": "Experience Quality Delivery",
-  "mission": "Deliver shared capture, review and improvement, Dot cloud/offline continuity, Web Console temporal/visual repairs, contrasting-product reuse and readiness evidence.",
-  "enabled": false,
-  "archived": false,
-  "runtime": {
-    "mode": "multi-process"
-  },
+  "archived": true,
   "coordination": {
     "pattern": "leader-led",
     "leadAgentId": "experience-quality-orchestrator",
@@ -35,10 +14,27 @@
       "requireHandoff": false
     }
   },
+  "createdAt": "2026-10-16T15:40:39Z",
+  "creationProof": {
+    "kind": "agent",
+    "subject": "c3f5135b-adbb-4e14-a7d5-fdef7b74474f",
+    "owner": "d47163a3-1ba3-5e7b-96dd-e6f8fc450b3f",
+    "source": "agent_provenance"
+  },
+  "displayName": "Experience Quality Delivery",
+  "effortRefs": [
+    "effort:experience-quality"
+  ],
+  "enabled": false,
   "execution": {
     "queuePolicy": "bounded-parallel",
     "maxConcurrentRuns": 3
   },
+  "homePath": ".vrooli/work/delivery/experience-quality-delivery",
+  "id": "experience-quality-delivery",
+  "kind": "team",
+  "lifetime": "finite",
+  "mission": "Deliver shared capture, review and improvement, Dot cloud/offline continuity, Web Console temporal/visual repairs, contrasting-product reuse and readiness evidence.",
   "operatingContract": {
     "schemaVersion": 1,
     "governance": {},
@@ -227,7 +223,11 @@
       }
     }
   },
-  "revision": 2,
-  "createdAt": "2026-10-16T15:40:39Z",
-  "updatedAt": "2026-10-24T03:15:34.545803Z"
+  "purpose": "delivery",
+  "revision": 3,
+  "runtime": {
+    "mode": "multi-process"
+  },
+  "schemaVersion": 1,
+  "updatedAt": "2026-11-04T05:01:07Z"
 }

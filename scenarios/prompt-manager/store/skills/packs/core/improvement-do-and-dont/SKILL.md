@@ -9,9 +9,9 @@ metadata:
   tags: ["skill","anti-gaming"]
   icon: "checkcircle"
   status: "active"
-  revision: 3
+  revision: 4
   createdAt: "2026-06-01T00:00:00Z"
-  updatedAt: "2026-09-30T12:00:00Z"
+  updatedAt: "2026-11-05T01:50:00Z"
   requires:
     scenarios: []
     commands: []
@@ -62,6 +62,7 @@ A fence around a race between two owners of one concept keeps both owners and ad
 Splitting a file or extracting a helper moves lines; the runtime is no smaller and often has more seams.
 
 - **DO** measure net runtime lines across the whole scope from inventory snapshots. Count only code that is gone.
+- **DO NOT** turn this into a veto. A move that cuts complexity, gives a concept one owner, or makes a lifecycle explicit is material on those grounds; report it as such, with net lines as one signal beside it. Do not reject a real simplification against a predeclared line-count floor.
 
 #### **D6 — DON'T build a one-off receipt, sensor or instrument that no gate reuses.**
 
@@ -91,7 +92,7 @@ Before shipping a change, ask: *if a reviewer who wanted to disprove "this is a 
 | `PROBLEMS.md` gone (looks tidy) | Tracked gap erased | Resolve the entry, then update/migrate the ledger |
 | Lint clean (`nolint` added) | Warning silenced | Address the warning |
 
-Superficial changes that move a metric without moving reality are the thing to avoid. When in doubt, do the smaller *real* fix over the larger *cosmetic* one.
+Superficial changes that move a metric without moving reality are the thing to avoid. Choose the *real* fix over the *cosmetic* one at the size the defect needs. A small real fix beats a large cosmetic one, and a large real fix that removes the mechanism beats a small one that removes only the instance. Size is never the test; reality is.
 
 ---
 

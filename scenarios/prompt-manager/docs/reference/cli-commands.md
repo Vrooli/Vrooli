@@ -197,7 +197,8 @@ Sync skills with hash-based change detection.
 prompt-manager skill sync [--tag=TAG] [--json]
 ```
 
-Returns all skills with a hash for cache invalidation.
+Returns skills matching the optional tag filter, with a hash for cache
+invalidation. With no `--tag`, it returns all skills.
 
 ### prompt-manager skill read
 

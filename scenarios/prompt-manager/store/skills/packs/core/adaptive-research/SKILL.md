@@ -9,9 +9,9 @@ metadata:
   tags: ["research", "experiment", "evidence", "optimization"]
   icon: "search"
   status: "active"
-  revision: 13
+  revision: 14
   createdAt: "2026-10-21T00:00:00Z"
-  updatedAt: "2026-11-02T00:00:00Z"
+  updatedAt: "2026-11-04T17:10:00Z"
   requires:
     scenarios: ["prompt-manager"]
     commands: ["search-hub query", "prompt-manager skill read"]
@@ -94,6 +94,6 @@ Before repeating a status, capacity, or diagnostic read, identify the changed co
 | Observation | Action |
 |---|---|
 | Evidence cannot distinguish explanations | Return the partial answer and distinguishing check |
-| Repeated setup failures with unchanged conditions | Stop at the retry limit and retain the owner gap |
+| The same setup failure recurs without new evidence | Stop repeating that attempt; diagnose its owner, pursue a materially different safe route or repair while useful, and retain the exact unknown if no useful route remains |
 | Prototype depends on ambient checkout imports | Mark transfer unverified and identify missing dependencies |
 | Deadline expires during owned work | Cancel through its owner and report remaining effects |

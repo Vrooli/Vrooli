@@ -1049,7 +1049,7 @@ func callSkills(ctx context.Context, client skillsconnect.SkillsServiceClient, m
 		resp, err := client.ListSkills(ctx, connect.NewRequest(&skillsv1.ListSkillsRequest{Folder: query.Get("folder"), Tag: query.Get("tag"), Modes: splitCSV(query.Get("modes")), WithoutProgrammaticHome: query.Get("withoutProgrammaticHome") == "true"}))
 		return rpcBody(resp, "skills", true, err)
 	case method == "GET" && len(s) == 2 && s[1] == "sync":
-		resp, err := client.SyncSkills(ctx, connect.NewRequest(&skillsv1.SyncSkillsRequest{}))
+		resp, err := client.SyncSkills(ctx, connect.NewRequest(&skillsv1.SyncSkillsRequest{Tag: query.Get("tag")}))
 		return rpcBody(resp, "", true, err)
 	case method == "GET" && len(s) == 2:
 		resp, err := client.GetSkill(ctx, connect.NewRequest(&skillsv1.GetSkillRequest{Id: s[1]}))

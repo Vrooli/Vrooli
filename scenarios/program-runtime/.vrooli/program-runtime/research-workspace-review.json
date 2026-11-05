@@ -14,7 +14,7 @@
   "outputs": {
     "status": {"enum": ["ok", "partial", "unavailable", "failed"]},
     "phase": {"enum": ["validate", "collect", "report"]},
-    "signals": {"unique_runs": "Unique canonical run directories inspected.", "largest": "At most eight checkpoint size signals and current-view sizes.", "without_guide": "Inspected runs without a README.md.", "without_checkpoint": "Inspected runs without a CHECKPOINT.md.", "truncated": "The topic or run bound was reached.", "skipped_outside_root": "Paths resolving outside the selected root; coverage is partial."},
+    "signals": {"unique_runs": "Unique canonical run directories inspected.", "largest": "At most eight {path, checkpoint_bytes, current_view_bytes} rows, ordered by checkpoint size; missing sizes are null and unreadable sizes are unknown.", "without_guide": "Inspected runs without a README.md.", "without_guide_examples": "At most eight paths without README.md.", "without_checkpoint": "Inspected runs without a CHECKPOINT.md.", "without_checkpoint_examples": "At most eight paths without CHECKPOINT.md.", "truncated": "True when a topic or run inspection bound was reached.", "skipped_outside_root": "Paths resolving outside the selected root; coverage is partial."},
     "errors": {"classes": ["invalid_input", "outside_root", "workspace_unavailable", "incomplete_read", "kernel_runtime"]},
     "evidence": "Selected root and observed scope."
   },

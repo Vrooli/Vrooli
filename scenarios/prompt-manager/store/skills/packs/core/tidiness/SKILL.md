@@ -12,9 +12,9 @@ metadata:
   targetDimensions: ["tidiness"]
   targetToolId: "run-agent"
   programmaticHome: "test-genie:tidiness"
-  revision: 1
+  revision: 2
   createdAt: "2026-06-15T00:00:00Z"
-  updatedAt: "2026-06-15T00:00:00Z"
+  updatedAt: "2026-11-05T01:50:00Z"
   requires:
     scenarios: ["prompt-manager", "test-genie"]
     commands: ["prompt-manager", "prompt-manager skill", "prompt-manager skill read", "test-genie execute"]
@@ -125,7 +125,7 @@ tidiness-manager score {{TARGET}}
 tidiness-manager issues list --scenario {{TARGET}}
 ```
 
-3. Choose the smallest cleanup that materially reduces maintenance risk.
+3. Choose the cleanup that removes the maintenance risk at its source, sized to the defect rather than to caution. For a Vrooli-wide hunt across scenarios, use `ecosystem-hunt`.
 4. Keep edits within the owning scenario and domain unless the architecture docs justify a wider move.
 5. For multi-file cleanup, use recommendations or campaigns to avoid losing state:
 

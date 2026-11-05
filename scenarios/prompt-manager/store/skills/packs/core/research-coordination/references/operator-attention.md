@@ -41,6 +41,23 @@ Keep the choices in the Notification Hub option fields as well as explaining the
 
 ## Use the existing notification owner
 
+Before presenting a permission decision, trace the operation owner and the
+implementation that would apply it. State both the requested operation and the
+underlying access it requires; a SMART read may require raw block-device access
+whose scope also exposes drive contents. A tool install hint is not evidence
+that setup provisions that permission: confirm the named setup requirement or
+owner command exists. If the approved operation has no executable owner path,
+repair that path or ask about a concrete alternative; do not imply that consent
+alone makes the host change possible. Prefer a one-shot, identity-bound
+control-plane probe when it provides the required evidence without granting
+persistent scenario access.
+
+The notification field `requested_by` identifies the configured recipient
+partition; it does not identify the human or agent actor. Do not infer
+authorship from that field. For agent-authored delivery, retain the active
+session/run identity, matching approved grant, successful authorized CLI/API
+operation and delivery receipt; report any missing link.
+
 ### Resolve authority once at startup
 
 Qualify the intended notification/decision producer when commissioning supervision, before promising alerts. If the commission expects operator notices or decisions, make this a startup action before worker dispatch: inspect the recipient, current session/run, existing grant requests and delivery route. Check current owner-issued authority through the canonical evaluator. Reuse valid coverage, including approved wildcard targets and a covering rule inside a multi-policy consent; do not ask again merely because another notification, worker check or reminder is due.

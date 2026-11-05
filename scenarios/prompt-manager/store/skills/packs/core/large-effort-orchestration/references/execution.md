@@ -66,7 +66,7 @@ agent-manager run create --task-id <returned-task> --profile-id <existing-profil
 
 Keep the file substitution quoted. Set an existing task's description with `task update
 <id> --description "$(cat -- /absolute/worker-brief.md)"`. Do not add `--prompt`: it replaces
-the task description. Keep `--until` separate and below 2,048 characters. The worker receives
+the task description. Keep `--until` separate from the task description and within Agent Manager's 1 MiB UTF-8 byte ceiling; use `--until-file` for large conditions that exceed shell argument limits. The worker receives
 the exact repository-relative brief path, parent ID, worker card, applicable directives,
 source versions, applicable amendment/refinement IDs, gates and resume set. Verify receiving
 when feedback changes an active assignment; reconcile its eligible native predicate through
