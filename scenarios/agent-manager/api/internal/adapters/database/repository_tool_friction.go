@@ -12,6 +12,7 @@ import (
 	"sync"
 	"time"
 
+	"agent-manager/internal/invocationreadmodel"
 	"agent-manager/internal/runsignal"
 	"agent-manager/internal/tokenaccounting"
 	"agent-manager/internal/toolfriction"
@@ -20,7 +21,14 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
-var _ usageattribution.ToolCallStore = (*UsageAttributionRepository)(nil)
+var (
+	_ usageattribution.ToolCallStore                  = (*UsageAttributionRepository)(nil)
+	_ invocationreadmodel.ProjectionQueueStatusReader = (*UsageAttributionRepository)(nil)
+)
+
+func (r *UsageAttributionRepository) ReadProjectionQueueStatus(ctx context.Context, at time.Time) (invocationreadmodel.ProjectionQueueStatus, error) {
+	return (&invocationReadModelRepository{db: r.db}).ReadProjectionQueueStatus(ctx, at)
+}
 
 // toolColumns are the fact columns holding toolfriction.Features. They live on
 // the fact row rather than a side table: they are 1:1 with the fact, share its

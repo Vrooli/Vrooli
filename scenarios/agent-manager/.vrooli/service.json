@@ -190,7 +190,7 @@
         "required": false,
         "description": "Variant-isolated vector storage for the conversation recall index.",
         "startup_policy": "try_start",
-        "degraded_behavior": "Semantic and hybrid vector legs are unavailable; SQLite FTS and bounded regex search remain operational."
+        "degraded_behavior": "While Qdrant is unavailable, SQLite FTS and bounded regex search remain operational. The semantic client and indexer stay wired so retrieval and indexing recover when Qdrant returns; process health alone does not prove semantic search health."
       }
     },
     "scenarios": {

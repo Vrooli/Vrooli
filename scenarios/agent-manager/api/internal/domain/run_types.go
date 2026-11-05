@@ -87,7 +87,8 @@ type Run struct {
 	HarnessSessionID string        `json:"harnessSessionId,omitempty" db:"harness_session_id"`
 
 	// GoalDelivery records how the completion objective reached the harness:
-	// native_verified, native_unverified, prompt_carried, or empty.
+	// native_verified, native_unverified, prompt_carried,
+	// prompt_carried_fallback, or empty.
 	GoalDelivery string `json:"goalDelivery,omitempty" db:"goal_delivery"`
 	// Read-only projection from qualified runner events. These fields are not
 	// persisted on the run row, so coordinator heartbeats cannot change them.

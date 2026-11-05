@@ -55,12 +55,14 @@ assert r["disposition"]=="quiet",r
 r=evaluate({"run_summaries":[{"run_id":"child","status":"parked"}],"policy":dict(base["policy"],quiet_reached=True)})
 assert r["disposition"]=="signal" and r["classification"]=="quiet_time",r
 r=evaluate({"run_summaries":[{"run_id":"child","status":"running","friction_unavailable":True}]})
+assert r["disposition"]=="unavailable" and r["classification"]=="friction_unavailable" and r["next_cursor"]=="before",r
+r=evaluate({"run_summaries":[{"run_id":"child","status":"running","friction_unavailable":True}],"policy":dict(base["policy"],friction_enabled=False)})
 assert r["disposition"]=="quiet" and r["next_cursor"]=="after",r
 r=evaluate({"run_tool_friction":[{"evidence_id":"tool-friction:child","run_id":"child","score":.9,"commands":20,"summary":"18 of 20 commands failed (18), guessed a shape (0) or polled (0)"}]})
 assert r["disposition"]=="signal" and r["classification"]=="stalled",r
 r=evaluate({"run_summaries":[{"run_id":"child","status":"running","friction_unavailable":True}],
     "run_tool_friction":[{"evidence_id":"tool-friction:child","run_id":"child","score":.9,"commands":20,"summary":"18 of 20 commands failed (18), guessed a shape (0) or polled (0)"}]})
-assert r["disposition"]=="quiet" and r["classification"]!="stalled",r
+assert r["disposition"]=="unavailable" and r["classification"]=="friction_unavailable",r
 r=evaluate({"run_summaries":[{"run_id":"child","status":"completed"}]})
 assert r["disposition"]=="terminal",r
 r=evaluate({"cursor_reset_required":True})

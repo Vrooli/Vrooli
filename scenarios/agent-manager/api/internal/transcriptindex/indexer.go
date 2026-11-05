@@ -48,7 +48,10 @@ type Config struct {
 	ReimportBytes int64
 	// AfterEviction runs once after a pass evicted recall (FTS reclaim).
 	AfterEviction func(context.Context) error
-	Now           func() time.Time
+	// OnTick receives every background tick result. It must return quickly;
+	// callers use it to surface failures without coupling indexing to a logger.
+	OnTick func(Summary, error)
+	Now    func() time.Time
 }
 
 const (
@@ -140,7 +143,10 @@ func (ix *Indexer) Start(ctx context.Context) {
 		ticker := time.NewTicker(ix.cfg.Interval)
 		defer ticker.Stop()
 		for {
-			_, _ = ix.RunOnce(workerCtx)
+			summary, err := ix.RunOnce(workerCtx)
+			if ix.cfg.OnTick != nil {
+				ix.cfg.OnTick(summary, err)
+			}
 			select {
 			case <-ticker.C:
 			case <-workerCtx.Done():

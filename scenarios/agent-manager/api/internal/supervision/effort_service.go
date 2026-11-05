@@ -378,9 +378,9 @@ func (s *EffortService) Withdraw(ctx context.Context, req *pb.WithdrawEffortRequ
 	return e, nil
 }
 
-func effortPageSize(n uint32) int {
+func effortPageSize(n uint32, defaultSize int) int {
 	if n == 0 {
-		return 50
+		return defaultSize
 	}
 	if n > 100 {
 		return 100
@@ -392,7 +392,7 @@ func (s *EffortService) List(ctx context.Context, req *pb.ListEffortsRequest) (*
 	if req == nil {
 		req = &pb.ListEffortsRequest{}
 	}
-	n := effortPageSize(req.PageSize)
+	n := effortPageSize(req.PageSize, 50)
 	rows, err := s.repo.ListEfforts(ctx, req.PageToken, n+1)
 	if err != nil {
 		return nil, err
@@ -403,15 +403,11 @@ func (s *EffortService) List(ctx context.Context, req *pb.ListEffortsRequest) (*
 		response.NextPageToken = rows[n-1].EffortRef
 	}
 	// The retained enrollment bound is explicit in Board when this count is partial.
-	all, err := s.repo.ListEfforts(ctx, "", 1001)
+	activeCount, err := s.repo.CountActiveEfforts(ctx)
 	if err != nil {
 		return nil, err
 	}
-	for _, e := range all {
-		if !e.Withdrawn {
-			response.ActiveCount++
-		}
-	}
+	response.ActiveCount = uint32(activeCount)
 	return response, nil
 }
 
@@ -419,7 +415,29 @@ func (s *EffortService) Board(ctx context.Context, req *pb.GetEffortBoardRequest
 	if req == nil {
 		req = &pb.GetEffortBoardRequest{}
 	}
-	list, err := s.List(ctx, &pb.ListEffortsRequest{PageSize: req.PageSize, PageToken: req.PageToken})
+	// Board rows join run, spend, decision, and goal-home evidence. Keep
+	// implicit reads small; callers can paginate or request one exact effort.
+	n := effortPageSize(req.PageSize, 10)
+	var records []EffortRecord
+	var nextPageToken string
+	if strings.TrimSpace(req.EffortRef) != "" {
+		e, observation, getErr := s.repo.GetEffort(ctx, strings.TrimSpace(req.EffortRef))
+		if getErr != nil {
+			return nil, getErr
+		}
+		records = []EffortRecord{{Enrollment: e, Observation: observation}}
+	} else {
+		var err error
+		records, err = s.repo.ListEffortRecords(ctx, req.PageToken, n+1)
+		if err != nil {
+			return nil, err
+		}
+		if len(records) > n {
+			records = records[:n]
+			nextPageToken = records[n-1].Enrollment.GetEffortRef()
+		}
+	}
+	activeCount, err := s.repo.CountActiveEfforts(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -427,7 +445,7 @@ func (s *EffortService) Board(ctx context.Context, req *pb.GetEffortBoardRequest
 	if err != nil {
 		return nil, err
 	}
-	b := &pb.EffortBoard{ObservedAt: timestamppb.New(s.now().UTC()), Discovery: d, ActiveCount: list.ActiveCount, NextPageToken: list.NextPageToken, Partial: d.Partial}
+	b := &pb.EffortBoard{ObservedAt: timestamppb.New(s.now().UTC()), Discovery: d, ActiveCount: uint32(activeCount), NextPageToken: nextPageToken, Partial: d.Partial}
 	quotaByRun := map[string][]*pb.EffortQuotaObservation{}
 	if s.quotaStore != nil {
 		quotaRows, quotaErr := s.quotaStore.ListQuotaObservations(ctx, "", "", "", 100)
@@ -454,24 +472,12 @@ func (s *EffortService) Board(ctx context.Context, req *pb.GetEffortBoardRequest
 			}
 		}
 	}
-	if list.ActiveCount > 1000 {
-		b.Partial = true
-		b.Limitations = append(b.Limitations, "active count is censored at 1001 enrollments")
-	}
-	if req.EffortRef != "" {
-		e, _, getErr := s.repo.GetEffort(ctx, req.EffortRef)
-		if getErr != nil {
-			return nil, getErr
-		}
-		list.Efforts = []*pb.EffortEnrollment{e}
+	if strings.TrimSpace(req.EffortRef) != "" {
 		b.NextPageToken = ""
 	}
 	identity := d.ChangeIdentity
-	for _, e := range list.Efforts {
-		_, ob, getErr := s.repo.GetEffort(ctx, e.EffortRef)
-		if getErr != nil {
-			return nil, getErr
-		}
+	for _, record := range records {
+		e, ob := record.Enrollment, record.Observation
 		row := s.projectEffort(ctx, e, ob, d)
 		row.GoalHome = s.projectGoalHome(ctx, e, row)
 		row.DeliveryPressure = DeliveryPressure(e.Delivery, s.now())

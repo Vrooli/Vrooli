@@ -146,6 +146,15 @@ func (TriggerEvaluator) Evaluate(_ context.Context, input EvaluationInput) (*dom
 			decision.Disposition, decision.Classification = domainpb.WatchDisposition_WATCH_DISPOSITION_SIGNAL, "quiet_time"
 		}
 	}
+	if decision.GetDisposition() == domainpb.WatchDisposition_WATCH_DISPOSITION_QUIET && triggers.GetFrictionScore() > 0 {
+		for _, subject := range input.Subjects {
+			if subject.Status != "parked" && !subject.Terminal && !subject.FrictionReadable() {
+				decision.Disposition = domainpb.WatchDisposition_WATCH_DISPOSITION_UNAVAILABLE
+				decision.Classification = "friction_unavailable"
+				break
+			}
+		}
+	}
 
 	nextWake := input.Now.Add(30 * time.Second)
 	if triggers.GetQuietTime().IsValid() && triggers.GetQuietTime().AsDuration() > 0 {
@@ -162,6 +171,8 @@ func (TriggerEvaluator) Evaluate(_ context.Context, input EvaluationInput) (*dom
 		decision.RecommendedAction = domainpb.WatchActionKind_WATCH_ACTION_KIND_ESCALATE
 	case domainpb.WatchDisposition_WATCH_DISPOSITION_TERMINAL:
 		decision.RecommendedAction = domainpb.WatchActionKind_WATCH_ACTION_KIND_WAKE_PARENT
+	case domainpb.WatchDisposition_WATCH_DISPOSITION_UNAVAILABLE:
+		decision.RecommendedAction = domainpb.WatchActionKind_WATCH_ACTION_KIND_OBSERVE
 	}
 	return decision, nil
 }

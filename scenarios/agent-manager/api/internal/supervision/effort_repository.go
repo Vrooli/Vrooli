@@ -17,6 +17,8 @@ import (
 type EffortRepository interface {
 	GetEffort(context.Context, string) (*pb.EffortEnrollment, *pb.EffortBoardRow, error)
 	ListEfforts(context.Context, string, int) ([]*pb.EffortEnrollment, error)
+	ListEffortRecords(context.Context, string, int) ([]EffortRecord, error)
+	CountActiveEfforts(context.Context) (int, error)
 	SaveEffort(context.Context, *pb.EffortEnrollment, *pb.EffortBoardRow, uint64, string, string) error
 	RefreshEffortObservation(context.Context, string, uint64, *pb.EffortBoardRow) error
 	ReplayEffortOperation(context.Context, string, string, proto.Message) (bool, error)
@@ -38,6 +40,14 @@ type EffortRepository interface {
 	DecisionPublicationCursor(context.Context) (*decisionCursor, error)
 	DecisionPublicationPosition(context.Context, *pb.EffortDecision) (*decisionCursor, error)
 	SaveDecisionPublicationCursor(context.Context, *decisionCursor) error
+}
+
+// EffortRecord is the persisted pair used to build one board row. Keeping the
+// enrollment and observation together lets the board read a page in one owner
+// query instead of issuing one GetEffort call per enrollment.
+type EffortRecord struct {
+	Enrollment  *pb.EffortEnrollment
+	Observation *pb.EffortBoardRow
 }
 
 var effortJSON = protojson.MarshalOptions{UseProtoNames: true}
@@ -116,6 +126,39 @@ func (r *Repository) ListEfforts(ctx context.Context, after string, limit int) (
 			return nil, err
 		}
 		result = append(result, e)
+	}
+	return result, rows.Err()
+}
+
+// CountActiveEfforts counts active enrollments in storage without loading and
+// decoding an arbitrary prefix of every enrollment. The JSON field is owned by
+// the typed Enrollment serialization used in this table.
+func (r *Repository) CountActiveEfforts(ctx context.Context) (int, error) {
+	var count int
+	err := r.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM supervision_efforts WHERE COALESCE(json_extract(enrollment_json, '$.withdrawn'), 0) = 0`).Scan(&count)
+	return count, err
+}
+
+func (r *Repository) ListEffortRecords(ctx context.Context, after string, limit int) ([]EffortRecord, error) {
+	rows, err := r.db.QueryxContext(ctx, `SELECT enrollment_json,observation_json FROM supervision_efforts WHERE effort_ref>? ORDER BY effort_ref LIMIT ?`, after, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var result []EffortRecord
+	for rows.Next() {
+		var enrollment, observation string
+		if err = rows.Scan(&enrollment, &observation); err != nil {
+			return nil, err
+		}
+		e, o := &pb.EffortEnrollment{}, &pb.EffortBoardRow{}
+		if err = effortRead.Unmarshal([]byte(enrollment), e); err != nil {
+			return nil, err
+		}
+		if err = effortRead.Unmarshal([]byte(observation), o); err != nil {
+			return nil, err
+		}
+		result = append(result, EffortRecord{Enrollment: e, Observation: o})
 	}
 	return result, rows.Err()
 }

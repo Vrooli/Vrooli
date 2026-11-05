@@ -43,6 +43,7 @@ func TestInvocationReadModelFactRoundTripsTokenFactors(t *testing.T) {
 	fact := invocationreadmodel.Fact{
 		InvocationFact: runsignal.InvocationFact{
 			Version: runsignal.InvocationFactVersion, CallEventID: "token-call", ToolName: "shell",
+			ProgramID: "program-runtime.research-supervision-read", SkillID: "research-coordination",
 			Ownership: "resolved", Outcome: "success", Fingerprint: "token-fingerprint",
 			Availability: "available", ArgTokens: 11, ResultTokens: 29,
 			TokenBasis: tokenaccounting.BasisEstimated, ResidencyRequests: 3, ResidencySegment: 2, OutputEventID: "token-output", OutputBytes: 812,
@@ -59,7 +60,7 @@ func TestInvocationReadModelFactRoundTripsTokenFactors(t *testing.T) {
 	if err != nil || len(got) != 1 {
 		t.Fatalf("facts=%+v err=%v", got, err)
 	}
-	if got[0].ArgTokens != 11 || got[0].ResultTokens != 29 || got[0].TokenBasis != tokenaccounting.BasisEstimated || got[0].ResidencyRequests != 3 || got[0].OutputEventID != "token-output" || got[0].OutputBytes != 812 || got[0].ResidencySegment != 2 || got[0].IncurredInputTokens != 11 || got[0].IncurredOutputTokens != 13 || got[0].IncurredCacheReadTokens != 3 || got[0].IncurredCacheCreationTokens != 2 {
+	if got[0].ProgramID != "program-runtime.research-supervision-read" || got[0].SkillID != "research-coordination" || got[0].ArgTokens != 11 || got[0].ResultTokens != 29 || got[0].TokenBasis != tokenaccounting.BasisEstimated || got[0].ResidencyRequests != 3 || got[0].OutputEventID != "token-output" || got[0].OutputBytes != 812 || got[0].ResidencySegment != 2 || got[0].IncurredInputTokens != 11 || got[0].IncurredOutputTokens != 13 || got[0].IncurredCacheReadTokens != 3 || got[0].IncurredCacheCreationTokens != 2 {
 		t.Fatalf("token factors did not round-trip: %+v", got[0].InvocationFact)
 	}
 }

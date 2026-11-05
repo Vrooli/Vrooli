@@ -541,8 +541,8 @@ heavyweight handshake:
 1. a short **boot delay** (`promptBootDelay`, default 2 s) before the first paste;
 2. **transcript appearance is the ack** — while none has appeared, discovery
    **re-delivers the prompt every `promptResendAfter` (default 5 s)**, bounded by
-   `discoveryTimeout` (default **60 s** — a real cold boot + first turn was
-   measured at up to ~30 s on a busy host). A delivered prompt starts a turn whose
+   `discoveryTimeout` (default **3 min** to cover cold CLI startup and the first
+   turn). A delivered prompt starts a turn whose
    transcript stops the loop within a poll, well before the next re-delivery.
 
 An empty `Prompt` skips delivery entirely (the fake-CLI integration harnesses
@@ -594,15 +594,18 @@ transcript.
    harness input surface is visible in the session, or the transcript file
    exists. A fixed delay is a floor, not the readiness signal.
 2. **Install `/goal <finish line>`** through the literal-input seam. The finish
-   line is the run's `until`. When it exceeds the harness field limit, install
-   the short delegation text and keep the full finish line in the prompt.
+   line is the run's `until` (up to 1 MiB of UTF-8 bytes at the Agent Manager
+   boundary). When it exceeds the harness field limit, install the short
+   delegation text and keep the full finish line in the prompt. Claude Code's
+   native `/goal` field currently accepts up to 4,000 characters.
 3. **Verify with a goal marker.** The codec transcript parser reports a goal
    marker with the objective and status `active`. That marker is the ack for
    `/goal`, the same way transcript appearance is the ack for the task prompt.
-4. **Resend on silence.** If no marker appears within the resend window, send
-   `/goal` again on the discovery cadence. After a bounded count, record
-   `native_goal_delivery_failed` with the reason on the run and continue with
-   the prompt-carried finish line. The run records the mechanism in use.
+4. **Fall back on missing acknowledgement.** If no matching marker appears
+   before the bounded acknowledgement wait ends, deliver the task prompt with
+   the complete finish line. Record `prompt_carried_fallback`; do not let a
+   transcript-read problem erase an otherwise runnable task. Context
+   cancellation still stops launch.
 5. **Deliver the task prompt** with `SendPrompt`, then discover the transcript
    as in §10.3.
 
@@ -643,12 +646,13 @@ goal-mode run by itself.
 
 ### 11.3 Ceilings
 
-`LaunchParams` carries `MaxTurns` and `Timeout` from the run configuration. The
-coordinator counts each success terminal (a turn boundary) toward `MaxTurns`
-and enforces `Timeout` on the wall clock from launch. Reaching either ceiling
-sends the interrupt sequence, waits for the transcript to settle, and finalizes
-the run in the `timeout` class. The item's aggregate allowance across resumes is
-Swarm's concern; Agent Manager enforces only the per-run values it was given.
+The run configuration carries `MaxTurns` and `Timeout`. The coordinator passes
+`MaxTurns` to the tailer, which counts assistant turn boundaries, and enforces
+`Timeout` through the run context from launch. Reaching either ceiling sends
+the interrupt sequence, drains the transcript for a bounded grace period, and
+finalizes the run as a timeout interruption. The item's aggregate allowance
+across resumes is Swarm's concern; Agent Manager enforces only the per-run
+values it was given.
 
 ### 11.4 Re-attach after web-console recovery
 
@@ -662,28 +666,33 @@ until-allowance`.
 
 ### 11.5 Implementation status
 
-The code implements §9 and §10 and part of §11. `/goal` is typed once after the
-fixed `promptBootDelay` in `Substrate.Launch`
-(`orchestration/interactive/substrate.go`, near line 341) with no marker
-verification and no resend; only the task prompt is resent while discovery
-waits. `ValidateInteractiveRunMode` in `internal/domain/validation.go` is a
-no-op, so the §5 policy gate is not enforced in the domain layer; feasibility is
-a spawn-capability concern (Claude Code and Codex declare `tracking` and `off`).
-`nativeObjectiveFor` in `orchestration/run_execution.go` installs `/goal` for any
-sandbox mode the capability declares, including tracking. `LaunchParams` has no
-`MaxTurns` or `Timeout`; the only bounded waits are shell readiness and
-transcript discovery. Terminal classes are not modelled: `Finalize` produces
-`completed` or `failed`, and a lost session is `failed`. On the live path only
-Claude produces goal markers: the tailer acts on the `result.Goal` that a
-codec's `ParseTranscriptLine` sets (`transcript_consumer.go:138`), which
-`codecs/claude.go:680-682` does and the Codex parser never does. Codex's
-`codexGoalStatus` (`codecs/goal_markers.go:11`, wired at `codecs/codex.go:92`)
-is reachable only through `baseCodec.GoalStatusFromTranscriptLine`
-(`codecs/base.go:58-62`) on the transcript import path, so a live Codex run
-cannot produce a goal marker today. Claude's parser yields only `active` and
-`complete` (`codecs/goal_markers.go`), so the `blocked`, `usage_limited`, and
-`budget_limited` rows in §11.2 have no live source yet. The §11.1 bound on the
-`/goal` field (4,000 characters, short delegation text in its place) is
-implemented by `boundedNativeObjective` in `orchestration/run_execution.go`.
+This section is the target contract; these are the important implementation
+boundaries today:
+
+- `Substrate.Launch` sends `/goal` once, then requires a fresh, exact `active`
+  marker before using the native prompt. If the parser/watcher is unavailable,
+  or confirmed command submission produces no acknowledgement while the launch
+  context remains live, it sends the prebuilt full prompt-carried contract and
+  records `prompt_carried_fallback`. It does not retry `/goal`. Context
+  cancellation, uncertain command submission, or a missing fallback prompt
+  still fails launch with the session identity retained for cleanup. The chosen
+  task prompt is retried while transcript discovery waits.
+- Claude and Codex live transcript parsers can emit goal markers. Codex marker
+  parsing correlates native tool calls and successful receipts across transcript
+  reads. The accepted marker vocabulary is runner-specific; the target table in
+  §11.2 is not a promise that every runner emits every class.
+- Goal-mode runs enforce configured `MaxTurns` in the tailer and configured
+  `Timeout` through the run context. Terminal persistence records typed verdict
+  or interruption classes and stop reasons, including `session_lost` after the
+  reattach window. These mechanics are implemented in the interactive
+  coordinator; the §11.2 table remains the shared target vocabulary.
+- `ValidateInteractiveRunMode` validates execution-mode vocabulary, not a
+  complete policy matrix. Native `/goal` is selected from runner capability for
+  the resolved sandbox mode; `tracking` records provenance and is not a
+  containment boundary.
+- Native goal text is bounded by `boundedNativeObjective` in
+  `orchestration/run_execution.go`; longer conditions use a short delegation
+  objective while the full condition remains in the task prompt.
+
 See the interim mapping in
 [SCENARIO_DEVELOPMENT.md](../../../docs/agent-system/SCENARIO_DEVELOPMENT.md#implementation-status).

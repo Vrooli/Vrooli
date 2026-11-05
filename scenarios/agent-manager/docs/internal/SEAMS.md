@@ -1918,9 +1918,14 @@ live source yet. The
 coordinator deduplicates changes and persists the
 marker metadata. Workflow runtime consumes the latest marker only when no
 validated structured result is present: complete succeeds, blocked blocks,
-usage/budget limited exhausts, and active/paused abstains. The marker is not
-yet used as a delivery ack for `/goal`, and terminal classes are not modelled
-on the run. See the interim mapping in
+usage/budget limited exhausts, and active/paused abstains. The codec only
+reports marker evidence; the interactive substrate owns `/goal` delivery and
+requires a fresh matching `active` marker before native-prompt delivery. When
+the parser/watcher is unavailable or a confirmed command receives no matching
+marker, a live launch uses its prepared prompt-carried contract and records
+`prompt_carried_fallback`; uncertain command submission and cancellation still
+stop launch. Interactive run terminal classes and stop reasons are persisted by
+the coordinator. See the interim mapping in
 [SCENARIO_DEVELOPMENT.md](../../../../docs/agent-system/SCENARIO_DEVELOPMENT.md#implementation-status).
 
 ## Friction investigation seam

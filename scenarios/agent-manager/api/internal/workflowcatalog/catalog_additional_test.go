@@ -3,9 +3,11 @@ package workflowcatalog
 import (
 	"bytes"
 	"encoding/json"
+	"strings"
 	"testing"
 
 	"agent-manager/internal/domain"
+	"github.com/vrooli/vrooli/packages/proto/contracts"
 )
 
 func TestValidateExperimentEvaluatorAndParallelDiagnostics(t *testing.T) {
@@ -33,6 +35,38 @@ func TestValidateExperimentEvaluatorAndParallelDiagnostics(t *testing.T) {
 			t.Fatalf("diagnostics = %#v", result.Diagnostics)
 		}
 	})
+}
+
+func TestWorkflowUntilUsesSharedCompletionConditionByteLimit(t *testing.T) {
+	d := validDefinition()
+	d.Nodes[0].Run.Until = strings.Repeat("x", contracts.AgentManagerMaxGoalCompletionBytes)
+	result, err := Validate(d, nil)
+	if err != nil || hasDiagnostic(result.Diagnostics, "until_length") {
+		t.Fatalf("until at the shared limit rejected: %+v err=%v", result.Diagnostics, err)
+	}
+
+	d.Nodes[0].Run.Until += "x"
+	result, err = Validate(d, nil)
+	if err != nil || !hasDiagnostic(result.Diagnostics, "until_length") {
+		t.Fatalf("until above the shared limit should report until_length: %+v err=%v", result.Diagnostics, err)
+	}
+
+	encoded, err := json.Marshal(validDefinitionWithUntil(strings.Repeat("x", contracts.AgentManagerMaxGoalCompletionBytes)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(encoded) > MaxDefinitionBytes {
+		t.Fatalf("aggregate workflow cap %d does not accommodate max until (%d-byte workflow)", MaxDefinitionBytes, len(encoded))
+	}
+	if _, err := Parse(encoded, nil); err != nil {
+		t.Fatalf("workflow parser rejected max-size until: %v", err)
+	}
+}
+
+func validDefinitionWithUntil(until string) domain.WorkflowDefinition {
+	d := validDefinition()
+	d.Nodes[0].Run.Until = until
+	return d
 }
 
 func TestNormalizeSchemaAndParseBoundaryDiagnostics(t *testing.T) {

@@ -56,7 +56,15 @@ func dispatchSubcommand(args []string, group string, handlers map[string]subcomm
 	if handler, ok := handlers[args[0]]; ok {
 		return handler(args[1:])
 	}
-	return fmt.Errorf("unknown %s subcommand: %s\n\nRun 'agent-manager %s help' for usage", group, args[0], group)
+	message := fmt.Sprintf("unknown %s subcommand: %s\n\nRun 'agent-manager %s help' for usage", group, args[0], group)
+	options := make([]string, 0, len(handlers))
+	for name := range handlers {
+		options = append(options, name)
+	}
+	if nearest := cliutil.NearestString(args[0], options, 2); nearest != "" {
+		message += fmt.Sprintf("\nDid you mean 'agent-manager %s %s'?", group, nearest)
+	}
+	return errors.New(message)
 }
 
 func NewApp() (*App, error) {
@@ -196,6 +204,12 @@ func (a *App) runCommands() []cliapp.Command {
 		command.Usage = item.usage
 		if item.name == "list" || item.name == "create" {
 			command.HelpText = support.FlagHelp(item.run)
+		}
+		if item.name == "list" {
+			command.HelpText += "\n\nSnapshot only: this command does not wait for progress. Read a known run once, then use its owner wait/event route; do not repeat list as a heartbeat."
+		}
+		if item.name == "tools" {
+			command.HelpText = "Shows the bounded tool-call summary and tool events for one known run. Use --failed to show failed tool results only.\n\nOptions:\n  --failed                       Show failed tool events only\n\nThis is a diagnostic read; use run report first for a compact overview."
 		}
 		commands = append(commands, command)
 	}

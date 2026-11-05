@@ -209,7 +209,7 @@ func TestAFindingSaysHowManyOfItsCallsAwaitReDerivation(t *testing.T) {
 		s.shell("agent-manager runs list", 1, `Error: Unknown command: runs (did you mean "run"?)`)
 	}
 	r := Analyze(Window{Calls: s.calls(), Stale: Stale{Runs: 29, Calls: 300, Paths: map[string]int{"agent-manager": 271}}})
-	if f := findingOf(t, r, KindShapeGuess, "agent-manager"); !strings.Contains(f.Description, "271 more calls of it await re-derivation") {
+	if f := findingOf(t, r, KindShapeGuess, "agent-manager"); !strings.Contains(f.Description, "271 more calls of it are at an older fact version") {
 		t.Errorf("finding = %s", f.Description)
 	}
 }

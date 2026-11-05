@@ -65,11 +65,11 @@ type Coverage struct {
 	Stale                              Stale
 }
 
-// Stale is what a window holds at an older invocation fact version: runs whose
-// facts await re-derivation by the current rules, their command calls, and
-// those calls per command path. Reading them would score old features by new
-// rules, so findings exclude them and say how many of their command's calls
-// they left out.
+// Stale is what a window holds at an older invocation fact version: runs,
+// command calls, and calls per command path. Reading them would score old
+// features by new rules, so findings exclude them and report the size of that
+// coverage gap. This is not the projection queue: it does not say whether a
+// run is queued, retrying, or unreplayable.
 type Stale struct {
 	Runs, Calls int
 	Paths       map[string]int
@@ -80,7 +80,7 @@ func (s Stale) Sentence() string {
 	if s.Runs == 0 {
 		return ""
 	}
-	return fmt.Sprintf("%d runs (%d calls) awaiting re-derivation; findings exclude them", s.Runs, s.Calls)
+	return fmt.Sprintf("%d runs (%d calls) at older fact versions; findings exclude them", s.Runs, s.Calls)
 }
 
 // Window is one window's calls at the current fact version and what it holds

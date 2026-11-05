@@ -31,6 +31,47 @@ func effortFixture(t *testing.T) (*EffortService, *Repository, *fakeActionContro
 	return s, r, c
 }
 
+type countingEffortRepository struct {
+	*Repository
+	getEffortCalls int
+}
+
+func (r *countingEffortRepository) GetEffort(ctx context.Context, ref string) (*pb.EffortEnrollment, *pb.EffortBoardRow, error) {
+	r.getEffortCalls++
+	return r.Repository.GetEffort(ctx, ref)
+}
+
+func TestEffortBoardLoadsPagedEnrollmentObservationsTogether(t *testing.T) {
+	s, repo, controller := effortFixture(t)
+	enrollmentFixture(t, s, controller, domain.RunStatusRunning)
+	if err := repo.SaveEffort(context.Background(), &pb.EffortEnrollment{EffortRef: "effort:z", Revision: 1}, &pb.EffortBoardRow{}, 0, "seed-effort-z", "seed-effort-z"); err != nil {
+		t.Fatal(err)
+	}
+
+	counting := &countingEffortRepository{Repository: repo}
+	s.repo = counting
+	board, err := s.Board(context.Background(), &pb.GetEffortBoardRequest{PageSize: 1})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(board.Rows) != 1 {
+		t.Fatalf("board rows = %d, want 1", len(board.Rows))
+	}
+	if board.NextPageToken == "" || board.ActiveCount != 2 {
+		t.Fatalf("board pagination/count changed: token=%q active_count=%d", board.NextPageToken, board.ActiveCount)
+	}
+	secondPage, err := s.Board(context.Background(), &pb.GetEffortBoardRequest{PageSize: 1, PageToken: board.NextPageToken})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(secondPage.Rows) != 1 || secondPage.NextPageToken != "" {
+		t.Fatalf("second page = rows:%d token:%q, want one final row", len(secondPage.Rows), secondPage.NextPageToken)
+	}
+	if counting.getEffortCalls != 0 {
+		t.Fatalf("board issued %d per-row GetEffort reads; it should use the joined page query", counting.getEffortCalls)
+	}
+}
+
 func TestEffortRegistryRetainsReplacementCoordinatorAsRuntimeEvidence(t *testing.T) {
 	s, _, c := effortFixture(t)
 	ctx := context.Background()

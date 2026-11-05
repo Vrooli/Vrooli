@@ -150,10 +150,9 @@ func interactiveInitialPrompt(systemPrompt, userMessage string) string {
 	}
 }
 
-// initialPromptWithUntil keeps the completion test in the agent's task channel
-// for both substrates. It is deliberately delivered as prompt text rather
-// than a runner-specific CLI flag: interactive TUIs have no stable flag seam,
-// and codec-pipe runners must receive the same contract as their TUI peers.
+// initialPromptWithUntil builds the prompt-carried completion form used by
+// codec-pipe runs and interactive runs whose full condition is not available
+// verbatim in the native goal field or whose native delivery needs fallback.
 func initialPromptWithUntil(run *domain.Run, prompt string) string {
 	if run == nil || run.ResolvedConfig == nil || strings.TrimSpace(run.ResolvedConfig.Until) == "" {
 		return prompt
@@ -187,9 +186,9 @@ const (
 	// delegation when that contract is too large for the harness field.
 	maxNativeObjectiveCharacters = 4000
 	boundedNativeObjectiveText   = "Follow the complete engine-owned completion contract included in the task prompt exactly. Do not stop until it is satisfied; return blocked, abstained, or an operator-decision approval request when required."
-	// nativeGoalPointer replaces the full completion contract in the task prompt
-	// when the harness installs the goal natively via /goal. The finish line then
-	// reaches the agent exactly once, through /goal.
+	// nativeGoalPointer avoids duplicating a completion contract that fits in the
+	// native goal field. Oversized contracts keep their full task-prompt copy even
+	// when the bounded native delegation is installed.
 	nativeGoalPointer = "\n\nYour goal is installed with /goal; the finish line is its text."
 )
 
@@ -368,32 +367,33 @@ func (o *Orchestrator) executeInteractiveRun(ctx context.Context, run *domain.Ru
 		nativeObjective = nativeObjectiveFor(run, selectedRunner.Capabilities())
 	}
 	// Keep the launch seam defensive: profiles, adapters, or a future resolver
-	// may provide the objective through another path. The complete engine-owned
-	// contract remains in the task prompt; the harness field must stay within
-	// Claude Code's native limit regardless of where the value came from.
+	// may provide the objective through another path. The harness field must stay
+	// within Claude Code's native limit regardless of where it came from.
 	nativeObjective = boundedNativeObjective(strings.TrimSpace(nativeObjective))
-	// One owner for the finish line. When the harness installs the goal natively,
-	// the prompt only points at /goal; otherwise the full contract travels as a
-	// single prompt suffix.
-	deliveredPrompt := initialPrompt
-	if nativeObjective == "" {
-		deliveredPrompt = initialPromptWithUntil(run, initialPrompt)
-	} else {
+	// Keep both delivery forms available. Native delivery is preferred, while the
+	// full task-channel contract remains ready if the native marker cannot be
+	// acknowledged by the transcript watcher. When the native field is shortened
+	// to its bounded delegation, include the complete condition in the task prompt
+	// even if native installation succeeds.
+	promptCarriedFallback := initialPromptWithUntil(run, initialPrompt)
+	deliveredPrompt := promptCarriedFallback
+	if nativeObjective != "" && nativeObjective == strings.TrimSpace(run.ResolvedConfig.Until) {
 		deliveredPrompt = strings.TrimSpace(initialPrompt) + nativeGoalPointer
 	}
 	if err := coord.Execute(runCtx, run, interactive.LaunchParams{
-		RunID:             run.ID,
-		RunnerType:        run.ResolvedConfig.RunnerType,
-		Tag:               run.GetTag(),
-		WorkingDir:        workDir,
-		RunDir:            runDir,
-		DisplayLabel:      run.GetTag(),
-		Prompt:            deliveredPrompt,
-		NativeObjective:   nativeObjective,
-		Model:             run.ResolvedConfig.Model,
-		Effort:            run.ResolvedConfig.Effort,
-		Config:            run.ResolvedConfig,
-		HumanOwnerSubject: humanSpawnOwner(run),
+		RunID:                 run.ID,
+		RunnerType:            run.ResolvedConfig.RunnerType,
+		Tag:                   run.GetTag(),
+		WorkingDir:            workDir,
+		RunDir:                runDir,
+		DisplayLabel:          run.GetTag(),
+		Prompt:                deliveredPrompt,
+		NativeObjective:       nativeObjective,
+		PromptCarriedFallback: promptCarriedFallback,
+		Model:                 run.ResolvedConfig.Model,
+		Effort:                run.ResolvedConfig.Effort,
+		Config:                run.ResolvedConfig,
+		HumanOwnerSubject:     humanSpawnOwner(run),
 	}, release); err != nil {
 		obs.Component("interactive").Warn("interactive run finalize failed",
 			obs.KeyRunID, run.ID.String(), obs.KeyError, err.Error())

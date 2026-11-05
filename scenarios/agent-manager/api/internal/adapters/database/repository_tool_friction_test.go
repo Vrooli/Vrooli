@@ -174,7 +174,7 @@ func TestToolCallsReadOnlyTheCurrentFactVersionAndCountTheRest(t *testing.T) {
 	if len(window.Calls) != 2 || !reflect.DeepEqual(window.Stale, want) {
 		t.Fatalf("calls %d, stale %+v; want 2 current calls and 2 stale runs with 3 command calls (code excluded), one per path", len(window.Calls), window.Stale)
 	}
-	if got := toolfriction.Analyze(window).Coverage.Sentence(); !strings.Contains(got, "2 runs (3 calls) awaiting re-derivation; findings exclude them") {
+	if got := toolfriction.Analyze(window).Coverage.Sentence(); !strings.Contains(got, "2 runs (3 calls) at older fact versions; findings exclude them") {
 		t.Errorf("coverage = %q", got)
 	}
 }

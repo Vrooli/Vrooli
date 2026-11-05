@@ -330,3 +330,11 @@ Serialized shared resources as pass 1: API restart (orchestrator only), proto ge
 - F-W0-2: docs phase mis-resolves a repo-root code ref in DATA.md:4 (knowledge-observatory resolver; pre-existing). File via report-bug in W8.
 - F-W0-3: effort-supervision.md, token-attribution.md, component-library-gaps.md missing from docs/manifest.json.
 - F-W0-4: module 24 business_status_unearned ×7 (pre-existing).
+
+## Follow-up — 2026-11-04
+
+- Rechecked friction supervision against both the Go trigger path and the declared program. When a live subject's friction evidence is unavailable, and friction is an enabled trigger, neither path may call the observation quiet or advance its cursor. Return `unavailable`/`friction_unavailable`, preserve the caller cursor, and retry after the configured quiet interval. Deadline, event-count, quiet-time, terminal, and independently readable friction triggers retain precedence. Added parity cases and a regression for the preserved cursor.
+- The immutable active policy still identifies evaluator digest `95570da0…`; the current declared evaluator has a different digest. A source edit is not activation for existing watches. The measured candidate/replay/promotion path remains required for Agent Manager watches; the research coordinator's direct-session workflow must not depend on that path.
+- The `supervision-case-read` and `supervision-experiment-read` programs now preserve the authoritative watch/policy read when optional action or outcome coverage fails, return `partial`, and encode unavailable counts as unknown. Offline regressions exercise those degraded paths.
+- The 30-day portfolio showed `efficiency-report` p95 at 15,006 ms against its 15,000 ms budget. Raised the bounded wall allowance to 30,000 ms; declared its independently gathered measures optional because the implementation retains partial rows. Added the valid `gather` capability tag to this and `supervision-observation-read`.
+- The `programs` Test Genie phase now passes at L2 with every capability clean. The friction digest also emits a complete parseable report under its declared 64 KiB output cap; the earlier 4 KiB success-with-truncated-JSON was a false success.

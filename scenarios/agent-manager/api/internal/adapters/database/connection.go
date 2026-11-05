@@ -442,6 +442,7 @@ var additiveColumnMigrations = []struct {
 	{"invocation_read_model_facts", invocationReadModelFactColumnMigrations},
 	{"invocation_read_model_time_accounting", invocationReadModelTimeAccountingColumnMigrations},
 	{"invocation_read_model_watermarks", invocationReadModelWatermarkColumnMigrations},
+	{"invocation_read_model_pending", invocationReadModelPendingColumnMigrations},
 	{"invocation_read_model_self_report_spans", invocationReadModelSelfReportColumnMigrations},
 	{"investigation_cross_scenario_calls", investigationProjectionColumnMigrations},
 	{"run_findings", runFindingColumnMigrations},
@@ -592,6 +593,12 @@ var invocationReadModelWatermarkColumnMigrations = []columnMigration{
 	// Existing watermarks were committed atomically with their derived facts
 	// before this marker existed, so they are safe to retain as complete.
 	{column: "projection_complete", ddl: "ALTER TABLE invocation_read_model_watermarks ADD COLUMN projection_complete INTEGER NOT NULL DEFAULT 1"},
+}
+
+var invocationReadModelPendingColumnMigrations = []columnMigration{
+	{column: "state", ddl: "ALTER TABLE invocation_read_model_pending ADD COLUMN state TEXT NOT NULL DEFAULT 'pending'"},
+	{column: "terminal_reason", ddl: "ALTER TABLE invocation_read_model_pending ADD COLUMN terminal_reason TEXT NOT NULL DEFAULT ''"},
+	{column: "terminal_at_unix", ddl: "ALTER TABLE invocation_read_model_pending ADD COLUMN terminal_at_unix INTEGER NOT NULL DEFAULT 0"},
 }
 
 var invocationReadModelSelfReportColumnMigrations = []columnMigration{

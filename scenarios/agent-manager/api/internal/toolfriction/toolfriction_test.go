@@ -1008,10 +1008,10 @@ func TestHeldOutputIsNotUnknownTokens(t *testing.T) {
 }
 
 // Silence over stale facts says so: a window with nothing at the current fact
-// version but runs awaiting re-derivation is "cannot tell", with how many.
+// version is "cannot tell", with the excluded older-version population.
 func TestCoverageStatesWhatAwaitsReDerivation(t *testing.T) {
 	got := Analyze(Window{Stale: Stale{Runs: 281, Calls: 165_120}}).Coverage.Sentence()
-	if !strings.Contains(got, "cannot tell") || !strings.Contains(got, "281 runs (165120 calls) awaiting re-derivation; findings exclude them") {
+	if !strings.Contains(got, "cannot tell") || !strings.Contains(got, "281 runs (165120 calls) at older fact versions; findings exclude them") {
 		t.Errorf("coverage = %q", got)
 	}
 }

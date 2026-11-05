@@ -3,6 +3,7 @@ package orchestration
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -715,8 +716,18 @@ func (r *Reconciler) recoverAttachedRun(ctx context.Context, run *domain.Run) (*
 		return nil, fmt.Errorf("attached session recovery owner proof unavailable")
 	}
 	proof, err := r.sessionBindingProofReader.ReadSessionBinding(ctx, SessionBindingRequest{RunID: run.ID, HarnessSessionID: run.HarnessSessionID, WebConsoleSessionID: run.WebConsoleSessionID, HarnessKind: run.HarnessKind, ProcessID: run.RunnerPID})
-	if err != nil || proof.Binding.PID != run.RunnerPID || !validSessionBindingTuple(proof, run.ID, run.HarnessSessionID, run.WebConsoleSessionID, run.HarnessKind, proof.Binding) {
+	if err != nil {
+		// The CLI proof reader exposes only a fixed allowlist of owner failure
+		// categories. Preserve those for recovery diagnostics without logging
+		// subprocess stderr or arbitrary reader errors.
+		var reason bindingProofReason
+		if errors.As(err, &reason) {
+			return nil, fmt.Errorf("attached session recovery binding unavailable: %w", reason)
+		}
 		return nil, fmt.Errorf("attached session recovery binding unavailable")
+	}
+	if proof.Binding.PID != run.RunnerPID || !validSessionBindingTuple(proof, run.ID, run.HarnessSessionID, run.WebConsoleSessionID, run.HarnessKind, proof.Binding) {
+		return nil, fmt.Errorf("attached session recovery binding mismatch")
 	}
 	restored, err := store.RestoreAttachedRun(ctx, run, r.now().UTC())
 	if err != nil {

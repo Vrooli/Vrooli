@@ -369,27 +369,32 @@ func (o *Orchestrator) ReplayInvocationCorpus(ctx context.Context, filter Replay
 // projectInvocationReadModel is intentionally best-effort: analytics capture
 // can never turn a completed run into a failed one. Replace keeps facts and
 // watermark in one transaction, making retries safe after a process crash.
-func (o *Orchestrator) projectInvocationReadModel(ctx context.Context, run *domain.Run) error {
+func (o *Orchestrator) projectInvocationReadModel(ctx context.Context, run *domain.Run) (unreplayable bool, err error) {
 	if o.invocationReadModel == nil || o.events == nil || run == nil {
-		return nil
+		return false, nil
 	}
 	events, err := o.allRunEvents(ctx, run.ID, event.GetOptions{AfterSequence: -1})
 	if err != nil {
-		return fmt.Errorf("load run events: %w", err)
+		return false, fmt.Errorf("load run events: %w", err)
 	}
 	events = o.summaryUsageEvents(ctx, run, events)
-	if kept, err := o.keepEvictedFacts(ctx, run.ID, events); err != nil || kept != nil {
-		return err
+	if kept, err := o.keepEvictedFacts(ctx, run.ID, events); err != nil {
+		return false, err
+	} else if kept != nil {
+		// The watermark can advance, but the old facts cannot be re-derived
+		// because their source events were evicted. Keep that outcome visible
+		// instead of reporting the run as fully settled.
+		return true, nil
 	}
 	projectedAt := o.now()
 	facts, watermark := invocationreadmodel.Project(run, events, projectedAt, o.portOwners, o.commandResolver(run))
 	if err := o.persistRunSubject(ctx, run, facts, events); err != nil {
-		return err
+		return false, err
 	}
 	if projection, ok := o.invocationReadModel.(invocationreadmodel.ProjectionStore); ok {
-		return projection.ReplaceProjection(ctx, facts, invocationreadmodel.ProjectSelfReportSpans(run, events, projectedAt), watermark, invocationreadmodel.ProjectRun(run, events, projectedAt))
+		return false, projection.ReplaceProjection(ctx, facts, invocationreadmodel.ProjectSelfReportSpans(run, events, projectedAt), watermark, invocationreadmodel.ProjectRun(run, events, projectedAt))
 	}
-	return o.invocationReadModel.Replace(ctx, facts, watermark)
+	return false, o.invocationReadModel.Replace(ctx, facts, watermark)
 }
 
 // keepEvictedFacts returns the stored facts of a run whose tool events are gone
@@ -504,13 +509,18 @@ func (o *Orchestrator) ProjectPendingInvocationReadModels(ctx context.Context) e
 			errs = append(errs, queue.CompleteProjection(ctx, pending.RunID, pending.Generation))
 			continue
 		}
+		unreplayable := false
 		if err == nil {
-			err = o.projectInvocationReadModel(ctx, run)
+			unreplayable, err = o.projectInvocationReadModel(ctx, run)
 		}
 		if err != nil {
 			backoff := projectionRetryInterval * time.Duration(1<<min(pending.Attempts, 6))
-			errs = append(errs, queue.DeferProjection(ctx, pending.RunID, now.Add(backoff)))
+			errs = append(errs, queue.DeferProjection(ctx, pending.RunID, pending.Generation, now.Add(backoff)))
 			obs.Component("invocation-read-model").Warn("durable invocation projection failed; deferred", obs.KeyRunID, pending.RunID, obs.KeyError, err.Error())
+			continue
+		}
+		if unreplayable {
+			errs = append(errs, queue.MarkProjectionUnreplayable(ctx, pending.RunID, pending.Generation, "source_events_evicted", now))
 			continue
 		}
 		errs = append(errs, queue.CompleteProjection(ctx, pending.RunID, pending.Generation))

@@ -47,7 +47,7 @@ import (
 // v20 derives every token quantity from the one usage account
 // (AccountUsage). v17 apportions per-call token quantities across the
 // segments of a compound command, so a SUM over facts reconciles to the run.
-const InvocationFactVersion = "invocation-fact.v32"
+const InvocationFactVersion = "invocation-fact.v33"
 
 // Outcome vocabulary of an InvocationFact.
 const (
@@ -292,6 +292,13 @@ func commandIdentifiers(tokens []string) (programID, skillID string) {
 				skillID = tokens[i+3]
 			}
 		case tokens[i] == "program-runtime" && tokens[i+1] == "programs" && (tokens[i+2] == "get" || tokens[i+2] == "wait"):
+			if i+3 < len(tokens) && !strings.HasPrefix(tokens[i+3], "-") {
+				programID = tokens[i+3]
+			}
+		case tokens[i] == "program-runtime" && tokens[i+1] == "library" && tokens[i+2] == "run":
+			// Library runs are the actual program invocation surface. Record the
+			// stable program name, not a later inspection/wait handle, so callers
+			// can audit which governed operation was executed.
 			if i+3 < len(tokens) && !strings.HasPrefix(tokens[i+3], "-") {
 				programID = tokens[i+3]
 			}

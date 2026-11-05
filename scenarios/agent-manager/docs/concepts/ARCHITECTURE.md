@@ -963,37 +963,15 @@ cannot proceed.
 
 ### Implementation status
 
-The code today differs from the contract above in these ways. The interim
-mapping between the target vocabulary and the current fields is in
-[SCENARIO_DEVELOPMENT.md](../../../../docs/agent-system/SCENARIO_DEVELOPMENT.md#implementation-status).
-Goal mode exists only as the interim `goal-session` workflow; there is no
-workflow-free goal run. The `until` text is appended to the prompt raw, not
-template-rendered, in `api/internal/workflowruntime/engine.go` (the prompt
-builder near line 1302 and the child request near line 1353), and the run
-executor appends it again as a "Completion contract" block. `/goal` is typed once
-after a fixed boot delay in `api/internal/orchestration/interactive/substrate.go`
-(near line 341); there is no marker verification and no resend of `/goal`, only
-the task prompt is resent. In goal mode a provider success terminal that is not
-a `goal_*` marker is discarded unless a validated structured result exists
-(`interactive/tail.go` lines 210-216), so the run keeps tailing. Interactive runs
-have no `max_turns` or wall-clock ceiling; only transcript discovery and shell
-readiness are bounded. A live Codex run cannot produce a goal marker today: the
-live tail acts only on the `result.Goal` a codec's `ParseTranscriptLine` sets
-(`transcript_consumer.go:138`), Claude sets it (`codecs/claude.go:680-682`), and
-Codex never does; its `codexGoalStatus` parser (`codecs/goal_markers.go:11`,
-wired at `codecs/codex.go:92`) is reached only through
-`baseCodec.GoalStatusFromTranscriptLine` (`codecs/base.go:58-62`), which serves
-transcript import. Claude's parser maps the on-disk `goal_status` record to
-`active` or `complete` only (`codecs/goal_markers.go`), so no live run can
-produce a `blocked`, `usage_limited`, or `budget_limited` marker today. The
-4,000-character bound on the `/goal` field (short delegation text in its
-place) is implemented by `boundedNativeObjective` in `run_execution.go`.
-Interactive Claude runs record
-per-turn token usage and mark the final turn as reconciliation authority; no
-currency charge is recorded for them. The runner-preference fallthrough reason
-(`preferred_unavailable:<reason>`) is implemented in `run_creation.go`. Terminal
-classes are not modelled: the run finalizes as `completed` or `failed`, and a
-lost session finalizes as `failed`.
+For interactive goal-mode delivery and terminal behavior, see the maintained
+[implementation status in the runner design](../interactive-runner-design.md#115-implementation-status).
+The shared target vocabulary and its mapping to current execution modes remain
+in [SCENARIO_DEVELOPMENT.md](../../../../docs/agent-system/SCENARIO_DEVELOPMENT.md#implementation-status).
+Interactive Claude runs record per-turn token usage and mark the final turn as
+reconciliation authority; no currency charge is recorded for them. The
+runner-preference fallthrough reason (`preferred_unavailable:<reason>`) is
+implemented in `run_creation.go`. Terminal classes and stop reasons are
+persisted on interactive runs.
 
 ## Friction investigation transport
 

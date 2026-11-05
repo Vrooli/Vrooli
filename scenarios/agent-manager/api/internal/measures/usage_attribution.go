@@ -9,6 +9,7 @@ import (
 
 	"agent-manager/internal/domain"
 	"agent-manager/internal/interventions"
+	"agent-manager/internal/invocationreadmodel"
 	"agent-manager/internal/toolfriction"
 	"agent-manager/internal/transcriptindex"
 	"agent-manager/internal/usageattribution"
@@ -36,6 +37,7 @@ func (h *Handler) SetUsageAttribution(store usageattribution.Store, pricer usage
 	// One price book per handler: prices are reused across requests.
 	h.usageStore, h.usagePricer, h.coverage, h.frictionStatuses = store, usageattribution.NewPriceBook(pricer), coverage, statuses
 	h.tools, _ = store.(usageattribution.ToolCallStore)
+	h.projectionQueue, _ = store.(invocationreadmodel.ProjectionQueueStatusReader)
 }
 
 func (h *Handler) usageService() (usageattribution.Service, error) {
@@ -286,9 +288,15 @@ func (h *Handler) UsageFriction(ctx context.Context, req *connect.Request[measur
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
+	queue, err := h.projectionQueueStatus(ctx, now)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	coverage := protoToolCoverage(friction.Tools.Coverage)
+	addProjectionQueueCoverage(coverage, queue)
 	response := &measurepb.UsageFrictionResponse{
 		GeneratedAt: now.Format(time.RFC3339), DefinitionId: definitionID(UsageFriction),
-		Coverage: protoToolCoverage(friction.Tools.Coverage), WindowStart: rfc3339(friction.Since), MaterialityScore: toolfriction.MaterialScore,
+		Coverage: coverage, WindowStart: rfc3339(friction.Since), MaterialityScore: toolfriction.MaterialScore,
 	}
 	limit := usageRows(req.Msg.GetLimit())
 	count := func(itemStatus string) bool {

@@ -174,7 +174,7 @@ func (a *App) runRecent(args []string) error {
 	if *limit < 1 || *limit > 100 {
 		return fmt.Errorf("limit must be between 1 and 100")
 	}
-	_, runs, err := a.services.Runs.List(*limit, 0, "", "", "", "")
+	_, runs, err := a.services.Runs.List(*limit, 0, "", "", "", "", "")
 	if err != nil {
 		return err
 	}

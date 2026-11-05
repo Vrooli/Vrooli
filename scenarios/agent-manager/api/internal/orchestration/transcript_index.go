@@ -34,7 +34,9 @@ import (
 // on demand.
 type TranscriptIndex struct {
 	*transcriptindex.Indexer
-	store transcriptindex.Store
+	store           transcriptindex.Store
+	tickFailureMu   sync.Mutex
+	lastTickFailure string
 }
 
 // NewTranscriptIndex builds the indexer over store and installs it on the
@@ -42,9 +44,52 @@ type TranscriptIndex struct {
 // usage summaries of runs whose events left the recall layer.
 func NewTranscriptIndex(o *Orchestrator, store transcriptindex.Store, cfg transcriptindex.Config) *TranscriptIndex {
 	host := &transcriptIndexHost{o: o, redact: map[string]bool{}}
-	index := &TranscriptIndex{Indexer: transcriptindex.New(store, host, cfg), store: store}
+	index := &TranscriptIndex{store: store}
+	callerOnTick := cfg.OnTick
+	cfg.OnTick = func(summary transcriptindex.Summary, err error) {
+		index.observeBackgroundTick(summary, err)
+		if callerOnTick != nil {
+			callerOnTick(summary, err)
+		}
+	}
+	index.Indexer = transcriptindex.New(store, host, cfg)
 	o.transcriptIndex = index
 	return index
+}
+
+// observeBackgroundTick logs changes in the indexer's failure state. The
+// indexer is a background owner; dropping its result made stale imported-run
+// state indistinguishable from a healthy, idle scan. Repeated identical errors
+// are coalesced until a clean tick proves recovery.
+func (t *TranscriptIndex) observeBackgroundTick(summary transcriptindex.Summary, err error) {
+	failure := ""
+	switch {
+	case err != nil:
+		failure = err.Error()
+	case len(summary.Failures) > 0:
+		limit := min(len(summary.Failures), 3)
+		failure = strings.Join(summary.Failures[:limit], "; ")
+	}
+
+	t.tickFailureMu.Lock()
+	previous := t.lastTickFailure
+	if failure == previous {
+		t.tickFailureMu.Unlock()
+		return
+	}
+	t.lastTickFailure = failure
+	t.tickFailureMu.Unlock()
+
+	logger := obs.Component("transcript-index")
+	if failure == "" {
+		if previous != "" {
+			logger.Info("background transcript indexing recovered")
+		}
+		return
+	}
+	logger.Warn("background transcript indexing incomplete", obs.KeyError, failure,
+		"failureCount", len(summary.Failures), "discovered", summary.Discovered,
+		"read", summary.Read, "completed", summary.Completed)
 }
 
 // RunOnce satisfies the operator-triggered sweep seam.

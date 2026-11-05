@@ -5,14 +5,17 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"io"
 	"os"
 	"regexp"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"agent-manager/cli/internal/support"
 
 	"github.com/vrooli/cli-core/cliutil"
+	"github.com/vrooli/vrooli/packages/proto/contracts"
 	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/api"
 	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
 	"google.golang.org/protobuf/proto"
@@ -125,6 +128,7 @@ func (a *App) runCreate(args []string) error {
 	effort := fs.String("effort", "", "Reasoning effort (low, medium, high, xhigh, max)")
 	model := fs.String("model", "", "Per-run model override")
 	until := fs.String("until", "", "Engine-owned completion test for this run")
+	untilFile := fs.String("until-file", "", "Read the engine-owned completion test from a UTF-8 file (max 1 MiB)")
 	workloadKey := fs.String("workload-key", "", "Stable workload key for grouping repeated work")
 	workloadKind := fs.String("workload-kind", "", "Workload kind (workflow_node, scheduled, interactive, adhoc, imported)")
 	parentRunID := fs.String("parent-run-id", "", "Parent run ID for durable child lineage")
@@ -133,6 +137,10 @@ func (a *App) runCreate(args []string) error {
 	maxWeightedTokens := fs.Int64("max-weighted-tokens", 0, "Observed weighted-token threshold; may only lower the profile limit; action depends on token-cap mode and usage reporting")
 
 	if err := support.ParseFlags(fs, args); err != nil {
+		return err
+	}
+	untilValue, err := readUntilInput(*until, *untilFile)
+	if err != nil {
 		return err
 	}
 
@@ -212,11 +220,11 @@ func (a *App) runCreate(args []string) error {
 		}
 		req.InlineConfig.Model = protoString(*model)
 	}
-	if *until != "" {
+	if untilValue != "" {
 		if req.InlineConfig == nil {
 			req.InlineConfig = &domainpb.RunConfigOverrides{}
 		}
-		req.InlineConfig.Until = protoString(*until)
+		req.InlineConfig.Until = protoString(untilValue)
 	}
 	if *workloadKey != "" || *workloadKind != "" {
 		if req.Environment == nil {
@@ -265,6 +273,35 @@ func (a *App) runCreate(args []string) error {
 		}
 	}
 	return nil
+}
+
+func readUntilInput(inline, filePath string) (string, error) {
+	if inline != "" && filePath != "" {
+		return "", fmt.Errorf("--until and --until-file are mutually exclusive")
+	}
+	value := inline
+	if filePath != "" {
+		file, err := os.Open(filePath)
+		if err != nil {
+			return "", fmt.Errorf("read --until-file: %w", err)
+		}
+		defer file.Close()
+		content, err := io.ReadAll(io.LimitReader(file, int64(contracts.AgentManagerMaxGoalCompletionBytes)+1))
+		if err != nil {
+			return "", fmt.Errorf("read --until-file: %w", err)
+		}
+		if len(content) > contracts.AgentManagerMaxGoalCompletionBytes {
+			return "", fmt.Errorf("--until-file is %d bytes; maximum is %d UTF-8 bytes (1 MiB)", len(content), contracts.AgentManagerMaxGoalCompletionBytes)
+		}
+		value = string(content)
+	}
+	if !utf8.ValidString(value) {
+		return "", fmt.Errorf("completion test must be valid UTF-8")
+	}
+	if len(value) > contracts.AgentManagerMaxGoalCompletionBytes {
+		return "", fmt.Errorf("completion test is %d bytes; maximum is %d UTF-8 bytes (1 MiB)", len(value), contracts.AgentManagerMaxGoalCompletionBytes)
+	}
+	return value, nil
 }
 
 func parseResultSpec(schemaText, schemaFile, classification string, extraction bool) (*domainpb.ResultSpec, error) {

@@ -499,7 +499,7 @@ func TestKindsLimitWhatIsMined(t *testing.T) {
 // The coverage line says what awaits re-derivation at an older fact version.
 func TestCoverageStatesStaleRuns(t *testing.T) {
 	r := Analyze(Input{Calls: flatten(orientation("o0")), Stale: toolfriction.Stale{Runs: 281, Calls: 165_120}})
-	if got := r.Coverage.Sentence(); !strings.Contains(got, "281 runs (165120 calls) awaiting re-derivation; findings exclude them") {
+	if got := r.Coverage.Sentence(); !strings.Contains(got, "281 runs (165120 calls) at older fact versions; findings exclude them") {
 		t.Errorf("coverage = %q", got)
 	}
 }

@@ -448,7 +448,7 @@ func findings(report Report, calls []Call, polled []bool) []Finding {
 			f.Description += fmt.Sprintf("; %.0f%% of it in one run, so its cost counts that run at most %dx the median run", 100*f.TopRunShare, RunCapFactor)
 		}
 		if stale := report.Coverage.Stale.Paths[f.CommandPath]; stale > 0 && f.CommandPath != "" {
-			f.Description += fmt.Sprintf("; %d more calls of it await re-derivation at the current fact version and are not counted", stale)
+			f.Description += fmt.Sprintf("; %d more calls of it are at an older fact version and are not counted", stale)
 		}
 		out = append(out, f)
 	}

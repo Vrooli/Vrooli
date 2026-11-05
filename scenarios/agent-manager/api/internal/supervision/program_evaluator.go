@@ -255,7 +255,8 @@ func (e *ProgramRuntimeEvaluator) programInput(ctx context.Context, input Evalua
 	runs := make([]any, 0, len(input.Subjects))
 	scored := make([]SubjectSummary, 0, len(input.Subjects))
 	for _, subject := range input.Subjects {
-		runs = append(runs, map[string]any{"friction_unavailable": subject.FrictionUnavailable, "run_id": subject.RunID, "status": subject.Status, "blocked": strings.EqualFold(subject.Status, "blocked"), "needs_review": strings.EqualFold(subject.Status, "needs_review")})
+		frictionUnavailable := triggers.GetFrictionScore() > 0 && !subject.FrictionReadable()
+		runs = append(runs, map[string]any{"friction_unavailable": frictionUnavailable, "run_id": subject.RunID, "status": subject.Status, "blocked": strings.EqualFold(subject.Status, "blocked"), "needs_review": strings.EqualFold(subject.Status, "needs_review")})
 		if subject.FrictionReadable() {
 			scored = append(scored, subject)
 		}

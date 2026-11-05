@@ -16,18 +16,19 @@ import (
 type invocationReadModelRepository struct{ db *DB }
 
 var (
-	_ invocationreadmodel.Store                 = (*invocationReadModelRepository)(nil)
-	_ invocationreadmodel.RunStore              = (*invocationReadModelRepository)(nil)
-	_ invocationreadmodel.WorkloadStore         = (*invocationReadModelRepository)(nil)
-	_ invocationreadmodel.ProjectionStore       = (*invocationReadModelRepository)(nil)
-	_ invocationreadmodel.CohortDefinitionStore = (*invocationReadModelRepository)(nil)
-	_ invocationreadmodel.FreshnessStore        = (*invocationReadModelRepository)(nil)
-	_ invocationreadmodel.ProjectionQueue       = (*invocationReadModelRepository)(nil)
+	_ invocationreadmodel.Store                       = (*invocationReadModelRepository)(nil)
+	_ invocationreadmodel.RunStore                    = (*invocationReadModelRepository)(nil)
+	_ invocationreadmodel.WorkloadStore               = (*invocationReadModelRepository)(nil)
+	_ invocationreadmodel.ProjectionStore             = (*invocationReadModelRepository)(nil)
+	_ invocationreadmodel.CohortDefinitionStore       = (*invocationReadModelRepository)(nil)
+	_ invocationreadmodel.FreshnessStore              = (*invocationReadModelRepository)(nil)
+	_ invocationreadmodel.ProjectionQueue             = (*invocationReadModelRepository)(nil)
+	_ invocationreadmodel.ProjectionQueueStatusReader = (*invocationReadModelRepository)(nil)
 )
 
 func (r *invocationReadModelRepository) MarkProjectionPending(ctx context.Context, runID string, at time.Time) error {
-	_, err := r.db.ExecContext(ctx, `INSERT INTO invocation_read_model_pending (run_id,generation,attempts,next_attempt_unix) VALUES (?,1,0,?)
-		ON CONFLICT(run_id) DO UPDATE SET generation=generation+1,attempts=0,next_attempt_unix=excluded.next_attempt_unix`, runID, at.Unix())
+	_, err := r.db.ExecContext(ctx, `INSERT INTO invocation_read_model_pending (run_id,generation,attempts,next_attempt_unix,state,terminal_reason,terminal_at_unix) VALUES (?,1,0,?,'pending','',0)
+		ON CONFLICT(run_id) DO UPDATE SET generation=generation+1,attempts=0,next_attempt_unix=excluded.next_attempt_unix,state='pending',terminal_reason='',terminal_at_unix=0`, runID, at.Unix())
 	return err
 }
 
@@ -58,7 +59,7 @@ func (r *invocationReadModelRepository) DueProjections(ctx context.Context, at t
 	// behind it.
 	if err := r.db.SelectContext(ctx, &rows, `SELECT p.run_id,p.generation,p.attempts FROM invocation_read_model_pending p
 		LEFT JOIN runs r ON r.id = p.run_id
-		WHERE p.next_attempt_unix <= ? ORDER BY r.ended_at IS NOT NULL, r.ended_at DESC, p.run_id LIMIT ?`, at.Unix(), limit); err != nil {
+		WHERE p.state='pending' AND p.next_attempt_unix <= ? ORDER BY r.ended_at IS NOT NULL, r.ended_at DESC, p.run_id LIMIT ?`, at.Unix(), limit); err != nil {
 		return nil, err
 	}
 	out := make([]invocationreadmodel.PendingProjection, 0, len(rows))
@@ -73,9 +74,41 @@ func (r *invocationReadModelRepository) CompleteProjection(ctx context.Context, 
 	return err
 }
 
-func (r *invocationReadModelRepository) DeferProjection(ctx context.Context, runID string, until time.Time) error {
-	_, err := r.db.ExecContext(ctx, `UPDATE invocation_read_model_pending SET attempts=attempts+1,next_attempt_unix=? WHERE run_id=?`, until.Unix(), runID)
+func (r *invocationReadModelRepository) DeferProjection(ctx context.Context, runID string, generation int64, until time.Time) error {
+	_, err := r.db.ExecContext(ctx, `UPDATE invocation_read_model_pending SET attempts=attempts+1,next_attempt_unix=? WHERE run_id=? AND generation=? AND state='pending'`, until.Unix(), runID, generation)
 	return err
+}
+
+func (r *invocationReadModelRepository) MarkProjectionUnreplayable(ctx context.Context, runID string, generation int64, reason string, at time.Time) error {
+	_, err := r.db.ExecContext(ctx, `UPDATE invocation_read_model_pending SET state='unreplayable',terminal_reason=?,terminal_at_unix=? WHERE run_id=? AND generation=? AND state='pending'`, reason, at.Unix(), runID, generation)
+	return err
+}
+
+func (r *invocationReadModelRepository) ReadProjectionQueueStatus(ctx context.Context, at time.Time) (invocationreadmodel.ProjectionQueueStatus, error) {
+	var row struct {
+		Pending      int64         `db:"pending"`
+		Due          int64         `db:"due"`
+		Retrying     int64         `db:"retrying"`
+		Unreplayable int64         `db:"unreplayable"`
+		OldestDue    sql.NullInt64 `db:"oldest_due"`
+	}
+	if err := r.db.GetContext(ctx, &row, `SELECT
+		COALESCE(SUM(CASE WHEN state='pending' THEN 1 ELSE 0 END),0) AS pending,
+		COALESCE(SUM(CASE WHEN state='pending' AND next_attempt_unix<=? THEN 1 ELSE 0 END),0) AS due,
+		COALESCE(SUM(CASE WHEN state='pending' AND attempts>0 THEN 1 ELSE 0 END),0) AS retrying,
+		COALESCE(SUM(CASE WHEN state='unreplayable' THEN 1 ELSE 0 END),0) AS unreplayable,
+		MIN(CASE WHEN state='pending' AND next_attempt_unix<=? THEN next_attempt_unix END) AS oldest_due
+		FROM invocation_read_model_pending`, at.Unix(), at.Unix()); err != nil {
+		return invocationreadmodel.ProjectionQueueStatus{}, fmt.Errorf("read invocation projection queue status: %w", err)
+	}
+	status := invocationreadmodel.ProjectionQueueStatus{
+		PendingRuns: row.Pending, DueRuns: row.Due, RetryingRuns: row.Retrying, UnreplayableRuns: row.Unreplayable,
+	}
+	if row.OldestDue.Valid {
+		oldest := time.Unix(row.OldestDue.Int64, 0).UTC()
+		status.OldestDueAt = &oldest
+	}
+	return status, nil
 }
 
 func (r *invocationReadModelRepository) LatestProjection(ctx context.Context) (time.Time, error) {
@@ -426,8 +459,8 @@ const executedRunSQL = `tag <> 'agent-manager-imported' AND substr(tag, 1, 9) <>
 func (r *invocationReadModelRepository) RunMetrics(ctx context.Context, filter invocationreadmodel.Filter) (invocationreadmodel.RunMetrics, error) {
 	where, args := invocationReadModelRunWhere(filter)
 	query := `SELECT COUNT(*),
-		SUM(CASE WHEN status IN ('complete','failed','cancelled') AND `+executedRunSQL+` THEN 1 ELSE 0 END),
-		SUM(CASE WHEN status = 'complete' AND `+executedRunSQL+` THEN 1 ELSE 0 END),
+		SUM(CASE WHEN status IN ('complete','failed','cancelled') AND ` + executedRunSQL + ` THEN 1 ELSE 0 END),
+		SUM(CASE WHEN status = 'complete' AND ` + executedRunSQL + ` THEN 1 ELSE 0 END),
 		SUM(CASE WHEN started_at IS NOT NULL AND ended_at IS NOT NULL THEN 1 ELSE 0 END),
 		COALESCE(AVG(CASE WHEN started_at IS NOT NULL AND ended_at IS NOT NULL THEN duration_ms END), 0)
 		FROM invocation_read_model_runs` + where
@@ -846,7 +879,7 @@ func runWhereClauses(filter invocationreadmodel.Filter, windowed, tokens bool) (
 }
 
 func (r *invocationReadModelRepository) Facts(ctx context.Context, runID string) ([]invocationreadmodel.Fact, error) {
-	rows, err := r.db.QueryxContext(ctx, `SELECT run_id,classifier_version,call_event_id,COALESCE(result_event_id,''),COALESCE(tool_call_id,''),occurred_at,time_basis,tool_name,COALESCE(capability,'other'),COALESCE(intent_class,''),COALESCE(executable,''),COALESCE(command_path,''),ownership,COALESCE(ownership_reason,''),COALESCE(segment_index,0),COALESCE(segment_count,1),COALESCE(catalog_snapshot,''),outcome,COALESCE(pairing_basis,'unpaired'),COALESCE(failure_signature,''),COALESCE(signature_truncated,0),COALESCE(retry_of_call_event_id,''),help_recovery,fingerprint,availability,profile_id,runner_type,model,tag,run_status,COALESCE(semantics_kind,''),COALESCE(semantics_verdict,''),COALESCE(wrapper,''),exit_code,duration_ms,COALESCE(arg_tokens,0),COALESCE(result_tokens,0),COALESCE(output_event_id,''),COALESCE(output_bytes,0),COALESCE(token_basis,'unknown'),COALESCE(residency_requests,0),COALESCE(residency_segment,0),COALESCE(incurred_input_tokens,0),COALESCE(incurred_output_tokens,0),COALESCE(incurred_cache_read_tokens,0),COALESCE(incurred_cache_creation_tokens,0) FROM invocation_read_model_facts WHERE run_id=? ORDER BY occurred_at, call_event_id, segment_index`, runID)
+	rows, err := r.db.QueryxContext(ctx, `SELECT run_id,classifier_version,call_event_id,COALESCE(result_event_id,''),COALESCE(tool_call_id,''),occurred_at,time_basis,tool_name,COALESCE(capability,'other'),COALESCE(intent_class,''),COALESCE(executable,''),COALESCE(command_path,''),COALESCE(program_id,''),COALESCE(skill_id,''),ownership,COALESCE(ownership_reason,''),COALESCE(segment_index,0),COALESCE(segment_count,1),COALESCE(catalog_snapshot,''),outcome,COALESCE(pairing_basis,'unpaired'),COALESCE(failure_signature,''),COALESCE(signature_truncated,0),COALESCE(retry_of_call_event_id,''),help_recovery,fingerprint,availability,profile_id,runner_type,model,tag,run_status,COALESCE(semantics_kind,''),COALESCE(semantics_verdict,''),COALESCE(wrapper,''),exit_code,duration_ms,COALESCE(arg_tokens,0),COALESCE(result_tokens,0),COALESCE(output_event_id,''),COALESCE(output_bytes,0),COALESCE(token_basis,'unknown'),COALESCE(residency_requests,0),COALESCE(residency_segment,0),COALESCE(incurred_input_tokens,0),COALESCE(incurred_output_tokens,0),COALESCE(incurred_cache_read_tokens,0),COALESCE(incurred_cache_creation_tokens,0) FROM invocation_read_model_facts WHERE run_id=? ORDER BY occurred_at, call_event_id, segment_index`, runID)
 	if err != nil {
 		return nil, err
 	}
@@ -857,7 +890,7 @@ func (r *invocationReadModelRepository) Facts(ctx context.Context, runID string)
 		var occurredAt SQLiteTime
 		var exitCode, durationMS sql.NullInt64
 		var tokenBasis string
-		if err := rows.Scan(&f.RunID, &f.Version, &f.CallEventID, &f.ResultEventID, &f.ToolCallID, &occurredAt, &f.TimeBasis, &f.ToolName, &f.Capability, &f.IntentClass, &f.Executable, &f.CommandPath, &f.Ownership, &f.OwnershipReason, &f.SegmentIndex, &f.SegmentCount, &f.CatalogSnapshot, &f.Outcome, &f.PairingBasis, &f.FailureSignature, &f.SignatureTruncated, &f.RetryOfCallEventID, &f.HelpRecovery, &f.Fingerprint, &f.Availability, &f.ProfileID, &f.RunnerType, &f.Model, &f.Tag, &f.RunStatus, &f.SemanticsKind, &f.SemanticsVerdict, &f.Wrapper, &exitCode, &durationMS, &f.ArgTokens, &f.ResultTokens, &f.OutputEventID, &f.OutputBytes, &tokenBasis, &f.ResidencyRequests, &f.ResidencySegment, &f.IncurredInputTokens, &f.IncurredOutputTokens, &f.IncurredCacheReadTokens, &f.IncurredCacheCreationTokens); err != nil {
+		if err := rows.Scan(&f.RunID, &f.Version, &f.CallEventID, &f.ResultEventID, &f.ToolCallID, &occurredAt, &f.TimeBasis, &f.ToolName, &f.Capability, &f.IntentClass, &f.Executable, &f.CommandPath, &f.ProgramID, &f.SkillID, &f.Ownership, &f.OwnershipReason, &f.SegmentIndex, &f.SegmentCount, &f.CatalogSnapshot, &f.Outcome, &f.PairingBasis, &f.FailureSignature, &f.SignatureTruncated, &f.RetryOfCallEventID, &f.HelpRecovery, &f.Fingerprint, &f.Availability, &f.ProfileID, &f.RunnerType, &f.Model, &f.Tag, &f.RunStatus, &f.SemanticsKind, &f.SemanticsVerdict, &f.Wrapper, &exitCode, &durationMS, &f.ArgTokens, &f.ResultTokens, &f.OutputEventID, &f.OutputBytes, &tokenBasis, &f.ResidencyRequests, &f.ResidencySegment, &f.IncurredInputTokens, &f.IncurredOutputTokens, &f.IncurredCacheReadTokens, &f.IncurredCacheCreationTokens); err != nil {
 			return nil, err
 		}
 		f.TokenBasis = tokenaccounting.Basis(tokenBasis)

@@ -1,7 +1,7 @@
 {
   "$schema": "../../../program-runtime/schemas/program-contract.schema.json",
   "name": "agent-manager.friction-digest",
-  "version": "2",
+  "version": "3",
   "helpers": {
     "program": "1"
   },
@@ -20,7 +20,7 @@
     "top_n": {
       "type": "integer",
       "default": 10,
-      "description": "How many findings to report, ranked by their share of the window's harm in their own unit."
+      "description": "How many findings to report, ranked by their share of the window's harm in their own unit; capped at 10 to keep the briefing bounded."
     },
     "policy_version": {
       "type": "string",
@@ -44,6 +44,8 @@
     "no binding with effect write or destructive is called",
     "one tool-friction record is materialized; at most top_n findings are reported",
     "at most outcome_limit (500) supervision outcomes are materialized and transcript bodies are never read",
+    "top_n is between 1 and 10; descriptions are whitespace-normalized and capped at 280 characters",
+    "the complete JSON envelope stays below the declared 65536-byte output ceiling",
     "the envelope is printed exactly once, on every path",
     "an owner with no findings in the window is an empty digest with status ok and its coverage, never an error"
   ],
@@ -86,7 +88,7 @@
       "calls_for_scenario": "calls of those command paths",
       "findings_for_scenario": "owner-level tool findings the scenario owns",
       "recurring_count": "findings with evidence in 3 or more distinct runs",
-      "top_fingerprints": "at most top_n of {fingerprint, kind, command_path, description, calls, distinct_runs, cost, cost_unit, cost_share, status}, ranked by cost share",
+      "top_fingerprints": "at most top_n of {fingerprint, kind, command_path, description, description_truncated, calls, distinct_runs, cost, cost_unit, cost_share, status}, ranked by cost share",
       "supervision_outcomes": "Current bounded outcomes including unassessed observations; null when the read failed",
       "supervision_false_positives": "signal predictions whose observed class was non-signal",
       "supervision_false_negatives": "non-signal predictions whose observed class was signal",
@@ -125,8 +127,10 @@
     "async_reason": "The bounded friction digest can reach the kernel deadline while reading the owner ledger; callers wait once for the terminal result.",
     "inference_calls": 0,
     "delegated_runs": 0,
-    "materialize_limit": 500
+    "materialize_limit": 500,
+    "output_bytes": 65536
   },
+  "output_schema": "schemas/friction-digest.output.schema.json",
   "fixtures": [
     {
       "id": "live-agent-manager",
@@ -166,6 +170,19 @@
       "inputs": {},
       "expect": {
         "admission_error": "invalid_argument"
+      },
+      "requires": [
+        "agent-manager"
+      ]
+    },
+    {
+      "id": "top-n-over-limit",
+      "inputs": {
+        "scenario": "agent-manager",
+        "top_n": 11
+      },
+      "expect": {
+        "status": ["failed"]
       },
       "requires": [
         "agent-manager"

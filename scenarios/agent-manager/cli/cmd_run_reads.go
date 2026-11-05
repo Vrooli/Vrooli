@@ -3,6 +3,7 @@ package main
 
 import (
 	"agent-manager/cli/internal/support"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"github.com/vrooli/cli-core/cliutil"
@@ -51,14 +52,27 @@ func (a *App) runList(args []string) error {
 	profileID := fs.String("profile-id", "", "Filter by profile ID")
 	status := fs.String("status", "", "Filter by status")
 	tagPrefix := fs.String("tag-prefix", "", "Filter by tag prefix")
+	origin := fs.String("origin", "", "Filter by origin (agent_manager, operator_sessions, workflows)")
 	if err := support.ParseFlags(fs, args); err != nil {
 		return err
 	}
-	body, runs, err := a.services.Runs.List(*limit, *offset, *taskID, *profileID, *status, *tagPrefix)
+	body, runs, err := a.services.Runs.List(*limit, *offset, *taskID, *profileID, *status, *tagPrefix, *origin)
 	if err != nil {
 		return err
 	}
 	if *jsonOutput {
+		if len(runs) == 0 {
+			emptyResponse, err := json.Marshal(struct {
+				Runs    []*domainpb.Run `json:"runs"`
+				Total   int             `json:"total"`
+				HasMore bool            `json:"has_more"`
+			}{Runs: []*domainpb.Run{}})
+			if err != nil {
+				return fmt.Errorf("encode empty Agent Manager run list response: %w", err)
+			}
+			cliutil.PrintJSON(emptyResponse)
+			return nil
+		}
 		cliutil.PrintJSON(body)
 		return nil
 	}

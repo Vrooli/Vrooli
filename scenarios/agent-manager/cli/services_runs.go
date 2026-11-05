@@ -20,7 +20,7 @@ type RunService struct {
 }
 
 // List retrieves runs with optional filters.
-func (s *RunService) List(limit, offset int, taskID, profileID, status, tagPrefix string) ([]byte, []*domainpb.Run, error) {
+func (s *RunService) List(limit, offset int, taskID, profileID, status, tagPrefix, origin string) ([]byte, []*domainpb.Run, error) {
 	query := url.Values{}
 	if limit > 0 {
 		query.Set("limit", fmt.Sprintf("%d", limit))
@@ -40,6 +40,9 @@ func (s *RunService) List(limit, offset int, taskID, profileID, status, tagPrefi
 	if tagPrefix != "" {
 		query.Set("tagPrefix", tagPrefix)
 	}
+	if origin != "" {
+		query.Set("origin", origin)
+	}
 
 	body, err := s.api.Get("/api/v1/runs", query)
 	if err != nil {
@@ -48,7 +51,7 @@ func (s *RunService) List(limit, offset int, taskID, profileID, status, tagPrefi
 
 	var resp apipb.ListRunsResponse
 	if err := unmarshalProtoResponse(body, &resp); err != nil {
-		return body, nil, nil
+		return body, nil, fmt.Errorf("decode Agent Manager run list response: %w", err)
 	}
 	return body, resp.Runs, nil
 }

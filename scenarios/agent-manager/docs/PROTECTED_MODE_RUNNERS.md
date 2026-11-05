@@ -246,16 +246,23 @@ When a run has `RunConfig.Until` and the selected interactive capability marks
 `NativeObjective`, agent-manager delivers `/goal <until>` before the task
 prompt. The runner-owned transcript parser reports a completed native goal as
 a successful terminal event; ordinary prose that merely mentions a goal does
-not satisfy this contract. The CLI exposes the same completion test through
-`agent-manager run create --until ...`.
+not satisfy this contract. Agent Manager accepts completion conditions up to
+1 MiB of UTF-8 bytes; this is a transport ceiling, not a recommended goal size.
+Use `agent-manager run create --until-file <path>` when shell argument limits
+make inline input impractical. Claude Code's native `/goal` field has its own
+4,000-character limit; longer conditions use the short native delegation while
+the complete condition remains in the task prompt.
 
-Today only the Claude Code live path reports goal markers: its transcript
-parser sets the marker the tailer acts on (`codecs/claude.go`) and maps the
-on-disk record to `active` or `complete` only. Codex declares the capability
-and receives `/goal`, but its marker parser (`codecs/goal_markers.go`, wired at
-`codecs/codex.go:92`) is reached only by transcript import, so a live Codex run
-cannot yet finish on a native goal marker. See the
-[goal-marker seam](internal/SEAMS.md#goal-marker-seam).
+Claude and Codex live transcript parsers report native goal markers to the
+tailer. Codex parsing correlates the native call with its successful receipt;
+the supported status vocabulary varies by runner. Launch sends `/goal` once
+and requires a fresh matching `active` marker before using the native prompt.
+After confirmed command submission, a missing marker while the launch context
+is live sends the prepared full prompt-carried condition and records
+`prompt_carried_fallback`. It does not retry `/goal`. Context cancellation or an
+uncertain command submission still stops launch. See the
+[goal-marker seam](internal/SEAMS.md#goal-marker-seam) and the
+[interactive runner implementation status](interactive-runner-design.md#115-implementation-status).
 
 Native interactive objectives are delivered for any sandbox mode the selected
 capability declares: `nativeObjectiveFor` in

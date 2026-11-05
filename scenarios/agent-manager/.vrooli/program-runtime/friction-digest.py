@@ -1,4 +1,4 @@
-"""agent-manager.friction-digest v2 — the owner-level tool friction of one owning scenario.
+"""agent-manager.friction-digest v3 — the owner-level tool friction of one owning scenario.
 
 Contract: friction-digest.json (inputs, invariants, bindings, outputs).
 Skill:    agent-manager §4 (the [S3] leaf), agent-manager-improve §3 (the fleet friction sensor),
@@ -21,10 +21,12 @@ window_days = int(inputs.get("window_days", 7))
 top_n = int(inputs.get("top_n", 10))
 policy_version = str(inputs.get("policy_version", "")).strip()
 outcome_limit = int(inputs.get("outcome_limit", 100))
+MAX_TOP_N = 10
+MAX_DESCRIPTION_CHARS = 280
 
 # ---- envelope: created first, printed once, on every path ----------------------
 envelope = {
-    "program": "agent-manager.friction-digest", "version": "2",
+    "program": "agent-manager.friction-digest", "version": "3",
     "status": "failed", "phase": "validate",
     "inputs": {"scenario": scenario, "window_days": window_days, "top_n": top_n},
     "signals": {
@@ -33,7 +35,10 @@ envelope = {
         "supervision_outcomes": None, "supervision_calibration_available": False, "supervision_false_positives": None,
         "supervision_false_negatives": None, "supervision_overrides": 0,
         "supervision_counterexamples": 0, "supervision_safety_violations": None,
-        "supervision_completion_impact": None,
+        "supervision_completion_impact": None, "supervision_assessed": 0, "supervision_unassessed": 0,
+        "supervision_sample_capped": False, "supervision_sample_scope": "not_read",
+        "supervision_not_scenario_filtered": True, "supervision_impact_samples": 0,
+        "supervision_outcome_coverage": None, "supervision_coverage_reason": "pending_telemetry",
     },
     "errors": [], "evidence": [],
 }
@@ -53,6 +58,8 @@ def step_validate():
         return fail("failed", "invalid_input", "scenario is required", "validate")
     if window_days < 1 or window_days > 90:
         return fail("failed", "invalid_input", f"window_days={window_days} outside [1, 90]", "validate")
+    if top_n < 1 or top_n > MAX_TOP_N:
+        return fail("failed", "invalid_input", f"top_n={top_n} outside [1, {MAX_TOP_N}]", "validate")
     if outcome_limit < 1 or outcome_limit > 500:
         return fail("failed", "invalid_input", f"outcome_limit={outcome_limit} outside [1, 500]", "validate")
     return "collect"
@@ -116,21 +123,34 @@ def step_classify():  # CLASSIFY · deterministic; one record, bounded lists
     summary = record.get("summary") or {}
     coverage = summary.get("coverage") or {}
     sig["window_start"] = record.get("windowStart")
-    sig["coverage"] = coverage.get("sentence")
+    sig["coverage"] = bounded_text(coverage.get("sentence"), 800)
     profiles = record.get("profiles") or []
     sig["profiles_for_scenario"] = len(profiles)
     sig["calls_for_scenario"] = sum(int(p.get("calls") or 0) for p in profiles)
     findings = record.get("findings") or []  # ranked by their share of the window's harm, owner already narrowed
     sig["findings_for_scenario"] = len(findings)
     sig["recurring_count"] = sum(1 for f in findings if int(f.get("runs") or 0) >= 3)
-    sig["top_fingerprints"] = [{
-        "fingerprint": f.get("fingerprint"), "kind": f.get("kind"), "command_path": f.get("commandPath"),
-        "description": f.get("description"), "calls": int(f.get("calls") or 0), "distinct_runs": int(f.get("runs") or 0),
-        "cost": int(f.get("cost") or 0), "cost_unit": f.get("costUnit"), "cost_share": float(f.get("costShare") or 0.0),
-        "status": f.get("status"),
-    } for f in findings[:top_n]]
+    sig["top_fingerprints"] = []
+    for finding in findings[:top_n]:
+        description = str(finding.get("description") or "")
+        sig["top_fingerprints"].append({
+            "fingerprint": finding.get("fingerprint"), "kind": finding.get("kind"), "command_path": finding.get("commandPath"),
+            "description": bounded_text(description, MAX_DESCRIPTION_CHARS),
+            "description_truncated": len(description) > MAX_DESCRIPTION_CHARS,
+            "calls": int(finding.get("calls") or 0), "distinct_runs": int(finding.get("runs") or 0),
+            "cost": int(finding.get("cost") or 0), "cost_unit": finding.get("costUnit"),
+            "cost_share": float(finding.get("costShare") or 0.0), "status": finding.get("status"),
+        })
     envelope["status"] = "ok"
     return "report"
+
+
+def bounded_text(value, max_chars):
+    """Keep long owner descriptions useful without letting them consume the result budget."""
+    text = " ".join(str(value or "").split())
+    if len(text) <= max_chars:
+        return text
+    return text[:max_chars - 1].rstrip() + "…"
 
 
 def step_report():  # REPORT · bounded, always

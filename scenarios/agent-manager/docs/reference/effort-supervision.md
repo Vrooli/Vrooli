@@ -23,6 +23,11 @@ Invoke these with `agent-manager` before the operation. Read operations accept
 `--effort-ref`. Mutation operations accept `--request-file PATH` containing the
 whole typed request, not only its nested enrollment. For example:
 
+Board and compact default to 10 rows because each row joins run, usage,
+decision, and goal-home evidence. Use `--page-token` to continue a broad review;
+use `--effort-ref` for one known effort. List keeps its 50-row default because
+it returns enrollment records without the board's evidence joins.
+
 `effort compact` is a bounded presentation of the same one-call board join. Its
 text output shows selected efforts, changed evidence references, owner usage,
 provider quota observations and named waits with detail references. `--json`
@@ -416,6 +421,10 @@ restarts. Kinds:
 
 `effort signals <ref> [--after N] [--limit 100] [--json]` reads the log after a
 cursor (RPC `ListEffortSignals`, response `{signals, latest_seq}`).
+It is a one-shot read, not a wait or subscription. Supervisors read it at a
+material review event, then act on newly observed signals or wait through the
+relevant owner route; repeatedly advancing the cursor is not evidence of
+progress.
 
 `effort feedback add <goal-home> --effort-ref <ref> --run <run-id> --id <id>
 --title <text> --detail <text>` checks the run's exact public, verified, active

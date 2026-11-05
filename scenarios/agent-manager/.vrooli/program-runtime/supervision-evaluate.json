@@ -606,9 +606,10 @@
           "ok"
         ],
         "signals": {
-          "disposition": "unavailable",
-          "recommended_action": "observe",
-          "next_cursor": "cursor-1"
+          "disposition": "signal",
+          "classification": "event_count",
+          "recommended_action": "escalate",
+          "next_cursor": "cursor-2"
         }
       },
       "requires": [
@@ -636,7 +637,7 @@
           "friction_enabled": true,
           "terminal_enabled": true,
           "deadline_reached": false,
-          "quiet_reached": true,
+          "quiet_reached": false,
           "allowed_actions": [
             "observe",
             "park",
@@ -699,10 +700,11 @@
       },
       "expect": {
         "status": [
-          "ok"
+          "unavailable"
         ],
         "signals": {
           "disposition": "unavailable",
+          "classification": "friction_unavailable",
           "next_cursor": "cursor-1"
         }
       },

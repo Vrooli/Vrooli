@@ -25,25 +25,25 @@
     "the caller treats partial and unavailable rows as unknown, never as zero"
   ],
   "bindings": [
-    {"id": "agent-manager/measures/run-volume", "effect": "read"},
-    {"id": "agent-manager/measures/run-success-rate", "effect": "read"},
-    {"id": "agent-manager/measures/run-duration-statistics", "effect": "read"},
-    {"id": "agent-manager/measures/run-cost", "effect": "read"},
-    {"id": "agent-manager/measures/run-status-distribution", "effect": "read"},
-    {"id": "agent-manager/measures/profile-breakdown", "effect": "read"},
-    {"id": "agent-manager/measures/runner-breakdown", "effect": "read"},
-    {"id": "agent-manager/measures/model-breakdown", "effect": "read"},
-    {"id": "agent-manager/measures/tool-usage", "effect": "read"}
+    {"id": "agent-manager/measures/run-volume", "effect": "read", "optional": true},
+    {"id": "agent-manager/measures/run-success-rate", "effect": "read", "optional": true},
+    {"id": "agent-manager/measures/run-duration-statistics", "effect": "read", "optional": true},
+    {"id": "agent-manager/measures/run-cost", "effect": "read", "optional": true},
+    {"id": "agent-manager/measures/run-status-distribution", "effect": "read", "optional": true},
+    {"id": "agent-manager/measures/profile-breakdown", "effect": "read", "optional": true},
+    {"id": "agent-manager/measures/runner-breakdown", "effect": "read", "optional": true},
+    {"id": "agent-manager/measures/model-breakdown", "effect": "read", "optional": true},
+    {"id": "agent-manager/measures/tool-usage", "effect": "read", "optional": true}
   ],
-  "verbs": [],
+  "verbs": ["gather"],
   "outputs": {
     "status": {"enum": ["ok", "partial", "unavailable", "refused", "failed"]},
     "phase": {"enum": ["validate", "collect", "report"]},
     "signals": {"description": "The bounded efficiency response and its evidence."},
     "errors": {"classes": ["invalid_input", "binding_error", "stale_evidence", "scenario_unreachable", "deadline_exceeded", "remote_error", "no_grant", "not_run_eligible", "no_governed_binding", "kernel_runtime", "output_limit"]}
   },
-  "budget": {"wall_ms": 15000, "async": false, "inference_calls": 0, "delegated_runs": 0, "materialize_limit": 100, "output_bytes": 65536}
-  ,"fixtures": [
+  "budget": {"wall_ms": 30000, "async": false, "inference_calls": 0, "delegated_runs": 0, "materialize_limit": 100, "output_bytes": 65536},
+  "fixtures": [
     {
       "id": "invalid-compare",
       "inputs": {"compare": "current"},

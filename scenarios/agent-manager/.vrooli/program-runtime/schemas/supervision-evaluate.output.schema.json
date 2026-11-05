@@ -85,7 +85,8 @@
             "invalid_input",
             "deadline",
             "event_count",
-            "quiet_time"
+            "quiet_time",
+            "friction_unavailable"
           ]
         },
         "confidence": {

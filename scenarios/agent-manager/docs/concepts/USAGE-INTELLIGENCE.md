@@ -688,8 +688,22 @@ those rows and never reopens `run_events`. It reads **only facts at the current
 (missing, or meaning something else), and scoring them by the current rules
 would report what no rule found. Older facts are counted instead: the coverage
 line of `usage friction`, `measures get tool-friction` and `usage opportunities`
-ends "N runs (M calls) awaiting re-derivation; findings exclude them"
-(`stale_runs`, `stale_calls`) until the projection sweep re-derives them.
+ends "N runs (M calls) at older fact versions; findings exclude them"
+(`stale_runs`, `stale_calls`). These are time-window coverage counts, not queue
+counts. `usage friction` also returns a global queue snapshot, independent of
+its selected window: pending is all queued work; due is the subset ready now;
+retrying is the subset with at least one failed attempt and can overlap due;
+unreplayable means old facts were preserved because their source events were
+evicted. The oldest due time is the earliest scheduled attempt already due.
+
+Projection states are explicit. A terminal run enters `pending`; a failed
+projection increments attempts and schedules exponential retry from 15 minutes,
+capped at 16 hours. A successful projection or deleted run clears the queue
+row. When source events were evicted, the worker advances the watermark but
+keeps the old facts and marks the row `unreplayable`; it does not enqueue that
+row again on every sweep. A later terminal re-mark increments the generation,
+resets retry state, and tries again. Completion and deferral apply only to the
+generation they read, so old work cannot clear or delay a newer mark.
 `result_tokens` carry their basis (`measured | estimated | unknown`): a result
 whose stored text is empty although the command printed bytes (a nested Codex
 command whose output was kept only as a size) is estimated from those bytes (an
@@ -752,8 +766,8 @@ says 100%. When its cost counts less than its sentence names, in any unit, it
 says which is which ("its cost counts 607 of those 948 calls, each run at most
 10x the median run's"; "its cost counts 142.7M of those 240.0M tokens, …"). The same cap (`toolfriction.Capped`) prices every
 opportunity's calls saved. A command's finding says how many more of its calls
-the window holds at an older fact version ("271 more calls of it await
-re-derivation at the current fact version and are not counted"): a count over
+the window holds at an older fact version ("271 more calls of it are at an
+older fact version and are not counted"): a count over
 every version (1,342 `journal note` calls) differs from the finding's (1,071)
 by exactly those. A profile ranks by its largest share of failed calls, command time
 or context tax. The fingerprint is kind and normalised signature (the command
@@ -1079,12 +1093,15 @@ copy, are never counted as runs.
   80% of them have a known outcome (`RunScore.Scorable`); otherwise its friction
   is unavailable (cannot tell), never quiet, and it neither signals nor enters
   the program's friction list: both evaluators apply one rule
-  (`SubjectSummary.FrictionReadable`), the `supervision-evaluate` program also
-  drops rows whose run summary is `friction_unavailable`. Both apply one
+  (`SubjectSummary.FrictionReadable`), and the `supervision-evaluate` program
+  also drops rows whose run summary is `friction_unavailable`. Both apply one
   precedence: deadline, event count, quiet time, then friction (the program
-  calls it `stalled`); unavailable friction only removes that run from the
-  friction trigger, so the other triggers still fire, and with none firing the
-  decision is quiet. A parity table feeds the same subjects to both across
+  calls it `stalled`); unavailable friction does not suppress an independent
+  trigger. If no independent trigger fires and a live run still lacks friction
+  evidence, the program returns `unavailable`, preserves the caller cursor, and
+  schedules a bounded retry. This keeps a missing read from being misreported
+  as quiet progress or silently consuming the observation window. A parity
+  table feeds the same subjects to both across
   every trigger. It feeds the watch trigger and the `supervision-evaluate`
   program input `run_tool_friction` (formerly the unfed `friction_episodes`).
 - **Alerts:** `usageforecast.Alerter` evaluates the current windows every 5

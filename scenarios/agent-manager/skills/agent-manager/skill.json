@@ -48,6 +48,8 @@
       "agent-manager conversation context",
       "agent-manager conversation index status",
       "agent-manager measures get",
+      "test-genie runs artifacts",
+      "test-genie runs download-artifact",
       "search-hub query query",
       "vrooli-memory recall wake",
       "vrooli-memory recall recall",
@@ -57,11 +59,12 @@
     "scenarios": [
       "agent-manager",
       "program-runtime",
+      "test-genie",
       "vrooli-memory",
       "prompt-manager"
     ]
   },
-  "revision": 2,
+  "revision": 11,
   "schemaVersion": 1,
   "status": "active",
   "tags": [
@@ -79,5 +82,5 @@
     "investigation",
     "learning-spine"
   ],
-  "updatedAt": "2026-09-12T00:00:00Z"
+  "updatedAt": "2026-11-05T01:16:00Z"
 }

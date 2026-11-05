@@ -9,15 +9,15 @@ metadata:
   tags: ["agent-manager", "run", "workflow", "conversation-search", "recall", "subagent", "delegation", "result-spec", "classify", "friction", "findings", "investigation", "learning-spine"]
   icon: "terminal"
   status: "active"
-  revision: 2
+  revision: 11
   createdAt: "2026-09-02T00:00:00Z"
-  updatedAt: "2026-09-12T00:00:00Z"
+  updatedAt: "2026-11-05T01:16:00Z"
   learning:
     scope: "agent-manager-usage"
     capture: "every attempt"
   requires:
-    scenarios: ["agent-manager", "program-runtime", "vrooli-memory", "prompt-manager"]
-    commands: ["agent-manager run create", "agent-manager run get", "agent-manager run report", "agent-manager run result", "agent-manager run events", "agent-manager measures cohort-report", "agent-manager run park", "agent-manager run wake", "agent-manager run await-result", "agent-manager run continue", "agent-manager run stop", "agent-manager investigation start", "agent-manager investigation get", "agent-manager investigation list", "agent-manager investigation wait", "agent-manager investigation cancel", "agent-manager run apply-investigation", "agent-manager workflow simulate", "agent-manager workflow start", "agent-manager workflow execution-wait", "agent-manager workflow execution-get", "agent-manager workflow execution-result", "agent-manager workflow trace", "agent-manager task create", "agent-manager profile list", "agent-manager conversation search", "agent-manager conversation context", "agent-manager conversation index status", "agent-manager measures get", "search-hub query query", "vrooli-memory recall wake", "vrooli-memory recall recall", "vrooli-memory journal note", "prompt-manager skill read"]
+    scenarios: ["agent-manager", "program-runtime", "test-genie", "vrooli-memory", "prompt-manager"]
+    commands: ["agent-manager run create", "agent-manager run get", "agent-manager run report", "agent-manager run result", "agent-manager run events", "agent-manager measures cohort-report", "agent-manager run park", "agent-manager run wake", "agent-manager run await-result", "agent-manager run continue", "agent-manager run stop", "agent-manager investigation start", "agent-manager investigation get", "agent-manager investigation list", "agent-manager investigation wait", "agent-manager investigation cancel", "agent-manager run apply-investigation", "agent-manager workflow simulate", "agent-manager workflow start", "agent-manager workflow execution-wait", "agent-manager workflow execution-get", "agent-manager workflow execution-result", "agent-manager workflow trace", "agent-manager task create", "agent-manager profile list", "agent-manager conversation search", "agent-manager conversation context", "agent-manager conversation index status", "agent-manager measures get", "test-genie runs artifacts", "test-genie runs download-artifact", "search-hub query query", "vrooli-memory recall wake", "vrooli-memory recall recall", "vrooli-memory journal note", "prompt-manager skill read"]
   origin:
     kind: "authored"
 ---
@@ -26,9 +26,20 @@ metadata:
 Use Agent Manager when work must run as a governed agent run: a task the current session should not do itself, a multi-step workflow with typed hand-offs, or a diagnosis of runs that already happened. This skill holds the judgment `--help` does not: which shape to start, how to wait, and how to read a finished run. Command flags are in the CLI (`agent-manager <group> <command> --help`); several subcommands print only a usage line, so read the flag names here or in `cli/cmd_*.go`.
 
 Required reading:
-- `prompt-manager skill read vrooli-memory` — the mechanics of the learning spine this skill uses.
-- `prompt-manager skill read investigating-agent-runs` — how to read a run report; cited, not restated.
-- `prompt-manager skill read program-runtime` — when a program's `agent.start`/`agent.collect` is the layer instead of this CLI.
+- `prompt-manager skill read vrooli-memory --output=skills --format=markdown` — the mechanics of the learning spine this skill uses.
+- `prompt-manager skill read investigating-agent-runs --output=skills --format=markdown` — how to read a run report; cited, not restated.
+- `prompt-manager skill read program-runtime --output=skills --format=markdown` — when a program's `agent.start`/`agent.collect` is the layer instead of this CLI.
+
+Read each required skill once per task context and reuse it; use `skill show`
+once for metadata, never as a progress check. Re-read only when the source
+changed or the required guidance is missing from the active context.
+
+If Prompt Manager or Search Hub is unavailable, do not repeat the same failed
+lookup or stop unrelated work. Read the canonical source from its owning scenario
+(`scenarios/<owner>/skills/`) or Prompt Manager's source pack
+(`scenarios/prompt-manager/store/skills/packs/`), then continue; record that
+registry usage was unavailable. If the source is absent, preserve that unknown
+and continue independent work.
 
 ### 1. Scope
 
@@ -55,6 +66,16 @@ Automatic discovery permits observation only; completion is independent of
 accepted outcomes. Missing metrics remain unknown. Steer a delivery goal through
 its goal home files, not the board. Explicit local operators can use
 `--local-owner` on supported owner mutations without persisting tokens.
+
+`effort signals <ref> --after <seq>` is a one-shot cursor read, not a wait,
+subscription or check-in trigger. Read it at a real review event, then act on new
+signals or wait through the relevant worker/owner route; do not poll the cursor
+for activity. Advancing `--after` without a signal is not progress evidence.
+
+`effort board` is also a snapshot, not a progress signal. Read the exact effort
+when its reference is known; use paged discovery only when the target is unknown.
+Do not repeat an unchanged board to infer progress. Use a supported owner wait or
+return at the next material review event.
 
 For a bounded diagnosis of an existing run set, use the typed investigation
 operation or the `agent-manager.investigate` program. Its operation status is
@@ -122,7 +143,9 @@ Workflow
 
 #### 3.3 Waiting on a bare run
 
-A bare run has no server-side wait verb. Use this table; do not poll `run get`.
+A bare run has no server-side wait verb. Use this table; do not poll `run get`
+or `run list`. `run list` is a snapshot for discovery and inventory, not a
+progress signal; repeated reads do not provide a wait guarantee.
 
 | Situation | Durable pattern | Rung |
 |---|---|---|
@@ -162,8 +185,10 @@ programs are the owner-routed leaves. Read the contract for full schemas.
 | Evaluate supervision | `agent-manager.supervision-evaluate` | Score a bounded supervision decision against policy | `case_id`, `policy_id` |
 | Read one supervision experiment | `agent-manager.supervision-experiment-read` | Inspect experiment state and outcome evidence | `experiment_id` |
 
-Use `program-runtime library run <name> --input key=value`; do not reconstruct
-these joins with direct database reads.
+Use `program-runtime library run <name> --input key=value`; inputs are
+JSON-decoded, so quote numeric-looking strings as JSON strings (for example
+`--input 'window="7"'`). Do not reconstruct these joins with direct database
+reads.
 
 For `agent-manager.conversation-recall`, a `partial` envelope with
 `signals.degradations` means the listed Search Hub provider legs were not
@@ -201,29 +226,14 @@ Reading
 
 Running an `[S3]` leaf: use `program-runtime library run <scenario>.<program> --input key=value`. The runner owns inputs, session, wait, and cleanup. Branch on the declared envelope; never copy source into a scratch session for ordinary use.
 
+For Test Genie evidence, discover and download artifacts through its owner CLI:
+`test-genie runs artifacts <run-id> --scenario <name>` followed by
+`test-genie runs download-artifact <run-id> <artifact-id> --scenario <name> --out <path>`.
+Artifact IDs are opaque. Do not construct internal HTTP artifact URLs or curl
+the scenario's private routes; the CLI preserves its authorization, catalog,
+and destination-safety behavior.
+
 Reading `run report`: status and cost first, then result provenance, then failure counts. Its `Next:` lines are the drill-down; the report deliberately excludes transcript bodies. `selfReportSpans` in `run report --json` are the assistant's own phrases ("blocked", "cannot find"): a cue to read the run, not a verdict. Command friction is read from `measures get tool-profiles` and `usage friction`, whose coverage line says how many commands came from runs an older parser read (outcomes there may be missing).
-
-#### 4.1 Recalling an unknown run
-
-Use this branch when you remember the subject, wording, project, date, harness, or outcome but not the run ID. Search returns retained, policy-visible events only.
-
-| What you know | Surface and mode | One-step leaf |
-|---|---|---|
-| The evidence is in an Agent Manager conversation | Direct, `hybrid` | `agent-manager conversation search "<natural-language clues>" --mode hybrid` [S1] |
-| You know distinctive words or a copied phrase | Direct, `text` | `agent-manager conversation search "<words or phrase>" --mode text` [S1] |
-| You know a precise expert pattern | Direct, `regex` | `agent-manager conversation search '<bounded-pattern>' --mode regex` [S1] |
-| You remember meaning but not wording | Direct, `semantic` | `agent-manager conversation search "<paraphrase>" --mode semantic` [S1] |
-| The evidence might instead be source, docs, or distilled memory | Unified federation | `search-hub query query "<question with the remembered clues>"` [S1] |
-
-Start with `hybrid` for partial memory. Add the narrowest known filters without inventing values: for example `--project-scopes <project>`, `--harnesses <harness>`, `--roles user,assistant`, or `--occurred-after 2026-08-01T00:00:00Z`. Use `text` when literal wording decides identity. Use `regex` only for a pattern that text search cannot express. Use `semantic` when lexical overlap is not expected; it requires the semantic substrate.
-
-Read each result as evidence, not as a conclusion. Confirm the run label and ID, role, time, harness, source session, match explanation, and deep link. Copied text can appear in more than one run, so prefer the candidate whose surrounding provenance matches the clue. Fetch context only after selecting a stable hit:
-
-`agent-manager conversation context <stable-hit-id> --before 3 --after 3` [S1]
-
-Success is the intended run within the returned candidates with matching provenance. A weak or ambiguous candidate is not success. Refine one known filter or use `agent-manager.conversation-recall` when several complementary clues require a bounded multi-query merge [S3]. If output says `Degraded`, keep the lexical evidence but do not claim that semantic candidates were searched. Check `agent-manager conversation index status` before retrying [S1]. A deleted message, purged run, or policy-hidden source must remain absent; do not work around that boundary by scanning raw transcript files.
-
-Do not paste snippets or raw conversation text into Vrooli Memory, source records, prompts, or bug reports. Capture the stable run/hit ID, evidence category, and conclusion instead. Vrooli Memory owns distilled lessons; repository providers own code and docs; Agent Manager owns attributable retained conversation evidence.
 
 ### 5. Investigating
 
@@ -247,6 +257,10 @@ investigation skill into a bare run. The apply skill is a separate authorized
 repair path for retained legacy records; a typed diagnosis never grants repair
 authority.
 
+For unknown-run recovery, debug order, safety details, in-use settings,
+troubleshooting, joined supervision reads, and caller-identity refusals, see
+`references/extended-operations.md`.
+
 ### 6. After acting, always
 
 Use `vrooli-memory learning record --scope agent-manager-usage --attempt '<Attempt JSON>'`
@@ -262,95 +276,3 @@ for implementation changes. On capture failure retain the unchanged payload and
 retry its ID; the operation outcome does not change. Supersede contradicted advice
 through the shared curation path. Supervision policy changes follow the owner
 replay/promotion process and never come directly from remembered prose.
-
-### 7. In-use settings
-
-| Symptom | Move | Journal |
-|---|---|---|
-| Result parses as prose when the caller needs a label | Restart with `--classify a,b,c` | the label set and the run id |
-| Result has fields but `run result` shows abstained | Restart with `--result-schema-file`; keep the schema in the caller's repo | the schema path |
-| Runs of one job are not grouped in `measures get workload-breakdown` | Set one stable `--workload-key` | the key |
-| `run create` retried and made a second run | Add `--idempotency-key` | both run ids |
-| Workflow wait returned at the bound, execution still running | Call `execution-wait` again with a longer `--timeout-seconds`; one call, not a loop | the execution id and bound |
-| Run stalls on another scenario's output | Park; name the producer and key | producer, key |
-
-### 8. Debug order
-
-1. `vrooli scenario status agent-manager`.
-2. `agent-manager run get <id>` — status, phase, exit code.
-3. `agent-manager run report <id>` — then `investigating-agent-runs`.
-4. `agent-manager run events <id> --failed`.
-5. `agent-manager workflow trace <execution-id>` for a workflow node.
-
-### 9. Safety
-
-- Never run an agent binary directly to bypass a run; every agent execution is a run.
-- `run approve`, `run reject`, and `run apply-investigation` change files; run them only with an operator decision in hand.
-- `workflow execution-result` reveals payloads; pass `--explicitly-authorized` only when the caller may see them.
-- Do not put secrets in `--prompt`; runs are retained and reported.
-
-### 10. Troubleshooting & Edge Cases
-
-| Symptom | Likely cause | First check | Fix |
-|---|---|---|---|
-| `run report` through program-runtime fails | The run id is invalid, missing, or the report service is unavailable | `program-runtime bindings describe agent-manager/run/report` and `agent-manager run report <id>` | Supply a real run UUID; retry only when the service reports a transient dependency failure |
-| `run create` refuses: "use exactly one of --result-schema, --result-schema-file, or --classify" | Two result specs given | the command line | Keep one |
-| `execution-wait` returns immediately with a terminal status you did not expect | The idempotency key matched an earlier execution | `workflow execution-get <id>` `created_at` | Use a new key for new work |
-| `measures get <x>` shows `validity=unreliable` | Classified share is below 90 percent, or the sample is under 5 | the `validity_reason` field | Read the number as unreliable; do not quote it as a rate |
-| `run wake <id>` refused | The run is not `RUN_STATUS_PARKED` | `run get <id>` | Only a parked run wakes |
-| Heartbeat runs crowd `run list` | Heartbeat members create runs every cycle | `run list --tag-prefix <your prefix>` | Filter by tag or workload key |
-
-### Joined supervision reads
-
-For delivery-goal supervision, first run
-`program-runtime library run agent-manager.supervision-observation-read --input page_size=8`.
-It reads one bounded Agent Manager board page and selects retained unfinished
-orchestrator/worker obligations independent of runtime liveness. Preserve
-unknown, review-required, blocked, stale and unavailable facts; continue only
-with the returned page token. Withdrawn rows are retired. Rows without retained
-orchestrator/worker assignments remain visible as admission/completion unknown.
-Goal-home contents such as `activeEpoch`, open feedback or queue findings do not
-establish native admission or retained ownership; `authorized_by` alone never
-establishes admission.
-
-Run `program-runtime library run agent-manager.supervision-case-read --input watch_id=<id>`
-to join the latest decision, pending evidence, accepted/applied actions and assessment gaps.
-Run `program-runtime library run agent-manager.supervision-experiment-read --input policy_version=<version>`
-to join pinned identities, owner evaluation gates and bounded outcome coverage.
-These programs do not consume cursors or write assessments. Treat a capped sample
-as a sample. Use the existing usage memory loop once after the operational outcome.
-
-### CreateRun caller identity and refusal
-
-CreateRun requires caller proof at both the HTTP and service boundaries, before
-reservation or dispatch. The shared CLI transport forwards an existing run
-credential in `X-Agent-Identity-Token`; each adapter still needs qualification.
-Delegated requests must name that verified run as their exact `parentRunId` and
-retain qualification and execution restrictions. An existing human owner
-credential belongs in `Authorization: Bearer`, where the owner verifier must
-validate it as a live human with the declared `agent-manager:write` capability.
-A run credential in the human channel is not human authorization. If both
-channels are offered, both must validate for the same owner; scopes and expiry
-are intersected. An invalid offered channel cannot be ignored.
-
-Public CreateRun selects existing profiles. Inline defaults that would create
-or change a profile must be reconciled through the existing authorized profile
-owner route first; identical existing declarations remain no-ops. An accepted
-public replay requires the original persisted caller, task, parent and scope
-ceiling. Historical anonymous admissions are refused by the public route;
-renewed proof does not renew the original run's authority expiry.
-
-After an authentication or policy refusal, preserve the redacted request and
-exact response and stop the denied action and dependent work. Do not remove an
-identity header, substitute another principal, attach a run, mint credentials,
-or retry anonymously. Body lineage, localhost origin, task/profile names and
-harness labels do not prove authority. Use an already authorized direct session
-only when the owner explicitly supports that work shape; record its actual
-scope without claiming native admission.
-
-The AUTH-01 receiving-boundary source correction is not rollout qualification.
-Supported caller migration, service-level replay binding, positive verified
-operator/exact-parent tests and independent evidence remain deployment gates.
-Other lifecycle endpoints retain their existing contracts.
-
-For the authority model behind these rules — who may create a run and how a bounded caller is granted that authority — read [docs/concepts/AUTHORIZATION.md](../../../../docs/concepts/AUTHORIZATION.md).

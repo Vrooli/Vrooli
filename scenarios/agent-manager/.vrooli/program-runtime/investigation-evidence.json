@@ -26,9 +26,10 @@
   "bindings": [
     {
       "id": "agent-manager/run/report",
-      "effect": "read"
+      "effect": "read",
+      "optional": true
     },
-    {"id": "agent-manager/run/accounting", "effect": "read"}
+    {"id": "agent-manager/run/accounting", "effect": "read", "optional": true}
   ],
   "verbs": [
     "gather"

@@ -39,6 +39,15 @@ type rig struct {
 	recall  int64
 }
 
+type failingTranscriptListStore struct {
+	transcriptindex.Store
+	err error
+}
+
+func (s failingTranscriptListStore) ListTranscriptFiles(context.Context) ([]transcriptindex.FileRow, error) {
+	return nil, s.err
+}
+
 func newRig(t *testing.T, recall int64) *rig {
 	t.Helper()
 	repos, events, cleanup := testutil.SetupTestRepos(t)
@@ -57,6 +66,33 @@ func newRig(t *testing.T, recall int64) *rig {
 	r.svc.SetConversationSearchNotifier(func(context.Context, string, string, string) error { return nil })
 	r.restart()
 	return r
+}
+
+func TestBackgroundStartReportsTranscriptIndexFailures(t *testing.T) {
+	r := newRig(t, transcriptindex.DefaultRecallMaxBytes)
+	observed := make(chan error, 1)
+	index := orchestration.NewTranscriptIndex(r.svc, failingTranscriptListStore{
+		Store: r.repos.TranscriptIndex,
+		err:   errors.New("injected transcript store outage"),
+	}, transcriptindex.Config{
+		Roots: transcriptindex.RootConfig{Home: r.home, RunStateRoot: r.runRoot},
+		OnTick: func(_ transcriptindex.Summary, err error) {
+			observed <- err
+		},
+	})
+	ctx, cancel := context.WithCancel(context.Background())
+	index.Start(ctx)
+	defer index.Stop()
+	defer cancel()
+
+	select {
+	case err := <-observed:
+		if err == nil || !strings.Contains(err.Error(), "injected transcript store outage") {
+			t.Fatalf("background tick error = %v, want injected store outage", err)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("background indexer did not report its tick result")
+	}
 }
 
 // restart builds a fresh indexer over the same store, as an API restart does.

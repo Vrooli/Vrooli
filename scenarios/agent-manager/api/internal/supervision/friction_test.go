@@ -114,7 +114,8 @@ func TestToolFrictionFeedsTheFrictionTrigger(t *testing.T) {
 // precedence to the same subjects: deadline, event_count, quiet_time, then
 // friction. A run whose friction is unavailable (stale projection, events
 // after the watermark, or too few known outcomes) only leaves the friction
-// trigger; every other trigger still fires on both paths.
+// trigger; every other trigger still fires on both paths. With no independent
+// trigger, an active unreadable run remains unavailable and preserves its cursor.
 func TestTriggerAndProgramAgreeOnEveryTrigger(t *testing.T) {
 	source, err := filepath.Abs("../../../.vrooli/program-runtime/supervision-evaluate.py")
 	if err != nil {
@@ -150,8 +151,8 @@ func TestTriggerAndProgramAgreeOnEveryTrigger(t *testing.T) {
 		want     string // Go classification; "quiet" means no trigger fired
 	}{
 		"readable over threshold":              {subjects: []SubjectSummary{readable(runA, high)}, want: "friction_threshold"},
-		"stale projection":                     {subjects: []SubjectSummary{stale(runA)}, want: "quiet"},
-		"too few known outcomes":               {subjects: []SubjectSummary{unknownOutcomes}, want: "quiet"},
+		"stale projection":                     {subjects: []SubjectSummary{stale(runA)}, want: "friction_unavailable"},
+		"too few known outcomes":               {subjects: []SubjectSummary{unknownOutcomes}, want: "friction_unavailable"},
 		"readable beside an unavailable run":   {subjects: []SubjectSummary{stale(runA), readable(runB, high)}, want: "friction_threshold"},
 		"quiet time":                           {subjects: []SubjectSummary{readable(runA, toolfriction.RunScore{})}, quiet: true, want: "quiet_time"},
 		"quiet time beside unavailable":        {subjects: []SubjectSummary{stale(runA)}, quiet: true, want: "quiet_time"},
@@ -224,6 +225,8 @@ func TestTriggerAndProgramAgreeOnEveryTrigger(t *testing.T) {
 		wantDisposition, wantAction := "signal", "escalate"
 		if tc.want == "quiet" {
 			wantDisposition, wantAction = "quiet", "park"
+		} else if tc.want == "friction_unavailable" {
+			wantDisposition, wantAction = "unavailable", "observe"
 		}
 		if program.Disposition != wantDisposition || program.Classification != wantProgram || program.RecommendedAction != wantAction {
 			t.Errorf("%s: program %s/%s/%s, want %s/%s/%s (trigger %s/%s)", name, program.Disposition, program.Classification, program.RecommendedAction,

@@ -323,7 +323,7 @@ func TestEvictedRunKeepsItsStoredFactsOnReplayAndSweep(t *testing.T) {
 	if err != nil || result.Status != "unreplayable" || result.FactCount != 1 {
 		t.Fatalf("replay = %+v, %v", result, err)
 	}
-	if err := o.projectInvocationReadModel(ctx, run); err != nil {
+	if _, err := o.projectInvocationReadModel(ctx, run); err != nil {
 		t.Fatal(err)
 	}
 	facts, err := repos.InvocationReadModel.Facts(ctx, run.ID.String())

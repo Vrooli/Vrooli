@@ -1,6 +1,6 @@
 # Goal messages
 
-## Orchestrator goal (paste as `/goal …`; ≤2,048 chars)
+## Orchestrator goal (paste as `/goal …`; keep concise, no fixed character cap)
 
 ```text
 /goal Work until this verified end state is true: every acceptance row A1–A10 in scenarios/agent-manager/docs/efforts/usage-intelligence/SPEC.md §5 is recorded under "Accepted" in WORKSTREAMS.md with its proof output shown in this transcript, A11 is measured or scheduled per SPEC D6, every DEBT.md row is closed or kept with a stated reason, and two consecutive fresh hostile review passes over the changed code find nothing material.

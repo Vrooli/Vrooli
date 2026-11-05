@@ -75,6 +75,23 @@ type PendingProjection struct {
 	Attempts   int
 }
 
+// ProjectionQueueStatus is a point-in-time read of global projection work.
+// Coverage of old-version facts is a separate measure and does not imply
+// that every such run is still queued or replayable.
+type ProjectionQueueStatus struct {
+	PendingRuns      int64
+	DueRuns          int64
+	RetryingRuns     int64
+	UnreplayableRuns int64
+	OldestDueAt      *time.Time
+}
+
+// ProjectionQueueStatusReader exposes the queue state without exposing run
+// payloads or coupling analytics callers to a database implementation.
+type ProjectionQueueStatusReader interface {
+	ReadProjectionQueueStatus(context.Context, time.Time) (ProjectionQueueStatus, error)
+}
+
 // ProjectionQueue holds the durable needs-projection marks. Every terminal
 // writer marks its run; the reconcile sweep enqueues ended runs whose
 // watermark is missing or stale, and projects due marks idempotently.
@@ -85,7 +102,8 @@ type ProjectionQueue interface {
 	EnqueueStaleProjections(ctx context.Context, factVersion string, at time.Time, limit int) (int, error)
 	DueProjections(ctx context.Context, at time.Time, limit int) ([]PendingProjection, error)
 	CompleteProjection(ctx context.Context, runID string, generation int64) error
-	DeferProjection(ctx context.Context, runID string, until time.Time) error
+	DeferProjection(ctx context.Context, runID string, generation int64, until time.Time) error
+	MarkProjectionUnreplayable(ctx context.Context, runID string, generation int64, reason string, at time.Time) error
 }
 
 // ProjectionStore atomically advances both analytical projections for a run.

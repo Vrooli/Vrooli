@@ -50,10 +50,11 @@ type SemanticRuntime struct {
 	statusRefresh       chan struct{}
 }
 
-// BuildSemanticRuntime validates authoritative config before attempting any
-// optional resource. Configuration errors are returned to the caller; resource
-// failures are captured as a typed unavailable retriever so lexical service can
-// still boot and report precise degradation on hybrid requests.
+// BuildSemanticRuntime validates authoritative config before wiring optional
+// resource clients. Invalid embedding policy is captured as a typed unavailable
+// retriever so lexical service can still boot and report precise degradation.
+// Transient vector-store failures stay on the live client, allowing later
+// requests and indexing retries to recover without an API restart.
 func BuildSemanticRuntime(ctx context.Context, options SemanticRuntimeOptions) (*SemanticRuntime, error) {
 	if strings.TrimSpace(options.SearchFilePath) == "" || options.Source == nil || options.Projection == nil {
 		return nil, fmt.Errorf("search file, source, and projection are required")
@@ -103,11 +104,10 @@ func BuildSemanticRuntime(ctx context.Context, options SemanticRuntimeOptions) (
 	runtime.Engine = engine
 	runtime.EmbeddingModel = engine.Spec.Model
 	runtime.Binding = aisearch.NewHybridBinding("conversation", "", engine.VectorStore, runtime.Source, aisearch.NewIdentityChunker(), conversationEmbeddingComposer{}, engine.SparseEncoder)
-	if !engine.VectorStore.Available(ctx) {
-		runtime.InitializationError = ErrVectorStoreUnavailable
-		runtime.Retriever = unavailableSemanticRetriever{err: runtime.InitializationError}
-		return runtime, nil
-	}
+	// Do not freeze the runtime in lexical-only mode based on a startup probe.
+	// Qdrant is an optional dependency and may become available after this API
+	// starts. Keep the live retriever and indexing pipeline wired; their normal
+	// operations report transient Qdrant failures and can recover on later calls.
 	generationStore, err := aisearch.NewQdrantGenerationStore(aisearch.QdrantGenerationOptions{BaseURL: operational.QdrantURL, APIKey: operational.QdrantAPIKey, Alias: collection, Namespace: conversationCollectionDomain, Owner: ConversationSearchProviderID, Catalog: options.GenerationCatalog, Spec: engine.Spec})
 	if err != nil {
 		return nil, err

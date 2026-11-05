@@ -55,7 +55,11 @@ func (a *App) cmdEffort(args []string) error {
 	file := fs.String("request-file", "", "Typed RPC request JSON for mutation")
 	localOwner := fs.Bool("local-owner", false, "Explicit local operator exchange; no persisted token or agent fallback")
 	ref := fs.String("effort-ref", "", "Exact effort reference")
-	limit := fs.Uint("page-size", 50, "Maximum rows (1-100)")
+	defaultPageSize := uint(50)
+	if command == "board" || command == "compact" {
+		defaultPageSize = 10
+	}
+	limit := fs.Uint("page-size", defaultPageSize, "Maximum rows (1-100); board/compact default to 10 because each row joins owner evidence")
 	cursor := fs.String("page-token", "", "Next page token from prior response")
 	jsonOut := cliutil.JSONFlag(fs)
 	if err := cliutil.ParseInterspersed(fs, args[1:]); err != nil {

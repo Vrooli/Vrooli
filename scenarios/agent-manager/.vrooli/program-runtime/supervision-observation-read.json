@@ -28,7 +28,7 @@
     "Partial, stale, unavailable and paged coverage remain explicit; the output contains at most 8 rows and 8 evidence references.",
     "Owner references are stably ordered with known unfinished or unknown states before known terminal states, then capped at 8; owner_refs_total and owner_refs_truncated preserve evidence of omitted references."
   ],
-  "verbs": [],
+  "verbs": ["gather"],
   "bindings": [
     {
       "id": "agent-manager/effort/board",

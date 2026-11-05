@@ -24,8 +24,8 @@ func TestHelpListsTheFlagsHandlersParse(t *testing.T) {
 		}
 	}
 	for command, flags := range map[string][]string{
-		"run list":       {"--limit", "--status", "--tag-prefix"},
-		"run create":     {"--task-id", "--profile-id", "--until"},
+		"run list":       {"--limit", "--status", "--tag-prefix", "--origin"},
+		"run create":     {"--task-id", "--profile-id", "--until", "--until-file"},
 		"workflow start": {"--owner", "--input-file", "--idempotency-key"},
 	} {
 		for _, flag := range flags {

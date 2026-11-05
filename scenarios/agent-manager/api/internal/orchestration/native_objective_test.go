@@ -6,6 +6,7 @@ import (
 
 	"agent-manager/internal/adapters/runner"
 	"agent-manager/internal/domain"
+	"github.com/vrooli/vrooli/packages/proto/contracts"
 )
 
 func TestNativeObjectiveForUsesDeclaredInteractiveCapability(t *testing.T) {
@@ -50,5 +51,27 @@ func TestNativeObjectiveForDelegatesLongContractsWithoutTruncatingThem(t *testin
 	}
 	if len([]rune(got)) > maxNativeObjectiveCharacters {
 		t.Fatalf("bounded native objective has %d characters, want <= %d", len([]rune(got)), maxNativeObjectiveCharacters)
+	}
+}
+
+func TestMaximumCompletionContractStaysInTaskPromptAndDelegatesNativeObjective(t *testing.T) {
+	until := strings.Repeat("x", contracts.AgentManagerMaxGoalCompletionBytes)
+	run := &domain.Run{
+		RunMode: domain.RunModeSandboxed,
+		ResolvedConfig: &domain.RunConfig{
+			Until:         until,
+			SandboxConfig: &domain.SandboxConfig{Mode: domain.SandboxModeTracking},
+		},
+	}
+	caps := runner.Capabilities{SpawnCapabilities: []runner.SpawnCapability{{
+		ExecutionMode: "interactive", SandboxModes: []string{"tracking"}, NativeObjective: true,
+	}}}
+
+	if got := nativeObjectiveFor(run, caps); got != boundedNativeObjectiveText {
+		t.Fatalf("nativeObjectiveFor() = %q, want the short delegation", got)
+	}
+	prompt := initialPromptWithUntil(run, "do the work")
+	if !strings.HasSuffix(prompt, until) {
+		t.Fatal("task prompt truncated the maximum-size completion contract")
 	}
 }

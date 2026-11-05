@@ -17,7 +17,7 @@
   ],
   "invariants": [
     "Read only; no launches, cursor movement, assessments or promotions.",
-    "One bounded envelope; missing evidence remains unknown.",
+    "Policy identity remains required; missing outcome coverage is unknown and never blocks the policy read.",
     "Outer usage skill owns one outcome-linked memory capture."
   ],
   "bindings": [
@@ -27,7 +27,8 @@
     },
     {
       "id": "agent-manager/watch/policy-outcomes",
-      "effect": "read"
+      "effect": "read",
+      "optional": true
     }
   ],
   "verbs": [
@@ -37,6 +38,7 @@
     "status": {
       "enum": [
         "ok",
+        "partial",
         "failed",
         "unavailable",
         "refused"

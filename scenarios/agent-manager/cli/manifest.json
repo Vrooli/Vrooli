@@ -3570,6 +3570,10 @@
               "description": "Tag prefix filter"
             },
             {
+              "name": "origin",
+              "description": "Filter by origin: agent_manager, operator_sessions, or workflows"
+            },
+            {
               "name": "limit",
               "description": "Maximum runs (1-100)"
             },
@@ -3799,7 +3803,7 @@
           "description": "Read one bounded page of decisions for an exact effort",
           "flags": [
             {"name": "effort-ref", "required": true, "description": "Exact enrolled effort reference"},
-            {"name": "page-size", "bind": {"field": "limit"}, "description": "Maximum owner rows (1-100)"},
+            {"name": "page-size", "bind": {"field": "limit"}, "description": "Maximum owner rows (1-100)", "bind_waiver": "Pagination is request data: the CLI validates 1-100 and sends it as ListEffortDecisionsRequest.limit; it does not control CLI execution."},
             {"name": "page-token", "description": "Opaque continuation token from the previous page"}
           ],
           "binding": {"kind": "connect-rpc", "service": "AgentManagerService", "method": "ListEffortDecisions"},
@@ -5623,26 +5627,6 @@
     },
     {
       "service": "MeasuresService",
-      "method": "ExternalToolShare",
-      "reason": "Served by `measures get` through the measure registry, not a per-measure command."
-    },
-    {
-      "service": "MeasuresService",
-      "method": "RetryRate",
-      "reason": "Served by `measures get` through the measure registry, not a per-measure command."
-    },
-    {
-      "service": "MeasuresService",
-      "method": "RepeatedWorkRate",
-      "reason": "Served by `measures get` through the measure registry, not a per-measure command."
-    },
-    {
-      "service": "MeasuresService",
-      "method": "ToolFailureRate",
-      "reason": "Served by `measures get` through the measure registry, not a per-measure command."
-    },
-    {
-      "service": "MeasuresService",
       "method": "RunSuccessRate",
       "reason": "Served by `measures get` through the measure registry, not a per-measure command."
     },
@@ -5699,31 +5683,6 @@
     {
       "service": "MeasuresService",
       "method": "ToolUsage",
-      "reason": "Served by `measures get` through the measure registry, not a per-measure command."
-    },
-    {
-      "service": "MeasuresService",
-      "method": "CapabilityUsage",
-      "reason": "Served by `measures get` through the measure registry, not a per-measure command."
-    },
-    {
-      "service": "MeasuresService",
-      "method": "CapabilityEfficacy",
-      "reason": "Served by `measures get` through the measure registry, not a per-measure command."
-    },
-    {
-      "service": "MeasuresService",
-      "method": "ErrorPatterns",
-      "reason": "Served by `measures get` through the measure registry, not a per-measure command."
-    },
-    {
-      "service": "MeasuresService",
-      "method": "FileRereadRate",
-      "reason": "Served by `measures get` through the measure registry, not a per-measure command."
-    },
-    {
-      "service": "MeasuresService",
-      "method": "FindingRecurrenceRate",
       "reason": "Served by `measures get` through the measure registry, not a per-measure command."
     },
     {

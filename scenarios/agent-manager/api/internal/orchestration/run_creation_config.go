@@ -9,6 +9,7 @@ import (
 
 	"agent-manager/internal/domain"
 	"agent-manager/internal/structuredresult"
+	"github.com/vrooli/vrooli/packages/proto/contracts"
 )
 
 // resolveRunConfig resolves the run configuration from profile and/or inline config.
@@ -115,8 +116,8 @@ func (o *Orchestrator) resolveRunConfig(ctx context.Context, req CreateRunReques
 		}
 	}
 	if strings.TrimSpace(req.Until) != "" {
-		if len(req.Until) > 2048 {
-			return nil, nil, domain.NewValidationError("until", "completion test must be at most 2048 characters")
+		if err := validateCompletionCondition(req.Until); err != nil {
+			return nil, nil, err
 		}
 		cfg.Until = strings.TrimSpace(req.Until)
 	}
@@ -209,6 +210,13 @@ func (o *Orchestrator) resolveRunConfig(ctx context.Context, req CreateRunReques
 	}
 
 	return cfg, profile, nil
+}
+
+func validateCompletionCondition(value string) error {
+	if len(value) > contracts.AgentManagerMaxGoalCompletionBytes {
+		return domain.NewValidationError("until", fmt.Sprintf("completion test must be at most %d UTF-8 bytes (1 MiB)", contracts.AgentManagerMaxGoalCompletionBytes))
+	}
+	return nil
 }
 
 // runExecutionCeilings returns the runtime-owned work limits. Health settings

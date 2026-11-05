@@ -50,15 +50,18 @@
   "bindings": [
     {
       "id": "agent-manager/run/list",
-      "effect": "read"
+      "effect": "read",
+      "optional": true
     },
     {
       "id": "agent-manager/measures/tool-friction",
-      "effect": "read"
+      "effect": "read",
+      "optional": true
     },
     {
       "id": "agent-manager/measures/run-success-rate",
-      "effect": "read"
+      "effect": "read",
+      "optional": true
     }
   ],
   "verbs": [

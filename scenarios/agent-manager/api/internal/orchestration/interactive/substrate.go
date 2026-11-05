@@ -220,9 +220,14 @@ type LaunchParams struct {
 	// delivered before the task prompt only when the resolved runner capability
 	// explicitly supports it.
 	NativeObjective string
-	Model           string
-	Effort          domain.Effort
-	Config          *domain.RunConfig
+	// PromptCarriedFallback is the same task prompt with the complete finish line
+	// included. If native objective acknowledgement fails after command submission
+	// and the launch context is still live, Launch delivers this prompt instead
+	// of abandoning otherwise usable work.
+	PromptCarriedFallback string
+	Model                 string
+	Effort                domain.Effort
+	Config                *domain.RunConfig
 	// HumanOwnerSubject is the verified human this interactive run is attributed
 	// to, set ONLY when the run was spawned by a verified independent human (a
 	// tunnel-UI spawn). It is forwarded to web-console so the session's
@@ -245,12 +250,16 @@ type LaunchResult struct {
 }
 
 // Goal delivery mechanisms recorded on a run. native_verified is upgraded by
-// the coordinator when a goal marker is observed; a native objective that is
-// sent but never acknowledged stays native_unverified.
+// the coordinator when a terminal native goal marker is observed;
+// native_unverified means the active objective was acknowledged but no terminal
+// native goal marker has been observed yet.
 const (
 	GoalDeliveryNativeVerified   = "native_verified"
 	GoalDeliveryNativeUnverified = "native_unverified"
 	GoalDeliveryPromptCarried    = "prompt_carried"
+	// GoalDeliveryPromptFallback records that native goal acknowledgement failed
+	// and the complete finish line was delivered with the task prompt.
+	GoalDeliveryPromptFallback = "prompt_carried_fallback"
 )
 
 // Launch creates a web-console session running the real interactive agent CLI,
@@ -282,13 +291,30 @@ func (s *Substrate) Launch(ctx context.Context, p LaunchParams) (LaunchResult, e
 	if err != nil {
 		return LaunchResult{}, fmt.Errorf("resolve interactive launch info for %s: %w", p.RunnerType, err)
 	}
+	promptToDeliver := p.Prompt
+	goalDelivery := ""
+	nativeObjectiveEnabled := p.NativeObjective != ""
 	var goalParserFactory runner.TranscriptParserFactory
-	if p.NativeObjective != "" {
+	if nativeObjectiveEnabled {
 		factory, ok := info.(runner.TranscriptParserFactory)
 		if !ok {
-			return LaunchResult{}, fmt.Errorf("runner %s has no transcript parser for native objective acknowledgement", p.RunnerType)
+			if strings.TrimSpace(p.PromptCarriedFallback) == "" {
+				return LaunchResult{}, fmt.Errorf("runner %s has no transcript parser for native objective acknowledgement and no prompt-carried fallback", p.RunnerType)
+			}
+			nativeObjectiveEnabled = false
+			promptToDeliver = p.PromptCarriedFallback
+			goalDelivery = GoalDeliveryPromptFallback
+		} else {
+			goalParserFactory = factory
 		}
-		goalParserFactory = factory
+	}
+	fallbackToPrompt := func() bool {
+		if ctx.Err() != nil || strings.TrimSpace(p.PromptCarriedFallback) == "" {
+			return false
+		}
+		promptToDeliver = p.PromptCarriedFallback
+		goalDelivery = GoalDeliveryPromptFallback
+		return true
 	}
 
 	// Pre-create the relocated session home and seed it with the shared home's
@@ -388,8 +414,8 @@ func (s *Substrate) Launch(ctx context.Context, p LaunchParams) (LaunchResult, e
 	// can leave current Codex releases idle without creating a thread or
 	// transcript (observed with codex-cli 0.144.6).
 	var resend func() error
-	if p.Prompt != "" || p.NativeObjective != "" {
-		if p.NativeObjective != "" {
+	if promptToDeliver != "" || nativeObjectiveEnabled {
+		if nativeObjectiveEnabled {
 			// Establish the transcript parser state and byte cursor before sending
 			// /goal. Existing active markers are only prefix context; they cannot
 			// acknowledge this request.
@@ -402,27 +428,33 @@ func (s *Substrate) Launch(ctx context.Context, p LaunchParams) (LaunchResult, e
 			}
 			watcher, err := s.newGoalInstallWatcher(ctx, discovery, goalParserFactory, p.RunID, singleLine(p.NativeObjective))
 			if err != nil {
-				return result, fmt.Errorf("prepare native objective acknowledgement: %w", err)
-			}
-			// Native slash commands must be typed as literal text, not bracketed
-			// paste. SendCommand still waits for composer ingest and uses a named
-			// Enter with bounded screen verification; awaitGoalInstalled below
-			// remains the authoritative acknowledgement before the task prompt.
-			if _, err := s.sessions.SendCommand(ctx, sessionID, "/goal "+singleLine(p.NativeObjective), interactivePromptSource(p.RunID)); err != nil {
-				return result, fmt.Errorf("deliver native objective to %s: %w", p.RunnerType, err)
-			}
-			// Do not submit task text until this run's transcript parser observes
-			// a fresh, exact active objective in the current native session.
-			if err := s.awaitGoalInstalled(ctx, discovery, watcher); err != nil {
-				return result, fmt.Errorf("wait for native objective acknowledgement before initial prompt: %w", err)
+				if !fallbackToPrompt() {
+					return result, fmt.Errorf("prepare native objective acknowledgement: %w", err)
+				}
+			} else {
+				// Native slash commands must be typed as literal text, not bracketed
+				// paste. SendCommand waits for composer ingest and uses a named Enter
+				// with bounded screen verification.
+				if _, err := s.sessions.SendCommand(ctx, sessionID, "/goal "+singleLine(p.NativeObjective), interactivePromptSource(p.RunID)); err != nil {
+					return result, fmt.Errorf("deliver native objective to %s: %w", p.RunnerType, err)
+				}
+				// Do not submit task text until this run's transcript parser observes
+				// a fresh, exact active objective in the current native session.
+				if err := s.awaitGoalInstalled(ctx, discovery, watcher); err != nil {
+					if !fallbackToPrompt() {
+						return result, fmt.Errorf("wait for native objective acknowledgement before initial prompt: %w", err)
+					}
+				} else {
+					goalDelivery = GoalDeliveryNativeUnverified
+				}
 			}
 		}
 		var deliver func() error
-		if p.Prompt != "" {
+		if promptToDeliver != "" {
 			deliver = func() error {
 				// An unverified submit is left to transcript discovery to confirm;
 				// ErrPromptNotSubmitted (the task is visibly stuck) fails the launch.
-				_, err := s.sessions.SendPrompt(ctx, sessionID, p.Prompt, interactivePromptSource(p.RunID))
+				_, err := s.sessions.SendPrompt(ctx, sessionID, promptToDeliver, interactivePromptSource(p.RunID))
 				return err
 			}
 			if err := deliver(); err != nil {
@@ -439,6 +471,8 @@ func (s *Substrate) Launch(ctx context.Context, p LaunchParams) (LaunchResult, e
 	// observes a goal marker. No native support means the finish line rode in
 	// the task prompt.
 	switch {
+	case goalDelivery != "":
+		result.GoalDelivery = goalDelivery
 	case p.NativeObjective != "":
 		result.GoalDelivery = GoalDeliveryNativeUnverified
 	case p.Config != nil && strings.TrimSpace(p.Config.Until) != "":

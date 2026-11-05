@@ -19,6 +19,7 @@ import (
 	"agent-manager/internal/domain"
 	"agent-manager/internal/structuredresult"
 	"agent-manager/internal/workflowexpr"
+	"github.com/vrooli/vrooli/packages/proto/contracts"
 )
 
 // sharedCELEnv is the single CEL environment the engine also evaluates against,
@@ -27,7 +28,9 @@ import (
 var sharedCELEnv = sync.OnceValues(workflowexpr.NewEnv)
 
 const (
-	MaxDefinitionBytes = 256 << 10
+	// A workflow may contain a 1 MiB completion condition plus its surrounding
+	// JSON. Keep a separate, larger aggregate ceiling for the authored document.
+	MaxDefinitionBytes = 8 << 20
 	MaxSchemaBytes     = 32 << 10
 	MaxBindingBytes    = 1 << 20
 	MaxBindingLimit    = 1000
@@ -459,8 +462,8 @@ func validateNode(n *domain.WorkflowNode, path string, lookup Lookup, add, warn 
 			add("role_missing", path+".run.roleRef", "portable role does not exist")
 		}
 		validatePromptSource(n.Run.PromptTemplate, n.Run.PromptRef, n.Run.PromptProvenance, n.Run.Bindings, path+".run", add, warn)
-		if len(n.Run.Until) > 2048 {
-			add("until_length", path+".run.until", "until completion test must be at most 2048 characters")
+		if len(n.Run.Until) > contracts.AgentManagerMaxGoalCompletionBytes {
+			add("until_length", path+".run.until", fmt.Sprintf("until completion test must be at most %d UTF-8 bytes (1 MiB)", contracts.AgentManagerMaxGoalCompletionBytes))
 		}
 		validateScopePathTemplate(n.Run.ScopePathTemplate, n.Run.Bindings, path+".run.scopePathTemplate", add)
 		validateScopePathTemplate(n.Run.ProjectRootTemplate, n.Run.Bindings, path+".run.projectRootTemplate", add)

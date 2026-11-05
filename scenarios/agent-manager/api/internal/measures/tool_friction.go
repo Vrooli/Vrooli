@@ -44,11 +44,15 @@ func (h *Handler) ToolFriction(ctx context.Context, req *connect.Request[measure
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
 	report := toolfriction.Analyze(tools)
+	queueStatus, queueErr := h.projectionQueueStatus(ctx, h.now())
+	if queueErr != nil {
+		return nil, connect.NewError(connect.CodeInternal, queueErr)
+	}
 	owner, limit := strings.TrimSpace(req.Msg.GetOwner()), int(req.Msg.GetLimit())
 	if limit <= 0 {
 		limit = defaultToolRows
 	}
-	response := &measurepb.ToolFrictionResponse{Summary: protoToolSummary(report), WindowStart: rfc3339(span.From), WindowEnd: rfc3339(span.To), DefinitionId: definitionID(ToolFriction)}
+	response := &measurepb.ToolFrictionResponse{Summary: protoToolSummary(report, queueStatus), WindowStart: rfc3339(span.From), WindowEnd: rfc3339(span.To), DefinitionId: definitionID(ToolFriction)}
 	for _, p := range report.Profiles {
 		if len(response.Profiles) < limit && (owner == "" || p.Owner == owner || owner == toolfriction.OwnerExternal && p.Owner == "") {
 			response.Profiles = append(response.Profiles, protoToolProfile(p))
@@ -79,12 +83,57 @@ func (h *Handler) ToolFriction(ctx context.Context, req *connect.Request[measure
 	return connect.NewResponse(response), nil
 }
 
-func protoToolSummary(report toolfriction.Report) *measurepb.ToolFrictionSummary {
+func protoToolSummary(report toolfriction.Report, queue *measurepb.ToolFrictionProjectionQueue) *measurepb.ToolFrictionSummary {
 	t := report.Totals
+	coverage := protoToolCoverage(report.Coverage)
+	addProjectionQueueCoverage(coverage, queue)
 	return &measurepb.ToolFrictionSummary{
-		Coverage: protoToolCoverage(report.Coverage), Calls: int64(t.Calls), FailedCalls: int64(t.FailedCalls), VrooliFailureRate: t.VrooliFailureRate(),
+		Coverage: coverage, Calls: int64(t.Calls), FailedCalls: int64(t.FailedCalls), VrooliFailureRate: t.VrooliFailureRate(),
 		ShapeGuesses: int64(t.ShapeGuesses), ShapeGuessRate: t.VrooliShapeGuessRate(), PolledCalls: int64(t.Polled), PolledShare: t.PolledShare(),
 		BypassCalls: int64(t.BypassCalls), ContextTaxTokens: t.ContextTax, DurationMs: t.DurationMS, FilteredShare: t.FilteredShare, Profiles: int64(len(report.Profiles)),
+	}
+}
+
+func protoProjectionQueue(status invocationreadmodel.ProjectionQueueStatus, capturedAt time.Time) *measurepb.ToolFrictionProjectionQueue {
+	queue := &measurepb.ToolFrictionProjectionQueue{
+		Available: true, PendingRuns: status.PendingRuns, DueRuns: status.DueRuns,
+		RetryingRuns: status.RetryingRuns, UnreplayableRuns: status.UnreplayableRuns,
+		CapturedAt: rfc3339(capturedAt),
+	}
+	if status.OldestDueAt != nil {
+		queue.OldestDueAt = rfc3339(*status.OldestDueAt)
+	}
+	return queue
+}
+
+// projectionQueueStatus returns one shared point-in-time queue snapshot for
+// every usage surface that reports tool-friction coverage.
+func (h *Handler) projectionQueueStatus(ctx context.Context, capturedAt time.Time) (*measurepb.ToolFrictionProjectionQueue, error) {
+	queue := &measurepb.ToolFrictionProjectionQueue{Available: false, CapturedAt: rfc3339(capturedAt)}
+	if h.projectionQueue == nil {
+		return queue, nil
+	}
+	status, err := h.projectionQueue.ReadProjectionQueueStatus(ctx, capturedAt)
+	if err != nil {
+		return nil, err
+	}
+	return protoProjectionQueue(status, capturedAt), nil
+}
+
+func addProjectionQueueCoverage(coverage *measurepb.ToolFrictionCoverage, queue *measurepb.ToolFrictionProjectionQueue) {
+	if coverage == nil {
+		return
+	}
+	coverage.ProjectionQueue = queue
+	if queue == nil || !queue.GetAvailable() {
+		coverage.Sentence += "; global projection queue unavailable"
+	} else if queue.GetPendingRuns() == 0 && queue.GetUnreplayableRuns() == 0 {
+		coverage.Sentence += "; global projection queue empty"
+	} else {
+		coverage.Sentence += fmt.Sprintf("; global projection queue: %d pending (%d due, %d retrying), %d unreplayable", queue.GetPendingRuns(), queue.GetDueRuns(), queue.GetRetryingRuns(), queue.GetUnreplayableRuns())
+		if queue.GetOldestDueAt() != "" {
+			coverage.Sentence += "; oldest due since " + queue.GetOldestDueAt()
+		}
 	}
 }
 

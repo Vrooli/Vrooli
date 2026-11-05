@@ -233,6 +233,15 @@ def step_classify():  # CLASSIFY · deterministic predicates before at most one 
             set_decision("signal", classification, 1.0, False, "escalate", proposed_cursor, "immediate")
             envelope["status"] = "ok"
             return "decide"
+    # A live run whose friction read failed is not quiet evidence. If no
+    # independent trigger fired, preserve the caller cursor so the owner can
+    # retry that evidence without silently consuming this observation window.
+    # A parked/terminal run is handled by the earlier lifecycle predicates.
+    if policy["friction_enabled"] and any(row.get("friction_unavailable", False) and str(row.get("status", "")).lower() not in terminal_states | {"parked"} for row in runs):
+        set_decision("unavailable", "friction_unavailable", None, True, "observe", current_cursor, "after", policy["quiet_seconds"])
+        envelope["status"] = "unavailable"
+        envelope["errors"].append({"class": "binding_error", "detail": "run friction evidence is unavailable; cursor was preserved", "where": "collect"})
+        return "decide"
     if (statuses and all(status == "parked" for status in statuses)) or (not events and not readable):
         set_decision("quiet", "quiet", 1.0, False, "park", proposed_cursor, "after", policy["quiet_seconds"])
         envelope["status"] = "ok"

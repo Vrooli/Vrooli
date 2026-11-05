@@ -277,9 +277,12 @@ CREATE TABLE IF NOT EXISTS invocation_read_model_pending (
     run_id TEXT PRIMARY KEY,
     generation INTEGER NOT NULL DEFAULT 1,
     attempts INTEGER NOT NULL DEFAULT 0,
-    next_attempt_unix INTEGER NOT NULL
+    next_attempt_unix INTEGER NOT NULL,
+    state TEXT NOT NULL DEFAULT 'pending',
+    terminal_reason TEXT NOT NULL DEFAULT '',
+    terminal_at_unix INTEGER NOT NULL DEFAULT 0
 );
-CREATE INDEX IF NOT EXISTS idx_invocation_read_model_pending_due ON invocation_read_model_pending(next_attempt_unix);
+CREATE INDEX IF NOT EXISTS idx_invocation_read_model_pending_due ON invocation_read_model_pending(state, next_attempt_unix);
 CREATE TABLE IF NOT EXISTS investigation_receipt_evidence (
     run_id TEXT NOT NULL,
     event_id TEXT NOT NULL,

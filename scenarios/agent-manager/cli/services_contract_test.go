@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -97,6 +98,51 @@ func newContractServices(t *testing.T) (*Services, *clitest.RecordingServer) {
 	return NewServices(api), server
 }
 
+func TestRunListPassesOriginFilterToOwner(t *testing.T) {
+	services, recorder := newContractServices(t)
+	app := &App{services: services}
+	if err := app.runList([]string{"--origin", "agent_manager", "--json"}); err != nil {
+		t.Fatal(err)
+	}
+
+	requests := recorder.Requests()
+	if len(requests) != 1 || requests[0].Path != "/api/v1/runs" || !strings.Contains(requests[0].Query, "origin=agent_manager") {
+		t.Fatalf("run list request = %+v, want owner-filtered run list", requests)
+	}
+}
+
+func TestRunListSurfacesMalformedOwnerResponse(t *testing.T) {
+	server := clitest.NewRecordingServer(t, `{"runs":[`)
+	api := cliutil.NewAPIClient(cliutil.NewHTTPClient(cliutil.HTTPClientOptions{}), func() cliutil.APIBaseOptions {
+		return cliutil.APIBaseOptions{DefaultBase: server.URL()}
+	}, nil)
+
+	_, _, err := NewServices(api).Runs.List(0, 0, "", "", "", "", "agent_manager")
+	if err == nil || !strings.Contains(err.Error(), "decode Agent Manager run list response") {
+		t.Fatalf("malformed owner response error = %v, want a decode error", err)
+	}
+}
+
+func TestRunListEmitsExplicitEmptyJSONCollection(t *testing.T) {
+	services, _ := newContractServices(t)
+	app := &App{services: services}
+	output := captureStdout(t, func() error {
+		return app.runList([]string{"--origin", "agent_manager", "--status", "running", "--json"})
+	})
+
+	var response struct {
+		Runs    []json.RawMessage `json:"runs"`
+		Total   int               `json:"total"`
+		HasMore bool              `json:"has_more"`
+	}
+	if err := json.Unmarshal([]byte(output), &response); err != nil {
+		t.Fatalf("empty run list output is not JSON: %q: %v", output, err)
+	}
+	if response.Runs == nil || len(response.Runs) != 0 || response.Total != 0 || response.HasMore {
+		t.Fatalf("empty run list output = %s", output)
+	}
+}
+
 func TestServicesUseDocumentedWorkflowAndRunHTTPContracts(t *testing.T) {
 	s, recorder := newContractServices(t)
 	workflow := &apipb.StartWorkflowExecutionRequest{Owner: "owner", WorkflowKey: "workflow"}
@@ -146,8 +192,18 @@ func TestServicesUseDocumentedWorkflowAndRunHTTPContracts(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if _, _, err := s.Runs.List(10, 2, "task", "profile", "running", "tag"); err != nil {
+	if _, _, err := s.Runs.List(10, 2, "task", "profile", "running", "tag", "agent_manager"); err != nil {
 		t.Fatal(err)
+	}
+	listedByOrigin := false
+	for _, request := range recorder.Requests() {
+		if request.Path == "/api/v1/runs" && strings.Contains(request.Query, "origin=agent_manager") {
+			listedByOrigin = true
+			break
+		}
+	}
+	if !listedByOrigin {
+		t.Fatal("run list did not send its server-side origin filter")
 	}
 	if _, _, err := s.Runs.Get("run-1"); err != nil {
 		t.Fatal(err)
