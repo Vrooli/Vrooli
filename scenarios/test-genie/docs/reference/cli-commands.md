@@ -64,6 +64,38 @@ canonical `runs wait --json --timeout=…` command. Its JSON response adds
 next-check interval is dashboard backoff metadata, not the agent completion
 workflow. The `vrooli scenario test status` proxy follows the same contract.
 
+## Run artifacts
+
+List a run's typed artifact catalog with `test-genie runs artifacts
+--scenario <scenario> <run-id>`. Inspect one entry with `test-genie runs
+artifact --scenario <scenario> <run-id> <artifact-id>`. Metadata includes an
+opaque access path; it does not contain the artifact bytes. Download bytes with
+the streamed CLI command:
+
+```bash
+test-genie runs download-artifact --scenario my-scenario <run-id> <artifact-id> --out ./evidence.json
+```
+
+When a phase producer persists command logs or raw output, the catalog kinds
+are `command.log` and `command.output`; availability depends on the producer and
+run. Filter to them with
+`test-genie runs artifacts --scenario my-scenario --kinds command.log,command.output <run-id>`,
+then download the selected artifact by ID. This is the supported log retrieval
+path for completed runs; `runs follow` is for live progress. For Unit Health,
+the unfiltered `findings.report` also preserves the typed provider response,
+including each command's bounded stdout/stderr excerpts. `test-genie runs
+findings` is a compact phase-standing summary; it does not replace that report.
+A missing `command.output` artifact therefore does not imply that command-level
+failure details are absent.
+
+The destination must be in an existing directory. Existing files are preserved
+unless `--overwrite` is supplied. The command writes through a same-directory
+temporary file and publishes using the host filesystem's rename semantics. If
+the host cannot replace an existing file by rename, the command fails and keeps
+the old destination. It reports the byte count and SHA-256 digest. Use this
+command for logs, JSON reports, screenshots, and other cataloged payloads
+instead of copying the opaque path into an ad hoc HTTP request.
+
 ## Remediate findings
 
 Create a job only from stable finding IDs emitted by a completed execution.
@@ -122,6 +154,21 @@ test-genie runs cost --scenario my-scenario --window 168h --compare-window 168h 
 
 These commands report existing evidence and provider posture; they do not
 generate tests or enforce Agent Manager security policy.
+
+Fleet JSON is wrapped in `fleetHealth`. Its run counts and alerts summarize
+stored server-owned runs in the selected look-back window; they are not a live
+test or a statement that the latest run is still active. Use each scenario's
+`lastOutcome` and `ageDays` to distinguish a recent failure from an older one.
+Add `--roster` to include `neverTestedInWindow` coverage gaps, then summarize the
+payload without printing every alert:
+
+```bash
+test-genie fleet status --json --roster | jq '.fleetHealth | {
+  windowDays, capturedAt, scenariosTested, scenariosTotal, totalRuns,
+  failedPhaseObservations, mostErrored: (.scenarios[:10]),
+  neverTestedInWindow
+}'
+```
 
 ## Automation example
 

@@ -9,9 +9,9 @@ metadata:
   tags: ["test-genie","validation","intent","receipt","wait"]
   icon: "check-circle"
   status: "active"
-  revision: 1
+  revision: 2
   createdAt: "2026-09-04T00:00:00Z"
-  updatedAt: "2026-09-04T00:00:00Z"
+  updatedAt: "2026-11-04T20:21:00Z"
   requires:
     scenarios: ["test-genie"]
     commands: ["vrooli scenario test", "test-genie runs wait", "test-genie validation"]
@@ -51,6 +51,16 @@ Handoff names the run or receipt id, revision, terminal disposition, producer
 evidence locators, and any typed degradation. Test the desired behavior, not a
 current defect. Use `run test-genie.validation-digest` only for a bounded fleet
 summary; inspect the named receipt before acting on one failure.
+
+### Run artifacts
+
+Use the Test Genie CLI for artifact discovery and transfer. List a run's catalog
+with `test-genie runs artifacts <run-id> --scenario <scenario> [--kinds <kind>]`;
+download a selected artifact with
+`test-genie runs download-artifact <run-id> <artifact-id> --scenario <scenario> --out <path>`.
+The download command preserves an existing destination unless `--overwrite` is
+explicitly supplied. Artifact IDs are opaque: take them from the catalog instead
+of constructing internal HTTP URLs or guessing paths.
 
 ### Troubleshooting & Edge Cases
 

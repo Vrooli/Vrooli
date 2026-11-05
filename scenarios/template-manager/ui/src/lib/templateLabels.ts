@@ -86,7 +86,10 @@ export function severityTone(severity: string): Tone {
   }
 }
 
-/** Tone for a drift snapshot given how many items drifted. */
-export function driftTone(driftCount: number): Tone {
-  return driftCount > 0 ? "warning" : "success";
+/** Tone for a drift snapshot verdict; incomplete evidence must not look clean. */
+export function driftTone(driftCount: number, status?: string): Tone {
+	if (status === "incomplete" || status === "drifted" || driftCount > 0) {
+		return "warning";
+	}
+	return "success";
 }

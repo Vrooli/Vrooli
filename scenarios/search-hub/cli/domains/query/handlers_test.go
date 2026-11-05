@@ -86,3 +86,32 @@ func TestRenderGroupsAllWeakNotice(t *testing.T) {
 		t.Fatalf("renderGroups() = %q, want no confident match notice", got)
 	}
 }
+
+func TestDegradedSummaryNamesProvidersAndReasons(t *testing.T) {
+	groups := []*routingv1.ProviderResultGroup{
+		{ProviderId: "prompt-manager.skills", Degraded: true, Note: "service unavailable"},
+		{ProviderId: "search-hub.records", Degraded: true, Note: "provider timeout"},
+	}
+	got := degradedSummary(groups, true)
+	for _, want := range []string{"prompt-manager.skills: service unavailable", "search-hub.records: provider timeout"} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("degradedSummary() = %q, missing %q", got, want)
+		}
+	}
+	if got := degradedSummary(nil, true); !strings.Contains(got, "provider details unavailable") {
+		t.Fatalf("degradedSummary() without details = %q", got)
+	}
+	if got := degradedSummary(groups, false); got != "" {
+		t.Fatalf("degradedSummary() for healthy response = %q", got)
+	}
+}
+
+func TestQueryReportPutsDegradationInFirstSummaryLine(t *testing.T) {
+	msg := &routingv1.QueryResponse{Degraded: true, Groups: []*routingv1.ProviderResultGroup{{
+		ProviderId: "prompt-manager.skills", Degraded: true, Note: "service unavailable",
+	}}}
+	report := (&handlers{}).queryReport(nil, msg)
+	if len(report.Summary) == 0 || !strings.Contains(report.Summary[0], "prompt-manager.skills: service unavailable") {
+		t.Fatalf("first summary line = %q", report.Summary)
+	}
+}

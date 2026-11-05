@@ -952,3 +952,20 @@ DBM preflight previously checked only `stat` on the root of filesystem and SQLit
 The operator answered Notification Hub ask `d085cf69-1c61-4e4c-ac8e-d78b746dd32a` with “hold repair; obtain SMART/transport or alternate-host diagnostics first.” No drive mutation was performed. The direct ask was not correlated to a DBM recovery journal and therefore could not dispatch a repair callback; treat the human answer as the operator's direction, not an executable recovery receipt. `system-monitor` identified `/dev/sda` as the Elements USB/SCSI disk but SMART is unavailable: the device is `root:disk` mode `0660`, and the monitor user was denied access. Read-only SCSI counters showed `state=running`, `device_blocked=0`, `iotmo_cnt=0`, while `ioerr_cnt` increased from `0x1787` to `0x1789` as request count advanced from `0x80606` to `0x807ad`. This is evidence of SCSI command errors but does not by itself attribute them to the exact Kopia object or establish SMART health. Kernel log filtering found no matching storage/USB error message. Keep the EIO object intact, the plan disabled, and do not run backup, restore, prune, or broad filesystem repair.
 
 **Transport counter attribution check, 2026-11-04 03:17Z:** One paired direct `stat` on the exact EIO temp and one DBM destination-usage request both returned the same EIO, but neither changed the SCSI request/error counters (`0x807ad` / `0x1789` before and after). The earlier two-error counter increase is real but cannot be attributed to this exact Kopia path from current evidence. SMART remains unavailable due `/dev/sda` permissions; obtain a permitted SMART report or alternate-host check before repair.
+
+**Post-repair repository check, 2026-11-04 05:44Z:** Verified-human approval
+completed one identity-bound NTFS repair/remount through DBM's source-bound
+callback (decision `1cef04aa-0df3-458f-825f-7441bb3f0d44`, recovery journal
+`739086a9fc6e63cd5ea2c97b`). A DBM observer defect initially misclassified the
+mounted device because stable `lsblk` identity lookup omitted live mount facts;
+the inspector now joins identity back to a fresh mounted-volume scan, and the
+journal completed with the drive verified read/write. Read-only isolated-cache
+Kopia snapshot enumeration passes, but repo stats still hit EIO on the exact
+unpaired `s/f43/64b7506cef44e4fbb3fc66ba7f2d9-sf40366ce03934d79144.f.tmp.8c9d63ca28444838`.
+After the approved filesystem repair, the resource-kopia exact quarantine
+command retried its same-volume move; `rename` returned EIO again. The source
+temp remains the sole matching shard entry and no quarantine directory remains.
+No Elements repository bytes were deleted or replaced. Preflight still blocks
+all 14 targets. The filesystem repair did not resolve this object-level I/O
+failure; a separate authorized-host diagnosis is still needed before another
+repository mutation or backup write.

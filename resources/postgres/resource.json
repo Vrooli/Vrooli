@@ -225,7 +225,7 @@
   ],
   "health_checks": [
     {
-      "type": "tcp",
+      "type": "postgresql",
       "kind": "readiness",
       "target": "127.0.0.1:5433",
       "interval_seconds": 10,

@@ -17,13 +17,22 @@ import (
 	repocontract "github.com/vrooli/repo-contract-go"
 )
 
+// ScenarioValidationRepository is the read-only repository surface needed to
+// validate one scenario. Keeping this smaller than catalog.Repository avoids
+// coupling validation to unrelated catalog writes as that broader interface
+// grows.
+type ScenarioValidationRepository interface {
+	GetTemplate(ctx context.Context, id string) (catalog.TemplateRecord, error)
+	ListDebt(ctx context.Context, templateID, status string) ([]catalog.DebtEntry, error)
+}
+
 type Validator struct {
 	RepoRoot   string
-	Repository catalog.Repository
+	Repository ScenarioValidationRepository
 	Now        func() time.Time
 }
 
-func NewValidator(repoRoot string, repo catalog.Repository) *Validator {
+func NewValidator(repoRoot string, repo ScenarioValidationRepository) *Validator {
 	return &Validator{RepoRoot: repoRoot, Repository: repo}
 }
 
@@ -46,9 +55,9 @@ func (v *Validator) ValidateScenario(ctx context.Context, scenario, explicitPath
 			// deployment blocker unless a generated template is actually claimed.
 			Severity:    SeverityWarn,
 			Title:       "Template provenance is missing",
-			Message:     ".vrooli/service.json has no generation.template id and version; this is expected for hand-built scenarios but should be stamped when template lineage exists.",
+			Message:     ".vrooli/service.json has no generation.template id and version; this is expected for hand-built or legacy scenarios whose template lineage is unknown.",
 			Location:    ".vrooli/service.json",
-			Remediation: "Preview and apply the PROVENANCE_MISSING fix to stamp adopted provenance for the latest default template.",
+			Remediation: "Only preview and apply the adoption fix after evidence confirms the scenario is based on the latest default template. The fix records an operator assertion; it cannot recover historical lineage or prove compatibility. If lineage is unknown, keep it unknown and do not stamp a current hash.",
 			Autofix:     true,
 		})
 		return report, nil
@@ -238,8 +247,10 @@ func readProvenance(root string) (Provenance, bool, error) {
 	return prov, prov.TemplateID != "" && prov.TemplateVersion != "", nil
 }
 
-var semverPart = regexp.MustCompile(`\d+`)
-var strictSemver = regexp.MustCompile(`^\d+\.\d+\.\d+$`)
+var (
+	semverPart   = regexp.MustCompile(`\d+`)
+	strictSemver = regexp.MustCompile(`^\d+\.\d+\.\d+$`)
+)
 
 func compareSemver(a, b string) int {
 	ap := semverParts(a)

@@ -55,12 +55,14 @@ func candidateHash(c Candidate) (string, error) {
 	digest := sha256.Sum256(raw)
 	return hex.EncodeToString(digest[:]), nil
 }
+
 func candidatePath(designID, hash string) (string, error) {
 	if !safeSegment.MatchString(designID) || !validHash.MatchString(hash) {
 		return "", fmt.Errorf("invalid candidate identity")
 	}
 	return filepath.Join("designs", designID, "candidates", hash+".json"), nil
 }
+
 func (c Candidate) Snapshot() (Snapshot, error) {
 	s, err := decodeSnapshot(c.PageBytes)
 	if err == nil {
@@ -68,6 +70,7 @@ func (c Candidate) Snapshot() (Snapshot, error) {
 	}
 	return s, err
 }
+
 func readCandidate(root *os.Root, designID, hash string) (Candidate, error) {
 	path, err := candidatePath(designID, hash)
 	if err != nil {
@@ -106,14 +109,25 @@ func readCandidate(root *os.Root, designID, hash string) (Candidate, error) {
 	}
 	return c, nil
 }
+
 func (s *Store) ReadCandidate(scenario, designID, hash string) (Candidate, error) {
-	root, err := s.openExperience(scenario)
+	root, err := s.openExperienceData(scenario)
 	if err != nil {
 		return Candidate{}, err
 	}
-	defer root.Close()
-	return readCandidate(root, designID, hash)
+	candidate, err := readCandidate(root, designID, hash)
+	root.Close()
+	if !errors.Is(err, os.ErrNotExist) {
+		return candidate, err
+	}
+	legacy, err := s.openExperience(scenario)
+	if err != nil {
+		return Candidate{}, err
+	}
+	defer legacy.Close()
+	return readCandidate(legacy, designID, hash)
 }
+
 func (s *Store) SaveCandidate(scenario, page, designID, expectedHash string, doc Document) (Candidate, error) {
 	if !safeSegment.MatchString(designID) {
 		return Candidate{}, fmt.Errorf("invalid design identity")
@@ -126,7 +140,12 @@ func (s *Store) SaveCandidate(scenario, page, designID, expectedHash string, doc
 		return Candidate{}, err
 	}
 	defer root.Close()
-	lock, err := root.OpenFile(filepath.Join("pages", "."+page+".lock"), os.O_CREATE|os.O_RDWR, 0600)
+	dataRoot, err := s.openExperienceData(scenario)
+	if err != nil {
+		return Candidate{}, err
+	}
+	defer dataRoot.Close()
+	lock, err := openArtifactLock(dataRoot, "page-"+page)
 	if err != nil {
 		return Candidate{}, err
 	}
@@ -152,8 +171,9 @@ func (s *Store) SaveCandidate(scenario, page, designID, expectedHash string, doc
 		return Candidate{}, err
 	}
 	c := Candidate{SchemaVersion: 1, DesignID: designID, Page: page, BaseHash: expectedHash, PageBytes: updated}
-	return publishCandidate(root, c)
+	return publishCandidate(dataRoot, c)
 }
+
 func publishCandidate(root *os.Root, c Candidate) (Candidate, error) {
 	var err error
 	c.Hash, err = candidateHash(c)
@@ -173,7 +193,7 @@ func publishCandidate(root *os.Root, c Candidate) (Candidate, error) {
 	if err != nil {
 		return Candidate{}, err
 	}
-	if err := storage.WriteFileAtomicInRoot(root, path, encoded, 0600); err != nil {
+	if err := storage.WriteFileAtomicInRoot(root, path, encoded, 0o600); err != nil {
 		return Candidate{}, err
 	}
 	return c, nil
@@ -184,17 +204,19 @@ func publishCandidate(root *os.Root, c Candidate) (Candidate, error) {
 func (s *Store) DeriveCandidate(scenario, designID, parentHash string, doc Document) (Candidate, error) {
 	return s.deriveCandidate(scenario, designID, parentHash, doc, nil)
 }
+
 func (s *Store) deriveCandidate(scenario, designID, parentHash string, doc Document, refinement *CandidateRefinement) (Candidate, error) {
-	root, err := s.openExperience(scenario)
+	root, err := s.openExperienceData(scenario)
 	if err != nil {
+		return Candidate{}, err
+	}
+	parent, err := s.ReadCandidate(scenario, designID, parentHash)
+	if err != nil {
+		root.Close()
 		return Candidate{}, err
 	}
 	defer root.Close()
-	parent, err := readCandidate(root, designID, parentHash)
-	if err != nil {
-		return Candidate{}, err
-	}
-	lock, err := root.OpenFile(filepath.Join("pages", "."+parent.Page+".lock"), os.O_CREATE|os.O_RDWR, 0600)
+	lock, err := openArtifactLock(root, "page-"+parent.Page)
 	if err != nil {
 		return Candidate{}, err
 	}
@@ -221,59 +243,72 @@ func (s *Store) ListCandidates(scenario, page string) ([]Candidate, error) {
 	if !safeSegment.MatchString(page) {
 		return nil, fmt.Errorf("invalid page identity")
 	}
-	root, err := s.openExperience(scenario)
+	dataRoot, err := s.openExperienceData(scenario)
 	if err != nil {
 		return nil, err
 	}
-	defer root.Close()
-	dir, err := root.Open("designs")
-	if errors.Is(err, os.ErrNotExist) {
-		return []Candidate{}, nil
-	}
+	defer dataRoot.Close()
+	legacyRoot, err := s.openExperience(scenario)
 	if err != nil {
 		return nil, err
 	}
-	defer dir.Close()
-	designs, err := dir.ReadDir(4097)
-	if err != nil && !errors.Is(err, io.EOF) {
-		return nil, err
-	}
-	if len(designs) > 4096 {
-		return nil, fmt.Errorf("candidate inventory exceeds 4096 designs")
-	}
+	defer legacyRoot.Close()
 	result := []Candidate{}
 	scanned := 0
-	for _, design := range designs {
-		if !design.IsDir() || !safeSegment.MatchString(design.Name()) {
-			continue
-		}
-		files, err := root.Open(filepath.Join("designs", design.Name(), "candidates"))
+	seen := map[string]struct{}{}
+	for _, root := range []*os.Root{dataRoot, legacyRoot} {
+		dir, err := root.Open("designs")
 		if errors.Is(err, os.ErrNotExist) {
 			continue
 		}
 		if err != nil {
 			return nil, err
 		}
-		entries, readErr := files.ReadDir(4097 - scanned)
-		files.Close()
+		designs, readErr := dir.ReadDir(4097)
+		dir.Close()
 		if readErr != nil && !errors.Is(readErr, io.EOF) {
 			return nil, readErr
 		}
-		scanned += len(entries)
-		if scanned > 4096 {
-			return nil, fmt.Errorf("candidate inventory exceeds 4096 revisions")
+		if len(designs) > 4096 {
+			return nil, fmt.Errorf("candidate inventory exceeds 4096 designs")
 		}
-		for _, entry := range entries {
-			if !strings.HasSuffix(entry.Name(), ".json") {
+		for _, design := range designs {
+			if !design.IsDir() || !safeSegment.MatchString(design.Name()) {
 				continue
 			}
-			hash := strings.TrimSuffix(entry.Name(), ".json")
-			c, err := readCandidate(root, design.Name(), hash)
-			if err != nil {
-				return nil, fmt.Errorf("candidate %s/%s: %w", design.Name(), hash, err)
+			files, err := root.Open(filepath.Join("designs", design.Name(), "candidates"))
+			if errors.Is(err, os.ErrNotExist) {
+				continue
 			}
-			if c.Page == page {
-				result = append(result, c)
+			if err != nil {
+				return nil, err
+			}
+			entries, readErr := files.ReadDir(4097 - scanned)
+			files.Close()
+			if readErr != nil && !errors.Is(readErr, io.EOF) {
+				return nil, readErr
+			}
+			scanned += len(entries)
+			if scanned > 4096 {
+				return nil, fmt.Errorf("candidate inventory exceeds 4096 revisions")
+			}
+			for _, entry := range entries {
+				if !strings.HasSuffix(entry.Name(), ".json") {
+					continue
+				}
+				hash := strings.TrimSuffix(entry.Name(), ".json")
+				key := design.Name() + "/" + hash
+				if _, ok := seen[key]; ok {
+					continue
+				}
+				c, err := readCandidate(root, design.Name(), hash)
+				if err != nil {
+					return nil, fmt.Errorf("candidate %s/%s: %w", design.Name(), hash, err)
+				}
+				seen[key] = struct{}{}
+				if c.Page == page {
+					result = append(result, c)
+				}
 			}
 		}
 	}

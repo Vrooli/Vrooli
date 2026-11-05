@@ -1,6 +1,7 @@
 package deployment
 
 import (
+	"context"
 	"net/http"
 	"strconv"
 	"strings"
@@ -13,6 +14,7 @@ import (
 // Reporter exposes computed deployment reports to presentation adapters.
 type Reporter interface {
 	GetDeploymentReport(name string, refresh bool) (*types.DeploymentAnalysisReport, error)
+	GetBundleManifest(context.Context, string) (*types.BundleManifest, error)
 }
 
 // HTTPHandler exposes deployment report routes.
@@ -121,20 +123,18 @@ func (h *HTTPHandler) exportTargetDAG(c *gin.Context, expression string) {
 	c.JSON(http.StatusOK, response)
 }
 
-// GetBundleManifest returns the bundle manifest embedded in the deployment report.
+// GetBundleManifest computes current bundle inputs without constructing or persisting a deployment report.
 func (h *HTTPHandler) GetBundleManifest(c *gin.Context) {
 	scenarioName := c.Param("scenario")
-
-	report, err := h.reporter.GetDeploymentReport(scenarioName, parseRefresh(c))
+	manifest, err := h.reporter.GetBundleManifest(c.Request.Context(), scenarioName)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-
 	c.JSON(http.StatusOK, gin.H{
 		"scenario":  scenarioName,
-		"generated": report.GeneratedAt,
-		"manifest":  report.BundleManifest,
+		"generated": manifest.GeneratedAt,
+		"manifest":  manifest,
 	})
 }
 

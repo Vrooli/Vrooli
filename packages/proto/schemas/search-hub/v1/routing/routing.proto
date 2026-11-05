@@ -303,7 +303,9 @@ message ProviderHealth {
   // True when a demoted provider still holds an elapsed probation slot and
   // cannot be selected again until the state is reconciled.
   optional bool stuck = 21;
-  // healthy, demoted, probe_due, probing, or stuck.
+  // Zero-yield demotion lifecycle: healthy, demoted, probe_due, probing, or
+  // stuck. This is independent of reachability and circuit_state, which track
+  // transport availability and recovery after provider request failures.
   string recovery_state = 22;
   string lifecycle = 23;
   string declared_at = 24;

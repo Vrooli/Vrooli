@@ -142,6 +142,25 @@ func (i *ReadOnlyInspector) InspectDevice(ctx context.Context, expected DeviceId
 		return Inspection{}, err
 	}
 	inspection := inspectionFromVolume(vol)
+	// Stable identity resolution (for example Linux lsblk by UUID) deliberately
+	// describes the block device and can omit its mountpoint. Join that identity
+	// back to the mounted-volume scan so a post-remediation verification sees
+	// the current mount state instead of reporting a successfully mounted device
+	// as unmounted.
+	if !inspection.Mounted && i.Volumes != nil {
+		mountedVolumes, scanErr := i.Volumes.Scan(ctx)
+		if scanErr != nil {
+			return Inspection{}, scanErr
+		}
+		for _, mounted := range mountedVolumes {
+			candidate := inspectionFromVolume(mounted)
+			if expected.MatchesDevice(candidate.Identity) {
+				vol = mounted
+				inspection = candidate
+				break
+			}
+		}
+	}
 	if !expected.MatchesDevice(inspection.Identity) {
 		return Inspection{}, ErrInvalidReadiness{Field: "device_identity", Reason: "resolved device does not match the stored UUID/serial and filesystem identity"}
 	}

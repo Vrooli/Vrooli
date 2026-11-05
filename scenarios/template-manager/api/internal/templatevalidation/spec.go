@@ -11,7 +11,7 @@ func MaturitySpec() *assessment.Spec {
 			EntryCriteria: []string{"A scenario root exists and can be inspected."},
 			ExitCriteria:  []string{"The scenario declares generation.template.id and generation.template.version in .vrooli/service.json."},
 			StatusLabel:   "Unavailable",
-			NextUnlock:    "Stamp adopted provenance for the latest default template.",
+			NextUnlock:    "Verify the latest default template is the intended adoption target before stamping; preserve unknown lineage when it cannot be established.",
 		},
 		{
 			ID:            "L1",

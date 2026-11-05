@@ -9,6 +9,7 @@ CREATE TABLE IF NOT EXISTS summaries (
   generation INTEGER NOT NULL DEFAULT 1,
   created_at TEXT NOT NULL
 );
+CREATE INDEX IF NOT EXISTS idx_summaries_scope_created_id ON summaries(scope, created_at ASC, id ASC);
 CREATE TABLE IF NOT EXISTS tree_edges (
   parent_id TEXT NOT NULL,
   child_id TEXT NOT NULL,

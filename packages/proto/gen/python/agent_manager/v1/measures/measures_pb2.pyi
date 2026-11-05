@@ -205,8 +205,26 @@ class ToolFrictionRequest(_message.Message):
     limit: int
     def __init__(self, window: _Optional[_Union[_measures_pb2.TimeWindow, _Mapping]] = ..., owner: _Optional[str] = ..., limit: _Optional[int] = ...) -> None: ...
 
+class ToolFrictionProjectionQueue(_message.Message):
+    __slots__ = ("available", "pending_runs", "due_runs", "retrying_runs", "unreplayable_runs", "oldest_due_at", "captured_at")
+    AVAILABLE_FIELD_NUMBER: _ClassVar[int]
+    PENDING_RUNS_FIELD_NUMBER: _ClassVar[int]
+    DUE_RUNS_FIELD_NUMBER: _ClassVar[int]
+    RETRYING_RUNS_FIELD_NUMBER: _ClassVar[int]
+    UNREPLAYABLE_RUNS_FIELD_NUMBER: _ClassVar[int]
+    OLDEST_DUE_AT_FIELD_NUMBER: _ClassVar[int]
+    CAPTURED_AT_FIELD_NUMBER: _ClassVar[int]
+    available: bool
+    pending_runs: int
+    due_runs: int
+    retrying_runs: int
+    unreplayable_runs: int
+    oldest_due_at: str
+    captured_at: str
+    def __init__(self, available: _Optional[bool] = ..., pending_runs: _Optional[int] = ..., due_runs: _Optional[int] = ..., retrying_runs: _Optional[int] = ..., unreplayable_runs: _Optional[int] = ..., oldest_due_at: _Optional[str] = ..., captured_at: _Optional[str] = ...) -> None: ...
+
 class ToolFrictionCoverage(_message.Message):
-    __slots__ = ("commands", "outcome_known", "outcome_known_share", "vrooli_commands", "vrooli_outcome_known", "sentence", "older_parser_commands", "no_transcript_commands", "stale_runs", "stale_calls", "unknown_token_commands")
+    __slots__ = ("commands", "outcome_known", "outcome_known_share", "vrooli_commands", "vrooli_outcome_known", "sentence", "older_parser_commands", "no_transcript_commands", "stale_runs", "stale_calls", "unknown_token_commands", "projection_queue")
     COMMANDS_FIELD_NUMBER: _ClassVar[int]
     OUTCOME_KNOWN_FIELD_NUMBER: _ClassVar[int]
     OUTCOME_KNOWN_SHARE_FIELD_NUMBER: _ClassVar[int]
@@ -218,6 +236,7 @@ class ToolFrictionCoverage(_message.Message):
     STALE_RUNS_FIELD_NUMBER: _ClassVar[int]
     STALE_CALLS_FIELD_NUMBER: _ClassVar[int]
     UNKNOWN_TOKEN_COMMANDS_FIELD_NUMBER: _ClassVar[int]
+    PROJECTION_QUEUE_FIELD_NUMBER: _ClassVar[int]
     commands: int
     outcome_known: int
     outcome_known_share: float
@@ -229,7 +248,8 @@ class ToolFrictionCoverage(_message.Message):
     stale_runs: int
     stale_calls: int
     unknown_token_commands: int
-    def __init__(self, commands: _Optional[int] = ..., outcome_known: _Optional[int] = ..., outcome_known_share: _Optional[float] = ..., vrooli_commands: _Optional[int] = ..., vrooli_outcome_known: _Optional[int] = ..., sentence: _Optional[str] = ..., older_parser_commands: _Optional[int] = ..., no_transcript_commands: _Optional[int] = ..., stale_runs: _Optional[int] = ..., stale_calls: _Optional[int] = ..., unknown_token_commands: _Optional[int] = ...) -> None: ...
+    projection_queue: ToolFrictionProjectionQueue
+    def __init__(self, commands: _Optional[int] = ..., outcome_known: _Optional[int] = ..., outcome_known_share: _Optional[float] = ..., vrooli_commands: _Optional[int] = ..., vrooli_outcome_known: _Optional[int] = ..., sentence: _Optional[str] = ..., older_parser_commands: _Optional[int] = ..., no_transcript_commands: _Optional[int] = ..., stale_runs: _Optional[int] = ..., stale_calls: _Optional[int] = ..., unknown_token_commands: _Optional[int] = ..., projection_queue: _Optional[_Union[ToolFrictionProjectionQueue, _Mapping]] = ...) -> None: ...
 
 class ToolFrictionSummary(_message.Message):
     __slots__ = ("coverage", "calls", "failed_calls", "vrooli_failure_rate", "shape_guesses", "shape_guess_rate", "polled_calls", "polled_share", "bypass_calls", "context_tax_tokens", "duration_ms", "filtered_share", "profiles")

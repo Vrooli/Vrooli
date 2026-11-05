@@ -1,6 +1,7 @@
 package deployment
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"net/http"
@@ -18,15 +19,28 @@ type fakeReporter struct {
 	err         error
 	lastName    string
 	lastRefresh bool
+	reportCalls int
 }
 
 func (r *fakeReporter) GetDeploymentReport(name string, refresh bool) (*types.DeploymentAnalysisReport, error) {
 	r.lastName = name
 	r.lastRefresh = refresh
+	r.reportCalls++
 	if r.err != nil {
 		return nil, r.err
 	}
 	return r.report, nil
+}
+
+func (r *fakeReporter) GetBundleManifest(ctx context.Context, name string) (*types.BundleManifest, error) {
+	r.lastName = name
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	if r.err != nil {
+		return nil, r.err
+	}
+	return &r.report.BundleManifest, nil
 }
 
 func TestGetDeploymentReport(t *testing.T) {
@@ -124,6 +138,23 @@ func TestGetBundleManifest(t *testing.T) {
 	}
 	if response.Manifest.Scenario != "sample" {
 		t.Fatalf("manifest scenario = %q, want sample", response.Manifest.Scenario)
+	}
+	if reporter.reportCalls != 0 {
+		t.Fatal("manifest query constructed a full deployment report")
+	}
+}
+
+func TestGetBundleManifestPropagatesCancellation(t *testing.T) {
+	reporter := &fakeReporter{report: testDeploymentReport()}
+	router := gin.New()
+	RegisterHTTPRoutes(router.Group("/api/v1"), reporter)
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	recorder := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/scenarios/sample/bundle/manifest?refresh=true", nil).WithContext(ctx)
+	router.ServeHTTP(recorder, req)
+	if recorder.Code != http.StatusInternalServerError || reporter.reportCalls != 0 {
+		t.Fatalf("cancelled query: code=%d report calls=%d", recorder.Code, reporter.reportCalls)
 	}
 }
 

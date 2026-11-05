@@ -236,7 +236,7 @@ func main() {
 	repo := accounts.NewSQLiteRepository(db, clk)
 	auditLogger := audit.NewSQLiteLogger(db, clk)
 	authorizationService := authorization.NewService(repo.(authorization.ScopeStore), auditLogger)
-	servicePrincipals, err := accounts.ParseServicePrincipalProfiles(os.Getenv("VROOLI_AUTH_SERVICE_PRINCIPALS"))
+	servicePrincipals, err := servicePrincipalProfilesForEnvironment(os.Getenv("VROOLI_ENVIRONMENT"), os.Getenv("VROOLI_AUTH_SERVICE_PRINCIPALS"))
 	if err != nil {
 		log.Fatalf("service principal configuration: %v", err)
 	}
@@ -356,6 +356,30 @@ func main() {
 	}); err != nil {
 		log.Fatalf("Server error: %v", err)
 	}
+}
+
+// servicePrincipalProfilesForEnvironment keeps the provider-decision identity
+// available only to a local development Authenticator. It is deliberately not
+// configurable through the ordinary operator profile list, which may be
+// supplied in production.
+func servicePrincipalProfilesForEnvironment(environment, configured string) ([]accounts.ServicePrincipalProfile, error) {
+	profiles, err := accounts.ParseServicePrincipalProfiles(configured)
+	if err != nil {
+		return nil, err
+	}
+	for _, profile := range profiles {
+		if profile.Name == "ai-gateway" {
+			return nil, fmt.Errorf("ai-gateway service principal is reserved for local development")
+		}
+	}
+	if strings.EqualFold(strings.TrimSpace(environment), "development") {
+		localProfile, err := accounts.ParseServicePrincipalProfiles(`[{"name":"ai-gateway","resource":"notification-hub-provider-decision","scopes":["notification-hub:provider-decision"],"issuers":["9022b304-9a76-4e72-829c-1f5bc101359a"]}]`)
+		if err != nil {
+			return nil, err
+		}
+		profiles = append(profiles, localProfile...)
+	}
+	return profiles, nil
 }
 
 // parseResourceAudiences loads the operator-owned resource registry. Each

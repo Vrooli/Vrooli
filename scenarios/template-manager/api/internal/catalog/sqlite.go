@@ -320,10 +320,11 @@ func (r *sqliteRepository) ListDriftSnapshots(ctx context.Context, templateID st
 func (r *sqliteRepository) UpsertDebt(ctx context.Context, entry DebtEntry) error {
 	_, err := r.db.ExecContext(ctx, `
 INSERT INTO debt_entries
-  (key, template_id, source, severity, status, title, detail, first_seen_at, last_seen_at)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+  (key, template_id, scenario_slug, source, severity, status, title, detail, first_seen_at, last_seen_at)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 ON CONFLICT(key) DO UPDATE SET
   template_id = excluded.template_id,
+  scenario_slug = excluded.scenario_slug,
   source = excluded.source,
   severity = excluded.severity,
   status = excluded.status,
@@ -332,6 +333,7 @@ ON CONFLICT(key) DO UPDATE SET
   last_seen_at = excluded.last_seen_at`,
 		entry.Key,
 		entry.TemplateID,
+		entry.ScenarioSlug,
 		entry.Source,
 		entry.Severity,
 		entry.Status,
@@ -354,6 +356,23 @@ WHERE template_id = ? AND status = 'open' AND source <> 'template drift'`,
 		resolvedAt.UTC().Format(timeFormat), templateID)
 	if err != nil {
 		return fmt.Errorf("resolve source debt for %q: %w", templateID, err)
+	}
+	return nil
+}
+
+// ResolveTemplateDriftDebt closes drift rows for one exact scenario slug while
+// optionally retaining the current finding. The legacy key fallback only
+// matches the current exact key; cross-lineage cleanup uses persisted identity.
+func (r *sqliteRepository) ResolveTemplateDriftDebt(ctx context.Context, scenario, legacyKey, keepKey string, resolvedAt time.Time) error {
+	_, err := r.db.ExecContext(ctx, `
+UPDATE debt_entries
+SET status = 'resolved', last_seen_at = ?
+WHERE status = 'open' AND source = 'template drift'
+  AND (scenario_slug = ? OR (scenario_slug = '' AND key = ?))
+  AND (? = '' OR key <> ?)`,
+		resolvedAt.UTC().Format(timeFormat), scenario, legacyKey, keepKey, keepKey)
+	if err != nil {
+		return fmt.Errorf("resolve template drift debt for %q (keeping %q): %w", scenario, keepKey, err)
 	}
 	return nil
 }
@@ -418,7 +437,7 @@ func isPassingStatus(status string) bool {
 }
 
 func (r *sqliteRepository) ListDebt(ctx context.Context, templateID, status string) ([]DebtEntry, error) {
-	query := `SELECT key, template_id, source, severity, status, title, detail, first_seen_at, last_seen_at FROM debt_entries WHERE 1=1`
+	query := `SELECT key, template_id, scenario_slug, source, severity, status, title, detail, first_seen_at, last_seen_at FROM debt_entries WHERE 1=1`
 	args := []any{}
 	if templateID != "" {
 		query += ` AND template_id = ?`
@@ -450,7 +469,7 @@ func (r *sqliteRepository) ListDebt(ctx context.Context, templateID, status stri
 }
 
 func (r *sqliteRepository) GetDebt(ctx context.Context, key string) (DebtEntry, error) {
-	row := r.db.QueryRowContext(ctx, `SELECT key, template_id, source, severity, status, title, detail, first_seen_at, last_seen_at FROM debt_entries WHERE key = ?`, key)
+	row := r.db.QueryRowContext(ctx, `SELECT key, template_id, scenario_slug, source, severity, status, title, detail, first_seen_at, last_seen_at FROM debt_entries WHERE key = ?`, key)
 	entry, err := scanDebtEntry(row)
 	if errors.Is(err, sql.ErrNoRows) {
 		return DebtEntry{}, ErrNotFound{Kind: "debt entry", ID: key}
@@ -628,7 +647,7 @@ func scanDriftSnapshot(s rowScanner) (DriftSnapshot, error) {
 func scanDebtEntry(s rowScanner) (DebtEntry, error) {
 	var entry DebtEntry
 	var firstRaw, lastRaw string
-	if err := s.Scan(&entry.Key, &entry.TemplateID, &entry.Source, &entry.Severity, &entry.Status, &entry.Title, &entry.Detail, &firstRaw, &lastRaw); err != nil {
+	if err := s.Scan(&entry.Key, &entry.TemplateID, &entry.ScenarioSlug, &entry.Source, &entry.Severity, &entry.Status, &entry.Title, &entry.Detail, &firstRaw, &lastRaw); err != nil {
 		return DebtEntry{}, err
 	}
 	first, err := time.Parse(timeFormat, firstRaw)

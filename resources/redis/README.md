@@ -40,12 +40,11 @@ The intended escalation path is:
 3. add Redis-specific Go code under `cli/internal/...` only where specialization is real
 4. add custom CLI commands only when the resource truly needs resource-local operator actions beyond the standard lifecycle surface
 
-Current internal package boundaries:
+Current internal packages:
 
 - `cli/internal/install`: install/bootstrap helpers unique to Redis
 - `cli/internal/runtime`: runtime and config materialization helpers
-- `cli/internal/status`: richer Redis status interpretation
-- `cli/internal/health`: Redis-specific probe helpers
+- `cli/internal/backup`: Redis prefix archive and restore behavior
 - `cli/internal/env`: environment export and derived-config helpers
 
 ## Usage
@@ -70,6 +69,11 @@ Connection defaults:
 - Host: `localhost`
 - Port: `6380`
 - URL: `redis://localhost:6380`
+
+The readiness check sends Redis `PING` and requires `PONG`; liveness separately
+checks that port 6380 accepts TCP connections. The current resource contract
+does not configure Redis authentication. See [PROBLEMS.md](PROBLEMS.md) for the
+remaining readiness boundary.
 
 On Windows amd64, `vrooli resource install redis` stages the checksum-pinned
 archive and launches `redis-server.exe` from its governed artifact root. A real

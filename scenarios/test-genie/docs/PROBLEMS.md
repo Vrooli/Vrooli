@@ -9,6 +9,46 @@
 - W3 evidence: server-owned contracts run `20260905-022400-cdb57dc6` passed at L4 after the runtime manifest and help parser were repaired. The earlier comprehensive run `20260905-013206-b061dbcf` still records failures in other R0 gates, so the scenario is not yet globally green.
 - Measured: 2026-09-05
 
+## Open 2026-11-05 — Test Genie UI behavior coverage
+
+**Evidence:** Unit run `20261105-021718-3ef1042e` passed
+`num[sot]:12` Vitest files and `num[sot]:59` tests, but the UI coverage gate
+failed. Its retained report measured `num[sot]:1,210`/`num[sot]:3,638` lines
+(`num[sot]:33.26%`), `num[sot]:64`/`num[sot]:192` functions
+(`num[sot]:33.33%`), and `num[sot]:254`/`num[sot]:397` branches
+(`num[sot]:63.97%`) against the declared `num[threshold]:85%` threshold.
+Coverage includes `num[sot]:81` TypeScript source files and skips
+generated, setup, and test utility files. The gap is broad, not a threshold or
+reporting defect; keep the gate intact.
+
+**Target design:** Every user-facing UI flow and reusable stateful component has
+behavior tests at its input, loading, success, empty, error, and interaction
+boundaries. Keep framework setup and generated output outside the measured
+surface; do not remove production modules from coverage to make the aggregate
+green. Add tests by real user flow, with assertions on rendered and accessible
+behavior rather than implementation details.
+
+**First slice (landed):** Added behavior coverage for the completed-run
+`ExecutionCard`, including optional preset rendering and its rerun/view callbacks.
+The component now has `num[sot]:45`/`num[sot]:45` lines covered. Aggregate coverage
+moved to `num[sot]:1,274`/`num[sot]:3,638` lines (`num[sot]:35.01%`),
+`num[sot]:67`/`num[sot]:192` functions (`num[sot]:34.89%`), and
+`num[sot]:267`/`num[sot]:415` branches (`num[sot]:64.33%`); the
+owner-managed unit phase still fails its global coverage gate, as expected for
+this first slice.
+
+**Remaining slices:** Add user-flow suites for execution planning and streaming;
+scenario/run history tables and timeline; requirements and docs navigation;
+artifact and remediation interactions; then cover remaining shared cards, hooks,
+and page states. After each slice, rerun the UI coverage command and use the
+per-file report to select the next least-covered user-facing behavior. Close this
+item only when the owner-managed unit phase passes without changing the 85%
+policy or excluding executable product code.
+
+**Estimate:** Multi-hour effort; the measured baseline contains `num[sot]:81`
+source files and a `num[sot]:51.74` percentage-point line-coverage gap before
+the first slice.
+
 ## Updated 2026-10-28 — Validation digest wall-budget evidence
 
 **Symptom:** Bounded digest runs timed out at 15s twice and at 20s once.

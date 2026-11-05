@@ -1009,8 +1009,19 @@ type DriftScenario struct {
 	ManifestDrifted bool                   `protobuf:"varint,4,opt,name=manifest_drifted,json=manifestDrifted,proto3" json:"manifest_drifted,omitempty"`
 	ContentDrifted  bool                   `protobuf:"varint,5,opt,name=content_drifted,json=contentDrifted,proto3" json:"content_drifted,omitempty"`
 	Message         string                 `protobuf:"bytes,6,opt,name=message,proto3" json:"message,omitempty"`
-	unknownFields   protoimpl.UnknownFields
-	sizeCache       protoimpl.SizeCache
+	// Populated by verbose reports with current template files missing from the
+	// generated scenario. This is a presence diff, not a byte-level diff.
+	FileDiffs []*DriftFileDiff `protobuf:"bytes,7,rep,name=file_diffs,json=fileDiffs,proto3" json:"file_diffs,omitempty"`
+	// Template version recorded by the scenario and the current source version.
+	// Empty recorded_version means lineage is unknown.
+	RecordedVersion     string `protobuf:"bytes,8,opt,name=recorded_version,json=recordedVersion,proto3" json:"recorded_version,omitempty"`
+	CurrentVersion      string `protobuf:"bytes,9,opt,name=current_version,json=currentVersion,proto3" json:"current_version,omitempty"`
+	RecordedManifestSha string `protobuf:"bytes,10,opt,name=recorded_manifest_sha,json=recordedManifestSha,proto3" json:"recorded_manifest_sha,omitempty"`
+	CurrentManifestSha  string `protobuf:"bytes,11,opt,name=current_manifest_sha,json=currentManifestSha,proto3" json:"current_manifest_sha,omitempty"`
+	RecordedContentSha  string `protobuf:"bytes,12,opt,name=recorded_content_sha,json=recordedContentSha,proto3" json:"recorded_content_sha,omitempty"`
+	CurrentContentSha   string `protobuf:"bytes,13,opt,name=current_content_sha,json=currentContentSha,proto3" json:"current_content_sha,omitempty"`
+	unknownFields       protoimpl.UnknownFields
+	sizeCache           protoimpl.SizeCache
 }
 
 func (x *DriftScenario) Reset() {
@@ -1085,6 +1096,109 @@ func (x *DriftScenario) GetMessage() string {
 	return ""
 }
 
+func (x *DriftScenario) GetFileDiffs() []*DriftFileDiff {
+	if x != nil {
+		return x.FileDiffs
+	}
+	return nil
+}
+
+func (x *DriftScenario) GetRecordedVersion() string {
+	if x != nil {
+		return x.RecordedVersion
+	}
+	return ""
+}
+
+func (x *DriftScenario) GetCurrentVersion() string {
+	if x != nil {
+		return x.CurrentVersion
+	}
+	return ""
+}
+
+func (x *DriftScenario) GetRecordedManifestSha() string {
+	if x != nil {
+		return x.RecordedManifestSha
+	}
+	return ""
+}
+
+func (x *DriftScenario) GetCurrentManifestSha() string {
+	if x != nil {
+		return x.CurrentManifestSha
+	}
+	return ""
+}
+
+func (x *DriftScenario) GetRecordedContentSha() string {
+	if x != nil {
+		return x.RecordedContentSha
+	}
+	return ""
+}
+
+func (x *DriftScenario) GetCurrentContentSha() string {
+	if x != nil {
+		return x.CurrentContentSha
+	}
+	return ""
+}
+
+type DriftFileDiff struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	Path  string                 `protobuf:"bytes,1,opt,name=path,proto3" json:"path,omitempty"`
+	// Currently added_in_template; preserved as a string for forward-compatible
+	// report reasons without requiring an enum migration.
+	Reason        string `protobuf:"bytes,2,opt,name=reason,proto3" json:"reason,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DriftFileDiff) Reset() {
+	*x = DriftFileDiff{}
+	mi := &file_template_manager_v1_lifecycle_lifecycle_proto_msgTypes[13]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DriftFileDiff) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DriftFileDiff) ProtoMessage() {}
+
+func (x *DriftFileDiff) ProtoReflect() protoreflect.Message {
+	mi := &file_template_manager_v1_lifecycle_lifecycle_proto_msgTypes[13]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DriftFileDiff.ProtoReflect.Descriptor instead.
+func (*DriftFileDiff) Descriptor() ([]byte, []int) {
+	return file_template_manager_v1_lifecycle_lifecycle_proto_rawDescGZIP(), []int{13}
+}
+
+func (x *DriftFileDiff) GetPath() string {
+	if x != nil {
+		return x.Path
+	}
+	return ""
+}
+
+func (x *DriftFileDiff) GetReason() string {
+	if x != nil {
+		return x.Reason
+	}
+	return ""
+}
+
 type DriftReportResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Scenarios     []*DriftScenario       `protobuf:"bytes,1,rep,name=scenarios,proto3" json:"scenarios,omitempty"`
@@ -1094,7 +1208,7 @@ type DriftReportResponse struct {
 
 func (x *DriftReportResponse) Reset() {
 	*x = DriftReportResponse{}
-	mi := &file_template_manager_v1_lifecycle_lifecycle_proto_msgTypes[13]
+	mi := &file_template_manager_v1_lifecycle_lifecycle_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1106,7 +1220,7 @@ func (x *DriftReportResponse) String() string {
 func (*DriftReportResponse) ProtoMessage() {}
 
 func (x *DriftReportResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_template_manager_v1_lifecycle_lifecycle_proto_msgTypes[13]
+	mi := &file_template_manager_v1_lifecycle_lifecycle_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1119,7 +1233,7 @@ func (x *DriftReportResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DriftReportResponse.ProtoReflect.Descriptor instead.
 func (*DriftReportResponse) Descriptor() ([]byte, []int) {
-	return file_template_manager_v1_lifecycle_lifecycle_proto_rawDescGZIP(), []int{13}
+	return file_template_manager_v1_lifecycle_lifecycle_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *DriftReportResponse) GetScenarios() []*DriftScenario {
@@ -1141,7 +1255,7 @@ type CleanupRunsRequest struct {
 
 func (x *CleanupRunsRequest) Reset() {
 	*x = CleanupRunsRequest{}
-	mi := &file_template_manager_v1_lifecycle_lifecycle_proto_msgTypes[14]
+	mi := &file_template_manager_v1_lifecycle_lifecycle_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1153,7 +1267,7 @@ func (x *CleanupRunsRequest) String() string {
 func (*CleanupRunsRequest) ProtoMessage() {}
 
 func (x *CleanupRunsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_template_manager_v1_lifecycle_lifecycle_proto_msgTypes[14]
+	mi := &file_template_manager_v1_lifecycle_lifecycle_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1166,7 +1280,7 @@ func (x *CleanupRunsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CleanupRunsRequest.ProtoReflect.Descriptor instead.
 func (*CleanupRunsRequest) Descriptor() ([]byte, []int) {
-	return file_template_manager_v1_lifecycle_lifecycle_proto_rawDescGZIP(), []int{14}
+	return file_template_manager_v1_lifecycle_lifecycle_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *CleanupRunsRequest) GetDryRun() bool {
@@ -1210,7 +1324,7 @@ type CleanupSkippedRun struct {
 
 func (x *CleanupSkippedRun) Reset() {
 	*x = CleanupSkippedRun{}
-	mi := &file_template_manager_v1_lifecycle_lifecycle_proto_msgTypes[15]
+	mi := &file_template_manager_v1_lifecycle_lifecycle_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1222,7 +1336,7 @@ func (x *CleanupSkippedRun) String() string {
 func (*CleanupSkippedRun) ProtoMessage() {}
 
 func (x *CleanupSkippedRun) ProtoReflect() protoreflect.Message {
-	mi := &file_template_manager_v1_lifecycle_lifecycle_proto_msgTypes[15]
+	mi := &file_template_manager_v1_lifecycle_lifecycle_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1235,7 +1349,7 @@ func (x *CleanupSkippedRun) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CleanupSkippedRun.ProtoReflect.Descriptor instead.
 func (*CleanupSkippedRun) Descriptor() ([]byte, []int) {
-	return file_template_manager_v1_lifecycle_lifecycle_proto_rawDescGZIP(), []int{15}
+	return file_template_manager_v1_lifecycle_lifecycle_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *CleanupSkippedRun) GetRunId() string {
@@ -1275,7 +1389,7 @@ type CleanupRunsResponse struct {
 
 func (x *CleanupRunsResponse) Reset() {
 	*x = CleanupRunsResponse{}
-	mi := &file_template_manager_v1_lifecycle_lifecycle_proto_msgTypes[16]
+	mi := &file_template_manager_v1_lifecycle_lifecycle_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1287,7 +1401,7 @@ func (x *CleanupRunsResponse) String() string {
 func (*CleanupRunsResponse) ProtoMessage() {}
 
 func (x *CleanupRunsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_template_manager_v1_lifecycle_lifecycle_proto_msgTypes[16]
+	mi := &file_template_manager_v1_lifecycle_lifecycle_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1300,7 +1414,7 @@ func (x *CleanupRunsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CleanupRunsResponse.ProtoReflect.Descriptor instead.
 func (*CleanupRunsResponse) Descriptor() ([]byte, []int) {
-	return file_template_manager_v1_lifecycle_lifecycle_proto_rawDescGZIP(), []int{16}
+	return file_template_manager_v1_lifecycle_lifecycle_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *CleanupRunsResponse) GetMatched() int32 {
@@ -1353,7 +1467,7 @@ type ListDesignKitsRequest struct {
 
 func (x *ListDesignKitsRequest) Reset() {
 	*x = ListDesignKitsRequest{}
-	mi := &file_template_manager_v1_lifecycle_lifecycle_proto_msgTypes[17]
+	mi := &file_template_manager_v1_lifecycle_lifecycle_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1365,7 +1479,7 @@ func (x *ListDesignKitsRequest) String() string {
 func (*ListDesignKitsRequest) ProtoMessage() {}
 
 func (x *ListDesignKitsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_template_manager_v1_lifecycle_lifecycle_proto_msgTypes[17]
+	mi := &file_template_manager_v1_lifecycle_lifecycle_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1378,7 +1492,7 @@ func (x *ListDesignKitsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListDesignKitsRequest.ProtoReflect.Descriptor instead.
 func (*ListDesignKitsRequest) Descriptor() ([]byte, []int) {
-	return file_template_manager_v1_lifecycle_lifecycle_proto_rawDescGZIP(), []int{17}
+	return file_template_manager_v1_lifecycle_lifecycle_proto_rawDescGZIP(), []int{18}
 }
 
 type DesignKit struct {
@@ -1396,7 +1510,7 @@ type DesignKit struct {
 
 func (x *DesignKit) Reset() {
 	*x = DesignKit{}
-	mi := &file_template_manager_v1_lifecycle_lifecycle_proto_msgTypes[18]
+	mi := &file_template_manager_v1_lifecycle_lifecycle_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1408,7 +1522,7 @@ func (x *DesignKit) String() string {
 func (*DesignKit) ProtoMessage() {}
 
 func (x *DesignKit) ProtoReflect() protoreflect.Message {
-	mi := &file_template_manager_v1_lifecycle_lifecycle_proto_msgTypes[18]
+	mi := &file_template_manager_v1_lifecycle_lifecycle_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1421,7 +1535,7 @@ func (x *DesignKit) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DesignKit.ProtoReflect.Descriptor instead.
 func (*DesignKit) Descriptor() ([]byte, []int) {
-	return file_template_manager_v1_lifecycle_lifecycle_proto_rawDescGZIP(), []int{18}
+	return file_template_manager_v1_lifecycle_lifecycle_proto_rawDescGZIP(), []int{19}
 }
 
 func (x *DesignKit) GetId() string {
@@ -1482,7 +1596,7 @@ type ListDesignKitsResponse struct {
 
 func (x *ListDesignKitsResponse) Reset() {
 	*x = ListDesignKitsResponse{}
-	mi := &file_template_manager_v1_lifecycle_lifecycle_proto_msgTypes[19]
+	mi := &file_template_manager_v1_lifecycle_lifecycle_proto_msgTypes[20]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1494,7 +1608,7 @@ func (x *ListDesignKitsResponse) String() string {
 func (*ListDesignKitsResponse) ProtoMessage() {}
 
 func (x *ListDesignKitsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_template_manager_v1_lifecycle_lifecycle_proto_msgTypes[19]
+	mi := &file_template_manager_v1_lifecycle_lifecycle_proto_msgTypes[20]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1507,7 +1621,7 @@ func (x *ListDesignKitsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListDesignKitsResponse.ProtoReflect.Descriptor instead.
 func (*ListDesignKitsResponse) Descriptor() ([]byte, []int) {
-	return file_template_manager_v1_lifecycle_lifecycle_proto_rawDescGZIP(), []int{19}
+	return file_template_manager_v1_lifecycle_lifecycle_proto_rawDescGZIP(), []int{20}
 }
 
 func (x *ListDesignKitsResponse) GetKits() []*DesignKit {
@@ -1526,7 +1640,7 @@ type GetDesignKitRequest struct {
 
 func (x *GetDesignKitRequest) Reset() {
 	*x = GetDesignKitRequest{}
-	mi := &file_template_manager_v1_lifecycle_lifecycle_proto_msgTypes[20]
+	mi := &file_template_manager_v1_lifecycle_lifecycle_proto_msgTypes[21]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1538,7 +1652,7 @@ func (x *GetDesignKitRequest) String() string {
 func (*GetDesignKitRequest) ProtoMessage() {}
 
 func (x *GetDesignKitRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_template_manager_v1_lifecycle_lifecycle_proto_msgTypes[20]
+	mi := &file_template_manager_v1_lifecycle_lifecycle_proto_msgTypes[21]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1551,7 +1665,7 @@ func (x *GetDesignKitRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetDesignKitRequest.ProtoReflect.Descriptor instead.
 func (*GetDesignKitRequest) Descriptor() ([]byte, []int) {
-	return file_template_manager_v1_lifecycle_lifecycle_proto_rawDescGZIP(), []int{20}
+	return file_template_manager_v1_lifecycle_lifecycle_proto_rawDescGZIP(), []int{21}
 }
 
 func (x *GetDesignKitRequest) GetId() string {
@@ -1570,7 +1684,7 @@ type GetDesignKitResponse struct {
 
 func (x *GetDesignKitResponse) Reset() {
 	*x = GetDesignKitResponse{}
-	mi := &file_template_manager_v1_lifecycle_lifecycle_proto_msgTypes[21]
+	mi := &file_template_manager_v1_lifecycle_lifecycle_proto_msgTypes[22]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1582,7 +1696,7 @@ func (x *GetDesignKitResponse) String() string {
 func (*GetDesignKitResponse) ProtoMessage() {}
 
 func (x *GetDesignKitResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_template_manager_v1_lifecycle_lifecycle_proto_msgTypes[21]
+	mi := &file_template_manager_v1_lifecycle_lifecycle_proto_msgTypes[22]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1595,7 +1709,7 @@ func (x *GetDesignKitResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetDesignKitResponse.ProtoReflect.Descriptor instead.
 func (*GetDesignKitResponse) Descriptor() ([]byte, []int) {
-	return file_template_manager_v1_lifecycle_lifecycle_proto_rawDescGZIP(), []int{21}
+	return file_template_manager_v1_lifecycle_lifecycle_proto_rawDescGZIP(), []int{22}
 }
 
 func (x *GetDesignKitResponse) GetKit() *DesignKit {
@@ -1615,7 +1729,7 @@ type ValidateDesignKitsRequest struct {
 
 func (x *ValidateDesignKitsRequest) Reset() {
 	*x = ValidateDesignKitsRequest{}
-	mi := &file_template_manager_v1_lifecycle_lifecycle_proto_msgTypes[22]
+	mi := &file_template_manager_v1_lifecycle_lifecycle_proto_msgTypes[23]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1627,7 +1741,7 @@ func (x *ValidateDesignKitsRequest) String() string {
 func (*ValidateDesignKitsRequest) ProtoMessage() {}
 
 func (x *ValidateDesignKitsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_template_manager_v1_lifecycle_lifecycle_proto_msgTypes[22]
+	mi := &file_template_manager_v1_lifecycle_lifecycle_proto_msgTypes[23]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1640,7 +1754,7 @@ func (x *ValidateDesignKitsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ValidateDesignKitsRequest.ProtoReflect.Descriptor instead.
 func (*ValidateDesignKitsRequest) Descriptor() ([]byte, []int) {
-	return file_template_manager_v1_lifecycle_lifecycle_proto_rawDescGZIP(), []int{22}
+	return file_template_manager_v1_lifecycle_lifecycle_proto_rawDescGZIP(), []int{23}
 }
 
 func (x *ValidateDesignKitsRequest) GetId() string {
@@ -1669,7 +1783,7 @@ type DesignValidationIssue struct {
 
 func (x *DesignValidationIssue) Reset() {
 	*x = DesignValidationIssue{}
-	mi := &file_template_manager_v1_lifecycle_lifecycle_proto_msgTypes[23]
+	mi := &file_template_manager_v1_lifecycle_lifecycle_proto_msgTypes[24]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1681,7 +1795,7 @@ func (x *DesignValidationIssue) String() string {
 func (*DesignValidationIssue) ProtoMessage() {}
 
 func (x *DesignValidationIssue) ProtoReflect() protoreflect.Message {
-	mi := &file_template_manager_v1_lifecycle_lifecycle_proto_msgTypes[23]
+	mi := &file_template_manager_v1_lifecycle_lifecycle_proto_msgTypes[24]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1694,7 +1808,7 @@ func (x *DesignValidationIssue) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DesignValidationIssue.ProtoReflect.Descriptor instead.
 func (*DesignValidationIssue) Descriptor() ([]byte, []int) {
-	return file_template_manager_v1_lifecycle_lifecycle_proto_rawDescGZIP(), []int{23}
+	return file_template_manager_v1_lifecycle_lifecycle_proto_rawDescGZIP(), []int{24}
 }
 
 func (x *DesignValidationIssue) GetKit() string {
@@ -1737,7 +1851,7 @@ type DesignKitValidationResult struct {
 
 func (x *DesignKitValidationResult) Reset() {
 	*x = DesignKitValidationResult{}
-	mi := &file_template_manager_v1_lifecycle_lifecycle_proto_msgTypes[24]
+	mi := &file_template_manager_v1_lifecycle_lifecycle_proto_msgTypes[25]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1749,7 +1863,7 @@ func (x *DesignKitValidationResult) String() string {
 func (*DesignKitValidationResult) ProtoMessage() {}
 
 func (x *DesignKitValidationResult) ProtoReflect() protoreflect.Message {
-	mi := &file_template_manager_v1_lifecycle_lifecycle_proto_msgTypes[24]
+	mi := &file_template_manager_v1_lifecycle_lifecycle_proto_msgTypes[25]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1762,7 +1876,7 @@ func (x *DesignKitValidationResult) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DesignKitValidationResult.ProtoReflect.Descriptor instead.
 func (*DesignKitValidationResult) Descriptor() ([]byte, []int) {
-	return file_template_manager_v1_lifecycle_lifecycle_proto_rawDescGZIP(), []int{24}
+	return file_template_manager_v1_lifecycle_lifecycle_proto_rawDescGZIP(), []int{25}
 }
 
 func (x *DesignKitValidationResult) GetKit() string {
@@ -1802,7 +1916,7 @@ type ValidateDesignKitsResponse struct {
 
 func (x *ValidateDesignKitsResponse) Reset() {
 	*x = ValidateDesignKitsResponse{}
-	mi := &file_template_manager_v1_lifecycle_lifecycle_proto_msgTypes[25]
+	mi := &file_template_manager_v1_lifecycle_lifecycle_proto_msgTypes[26]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1814,7 +1928,7 @@ func (x *ValidateDesignKitsResponse) String() string {
 func (*ValidateDesignKitsResponse) ProtoMessage() {}
 
 func (x *ValidateDesignKitsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_template_manager_v1_lifecycle_lifecycle_proto_msgTypes[25]
+	mi := &file_template_manager_v1_lifecycle_lifecycle_proto_msgTypes[26]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1827,7 +1941,7 @@ func (x *ValidateDesignKitsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ValidateDesignKitsResponse.ProtoReflect.Descriptor instead.
 func (*ValidateDesignKitsResponse) Descriptor() ([]byte, []int) {
-	return file_template_manager_v1_lifecycle_lifecycle_proto_rawDescGZIP(), []int{25}
+	return file_template_manager_v1_lifecycle_lifecycle_proto_rawDescGZIP(), []int{26}
 }
 
 func (x *ValidateDesignKitsResponse) GetCount() int32 {
@@ -1956,14 +2070,26 @@ const file_template_manager_v1_lifecycle_lifecycle_proto_rawDesc = "" +
 	"\x12DriftReportRequest\x12\x1a\n" +
 	"\bscenario\x18\x01 \x01(\tR\bscenario\x12\x10\n" +
 	"\x03all\x18\x02 \x01(\bR\x03all\x12\x18\n" +
-	"\averbose\x18\x03 \x01(\bR\averbose\"\xcd\x01\n" +
+	"\averbose\x18\x03 \x01(\bR\averbose\"\xbd\x04\n" +
 	"\rDriftScenario\x12\x1a\n" +
 	"\bscenario\x18\x01 \x01(\tR\bscenario\x12\x1a\n" +
 	"\btemplate\x18\x02 \x01(\tR\btemplate\x12\x16\n" +
 	"\x06status\x18\x03 \x01(\tR\x06status\x12)\n" +
 	"\x10manifest_drifted\x18\x04 \x01(\bR\x0fmanifestDrifted\x12'\n" +
 	"\x0fcontent_drifted\x18\x05 \x01(\bR\x0econtentDrifted\x12\x18\n" +
-	"\amessage\x18\x06 \x01(\tR\amessage\"h\n" +
+	"\amessage\x18\x06 \x01(\tR\amessage\x12R\n" +
+	"\n" +
+	"file_diffs\x18\a \x03(\v23.vrooli.template_manager.v1.lifecycle.DriftFileDiffR\tfileDiffs\x12)\n" +
+	"\x10recorded_version\x18\b \x01(\tR\x0frecordedVersion\x12'\n" +
+	"\x0fcurrent_version\x18\t \x01(\tR\x0ecurrentVersion\x122\n" +
+	"\x15recorded_manifest_sha\x18\n" +
+	" \x01(\tR\x13recordedManifestSha\x120\n" +
+	"\x14current_manifest_sha\x18\v \x01(\tR\x12currentManifestSha\x120\n" +
+	"\x14recorded_content_sha\x18\f \x01(\tR\x12recordedContentSha\x12.\n" +
+	"\x13current_content_sha\x18\r \x01(\tR\x11currentContentSha\";\n" +
+	"\rDriftFileDiff\x12\x12\n" +
+	"\x04path\x18\x01 \x01(\tR\x04path\x12\x16\n" +
+	"\x06reason\x18\x02 \x01(\tR\x06reason\"h\n" +
 	"\x13DriftReportResponse\x12Q\n" +
 	"\tscenarios\x18\x01 \x03(\v23.vrooli.template_manager.v1.lifecycle.DriftScenarioR\tscenarios\"\x8e\x01\n" +
 	"\x12CleanupRunsRequest\x12\x17\n" +
@@ -2041,7 +2167,7 @@ func file_template_manager_v1_lifecycle_lifecycle_proto_rawDescGZIP() []byte {
 	return file_template_manager_v1_lifecycle_lifecycle_proto_rawDescData
 }
 
-var file_template_manager_v1_lifecycle_lifecycle_proto_msgTypes = make([]protoimpl.MessageInfo, 27)
+var file_template_manager_v1_lifecycle_lifecycle_proto_msgTypes = make([]protoimpl.MessageInfo, 28)
 var file_template_manager_v1_lifecycle_lifecycle_proto_goTypes = []any{
 	(*GenerateScenarioRequest)(nil),    // 0: vrooli.template_manager.v1.lifecycle.GenerateScenarioRequest
 	(*GenerateScenarioResponse)(nil),   // 1: vrooli.template_manager.v1.lifecycle.GenerateScenarioResponse
@@ -2056,56 +2182,58 @@ var file_template_manager_v1_lifecycle_lifecycle_proto_goTypes = []any{
 	(*ValidateTemplateResponse)(nil),   // 10: vrooli.template_manager.v1.lifecycle.ValidateTemplateResponse
 	(*DriftReportRequest)(nil),         // 11: vrooli.template_manager.v1.lifecycle.DriftReportRequest
 	(*DriftScenario)(nil),              // 12: vrooli.template_manager.v1.lifecycle.DriftScenario
-	(*DriftReportResponse)(nil),        // 13: vrooli.template_manager.v1.lifecycle.DriftReportResponse
-	(*CleanupRunsRequest)(nil),         // 14: vrooli.template_manager.v1.lifecycle.CleanupRunsRequest
-	(*CleanupSkippedRun)(nil),          // 15: vrooli.template_manager.v1.lifecycle.CleanupSkippedRun
-	(*CleanupRunsResponse)(nil),        // 16: vrooli.template_manager.v1.lifecycle.CleanupRunsResponse
-	(*ListDesignKitsRequest)(nil),      // 17: vrooli.template_manager.v1.lifecycle.ListDesignKitsRequest
-	(*DesignKit)(nil),                  // 18: vrooli.template_manager.v1.lifecycle.DesignKit
-	(*ListDesignKitsResponse)(nil),     // 19: vrooli.template_manager.v1.lifecycle.ListDesignKitsResponse
-	(*GetDesignKitRequest)(nil),        // 20: vrooli.template_manager.v1.lifecycle.GetDesignKitRequest
-	(*GetDesignKitResponse)(nil),       // 21: vrooli.template_manager.v1.lifecycle.GetDesignKitResponse
-	(*ValidateDesignKitsRequest)(nil),  // 22: vrooli.template_manager.v1.lifecycle.ValidateDesignKitsRequest
-	(*DesignValidationIssue)(nil),      // 23: vrooli.template_manager.v1.lifecycle.DesignValidationIssue
-	(*DesignKitValidationResult)(nil),  // 24: vrooli.template_manager.v1.lifecycle.DesignKitValidationResult
-	(*ValidateDesignKitsResponse)(nil), // 25: vrooli.template_manager.v1.lifecycle.ValidateDesignKitsResponse
-	nil,                                // 26: vrooli.template_manager.v1.lifecycle.GenerateScenarioRequest.ValuesEntry
+	(*DriftFileDiff)(nil),              // 13: vrooli.template_manager.v1.lifecycle.DriftFileDiff
+	(*DriftReportResponse)(nil),        // 14: vrooli.template_manager.v1.lifecycle.DriftReportResponse
+	(*CleanupRunsRequest)(nil),         // 15: vrooli.template_manager.v1.lifecycle.CleanupRunsRequest
+	(*CleanupSkippedRun)(nil),          // 16: vrooli.template_manager.v1.lifecycle.CleanupSkippedRun
+	(*CleanupRunsResponse)(nil),        // 17: vrooli.template_manager.v1.lifecycle.CleanupRunsResponse
+	(*ListDesignKitsRequest)(nil),      // 18: vrooli.template_manager.v1.lifecycle.ListDesignKitsRequest
+	(*DesignKit)(nil),                  // 19: vrooli.template_manager.v1.lifecycle.DesignKit
+	(*ListDesignKitsResponse)(nil),     // 20: vrooli.template_manager.v1.lifecycle.ListDesignKitsResponse
+	(*GetDesignKitRequest)(nil),        // 21: vrooli.template_manager.v1.lifecycle.GetDesignKitRequest
+	(*GetDesignKitResponse)(nil),       // 22: vrooli.template_manager.v1.lifecycle.GetDesignKitResponse
+	(*ValidateDesignKitsRequest)(nil),  // 23: vrooli.template_manager.v1.lifecycle.ValidateDesignKitsRequest
+	(*DesignValidationIssue)(nil),      // 24: vrooli.template_manager.v1.lifecycle.DesignValidationIssue
+	(*DesignKitValidationResult)(nil),  // 25: vrooli.template_manager.v1.lifecycle.DesignKitValidationResult
+	(*ValidateDesignKitsResponse)(nil), // 26: vrooli.template_manager.v1.lifecycle.ValidateDesignKitsResponse
+	nil,                                // 27: vrooli.template_manager.v1.lifecycle.GenerateScenarioRequest.ValuesEntry
 }
 var file_template_manager_v1_lifecycle_lifecycle_proto_depIdxs = []int32{
-	26, // 0: vrooli.template_manager.v1.lifecycle.GenerateScenarioRequest.values:type_name -> vrooli.template_manager.v1.lifecycle.GenerateScenarioRequest.ValuesEntry
+	27, // 0: vrooli.template_manager.v1.lifecycle.GenerateScenarioRequest.values:type_name -> vrooli.template_manager.v1.lifecycle.GenerateScenarioRequest.ValuesEntry
 	9,  // 1: vrooli.template_manager.v1.lifecycle.ValidateTemplateResponse.issues:type_name -> vrooli.template_manager.v1.lifecycle.TemplateValidationIssue
-	12, // 2: vrooli.template_manager.v1.lifecycle.DriftReportResponse.scenarios:type_name -> vrooli.template_manager.v1.lifecycle.DriftScenario
-	15, // 3: vrooli.template_manager.v1.lifecycle.CleanupRunsResponse.skipped_runs:type_name -> vrooli.template_manager.v1.lifecycle.CleanupSkippedRun
-	18, // 4: vrooli.template_manager.v1.lifecycle.ListDesignKitsResponse.kits:type_name -> vrooli.template_manager.v1.lifecycle.DesignKit
-	18, // 5: vrooli.template_manager.v1.lifecycle.GetDesignKitResponse.kit:type_name -> vrooli.template_manager.v1.lifecycle.DesignKit
-	23, // 6: vrooli.template_manager.v1.lifecycle.DesignKitValidationResult.issues:type_name -> vrooli.template_manager.v1.lifecycle.DesignValidationIssue
-	23, // 7: vrooli.template_manager.v1.lifecycle.ValidateDesignKitsResponse.issues:type_name -> vrooli.template_manager.v1.lifecycle.DesignValidationIssue
-	24, // 8: vrooli.template_manager.v1.lifecycle.ValidateDesignKitsResponse.results:type_name -> vrooli.template_manager.v1.lifecycle.DesignKitValidationResult
-	0,  // 9: vrooli.template_manager.v1.lifecycle.TemplateLifecycleService.GenerateScenario:input_type -> vrooli.template_manager.v1.lifecycle.GenerateScenarioRequest
-	2,  // 10: vrooli.template_manager.v1.lifecycle.TemplateLifecycleService.OrientScenario:input_type -> vrooli.template_manager.v1.lifecycle.OrientScenarioRequest
-	4,  // 11: vrooli.template_manager.v1.lifecycle.TemplateLifecycleService.DetemplateScenario:input_type -> vrooli.template_manager.v1.lifecycle.DetemplateScenarioRequest
-	6,  // 12: vrooli.template_manager.v1.lifecycle.TemplateLifecycleService.DestroyScenario:input_type -> vrooli.template_manager.v1.lifecycle.DestroyScenarioRequest
-	8,  // 13: vrooli.template_manager.v1.lifecycle.TemplateLifecycleService.ValidateTemplate:input_type -> vrooli.template_manager.v1.lifecycle.ValidateTemplateRequest
-	11, // 14: vrooli.template_manager.v1.lifecycle.TemplateLifecycleService.DriftReport:input_type -> vrooli.template_manager.v1.lifecycle.DriftReportRequest
-	14, // 15: vrooli.template_manager.v1.lifecycle.TemplateLifecycleService.CleanupRuns:input_type -> vrooli.template_manager.v1.lifecycle.CleanupRunsRequest
-	17, // 16: vrooli.template_manager.v1.lifecycle.DesignKitService.ListDesignKits:input_type -> vrooli.template_manager.v1.lifecycle.ListDesignKitsRequest
-	20, // 17: vrooli.template_manager.v1.lifecycle.DesignKitService.GetDesignKit:input_type -> vrooli.template_manager.v1.lifecycle.GetDesignKitRequest
-	22, // 18: vrooli.template_manager.v1.lifecycle.DesignKitService.ValidateDesignKits:input_type -> vrooli.template_manager.v1.lifecycle.ValidateDesignKitsRequest
-	1,  // 19: vrooli.template_manager.v1.lifecycle.TemplateLifecycleService.GenerateScenario:output_type -> vrooli.template_manager.v1.lifecycle.GenerateScenarioResponse
-	3,  // 20: vrooli.template_manager.v1.lifecycle.TemplateLifecycleService.OrientScenario:output_type -> vrooli.template_manager.v1.lifecycle.OrientScenarioResponse
-	5,  // 21: vrooli.template_manager.v1.lifecycle.TemplateLifecycleService.DetemplateScenario:output_type -> vrooli.template_manager.v1.lifecycle.DetemplateScenarioResponse
-	7,  // 22: vrooli.template_manager.v1.lifecycle.TemplateLifecycleService.DestroyScenario:output_type -> vrooli.template_manager.v1.lifecycle.DestroyScenarioResponse
-	10, // 23: vrooli.template_manager.v1.lifecycle.TemplateLifecycleService.ValidateTemplate:output_type -> vrooli.template_manager.v1.lifecycle.ValidateTemplateResponse
-	13, // 24: vrooli.template_manager.v1.lifecycle.TemplateLifecycleService.DriftReport:output_type -> vrooli.template_manager.v1.lifecycle.DriftReportResponse
-	16, // 25: vrooli.template_manager.v1.lifecycle.TemplateLifecycleService.CleanupRuns:output_type -> vrooli.template_manager.v1.lifecycle.CleanupRunsResponse
-	19, // 26: vrooli.template_manager.v1.lifecycle.DesignKitService.ListDesignKits:output_type -> vrooli.template_manager.v1.lifecycle.ListDesignKitsResponse
-	21, // 27: vrooli.template_manager.v1.lifecycle.DesignKitService.GetDesignKit:output_type -> vrooli.template_manager.v1.lifecycle.GetDesignKitResponse
-	25, // 28: vrooli.template_manager.v1.lifecycle.DesignKitService.ValidateDesignKits:output_type -> vrooli.template_manager.v1.lifecycle.ValidateDesignKitsResponse
-	19, // [19:29] is the sub-list for method output_type
-	9,  // [9:19] is the sub-list for method input_type
-	9,  // [9:9] is the sub-list for extension type_name
-	9,  // [9:9] is the sub-list for extension extendee
-	0,  // [0:9] is the sub-list for field type_name
+	13, // 2: vrooli.template_manager.v1.lifecycle.DriftScenario.file_diffs:type_name -> vrooli.template_manager.v1.lifecycle.DriftFileDiff
+	12, // 3: vrooli.template_manager.v1.lifecycle.DriftReportResponse.scenarios:type_name -> vrooli.template_manager.v1.lifecycle.DriftScenario
+	16, // 4: vrooli.template_manager.v1.lifecycle.CleanupRunsResponse.skipped_runs:type_name -> vrooli.template_manager.v1.lifecycle.CleanupSkippedRun
+	19, // 5: vrooli.template_manager.v1.lifecycle.ListDesignKitsResponse.kits:type_name -> vrooli.template_manager.v1.lifecycle.DesignKit
+	19, // 6: vrooli.template_manager.v1.lifecycle.GetDesignKitResponse.kit:type_name -> vrooli.template_manager.v1.lifecycle.DesignKit
+	24, // 7: vrooli.template_manager.v1.lifecycle.DesignKitValidationResult.issues:type_name -> vrooli.template_manager.v1.lifecycle.DesignValidationIssue
+	24, // 8: vrooli.template_manager.v1.lifecycle.ValidateDesignKitsResponse.issues:type_name -> vrooli.template_manager.v1.lifecycle.DesignValidationIssue
+	25, // 9: vrooli.template_manager.v1.lifecycle.ValidateDesignKitsResponse.results:type_name -> vrooli.template_manager.v1.lifecycle.DesignKitValidationResult
+	0,  // 10: vrooli.template_manager.v1.lifecycle.TemplateLifecycleService.GenerateScenario:input_type -> vrooli.template_manager.v1.lifecycle.GenerateScenarioRequest
+	2,  // 11: vrooli.template_manager.v1.lifecycle.TemplateLifecycleService.OrientScenario:input_type -> vrooli.template_manager.v1.lifecycle.OrientScenarioRequest
+	4,  // 12: vrooli.template_manager.v1.lifecycle.TemplateLifecycleService.DetemplateScenario:input_type -> vrooli.template_manager.v1.lifecycle.DetemplateScenarioRequest
+	6,  // 13: vrooli.template_manager.v1.lifecycle.TemplateLifecycleService.DestroyScenario:input_type -> vrooli.template_manager.v1.lifecycle.DestroyScenarioRequest
+	8,  // 14: vrooli.template_manager.v1.lifecycle.TemplateLifecycleService.ValidateTemplate:input_type -> vrooli.template_manager.v1.lifecycle.ValidateTemplateRequest
+	11, // 15: vrooli.template_manager.v1.lifecycle.TemplateLifecycleService.DriftReport:input_type -> vrooli.template_manager.v1.lifecycle.DriftReportRequest
+	15, // 16: vrooli.template_manager.v1.lifecycle.TemplateLifecycleService.CleanupRuns:input_type -> vrooli.template_manager.v1.lifecycle.CleanupRunsRequest
+	18, // 17: vrooli.template_manager.v1.lifecycle.DesignKitService.ListDesignKits:input_type -> vrooli.template_manager.v1.lifecycle.ListDesignKitsRequest
+	21, // 18: vrooli.template_manager.v1.lifecycle.DesignKitService.GetDesignKit:input_type -> vrooli.template_manager.v1.lifecycle.GetDesignKitRequest
+	23, // 19: vrooli.template_manager.v1.lifecycle.DesignKitService.ValidateDesignKits:input_type -> vrooli.template_manager.v1.lifecycle.ValidateDesignKitsRequest
+	1,  // 20: vrooli.template_manager.v1.lifecycle.TemplateLifecycleService.GenerateScenario:output_type -> vrooli.template_manager.v1.lifecycle.GenerateScenarioResponse
+	3,  // 21: vrooli.template_manager.v1.lifecycle.TemplateLifecycleService.OrientScenario:output_type -> vrooli.template_manager.v1.lifecycle.OrientScenarioResponse
+	5,  // 22: vrooli.template_manager.v1.lifecycle.TemplateLifecycleService.DetemplateScenario:output_type -> vrooli.template_manager.v1.lifecycle.DetemplateScenarioResponse
+	7,  // 23: vrooli.template_manager.v1.lifecycle.TemplateLifecycleService.DestroyScenario:output_type -> vrooli.template_manager.v1.lifecycle.DestroyScenarioResponse
+	10, // 24: vrooli.template_manager.v1.lifecycle.TemplateLifecycleService.ValidateTemplate:output_type -> vrooli.template_manager.v1.lifecycle.ValidateTemplateResponse
+	14, // 25: vrooli.template_manager.v1.lifecycle.TemplateLifecycleService.DriftReport:output_type -> vrooli.template_manager.v1.lifecycle.DriftReportResponse
+	17, // 26: vrooli.template_manager.v1.lifecycle.TemplateLifecycleService.CleanupRuns:output_type -> vrooli.template_manager.v1.lifecycle.CleanupRunsResponse
+	20, // 27: vrooli.template_manager.v1.lifecycle.DesignKitService.ListDesignKits:output_type -> vrooli.template_manager.v1.lifecycle.ListDesignKitsResponse
+	22, // 28: vrooli.template_manager.v1.lifecycle.DesignKitService.GetDesignKit:output_type -> vrooli.template_manager.v1.lifecycle.GetDesignKitResponse
+	26, // 29: vrooli.template_manager.v1.lifecycle.DesignKitService.ValidateDesignKits:output_type -> vrooli.template_manager.v1.lifecycle.ValidateDesignKitsResponse
+	20, // [20:30] is the sub-list for method output_type
+	10, // [10:20] is the sub-list for method input_type
+	10, // [10:10] is the sub-list for extension type_name
+	10, // [10:10] is the sub-list for extension extendee
+	0,  // [0:10] is the sub-list for field type_name
 }
 
 func init() { file_template_manager_v1_lifecycle_lifecycle_proto_init() }
@@ -2119,7 +2247,7 @@ func file_template_manager_v1_lifecycle_lifecycle_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_template_manager_v1_lifecycle_lifecycle_proto_rawDesc), len(file_template_manager_v1_lifecycle_lifecycle_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   27,
+			NumMessages:   28,
 			NumExtensions: 0,
 			NumServices:   2,
 		},

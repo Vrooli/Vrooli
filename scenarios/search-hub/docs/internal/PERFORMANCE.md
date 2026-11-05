@@ -1,7 +1,9 @@
 # Performance — Search Hub
 
-This document records performance budgets, current measurements, known
-constraints, and regression procedures.
+This document records performance budgets, dated measurement snapshots, known
+constraints, and regression procedures. The latest dated row is not necessarily
+the live state; use the current operational check below and rerun its commands
+before making routing decisions.
 
 ## Purpose Of This Document
 
@@ -22,7 +24,9 @@ Use this document to answer:
 | Federated fan-out | `ceil(active providers / concurrency) × provider timeout < query timeout` | deterministic budget invariant test | active |
 | Address resolution | one lookup per scenario/port within the cache TTL | resolver fake-clock/cache tests | active |
 
-## Current Measurements
+## Historical measurement snapshot — 2026-08-15
+
+These readings are retained for comparison and are not current fleet status.
 
 | Measurement | Value | Source | Date |
 |---|---|---|---|
@@ -32,16 +36,38 @@ Use this document to answer:
 | Degraded-query rate | 5,629 / 17,735 (31.74%) | `search-hub metrics degraded-query-rate --window last_7d --json` | 2026-08-15 |
 | Federation state | 31 providers; 0 demoted; 1 quality-withheld | `search-hub federation status --json` | 2026-08-12 |
 
+## Live operational check — 2026-11-04 21:19 UTC
+
+The `this_week` telemetry window read p50/p95 of 1,618/4,103 ms and a
+degraded-query rate of 6,250/6,761 (92.44%). This window includes the Qdrant
+outage and is not a post-recovery quality estimate. Near then, the Agent
+Manager API was healthy and a direct hybrid conversation search returned
+three dense-ranked hits with no degradation (404 ms). The federated
+`agent-manager.runs` route was still circuit-open and returned no hits while
+waiting for its scheduled recovery probe. At 21:21 UTC, after cooldown, the
+circuit was closed. A targeted `run` query returned two hits in 327 ms, and an
+unscoped `run` query also returned two hits. Provider status still reports no
+recent passing evaluation; the successful queries prove transport recovery,
+not a fresh quality-evaluation receipt.
+
+Commands used:
+
+```sh
+search-hub metrics federated-latency --window this_week --json
+search-hub metrics degraded-query-rate --window this_week --json
+search-hub federation status --json
+```
+
 ## Honest Comparison
 
 The three columns below preserve the audit, restored-runtime baseline, and
-current snapshot. They are directional evidence, not a claim of a clean
+2026-09-05 snapshot. They are directional evidence, not a claim of a clean
 single-variable benchmark: the final snapshot includes later owner tuning,
-expanded suite registration, and the current degraded resource state.
+expanded suite registration, and the resource state observed at that time.
 
-| Signal | Pre-restoration audit | Honest baseline | Final/current snapshot | Direction and reason |
+| Signal | Pre-restoration audit | Honest baseline | 2026-09-05 snapshot | Direction and reason |
 |---|---:|---:|---:|---|
-| Answer coverage | 17% (6/36) | 25% (9/36) | 22.22% (8/36) | Down from the restored baseline; current coverage is the live NOW projection and remains denominator-confident only for its declared model. |
+| Answer coverage | 17% (6/36) | 25% (9/36) | 22.22% (8/36) | Down from the restored baseline; at the 2026-09-05 capture this was the live NOW projection and was denominator-confident only for its declared model. |
 | Demoted providers | 18/34 | 0 observed | 0/31 | Improved and held; restart plus successful probes cleared transport-era demotions. |
 | Aggregate eval met | 0/235 | 191/235 (222 graded) | 190/237 (222 graded) | Slightly down in met count, but not a like-for-like denominator: two suites were added and the graded denominator stayed constant. |
 | 7-day p95 latency | 19,594 ms | 20,203 ms | 20,203 ms | Flat versus the restored baseline; no latency win is claimed while the provider fleet remains degraded. |
@@ -222,8 +248,9 @@ the three member outcomes as `preexisting`.
 - Vite production builds may process thousands of modules and take
   several minutes.
 - Live before/after p50 and p95 comparisons require the honest baseline with
-  qdrant and ollama healthy. The current values are recorded above, but the
-  shared runtime remains degraded, so no latency improvement is claimed.
+  qdrant and ollama healthy. The values recorded above describe that historical
+  run; its shared runtime remained degraded, so it made no latency improvement
+  claim.
 
 ## 2026-08-14 authoritative closure snapshot
 

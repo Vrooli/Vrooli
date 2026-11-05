@@ -382,8 +382,10 @@ class DeleteSkillResponse(_message.Message):
     def __init__(self, id: _Optional[str] = ..., deleted: _Optional[bool] = ...) -> None: ...
 
 class SyncSkillsRequest(_message.Message):
-    __slots__ = ()
-    def __init__(self) -> None: ...
+    __slots__ = ("tag",)
+    TAG_FIELD_NUMBER: _ClassVar[int]
+    tag: str
+    def __init__(self, tag: _Optional[str] = ...) -> None: ...
 
 class SyncSkillsResponse(_message.Message):
     __slots__ = ("skills", "last_updated", "hash")

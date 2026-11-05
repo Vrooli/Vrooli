@@ -1,6 +1,6 @@
 module vrooli-orchestrator-api
 
-go 1.25.0
+go 1.26.0
 
 require (
 	github.com/google/uuid v1.6.0
@@ -11,7 +11,7 @@ require (
 )
 
 require (
-	buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go v1.36.11-20251209175733-2a1774d88802.1 // indirect
+	buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go v1.36.11-20260709200747-435963d16310.1 // indirect
 	connectrpc.com/connect v1.19.2 // indirect
 	github.com/gorilla/websocket v1.5.3 // indirect
 	github.com/santhosh-tekuri/jsonschema/v5 v5.3.1 // indirect

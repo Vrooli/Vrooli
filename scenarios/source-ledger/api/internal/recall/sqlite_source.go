@@ -42,8 +42,9 @@ WHERE e.scope=?
 		query = `
 WITH latest_assignment AS (
   SELECT entry_id, facet_id FROM (
-    SELECT entry_id, facet_id, ROW_NUMBER() OVER (PARTITION BY entry_id ORDER BY assigned_at DESC, id DESC) AS rn
-    FROM facet_assignments
+    SELECT fa.entry_id, fa.facet_id, ROW_NUMBER() OVER (PARTITION BY fa.entry_id ORDER BY fa.assigned_at DESC, fa.id DESC) AS rn
+    FROM facet_assignments fa
+    JOIN entries scoped_entry ON scoped_entry.id=fa.entry_id AND scoped_entry.scope=?
   ) WHERE rn=1
 ), eligible_roots AS (
   SELECT e.created_at
@@ -70,7 +71,7 @@ WITH latest_assignment AS (
 SELECT COUNT(*), COALESCE(MIN(created_at), ''),
        COALESCE((SELECT MAX(created_at) FROM summaries WHERE scope=?), '')
 FROM eligible_roots`
-		args = []any{scope, scope, cutoff, cutoff, scope, scope, cutoff, scope}
+		args = []any{scope, scope, scope, cutoff, cutoff, scope, scope, cutoff, scope}
 	}
 	err := s.db.QueryRowContext(ctx, query, args...).
 		Scan(&result.UnsummarizedLeafCount, &result.OldestUnsummarizedLeafAt, &result.LastSummaryAt)
@@ -86,8 +87,9 @@ WITH RECURSIVE latest_assignment AS (
   -- per-row subquery over facet_assignments and cost 0.33s on a 3.2k-row table,
   -- which every wake and recall paid before touching a single memory.
   SELECT entry_id, facet_id FROM (
-    SELECT entry_id, facet_id, ROW_NUMBER() OVER (PARTITION BY entry_id ORDER BY assigned_at DESC, id DESC) AS rn
-    FROM facet_assignments
+    SELECT fa.entry_id, fa.facet_id, ROW_NUMBER() OVER (PARTITION BY fa.entry_id ORDER BY fa.assigned_at DESC, fa.id DESC) AS rn
+    FROM facet_assignments fa
+    JOIN entries scoped_entry ON scoped_entry.id=fa.entry_id AND scoped_entry.scope=?
   ) WHERE rn=1
 	), superseded_entries(id) AS (
 	  SELECT DISTINCT e.id
@@ -133,7 +135,7 @@ SELECT s.id,
        1
 FROM summaries s
 WHERE s.scope=? AND NOT EXISTS(SELECT 1 FROM tainted_summaries ts WHERE ts.id=s.id)
-ORDER BY 6,1`, scope, scope, scope, now, scope, scope, policy.ExpireOnResolution, scope)
+ORDER BY 6,1`, scope, scope, scope, scope, now, scope, scope, policy.ExpireOnResolution, scope)
 	if err != nil {
 		return nil, err
 	}
@@ -217,8 +219,9 @@ WITH RECURSIVE latest_assignment AS (
   -- per-row subquery over facet_assignments and cost 0.33s on a 3.2k-row table,
   -- which every wake and recall paid before touching a single memory.
   SELECT entry_id, facet_id FROM (
-    SELECT entry_id, facet_id, ROW_NUMBER() OVER (PARTITION BY entry_id ORDER BY assigned_at DESC, id DESC) AS rn
-    FROM facet_assignments
+    SELECT fa.entry_id, fa.facet_id, ROW_NUMBER() OVER (PARTITION BY fa.entry_id ORDER BY fa.assigned_at DESC, fa.id DESC) AS rn
+    FROM facet_assignments fa
+    JOIN entries scoped_entry ON scoped_entry.id=fa.entry_id AND scoped_entry.scope=?
   ) WHERE rn=1
 	), superseded_entries(id) AS (
 	  SELECT DISTINCT e.id
@@ -256,7 +259,7 @@ WHERE s.scope=? AND NOT EXISTS(SELECT 1 FROM tainted_summaries ts WHERE ts.id=s.
   AND (NOT EXISTS(SELECT 1 FROM tree_edges WHERE child_id=s.id AND child_kind='summary')
        OR EXISTS(SELECT 1 FROM tree_edges te JOIN tainted_summaries ts ON ts.id=te.parent_id WHERE te.child_kind='summary' AND te.child_id=s.id))
 ) WHERE pinned=1 OR rank<=?
-ORDER BY created_at DESC,id`, scope, scope, scope, now, scope, now, scope, policy.ExpireOnResolution, scope, perFacetLimit)
+ORDER BY created_at DESC,id`, scope, scope, scope, scope, now, scope, now, scope, policy.ExpireOnResolution, scope, perFacetLimit)
 	if err != nil {
 		return nil, err
 	}

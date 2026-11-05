@@ -81,12 +81,14 @@ func validateAcceptanceIntent(i AcceptanceIntent) error {
 	}
 	return nil
 }
+
 func acceptancePath(designID, id string) (string, error) {
 	if !safeSegment.MatchString(designID) || !strings.HasPrefix(id, "acceptance_") || !validHash.MatchString(strings.TrimPrefix(id, "acceptance_")) {
 		return "", errors.New("invalid acceptance identity")
 	}
 	return filepath.Join("designs", designID, "acceptance", id+".json"), nil
 }
+
 func acceptanceID(key string) (string, error) {
 	if strings.TrimSpace(key) == "" || len(key) > 200 {
 		return "", errors.New("bounded acceptance idempotency key is required")
@@ -94,6 +96,7 @@ func acceptanceID(key string) (string, error) {
 	hash := sha256.Sum256([]byte(key))
 	return "acceptance_" + hex.EncodeToString(hash[:]), nil
 }
+
 func decisionHash(d AcceptanceDecision) (string, error) {
 	d.Hash = ""
 	raw, err := json.Marshal(d)
@@ -103,6 +106,7 @@ func decisionHash(d AcceptanceDecision) (string, error) {
 	sum := sha256.Sum256(raw)
 	return hex.EncodeToString(sum[:]), nil
 }
+
 func writeAcceptance(root *os.Root, d AcceptanceDecision) (AcceptanceDecision, error) {
 	var err error
 	d.Hash, err = decisionHash(d)
@@ -117,8 +121,9 @@ func writeAcceptance(root *os.Root, d AcceptanceDecision) (AcceptanceDecision, e
 	if err != nil {
 		return d, err
 	}
-	return d, storage.WriteFileAtomicInRoot(root, path, raw, 0600)
+	return d, storage.WriteFileAtomicInRoot(root, path, raw, 0o600)
 }
+
 func readAcceptance(root *os.Root, designID, id string) (AcceptanceDecision, error) {
 	var d AcceptanceDecision
 	path, err := acceptancePath(designID, id)
@@ -157,13 +162,23 @@ func readAcceptance(root *os.Root, designID, id string) (AcceptanceDecision, err
 	}
 	return d, nil
 }
+
 func (s *Store) ReadAcceptance(scenario, designID, id string) (AcceptanceDecision, error) {
-	root, err := s.openExperience(scenario)
+	root, err := s.openExperienceData(scenario)
 	if err != nil {
 		return AcceptanceDecision{}, err
 	}
-	defer root.Close()
-	return readAcceptance(root, designID, id)
+	d, err := readAcceptance(root, designID, id)
+	root.Close()
+	if !errors.Is(err, os.ErrNotExist) {
+		return d, err
+	}
+	legacy, err := s.openExperience(scenario)
+	if err != nil {
+		return AcceptanceDecision{}, err
+	}
+	defer legacy.Close()
+	return readAcceptance(legacy, designID, id)
 }
 
 // acceptanceReady is a conjunction, not an average. Unknown, omitted or
@@ -218,12 +233,12 @@ func (s *Store) RecordAcceptance(ctx context.Context, scenario, key string, inte
 	if evaluate == nil {
 		return AcceptanceDecision{}, errors.New("acceptance evidence evaluator required")
 	}
-	root, err := s.openExperience(scenario)
+	root, err := s.openExperienceData(scenario)
 	if err != nil {
 		return AcceptanceDecision{}, err
 	}
 	defer root.Close()
-	lock, err := root.OpenFile(filepath.Join("pages", "."+id+".lock"), os.O_CREATE|os.O_RDWR, 0600)
+	lock, err := openArtifactLock(root, "acceptance-"+id)
 	if err != nil {
 		return AcceptanceDecision{}, err
 	}
@@ -234,6 +249,14 @@ func (s *Store) RecordAcceptance(ctx context.Context, scenario, key string, inte
 	}
 	defer release()
 	d, err := readAcceptance(root, intent.DesignID, id)
+	if errors.Is(err, os.ErrNotExist) {
+		legacy, legacyErr := s.openExperience(scenario)
+		if legacyErr != nil {
+			return d, legacyErr
+		}
+		d, err = readAcceptance(legacy, intent.DesignID, id)
+		legacy.Close()
+	}
 	if err == nil {
 		if !reflect.DeepEqual(d.Intent, intent) {
 			return d, ErrAcceptanceConflict
@@ -244,7 +267,7 @@ func (s *Store) RecordAcceptance(ctx context.Context, scenario, key string, inte
 	} else if !errors.Is(err, os.ErrNotExist) {
 		return d, err
 	} else {
-		c, e := readCandidate(root, intent.DesignID, intent.CandidateHash)
+		c, e := s.ReadCandidate(scenario, intent.DesignID, intent.CandidateHash)
 		if e != nil {
 			return d, e
 		}
@@ -271,7 +294,7 @@ func (s *Store) RecordAcceptance(ctx context.Context, scenario, key string, inte
 			if e != nil {
 				return d, e
 			}
-			pageLock, e := root.OpenFile(filepath.Join("pages", "."+c.Page+".lock"), os.O_CREATE|os.O_RDWR, 0600)
+			pageLock, e := openArtifactLock(root, "page-"+c.Page)
 			if e != nil {
 				return d, e
 			}

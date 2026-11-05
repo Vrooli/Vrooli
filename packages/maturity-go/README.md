@@ -23,6 +23,20 @@ spec, normalizes finding maturity metadata, computes the provider-local
 current/next level, and preserves fallback behavior when older providers have
 not emitted maturity metadata yet.
 
+Severity labels have one owner here as well. `assessment.NormalizeSeverity`
+accepts shared enum spellings (`FINDING_SEVERITY_ERROR` and the older
+`SEVERITY_ERROR`) plus common producer aliases (`critical`/`high` → ERROR,
+`medium`/`warn` → WARNING, and `low`/`notice` → INFO). Consumers that summarize
+`FindingsBySeverity` should use `report.CountFindingsBySeverity`; direct map-key
+lookups can silently show zero findings when a producer uses another supported
+spelling.
+
+`BuildValidationResponse` clones the provider assessment and rebuilds its
+top-level and per-capability severity summaries from the findings before it
+derives status. `ValidateAssessment` checks that a received assessment's count
+maps agree with its findings while accepting legacy/current key aliases. This
+keeps a stale summary from converting an ERROR finding into a passing status.
+
 The spec shape is intentionally scenario-local:
 
 ```json

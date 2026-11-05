@@ -16,7 +16,7 @@ The Scenario Auditor is Vrooli's permanent quality gatekeeper, ensuring every sc
 - **Modular YAML Rules**: Easy to read, write, and maintain
 - **Toggleable Preferences**: Enable/disable rules with persistent storage
 - **Category Organization**: Rules grouped by api, cli, test, makefile (structure/config/ui rules migrated to the `structure-health` scenario)
-- **AI-Powered Creation**: Generate and edit rules using natural language
+- **AI-Assisted Editing**: Request natural-language changes to existing rules
 
 ### 📊 Quality Dashboard
 - **Real-time Monitoring**: Live standards compliance tracking
@@ -26,7 +26,7 @@ The Scenario Auditor is Vrooli's permanent quality gatekeeper, ensuring every sc
 
 ### 🤖 AI Integration
 - **Automated Fixes**: Claude Code agent spawning for violation fixes
-- **Rule Creation**: Create new rules from natural language descriptions via `/api/v1/rules/create`
+- **Rule Creation**: No creation endpoint is currently registered; older references to `/api/v1/rules/create` are stale.
 - **Rule Editing**: AI-assisted modification of existing rules via `/api/v1/rules/ai/edit/{ruleId}`
 - **Intelligent Analysis**: Smart categorization and prioritization
 
@@ -371,7 +371,6 @@ Runtime signature: Go-based rules must expose an exported `Check` function with 
 - [Product Requirements Document](PRD.md)
 - [UI Testing Best Practices (BAS/Playwright)](../browser-automation-studio/README.md)
 - [Phase-Based Testing Guide](test/README.md)
-- [Rule Creation Documentation](docs/RULE_CREATION.md)
 
 ## 🔧 Troubleshooting
 

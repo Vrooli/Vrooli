@@ -1,6 +1,7 @@
 package app
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"path/filepath"
@@ -11,6 +12,17 @@ import (
 
 type deploymentService struct {
 	workspace *scenarioWorkspace
+}
+
+func (d *deploymentService) GetBundleManifest(ctx context.Context, name string) (*types.BundleManifest, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	cfg, err := d.workspace.loadConfig(name)
+	if err != nil {
+		return nil, fmt.Errorf("%w: %v", errScenarioNotFound, err)
+	}
+	return deployment.BuildFreshBundleManifest(ctx, name, d.workspace.pathFor(name), d.workspace.root, cfg)
 }
 
 func (d *deploymentService) GetDeploymentReport(name string, refresh bool) (*types.DeploymentAnalysisReport, error) {

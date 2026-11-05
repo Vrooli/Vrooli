@@ -140,7 +140,7 @@
   ],
   "health_checks": [
     {
-      "type": "tcp",
+      "type": "redis",
       "kind": "readiness",
       "target": "127.0.0.1:6380",
       "interval_seconds": 10,

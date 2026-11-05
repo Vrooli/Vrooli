@@ -81,12 +81,20 @@ export async function validateScenario(scenario: string): Promise<ValidationResu
 }
 
 function severityFromProto(s: string): FindingSeverity {
-  switch (s) {
-    case "SEVERITY_ERROR":
+  switch (s.trim().toUpperCase().replace(/^(FINDING_)?SEVERITY_/, "")) {
+    case "ERROR":
+    case "FAILURE":
+    case "CRITICAL":
+    case "HIGH":
       return "error";
-    case "SEVERITY_WARNING":
+    case "WARNING":
+    case "WARN":
+    case "MEDIUM":
       return "warning";
-    case "SEVERITY_INFO":
+    case "INFO":
+    case "INFORMATIONAL":
+    case "NOTICE":
+    case "LOW":
       return "info";
     default:
       return "unspecified";
@@ -105,10 +113,15 @@ function findingFromProto(p: ProtoFinding): ValidationFinding {
 
 function summaryFromAssessment(p: MaturityAssessment | undefined): ValidationSummary {
   return {
-    errors: p?.findingsBySeverity["SEVERITY_ERROR"] ?? 0,
-    warnings: p?.findingsBySeverity["SEVERITY_WARNING"] ?? 0,
-    infos: p?.findingsBySeverity["SEVERITY_INFO"] ?? 0,
+    errors: countSeverity(p?.findingsBySeverity, "ERROR"),
+    warnings: countSeverity(p?.findingsBySeverity, "WARNING"),
+    infos: countSeverity(p?.findingsBySeverity, "INFO"),
   };
+}
+
+function countSeverity(counts: Record<string, number> | undefined, severity: string): number {
+  if (!counts) return 0;
+  return (counts[`SEVERITY_${severity}`] ?? 0) + (counts[`FINDING_SEVERITY_${severity}`] ?? 0);
 }
 
 function presentationFromProto(p: PhasePresentation | undefined): ValidationPresentation | undefined {

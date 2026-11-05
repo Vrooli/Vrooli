@@ -1,6 +1,7 @@
 package deployment
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	component "github.com/vrooli/vrooli/packages/desktop-component"
@@ -24,11 +25,40 @@ import (
 // BuildBundleManifest generates a manifest of all files and dependencies needed
 // to package the scenario for deployment.
 func BuildBundleManifest(scenarioName, scenarioPath string, generatedAt time.Time, nodes []types.DeploymentDependencyNode, cfg *types.Manifest) types.BundleManifest {
-	skeleton := buildDesktopBundleSkeleton(scenarioName, scenarioPath, cfg, nodes)
+	return buildBundleManifest(scenarioName, scenarioPath, generatedAt, nodes, cfg, nodeChildren)
+}
+
+// BuildFreshBundleManifest reads the current declaration graph once per owner.
+// A bundle query does not need aggregate diagnostics or a persisted report.
+func BuildFreshBundleManifest(ctx context.Context, scenarioName, scenarioPath, scenariosDir string, cfg *types.Manifest) (*types.BundleManifest, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	graph := &bundleDependencyGraph{ctx: ctx, children: make(map[string][]types.DeploymentDependencyNode)}
+	visited := map[string]struct{}{config.NormalizeName(scenarioName): {}}
+	nodes := BuildDependencyNodeListWithOptions(scenariosDir, scenarioName, cfg, visited, DependencyBuildOptions{bundleGraph: graph})
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	manifest := buildBundleManifest(scenarioName, scenarioPath, time.Now().UTC(), nodes, cfg, graph.childrenOf)
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	return &manifest, nil
+}
+
+type bundleChildren func(types.DeploymentDependencyNode) []types.DeploymentDependencyNode
+
+func nodeChildren(node types.DeploymentDependencyNode) []types.DeploymentDependencyNode {
+	return node.Children
+}
+
+func buildBundleManifest(scenarioName, scenarioPath string, generatedAt time.Time, nodes []types.DeploymentDependencyNode, cfg *types.Manifest, children bundleChildren) types.BundleManifest {
+	skeleton := buildDesktopBundleSkeletonWithChildren(scenarioName, scenarioPath, cfg, nodes, children)
 	manifest := types.BundleManifest{
 		Scenario:     scenarioName,
 		GeneratedAt:  generatedAt,
-		Files:        discoverBundleFiles(scenarioName, scenarioPath, cfg, nodes),
+		Files:        discoverBundleFilesWithChildren(scenarioName, scenarioPath, cfg, nodes, children),
 		Dependencies: flattenBundleDependencies(nodes),
 		Skeleton:     skeleton,
 	}
@@ -38,6 +68,14 @@ func BuildBundleManifest(scenarioName, scenarioPath string, generatedAt time.Tim
 
 // discoverBundleFiles derives package inputs from the declared component graph.
 func discoverBundleFiles(scenarioName, scenarioPath string, cfg *types.Manifest, nested ...[]types.DeploymentDependencyNode) []types.BundleFileEntry {
+	var nodes []types.DeploymentDependencyNode
+	if len(nested) > 0 {
+		nodes = nested[0]
+	}
+	return discoverBundleFilesWithChildren(scenarioName, scenarioPath, cfg, nodes, nodeChildren)
+}
+
+func discoverBundleFilesWithChildren(scenarioName, scenarioPath string, cfg *types.Manifest, nodes []types.DeploymentDependencyNode, children bundleChildren) []types.BundleFileEntry {
 	entries := make([]types.BundleFileEntry, 0)
 
 	// Always include service config
@@ -91,14 +129,12 @@ func discoverBundleFiles(scenarioName, scenarioPath string, cfg *types.Manifest,
 		}
 		entries = append(entries, types.BundleFileEntry{Path: output, Type: entryType, Exists: statErr == nil, Notes: "Declared component output"})
 	}
-	if len(nested) > 0 {
-		appendEmbeddedPeerFiles(&entries, cfg, nested[0], filepath.Dir(scenarioPath), map[string]struct{}{})
-	}
+	appendEmbeddedPeerFiles(&entries, cfg, nodes, filepath.Dir(scenarioPath), map[string]struct{}{}, children)
 
 	return entries
 }
 
-func appendEmbeddedPeerFiles(entries *[]types.BundleFileEntry, cfg *types.Manifest, nodes []types.DeploymentDependencyNode, scenariosRoot string, seen map[string]struct{}) {
+func appendEmbeddedPeerFiles(entries *[]types.BundleFileEntry, cfg *types.Manifest, nodes []types.DeploymentDependencyNode, scenariosRoot string, seen map[string]struct{}, children bundleChildren) {
 	if cfg == nil {
 		return
 	}
@@ -167,7 +203,7 @@ func appendEmbeddedPeerFiles(entries *[]types.BundleFileEntry, cfg *types.Manife
 				*entries = append(*entries, types.BundleFileEntry{Path: path, Type: "ui-bundle", Exists: statErr == nil, Notes: "Declared peer UI output"})
 			}
 		}
-		appendEmbeddedPeerFiles(entries, peerConfig, node.Children, scenariosRoot, seen)
+		appendEmbeddedPeerFiles(entries, peerConfig, children(node), scenariosRoot, seen, children)
 	}
 }
 
@@ -269,6 +305,10 @@ func includeDeclaredResources(entries []types.BundleDependencyEntry, cfg *types.
 }
 
 func buildDesktopBundleSkeleton(scenarioName, scenarioPath string, cfg *types.Manifest, nodes []types.DeploymentDependencyNode) *types.DesktopBundleSkeleton {
+	return buildDesktopBundleSkeletonWithChildren(scenarioName, scenarioPath, cfg, nodes, nodeChildren)
+}
+
+func buildDesktopBundleSkeletonWithChildren(scenarioName, scenarioPath string, cfg *types.Manifest, nodes []types.DeploymentDependencyNode, children bundleChildren) *types.DesktopBundleSkeleton {
 	if cfg == nil {
 		return nil
 	}
@@ -328,6 +368,8 @@ func buildDesktopBundleSkeleton(scenarioName, scenarioPath string, cfg *types.Ma
 	}
 	skeleton.Swaps = deriveSwaps(nodes)
 	skeleton.ProgramBindingPeers = deriveProgramBindingPeers(cfg, nodes)
+	// Peer policy precedence follows the first discovery traversal, as before.
+	// Only embedding needs to revisit an owner found on a discovered-only path.
 	skeleton.Peers = derivePeers(cfg, nodes)
 	if len(skeleton.ProgramBindingPeers) > 0 {
 		programPeerNames := make(map[string]struct{}, len(skeleton.ProgramBindingPeers))
@@ -345,7 +387,7 @@ func buildDesktopBundleSkeleton(scenarioName, scenarioPath string, cfg *types.Ma
 	// Root and embedded owner exports remain separate scopes.
 	skeleton.Features = readOwnerFeatures(scenarioPath, "")
 	skeleton.Services = buildSkeletonServices(cfg)
-	skeleton.Services = embedPeerServices(skeleton.Services, cfg, nodes)
+	skeleton.Services = embedPeerServicesWithChildren(skeleton.Services, cfg, nodes, children)
 
 	return skeleton
 }
@@ -410,6 +452,10 @@ func deriveProgramBindingPeers(cfg *types.Manifest, nodes []types.DeploymentDepe
 }
 
 func embedPeerServices(root []types.BundleSkeletonService, cfg *types.Manifest, nodes []types.DeploymentDependencyNode) []types.BundleSkeletonService {
+	return embedPeerServicesWithChildren(root, cfg, nodes, nodeChildren)
+}
+
+func embedPeerServicesWithChildren(root []types.BundleSkeletonService, cfg *types.Manifest, nodes []types.DeploymentDependencyNode, childrenOf bundleChildren) []types.BundleSkeletonService {
 	seen := make(map[string]struct{})
 	includeUIByPeer := make(map[string]bool)
 	var walk func(*types.Manifest, []types.DeploymentDependencyNode)
@@ -455,7 +501,7 @@ func embedPeerServices(root []types.BundleSkeletonService, cfg *types.Manifest, 
 			seen[peerName] = struct{}{}
 			includeUIByPeer[peerName] = dependency.IncludeUI
 			root = append(root, prefixPeerServices(peerName, peerConfig, dependency.IncludeUI)...)
-			walk(peerConfig, node.Children)
+			walk(peerConfig, childrenOf(node))
 		}
 	}
 	walk(cfg, nodes)
@@ -511,6 +557,10 @@ func findDirectScenarioNode(nodes []types.DeploymentDependencyNode, name string)
 }
 
 func derivePeers(cfg *types.Manifest, nested ...[]types.DeploymentDependencyNode) []types.BundleSkeletonPeer {
+	var nodes []types.DeploymentDependencyNode
+	if len(nested) > 0 {
+		nodes = nested[0]
+	}
 	dependencies := make(map[string]scenariomodel.Dependency)
 	versions := make(map[string]string)
 	features := make(map[string]map[string]runtimeManifest.FeatureExport)
@@ -552,10 +602,6 @@ func derivePeers(cfg *types.Manifest, nested ...[]types.DeploymentDependencyNode
 				collect(peerConfig, node.Children)
 			}
 		}
-	}
-	var nodes []types.DeploymentDependencyNode
-	if len(nested) > 0 {
-		nodes = nested[0]
 	}
 	collect(cfg, nodes)
 	names := make([]string, 0, len(dependencies))

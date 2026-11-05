@@ -76,7 +76,7 @@ export function MobileFixture() {
             onChange={(event) => setInput(event.target.value)}
           />
         </label>
-        <Button data-testid={selectors.helloMobile.submit} onClick={submit}>
+        <Button size="lg" data-testid={selectors.helloMobile.submit} onClick={submit}>
           Transform
         </Button>
         <output data-testid={selectors.helloMobile.result} className="min-h-11 rounded-control border border-app-border bg-app-surface p-3" aria-live="polite">

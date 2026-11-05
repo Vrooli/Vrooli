@@ -17,7 +17,9 @@ Keep responsibilities split cleanly:
 - There is no resource-local shell lifecycle or test implementation. The Go
   CLI and declarative resource contract are the supported surface.
 
-Do not turn `cli/main.go` into the implementation surface. If the resource needs specialized runtime shaping, richer status interpretation, Redis-specific probes, or environment derivation, grow `cli/internal/install`, `cli/internal/runtime`, `cli/internal/status`, `cli/internal/health`, or `cli/internal/env` first.
+Do not turn `cli/main.go` into the implementation surface. Add a focused
+`cli/internal/...` package only when Redis behavior cannot be expressed in the
+manifest or shared control plane. Do not pre-create empty packages.
 
 ## Operator Checklist
 

@@ -281,9 +281,9 @@ type validationResponseOptions struct {
 // ValidationResponseOption customizes BuildValidationResponse.
 type ValidationResponseOption func(*validationResponseOptions)
 
-// WithValidationStatus overrides the status derived from assessment severity
-// counts. Providers use this for DEGRADED, ERROR, or SKIPPED outcomes that are
-// not expressible as normal maturity findings.
+// WithValidationStatus supplies an additional provider state such as DEGRADED,
+// ERROR, or SKIPPED that maturity findings cannot express. A PASSED override
+// cannot mask ERROR or BLOCKER findings.
 func WithValidationStatus(status scenariovalidationv1.ValidationStatus) ValidationResponseOption {
 	return func(opts *validationResponseOptions) {
 		opts.status = status
@@ -433,7 +433,7 @@ func validateMapping(mapping FindingMapping, levelsByCapability map[string]map[s
 	if dim := strings.TrimSpace(mapping.Dimension); dim != "" && !dimensions.IsValid(dimensions.Dimension(dim)) {
 		return fmt.Errorf("%s.dimension %q is not in dimensions.json", path, dim)
 	}
-	if sev := strings.TrimSpace(mapping.SeverityDefault); sev != "" && normalizeSeverity(sev) == architecturev1.FindingSeverity_FINDING_SEVERITY_UNSPECIFIED {
+	if sev := strings.TrimSpace(mapping.SeverityDefault); sev != "" && NormalizeSeverity(sev) == architecturev1.FindingSeverity_FINDING_SEVERITY_UNSPECIFIED {
 		return fmt.Errorf("%s.severity_default %q is not valid", path, sev)
 	}
 	req := strings.TrimSpace(mapping.CleanRequirement)
@@ -684,7 +684,72 @@ func ValidateAssessment(a *commonv1.MaturityAssessment) error {
 			}
 		}
 	}
+	if err := validateSeverityCounts("assessment.findings_by_severity", a.GetFindingsBySeverity(), severityCountsFromFindings(a.GetFindings())); err != nil {
+		return err
+	}
+	for _, capability := range a.GetCapabilities() {
+		want := make(map[string]int32)
+		for _, finding := range a.GetFindings() {
+			if finding.GetMaturity().GetCapabilityId() == capability.GetId() {
+				want[NormalizeSeverity(finding.GetSeverity()).String()]++
+			}
+		}
+		path := "assessment.capabilities[" + capability.GetId() + "].findings_by_severity"
+		if err := validateSeverityCounts(path, capability.GetFindingsBySeverity(), want); err != nil {
+			return err
+		}
+	}
 	return nil
+}
+
+func validateSeverityCounts(path string, actual map[string]int32, expected map[string]int32) error {
+	for key, count := range actual {
+		if count < 0 {
+			return fmt.Errorf("%s[%q] must not be negative", path, key)
+		}
+	}
+	for _, severity := range []architecturev1.FindingSeverity{
+		architecturev1.FindingSeverity_FINDING_SEVERITY_BLOCKER,
+		architecturev1.FindingSeverity_FINDING_SEVERITY_ERROR,
+		architecturev1.FindingSeverity_FINDING_SEVERITY_WARNING,
+		architecturev1.FindingSeverity_FINDING_SEVERITY_INFO,
+		architecturev1.FindingSeverity_FINDING_SEVERITY_UNSPECIFIED,
+	} {
+		got := CountFindingsBySeverity(actual, severity)
+		want := int(expected[severity.String()])
+		if got != want {
+			return fmt.Errorf("%s counts %d %s finding(s), but findings contain %d", path, got, severity.String(), want)
+		}
+	}
+	return nil
+}
+
+func severityCountsFromFindings(findings []*commonv1.AssessmentFinding) map[string]int32 {
+	counts := make(map[string]int32)
+	for _, finding := range findings {
+		if finding != nil {
+			counts[NormalizeSeverity(finding.GetSeverity()).String()]++
+		}
+	}
+	return counts
+}
+
+func canonicalizeSeverityCounts(a *commonv1.MaturityAssessment) {
+	if a == nil {
+		return
+	}
+	a.FindingsBySeverity = severityCountsFromFindings(a.GetFindings())
+	for _, capability := range a.GetCapabilities() {
+		if capability == nil {
+			continue
+		}
+		capability.FindingsBySeverity = make(map[string]int32)
+		for _, finding := range a.GetFindings() {
+			if finding != nil && finding.GetMaturity().GetCapabilityId() == capability.GetId() {
+				capability.FindingsBySeverity[NormalizeSeverity(finding.GetSeverity()).String()]++
+			}
+		}
+	}
 }
 
 // AutofixCoverage is the per-provider autofix declaration rollup derived from a
@@ -789,7 +854,12 @@ func BuildValidationResponse(
 	if scenario == "" {
 		return nil, fmt.Errorf("scenario is required")
 	}
-	if err := ValidateAssessment(a); err != nil {
+	var normalized *commonv1.MaturityAssessment
+	if a != nil {
+		normalized = proto.Clone(a).(*commonv1.MaturityAssessment)
+		canonicalizeSeverityCounts(normalized)
+	}
+	if err := ValidateAssessment(normalized); err != nil {
 		return nil, err
 	}
 	config := validationResponseOptions{}
@@ -798,9 +868,11 @@ func BuildValidationResponse(
 			opt(&config)
 		}
 	}
+	derivedStatus := DeriveValidationStatus(normalized)
 	status := config.status
-	if status == scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_UNSPECIFIED {
-		status = DeriveValidationStatus(a)
+	if status == scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_UNSPECIFIED ||
+		(status == scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_PASSED && derivedStatus == scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_FAILED) {
+		status = derivedStatus
 	}
 	if status == scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_UNSPECIFIED {
 		return nil, fmt.Errorf("validation status is required")
@@ -841,7 +913,7 @@ func BuildValidationResponse(
 		Scenario:              scenario,
 		Status:                status,
 		FailureClassification: failureClassification,
-		Assessment:            a,
+		Assessment:            normalized,
 		NativeDetail:          detail,
 		Metrics:               metrics,
 	}, nil
@@ -931,7 +1003,7 @@ func DeriveValidationStatus(a *commonv1.MaturityAssessment) scenariovalidationv1
 		if count <= 0 {
 			continue
 		}
-		switch normalizeSeverity(severity) {
+		switch NormalizeSeverity(severity) {
 		case architecturev1.FindingSeverity_FINDING_SEVERITY_ERROR,
 			architecturev1.FindingSeverity_FINDING_SEVERITY_BLOCKER:
 			return scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_FAILED
@@ -964,7 +1036,7 @@ func AssessmentToArchitectureFindings(
 			Scenario:     scenario,
 			Source:       source,
 			Code:         strings.TrimSpace(finding.GetCode()),
-			Severity:     normalizeSeverity(finding.GetSeverity()),
+			Severity:     NormalizeSeverity(finding.GetSeverity()),
 			Locations:    nonEmptyStrings(finding.GetLocation()),
 			Message:      assessmentFindingMessage(finding),
 			Suggestion:   strings.TrimSpace(finding.GetRemediation()),
@@ -1138,9 +1210,9 @@ func normalizeFinding(spec Spec, finding Finding, defaultID string) FindingAsses
 			mapping.Dimension = string(dim)
 		}
 	}
-	severity := normalizeSeverity(finding.Severity)
+	severity := NormalizeSeverity(finding.Severity)
 	if severity == architecturev1.FindingSeverity_FINDING_SEVERITY_UNSPECIFIED {
-		severity = normalizeSeverity(mapping.SeverityDefault)
+		severity = NormalizeSeverity(mapping.SeverityDefault)
 	}
 	return FindingAssessment{
 		Code:     finding.Code,
@@ -1620,7 +1692,7 @@ func AssessmentDebtByLevel(a *commonv1.MaturityAssessment) map[string]DebtCounts
 		findings = append(findings, FindingAssessment{
 			Code:     finding.GetCode(),
 			Mapping:  mapping,
-			Severity: normalizeSeverity(finding.GetSeverity()),
+			Severity: NormalizeSeverity(finding.GetSeverity()),
 		})
 	}
 	return DebtByLevel(findings)
@@ -1670,19 +1742,36 @@ func normalizeCleanRequirement(raw string) CleanRequirement {
 	}
 }
 
-func normalizeSeverity(raw string) architecturev1.FindingSeverity {
+// NormalizeSeverity maps supported finding labels and their serialized proto
+// spellings to the shared severity enum. Keep interpretation here so
+// assessment building, summaries, and consumers cannot disagree about whether
+// a finding blocks validation.
+func NormalizeSeverity(raw string) architecturev1.FindingSeverity {
 	switch strings.ToUpper(strings.TrimSpace(raw)) {
 	case "BLOCKER", "FINDING_SEVERITY_BLOCKER", "SEVERITY_BLOCKER":
 		return architecturev1.FindingSeverity_FINDING_SEVERITY_BLOCKER
-	case "ERROR", "FINDING_SEVERITY_ERROR", "SEVERITY_ERROR":
+	case "ERROR", "FAILURE", "CRITICAL", "HIGH", "FINDING_SEVERITY_ERROR", "SEVERITY_ERROR":
 		return architecturev1.FindingSeverity_FINDING_SEVERITY_ERROR
-	case "WARNING", "WARN", "FINDING_SEVERITY_WARNING", "SEVERITY_WARNING":
+	case "WARNING", "WARN", "MEDIUM", "FINDING_SEVERITY_WARNING", "SEVERITY_WARNING":
 		return architecturev1.FindingSeverity_FINDING_SEVERITY_WARNING
-	case "INFO", "FINDING_SEVERITY_INFO", "SEVERITY_INFO":
+	case "INFO", "INFORMATIONAL", "NOTICE", "LOW", "FINDING_SEVERITY_INFO", "SEVERITY_INFO":
 		return architecturev1.FindingSeverity_FINDING_SEVERITY_INFO
 	default:
 		return architecturev1.FindingSeverity_FINDING_SEVERITY_UNSPECIFIED
 	}
+}
+
+// CountFindingsBySeverity sums legacy and current map-key spellings into the
+// shared enum bucket. Non-positive values are ignored; validators can report
+// invalid negative values separately.
+func CountFindingsBySeverity(counts map[string]int32, severity architecturev1.FindingSeverity) int {
+	total := 0
+	for key, count := range counts {
+		if count > 0 && NormalizeSeverity(key) == severity {
+			total += int(count)
+		}
+	}
+	return total
 }
 
 func ProtoToGlobalImpact(impact commonv1.GlobalImpact) GlobalImpact {

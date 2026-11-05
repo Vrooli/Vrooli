@@ -20,7 +20,23 @@ func TestStatusReportNamesStuckProviderInRecoverySummary(t *testing.T) {
 		}},
 	})
 	require.True(t, strings.Contains(strings.Join(report.Summary, "\n"), "provider.one"))
-	require.Contains(t, report.Results[0], "recovery: stuck")
+	require.Contains(t, report.Results[0], "zero-yield lifecycle: stuck")
+}
+
+func TestStatusReportDistinguishesTransportCircuitFromYieldDemotion(t *testing.T) {
+	report := (&handlers{}).statusReport(nil, &routingv1.StatusResponse{
+		Providers: []*routingv1.ProviderHealth{{
+			ProviderId:    "provider.one",
+			Reachable:     false,
+			Reachability:  "circuit_open",
+			CircuitState:  "open",
+			RecoveryState: "healthy",
+		}},
+	})
+	line := report.Results[0]
+	require.Contains(t, line, "reachability: circuit_open")
+	require.Contains(t, line, "zero-yield lifecycle: healthy")
+	require.NotContains(t, line, "recovery: healthy")
 }
 
 func TestStatusReportRendersIncubatingProvidersSeparately(t *testing.T) {

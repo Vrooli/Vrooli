@@ -41,21 +41,36 @@ func Start(ctx context.Context, sources Sources) *Service {
 	applyTuningFromSearchJSON(specs, sources.SearchJSONPath)
 	svc := New(specs, deps, cfg.ReconcileParallelism, cfg.MaxEmbedsPerTick)
 
-	if err := svc.EnsureCollections(ctx); err != nil {
+	collectionCtx, cancelCollections := context.WithTimeout(ctx, 5*time.Second)
+	err = svc.EnsureCollections(collectionCtx)
+	cancelCollections()
+	if err != nil {
 		log.Printf("[scenario-dependency-analyzer/aisearch] qdrant collection ensure failed (degraded text search): %v", err)
 	}
 
-	if !cfg.SyncDisabled {
-		loop := pkg.NewSyncLoopFunc(envPrefix, svc.Reconciler, cfg)
-		go loop.Start(ctx)
-		go func() {
-			if _, _, err := loop.RunOnce(ctx); err != nil {
-				log.Printf("[scenario-dependency-analyzer/aisearch] initial search reconcile failed (continuing degraded): %v", err)
-			}
-		}()
-	}
-
 	return svc
+}
+
+// RunBackground owns SDA's periodic and initial search reconciliation until
+// ctx is canceled. The caller must track this goroutine as lifecycle work.
+func (s *Service) RunBackground(ctx context.Context) {
+	if s == nil {
+		return
+	}
+	cfg := pkg.LoadConfig(envPrefix)
+	if cfg.SyncDisabled {
+		return
+	}
+	loop := pkg.NewSyncLoopFunc(envPrefix, s.Reconciler, cfg)
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		if _, _, err := loop.RunOnce(ctx); err != nil && ctx.Err() == nil {
+			log.Printf("[scenario-dependency-analyzer/aisearch] initial search reconcile failed (continuing degraded): %v", err)
+		}
+	}()
+	loop.Start(ctx)
+	<-done
 }
 
 // applyTuningFromSearchJSON overrides each corpus's hardcoded tuning with the

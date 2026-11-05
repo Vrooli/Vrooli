@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/vrooli/cli-core/cliapp"
+	"github.com/vrooli/maturity-go/assessment"
 	architecturev1 "github.com/vrooli/vrooli/packages/proto/gen/go/architecture/v1"
 	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 )
@@ -314,7 +315,7 @@ func assessmentDebtByLevel(a *commonv1.MaturityAssessment) map[string]maturityDe
 		if counts.BySeverity == nil {
 			counts.BySeverity = make(map[architecturev1.FindingSeverity]int)
 		}
-		severity := normalizedSeverity(finding.GetSeverity())
+		severity := assessment.NormalizeSeverity(finding.GetSeverity())
 		counts.Total++
 		counts.BySeverity[severity]++
 		out[level] = counts
@@ -326,7 +327,7 @@ func isDebtFinding(finding *commonv1.AssessmentFinding) bool {
 	if blocksLocalMaturity(finding) {
 		return false
 	}
-	switch normalizedSeverity(finding.GetSeverity()) {
+	switch assessment.NormalizeSeverity(finding.GetSeverity()) {
 	case architecturev1.FindingSeverity_FINDING_SEVERITY_WARNING,
 		architecturev1.FindingSeverity_FINDING_SEVERITY_INFO,
 		architecturev1.FindingSeverity_FINDING_SEVERITY_UNSPECIFIED:
@@ -344,7 +345,7 @@ func blocksLocalMaturity(finding *commonv1.AssessmentFinding) bool {
 	if maturity := finding.GetMaturity(); maturity != nil && maturity.GetGlobalImpact() == commonv1.GlobalImpact_GLOBAL_IMPACT_ADVISORY {
 		return false
 	}
-	switch normalizedSeverity(finding.GetSeverity()) {
+	switch assessment.NormalizeSeverity(finding.GetSeverity()) {
 	case architecturev1.FindingSeverity_FINDING_SEVERITY_ERROR,
 		architecturev1.FindingSeverity_FINDING_SEVERITY_BLOCKER:
 		return true
@@ -588,7 +589,7 @@ func contains(values []string, want string) bool {
 }
 
 func severityRank(raw string) int {
-	switch normalizedSeverity(raw) {
+	switch assessment.NormalizeSeverity(raw) {
 	case architecturev1.FindingSeverity_FINDING_SEVERITY_BLOCKER:
 		return 0
 	case architecturev1.FindingSeverity_FINDING_SEVERITY_ERROR:
@@ -602,19 +603,17 @@ func severityRank(raw string) int {
 	}
 }
 
-func normalizedSeverity(raw string) architecturev1.FindingSeverity {
-	switch strings.ToUpper(strings.TrimSpace(raw)) {
-	case "BLOCKER", "FINDING_SEVERITY_BLOCKER", "SEVERITY_BLOCKER":
-		return architecturev1.FindingSeverity_FINDING_SEVERITY_BLOCKER
-	case "ERROR", "FINDING_SEVERITY_ERROR", "SEVERITY_ERROR":
-		return architecturev1.FindingSeverity_FINDING_SEVERITY_ERROR
-	case "WARNING", "WARN", "FINDING_SEVERITY_WARNING", "SEVERITY_WARNING":
-		return architecturev1.FindingSeverity_FINDING_SEVERITY_WARNING
-	case "INFO", "FINDING_SEVERITY_INFO", "SEVERITY_INFO":
-		return architecturev1.FindingSeverity_FINDING_SEVERITY_INFO
-	default:
-		return architecturev1.FindingSeverity_FINDING_SEVERITY_UNSPECIFIED
+// CountFindingsBySeverity sums all recognized spellings of a shared finding
+// severity. Assessment maps have historically contained both SEVERITY_* and
+// FINDING_SEVERITY_* keys, so direct lookup can silently report zero for a
+// failed validation. Unknown desired labels return zero rather than matching
+// unrelated unspecified keys.
+func CountFindingsBySeverity(counts map[string]int32, severity string) int {
+	want := assessment.NormalizeSeverity(severity)
+	if want == architecturev1.FindingSeverity_FINDING_SEVERITY_UNSPECIFIED {
+		return 0
 	}
+	return assessment.CountFindingsBySeverity(counts, want)
 }
 
 func sortedCopy(values []string) []string {

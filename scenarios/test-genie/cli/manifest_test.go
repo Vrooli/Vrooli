@@ -35,6 +35,33 @@ func TestManifestDeclaresExecuteDurableException(t *testing.T) {
 	t.Fatal("manifest does not declare execute as a durable_run exception")
 }
 
+func TestResolveIdentityRequestFileIsLocalInput(t *testing.T) {
+	m, err := cliapp.ParseManifest(manifestBytes)
+	if err != nil {
+		t.Fatalf("parse manifest: %v", err)
+	}
+	for _, group := range m.Groups {
+		if group.Name != "validation" {
+			continue
+		}
+		for _, command := range group.Commands {
+			if command.Name != "resolve-identity" {
+				continue
+			}
+			for _, flag := range command.Flags {
+				if flag.Name == "request-file" {
+					if !flag.Required || !flag.LocalOnly || flag.Bind != nil {
+						t.Fatalf("request-file must be a required CLI-only input without a fake protobuf field binding: %+v", flag)
+					}
+					return
+				}
+			}
+			t.Fatal("resolve-identity is missing request-file")
+		}
+	}
+	t.Fatal("missing validation resolve-identity command")
+}
+
 func TestEvidenceProductionIsGovernedAndConfirmationRequired(t *testing.T) {
 	m, err := cliapp.ParseManifest(manifestBytes)
 	if err != nil {

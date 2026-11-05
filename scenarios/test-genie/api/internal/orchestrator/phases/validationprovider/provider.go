@@ -991,10 +991,11 @@ func observations(provider Provider, a *commonv1.MaturityAssessment) []shared.Ob
 			continue
 		}
 		msg := formatFinding(finding)
-		switch normalizeSeverity(finding.GetSeverity()) {
-		case "error", "blocker":
+		switch assessment.NormalizeSeverity(finding.GetSeverity()) {
+		case architecturev1.FindingSeverity_FINDING_SEVERITY_ERROR,
+			architecturev1.FindingSeverity_FINDING_SEVERITY_BLOCKER:
 			out = append(out, shared.NewErrorObservation(msg))
-		case "warning":
+		case architecturev1.FindingSeverity_FINDING_SEVERITY_WARNING:
 			out = append(out, shared.NewWarningObservation(msg))
 		default:
 			out = append(out, shared.NewInfoObservation(msg))
@@ -1174,10 +1175,13 @@ func countSeverity(a *commonv1.MaturityAssessment, severity string) int {
 	if a == nil {
 		return 0
 	}
-	want := normalizeSeverity(severity)
+	want := assessment.NormalizeSeverity(severity)
+	if want == architecturev1.FindingSeverity_FINDING_SEVERITY_UNSPECIFIED {
+		return 0
+	}
 	total := 0
 	for key, count := range a.GetFindingsBySeverity() {
-		if normalizeSeverity(key) == want {
+		if count > 0 && assessment.NormalizeSeverity(key) == want {
 			total += int(count)
 		}
 	}
@@ -1186,13 +1190,6 @@ func countSeverity(a *commonv1.MaturityAssessment, severity string) int {
 
 func statusLabel(status scenariovalidationv1.ValidationStatus) string {
 	return strings.ToLower(strings.TrimPrefix(status.String(), "VALIDATION_STATUS_"))
-}
-
-func normalizeSeverity(raw string) string {
-	if normalized := shared.NormalizeFindingSeverityLabel(raw); normalized != "" {
-		return normalized
-	}
-	return "info"
 }
 
 func formatFinding(f *commonv1.AssessmentFinding) string {

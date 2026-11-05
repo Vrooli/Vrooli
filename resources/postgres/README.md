@@ -53,12 +53,12 @@ The intended escalation path is:
 3. add PostgreSQL-specific Go code under `cli/internal/...` only where specialization is real
 4. add custom CLI commands only when the resource truly needs resource-local operator actions beyond the standard lifecycle surface
 
-Current internal package boundaries:
+Current internal packages:
 
 - `cli/internal/install`: install/bootstrap helpers unique to PostgreSQL
 - `cli/internal/runtime`: runtime and config materialization helpers
-- `cli/internal/status`: richer PostgreSQL status interpretation
-- `cli/internal/health`: PostgreSQL-specific probe helpers
+- `cli/internal/config`: PostgreSQL resource configuration
+- `cli/internal/content`: database content and maintenance operations
 - `cli/internal/env`: environment export and derived-config helpers
 
 ## Usage
@@ -75,7 +75,12 @@ Connection defaults:
 
 - Host: `localhost`
 - Port: `5433`
-- URL: `postgres://vrooli:vrooli@localhost:5433/vrooli?sslmode=disable`
+- URL: `${POSTGRES_URL}` (uses the active governed credentials)
+
+The readiness check performs a PostgreSQL startup handshake; liveness separately
+checks that port 5433 accepts TCP connections. A `healthy` status does not prove
+application authentication or queries succeed. See the readiness boundary in
+[PRD.md](PRD.md).
 
 ## Notes
 
@@ -86,5 +91,5 @@ Connection defaults:
 
 ## Maturity
 
-M4 (2026-08-16): Native tree acquisition, copy-first bootstrap, query
-readiness, and capability evidence are enforced by the fleet contract.
+M4 (2026-08-16): Native tree acquisition, copy-first bootstrap, manifest
+health checks, and capability evidence are enforced by the fleet contract.

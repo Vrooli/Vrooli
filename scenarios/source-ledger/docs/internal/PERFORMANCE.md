@@ -34,6 +34,30 @@ Use this document to answer:
 | Direct source-ledger wake p95, agent-memory | 0.06 s | Managed Connect request with 256-line budget | 2026-08-08 |
 | vrooli-memory client recall p95, agent-memory | 1.31 s | Five `vrooli-memory recall` requests; samples 1.21–1.31 s after source-ledger cutover | 2026-08-08 |
 
+### Federation budget investigation — 2026-11-04
+
+Search Hub's 7-day `source-ledger.scopes` provider telemetry recorded 2,204
+routed calls, 1,941 degraded calls (88.1%), 1,142 timeout reasons, and 4,007
+ms provider p95. Source Ledger's scenario health was green during the check.
+One end-to-end `vrooli-memory recall` command took 5.134 seconds. A retained
+fixed-query-embedding benchmark measured 1.638 seconds p95 for SQL/vector
+recall at 22,509 nodes. The latter excludes live query embedding and is not a
+like-for-like measurement, so it cannot identify which segment dominates the
+current provider timeout.
+
+The request currently permits embedding execution for up to 15 seconds, while
+Search Hub's configured provider leg budget is four seconds. This is a
+cross-scenario deadline mismatch, not proof that embedding alone causes the
+timeout. The recall queries now restrict latest-assignment work to the active
+scope and add indexes for latest-assignment lookup, mark lookup, and scoped
+time ordering. The owner build and lifecycle restart completed healthy on
+2026-11-04 (build identity
+`sha256:eec7ed5d39d6f9ed449b1e27089e2f8b001c09c1ea77a8923b3f9b3fa6325738`).
+No post-change recall timing or SQL plan was captured, so no latency
+improvement is claimed. The next useful measurement separates embedding,
+candidate loading, vector scoring, and serialization under the same query and
+corpus conditions, then compares provider p95 against the four-second budget.
+
 ### Three-times corpus measurement
 
 **2026-10-28 qualification:** The earlier benchmark copied only the main

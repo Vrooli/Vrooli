@@ -212,7 +212,7 @@ const (
 // --verbose was requested and content drift was detected.
 type TemplateDriftFileDiff struct {
 	Path   string `json:"path"`
-	Reason string `json:"reason"` // "modified" | "added_in_template" | "removed_from_scenario"
+	Reason string `json:"reason"` // "added_in_template"
 }
 
 type TemplateDriftScenarioReport struct {
@@ -237,15 +237,6 @@ func (r TemplateDriftScenarioReport) Drifted() bool {
 
 type TemplateDriftReport struct {
 	Scenarios []TemplateDriftScenarioReport `json:"scenarios"`
-}
-
-func (r TemplateDriftReport) AnyDrifted() bool {
-	for _, s := range r.Scenarios {
-		if s.Drifted() {
-			return true
-		}
-	}
-	return false
 }
 
 type TemplateCleanupRequest struct {

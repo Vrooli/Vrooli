@@ -131,6 +131,20 @@ without weakening source freshness for real source edits.
 
 `business-health validate scenario source-ledger --json` returned FAILED: no requirements-sync snapshot was available and SL-P0-003, SL-P1-001, SL-P1-003, SL-P1-006 and SL-P1-007 have complete-status claims not earned by current snapshot/manual attestation. The scoped federation correction preserves the P0 isolation goal and changes P1 discovery to one scope-faceted provider; the W1 gate is not certified. Unit Test Genie run `20261028-190034-f97b1a09` passed, and live scope controls passed; those do not prove the unrelated claims. Reconcile statuses and obtain appropriately scoped evidence under the business-health owner rather than manufacturing attestations or treating unit success as full certification.
 
+### 2026-11-04 — Federated scope reads exceed Search Hub's provider budget
+
+**Symptom:** Search Hub's 7-day metrics show the `source-ledger.scopes` provider degraded on 1,941 of 2,204 routed calls (88.1%), with 1,142 timeout reasons and provider p95 latency of 4,007 ms. Source Ledger itself reported healthy. One end-to-end `vrooli-memory recall` invocation took 5.134 seconds, while a historical fixed-query-embedding benchmark measured 1.638 seconds p95 for the SQL/vector path at a 22,509-node corpus. These measurements use different call paths and do not isolate one latency source.
+
+**Root cause:** The evidence points to a call-path budget mismatch: Search Hub drops a provider leg around four seconds, while Source Ledger's query embedding request allows up to 15 seconds. The previous recall CTE also computed the latest facet assignment across assignments before narrowing to entries in the requested scope. Query embedding latency and SQL latency were not captured separately, so their individual contributions remain unknown.
+
+**Workaround:** Treat a timed-out provider as missing evidence, never as a zero-result answer. Continue with an authorized, equivalent source or proceed with the task while recording the unavailable corpus and the affected query. Do not widen global Search Hub timeouts to hide one provider's latency.
+
+**Real fix:** The latest-assignment queries now apply the requested scope inside the CTE; supporting assignment, mark, and scoped-time indexes are active after a healthy lifecycle restart. Remaining work: measure embedding, SQL candidate loading, vector scoring, and serialization separately against the current corpus, then compare warm/cold recall p95 against Search Hub's provider budget and adjust the owner boundary only from measured evidence.
+
+**Owner:** Source Ledger for query path and indexes; Search Hub for federation budget policy.
+
+**Refs:** `api/internal/recall/sqlite_source.go`, `api/internal/{facets,journal,forest}/schema.sql`, `docs/internal/PERFORMANCE.md`, Search Hub provider-quality-read evidence from 2026-11-04.
+
 ## Architecture Drift
 
 Use this section for deferred findings from `screaming-architecture-audit`.

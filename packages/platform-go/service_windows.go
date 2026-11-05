@@ -211,24 +211,44 @@ func installService(options ServiceInstallOptions) (ServiceInstallResult, error)
 	}
 	defer machine.Disconnect()
 
-	service, err := machine.CreateService(runtimeSupervisorService, executable, mgr.Config{
+	config := mgr.Config{
 		DisplayName:    "Vrooli Runtime Supervisor",
 		StartType:      mgr.StartAutomatic,
 		ErrorControl:   mgr.ErrorNormal,
 		ServiceType:    windows.SERVICE_WIN32_OWN_PROCESS,
 		Description:    definition.Description,
 		BinaryPathName: WindowsServiceCommandLine(definition),
-	})
+	}
+	service, err := machine.CreateService(runtimeSupervisorService, executable, config)
+	existing := false
 	if err != nil {
 		if !errors.Is(err, windows.ERROR_SERVICE_EXISTS) {
 			return ServiceInstallResult{}, fmt.Errorf("platform: create Windows service: %w", err)
 		}
+		existing = true
 		service, err = machine.OpenService(runtimeSupervisorService)
 		if err != nil {
 			return ServiceInstallResult{}, fmt.Errorf("platform: open existing Windows service: %w", err)
 		}
 	}
 	defer service.Close()
+	if existing {
+		if err := service.UpdateConfig(config); err != nil {
+			return ServiceInstallResult{}, fmt.Errorf("platform: update Windows service: %w", err)
+		}
+		status, err := service.Query()
+		if err != nil {
+			return ServiceInstallResult{}, fmt.Errorf("platform: inspect Windows service before restart: %w", err)
+		}
+		if status.State != svc.Stopped {
+			if _, err := service.Control(svc.Stop); err != nil && !errors.Is(err, windows.ERROR_SERVICE_NOT_ACTIVE) {
+				return ServiceInstallResult{}, fmt.Errorf("platform: stop Windows service for update: %w", err)
+			}
+			if state := awaitWindowsStopped(service); state != svc.Stopped {
+				return ServiceInstallResult{}, fmt.Errorf("platform: updated %s but it did not stop before restart (state %d)", runtimeSupervisorService, state)
+			}
+		}
+	}
 	if err := service.Start(); err != nil && !errors.Is(err, windows.ERROR_SERVICE_ALREADY_RUNNING) {
 		return ServiceInstallResult{}, fmt.Errorf("platform: start Windows service: %w", err)
 	}
@@ -256,6 +276,24 @@ func awaitWindowsRunning(service *mgr.Service) svc.State {
 			continue
 		}
 		state = status.State
+	}
+	return state
+}
+
+func awaitWindowsStopped(service *mgr.Service) svc.State {
+	var state svc.State
+	for attempt := 0; attempt < 8; attempt++ {
+		if attempt > 0 {
+			time.Sleep(250 * time.Millisecond)
+		}
+		status, err := service.Query()
+		if err != nil {
+			continue
+		}
+		state = status.State
+		if state == svc.Stopped {
+			return state
+		}
 	}
 	return state
 }

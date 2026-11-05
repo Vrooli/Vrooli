@@ -119,10 +119,12 @@ func hashesEqualOrSkippable(recorded, current string) bool {
 	return r == c
 }
 
-// collectVerboseDiffs reports which files the current template ships that are
-// not present at their template-relative path in the scenario destination.
-// Path-substituted entries (those containing `{{...}}`) are skipped because we
-// can't resolve them without the original generation values.
+// collectVerboseDiffs reports inherited files that the current template ships
+// but the scenario destination does not contain. Paths the template declares
+// as an example domain are excluded because detemplate intentionally removes
+// those paths from generated scenarios. Path-substituted entries (those
+// containing `{{...}}`) are skipped because we can't resolve them without the
+// original generation values.
 //
 // This is a presence check, not a content diff: scenarios are expected to edit
 // inherited files, so byte-level "this file changed" reports would be noise.
@@ -143,12 +145,37 @@ func collectVerboseDiffs(info templatecontracts.TemplateInfo, sc scenariomodel.S
 		if strings.Contains(rel, "{{") {
 			continue
 		}
+		if isDeclaredExampleDomainPath(rel, info.Manifest.ExampleDomain) {
+			continue
+		}
 		target := filepath.Join(sc.Path, filepath.FromSlash(rel))
 		if _, err := os.Stat(target); errors.Is(err, os.ErrNotExist) {
 			diffs = append(diffs, templatecontracts.TemplateDriftFileDiff{Path: rel, Reason: "added_in_template"})
 		}
 	}
 	return diffs
+}
+
+// isDeclaredExampleDomainPath matches a declared example-domain path and all
+// of its descendants. detemplate deletes declared directories recursively, so
+// drift must apply the same boundary or it reports intentional removals as
+// missing inherited files.
+func isDeclaredExampleDomainPath(path string, example *templatecontracts.TemplateExampleDomain) bool {
+	if example == nil {
+		return false
+	}
+	path = filepath.ToSlash(filepath.Clean(filepath.FromSlash(path)))
+	for _, declared := range example.Paths {
+		declared = strings.TrimSpace(declared)
+		if declared == "" {
+			continue
+		}
+		declared = filepath.ToSlash(filepath.Clean(filepath.FromSlash(declared)))
+		if path == declared || strings.HasPrefix(path, declared+"/") {
+			return true
+		}
+	}
+	return false
 }
 
 // EnrichInfoDriftFlag is called from the scenario info handler to set the

@@ -602,6 +602,23 @@
           "architecture": {
             "primitive": "proto_list"
           }
+        },
+        {
+          "name": "download-artifact",
+          "description": "Stream one cataloged run artifact to a local file",
+          "needs_api": true,
+          "flags": [
+            {"name":"scenario","required":true,"description":"Scenario that owns the run","local_only":true},
+            {"name":"out","required":true,"description":"Destination file; existing files are preserved unless --overwrite is supplied","local_only":true},
+            {"name":"overwrite","bool":true,"description":"Atomically replace an existing destination file","local_only":true}
+          ],
+          "positionals": [
+            {"name":"run_id","required":true,"description":"Run id","local_only":true},
+            {"name":"artifact_id","required":true,"description":"Opaque artifact id","local_only":true}
+          ],
+          "binding": {"kind":"local"},
+          "governance": {"effect":"write","run_eligible":true,"permissions":["network:internal","filesystem:write"]},
+          "architecture": {"primitive":"action"}
         }
       ]
     },
@@ -612,7 +629,7 @@
         {
           "name": "resolve-identity",
           "description": "Resolve the current source identity for declared content roots without admitting validation work",
-          "flags": [{"name":"request-file","required":true,"description":"Typed ResolveSourceIdentityRequest protobuf-JSON document","bind":{"field":"request","kind":"json_file"},"bind_waiver":"The validation CLI decodes the typed identity request and cannot supply command fields."}],
+          "flags": [{"name":"request-file","required":true,"description":"CLI-only path to a typed ResolveSourceIdentityRequest protobuf-JSON document","local_only":true}],
           "binding": {"kind":"connect-rpc","service":"ValidationService","method":"ResolveSourceIdentity"},
           "governance": {"effect":"read","run_eligible":true,"permissions":["network:internal","filesystem:read"]},
           "architecture": {"primitive":"operational"}
@@ -622,14 +639,14 @@
           "description": "Run one descriptor-declared evidence producer for an expected candidate identity",
           "flags": [
             {"name":"request-file","description":"CLI-only path to a typed CreateEvidenceProductionRequest protobuf-JSON document; use either this or the direct request fields","local_only":true},
-            {"name":"idempotency-key","description":"Stable producer request idempotency key","bind":{"field":"idempotency_key"}},
-            {"name":"provider","description":"Provider that owns the declared producer","bind":{"field":"provider"}},
-            {"name":"producer","description":"Declared evidence producer name","bind":{"field":"producer"}},
-            {"name":"candidate-scenario","description":"Candidate scenario whose evidence is produced","bind":{"field":"candidate_scenario"}},
+            {"name":"idempotency-key","description":"Stable producer request idempotency key"},
+            {"name":"provider","description":"Provider that owns the declared producer"},
+            {"name":"producer","description":"Declared evidence producer name"},
+            {"name":"candidate-scenario","description":"Candidate scenario whose evidence is produced"},
             {"name":"expected-candidate-identity","description":"Expected candidate source identity as JSON","bind":{"field":"expected_candidate_identity","kind":"json_inline"}},
-            {"name":"caller-scenario","description":"Scenario that owns the producer call","bind":{"field":"caller_scenario"}},
-            {"name":"caller-execution-id","description":"Caller execution identity","bind":{"field":"caller_execution_id"}},
-            {"name":"plan-id","description":"Optional owning plan identifier","bind":{"field":"plan_id"}},
+            {"name":"caller-scenario","description":"Scenario that owns the producer call"},
+            {"name":"caller-execution-id","description":"Caller execution identity"},
+            {"name":"plan-id","description":"Optional owning plan identifier"},
             {"name":"yes","bool":true,"description":"Confirm effectful evidence production","local_only":true}
           ],
           "binding": {"kind":"connect-rpc","service":"ValidationService","method":"CreateEvidenceProduction"},

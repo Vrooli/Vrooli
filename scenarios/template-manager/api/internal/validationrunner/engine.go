@@ -105,7 +105,10 @@ func (r EngineRunner) RecordFleetDrift(ctx context.Context) (DriftResult, error)
 	if err != nil {
 		return DriftResult{}, err
 	}
-	result := DriftResult{Success: !report.AnyDrifted(), Scenarios: make([]DriftScenario, 0, len(report.Scenarios))}
+	// Success describes the scan operation, not its findings. Drift is a valid
+	// completed observation; the service derives the snapshot verdict from the
+	// per-scenario statuses below.
+	result := DriftResult{Success: true, Scenarios: make([]DriftScenario, 0, len(report.Scenarios))}
 	for _, scenario := range report.Scenarios {
 		result.Scenarios = append(result.Scenarios, DriftScenario{
 			Scenario:        scenario.Scenario,

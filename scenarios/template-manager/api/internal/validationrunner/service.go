@@ -35,6 +35,7 @@ type ValidateResult struct {
 }
 
 type DriftResult struct {
+	// Success means the scan completed. Findings determine the snapshot verdict.
 	Success   bool
 	Scenarios []DriftScenario
 }
@@ -153,32 +154,74 @@ func (s *Service) RecordFleetDrift(ctx context.Context) (catalog.DriftSnapshot, 
 	if err != nil {
 		return catalog.DriftSnapshot{}, err
 	}
+	if !result.Success {
+		return catalog.DriftSnapshot{}, fmt.Errorf("fleet drift scan did not complete")
+	}
 	driftCount := int32(0)
+	incomplete := len(result.Scenarios) == 0
 	for _, scenario := range result.Scenarios {
-		if scenario.ManifestDrifted || scenario.ContentDrifted || scenario.Status == "drifted" {
+		if strings.TrimSpace(scenario.Scenario) == "" {
+			incomplete = true
+			continue
+		}
+		key := driftDebtKey(scenario)
+		if scenario.ManifestDrifted || scenario.ContentDrifted {
 			driftCount++
-			key := "drift." + scenario.Scenario
-			if scenario.TemplateID != "" {
-				key = "drift." + scenario.TemplateID + "." + scenario.Scenario
+			if scenario.Status != "drifted" {
+				incomplete = true
 			}
 			if err := s.repo.UpsertDebt(ctx, catalog.DebtEntry{
-				Key:         key,
-				TemplateID:  nonEmpty(scenario.TemplateID, "react-vite"),
-				Source:      "template drift",
-				Severity:    "warning",
-				Status:      "open",
-				Title:       fmt.Sprintf("%s has template drift", scenario.Scenario),
-				Detail:      nonEmpty(scenario.Message, fmt.Sprintf("%s reported %s during fleet drift", scenario.Scenario, scenario.Status)),
-				FirstSeenAt: started,
-				LastSeenAt:  started,
+				Key:          key,
+				TemplateID:   nonEmpty(scenario.TemplateID, "react-vite"),
+				ScenarioSlug: scenario.Scenario,
+				Source:       "template drift",
+				Severity:     "warning",
+				Status:       "open",
+				Title:        fmt.Sprintf("%s has template drift", scenario.Scenario),
+				Detail:       nonEmpty(scenario.Message, fmt.Sprintf("%s reported %s during fleet drift", scenario.Scenario, scenario.Status)),
+				FirstSeenAt:  started,
+				LastSeenAt:   started,
 			}); err != nil {
+				return catalog.DriftSnapshot{}, err
+			}
+			// A scenario's template lineage can change while drift debt is open.
+			// Retire prior lineage keys only after the current finding is durable.
+			if err := s.repo.ResolveTemplateDriftDebt(ctx, scenario.Scenario, key, key, started); err != nil {
+				return catalog.DriftSnapshot{}, err
+			}
+		} else if scenario.Status == "ok" {
+			if err := s.repo.ResolveTemplateDriftDebt(ctx, scenario.Scenario, key, "", started); err != nil {
+				return catalog.DriftSnapshot{}, err
+			}
+		} else {
+			incomplete = true
+			// Preserve uncertainty as actionable debt without counting it as
+			// confirmed drift, then retire only superseded lineage rows.
+			if err := s.repo.UpsertDebt(ctx, catalog.DebtEntry{
+				Key:          key,
+				TemplateID:   nonEmpty(scenario.TemplateID, "react-vite"),
+				ScenarioSlug: scenario.Scenario,
+				Source:       "template drift",
+				Severity:     "warning",
+				Status:       "open",
+				Title:        fmt.Sprintf("%s template drift could not be verified", scenario.Scenario),
+				Detail:       nonEmpty(scenario.Message, fmt.Sprintf("Template drift status: %s", scenario.Status)),
+				FirstSeenAt:  started,
+				LastSeenAt:   started,
+			}); err != nil {
+				return catalog.DriftSnapshot{}, err
+			}
+			if err := s.repo.ResolveTemplateDriftDebt(ctx, scenario.Scenario, key, key, started); err != nil {
 				return catalog.DriftSnapshot{}, err
 			}
 		}
 	}
-	status := "failed"
-	if result.Success {
-		status = "recorded"
+	status := catalog.DriftSnapshotStatusInSync
+	if driftCount > 0 {
+		status = catalog.DriftSnapshotStatusDrifted
+	}
+	if incomplete {
+		status = catalog.DriftSnapshotStatusIncomplete
 	}
 	snapshot := catalog.DriftSnapshot{
 		ID:         "drift-" + uuid.NewString(),
@@ -198,6 +241,13 @@ func (s *Service) RecordFleetDrift(ctx context.Context) (catalog.DriftSnapshot, 
 		return catalog.DriftSnapshot{}, err
 	}
 	return snapshot, nil
+}
+
+func driftDebtKey(scenario DriftScenario) string {
+	if scenario.TemplateID == "" {
+		return "drift." + scenario.Scenario
+	}
+	return "drift." + scenario.TemplateID + "." + scenario.Scenario
 }
 
 func nonEmpty(value, fallback string) string {

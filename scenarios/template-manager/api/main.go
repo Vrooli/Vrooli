@@ -54,6 +54,9 @@ func main() {
 	if err := database.EnsureSchemas(context.Background(), db.Primary(), modules.AllSchemas()...); err != nil {
 		log.Fatalf("schema initialization failed: %v", err)
 	}
+	if err := catalog.MigrateDriftDebtIdentity(context.Background(), db.Primary()); err != nil {
+		log.Fatalf("drift debt identity migration failed: %v", err)
+	}
 
 	catalogRepo := catalog.NewSQLiteRepository(db)
 	if err := syncScenarioTemplateRegistry(context.Background(), catalogRepo); err != nil {

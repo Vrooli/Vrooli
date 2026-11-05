@@ -176,6 +176,40 @@ func TestServicePrincipalIssueAndExchange(t *testing.T) {
 	}
 }
 
+func TestAIGatewayProviderDecisionProfileIssueAndExchange(t *testing.T) {
+	ctx := context.Background()
+	f := newServicePrincipalFixture(t)
+	profiles, err := ParseServicePrincipalProfiles(`[{"name":"ai-gateway","resource":"notification-hub-provider-decision","scopes":["notification-hub:provider-decision"]}]`)
+	if err != nil {
+		t.Fatal("exact local-test profile did not parse")
+	}
+	f.service.servicePrincipals = indexServicePrincipals(profiles)
+	f.service.resourceAudiences["notification-hub-provider-decision"] = "scenario-authenticator:notification-hub-provider-decision"
+
+	issued, err := f.service.IssueServicePrincipal(ctx, f.admin, "ai-gateway", RequestMeta{})
+	if err != nil {
+		t.Fatal("verified administrator could not issue the configured local-test principal")
+	}
+	if issued.Name != "ai-gateway" || issued.Audience != "scenario-authenticator:notification-hub-provider-decision" ||
+		!slices.Equal(issued.Scopes, []string{"notification-hub:provider-decision"}) ||
+		issued.CredentialIdentity != "scenario-authenticator/service-principal/ai-gateway/notification-hub-provider-decision" || issued.CredentialField != "credential" {
+		t.Fatal("issued metadata did not match the exact Hub-only profile")
+	}
+	credential := f.custody.values["ai-gateway/notification-hub-provider-decision"]
+	access, err := f.service.ExchangeServiceCredential(ctx, credential, RequestMeta{})
+	if err != nil {
+		t.Fatal("stored local-test credential did not exchange")
+	}
+	if access.Subject != "ai-gateway" || access.Audience != "scenario-authenticator:notification-hub-provider-decision" ||
+		!slices.Equal(access.Scopes, []string{"notification-hub:provider-decision"}) {
+		t.Fatal("exchanged service identity did not match the exact Hub-only profile")
+	}
+	claims, err := f.signer.Validate(access.AccessToken, "scenario-authenticator:notification-hub-provider-decision")
+	if err != nil || claims.UserID != "ai-gateway" || !slices.Equal(claims.Scopes, []string{"notification-hub:provider-decision"}) {
+		t.Fatal("exchanged service token claims did not match the Hub-only profile")
+	}
+}
+
 func TestParseServicePrincipalProfilesRefusesWideOrAmbiguousProfiles(t *testing.T) {
 	if profiles, err := ParseServicePrincipalProfiles(""); err != nil || profiles != nil {
 		t.Fatal("empty configuration must configure nothing")

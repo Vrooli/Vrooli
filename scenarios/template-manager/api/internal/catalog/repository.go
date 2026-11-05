@@ -17,6 +17,7 @@ type Repository interface {
 	ListDriftSnapshots(ctx context.Context, templateID string) ([]DriftSnapshot, error)
 	UpsertDebt(ctx context.Context, entry DebtEntry) error
 	ResolveSourceDebt(ctx context.Context, templateID string, resolvedAt time.Time) error
+	ResolveTemplateDriftDebt(ctx context.Context, scenario, legacyKey, keepKey string, resolvedAt time.Time) error
 	ResolveSupersededDeepValidationDebt(ctx context.Context, templateID string, resolvedAt time.Time) error
 	ListDebt(ctx context.Context, templateID, status string) ([]DebtEntry, error)
 	GetDebt(ctx context.Context, key string) (DebtEntry, error)

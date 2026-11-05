@@ -769,6 +769,11 @@ surfaces caused by missing in-repo replaces are guided and point to
 `deps reconcile --all --json` for preview before apply. Touched mode maps
 changed files to in-repo Go module roots and then to scenario surfaces requiring
 those modules; root `go.mod` and `go.sum` changes fan out to all Go surfaces.
+An ambiguous module owner is reported as an error for that surface while the
+remaining selected surfaces are still checked. Select a unique repository path
+with `--module <path-to-go.mod>` to inspect or repair one owner.
+Go modules under any `docs/` directory are retained documentation/evidence,
+not active build surfaces, and are excluded from discovery.
 
 To remove one known requirement from the repository root without a topology
 scan or lockfile rewrite, use `deps remove --scenario vrooli --surface

@@ -88,6 +88,109 @@ func TestServiceRecordFleetDriftPersistsSnapshotAndDeduplicatesDebt(t *testing.T
 	}
 }
 
+func TestServiceRecordFleetDriftResolvesOnlyFreshlyCleanScenarioDebt(t *testing.T) {
+	repo := newRepo(t)
+	ctx := context.Background()
+	old := time.Date(2026, 7, 8, 5, 0, 0, 0, time.UTC)
+	for _, entry := range []catalog.DebtEntry{
+		{Key: "drift.react-vite.fixed-app", TemplateID: "react-vite", Source: "template drift", Severity: "warning", Status: "open", Title: "old drift", Detail: "old drift", FirstSeenAt: old, LastSeenAt: old},
+		{Key: "drift.react-vite.still-drifted", TemplateID: "react-vite", Source: "template drift", Severity: "warning", Status: "open", Title: "still drifted", Detail: "still drifted", FirstSeenAt: old, LastSeenAt: old},
+		{Key: "drift.react-vite.hash-error", TemplateID: "react-vite", Source: "template drift", Severity: "warning", Status: "open", Title: "unknown", Detail: "unknown", FirstSeenAt: old, LastSeenAt: old},
+		{Key: "drift.react-vite.flags-disagree", TemplateID: "react-vite", Source: "template drift", Severity: "warning", Status: "open", Title: "unknown", Detail: "unknown", FirstSeenAt: old, LastSeenAt: old},
+		{Key: "drift.legacy-app", TemplateID: "react-vite", Source: "template drift", Severity: "warning", Status: "open", Title: "legacy key", Detail: "legacy key", FirstSeenAt: old, LastSeenAt: old},
+		{Key: "react-vite.fixed-app.source", TemplateID: "react-vite", Source: "template validation", Severity: "error", Status: "open", Title: "source debt", Detail: "source debt", FirstSeenAt: old, LastSeenAt: old},
+		{Key: "drift.react-vite.source-owned-app", TemplateID: "react-vite", Source: "template validation", Severity: "error", Status: "open", Title: "source debt", Detail: "source debt", FirstSeenAt: old, LastSeenAt: old},
+	} {
+		if err := repo.UpsertDebt(ctx, entry); err != nil {
+			t.Fatalf("UpsertDebt(%q): %v", entry.Key, err)
+		}
+	}
+
+	runner := &fakeRunner{drift: DriftResult{Scenarios: []DriftScenario{
+		{Scenario: "fixed-app", TemplateID: "react-vite", Status: "ok"},
+		{Scenario: "still-drifted", TemplateID: "react-vite", Status: "drifted", ContentDrifted: true},
+		{Scenario: "hash-error", TemplateID: "react-vite", Status: "hash_error"},
+		{Scenario: "unverifiable-app", TemplateID: "react-vite", Status: "hash_error", Message: "hashing failed"},
+		{Scenario: "contradictory-drift-app", TemplateID: "react-vite", Status: "drifted"},
+		{Scenario: "flags-disagree", TemplateID: "react-vite", Status: "ok", ContentDrifted: true},
+		{Scenario: "legacy-app", Status: "ok"},
+		{Scenario: "source-owned-app", TemplateID: "react-vite", Status: "ok"},
+	}}}
+	service := NewService(repo, runner)
+	now := old.Add(24 * time.Hour)
+	service.now = func() time.Time { return now }
+
+	snapshot, err := service.RecordFleetDrift(ctx)
+	if err != nil {
+		t.Fatalf("RecordFleetDrift: %v", err)
+	}
+	if snapshot.DriftCount != 2 {
+		t.Fatalf("DriftCount = %d, want only the two scenarios with confirmed drift", snapshot.DriftCount)
+	}
+	for key, want := range map[string]string{
+		"drift.react-vite.fixed-app":               "resolved",
+		"drift.react-vite.still-drifted":           "open",
+		"drift.react-vite.hash-error":              "open",
+		"drift.react-vite.unverifiable-app":        "open",
+		"drift.react-vite.contradictory-drift-app": "open",
+		"drift.react-vite.flags-disagree":          "open",
+		"drift.legacy-app":                         "resolved",
+		"react-vite.fixed-app.source":              "open",
+		"drift.react-vite.source-owned-app":        "open",
+	} {
+		entry, err := repo.GetDebt(ctx, key)
+		if err != nil {
+			t.Fatalf("GetDebt(%q): %v", key, err)
+		}
+		if entry.Status != want {
+			t.Errorf("debt %q status = %q, want %q", key, entry.Status, want)
+		}
+		if want == "resolved" && !entry.LastSeenAt.Equal(now) {
+			t.Errorf("debt %q last_seen_at = %s, want %s", key, entry.LastSeenAt, now)
+		}
+	}
+	unverifiable, err := repo.GetDebt(ctx, "drift.react-vite.unverifiable-app")
+	if err != nil {
+		t.Fatalf("GetDebt(unverifiable-app): %v", err)
+	}
+	if unverifiable.Title != "unverifiable-app template drift could not be verified" || unverifiable.Detail != "hashing failed" {
+		t.Fatalf("unverifiable debt = %+v, want an explicit uncertainty finding", unverifiable)
+	}
+	contradictory, err := repo.GetDebt(ctx, "drift.react-vite.contradictory-drift-app")
+	if err != nil {
+		t.Fatalf("GetDebt(contradictory-drift-app): %v", err)
+	}
+	if contradictory.Title != "contradictory-drift-app template drift could not be verified" {
+		t.Fatalf("contradictory debt = %+v, want explicit uncertainty rather than confirmed drift", contradictory)
+	}
+
+	// A later drift observation reopens the exact debt key while retaining its
+	// original first-seen time, while a clean observation resolves uncertainty.
+	runner.drift = DriftResult{Scenarios: []DriftScenario{
+		{Scenario: "fixed-app", TemplateID: "react-vite", Status: "drifted", ManifestDrifted: true},
+		{Scenario: "unverifiable-app", TemplateID: "react-vite", Status: "ok"},
+	}}
+	next := now.Add(time.Hour)
+	service.now = func() time.Time { return next }
+	if _, err := service.RecordFleetDrift(ctx); err != nil {
+		t.Fatalf("RecordFleetDrift after regression: %v", err)
+	}
+	reopened, err := repo.GetDebt(ctx, "drift.react-vite.fixed-app")
+	if err != nil {
+		t.Fatalf("GetDebt after regression: %v", err)
+	}
+	if reopened.Status != "open" || !reopened.FirstSeenAt.Equal(old) || !reopened.LastSeenAt.Equal(next) {
+		t.Errorf("reopened debt = %+v, want open with preserved first-seen and refreshed last-seen", reopened)
+	}
+	resolved, err := repo.GetDebt(ctx, "drift.react-vite.unverifiable-app")
+	if err != nil {
+		t.Fatalf("GetDebt after clean observation: %v", err)
+	}
+	if resolved.Status != "resolved" || !resolved.FirstSeenAt.Equal(now) || !resolved.LastSeenAt.Equal(next) {
+		t.Errorf("uncertainty debt after clean observation = %+v, want resolved with first-seen retained", resolved)
+	}
+}
+
 func TestServiceRecordFleetDriftSupersedesBootstrapPendingSnapshot(t *testing.T) {
 	repo := newRepo(t)
 	ctx := context.Background()

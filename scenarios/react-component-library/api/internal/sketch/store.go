@@ -62,9 +62,15 @@ func (s *Store) Path(scenario, page string) (string, error) {
 	return filepath.Join(s.repoRoot, "scenarios", scenario, "experience", "pages", page+".json"), nil
 }
 
-// openPages pins each directory before descending. Every operation after the
-// scenario boundary is confined to its experience root, including history.
+// openPages pins each directory before descending. Authored page documents
+// remain under the scenario's experience contract.
 func (s *Store) openExperience(scenario string) (*os.Root, error) {
+	return s.openScenarioRoot(scenario, "experience")
+}
+
+// openExperienceData confines generated design records to the scenario's
+// ignored data home while keeping authored page contracts under experience/.
+func (s *Store) openExperienceData(scenario string) (*os.Root, error) {
 	if !safeSegment.MatchString(scenario) {
 		return nil, fmt.Errorf("invalid scenario identity")
 	}
@@ -72,7 +78,28 @@ func (s *Store) openExperience(scenario string) (*os.Root, error) {
 	if err != nil {
 		return nil, err
 	}
-	for _, part := range []string{"scenarios", scenario, "experience"} {
+	for _, part := range []string{"scenarios", scenario} {
+		info, err := root.Lstat(part)
+		if err != nil {
+			root.Close()
+			return nil, err
+		}
+		if info.Mode()&os.ModeSymlink != 0 {
+			root.Close()
+			return nil, fmt.Errorf("rejected sketch path: symlink %s", part)
+		}
+		child, err := root.OpenRoot(part)
+		root.Close()
+		if err != nil {
+			return nil, err
+		}
+		root = child
+	}
+	if err := root.MkdirAll(filepath.Join("data", "experience"), 0o700); err != nil {
+		root.Close()
+		return nil, err
+	}
+	for _, part := range []string{"data", "experience"} {
 		info, err := root.Lstat(part)
 		if err != nil {
 			root.Close()
@@ -91,6 +118,42 @@ func (s *Store) openExperience(scenario string) (*os.Root, error) {
 	}
 	return root, nil
 }
+
+func (s *Store) openScenarioRoot(scenario, subdir string) (*os.Root, error) {
+	if !safeSegment.MatchString(scenario) {
+		return nil, fmt.Errorf("invalid scenario identity")
+	}
+	root, err := os.OpenRoot(s.repoRoot)
+	if err != nil {
+		return nil, err
+	}
+	for _, part := range []string{"scenarios", scenario, subdir} {
+		info, err := root.Lstat(part)
+		if err != nil {
+			root.Close()
+			return nil, err
+		}
+		if info.Mode()&os.ModeSymlink != 0 {
+			root.Close()
+			return nil, fmt.Errorf("rejected sketch path: symlink %s", part)
+		}
+		child, err := root.OpenRoot(part)
+		root.Close()
+		if err != nil {
+			return nil, err
+		}
+		root = child
+	}
+	return root, nil
+}
+
+func openArtifactLock(root *os.Root, key string) (*os.File, error) {
+	if err := root.MkdirAll("locks", 0o700); err != nil {
+		return nil, err
+	}
+	return root.OpenFile(filepath.Join("locks", key+".lock"), os.O_CREATE|os.O_RDWR, 0o600)
+}
+
 func (s *Store) openPages(scenario, page string) (*os.Root, string, error) {
 	if _, err := s.Path(scenario, page); err != nil {
 		return nil, "", err
@@ -198,7 +261,12 @@ func (s *Store) Save(scenario, page, expectedHash string, doc Document) (Snapsho
 		return Snapshot{}, err
 	}
 	defer root.Close()
-	lock, err := root.OpenFile(filepath.Join("pages", "."+page+".lock"), os.O_CREATE|os.O_RDWR, 0600)
+	dataRoot, err := s.openExperienceData(scenario)
+	if err != nil {
+		return Snapshot{}, err
+	}
+	defer dataRoot.Close()
+	lock, err := openArtifactLock(dataRoot, "page-"+page)
 	if err != nil {
 		return Snapshot{}, err
 	}
@@ -208,7 +276,7 @@ func (s *Store) Save(scenario, page, expectedHash string, doc Document) (Snapsho
 		return Snapshot{}, err
 	}
 	defer release()
-	if _, err := s.recoverPending(root, page, name); err != nil {
+	if _, err := s.recoverPending(root, dataRoot, page, name); err != nil {
 		return Snapshot{}, err
 	}
 	raw, err := root.ReadFile(name)
@@ -233,13 +301,13 @@ func (s *Store) Save(scenario, page, expectedHash string, doc Document) (Snapsho
 	if next.ContentHash == current.ContentHash {
 		return current, nil
 	}
-	if err := s.writeRevision(root, page, current.ContentHash, "", raw); err != nil {
+	if err := s.writeRevision(dataRoot, page, current.ContentHash, "", raw); err != nil {
 		return Snapshot{}, err
 	}
-	if err := s.markApplied(root, page, current.ContentHash); err != nil {
+	if err := s.markApplied(dataRoot, page, current.ContentHash); err != nil {
 		return Snapshot{}, err
 	}
-	if err := s.writeRevision(root, page, next.ContentHash, current.ContentHash, updated); err != nil {
+	if err := s.writeRevision(dataRoot, page, next.ContentHash, current.ContentHash, updated); err != nil {
 		return Snapshot{}, err
 	}
 	if err := s.checkpoint("revisions"); err != nil {
@@ -250,13 +318,13 @@ func (s *Store) Save(scenario, page, expectedHash string, doc Document) (Snapsho
 	if err != nil {
 		return Snapshot{}, err
 	}
-	if err := storage.WriteFileAtomicInRoot(root, manifestPath(page), pendingBytes, 0600); err != nil {
+	if err := storage.WriteFileAtomicInRoot(dataRoot, manifestPath(page), pendingBytes, 0o600); err != nil {
 		return Snapshot{}, err
 	}
 	if err := s.checkpoint("manifest"); err != nil {
 		return Snapshot{}, err
 	}
-	if _, err := s.recoverPending(root, page, name); err != nil {
+	if _, err := s.recoverPending(root, dataRoot, page, name); err != nil {
 		return Snapshot{}, err
 	}
 

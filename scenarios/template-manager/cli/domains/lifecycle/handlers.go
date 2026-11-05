@@ -3,6 +3,8 @@ package lifecycle
 import (
 	"context"
 	"fmt"
+	"sort"
+	"strings"
 
 	"connectrpc.com/connect"
 	"github.com/vrooli/cli-core/cliapp"
@@ -168,9 +170,73 @@ func (h *handlers) driftCall(ctx cliapp.OperationContext) (*lifecyclev1.DriftRep
 func (h *handlers) driftReport(_ cliapp.OperationContext, msg *lifecyclev1.DriftReportResponse) cliapp.ListReport {
 	results := make([]string, 0, len(msg.Scenarios))
 	for _, scenario := range msg.Scenarios {
-		results = append(results, fmt.Sprintf("%s template=%s status=%s manifest=%t content=%t", scenario.Scenario, scenario.Template, scenario.Status, scenario.ManifestDrifted, scenario.ContentDrifted))
+		recordedVersion := scenario.RecordedVersion
+		if recordedVersion == "" {
+			recordedVersion = "unknown"
+		}
+		results = append(results, fmt.Sprintf("%s template=%s version=%s->%s status=%s manifest=%t content=%t", scenario.Scenario, scenario.Template, recordedVersion, scenario.CurrentVersion, scenario.Status, scenario.ManifestDrifted, scenario.ContentDrifted))
+		for _, diff := range scenario.FileDiffs {
+			results = append(results, fmt.Sprintf("  %s (%s)", diff.Path, diff.Reason))
+		}
 	}
-	return cliapp.ListReport{Summary: []string{fmt.Sprintf("Found %d scenario drift report(s).", len(msg.Scenarios))}, ResultsHeading: "Drift", Results: results}
+	return cliapp.ListReport{Summary: driftOverview(msg.Scenarios), ResultsHeading: "Drift", Results: results}
+}
+
+func driftOverview(scenarios []*lifecyclev1.DriftScenario) []string {
+	if len(scenarios) == 0 {
+		return []string{"No template-provenance scenarios were available to compare."}
+	}
+	cohorts := make(map[string]int)
+	var inSync, drifted, unverified int
+	for _, scenario := range scenarios {
+		if scenario == nil {
+			unverified++
+			continue
+		}
+		switch scenario.Status {
+		case "ok":
+			inSync++
+		case "drifted":
+			drifted++
+		default:
+			unverified++
+		}
+		recorded := scenario.RecordedVersion
+		current := scenario.CurrentVersion
+		if recorded == "" {
+			recorded = "unknown"
+		}
+		if current == "" {
+			current = "unknown"
+		}
+		cohorts[recorded+" → "+current]++
+	}
+	summary := []string{fmt.Sprintf("Compared %d scenarios: %d drifted, %d in sync, %d unverified.", len(scenarios), drifted, inSync, unverified)}
+	type cohort struct {
+		versions string
+		count    int
+	}
+	ordered := make([]cohort, 0, len(cohorts))
+	for versions, count := range cohorts {
+		ordered = append(ordered, cohort{versions: versions, count: count})
+	}
+	sort.Slice(ordered, func(i, j int) bool {
+		if ordered[i].count == ordered[j].count {
+			return ordered[i].versions < ordered[j].versions
+		}
+		return ordered[i].count > ordered[j].count
+	})
+	const visibleCohorts = 5
+	parts := make([]string, 0, visibleCohorts+1)
+	for i, item := range ordered {
+		if i == visibleCohorts {
+			parts = append(parts, fmt.Sprintf("and %d smaller cohort(s)", len(ordered)-visibleCohorts))
+			break
+		}
+		parts = append(parts, fmt.Sprintf("%s (%d)", item.versions, item.count))
+	}
+	summary = append(summary, "Largest version cohorts: "+strings.Join(parts, ", ")+".")
+	return summary
 }
 
 func (h *handlers) cleanupCall(ctx cliapp.OperationContext) (*lifecyclev1.CleanupRunsResponse, error) {

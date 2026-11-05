@@ -889,7 +889,9 @@ export type ProviderHealth = Message<"vrooli.search_hub.v1.routing.ProviderHealt
   stuck?: boolean | undefined;
 
   /**
-   * healthy, demoted, probe_due, probing, or stuck.
+   * Zero-yield demotion lifecycle: healthy, demoted, probe_due, probing, or
+   * stuck. This is independent of reachability and circuit_state, which track
+   * transport availability and recovery after provider request failures.
    *
    * @generated from field: string recovery_state = 22;
    */

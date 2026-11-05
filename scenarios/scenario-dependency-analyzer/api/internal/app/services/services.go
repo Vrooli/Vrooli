@@ -1,6 +1,9 @@
 package services
 
-import types "github.com/vrooli/vrooli/scenarios/scenario-dependency-analyzer/api/internal/types"
+import (
+	"context"
+	types "github.com/vrooli/vrooli/scenarios/scenario-dependency-analyzer/api/internal/types"
+)
 
 // AnalysisService exposes dependency analysis operations.
 type AnalysisService interface {
@@ -50,6 +53,7 @@ type DependencyService interface {
 // DeploymentService provides access to computed deployment reports.
 type DeploymentService interface {
 	GetDeploymentReport(name string, refresh bool) (*types.DeploymentAnalysisReport, error)
+	GetBundleManifest(context.Context, string) (*types.BundleManifest, error)
 }
 
 // ProposalService handles proposed scenario analysis requests.

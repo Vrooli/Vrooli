@@ -119,6 +119,26 @@ below. The complete command list is declared in
 [`cli/manifest.json`](../../cli/manifest.json); this document explains
 the contract and maintenance workflow.
 
+### Inspecting generated-scenario drift
+
+Use `template-manager template drift <scenario>` for a concise drift status
+and recorded-to-current template version. An empty recorded version is shown
+as `unknown`; it is not treated as a match. Add `--verbose` to list files
+currently present in the source template but missing from that scenario. Those
+entries use reason `added_in_template` and are also present in the CLI's
+snake_case JSON output as `file_diffs`. This is a presence check: generated
+scenarios are expected to customize inherited files, so the report does not
+compare their bytes or label local edits as drift. JSON also includes the
+recorded/current manifest and content hashes, which distinguish same-version
+source changes from version lag and unknown lineage. Fleet reports summarize
+drifted/in-sync/unverified counts and the five largest version cohorts before
+the per-scenario rows.
+
+```bash
+template-manager template drift ai-gateway --verbose
+template-manager template drift ai-gateway --verbose --json
+```
+
 ## Output contracts
 
 Every scenario command should render through one of three human

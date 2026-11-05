@@ -10,11 +10,39 @@ import (
 	"testing"
 	"time"
 
+	"scenario-authenticator/internal/accounts"
 	"scenario-authenticator/internal/realm"
 
 	coreidentity "github.com/vrooli/api-core/identity"
 	"github.com/vrooli/api-core/trustposture"
 )
+
+func TestProviderDecisionPrincipalIsLocalDevelopmentOnly(t *testing.T) {
+	base := `[{"name":"agent-manager","resource":"web-console","scopes":["web-console:write"]}]`
+	profiles, err := servicePrincipalProfilesForEnvironment("production", base)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(profiles) != 1 || profiles[0].Name != "agent-manager" {
+		t.Fatalf("production profiles = %+v, want only configured production profile", profiles)
+	}
+	profiles, err = servicePrincipalProfilesForEnvironment("development", base)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(profiles) != 2 || !reflect.DeepEqual(profiles[1], accounts.ServicePrincipalProfile{
+		Name: "ai-gateway", Resource: "notification-hub-provider-decision",
+		Scopes:  []string{"notification-hub:provider-decision"},
+		Issuers: []string{"9022b304-9a76-4e72-829c-1f5bc101359a"},
+	}) {
+		t.Fatalf("development profiles = %+v, want exact local-only Gateway identity", profiles)
+	}
+	for _, environment := range []string{"production", "development"} {
+		if _, err := servicePrincipalProfilesForEnvironment(environment, `[{"name":"ai-gateway","resource":"notification-hub-provider-decision","scopes":["notification-hub:provider-decision"]}]`); err == nil {
+			t.Fatalf("%s accepted an operator-configured reserved principal", environment)
+		}
+	}
+}
 
 type fixedCloudflareProvider struct {
 	principal coreidentity.Principal

@@ -82,16 +82,23 @@ type DriftSnapshot struct {
 	CapturedAt time.Time
 }
 
+const (
+	DriftSnapshotStatusInSync     = "in_sync"
+	DriftSnapshotStatusDrifted    = "drifted"
+	DriftSnapshotStatusIncomplete = "incomplete"
+)
+
 type DebtEntry struct {
-	Key         string
-	TemplateID  string
-	Source      string
-	Severity    string
-	Status      string
-	Title       string
-	Detail      string
-	FirstSeenAt time.Time
-	LastSeenAt  time.Time
+	Key          string
+	TemplateID   string
+	ScenarioSlug string
+	Source       string
+	Severity     string
+	Status       string
+	Title        string
+	Detail       string
+	FirstSeenAt  time.Time
+	LastSeenAt   time.Time
 }
 
 type MeasureWindow struct {

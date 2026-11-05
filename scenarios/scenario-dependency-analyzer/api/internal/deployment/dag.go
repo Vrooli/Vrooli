@@ -1,6 +1,7 @@
 package deployment
 
 import (
+	"context"
 	"fmt"
 	"path/filepath"
 	"sort"
@@ -15,6 +16,32 @@ import (
 type DependencyBuildOptions struct {
 	IncludeProgramBindings bool
 	ProgramBindings        ProgramBindingSource
+
+	// A manifest query needs each owner adjacency once, not a tree of every path.
+	bundleGraph *bundleDependencyGraph
+}
+
+type bundleDependencyGraph struct {
+	ctx      context.Context
+	children map[string][]types.DeploymentDependencyNode
+	paths    map[string]string
+}
+
+func (g *bundleDependencyGraph) childrenOf(node types.DeploymentDependencyNode) []types.DeploymentDependencyNode {
+	if node.Path == "" { // Preserve the existing cycle/missing-owner boundary.
+		return node.Children
+	}
+	children := g.children[config.NormalizeName(node.Name)]
+	// A cycle leaf is relative to the first discovery path. An embedding walk
+	// may enter that owner through another branch. Supply its known path there;
+	// the embedding walk's own visited set still prevents cyclic activation.
+	resolved := append([]types.DeploymentDependencyNode(nil), children...)
+	for i := range resolved {
+		if resolved[i].Type == "scenario" && resolved[i].Path == "" {
+			resolved[i].Path = g.paths[config.NormalizeName(resolved[i].Name)]
+		}
+	}
+	return resolved
 }
 
 // BuildDependencyNodeList recursively builds a list of dependency nodes (resources + scenarios)
@@ -29,6 +56,9 @@ func BuildDependencyNodeList(scenariosDir, scenarioName string, cfg *types.Manif
 // "declared" even when a program independently attests the same edge.
 func BuildDependencyNodeListWithOptions(scenariosDir, scenarioName string, cfg *types.Manifest, visited map[string]struct{}, options DependencyBuildOptions) []types.DeploymentDependencyNode {
 	nodes := []types.DeploymentDependencyNode{}
+	if options.bundleGraph != nil && options.bundleGraph.ctx.Err() != nil {
+		return nodes
+	}
 	if cfg == nil {
 		return nodes
 	}
@@ -45,6 +75,9 @@ func BuildDependencyNodeListWithOptions(scenariosDir, scenarioName string, cfg *
 	}
 	sort.Strings(resourceNames)
 	for _, name := range resourceNames {
+		if options.bundleGraph != nil && options.bundleGraph.ctx.Err() != nil {
+			return nodes
+		}
 		resource := resources[name]
 		var meta *types.DeploymentDependency
 		if dependencyCatalog.Resources != nil {
@@ -69,6 +102,9 @@ func BuildDependencyNodeListWithOptions(scenariosDir, scenarioName string, cfg *
 		}
 		sort.Strings(scenarioNames)
 		for _, depName := range scenarioNames {
+			if options.bundleGraph != nil && options.bundleGraph.ctx.Err() != nil {
+				return nodes
+			}
 			depSpec := cfg.Dependencies.Scenarios[depName]
 			var meta *types.DeploymentDependency
 			if dependencyCatalog.Scenarios != nil {
@@ -240,7 +276,20 @@ func buildScenarioDependencyNode(scenariosDir, scenarioName string, parentMeta *
 	}
 	node.TierSupport = mergeTierSupportMaps(scenarioTierSupport, fallbackSupport)
 	node.Alternatives = dedupeStrings(node.Alternatives)
-	node.Children = BuildDependencyNodeListWithOptions(scenariosDir, scenarioName, cfg, visited, options)
+	if graph := options.bundleGraph; graph != nil {
+		if graph.paths == nil {
+			graph.paths = make(map[string]string)
+		}
+		graph.paths[normalized] = scenarioPath
+		if _, expanded := graph.children[normalized]; expanded {
+			return node
+		}
+		graph.children[normalized] = nil
+		node.Children = BuildDependencyNodeListWithOptions(scenariosDir, scenarioName, cfg, visited, options)
+		graph.children[normalized] = node.Children
+	} else {
+		node.Children = BuildDependencyNodeListWithOptions(scenariosDir, scenarioName, cfg, visited, options)
+	}
 	return node
 }
 

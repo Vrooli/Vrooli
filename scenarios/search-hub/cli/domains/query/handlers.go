@@ -68,7 +68,7 @@ func (h *handlers) queryReport(_ cliapp.OperationContext, msg *routingv1.QueryRe
 
 	summary := []string{
 		fmt.Sprintf("Searched %d corpora; %d total hit(s)%s.",
-			len(msg.GetGroups()), totalHits, degradedSuffix(msg.GetDegraded())),
+			len(msg.GetGroups()), totalHits, degradedSummary(msg.GetGroups(), msg.GetDegraded())),
 		fmt.Sprintf("Latency: %dms. Ranking: %s (ordered by %s descending).", msg.GetLatencyMs(), rankingMode(msg.GetReranked()), orderedBy(msg)),
 	}
 	if len(msg.GetRoutingExplanation()) > 0 {
@@ -313,11 +313,43 @@ func parseLimit(raw string) int32 {
 	return 0
 }
 
-func degradedSuffix(degraded bool) string {
-	if degraded {
-		return " (some providers degraded — see notes below)"
+func degradedSummary(groups []*routingv1.ProviderResultGroup, degraded bool) string {
+	if !degraded {
+		return ""
 	}
-	return ""
+	// Put the actionable degradation details in the first summary line. Search
+	// results can be large and agents often only retain that line when deciding
+	// whether an empty result is conclusive.
+	const maxDetails = 3
+	details := make([]string, 0, maxDetails)
+	degradedCount := 0
+	for _, group := range groups {
+		if group == nil || !group.GetDegraded() {
+			continue
+		}
+		degradedCount++
+		if len(details) == maxDetails {
+			continue
+		}
+		provider := truncate(group.GetProviderId(), 48)
+		note := truncate(group.GetNote(), 96)
+		if provider == "" {
+			provider = "unknown provider"
+		}
+		if note == "" {
+			details = append(details, provider)
+		} else {
+			details = append(details, provider+": "+note)
+		}
+	}
+	if len(details) == 0 {
+		return " (degraded; provider details unavailable)"
+	}
+	result := " (degraded: " + strings.Join(details, "; ")
+	if degradedCount > len(details) {
+		result += fmt.Sprintf("; +%d more", degradedCount-len(details))
+	}
+	return result + ")"
 }
 
 func rankingMode(reranked bool) string {

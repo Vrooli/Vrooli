@@ -53,6 +53,19 @@ Use drift snapshots to decide whether debt is isolated to one scenario or is
 inherited from the factory. A repeated drift finding should become a debt entry
 with a stable key so reruns update the same row.
 
+Read the verdict before taking action: `drifted` means hashes prove a mismatch;
+`incomplete` means at least one scenario lacks enough provenance/hash evidence
+to decide; `in_sync` means every included scenario was checked and matched.
+Do not stamp today's template hash onto an older scenario to clear unknown
+drift. Follow its recorded template version through the changelog, apply the
+migrations, validate the target, then update provenance through the governed
+adoption/update path.
+
+Drift hashes the current template working tree, including uncommitted edits.
+Finalize the template version and matching changelog entry before recording a
+durable fleet drift snapshot; otherwise a local candidate can appear as
+same-version drift and create misleading fleet debt.
+
 ## Cleanup
 
 Deep validation can retain temporary workspaces for debugging. Remove retained

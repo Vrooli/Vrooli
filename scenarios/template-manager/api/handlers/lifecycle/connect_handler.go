@@ -200,16 +200,32 @@ func (h *connectHandler) DriftReport(ctx context.Context, req *connect.Request[l
 	}
 	resp := &lifecyclev1.DriftReportResponse{}
 	for _, scenario := range report.Scenarios {
-		resp.Scenarios = append(resp.Scenarios, &lifecyclev1.DriftScenario{
-			Scenario:        scenario.Scenario,
-			Template:        scenario.TemplateID,
-			Status:          string(scenario.Status),
-			ManifestDrifted: scenario.ManifestDrifted,
-			ContentDrifted:  scenario.ContentDrifted,
-			Message:         scenario.Message,
-		})
+		resp.Scenarios = append(resp.Scenarios, driftScenarioMessage(scenario))
 	}
 	return connect.NewResponse(resp), nil
+}
+
+func driftScenarioMessage(scenario templatecontracts.TemplateDriftScenarioReport) *lifecyclev1.DriftScenario {
+	message := &lifecyclev1.DriftScenario{
+		Scenario:            scenario.Scenario,
+		Template:            scenario.TemplateID,
+		Status:              string(scenario.Status),
+		ManifestDrifted:     scenario.ManifestDrifted,
+		ContentDrifted:      scenario.ContentDrifted,
+		Message:             scenario.Message,
+		RecordedVersion:     scenario.RecordedVersion,
+		CurrentVersion:      scenario.CurrentVersion,
+		RecordedManifestSha: scenario.RecordedManifest,
+		CurrentManifestSha:  scenario.CurrentManifest,
+		RecordedContentSha:  scenario.RecordedContent,
+		CurrentContentSha:   scenario.CurrentContent,
+	}
+	for _, diff := range scenario.FileDiffs {
+		message.FileDiffs = append(message.FileDiffs, &lifecyclev1.DriftFileDiff{
+			Path: diff.Path, Reason: diff.Reason,
+		})
+	}
+	return message
 }
 
 func (h *connectHandler) CleanupRuns(ctx context.Context, req *connect.Request[lifecyclev1.CleanupRunsRequest]) (*connect.Response[lifecyclev1.CleanupRunsResponse], error) {

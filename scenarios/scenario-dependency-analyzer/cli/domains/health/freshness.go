@@ -72,6 +72,7 @@ type goSurface struct {
 	surface                    string
 	goMod                      string
 	module                     string
+	ambiguous                  bool
 	requires                   map[string]struct{}
 	replaces                   map[string]string
 	moduleFingerprint          string
@@ -101,7 +102,6 @@ var freshnessExclusions = []moduleExclusion{
 	{Path: "scenarios/go-code-graph/bas/fixtures/go-usage-facts/go.mod", Reason: "synthetic BAS fixture"},
 	{Path: "scenarios/go-code-graph/bas/fixtures/go-tests/go.mod", Reason: "synthetic BAS fixture"},
 	{Path: "scenarios/go-code-graph/bas/fixtures/go-mislocated/go.mod", Reason: "synthetic BAS fixture"},
-	{Path: "docs/internal/delivery-reliability-research/follow-through/evidence/continuation-admission/known-team-return-20261020/openrouter-resource-module-closure/preimage/go.mod", Reason: "retained evidence preimage, not an active Go module"},
 }
 
 func runFreshness(args []string) error {
@@ -217,11 +217,6 @@ func checkFreshness(ctx context.Context, root string, req freshnessRequest) (fre
 		impacted = impactedSurfaces(root, surfaces, modules, touchedPaths)
 		touchedPaths = reportTouchedPaths(impacted)
 		surfaces = filterImpactedSurfaces(surfaces, impacted)
-	}
-	for _, surface := range surfaces {
-		if modules[surface.module].ambiguous {
-			return freshnessReport{}, fmt.Errorf("Go module %q has multiple source directories; cannot establish a unique owner", surface.module)
-		}
 	}
 	cacheEnabled := !req.noCache && !req.apply && !req.build
 	if cacheEnabled {
@@ -441,7 +436,7 @@ func discoverGoSurfacesFromModules(root string, modules map[string]goModule) ([]
 				surface = scenario
 			}
 		}
-		out = append(out, goSurface{scenario: scenario, surface: surface, goMod: goModPath, module: module.module, requires: module.requires, replaces: module.replaces})
+		out = append(out, goSurface{scenario: scenario, surface: surface, goMod: goModPath, module: module.module, ambiguous: module.ambiguous, requires: module.requires, replaces: module.replaces})
 	}
 	sort.Slice(out, func(i, j int) bool { return out[i].goMod < out[j].goMod })
 	return out, nil
@@ -526,14 +521,17 @@ func excludedGoMod(path, root string) bool {
 		return false
 	}
 	rel = filepath.ToSlash(rel)
-	// docs/ contains retained source snapshots and evidence. Its go.mod is a
-	// Go tooling boundary so the root module does not absorb archived imports;
-	// none of those nested modules are active build surfaces.
-	if rel == "docs/go.mod" || strings.HasPrefix(rel, "docs/") {
+	// Documentation directories may retain captured source trees for evidence
+	// and examples. Their go.mod files are not active build surfaces, wherever
+	// the owning scenario keeps its docs.
+	if rel == "docs/go.mod" || strings.HasPrefix(rel, "docs/") || strings.Contains(rel, "/docs/") {
+		return true
+	}
+	if strings.HasPrefix(rel, "templates/") {
 		return true
 	}
 	for _, exclusion := range freshnessExclusions {
-		if rel == exclusion.Path || strings.HasPrefix(rel, "templates/") {
+		if rel == exclusion.Path {
 			return true
 		}
 	}
@@ -624,6 +622,11 @@ func checkGoFreshness(ctx context.Context, root string, surface goSurface, impac
 		Scenario: surface.scenario, Surface: surface.surface,
 		GoModPath: filepath.ToSlash(mustRel(root, surface.goMod)), Status: "clean",
 		ImpactedBy: limitStrings(compactStrings(impactedBy), maxImpactedByPaths), ImpactedByCount: len(compactStrings(impactedBy)),
+	}
+	if surface.ambiguous {
+		item.Status = "error"
+		item.Error = fmt.Sprintf("Go module %q is declared from multiple source directories; select one with --module <repository-relative go.mod path>", surface.module)
+		return item
 	}
 	if !req.noCache && !req.apply && !req.build {
 		if surface.cacheKeyReady {

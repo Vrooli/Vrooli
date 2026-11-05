@@ -137,7 +137,7 @@ export function TemplateDetailPage() {
                     {snapshot.driftCount} · {formatTimestamp(snapshot.capturedAt)}
                   </p>
                 </div>
-                <StatusBadge tone={driftTone(snapshot.driftCount)}>{snapshot.status}</StatusBadge>
+                <StatusBadge tone={driftTone(snapshot.driftCount, snapshot.status)}>{snapshot.status}</StatusBadge>
               </li>
             ))}
           </ul>

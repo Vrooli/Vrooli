@@ -194,20 +194,42 @@ class DriftReportRequest(_message.Message):
     def __init__(self, scenario: _Optional[str] = ..., all: _Optional[bool] = ..., verbose: _Optional[bool] = ...) -> None: ...
 
 class DriftScenario(_message.Message):
-    __slots__ = ("scenario", "template", "status", "manifest_drifted", "content_drifted", "message")
+    __slots__ = ("scenario", "template", "status", "manifest_drifted", "content_drifted", "message", "file_diffs", "recorded_version", "current_version", "recorded_manifest_sha", "current_manifest_sha", "recorded_content_sha", "current_content_sha")
     SCENARIO_FIELD_NUMBER: _ClassVar[int]
     TEMPLATE_FIELD_NUMBER: _ClassVar[int]
     STATUS_FIELD_NUMBER: _ClassVar[int]
     MANIFEST_DRIFTED_FIELD_NUMBER: _ClassVar[int]
     CONTENT_DRIFTED_FIELD_NUMBER: _ClassVar[int]
     MESSAGE_FIELD_NUMBER: _ClassVar[int]
+    FILE_DIFFS_FIELD_NUMBER: _ClassVar[int]
+    RECORDED_VERSION_FIELD_NUMBER: _ClassVar[int]
+    CURRENT_VERSION_FIELD_NUMBER: _ClassVar[int]
+    RECORDED_MANIFEST_SHA_FIELD_NUMBER: _ClassVar[int]
+    CURRENT_MANIFEST_SHA_FIELD_NUMBER: _ClassVar[int]
+    RECORDED_CONTENT_SHA_FIELD_NUMBER: _ClassVar[int]
+    CURRENT_CONTENT_SHA_FIELD_NUMBER: _ClassVar[int]
     scenario: str
     template: str
     status: str
     manifest_drifted: bool
     content_drifted: bool
     message: str
-    def __init__(self, scenario: _Optional[str] = ..., template: _Optional[str] = ..., status: _Optional[str] = ..., manifest_drifted: _Optional[bool] = ..., content_drifted: _Optional[bool] = ..., message: _Optional[str] = ...) -> None: ...
+    file_diffs: _containers.RepeatedCompositeFieldContainer[DriftFileDiff]
+    recorded_version: str
+    current_version: str
+    recorded_manifest_sha: str
+    current_manifest_sha: str
+    recorded_content_sha: str
+    current_content_sha: str
+    def __init__(self, scenario: _Optional[str] = ..., template: _Optional[str] = ..., status: _Optional[str] = ..., manifest_drifted: _Optional[bool] = ..., content_drifted: _Optional[bool] = ..., message: _Optional[str] = ..., file_diffs: _Optional[_Iterable[_Union[DriftFileDiff, _Mapping]]] = ..., recorded_version: _Optional[str] = ..., current_version: _Optional[str] = ..., recorded_manifest_sha: _Optional[str] = ..., current_manifest_sha: _Optional[str] = ..., recorded_content_sha: _Optional[str] = ..., current_content_sha: _Optional[str] = ...) -> None: ...
+
+class DriftFileDiff(_message.Message):
+    __slots__ = ("path", "reason")
+    PATH_FIELD_NUMBER: _ClassVar[int]
+    REASON_FIELD_NUMBER: _ClassVar[int]
+    path: str
+    reason: str
+    def __init__(self, path: _Optional[str] = ..., reason: _Optional[str] = ...) -> None: ...
 
 class DriftReportResponse(_message.Message):
     __slots__ = ("scenarios",)

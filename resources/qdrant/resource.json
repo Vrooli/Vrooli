@@ -187,7 +187,7 @@
     {
       "type": "http",
       "kind": "readiness",
-      "target": "http://127.0.0.1:6333/readyz",
+      "target": "http://127.0.0.1:6333/collections",
       "interval_seconds": 10,
       "timeout_seconds": 5
     },
@@ -245,7 +245,7 @@
         {"when": {"os": "windows", "arch": "amd64"}, "url": "https://github.com/qdrant/qdrant/releases/download/v1.15.3/qdrant-x86_64-pc-windows-msvc.zip", "sha256": "5049d33ed8f0640b3f80feea08c55fcb5cd155f75ed91c5e5e40b2e90570a62b", "archive": "zip", "layout": "file", "bin_path": "qdrant.exe"}
       ]
     },
-    "attach_health_path": "/readyz",
+    "attach_health_path": "/collections",
     "arguments": [
       "--config-path",
       "${RESOURCE_CONFIG_DIR}/config.yaml"

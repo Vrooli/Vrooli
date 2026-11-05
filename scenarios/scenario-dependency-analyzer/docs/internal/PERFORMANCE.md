@@ -25,6 +25,20 @@ Scenario test artifacts under `coverage/logs` hold the latest Lighthouse measure
 
 D3 force layouts can become expensive for large graphs.
 
+Bundle-manifest requests use a request-local graph that expands each scenario
+owner once. Shared dependency edges retain their declarations; embedding can
+follow a shared owner first encountered through a discovery-only branch. The
+manifest route reads current inputs and does not build, load, clone, or persist
+the full deployment report. Request cancellation prevents returning a partial
+manifest. Full deployment-report and DAG routes retain their existing behavior;
+their expanded diagnostic trees can still grow with repeated dependency paths.
+
+The focused regression `TestFreshBundleManifestBoundsRepeatedFanIn` covers an
+18-level graph with two shared owners per level. It retains 36 owners and 70
+edges, rather than expanding every root-to-leaf path. Companion tests cover
+discovery-before-embedding, UI inclusion, version/feature fidelity, cycles, and
+request cancellation.
+
 ## Regression Procedure
 
 Run the full scenario test and inspect performance artifacts when thresholds fail.

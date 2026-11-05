@@ -136,7 +136,7 @@ func renderProviderHealth(providers []*routingv1.ProviderHealth) []string {
 			line += " — index age: " + age
 		}
 		if state := p.GetRecoveryState(); state != "" {
-			line += " — recovery: " + state
+			line += " — zero-yield lifecycle: " + state
 		}
 		if p.GetDemoted() {
 			line += fmt.Sprintf(" — demoted (%s; demotion-window-routed=%d demotion-window-hits=%d)", p.GetDemotionReason(), p.GetTimesRouted(), p.GetTotalHits())

@@ -78,14 +78,14 @@ func (s *Store) writeRevision(root *os.Root, page, hash, parent string, raw []by
 		return err
 	}
 	// The same per-page OS lock protects both revision creation and publication.
-	return storage.WriteFileAtomicInRoot(root, revisionPath(page, hash), encoded, 0600)
+	return storage.WriteFileAtomicInRoot(root, revisionPath(page, hash), encoded, 0o600)
 }
 
 // recoverPending is called under the page lock. Only the recorded expected
 // page can advance. An unrelated manual edit is reported as conflict and the
 // manifest remains available for inspection; recovery never overwrites it.
-func (s *Store) recoverPending(root *os.Root, page, name string) (bool, error) {
-	raw, err := root.ReadFile(manifestPath(page))
+func (s *Store) recoverPending(pageRoot, dataRoot *os.Root, page, name string) (bool, error) {
+	raw, err := dataRoot.ReadFile(manifestPath(page))
 	if errors.Is(err, os.ErrNotExist) {
 		return false, nil
 	}
@@ -99,14 +99,14 @@ func (s *Store) recoverPending(root *os.Root, page, name string) (bool, error) {
 	if !validHash.MatchString(pending.Expected) || !validHash.MatchString(pending.Next) {
 		return false, errors.New("invalid apply manifest revision")
 	}
-	revision, err := readRevision(root, page, pending.Next)
+	revision, err := readRevision(dataRoot, page, pending.Next)
 	if err != nil {
 		return false, err
 	}
-	if _, err := readRevision(root, page, pending.Expected); err != nil {
+	if _, err := readRevision(dataRoot, page, pending.Expected); err != nil {
 		return false, err
 	}
-	currentBytes, err := root.ReadFile(name)
+	currentBytes, err := pageRoot.ReadFile(name)
 	if err != nil {
 		return false, err
 	}
@@ -118,21 +118,21 @@ func (s *Store) recoverPending(root *os.Root, page, name string) (bool, error) {
 		if current.ContentHash != pending.Expected {
 			return false, &ConflictError{Expected: pending.Expected, Current: current.ContentHash}
 		}
-		info, err := root.Stat(name)
+		info, err := pageRoot.Stat(name)
 		if err != nil {
 			return false, err
 		}
-		if err := storage.WriteFileAtomicInRoot(root, name, revision.Page, info.Mode().Perm()); err != nil {
+		if err := storage.WriteFileAtomicInRoot(pageRoot, name, revision.Page, info.Mode().Perm()); err != nil {
 			return false, err
 		}
 	}
 	if err := s.checkpoint("page"); err != nil {
 		return false, err
 	}
-	if err := s.markApplied(root, page, pending.Next); err != nil {
+	if err := s.markApplied(dataRoot, page, pending.Next); err != nil {
 		return false, err
 	}
-	if err := root.Remove(manifestPath(page)); err != nil {
+	if err := dataRoot.Remove(manifestPath(page)); err != nil {
 		return false, err
 	}
 	if err := s.checkpoint("complete"); err != nil {
@@ -147,7 +147,12 @@ func (s *Store) Recover(scenario, page string) (Snapshot, error) {
 		return Snapshot{}, err
 	}
 	defer root.Close()
-	lock, err := root.OpenFile(filepath.Join("pages", "."+page+".lock"), os.O_CREATE|os.O_RDWR, 0600)
+	dataRoot, err := s.openExperienceData(scenario)
+	if err != nil {
+		return Snapshot{}, err
+	}
+	defer dataRoot.Close()
+	lock, err := openArtifactLock(dataRoot, "page-"+page)
 	if err != nil {
 		return Snapshot{}, err
 	}
@@ -157,7 +162,7 @@ func (s *Store) Recover(scenario, page string) (Snapshot, error) {
 		return Snapshot{}, err
 	}
 	defer release()
-	changed, err := s.recoverPending(root, page, name)
+	changed, err := s.recoverPending(root, dataRoot, page, name)
 	if err != nil {
 		return Snapshot{}, err
 	}
@@ -177,7 +182,7 @@ func (s *Store) markApplied(root *os.Root, page, hash string) error {
 	} else if !errors.Is(err, os.ErrNotExist) {
 		return err
 	}
-	return storage.WriteFileAtomicInRoot(root, path, []byte(`{"applied":true}`), 0600)
+	return storage.WriteFileAtomicInRoot(root, path, []byte(`{"applied":true}`), 0o600)
 }
 
 // History lists immutable content revisions with completed publication
@@ -189,6 +194,11 @@ func (s *Store) History(scenario, page string) ([]Revision, error) {
 		return nil, err
 	}
 	defer root.Close()
+	dataRoot, err := s.openExperienceData(scenario)
+	if err != nil {
+		return nil, err
+	}
+	defer dataRoot.Close()
 	raw, err := root.ReadFile(name)
 	if err != nil {
 		return nil, err
@@ -197,7 +207,7 @@ func (s *Store) History(scenario, page string) ([]Revision, error) {
 	if err != nil {
 		return nil, err
 	}
-	folder, err := root.Open(filepath.Join("designs", page, "applied"))
+	folder, err := dataRoot.Open(filepath.Join("designs", page, "applied"))
 	if errors.Is(err, os.ErrNotExist) {
 		return []Revision{{ContentHash: current.ContentHash, Page: raw, Current: true}}, nil
 	}
@@ -216,7 +226,7 @@ func (s *Store) History(scenario, page string) ([]Revision, error) {
 			continue
 		}
 		hash := strings.TrimSuffix(entry.Name(), ".json")
-		revision, err := readRevision(root, page, hash)
+		revision, err := readRevision(dataRoot, page, hash)
 		if err != nil {
 			return nil, err
 		}

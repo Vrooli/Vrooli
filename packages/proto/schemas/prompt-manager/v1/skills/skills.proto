@@ -202,7 +202,9 @@ message UpdateSkillResponse { Skill skill = 1; }
 message DeleteSkillRequest { string id = 1; }
 message DeleteSkillResponse { string id = 1; bool deleted = 2; }
 
-message SyncSkillsRequest {}
+message SyncSkillsRequest {
+  string tag = 1;
+}
 message SyncSkillsResponse {
   repeated Skill skills = 1;
   string last_updated = 2;

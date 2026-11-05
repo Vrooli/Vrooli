@@ -9,9 +9,9 @@ metadata:
   tags: ["search-hub", "search", "federated", "routing", "research", "recall", "buckets", "effort-levels", "project-research"]
   icon: "search"
   status: "active"
-  revision: 2
+  revision: 3
   createdAt: "2026-09-02T00:00:00Z"
-  updatedAt: "2026-10-28T00:00:00Z"
+  updatedAt: "2026-11-05T01:16:00Z"
   requires:
     scenarios: ["search-hub", "program-runtime", "vrooli-memory"]
     commands: ["search-hub query query", "search-hub providers list", "search-hub federation status", "search-hub insights insights", "search-hub status", "search-hub configure", "vrooli-memory recall wake", "vrooli-memory recall recall", "vrooli-memory journal note", "vrooli-memory facets pin", "vrooli-memory facets supersede", "vrooli scenario status"]
@@ -77,7 +77,7 @@ Effort, then one step:
 | `ok` | `answered` | Read `signals.ranked`; `providers_hit` says which corpus answered; `routing_explanation` says why |
 | `ok` | `zero_result` | Corpora were searched, nothing matched. Rephrase in the corpus's own vocabulary (a doc title, a command name), or add `--all`; if `signals.escalate_to_web` is true and the fact is external, go to web-search |
 | `ok` | `no_provider_selected` | No corpus was searched: automatic selection found no eligible provider, or the explicit tokens match none. Read the route explanation and provider state; use valid explicit tokens from §3 to bypass automatic selection |
-| `partial` | `degraded_leg` | Some rows are valid; read `routing_degrade_reason`: `reranker_absent` or `reranker_unavailable` → rows are grouped by provider, not fused, still usable; `unreachable`, `timeout`, `http_error` → one provider's leg is missing; note the provider for §5 |
+| `partial` | `degraded_leg` | Some rows are valid; read `routing_degrade_reason` and the provider line `▸ <provider> — degraded: <reason>` in the output. `reranker_absent` or `reranker_unavailable` means rows are grouped by provider, not fused; `unreachable`, `timeout`, or `http_error` means that provider's leg is missing. Preserve the provider and reason when you report partial results. |
 | `unavailable` | `scenario_unreachable` or `degraded_leg` with no hits | Search Hub is down or a selected provider did not answer. Do not conclude absence or treat the query as a completed zero; preserve the reported provider reason and choose an explicitly safe fallback if one is authorized |
 | `refused` | `no_grant`, `not_run_eligible` | Stop; request through the session path |
 | `failed` | `invalid_input` | `effort` outside the enum, or `types` not a list of strings |

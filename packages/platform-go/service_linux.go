@@ -177,8 +177,15 @@ func installService(options ServiceInstallOptions) (ServiceInstallResult, error)
 	if output, err := exec.Command("systemctl", "--user", "daemon-reload").CombinedOutput(); err != nil {
 		return result, fmt.Errorf("platform: systemctl daemon-reload: %w: %s", err, strings.TrimSpace(string(output)))
 	}
-	if output, err := exec.Command("systemctl", "--user", "enable", "--now", runtimeSupervisorUnit).CombinedOutput(); err != nil {
+	if output, err := exec.Command("systemctl", "--user", "enable", runtimeSupervisorUnit).CombinedOutput(); err != nil {
 		return result, fmt.Errorf("platform: systemctl enable: %w: %s\n%s", err, strings.TrimSpace(string(output)), systemdUnitDiagnostics())
+	}
+	// Reinstalling updates both the unit and the executable it names. `enable
+	// --now` leaves an already-active service untouched, which would keep the
+	// old executable mapped after make install replaced it. Restart is also the
+	// start path for a newly installed, inactive unit.
+	if output, err := exec.Command("systemctl", "--user", "restart", runtimeSupervisorUnit).CombinedOutput(); err != nil {
+		return result, fmt.Errorf("platform: systemctl restart: %w: %s\n%s", err, strings.TrimSpace(string(output)), systemdUnitDiagnostics())
 	}
 	// `enable --now` alone does not prove the unit runs: a bad-setting unit
 	// can leave enablement recorded while the service never starts, which is

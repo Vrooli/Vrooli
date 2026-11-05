@@ -3,33 +3,22 @@ package shared
 import "strings"
 
 type severityInfo struct {
-	findingLabel string
-	weight       int
+	weight int
 }
 
 var severityAliases = map[string]severityInfo{
-	"blocker":       {findingLabel: "blocker", weight: 5},
-	"critical":      {findingLabel: "error", weight: 5},
-	"error":         {findingLabel: "error", weight: 4},
-	"failure":       {findingLabel: "error", weight: 4},
-	"high":          {findingLabel: "error", weight: 4},
-	"warn":          {findingLabel: "warning", weight: 3},
-	"warning":       {findingLabel: "warning", weight: 3},
-	"medium":        {findingLabel: "warning", weight: 3},
-	"low":           {findingLabel: "info", weight: 2},
-	"info":          {findingLabel: "info", weight: 1},
-	"informational": {findingLabel: "info", weight: 1},
-	"notice":        {findingLabel: "info", weight: 1},
-}
-
-// NormalizeFindingSeverityLabel maps provider-specific severity vocabulary to
-// the shared ArchitectureFinding severity labels.
-func NormalizeFindingSeverityLabel(raw string) string {
-	info, ok := severityAliases[severityKey(raw)]
-	if !ok {
-		return ""
-	}
-	return info.findingLabel
+	"blocker":       {weight: 5},
+	"critical":      {weight: 5},
+	"error":         {weight: 4},
+	"failure":       {weight: 4},
+	"high":          {weight: 4},
+	"warn":          {weight: 3},
+	"warning":       {weight: 3},
+	"medium":        {weight: 3},
+	"low":           {weight: 2},
+	"info":          {weight: 1},
+	"informational": {weight: 1},
+	"notice":        {weight: 1},
 }
 
 // SeverityWeight returns a comparable severity rank shared by routing

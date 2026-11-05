@@ -37,7 +37,7 @@ func SaveReferenceAsset(root, scenario, page, filename, mime string, src io.Read
 		ext = ""
 	}
 	storedName = id + ext
-	dir := filepath.Join(root, "scenarios", scenario, "experience", "reference-assets", page)
+	dir := filepath.Join(root, "scenarios", scenario, "data", "experience", "reference-assets", page)
 	if err := os.MkdirAll(dir, 0o700); err != nil {
 		return "", "", 0, err
 	}
@@ -55,5 +55,5 @@ func ReferenceAssetPath(root, scenario, page, storedName string) (string, error)
 	if filepath.Base(storedName) != storedName {
 		return "", fmt.Errorf("invalid reference asset name")
 	}
-	return filepath.Join(root, "scenarios", scenario, "experience", "reference-assets", page, storedName), nil
+	return filepath.Join(root, "scenarios", scenario, "data", "experience", "reference-assets", page, storedName), nil
 }

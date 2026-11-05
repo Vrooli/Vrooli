@@ -1960,6 +1960,7 @@ func (x *DeleteSkillResponse) GetDeleted() bool {
 
 type SyncSkillsRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
+	Tag           string                 `protobuf:"bytes,1,opt,name=tag,proto3" json:"tag,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1992,6 +1993,13 @@ func (x *SyncSkillsRequest) ProtoReflect() protoreflect.Message {
 // Deprecated: Use SyncSkillsRequest.ProtoReflect.Descriptor instead.
 func (*SyncSkillsRequest) Descriptor() ([]byte, []int) {
 	return file_prompt_manager_v1_skills_skills_proto_rawDescGZIP(), []int{23}
+}
+
+func (x *SyncSkillsRequest) GetTag() string {
+	if x != nil {
+		return x.Tag
+	}
+	return ""
 }
 
 type SyncSkillsResponse struct {
@@ -3891,8 +3899,9 @@ const file_prompt_manager_v1_skills_skills_proto_rawDesc = "" +
 	"\x02id\x18\x01 \x01(\tR\x02id\"?\n" +
 	"\x13DeleteSkillResponse\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x18\n" +
-	"\adeleted\x18\x02 \x01(\bR\adeleted\"\x13\n" +
-	"\x11SyncSkillsRequest\"\x8b\x01\n" +
+	"\adeleted\x18\x02 \x01(\bR\adeleted\"%\n" +
+	"\x11SyncSkillsRequest\x12\x10\n" +
+	"\x03tag\x18\x01 \x01(\tR\x03tag\"\x8b\x01\n" +
 	"\x12SyncSkillsResponse\x12>\n" +
 	"\x06skills\x18\x01 \x03(\v2&.vrooli.prompt_manager.v1.skills.SkillR\x06skills\x12!\n" +
 	"\flast_updated\x18\x02 \x01(\tR\vlastUpdated\x12\x12\n" +

@@ -81,7 +81,7 @@ func (r *FixRegistry) previewProvenanceMissing(root string) ([]autofix.Candidate
 	return []autofix.Candidate{{
 		RuleID:      CodeProvenanceMissing,
 		FilePath:    servicePath,
-		Description: "Stamp adopted generation provenance for the latest default scenario template.",
+		Description: "After confirming this scenario adopts the latest default template, stamp operator-asserted provenance; this does not recover history or validate compatibility.",
 		Before:      before,
 		After:       after,
 	}}, nil

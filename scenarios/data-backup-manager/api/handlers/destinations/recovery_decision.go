@@ -110,18 +110,20 @@ func (f *RecoveryDecisionFlow) RaiseRepairApproval(ctx context.Context, journal 
 	correlation := map[string]string{"recovery_id": journal.ID, "plan_id": plan.ID, "step_index": index}
 	facts := operatordecision.Facts{
 		Subject:  recoveryDecisionAskSubject,
-		Question: "May Data Backup Manager run the exact filesystem repair below? Repair can discard inconsistent filesystem metadata. Review the device identity and evidence before choosing.",
+		Question: "May Data Backup Manager run the exact filesystem repair below? It can discard filesystem metadata and may not resolve the repository-level I/O error. Approving authorizes one identity-bound attempt, followed by remount and verification; it does not authorize backup writes. Approve only if you accept that risk.",
 		Options: []operatordecision.Option{
 			{Key: "approve_repair", Label: "Approve this filesystem repair"},
 			{Key: "decline_repair", Label: "Do not repair; leave the drive unchanged"},
 		},
+		// Recommend only the single attempt the operator asked to make
+		// available as a risk-acceptance choice; state the uncertain benefit.
 		Recommended:          "approve_repair",
-		RecommendationReason: "The requested backup destination remains unavailable after a failed mount; this repair is bound to the selected volume identity and will be rechecked immediately before execution.",
+		RecommendationReason: "This is the requested one-time, identity-bound risk-acceptance path. Prior clean-check and SMART evidence make the benefit uncertain, and the Kopia EIO may remain.",
 		Reversible:           false,
 		Urgency:              "high",
 		Note:                 fmt.Sprintf("Recovery %s, step %d of %d. Destination: %s. Device: %s. Other currently actionable items: %s. Operator-required actions file: %s", journal.ID, journal.Current+1, len(journal.Steps), journal.Location, plan.Identity.StableString(), currentOperatorActionsDigest(), operatorActionsFileFullPath),
-		BigPicture:           "This decision controls whether DBM may alter filesystem metadata on the selected backup drive. Declining leaves the drive unchanged and the recovery paused.",
-		TechnicalDetails:     fmt.Sprintf("Action: %s. Plan: %s. Filesystem: %s. Stable identity: %s. Pre-repair check: %s. The callback re-inspects identity and current host state, requires this exact plan to remain valid, and executes only through the control-plane volume owner. No automatic/default approval is configured. Other currently actionable items: %s. Operator actions file: %s", plan.Action, plan.ID, plan.Identity.Filesystem, plan.Identity.StableString(), journal.LastError, currentOperatorActionsDigest(), operatorActionsFileFullPath),
+		BigPicture:           "This decision controls whether DBM may alter filesystem metadata on the selected backup drive. Approval authorizes one exact repair attempt; it does not guarantee repository recovery or enable backups. Declining leaves the drive unchanged and the recovery paused.",
+		TechnicalDetails:     fmt.Sprintf("Action: %s. Plan: %s. Filesystem: %s. Stable identity: %s. Recovery pause detail: %s. The callback re-inspects identity and current host state, requires this exact plan to remain valid, and executes only through the control-plane volume owner. No automatic/default approval is configured. Other currently actionable items: %s. Operator actions file: %s", plan.Action, plan.ID, plan.Identity.Filesystem, plan.Identity.StableString(), journal.LastError, currentOperatorActionsDigest(), operatorActionsFileFullPath),
 		Correlation:          correlation,
 	}
 	if err := facts.Validate(); err != nil {

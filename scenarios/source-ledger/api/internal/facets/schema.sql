@@ -31,6 +31,7 @@ CREATE TABLE IF NOT EXISTS facet_assignments (
   assigned_at TEXT NOT NULL,
   actor_id TEXT NOT NULL DEFAULT ''
 );
+CREATE INDEX IF NOT EXISTS idx_facet_assignments_entry_latest ON facet_assignments(entry_id, assigned_at DESC, id DESC);
 
 CREATE TABLE IF NOT EXISTS facet_assignment_archive (
   id TEXT PRIMARY KEY,
@@ -76,6 +77,7 @@ CREATE TABLE IF NOT EXISTS marks (
   replacement_entry_id TEXT,
   created_at TEXT NOT NULL
 );
+CREATE INDEX IF NOT EXISTS idx_marks_entry_kind ON marks(entry_id, kind);
 
 CREATE TABLE IF NOT EXISTS classification_rules (
   id TEXT PRIMARY KEY,

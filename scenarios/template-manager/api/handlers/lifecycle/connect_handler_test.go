@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/vrooli/vrooli/scenarios/template-manager/api/internal/catalog"
+	"github.com/vrooli/vrooli/scenarios/template-manager/api/internal/templatecontracts"
 	"github.com/vrooli/vrooli/scenarios/template-manager/api/internal/templateengine"
 	"github.com/vrooli/vrooli/scenarios/template-manager/api/internal/validationrunner"
 
@@ -190,6 +191,16 @@ func TestDriftReportRequiresScenarioOrAll(t *testing.T) {
 	}
 	if connect.CodeOf(err) != connect.CodeInvalidArgument {
 		t.Fatalf("error code = %v, want invalid_argument", connect.CodeOf(err))
+	}
+}
+
+func TestDriftScenarioMessagePreservesVerboseFileDiffs(t *testing.T) {
+	message := driftScenarioMessage(templatecontracts.TemplateDriftScenarioReport{
+		Scenario: "demo", TemplateID: "react-vite", Status: templatecontracts.TemplateDriftStatusDrifted,
+		FileDiffs: []templatecontracts.TemplateDriftFileDiff{{Path: "docs/new-guide.md", Reason: "added_in_template"}},
+	})
+	if len(message.FileDiffs) != 1 || message.FileDiffs[0].Path != "docs/new-guide.md" || message.FileDiffs[0].Reason != "added_in_template" {
+		t.Fatalf("file diffs = %#v, want path and reason preserved", message.FileDiffs)
 	}
 }
 

@@ -14,6 +14,8 @@ import (
 	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/devrouting"
 	"github.com/vrooli/api-core/health"
+	"github.com/vrooli/api-core/lifecycle"
+	apiServer "github.com/vrooli/api-core/server"
 	"github.com/vrooli/maturity-go/assessment"
 	repocontract "github.com/vrooli/repo-contract-go"
 	searchregister "github.com/vrooli/searchregister-go"
@@ -42,11 +44,6 @@ func Run(cfg appconfig.RuntimeConfig, dbConn *database.RoutedDB) error {
 	db = primaryDB
 	rt := ensureRuntime(cfg, primaryDB)
 	log.Println("Scenario Dependency Analyzer runtime initialized")
-	// Catalog discovery touches every scenario directory and the cleanup shares
-	// the API's SQLite connection. It is maintenance, not a readiness
-	// dependency, so leave a startup window for health checks before running it.
-	time.AfterFunc(time.Minute, func() { cleanupInvalidScenarioDependencies(rt) })
-
 	router := gin.Default()
 	corsMiddleware := cors.New(cors.Options{
 		AllowedOrigins: []string{"*"},
@@ -103,9 +100,6 @@ func Run(cfg appconfig.RuntimeConfig, dbConn *database.RoutedDB) error {
 
 	graphapi.RegisterConnectRoutes(router, h.scenariosDir, rt.Store(), graphOpts, searchService)
 	resourceusageapi.RegisterConnectRoutes(router, searchService)
-	if graphIngest != nil {
-		graphIngest.StartSweeper(context.Background())
-	}
 	repoRoot, repoRootErr := repocontract.ResolveRepoRoot()
 	if repoRootErr != nil {
 		log.Printf("dependency-health: could not resolve repo root for maturity spec: %v", repoRootErr)
@@ -117,7 +111,9 @@ func Run(cfg appconfig.RuntimeConfig, dbConn *database.RoutedDB) error {
 	// Capture host facts once; they do not change during the process lifetime.
 	// A failure (CLI unavailable) is non-fatal — the metrics collector backfills
 	// os/arch/num_cpu from the stdlib, leaving richer facts unset.
-	environment, envErr := vroolicli.New().HostCaptureEnvironment(context.Background())
+	environmentCtx, cancelEnvironment := context.WithTimeout(context.Background(), 2*time.Second)
+	environment, envErr := vroolicli.New().HostCaptureEnvironment(environmentCtx)
+	cancelEnvironment()
 	if envErr != nil {
 		log.Printf("dependency-health: host inventory unavailable, metrics environment limited to stdlib baseline: %v", envErr)
 		environment = nil
@@ -135,26 +131,45 @@ func Run(cfg appconfig.RuntimeConfig, dbConn *database.RoutedDB) error {
 	// logged, never fatal (upsert re-registers on next boot). The control-token
 	// callbacks cache the secret search-hub mints so the searchcontrol plane can
 	// authorize the sweep's reindex/config-write verbs.
-	go searchregister.Register(context.Background(), searchregister.Config{
-		ScenarioID:     "scenario-dependency-analyzer",
-		SearchFilePath: searchJSONPath,
-		Logger:         log.New(os.Stderr, "[scenario-dependency-analyzer/searchregister] ", log.LstdFlags),
-		OnControlToken: func(providerID string, token string) { controlTokens.Set(providerID, token) },
-		ControlToken:   func(providerID string) string { return controlTokens.Get(providerID) },
-	})
+	workers := newBackgroundWorkers(
+		func(ctx context.Context) {
+			select {
+			case <-ctx.Done():
+			case <-time.After(time.Minute):
+				cleanupInvalidScenarioDependencies(rt)
+			}
+		},
+		searchService.RunBackground,
+		func(ctx context.Context) {
+			if graphIngest != nil {
+				graphIngest.StartSweeper(ctx)
+			}
+		},
+		func(ctx context.Context) {
+			searchregister.Register(ctx, searchregister.Config{
+				ScenarioID:     "scenario-dependency-analyzer",
+				SearchFilePath: searchJSONPath,
+				Logger:         log.New(os.Stderr, "[scenario-dependency-analyzer/searchregister] ", log.LstdFlags),
+				OnControlToken: func(providerID string, token string) { controlTokens.Set(providerID, token) },
+				ControlToken:   func(providerID string) string { return controlTokens.Get(providerID) },
+			})
+		},
+	)
+	if err := workers.Start(context.Background()); err != nil {
+		return err
+	}
 
 	log.Printf("Starting Scenario Dependency Analyzer API on port %s", cfg.Port)
 	log.Printf("Scenarios directory: %s", cfg.ScenariosDir)
 
-	server := &http.Server{
-		Addr:              ":" + cfg.Port,
-		Handler:           handler,
-		ReadHeaderTimeout: 5 * time.Second,
-		ReadTimeout:       15 * time.Second,
-		WriteTimeout:      max(30*time.Second, cfg.InterfaceGraphBuildTimeout+5*time.Second),
-		IdleTimeout:       60 * time.Second,
-	}
-	return server.ListenAndServe()
+	return apiServer.Run(apiServer.Config{
+		Handler: handler,
+		Port:    cfg.Port,
+		LifecycleHooks: lifecycle.Hooks{
+			Quiesce: workers.Stop,
+			Resume:  workers.Start,
+		},
+	})
 }
 
 // securityHeaders protects every REST and Connect response at the router

@@ -427,5 +427,46 @@ through the OS and choose either a read-only check on another authorized
 computer or a same-host cable/direct-port isolation check. That decision was sent as Notification Hub ask
 `3c351a99-050f-4e29-b8c7-b396c179eaf2`, which includes the Hub `Other` answer
 and recommends an alternate-host test. Web Push receipt
-`b22de504-c4f5-43d8-b9ce-49b096631504` confirms delivery at 04:46:54Z. The ask
-is pending until the active commission deadline. The plan remains disabled.
+`b22de504-c4f5-43d8-b9ce-49b096631504` confirms delivery at 04:46:54Z. The
+operator answered `Other` at 04:48Z and clarified that a repair-risk decision
+was wanted instead; no transport check was selected. The plan remains
+disabled.
+
+## 2026-11-04 05:25Z — approved repair completed; repository EIO remains
+
+The operator answered DBM repair decision
+`1cef04aa-0df3-458f-825f-7441bb3f0d44` with verified-human
+`approve_repair`. DBM's source-bound callback ran exact repair plan
+`68eb4c93ac12dab9` for `/dev/sda1` (NTFS UUID `E26A883E6A881189`, serial
+`WD-WX52A946D6VL`) and attempted the approved read/write remount. The immediate
+mount post-check falsely reported failure. The root cause was
+`ReadOnlyInspector.InspectDevice`: Linux stable-identity lookup returns the
+`lsblk` block-device record without mountpoint/read-only facts, and the
+observer did not join that identity back to the mounted-volume scan. The
+control plane and location-based DBM readiness both observed the mounted
+read/write volume, while the device-only observer reported it as unmounted.
+
+The inspector now enriches an unmounted stable-identity result with a
+matching, freshly scanned mounted volume before evaluating mount state. After
+the API rebuilt and restarted through `make restart`, DBM resumed only the
+approved journal's idempotent mount-verification step. Journal
+`739086a9fc6e63cd5ea2c97b` is `completed`; repair and mount are completed, and
+read-only host inspect plus DBM readiness verify `/media/matthalloran8/Elements`
+is mounted read/write. Completion notice `a3b5b4d6-073e-4205-a180-63f35c8d6c03`
+was delivered by Web Push receipt `5eb47967-73ac-4d58-b135-948adc433936`.
+Earlier failure notices described the transient verification failure.
+
+The filesystem repair did not fix the repository-level error. Read-only
+destination usage still returns `EIO` on the exact preserved Kopia `.tmp`
+object, and preflight still blocks all 14 targets. No Elements backup was run;
+the scheduled runs observed in this interval targeted a different destination
+(`979cbbc2-2994-4a17-8169-0ecb8265b645`). NTFS dirty-state readiness remains
+UNKNOWN under the current NTFS-3G/FUSE mount. No tests were run for this live
+recovery update.
+
+After repair, the resource-kopia isolated-cache `repo cache-probe` completed
+with `snapshot_list_passed` and `repository_modified=false`; it used a
+temporary config/cache and did not alter the registered repository. This
+rules against corruption limited to the registered Kopia cache, but does not
+resolve the separate repo-stats failure on the exact `s/...f.tmp` object. A
+direct `stat` and directory walk of that exact path still return `EIO`.

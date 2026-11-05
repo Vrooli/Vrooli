@@ -69,6 +69,15 @@ Describe the actual cross-scenario interface graph assembled from `proto-health`
 
 ## Core Endpoints
 
+### `GET /scenarios/:scenario/bundle/manifest`
+
+Returns `{scenario, generated, manifest}` from current owner declarations.
+This query does not load or refresh a persisted deployment report; `refresh`
+is accepted for existing callers, and inputs are always read fresh. Shared
+dependencies retain their declared edges and expand once per owner. Embedded
+services and files still follow the requesting branch's policy. A cancelled
+request fails without publishing a partial manifest.
+
 ### Health & Status
 
 #### `GET /health`

@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "scenario": "search-hub",
-  "input_digest": "sha256:f74e62712ac115e1df5bf956cf8d59a2a2fa5a69d7ad93c28e77b7bc95de27a8",
+  "input_digest": "sha256:64c7e6bf9fc8a43dafc1fc356ed03e16bad6226a50a07aa010efa6c3cdac5a38",
   "input_files": [
     "schemas/common/v1/attestation.proto",
     "schemas/common/v1/confidence.proto",
@@ -41,7 +41,7 @@
     "gen/go/search-hub/v1/metrics/metrics_v1connect/metrics.connect.go": "sha256:e141b4fe97958e5dadbd3119a33cf806b44fa6ccbda305b846441048fe12fc0e",
     "gen/go/search-hub/v1/registry/registry.pb.go": "sha256:fd5e6d53f2a91cb279478184fb907c013941aa8741af15f15992f293f4f1f89c",
     "gen/go/search-hub/v1/registry/registry_v1connect/registry.connect.go": "sha256:f398ffc90e25dedd1b09bdf73fe17b3cf370e7e27dc7b27b88d6ec05f4fbd1e9",
-    "gen/go/search-hub/v1/routing/routing.pb.go": "sha256:38fac4a41655c16521c0fbd341ba58d2100c689f225546592df6d0c7cce5118e",
+    "gen/go/search-hub/v1/routing/routing.pb.go": "sha256:ccef4d6b066b8eb5e5b4b7172fdc1c24563fdeb1a167698994ca01f486e22be1",
     "gen/go/search-hub/v1/routing/routing_v1connect/routing.connect.go": "sha256:c04cb0384e4d6e396d3b6a36f6343f23775a429663c21f23024b6e0374fd1628",
     "gen/go/search-hub/v1/shared/routing_trace.pb.go": "sha256:bedc278bf7ffc500d02c269c5e0136b5abc7d5ba97536662b173dc0bbd2a24b9",
     "gen/python/search_hub/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
@@ -81,7 +81,7 @@
     "gen/typescript/search-hub/v1/measures/measures_pb.ts": "sha256:0eb57c0c519273c17ee54a51ea49d8065c197fdaaff73e239fc9acea858cd2de",
     "gen/typescript/search-hub/v1/metrics/metrics_pb.ts": "sha256:b38f20dc66c629f108d3e31e7dbd28f69c9b8301128383bd14044298492420cc",
     "gen/typescript/search-hub/v1/registry/registry_pb.ts": "sha256:39b3bd84f4695914c785307ed992b86ed4b53dc54d31f5664903dc4a8a2e346d",
-    "gen/typescript/search-hub/v1/routing/routing_pb.ts": "sha256:bcafccbe0a68841fdf5e1597969561c81c6108d580495633286489dc3416412a",
+    "gen/typescript/search-hub/v1/routing/routing_pb.ts": "sha256:48af321ab9e2a84658d548700433904ed79c095155e45bfc37a0c1efae8000a7",
     "gen/typescript/search-hub/v1/shared/routing_trace_pb.ts": "sha256:43f8265c76dee54adcae1fcf2508b657860337e5e4b15942fe3f9264854d853a"
   }
 }

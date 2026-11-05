@@ -47,6 +47,18 @@ func TestCleanupReportExplainsSkippedRuns(t *testing.T) {
 	}
 }
 
+func TestDriftReportSurfacesVerboseFileDiffs(t *testing.T) {
+	h := &handlers{}
+	report := h.driftReport(nil, &lifecyclev1.DriftReportResponse{Scenarios: []*lifecyclev1.DriftScenario{{
+		Scenario: "demo", Template: "react-vite", Status: "drifted", ContentDrifted: true,
+		FileDiffs: []*lifecyclev1.DriftFileDiff{{Path: "docs/new-guide.md", Reason: "added_in_template"}},
+	}}})
+	joined := strings.Join(report.Results, "\n")
+	if !strings.Contains(joined, "docs/new-guide.md") || !strings.Contains(joined, "added_in_template") {
+		t.Fatalf("results = %#v, want verbose missing-file detail", report.Results)
+	}
+}
+
 func TestDesignValidateReportGroupsPerKit(t *testing.T) {
 	h := &handlers{}
 	report := h.designValidateReport(nil, &lifecyclev1.ValidateDesignKitsResponse{

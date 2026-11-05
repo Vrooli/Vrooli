@@ -43,6 +43,7 @@ CREATE TABLE IF NOT EXISTS drift_snapshots (
 CREATE TABLE IF NOT EXISTS debt_entries (
   key TEXT PRIMARY KEY,
   template_id TEXT NOT NULL,
+  scenario_slug TEXT NOT NULL DEFAULT '',
   source TEXT NOT NULL,
   severity TEXT NOT NULL,
   status TEXT NOT NULL,

@@ -3,8 +3,7 @@ package phases
 import (
 	"strings"
 
-	"test-genie/internal/shared"
-
+	"github.com/vrooli/maturity-go/assessment"
 	"github.com/vrooli/vrooli/packages/proto/architecture/findingid"
 	architecturev1 "github.com/vrooli/vrooli/packages/proto/gen/go/architecture/v1"
 )
@@ -26,18 +25,7 @@ import (
 // Inputs may be bare ("error") or proto-style ("SEVERITY_ERROR"); both
 // normalize identically.
 func normalizeFindingSeverity(raw string) architecturev1.FindingSeverity {
-	switch shared.NormalizeFindingSeverityLabel(raw) {
-	case "blocker":
-		return architecturev1.FindingSeverity_FINDING_SEVERITY_BLOCKER
-	case "error":
-		return architecturev1.FindingSeverity_FINDING_SEVERITY_ERROR
-	case "warning":
-		return architecturev1.FindingSeverity_FINDING_SEVERITY_WARNING
-	case "info":
-		return architecturev1.FindingSeverity_FINDING_SEVERITY_INFO
-	default:
-		return architecturev1.FindingSeverity_FINDING_SEVERITY_UNSPECIFIED
-	}
+	return assessment.NormalizeSeverity(raw)
 }
 
 // defaultEffortForSource is the documented per-source effort heuristic.

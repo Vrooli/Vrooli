@@ -13,7 +13,9 @@ Keep responsibilities split cleanly:
 - `cli/internal/` owns PostgreSQL-specific Go logic that cannot be expressed through the manifest or shared control-plane packages.
 - `lib/` contains retained shell behavior only until the resource is fully migrated.
 
-Do not turn `cli/main.go` into the implementation surface. If the resource needs specialized runtime shaping, richer status interpretation, PostgreSQL-specific probes, or environment derivation, grow `cli/internal/install`, `cli/internal/runtime`, `cli/internal/status`, `cli/internal/health`, or `cli/internal/env` first.
+Do not turn `cli/main.go` into the implementation surface. Add a focused
+`cli/internal/...` package only when PostgreSQL behavior cannot be expressed
+in the manifest or shared control plane. Do not pre-create empty packages.
 
 ## Operator Checklist
 

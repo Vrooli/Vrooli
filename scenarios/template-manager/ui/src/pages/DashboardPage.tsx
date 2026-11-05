@@ -217,7 +217,7 @@ function DriftCard({ snapshots }: { snapshots: Array<{ id: string; templateId: s
   return (
     <ListCard title={t(strings.dashboard.drift.title)} description={t(strings.dashboard.drift.description)} empty={t(strings.dashboard.drift.empty)}>
       {snapshots.slice(0, 6).map((snapshot) => (
-        <Row key={snapshot.id} primary={snapshot.target} secondary={`${snapshot.templateId} · ${snapshot.driftCount} drifted`} badge={snapshot.status} tone={driftTone(snapshot.driftCount)} />
+        <Row key={snapshot.id} primary={snapshot.target} secondary={`${snapshot.templateId} · ${snapshot.driftCount} drifted`} badge={snapshot.status} tone={driftTone(snapshot.driftCount, snapshot.status)} />
       ))}
     </ListCard>
   );

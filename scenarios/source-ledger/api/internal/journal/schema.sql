@@ -20,6 +20,7 @@ CREATE TABLE IF NOT EXISTS entries (
 );
 CREATE UNIQUE INDEX IF NOT EXISTS idx_entries_scope_import_key ON entries(scope, import_key) WHERE import_key IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_entries_created_at ON entries(created_at ASC, id ASC);
+CREATE INDEX IF NOT EXISTS idx_entries_scope_created_id ON entries(scope, created_at ASC, id ASC);
 CREATE TABLE IF NOT EXISTS journal_high_water_mark (
   id INTEGER PRIMARY KEY CHECK (id=1),
   max_rowid INTEGER NOT NULL,

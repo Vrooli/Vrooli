@@ -155,6 +155,24 @@ message DriftScenario {
   bool manifest_drifted = 4;
   bool content_drifted = 5;
   string message = 6;
+  // Populated by verbose reports with current template files missing from the
+  // generated scenario. This is a presence diff, not a byte-level diff.
+  repeated DriftFileDiff file_diffs = 7;
+  // Template version recorded by the scenario and the current source version.
+  // Empty recorded_version means lineage is unknown.
+  string recorded_version = 8;
+  string current_version = 9;
+  string recorded_manifest_sha = 10;
+  string current_manifest_sha = 11;
+  string recorded_content_sha = 12;
+  string current_content_sha = 13;
+}
+
+message DriftFileDiff {
+  string path = 1;
+  // Currently added_in_template; preserved as a string for forward-compatible
+  // report reasons without requiring an enum migration.
+  string reason = 2;
 }
 
 message DriftReportResponse {

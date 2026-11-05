@@ -1299,7 +1299,9 @@ type ProviderHealth struct {
 	// True when a demoted provider still holds an elapsed probation slot and
 	// cannot be selected again until the state is reconciled.
 	Stuck *bool `protobuf:"varint,21,opt,name=stuck,proto3,oneof" json:"stuck,omitempty"`
-	// healthy, demoted, probe_due, probing, or stuck.
+	// Zero-yield demotion lifecycle: healthy, demoted, probe_due, probing, or
+	// stuck. This is independent of reachability and circuit_state, which track
+	// transport availability and recovery after provider request failures.
 	RecoveryState string `protobuf:"bytes,22,opt,name=recovery_state,json=recoveryState,proto3" json:"recovery_state,omitempty"`
 	Lifecycle     string `protobuf:"bytes,23,opt,name=lifecycle,proto3" json:"lifecycle,omitempty"`
 	DeclaredAt    string `protobuf:"bytes,24,opt,name=declared_at,json=declaredAt,proto3" json:"declared_at,omitempty"`

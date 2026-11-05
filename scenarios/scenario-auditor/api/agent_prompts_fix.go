@@ -97,6 +97,17 @@ func loadFixInstructions() (string, error) {
 	return fixInstructions, fixInstructionsErr
 }
 
+func newFixPromptSeverityCounts() map[string]int {
+	return map[string]int{"critical": 0, "high": 0, "medium": 0, "low": 0}
+}
+
+func addFixPromptSeverity(counts map[string]int, severity string) {
+	key := strings.ToLower(severity)
+	if _, ok := counts[key]; ok {
+		counts[key]++
+	}
+}
+
 func buildStandardsFixPrompt(scenarioName, scenarioPath string, violations []StandardsViolation, issueIDs []string) (string, string, map[string]string, error) {
 	if len(violations) == 0 {
 		return "", "", nil, fmt.Errorf("no standards violations provided for prompt generation")
@@ -114,17 +125,9 @@ func buildStandardsFixPrompt(scenarioName, scenarioPath string, violations []Sta
 		additional = len(violations) - maxIssuesForPrompt
 	}
 
-	severityCounts := map[string]int{
-		"critical": 0,
-		"high":     0,
-		"medium":   0,
-		"low":      0,
-	}
+	severityCounts := newFixPromptSeverityCounts()
 	for _, v := range violations {
-		key := strings.ToLower(v.Severity)
-		if _, ok := severityCounts[key]; ok {
-			severityCounts[key]++
-		}
+		addFixPromptSeverity(severityCounts, v.Severity)
 	}
 
 	ids := issueIDs
@@ -196,23 +199,14 @@ func buildMultiStandardsFixPrompt(targets []standardsFixMultiScenario, userInstr
 		return "", "", nil, fmt.Errorf("failed to load fix instructions: %w", err)
 	}
 
-	severityCounts := map[string]int{
-		"critical": 0,
-		"high":     0,
-		"medium":   0,
-		"low":      0,
-	}
-
+	severityCounts := newFixPromptSeverityCounts()
 	issueSet := make(map[string]struct{})
 	var issueIDs []string
 	total := 0
 	for _, target := range targets {
 		for _, violation := range target.Violations {
 			total++
-			key := strings.ToLower(violation.Severity)
-			if _, ok := severityCounts[key]; ok {
-				severityCounts[key]++
-			}
+			addFixPromptSeverity(severityCounts, violation.Severity)
 			if violation.ID != "" {
 				if _, exists := issueSet[violation.ID]; !exists {
 					issueSet[violation.ID] = struct{}{}
@@ -294,17 +288,9 @@ func buildVulnerabilityFixPrompt(scenarioName, scenarioPath string, findings []S
 		additional = len(sorted) - maxIssuesForPrompt
 	}
 
-	severityCounts := map[string]int{
-		"critical": 0,
-		"high":     0,
-		"medium":   0,
-		"low":      0,
-	}
+	severityCounts := newFixPromptSeverityCounts()
 	for _, v := range sorted {
-		key := strings.ToLower(v.Severity)
-		if _, ok := severityCounts[key]; ok {
-			severityCounts[key]++
-		}
+		addFixPromptSeverity(severityCounts, v.Severity)
 	}
 
 	ids := issueIDs

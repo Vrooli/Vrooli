@@ -36,6 +36,8 @@ for the full policy.
 | `SEARCH_HUB_RERANK_TIMEOUT` | `10s` | Maximum reranker-chain duration. Supported range: `100ms`-`20s`; the router also clips it to the remaining query budget minus a response cushion. |
 | `SEARCH_HUB_RERANK_BREAKER_FAILURES` | `3` | Consecutive reranker failures/timeouts before the router opens the reranker circuit and skips rerank. Supported range: `1`-`20`. |
 | `SEARCH_HUB_RERANK_BREAKER_COOLDOWN` | `60s` | How long an open reranker circuit stays open before one half-open probe is allowed. Supported range: `1s`-`10m`. |
+| `SEARCH_HUB_PROVIDER_BREAKER_FAILURES` | `3` | Consecutive provider request failures before that provider's transport circuit opens. Supported range: `1`-`20`. A provider circuit is independent of zero-yield demotion. |
+| `SEARCH_HUB_PROVIDER_BREAKER_COOLDOWN` | `30s` | Base delay before one provider recovery probe. Failed probes double the delay up to `max(5m, configured base)`; a successful probe closes the circuit and resets the delay. Supported range: `1s`-`10m`. |
 | `SEARCH_HUB_AUTO_ROUTE_EXTERNAL` | `false` | Allow automatic/classifier routing to reach external providers when a query is confidently web-shaped, and allow fallback escalation when project results are weak. Truthy values: `1`, `true`, `yes`, `on`. |
 
 The browser UI does not read `API_PORT` directly. It resolves API calls through
@@ -58,6 +60,12 @@ a successful probe closes the circuit. Operators who raise
 `SEARCH_HUB_RERANK_TIMEOUT` for cold Ollama fallback must keep the CLI HTTP
 timeout above the strategy's `query_budget`; the server will still clip rerank to
 the remaining query budget minus its response cushion.
+
+Provider request failures use a separate per-provider circuit. The failed leaf
+is skipped while its cooldown is active; one request can probe it after the
+delay. Repeated failed probes increase the delay, while a successful probe
+closes the circuit. This transport state does not imply zero-yield demotion:
+only successful, non-degraded empty responses contribute to that separate state.
 
 ### Corpus generation model role
 

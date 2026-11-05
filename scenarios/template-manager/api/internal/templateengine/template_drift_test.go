@@ -81,6 +81,17 @@ func TestAnalyzeDriftForScenarioDetectsContentDrift(t *testing.T) {
 	if report.Status != scenariocli.TemplateDriftStatusDrifted {
 		t.Fatalf("status = %q, want %q", report.Status, scenariocli.TemplateDriftStatusDrifted)
 	}
+	verbose := analyzeDriftForScenario(fakeRoot, sc, true)
+	foundREADME := false
+	for _, diff := range verbose.FileDiffs {
+		if diff.Path == "README.md" && diff.Reason == "added_in_template" {
+			foundREADME = true
+			break
+		}
+	}
+	if !foundREADME {
+		t.Fatalf("verbose file diffs = %#v, want the inherited README missing from the scenario", verbose.FileDiffs)
+	}
 }
 
 func TestAnalyzeDriftForScenarioMissingProvenance(t *testing.T) {
@@ -115,6 +126,39 @@ func TestAnalyzeDriftForScenarioMissingHashes(t *testing.T) {
 	report := analyzeDriftForScenario(fakeRoot, sc, false)
 	if report.Status != scenariocli.TemplateDriftStatusMissingHashes {
 		t.Fatalf("status = %q, want %q", report.Status, scenariocli.TemplateDriftStatusMissingHashes)
+	}
+}
+
+func TestCollectVerboseDiffsExcludesDetemplatedExampleDomain(t *testing.T) {
+	templateDir := t.TempDir()
+	for path, content := range map[string]string{
+		"api/handlers/notes/handler.go": "package notes\n",
+		"api/handlers/notes/README.md":  "example domain\n",
+		"api/handlers/notes-extra.go":   "inherited file\n",
+		"api/handlers/health.go":        "inherited file\n",
+	} {
+		abs := filepath.Join(templateDir, filepath.FromSlash(path))
+		if err := os.MkdirAll(filepath.Dir(abs), 0o755); err != nil {
+			t.Fatalf("mkdir %s: %v", path, err)
+		}
+		if err := os.WriteFile(abs, []byte(content), 0o644); err != nil {
+			t.Fatalf("write %s: %v", path, err)
+		}
+	}
+
+	got := collectVerboseDiffs(scenariocli.TemplateInfo{
+		Path: templateDir,
+		Manifest: scenariocli.TemplateManifest{
+			ExampleDomain: &scenariocli.TemplateExampleDomain{
+				Paths: []string{"api/handlers/notes"},
+			},
+		},
+	}, scenariomodel.Scenario{Path: t.TempDir()})
+	if len(got) != 2 {
+		t.Fatalf("verbose diffs = %#v, want only the two inherited files", got)
+	}
+	if got[0].Path != "api/handlers/health.go" || got[1].Path != "api/handlers/notes-extra.go" {
+		t.Fatalf("verbose diffs = %#v, want sorted inherited paths and no example subtree", got)
 	}
 }
 

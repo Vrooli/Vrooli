@@ -36,6 +36,14 @@ their decay window, scoped to the demoted provider and recorded as automatic
 recovery evidence. It never retains prior hits, so mutable provider data is
 never shown as current while that provider is down.
 
+These are two independent state machines. `circuit_state` reports transport
+availability (`closed`, `open`, or `probe_due`); `recovery_state` reports only
+the successful-zero-yield demotion lifecycle (`healthy`, `demoted`,
+`probe_due`, `probing`, or `stuck`). A provider can therefore be unreachable
+with a healthy zero-yield state. Transport errors never count as empty corpus
+evidence, and clearing a zero-yield demotion does not close an open transport
+circuit. Read both fields together when diagnosing provider health.
+
 ### Honest routing signals
 
 Transport errors and successful empty answers are separate signals. Errors open

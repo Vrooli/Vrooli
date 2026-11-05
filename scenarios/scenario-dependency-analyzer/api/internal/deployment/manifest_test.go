@@ -1,7 +1,9 @@
 package deployment
 
 import (
+	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	runtimeManifest "github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/manifest"
 	"os"
@@ -14,6 +16,169 @@ import (
 	"github.com/vrooli/vrooli/scenarios/scenario-dependency-analyzer/api/internal/config"
 	types "github.com/vrooli/vrooli/scenarios/scenario-dependency-analyzer/api/internal/types"
 )
+
+func writeBundleGraphOwner(t *testing.T, dir, name string, deps map[string]scenariomodel.Dependency) {
+	t.Helper()
+	cfg := scenariomodel.ServiceManifest{
+		Service:      scenariomodel.ServiceMetadata{Name: name, Version: "1.0.0"},
+		Dependencies: scenariomodel.Dependencies{Scenarios: deps},
+		Components: map[string]scenariomodel.Component{
+			"api": {Role: "api", Build: scenariomodel.ComponentBuild{Kind: "go_module", Dir: "api"}},
+			"ui":  {Role: "ui", Build: scenariomodel.ComponentBuild{Kind: "pnpm_vite", Dir: "ui"}},
+		},
+	}
+	path := filepath.Join(dir, name, ".vrooli")
+	if err := os.MkdirAll(path, 0700); err != nil {
+		t.Fatal(err)
+	}
+	raw, err := json.Marshal(cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(path, "service.json"), raw, 0600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(path, "desktop-features.json"), []byte(`{"work":{"service":"api","port":"api"}}`), 0600); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// A discovered branch can encounter an owner before the branch that embeds it.
+// The latter must retain that owner's children, UI request and feature exports.
+func TestFreshBundleManifestPreservesSharedOwnerSemantics(t *testing.T) {
+	for _, cycle := range []bool{false, true} {
+		t.Run(fmt.Sprintf("cycle=%t", cycle), func(t *testing.T) {
+			dir := t.TempDir()
+			writeBundleGraphOwner(t, dir, "root", map[string]scenariomodel.Dependency{
+				"a-discovered": {BundlePolicy: "discover"},
+				"z-embedded":   {BundlePolicy: "embed", Required: true},
+			})
+			writeBundleGraphOwner(t, dir, "a-discovered", map[string]scenariomodel.Dependency{"shared": {BundlePolicy: "discover", VersionRange: ">=1.0.0"}})
+			writeBundleGraphOwner(t, dir, "z-embedded", map[string]scenariomodel.Dependency{"shared": {BundlePolicy: "embed", Required: true, IncludeUI: true, VersionRange: ">=1.0.0"}})
+			writeBundleGraphOwner(t, dir, "shared", map[string]scenariomodel.Dependency{"leaf": {BundlePolicy: "embed", Required: true}})
+			var back map[string]scenariomodel.Dependency
+			if cycle {
+				back = map[string]scenariomodel.Dependency{"root": {BundlePolicy: "discover"}}
+			}
+			writeBundleGraphOwner(t, dir, "leaf", back)
+			path := filepath.Join(dir, "root")
+			cfg, err := config.LoadServiceConfig(path)
+			if err != nil {
+				t.Fatal(err)
+			}
+			nodes := BuildDependencyNodeList(dir, "root", cfg, map[string]struct{}{"root": {}})
+			old := BuildBundleManifest("root", path, time.Time{}, nodes, cfg)
+			fresh, err := BuildFreshBundleManifest(context.Background(), "root", path, dir, cfg)
+			if err != nil {
+				t.Fatal(err)
+			}
+			fresh.GeneratedAt = time.Time{}
+			if !jsonEqual(old, fresh) {
+				a, _ := json.Marshal(old)
+				b, _ := json.Marshal(fresh)
+				t.Fatalf("manifest semantics changed\nexpanded=%s\nbounded=%s", a, b)
+			}
+			services := map[string]bool{}
+			for _, service := range fresh.Skeleton.Services {
+				services[service.ID] = true
+			}
+			for _, id := range []string{"shared--api", "shared--ui", "leaf--api"} {
+				if !services[id] {
+					t.Fatalf("required transitive/shared service %q lost", id)
+				}
+			}
+			if services["a-discovered--api"] {
+				t.Fatal("discovered-only service was bundled")
+			}
+		})
+	}
+}
+
+func TestFreshBundleManifestBoundsRepeatedFanIn(t *testing.T) {
+	dir := t.TempDir()
+	const levels = 18
+	for level := levels - 1; level >= 0; level-- {
+		for _, side := range []string{"a", "b"} {
+			deps := map[string]scenariomodel.Dependency{}
+			if level+1 < levels {
+				for _, next := range []string{"a", "b"} {
+					deps[fmt.Sprintf("n%02d%s", level+1, next)] = scenariomodel.Dependency{BundlePolicy: "embed", Required: true}
+				}
+			}
+			writeBundleGraphOwner(t, dir, fmt.Sprintf("n%02d%s", level, side), deps)
+		}
+	}
+	writeBundleGraphOwner(t, dir, "root", map[string]scenariomodel.Dependency{"n00a": {BundlePolicy: "embed"}, "n00b": {BundlePolicy: "embed"}})
+	path := filepath.Join(dir, "root")
+	cfg, err := config.LoadServiceConfig(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	graph := &bundleDependencyGraph{ctx: ctx, children: map[string][]types.DeploymentDependencyNode{}}
+	nodes := BuildDependencyNodeListWithOptions(dir, "root", cfg, map[string]struct{}{"root": {}}, DependencyBuildOptions{bundleGraph: graph})
+	count := 0
+	var walk func([]types.DeploymentDependencyNode)
+	walk = func(nodes []types.DeploymentDependencyNode) {
+		for _, n := range nodes {
+			count++
+			walk(n.Children)
+		}
+	}
+	walk(nodes)
+	if count > 4*levels || len(graph.children) != 2*levels {
+		t.Fatalf("fan-in expanded paths: nodes=%d owners=%d", count, len(graph.children))
+	}
+	fresh, err := BuildFreshBundleManifest(ctx, "root", path, dir, cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(fresh.Skeleton.Services) != 2+2*levels {
+		t.Fatalf("lost owner services: %d", len(fresh.Skeleton.Services))
+	}
+	raw, err := json.Marshal(fresh)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(raw) > 500000 {
+		t.Fatalf("manifest grew with dependency paths: %d bytes", len(raw))
+	}
+	t.Logf("18-level fan-in: %d owners, %d retained edges, %d manifest bytes", len(graph.children), count, len(raw))
+}
+
+func TestFreshBundleManifestHonorsCancellation(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	manifest, err := BuildFreshBundleManifest(ctx, "root", "absent", "absent", &types.Manifest{})
+	if !errors.Is(err, context.Canceled) || manifest != nil {
+		t.Fatalf("cancelled query emitted manifest: %v %v", manifest, err)
+	}
+}
+
+func TestFreshBundleManifestRevisitsCycleThroughEmbeddedBranch(t *testing.T) {
+	dir := t.TempDir()
+	writeBundleGraphOwner(t, dir, "root", map[string]scenariomodel.Dependency{"a": {BundlePolicy: "discover"}, "z": {BundlePolicy: "embed"}})
+	writeBundleGraphOwner(t, dir, "a", map[string]scenariomodel.Dependency{"b": {BundlePolicy: "embed"}, "leaf": {BundlePolicy: "embed"}})
+	writeBundleGraphOwner(t, dir, "b", map[string]scenariomodel.Dependency{"a": {BundlePolicy: "embed"}})
+	writeBundleGraphOwner(t, dir, "z", map[string]scenariomodel.Dependency{"b": {BundlePolicy: "embed"}})
+	writeBundleGraphOwner(t, dir, "leaf", nil)
+	path := filepath.Join(dir, "root")
+	cfg, err := config.LoadServiceConfig(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	nodes := BuildDependencyNodeList(dir, "root", cfg, map[string]struct{}{"root": {}})
+	old := BuildBundleManifest("root", path, time.Time{}, nodes, cfg)
+	fresh, err := BuildFreshBundleManifest(context.Background(), "root", path, dir, cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	fresh.GeneratedAt = time.Time{}
+	if !jsonEqual(old, fresh) {
+		t.Fatal("later embedded path through a previously encountered cycle lost manifest facts")
+	}
+}
 
 func TestEmbedPeerServicesProjectsDeclaredPeer(t *testing.T) {
 	peerRoot := t.TempDir()

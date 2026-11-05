@@ -241,6 +241,23 @@ message ToolFrictionRequest {
   int32 limit = 3;
 }
 
+// ToolFrictionProjectionQueue is a point-in-time snapshot of the global
+// projection worker's durable queue. It is independent of the friction window.
+message ToolFrictionProjectionQueue {
+  bool available = 1;
+  int64 pending_runs = 2;
+  // Subset of pending_runs whose next attempt is due now.
+  int64 due_runs = 3;
+  // Pending runs with at least one prior failed attempt; may also be due now.
+  int64 retrying_runs = 4;
+  // Runs whose source events were evicted, so stored old-version facts remain
+  // excluded from current-version findings until the source becomes available.
+  int64 unreplayable_runs = 5;
+  // Earliest scheduled attempt among due rows, empty when no attempt is due.
+  string oldest_due_at = 6;
+  string captured_at = 7;
+}
+
 // ToolFrictionCoverage is how much of the window the profiles can see. An
 // empty finding list means nothing only beside it.
 message ToolFrictionCoverage {
@@ -256,12 +273,14 @@ message ToolFrictionCoverage {
   int64 older_parser_commands = 7;
   // Commands of runs with no transcript record, whose parser is unknown.
   int64 no_transcript_commands = 11;
-  // Runs whose facts are at an older invocation fact version, awaiting
-  // re-derivation, and their command calls: no finding reads them.
+  // Runs and calls with facts at an older invocation fact version; no finding
+  // reads them. This is a coverage count, not a queue count.
   int64 stale_runs = 8;
   int64 stale_calls = 9;
   // Commands whose result tokens are unknown (counted as 0 tokens).
   int64 unknown_token_commands = 10;
+  // Global queue state, independent of this window's coverage counts.
+  ToolFrictionProjectionQueue projection_queue = 12;
 }
 
 // ToolFrictionSummary is the window's rates over every command call.

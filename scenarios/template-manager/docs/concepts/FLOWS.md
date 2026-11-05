@@ -7,7 +7,7 @@ Template Manager has several stateful workflows because generation, validation, 
 | Flow | Domain | Trigger | Outcome | Statefulness | Validation |
 |---|---|---|---|---|---|
 | Validation run | validation | CLI/API request or scheduler. | Persisted terminal run with parsed findings and debt updates. | Execution is synchronous; shallow follows the request context, while deep continues after caller disconnect. Persisted run statuses are passed or failed. | Unit fake-runner tests plus live shallow/deep smoke. |
-| Drift snapshot | validation | CLI/API drift request or scheduled run. | Fleet/template drift records and version lag. | running, succeeded, failed. | Parser/persistence tests and live drift proof. |
+| Drift snapshot | validation | CLI/API drift request or scheduled run. | A completed fleet observation classified as `in_sync`, `drifted`, or `incomplete`; confirmed drift also updates scenario debt. | The scan either returns an execution error or produces a verdict. A detected problem is not a failed scan; missing provenance/hash evidence is never classified as clean. | Parser/persistence checks and a live drift read. |
 | Provenance autofix | phase-provider | test-genie fix preview/apply. | Target scenario gains adopted generation provenance. | preview, applicable, applied, no-op, failed. | Provider-contract live probe and disposable target apply. |
 | Orientation guidance | guidance | API/CLI request for a target scenario. | Next incomplete gate with check contract. | computed from current target files; no long-running state. | Fixture tests for pre-finalize and finalized scenarios. |
 | Deep-validate monitor | monitor | Scheduler interval. | Serialized deep validation run per registered template. | idle, due, running, skipped_busy, succeeded, failed. | Short-interval scheduler integration test. |
@@ -31,11 +31,12 @@ Cancellation ownership is mode-specific. Shallow validation is request-owned: su
 
 1. ValidateScenario reads target `.vrooli/service.json`.
 2. Missing generation provenance returns L0 `PROVENANCE_MISSING` with an auto fixer.
-3. PreviewFix computes the adopted-provenance patch without writing.
-4. ApplyFix writes the latest default template id/version and marks the provenance as adopted, not generated.
-5. A second preview/apply returns no-op.
+3. The operator checks repository history and template migrations to establish whether adopting the latest default is accurate.
+4. PreviewFix computes the patch without writing; it does not infer lineage or validate compatibility.
+5. ApplyFix records the operator's latest-default adoption assertion. Unknown lineage stays unknown when evidence is absent.
+6. A second preview/apply returns no-op.
 
-Invariant: the templates phase stays static and cheap; it never starts deep validation.
+Invariant: adopted provenance is an operator assertion, not recovered history. Never assign the current template hash to unknown older source to make drift appear clean. The templates phase stays static and cheap; it never starts deep validation.
 
 ## Monitor Flow
 
@@ -56,6 +57,7 @@ The hard-cutover phases move existing engine behavior into Template Manager with
 | validation / run | passed, failed (persisted terminal states) | persisted terminal evidence without a parsed result | Repository persistence tests and mode-specific cancellation tests |
 | phase-provider / autofix | previewed, applied, no_op, failed | apply without applicable finding; generated provenance for adopted legacy target | Autofix registry tests |
 | monitor / deep validate | idle, due, running, skipped_busy, succeeded, failed | concurrent running jobs; next run before current terminal state | Scheduler tests |
+| validation / drift snapshot | scanning, then `in_sync`, `drifted`, or `incomplete` | incomplete evidence labeled clean; drift findings labeled execution failure | A completed scan persists its evidence verdict; scan/persistence errors return errors without a misleading verdict snapshot |
 
 ## Cross-References
 

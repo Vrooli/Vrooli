@@ -9,6 +9,7 @@ import (
 	"connectrpc.com/connect"
 
 	"github.com/vrooli/cli-core/cliapp"
+	maturityreport "github.com/vrooli/maturity-go/report"
 	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 	scenariovalidationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1"
 	scenariovalidationconnect "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1/scenariovalidationv1connect"
@@ -184,13 +185,7 @@ func countSeverity(a *commonv1.MaturityAssessment, severity string) int {
 	if a == nil {
 		return 0
 	}
-	total := 0
-	for key, count := range a.GetFindingsBySeverity() {
-		if severityLabel(key) == severity {
-			total += int(count)
-		}
-	}
-	return total
+	return maturityreport.CountFindingsBySeverity(a.GetFindingsBySeverity(), severity)
 }
 
 func formatFinding(f *commonv1.AssessmentFinding) string {

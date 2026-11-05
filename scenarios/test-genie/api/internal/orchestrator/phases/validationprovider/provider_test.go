@@ -321,11 +321,10 @@ func testAssessment(severity string) *commonv1.MaturityAssessment {
 		Phase:    "proto",
 		Version:  "1",
 		Local:    &commonv1.LocalMaturityAssessment{CurrentLevel: "L1", NextLevel: "L2", Clean: true, UnknownCount: 1},
-		FindingsBySeverity: map[string]int32{
-			severity: 1,
-		},
+		FindingsBySeverity: map[string]int32{},
 	}
 	if severity != "" {
+		a.FindingsBySeverity[severity] = 1
 		a.Findings = []*commonv1.AssessmentFinding{{
 			Code:        "proto.gen_out_of_sync",
 			Severity:    severity,
@@ -370,6 +369,7 @@ func testCapabilityAssessment() *commonv1.MaturityAssessment {
 			PriorityRank:         2,
 			PriorityReason:       "lowest current level with required/blocking findings WARNING capability_gap",
 			BlockingFindingCodes: []string{"proto.gen_out_of_sync"},
+			FindingsBySeverity:   map[string]int32{"SEVERITY_WARNING": 1},
 			Levels: []*commonv1.LocalMaturityLevel{
 				{Id: "L0"},
 				{Id: "L1"},
@@ -644,6 +644,7 @@ func TestRunOmitsCleanCapabilitySpam(t *testing.T) {
 	assessment.FindingsByGlobalImpact = map[string]int32{}
 	assessment.Capabilities[0].Clean = true
 	assessment.Capabilities[1].Clean = true
+	assessment.Capabilities[1].FindingsBySeverity = map[string]int32{}
 	assessment.Capabilities[1].BlockingFindingCodes = nil
 	assessment.HighestPriorityCapability = nil
 	assessment.Presentation = assessmentpkg.BuildPhasePresentation(assessment)
