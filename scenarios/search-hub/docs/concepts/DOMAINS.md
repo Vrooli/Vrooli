@@ -170,7 +170,10 @@ query ─▶ [routing: classifier picks provider types]  (or explicit --type / -
 - Owns: classifier (behind a `Classifier` interface — swappable),
   fan-out orchestration, by-provider grouping (the honest pre-rerank
   shape), graceful skip-with-warning for down/stale providers, and the
-  `Query` / `Status` RPCs + `search` CLI.
+  `Query` / `Status` RPCs + `search` CLI. On successful rerank, `ranked`
+  owns the complete hit payload while provider groups retain counts and
+  degradation provenance; when reranking is skipped or degrades, groups keep
+  their hits.
 - Does not own: corpus retrieval (providers), final ranking (rerank),
   or descriptor persistence (registry). Classification is **widen-on-
   uncertainty** — over-fetch and let rerank kill noise (plan §4).

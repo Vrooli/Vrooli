@@ -22,6 +22,7 @@ import (
 	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/devrouting"
 	"github.com/vrooli/api-core/filerouting"
+	apilifecycle "github.com/vrooli/api-core/lifecycle"
 	"github.com/vrooli/api-core/preflight"
 	"github.com/vrooli/api-core/receiptsigning"
 	apiserver "github.com/vrooli/api-core/server"
@@ -140,9 +141,13 @@ func main() {
 		w.Header().Set("X-XSS-Protection", "0")
 		handlers.CORS(corsHeaders, corsMethods, corsOrigins, corsCredentials)(apihttp.TestModeMiddleware(ownerAuthBoundary(rootMux, authenticatorVerifier, agentIdentityVerifier, apiServer.handlers.passwordManager.manager))).ServeHTTP(w, request)
 	})
+	lifecycleProvider, err := apilifecycle.NewProviderFromEnv(nil, apilifecycle.Hooks{})
+	if err != nil {
+		log.Fatal("lifecycle provider setup failed:", err)
+	}
 	httpServer := &http.Server{
 		Addr:      ":" + port,
-		Handler:   securityHeaders,
+		Handler:   lifecycleProvider.Mount(securityHeaders),
 		TLSConfig: tlsConfig,
 	}
 	if err := apiserver.Run(apiserver.Config{
@@ -154,8 +159,9 @@ func main() {
 			}
 			return httpServer.ListenAndServe()
 		},
-		ShutdownServer: httpServer.Shutdown,
-		Logger:         logger.Info,
+		ShutdownServer:                httpServer.Shutdown,
+		Logger:                        logger.Info,
+		LifecycleConfiguredExternally: true,
 	}); err != nil {
 		log.Fatal("Secrets Manager API server failed:", err)
 	}

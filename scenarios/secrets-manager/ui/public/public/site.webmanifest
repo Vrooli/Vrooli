@@ -1,18 +1,17 @@
 {
-  "name": "Secrets Manager",
-  "short_name": "Secrets",
-  "id": "./",
+  "background_color": "#010510",
   "description": "Validate credential coverage, audit vulnerabilities, and provision declared credentials.",
   "display": "standalone",
-  "start_url": "./",
-  "scope": "./",
-  "background_color": "#010510",
-  "theme_color": "#010510",
   "icons": [
     {
-      "src": "favicon.svg",
       "sizes": "any",
+      "src": "favicon.svg",
       "type": "image/svg+xml"
     }
-  ]
+  ],
+  "name": "Secrets Manager",
+  "scope": "../",
+  "short_name": "Secrets",
+  "start_url": "../",
+  "theme_color": "#010510"
 }

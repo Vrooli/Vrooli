@@ -13,14 +13,9 @@
 -- Times are RFC3339Nano strings, matching the notes-domain convention and the
 -- wire format. The router holds NO corpus content and NO vectors here — only
 -- the registry (this table) and, from Phase 7, query telemetry.
--- control_token is the per-provider secret search-hub mints at first
--- registration and echoes on every subsequent register. It gates the dangerous
--- verbs (per-request query-time overrides, reindex, config-write): the provider
--- caches it in memory from the register response and validates incoming
--- override/reindex/config calls against it, while search-hub presents it when
--- it calls the provider. Stored server-side here so it survives a search-hub
--- restart (the provider re-acquires it via the next register echo). Empty until
--- the provider has registered at least once.
+-- control_token is a retired legacy column. New and migrated bearer tokens
+-- live only in the credential authority; Search Hub stores per-provider
+-- witnesses below so loss of the authority value fails closed.
 CREATE TABLE IF NOT EXISTS providers (
   provider_id    TEXT PRIMARY KEY,
   provider_group TEXT NOT NULL DEFAULT '',
@@ -32,6 +27,14 @@ CREATE TABLE IF NOT EXISTS providers (
   control_token  TEXT NOT NULL DEFAULT '',
   created_at     TEXT NOT NULL,
   updated_at     TEXT NOT NULL
+);
+
+-- Non-secret credential-loss witnesses. A row means a provider has received a
+-- token before, so an absent token-set credential cannot be mistaken for a
+-- first registration and silently replaced.
+CREATE TABLE IF NOT EXISTS provider_control_token_witness (
+  provider_id TEXT PRIMARY KEY,
+  minted_at   TEXT NOT NULL
 );
 
 CREATE INDEX IF NOT EXISTS idx_providers_group  ON providers(provider_group);

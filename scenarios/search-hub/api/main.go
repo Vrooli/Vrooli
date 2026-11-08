@@ -13,6 +13,7 @@ import (
 
 	"search-hub/internal/eval"
 	"search-hub/internal/modules"
+	internalregistry "search-hub/internal/registry"
 	"search-hub/internal/server"
 
 	"github.com/vrooli/api-core/schedule"
@@ -111,6 +112,9 @@ func main() {
 	}
 	if err := database.EnsureSchemas(context.Background(), db.Primary(), modules.AllSchemas()...); err != nil {
 		log.Fatalf("schema initialization failed: %v", err)
+	}
+	if err := internalregistry.NewSQLiteStore(db, schedule.System()).MigrateLegacyControlTokens(context.Background()); err != nil {
+		log.Fatalf("provider control-token migration failed; credential authority must be restored before Search Hub can serve providers: %v", err)
 	}
 
 	// Register the SHRINKING set of starter eval suites search-hub still ships

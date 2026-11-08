@@ -71,7 +71,7 @@ export function SearchPanel() {
   };
 
   const data = searchQuery.data;
-  const totalHits = data ? data.groups.reduce((sum, g) => sum + g.hits.length, 0) : 0;
+  const totalHits = data ? data.groups.reduce((sum, g) => sum + g.count, 0) : 0;
 
   return (
     <div data-testid={selectors.search.panel} className="flex flex-col gap-4">

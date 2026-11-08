@@ -1,5 +1,5 @@
 const CACHE_NAME = "secrets-manager-app-shell-v1";
-const APP_SHELL = ["./", "./index.html", "./site.webmanifest", "./favicon.svg"];
+const APP_SHELL = ["./", "./index.html", "./public/site.webmanifest", "./public/favicon.svg"];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(

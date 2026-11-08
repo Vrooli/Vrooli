@@ -115,3 +115,61 @@ func TestQueryReportPutsDegradationInFirstSummaryLine(t *testing.T) {
 		t.Fatalf("first summary line = %q", report.Summary)
 	}
 }
+
+func TestRerankedQueryReportRendersHitPayloadOnceAndKeepsProviderSummary(t *testing.T) {
+	hit := &routingv1.SearchHit{
+		ProviderId: "agent-manager.runs",
+		Id:         "run-1",
+		Title:      "Agent run",
+		Snippet:    "A distinctive result snippet",
+	}
+	report := (&handlers{}).queryReport(nil, &routingv1.QueryResponse{
+		Reranked:  true,
+		OrderedBy: "rerank_score",
+		Ranked:    []*routingv1.SearchHit{hit},
+		Groups: []*routingv1.ProviderResultGroup{{
+			ProviderId: "agent-manager.runs",
+			Count:      1,
+			Hits:       []*routingv1.SearchHit{hit}, // Simulate a pre-projection response.
+		}},
+	})
+	joined := strings.Join(report.Results, "\n")
+	if strings.Count(joined, "A distinctive result snippet") != 1 {
+		t.Fatalf("result snippet appears more than once in report:\n%s", joined)
+	}
+	if !strings.Contains(joined, "agent-manager.runs (1)") {
+		t.Fatalf("provider summary is missing:\n%s", joined)
+	}
+	if !strings.Contains(strings.Join(report.Summary, "\n"), "1 total hit(s)") {
+		t.Fatalf("provider hit count is missing from summary: %v", report.Summary)
+	}
+}
+
+func TestGroupedQueryReportKeepsProviderHitDetails(t *testing.T) {
+	msg := &routingv1.QueryResponse{Groups: []*routingv1.ProviderResultGroup{{
+		ProviderId: "docs.provider",
+		Count:      1,
+		Hits: []*routingv1.SearchHit{{
+			Id: "doc-1", Title: "Useful document", Snippet: "Grouped evidence remains visible",
+		}},
+	}}}
+	report := (&handlers{}).queryReport(nil, msg)
+	joined := strings.Join(report.Results, "\n")
+	if !strings.Contains(joined, "Grouped evidence remains visible") {
+		t.Fatalf("grouped hit evidence is missing:\n%s", joined)
+	}
+	if !strings.Contains(strings.Join(report.Summary, "\n"), "1 total hit(s)") {
+		t.Fatalf("provider count is missing from summary: %v", report.Summary)
+	}
+}
+
+func TestParseLimitUsesFastDefaultAndHonorsExplicitDepth(t *testing.T) {
+	for _, raw := range []string{"", "  ", "invalid", "0", "-2"} {
+		if got := parseLimit(raw); got != defaultQueryLimit {
+			t.Errorf("parseLimit(%q) = %d, want default %d", raw, got, defaultQueryLimit)
+		}
+	}
+	if got := parseLimit("10"); got != 10 {
+		t.Fatalf("parseLimit(10) = %d, want explicit limit 10", got)
+	}
+}

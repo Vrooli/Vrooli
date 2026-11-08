@@ -242,6 +242,8 @@ describe("PasswordManagerApp", () => {
     expect(await screen.findByText("Evidence tampered")).toBeInTheDocument();
   });
 
+  // Five journeys in one test: ~1s alone, several times that on a loaded
+  // host running every suite in parallel; the default 5s budget is too tight.
   it("covers access, source, settings, recovery, and edit journeys", async () => {
     defaults();
     api.requests.mockResolvedValue({ requests: [{ id: "request-1", grant_id: "grant-1", item_id: "item-1", operation: "use", request_digest: "digest-1", status: "pending", requested_by: "agent-1" }] });
@@ -295,7 +297,7 @@ describe("PasswordManagerApp", () => {
     fireEvent.change(screen.getByLabelText("Name"), { target: { value: "GitHub updated" } });
     fireEvent.click(screen.getByRole("button", { name: "Save revision" }));
     await waitFor(() => expect(api.update).toHaveBeenCalled());
-  });
+  }, 15_000);
 
   it("covers protected actions and provider controls without exposing values", async () => {
     defaults();

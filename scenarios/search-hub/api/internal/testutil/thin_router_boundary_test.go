@@ -43,6 +43,9 @@ import (
 var knownTables = map[string]bool{
 	// Provider registry (internal/registry/schema.sql)
 	"providers": true,
+	// Credential-loss witnesses are registry metadata; bearer values live in
+	// the credential authority, not in router storage.
+	"provider_control_token_witness": true,
 	// Query telemetry (internal/metrics/schema.sql)
 	"query_telemetry":          true,
 	"query_telemetry_provider": true,

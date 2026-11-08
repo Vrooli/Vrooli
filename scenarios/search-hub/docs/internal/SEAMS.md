@@ -255,9 +255,9 @@ and use matrix/trace helpers from the relevant testutil package.
 |---|---|
 | **Seam** | Per-provider control-token read |
 | **Interface** | `internal/registry/store.go::Store.Token(ctx, id) (string, error)` (mint/persist lives in `Store.Upsert(ctx, d, presentedToken)`). |
-| **Production wiring** | `RegisterProvider` mints on first insert and echoes thereafter; the sweep (Phase 6) reads the token here to present it when issuing token-gated overrides to the provider. Persisted in the `providers.control_token` column. |
+| **Production wiring** | `RegisterProvider` mints on first insert and echoes thereafter; the sweep (Phase 6) reads the token here to present it when issuing token-gated overrides to the provider. Raw values live in the Vrooli credential authority; SQLite stores only per-provider loss witnesses and an empty legacy `providers.control_token` column. Startup migrates legacy values before serving. |
 | **Test fake** | `handlers/registry/connect_handler_test.go::fakeStore` (token in/out + presented-token capture); SQLite behavior pinned in `internal/registry/store_test.go` (`TestStoreUpsertTokenOwnership`, `TestStoreToken`). |
-| **Why it exists** | The control token is the shared secret gating override/reindex/config-write. search-hub is the authoritative minter+store; a provider re-acquires it from the register echo each boot (memory-only), so the token survives a provider restart without provider-side persistence. |
+| **Why it exists** | The control token is the shared secret gating override/reindex/config-write. search-hub is the authoritative minter+holder; the credential authority keeps the value across restarts, while the provider re-acquires it from the register echo on each boot (memory-only). |
 
 ### ResultMapping.measure_field (measure carrier)
 

@@ -87,6 +87,18 @@ Read values back without an argument:
 search-hub configure api_base
 ```
 
+## Scenario command — `query`
+
+`search-hub query "<text>"` searches the selected provider set. The CLI defaults
+to five results per provider to keep ordinary reads bounded; pass `--limit 10`
+or another positive limit when a deeper search is needed. `--type`, `--group`,
+and `--scope` narrow the provider set, while `--all` explicitly fans out across
+active providers.
+
+```bash
+search-hub query "how do I inspect a completed run" --type command,doc --limit 5
+```
+
 ## Scenario commands — `providers` (registry)
 
 The `providers` domain is search-hub's first real domain: the provider

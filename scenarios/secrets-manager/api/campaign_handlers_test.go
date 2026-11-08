@@ -7,9 +7,11 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
-	"path/filepath"
+	"strings"
 	"testing"
 	"time"
+
+	"github.com/vrooli/api-core/storage/storagetest"
 )
 
 type mockScenarioCLI struct {
@@ -114,9 +116,7 @@ func TestListCampaignsFiltersAndReadiness(t *testing.T) {
 func TestUpsertCampaignPersistsToFile(t *testing.T) {
 	tmp := t.TempDir()
 	t.Setenv("VROOLI_ROOT", tmp)
-	// Storage data now resolves under the operator runtime home (~/.vrooli);
-	// pin HOME so the campaign file lands under the test temp dir.
-	t.Setenv("HOME", tmp)
+	storageRoot := storagetest.IsolateStorage(t)
 
 	handlers := NewCampaignHandlersWithCLI(&mockScenarioCLI{}, &mockManifestBuilder{}, nil)
 
@@ -129,7 +129,14 @@ func TestUpsertCampaignPersistsToFile(t *testing.T) {
 		t.Fatalf("expected 200, got %d", rr.Code)
 	}
 
-	path := filepath.Join(tmp, ".vrooli", "data", "vrooli", "secrets-manager", "campaigns.json")
+	// The campaign file lives in the scenario's governed data root.
+	path, err := campaignsFilePath(context.Background())
+	if err != nil {
+		t.Fatalf("resolve campaigns path: %v", err)
+	}
+	if !strings.HasPrefix(path, storageRoot) {
+		t.Fatalf("campaign file %s is outside the isolated storage root %s", path, storageRoot)
+	}
 	data, err := os.ReadFile(path)
 	if err != nil {
 		t.Fatalf("campaign file not written: %v", err)

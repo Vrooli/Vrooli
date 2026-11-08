@@ -63,7 +63,7 @@ func (h *handlers) queryCall(ctx cliapp.OperationContext) (*routingv1.QueryRespo
 func (h *handlers) queryReport(_ cliapp.OperationContext, msg *routingv1.QueryResponse) cliapp.ListReport {
 	totalHits := 0
 	for _, g := range msg.GetGroups() {
-		totalHits += len(g.GetHits())
+		totalHits += int(g.GetCount())
 	}
 
 	summary := []string{
@@ -88,7 +88,7 @@ func (h *handlers) queryReport(_ cliapp.OperationContext, msg *routingv1.QueryRe
 		resultsHeading = fmt.Sprintf("Unified ranking (reranked across providers; ordered by %s)", orderedBy(msg))
 		results = renderRanked(msg.GetRanked())
 		results = append(results, "", "Provenance by provider:")
-		results = append(results, renderGroups(msg.GetGroups())...)
+		results = append(results, renderGroupSummaries(msg.GetGroups())...)
 	}
 	results = append(results, operationHints(msg)...)
 
@@ -101,7 +101,7 @@ func (h *handlers) queryReport(_ cliapp.OperationContext, msg *routingv1.QueryRe
 			"`--all` — fan out to every active provider",
 			"`--group <scenario>` — scope to one scenario's leaves",
 			"`--scope <facet>` — pass a corpus facet to scoped providers",
-			"`--limit <n>` — change the per-provider result cap (default 10)",
+			"`--limit <n>` — change the per-provider result cap (default 5)",
 			"`--explain` — show why these providers were chosen",
 			"`providers list` — see every registered provider and its type",
 		},
@@ -179,6 +179,33 @@ func renderGroups(groups []*routingv1.ProviderResultGroup) []string {
 		for i, hit := range g.GetHits() {
 			out = append(out, formatHit(i+1, hit))
 		}
+	}
+	return out
+}
+
+// renderGroupSummaries renders the provider metadata kept beside Ranked. The
+// ranked list owns the complete hit payload after successful reranking, so
+// these lines must never re-render the same snippets.
+func renderGroupSummaries(groups []*routingv1.ProviderResultGroup) []string {
+	if len(groups) == 0 {
+		return []string{"(no provider groups)"}
+	}
+	out := make([]string, 0, len(groups))
+	for _, group := range groups {
+		if group == nil {
+			continue
+		}
+		line := fmt.Sprintf("▸ %s (%d)", group.GetProviderId(), group.GetCount())
+		if group.GetDegraded() {
+			line += " — degraded"
+			if note := strings.TrimSpace(group.GetNote()); note != "" {
+				line += ": " + note
+			}
+		}
+		out = append(out, line)
+	}
+	if len(out) == 0 {
+		return []string{"(no provider groups)"}
 	}
 	return out
 }
@@ -297,12 +324,15 @@ func splitTypes(raw string) []string {
 	return out
 }
 
-// parseLimit parses --limit, falling back to the server default (0 ⇒ server
-// applies its own default of 10) on an empty or invalid value.
+const defaultQueryLimit int32 = 5
+
+// parseLimit keeps the ordinary CLI view within the recommended fast-search
+// budget. Callers can raise the per-provider cap explicitly when they need a
+// deeper read.
 func parseLimit(raw string) int32 {
 	raw = strings.TrimSpace(raw)
 	if raw == "" {
-		return 0
+		return defaultQueryLimit
 	}
 	// ParseInt with bitSize=32 guarantees the result is already within the
 	// int32 range, so the conversion cannot overflow on user-controlled input
@@ -310,7 +340,7 @@ func parseLimit(raw string) int32 {
 	if n, err := strconv.ParseInt(raw, 10, 32); err == nil && n > 0 {
 		return int32(n)
 	}
-	return 0
+	return defaultQueryLimit
 }
 
 func degradedSummary(groups []*routingv1.ProviderResultGroup, degraded bool) string {

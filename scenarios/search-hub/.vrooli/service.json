@@ -30,6 +30,18 @@
       "go-api"
     ]
   },
+  "credentials": {
+    "descriptors": [
+      {
+        "logical_id": "vrooli/search-hub",
+        "field": "provider-control-token-set",
+        "label": "Search Hub provider control tokens",
+        "description": "Generated provider bearer tokens used only by Search Hub control calls. The credential authority stores the token set; SQLite keeps per-provider loss witnesses only.",
+        "required": false,
+        "provisioning": "generated"
+      }
+    ]
+  },
   "generation": {
     "template": {
       "id": "react-vite",

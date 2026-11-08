@@ -10,7 +10,7 @@
     "insights_window": {
       "type": "string",
       "default": "7",
-      "description": "insights window: a bare integer is days; a duration such as 15m or 2h is accepted."
+      "description": "Pass as a string: a day count such as 7 or a duration such as 15m or 2h. With `library run`, quote numeric-looking strings, e.g. `--input 'insights_window=\"1\"'`."
     },
     "provider_group": {
       "type": "string",

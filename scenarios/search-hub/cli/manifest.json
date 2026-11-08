@@ -43,8 +43,8 @@
             },
             {
               "name": "limit",
-              "default": "10",
-              "description": "Maximum results per provider"
+              "default": "5",
+              "description": "Maximum results per provider (use a larger limit for a deeper search)"
             },
             {
               "name": "explain",

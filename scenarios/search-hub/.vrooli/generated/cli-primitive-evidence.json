@@ -4,7 +4,7 @@
   "source_manifest": "cli/manifest.json",
   "scenario": "search-hub",
   "generator": "v1.0.0",
-  "manifest_hash": "79483105397841f5660f87cfeb173c0141debbc791b8fb5790ba60bd3353e7f9",
+  "manifest_hash": "6dd6d65ba575cc62a950518fedecedda7aae10f7168924472c7584c315d873af",
   "commands": [
     {
       "path": "embedding abort",

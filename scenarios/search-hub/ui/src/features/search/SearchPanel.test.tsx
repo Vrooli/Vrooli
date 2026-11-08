@@ -65,7 +65,7 @@ const rerankedResponse = () =>
         rerankScore: 0.91,
       },
     ],
-    groups: [{ providerId: "cli-health.commands", count: 1, hits: [{ id: "scenario-restart", title: HIT_TITLE }] }],
+    groups: [{ providerId: "cli-health.commands", count: 1 }],
     reranked: true,
     latencyMs: 1200n,
   });
@@ -123,7 +123,7 @@ describe("SearchPanel", () => {
     });
     const results = await screen.findByTestId(selectors.search.results);
     expect(within(results).getByText(HIT_TITLE)).toBeInTheDocument();
-    expect(screen.getByTestId(selectors.search.summary)).toBeInTheDocument();
+    expect(screen.queryByTestId(selectors.search.noResults)).not.toBeInTheDocument();
   });
 
   it("expand toggle sends all=true and ignores type facets", async () => {

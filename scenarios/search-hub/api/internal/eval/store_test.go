@@ -37,6 +37,20 @@ func validSuite() *evalv1.EvalSuite {
 		SuiteId:    "cli-health.commands.primary",
 		ProviderId: "cli-health.commands",
 		Name:       "CLI command discovery — primary",
+		Minimum: &evalv1.EvalMinimum{
+			ReviewedPositive: 2,
+			Negative:         1,
+			RequiredTags:     []string{"strong"},
+		},
+		Coverage: &evalv1.EvalCoverageConfig{
+			RequiredTags: []string{"lifecycle"},
+			RequiredTagGroups: []*evalv1.EvalCoverageTagGroup{{
+				Id:                  "operations",
+				Description:         "operator workflows",
+				Tags:                []string{"lifecycle", "testing"},
+				MinReviewedPositive: 2,
+			}},
+		},
 		Cases: []*evalv1.EvalCase{
 			{CaseId: "restart", Query: "how do I restart a scenario", Tags: []string{"strong"}, ExpectIds: []string{"restart"}, ExpectWithinTopK: 5, ExpectMinScore: 0.65},
 			{CaseId: "gibberish-1", Query: "asdfqwer zxcvbnm", Tags: []string{"gibberish"}, ExpectNoStrongHit: true, ExpectMaxScore: 0.4},
@@ -56,6 +70,12 @@ func TestUpsertSuiteInsertThenUpdate(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, "active", got.GetState(), "state defaults to active")
 	require.NotEmpty(t, got.GetCreatedAt())
+	require.Equal(t, int32(2), got.GetMinimum().GetReviewedPositive(), "registration minimum survives protojson persistence")
+	require.Equal(t, int32(1), got.GetMinimum().GetNegative())
+	require.Equal(t, []string{"strong"}, got.GetMinimum().GetRequiredTags())
+	require.Equal(t, []string{"lifecycle"}, got.GetCoverage().GetRequiredTags())
+	require.Equal(t, "operations", got.GetCoverage().GetRequiredTagGroups()[0].GetId())
+	require.Equal(t, []string{"lifecycle", "testing"}, got.GetCoverage().GetRequiredTagGroups()[0].GetTags())
 	firstCreated := got.GetCreatedAt()
 
 	clk.Advance(time.Hour)

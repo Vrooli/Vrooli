@@ -48,7 +48,6 @@ Use this shape so entries are scannable. Append newest at the bottom.
 ```
 
 ## Entries
-
 ### 2026-08-12 — Test Genie self-health timeout remains outside this plan
 
 **Symptom:** The Test Genie `GetSelfHealth` probe can time out, making the
@@ -161,6 +160,9 @@ workflow, then re-run full maturity validation.
 
 **Refs:** `search-hub evals`; `packages/searchregister-go`; plan Phase 8.
 
+### 2026-11-04 - Provider control tokens move to credential authority
+
+The registry previously stored per-provider bearer tokens in plaintext at providers.control_token. Search Hub now keeps raw tokens in the declared Vrooli credential-authority entry vrooli/search-hub:provider-control-token-set. SQLite keeps per-provider non-secret loss witnesses and clears the legacy column after startup imports existing values into the credential authority. Authority writes happen before database clearing; a failed authority write leaves the legacy source intact. Migration validates each witness by provider ID against either the authority set or its matching legacy row, and is idempotent after interrupted database transactions. Missing or malformed authority data for witnessed providers fails closed and never silently mints a replacement. Provider deletion removes the token from authority before deleting the witness; if the database transaction fails, Search Hub attempts to restore the token and reports any restore error. The token set remains one authority value, so each provider change rewrites that value.
 ## Work ladder
 
 - Rung: W3
@@ -818,6 +820,36 @@ write-back.
 **Refs:** Comparison runs `17c28c65-7c12-4414-8aac-374d33be510c`,
 `1f7145fd-4b6f-435c-9403-ff86df27139c`, and
 `6fda3d94-559c-40cf-bd85-36db62632aa3`; `internal/PERFORMANCE.md`.
+
+### 2026-11-05 — Default CLI query result size was too high
+
+**Symptom:** Search Hub query calls had a 1.6k median, 3.5k p90, and 10k
+maximum result-token footprint. The seven-day digest counted 52.0M re-read
+tokens across 1,435 calls and 384 runs. A reproduced six-provider query
+returned 50 hits at the default per-provider cap of 10, versus 29 with
+`--limit 5`.
+
+**Root cause:** The CLI delegated an omitted `--limit` to the server default
+of 10 results per provider, while the Search Hub usage guidance recommends a
+fast read cap of 5. Several providers can answer one query, multiplying the
+effective response size.
+
+**Fix:** The CLI now defaults to five results per provider. Callers can raise
+`--limit` for a deeper read; the API default remains unchanged for explicit
+programmatic clients. The CLI manifest, help text, and reference docs state the
+new default.
+
+**Gate:** `go test ./domains/query` and `UPDATE_CLI_EVIDENCE=1 go test .` in
+`scenarios/search-hub/cli` passed. Test Genie docs passed in run
+`20261105-114120-ae58ffc9` passed after the Gate update. The earlier `unit`
+phase in run `20261105-113936-9b9f8e2c` was blocked because the Scenario
+Dependency Analyzer has no running `API_PORT` and its lifecycle provider is
+not authoritative. See the Round 50 work record.
+
+**Owner:** Search Hub.
+
+**Refs:** Agent Manager fingerprint `fd62943b883c390e1c240666`;
+`cli/domains/query/handlers.go`.
 
 ## Cross-references
 

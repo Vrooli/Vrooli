@@ -652,6 +652,14 @@ func (r *Router) Query(ctx context.Context, req *routingv1.QueryRequest) (*routi
 		}
 		r.deps.Recorder.Record(qctx, sample)
 	}
+	// A successful rerank already returned every hit, with provider provenance,
+	// in Ranked. Keep ProviderResultGroup as provider-level count/degradation
+	// metadata instead of serializing each hit a second time under Groups.
+	if resp.GetReranked() && len(resp.GetRanked()) > 0 {
+		for _, group := range resp.GetGroups() {
+			group.Hits = nil
+		}
+	}
 	return resp, nil
 }
 

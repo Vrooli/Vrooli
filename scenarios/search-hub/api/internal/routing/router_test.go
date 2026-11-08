@@ -874,8 +874,13 @@ func TestRerankProducesUnifiedRankedList(t *testing.T) {
 		require.LessOrEqual(t, resp.GetRanked()[i].GetRerankScore(), resp.GetRanked()[i-1].GetRerankScore())
 	}
 
-	// Groups stay populated for provenance.
+	// The unified ranked list owns hit payloads after reranking. Provider groups
+	// remain as bounded summaries for counts and degradation provenance.
 	require.Len(t, resp.GetGroups(), 2)
+	for _, group := range resp.GetGroups() {
+		require.NotZero(t, group.GetCount())
+		require.Empty(t, group.GetHits(), "reranked hits must not be duplicated under provider groups")
+	}
 	require.Contains(t, strings.Join(resp.GetRoutingExplanation(), "\n"), "reranked 2 candidate")
 }
 
@@ -1090,6 +1095,9 @@ func TestRerankDegradesToGroupingOnError(t *testing.T) {
 	require.Empty(t, resp.GetRanked())
 	require.True(t, resp.GetDegraded(), "reranker failure flags the response degraded")
 	require.NotEmpty(t, resp.GetGroups(), "the grouping is still returned")
+	for _, group := range resp.GetGroups() {
+		require.NotEmpty(t, group.GetHits(), "rerank failure must preserve provider hit evidence")
+	}
 	require.Contains(t, strings.Join(resp.GetRoutingExplanation(), "\n"), "reranker unavailable")
 }
 
@@ -1258,6 +1266,9 @@ func TestNoRerankerKeepsGroupingOnly(t *testing.T) {
 	require.Empty(t, resp.GetRanked())
 	require.False(t, resp.GetDegraded())
 	require.NotEmpty(t, resp.GetGroups())
+	for _, group := range resp.GetGroups() {
+		require.NotEmpty(t, group.GetHits(), "grouped-only responses must preserve provider hit evidence")
+	}
 }
 
 func TestRerankSkippedWhenNoHits(t *testing.T) {

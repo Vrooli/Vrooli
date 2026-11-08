@@ -314,10 +314,13 @@ run`, and `evals generate`:
 
 Sweep + reindex + config-write run over a **token-gated** control plane
 (`search-hub.v1.control.SearchControlService`). search-hub mints an opaque control
-token at the provider's first `RegisterProvider`, stores it server-side, and
-presents it on every reindex / config-write / per-request override. Public search
-(no overrides) needs no token. A provider that declares neither `reindex_endpoint`
-nor `config_endpoint` is routable but not sweep-tunable.
+token at the provider's first `RegisterProvider`, stores the token set through
+Vrooli's credential authority, and presents the provider's token on every reindex /
+config-write / per-request override. SQLite stores only non-secret per-provider
+witnesses; startup migrates values from the retired `providers.control_token`
+column before clearing it. Missing authority data for a witnessed provider fails
+closed. Public search (no overrides) needs no token. A provider that declares
+neither `reindex_endpoint` nor `config_endpoint` is routable but not sweep-tunable.
 
 ### Indexed-provider status and scope contract
 
