@@ -1,3 +1,4 @@
+import { selectors } from "../consts/selectors";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   ArrowLeft,
@@ -412,6 +413,7 @@ export function QuickRunDialog({
                 <Label htmlFor="description">What should the agent do?</Label>
                 <Textarea
                   id="description"
+                  data-testid={selectors.quickRun.description}
                   value={taskData.description}
                   onChange={(e) =>
                     setTaskData({ ...taskData, description: e.target.value })
@@ -454,6 +456,7 @@ export function QuickRunDialog({
                 <Label htmlFor="title">Task Title</Label>
                 <Input
                   id="title"
+                  data-testid={selectors.quickRun.title}
                   value={taskData.title}
                   onChange={(e) =>
                     setTaskData({ ...taskData, title: e.target.value })
@@ -466,6 +469,7 @@ export function QuickRunDialog({
               </div>
 
               <ScopePathsManager
+                projectRootTestId={selectors.quickRun.projectRoot}
                 projectRoot={taskData.projectRoot}
                 onProjectRootChange={(value) =>
                   setTaskData({ ...taskData, projectRoot: value })
@@ -579,6 +583,7 @@ export function QuickRunDialog({
                     onChange={(roleRef) => setAgentConfig({ ...agentConfig, roleRef })}
                     label="Execution Role"
                     id="quickRunRoleRef"
+                    testId={selectors.quickRun.role}
                   />
 
                   <div className="grid gap-4 grid-cols-2">
@@ -586,6 +591,7 @@ export function QuickRunDialog({
                       <Label htmlFor="maxTurns">Max Turns</Label>
                       <Input
                         id="maxTurns"
+                        data-testid={selectors.quickRun.maxTurns}
                         type="number"
                         value={agentConfig.maxTurns}
                         onChange={(e) =>
@@ -611,6 +617,7 @@ export function QuickRunDialog({
                       <Label htmlFor="timeoutMinutes">Timeout (minutes)</Label>
                       <Input
                         id="timeoutMinutes"
+                        data-testid={selectors.quickRun.timeoutMinutes}
                         type="number"
                         value={agentConfig.timeoutMinutes}
                         onChange={(e) =>
@@ -638,6 +645,7 @@ export function QuickRunDialog({
                   <Label htmlFor="runMode">Run Mode *</Label>
                   <select
                     id="runMode"
+                    data-testid={selectors.quickRun.runMode}
                     value={String(agentConfig.runMode)}
                     onChange={(e) =>
                       setAgentConfig({
@@ -693,6 +701,7 @@ export function QuickRunDialog({
                   <label className="flex items-center gap-2">
                     <span className="text-sm">Network Access</span>
                     <select
+                      data-testid={selectors.quickRun.network}
                       value={agentConfig.networkAccess}
                       onChange={(e) =>
                         setAgentConfig({
@@ -919,7 +928,8 @@ export function QuickRunDialog({
                 <Button
                   type="button"
                   variant="secondary"
-                  onClick={handleStartRun}
+                  data-testid={selectors.quickRun.start}
+                onClick={handleStartRun}
                   disabled={submitting || isUploading || !canProceedStep1()}
                   className="gap-2"
                 >
@@ -928,6 +938,7 @@ export function QuickRunDialog({
                 </Button>
                 <Button
                   type="button"
+                  data-testid={selectors.quickRun.next}
                   onClick={handleNext}
                   disabled={
                     (currentStep === 1 && !canProceedStep1()) ||
@@ -943,6 +954,7 @@ export function QuickRunDialog({
             {currentStep === 3 && (
               <Button
                 type="button"
+                data-testid={selectors.quickRun.start}
                 onClick={handleStartRun}
                 disabled={submitting || isUploading}
                 className="gap-2"

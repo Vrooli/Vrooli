@@ -28,7 +28,7 @@ func TestCancelTaskReleasesWakeGateBeforeRunnerStop(t *testing.T) {
 	}
 	dispatcher := spawn.New(spawn.Config{MaxStartingConcurrency: 1, QueueCapacity: 2})
 	t.Cleanup(dispatcher.Close)
-	admission, err := dispatcher.ReserveAdmission(run.ID)
+	admission, err := dispatcher.ReserveAdmission(t.Context(), run.ID)
 	if err != nil {
 		t.Fatal(err)
 	}

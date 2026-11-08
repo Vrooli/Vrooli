@@ -138,20 +138,26 @@ func (f *attributionFixture) UsageCompare(_ context.Context, req *connect.Reques
 }
 
 func (f *attributionFixture) UsageParity(context.Context, *connect.Request[measurepb.UsageParityRequest]) (*connect.Response[measurepb.UsageParityResponse], error) {
-	return connect.NewResponse(&measurepb.UsageParityResponse{BackfillRuns: 7, LedgerPending: 2,
-		Rows: []*measurepb.UsageParityRow{{Path: "imported", Harness: "codex", Runs: 10, EligibleRuns: 8, NoRequests: 2, Excluded: []*measurepb.UsageParityCount{{Name: "helper", Count: 1}},
-			Measures: []*measurepb.UsageParityMeasure{{Name: "tool_facts", Numerator: 4, Denominator: 8, Share: 0.5, NotApplicable: 2, Reason: "left recall"}}}},
+	return connect.NewResponse(&measurepb.UsageParityResponse{
+		BackfillRuns: 7, LedgerPending: 2,
+		Rows: []*measurepb.UsageParityRow{{
+			Path: "imported", Harness: "codex", Runs: 10, EligibleRuns: 8, NoRequests: 2, Excluded: []*measurepb.UsageParityCount{{Name: "helper", Count: 1}},
+			Measures: []*measurepb.UsageParityMeasure{{Name: "tool_facts", Numerator: 4, Denominator: 8, Share: 0.5, NotApplicable: 2, Reason: "left recall"}},
+		}},
 		Gaps: []*measurepb.UsageParityGap{{Subject: "grok transcripts", Status: "open", Count: 3, Reason: "no reader"}},
 	}), nil
 }
 
 func (f *attributionFixture) UsageOutcomes(_ context.Context, req *connect.Request[measurepb.UsageOutcomesRequest]) (*connect.Response[measurepb.UsageOutcomesResponse], error) {
 	f.outcomes = req.Msg
-	return connect.NewResponse(&measurepb.UsageOutcomesResponse{By: req.Msg.GetBy(), Units: 10, UnknownUnits: 5, Evidence: []*measurepb.UsageEvidenceCount{{Source: "validation", Units: 5}},
+	return connect.NewResponse(&measurepb.UsageOutcomesResponse{
+		By: req.Msg.GetBy(), Units: 10, UnknownUnits: 5, Evidence: []*measurepb.UsageEvidenceCount{{Source: "validation", Units: 5}},
 		Rows: []*measurepb.UsageOutcomeRow{
-			{Key: "luna", Runner: "codex", Verdict: "cheaper", Baseline: "terra", Units: 5, Accepted: 5, BreakEvenRatio: 5, PriceSource: "tier_prior",
+			{
+				Key: "luna", Runner: "codex", Verdict: "cheaper", Baseline: "terra", Units: 5, Accepted: 5, BreakEvenRatio: 5, PriceSource: "tier_prior",
 				CheaperBy:         &measurepb.UsageRange{Available: true, Value: 1.67, Low: 1.5, High: 1.8},
-				PointsPerAccepted: &measurepb.UsageRange{Available: true, Value: 3, Low: 2, High: 4}},
+				PointsPerAccepted: &measurepb.UsageRange{Available: true, Value: 3, Low: 2, High: 4},
+			},
 			{Key: "rare", Runner: "codex", Verdict: "not_enough_data", StatusReason: "2 accepted outcomes; need 5", Units: 2, Accepted: 2},
 		},
 		Refit: []*measurepb.UsageRefitRow{{Runner: "codex", Model: "luna", Status: "insufficient", Reason: "2 blocks dominated"}},
@@ -338,6 +344,24 @@ func TestUsageFrictionShowsAdmittedInterventionsWithOwnerWorkAndExamples(t *test
 	if strings.Contains(out, "none shown") {
 		t.Fatalf("an admitted category must not print the nothing-shown line:\n%s", out)
 	}
+}
+
+// Operator corrections the proven signal gate admits are shown even while no
+// owner category is: they are the operator's own words about what they reject.
+func TestUsageFrictionShowsProvenOperatorCorrectionsBesideUnprovenCategories(t *testing.T) {
+	fixture := &attributionFixture{interventions: &measurepb.UsageInterventions{
+		OperatorMessages: 306, Classified: 306, Coverage: 1, AgentHours: 618.8,
+		UnshownReason: "no category has passed the accuracy gate yet, so the classified messages are not shown",
+		Corrections: &measurepb.UsageOperatorCorrections{Count: 45, Classified: 306, PerAgentHour: 0.0727, Precision: 0.805, Recall: 0.943, Examples: []*measurepb.UsageInterventionExample{
+			{RunId: "run-9", Text: "That's far too small; take the whole migration", Category: "explicit_negative"},
+		}},
+	}}
+	out := runUsageCommand(t, fixture, frictionCommand)
+	assertContains(t, out,
+		"corrections and failure reports · 45 of 306 classified messages (0.07 per agent-hour) · hold-out precision 0.81, recall 0.94",
+		`e.g. "That's far too small; take the whole migration"  run run-9 (agent-manager run report run-9)`,
+		"by category: none shown: no category has passed the accuracy gate yet",
+	)
 }
 
 type frictionFixture struct {

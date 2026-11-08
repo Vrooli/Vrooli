@@ -138,12 +138,12 @@ func (o *Orchestrator) applyRunStatusTransition(ctx context.Context, input RunSt
 
 	hydrated := o.attachRunActions(ctx, run)
 	if o.broadcaster != nil {
-		o.broadcaster.BroadcastRunStatus(hydrated)
+		o.broadcaster.BroadcastRunStatus(ctx, hydrated)
 	}
 	if previousStatus != input.NewStatus && hydrated.Status.IsTerminal() {
-		o.projectTerminalInvocationReadModel(hydrated)
+		o.projectTerminalInvocationReadModel(ctx, hydrated)
 		if o.credentialUseReleaser != nil {
-			cleanupCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			cleanupCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 5*time.Second)
 			err := o.credentialUseReleaser.RevokeRunCredentialUse(cleanupCtx, hydrated.ID, string(hydrated.Status))
 			cancel()
 			if err != nil {

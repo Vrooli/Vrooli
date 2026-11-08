@@ -12,9 +12,9 @@ import (
 	"os/exec"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/google/uuid"
-	"time"
 
 	"agent-manager/internal/adapters/database"
 	"agent-manager/internal/domain"
@@ -322,23 +322,29 @@ func TestAuthorizationApprovalRequiresCurrentWebConsoleProofReader(t *testing.T)
 		if request.RunID != uuid.Nil {
 			runSelector = request.RunID.String()
 		}
-		return SessionBindingProof{ProofVersion: sessionBindingProofVersion, RunID: runSelector,
+		return SessionBindingProof{
+			ProofVersion: sessionBindingProofVersion, RunID: runSelector,
 			HarnessSessionID: harnessSession, LeaseSessionID: harnessSession, WebConsoleSessionID: webConsoleSession, HarnessKind: request.HarnessKind,
-			OwnerKind: "web-console-session", Binding: binding}, nil
+			OwnerKind: "web-console-session", Binding: binding,
+		}, nil
 	})
 	authRepo := database.NewAuthorizationRepository(db)
 	o := New(nil, nil, repos.Runs,
 		WithEvents(events), WithIdentitySecret([]byte("approval-missing-proof-reader-secret")),
 		WithAuthorizations(authRepo), WithSessionBindingProofReader(proofReader))
-	grant, err := o.RequestAuthorization(ctx, AuthorizationRequest{PID: os.Getpid(), HarnessKind: "codex", HarnessSession: harnessSession,
-		Policy: "swarm-bookkeeping", Targets: []string{"swarm-manager:backlog/execute/obsolete"}, DurationSeconds: 3600})
+	grant, err := o.RequestAuthorization(ctx, AuthorizationRequest{
+		PID: os.Getpid(), HarnessKind: "codex", HarnessSession: harnessSession,
+		Policy: "swarm-bookkeeping", Targets: []string{"swarm-manager:backlog/execute/obsolete"}, DurationSeconds: 3600,
+	})
 	if err != nil {
 		t.Fatalf("request authorization: %v", err)
 	}
 	o.sessionBindingProofReader = nil
 	policy, _ := authn.InteractivePolicy("swarm-bookkeeping")
-	principal := requestidentity.Principal{Kind: requestidentity.ActorHuman, Subject: "owner", Source: requestidentity.SourceCloudflareAccess,
-		Verified: true, Scopes: append([]string{"agent-manager:write"}, policy.Scopes...), ExpiresAt: time.Now().Add(time.Hour)}
+	principal := requestidentity.Principal{
+		Kind: requestidentity.ActorHuman, Subject: "owner", Source: requestidentity.SourceCloudflareAccess,
+		Verified: true, Scopes: append([]string{"agent-manager:write"}, policy.Scopes...), ExpiresAt: time.Now().Add(time.Hour),
+	}
 	if _, err := o.ApproveAuthorization(requestidentity.WithPrincipal(ctx, principal), grant.ID); err == nil {
 		t.Fatal("approval proceeded after required Web Console proof reader became unavailable")
 	}
@@ -371,16 +377,20 @@ func TestAuthorizationApprovalRefusesChangedLauncherOwnerBeforeEffects(t *testin
 		if request.RunID != uuid.Nil {
 			runSelector = request.RunID.String()
 		}
-		return SessionBindingProof{ProofVersion: sessionBindingProofVersion, RunID: runSelector,
+		return SessionBindingProof{
+			ProofVersion: sessionBindingProofVersion, RunID: runSelector,
 			HarnessSessionID: harnessSession, LeaseSessionID: harnessSession, WebConsoleSessionID: currentWC, HarnessKind: request.HarnessKind,
-			OwnerKind: "web-console-session", Binding: binding}, nil
+			OwnerKind: "web-console-session", Binding: binding,
+		}, nil
 	})
 	authRepo := database.NewAuthorizationRepository(db)
 	o := New(nil, nil, repos.Runs,
 		WithEvents(events), WithIdentitySecret([]byte("approval-changed-binding-secret")),
 		WithAuthorizations(authRepo), WithSessionBindingProofReader(proofReader))
-	grant, err := o.RequestAuthorization(ctx, AuthorizationRequest{PID: os.Getpid(), HarnessKind: "codex", HarnessSession: harnessSession,
-		Policy: "swarm-bookkeeping", Targets: []string{"swarm-manager:backlog/execute/obsolete"}, DurationSeconds: 3600})
+	grant, err := o.RequestAuthorization(ctx, AuthorizationRequest{
+		PID: os.Getpid(), HarnessKind: "codex", HarnessSession: harnessSession,
+		Policy: "swarm-bookkeeping", Targets: []string{"swarm-manager:backlog/execute/obsolete"}, DurationSeconds: 3600,
+	})
 	if err != nil {
 		t.Fatalf("request authorization: %v", err)
 	}

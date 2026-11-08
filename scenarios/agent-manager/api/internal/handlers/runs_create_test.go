@@ -4,10 +4,13 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	requestidentity "github.com/vrooli/api-core/identity"
+	"github.com/vrooli/api-core/owneridentity"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	"agent-manager/internal/adapters/event"
 	"agent-manager/internal/adapters/runner"
@@ -573,6 +576,41 @@ func TestCreateRunRefusesMissingCallerBeforeServiceEffects(t *testing.T) {
 				if response.Code != http.StatusUnauthorized {
 					t.Fatalf("missing caller status=%d body=%s", response.Code, response.Body.String())
 				}
+			}
+		})
+	}
+}
+
+func TestCreateRunAcceptsVerifiedBrowserCallerWithoutAuthorizationHeader(t *testing.T) {
+	t.Setenv(owneridentity.CreateRunCallerEnforceEnv, "true")
+	capture := &createIdentityCapture{}
+	h := New(orchestration.HandlerServices{RunService: capture})
+	taskID := uuid.New()
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/runs", strings.NewReader(`{"taskId":"`+taskID.String()+`"}`))
+	req = req.WithContext(requestidentity.WithPrincipal(req.Context(), requestidentity.Principal{Kind: requestidentity.ActorHuman, Verified: true, Subject: "browser-owner", Source: requestidentity.SourceCloudflareAccess, Scopes: []string{"agent-manager:write"}, ExpiresAt: time.Now().Add(time.Hour)}))
+	response := httptest.NewRecorder()
+	h.CreateRun(response, req)
+	if capture.request.TaskID != taskID {
+		t.Fatalf("verified browser request did not reach admission: %d %s", response.Code, response.Body.String())
+	}
+	if capture.request.OwnerToken != "" {
+		t.Fatal("browser principal became a fabricated bearer")
+	}
+}
+
+func TestCreateRunBrowserPrincipalDoesNotEraseMalformedOfferedCredentials(t *testing.T) {
+	t.Setenv(owneridentity.CreateRunCallerEnforceEnv, "true")
+	for _, header := range []string{"Authorization", cliutil.HeaderAgentIdentityToken} {
+		t.Run(header, func(t *testing.T) {
+			capture := &createIdentityCapture{}
+			h := New(orchestration.HandlerServices{RunService: capture})
+			req := httptest.NewRequest(http.MethodPost, "/api/v1/runs", strings.NewReader(`{"taskId":"`+uuid.NewString()+`"}`))
+			req = req.WithContext(requestidentity.WithPrincipal(req.Context(), requestidentity.Principal{Kind: requestidentity.ActorHuman, Verified: true, Subject: "browser-owner", ExpiresAt: time.Now().Add(time.Hour)}))
+			req.Header.Set(header, " ")
+			response := httptest.NewRecorder()
+			h.CreateRun(response, req)
+			if capture.request.TaskID != uuid.Nil {
+				t.Fatal("malformed offered credential reached admission")
 			}
 		})
 	}

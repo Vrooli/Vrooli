@@ -47,15 +47,16 @@ type recordingBroadcaster struct {
 	events []*domain.RunEvent
 }
 
-func (b *recordingBroadcaster) BroadcastEvent(evt *domain.RunEvent) {
+func (b *recordingBroadcaster) BroadcastEvent(ctx context.Context, evt *domain.RunEvent) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	b.events = append(b.events, evt)
 }
 
-func (b *recordingBroadcaster) BroadcastRunStatus(*domain.Run) {}
+func (b *recordingBroadcaster) BroadcastRunStatus(context.Context, *domain.Run) {}
 
-func (b *recordingBroadcaster) BroadcastProgress(uuid.UUID, domain.RunPhase, int, string) {}
+func (b *recordingBroadcaster) BroadcastProgress(context.Context, uuid.UUID, domain.RunPhase, int, string) {
+}
 
 func (b *recordingBroadcaster) eventCount() int {
 	b.mu.Lock()
@@ -89,6 +90,7 @@ func TestBroadcastingEventSink_DoesNotBroadcastWhenAppendFails(t *testing.T) {
 	broadcaster := &recordingBroadcaster{}
 	storeErr := errors.New("append failed")
 	sink := &broadcastingEventSink{
+		ctx:         t.Context(),
 		store:       failingEventStore{err: storeErr},
 		runID:       runID,
 		broadcaster: broadcaster,
@@ -135,7 +137,7 @@ func TestNewRunEventSinkSharesPersistenceBroadcastAndObserverRouting(t *testing.
 
 			quota := &persistedFirstQuotaStore{events: fakeStore, runID: runID}
 			hooks := &Orchestrator{quotaObservations: quota}
-			sink := newRunEventSink(hooks, store, broadcaster, runID)
+			sink := newRunEventSink(t.Context(), hooks, store, broadcaster, runID)
 			first := domain.NewRateLimitEvent(runID, "300m", "first", nil, 0)
 			first.Data.(*domain.RateLimitEventData).Provider, first.Data.(*domain.RateLimitEventData).Pool = "openai", "primary"
 			if err := sink.Emit(first); err != nil {

@@ -213,7 +213,9 @@ func SetupRoutes(router *mux.Router, deps RouteDependencies) {
 	connectHandler.RegisterExactRoutes(router)
 	connectHandler.SetWatchActionAuthorizer(deps.WatchActionAuthorizer)
 	apiPath, apiHandler := apiconnect.NewAgentManagerServiceHandler(connectHandler)
-	router.Handle(apiconnect.AgentManagerServiceWaitWorkflowExecutionProcedure, handlers.WorkflowWaitResponse(apiHandler)).Methods(http.MethodPost)
+	for _, procedure := range []string{apiconnect.AgentManagerServiceWaitWorkflowExecutionProcedure, apiconnect.AgentManagerServiceWaitRunProcedure, apiconnect.AgentManagerServiceWaitRunChildrenProcedure} {
+		router.Handle(procedure, handlers.LongWaitResponse(apiHandler)).Methods(http.MethodPost)
+	}
 	connectx.RegisterServices(router, connectx.ServiceMount{Path: apiPath, Handler: apiHandler})
 	episodesPath, episodesHandler := domainconnect.NewEpisodesServiceHandler(handler)
 	router.PathPrefix(strings.TrimRight(episodesPath, "/")).Handler(episodesHandler)

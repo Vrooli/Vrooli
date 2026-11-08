@@ -60,6 +60,8 @@ Validation happens at construction (`Levers.Validate()`); invalid values fail fa
 ## Runtime orchestration settings
 
 The persisted run-execution settings are authoritative at run creation. A
+settings file that lacks a field (written before the field existed) loads that
+field's default. A
 profile or inline run request may select smaller limits, but a request above a
 global ceiling is refused with both requested and ceiling values; it is never
 silently truncated. The accepted values are copied into `run.resolvedConfig`,
@@ -69,6 +71,7 @@ which is the value the executor enforces and the run read APIs report.
 |---|---:|---:|---|
 | `runExecution.runTimeoutMinutes` | minutes | 720 | Agent work duration for one turn; global wall-clock ceiling, sized to the largest declared goal-mode profile. Shorter profiles remain bounded by their own resolved timeout. |
 | `runExecution.maxTurns` | turns | 1000 | Agent autonomy; global conversation-turn ceiling, sized to the largest declared fleet profile. |
+| `runExecution.maxChildDepth` | levels | 3 | Nesting of child runs (root 0). A deeper child is refused with `POLICY_CHILD_DEPTH_EXCEEDED`; 0 disables Agent Manager child runs. Range 0–10. See [Nested runs](effort-supervision.md#nested-runs). |
 | `healthDetection.heartbeatIntervalSeconds` | seconds | 60 | Executor liveness; timer-driven and independent of agent output. |
 | `healthDetection.staleThresholdSeconds` | seconds without an executor heartbeat | 1000 | Marks an executor stale before destructive recovery. |
 | `healthDetection.maxRecoveryAgeSeconds` | seconds without an executor heartbeat | 1100 | Emits a recovery-owner diagnostic for a live detached child. It never kills a positively identified runner; explicit cancellation/destructive maintenance owns termination. This is not an agent work timeout. |

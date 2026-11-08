@@ -62,7 +62,7 @@ func TestCancelTaskDurablyFencesQueuedAdmissionBeforeDispatch(t *testing.T) {
 	<-blockerEntered
 
 	run := &domain.Run{ID: uuid.New(), TaskID: task.ID, Status: domain.RunStatusPending, Phase: domain.RunPhaseQueued}
-	admission, err := d.ReserveAdmission(run.ID)
+	admission, err := d.ReserveAdmission(t.Context(), run.ID)
 	if err != nil {
 		t.Fatal(err)
 	}

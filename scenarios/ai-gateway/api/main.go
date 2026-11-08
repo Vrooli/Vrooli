@@ -135,7 +135,7 @@ func main() {
 		if endpoint := strings.TrimSpace(os.Getenv("LPBS_AI_DOOR_URL")); endpoint != "" {
 			adapters = append(adapters, providers.Adapter{Provider: providers.ProviderMetered, Locality: "remote", Door: &providers.HostedDoorClient{BaseURL: endpoint}})
 		}
-		if resourceRepository, repositoryErr := inference.NewResourceRepository(roleCatalog, adapters); repositoryErr != nil {
+		if resourceRepository, repositoryErr := inference.NewResourceRepository(roleCatalog, adapters, inference.NewSQLAttemptLedger(db.Primary())); repositoryErr != nil {
 			log.Printf("typed inference disabled: %v", repositoryErr)
 			inferenceRepository = inference.UnavailableRepository{Reason: repositoryErr.Error()}
 			roleCatalog = inference.RoleCatalog{}

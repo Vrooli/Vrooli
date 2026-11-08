@@ -100,7 +100,8 @@ func TestRunAccountingSeparatesCacheReadsFromNonCacheTokens(t *testing.T) {
 	ended := started.Add(time.Minute)
 	run := &domain.Run{ID: uuid.New(), Status: domain.RunStatusComplete, StartedAt: &started, EndedAt: &ended}
 	events := []*domain.RunEvent{{EventType: domain.EventTypeMetric, Timestamp: started.Add(30 * time.Second), Data: &domain.UsageEventData{
-		InputTokens: 1000, OutputTokens: 200, CacheCreationTokens: 50, CacheReadTokens: 9000, Model: "gpt-6-luna", ReconciliationAuthority: true}}}
+		InputTokens: 1000, OutputTokens: 200, CacheCreationTokens: 50, CacheReadTokens: 9000, Model: "gpt-6-luna", ReconciliationAuthority: true,
+	}}}
 
 	got := withTokenComponents(accountingFor(t, run, events), run, events, time.Now())
 	if got.Tokens != 10250 || got.CacheReadTokens != 9000 || got.NonCacheTokens != 1250 {

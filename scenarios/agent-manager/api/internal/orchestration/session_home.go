@@ -93,12 +93,12 @@ func writeRunnerPolicy(root string, runID uuid.UUID, data []byte) (runner.Policy
 		return file, err
 	}
 	dir = filepath.Join(dir, "policy")
-	if err := os.MkdirAll(dir, 0700); err != nil {
+	if err := os.MkdirAll(dir, 0o700); err != nil {
 		return file, err
 	}
 	digest := fmt.Sprintf("%x", sha256.Sum256(data))
 	file = runner.PolicyFile{Source: filepath.Join(dir, digest+".toml"), Target: codexRequirementsPath, SHA256: digest}
-	out, err := os.OpenFile(file.Source, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0400)
+	out, err := os.OpenFile(file.Source, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o400)
 	if os.IsExist(err) {
 		existing, readErr := os.ReadFile(file.Source)
 		if readErr != nil || !bytes.Equal(existing, data) {
@@ -152,13 +152,26 @@ func PrepareRunnerRuntimeRoot(root string, runID uuid.UUID) (map[string]string, 
 // The returned environment intentionally overrides any inherited home setting.
 // Claude keeps its authenticated shared home and OpenCode has no file-backed
 // continuation home.
-func PrepareCodecSessionHome(root string, runID uuid.UUID, runnerType domain.RunnerType) (map[string]string, error) {
-	var envKey, subdir, sharedHome string
+// codecSessionHomeKey is the variable PrepareCodecSessionHome sets to the
+// run-scoped harness home, or "" for runners without one.
+func codecSessionHomeKey(runnerType domain.RunnerType) string {
 	switch runnerType {
 	case domain.RunnerTypeCodex:
-		envKey, subdir, sharedHome = "CODEX_HOME", "codex", ".codex"
+		return "CODEX_HOME"
 	case domain.RunnerTypeGrok:
-		envKey, subdir, sharedHome = "GROK_HOME", "grok", ".grok"
+		return "GROK_HOME"
+	}
+	return ""
+}
+
+func PrepareCodecSessionHome(root string, runID uuid.UUID, runnerType domain.RunnerType) (map[string]string, error) {
+	var subdir, sharedHome string
+	envKey := codecSessionHomeKey(runnerType)
+	switch runnerType {
+	case domain.RunnerTypeCodex:
+		subdir, sharedHome = "codex", ".codex"
+	case domain.RunnerTypeGrok:
+		subdir, sharedHome = "grok", ".grok"
 	default:
 		return nil, nil
 	}

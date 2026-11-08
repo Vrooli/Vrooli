@@ -579,6 +579,11 @@ type WorkspaceSandboxEnsurer interface {
 **Why it's a seam:**
 - Keeps `sandbox.Provider` focused on workspace-sandbox HTTP operations.
 - Keeps run-time dependency recovery out of agent-manager process bootstrap; Vrooli lifecycle still owns declared dependency startup when agent-manager itself starts.
+- Bootstrap attempts Workspace Sandbox with `required=false` and
+  `startup_policy=try_start`, matching its optional health check. Its absence
+  does not prevent the Agent Manager API from serving recovery and inspection.
+  Sandboxed setup still ensures the dependency at use time and fails closed if
+  it cannot recover; the boot declaration grants no unsandboxed fallback.
 - Allows setup/finalization tests to simulate stopped or unhealthy workspace-sandbox without launching real services.
 - Coalesces same-process start attempts while Vrooli lifecycle provides cross-process scenario locking.
 
@@ -2014,6 +2019,26 @@ remain authoritative in the control-plane operation registry and are not
 duplicated in Agent Manager.
 
 ## Owner-specific harness subsets
+
+Authorization ownership checks use `repository.ManagedRunProcessReader` when
+the adapter provides it. The database projection reads only run IDs and runner
+PIDs for the same nonterminal, non-attached candidate population as the generic
+list path. Each request still verifies live process identity and both ancestry
+directions, and rejects multiple matching runs. Candidate lookup errors refuse
+the operation; no cached authority or rich run projection is substituted.
+
+Conversation-search exact coverage groups visible chunks through the domain's
+partial `(source_run_id, source_message_id)` index. This avoids content-bearing
+catalog reads and a temporary grouping B-tree without changing counts, visibility,
+FTS content, or cache freshness. The idempotent schema owner adds the index to
+existing databases on startup. It trades additional metadata index storage and
+maintenance on writes for faster repeated coverage observations.
+
+Run-state directory retention sweeps on the first reconciliation and at most
+once per 15 minutes afterward. Hour/day retention thresholds and active-tailer
+protection still apply. This cadence can delay eligible cleanup by up to 15
+minutes; executor liveness and recovery continue on every normal cycle. A
+backward clock step starts a fresh sweep cadence.
 
 `resource.json` → `agentcatalog/harness` remains the canonical all-harness catalog. Model-policy drift is a narrower owner: it checks the four policies with stable upstream model inventories; Antigravity (`agy`) is explicitly excluded because its generic defaults do not provide a stable live inventory. The exhaustive descriptor disposition is in `internal/modelpolicydrift/scheduler_test.go` and the owner rationale is beside the tested production `runners` list in `scheduler.go`.
 

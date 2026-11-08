@@ -595,9 +595,10 @@ transcript.
    exists. A fixed delay is a floor, not the readiness signal.
 2. **Install `/goal <finish line>`** through the literal-input seam. The finish
    line is the run's `until` (up to 1 MiB of UTF-8 bytes at the Agent Manager
-   boundary). When it exceeds the harness field limit, install the short
-   delegation text and keep the full finish line in the prompt. Claude Code's
-   native `/goal` field currently accepts up to 4,000 characters.
+   boundary). When it is longer than the harness keeps verbatim, install the
+   short delegation text and keep the full finish line in the prompt. Codex
+   keeps 600 characters through compaction (a longer objective becomes
+   `[objective omitted]`); Claude Code's `/goal` field accepts 4,000.
 3. **Verify with a goal marker.** The codec transcript parser reports a goal
    marker with the objective and status `active`. That marker is the ack for
    `/goal`, the same way transcript appearance is the ack for the task prompt.
@@ -690,9 +691,11 @@ boundaries today:
   complete policy matrix. Native `/goal` is selected from runner capability for
   the resolved sandbox mode; `tracking` records provenance and is not a
   containment boundary.
-- Native goal text is bounded by `boundedNativeObjective` in
-  `orchestration/run_execution.go`; longer conditions use a short delegation
-  objective while the full condition remains in the task prompt.
+- Native goal text is chosen by `runner.NativeGoalObjectiveFor`
+  (`adapters/runner/native_goal_objective.go`), which holds each harness's
+  verbatim limit with its evidence; longer conditions use a short delegation
+  objective while the full condition remains in the task prompt. Goal markers
+  that report the delegation correlate with the run's `until`.
 
 See the interim mapping in
 [SCENARIO_DEVELOPMENT.md](../../../docs/agent-system/SCENARIO_DEVELOPMENT.md#implementation-status).

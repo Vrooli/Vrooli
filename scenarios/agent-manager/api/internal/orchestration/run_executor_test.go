@@ -106,16 +106,16 @@ func (b *testBroadcaster) ensure() *mocks.FakeBroadcaster {
 	return b.FakeBroadcaster
 }
 
-func (b *testBroadcaster) BroadcastEvent(event *domain.RunEvent) {
-	b.ensure().BroadcastEvent(event)
+func (b *testBroadcaster) BroadcastEvent(ctx context.Context, event *domain.RunEvent) {
+	b.ensure().BroadcastEvent(ctx, event)
 }
 
-func (b *testBroadcaster) BroadcastRunStatus(run *domain.Run) {
-	b.ensure().BroadcastRunStatus(run)
+func (b *testBroadcaster) BroadcastRunStatus(ctx context.Context, run *domain.Run) {
+	b.ensure().BroadcastRunStatus(ctx, run)
 }
 
-func (b *testBroadcaster) BroadcastProgress(runID uuid.UUID, phase domain.RunPhase, percent int, action string) {
-	b.ensure().BroadcastProgress(runID, phase, percent, action)
+func (b *testBroadcaster) BroadcastProgress(ctx context.Context, runID uuid.UUID, phase domain.RunPhase, percent int, action string) {
+	b.ensure().BroadcastProgress(ctx, runID, phase, percent, action)
 }
 
 func (b *testBroadcaster) getStatusBroadcasts() []*domain.Run {
@@ -1065,7 +1065,7 @@ func TestRunExecutor_UpdatesRunStatus(t *testing.T) {
 		"", // no system prompt
 	).WithLevers(levers)
 	terminal := make(chan *domain.Run, 1)
-	executor.WithTerminalObserver(func(run *domain.Run) { terminal <- run })
+	executor.WithTerminalObserver(func(_ context.Context, run *domain.Run) { terminal <- run })
 
 	ctx := context.Background()
 	executor.Execute(ctx)

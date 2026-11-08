@@ -24,6 +24,24 @@ type cancelRaceRunRepo struct {
 	run *domain.Run
 }
 
+type failingRunReadRepository struct {
+	repository.RunRepository
+	err error
+}
+
+type failingRunUpdateRepository struct {
+	repository.RunRepository
+	err error
+}
+
+func (r failingRunReadRepository) Get(context.Context, uuid.UUID) (*domain.Run, error) {
+	return nil, r.err
+}
+
+func (r failingRunUpdateRepository) Update(context.Context, *domain.Run) error {
+	return r.err
+}
+
 func (r *cancelRaceRunRepo) Get(_ context.Context, id uuid.UUID) (*domain.Run, error) {
 	if r.run == nil || r.run.ID != id {
 		return nil, domain.NewNotFoundError("Run", id)
@@ -245,5 +263,114 @@ func TestHandleResultDoesNotAdoptCancellationIntentFromNewerOwner(t *testing.T) 
 	}
 	if repo.run.Status != domain.RunStatusRunning || repo.run.OwnerIdentity != "owner-b" || repo.run.OwnerEpoch != 5 {
 		t.Fatalf("newer durable owner was changed: %+v", repo.run)
+	}
+}
+
+func TestHandleResultDoesNotProceedWhenDurableRunCannotBeRead(t *testing.T) {
+	for _, test := range []struct {
+		name    string
+		readErr error
+	}{
+		{name: "read error", readErr: errors.New("temporary durable owner read failure")},
+		{name: "missing record"},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			repos, _, cleanup := testutil.SetupTestRepos(t)
+			t.Cleanup(cleanup)
+			ctx := t.Context()
+			run := &domain.Run{
+				ID: uuid.New(), Tag: uuid.NewString(), RunMode: domain.RunModeSandboxed,
+				Status: domain.RunStatusRunning, Phase: domain.RunPhaseExecuting,
+				ResolvedConfig: domain.DefaultRunConfig(), SandboxConfig: domain.DefaultSandboxConfig(),
+			}
+			if err := repos.Runs.Create(ctx, run); err != nil {
+				t.Fatal(err)
+			}
+			stale := *run
+			canceled, err := repos.Runs.Get(ctx, run.ID)
+			if err != nil {
+				t.Fatal(err)
+			}
+			canceled.Status = domain.RunStatusCancelled
+			canceled.Phase = domain.RunPhaseCompleted
+			if err := repos.Runs.Update(ctx, canceled); err != nil {
+				t.Fatal(err)
+			}
+			provider := mocks.NewFakeSandboxProvider()
+			diffReads := 0
+			provider.GetDiffFunc = func(context.Context, uuid.UUID) (*sandbox.DiffResult, error) {
+				diffReads++
+				return &sandbox.DiffResult{}, nil
+			}
+
+			out := HandleResult(ctx, HandleResultInput{
+				Deps:      Deps{Runs: failingRunReadRepository{RunRepository: repos.Runs, err: test.readErr}},
+				Run:       &stale,
+				Sandbox:   provider,
+				SandboxID: ptrUUID(uuid.New()),
+				Result: &runner.ExecuteResult{
+					Success: true, ExitCode: 0,
+					Result: &domain.RunResult{Success: true, Selection: domain.FinalOutputSelection{Status: domain.FinalOutputSelectionSelected}},
+				},
+			})
+
+			if !out.Deferred {
+				t.Fatal("result without a durable lifecycle read was not marked deferred for recovery")
+			}
+			if diffReads != 0 || provider.ApplyAtRunEndCallCount() != 0 {
+				t.Fatalf("durable state unavailable but result handling entered sandbox path: GetDiff calls=%d apply calls=%d", diffReads, provider.ApplyAtRunEndCallCount())
+			}
+			if stale.Status != domain.RunStatusRunning || stale.LifecycleVersion != run.LifecycleVersion {
+				t.Fatalf("run state advanced without durable reconciliation: status=%s version=%d", stale.Status, stale.LifecycleVersion)
+			}
+			durable, err := repos.Runs.Get(ctx, run.ID)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if durable.Status != domain.RunStatusCancelled {
+				t.Fatalf("durable terminal owner state changed: status=%s", durable.Status)
+			}
+		})
+	}
+}
+
+func TestHandleResultDefersWhenTerminalWriteFails(t *testing.T) {
+	repos, _, cleanup := testutil.SetupTestRepos(t)
+	t.Cleanup(cleanup)
+	ctx := t.Context()
+	run := &domain.Run{
+		ID: uuid.New(), Tag: uuid.NewString(), RunMode: domain.RunModeSandboxed,
+		Status: domain.RunStatusRunning, Phase: domain.RunPhaseExecuting,
+		ResolvedConfig: domain.DefaultRunConfig(), SandboxConfig: domain.DefaultSandboxConfig(),
+	}
+	if err := repos.Runs.Create(ctx, run); err != nil {
+		t.Fatal(err)
+	}
+	provider := mocks.NewFakeSandboxProvider()
+	provider.ApplyAtRunEndResult = &sandbox.ApplyAtRunEndResult{Success: true, Applied: 1}
+
+	out := HandleResult(ctx, HandleResultInput{
+		Deps:      Deps{Runs: failingRunUpdateRepository{RunRepository: repos.Runs, err: errors.New("durable terminal write unavailable")}},
+		Run:       run,
+		Sandbox:   provider,
+		SandboxID: ptrUUID(uuid.New()),
+		Result: &runner.ExecuteResult{
+			Success: true, ExitCode: 0,
+			Result: &domain.RunResult{Success: true, Selection: domain.FinalOutputSelection{Status: domain.FinalOutputSelectionSelected}},
+		},
+	})
+
+	if !out.Deferred || out.Persisted {
+		t.Fatalf("terminal write failure was not deferred: %+v", out)
+	}
+	durable, err := repos.Runs.Get(ctx, run.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if durable.Status != domain.RunStatusRunning {
+		t.Fatalf("test seam changed durable run despite rejected write: status=%s", durable.Status)
+	}
+	if provider.ApplyAtRunEndCallCount() != 1 {
+		t.Fatalf("expected one idempotent apply attempt before failed run write, got %d", provider.ApplyAtRunEndCallCount())
 	}
 }

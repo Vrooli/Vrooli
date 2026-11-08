@@ -173,16 +173,21 @@ type ExecutionRequest struct {
 	Temperature *float64
 	// SchemaJSON is passed through the provider's native structured-output
 	// request field. The gateway still validates the returned value locally.
-	SchemaJSON           string
-	Attachments          []*sharedv1.Attachment
-	SpendLimit           *inferencev1.SpendLimit
-	ExpectedWorkerDigest string
+	SchemaJSON  string
+	Attachments []*sharedv1.Attachment
+	SpendLimit  *inferencev1.SpendLimit
+	// IdempotencyKey is one Gateway-persisted HostedDoor child attempt identity.
+	IdempotencyKey        string
+	ExpectedKeyGeneration string
+	RecoveryOnly          bool
+	ExpectedWorkerDigest  string
 }
 
 type ExecutionResult struct {
 	OutputText         string
 	ExitCode           int
 	SpendAuthorization *inferencev1.SpendAuthorization
+	Recovery           *inferencev1.RecoveryReceipt
 }
 
 type ResolvedRole struct {

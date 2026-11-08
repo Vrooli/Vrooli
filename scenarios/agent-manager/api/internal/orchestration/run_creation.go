@@ -102,7 +102,14 @@ type createRunFlow struct {
 
 	existingSandboxWorkDir string
 	sandboxToStart         *uuid.UUID
-	qualifiedParent        *domain.Run
+
+	// parent is the one read of the requested parent run, taken by
+	// admitLineage; qualifiedParent is the same snapshot once it has passed
+	// the dependent-delegation gate. depth and maxDepth place the run.
+	parent          *domain.Run
+	qualifiedParent *domain.Run
+	depth           int
+	maxDepth        int
 
 	workload     domain.WorkloadRef
 	tag          string
@@ -158,6 +165,9 @@ func (o *Orchestrator) createRun(ctx context.Context, req CreateRunRequest, reco
 		return nil, err
 	}
 	if err := f.resolveExistingSandbox(ctx); err != nil {
+		return nil, err
+	}
+	if err := f.admitLineage(ctx); err != nil {
 		return nil, err
 	}
 	if err := f.freezeRunContract(ctx); err != nil {
@@ -631,7 +641,12 @@ func (f *createRunFlow) freezeRunContract(ctx context.Context) error {
 	resolvedConfig.Billing = billing
 	// Split the prompt before persisting the immutable resolved config so the
 	// known injected instruction estimate survives event pruning and replay.
-	f.systemPrompt, f.userMessage = domain.BuildSplitPrompt(task.Description, task.ContextAttachments, req.Prompt)
+	// A child or chartered run's instructions start with its lineage header.
+	instructions := req.Prompt
+	if instructions == "" {
+		instructions = task.Description
+	}
+	f.systemPrompt, f.userMessage = domain.BuildSplitPrompt(task.Description, task.ContextAttachments, domain.WithLineageHeader(f.lineageHeader(), instructions))
 	if strings.TrimSpace(f.systemPrompt) != "" {
 		estimate := tokenaccounting.EstimateText(f.systemPrompt)
 		resolvedConfig.PreambleInjectedTokens = estimate.Tokens
@@ -666,13 +681,13 @@ func (f *createRunFlow) freezeRunContract(ctx context.Context) error {
 // admission.
 func (f *createRunFlow) authorizeDelegation(ctx context.Context) error {
 	o, req := f.o, &f.req
-	qualifiedParent, err := o.dependentDelegationParent(ctx, *req, f.resolvedConfig)
-	if err != nil {
-		return err
-	}
-	f.qualifiedParent = qualifiedParent
-	if qualifiedParent != nil {
-		req.WorkReferences, err = inheritParentEffortReferences(qualifiedParent, req.WorkReferences)
+	if f.parent != nil {
+		if err := f.admitDependentChild(); err != nil {
+			return err
+		}
+		f.qualifiedParent = f.parent
+		var err error
+		req.WorkReferences, err = inheritParentEffortReferences(f.parent, req.WorkReferences)
 		if err != nil {
 			return err
 		}
@@ -684,7 +699,7 @@ func (f *createRunFlow) authorizeDelegation(ctx context.Context) error {
 		return err
 	}
 	if o.deliveryEfforts != nil {
-		bindings, _, release, err := o.deliveryEfforts.AcquireDeliveryAdmission(ctx, req.WorkReferences, qualifiedParent)
+		bindings, _, release, err := o.deliveryEfforts.AcquireDeliveryAdmission(ctx, req.WorkReferences, f.qualifiedParent)
 		if err != nil {
 			return err
 		}
@@ -745,6 +760,8 @@ func (f *createRunFlow) buildRun(ctx context.Context) {
 		SandboxConfig:            f.sandboxConfig,
 		ConversationID:           req.ConversationID,
 		ParentRunID:              req.ParentRunID,
+		Depth:                    f.depth,
+		CharterPath:              req.CharterPath,
 		// Persist caller-supplied custom env so the continue/wake path can
 		// re-inject it. Already VROOLI_*-validated at the API boundary.
 		CustomEnv: req.Environment,
@@ -760,14 +777,13 @@ func (f *createRunFlow) buildRun(ctx context.Context) {
 	}
 	// Apply Decision D7 precedence (spawner > parent inheritance > fresh
 	// UUID). When the spawn surface populates ConversationID directly,
-	// step (1) wins; otherwise we inherit from ParentRunID's run when set,
+	// step (1) wins; otherwise we inherit from the admitted parent snapshot,
 	// or mint a fresh UUID.
 	run.ConversationID = domain.ResolveConversationID(run, func(parentID uuid.UUID) (string, bool) {
-		parent, perr := o.runs.Get(ctx, parentID)
-		if perr != nil || parent == nil {
+		if f.qualifiedParent == nil || f.qualifiedParent.ID != parentID {
 			return "", false
 		}
-		return parent.ConversationID, true
+		return f.qualifiedParent.ConversationID, true
 	})
 	// Populate PromptPreview so WebSocket broadcasts include display text.
 	// This is normally a computed field from the List query JOIN, but we need it
@@ -792,7 +808,7 @@ func (f *createRunFlow) persistAttempt(ctx context.Context) error {
 	// Reserve the dispatcher-owned cancellation fence before the durable Task
 	// claim. Cancellation can close this local gate while the atomic owner
 	// transaction decides whether this attempt was admitted.
-	admission, err := o.dispatcher.ReserveAdmission(run.ID)
+	admission, err := o.dispatcher.ReserveAdmission(ctx, run.ID)
 	if err != nil {
 		f.failReservation(ctx)
 		return err
@@ -992,17 +1008,17 @@ func (f *createRunFlow) dispatch(ctx context.Context, imageAttachments []runner.
 		RunID:      run.ID,
 		RunMode:    run.RunMode,
 		RunnerType: runnerTypeOrEmpty(run),
-		Sink:       o.dispatcherSink(run.ID),
+		Sink:       o.dispatcherSink(admission.Context(), run.ID),
 		Fn: func(started spawn.StartedFn) {
 			defer o.dispatcher.ReleaseAdmission(run.ID, admission)
 			defer obs.RecoverToFailure("run execution dispatch", func(failure obs.PanicFailure) {
-				o.recoverPanickedRun(run, failure)
+				o.recoverPanickedRun(ctx, run, failure)
 			})
 			executionRunCopy := executionRun
 			o.executeRun(admission.Context(), &executionRunCopy, task, profile, f.userMessage, f.systemPrompt, f.existingSandboxWorkDir, imageAttachments, req.Environment, started)
 		},
 		OnPanic: func(failure obs.PanicFailure) {
-			o.recoverPanickedRun(run, failure)
+			o.recoverPanickedRun(ctx, run, failure)
 		},
 	}, admission); err != nil {
 		return nil, f.failAdmittedRun(ctx, err)
@@ -1016,12 +1032,12 @@ func (f *createRunFlow) dispatch(ctx context.Context, imageAttachments []runner.
 // failure state uses the normal phase path so the run reaches the same terminal
 // status and broadcaster contract as an ordinary executor error; the full
 // stack is retained as a protected run event for postmortem triage.
-func (o *Orchestrator) recoverPanickedRun(run *domain.Run, failure obs.PanicFailure) {
+func (o *Orchestrator) recoverPanickedRun(parent context.Context, run *domain.Run, failure obs.PanicFailure) {
 	if run == nil {
 		obs.Component("orchestrator").Error("recovered run panic without run", obs.KeyError, failure.Error())
 		return
 	}
-	ctx := context.Background()
+	ctx := context.WithoutCancel(parent)
 	phases.FailWithError(ctx, phases.FailWithErrorInput{
 		Deps: phases.Deps{Runs: o.runs, Events: o.events, Broadcaster: o.broadcaster},
 		Run:  run,

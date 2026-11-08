@@ -3312,6 +3312,12 @@
               "name": "failed",
               "bool": true,
               "description": "Only failed tool results"
+            },
+            {
+              "name": "json",
+              "bool": true,
+              "description": "Print the typed or command result as JSON",
+              "local_only": true
             }
           ],
           "binding": {
@@ -3350,6 +3356,74 @@
           },
           "architecture": {
             "primitive": "operational"
+          }
+        },
+        {
+          "name": "wait",
+          "description": "Block until a run settles, or until a direct child of a parent settles",
+          "positionals": [
+            {
+              "name": "run_id",
+              "description": "Run UUID to wait for (omit with --children)"
+            }
+          ],
+          "flags": [
+            {
+              "name": "children",
+              "description": "Wait for a direct child of this parent run UUID instead"
+            },
+            {
+              "name": "since",
+              "description": "With --children: report children that settled at or after this RFC3339 time"
+            },
+            {
+              "name": "timeout",
+              "description": "Overall wait bound (default 30m; 0 has no overall limit)"
+            },
+            {
+              "name": "json",
+              "bool": true,
+              "description": "Print the typed wait response as JSON"
+            }
+          ],
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "semantics": {
+            "kind": "query",
+            "blocks": {
+              "replaces": [
+                "agent-manager run get"
+              ]
+            }
+          }
+        },
+        {
+          "name": "tree",
+          "description": "Show a run and its descendants with depth, status, runner/model, goal delivery, elapsed, weighted tokens and orphans",
+          "positionals": [
+            {
+              "name": "run_id",
+              "required": true,
+              "description": "Root run UUID"
+            }
+          ],
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
           }
         },
         {
@@ -3572,6 +3646,10 @@
             {
               "name": "origin",
               "description": "Filter by origin: agent_manager, operator_sessions, or workflows"
+            },
+            {
+              "name": "parent-run-id",
+              "description": "Only direct child runs of this parent run UUID"
             },
             {
               "name": "limit",
@@ -4875,6 +4953,10 @@
               "description": "open | reported | dismissed (default: all)"
             },
             {
+              "name": "owner",
+              "description": "Filter findings and profiles to one owning scenario"
+            },
+            {
               "name": "limit",
               "description": "Maximum rows (default 20)"
             }
@@ -5394,6 +5476,21 @@
       "service": "AgentManagerService",
       "method": "GetRun",
       "reason": "Legacy hand-registered non-workflow CLI surface; outside the first workflow manifest migration."
+    },
+    {
+      "service": "AgentManagerService",
+      "method": "GetRunTree",
+      "reason": "Reached through the local `run tree` command, which renders the tree and its orphan markers."
+    },
+    {
+      "service": "AgentManagerService",
+      "method": "WaitRun",
+      "reason": "Reached through the local `run wait` command, which repeats bounded server waits, retries a restarting Agent Manager and owns the documented exit codes."
+    },
+    {
+      "service": "AgentManagerService",
+      "method": "WaitRunChildren",
+      "reason": "Reached through the local `run wait --children` command, which repeats bounded server waits, retries a restarting Agent Manager and owns the documented exit codes."
     },
     {
       "service": "AgentManagerService",

@@ -116,7 +116,7 @@ func (r *runRepository) mutateEffortSignalCursor(ctx context.Context, runID uuid
 	if err != nil {
 		return domain.EffortSignalCursor{}, false, err
 	}
-	result, err := tx.ExecContext(ctx, `UPDATE runs SET effort_signal_cursors=? WHERE id=? AND status=? AND COALESCE(work_references,'[]')=? AND COALESCE(effort_signal_cursors,'')=?`, string(encoded), runID, status, references.String, oldRaw)
+	result, err := tx.ExecContext(ctx, `UPDATE runs SET effort_signal_cursors=?, updated_at=? WHERE id=? AND status=? AND COALESCE(work_references,'[]')=? AND COALESCE(effort_signal_cursors,'')=?`, string(encoded), SQLiteTime(time.Now()), runID, status, references.String, oldRaw)
 	if err != nil {
 		return domain.EffortSignalCursor{}, false, wrapDBError("write_effort_signal_cursor", "Run", runID.String(), err)
 	}
@@ -220,6 +220,14 @@ func (r *runRepository) update(ctx context.Context, run *domain.Run, continuatio
 }
 
 func (r *runRepository) updateTx(ctx context.Context, tx *Tx, run *domain.Run, continuation *expectedInteractiveContinuation, nextVersion *int64) error {
+	var terminalPrior *domain.Run
+	if r.terminalReceiptScope != nil && run.Status.IsTerminal() {
+		var err error
+		terminalPrior, err = r.getTx(ctx, tx, run.ID)
+		if err != nil {
+			return err
+		}
+	}
 	if run.EffortSignalReceipt != nil && run.Status != domain.RunStatusRunning {
 		return fmt.Errorf("effort signal receipt is valid only for a parked-to-running wake")
 	}
@@ -266,6 +274,7 @@ func (r *runRepository) updateTx(ctx context.Context, tx *Tx, run *domain.Run, c
 			source_run_ids = :source_run_ids,
 			source_investigation_run_id = :source_investigation_run_id,
 			parent_run_id = CASE WHEN identity_renewal_anchor_hash <> '' THEN parent_run_id ELSE :parent_run_id END,
+			depth = CASE WHEN identity_renewal_anchor_hash <> '' OR parent_run_id IS :parent_run_id THEN depth ELSE ` + derivedRunDepthSQL + ` END,
 		conversation_id = :conversation_id,
 		identity_token_hash = CASE WHEN identity_renewal_anchor_hash <> '' THEN identity_token_hash ELSE :identity_token_hash END,
 		identity_token_revoked_at = CASE WHEN identity_renewal_anchor_hash <> '' THEN COALESCE(identity_token_revoked_at, :identity_token_revoked_at) ELSE :identity_token_revoked_at END,
@@ -355,6 +364,9 @@ func (r *runRepository) updateTx(ctx context.Context, tx *Tx, run *domain.Run, c
 				return wrapDBError("project_run_status", "Task", run.TaskID.String(), err)
 			}
 		}
+	}
+	if err := r.captureTerminalReceiptTx(ctx, tx, terminalPrior); err != nil {
+		return err
 	}
 	*nextVersion = nextLifecycleVersion
 	return nil

@@ -47,8 +47,20 @@ func newFakeSessions(id string) *fakeSessions {
 	return &fakeSessions{createID: id, deleted: map[string]bool{}}
 }
 
+func (f *fakeSessions) recordCall(call string) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.calls = append(f.calls, call)
+}
+
+func (f *fakeSessions) Calls() []string {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return append([]string(nil), f.calls...)
+}
+
 func (f *fakeSessions) CreateSession(_ context.Context, params webconsole.CreateSessionParams) (string, error) {
-	f.calls = append(f.calls, "create")
+	f.recordCall("create")
 	if f.createErr != nil {
 		return "", f.createErr
 	}
@@ -83,12 +95,12 @@ func (f *fakeSessions) ArchiveSession(_ context.Context, id string) error {
 }
 
 func (f *fakeSessions) SendText(_ context.Context, _, _ string, _ string) error {
-	f.calls = append(f.calls, "sendtext")
+	f.recordCall("sendtext")
 	return nil
 }
 
 func (f *fakeSessions) SendPrompt(_ context.Context, _, _, _ string) (webconsole.PromptSubmission, error) {
-	f.calls = append(f.calls, "sendprompt")
+	f.recordCall("sendprompt")
 	f.sendPrompts++
 	if f.onSendPrompt != nil {
 		f.onSendPrompt(f.sendPrompts)
@@ -97,13 +109,13 @@ func (f *fakeSessions) SendPrompt(_ context.Context, _, _, _ string) (webconsole
 }
 
 func (f *fakeSessions) SendCommand(_ context.Context, _, _, _ string) (webconsole.PromptSubmission, error) {
-	f.calls = append(f.calls, "sendcommand")
+	f.recordCall("sendcommand")
 	f.goalSendCommands++
 	return webconsole.PromptSubmission{Verified: true, EnterPresses: 1}, f.sendCommandErr
 }
 
 func (f *fakeSessions) Interrupt(_ context.Context, _, _ string) error {
-	f.calls = append(f.calls, "interrupt")
+	f.recordCall("interrupt")
 	if f.onInterrupt != nil {
 		f.onInterrupt()
 	}
@@ -111,6 +123,8 @@ func (f *fakeSessions) Interrupt(_ context.Context, _, _ string) error {
 }
 
 func (f *fakeSessions) Screen(_ context.Context, _ string, _ bool) (string, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
 	f.calls = append(f.calls, "screen")
 	if len(f.screens) == 0 {
 		return "", nil
@@ -167,11 +181,11 @@ func TestSubstrateLaunch_WaitsForShellBeforeSubmitting(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Launch: %v", err)
 	}
-	if len(fs.calls) < 3 || fs.calls[0] != "create" || fs.calls[1] != "screen" || fs.calls[2] != "screen" {
-		t.Fatalf("expected shell readiness screens before launch submission, got %v", fs.calls)
+	if len(fs.Calls()) < 3 || fs.Calls()[0] != "create" || fs.Calls()[1] != "screen" || fs.Calls()[2] != "screen" {
+		t.Fatalf("expected shell readiness screens before launch submission, got %v", fs.Calls())
 	}
-	if fs.calls[3] != "sendtext" {
-		t.Fatalf("expected launch command after shell readiness, got %v", fs.calls)
+	if fs.Calls()[3] != "sendtext" {
+		t.Fatalf("expected launch command after shell readiness, got %v", fs.Calls())
 	}
 }
 
@@ -216,8 +230,8 @@ func TestSubstrateLaunch_Codex_HappyPath(t *testing.T) {
 	if fs.sendPrompts != 1 {
 		t.Errorf("expected one initial prompt delivery, got %d", fs.sendPrompts)
 	}
-	if len(fs.calls) != 3 || fs.calls[0] != "create" || fs.calls[1] != "sendtext" || fs.calls[2] != "sendprompt" {
-		t.Errorf("expected create, launch submission, then prompt delivery, got %v", fs.calls)
+	if len(fs.Calls()) != 3 || fs.Calls()[0] != "create" || fs.Calls()[1] != "sendtext" || fs.Calls()[2] != "sendprompt" {
+		t.Errorf("expected create, launch submission, then prompt delivery, got %v", fs.Calls())
 	}
 	if res.SessionID != "sess-1" {
 		t.Errorf("session id: got %q", res.SessionID)
@@ -466,7 +480,7 @@ func TestSubstrateLaunch_OpenCodeDescoped(t *testing.T) {
 		t.Fatal("expected opencode Launch to be rejected (descoped)")
 	}
 	// Must reject before creating any session.
-	for _, c := range fs.calls {
+	for _, c := range fs.Calls() {
 		if c == "create" {
 			t.Fatal("opencode must not create a session")
 		}
@@ -479,8 +493,8 @@ func TestSubstrateStop_InterruptThenArchive(t *testing.T) {
 	if err := sub.Stop(context.Background(), "s", "agent-manager:run-1"); err != nil {
 		t.Fatalf("Stop: %v", err)
 	}
-	if len(fs.calls) != 2 || fs.calls[0] != "interrupt" || fs.calls[1] != "archive" {
-		t.Fatalf("expected interrupt then archive, got %v", fs.calls)
+	if len(fs.Calls()) != 2 || fs.Calls()[0] != "interrupt" || fs.Calls()[1] != "archive" {
+		t.Fatalf("expected interrupt then archive, got %v", fs.Calls())
 	}
 }
 

@@ -323,7 +323,7 @@ func (h *transcriptIndexHost) Record(ctx context.Context, runID string, events [
 	}
 	if !recall {
 		for _, event := range events {
-			h.o.observeQuotaEvent(event, false)
+			h.o.observeQuotaEvent(ctx, event, false)
 		}
 		return nil
 	}
@@ -345,7 +345,7 @@ func (h *transcriptIndexHost) Record(ctx context.Context, runID string, events [
 		return err
 	}
 	for _, event := range masked {
-		h.o.observeQuotaEvent(event, true)
+		h.o.observeQuotaEvent(ctx, event, true)
 	}
 	return nil
 }
@@ -408,7 +408,7 @@ func (h *transcriptIndexHost) applyRunUpdate(run *domain.Run, update transcripti
 
 func (h *transcriptIndexHost) afterRunUpdate(ctx context.Context, run *domain.Run, update transcriptindex.RunUpdate, wasActive bool) {
 	if !update.Active && (wasActive || update.Recorded > 0) {
-		h.o.projectTerminalInvocationReadModel(run)
+		h.o.projectTerminalInvocationReadModel(ctx, run)
 		h.o.notifyConversationSearch(ctx, "upsert_run", run.ID.String(), "")
 	}
 }

@@ -65,13 +65,13 @@ func runEventSinkPaths(t *testing.T, o *Orchestrator) map[string]func(*domain.Ru
 	t.Helper()
 	return map[string]func(*domain.Run) runner.EventSink{
 		"headless executor": func(run *domain.Run) runner.EventSink {
-			return o.newRunExecutor(t.Context(), run, nil, nil, "", "", "", nil).createEventSink()
+			return o.newRunExecutor(t.Context(), run, nil, nil, "", "", "", nil).createEventSink(t.Context())
 		},
-		"interactive tail": func(run *domain.Run) runner.EventSink { return o.runEventSink(run.ID) },
+		"interactive tail": func(run *domain.Run) runner.EventSink { return o.runEventSink(t.Context(), run.ID) },
 		"recovery": func(run *domain.Run) runner.EventSink {
 			r := NewReconciler(o.runs, o.runners, WithReconcilerEvents(o.events))
 			o.SetReconciler(r)
-			return r.recoveryEventSink(run.ID)
+			return r.recoveryEventSink(t.Context(), run.ID)
 		},
 	}
 }
@@ -194,7 +194,7 @@ func TestNativeQuotaCodecSinkDurableObservationAndPublicEvent(t *testing.T) {
 		t.Fatalf("codec=%+v", got)
 	}
 	evt := got.Events[0]
-	if err := o.runEventSink(run.ID).Emit(evt); err != nil {
+	if err := o.runEventSink(t.Context(), run.ID).Emit(evt); err != nil {
 		t.Fatal(err)
 	}
 	// This check exercises quota observation identity directly; event replay is qualified below.
@@ -251,7 +251,7 @@ func TestCodexWarningPersistencePrecedesCursorAndReplayContinues(t *testing.T) {
 				}
 				broadcaster := &recordingBroadcaster{}
 				o := &Orchestrator{events: eventStore, broadcaster: broadcaster}
-				var sink runner.EventSink = o.runEventSink(runID)
+				var sink runner.EventSink = o.runEventSink(t.Context(), runID)
 				if failure == "warning sink" {
 					sink = warningSinkFailure{sink}
 				}
@@ -308,7 +308,7 @@ func TestCodexWarningPersistencePrecedesCursorAndReplayContinues(t *testing.T) {
 						}
 					}
 					recovered := codecs.NewCodexForTest().NewTranscriptParser()
-					_, replayedTerminal, replayErr := runner.Consume(t.Context(), runner.ConsumeArgs{RunID: runID, Transcript: path, StartAt: persistedCursor, ParseFn: recovered.ParseTranscriptLine, EventSink: o.runEventSink(runID)})
+					_, replayedTerminal, replayErr := runner.Consume(t.Context(), runner.ConsumeArgs{RunID: runID, Transcript: path, StartAt: persistedCursor, ParseFn: recovered.ParseTranscriptLine, EventSink: o.runEventSink(t.Context(), runID)})
 					replayed, readErr := eventStore.Get(t.Context(), runID, event.GetOptions{AfterSequence: -1})
 					if replayErr != nil || readErr != nil || replayedTerminal == nil || !replayedTerminal.Success || len(replayed) != 3 {
 						t.Fatalf("replayed=%+v terminal=%+v error=%v read=%v", replayed, replayedTerminal, replayErr, readErr)
@@ -361,7 +361,7 @@ func TestCodexIdenticalRecordsRetainDistinctSourceOccurrences(t *testing.T) {
 	o := &Orchestrator{events: store, broadcaster: broadcaster}
 	for attempt := 0; attempt < 2; attempt++ {
 		p := codecs.NewCodexForTest().NewTranscriptParser()
-		if _, _, err := runner.Consume(t.Context(), runner.ConsumeArgs{RunID: id, Transcript: path, ParseFn: p.ParseTranscriptLine, EventSink: o.runEventSink(id)}); err != nil {
+		if _, _, err := runner.Consume(t.Context(), runner.ConsumeArgs{RunID: id, Transcript: path, ParseFn: p.ParseTranscriptLine, EventSink: o.runEventSink(t.Context(), id)}); err != nil {
 			t.Fatal(err)
 		}
 	}

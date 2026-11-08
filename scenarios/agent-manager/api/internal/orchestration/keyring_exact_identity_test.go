@@ -72,6 +72,12 @@ func TestKeyringExactOneApprovalActualParentChildLifecycle(t *testing.T) {
 	}
 	expiry := time.Now().Add(time.Hour)
 	owner := coreidentity.Principal{Kind: coreidentity.ActorHuman, Verified: true, Subject: "fixture-owner", Scopes: []string{"agent-manager:write", "agent-manager:read", "agent-manager:orchestrate"}, ExpiresAt: expiry}
+	o.ownerIdentity = createOwnerVerifier(func(_ context.Context, token string) (coreidentity.Principal, error) {
+		if token != "disposable-native-owner-fixture" {
+			return coreidentity.Principal{}, fmt.Errorf("unexpected fixture owner credential")
+		}
+		return owner, nil
+	})
 	ownerCtx := coreidentity.WithPrincipal(ctx, owner)
 	profile, err := o.CreateProfile(ctx, &domain.AgentProfile{Name: "synthetic parent child", ProfileKey: "keyring-inprocess", RoleRef: "code.default", DeclaredScopes: owner.Scopes, MaxTurns: 5, Timeout: time.Minute, NetworkAccess: domain.NetworkAccessNone, SandboxConfig: &domain.SandboxConfig{Mode: domain.SandboxModeOff}})
 	if err != nil {
@@ -384,5 +390,4 @@ func TestKeyringExactOneApprovalActualParentChildLifecycle(t *testing.T) {
 			t.Fatal("terminal fixture identity not revoked", err)
 		}
 	}
-
 }

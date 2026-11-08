@@ -19,7 +19,7 @@ Every cadence, timeout, and timing-sensitive contract in agent-manager lives in 
               ─ checkpoint persistence ......... every Heartbeat.CheckpointInterval
               ─ Started() callback fires once
                 Status = RunStatusRunning ...... releases the dispatcher slot
-   t=end    HandleResult (classify + apply)
+   t=end    HandleResult (classify + sandbox apply + durable terminal write)
    t=end+   Finalize (DEFERRED) ................ bounded by Heartbeat.TeardownTimeout
             • detached from execCtx — runs
               even after deadline exceeded
@@ -28,6 +28,17 @@ Every cadence, timeout, and timing-sensitive contract in agent-manager lives in 
 **Lever:** `Execution.DefaultTimeout` (default 30m) caps the entire pipeline through HandleResult. Finalize uses `Heartbeat.TeardownTimeout` so sandbox teardown completes even after the run timed out. Startup serialization is bounded by `Spawn.MaxStartingConcurrency` and `Spawn.MinSpacing`.
 
 **Test:** `phases/finalize_test.go::TestApplySandboxLifecycle_DeletesEvenWithCancelledCallerCtx` pins the 2026-04-28 mount-leak fix.
+
+If the durable run read or terminal write fails, `HandleResult` returns a deferred
+result. The executor must not publish terminal callbacks or run normal sandbox
+teardown; it preserves the transcript and sandbox for the reconciler to rebuild
+and persist the terminal outcome. Run-scoped credentials may be cleaned only
+when the durable lifecycle version still matches the executor snapshot. A
+sandbox apply attempted before a failed run write is safe to retry through the
+workspace-sandbox approval owner, which serializes review and treats an already
+approved sandbox as complete.
+
+**Tests:** `phases/result_durable_test.go::TestHandleResultDefersWhenTerminalWriteFails` pins the failed durable write state; `internal/orchestration/run_executor_deferred_test.go::TestDeferredResultFinalizationPreservesSandbox` pins the executor handoff to recovery.
 
 ## Spawn-startup window
 

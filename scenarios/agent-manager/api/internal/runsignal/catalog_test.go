@@ -112,14 +112,14 @@ func TestCommandPathKeepsTheOperationUnderADeclaredGroup(t *testing.T) {
 // groups, declared durable or streaming exceptions, the control plane's
 // cli/manifest.json, and a flag that makes a command block. A verb is never
 // evidence: `run await-result` re-reads a parked result, so `run get` is
-// offered `run events --follow`. A listing has none: a wait on one target does
+// offered `run wait` (then `run events --follow`). A listing has none: a wait on one target does
 // not stand in for it.
 func TestBlockingSiblingsComeFromTheManifests(t *testing.T) {
 	for path, want := range map[string]string{
 		"vrooli scenario status":         "vrooli scenario wait",
 		"workflow-health validate get":   "workflow-health validate wait",
 		"test-genie runs show":           "test-genie runs wait",
-		"agent-manager run get":          "agent-manager run events --follow",
+		"agent-manager run get":          "agent-manager run wait",
 		"agent-manager run events":       "agent-manager run events --follow",
 		"program-runtime programs get":   "program-runtime programs wait",
 		"device-control device state":    "device-control device watch",
@@ -145,7 +145,10 @@ func TestBlockingSiblingsComeFromTheManifests(t *testing.T) {
 	if got := BlockingSiblings("vrooli scenario status"); len(got) != 1 || strings.Join(got[0].After, ",") != "vrooli scenario start,vrooli scenario restart,make start,make restart" {
 		t.Errorf("scenario wait precondition = %+v, want after start/restart (vrooli and make)", got)
 	}
-	if !Blocks("agent-manager run events", []string{"agent-manager", "run", "events", "x", "--follow"}) || Blocks("agent-manager run events", []string{"agent-manager", "run", "events", "x"}) || Blocks("agent-manager run await-result", nil) || !Blocks("test-genie runs wait", nil) {
+	if got := BlockingSiblings("agent-manager run get"); len(got) != 2 || got[1].Command() != "agent-manager run events --follow" {
+		t.Errorf("agent-manager run get siblings = %v, want run wait then run events --follow", got)
+	}
+	if !Blocks("agent-manager run wait", nil) || !Blocks("agent-manager run events", []string{"agent-manager", "run", "events", "x", "--follow"}) || Blocks("agent-manager run events", []string{"agent-manager", "run", "events", "x"}) || Blocks("agent-manager run await-result", nil) || !Blocks("test-genie runs wait", nil) {
 		t.Error("Blocks must follow the manifest: run events only with --follow, runs wait always, await-result never")
 	}
 }

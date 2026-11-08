@@ -36,16 +36,20 @@ func (s *workflowConnectStub) StartWorkflowExecution(_ context.Context, r orches
 	s.start = r
 	return s.execution, nil
 }
+
 func (s *workflowConnectStub) GetWorkflowExecution(context.Context, uuid.UUID) (*domain.WorkflowExecution, error) {
 	return s.execution, nil
 }
+
 func (s *workflowConnectStub) WaitWorkflowExecution(context.Context, uuid.UUID, time.Duration) (*orchestration.WaitWorkflowExecutionResult, error) {
 	s.waits++
 	return &orchestration.WaitWorkflowExecutionResult{Execution: s.execution, TimedOut: true}, nil
 }
+
 func (s *workflowConnectStub) ListWorkflowExecutionRuns(context.Context, uuid.UUID) ([]*domain.WorkflowNodeAttempt, error) {
 	return nil, nil
 }
+
 func (s *workflowConnectStub) CancelWorkflowExecution(_ context.Context, r orchestration.WorkflowExecutionOperationRequest) (*orchestration.WorkflowExecutionOperationResult, error) {
 	s.cancels = append(s.cancels, r)
 	return &orchestration.WorkflowExecutionOperationResult{Execution: s.execution, Idempotent: true}, nil
@@ -77,7 +81,7 @@ func TestWorkflowWaitSurvivesServerWriteTimeout(t *testing.T) {
 			router := mux.NewRouter()
 			h.RegisterRoutes(router)
 			path, connectHandler := apiconnect.NewAgentManagerServiceHandler(NewAgentManagerConnectHandler(h))
-			router.Handle(apiconnect.AgentManagerServiceWaitWorkflowExecutionProcedure, WorkflowWaitResponse(connectHandler)).Methods(http.MethodPost)
+			router.Handle(apiconnect.AgentManagerServiceWaitWorkflowExecutionProcedure, LongWaitResponse(connectHandler)).Methods(http.MethodPost)
 			router.PathPrefix(path).Handler(connectHandler)
 			router.HandleFunc("/ordinary", func(w http.ResponseWriter, _ *http.Request) {
 				time.Sleep(stub.delay)

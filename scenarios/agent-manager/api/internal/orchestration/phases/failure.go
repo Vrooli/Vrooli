@@ -41,11 +41,11 @@ const terminalPersistAttempts = 3
 // the error: a cancelled request must not turn a real failure into a stranded
 // active run. The bounded retry keeps the failure path finite and leaves a
 // visible system event when durable persistence still cannot succeed.
-func persistTerminalRun(deps Deps, run *domain.Run) error {
+func persistTerminalRun(parent context.Context, deps Deps, run *domain.Run) error {
 	if deps.Runs == nil {
 		return nil
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	ctx, cancel := context.WithTimeout(context.WithoutCancel(parent), time.Second)
 	defer cancel()
 	var lastErr error
 	for attempt := 0; attempt < terminalPersistAttempts; attempt++ {
@@ -90,7 +90,7 @@ func FailWithError(ctx context.Context, in FailWithErrorInput) FailWithErrorOutp
 	outcome := domain.ClassifyErrorOutcome(in.Err)
 
 	if in.Deps.Runs != nil {
-		if updateErr := persistTerminalRun(in.Deps, in.Run); updateErr != nil {
+		if updateErr := persistTerminalRun(ctx, in.Deps, in.Run); updateErr != nil {
 			EmitSystemEvent(ctx, in.Deps, in.Run.ID, "error",
 				"failed to persist failure state: "+updateErr.Error())
 			return FailWithErrorOutput{Outcome: outcome}
@@ -99,7 +99,7 @@ func FailWithError(ctx context.Context, in FailWithErrorInput) FailWithErrorOutp
 	}
 
 	if in.Deps.Broadcaster != nil {
-		in.Deps.Broadcaster.BroadcastRunStatus(in.Run)
+		in.Deps.Broadcaster.BroadcastRunStatus(ctx, in.Run)
 	}
 
 	return FailWithErrorOutput{Outcome: outcome}
@@ -158,7 +158,7 @@ func HandleContextError(ctx context.Context, in HandleContextErrorInput) HandleC
 		in.Run.EndedAt = &now
 		in.Run.UpdatedAt = now
 		if in.Deps.Runs != nil {
-			if updateErr := persistTerminalRun(in.Deps, in.Run); updateErr != nil {
+			if updateErr := persistTerminalRun(ctx, in.Deps, in.Run); updateErr != nil {
 				EmitSystemEvent(ctx, in.Deps, in.Run.ID, "warn",
 					"failed to persist cancellation: "+updateErr.Error())
 				return out
@@ -170,7 +170,7 @@ func HandleContextError(ctx context.Context, in HandleContextErrorInput) HandleC
 	}
 
 	if in.Deps.Broadcaster != nil {
-		in.Deps.Broadcaster.BroadcastRunStatus(in.Run)
+		in.Deps.Broadcaster.BroadcastRunStatus(ctx, in.Run)
 	}
 
 	CleanupOnFailure(ctx, in.Deps, in.Run)

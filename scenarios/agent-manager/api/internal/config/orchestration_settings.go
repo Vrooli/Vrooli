@@ -72,7 +72,21 @@ type RunExecutionSettings struct {
 	// inline request may ask for less; larger requests are refused explicitly.
 	// Range: 1–9999. Default: 1000.
 	MaxTurns int `json:"maxTurns"`
+
+	// MaxChildDepth is the deepest nesting Agent Manager admits for child runs
+	// (created with a parent run): a root run is depth 0, its child 1. A child
+	// that would be deeper is refused with POLICY_CHILD_DEPTH_EXCEEDED before
+	// any admission effect. 0 disables Agent Manager child runs entirely.
+	// Range: 0–10. Default: 3.
+	MaxChildDepth int `json:"maxChildDepth"`
 }
+
+// DefaultMaxChildDepth admits a scheduler, its segment owners, their workers
+// and one more level (LONG_EFFORT_DESIGN three tiers plus headroom).
+const DefaultMaxChildDepth = 3
+
+// maxChildDepthCeiling bounds runExecution.maxChildDepth.
+const maxChildDepthCeiling = 10
 
 // SafetyIsolationSettings control accident prevention and isolation.
 type SafetyIsolationSettings struct {
@@ -146,9 +160,10 @@ type ProcessTerminationSettings struct {
 func DefaultOrchestrationSettings() OrchestrationSettings {
 	return OrchestrationSettings{
 		RunExecution: RunExecutionSettings{
-			RunTimeoutMinutes: 120,
+			RunTimeoutMinutes: 720,
 			MaxConcurrentRuns: 10,
 			MaxTurns:          1000,
+			MaxChildDepth:     DefaultMaxChildDepth,
 		},
 		SafetyIsolation: SafetyIsolationSettings{
 			RequireSandbox:  true,
@@ -241,6 +256,9 @@ func (r *RunExecutionSettings) validate() error {
 	}
 	if r.MaxTurns < 1 || r.MaxTurns > 9999 {
 		return NewInvalid("maxTurns", fmt.Sprintf("must be between 1 and 9999, got %d", r.MaxTurns), nil)
+	}
+	if r.MaxChildDepth < 0 || r.MaxChildDepth > maxChildDepthCeiling {
+		return NewInvalid("maxChildDepth", fmt.Sprintf("must be between 0 and %d, got %d", maxChildDepthCeiling, r.MaxChildDepth), nil)
 	}
 	return nil
 }

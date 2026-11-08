@@ -2,6 +2,8 @@ package orchestration
 
 import (
 	"context"
+	"database/sql"
+	"path/filepath"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -10,7 +12,92 @@ import (
 	"agent-manager/internal/orchestration/obs"
 
 	"github.com/google/uuid"
+	coredb "github.com/vrooli/api-core/database"
 )
+
+func TestWorkflowNudgerKeepsOriginalLeaseAfterProducerCancellationAndReplacement(t *testing.T) {
+	db, err := coredb.Open(t.Context(), coredb.Config{Driver: coredb.DriverSQLite, DSN: filepath.Join(t.TempDir(), "primary.db"), MaxOpenConns: 1})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = db.Close() })
+	if _, err := db.ExecContext(t.Context(), "CREATE TABLE effects(value TEXT)"); err != nil {
+		t.Fatal(err)
+	}
+	db.SetTestPoolInitializer(func(ctx context.Context, pool *sql.DB) error {
+		_, err := pool.ExecContext(ctx, "CREATE TABLE effects(value TEXT)")
+		return err
+	})
+	install := func(name string) {
+		t.Helper()
+		if err := db.InstallTestPool(t.Context(), "file:"+filepath.Join(t.TempDir(), name), "lease", time.Minute); err != nil {
+			t.Fatal(err)
+		}
+	}
+	install("original.db")
+	request, err := db.PinTestPool(t.Context(), "lease")
+	if err != nil {
+		t.Fatal(err)
+	}
+	request, cancel := context.WithCancel(request)
+	defer cancel()
+	completed := make(chan error, 2)
+	n := NewWorkflowNudger(func(ctx context.Context, _ uuid.UUID) error {
+		_, err := db.ExecContext(ctx, "INSERT INTO effects VALUES ('queued')")
+		completed <- err
+		return err
+	}, 1, time.Second)
+	defer n.Stop()
+	id := uuid.New()
+	n.Enqueue(request, id)
+	cancel()
+	n.Start()
+	await := func() error {
+		t.Helper()
+		select {
+		case err := <-completed:
+			return err
+		case <-time.After(2 * time.Second):
+			t.Fatal("queued drive did not return")
+			return nil
+		}
+	}
+	if err := await(); err != nil {
+		t.Fatalf("producer cancellation discarded admitted work: %v", err)
+	}
+	var count int
+	if err := db.QueryRowContext(context.WithoutCancel(request), "SELECT COUNT(*) FROM effects").Scan(&count); err != nil || count != 1 {
+		t.Fatalf("original leased effect missing: count=%d err=%v", count, err)
+	}
+	if err := db.ClearTestPool("lease"); err != nil {
+		t.Fatal(err)
+	}
+	install("replacement.db")
+	n.Enqueue(request, id)
+	if err := await(); err == nil {
+		t.Fatal("old queued context selected a replacement lease or primary pool")
+	}
+	for _, ctx := range []context.Context{t.Context(), coredb.WithTestMode(t.Context())} {
+		if err := db.QueryRowContext(ctx, "SELECT COUNT(*) FROM effects").Scan(&count); err != nil || count != 0 {
+			t.Fatalf("old context changed another storage owner: count=%d err=%v", count, err)
+		}
+	}
+	replacement, err := db.PinTestPool(t.Context(), "lease")
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Identical execution IDs in separate storage generations cannot suppress
+	// one another's queued work. Repeated notifications within one owner dedupe.
+	queued := NewWorkflowNudger(func(context.Context, uuid.UUID) error { return nil }, 1, time.Second)
+	defer queued.Stop()
+	for _, ctx := range []context.Context{t.Context(), request, replacement} {
+		queued.Enqueue(ctx, id)
+		queued.Enqueue(ctx, id)
+	}
+	if got := queued.PendingCount(); got != 3 {
+		t.Fatalf("cross-owner deduplication lost queued work: pending=%d want3", got)
+	}
+}
 
 // TestWorkflowNudgerDedupesPendingEnqueues pins that a second enqueue of an
 // execution already queued does not queue it twice — the run-terminal path may
@@ -18,13 +105,13 @@ import (
 func TestWorkflowNudgerDedupesPendingEnqueues(t *testing.T) {
 	n := NewWorkflowNudger(func(context.Context, uuid.UUID) error { return nil }, 1, time.Second)
 	id := uuid.New()
-	n.Enqueue(id)
-	n.Enqueue(id)
-	n.Enqueue(id)
+	n.Enqueue(t.Context(), id)
+	n.Enqueue(t.Context(), id)
+	n.Enqueue(t.Context(), id)
 	if got := n.PendingCount(); got != 1 {
 		t.Fatalf("PendingCount after duplicate enqueues = %d, want 1", got)
 	}
-	n.Enqueue(uuid.Nil) // ignored
+	n.Enqueue(t.Context(), uuid.Nil) // ignored
 	if got := n.PendingCount(); got != 1 {
 		t.Fatalf("PendingCount after nil enqueue = %d, want 1", got)
 	}
@@ -55,7 +142,7 @@ func TestWorkflowNudgerDrivesEachEnqueuedExecution(t *testing.T) {
 	for _, id := range ids {
 		for range 5 {
 			wg.Add(1)
-			go func(id uuid.UUID) { defer wg.Done(); n.Enqueue(id) }(id)
+			go func(id uuid.UUID) { defer wg.Done(); n.Enqueue(t.Context(), id) }(id)
 		}
 	}
 	wg.Wait()
@@ -107,9 +194,9 @@ func TestWorkflowNudgerSurvivesPanickingDrive(t *testing.T) {
 	defer n.Stop()
 
 	first := uuid.New()
-	n.Enqueue(first)
+	n.Enqueue(t.Context(), first)
 	second := uuid.New()
-	n.Enqueue(second)
+	n.Enqueue(t.Context(), second)
 	select {
 	case id := <-panics:
 		if id != first {
@@ -133,7 +220,7 @@ func TestWorkflowNudgerStopIsIdempotentAndUnblocks(t *testing.T) {
 	n.Start()
 	n.Stop()
 	// Enqueue after Stop is a no-op.
-	n.Enqueue(uuid.New())
+	n.Enqueue(t.Context(), uuid.New())
 	if drives.Load() != 0 {
 		t.Fatalf("drives after stop = %d, want 0", drives.Load())
 	}

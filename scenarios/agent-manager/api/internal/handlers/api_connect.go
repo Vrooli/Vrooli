@@ -376,7 +376,7 @@ func (h *AgentManagerConnectHandler) ListRuns(ctx context.Context, req *connect.
 			return nil, connect.NewError(connect.CodeInvalidArgument, protovalidateToDomainError(err))
 		}
 	}
-	response, err := h.h.listRunsProto(ctx, request, nil, nil, nil)
+	response, err := h.h.listRunsProto(ctx, request, nil, nil)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	}

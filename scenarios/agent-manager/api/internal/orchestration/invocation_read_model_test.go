@@ -95,8 +95,8 @@ func TestTerminalProjectionIsDurableMarkProjectedBySweep(t *testing.T) {
 	if err := events.Append(ctx, run.ID, call); err != nil {
 		t.Fatal(err)
 	}
-	o.projectTerminalInvocationReadModel(run)
-	o.projectTerminalInvocationReadModel(run)
+	o.projectTerminalInvocationReadModel(t.Context(), run)
+	o.projectTerminalInvocationReadModel(t.Context(), run)
 	if watermark, err := repos.InvocationReadModel.Watermark(ctx, run.ID.String()); err != nil || watermark != nil {
 		t.Fatalf("marking projected synchronously: %+v %v", watermark, err)
 	}
@@ -154,7 +154,7 @@ func TestProjectionSweepDefersFailureWithoutMutatingTerminalRun(t *testing.T) {
 	queue := repos.InvocationReadModel.(invocationreadmodel.ProjectionQueue)
 	o := New(nil, nil, repos.Runs, WithEvents(events), WithInvocationReadModel(failingReadModel{Store: repos.InvocationReadModel, ProjectionQueue: queue}))
 	run := createRecoveryTestRun(t, repos, domain.RunnerTypeCodex)
-	o.projectTerminalInvocationReadModel(run)
+	o.projectTerminalInvocationReadModel(t.Context(), run)
 	if err := o.ProjectPendingInvocationReadModels(ctx); err != nil {
 		t.Fatal(err)
 	}

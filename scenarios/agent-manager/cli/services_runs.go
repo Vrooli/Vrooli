@@ -12,6 +12,7 @@ import (
 	"github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/api/apiconnect"
 	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
 	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 // RunService handles run-related API operations.
@@ -19,29 +20,29 @@ type RunService struct {
 	api *cliutil.APIClient
 }
 
+// RunListFilter is the server-side filter set of `run list`. Empty fields
+// are omitted.
+type RunListFilter struct {
+	Limit, Offset                                             int
+	TaskID, ProfileID, Status, TagPrefix, Origin, ParentRunID string
+}
+
 // List retrieves runs with optional filters.
-func (s *RunService) List(limit, offset int, taskID, profileID, status, tagPrefix, origin string) ([]byte, []*domainpb.Run, error) {
+func (s *RunService) List(filter RunListFilter) ([]byte, []*domainpb.Run, error) {
 	query := url.Values{}
-	if limit > 0 {
-		query.Set("limit", fmt.Sprintf("%d", limit))
+	if filter.Limit > 0 {
+		query.Set("limit", fmt.Sprintf("%d", filter.Limit))
 	}
-	if offset > 0 {
-		query.Set("offset", fmt.Sprintf("%d", offset))
+	if filter.Offset > 0 {
+		query.Set("offset", fmt.Sprintf("%d", filter.Offset))
 	}
-	if taskID != "" {
-		query.Set("taskId", taskID)
-	}
-	if profileID != "" {
-		query.Set("profileId", profileID)
-	}
-	if status != "" {
-		query.Set("status", status)
-	}
-	if tagPrefix != "" {
-		query.Set("tagPrefix", tagPrefix)
-	}
-	if origin != "" {
-		query.Set("origin", origin)
+	for key, value := range map[string]string{
+		"taskId": filter.TaskID, "profileId": filter.ProfileID, "status": filter.Status,
+		"tagPrefix": filter.TagPrefix, "origin": filter.Origin, "parentRunId": filter.ParentRunID,
+	} {
+		if value != "" {
+			query.Set(key, value)
+		}
 	}
 
 	body, err := s.api.Get("/api/v1/runs", query)
@@ -56,24 +57,40 @@ func (s *RunService) List(limit, offset int, taskID, profileID, status, tagPrefi
 	return body, resp.Runs, nil
 }
 
-// Get retrieves a single run by ID.
 // ListChildren lists the direct child runs of one parent run.
 func (s *RunService) ListChildren(parentID string, limit int) ([]byte, []*domainpb.Run, error) {
-	query := url.Values{}
-	query.Set("parentRunId", parentID)
-	if limit > 0 {
-		query.Set("limit", fmt.Sprintf("%d", limit))
-	}
-	body, err := s.api.Get("/api/v1/runs", query)
-	if err != nil {
-		return body, nil, err
-	}
-	var resp apipb.ListRunsResponse
-	if err := unmarshalProtoResponse(body, &resp); err != nil {
-		return body, nil, err
-	}
-	return body, resp.Runs, nil
+	return s.List(RunListFilter{ParentRunID: parentID, Limit: limit})
 }
+
+// Wait blocks server-side until one run settles or timeout elapses. The
+// transport deadline is the server bound plus a margin, never the ordinary
+// CLI request timeout.
+func (s *RunService) Wait(id string, timeout time.Duration) (*apipb.WaitRunResponse, error) {
+	_, response, err := typedRPC[apipb.WaitRunResponse](s.api.WithTimeout(timeout+waitTransportMargin), apiconnect.AgentManagerServiceWaitRunProcedure,
+		&apipb.WaitRunRequest{RunId: id, TimeoutSeconds: int32(timeout / time.Second)})
+	return response, err
+}
+
+// WaitChildren blocks server-side until a direct child of parentID settles at
+// or after since (the call's start when zero), no child is live, or timeout
+// elapses.
+func (s *RunService) WaitChildren(parentID string, since time.Time, timeout time.Duration) (*apipb.WaitRunChildrenResponse, error) {
+	request := &apipb.WaitRunChildrenRequest{ParentRunId: parentID, TimeoutSeconds: int32(timeout / time.Second)}
+	if !since.IsZero() {
+		request.Since = timestamppb.New(since)
+	}
+	_, response, err := typedRPC[apipb.WaitRunChildrenResponse](s.api.WithTimeout(timeout+waitTransportMargin), apiconnect.AgentManagerServiceWaitRunChildrenProcedure, request)
+	return response, err
+}
+
+// Tree reads one run and its descendants.
+func (s *RunService) Tree(id string) ([]byte, *apipb.RunTree, error) {
+	return typedRPC[apipb.RunTree](s.api, apiconnect.AgentManagerServiceGetRunTreeProcedure, &apipb.GetRunTreeRequest{RunId: id})
+}
+
+// waitTransportMargin lets a bounded server-side wait return its own timed-out
+// answer before the client transport gives up.
+const waitTransportMargin = 30 * time.Second
 
 // Accounting reads one run's metered usage, including non-cache tokens.
 func (s *RunService) Accounting(id string) (*apipb.RunAccounting, error) {
@@ -81,6 +98,7 @@ func (s *RunService) Accounting(id string) (*apipb.RunAccounting, error) {
 	return accounting, err
 }
 
+// Get retrieves a single run by ID.
 func (s *RunService) Get(id string) ([]byte, *domainpb.Run, error) {
 	body, err := s.api.Get("/api/v1/runs/"+id, nil)
 	if err != nil {

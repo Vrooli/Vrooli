@@ -228,7 +228,7 @@ func (o *Orchestrator) finalizeSandboxForTerminalRun(ctx context.Context, run *d
 			obs.Component("interactive").Warn("interactive terminal provenance persistence failed", obs.KeyRunID, run.ID.String(), obs.KeyError, err.Error())
 		}
 	}
-	phases.Finalize(phases.FinalizeInput{Deps: deps, Run: run, SandboxID: run.SandboxID, Sandbox: o.sandbox})
+	phases.Finalize(ctx, phases.FinalizeInput{Deps: deps, Run: run, SandboxID: run.SandboxID, Sandbox: o.sandbox})
 }
 
 // continueInteractiveRun continues an ExecutionMode=interactive run by typing the
@@ -382,7 +382,7 @@ func (o *Orchestrator) continueInteractiveRunWithVerifiedSession(ctx context.Con
 	// Reattach a live coordinator to drive the new turn to completion. Its
 	// turn-boundary debounce closes the follow-up turn exactly like the initial
 	// Execute turn.
-	o.driveInteractiveContinuation(run, completeAfterFirstTurn, tailContext)
+	o.driveInteractiveContinuation(ctx, run, completeAfterFirstTurn, tailContext)
 
 	return o.attachRunActions(ctx, run), statusPublicationErr
 }
@@ -443,7 +443,7 @@ func (o *Orchestrator) reinstallNativeGoal(ctx context.Context, run *domain.Run)
 // interactive driver registry so StopRun can cancel it deterministically. The
 // coordinator mutates its own copy of the run; the persisted DB row is the
 // source of truth.
-func (o *Orchestrator) driveInteractiveContinuation(run *domain.Run, completeAfterFirstTurn bool, tailContext interactive.TailContext) {
+func (o *Orchestrator) driveInteractiveContinuation(parent context.Context, run *domain.Run, completeAfterFirstTurn bool, tailContext interactive.TailContext) {
 	coord := interactive.NewCoordinator(interactive.CoordinatorDeps{
 		Tailer:      interactive.NewTailer(interactive.RegistryParser(o.runners)),
 		Sessions:    o.interactiveSessions,
@@ -454,11 +454,11 @@ func (o *Orchestrator) driveInteractiveContinuation(run *domain.Run, completeAft
 	})
 
 	runCopy := *run
-	ctx, driver := o.interactiveDrivers.register(context.Background(), run.ID)
+	ctx, driver := o.interactiveDrivers.register(context.WithoutCancel(parent), run.ID)
 	go func() {
 		defer o.interactiveDrivers.finish(run.ID, driver)
 		defer obs.RecoverToFailure("interactive continuation driver", func(failure obs.PanicFailure) {
-			o.recoverPanickedRun(&runCopy, failure)
+			o.recoverPanickedRun(ctx, &runCopy, failure)
 		})
 		if err := coord.TailAndFinalizeLive(ctx, &runCopy, tailContext, interactive.TailCompletionOptions{
 			CompleteAfterFirstSuccessfulTurnWithoutGoalMarker: completeAfterFirstTurn,

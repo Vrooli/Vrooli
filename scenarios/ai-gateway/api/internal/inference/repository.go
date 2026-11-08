@@ -2,6 +2,8 @@ package inference
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"strings"
 
@@ -9,19 +11,25 @@ import (
 
 	inferencev1 "github.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/inference"
 	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/shared"
+	"google.golang.org/protobuf/proto"
 )
 
 // ProviderRequest is the provider-neutral payload sent to a repository. The
 // repository owns resource/provider execution; the inference service owns the
 // schema gate and local validation.
 type ProviderRequest struct {
-	Source      string
-	SchemaJSON  string
-	Instruction string
-	Role        string
-	Profile     sharedv1.Profile
-	Turns       []*inferencev1.Turn
-	Attachments []*sharedv1.Attachment
+	// RootOperationID names one logical operation for idempotency only; it never
+	// grants access to provider execution or receipt data.
+	RootOperationID   string
+	RequestDigest     string
+	ValidationAttempt int
+	Source            string
+	SchemaJSON        string
+	Instruction       string
+	Role              string
+	Profile           sharedv1.Profile
+	Turns             []*inferencev1.Turn
+	Attachments       []*sharedv1.Attachment
 	// Temperature is the caller's explicit sampling request, or nil for "use
 	// the role's declared sampling". It is a plain pointer rather than the
 	// proto message so this package does not depend on proto shape for one
@@ -38,6 +46,7 @@ type ProviderRequest struct {
 }
 
 type ProviderResult struct {
+	Recovery               *inferencev1.RecoveryReceipt
 	ValueJSON              string
 	Provider               string
 	Model                  string
@@ -59,6 +68,24 @@ type ProviderResult struct {
 	// ProviderCallsMade counts adapter Execute attempts, including failures.
 	// It is not a receipt of provider HTTP requests completed.
 	ProviderCallsMade int32
+}
+
+func canonicalRequestDigest(request ProviderRequest) string {
+	message := &inferencev1.RunRequest{
+		Source: request.Source, SchemaJson: request.SchemaJSON, Instruction: request.Instruction,
+		Role: request.Role, Turns: request.Turns, Attachments: request.Attachments,
+		Profile: request.Profile, MaxOutputTokens: request.MaxOutputTokens,
+		MaxProviderCalls: request.MaxProviderCalls, SpendLimit: request.SpendLimit,
+	}
+	if request.Temperature != nil {
+		message.Sampling = &sharedv1.SamplingControls{Temperature: proto.Float64(*request.Temperature)}
+	}
+	encoded, err := (proto.MarshalOptions{Deterministic: true}).Marshal(message)
+	if err != nil {
+		return ""
+	}
+	digest := sha256.Sum256(encoded)
+	return hex.EncodeToString(digest[:])
 }
 
 type EmbeddingResult struct {

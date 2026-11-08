@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"agent-manager/internal/domain"
+	"agent-manager/internal/stepback"
 
 	"github.com/google/uuid"
 	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
@@ -16,6 +17,11 @@ import (
 
 type fakeActionController struct {
 	runs            map[uuid.UUID]*domain.Run
+	accounts        map[uuid.UUID]EffortRunAccounting
+	batchErr        error
+	returnNilBatch  bool
+	boardBatchReads int
+	getRunReads     int
 	continued       int
 	stopped         int
 	parked          int
@@ -23,6 +29,37 @@ type fakeActionController struct {
 	checkins        []effortCheckinCall
 	checkinErr      error
 	checkinErrByRun map[uuid.UUID]error
+	stepBack        map[uuid.UUID][]stepback.Trigger
+}
+
+func (c *fakeActionController) ReadRunStepBack(_ context.Context, ids []uuid.UUID) (map[uuid.UUID][]stepback.Trigger, error) {
+	out := make(map[uuid.UUID][]stepback.Trigger, len(ids))
+	for _, id := range ids {
+		if triggers, ok := c.stepBack[id]; ok {
+			out[id] = triggers
+		}
+	}
+	return out, nil
+}
+
+func (c *fakeActionController) ReadEffortBoardRuns(_ context.Context, ids []uuid.UUID) (map[uuid.UUID]*domain.Run, map[uuid.UUID]EffortRunAccounting, error) {
+	c.boardBatchReads++
+	if c.batchErr != nil && c.returnNilBatch {
+		return nil, nil, c.batchErr
+	}
+	runs := make(map[uuid.UUID]*domain.Run, len(ids))
+	for _, id := range ids {
+		if run := c.runs[id]; run != nil {
+			runs[id] = run
+		}
+	}
+	accounts := make(map[uuid.UUID]EffortRunAccounting, len(ids))
+	for _, id := range ids {
+		if account, ok := c.accounts[id]; ok {
+			accounts[id] = account
+		}
+	}
+	return runs, accounts, nil
 }
 
 type effortCheckinCall struct {
@@ -32,28 +69,34 @@ type effortCheckinCall struct {
 }
 
 func (c *fakeActionController) GetRun(_ context.Context, id uuid.UUID) (*domain.Run, error) {
+	c.getRunReads++
 	return c.runs[id], nil
 }
+
 func (c *fakeActionController) ContinueRun(_ context.Context, id uuid.UUID, _, _ string) error {
 	c.continued++
 	c.runs[id].Status = domain.RunStatusRunning
 	return nil
 }
+
 func (c *fakeActionController) StopRun(_ context.Context, id uuid.UUID) error {
 	c.stopped++
 	c.runs[id].Status = domain.RunStatusCancelled
 	return nil
 }
+
 func (c *fakeActionController) ParkRun(_ context.Context, id uuid.UUID, _ string, _ *time.Time) error {
 	c.parked++
 	c.runs[id].Status = domain.RunStatusParked
 	return nil
 }
+
 func (c *fakeActionController) WakeRun(_ context.Context, id uuid.UUID, _ string) error {
 	c.woken++
 	c.runs[id].Status = domain.RunStatusRunning
 	return nil
 }
+
 func (c *fakeActionController) WakeEffortCheckin(_ context.Context, id uuid.UUID, effortRef string, through int64) error {
 	if err := c.checkinErrByRun[id]; err != nil {
 		return err

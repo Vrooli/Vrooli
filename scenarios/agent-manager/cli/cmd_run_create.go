@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"regexp"
 	"strings"
 	"time"
@@ -131,7 +132,8 @@ func (a *App) runCreate(args []string) error {
 	untilFile := fs.String("until-file", "", "Read the engine-owned completion test from a UTF-8 file (max 1 MiB)")
 	workloadKey := fs.String("workload-key", "", "Stable workload key for grouping repeated work")
 	workloadKind := fs.String("workload-kind", "", "Workload kind (workflow_node, scheduled, interactive, adhoc, imported)")
-	parentRunID := fs.String("parent-run-id", "", "Parent run ID for durable child lineage")
+	parentRunID := fs.String("parent-run-id", "", "Parent run ID for durable child lineage (the creating run's own ID; nesting is capped by runExecution.maxChildDepth)")
+	charter := fs.String("charter", "", "Absolute path of an existing charter file; the task prompt names it and asks the agent to re-read it at every unit start and after any compaction")
 	var targetInstances cliutil.StringList
 	fs.Var(&targetInstances, "target-instance", "Scenario instance this run changes, <scenario>@<instance> (repeatable); a quiesce of another instance skips the run")
 	maxWeightedTokens := fs.Int64("max-weighted-tokens", 0, "Observed weighted-token threshold; may only lower the profile limit; action depends on token-cap mode and usage reporting")
@@ -161,6 +163,12 @@ func (a *App) runCreate(args []string) error {
 	}
 	if *parentRunID != "" {
 		req.ParentRunId = protoString(*parentRunID)
+	}
+	if *charter != "" {
+		if !filepath.IsAbs(*charter) {
+			return fmt.Errorf("--charter %q must be an absolute path", *charter)
+		}
+		req.CharterPath = protoString(*charter)
 	}
 	req.TargetInstances = targetInstances.Values()
 	if *maxWeightedTokens < 0 {
@@ -206,7 +214,10 @@ func (a *App) runCreate(args []string) error {
 		return err
 	}
 	if spec != nil {
-		req.InlineConfig = &domainpb.RunConfigOverrides{ResultSpec: spec}
+		if req.InlineConfig == nil {
+			req.InlineConfig = &domainpb.RunConfigOverrides{}
+		}
+		req.InlineConfig.ResultSpec = spec
 	}
 	if *effort != "" {
 		if req.InlineConfig == nil {

@@ -346,12 +346,14 @@ func New(cfg Config) *Dispatcher {
 
 // ReserveAdmission installs the local cancellation fence before the durable
 // Task/Run claim is committed. Call ReleaseAdmission if durable admission
-// fails. The returned context is detached from the request lifetime.
-func (d *Dispatcher) ReserveAdmission(runID uuid.UUID) (*Admission, error) {
+// fails. Retain the admitted operation's pinned storage and owner metadata,
+// while detaching execution from the HTTP producer's cancellation/deadline.
+// The admission still owns execution cancellation after this handoff.
+func (d *Dispatcher) ReserveAdmission(parent context.Context, runID uuid.UUID) (*Admission, error) {
 	if runID == uuid.Nil {
 		return nil, errors.New("spawn: admission requires a run ID")
 	}
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(context.WithoutCancel(parent))
 	a := &Admission{ctx: ctx, cancel: cancel}
 	d.admissionMu.Lock()
 	defer d.admissionMu.Unlock()
@@ -571,18 +573,12 @@ func (d *Dispatcher) workerLoop() (clean bool) {
 		d.startingCount.Add(1)
 		lastSpawn = d.clock()
 
-		// Contained separately: a panicking sink here would otherwise unwind
-		// the loop between slot acquisition and runJob, leaking the starting
-		// slot and wedging the only spawn path.
-		func() {
-			defer obs.RecoverToFailure("spawn started emit", nil)
-			obs.EmitSpawnStarted(job.Sink, job.RunID, obs.SpawnStartedFields{
-				RunMode:     job.RunMode,
-				RunnerType:  job.RunnerType,
-				QueuedFor:   lastSpawn.Sub(job.enqueuedAt),
-				ActiveCount: int(d.activeCount.Load()),
-			})
-		}()
+		// The shared lifecycle emitter contains sink failures on both the
+		// enqueue and worker paths, so neither can leak an acquired slot.
+		obs.EmitSpawnStarted(job.Sink, job.RunID, obs.SpawnStartedFields{
+			RunMode: job.RunMode, RunnerType: job.RunnerType,
+			QueuedFor: lastSpawn.Sub(job.enqueuedAt), ActiveCount: int(d.activeCount.Load()),
+		})
 
 		if job.Admission != nil && !job.Admission.claimExecutor() {
 			// No ExecuteFn defer will run for a job discarded at this gate. Drop

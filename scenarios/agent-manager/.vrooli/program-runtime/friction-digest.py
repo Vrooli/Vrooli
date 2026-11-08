@@ -1,4 +1,4 @@
-"""agent-manager.friction-digest v3 — the owner-level tool friction of one owning scenario.
+"""agent-manager.friction-digest v4 — the owner-level tool friction of one owning scenario.
 
 Contract: friction-digest.json (inputs, invariants, bindings, outputs).
 Skill:    agent-manager §4 (the [S3] leaf), agent-manager-improve §3 (the fleet friction sensor),
@@ -26,12 +26,13 @@ MAX_DESCRIPTION_CHARS = 280
 
 # ---- envelope: created first, printed once, on every path ----------------------
 envelope = {
-    "program": "agent-manager.friction-digest", "version": "3",
+    "program": "agent-manager.friction-digest", "version": "4",
     "status": "failed", "phase": "validate",
     "inputs": {"scenario": scenario, "window_days": window_days, "top_n": top_n},
     "signals": {
         "window_start": None, "coverage": None, "profiles_for_scenario": 0, "calls_for_scenario": 0,
-        "findings_for_scenario": 0, "recurring_count": 0, "top_fingerprints": [],
+        "findings_for_scenario": 0, "below_floor_for_scenario": 0, "beyond_limit_for_scenario": 0,
+        "recurring_count": 0, "top_fingerprints": [],
         "supervision_outcomes": None, "supervision_calibration_available": False, "supervision_false_positives": None,
         "supervision_false_negatives": None, "supervision_overrides": 0,
         "supervision_counterexamples": 0, "supervision_safety_violations": None,
@@ -105,31 +106,30 @@ def step_collect():  # COLLECT · governed reads only
             klass = "kernel_runtime"
         envelope["errors"].append({"class": klass, "detail": str(exc)[:160], "where": "collect:supervision-outcomes"})
     now = datetime.datetime.now(datetime.timezone.utc)
-    window = {"custom": {"from": (now - datetime.timedelta(days=window_days)).isoformat(), "to": now.isoformat()}}
+    since = (now - datetime.timedelta(days=window_days)).isoformat()
     try:
-        handles["tools"] = agent_manager.measures.tool_friction(window=window, owner=scenario, limit=200)
+        handles["tools"] = agent_manager.usage.friction(since=since, owner=scenario, limit=200)
     except Exception as exc:
         status, klass = program.classify(exc)
         return fail(status, klass, exc, "collect")
-    envelope["evidence"].append(f"agent-manager usage friction --since <{window_days} days ago>  # findings owned by {scenario}")
+    envelope["evidence"].append(f"agent-manager usage friction --since <{window_days} days ago> --owner {scenario}")
     return "classify"
 
 
 def step_classify():  # CLASSIFY · deterministic; one record, bounded lists
     envelope["phase"] = "classify"
     sig = envelope["signals"]
-    rows = handles["tools"].head(1)
-    record = rows[0] if rows else {}
-    summary = record.get("summary") or {}
-    coverage = summary.get("coverage") or {}
+    record = handles["tools"].meta() or {}
+    coverage = record.get("coverage") or {}
     sig["window_start"] = record.get("windowStart")
     sig["coverage"] = bounded_text(coverage.get("sentence"), 800)
-    profiles = record.get("profiles") or []
-    sig["profiles_for_scenario"] = len(profiles)
-    sig["calls_for_scenario"] = sum(int(p.get("calls") or 0) for p in profiles)
-    findings = record.get("findings") or []  # ranked by their share of the window's harm, owner already narrowed
+    sig["profiles_for_scenario"] = int(record.get("ownerProfileCount") or 0)
+    sig["calls_for_scenario"] = int(record.get("ownerCallCount") or 0)
+    findings = handles["tools"].head(200)
     sig["findings_for_scenario"] = len(findings)
     sig["recurring_count"] = sum(1 for f in findings if int(f.get("runs") or 0) >= 3)
+    sig["below_floor_for_scenario"] = int(record.get("belowFloor") or 0)
+    sig["beyond_limit_for_scenario"] = int(record.get("beyondLimit") or 0)
     sig["top_fingerprints"] = []
     for finding in findings[:top_n]:
         description = str(finding.get("description") or "")
@@ -141,7 +141,15 @@ def step_classify():  # CLASSIFY · deterministic; one record, bounded lists
             "cost": int(finding.get("cost") or 0), "cost_unit": finding.get("costUnit"),
             "cost_share": float(finding.get("costShare") or 0.0), "status": finding.get("status"),
         })
-    envelope["status"] = "ok"
+    if sig["below_floor_for_scenario"] or sig["beyond_limit_for_scenario"]:
+        envelope["status"] = "partial"
+        envelope["errors"].append({
+            "class": "findings_omitted",
+            "detail": f"owner-scoped response omitted {sig['below_floor_for_scenario']} below-floor and {sig['beyond_limit_for_scenario']} over-limit findings",
+            "where": "collect",
+        })
+    else:
+        envelope["status"] = "ok"
     return "report"
 
 

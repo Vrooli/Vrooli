@@ -205,3 +205,28 @@ func TestCreateSandboxWorkspace_RejectsNonActiveCreateBeforeBindingRun(t *testin
 		})
 	}
 }
+
+func TestCreateSandboxWorkspace_RefusesUnavailableDependencyWithoutHostFallback(t *testing.T) {
+	run, task, profile := setupWorkspaceFixture(t)
+	provider := mocks.NewFakeSandboxProvider()
+	provider.IsAvailableFunc = func(context.Context) (bool, string) { return false, "sandbox unavailable" }
+	createCalls := 0
+	provider.CreateFunc = func(context.Context, sandbox.CreateRequest) (*sandbox.Sandbox, error) {
+		createCalls++
+		return nil, errors.New("must not allocate after failed ensure")
+	}
+	failure := errors.New("dependency recovery refused")
+	ensurer := &fakeWorkspaceSandboxEnsurer{fn: func(context.Context) error { return failure }}
+	out, err := CreateSandboxWorkspace(context.Background(), SetupWorkspaceInput{
+		Deps: Deps{Levers: config.DefaultLevers(), WorkspaceSandbox: ensurer}, Run: run, Task: task, Profile: profile, Sandbox: provider,
+	})
+	if err == nil || !errors.Is(err, failure) {
+		t.Fatalf("failed dependency recovery did not refuse sandboxed setup: output=%+v error=%v", out, err)
+	}
+	if createCalls != 0 || run.SandboxID != nil || out.WorkDir != "" {
+		t.Fatalf("failed recovery admitted execution or bound an unverified workspace: createCalls=%d run=%+v output=%+v", createCalls, run, out)
+	}
+	if ensurer.CallCount() != 1 {
+		t.Fatalf("expected one bounded recovery attempt, got %d", ensurer.CallCount())
+	}
+}

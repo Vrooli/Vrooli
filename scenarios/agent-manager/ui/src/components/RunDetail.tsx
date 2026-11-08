@@ -1,3 +1,4 @@
+import { selectors } from "../consts/selectors";
 import type React from "react";
 import { statusTone } from "../lib/display";
 import { StatusBadge } from "@vrooli/react-component-library/StatusBadge/1";
@@ -205,7 +206,7 @@ export function RunDetail({
     return () => onMobileHeaderRight(null);
   }, [isDesktop, run, actions, actionsMenuOpen, onMobileHeaderRight, onStop, onDelete, onInvestigate, onApplyInvestigation, onRetry, onResumeFromFailure, canApplyFixes, canDeleteRun, deleteLoading]);
   return (
-    <div className="h-full flex flex-col" ref={containerRef}>
+    <div data-testid={selectors.run.detail} data-run-status={runStatusLabel(run.status, run.approvalState)} className="h-full flex flex-col" ref={containerRef}>
       {/* Details Section (collapsible) - hidden on mobile, shown via info dialog instead */}
       <div
         className="flex-shrink-0 flex-col border-b border-border hidden lg:flex"

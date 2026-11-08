@@ -276,8 +276,8 @@ export function useRuns(options?: { enabled?: boolean; limit?: number; origin?: 
     [fetchRuns]
   );
 
-  const getRun = useCallback(async (id: string): Promise<Run> => {
-    const run = await apiRequest<unknown>("/runs/" + id);
+  const getRun = useCallback(async (id: string, options?: { signal?: AbortSignal }): Promise<Run> => {
+    const run = await apiRequest<unknown>("/runs/" + id, { signal: options?.signal });
     const message = parseProto(GetRunResponseSchema, run);
     return message.run as Run;
   }, []);
@@ -299,13 +299,13 @@ export function useRuns(options?: { enabled?: boolean; limit?: number; origin?: 
   );
 
   const getRunEvents = useCallback(
-    async (id: string, options?: { afterSequence?: bigint }): Promise<RunEvent[]> => {
+    async (id: string, options?: { afterSequence?: bigint; signal?: AbortSignal }): Promise<RunEvent[]> => {
       const params = new URLSearchParams();
       if (options?.afterSequence !== undefined) {
         params.set("after_sequence", options.afterSequence.toString());
       }
       const query = params.size > 0 ? `?${params.toString()}` : "";
-      const data = await apiRequest<unknown>("/runs/" + id + "/events" + query);
+      const data = await apiRequest<unknown>("/runs/" + id + "/events" + query, { signal: options?.signal });
       const message = parseProto(GetRunEventsResponseSchema, data);
       return message.events ?? [];
     },

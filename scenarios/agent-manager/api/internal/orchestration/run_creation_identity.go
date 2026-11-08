@@ -35,12 +35,6 @@ func createRunRequestDigest(req CreateRunRequest) (string, error) {
 	return hex.EncodeToString(sum[:]), nil
 }
 
-// buildRunAdmission captures the immutable requested-versus-effective
-// configuration record for a newly admitted run. Requested values come from the
-// caller request before resolution; effective values mirror the resolved config
-// and its pinned policy snapshot. Unrequested fields stay empty rather than
-// being backfilled with defaults, so a reader can distinguish "not requested"
-// from "requested and resolved".
 // resolveCreateRunIdentity authenticates before any reservation or dispatch.
 // Narrowing is never accepted as a substitute for verified authority.
 func (o *Orchestrator) resolveCreateRunIdentity(ctx context.Context, req *CreateRunRequest) error {
@@ -52,6 +46,21 @@ func (o *Orchestrator) resolveCreateRunIdentity(ctx context.Context, req *Create
 		req.OwnerScopes = append([]string(nil), owner.Scopes...)
 		expires := owner.ExpiresAt
 		req.OwnerExpiresAt = &expires
+		if strings.TrimSpace(req.OwnerToken) != "" {
+			// A browser assertion cannot erase a separately offered credential.
+			// Both must name the same owner; retain only their shared authority.
+			if o.ownerIdentity == nil {
+				return domain.NewConfigMissingError("owner_identity", "verifier not configured", nil)
+			}
+			offered, err := o.ownerIdentity.Verify(ctx, req.OwnerToken)
+			if err != nil || !offered.IsHuman() || offered.Subject != owner.Subject || offered.ExpiresAt.IsZero() || !offered.ExpiresAt.After(o.now()) {
+				return domain.NewValidationErrorWithCode("authorization", "offered owner credential conflicts with verified owner or is unavailable", domain.ErrCodePolicyScope)
+			}
+			req.OwnerScopes = identity.IntersectScopes(append([]string{}, req.OwnerScopes...), append([]string{}, offered.Scopes...), nil)
+			if offered.ExpiresAt.Before(expires) {
+				expires = offered.ExpiresAt
+			}
+		}
 	} else if strings.TrimSpace(req.OwnerToken) != "" {
 		if o.ownerIdentity == nil {
 			return domain.NewConfigMissingError("owner_identity", "verifier not configured", nil)
@@ -152,6 +161,12 @@ func sameCreateRunScopeCeiling(a, b []string) bool {
 	return slices.Equal(slices.Compact(left), slices.Compact(right))
 }
 
+// buildRunAdmission captures the immutable requested-versus-effective
+// configuration record for a newly admitted run. Requested values come from the
+// caller request before resolution; effective values mirror the resolved config
+// and its pinned policy snapshot. Unrequested fields stay empty rather than
+// being backfilled with defaults, so a reader can distinguish "not requested"
+// from "requested and resolved".
 func buildRunAdmission(req CreateRunRequest, cfg *domain.RunConfig) *domain.RunAdmission {
 	if cfg == nil {
 		return nil
@@ -199,39 +214,6 @@ func buildRunAdmission(req CreateRunRequest, cfg *domain.RunConfig) *domain.RunA
 		admission.SelectionReason = cfg.PolicySnapshot.SelectionReason
 	}
 	return admission
-}
-
-// admitDependentDelegation enforces the Agent Manager-owned qualification gate
-// at the dependent-delegation admission point. A run without a parent is not
-// dependent delegation and is admitted unchanged. A child run is admitted only
-// when its parent's observed runner/model/effort match and execution
-// restrictions are retained. A model receipt never authorizes policy changes.
-func (o *Orchestrator) admitDependentDelegation(ctx context.Context, req CreateRunRequest, cfg *domain.RunConfig) error {
-	_, err := o.dependentDelegationParent(ctx, req, cfg)
-	return err
-}
-
-// dependentDelegationParent loads the parent's retained run snapshot and applies
-// the existing dependent-execution gate. The qualified snapshot is also the
-// source for child effort attribution; caller-supplied effort fields do not
-// replace the parent's canonical reference terms.
-func (o *Orchestrator) dependentDelegationParent(ctx context.Context, req CreateRunRequest, cfg *domain.RunConfig) (*domain.Run, error) {
-	if req.ParentRunID == nil {
-		return nil, nil
-	}
-	if o.runs == nil {
-		return nil, domain.NewConfigMissingError("runs", "run repository not configured", nil)
-	}
-	parent, err := o.runs.Get(ctx, *req.ParentRunID)
-	if err != nil {
-		return nil, domain.NewValidationErrorWithHint("parentRunId",
-			"parent run could not be read for dependent-delegation admission: "+err.Error(),
-			"retry after the parent run is durable")
-	}
-	if err := dependentDelegationAdmissionError(parent, cfg); err != nil {
-		return nil, err
-	}
-	return parent, nil
 }
 
 // inheritParentEffortReferences derives a child's effort role only from the
@@ -324,9 +306,12 @@ func compatibleChildEffortReference(candidate, parent *eventpb.WorkReference) bo
 	return !candidate.GetVerified() || parent.GetVerified()
 }
 
-// dependentDelegationAdmissionError is the pure gate decision: it reads the
-// parent's persisted execution policy and qualification against the child's
-// resolved configuration. Admission and focused tests use the same decision.
+// dependentDelegationAdmissionError is the Agent Manager-owned qualification
+// gate for dependent delegation, applied to the parent snapshot admitLineage
+// read. A child is admitted only when its parent's observed runner, model and
+// effort match and execution restrictions are retained; a model receipt never
+// authorizes policy changes. Admission and focused tests use the same decision.
+// The qualified snapshot is also the source for child effort attribution.
 func dependentDelegationAdmissionError(parent *domain.Run, cfg *domain.RunConfig) error {
 	if parent == nil || parent.ResolvedConfig == nil || parent.ResolvedConfig.Admission == nil {
 		return domain.NewValidationError("qualification", "dependent delegation is closed: parent run has no admission record")

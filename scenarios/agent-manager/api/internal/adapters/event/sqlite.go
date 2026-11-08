@@ -580,6 +580,60 @@ func (s *SQLiteStore) Get(ctx context.Context, runID uuid.UUID, opts GetOptions)
 	return result, nil
 }
 
+// GetMany loads complete event streams for a bounded set of runs in one query
+// per 500 identities. The options retain Get's sequence and type filters;
+// unlike Get, pagination is not applied because accounting must see the full
+// retained stream for every run.
+func (s *SQLiteStore) GetMany(ctx context.Context, runIDs []uuid.UUID, opts GetOptions) (map[uuid.UUID][]*domain.RunEvent, map[uuid.UUID]error, error) {
+	result := make(map[uuid.UUID][]*domain.RunEvent, len(runIDs))
+	decodeErrs := make(map[uuid.UUID]error)
+	if len(runIDs) == 0 {
+		return result, decodeErrs, nil
+	}
+	const batchSize = 500
+	for start := 0; start < len(runIDs); start += batchSize {
+		end := start + batchSize
+		if end > len(runIDs) {
+			end = len(runIDs)
+		}
+		ids := runIDs[start:end]
+		conditions := []string{"run_id IN (" + strings.TrimSuffix(strings.Repeat("?,", len(ids)), ",") + ")", "sequence > ?"}
+		args := make([]interface{}, 0, len(ids)+2+len(opts.EventTypes))
+		for _, id := range ids {
+			args = append(args, id)
+		}
+		args = append(args, opts.AfterSequence)
+		if opts.Since != nil {
+			conditions = append(conditions, "timestamp > ?")
+			args = append(args, sqliteTime(*opts.Since))
+		}
+		if len(opts.EventTypes) > 0 {
+			marks := strings.TrimSuffix(strings.Repeat("?,", len(opts.EventTypes)), ",")
+			conditions = append(conditions, "event_type IN ("+marks+")")
+			for _, eventType := range opts.EventTypes {
+				args = append(args, string(eventType))
+			}
+		}
+		var rows []eventRow
+		query := fmt.Sprintf("SELECT %s FROM run_events WHERE %s ORDER BY run_id, sequence", eventColumns, strings.Join(conditions, " AND "))
+		if err := s.db.SelectContext(ctx, &rows, query, args...); err != nil {
+			return nil, nil, dbError("get_many_events", err)
+		}
+		for i := range rows {
+			evt, err := rows[i].toDomain()
+			if err != nil {
+				decodeErrs[rows[i].RunID] = err
+				continue
+			}
+			result[evt.RunID] = append(result[evt.RunID], evt)
+		}
+	}
+	for id := range decodeErrs {
+		delete(result, id)
+	}
+	return result, decodeErrs, nil
+}
+
 type eventSummaryRow struct {
 	EventType     string `db:"event_type"`
 	Count         int64  `db:"event_count"`

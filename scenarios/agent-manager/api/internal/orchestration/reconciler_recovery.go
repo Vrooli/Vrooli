@@ -549,9 +549,9 @@ func (r *Reconciler) markRunApprovedFromSandbox(ctx context.Context, run *domain
 		r.log().Warn("approved run sync failed", obs.KeyRunID, run.ID.String(), obs.KeyError, err.Error())
 		return
 	}
-	r.markProjectionPending(run)
+	r.markProjectionPending(ctx, run)
 	if r.broadcaster != nil {
-		r.broadcaster.BroadcastRunStatus(run)
+		r.broadcaster.BroadcastRunStatus(ctx, run)
 	}
 }
 
@@ -569,9 +569,9 @@ func (r *Reconciler) markRunRejectedFromSandbox(ctx context.Context, run *domain
 		r.log().Warn("rejected run sync failed", obs.KeyRunID, run.ID.String(), obs.KeyError, err.Error())
 		return
 	}
-	r.markProjectionPending(run)
+	r.markProjectionPending(ctx, run)
 	if r.broadcaster != nil {
-		r.broadcaster.BroadcastRunStatus(run)
+		r.broadcaster.BroadcastRunStatus(ctx, run)
 	}
 }
 
@@ -635,11 +635,11 @@ func (r *Reconciler) markRunFailed(ctx context.Context, run *domain.Run, reason 
 		r.log().Warn("run status update failed", obs.KeyRunID, run.ID.String(), obs.KeyError, err.Error())
 		return // Do not project a status that lost its atomic writer fence.
 	}
-	r.markProjectionPending(run)
+	r.markProjectionPending(ctx, run)
 
 	// Broadcast status change
 	if r.broadcaster != nil {
-		r.broadcaster.BroadcastRunStatus(run)
+		r.broadcaster.BroadcastRunStatus(ctx, run)
 	}
 }
 
@@ -657,10 +657,10 @@ func (r *Reconciler) completeAttachedRun(ctx context.Context, run *domain.Run) {
 		r.log().Warn("attached run completion failed", obs.KeyRunID, run.ID.String(), obs.KeyError, err.Error())
 		return
 	}
-	r.markProjectionPending(run)
+	r.markProjectionPending(ctx, run)
 	r.appendAttachedLifecycleEvent(ctx, run.ID, "exited", "harness process exited")
 	if r.broadcaster != nil {
-		r.broadcaster.BroadcastRunStatus(run)
+		r.broadcaster.BroadcastRunStatus(ctx, run)
 	}
 }
 

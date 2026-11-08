@@ -2,10 +2,11 @@
 package orchestration
 
 import (
-	"agent-manager/internal/domain"
-	"agent-manager/internal/orchestration/obs"
 	"path/filepath"
 	"strings"
+
+	"agent-manager/internal/domain"
+	"agent-manager/internal/orchestration/obs"
 )
 
 // resolveSandboxConfig produces the effective SandboxConfig for a run.

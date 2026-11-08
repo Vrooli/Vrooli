@@ -3,7 +3,6 @@ package orchestration
 import (
 	"context"
 	"encoding/json"
-
 	"sync"
 	"testing"
 	"time"
@@ -191,7 +190,7 @@ func TestCompletionNudgeAdvancesRunNodeWithoutConsumerAdvance(t *testing.T) {
 
 	// Complete run a and fire ONLY the completion nudge — no consumer advance.
 	launcher.complete(runA, map[string]any{"step": "a"})
-	o.nudgeWorkflowForRun(runA)
+	o.nudgeWorkflowForRun(t.Context(), runA)
 
 	// The nudge must drive the execution to dispatch node b.
 	runB := waitForNodeRun(t, repos.WorkflowExecutions, execution.ID, "b")
@@ -202,7 +201,7 @@ func TestCompletionNudgeAdvancesRunNodeWithoutConsumerAdvance(t *testing.T) {
 	// Complete run b; the nudge drives to terminal, and the blocking wait
 	// observes it — the whole flow with zero AdvanceWorkflowExecution calls.
 	launcher.complete(runB, map[string]any{"step": "b"})
-	o.nudgeWorkflowForRun(runB)
+	o.nudgeWorkflowForRun(t.Context(), runB)
 
 	res, err := o.WaitWorkflowExecution(ctx, execution.ID, 5*time.Second)
 	if err != nil {
@@ -239,7 +238,7 @@ func TestCompletionNudgeToleratesConcurrentExplicitAdvance(t *testing.T) {
 	var wg sync.WaitGroup
 	for range 4 {
 		wg.Add(1)
-		go func() { defer wg.Done(); o.nudgeWorkflowForRun(runA) }()
+		go func() { defer wg.Done(); o.nudgeWorkflowForRun(t.Context(), runA) }()
 		wg.Add(1)
 		go func() { defer wg.Done(); _, _ = o.AdvanceWorkflowExecution(ctx, execution.ID) }()
 	}

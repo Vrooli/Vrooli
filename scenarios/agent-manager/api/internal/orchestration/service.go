@@ -251,6 +251,9 @@ type Orchestrator struct {
 	// terminal. Always non-nil (set in New) so waits work even before the
 	// nudger is wired.
 	workflowWaiters *workflowWaitRegistry
+	// runWaitPoll is the first delay of a blocking run or children wait; zero
+	// uses one second. Tests shorten it.
+	runWaitPoll time.Duration
 
 	// conversationSearchNotify is a post-commit accelerator for the derived
 	// conversation indexes. Notification failure never rolls back or changes the

@@ -1,7 +1,7 @@
 {
   "$schema": "../../../program-runtime/schemas/program-contract.schema.json",
   "name": "agent-manager.friction-digest",
-  "version": "3",
+  "version": "4",
   "helpers": {
     "program": "1"
   },
@@ -34,24 +34,24 @@
     }
   },
   "assumptions": [
-    "agent-manager is running and its measures/tool-friction binding is reachable from the kernel",
-    "tool-friction takes window as a TimeWindow message ({token} or {custom: {from, to}}) and owner narrows its profiles, clusters and findings to one scenario",
-    "the tool-friction response is one record (primary field summary) whose findings are already ranked by cost share",
+    "agent-manager is running and its usage/friction binding is reachable from the kernel",
+    "usage/friction takes an RFC 3339 start, status, limit, and optional owner; an owner filter scopes profiles and findings to one scenario while coverage remains window-wide",
+    "the usage/friction response exposes owner profile totals as metadata and ranked owner findings as rows",
     "each call runs in its own program-runtime session; session variables persist across submissions",
     "the caller reads an empty digest beside coverage: unknown outcomes cannot show failures"
   ],
   "invariants": [
     "no binding with effect write or destructive is called",
-    "one tool-friction record is materialized; at most top_n findings are reported",
+    "at most 200 owner-scoped findings are materialized; profile details are reduced to owner totals; at most top_n findings are reported",
     "at most outcome_limit (500) supervision outcomes are materialized and transcript bodies are never read",
     "top_n is between 1 and 10; descriptions are whitespace-normalized and capped at 280 characters",
     "the complete JSON envelope stays below the declared 65536-byte output ceiling",
     "the envelope is printed exactly once, on every path",
-    "an owner with no findings in the window is an empty digest with status ok and its coverage, never an error"
+    "below-floor and over-limit findings are counted and produce partial status so an empty listing is not reported as a complete zero"
   ],
   "bindings": [
     {
-      "id": "agent-manager/measures/tool-friction",
+      "id": "agent-manager/usage/friction",
       "effect": "read"
     },
     {
@@ -83,10 +83,12 @@
     },
     "signals": {
       "window_start": "start of the tool-friction window",
-      "coverage": "what the profiles could see: command calls and the share with a known outcome; an empty digest is read beside it",
+      "coverage": "window-wide command calls and outcome-known share; it is not owner-filtered",
       "profiles_for_scenario": "command paths the scenario owns that ran in the window",
       "calls_for_scenario": "calls of those command paths",
       "findings_for_scenario": "owner-level tool findings the scenario owns",
+      "below_floor_for_scenario": "owner findings omitted by the materiality floor",
+      "beyond_limit_for_scenario": "owner findings omitted past the requested result limit",
       "recurring_count": "findings with evidence in 3 or more distinct runs",
       "top_fingerprints": "at most top_n of {fingerprint, kind, command_path, description, description_truncated, calls, distinct_runs, cost, cost_unit, cost_share, status}, ranked by cost share",
       "supervision_outcomes": "Current bounded outcomes including unassessed observations; null when the read failed",
@@ -116,7 +118,8 @@
         "binding_error",
         "kernel_runtime",
         "remote_error",
-        "no_governed_binding"
+        "no_governed_binding",
+        "findings_omitted"
       ]
     },
     "evidence": "the sensor commands read, with counts; never episode bodies"

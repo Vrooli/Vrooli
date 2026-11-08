@@ -54,6 +54,8 @@ func RunToProto(r *domain.Run) *pb.Run {
 		GoalId:                validUTF8(r.GoalID),
 		WorkReferences:        r.WorkReferences,
 		SubAgentCount:         int32(r.SubAgentCount),
+		Depth:                 int32(r.Depth),
+		CharterPath:           validUTF8(r.CharterPath),
 	}
 
 	if r.ParentRunID != nil {
@@ -228,6 +230,8 @@ func RunFromProto(r *pb.Run) *domain.Run {
 		ImportSourceSessionID: r.ImportSourceSessionId,
 		GoalID:                r.GoalId,
 		WorkReferences:        r.WorkReferences,
+		Depth:                 int(r.Depth),
+		CharterPath:           r.CharterPath,
 	}
 
 	// Handle optional timestamps (pointer fields)

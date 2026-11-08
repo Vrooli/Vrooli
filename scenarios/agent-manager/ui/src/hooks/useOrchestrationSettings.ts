@@ -7,6 +7,7 @@ export interface OrchestrationSettings {
     runTimeoutMinutes: number;
     maxConcurrentRuns: number;
     maxTurns: number;
+    maxChildDepth: number;
   };
   safetyIsolation: {
     requireSandbox: boolean;

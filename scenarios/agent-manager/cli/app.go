@@ -167,7 +167,7 @@ func (a *App) runCommands() []cliapp.Command {
 		{"import-transcript", "Adopt an external harness transcript as a read-only run", "agent-manager run import-transcript <path> [--runner type] [--label value] [--json]", a.runImportTranscript},
 		{"import-session-corpus", "Import a bounded, reproducible governed runner-session corpus", "agent-manager run import-session-corpus [--runners codex,claude-code] [--from RFC3339] [--to RFC3339] [--per-month n] [--limit n] [--json]", a.runImportSessionCorpus},
 		{"import-sweep", "Run one Transcript Indexer pass over every transcript root now", "agent-manager run import-sweep [--json]", a.runImportSweep},
-		{"tools", "Show tool calls and failures", "agent-manager run tools <id> [--failed]", a.runTools},
+		{"tools", "Show tool calls and failures", "agent-manager run tools <id> [--failed] [--json]", a.runTools},
 		{"messages", "Inspect messages in one known run", "agent-manager run messages <id> [--all] [--range start:end] [--grep text]", a.runMessages},
 		{"receipts", "Show observed receipt state and evidence", "agent-manager run receipts <id> [--json]", a.runReceipts},
 		{"get-by-tag", "Get a run by tag", "agent-manager run get-by-tag <tag>", a.runGetByTag},
@@ -188,6 +188,8 @@ func (a *App) runCommands() []cliapp.Command {
 		{"reject", "Reject run changes", "agent-manager run reject <id>", a.runReject},
 		{"diff", "Show sandbox diff", "agent-manager run diff <id> [--stat]", a.runDiff},
 		{"events", "Show or follow run events", "agent-manager run events <id> [--follow] [--stats] [--failed] [--after-sequence N] [--limit N] [--json]", a.runEvents},
+		{"wait", "Block until a run settles, or until a direct child of a parent settles", "agent-manager run wait <run-id> | --children <parent-run-id> [--since RFC3339] [--timeout 30m] [--json]", a.runWait},
+		{"tree", "Show a run and its descendants: depth, status, runner/model, goal delivery, elapsed, weighted tokens, orphans", "agent-manager run tree <run-id> [--json]", a.runTree},
 	}
 	commands := make([]cliapp.Command, 0, len(entries))
 	for _, item := range entries {
@@ -202,14 +204,22 @@ func (a *App) runCommands() []cliapp.Command {
 			return run(args)
 		})
 		command.Usage = item.usage
-		if item.name == "list" || item.name == "create" {
+		if item.name == "list" || item.name == "create" || item.name == "wait" {
 			command.HelpText = support.FlagHelp(item.run)
 		}
+		if item.name == "wait" {
+			// The wait reports an unreachable Agent Manager itself (exit 6) so a
+			// caller can fall back to native sub-agents; the generic API
+			// preflight would end it with exit 1 instead.
+			offline := false
+			command.NeedsAPIOverride = &offline
+			command.HelpText += "\n\nSettled means terminal, or needs_review with the worker exited. --children reports children that settled at or after --since (default: now) and the ones still live; pass the printed observed_at as --since next time. Exit codes: 0 condition held; 5 --timeout elapsed with work still live; 6 Agent Manager unreachable (continue with native sub-agents); 1 any other error."
+		}
 		if item.name == "list" {
-			command.HelpText += "\n\nSnapshot only: this command does not wait for progress. Read a known run once, then use its owner wait/event route; do not repeat list as a heartbeat."
+			command.HelpText += "\n\nSnapshot only: this command does not wait for progress, so do not repeat it as a heartbeat. To wait, block once: `agent-manager run wait <run-id>` until a run settles, or `agent-manager run wait --children <parent-run-id>` until one of its children does. To watch an effort's runs, read `agent-manager run tree <root-run-id>` or `agent-manager effort compact`."
 		}
 		if item.name == "tools" {
-			command.HelpText = "Shows the bounded tool-call summary and tool events for one known run. Use --failed to show failed tool results only.\n\nOptions:\n  --failed                       Show failed tool events only\n\nThis is a diagnostic read; use run report first for a compact overview."
+			command.HelpText = "Shows the bounded tool-call summary and tool events for one known run. Use --failed to show failed tool results only.\n\nOptions:\n  --failed                       Show failed tool events only\n  --json                         Print the summary and events as JSON: project_owned_tool_calls, external_tool_calls, tools[] (name, calls, successes, failures, unresolved, returned, unknown_outcome), events[] (sequence, kind call|result, tool, outcome, error)\n\nThis is a diagnostic read; use run report first for a compact overview."
 		}
 		commands = append(commands, command)
 	}
@@ -221,8 +231,10 @@ func (a *App) runCommands() []cliapp.Command {
 }
 
 func runAccountingCommand() cliapp.Command {
-	command := cliapp.Command{Name: "accounting", Description: "Read one run's authoritative metered accounting", NeedsAPI: true,
-		Args: cliapp.ArgSchema{Positionals: []cliapp.Positional{{Name: "run_id", Required: true, Description: "Run UUID"}}}}
+	command := cliapp.Command{
+		Name: "accounting", Description: "Read one run's authoritative metered accounting", NeedsAPI: true,
+		Args: cliapp.ArgSchema{Positionals: []cliapp.Positional{{Name: "run_id", Required: true, Description: "Run UUID"}}},
+	}
 	return command.WithPrimitive(cliapp.ProtoList(
 		func(op cliapp.OperationContext) (*apipb.RunAccounting, error) {
 			h, base := cliapp.NewConnectHTTPClient(op.Core())

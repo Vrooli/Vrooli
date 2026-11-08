@@ -1,5 +1,9 @@
 import { test } from "vitest";
 import assert from "node:assert/strict";
+import { create } from "@bufbuild/protobuf";
+import { timestampFromDate } from "@bufbuild/protobuf/wkt";
+import { RunEventSchema } from "@vrooli/proto-types/agent-manager/v1/domain/events_pb";
+import { RunEventType } from "@vrooli/proto-types/agent-manager/v1/domain/types_pb";
 import {
   buildWebSocketClientMessage,
   parseWebSocketMessage,
@@ -61,13 +65,19 @@ test("parseWebSocketMessage normalizes run event payloads", () => {
 
   const parsed = parseWebSocketMessage(wire);
 
-  assert.equal(parsed?.type, "run_event");
-  assert.equal(parsed?.runId, "run-1");
-  assert.equal(parsed?.payload && "sequence" in Object(parsed.payload) ? Object(parsed.payload).sequence : undefined, 7n);
-  assert.equal(parsed?.payload && "eventType" in Object(parsed.payload) ? Object(parsed.payload).eventType : undefined, 2);
-  assert.deepEqual(parsed?.payload && "data" in Object(parsed.payload) ? Object(parsed.payload).data : undefined, {
-    case: "message",
-    value: { role: "assistant", content: "done" },
+  // A live event is hydrated exactly as the HTTP route hydrates it: a typed
+  // RunEvent message, defaults included, so timeline consumers read one shape.
+  assert.deepEqual(parsed, {
+    type: "run_event",
+    runId: "run-1",
+    payload: create(RunEventSchema, {
+      id: "event-1",
+      runId: "run-1",
+      sequence: 7n,
+      eventType: RunEventType.MESSAGE,
+      timestamp: timestampFromDate(new Date("2026-04-30T12:34:56Z")),
+      data: { case: "message", value: { role: "assistant", content: "done" } },
+    }),
   });
 });
 
@@ -133,19 +143,25 @@ test("parseWebSocketMessage rejects malformed typed payloads and preserves unkno
   }), { type: "task_status", payload: { id: "task-9", status: "FUTURE_STATUS" } });
 });
 
-test("parseWebSocketMessage retains raw timestamps that cannot be parsed and maps alternate event payloads", () => {
+test("parseWebSocketMessage maps alternate event payloads and rejects events HTTP hydration would reject", () => {
   const parsed = parseWebSocketMessage({
     type: "AGENT_MANAGER_WS_MESSAGE_TYPE_RUN_EVENT",
     run_event: {
       id: "event-log", run_id: "run-4", sequence: 3, event_type: "RUN_EVENT_TYPE_LOG",
-      timestamp: "not-a-timestamp", log: { level: "warn", message: "degraded" },
+      log: { level: "warn", message: "degraded" },
     },
   });
   assert.deepEqual(parsed, {
-    type: "run_event", runId: "run-4", payload: {
-      id: "event-log", runId: "run-4", sequence: 3, eventType: 1, timestamp: "not-a-timestamp",
+    type: "run_event", runId: "run-4", payload: create(RunEventSchema, {
+      id: "event-log", runId: "run-4", sequence: 3n, eventType: RunEventType.LOG,
       data: { case: "log", value: { level: "warn", message: "degraded" } },
-    },
+    }),
   });
+  // A timestamp that is not RFC 3339 cannot become the typed Timestamp the
+  // RunEvent contract promises, so the event is rejected, not half-typed.
+  assert.equal(parseWebSocketMessage({
+    type: "AGENT_MANAGER_WS_MESSAGE_TYPE_RUN_EVENT",
+    run_event: { id: "event-bad", run_id: "run-4", sequence: 4, event_type: "RUN_EVENT_TYPE_LOG", timestamp: "not-a-timestamp" },
+  }), null);
   assert.equal(parseWebSocketMessage({ type: "AGENT_MANAGER_WS_MESSAGE_TYPE_RUN_EVENT", run_event: null }), null);
 });

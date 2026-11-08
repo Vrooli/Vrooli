@@ -1,9 +1,11 @@
 package main
 
 import (
+	"path/filepath"
 	"testing"
 	"time"
 
+	repocontract "github.com/vrooli/repo-contract-go"
 	pb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
@@ -48,5 +50,42 @@ func TestDestinationHomeNamesTheDeliveryHome(t *testing.T) {
 		if got := destinationHome(ref); got != want {
 			t.Errorf("destinationHome(%q) = %q, want %q", ref, got, want)
 		}
+	}
+}
+
+func TestEvidenceRootsResolveThroughTheRuntimeHomeContract(t *testing.T) {
+	home := t.TempDir()
+	want := func(key string) string {
+		t.Helper()
+		path, err := repocontract.RuntimeHomeEntryPath(home, key)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return path
+	}
+	roots, err := resolveEvidenceRoots(home, func(string) string { return "" })
+	if err != nil {
+		t.Fatal(err)
+	}
+	if roots.evidence != want(repocontract.HomeKeyEvidence) {
+		t.Errorf("evidence root = %q, want the contract entry %q", roots.evidence, want(repocontract.HomeKeyEvidence))
+	}
+	references := []string{want(repocontract.HomeKeyPlanArtifacts), want(repocontract.HomeKeyResearch)}
+	if len(roots.references) != len(references) || roots.references[0] != references[0] || roots.references[1] != references[1] {
+		t.Errorf("reference roots = %v, want %v", roots.references, references)
+	}
+
+	override := filepath.Join(t.TempDir(), "evidence")
+	roots, err = resolveEvidenceRoots(home, func(key string) string {
+		if key == "AGENT_MANAGER_EVIDENCE_ROOT" {
+			return override
+		}
+		return ""
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if roots.evidence != override || roots.references[0] != references[0] {
+		t.Errorf("override moved the wrong roots: %+v", roots)
 	}
 }

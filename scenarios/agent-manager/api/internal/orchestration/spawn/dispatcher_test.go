@@ -531,7 +531,7 @@ func TestAdmissionCancellationBeforeDispatchPreventsExecutorStart(t *testing.T) 
 	<-blockerEntered
 
 	runID := uuid.New()
-	admission, err := d.ReserveAdmission(runID)
+	admission, err := d.ReserveAdmission(t.Context(), runID)
 	if err != nil {
 		t.Fatalf("reserve admission: %v", err)
 	}
@@ -559,7 +559,7 @@ func TestAdmissionCancellationBeforeDispatchPreventsExecutorStart(t *testing.T) 
 	// The worker discarded this job without entering its Fn, so no executor
 	// defer could release the reservation. The same RunID can be reserved only
 	// after that discard cleanup has removed the old admission.
-	reused, err := d.ReserveAdmission(runID)
+	reused, err := d.ReserveAdmission(t.Context(), runID)
 	if err != nil {
 		t.Fatalf("canceled queued admission leaked its reservation: %v", err)
 	}
@@ -570,7 +570,7 @@ func TestAdmissionCancellationAfterExecutorClaimCancelsContext(t *testing.T) {
 	d := New(Config{MaxStartingConcurrency: 1, QueueCapacity: 1})
 	defer d.Close()
 	runID := uuid.New()
-	admission, err := d.ReserveAdmission(runID)
+	admission, err := d.ReserveAdmission(t.Context(), runID)
 	if err != nil {
 		t.Fatalf("reserve admission: %v", err)
 	}
@@ -613,7 +613,7 @@ func TestDispatcherCloseReleasesQueuedAdmission(t *testing.T) {
 		return d.Stats().StartingCount == 1
 	})
 	runID := uuid.New()
-	admission, err := d.ReserveAdmission(runID)
+	admission, err := d.ReserveAdmission(t.Context(), runID)
 	if err != nil {
 		t.Fatalf("reserve admission: %v", err)
 	}
@@ -666,7 +666,7 @@ func TestDispatcherConcurrentCloseAndEnqueueDoesNotStrandAdmissions(t *testing.T
 		err       error
 	}
 	preRunID := uuid.New()
-	preAdmission, err := d.ReserveAdmission(preRunID)
+	preAdmission, err := d.ReserveAdmission(t.Context(), preRunID)
 	if err != nil {
 		t.Fatalf("reserve pre-close admission: %v", err)
 	}
@@ -679,7 +679,7 @@ func TestDispatcherConcurrentCloseAndEnqueueDoesNotStrandAdmissions(t *testing.T
 	start := make(chan struct{})
 	for i := 0; i < attempts; i++ {
 		runID := uuid.New()
-		admission, err := d.ReserveAdmission(runID)
+		admission, err := d.ReserveAdmission(t.Context(), runID)
 		if err != nil {
 			t.Fatalf("reserve admission %d: %v", i, err)
 		}
@@ -777,7 +777,7 @@ func TestDispatcherCloseSerializesWithEnqueueBeforeQueueSend(t *testing.T) {
 	}
 
 	runID := uuid.New()
-	admission, err := d.ReserveAdmission(runID)
+	admission, err := d.ReserveAdmission(t.Context(), runID)
 	if err != nil {
 		t.Fatalf("reserve admission: %v", err)
 	}

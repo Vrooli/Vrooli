@@ -123,15 +123,24 @@ func (o *Orchestrator) resumeFromFailedRun(ctx context.Context, req ResumeFromFa
 		SandboxConfig:     failedRun.SandboxConfig,
 		ExistingSandboxID: failedRun.SandboxID,
 		Environment:       failedRun.CustomEnv,
-		WorkReferences:    failedRun.WorkReferences,
-		WorkloadKind:      failedRun.Workload.Kind,
-		WorkloadKey:       failedRun.Workload.Key,
-		WorkloadInstance:  failedRun.Workload.Instance,
-		OwnerSubject:      failedRun.OwnerSubject,
-		OwnerScopes:       failedRun.OwnerScopes,
-		OwnerExpiresAt:    failedRun.OwnerExpiresAt,
-		RequestedScopes:   failedRun.RequestedScopes,
-		IdempotencyKey:    freshRecoveryKey(failedRun.ID),
+		// The replacement takes the source's place in its run tree: same
+		// parent (so depth and the children wake follow), and its inherited
+		// effort references, which admission re-derives from that parent.
+		ParentRunID:      failedRun.ParentRunID,
+		WorkReferences:   failedRun.WorkReferences,
+		WorkloadKind:     failedRun.Workload.Kind,
+		WorkloadKey:      failedRun.Workload.Key,
+		WorkloadInstance: failedRun.Workload.Instance,
+		OwnerSubject:     failedRun.OwnerSubject,
+		OwnerScopes:      failedRun.OwnerScopes,
+		OwnerExpiresAt:   failedRun.OwnerExpiresAt,
+		RequestedScopes:  failedRun.RequestedScopes,
+		IdempotencyKey:   freshRecoveryKey(failedRun.ID),
+	}
+	// The replacement keeps the source's charter while it still exists; a
+	// removed charter must not block recovery of the work itself.
+	if charter, err := validateCharterPath(failedRun.CharterPath); failedRun.CharterPath != "" && err == nil {
+		createReq.CharterPath = charter
 	}
 	if cfg := recoveryConfig; cfg != nil {
 		createReq.PreferredRunner = string(cfg.RunnerType)

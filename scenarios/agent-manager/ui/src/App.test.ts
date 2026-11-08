@@ -1,9 +1,10 @@
 import assert from "node:assert/strict";
-import { screen } from "@testing-library/react";
+import { act, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { createElement } from "react";
 import { afterEach, test, vi } from "vitest";
 import App from "./App.js";
+import { RunStatus } from "./types.js";
 import { renderWithProviders } from "./test-utils/index.js";
 
 const state = vi.hoisted(() => ({
@@ -12,6 +13,7 @@ const state = vi.hoisted(() => ({
     health: null as unknown, profiles: [] as unknown[], tasks: [] as unknown[], runs: [] as unknown[], snapshots: {} as Record<string, unknown>, mobile: false,
   },
   websocket: vi.fn(), events: vi.fn(),
+  reconciliationIntents: [] as Array<{ runId: string; afterSequence?: bigint; reason: string }>,
 }));
 /** The options App hands the websocket hook. */
 interface SocketOptions { onStatusChange: (status: string) => void; onMessage: (message: { type: string; payload: unknown }) => void }
@@ -26,7 +28,7 @@ vi.mock("./hooks/useApi.js", () => ({
   useRolePolicyCatalog: () => ({ data: null }),
 }));
 vi.mock("./hooks/useWebSocket.js", () => ({ useWebSocket: (options: unknown) => { state.websocket(options); return { status: "connected", subscribe: vi.fn(), unsubscribe: vi.fn() }; } }));
-vi.mock("./hooks/useRunEventStore.js", () => ({ useRunEventStore: () => { state.events(); return { state: { runsById: state.api.snapshots }, actions: emptyActions, reconciliationIntents: [] }; } }));
+vi.mock("./hooks/useRunEventStore.js", () => ({ useRunEventStore: () => { state.events(); return { state: { runsById: state.api.snapshots }, actions: emptyActions, reconciliationIntents: state.reconciliationIntents }; } }));
 vi.mock("./pages/DashboardPage.js", () => ({ DashboardPage: ({ onRefresh, onNavigateToRun, runs }: { onRefresh: () => void; onNavigateToRun: (id: string, tab?: string) => void; runs: unknown[] }) => createElement("div", null, "Dashboard page", createElement("span", { "data-testid": "dashboard-runs" }, String(runs.length)), createElement("button", { onClick: onRefresh }, "Dashboard refresh"), createElement("button", { onClick: () => onNavigateToRun("run-9", "diff") }, "Dashboard run")) }));
 vi.mock("./pages/ProfilesPage.js", () => ({ ProfilesPage: () => createElement("div", null, "Profiles page") }));
 vi.mock("./pages/TasksPage.js", () => ({ TasksPage: () => createElement("div", null, "Tasks page") }));
@@ -41,6 +43,7 @@ vi.mock("./components/dialogs/SettingsDialog/index.js", () => ({ SettingsDialog:
 vi.mock("./components/QuickRunDialog.js", () => ({ QuickRunDialog: ({ onOpenChange, onRunCreated, defaultProjectRoot, profiles }: { onOpenChange: (open: boolean) => void; onRunCreated: (run: { id: string }) => void; defaultProjectRoot?: string; profiles: unknown[] }) => createElement("div", null, "Quick run dialog", createElement("span", { "data-testid": "quick-root" }, `${defaultProjectRoot ?? "none"}:${profiles.length}`), createElement("button", { onClick: () => onRunCreated({ id: "created-run" }) }, "Created run"), createElement("button", { onClick: () => onOpenChange(false) }, "Close quick run")) }));
 
 afterEach(() => {
+  vi.useRealTimers();
   vi.clearAllMocks();
   state.api.health = null;
   state.api.profiles = [];
@@ -48,6 +51,37 @@ afterEach(() => {
   state.api.runs = [];
   state.api.snapshots = {};
   state.api.mobile = false;
+  state.reconciliationIntents = [];
+});
+
+test("App retries a transient reconciliation failure while the socket stays connected", async () => {
+  vi.useFakeTimers();
+  const terminal = { id: "retry-terminal", status: RunStatus.COMPLETE, result: { finalMessage: "42" } };
+  state.reconciliationIntents = [{ runId: terminal.id, reason: "reconnect" }];
+  state.api.getRun.mockRejectedValueOnce(new Error("temporarily unavailable")).mockResolvedValue(terminal);
+  state.api.getRunEvents.mockResolvedValue([]);
+  const view = renderWithProviders(createElement(App), { initialEntries: ["/runs"] });
+  await act(async () => {});
+  assert.equal(state.api.getRun.mock.calls.length, 1);
+  await act(async () => { await vi.advanceTimersByTimeAsync(1000); });
+  assert.equal(state.api.getRun.mock.calls.length, 2);
+  assert.deepEqual(emptyActions.runSnapshotLoaded.mock.calls.at(-1), [terminal]);
+  assert.equal(emptyActions.clearReconciliationIntent.mock.calls.length, 0);
+  view.unmount();
+});
+
+test("App reconciles missed terminal status together with events after reconnect", async () => {
+  const terminal = { id: "run-missed-terminal", status: RunStatus.COMPLETE, result: { finalMessage: "42" } };
+  const events = [{ id: "missed-message", runId: terminal.id }];
+  state.reconciliationIntents = [{ runId: terminal.id, afterSequence: 17n, reason: "reconnect" }];
+  state.api.getRun.mockResolvedValue(terminal);
+  state.api.getRunEvents.mockResolvedValue(events);
+  renderWithProviders(createElement(App), { initialEntries: ["/runs"] });
+  await waitFor(() => assert.deepEqual(emptyActions.runSnapshotLoaded.mock.calls.at(-1), [terminal]));
+  const signal = state.api.getRun.mock.calls.at(-1)?.[1].signal;
+  assert.ok(signal instanceof AbortSignal);
+  assert.deepEqual(state.api.getRunEvents.mock.calls.at(-1), [terminal.id, { afterSequence: 17n, signal }]);
+  assert.deepEqual(emptyActions.eventsGapFilled.mock.calls.at(-1), [terminal.id, events, state.reconciliationIntents[0]]);
 });
 
 test("App routes each primary page and maps the health section to observability", async () => {

@@ -158,7 +158,7 @@ func startInvestigateExecution(t *testing.T, o *Orchestrator, launcher *fakeRunL
 	}
 	launcher.complete(investigateRun, findings)
 	// Completion nudge alone advances to the wait node — no consumer Advance call.
-	o.nudgeWorkflowForRun(investigateRun)
+	o.nudgeWorkflowForRun(t.Context(), investigateRun)
 	// The completion nudge alone must advance the execution from the investigate
 	// run node to the operator-approval wait node (both surface as "waiting", so
 	// gate on the node id, not the status).
@@ -283,7 +283,7 @@ func TestInvestigationWorkflowCompletedPathBindsStructuredResult(t *testing.T) {
 
 	// Complete the apply run; the completion nudge drives to the terminal state.
 	launcher.complete(applyRun, map[string]any{"applied": true})
-	o.nudgeWorkflowForRun(applyRun)
+	o.nudgeWorkflowForRun(t.Context(), applyRun)
 
 	res, err := o.WaitWorkflowExecution(ctx, execution.ID, 5*time.Second)
 	if err != nil {

@@ -2,6 +2,8 @@ package obs
 
 import (
 	"bytes"
+	"fmt"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -176,5 +178,33 @@ func TestRunnerExitedMessageReflectsOutcome(t *testing.T) {
 	}
 	if got := runnerExitedMessage(classifiedFields); got != "runner exited: RUNNER_SESSION_STATE_LOST" {
 		t.Errorf("classified: expected typed message, got %q", got)
+	}
+}
+
+type defectiveSink struct{ panic bool }
+
+func (s defectiveSink) Emit(*domain.RunEvent) error {
+	if s.panic {
+		panic("fixture sink panic")
+	}
+	return fmt.Errorf("fixture sink error")
+}
+
+func TestLifecycleSinkFailurePreservesTransitionLogAndCaller(t *testing.T) {
+	for _, panics := range []bool{false, true} {
+		t.Run(fmt.Sprintf("panic=%t", panics), func(t *testing.T) {
+			var buf bytes.Buffer
+			InitWithWriter("text", "info", &buf)
+			EmitSpawnEnqueued(defectiveSink{panic: panics}, uuid.New(), SpawnEnqueuedFields{})
+			if !strings.Contains(buf.String(), "spawn enqueued") {
+				t.Fatal("failed sink erased transition log")
+			}
+			if panics && !strings.Contains(buf.String(), "execution panic recovered") {
+				t.Fatal("sink panic was not diagnosed")
+			}
+			if !panics && !strings.Contains(buf.String(), "lifecycle event sink failed") {
+				t.Fatal("sink error was not diagnosed")
+			}
+		})
 	}
 }

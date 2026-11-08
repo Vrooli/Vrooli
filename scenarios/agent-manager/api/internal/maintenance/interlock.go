@@ -9,6 +9,7 @@ import (
 	"sync"
 
 	platform "github.com/vrooli/platform-go"
+	repocontract "github.com/vrooli/repo-contract-go"
 )
 
 const ScenarioLockV1 = "scenario-lock-v1"
@@ -22,11 +23,22 @@ type ScenarioInterlock struct {
 	mu   sync.Mutex
 }
 
+// NewScenarioInterlock binds the lock file the control plane's lifecycle
+// runner takes for agent-manager: <runtime-home state entry>/locks/
+// scenario-agent-manager.lock under the lifecycle owner's home. The state
+// entry comes from the repository contract's runtime_home, the authority the
+// control plane's lock directory follows; it is deliberately not the
+// scenario's storage-class state directory, which VROOLI_STORAGE_ROOT can move
+// away from the control plane's lock.
 func NewScenarioInterlock(ownerHome string) (*ScenarioInterlock, error) {
 	if !filepath.IsAbs(ownerHome) {
 		return nil, fmt.Errorf("maintenance interlock requires the lifecycle owner's absolute home")
 	}
-	return &ScenarioInterlock{path: filepath.Join(ownerHome, ".vrooli", "state", "locks", "scenario-agent-manager.lock")}, nil
+	stateRoot, err := repocontract.RuntimeHomeEntryPath(ownerHome, repocontract.HomeKeyState)
+	if err != nil {
+		return nil, fmt.Errorf("maintenance interlock: resolve runtime-home state entry: %w", err)
+	}
+	return &ScenarioInterlock{path: filepath.Join(stateRoot, "locks", "scenario-agent-manager.lock")}, nil
 }
 
 func (l *ScenarioInterlock) acquire(ctx context.Context) (func(), error) {

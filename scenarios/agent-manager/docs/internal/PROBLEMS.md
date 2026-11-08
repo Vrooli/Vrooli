@@ -698,3 +698,189 @@ TypeScript pass. Current entry point: `path:.vrooli/work/README.md`. Source/test
 receipts: `~/.vrooli/plan-artifacts/delivery-consolidation-20261023/`. No team activation or
 product acceptance is implied. Knowledge Observatory's docs-append operation refused this
 problems entry with HTTP 400; the operator-authorized source edit preserves the observation.
+
+## Work ladder — manual browser run creation, 2026-11-05
+
+- Rung: W3. A verified browser human was classified as an offered owner, then
+  rejected for lacking a second raw bearer (`offered caller identity is blank`).
+  With AUTH-01 enabled, the HTTP handler independently rejected that same
+  verified principal because it checked only raw credential headers.
+- Repair: preserve verified human context through both boundaries. Explicit
+  whitespace-only credentials remain invalid. Existing expiry, scope, requested
+  owner, child-parent and second run-identity verifiers remain in force; no
+  authentication setting, grant or principal binding is broadened.
+- Evidence: new browser regressions first failed with the exact reported error
+  and HTTP 401, then passed. Focused orchestration/handler race checks include
+  signed-origin and personal-local principal sources, expired/unverified owners,
+  absent expiry, read-only scopes, blank subjects, malformed offered credentials,
+  invalid second run tokens and requested-owner mismatch. A further adversarial
+  pass found context-first identity resolution ignored a separately supplied
+  bearer; both proofs now validate and share only intersected scopes and the
+  earlier expiry. Final race cases include foreign owner, missing scopes, expired
+  second proof and unavailable verifier. Full handler suite
+  passed in 14.093 seconds. Protobuf verification retains the previously filed
+  23-output drift observation; no generated output was edited.
+- Adoption: ordinary restart `startop-10242d75079e0e57a70494ed056409b9`
+  succeeded. All 41 originally running native agent scopes remained running
+  after replacement (42 afterward); direct API health subsequently returned
+  healthy/readiness=true. Per-run reconnection is not thereby proven: retained
+  attached-session recovery reports include lease identity mismatch/superseded
+  binding refusals that require classification against actual live sessions.
+- Validation limits: Test Genie unit `20261105-190541-da8be4a7` stopped on
+  TEST_DEPENDENCY_MISSING because SDA was killed again at 14:02:33 EST.
+  The user journal explicitly reports systemd-oomd killing its service scope.
+  SDA recovery and a new unit qualification remain in progress.
+  Authenticated remote browser spawn is unverified: the available browser
+  inventory is empty. Do not treat source/serving adoption as full consumer proof.
+- Separate observed reliability gap: read-only maintenance inventory refuses
+  16,851 physical references against a 16,384 protocol bound. No maintenance
+  fence was opened or drained. Normal operator restart preserves executors and
+  remains independent of that standalone-maintenance proof.
+
+Final browser-admission hardening was adopted via normal restart
+`startop-7403811b3c5da1d33928f6fd663845ee`; all 42 native agent scopes
+recorded immediately before this replacement remained running afterward.
+Focused final creation/identity race checks passed (orchestration 15.785s,
+handlers 3.878s). Unit retry `20261105-190754-01b5751b` is attached through
+wait session 96397 and remains owned by Test Genie. At 19:10:31 UTC, direct
+health explicitly reported startup initialization in `scenario_declarations`;
+the lifecycle's successful verdict does not itself prove completed application
+readiness. The attempted log attachment returned terminal without output; it supplied no
+readiness evidence. A subsequent direct health read reported healthy and
+readiness=true after initialization. No additional restart was used.
+
+### Spawn diagnostic panic containment — 2026-11-05
+
+Unit retry `20261105-190754-01b5751b` finished failed. Downloaded canonical
+findings artifact `artifact_6f48d382c1a4432755673782a04a30a3` identifies a
+race in `TestDispatcher_WorkerSurvivesSinkPanic`: worker and enqueue emissions
+can arrive in either order, so the second-emission panic escaped from the
+request path. Shared lifecycle emission now contains only the diagnostic sink
+call, records errors/panics, and retains the transition log. Dispatcher-local
+worker wrapping was removed in favor of this common owner. Ten repeated race
+runs of obs/spawn passed. This protects accepted work and queue slots; it does
+not convert a diagnostic failure into successful event persistence.
+
+The same run identified two native lifecycle fixture failures after dual-owner
+verification was tightened. Both fixtures explicitly offer a disposable bearer
+as well as a context principal; they now install an exact-token owner verifier
+instead of relying on the ignored bearer. Actual parent/child and parallel-worker
+lifecycle regressions plus browser adversarial cases passed with race detection
+in 68.998s. New scoped Test Genie unit run `20261105-191611-562113ac` passed in
+220 seconds (72 advisory warnings, zero errors). Source, tests and process
+adoption remain separate from authenticated remote consumer qualification.
+
+Spawn-event containment is serving after normal restart
+`startop-48d924bef65613f3f1b198820d57f9d1`; all 42 original native agent
+scopes survived. Direct health returned healthy/readiness=true after startup.
+The same adoption confirms both Agent Manager service scopes now carry the
+control-plane recovery preference `ManagedOOMPreference=avoid`. This does not
+prove authenticated remote browser delivery or reconnect every historical run.
+
+## Work ladder — physical inventory capacity, 2026-11-06
+
+- Rung: W3. Read-only maintenance status refused 17,029 retained physical
+  references against the 16,384 executor-scope bound. A larger hydration
+  regression independently reproduced SQLite's `too many SQL variables`.
+- Repair: root and consumer accept at most 65,536 identities and 32 MiB per
+  direction. Identity-only hydration uses SQL batches of at most 512 bind
+  parameters before one indexed control-plane host observation. The existing
+  four-second host deadline and total 65,536 PID-sample budget remain. Overflow,
+  changed identity, missing coverage and unavailable evidence remain incomplete.
+- Evidence: capacity, surviving-tail executor, shared-label amplification,
+  cancellation, wire bounds and SQL hydration regressions pass with race
+  detection. At full capacity the shared-label fixture retained every requested
+  identity and used 4,642,013 response bytes with 65,536 PID samples. The root
+  update verified through enrolled operation `9b4ad44d6edd82eb285f7fa5dd4d5597`.
+  Ordinary AM restart `startop-5235e16174b87ca2264904ee49fc4be1` completed;
+  all 41 captured native scopes retained their invocation and scope identities.
+  Evidence is retained in the outage reliability plan artifacts under
+  `am-executor-inventory-capacity-evidence-20261106/`.
+  Fresh Test Genie run `20261106-173903-90315052` passed unit (184 seconds,
+  72 warnings) and dependencies (11 seconds, 11 warnings and one info).
+- Limits: this is bounded capacity, not unlimited history retention. The live
+  inventory passes the capacity boundary but still refuses exclusion for
+  attached run `e0cad393-94d9-4c17-8fab-3bf8d21963a7`: its recorded Claude
+  process exists while exact run identity/reuse proof is unavailable. No
+  process was stopped, history removed, admission closed or empty proof claimed.
+  Running-row continuity does not establish useful progress for every run.
+
+
+## E2E Issues — leased Quick Run acceptance, 2026-11-06
+
+The shared request middleware now pins the paired SQL/file lease before an
+HTTP handler or WebSocket captures context. Typed asynchronous notifications
+retain that exact partition. Focused race regressions and fresh Agent Manager
+unit/dependency run `20261106-185248-76761aa1` passed. Normal adoption preserved
+all 41 captured native scope identities and all 40 captured running session
+identities; those observations do not establish useful progress for every run.
+
+The registered bounded Quick Run case is **not accepted**. Its first receipt
+reported success although disconnected graph nodes executed only navigation;
+known Workflow Health finding `knw-1793918131438345485` applies. After connecting
+the graph, run `6d8ba893-24e0-4d82-8598-2f983f0f7ae3` reached admission but correctly
+refused an in-place override for the protected `code.cheap` configuration. The
+case now selects sandboxed. Its disposable workspace parameter also remained
+literal: Workflow Health's selected-case path creates an empty routing lease
+but does not execute declared seeds or forward their output. Integrate Test
+Genie's existing seed-session owner before another live attempt, preserving
+lease identity, heartbeat, cleanup and primary-write evidence. Do not bypass
+isolation or duplicate shell seed execution in Workflow Health.
+
+No agent was admitted in that attempt. The provider retained 91 test SQL
+requests, zero primary SQL/file leaks and successful cleanup. Authenticated
+remote creation remains unverified. Detailed evidence and remaining work live
+in the outage goal's `request-pinning-websocket-milestone.json`. Knowledge
+Observatory `docs add --doc problems` returned HTTP 400 (append unsupported);
+this source update preserves the observation through the authorized fallback.
+
+### Follow-up: browser notification boundary and startup-loop evidence
+
+The located rung is W3: the bounded browser run must receive its actual agent
+answer and terminal state. Attempt `1e0a74e6-2b7b-434b-9d49-9fdc202f8014`
+installed the typed seed-owned lease, launched protected Codex run
+`92f9da8a-ed0b-4baf-b3f1-bfe1d1452995`, and the backend exited successfully in
+4.8 seconds and deleted its sandbox. The browser received neither the assistant
+message nor completion: Chromium omits Playwright's extra HTTP headers on
+WebSocket handshakes, so its socket correctly remained in the primary
+notification partition. Shared development-only WebSocket marking and BAS's
+fresh-context constructor hook now preserve that boundary; negative routing,
+actual Chromium handshake and exact partition race regressions pass.
+
+The hub now disconnects affected subscribers for durable reconciliation when
+its notification queue fills, instead of blocking runner finalization. Server
+cleanup closes hijacked sockets and releases the hub loop; late notifications
+cannot block. Reconnection reloads the durable run snapshot as well as its
+events, so a missed terminal status cannot leave the selected run running.
+These changes have focused API race and UI regression evidence. They require
+serving adoption and a new full browser witness before acceptance.
+
+Attempt `95cdba94-207e-4d01-8b6e-0e167b44fe8c` refused before BAS or storage
+installation during a separate Autoheal-owned replacement of Agent Manager.
+The runtime registry retained a degraded/readiness-false startup snapshot after
+the lifecycle had declared healthy; Autoheal consumed that cached state and
+restarted the already-recovered API. Preserve the supervision policy and repair
+the owning lifecycle readiness/snapshot boundary. This attempt has zero browser
+effects and does not qualify the WebSocket fix. Current evidence is retained
+under the outage goal's `recovery-owner/` artifact directory. Remote authenticated
+creation and the complete automatically triggered protected repair remain open.
+
+Delayed HTTP reads could also replace a newer terminal notification with an
+older running snapshot. Status notifications now reload the same routed durable
+row as HTTP/list reads and carry its exact `updated_at`; a failed bounded read
+disconnects only that partition for reconciliation. Callback objects are not
+commit evidence. The run-model owner retires its old timestamp trigger, which
+overwrote repository revisions with second-precision time. This idempotent
+trigger retirement changes no columns or retained rows. Fresh and existing
+database regressions preserve nanoseconds and repeated schema application.
+The UI rejects older revisions from all three inputs, merges equal-revision
+partial metadata and detail, and permits a newer continuation after completion.
+Accepted full snapshots clear absent optional results; partial notifications
+preserve hydrated fields.
+Gap responses clear only their own reconciliation request, so an earlier read
+cannot discard a later terminal/reconnect request. A transient HTTP failure
+retains the intent and retries with delays capped at 30 seconds; both reads use
+the existing API deadline. Superseded intents, unsubscribe and unmount cancel
+the paired reads and retry timer. Actual WebSocket, durable
+detail/list and UI regressions cover these boundaries; serving adoption and the
+full operated recovery journeys remain required.

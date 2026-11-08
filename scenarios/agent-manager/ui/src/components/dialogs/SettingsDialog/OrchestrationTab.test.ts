@@ -7,7 +7,7 @@ import type { OrchestrationSettings } from "../../../hooks/useOrchestrationSetti
 import { renderWithProviders } from "../../../test-utils/index.js";
 
 const settings: OrchestrationSettings = {
-  runExecution: { runTimeoutMinutes: 20, maxConcurrentRuns: 2, maxTurns: 8 },
+  runExecution: { runTimeoutMinutes: 20, maxConcurrentRuns: 2, maxTurns: 8, maxChildDepth: 3 },
   safetyIsolation: { requireSandbox: true, requireApproval: true, networkAccess: "localhost" },
   operationApprovals: { runCreation: false, runManagement: false, runDeletion: false, investigation: false, effortDelivery: false, effortMetadata: false },
   healthDetection: { heartbeatIntervalSeconds: 10, staleThresholdSeconds: 60, maxRecoveryAgeSeconds: 120, reconcilerIntervalSeconds: 30 },
@@ -100,4 +100,14 @@ test("OrchestrationTab persists safety controls and reports every recovery-windo
   assert.equal(onSave.mock.calls[0]?.[0].safetyIsolation.networkAccess, "full");
   assert.equal(onSave.mock.calls[0]?.[0].safetyIsolation.requireSandbox, false);
   assert.equal(onSave.mock.calls[0]?.[0].processTermination.killOrphans, false);
+});
+
+test("child depth cap saves with run execution limits", async () => {
+  const ref = createRef<OrchestrationTabHandle>();
+  const onSave = vi.fn(async () => undefined);
+  renderWithProviders(createElement(OrchestrationTab, { ref, settings, loading: false, error: null, onSave, onReset: vi.fn() }));
+  fireEvent.change(screen.getByLabelText("Max Child Depth"), { target: { value: "2" } });
+  await act(async () => { await ref.current?.save(); });
+  assert.equal(onSave.mock.calls[0]?.[0].runExecution.maxChildDepth, 2);
+  assert.equal(onSave.mock.calls[0]?.[0].runExecution.maxTurns, 8);
 });

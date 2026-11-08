@@ -128,6 +128,9 @@ const (
 	ErrCodePolicyRunner   ErrorCode = "POLICY_RUNNER_DENIED"
 	ErrCodePolicyScope    ErrorCode = "POLICY_SCOPE_DENIED"
 	ErrCodePolicyLimit    ErrorCode = "POLICY_LIMIT_EXCEEDED"
+	// ErrCodePolicyChildDepth refuses a child run nested deeper than
+	// runExecution.maxChildDepth.
+	ErrCodePolicyChildDepth ErrorCode = "POLICY_CHILD_DEPTH_EXCEEDED"
 
 	// --- Capacity Errors (503) ---
 	ErrCodeCapacityRuns    ErrorCode = "CAPACITY_MAX_RUNS"
@@ -625,6 +628,47 @@ func (e *PolicyViolationError) Details() map[string]interface{} {
 		"message":      e.Message,
 		"required_by":  e.RequiredBy,
 		"overrideable": e.Overrideable,
+	}
+}
+
+// =============================================================================
+// CHILD DEPTH EXCEEDED ERROR
+// =============================================================================
+
+// ChildDepthExceededError refuses a child run that would nest deeper than the
+// configured maximum. It is a policy refusal raised before any admission
+// effect, so the caller can fall back to its harness's native sub-agents.
+type ChildDepthExceededError struct {
+	ParentRunID uuid.UUID
+	Depth       int // depth the child would have
+	MaxDepth    int // runExecution.maxChildDepth
+}
+
+func (e *ChildDepthExceededError) Error() string {
+	return fmt.Sprintf("child run depth %d exceeds runExecution.maxChildDepth %d (parent run %s)", e.Depth, e.MaxDepth, e.ParentRunID)
+}
+
+func (e *ChildDepthExceededError) Code() ErrorCode { return ErrCodePolicyChildDepth }
+
+func (e *ChildDepthExceededError) Recovery() RecoveryAction { return RecoveryUseAlternative }
+
+func (e *ChildDepthExceededError) Retryable() bool { return false }
+
+// childDepthHint names both ways forward: delegate natively, or have the
+// operator raise the setting.
+const childDepthHint = "do this work in the current session or with the harness's native sub-agents; an operator can raise runExecution.maxChildDepth with `agent-manager settings orchestration update --file <settings.json>`"
+
+func (e *ChildDepthExceededError) UserMessage() string {
+	return fmt.Sprintf("A child of run %s would be at depth %d; the maximum is %d. To continue, %s.", e.ParentRunID, e.Depth, e.MaxDepth, childDepthHint)
+}
+
+func (e *ChildDepthExceededError) Details() map[string]interface{} {
+	return map[string]interface{}{
+		"parent_run_id":   e.ParentRunID.String(),
+		"depth":           e.Depth,
+		"max_child_depth": e.MaxDepth,
+		"setting":         "runExecution.maxChildDepth",
+		"hint":            childDepthHint,
 	}
 }
 

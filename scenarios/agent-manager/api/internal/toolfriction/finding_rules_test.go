@@ -326,3 +326,19 @@ func TestUnprintedProviderNotesAreStatedAsTheDefect(t *testing.T) {
 		t.Errorf("description = %s", f.Description)
 	}
 }
+
+// A quoted multi-word suggestion is the whole suggested command, not its first
+// word; an unquoted one is its first word.
+func TestGuessOfKeepsAQuotedSuggestionWhole(t *testing.T) {
+	for line, want := range map[string][2]string{
+		`Error: unknown command "prepare-operation" (did you mean "library run"?)`: {"prepare-operation", "library run"},
+		`Error: Unknown command: runs (did you mean "run"?)`:                       {"runs", "run"},
+		"unknown flag: --tail; did you mean --lines?":                              {"--tail", "--lines"},
+		"Error: unknown command `lifecycle`, did you mean `app lifecycle`":         {"lifecycle", "app lifecycle"},
+	} {
+		token, suggested := guessOf(line)
+		if token != want[0] || suggested != want[1] {
+			t.Errorf("guessOf(%q) = %q, %q; want %q, %q", line, token, suggested, want[0], want[1])
+		}
+	}
+}

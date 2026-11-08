@@ -20,7 +20,8 @@ func learnFixtureMode(role string, mutate func(*usagemode.Mode)) usagemode.Mode 
 		Scope: usagemode.Scope{Runner: "codex", Role: role}, Until: usagemode.Until{Kind: usagemode.UntilTime}, ExpiresAt: &expires,
 		Runners: map[string]usagemode.RunnerSettings{},
 		Learn: &usagemode.Learn{SplitPercent: 50, Runners: map[string]usagemode.RunnerSettings{
-			"codex": {ModelMap: map[string]string{"gpt-6.1-terra": "gpt-6-luna"}, SessionModel: "gpt-6-luna"}}},
+			"codex": {ModelMap: map[string]string{"gpt-6.1-terra": "gpt-6-luna"}, SessionModel: "gpt-6-luna"},
+		}},
 	}
 	if mutate != nil {
 		mutate(&mode)

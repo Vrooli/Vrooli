@@ -102,7 +102,7 @@ var (
 // StatusBroadcaster broadcasts a run status change to any live subscribers.
 // The orchestration EventBroadcaster satisfies it. Optional (nil is safe).
 type StatusBroadcaster interface {
-	BroadcastRunStatus(run *domain.Run)
+	BroadcastRunStatus(ctx context.Context, run *domain.Run)
 }
 
 // SummaryBuilder optionally reconstructs a run summary from persisted events at
@@ -132,7 +132,7 @@ type CoordinatorDeps struct {
 	// NewSink builds the per-run event sink the tailer emits into. When nil, tail
 	// events are parsed (advancing the cursor + terminal detection) but not
 	// stored.
-	NewSink func(runID uuid.UUID) runner.EventSink
+	NewSink func(context.Context, uuid.UUID) runner.EventSink
 	// Summary optionally builds the completion summary from stored events.
 	Summary SummaryBuilder
 	Result  ResultBuilder
@@ -339,7 +339,7 @@ func (c *Coordinator) Execute(ctx context.Context, run *domain.Run, p LaunchPara
 	if err != nil {
 		if res.SessionID != "" {
 			// The session exists but is unusable (no transcript) — tear it down.
-			_ = c.deps.Substrate.Stop(context.Background(), res.SessionID, interactiveSource(run))
+			_ = c.deps.Substrate.Stop(context.WithoutCancel(ctx), res.SessionID, interactiveSource(run))
 		}
 		// Seeding may have already copied credentials into the run's relocated
 		// home before the launch failed; the CLI is dead, so remove them.
@@ -365,20 +365,20 @@ func (c *Coordinator) Execute(ctx context.Context, run *domain.Run, p LaunchPara
 		if err != nil {
 			return errors.Join(
 				fmt.Errorf("persist initial interactive invocation fence: %w", err),
-				c.cleanupUnadmittedInitialSession(run, priorInvocation, res.SessionID, p.RunnerType, p.RunDir),
+				c.cleanupUnadmittedInitialSession(ctx, run, priorInvocation, res.SessionID, p.RunnerType, p.RunDir),
 			)
 		}
 		if !updated {
 			return errors.Join(
 				fmt.Errorf("initial interactive invocation owner changed before it reached Running"),
-				c.cleanupUnadmittedInitialSession(run, priorInvocation, res.SessionID, p.RunnerType, p.RunDir),
+				c.cleanupUnadmittedInitialSession(ctx, run, priorInvocation, res.SessionID, p.RunnerType, p.RunDir),
 			)
 		}
 	}
 	if uerr := c.update(ctx, &mu, run); uerr != nil {
 		return uerr
 	}
-	c.broadcast(run)
+	c.broadcast(ctx, run)
 	if onRunning != nil {
 		onRunning()
 	}
@@ -391,11 +391,11 @@ func (c *Coordinator) Execute(ctx context.Context, run *domain.Run, p LaunchPara
 // durable row still names this exact session and its pre-launch invocation.
 // A failed/ambiguous CAS may mean cancellation won, but a newer invocation or
 // session must never be stopped by the stale launcher.
-func (c *Coordinator) cleanupUnadmittedInitialSession(run *domain.Run, priorInvocation *time.Time, sessionID string, runnerType domain.RunnerType, runDir string) error {
+func (c *Coordinator) cleanupUnadmittedInitialSession(parent context.Context, run *domain.Run, priorInvocation *time.Time, sessionID string, runnerType domain.RunnerType, runDir string) error {
 	if run == nil || c.deps.Runs == nil || c.deps.Substrate == nil || sessionID == "" {
 		return nil
 	}
-	cleanupCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	cleanupCtx, cancel := context.WithTimeout(context.WithoutCancel(parent), 10*time.Second)
 	defer cancel()
 	current, err := c.deps.Runs.Get(cleanupCtx, run.ID)
 	if err != nil {
@@ -531,13 +531,15 @@ func (c *Coordinator) timeoutInterruptContext(ctx context.Context, run *domain.R
 	}
 	extended, cancel := context.WithDeadline(context.WithoutCancel(ctx), deadline.Add(c.timeoutDrain))
 	var timedOut atomic.Bool
+	interruptDone := make(chan struct{})
 	stop := context.AfterFunc(ctx, func() {
+		defer close(interruptDone)
 		if !errors.Is(ctx.Err(), context.DeadlineExceeded) {
 			cancel()
 			return
 		}
 		timedOut.Store(true)
-		interruptCtx, cancelInterrupt := context.WithTimeout(context.Background(), c.timeoutDrain)
+		interruptCtx, cancelInterrupt := context.WithTimeout(context.WithoutCancel(ctx), c.timeoutDrain)
 		defer cancelInterrupt()
 		if err := c.deps.Sessions.Interrupt(interruptCtx, run.WebConsoleSessionID, interactiveSource(run)); err != nil {
 			// Nothing will close the turn; stop waiting for it.
@@ -545,7 +547,9 @@ func (c *Coordinator) timeoutInterruptContext(ctx context.Context, run *domain.R
 		}
 	})
 	return extended, timedOut.Load, func() {
-		stop()
+		if !stop() {
+			<-interruptDone
+		}
 		cancel()
 	}
 }
@@ -553,7 +557,7 @@ func (c *Coordinator) timeoutInterruptContext(ctx context.Context, run *domain.R
 func (c *Coordinator) tailLoop(ctx context.Context, run *domain.Run, tc TailContext, mu *sync.Mutex, options TailCompletionOptions) (*runner.TranscriptTerminal, error) {
 	var sink runner.EventSink
 	if c.deps.NewSink != nil {
-		sink = c.deps.NewSink(run.ID)
+		sink = c.deps.NewSink(ctx, run.ID)
 		if sink != nil {
 			defer sink.Close()
 		}
@@ -571,7 +575,7 @@ func (c *Coordinator) tailLoop(ctx context.Context, run *domain.Run, tc TailCont
 		if lastSeq > run.TranscriptLastSeq {
 			run.TranscriptLastSeq = lastSeq
 		}
-		updated, err := c.deps.Runs.UpdateRunnerStreamState(context.Background(), run)
+		updated, err := c.deps.Runs.UpdateRunnerStreamState(context.WithoutCancel(ctx), run)
 		if err != nil {
 			return err
 		}
@@ -587,7 +591,7 @@ func (c *Coordinator) tailLoop(ctx context.Context, run *domain.Run, tc TailCont
 			return nil
 		}
 		previousLocalCursor := cursor
-		if err := c.persistTranscriptPath(context.Background(), run, path); err != nil {
+		if err := c.persistTranscriptPath(context.WithoutCancel(ctx), run, path); err != nil {
 			cursor = previousLocalCursor
 			return err
 		}
@@ -601,7 +605,7 @@ func (c *Coordinator) tailLoop(ctx context.Context, run *domain.Run, tc TailCont
 			return nil
 		}
 		run.SessionID = sessionID
-		updated, err := c.deps.Runs.UpdateRunnerStreamState(context.Background(), run)
+		updated, err := c.deps.Runs.UpdateRunnerStreamState(context.WithoutCancel(ctx), run)
 		if err != nil {
 			return err
 		}
@@ -621,7 +625,7 @@ func (c *Coordinator) tailLoop(ctx context.Context, run *domain.Run, tc TailCont
 		if run.GoalDelivery != GoalDeliveryNativeVerified {
 			run.GoalDelivery = GoalDeliveryNativeVerified
 			if c.deps.Runs != nil {
-				_ = c.deps.Runs.Update(context.Background(), run)
+				_ = c.deps.Runs.Update(context.WithoutCancel(ctx), run)
 			}
 		}
 		mu.Unlock()
@@ -638,40 +642,45 @@ func (c *Coordinator) tailLoop(ctx context.Context, run *domain.Run, tc TailCont
 		}
 
 		tctx, cancel := context.WithCancel(ctx)
-		gone := c.watchSession(tctx, ctx, cancel, run)
+		gone, watcherDone := c.watchSession(tctx, ctx, cancel, run)
 
 		mu.Lock()
 		startCursor := cursor
 		mu.Unlock()
 
-		term, err := c.deps.Tailer.Tail(tctx, TailParams{
-			RunID:            run.ID,
-			RunnerType:       run.ResolvedConfig.RunnerType,
-			Model:            transcriptModel(run),
-			TranscriptPath:   run.TranscriptPath,
-			SessionID:        run.SessionID,
-			Until:            run.ResolvedConfig.Until,
-			MaxTurns:         run.ResolvedConfig.MaxTurns,
-			Billing:          run.Billing,
-			RunDir:           tc.RunDir,
-			WorkingDir:       tc.WorkingDir,
-			LaunchedAt:       tc.LaunchedAt,
-			StartCursor:      startCursor,
-			GoalDrainTimeout: c.debounce,
-			Sink:             sink,
-			OnAdvance:        onAdvance,
-			OnTranscriptPath: onTranscriptPath,
-			OnSessionID:      onSessionID,
-			OnGoalStatus:     onGoalStatus,
-			GoalMarkerObserved: func() bool {
-				return lastGoal != nil
-			},
-			StructuredResultSatisfied: func() bool {
-				return c.structuredResultSatisfied(ctx, run)
-			},
-			CompleteAfterFirstSuccessfulTurnWithoutGoalMarker: options.CompleteAfterFirstSuccessfulTurnWithoutGoalMarker,
-		})
-		cancel()
+		term, err := func() (*runner.TranscriptTerminal, error) {
+			defer func() {
+				cancel()
+				<-watcherDone
+			}()
+			return c.deps.Tailer.Tail(tctx, TailParams{
+				RunID:            run.ID,
+				RunnerType:       run.ResolvedConfig.RunnerType,
+				Model:            transcriptModel(run),
+				TranscriptPath:   run.TranscriptPath,
+				SessionID:        run.SessionID,
+				Until:            run.ResolvedConfig.Until,
+				MaxTurns:         run.ResolvedConfig.MaxTurns,
+				Billing:          run.Billing,
+				RunDir:           tc.RunDir,
+				WorkingDir:       tc.WorkingDir,
+				LaunchedAt:       tc.LaunchedAt,
+				StartCursor:      startCursor,
+				GoalDrainTimeout: c.debounce,
+				Sink:             sink,
+				OnAdvance:        onAdvance,
+				OnTranscriptPath: onTranscriptPath,
+				OnSessionID:      onSessionID,
+				OnGoalStatus:     onGoalStatus,
+				GoalMarkerObserved: func() bool {
+					return lastGoal != nil
+				},
+				StructuredResultSatisfied: func() bool {
+					return c.structuredResultSatisfied(ctx, run)
+				},
+				CompleteAfterFirstSuccessfulTurnWithoutGoalMarker: options.CompleteAfterFirstSuccessfulTurnWithoutGoalMarker,
+			})
+		}()
 
 		if gone() {
 			// The session vanished mid-tail: prefer the freshest terminal seen.
@@ -822,10 +831,16 @@ func (c *Coordinator) transcriptGrew(run *domain.Run, tc TailContext, boundary i
 // the tail and latches "gone". Returns a reader for the latched flag. When the
 // session controller is not configured (or the run has no session id yet), the
 // watcher is inert and gone() is always false.
-func (c *Coordinator) watchSession(ctx, recoveryCtx context.Context, cancel context.CancelFunc, run *domain.Run) func() bool {
+func (c *Coordinator) watchSession(ctx, recoveryCtx context.Context, cancel context.CancelFunc, run *domain.Run) (func() bool, <-chan struct{}) {
+	done := make(chan struct{})
 	if c.deps.Sessions == nil || run.WebConsoleSessionID == "" {
-		return func() bool { return false }
+		close(done)
+		return func() bool { return false }, done
 	}
+	// Observe immutable session/run identifiers. The tail owns its mutable Run
+	// projection and can refresh it only after this watcher is canceled/drained.
+	observed := &domain.Run{ID: run.ID, WebConsoleSessionID: run.WebConsoleSessionID}
+	run = observed
 	var mu sync.Mutex
 	gone := false
 	// A missing session is tolerated for sessionReattachWindow while the
@@ -833,6 +848,7 @@ func (c *Coordinator) watchSession(ctx, recoveryCtx context.Context, cancel cont
 	// elapses is the run declared session_lost.
 	var notFoundSince time.Time
 	go func() {
+		defer close(done)
 		ticker := time.NewTicker(c.sessionPoll)
 		defer ticker.Stop()
 		for {
@@ -840,11 +856,20 @@ func (c *Coordinator) watchSession(ctx, recoveryCtx context.Context, cancel cont
 			case <-ctx.Done():
 				return
 			case <-ticker.C:
+				if ctx.Err() != nil {
+					return
+				}
 				_, err := c.deps.Sessions.GetSession(ctx, run.WebConsoleSessionID)
+				if ctx.Err() != nil {
+					return
+				}
 				if !errors.Is(err, webconsole.ErrSessionNotFound) {
 					notFoundSince = time.Time{}
 					if err == nil {
 						if screen, screenErr := c.deps.Sessions.Screen(ctx, run.WebConsoleSessionID, true); screenErr == nil {
+							if ctx.Err() != nil {
+								return
+							}
 							if interruption, detected := ClassifyScreenInterruption(screen); detected {
 								c.recoverableInterruption.Store(true)
 								c.scheduleInterruptionRecovery(recoveryCtx, run, interruption)
@@ -872,7 +897,7 @@ func (c *Coordinator) watchSession(ctx, recoveryCtx context.Context, cancel cont
 		mu.Lock()
 		defer mu.Unlock()
 		return gone
-	}
+	}, done
 }
 
 // resetInterruptionRecoveryCycle clears only the completed cycle after the
@@ -891,7 +916,7 @@ func (c *Coordinator) resetInterruptionRecoveryCycle() {
 // still on screen. Parent cancellation cancels the timer; repeated screen polls
 // cannot duplicate the prompt.
 func (c *Coordinator) scheduleInterruptionRecovery(parentCtx context.Context, run *domain.Run, interruption ResumableInterruption) {
-	if run == nil || run.WebConsoleSessionID == "" || c.deps.Sessions == nil || !c.recoveryScheduled.CompareAndSwap(false, true) {
+	if parentCtx.Err() != nil || run == nil || run.WebConsoleSessionID == "" || c.deps.Sessions == nil || !c.recoveryScheduled.CompareAndSwap(false, true) {
 		return
 	}
 	runID := run.ID
@@ -939,7 +964,7 @@ func (c *Coordinator) scheduleInterruptionRecovery(parentCtx context.Context, ru
 			return
 		}
 		if c.deps.NewSink != nil {
-			if events := c.deps.NewSink(runID); events != nil {
+			if events := c.deps.NewSink(ctx, runID); events != nil {
 				_ = events.Emit(domain.NewLogEvent(runID, "warn", fmt.Sprintf(
 					"resumable interactive interruption detected (%s: %s); attempting delayed recovery",
 					interruption.Kind, interruption.Message)))
@@ -1107,7 +1132,7 @@ func (c *Coordinator) finalizeComplete(ctx context.Context, run *domain.Run, ter
 	if err := c.update(ctx, &mu, run); err != nil {
 		return err
 	}
-	c.broadcast(run)
+	c.broadcast(ctx, run)
 	return nil
 }
 
@@ -1134,7 +1159,7 @@ func (c *Coordinator) finalizeFailed(ctx context.Context, run *domain.Run, reaso
 	if err := c.update(ctx, &mu, run); err != nil {
 		return err
 	}
-	c.broadcast(run)
+	c.broadcast(ctx, run)
 	return nil
 }
 
@@ -1162,7 +1187,7 @@ func handoffFromTerminal(terminal *runner.TranscriptTerminal, result *domain.Run
 // state is persisted on a fresh bounded context — using the expired one would
 // fail the write and leave the run stuck in RUNNING (observed live).
 func (c *Coordinator) finalizeTimeout(ctx context.Context, run *domain.Run) error {
-	persistCtx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	persistCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 15*time.Second)
 	defer cancel()
 
 	now := c.clock()
@@ -1183,7 +1208,7 @@ func (c *Coordinator) finalizeTimeout(ctx context.Context, run *domain.Run) erro
 	if err := c.update(persistCtx, &mu, run); err != nil {
 		return err
 	}
-	c.broadcast(run)
+	c.broadcast(ctx, run)
 	return nil
 }
 
@@ -1238,9 +1263,9 @@ func (c *Coordinator) update(ctx context.Context, mu *sync.Mutex, run *domain.Ru
 	return c.deps.Runs.Update(ctx, run)
 }
 
-func (c *Coordinator) broadcast(run *domain.Run) {
+func (c *Coordinator) broadcast(ctx context.Context, run *domain.Run) {
 	if c.deps.Broadcaster != nil {
-		c.deps.Broadcaster.BroadcastRunStatus(run)
+		c.deps.Broadcaster.BroadcastRunStatus(ctx, run)
 	}
 }
 

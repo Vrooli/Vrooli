@@ -2,6 +2,7 @@ package supervision
 
 import (
 	"context"
+	"errors"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -23,6 +24,21 @@ const goalHomeRef = "scenarios/browser-automation-studio/docs/internal/goal"
 type fakeSpend struct {
 	weighted map[uuid.UUID]float64
 	limit    int64
+}
+
+type countingEffortSpend struct{ weighted, runs, caps int }
+
+func (s *countingEffortSpend) WeightedRunTokens(context.Context, uuid.UUID) (float64, bool, error) {
+	s.weighted++
+	return 1, true, nil
+}
+func (s *countingEffortSpend) RunTokens(context.Context, uuid.UUID) (int64, bool, error) {
+	s.runs++
+	return 1, true, nil
+}
+func (s *countingEffortSpend) TokenCapUsage(context.Context, uuid.UUID) (*float64, int64, string) {
+	s.caps++
+	return nil, 0, "report"
 }
 
 func (f fakeSpend) WeightedRunTokens(_ context.Context, id uuid.UUID) (float64, bool, error) {
@@ -139,6 +155,10 @@ func TestEffortGoalHomeProjectsRegisteredHome(t *testing.T) {
 	))
 	c.runs[measured] = &domain.Run{ID: measured, Status: domain.RunStatusComplete}
 	c.runs[active] = &domain.Run{ID: active, Status: domain.RunStatusRunning}
+	c.accounts = map[uuid.UUID]EffortRunAccounting{
+		measured: {WeightedTokens: 640000, WeightedPresent: true, WeightedKnown: true},
+		active:   {WeightedTokens: 120000, WeightedPresent: true, WeightedKnown: true, TokenCap: 1000000, TokenCapMode: "report"},
+	}
 	s.SetSpendReader(fakeSpend{weighted: map[uuid.UUID]float64{measured: 640000, active: 120000}, limit: 1000000})
 
 	home := goalHomeBoardRow(t, s, c).GetGoalHome()
@@ -178,6 +198,31 @@ func TestEffortGoalHomeProjectsRegisteredHome(t *testing.T) {
 	}
 	if home.CanaryStatus != "unknown" {
 		t.Fatalf("canary status = %q", home.CanaryStatus)
+	}
+}
+
+func TestEffortBoardBatchFailureDoesNotFallBackToPerRunGoalHomeReads(t *testing.T) {
+	s, repo, c := effortFixture(t)
+	s.config.ProjectRoot = t.TempDir()
+	measured, active := uuid.New(), uuid.New()
+	goalHomeTree(t, s.config.ProjectRoot, journeyGoal("12 @ 2026-10-07",
+		replaceOnce("- unit: E26  status: acceptance review (BAS-FB-064 gate amendment)  workers: e8c322ca-72e7-434c-9d37-1d2cf853961f", "- unit: E27  status: in-progress  workers: "+active.String()),
+		replaceOnce("workers: a7240424-43e7-4d36-87f6-2b2e83d0c959", "workers: "+measured.String()),
+	))
+	c.runs[measured] = &domain.Run{ID: measured, Status: domain.RunStatusComplete}
+	c.runs[active] = &domain.Run{ID: active, Status: domain.RunStatusRunning}
+	c.batchErr, c.returnNilBatch = errors.New("batch unavailable"), true
+	spend := &countingEffortSpend{}
+	s.SetSpendReader(spend)
+	e := &pb.EffortEnrollment{EffortRef: "effort:goal-home-batch-error", Revision: 1, DestinationRef: "path:" + goalHomeRef + "/GOAL.md"}
+	if err := repo.SaveEffort(context.Background(), e, &pb.EffortBoardRow{}, 0, "seed-batch-error", "seed-batch-error"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.Board(context.Background(), &pb.GetEffortBoardRequest{EffortRef: e.EffortRef}); err != nil {
+		t.Fatal(err)
+	}
+	if c.boardBatchReads != 1 || c.getRunReads != 0 || spend.weighted != 0 || spend.runs != 0 || spend.caps != 0 {
+		t.Fatalf("batch failure regressed to per-run reads: batch=%d get_run=%d weighted=%d tokens=%d caps=%d", c.boardBatchReads, c.getRunReads, spend.weighted, spend.runs, spend.caps)
 	}
 }
 
@@ -458,6 +503,10 @@ func TestEffortGoalHomeReadsPhase2FormatThroughSniff(t *testing.T) {
 	measured := uuid.MustParse("a7240424-43e7-4d36-87f6-2b2e83d0c959") // LOG E25's sole metered worker
 	c.runs[owner] = &domain.Run{ID: owner, Status: domain.RunStatusRunning}
 	c.runs[measured] = &domain.Run{ID: measured, Status: domain.RunStatusComplete}
+	c.accounts = map[uuid.UUID]EffortRunAccounting{
+		owner:    {WeightedTokens: 120000, WeightedPresent: true, WeightedKnown: true, TokenCap: 1000000, TokenCapMode: "report"},
+		measured: {WeightedTokens: 640000, WeightedPresent: true, WeightedKnown: true},
+	}
 	s.SetSpendReader(fakeSpend{weighted: map[uuid.UUID]float64{owner: 120000, measured: 640000}, limit: 1000000})
 
 	facts := goalHomeBoardRow(t, s, c).GetGoalHome()

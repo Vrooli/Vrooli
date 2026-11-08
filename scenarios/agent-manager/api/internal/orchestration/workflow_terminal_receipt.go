@@ -150,7 +150,7 @@ func (o *Orchestrator) recoverTerminalAccounting(parent context.Context, id uuid
 		return err
 	}
 	// The receipt changes the run's usage account after its terminal write.
-	o.projectTerminalInvocationReadModel(current)
+	o.projectTerminalInvocationReadModel(ctx, current)
 	return nil
 }
 

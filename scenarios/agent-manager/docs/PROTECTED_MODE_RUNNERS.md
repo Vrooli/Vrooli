@@ -249,9 +249,12 @@ a successful terminal event; ordinary prose that merely mentions a goal does
 not satisfy this contract. Agent Manager accepts completion conditions up to
 1 MiB of UTF-8 bytes; this is a transport ceiling, not a recommended goal size.
 Use `agent-manager run create --until-file <path>` when shell argument limits
-make inline input impractical. Claude Code's native `/goal` field has its own
-4,000-character limit; longer conditions use the short native delegation while
-the complete condition remains in the task prompt.
+make inline input impractical. The native goal is the full condition only while
+the harness keeps it verbatim: 600 characters for Codex, which omits a longer
+objective at compaction, and 4,000 for Claude Code, its `/goal` field limit.
+Longer conditions use the short native delegation while the complete condition
+remains in the task prompt (`runner.NativeGoalVerbatimLimit` holds the limits
+and their evidence).
 
 Claude and Codex live transcript parsers report native goal markers to the
 tailer. Codex parsing correlates the native call with its successful receipt;

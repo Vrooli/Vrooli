@@ -79,7 +79,7 @@ func TestHandleWebSocketSupportsTypedAndLegacyClientMessages(t *testing.T) {
 	if pong := readMessage(); pong.Type != domainpb.AgentManagerWsMessageType_AGENT_MANAGER_WS_MESSAGE_TYPE_PONG || pong.GetPong() == nil {
 		t.Fatalf("expected subscription barrier pong, got %+v", pong)
 	}
-	hub.BroadcastProgress(runID, domain.RunPhaseExecuting, 45, "checking durable state")
+	hub.BroadcastProgress(t.Context(), runID, domain.RunPhaseExecuting, 45, "checking durable state")
 	if progress := readMessage(); progress.Type != domainpb.AgentManagerWsMessageType_AGENT_MANAGER_WS_MESSAGE_TYPE_RUN_PROGRESS || progress.GetRunId() != runID.String() || progress.GetRunProgress().GetPercentComplete() != 45 {
 		t.Fatalf("expected subscribed progress update, got %+v", progress)
 	}
@@ -127,7 +127,7 @@ func TestWebSocketHub_BroadcastFiltering_AllEvents(t *testing.T) {
 
 	// Broadcast a run event
 	runID := uuid.New().String()
-	hub.broadcast <- &domainpb.AgentManagerWsMessage{
+	hub.publish(t.Context(), &domainpb.AgentManagerWsMessage{
 		Type:  domainpb.AgentManagerWsMessageType_AGENT_MANAGER_WS_MESSAGE_TYPE_RUN_STATUS,
 		RunId: &runID,
 		Payload: &domainpb.AgentManagerWsMessage_RunStatus{
@@ -136,7 +136,7 @@ func TestWebSocketHub_BroadcastFiltering_AllEvents(t *testing.T) {
 				Status: domainpb.RunStatus_RUN_STATUS_COMPLETE,
 			},
 		},
-	}
+	})
 
 	select {
 	case msg := <-client.send:
@@ -165,7 +165,7 @@ func TestWebSocketHub_BroadcastFiltering_SubscribedRun(t *testing.T) {
 	time.Sleep(10 * time.Millisecond)
 
 	// Broadcast for unsubscribed run — should NOT be received
-	hub.broadcast <- &domainpb.AgentManagerWsMessage{
+	hub.publish(t.Context(), &domainpb.AgentManagerWsMessage{
 		Type:  domainpb.AgentManagerWsMessageType_AGENT_MANAGER_WS_MESSAGE_TYPE_RUN_EVENT,
 		RunId: &otherRunID,
 		Payload: &domainpb.AgentManagerWsMessage_RunEvent{
@@ -174,10 +174,10 @@ func TestWebSocketHub_BroadcastFiltering_SubscribedRun(t *testing.T) {
 				RunId: otherRunID,
 			},
 		},
-	}
+	})
 
 	// Broadcast for subscribed run — SHOULD be received
-	hub.broadcast <- &domainpb.AgentManagerWsMessage{
+	hub.publish(t.Context(), &domainpb.AgentManagerWsMessage{
 		Type:  domainpb.AgentManagerWsMessageType_AGENT_MANAGER_WS_MESSAGE_TYPE_RUN_EVENT,
 		RunId: &subscribedRunID,
 		Payload: &domainpb.AgentManagerWsMessage_RunEvent{
@@ -186,7 +186,7 @@ func TestWebSocketHub_BroadcastFiltering_SubscribedRun(t *testing.T) {
 				RunId: subscribedRunID,
 			},
 		},
-	}
+	})
 
 	// Wait for both broadcasts to process
 	time.Sleep(50 * time.Millisecond)
@@ -219,7 +219,7 @@ func TestWebSocketHub_RunStatusBroadcastsToUnsubscribedClients(t *testing.T) {
 	time.Sleep(10 * time.Millisecond)
 
 	runID := uuid.New().String()
-	hub.broadcast <- &domainpb.AgentManagerWsMessage{
+	hub.publish(t.Context(), &domainpb.AgentManagerWsMessage{
 		Type:  domainpb.AgentManagerWsMessageType_AGENT_MANAGER_WS_MESSAGE_TYPE_RUN_STATUS,
 		RunId: &runID,
 		Payload: &domainpb.AgentManagerWsMessage_RunStatus{
@@ -228,7 +228,7 @@ func TestWebSocketHub_RunStatusBroadcastsToUnsubscribedClients(t *testing.T) {
 				Status: domainpb.RunStatus_RUN_STATUS_RUNNING,
 			},
 		},
-	}
+	})
 
 	select {
 	case msg := <-client.send:
@@ -268,7 +268,7 @@ func TestWebSocketHub_StaleClientRemoval_NoRace(t *testing.T) {
 	runID := uuid.New().String()
 
 	// Broadcast — should trigger stale client removal under write lock
-	hub.broadcast <- &domainpb.AgentManagerWsMessage{
+	hub.publish(t.Context(), &domainpb.AgentManagerWsMessage{
 		Type:  domainpb.AgentManagerWsMessageType_AGENT_MANAGER_WS_MESSAGE_TYPE_RUN_STATUS,
 		RunId: &runID,
 		Payload: &domainpb.AgentManagerWsMessage_RunStatus{
@@ -277,7 +277,7 @@ func TestWebSocketHub_StaleClientRemoval_NoRace(t *testing.T) {
 				Status: domainpb.RunStatus_RUN_STATUS_COMPLETE,
 			},
 		},
-	}
+	})
 
 	time.Sleep(50 * time.Millisecond)
 
@@ -319,7 +319,7 @@ func TestWebSocketHub_StaleClientRemoval_ConcurrentSafety(t *testing.T) {
 		go func() {
 			defer wg.Done()
 			runID := uuid.New().String()
-			hub.broadcast <- &domainpb.AgentManagerWsMessage{
+			hub.publish(t.Context(), &domainpb.AgentManagerWsMessage{
 				Type:  domainpb.AgentManagerWsMessageType_AGENT_MANAGER_WS_MESSAGE_TYPE_RUN_EVENT,
 				RunId: &runID,
 				Payload: &domainpb.AgentManagerWsMessage_RunEvent{
@@ -328,7 +328,7 @@ func TestWebSocketHub_StaleClientRemoval_ConcurrentSafety(t *testing.T) {
 						RunId: runID,
 					},
 				},
-			}
+			})
 		}()
 	}
 
@@ -361,7 +361,7 @@ func TestWebSocketHub_SubscriptionMutationConcurrentSafety(t *testing.T) {
 		}(i)
 		go func() {
 			defer wg.Done()
-			hub.broadcast <- &domainpb.AgentManagerWsMessage{
+			hub.publish(t.Context(), &domainpb.AgentManagerWsMessage{
 				Type:  domainpb.AgentManagerWsMessageType_AGENT_MANAGER_WS_MESSAGE_TYPE_RUN_EVENT,
 				RunId: &runID,
 				Payload: &domainpb.AgentManagerWsMessage_RunEvent{
@@ -370,7 +370,7 @@ func TestWebSocketHub_SubscriptionMutationConcurrentSafety(t *testing.T) {
 						RunId: runID,
 					},
 				},
-			}
+			})
 		}()
 	}
 	wg.Wait()
@@ -404,7 +404,7 @@ func TestBroadcastRunStatus_IncludesDisplayFields(t *testing.T) {
 		}},
 	}
 
-	hub.BroadcastRunStatus(run)
+	hub.BroadcastRunStatus(t.Context(), run)
 
 	select {
 	case msg := <-client.send:
@@ -458,7 +458,7 @@ func TestWebSocketHub_EachMessageIsSeparateFrame(t *testing.T) {
 	// Send two broadcasts rapidly
 	for i := 0; i < 2; i++ {
 		runID := uuid.New().String()
-		hub.broadcast <- &domainpb.AgentManagerWsMessage{
+		hub.publish(t.Context(), &domainpb.AgentManagerWsMessage{
 			Type:  domainpb.AgentManagerWsMessageType_AGENT_MANAGER_WS_MESSAGE_TYPE_RUN_STATUS,
 			RunId: &runID,
 			Payload: &domainpb.AgentManagerWsMessage_RunStatus{
@@ -467,7 +467,7 @@ func TestWebSocketHub_EachMessageIsSeparateFrame(t *testing.T) {
 					Status: domainpb.RunStatus_RUN_STATUS_RUNNING,
 				},
 			},
-		}
+		})
 	}
 
 	time.Sleep(50 * time.Millisecond)
@@ -513,7 +513,7 @@ func TestBroadcastRunStatus_EmptyPromptPreview(t *testing.T) {
 		Status: domain.RunStatusComplete,
 		// PromptPreview intentionally empty
 	}
-	hub.BroadcastRunStatus(runEmpty)
+	hub.BroadcastRunStatus(t.Context(), runEmpty)
 
 	select {
 	case msg := <-client.send:
@@ -539,7 +539,7 @@ func TestBroadcastRunStatus_EmptyPromptPreview(t *testing.T) {
 		Status:        domain.RunStatusRunning,
 		PromptPreview: "Implement user authentication",
 	}
-	hub.BroadcastRunStatus(runPopulated)
+	hub.BroadcastRunStatus(t.Context(), runPopulated)
 
 	select {
 	case msg := <-client.send:
@@ -567,7 +567,7 @@ func TestBroadcastWorkflowLifecycleContainsMetadataOnly(t *testing.T) {
 	hub := NewWebSocketHub()
 	executionID := uuid.New()
 	runID := uuid.New()
-	hub.BroadcastWorkflowLifecycle(&domain.WorkflowLifecycleEvent{ExecutionID: executionID, DefinitionDigest: "sha256:def", Status: domain.WorkflowExecutionRunning, NodeID: "review", Strategy: domain.WorkflowAttemptFreshRun, ProfileIdentity: "reviewer", RunID: &runID, JournalSequence: 4, JournalKind: domain.WorkflowJournalAttempt, JournalPayloadDigest: "sha256:payload", BudgetUsage: domain.WorkflowBudgetUsage{NodeAttempts: 1}})
+	hub.BroadcastWorkflowLifecycle(t.Context(), &domain.WorkflowLifecycleEvent{ExecutionID: executionID, DefinitionDigest: "sha256:def", Status: domain.WorkflowExecutionRunning, NodeID: "review", Strategy: domain.WorkflowAttemptFreshRun, ProfileIdentity: "reviewer", RunID: &runID, JournalSequence: 4, JournalKind: domain.WorkflowJournalAttempt, JournalPayloadDigest: "sha256:payload", BudgetUsage: domain.WorkflowBudgetUsage{NodeAttempts: 1}})
 
 	message := <-hub.broadcast
 	update := message.GetWorkflowLifecycle()
@@ -606,10 +606,12 @@ func TestBroadcastTaskStatus_NoRunIdFiltering(t *testing.T) {
 		ID:     uuid.New(),
 		Status: domain.TaskStatusRunning,
 	}
-	hub.BroadcastTaskStatus(task)
+	hub.BroadcastTaskStatus(t.Context(
 
 	// Even though client is only subscribed to a specific run,
 	// task_status messages (no RunId) are sent to ALL clients.
+	), task)
+
 	select {
 	case msg := <-client.send:
 		var parsed domainpb.AgentManagerWsMessage

@@ -12,6 +12,8 @@ import (
 	"agent-manager/internal/domain"
 	"agent-manager/internal/goalhome"
 	"agent-manager/internal/pricing"
+	"agent-manager/internal/protoconv"
+	"agent-manager/internal/stepback"
 
 	"github.com/google/uuid"
 	"github.com/vrooli/api-core/authn"
@@ -475,11 +477,58 @@ func (s *EffortService) Board(ctx context.Context, req *pb.GetEffortBoardRequest
 	if strings.TrimSpace(req.EffortRef) != "" {
 		b.NextPageToken = ""
 	}
+	// Resolve every canonical run identity for this page once through the
+	// orchestration batch owner. The row projector below performs no per-run
+	// reads, even when an enrollment contains many assignments.
+	runIDs := effortBoardRunIDs(records)
+	goalHomes := make(map[string]effortGoalHomeSnapshot, len(records))
+	seenRun := make(map[uuid.UUID]bool, len(runIDs))
+	for _, id := range runIDs {
+		seenRun[id] = true
+	}
+	for _, record := range records {
+		if record.Enrollment == nil {
+			continue
+		}
+		snapshot := s.effortGoalHomeSnapshot(record.Enrollment)
+		goalHomes[record.Enrollment.GetEffortRef()] = snapshot
+		for _, id := range effortGoalHomeRunIDs(snapshot) {
+			if !seenRun[id] {
+				seenRun[id] = true
+				runIDs = append(runIDs, id)
+			}
+		}
+	}
+	runs := map[uuid.UUID]*domain.Run{}
+	accounts := map[uuid.UUID]EffortRunAccounting{}
+	var runReadErr error
+	if len(runIDs) > 0 {
+		reader, ok := s.controller.(EffortBoardRunReader)
+		if !ok {
+			runReadErr = errors.New("effort board run batch reader unavailable")
+		} else {
+			runs, accounts, runReadErr = reader.ReadEffortBoardRuns(ctx, runIDs)
+		}
+	}
+	// Keep batch mode explicit even when the owner cannot provide any maps.
+	// Nil maps are reserved for the legacy one-run helpers used outside Board;
+	// non-nil empty maps mean the page batch was attempted but had no evidence.
+	if runs == nil {
+		runs = map[uuid.UUID]*domain.Run{}
+	}
+	if accounts == nil {
+		accounts = map[uuid.UUID]EffortRunAccounting{}
+	}
+	var stepBack map[uuid.UUID][]stepback.Trigger
+	if reader, ok := s.controller.(EffortBoardStepBackReader); ok && len(runIDs) > 0 {
+		stepBack, _ = reader.ReadRunStepBack(ctx, runIDs)
+	}
 	identity := d.ChangeIdentity
 	for _, record := range records {
 		e, ob := record.Enrollment, record.Observation
-		row := s.projectEffort(ctx, e, ob, d)
-		row.GoalHome = s.projectGoalHome(ctx, e, row)
+		row := s.projectEffort(ctx, e, ob, d, runs, accounts, runReadErr)
+		attachStepBack(row, stepBack)
+		row.GoalHome = s.projectGoalHomeWithSnapshot(ctx, e, row, goalHomes[e.GetEffortRef()], runs, accounts)
 		row.DeliveryPressure = DeliveryPressure(e.Delivery, s.now())
 		if row.GoalHome != nil && row.GoalHome.GetState() == "partial" {
 			b.Partial = true
@@ -498,6 +547,7 @@ func (s *EffortService) Board(ctx context.Context, req *pb.GetEffortBoardRequest
 		cut.VisibilityChangeIdentity = ""
 		for _, a := range cut.Assignments {
 			a.ObservedAt = nil
+			stepBackIdentityCut(a)
 		}
 		row.VisibilityChangeIdentity = effortDigest(cut)
 		row.ChangeIdentity = effortSubjectIdentity(row, ob)
@@ -511,7 +561,59 @@ func (s *EffortService) Board(ctx context.Context, req *pb.GetEffortBoardRequest
 	return b, nil
 }
 
-func (s *EffortService) projectEffort(ctx context.Context, e *pb.EffortEnrollment, ob *pb.EffortBoardRow, d *pb.EffortDiscovery) *pb.EffortBoardRow {
+// attachStepBack sets each run assignment's transcript step-back triggers.
+func attachStepBack(row *pb.EffortBoardRow, triggers map[uuid.UUID][]stepback.Trigger) {
+	for _, assignment := range row.GetAssignments() {
+		if id, err := uuid.Parse(assignment.GetSubject().GetRunId()); err == nil {
+			assignment.StepBack = protoconv.StepBackTriggersToProto(triggers[id])
+		}
+	}
+}
+
+// stepBackIdentityCut keeps only which step-back triggers fired in a change
+// identity: their details measure a live run and change on every read.
+func stepBackIdentityCut(assignment *pb.EffortAssignment) {
+	for _, trigger := range assignment.GetStepBack() {
+		trigger.Detail, trigger.Remedy = "", ""
+	}
+}
+
+func effortBoardRunIDs(records []EffortRecord) []uuid.UUID {
+	seen := map[uuid.UUID]bool{}
+	ids := make([]uuid.UUID, 0)
+	for _, record := range records {
+		e := record.Enrollment
+		if e == nil {
+			continue
+		}
+		subjects := append([]*pb.EffortSubject(nil), e.Subjects...)
+		if e.SupervisorRunId != "" {
+			found := false
+			for _, subject := range subjects {
+				if subject.GetRunId() == e.SupervisorRunId {
+					found = true
+					break
+				}
+			}
+			if !found {
+				subjects = append(subjects, &pb.EffortSubject{Owner: "agent-manager", Kind: "run", RunId: e.SupervisorRunId})
+			}
+		}
+		for _, subject := range subjects {
+			if subject.GetOwner() != "agent-manager" || subject.GetKind() != "run" {
+				continue
+			}
+			id, err := uuid.Parse(subject.GetRunId())
+			if err == nil && !seen[id] {
+				seen[id] = true
+				ids = append(ids, id)
+			}
+		}
+	}
+	return ids
+}
+
+func (s *EffortService) projectEffort(ctx context.Context, e *pb.EffortEnrollment, ob *pb.EffortBoardRow, d *pb.EffortDiscovery, runs map[uuid.UUID]*domain.Run, accounts map[uuid.UUID]EffortRunAccounting, readErr error) *pb.EffortBoardRow {
 	row := proto.Clone(ob).(*pb.EffortBoardRow)
 	row.Enrollment = e
 	row.Assignments = nil
@@ -566,9 +668,13 @@ func (s *EffortService) projectEffort(ctx context.Context, e *pb.EffortEnrollmen
 			allTime = false
 			continue
 		}
-		run, err := s.controller.GetRun(ctx, id)
-		if err != nil || run == nil || run.ID != id {
-			a.UnavailableReason = "run owner unavailable"
+		run := runs[id]
+		if run == nil || run.ID != id {
+			if readErr != nil {
+				a.UnavailableReason = "run owner batch unavailable"
+			} else {
+				a.UnavailableReason = "run owner unavailable"
+			}
 			unavailable++
 			allTokens = false
 			allTime = false
@@ -611,8 +717,9 @@ func (s *EffortService) projectEffort(ctx context.Context, e *pb.EffortEnrollmen
 			row.Blockers = append(row.Blockers, "reconcile owner lifecycle evidence for run "+run.ID.String())
 			unavailable++
 		}
-		if s.spend != nil && !inconsistent {
-			if total, known, err := s.spend.RunTokens(ctx, run.ID); err == nil && known {
+		if !inconsistent {
+			if account, ok := accounts[run.ID]; ok && account.TokensKnown {
+				total := account.Tokens
 				a.Usage.Tokens = &total
 			} else {
 				a.Usage.Limitations = append(a.Usage.Limitations, "run token total is not authoritatively metered")
@@ -759,6 +866,7 @@ func effortSubjectIdentity(row, source *pb.EffortBoardRow) string {
 		}
 		a := proto.Clone(assignment).(*pb.EffortAssignment)
 		a.ObservedAt = nil
+		stepBackIdentityCut(a)
 		cut.Assignments = append(cut.Assignments, a)
 	}
 	return effortDigest(cut)

@@ -80,7 +80,7 @@ func (a *App) effortPark(args []string) error {
 	}
 	var live []string
 	for _, child := range children {
-		if child != nil && isParkExecutionChildStatus(child.Status) {
+		if child != nil && isLiveRunStatus(child.Status) {
 			live = append(live, child.Id)
 		}
 	}
@@ -133,10 +133,11 @@ func printParkResult(result any, exit error) error {
 	return exit
 }
 
-// isParkExecutionChildStatus identifies children whose executor may still hang.
-// NEEDS_REVIEW remains nonterminal for approval and continuation, but its
-// worker has exited and must not trigger the live-child park backstop.
-func isParkExecutionChildStatus(status domainpb.RunStatus) bool {
+// isLiveRunStatus mirrors domain.RunStatus.IsLive: the run can still consume
+// execution time (pending, starting, running or parked). NEEDS_REVIEW remains
+// nonterminal for approval and continuation, but its worker has exited, so it
+// neither triggers the live-child park backstop nor needs owner authority.
+func isLiveRunStatus(status domainpb.RunStatus) bool {
 	switch status {
 	case domainpb.RunStatus_RUN_STATUS_PENDING,
 		domainpb.RunStatus_RUN_STATUS_STARTING,

@@ -140,7 +140,7 @@ func TestFinalize_AdvancesPhaseToCompleted(t *testing.T) {
 	fx := newFinalizeFixture(t, sandboxedRunCfg(), stub)
 	fx.run.Status = domain.RunStatusComplete
 
-	Finalize(FinalizeInput{
+	Finalize(t.Context(), FinalizeInput{
 		Deps:      fx.deps,
 		Run:       fx.run,
 		SandboxID: &fx.sandboxID,
@@ -156,7 +156,7 @@ func TestFinalize_DeletesSandboxOnSuccess(t *testing.T) {
 	fx.run.Status = domain.RunStatusComplete
 	fx.run.FinalizationStatus = domain.RunFinalizationStatusSucceeded // cleanup follows completed effects
 
-	Finalize(FinalizeInput{
+	Finalize(t.Context(), FinalizeInput{
 		Deps:      fx.deps,
 		Run:       fx.run,
 		SandboxID: &fx.sandboxID,
@@ -177,7 +177,7 @@ func TestFinalize_DeletesSandboxOnFailure(t *testing.T) {
 	fx.run.Status = domain.RunStatusFailed
 	fx.run.FinalizationStatus = domain.RunFinalizationStatusSucceeded // cleanup follows completed effects
 
-	Finalize(FinalizeInput{
+	Finalize(t.Context(), FinalizeInput{
 		Deps:      fx.deps,
 		Run:       fx.run,
 		SandboxID: &fx.sandboxID,
@@ -196,7 +196,7 @@ func TestFinalize_DeleteFailureDoesNotBlockPhaseAdvance(t *testing.T) {
 	fx.run.Status = domain.RunStatusComplete
 	fx.run.FinalizationStatus = domain.RunFinalizationStatusSucceeded // cleanup follows completed effects
 
-	Finalize(FinalizeInput{
+	Finalize(t.Context(), FinalizeInput{
 		Deps:      fx.deps,
 		Run:       fx.run,
 		SandboxID: &fx.sandboxID,
@@ -233,7 +233,7 @@ func TestFinalize_NoOpForInPlaceRun(t *testing.T) {
 	fx.run.RunMode = domain.RunModeInPlace
 	fx.run.Status = domain.RunStatusComplete
 
-	Finalize(FinalizeInput{
+	Finalize(t.Context(), FinalizeInput{
 		Deps:      fx.deps,
 		Run:       fx.run,
 		SandboxID: &fx.sandboxID,
@@ -256,7 +256,7 @@ func TestFinalize_StopsSandboxWhenLifecycleSaysStop(t *testing.T) {
 	fx.run.Status = domain.RunStatusComplete
 	fx.run.FinalizationStatus = domain.RunFinalizationStatusSucceeded // cleanup follows completed effects
 
-	Finalize(FinalizeInput{
+	Finalize(t.Context(), FinalizeInput{
 		Deps:      fx.deps,
 		Run:       fx.run,
 		SandboxID: &fx.sandboxID,
@@ -910,7 +910,7 @@ func TestFinalizePreservesSandboxUntilRequiredEffectsRecover(t *testing.T) {
 			fx := newFinalizeFixture(t, sandboxedRunCfg(), stub)
 			fx.run.Status = domain.RunStatusComplete
 			fx.run.FinalizationStatus = status
-			Finalize(FinalizeInput{Deps: fx.deps, Run: fx.run, SandboxID: &fx.sandboxID, Sandbox: stub})
+			Finalize(t.Context(), FinalizeInput{Deps: fx.deps, Run: fx.run, SandboxID: &fx.sandboxID, Sandbox: stub})
 			if stub.DeleteCallCount() != 0 || stub.StopCallCount() != 0 {
 				t.Fatal("unapplied sandbox destroyed before original-run recovery")
 			}

@@ -21,7 +21,8 @@ import (
 
 // readCodingBackup reads the owner-scoped record from the host credential
 // authority. Its parent key remains in this process; only the issued child
-// session reaches the runner.
+// session reaches the runner. Require keeps the failure taxonomy: an absent
+// record is ErrUnconfigured, distinct from a provider that is unavailable.
 func readCodingBackup(owner, harness string) (cliutil.CodingBackupRecord, error) {
 	var record cliutil.CodingBackupRecord
 	authority, err := credentialauthority.Default()
@@ -32,7 +33,7 @@ func readCodingBackup(owner, harness string) (cliutil.CodingBackupRecord, error)
 	if err != nil {
 		return record, err
 	}
-	raw, err := authority.Resolve(identity, cliutil.CodingBackupField(owner, harness))
+	raw, err := authority.Require(identity, cliutil.CodingBackupField(owner, harness))
 	if err != nil {
 		return record, err
 	}
@@ -91,7 +92,7 @@ func (e *RunExecutor) tryCodingBackup(ctx context.Context, selected runner.Runne
 		return false, empty
 	}
 	defer func() {
-		revokeCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		revokeCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 10*time.Second)
 		defer cancel()
 		_ = session.Revoke(revokeCtx)
 	}()

@@ -51,6 +51,29 @@ func TestEffortCLICompactBoardPrintsJoinedOwnerFacts(t *testing.T) {
 	}
 }
 
+func TestEffortBoardsShowEachAssignedRunsStepBackTriggers(t *testing.T) {
+	row := &pb.EffortBoardRow{Enrollment: &pb.EffortEnrollment{EffortRef: "effort:drifting", DisplayName: "Drifting effort"}, OutcomeStanding: &pb.EffortOutcomeStanding{State: "unknown"}, Assignments: []*pb.EffortAssignment{
+		{Subject: &pb.EffortSubject{Owner: "agent-manager", Kind: "run", Role: "orchestrator", RunId: "run-a"}, StepBack: []*pb.StepBackTrigger{
+			{Id: "unit-per-turn", Mechanism: "M1", Detail: "1 turn(s) longer than 3 h with 2+ compactions; longest 5.2 h", Remedy: "end the turn after each round"},
+			{Id: "short-workers", Mechanism: "M8", Detail: "6 of 8 settled descendants ran under 6 min", Remedy: "delegate by outcome"},
+		}},
+		{Subject: &pb.EffortSubject{Owner: "agent-manager", Kind: "run", Role: "worker", RunId: "run-b"}},
+	}}
+	board := &pb.EffortBoard{ActiveCount: 1, Rows: []*pb.EffortBoardRow{row}}
+	compact := captureStdout(t, func() error { printCompactEffortBoard(board); return nil })
+	if want := "Step-back: orchestrator run=run-a unit-per-turn,short-workers (evidence: agent-manager run tree <run>)"; !strings.Contains(compact, want) {
+		t.Fatalf("compact board lacks %q:\n%s", want, compact)
+	}
+	full := captureStdout(t, func() error { printEffortBoard(board); return nil })
+	if want := "    STEP-BACK unit-per-turn (M1): 1 turn(s) longer than 3 h with 2+ compactions; longest 5.2 h; re-orient: end the turn after each round"; !strings.Contains(full, want) {
+		t.Fatalf("board lacks %q:\n%s", want, full)
+	}
+	row.Assignments = row.Assignments[1:]
+	if quiet := captureStdout(t, func() error { printCompactEffortBoard(board); return nil }); !strings.Contains(quiet, "Step-back: none") {
+		t.Fatalf("compact board without triggers lacks \"Step-back: none\":\n%s", quiet)
+	}
+}
+
 func TestEffortLocalOwnerDoesNotElevateAgentRequests(t *testing.T) {
 	services, recorder := newContractServices(t)
 	app := &App{services: services}

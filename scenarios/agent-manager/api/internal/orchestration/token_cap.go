@@ -144,7 +144,7 @@ func (p TokenCapPolicy) maxWeight() float64 {
 // observeTokenCapUsage runs after a usage event is persisted. It only updates
 // the in-memory estimate; recounts and actions run off the event-emission path
 // so a stop can never wait on the stream that is reporting the usage.
-func (o *Orchestrator) observeTokenCapUsage(runID uuid.UUID, evt *domain.RunEvent) {
+func (o *Orchestrator) observeTokenCapUsage(ctx context.Context, runID uuid.UUID, evt *domain.RunEvent) {
 	enforcer := o.tokenCaps
 	if enforcer == nil || enforcer.policy.Mode == TokenCapOff || evt == nil {
 		return
@@ -173,7 +173,7 @@ func (o *Orchestrator) observeTokenCapUsage(runID uuid.UUID, evt *domain.RunEven
 	}
 	state.mu.Unlock()
 	if check {
-		go o.checkTokenCap(runID, state)
+		go o.checkTokenCap(ctx, runID, state)
 	}
 }
 
@@ -193,7 +193,7 @@ func (s *tokenCapRun) crossesThreshold(nudgeFraction float64) bool {
 // usage exactly from persisted events, and records the nudge or the cap. It
 // repeats while usage that arrived during a recount crossed a threshold, so a
 // final receipt is never left unchecked.
-func (o *Orchestrator) checkTokenCap(runID uuid.UUID, state *tokenCapRun) {
+func (o *Orchestrator) checkTokenCap(parent context.Context, runID uuid.UUID, state *tokenCapRun) {
 	defer obs.RecoverToFailure("token cap check", nil)
 	defer func() {
 		state.mu.Lock()
@@ -201,7 +201,7 @@ func (o *Orchestrator) checkTokenCap(runID uuid.UUID, state *tokenCapRun) {
 		state.mu.Unlock()
 	}()
 	policy := o.tokenCaps.policy
-	ctx, cancel := context.WithTimeout(context.Background(), tokenCapCheckTimeout)
+	ctx, cancel := context.WithTimeout(context.WithoutCancel(parent), tokenCapCheckTimeout)
 	defer cancel()
 
 	run, err := o.runs.Get(ctx, runID)

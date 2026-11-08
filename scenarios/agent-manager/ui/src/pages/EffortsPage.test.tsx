@@ -165,3 +165,14 @@ test("a partial owner row does not invent commission, assessment or ownership st
   expect(screen.getByRole("row", { name: /History unknown unknown unknown/ })).toBeInTheDocument();
   expect(screen.queryByText("No commission has been started.")).toBeNull();
 });
+
+test("an assignment's step-back triggers show on the row and in its detail", () => {
+  const data = board();
+  data.rows[0].assignments[0].stepBack = [{ $typeName: "agent_manager.v1.StepBackTrigger", id: "short-workers", mechanism: "M8", detail: "6 of 8 settled descendants ran under 6 min", remedy: "delegate by outcome" }];
+  owner.data = data;
+  renderWithProviders(<EffortsPage />, { initialEntries: ["/efforts"] });
+  expect(screen.getByRole("button", { name: /New arbitrary effort/ })).toHaveTextContent("Step-back: short-workers");
+  const triggers = screen.getByRole("list", { name: "Step-back triggers" });
+  expect(within(triggers).getByText(/Step-back short-workers \(M8\): 6 of 8 settled descendants ran under 6 min\. Re-orient: delegate by outcome\./)).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: /Finished runtime/ })).not.toHaveTextContent("Step-back");
+});

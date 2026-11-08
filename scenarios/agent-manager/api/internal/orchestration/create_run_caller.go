@@ -79,7 +79,10 @@ func (o *Orchestrator) authenticateCreateRunCaller(ctx context.Context, req *Cre
 		}
 		return refuse("create-run requires verified caller identity")
 	}
-	if (ownerOffered && strings.TrimSpace(req.OwnerToken) == "") || (runOffered && strings.TrimSpace(req.RunIdentityToken) == "") {
+	// A verified browser principal is already an offered owner proof; cookies
+	// and signed origin assertions do not require a second bearer credential.
+	// Still refuse an explicitly offered whitespace-only credential.
+	if (req.OwnerToken != "" && strings.TrimSpace(req.OwnerToken) == "") || (runOffered && strings.TrimSpace(req.RunIdentityToken) == "") {
 		return refuse("offered caller identity is blank")
 	}
 	// Owner verification does not get to narrow until parent proof has also
@@ -113,9 +116,18 @@ func (o *Orchestrator) authenticateCreateRunCaller(ctx context.Context, req *Cre
 		if err != nil || parent == nil || parent.TaskID != claims.TaskID || parent.OwnerSubject != strings.TrimSpace(claims.Subject) {
 			return refuse("run claims do not match the retained parent identity")
 		}
-		expires := time.Unix(claims.ExpiresAt, 0)
-		if !expires.After(o.now()) {
+		if !time.Unix(claims.ExpiresAt, 0).After(o.now()) {
 			return refuse("run identity is expired")
+		}
+		// The child's authority ceiling is the parent's durable owner window,
+		// not the expiry of the token the parent happens to hold this turn.
+		// Each turn's token lasts at most identity.DefaultTTL, so a child
+		// created late in a long parent turn would otherwise lose its
+		// identity hours into its own work (unable to create children or
+		// wake its parent). The root owner's authority still bounds the tree.
+		expires := childAuthorityExpiry(parent, claims, o.now())
+		if !expires.After(o.now()) {
+			return refuse("parent owner authority is expired")
 		}
 		if ownerOffered && req.OwnerSubject != strings.TrimSpace(claims.Subject) {
 			return refuse("owner and run identities do not name the same owner")
@@ -380,4 +392,20 @@ func (o *Orchestrator) planProfileAdmission(ctx context.Context, ref *ProfileRef
 	// Resolver uses the inspected snapshot. No profile write can race the
 	// qualification decision or overwrite another owner's concurrent work.
 	return &profileAdmissionPlan{profile: existing}, nil
+}
+
+// childAuthorityExpiry is when a child created by parent stops having owner
+// authority. A parent with an owner window passes it on unchanged. A parent
+// without one (a standing-grant or legacy ownerless run, which is minted a
+// fresh token every turn) gives its child the lifetime of one run identity
+// from creation, never less than the creating token's own remaining life.
+func childAuthorityExpiry(parent *domain.Run, claims *identity.Claims, now time.Time) time.Time {
+	if parent != nil && parent.OwnerExpiresAt != nil {
+		return *parent.OwnerExpiresAt
+	}
+	expires := now.Add(identity.DefaultTTL)
+	if token := time.Unix(claims.ExpiresAt, 0); token.After(expires) {
+		return token
+	}
+	return expires
 }

@@ -4,7 +4,7 @@ import { afterEach, test, vi } from "vitest";
 import { useOrchestrationSettings, type OrchestrationSettings } from "./useOrchestrationSettings.js";
 
 const settings: OrchestrationSettings = {
-  runExecution: { runTimeoutMinutes: 20, maxConcurrentRuns: 2, maxTurns: 8 },
+  runExecution: { runTimeoutMinutes: 20, maxConcurrentRuns: 2, maxTurns: 8, maxChildDepth: 3 },
   safetyIsolation: { requireSandbox: true, requireApproval: true, networkAccess: "localhost" },
   operationApprovals: { runCreation: false, runManagement: false, runDeletion: false, investigation: false, effortDelivery: false, effortMetadata: false },
   healthDetection: { heartbeatIntervalSeconds: 10, staleThresholdSeconds: 60, maxRecoveryAgeSeconds: 120, reconcilerIntervalSeconds: 30 },

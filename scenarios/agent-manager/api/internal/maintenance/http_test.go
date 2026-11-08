@@ -2,6 +2,8 @@ package maintenance
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
@@ -103,5 +105,61 @@ func TestMaintenanceHTTPTimeoutAndStaleResumePreserveFence(t *testing.T) {
 		if err != nil || !standing.Closed || standing.Revision != state.Revision {
 			t.Fatalf("fence changed: %+v %v", standing, err)
 		}
+	}
+}
+
+func TestAdmissionFenceViewDoesNotDependOnExecutorInventory(t *testing.T) {
+	for _, closed := range []bool{false, true} {
+		t.Run(fmt.Sprintf("closed=%t", closed), func(t *testing.T) {
+			gate, _ := openGate(t, filepath.Join(t.TempDir(), "gate.db"))
+			if closed {
+				if _, err := gate.Enter(t.Context(), "owner", "maintenance"); err != nil {
+					t.Fatal(err)
+				}
+			}
+			observed := 0
+			h, err := NewHandler(gate, func(context.Context) (Inventory, error) {
+				observed++
+				return Inventory{}, fmt.Errorf("inventory over protocol capacity")
+			}, ownerVerifier{}, testInterlock(t))
+			if err != nil {
+				t.Fatal(err)
+			}
+			response := httptest.NewRecorder()
+			h.ServeHTTP(response, httptest.NewRequest(http.MethodGet, AdmissionPath+"?view=fence", nil))
+			var state map[string]any
+			if err := json.Unmarshal(response.Body.Bytes(), &state); err != nil {
+				t.Fatal(err)
+			}
+			if response.Code != http.StatusOK || state["closed"] != closed || state["inventoryObserved"] != false || observed != 0 {
+				t.Fatalf("fence projection: code=%d body=%s observations=%d", response.Code, response.Body.String(), observed)
+			}
+			for _, field := range []string{"drained", "remaining", "inventory"} {
+				if _, ok := state[field]; ok {
+					t.Fatalf("unobserved drain field %s supplied", field)
+				}
+			}
+			full := httptest.NewRecorder()
+			h.ServeHTTP(full, httptest.NewRequest(http.MethodGet, AdmissionPath, nil))
+			if full.Code != http.StatusServiceUnavailable || observed != 1 {
+				t.Fatalf("full inventory requirement was weakened: %d %s", full.Code, full.Body.String())
+			}
+		})
+	}
+}
+
+func TestAdmissionFenceViewFailsClosedWhenDurableStateUnavailable(t *testing.T) {
+	gate, db := openGate(t, filepath.Join(t.TempDir(), "gate.db"))
+	h, err := NewHandler(gate, emptyInventory, ownerVerifier{}, testInterlock(t))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := db.Close(); err != nil {
+		t.Fatal(err)
+	}
+	response := httptest.NewRecorder()
+	h.ServeHTTP(response, httptest.NewRequest(http.MethodGet, AdmissionPath+"?view=fence", nil))
+	if response.Code != http.StatusServiceUnavailable || strings.Contains(response.Body.String(), `"closed":false`) {
+		t.Fatalf("unavailable fence became permission: %d %s", response.Code, response.Body.String())
 	}
 }

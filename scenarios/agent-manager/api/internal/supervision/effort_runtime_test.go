@@ -81,7 +81,7 @@ func TestEffortRuntimeRoleCoverage(t *testing.T) {
 			}
 			ob := &pb.EffortBoardRow{RuntimeState: "active"}
 			before := proto.Clone(e)
-			row := s.projectEffort(context.Background(), e, ob, &pb.EffortDiscovery{})
+			row := s.projectEffort(context.Background(), e, ob, &pb.EffortDiscovery{}, c.runs, nil, nil)
 			if row.RuntimeState != tc.wantRuntime {
 				t.Errorf("runtime = %q; want %q", row.RuntimeState, tc.wantRuntime)
 			}
@@ -123,7 +123,7 @@ func TestEffortRuntimeAllRoleUsageAndOutcomeAttribution(t *testing.T) {
 		e.Subjects = append(e.Subjects, &pb.EffortSubject{Owner: "agent-manager", Kind: "run", Reference: id.String(), RunId: id.String(), Role: role})
 	}
 	ob := &pb.EffortBoardRow{OutcomeStanding: &pb.EffortOutcomeStanding{State: "unaccepted", Attribution: "workspace self-report", EvidenceRefs: []string{"checkpoint:cut-1"}}}
-	row := s.projectEffort(context.Background(), e, ob, &pb.EffortDiscovery{})
+	row := s.projectEffort(context.Background(), e, ob, &pb.EffortDiscovery{}, c.runs, nil, nil)
 	if row.RuntimeState != "finished" || !proto.Equal(row.OutcomeStanding, ob.OutcomeStanding) {
 		t.Fatal("terminal runs changed attributed outcome standing", row)
 	}
@@ -137,7 +137,7 @@ func TestEffortRuntimeAllRoleUsageAndOutcomeAttribution(t *testing.T) {
 	// or let a supervisor masquerade as a second product executor.
 	c.runs[uuid.MustParse(e.Subjects[1].RunId)].SessionID = "shared"
 	c.runs[uuid.MustParse(e.SupervisorRunId)].SessionID = "shared"
-	row = s.projectEffort(context.Background(), e, ob, &pb.EffortDiscovery{})
+	row = s.projectEffort(context.Background(), e, ob, &pb.EffortDiscovery{}, c.runs, nil, nil)
 	if row.Usage.ObservedRuns != 5 || row.Usage.AgentSeconds == nil || *row.Usage.AgentSeconds != 300 || row.RuntimeState != "unknown" {
 		t.Fatal("shared role execution was double counted or implied finished product runtime", row)
 	}
@@ -150,7 +150,7 @@ func TestEffortRuntimeSupervisorReferenceWithoutBusinessOwner(t *testing.T) {
 			id := uuid.New()
 			c.runs[id] = &domain.Run{ID: id, Status: status}
 			e := &pb.EffortEnrollment{EffortRef: "effort:supervisor-only", SupervisorRunId: id.String()}
-			row := s.projectEffort(context.Background(), e, &pb.EffortBoardRow{}, &pb.EffortDiscovery{})
+			row := s.projectEffort(context.Background(), e, &pb.EffortBoardRow{}, &pb.EffortDiscovery{}, c.runs, nil, nil)
 			if row.RuntimeState != "unknown" || row.OutcomeStanding.GetState() != "unknown" {
 				t.Fatal("standalone supervisor implied business execution or acceptance", row)
 			}
@@ -177,7 +177,11 @@ func TestEffortRuntimeUnavailableOwnerIdentity(t *testing.T) {
 				c.runs[id].ID = uuid.New()
 			}
 			e := &pb.EffortEnrollment{EffortRef: "effort:missing-owner", Subjects: []*pb.EffortSubject{sub}}
-			row := s.projectEffort(context.Background(), e, &pb.EffortBoardRow{}, &pb.EffortDiscovery{})
+			runs := c.runs
+			if variant == "controller unavailable" {
+				runs = nil
+			}
+			row := s.projectEffort(context.Background(), e, &pb.EffortBoardRow{}, &pb.EffortDiscovery{}, runs, nil, nil)
 			if row.RuntimeState != "unknown" || len(row.Assignments) != 1 || row.Assignments[0].UnavailableReason == "" || row.Usage.ObservedRuns != 0 {
 				t.Fatal("unavailable identity supplied business runtime or hid the assignment", row)
 			}

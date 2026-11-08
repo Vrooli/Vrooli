@@ -4,7 +4,7 @@
   "source_manifest": "cli/manifest.json",
   "scenario": "agent-manager",
   "generator": "v1.0.0",
-  "manifest_hash": "d725ea56a68177468f27c024b6515e6cb1235d67c52e936be6a12520ce440c52",
+  "manifest_hash": "36023b101fb87c65108970aad0c2ba43c141d050caccc01602adf8c6e1e47e1d",
   "commands": [
     {
       "path": "conversation context",
@@ -600,6 +600,18 @@
       "path": "run tools",
       "group": "run",
       "command": "tools",
+      "binding": "."
+    },
+    {
+      "path": "run tree",
+      "group": "run",
+      "command": "tree",
+      "binding": "."
+    },
+    {
+      "path": "run wait",
+      "group": "run",
+      "command": "wait",
       "binding": "."
     },
     {

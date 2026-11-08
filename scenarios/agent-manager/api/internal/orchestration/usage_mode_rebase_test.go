@@ -46,8 +46,10 @@ func newRebaseFixture(t *testing.T, mutate func(*domain.Run)) (*modeFixture, *re
 	f := newModeFixture(t, nil)
 	cfg := f.create(t, "code.default", CreateRunRequest{}, nil) // no mode yet: the run is created on gpt-6.1-terra
 	cfg.RunnerType = domain.RunnerTypeCodex
-	run := &domain.Run{ID: uuid.New(), Status: domain.RunStatusParked, ExecutionMode: domain.ExecutionModeCodecPipe, SessionID: "thread-1",
-		ResolvedConfig: cfg, Summary: &domain.RunSummary{ContextTokens: 123000}}
+	run := &domain.Run{
+		ID: uuid.New(), Status: domain.RunStatusParked, ExecutionMode: domain.ExecutionModeCodecPipe, SessionID: "thread-1",
+		ResolvedConfig: cfg, Summary: &domain.RunSummary{ContextTokens: 123000},
+	}
 	if mutate != nil {
 		mutate(run)
 	}

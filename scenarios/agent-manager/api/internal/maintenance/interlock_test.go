@@ -13,6 +13,7 @@ import (
 
 	"github.com/vrooli/api-core/identity"
 	platform "github.com/vrooli/platform-go"
+	repocontract "github.com/vrooli/repo-contract-go"
 )
 
 func TestMaintenanceRootLockAllowsGETButRefusesResumeBeforeGateMutex(t *testing.T) {
@@ -145,5 +146,27 @@ func TestMaintenanceGETCannotDrainAcrossRevisionChangeOrUnknownInventory(t *test
 		if response.Code == http.StatusOK || strings.Contains(response.Body.String(), `"drained":true`) {
 			t.Fatalf("false proof=%d %s", response.Code, response.Body.String())
 		}
+	}
+}
+
+// The interlock shares an inode with the control plane's lifecycle lock, so
+// its path is the runtime-home state entry's locks directory under the owner's
+// home. A custom VROOLI_STORAGE_ROOT moves scenario storage, not this lock.
+func TestScenarioInterlockUsesTheRuntimeHomeStateLockDirectory(t *testing.T) {
+	t.Setenv("VROOLI_STORAGE_ROOT", t.TempDir())
+	home := t.TempDir()
+	stateRoot, err := repocontract.RuntimeHomeEntryPath(home, repocontract.HomeKeyState)
+	if err != nil {
+		t.Fatal(err)
+	}
+	lock, err := NewScenarioInterlock(home)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := filepath.Join(stateRoot, "locks", "scenario-agent-manager.lock"); lock.path != want {
+		t.Fatalf("interlock path = %q, want %q", lock.path, want)
+	}
+	if _, err := NewScenarioInterlock("relative/home"); err == nil {
+		t.Fatal("a relative owner home must be refused")
 	}
 }

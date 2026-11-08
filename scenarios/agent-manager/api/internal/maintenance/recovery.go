@@ -113,10 +113,33 @@ func (r *Recovery) Start(parent context.Context, steps []RecoveryStep) {
 		r.mu.Unlock()
 		go func() {
 			defer close(r.done)
+			// Required steps run first, in their declared order, and decide
+			// readiness. Non-critical historical steps then run with readiness
+			// already open: they have their own retry owners, so a slow
+			// historical scan must not hold a healthy service unready past the
+			// lifecycle's startup window.
+			order := make([]int, 0, len(steps))
 			for i, step := range steps {
+				if !step.NonCritical {
+					order = append(order, i)
+				}
+			}
+			required := len(order)
+			for i, step := range steps {
+				if step.NonCritical {
+					order = append(order, i)
+				}
+			}
+			for position, i := range order {
 				if ctx.Err() != nil {
 					break
 				}
+				if position == required {
+					r.mu.Lock()
+					r.refreshStateLocked()
+					r.mu.Unlock()
+				}
+				step := steps[i]
 				r.mu.Lock()
 				r.state.Phase = step.Name
 				r.mu.Unlock()
@@ -124,6 +147,9 @@ func (r *Recovery) Start(parent context.Context, steps []RecoveryStep) {
 				r.mu.Lock()
 				if err != nil {
 					r.steps[i].failure = err.Error()
+				}
+				if position >= required {
+					r.refreshStateLocked()
 				}
 				r.mu.Unlock()
 			}

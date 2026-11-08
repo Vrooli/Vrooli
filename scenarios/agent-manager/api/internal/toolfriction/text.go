@@ -183,8 +183,10 @@ var shapeError = regexp.MustCompile(`unknown (command|subcommand|flag|option|arg
 // names, and suggestion the one a "did you mean" hint offers. They are read
 // from the redacted error line, which keeps the quoted words.
 var (
-	unknownToken = regexp.MustCompile("(?i)(?:unknown|unsupported|unrecognized)(?: [a-z]+)? (?:command|subcommand|flag|option|verb)s?:? +[\"'`]?([^\\s\"'`()?,]+)")
-	suggestion   = regexp.MustCompile("(?i)did you mean:? +[\"'`]?([^\\s\"'`()?,]+)")
+	unknownToken = regexp.MustCompile("(?i)(?:unknown|unsupported|unrecognized)(?: [a-z]+)? (?:command|subcommand|flag|option|verb)s?:? +[\"'`]?([^\\s\"'`()?,;]+)")
+	// A quoted suggestion is taken whole ("library run"); an unquoted one is
+	// its first word.
+	suggestion = regexp.MustCompile("(?i)did you mean:? +(?:\"([^\"]+)\"|'([^']+)'|`([^`]+)`|([^\\s\"'`()?,;]+))")
 )
 
 // guessOf is the wrong command an error line names and the CLI's suggestion,
@@ -194,7 +196,12 @@ func guessOf(line string) (token, suggested string) {
 		token = m[1]
 	}
 	if m := suggestion.FindStringSubmatch(line); m != nil {
-		suggested = m[1]
+		for _, group := range m[1:] {
+			if group != "" {
+				suggested = strings.TrimSpace(group)
+				break
+			}
+		}
 	}
 	return token, suggested
 }

@@ -48,6 +48,13 @@ type HandleResultInput struct {
 // HandleResultOutput is the explicit output of HandleResult.
 type HandleResultOutput struct {
 	Outcome domain.RunOutcome
+	// Deferred means durable owner state was unavailable. The executor must
+	// preserve the run for transcript-based recovery instead of finalizing.
+	Deferred bool
+	// Persisted means this invocation wrote the result through the durable run
+	// owner. Recovery callers use this to avoid replaying terminal teardown when
+	// another recovery invocation already committed the result.
+	Persisted bool
 }
 
 // HandleResult is the post-execute seam: classify the outcome, dispatch
@@ -65,39 +72,48 @@ func HandleResult(ctx context.Context, in HandleResultInput) HandleResultOutput 
 	// its later exit carries a stale in-memory snapshot and must not resurrect
 	// the run to a different terminal state.
 	if in.Run != nil && in.Deps.Runs != nil {
-		if durable, readErr := in.Deps.Runs.Get(ctx, in.Run.ID); readErr == nil && durable != nil {
-			if durable.LifecycleVersion != in.Run.LifecycleVersion {
-				intentOnlyAdvance := in.Run.CancelRequestedAt == nil && durable.CancelRequestedAt != nil &&
-					durable.LifecycleVersion == in.Run.LifecycleVersion+1 && durable.Status == in.Run.Status &&
-					durable.OwnerIdentity == in.Run.OwnerIdentity && durable.OwnerEpoch == in.Run.OwnerEpoch &&
-					(durable.Status == domain.RunStatusPending || durable.Status == domain.RunStatusStarting || durable.Status == domain.RunStatusRunning)
-				if !intentOnlyAdvance {
-					return out
-				}
-				in.Run.LifecycleVersion = durable.LifecycleVersion
-				in.Run.CancelRequestedAt = durable.CancelRequestedAt
-				out.Outcome = domain.RunOutcomeCancelled
-				outcome = domain.RunOutcomeCancelled
-			}
-			if durable.Status.IsTerminal() {
-				*in.Run = *durable
-				if durable.Status == domain.RunStatusCancelled {
-					out.Outcome = domain.RunOutcomeCancelled
-				}
-				if in.Deps.Broadcaster != nil {
-					in.Deps.Broadcaster.BroadcastRunStatus(in.Run)
-				}
+		durable, readErr := in.Deps.Runs.Get(ctx, in.Run.ID)
+		if readErr != nil {
+			EmitSystemEvent(ctx, in.Deps, in.Run.ID, "warn", "run result deferred: durable lifecycle state could not be read: "+readErr.Error())
+			out.Deferred = true
+			return out
+		}
+		if durable == nil {
+			EmitSystemEvent(ctx, in.Deps, in.Run.ID, "warn", "run result deferred: durable lifecycle record is missing")
+			out.Deferred = true
+			return out
+		}
+		if durable.LifecycleVersion != in.Run.LifecycleVersion {
+			intentOnlyAdvance := in.Run.CancelRequestedAt == nil && durable.CancelRequestedAt != nil &&
+				durable.LifecycleVersion == in.Run.LifecycleVersion+1 && durable.Status == in.Run.Status &&
+				durable.OwnerIdentity == in.Run.OwnerIdentity && durable.OwnerEpoch == in.Run.OwnerEpoch &&
+				(durable.Status == domain.RunStatusPending || durable.Status == domain.RunStatusStarting || durable.Status == domain.RunStatusRunning)
+			if !intentOnlyAdvance {
 				return out
 			}
-			// Durable cancellation intent recorded before termination outranks
-			// the runner's own exit. Carry the intent onto the in-memory
-			// snapshot and reconcile the delayed exit to cancelled, so the
-			// cancellation handler owns terminal finalization exactly once.
-			if durable.CancelRequestedAt != nil {
-				in.Run.CancelRequestedAt = durable.CancelRequestedAt
-				outcome = domain.RunOutcomeCancelled
+			in.Run.LifecycleVersion = durable.LifecycleVersion
+			in.Run.CancelRequestedAt = durable.CancelRequestedAt
+			out.Outcome = domain.RunOutcomeCancelled
+			outcome = domain.RunOutcomeCancelled
+		}
+		if durable.Status.IsTerminal() {
+			*in.Run = *durable
+			if durable.Status == domain.RunStatusCancelled {
 				out.Outcome = domain.RunOutcomeCancelled
 			}
+			if in.Deps.Broadcaster != nil {
+				in.Deps.Broadcaster.BroadcastRunStatus(ctx, in.Run)
+			}
+			return out
+		}
+		// Durable cancellation intent recorded before termination outranks
+		// the runner's own exit. Carry the intent onto the in-memory
+		// snapshot and reconcile the delayed exit to cancelled, so the
+		// cancellation handler owns terminal finalization exactly once.
+		if durable.CancelRequestedAt != nil {
+			in.Run.CancelRequestedAt = durable.CancelRequestedAt
+			outcome = domain.RunOutcomeCancelled
+			out.Outcome = domain.RunOutcomeCancelled
 		}
 	}
 
@@ -130,14 +146,16 @@ func HandleResult(ctx context.Context, in HandleResultInput) HandleResultOutput 
 		if err := in.Deps.Runs.Update(ctx, in.Run); err != nil {
 			EmitSystemEvent(ctx, in.Deps, in.Run.ID, "warn",
 				"failed to persist run result: "+err.Error())
+			out.Deferred = true
 			return out
 		}
+		out.Persisted = true
 	}
 	if in.Deps.Runs != nil {
 		EmitStatusTransition(ctx, in.Deps, in.Run.ID, previousStatus, in.Run.Status, "run result finalized")
 	}
 	if in.Deps.Broadcaster != nil {
-		in.Deps.Broadcaster.BroadcastRunStatus(in.Run)
+		in.Deps.Broadcaster.BroadcastRunStatus(ctx, in.Run)
 	}
 	return out
 }

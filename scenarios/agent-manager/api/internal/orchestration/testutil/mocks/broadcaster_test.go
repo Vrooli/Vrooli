@@ -10,7 +10,7 @@ func TestFakeBroadcasterCopiesRunStatus(t *testing.T) {
 	b := NewFakeBroadcaster()
 	run := &domain.Run{Status: domain.RunStatusRunning}
 
-	b.BroadcastRunStatus(run)
+	b.BroadcastRunStatus(t.Context(), run)
 	run.Status = domain.RunStatusComplete
 
 	got := b.StatusBroadcasts()

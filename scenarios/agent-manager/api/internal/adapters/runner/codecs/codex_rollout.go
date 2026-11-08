@@ -30,7 +30,10 @@ import (
 //   - 2: a top-level `compacted` record yields a compaction event.
 //   - 3: a forked rollout's copy of its parent's history yields nothing
 //     (P4-W5k): the fork's events start at its own first line.
-const codexTranscriptVersion = 3
+//   - 5: a compaction event records whether the native goal objective was
+//     retained or omitted and how many operator messages it kept
+//     (CompactionEventData.GoalObjective, OperatorMessagesKept).
+const codexTranscriptVersion = 5
 
 // TranscriptVersion satisfies [runner.TranscriptVersioner].
 func (p *codexTranscriptParser) TranscriptVersion() int { return codexTranscriptVersion }
@@ -258,6 +261,8 @@ func (p *codexTranscriptParser) parseRolloutLine(runID uuid.UUID, line string) (
 
 	case "compacted":
 		event := domain.NewCompactionEvent(runID, pl.Message, "auto", "", 0, 0, 0, "")
+		data := event.Data.(*domain.CompactionEventData)
+		data.GoalObjective, data.OperatorMessagesKept = codexCompactedContext([]byte(trimmed), p.state.subagentThread)
 		if !result.Timestamp.IsZero() {
 			event.Timestamp = result.Timestamp
 		}
@@ -343,6 +348,70 @@ func (p *codexTranscriptParser) parseRolloutLine(runID uuid.UUID, line string) (
 		return result, true
 	}
 	return result, true
+}
+
+// codexGoalContextPrefix opens the user message through which Codex carries a
+// thread's native goal into its compacted history.
+const codexGoalContextPrefix = `<codex_internal_context source="user_goal">`
+
+// codexCompactedContext reports what a `compacted` record kept of the
+// thread's intent. goal is domain.CompactionGoalRetained when Codex's goal
+// context still states the objective, domain.CompactionGoalOmitted when it
+// replaced it with "[objective omitted; ...]", and "" without goal context.
+// Only Codex's own goal-context messages decide it, never quoted text in other
+// messages. operatorKept counts the operator-typed messages in
+// retained_context; it is nil for records without retained_context and for
+// sub-agent threads, which keep no user messages by design.
+func codexCompactedContext(line []byte, subagent bool) (goal string, operatorKept *int) {
+	var record struct {
+		Payload struct {
+			ReplacementHistory []struct {
+				Role    string `json:"role"`
+				Content []struct {
+					Text string `json:"text"`
+				} `json:"content"`
+			} `json:"replacement_history"`
+			RetainedContext *struct {
+				UserMessages []struct {
+					Text string `json:"text"`
+				} `json:"user_messages"`
+			} `json:"retained_context"`
+		} `json:"payload"`
+	}
+	if json.Unmarshal(line, &record) != nil {
+		return "", nil
+	}
+	latest := ""
+	for _, item := range record.Payload.ReplacementHistory {
+		if item.Role != "user" {
+			continue
+		}
+		for _, content := range item.Content {
+			if strings.HasPrefix(content.Text, codexGoalContextPrefix) {
+				latest = content.Text
+			}
+		}
+	}
+	if retained := record.Payload.RetainedContext; retained != nil {
+		kept := 0
+		for _, message := range retained.UserMessages {
+			if strings.HasPrefix(message.Text, codexGoalContextPrefix) {
+				latest = message.Text
+			} else if domain.ClassifyMessageText(message.Text) == domain.MessageSourceOperator {
+				kept++
+			}
+		}
+		if !subagent {
+			operatorKept = &kept
+		}
+	}
+	switch {
+	case strings.Contains(latest, "User set the goal: [objective omitted"):
+		goal = domain.CompactionGoalOmitted
+	case strings.Contains(latest, "User set the goal:"):
+		goal = domain.CompactionGoalRetained
+	}
+	return goal, operatorKept
 }
 
 // codexQuotaEvents converts only the native rate-limit metadata into typed

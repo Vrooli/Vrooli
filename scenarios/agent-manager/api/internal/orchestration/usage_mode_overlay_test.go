@@ -18,8 +18,10 @@ import (
 type modeRoleResolver struct{ model string }
 
 func (r modeRoleResolver) Resolve(_ context.Context, runnerType domain.RunnerType, role string) (rolepolicy.ResolvedRole, error) {
-	return rolepolicy.ResolvedRole{Runner: runnerType, Role: role, Model: r.model, CanonicalModel: "openai/" + r.model,
-		Billing: domain.BillingSnapshot{Mode: domain.BillingModeSubscription, Provider: "openai"}}, nil
+	return rolepolicy.ResolvedRole{
+		Runner: runnerType, Role: role, Model: r.model, CanonicalModel: "openai/" + r.model,
+		Billing: domain.BillingSnapshot{Mode: domain.BillingModeSubscription, Provider: "openai"},
+	}, nil
 }
 
 type modeFixture struct {

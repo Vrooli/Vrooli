@@ -35,9 +35,9 @@ var (
 	ErrInvalidResourceResponse = errors.New("invalid resource role response")
 )
 
-// CommandExecutor is the subprocess seam. Production uses CombinedOutput so
-// resource diagnostics remain available for error classification; tests use a
-// deterministic fake and never need a resource binary.
+// CommandExecutor is the subprocess seam. Successful responses contain only
+// stdout JSON; failed commands retain stdout and stderr for classification.
+// Tests use private fixtures and never need a resource binary.
 type CommandExecutor interface {
 	Run(ctx context.Context, command string, args ...string) ([]byte, error)
 }
@@ -58,7 +58,18 @@ func (commandExecutor) Run(ctx context.Context, command string, args ...string) 
 	if root != "" {
 		cmd.Dir = root
 	}
-	return cmd.CombinedOutput()
+	var stderr bytes.Buffer
+	cmd.Stderr = &stderr
+	output, err := cmd.Output()
+	if err != nil && stderr.Len() > 0 {
+		// Diagnostics must remain available for unknown-role/unavailable
+		// classification, but never enter a successful JSON response.
+		if len(output) > 0 {
+			output = append(output, '\n')
+		}
+		output = append(output, stderr.Bytes()...)
+	}
+	return output, err
 }
 
 // ResourceRoleResolver resolves one role from the resource that owns the

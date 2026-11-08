@@ -30,7 +30,7 @@ func newTimeoutCoordinator(sessions *fakeSessions, sink runner.EventSink, grace 
 		Tailer:                NewTailer(codecParserResolver, WithTailPollInterval(10*time.Millisecond)),
 		Sessions:              sessions,
 		Runs:                  &fakeRunStore{},
-		NewSink:               func(uuid.UUID) runner.EventSink { return sink },
+		NewSink:               func(context.Context, uuid.UUID) runner.EventSink { return sink },
 		Debounce:              80 * time.Millisecond,
 		ActivityPoll:          10 * time.Millisecond,
 		SessionPoll:           15 * time.Millisecond,
@@ -89,8 +89,8 @@ func TestCoordinatorTimeoutInterruptsHarnessAndKeepsItsClosingReceipt(t *testing
 	if terminal != nil {
 		t.Fatalf("terminal = %+v, want none: the abort answers the timeout interrupt", terminal)
 	}
-	if !slices.Contains(sessions.calls, "interrupt") {
-		t.Fatalf("harness was never interrupted: %v", sessions.calls)
+	if !slices.Contains(sessions.Calls(), "interrupt") {
+		t.Fatalf("harness was never interrupted: %v", sessions.Calls())
 	}
 	receipts := authoritativeUsage(sink)
 	if len(receipts) != 1 {
@@ -133,8 +133,8 @@ func TestCoordinatorCancellationDoesNotInterruptHarness(t *testing.T) {
 	if elapsed := time.Since(start); elapsed > time.Second {
 		t.Fatalf("cancellation waited %v for a drain it does not owe", elapsed)
 	}
-	if slices.Contains(sessions.calls, "interrupt") {
-		t.Fatalf("shutdown interrupted the harness: %v", sessions.calls)
+	if slices.Contains(sessions.Calls(), "interrupt") {
+		t.Fatalf("shutdown interrupted the harness: %v", sessions.Calls())
 	}
 }
 
@@ -155,7 +155,7 @@ func TestCoordinatorTimeoutWithoutDrainEndsAtDeadline(t *testing.T) {
 	if !errors.Is(err, context.DeadlineExceeded) {
 		t.Fatalf("tail error = %v, want the timeout", err)
 	}
-	if slices.Contains(sessions.calls, "interrupt") {
-		t.Fatalf("disabled drain still interrupted: %v", sessions.calls)
+	if slices.Contains(sessions.Calls(), "interrupt") {
+		t.Fatalf("disabled drain still interrupted: %v", sessions.Calls())
 	}
 }

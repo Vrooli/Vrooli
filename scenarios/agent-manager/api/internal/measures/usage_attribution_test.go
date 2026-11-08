@@ -299,6 +299,61 @@ func TestUsageFrictionListsReportsAndDismissesFindings(t *testing.T) {
 	}
 }
 
+func TestUsageFrictionFiltersFindingsAndProfilesByOwner(t *testing.T) {
+	now := time.Date(2026, 10, 29, 6, 0, 0, 0, time.UTC)
+	h := usageHandler(now)
+	profiles, err := h.ToolFriction(context.Background(), connect.NewRequest(&measurepb.ToolFrictionRequest{}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(profiles.Msg.GetProfiles()) == 0 {
+		t.Fatal("fixture produced no command profiles")
+	}
+	owner := "vrooli"
+	wantProfiles, wantCalls := int64(0), int64(0)
+	for _, profile := range profiles.Msg.GetProfiles() {
+		if profile.GetOwner() == owner {
+			wantProfiles++
+			wantCalls += profile.GetCalls()
+		}
+	}
+	response, err := h.UsageFriction(context.Background(), connect.NewRequest(&measurepb.UsageFrictionRequest{Owner: owner, Limit: 200}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	msg := response.Msg
+	if len(msg.GetToolFindings()) != 1 || msg.GetOpen() != 1 || msg.GetToolFindings()[0].GetOwner() != owner {
+		t.Fatalf("owner-filtered findings = %v, open=%d; want the matching %q finding", msg.GetToolFindings(), msg.GetOpen(), owner)
+	}
+	if msg.GetOwnerProfileCount() != wantProfiles || msg.GetOwnerCallCount() != wantCalls {
+		t.Fatalf("owner-filtered profile totals = %d profiles, %d calls; want %d, %d", msg.GetOwnerProfileCount(), msg.GetOwnerCallCount(), wantProfiles, wantCalls)
+	}
+	if msg.GetCoverage().GetCommands() != 4 {
+		t.Fatalf("coverage should remain window-wide, got %v", msg.GetCoverage())
+	}
+	filters := msg.GetProvenance().GetAppliedFilters()
+	if len(filters) != 1 || filters[0].GetField() != "owner" || filters[0].GetValue() != owner {
+		t.Errorf("owner filter missing from provenance: %v", filters)
+	}
+	var otherOwner string
+	for _, profile := range profiles.Msg.GetProfiles() {
+		if profile.GetOwner() != owner {
+			otherOwner = profile.GetOwner()
+			break
+		}
+	}
+	if otherOwner == "" {
+		t.Fatal("fixture must include a second owner with no matching finding")
+	}
+	other, err := h.UsageFriction(context.Background(), connect.NewRequest(&measurepb.UsageFrictionRequest{Owner: otherOwner, Limit: 200}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(other.Msg.GetToolFindings()) != 0 || other.Msg.GetOpen() != 0 {
+		t.Fatalf("non-matching owner %q received findings: %v", otherOwner, other.Msg.GetToolFindings())
+	}
+}
+
 // The tool friction RPC and the three registry measures it backs (rates,
 // profiles, error signatures) are one computation; owner narrows it.
 func TestToolFrictionServesRatesProfilesAndSignaturesFromOneComputation(t *testing.T) {

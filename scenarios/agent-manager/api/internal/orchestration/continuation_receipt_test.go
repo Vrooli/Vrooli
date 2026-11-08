@@ -32,7 +32,8 @@ func TestContinuationCheckpointStopsManualReviewWithoutDeleting(t *testing.T) {
 				return nil
 			}
 			id, disabled := uuid.New(), false
-			run := &domain.Run{ID: uuid.New(), RunMode: domain.RunModeSandboxed,
+			run := &domain.Run{
+				ID: uuid.New(), RunMode: domain.RunModeSandboxed,
 				SandboxID: &id, Status: tc.status,
 				ResolvedConfig: &domain.RunConfig{SandboxConfig: &domain.SandboxConfig{
 					Mode: domain.SandboxModeProtected, ManualReview: true,

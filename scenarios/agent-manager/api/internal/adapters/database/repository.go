@@ -638,6 +638,13 @@ func (r *runRepository) CancelTaskAttempt(ctx context.Context, taskID uuid.UUID,
 	}
 	defer tx.Rollback()
 
+	var terminalPrior *domain.Run
+	if r.terminalReceiptScope != nil && runID != nil {
+		terminalPrior, err = r.getTx(ctx, tx, *runID)
+		if err != nil {
+			return "", false, err
+		}
+	}
 	var runStatus domain.RunStatus
 	var runExists bool
 	if runID != nil {
@@ -696,6 +703,9 @@ func (r *runRepository) CancelTaskAttempt(ctx context.Context, taskID uuid.UUID,
 		if fenced != 1 {
 			return "", false, fmt.Errorf("task cancellation committed without fencing exact current run %s", runID)
 		}
+	}
+	if err := r.captureTerminalReceiptTx(ctx, tx, terminalPrior); err != nil {
+		return "", false, err
 	}
 	if err := tx.Commit(); err != nil {
 		return "", false, wrapDBError("cancel_task_attempt_commit", "Task", taskID.String(), err)

@@ -21,11 +21,13 @@ func WithMaintenanceGate(gate *maintenance.Gate) Option {
 	}
 }
 
-type admittedWorkflowKey struct{}
-type admittedWorkflow struct {
-	owner       *Orchestrator
-	executionID uuid.UUID
-}
+type (
+	admittedWorkflowKey struct{}
+	admittedWorkflow    struct {
+		owner       *Orchestrator
+		executionID uuid.UUID
+	}
+)
 
 func (o *Orchestrator) admitMaintenance(ctx context.Context) (func(), error) {
 	if o.hasMaintenanceAdmission(ctx) {

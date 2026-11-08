@@ -26,6 +26,8 @@ const (
 	// episode version and the self-report operator-correction flag went with
 	// them.
 	migrationDropEpisodes = "2026-10-30-drop-friction-episodes"
+	// Child runs created before runs.depth existed carry the default 0.
+	migrationRunDepth = "2026-11-06-run-depth"
 )
 
 // attachedExitReason is the error the reconciler wrote when it marked every
@@ -84,7 +86,28 @@ func (db *DB) runOnceMigrations(ctx context.Context) error {
 			return err
 		}
 	}
-	return db.runOnce(ctx, migrationDropEpisodes, func(tx *Tx) error { return dropEpisodes(ctx, tx) })
+	if err := db.runOnce(ctx, migrationDropEpisodes, func(tx *Tx) error { return dropEpisodes(ctx, tx) }); err != nil {
+		return err
+	}
+	return db.runOnce(ctx, migrationRunDepth, func(tx *Tx) error { return backfillRunDepth(ctx, tx) })
+}
+
+// backfillRunDepth derives every existing child's depth from its lineage: roots
+// are 0 and each child is its parent's depth + 1. A child whose parent row was
+// deleted starts a new chain at 1, as the insert-time derivation does.
+func backfillRunDepth(ctx context.Context, tx *Tx) error {
+	const query = `WITH RECURSIVE lineage(id, depth) AS (
+		SELECT id, CASE WHEN parent_run_id IS NULL THEN 0 ELSE 1 END FROM runs
+		WHERE parent_run_id IS NULL OR parent_run_id NOT IN (SELECT id FROM runs)
+		UNION ALL
+		SELECT child.id, lineage.depth + 1 FROM runs child JOIN lineage ON child.parent_run_id = lineage.id
+	)
+	UPDATE runs SET depth = COALESCE((SELECT lineage.depth FROM lineage WHERE lineage.id = runs.id), 1)
+	WHERE parent_run_id IS NOT NULL`
+	if _, err := tx.ExecContext(ctx, query); err != nil {
+		return &domain.DatabaseError{Operation: "run_depth_backfill", EntityType: "Run", Cause: err}
+	}
+	return nil
 }
 
 // dropEpisodes removes the episode projection and the two columns that went
@@ -160,7 +183,7 @@ func migrateAttachedExitStatus(ctx context.Context, tx *Tx) error {
 		SELECT id, 1, 0, 0 FROM runs WHERE `+match, attachedExitReason); err != nil {
 		return &domain.DatabaseError{Operation: "attached_exit_requeue", EntityType: "Run", Cause: err}
 	}
-	if _, err := tx.ExecContext(ctx, `UPDATE runs SET status = 'complete', phase = 'completed', error_msg = '' WHERE `+match, attachedExitReason); err != nil {
+	if _, err := tx.ExecContext(ctx, `UPDATE runs SET status = 'complete', phase = 'completed', error_msg = '', updated_at = ? WHERE `+match, SQLiteTime(time.Now()), attachedExitReason); err != nil {
 		return &domain.DatabaseError{Operation: "attached_exit_correct", EntityType: "Run", Cause: err}
 	}
 	return nil

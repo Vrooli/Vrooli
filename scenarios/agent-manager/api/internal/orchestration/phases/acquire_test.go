@@ -45,7 +45,7 @@ func TestAcquireRunnerRejectsMissingRegistryAndMissingConfiguredRunner(t *testin
 	if got := GetRunnerType(nil, nil); got != domain.RunnerTypeClaudeCode {
 		t.Fatalf("snapshot-less runner type=%s, want default", got)
 	}
-	if got := lastResortAlternative(nil, domain.RunnerTypeCodex); got != "" {
+	if got := lastResortAlternative(t.Context(), nil, domain.RunnerTypeCodex); got != "" {
 		t.Fatalf("nil registry alternative=%q", got)
 	}
 }

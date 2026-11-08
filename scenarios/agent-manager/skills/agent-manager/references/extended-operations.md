@@ -128,4 +128,4 @@ Supported caller migration, service-level replay binding, positive verified
 operator/exact-parent tests and independent evidence remain deployment gates.
 Other lifecycle endpoints retain their existing contracts.
 
-For the authority model behind these rules — who may create a run and how a bounded caller is granted that authority — read [docs/concepts/AUTHORIZATION.md](../../../../docs/concepts/AUTHORIZATION.md).
+For the authority model behind these rules — who may create a run and how a bounded caller is granted that authority — read `path:docs/concepts/AUTHORIZATION.md`.

@@ -49,6 +49,9 @@ func NewService(repository Repository) *Service {
 
 func (s *Service) Run(ctx context.Context, request ProviderRequest) *inferencev1.RunResponse {
 	response := &inferencev1.RunResponse{Usage: &inferencev1.Usage{}}
+	if request.RequestDigest == "" {
+		request.RequestDigest = canonicalRequestDigest(request)
+	}
 	schema, err := s.gate.Parse(request.SchemaJSON)
 	if err != nil {
 		return withError(response, schemaErrorCode(err), err.Error(), schemaConstruct(err))
@@ -77,12 +80,33 @@ func (s *Service) runWithSchema(ctx context.Context, request ProviderRequest, sc
 			}
 		}
 		attemptRequest := request
+		attemptRequest.ValidationAttempt = attempt
 		attemptRequest.MaxProviderCalls = remaining
 		if validationErr != nil {
 			attemptRequest.Instruction = repairInstruction(request.Instruction, validationErr)
 		}
 		result, err := s.repository.Run(ctx, attemptRequest)
 		response.ProviderCallsMade += result.ProviderCallsMade
+		if result.Recovery != nil {
+			response.Recovery = result.Recovery
+			response.ValueJson = ""
+			response.Provider = ""
+			response.Model = ""
+			response.Validated = false
+			response.Applied = nil
+			response.SpendAuthorization = nil
+			response.Usage = &inferencev1.Usage{
+				AccountingStatus: result.Recovery.GetAccountingStatus(),
+			}
+			if result.Recovery.ChargedCredits != nil {
+				response.Usage.CreditsCharged = proto.Int64(result.Recovery.GetChargedCredits())
+			}
+			response.Error = &inferencev1.InferenceError{
+				Code:    inferencev1.InferenceErrorCode_INFERENCE_ERROR_CODE_OUTCOME_UNCERTAIN,
+				Message: "hosted inference output is unavailable; reuse root_operation_id to resolve its accounting receipt",
+			}
+			return response
+		}
 		response.Provider, response.Model = result.Provider, result.Model
 		// Applied is set before the error branch: a refused or truncated call is
 		// exactly when a caller needs to know what the gateway would have sent.
@@ -95,6 +119,12 @@ func (s *Service) runWithSchema(ctx context.Context, request ProviderRequest, sc
 			// Provider failures are not retried here: the repository already
 			// walks every declared candidate before reporting one.
 			code, construct := samplingErrorCode(err)
+			if errors.Is(err, ErrRootConflict) {
+				code, construct = inferencev1.InferenceErrorCode_INFERENCE_ERROR_CODE_INVALID_REQUEST, "root_operation_id"
+			}
+			if errors.Is(err, ErrRootRequired) {
+				code, construct = inferencev1.InferenceErrorCode_INFERENCE_ERROR_CODE_INVALID_REQUEST, "root_operation_id"
+			}
 			return withError(response, code, err.Error(), construct)
 		}
 		response.ValueJson = result.ValueJSON

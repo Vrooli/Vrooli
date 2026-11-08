@@ -41,7 +41,7 @@ CREATE TABLE IF NOT EXISTS conversation_search_catalog (
 );
 
 -- Relevance search is driven by FTS and joins the catalog by id, so the
--- catalog needs only the source lookup (context windows, per-run replacement)
+-- catalog uses the source lookup (context windows, per-run replacement)
 -- and one time index for browsing without a lexical query. The per-filter time
 -- indexes this replaced cost about 125 MB each; live telemetry on 2026-09-14
 -- showed about 6,500 of 6,600 searches were relevance ranked.
@@ -49,6 +49,11 @@ CREATE INDEX IF NOT EXISTS idx_conversation_search_catalog_source
     ON conversation_search_catalog(source_run_id, event_sequence, chunk_index);
 CREATE INDEX IF NOT EXISTS idx_conversation_search_catalog_visible_time
     ON conversation_search_catalog(occurred_at, document_id) WHERE visible = 1;
+-- Exact coverage counts group visible chunks by message. Keep that grouping
+-- on ordered metadata rather than reading content-bearing catalog rows and
+-- building a temporary B-tree on each incremental index publication.
+CREATE INDEX IF NOT EXISTS idx_conversation_search_visible_messages
+    ON conversation_search_catalog(source_run_id, source_message_id) WHERE visible = 1;
 
 -- Generations are staged here first and published into the catalog in bounded
 -- batches. Staged rows are deleted once their generation settles (active,

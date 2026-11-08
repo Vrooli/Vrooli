@@ -32,11 +32,12 @@ func TestLiveDiscoveryCoverageDryRun(t *testing.T) {
 		_, _ = fmt.Sscan(raw, &days)
 	}
 	r := newRig(t, 0) // summaries only: no recall events in the temp database
-	r.home, r.runRoot = home, filepath.Join(home, ".vrooli", "state", "vrooli", "agent-manager", "runs")
+	live := liveRootConfig(t, home)
+	r.home, r.wcRoot, r.runRoot = live.Home, live.WebConsoleCodexRoot, live.RunStateRoot
 	r.restart()
 	since := time.Now().Add(-time.Duration(days) * 24 * time.Hour)
 
-	before := transcriptindex.BuildCoverage(transcriptindex.Roots(transcriptindex.RootConfig{Home: r.home, RunStateRoot: r.runRoot}), nil, since)
+	before := transcriptindex.BuildCoverage(transcriptindex.Roots(r.roots()), nil, since)
 	started := time.Now()
 	var read int64
 	for tick := 0; tick < 1000; tick++ {

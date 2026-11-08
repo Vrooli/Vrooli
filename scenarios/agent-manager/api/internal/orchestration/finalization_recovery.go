@@ -47,7 +47,7 @@ func (o *Orchestrator) recoverFinalization(ctx context.Context, run *domain.Run)
 		return nil, fmt.Errorf("persist recovered finalization: %w", err)
 	}
 	if o.broadcaster != nil {
-		o.broadcaster.BroadcastRunStatus(run)
+		o.broadcaster.BroadcastRunStatus(ctx, run)
 	}
 	if run.FinalizationStatus != domain.RunFinalizationStatusSucceeded {
 		return nil, fmt.Errorf("sandbox finalization recovery failed: %s", run.FinalizationError)
@@ -55,6 +55,6 @@ func (o *Orchestrator) recoverFinalization(ctx context.Context, run *domain.Run)
 	// Only verified success releases the retained workspace. No runner executes
 	// and the original terminal result, usage and end boundary remain unchanged.
 	phases.ApplySandboxLifecycle(recoveryCtx, phases.ApplySandboxLifecycleInput{Deps: deps, Run: run, SandboxID: run.SandboxID, Sandbox: o.sandbox, Event: phases.LifecycleEventForStatus(run.Status), Reason: "finalization recovered"})
-	o.nudgeWorkflowForRun(run.ID)
+	o.nudgeWorkflowForRun(ctx, run.ID)
 	return &RecoverResult{Run: run, Recovered: true, Message: "recovered sandbox finalization under the original run; execution was not repeated"}, nil
 }

@@ -97,8 +97,10 @@ func (o *Orchestrator) rebaseOneRun(ctx context.Context, mode usagemode.Mode, id
 	from := cfg.Model
 	switch run.ExecutionMode.Normalized() {
 	case domain.ExecutionModeInteractive:
-		return UsageModeRebaseResult{RunID: id, Status: RebaseAppliesNextLaunch, FromModel: from,
-			Reason: "an interactive session keeps its model; switching it would force a full re-read and typing /model would be saved as a default. The mode applies on its next launch"}
+		return UsageModeRebaseResult{
+			RunID: id, Status: RebaseAppliesNextLaunch, FromModel: from,
+			Reason: "an interactive session keeps its model; switching it would force a full re-read and typing /model would be saved as a default. The mode applies on its next launch",
+		}
 	case domain.ExecutionModeCodecPipe:
 	default:
 		return unableRebase(id, from, "not a managed run: "+string(run.ExecutionMode.Normalized())+" runs are not started by Agent Manager")
@@ -163,8 +165,10 @@ func (o *Orchestrator) rebaseOneRun(ctx context.Context, mode usagemode.Mode, id
 	if run.Summary != nil {
 		contextTokens = int64(run.Summary.ContextTokens)
 	}
-	result := UsageModeRebaseResult{RunID: id, Status: RebaseSwitchedAtNextResume, FromModel: from, ToModel: target, EstimatedRereadTokens: contextTokens,
-		Reason: "applies at the run's next resume; that resume re-reads the whole conversation on the new model"}
+	result := UsageModeRebaseResult{
+		RunID: id, Status: RebaseSwitchedAtNextResume, FromModel: from, ToModel: target, EstimatedRereadTokens: contextTokens,
+		Reason: "applies at the run's next resume; that resume re-reads the whole conversation on the new model",
+	}
 	if dryRun {
 		return result
 	}

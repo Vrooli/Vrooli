@@ -226,6 +226,15 @@ type Run struct {
 	// targets); a run can have any combination of those plus ParentRunID.
 	ParentRunID *uuid.UUID `json:"parentRunId,omitempty" db:"parent_run_id"`
 
+	// Depth is the run's nesting depth: 0 for a root, the parent's depth + 1
+	// for a child. The repository derives it from the parent row when the run
+	// is inserted, and it never changes afterwards.
+	Depth int `json:"depth,omitempty" db:"depth"`
+
+	// CharterPath is the absolute charter file named at creation. The task
+	// prompt's lineage header points the agent at it.
+	CharterPath string `json:"charterPath,omitempty" db:"charter_path"`
+
 	// SubAgentCount is how many runs list this one as their parent. Run
 	// listings fill it in one query; everywhere else it is zero.
 	SubAgentCount int `json:"subAgentCount,omitempty" db:"-"`

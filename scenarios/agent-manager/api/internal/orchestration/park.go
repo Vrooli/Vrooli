@@ -333,7 +333,7 @@ func (o *Orchestrator) WakeRun(ctx context.Context, in WakeRunInput) (_ *domain.
 		o.awaitRegistry.Cancel(in.RunID)
 	}
 
-	message := formatWakeMessage(run.ID, run.AwaitHandle, in.Result, in.TimedOut)
+	message := withCharterReread(formatWakeMessage(run.ID, run.AwaitHandle, in.Result, in.TimedOut), run.CharterPath)
 
 	// Record the resolved await as the re-fetch SSOT BEFORE clearing the handle:
 	// a woken agent that did not see — or wants to re-read — the result can
@@ -525,7 +525,7 @@ func (o *Orchestrator) ParkRunFromAgent(ctx context.Context, req ParkRunFromAgen
 	if o.awaitRegistry != nil {
 		o.awaitRegistry.Register(run.ID, run.AwaitHandle)
 	}
-	o.scheduleParkCompaction(run)
+	o.scheduleParkCompaction(ctx, run)
 	if err != nil {
 		return nil, err
 	}
@@ -831,6 +831,18 @@ func formatWakeMessage(runID uuid.UUID, handle *domain.AwaitHandle, result strin
 		domain.WakeAwaitedResultPrefix+" %s has completed. Result:\n\n%s\n\nContinue from here with this result. Do NOT re-run the command you parked on — it has already completed and re-running it will only make you wait again. %s",
 		work, strings.TrimSpace(result), reFetchHint(runID),
 	)
+}
+
+// withCharterReread ends a chartered run's wake with the charter to re-read.
+// Codex keeps only the eight newest user messages through compaction and
+// counts every wake among them, so a parked run woken eight times no longer
+// holds its task prompt or lineage header; the wake itself must then carry the
+// way back to the charter (LONG_EFFORT_DESIGN §4a).
+func withCharterReread(message, charterPath string) string {
+	if charter := strings.TrimSpace(charterPath); charter != "" {
+		return message + "\nRe-read your charter " + charter + " before acting."
+	}
+	return message
 }
 
 // formatChildrenWakeMessage frames an orchestrator's wake briefly. A parent

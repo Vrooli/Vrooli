@@ -282,7 +282,7 @@ INSERT INTO runs SELECT 'imported-'||x,CASE WHEN x%2=0 THEN 'unknown' ELSE 'runn
 }
 
 func TestInventoryOnePhysicalBatchAcrossHistory(t *testing.T) {
-	for _, references := range []int{2, 129, 10811, 16385} {
+	for _, references := range []int{2, 129, 17029, 65536, 65537} {
 		t.Run(fmt.Sprintf("references=%d", references), func(t *testing.T) {
 			_, db := openGate(t, filepath.Join(t.TempDir(), "inventory.db"))
 			db.SetMaxOpenConns(1)
@@ -314,11 +314,11 @@ INSERT INTO runs SELECT 'executor-'||x,'failed','codec_pipe',x,x,'none' FROM n`,
 				return out, nil
 			})
 			state, err := reader.Observe(t.Context())
-			if references <= 16384 {
+			if references <= 65536 {
 				if err != nil || calls != 1 || state.Remaining == nil || *state.Remaining != 300 {
 					t.Fatalf("single read lost logical work: calls=%d state=%+v err=%v", calls, state, err)
 				}
-			} else if err == nil || calls != 0 || state.Remaining != nil || !strings.Contains(err.Error(), "16385 physical references") {
+			} else if err == nil || calls != 0 || state.Remaining != nil || !strings.Contains(err.Error(), "65537 physical references") {
 				t.Fatalf("capacity became repeated scans or empty: calls=%d state=%+v err=%v", calls, state, err)
 			}
 		})

@@ -843,8 +843,8 @@ func TestCappedMedianIsOverContributingRuns(t *testing.T) {
 
 // Polling a command whose owner declares a blocking sibling names it: the wait
 // exists, agents are not using it. Siblings come from the CLI manifests, not
-// from verbs: `run get` is offered `run events --follow`, never the
-// `run await-result` re-read.
+// from verbs: `run get` is offered the declared `run wait` and
+// `run events --follow`, never the `run await-result` re-read.
 func TestPollingNamesTheBlockingSiblingTheManifestDeclares(t *testing.T) {
 	s := newSession()
 	for i := 0; i < 9; i++ {
@@ -852,7 +852,7 @@ func TestPollingNamesTheBlockingSiblingTheManifestDeclares(t *testing.T) {
 		s.shell("device-control session list --json", 0, "[]")
 	}
 	r := s.report()
-	if f := findingOf(t, r, KindPolling, "agent-manager"); strings.Join(f.Blocking, ",") != "agent-manager run events --follow" || f.Steered != 9 || !strings.Contains(f.Description, "although `agent-manager run events --follow` blocks") {
+	if f := findingOf(t, r, KindPolling, "agent-manager"); strings.Join(f.Blocking, ",") != "agent-manager run wait,agent-manager run events --follow" || f.Steered != 9 || !strings.Contains(f.Description, "although `agent-manager run wait` or `agent-manager run events --follow` blocks") {
 		t.Errorf("run get polling = %+v", f)
 	}
 	if f := findingOf(t, r, KindPolling, "device-control"); len(f.Blocking) != 0 || f.Steered != 0 || strings.Contains(f.Description, "although") || !strings.Contains(f.Description, "9 polled calls have no blocking sibling") {

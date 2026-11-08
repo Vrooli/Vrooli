@@ -441,6 +441,46 @@ WHERE i.classifier_version = ? AND i.status = 'classified' AND i.occurred_at >= 
 	return out, rows.Err()
 }
 
+// MessageDetail is an operator message's redacted example text and the agent
+// work recorded before it.
+type MessageDetail struct {
+	Text string
+	Work Work
+}
+
+// MessageDetails reads the example text and prior agent work of the given
+// operator message events, keyed by event ID. Unknown IDs are absent.
+func (s *Store) MessageDetails(ctx context.Context, eventIDs []string) (map[string]MessageDetail, error) {
+	out := make(map[string]MessageDetail, len(eventIDs))
+	if len(eventIDs) == 0 {
+		return out, nil
+	}
+	args := []any{ClassifierVersion}
+	for _, id := range eventIDs {
+		args = append(args, id)
+	}
+	rows, err := s.db.QueryxContext(ctx, `SELECT i.event_id, i.work_requests, i.work_tool_calls, i.work_tokens, e.data
+FROM operator_interventions i LEFT JOIN run_events e ON e.id = i.event_id
+WHERE i.classifier_version = ? AND i.event_id IN (`+placeholders(len(eventIDs))+`)`, args...)
+	if err != nil {
+		return nil, fmt.Errorf("read operator message details: %w", err)
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var (
+			id     string
+			detail MessageDetail
+			data   sql.NullString
+		)
+		if err := rows.Scan(&id, &detail.Work.Requests, &detail.Work.ToolCalls, &detail.Work.Tokens, &data); err != nil {
+			return nil, err
+		}
+		detail.Text = exampleText(data.String)
+		out[id] = detail
+	}
+	return out, rows.Err()
+}
+
 // exampleText is the operator message of a message event's data, redacted and
 // cut to exampleLength characters.
 func exampleText(data string) string {

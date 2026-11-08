@@ -31,6 +31,14 @@
           "phase": "integration",
           "status": "implemented",
           "notes": "Test listing runs"
+        },
+        {
+          "type": "automation",
+          "ref": "bas/cases/03-run-creation/quick-run-bounded-agent.json",
+          "scenario": "agent-manager",
+          "phase": "workflows",
+          "status": "implemented",
+          "notes": "Bounded real configured-agent Quick Run through Workflow Health paired leases; local operator path only."
         }
       ]
     }

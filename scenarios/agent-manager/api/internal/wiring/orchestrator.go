@@ -61,6 +61,7 @@ import (
 // composition root. It keeps main free of construction details while making
 // every dependency consumed by server startup explicit.
 type OrchestratorDependencies struct {
+	TerminalEvents        *TerminalEvents // nil unless explicitly composed
 	OwnerIdentity         authn.TokenVerifier
 	Orchestrator          *orchestration.Orchestrator
 	StatsRepository       repository.StatsRepository
@@ -98,6 +99,12 @@ type OrchestratorDependencies struct {
 // NewOrchestrator builds the production orchestration graph. No background
 // workers start here; Server startup owns lifecycle ordering separately.
 func NewOrchestrator(db *database.DB, hub *handlers.WebSocketHub, logger *logrus.Logger, uploads storage.Service, levers *agentconfig.Levers, fileRoots ...*filerouting.RoutedRoots) (OrchestratorDependencies, error) {
+	return NewOrchestratorWithTerminalEvents(db, hub, logger, uploads, levers, nil, fileRoots...)
+}
+
+// NewOrchestratorWithTerminalEvents supplies the same scoped run repositories to
+// orchestration and its acknowledged outbox. The ordinary constructor stays off.
+func NewOrchestratorWithTerminalEvents(db *database.DB, hub *handlers.WebSocketHub, logger *logrus.Logger, uploads storage.Service, levers *agentconfig.Levers, terminal *TerminalEventsConfig, fileRoots ...*filerouting.RoutedRoots) (OrchestratorDependencies, error) {
 	if db == nil || db.Routed == nil {
 		return OrchestratorDependencies{}, fmt.Errorf("database is required")
 	}
@@ -120,7 +127,13 @@ func NewOrchestrator(db *database.DB, hub *handlers.WebSocketHub, logger *logrus
 		}
 	}
 	bootLog.Info("using SQLite persistence")
-	repos := database.NewRepositories(db, logger)
+	repos, terminalEvents, err := NewTerminalPersistence(db, logger, terminal)
+	if err != nil {
+		return OrchestratorDependencies{}, err
+	}
+	if hub != nil {
+		hub.SetRunStatusReader(repos.Runs.Get)
+	}
 	eventStore := event.NewSQLiteStore(db, logger)
 
 	roleState, permissionState, permissionPolicy := loadPolicyCatalogs(db, bootLog)
@@ -229,7 +242,7 @@ func NewOrchestrator(db *database.DB, hub *handlers.WebSocketHub, logger *logrus
 	}
 	reconciler := orchestration.NewReconciler(repos.Runs, registry, reconcilerOpts...)
 	orch.SetReconciler(reconciler)
-	awaitRegistry := orchestration.NewAwaitRegistry(orch, orchestration.NewTestGenieWaiter(nil), orchestration.NewGCTBaselineWaiter(nil), orchestration.NewLifecycleWaiter(nil), orchestration.NewChildrenWaiter(orch, 0), orchestration.NewOperatorDecisionWaiter(), orchestration.NewReviewTimerWaiter())
+	awaitRegistry := orchestration.NewAwaitRegistry(orch, orchestration.NewTestGenieWaiter(nil), orchestration.NewGCTBaselineWaiter(nil), orchestration.NewLifecycleWaiter(nil), orchestration.NewChildrenWaiter(orch.StatusReader(), 0), orchestration.NewOperatorDecisionWaiter(), orchestration.NewReviewTimerWaiter())
 	orch.SetAwaitRegistry(awaitRegistry)
 	workflowNudger := orchestration.NewWorkflowNudger(orch.NudgeDrive, levers.Workflow.NudgeWorkers, levers.Workflow.NudgeDriveTimeout, func(ctx context.Context, id uuid.UUID, failure obs.PanicFailure) {
 		if _, err := orch.FailWorkflowExecution(ctx, id, "nudger_panic", failure.Error()); err != nil {
@@ -282,7 +295,7 @@ func NewOrchestrator(db *database.DB, hub *handlers.WebSocketHub, logger *logrus
 		Signals: &interventions.SignalJob{Store: interventionStore, Events: eventStore, Classifier: interventionClassifier, Enabled: interventions.SignalsEnabled, Log: obs.Component("operator-signals")},
 	}
 	bootLog.Info("orchestrator initialized", "storage", "sqlite", "sandbox", sandboxURL)
-	return OrchestratorDependencies{OwnerIdentity: ownerIdentity, Orchestrator: orch, StatsRepository: repos.Stats, PricingService: pricingService, PricingRepository: pricingRepository, Reconciler: reconciler, AwaitRegistry: awaitRegistry, WorkflowNudger: workflowNudger, TranscriptImporter: newTranscriptIndex(orch, repos.TranscriptIndex, runStateResolver, levers), ClaudeQuotaFeed: &pricing.ClaudeStatuslineReader{Path: pricing.DefaultClaudeStatuslineSamplesPath(), Store: quotaObservationStore}, UsageAlerts: usageAlerts, UsageModes: usageModes, UsageModeNotifier: usageModeNotifier, Interventions: interventionJob, OutcomeLedger: &outcomeledger.Job{Store: database.NewRunLedgerRepository(db, orch.TranscriptParserVersion)}, ModelHealthProbe: NewModelHealthProbe(healthStore, nil, modelResolver, probeCfg), ModelPolicyDrift: modelPolicyDrift, DecisionPublisher: decisionPublisher, RolePolicyState: roleState, PermissionPolicyState: permissionState, PermissionPolicy: permissionPolicy, HealthStore: healthStore, EventRepository: eventRepo, SupervisionService: supervisionService, SupervisionScheduler: supervisionScheduler, WatchActionAuthorizer: actionAuthorizer, InvocationReadModel: repos.InvocationReadModel, WorkspaceSandbox: sandboxProvider}, nil
+	return OrchestratorDependencies{TerminalEvents: terminalEvents, OwnerIdentity: ownerIdentity, Orchestrator: orch, StatsRepository: repos.Stats, PricingService: pricingService, PricingRepository: pricingRepository, Reconciler: reconciler, AwaitRegistry: awaitRegistry, WorkflowNudger: workflowNudger, TranscriptImporter: newTranscriptIndex(orch, repos.TranscriptIndex, runStateResolver, levers), ClaudeQuotaFeed: &pricing.ClaudeStatuslineReader{Path: pricing.DefaultClaudeStatuslineSamplesPath(), Store: quotaObservationStore}, UsageAlerts: usageAlerts, UsageModes: usageModes, UsageModeNotifier: usageModeNotifier, Interventions: interventionJob, OutcomeLedger: &outcomeledger.Job{Store: database.NewRunLedgerRepository(db, orch.TranscriptParserVersion)}, ModelHealthProbe: NewModelHealthProbe(healthStore, nil, modelResolver, probeCfg), ModelPolicyDrift: modelPolicyDrift, DecisionPublisher: decisionPublisher, RolePolicyState: roleState, PermissionPolicyState: permissionState, PermissionPolicy: permissionPolicy, HealthStore: healthStore, EventRepository: eventRepo, SupervisionService: supervisionService, SupervisionScheduler: supervisionScheduler, WatchActionAuthorizer: actionAuthorizer, InvocationReadModel: repos.InvocationReadModel, WorkspaceSandbox: sandboxProvider}, nil
 }
 
 // usagePageURL links a will-exhaust notification to the Agent Manager Usage

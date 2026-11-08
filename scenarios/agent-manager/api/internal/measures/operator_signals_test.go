@@ -104,3 +104,63 @@ func TestOperatorSignalsMeasureIsDefined(t *testing.T) {
 		t.Fatal("usage.operator_signals needs a backend definition")
 	}
 }
+
+type correctionSource struct {
+	signalWindows
+	details map[string]interventions.MessageDetail
+}
+
+func (s *correctionSource) MessageDetails(_ context.Context, ids []string) (map[string]interventions.MessageDetail, error) {
+	out := map[string]interventions.MessageDetail{}
+	for _, id := range ids {
+		if detail, ok := s.details[id]; ok {
+			out[id] = detail
+		}
+	}
+	return out, nil
+}
+
+// The friction section shows the messages the proven signal gate admits as an
+// explicit negative, newest first with their words and prior work, and the
+// precision the gate was proven at. Messages under the gate never appear.
+func TestCorrectionsSectionListsProvenExplicitNegativesNewestFirst(t *testing.T) {
+	negative := func(id, at string, mass float64) interventions.SignalObservation {
+		return interventions.SignalObservation{
+			EventID: id, RunID: "run-" + id, OccurredAt: at, Status: interventions.StatusClassified, SignalModel: "winnow:e4b",
+			Distribution: map[interventions.Signal]float64{interventions.Correction: mass, interventions.Neutral: 1 - mass},
+		}
+	}
+	observations := []interventions.SignalObservation{
+		negative("old", "2026-11-01T10:00:00Z", 0.9),
+		negative("new", "2026-11-05T10:00:00Z", 0.6),
+		negative("weak", "2026-11-04T10:00:00Z", 0.2),
+		{EventID: "pending", Status: interventions.StatusUnclassified},
+	}
+	source := &correctionSource{
+		signalWindows: signalWindows{data: map[int][]interventions.SignalObservation{0: observations}},
+		details:       map[string]interventions.MessageDetail{"new": {Text: "too small: take the whole class", Work: interventions.Work{Requests: 4, ToolCalls: 9, Tokens: 1200}}},
+	}
+	gate := interventions.SignalGate{"winnow:e4b": {interventions.ExplicitNegative: 0.40}}
+	measured := interventions.SignalMeasurements{"winnow:e4b": {interventions.ExplicitNegative: {TP: 33, Pred: 41, Gold: 35}}}
+	section, err := correctionsSection(context.Background(), source, gate, measured, time.Time{}, time.Time{}, 10, 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if section.GetCount() != 2 || section.GetClassified() != 3 || section.GetPerAgentHour() != 0.2 || section.GetPrecision() < 0.80 || section.GetRecall() < 0.94 {
+		t.Fatalf("section = %+v, want 2 of 3 classified at the proven precision", section)
+	}
+	if len(section.GetExamples()) != 1 {
+		t.Fatalf("examples = %+v, want the newest one within the limit", section.GetExamples())
+	}
+	example := section.GetExamples()[0]
+	if example.GetEventId() != "new" || example.GetText() != "too small: take the whole class" || example.GetWorkToolCalls() != 9 || example.GetProbability() != 0.6 || example.GetCategory() != string(interventions.ExplicitNegative) {
+		t.Fatalf("example = %+v", example)
+	}
+	if unproven, err := correctionsSection(context.Background(), source, interventions.SignalGate{}, measured, time.Time{}, time.Time{}, 10, 1); err != nil || unproven != nil {
+		t.Fatalf("an unproven gate must show no corrections, got %+v, %v", unproven, err)
+	}
+	t.Setenv(interventions.SignalsSwitchEnv, "off")
+	if off, err := correctionsSection(context.Background(), source, gate, measured, time.Time{}, time.Time{}, 10, 1); err != nil || off != nil {
+		t.Fatalf("switched-off signals must show no corrections, got %+v, %v", off, err)
+	}
+}

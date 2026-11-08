@@ -9,6 +9,88 @@ import {
 import { makeMessageEvent } from "../test-utils/fixtures/runEvents.js";
 import { parseWebSocketMessage } from "./webSocketProtocol.js";
 import type { RunEvent } from "../types";
+import { timestampFromMs } from "@bufbuild/protobuf/wkt";
+import { create } from "@bufbuild/protobuf";
+import { RunSchema, RunResultSchema } from "@vrooli/proto-types/agent-manager/v1/domain/run_pb";
+
+test("delayed snapshots and notifications cannot rewind a newer run revision", () => {
+  const earlier = { ...timestampFromMs(1000), nanos: 10 };
+  const later = { ...timestampFromMs(1000), nanos: 11 };
+  for (const type of ["runSnapshotLoaded", "runsSnapshotLoaded", "runStatusReceived"] as const) {
+    let state = runEventStoreReducer(createInitialRunEventStoreState(), {
+      type: "runStatusReceived",
+      run: { id: "run-1", status: 5, updatedAt: later, title: "completed" },
+    });
+    const stale = { id: "run-1", status: 3, updatedAt: earlier, title: "running" };
+    state = runEventStoreReducer(state, type === "runsSnapshotLoaded"
+      ? { type, runs: [stale] }
+      : { type, run: stale });
+    assert.equal(state.runsById["run-1"].status, 5, type);
+    assert.equal(state.runsById["run-1"].title, "completed", type);
+  }
+});
+
+test("a newer continued run can advance a terminal snapshot", () => {
+  let state = runEventStoreReducer(createInitialRunEventStoreState(), {
+    type: "runSnapshotLoaded", run: { id: "run-1", status: 5, updatedAt: timestampFromMs(1000) },
+  });
+  state = runEventStoreReducer(state, {
+    type: "runSnapshotLoaded", run: { id: "run-1", status: 3, updatedAt: timestampFromMs(2000) },
+  });
+  assert.equal(state.runsById["run-1"].status, 3);
+  state = runEventStoreReducer(state, { type: "subscribeRun", runId: "run-1" });
+  state = runEventStoreReducer(state, { type: "clearReconciliationIntent", runId: "run-1" });
+  const delayed = runEventStoreReducer(state, {
+    type: "runStatusReceived", run: { id: "run-1", status: 5, updatedAt: timestampFromMs(1000) },
+  });
+  assert.equal(delayed, state);
+  assert.deepEqual(selectReconciliationIntents(delayed), []);
+});
+
+test("an earlier gap response cannot clear a later terminal reconciliation", () => {
+  let state = runEventStoreReducer(createInitialRunEventStoreState(), { type: "subscribeRun", runId: "run-1" });
+  const first = selectReconciliationIntents(state)[0];
+  state = runEventStoreReducer(state, { type: "runStatusReceived", run: { id: "run-1", status: 5 } });
+  const terminal = selectReconciliationIntents(state)[0];
+  state = runEventStoreReducer(state, {
+    type: "eventsGapFilled", runId: "run-1", events: [makeMessageEvent("event-1", 1n, "earlier")], intent: first,
+  });
+  assert.deepEqual(selectReconciliationIntents(state), [terminal]);
+  assert.equal(selectRunEvents(state, "run-1").length, 1);
+  state = runEventStoreReducer(state, { type: "clearReconciliationIntent", runId: "run-1", intent: first });
+  assert.deepEqual(selectReconciliationIntents(state), [terminal]);
+  state = runEventStoreReducer(state, { type: "eventsGapFilled", runId: "run-1", events: [], intent: terminal });
+  assert.deepEqual(selectReconciliationIntents(state), []);
+});
+
+test("equal revisions merge partial notification metadata with hydrated detail", () => {
+  const updatedAt = timestampFromMs(1000);
+  let state = runEventStoreReducer(createInitialRunEventStoreState(), {
+    type: "runStatusReceived", run: { id: "run-1", status: 5, updatedAt, taskId: "task-1" },
+  });
+  state = runEventStoreReducer(state, {
+    type: "runSnapshotLoaded", run: { id: "run-1", status: 5, updatedAt, taskId: "task-1", title: "answer" },
+  });
+  state = runEventStoreReducer(state, {
+    type: "runStatusReceived", run: { id: "run-1", status: 5, updatedAt },
+  });
+  assert.equal(state.runsById["run-1"].taskId, "task-1");
+  assert.equal(state.runsById["run-1"].title, "answer");
+});
+
+test("newer authoritative snapshots clear absent optional results on continuation", () => {
+  const terminal = create(RunSchema, {
+    id: "continued", status: 5, updatedAt: timestampFromMs(1000), result: create(RunResultSchema, { finalMessage: "42" }),
+  });
+  const continued = create(RunSchema, { id: "continued", status: 3, updatedAt: timestampFromMs(2000) });
+  for (const type of ["runSnapshotLoaded", "runsSnapshotLoaded"] as const) {
+    let state = runEventStoreReducer(createInitialRunEventStoreState(), { type: "runSnapshotLoaded", run: terminal });
+    state = runEventStoreReducer(state, type === "runsSnapshotLoaded"
+      ? { type, runs: [continued] } : { type, run: continued });
+    assert.equal(state.runsById.continued.status, 3);
+    assert.equal(state.runsById.continued.result, undefined, type);
+  }
+});
 
 test("runEventReceived appends events in sequence order", () => {
   let state = createInitialRunEventStoreState();

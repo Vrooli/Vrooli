@@ -18,23 +18,23 @@ const defaultProfileSkillTokenCeiling = 1500
 
 var profileSkillIDPattern = regexp.MustCompile(`^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$`)
 
-// ProjectProfileSkills resolves and writes a profile's skills into the
-// already-private runtime root for one run. It accepts only identifiers and
+// ProjectProfileSkills resolves and writes a profile's skills into the run's
+// private native skills directory (RunnerSkillsDir). It accepts only identifiers and
 // refuses paths that are not visibly owned by the run, preventing a profile
 // from widening its write scope to the shared checkout.
-func ProjectProfileSkills(ctx context.Context, root string, runID uuid.UUID, runtimeRoot string, skillIDs []string, source promptmanager.SourceClient, maxTokens int) (int, error) {
+func ProjectProfileSkills(ctx context.Context, root string, runID uuid.UUID, skillsDir string, skillIDs []string, source promptmanager.SourceClient, maxTokens int) (int, error) {
 	if source == nil {
 		return 0, fmt.Errorf("profile skill projection requires prompt-manager source")
 	}
 	if maxTokens <= 0 {
 		maxTokens = defaultProfileSkillTokenCeiling
 	}
-	cleanRoot := filepath.Clean(runtimeRoot)
-	if cleanRoot == "." || !strings.Contains(filepath.ToSlash(cleanRoot), "/"+runID.String()+"/") {
-		return 0, fmt.Errorf("refusing profile skill projection outside run %s: %s", runID, runtimeRoot)
+	skillDir := filepath.Clean(skillsDir)
+	if skillDir == "." || !strings.Contains(filepath.ToSlash(skillDir), "/"+runID.String()+"/") {
+		return 0, fmt.Errorf("refusing profile skill projection outside run %s: %s", runID, skillsDir)
 	}
-	if filepath.Clean(root) == cleanRoot {
-		return 0, fmt.Errorf("refusing profile skill projection into shared project directory: %s", runtimeRoot)
+	if filepath.Clean(root) == skillDir {
+		return 0, fmt.Errorf("refusing profile skill projection into shared project directory: %s", skillsDir)
 	}
 
 	ids := append([]string(nil), skillIDs...)
@@ -62,7 +62,6 @@ func ProjectProfileSkills(ctx context.Context, root string, runID uuid.UUID, run
 		resolvedSkills = append(resolvedSkills, resolved{id: id, description: description, content: snapshot.Content})
 	}
 
-	skillDir := filepath.Join(cleanRoot, "skills")
 	if err := os.MkdirAll(skillDir, 0o700); err != nil {
 		return 0, fmt.Errorf("create profile skill directory: %w", err)
 	}
@@ -104,16 +103,16 @@ func ProjectProfileSkills(ctx context.Context, root string, runID uuid.UUID, run
 // stable idempotency key for this run; retries read the frozen assignment
 // rather than selecting a new arm. Without an experiment it preserves the
 // observational source-read behavior of ProjectProfileSkills.
-func ProjectProfileSkillsAssigned(ctx context.Context, root string, runID uuid.UUID, runtimeRoot, experimentID string, skillIDs []string, source promptmanager.SourceClient, maxTokens int) (int, error) {
+func ProjectProfileSkillsAssigned(ctx context.Context, root string, runID uuid.UUID, skillsDir, experimentID string, skillIDs []string, source promptmanager.SourceClient, maxTokens int) (int, error) {
 	if strings.TrimSpace(experimentID) == "" {
-		return ProjectProfileSkills(ctx, root, runID, runtimeRoot, skillIDs, source, maxTokens)
+		return ProjectProfileSkills(ctx, root, runID, skillsDir, skillIDs, source, maxTokens)
 	}
 	assigner, ok := source.(promptmanager.AssignmentClient)
 	if !ok {
 		return 0, fmt.Errorf("skill experiment %q requires an assignment-capable prompt-manager source", experimentID)
 	}
 	assigned := &assignedSkillSource{ctx: ctx, source: source, assigner: assigner, experimentID: experimentID, runID: runID}
-	return ProjectProfileSkills(ctx, root, runID, runtimeRoot, skillIDs, assigned, maxTokens)
+	return ProjectProfileSkills(ctx, root, runID, skillsDir, skillIDs, assigned, maxTokens)
 }
 
 type assignedSkillSource struct {
@@ -142,13 +141,13 @@ func uniqueProfileSkillIDs(ids []string) []string {
 }
 
 // UpdateProjectedProfileSkill applies one heartbeat delta to a run's private
-// profile pack. The caller passes the same private runtime root used at launch;
-// this function never discovers or writes a project-level path.
-func UpdateProjectedProfileSkill(ctx context.Context, root string, runID uuid.UUID, runtimeRoot, skillID string, add bool, source promptmanager.SourceClient, maxTokens int) (int, error) {
+// profile pack. The caller passes the same private skills directory used at
+// launch; this function never discovers or writes a project-level path.
+func UpdateProjectedProfileSkill(ctx context.Context, root string, runID uuid.UUID, skillsDir, skillID string, add bool, source promptmanager.SourceClient, maxTokens int) (int, error) {
 	if !profileSkillIDPattern.MatchString(skillID) {
 		return 0, fmt.Errorf("invalid profile skill identifier %q", skillID)
 	}
-	skillDir := filepath.Join(filepath.Clean(runtimeRoot), "skills")
+	skillDir := filepath.Clean(skillsDir)
 	entries, err := os.ReadDir(skillDir)
 	if err != nil && !os.IsNotExist(err) {
 		return 0, err
@@ -165,5 +164,5 @@ func UpdateProjectedProfileSkill(ctx context.Context, root string, runID uuid.UU
 	if add {
 		ids = append(ids, skillID)
 	}
-	return ProjectProfileSkills(ctx, root, runID, runtimeRoot, ids, source, maxTokens)
+	return ProjectProfileSkills(ctx, root, runID, skillsDir, ids, source, maxTokens)
 }

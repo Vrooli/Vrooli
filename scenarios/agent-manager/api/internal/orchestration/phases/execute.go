@@ -80,7 +80,7 @@ func ExecuteAgent(ctx context.Context, in ExecuteAgentInput) ExecuteAgentOutput 
 		}
 	}
 	if in.Deps.Broadcaster != nil {
-		in.Deps.Broadcaster.BroadcastRunStatus(in.Run)
+		in.Deps.Broadcaster.BroadcastRunStatus(ctx, in.Run)
 	}
 	// Signal the spawn dispatcher that the startup slot can be
 	// released. Done immediately after status flip so the next queued
@@ -656,7 +656,7 @@ func PrepareTranscriptConfig(ctx context.Context, in PrepareTranscriptInput) (*r
 				return err
 			}
 			if in.Deps.Runs != nil {
-				_, err := in.Deps.Runs.UpdateRunnerStreamState(context.Background(), in.Run)
+				_, err := in.Deps.Runs.UpdateRunnerStreamState(context.WithoutCancel(ctx), in.Run)
 				return err
 			}
 			return nil
@@ -674,7 +674,7 @@ func PrepareTranscriptConfig(ctx context.Context, in PrepareTranscriptInput) (*r
 				return err
 			}
 			if in.Deps.Runs != nil {
-				_, err := in.Deps.Runs.UpdateRunnerStreamState(context.Background(), in.Run)
+				_, err := in.Deps.Runs.UpdateRunnerStreamState(context.WithoutCancel(ctx), in.Run)
 				return err
 			}
 			return nil
@@ -695,7 +695,7 @@ func PrepareTranscriptConfig(ctx context.Context, in PrepareTranscriptInput) (*r
 				return err
 			}
 			if in.Deps.Runs != nil {
-				_, err := in.Deps.Runs.UpdateRunnerStreamState(context.Background(), in.Run)
+				_, err := in.Deps.Runs.UpdateRunnerStreamState(context.WithoutCancel(ctx), in.Run)
 				return err
 			}
 			return nil

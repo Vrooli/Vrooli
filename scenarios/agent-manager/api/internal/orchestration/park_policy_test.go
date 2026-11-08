@@ -39,8 +39,10 @@ func TestGoalHomeParkCannotIgnoreNewFeedbackWithUnchangedSignals(t *testing.T) {
 	if err := repos.Runs.Create(ctx, child); err != nil {
 		t.Fatal(err)
 	}
-	home := &goalhome.Home{Queue: goalhome.ParseQueue([]byte("# Status\n\n## Handoff\n\nWaiting.\n")),
-		Feedback: goalhome.Feedback{Entries: []goalhome.FeedbackEntry{{ID: "NEW-REPAIR", Status: "open", Source: "supervisor"}}}}
+	home := &goalhome.Home{
+		Queue:    goalhome.ParseQueue([]byte("# Status\n\n## Handoff\n\nWaiting.\n")),
+		Feedback: goalhome.Feedback{Entries: []goalhome.FeedbackEntry{{ID: "NEW-REPAIR", Status: "open", Source: "supervisor"}}},
+	}
 	o := New(repos.Profiles, repos.Tasks, repos.Runs)
 	o.SetGoalHomeParkSource(fakeGoalHomeParks{home: home})
 	t.Setenv(parkEnforceEnv, "")

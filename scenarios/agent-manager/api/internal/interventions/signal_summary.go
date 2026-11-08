@@ -158,7 +158,14 @@ func cellModel(o SignalObservation) string {
 }
 
 func countShown(observations []SignalObservation, gate SignalGate, label Signal) int64 {
-	var n int64
+	return int64(len(AdmittedAs(observations, gate, label)))
+}
+
+// AdmittedAs lists the classified observations the gate admits as label, in
+// their input order. ExplicitNegative is judged on the probability mass of
+// reported_failure and correction.
+func AdmittedAs(observations []SignalObservation, gate SignalGate, label Signal) []SignalObservation {
+	var admitted []SignalObservation
 	for _, o := range observations {
 		if o.Status != StatusClassified {
 			continue
@@ -174,10 +181,16 @@ func countShown(observations []SignalObservation, gate SignalGate, label Signal)
 			continue // no distribution: only the answer's own label can count
 		}
 		if gate.Shown(o.SignalModel, label, p) {
-			n++
+			admitted = append(admitted, o)
 		}
 	}
-	return n
+	return admitted
+}
+
+// ExplicitNegativeMass is the observation's probability on reported_failure
+// and correction, nil without a distribution.
+func (o SignalObservation) ExplicitNegativeMass() *float64 {
+	return distributionMass(o.Distribution, ReportedFailure, Correction)
 }
 
 func distributionMass(distribution map[Signal]float64, labels ...Signal) *float64 {

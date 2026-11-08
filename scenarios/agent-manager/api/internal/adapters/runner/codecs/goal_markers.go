@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"agent-manager/internal/adapters/runner"
+	"agent-manager/internal/domain"
 
 	"github.com/google/uuid"
 	"github.com/vrooli/cli-core/agenttranscript"
@@ -284,9 +285,10 @@ func codexAcceptedGoalOutput(output json.RawMessage) (codexAcceptedGoal, bool) {
 
 // Match the persisted Until contract used by observedGoalMatchesRun: a native
 // objective may extend the configured Until with a prompt/attachment suffix,
-// but it cannot replace or shorten that pinned prefix.
+// but it cannot replace or shorten that pinned prefix. An Until longer than
+// Codex keeps verbatim was installed as the short delegation, which matches.
 func codexGoalObjectiveMatches(objective, expected string) bool {
-	return runner.NativeGoalObjectiveMatches(objective, expected)
+	return runner.NativeGoalObjectiveMatches(domain.RunnerTypeCodex, objective, expected)
 }
 
 func nonNullJSON(value json.RawMessage) bool {

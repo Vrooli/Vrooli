@@ -12,6 +12,7 @@ import (
 	"agent-manager/internal/adapters/runner"
 	"agent-manager/internal/domain"
 	"agent-manager/internal/orchestration/obs"
+	"agent-manager/internal/orchestration/phases"
 	"agent-manager/internal/repository"
 	"agent-manager/internal/runstate"
 
@@ -193,13 +194,7 @@ func (r *Reconciler) recoverRun(ctx context.Context, run *domain.Run, allowTail 
 }
 
 func (r *Reconciler) finalizeRecoveredRun(ctx context.Context, run *domain.Run, terminal *runner.TranscriptTerminal) (*RecoverResult, error) {
-	now := r.now()
 	if terminal != nil && terminal.Success {
-		run.Status = domain.RunStatusComplete
-		run.ErrorMsg = ""
-		run.EndedAt = &now
-		run.UpdatedAt = now
-		run.ExitCode = intPtr(terminal.ExitCode)
 		result, summary, resultErr := r.buildRecoveredResult(ctx, run.ID, true, terminal.ExitCode, "completed")
 		if resultErr == nil {
 			if result.Selection.Status == domain.FinalOutputSelectionUnavailable && terminal.Summary != nil && terminal.Summary.Description != "" {
@@ -213,47 +208,84 @@ func (r *Reconciler) finalizeRecoveredRun(ctx context.Context, run *domain.Run, 
 				result = domain.ResolveRunResult([]*domain.RunEvent{evidence}, true, terminal.ExitCode, "completed")
 				summary = domain.SummaryFromRunResult(result, terminal.Summary.TurnsUsed, terminal.Summary.TokensUsed, terminal.Summary.ContextTokens, terminal.Summary.CostEstimate)
 			}
-			if r.structuredResults != nil && run.ResolvedConfig != nil {
-				result.Structured = r.structuredResults.Resolve(ctx, run.ResolvedConfig.ResultSpec, result)
-			}
-			run.Result = result
-			run.Summary = summary
 		}
-		if err := r.runs.Update(ctx, run); err != nil {
-			return nil, err
-		}
-		r.markProjectionPending(run)
-		if r.broadcaster != nil {
-			r.broadcaster.BroadcastRunStatus(run)
-		}
-		return &RecoverResult{Run: run, Recovered: true, Message: "recovered terminal success from transcript"}, nil
+		return r.commitRecoveredTerminalResult(ctx, run, terminal, result, summary)
 	}
 
 	if terminal != nil && !terminal.Success {
-		run.Status = domain.RunStatusFailed
-		run.ErrorMsg = terminal.ErrorMessage
-		run.EndedAt = &now
-		run.UpdatedAt = now
-		run.ExitCode = intPtr(terminal.ExitCode)
 		result, summary, resultErr := r.buildRecoveredResult(ctx, run.ID, false, terminal.ExitCode, "failed")
-		if resultErr == nil {
-			if r.structuredResults != nil && run.ResolvedConfig != nil {
-				result.Structured = r.structuredResults.Resolve(ctx, run.ResolvedConfig.ResultSpec, result)
-			}
-			run.Result = result
-			run.Summary = summary
+		if resultErr != nil {
+			result, summary = nil, nil
 		}
-		if err := r.runs.Update(ctx, run); err != nil {
-			return nil, err
-		}
-		r.markProjectionPending(run)
-		if r.broadcaster != nil {
-			r.broadcaster.BroadcastRunStatus(run)
-		}
-		return &RecoverResult{Run: run, Recovered: true, Message: "recovered terminal failure from transcript"}, nil
+		return r.commitRecoveredTerminalResult(ctx, run, terminal, result, summary)
 	}
 
 	return r.recordRecoveredInterruption(ctx, run, "runner exited before terminal event")
+}
+
+func (r *Reconciler) commitRecoveredTerminalResult(ctx context.Context, run *domain.Run, terminal *runner.TranscriptTerminal, result *domain.RunResult, summary *domain.RunSummary) (*RecoverResult, error) {
+	run.ExitCode = intPtr(terminal.ExitCode)
+	execution := &runner.ExecuteResult{
+		Success:      terminal.Success,
+		ExitCode:     terminal.ExitCode,
+		Summary:      summary,
+		Result:       result,
+		ErrorMessage: terminal.ErrorMessage,
+		SessionID:    run.SessionID,
+	}
+	var executionErr error
+	if !terminal.Success {
+		failure := terminal.ErrorMessage
+		if failure == "" {
+			failure = "recovered terminal failure"
+		}
+		executionErr = errors.New(failure)
+	}
+	output := phases.HandleResult(ctx, phases.HandleResultInput{
+		Deps: phases.Deps{
+			Runs:              r.runs,
+			Events:            r.events,
+			Broadcaster:       r.broadcaster,
+			StructuredResults: r.structuredResults,
+			Clock:             r.clock,
+		},
+		Run:       run,
+		Result:    execution,
+		ExecErr:   executionErr,
+		Sandbox:   r.sandbox,
+		SandboxID: run.SandboxID,
+	})
+	if output.Deferred {
+		return nil, fmt.Errorf("recovered result deferred because durable lifecycle state is unavailable")
+	}
+	current, err := r.runs.Get(ctx, run.ID)
+	if err != nil {
+		return nil, fmt.Errorf("read recovered run result: %w", err)
+	}
+	if current == nil || (!current.Status.IsTerminal() && current.Status != domain.RunStatusNeedsReview) {
+		return nil, fmt.Errorf("recovered result was not durably finalized")
+	}
+	if !output.Persisted {
+		// A concurrent recovery may have committed the same transcript result
+		// while this snapshot was being reconciled. The durable terminal row is
+		// authoritative, but this invocation did not win the lifecycle write and
+		// must not repeat sandbox lifecycle teardown or terminal notifications.
+		return &RecoverResult{Run: current, Idempotent: true, Message: "terminal result was already committed by the current run owner"}, nil
+	}
+	phases.Finalize(ctx, phases.FinalizeInput{
+		Deps: phases.Deps{
+			Runs:        r.runs,
+			Events:      r.events,
+			Broadcaster: r.broadcaster,
+			Levers:      r.levers,
+			Clock:       r.clock,
+		},
+		Run:       current,
+		SandboxID: current.SandboxID,
+		Sandbox:   r.sandbox,
+	})
+	r.markProjectionPending(ctx, current)
+	return &RecoverResult{Run: current, Recovered: true, Message: "recovered terminal result through normal run lifecycle"}, nil
 }
 
 func (r *Reconciler) recordRecoveredInterruption(ctx context.Context, run *domain.Run, message string) (*RecoverResult, error) {
@@ -274,9 +306,9 @@ func (r *Reconciler) recordRecoveredInterruption(ctx context.Context, run *domai
 	if err := r.runs.Update(ctx, run); err != nil {
 		return nil, err
 	}
-	r.markProjectionPending(run)
+	r.markProjectionPending(ctx, run)
 	if r.broadcaster != nil {
-		r.broadcaster.BroadcastRunStatus(run)
+		r.broadcaster.BroadcastRunStatus(ctx, run)
 	}
 	return &RecoverResult{Run: run, Recovered: true, Message: message}, nil
 }
@@ -284,9 +316,9 @@ func (r *Reconciler) recordRecoveredInterruption(ctx context.Context, run *domai
 // markProjectionPending records the durable needs-projection mark for a run
 // the Reconciler wrote to a terminal (or review) state directly, so these
 // writes reach the read model like lifecycle transitions do.
-func (r *Reconciler) markProjectionPending(run *domain.Run) {
+func (r *Reconciler) markProjectionPending(ctx context.Context, run *domain.Run) {
 	if r.hooks != nil {
-		r.hooks.projectTerminalInvocationReadModel(run)
+		r.hooks.projectTerminalInvocationReadModel(ctx, run)
 	}
 }
 
@@ -299,7 +331,7 @@ func (r *Reconciler) drainTranscript(ctx context.Context, run *domain.Run, trans
 			return nil, err
 		}
 	}
-	sink := r.recoveryEventSink(run.ID)
+	sink := r.recoveryEventSink(ctx, run.ID)
 	transcriptParser := parser
 	if factory, ok := parser.(runner.TranscriptParserFactory); ok {
 		transcriptParser = factory.NewTranscriptParser()
@@ -433,8 +465,8 @@ func (r *Reconciler) recoveryParser(ctx context.Context, run *domain.Run) (runne
 // recoveryEventSink builds a reattached run's sink through the one
 // constructor with the orchestrator's hook set (wired by SetReconciler), so a
 // recovered tail records quota and enforces token caps like a live one.
-func (r *Reconciler) recoveryEventSink(runID uuid.UUID) runner.EventSink {
-	return newRunEventSink(r.hooks, r.events, r.broadcaster, runID)
+func (r *Reconciler) recoveryEventSink(ctx context.Context, runID uuid.UUID) runner.EventSink {
+	return newRunEventSink(ctx, r.hooks, r.events, r.broadcaster, runID)
 }
 
 func (r *Reconciler) startTailer(ownerCtx context.Context, run *domain.Run, transcriptPath string, state *runstate.Snapshot, parser runner.TranscriptParser) error {
@@ -612,6 +644,23 @@ func (r *Reconciler) recoveryTailerActive(runID uuid.UUID) bool {
 // caches, so a prompt follow-up turn does not immediately fetch them again.
 const runStateCacheGrace = time.Hour
 
+// Directory retention uses hour/day thresholds; scanning the retained corpus
+// on each seconds-scale liveness cycle adds no useful recovery evidence.
+const runStateCleanupInterval = 15 * time.Minute
+
+func (r *Reconciler) cleanupRunStateDirsIfDue(ctx context.Context) {
+	now := r.now()
+	r.recoveryMu.Lock()
+	elapsed := now.Sub(r.lastRunStateCleanup)
+	if !r.lastRunStateCleanup.IsZero() && elapsed >= 0 && elapsed < runStateCleanupInterval {
+		r.recoveryMu.Unlock()
+		return
+	}
+	r.lastRunStateCleanup = now
+	r.recoveryMu.Unlock()
+	r.cleanupRunStateDirs(ctx)
+}
+
 func (r *Reconciler) cleanupRunStateDirs(ctx context.Context) {
 	now := r.now()
 	cutoff := now.Add(-time.Duration(r.levers.Storage.RunStateRetentionDays) * 24 * time.Hour)
@@ -746,7 +795,7 @@ func (r *Reconciler) recoverAttachedRun(ctx context.Context, run *domain.Run) (*
 		}
 	}
 	if r.broadcaster != nil {
-		r.broadcaster.BroadcastRunStatus(current)
+		r.broadcaster.BroadcastRunStatus(ctx, current)
 	}
 	return &RecoverResult{Run: current, Recovered: true, Message: "restored the same verified live attached session"}, nil
 }

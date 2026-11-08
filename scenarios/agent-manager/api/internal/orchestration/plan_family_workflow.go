@@ -50,6 +50,7 @@ func (o *Orchestrator) resolveFamilyClients(ctx context.Context) (familyconnect.
 	}
 	return defaultFamilyClients(ctx)
 }
+
 func familyRequestDigest(raw json.RawMessage) string {
 	var decoded any
 	if json.Unmarshal(raw, &decoded) != nil {
@@ -58,6 +59,7 @@ func familyRequestDigest(raw json.RawMessage) string {
 	canonical, _ := json.Marshal(decoded)
 	return fmt.Sprintf("%x", sha256.Sum256(canonical))
 }
+
 func (o *Orchestrator) SetFamilySupervision(service *supervision.Service) {
 	o.familySupervision = service
 }

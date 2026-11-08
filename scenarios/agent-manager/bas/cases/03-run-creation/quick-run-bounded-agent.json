@@ -1,0 +1,338 @@
+{
+  "metadata": {
+    "name": "quick-run-bounded-agent",
+    "description": "Given paired leased storage and a disposable workspace, when an operator starts a one-turn Quick Run, then the configured agent returns the computed answer and the run completes.",
+    "requirement": "REQ-P0-005",
+    "version": "1",
+    "execution_mode": "mutating",
+    "labels": {
+      "requirements_json": "[\"REQ-P0-005\"]",
+      "requires_confirmation": "true",
+      "routed_isolation": "true",
+      "reset": "full",
+      "seed": "bas/seeds/seed.go"
+    }
+  },
+  "settings": {
+    "viewport_width": 1440,
+    "viewport_height": 1000
+  },
+  "nodes": [
+    {
+      "id": "open-agent-manager",
+      "action": {
+        "type": "ACTION_TYPE_NAVIGATE",
+        "navigate": {
+          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+          "scenario": "agent-manager",
+          "scenario_path": "/",
+          "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE",
+          "timeout_ms": 30000
+        },
+        "metadata": {
+          "label": "open agent manager"
+        }
+      }
+    },
+    {
+      "id": "open-quick-run",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": "@selector/quickRun.open"
+        },
+        "metadata": {
+          "label": "open quick run"
+        }
+      }
+    },
+    {
+      "id": "describe-bounded-task",
+      "action": {
+        "type": "ACTION_TYPE_INPUT",
+        "input": {
+          "selector": "@selector/quickRun.description",
+          "value": "Compute the decimal result of six times seven. Reply with only the number. Do not use tools, read files, write files, or start other agents.",
+          "clear_first": true
+        },
+        "metadata": {
+          "label": "describe bounded task"
+        }
+      }
+    },
+    {
+      "id": "name-task",
+      "action": {
+        "type": "ACTION_TYPE_INPUT",
+        "input": {
+          "selector": "@selector/quickRun.title",
+          "value": "Browser spawn acceptance",
+          "clear_first": true
+        },
+        "metadata": {
+          "label": "name task"
+        }
+      }
+    },
+    {
+      "id": "use-disposable-workspace",
+      "action": {
+        "type": "ACTION_TYPE_INPUT",
+        "input": {
+          "selector": "@selector/quickRun.projectRoot",
+          "value": "${@params/browser_spawn_project}",
+          "clear_first": true
+        },
+        "metadata": {
+          "label": "use disposable workspace"
+        }
+      }
+    },
+    {
+      "id": "configure-agent",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": "@selector/quickRun.next"
+        },
+        "metadata": {
+          "label": "configure agent"
+        }
+      }
+    },
+    {
+      "id": "select-cheap-role",
+      "action": {
+        "type": "ACTION_TYPE_SELECT",
+        "select_option": {
+          "selector": "@selector/quickRun.role",
+          "value": "code.cheap"
+        },
+        "metadata": {
+          "label": "select cheap role"
+        }
+      }
+    },
+    {
+      "id": "bound-turns",
+      "action": {
+        "type": "ACTION_TYPE_INPUT",
+        "input": {
+          "selector": "@selector/quickRun.maxTurns",
+          "value": "1",
+          "clear_first": true
+        },
+        "metadata": {
+          "label": "bound turns"
+        }
+      }
+    },
+    {
+      "id": "bound-timeout",
+      "action": {
+        "type": "ACTION_TYPE_INPUT",
+        "input": {
+          "selector": "@selector/quickRun.timeoutMinutes",
+          "value": "1",
+          "clear_first": true
+        },
+        "metadata": {
+          "label": "bound timeout"
+        }
+      }
+    },
+    {
+      "id": "use-protected-workspace",
+      "action": {
+        "type": "ACTION_TYPE_SELECT",
+        "select_option": {
+          "selector": "@selector/quickRun.runMode",
+          "value": "1"
+        },
+        "metadata": {
+          "label": "Use policy-required protected workspace"
+        }
+      }
+    },
+    {
+      "id": "disable-agent-network",
+      "action": {
+        "type": "ACTION_TYPE_SELECT",
+        "select_option": {
+          "selector": "@selector/quickRun.network",
+          "value": "none"
+        },
+        "metadata": {
+          "label": "disable agent network"
+        }
+      }
+    },
+    {
+      "id": "review-run",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": "@selector/quickRun.next"
+        },
+        "metadata": {
+          "label": "review run"
+        }
+      }
+    },
+    {
+      "id": "start-run",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": "@selector/quickRun.start"
+        },
+        "metadata": {
+          "label": "start run"
+        }
+      }
+    },
+    {
+      "id": "wait-for-model-output",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "@selector/run.assistantMessage",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 120000
+        },
+        "metadata": {
+          "label": "wait for model output"
+        }
+      }
+    },
+    {
+      "id": "assert-model-answer",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "@selector/run.assistantMessage",
+          "mode": "ASSERTION_MODE_TEXT_CONTAINS",
+          "expected": {
+            "stringValue": "42"
+          },
+          "timeout_ms": 60000,
+          "failure_message": "The bounded agent must return the computed answer in its assistant message."
+        },
+        "metadata": {
+          "label": "assert model answer"
+        }
+      }
+    },
+    {
+      "id": "assert-run-completed",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "@selector/run.detail",
+          "mode": "ASSERTION_MODE_ATTRIBUTE_EQUALS",
+          "attribute_name": "data-run-status",
+          "expected": {
+            "stringValue": "complete"
+          },
+          "timeout_ms": 60000,
+          "failure_message": "Quick Run must reach complete rather than only accepting the request."
+        },
+        "metadata": {
+          "label": "assert run completed"
+        }
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "source": "open-agent-manager",
+      "target": "open-quick-run",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e2",
+      "source": "open-quick-run",
+      "target": "describe-bounded-task",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e3",
+      "source": "describe-bounded-task",
+      "target": "name-task",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e4",
+      "source": "name-task",
+      "target": "use-disposable-workspace",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e5",
+      "source": "use-disposable-workspace",
+      "target": "configure-agent",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e6",
+      "source": "configure-agent",
+      "target": "select-cheap-role",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e7",
+      "source": "select-cheap-role",
+      "target": "bound-turns",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e8",
+      "source": "bound-turns",
+      "target": "bound-timeout",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e9",
+      "source": "bound-timeout",
+      "target": "use-protected-workspace",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e10",
+      "source": "use-protected-workspace",
+      "target": "disable-agent-network",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e11",
+      "source": "disable-agent-network",
+      "target": "review-run",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e12",
+      "source": "review-run",
+      "target": "start-run",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e13",
+      "source": "start-run",
+      "target": "wait-for-model-output",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e14",
+      "source": "wait-for-model-output",
+      "target": "assert-model-answer",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e15",
+      "source": "assert-model-answer",
+      "target": "assert-run-completed",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    }
+  ]
+}

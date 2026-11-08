@@ -18,6 +18,7 @@ import (
 
 	"github.com/jmoiron/sqlx"
 	"github.com/sirupsen/logrus"
+	corestorage "github.com/vrooli/api-core/storage"
 )
 
 // TestLiveCoverageAgreesWithAnIndependentDiskScan is the A1 check: the
@@ -44,7 +45,7 @@ func TestLiveCoverageAgreesWithAnIndependentDiskScan(t *testing.T) {
 		t.Fatal(err)
 	}
 	since := time.Now().Add(-7 * 24 * time.Hour)
-	cfg := transcriptindex.RootConfig{Home: home, RunStateRoot: filepath.Join(home, ".vrooli", "state", "vrooli", "agent-manager", "runs")}
+	cfg := liveRootConfig(t, home)
 	coverage := transcriptindex.BuildCoverage(transcriptindex.Roots(cfg), rows, since)
 
 	byPath := map[string]transcriptindex.FileRow{}
@@ -137,4 +138,24 @@ func diskUnits(t *testing.T, path string) int64 {
 			return units
 		}
 	}
+}
+
+// liveRootConfig is the production discovery configuration for the real
+// home: web-console session homes and the run-state root resolved through the
+// storage authority, as the API wires them.
+func liveRootConfig(t *testing.T, home string) transcriptindex.RootConfig {
+	t.Helper()
+	wcRoot, err := transcriptindex.ResolveWebConsoleCodexRoot(corestorage.ResolverConfig{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	resolver, err := corestorage.NewResolver(corestorage.ResolverConfig{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	runs, err := resolver.Path(corestorage.Options{ScenarioID: "agent-manager"}, corestorage.ClassState, "runs")
+	if err != nil {
+		t.Fatal(err)
+	}
+	return transcriptindex.RootConfig{Home: home, WebConsoleCodexRoot: wcRoot, RunStateRoot: runs}
 }

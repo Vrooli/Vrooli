@@ -215,7 +215,7 @@ func (h *Handler) RegisterRoutes(r *mux.Router) {
 	r.HandleFunc("/api/v1/workflow-executions", h.ListWorkflowExecutions).Methods("GET")
 	r.HandleFunc("/api/v1/workflow-executions/{id}", h.GetWorkflowExecution).Methods("GET")
 	r.HandleFunc("/api/v1/workflow-executions/{id}/result", h.GetWorkflowExecutionResult).Methods("GET")
-	r.Handle("/api/v1/workflow-executions/{id}/wait", WorkflowWaitResponse(http.HandlerFunc(h.WaitWorkflowExecution))).Methods("POST")
+	r.Handle("/api/v1/workflow-executions/{id}/wait", LongWaitResponse(http.HandlerFunc(h.WaitWorkflowExecution))).Methods("POST")
 	r.HandleFunc("/api/v1/workflow-executions/{id}/trace", h.GetWorkflowExecutionTrace).Methods("GET")
 	r.HandleFunc("/api/v1/workflow-executions/{id}/signals", h.SignalWorkflowExecution).Methods("POST")
 	r.HandleFunc("/api/v1/workflow-executions/{id}/cancel", h.CancelWorkflowExecution).Methods("POST")
@@ -236,7 +236,7 @@ func (h *Handler) RegisterRoutes(r *mux.Router) {
 	r.HandleFunc("/api/v1/runs", h.ListRuns).Methods("GET")
 	r.HandleFunc("/api/v1/runs/stop-all", h.StopAllRuns).Methods("POST") // Must be before /{id}
 	r.HandleFunc("/api/v1/runs/wake-by-key", h.WakeParkedRuns).Methods("POST")
-	r.Handle("/api/v1/runs/quiesce", WorkflowWaitResponse(http.HandlerFunc(h.QuiesceScenario))).Methods("POST") // Must be before /{id}
+	r.Handle("/api/v1/runs/quiesce", LongWaitResponse(http.HandlerFunc(h.QuiesceScenario))).Methods("POST") // Must be before /{id}
 	r.HandleFunc("/api/v1/runs/tag/{tag}", h.GetRunByTag).Methods("GET")
 	r.HandleFunc("/api/v1/runs/tag/{tag}/stop", h.StopRunByTag).Methods("POST")
 	r.HandleFunc("/api/v1/runs/invocation-facts/replay", h.ReplayInvocationCorpus).Methods("POST")

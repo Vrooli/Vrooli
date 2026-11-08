@@ -12,19 +12,34 @@ import (
 	"regexp"
 	"strings"
 	"syscall"
+
+	corestorage "github.com/vrooli/api-core/storage"
 )
 
 // RootConfig names the directories discovery starts from.
 type RootConfig struct {
-	Home         string
-	RunStateRoot string
-	ExtraRoots   []string
+	// Home is the operator's OS home, holding the default Codex and Claude
+	// harness homes (~/.codex, ~/.claude).
+	Home string
+	// WebConsoleCodexRoot is the parent of web-console's per-session
+	// CODEX_HOME directories (ResolveWebConsoleCodexRoot); empty skips them.
+	WebConsoleCodexRoot string
+	RunStateRoot        string
+	ExtraRoots          []string
 }
 
-// WebConsoleCodexBase is the parent of web-console's per-session CODEX_HOME
-// directories; each child's sessions/ subtree holds that session's rollouts.
-func WebConsoleCodexBase(home string) string {
-	return filepath.Join(home, ".vrooli", "state", "vrooli", "web-console", "sessions", "codex")
+// ResolveWebConsoleCodexRoot resolves the parent of web-console's per-session
+// CODEX_HOME directories; each child's sessions/ subtree holds that session's
+// rollouts. It is the path web-console itself lays those homes out under:
+// sessions/codex in the web-console owner's storage state directory, so a
+// custom VROOLI_STORAGE_ROOT moves writer and reader together. cfg carries
+// the resolver's seams.
+func ResolveWebConsoleCodexRoot(cfg corestorage.ResolverConfig) (string, error) {
+	resolver, err := corestorage.NewResolver(cfg)
+	if err != nil {
+		return "", err
+	}
+	return resolver.Path(corestorage.Options{ScenarioID: "web-console"}, corestorage.ClassState, filepath.Join("sessions", "codex"))
 }
 
 // runHomeTranscriptDirs are the harness homes an Agent Manager run directory
@@ -42,12 +57,13 @@ var runHomeTranscriptDirs = []struct{ rel, harness string }{
 // file is discovered twice.
 func Roots(cfg RootConfig) []Root {
 	var roots []Root
-	if entries, err := os.ReadDir(WebConsoleCodexBase(cfg.Home)); err == nil {
+	if cfg.WebConsoleCodexRoot != "" {
+		entries, _ := os.ReadDir(cfg.WebConsoleCodexRoot)
 		for _, entry := range entries {
 			if !entry.IsDir() {
 				continue
 			}
-			dir := filepath.Join(WebConsoleCodexBase(cfg.Home), entry.Name(), "sessions")
+			dir := filepath.Join(cfg.WebConsoleCodexRoot, entry.Name(), "sessions")
 			if isDir(dir) {
 				roots = append(roots, Root{Path: dir, Kind: RootWebConsoleCodex, Harness: HarnessCodex, WebConsoleSessionID: entry.Name()})
 			}
@@ -72,7 +88,10 @@ func Roots(cfg RootConfig) []Root {
 			}
 		}
 	}
-	covered := []string{filepath.Join(cfg.Home, ".codex", "sessions"), filepath.Join(cfg.Home, ".claude", "projects"), WebConsoleCodexBase(cfg.Home)}
+	covered := []string{filepath.Join(cfg.Home, ".codex", "sessions"), filepath.Join(cfg.Home, ".claude", "projects")}
+	if cfg.WebConsoleCodexRoot != "" {
+		covered = append(covered, filepath.Clean(cfg.WebConsoleCodexRoot))
+	}
 	if cfg.RunStateRoot != "" {
 		covered = append(covered, filepath.Clean(cfg.RunStateRoot))
 	}
@@ -228,6 +247,9 @@ func ReadIdentity(path, harness string) Identity {
 		} else {
 			id.SessionID = stem
 		}
+		if id.ParentSessionID == "" {
+			id.ParentSessionID = codexSpawnParent(path)
+		}
 	}
 	if id.HeaderSessionID == "" {
 		id.HeaderSessionID = id.SessionID
@@ -236,6 +258,28 @@ func ReadIdentity(path, harness string) Identity {
 		}
 	}
 	return id
+}
+
+// codexSpawnPattern matches the parent a Codex multi-agent sub-agent names in
+// its session_meta source (source.subagent.thread_spawn.parent_thread_id).
+var codexSpawnPattern = regexp.MustCompile(`"thread_spawn":\{"parent_thread_id":"(` + uuidPattern.String() + `)"`)
+
+// codexSpawnParent returns the thread a Codex sub-agent rollout was spawned
+// by, or "". Sub-agents have their own rollout file named after their own
+// thread, so only the header links them to the parent. The source object sits
+// at the start of the session_meta line, ahead of its large instructions.
+func codexSpawnParent(path string) string {
+	file, err := os.Open(path)
+	if err != nil {
+		return ""
+	}
+	defer file.Close()
+	head := make([]byte, 8192)
+	n, _ := io.ReadFull(file, head)
+	if match := codexSpawnPattern.FindSubmatch(head[:n]); match != nil {
+		return string(match[1])
+	}
+	return ""
 }
 
 // headerSessionID reads the session id from the first lines of a transcript:

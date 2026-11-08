@@ -128,6 +128,11 @@ type RunExecutor struct {
 	// down — the park owns the run lifecycle from that point.
 	parked bool
 
+	// resultDeferred means result reconciliation could not read the durable run
+	// owner. Keep the run recoverable and its sandbox intact; the reconciler can
+	// reconstruct the terminal result from the retained transcript.
+	resultDeferred bool
+
 	// Caller-provided env vars
 	customEnv   map[string]string
 	sessionEnv  map[string]string
@@ -146,7 +151,7 @@ type RunExecutor struct {
 	// onTerminal receives the persisted terminal run after the finalization
 	// seam. It is deliberately best-effort so analytics capture cannot alter a
 	// completed run's result.
-	onTerminal func(*domain.Run)
+	onTerminal func(context.Context, *domain.Run)
 }
 
 // NewRunExecutor creates a new executor for the given run.
@@ -204,7 +209,7 @@ func (e *RunExecutor) WithClock(clock func() time.Time) *RunExecutor { e.clock =
 // WithTerminalObserver installs a best-effort observer after the final run
 // state is persisted. The owner uses this to keep the durable analytics read
 // model current for normal executor-driven runs.
-func (e *RunExecutor) WithTerminalObserver(observer func(*domain.Run)) *RunExecutor {
+func (e *RunExecutor) WithTerminalObserver(observer func(context.Context, *domain.Run)) *RunExecutor {
 	e.onTerminal = observer
 	return e
 }
@@ -344,7 +349,7 @@ func (e *RunExecutor) Execute(ctx context.Context) {
 
 	go phases.RunHeartbeatLoop(ctx, e.heartbeatLoopInput())
 	defer e.stopHeartbeat()
-	defer e.finalize()
+	defer e.finalize(ctx)
 
 	if e.isResuming {
 		e.emitSystem(ctx, "info", fmt.Sprintf("resuming from phase: %s", e.checkpoint.Phase))
@@ -432,22 +437,16 @@ func (e *RunExecutor) Execute(ctx context.Context) {
 			}
 		}
 		if e.profile != nil && len(e.profile.SkillPack) > 0 {
-			runtimeRoot := ""
-			for _, key := range []string{"CLAUDE_CONFIG_DIR", "CODEX_HOME", "GROK_HOME", "OPENCODE_CONFIG_DIR", "ANTIGRAVITY_STATE_DIR"} {
-				if value := e.sessionEnv[key]; value != "" {
-					runtimeRoot = value
-					break
-				}
-			}
-			if runtimeRoot == "" {
-				e.failWithError(execCtx, fmt.Errorf("profile skill pack has no private runtime root for %s", e.run.ResolvedConfig.RunnerType))
+			skillsDir, scopeErr := RunnerSkillsDir(e.run.ResolvedConfig.RunnerType, e.sessionEnv)
+			if scopeErr != nil {
+				e.failWithError(execCtx, fmt.Errorf("profile skill pack cannot reach the run: %w", scopeErr))
 				return
 			}
 			var projectErr error
 			if e.run.ResolvedConfig.SkillExperimentID != "" {
-				_, projectErr = ProjectProfileSkillsAssigned(execCtx, e.runStateRoot, e.run.ID, runtimeRoot, e.run.ResolvedConfig.SkillExperimentID, e.profile.SkillPack, e.skillSource, defaultProfileSkillTokenCeiling)
+				_, projectErr = ProjectProfileSkillsAssigned(execCtx, e.runStateRoot, e.run.ID, skillsDir, e.run.ResolvedConfig.SkillExperimentID, e.profile.SkillPack, e.skillSource, defaultProfileSkillTokenCeiling)
 			} else {
-				_, projectErr = ProjectProfileSkills(execCtx, e.runStateRoot, e.run.ID, runtimeRoot, e.profile.SkillPack, e.skillSource, defaultProfileSkillTokenCeiling)
+				_, projectErr = ProjectProfileSkills(execCtx, e.runStateRoot, e.run.ID, skillsDir, e.profile.SkillPack, e.skillSource, defaultProfileSkillTokenCeiling)
 			}
 			if projectErr != nil {
 				e.failWithError(execCtx, projectErr)
@@ -495,7 +494,7 @@ func (e *RunExecutor) Execute(ctx context.Context) {
 
 	// Step 4: Execute, walking the preset chain on model-unavailable errors.
 	e.advancePhase(execCtx, domain.RunPhaseExecuting)
-	eventSink := e.createEventSink()
+	eventSink := e.createEventSink(ctx)
 	defer eventSink.Close()
 
 	out := phases.ExecuteWithModelFallback(execCtx, phases.ExecuteWithModelFallbackInput{
@@ -563,6 +562,7 @@ func (e *RunExecutor) Execute(ctx context.Context) {
 		SandboxID: e.sandboxID,
 	})
 	e.outcome = resultOut.Outcome
+	e.resultDeferred = resultOut.Deferred
 }
 
 // =============================================================================
@@ -642,7 +642,7 @@ func (e *RunExecutor) updateStatusToStarting(ctx context.Context) error {
 		return err
 	}
 	if e.broadcaster != nil {
-		e.broadcaster.BroadcastRunStatus(e.run)
+		e.broadcaster.BroadcastRunStatus(ctx, e.run)
 	}
 	return nil
 }
@@ -719,11 +719,11 @@ func (e *RunExecutor) stopHeartbeat() {
 // createEventSink builds the run's sink through the one constructor, so the
 // orchestrator's post-persist hooks (quota, token caps, workflow nudges) run
 // on fresh headless executions, and wraps it in the per-run emit.Gate.
-func (e *RunExecutor) createEventSink() runner.EventSink {
+func (e *RunExecutor) createEventSink(ctx context.Context) runner.EventSink {
 	if e.gate != nil {
 		return e.gate
 	}
-	e.gate = emit.NewGate(newRunEventSink(e.hooks, e.events, e.broadcaster, e.run.ID))
+	e.gate = emit.NewGate(newRunEventSink(ctx, e.hooks, e.events, e.broadcaster, e.run.ID))
 	return e.gate
 }
 
@@ -747,13 +747,32 @@ func (e *RunExecutor) detectParked(ctx context.Context) bool {
 }
 
 // finalize delegates to phases.Finalize with idempotency-flag protection. It is
-// a no-op for a parked run (the park preserves the sandbox and owns lifecycle).
-func (e *RunExecutor) finalize() {
+// a no-op for parked runs and unreconciled results, which preserve state for
+// their respective wake and transcript-recovery owners.
+func (e *RunExecutor) finalize(parent context.Context) {
+	ctx := context.WithoutCancel(parent)
 	if e.finalized || e.parked {
 		return
 	}
+	if e.resultDeferred {
+		if e.run != nil && e.runs != nil {
+			current, err := e.runs.Get(ctx, e.run.ID)
+			if err != nil || current == nil || current.LifecycleVersion != e.run.LifecycleVersion {
+				return // Leave state untouched when its current owner is unknown or changed.
+			}
+		}
+		if e.run != nil && e.run.ResolvedConfig != nil {
+			if err := CleanupCodecSessionHomeCredentials(e.runStateRoot, e.run.ID, e.run.ResolvedConfig.RunnerType); err != nil {
+				e.emitSystem(ctx, "warn", "failed to clean deferred run-scoped session credentials: "+err.Error())
+			}
+			if err := CleanupRunnerSkillScope(e.runStateRoot, e.run.ID, e.run.ResolvedConfig.RunnerType); err != nil {
+				e.emitSystem(ctx, "warn", "failed to clean deferred run-scoped skill scope: "+err.Error())
+			}
+		}
+		return // Recovery owns the transcript, terminal result and sandbox lifecycle.
+	}
 	if e.run != nil && e.runs != nil {
-		current, err := e.runs.Get(context.Background(), e.run.ID)
+		current, err := e.runs.Get(ctx, e.run.ID)
 		if err != nil || current == nil || current.LifecycleVersion != e.run.LifecycleVersion {
 			return // Do not remove credentials/skills belonging to a new turn.
 		}
@@ -761,20 +780,20 @@ func (e *RunExecutor) finalize() {
 	e.finalized = true
 	if e.run != nil && e.run.ResolvedConfig != nil {
 		if err := CleanupCodecSessionHomeCredentials(e.runStateRoot, e.run.ID, e.run.ResolvedConfig.RunnerType); err != nil {
-			e.emitSystem(context.Background(), "warn", "failed to clean run-scoped session credentials: "+err.Error())
+			e.emitSystem(ctx, "warn", "failed to clean run-scoped session credentials: "+err.Error())
 		}
 		if err := CleanupRunnerSkillScope(e.runStateRoot, e.run.ID, e.run.ResolvedConfig.RunnerType); err != nil {
-			e.emitSystem(context.Background(), "warn", "failed to clean run-scoped skill scope: "+err.Error())
+			e.emitSystem(ctx, "warn", "failed to clean run-scoped skill scope: "+err.Error())
 		}
 	}
-	phases.Finalize(phases.FinalizeInput{
+	phases.Finalize(ctx, phases.FinalizeInput{
 		Deps:      e.deps(),
 		Run:       e.run,
 		SandboxID: e.sandboxID,
 		Sandbox:   e.sandbox,
 	})
 	if e.onTerminal != nil && e.run != nil && e.run.Status.IsTerminal() {
-		e.onTerminal(e.run)
+		e.onTerminal(ctx, e.run)
 	}
 }
 

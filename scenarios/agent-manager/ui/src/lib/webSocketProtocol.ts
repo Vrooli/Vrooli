@@ -1,4 +1,7 @@
 import type { RunEvent, Task } from "../types";
+import { fromJson, type JsonValue } from "@bufbuild/protobuf";
+import { RunEventSchema } from "@vrooli/proto-types/agent-manager/v1/domain/events_pb";
+import { TimestampSchema } from "@bufbuild/protobuf/wkt";
 
 export interface WebSocketMessage {
   type: string;
@@ -35,39 +38,6 @@ const TASK_STATUS_VALUES: Record<string, number> = {
   TASK_STATUS_CANCELLED: 5,
 };
 
-const RUN_EVENT_TYPE_VALUES: Record<string, number> = {
-  RUN_EVENT_TYPE_UNSPECIFIED: 0,
-  RUN_EVENT_TYPE_LOG: 1,
-  RUN_EVENT_TYPE_MESSAGE: 2,
-  RUN_EVENT_TYPE_TOOL_CALL: 3,
-  RUN_EVENT_TYPE_TOOL_RESULT: 4,
-  RUN_EVENT_TYPE_STATUS: 5,
-  RUN_EVENT_TYPE_METRIC: 6,
-  RUN_EVENT_TYPE_ARTIFACT: 7,
-  RUN_EVENT_TYPE_ERROR: 8,
-  RUN_EVENT_TYPE_MESSAGE_DELETED: 9,
-  RUN_EVENT_TYPE_COMPACTION: 10,
-  RUN_EVENT_TYPE_LIFECYCLE: 11,
-  RUN_EVENT_TYPE_GOAL_STATUS_CHANGED: 12,
-  RUN_EVENT_TYPE_QUOTA: 13,
-};
-
-const RUN_EVENT_DATA_CASES: Record<string, string> = {
-  log: "log",
-  message: "message",
-  message_deleted: "messageDeleted",
-  tool_call: "toolCall",
-  tool_result: "toolResult",
-  status: "status",
-  metric: "metric",
-  artifact: "artifact",
-  error: "error",
-  progress: "progress",
-  cost: "cost",
-  rate_limit: "rateLimit",
-  compaction: "compaction",
-};
-
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
@@ -100,37 +70,24 @@ function normalizeTimestamp(value: unknown): unknown {
   if (typeof value !== "string") {
     return camelizeValue(value);
   }
-  const parsed = Date.parse(value);
-  if (Number.isNaN(parsed)) {
+  try {
+    const { seconds, nanos } = fromJson(TimestampSchema, value);
+    return { seconds, nanos };
+  } catch {
     return value;
   }
-  return {
-    seconds: BigInt(Math.trunc(parsed / 1000)),
-    nanos: (parsed % 1000) * 1_000_000,
-  };
 }
 
 function normalizeRunEvent(raw: unknown): RunEvent | null {
   if (!isRecord(raw)) return null;
 
-  const dataEntry = Object.entries(RUN_EVENT_DATA_CASES).find(([wireName]) => raw[wireName] !== undefined);
-  const normalized: Record<string, unknown> = {
-    id: raw.id,
-    runId: raw.run_id,
-    sequence: typeof raw.sequence === "string" ? BigInt(raw.sequence) : raw.sequence,
-    eventType: enumValue(raw.event_type, RUN_EVENT_TYPE_VALUES),
-    timestamp: normalizeTimestamp(raw.timestamp),
-  };
-
-  if (dataEntry) {
-    const [wireName, caseName] = dataEntry;
-    normalized.data = {
-      case: caseName,
-      value: camelizeValue(raw[wireName]),
-    };
+  try {
+    // Use the same protobuf hydration as HTTP. Valid metadata-only events
+    // still carry the generated empty oneof required by timeline consumers.
+    return fromJson(RunEventSchema, raw as JsonValue, { ignoreUnknownFields: true });
+  } catch {
+    return null;
   }
-
-  return normalized as RunEvent;
 }
 
 export function parseWebSocketMessage(raw: unknown): WebSocketMessage | null {
@@ -160,6 +117,9 @@ export function parseWebSocketMessage(raw: unknown): WebSocketMessage | null {
       }
       if (raw.run_status.prompt_preview) {
         statusPayload.promptPreview = raw.run_status.prompt_preview;
+      }
+      if (raw.run_status.updated_at) {
+        statusPayload.updatedAt = normalizeTimestamp(raw.run_status.updated_at);
       }
 
       return {

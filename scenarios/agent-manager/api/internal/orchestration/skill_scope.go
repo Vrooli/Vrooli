@@ -23,22 +23,22 @@ func openCodeRunDataHome(runDir string) string {
 }
 
 // PrepareRunnerSkillScope creates the private runtime configuration root used
-// for native skill discovery. It never writes to the project directory or the
-// operator's shared runtime home.
+// for native skill discovery. The variable that relocates the skills directory
+// comes from the harness's resource manifest. It never writes to the project
+// directory or the operator's shared runtime home. A harness whose skills no
+// variable relocates gets no scope; RunnerSkillsDir then refuses a skill pack
+// for it.
 func PrepareRunnerSkillScope(root string, runID uuid.UUID, runnerType domain.RunnerType) (map[string]string, error) {
-	key := ""
-	switch runnerType {
-	case domain.RunnerTypeClaudeCode:
-		key = "CLAUDE_CONFIG_DIR"
-	case domain.RunnerTypeOpenCode:
-		key = "OPENCODE_CONFIG_DIR"
-	case domain.RunnerTypeAntigravity:
-		key = "ANTIGRAVITY_STATE_DIR"
-	default:
-		// Codex and Grok already receive a private CODEX_HOME/GROK_HOME from
-		// PrepareCodecSessionHome; their skill directories live beneath it.
+	storage, declared, err := harnessSkillStorage(runnerType)
+	if err != nil {
+		return nil, err
+	}
+	// Codex and Grok already receive a private CODEX_HOME/GROK_HOME from
+	// PrepareCodecSessionHome; their skill directories live beneath it.
+	if !declared || !storage.Relocatable() || storage.RelocationKey == codecSessionHomeKey(runnerType) {
 		return nil, nil
 	}
+	key := storage.RelocationKey
 	runDir, err := runstate.RunDir(root, runID)
 	if err != nil {
 		return nil, err
@@ -46,6 +46,11 @@ func PrepareRunnerSkillScope(root string, runID uuid.UUID, runnerType domain.Run
 	scope := filepath.Join(runDir, RuntimeDirName, skillScopeDirName, string(runnerType))
 	if err := os.MkdirAll(scope, 0o700); err != nil {
 		return nil, fmt.Errorf("create private %s skill scope: %w", runnerType, err)
+	}
+	if storage.SharedBaseDirectory() {
+		if err := mirrorBaseDirectory(storage, scope); err != nil {
+			return nil, fmt.Errorf("prepare private %s for %s: %w", key, runnerType, err)
+		}
 	}
 	env := map[string]string{key: scope}
 	if runnerType == domain.RunnerTypeClaudeCode {
@@ -90,6 +95,62 @@ func PrepareRunnerSkillScope(root string, runID uuid.UUID, runnerType domain.Run
 		env["XDG_DATA_HOME"] = dataHome
 	}
 	return env, nil
+}
+
+// mirrorBaseDirectory makes scope stand in for the operator's base directory
+// (for example ~/.config): every entry is linked except the path down to the
+// harness's skills directory, which is private and starts empty. The harness
+// and every other program in the run then read the operator's configuration,
+// and only the skills directory differs. Links are refreshed on every call, so
+// a continuation sees the operator's current entries.
+func mirrorBaseDirectory(storage HarnessSkillStorage, scope string) error {
+	source := strings.TrimSpace(os.Getenv(storage.RelocationKey))
+	if source == "" {
+		home, err := os.UserHomeDir()
+		if err != nil {
+			return fmt.Errorf("resolve user home: %w", err)
+		}
+		source = filepath.Clean(strings.Replace(storage.DefaultRoot, "$USER_HOME", home, 1))
+	}
+	if filepath.Clean(source) == filepath.Clean(scope) {
+		return fmt.Errorf("shared %s is the run scope", storage.RelocationKey)
+	}
+	parts := strings.Split(filepath.Clean(storage.RelativePath), string(filepath.Separator))
+	target := scope
+	for i, part := range parts {
+		if err := os.MkdirAll(target, 0o700); err != nil {
+			return err
+		}
+		entries, err := os.ReadDir(source)
+		if err != nil && !os.IsNotExist(err) {
+			return err
+		}
+		for _, entry := range entries {
+			if entry.Name() == part {
+				continue
+			}
+			link := filepath.Join(target, entry.Name())
+			if info, statErr := os.Lstat(link); statErr == nil && info.Mode()&os.ModeSymlink == 0 {
+				continue // written by the run itself; keep it
+			}
+			if err := os.Remove(link); err != nil && !os.IsNotExist(err) {
+				return err
+			}
+			if err := os.Symlink(filepath.Join(source, entry.Name()), link); err != nil {
+				return err
+			}
+		}
+		source, target = filepath.Join(source, part), filepath.Join(target, part)
+		if i == len(parts)-1 {
+			if info, statErr := os.Lstat(target); statErr == nil && info.Mode()&os.ModeSymlink != 0 {
+				if err := os.Remove(target); err != nil {
+					return err
+				}
+			}
+			return os.MkdirAll(target, 0o700)
+		}
+	}
+	return nil
 }
 
 // writeClaudeSkillActivationHook installs telemetry in the private run

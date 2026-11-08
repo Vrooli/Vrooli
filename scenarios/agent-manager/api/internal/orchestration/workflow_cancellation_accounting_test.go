@@ -74,7 +74,7 @@ func TestWorkflowRecoveryReconcilesOriginalNativeTerminalReceipt(t *testing.T) {
 			ended := time.Now().UTC().Add(-time.Minute)
 			run := &domain.Run{ID: runID, TaskID: task.ID, Status: domain.RunStatusCancelled, Phase: domain.RunPhaseCompleted, RunMode: domain.RunModeSandboxed, ExecutionMode: domain.ExecutionModeCodecPipe, SessionID: "original-session", EndedAt: &ended, FinalizationStatus: domain.RunFinalizationStatusNone, ResolvedConfig: &domain.RunConfig{RunnerType: tc.kind, Model: "retained-model"}, Billing: domain.BillingSnapshot{Basis: domain.ChargeBasisSubscription}, TranscriptPath: filepath.Join(t.TempDir(), "original.jsonl")}
 			if tc.transcript != "" {
-				if err := os.WriteFile(run.TranscriptPath, []byte(tc.transcript), 0600); err != nil {
+				if err := os.WriteFile(run.TranscriptPath, []byte(tc.transcript), 0o600); err != nil {
 					t.Fatal(err)
 				}
 			}

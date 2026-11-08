@@ -128,12 +128,20 @@ function EffortDetail({ row }: { row: EffortBoardRow }) {
         </tbody></table></div>
         <p>Observed: {when(assignment.observedAt)}</p>
         {assignment.unavailableReason ? <p className="text-warning">{assignment.unavailableReason}</p> : null}
+        {assignment.stepBack.length ? <ul aria-label="Step-back triggers" className="space-y-1">{assignment.stepBack.map(trigger => <li key={trigger.id} className="text-warning">
+          Step-back {trigger.id} ({trigger.mechanism}): {trigger.detail}. Re-orient: {trigger.remedy}.
+        </li>)}</ul> : null}
         <Usage usage={assignment.usage} />
       </div>)}</div> : <p className="text-sm text-muted-foreground">No attributed assignments; this does not mean no agents are running.</p>}
     </section>
     <section><h3 className="mb-1 font-semibold">Evidence references</h3><References values={[...row.evidenceRefs, ...(row.outcomeStanding?.evidenceRefs || [])]} /></section>
     <section><h3 className="mb-1 font-semibold">Coverage and limitations</h3><References values={[...row.limitations, ...(row.outcomeStanding?.limitations || [])]} /></section>
   </article>;
+}
+
+// stepBackIds names the distinct step-back triggers on a row's assignments.
+function stepBackIds(row: EffortBoardRow): string[] {
+  return [...new Set(row.assignments.flatMap(assignment => assignment.stepBack.map(trigger => trigger.id)))];
 }
 
 export function EffortsPage() {
@@ -164,6 +172,7 @@ export function EffortsPage() {
         <nav aria-label="Observed efforts" className="space-y-2">{board.rows.map((row, i) => <button type="button" className={`block w-full rounded border border-border p-3 text-left text-sm ${selected === row ? "bg-accent" : "bg-card"}`} aria-pressed={selected === row} key={row.enrollment?.effortRef || i} onClick={() => setSearchParams(params => { params.set("effortRef", row.enrollment?.effortRef || ""); return params; })}>
           <span className="block break-all font-semibold">{row.enrollment?.displayName || row.enrollment?.effortRef || "Unknown enrollment"}</span>
           <span className="block">Activity: {row.runtimeState || "unknown"}</span><span className="block">Outcome: {row.outcomeStanding?.state || "unverified"}</span><span className="text-xs text-muted-foreground">Evidence: {freshnessNames[row.freshness] || "unknown"}</span>
+          {stepBackIds(row).length ? <span className="block text-xs text-warning">Step-back: {stepBackIds(row).join(", ")}</span> : null}
         </button>)}</nav>
         {selected ? <EffortDetail row={selected} /> : null}
       </div>}

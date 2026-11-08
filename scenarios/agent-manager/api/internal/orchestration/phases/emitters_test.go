@@ -111,13 +111,14 @@ type recordingPhaseBroadcaster struct {
 	count int
 }
 
-func (b *recordingPhaseBroadcaster) BroadcastEvent(*domain.RunEvent) {
+func (b *recordingPhaseBroadcaster) BroadcastEvent(context.Context, *domain.RunEvent) {
 	b.count++
 }
 
-func (b *recordingPhaseBroadcaster) BroadcastRunStatus(*domain.Run) {}
+func (b *recordingPhaseBroadcaster) BroadcastRunStatus(context.Context, *domain.Run) {}
 
-func (b *recordingPhaseBroadcaster) BroadcastProgress(uuid.UUID, domain.RunPhase, int, string) {}
+func (b *recordingPhaseBroadcaster) BroadcastProgress(context.Context, uuid.UUID, domain.RunPhase, int, string) {
+}
 
 func TestEmitSystemEvent_DoesNotBroadcastWhenAppendFails(t *testing.T) {
 	broadcaster := &recordingPhaseBroadcaster{}

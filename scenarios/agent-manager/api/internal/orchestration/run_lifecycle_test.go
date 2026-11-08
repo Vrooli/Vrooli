@@ -703,8 +703,10 @@ func TestContinueRun_ProtectedSandboxCarriesLauncherInputsAndLifecycleEvents(t *
 		EndedAt:        &now,
 		ResolvedConfig: &domain.RunConfig{
 			RunnerType: domain.RunnerTypeClaudeCode, NetworkAccess: domain.NetworkAccessNone,
-			SandboxConfig: &domain.SandboxConfig{Mode: domain.SandboxModeProtected,
-				NetworkMode: domain.NetworkAccessNone, WritePolicy: &domain.WorkspaceWritePolicy{Paths: []string{"src"}}},
+			SandboxConfig: &domain.SandboxConfig{
+				Mode:        domain.SandboxModeProtected,
+				NetworkMode: domain.NetworkAccessNone, WritePolicy: &domain.WorkspaceWritePolicy{Paths: []string{"src"}},
+			},
 		},
 		ApprovalState: domain.ApprovalStateNone,
 		CreatedAt:     now,

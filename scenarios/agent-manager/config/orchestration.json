@@ -2,7 +2,8 @@
   "runExecution": {
     "runTimeoutMinutes": 720,
     "maxConcurrentRuns": 10,
-    "maxTurns": 1000
+    "maxTurns": 1000,
+    "maxChildDepth": 3
   },
   "safetyIsolation": {
     "requireSandbox": true,

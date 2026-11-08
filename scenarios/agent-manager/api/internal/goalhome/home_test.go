@@ -244,6 +244,10 @@ func TestWriteIfUnchangedRefusesAConcurrentChange(t *testing.T) {
 	if err := os.WriteFile(path, []byte("written by another session\n"), 0o640); err != nil {
 		t.Fatal(err)
 	}
+	// Establish the existing mode independently of the test runner's umask.
+	if err := os.Chmod(path, 0o640); err != nil {
+		t.Fatal(err)
+	}
 	if err := WriteIfUnchanged(path, []byte("what we read\n"), []byte("our update\n")); !errors.Is(err, ErrConcurrentChange) {
 		t.Fatalf("want ErrConcurrentChange, got %v", err)
 	}

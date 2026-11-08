@@ -51,6 +51,7 @@ func (r *auth01DelegationProfiles) Create(context.Context, *domain.AgentProfile)
 	r.writes++
 	return errors.New("unexpected profile write")
 }
+
 func (r *auth01DelegationProfiles) Update(context.Context, *domain.AgentProfile) error {
 	r.writes++
 	return errors.New("unexpected profile write")
@@ -74,6 +75,7 @@ func (s *auth01DelegationSandbox) Create(context.Context, sandbox.CreateRequest)
 	s.writes++
 	return nil, errors.New("unexpected sandbox create")
 }
+
 func (s *auth01DelegationSandbox) Start(context.Context, uuid.UUID) error {
 	s.writes++
 	return errors.New("unexpected sandbox start")

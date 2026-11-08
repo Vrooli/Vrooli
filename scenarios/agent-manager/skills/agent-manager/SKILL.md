@@ -196,6 +196,8 @@ searched completely. Preserve returned Agent Manager candidates and provenance,
 but do not interpret an empty candidate set as a complete negative. Follow
 `signals.next_actions` and check provider health before another search. Sibling
 provider hits remain counts only and never become conversation candidates.
+Treat copied text as a clue, not a unique identifier. Use the returned
+provenance to verify a candidate before opening its bounded context; do not paste snippets into the clue list as though they prove which conversation is the source.
 
 ### 4. Reading runs
 
@@ -216,7 +218,7 @@ Reading
 │         errors[0].class scenario_unreachable → agent-manager is down; journal, stop
 │         errors[0].class no_runs_in_window    → widen window_days once, or accept the empty reading
 │         errors[0].class invalid_input        → fix scenario or window_days; nothing was read
-├─ Recurring friction problems              usage friction [--status open]                          [S1]
+├─ Recurring friction problems              usage friction [--status open] [--owner <scenario>]     [S1]
 ├─ What should I change? (quota, tools,     usage recommendations [--run ID]                       [S1]
 │   programs, corrections — one ranked list; each action names its owner, effect in its own
 │   unit, evidence and the verify command; finished sessions read "would have saved")
@@ -233,7 +235,7 @@ Artifact IDs are opaque. Do not construct internal HTTP artifact URLs or curl
 the scenario's private routes; the CLI preserves its authorization, catalog,
 and destination-safety behavior.
 
-Reading `run report`: status and cost first, then result provenance, then failure counts. Its `Next:` lines are the drill-down; the report deliberately excludes transcript bodies. `selfReportSpans` in `run report --json` are the assistant's own phrases ("blocked", "cannot find"): a cue to read the run, not a verdict. Command friction is read from `measures get tool-profiles` and `usage friction`, whose coverage line says how many commands came from runs an older parser read (outcomes there may be missing).
+Reading `run report`: status and cost first, then result provenance, then failure counts. Its `Next:` lines are the drill-down; the report deliberately excludes transcript bodies. `selfReportSpans` in `run report --json` are the assistant's own phrases ("blocked", "cannot find"): a cue to read the run, not a verdict. Command friction is read from `measures get tool-profiles` and `usage friction`. Add `--owner <scenario>` to scope findings and profile totals; the coverage line remains window-wide and says how many commands came from runs an older parser read (outcomes there may be missing).
 
 ### 5. Investigating
 

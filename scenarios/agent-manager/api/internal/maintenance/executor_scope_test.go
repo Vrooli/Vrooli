@@ -78,7 +78,7 @@ func TestControlPlaneExecutorScopeRefusesUnstableOrUnavailableEvidence(t *testin
 					return nil, errors.New("command unavailable")
 				}
 				if fail == "oversized" {
-					return make([]byte, (8<<20)+1), nil
+					return make([]byte, executorScopeMaxBytes+1), nil
 				}
 				if fail == "cancelled" {
 					cancel()
@@ -91,7 +91,7 @@ func TestControlPlaneExecutorScopeRefusesUnstableOrUnavailableEvidence(t *testin
 		})
 	}
 	var out boundedScopeOutput
-	if _, err := out.Write(make([]byte, (8<<20)+1)); err == nil || out.Len() != 0 {
+	if _, err := out.Write(make([]byte, executorScopeMaxBytes+1)); err == nil || out.Len() != 0 {
 		t.Fatal("unbounded process output retained")
 	}
 }
@@ -165,7 +165,7 @@ func TestExcludeExecutorRequiresIdentityAndLiveContext(t *testing.T) {
 }
 
 func TestControlPlaneExecutorScopeBatchesHistoricalReferences(t *testing.T) {
-	const count = 16384 // Canonical root capacity, above ordinary retained history.
+	const count = 65536 // Full bounded protocol capacity, including retained history.
 	runs := make([]*domain.Run, 0, count)
 	refs := make([]ExecutorRef, 0, count)
 	for i := 0; i < count; i++ {
@@ -184,7 +184,7 @@ func TestControlPlaneExecutorScopeBatchesHistoricalReferences(t *testing.T) {
 			var req struct {
 				Executors []executorScopeRef `json:"executors"`
 			}
-			if err := json.Unmarshal(input, &req); err != nil || len(req.Executors) != count || len(input) <= 128<<10 || len(input) > 8<<20 {
+			if err := json.Unmarshal(input, &req); err != nil || len(req.Executors) != count || len(input) <= 128<<10 || len(input) > 32<<20 {
 				t.Fatalf("historical identities lost or request exceeded root bytes: refs=%d bytes=%d err=%v", len(req.Executors), len(input), err)
 			}
 			var out strings.Builder

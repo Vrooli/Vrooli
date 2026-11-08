@@ -274,7 +274,7 @@ func (o *Orchestrator) SyncRunFromSandbox(ctx context.Context, req SandboxSyncRe
 	}
 
 	if o.broadcaster != nil {
-		o.broadcaster.BroadcastRunStatus(run)
+		o.broadcaster.BroadcastRunStatus(ctx, run)
 	}
 
 	return run, nil

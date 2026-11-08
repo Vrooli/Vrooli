@@ -1,3 +1,4 @@
+import { selectors } from "../consts/selectors";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import {
@@ -680,6 +681,7 @@ function MessageBubble({
 
   return (
     <div
+      data-testid={entry.role === "assistant" ? selectors.run.assistantMessage : undefined}
       className={cn(
         "group/msg flex min-w-0",
         entry.role === "user"

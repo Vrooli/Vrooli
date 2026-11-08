@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"io"
 	"net/url"
 	"os"
@@ -684,5 +685,40 @@ func TestNativeToolConsumersKeepUnknownOutOfFailureFilters(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+// Agents ask every read for --json; run tools answers with the tool summary
+// and the filtered events instead of an unknown-flag error.
+func TestRunToolsPrintsItsSummaryAndEventsAsJSON(t *testing.T) {
+	eventsJSON, err := protojson.Marshal(&apipb.GetRunEventsResponse{Events: []*domainpb.RunEvent{
+		{Sequence: 2, EventType: domainpb.RunEventType_RUN_EVENT_TYPE_TOOL_CALL, Data: &domainpb.RunEvent_ToolCall{ToolCall: &domainpb.ToolCallEventData{ToolName: "bash"}}},
+		{Sequence: 3, EventType: domainpb.RunEventType_RUN_EVENT_TYPE_TOOL_RESULT, Data: &domainpb.RunEvent_ToolResult{ToolResult: &domainpb.ToolResultEventData{ToolName: "bash", Success: false, Error: "denied"}}},
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	server := clitest.NewRecordingServerForRequests(t, func(request clitest.Request) string {
+		switch request.Path {
+		case "/api/v1/runs/run-1/report":
+			return `{"project_owned_tool_calls":1,"external_tool_calls":2,"tools":[{"name":"bash","calls":1,"successes":0,"failures":1}]}`
+		case "/api/v1/runs/run-1/events":
+			return string(eventsJSON)
+		default:
+			return `{}`
+		}
+	})
+	app := appForServer(t, server.URL())
+	output := captureStdout(t, func() error { return app.runTools([]string{"run-1", "--json"}) })
+	var report runToolsReport
+	if err := json.Unmarshal([]byte(output), &report); err != nil {
+		t.Fatalf("run tools --json printed non-JSON: %v\n%s", err, output)
+	}
+	if report.ProjectOwnedToolCalls != 1 || report.ExternalToolCalls != 2 || len(report.Tools) != 1 || report.Tools[0].Failures != 1 || len(report.Events) != 2 || report.Events[1] != (runToolEvent{Sequence: 3, Kind: "result", Tool: "bash", Outcome: "failure", Error: "denied"}) {
+		t.Fatalf("run tools --json = %+v", report)
+	}
+	failedOnly := captureStdout(t, func() error { return app.runTools([]string{"run-1", "--failed", "--json"}) })
+	if err := json.Unmarshal([]byte(failedOnly), &report); err != nil || len(report.Events) != 1 || report.Events[0].Kind != "result" {
+		t.Fatalf("run tools --failed --json = %+v, %v", report, err)
 	}
 }

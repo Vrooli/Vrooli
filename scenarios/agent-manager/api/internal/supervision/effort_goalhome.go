@@ -201,8 +201,57 @@ func (s *EffortService) projectGoalHome(ctx context.Context, e *pb.EffortEnrollm
 	if !ok {
 		return nil
 	}
-	out := &pb.EffortGoalHome{Path: dir, State: "available", CanaryStatus: goalHomeCanaryUnknown, ReadAt: timestamppb.New(s.now().UTC())}
 	home, err := s.readGoalHome(dir)
+	return s.projectGoalHomeWithSnapshot(ctx, e, row, effortGoalHomeSnapshot{dir: dir, home: home, err: err}, nil, nil)
+}
+
+type effortGoalHomeSnapshot struct {
+	dir  string
+	home *goalhome.Home
+	err  error
+}
+
+func (s *EffortService) effortGoalHomeSnapshot(e *pb.EffortEnrollment) effortGoalHomeSnapshot {
+	dir, ok := goalHomeDestination(e.GetDestinationRef())
+	if !ok {
+		return effortGoalHomeSnapshot{}
+	}
+	home, err := s.readGoalHome(dir)
+	return effortGoalHomeSnapshot{dir: dir, home: home, err: err}
+}
+
+func effortGoalHomeRunIDs(snapshot effortGoalHomeSnapshot) []uuid.UUID {
+	if snapshot.home == nil || !snapshot.home.EpochsComplete {
+		return nil
+	}
+	ids, seen := []uuid.UUID{}, map[uuid.UUID]bool{}
+	accepted := 0
+	for i := len(snapshot.home.Epochs) - 1; i >= 0; i-- {
+		epoch := snapshot.home.Epochs[i]
+		if epoch.Epoch.IsAccepted() {
+			if accepted >= goalHomeAcceptedMeasured {
+				continue
+			}
+			accepted++
+		}
+		for _, raw := range goalhome.WorkerRunIDs(epoch.Epoch.Fields["workers"]) {
+			id, err := uuid.Parse(raw)
+			if err == nil && !seen[id] {
+				seen[id] = true
+				ids = append(ids, id)
+			}
+		}
+	}
+	return ids
+}
+
+func (s *EffortService) projectGoalHomeWithSnapshot(ctx context.Context, e *pb.EffortEnrollment, row *pb.EffortBoardRow, snapshot effortGoalHomeSnapshot, runs map[uuid.UUID]*domain.Run, accounts map[uuid.UUID]EffortRunAccounting) *pb.EffortGoalHome {
+	dir := snapshot.dir
+	if dir == "" {
+		return nil
+	}
+	out := &pb.EffortGoalHome{Path: dir, State: "available", CanaryStatus: goalHomeCanaryUnknown, ReadAt: timestamppb.New(s.now().UTC())}
+	home, err := snapshot.home, snapshot.err
 	if err != nil {
 		out.State = "unavailable"
 		out.Limitations = append(out.Limitations, "goal home unreadable: "+err.Error())
@@ -217,8 +266,8 @@ func (s *EffortService) projectGoalHome(ctx context.Context, e *pb.EffortEnrollm
 		}
 		s.goalHomeFileFacts(out, home)
 		if home.EpochsComplete {
-			s.goalHomeSpendFacts(ctx, out, home)
-			s.goalHomeCapFacts(ctx, out, home, row)
+			s.goalHomeSpendFactsBatch(ctx, out, home, runs, accounts)
+			s.goalHomeCapFactsBatch(ctx, out, home, row, runs, accounts)
 		} else {
 			out.Limitations = append(out.Limitations, "epoch-derived spend and cap facts are unknown until all epoch files are safely readable")
 		}
@@ -377,6 +426,10 @@ func missingFile(home *goalhome.Home, name string) bool {
 // whose every Workers run is metered. An epoch with an unmetered or unknown
 // worker is left out, never counted as zero.
 func (s *EffortService) goalHomeSpendFacts(ctx context.Context, out *pb.EffortGoalHome, home *goalhome.Home) {
+	s.goalHomeSpendFactsBatch(ctx, out, home, nil, nil)
+}
+
+func (s *EffortService) goalHomeSpendFactsBatch(ctx context.Context, out *pb.EffortGoalHome, home *goalhome.Home, runs map[uuid.UUID]*domain.Run, accounts map[uuid.UUID]EffortRunAccounting) {
 	if s.spend == nil {
 		out.Limitations = append(out.Limitations, "weighted spend reader unavailable; spend per accepted epoch unknown")
 		return
@@ -388,7 +441,7 @@ func (s *EffortService) goalHomeSpendFacts(ctx context.Context, out *pb.EffortGo
 			continue
 		}
 		considered++
-		spent, ok := s.epochSpend(ctx, goalhome.WorkerRunIDs(epoch.Epoch.Fields["workers"]))
+		spent, ok := s.epochSpendBatch(ctx, goalhome.WorkerRunIDs(epoch.Epoch.Fields["workers"]), runs, accounts)
 		if !ok {
 			continue
 		}
@@ -401,6 +454,42 @@ func (s *EffortService) goalHomeSpendFacts(ctx context.Context, out *pb.EffortGo
 	if unmeasured := considered - int(out.AcceptedUnitsMeasured); unmeasured > 0 {
 		out.Limitations = append(out.Limitations, fmt.Sprintf("%d of the last %d accepted epochs have an unmetered or unknown worker; left out of spend", unmeasured, considered))
 	}
+}
+
+func (s *EffortService) epochSpendBatch(ctx context.Context, workers []string, runs map[uuid.UUID]*domain.Run, accounts map[uuid.UUID]EffortRunAccounting) (float64, bool) {
+	if runs == nil && accounts == nil {
+		return s.epochSpend(ctx, workers)
+	}
+	if len(workers) == 0 {
+		return 0, false
+	}
+	total := 0.0
+	for _, raw := range workers {
+		id, err := uuid.Parse(raw)
+		if err != nil {
+			return 0, false
+		}
+		s.goalHomes.mu.Lock()
+		spent, ok := s.goalHomes.spent[id]
+		s.goalHomes.mu.Unlock()
+		if !ok {
+			account, exists := accounts[id]
+			if !exists || !account.WeightedPresent || !account.WeightedKnown {
+				return 0, false
+			}
+			spent = account.WeightedTokens
+			if run := runs[id]; run != nil && run.Status.IsTerminal() {
+				s.goalHomes.mu.Lock()
+				if s.goalHomes.spent == nil {
+					s.goalHomes.spent = map[uuid.UUID]float64{}
+				}
+				s.goalHomes.spent[id] = spent
+				s.goalHomes.mu.Unlock()
+			}
+		}
+		total += spent
+	}
+	return total, true
 }
 
 func (s *EffortService) epochSpend(ctx context.Context, workers []string) (float64, bool) {
@@ -440,6 +529,10 @@ func (s *EffortService) epochSpend(ctx context.Context, workers []string) (float
 // goalHomeCapFacts reads the cap usage of the effort's active runs: the row's
 // active assignments and the active epoch's workers.
 func (s *EffortService) goalHomeCapFacts(ctx context.Context, out *pb.EffortGoalHome, home *goalhome.Home, row *pb.EffortBoardRow) {
+	s.goalHomeCapFactsBatch(ctx, out, home, row, nil, nil)
+}
+
+func (s *EffortService) goalHomeCapFactsBatch(ctx context.Context, out *pb.EffortGoalHome, home *goalhome.Home, row *pb.EffortBoardRow, runs map[uuid.UUID]*domain.Run, accounts map[uuid.UUID]EffortRunAccounting) {
 	if s.spend == nil || s.controller == nil {
 		return
 	}
@@ -472,12 +565,22 @@ func (s *EffortService) goalHomeCapFacts(ctx context.Context, out *pb.EffortGoal
 		if err != nil {
 			continue
 		}
-		run, err := s.controller.GetRun(ctx, id)
-		if err != nil || run == nil || run.Status.IsTerminal() {
+		var run *domain.Run
+		if runs == nil && accounts == nil {
+			run, _ = s.controller.GetRun(ctx, id)
+		} else {
+			run = runs[id]
+		}
+		if run == nil || run.Status.IsTerminal() {
 			continue
 		}
-		weighted, limit, mode := s.spend.TokenCapUsage(ctx, id)
-		usage := &pb.EffortCapUsage{RunId: raw, Role: roles[raw], WeightedTokens: weighted, Mode: mode}
+		account := accounts[id]
+		var weighted *float64
+		if account.WeightedPresent {
+			weighted = proto.Float64(account.WeightedTokens)
+		}
+		usage := &pb.EffortCapUsage{RunId: raw, Role: roles[raw], WeightedTokens: weighted, Mode: account.TokenCapMode}
+		limit := account.TokenCap
 		if limit > 0 {
 			usage.Cap = proto.Int64(limit)
 		}

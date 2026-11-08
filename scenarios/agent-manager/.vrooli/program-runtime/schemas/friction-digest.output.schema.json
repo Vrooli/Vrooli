@@ -1,13 +1,13 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "vrooli://agent-manager/friction-digest/output/v3",
+  "$id": "vrooli://agent-manager/friction-digest/output/v4",
   "title": "Agent Manager Friction Digest Envelope",
   "type": "object",
   "additionalProperties": false,
   "required": ["program", "version", "status", "phase", "inputs", "signals", "errors", "evidence"],
   "properties": {
     "program": {"const": "agent-manager.friction-digest"},
-    "version": {"const": "3"},
+    "version": {"const": "4"},
     "status": {"enum": ["ok", "partial", "unavailable", "refused", "failed"]},
     "phase": {"enum": ["validate", "collect", "classify", "report"]},
     "inputs": {
@@ -24,7 +24,7 @@
       "type": "object",
       "additionalProperties": false,
       "required": [
-        "window_start", "coverage", "profiles_for_scenario", "calls_for_scenario", "findings_for_scenario", "recurring_count", "top_fingerprints",
+        "window_start", "coverage", "profiles_for_scenario", "calls_for_scenario", "findings_for_scenario", "below_floor_for_scenario", "beyond_limit_for_scenario", "recurring_count", "top_fingerprints",
         "supervision_outcomes", "supervision_calibration_available", "supervision_false_positives", "supervision_false_negatives", "supervision_overrides",
         "supervision_counterexamples", "supervision_safety_violations", "supervision_completion_impact", "supervision_assessed", "supervision_unassessed",
         "supervision_sample_capped", "supervision_sample_scope", "supervision_not_scenario_filtered", "supervision_impact_samples",
@@ -36,6 +36,8 @@
         "profiles_for_scenario": {"type": "integer", "minimum": 0},
         "calls_for_scenario": {"type": "integer", "minimum": 0},
         "findings_for_scenario": {"type": "integer", "minimum": 0},
+        "below_floor_for_scenario": {"type": "integer", "minimum": 0},
+        "beyond_limit_for_scenario": {"type": "integer", "minimum": 0},
         "recurring_count": {"type": "integer", "minimum": 0},
         "top_fingerprints": {
           "type": "array",

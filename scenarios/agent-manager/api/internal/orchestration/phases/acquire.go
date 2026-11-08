@@ -54,13 +54,13 @@ func AcquireRunner(ctx context.Context, in AcquireRunnerInput) (runner.Runner, e
 		}
 		return nil, &domain.RunnerError{
 			RunnerType: runnerType, Operation: "availability_check", Cause: errors.New(msg),
-			IsTransient: true, Alternative: lastResortAlternative(in.Runners, runnerType),
+			IsTransient: true, Alternative: lastResortAlternative(ctx, in.Runners, runnerType),
 		}
 	}
 
 	return nil, &domain.RunnerError{
 		RunnerType: runnerType, Operation: "acquire", Cause: getErr,
-		IsTransient: false, Alternative: lastResortAlternative(in.Runners, runnerType),
+		IsTransient: false, Alternative: lastResortAlternative(ctx, in.Runners, runnerType),
 	}
 }
 
@@ -78,7 +78,7 @@ func GetRunnerType(run *domain.Run, profile *domain.AgentProfile) domain.RunnerT
 // available runner so RunnerError.Alternative carries an actionable
 // suggestion even when the primary's configured chain was exhausted
 // (or empty). Returns "" when no alternative is available.
-func lastResortAlternative(registry runner.Registry, current domain.RunnerType) string {
+func lastResortAlternative(ctx context.Context, registry runner.Registry, current domain.RunnerType) string {
 	if registry == nil {
 		return ""
 	}
@@ -96,7 +96,7 @@ func lastResortAlternative(registry runner.Registry, current domain.RunnerType) 
 		if err != nil {
 			continue
 		}
-		if available, _ := r.IsAvailable(context.Background()); available {
+		if available, _ := r.IsAvailable(ctx); available {
 			return string(rt)
 		}
 	}

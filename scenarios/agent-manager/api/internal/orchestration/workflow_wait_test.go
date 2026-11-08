@@ -83,7 +83,7 @@ func TestWaitWorkflowExecutionBlocksUntilTerminal(t *testing.T) {
 	}
 
 	repo.set(domain.WorkflowExecutionSucceeded)
-	o.onWorkflowExecutionSettled(&domain.WorkflowExecution{ID: id, Status: domain.WorkflowExecutionSucceeded})
+	o.onWorkflowExecutionSettled(t.Context(), &domain.WorkflowExecution{ID: id, Status: domain.WorkflowExecutionSucceeded})
 
 	select {
 	case got := <-ch:
@@ -135,7 +135,7 @@ func TestWaitWorkflowExecutionSurvivesConcurrentWaiters(t *testing.T) {
 	}
 	awaitWorkflowWaiters(t, o, id, waiters)
 	repo.set(domain.WorkflowExecutionFailed)
-	o.onWorkflowExecutionSettled(&domain.WorkflowExecution{ID: id, Status: domain.WorkflowExecutionFailed})
+	o.onWorkflowExecutionSettled(t.Context(), &domain.WorkflowExecution{ID: id, Status: domain.WorkflowExecutionFailed})
 
 	waitDone := make(chan struct{})
 	go func() { wg.Wait(); close(waitDone) }()

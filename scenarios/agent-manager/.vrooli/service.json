@@ -121,7 +121,7 @@
         "api": "/health",
         "ui": "/health"
       },
-      "startup_grace_period": 30000,
+      "startup_grace_period": 90000,
       "checks": [
         {
           "name": "api_endpoint",
@@ -197,9 +197,10 @@
       "workspace-sandbox": {
         "type": "scenario",
         "enabled": true,
-        "required": true,
+        "required": false,
         "description": "Provides sandbox creation, diff generation, and patch application for isolated agent execution",
-        "startup_policy": "must_start"
+        "startup_policy": "try_start",
+        "degraded_behavior": "Agent Manager's API, retained run inspection and recovery controls remain available when Workspace Sandbox is down. Sandboxed run setup ensures the service is available and refuses the run if recovery fails; protected execution never falls back to an unsandboxed launch."
       },
       "vrooli-events": {
         "type": "scenario",

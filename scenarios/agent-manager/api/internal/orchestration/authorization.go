@@ -524,32 +524,51 @@ func missingAuthorizationCapabilities(ctx context.Context, policy authn.Policy) 
 }
 
 func (o *Orchestrator) managedAuthorizationRun(ctx context.Context, binding cliutil.ProcessBinding) (uuid.UUID, error) {
+	candidates, err := o.managedRunProcessCandidates(ctx)
+	if err != nil {
+		return uuid.Nil, err
+	}
 	managedID := uuid.Nil
+	for _, candidate := range candidates {
+		if candidate.ID == uuid.Nil || candidate.RunnerPID <= 1 {
+			return uuid.Nil, errors.New("invalid managed process candidate")
+		}
+		root, err := cliutil.ObserveProcessBinding(candidate.RunnerPID)
+		if err != nil {
+			continue
+		}
+		if cliutil.ProcessDescendsFrom(binding.PID, root) || cliutil.ProcessDescendsFrom(candidate.RunnerPID, binding) {
+			if managedID != uuid.Nil && managedID != candidate.ID {
+				return uuid.Nil, errors.New("process binding contains multiple managed runs; select an exact run")
+			}
+			managedID = candidate.ID
+		}
+	}
+	return managedID, nil
+}
+
+func (o *Orchestrator) managedRunProcessCandidates(ctx context.Context) ([]repository.RunProcessBinding, error) {
+	if reader, ok := o.runs.(repository.ManagedRunProcessReader); ok {
+		return reader.ListManagedRunProcesses(ctx)
+	}
+	// Retain the generic repository path for adapters without the projection.
+	var candidates []repository.RunProcessBinding
 	for offset := 0; ; offset += 100 {
 		runs, err := o.runs.List(ctx, repository.RunListFilter{ListFilter: repository.ListFilter{Limit: 100, Offset: offset}, NonTerminalOnly: true})
 		if err != nil {
-			return uuid.Nil, err
+			return nil, err
 		}
 		for _, run := range runs {
 			if run == nil || run.Status.IsTerminal() || run.RunnerPID <= 1 || run.ExecutionMode.Normalized() == domain.ExecutionModeAttached {
 				continue
 			}
-			root, err := cliutil.ObserveProcessBinding(run.RunnerPID)
-			if err != nil {
-				continue
-			}
-			if cliutil.ProcessDescendsFrom(binding.PID, root) || cliutil.ProcessDescendsFrom(run.RunnerPID, binding) {
-				if managedID != uuid.Nil && managedID != run.ID {
-					return uuid.Nil, errors.New("process binding contains multiple managed runs; select an exact run")
-				}
-				managedID = run.ID
-			}
+			candidates = append(candidates, repository.RunProcessBinding{ID: run.ID, RunnerPID: run.RunnerPID})
 		}
 		if len(runs) < 100 {
 			break
 		}
 	}
-	return managedID, nil
+	return candidates, nil
 }
 
 func (o *Orchestrator) GetAuthorization(ctx context.Context, id uuid.UUID) (*domain.AuthorizationGrant, error) {

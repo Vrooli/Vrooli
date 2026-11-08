@@ -34,4 +34,17 @@ func TestMaintenanceBatchHydratesDurableIdentityWithoutActionOrConfig(t *testing
 	if got.ResolvedConfig != nil || got.CustomEnv != nil || got.Actions != nil {
 		t.Fatal("inventory hydrated unrelated action/config/secret data")
 	}
+	// A complete retained inventory must not become one SQL statement with
+	// more bind parameters than the storage engine supports. Most requested
+	// identities are deliberately missing: the observer must detect that later,
+	// rather than the hydration query failing or fabricating run data.
+	refs := make([]maintenance.ExecutorRef, 65536)
+	for i := range refs {
+		refs[i] = maintenance.ExecutorRef{WorkRef: maintenance.WorkRef{ID: uuid.NewString()}}
+	}
+	refs[len(refs)-1].ID = run.ID.String()
+	identities, err = readMaintenanceExecutorIdentities(t.Context(), db, refs)
+	if err != nil || len(identities) != 1 || identities[0].ID != run.ID {
+		t.Fatalf("bounded hydration lost tail identity: identities=%d err=%v", len(identities), err)
+	}
 }

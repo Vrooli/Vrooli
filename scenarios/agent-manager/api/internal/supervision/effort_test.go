@@ -13,6 +13,7 @@ import (
 
 	"agent-manager/internal/domain"
 	"agent-manager/internal/repository"
+	"agent-manager/internal/stepback"
 
 	"github.com/google/uuid"
 	"github.com/vrooli/api-core/authn"
@@ -69,6 +70,34 @@ func TestEffortBoardLoadsPagedEnrollmentObservationsTogether(t *testing.T) {
 	}
 	if counting.getEffortCalls != 0 {
 		t.Fatalf("board issued %d per-row GetEffort reads; it should use the joined page query", counting.getEffortCalls)
+	}
+}
+
+func TestEffortBoardReadsRunAndMeteringFactsOnceForAWholePage(t *testing.T) {
+	s, repo, controller := effortFixture(t)
+	e := &pb.EffortEnrollment{EffortRef: "effort:batch-board", Revision: 1}
+	for i := 0; i < 75; i++ {
+		id := uuid.New()
+		controller.runs[id] = &domain.Run{ID: id, Status: domain.RunStatusComplete}
+		e.Subjects = append(e.Subjects, &pb.EffortSubject{Owner: "agent-manager", Kind: "run", Reference: id.String(), RunId: id.String(), Role: "worker"})
+	}
+	if err := repo.SaveEffort(context.Background(), e, &pb.EffortBoardRow{}, 0, "seed-effort-batch", "seed-effort-batch"); err != nil {
+		t.Fatal(err)
+	}
+	board, err := s.Board(context.Background(), &pb.GetEffortBoardRequest{EffortRef: e.EffortRef})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(board.Rows) != 1 || len(board.Rows[0].Assignments) != 75 {
+		t.Fatalf("board assignments = %d rows/%d assignments, want 1/75", len(board.Rows), func() int {
+			if len(board.Rows) == 0 {
+				return 0
+			}
+			return len(board.Rows[0].Assignments)
+		}())
+	}
+	if controller.boardBatchReads != 1 || controller.getRunReads != 0 {
+		t.Fatalf("run owner reads: batch=%d per-run=%d, want one batch and no per-run reads", controller.boardBatchReads, controller.getRunReads)
 	}
 }
 
@@ -941,5 +970,41 @@ func TestEffortRunRegistryPrioritizesCurrentOwnerOverHistoricalOffset(t *testing
 	}
 	if !discovery.Partial {
 		t.Fatal("bounded registry sampling should remain explicit")
+	}
+}
+
+// A worker's step-back triggers appear on its assignment. Which triggers fired
+// is subject evidence and changes the row identity; their measured detail
+// grows while the run works and changes neither identity.
+func TestEffortBoardShowsAssignedRunStepBackTriggersWithStableIdentities(t *testing.T) {
+	s, repo, controller := effortFixture(t)
+	worker := uuid.New()
+	controller.runs[worker] = &domain.Run{ID: worker, Status: domain.RunStatusRunning}
+	e := &pb.EffortEnrollment{EffortRef: "effort:drift", Revision: 1, Subjects: []*pb.EffortSubject{{Owner: "agent-manager", Kind: "run", Reference: worker.String(), RunId: worker.String(), Role: "worker"}}}
+	if err := repo.SaveEffort(context.Background(), e, &pb.EffortBoardRow{}, 0, "seed-effort-drift", "seed-effort-drift"); err != nil {
+		t.Fatal(err)
+	}
+	read := func(triggers ...stepback.Trigger) *pb.EffortBoardRow {
+		t.Helper()
+		controller.stepBack = map[uuid.UUID][]stepback.Trigger{worker: triggers}
+		board, err := s.Board(context.Background(), &pb.GetEffortBoardRequest{EffortRef: e.EffortRef})
+		if err != nil || len(board.Rows) != 1 || len(board.Rows[0].Assignments) != 1 {
+			t.Fatalf("board = %+v, %v", board, err)
+		}
+		return board.Rows[0]
+	}
+	quiet := read()
+	long := stepback.Trigger{ID: stepback.UnitPerTurn, Mechanism: "M1", Detail: "longest 3.2 h", Remedy: "end the turn"}
+	first := read(long)
+	if got := first.Assignments[0].GetStepBack(); len(got) != 1 || got[0].GetId() != stepback.UnitPerTurn || got[0].GetDetail() != "longest 3.2 h" {
+		t.Fatalf("assignment step-back = %+v", got)
+	}
+	if first.ChangeIdentity == quiet.ChangeIdentity {
+		t.Fatal("a newly fired trigger must change the row's subject identity")
+	}
+	long.Detail = "longest 3.9 h"
+	later := read(long)
+	if later.ChangeIdentity != first.ChangeIdentity || later.VisibilityChangeIdentity != first.VisibilityChangeIdentity {
+		t.Fatal("a growing trigger detail must not churn the row identities")
 	}
 }

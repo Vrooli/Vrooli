@@ -452,7 +452,7 @@ func (o *Orchestrator) commandResolver(run *domain.Run) runsignal.CommandResolve
 // Reconciler recovery, terminal-accounting receipts); the reconcile sweep
 // ProjectPendingInvocationReadModels projects marked runs idempotently, so a
 // projection that fails or is never attempted is retried, not lost.
-func (o *Orchestrator) projectTerminalInvocationReadModel(run *domain.Run) {
+func (o *Orchestrator) projectTerminalInvocationReadModel(parent context.Context, run *domain.Run) {
 	if run == nil {
 		return
 	}
@@ -460,7 +460,7 @@ func (o *Orchestrator) projectTerminalInvocationReadModel(run *domain.Run) {
 	if !ok {
 		return
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), projectionMarkTimeout)
+	ctx, cancel := context.WithTimeout(context.WithoutCancel(parent), projectionMarkTimeout)
 	defer cancel()
 	if err := queue.MarkProjectionPending(ctx, run.ID.String(), o.now()); err != nil {
 		obs.Component("invocation-read-model").Warn("needs-projection mark failed; the stale sweep will enqueue the run", obs.KeyRunID, run.ID.String(), obs.KeyError, err.Error())

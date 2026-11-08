@@ -46,9 +46,11 @@ func (h *Handler) CreateRun(w http.ResponseWriter, r *http.Request) {
 	// or calling orchestration; localhost, parentRunId and profile labels are
 	// not caller proof. Offered credentials still pass the existing verifiers.
 	// AUTH-01 holds absence only while VROOLI_AUTH01_ENFORCE is on (P-18).
-	if owneridentity.CreateRunCallerEnforced() && strings.TrimSpace(r.Header.Get("Authorization")) == "" && strings.TrimSpace(r.Header.Get(cliutil.HeaderAgentIdentityToken)) == "" {
+	principal, hasPrincipal := requestidentity.PrincipalFromContext(r.Context())
+	verifiedHuman := hasPrincipal && principal.IsHuman()
+	if owneridentity.CreateRunCallerEnforced() && !verifiedHuman && strings.TrimSpace(r.Header.Get("Authorization")) == "" && strings.TrimSpace(r.Header.Get(cliutil.HeaderAgentIdentityToken)) == "" {
 		writeJSON(w, http.StatusUnauthorized, map[string]string{
-			"error": "create-run requires verified caller identity: human Authorization or exact-parent X-Agent-Identity-Token",
+			"error": "create-run requires verified caller identity: authenticated human, human Authorization or exact-parent X-Agent-Identity-Token",
 		})
 		return
 	}
@@ -266,6 +268,9 @@ func (h *Handler) CreateRun(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		req.ParentRunID = &parentRunID
+	}
+	if protoReq.CharterPath != nil {
+		req.CharterPath = protoReq.GetCharterPath()
 	}
 
 	run, err := h.svc.CreateRun(r.Context(), req)
@@ -488,14 +493,12 @@ func (h *Handler) ListRuns(w http.ResponseWriter, r *http.Request) {
 		appliesInvestigationRunID = &parsed
 	}
 
-	var parentRunID *uuid.UUID
 	if value := queryFirst(r, "parent_run_id", "parentRunId"); value != "" {
-		parsed, err := uuid.Parse(value)
-		if err != nil {
+		if _, err := uuid.Parse(value); err != nil {
 			writeSimpleError(w, r, "parent_run_id", "invalid UUID format")
 			return
 		}
-		parentRunID = &parsed
+		req.ParentRunId = &value
 	}
 
 	if queryFirst(r, "top_level", "topLevel") == "true" {
@@ -537,7 +540,7 @@ func (h *Handler) ListRuns(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	response, err := h.listRunsProto(r.Context(), &req, investigatesRunID, appliesInvestigationRunID, parentRunID)
+	response, err := h.listRunsProto(r.Context(), &req, investigatesRunID, appliesInvestigationRunID)
 	if err != nil {
 		writeError(w, r, err)
 		return
@@ -547,7 +550,7 @@ func (h *Handler) ListRuns(w http.ResponseWriter, r *http.Request) {
 
 const defaultRunListLimit = 100
 
-func (h *Handler) listRunsProto(ctx context.Context, req *apipb.ListRunsRequest, investigatesRunID, appliesInvestigationRunID, parentRunID *uuid.UUID) (*apipb.ListRunsResponse, error) {
+func (h *Handler) listRunsProto(ctx context.Context, req *apipb.ListRunsRequest, investigatesRunID, appliesInvestigationRunID *uuid.UUID) (*apipb.ListRunsResponse, error) {
 	opts := orchestration.RunListOptions{}
 	if req.GetStatus() != domainpb.RunStatus_RUN_STATUS_UNSPECIFIED {
 		status := protoconv.RunStatusFromProto(req.GetStatus())
@@ -572,7 +575,13 @@ func (h *Handler) listRunsProto(ctx context.Context, req *apipb.ListRunsRequest,
 	}
 	opts.InvestigatesRunID = investigatesRunID
 	opts.AppliesInvestigationRunID = appliesInvestigationRunID
-	opts.ParentRunID = parentRunID
+	if req.ParentRunId != nil {
+		parentID, err := uuid.Parse(req.GetParentRunId())
+		if err != nil {
+			return nil, domain.NewValidationError("parent_run_id", "invalid UUID format")
+		}
+		opts.ParentRunID = &parentID
+	}
 	opts.TopLevelOnly = req.GetTopLevel()
 	opts.Origin = req.GetOrigin()
 	if req.Limit != nil {

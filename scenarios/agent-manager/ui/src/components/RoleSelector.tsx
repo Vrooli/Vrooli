@@ -7,6 +7,7 @@ interface RoleSelectorProps {
   onChange: (roleRef: string) => void;
   label?: string;
   id?: string;
+  testId?: string;
 }
 
 // Role selection is the only mutable coding-agent intent exposed by the UI.
@@ -17,6 +18,7 @@ export function RoleSelector({
   onChange,
   label = "Role",
   id = "roleRef",
+  testId,
 }: RoleSelectorProps) {
   const roles = catalog?.roles ?? [];
   const effectiveValue = value || catalog?.defaultRole || "";
@@ -26,6 +28,7 @@ export function RoleSelector({
       <Label htmlFor={id}>{label} *</Label>
       <select
         id={id}
+        data-testid={testId}
         value={effectiveValue}
         onChange={(event) => onChange(event.target.value)}
         className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"

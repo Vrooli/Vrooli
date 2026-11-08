@@ -6,6 +6,7 @@ import {
   selectReconciliationIntents,
   selectRunEvents,
   type RunSnapshot,
+  type RunEventReconciliationIntent,
 } from "../lib/runEventStore";
 
 export function useRunEventStore() {
@@ -15,7 +16,7 @@ export function useRunEventStore() {
     () => ({
       runStatusReceived: (run: RunSnapshot) => dispatch({ type: "runStatusReceived", run }),
       runEventReceived: (event: RunEvent) => dispatch({ type: "runEventReceived", event }),
-      eventsGapFilled: (runId: string, events: RunEvent[]) => dispatch({ type: "eventsGapFilled", runId, events }),
+      eventsGapFilled: (runId: string, events: RunEvent[], intent?: RunEventReconciliationIntent) => dispatch({ type: "eventsGapFilled", runId, events, intent }),
       runSnapshotLoaded: (run: Run) => dispatch({ type: "runSnapshotLoaded", run }),
       runsSnapshotLoaded: (runs: Run[]) => dispatch({ type: "runsSnapshotLoaded", runs }),
       taskStatusReceived: (task: Partial<Task> & { id: string }) => dispatch({ type: "taskStatusReceived", task }),
@@ -25,7 +26,7 @@ export function useRunEventStore() {
       unsubscribeAll: () => dispatch({ type: "unsubscribeAll" }),
       connected: () => dispatch({ type: "connected" }),
       disconnected: () => dispatch({ type: "disconnected" }),
-      clearReconciliationIntent: (runId: string) => dispatch({ type: "clearReconciliationIntent", runId }),
+      clearReconciliationIntent: (runId: string, intent?: RunEventReconciliationIntent) => dispatch({ type: "clearReconciliationIntent", runId, intent }),
     }),
     []
   );

@@ -495,7 +495,7 @@ func (o *Orchestrator) recoverTerminalSandboxLifecycle(ctx context.Context, run 
 		// Finalization was already successful, but an older process may have
 		// crashed between provenance persistence and lifecycle teardown. Re-run
 		// only the idempotent lifecycle seam; never re-apply or execute.
-		phases.Finalize(phases.FinalizeInput{
+		phases.Finalize(ctx, phases.FinalizeInput{
 			Deps:      phases.Deps{Runs: o.runs, Events: o.events, Broadcaster: o.broadcaster, Levers: o.runLevers(), WorkspaceSandbox: o.workspaceSandbox},
 			Run:       run,
 			SandboxID: run.SandboxID,
@@ -528,7 +528,7 @@ func (o *Orchestrator) recoverTerminalSandboxLifecycle(ctx context.Context, run 
 				return nil, fmt.Errorf("persist empty-sandbox recovery: %w", err)
 			}
 		}
-		phases.Finalize(phases.FinalizeInput{
+		phases.Finalize(ctx, phases.FinalizeInput{
 			Deps:      phases.Deps{Runs: o.runs, Events: o.events, Broadcaster: o.broadcaster, Levers: o.runLevers(), WorkspaceSandbox: o.workspaceSandbox},
 			Run:       run,
 			SandboxID: run.SandboxID,

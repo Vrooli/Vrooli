@@ -11,6 +11,7 @@ import (
 
 	"agent-manager/internal/domain"
 	"agent-manager/internal/repository"
+	"agent-manager/internal/runmodel"
 
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
@@ -24,8 +25,9 @@ import (
 // ============================================================================
 
 type runRepository struct {
-	db  *DB
-	log *logrus.Logger
+	terminalReceiptScope *runmodel.TerminalReceiptScope
+	db                   *DB
+	log                  *logrus.Logger
 }
 
 func nullableTimesEqual(left, right NullableTime) bool {
@@ -113,6 +115,8 @@ type runRow struct {
 	SourceRunIDs             sql.NullString        `db:"source_run_ids"`
 	SourceInvestigationRunID NullableUUID          `db:"source_investigation_run_id"`
 	ParentRunID              NullableUUID          `db:"parent_run_id"`
+	Depth                    int                   `db:"depth"`
+	CharterPath              string                `db:"charter_path"`
 	ConversationID           sql.NullString        `db:"conversation_id"`
 	// Identity token fields
 	IdentityTokenHash         sql.NullString `db:"identity_token_hash"`
@@ -208,6 +212,8 @@ func (row *runRow) toDomain() *domain.Run {
 		SourceRunIDs:                   sourceRunIDs,
 		SourceInvestigationRunID:       row.SourceInvestigationRunID.ToPtr(),
 		ParentRunID:                    row.ParentRunID.ToPtr(),
+		Depth:                          row.Depth,
+		CharterPath:                    row.CharterPath,
 		ConversationID:                 row.ConversationID.String,
 		// Identity token fields
 		IdentityTokenHash:         row.IdentityTokenHash.String,
@@ -311,6 +317,8 @@ func runFromDomain(r *domain.Run) *runRow {
 		SourceRunIDs:                   sql.NullString{String: sourceRunIDs, Valid: sourceRunIDs != ""},
 		SourceInvestigationRunID:       NewNullableUUID(r.SourceInvestigationRunID),
 		ParentRunID:                    NewNullableUUID(r.ParentRunID),
+		Depth:                          r.Depth,
+		CharterPath:                    r.CharterPath,
 		ConversationID:                 sql.NullString{String: r.ConversationID, Valid: r.ConversationID != ""},
 		// Identity token fields
 		IdentityTokenHash:         sql.NullString{String: r.IdentityTokenHash, Valid: r.IdentityTokenHash != ""},
@@ -499,7 +507,7 @@ const runColumns = `id, lifecycle_version, owner_identity, owner_epoch, task_id,
 	finalization_status, finalization_error, finalized_at,
 	resolved_config, diff_path, log_path, changed_files, total_size_bytes, commit_hash, sandbox_config, session_id,
 	runner_pid, runner_pgid, transcript_path, transcript_cursor, transcript_last_seq, import_source_harness, import_source_session_id, imported_at,
-	source_run_ids, source_investigation_run_id, parent_run_id, conversation_id,
+	source_run_ids, source_investigation_run_id, parent_run_id, depth, charter_path, conversation_id,
 	identity_token_hash, identity_token_revoked_at, identity_renewal_anchor_hash, identity_token_issued_at, custom_env, await_handle,
 	effort_signal_cursors,
 	last_await_key, last_await_result, last_await_resolved_at, last_wake_seq, same_key_park_streak,
@@ -518,7 +526,7 @@ const listRunColumns = `id, lifecycle_version, owner_identity, owner_epoch, task
 	error_msg, exit_code, approval_state, finalization_status, finalization_error, finalized_at,
 	changed_files, total_size_bytes, commit_hash, session_id,
 	runner_pid, runner_pgid, transcript_path, transcript_cursor, transcript_last_seq, import_source_harness, import_source_session_id, imported_at,
-	source_run_ids, source_investigation_run_id, parent_run_id, conversation_id,
+	source_run_ids, source_investigation_run_id, parent_run_id, depth, charter_path, conversation_id,
 	requested_model, actual_model, canary_arm,
 	created_at, updated_at`
 
@@ -585,6 +593,8 @@ type listRunLiteRow struct {
 	SourceRunIDs             sql.NullString `db:"source_run_ids"`
 	SourceInvestigationRunID NullableUUID   `db:"source_investigation_run_id"`
 	ParentRunID              NullableUUID   `db:"parent_run_id"`
+	Depth                    int            `db:"depth"`
+	CharterPath              string         `db:"charter_path"`
 	ConversationID           sql.NullString `db:"conversation_id"`
 	RequestedModel           sql.NullString `db:"requested_model"`
 	ActualModel              sql.NullString `db:"actual_model"`
@@ -653,6 +663,8 @@ func (row *listRunLiteRow) toDomain() *domain.Run {
 		SourceRunIDs:                   sourceRunIDs,
 		SourceInvestigationRunID:       row.SourceInvestigationRunID.ToPtr(),
 		ParentRunID:                    row.ParentRunID.ToPtr(),
+		Depth:                          row.Depth,
+		CharterPath:                    row.CharterPath,
 		ConversationID:                 row.ConversationID.String,
 		RequestedModel:                 row.RequestedModel.String,
 		ActualModel:                    row.ActualModel.String,
@@ -690,6 +702,11 @@ func prepareRunForInsert(run *domain.Run) {
 	run.UpdatedAt = now
 }
 
+// derivedRunDepthSQL is the single derivation of runs.depth: a root is 0 and a
+// child is its parent's depth + 1, read in the writing transaction. A child
+// whose parent row is gone still has a parent, so it is at least 1.
+const derivedRunDepthSQL = `COALESCE((SELECT parent.depth + 1 FROM runs parent WHERE parent.id = :parent_run_id), CASE WHEN :parent_run_id IS NULL THEN 0 ELSE 1 END)`
+
 func (r *runRepository) insertRun(ctx context.Context, tx *Tx, run *domain.Run) error {
 	row := runFromDomain(run)
 	query := `INSERT INTO runs (id, lifecycle_version, owner_identity, owner_epoch, task_id, agent_profile_id, tag, label, label_source, subject, owner_subject, owner_expires_at, owner_scopes, requested_scopes, work_references, workload_kind, workload_key, workload_instance, billing_snapshot, sandbox_id, run_mode,
@@ -699,7 +716,7 @@ func (r *runRepository) insertRun(ctx context.Context, tx *Tx, run *domain.Run) 
 			finalization_status, finalization_error, finalized_at,
 			resolved_config, diff_path, log_path, changed_files, total_size_bytes, commit_hash, sandbox_config, session_id,
 			runner_pid, runner_pgid, transcript_path, transcript_cursor, transcript_last_seq, import_source_harness, import_source_session_id, imported_at,
-			source_run_ids, source_investigation_run_id, parent_run_id, conversation_id,
+			source_run_ids, source_investigation_run_id, parent_run_id, depth, charter_path, conversation_id,
 			identity_token_hash, identity_token_revoked_at, identity_renewal_anchor_hash, identity_token_issued_at, custom_env, await_handle,
 			last_await_key, last_await_result, last_await_resolved_at, last_wake_seq, same_key_park_streak,
 			requested_model, actual_model, canary_arm,
@@ -711,7 +728,7 @@ func (r *runRepository) insertRun(ctx context.Context, tx *Tx, run *domain.Run) 
 			:finalization_status, :finalization_error, :finalized_at,
 			:resolved_config, :diff_path, :log_path, :changed_files, :total_size_bytes, :commit_hash, :sandbox_config, :session_id,
 			:runner_pid, :runner_pgid, :transcript_path, :transcript_cursor, :transcript_last_seq, :import_source_harness, :import_source_session_id, :imported_at,
-			:source_run_ids, :source_investigation_run_id, :parent_run_id, :conversation_id,
+			:source_run_ids, :source_investigation_run_id, :parent_run_id, ` + derivedRunDepthSQL + `, :charter_path, :conversation_id,
 			:identity_token_hash, :identity_token_revoked_at, :identity_renewal_anchor_hash, :identity_token_issued_at, :custom_env, :await_handle,
 			:last_await_key, :last_await_result, :last_await_resolved_at, :last_wake_seq, :same_key_park_streak,
 			:requested_model, :actual_model, :canary_arm,
@@ -739,6 +756,39 @@ func (r *runRepository) Get(ctx context.Context, id uuid.UUID) (*domain.Run, err
 		return nil, wrapDBError("get", "Run", id.String(), err)
 	}
 	return row.toDomain(), nil
+}
+
+// GetMany loads full run snapshots with one owner query. Missing identities are
+// omitted from the result; callers retain the requested set when deciding
+// whether missing evidence is partial.
+func (r *runRepository) GetMany(ctx context.Context, ids []uuid.UUID) (map[uuid.UUID]*domain.Run, error) {
+	result := make(map[uuid.UUID]*domain.Run, len(ids))
+	if len(ids) == 0 {
+		return result, nil
+	}
+	const batchSize = 500
+	for start := 0; start < len(ids); start += batchSize {
+		end := start + batchSize
+		if end > len(ids) {
+			end = len(ids)
+		}
+		batch := ids[start:end]
+		marks := strings.TrimSuffix(strings.Repeat("?,", len(batch)), ",")
+		args := make([]interface{}, len(batch))
+		for i, id := range batch {
+			args[i] = id
+		}
+		query := fmt.Sprintf("SELECT %s FROM runs WHERE id IN (%s)", runColumns, marks)
+		var rows []runRow
+		if err := r.db.SelectContext(ctx, &rows, query, args...); err != nil {
+			return nil, wrapDBError("get_many", "Run", "", err)
+		}
+		for i := range rows {
+			run := rows[i].toDomain()
+			result[run.ID] = run
+		}
+	}
+	return result, nil
 }
 
 // getTx reads the current canonical run within an existing owner transaction.
@@ -781,8 +831,8 @@ func (r *runRepository) UpdateRunLabel(ctx context.Context, id uuid.UUID, label 
 	if source == "" {
 		return fmt.Errorf("run label source is required")
 	}
-	const query = `UPDATE runs SET label = ?, label_source = ? WHERE id = ?`
-	if _, err := r.db.ExecContext(ctx, query, label, string(source), id); err != nil {
+	const query = `UPDATE runs SET label = ?, label_source = ?, updated_at = ? WHERE id = ?`
+	if _, err := r.db.ExecContext(ctx, query, label, string(source), SQLiteTime(time.Now()), id); err != nil {
 		return wrapDBError("update_label", "Run", id.String(), err)
 	}
 	return nil
@@ -794,7 +844,7 @@ func (r *runRepository) UpdateRunSubject(ctx context.Context, id uuid.UUID, subj
 	if err != nil {
 		return fmt.Errorf("marshal run subject: %w", err)
 	}
-	if _, err := r.db.ExecContext(ctx, `UPDATE runs SET subject = ? WHERE id = ?`, string(encoded), id); err != nil {
+	if _, err := r.db.ExecContext(ctx, `UPDATE runs SET subject = ?, updated_at = ? WHERE id = ?`, string(encoded), SQLiteTime(time.Now()), id); err != nil {
 		return wrapDBError("update_subject", "Run", id.String(), err)
 	}
 	return nil

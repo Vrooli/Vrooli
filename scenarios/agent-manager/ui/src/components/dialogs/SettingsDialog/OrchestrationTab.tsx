@@ -235,6 +235,29 @@ export const OrchestrationTab = React.forwardRef<OrchestrationTabHandle, Orchest
                   increase cost and time.
                 </p>
               </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="maxChildDepth">Max Child Depth</Label>
+                <div className="flex items-center gap-2">
+                  <Input
+                    id="maxChildDepth"
+                    type="number"
+                    min={0}
+                    max={10}
+                    step={1}
+                    value={draft.runExecution.maxChildDepth}
+                    onChange={(e) =>
+                      updateDraft("runExecution", "maxChildDepth", Number(e.target.value))
+                    }
+                    className="h-8"
+                  />
+                  <span className="text-xs text-muted-foreground shrink-0">levels</span>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Deepest nesting of child runs (a root run is 0). Deeper children are refused, and
+                  agents fall back to native sub-agents. 0 disables Agent Manager child runs.
+                </p>
+              </div>
             </div>
           </CardContent>
         </Card>

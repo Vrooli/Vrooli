@@ -95,6 +95,8 @@ CREATE TABLE IF NOT EXISTS runs (
     source_run_ids TEXT DEFAULT '[]',
     source_investigation_run_id TEXT,
     parent_run_id TEXT,
+    depth INTEGER NOT NULL DEFAULT 0,
+    charter_path TEXT NOT NULL DEFAULT '',
     conversation_id TEXT DEFAULT '',
     identity_token_hash TEXT,
     identity_token_revoked_at TEXT,
@@ -218,9 +220,77 @@ BEGIN
     UPDATE tasks SET updated_at = datetime('now') WHERE id = NEW.id;
 END;
 
-CREATE TRIGGER IF NOT EXISTS update_runs_updated_at
-    AFTER UPDATE ON runs
-    FOR EACH ROW
-BEGIN
-    UPDATE runs SET updated_at = datetime('now') WHERE id = NEW.id;
+-- Run repositories own the committed nanosecond revision. The former trigger
+-- replaced every explicit revision with second-precision wall time, making
+-- HTTP and notification ordering ambiguous. Retire it on existing databases
+-- as well as omitting it for fresh ones; rows and their history are preserved.
+DROP TRIGGER IF EXISTS update_runs_updated_at;
+
+-- Prospective terminal observations. No backfill; no cascade from mutable run
+-- or task rows. Capture is disabled by the normal repository constructor.
+CREATE TABLE IF NOT EXISTS run_terminal_receipt_source (
+    singleton INTEGER PRIMARY KEY CHECK (singleton = 1),
+    source_instance TEXT NOT NULL,
+    source_epoch TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS run_terminal_receipts (
+    run_id TEXT NOT NULL,
+    lifecycle_version INTEGER NOT NULL CHECK (lifecycle_version > 0),
+    source_instance TEXT NOT NULL,
+    source_epoch TEXT NOT NULL,
+    observation_json TEXT NOT NULL,
+    observation_sha256 TEXT NOT NULL,
+    event_intent_json TEXT NOT NULL,
+    event_intent_id TEXT NOT NULL UNIQUE,
+    PRIMARY KEY (run_id, lifecycle_version)
+);
+CREATE TRIGGER IF NOT EXISTS run_terminal_receipts_no_update
+BEFORE UPDATE ON run_terminal_receipts BEGIN
+    SELECT RAISE(ABORT, 'terminal receipts are immutable');
 END;
+CREATE TRIGGER IF NOT EXISTS run_terminal_receipts_no_delete
+BEFORE DELETE ON run_terminal_receipts BEGIN
+    SELECT RAISE(ABORT, 'terminal receipts are immutable');
+END;
+CREATE TRIGGER IF NOT EXISTS run_terminal_receipt_source_no_update
+BEFORE UPDATE ON run_terminal_receipt_source BEGIN
+    SELECT RAISE(ABORT, 'terminal receipt source is immutable');
+END;
+CREATE TRIGGER IF NOT EXISTS run_terminal_receipt_source_no_delete
+BEFORE DELETE ON run_terminal_receipt_source BEGIN
+    SELECT RAISE(ABORT, 'terminal receipt source is immutable');
+END;
+
+-- Separate from immutable terminal observations: only durable Events acceptance
+-- is retained here. No cascade from mutable runs or tasks, no implicit dispatch.
+CREATE TABLE IF NOT EXISTS run_terminal_event_acknowledgments (
+    event_intent_id TEXT PRIMARY KEY REFERENCES run_terminal_receipts(event_intent_id),
+    acknowledgment_json TEXT NOT NULL
+);
+CREATE TRIGGER IF NOT EXISTS run_terminal_event_acknowledgments_no_update
+BEFORE UPDATE ON run_terminal_event_acknowledgments BEGIN
+    SELECT RAISE(ABORT, 'terminal event acknowledgments are immutable');
+END;
+CREATE TRIGGER IF NOT EXISTS run_terminal_event_acknowledgments_no_delete
+BEFORE DELETE ON run_terminal_event_acknowledgments BEGIN
+    SELECT RAISE(ABORT, 'terminal event acknowledgments are immutable');
+END;
+
+-- SQLite REPLACE can bypass DELETE triggers when recursive_triggers is off.
+-- Guard conflicting INSERTs as well, preserving exact no-op acknowledgments.
+CREATE TRIGGER IF NOT EXISTS run_terminal_receipts_no_replace
+BEFORE INSERT ON run_terminal_receipts
+WHEN EXISTS (SELECT 1 FROM run_terminal_receipts WHERE
+    (run_id=NEW.run_id AND lifecycle_version=NEW.lifecycle_version)
+    OR event_intent_id=NEW.event_intent_id)
+BEGIN SELECT RAISE(ABORT, 'terminal receipts cannot be replaced'); END;
+CREATE TRIGGER IF NOT EXISTS run_terminal_receipt_source_no_replace
+BEFORE INSERT ON run_terminal_receipt_source
+WHEN EXISTS (SELECT 1 FROM run_terminal_receipt_source WHERE singleton=NEW.singleton
+    AND (source_instance!=NEW.source_instance OR source_epoch!=NEW.source_epoch))
+BEGIN SELECT RAISE(ABORT, 'terminal receipt source cannot be replaced'); END;
+CREATE TRIGGER IF NOT EXISTS run_terminal_event_acknowledgments_no_replace
+BEFORE INSERT ON run_terminal_event_acknowledgments
+WHEN EXISTS (SELECT 1 FROM run_terminal_event_acknowledgments
+    WHERE event_intent_id=NEW.event_intent_id AND acknowledgment_json!=NEW.acknowledgment_json)
+BEGIN SELECT RAISE(ABORT, 'terminal event acknowledgments cannot be replaced'); END;

@@ -109,7 +109,7 @@ func TestInvestigationAwaitingApprovalIsAskedInTheInboxAndAnsweredThere(t *testi
 		t.Fatal(err)
 	}
 	launcher.fake.complete(investigateRun, findings)
-	o.nudgeWorkflowForRun(investigateRun)
+	o.nudgeWorkflowForRun(t.Context(), investigateRun)
 	waitForWaitNode(t, o, execution.ID, "await-approval")
 
 	askRef := ""

@@ -372,7 +372,7 @@ func TestTailToCompletionReattachesAfterClearedInterruptionAndResetsForNextCycle
 	}
 	path := filepath.Join(t.TempDir(), "rollout.jsonl")
 	initial := strings.Join(lines[:2], "\n") + "\n"
-	if err := os.WriteFile(path, []byte(initial), 0600); err != nil {
+	if err := os.WriteFile(path, []byte(initial), 0o600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -436,7 +436,7 @@ func TestTailToCompletionReattachesAfterClearedInterruptionAndResetsForNextCycle
 		t.Fatalf("second interruption recovery sends = %q, want one fresh resume command", sends)
 	}
 
-	f, err := os.OpenFile(path, os.O_APPEND|os.O_WRONLY, 0600)
+	f, err := os.OpenFile(path, os.O_APPEND|os.O_WRONLY, 0o600)
 	if err != nil {
 		t.Fatal(err)
 	}

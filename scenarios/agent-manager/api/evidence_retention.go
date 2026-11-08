@@ -14,6 +14,7 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/vrooli/api-core/operatordecision"
 	corestorage "github.com/vrooli/api-core/storage"
+	repocontract "github.com/vrooli/repo-contract-go"
 	pb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
 )
 
@@ -41,9 +42,9 @@ func (s *Server) buildEvidenceRetention(repoRoot string, publisher operatordecis
 	if err != nil {
 		return nil, nil, err
 	}
-	root := strings.TrimSpace(os.Getenv("AGENT_MANAGER_EVIDENCE_ROOT"))
-	if root == "" {
-		root = filepath.Join(home, ".vrooli", "evidence")
+	roots, err := resolveEvidenceRoots(home, os.Getenv)
+	if err != nil {
+		return nil, nil, err
 	}
 	resolver, err := corestorage.NewResolver(corestorage.ResolverConfig{})
 	if err != nil {
@@ -54,8 +55,8 @@ func (s *Server) buildEvidenceRetention(repoRoot string, publisher operatordecis
 		return nil, nil, err
 	}
 	service, err := evidenceretention.New(evidenceretention.Options{
-		Root:           root,
-		ReferenceRoots: []string{repoRoot, filepath.Join(home, ".vrooli", "plan-artifacts"), filepath.Join(home, ".vrooli", "research")},
+		Root:           roots.evidence,
+		ReferenceRoots: append([]string{repoRoot}, roots.references...),
 		ReceiptDir:     receipts,
 		Efforts:        s.evidenceEfforts,
 	})
@@ -64,6 +65,47 @@ func (s *Server) buildEvidenceRetention(repoRoot string, publisher operatordecis
 	}
 	asks := evidenceretention.NewFileAskStore(filepath.Join(receipts, "approvals"))
 	return service, evidenceretention.NewApprovals(service, asks, evidenceretention.NewApprovalRaiser(asks, publisher)), nil
+}
+
+// evidenceRoots are the runtime-home trees evidence retention reads: the
+// evidence home it owns and the work-record trees whose references keep
+// evidence alive.
+type evidenceRoots struct {
+	evidence   string
+	references []string
+}
+
+// resolveEvidenceRoots resolves the evidence home and the plan-artifact and
+// research reference trees through the repository contract's runtime_home
+// entries, which declare those trees and their owners. They are runtime-home
+// entries, not scenario storage classes, so VROOLI_STORAGE_ROOT does not move
+// them; AGENT_MANAGER_EVIDENCE_ROOT overrides only the evidence home.
+func resolveEvidenceRoots(home string, getenv func(string) string) (evidenceRoots, error) {
+	entry := func(key string) (string, error) {
+		path, err := repocontract.RuntimeHomeEntryPath(home, key)
+		if err != nil {
+			return "", fmt.Errorf("resolve runtime-home %s entry: %w", key, err)
+		}
+		return path, nil
+	}
+	var roots evidenceRoots
+	if override := strings.TrimSpace(getenv("AGENT_MANAGER_EVIDENCE_ROOT")); override != "" {
+		roots.evidence = override
+	} else {
+		evidence, err := entry(repocontract.HomeKeyEvidence)
+		if err != nil {
+			return evidenceRoots{}, err
+		}
+		roots.evidence = evidence
+	}
+	for _, key := range []string{repocontract.HomeKeyPlanArtifacts, repocontract.HomeKeyResearch} {
+		path, err := entry(key)
+		if err != nil {
+			return evidenceRoots{}, err
+		}
+		roots.references = append(roots.references, path)
+	}
+	return roots, nil
 }
 
 // decisionEffects lists the notification-hub resolution owners that live

@@ -29,15 +29,15 @@ var fingerprintPositional = cliapp.Positional{Name: "fingerprint", Required: tru
 var findingSinceFlag = cliapp.Flag{Name: "since", Description: "RFC 3339 start of the window the finding was listed in, as given to `usage friction` (default 7 days ago)"}
 
 func frictionCommand(newClient clientFor) cliapp.Command {
-	return usageCommand("friction", "What keeps going wrong for agents? Owner-level tool problems and classified operator interventions [--since RFC3339] [--status open|reported|dismissed] [--json]",
-		"Lists owner-level tool problems from the tool friction profiles of the window (default the last 7 days): failures clustered by error signature, degradations a CLI reports, shape guessing, heavy output, polling and bypasses of a scenario's CLI. Each names its owner, cost in the unit of its harm (calls, time or context tokens) and share of the window's total, example commands and evidence runs. Operator interventions follow: operator messages the classifier put in a friction category that passed the accuracy gate, counted per category and owner with interventions per agent-hour, the agent work before them and example messages. While no category has passed the gate the section gives the classification coverage and says so. The coverage line says what the profiles could see: an empty list means nothing only beside it. `usage friction-report <fingerprint>` files a problem in the scenario-qa bug inbox and records the bug id; `usage friction-dismiss <fingerprint>` sets it aside.",
-		[]cliapp.Flag{{Name: "since", Description: "RFC 3339 start of the friction window (default 7 days ago)"}, {Name: "status", Description: "open | reported | dismissed (default: all)"}, limitFlag},
+	return usageCommand("friction", "What keeps going wrong for agents? Owner-level tool problems and classified operator interventions [--since RFC3339] [--status open|reported|dismissed] [--owner scenario] [--json]",
+		"Lists owner-level tool problems from the tool friction profiles of the window (default the last 7 days): failures clustered by error signature, degradations a CLI reports, shape guessing, heavy output, polling and bypasses of a scenario's CLI. Each names its owner, cost in the unit of its harm (calls, time or context tokens) and share of the window's total, example commands and evidence runs. Operator interventions follow: the operator corrections and failure reports the proven operator-signal gate admits, with example messages; then operator messages the classifier put in a friction category that passed the accuracy gate, counted per category and owner with interventions per agent-hour, the agent work before them and example messages. While no category has passed the gate the section gives the classification coverage and says so. The coverage line says what the profiles could see: an empty list means nothing only beside it. `usage friction-report <fingerprint>` files a problem in the scenario-qa bug inbox and records the bug id; `usage friction-dismiss <fingerprint>` sets it aside.",
+		[]cliapp.Flag{{Name: "since", Description: "RFC 3339 start of the friction window (default 7 days ago)"}, {Name: "status", Description: "open | reported | dismissed (default: all)"}, {Name: "owner", Description: "Filter findings and profiles to one owning scenario"}, limitFlag},
 		func(op cliapp.OperationContext) (proto.Message, error) {
 			limit, err := parseLimit(op)
 			if err != nil {
 				return nil, err
 			}
-			response, err := newClient(op.Core()).UsageFriction(context.Background(), connect.NewRequest(&measurepb.UsageFrictionRequest{Since: strings.TrimSpace(op.Flag("since")), Status: strings.TrimSpace(op.Flag("status")), Limit: limit}))
+			response, err := newClient(op.Core()).UsageFriction(context.Background(), connect.NewRequest(&measurepb.UsageFrictionRequest{Since: strings.TrimSpace(op.Flag("since")), Status: strings.TrimSpace(op.Flag("status")), Owner: strings.TrimSpace(op.Flag("owner")), Limit: limit}))
 			if err != nil {
 				return nil, err
 			}
@@ -75,8 +75,9 @@ func interventionLines(section *measurepb.UsageInterventions) []string {
 		return []string{"Operator interventions: unavailable"}
 	}
 	lines := []string{fmt.Sprintf("Operator interventions: %d operator messages, %.0f%% classified over %.1f agent-hours", section.GetOperatorMessages(), 100*section.GetCoverage(), section.GetAgentHours())}
+	lines = append(lines, correctionLines(section.GetCorrections())...)
 	if len(section.GetCategories()) == 0 {
-		return append(lines, "   none shown: "+section.GetUnshownReason()+" (this is not \"no friction\")")
+		return append(lines, "   by category: none shown: "+section.GetUnshownReason()+" (this is not \"no friction\")")
 	}
 	for _, c := range section.GetCategories() {
 		name, owner := c.GetCategory(), "owner "+c.GetOwner()
@@ -102,6 +103,23 @@ func interventionLines(section *measurepb.UsageInterventions) []string {
 			line += " · repeats " + e.GetRepeatOfEventId()
 		}
 		lines = append(lines, line)
+	}
+	return lines
+}
+
+// correctionLines renders the operator corrections and failure reports the
+// proven operator-signal gate admits: what the operator rejected, in their words.
+func correctionLines(c *measurepb.UsageOperatorCorrections) []string {
+	if c == nil {
+		return nil
+	}
+	accuracy := "precision unknown"
+	if c.GetPrecision() > 0 {
+		accuracy = fmt.Sprintf("hold-out precision %.2f, recall %.2f", c.GetPrecision(), c.GetRecall())
+	}
+	lines := []string{fmt.Sprintf("   corrections and failure reports · %d of %d classified messages (%.2f per agent-hour) · %s", c.GetCount(), c.GetClassified(), c.GetPerAgentHour(), accuracy)}
+	for _, e := range c.GetExamples() {
+		lines = append(lines, fmt.Sprintf("   e.g. %q  run %s (agent-manager run report %s)", e.GetText(), e.GetRunId(), e.GetRunId()))
 	}
 	return lines
 }

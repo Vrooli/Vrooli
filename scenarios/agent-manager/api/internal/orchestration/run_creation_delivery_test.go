@@ -1,20 +1,23 @@
 package orchestration
 
 import (
+	"context"
+	"fmt"
+	"path/filepath"
+	"sync"
+	"testing"
+	"time"
+
 	"agent-manager/internal/adapters/runner"
 	"agent-manager/internal/domain"
 	"agent-manager/internal/modules"
 	"agent-manager/internal/supervision"
-	"context"
+
 	"github.com/jmoiron/sqlx"
 	coredb "github.com/vrooli/api-core/database"
 	coreidentity "github.com/vrooli/api-core/identity"
 	pb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
 	eventpb "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-events/v1/domain"
-	"path/filepath"
-	"sync"
-	"testing"
-	"time"
 )
 
 func TestCommissionedWorkerDescendantsRetainEffortCustody(t *testing.T) {
@@ -74,6 +77,12 @@ func TestDeliveryActualNativeWorkersOverlapWithinBound(t *testing.T) {
 	}
 	expiry := time.Now().Add(time.Hour)
 	owner := coreidentity.Principal{Kind: coreidentity.ActorHuman, Verified: true, Subject: "fixture-owner", Scopes: []string{"agent-manager:write", "agent-manager:read", "agent-manager:orchestrate"}, ExpiresAt: expiry}
+	o.ownerIdentity = createOwnerVerifier(func(_ context.Context, token string) (coreidentity.Principal, error) {
+		if token != "disposable-native-owner-fixture" {
+			return coreidentity.Principal{}, fmt.Errorf("unexpected fixture owner credential")
+		}
+		return owner, nil
+	})
 	ownerCtx := coreidentity.WithPrincipal(ctx, owner)
 	profile, err := o.CreateProfile(ctx, &domain.AgentProfile{Name: "synthetic parent child", ProfileKey: "keyring-inprocess", RoleRef: "code.default", DeclaredScopes: owner.Scopes, MaxTurns: 5, Timeout: time.Minute, NetworkAccess: domain.NetworkAccessNone, SandboxConfig: &domain.SandboxConfig{Mode: domain.SandboxModeOff}})
 	if err != nil {

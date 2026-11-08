@@ -21,9 +21,9 @@ import (
 // The orchestration service's WebSocket hub adapter satisfies this interface
 // structurally.
 type EventBroadcaster interface {
-	BroadcastEvent(event *domain.RunEvent)
-	BroadcastRunStatus(run *domain.Run)
-	BroadcastProgress(runID uuid.UUID, phase domain.RunPhase, percent int, action string)
+	BroadcastEvent(ctx context.Context, event *domain.RunEvent)
+	BroadcastRunStatus(ctx context.Context, run *domain.Run)
+	BroadcastProgress(ctx context.Context, runID uuid.UUID, phase domain.RunPhase, percent int, action string)
 }
 
 // ModelHealthReporter receives runtime classifications of model availability.

@@ -117,7 +117,7 @@ func TestRunListSurfacesMalformedOwnerResponse(t *testing.T) {
 		return cliutil.APIBaseOptions{DefaultBase: server.URL()}
 	}, nil)
 
-	_, _, err := NewServices(api).Runs.List(0, 0, "", "", "", "", "agent_manager")
+	_, _, err := NewServices(api).Runs.List(RunListFilter{Origin: "agent_manager"})
 	if err == nil || !strings.Contains(err.Error(), "decode Agent Manager run list response") {
 		t.Fatalf("malformed owner response error = %v, want a decode error", err)
 	}
@@ -192,7 +192,7 @@ func TestServicesUseDocumentedWorkflowAndRunHTTPContracts(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if _, _, err := s.Runs.List(10, 2, "task", "profile", "running", "tag", "agent_manager"); err != nil {
+	if _, _, err := s.Runs.List(RunListFilter{Limit: 10, Offset: 2, TaskID: "task", ProfileID: "profile", Status: "running", TagPrefix: "tag", Origin: "agent_manager"}); err != nil {
 		t.Fatal(err)
 	}
 	listedByOrigin := false

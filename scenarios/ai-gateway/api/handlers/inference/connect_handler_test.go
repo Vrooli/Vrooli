@@ -1,6 +1,7 @@
 package inference_test
 
 import (
+	"context"
 	"log"
 	"testing"
 
@@ -35,4 +36,35 @@ func TestRunIsReachableThroughGeneratedConnectClient(t *testing.T) {
 	require.True(t, response.Msg.GetValidated())
 	require.Equal(t, `{}`, response.Msg.GetValueJson())
 	require.NotNil(t, response.Msg.GetUsage())
+}
+
+type digestCaptureRepository struct{ requests []inference.ProviderRequest }
+
+func (r *digestCaptureRepository) Run(_ context.Context, request inference.ProviderRequest) (inference.ProviderResult, error) {
+	r.requests = append(r.requests, request)
+	return inference.ProviderResult{ValueJSON: `{}`}, nil
+}
+
+func TestRunBindsCanonicalRequestDigestAndTreatsRootAsIdempotencyOnly(t *testing.T) {
+	repository := &digestCaptureRepository{}
+	connectHandler := handler.NewConnectHandler(inference.NewService(repository))
+	message := &inferencev1.RunRequest{
+		RootOperationId: "aabbccddeeff00112233445566778899",
+		Source:          "source", SchemaJson: `{"type":"object"}`, Role: "classify.fast",
+	}
+	_, err := connectHandler.Run(t.Context(), connect.NewRequest(message))
+	require.NoError(t, err)
+	first := repository.requests[0]
+	require.Equal(t, message.GetRootOperationId(), first.RootOperationID)
+	require.NotEmpty(t, first.RequestDigest)
+
+	message.RootOperationId = "99887766554433221100ffeeddccbbaa"
+	_, err = connectHandler.Run(t.Context(), connect.NewRequest(message))
+	require.NoError(t, err)
+	require.Equal(t, first.RequestDigest, repository.requests[1].RequestDigest, "root is an idempotency name, not canonical request content")
+
+	message.Source = "changed source"
+	_, err = connectHandler.Run(t.Context(), connect.NewRequest(message))
+	require.NoError(t, err)
+	require.NotEqual(t, first.RequestDigest, repository.requests[2].RequestDigest)
 }

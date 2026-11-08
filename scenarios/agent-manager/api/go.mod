@@ -23,7 +23,7 @@ require (
 	github.com/vrooli/platform-go v0.0.0
 	github.com/vrooli/repo-contract-go v0.0.0
 	github.com/vrooli/searchregister-go v0.0.0
-	github.com/vrooli/vrooli v0.0.0-00010101000000-000000000000
+	github.com/vrooli/vrooli v0.0.0
 	github.com/vrooli/vrooli/packages/proto v0.0.0
 	google.golang.org/protobuf v1.36.11
 	modernc.org/sqlite v1.50.1
@@ -33,6 +33,7 @@ require (
 	github.com/go-chi/chi/v5 v5.3.1 // indirect
 	github.com/vrooli/binaryfetch v0.0.0 // indirect
 	go.yaml.in/yaml/v3 v3.0.5 // indirect
+	golang.org/x/mod v0.41.0 // indirect
 )
 
 require (
@@ -86,98 +87,4 @@ replace github.com/vrooli/maturity-go => ../../../packages/maturity-go
 
 replace github.com/vrooli/platform-go => ../../../packages/platform-go
 
-replace github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime => ../../scenario-to-desktop/runtime
-
-replace github.com/vrooli/cliresolve => ../../../packages/cliresolve
-
 replace github.com/vrooli/searchregister-go => ../../../packages/searchregister-go
-
-replace agent-manager/cli => ../cli
-
-replace device-control => ../../device-control/api
-
-replace device-studio => ../../device-studio/api
-
-replace device-studio/cli => ../../device-studio/cli
-
-replace github.com/vrooli/browser-automation-studio => ../../browser-automation-studio/api
-
-replace github.com/vrooli/freshness-go => ../../../packages/freshness-go
-
-replace github.com/vrooli/mdns-go => ../../../packages/mdns-go
-
-replace github.com/vrooli/pyenv-go => ../../../packages/pyenv-go
-
-replace github.com/vrooli/scenarioconfig-go => ../../../packages/scenarioconfig-go
-
-replace github.com/vrooli/ssh-core => ../../../packages/ssh-core
-
-replace github.com/vrooli/vrooli-cli-go => ../../../packages/vrooli-cli-go
-
-replace github.com/vrooli/vrooli/packages/capability-registry-go => ../../../packages/capability-registry-go
-
-replace github.com/vrooli/vrooli/packages/capabilityprobe => ../../../packages/capabilityprobe
-
-replace github.com/vrooli/vrooli/packages/delivery-ramp-go => ../../../packages/delivery-ramp-go
-
-replace github.com/vrooli/vrooli/scenarios/audio-tools/clients/go => ../../audio-tools/clients/go
-
-replace github.com/vrooli/vrooli/scenarios/scenario-dependency-analyzer/api => ../../scenario-dependency-analyzer/api
-
-replace github.com/vrooli/vrooli/scenarios/system-monitor/api => ../../system-monitor/api
-
-replace github.com/vrooli/vrooli/scenarios/template-manager/api => ../../template-manager/api
-
-replace github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api => ../../vrooli-autoheal/api
-
-replace github.com/vrooli/vrooli/scenarios/vrooli-events => ../../vrooli-events
-
-replace landing-page-business-suite-api => ../../landing-page-business-suite/api
-
-replace notification-hub => ../../notification-hub/api
-
-replace nutrition-planner => ../../nutrition-planner/api
-
-replace personal-planner => ../../personal-planner/api
-
-replace personal-planner/cli => ../../personal-planner/cli
-
-replace program-runtime => ../../program-runtime/api
-
-replace prompt-manager => ../../prompt-manager/api
-
-replace prompt-manager/cli => ../../prompt-manager/cli
-
-replace react-component-library => ../../react-component-library/api
-
-replace react-component-library/cli => ../../react-component-library/cli
-
-replace scenario-dependency-analyzer/cli => ../../scenario-dependency-analyzer/cli
-
-replace scenario-to-cloud => ../../scenario-to-cloud/api
-
-replace scenario-to-desktop-api => ../../scenario-to-desktop/api
-
-replace scenario-to-desktop/cli => ../../scenario-to-desktop/cli
-
-replace swarm-manager => ../../swarm-manager/api
-
-replace swarm-manager/cli => ../../swarm-manager/cli
-
-replace test-genie => ../../test-genie/api
-
-replace test-genie/cli => ../../test-genie/cli
-
-replace ui-health => ../../ui-health/api
-
-replace unit-health => ../../unit-health/api
-
-replace unit-health/cli => ../../unit-health/cli
-
-replace vrooli-autoheal-langrecover => ../../vrooli-autoheal/langrecover
-
-replace web-console => ../../web-console/api
-
-replace workflow-health => ../../workflow-health/api
-
-replace workspace-sandbox => ../../workspace-sandbox/api

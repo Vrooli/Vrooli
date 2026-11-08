@@ -155,3 +155,49 @@ func TestResourceRoleResolverReadsThePolicyFileTheResourceReports(t *testing.T) 
 		t.Fatalf("an unavailable resource must not fall back to a guessed path: %v", err)
 	}
 }
+
+// Exercise the production subprocess seam rather than returning a precombined
+// fake result: successful CLI diagnostics belong on stderr, never in JSON.
+func TestCommandExecutorResourceResponseStreams(t *testing.T) {
+	valid := string(validResponse(`"runner":"codex"`))
+	for _, tc := range []struct {
+		name, stdout, stderr string
+		exit                 int
+		wantErr              error
+		wantDiagnostic       string
+	}{
+		{name: "success with rebuild diagnostics", stdout: valid, stderr: "resource-codex CLI rebuilt from current sources; restarting command...\n"},
+		{name: "unknown role on stderr", stdout: "partial output", stderr: "unknown coding role code.default", exit: 1, wantErr: ErrUnknownResourceRole, wantDiagnostic: "unknown coding role code.default"},
+		{name: "unavailable diagnostic on stderr", stdout: "partial output", stderr: "catalog is unavailable", exit: 2, wantErr: ErrResourceUnavailable, wantDiagnostic: "catalog is unavailable"},
+		{name: "malformed stdout stays invalid", stdout: "banner\n" + valid, stderr: "diagnostic", wantErr: ErrInvalidResourceResponse},
+		{name: "JSON on stderr cannot replace stdout", stdout: "not JSON", stderr: valid, wantErr: ErrInvalidResourceResponse},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			bin := t.TempDir()
+			quote := func(s string) string { return "'" + strings.ReplaceAll(s, "'", "'\"'\"'") + "'" }
+			script := fmt.Sprintf("#!/bin/sh\nprintf '%%s' %s\nprintf '%%s' %s >&2\nexit %d\n", quote(tc.stdout), quote(tc.stderr), tc.exit)
+			if err := os.WriteFile(filepath.Join(bin, "resource-codex"), []byte(script), 0o700); err != nil {
+				t.Fatal(err)
+			}
+			t.Setenv("PATH", bin+string(os.PathListSeparator)+os.Getenv("PATH"))
+			t.Setenv("PROJECT_ROOT", bin)
+			if tc.wantErr == nil {
+				output, err := (commandExecutor{}).Run(context.Background(), "resource-codex", "policy", "resolve", "--role", "code.default", "--json")
+				if err != nil || string(output) != tc.stdout {
+					t.Fatalf("successful stdout = %q, %v; want exact JSON stdout", output, err)
+				}
+			}
+			resolved, err := NewResourceRoleResolver(nil).Resolve(context.Background(), domain.RunnerTypeCodex, "code.default")
+			if tc.wantErr == nil {
+				if err != nil || resolved.Model != "gpt-5.4" {
+					t.Fatalf("Resolve = %#v, %v", resolved, err)
+				}
+			} else if !errors.Is(err, tc.wantErr) {
+				t.Fatalf("Resolve error = %v, want %v", err, tc.wantErr)
+			}
+			if tc.wantDiagnostic != "" && (err == nil || !strings.Contains(err.Error(), tc.wantDiagnostic) || !strings.Contains(err.Error(), "partial output")) {
+				t.Fatalf("lost command stderr/stdout diagnostic: %v", err)
+			}
+		})
+	}
+}

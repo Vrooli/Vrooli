@@ -244,11 +244,14 @@ func TestDependentExecutionPermissions_ActiveToolRestrictionsRequireEnforcement(
 	}
 }
 
-func TestAdmitDependentDelegation_NonChildRunIsUnaffected(t *testing.T) {
-	// A run without a parent is not dependent delegation; the gate must not
-	// require a receipt or a repository for it.
-	svc := &Orchestrator{}
-	if err := svc.admitDependentDelegation(context.Background(), CreateRunRequest{}, matchingChildConfig()); err != nil {
-		t.Fatalf("expected non-child run to be admitted unchanged: %v", err)
+func TestAdmitLineage_RootRunNeedsNoParentOrRepository(t *testing.T) {
+	// A run without a parent is not dependent delegation; lineage admission
+	// must not require a receipt or a repository for it.
+	flow := &createRunFlow{o: &Orchestrator{}}
+	if err := flow.admitLineage(context.Background()); err != nil {
+		t.Fatalf("expected root run to be admitted unchanged: %v", err)
+	}
+	if flow.parent != nil || flow.depth != 0 {
+		t.Fatalf("root run lineage = parent %v depth %d, want none and 0", flow.parent, flow.depth)
 	}
 }

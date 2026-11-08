@@ -9,11 +9,11 @@ import (
 	"io"
 	"io/fs"
 	"os"
-	"path/filepath"
 	"strings"
 	"sync"
 	"time"
 
+	corestorage "github.com/vrooli/api-core/storage"
 	"github.com/vrooli/cli-core/agentcatalog/harness"
 )
 
@@ -40,16 +40,36 @@ func ClaudeWindowMinutes(pool string) int64 {
 	return 0
 }
 
-// DefaultClaudeStatuslineSamplesPath is the resource's documented sample file.
+// DefaultClaudeStatuslineSamplesPath is the resource's documented sample file,
+// or "" when it cannot be resolved.
 func DefaultClaudeStatuslineSamplesPath() string {
-	if override := strings.TrimSpace(os.Getenv(ClaudeStatuslineSamplesEnv)); override != "" {
-		return override
-	}
-	home, err := os.UserHomeDir()
+	path, err := ClaudeStatuslineSamplesPath(corestorage.ResolverConfig{})
 	if err != nil {
 		return ""
 	}
-	return filepath.Join(home, ".vrooli", "state", "vrooli", "claude-code", "quota-samples.ndjson")
+	return path
+}
+
+// ClaudeStatuslineSamplesPath resolves the statusline feed the claude-code
+// resource writes: the override in ClaudeStatuslineSamplesEnv, else
+// quota-samples.ndjson in the claude-code owner's state directory from
+// api-core/storage. The writer (resources/claude-code statusline.SamplesPath)
+// restates the same class-root rule and its agreement test compares the two,
+// so a custom VROOLI_STORAGE_ROOT moves reader and writer together. cfg
+// carries the resolver's seams; its EnvGet also reads the override.
+func ClaudeStatuslineSamplesPath(cfg corestorage.ResolverConfig) (string, error) {
+	getenv := cfg.EnvGet
+	if getenv == nil {
+		getenv = os.Getenv
+	}
+	if override := strings.TrimSpace(getenv(ClaudeStatuslineSamplesEnv)); override != "" {
+		return override, nil
+	}
+	resolver, err := corestorage.NewResolver(cfg)
+	if err != nil {
+		return "", err
+	}
+	return resolver.Path(corestorage.Options{ScenarioID: "claude-code"}, corestorage.ClassState, "quota-samples.ndjson")
 }
 
 type claudeStatuslineSample struct {

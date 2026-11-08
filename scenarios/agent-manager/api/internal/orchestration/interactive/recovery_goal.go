@@ -258,7 +258,7 @@ func (c *Coordinator) InspectRetainedGoal(ctx context.Context, run *domain.Run) 
 	if sessionMismatch || !sessionMatched {
 		return nil, fmt.Errorf("retained goal transcript does not prove the exact owner session")
 	}
-	if lastGoal == nil || terminal == nil || !strings.HasPrefix(terminal.TerminalReason, "goal_") || terminal.TerminalReason != "goal_"+string(lastGoal.Status) || goalTime.IsZero() || goalTime.Before(*attemptStart) || !runner.NativeGoalObjectiveMatches(lastGoal.Objective, run.ResolvedConfig.Until) {
+	if lastGoal == nil || terminal == nil || !strings.HasPrefix(terminal.TerminalReason, "goal_") || terminal.TerminalReason != "goal_"+string(lastGoal.Status) || goalTime.IsZero() || goalTime.Before(*attemptStart) || !runner.NativeGoalObjectiveMatches(run.ResolvedConfig.RunnerType, lastGoal.Objective, run.ResolvedConfig.Until) {
 		return nil, nil
 	}
 	return &RetainedGoalEvidence{Terminal: terminal, Marker: *lastGoal, At: goalTime}, nil

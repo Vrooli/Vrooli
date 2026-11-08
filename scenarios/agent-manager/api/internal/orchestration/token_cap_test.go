@@ -131,7 +131,7 @@ func TestTokenCapReportOnlyWeighsSolAndNeverStops(t *testing.T) {
 	o := tokenCapOrchestrator(repos, events, TokenCapReport)
 
 	// 110 non-cache Sol tokens weigh 1,100; cache reads never count.
-	if err := o.runEventSink(run.ID).Emit(usageEvent(run.ID, "gpt-6-sol", 110, 1)); err != nil {
+	if err := o.runEventSink(t.Context(), run.ID).Emit(usageEvent(run.ID, "gpt-6-sol", 110, 1)); err != nil {
 		t.Fatal(err)
 	}
 	eventually(t, "the report-only cap record", func() bool {
@@ -180,6 +180,40 @@ func TestRunAccountingAndTokenCapPreserveIdenticalReceiptsAcrossContinuations(t 
 	}
 }
 
+func TestRunAccountingBatchMatchesPerRunProjectionAcrossTheEventOwner(t *testing.T) {
+	repos, events, first := tokenCapFixture(t, "gpt-6-luna")
+	ctx := context.Background()
+	second := *first
+	second.ID = uuid.New()
+	second.Status = domain.RunStatusComplete
+	ended := time.Now().UTC()
+	second.StartedAt, second.EndedAt = &ended, &ended
+	if err := repos.Runs.Create(ctx, &second); err != nil {
+		t.Fatal(err)
+	}
+	if err := events.Append(ctx, first.ID, usageEvent(first.ID, "gpt-6-luna", 120, 1)); err != nil {
+		t.Fatal(err)
+	}
+	if err := events.Append(ctx, second.ID, usageEvent(second.ID, "gpt-6-luna", 250, 1)); err != nil {
+		t.Fatal(err)
+	}
+	o := tokenCapOrchestrator(repos, events, TokenCapReport)
+	_, batch, err := o.RunAccountingBatch(ctx, []uuid.UUID{first.ID, second.ID})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, id := range []uuid.UUID{first.ID, second.ID} {
+		want, err := o.RunAccounting(ctx, id)
+		if err != nil {
+			t.Fatal(err)
+		}
+		got := batch[id]
+		if got.Tokens != want.Tokens || got.TokensKnown != want.TokensKnown || got.NonCacheTokens != want.NonCacheTokens || got.CacheReadTokens != want.CacheReadTokens || got.Model != want.Model || got.Terminal != want.Terminal {
+			t.Errorf("batch accounting for %s differs from single-run owner projection:\n got: %+v\nwant: %+v", id, got, want)
+		}
+	}
+}
+
 func TestTokenCapSeedsFromPersistedUsageAfterRestart(t *testing.T) {
 	repos, events, run := tokenCapFixture(t, "gpt-6-luna")
 	// Usage persisted before this owner instance existed.
@@ -187,7 +221,7 @@ func TestTokenCapSeedsFromPersistedUsageAfterRestart(t *testing.T) {
 		t.Fatal(err)
 	}
 	o := tokenCapOrchestrator(repos, events, TokenCapEnforce)
-	if err := o.runEventSink(run.ID).Emit(usageEvent(run.ID, "gpt-6-luna", 60, 2)); err != nil {
+	if err := o.runEventSink(t.Context(), run.ID).Emit(usageEvent(run.ID, "gpt-6-luna", 60, 2)); err != nil {
 		t.Fatal(err)
 	}
 	eventually(t, "the stop counted from persisted usage", func() bool {
@@ -272,7 +306,7 @@ func TestTokenCapPrefersTheRunCapOverTheEnvironmentFallback(t *testing.T) {
 		t.Fatal(err)
 	}
 	o := tokenCapOrchestrator(repos, events, TokenCapEnforce) // environment cap 1,000
-	if err := o.runEventSink(run.ID).Emit(usageEvent(run.ID, "gpt-6-luna", 520, 1)); err != nil {
+	if err := o.runEventSink(t.Context(), run.ID).Emit(usageEvent(run.ID, "gpt-6-luna", 520, 1)); err != nil {
 		t.Fatal(err)
 	}
 	eventually(t, "the stop at the run cap", func() bool {

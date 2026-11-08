@@ -659,6 +659,7 @@ func (f *fakeInteractiveSessions) SendText(context.Context, string, string, stri
 func (f *fakeInteractiveSessions) SendCommand(context.Context, string, string, string) (webconsole.PromptSubmission, error) {
 	return webconsole.PromptSubmission{Verified: true, EnterPresses: 1}, nil
 }
+
 func (f *fakeInteractiveSessions) SendPrompt(context.Context, string, string, string) (webconsole.PromptSubmission, error) {
 	return webconsole.PromptSubmission{Verified: true, EnterPresses: 1}, nil
 }
@@ -960,10 +961,12 @@ func TestRecoverInteractive_ContinuedCompletedGoalPolicySurvivesRestart(t *testi
 func TestInteractiveContinuationRecoveryOptionsRequireExactActiveInvocation(t *testing.T) {
 	started := time.Date(2026, 10, 18, 19, 30, 0, 0, time.UTC)
 	startCursor := int64(0)
-	valid := &domain.Run{Status: domain.RunStatusRunning, ExecutionMode: domain.ExecutionModeInteractive,
+	valid := &domain.Run{
+		Status: domain.RunStatusRunning, ExecutionMode: domain.ExecutionModeInteractive,
 		InteractiveInvocationStartedAt: &started, ResolvedConfig: &domain.RunConfig{InteractiveContinuation: &domain.InteractiveContinuationPolicy{
 			InvocationStartedAt: started, TranscriptStartCursor: &startCursor, CompleteAfterFirstSuccessfulTurnWithoutGoalMarker: true,
-		}}}
+		}},
+	}
 	if got := interactiveContinuationRecoveryOptions(valid); !got.CompleteAfterFirstSuccessfulTurnWithoutGoalMarker {
 		t.Fatal("exact current interactive invocation did not restore its owner completion option")
 	}

@@ -35,10 +35,10 @@ func TestLiveCodexWorkerPolicy(t *testing.T) {
 		t.Fatal(err)
 	}
 	home := filepath.Join(root, "codex")
-	if err := os.Mkdir(home, 0700); err != nil {
+	if err := os.Mkdir(home, 0o700); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(home, "config.toml"), []byte("[mcp_servers.fixture]\ncommand='/bin/false'\nenabled=true\n"), 0600); err != nil {
+	if err := os.WriteFile(filepath.Join(home, "config.toml"), []byte("[mcp_servers.fixture]\ncommand='/bin/false'\nenabled=true\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	binary, err := osexec.LookPath("codex")
@@ -169,10 +169,10 @@ func TestPrepareRunnerPolicyImmutableAcrossResume(t *testing.T) {
 	if first.SHA256 != fmt.Sprintf("%x", sha256.Sum256([]byte("owner policy"))) || strings.Contains(first.Source, "/runtime/") {
 		t.Fatalf("policy identity/location is wrong: %+v", first)
 	}
-	if err := os.Chmod(first.Source, 0600); err != nil {
+	if err := os.Chmod(first.Source, 0o600); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(first.Source, []byte("tampered"), 0600); err != nil {
+	if err := os.WriteFile(first.Source, []byte("tampered"), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := writeRunnerPolicy(root, id, []byte("owner policy")); err == nil {

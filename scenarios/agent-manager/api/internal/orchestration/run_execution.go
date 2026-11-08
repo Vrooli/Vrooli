@@ -65,7 +65,7 @@ func (o *Orchestrator) executeRun(ctx context.Context, run *domain.Run, task *do
 	}
 
 	if o.healthStore != nil {
-		executor.WithModelHealthReporter(newHealthMarkerAdapter(o.healthStore, run.ID.String()))
+		executor.WithModelHealthReporter(newHealthMarkerAdapter(ctx, o.healthStore, run.ID.String()))
 	}
 	if run.SandboxID != nil {
 		workDir := existingSandboxWorkDir
@@ -86,7 +86,7 @@ func (o *Orchestrator) executeRun(ctx context.Context, run *domain.Run, task *do
 	// Completion-driven advance: a workflow run just reached terminal (a parked
 	// run keeps its attempt open — the wake leg nudges when it later completes).
 	if !executor.parked {
-		o.nudgeWorkflowForRun(run.ID)
+		o.nudgeWorkflowForRun(ctx, run.ID)
 	}
 }
 
@@ -161,11 +161,14 @@ func initialPromptWithUntil(run *domain.Run, prompt string) string {
 	return strings.TrimSpace(prompt) + "\n\nCompletion contract (engine-owned): stop only when this test is satisfied:\n" + until
 }
 
+// nativeObjectiveFor is the native goal objective for an interactive run whose
+// runner declares native objective support for the run's sandbox, or "".
+// runner.NativeGoalObjectiveFor decides between the full `until` and the short
+// delegation; the task prompt carries the full `until` whenever it is delegated.
 func nativeObjectiveFor(run *domain.Run, caps runner.Capabilities) string {
 	if run == nil || run.ResolvedConfig == nil || strings.TrimSpace(run.ResolvedConfig.Until) == "" {
 		return ""
 	}
-	objective := strings.TrimSpace(run.ResolvedConfig.Until)
 	sandbox := string(run.InteractiveSandboxMode())
 	for _, capability := range caps.SpawnCapabilities {
 		if capability.ExecutionMode != string(domain.ExecutionModeInteractive) || !capability.NativeObjective {
@@ -173,31 +176,16 @@ func nativeObjectiveFor(run *domain.Run, caps runner.Capabilities) string {
 		}
 		for _, mode := range capability.SandboxModes {
 			if mode == sandbox {
-				return boundedNativeObjective(objective)
+				return runner.NativeGoalObjectiveFor(run.ResolvedConfig.RunnerType, run.ResolvedConfig.Until)
 			}
 		}
 	}
 	return ""
 }
 
-const (
-	// Claude Code rejects native /goal conditions longer than 4000 characters.
-	// Keep the full engine-owned contract in the task prompt and use this short
-	// delegation when that contract is too large for the harness field.
-	maxNativeObjectiveCharacters = 4000
-	boundedNativeObjectiveText   = "Follow the complete engine-owned completion contract included in the task prompt exactly. Do not stop until it is satisfied; return blocked, abstained, or an operator-decision approval request when required."
-	// nativeGoalPointer avoids duplicating a completion contract that fits in the
-	// native goal field. Oversized contracts keep their full task-prompt copy even
-	// when the bounded native delegation is installed.
-	nativeGoalPointer = "\n\nYour goal is installed with /goal; the finish line is its text."
-)
-
-func boundedNativeObjective(objective string) string {
-	if len([]rune(objective)) <= maxNativeObjectiveCharacters {
-		return objective
-	}
-	return boundedNativeObjectiveText
-}
+// nativeGoalPointer avoids duplicating a completion contract the native goal
+// carries in full. A delegated native goal keeps the full task-prompt copy.
+const nativeGoalPointer = "\n\nYour goal is installed with /goal; the finish line is its text."
 
 // executeInteractiveRun drives an interactive run to completion via the
 // interactive.Coordinator: it launches the real interactive CLI in a web-console
@@ -366,15 +354,11 @@ func (o *Orchestrator) executeInteractiveRun(ctx context.Context, run *domain.Ru
 	if selectedRunner != nil {
 		nativeObjective = nativeObjectiveFor(run, selectedRunner.Capabilities())
 	}
-	// Keep the launch seam defensive: profiles, adapters, or a future resolver
-	// may provide the objective through another path. The harness field must stay
-	// within Claude Code's native limit regardless of where it came from.
-	nativeObjective = boundedNativeObjective(strings.TrimSpace(nativeObjective))
 	// Keep both delivery forms available. Native delivery is preferred, while the
 	// full task-channel contract remains ready if the native marker cannot be
-	// acknowledged by the transcript watcher. When the native field is shortened
-	// to its bounded delegation, include the complete condition in the task prompt
-	// even if native installation succeeds.
+	// acknowledged by the transcript watcher. When the native goal is the short
+	// delegation, the task prompt carries the complete condition even if native
+	// installation succeeds.
 	promptCarriedFallback := initialPromptWithUntil(run, initialPrompt)
 	deliveredPrompt := promptCarriedFallback
 	if nativeObjective != "" && nativeObjective == strings.TrimSpace(run.ResolvedConfig.Until) {
@@ -466,7 +450,7 @@ func (o *Orchestrator) failInteractiveRun(ctx context.Context, run *domain.Run, 
 			obs.KeyRunID, run.ID.String(), obs.KeyError, err.Error())
 	}
 	if o.broadcaster != nil {
-		o.broadcaster.BroadcastRunStatus(run)
+		o.broadcaster.BroadcastRunStatus(ctx, run)
 	}
 }
 
@@ -577,7 +561,7 @@ func (o *Orchestrator) ResumeRun(ctx context.Context, id uuid.UUID) (*domain.Run
 		}
 	}
 
-	admission, err := o.dispatcher.ReserveAdmission(run.ID)
+	admission, err := o.dispatcher.ReserveAdmission(ctx, run.ID)
 	if err != nil {
 		return nil, err
 	}
@@ -611,16 +595,16 @@ func (o *Orchestrator) ResumeRun(ctx context.Context, id uuid.UUID) (*domain.Run
 		RunID:      run.ID,
 		RunMode:    run.RunMode,
 		RunnerType: runnerTypeOrEmpty(run),
-		Sink:       o.dispatcherSink(run.ID),
+		Sink:       o.dispatcherSink(admission.Context(), run.ID),
 		Fn: func(started spawn.StartedFn) {
 			defer o.dispatcher.ReleaseAdmission(run.ID, admission)
 			defer obs.RecoverToFailure("run resumption dispatch", func(failure obs.PanicFailure) {
-				o.recoverPanickedRun(run, failure)
+				o.recoverPanickedRun(ctx, run, failure)
 			})
 			o.resumeRun(admission.Context(), run, task, profile, checkpoint, currentExclusions, started)
 		},
 		OnPanic: func(failure obs.PanicFailure) {
-			o.recoverPanickedRun(run, failure)
+			o.recoverPanickedRun(ctx, run, failure)
 		},
 	}, admission); err != nil {
 		// Enqueue did not accept the executor. Restore the prior resumable state
@@ -661,6 +645,6 @@ func (o *Orchestrator) resumeRun(ctx context.Context, run *domain.Run, task *dom
 	// Completion-driven advance for a workflow run recovered/resumed after a
 	// restart between run-terminal and the original nudge.
 	if !executor.parked {
-		o.nudgeWorkflowForRun(run.ID)
+		o.nudgeWorkflowForRun(ctx, run.ID)
 	}
 }

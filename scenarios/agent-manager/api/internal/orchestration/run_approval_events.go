@@ -295,7 +295,7 @@ func (o *Orchestrator) settleVerifiedEmptyRunReview(ctx context.Context, run *do
 		return false, fmt.Errorf("persist unknown-outcome empty review resolution: %w", err)
 	}
 	if o.broadcaster != nil {
-		o.broadcaster.BroadcastRunStatus(o.attachRunActions(ctx, run))
+		o.broadcaster.BroadcastRunStatus(ctx, o.attachRunActions(ctx, run))
 	}
 	return true, nil
 }

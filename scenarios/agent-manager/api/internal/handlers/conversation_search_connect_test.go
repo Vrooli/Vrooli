@@ -231,6 +231,7 @@ func TestListRunsRemainsMetadataOnly(t *testing.T) {
 		"offset":           6,
 		"top_level":        7,
 		"origin":           8,
+		"parent_run_id":    9,
 	})
 	for i := 0; i < descriptor.Fields().Len(); i++ {
 		name := string(descriptor.Fields().Get(i).Name())

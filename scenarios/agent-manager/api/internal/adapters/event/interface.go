@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"agent-manager/internal/domain"
+	"agent-manager/internal/stepback"
 
 	"github.com/google/uuid"
 )
@@ -43,6 +44,19 @@ type Store interface {
 
 	// Delete removes all events for a run (for cleanup).
 	Delete(ctx context.Context, runID uuid.UUID) error
+}
+
+// BatchReader reads the same complete filtered event projection as Get for a
+// bounded set of runs, grouped by run identity. Accounting uses it to preserve
+// exact per-run semantics without serial event-store round trips.
+type BatchReader interface {
+	GetMany(context.Context, []uuid.UUID, GetOptions) (map[uuid.UUID][]*domain.RunEvent, map[uuid.UUID]error, error)
+}
+
+// TranscriptFactsReader reads, for a bounded set of runs, the turn,
+// compaction and spawn facts the transcript step-back triggers use.
+type TranscriptFactsReader interface {
+	TranscriptFacts(context.Context, []uuid.UUID) (map[uuid.UUID]stepback.Transcript, error)
 }
 
 // EmptyStreamAppender inserts a rebuilt stream only if the canonical stream

@@ -307,6 +307,7 @@ func (s *delayedLaunchSessions) CreateSession(ctx context.Context, params webcon
 	}
 	return params.RequestedSessionID, nil
 }
+
 func (s *delayedLaunchSessions) SendText(ctx context.Context, sessionID, text, source string) error {
 	close(s.submitted)
 	<-ctx.Done()

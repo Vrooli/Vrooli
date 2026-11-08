@@ -2,16 +2,18 @@
 package orchestration
 
 import (
+	"context"
+	"time"
+
 	"agent-manager/internal/adapters/event"
 	"agent-manager/internal/adapters/sandbox"
 	"agent-manager/internal/domain"
 	"agent-manager/internal/health"
 	"agent-manager/internal/identity"
 	"agent-manager/internal/repository"
-	"context"
+
 	"github.com/google/uuid"
 	"github.com/vrooli/cli-core/cliutil"
-	"time"
 )
 
 // GetRunProgress returns the current progress of a run for display.

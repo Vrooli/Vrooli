@@ -93,7 +93,7 @@ done
 		Tailer:       NewTailer(codecParserResolver, WithTailPollInterval(50*time.Millisecond)),
 		Sessions:     client,
 		Runs:         store,
-		NewSink:      func(uuid.UUID) runner.EventSink { return sink },
+		NewSink:      func(context.Context, uuid.UUID) runner.EventSink { return sink },
 		Debounce:     3 * time.Second,
 		ActivityPoll: 100 * time.Millisecond,
 		SessionPoll:  2 * time.Second,

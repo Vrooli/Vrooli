@@ -2,12 +2,13 @@
 package orchestration
 
 import (
-	"agent-manager/internal/adapters/event"
-	"agent-manager/internal/invocationreadmodel"
 	"context"
 	"fmt"
 	"strings"
 	"time"
+
+	"agent-manager/internal/adapters/event"
+	"agent-manager/internal/invocationreadmodel"
 
 	"agent-manager/internal/adapters/runner"
 	"agent-manager/internal/domain"
@@ -230,7 +231,7 @@ func (r *Reconciler) recordRetainedGoalStatus(ctx context.Context, run *domain.R
 	event := domain.NewGoalStatusChangedEvent(run.ID, marker.Objective, string(marker.Status), marker.Iteration, marker.LastReason)
 	event.ID = eventID
 	event.Timestamp = evidence.At
-	if err := r.recoveryEventSink(run.ID).Emit(event); err != nil {
+	if err := r.recoveryEventSink(ctx, run.ID).Emit(event); err != nil {
 		return fmt.Errorf("persist retained goal status: %w", err)
 	}
 	run.ObservedGoalStatus = string(marker.Status)
@@ -320,8 +321,8 @@ func (r *Reconciler) interactiveCoordinator(options interactive.TailCompletionOp
 		Sessions:    r.sessions,
 		Runs:        r.runs,
 		Broadcaster: r.broadcaster,
-		NewSink: func(runID uuid.UUID) runner.EventSink {
-			return r.recoveryEventSink(runID)
+		NewSink: func(ctx context.Context, runID uuid.UUID) runner.EventSink {
+			return r.recoveryEventSink(ctx, runID)
 		},
 		Result:                r.recoveredResult,
 		CompletionOptions:     options,
@@ -372,7 +373,7 @@ func (r *Reconciler) startInteractiveTailer(ownerCtx context.Context, run *domai
 	if cancel, ok := r.tailers[run.ID]; ok {
 		cancel()
 	}
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(context.WithoutCancel(ownerCtx))
 	done := make(chan struct{})
 	if r.interactiveTailDone == nil {
 		r.interactiveTailDone = make(map[uuid.UUID]chan struct{})

@@ -30,7 +30,8 @@ it returns enrollment records without the board's evidence joins.
 
 `effort compact` is a bounded presentation of the same one-call board join. Its
 text output shows selected efforts, changed evidence references, owner usage,
-provider quota observations and named waits with detail references. `--json`
+provider quota observations, named waits and each assigned run's
+[step-back triggers](#transcript-step-back-triggers) with detail references. `--json`
 returns the complete typed `EffortBoard` response from that same call.
 Shared quota observations appear once at the owner-cut level; run-attributable
 quota observations remain on their effort row.
@@ -248,7 +249,7 @@ the native commission limit; team heartbeat concurrency is a separate boundary.
 | Command | Contract |
 | --- | --- |
 | `run continue <id> --message <text>` | The one way to talk to a run. A running interactive session receives the text as its next user message (the harness queues it behind the current turn); per-turn overrides are refused there. Any other continuable run starts a new turn. A codec-pipe run that is still mid-turn is refused; write an epoch directive instead. |
-| `run park <id> --producer children --key <orchestrator-run-id> --timeout 1h` | Parks the calling run until a direct child exits, the timeout elapses, or a wake names the key. The wake message names only the children that ended since the last wake and the ones still active (`[wake: timer] …` or `[wake] …`). |
+| `run park <id> --producer children --key <orchestrator-run-id> --timeout 1h` | Parks the calling run until a direct child settles (terminal, or `needs_review` with its worker exited), the timeout elapses, or a wake names the key. The wake message names only the children that settled since the last wake and the ones still live (pending, starting, running or parked) (`[wake: timer] …` or `[wake] …`). A run created with `--charter` gets a last wake line naming the charter to re-read, because Codex keeps only the eight newest user messages through compaction and counts each wake among them. |
 | `run wake --key <key> [--producer children] [--result <text>]` | `POST /api/v1/runs/wake-by-key`: the server matches every parked run whose await handle has exactly this producer and key and wakes it. A run identity may wake only runs its lineage permits (its parent, or its own children under the orchestrate scope). `run wake <id>` wakes one run. |
 | `run report <id> [--children] [--weights sol=10,luna=1]` | Non-cache tokens weighted by model tier (operator heuristic `operator-non-cache-v2-2026-10-27`: Sol 10, Terra 5, Luna 1; unmatched models are unknown and disable spend comparisons). This is non-cache-token policy, not billing or measured subscription quota. Usage that is not final is listed, never counted as zero. |
 | `effort epoch-check <epoch-file> [--acceptance] [--runs ids] [--spend-threshold n] [--wake-key key]` | Parses an epoch file and prints the step-back triggers, typed exit gates and measured yield. It exits 3 for a flatline strategy review; estimate overruns report optimization and continue with exit 0; `--wake-key` wakes the orchestrator parked on that key (producer `children`). An accepted epoch never exits 3 or wakes. `--acceptance` is the orchestrator's check (exit 4). Spend uses the same weighting as `usage run`. Slice-log lines need `<time> \| <what changed> \| exit metric=<v>`; line counts default to zero, unknown `key=value` fields are ignored, and `ack=` takes free text whose `D<n>` IDs count as acknowledged. See [Goal-home commands](#goal-home-commands). |
@@ -266,9 +267,12 @@ the run. How is the runner's business: today only Codex declares it, through
 `codex app-server` (`thread/compact/start`; sending `/compact` through
 `codex exec resume` is only text). The
 thread ID is unchanged; a wake that arrives during compaction waits for it.
-Interactive runs are never compacted, because resuming their thread in the
-app-server clears the native goal. A failed compaction leaves the full session
-for the wake.
+Agent Manager never compacts an interactive run out of band, because resuming
+its thread in the app-server clears the native goal; the harness still compacts
+an interactive session natively when its context fills, so every goal-bearing
+run must expect compaction and re-read its charter afterwards (see
+[Nested runs](#nested-runs)). A failed compaction leaves the full session for
+the wake.
 
 A profile that declares the `agent-manager:orchestrate` scope lets its run
 continue, stop and wake its own direct children from inside the run. It never
@@ -276,6 +280,100 @@ reaches beyond the caller's lineage. A child run may use the parent's model at
 an equal or narrower effort, or a strictly cheaper known model tier (a Sol
 supervisor may start a Luna repair run) at any effort; it must retain or narrow
 the parent's execution restrictions.
+
+## Nested runs
+
+Agent Manager is the only way to give a child its own native goal: Codex
+`spawn_agent` and the Claude Code Agent tool cannot. A segment owner that needs
+goal persistence for hours is therefore an Agent Manager child run, and it may
+start children of its own. This path is optional. Agent Manager is never
+required for delegation.
+
+A parent must itself be an Agent Manager-launched run (`run create`): the
+dependent-delegation gate reads the parent's admission record, which attached
+and imported sessions do not have. An operator's attached Codex or Claude Code
+session therefore delegates natively, or starts its scheduler as an Agent
+Manager root run. A child may use the parent's model at an equal or narrower
+effort, or a cheaper known tier, and must keep or narrow the parent's execution
+restrictions (see [Delivery orchestration commands](#delivery-orchestration-commands)).
+
+**Fallback rule.** When Agent Manager is unreachable (`run wait` exits 6, or a
+create or read fails to connect) or refuses (for example
+`POLICY_CHILD_DEPTH_EXCEEDED`), continue with the harness's native sub-agents
+and the same brief: Codex `spawn_agent` with `fork_turns=none`, or the Claude
+Code Agent tool. Do not retry Agent Manager in a loop or wait for it to return.
+
+| Command | Contract |
+| --- | --- |
+| `run create --parent-run-id <own-run-id> [--until-file kernel.md] [--charter /abs/CHARTER.md]` | Creates a child of the calling run; a run identity may create only its own children (`agent-manager run identity` prints the ID). The child records `depth` = parent depth + 1. `--charter` must name an existing absolute file, checked on the Agent Manager host; root runs accept it too. |
+| `run wait <run-id> [--timeout 30m] [--json]` | Blocks until the run settles: terminal, or `needs_review` with its worker exited (`outcome` is `terminal`, `needs_review` or `timed_out`). Any caller may wait; it need not be a run, parked, or the run's parent. |
+| `run wait --children <parent-run-id> [--since RFC3339] [--timeout 30m] [--json]` | Blocks until a direct child settles at or after `--since` (default: now), or no child is live. Returns the children wake payload: `wake_reason` (`child_run_ended`, `no_active_children` or `timer`), `ended`, `active` (pending, starting, running or parked) and `observed_at`. Pass `observed_at` as the next `--since` so nothing is missed between calls. Children that settled before `--since` are not repeated; read them with `run tree`. |
+| `run list --parent-run-id <id>` | Direct children of one run (also a `ListRuns.parent_run_id` field). |
+| `run tree <run-id> [--json]` | The run and its descendants, oldest child first, up to 500 runs: ID, depth, status, runner/model, goal delivery, elapsed time, weighted non-cache tokens (unknown when usage is not final or the model has no tier weight), an `orphaned` marker, and a `STEP-BACK` line per [transcript step-back trigger](#transcript-step-back-triggers) (`step_back` in JSON). |
+
+`run wait` exit codes: 0 the condition held; 5 `--timeout` elapsed with the work
+still live (the work continues); 6 Agent Manager is unreachable; 1 any other
+error. `--timeout 0` waits without an overall limit. The CLI waits in server
+calls of at most 10 minutes (the API caps one call at 15), reading with backoff
+from 1 s to 10 s, so waiting costs no tokens and no hot polling. A wait that has
+already reached Agent Manager rides out a restart for up to 2 minutes; a first
+call that cannot connect exits 6 at once.
+
+**Depth cap.** `runExecution.maxChildDepth` (default 3, range 0–10; 0 disables
+Agent Manager child runs) bounds nesting: root 0, child 1, grandchild 2,
+great-grandchild 3. A deeper child is refused before any admission effect with
+`POLICY_CHILD_DEPTH_EXCEEDED` (HTTP 403), naming the parent, the depth and the
+setting. Change it with `agent-manager settings orchestration update --file
+<settings.json>` or the Settings dialog. `depth` is recorded on every run and
+returned by `run get` and `run list`; proto3 omits it from JSON for a root (0).
+
+**Native goal.** `--until` (or `--until-file`) becomes the run's native goal
+only when the harness keeps it verbatim: 600 characters for Codex, which
+replaces a longer objective with `[objective omitted]` at every compaction, and
+4,000 for Claude Code. A longer `until` installs a short delegation as the goal
+and travels in full at the end of the task prompt, where Codex keeps about the
+last 1,800 characters of a long prompt through compaction. Write a goal-bearing
+owner's `until` as a kernel of 600 characters or fewer and put the rest in the
+charter; `run tree` shows the delivery (`goal=`).
+
+**Lineage header.** A child run's task prompt starts with a three-line header:
+its own run ID, depth, maximum depth and parent; its charter (when given) with
+the instruction to read it before substantive work and re-read it at every unit
+start and after any context compaction, or else how to re-read its task
+(`agent-manager task get <task-id>`); and whether it may start children of its
+own. The header never repeats the goal text: the harness re-injects a native
+goal, and the charter holds the rest. A root run with `--charter` gets the same
+header without the parent.
+
+**Resuming a failed child.** `POST /api/v1/runs/resume-from-failed` (the UI's
+Resume) replaces a failed or cancelled child in place: same parent, depth,
+conversation, inherited effort references and delivery commission, and the
+charter while its file still exists. The parent's `children` wake and
+`run tree` therefore see the replacement. The depth cap and the live-parent
+qualification check apply to new nesting, not to a replacement: a parent that
+is parked waiting for the child, or has since ended, does not block recovery,
+and lowering `maxChildDepth` does not strand an admitted child. The replacement
+must still keep or narrow the parent's execution restrictions.
+
+**Authority window.** Every run has an owner window (`owner_expires_at`); after
+it an Agent Manager-launched run is minted no identity (an attached session is
+renewed with no scopes), so it cannot create children, park, or wake its
+parent. A root's window is the remaining life of the owner credential that
+created it. A child inherits its parent's window, not the remaining life of the
+token the parent held at that moment (at most 24 hours per turn), so a segment
+owner started late in its parent's turn keeps its identity for its own hours of
+work, and the whole tree ends with the root owner's window. A root without a
+window (a standing-grant heartbeat or a legacy ownerless run, minted a fresh
+token every turn) gives each child 24 hours from the child's creation. Each turn's token
+lasts at most 24 hours within that window. Create a long effort's root with an
+owner credential that covers the effort; `run tree` shows each live run's
+remaining `authority=` and marks `AUTHORITY EXPIRED`.
+
+**Orphans.** Stopping or losing a parent never stops its children, so a
+scheduler crash cannot take its segment owners down. `run tree` marks a live
+child of a terminal parent `orphaned`; stopping it stays an explicit
+`run stop`. A parked parent's `children` wake (above) now also fires when a
+child settles into `needs_review`, because that child's worker has exited.
 
 ## Goal-home commands
 
@@ -507,6 +605,42 @@ Before the first receipt, the supervision view reports unknown usage, not zero.
 Use the existing execution timeout and tool-call limits for their declared bounds;
 do not claim they establish a token ceiling. A hard token ceiling requires a
 qualified runner boundary before another unattended budget-critical experiment.
+
+## Transcript step-back triggers
+
+Agent Manager computes the effort-diagnosis drift tripwires live, from the
+events it already stores for every run it launched or imported, and shows them
+where supervisors look: `run tree` prints a `STEP-BACK` line under the run,
+`effort board` prints them under each assignment, and `effort compact` names
+them per assigned run (`step_back` on `RunTreeNode` and `EffortAssignment`).
+They are the transcript half of the step-back vocabulary: `effort epoch-check`
+computes the goal-home half (flatline, overrun, growth, spend, wall-clock).
+Both call for re-orientation (re-read the charter, an architect or challenger
+pass). Neither stops, parks or re-tasks a run, and nothing waits on them.
+
+| ID | Mechanism | Fires when | From |
+| --- | --- | --- | --- |
+| `objective-lost` | M1 | A turn kept working 30 min or more after a compaction omitted the native goal objective | Codex compaction records (`goalObjective` on the compaction event) and turn IDs on message events |
+| `stance-not-retained` | M1 | A compaction kept no operator-typed message (goal events and Agent Manager wakes do not count), so the task prompt or stance message is gone from context | `retained_context` of Codex compaction records (`operatorMessagesKept`); unknown for native sub-agents, which keep no user messages by design |
+| `unit-per-turn` | M1 | A turn ran longer than 3 h across 2 or more compactions | Turn IDs (Codex turn IDs are UUIDv7, so they carry the start) and the turn's terminal record |
+| `short-workers` | M8 | At least half of 4 or more settled descendants ran under 6 min | The run's descendants, including imported Codex sub-agents and Claude sidechains |
+| `inherited-context` | M9 | At least half of 4 or more `spawn_agent` calls did not pass `fork_turns: "none"` | Stored tool calls |
+
+The IDs and thresholds match `effort_anatomy.py drift`. Differences: durations
+are wall-clock spans between stored events (idle gaps inside a turn count),
+and Agent Manager does not know a descendant's role, so short reviewers and
+lookups count toward `short-workers`. The script's `shrinking-units`,
+`no-change-streak` and `closing-narration` tripwires need per-turn changed
+lines and narration families, which Agent Manager does not ingest; run the
+script for those. Turns are known only where message events carry a turn ID
+(Codex rollouts); Claude Code runs get `short-workers` only. Compactions
+ingested before Codex transcript version 5 have unknown objective and stance
+retention until the Transcript Indexer re-imports them. The script's
+`--stance-marker` (count only messages containing a marker) has no equivalent:
+Agent Manager counts any operator-typed message.
+
+On the board, which triggers fired is part of a row's `changeIdentity`; their
+detail text measures a live run and changes neither identity.
 
 ## Observation and trigger semantics
 

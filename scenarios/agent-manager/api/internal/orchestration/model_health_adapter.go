@@ -18,12 +18,13 @@ import (
 // but never propagated up — the run must not fail because the audit
 // table is unavailable.
 type healthMarkerAdapter struct {
+	ctx   context.Context
 	store *health.Store
 	runID string
 }
 
-func newHealthMarkerAdapter(store *health.Store, runID string) *healthMarkerAdapter {
-	return &healthMarkerAdapter{store: store, runID: runID}
+func newHealthMarkerAdapter(ctx context.Context, store *health.Store, runID string) *healthMarkerAdapter {
+	return &healthMarkerAdapter{ctx: context.WithoutCancel(ctx), store: store, runID: runID}
 }
 
 // MarkModelHealthy records a StatusOK observation. Reason is intentionally
@@ -33,7 +34,7 @@ func (a *healthMarkerAdapter) MarkModelHealthy(runnerType, modelID string) {
 	if a == nil || a.store == nil {
 		return
 	}
-	if err := a.store.RecordModel(context.Background(), runnerType, modelID, health.StatusOK, "", "", a.triggeredBy()); err != nil {
+	if err := a.store.RecordModel(a.ctx, runnerType, modelID, health.StatusOK, "", "", a.triggeredBy()); err != nil {
 		slog.Warn("health: record ok failed", "err", err, "runner", runnerType, "model", modelID)
 	}
 }
@@ -50,7 +51,7 @@ func (a *healthMarkerAdapter) MarkModelUnavailable(runnerType, modelID, message 
 	if a == nil || a.store == nil {
 		return
 	}
-	if err := a.store.RecordModel(context.Background(), runnerType, modelID, health.StatusFailed, string(fallback.ReasonUnknown), message, a.triggeredBy()); err != nil {
+	if err := a.store.RecordModel(a.ctx, runnerType, modelID, health.StatusFailed, string(fallback.ReasonUnknown), message, a.triggeredBy()); err != nil {
 		slog.Warn("health: record failed failed", "err", err, "runner", runnerType, "model", modelID)
 	}
 }

@@ -30,7 +30,7 @@ type (
 )
 
 type workflowLifecycleBroadcaster interface {
-	BroadcastWorkflowLifecycle(*domain.WorkflowLifecycleEvent)
+	BroadcastWorkflowLifecycle(context.Context, *domain.WorkflowLifecycleEvent)
 }
 
 const (
@@ -720,7 +720,7 @@ func (o *Orchestrator) SignalWorkflowExecution(ctx context.Context, req Workflow
 		if errors.Is(err, workflowruntime.ErrConcurrentAdvance) {
 			// The signal is already durable; another driver owns the advancing snapshot.
 			if o.workflowNudger != nil {
-				o.workflowNudger.Enqueue(req.ExecutionID)
+				o.workflowNudger.Enqueue(ctx, req.ExecutionID)
 			}
 			execution, err = o.workflowExecutions.Get(ctx, req.ExecutionID)
 		}
@@ -740,7 +740,7 @@ func (o *Orchestrator) CancelWorkflowExecution(ctx context.Context, req Workflow
 		if err := o.cleanupPlanFamilyClaims(ctx, execution); err != nil {
 			return &WorkflowExecutionOperationResult{Execution: execution, Idempotent: idempotent}, err
 		}
-		o.onWorkflowExecutionSettled(execution)
+		o.onWorkflowExecutionSettled(ctx, execution)
 		return &WorkflowExecutionOperationResult{Execution: execution, Idempotent: idempotent}, nil
 	}
 	execution, err = o.cleanupWorkflowChildren(ctx, req.ExecutionID, "parent workflow cancelled", false)
@@ -748,7 +748,7 @@ func (o *Orchestrator) CancelWorkflowExecution(ctx context.Context, req Workflow
 		return &WorkflowExecutionOperationResult{Execution: execution, Idempotent: idempotent}, err
 	}
 	o.broadcastWorkflowLifecycle(ctx, execution)
-	o.onWorkflowExecutionSettled(execution)
+	o.onWorkflowExecutionSettled(ctx, execution)
 	return &WorkflowExecutionOperationResult{Execution: execution, Idempotent: idempotent}, nil
 }
 
@@ -1002,7 +1002,7 @@ func (o *Orchestrator) ResumeWorkflowExecution(ctx context.Context, req Workflow
 // unchanged crash-safe; the settle hook is purely a notification.
 func (o *Orchestrator) driveWorkflowExecution(ctx context.Context, id uuid.UUID) (*domain.WorkflowExecution, error) {
 	execution, err := o.driveWorkflowExecutionLoop(ctx, id)
-	o.onWorkflowExecutionSettled(execution)
+	o.onWorkflowExecutionSettled(ctx, execution)
 	return execution, err
 }
 
@@ -1014,7 +1014,7 @@ func (o *Orchestrator) FailWorkflowExecution(ctx context.Context, id uuid.UUID, 
 		return nil, domain.NewStateError("workflow engine", "unavailable", "fail", "workflow execution is not configured")
 	}
 	execution, err := o.workflowEngine.Fail(ctx, id, code, message)
-	o.onWorkflowExecutionSettled(execution)
+	o.onWorkflowExecutionSettled(ctx, execution)
 	return execution, err
 }
 
@@ -1071,7 +1071,7 @@ func workflowWaitHasDeadline(journal []*domain.WorkflowJournalEntry) bool {
 // onWorkflowExecutionSettled fires the completion-nudge notifications for an
 // execution that has reached a terminal status. It is idempotent (a second
 // call finds no waiters and re-enqueues a deduped parent nudge) and nil-safe.
-func (o *Orchestrator) onWorkflowExecutionSettled(execution *domain.WorkflowExecution) {
+func (o *Orchestrator) onWorkflowExecutionSettled(ctx context.Context, execution *domain.WorkflowExecution) {
 	if execution == nil || !execution.Status.Terminal() {
 		return
 	}
@@ -1079,11 +1079,11 @@ func (o *Orchestrator) onWorkflowExecutionSettled(execution *domain.WorkflowExec
 		o.workflowWaiters.notify(execution.ID)
 	}
 	if execution.ParentExecutionID != nil && o.workflowNudger != nil {
-		o.workflowNudger.Enqueue(*execution.ParentExecutionID)
+		o.workflowNudger.Enqueue(ctx, *execution.ParentExecutionID)
 	}
-	o.attributeExperimentForExecution(context.Background(), execution)
-	o.persistInvestigationFindings(context.Background(), execution)
-	o.reconcileTypedInvestigation(context.Background(), execution)
+	o.attributeExperimentForExecution(context.WithoutCancel(ctx), execution)
+	o.persistInvestigationFindings(context.WithoutCancel(ctx), execution)
+	o.reconcileTypedInvestigation(context.WithoutCancel(ctx), execution)
 }
 
 // attributeExperimentForExecution emits primary evidence only after the
@@ -1209,11 +1209,11 @@ func workflowVerdict(raw json.RawMessage, pointer string) (string, bool) {
 // nudgeWorkflowForRun enqueues an idempotent drive of the workflow execution
 // that owns a just-terminal run. Non-workflow runs resolve to uuid.Nil and are
 // ignored. Called from the run-terminal transition points in the executors.
-func (o *Orchestrator) nudgeWorkflowForRun(runID uuid.UUID) {
+func (o *Orchestrator) nudgeWorkflowForRun(ctx context.Context, runID uuid.UUID) {
 	if o.workflowNudger == nil || o.workflowExecutions == nil {
 		return
 	}
-	executionID, err := o.workflowExecutions.ExecutionIDForRun(context.Background(), runID)
+	executionID, err := o.workflowExecutions.ExecutionIDForRun(context.WithoutCancel(ctx), runID)
 	if err != nil {
 		obs.Component("workflow-nudge").Warn("resolve owning execution for terminal run failed",
 			obs.KeyRunID, runID.String(),
@@ -1228,11 +1228,11 @@ func (o *Orchestrator) nudgeWorkflowForRun(runID uuid.UUID) {
 	// decision, and that decision needs the exact finding rows (and their
 	// before-measurement) already present; waiting until the whole workflow
 	// settles would make the apply path measure an empty set.
-	if execution, getErr := o.workflowExecutions.Get(context.Background(), executionID); getErr == nil {
-		o.persistInvestigationFindings(context.Background(), execution)
-		o.notifyInvestigationAwaitingApproval(context.Background(), execution)
+	if execution, getErr := o.workflowExecutions.Get(context.WithoutCancel(ctx), executionID); getErr == nil {
+		o.persistInvestigationFindings(context.WithoutCancel(ctx), execution)
+		o.notifyInvestigationAwaitingApproval(context.WithoutCancel(ctx), execution)
 	}
-	o.workflowNudger.Enqueue(executionID)
+	o.workflowNudger.Enqueue(ctx, executionID)
 }
 
 func (o *Orchestrator) driveWorkflowExecutionLoop(ctx context.Context, id uuid.UUID) (*domain.WorkflowExecution, error) {
@@ -1307,7 +1307,7 @@ func (o *Orchestrator) broadcastWorkflowLifecycle(ctx context.Context, execution
 			}
 		}
 	}
-	broadcaster.BroadcastWorkflowLifecycle(event)
+	broadcaster.BroadcastWorkflowLifecycle(ctx, event)
 }
 
 func (o *Orchestrator) RecoverWorkflowExecutions(ctx context.Context) error {

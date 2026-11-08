@@ -20,6 +20,7 @@ func (f *fakeStandingGrants) Put(_ context.Context, grant *domain.StandingGrant)
 	}
 	return nil
 }
+
 func (f *fakeStandingGrants) ActiveForSubject(_ context.Context, subject string, now time.Time) ([]*domain.StandingGrant, error) {
 	var out []*domain.StandingGrant
 	for _, g := range f.grants {

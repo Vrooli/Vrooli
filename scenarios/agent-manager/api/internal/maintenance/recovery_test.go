@@ -411,3 +411,61 @@ func TestRecoveryRequiredStepFailingEveryAttemptStaysDegraded(t *testing.T) {
 		t.Fatalf("exhausted recovery=%+v calls=%d", state, calls.Load())
 	}
 }
+
+// A slow historical step must not hold a healthy service unready: required
+// steps run first and open readiness, even those declared after it, and the
+// historical step runs afterwards. A required failure still closes readiness.
+func TestRecoveryOpensReadinessBeforeSlowHistoricalSteps(t *testing.T) {
+	recovery := NewRecovery()
+	release := make(chan struct{})
+	t.Cleanup(func() { recovery.Stop() })
+	var order []string
+	var mu sync.Mutex
+	record := func(name string) {
+		mu.Lock()
+		defer mu.Unlock()
+		order = append(order, name)
+	}
+	historicalStarted := make(chan struct{})
+	recovery.Start(t.Context(), []RecoveryStep{
+		{Name: "in_flight_runs", Run: func(context.Context) error { record("in_flight_runs"); return nil }},
+		{Name: "workflow_accounting", NonCritical: true, Run: func(ctx context.Context) error {
+			record("workflow_accounting")
+			close(historicalStarted)
+			select {
+			case <-release:
+				return nil
+			case <-ctx.Done():
+				return ctx.Err()
+			}
+		}},
+		{Name: "parked_runs", Run: func(context.Context) error { record("parked_runs"); return nil }},
+	})
+	<-historicalStarted
+	state := recovery.Snapshot()
+	if !state.Readiness || state.Phase != "workflow_accounting" {
+		t.Fatalf("state while history runs = %+v, want ready with the historical phase visible", state)
+	}
+	mu.Lock()
+	got := strings.Join(order, ",")
+	mu.Unlock()
+	if got != "in_flight_runs,parked_runs,workflow_accounting" {
+		t.Fatalf("order = %s, want required steps first", got)
+	}
+	close(release)
+	<-recovery.Done()
+	if state := recovery.Snapshot(); !state.Readiness || state.Status != "ready" {
+		t.Fatalf("final state = %+v", state)
+	}
+
+	failing := NewRecovery()
+	t.Cleanup(func() { failing.Stop() })
+	failing.Start(t.Context(), []RecoveryStep{
+		{Name: "history", NonCritical: true, Run: func(context.Context) error { return nil }},
+		{Name: "parked_runs", Run: func(context.Context) error { return errors.New("boom") }},
+	})
+	<-failing.Done()
+	if state := failing.Snapshot(); state.Readiness {
+		t.Fatalf("a failed required step must keep readiness closed: %+v", state)
+	}
+}

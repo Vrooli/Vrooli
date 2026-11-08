@@ -427,6 +427,7 @@ func TestOrdinaryModelOverrideRejectsPremiumAndProhibitedModels(t *testing.T) {
 		}
 	}
 }
+
 func TestRecordedModelFallbackChecksSuppliedSourcesWithoutConstrainingParent(t *testing.T) {
 	repos, _, run := tokenCapFixture(t, "gpt-6.1-terra")
 	o := &Orchestrator{runs: repos.Runs}

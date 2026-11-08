@@ -134,19 +134,19 @@ func (h *Handler) GetWorkflowExecutionResult(w http.ResponseWriter, r *http.Requ
 	writeProtoJSON(w, http.StatusOK, &apipb.WorkflowExecutionResponse{Execution: pbExecution})
 }
 
-// WorkflowWaitResponse lets the wait operation's timeout and request context
+// LongWaitResponse lets the wait operation's timeout and request context
 // govern its lifetime. The ordinary server write deadline would otherwise expire
-// while the handler awaits an execution, losing the eventual terminal response.
-// Register this wrapper only on routes whose handler bounds its own wait: the
-// REST and Connect workflow wait routes, and run quiesce (at most
-// MaxQuiesceTimeout).
-func WorkflowWaitResponse(next http.Handler) http.Handler {
+// while the handler waits, losing the eventual response. Register this wrapper
+// only on routes whose handler bounds its own wait: the REST and Connect
+// workflow wait routes, run quiesce (at most MaxQuiesceTimeout), and the
+// Connect run and children waits (at most orchestration.MaxRunWaitTimeout).
+func LongWaitResponse(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		err := http.NewResponseController(w).SetWriteDeadline(time.Time{})
 		// Writers without a transport (such as ResponseRecorder) have no socket
 		// deadline. The production server wrappers expose Unwrap for this call.
 		if err != nil && !errors.Is(err, http.ErrNotSupported) {
-			writeError(w, r, fmt.Errorf("configure workflow wait response deadline: %w", err))
+			writeError(w, r, fmt.Errorf("configure wait response deadline: %w", err))
 			return
 		}
 		next.ServeHTTP(w, r)

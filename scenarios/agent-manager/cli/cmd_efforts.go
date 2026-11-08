@@ -320,6 +320,7 @@ func printCompactEffortBoard(b *pb.EffortBoard) {
 		} else {
 			fmt.Println("  Named waits: none")
 		}
+		fmt.Printf("  Step-back: %s\n", compactStepBack(r.GetAssignments()))
 		printGoalHome(r.GetGoalHome())
 		printDeliveryPressure(r.GetDeliveryPressure())
 		refs := append([]string{}, r.GetEvidenceRefs()...)
@@ -333,6 +334,25 @@ func printCompactEffortBoard(b *pb.EffortBoard) {
 		}
 	}
 	printEffortPage(b.GetNextPageToken())
+}
+
+// compactStepBack names the step-back triggers per assigned run in one line;
+// `run tree <run>` or the full board shows their evidence.
+func compactStepBack(assignments []*pb.EffortAssignment) string {
+	var parts []string
+	for _, a := range assignments {
+		var ids []string
+		for _, trigger := range a.GetStepBack() {
+			ids = append(ids, trigger.GetId())
+		}
+		if len(ids) > 0 {
+			parts = append(parts, fmt.Sprintf("%s run=%s %s", effortKnown(a.GetSubject().GetRole()), a.GetSubject().GetRunId(), strings.Join(ids, ",")))
+		}
+	}
+	if len(parts) == 0 {
+		return "none"
+	}
+	return strings.Join(parts, "; ") + " (evidence: agent-manager run tree <run>)"
 }
 
 func effortTimestamp(ts *timestamppb.Timestamp) string {
@@ -393,6 +413,7 @@ func printEffortBoard(b *pb.EffortBoard) {
 		for _, a := range r.Assignments {
 			fmt.Printf("  %s: %s/%s run=%s state=%s %s\n", a.GetSubject().GetRole(), a.GetSubject().GetOwner(), a.GetSubject().GetReference(), a.GetSubject().GetRunId(), a.RuntimeState, a.UnavailableReason)
 			fmt.Printf("    Requested: runner=%s model=%s reasoning=%s; effective: runner=%s model=%s reasoning=%s\n", effortKnown(a.RequestedRunner), effortKnown(a.RequestedModel), effortKnown(a.RequestedReasoning), effortKnown(a.EffectiveRunner), effortKnown(a.EffectiveModel), effortKnown(a.EffectiveReasoning))
+			printStepBack(a.GetStepBack(), "    ")
 		}
 		printGoalHome(r.GetGoalHome())
 		printDeliveryPressure(r.GetDeliveryPressure())

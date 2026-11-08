@@ -16,6 +16,11 @@ func TestDefaultOrchestrationSettings_IsValid(t *testing.T) {
 	if err := s.Validate(); err != nil {
 		t.Fatalf("default settings should be valid: %v", err)
 	}
+	// docs/reference/configuration.md documents these defaults; a fresh or
+	// reset install must not refuse the 12-hour goal-mode profiles it sizes.
+	if s.RunExecution.RunTimeoutMinutes != 720 || s.RunExecution.MaxChildDepth != 3 {
+		t.Fatalf("default runExecution = %+v, want the documented runTimeoutMinutes 720 and maxChildDepth 3", s.RunExecution)
+	}
 }
 
 func TestOperationApprovalsPersistAndLegacySettingsDefaultOff(t *testing.T) {
@@ -58,6 +63,24 @@ func TestOperationApprovalsPersistAndLegacySettingsDefaultOff(t *testing.T) {
 	}
 }
 
+// A settings file written before a field existed loads that field's default,
+// not a zero that may disable it or fail validation.
+func TestSettingsFileWithoutMaxChildDepthLoadsTheDefault(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "orchestration.json")
+	legacy := []byte(`{"runExecution":{"runTimeoutMinutes":720,"maxConcurrentRuns":10,"maxTurns":1000},"safetyIsolation":{"requireSandbox":true,"requireApproval":true,"networkAccess":"localhost"},"healthDetection":{"heartbeatIntervalSeconds":60,"staleThresholdSeconds":1000,"maxRecoveryAgeSeconds":1100,"reconcilerIntervalSeconds":30},"processTermination":{"gracePeriodSeconds":5,"killProcessGroup":true,"killOrphans":true,"orphanGracePeriodSeconds":600,"terminationMaxRetries":3}}`)
+	if err := os.WriteFile(path, legacy, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	store, err := NewOrchestrationSettingsStore(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := store.Get().RunExecution
+	if got.MaxChildDepth != DefaultMaxChildDepth || got.RunTimeoutMinutes != 720 {
+		t.Fatalf("legacy settings loaded runExecution %+v, want maxChildDepth %d and the saved timeout", got, DefaultMaxChildDepth)
+	}
+}
+
 // =============================================================================
 // RUN EXECUTION VALIDATION
 // =============================================================================
@@ -80,6 +103,10 @@ func TestOrchestrationSettings_Validate_RunExecution(t *testing.T) {
 		{"maxTurns at max", func(s *OrchestrationSettings) { s.RunExecution.MaxTurns = 9999 }, false},
 		{"maxTurns below min", func(s *OrchestrationSettings) { s.RunExecution.MaxTurns = 0 }, true},
 		{"maxTurns above max", func(s *OrchestrationSettings) { s.RunExecution.MaxTurns = 10000 }, true},
+		{"maxChildDepth zero disables children", func(s *OrchestrationSettings) { s.RunExecution.MaxChildDepth = 0 }, false},
+		{"maxChildDepth at max", func(s *OrchestrationSettings) { s.RunExecution.MaxChildDepth = 10 }, false},
+		{"maxChildDepth negative", func(s *OrchestrationSettings) { s.RunExecution.MaxChildDepth = -1 }, true},
+		{"maxChildDepth above max", func(s *OrchestrationSettings) { s.RunExecution.MaxChildDepth = 11 }, true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

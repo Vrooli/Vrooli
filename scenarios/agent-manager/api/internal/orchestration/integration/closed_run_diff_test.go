@@ -116,6 +116,7 @@ func (p *archiveAwareSandboxProvider) Approve(_ context.Context, _ sandbox.Appro
 func (p *archiveAwareSandboxProvider) Reject(_ context.Context, _ uuid.UUID, _ string) error {
 	return nil
 }
+
 func (p *archiveAwareSandboxProvider) RejectReviewed(_ context.Context, _ sandbox.RejectRequest) error {
 	return nil
 }

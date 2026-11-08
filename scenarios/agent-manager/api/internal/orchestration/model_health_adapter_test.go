@@ -13,7 +13,7 @@ func TestHealthMarkerAdapterRecordsHealthyAndUnavailableObservations(t *testing.
 	db, cleanup := testutil.SetupTestDB(t)
 	t.Cleanup(cleanup)
 	store := health.NewStore(db)
-	adapter := newHealthMarkerAdapter(store, "run-123")
+	adapter := newHealthMarkerAdapter(t.Context(), store, "run-123")
 	adapter.MarkModelHealthy("codex", "gpt-test")
 	adapter.MarkModelUnavailable("codex", "gpt-test", "capacity exhausted")
 	entry, err := store.LatestModelStatus(context.Background(), "codex", "gpt-test")
@@ -32,7 +32,7 @@ func TestHealthMarkerAdapterNilStoreAndTriggeredByAreSafe(t *testing.T) {
 	if got := nilAdapter.triggeredBy(); got != "runtime" {
 		t.Fatalf("nil adapter trigger = %q", got)
 	}
-	if got := newHealthMarkerAdapter(nil, "").triggeredBy(); got != "runtime" {
+	if got := newHealthMarkerAdapter(t.Context(), nil, "").triggeredBy(); got != "runtime" {
 		t.Fatalf("empty run trigger = %q", got)
 	}
 }

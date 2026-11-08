@@ -17,8 +17,8 @@ import (
 // Mirror the canonical control-plane executor-scope-v1 bounds. One inventory
 // attachment uses one indexed host snapshot, including retained managed history.
 const (
-	executorScopeMaxReferences = 16384
-	executorScopeMaxBytes      = 8 << 20
+	executorScopeMaxReferences = 65536
+	executorScopeMaxBytes      = 32 << 20
 )
 
 type executorScopeRef struct {
@@ -116,6 +116,9 @@ func (o *ControlPlaneObserver) Observe(ctx context.Context, refs []ExecutorRef) 
 		}
 	}
 	for _, ref := range refs {
+		if err := ctx.Err(); err != nil {
+			return nil, err
+		}
 		id, err := uuid.Parse(ref.ID)
 		if err != nil {
 			return nil, fmt.Errorf("executor scope has invalid durable run ID")

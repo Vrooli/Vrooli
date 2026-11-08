@@ -1,12 +1,14 @@
 package orchestration_test
 
 import (
-	"agent-manager/internal/domain"
-	"agent-manager/internal/orchestration"
 	"context"
 	"errors"
-	coreidentity "github.com/vrooli/api-core/identity"
 	"time"
+
+	"agent-manager/internal/domain"
+	"agent-manager/internal/orchestration"
+
+	coreidentity "github.com/vrooli/api-core/identity"
 )
 
 type fixtureOperatorVerifier struct{}
@@ -17,6 +19,7 @@ func (fixtureOperatorVerifier) Verify(_ context.Context, token string) (coreiden
 	}
 	return coreidentity.Principal{Kind: coreidentity.ActorHuman, Verified: true, Subject: "fixture-operator", Scopes: []string{"agent-manager:write", "agent-manager:read", "agent-manager:supervise"}, ExpiresAt: time.Now().Add(time.Hour)}, nil
 }
+
 func fixtureOwnerIdentityOption() orchestration.Option {
 	return orchestration.WithOwnerIdentity(fixtureOperatorVerifier{})
 }

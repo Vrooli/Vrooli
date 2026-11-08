@@ -32,10 +32,9 @@
       "type": "image/png"
     }
   ],
-  "id": "/",
   "name": "Mizar",
-  "scope": "/",
+  "scope": "../",
   "short_name": "Mizar",
-  "start_url": "/",
+  "start_url": "../",
   "theme_color": "#0f172a"
 }

@@ -30,4 +30,4 @@ func Module(deps Deps) module.Module {
 	}
 }
 
-func Schema() string { return "" }
+func Schema() string { return inference.AttemptSchema() }

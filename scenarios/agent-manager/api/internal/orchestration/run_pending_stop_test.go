@@ -55,7 +55,7 @@ func TestStopRunPendingCancelsAdmissionWithoutCallingRunnerStop(t *testing.T) {
 			if err := repos.Runs.Create(ctx, run); err != nil {
 				t.Fatal(err)
 			}
-			admission, err := dispatcher.ReserveAdmission(run.ID)
+			admission, err := dispatcher.ReserveAdmission(t.Context(), run.ID)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -113,7 +113,7 @@ func TestStopRunPendingCancellationPersistenceFailureReopensAdmission(t *testing
 	if err := repos.Runs.Create(ctx, run); err != nil {
 		t.Fatal(err)
 	}
-	admission, err := dispatcher.ReserveAdmission(run.ID)
+	admission, err := dispatcher.ReserveAdmission(t.Context(), run.ID)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -160,7 +160,7 @@ func TestStopRunPendingRereadsAndUsesNormalPathWhenRunStarts(t *testing.T) {
 	if err := repos.Runs.Create(ctx, run); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := dispatcher.ReserveAdmission(run.ID); err != nil {
+	if _, err := dispatcher.ReserveAdmission(t.Context(), run.ID); err != nil {
 		t.Fatal(err)
 	}
 

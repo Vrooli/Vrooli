@@ -6,6 +6,9 @@ import (
 	"path/filepath"
 	"testing"
 	"time"
+
+	corestorage "github.com/vrooli/api-core/storage"
+	repocontract "github.com/vrooli/repo-contract-go"
 )
 
 func statuslineSample(at time.Time, five, seven float64) string {
@@ -88,5 +91,38 @@ func TestClaudeWindowMinutesReadsTheResourceDescriptor(t *testing.T) {
 		if got := ClaudeWindowMinutes(pool); got != want {
 			t.Errorf("%s: got %d, want %d", pool, got, want)
 		}
+	}
+}
+
+// The feed path is the claude-code owner's storage state file: identical to
+// the documented ~/.vrooli location by default, moved by a custom
+// VROOLI_STORAGE_ROOT, and replaced outright by the resource's override.
+func TestClaudeStatuslineSamplesPathFollowsTheStorageAuthority(t *testing.T) {
+	home := t.TempDir()
+	resolve := func(env map[string]string) string {
+		t.Helper()
+		path, err := ClaudeStatuslineSamplesPath(corestorage.ResolverConfig{
+			EnvGet:      func(key string) string { return env[key] },
+			UserHomeDir: func() (string, error) { return home, nil },
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+		return path
+	}
+	stateRoot, err := repocontract.RuntimeHomeEntryPath(home, repocontract.HomeKeyState)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got, want := resolve(nil), filepath.Join(stateRoot, "vrooli", "claude-code", "quota-samples.ndjson"); got != want {
+		t.Errorf("default samples path = %q, want %q", got, want)
+	}
+	custom := t.TempDir()
+	if got, want := resolve(map[string]string{"VROOLI_STORAGE_ROOT": custom}), filepath.Join(custom, "state", "vrooli", "claude-code", "quota-samples.ndjson"); got != want {
+		t.Errorf("custom storage root samples path = %q, want %q", got, want)
+	}
+	override := filepath.Join(t.TempDir(), "feed.ndjson")
+	if got := resolve(map[string]string{"VROOLI_STORAGE_ROOT": custom, ClaudeStatuslineSamplesEnv: override}); got != override {
+		t.Errorf("override samples path = %q, want %q", got, override)
 	}
 }

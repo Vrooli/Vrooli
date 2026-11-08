@@ -142,7 +142,7 @@ func (h *Handler) StopAllRuns(w http.ResponseWriter, r *http.Request) {
 // promote can re-point and restart its live instance without killing in-flight
 // agent work (Baseline Modes P6).
 //
-// The route clears the server write deadline (WorkflowWaitResponse); the drain
+// The route clears the server write deadline (LongWaitResponse); the drain
 // itself is bounded by orchestration.MaxQuiesceTimeout.
 func (h *Handler) QuiesceScenario(w http.ResponseWriter, r *http.Request) {
 	body, err := io.ReadAll(r.Body)

@@ -222,7 +222,15 @@ func EmitFinalizeCompleted(sink Sink, runID uuid.UUID, fields FinalizeFields, to
 func emitLifecycle(sink Sink, runID uuid.UUID, data domain.LifecycleEventData, logAttrs ...any) {
 	evt := domain.NewLifecycleEvent(runID, data)
 	if sink != nil {
-		_ = sink.Emit(evt)
+		// A diagnostic sink is not the execution owner. Its panic must not
+		// escape after admission or unwind a dispatcher slot. Keep the log
+		// below even when persistence fails or panics.
+		func() {
+			defer RecoverToFailure("lifecycle event sink", nil)
+			if err := sink.Emit(evt); err != nil {
+				Logger().Error("lifecycle event sink failed", KeyRunID, runID.String(), KeyPhase, string(data.Phase), "error", err)
+			}
+		}()
 	}
 	args := append([]any{KeyRunID, runID.String(), KeyPhase, string(data.Phase)}, logAttrs...)
 	Logger().Info(data.Message, args...)

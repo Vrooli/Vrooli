@@ -247,7 +247,7 @@ func observedGoalMatchesRun(run *domain.Run, objective string) bool {
 	}
 	// Interactive launch replaces only line breaks in the configured objective;
 	// preserve the same exact/newline-suffix correlation used by the codec.
-	return runner.NativeGoalObjectiveMatches(objective, run.ResolvedConfig.Until)
+	return runner.NativeGoalObjectiveMatches(run.ResolvedConfig.RunnerType, objective, run.ResolvedConfig.Until)
 }
 
 // SendInteractivePrompt delivers text to an arbitrary web-console session as its
@@ -564,7 +564,7 @@ func (o *Orchestrator) resumeConversation(ctx context.Context, run *domain.Run, 
 		}
 	}
 
-	eventSink := o.runEventSink(run.ID)
+	eventSink := o.runEventSink(ctx, run.ID)
 
 	// Resolve attachments
 	var attachments []runner.Attachment
@@ -711,12 +711,9 @@ func (o *Orchestrator) assembleContinuationEnv(ctx context.Context, run *domain.
 		}
 	}
 	if len(run.ResolvedConfig.SkillPack) > 0 {
-		runtimeRoot := ""
-		for _, key := range []string{"CLAUDE_CONFIG_DIR", "CODEX_HOME", "GROK_HOME", "OPENCODE_CONFIG_DIR", "ANTIGRAVITY_STATE_DIR"} {
-			if value := env[key]; value != "" {
-				runtimeRoot = value
-				break
-			}
+		skillsDir, scopeErr := RunnerSkillsDir(run.ResolvedConfig.RunnerType, env)
+		if scopeErr != nil {
+			return nil, fmt.Errorf("continuation profile skill pack cannot reach the run: %w", scopeErr)
 		}
 		source, ok := o.promptClient.(promptmanager.SourceClient)
 		if !ok || source == nil {
@@ -724,9 +721,9 @@ func (o *Orchestrator) assembleContinuationEnv(ctx context.Context, run *domain.
 		}
 		var projectErr error
 		if run.ResolvedConfig.SkillExperimentID != "" {
-			_, projectErr = ProjectProfileSkillsAssigned(ctx, runStateRoot, run.ID, runtimeRoot, run.ResolvedConfig.SkillExperimentID, run.ResolvedConfig.SkillPack, source, defaultProfileSkillTokenCeiling)
+			_, projectErr = ProjectProfileSkillsAssigned(ctx, runStateRoot, run.ID, skillsDir, run.ResolvedConfig.SkillExperimentID, run.ResolvedConfig.SkillPack, source, defaultProfileSkillTokenCeiling)
 		} else {
-			_, projectErr = ProjectProfileSkills(ctx, runStateRoot, run.ID, runtimeRoot, run.ResolvedConfig.SkillPack, source, defaultProfileSkillTokenCeiling)
+			_, projectErr = ProjectProfileSkills(ctx, runStateRoot, run.ID, skillsDir, run.ResolvedConfig.SkillPack, source, defaultProfileSkillTokenCeiling)
 		}
 		if projectErr != nil {
 			return nil, projectErr
@@ -921,7 +918,7 @@ func (o *Orchestrator) prepareRunTranscript(ctx context.Context, run *domain.Run
 	streamRun := *run
 	run = &streamRun
 	persistStream := func() error {
-		updated, err := o.runs.UpdateRunnerStreamState(context.Background(), run)
+		updated, err := o.runs.UpdateRunnerStreamState(context.WithoutCancel(ctx), run)
 		if err == nil && !updated {
 			return domain.NewStateError("Run", "superseded", "stream", "continuation no longer owns this lifecycle")
 		}
@@ -982,7 +979,7 @@ func (o *Orchestrator) prepareRunTranscript(ctx context.Context, run *domain.Run
 func (o *Orchestrator) executeContinuation(ctx context.Context, run *domain.Run, r runner.Runner, eventSink runner.EventSink, message string, workDir string, attachments []runner.Attachment, continueEnv map[string]string, transcript *runner.TranscriptConfig, cleanupTranscript func()) {
 	// Registered before cleanupTranscript so it also contains a cleanup panic.
 	defer obs.RecoverToFailure("run continuation", func(failure obs.PanicFailure) {
-		o.recoverPanickedRun(run, failure)
+		o.recoverPanickedRun(ctx, run, failure)
 	})
 	if cleanupTranscript != nil {
 		defer cleanupTranscript()
@@ -1205,7 +1202,7 @@ func (o *Orchestrator) executeContinuation(ctx context.Context, run *domain.Run,
 	}
 	// Completion-driven advance: a workflow continue-node run just reached
 	// terminal (the parked path returned above, keeping its attempt open).
-	o.nudgeWorkflowForRun(run.ID)
+	o.nudgeWorkflowForRun(ctx, run.ID)
 }
 
 func hasStructuredResult(result *domain.RunResult) bool {
@@ -1269,7 +1266,7 @@ func (o *Orchestrator) checkpointContinuationTurn(ctx context.Context, run *doma
 	})
 	// Continuations need the same detached, generation-checked cleanup and
 	// final projection as initial turns, including when apply is deferred.
-	phases.Finalize(phases.FinalizeInput{
+	phases.Finalize(ctx, phases.FinalizeInput{
 		Deps: phases.Deps{Runs: o.runs, Events: o.events, Broadcaster: o.broadcaster, Levers: o.runLevers(), WorkspaceSandbox: o.workspaceSandbox},
 		Run:  run, SandboxID: run.SandboxID, Sandbox: o.sandbox,
 		Event: phases.TurnLifecycleEventForOutcome(outcome),

@@ -474,7 +474,7 @@ func appendAndBroadcastEvents(ctx context.Context, store event.Store, broadcaste
 	if broadcaster != nil {
 		for _, evt := range persistable {
 			if !evt.PersistenceReplay {
-				broadcaster.BroadcastEvent(evt)
+				broadcaster.BroadcastEvent(ctx, evt)
 			}
 		}
 	}
@@ -489,7 +489,7 @@ func (o *Orchestrator) appendAndBroadcastEvents(ctx context.Context, runID uuid.
 		if evt == nil || evt.PersistenceReplay {
 			continue
 		}
-		o.afterRunEventPersisted(runID, evt)
+		o.afterRunEventPersisted(ctx, runID, evt)
 		switch evt.EventType {
 		case domain.EventTypeMessage, domain.EventTypeToolCall, domain.EventTypeToolResult:
 			o.notifyConversationSearch(ctx, "upsert_run", runID.String(), evt.ID.String())
@@ -506,6 +506,7 @@ func (o *Orchestrator) appendAndBroadcastEvents(ctx context.Context, runID uuid.
 
 // eventStoreAdapter adapts event.Store to runner.EventSink
 type eventStoreAdapter struct {
+	ctx          context.Context
 	mu           sync.Mutex
 	store        event.Store
 	runID        uuid.UUID
@@ -516,11 +517,11 @@ type eventStoreAdapter struct {
 func (e *eventStoreAdapter) Emit(evt *domain.RunEvent) error {
 	e.mu.Lock()
 	defer e.mu.Unlock()
-	if err := e.store.Append(context.Background(), e.runID, evt); err != nil {
+	if err := e.store.Append(e.ctx, e.runID, evt); err != nil {
 		return err
 	}
 	e.lastSequence = evt.Sequence
-	e.hooks.afterRunEventPersisted(e.runID, evt)
+	e.hooks.afterRunEventPersisted(e.ctx, e.runID, evt)
 	return nil
 }
 
@@ -540,17 +541,19 @@ func (e *eventStoreAdapter) LastSequence() int64 {
 // (afterRunEventPersisted) to each non-replay event it persists. Only a unit
 // test that builds an executor or reconciler without an orchestrator passes a
 // nil owner; production wiring always supplies one.
-func newRunEventSink(hooks *Orchestrator, store event.Store, broadcaster EventBroadcaster, runID uuid.UUID) runner.EventSink {
+func newRunEventSink(ctx context.Context, hooks *Orchestrator, store event.Store, broadcaster EventBroadcaster, runID uuid.UUID) runner.EventSink {
+	ctx = context.WithoutCancel(ctx)
 	switch {
 	case store != nil && broadcaster != nil:
 		return &broadcastingEventSink{
+			ctx:         ctx,
 			store:       store,
 			runID:       runID,
 			broadcaster: broadcaster,
 			hooks:       hooks,
 		}
 	case store != nil:
-		return &eventStoreAdapter{store: store, runID: runID, hooks: hooks}
+		return &eventStoreAdapter{ctx: ctx, store: store, runID: runID, hooks: hooks}
 	default:
 		return &noOpEventSink{}
 	}
@@ -558,6 +561,7 @@ func newRunEventSink(hooks *Orchestrator, store event.Store, broadcaster EventBr
 
 // broadcastingEventSink stores events AND broadcasts them via WebSocket.
 type broadcastingEventSink struct {
+	ctx          context.Context
 	store        event.Store
 	runID        uuid.UUID
 	broadcaster  EventBroadcaster
@@ -569,7 +573,7 @@ func (b *broadcastingEventSink) Emit(evt *domain.RunEvent) error {
 	// Validate event and log warnings for missing data
 	domain.ValidateEvent(evt)
 
-	if err := appendAndBroadcastEvents(context.Background(), b.store, b.broadcaster, b.runID, evt); err != nil {
+	if err := appendAndBroadcastEvents(b.ctx, b.store, b.broadcaster, b.runID, evt); err != nil {
 		obs.Component("broadcast-sink").Warn("event store append failed",
 			obs.KeyRunID, b.runID.String(),
 			obs.KeyError, err.Error(),
@@ -577,15 +581,15 @@ func (b *broadcastingEventSink) Emit(evt *domain.RunEvent) error {
 		return err
 	}
 	b.lastSequence = evt.Sequence
-	b.hooks.afterRunEventPersisted(b.runID, evt)
+	b.hooks.afterRunEventPersisted(b.ctx, b.runID, evt)
 
 	if b.broadcaster != nil && !evt.PersistenceReplay {
 		// Also emit progress events for status changes
 		if data, ok := evt.Data.(*domain.StatusEventData); ok {
-			b.broadcaster.BroadcastProgress(b.runID, domain.RunPhase(data.NewStatus), 0, data.Reason)
+			b.broadcaster.BroadcastProgress(b.ctx, b.runID, domain.RunPhase(data.NewStatus), 0, data.Reason)
 		}
 		if data, ok := evt.Data.(*domain.ProgressEventData); ok {
-			b.broadcaster.BroadcastProgress(b.runID, data.Phase, data.PercentComplete, data.CurrentAction)
+			b.broadcaster.BroadcastProgress(b.ctx, b.runID, data.Phase, data.PercentComplete, data.CurrentAction)
 		}
 	}
 
@@ -601,28 +605,28 @@ func (b *broadcastingEventSink) LastSequence() int64 {
 }
 
 // runEventSink builds this orchestrator's sink for one run.
-func (o *Orchestrator) runEventSink(runID uuid.UUID) runner.EventSink {
-	return newRunEventSink(o, o.events, o.broadcaster, runID)
+func (o *Orchestrator) runEventSink(ctx context.Context, runID uuid.UUID) runner.EventSink {
+	return newRunEventSink(ctx, o, o.events, o.broadcaster, runID)
 }
 
 // afterRunEventPersisted is the orchestrator's one post-persist hook set. It
 // runs once per persisted non-replay event: provider quota frames become
 // quota observations, usage nudges the owning workflow, and usage feeds the
 // token cap. A nil owner applies no hooks.
-func (o *Orchestrator) afterRunEventPersisted(runID uuid.UUID, evt *domain.RunEvent) {
+func (o *Orchestrator) afterRunEventPersisted(ctx context.Context, runID uuid.UUID, evt *domain.RunEvent) {
 	if o == nil || evt == nil || evt.PersistenceReplay {
 		return
 	}
-	o.observeQuotaEvent(evt, true)
-	o.nudgeWorkflowUsage(runID, evt)
-	o.observeTokenCapUsage(runID, evt)
+	o.observeQuotaEvent(ctx, evt, true)
+	o.nudgeWorkflowUsage(ctx, runID, evt)
+	o.observeTokenCapUsage(ctx, runID, evt)
 }
 
 // observeQuotaEvent records a provider quota frame as a quota observation.
 // retained reports whether the event itself was persisted; an imported
 // messages-only transcript keeps the observation but not the event, so its
 // evidence reference names the run instead of a missing event row.
-func (o *Orchestrator) observeQuotaEvent(evt *domain.RunEvent, retained bool) {
+func (o *Orchestrator) observeQuotaEvent(ctx context.Context, evt *domain.RunEvent, retained bool) {
 	if o == nil || o.quotaObservations == nil || evt == nil || evt.EventType != domain.EventTypeQuota {
 		return
 	}
@@ -637,7 +641,7 @@ func (o *Orchestrator) observeQuotaEvent(evt *domain.RunEvent, retained bool) {
 	if !retained {
 		observation.EvidenceRef = "agent-manager://runs/" + evt.RunID.String()
 	}
-	if err := o.quotaObservations.RecordQuotaObservation(context.Background(), observation); err != nil {
+	if err := o.quotaObservations.RecordQuotaObservation(ctx, observation); err != nil {
 		obs.Component("quota-observation").Warn("provider quota frame persistence failed", obs.KeyRunID, evt.RunID.String(), obs.KeyError, err.Error())
 	}
 }
@@ -661,8 +665,8 @@ func runnerTypeOrEmpty(run *domain.Run) domain.RunnerType {
 // Returned sink is non-nil even when the orchestrator has no event
 // store wired (defaults to the noOp sink so dispatcher.Enqueue still
 // emits its log line).
-func (o *Orchestrator) dispatcherSink(runID uuid.UUID) obs.Sink {
-	return o.runEventSink(runID)
+func (o *Orchestrator) dispatcherSink(ctx context.Context, runID uuid.UUID) obs.Sink {
+	return o.runEventSink(ctx, runID)
 }
 
 // noOpEventSink discards events

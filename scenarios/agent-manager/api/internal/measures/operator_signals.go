@@ -3,10 +3,13 @@ package measures
 import (
 	"context"
 	"fmt"
+	"sort"
 	"strconv"
 	"time"
 
 	"agent-manager/internal/interventions"
+
+	measurepb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/measures"
 
 	measurelib "github.com/vrooli/measures-go"
 )
@@ -19,6 +22,12 @@ const UsageOperatorSignals = "usage.operator_signals"
 // SignalSource reads the operator messages of a window with their signals.
 type SignalSource interface {
 	SignalObservations(ctx context.Context, version string, from, to time.Time) ([]interventions.SignalObservation, error)
+}
+
+// CorrectionDetails reads the example text and prior agent work of operator
+// messages.
+type CorrectionDetails interface {
+	MessageDetails(ctx context.Context, eventIDs []string) (map[string]interventions.MessageDetail, error)
 }
 
 // SetSignals supplies the operator-signal classifications.
@@ -44,8 +53,10 @@ func (h *Handler) registerOperatorSignals(registry *measurelib.Registry) error {
 		Effect:    measurelib.EffectRead, RunEligible: true,
 	}, func(ctx context.Context, request measurelib.MeasureRequest) (measurelib.MeasureResult, error) {
 		if !interventions.SignalsEnabled() {
-			return measurelib.MeasureResult{Fields: []map[string]string{{"signal": "all", "state": "off", "note": "operator signals are switched off (" + interventions.SignalsSwitchEnv + "); nothing is classified or reported"}},
-				Provenance: measurelib.Provenance{ExecutedQuery: "none: switched off"}}, nil
+			return measurelib.MeasureResult{
+				Fields:     []map[string]string{{"signal": "all", "state": "off", "note": "operator signals are switched off (" + interventions.SignalsSwitchEnv + "); nothing is classified or reported"}},
+				Provenance: measurelib.Provenance{ExecutedQuery: "none: switched off"},
+			}, nil
 		}
 		if h.signals == nil {
 			return measurelib.MeasureResult{}, fmt.Errorf("operator signal classifications are unavailable")
@@ -107,4 +118,77 @@ func operatorSignalRows(cells []interventions.SignalCell) []map[string]string {
 		rows = append(rows, map[string]string{"signal": "all", "state": "no_data", "note": "no operator messages after agent work in the window"})
 	}
 	return rows
+}
+
+// maxCorrectionExamples bounds the examples a friction read prints: enough
+// to show what the operator rejected without becoming heavy output itself.
+const maxCorrectionExamples = 8
+
+// correctionsSection is the operator messages of [from, to) that gate admits as
+// explicit negatives (a reported failure or a correction), newest first, with
+// the hold-out precision the gate was proven at. It is nil when operator signals
+// are switched off or no model is proven for explicit negatives: those messages
+// are then unproven, not absent.
+func correctionsSection(ctx context.Context, source SignalSource, gate interventions.SignalGate, measured interventions.SignalMeasurements, from, to time.Time, agentHours float64, limit int) (*measurepb.UsageOperatorCorrections, error) {
+	if source == nil || !interventions.SignalsEnabled() || !gate.Proven(interventions.ExplicitNegative) {
+		return nil, nil
+	}
+	observations, err := source.SignalObservations(ctx, interventions.SignalVersion, from, to)
+	if err != nil {
+		return nil, err
+	}
+	out := &measurepb.UsageOperatorCorrections{ClassifierVersion: interventions.SignalVersion}
+	models := map[string]bool{}
+	for _, o := range observations {
+		if o.Status == interventions.StatusClassified {
+			out.Classified++
+		}
+	}
+	admitted := interventions.AdmittedAs(observations, gate, interventions.ExplicitNegative)
+	out.Count = int64(len(admitted))
+	if agentHours > 0 {
+		out.PerAgentHour = float64(out.Count) / agentHours
+	}
+	sort.SliceStable(admitted, func(i, j int) bool { return admitted[i].OccurredAt > admitted[j].OccurredAt })
+	for _, o := range admitted {
+		models[o.SignalModel] = true
+	}
+	if len(models) == 1 {
+		for model := range models {
+			if p := measured.Precision(model, interventions.ExplicitNegative); p != nil {
+				out.Precision = *p
+			}
+			if r := measured[model][interventions.ExplicitNegative].Recall(); r != nil {
+				out.Recall = *r
+			}
+		}
+	}
+	if limit <= 0 || limit > maxCorrectionExamples {
+		limit = maxCorrectionExamples
+	}
+	if len(admitted) > limit {
+		admitted = admitted[:limit]
+	}
+	ids := make([]string, 0, len(admitted))
+	for _, o := range admitted {
+		ids = append(ids, o.EventID)
+	}
+	details := map[string]interventions.MessageDetail{}
+	if reader, ok := source.(CorrectionDetails); ok {
+		if details, err = reader.MessageDetails(ctx, ids); err != nil {
+			return nil, err
+		}
+	}
+	for _, o := range admitted {
+		detail := details[o.EventID]
+		example := &measurepb.UsageInterventionExample{
+			EventId: o.EventID, RunId: o.RunID, OccurredAt: o.OccurredAt, Category: string(interventions.ExplicitNegative), Text: detail.Text,
+			WorkRequests: detail.Work.Requests, WorkToolCalls: detail.Work.ToolCalls, WorkTokens: detail.Work.Tokens,
+		}
+		if mass := o.ExplicitNegativeMass(); mass != nil {
+			example.Probability = *mass
+		}
+		out.Examples = append(out.Examples, example)
+	}
+	return out, nil
 }

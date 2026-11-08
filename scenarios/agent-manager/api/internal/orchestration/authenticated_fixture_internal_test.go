@@ -1,11 +1,13 @@
 package orchestration
 
 import (
-	"agent-manager/internal/domain"
 	"context"
 	"errors"
-	coreidentity "github.com/vrooli/api-core/identity"
 	"time"
+
+	"agent-manager/internal/domain"
+
+	coreidentity "github.com/vrooli/api-core/identity"
 )
 
 func authenticatedInternalCreateRunFixture(o *Orchestrator, req CreateRunRequest) CreateRunRequest {
@@ -18,6 +20,7 @@ func authenticatedInternalCreateRunFixture(o *Orchestrator, req CreateRunRequest
 	req.OwnerToken = "disposable-test-operator"
 	return req
 }
+
 func authenticatedAcceptedRunFixture(run *domain.Run) {
 	run.OwnerSubject = "fixture-operator"
 	run.OwnerScopes = []string{"agent-manager:write", "agent-manager:read", "agent-manager:supervise"}

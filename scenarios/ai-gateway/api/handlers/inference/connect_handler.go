@@ -2,6 +2,8 @@ package inference
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 
 	"connectrpc.com/connect"
 	inferencev1 "github.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/inference"
@@ -32,6 +34,13 @@ func (h *connectHandler) Run(ctx context.Context, req *connect.Request[inference
 		MaxOutputTokens:  req.Msg.GetMaxOutputTokens(),
 		MaxProviderCalls: req.Msg.GetMaxProviderCalls(),
 		SpendLimit:       req.Msg.GetSpendLimit(),
+		RootOperationID:  req.Msg.GetRootOperationId(),
+	}
+	digestRequest := proto.Clone(req.Msg).(*inferencev1.RunRequest)
+	digestRequest.RootOperationId = ""
+	if encoded, err := (proto.MarshalOptions{Deterministic: true}).Marshal(digestRequest); err == nil {
+		digest := sha256.Sum256(encoded)
+		request.RequestDigest = hex.EncodeToString(digest[:])
 	}
 	// A present SamplingControls with no temperature is not the same as an
 	// explicit 0, so read presence through the optional accessor rather than the

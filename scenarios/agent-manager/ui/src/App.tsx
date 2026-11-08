@@ -1,10 +1,12 @@
-import { lazy, Profiler, Suspense, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { selectors } from "./consts/selectors";
+import { lazy, Profiler, Suspense, useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import { Routes, Route, useNavigate, useLocation, useSearchParams, Navigate } from "react-router-dom";
 import { Play, Settings2 } from "lucide-react";
 import { AppShell, type AppShellNavItem } from "@vrooli/react-component-library/AppShell/2";
 import { useHealth, useRolePolicyCatalog, useProfiles, useRuns, useTasks, useDashboardRunCounts, type RunOrigin } from "./hooks/useApi";
 import { useWebSocket, type WebSocketMessage } from "./hooks/useWebSocket";
 import { useRunEventStore } from "./hooks/useRunEventStore";
+import { useRunReconciliation } from "./hooks/useRunReconciliation";
 import type { Run, RunEvent } from "./types";
 import { QueryProvider } from "./providers/QueryProvider";
 import { NAV_DESTINATIONS, sectionForPath } from "./components/layout/navigation";
@@ -74,7 +76,6 @@ export function App() {
   const dashboardCounts = useDashboardRunCounts({ enabled: isDashboardRoute });
 	const modelPolicy = useRolePolicyCatalog({ enabled: needsRunnerData });
   const runEventStore = useRunEventStore();
-  const reconciliationInFlightRef = useRef<Set<string>>(new Set());
 
   useEffect(() => {
     runEventStore.actions.runsSnapshotLoaded(runs.data || []);
@@ -159,28 +160,14 @@ export function App() {
     },
   });
   const getRunEvents = runs.getRunEvents;
+  const getRun = runs.getRun;
 
-  useEffect(() => {
-    for (const intent of runEventStore.reconciliationIntents) {
-      if (reconciliationInFlightRef.current.has(intent.runId)) {
-        continue;
-      }
-      reconciliationInFlightRef.current.add(intent.runId);
-      void (async () => {
-        try {
-          const events = await getRunEvents(intent.runId, {
-            afterSequence: intent.afterSequence,
-          });
-          runEventStore.actions.eventsGapFilled(intent.runId, events);
-        } catch (err) {
-          console.error(`Failed to reconcile run events for ${intent.runId}:`, err);
-          runEventStore.actions.clearReconciliationIntent(intent.runId);
-        } finally {
-          reconciliationInFlightRef.current.delete(intent.runId);
-        }
-      })();
-    }
-  }, [runEventStore.reconciliationIntents, runEventStore.actions, getRunEvents]);
+  useRunReconciliation({
+    intents: runEventStore.reconciliationIntents,
+    actions: runEventStore.actions,
+    getRun,
+    getRunEvents,
+  });
 
   const handleNavigate = useCallback((item: AppShellNavItem) => navigate(item.href), [navigate]);
 
@@ -233,7 +220,7 @@ export function App() {
                 {healthState.label} · {ws.status === "connected" ? "Live" : ws.status === "connecting" ? "Connecting" : ws.status === "error" ? "Error" : "Offline"}
               </Badge>
             </div>
-            <Button type="button" size="sm" className="min-h-11 min-w-11 shrink-0" aria-label="Quick Run" onClick={() => setQuickRunOpen(true)}>
+            <Button type="button" size="sm" className="min-h-11 min-w-11 shrink-0" data-testid={selectors.quickRun.open} aria-label="Quick Run" onClick={() => setQuickRunOpen(true)}>
               <Play aria-hidden="true" className="h-4 w-4" />
               <span className="hidden sm:inline">Quick Run</span>
             </Button>

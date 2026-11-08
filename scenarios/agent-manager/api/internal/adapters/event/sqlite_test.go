@@ -89,6 +89,64 @@ func newTestLogger() *logrus.Logger {
 	return log
 }
 
+func TestSQLiteStoreGetManyKeepsCompleteFilteredStreamsGroupedByRun(t *testing.T) {
+	db, cleanup := setupTestDB(t)
+	defer cleanup()
+	store := event.NewSQLiteStore(db, newTestLogger())
+	ctx := context.Background()
+	runA, runB, unrelated := uuid.New(), uuid.New(), uuid.New()
+	for _, item := range []struct {
+		run uuid.UUID
+		evt *domain.RunEvent
+	}{
+		{runA, domain.NewMetricEvent(runA, "tokens", 11, "tokens")},
+		{runA, domain.NewLogEvent(runA, "info", "ignored")},
+		{runB, domain.NewMetricEvent(runB, "tokens", 29, "tokens")},
+		{unrelated, domain.NewMetricEvent(unrelated, "tokens", 99, "tokens")},
+	} {
+		if err := store.Append(ctx, item.run, item.evt); err != nil {
+			t.Fatal(err)
+		}
+	}
+	got, decodeErrs, err := store.GetMany(ctx, []uuid.UUID{runA, runB}, event.GetOptions{AfterSequence: -1, EventTypes: []domain.RunEventType{domain.EventTypeMetric}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(decodeErrs) != 0 {
+		t.Fatalf("valid event streams had decode errors: %v", decodeErrs)
+	}
+	if len(got) != 2 || len(got[runA]) != 1 || len(got[runB]) != 1 || got[runA][0].RunID != runA || got[runB][0].RunID != runB {
+		t.Fatalf("batch event grouping/filter changed: %#v", got)
+	}
+	if _, ok := got[unrelated]; ok {
+		t.Fatal("batch read included an unrequested run")
+	}
+}
+
+func TestSQLiteStoreGetManyScopesCorruptPayloadFailureToItsRun(t *testing.T) {
+	db, cleanup := setupTestDB(t)
+	defer cleanup()
+	store := event.NewSQLiteStore(db, newTestLogger())
+	ctx := context.Background()
+	badRun, goodRun := uuid.New(), uuid.New()
+	if err := store.Append(ctx, badRun, domain.NewMetricEvent(badRun, "tokens", 11, "tokens")); err != nil {
+		t.Fatal(err)
+	}
+	if err := store.Append(ctx, goodRun, domain.NewMetricEvent(goodRun, "tokens", 29, "tokens")); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.Exec(`UPDATE run_events SET data='not-json' WHERE run_id=?`, badRun); err != nil {
+		t.Fatal(err)
+	}
+	events, decodeErrs, err := store.GetMany(ctx, []uuid.UUID{badRun, goodRun}, event.GetOptions{AfterSequence: -1, EventTypes: []domain.RunEventType{domain.EventTypeMetric}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if decodeErrs[badRun] == nil || len(events[badRun]) != 0 || decodeErrs[goodRun] != nil || len(events[goodRun]) != 1 {
+		t.Fatalf("corrupt run poisoned or leaked into sibling accounting: events=%v errors=%v", events, decodeErrs)
+	}
+}
+
 // =============================================================================
 // SQLiteStore Tests
 // =============================================================================

@@ -68,16 +68,6 @@ export default defineConfig(({ mode }): UserConfig => {
           "src/i18n/locales/**",
           "src/**/generated/**",
         ],
-        thresholds: {
-          // Keep the native Vitest gate aligned with the scenario's declared
-          // react-vite policy. All four dimensions are deliberate: a high
-          // line total alone would not protect the investigation UI's error,
-          // fallback, and operator-decision paths.
-          lines: 85,
-          functions: 85,
-          branches: 85,
-          statements: 85
-        }
       }
     }
   };

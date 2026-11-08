@@ -23,6 +23,8 @@ import (
 	"agent-manager/internal/transcriptindex"
 
 	"github.com/google/uuid"
+	corestorage "github.com/vrooli/api-core/storage"
+	repocontract "github.com/vrooli/repo-contract-go"
 )
 
 // rig is a host with temp roots for every harness, real SQLite repositories
@@ -30,6 +32,7 @@ import (
 type rig struct {
 	t       *testing.T
 	home    string
+	wcRoot  string
 	runRoot string
 	repos   *database.Repositories
 	events  event.Store
@@ -59,6 +62,7 @@ func newRig(t *testing.T, recall int64) *rig {
 		}
 	}
 	r := &rig{t: t, home: t.TempDir(), runRoot: t.TempDir(), repos: repos, events: events, now: time.Now(), recall: recall}
+	r.wcRoot = webConsoleCodexRootFor(t, r.home, nil)
 	r.svc = orchestration.New(repos.Profiles, repos.Tasks, repos.Runs, orchestration.WithEvents(events), orchestration.WithRunners(registry),
 		orchestration.WithRunStateRoot(r.runRoot), orchestration.WithInvocationReadModel(repos.InvocationReadModel),
 		orchestration.WithoutQuotaObservations(),
@@ -75,7 +79,7 @@ func TestBackgroundStartReportsTranscriptIndexFailures(t *testing.T) {
 		Store: r.repos.TranscriptIndex,
 		err:   errors.New("injected transcript store outage"),
 	}, transcriptindex.Config{
-		Roots: transcriptindex.RootConfig{Home: r.home, RunStateRoot: r.runRoot},
+		Roots: r.roots(),
 		OnTick: func(_ transcriptindex.Summary, err error) {
 			observed <- err
 		},
@@ -95,10 +99,31 @@ func TestBackgroundStartReportsTranscriptIndexFailures(t *testing.T) {
 	}
 }
 
+// roots is the rig's discovery configuration: its home, the web-console
+// session homes as the storage authority places them under that home, and
+// its run-state root.
+func (r *rig) roots() transcriptindex.RootConfig {
+	return transcriptindex.RootConfig{Home: r.home, WebConsoleCodexRoot: r.wcRoot, RunStateRoot: r.runRoot}
+}
+
+// webConsoleCodexRootFor resolves web-console's session Codex root through
+// the storage authority for home and the given environment.
+func webConsoleCodexRootFor(t *testing.T, home string, env map[string]string) string {
+	t.Helper()
+	root, err := transcriptindex.ResolveWebConsoleCodexRoot(corestorage.ResolverConfig{
+		EnvGet:      func(key string) string { return env[key] },
+		UserHomeDir: func() (string, error) { return home, nil },
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	return root
+}
+
 // restart builds a fresh indexer over the same store, as an API restart does.
 func (r *rig) restart() {
 	r.index = orchestration.NewTranscriptIndex(r.svc, r.repos.TranscriptIndex, transcriptindex.Config{
-		Roots:          transcriptindex.RootConfig{Home: r.home, RunStateRoot: r.runRoot},
+		Roots:          r.roots(),
 		RecallMaxBytes: r.recall,
 		Now:            func() time.Time { return r.now },
 	})
@@ -417,9 +442,9 @@ func TestIndexerRecordsUsageOnlyForRunOwnedFiles(t *testing.T) {
 func TestIndexerLinksWebConsoleHomesToTheirSession(t *testing.T) {
 	r := newRig(t, transcriptindex.DefaultRecallMaxBytes)
 	wcSession := "1e5904ed-8378-458a-86d7-8dbb039cff19"
-	path := filepath.Join(transcriptindex.WebConsoleCodexBase(r.home), wcSession, "sessions", "2026", "10", "28", "rollout-x-"+parentID+".jsonl")
+	path := filepath.Join(r.wcRoot, wcSession, "sessions", "2026", "10", "28", "rollout-x-"+parentID+".jsonl")
 	write(t, path, sessionMeta(parentID), tokenCount(10, 0, 1, 10, 0, 1, 1))
-	write(t, filepath.Join(transcriptindex.WebConsoleCodexBase(r.home), wcSession, "session_index.jsonl"), `{"id":"x"}`)
+	write(t, filepath.Join(r.wcRoot, wcSession, "session_index.jsonl"), `{"id":"x"}`)
 	r.tick()
 	row := r.row(path)
 	if row.RootKind != transcriptindex.RootWebConsoleCodex || row.WebConsoleSessionID != wcSession || r.run(row.RunID).WebConsoleSessionID != wcSession {
@@ -435,7 +460,7 @@ func TestIndexerLinksWebConsoleHomesToTheirSession(t *testing.T) {
 // web-console rollout without one is test output and is never adopted.
 func TestIndexerSkipsWebConsoleTestRollouts(t *testing.T) {
 	r := newRig(t, transcriptindex.DefaultRecallMaxBytes)
-	dir := filepath.Join(transcriptindex.WebConsoleCodexBase(r.home), "1e5904ed-8378-458a-86d7-8dbb039cff19", "sessions", "2026", "10", "28")
+	dir := filepath.Join(r.wcRoot, "1e5904ed-8378-458a-86d7-8dbb039cff19", "sessions", "2026", "10", "28")
 	real := filepath.Join(dir, "rollout-2026-10-28T10-00-00-"+parentID+".jsonl")
 	write(t, real, sessionMeta(parentID), tokenCount(10, 0, 1, 10, 0, 1, 1))
 	for _, name := range []string{"rollout-test123.jsonl", "rollout-e2e.jsonl", "rollout-mid-session-test.jsonl"} {
@@ -570,7 +595,7 @@ func TestReplacedFileKeepsItsRowUntilItsEventsAreDropped(t *testing.T) {
 		t.Fatalf("first row has no run: %+v", first)
 	}
 	store := &replacementFailingStore{Store: r.repos.TranscriptIndex, failures: 2}
-	index := orchestration.NewTranscriptIndex(r.svc, store, transcriptindex.Config{Roots: transcriptindex.RootConfig{Home: r.home, RunStateRoot: r.runRoot}, RecallMaxBytes: r.recall, Now: func() time.Time { return r.now }})
+	index := orchestration.NewTranscriptIndex(r.svc, store, transcriptindex.Config{Roots: r.roots(), RecallMaxBytes: r.recall, Now: func() time.Time { return r.now }})
 	oldCount, err := r.events.Count(context.Background(), uuid.MustParse(first.RunID))
 	if err != nil || oldCount == 0 {
 		t.Fatalf("fixture events: %d %v", oldCount, err)
@@ -763,7 +788,7 @@ func TestOldTranscriptRemainsNonterminalUntilFullyIndexed(t *testing.T) {
 	write(t, path, first, turnContext(), tokenCount(1000, 0, 100, 1000, 0, 100, 1))
 	r.now = r.now.Add(time.Hour)
 	r.index = orchestration.NewTranscriptIndex(r.svc, r.repos.TranscriptIndex, transcriptindex.Config{
-		Roots:          transcriptindex.RootConfig{Home: r.home, RunStateRoot: r.runRoot},
+		Roots:          r.roots(),
 		RecallMaxBytes: r.recall, TickBytes: int64(len(first) + 1), Now: func() time.Time { return r.now },
 	})
 	r.tick()
@@ -900,6 +925,44 @@ func TestRootsDropConfiguredRootsInsideBuiltins(t *testing.T) {
 	}
 	if configured != 1 {
 		t.Fatalf("configured roots = %d, want 1 (%+v)", configured, roots)
+	}
+}
+
+// Web-console lays its session Codex homes out under its storage state
+// directory, so discovery follows the storage authority: a custom
+// VROOLI_STORAGE_ROOT moves the root, and a session home there is discovered
+// and covers configured roots inside it.
+func TestWebConsoleCodexRootFollowsTheStorageAuthority(t *testing.T) {
+	home := t.TempDir()
+	stateRoot, err := repocontract.RuntimeHomeEntryPath(home, repocontract.HomeKeyState)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got, want := webConsoleCodexRootFor(t, home, nil), filepath.Join(stateRoot, "vrooli", "web-console", "sessions", "codex"); got != want {
+		t.Fatalf("default web-console codex root = %q, want %q", got, want)
+	}
+	custom := t.TempDir()
+	moved := webConsoleCodexRootFor(t, home, map[string]string{"VROOLI_STORAGE_ROOT": custom})
+	if want := filepath.Join(custom, "state", "vrooli", "web-console", "sessions", "codex"); moved != want {
+		t.Fatalf("custom-root web-console codex root = %q, want %q", moved, want)
+	}
+	session := "1e5904ed-8378-458a-86d7-8dbb039cff19"
+	sessions := filepath.Join(moved, session, "sessions")
+	if err := os.MkdirAll(sessions, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	roots := transcriptindex.Roots(transcriptindex.RootConfig{Home: home, WebConsoleCodexRoot: moved, ExtraRoots: []string{sessions}})
+	found := false
+	for _, root := range roots {
+		if root.Kind == transcriptindex.RootConfigured {
+			t.Fatalf("configured root inside the web-console root was re-walked: %+v", root)
+		}
+		if root.Kind == transcriptindex.RootWebConsoleCodex && root.Path == sessions && root.WebConsoleSessionID == session {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("relocated web-console session home not discovered: %+v", roots)
 	}
 }
 
@@ -1087,5 +1150,38 @@ func TestStaleParserVersionReimportsIntoTheSameRunOnce(t *testing.T) {
 	}
 	if again, _, _ := r.commandOutcomes(id); again != want {
 		t.Fatalf("second pass changed events: %d, want %d", again, want)
+	}
+}
+
+// A Codex multi-agent sub-agent has its own rollout named after its own
+// thread; only its session_meta source names the thread that spawned it. It
+// is imported as a child run of that thread's run, at any depth.
+func TestIndexerLinksCodexSubAgentsToTheThreadThatSpawnedThem(t *testing.T) {
+	r := newRig(t, transcriptindex.DefaultRecallMaxBytes)
+	const workerID = "01a1b27d-f795-7141-a484-5f4509a4ba6b"
+	const grandchildID = "01a1b27d-f795-7141-a484-5f4509a4ba6c"
+	spawned := func(id, parent string, depth int) string {
+		return fmt.Sprintf(`{"timestamp":"2026-10-28T10:05:00Z","type":"session_meta","payload":{"id":%q,"source":{"subagent":{"thread_spawn":{"parent_thread_id":%q,"depth":%d,"agent_path":"/root/owner"}}},"thread_source":"subagent"}}`, id, parent, depth)
+	}
+	root := codexPath(r, "rollout-2026-10-28T10-00-00-"+parentID+".jsonl")
+	worker := codexPath(r, "rollout-2026-10-28T10-05-00-"+workerID+".jsonl")
+	grandchild := codexPath(r, "rollout-2026-10-28T10-06-00-"+grandchildID+".jsonl")
+	write(t, grandchild, spawned(grandchildID, workerID, 2), turnContext())
+	write(t, worker, spawned(workerID, parentID, 1), turnContext())
+	write(t, root, sessionMeta(parentID), turnContext())
+	r.tick()
+
+	rootRow, workerRow, grandchildRow := r.row(root), r.row(worker), r.row(grandchild)
+	if workerRow.SessionID != workerID || workerRow.ParentSessionID != parentID || workerRow.ParentFileKey != rootRow.Key {
+		t.Fatalf("worker row = %+v (root %+v)", workerRow, rootRow)
+	}
+	if run := r.run(workerRow.RunID); run.ParentRunID == nil || run.ParentRunID.String() != rootRow.RunID {
+		t.Fatalf("worker run parent = %v, want %s", run.ParentRunID, rootRow.RunID)
+	}
+	if run := r.run(grandchildRow.RunID); run.ParentRunID == nil || run.ParentRunID.String() != workerRow.RunID {
+		t.Fatalf("grandchild run parent = %v, want %s", run.ParentRunID, workerRow.RunID)
+	}
+	if run := r.run(rootRow.RunID); run.ParentRunID != nil {
+		t.Fatalf("root run has parent %v", run.ParentRunID)
 	}
 }

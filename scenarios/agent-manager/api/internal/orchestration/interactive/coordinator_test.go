@@ -17,7 +17,7 @@ import (
 )
 
 // fakeRunStore records how many times a run was persisted; the run pointer is
-// mutated in place by the coordinator, so tests read fields off the run directly.
+// mutated in place by the coordinator; concurrent observations use Get snapshots.
 type fakeRunStore struct {
 	mu                  sync.Mutex
 	updates             int
@@ -153,7 +153,7 @@ type fakeBroadcaster struct {
 	statuses []domain.RunStatus
 }
 
-func (b *fakeBroadcaster) BroadcastRunStatus(run *domain.Run) {
+func (b *fakeBroadcaster) BroadcastRunStatus(ctx context.Context, run *domain.Run) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	b.statuses = append(b.statuses, run.Status)
@@ -185,7 +185,7 @@ func newTestCoordinator(t *testing.T, sessions *fakeSessions, sink runner.EventS
 		Sessions:     sessions,
 		Runs:         store,
 		Broadcaster:  bc,
-		NewSink:      func(uuid.UUID) runner.EventSink { return sink },
+		NewSink:      func(context.Context, uuid.UUID) runner.EventSink { return sink },
 		Debounce:     80 * time.Millisecond,
 		ActivityPoll: 10 * time.Millisecond,
 		SessionPoll:  15 * time.Millisecond,
@@ -299,7 +299,7 @@ func TestLiveCoordinatorRefreshesHeartbeatDuringQuietTail(t *testing.T) {
 		Tailer:                NewTailer(codecParserResolver, WithTailPollInterval(5*time.Millisecond)),
 		Sessions:              newFakeSessions("sess-quiet"),
 		Runs:                  store,
-		NewSink:               func(uuid.UUID) runner.EventSink { return sink },
+		NewSink:               func(context.Context, uuid.UUID) runner.EventSink { return sink },
 		Heartbeat:             10 * time.Millisecond,
 		Debounce:              30 * time.Millisecond,
 		ActivityPoll:          5 * time.Millisecond,
@@ -392,7 +392,10 @@ func TestCoordinatorPersistsCodexRotationPathAndFileCursor(t *testing.T) {
 		done <- err
 	}()
 
-	waitFor(t, time.Second, func() bool { return run.TranscriptCursor == int64(len(headBytes)) })
+	waitFor(t, time.Second, func() bool {
+		stored, err := store.Get(ctx, run.ID)
+		return err == nil && stored != nil && stored.TranscriptCursor == int64(len(headBytes))
+	})
 	rolloutB := filepath.Join(sessionsDir, "rollout-2026-07-13T11-00-00-019f46b3-b60d-7373-bf64-b8748b8d5992.jsonl")
 	fullBytes := []byte(strings.Join(fixture, "\n") + "\n")
 	if err := os.WriteFile(rolloutB, fullBytes, 0o644); err != nil {
@@ -502,7 +505,7 @@ func TestLiveTailConsumesNewInvocationInsteadOfBufferedGoalTerminal(t *testing.T
 				Tailer:                NewTailer(codecParserResolver, WithTailPollInterval(5*time.Millisecond)),
 				Sessions:              newFakeSessions("wc-live-invocation"),
 				Runs:                  store,
-				NewSink:               func(uuid.UUID) runner.EventSink { return sink },
+				NewSink:               func(context.Context, uuid.UUID) runner.EventSink { return sink },
 				Debounce:              40 * time.Millisecond,
 				ActivityPoll:          5 * time.Millisecond,
 				SessionPoll:           5 * time.Millisecond,
@@ -580,7 +583,7 @@ func TestCoordinatorClaudeIdleDebounceSpansTurns(t *testing.T) {
 		Tailer:       NewTailer(codecParserResolver, WithTailPollInterval(10*time.Millisecond)),
 		Sessions:     sess,
 		Runs:         store,
-		NewSink:      func(uuid.UUID) runner.EventSink { return sink },
+		NewSink:      func(context.Context, uuid.UUID) runner.EventSink { return sink },
 		Debounce:     400 * time.Millisecond,
 		ActivityPoll: 10 * time.Millisecond,
 		SessionPoll:  20 * time.Millisecond,
@@ -691,7 +694,7 @@ func TestCoordinatorSessionGoneWindowAllowsPersistentRecovery(t *testing.T) {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	gone := coord.watchSession(ctx, ctx, cancel, run)
+	gone, _ := coord.watchSession(ctx, ctx, cancel, run)
 	time.Sleep(15 * time.Millisecond)
 	sess.mu.Lock()
 	sess.deleted["sess-recovering"] = false
@@ -943,7 +946,7 @@ func TestCoordinatorRetainsOldTranscriptWhenRotationPersistenceFails(t *testing.
 		Tailer:                NewTailer(codecParserResolver, WithTailPollInterval(5*time.Millisecond)),
 		Sessions:              newFakeSessions("sess-context"),
 		Runs:                  store,
-		NewSink:               func(uuid.UUID) runner.EventSink { return sink },
+		NewSink:               func(context.Context, uuid.UUID) runner.EventSink { return sink },
 		Debounce:              30 * time.Millisecond,
 		ActivityPoll:          5 * time.Millisecond,
 		SessionPoll:           10 * time.Millisecond,
@@ -996,8 +999,8 @@ func TestCoordinatorReservedBindingRefusesPreSubmitPersistenceAndRepeat(t *testi
 			if err := c.Execute(t.Context(), run, LaunchParams{RunID: run.ID, RunnerType: domain.RunnerTypeCodex}, nil); err == nil {
 				t.Fatal("launch admitted without owner persistence")
 			}
-			if len(sessions.calls) != 0 || run.WebConsoleSessionID != tc.existing {
-				t.Fatalf("effects=%v binding=%s", sessions.calls, run.WebConsoleSessionID)
+			if len(sessions.Calls()) != 0 || run.WebConsoleSessionID != tc.existing {
+				t.Fatalf("effects=%v binding=%s", sessions.Calls(), run.WebConsoleSessionID)
 			}
 		})
 	}
@@ -1050,7 +1053,7 @@ func TestCoordinatorInitialInvocationCASFailureStopsOnlyItsStillOwnedSession(t *
 			if launchErr == nil || !strings.Contains(launchErr.Error(), "initial interactive invocation owner changed") {
 				t.Fatalf("Execute error = %v, want initial owner-change refusal", launchErr)
 			}
-			calls := sessions.calls
+			calls := sessions.Calls()
 			interrupted, archived := false, false
 			for _, call := range calls {
 				interrupted = interrupted || call == "interrupt"

@@ -80,7 +80,7 @@ func (o *Orchestrator) sessionCompactor(run *domain.Run) (runner.SessionCompacto
 
 // scheduleParkCompaction arranges for a just-parked run's session to be
 // compacted if the run is still parked on the same handle after the delay.
-func (o *Orchestrator) scheduleParkCompaction(run *domain.Run) {
+func (o *Orchestrator) scheduleParkCompaction(ctx context.Context, run *domain.Run) {
 	settings := o.parkCompactionSettings()
 	if settings.delay <= 0 || !parkCompactionEligible(run) {
 		return
@@ -100,7 +100,7 @@ func (o *Orchestrator) scheduleParkCompaction(run *domain.Run) {
 	}
 	time.AfterFunc(wait, func() {
 		defer obs.RecoverToFailure("park compaction", nil)
-		o.compactParkedRun(runID, registeredAt)
+		o.compactParkedRun(ctx, runID, registeredAt)
 	})
 }
 
@@ -112,7 +112,7 @@ func (o *Orchestrator) RecoverParkCompactions(ctx context.Context) error {
 		return err
 	}
 	for _, run := range runs {
-		o.scheduleParkCompaction(run)
+		o.scheduleParkCompaction(ctx, run)
 	}
 	return nil
 }
@@ -120,8 +120,8 @@ func (o *Orchestrator) RecoverParkCompactions(ctx context.Context) error {
 // compactParkedRun compacts the run's session when it is still parked on the
 // handle registered at registeredAt. A wake that arrives meanwhile waits for
 // the compaction (awaitParkCompaction) instead of resuming beside it.
-func (o *Orchestrator) compactParkedRun(runID uuid.UUID, registeredAt time.Time) {
-	ctx, cancel := context.WithTimeout(context.Background(), parkCompactionTimeout)
+func (o *Orchestrator) compactParkedRun(parent context.Context, runID uuid.UUID, registeredAt time.Time) {
+	ctx, cancel := context.WithTimeout(context.WithoutCancel(parent), parkCompactionTimeout)
 	defer cancel()
 
 	o.wakeMu.Lock()

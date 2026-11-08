@@ -82,7 +82,7 @@ func publishEvent(ctx context.Context, deps Deps, runID uuid.UUID, evt *domain.R
 		return
 	}
 	if deps.Broadcaster != nil {
-		deps.Broadcaster.BroadcastEvent(evt)
+		deps.Broadcaster.BroadcastEvent(ctx, evt)
 	}
 }
 

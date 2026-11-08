@@ -25,7 +25,7 @@ export interface RunEventStoreState {
 export type RunEventStoreAction =
   | { type: "runStatusReceived"; run: RunSnapshot }
   | { type: "runEventReceived"; event: RunEvent }
-  | { type: "eventsGapFilled"; runId: string; events: RunEvent[] }
+  | { type: "eventsGapFilled"; runId: string; events: RunEvent[]; intent?: RunEventReconciliationIntent }
   | { type: "runSnapshotLoaded"; run: RunSnapshot }
   | { type: "runsSnapshotLoaded"; runs: RunSnapshot[] }
   | { type: "taskStatusReceived"; task: Partial<Task> & { id: string } }
@@ -35,7 +35,7 @@ export type RunEventStoreAction =
   | { type: "unsubscribeAll" }
   | { type: "connected" }
   | { type: "disconnected" }
-  | { type: "clearReconciliationIntent"; runId: string };
+  | { type: "clearReconciliationIntent"; runId: string; intent?: RunEventReconciliationIntent };
 
 const TERMINAL_RUN_STATUSES = new Set<unknown>([4, 5, 6, 7]);
 
@@ -149,7 +149,14 @@ function withReconciliationIntent(
   };
 }
 
-function clearReconciliationIntent(state: RunEventStoreState, runId: string): RunEventStoreState {
+function clearReconciliationIntent(
+  state: RunEventStoreState,
+  runId: string,
+  intent?: RunEventReconciliationIntent
+): RunEventStoreState {
+  // A terminal notification or reconnect may supersede an in-flight read.
+  // Retain that newer request while still merging the older response's events.
+  if (intent && state.reconciliationIntentsByRunId[runId] !== intent) return state;
   if (!state.reconciliationIntentsByRunId[runId]) {
     return state;
   }
@@ -165,6 +172,20 @@ function shouldTrackRunEvents(state: RunEventStoreState, runId: string): boolean
   return state.allEventsSubscribed || state.subscribedRunIds.has(runId);
 }
 
+function mergeRunSnapshot(existing: RunSnapshot | undefined, incoming: RunSnapshot, partial = false): RunSnapshot {
+  const currentVersion = existing?.updatedAt;
+  const nextVersion = incoming.updatedAt;
+  if (currentVersion && nextVersion && (
+    nextVersion.seconds < currentVersion.seconds ||
+    (nextVersion.seconds === currentVersion.seconds && nextVersion.nanos < currentVersion.nanos)
+  )) {
+    return existing!;
+  }
+  // Only notifications are partial. Accepted HTTP/list snapshots are the
+  // authoritative full shape: absent optional fields must clear old values.
+  return partial && existing ? { ...existing, ...incoming } : incoming;
+}
+
 export function runEventStoreReducer(
   state: RunEventStoreState,
   action: RunEventStoreAction
@@ -175,7 +196,7 @@ export function runEventStoreReducer(
         ...state,
         runsById: {
           ...state.runsById,
-          [action.run.id]: action.run,
+          [action.run.id]: mergeRunSnapshot(state.runsById[action.run.id], action.run),
         },
       };
     case "runsSnapshotLoaded":
@@ -183,16 +204,18 @@ export function runEventStoreReducer(
         ...state,
         runsById: {
           ...state.runsById,
-          ...Object.fromEntries(action.runs.map((run) => [run.id, run])),
+          ...Object.fromEntries(action.runs.map((run) => [run.id, mergeRunSnapshot(state.runsById[run.id], run)])),
         },
       };
     case "runStatusReceived": {
       const existing = state.runsById[action.run.id];
+      const run = mergeRunSnapshot(existing, action.run, true);
+      if (run === existing) return state;
       const next = {
         ...state,
         runsById: {
           ...state.runsById,
-          [action.run.id]: existing ? { ...existing, ...action.run } : action.run,
+          [action.run.id]: run,
         },
       };
       return TERMINAL_RUN_STATUSES.has(action.run.status) && shouldTrackRunEvents(next, action.run.id)
@@ -208,7 +231,7 @@ export function runEventStoreReducer(
     }
     case "eventsGapFilled": {
       const merged = mergeEvents(state.eventsByRunId[action.runId] ?? [], action.events);
-      return clearReconciliationIntent(withEvents(state, action.runId, merged), action.runId);
+      return clearReconciliationIntent(withEvents(state, action.runId, merged), action.runId, action.intent);
     }
     case "taskStatusReceived":
       return {
@@ -255,7 +278,7 @@ export function runEventStoreReducer(
     case "disconnected":
       return state.connected ? { ...state, connected: false } : state;
     case "clearReconciliationIntent":
-      return clearReconciliationIntent(state, action.runId);
+      return clearReconciliationIntent(state, action.runId, action.intent);
     default:
       return state;
   }

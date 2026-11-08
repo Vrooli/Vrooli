@@ -77,6 +77,20 @@ func (s RunStatus) IsTerminal() bool {
 	}
 }
 
+// IsSettled reports whether a run's worker has stopped: a terminal status, or
+// needs_review, where the agent turn finished and only the review of its
+// changes remains. Waiters return on a settled run; nothing more happens to it
+// without an outside decision.
+func (s RunStatus) IsSettled() bool {
+	return s.IsTerminal() || s == RunStatusNeedsReview
+}
+
+// IsLive reports whether a run can still consume execution time: active, or
+// parked and resumable by a wake.
+func (s RunStatus) IsLive() bool {
+	return s.IsActive() || s == RunStatusParked
+}
+
 // IsActive returns whether this status indicates an actively processing run.
 func (s RunStatus) IsActive() bool {
 	switch s {

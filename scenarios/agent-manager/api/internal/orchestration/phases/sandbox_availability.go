@@ -58,12 +58,13 @@ func workspaceSandboxUnavailableError(operation, reason string, cause error) *do
 	if reason == "" {
 		reason = "workspace-sandbox did not become healthy"
 	}
+	unavailable := fmt.Errorf("workspace-sandbox unavailable: %s", reason)
 	if cause != nil {
-		reason = fmt.Sprintf("%s; ensure failed: %v", reason, cause)
+		unavailable = fmt.Errorf("workspace-sandbox unavailable: %s; ensure failed: %w", reason, cause)
 	}
 	return &domain.SandboxError{
 		Operation:   operation,
-		Cause:       fmt.Errorf("workspace-sandbox unavailable: %s", reason),
+		Cause:       unavailable,
 		IsTransient: true,
 		CanRetry:    true,
 	}

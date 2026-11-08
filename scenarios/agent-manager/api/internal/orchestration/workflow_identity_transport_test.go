@@ -209,7 +209,6 @@ func TestWorkflowIssuedIdentityReachesVerifiedOwnerBeforeDispatchAcknowledgement
 			if checked.Meta["workflowExecutionId"] != "" {
 				t.Fatal("unproven pre-ACK membership retained workflow coordinates")
 			}
-
 		})
 	}
 	// A historical, active signed token may carry attacker-chosen environment

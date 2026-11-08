@@ -409,7 +409,7 @@ func TestCodexDefaultPrivacyStillInvalidatesGoalAcrossUserTurn(t *testing.T) {
 		}
 		path := filepath.Join(t.TempDir(), "native.jsonl")
 		body := "{\"type\":\"event_msg\",\"payload\":{\"type\":\"thread_goal_updated\",\"goal\":{\"objective\":\"finish\",\"status\":\"complete\"}}}\n" + userLine + "\n"
-		if err := os.WriteFile(path, []byte(body), 0600); err != nil {
+		if err := os.WriteFile(path, []byte(body), 0o600); err != nil {
 			t.Fatal(err)
 		}
 		fresh := NewCodexForTest().NewTranscriptParser()
@@ -532,5 +532,21 @@ func TestCodexGetGoalReadMatchesOnlyLaunchNormalizedConfiguredObjective(t *testi
 				t.Fatalf("altered objective accepted: %+v", got)
 			}
 		})
+	}
+}
+
+// A run whose until is longer than Codex keeps through compaction gets the
+// short delegation as its native goal. The tail pins the run's until, so the
+// delegation's completion receipt must still finish the run.
+func TestCodexGoalReadAcceptsTheDelegationInstalledForALongUntil(t *testing.T) {
+	const thread = "fixture-thread"
+	configured := strings.Repeat("deliver the whole outcome ", 40)
+	parser := NewCodexForTest().NewTranscriptParser().(*codexTranscriptParser)
+	runID := uuid.New()
+	parser.SetGoalContext(runID, thread, configured)
+	parser.ParseTranscriptLine(runID, goalRequestLine("read-delegated", `const r = await tools.get_goal({}); text(r);`))
+	receipt := map[string]any{"goal": map[string]any{"threadId": thread, "objective": runner.NativeGoalDelegation, "status": "complete"}}
+	if got := parser.ParseTranscriptLine(runID, goalReceiptLine("read-delegated", receipt)); got.Goal == nil || got.Goal.Status != runner.GoalStatusComplete {
+		t.Fatalf("the delegated native goal's completion was not accepted: %+v", got)
 	}
 }

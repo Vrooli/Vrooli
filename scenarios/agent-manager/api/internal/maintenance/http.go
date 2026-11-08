@@ -71,6 +71,22 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.Header().Set("Cache-Control", "no-store")
 	if req.Method == http.MethodGet && req.URL.Path == AdmissionPath {
+		if req.URL.Query().Get("view") == "fence" {
+			// Recovery coordination needs the durable admission decision, not
+			// an executor drain proof. Keep the projection distinct: omitting
+			// drain fields prevents an unobserved inventory becoming empty proof.
+			state, err := h.gate.Status(req.Context())
+			if err != nil {
+				h.respond(w, nil, err)
+				return
+			}
+			h.respond(w, struct {
+				Closed            bool  `json:"closed"`
+				Revision          int64 `json:"revision"`
+				InventoryObserved bool  `json:"inventoryObserved"`
+			}{Closed: state.Closed, Revision: state.Revision}, nil)
+			return
+		}
 		state, err := h.standing(req.Context())
 		h.respond(w, state, err)
 		return

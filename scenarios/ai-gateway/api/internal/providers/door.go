@@ -4,6 +4,8 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -11,12 +13,16 @@ import (
 	"net/http"
 	"strings"
 	"time"
+
+	inferencev1 "github.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/inference"
 )
 
 const (
 	DeviceKeyIdentity = "vrooli/ai-device"
 	DeviceKeyField    = "key"
 )
+
+var ErrDeviceKeyGenerationChanged = errors.New("hosted device credential generation changed; recovery fails closed")
 
 type (
 	sourceContextKey struct{}
@@ -44,7 +50,7 @@ type HostedDoorClient struct {
 	ResolveDeviceKey func(context.Context) (string, error)
 }
 
-func (c *HostedDoorClient) request(ctx context.Context, method, path, key string, body any) (*http.Response, error) {
+func (c *HostedDoorClient) request(ctx context.Context, method, path, key, idempotencyKey string, body any) (*http.Response, error) {
 	var reader io.Reader
 	if body != nil {
 		data, err := json.Marshal(body)
@@ -60,6 +66,9 @@ func (c *HostedDoorClient) request(ctx context.Context, method, path, key string
 	req.Header.Set("Authorization", "Bearer "+key)
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("X-Vrooli-Gateway-Hop", "hosted-door")
+	if idempotencyKey != "" {
+		req.Header.Set("Idempotency-Key", idempotencyKey)
+	}
 	client := http.Client{Timeout: 15 * time.Minute}
 	if c.HTTPClient != nil {
 		client = *c.HTTPClient
@@ -70,6 +79,9 @@ func (c *HostedDoorClient) request(ctx context.Context, method, path, key string
 		return nil, err
 	}
 	if response.StatusCode < 200 || response.StatusCode >= 300 {
+		if path == "/receipt" && response.StatusCode == http.StatusNotFound {
+			return response, nil
+		}
 		response.Body.Close()
 		if response.StatusCode == 402 {
 			return nil, ErrInsufficientCredits
@@ -77,6 +89,88 @@ func (c *HostedDoorClient) request(ctx context.Context, method, path, key string
 		return nil, fmt.Errorf("hosted door refused (HTTP %d)", response.StatusCode)
 	}
 	return response, nil
+}
+
+func deviceKeyGeneration(key string) string {
+	digest := sha256.Sum256([]byte(key))
+	return hex.EncodeToString(digest[:])
+}
+
+// DeviceKeyGeneration returns only a one-way fingerprint of the current
+// Gateway-owned device credential. The credential itself is never persisted.
+func (c *HostedDoorClient) DeviceKeyGeneration(ctx context.Context) (string, error) {
+	resolve := c.ResolveDeviceKey
+	if resolve == nil {
+		resolve = func(ctx context.Context) (string, error) {
+			return resolveProviderKey(ctx, DeviceKeyIdentity, DeviceKeyField)
+		}
+	}
+	key, err := resolve(ctx)
+	if err != nil {
+		return "", err
+	}
+	if key == "" {
+		return "", errors.New("hosted device key is not configured")
+	}
+	return deviceKeyGeneration(key), nil
+}
+
+func recoveryState(status string) inferencev1.RecoveryReceiptState {
+	switch status {
+	case "pending":
+		return inferencev1.RecoveryReceiptState_RECOVERY_RECEIPT_STATE_PENDING
+	case "settled":
+		return inferencev1.RecoveryReceiptState_RECOVERY_RECEIPT_STATE_SETTLED
+	case "released":
+		return inferencev1.RecoveryReceiptState_RECOVERY_RECEIPT_STATE_RELEASED
+	default:
+		return inferencev1.RecoveryReceiptState_RECOVERY_RECEIPT_STATE_UNCERTAIN
+	}
+}
+
+func safeAccountingStatus(status string) string {
+	switch status {
+	case "pending", "settled", "released", "unknown":
+		return status
+	default:
+		return "unknown"
+	}
+}
+
+func (c *HostedDoorClient) receipt(ctx context.Context, key, attemptKey string) (*inferencev1.RecoveryReceipt, bool, error) {
+	response, err := c.request(ctx, http.MethodGet, "/receipt", key, attemptKey, nil)
+	if err != nil {
+		return nil, false, err
+	}
+	defer response.Body.Close()
+	if response.StatusCode == http.StatusNotFound {
+		return nil, false, nil
+	}
+	var safe struct {
+		Status         string `json:"status"`
+		ChargedCredits *int64 `json:"charged_credits"`
+	}
+	if err := json.NewDecoder(io.LimitReader(response.Body, 64<<10)).Decode(&safe); err != nil {
+		return nil, false, err
+	}
+	status := safeAccountingStatus(safe.Status)
+	if safe.ChargedCredits != nil && *safe.ChargedCredits < 0 {
+		safe.ChargedCredits = nil
+	}
+	digest := sha256.Sum256([]byte(attemptKey))
+	return &inferencev1.RecoveryReceipt{
+		AttemptReference: hex.EncodeToString(digest[:8]),
+		State:            recoveryState(status), AccountingStatus: status,
+		ChargedCredits: safe.ChargedCredits,
+	}, true, nil
+}
+
+func uncertainResult(attemptKey string, receipt *inferencev1.RecoveryReceipt) ExecutionResult {
+	if receipt == nil {
+		digest := sha256.Sum256([]byte(attemptKey))
+		receipt = &inferencev1.RecoveryReceipt{AttemptReference: hex.EncodeToString(digest[:8]), State: inferencev1.RecoveryReceiptState_RECOVERY_RECEIPT_STATE_UNCERTAIN}
+	}
+	return ExecutionResult{Recovery: receipt}
 }
 
 func (c *HostedDoorClient) Run(ctx context.Context, req ExecutionRequest) (ExecutionResult, error) {
@@ -99,7 +193,28 @@ func (c *HostedDoorClient) Run(ctx context.Context, req ExecutionRequest) (Execu
 	if key == "" {
 		return ExecutionResult{}, errors.New("hosted device key is not configured")
 	}
-	response, err := c.request(ctx, "GET", "/models", key, nil)
+	generation := deviceKeyGeneration(key)
+	if req.ExpectedKeyGeneration != "" && req.ExpectedKeyGeneration != generation {
+		return ExecutionResult{}, ErrDeviceKeyGenerationChanged
+	}
+	if req.IdempotencyKey == "" {
+		return ExecutionResult{}, errors.New("hosted inference requires a durable idempotency key")
+	}
+	if req.RecoveryOnly {
+		receipt, found, err := c.receipt(ctx, key, req.IdempotencyKey)
+		if err != nil || !found {
+			return uncertainResult(req.IdempotencyKey, receipt), nil
+		}
+		return uncertainResult(req.IdempotencyKey, receipt), nil
+	}
+	prior, found, err := c.receipt(ctx, key, req.IdempotencyKey)
+	if err != nil {
+		return ExecutionResult{}, err // No provider POST has occurred.
+	}
+	if found {
+		return uncertainResult(req.IdempotencyKey, prior), nil
+	}
+	response, err := c.request(ctx, "GET", "/models", key, "", nil)
 	if err != nil {
 		return ExecutionResult{}, err
 	}
@@ -120,9 +235,16 @@ func (c *HostedDoorClient) Run(ctx context.Context, req ExecutionRequest) (Execu
 	if req.MaxOutputTokens > 0 {
 		body["max_tokens"] = req.MaxOutputTokens
 	}
-	response, err = c.request(ctx, "POST", "/chat/completions", key, body)
+	response, err = c.request(ctx, "POST", "/chat/completions", key, req.IdempotencyKey, body)
 	if err != nil {
-		return ExecutionResult{}, err
+		if errors.Is(err, ErrInsufficientCredits) {
+			return ExecutionResult{}, err // LPBS refused admission before provider dispatch.
+		}
+		receipt, _, receiptErr := c.receipt(ctx, key, req.IdempotencyKey)
+		if receiptErr != nil {
+			receipt = nil
+		}
+		return uncertainResult(req.IdempotencyKey, receipt), nil
 	}
 	defer response.Body.Close()
 	var content strings.Builder
@@ -154,10 +276,18 @@ func (c *HostedDoorClient) Run(ctx context.Context, req ExecutionRequest) (Execu
 			Error json.RawMessage `json:"error"`
 		}
 		if err = json.Unmarshal([]byte(payload), &chunk); err != nil {
-			return ExecutionResult{}, err
+			receipt, _, receiptErr := c.receipt(ctx, key, req.IdempotencyKey)
+			if receiptErr != nil {
+				receipt = nil
+			}
+			return uncertainResult(req.IdempotencyKey, receipt), nil
 		}
 		if len(chunk.Error) > 0 {
-			return ExecutionResult{}, errors.New("hosted door stream failed")
+			receipt, _, receiptErr := c.receipt(ctx, key, req.IdempotencyKey)
+			if receiptErr != nil {
+				receipt = nil
+			}
+			return uncertainResult(req.IdempotencyKey, receipt), nil
 		}
 		for _, choice := range chunk.Choices {
 			content.WriteString(choice.Delta.Content)
@@ -168,10 +298,18 @@ func (c *HostedDoorClient) Run(ctx context.Context, req ExecutionRequest) (Execu
 		}
 	}
 	if err = scanner.Err(); err != nil {
-		return ExecutionResult{}, err
+		receipt, _, receiptErr := c.receipt(ctx, key, req.IdempotencyKey)
+		if receiptErr != nil {
+			receipt = nil
+		}
+		return uncertainResult(req.IdempotencyKey, receipt), nil
 	}
 	if !done || content.Len() == 0 {
-		return ExecutionResult{}, errors.New("hosted door stream ended without a settled completion")
+		receipt, _, receiptErr := c.receipt(ctx, key, req.IdempotencyKey)
+		if receiptErr != nil {
+			receipt = nil
+		}
+		return uncertainResult(req.IdempotencyKey, receipt), nil
 	}
 	result := map[string]any{"content": content.String()}
 	if usageObserved {

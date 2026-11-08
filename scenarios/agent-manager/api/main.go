@@ -45,7 +45,6 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/jmoiron/sqlx"
 	"github.com/sirupsen/logrus"
-	"github.com/vrooli/api-core/apihttp"
 	coredb "github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/devrouting"
 	"github.com/vrooli/api-core/filerouting"
@@ -85,6 +84,7 @@ func (h *searchControlTokens) get(providerID string) string {
 
 // Server owns lifecycle sequencing around the wiring-owned service graph.
 type Server struct {
+	terminalEvents           *wiring.TerminalEvents
 	recovery                 *maintenance.Recovery
 	maintenance              *maintenance.Handler
 	lifecycleService         *maintenance.LifecycleService
@@ -157,6 +157,12 @@ func databaseConfigFromLevers(dsn string, storage agentconfig.StorageLevers) cor
 
 // NewServer builds the graph and routes before launching observable recovery.
 func NewServer() (*Server, error) {
+	return NewServerWithTerminalEvents(nil)
+}
+
+// NewServerWithTerminalEvents is an explicit trusted composition seam. Main
+// calls NewServer, so capture, dispatch and transport remain disabled by default.
+func NewServerWithTerminalEvents(terminal *wiring.TerminalEventsConfig) (*Server, error) {
 	levers, leversErr := agentconfig.LoadLevers()
 	if levers == nil {
 		defaults := agentconfig.DefaultLevers()
@@ -259,7 +265,7 @@ func NewServer() (*Server, error) {
 		uploadDir = "/tmp/agent-manager-uploads"
 	}
 	uploadStorage := storage.NewLocalService(uploadDir)
-	deps, err := wiring.NewOrchestrator(db, wsHub, logger, uploadStorage, levers, fileRoots)
+	deps, err := wiring.NewOrchestratorWithTerminalEvents(db, wsHub, logger, uploadStorage, levers, terminal, fileRoots)
 	if err != nil {
 		_ = db.Close()
 		return nil, fmt.Errorf("build orchestrator: %w", err)
@@ -275,6 +281,7 @@ func NewServer() (*Server, error) {
 	// space through the search domain's own optimize.
 	deps.TranscriptImporter.SetAfterEviction(conversationRepository.OptimizeIndex)
 	srv := &Server{
+		terminalEvents:     deps.TerminalEvents,
 		recovery:           maintenance.NewRecovery(),
 		capabilityRegistry: capabilities.NewRegistry(), db: db, fileRoots: fileRoots, router: mux.NewRouter().UseEncodedPath(), orchestrator: deps.Orchestrator,
 		statsRepo: deps.StatsRepository, pricingService: deps.PricingService, pricingRepository: deps.PricingRepository,
@@ -448,10 +455,15 @@ func (s *Server) recoverySteps() []maintenance.RecoveryStep {
 			return err
 		})
 	}
-	// Start schedulers after the initial recovery attempts so existing owners can
-	// retry incomplete work. Failures remain visible in health. Their context
-	// lives until Cleanup; it must not inherit a historical scan's deadline.
+	// Start schedulers after the required recovery attempts so existing owners
+	// can retry incomplete work; Recovery runs the non-critical historical steps
+	// after this one, with readiness already open. Failures remain visible in
+	// health. Their context lives until Cleanup; it must not inherit a
+	// historical scan's deadline.
 	steps = append(steps, maintenance.RecoveryStep{Name: "background_workers", Run: func(ctx context.Context) error {
+		if err := s.startTerminalEvents(ctx); err != nil {
+			return err
+		}
 		s.storageHealth.setWorkersContext(ctx)
 		startEvidenceRetention(ctx, s.evidenceRetention)
 		if s.supervisionScheduler != nil {
@@ -524,7 +536,8 @@ func (s *Server) setupRoutes() {
 
 func (s *Server) Router() http.Handler {
 	rootMux := http.NewServeMux()
-	devrouting.RegisterWithFileRoots(rootMux, s.db.Routed, s.fileRoots)
+	testRouting := devrouting.NewService(s.db.Routed, s.fileRoots)
+	devrouting.RegisterWithFileRootsService(rootMux, s.db.Routed, s.fileRoots, testRouting)
 	if s.maintenance != nil {
 		rootMux.Handle(maintenance.AdmissionPath, s.maintenance)
 		rootMux.Handle(maintenance.AdmissionPath+"/", s.maintenance)
@@ -535,10 +548,19 @@ func (s *Server) Router() http.Handler {
 		rootMux.Handle(apiconnect.AgentManagerServiceHealthProcedure, s.recovery.ConnectHealth(s.router))
 	}
 	rootMux.Handle("/", gorillaHandlers.RecoveryHandler()(s.router))
-	return apihttp.TestModeMiddleware(rootMux)
+	return testRouting.PinnedTestModeMiddleware(rootMux)
+}
+
+// startTerminalEvents uses the same long-lived recovery context as the existing
+// worker owners; it remains inert without explicit terminal composition.
+func (s *Server) startTerminalEvents(ctx context.Context) error {
+	return s.terminalEvents.Start(ctx)
 }
 
 func (s *Server) Cleanup() error {
+	if s.wsHub != nil {
+		s.wsHub.Close()
+	}
 	if s.recovery != nil {
 		s.recovery.Stop()
 	}
@@ -548,6 +570,7 @@ func (s *Server) Cleanup() error {
 	if s.conversationIndexer != nil {
 		s.conversationIndexer.Stop()
 	}
+	s.terminalEvents.Stop()
 	wiring.Shutdown(s.db, s.reconciler, s.awaitRegistry, s.workflowNudger, s.transcriptImporter, s.modelPolicyDrift)
 	return nil
 }

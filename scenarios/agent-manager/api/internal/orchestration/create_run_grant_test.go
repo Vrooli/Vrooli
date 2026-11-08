@@ -38,8 +38,10 @@ func TestBaselineRunCreateRespectsApprovalSettingAndScope(t *testing.T) {
 	now := time.Now().UTC().Truncate(time.Second)
 	secret := []byte("test-secret-32-bytes-for-run-identity")
 	runID, taskID := uuid.New(), uuid.New()
-	claims := &identity.Claims{RunID: runID, TaskID: taskID, Subject: grantFixtureApprover,
-		Scopes: []string{"agent-manager:read", "agent-manager:write"}, IssuedAt: now.Unix(), ExpiresAt: now.Add(time.Hour).Unix()}
+	claims := &identity.Claims{
+		RunID: runID, TaskID: taskID, Subject: grantFixtureApprover,
+		Scopes: []string{"agent-manager:read", "agent-manager:write"}, IssuedAt: now.Unix(), ExpiresAt: now.Add(time.Hour).Unix(),
+	}
 	token, err := identity.GenerateToken(claims, secret)
 	if err != nil {
 		t.Fatal(err)
@@ -49,8 +51,10 @@ func TestBaselineRunCreateRespectsApprovalSettingAndScope(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	o := &Orchestrator{clock: func() time.Time { return now }, identitySecret: secret,
-		runs: baselineRunRepository{runCreateGrantRunRepository: runCreateGrantRunRepository{run: parent}, tokenHash: identity.HashToken(token)}, orchestrationSettings: store}
+	o := &Orchestrator{
+		clock: func() time.Time { return now }, identitySecret: secret,
+		runs: baselineRunRepository{runCreateGrantRunRepository: runCreateGrantRunRepository{run: parent}, tokenHash: identity.HashToken(token)}, orchestrationSettings: store,
+	}
 	call := func() (CreateRunRequest, error) {
 		request := CreateRunRequest{RunIdentityToken: token}
 		var callErr error
@@ -244,9 +248,11 @@ func TestRunCreateRejectsWrongRuleAndUnrelatedRequestedCapability(t *testing.T) 
 			grantRunID := uuid.New()
 			grantID := uuid.NewString()
 			expires := now.Add(time.Hour)
-			grant := &coreidentity.OperationGrant{ID: grantID, Policy: "agent-management", Approver: grantFixtureApprover,
+			grant := &coreidentity.OperationGrant{
+				ID: grantID, Policy: "agent-management", Approver: grantFixtureApprover,
 				Operations: []string{"agent.manage", "run.create"}, Targets: []string{runCreateGrantTarget},
-				Rules: []coreidentity.OperationRule{runCreateRule("agent-management", []string{"agent.manage"}, []string{runCreateGrantTarget})}, ExpiresAt: expires}
+				Rules: []coreidentity.OperationRule{runCreateRule("agent-management", []string{"agent.manage"}, []string{runCreateGrantTarget})}, ExpiresAt: expires,
+			}
 			if !tc.wrongRule {
 				grant.Rules = append(grant.Rules, runCreateRule("run-creation", []string{"run.create"}, []string{runCreateGrantTarget}))
 			}
@@ -254,7 +260,8 @@ func TestRunCreateRejectsWrongRuleAndUnrelatedRequestedCapability(t *testing.T) 
 			if err != nil {
 				t.Fatal(err)
 			}
-			verifier := &runCreatePairVerifier{valid: true,
+			verifier := &runCreatePairVerifier{
+				valid:     true,
 				baseline:  &cliutil.VerifiedClaims{RunID: uuid.NewString(), Subject: grantFixtureApprover, Scopes: []string{"prompt-manager:read"}, ExpiresAt: expires.Unix()},
 				operation: &cliutil.VerifiedClaims{RunID: grantRunID.String(), Subject: grantFixtureApprover, Scopes: []string{"agent-manager:read", "agent-manager:write", "deployment-manager:write"}, ExpiresAt: expires.Unix(), Meta: map[string]string{"authorization_id": grantID, "operation_grant": string(grantJSON)}},
 			}
@@ -277,7 +284,8 @@ func TestRunCreateRefusesMissingGrantRunRecord(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	verifier := &runCreatePairVerifier{valid: true,
+	verifier := &runCreatePairVerifier{
+		valid:     true,
 		baseline:  &cliutil.VerifiedClaims{RunID: uuid.NewString(), Subject: grantFixtureApprover, Scopes: []string{"prompt-manager:read"}, ExpiresAt: expires.Unix()},
 		operation: &cliutil.VerifiedClaims{RunID: grantRunID.String(), Subject: grantFixtureApprover, Scopes: []string{"agent-manager:write"}, ExpiresAt: expires.Unix(), Meta: map[string]string{"authorization_id": grantID, "operation_grant": string(grantJSON)}},
 	}

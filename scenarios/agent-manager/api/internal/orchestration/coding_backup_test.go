@@ -90,7 +90,7 @@ func TestCodingBackupRequiresCurrentConsentAndSwitchesOnce(t *testing.T) {
 			e := NewRunExecutor(nil, nil, nil, store, run, nil, nil, "original task", "")
 			e.workDir, e.runStateRoot = t.TempDir(), t.TempDir()
 			e.result = &runner.ExecuteResult{CodingLimit: &cliutil.CodingLimit{Harness: "codex", Kind: "provider_limit", ObservedAt: time.Now()}}
-			sink := e.createEventSink()
+			sink := e.createEventSink(t.Context())
 			record := cliutil.CodingBackupRecord{Owner: "owner", BaseURL: door.URL, ParentID: "parent", ParentKey: "parent-test-only", Consent: cliutil.CodingBackupConsent{Harness: "codex", Account: "account", Model: "model", MaxCredits: 5000, ExpiresAt: time.Now().Add(time.Hour), Automatic: true}}
 			if tc.mutate != nil {
 				tc.mutate(e, &record)

@@ -174,7 +174,7 @@ func (a *App) runRecent(args []string) error {
 	if *limit < 1 || *limit > 100 {
 		return fmt.Errorf("limit must be between 1 and 100")
 	}
-	_, runs, err := a.services.Runs.List(*limit, 0, "", "", "", "", "")
+	_, runs, err := a.services.Runs.List(RunListFilter{Limit: *limit})
 	if err != nil {
 		return err
 	}
@@ -281,11 +281,39 @@ func (a *App) runResult(args []string) error {
 	return nil
 }
 
+// runToolsReport is the `run tools --json` shape: the run report's tool
+// summary and the tool events that pass the filter.
+type runToolsReport struct {
+	ProjectOwnedToolCalls int             `json:"project_owned_tool_calls"`
+	ExternalToolCalls     int             `json:"external_tool_calls"`
+	Tools                 []runToolCounts `json:"tools"`
+	Events                []runToolEvent  `json:"events"`
+}
+
+type runToolCounts struct {
+	Name           string `json:"name"`
+	Calls          int    `json:"calls"`
+	Successes      int    `json:"successes"`
+	Failures       int    `json:"failures"`
+	Unresolved     int    `json:"unresolved"`
+	Returned       int    `json:"returned"`
+	UnknownOutcome int    `json:"unknown_outcome"`
+}
+
+type runToolEvent struct {
+	Sequence int64  `json:"sequence"`
+	Kind     string `json:"kind"` // call | result
+	Tool     string `json:"tool"`
+	Outcome  string `json:"outcome,omitempty"`
+	Error    string `json:"error,omitempty"`
+}
+
 func (a *App) runTools(args []string) error {
 	fs := flag.NewFlagSet("run tools", flag.ContinueOnError)
 	failed := fs.Bool("failed", false, "Show failed tool events only")
+	jsonOut := cliutil.JSONFlag(fs)
 	if len(args) == 0 || strings.HasPrefix(args[0], "-") {
-		return fmt.Errorf("usage: agent-manager run tools <id> [--failed]")
+		return fmt.Errorf("usage: agent-manager run tools <id> [--failed] [--json]")
 	}
 	id := args[0]
 	if err := cliutil.ParseInterspersed(fs, args[1:]); err != nil {
@@ -295,31 +323,15 @@ func (a *App) runTools(args []string) error {
 	if err != nil {
 		return err
 	}
-	var report struct {
-		Project  int `json:"project_owned_tool_calls"`
-		External int `json:"external_tool_calls"`
-		Tools    []struct {
-			Name           string `json:"name"`
-			Calls          int    `json:"calls"`
-			Successes      int    `json:"successes"`
-			Failures       int    `json:"failures"`
-			Unresolved     int    `json:"unresolved"`
-			Returned       int    `json:"returned"`
-			UnknownOutcome int    `json:"unknown_outcome"`
-		} `json:"tools"`
-	}
+	var report runToolsReport
 	if err := json.Unmarshal(reportBody, &report); err != nil {
 		return fmt.Errorf("decode run tool summary: %w", err)
 	}
-	fmt.Printf("Tool calls: project-owned=%d external=%d\n", report.Project, report.External)
-	for _, tool := range report.Tools {
-		fmt.Printf("%s: calls=%d returned=%d success=%d failed=%d unknown=%d unresolved=%d\n", tool.Name, tool.Calls, tool.Returned, tool.Successes, tool.Failures, tool.UnknownOutcome, tool.Unresolved)
-	}
+	report.Events = []runToolEvent{}
 	body, events, err := a.services.Runs.GetEvents(id, 0, nil)
 	if err != nil {
 		return err
 	}
-	count := 0
 	for _, event := range events {
 		if event.GetEventType() != domainpb.RunEventType_RUN_EVENT_TYPE_TOOL_CALL && event.GetEventType() != domainpb.RunEventType_RUN_EVENT_TYPE_TOOL_RESULT {
 			continue
@@ -329,13 +341,31 @@ func (a *App) runTools(args []string) error {
 			continue
 		}
 		if result != nil {
-			fmt.Printf("%d result %s outcome=%s error=%s\n", event.GetSequence(), result.GetToolName(), toolResultOutcome(result), result.GetError())
+			report.Events = append(report.Events, runToolEvent{Sequence: event.GetSequence(), Kind: "result", Tool: result.GetToolName(), Outcome: toolResultOutcome(result), Error: result.GetError()})
 		} else if call := event.GetToolCall(); call != nil {
-			fmt.Printf("%d call %s\n", event.GetSequence(), call.GetToolName())
+			report.Events = append(report.Events, runToolEvent{Sequence: event.GetSequence(), Kind: "call", Tool: call.GetToolName()})
 		}
-		count++
 	}
-	if count == 0 && len(events) == 0 {
+	if *jsonOut {
+		data, err := json.Marshal(report)
+		if err != nil {
+			return err
+		}
+		cliutil.PrintJSON(data)
+		return nil
+	}
+	fmt.Printf("Tool calls: project-owned=%d external=%d\n", report.ProjectOwnedToolCalls, report.ExternalToolCalls)
+	for _, tool := range report.Tools {
+		fmt.Printf("%s: calls=%d returned=%d success=%d failed=%d unknown=%d unresolved=%d\n", tool.Name, tool.Calls, tool.Returned, tool.Successes, tool.Failures, tool.UnknownOutcome, tool.Unresolved)
+	}
+	for _, event := range report.Events {
+		if event.Kind == "result" {
+			fmt.Printf("%d result %s outcome=%s error=%s\n", event.Sequence, event.Tool, event.Outcome, event.Error)
+		} else {
+			fmt.Printf("%d call %s\n", event.Sequence, event.Tool)
+		}
+	}
+	if len(report.Events) == 0 && len(events) == 0 {
 		fmt.Print(string(body))
 	}
 	support.NextSteps(fmt.Sprintf("agent-manager run events %s", id), fmt.Sprintf("agent-manager run report %s", id))

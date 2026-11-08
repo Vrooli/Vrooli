@@ -196,6 +196,7 @@ type Reconciler struct {
 	interactiveLiveDrivers    *interactiveDriverRegistry
 	interactiveTailDone       map[uuid.UUID]chan struct{}
 	recoveryMu                sync.Mutex
+	lastRunStateCleanup       time.Time
 	tailers                   map[uuid.UUID]context.CancelFunc
 	tailerOwners              map[uuid.UUID]context.Context
 	workflowRecovery          WorkflowExecutionRecoverer
@@ -735,7 +736,7 @@ func (r *Reconciler) reconcile(ctx context.Context) ReconcileStats {
 	r.releaseRetainedInteractiveSessions(ctx, &stats)
 
 	// Step 7: Garbage-collect old terminal run state directories.
-	r.cleanupRunStateDirs(ctx)
+	r.cleanupRunStateDirsIfDue(ctx)
 
 	// Step 8: Bound event history without holding a long SQLite write lock.
 	if deleted, err := r.cleanupExpiredEvents(ctx); err != nil {

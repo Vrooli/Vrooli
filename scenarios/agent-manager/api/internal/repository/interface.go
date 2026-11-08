@@ -28,6 +28,8 @@ type ListFilter struct {
 // RunListFilter extends ListFilter with run-specific filters.
 type RunListFilter struct {
 	ListFilter
+	// RunIDs selects an explicit set of run identities for bounded owner reads.
+	RunIDs []uuid.UUID
 	// RunnerPIDs narrows owner checks to exact process IDs already observed in a peer ancestry.
 	RunnerPIDs []int
 	// NonTerminalOnly narrows lifecycle-owner lookups to statuses that can

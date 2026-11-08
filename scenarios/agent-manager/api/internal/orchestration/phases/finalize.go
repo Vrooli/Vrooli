@@ -5,13 +5,14 @@
 //
 //   - Authorized sandbox teardown MUST run even when the caller's ctx is cancelled.
 //     Required unresolved finalization retains its sandbox for original-run recovery.
-//     The teardown HTTP call uses a fresh context.Background()-derived
+//     The teardown HTTP call uses a cancellation-detached operation-context
 //     deadline (Heartbeat.TeardownTimeout), so timing out the run does not
 //     orphan the fuse-overlayfs mount.
 //
-//   - Every run reaches RunPhaseCompleted. Finalize advances the phase
-//     ladder unconditionally; failure during teardown emits a warn event
-//     but does not block phase advancement.
+//   - A still-owned run advances to RunPhaseCompleted. A failed teardown
+//     emits a warning without blocking phase advancement. Unavailable or
+//     superseded durable ownership leaves finalization to recovery instead.
+//     Cleared or expired pinned storage never falls back to primary storage.
 //
 //   - Finalize is idempotent. Re-entry is a no-op so callers can invoke
 //     directly without races against the deferred call. Idempotency lives
@@ -49,11 +50,10 @@ type FinalizeInput struct {
 // RunPhaseCleaningUp → RunPhaseCompleted, runs the sandbox lifecycle
 // dispatcher, persists the final run state, and broadcasts terminal status.
 //
-// Context discipline: Finalize uses a fresh context.Background()-derived
-// timeout (TeardownTimeout). It does NOT take the run's execCtx — the
-// whole point is to be independent of execCtx's deadline and cancellation.
-func Finalize(in FinalizeInput) {
-	ctx, cancel := context.WithTimeout(context.Background(), in.Deps.Levers.Heartbeat.TeardownTimeout)
+// Finalize retains the operation's exact storage and identity context while
+// detaching producer cancellation and deadlines. TeardownTimeout bounds cleanup.
+func Finalize(parent context.Context, in FinalizeInput) {
+	ctx, cancel := context.WithTimeout(context.WithoutCancel(parent), in.Deps.Levers.Heartbeat.TeardownTimeout)
 	defer cancel()
 	if in.Deps.Runs != nil {
 		current, err := in.Deps.Runs.Get(ctx, in.Run.ID)
@@ -101,7 +101,7 @@ func Finalize(in FinalizeInput) {
 		}
 	}
 	if in.Deps.Broadcaster != nil {
-		in.Deps.Broadcaster.BroadcastRunStatus(in.Run)
+		in.Deps.Broadcaster.BroadcastRunStatus(ctx, in.Run)
 	}
 
 	obs.EmitFinalizeCompleted(sink, in.Run.ID, obs.FinalizeFields{
@@ -188,7 +188,7 @@ func ApplySandboxLifecycle(ctx context.Context, in ApplySandboxLifecycleInput) s
 		events = append(events, domain.SandboxLifecycleTerminal)
 	}
 
-	teardownCtx, cancel := context.WithTimeout(context.Background(), in.Deps.Levers.Heartbeat.TeardownTimeout)
+	teardownCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), in.Deps.Levers.Heartbeat.TeardownTimeout)
 	defer cancel()
 
 	if HasLifecycleEvent(cfg.Lifecycle.DeleteOn, events) {

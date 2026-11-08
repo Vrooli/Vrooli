@@ -689,7 +689,25 @@ type CompactionEventData struct {
 	// event carries it.
 	TokensAfter     int64  `json:"tokensAfter"`
 	OriginalCommand string `json:"originalCommand,omitempty"`
+	// GoalObjective is what the compaction kept of the session's native goal
+	// objective: CompactionGoalRetained, CompactionGoalOmitted (Codex replaced
+	// it with "[objective omitted; exceeds the evidence limit]" until the next
+	// goal-turn start), or empty when the session had no native goal or the
+	// harness does not say.
+	GoalObjective string `json:"goalObjective,omitempty"`
+	// OperatorMessagesKept counts the operator-typed user messages (not goal
+	// events, wakes or injected context) the compaction kept verbatim; nil when
+	// the harness does not say or the session is a native sub-agent, which
+	// keeps no user messages by design. Zero means the stance a user message
+	// carried is gone from the context.
+	OperatorMessagesKept *int `json:"operatorMessagesKept,omitempty"`
 }
+
+// Values of CompactionEventData.GoalObjective.
+const (
+	CompactionGoalRetained = "retained"
+	CompactionGoalOmitted  = "omitted"
+)
 
 func (d *CompactionEventData) EventType() RunEventType { return EventTypeCompaction }
 func (d *CompactionEventData) isEventPayload()         {}

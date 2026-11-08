@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"agent-manager/internal/domain"
+	"agent-manager/internal/stepback"
 
 	"github.com/google/uuid"
 	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
@@ -21,6 +22,29 @@ type ActionController interface {
 	StopRun(context.Context, uuid.UUID) error
 	ParkRun(context.Context, uuid.UUID, string, *time.Time) error
 	WakeRun(context.Context, uuid.UUID, string) error
+}
+
+// EffortBoardRunReader provides one page's run state and metered accounting
+// through the orchestration owner. It intentionally has no per-run fallback.
+type EffortBoardRunReader interface {
+	ReadEffortBoardRuns(context.Context, []uuid.UUID) (map[uuid.UUID]*domain.Run, map[uuid.UUID]EffortRunAccounting, error)
+}
+
+// EffortBoardStepBackReader assesses the transcript step-back triggers of a
+// page's runs through the orchestration owner. It is optional: without it the
+// board shows no step-back triggers.
+type EffortBoardStepBackReader interface {
+	ReadRunStepBack(context.Context, []uuid.UUID) (map[uuid.UUID][]stepback.Trigger, error)
+}
+
+type EffortRunAccounting struct {
+	Tokens          int64
+	TokensKnown     bool
+	WeightedTokens  float64
+	WeightedPresent bool
+	WeightedKnown   bool
+	TokenCap        int64
+	TokenCapMode    string
 }
 
 type ActionService struct {

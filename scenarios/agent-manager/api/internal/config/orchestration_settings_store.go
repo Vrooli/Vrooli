@@ -37,7 +37,9 @@ func NewOrchestrationSettingsStore(path string) (*OrchestrationSettingsStore, er
 		return s, nil
 	}
 
-	var settings OrchestrationSettings
+	// Decode over the defaults so a field added after the file was written
+	// takes its default instead of a zero value that may not validate.
+	settings := DefaultOrchestrationSettings()
 	if err := json.Unmarshal(data, &settings); err != nil {
 		return nil, NewInvalid("orchestrationSettings", "failed to parse orchestration settings", err)
 	}

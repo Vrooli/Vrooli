@@ -273,6 +273,7 @@ func (h *Handler) UsageFriction(ctx context.Context, req *connect.Request[measur
 		return nil, err
 	}
 	status := strings.TrimSpace(req.Msg.GetStatus())
+	owner := strings.TrimSpace(req.Msg.GetOwner())
 	if status != "" && status != usageattribution.StatusOpen && status != usageattribution.StatusReported && status != usageattribution.StatusDismissed {
 		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid status %q; accepted values: open, reported, dismissed", status))
 	}
@@ -298,6 +299,14 @@ func (h *Handler) UsageFriction(ctx context.Context, req *connect.Request[measur
 		GeneratedAt: now.Format(time.RFC3339), DefinitionId: definitionID(UsageFriction),
 		Coverage: coverage, WindowStart: rfc3339(friction.Since), MaterialityScore: toolfriction.MaterialScore,
 	}
+	if owner != "" {
+		for _, profile := range friction.Tools.Profiles {
+			if profile.Owner == owner {
+				response.OwnerProfileCount++
+				response.OwnerCallCount += int64(profile.Calls)
+			}
+		}
+	}
 	limit := usageRows(req.Msg.GetLimit())
 	count := func(itemStatus string) bool {
 		switch itemStatus {
@@ -314,6 +323,9 @@ func (h *Handler) UsageFriction(ctx context.Context, req *connect.Request[measur
 	// listed when material (the floor the recommendations apply), else counted
 	// below the floor, and past limit counted beyond it.
 	for _, finding := range friction.ToolFindings {
+		if owner != "" && finding.Owner != owner {
+			continue
+		}
 		switch {
 		case !count(finding.Status):
 		case !finding.Material():
@@ -328,10 +340,16 @@ func (h *Handler) UsageFriction(ctx context.Context, req *connect.Request[measur
 		if response.Interventions, err = interventionsSection(ctx, h.interventions, interventions.ProvenGate, friction.Since, now, limit); err != nil {
 			return nil, connect.NewError(connect.CodeInternal, err)
 		}
+		if response.Interventions.Corrections, err = correctionsSection(ctx, h.signals, interventions.ProvenSignalGate, interventions.SignalHoldout, friction.Since, now, response.Interventions.GetAgentHours(), limit); err != nil {
+			return nil, connect.NewError(connect.CodeInternal, err)
+		}
 	}
 	response.Validity = h.validityForSample(int64(friction.Tools.Coverage.Commands))
-	response.Provenance = usageAttributionProvenance(definitionFor(UsageFriction).SourceTable, int64(len(friction.ToolFindings)), friction.Since, now,
-		&measurepb.MeasureFilter{Field: "status", Value: status})
+	filters := []*measurepb.MeasureFilter{{Field: "status", Value: status}}
+	if owner != "" {
+		filters = append(filters, &measurepb.MeasureFilter{Field: "owner", Value: owner})
+	}
+	response.Provenance = usageAttributionProvenance(definitionFor(UsageFriction).SourceTable, int64(len(response.ToolFindings)), friction.Since, now, filters...)
 	return connect.NewResponse(response), nil
 }
 

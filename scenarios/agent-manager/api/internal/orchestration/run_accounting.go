@@ -13,7 +13,12 @@ import (
 	"agent-manager/internal/workflowruntime"
 
 	"github.com/google/uuid"
+	"github.com/vrooli/cli-core/agentcatalog"
 )
+
+type runBatchReader interface {
+	GetMany(context.Context, []uuid.UUID) (map[uuid.UUID]*domain.Run, error)
+}
 
 // RunAccounting is one run's metered usage, projected from the same metering
 // the workflow owner applies to its child runs. A consumer may settle a
@@ -34,6 +39,11 @@ type RunAccounting struct {
 	NonCacheTokens  int64
 	CacheReadTokens int64
 	Model           string
+	WeightedTokens  float64
+	WeightedPresent bool
+	WeightedKnown   bool
+	TokenCap        int64
+	TokenCapMode    string
 }
 
 // RunAccounting reads a standalone run's terminal usage. A consumer that
@@ -49,6 +59,72 @@ func (o *Orchestrator) RunAccounting(ctx context.Context, runID uuid.UUID) (RunA
 		return out, err
 	}
 	return withTokenComponents(out, run, events, o.now()), nil
+}
+
+// RunAccountingBatch projects the same authoritative accounting as
+// RunAccounting for a set of run identities, using the run and event owners'
+// batch read seams. Missing runs have no result entry; an event or projection
+// error fails the batch instead of returning a misleading partial total.
+func (o *Orchestrator) RunAccountingBatch(ctx context.Context, ids []uuid.UUID) (map[uuid.UUID]*domain.Run, map[uuid.UUID]RunAccounting, error) {
+	runs := make(map[uuid.UUID]*domain.Run, len(ids))
+	accounts := make(map[uuid.UUID]RunAccounting, len(ids))
+	if len(ids) == 0 {
+		return runs, accounts, nil
+	}
+	runReader, ok := o.runs.(runBatchReader)
+	if !ok {
+		return nil, nil, fmt.Errorf("run repository does not support batch reads")
+	}
+	eventReader, ok := o.events.(event.BatchReader)
+	if !ok {
+		return nil, nil, fmt.Errorf("event store does not support batch reads")
+	}
+	var err error
+	runs, err = runReader.GetMany(ctx, ids)
+	if err != nil {
+		return runs, accounts, err
+	}
+	policy := o.capPolicy()
+	for id, run := range runs {
+		if run == nil {
+			continue
+		}
+		accounts[id] = RunAccounting{RunID: id, TokenCap: o.tokenCapFor(ctx, run, policy), TokenCapMode: string(policy.Mode)}
+	}
+	events, eventErrors, err := eventReader.GetMany(ctx, ids, event.GetOptions{AfterSequence: -1, EventTypes: []domain.RunEventType{domain.EventTypeMetric, domain.EventTypeStatus, domain.EventTypeGoalStatusChanged}})
+	if err != nil {
+		return runs, accounts, err
+	}
+	now := o.now()
+	for _, id := range ids {
+		run := runs[id]
+		if run == nil || eventErrors[id] != nil {
+			continue
+		}
+		stream := events[id]
+		state, err := meteredWorkflowChildState(run, stream, now)
+		if err != nil {
+			continue
+		}
+		out, err := runAccountingFromState(run, state)
+		if err != nil {
+			continue
+		}
+		account := withTokenComponents(out, run, stream, now)
+		account.TokenCap = accounts[id].TokenCap
+		account.TokenCapMode = accounts[id].TokenCapMode
+		for _, evt := range stream {
+			if _, ok := evt.Data.(*domain.UsageEventData); ok {
+				weight, weightKnown := agentcatalog.TokenWeight(account.Model, policy.Weights)
+				account.WeightedTokens = float64(account.NonCacheTokens) * weight
+				account.WeightedPresent = true
+				account.WeightedKnown = account.TokensKnown && weightKnown
+				break
+			}
+		}
+		accounts[id] = account
+	}
+	return runs, accounts, nil
 }
 
 // withTokenComponents splits the metered token total into cache reads and

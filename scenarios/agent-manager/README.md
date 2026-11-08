@@ -131,6 +131,8 @@ Defines what needs to be done: title, description, scope path, context.
 
 ### Run
 A concrete execution attempt linking a Task to an AgentProfile within a sandbox.
+A run may be the child of another run; its `depth` (root 0) is capped by
+`runExecution.maxChildDepth` (default 3).
 
 ### RunEvent
 Append-only event stream capturing all agent activity (logs, messages, tool calls).
@@ -211,11 +213,18 @@ agent-manager task list
 # Run management
 agent-manager run create --task-id <id> --profile-id <id>
 agent-manager run create --task-id <id> --profile-id <id> --execution-mode interactive  # run inside a live web-console session
-agent-manager run logs <id>
+agent-manager run events <id> [--follow]
 agent-manager run diff <id>
 agent-manager run approve <id>
 agent-manager run reject <id>
 agent-manager run continue <id> --message "Resume the retained checkpoint" --idempotency-key <retained-request-key>
+
+# Nested runs (optional; see docs/reference/effort-supervision.md#nested-runs)
+agent-manager run create --task-id <id> --profile-id <id> --parent-run-id <own-run-id> --until-file kernel.md --charter /abs/CHARTER.md
+agent-manager run wait <id> [--timeout 30m]                      # exit 5 timed out, 6 Agent Manager unreachable
+agent-manager run wait --children <parent-id> [--since <observed_at>]
+agent-manager run tree <id>
+agent-manager run list --parent-run-id <parent-id>
 
 # Role-policy operations (declared catalog remains Git-managed)
 agent-manager role-policy status

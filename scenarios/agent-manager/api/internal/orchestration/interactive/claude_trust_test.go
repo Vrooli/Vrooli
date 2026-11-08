@@ -15,6 +15,10 @@ func TestEnsureClaudeProjectTrustedAddsOnlyRequestedProject(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	// Establish the existing mode independently of the test runner's umask.
+	if err := os.Chmod(configPath, 0o640); err != nil {
+		t.Fatal(err)
+	}
 	if err := ensureClaudeProjectTrusted(home, "/sandbox/merged"); err != nil {
 		t.Fatalf("ensureClaudeProjectTrusted: %v", err)
 	}

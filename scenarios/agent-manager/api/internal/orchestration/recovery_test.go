@@ -14,6 +14,7 @@ import (
 	"agent-manager/internal/adapters/runner"
 	"agent-manager/internal/adapters/runner/codecs"
 	"agent-manager/internal/adapters/runner/core"
+	"agent-manager/internal/adapters/sandbox"
 	"agent-manager/internal/domain"
 	"agent-manager/internal/orchestration/obs"
 	"agent-manager/internal/orchestration/testutil"
@@ -386,7 +387,7 @@ func TestRecoverPanickedRunFailsOnlyAffectedRunWithStackEvent(t *testing.T) {
 	run := createRecoveryTestRun(t, repos, domain.RunnerTypeCodex)
 	other := createRecoveryTestRun(t, repos, domain.RunnerTypeCodex)
 	orchestrator := New(nil, nil, repos.Runs, WithEvents(eventStore))
-	orchestrator.recoverPanickedRun(run, obs.PanicFailure{Operation: "injected phase", Value: "boom", Stack: "stacktrace"})
+	orchestrator.recoverPanickedRun(t.Context(), run, obs.PanicFailure{Operation: "injected phase", Value: "boom", Stack: "stacktrace"})
 
 	failed, err := repos.Runs.Get(context.Background(), run.ID)
 	if err != nil {
@@ -458,6 +459,112 @@ func TestRecoverRun_DeadProcessWithTerminalSuccess(t *testing.T) {
 	}
 
 	_, _ = eventStore.Get(context.Background(), run.ID, event.GetOptions{})
+}
+
+func TestRecoverRun_SandboxedTerminalSuccessUsesRunApplyPolicy(t *testing.T) {
+	reconciler, repos, _ := newRecoveryTestReconciler(t, domain.RunnerTypeCodex)
+	provider := mocks.NewFakeSandboxProvider()
+	provider.ApplyAtRunEndResult = &sandbox.ApplyAtRunEndResult{Success: true, Applied: 1, TotalSizeBytes: 512}
+	reconciler.sandbox = provider
+	run := createRecoveryTestRun(t, repos, domain.RunnerTypeCodex)
+	sandboxID := uuid.New()
+	run.RunMode = domain.RunModeSandboxed
+	run.SandboxConfig = domain.DefaultSandboxConfig()
+	run.SandboxID = &sandboxID
+	run.TranscriptPath = writeRecoveryTranscript(t, "session:thread-sandboxed\nmessage:Recovered change\ndone:Recovered change\n")
+	if err := repos.Runs.Update(t.Context(), run); err != nil {
+		t.Fatalf("update run: %v", err)
+	}
+
+	if _, err := reconciler.RecoverRun(t.Context(), run.ID); err != nil {
+		t.Fatalf("RecoverRun: %v", err)
+	}
+
+	got, err := repos.Runs.Get(t.Context(), run.ID)
+	if err != nil {
+		t.Fatalf("get recovered run: %v", err)
+	}
+	if provider.ApplyAtRunEndCallCount() != 1 {
+		t.Fatalf("recovery bypassed normal auto-apply policy: calls=%d", provider.ApplyAtRunEndCallCount())
+	}
+	if got.Status != domain.RunStatusComplete || got.ApprovalState != domain.ApprovalStateApproved || got.ChangedFiles != 1 {
+		t.Fatalf("recovered run did not retain applied result: status=%s approval=%s changed=%d", got.Status, got.ApprovalState, got.ChangedFiles)
+	}
+}
+
+func TestRecoverRun_SandboxedManualReviewReturnsToApprovalQueue(t *testing.T) {
+	reconciler, repos, _ := newRecoveryTestReconciler(t, domain.RunnerTypeCodex)
+	provider := mocks.NewFakeSandboxProvider()
+	provider.GetDiffFunc = func(context.Context, uuid.UUID) (*sandbox.DiffResult, error) {
+		return &sandbox.DiffResult{}, nil
+	}
+	reconciler.sandbox = provider
+	run := createRecoveryTestRun(t, repos, domain.RunnerTypeCodex)
+	sandboxID := uuid.New()
+	config := domain.DefaultSandboxConfig()
+	config.ManualReview = true
+	run.RunMode = domain.RunModeSandboxed
+	run.SandboxConfig = config
+	run.SandboxID = &sandboxID
+	run.TranscriptPath = writeRecoveryTranscript(t, "session:thread-review\nmessage:Recovered change\ndone:Recovered change\n")
+	if err := repos.Runs.Update(t.Context(), run); err != nil {
+		t.Fatalf("update run: %v", err)
+	}
+
+	if _, err := reconciler.RecoverRun(t.Context(), run.ID); err != nil {
+		t.Fatalf("RecoverRun: %v", err)
+	}
+
+	got, err := repos.Runs.Get(t.Context(), run.ID)
+	if err != nil {
+		t.Fatalf("get recovered run: %v", err)
+	}
+	if got.Status != domain.RunStatusNeedsReview || got.ApprovalState != domain.ApprovalStatePending {
+		t.Fatalf("recovered manual-review run left approval queue: status=%s approval=%s", got.Status, got.ApprovalState)
+	}
+	if provider.ApplyAtRunEndCallCount() != 0 {
+		t.Fatalf("manual-review recovery applied changes before approval: calls=%d", provider.ApplyAtRunEndCallCount())
+	}
+}
+
+func TestRecoverRun_ConcurrentTerminalReplayDoesNotRepeatFinalization(t *testing.T) {
+	reconciler, repos, _ := newRecoveryTestReconciler(t, domain.RunnerTypeCodex)
+	provider := mocks.NewFakeSandboxProvider()
+	provider.ApplyAtRunEndResult = &sandbox.ApplyAtRunEndResult{Success: true, Applied: 1, TotalSizeBytes: 512}
+	reconciler.sandbox = provider
+	run := createRecoveryTestRun(t, repos, domain.RunnerTypeCodex)
+	sandboxID := uuid.New()
+	run.RunMode = domain.RunModeSandboxed
+	run.SandboxConfig = domain.DefaultSandboxConfig()
+	run.SandboxConfig.Lifecycle.StopOn = []domain.SandboxLifecycleEvent{"run_completed"}
+	run.SandboxID = &sandboxID
+	if err := repos.Runs.Update(t.Context(), run); err != nil {
+		t.Fatalf("update run: %v", err)
+	}
+	staleOwner := *run
+	terminal := &runner.TranscriptTerminal{Success: true, ExitCode: 0}
+	result := &domain.RunResult{
+		Success: true, FinalOutput: "recovered output",
+		Selection: domain.FinalOutputSelection{Status: domain.FinalOutputSelectionSelected},
+	}
+	summary := &domain.RunSummary{Description: "recovered output"}
+
+	if _, err := reconciler.commitRecoveredTerminalResult(t.Context(), run, terminal, result, summary); err != nil {
+		t.Fatalf("first recovery commit: %v", err)
+	}
+	if provider.ApplyAtRunEndCallCount() != 1 || provider.StopCallCount() != 1 {
+		t.Fatalf("first recovery lifecycle calls: apply=%d stop=%d, want one each", provider.ApplyAtRunEndCallCount(), provider.StopCallCount())
+	}
+
+	// Model a second recovery that read the same Running snapshot before the
+	// first recovery committed its terminal row. Its version-fenced result is
+	// stale, so it must observe the winner without repeating apply or teardown.
+	if _, err := reconciler.commitRecoveredTerminalResult(t.Context(), &staleOwner, terminal, result, summary); err != nil {
+		t.Fatalf("stale concurrent recovery: %v", err)
+	}
+	if provider.ApplyAtRunEndCallCount() != 1 || provider.StopCallCount() != 1 {
+		t.Fatalf("stale recovery repeated lifecycle calls: apply=%d stop=%d", provider.ApplyAtRunEndCallCount(), provider.StopCallCount())
+	}
 }
 
 func TestRecoverRun_DeadProcessWithTerminalFailure(t *testing.T) {

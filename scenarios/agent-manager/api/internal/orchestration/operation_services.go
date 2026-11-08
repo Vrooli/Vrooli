@@ -163,6 +163,14 @@ type RunAccountingService interface {
 	RunAccounting(context.Context, uuid.UUID) (RunAccounting, error)
 }
 
+// RunTreeService reads nested runs: blocking waits on one run or a parent's
+// children, and the bounded descendant tree.
+type RunTreeService interface {
+	WaitRun(context.Context, uuid.UUID, time.Duration) (*RunWaitResult, error)
+	WaitRunChildren(context.Context, uuid.UUID, *time.Time, time.Duration) (*ChildrenWaitResult, error)
+	GetRunTree(context.Context, uuid.UUID) (*RunTree, error)
+}
+
 type InvocationFactService interface {
 	InvocationFacts(context.Context, uuid.UUID) ([]runsignal.InvocationFact, error)
 	ReplayInvocationFacts(context.Context, uuid.UUID) (*ReplayResult, error)
@@ -200,6 +208,7 @@ type HandlerServices struct {
 	DelegationService
 	RunReportService
 	RunAccountingService
+	RunTreeService
 	InvocationFactService
 	DurabilityService
 	FindingsService
@@ -228,6 +237,7 @@ func NewHandlerServices(orchestrator *Orchestrator) HandlerServices {
 		DelegationService:            orchestrator,
 		RunReportService:             orchestrator,
 		RunAccountingService:         orchestrator,
+		RunTreeService:               orchestrator,
 		InvocationFactService:        orchestrator,
 		DurabilityService:            orchestrator,
 		FindingsService:              orchestrator,
@@ -252,6 +262,7 @@ var (
 	_ PathValidationService        = (*Orchestrator)(nil)
 	_ IdentityService              = (*Orchestrator)(nil)
 	_ RunReportService             = (*Orchestrator)(nil)
+	_ RunTreeService               = (*Orchestrator)(nil)
 	_ InvocationFactService        = (*Orchestrator)(nil)
 	_ DurabilityService            = (*Orchestrator)(nil)
 	_ FindingsService              = (*Orchestrator)(nil)

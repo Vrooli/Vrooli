@@ -2,6 +2,7 @@
 package mocks
 
 import (
+	"context"
 	"sync"
 
 	"agent-manager/internal/domain"
@@ -30,13 +31,13 @@ func NewFakeBroadcaster() *FakeBroadcaster {
 	return &FakeBroadcaster{}
 }
 
-func (b *FakeBroadcaster) BroadcastEvent(event *domain.RunEvent) {
+func (b *FakeBroadcaster) BroadcastEvent(ctx context.Context, event *domain.RunEvent) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	b.eventBroadcasts = append(b.eventBroadcasts, event)
 }
 
-func (b *FakeBroadcaster) BroadcastRunStatus(run *domain.Run) {
+func (b *FakeBroadcaster) BroadcastRunStatus(ctx context.Context, run *domain.Run) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	if run == nil {
@@ -47,7 +48,7 @@ func (b *FakeBroadcaster) BroadcastRunStatus(run *domain.Run) {
 	b.statusBroadcasts = append(b.statusBroadcasts, &snapshot)
 }
 
-func (b *FakeBroadcaster) BroadcastProgress(runID uuid.UUID, phase domain.RunPhase, percent int, action string) {
+func (b *FakeBroadcaster) BroadcastProgress(ctx context.Context, runID uuid.UUID, phase domain.RunPhase, percent int, action string) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	b.progressBroadcasts = append(b.progressBroadcasts, ProgressBroadcast{

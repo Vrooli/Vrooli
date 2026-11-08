@@ -20,17 +20,17 @@ import (
 
 // Reuse the bounded, deduplicating workflow driver. Event persistence precedes
 // the nudge; periodic recovery remains the backstop for a lost notification.
-func (o *Orchestrator) nudgeWorkflowUsage(runID uuid.UUID, evt *domain.RunEvent) {
+func (o *Orchestrator) nudgeWorkflowUsage(ctx context.Context, runID uuid.UUID, evt *domain.RunEvent) {
 	if evt == nil || evt.EventType != domain.EventTypeMetric || o.workflowNudger == nil || o.workflowExecutions == nil {
 		return
 	}
-	id, err := o.workflowExecutions.ExecutionIDForRun(context.Background(), runID)
+	id, err := o.workflowExecutions.ExecutionIDForRun(ctx, runID)
 	if err != nil {
 		obs.Component("workflow-nudge").Warn("resolve owning execution for usage failed", obs.KeyRunID, runID.String(), obs.KeyError, err.Error())
 		return
 	}
 	if id != uuid.Nil {
-		o.workflowNudger.Enqueue(id)
+		o.workflowNudger.Enqueue(ctx, id)
 	}
 }
 

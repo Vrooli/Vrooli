@@ -657,6 +657,10 @@ var runColumnMigrations = []columnMigration{
 	{column: "canary_arm", ddl: "ALTER TABLE runs ADD COLUMN canary_arm TEXT NOT NULL DEFAULT ''"},
 	{column: "identity_renewal_anchor_hash", ddl: "ALTER TABLE runs ADD COLUMN identity_renewal_anchor_hash TEXT NOT NULL DEFAULT ''"},
 	{column: "identity_token_issued_at", ddl: "ALTER TABLE runs ADD COLUMN identity_token_issued_at TEXT"},
+	// depth is derived from the parent row at insert; migrationRunDepth fills it
+	// for children created before the column existed.
+	{column: "depth", ddl: "ALTER TABLE runs ADD COLUMN depth INTEGER NOT NULL DEFAULT 0"},
+	{column: "charter_path", ddl: "ALTER TABLE runs ADD COLUMN charter_path TEXT NOT NULL DEFAULT ''"},
 }
 
 func (db *DB) migrateColumns(ctx context.Context, table string, migrations []columnMigration) error {

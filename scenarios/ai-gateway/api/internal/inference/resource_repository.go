@@ -97,17 +97,117 @@ func resolveOutputCap(request ProviderRequest, resolved providers.ResolvedRole) 
 type ResourceRepository struct {
 	catalog  RoleCatalog
 	adapters map[string]providers.Adapter
+	ledger   AttemptLedger
 }
 
-func NewResourceRepository(catalog RoleCatalog, adapters []providers.Adapter) (*ResourceRepository, error) {
+func NewResourceRepository(catalog RoleCatalog, adapters []providers.Adapter, ledgers ...AttemptLedger) (*ResourceRepository, error) {
 	if err := catalog.Validate(); err != nil {
 		return nil, err
 	}
 	repository := &ResourceRepository{catalog: catalog, adapters: make(map[string]providers.Adapter, len(adapters))}
+	if len(ledgers) > 0 {
+		repository.ledger = ledgers[0]
+	}
 	for _, adapter := range adapters {
 		repository.adapters[strings.ToLower(strings.TrimSpace(adapter.Provider))] = adapter
 	}
 	return repository, nil
+}
+
+func recoveryReceipt(record AttemptRecord, state inferencev1.RecoveryReceiptState) *inferencev1.RecoveryReceipt {
+	return &inferencev1.RecoveryReceipt{
+		AttemptReference: attemptReference(record.Key), State: state,
+		AccountingStatus: record.AccountingStatus, ChargedCredits: record.ChargedCredits,
+	}
+}
+
+func recoveryStateForRecord(state AttemptState) inferencev1.RecoveryReceiptState {
+	switch state {
+	case AttemptPending:
+		return inferencev1.RecoveryReceiptState_RECOVERY_RECEIPT_STATE_PENDING
+	case AttemptSettled:
+		return inferencev1.RecoveryReceiptState_RECOVERY_RECEIPT_STATE_SETTLED
+	case AttemptReleased:
+		return inferencev1.RecoveryReceiptState_RECOVERY_RECEIPT_STATE_RELEASED
+	case AttemptOutputObserved:
+		return inferencev1.RecoveryReceiptState_RECOVERY_RECEIPT_STATE_OUTPUT_UNAVAILABLE
+	default:
+		return inferencev1.RecoveryReceiptState_RECOVERY_RECEIPT_STATE_UNCERTAIN
+	}
+}
+
+func ledgerState(receipt *inferencev1.RecoveryReceipt) AttemptState {
+	switch receipt.GetState() {
+	case inferencev1.RecoveryReceiptState_RECOVERY_RECEIPT_STATE_PENDING:
+		return AttemptPending
+	case inferencev1.RecoveryReceiptState_RECOVERY_RECEIPT_STATE_SETTLED:
+		return AttemptSettled
+	case inferencev1.RecoveryReceiptState_RECOVERY_RECEIPT_STATE_RELEASED:
+		return AttemptReleased
+	default:
+		return AttemptUncertain
+	}
+}
+
+func (r *ResourceRepository) hostedAdapter(provider string) (providers.Adapter, bool) {
+	adapter, ok := r.adapters[strings.ToLower(strings.TrimSpace(provider))]
+	return adapter, ok && adapter.Door != nil
+}
+
+func (r *ResourceRepository) recoverLatest(ctx context.Context, snapshot *LedgerSnapshot, request ProviderRequest) (ProviderResult, bool, error) {
+	if snapshot == nil || snapshot.Attempt == nil || snapshot.Attempt.ValidationAttempt < request.ValidationAttempt {
+		return ProviderResult{}, false, nil
+	}
+	record := *snapshot.Attempt
+	switch record.State {
+	case AttemptPreDispatchFailed:
+		return ProviderResult{}, false, nil
+	case AttemptOutputObserved:
+		adapter, ok := r.hostedAdapter(record.Provider)
+		if !ok {
+			return ProviderResult{}, true, errors.New("recorded HostedDoor adapter is unavailable; recovery fails closed")
+		}
+		execution, err := adapter.Execute(ctx, providers.ExecutionRequest{
+			IdempotencyKey: record.Key, RecoveryOnly: true, ExpectedKeyGeneration: snapshot.Generation,
+		})
+		if errors.Is(err, providers.ErrDeviceKeyGenerationChanged) {
+			return ProviderResult{}, true, ErrRootConflict
+		}
+		if err == nil && execution.Recovery != nil {
+			receipt := execution.Recovery
+			receipt.State = inferencev1.RecoveryReceiptState_RECOVERY_RECEIPT_STATE_OUTPUT_UNAVAILABLE
+			return ProviderResult{Recovery: receipt}, true, nil
+		}
+		return ProviderResult{Recovery: recoveryReceipt(record, inferencev1.RecoveryReceiptState_RECOVERY_RECEIPT_STATE_OUTPUT_UNAVAILABLE)}, true, nil
+	case AttemptSettled, AttemptReleased:
+		return ProviderResult{Recovery: recoveryReceipt(record, recoveryStateForRecord(record.State))}, true, nil
+	case AttemptDispatching, AttemptUncertain, AttemptPending:
+		adapter, ok := r.hostedAdapter(record.Provider)
+		if !ok {
+			return ProviderResult{}, true, errors.New("recorded HostedDoor adapter is unavailable; recovery fails closed")
+		}
+		generation, err := adapter.Door.DeviceKeyGeneration(ctx)
+		if err != nil {
+			return ProviderResult{}, true, err
+		}
+		if generation != snapshot.Generation {
+			return ProviderResult{}, true, ErrRootConflict
+		}
+		execution, err := adapter.Execute(ctx, providers.ExecutionRequest{
+			IdempotencyKey: record.Key, RecoveryOnly: true, ExpectedKeyGeneration: snapshot.Generation,
+		})
+		if err != nil {
+			return ProviderResult{}, true, err
+		}
+		receipt := execution.Recovery
+		if receipt == nil {
+			receipt = recoveryReceipt(record, inferencev1.RecoveryReceiptState_RECOVERY_RECEIPT_STATE_UNCERTAIN)
+		}
+		_ = r.ledger.Set(ctx, request.RootOperationID, record.Ordinal, ledgerState(receipt), receipt.GetAccountingStatus(), receipt.ChargedCredits)
+		return ProviderResult{Recovery: receipt}, true, nil
+	default:
+		return ProviderResult{}, false, nil
+	}
 }
 
 func (r *ResourceRepository) Run(ctx context.Context, request ProviderRequest) (ProviderResult, error) {
@@ -121,6 +221,33 @@ func (r *ResourceRepository) Run(ctx context.Context, request ProviderRequest) (
 	if err := validateGeometrySpendLimit(request); err != nil {
 		return ProviderResult{}, err
 	}
+	if request.RequestDigest == "" {
+		request.RequestDigest = canonicalRequestDigest(request)
+	}
+	var snapshot *LedgerSnapshot
+	if validRootOperationID(request.RootOperationID) && r.ledger != nil {
+		var err error
+		snapshot, err = r.ledger.Lookup(ctx, request.RootOperationID, request.RequestDigest)
+		if err != nil {
+			return ProviderResult{}, err
+		}
+		if snapshot != nil && snapshot.Attempt != nil {
+			adapter, ok := r.hostedAdapter(snapshot.Attempt.Provider)
+			if !ok {
+				return ProviderResult{}, errors.New("recorded HostedDoor adapter is unavailable; recovery fails closed")
+			}
+			generation, generationErr := adapter.Door.DeviceKeyGeneration(ctx)
+			if generationErr != nil {
+				return ProviderResult{}, generationErr
+			}
+			if generation != snapshot.Generation {
+				return ProviderResult{}, ErrRootConflict
+			}
+			if result, handled, recoveryErr := r.recoverLatest(ctx, snapshot, request); handled || recoveryErr != nil {
+				return result, recoveryErr
+			}
+		}
+	}
 	var failures []string
 	var providerCallsMade int32
 	var usageIncomplete bool
@@ -129,7 +256,8 @@ func (r *ResourceRepository) Run(ctx context.Context, request ProviderRequest) (
 	// terminal error from "nothing worked" to the specific, actionable
 	// "nothing here can sample the way you asked".
 	var samplingRefused bool
-	for _, candidate := range definition.Candidates {
+	var rootRequired bool
+	for candidateIndex, candidate := range definition.Candidates {
 		switch providers.Source(ctx) {
 		case "local":
 			if candidate.Provider != providers.ProviderOllama {
@@ -186,6 +314,41 @@ func (r *ResourceRepository) Run(ctx context.Context, request ProviderRequest) (
 			MaxOutputTokens:       maxOutputTokens,
 			MaxOutputTokensSource: capSource,
 		}
+		var attempt AttemptRecord
+		var expectedGeneration string
+		if adapter.Door != nil {
+			if !validRootOperationID(request.RootOperationID) {
+				rootRequired = true
+				failures = append(failures, candidate.Provider+": root_operation_id is required before hosted dispatch")
+				continue
+			}
+			if r.ledger == nil {
+				failures = append(failures, candidate.Provider+": hosted inference recovery ledger is unavailable")
+				continue
+			}
+			generation, generationErr := adapter.Door.DeviceKeyGeneration(ctx)
+			if generationErr != nil {
+				failures = append(failures, candidate.Provider+": "+generationErr.Error())
+				continue
+			}
+			expectedGeneration = generation
+			attempt, err = r.ledger.Begin(ctx, request.RootOperationID, request.RequestDigest, generation,
+				request.ValidationAttempt, candidateIndex, candidate.Provider, candidate.ResourceRole)
+			if err != nil {
+				return ProviderResult{ProviderCallsMade: providerCallsMade}, err
+			}
+			if !attempt.Created {
+				if attempt.State == AttemptPreDispatchFailed {
+					failures = append(failures, candidate.Provider+": prior attempt failed before dispatch")
+					continue
+				}
+				result, handled, recoveryErr := r.recoverLatest(ctx, &LedgerSnapshot{Generation: generation, Attempt: &attempt}, request)
+				if handled || recoveryErr != nil {
+					return result, recoveryErr
+				}
+				return ProviderResult{Recovery: recoveryReceipt(attempt, inferencev1.RecoveryReceiptState_RECOVERY_RECEIPT_STATE_UNCERTAIN)}, nil
+			}
+		}
 		// Count immediately before the actual adapter dispatch, so errors are
 		// included and candidate fallback can never cross the caller's ceiling.
 		providerCallsMade++
@@ -198,24 +361,48 @@ func (r *ResourceRepository) Run(ctx context.Context, request ProviderRequest) (
 			// Only a caller-supplied cap is transmitted. A role-declared cap is
 			// already the resource's own default, so re-sending it would turn a
 			// resource-owned decision into a gateway-owned one.
-			MaxOutputTokens: request.MaxOutputTokens,
-			Temperature:     temperature,
-			SchemaJSON:      providerSchema(request),
-			Attachments:     requestAttachments(request),
-			SpendLimit:      request.SpendLimit,
+			MaxOutputTokens:       request.MaxOutputTokens,
+			Temperature:           temperature,
+			SchemaJSON:            providerSchema(request),
+			Attachments:           requestAttachments(request),
+			SpendLimit:            request.SpendLimit,
+			IdempotencyKey:        attempt.Key,
+			ExpectedKeyGeneration: expectedGeneration,
 		})
+		if adapter.Door != nil && err == nil && execution.Recovery != nil {
+			receipt := execution.Recovery
+			_ = r.ledger.Set(ctx, request.RootOperationID, attempt.Ordinal, ledgerState(receipt), receipt.GetAccountingStatus(), receipt.ChargedCredits)
+			return ProviderResult{Recovery: receipt, ProviderCallsMade: providerCallsMade}, nil
+		}
 		if err != nil {
+			if adapter.Door != nil {
+				if errors.Is(err, providers.ErrDeviceKeyGenerationChanged) {
+					return ProviderResult{ProviderCallsMade: providerCallsMade}, ErrRootConflict
+				}
+				_ = r.ledger.Set(ctx, request.RootOperationID, attempt.Ordinal, AttemptPreDispatchFailed, "", nil)
+			}
 			usageIncomplete = true
 			failures = append(failures, candidate.Provider+": "+err.Error())
 			continue
 		}
+		if adapter.Door != nil {
+			if err := r.ledger.Set(ctx, request.RootOperationID, attempt.Ordinal, AttemptOutputObserved, "", nil); err != nil {
+				return ProviderResult{Recovery: recoveryReceipt(attempt, inferencev1.RecoveryReceiptState_RECOVERY_RECEIPT_STATE_UNCERTAIN), ProviderCallsMade: providerCallsMade}, nil
+			}
+		}
 		if request.SpendLimit != nil && !spendAuthorizationMatches(request, execution.SpendAuthorization) {
+			if adapter.Door != nil {
+				return ProviderResult{Recovery: recoveryReceipt(attempt, inferencev1.RecoveryReceiptState_RECOVERY_RECEIPT_STATE_OUTPUT_UNAVAILABLE), ProviderCallsMade: providerCallsMade}, nil
+			}
 			usageIncomplete = true
 			failures = append(failures, candidate.Provider+": provider owner did not return matching spend-cap authorization")
 			continue
 		}
 		value, usage, err := decodeProviderResponse(candidate.Provider, execution.OutputText, prompt)
 		if err != nil {
+			if adapter.Door != nil {
+				return ProviderResult{Recovery: recoveryReceipt(attempt, inferencev1.RecoveryReceiptState_RECOVERY_RECEIPT_STATE_OUTPUT_UNAVAILABLE), ProviderCallsMade: providerCallsMade}, nil
+			}
 			usageIncomplete = true
 			failures = append(failures, candidate.Provider+": "+err.Error())
 			continue
@@ -239,6 +426,9 @@ func (r *ResourceRepository) Run(ctx context.Context, request ProviderRequest) (
 	}
 	if samplingRefused {
 		return ProviderResult{ProviderCallsMade: providerCallsMade}, fmt.Errorf("%w: no candidate for inference role %q honors an explicit temperature (%s)", ErrUnsupportedSampling, request.Role, strings.Join(failures, "; "))
+	}
+	if rootRequired {
+		return ProviderResult{ProviderCallsMade: providerCallsMade}, ErrRootRequired
 	}
 	return ProviderResult{ProviderCallsMade: providerCallsMade}, fmt.Errorf("%w: no inference candidate completed for role %q (%s)", ErrUnavailable, request.Role, strings.Join(failures, "; "))
 }

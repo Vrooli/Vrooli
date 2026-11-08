@@ -9,6 +9,7 @@ import (
 
 	"agent-manager/internal/domain"
 	"agent-manager/internal/orchestration"
+	"agent-manager/internal/stepback"
 	"agent-manager/internal/supervision"
 
 	repocontract "github.com/vrooli/repo-contract-go"
@@ -46,6 +47,19 @@ type supervisionRunController struct{ orchestrator *orchestration.Orchestrator }
 // and admission fields, never from the derived goal status or action views.
 func (c supervisionRunController) GetRun(ctx context.Context, id uuid.UUID) (*domain.Run, error) {
 	return c.orchestrator.GetStoredRun(ctx, id)
+}
+
+func (c supervisionRunController) ReadEffortBoardRuns(ctx context.Context, ids []uuid.UUID) (map[uuid.UUID]*domain.Run, map[uuid.UUID]supervision.EffortRunAccounting, error) {
+	runs, accounting, err := c.orchestrator.RunAccountingBatch(ctx, ids)
+	usage := make(map[uuid.UUID]supervision.EffortRunAccounting, len(accounting))
+	for id, account := range accounting {
+		usage[id] = supervision.EffortRunAccounting{Tokens: account.Tokens, TokensKnown: account.TokensKnown, WeightedTokens: account.WeightedTokens, WeightedPresent: account.WeightedPresent, WeightedKnown: account.WeightedKnown, TokenCap: account.TokenCap, TokenCapMode: account.TokenCapMode}
+	}
+	return runs, usage, err
+}
+
+func (c supervisionRunController) ReadRunStepBack(ctx context.Context, ids []uuid.UUID) (map[uuid.UUID][]stepback.Trigger, error) {
+	return c.orchestrator.ReadRunStepBack(ctx, ids)
 }
 
 func (c supervisionRunController) ContinueRun(ctx context.Context, id uuid.UUID, message, idempotencyKey string) error {

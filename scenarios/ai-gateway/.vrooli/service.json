@@ -114,9 +114,14 @@
         {
           "name": "provider-catalog",
           "exec": [
-            "make",
-            "provider-catalog"
+            "go",
+            "run",
+            "./cmd/gen-provider-catalog"
           ],
+          "cwd": "api",
+          "env": {
+            "GOWORK": "off"
+          },
           "description": "Embed the current credential-free resource policies and Gateway role catalog."
         }
       ]

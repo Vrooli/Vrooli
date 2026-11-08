@@ -10,6 +10,7 @@ import (
 	"agent-manager/internal/orchestration/obs"
 
 	"github.com/google/uuid"
+	coredb "github.com/vrooli/api-core/database"
 )
 
 // Completion-driven advance (Phase 4).
@@ -39,10 +40,20 @@ type WorkflowNudger struct {
 
 	mu      sync.Mutex
 	cond    *sync.Cond
-	queue   []uuid.UUID
-	pending map[uuid.UUID]struct{}
+	queue   []workflowNudge
+	pending map[workflowNudgeKey]struct{}
 	closed  bool
 	wg      sync.WaitGroup
+}
+
+type workflowNudge struct {
+	ctx context.Context
+	key workflowNudgeKey
+}
+
+type workflowNudgeKey struct {
+	id        uuid.UUID
+	partition coredb.RoutingPartition
 }
 
 // NewWorkflowNudger builds a nudger over the given drive function. workers and
@@ -56,7 +67,7 @@ func NewWorkflowNudger(drive func(ctx context.Context, id uuid.UUID) error, work
 		drive:   drive,
 		workers: workers,
 		timeout: timeout,
-		pending: make(map[uuid.UUID]struct{}),
+		pending: make(map[workflowNudgeKey]struct{}),
 	}
 	if len(onPanic) > 0 {
 		n.onPanic = onPanic[0]
@@ -83,7 +94,7 @@ func (n *WorkflowNudger) Start() {
 // blocks the caller (the run-terminal path must not stall on it) and dedupes:
 // an execution already queued is not queued twice. No-op after Stop or when the
 // nudger is nil.
-func (n *WorkflowNudger) Enqueue(id uuid.UUID) {
+func (n *WorkflowNudger) Enqueue(ctx context.Context, id uuid.UUID) {
 	if n == nil || id == uuid.Nil {
 		return
 	}
@@ -92,11 +103,12 @@ func (n *WorkflowNudger) Enqueue(id uuid.UUID) {
 	if n.closed {
 		return
 	}
-	if _, exists := n.pending[id]; exists {
+	key := workflowNudgeKey{id: id, partition: coredb.ContextPartition(ctx)}
+	if _, exists := n.pending[key]; exists {
 		return
 	}
-	n.pending[id] = struct{}{}
-	n.queue = append(n.queue, id)
+	n.pending[key] = struct{}{}
+	n.queue = append(n.queue, workflowNudge{ctx: context.WithoutCancel(ctx), key: key})
 	n.cond.Signal()
 }
 
@@ -125,27 +137,27 @@ func (n *WorkflowNudger) worker() {
 			n.mu.Unlock()
 			return
 		}
-		id := n.queue[0]
+		job := n.queue[0]
 		n.queue = n.queue[1:]
 		// Clear the pending mark BEFORE driving so a completion that lands
 		// during this drive re-queues and triggers another drive rather than
 		// being deduped away.
-		delete(n.pending, id)
+		delete(n.pending, job.key)
 		n.mu.Unlock()
 
-		n.runDrive(id)
+		n.runDrive(job.ctx, job.key.id)
 	}
 }
 
-func (n *WorkflowNudger) runDrive(id uuid.UUID) {
+func (n *WorkflowNudger) runDrive(parent context.Context, id uuid.UUID) {
+	ctx, cancel := context.WithTimeout(context.WithoutCancel(parent), n.timeout)
+	defer cancel()
 	defer obs.RecoverToFailure("workflow nudger drive", func(failure obs.PanicFailure) {
 		n.log().Error("workflow nudge panic recovered", "executionId", id.String(), obs.KeyError, failure.Error(), "stack", failure.Stack)
 		if n.onPanic != nil {
-			n.onPanic(context.Background(), id, failure)
+			n.onPanic(ctx, id, failure)
 		}
 	})
-	ctx, cancel := context.WithTimeout(context.Background(), n.timeout)
-	defer cancel()
 	if err := n.drive(ctx, id); err != nil {
 		n.log().Warn("nudge drive failed",
 			"executionId", id.String(),

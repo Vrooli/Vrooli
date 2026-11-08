@@ -20,6 +20,7 @@ import (
 	"github.com/gorilla/mux"
 	aisearch "github.com/vrooli/ai-go/search"
 	"github.com/vrooli/api-core/identity"
+	"github.com/vrooli/api-core/storage/storagetest"
 	searchregister "github.com/vrooli/searchregister-go"
 	apiconnect "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/api/apiconnect"
 	registryv1 "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/registry"
@@ -148,6 +149,9 @@ func TestNewServerBuildsAndShutsDownTheRealCompositionRoot(t *testing.T) {
 	t.Setenv("VROOLI_VARIANT", "live")
 	t.Setenv("UPLOAD_DIR", t.TempDir())
 	t.Setenv("PROJECT_ROOT", t.TempDir())
+	// The composition root opens the scenario database and runs recovery; its
+	// storage must be private, or the test builds against the live install.
+	storagetest.IsolateStorage(t)
 	server, err := NewServer()
 	if err != nil {
 		t.Fatalf("build server: %v", err)

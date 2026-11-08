@@ -2,17 +2,19 @@
 package main
 
 import (
-	"agent-manager/cli/internal/support"
 	"encoding/json"
 	"flag"
 	"fmt"
-	"github.com/vrooli/cli-core/cliutil"
-	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
-	"google.golang.org/protobuf/proto"
 	"net/url"
 	"sort"
 	"strings"
 	"time"
+
+	"agent-manager/cli/internal/support"
+
+	"github.com/vrooli/cli-core/cliutil"
+	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
+	"google.golang.org/protobuf/proto"
 )
 
 func (a *App) runImportIdentity(args []string) error {
@@ -53,10 +55,17 @@ func (a *App) runList(args []string) error {
 	status := fs.String("status", "", "Filter by status")
 	tagPrefix := fs.String("tag-prefix", "", "Filter by tag prefix")
 	origin := fs.String("origin", "", "Filter by origin (agent_manager, operator_sessions, workflows)")
+	parentRunID := fs.String("parent-run-id", "", "Only direct child runs of this parent run")
 	if err := support.ParseFlags(fs, args); err != nil {
 		return err
 	}
-	body, runs, err := a.services.Runs.List(*limit, *offset, *taskID, *profileID, *status, *tagPrefix, *origin)
+	if err := requireUUIDFlag("--parent-run-id", *parentRunID); err != nil {
+		return err
+	}
+	body, runs, err := a.services.Runs.List(RunListFilter{
+		Limit: *limit, Offset: *offset, TaskID: *taskID, ProfileID: *profileID, Status: *status,
+		TagPrefix: *tagPrefix, Origin: *origin, ParentRunID: *parentRunID,
+	})
 	if err != nil {
 		return err
 	}
@@ -193,6 +202,12 @@ func (a *App) runGet(args []string) error {
 	fmt.Printf("Progress:        %d%%\n", run.ProgressPercent)
 	fmt.Printf("Run Mode:        %s\n", formatEnumValue(run.RunMode, "RUN_MODE_", "_"))
 	fmt.Printf("Execution Mode:  %s\n", formatEnumValue(run.ExecutionMode, "EXECUTION_MODE_", "_"))
+	if run.ParentRunId != nil {
+		fmt.Printf("Parent Run:      %s (depth %d)\n", run.GetParentRunId(), run.GetDepth())
+	}
+	if run.CharterPath != "" {
+		fmt.Printf("Charter:         %s\n", run.CharterPath)
+	}
 	if run.ObservedGoalStatus != "" {
 		goal := run.ObservedGoalStatus
 		if goal == "paused" {

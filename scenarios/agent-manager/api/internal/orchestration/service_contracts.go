@@ -207,6 +207,10 @@ type CreateRunRequest struct {
 	// domain.ResolveConversationID.
 	ConversationID string     `json:"conversationId,omitempty"`
 	ParentRunID    *uuid.UUID `json:"parentRunId,omitempty"`
+
+	// CharterPath names an existing absolute charter file. The task prompt's
+	// lineage header points the agent at it (see domain.RunLineage).
+	CharterPath string `json:"charterPath,omitempty"`
 }
 
 // AttachRunRequest identifies a harness session that agent-manager did not

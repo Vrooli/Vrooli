@@ -1,6 +1,7 @@
 package interactive
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -51,13 +52,13 @@ func TestRetainedNativeGoalReplayIsBoundedExactAndDoesNotReemit(t *testing.T) {
 				body = strings.Repeat("x", (16<<20)+1)
 			}
 			if variant != "absent" {
-				if err := os.WriteFile(path, []byte(body), 0600); err != nil {
+				if err := os.WriteFile(path, []byte(body), 0o600); err != nil {
 					t.Fatal(err)
 				}
 			}
 			run.TranscriptCursor = int64(len(body))
 			store, sink := &fakeRunStore{}, &collectSink{}
-			coord := NewCoordinator(CoordinatorDeps{Tailer: NewTailer(codecParserResolver), Runs: store, NewSink: func(uuid.UUID) runner.EventSink { return sink }})
+			coord := NewCoordinator(CoordinatorDeps{Tailer: NewTailer(codecParserResolver), Runs: store, NewSink: func(context.Context, uuid.UUID) runner.EventSink { return sink }})
 			evidence, err := coord.InspectRetainedGoal(t.Context(), run)
 			if variant == "empty" && err == nil {
 				t.Fatal("empty extent was accepted as an unbounded replay")
@@ -134,7 +135,7 @@ func TestInspectRetainedGoalAcceptsOnlyCurrentPinnedReadAfterContinuation(t *tes
 				lines = append(lines, marshal(map[string]any{"timestamp": invocation.Add(3 * time.Second).Format(time.RFC3339), "type": "response_item", "payload": payload}))
 			}
 			body := strings.Join(lines, "\n") + "\n"
-			if err := os.WriteFile(path, []byte(body), 0600); err != nil {
+			if err := os.WriteFile(path, []byte(body), 0o600); err != nil {
 				t.Fatal(err)
 			}
 			run := newInteractiveRun(domain.RunnerTypeCodex, path)
@@ -143,7 +144,7 @@ func TestInspectRetainedGoalAcceptsOnlyCurrentPinnedReadAfterContinuation(t *tes
 			run.InteractiveInvocationStartedAt = &invocation
 			run.TranscriptCursor = int64(len(body))
 			store, sink := &fakeRunStore{}, &collectSink{}
-			coord := NewCoordinator(CoordinatorDeps{Tailer: NewTailer(codecParserResolver), Runs: store, NewSink: func(uuid.UUID) runner.EventSink { return sink }})
+			coord := NewCoordinator(CoordinatorDeps{Tailer: NewTailer(codecParserResolver), Runs: store, NewSink: func(context.Context, uuid.UUID) runner.EventSink { return sink }})
 			evidence, err := coord.InspectRetainedGoal(t.Context(), run)
 			if err != nil {
 				t.Fatalf("InspectRetainedGoal: %v", err)

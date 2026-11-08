@@ -9,17 +9,26 @@ import (
 	"github.com/vrooli/vrooli/packages/proto/contracts"
 )
 
-func TestNativeObjectiveForUsesDeclaredInteractiveCapability(t *testing.T) {
-	run := &domain.Run{
+func nativeObjectiveRun(runnerType domain.RunnerType, until string) *domain.Run {
+	return &domain.Run{
 		RunMode: domain.RunModeSandboxed,
 		ResolvedConfig: &domain.RunConfig{
-			Until:         "all phases complete",
+			RunnerType:    runnerType,
+			Until:         until,
 			SandboxConfig: &domain.SandboxConfig{Mode: domain.SandboxModeTracking},
 		},
 	}
-	caps := runner.Capabilities{SpawnCapabilities: []runner.SpawnCapability{{
+}
+
+func trackingNativeCaps() runner.Capabilities {
+	return runner.Capabilities{SpawnCapabilities: []runner.SpawnCapability{{
 		ExecutionMode: "interactive", SandboxModes: []string{"tracking"}, NativeObjective: true,
 	}}}
+}
+
+func TestNativeObjectiveForUsesDeclaredInteractiveCapability(t *testing.T) {
+	run := nativeObjectiveRun(domain.RunnerTypeCodex, "all phases complete")
+	caps := trackingNativeCaps()
 	if got := nativeObjectiveFor(run, caps); got != "all phases complete" {
 		t.Fatalf("nativeObjectiveFor() = %q", got)
 	}
@@ -33,45 +42,32 @@ func TestNativeObjectiveForUsesDeclaredInteractiveCapability(t *testing.T) {
 	}
 }
 
-func TestNativeObjectiveForDelegatesLongContractsWithoutTruncatingThem(t *testing.T) {
-	run := &domain.Run{
-		RunMode: domain.RunModeSandboxed,
-		ResolvedConfig: &domain.RunConfig{
-			Until:         strings.Repeat("engine-owned contract ", 500),
-			SandboxConfig: &domain.SandboxConfig{Mode: domain.SandboxModeTracking},
-		},
+// A Codex objective longer than compaction keeps is delegated, so the native
+// goal survives compaction and the task prompt carries the whole contract.
+func TestNativeObjectiveForDelegatesWhatCompactionWouldOmit(t *testing.T) {
+	until := strings.Repeat("engine-owned contract ", 40) // 880 characters
+	codex := nativeObjectiveRun(domain.RunnerTypeCodex, until)
+	if got := nativeObjectiveFor(codex, trackingNativeCaps()); got != runner.NativeGoalDelegation {
+		t.Fatalf("codex nativeObjectiveFor() = %q, want the delegation", got)
 	}
-	caps := runner.Capabilities{SpawnCapabilities: []runner.SpawnCapability{{
-		ExecutionMode: "interactive", SandboxModes: []string{"tracking"}, NativeObjective: true,
-	}}}
-
-	got := nativeObjectiveFor(run, caps)
-	if got != boundedNativeObjectiveText {
-		t.Fatalf("nativeObjectiveFor() long contract = %q, want bounded delegation", got)
+	if prompt := initialPromptWithUntil(codex, "do the work"); !strings.HasSuffix(prompt, strings.TrimSpace(until)) {
+		t.Fatal("the task prompt must carry the full contract the native goal delegates to")
 	}
-	if len([]rune(got)) > maxNativeObjectiveCharacters {
-		t.Fatalf("bounded native objective has %d characters, want <= %d", len([]rune(got)), maxNativeObjectiveCharacters)
+	claude := nativeObjectiveRun(domain.RunnerTypeClaudeCode, until)
+	if got := nativeObjectiveFor(claude, trackingNativeCaps()); got != strings.TrimSpace(until) {
+		t.Fatalf("claude keeps an 880-character condition; nativeObjectiveFor() = %.40q", got)
 	}
 }
 
 func TestMaximumCompletionContractStaysInTaskPromptAndDelegatesNativeObjective(t *testing.T) {
 	until := strings.Repeat("x", contracts.AgentManagerMaxGoalCompletionBytes)
-	run := &domain.Run{
-		RunMode: domain.RunModeSandboxed,
-		ResolvedConfig: &domain.RunConfig{
-			Until:         until,
-			SandboxConfig: &domain.SandboxConfig{Mode: domain.SandboxModeTracking},
-		},
-	}
-	caps := runner.Capabilities{SpawnCapabilities: []runner.SpawnCapability{{
-		ExecutionMode: "interactive", SandboxModes: []string{"tracking"}, NativeObjective: true,
-	}}}
-
-	if got := nativeObjectiveFor(run, caps); got != boundedNativeObjectiveText {
-		t.Fatalf("nativeObjectiveFor() = %q, want the short delegation", got)
-	}
-	prompt := initialPromptWithUntil(run, "do the work")
-	if !strings.HasSuffix(prompt, until) {
-		t.Fatal("task prompt truncated the maximum-size completion contract")
+	for _, runnerType := range []domain.RunnerType{domain.RunnerTypeCodex, domain.RunnerTypeClaudeCode} {
+		run := nativeObjectiveRun(runnerType, until)
+		if got := nativeObjectiveFor(run, trackingNativeCaps()); got != runner.NativeGoalDelegation {
+			t.Fatalf("%s nativeObjectiveFor() = %.40q, want the short delegation", runnerType, got)
+		}
+		if prompt := initialPromptWithUntil(run, "do the work"); !strings.HasSuffix(prompt, until) {
+			t.Fatalf("%s task prompt truncated the maximum-size completion contract", runnerType)
+		}
 	}
 }

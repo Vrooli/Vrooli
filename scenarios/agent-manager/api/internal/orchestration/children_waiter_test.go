@@ -189,3 +189,37 @@ func TestChildrenWakeMessageStaysSmall(t *testing.T) {
 		t.Fatalf("explicit wake = %q", got)
 	}
 }
+
+// A child whose turn finished into needs_review has no worker left; a parked
+// parent must learn of it then, not at its timer wake.
+func TestChildrenWaiterWakesWhenAChildSettlesIntoReview(t *testing.T) {
+	fixture := parkedParentWithChildren(time.Now().Add(-time.Minute), domain.RunStatusRunning, domain.RunStatusRunning)
+	fixture.finish(0, domain.RunStatusNeedsReview, time.Now())
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+	result, err := NewChildrenWaiter(fixture, 5*time.Millisecond).Wait(ctx, fixture.parent.ID.String())
+	if err != nil {
+		t.Fatalf("parent did not wake for a child in review: %v", err)
+	}
+	payload := decodeChildrenPayload(t, result)
+	ended, active := payload["ended"].([]any), payload["active"].([]any)
+	if payload["wake_reason"] != "child_run_ended" || len(ended) != 1 || ended[0].(map[string]any)["status"] != "needs_review" || len(active) != 1 {
+		t.Fatalf("review wake must report the settled child as ended and the running one as active: %s", result)
+	}
+}
+
+// A chartered run's wake names its charter: after eight wakes the task prompt
+// and lineage header are no longer among the user messages Codex keeps.
+func TestCharteredRunWakeNamesTheCharterToReread(t *testing.T) {
+	handle := &domain.AwaitHandle{Producer: ProducerChildren, Key: "parent"}
+	wake := withCharterReread(formatWakeMessage(uuid.New(), handle, "child 1 ended", false), "/work/CHARTER.md")
+	if wake != "[wake] child 1 ended\nRe-read your charter /work/CHARTER.md before acting." {
+		t.Fatalf("wake = %q", wake)
+	}
+	if domain.ClassifyMessageText(wake) != domain.MessageSourceWake {
+		t.Fatalf("a wake naming its charter must still classify as a wake, got %q", domain.ClassifyMessageText(wake))
+	}
+	if plain := withCharterReread("[wake] child 1 ended", " "); plain != "[wake] child 1 ended" {
+		t.Fatalf("an unchartered run's wake changed: %q", plain)
+	}
+}
