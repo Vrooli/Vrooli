@@ -11,6 +11,7 @@ require (
 	github.com/vrooli/vrooli/packages/proto v0.0.0
 	github.com/vrooli/vrooli/scenarios/vrooli-events v0.0.0
 	google.golang.org/protobuf v1.36.11
+	modernc.org/sqlite v1.50.1
 )
 
 require (
@@ -29,12 +30,12 @@ require (
 	github.com/vrooli/platform-go v0.0.0 // indirect
 	github.com/vrooli/repo-contract-go v0.0.0 // indirect
 	github.com/vrooli/vrooli v0.0.0-00010101000000-000000000000 // indirect
+	golang.org/x/mod v0.41.0 // indirect
 	golang.org/x/sync v0.23.0 // indirect
 	golang.org/x/sys v0.48.0 // indirect
 	modernc.org/libc v1.72.3 // indirect
 	modernc.org/mathutil v1.7.1 // indirect
 	modernc.org/memory v1.11.0 // indirect
-	modernc.org/sqlite v1.50.1 // indirect
 )
 
 replace github.com/vrooli/api-core => ../../../packages/api-core
@@ -57,10 +58,6 @@ replace github.com/vrooli/platform-go => ../../../packages/platform-go
 
 replace github.com/vrooli/repo-contract-go => ../../../packages/repo-contract-go
 
-replace github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime => ../../scenario-to-desktop/runtime
-
 replace github.com/vrooli/vrooli/scenarios/vrooli-events => ..
 
 replace github.com/vrooli/envkit-go => ../../../packages/envkit-go
-
-replace github.com/vrooli/cliresolve => ../../../packages/cliresolve

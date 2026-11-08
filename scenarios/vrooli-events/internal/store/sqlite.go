@@ -39,7 +39,7 @@ CREATE TABLE IF NOT EXISTS store_meta (
   value INTEGER NOT NULL DEFAULT 0
 );
 INSERT OR IGNORE INTO store_meta (key, value) VALUES ('total_payload_bytes', 0);
-`
+` + terminalAdmissionSchema
 
 // Schema returns the event-store schema for the routed database registry.
 func Schema() string { return schema }
@@ -330,13 +330,34 @@ func (s *SQLiteStore) Query(ctx context.Context, f QueryFilters) ([]Event, error
 }
 
 func (s *SQLiteStore) DeleteByEventType(ctx context.Context, eventType string) (int64, error) {
-	result, err := s.db.ExecContext(ctx, `DELETE FROM events WHERE event_type = ?`, eventType)
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return 0, fmt.Errorf("begin cleanup transaction: %w", err)
+	}
+	defer func() { _ = tx.Rollback() }()
+
+	var payloadBytes int64
+	if err := tx.QueryRowContext(ctx,
+		`SELECT COALESCE(SUM(LENGTH(payload)), 0) FROM events WHERE event_type = ?`, eventType,
+	).Scan(&payloadBytes); err != nil {
+		return 0, fmt.Errorf("sum cleanup payload bytes: %w", err)
+	}
+
+	result, err := tx.ExecContext(ctx, `DELETE FROM events WHERE event_type = ?`, eventType)
 	if err != nil {
 		return 0, fmt.Errorf("delete events by type: %w", err)
 	}
 	count, err := result.RowsAffected()
 	if err != nil {
 		return 0, fmt.Errorf("event delete count: %w", err)
+	}
+	if _, err := tx.ExecContext(ctx,
+		`UPDATE store_meta SET value = value - ? WHERE key = 'total_payload_bytes'`, payloadBytes,
+	); err != nil {
+		return 0, fmt.Errorf("update meta after event cleanup: %w", err)
+	}
+	if err := tx.Commit(); err != nil {
+		return 0, fmt.Errorf("commit event cleanup: %w", err)
 	}
 	return count, nil
 }

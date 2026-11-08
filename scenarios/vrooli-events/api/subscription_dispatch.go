@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/vrooli/vrooli/scenarios/vrooli-events/bridge"
 	"github.com/vrooli/vrooli/scenarios/vrooli-events/internal/convert"
 	"github.com/vrooli/vrooli/scenarios/vrooli-events/internal/match"
 	"github.com/vrooli/vrooli/scenarios/vrooli-events/internal/store"
@@ -32,6 +33,11 @@ func (s *Server) enqueueSubscriptions(ctx context.Context, event store.Event) er
 		return err
 	}
 	for _, sub := range subs {
+		// Bridge admission requires the production shared transaction, never
+		// this lightweight mocked/non-atomic fallback.
+		if bridge.Reserved(sub) {
+			continue
+		}
 		if !matchesWebhook(sub, event) {
 			continue
 		}
@@ -42,7 +48,7 @@ func (s *Server) enqueueSubscriptions(ctx context.Context, event store.Event) er
 	return nil
 }
 
-func enqueueSubscriptionsTx(ctx context.Context, tx *sql.Tx, queue subscription.AtomicQueueStore, event store.Event) error {
+func (s *Server) enqueueSubscriptionsTx(ctx context.Context, tx *sql.Tx, queue subscription.AtomicQueueStore, event store.Event) error {
 	subs, err := queue.ListTx(ctx, tx, subscription.ListFilters{Enabled: boolPtr(true)})
 	if err != nil {
 		return err
@@ -52,6 +58,21 @@ func enqueueSubscriptionsTx(ctx context.Context, tx *sql.Tx, queue subscription.
 		return err
 	}
 	for _, sub := range subs {
+		if bridge.Reserved(sub) {
+			if s.flywheel == nil || !bridge.ValidSubscription(sub) || sub.EventPattern != event.EventType || sub.SourceFilter != event.SourceScenario {
+				continue
+			}
+			projected, selected, err := s.flywheel.Project(ctx, event)
+			if err != nil {
+				return err
+			}
+			if selected {
+				if err := queue.EnqueueTx(ctx, tx, sub.ID, event.EventID, projected); err != nil {
+					return err
+				}
+			}
+			continue
+		}
 		if !matchesWebhook(sub, event) {
 			continue
 		}
@@ -123,7 +144,20 @@ func (s *Server) runSubscriptionDispatcher(ctx context.Context) {
 }
 
 func (s *Server) drainSubscriptionQueue(ctx context.Context, queue subscription.QueueStore) {
-	deliveries, err := queue.Due(ctx, 25)
+	var deliveries []subscription.QueuedDelivery
+	var err error
+	if s.flywheel == nil {
+		if selective, ok := queue.(interface {
+			DueExcludingNames(context.Context, int, string, []string, string) ([]subscription.QueuedDelivery, error)
+		}); ok {
+			spec := bridge.SubscriptionSpec()
+			deliveries, err = selective.DueExcludingNames(ctx, 25, spec.DeliveryTarget, []string{spec.Name, bridge.TerminalSubscriptionSpec().Name}, bridge.WakeSchema)
+		} else {
+			deliveries, err = queue.Due(ctx, 25)
+		}
+	} else {
+		deliveries, err = queue.Due(ctx, 25)
+	}
 	if err != nil {
 		log.Printf("subscription queue read: %v", err)
 		return
@@ -132,6 +166,20 @@ func (s *Server) drainSubscriptionQueue(ctx context.Context, queue subscription.
 		sub, err := s.subStore.Get(ctx, delivery.SubscriptionID)
 		if err != nil {
 			_ = queue.MarkFailed(ctx, delivery.ID, delivery.SubscriptionID, "subscription no longer exists", time.Now().UTC(), true)
+			continue
+		}
+		if bridge.Reserved(sub) || bridge.IsWakeBody(delivery.PayloadJSON) {
+			// Fail closed across configuration changes. No raw/generic fallback,
+			// and disabled installations leave rows untouched for owner review.
+			if s.flywheel == nil {
+				continue
+			}
+			if err := s.flywheel.Deliver(ctx, sub, delivery); err != nil {
+				attempt := delivery.Attempts%subscription.DeliveryAttemptsPerCycle + 1
+				_ = queue.MarkFailed(ctx, delivery.ID, delivery.SubscriptionID, "local-work delivery rejected", time.Now().UTC().Add(time.Second<<(attempt-1)), attempt >= subscription.DeliveryAttemptsPerCycle)
+				continue
+			}
+			_ = queue.MarkDelivered(ctx, delivery.ID, delivery.SubscriptionID, time.Now().UTC())
 			continue
 		}
 		var payload subscription.WebhookPayload

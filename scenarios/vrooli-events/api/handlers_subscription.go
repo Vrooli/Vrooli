@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/vrooli/vrooli/scenarios/vrooli-events/bridge"
 	"github.com/vrooli/vrooli/scenarios/vrooli-events/internal/store"
 	"github.com/vrooli/vrooli/scenarios/vrooli-events/internal/subscription"
 )
@@ -50,6 +51,11 @@ func (s *Server) handleReconcileSubscriptionDelivery(w http.ResponseWriter, r *h
 	var request struct {
 		EventID string `json:"event_id"`
 	}
+	if bridge.Reserved(sub) {
+		writeError(w, http.StatusBadRequest, ErrCodeValidation, "reserved delivery requires canonical atomic admission")
+		return
+	}
+
 	if !decodeJSONBody(w, r, &request) {
 		return
 	}
@@ -268,6 +274,11 @@ func (s *Server) handleTestSubscription(w http.ResponseWriter, r *http.Request) 
 func (s *Server) handleDeliverSubscription(w http.ResponseWriter, r *http.Request) {
 	id, sub, ok := requireByID(w, r, "id", s.subStore.Get, ErrCodeSubRead, "subscription")
 	if !ok {
+		return
+	}
+
+	if bridge.Reserved(sub) {
+		writeError(w, http.StatusBadRequest, ErrCodeValidation, "reserved delivery requires canonical atomic admission")
 		return
 	}
 

@@ -200,10 +200,38 @@ func (s *SQLiteStore) EnqueueTx(ctx context.Context, tx *sql.Tx, subscriptionID 
 }
 
 func (s *SQLiteStore) Due(ctx context.Context, limit int) ([]QueuedDelivery, error) {
+	return s.due(ctx, limit, "", nil)
+}
+
+// DueExcluding selects past a dormant reserved integration without consuming
+// attempts or starving ordinary deliveries behind its pending rows. Exclusions
+// apply to both the current subscription and a queued body's schema, so an
+// edited subscription cannot move an old typed delivery into generic transport.
+func (s *SQLiteStore) DueExcluding(ctx context.Context, limit int, target, name, payloadSchema string) ([]QueuedDelivery, error) {
+	return s.DueExcludingNames(ctx, limit, target, []string{name}, payloadSchema)
+}
+
+// DueExcludingNames preserves all reserved subscription names as quarantine
+// selectors, including edited targets whose queued body is no longer typed.
+func (s *SQLiteStore) DueExcludingNames(ctx context.Context, limit int, target string, names []string, payloadSchema string) ([]QueuedDelivery, error) {
+	selectors := "s.delivery_target=?"
+	args := []any{target}
+	for _, name := range names {
+		selectors += " OR s.name=?"
+		args = append(args, name)
+	}
+	args = append(args, payloadSchema)
+	return s.due(ctx, limit, ` AND NOT EXISTS (SELECT 1 FROM subscriptions s WHERE s.id=subscription_id AND (`+selectors+`))
+        AND COALESCE(json_extract(CASE WHEN json_valid(payload_json) THEN payload_json ELSE '{}' END,'$.schema'),'') != ?`, args)
+}
+
+func (s *SQLiteStore) due(ctx context.Context, limit int, exclusion string, args []any) ([]QueuedDelivery, error) {
 	if limit <= 0 || limit > 100 {
 		limit = 25
 	}
-	rows, err := s.db.QueryContext(ctx, `SELECT id, subscription_id, event_id, payload_json, attempts, next_attempt_at FROM subscription_deliveries WHERE status = 'pending' AND next_attempt_at <= strftime('%Y-%m-%dT%H:%M:%f','now') ORDER BY id LIMIT ?`, limit)
+
+	args = append(args, limit)
+	rows, err := s.db.QueryContext(ctx, `SELECT id, subscription_id, event_id, payload_json, attempts, next_attempt_at FROM subscription_deliveries WHERE status = 'pending' AND next_attempt_at <= strftime('%Y-%m-%dT%H:%M:%f','now')`+exclusion+` ORDER BY id LIMIT ?`, args...)
 	if err != nil {
 		return nil, err
 	}

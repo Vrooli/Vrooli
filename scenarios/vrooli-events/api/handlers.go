@@ -361,6 +361,18 @@ func (s *Server) admitEvent(ctx context.Context, event store.Event) (id int64, r
 		return id, nil
 	}
 
+	return s.withEventAdmissionTx(ctx, func(tx *sql.Tx, writer transactionalEventStore, queue subscription.AtomicQueueStore) (int64, error) {
+		return s.admitEventTx(ctx, tx, writer, queue, event)
+	})
+}
+
+// withEventAdmissionTx is the single commit boundary for event admission and
+// related durable records. No caller may treat the callback result as an ack
+// until this method has successfully committed.
+func (s *Server) withEventAdmissionTx(ctx context.Context, admit func(*sql.Tx, transactionalEventStore, subscription.AtomicQueueStore) (int64, error)) (id int64, retErr error) {
+	if s.db == nil {
+		return 0, errors.New("durable event admission requires a database")
+	}
 	eventWriter, ok := s.store.(transactionalEventStore)
 	if !ok {
 		return 0, errors.New("event store does not support atomic admission")
@@ -382,16 +394,26 @@ func (s *Server) admitEvent(ctx context.Context, event store.Event) (id int64, r
 		retErr = combinedErr
 	}()
 
-	id, err = eventWriter.InsertTx(ctx, tx, event)
+	id, err = admit(tx, eventWriter, queue)
+	if err != nil {
+		return 0, err
+	}
+	if err := tx.Commit(); err != nil {
+		return 0, fmt.Errorf("commit event admission: %w", err)
+	}
+	return id, nil
+}
+
+// admitEventTx preserves one implementation of event insertion and durable
+// subscription matching/fan-out for public ingestion and dormant owner seams.
+func (s *Server) admitEventTx(ctx context.Context, tx *sql.Tx, writer transactionalEventStore, queue subscription.AtomicQueueStore, event store.Event) (int64, error) {
+	id, err := writer.InsertTx(ctx, tx, event)
 	if err != nil {
 		return 0, err
 	}
 	event.ID = id
-	if err := enqueueSubscriptionsTx(ctx, tx, queue, event); err != nil {
+	if err := s.enqueueSubscriptionsTx(ctx, tx, queue, event); err != nil {
 		return 0, fmt.Errorf("subscription fan-out enqueue: %w", err)
-	}
-	if err := tx.Commit(); err != nil {
-		return 0, fmt.Errorf("commit event admission: %w", err)
 	}
 	return id, nil
 }

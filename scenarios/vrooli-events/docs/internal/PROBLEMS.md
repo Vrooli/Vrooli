@@ -105,3 +105,18 @@ The scoring tool only counts language-level test suites (go, node, shell = 3), n
 
 ### Routing detection
 Phase 11.2 migrated to react-router-dom HashRouter. Phase 13.3 added 6 more routes, now at 15 total.
+
+### Work ladder: disabled Flywheel wake vertical (2026-11-07)
+
+- Rung: W3, scoped production integration with fixture evidence.
+- Evidence: the operator requested configurable event-based wakes; canonical
+  Events admission already owns atomic fan-out. The reserved typed v2 projection
+  now reuses that transaction and queue, while startup remains disabled.
+- Validation: bridge/store/subscription and full API package race tests passed;
+  native bytes/signature passed cloud HTTP admission and duplicate tests.
+  Independent review's disabled-backlog starvation finding is fixed and covered.
+- Remaining gate: approved destination/source, dedicated persistent signer and
+  real shared revocation boundary, explicit subscription activation, cloud
+  configuration, and approved operational end-to-end proof. Repository-wide
+  proto freshness has unrelated template-output/descriptor drift (23 findings).
+- Source: `docs/guides/flywheel-local-work-bridge.md` records exact scope and limits.

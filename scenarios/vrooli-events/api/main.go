@@ -20,6 +20,7 @@ import (
 	"github.com/vrooli/vrooli/packages/proto/descriptorimage"
 	"github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1/scenariovalidationv1connect"
 	"github.com/vrooli/vrooli/scenarios/vrooli-events/api/internal/modules"
+	"github.com/vrooli/vrooli/scenarios/vrooli-events/bridge"
 	"github.com/vrooli/vrooli/scenarios/vrooli-events/internal/broker"
 	"github.com/vrooli/vrooli/scenarios/vrooli-events/internal/config"
 	"github.com/vrooli/vrooli/scenarios/vrooli-events/internal/policy"
@@ -164,7 +165,19 @@ func securityHeaders(next http.Handler) http.Handler {
 // Server holds dependencies for HTTP handlers.
 // Fields are interfaces, enabling unit tests to substitute lightweight
 // mocks without requiring real SQLite or goroutine-backed brokers.
+// wakeForwarder is owner-injected only after bridge activation. There is no
+// environment-variable credential or automatic subscription setup path.
+type wakeForwarder interface {
+	Project(context.Context, store.Event) (string, bool, error)
+	Deliver(context.Context, subscription.Subscription, subscription.QueuedDelivery) error
+}
+
+var _ wakeForwarder = (*bridge.Forwarder)(nil)
+
 type Server struct {
+	terminalAdmissionBoundary TerminalAdmissionBoundary // nil in production; explicit trusted owner injection only
+	flywheel                  wakeForwarder             // nil by default, including production main above
+
 	store             store.Store
 	db                sqlutil.DB
 	broker            broker.EventBroker
