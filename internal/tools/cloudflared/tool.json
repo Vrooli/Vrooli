@@ -13,11 +13,7 @@
     "--version"
   ],
   "handler": "cloudflared",
-  "packages": {
-    "brew": "cloudflare/cloudflare/cloudflared",
-    "winget": "Cloudflare.cloudflared"
-  },
-  "installHint": "Install cloudflared from https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/downloads/",
+  "installHint": "Stage the resource-owned pinned release with scenario-dependency-analyzer deps install source/cloudflared@2026.10.7 --scenario cloudflared --surface host-tool --exact --apply",
   "bundling": "host-required",
   "capability": "web-proxy",
   "capability_role": "primary",
@@ -34,5 +30,6 @@
       "status": "unqualified",
       "evidence": null
     }
-  }
+  },
+  "notes": "This entry projects the resource-owned pinned release into host requirements and carries no acquisition of its own. The checksummed per-platform targets live in resources/cloudflared/resource.json, which is the vendorable item a desktop bundle stages; as a standalone tool requirement, cloudflared must already be staged on the host."
 }

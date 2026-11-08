@@ -518,7 +518,7 @@ func shortDigest(digest string) string {
 // build products and manifests are owned by the operator, like every other
 // per-user install in hostreqkit.
 func setupScenarioThroughLifecycle(root, home string, opts hostreqkit.EnsureOptions) error {
-	binary, err := cliinvoke.Resolve(cliinvoke.ResolveOptions{RuntimeHome: filepath.Join(home, repocontractmeta.ProjectConfigDir)})
+	binary, err := cliinvoke.Resolve(cliinvoke.ResolveOptions{UserHome: home})
 	if err != nil {
 		return err
 	}

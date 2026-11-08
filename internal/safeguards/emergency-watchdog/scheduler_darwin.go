@@ -72,7 +72,7 @@ func applyNative(goos string, p paths, status hostreqkit.ItemStatus, opts hostre
 	recordVerdict(&status, verdict)
 	if verdict.Rejected() {
 		status.ExecutionState = hostreqkit.ExecutionFailed
-		status.Notes = append(status.Notes, "plutil rejected the rendered LaunchAgent; nothing was installed: "+verdict.Output)
+		status.Notes = append(status.Notes, "plutil rejected the rendered LaunchAgent; no scheduler definition was installed (executable publication has a separate receipt): "+verdict.Output)
 		return status, nil
 	}
 	if err := os.MkdirAll(filepath.Dir(p.LaunchAgent), tuning.PermDir); err != nil {

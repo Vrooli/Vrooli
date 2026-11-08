@@ -2,14 +2,21 @@ package runtimesupervisorsafeguard
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
+	"io"
 	"os"
 	"os/user"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	platformgo "github.com/vrooli/platform-go"
 	repocontract "github.com/vrooli/repo-contract-go"
+	"github.com/vrooli/vrooli/internal/buildinfo"
+	"github.com/vrooli/vrooli/internal/config"
+	"github.com/vrooli/vrooli/internal/coreactivation"
 	"github.com/vrooli/vrooli/internal/hostreqkit"
 	"github.com/vrooli/vrooli/internal/hostreqspec"
 	"github.com/vrooli/vrooli/internal/runtimesupervisor"
@@ -24,14 +31,83 @@ var (
 	runCommandFn    = func(name string, args []string, opts hostreqkit.EnsureOptions) error {
 		return hostreqkit.RunCommandFn(name, args, opts)
 	}
-	installFileFn = hostreqkit.InstallUserFile
-	validateFn    = platformgo.ValidateArtifact
-	executableFn  = func(home, requested string) (string, bool, error) {
+	installFileFn         = hostreqkit.InstallUserFile
+	restoreDefinitionFn   = func(path, content string) error { return config.WriteOwnedFileDurable(path, []byte(content), 0644) }
+	validateFn            = platformgo.ValidateArtifact
+	processImageMatchesFn = processImageMatches
+	executableFn          = func(home, requested string) (string, bool, error) {
 		return runtimesupervisor.ExecutablePath(home, requested)
+	}
+	acquireInstallLockFn  = buildinfo.AcquireBinaryInstallLockContext
+	guardRootActivationFn = func(ctx context.Context, home string) error {
+		store, err := coreactivation.NewStore(home)
+		if err != nil {
+			return err
+		}
+		return store.GuardOrdinaryMutation(ctx)
+	}
+	probeRootBootstrapFn = func(ctx context.Context, root, executable string) error {
+		if err := coreactivation.ValidateRootExecutableRole(executable); err != nil {
+			return err
+		}
+		identity, err := coreactivation.ProbeRootIdentity(ctx, executable)
+		if err != nil {
+			return err
+		}
+		expected, err := nativeDefinitionHomeDigest(root)
+		if err != nil {
+			return err
+		}
+
+		if identity.GetRuntimeHomeContractSha256() != expected {
+			return fmt.Errorf("installed runtime-home authority differs from the native definition authority")
+		}
+
+		return nil
 	}
 )
 
+// Compiled native authority survives source loss. Invalid compiled metadata is
+// an error, never permission to change authority through source fallback.
+func nativeDefinitionHomeDigest(root string) (string, error) {
+	if buildinfo.RuntimeHomeSnapshotBase64 != "" {
+		digest, err := buildinfo.RuntimeHomeSnapshotDigest()
+		if err != nil {
+			return "", fmt.Errorf("compiled runtime-home authority is invalid: %w", err)
+		}
+		return digest, nil
+	}
+	c, err := repocontract.LoadDefault(root)
+	if err != nil {
+		return "", err
+	}
+	data, err := c.RuntimeHomeSnapshot()
+	if err != nil {
+		return "", err
+	}
+	sum := sha256.Sum256(data)
+	return hex.EncodeToString(sum[:]), nil
+}
+
 type handler struct{ manifest hostreqkit.SafeguardManifest }
+
+// processImageMatches compares the live Linux image's file identity with the
+// installed binary. procfs retains the original inode across atomic updates.
+// A deleted image or a different inode needs adoption through a unit restart.
+func processImageMatches(pid int, executable string) (bool, error) {
+	if pid <= 0 {
+		return false, fmt.Errorf("invalid process id")
+	}
+	running, err := os.Stat(filepath.Join("/proc", strconv.Itoa(pid), "exe"))
+	if err != nil {
+		return false, fmt.Errorf("read running executable: %w", err)
+	}
+	installed, err := os.Stat(executable)
+	if err != nil {
+		return false, fmt.Errorf("read installed executable: %w", err)
+	}
+	return os.SameFile(running, installed), nil
+}
 
 // NewHandler is the registry constructor.
 func NewHandler(manifest hostreqkit.SafeguardManifest) hostreqkit.Handler {
@@ -158,6 +234,18 @@ func (h handler) Inspect(host hostreqkit.Host, requirement hostreqspec.ResolvedR
 		pending = true
 		status.Notes = append(status.Notes, fmt.Sprintf("runtime supervisor unit pending: enabled=%t active=%t", state.enabled, state.active))
 	}
+	if state.active && hostreqspec.PlatformFromGOOS(host.OS) == hostreqspec.PlatformLinux {
+		pid, current, imageErr := inspectUnitProcessImage(state, rendered.Executable)
+		status.Evidence["process_image_current"] = current && imageErr == nil
+		status.Evidence["process_image_pid"] = pid
+		if imageErr != nil {
+			pending = true
+			status.Notes = append(status.Notes, "runtime supervisor process image could not be verified: "+imageErr.Error())
+		} else if !current {
+			pending = true
+			status.Notes = append(status.Notes, "runtime supervisor process older than installed executable; refresh will restart the unit")
+		}
+	}
 	if result := state.properties["Result"]; result != "" && result != "success" {
 		status.Notes = append(status.Notes, "runtime supervisor unit last result is "+result+" after "+state.properties["NRestarts"]+" restarts; see "+rendered.LogPath)
 	}
@@ -227,7 +315,7 @@ func (h handler) Apply(host hostreqkit.Host, status hostreqkit.ItemStatus, opts 
 		status.Notes = append(status.Notes, "dry-run: would render, validate, install and enable the runtime supervisor unit")
 		return status, nil
 	}
-	result, err := Converge(context.Background(), ConvergeOptions{OS: host.OS, Home: home, Root: root, Ensure: opts})
+	result, err := Converge(context.Background(), ConvergeOptions{OS: host.OS, Home: home, Root: root, Ensure: opts, Restart: status.Evidence["process_image_current"] == false})
 	recordVerdict(&status, result.Verdict)
 	if err != nil {
 		status.ExecutionState = hostreqkit.ExecutionFailed
@@ -250,10 +338,15 @@ func (h handler) Apply(host hostreqkit.Host, status hostreqkit.ItemStatus, opts 
 
 // ConvergeOptions are the inputs to Converge.
 type ConvergeOptions struct {
-	OS      string
-	Home    string
-	Root    string
-	Restart bool
+	// Set all three only for reviewed retained-definition restoration. These
+	// checks run under the same canonical executable-install lock as writes.
+	ExpectedExecutableSHA        string
+	ExpectedCurrentDefinitionSHA string
+	RetainedDefinitionSHA        string
+	OS                           string
+	Home                         string
+	Root                         string
+	Restart                      bool
 	// Executable is the binary to name when no installed CLI exists yet.
 	Executable string
 	Ensure     hostreqkit.EnsureOptions
@@ -266,6 +359,8 @@ type ConvergeResult struct {
 	Changed   bool
 	Restarted bool
 	Active    bool
+	// ProcessImageVerified is established only by the Linux live-image probe.
+	ProcessImageVerified bool
 }
 
 // Converge is the one install path for the supervisor unit: render, validate
@@ -274,6 +369,9 @@ type ConvergeResult struct {
 // explicit reinstall requests a fresh executable. The setup safeguard remains
 // idempotent when the unit definition is already current.
 func Converge(ctx context.Context, options ConvergeOptions) (ConvergeResult, error) {
+	if options.Ensure.DryRun && (options.ExpectedExecutableSHA != "" || options.ExpectedCurrentDefinitionSHA != "" || options.RetainedDefinitionSHA != "") {
+		return ConvergeResult{}, fmt.Errorf("guarded retained-definition restoration does not execute dry-run requests")
+	}
 	if err := ctx.Err(); err != nil {
 		return ConvergeResult{}, err
 	}
@@ -282,6 +380,39 @@ func Converge(ctx context.Context, options ConvergeOptions) (ConvergeResult, err
 		return ConvergeResult{}, fmt.Errorf("render runtime supervisor unit: %w", err)
 	}
 	result := ConvergeResult{Rendered: rendered}
+	release, err := acquireInstallLockFn(ctx, rendered.Executable)
+	if err != nil {
+		return result, fmt.Errorf("lock root supervisor convergence: %w", err)
+	}
+	defer release()
+	if err := guardRootActivationFn(ctx, options.Home); err != nil {
+		return result, err
+	}
+	guarded := options.ExpectedExecutableSHA != "" || options.ExpectedCurrentDefinitionSHA != "" || options.RetainedDefinitionSHA != ""
+	if guarded {
+		for _, value := range []string{options.ExpectedExecutableSHA, options.ExpectedCurrentDefinitionSHA, options.RetainedDefinitionSHA} {
+			decoded, err := hex.DecodeString(value)
+			if err != nil || len(decoded) != 32 || value != strings.ToLower(value) {
+				return result, fmt.Errorf("exact restoration identities required")
+			}
+		}
+		image, err := coreactivation.ImageDigest(ctx, rendered.Executable)
+		if err != nil || image != options.ExpectedExecutableSHA {
+			return result, fmt.Errorf("restored executable differs from reviewed prior")
+		}
+		content := rendered.Artifact.Primary().Content
+		sum := sha256.Sum256([]byte(content))
+		if hex.EncodeToString(sum[:]) != options.RetainedDefinitionSHA {
+			return result, fmt.Errorf("rendered definition differs from retained prior")
+		}
+		current, err := boundedDefinitionDigest(rendered.Path)
+		if err != nil || current != options.ExpectedCurrentDefinitionSHA && current != options.RetainedDefinitionSHA {
+			return result, fmt.Errorf("current supervisor definition is foreign; refused overwrite")
+		}
+	}
+	if err := probeRootBootstrapFn(ctx, options.Root, rendered.Executable); err != nil {
+		return result, fmt.Errorf("installed root CLI native bootstrap is unqualified; rebuild through the governed installer before changing its unit: %w", err)
+	}
 	result.Verdict = validateFn(rendered.Artifact, platformgo.ScopeUser)
 	if result.Verdict.Rejected() {
 		return result, fmt.Errorf("the native validator rejected the rendered %s; nothing was installed: %s", rendered.UnitName, result.Verdict.Output)
@@ -296,7 +427,13 @@ func Converge(ctx context.Context, options ConvergeOptions) (ConvergeResult, err
 			return result, fmt.Errorf("create supervisor log directory: %w", err)
 		}
 	}
-	if err := installFileFn(rendered.Path, content, options.Ensure); err != nil {
+	var installErr error
+	if guarded {
+		installErr = restoreDefinitionFn(rendered.Path, content)
+	} else {
+		installErr = installFileFn(rendered.Path, content, options.Ensure)
+	}
+	if err := installErr; err != nil {
 		return result, fmt.Errorf("install %s: %w", rendered.Path, err)
 	}
 	if err := enableUnit(rendered, options.Ensure); err != nil {
@@ -316,7 +453,26 @@ func Converge(ctx context.Context, options ConvergeOptions) (ConvergeResult, err
 	if !state.active {
 		return result, fmt.Errorf("installed %s but it is not active (Result=%s); see %s", rendered.UnitName, state.properties["Result"], rendered.LogPath)
 	}
+	if hostreqspec.PlatformFromGOOS(options.OS) == hostreqspec.PlatformLinux {
+		_, current, err := inspectUnitProcessImage(state, rendered.Executable)
+		if err != nil {
+			return result, fmt.Errorf("verify %s running image after install: %w", rendered.UnitName, err)
+		}
+		if !current {
+			return result, fmt.Errorf("installed %s is active but has not adopted the intended executable", rendered.UnitName)
+		}
+		result.ProcessImageVerified = true
+	}
 	return result, nil
+}
+
+func inspectUnitProcessImage(state unitProbe, executable string) (int, bool, error) {
+	pid, err := strconv.Atoi(state.properties["MainPID"])
+	if err != nil || pid <= 0 {
+		return pid, false, fmt.Errorf("active unit has no valid MainPID")
+	}
+	current, err := processImageMatchesFn(pid, executable)
+	return pid, current, err
 }
 
 func asUserArgs(name string, args ...string) (string, []string) {
@@ -376,7 +532,7 @@ func unitState(osName, name string) unitProbe {
 		loaded := err == nil
 		return unitProbe{enabled: loaded, active: loaded && strings.Contains(string(out), "state = running"), properties: map[string]string{"launchctl": strings.TrimSpace(string(out))}}
 	}
-	cmd, args := asUserArgs("systemctl", "--user", "show", name, "-p", "ActiveState", "-p", "UnitFileState", "-p", "NRestarts", "-p", "Result")
+	cmd, args := asUserArgs("systemctl", "--user", "show", name, "-p", "ActiveState", "-p", "UnitFileState", "-p", "NRestarts", "-p", "Result", "-p", "MainPID")
 	out, err := commandOutputFn(cmd, args...)
 	if err != nil {
 		return unitProbe{probeErr: fmt.Errorf("systemctl user bus: %s", strings.TrimSpace(string(out)))}
@@ -433,4 +589,26 @@ func recordVerdict(status *hostreqkit.ItemStatus, verdict platformgo.Verdict) {
 
 func recoveryNote() string {
 	return "recovery: rerun `vrooli setup` (or `vrooli runtime supervisor install --user`) and read " + runtimesupervisor.LogFileName + " under the Vrooli logs directory"
+}
+
+func boundedDefinitionDigest(path string) (string, error) {
+	before, err := os.Lstat(path)
+	if err != nil || !before.Mode().IsRegular() || before.Size() > 1<<20 {
+		return "", fmt.Errorf("supervisor definition is not a bounded regular file")
+	}
+	f, err := os.Open(path)
+	if err != nil {
+		return "", err
+	}
+	defer f.Close()
+	after, err := f.Stat()
+	if err != nil || !os.SameFile(before, after) {
+		return "", fmt.Errorf("supervisor definition changed while opening")
+	}
+	h := sha256.New()
+	n, err := io.Copy(h, io.LimitReader(f, 1<<20+1))
+	if err != nil || n > 1<<20 {
+		return "", fmt.Errorf("supervisor definition exceeded bound")
+	}
+	return hex.EncodeToString(h.Sum(nil)), nil
 }

@@ -4,6 +4,7 @@ package remotesessionprotection
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -31,11 +32,32 @@ func remoteSessionStubAll(t *testing.T) func() {
 	origCombinedOutput := hostreqkit.CombinedOutputFn
 	origRunCommand := hostreqkit.RunCommandFn
 	origCompetingSwaps := CompetingSwapsFn
+	origReservationLstat := reservationLstat
+	origReservationReadDir := reservationReadDir
 	// Default stubs: no commands found, no files exist, no desktop detected
 	hostreqkit.LookPathFn = func(string) (string, error) { return "", os.ErrNotExist }
 	hostreqkit.ReadFileFn = func(string) ([]byte, error) { return nil, os.ErrNotExist }
 	hostreqkit.CombinedOutputFn = func(string, ...string) ([]byte, error) { return nil, fmt.Errorf("stubbed") }
 	hostreqkit.RunCommandFn = func(string, []string, hostreqkit.EnsureOptions) error { return nil }
+	reservationReadDir = func(string) ([]os.DirEntry, error) { return nil, os.ErrNotExist }
+	reservationLstat = func(path string) (os.FileInfo, error) {
+		for _, destination := range []string{ancestorSlicePath, desktopSlicePath} {
+			for dir := filepath.Dir(destination); ; dir = filepath.Dir(dir) {
+				if path == dir {
+					return reservationTestFileInfo{mode: os.ModeDir | 0755}, nil
+				}
+				if filepath.Dir(dir) == dir {
+					break
+				}
+			}
+		}
+
+		data, err := hostreqkit.ReadFileFn(path)
+		if err != nil {
+			return nil, err
+		}
+		return reservationTestFileInfo{size: int64(len(data))}, nil
+	}
 	// Default: no competing swaps. Tests that exercise the dedup-warning path
 	// override.
 	CompetingSwapsFn = func() []string { return nil }
@@ -45,6 +67,8 @@ func remoteSessionStubAll(t *testing.T) func() {
 		hostreqkit.CombinedOutputFn = origCombinedOutput
 		hostreqkit.RunCommandFn = origRunCommand
 		CompetingSwapsFn = origCompetingSwaps
+		reservationLstat = origReservationLstat
+		reservationReadDir = origReservationReadDir
 	}
 }
 
@@ -109,6 +133,8 @@ func TestInspectAllStaticFilesPresent(t *testing.T) {
 
 	hostreqkit.ReadFileFn = func(path string) ([]byte, error) {
 		switch path {
+		case procMeminfo:
+			return []byte(fakeMeminfo(16, 16)), nil
 		case sysctlPath:
 			return []byte(sysctlContent), nil
 		case systemdPath:
@@ -206,6 +232,8 @@ func TestInspectDesktopDetectedAllPresent(t *testing.T) {
 			return []byte(logindContent), nil
 		case procMeminfo:
 			return []byte(fakeMeminfo(32, 32)), nil
+		case ancestorSlicePath:
+			return []byte(ancestorSliceContent(alloc.desktopMinMB, alloc.desktopLowMB)), nil
 		case desktopSlicePath:
 			return []byte(desktopSliceContent(alloc)), nil
 		case workloadSlicePath:
@@ -222,6 +250,7 @@ func TestInspectDesktopDetectedAllPresent(t *testing.T) {
 		return "", os.ErrNotExist
 	}
 
+	modelReservationReadback(t)
 	status := newTestHandler().Inspect(linuxHost(), baseReq())
 	if !status.Applied {
 		t.Fatalf("expected Applied = true, notes: %v", status.Notes)
@@ -254,6 +283,7 @@ func TestInspectDesktopDetectedSliceMissing(t *testing.T) {
 		}
 	}
 
+	modelReservationReadback(t)
 	status := newTestHandler().Inspect(linuxHost(), baseReq())
 	if status.Applied {
 		t.Fatal("expected Applied = false when desktop slice files missing")
@@ -401,6 +431,12 @@ func TestApplyStaticCommandsNoDesktop(t *testing.T) {
 		return "", os.ErrNotExist
 	}
 
+	hostreqkit.ReadFileFn = func(path string) ([]byte, error) {
+		if path == procMeminfo {
+			return []byte(fakeMeminfo(16, 16)), nil
+		}
+		return nil, os.ErrNotExist
+	}
 	var calls []string
 	hostreqkit.RunCommandFn = func(name string, args []string, opts hostreqkit.EnsureOptions) error {
 		calls = append(calls, name+" "+strings.Join(args, " "))
@@ -538,9 +574,15 @@ func TestApplyDesktopFullFlow(t *testing.T) {
 		return nil, fmt.Errorf("stubbed")
 	}
 
+	swapActivated := false
 	hostreqkit.ReadFileFn = func(path string) ([]byte, error) {
 		switch path {
+		case "/proc/swaps":
+			return []byte("Filename Type Size Used Priority\n"), nil
 		case procMeminfo:
+			if swapActivated {
+				return []byte(fakeMeminfo(32, 32)), nil
+			}
 			return []byte(fakeMeminfo(32, 4)), nil // 32GB RAM, 4GB swap (needs more)
 		case remoteSessionFstab:
 			return []byte("# empty fstab\n"), nil
@@ -552,10 +594,14 @@ func TestApplyDesktopFullFlow(t *testing.T) {
 
 	var calls []string
 	hostreqkit.RunCommandFn = func(name string, args []string, opts hostreqkit.EnsureOptions) error {
+		if strings.Contains(name+" "+strings.Join(args, " "), "swapon") {
+			swapActivated = true
+		}
 		calls = append(calls, name+" "+strings.Join(args, " "))
 		return nil
 	}
 
+	modelReservationReadback(t)
 	status, err := newTestHandler().Apply(linuxHost(), hostreqkit.ItemStatus{
 		SupportClass: hostreqkit.SupportSupported,
 	}, hostreqkit.EnsureOptions{SudoMode: "ask"})
@@ -642,6 +688,7 @@ func TestApplyDesktopSwapSufficient(t *testing.T) {
 		return nil
 	}
 
+	modelReservationReadback(t)
 	status, err := newTestHandler().Apply(linuxHost(), hostreqkit.ItemStatus{
 		SupportClass: hostreqkit.SupportSupported,
 	}, hostreqkit.EnsureOptions{SudoMode: "ask"})
@@ -660,7 +707,7 @@ func TestApplyDesktopSwapSufficient(t *testing.T) {
 	}
 }
 
-func TestApplyDesktopProtectionBestEffort(t *testing.T) {
+func TestApplyDesktopProtectionRequiresMemoryInventory(t *testing.T) {
 	restore := stubAll(t)
 	defer restore()
 
@@ -693,18 +740,11 @@ func TestApplyDesktopProtectionBestEffort(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	// Static files still succeed, desktop protection is best-effort
-	if !status.Applied {
-		t.Fatalf("expected Applied = true (desktop is best-effort), notes: %v", status.Notes)
+	if status.Applied || status.ExecutionState != hostreqkit.ExecutionFailed {
+		t.Fatalf("unreadable required memory inventory reported applied: %+v", status)
 	}
-	foundPartial := false
-	for _, note := range status.Notes {
-		if strings.Contains(note, "desktop protection partially applied") {
-			foundPartial = true
-		}
-	}
-	if !foundPartial {
-		t.Fatalf("expected partial desktop protection note, got %v", status.Notes)
+	if !strings.Contains(strings.Join(status.Notes, " "), "memory") {
+		t.Fatalf("missing inventory failure detail: %v", status.Notes)
 	}
 }
 
@@ -1059,8 +1099,15 @@ func TestEnsureSwapFallocateFallbackToDd(t *testing.T) {
 		return "/usr/bin/" + name, nil
 	}
 
+	swapActivated := false
 	hostreqkit.ReadFileFn = func(path string) ([]byte, error) {
+		if path == "/proc/swaps" {
+			return []byte("Filename Type Size Used Priority\n"), nil
+		}
 		if path == procMeminfo {
+			if swapActivated {
+				return []byte(fakeMeminfo(8, 8)), nil
+			}
 			return []byte(fakeMeminfo(8, 0)), nil
 		}
 		if path == remoteSessionFstab {
@@ -1071,6 +1118,9 @@ func TestEnsureSwapFallocateFallbackToDd(t *testing.T) {
 
 	var calls []string
 	hostreqkit.RunCommandFn = func(name string, args []string, opts hostreqkit.EnsureOptions) error {
+		if strings.Contains(name+" "+strings.Join(args, " "), "swapon") {
+			swapActivated = true
+		}
 		cmd := name + " " + strings.Join(args, " ")
 		calls = append(calls, cmd)
 		// Fail fallocate, succeed dd

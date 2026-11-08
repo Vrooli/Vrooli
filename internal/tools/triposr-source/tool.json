@@ -10,6 +10,11 @@
   "bundling": "host-required",
   "installHint": "vrooli host install triposr-source delegates the approved SDA source-profile route",
   "capability": "developer-utility",
-  "capability_role": "control",
+  "capability_role": "primary",
+  "platform_status": {
+    "linux": {"status": "unqualified", "evidence": null},
+    "macos": {"status": "unsupported", "evidence": "The source profile (internal/tools/triposr-source/profile.go) is qualified only for Linux amd64 and refuses other hosts."},
+    "windows": {"status": "unsupported", "evidence": "The source profile (internal/tools/triposr-source/profile.go) is qualified only for Linux amd64 and refuses other hosts."}
+  },
   "notes": "Data-only upstream source; no executable is placed on PATH. Runtime use requires the pinned model and Python closure."
 }

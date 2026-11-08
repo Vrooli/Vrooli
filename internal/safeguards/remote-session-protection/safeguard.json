@@ -67,9 +67,22 @@
         "class": "config",
         "sensitive": true,
         "rationale": "The safeguard writes a Linux workload slice unit."
+      },
+      "user_ancestor_slice_dropin": {
+        "rung": "pinned",
+        "path": {
+          "linux": "/etc/systemd/system/user.slice.d/90-vrooli-remote-session-protection.conf",
+          "macos": null,
+          "windows": null
+        },
+        "kind": "file",
+        "regenerable": false,
+        "class": "config",
+        "sensitive": true,
+        "rationale": "The safeguard owns the ancestor reservation required to make the existing desktop kernel reservation effective."
       }
     },
-    "rationale": "Linux-only system configuration is verified by the safeguard file check."
+    "rationale": "Managed Linux configuration and effective cgroup ancestor/desktop memory reservations are verified by the owning safeguard."
   },
   "description": "Linux sysctl, systemd, cgroup, and swap hardening for remote GUI/SSH sessions with desktop-aware memory protection",
   "handler": "remote_session_protection",
@@ -83,7 +96,8 @@
       "/etc/systemd/system/user@.service.d/90-vrooli-remote-session-protection.conf",
       "/etc/systemd/logind.conf.d/90-vrooli-remote-session-protection.conf",
       "/etc/systemd/system/user-1000.slice.d/50-memory-protect.conf",
-      "/etc/systemd/system/workload.slice"
+      "/etc/systemd/system/workload.slice",
+      "/etc/systemd/system/user.slice.d/90-vrooli-remote-session-protection.conf"
     ]
   },
   "privilege": "elevated",

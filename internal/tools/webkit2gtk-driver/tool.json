@@ -29,6 +29,14 @@
     "linux": {
       "status": "unqualified",
       "evidence": null
+    },
+    "macos": {
+      "status": "unsupported",
+      "evidence": "WebKitGTK is the Linux GTK port of WebKit; its WebDriver package exists only for Linux."
+    },
+    "windows": {
+      "status": "unsupported",
+      "evidence": "WebKitGTK is the Linux GTK port of WebKit; its WebDriver package exists only for Linux."
     }
   },
   "notes": "The package is host tooling and is not bundled into desktop applications. Host installation remains gated on operator setup."

@@ -3,6 +3,7 @@ package ffmpegvideo
 import (
 	"encoding/json"
 	"io/fs"
+	"strings"
 	"testing"
 
 	"github.com/vrooli/vrooli/internal/hostreqkit"
@@ -22,11 +23,27 @@ func TestDedicatedManifestPinsExactPairedArchiveWithoutChangingGenericFFmpeg(t *
 	if manifest.Name != "ffmpeg-video" || len(manifest.Commands) != 1 || manifest.Commands[0] != "ffmpeg-video" {
 		t.Fatalf("dedicated managed identity = %q / %#v", manifest.Name, manifest.Commands)
 	}
-	if manifest.Acquisition == nil || len(manifest.Acquisition.Targets) != 1 {
-		t.Fatal("expected one digest-pinned platform acquisition target")
+	if manifest.Acquisition == nil {
+		t.Fatal("expected a digest-pinned acquisition")
 	}
-	target := manifest.Acquisition.Targets[0]
-	if target.When["os"] != "linux" || target.When["arch"] != "amd64" || target.URL != artifact.ArchiveURL || target.SHA256 != artifact.ArchiveSHA256 || target.Archive != "tar.xz" || target.Layout != "dir" || target.BinPath != artifact.FFmpegPath {
+	// The profile pins one inspected archive, so exactly one target may be
+	// downloadable; every other platform must be an explicit unsupported
+	// declaration rather than a second, uninspected artifact.
+	downloadable := 0
+	for _, candidate := range manifest.Acquisition.Targets {
+		if candidate.URL != "" {
+			downloadable++
+			continue
+		}
+		if strings.TrimSpace(candidate.Unsupported) == "" {
+			t.Fatalf("non-downloadable target has no unsupported reason: %+v", candidate)
+		}
+	}
+	if downloadable != 1 {
+		t.Fatalf("expected exactly one digest-pinned downloadable target, got %d", downloadable)
+	}
+	target, ok := hostreqkit.TargetFor(manifest.Acquisition, "linux", "amd64")
+	if !ok || target.URL != artifact.ArchiveURL || target.SHA256 != artifact.ArchiveSHA256 || target.Archive != "tar.xz" || target.Layout != "dir" || target.BinPath != artifact.FFmpegPath {
 		t.Fatalf("acquisition target does not match inspected candidate: %+v", target)
 	}
 	genericData, err := fs.ReadFile(alltools.Manifests, "ffmpeg/tool.json")

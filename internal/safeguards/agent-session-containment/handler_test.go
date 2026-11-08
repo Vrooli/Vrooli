@@ -264,6 +264,17 @@ func TestOccupancyNotesSayUndeterminedRatherThanHealthy(t *testing.T) {
 	}
 }
 
+func TestOccupancyNotesExposeUnknownScopeMembership(t *testing.T) {
+	l := live{
+		Occupancy: platformgo.Occupancy{Tasks: 2, TasksMax: 100, MemoryBytes: 1, MemoryMaxBytes: 100},
+		Sessions:  []agentscope.Entry{{Name: "vrooli-agent-sealed.scope", MembershipError: "permission denied"}},
+	}
+	notes := strings.Join(occupancyNotes(l, DefaultSettings()), "\n")
+	if !strings.Contains(notes, "membership of 1 session scopes is undetermined") {
+		t.Fatalf("unknown membership disappeared from safeguard report: %q", notes)
+	}
+}
+
 // The tasks a session left behind are the ratchet: nothing releases them, so
 // the usable ceiling falls with every session that started a scenario.
 func TestOccupancyNotesNameTheAgentlessScopes(t *testing.T) {

@@ -58,7 +58,11 @@ package agentsessioncontainment
 // purpose: CPUWeight above agents, MemoryHigh to throttle, and deliberately no
 // MemoryMax and no ManagedOOMMemoryPressure=kill. An agent session is worth
 // killing to save the host; a scenario or resource service is the thing being
-// saved.
+// saved. This disables monitoring at that slice; it does not protect its
+// descendants from a monitored ancestor. Lifecycle placement adds an explicit
+// ManagedOOMPreference=avoid to live minimum recovery-plane service scopes;
+// ordinary workloads retain the normal selection policy. Avoid is a last-resort
+// preference, not immunity or a recursive slice setting.
 //
 // Inspect reports occupancy as well as configuration. A ceiling is a safety
 // property only while there is room under it, and a full slice is a correctly

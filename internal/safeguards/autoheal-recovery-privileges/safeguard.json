@@ -1,7 +1,7 @@
 {
   "$schema": "../../../../.vrooli/schemas/safeguard.schema.json",
   "name": "autoheal_recovery_privileges",
-  "description": "Write the minimal Linux sudoers grant used by autoheal's service recovery actions.",
+  "description": "Verify the fixed host-service recovery capability installed by the project setup privilege broker; no runtime sudoers grant is created.",
   "handler": "autoheal_recovery_privileges",
   "risk": "medium",
   "privilege": "elevated",
@@ -21,15 +21,10 @@
         "regenerable": false,
         "class": "config",
         "sensitive": true,
-        "rationale": "The safeguard owns the Linux NOPASSWD drop-in used by autoheal service recovery."
+        "rationale": "Legacy setup-owned grant retained for explicit operator cleanup only. Runtime service recovery uses the root-owned privilege broker, and setup no longer creates this file."
       }
     },
     "rationale": "The grant is setup-managed host state, never scenario data."
-  },
-  "verificationCheck": {
-    "files": [
-      "/etc/sudoers.d/vrooli-autoheal"
-    ]
   },
   "deployment": {
     "profiles": {

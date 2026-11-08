@@ -3,7 +3,6 @@ package remotesessionprotection
 import (
 	"context"
 	"fmt"
-	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -119,7 +118,7 @@ func (h handler) Inspect(host hostreqkit.Host, requirement hostreqspec.ResolvedR
 	if len(pending) == 0 {
 		status.Applied = true
 		status.ExecutionState = hostreqkit.ExecutionAlreadyPresent
-		status.Notes = append(status.Notes, "all remote session protection files are present and match the managed Vrooli configuration")
+		status.Notes = append(status.Notes, "managed remote session configuration and required live reservations are verified")
 		return status
 	}
 
@@ -158,7 +157,7 @@ func inspectDesktopProtection(host hostreqkit.Host) []string {
 
 	alloc, err := calculateMemory()
 	if err != nil {
-		return nil
+		return []string{"required memory inventory: " + err.Error()}
 	}
 
 	var pending []string
@@ -170,11 +169,7 @@ func inspectDesktopProtection(host hostreqkit.Host) []string {
 		return pending
 	}
 
-	// Desktop slice
-	want := desktopSliceContent(alloc)
-	if !hostreqkit.FileContentMatches(desktopSlicePath, want) {
-		pending = append(pending, desktopSlicePath)
-	}
+	pending = append(pending, inspectDesktopReservation(alloc)...)
 
 	// Workload slice
 	if !hostreqkit.FileContentMatches(workloadSlicePath, workloadSliceContent()) {
@@ -189,6 +184,12 @@ func inspectDesktopProtection(host hostreqkit.Host) []string {
 	}
 
 	return pending
+}
+
+func desktopOtherProtectionPresent(alloc memoryAllocation) bool {
+	return readCurrentSwapGB() >= alloc.targetSwapGB &&
+		hostreqkit.FileContentMatches(workloadSlicePath, workloadSliceContent()) &&
+		(!hostreqkit.CommandAvailable("docker") || dockerConfigApplied())
 }
 
 // ── Apply ────────────────────────────────────────────────────────────────────
@@ -216,32 +217,46 @@ func (h handler) Apply(host hostreqkit.Host, status hostreqkit.ItemStatus, opts 
 		return status, nil
 	}
 
-	// Phase 1: static sysctl + systemd files (always)
-	if err := applyStaticFiles(host, opts); err != nil {
+	fail := func(err error) (hostreqkit.ItemStatus, error) {
+		status.Applied = false
 		status.ExecutionState = hostreqkit.ExecutionFailed
 		status.Notes = append(status.Notes, err.Error())
 		return status, nil
 	}
-
-	// Phase 2: memory protection. Swap is required on small headless hosts as
-	// well as desktops; without it, a deployment build can exhaust RAM before
-	// the watchdog or SSH server can respond. Desktop slices remain conditional.
-	if host.SupportsSystemd {
-		alloc, allocErr := calculateMemory()
-		if allocErr != nil {
-			if isDesktopInstalled() {
-				if err := applyDesktopProtection(host, opts); err != nil {
-					status.Notes = append(status.Notes, "desktop protection partially applied: "+err.Error())
-				}
-			} else {
-				status.Notes = append(status.Notes, "memory protection could not read host inventory: "+allocErr.Error())
+	// A live reservation gap does not authorize unrelated swap, Docker/GPU,
+	// sysctl or login-setting effects when those definitions already match.
+	if host.SupportsSystemd && isDesktopInstalled() {
+		alloc, err := calculateMemory()
+		if err != nil {
+			return fail(err)
+		}
+		if _, err := desktopReservationPlan(alloc); err != nil {
+			return fail(err)
+		}
+		if len(inspectStaticFiles(host)) == 0 && desktopOtherProtectionPresent(alloc) {
+			if err := ensureDesktopReservation(alloc, opts); err != nil {
+				return fail(err)
 			}
-		} else if err := ensureSwap(alloc, opts); err != nil {
-			status.Notes = append(status.Notes, "swap protection could not be applied: "+err.Error())
-		} else if isDesktopInstalled() {
+			status.Applied = true
+			status.ExecutionState = hostreqkit.ExecutionApplied
+			status.Notes = append(status.Notes, "verified persistent and effective desktop ancestor reservations")
+			return status, nil
+		}
+	}
+	if err := applyStaticFiles(host, opts); err != nil {
+		return fail(err)
+	}
+	if host.SupportsSystemd {
+		alloc, err := calculateMemory()
+		if err != nil {
+			return fail(fmt.Errorf("memory protection inventory: %w", err))
+		}
+		if err := ensureSwap(alloc, opts); err != nil {
+			return fail(fmt.Errorf("swap protection: %w", err))
+		}
+		if isDesktopInstalled() {
 			if err := applyDesktopProtection(host, opts); err != nil {
-				// Desktop protection is best-effort; don't fail the entire safeguard
-				status.Notes = append(status.Notes, "desktop protection partially applied: "+err.Error())
+				return fail(fmt.Errorf("desktop protection: %w", err))
 			}
 		}
 	}
@@ -295,39 +310,9 @@ func applyDesktopProtection(host hostreqkit.Host, opts hostreqkit.EnsureOptions)
 		return fmt.Errorf("calculate memory: %w", err)
 	}
 
-	// 1. Swap
-	if err := ensureSwap(alloc, opts); err != nil {
-		return fmt.Errorf("configure swap: %w", err)
+	if err := ensureDesktopReservation(alloc, opts); err != nil {
+		return err
 	}
-
-	// 2. Desktop slice
-	if err := hostreqkit.EnsureManagedDir(desktopSliceDir, opts.SudoMode, opts); err != nil {
-		return fmt.Errorf("create desktop slice dir: %w", err)
-	}
-	if err := hostreqkit.InstallManagedContent(desktopSlicePath, desktopSliceContent(alloc), opts.SudoMode, opts); err != nil {
-		return fmt.Errorf("install desktop slice config: %w", err)
-	}
-
-	// Apply to running cgroup v2 if available (best-effort).
-	//
-	// Why not InstallManagedContent: install(1) replaces the destination by
-	// unlink + rename, which fails on /sys/fs/cgroup pseudo-files
-	// ("Operation not permitted") and leaks the error to stderr even when
-	// the caller discards the return value. cgroup attribute files accept
-	// a single write of the new value — stream the bytes via tee with
-	// stderr suppressed and skip the call entirely if the file is missing.
-	cgroupPath := fmt.Sprintf("/sys/fs/cgroup/user.slice/user-%d.slice", desktopUID)
-	minBytes := strconv.Itoa(alloc.desktopMinMB * bytesPerMiB)
-	lowBytes := strconv.Itoa(alloc.desktopLowMB * bytesPerMiB)
-	writeCgroupValue := func(path, value string) {
-		if _, err := os.Stat(path); err != nil {
-			return
-		}
-		_ = hostreqkit.RunPrivilegedCommand(opts.SudoMode, "sh",
-			[]string{"-c", fmt.Sprintf("printf %%s %s > %s 2>/dev/null", value, path)}, opts)
-	}
-	writeCgroupValue(cgroupPath+"/memory.min", minBytes)
-	writeCgroupValue(cgroupPath+"/memory.low", lowBytes)
 
 	// 3. Workload slice
 	if err := hostreqkit.InstallManagedContent(workloadSlicePath, workloadSliceContent(), opts.SudoMode, opts); err != nil {
@@ -508,11 +493,24 @@ func ensureSwap(alloc memoryAllocation, opts hostreqkit.EnsureOptions) error {
 
 	target := strconv.Itoa(alloc.targetSwapGB)
 
-	// Disable existing swap file if present
-	_ = hostreqkit.RunPrivilegedCommand(opts.SudoMode, "swapoff", []string{swapFile}, opts)
+	// Determine active ownership before resizing. An unavailable inventory or
+	// failed deactivation cannot authorize overwriting an active swap file.
+	swaps, err := hostreqkit.ReadFileFn("/proc/swaps")
+	if err != nil {
+		return fmt.Errorf("read active swap inventory: %w", err)
+	}
+	for _, line := range strings.Split(string(swaps), "\n") {
+		fields := strings.Fields(line)
+		if len(fields) > 0 && fields[0] == swapFile {
+			if err := hostreqkit.RunPrivilegedCommand(opts.SudoMode, "swapoff", []string{swapFile}, opts); err != nil {
+				return fmt.Errorf("deactivate managed swap before resize: %w", err)
+			}
+			break
+		}
+	}
 
 	// Try fallocate first, fall back to dd
-	err := hostreqkit.RunPrivilegedCommand(opts.SudoMode, "fallocate", []string{"-l", target + "G", swapFile}, opts)
+	err = hostreqkit.RunPrivilegedCommand(opts.SudoMode, "fallocate", []string{"-l", target + "G", swapFile}, opts)
 	if err != nil {
 		err = hostreqkit.RunPrivilegedCommand(opts.SudoMode, "dd", []string{
 			"if=/dev/zero", "of=" + swapFile, "bs=1G", "count=" + target, "status=none",
@@ -529,19 +527,36 @@ func ensureSwap(alloc memoryAllocation, opts hostreqkit.EnsureOptions) error {
 		return fmt.Errorf("mkswap: %w", err)
 	}
 
-	// Add to fstab if not already there
-	fstab, _ := hostreqkit.ReadFileFn("/etc/fstab")
-	if !strings.Contains(string(fstab), swapFile) {
-		fstabLine := swapFile + " none swap sw 0 0\n"
-		if err := hostreqkit.InstallManagedContent("/etc/fstab.vrooli-swap", fstabLine, opts.SudoMode, opts); err == nil {
-			// Append via shell to preserve existing fstab
-			_ = hostreqkit.RunPrivilegedCommand(opts.SudoMode, "sh", []string{
-				"-c", "cat /etc/fstab.vrooli-swap >> /etc/fstab && rm -f /etc/fstab.vrooli-swap",
-			}, opts)
+	// Persist startup intent without treating a comment or similarly named
+	// file as an active entry. Every required command failure remains visible.
+	fstab, err := hostreqkit.ReadFileFn("/etc/fstab")
+	if err != nil {
+		return fmt.Errorf("read swap startup configuration: %w", err)
+	}
+	persisted := false
+	for _, line := range strings.Split(string(fstab), "\n") {
+		fields := strings.Fields(line)
+		if len(fields) >= 3 && fields[0] == swapFile && fields[2] == "swap" {
+			persisted = true
+			break
 		}
 	}
+	if !persisted {
+		fstabLine := swapFile + " none swap sw 0 0\n"
+		if err := hostreqkit.InstallManagedContent("/etc/fstab.vrooli-swap", fstabLine, opts.SudoMode, opts); err != nil {
+			return fmt.Errorf("prepare swap startup configuration: %w", err)
+		}
+		if err := hostreqkit.RunPrivilegedCommand(opts.SudoMode, "sh", []string{"-c", "cat /etc/fstab.vrooli-swap >> /etc/fstab && rm -f /etc/fstab.vrooli-swap"}, opts); err != nil {
+			return fmt.Errorf("persist swap startup configuration: %w", err)
+		}
+	}
+	if err := hostreqkit.RunPrivilegedCommand(opts.SudoMode, "swapon", []string{swapFile}, opts); err != nil {
+		return fmt.Errorf("activate managed swap: %w", err)
+	}
+	if readCurrentSwapGB() < alloc.targetSwapGB {
+		return fmt.Errorf("active swap capacity did not reach required target")
+	}
 
-	_ = hostreqkit.RunPrivilegedCommand(opts.SudoMode, "swapon", []string{swapFile}, opts)
 	return nil
 }
 

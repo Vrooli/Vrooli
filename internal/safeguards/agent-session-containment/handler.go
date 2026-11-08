@@ -351,6 +351,9 @@ func occupancyNotes(l live, s Settings) []string {
 		held := agentscope.AgentlessTasks(l.Sessions)
 		out = append(out, fmt.Sprintf("%d of %d session scopes hold %d tasks with no coding agent left in them: those sessions ended and left long-running children, and nothing releases their share of the ceiling", len(orphans), len(l.Sessions), held))
 	}
+	if unknown := agentscope.Uncertain(l.Sessions); len(unknown) > 0 {
+		out = append(out, fmt.Sprintf("membership of %d session scopes is undetermined; they are not classified as agentless", len(unknown)))
+	}
 	return out
 }
 
@@ -482,7 +485,8 @@ func (h handler) Inspect(host hostreqkit.Host, requirement hostreqspec.ResolvedR
 		"memory_saturation":  l.Occupancy.MemorySaturation(),
 		"memory_high_events": l.Occupancy.MemoryHighEvents,
 		"scopes":             len(l.Sessions), "agentless_scopes": len(agentscope.Agentless(l.Sessions)),
-		"agentless_tasks": agentscope.AgentlessTasks(l.Sessions),
+		"agentless_tasks":           agentscope.AgentlessTasks(l.Sessions),
+		"membership_unknown_scopes": len(agentscope.Uncertain(l.Sessions)),
 	}
 	occupancy := occupancyNotes(l, s)
 	pending = append(pending, liveMismatches(l, s)...)

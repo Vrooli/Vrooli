@@ -33,6 +33,14 @@
     "linux": {
       "status": "unqualified",
       "evidence": null
+    },
+    "macos": {
+      "status": "unsupported",
+      "evidence": "WebKitGTK is the Linux GTK port of WebKit; Wails builds on this OS use the system web view and need no WebKitGTK headers."
+    },
+    "windows": {
+      "status": "unsupported",
+      "evidence": "WebKitGTK is the Linux GTK port of WebKit; Wails builds on this OS use the system web view and need no WebKitGTK headers."
     }
   },
   "notes": "The declared WebKitGTK development package brings the GTK 3 and libsoup 3 headers required by the Wails Linux build. The handler checks all pkg-config modules instead of treating pkg-config itself as proof that headers are installed."

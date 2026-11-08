@@ -1,50 +1,81 @@
 package cloudflared
 
 import (
+	"context"
+	"fmt"
+	"strings"
+	"time"
+
+	"github.com/vrooli/vrooli/internal/buildinfo"
 	"github.com/vrooli/vrooli/internal/hostreqkit"
 	"github.com/vrooli/vrooli/internal/hostreqspec"
+	"github.com/vrooli/vrooli/internal/resources"
 )
 
-const (
-	aptKeyringPath = "/usr/share/keyrings/cloudflare-main.gpg"
-	aptSourcePath  = "/etc/apt/sources.list.d/cloudflared.list"
-	aptSourceLine  = "deb [signed-by=/usr/share/keyrings/cloudflare-main.gpg] https://pkg.cloudflare.com/cloudflared any main"
-	aptKeyURL      = "https://pkg.cloudflare.com/cloudflare-main.gpg"
-)
-
-var KeyDownloadFn func() ([]byte, error)
-
-type handler struct {
-	manifest hostreqkit.ToolManifest
-}
-
+// NewHandler projects the resource-owned pinned artifact into host requirements.
+// Dependency policy admits writes; this adapter never installs through APT/PATH.
 func NewHandler(manifest hostreqkit.ToolManifest) hostreqkit.Handler {
-	return handler{manifest: manifest}
+	return newHandler(manifest, selectedArtifact, hostreqkit.RunAsInvokingUser)
 }
 
-func (h handler) Name() string           { return h.manifest.Name }
-func (h handler) Kind() hostreqspec.Kind { return hostreqspec.KindTool }
-
-func (h handler) installer() hostreqkit.AptRepoInstaller {
-	return hostreqkit.AptRepoInstaller{
-		Manifest: h.manifest, AptPackage: "cloudflared", KeyringPath: aptKeyringPath,
-		SourcePath: aptSourcePath, KeyURL: aptKeyURL,
-		SourceLine:  func(hostreqkit.Host) string { return aptSourceLine },
-		DownloadKey: KeyDownloadFn, BinaryKey: true,
-		AptDryRunNotes: []string{"dry-run: would configure the Cloudflare apt repository and install cloudflared"},
-		BrewDryRunNote: "dry-run: brew install", WingetDryRunNote: "dry-run: winget install",
-		UnsupportedApplyNote: "automatic cloudflared install unavailable on this host",
+func selectedArtifact(ctx context.Context) (resources.ManagedServiceArtifact, error) {
+	root, err := buildinfo.ResolveSourceRoot()
+	if err != nil {
+		return resources.ManagedServiceArtifact{}, err
 	}
-}
-
-func (h handler) Inspect(host hostreqkit.Host, requirement hostreqspec.ResolvedRequirement) hostreqkit.ItemStatus {
-	status := h.installer().Inspect(host, requirement)
-	if status.SupportClass == hostreqkit.SupportUnsupported && status.ExecutionState == hostreqkit.ExecutionUnsupported {
-		status.Notes = append(status.Notes, "automatic cloudflared install is implemented for apt-based Linux, Homebrew-managed macOS, and winget-managed Windows hosts")
+	home, err := hostreqkit.InvokingUserHomeDir()
+	if err != nil {
+		return resources.ManagedServiceArtifact{}, err
 	}
-	return status
+	return resources.NewController(root, home).InspectManagedServiceArtifact(ctx, "cloudflared")
 }
 
-func (h handler) Apply(host hostreqkit.Host, status hostreqkit.ItemStatus, opts hostreqkit.EnsureOptions) (hostreqkit.ItemStatus, error) {
-	return h.installer().ApplyWithNotes(host, status, opts)
+func newHandler(manifest hostreqkit.ToolManifest, inspect func(context.Context) (resources.ManagedServiceArtifact, error), run func(string, []string, hostreqkit.EnsureOptions) error) hostreqkit.Handler {
+	return hostreqkit.InstallerHandler{
+		Manifest: manifest, KindValue: hostreqspec.KindTool,
+		InspectFunc: func(host hostreqkit.Host, req hostreqspec.ResolvedRequirement) hostreqkit.ItemStatus {
+			status := hostreqkit.BaseStatus(req)
+			switch host.OS {
+			case "linux", "darwin", "macos", "windows":
+			default:
+				return hostreqkit.UnsupportedRequirementStatus(req, "cloudflared has no pinned artifact for this host")
+			}
+			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+			defer cancel()
+			info, err := inspect(ctx)
+			status.Version = info.Version
+			status.InstallSupported = info.Version != ""
+			if err != nil {
+				status.Notes = append(status.Notes, err.Error())
+				return status
+			}
+			status.Command, status.Installed, status.ExecutionState = info.Path, true, hostreqkit.ExecutionAlreadyPresent
+			return status
+		},
+		ApplyFunc: func(status hostreqkit.ItemStatus, opts hostreqkit.EnsureOptions) (hostreqkit.ItemStatus, error) {
+			if status, done := hostreqkit.ApplyStatus(status); done {
+				return status, nil
+			}
+			if status.Version == "" {
+				return status, fmt.Errorf("cloudflared pinned resource target could not be resolved; inspect its acquisition contract")
+			}
+			args := []string{"deps", "install", "source/cloudflared@" + status.Version, "--scenario", "cloudflared", "--surface", "host-tool", "--exact", "--json"}
+			if opts.DryRun {
+				status.ExecutionState = hostreqkit.ExecutionWouldInstall
+				status.Notes = append(status.Notes, "scenario-dependency-analyzer "+strings.Join(args, " "))
+				return status, nil
+			}
+			if err := run("scenario-dependency-analyzer", append(args, "--apply"), opts); err != nil {
+				return status, err
+			}
+			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+			defer cancel()
+			info, err := inspect(ctx)
+			if err != nil {
+				return status, err
+			}
+			status.Command, status.Version, status.Installed, status.ExecutionState = info.Path, info.Version, true, hostreqkit.ExecutionInstalled
+			return status, nil
+		},
+	}
 }

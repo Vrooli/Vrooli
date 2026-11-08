@@ -29,11 +29,12 @@ func TestPinnedArtifactMatchesManagedToolDeclaration(t *testing.T) {
 					OS   string `json:"os"`
 					Arch string `json:"arch"`
 				} `json:"when"`
-				URL     string `json:"url"`
-				SHA256  string `json:"sha256"`
-				Archive string `json:"archive"`
-				Layout  string `json:"layout"`
-				BinPath string `json:"bin_path"`
+				URL         string `json:"url"`
+				SHA256      string `json:"sha256"`
+				Archive     string `json:"archive"`
+				Layout      string `json:"layout"`
+				BinPath     string `json:"bin_path"`
+				Unsupported string `json:"unsupported"`
 			} `json:"targets"`
 		} `json:"acquisition"`
 	}
@@ -44,8 +45,24 @@ func TestPinnedArtifactMatchesManagedToolDeclaration(t *testing.T) {
 	if manifest.Name != ToolName || len(manifest.Commands) != 1 || manifest.Commands[0] != manifest.Name {
 		t.Fatalf("managed tool name/command differs from profile pin: %+v", manifest)
 	}
-	if len(manifest.VersionArg) != 1 || manifest.VersionArg[0] != "--version" || len(manifest.Acquisition.Targets) != 1 {
-		t.Fatalf("tool declaration is not one fixed version probe and one target: %+v", manifest)
+	if len(manifest.VersionArg) != 1 || manifest.VersionArg[0] != "--version" {
+		t.Fatalf("tool declaration is not one fixed version probe: %+v", manifest)
+	}
+	// The profile pins one inspected archive, so exactly one target may be
+	// downloadable; every other platform must be an explicit unsupported
+	// declaration rather than a second, uninspected artifact.
+	downloadable := 0
+	for _, candidate := range manifest.Acquisition.Targets {
+		if candidate.URL != "" {
+			downloadable++
+			continue
+		}
+		if strings.TrimSpace(candidate.Unsupported) == "" {
+			t.Fatalf("non-downloadable target has no unsupported reason: %+v", candidate)
+		}
+	}
+	if downloadable != 1 || manifest.Acquisition.Targets[0].URL == "" {
+		t.Fatalf("tool declaration must lead with exactly one downloadable target: %+v", manifest.Acquisition.Targets)
 	}
 	target := manifest.Acquisition.Targets[0]
 	if target.When.OS != "linux" || target.When.Arch != "amd64" || target.URL != artifact.ArchiveURL || target.SHA256 != artifact.ArchiveSHA256 || target.Archive != "tar.xz" || target.Layout != "dir" || target.BinPath != artifact.BinaryMember {

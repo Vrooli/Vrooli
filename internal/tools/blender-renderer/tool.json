@@ -19,12 +19,15 @@
         "layout": "dir",
         "bin_path": "blender-5.2.2-linux-x64/blender",
         "mode": "0755"
-      }
+      },
+      {"when": {"os": "linux", "arch": "arm64"}, "unsupported": "Blender publishes no official Linux arm64 build; the Blender 5.2 release directory has only blender-5.2.2-linux-x64.tar.xz for Linux."},
+      {"when": {"os": "darwin"}, "unsupported": "Blender ships macOS only as the arm64 .dmg disk image, and the pinned renderer profile verifies only the Linux amd64 tree."},
+      {"when": {"os": "windows"}, "unsupported": "Blender publishes Windows x64 and arm64 archives, but the pinned renderer profile verifies only the Linux amd64 tree."}
     ]
   },
   "platform_status": {
     "linux": {"status": "experimental", "evidence": "E3 official Blender 5.2.2 archive inspection; installed profile and render workflow remain unqualified"},
-    "macos": {"status": "unqualified", "evidence": null},
-    "windows": {"status": "unqualified", "evidence": null}
+    "macos": {"status": "unsupported", "evidence": "The pinned renderer profile (internal/tools/blender-renderer/profile.go) resolves only Linux amd64 and reports unsupported_platform elsewhere."},
+    "windows": {"status": "unsupported", "evidence": "The pinned renderer profile (internal/tools/blender-renderer/profile.go) resolves only Linux amd64 and reports unsupported_platform elsewhere."}
   }
 }

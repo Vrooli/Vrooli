@@ -19,12 +19,15 @@
         "layout": "dir",
         "bin_path": "ffmpeg-n9.0.2-28-g669f5ab083-linux64-gpl-9.0/bin/ffmpeg",
         "mode": "0755"
-      }
+      },
+      {"when": {"os": "linux", "arch": "arm64"}, "unsupported": "BtbN publishes linuxarm64 builds, but the pinned renderer profile has inspected only the Linux amd64 archive's tree, member digests, and probes."},
+      {"when": {"os": "darwin"}, "unsupported": "BtbN FFmpeg-Builds publishes no macOS builds."},
+      {"when": {"os": "windows"}, "unsupported": "BtbN publishes win64 and winarm64 archives, but the pinned renderer profile has inspected only the Linux amd64 archive."}
     ]
   },
   "platform_status": {
     "linux": {"status": "experimental", "evidence": "E2V BtbN archive inspection; execution and render workflow are not qualified"},
-    "macos": {"status": "unqualified", "evidence": null},
-    "windows": {"status": "unqualified", "evidence": null}
+    "macos": {"status": "unsupported", "evidence": "The pinned renderer profile (internal/tools/ffmpeg-video/profile.go) resolves only Linux amd64 and reports unsupported_platform elsewhere."},
+    "windows": {"status": "unsupported", "evidence": "The pinned renderer profile (internal/tools/ffmpeg-video/profile.go) resolves only Linux amd64 and reports unsupported_platform elsewhere."}
   }
 }

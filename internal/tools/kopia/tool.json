@@ -55,6 +55,23 @@
         "sha256": "19e6ed637221f4dfd46a46e978ec4c509c386b522d746db2cd6762b217478111",
         "archive": "tar.gz",
         "bin_path": "kopia-0.23.1-macOS-arm64/kopia"
+      },
+      {
+        "when": {
+          "os": "windows",
+          "arch": "amd64"
+        },
+        "url": "https://github.com/kopia/kopia/releases/download/v0.23.1/kopia-0.23.1-windows-x64.zip",
+        "sha256": "f0369d9657dbe47a1b8b6ff4e308c5958a4813b405d4e32ae9d81b3f2b3d8251",
+        "archive": "zip",
+        "bin_path": "kopia-0.23.1-windows-x64/kopia.exe"
+      },
+      {
+        "when": {
+          "os": "windows",
+          "arch": "arm64"
+        },
+        "unsupported": "Kopia v0.23.1 publishes no Windows arm64 release archive."
       }
     ]
   },

@@ -25,10 +25,12 @@
 package emergencywatchdog
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/vrooli/vrooli/internal/buildinfo"
 	"github.com/vrooli/vrooli/internal/config"
@@ -126,26 +128,12 @@ var homeDir = func() (string, error) {
 
 var resolveWatchdogRootFn = repocontract.ResolveRepoRoot
 
-// watchdogSourceInputs are the source trees whose content decides what the
-// watchdog reports. Their fingerprint is stamped into the binary at build
-// time and compared on every inspection, so a watchdog built before an
-// attribution or setpoint change is "stale", not "present". Extend the list
-// when the watchdog gains a dependency whose behavior it surfaces.
-var watchdogSourceInputs = []string{
-	"cmd/vrooli-watchdog",
-	"internal/hostpressure",
-	"internal/setpoint",
-	"internal/workloadowner",
-	"internal/hostinventory",
-	"packages/platform-go",
-}
-
 const watchdogVersionPrefix = "managed:"
 
 // expectedWatchdogVersion is the version string a binary built from this
 // checkout carries.
 func expectedWatchdogVersion(root string) (string, error) {
-	fingerprint, err := buildinfo.ComputeSourceFingerprintForPaths(root, watchdogSourceInputs...)
+	fingerprint, err := buildinfo.ComputeSourceFingerprintForPaths(root, buildinfo.FingerprintTargetsForExecutable("vrooli-watchdog")...)
 	if err != nil {
 		return "", fmt.Errorf("fingerprint watchdog sources: %w", err)
 	}
@@ -155,11 +143,7 @@ func expectedWatchdogVersion(root string) (string, error) {
 // installedWatchdogVersion asks the installed binary for its stamp; "" when
 // it cannot answer, which pendingState treats as stale.
 var installedWatchdogVersion = func(binary string) string {
-	out, err := hostreqkit.CombinedOutputFn(binary, "--version")
-	if err != nil {
-		return ""
-	}
-	return strings.TrimSpace(string(out))
+	return probeWatchdogVersion(binary)
 }
 
 var buildWatchdogFn = func(root, output string) error {
@@ -167,7 +151,15 @@ var buildWatchdogFn = func(root, output string) error {
 	if err != nil {
 		return err
 	}
-	if err := hostreqkit.RunAsInvokingUser("go", []string{"-C", root, "build", "-ldflags", "-X main.buildVersion=" + version, "-o", output, "./cmd/vrooli-watchdog"}, hostreqkit.EnsureOptions{}); err != nil {
+	runtimeHomeFlag, err := buildinfo.RuntimeHomeBuildFlag(root)
+	if err != nil {
+		return err
+	}
+	stateFlag, err := buildinfo.PersistentStateBuildFlag(root)
+	if err != nil {
+		return err
+	}
+	if err := hostreqkit.RunAsInvokingUser("go", []string{"-C", root, "build", "-ldflags", "-X main.buildVersion=" + version + " " + runtimeHomeFlag + " " + stateFlag, "-o", output, "./cmd/vrooli-watchdog"}, hostreqkit.EnsureOptions{}); err != nil {
 		return fmt.Errorf("build watchdog: %w", err)
 	}
 	return nil
@@ -213,7 +205,7 @@ func (h handler) Inspect(host hostreqkit.Host, requirement hostreqspec.ResolvedR
 	p := resolvePaths(home)
 	resolved := resolveSettings(requirement.Config)
 	if hostreqspec.PlatformFromGOOS(host.OS) != hostreqspec.PlatformLinux {
-		pending := nativePending(host.OS, p)
+		pending := append(watchdogBinaryPending(p), nativePending(host.OS, p)...)
 		if len(pending) == 0 {
 			status.Applied = true
 			status.ExecutionState = hostreqkit.ExecutionAlreadyPresent
@@ -239,17 +231,8 @@ func (h handler) Inspect(host hostreqkit.Host, requirement hostreqspec.ResolvedR
 }
 
 func pendingState(p paths, s settings) []string {
-	var pending []string
 	_ = s // thresholds are enforced by the standalone watchdog/setpoint.
-	if _, err := os.Stat(p.Binary); err != nil {
-		pending = append(pending, p.Binary+" missing")
-	} else if root, err := resolveWatchdogRootFn(); err == nil && strings.TrimSpace(root) != "" {
-		if want, err := expectedWatchdogVersion(root); err == nil {
-			if got := installedWatchdogVersion(p.Binary); got != want {
-				pending = append(pending, fmt.Sprintf("%s stale (built %q, source %q)", p.Binary, got, want))
-			}
-		}
-	}
+	pending := watchdogBinaryPending(p)
 	service, timer, err := renderedSystemdUnits(p)
 	if err != nil {
 		return append(pending, "render systemd units: "+err.Error())
@@ -262,6 +245,49 @@ func pendingState(p paths, s settings) []string {
 	}
 	if !timerEnabled() {
 		pending = append(pending, timerName+" not enabled")
+	}
+	if recovery, err := rootRecoveryArtifact(p); err != nil {
+		pending = append(pending, "render root recovery scheduler unavailable")
+	} else {
+		for _, file := range recovery.Files {
+			if !hostreqkit.FileContentMatches(filepath.Join(filepath.Dir(p.ServiceUnit), file.Name), file.Content) {
+				pending = append(pending, file.Name+" missing or stale")
+			}
+		}
+		unit, _ := platformgo.CoreUnitByID(platformgo.CoreUnitRootUpdateRecoveryTimer)
+		name, args := hostreqkit.InvokingUserCommand("systemctl", "--user", "is-enabled", unit.Systemd)
+		out, err := hostreqkit.CombinedOutputFn(name, args...)
+		if err != nil || strings.TrimSpace(string(out)) != "enabled" {
+			pending = append(pending, unit.Systemd+" not enabled")
+		}
+	}
+	return pending
+}
+
+func watchdogBinaryPending(p paths) []string {
+	var pending []string
+	receipt, receiptErr := readWatchdogUpdateReceipt(p)
+	if receiptErr != nil {
+		pending = append(pending, "watchdog executable publication receipt unavailable: "+receiptErr.Error())
+	} else if receipt != nil && (receipt.Phase == "publishing" || receipt.Phase == "restoring" || receipt.Phase == "failed_unrecovered") {
+		pending = append(pending, "watchdog executable publication remains "+receipt.Phase)
+	}
+	if info, err := os.Lstat(p.Binary); err != nil {
+		pending = append(pending, p.Binary+" missing")
+	} else if !info.Mode().IsRegular() {
+		pending = append(pending, "watchdog executable is not a regular file")
+	} else if root, err := resolveWatchdogRootFn(); err == nil && strings.TrimSpace(root) != "" {
+		if want, err := expectedWatchdogVersion(root); err == nil {
+			if got := installedWatchdogVersion(p.Binary); got != want {
+				pending = append(pending, fmt.Sprintf("%s stale (built %q, source %q)", p.Binary, got, want))
+			} else if !watchdogImageCurrent(p, want, receipt) {
+				pending = append(pending, "watchdog installed image differs from its publication receipt")
+			}
+		} else {
+			pending = append(pending, "watchdog source fingerprint unavailable")
+		}
+	} else {
+		pending = append(pending, "watchdog source root unavailable")
 	}
 	return pending
 }
@@ -302,30 +328,100 @@ func (h handler) Apply(host hostreqkit.Host, status hostreqkit.ItemStatus, opts 
 			fmt.Sprintf("dry-run: would build %s and install the native watchdog scheduler for %s", p.Binary, host.OS))
 		return status, nil
 	}
-	if err := buildAndInstallWatchdog(p); err != nil {
-		status.ExecutionState = hostreqkit.ExecutionFailed
-		status.Notes = append(status.Notes, "degraded: previous watchdog binary was preserved: "+err.Error())
-		return status, nil
-	}
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
+	defer cancel()
 	if hostreqspec.PlatformFromGOOS(host.OS) != hostreqspec.PlatformLinux {
+		release, err := AcquirePublicationLock(ctx, home)
+		if err != nil {
+			status.ExecutionState = hostreqkit.ExecutionFailed
+			status.Notes = append(status.Notes, "lock watchdog publication failed")
+			return status, nil
+		}
+		defer release()
+		if err := updateWatchdogBinaryLocked(ctx, p, watchdogSource{}); err != nil {
+			status.ExecutionState = hostreqkit.ExecutionFailed
+			status.Notes = append(status.Notes, "watchdog update did not qualify: "+err.Error())
+			return status, nil
+		}
 		return applyNative(host.OS, p, status, opts)
 	}
-
-	// Render once, ask systemd whether it would load the result, and only
-	// then touch the unit directory: a rejected render must never replace a
-	// working unit.
-	artifact, err := renderedArtifact("linux", p)
+	verdict, err := installLinux(ctx, p, watchdogSource{}, opts)
+	if verdict != nil {
+		recordVerdict(&status, *verdict)
+	}
 	if err != nil {
 		status.ExecutionState = hostreqkit.ExecutionFailed
-		status.Notes = append(status.Notes, "render systemd units: "+err.Error())
+		status.Notes = append(status.Notes, err.Error())
 		return status, nil
 	}
+	status.Applied = true
+	status.ExecutionState = hostreqkit.ExecutionApplied
+	status.Notes = append(status.Notes, "emergency watchdog installed and timer enabled")
+	return status, nil
+}
+
+// BuildImage compiles the watchdog from root into output with the governed
+// stamps, without publishing it. It refuses when the source changed during
+// the build, so the image's stamp describes exactly what was compiled. An
+// operator transition builds it up front to qualify it before any effect.
+func BuildImage(root, output string) error {
+	if !filepath.IsAbs(root) || filepath.Clean(root) != root || !filepath.IsAbs(output) {
+		return fmt.Errorf("watchdog build requires a canonical source root and an absolute output")
+	}
+	want, err := expectedWatchdogVersion(root)
+	if err != nil {
+		return err
+	}
+	if err := buildWatchdogFn(root, output); err != nil {
+		return err
+	}
+	if current, err := expectedWatchdogVersion(root); err != nil || current != want || installedWatchdogVersion(output) != want {
+		return fmt.Errorf("watchdog source changed during the build; rebuild when the checkout is quiet")
+	}
+	return nil
+}
+
+// PublishImage publishes exactly the watchdog image its caller built and
+// qualified, bound by digest, and converges its Linux user scheduler and
+// root-recovery definitions under the same receipts, canaries and
+// restoration as the safeguard's apply path. The live source tree is not
+// consulted. It is idempotent when that image is already current.
+func PublishImage(ctx context.Context, home, image, digest string) error {
+	if ctx == nil || strings.TrimSpace(home) == "" || !filepath.IsAbs(image) {
+		return fmt.Errorf("watchdog publication requires a context, the invoking user's home and an image")
+	}
+	if hostreqspec.CurrentPlatform() != string(hostreqspec.PlatformLinux) {
+		return fmt.Errorf("watchdog publication is supported only for the Linux user scheduler")
+	}
+	_, err := installLinux(ctx, resolvePaths(home), watchdogSource{prebuilt: image, digest: digest}, hostreqkit.EnsureOptions{})
+	return err
+}
+
+// installLinux publishes the qualified watchdog image and then writes and
+// enables its units under the shared publication lock. Render once, ask
+// systemd whether it would load the result, and only then touch the unit
+// directory: a rejected render must never replace a working unit.
+func installLinux(ctx context.Context, p paths, source watchdogSource, opts hostreqkit.EnsureOptions) (*platformgo.Verdict, error) {
+	release, err := AcquirePublicationLock(ctx, p.Home)
+	if err != nil {
+		return nil, fmt.Errorf("lock watchdog publication failed")
+	}
+	defer release()
+	if err := updateWatchdogBinaryLocked(ctx, p, source); err != nil {
+		return nil, fmt.Errorf("watchdog update did not qualify: %w", err)
+	}
+	artifact, err := renderedArtifact("linux", p)
+	if err != nil {
+		return nil, fmt.Errorf("render systemd units: %w", err)
+	}
+	recovery, err := rootRecoveryArtifact(p)
+	if err != nil {
+		return nil, fmt.Errorf("render root recovery scheduler unavailable")
+	}
+	artifact.Files = append(artifact.Files, recovery.Files...)
 	verdict := platformgo.ValidateArtifact(artifact, platformgo.ScopeUser)
-	recordVerdict(&status, verdict)
 	if verdict.Rejected() {
-		status.ExecutionState = hostreqkit.ExecutionFailed
-		status.Notes = append(status.Notes, "systemd rejected the rendered emergency watchdog units; nothing was installed: "+verdict.Output)
-		return status, nil
+		return &verdict, fmt.Errorf("systemd rejected the rendered emergency watchdog units; no scheduler definitions were installed (executable publication has a separate receipt): %s", verdict.Output)
 	}
 	service, _ := artifact.File(serviceName)
 	timer, _ := artifact.File(timerName)
@@ -340,30 +436,34 @@ func (h handler) Apply(host hostreqkit.Host, status hostreqkit.ItemStatus, opts 
 		{"systemd service", p.ServiceUnit, service.Content},
 		{"systemd timer", p.TimerUnit, timer.Content},
 	}
+	for _, file := range recovery.Files {
+		writes = append(writes, struct{ name, path, content string }{"root recovery scheduler", filepath.Join(filepath.Dir(p.ServiceUnit), file.Name), file.Content})
+	}
 	for _, w := range writes {
 		if err := installUserFile(w.path, w.content, opts); err != nil {
-			status.ExecutionState = hostreqkit.ExecutionFailed
-			status.Notes = append(status.Notes, "install "+w.name+" failed: "+err.Error())
-			return status, nil
+			return &verdict, fmt.Errorf("install %s failed: %w", w.name, err)
 		}
 	}
-
+	recoveryTimer, _ := platformgo.CoreUnitByID(platformgo.CoreUnitRootUpdateRecoveryTimer)
 	for _, args := range [][]string{
 		{"--user", "daemon-reload"},
 		{"--user", "enable", "--now", timerName},
+		{"--user", "enable", "--now", recoveryTimer.Systemd},
 	} {
 		name, commandArgs := hostreqkit.InvokingUserCommand("systemctl", args...)
 		if _, err := hostreqkit.CombinedOutputFn(name, commandArgs...); err != nil {
-			status.ExecutionState = hostreqkit.ExecutionFailed
-			status.Notes = append(status.Notes, "systemctl "+strings.Join(args, " ")+" failed: "+err.Error())
-			return status, nil
+			return &verdict, fmt.Errorf("systemctl %s failed: %w", strings.Join(args, " "), err)
 		}
 	}
+	return &verdict, nil
+}
 
-	status.Applied = true
-	status.ExecutionState = hostreqkit.ExecutionApplied
-	status.Notes = append(status.Notes, "emergency watchdog installed and timer enabled")
-	return status, nil
+func rootRecoveryArtifact(p paths) (platformgo.RenderedArtifact, error) {
+	d, err := platformgo.RootUpdateRecoveryDefinition("linux", p.Home, p.Binary)
+	if err != nil {
+		return platformgo.RenderedArtifact{}, err
+	}
+	return platformgo.RenderDefinition(d, "linux")
 }
 
 // definition builds the watchdog's one ServiceDefinition for a target. The
@@ -424,37 +524,7 @@ func recordVerdict(status *hostreqkit.ItemStatus, verdict platformgo.Verdict) {
 }
 
 func buildAndInstallWatchdog(p paths) error {
-	root, err := resolveWatchdogRootFn()
-	if err != nil {
-		return fmt.Errorf("resolve Vrooli source root: %w", err)
-	}
-	if strings.TrimSpace(root) == "" {
-		return fmt.Errorf("Vrooli source root is empty")
-	}
-	// scenario-to-cloud may deliver a verified release-built watchdog before
-	// setup runs. Reuse it when it already matches this checkout; compiling the
-	// full root workspace on a small VPS can otherwise exhaust its memory.
-	if want, versionErr := expectedWatchdogVersion(root); versionErr == nil {
-		if got := installedWatchdogVersion(p.Binary); got == want {
-			return nil
-		}
-	}
-	if err := hostreqkit.RunAsInvokingUser("mkdir", []string{"-p", filepath.Dir(p.Binary)}, hostreqkit.EnsureOptions{}); err != nil {
-		return fmt.Errorf("create watchdog install directory: %w", err)
-	}
-	tmp := p.Binary + fmt.Sprintf(".%d.tmp", os.Getpid())
-	defer os.Remove(tmp)
-	if err := buildWatchdogFn(root, tmp); err != nil {
-		return err
-	}
-	data, err := os.ReadFile(tmp)
-	if err != nil {
-		return fmt.Errorf("read built watchdog: %w", err)
-	}
-	if err := config.WriteOwnedFileAtomic(p.Binary, data, tuning.PermDir); err != nil {
-		return fmt.Errorf("install watchdog atomically: %w", err)
-	}
-	return nil
+	return updateWatchdogBinary(p)
 }
 
 func installUserFile(path, content string, opts hostreqkit.EnsureOptions) error {
