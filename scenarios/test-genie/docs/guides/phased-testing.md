@@ -65,9 +65,9 @@ Each provider-backed phase is declared by `scenarios/<provider>/.vrooli/test-gen
 Operators can inspect the effective descriptor projection without reading code:
 
 ```bash
-test-genie phases inspect <phase> --json
-test-genie phases applicability <scenario> --phase <phase> --json
-test-genie phases plan <scenario> --preset comprehensive --json
+test-genie phases inspect "unit" --json
+test-genie phases applicability "test-genie" --phase "unit" --json
+test-genie phases plan "test-genie" --preset comprehensive --json
 test-genie provider-contract scan --json
 ```
 
@@ -223,7 +223,7 @@ See [Docs Phase](../phases/docs/README.md) for configuration options.
 - Warning: < 80%
 - Error: < 70%
 
-See [Scenario Unit Testing](../phases/unit/scenario-unit-testing.md) for writing effective unit tests.
+See the [Test Authoring Guide](/docs/testing/UNIT-TEST-AUTHORING.md) for writing effective unit tests.
 
 ### Phase 6: Integration Tests
 
@@ -437,14 +437,15 @@ Before considering a scenario test-ready:
 - [Phases Overview](../phases/README.md) - Complete phase reference with mermaid diagrams
 - [Structure Phase](../phases/structure/README.md) - File and CLI validation
 - [Unit Phase](../phases/unit/README.md) - Test runners and coverage
-- [Integration Phase](../phases/integration/README.md) - CLI and API testing
+- [API Phase](../phases/api/README.md) - API readiness and route contracts
+- [CLI Manifest Contract](../phases/structure/cli-approaches.md) - Scenario CLI declaration and adapter validation
 - [Workflow Phase](../phases/workflow/README.md) - BAS browser automation
 - [Business Phase](../phases/business/README.md) - Requirements validation
 - [Performance Phase](../phases/performance/README.md) - Build benchmarks and Lighthouse
 
 ### Related Guides
 - [Requirements Sync](../phases/business/requirements-sync.md) - Automatic requirement tracking
-- [Scenario Unit Testing](../phases/unit/scenario-unit-testing.md) - Writing effective unit tests
+- [Test Authoring Guide](/docs/testing/UNIT-TEST-AUTHORING.md) - Writing effective unit tests
 - [Performance Testing](../phases/performance/performance-testing.md) - Build benchmarks and Lighthouse audits
 - [Custom Presets](custom-presets.md) - Create tailored presets for CI/CD
 - [Dashboard Guide](dashboard-guide.md) - Using the web UI
@@ -455,7 +456,7 @@ Before considering a scenario test-ready:
 ### Reference
 - [Presets](../reference/presets.md) - Preset configurations
 - [API Endpoints](../reference/api-endpoints.md) - REST API reference
-- [Test Runners](../phases/unit/test-runners.md) - Language-specific runners
+- [Testing Guide](/docs/TESTING.md) - Scenario and package test commands
 
 ### Concepts
 - [Architecture](../concepts/architecture.md) - Go orchestrator design

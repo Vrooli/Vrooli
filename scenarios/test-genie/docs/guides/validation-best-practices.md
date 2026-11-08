@@ -351,4 +351,4 @@ Fix warnings before marking requirements as complete!
 - [Gaming Prevention Reference](../reference/gaming-prevention.md) - How gaming is detected
 - [Phased Testing](phased-testing.md) - Test phase orchestration
 - [Workflow Phase](../phases/workflow/README.md) - E2E automation guide
-- [Scenario Unit Testing](../phases/unit/scenario-unit-testing.md) - Writing quality tests
+- [Test Authoring Guide](/docs/testing/UNIT-TEST-AUTHORING.md) - Writing quality tests

@@ -27,7 +27,7 @@ func getRunFindingsCall(apiClient *cliutil.APIClient) func(cliapp.OperationConte
 			runID = "latest"
 		}
 		resp, err := cl.GetRunFindings(context.Background(), connect.NewRequest(&runspb.GetRunFindingsRequest{
-			Target: ctx.Flag("scenario"),
+			Target: ctx.Positional("scenario"),
 			RunId:  runID,
 		}))
 		if err != nil {
@@ -48,7 +48,7 @@ func getRunFindingsReport(_ cliapp.OperationContext, msg *runspb.GetRunFindingsR
 	var results []string
 	var hints []string
 	if msg.GetTarget() != "" && msg.GetRunId() != "" {
-		hints = append(hints, fmt.Sprintf("test-genie runs artifacts --scenario %q %q --kinds findings.report", msg.GetTarget(), msg.GetRunId()))
+		hints = append(hints, fmt.Sprintf("test-genie runs artifacts %q %q --kinds findings.report", msg.GetTarget(), msg.GetRunId()))
 		summary = append(summary, "This is a phase summary, not proof of executed passing tests. The findings artifact retains original provider evidence when supplied; missing historical native evidence remains unknown.")
 	}
 	seenHint := map[string]bool{}

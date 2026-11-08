@@ -128,7 +128,7 @@ The docs phase performs 6 validation checks:
 | Link integrity | Local paths must exist; external URLs HTTP-checked | Enabled |
 | Absolute paths | Reject OS-rooted paths unless allowlisted | Enabled |
 | **Bidirectional refs** | Validate `[CODE: ...]` in docs and `// DOC:` in code | Enabled (warn) |
-| **Marked refs** | Validate required `path:...` and `doc:...` inline refs | Enabled (warn) |
+| **Marked refs** | Validate required `path:` and `doc:` inline refs | Enabled (warn) |
 | **Manifest coverage** | Track docs registered in `docs/manifest.json` | Disabled |
 
 ## Bidirectional Reference Validation
@@ -158,8 +158,8 @@ Marked inline references use the project-level syntax from `docs/reference/machi
 
 | Syntax | Behavior |
 |--------|----------|
-| `` `path:src/main.go` `` | Target file or directory must exist |
-| `` `doc:docs/guide.md#section` `` | Target `.md` / `.mdx` file must exist |
+| `` `path[example]:src/main.go` `` | Example path syntax; existence is not required |
+| `` `doc[example]:docs/guide.md#section` `` | Example doc syntax; existence is not required |
 | `` `path[example]:missing.go` `` | Parsed and counted, but current existence is not required |
 | `` `topic:team/foo` `` | Parsed and skipped by Test Genie; prompt-manager owns topic validation |
 

@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 
@@ -31,11 +30,33 @@ type Manager interface {
 
 // FileManager manages seed scripts from the filesystem.
 type FileManager struct {
-	scenarioDir   string
-	appRoot       string
-	testDir       string
-	logWriter     io.Writer
-	targetAPIBase string
+	scenarioDir      string
+	appRoot          string
+	testDir          string
+	logWriter        io.Writer
+	targetAPIBase    string
+	isolationEnv     envkit.Env
+	operationChanged func(*OperationRecord) error
+	operationRoot    string
+}
+
+func (m *FileManager) WithOperationRoot(dir string) *FileManager { m.operationRoot = dir; return m }
+
+// WithOperationRecorder transfers the pre-dispatch native identity to the
+// durable seed owner. Failure to record refuses launch.
+func (m *FileManager) WithOperationRecorder(record func(*OperationRecord) error) *FileManager {
+	m.operationChanged = record
+	return m
+}
+
+// WithIsolationEnv binds the owner's per-run storage environment to the child
+// process. It never changes the serving Test Genie process's environment.
+func (m *FileManager) WithIsolationEnv(values map[string]string) *FileManager {
+	m.isolationEnv = make(envkit.Env, 0, len(values))
+	for key, value := range values {
+		m.isolationEnv = append(m.isolationEnv, key+"="+value)
+	}
+	return m
 }
 
 // WithTargetAPIBase binds the seed to the API of the instance under test.
@@ -87,19 +108,15 @@ func (m *FileManager) Apply(ctx context.Context) (func(), error) {
 
 // runScript executes a seed script with the appropriate environment.
 func (m *FileManager) runScript(ctx context.Context, command string, args ...string) error {
-	cmd := exec.CommandContext(ctx, command, args...)
-	cmd.Dir = m.scenarioDir
-	cmd.Env = envkit.WithOverlay(envkit.Env(os.Environ()), envkit.SameScenario, envkit.Env{
+	base := envkit.WithOverlay(envkit.Env(os.Environ()), envkit.SameScenario, m.isolationEnv)
+	env := envkit.WithOverlay(base, envkit.SameScenario, envkit.Env{
 		fmt.Sprintf("TEST_GENIE_SCENARIO_DIR=%s", m.scenarioDir),
 		fmt.Sprintf("TEST_GENIE_REPO_ROOT=%s", m.appRoot),
 		fmt.Sprintf("VROOLI_ROOT=%s", m.appRoot),
 		fmt.Sprintf("TEST_GENIE_TARGET_API_BASE=%s", m.targetAPIBase),
 		"TEST_GENIE_SEEDS=1",
 	})
-	cmd.Stdout = m.logWriter
-	cmd.Stderr = m.logWriter
-
-	if err := cmd.Run(); err != nil {
+	if err := m.runOwnedScript(ctx, command, args, env); err != nil {
 		return fmt.Errorf("seed command %s %s failed: %w", command, strings.Join(args, " "), err)
 	}
 	return nil

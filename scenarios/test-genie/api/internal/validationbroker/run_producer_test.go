@@ -171,13 +171,13 @@ func (r *abortRaceRuns) Wait(context.Context, string, string) (runmanager.LiveSt
 	return runmanager.LiveStatus{Status: sharedruns.StatusAborted}, nil
 }
 
-func (r *abortRaceRuns) Abort(string, string) (runmanager.LiveStatus, error) {
+func (r *abortRaceRuns) Abort(context.Context, string, string) (runmanager.LiveStatus, error) {
 	r.once.Do(func() { close(r.done) })
 	return runmanager.LiveStatus{Status: sharedruns.StatusAborted}, nil
 }
 
-func (r *abortRaceRuns) AbortEvidenceProducer(options runmanager.StartOptions) (runmanager.LiveStatus, error) {
-	return r.Abort(options.Input.Request.ScenarioName, options.Input.Request.RunID)
+func (r *abortRaceRuns) AbortEvidenceProducer(ctx context.Context, options runmanager.StartOptions) (runmanager.LiveStatus, error) {
+	return r.Abort(ctx, options.Input.Request.ScenarioName, options.Input.Request.RunID)
 }
 
 func (r *sequenceIdentityResolver) Resolve(context.Context, *validationv1.ValidationIntent) (*validationv1.SourceIdentity, error) {
@@ -406,7 +406,7 @@ func (f *fakeSuiteRuns) Wait(ctx context.Context, scenario, runID string) (runma
 	return status, f.waitErr
 }
 
-func (f *fakeSuiteRuns) Abort(scenario, runID string) (runmanager.LiveStatus, error) {
+func (f *fakeSuiteRuns) Abort(_ context.Context, scenario, runID string) (runmanager.LiveStatus, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.aborts = append(f.aborts, scenario+":"+runID)
@@ -417,7 +417,7 @@ func (f *fakeSuiteRuns) Abort(scenario, runID string) (runmanager.LiveStatus, er
 	return runmanager.LiveStatus{Status: status}, f.abortErr
 }
 
-func (f *fakeSuiteRuns) AbortEvidenceProducer(options runmanager.StartOptions) (runmanager.LiveStatus, error) {
+func (f *fakeSuiteRuns) AbortEvidenceProducer(ctx context.Context, options runmanager.StartOptions) (runmanager.LiveStatus, error) {
 	f.mu.Lock()
 	f.evidenceAborts = append(f.evidenceAborts, options)
 	status, abortErr := f.evidenceAbortStatus, f.evidenceAbortErr
@@ -428,7 +428,7 @@ func (f *fakeSuiteRuns) AbortEvidenceProducer(options runmanager.StartOptions) (
 	if status != "" {
 		return runmanager.LiveStatus{RunID: options.Input.Request.RunID, Scenario: options.Input.Request.ScenarioName, Status: status}, nil
 	}
-	return f.Abort(options.Input.Request.ScenarioName, options.Input.Request.RunID)
+	return f.Abort(ctx, options.Input.Request.ScenarioName, options.Input.Request.RunID)
 }
 
 func TestCancellationDoesNotSettleUnconfirmedChild(t *testing.T) {

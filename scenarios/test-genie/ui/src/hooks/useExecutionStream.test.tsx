@@ -211,9 +211,13 @@ describe("useExecutionStream", () => {
   });
 
   it("reports premature EOF instead of treating an incomplete stream as a completed run", async () => {
-    fetchMock.mockResolvedValue(chunkedSSE([
-      { event: "progress", data: { message: "still running" } },
-    ]));
+    let requestSignal: AbortSignal | undefined;
+    fetchMock.mockImplementation((_request, init) => {
+      requestSignal = init?.signal ?? undefined;
+      return Promise.resolve(chunkedSSE([
+        { event: "progress", data: { message: "still running" } },
+      ]));
+    });
     const onComplete = vi.fn();
     renderWithQueryClient(<StreamProbe onComplete={onComplete} />);
 
@@ -221,7 +225,23 @@ describe("useExecutionStream", () => {
 
     await waitFor(() => expect(screen.getByTestId("error")).toHaveTextContent("Stream ended before completion event"));
     expect(screen.getByTestId("status")).toHaveTextContent("error");
+    expect(requestSignal?.aborted).toBe(true);
     expect(onComplete).not.toHaveBeenCalled();
+  });
+
+  it("aborts the request controller when the server rejects the stream", async () => {
+    let requestSignal: AbortSignal | undefined;
+    fetchMock.mockImplementation((_request, init) => {
+      requestSignal = init?.signal ?? undefined;
+      return Promise.resolve(new Response("unavailable", { status: 503 }));
+    });
+    renderWithQueryClient(<StreamProbe />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Start" }));
+
+    await waitFor(() => expect(screen.getByTestId("status")).toHaveTextContent("error"));
+    expect(screen.getByTestId("error")).toHaveTextContent("Request failed with status 503");
+    expect(requestSignal?.aborted).toBe(true);
   });
 
   it("aborts the active request when reset is selected", async () => {

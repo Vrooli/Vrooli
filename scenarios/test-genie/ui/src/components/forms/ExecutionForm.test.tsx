@@ -140,4 +140,125 @@ describe("ExecutionForm", () => {
     ));
     await waitFor(() => expect(screen.getByText("Tests completed in 1.0 min")).toBeInTheDocument());
   });
+
+  it("refreshes the descriptor-backed preview for the selected target and passes it to the run", async () => {
+    const user = userEvent.setup();
+    const planInputs: Array<Record<string, unknown>> = [];
+    fetchMock.mockImplementation(async (url: RequestInfo | URL, init?: RequestInit) => {
+      const requestUrl = String(url);
+      if (requestUrl.includes("/executions/plan")) {
+        const input = JSON.parse(String(init?.body ?? "{}")) as Record<string, unknown>;
+        planInputs.push(input);
+        const phaseName = input.preset === "smoke" ? "contracts" : "unit";
+        return new Response(JSON.stringify({
+          scenarioName: input.scenarioName,
+          presetUsed: input.preset,
+          phases: [{
+            name: phaseName,
+            description: `${String(input.preset)} phase plan`,
+            optional: false,
+            estimatedDurationSeconds: 61,
+            timeoutSeconds: 120,
+            estimateSource: "scenario_history",
+            estimateConfidence: "high",
+            estimateSampleSize: 2,
+          }],
+          summary: { phaseCount: 1, estimatedDurationSeconds: 61, timeoutSeconds: 120 },
+          warnings: [],
+        }), { status: 200, headers: { "Content-Type": "application/json" } });
+      }
+      if (requestUrl.includes("/executions/stream")) {
+        return new Response(
+          `event: complete\ndata: ${JSON.stringify({
+            success: true,
+            presetUsed: "smoke",
+            phases: [],
+            phaseSummary: { total: 0, passed: 0, failed: 0, durationSeconds: 5, observationCount: 0 },
+            startedAt: "2026-10-20T10:00:00Z",
+            completedAt: "2026-10-20T10:00:05Z",
+          })}\n\n`,
+          { status: 200, headers: { "Content-Type": "text/event-stream" } },
+        );
+      }
+      throw new Error(`Unexpected Test Genie UI request: ${init?.method ?? "GET"} ${requestUrl}`);
+    });
+
+    renderExecutionForm();
+    await user.type(screen.getByPlaceholderText("scenario-under-test or package:api-core"), " package:api-core ");
+
+    await waitFor(() => expect(screen.getByText("quick phase plan")).toBeInTheDocument());
+    expect(planInputs[planInputs.length - 1]).toMatchObject({
+      scenarioName: "package:api-core",
+      target: "package:api-core",
+      preset: "quick",
+      failFast: true,
+    });
+
+    await user.click(screen.getByRole("button", { name: /Smoke/ }));
+    await waitFor(() => expect(screen.getByText("smoke phase plan")).toBeInTheDocument());
+    expect(planInputs[planInputs.length - 1]).toMatchObject({
+      scenarioName: "package:api-core",
+      target: "package:api-core",
+      preset: "smoke",
+      failFast: true,
+    });
+
+    await user.click(screen.getByRole("checkbox", { name: "Stop on first failed phase" }));
+    await waitFor(() => expect(planInputs[planInputs.length - 1]).toMatchObject({
+      preset: "smoke",
+      failFast: false,
+    }));
+
+    await user.click(screen.getByRole("button", { name: "Run tests" }));
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledWith(
+      expect.stringContaining("/executions/stream"),
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({
+          scenarioName: "package:api-core",
+          target: "package:api-core",
+          preset: "smoke",
+          failFast: false,
+        }),
+      }),
+    ));
+    await waitFor(() => expect(screen.getByText("Tests completed in 0.1 min")).toBeInTheDocument());
+  });
+
+  it("shows a planner error without blocking a test run", async () => {
+    const user = userEvent.setup();
+    fetchMock.mockImplementation(async (url: RequestInfo | URL) => {
+      const requestUrl = String(url);
+      if (requestUrl.includes("/executions/plan")) {
+        return new Response(JSON.stringify({ error: "planner unavailable" }), {
+          status: 503,
+          headers: { "Content-Type": "application/json" },
+        });
+      }
+      if (requestUrl.includes("/executions/stream")) {
+        return new Response(
+          `event: complete\ndata: ${JSON.stringify({
+            success: true,
+            phases: [],
+            phaseSummary: { total: 0, passed: 0, failed: 0, durationSeconds: 0, observationCount: 0 },
+          })}\n\n`,
+          { status: 200, headers: { "Content-Type": "text/event-stream" } },
+        );
+      }
+      throw new Error(`Unexpected Test Genie UI request: ${requestUrl}`);
+    });
+
+    renderExecutionForm({ scenarioName: "demo" });
+    expect(await screen.findByText("Unable to load execution timing right now: planner unavailable")).toBeInTheDocument();
+
+    const runButton = screen.getByRole("button", { name: "Run tests" });
+    expect(runButton).toBeEnabled();
+    await user.click(runButton);
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledWith(
+      expect.stringContaining("/executions/stream"),
+      expect.objectContaining({ method: "POST" }),
+    ));
+    await waitFor(() => expect(screen.getByText("Tests completed in 0.0 min")).toBeInTheDocument());
+  });
 });

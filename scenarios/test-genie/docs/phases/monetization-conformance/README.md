@@ -46,6 +46,6 @@ Persist Class B reports in a durable outbox before attempting delivery.
 ## How to verify
 
 ```bash
-test-genie phases inspect monetization-conformance --json
+test-genie phases inspect "monetization-conformance" --json
 test-genie execute browser-automation-studio --phases monetization-conformance
 ```

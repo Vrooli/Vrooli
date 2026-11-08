@@ -66,11 +66,7 @@ func cloneRetainedEvidenceSets(sets []*scenariovalidationv1.RetainedEvidenceSet)
 }
 
 var (
-	defaultPhaseTimeout = phases.DefaultTimeout
-	// defaultExecutionPresets is sourced from the canonical phases catalog so
-	// preset composition has a single source of truth; ValidatePresets guards
-	// it against drift at orchestrator construction.
-	defaultExecutionPresets  = phases.DefaultPresets()
+	defaultPhaseTimeout      = phases.DefaultTimeout
 	defaultPhaseSortFallback = 1000
 )
 
@@ -2553,7 +2549,10 @@ func (o *SuiteOrchestrator) loadPresets(testDir string, cfg *workspacepkg.Config
 		configOverrides = cfg.Presets
 	}
 
-	return phases.MergePresets(defaultExecutionPresets, fileOverrides, configOverrides, allowed)
+	// Resolve repository-backed defaults only for ordinary orchestration. A
+	// retained native worker must reach its early entry without loading the API
+	// catalog during package initialization (including in -trimpath builds).
+	return phases.MergePresets(phases.DefaultPresets(), fileOverrides, configOverrides, allowed)
 }
 
 // DescribePhases exposes catalog phase descriptors for HTTP clients.

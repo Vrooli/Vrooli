@@ -13,6 +13,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -29,6 +30,8 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/vrooli/api-core/database"
 	apihealth "github.com/vrooli/api-core/health"
+	apilifecycle "github.com/vrooli/api-core/lifecycle"
+	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 	_ "modernc.org/sqlite"
 )
 
@@ -696,4 +699,130 @@ func (s *stubSuiteExecutor) Execute(ctx context.Context, input execution.SuiteEx
 func (s *stubSuiteExecutor) ExecuteWithEvents(ctx context.Context, input execution.SuiteExecutionInput, emit orchestrator.ExecutionEventCallback) (*orchestrator.SuiteExecutionResult, error) {
 	s.input = input
 	return s.result, s.err
+}
+
+type detachedLifecycleExecutor struct {
+	started chan context.Context
+	release chan struct{}
+}
+
+func (e *detachedLifecycleExecutor) ExecuteWithEvents(ctx context.Context, input execution.SuiteExecutionInput, _ orchestrator.ExecutionEventCallback) (*orchestrator.SuiteExecutionResult, error) {
+	e.started <- ctx
+	select {
+	case <-e.release:
+		return &orchestrator.SuiteExecutionResult{RunID: input.Request.RunID, ScenarioName: input.Request.ScenarioName, Success: true, Verdict: "PASS", CompletedAt: time.Now()}, nil
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	}
+}
+func TestLifecycleHooksDrainDetachedSuiteWithoutCancellationAndResume(t *testing.T) {
+	executor := &detachedLifecycleExecutor{started: make(chan context.Context, 2), release: make(chan struct{})}
+	manager := runmanager.New(executor, t.TempDir())
+	defer func() {
+		select {
+		case <-executor.release:
+		default:
+			close(executor.release)
+		}
+		manager.Shutdown()
+	}()
+	request, cancelRequest := context.WithCancel(t.Context())
+	run, err := manager.Start(runmanager.StartOptions{Input: execution.SuiteExecutionInput{Request: orchestrator.SuiteExecutionRequest{ScenarioName: "detached"}}, Initiator: request})
+	if err != nil {
+		t.Fatal(err)
+	}
+	runCtx := <-executor.started
+	cancelRequest()
+	server := &Server{runManager: manager}
+	hooks := server.lifecycleHooks()
+	quiesced := make(chan struct{})
+	original := hooks.Quiesce
+	hooks.Quiesce = func(ctx context.Context) error { err := original(ctx); close(quiesced); return err }
+	provider, err := apilifecycle.NewProvider("test-genie", "private-instance", hooks)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var appCalls atomic.Int32
+	api := httptest.NewServer(provider.Mount(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { appCalls.Add(1); w.WriteHeader(http.StatusOK) })))
+	defer api.Close()
+	client, err := apilifecycle.NewClient(&http.Client{Timeout: 2 * time.Second}, api.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	prepared, err := client.Prepare(t.Context(), &commonv1.LifecyclePrepareRequest{OperationId: "private-replacement", Reason: "noncanceling lifecycle regression"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	fence := prepared.GetStanding()
+	if !fence.GetInventoryComplete() || fence.GetAdmitting() != 0 || fence.GetRemaining() != 1 || len(fence.GetWork()) != 1 || fence.GetWork()[0].GetId() != "detached/"+run.RunID || fence.GetDrained() {
+		t.Fatal("HTTP-idle provider falsely drained detached suite", fence)
+	}
+	response, err := http.Get(api.URL + "/work")
+	if err != nil {
+		t.Fatal(err)
+	}
+	response.Body.Close()
+	if response.StatusCode != 503 || appCalls.Load() != 0 {
+		t.Fatal("Prepare did not close ordinary ingress")
+	}
+	drainCtx, cancelDrain := context.WithTimeout(t.Context(), 150*time.Millisecond)
+	defer cancelDrain()
+	drained := make(chan error, 1)
+	go func() {
+		_, err := client.Drain(drainCtx, &commonv1.LifecycleDrainRequest{OperationId: fence.GetOperationId(), FenceToken: fence.GetFenceToken(), Revision: fence.GetRevision(), QuiesceComponents: true})
+		drained <- err
+	}()
+	select {
+	case <-quiesced:
+	case <-time.After(time.Second):
+		t.Fatal("canonical Drain did not close owner admission")
+	}
+	if _, err := manager.Start(runmanager.StartOptions{Input: execution.SuiteExecutionInput{Request: orchestrator.SuiteExecutionRequest{ScenarioName: "late"}}}); !errors.Is(err, runmanager.ErrLifecycleAdmissionClosed) {
+		t.Fatal("post-fence nonrequest suite admission remained open", err)
+	}
+	if err := <-drained; err == nil {
+		t.Fatal("Drain completed while detached suite was still executing")
+	}
+	if runCtx.Err() != nil {
+		t.Fatal("drain deadline canceled foreign admitted work", runCtx.Err())
+	}
+	status, err := client.Status(t.Context(), &commonv1.LifecycleStatusRequest{})
+	if err != nil || status.GetStanding().GetRemaining() != 1 || status.GetStanding().GetDrained() {
+		t.Fatal("post-deadline status lost exact remaining work", status, err)
+	}
+	close(executor.release)
+	waitCtx, cancelWait := context.WithTimeout(t.Context(), 3*time.Second)
+	defer cancelWait()
+	if _, err := manager.Wait(waitCtx, "detached", run.RunID); err != nil {
+		t.Fatal(err)
+	}
+	complete, err := client.Drain(t.Context(), &commonv1.LifecycleDrainRequest{OperationId: fence.GetOperationId(), FenceToken: fence.GetFenceToken(), Revision: fence.GetRevision()})
+	if err != nil || !complete.GetStanding().GetDrained() || complete.GetStanding().GetRemaining() != 0 || !complete.GetStanding().GetInventoryComplete() {
+		t.Fatal("natural completion did not satisfy exact retained fence", complete, err)
+	}
+	if _, err := client.Resume(t.Context(), &commonv1.LifecycleResumeRequest{OperationId: fence.GetOperationId(), FenceToken: fence.GetFenceToken(), Revision: fence.GetRevision()}); err != nil {
+		t.Fatal(err)
+	}
+	next, err := manager.Start(runmanager.StartOptions{Input: execution.SuiteExecutionInput{Request: orchestrator.SuiteExecutionRequest{ScenarioName: "independent"}}})
+	if err != nil || next.RunID == run.RunID {
+		t.Fatal("Resume did not permit independent work", err)
+	}
+	if _, err := manager.Wait(waitCtx, "independent", next.RunID); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestLifecycleHooksKeepDurableSeedsDistinctAndMissingManagerUnknown(t *testing.T) {
+	hooks := (&Server{}).lifecycleHooks()
+	inv, err := hooks.Snapshot(t.Context())
+	if err == nil || inv.Complete || inv.Remaining != -1 {
+		t.Fatal("missing run owner implied complete empty inventory", inv, err)
+	}
+	manager := runmanager.New(&stubSuiteExecutor{}, t.TempDir())
+	defer manager.Shutdown()
+	server := &Server{runManager: manager, seedSessions: map[string]*seedSession{"private-seed-owner": {Scenario: "target"}}}
+	inv, err = server.lifecycleHooks().Snapshot(t.Context())
+	if err != nil || !inv.Complete || inv.Remaining != 0 {
+		t.Fatal("durable seed recovery was conflated with nondurable suite work", inv, err)
+	}
 }

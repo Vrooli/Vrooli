@@ -84,7 +84,7 @@ When the target is `test-genie` itself, the live contract probe is skipped: prob
 ## Inspection
 
 ```bash
-test-genie phases applicability <scenario> --phase provider-conformance --json
-test-genie phases plan <scenario> --preset comprehensive --json
+test-genie phases applicability "test-genie" --phase provider-conformance --json
+test-genie phases plan "test-genie" --preset comprehensive --json
 test-genie provider-contract check provider-conformance <scenario> --json
 ```

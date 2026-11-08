@@ -229,4 +229,4 @@ orchestrator/
 
 - [Phases README](phases/README.md) — Phase catalog & implementations
 - [API README](../../README.md) — HTTP layer & endpoints
-- [Execution README](../execution/README.md) — State persistence
+- [Execution repository](../execution/repository.go) — State persistence

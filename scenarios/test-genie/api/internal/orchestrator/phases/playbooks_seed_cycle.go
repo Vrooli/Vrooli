@@ -3,6 +3,7 @@ package phases
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -10,6 +11,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	"connectrpc.com/connect"
@@ -24,21 +26,32 @@ import (
 	"github.com/vrooli/api-core/database"
 	routingv1 "github.com/vrooli/vrooli/packages/proto/gen/go/dev-routing/v1/routing"
 	routingconnect "github.com/vrooli/vrooli/packages/proto/gen/go/dev-routing/v1/routing/routing_v1connect"
+	seedspb "github.com/vrooli/vrooli/packages/proto/gen/go/test-genie/v1/seeds"
+	"google.golang.org/protobuf/proto"
 	// Register modernc.org/sqlite as the pure-Go "sqlite" driver.
 	_ "modernc.org/sqlite"
 
 	sharedartifacts "test-genie/internal/shared/artifacts"
 )
 
+const seedCleanupTimeout = 30 * time.Second
+const seedAllocationAllowance = 2 * time.Minute
+const maxSeedStateBytes = 1 << 20
+
 // PlaybooksSeedSession holds state for a seed lifecycle run.
 type PlaybooksSeedSession struct {
-	RunID      string
-	Env        map[string]string
-	Resources  []isolation.ResourceInfo
-	SeedState  map[string]any
-	CleanupRef string
-	routing    routedLease
-	cleanup    func(ctx context.Context) error
+	RunID           string
+	Env             map[string]string
+	Resources       []isolation.ResourceInfo
+	SeedState       map[string]any
+	CleanupRef      string
+	routing         routedLease
+	cleanup         func(ctx context.Context) error
+	cleanupMu       sync.Mutex
+	cleanupErr      error
+	cleanupComplete bool
+	setupErr        error
+	recovery        *seedCheckpoint
 }
 
 type routedLease struct {
@@ -46,6 +59,17 @@ type routedLease struct {
 	leaseID          string
 	heartbeatCancel  context.CancelFunc
 	heartbeatStopped chan struct{}
+	state            *routedLeaseState
+}
+
+type routedLeaseState struct {
+	mu           sync.Mutex
+	lastAck      time.Time
+	heartbeatErr error
+	clearErr     error
+	stats        *routingv1.LeaseStats
+	cleared      bool
+	installed    bool
 }
 
 type resourceNeeds struct {
@@ -73,10 +97,79 @@ var isolationManagerFactory = func(cfg isolation.Config) isolationProvider {
 // Cleanup clears the live target routing lease and tears down the leased
 // backing resources. The target remains on its primary configuration.
 func (s *PlaybooksSeedSession) Cleanup(ctx context.Context) error {
-	if s == nil || s.cleanup == nil {
+	if s == nil {
 		return nil
 	}
-	return s.cleanup(ctx)
+	if s.cleanup == nil {
+		return errors.New("seed cleanup ownership is unavailable")
+	}
+	s.cleanupMu.Lock()
+	defer s.cleanupMu.Unlock()
+	cleanupCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), seedCleanupTimeout)
+	defer cancel()
+	if err := s.cleanup(cleanupCtx); err != nil && s.cleanupErr == nil {
+		s.cleanupErr = err
+	}
+	if err := s.checkpoint(); err != nil && s.cleanupErr == nil {
+		s.cleanupErr = err
+	}
+	return s.cleanupErr
+}
+
+// SeedEvidence contains no bearer token, DSN or filesystem path. It reports
+// the retained owner outcome rather than deriving success from a session object.
+func (s *PlaybooksSeedSession) SeedEvidence() *seedspb.SeedEvidence {
+	s.cleanupMu.Lock()
+	defer s.cleanupMu.Unlock()
+	out := &seedspb.SeedEvidence{LeaseId: s.RunID}
+	state := s.routing.state
+	if state == nil {
+		return out
+	}
+	state.mu.Lock()
+	defer state.mu.Unlock()
+	out.PairedStorageInstalled = state.installed
+	out.State = seedspb.SeedState_SEED_STATE_ACTIVE
+	if state.cleared {
+		out.State = seedspb.SeedState_SEED_STATE_CLEARED
+	}
+	if !state.cleared && state.heartbeatErr == nil && time.Since(state.lastAck) > 3*time.Minute {
+		state.heartbeatErr = errors.New("seed lease heartbeat is stale")
+	}
+	if state.heartbeatErr != nil {
+		out.HeartbeatError = "seed lease heartbeat failed; inspect retained owner evidence"
+		out.State = seedspb.SeedState_SEED_STATE_FAILED
+	}
+	if err := errors.Join(s.setupErr, state.clearErr, s.cleanupErr); err != nil {
+		out.CleanupError = "seed lifecycle failed; inspect retained owner evidence"
+		out.State = seedspb.SeedState_SEED_STATE_FAILED
+	}
+	if state.stats != nil {
+		out.Stats = proto.Clone(state.stats).(*routingv1.LeaseStats)
+	}
+	return out
+}
+
+// CleanupComplete reports resource retirement independently of validation success.
+func (s *PlaybooksSeedSession) CleanupComplete() bool {
+	s.cleanupMu.Lock()
+	defer s.cleanupMu.Unlock()
+	return s.cleanupComplete
+}
+
+// FailSeed revokes execution proof while retaining exact cleanup ownership.
+func (s *PlaybooksSeedSession) FailSeed(cause error) {
+	s.cleanupMu.Lock()
+	defer s.cleanupMu.Unlock()
+	if s.setupErr == nil {
+		s.setupErr = cause
+	}
+	if s.routing.heartbeatCancel != nil {
+		s.routing.heartbeatCancel()
+	}
+	if err := s.checkpoint(); err != nil && s.cleanupErr == nil {
+		s.cleanupErr = err
+	}
 }
 
 // ApplyPlaybooksSeed provisions isolated resources, installs a runtime routing
@@ -89,13 +182,26 @@ func ApplyPlaybooksSeed(ctx context.Context, env workspace.Environment, logWrite
 
 	playbooksCfg, err := config.Load(env.ScenarioDir)
 	if err != nil {
-		playbooksCfg = config.Default()
+		return nil, fmt.Errorf("load seed configuration: %w", err)
 	}
 	if playbooksCfg != nil && !playbooksCfg.Seeds.Enabled {
 		return nil, fmt.Errorf("playbooks seeds disabled via .vrooli/testing.json")
 	}
+	// timeout_ms remains the script's own budget. The allocation allowance also
+	// bounds all preceding setup, including migrations, within one owner budget.
+	ctx, cancelSetup := context.WithTimeout(ctx, seedAllocationAllowance+playbooksCfg.Seeds.SeedTimeout())
+	defer cancelSetup()
 
 	needs := resolveDBNeeds(ctx, env, logWriter)
+	checkpoint := newSeedCheckpoint(ctx)
+	checkpoint.Retain = retain
+	if err := checkpoint.save(); err != nil {
+		return nil, err
+	}
+	allocationRoot := ""
+	if checkpoint.path != "" {
+		allocationRoot = filepath.Join(filepath.Dir(checkpoint.path), "backing")
+	}
 	isoManager := isolationManagerFactory(isolation.Config{
 		ScenarioName:    env.ScenarioName,
 		RequirePostgres: needs.RequirePostgres,
@@ -104,77 +210,149 @@ func ApplyPlaybooksSeed(ctx context.Context, env workspace.Environment, logWrite
 		SQLiteEnvVars:   needs.SQLiteEnvVars,
 		Retain:          retain,
 		LogWriter:       logWriter,
-		Timeout:         2 * time.Minute,
+		Timeout:         seedAllocationAllowance,
+		RunID:           checkpoint.RunID,
+		AllocationRoot:  allocationRoot,
+		OnAllocation: func(a isolation.Allocation) error {
+			checkpoint.Allocations = append(checkpoint.Allocations, a)
+			return checkpoint.save()
+		},
 	})
 
 	isoResult, err := isoManager.Prepare(ctx)
-	if err != nil {
+	if isoResult == nil {
 		return nil, fmt.Errorf("failed to prepare playbooks isolation: %w", err)
 	}
-
-	restoreEnv := isolation.ApplyEnv(isoResult.Env)
-	envApplied := true
-
-	if err := applyPlaybooksMigrations(ctx, env, needs, isoResult.Env, logWriter); err != nil {
-		if envApplied {
-			restoreEnv()
-		}
-		_ = isoResult.Cleanup(context.Background())
-		return nil, fmt.Errorf("failed to apply playbooks migrations: %w", err)
+	// Ownership begins as soon as any allocation exists, including a partial
+	// Prepare result. Early setup errors retain the same retryable cleanup owner.
+	session := newSeedSession(isoResult, routedLease{state: &routedLeaseState{cleared: true}}, logWriter)
+	session.recovery = checkpoint
+	retireFailedSeed := func(cause error) (*PlaybooksSeedSession, error) {
+		session.setupErr = cause
+		return session, errors.Join(cause, session.Cleanup(ctx))
 	}
-
-	if envApplied {
-		restoreEnv()
-	}
-
-	routing, err := installRoutedLease(ctx, env, needs, isoResult, logWriter)
 	if err != nil {
-		_ = isoResult.Cleanup(context.Background())
-		return nil, err
+		return retireFailedSeed(fmt.Errorf("failed to prepare playbooks isolation: %w", err))
+	}
+	if err := applyPlaybooksMigrations(ctx, env, needs, isoResult.Env, logWriter); err != nil {
+		return retireFailedSeed(fmt.Errorf("failed to apply playbooks migrations: %w", err))
+	}
+	if err := ctx.Err(); err != nil {
+		return retireFailedSeed(err)
+	}
+	checkpoint.TargetURL = env.APIURL
+	checkpoint.RoutingAttempted = true
+	checkpoint.Cleared = false
+	if err := checkpoint.save(); err != nil {
+		return retireFailedSeed(err)
+	}
+	routing, err := installRoutedLease(ctx, env, needs, isoResult, logWriter)
+	if routing.client != nil {
+		session = newSeedSession(isoResult, routing, logWriter)
+		session.recovery = checkpoint
+	}
+	if err != nil {
+		return retireFailedSeed(err)
+	}
+	if err := session.checkpoint(); err != nil {
+		return retireFailedSeed(err)
 	}
 
 	seedCtx, cancel := context.WithTimeout(ctx, playbooksCfg.Seeds.SeedTimeout())
 	defer cancel()
+	if err := seedCtx.Err(); err != nil {
+		return retireFailedSeed(err)
+	}
 
-	seedManager := seeds.NewManager(env.ScenarioDir, env.AppRoot, env.CoverageDir, logWriter).WithTargetAPIBase(env.APIURL)
-	restoreSeedEnv := applyEnv(isoResult.Env)
+	seedManager := seeds.NewManager(env.ScenarioDir, env.AppRoot, env.CoverageDir, logWriter).WithTargetAPIBase(env.APIURL).WithIsolationEnv(isoResult.Env)
+	if !seedManager.HasSeeds() {
+		return retireFailedSeed(errors.New("declared seed lifecycle has no supported seed entrypoint"))
+	}
+	if checkpoint.path != "" {
+		seedManager.WithOperationRoot(filepath.Join(filepath.Dir(checkpoint.path), "gates", checkpoint.RunID))
+	}
+	seedManager.WithOperationRecorder(func(operation *seeds.OperationRecord) error {
+		checkpoint.Operation = operation
+		return session.checkpoint()
+	})
+	seedStatePath := sharedartifacts.SeedStatePath(env.ScenarioDir)
+	if err := os.Remove(seedStatePath); err != nil && !os.IsNotExist(err) {
+		return retireFailedSeed(fmt.Errorf("retire previous seed state: %w", err))
+	}
 	_, seedErr := seedManager.Apply(seedCtx)
-	restoreSeedEnv()
 	if seedErr != nil {
-		_ = clearRoutedLease(context.Background(), routing, logWriter)
-		_ = isoResult.Cleanup(context.Background())
-		return nil, fmt.Errorf("seed execution failed: %w", seedErr)
+		return retireFailedSeed(fmt.Errorf("seed execution failed: %w", seedErr))
 	}
 
 	seedState, err := loadSeedState(env.ScenarioDir)
 	if err != nil {
-		_ = clearRoutedLease(context.Background(), routing, logWriter)
-		_ = isoResult.Cleanup(context.Background())
-		return nil, err
+		return retireFailedSeed(err)
 	}
 
+	session.SeedState = seedState
+	if err := session.checkpoint(); err != nil {
+		return retireFailedSeed(err)
+	}
+	if session.SeedEvidence().GetState() != seedspb.SeedState_SEED_STATE_ACTIVE {
+		return retireFailedSeed(errors.New("seed lease health failed during setup"))
+	}
+
+	return session, nil
+}
+
+func newSeedSession(isoResult *isolation.Result, routing routedLease, logWriter io.Writer) *PlaybooksSeedSession {
 	session := &PlaybooksSeedSession{
 		RunID:     isoResult.RunID,
 		Env:       isoResult.Env,
 		Resources: isoResult.Resources,
-		SeedState: seedState,
-		routing:   routing,
+
+		routing: routing,
 	}
 	session.cleanup = func(cleanupCtx context.Context) error {
-		var firstErr error
-		if err := clearRoutedLease(cleanupCtx, routing, logWriter); err != nil {
-			firstErr = err
+		// No routing or backing retirement may race a still-running seed child.
+		if session.recovery != nil {
+			if err := seeds.StopOperation(cleanupCtx, session.recovery.Operation); err != nil {
+				return fmt.Errorf("seed descendants are not quiescent: %w", err)
+			}
+			if err := session.checkpoint(); err != nil {
+				return err
+			}
+			if err := seeds.ReleaseOperation(cleanupCtx, session.recovery.Operation); err != nil {
+				return fmt.Errorf("retire seed native operation evidence: %w", err)
+			}
+			if err := session.checkpoint(); err != nil {
+				return err
+			}
 		}
-		if err := isoResult.Cleanup(cleanupCtx); err != nil && firstErr == nil {
-			firstErr = fmt.Errorf("failed to clean up playbooks isolation resources: %w", err)
+		clearErr := clearRoutedLease(cleanupCtx, session.routing, logWriter)
+		session.routing.state.mu.Lock()
+		cleared := session.routing.state.cleared
+		session.routing.state.mu.Unlock()
+		// Never delete a database that the target might still have installed.
+		if !cleared {
+			return clearErr
 		}
-		if firstErr != nil {
-			return firstErr
+		// Persist exact clear counters before deleting their backing. A journal
+		// failure retains resources and the cleanup handle for another attempt.
+		if err := session.checkpoint(); err != nil {
+			return errors.Join(clearErr, err)
 		}
-		return nil
+		if !session.cleanupComplete {
+			if err := isoResult.Cleanup(cleanupCtx); err != nil {
+				return errors.Join(clearErr, fmt.Errorf("clean up seed backing resources: %w", err))
+			}
+			session.cleanupComplete = true
+		}
+		return clearErr
 	}
 
-	return session, nil
+	return session
+}
+
+func cleanupSeedResources(parent context.Context, result *isolation.Result) error {
+	ctx, cancel := context.WithTimeout(context.WithoutCancel(parent), seedCleanupTimeout)
+	defer cancel()
+	return result.Cleanup(ctx)
 }
 
 func installRoutedLease(ctx context.Context, env workspace.Environment, needs resourceNeeds, result *isolation.Result, logWriter io.Writer) (routedLease, error) {
@@ -186,20 +364,25 @@ func installRoutedLease(ctx context.Context, env workspace.Environment, needs re
 		return routedLease{}, fmt.Errorf("routed qualification requires a DSN matching the detected primary database driver")
 	}
 	client := routingconnect.NewRoutingServiceClient(&http.Client{Timeout: 15 * time.Second}, strings.TrimRight(env.APIURL, "/"))
+	state := &routedLeaseState{lastAck: time.Now()}
+	lease := routedLease{client: client, leaseID: result.RunID, state: state}
 	response, err := client.InstallTestPool(ctx, connect.NewRequest(&routingv1.InstallTestPoolRequest{Dsn: dsn, LeaseId: result.RunID, LeaseTtlMs: int64((3 * time.Minute) / time.Millisecond)}))
 	if err != nil {
-		return routedLease{}, fmt.Errorf("install routed qualification lease: %w", err)
+		return lease, fmt.Errorf("install routed qualification lease: %w", err)
 	}
 	if response == nil || response.Msg == nil || response.Msg.GetActiveLeaseId() != result.RunID || !response.Msg.GetFileRootsInstalled() {
-		return routedLease{}, fmt.Errorf("routed qualification lease did not prove both database and file roots are installed")
+		return lease, fmt.Errorf("routed qualification lease did not prove both database and file roots are installed")
 	}
+	state.installed = true
 	// Publish only the verified lease identity to seed/browser producers.
 	result.Env["TEST_GENIE_ROUTING_LEASE_ID"] = result.RunID
 	shared.LogInfo(logWriter, "installed routed qualification lease %s on %s", result.RunID, env.APIURL)
 	heartbeatCtx, heartbeatCancel := context.WithCancel(context.Background())
 	heartbeatStopped := make(chan struct{})
-	go heartbeatRoutedLease(heartbeatCtx, client, result.RunID, logWriter, heartbeatStopped)
-	return routedLease{client: client, leaseID: result.RunID, heartbeatCancel: heartbeatCancel, heartbeatStopped: heartbeatStopped}, nil
+	go heartbeatRoutedLease(heartbeatCtx, client, result.RunID, logWriter, heartbeatStopped, state)
+	lease.heartbeatCancel = heartbeatCancel
+	lease.heartbeatStopped = heartbeatStopped
+	return lease, nil
 }
 
 func clearRoutedLease(ctx context.Context, lease routedLease, logWriter io.Writer) error {
@@ -212,22 +395,41 @@ func clearRoutedLease(ctx context.Context, lease routedLease, logWriter io.Write
 			<-lease.heartbeatStopped
 		}
 	}
+	state := lease.state
+	if state == nil {
+		return errors.New("seed lease has no retained owner state")
+	}
+	state.mu.Lock()
+	defer state.mu.Unlock()
+	if state.cleared {
+		return state.clearErr
+	}
 	response, err := lease.client.ClearTestPool(ctx, connect.NewRequest(&routingv1.ClearTestPoolRequest{LeaseId: lease.leaseID}))
 	if err != nil {
-		return fmt.Errorf("clear routed qualification lease: %w", err)
+		if state.clearErr == nil {
+			state.clearErr = fmt.Errorf("clear routed qualification lease: %w", err)
+		}
+		return state.clearErr
 	}
 	if response == nil || response.Msg == nil || response.Msg.GetStats() == nil {
-		return fmt.Errorf("clear routed qualification lease returned no routing statistics")
+		if state.clearErr == nil {
+			state.clearErr = errors.New("clear routed qualification lease returned no routing statistics")
+		}
+		return state.clearErr
 	}
 	stats := response.Msg.GetStats()
+	state.stats = proto.Clone(stats).(*routingv1.LeaseStats)
+	state.cleared = true
 	shared.LogInfo(logWriter, "cleared routed qualification lease %s: test_pool_requests=%d primary_during_test_mode_requests=%d test_root_writes=%d primary_root_writes_during_test_mode=%d", lease.leaseID, stats.GetTestPoolRequests(), stats.GetPrimaryDuringTestModeRequests(), stats.GetTestRootWrites(), stats.GetPrimaryRootWritesDuringTestMode())
 	if stats.GetPrimaryDuringTestModeRequests() != 0 || stats.GetPrimaryRootWritesDuringTestMode() != 0 {
-		return fmt.Errorf("routed qualification detected primary storage use during test mode: db=%d files=%d", stats.GetPrimaryDuringTestModeRequests(), stats.GetPrimaryRootWritesDuringTestMode())
+		if state.clearErr == nil {
+			state.clearErr = fmt.Errorf("routed qualification detected primary storage use during test mode: db=%d files=%d", stats.GetPrimaryDuringTestModeRequests(), stats.GetPrimaryRootWritesDuringTestMode())
+		}
 	}
-	return nil
+	return state.clearErr
 }
 
-func heartbeatRoutedLease(ctx context.Context, client routingconnect.RoutingServiceClient, leaseID string, logWriter io.Writer, stopped chan<- struct{}) {
+func heartbeatRoutedLease(ctx context.Context, client routingconnect.RoutingServiceClient, leaseID string, logWriter io.Writer, stopped chan<- struct{}, state *routedLeaseState) {
 	defer close(stopped)
 	ticker := time.NewTicker(30 * time.Second)
 	defer ticker.Stop()
@@ -237,8 +439,18 @@ func heartbeatRoutedLease(ctx context.Context, client routingconnect.RoutingServ
 			return
 		case <-ticker.C:
 			if _, err := client.HeartbeatTestPool(ctx, connect.NewRequest(&routingv1.HeartbeatTestPoolRequest{LeaseId: leaseID})); err != nil {
+				if ctx.Err() != nil {
+					return
+				}
 				shared.LogWarn(logWriter, "routed qualification lease heartbeat failed for %s: %v", leaseID, err)
+				state.mu.Lock()
+				state.heartbeatErr = errors.New("target seed lease heartbeat failed")
+				state.mu.Unlock()
+				return
 			}
+			state.mu.Lock()
+			state.lastAck = time.Now()
+			state.mu.Unlock()
 		}
 	}
 }
@@ -287,7 +499,7 @@ func applyPlaybooksMigrations(ctx context.Context, env workspace.Environment, ne
 	if needs.RequireSQLite {
 		files := append([]string(nil), commonFiles...)
 		files = append(files, sqliteFiles...)
-		if err := applySQLiteMigrations(ctx, env, files, logWriter); err != nil {
+		if err := applySQLiteMigrations(ctx, env, isolatedEnv, files, logWriter); err != nil {
 			return err
 		}
 	}
@@ -312,13 +524,13 @@ func applyPostgresMigrations(ctx context.Context, env workspace.Environment, iso
 	return nil
 }
 
-func applySQLiteMigrations(ctx context.Context, env workspace.Environment, files []string, logWriter io.Writer) error {
+func applySQLiteMigrations(ctx context.Context, env workspace.Environment, isolatedEnv map[string]string, files []string, logWriter io.Writer) error {
 	// Only the playbooks-scoped variables are read. The generic pair used to be
 	// accepted here as a fallback, which made this migration path a consumer of
 	// whatever database path happened to be in the environment.
 	sqliteDSN := strings.TrimSpace(firstNonEmpty(
-		os.Getenv("PLAYBOOKS_SQLITE_DSN"),
-		os.Getenv("PLAYBOOKS_SQLITE_PATH"),
+		isolatedEnv["PLAYBOOKS_SQLITE_DSN"],
+		isolatedEnv["PLAYBOOKS_SQLITE_PATH"],
 	))
 	if sqliteDSN == "" {
 		return fmt.Errorf("PLAYBOOKS_SQLITE_DSN is not set for playbooks migrations; the isolation manager supplies it")
@@ -337,7 +549,7 @@ func applySQLiteMigrations(ctx context.Context, env workspace.Environment, files
 	shared.LogStep(logWriter, "applying playbooks sqlite migrations (%d file(s))", len(files))
 	for _, file := range files {
 		shared.LogInfo(logWriter, "  sqlite migrate %s", file)
-		if err := sqlfiles.ExecFile(db, file); err != nil {
+		if err := sqlfiles.ExecFileContext(ctx, db, file); err != nil {
 			return fmt.Errorf("sqlite apply %s: %w", file, err)
 		}
 	}
@@ -457,43 +669,39 @@ func decisionPriority(report dbdetect.DetectionReport, db string) dbdetect.Prior
 	return res.Decision.Priority
 }
 
-func applyEnv(env map[string]string) func() {
-	if len(env) == 0 {
-		return func() {}
-	}
-	prev := make(map[string]*string, len(env))
-	for k, v := range env {
-		if existing, ok := os.LookupEnv(k); ok {
-			val := existing
-			prev[k] = &val
-		} else {
-			prev[k] = nil
-		}
-		_ = os.Setenv(k, v)
-	}
-	return func() {
-		for k, v := range prev {
-			if v == nil {
-				_ = os.Unsetenv(k)
-				continue
-			}
-			_ = os.Setenv(k, *v)
-		}
-	}
-}
-
 func loadSeedState(scenarioDir string) (map[string]any, error) {
 	seedPath := sharedartifacts.SeedStatePath(scenarioDir)
-	data, err := os.ReadFile(seedPath)
+	file, err := os.Open(seedPath)
 	if err != nil {
 		if os.IsNotExist(err) {
 			return map[string]any{}, nil
 		}
 		return nil, err
 	}
+	defer file.Close()
+	data, err := io.ReadAll(io.LimitReader(file, maxSeedStateBytes+1))
+	if err != nil {
+		if os.IsNotExist(err) {
+			return map[string]any{}, nil
+		}
+		return nil, err
+	}
+	if len(data) > maxSeedStateBytes {
+		return nil, fmt.Errorf("seed state exceeds %d bytes", maxSeedStateBytes)
+	}
 	var state map[string]any
 	if err := json.Unmarshal(data, &state); err != nil {
 		return nil, fmt.Errorf("failed to parse seed state JSON: %w", err)
+	}
+	// The journal and wire contract encode values again. Raw JSON containing
+	// HTML characters can expand sixfold, so the source byte limit alone does
+	// not establish a bounded value safe to publish into cleanup authority.
+	encoded, err := json.Marshal(state)
+	if err != nil {
+		return nil, fmt.Errorf("encode seed state: %w", err)
+	}
+	if len(encoded) > maxSeedStateBytes {
+		return nil, fmt.Errorf("encoded seed state exceeds %d bytes", maxSeedStateBytes)
 	}
 	return state, nil
 }

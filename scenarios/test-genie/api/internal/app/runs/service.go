@@ -644,7 +644,9 @@ func (s *Service) ListRunArtifacts(ctx context.Context, req *connect.Request[run
 		if producingPhase != "" && artifact.ProducingPhase != producingPhase {
 			continue
 		}
-		out = append(out, toArtifactRef(req.Msg.GetTarget(), runID, artifact))
+		ref := toArtifactRef(req.Msg.GetTarget(), runID, artifact)
+		ref.AccessPath = ""
+		out = append(out, ref)
 	}
 	response := &runspb.ListRunArtifactsResponse{
 		SchemaVersion:    int32(catalog.SchemaVersion),
@@ -1015,6 +1017,10 @@ func mapArtifactError(err error) error {
 
 func mapRunError(err error) error {
 	switch {
+	case errors.Is(err, context.DeadlineExceeded):
+		return connect.NewError(connect.CodeDeadlineExceeded, err)
+	case errors.Is(err, context.Canceled):
+		return connect.NewError(connect.CodeCanceled, err)
 	case errors.Is(err, sharedruns.ErrRunNotFound):
 		return connect.NewError(connect.CodeNotFound, err)
 	case errors.Is(err, sharedruns.ErrRunPinned):

@@ -1028,6 +1028,9 @@ func TestListAndGetRunArtifactsUseOpaqueTypedReferences(t *testing.T) { // [REQ:
 		t.Fatalf("artifact list = %+v", listed.Msg)
 	}
 	artifact := listed.Msg.GetArtifacts()[0]
+	if artifact.GetAccessPath() != "" {
+		t.Fatalf("catalog reference exposes transfer route: %+v", artifact)
+	}
 	if artifact.GetProducingPhase() != "future-visual" || artifact.GetKind() != sharedartifacts.ArtifactKindScreenshot {
 		t.Fatalf("artifact metadata = %+v", artifact)
 	}
@@ -1045,6 +1048,9 @@ func TestListAndGetRunArtifactsUseOpaqueTypedReferences(t *testing.T) { // [REQ:
 	}
 	if got.Msg.GetArtifact().GetId() != artifact.GetId() {
 		t.Fatalf("detail = %+v", got.Msg)
+	}
+	if got.Msg.GetArtifact().GetAccessPath() == "" {
+		t.Fatalf("metadata response is missing its transfer capability: %+v", got.Msg.GetArtifact())
 	}
 }
 

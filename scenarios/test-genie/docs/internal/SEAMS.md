@@ -126,3 +126,175 @@ evidence rather than being backfilled or presented as canonical.
 - [`packages/api-core/docs/internal/SEAMS.md`](../../../../packages/api-core/docs/internal/SEAMS.md)
   — Substrate-level seams (`RoutedDB`, `Clock`, `TestModeMiddleware`,
   `devrouting.Register`).
+
+
+## Suite replacement and lifecycle work
+
+Test Genie supplies the shared API Core lifecycle provider with its manager-owned
+Snapshot, Quiesce and Resume hooks. Quiesce closes new suite and preview admission
+without canceling admitted preparation, queued work or running suites. Snapshot
+covers admission tickets before registration, queued/running run identities,
+previews and terminal finalization until each run's done channel closes. Queue
+promotion and preview release preserve accounting. Inventory is bounded and
+context-limited; missing, inconsistent or unavailable owner state refuses drain
+instead of asserting zero. Resume reopens new admission under the retained fence.
+
+The normal control-plane restart stages first, then owns the linked Prepare and
+Drain generation before stop. A drain deadline leaves the existing executor
+contexts intact. Shutdown cancellation is reached only after complete natural
+quiescence; it is not used to manufacture a drained result. Durable seed sessions
+remain a separate replacement/recovery authority, not nondurable suite work.
+
+A serving image without these hooks proves HTTP ingress only. Its health route
+does not inventory detached jobs, and the closed generic fence blocks ordinary
+run/admission reads. Installing the source fix does not retroactively provide a
+first-upgrade proof: a supported complete old-owner inventory under the linked
+closed fence must be established before claiming that bootstrap is safe.
+
+## Seed lifecycle and routed ownership
+
+`SeedService` is the generated inter-scenario contract in
+`packages/proto/schemas/test-genie/v1/seeds/seeds.proto`. Workflow Health consumes
+it; legacy seed CLI routes use the same reservation and cleanup registry.
+`api/internal/app/httpserver/seed_sessions.go` reserves before effects, coalesces
+the same retained scenario/request/checkout, and refuses competing owners without
+exposing their token. Retired outcomes remain for one hour, with a 1024-record
+capacity bound and at most four active preparations/sessions. Active or failed
+cleanup ownership is never evicted to free capacity.
+The shared apply boundary validates scenario/request lengths and the raw and
+canonical checkout path (4096 bytes, no NUL or line breaks) before reservation.
+New admissions have a 7 MiB encoded registry budget; the 8 MiB read/write ceiling
+leaves headroom for active cleanup and pruning. A byte-capacity rejection rolls
+back its effect-free checkpoint and returns ResourceExhausted without poisoning
+known cleanup authority. Private error excerpts are bounded to 4 KiB.
+
+The private `state/seed-sessions` domain contains the registry, per-run cleanup
+checkpoints, exact allocation descriptors and native execution gates. Files use
+mode 0600 under a 0700 owner directory. One process-lifetime platform lock
+serializes replacements; HTTP drain alone does not release it. Missing or corrupt
+ownership state fails seed admission closed. Registry and checkpoint readers require exactly one complete JSON document;
+trailing malformed content or a second document refuses authority without rewriting
+it. Registry pruning is committed before retired checkpoint deletion and remains
+retryable after interruption. A retirement whose registry publication failed
+keeps its exact slot and cleanup handle; the next successful publication releases
+only that matching slot, and pending retirement cannot be pruned.
+A missing registry is a fresh owner only when its private namespace contains no
+retained state; a checkpoint, backing or gate entry causes refusal. Preparation
+publishes the session, consumer deadline and cleanup capability together under
+the same lock used by journal snapshots.
+The entire journal must validate before admission, observation, cleanup or
+maintenance may mutate it. Failed initial loads retain their exact bytes across
+replacement; the background loop cannot replace them with a guessed empty map.
+A later transient write failure on a validated owner preserves known cleanup
+authority and its safe retry path. A successful registry publication clears only
+an error tagged as a registry-publication failure. It cannot clear checkpoint or
+unrelated authority refusal.
+
+Before checkpoint creation, the same registry publishes one bounded
+`pending_reservation` with the exact run, request, token and checkout identity in
+`checkpoint-only-v1` state. It counts toward active/retained and encoded byte
+bounds; capacity refusal precedes any checkpoint effect. Only an acknowledged
+transfer into the normal session row authorizes setup. Maintenance or replacement
+can retire this pending plan only when its private checkpoint is absent or byte
+identical to the canonical effect-free reservation. Nonempty, foreign, public or
+aliased files remain untouched and keep admission refused. Removal requires a
+directory-sync acknowledgement; a failed removal, sync acknowledgement or
+retirement publication retains the same pending plan for retry. Successful exact
+retirement publishes a retained failed/pruning outcome before reopening admission,
+so the original error and same-key no-replay behavior survive replacement.
+Unsupported pending state or duplicate ownership fails initial loading closed;
+older strict readers also refuse a pending extension they do not understand.
+The complete document's semantic identity validates before any checkpoint recovery:
+one canonical scenario/raw-request binding regardless checkout, unique token/run
+ownership, and one active scenario including pending. The same expiration
+predicate governs Apply, loading and pruning: a retired outcome expires strictly
+after one hour. Expired retired history may coexist with a new request owner while
+pruning lags; a pending reservation never expires by creation age. Distinct raw
+request bytes and legitimate retained legacy history remain independent. Empty
+legacy request identities remain unbound, as Apply generates a new request ID
+for empty input before lookup.
+
+A successful Apply starts a 60-second consumer lease. GetSeed renews it while
+its exact token is active; Workflow Health observes it every 10 seconds. The
+five-second owner sweep revokes expired consumers and retries cleanup. A lost
+Apply response can reattach with the same identity during this lease. An expired
+consumer cannot revive its session. A replacement reconstructs cleanup only,
+marks interrupted validation failed and retires the original exact backing; it
+never reruns a seed or invents healthy execution proof. Unreachable targets and
+unverified native exit retain their cleanup handle and capacity until exact
+retirement can be proved.
+
+`phases.ApplyPlaybooksSeed` owns provisioning, paired installation, seed
+execution and retirement. The current suite workflow phase delegates to durable
+Workflow Health runs, whose seed coordinator calls SeedService; it does not call
+this helper directly. SeedService always supplies the private checkpoint. Direct
+helper calls without that context retain normal live cleanup but do not provide
+process-loss recovery and are not qualified as durable owners.
+The script `seeds.timeout_ms` budget (30 seconds by default) retains its script
+meaning. Total preparation, including detection, allocation, migrations, routing
+and scripts, has an owner deadline of two minutes plus that script budget; an
+earlier caller deadline wins. SQLite migrations pass that context to every
+statement. Canceled preparation cannot proceed to routing or native dispatch,
+and exact cleanup runs under its separate bounded cancellation-independent budget.
+Ownership begins with the first partial allocation,
+including migration and install-preflight failures. Cleanup errors and original
+routing counters stay visible after a later successful transport. Before backing
+retirement, the owner proves seed descendants quiescent, obtains exact target
+clear acknowledgment and persists its counters. SQLite recovery requires the
+private root and exact owner marker. SQLite prepares a directory in the locked
+owner's private `backing/.staging/<runID>` namespace, fsyncs its marker, then
+publishes it with Linux no-replace directory rename and syncs the parent.
+Replacement may retire only the exact planned staging entry, containing either
+no file or its bounded partial owner marker; foreign content and aliases refuse
+cleanup. Final unmarked or mismatched roots are always retained. Standalone
+callers get a dedicated private temporary owner namespace and retire it after
+normal cleanup. Other platforms refuse this publication capability.
+PostgreSQL fallback requires the database's
+exact owner comment; an uncertain CREATE without that marker remains retained.
+Private Docker allocations bind an already-installed immutable image ID, UUID
+name and owner label, with loopback-only ports and AutoRemove disabled. They
+have no process-session reaper. Image provisioning belongs to the resource owner;
+this allocator never pulls images. Shared Redis DB-index/FLUSHDB fallback is
+unsupported because it cannot prove private ownership.
+
+`seeds.FileManager` retains a copy of the current API worker image and a bounded
+0600 child-input file inside its private operation root. Native argv carries
+only input paths and hashes, and its environment contains no child credentials.
+The early worker validates its image/input, exact native root and one consumed
+claim before using `exec.Cmd.Env` for the seed. A bounded private log contains
+child output; native/public diagnostics remain generic. Worker images and secret
+inputs retire as soon as exact native exclusion is proved, even if subsequent
+target clear is unavailable. Historical outcomes retain compact metadata rather
+than API image copies. The shared `platform-go` owner imposes wall, memory and
+task bounds and proves
+recursive native quiescence before cleanup. Its private revocable pre-exec gate
+is persisted with the consumed operation identity. Cleanup durably revokes the
+gate before interpreting complete unit/cgroup absence; a visible pending unit
+still requires exact stop. Gate preparation and revocation serialize across
+processes. A denied condition is failed execution, not successful seeding.
+Repository-backed preset/catalog defaults resolve during ordinary orchestration,
+not package initialization. The full API entry can therefore reach worker
+validation with only its minimal native bootstrap environment, including in
+`-trimpath` builds; it needs no repository-root environment workaround. The
+API main regression exercises this full entry with no API/storage credentials
+and invalid private input before any API construction.
+Native ownership is qualified on Linux; unsupported backends refuse execution.
+Seed values come only from a freshly produced, size-bounded state file after a
+supported seed entrypoint succeeds. Both raw and re-encoded seed state must fit
+1 MiB before publication into the session; JSON escaping must not inflate a
+loadable input into an unloadable cleanup checkpoint. Checkpoint reads and
+writes share a 4 MiB ceiling, checked before replacing authority. Repeated
+checkpoint failures retain the first sticky error instead of accumulating
+duplicate retry errors. Explicit legacy debug retention keeps backing
+by request and retains its private descriptor; the generated browser path always
+uses normal automatic retirement.
+
+Tests include actual killed owner replacement both after successful seeding and
+while a native descendant runs, accelerated consumer expiry with real paired
+storage, partial-allocation cleanup retry, foreign-owner refusal,
+killed SQLite preparation at unmarked-stage, marker-synced and publication
+cuts, default standalone allocation and marker-write failure, actual held-pipe
+and redirected-output descendants, and native delayed-admission/pre-exec gate
+races. These fixtures do not establish natural served expiry or simultaneous
+target-process restart/counter recovery; retain the separate operated evidence
+and the target restart protocol in `docs/agent-system/routed-test-db.md`.

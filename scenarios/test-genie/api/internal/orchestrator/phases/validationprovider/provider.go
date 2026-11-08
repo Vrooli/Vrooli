@@ -433,7 +433,7 @@ func translate(provider Provider, fallbackScenario string, resp *scenariovalidat
 	case scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_FAILED:
 		out.Success = false
 		out.FailureClass = shared.FailureClassTestFailure
-		out.Error = fmt.Errorf("%d %s finding(s) at ERROR or BLOCKER severity", summary.Errors+summary.Blockers, provider.Phase)
+		out.Error = failedStatusError(provider, summary, resp.GetAssessment())
 		out.Remediation = "Run `" + detailCommand(provider, scenario) + "` for details."
 	case scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_ERROR:
 		out.Success = false
@@ -1169,6 +1169,19 @@ func buildFindingsSummary(s Summary) *runspb.PhaseFindingsSummary {
 
 func maturityRemediation(provider Provider, scenario string) string {
 	return "Run `test-genie provider-contract check " + provider.Phase + " " + scenario + " --json` after restarting " + provider.ProviderScenario + " through lifecycle, then fix the provider maturity assessment."
+}
+
+// failedStatusError describes a FAILED provider verdict. A provider that fails
+// a phase without any ERROR or BLOCKER finding has not typed the reason; say so
+// and name its blocking codes instead of reporting "0 findings" on a red phase.
+func failedStatusError(provider Provider, summary Summary, a *commonv1.MaturityAssessment) error {
+	if failing := summary.Errors + summary.Blockers; failing > 0 {
+		return fmt.Errorf("%d %s finding(s) at ERROR or BLOCKER severity", failing, provider.Phase)
+	}
+	if codes := a.GetLocal().GetBlockingFindingCodes(); len(codes) > 0 {
+		return fmt.Errorf("%s failed with untyped blocking codes (provider %s reported no ERROR or BLOCKER findings): %s", provider.Phase, provider.ProviderScenario, strings.Join(codes, ", "))
+	}
+	return fmt.Errorf("%s failed without ERROR or BLOCKER findings (provider %s gave no reason)", provider.Phase, provider.ProviderScenario)
 }
 
 func countSeverity(a *commonv1.MaturityAssessment, severity string) int {

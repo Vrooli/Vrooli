@@ -214,3 +214,16 @@ func TestTopPriorityFromPhasesDeterministicTieAndCeiling(t *testing.T) {
 		t.Fatalf("all-at-ceiling should produce no priority, got %+v", got)
 	}
 }
+
+func TestTerminalWaitViewNamesTheInspectionCommands(t *testing.T) {
+	view := BuildRunStandingViewFromWaitResponse(t.Context(), &runspb.WaitRunResponse{TerminalRun: &runspb.RunInfo{
+		RunId: "run-1", Target: "demo", Status: "failed",
+		Phases: []*runspb.PhaseInfo{{Name: "unit", Status: "failed"}},
+	}}, nil)
+	if view.RunHandle == nil {
+		t.Fatal("terminal wait view carries no run handle")
+	}
+	if view.RunHandle.Logs != "test-genie runs logs demo run-1" || view.RunHandle.Artifacts != "test-genie runs artifacts demo run-1" {
+		t.Fatalf("run handle inspection commands = %+v", view.RunHandle)
+	}
+}

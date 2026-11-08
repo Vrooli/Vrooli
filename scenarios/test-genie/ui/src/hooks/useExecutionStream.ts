@@ -114,6 +114,14 @@ export function useExecutionStream(options?: UseExecutionStreamOptions) {
 
       const url = buildTestGenieApiUrl("/executions/stream");
       let finished = false;
+      const failStream = (message: string) => {
+        if (!isCurrentRequest() || finished) return;
+        finished = true;
+        setError(message);
+        setStatus("error");
+        appendLog({ level: "error", message });
+        controller.abort();
+      };
       const handleComplete = (data: Record<string, unknown>) => {
         if (!isCurrentRequest() || finished) return;
         finished = true;
@@ -181,12 +189,8 @@ export function useExecutionStream(options?: UseExecutionStreamOptions) {
             break;
           }
           case "error": {
-            finished = true;
             const message = typeof data.message === "string" ? data.message : "Execution failed";
-            appendLog({ level: "error", message });
-            setError(message);
-            setStatus("error");
-            controller.abort();
+            failStream(message);
             break;
           }
           case "complete":
@@ -235,10 +239,7 @@ export function useExecutionStream(options?: UseExecutionStreamOptions) {
           }
         }
         if (isCurrentRequest() && !finished) {
-          const message = "Stream ended before completion event";
-          setError(message);
-          setStatus("error");
-          appendLog({ level: "error", message });
+          failStream("Stream ended before completion event");
         }
       } catch (err) {
         if (!isCurrentRequest() || (err instanceof Error && err.name === "AbortError")) {
@@ -248,9 +249,7 @@ export function useExecutionStream(options?: UseExecutionStreamOptions) {
           throw err;
         }
         const message = err instanceof Error ? err.message : "Stream terminated unexpectedly";
-        setError(message);
-        setStatus("error");
-        appendLog({ level: "error", message });
+        failStream(message);
         throw err;
       }
     },

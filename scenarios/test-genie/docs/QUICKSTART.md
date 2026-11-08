@@ -132,7 +132,7 @@ See [Phased Testing Guide](guides/phased-testing.md) for the complete architectu
 - [Phased Testing](guides/phased-testing.md) - Understanding the descriptor-backed phase architecture
 - [Evidence-Driven Remediation](guides/test-generation.md) - Act on completed execution findings
 - [Requirements Sync](phases/business/requirements-sync.md) - Automatic requirement tracking
-- [Scenario Unit Testing](phases/unit/scenario-unit-testing.md) - Go, Node, Python unit tests
+- [Test Authoring Guide](/docs/testing/UNIT-TEST-AUTHORING.md) - Behavior-first test design
 - [UI Testability](guides/ui-testability.md) - Design testable UIs
 - [Workflow Phase](phases/workflow/README.md) - Vrooli Ascension workflow validation
 - [UI Smoke Testing](phases/structure/ui-smoke.md) - Fast UI validation on Browser Automation Studio
@@ -150,7 +150,7 @@ See [Phased Testing Guide](guides/phased-testing.md) for the complete architectu
 - [API Endpoints](reference/api-endpoints.md) - REST API reference
 - [CLI Commands](reference/cli-commands.md) - test-genie CLI reference
 - [Presets](reference/presets.md) - Quick/Smoke/Comprehensive definitions
-- [Test Runners](phases/unit/test-runners.md) - Language-specific runners
+- [Testing Guide](/docs/TESTING.md) - Scenario and package test commands
 - [Requirement Schema](reference/requirement-schema.md) - JSON schema for requirements
 - [Gaming Prevention](reference/gaming-prevention.md) - Test integrity detection
 - [Gold Standard Examples](reference/examples.md) - Exemplary implementations
@@ -166,10 +166,7 @@ See [Phased Testing Guide](guides/phased-testing.md) for the complete architectu
 ### Remediate Findings from a Completed Run
 
 ```bash
-test-genie remediate my-scenario \
-  --execution <execution-uuid> \
-  --findings <stable-finding-id> \
-  --role code.default
+test-genie remediate create my-scenario --execution "<execution>" --findings "<findings>" --role code.default
 ```
 
 Test Genie stores the selected run evidence, asks Agent Manager to perform the
@@ -213,8 +210,10 @@ See the [Server-Owned Execution Guide](guides/sync-execution.md).
 
 Ensure the scenario exists:
 ```bash
-vrooli scenario list | grep my-scenario
+vrooli scenario list
 ```
+
+Find your scenario in the command output before starting its tests.
 
 ### Phase Times Out
 
@@ -307,6 +306,6 @@ See [Safety Guidelines](safety/GUIDELINES.md) for complete safety rules.
 ## Next Steps
 
 1. **New to testing?** Start with [Phased Testing Guide](guides/phased-testing.md)
-2. **Writing unit tests?** See [Scenario Unit Testing](phases/unit/scenario-unit-testing.md)
+2. **Writing unit tests?** See the [Test Authoring Guide](/docs/testing/UNIT-TEST-AUTHORING.md).
 3. **Building CI pipelines?** Check [Sync Execution Guide](guides/sync-execution.md)
 4. **Designing testable UIs?** Read [UI Testability](guides/ui-testability.md)

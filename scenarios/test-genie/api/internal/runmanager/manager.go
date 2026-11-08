@@ -24,6 +24,7 @@ import (
 	sharedruns "test-genie/internal/shared/runs"
 	"test-genie/internal/targetmodel"
 
+	apilifecycle "github.com/vrooli/api-core/lifecycle"
 	"github.com/vrooli/api-core/provenance"
 	"github.com/vrooli/freshness-go/treedigest"
 	sharedcapacity "github.com/vrooli/vrooli/packages/capacity"
@@ -85,6 +86,11 @@ const (
 // just-finished run never blocks or coalesces a fresh start.
 const retireGrace = 60 * time.Second
 
+// abortWaitTimeout bounds how long the API holds an abort request open after
+// cancellation. Callers may impose a shorter context deadline; background CLI
+// callers still get a finite owner-level wait.
+const abortWaitTimeout = 2 * time.Minute
+
 // defaultMaxRunsPerScenario is the per-scenario in-progress run cap. It is 1
 // because concurrent runs of the SAME scenario are not merely wasteful but
 // INCORRECT: every run brings the target up via targetruntime.EnsureRunning,
@@ -139,6 +145,7 @@ type Manager struct {
 	suiteEnvelopes          SuiteEnvelopeProvider
 	suiteCapacity           SuiteCapacityBroker
 	heartbeat               time.Duration
+	abortWait               time.Duration
 	maxRunsPerScenario      int
 	maxConcurrentRuns       int
 	minConcurrentRuns       int
@@ -158,8 +165,10 @@ type Manager struct {
 	// finalize their durable records before returning.
 	wg sync.WaitGroup
 
-	mu   sync.Mutex
-	runs map[string]*activeRun
+	mu                  sync.Mutex
+	runs                map[string]*activeRun
+	lifecycleClosed     bool
+	lifecycleAdmissions int
 
 	previewRejectedTotal    uint64
 	queueRejectedTotal      uint64
@@ -330,6 +339,7 @@ func New(exec Executor, scenariosRoot string) *Manager {
 		exec:                    exec,
 		scenariosRoot:           strings.TrimSpace(scenariosRoot),
 		heartbeat:               HeartbeatInterval(),
+		abortWait:               abortWaitTimeout,
 		maxRunsPerScenario:      shared.EnvIntMin("TEST_GENIE_MAX_RUNS_PER_SCENARIO", defaultMaxRunsPerScenario, 1),
 		maxConcurrentRuns:       ceiling,
 		minConcurrentRuns:       floor,
@@ -446,6 +456,10 @@ func (m *Manager) TryAcquirePreview() (func(), error) {
 func (m *Manager) TryAcquirePreviewFor(caller string) (func(), error) {
 	caller = normalizedCaller(caller)
 	m.mu.Lock()
+	if m.lifecycleClosed {
+		m.mu.Unlock()
+		return nil, ErrLifecycleAdmissionClosed
+	}
 	if m.previewByCaller[caller] >= m.maxPreviewPerCaller {
 		occupancy := m.previewByCaller[caller]
 		limit := m.maxPreviewPerCaller
@@ -460,8 +474,8 @@ func (m *Manager) TryAcquirePreviewFor(caller string) (func(), error) {
 		var once sync.Once
 		return func() {
 			once.Do(func() {
-				<-m.previewTokens
 				m.mu.Lock()
+				<-m.previewTokens
 				m.previewByCaller[caller]--
 				if m.previewByCaller[caller] == 0 {
 					delete(m.previewByCaller, caller)
@@ -532,6 +546,155 @@ func (m *Manager) AdmissionStatus() AdmissionSnapshot {
 		snapshot.SuiteEnvelope = []execution.SuiteEnvelopeEstimate{}
 	}
 	return snapshot
+}
+
+// ErrLifecycleAdmissionClosed proves this call did not enter suite preparation.
+var ErrLifecycleAdmissionClosed = errors.New("suite admission is closed for lifecycle maintenance")
+
+const lifecycleInventoryLimit = 1024
+const lifecycleInventoryTimeout = time.Second
+
+// LifecycleInventory is a bounded, side-effect-free view of actual manager
+// work. It does not reconcile historical records or consult external stores.
+// Terminal status is insufficient: finalization remains work until done closes.
+func (m *Manager) LifecycleInventory(ctx context.Context) (apilifecycle.Inventory, error) {
+	unknown := apilifecycle.Inventory{Complete: false, Remaining: -1}
+	if m == nil {
+		return unknown, errors.New("suite manager inventory is unavailable")
+	}
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	ctx, cancel := context.WithTimeout(ctx, lifecycleInventoryTimeout)
+	defer cancel()
+	if err := lockLifecycleInventory(ctx, &m.mu); err != nil {
+		return unknown, err
+	}
+	defer m.mu.Unlock()
+	if m.base == nil || m.base.Err() != nil || m.runs == nil || m.previewTokens == nil || m.lifecycleAdmissions < 0 || m.lifecycleAdmissions > lifecycleInventoryLimit {
+		return unknown, errors.New("suite manager inventory is not initialized or exceeds its bound")
+	}
+	result := apilifecycle.Inventory{Complete: true}
+	preview := len(m.previewTokens)
+	if preview > lifecycleInventoryLimit {
+		return unknown, errors.New("suite preview inventory exceeds its bounded report")
+	}
+	accounted := 0
+	for _, n := range m.previewByCaller {
+		if n < 0 {
+			return unknown, errors.New("suite preview inventory is inconsistent")
+		}
+		accounted += n
+	}
+	if accounted != preview {
+		return unknown, errors.New("suite preview inventory is incomplete")
+	}
+	if m.lifecycleAdmissions > 0 {
+		result.Remaining += int32(m.lifecycleAdmissions)
+		result.Work = append(result.Work, &commonv1.LifecycleWorkItem{Id: "suite-admissions", Kind: "suite-admission", Status: strconv.Itoa(m.lifecycleAdmissions), PhysicalExecutorPresent: true})
+	}
+	if preview > 0 {
+		result.Remaining += int32(preview)
+		result.Work = append(result.Work, &commonv1.LifecycleWorkItem{Id: "planning-previews", Kind: "suite-preview", Status: strconv.Itoa(preview), PhysicalExecutorPresent: true})
+	}
+	for _, ar := range m.runs {
+		if ctx.Err() != nil {
+			return unknown, ctx.Err()
+		}
+		if ar == nil {
+			return unknown, errors.New("suite run inventory has a missing owner")
+		}
+		if err := lockLifecycleInventory(ctx, &ar.mu); err != nil {
+			return unknown, err
+		}
+		status, done, scenario, runID := ar.status, ar.done, ar.scenario, ar.runID
+		finished := false
+		select {
+		case <-done:
+			finished = true
+		default:
+		}
+		ar.mu.Unlock()
+		if done == nil || scenario == "" || runID == "" {
+			return unknown, errors.New("suite run inventory has incomplete identity or completion proof")
+		}
+		if isTerminal(status) && finished {
+			continue
+		}
+		if finished || (status != sharedruns.StatusQueued && status != sharedruns.StatusInProgress && !isTerminal(status)) {
+			return unknown, errors.New("suite run inventory has inconsistent execution state")
+		}
+		if len(result.Work) >= lifecycleInventoryLimit {
+			return unknown, errors.New("suite run inventory exceeds its bounded report")
+		}
+		if isTerminal(status) {
+			status = "finalizing"
+		}
+		result.Remaining++
+		result.Work = append(result.Work, &commonv1.LifecycleWorkItem{Id: scenario + "/" + runID, Kind: "suite-run", Status: status, PhysicalExecutorPresent: status != sharedruns.StatusQueued})
+	}
+	sort.Slice(result.Work, func(i, j int) bool { return result.Work[i].Id < result.Work[j].Id })
+	if err := ctx.Err(); err != nil {
+		return unknown, err
+	}
+	return result, nil
+}
+
+// Lifecycle quiescence closes only new admission; it never cancels admitted
+// preparation, queued jobs, running executors or their durable finalization.
+func (m *Manager) QuiesceLifecycle(ctx context.Context) error {
+	return m.setLifecycleAdmission(ctx, true)
+}
+func (m *Manager) ResumeLifecycle(ctx context.Context) error {
+	return m.setLifecycleAdmission(ctx, false)
+}
+func (m *Manager) setLifecycleAdmission(ctx context.Context, closed bool) error {
+	if m == nil {
+		return errors.New("suite manager is unavailable")
+	}
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	ctx, cancel := context.WithTimeout(ctx, lifecycleInventoryTimeout)
+	defer cancel()
+	if err := lockLifecycleInventory(ctx, &m.mu); err != nil {
+		return err
+	}
+	defer m.mu.Unlock()
+	if m.base == nil || m.base.Err() != nil {
+		return errors.New("suite manager has no live admission owner")
+	}
+	m.lifecycleClosed = closed
+	return nil
+}
+
+func lockLifecycleInventory(ctx context.Context, mu *sync.Mutex) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	if mu.TryLock() {
+		if err := ctx.Err(); err != nil {
+			mu.Unlock()
+			return err
+		}
+		return nil
+	}
+	ticker := time.NewTicker(time.Millisecond)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-ticker.C:
+			if mu.TryLock() {
+				if err := ctx.Err(); err != nil {
+					mu.Unlock()
+					return err
+				}
+				return nil
+			}
+		}
+	}
 }
 
 // CoalescedRunID performs the cheap identity portion of admission before a
@@ -827,6 +990,21 @@ func (m *Manager) Start(opts StartOptions) (result StartResult, err error) {
 	if scenario == "" {
 		return StartResult{}, fmt.Errorf("scenarioName is required")
 	}
+	// Cover preparation before the run enters m.runs, including callers that
+	// are not HTTP requests. A ticket admitted before lifecycle closure may
+	// finish naturally; no new ticket is granted after closure.
+	m.mu.Lock()
+	if m.lifecycleClosed {
+		m.mu.Unlock()
+		return StartResult{}, ErrLifecycleAdmissionClosed
+	}
+	m.lifecycleAdmissions++
+	m.mu.Unlock()
+	defer func() {
+		m.mu.Lock()
+		m.lifecycleAdmissions--
+		m.mu.Unlock()
+	}()
 	artifactRoot, err := m.pinArtifactRoot(scenario)
 	if err != nil {
 		return StartResult{}, fmt.Errorf("resolve artifact root for admission %s: %w", scenario, err)
@@ -1109,7 +1287,7 @@ func (m *Manager) prepareEvidenceProducerInput(input *execution.SuiteExecutionIn
 // Start. When the run has not reached the manager yet, the shared run index
 // records an admission-bound abort fence so a late Start coalesces without
 // executing effects.
-func (m *Manager) AbortEvidenceProducer(opts StartOptions) (LiveStatus, error) {
+func (m *Manager) AbortEvidenceProducer(ctx context.Context, opts StartOptions) (LiveStatus, error) {
 	scenario := strings.TrimSpace(opts.Input.Request.ScenarioName)
 	runID := strings.TrimSpace(opts.Input.Request.RunID)
 	if scenario == "" || runID == "" {
@@ -1144,7 +1322,7 @@ func (m *Manager) AbortEvidenceProducer(opts StartOptions) (LiveStatus, error) {
 			return LiveStatus{}, fmt.Errorf("evidence producer run %s admission identity conflicts with abort", runID)
 		}
 		m.mu.Unlock()
-		return m.Abort(scenario, runID)
+		return m.Abort(ctx, scenario, runID)
 	}
 	now := time.Now().UTC()
 	fenced, err := sharedruns.NewIndex(artifactRoot).FenceExplicitAbort(sharedruns.RunRecord{
@@ -1448,6 +1626,13 @@ func (m *Manager) drive(ctx context.Context, ar *activeRun, input execution.Suit
 		m.onOrchestratorEvent(ar, ev)
 	})
 	close(stopHB)
+	if result != nil {
+		// Executor output is borrowed immutable data. Failure/abort settlement
+		// must not mutate a result reused by another concurrent execution.
+		owned := *result
+		owned.Warnings = append([]string(nil), result.Warnings...)
+		result = &owned
+	}
 	if err != nil {
 		result = m.terminalFailureResult(result, ar, err)
 	}
@@ -1852,10 +2037,12 @@ func (m *Manager) Status(scenario, runID string) (LiveStatus, error) {
 	return status, err
 }
 
-// Abort cancels an active run and blocks (bounded) until it reaches its
-// terminal aborted state, returning the final snapshot. Aborting a run that is
-// already terminal is a no-op that returns its snapshot.
-func (m *Manager) Abort(scenario, runID string) (LiveStatus, error) {
+// Abort cancels an active run and waits until it reaches a terminal state or
+// the caller context ends, bounded by the manager's abort wait limit. On either
+// deadline it returns the current snapshot together with the context error, so
+// a nonterminal run cannot look like a successful abort. Aborting a run that
+// is already terminal is a no-op that returns its snapshot.
+func (m *Manager) Abort(ctx context.Context, scenario, runID string) (LiveStatus, error) {
 	// Decide under m.mu so the queued->aborted transition cannot interleave with
 	// dispatch promoting the same run (which would race to start a drive and
 	// double-close ar.done).
@@ -1893,9 +2080,21 @@ func (m *Manager) Abort(scenario, runID string) (LiveStatus, error) {
 	}
 	m.mu.Unlock()
 	ar.cancel()
+	wait := m.abortWait
+	if wait <= 0 {
+		wait = abortWaitTimeout
+	}
+	waitCtx, cancelWait := context.WithTimeout(ctx, wait)
+	defer cancelWait()
 	select {
 	case <-ar.done:
-	case <-time.After(2 * time.Minute):
+	case <-waitCtx.Done():
+		select {
+		case <-ar.done:
+			return m.terminalStatusFromIndexOrLive(ar), nil
+		default:
+		}
+		return m.snapshot(ar), waitCtx.Err()
 	}
 	return m.terminalStatusFromIndexOrLive(ar), nil
 }
@@ -2067,6 +2266,7 @@ func targetKindName(kind commonv1.ValidationTargetKind) string {
 // caller (or test) can rely on no further index writes after Shutdown returns.
 func (m *Manager) Shutdown() {
 	m.mu.Lock()
+	m.lifecycleClosed = true
 	runs := make([]*activeRun, 0, len(m.runs))
 	for _, ar := range m.runs {
 		runs = append(runs, ar)

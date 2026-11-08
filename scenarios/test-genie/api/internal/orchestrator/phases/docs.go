@@ -39,7 +39,7 @@ func RenderPhasesMarkdown(catalog *Catalog) string {
 	var b strings.Builder
 	b.WriteString("# Test Genie Phases\n\n")
 	b.WriteString("Test Genie phases are generated from the effective descriptor-backed registry. Provider-backed phase metadata lives in each provider's `.vrooli/test-genie.json`; Test Genie code owns runner bindings, preset composition, and registry validation.\n\n")
-	b.WriteString("Use `test-genie phases inspect <phase> --json` or `/api/v1/phases/<phase>` to inspect the effective descriptor projection, including provider, descriptor path, docs path, policy, runnability, applicability vocabulary, freshness requirement, profile membership, phase/runtime class, dimensions, and finding source. Provider descriptors must declare `docs.path`; retired `.vrooli/maturity.json` files are rejected.\n\n")
+	b.WriteString("Use `test-genie phases inspect \"unit\" --json` or `/api/v1/phases/unit` to inspect the effective descriptor projection, including provider, descriptor path, docs path, policy, runnability, applicability vocabulary, freshness requirement, profile membership, phase/runtime class, dimensions, and finding source. Provider descriptors must declare `docs.path`; retired `.vrooli/maturity.json` files are rejected.\n\n")
 	b.WriteString("## The Phase Capability Contract\n\n")
 	b.WriteString("Every descriptor declares a **[Phase Capability Contract](../concepts/phase-capability-contract.md)**: a first-class North Star, a gated L0–L4 ladder, a provider-returned standing, and a structured remediation doc. The `docs.path` target must follow the fixed [remediation-doc skeleton](../concepts/phase-capability-contract.md#the-remediation-doc-skeleton) — the five H2 headings `North Star` / `The rungs and their gates` / `What each finding means` / `The canonical fix` / `How to verify` — so a doc-search topic emitted in run output resolves to the exact remediation section with no per-descriptor glue. The contract is validated by the provider-conformance contract checks. Every catalog entry's contract posture is tracked in the drift-guarded [capability-contract inventory](capability-contract-inventory.md). Seed a new descriptor's skeleton with `test-genie phases scaffold <name>`.\n\n")
 	b.WriteString("## Phase Summary\n\n")
@@ -90,7 +90,7 @@ func RenderPresetsMarkdown(catalog *Catalog) string {
 	var b strings.Builder
 	b.WriteString("# Test Presets Reference\n\n")
 	b.WriteString("Test Genie presets define common validation loops. Quick and smoke are adaptive budget profiles selected from applicable phases and recent measured history; architecture-audit and comprehensive have concrete registry-derived membership. This document is generated from descriptor-backed phase specs plus Test Genie-owned preset declarations; edit provider `.vrooli/test-genie.json` descriptors or preset/profile code instead of hand-editing these tables.\n\n")
-	b.WriteString("Timeout values are runtime budgets, not estimates. Runtime estimates are calculated from recent per-phase history when available. Use `test-genie phases plan <scenario> --preset <name>` to inspect selected and omitted phases before execution.\n\n")
+	b.WriteString("Timeout values are runtime budgets, not estimates. Runtime estimates are calculated from recent per-phase history when available. Use `test-genie phases plan \"test-genie\" --preset comprehensive` to inspect selected and omitted phases before execution.\n\n")
 	b.WriteString("## Available Presets\n\n")
 	for _, preset := range order {
 		names := presets[preset.String()]
@@ -217,6 +217,12 @@ func docLink(path string) string {
 	const prefix = "scenarios/test-genie/docs/phases/"
 	if strings.HasPrefix(path, prefix) {
 		return strings.TrimPrefix(path, prefix)
+	}
+	// Provider-owned descriptors store repo-relative paths. Links to another
+	// scenario or to repository-level documentation must stay anchored at the
+	// repository root when rendered from docs/phases/README.md.
+	if strings.HasPrefix(path, "scenarios/") || strings.HasPrefix(path, "docs/") {
+		return "/" + path
 	}
 	return path
 }

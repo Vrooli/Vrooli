@@ -211,3 +211,40 @@ func TestManagerPaths(t *testing.T) {
 		t.Errorf("SeedsDir: expected %s, got %s", expectedSeedsDir, got)
 	}
 }
+
+// Two seed processes must receive their own lease without changing the server
+// environment, even when their execution overlaps.
+func TestManagersKeepConcurrentIsolationEnvironmentsPrivate(t *testing.T) {
+	t.Setenv("TEST_GENIE_ROUTING_LEASE_ID", "serving-owner")
+	t.Setenv("VROOLI_STORAGE_ROOT", "serving-storage")
+	for _, name := range []string{"lease-a", "lease-b"} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			root := t.TempDir()
+			dir := filepath.Join(root, "bas", "seeds")
+			if err := os.MkdirAll(dir, 0700); err != nil {
+				t.Fatal(err)
+			}
+			script := `printf '%s\n%s\n' "$TEST_GENIE_ROUTING_LEASE_ID" "$VROOLI_STORAGE_ROOT" > observed.txt`
+			if err := os.WriteFile(filepath.Join(dir, ShellEntrypoint), []byte(script), 0600); err != nil {
+				t.Fatal(err)
+			}
+			values := map[string]string{"TEST_GENIE_ROUTING_LEASE_ID": name, "VROOLI_STORAGE_ROOT": root}
+			manager := NewManager(root, root, root, nil).WithIsolationEnv(values).WithOperationRoot(filepath.Join(root, "native"))
+			values["TEST_GENIE_ROUTING_LEASE_ID"] = "caller-mutated"
+			if _, err := manager.Apply(t.Context()); err != nil {
+				t.Fatal(err)
+			}
+			raw, err := os.ReadFile(filepath.Join(root, "observed.txt"))
+			if err != nil {
+				t.Fatal(err)
+			}
+			if string(raw) != name+"\n"+root+"\n" {
+				t.Fatalf("child observed foreign environment: %q", raw)
+			}
+			if os.Getenv("TEST_GENIE_ROUTING_LEASE_ID") != "serving-owner" || os.Getenv("VROOLI_STORAGE_ROOT") != "serving-storage" {
+				t.Fatal("seed changed the serving environment")
+			}
+		})
+	}
+}

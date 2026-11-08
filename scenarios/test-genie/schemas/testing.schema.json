@@ -1458,7 +1458,19 @@
         "minimum_percent": {
           "type": "number",
           "minimum": 0,
-          "maximum": 100
+          "maximum": 100,
+          "description": "Policy coverage target. Coverage below it is reported as LOW_COVERAGE debt; it does not fail the unit phase."
+        },
+        "committed": {
+          "type": "object",
+          "description": "The scenario's committed per-metric coverage floor, the single owner of the coverage gate. A passing run below it fails the unit phase with COVERAGE_BELOW_COMMITTED. Raised by `unit-health fix apply <scenario> --rules COVERAGE_COMMITMENT_BEHIND`; native runner thresholds must not restate it.",
+          "additionalProperties": false,
+          "properties": {
+            "lines": {"type": "number", "minimum": 0, "maximum": 100},
+            "statements": {"type": "number", "minimum": 0, "maximum": 100},
+            "functions": {"type": "number", "minimum": 0, "maximum": 100},
+            "branches": {"type": "number", "minimum": 0, "maximum": 100}
+          }
         },
         "mode": {
           "type": "string",

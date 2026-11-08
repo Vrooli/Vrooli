@@ -2,9 +2,15 @@ package isolation
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
+	"net/http"
+	"net/http/httptest"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 )
@@ -110,5 +116,183 @@ func TestStartSQLiteProvisioning(t *testing.T) {
 	}
 	if _, err := os.Stat(root); !os.IsNotExist(err) {
 		t.Fatalf("expected the isolated storage root to be removed, got err=%v", err)
+	}
+	if _, err := os.Stat(filepath.Dir(root)); !os.IsNotExist(err) {
+		t.Fatalf("standalone private owner namespace was not retired: %v", err)
+	}
+	if err := cleanup(context.Background()); err != nil {
+		t.Fatalf("standalone cleanup was not idempotent: %v", err)
+	}
+}
+
+func TestSQLiteNameCollisionDoesNotAcquireOrDeleteForeignBacking(t *testing.T) {
+	parent := t.TempDir()
+	runID := "31c832dd-4761-4f80-aa9c-d43da34173df"
+	foreign := filepath.Join(parent, "test-genie-playbooks-"+runID)
+	if err := os.Mkdir(foreign, 0700); err != nil {
+		t.Fatal(err)
+	}
+	marker := filepath.Join(foreign, "keep")
+	if err := os.WriteFile(marker, []byte("foreign"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	allocations := 0
+	manager := NewManager(Config{ScenarioName: "demo", RequireSQLite: true, RunID: runID, AllocationRoot: parent, OnAllocation: func(Allocation) error { allocations++; return nil }})
+	result, err := manager.Prepare(t.Context())
+	if err == nil || result == nil {
+		t.Fatal("foreign allocation collision was not refused")
+	}
+	if err := result.Cleanup(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	if allocations != 0 {
+		t.Fatal("foreign backing acquired cleanup authority")
+	}
+	if raw, err := os.ReadFile(marker); err != nil || string(raw) != "foreign" {
+		t.Fatal("foreign backing was changed")
+	}
+	if err := RetireAllocation(t.Context(), Allocation{Kind: "sqlite", RunID: runID, Root: foreign}); err == nil {
+		t.Fatal("missing exact owner marker permitted foreign removal")
+	}
+	if _, err := os.Stat(marker); err != nil {
+		t.Fatal("foreign backing deleted by recovery")
+	}
+}
+
+func TestContainerRetirementRequiresExactNameLabelAndImage(t *testing.T) {
+	for _, foreign := range []string{"label", "image", "name", "owned"} {
+		t.Run(foreign, func(t *testing.T) {
+			runID := "31c832dd-4761-4f80-aa9c-d43da34173df"
+			name := "tg-seed-" + runID + "-redis"
+			image := "sha256:" + strings.Repeat("a", 64)
+			var deletes atomic.Int32
+			fixture := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if strings.HasSuffix(r.URL.Path, "/_ping") {
+					w.Header().Set("API-Version", "1.44")
+					w.WriteHeader(200)
+					return
+				}
+				if r.Method == http.MethodDelete {
+					deletes.Add(1)
+					if !strings.HasSuffix(r.URL.Path, "/containers/exact-private-id") {
+						t.Error("delete selected a name instead of the verified immutable container ID")
+					}
+					w.WriteHeader(204)
+					return
+				}
+				label, actualImage, actualName := runID, image, name
+				if foreign == "label" {
+					label = "different-owner"
+				}
+				if foreign == "image" {
+					actualImage = "sha256:" + strings.Repeat("b", 64)
+				}
+				if foreign == "name" {
+					actualName = "foreign-name"
+				}
+				w.Header().Set("Content-Type", "application/json")
+				_ = json.NewEncoder(w).Encode(map[string]any{"Id": "exact-private-id", "Name": "/" + actualName, "Image": actualImage, "Config": map[string]any{"Labels": map[string]string{"vrooli.test-genie.seed-owner": label}}})
+			}))
+			defer fixture.Close()
+			t.Setenv("DOCKER_HOST", "tcp://"+strings.TrimPrefix(fixture.URL, "http://"))
+			t.Setenv("DOCKER_TLS_VERIFY", "")
+			t.Setenv("DOCKER_CERT_PATH", "")
+			t.Setenv("DOCKER_API_VERSION", "1.44")
+			err := RetireAllocation(t.Context(), Allocation{Kind: "container", RunID: runID, Name: name, ImageID: image})
+			if foreign == "owned" {
+				if err != nil || deletes.Load() != 1 {
+					t.Fatalf("exact owned container was not retired once: %v deletes=%d", err, deletes.Load())
+				}
+			} else if err == nil || deletes.Load() != 0 {
+				t.Fatalf("foreign container retirement was not refused: %v deletes=%d", err, deletes.Load())
+			}
+		})
+	}
+}
+func TestPrivateContainerUsesInstalledImageAndOwnerControlledLifetime(t *testing.T) {
+	runID := "31c832dd-4761-4f80-aa9c-d43da34173df"
+	name := "tg-seed-" + runID + "-redis"
+	image := "sha256:" + strings.Repeat("a", 64)
+	var created atomic.Bool
+	var tracked atomic.Bool
+	var pulls atomic.Int32
+	var deletes atomic.Int32
+	var fixture *httptest.Server
+	fixture = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		switch {
+		case strings.HasSuffix(r.URL.Path, "/_ping"):
+			w.Header().Set("API-Version", "1.44")
+			w.WriteHeader(200)
+		case strings.Contains(r.URL.Path, "/images/create"):
+			pulls.Add(1)
+			http.Error(w, "image pull forbidden", 500)
+		case strings.Contains(r.URL.Path, "/images/") && strings.HasSuffix(r.URL.Path, "/json"):
+			_ = json.NewEncoder(w).Encode(map[string]any{"Id": image})
+		case r.Method == http.MethodPost && strings.HasSuffix(r.URL.Path, "/containers/create"):
+			if !tracked.Load() {
+				t.Error("container create preceded durable allocation ownership")
+			}
+			if r.URL.Query().Get("name") != name {
+				t.Error("container create omitted exact private name")
+			}
+			var config struct {
+				Image      string
+				Labels     map[string]string
+				HostConfig struct {
+					AutoRemove   bool
+					PortBindings map[string][]struct{ HostIP, HostPort string }
+				}
+			}
+			if err := json.NewDecoder(r.Body).Decode(&config); err != nil {
+				t.Error(err)
+			}
+			if config.Image != image || config.Labels["vrooli.test-genie.seed-owner"] != runID || config.HostConfig.AutoRemove {
+				t.Error("private container identity or lifetime was not pinned")
+			}
+			bindings := config.HostConfig.PortBindings["6379/tcp"]
+			if len(bindings) != 1 || bindings[0].HostIP != "127.0.0.1" {
+				t.Error("private container listener was not loopback-only")
+			}
+			created.Store(true)
+			w.WriteHeader(201)
+			fmt.Fprint(w, `{"Id":"exact-private-id","Warnings":[]}`)
+		case strings.HasSuffix(r.URL.Path, "/start"):
+			w.WriteHeader(204)
+		case r.Method == http.MethodDelete:
+			deletes.Add(1)
+			w.WriteHeader(204)
+		case strings.Contains(r.URL.Path, "/containers/") && strings.HasSuffix(r.URL.Path, "/json"):
+			if !created.Load() {
+				w.WriteHeader(404)
+				fmt.Fprint(w, `{"message":"not found"}`)
+				return
+			}
+			parsed, _ := url.Parse(fixture.URL)
+			_ = json.NewEncoder(w).Encode(map[string]any{"Id": "exact-private-id", "Name": "/" + name, "Image": image, "Config": map[string]any{"Labels": map[string]string{"vrooli.test-genie.seed-owner": runID}}, "NetworkSettings": map[string]any{"Ports": map[string]any{"6379/tcp": []map[string]string{{"HostIp": "127.0.0.1", "HostPort": parsed.Port()}}}}})
+		default:
+			t.Errorf("unexpected Docker owner request: %s %s", r.Method, r.URL.Path)
+			w.WriteHeader(500)
+		}
+	}))
+	defer fixture.Close()
+	t.Setenv("DOCKER_HOST", "tcp://"+strings.TrimPrefix(fixture.URL, "http://"))
+	t.Setenv("DOCKER_TLS_VERIFY", "")
+	t.Setenv("DOCKER_CERT_PATH", "")
+	t.Setenv("DOCKER_API_VERSION", "1.44")
+	var allocation Allocation
+	manager := NewManager(Config{OnAllocation: func(a Allocation) error { allocation = a; tracked.Store(true); return nil }})
+	host, port, cleanup, err := manager.startPrivateContainer(t.Context(), runID, "redis", "redis:7-alpine", "6379/tcp", nil)
+	if err != nil || host != "127.0.0.1" || port == "" || cleanup == nil {
+		t.Fatalf("private allocation failed: %s:%s %v", host, port, err)
+	}
+	if allocation.ImageID != image || pulls.Load() != 0 || deletes.Load() != 0 {
+		t.Fatal("allocator changed image or delegated premature deletion")
+	}
+	if err := cleanup(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	if deletes.Load() != 1 {
+		t.Fatal("owner did not retire its exact container")
 	}
 }

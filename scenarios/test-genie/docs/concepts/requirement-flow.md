@@ -224,7 +224,7 @@ The sync process updates requirement files:
 ```bash
 # Automatic after test execution
 # Or manual trigger:
-test-genie sync browser-automation-studio
+test-genie requirements sync --scenario "browser-automation-studio"
 ```
 
 **Sync logic:**

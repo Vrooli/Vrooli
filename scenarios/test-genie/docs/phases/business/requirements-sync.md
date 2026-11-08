@@ -238,7 +238,7 @@ result, err := service.Validate(ctx, scenarioDir)
 - [Business Phase](README.md) - Business phase overview
 - [Phases Overview](../README.md) - descriptor-backed phase architecture
 - [Test Generation](../../guides/test-generation.md) - AI-powered test creation with `[REQ:ID]` tags
-- [Scenario Unit Testing](../unit/scenario-unit-testing.md) - Writing tagged unit tests
+- [Test Authoring Guide](/docs/testing/UNIT-TEST-AUTHORING.md) - Writing tagged unit tests
 
 ### Reference
 - [API Endpoints](../../reference/api-endpoints.md) - REST API reference

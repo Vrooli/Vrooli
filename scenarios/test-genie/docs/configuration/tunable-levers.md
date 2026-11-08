@@ -58,7 +58,8 @@ retryable; clients should back off rather than repeatedly submitting work.
 The Connect saturation reply also carries an `AdmissionSaturation` detail with
 the limit kind, current occupancy, configured limit, FIFO position, and a
 `retry_after_seconds` hint. The existing prose remains for compatibility with
-older clients.
+older clients. The `execute` CLI preserves that detail in its `--json`
+start-error response and prints the capacity and retry hint in human mode.
 Queued `GetRunStatus` responses expose `queue_position` and
 `estimated_queue_wait_seconds` separately from execution ETA. When no running
 suite has a usable duration estimate, the queue wait is explicitly unknown

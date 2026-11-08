@@ -37,6 +37,11 @@ Run-handle timing by output mode (all three share one server-owned StartRun):
           and follow failures print a parseable {"success":false,...} object with
           the scenario (and run id, once started).
 
+Retryable admission saturation prints the capacity, occupancy, and server retry
+hint in human mode. In --json mode the start-error object includes
+retryable=true and the typed admissionSaturation detail. No run starts when
+preview admission is rejected; wait for capacity and submit once.
+
 Examples:
   test-genie execute swarm-manager
   test-genie execute swarm-manager quality docs unit

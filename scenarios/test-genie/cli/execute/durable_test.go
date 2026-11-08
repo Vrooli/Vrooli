@@ -71,7 +71,7 @@ func TestAgentWaitBlockIsProviderAgnosticAndActionable(t *testing.T) {
 		"Agent wait protocol",
 		"Run exactly once",
 		"test-genie runs wait --json --timeout=1050 demo R1",
-		"test-genie runs findings R1 --scenario demo",
+		"test-genie runs findings demo R1",
 		"recommended wait timeout: 17m30s",
 		"coding-agent tool execution",
 		"tail --pid=<pid> -f /dev/null",
@@ -488,6 +488,69 @@ func TestRunDurableJSONStartErrorCarriesScenario(t *testing.T) {
 	if _, hasRun := obj["runId"]; hasRun {
 		t.Fatalf("runId must be absent before a successful start: %v", obj)
 	}
+}
+
+func TestRunDurableAdmissionSaturationShowsHumanRetryGuidance(t *testing.T) {
+	h := &fakeRunsServer{startErr: admissionSaturationError(t)}
+	url := newFakeRunsServer(t, h)
+	_, stderr, err := captureStdoutStderr(t, func() error {
+		return RunDurable(url, Request{ScenarioName: "demo"}, DurableOptions{})
+	})
+	if err == nil {
+		t.Fatal("expected an admission saturation error")
+	}
+	for _, want := range []string{"per-caller preview capacity (1/1)", "wait at least 30 seconds", "no run was started"} {
+		if !strings.Contains(stderr, want) {
+			t.Errorf("human saturation guidance missing %q:\n%s", want, stderr)
+		}
+	}
+}
+
+func TestRunDurableJSONStartSaturationIncludesTypedRetryDetails(t *testing.T) {
+	h := &fakeRunsServer{startErr: admissionSaturationError(t)}
+	url := newFakeRunsServer(t, h)
+	stdout, _, err := captureStdoutStderr(t, func() error {
+		return RunDurable(url, Request{ScenarioName: "demo"}, DurableOptions{JSON: true})
+	})
+	if err == nil {
+		t.Fatal("expected an admission saturation error")
+	}
+	var output struct {
+		Success             bool `json:"success"`
+		Retryable           bool `json:"retryable"`
+		AdmissionSaturation struct {
+			LimitKind         string `json:"limitKind"`
+			Occupancy         int    `json:"occupancy"`
+			ConfiguredLimit   int    `json:"configuredLimit"`
+			RetryAfterSeconds int    `json:"retryAfterSeconds"`
+		} `json:"admissionSaturation"`
+	}
+	if decodeErr := json.Unmarshal([]byte(stdout), &output); decodeErr != nil {
+		t.Fatalf("start saturation output must be parseable JSON: %v (%q)", decodeErr, stdout)
+	}
+	if output.Success || !output.Retryable {
+		t.Fatalf("JSON saturation output should be unsuccessful and retryable: %+v", output)
+	}
+	got := output.AdmissionSaturation
+	if got.LimitKind != "ADMISSION_LIMIT_KIND_CALLER_PREVIEW" || got.Occupancy != 1 || got.ConfiguredLimit != 1 || got.RetryAfterSeconds != 30 {
+		t.Fatalf("typed admission details = %+v", got)
+	}
+}
+
+func admissionSaturationError(t *testing.T) error {
+	t.Helper()
+	err := connect.NewError(connect.CodeResourceExhausted, errors.New("test-genie admission is saturated (caller preview capacity); retry after an active run advances or completes"))
+	detail, detailErr := connect.NewErrorDetail(&runspb.AdmissionSaturation{
+		LimitKind:         runspb.AdmissionLimitKind_ADMISSION_LIMIT_KIND_CALLER_PREVIEW,
+		Occupancy:         1,
+		ConfiguredLimit:   1,
+		RetryAfterSeconds: 30,
+	})
+	if detailErr != nil {
+		t.Fatalf("create admission detail: %v", detailErr)
+	}
+	err.AddDetail(detail)
+	return err
 }
 
 // TestRunDurableJSONFollowErrorCarriesRunIdentity proves a follow failure after

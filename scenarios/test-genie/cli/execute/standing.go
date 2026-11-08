@@ -97,6 +97,10 @@ func BuildRunStandingViewFromWaitResponse(ctx context.Context, response *runspb.
 		view.PhaseSummary = summarizePhases(view.Phases)
 		view.TopPriority = TopPriorityFromPhases(view.Phases)
 	}
+	if view.Scenario != "" && view.RunID != "" {
+		handle := newRunHandle(view.Scenario, view.RunID, false)
+		view.RunHandle = &handle
+	}
 	view.TerminalSnapshotSchemaVersion = response.GetTerminalSnapshotSchemaVersion()
 	view.DegradedReasons = append([]string(nil), response.GetDegradedReasons()...)
 	if len(view.DegradedReasons) == 0 && response.GetStatus() != nil {

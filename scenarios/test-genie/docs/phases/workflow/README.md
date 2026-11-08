@@ -126,8 +126,8 @@ Legacy playbooks seed endpoints and CLI commands are still available while seed
 lifecycle ownership migrates:
 
 ```bash
-test-genie playbooks-seed apply --scenario <scenario>
-test-genie playbooks-seed cleanup --scenario <scenario> --token <cleanup-token>
+test-genie playbooks-seed apply --scenario "test-genie"
+test-genie playbooks-seed cleanup --scenario "test-genie" --token "<token>"
 ```
 
 ## Failure Behavior

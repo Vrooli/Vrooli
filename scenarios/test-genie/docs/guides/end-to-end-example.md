@@ -593,4 +593,4 @@ BAS workflows are:
 - [Testing Strategy](../concepts/strategy.md) - Three-layer approach
 - [Workflow Phase](../phases/workflow/README.md) - Workflow details
 - [Requirements Sync](../phases/business/requirements-sync.md) - Auto-sync process
-- [Scenario Unit Testing](../phases/unit/scenario-unit-testing.md) - Writing unit tests
+- [Test Authoring Guide](/docs/testing/UNIT-TEST-AUTHORING.md) - Writing behavior-focused tests

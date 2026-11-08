@@ -452,7 +452,7 @@ graph LR
 ## See Also
 
 - [Phased Testing Guide](../guides/phased-testing.md) - How phases execute
-- [Scenario Unit Testing](../phases/unit/scenario-unit-testing.md) - Layer 2 implementation
+- [Unit Phase](../phases/unit/README.md) - Layer 2 implementation
 - [Workflow Phase](../phases/workflow/README.md) - Layer 3 implementation
 - [Validation Best Practices](../guides/validation-best-practices.md) - Multi-layer requirements
 - [Presets Reference](../reference/presets.md) - Quick/Smoke/Comprehensive definitions

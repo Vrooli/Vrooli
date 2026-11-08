@@ -125,6 +125,6 @@ shared/
 
 ## Related Documentation
 
-- [HTTP Server README](../app/httpserver/README.md) — Error response handling
+- [HTTP response helpers](../app/httpserver/response.go) — Error response handling
 - [Workspace README](../orchestrator/workspace/README.md) — Example validation usage
-- [Queue README](../queue/README.md) — Request validation
+- [Run lifecycle](../app/runs/lifecycle.go) — Queue capacity and run transitions

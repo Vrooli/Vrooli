@@ -566,6 +566,41 @@ func TestLifecycleRPC_Abort(t *testing.T) {
 	}
 }
 
+func TestLifecycleRPC_AbortDeadlineIsNotReportedAsSuccess(t *testing.T) {
+	root := newFleetRoot(t)
+	fake := newRPCFake(root + "/demo")
+	manager := runmanager.New(fake, root)
+	defer manager.Shutdown()
+	var releaseOnce sync.Once
+	release := func() { releaseOnce.Do(func() { close(fake.release) }) }
+	defer release()
+	svc := NewService(root, manager, nil, nil).SetArtifactRootResolver(testArtifactRoot(root))
+
+	start, err := svc.StartRun(context.Background(), connect.NewRequest(&runspb.StartRunRequest{Target: "demo"}))
+	if err != nil {
+		t.Fatalf("StartRun: %v", err)
+	}
+	runID := start.Msg.GetRunId()
+	<-fake.started
+
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Millisecond)
+	defer cancel()
+	_, err = svc.AbortRun(ctx, connect.NewRequest(&runspb.AbortRunRequest{Target: "demo", RunId: runID}))
+	if connect.CodeOf(err) != connect.CodeDeadlineExceeded {
+		t.Fatalf("AbortRun error code = %s, want deadline exceeded (err=%v)", connect.CodeOf(err), err)
+	}
+
+	// The run remains owned and cancellable after the abort observer times out.
+	release()
+	settled, err := manager.Wait(context.Background(), "demo", runID)
+	if err != nil {
+		t.Fatalf("Wait after abort timeout: %v", err)
+	}
+	if settled.Status != sharedruns.StatusAborted {
+		t.Fatalf("run status after releasing cancelled executor = %q, want aborted", settled.Status)
+	}
+}
+
 // TestKeepFollowEvent proves the per-follower heartbeat filter drops ONLY
 // phase_heartbeat events (and only when suppression is on), never phase
 // transitions or the terminal run_completed.

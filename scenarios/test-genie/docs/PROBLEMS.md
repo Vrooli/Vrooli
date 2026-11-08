@@ -2,12 +2,12 @@
 
 ## Work ladder
 
-- Rung: W3 (R0 runnable and green)
+- Rung: W3 (R0 runnable; UI unit coverage gate remains open)
 - W0 evidence: the active validation-coordination plan makes canonical durable validation receipts a Test Genie-owned P0 capability; `OT-P0-003` now states that authority without conflicting with the named Swarm Manager goals.
 - W1 evidence: `business-health validate scenario test-genie --json` passed after `TESTGENIE-VALIDATION-IDENTITY-P0` and `TESTGENIE-VALIDATION-RECEIPT-P0` were linked to `OT-P0-003`.
 - W2 evidence: `vrooli scenario requirements validate test-genie --json` passed with only an advisory stale-snapshot warning.
-- W3 evidence: server-owned contracts run `20260905-022400-cdb57dc6` passed at L4 after the runtime manifest and help parser were repaired. The earlier comprehensive run `20260905-013206-b061dbcf` still records failures in other R0 gates, so the scenario is not yet globally green.
-- Measured: 2026-09-05
+- W3 evidence: server-owned contracts run `20260905-022400-cdb57dc6` passed at L4 after the runtime manifest and help parser were repaired. The earlier comprehensive run `20260905-013206-b061dbcf` still records failures in other R0 gates, so the scenario is not yet globally green. The latest UI unit run `20261105-135202-32ec6434` executed all 66 UI tests but failed the unchanged 85% coverage policy at 41.38% lines; this is the remaining open W3 evidence gap.
+- Measured: 2026-11-05
 
 ## Open 2026-11-05 — Test Genie UI behavior coverage
 
@@ -37,13 +37,35 @@ moved to `num[sot]:1,274`/`num[sot]:3,638` lines (`num[sot]:35.01%`),
 owner-managed unit phase still fails its global coverage gate, as expected for
 this first slice.
 
-**Remaining slices:** Add user-flow suites for execution planning and streaming;
-scenario/run history tables and timeline; requirements and docs navigation;
-artifact and remediation interactions; then cover remaining shared cards, hooks,
-and page states. After each slice, rerun the UI coverage command and use the
-per-file report to select the next least-covered user-facing behavior. Close this
-item only when the owner-managed unit phase passes without changing the 85%
-policy or excluding executable product code.
+**Second slice (Round 37):** Added user-flow coverage from target entry through
+descriptor-backed preview refresh and execution streaming. The tests verify
+target normalization, preview refresh after preset and fail-fast changes, and
+that a planner error remains visible without blocking a run. The owner unit run
+`20261105-093626-a85e719b` measured `num[sot]:1,294`/`num[sot]:3,637` UI lines
+(`num[sot]:35.57%`), `num[sot]:69`/`num[sot]:193` functions
+(`num[sot]:35.75%`), and `num[sot]:290`/`num[sot]:431` branches
+(`num[sot]:67.28%`). The UI coverage command still fails its global
+`num[threshold]:85%` gate; focused ExecutionForm tests and type-check pass.
+
+**Third slice (Round 84):** Added an integration test for shared run history:
+wait for the latest 20 runs to load, filter to failed executions, search across
+the remaining scenarios case-insensitively, and rerun one scenario into its
+execution form. The test asserts the history limit, loading state, filter/search
+results, scenario selection, default quick preset, fail-fast option, and detail
+navigation. The UI run had 14 test files and 66 tests pass; line/statement
+coverage moved from 35.6% to 41.38%, function coverage from 35.75% to 40.68%,
+and branch coverage from 67.36% to 68.8%. The new flow covers `HistoryTable.tsx`
+at 92.43% lines, `HistoryTab.tsx` at 94.44%, and `useExecutions.ts` at 44.44%.
+The owner unit phase still fails the global `num[threshold]:85%` gate; no
+threshold or executable source exclusions changed.
+
+**Remaining slices:** Add more execution-stream edge-state coverage; execution
+history timeline; requirements and docs navigation; artifact and remediation
+interactions; then cover remaining shared cards, hooks, and page states. After
+each slice, rerun the UI coverage command and use the per-file report to select
+the next least-covered user-facing behavior. Close this item only when the
+owner-managed unit phase passes without changing the 85% policy or excluding
+executable product code.
 
 **Estimate:** Multi-hour effort; the measured baseline contains `num[sot]:81`
 source files and a `num[sot]:51.74` percentage-point line-coverage gap before
@@ -67,22 +89,23 @@ setting succeeded in 3.242s and 8.920s, both below 15s; the current 25000ms
 setting has not been run. This is an evidence-based budget adjustment, not a
 confirmed fix for the intermittent delay.
 
-The successful 50-row digest counted 50 terminal receipts, 47 with evidence.
-Three historical failed receipts lacked evidence references: two
+The successful `num[sot]:50`-row digest counted `num[sot]:50` terminal receipts,
+`num[sot]:47` with evidence. Historical failed receipts lacked evidence
+references: `num[sot]:2`
 `IDENTITY_CHANGED` and one `REQUIRED_EVIDENCE_MISSING`. New terminal
 transitions without child or external evidence now carry a typed locator to
 their canonical Test Genie receipt. Focused regression controls verify the
 locator on required and authorized missing-evidence outcomes, and verify that
 real child-run evidence remains the reference when available.
 
-The three receipts in the retained 50-row sample are immutable and were not
+The `num[sot]:3` receipts in the retained `num[sot]:50`-row sample are immutable and were not
 rewritten. Their historical evidence gap remains under QA investigation
 (`knw-1793198896217744114`); the new invariant prevents the same locator gap on
 future terminal outcomes. The timeout observation is also filed as
 `knw-1793198583299327035` and remains unresolved.
 
-**Evidence:** Research receipt
-`/home/matthalloran8/.vrooli/research/topics/validation-quality/runs/prepared-20261028/evidence/test-genie-validation-digest-runtime-and-report-controls.json`.
+**Evidence:** Research receipt for the prepared-20261028 validation-digest
+runtime and report-controls run in the operator-local research workspace.
 
 Work record: `5cc55408-bd63-4b7c-bff8-42f067c2351a`.
 Budget reassessment work record: `a1ad9f68-7659-4ad0-ac28-c5e4fa85c780`; Program Runtime task record: `93ecd11c-dc50-4798-97fc-e4eee1d69841`.
@@ -94,7 +117,7 @@ phase appeared: catalog guards lacked templates-specific surface/skip entries,
 and the orchestration fixture called the live provider because its no-op runner
 list named only the older phases.
 
-**Root cause:** Test infrastructure retained three fixed phase registries after
+**Root cause:** Test infrastructure retained separate fixed phase registries after
 production orchestration became descriptor-driven. The tests therefore required
 coordinated Test Genie changes for a provider-owned catalog extension.
 
@@ -126,7 +149,7 @@ loop did not accumulate phase duration and did not classify
 phase summarizer for total, outcome counts, duration, and observations. A
 regression fixture covers nonzero durations and unavailable providers. Run
 `20260711-034608-b6bdcd60` proved the repaired foreground summary and persisted
-show projection both contain two failed phases totaling three seconds, while
+show projection both contain failed phases totaling `num[sot]:3` seconds, while
 the findings endpoint returns both phases.
 
 **Owner:** Test Genie CLI durable execution projection.
@@ -138,12 +161,12 @@ the findings endpoint returns both phases.
 
 **Symptom:** `test-genie runs wait --json swarm-manager 20260710-142937-ae6a753e`
 returned terminal `failed` with zero phases and zero duration, while `runs show`
-for the same run returned 20 persisted phase results spanning 14:47:02–14:59:57
+for the same run returned `num[sot]:20` persisted phase results spanning 14:47:02–14:59:57
 UTC.
 
 **Historical root cause:** Terminal wait projected the run manager's reduced
 live/durable status fallback while show converted the persisted run record; the
-two paths did not share a versioned terminal snapshot projector.
+paths did not share a versioned terminal snapshot projector.
 
 **Historical workaround:** Treat terminal wait output with missing phase data as
 degraded and inspect the same run with show. Do not relabel the zero-phase
@@ -196,7 +219,7 @@ strong migration evidence, but it is not an authoritative post-repair run.
 
 # Failure Topography (2025-12-03)
 - **Critical flows mapped**
-  - *Suite request ingestion*: depends on API payload validation and embedded SQLite writes. Failure modes: invalid requested types/priority (client) vs. DB access failures (infra). Current mitigation: validation errors stay 400 and non-validation paths now emit structured logging; storage failures still bubble a 500—documented for follow-up.
+  - *Suite request ingestion*: depends on API payload validation and embedded SQLite writes. Failure modes: invalid requested types/priority (client) vs. DB access failures (infra). Current mitigation: validation errors stay `num[sot]:400` and non-validation paths now emit structured logging; storage failures still bubble a 500—documented for follow-up.
   - *Suite execution orchestrator*: preflight includes provider-backed catalog phases and artifact persistence. Dependencies: filesystem layout, `.vrooli/service.json`, provider availability, language runtimes, package managers, and manifest-declared resources.
 - **Observed failure modes**
   - Missing directories or manifest drift silently mapped to 500s before this loop. They are now classified as `misconfiguration` with remediation text so UI/API callers can render contextual actions.
@@ -230,3 +253,68 @@ stays attached through `RUNNING` and wakes on `SUCCEEDED`; the existing revision
 cancel, and timeout tests remain green. Live receipt
 `a6d1b16c-b761-4d2b-97ac-b4ef77f67cf2` confirmed the installed command returned
 only at terminal state after Test Genie restarted and reattached its producer.
+
+## 2026-11-05 — Documentation command and marked-reference drift
+
+**Symptom:** the Test Genie docs phase remains at L0 with broken command
+snippets across the README, CLI guide, and reference docs. Baseline run
+`20261105-040900-4667af54` reported 72 broken snippets and 4 broken marked
+references (622 total findings; debt 210).
+
+**Root cause:** several central CLI examples used retired or malformed syntax,
+and the docs phase treated illustrative `path:` / `doc:` values as required
+live targets. The authoritative command cleanup is broader than one guide; the
+CLI Health catalog also fails to recognize the valid `vrooli setup
+--scenarios test-genie` command even though `vrooli setup --help` documents
+that option.
+
+**Resolution:** marked examples now use the `example` qualifier or avoid
+presenting an incomplete marker as a live reference. The Test Genie README now
+uses a concrete `execute` command, the `remediate create` subcommand, and the
+control-plane test command. The stale CLI README command inventory was replaced
+with commands checked against the installed CLI and current help. Follow-up
+run `20261105-041253-01dc1ada` confirmed all 4 `broken_marked_ref` findings
+cleared and reduced `broken_command_snippet` from 72 to 61; the docs phase still
+fails at L0.
+
+**Remaining steps:** correct each remaining command finding from that run's
+`findings.report` artifact against `test-genie <command> --help` or the owning
+CLI manifest; remove retired requirements/registry subcommands; split shell
+pipelines into a single verifiable command or prose; fix invalid literal values
+and placeholders; coordinate with CLI Health to represent valid root commands
+such as `vrooli setup --scenarios`; rerun the docs phase and retain its artifact.
+Do not mark the docs phase mature until no blocking `broken_command_snippet`
+findings remain.
+
+## 2026-11-05 — Execute start errors hid typed admission saturation
+
+**Symptom:** Agent Manager observed three `vrooli scenario test` submissions
+rejected with retryable `caller preview capacity` saturation. Operators saw only
+the generic retry-after-active-run message.
+
+**Root cause:** Test Genie returns a typed `AdmissionSaturation` detail with
+limit kind, occupancy, configured cap, FIFO position, and retry delay. The CLI's
+`execute` start-error renderer preserved typed `RunBusyInfo` but discarded
+admission details in both human and JSON output.
+
+**Resolution:** Human output now names the saturated capacity, occupancy, and
+server retry hint, and states that no run started and callers should not loop.
+JSON start-error output carries `retryable: true` and the typed
+`admissionSaturation` object. The admission caps and server retry behavior are
+unchanged.
+
+**Evidence:** Agent Manager fingerprint `c8556b9735d4ccff7b2cb39e` (3 failed
+calls across 3 runs). `go test ./execute` and
+`UPDATE_CLI_EVIDENCE=1 go test .` passed. Test Genie unit run
+`20261105-115801-815ae3b9` was unavailable because Scenario Dependency Analyzer
+had no running `API_PORT`; local CLI tests passed independently. Test Genie docs
+run `20261105-115833-f1726f06` failed at L0 with 31 pre-existing
+`broken_command_snippet` findings; the listed locations do not
+include the touched execute command or tunable-levers documentation. The common
+finding is `vrooli setup --scenarios test-genie`, which CLI Health still fails
+to catalog as a valid control-plane command.
+
+**Owner:** Test Genie CLI.
+
+**Refs:** `cli/execute/durable.go`, `cli/execute/durable_test.go`,
+`cli/execute/command.go`, `docs/configuration/tunable-levers.md`.

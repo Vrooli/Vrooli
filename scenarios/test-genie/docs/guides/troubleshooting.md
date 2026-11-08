@@ -7,8 +7,8 @@ This guide provides step-by-step diagnosis and fixes for common testing issues a
 ### Check Test Execution Status
 
 ```bash
-# Run tests and capture output
-test-genie execute my-scenario --preset comprehensive 2>&1 | tee test_output.log
+# Run the quick test preset
+test-genie execute my-scenario --preset quick
 
 # Check phase results
 cat coverage/phase-results/unit.json | jq '.status'
@@ -938,7 +938,7 @@ def db_session():
 **Diagnosis:**
 ```bash
 # Check if scenario exists in catalog
-test-genie scenarios list | grep my-scenario
+vrooli scenario list
 
 # Verify Test Genie configuration when the scenario customizes it
 jq . scenarios/my-scenario/.vrooli/testing.json
@@ -946,8 +946,8 @@ jq . scenarios/my-scenario/.vrooli/testing.json
 
 **Solutions:**
 ```bash
-# Ensure scenario is registered
-test-genie scenarios refresh
+# Confirm the scenario is in the repository catalog
+vrooli scenario list
 
 # Check API is running
 curl http://localhost:${TEST_GENIE_PORT}/health
@@ -955,6 +955,8 @@ curl http://localhost:${TEST_GENIE_PORT}/health
 # Run with verbose output
 test-genie execute my-scenario --verbose
 ```
+
+If the scenario is missing, check its manifest and repository discovery path.
 
 ### Requirements Not Syncing
 
@@ -977,7 +979,7 @@ grep -r "\[REQ:" ui/src/**/*.test.ts
 test-genie execute my-scenario --preset comprehensive
 
 # Force sync manually
-test-genie sync my-scenario --force
+test-genie requirements sync --scenario "my-scenario"
 
 # Check reporter output
 cat ui/coverage/vitest-requirements.json | jq .
@@ -1021,11 +1023,13 @@ mkdir debug-info
 cp test_output.log debug-info/
 docker logs container-name > debug-info/docker.log 2>&1
 env > debug-info/environment.txt
-test-genie version > debug-info/version.txt
+test-genie version
 
 # Create archive
 zip -r debug-info.zip debug-info/
 ```
+
+Record the Test Genie version printed by the command with the debug bundle.
 
 ## Prevention Checklist
 
@@ -1061,10 +1065,10 @@ zip -r debug-info.zip debug-info/
 - [Architecture](../concepts/architecture.md) - Understand the system
 - [Requirements Sync](../phases/business/requirements-sync.md) - Debug requirement tracking issues
 - [Glossary](../GLOSSARY.md) - Look up unfamiliar terms
-- [Scenario Unit Testing](../phases/unit/scenario-unit-testing.md) - Writing effective tests
+- [Test Authoring Guide](/docs/testing/UNIT-TEST-AUTHORING.md) - Writing effective tests
 
 ### Reference
 - [CLI Commands](../reference/cli-commands.md) - CLI reference
 - [API Endpoints](../reference/api-endpoints.md) - API reference
-- [Test Runners](../phases/unit/test-runners.md) - Execution methods
+- [Testing Guide](/docs/TESTING.md) - Scenario and package test commands
 - [Phases Overview](../phases/README.md) - Phase specifications

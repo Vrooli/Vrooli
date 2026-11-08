@@ -128,7 +128,17 @@ func followCommand(scenario, runID string) string {
 }
 
 func findingsCommand(scenario, runID string) string {
-	return "test-genie runs findings " + runID + " --scenario " + scenario
+	return "test-genie runs findings " + scenario + " " + runID
+}
+
+// logsCommand prints the run's phase command logs.
+func logsCommand(scenario, runID string) string {
+	return "test-genie runs logs " + scenario + " " + runID
+}
+
+// artifactsCommand lists the run's artifact catalog.
+func artifactsCommand(scenario, runID string) string {
+	return "test-genie runs artifacts " + scenario + " " + runID
 }
 
 // humanDuration renders a second count as a compact human string (e.g. "2m30s").

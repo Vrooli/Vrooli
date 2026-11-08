@@ -28,7 +28,12 @@ test-genie runs follow my-scenario <run-id>
 ```
 
 Use `test-genie runs abort my-scenario <run-id>` only to deliberately cancel a
-run.
+run. Abort requests the run's cancellation and waits for the executor to settle.
+The wait is bounded at two minutes by Test Genie; a shorter request deadline or
+cancellation can end the RPC sooner. If either bound arrives before the executor
+settles, the call returns a deadline/cancellation error and the run may still be
+nonterminal while it unwinds. Reattach with `runs status` or the recommended
+single `runs wait` command before treating the run as aborted.
 
 ## Move from evidence to remediation
 
@@ -36,10 +41,7 @@ After a completed execution, select stable finding IDs and launch at most one
 remediation job for the scenario:
 
 ```bash
-test-genie remediate my-scenario \
-  --execution <execution-id> \
-  --findings <stable-finding-id,...> \
-  --role code.default
+test-genie remediate create my-scenario --execution "<execution>" --findings "<findings>" --role code.default
 ```
 
 Test Genie sends an immutable evidence packet to Agent Manager. Agent completion

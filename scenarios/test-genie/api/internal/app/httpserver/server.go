@@ -12,6 +12,7 @@ import (
 	"github.com/vrooli/api-core/apihttp"
 	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/devrouting"
+	apilifecycle "github.com/vrooli/api-core/lifecycle"
 	apiserver "github.com/vrooli/api-core/server"
 
 	"test-genie/agentmanager"
@@ -36,6 +37,7 @@ import (
 	scenariovalidationconnect "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1/scenariovalidationv1connect"
 	"github.com/vrooli/vrooli/packages/proto/gen/go/test-genie/v1/eligibility/eligibility_v1connect"
 	"github.com/vrooli/vrooli/packages/proto/gen/go/test-genie/v1/runs/runs_v1connect"
+	seedsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/test-genie/v1/seeds/seeds_v1connect"
 	validationconnect "github.com/vrooli/vrooli/packages/proto/gen/go/test-genie/v1/validation/validation_v1connect"
 )
 
@@ -145,6 +147,9 @@ type Server struct {
 	seedSessions           map[string]*seedSession
 	seedSessionsByScenario map[string]string
 	seedSessionsMu         sync.Mutex
+	seedStore              *seedSessionStore
+	seedOwnerErr           error
+	seedMaintenance        sync.WaitGroup
 	cleanupMu              sync.Mutex
 	cleanupResults         map[string]ownerCleanupApplyResponse
 	removalLedger          *artifactledger.Ledger
@@ -210,11 +215,21 @@ func New(config Config, deps Dependencies) (*Server, error) {
 		cleanupResults:         make(map[string]ownerCleanupApplyResponse),
 	}
 
+	seedDir, seedErr := defaultSeedOwnerDir()
+	if seedErr == nil {
+		seedErr = srv.initializeSeedOwner(seedDir)
+	}
+	if seedErr != nil {
+		srv.seedOwnerErr = seedErr
+		srv.log("seed ownership unavailable", map[string]interface{}{"error": seedErr.Error()})
+	}
 	srv.setupRoutes()
 	return srv, nil
 }
 
 func (s *Server) setupRoutes() {
+	seedPath, seedHandler := seedsconnect.NewSeedServiceHandler(&seedConnectService{server: s})
+	s.router.PathPrefix(seedPath).Handler(seedHandler)
 	s.router.Use(s.securityHeadersMiddleware)
 	s.router.Use(s.loggingMiddleware)
 	// Health endpoint at root for infrastructure agents
@@ -324,6 +339,21 @@ func (s *Server) Handler() http.Handler {
 	return handlers.RecoveryHandler()(apihttp.TestModeMiddleware(rootMux))
 }
 
+// Suite execution is process-owned and must finish before replacement. Seed
+// sessions have a distinct durable cleanup owner and recover after replacement.
+func (s *Server) lifecycleHooks() apilifecycle.Hooks {
+	return apilifecycle.Hooks{
+		Snapshot: func(ctx context.Context) (apilifecycle.Inventory, error) {
+			if s.runManager == nil {
+				return apilifecycle.Inventory{Complete: false, Remaining: -1}, fmt.Errorf("suite run manager inventory is unavailable")
+			}
+			return s.runManager.LifecycleInventory(ctx)
+		},
+		Quiesce: func(ctx context.Context) error { return s.runManager.QuiesceLifecycle(ctx) },
+		Resume:  func(ctx context.Context) error { return s.runManager.ResumeLifecycle(ctx) },
+	}
+}
+
 // Start launches through the standard API Core server so receipt observation,
 // verified provenance, streaming-safe wrappers, and graceful shutdown are
 // shared with the rest of the fleet.
@@ -335,17 +365,23 @@ func (s *Server) Start() error {
 
 	backgroundCtx, cancelBackground := context.WithCancel(context.Background())
 	defer cancelBackground()
+	s.startSeedMaintenance(backgroundCtx)
 	if s.startBackground != nil {
 		s.startBackground(backgroundCtx)
 	}
 	return apiserver.Run(apiserver.Config{
-		Handler:      s.Handler(),
-		Port:         s.config.Port,
-		ReadTimeout:  30 * time.Second,
-		WriteTimeout: 20 * time.Minute,
-		IdleTimeout:  120 * time.Second,
+		Handler:        s.Handler(),
+		LifecycleHooks: s.lifecycleHooks(),
+		Port:           s.config.Port,
+		ReadTimeout:    30 * time.Second,
+		WriteTimeout:   20 * time.Minute,
+		IdleTimeout:    120 * time.Second,
 		Cleanup: func(context.Context) error {
 			cancelBackground()
+			s.seedMaintenance.Wait()
+			// The seed journal lock is process-lifetime ownership. HTTP drain
+			// may time out while an admitted handler still runs; only OS process
+			// exit may release it for a replacement owner.
 			if s.runManager != nil {
 				s.runManager.Shutdown()
 			}

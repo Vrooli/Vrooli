@@ -10,13 +10,7 @@
       "commands": [
         {"name":"evidence-cutover","description":"Plan or confirmation-gate one offline evidence and SQLite archive or rebuild","binding":{"kind":"local"},"governance":{"effect":"write","run_eligible":false,"permissions":["filesystem:read","filesystem:write"]}},
         {"name":"run-tests","description":"Trigger the scenario-local test runner","binding":{"kind":"local"},"governance":{"effect":"write","run_eligible":false,"permissions":["network:internal"]}},
-        {"name":"registry","description":"Manage playbook registries","binding":{"kind":"local"},"governance":{"effect":"read","run_eligible":true,"permissions":["filesystem:read"]}},
-        {"name":"requirements","description":"Inspect and sync scenario requirements","binding":{"kind":"local"},"governance":{"effect":"read","run_eligible":true,"permissions":["filesystem:read"]}},
-        {"name":"provider-contract","description":"Validate provider maturity assessment contracts","binding":{"kind":"local"},"governance":{"effect":"read","run_eligible":true,"permissions":["filesystem:read"]}},
         {"name":"health","description":"Show Test Genie self-health","binding":{"kind":"local"},"governance":{"effect":"read","run_eligible":true,"permissions":["network:internal"]}},
-        {"name":"phases","description":"Inspect phase catalog, applicability, and execution plans","binding":{"kind":"local"},"governance":{"effect":"read","run_eligible":true,"permissions":["network:internal"]}},
-        {"name":"fleet","description":"Show fleet-wide health over stored runs","binding":{"kind":"local"},"governance":{"effect":"read","run_eligible":true,"permissions":["network:internal"]}},
-        {"name":"playbooks-seed","description":"Manage the playbooks seed lifecycle","binding":{"kind":"local"},"governance":{"effect":"write","run_eligible":false,"permissions":["network:internal"]}},
         {"name":"space","description":"Emit the validation coverage-space denominator","binding":{"kind":"local"},"governance":{"effect":"read","run_eligible":true}}
       ]
     },
@@ -32,7 +26,9 @@
               "name": "scenario",
               "required": true,
               "description": "Scenario id",
-              "bind": {"field": "target"}
+              "bind": {
+                "field": "target"
+              }
             },
             {
               "name": "status",
@@ -70,15 +66,15 @@
         {
           "name": "show",
           "description": "Show one recorded test run",
-          "flags": [
+          "positionals": [
             {
               "name": "scenario",
               "required": true,
-              "description": "Scenario id",
-              "bind": {"field": "target"}
-            }
-          ],
-          "positionals": [
+              "description": "Scenario id (or --scenario)",
+              "bind": {
+                "field": "target"
+              }
+            },
             {
               "name": "run_id",
               "required": true,
@@ -112,24 +108,26 @@
         {
           "name": "delete",
           "description": "Delete a recorded test run",
-          "flags": [
+          "positionals": [
             {
               "name": "scenario",
               "required": true,
-              "description": "Scenario id",
-              "bind": {"field": "target"}
+              "description": "Scenario id (or --scenario)",
+              "bind": {
+                "field": "target"
+              }
             },
-            {
-              "name": "force",
-              "bool": true,
-              "description": "Delete even if pinned"
-            }
-          ],
-          "positionals": [
             {
               "name": "run_id",
               "required": true,
               "description": "Run id"
+            }
+          ],
+          "flags": [
+            {
+              "name": "force",
+              "bool": true,
+              "description": "Delete even if pinned"
             }
           ],
           "binding": {
@@ -151,13 +149,22 @@
         {
           "name": "pin",
           "description": "Pin a recorded test run for comparison",
-          "flags": [
+          "positionals": [
             {
               "name": "scenario",
               "required": true,
-              "description": "Scenario id",
-              "bind": {"field": "target"}
+              "description": "Scenario id (or --scenario)",
+              "bind": {
+                "field": "target"
+              }
             },
+            {
+              "name": "run_id",
+              "required": true,
+              "description": "Run id"
+            }
+          ],
+          "flags": [
             {
               "name": "by",
               "required": true,
@@ -169,13 +176,6 @@
             {
               "name": "reason",
               "description": "Reason for the pin"
-            }
-          ],
-          "positionals": [
-            {
-              "name": "run_id",
-              "required": true,
-              "description": "Run id"
             }
           ],
           "binding": {
@@ -197,13 +197,22 @@
         {
           "name": "unpin",
           "description": "Remove a pin from a recorded test run",
-          "flags": [
+          "positionals": [
             {
               "name": "scenario",
               "required": true,
-              "description": "Scenario id",
-              "bind": {"field": "target"}
+              "description": "Scenario id (or --scenario)",
+              "bind": {
+                "field": "target"
+              }
             },
+            {
+              "name": "run_id",
+              "required": true,
+              "description": "Run id"
+            }
+          ],
+          "flags": [
             {
               "name": "by",
               "required": true,
@@ -211,13 +220,6 @@
               "bind": {
                 "field": "pinned_by"
               }
-            }
-          ],
-          "positionals": [
-            {
-              "name": "run_id",
-              "required": true,
-              "description": "Run id"
             }
           ],
           "binding": {
@@ -239,19 +241,15 @@
         {
           "name": "compare",
           "description": "Compare two recorded test runs",
-          "flags": [
+          "positionals": [
             {
               "name": "scenario",
               "required": true,
-              "description": "Scenario id",
-              "bind": {"field": "target"}
+              "description": "Scenario id (or --scenario)",
+              "bind": {
+                "field": "target"
+              }
             },
-            {
-              "name": "phase",
-              "description": "Restrict comparison to one phase"
-            }
-          ],
-          "positionals": [
             {
               "name": "left_run_id",
               "required": true,
@@ -261,12 +259,18 @@
               }
             },
             {
-      "name": "right_run_id",
-      "required": true,
-      "description": "Candidate run id",
-      "bind": {
-        "field": "run_id_b"
-      }
+              "name": "right_run_id",
+              "required": true,
+              "description": "Candidate run id",
+              "bind": {
+                "field": "run_id_b"
+              }
+            }
+          ],
+          "flags": [
+            {
+              "name": "phase",
+              "description": "Restrict comparison to one phase"
             }
           ],
           "binding": {
@@ -292,18 +296,20 @@
             {
               "name": "scenario",
               "description": "Optional scenario id",
-              "bind": {"field": "target"}
+              "bind": {
+                "field": "target"
+              }
             },
             {
               "name": "window",
-              "description": "Look-back duration (for example 168h or 7d)",
+              "description": "Look-back duration in seconds",
               "bind": {
                 "field": "window_seconds"
               }
             },
             {
               "name": "compare-window",
-              "description": "Optional preceding comparison duration",
+              "description": "Optional preceding comparison duration in seconds",
               "bind": {
                 "field": "compare_window_seconds"
               }
@@ -328,17 +334,6 @@
         {
           "name": "freshness",
           "description": "Check whether a scenario changed since its last relevant run",
-          "flags": [
-            {
-      "name": "scenario",
-      "description": "Scenario id",
-      "local_only": true
-            },
-            {
-              "name": "phases",
-              "description": "Comma-separated phases to check"
-            }
-          ],
           "positionals": [
             {
               "name": "scenario_arg",
@@ -346,6 +341,17 @@
               "bind": {
                 "field": "target"
               }
+            }
+          ],
+          "flags": [
+            {
+              "name": "scenario",
+              "description": "Scenario id",
+              "local_only": true
+            },
+            {
+              "name": "phases",
+              "description": "Comma-separated phases to check"
             }
           ],
           "binding": {
@@ -367,15 +373,15 @@
         {
           "name": "findings",
           "description": "Show the per-phase maturity standing (Phase Capability Contract) from a run's findings.json",
-          "flags": [
+          "positionals": [
             {
               "name": "scenario",
               "required": true,
-              "description": "Scenario id",
-              "bind": {"field": "target"}
-            }
-          ],
-          "positionals": [
+              "description": "Scenario id (or --scenario)",
+              "bind": {
+                "field": "target"
+              }
+            },
             {
               "name": "run_id",
               "description": "Run id (defaults to the latest run)"
@@ -463,7 +469,9 @@
               "name": "scenario",
               "required": true,
               "description": "Scenario id",
-              "bind": {"field": "target"}
+              "bind": {
+                "field": "target"
+              }
             },
             {
               "name": "run_id",
@@ -495,7 +503,9 @@
               "name": "scenario",
               "required": true,
               "description": "Scenario id",
-              "bind": {"field": "target"}
+              "bind": {
+                "field": "target"
+              }
             },
             {
               "name": "run_id",
@@ -522,13 +532,22 @@
         {
           "name": "artifacts",
           "description": "List the typed, opaque artifact catalog for a run",
-          "flags": [
+          "positionals": [
             {
               "name": "scenario",
               "required": true,
-              "description": "Scenario id",
-              "bind": {"field": "target"}
+              "description": "Scenario id (or --scenario)",
+              "bind": {
+                "field": "target"
+              }
             },
+            {
+              "name": "run_id",
+              "required": true,
+              "description": "Run id"
+            }
+          ],
+          "flags": [
             {
               "name": "kinds",
               "description": "Optional comma-separated artifact kinds"
@@ -539,13 +558,6 @@
               "bind": {
                 "field": "producing_phase"
               }
-            }
-          ],
-          "positionals": [
-            {
-              "name": "run_id",
-              "required": true,
-              "description": "Run id"
             }
           ],
           "binding": {
@@ -566,16 +578,16 @@
         },
         {
           "name": "artifact",
-          "description": "Show typed metadata and opaque access path for one run artifact",
-          "flags": [
+          "description": "Show typed metadata for one opaque run artifact",
+          "positionals": [
             {
               "name": "scenario",
               "required": true,
-              "description": "Scenario id",
-              "bind": {"field": "target"}
-            }
-          ],
-          "positionals": [
+              "description": "Scenario id (or --scenario)",
+              "bind": {
+                "field": "target"
+              }
+            },
             {
               "name": "run_id",
               "required": true,
@@ -605,20 +617,94 @@
         },
         {
           "name": "download-artifact",
-          "description": "Stream one cataloged run artifact to a local file",
+          "description": "Stream one cataloged run artifact to stdout or a local file",
           "needs_api": true,
-          "flags": [
-            {"name":"scenario","required":true,"description":"Scenario that owns the run","local_only":true},
-            {"name":"out","required":true,"description":"Destination file; existing files are preserved unless --overwrite is supplied","local_only":true},
-            {"name":"overwrite","bool":true,"description":"Atomically replace an existing destination file","local_only":true}
-          ],
           "positionals": [
-            {"name":"run_id","required":true,"description":"Run id","local_only":true},
-            {"name":"artifact_id","required":true,"description":"Opaque artifact id","local_only":true}
+            {
+              "name": "scenario",
+              "required": true,
+              "description": "Scenario that owns the run (or --scenario)",
+              "local_only": true
+            },
+            {
+              "name": "run_id",
+              "required": true,
+              "description": "Run id",
+              "local_only": true
+            },
+            {
+              "name": "artifact_id",
+              "required": true,
+              "description": "Opaque artifact id",
+              "local_only": true
+            }
           ],
-          "binding": {"kind":"local"},
-          "governance": {"effect":"write","run_eligible":true,"permissions":["network:internal","filesystem:write"]},
-          "architecture": {"primitive":"action"}
+          "flags": [
+            {
+              "name": "out",
+              "description": "Destination file (default: stdout, also -); an existing file is preserved unless --overwrite is supplied",
+              "local_only": true
+            },
+            {
+              "name": "overwrite",
+              "bool": true,
+              "description": "Atomically replace an existing destination file",
+              "local_only": true
+            }
+          ],
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal",
+              "filesystem:write"
+            ]
+          },
+          "architecture": {
+            "primitive": "action"
+          }
+        },
+        {
+          "name": "logs",
+          "description": "Print a run's phase command logs",
+          "needs_api": true,
+          "positionals": [
+            {
+              "name": "scenario",
+              "required": true,
+              "description": "Scenario that owns the run (or --scenario)",
+              "local_only": true
+            },
+            {
+              "name": "run_id",
+              "required": true,
+              "description": "Run id",
+              "local_only": true
+            }
+          ],
+          "flags": [
+            {
+              "name": "phase",
+              "description": "Only this phase's log",
+              "local_only": true
+            }
+          ],
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "action"
+          }
         }
       ]
     },
@@ -782,6 +868,65 @@
       ]
     },
     {
+      "name": "registry",
+      "description": "Build the playbook registry for a scenario",
+      "commands": [
+        {
+          "name": "build",
+          "description": "Build the playbook registry for a scenario",
+          "flags": [
+            {"name":"scenario","description":"Scenario directory (defaults to the current directory)"},
+            {"name":"q","bool":true,"description":"Print only errors"}
+          ],
+          "binding": {"kind":"local"},
+          "governance": {"effect":"write","run_eligible":false,"permissions":["filesystem:read","filesystem:write"]}
+        }
+      ]
+    },
+    {
+      "name": "requirements",
+      "description": "Sync scenario requirement statuses from local evidence",
+      "commands": [
+        {
+          "name": "sync",
+          "description": "Sync requirement statuses from local evidence",
+          "flags": [
+            {"name":"dir","description":"Scenario directory (defaults to the current directory)"},
+            {"name":"scenario","description":"Scenario name (defaults to the directory name)"},
+            {"name":"command","repeated":true,"description":"Test command to record; repeatable"}
+          ],
+          "binding": {"kind":"local"},
+          "governance": {"effect":"write","run_eligible":false,"permissions":["filesystem:read","filesystem:write"]}
+        }
+      ]
+    },
+    {
+      "name": "phases",
+      "description": "Inspect phase catalog, applicability, and execution plans",
+      "commands": [
+        {"name":"list","description":"List test phases","flags":[{"name":"json","bool":true,"local_only":true}],"binding":{"kind":"local"},"governance":{"effect":"read","run_eligible":true,"permissions":["network:internal"]}},
+        {"name":"inspect","description":"Inspect one phase","positionals":[{"name":"phase","required":true}],"flags":[{"name":"json","bool":true,"local_only":true}],"binding":{"kind":"local"},"governance":{"effect":"read","run_eligible":true,"permissions":["network:internal"]}},
+        {"name":"applicability","description":"Preview phase applicability for a scenario","positionals":[{"name":"target","required":true}],"flags":[{"name":"phase"},{"name":"preset"},{"name":"json","bool":true,"local_only":true}],"binding":{"kind":"local"},"governance":{"effect":"read","run_eligible":true,"permissions":["network:internal"]}},
+        {"name":"plan","description":"Preview a scenario execution plan","positionals":[{"name":"target","required":true}],"flags":[{"name":"preset"},{"name":"phase"},{"name":"skip"},{"name":"json","bool":true,"local_only":true}],"binding":{"kind":"local"},"governance":{"effect":"read","run_eligible":true,"permissions":["network:internal"]}},
+        {"name":"scaffold","description":"Scaffold phase documentation and maturity files","positionals":[{"name":"phase","required":true}],"flags":[{"name":"provider"},{"name":"docs-out"},{"name":"maturity-out"}],"binding":{"kind":"local"},"governance":{"effect":"write","run_eligible":false,"permissions":["filesystem:write"]}}
+      ]
+    },
+    {
+      "name": "fleet",
+      "description": "Show fleet-wide health over stored runs",
+      "commands": [
+        {"name":"status","description":"Show fleet-wide health over stored runs","flags":[{"name":"json","bool":true,"local_only":true},{"name":"window-days","description":"Fleet look-back window in days"},{"name":"roster","bool":true,"description":"Include scenarios that have not been tested in the window"}],"binding":{"kind":"local"},"governance":{"effect":"read","run_eligible":true,"permissions":["network:internal"]}}
+      ]
+    },
+    {
+      "name": "playbooks-seed",
+      "description": "Apply and clean up the playbooks seed lifecycle",
+      "commands": [
+        {"name":"apply","description":"Apply playbooks for a scenario","flags":[{"name":"scenario","required":true},{"name":"retain","bool":true}],"binding":{"kind":"local"},"governance":{"effect":"write","run_eligible":false,"permissions":["network:internal"]}},
+        {"name":"cleanup","description":"Clean up a playbooks seed run","flags":[{"name":"scenario","required":true},{"name":"token","required":true}],"binding":{"kind":"local"},"governance":{"effect":"write","run_eligible":false,"permissions":["network:internal"]}}
+      ]
+    },
+    {
       "name": "provider-contract",
       "description": "Run provider contract checks",
       "commands": [
@@ -792,9 +937,29 @@
             {"name": "phase_or_provider", "required": true, "description": "Phase or provider"},
             {"name": "scenario", "required": true, "description": "Target scenario"}
           ],
+          "flags": [
+            {"name":"restart","bool":true,"description":"Restart the provider before checking it"},
+            {"name":"no-restart","bool":true,"description":"Do not restart a provider for the check"},
+            {"name":"timeout","description":"Provider command timeout"},
+            {"name":"json","bool":true,"local_only":true,"description":"Emit JSON output"}
+          ],
           "binding": {"kind": "local"},
           "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal"]},
           "architecture": {"primitive": "action"}
+        },
+        {
+          "name": "scan",
+          "description": "Scan provider contracts across phases or providers",
+          "positionals": [{"name":"phase_or_provider","description":"Optional phase or provider"}],
+          "flags": [
+            {"name":"json","bool":true,"local_only":true},
+            {"name":"target","description":"Fixture scenario to use as the target"},
+            {"name":"timeout","description":"Per-check timeout"},
+            {"name":"restart","bool":true,"description":"Restart providers when required"}
+          ],
+          "binding": {"kind":"local"},
+          "governance": {"effect":"read","run_eligible":true,"permissions":["network:internal"]},
+          "architecture": {"primitive":"action"}
         }
       ]
     }

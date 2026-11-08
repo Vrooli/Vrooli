@@ -35,6 +35,70 @@ func TestManifestDeclaresExecuteDurableException(t *testing.T) {
 	t.Fatal("manifest does not declare execute as a durable_run exception")
 }
 
+func TestManifestCatalogsLocalSubcommandTreesAndArgumentShapes(t *testing.T) {
+	m, err := cliapp.ParseManifest(manifestBytes)
+	if err != nil {
+		t.Fatalf("parse manifest: %v", err)
+	}
+	want := map[string]map[string][]string{
+		"registry":          {"build": []string{"scenario", "q"}},
+		"requirements":      {"sync": []string{"dir", "scenario", "command"}},
+		"phases":            {"list": []string{"json"}, "inspect": []string{"phase", "json"}, "applicability": []string{"target", "phase", "preset", "json"}, "plan": []string{"target", "preset", "phase", "skip", "json"}, "scaffold": []string{"phase", "provider", "docs-out", "maturity-out"}},
+		"fleet":             {"status": []string{"json", "window-days", "roster"}},
+		"playbooks-seed":    {"apply": []string{"scenario", "retain"}, "cleanup": []string{"scenario", "token"}},
+		"provider-contract": {"check": []string{"phase_or_provider", "scenario", "restart", "no-restart", "timeout", "json"}, "scan": []string{"phase_or_provider", "json", "target", "timeout", "restart"}},
+	}
+	for groupName, commands := range want {
+		group := m.FindGroup(groupName)
+		if group == nil {
+			t.Fatalf("missing command group %q", groupName)
+		}
+		for commandName, wantArgs := range commands {
+			var command *cliapp.ManifestCommand
+			for i := range group.Commands {
+				if group.Commands[i].Name == commandName {
+					command = &group.Commands[i]
+					break
+				}
+			}
+			if command == nil {
+				t.Errorf("missing %s %s command", groupName, commandName)
+				continue
+			}
+			args, err := cliapp.ManifestArgs(*command)
+			if err != nil {
+				t.Errorf("resolve %s %s arguments: %v", groupName, commandName, err)
+				continue
+			}
+			got := make([]string, 0, len(args.Positionals)+len(args.Flags))
+			for _, positional := range args.Positionals {
+				got = append(got, positional.Name)
+			}
+			for _, flag := range args.Flags {
+				got = append(got, flag.Name)
+			}
+			if len(got) != len(wantArgs) {
+				t.Errorf("%s %s arguments = %v, want %v", groupName, commandName, got, wantArgs)
+				continue
+			}
+			for i := range got {
+				if got[i] != wantArgs[i] {
+					t.Errorf("%s %s arguments = %v, want %v", groupName, commandName, got, wantArgs)
+					break
+				}
+			}
+		}
+	}
+	for _, flatCommand := range []string{"registry", "requirements", "provider-contract", "phases", "fleet", "playbooks-seed"} {
+		group := m.FindGroup("runtime-root")
+		for _, command := range group.Commands {
+			if command.Name == flatCommand {
+				t.Errorf("%q is a command group and must not be cataloged as a no-argument root leaf", flatCommand)
+			}
+		}
+	}
+}
+
 func TestResolveIdentityRequestFileIsLocalInput(t *testing.T) {
 	m, err := cliapp.ParseManifest(manifestBytes)
 	if err != nil {

@@ -15,10 +15,7 @@ targets, or arbitrary prompts. Start with a completed scenario execution.
 The CLI equivalent is:
 
 ```bash
-test-genie remediate my-scenario \
-  --execution <completed-execution-uuid> \
-  --findings afid:example \
-  --role code.default
+test-genie remediate create my-scenario --execution "<execution>" --findings afid:example --role code.default
 ```
 
 Use the execution API or dashboard to discover valid selectors. Test Genie

@@ -420,12 +420,14 @@ func (s *Service) WaitRun(ctx context.Context, req *connect.Request[runspb.WaitR
 	return connect.NewResponse(response), nil
 }
 
-// AbortRun cancels a running run and reports its terminal aborted status.
+// AbortRun cancels a running run and reports its terminal status. If the RPC
+// context ends before the executor settles, the call returns a typed context
+// error and the caller can reattach through status or wait.
 func (s *Service) AbortRun(ctx context.Context, req *connect.Request[runspb.AbortRunRequest]) (*connect.Response[runspb.AbortRunResponse], error) {
 	if s.runManager == nil {
 		return nil, connect.NewError(connect.CodeUnimplemented, errors.New("run manager is not configured"))
 	}
-	st, err := s.runManager.Abort(strings.TrimSpace(req.Msg.GetTarget()), strings.TrimSpace(req.Msg.GetRunId()))
+	st, err := s.runManager.Abort(ctx, strings.TrimSpace(req.Msg.GetTarget()), strings.TrimSpace(req.Msg.GetRunId()))
 	if err != nil {
 		return nil, mapRunError(err)
 	}

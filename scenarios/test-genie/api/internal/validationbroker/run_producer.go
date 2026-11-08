@@ -23,8 +23,8 @@ import (
 type suiteRunManager interface {
 	Start(runmanager.StartOptions) (runmanager.StartResult, error)
 	Wait(context.Context, string, string) (runmanager.LiveStatus, error)
-	Abort(string, string) (runmanager.LiveStatus, error)
-	AbortEvidenceProducer(runmanager.StartOptions) (runmanager.LiveStatus, error)
+	Abort(context.Context, string, string) (runmanager.LiveStatus, error)
+	AbortEvidenceProducer(context.Context, runmanager.StartOptions) (runmanager.LiveStatus, error)
 }
 
 type retainedEvidenceSetOwner interface {
@@ -848,7 +848,7 @@ func (p *RunProducer) AbortEvidenceValidation(ctx context.Context, receipt *vali
 	if err != nil {
 		return err
 	}
-	status, err := p.runs.AbortEvidenceProducer(options)
+	status, err := p.runs.AbortEvidenceProducer(ctx, options)
 	if err != nil {
 		return fmt.Errorf("abort pinned evidence producer %s: %w", options.Input.Request.RunID, err)
 	}
@@ -869,7 +869,7 @@ func (p *RunProducer) AbortEvidenceValidation(ctx context.Context, receipt *vali
 		if len(parts) < 3 || parts[0] != "scenario" {
 			return fmt.Errorf("validation child %q has no scenario identity", child.GetChildId())
 		}
-		settled, abortErr := p.runs.Abort(parts[1], child.GetOperationId())
+		settled, abortErr := p.runs.Abort(ctx, parts[1], child.GetOperationId())
 		if abortErr != nil {
 			return fmt.Errorf("abort validation child %s: %w", child.GetOperationId(), abortErr)
 		}
@@ -900,9 +900,9 @@ func (p *RunProducer) abortValidation(ctx context.Context, receipt *validationv1
 			if optionsErr != nil {
 				return optionsErr
 			}
-			status, err = p.runs.AbortEvidenceProducer(options)
+			status, err = p.runs.AbortEvidenceProducer(ctx, options)
 		} else {
-			status, err = p.runs.Abort(parts[1], child.GetOperationId())
+			status, err = p.runs.Abort(ctx, parts[1], child.GetOperationId())
 		}
 		if err != nil {
 			return fmt.Errorf("abort validation child %s: %w", child.GetOperationId(), err)

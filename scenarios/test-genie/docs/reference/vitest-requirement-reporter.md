@@ -302,6 +302,6 @@ describe('CRUD [REQ:BAS-WORKFLOW-CRUD; BAS-PROJECT-API]', () => { ... })
 ## See Also
 
 - [Requirements Sync Guide](../phases/business/requirements-sync.md) - Complete auto-sync system
-- [Scenario Unit Testing](../phases/unit/scenario-unit-testing.md) - Writing tagged unit tests
+- [Test Authoring Guide](/docs/testing/UNIT-TEST-AUTHORING.md) - Writing tagged unit tests
 - [Requirement Schema](requirement-schema.md) - Registry structure
-- [Test Runners](../phases/unit/test-runners.md) - Language-specific runners
+- [Testing Guide](/docs/TESTING.md) - Scenario and package test commands

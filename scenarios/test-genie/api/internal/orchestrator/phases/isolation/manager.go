@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"io"
 	"net/url"
@@ -14,8 +15,6 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/testcontainers/testcontainers-go"
-	"github.com/testcontainers/testcontainers-go/wait"
 	"github.com/vrooli/api-core/storage"
 )
 
@@ -29,6 +28,9 @@ type Config struct {
 	Retain          bool
 	LogWriter       io.Writer
 	Timeout         time.Duration
+	RunID           string
+	OnAllocation    func(Allocation) error
+	AllocationRoot  string
 }
 
 // ResourceInfo describes a provisioned resource for observability and retention.
@@ -68,7 +70,13 @@ func (m *Manager) Prepare(ctx context.Context) (*Result, error) {
 	runCtx, cancel := context.WithTimeout(ctx, m.cfg.Timeout)
 	defer cancel()
 
-	runID := uuid.NewString()
+	runID := m.cfg.RunID
+	if runID == "" {
+		runID = uuid.NewString()
+	}
+	if filepath.Base(runID) != runID || strings.ContainsAny(runID, "/\\") || runID == "." || runID == ".." {
+		return nil, errors.New("invalid seed allocation identity")
+	}
 	env := map[string]string{
 		"TEST_GENIE_PLAYBOOKS":        "1",
 		"TEST_GENIE_RUN_ID":           runID,
@@ -76,63 +84,59 @@ func (m *Manager) Prepare(ctx context.Context) (*Result, error) {
 	}
 	resources := make([]ResourceInfo, 0, 3)
 	cleanups := make([]func(context.Context) error, 0, 3)
-
-	if m.cfg.RequirePostgres {
-		pg, pgCleanup, err := m.startPostgres(runCtx, runID)
-		if err != nil {
-			return nil, fmt.Errorf("postgres isolation failed: %w", err)
-		}
-		resources = append(resources, pg.info)
-		env = merge(env, pg.env)
-		cleanups = append(cleanups, pgCleanup)
-	}
-
-	if m.cfg.RequireRedis {
-		rd, redisCleanup, err := m.startRedis(runCtx, runID)
-		if err != nil {
-			// Ensure postgres is cleaned if redis fails
-			for _, fn := range cleanups {
-				_ = fn(context.Background())
-			}
-			return nil, fmt.Errorf("redis isolation failed: %w", err)
-		}
-		resources = append(resources, rd.info)
-		env = merge(env, rd.env)
-		cleanups = append(cleanups, redisCleanup)
-	}
-
-	if m.cfg.RequireSQLite {
-		sqliteResult, sqliteCleanup, err := m.startSQLite(runCtx, runID)
-		if err != nil {
-			for _, fn := range cleanups {
-				_ = fn(context.Background())
-			}
-			return nil, fmt.Errorf("sqlite isolation failed: %w", err)
-		}
-		resources = append(resources, sqliteResult.info)
-		env = merge(env, sqliteResult.env)
-		cleanups = append(cleanups, sqliteCleanup)
-	}
-
-	cleanupAll := func(c context.Context) error {
+	result := &Result{RunID: runID, Env: env}
+	result.Cleanup = func(c context.Context) error {
 		if m.cfg.Retain {
 			return nil
 		}
 		var combinedErr error
-		for _, fn := range cleanups {
-			if err := fn(c); err != nil && combinedErr == nil {
-				combinedErr = err
+		for i, fn := range cleanups {
+			if fn == nil {
+				continue
+			}
+			if err := fn(c); err != nil {
+				combinedErr = errors.Join(combinedErr, err)
+			} else {
+				cleanups[i] = nil
 			}
 		}
 		return combinedErr
 	}
+	add := func(resource *startResult, cleanup func(context.Context) error) {
+		if cleanup != nil {
+			cleanups = append(cleanups, cleanup)
+		}
+		if resource != nil {
+			resources = append(resources, resource.info)
+			env = merge(env, resource.env)
+			result.Resources, result.Env = resources, env
+		}
+	}
 
-	return &Result{
-		RunID:     runID,
-		Env:       env,
-		Resources: resources,
-		Cleanup:   cleanupAll,
-	}, nil
+	if m.cfg.RequirePostgres {
+		pg, pgCleanup, err := m.startPostgres(runCtx, runID)
+		add(pg, pgCleanup)
+		if err != nil {
+			return result, fmt.Errorf("postgres isolation failed: %w", err)
+		}
+	}
+
+	if m.cfg.RequireRedis {
+		rd, redisCleanup, err := m.startRedis(runCtx, runID)
+		add(rd, redisCleanup)
+		if err != nil {
+			return result, fmt.Errorf("redis isolation failed: %w", err)
+		}
+	}
+
+	if m.cfg.RequireSQLite {
+		sqliteResult, sqliteCleanup, err := m.startSQLite(runCtx, runID)
+		add(sqliteResult, sqliteCleanup)
+		if err != nil {
+			return result, fmt.Errorf("sqlite isolation failed: %w", err)
+		}
+	}
+	return result, nil
 }
 
 type startResult struct {
@@ -148,40 +152,22 @@ func (m *Manager) startPostgres(ctx context.Context, runID string) (*startResult
 	dbName := buildDBName(m.cfg.ScenarioName, runID)
 	user := "testgenie"
 
-	req := testcontainers.ContainerRequest{
-		Image:        "postgres:16-alpine",
-		Env:          map[string]string{"POSTGRES_USER": user, "POSTGRES_PASSWORD": password, "POSTGRES_DB": dbName},
-		ExposedPorts: []string{"5432/tcp"},
-		WaitingFor:   wait.ForListeningPort("5432/tcp").WithStartupTimeout(45 * time.Second),
+	host, port, cleanup, err := m.startPrivateContainer(ctx, runID, "postgres", "postgres:16-alpine", "5432/tcp", []string{"POSTGRES_USER=" + user, "POSTGRES_PASSWORD=" + password, "POSTGRES_DB=" + dbName})
+	if err != nil {
+		if cleanup != nil {
+			return nil, cleanup, err
+		}
+		return m.startPostgresFallback(ctx, runID, err)
 	}
 
-	container, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
-		ContainerRequest: req,
-		Started:          true,
-	})
-	if err != nil {
-		return m.startPostgresFallback(ctx, runID, fmt.Errorf("start postgres container: %w", err))
-	}
-
-	host, err := container.Host(ctx)
-	if err != nil {
-		_ = container.Terminate(context.Background())
-		return m.startPostgresFallback(ctx, runID, fmt.Errorf("resolve postgres host: %w", err))
-	}
-	port, err := container.MappedPort(ctx, "5432/tcp")
-	if err != nil {
-		_ = container.Terminate(context.Background())
-		return m.startPostgresFallback(ctx, runID, fmt.Errorf("resolve postgres port: %w", err))
-	}
-
-	url := fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable", user, password, host, port.Port(), dbName)
+	url := fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable", user, password, host, port, dbName)
 	env := map[string]string{
 		"DATABASE_URL":           url,
 		"POSTGRES_URL":           url,
 		"PGHOST":                 host,
 		"POSTGRES_HOST":          host,
-		"PGPORT":                 port.Port(),
-		"POSTGRES_PORT":          port.Port(),
+		"PGPORT":                 port,
+		"POSTGRES_PORT":          port,
 		"PGUSER":                 user,
 		"POSTGRES_USER":          user,
 		"PGPASSWORD":             password,
@@ -200,10 +186,6 @@ func (m *Manager) startPostgres(ctx context.Context, runID string) (*startResult
 		},
 	}
 
-	cleanup := func(c context.Context) error {
-		return container.Terminate(c)
-	}
-
 	if m.cfg.Retain {
 		cleanup = func(context.Context) error { return nil }
 	}
@@ -212,35 +194,15 @@ func (m *Manager) startPostgres(ctx context.Context, runID string) (*startResult
 }
 
 func (m *Manager) startRedis(ctx context.Context, runID string) (*startResult, func(context.Context) error, error) {
-	req := testcontainers.ContainerRequest{
-		Image:        "redis:7-alpine",
-		ExposedPorts: []string{"6379/tcp"},
-		WaitingFor:   wait.ForListeningPort("6379/tcp").WithStartupTimeout(30 * time.Second),
+	host, port, cleanup, err := m.startPrivateContainer(ctx, runID, "redis", "redis:7-alpine", "6379/tcp", nil)
+	if err != nil {
+		return nil, cleanup, fmt.Errorf("private redis container unavailable (shared Redis DB indexes cannot prove isolation): %w", err)
 	}
 
-	container, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
-		ContainerRequest: req,
-		Started:          true,
-	})
-	if err != nil {
-		return m.startRedisFallback(ctx, runID, fmt.Errorf("start redis container: %w", err))
-	}
-
-	host, err := container.Host(ctx)
-	if err != nil {
-		_ = container.Terminate(context.Background())
-		return m.startRedisFallback(ctx, runID, fmt.Errorf("resolve redis host: %w", err))
-	}
-	port, err := container.MappedPort(ctx, "6379/tcp")
-	if err != nil {
-		_ = container.Terminate(context.Background())
-		return m.startRedisFallback(ctx, runID, fmt.Errorf("resolve redis port: %w", err))
-	}
-
-	url := fmt.Sprintf("redis://%s:%s", host, port.Port())
+	url := fmt.Sprintf("redis://%s:%s", host, port)
 	env := map[string]string{
 		"REDIS_HOST":          host,
-		"REDIS_PORT":          port.Port(),
+		"REDIS_PORT":          port,
 		"REDIS_URL":           url,
 		"REDIS_DB":            "0",
 		"PLAYBOOKS_REDIS_URL": url,
@@ -252,10 +214,6 @@ func (m *Manager) startRedis(ctx context.Context, runID string) (*startResult, f
 		InspectCommands: []string{
 			fmt.Sprintf("redis-cli -u %s", url),
 		},
-	}
-
-	cleanup := func(c context.Context) error {
-		return container.Terminate(c)
 	}
 
 	if m.cfg.Retain {
@@ -277,16 +235,68 @@ func (m *Manager) startRedis(ctx context.Context, runID string) (*startResult, f
 // within the tree, so a leaked value isolates rather than collides, and the
 // whole storage surface moves together.
 func (m *Manager) startSQLite(ctx context.Context, runID string) (*startResult, func(context.Context) error, error) {
-	rootDir, err := os.MkdirTemp("", fmt.Sprintf("test-genie-playbooks-%s-", sanitize(m.cfg.ScenarioName)))
-	if err != nil {
-		return nil, nil, fmt.Errorf("create sqlite temp dir: %w", err)
+	parent := m.cfg.AllocationRoot
+	temporaryParent := parent == ""
+	if parent == "" {
+		var err error
+		parent, err = os.MkdirTemp("", "test-genie-sqlite-owner-")
+		if err != nil {
+			return nil, nil, err
+		}
+	} else if err := os.MkdirAll(parent, 0700); err != nil {
+		return nil, nil, err
 	}
-
+	transferred := false
+	defer func() {
+		if temporaryParent && !transferred {
+			// No allocation was published. Remove only empty directories created
+			// for this invocation; never recursively remove an unexpected entry.
+			_ = os.Remove(filepath.Join(parent, ".staging"))
+			_ = os.Remove(parent)
+		}
+	}()
+	rootDir := filepath.Join(parent, "test-genie-playbooks-"+runID)
+	if _, err := os.Lstat(rootDir); err == nil {
+		return nil, nil, errors.New("private sqlite allocation name already exists")
+	} else if !errors.Is(err, os.ErrNotExist) {
+		return nil, nil, err
+	}
+	staging := filepath.Join(parent, ".staging", runID)
+	allocation := Allocation{Kind: "sqlite", RunID: runID, Root: rootDir, StagingRoot: staging}
+	if err := ensureSQLiteStagingNamespace(parent); err != nil {
+		return nil, nil, err
+	}
+	if _, err := os.Lstat(staging); err == nil {
+		return nil, nil, errors.New("private sqlite staging identity already exists")
+	} else if !errors.Is(err, os.ErrNotExist) {
+		return nil, nil, err
+	}
+	if err := m.track(allocation); err != nil {
+		return nil, nil, err
+	}
 	cleanup := func(context.Context) error {
 		if m.cfg.Retain {
 			return nil
 		}
-		return os.RemoveAll(rootDir)
+		if temporaryParent {
+			if _, err := os.Lstat(parent); errors.Is(err, os.ErrNotExist) {
+				return nil
+			}
+		}
+		if err := RetireAllocation(context.Background(), allocation); err != nil {
+			return err
+		}
+		if temporaryParent {
+			if err := os.Remove(filepath.Join(parent, ".staging")); err != nil && !errors.Is(err, os.ErrNotExist) {
+				return err
+			}
+			return os.Remove(parent)
+		}
+		return nil
+	}
+	transferred = true
+	if err := prepareSQLiteDirectory(allocation, nil); err != nil {
+		return nil, cleanup, err
 	}
 
 	// Resolve the path the scenario under test will itself resolve, using the
@@ -303,13 +313,11 @@ func (m *Manager) startSQLite(ctx context.Context, runID string) (*startResult, 
 		RootOverride: rootDir,
 	})
 	if err != nil {
-		_ = cleanup(context.Background())
-		return nil, nil, fmt.Errorf("resolve isolated sqlite path: %w", err)
+		return nil, cleanup, fmt.Errorf("resolve isolated sqlite path: %w", err)
 	}
 	dsn, err := storage.SQLiteDSNAt(dbPath, storage.SQLiteTuning{})
 	if err != nil {
-		_ = cleanup(context.Background())
-		return nil, nil, fmt.Errorf("build isolated sqlite dsn: %w", err)
+		return nil, cleanup, fmt.Errorf("build isolated sqlite dsn: %w", err)
 	}
 
 	env := map[string]string{
@@ -339,8 +347,7 @@ func (m *Manager) startSQLite(ctx context.Context, runID string) (*startResult, 
 
 	select {
 	case <-ctx.Done():
-		_ = cleanup(context.Background())
-		return nil, nil, ctx.Err()
+		return &startResult{env: env, info: info}, cleanup, ctx.Err()
 	default:
 	}
 
@@ -420,11 +427,19 @@ func (m *Manager) startPostgresFallback(ctx context.Context, runID string, rootE
 	}
 
 	dbName := buildDBName(m.cfg.ScenarioName, runID)
+	allocation := Allocation{Kind: "postgres-database", RunID: runID, Name: dbName, AdminURL: parsed.withDatabase("postgres")}
+	if err := m.track(allocation); err != nil {
+		return nil, nil, err
+	}
 	createCmd := execCommandContext(ctx, m.cfg.LogWriter, "psql", parsed.withDatabase("postgres"), "-v", "ON_ERROR_STOP=1", "-c", fmt.Sprintf("CREATE DATABASE %q TEMPLATE template0", dbName))
 	if createCmd != nil {
 		if err := createCmd(); err != nil {
-			return nil, nil, fmt.Errorf("create temp database via psql: %w", err)
+			return nil, func(c context.Context) error { return RetireAllocation(c, allocation) }, fmt.Errorf("create temp database via psql: %w", err)
 		}
+	}
+	markerCmd := execCommandContext(ctx, m.cfg.LogWriter, "psql", parsed.withDatabase("postgres"), "-v", "ON_ERROR_STOP=1", "-c", fmt.Sprintf("COMMENT ON DATABASE %q IS 'test-genie-seed:%s'", dbName, runID))
+	if err := markerCmd(); err != nil {
+		return nil, func(c context.Context) error { return RetireAllocation(c, allocation) }, fmt.Errorf("mark private postgres owner: %w", err)
 	}
 
 	url := parsed.withDatabase(dbName)
@@ -457,50 +472,7 @@ func (m *Manager) startPostgresFallback(ctx context.Context, runID string, rootE
 		if m.cfg.Retain {
 			return nil
 		}
-		dropCmd := execCommandContext(c, m.cfg.LogWriter, "psql", parsed.withDatabase("postgres"), "-v", "ON_ERROR_STOP=1", "-c", fmt.Sprintf("DROP DATABASE IF EXISTS %q", dbName))
-		if dropCmd != nil {
-			return dropCmd()
-		}
-		return nil
-	}
-
-	return &startResult{env: env, info: info}, cleanup, nil
-}
-
-// startRedisFallback targets an existing Redis by carving out a dedicated DB index.
-func (m *Manager) startRedisFallback(ctx context.Context, runID string, rootErr error) (*startResult, func(context.Context) error, error) {
-	baseURL := strings.TrimSpace(os.Getenv("REDIS_URL"))
-	if baseURL == "" {
-		host := firstNonEmpty(os.Getenv("REDIS_HOST"), "127.0.0.1")
-		port := firstNonEmpty(os.Getenv("REDIS_PORT"), "6379")
-		baseURL = fmt.Sprintf("redis://%s:%s", host, port)
-	}
-	// Derive a DB index from runID (0-15)
-	dbIdx := deriveRedisDB(runID)
-	baseHost, basePort := parseRedisHostPort(baseURL)
-	redisURL := fmt.Sprintf("redis://%s:%s/%d", baseHost, basePort, dbIdx)
-
-	env := map[string]string{
-		"REDIS_URL":           redisURL,
-		"REDIS_HOST":          baseHost,
-		"REDIS_PORT":          basePort,
-		"REDIS_DB":            fmt.Sprintf("%d", dbIdx),
-		"PLAYBOOKS_REDIS_URL": redisURL,
-	}
-
-	info := ResourceInfo{
-		Name:     "redis",
-		Endpoint: redisURL,
-		InspectCommands: []string{
-			fmt.Sprintf("redis-cli -u %s", redisURL),
-		},
-	}
-
-	cleanup := func(c context.Context) error {
-		if m.cfg.Retain {
-			return nil
-		}
-		return runRedisCLI(c, m.cfg.LogWriter, redisURL, "FLUSHDB")
+		return RetireAllocation(c, allocation)
 	}
 
 	return &startResult{env: env, info: info}, cleanup, nil
@@ -546,35 +518,11 @@ func parsePostgresURL(raw string) (parsedPostgres, error) {
 	return parsedPostgres{host: host, port: port, user: user, password: pw, db: db, sslmode: sslmode}, nil
 }
 
-func deriveRedisDB(runID string) int {
-	sum := 0
-	for _, r := range runID {
-		sum += int(r)
-	}
-	return sum%15 + 1 // avoid DB 0 in shared environments
-}
-
 func boolToString(v bool) string {
 	if v {
 		return "1"
 	}
 	return "0"
-}
-
-func parseRedisHostPort(raw string) (string, string) {
-	u, err := url.Parse(raw)
-	if err != nil {
-		return "127.0.0.1", "6379"
-	}
-	host := u.Hostname()
-	if host == "" {
-		host = "127.0.0.1"
-	}
-	port := u.Port()
-	if port == "" {
-		port = "6379"
-	}
-	return host, port
 }
 
 // execCommandContext returns a closure that runs the command with env preserved
@@ -587,13 +535,6 @@ func execCommandContext(ctx context.Context, logWriter io.Writer, binary string,
 		cmd.Stderr = logWriter
 		return cmd.Run()
 	}
-}
-
-func runRedisCLI(ctx context.Context, logWriter io.Writer, url string, cmd string) error {
-	c := exec.CommandContext(ctx, "redis-cli", "-u", url, cmd)
-	c.Stdout = logWriter
-	c.Stderr = logWriter
-	return c.Run()
 }
 
 func firstNonEmpty(values ...string) string {

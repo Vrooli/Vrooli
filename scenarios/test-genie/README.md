@@ -79,19 +79,19 @@ Opt out per run with `--skip <phase>`.
 
 ```bash
 # Execute tests
-test-genie execute <scenario> [--preset quick|smoke|comprehensive] [--fail-fast]
+test-genie execute "demo" --preset smoke --fail-fast
 
 # Check status
 test-genie status [--executions] [--verbose]
 
 # Launch one remediation job from completed execution evidence
-test-genie remediate <scenario> --execution <uuid> --findings afid:example --role code.default
+test-genie remediate create demo --execution "uuid" --findings afid:example --role code.default
 
-# Trigger the scenario-local runner
-test-genie run-tests <scenario> [--type phased]
+# Run focused scenario tests
+vrooli scenario test test-genie --phases unit
 
 # Inspect the live descriptor-backed phase plan
-test-genie phases --help
+test-genie phases list --json
 ```
 
 ## REST API

@@ -2,7 +2,7 @@
 
 Test Genie phases are generated from the effective descriptor-backed registry. Provider-backed phase metadata lives in each provider's `.vrooli/test-genie.json`; Test Genie code owns runner bindings, preset composition, and registry validation.
 
-Use `test-genie phases inspect <phase> --json` or `/api/v1/phases/<phase>` to inspect the effective descriptor projection, including provider, descriptor path, docs path, policy, runnability, applicability vocabulary, freshness requirement, profile membership, phase/runtime class, dimensions, and finding source. Provider descriptors must declare `docs.path`; retired `.vrooli/maturity.json` files are rejected.
+Use `test-genie phases inspect "unit" --json` or `/api/v1/phases/unit` to inspect the effective descriptor projection, including provider, descriptor path, docs path, policy, runnability, applicability vocabulary, freshness requirement, profile membership, phase/runtime class, dimensions, and finding source. Provider descriptors must declare `docs.path`; retired `.vrooli/maturity.json` files are rejected.
 
 ## The Phase Capability Contract
 
@@ -24,13 +24,13 @@ Every descriptor declares a **[Phase Capability Contract](../concepts/phase-capa
 | 10 | [Dependencies](dependencies/README.md) | 15m | `default_when_applicable` | `required_when_applicable` | `gating` | No | validation-provider | Validates dependency readiness, governance, runtime status, release-age policy, and graph drift. |
 | 11 | [Quality](quality/README.md) | 2m | `default_when_applicable` | `required_when_applicable` | `gating` | No | validation-provider | Validates static quality contracts, lint and type policy, and strict config through quality-health. |
 | 12 | [Documentation](docs/README.md) | 90s | `default_when_applicable` | `required_when_applicable` | `gating` | No | validation-provider | Validates documentation Markdown, Mermaid, links, references, and manifests through knowledge-observatory. |
-| 13 | [Long-form dictation soak](scenarios/audio-tools/docs/test-genie/soak/README.md) | 15m | `default_when_applicable` | `required_when_applicable` | `gating` | Yes | validation-provider | Runs the provider-owned accelerated browser qualification for the virtual-replay dictation cell and gates on its complete conformance artifact. |
+| 13 | [Long-form dictation soak](/scenarios/audio-tools/docs/test-genie/soak/README.md) | 15m | `default_when_applicable` | `required_when_applicable` | `gating` | Yes | validation-provider | Runs the provider-owned accelerated browser qualification for the virtual-replay dictation cell and gates on its complete conformance artifact. |
 | 14 | [Performance](performance/README.md) | 5m | `default_when_applicable` | `best_effort` | `gating` | Yes | validation-provider | Validates API/UI build performance and Lighthouse budgets through performance-health. |
 | 15 | [Unit](unit/README.md) | 15m | `default_when_applicable` | `required_when_applicable` | `gating` | No | validation-provider | Validates test execution, coverage, architecture, quality, and runtime diagnostics through unit-health. |
 | 16 | [Storage](storage/README.md) | 2m | `default_when_applicable` | `required_when_applicable` | `gating` | No | validation-provider | Validates storage conventions, migration hygiene, persistence seams, and test isolation through storage-manager. |
 | 17 | [Workflow](workflow/README.md) | 15m | `default_when_applicable` | `required_when_applicable` | `gating` | Yes | validation-provider | Validates BAS workflow assets and safe execution through workflow-health. |
 | 18 | [Business](business/README.md) | 2m | `default_when_applicable` | `required_when_applicable` | `gating` | No | validation-provider | Validates PRD, requirements registry, OT linkage, and evidence traceability through business-health. |
-| 19 | [Channel Conformance](scenarios/switchboard/docs/internal/PROBLEMS.md) | 2m | `default_when_applicable` | `required_when_applicable` | `gating` | Yes | validation-provider | Runs the shared seven-case adapter contract for every registered Switchboard channel. |
+| 19 | [Channel Conformance](/scenarios/switchboard/docs/internal/PROBLEMS.md) | 2m | `default_when_applicable` | `required_when_applicable` | `gating` | Yes | validation-provider | Runs the shared seven-case adapter contract for every registered Switchboard channel. |
 | 20 | [Experience](experience/README.md) | 10m | `default_when_applicable` | `required_when_applicable` | `gating` | No | validation-provider | Validates scenario-experience-spec/v1 contracts and experience maturity through experience-manager. |
 | 21 | [Tidiness](tidiness/README.md) | 2m | `default_when_applicable` | `best_effort` | `gating` | No | validation-provider | Validates file and function quality checks through tidiness-manager. |
 | 22 | [Security](security/README.md) | 10m | `default_when_applicable` | `best_effort` | `gating` | No | validation-provider | Validates scenarios and the control plane for secrets, Go SAST, Go vulnerability data, and JavaScript dependency risk through one path-first Security Health scanner pipeline. |
@@ -80,10 +80,10 @@ Every descriptor declares a **[Phase Capability Contract](../concepts/phase-capa
 - [Go Code Graph](architecture/README.md) - Validates live Go graph extraction for declared targets.
 - [TypeScript Code Graph](architecture/README.md) - Validates live TypeScript graph extraction for declared targets.
 - [UI Health](ui-health/README.md) - Validates UI manifests, interop, standards, and BAS runtime evidence through ui-health.
-- [Long-form dictation soak](scenarios/audio-tools/docs/test-genie/soak/README.md) - Runs the provider-owned accelerated browser qualification for the virtual-replay dictation cell and gates on its complete conformance artifact.
+- [Long-form dictation soak](/scenarios/audio-tools/docs/test-genie/soak/README.md) - Runs the provider-owned accelerated browser qualification for the virtual-replay dictation cell and gates on its complete conformance artifact.
 - [Performance](performance/README.md) - Validates API/UI build performance and Lighthouse budgets through performance-health.
 - [Workflow](workflow/README.md) - Validates BAS workflow assets and safe execution through workflow-health.
-- [Channel Conformance](scenarios/switchboard/docs/internal/PROBLEMS.md) - Runs the shared seven-case adapter contract for every registered Switchboard channel.
+- [Channel Conformance](/scenarios/switchboard/docs/internal/PROBLEMS.md) - Runs the shared seven-case adapter contract for every registered Switchboard channel.
 - [Monetization Conformance](monetization-conformance/README.md) - Validates monetization trust boundaries, declarations, and local metering posture.
 - [Component Tests](component-tests/README.md) - Runs version-pinned React component and hook contracts through the React Component Library provider.
 - [Templates](templates/README.md) - Validates scenario template provenance, orientation standing, drift, migration lag, and inherited template debt through template-manager.

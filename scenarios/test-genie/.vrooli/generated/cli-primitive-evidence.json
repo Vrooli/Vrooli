@@ -4,7 +4,7 @@
   "source_manifest": "cli/manifest.json",
   "scenario": "test-genie",
   "generator": "v1.0.0",
-  "manifest_hash": "7aa241841c21a90d9cdd503606338f970472eb52f781bbf067211728c48159b2",
+  "manifest_hash": "60897c17f0753571905700650885ff3a223e4b803f4f5f547df0702e91c33c9b",
   "commands": [
     {
       "path": "eligibility check",
@@ -170,6 +170,14 @@
       "binding": "RunsService.ListRuns",
       "declared_primitive": "proto_list",
       "observed_primitive": "proto_list"
+    },
+    {
+      "path": "runs logs",
+      "group": "runs",
+      "command": "logs",
+      "binding": ".",
+      "declared_primitive": "action",
+      "observed_primitive": "action"
     },
     {
       "path": "runs pin",

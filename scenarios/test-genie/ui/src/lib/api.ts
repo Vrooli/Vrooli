@@ -413,10 +413,10 @@ function connectBaseUrl(): string {
   return API_BASE.replace(/\/api\/v1\/?$/, "");
 }
 
-// Access paths arrive from the typed artifact catalog and already include
-// /api/v1. Keep that server-owned capability intact while locating the origin.
-export function buildOpaqueArtifactUrl(accessPath: string): string {
-  return `${connectBaseUrl()}${accessPath}`;
+// Construct the owner transfer route from opaque catalog identifiers. The
+// catalog itself stays path-free; route shape is kept in this API module.
+export function buildOpaqueArtifactUrl(scenario: string, runId: string, artifactId: string): string {
+  return `${API_BASE}/scenarios/${encodeURIComponent(scenario)}/runs/${encodeURIComponent(runId)}/artifacts/${encodeURIComponent(artifactId)}`;
 }
 
 // Lists typed catalog entries. Artifact bytes are only opened through each

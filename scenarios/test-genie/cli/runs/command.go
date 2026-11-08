@@ -296,7 +296,8 @@ func Register(manifest []byte, apiClient *cliutil.APIClient) (cliapp.SubcommandG
 		"RunsService.GetRun":           cliapp.ProtoList(getRunCall(apiClient), getRunReport),
 		"RunsService.ListRunArtifacts": cliapp.ProtoList(listRunArtifactsCall(apiClient), listRunArtifactsReport),
 		"RunsService.GetRunArtifact":   cliapp.ProtoList(getRunArtifactCall(apiClient), getRunArtifactReport),
-		"download-artifact":            cliapp.Action(downloadArtifactCall(apiClient), downloadArtifactReport),
+		"download-artifact":            downloadArtifactHandler(apiClient),
+		"logs":                         runLogsHandler(apiClient),
 		"RunsService.DeleteRun":        cliapp.ProtoMutation(deleteRunCall(apiClient), deleteRunReport),
 		"RunsService.PinRun":           cliapp.ProtoMutation(pinRunCall(apiClient), pinRunReport),
 		"RunsService.UnpinRun":         cliapp.ProtoMutation(unpinRunCall(apiClient), unpinRunReport),
@@ -363,10 +364,17 @@ func listRunArtifactsCall(apiClient *cliutil.APIClient) func(cliapp.OperationCon
 			}
 		}
 		resp, err := cl.ListRunArtifacts(context.Background(), connect.NewRequest(&runspb.ListRunArtifactsRequest{
-			Target: ctx.Flag("scenario"), RunId: ctx.Positional("run_id"), Kinds: kinds, ProducingPhase: ctx.Flag("phase"),
+			Target: ctx.Positional("scenario"), RunId: ctx.Positional("run_id"), Kinds: kinds, ProducingPhase: ctx.Flag("phase"),
 		}))
 		if err != nil {
 			return nil, err
+		}
+		// The stream URL is an internal transport detail. The CLI exposes opaque
+		// IDs and the download-artifact operation, never a curl-ready access path.
+		for _, artifact := range resp.Msg.GetArtifacts() {
+			if artifact != nil {
+				artifact.AccessPath = ""
+			}
 		}
 		return resp.Msg, nil
 	}
@@ -379,11 +387,12 @@ func listRunArtifactsReport(_ cliapp.OperationContext, msg *runspb.ListRunArtifa
 	}
 	results := make([]string, 0, len(msg.GetArtifacts()))
 	for _, artifact := range msg.GetArtifacts() {
-		results = append(results, fmt.Sprintf("%s  kind=%s  phase=%s  access=%s", artifact.GetId(), artifact.GetKind(), artifact.GetProducingPhase(), artifact.GetAccessPath()))
+		results = append(results, fmt.Sprintf("%s  kind=%s  phase=%s", artifact.GetId(), artifact.GetKind(), artifact.GetProducingPhase()))
 	}
 	if len(results) == 0 {
 		results = append(results, "No cataloged artifacts.")
 	}
+	summary = append(summary, "Read one with `test-genie runs download-artifact <scenario> <run_id> <artifact_id>` (stdout, or --out <path> for a SHA-256 receipt); phase logs with `test-genie runs logs <scenario> <run_id>`.")
 	return cliapp.ListReport{Summary: summary, ResultsHeading: "Artifacts", Results: results}
 }
 
@@ -394,18 +403,25 @@ func getRunArtifactCall(apiClient *cliutil.APIClient) func(cliapp.OperationConte
 			return nil, err
 		}
 		resp, err := cl.GetRunArtifact(context.Background(), connect.NewRequest(&runspb.GetRunArtifactRequest{
-			Target: ctx.Flag("scenario"), RunId: ctx.Positional("run_id"), ArtifactId: ctx.Positional("artifact_id"),
+			Target: ctx.Positional("scenario"), RunId: ctx.Positional("run_id"), ArtifactId: ctx.Positional("artifact_id"),
 		}))
 		if err != nil {
 			return nil, err
+		}
+		if artifact := resp.Msg.GetArtifact(); artifact != nil {
+			artifact.AccessPath = ""
 		}
 		return resp.Msg, nil
 	}
 }
 
-func getRunArtifactReport(_ cliapp.OperationContext, msg *runspb.GetRunArtifactResponse) cliapp.ListReport {
+func getRunArtifactReport(ctx cliapp.OperationContext, msg *runspb.GetRunArtifactResponse) cliapp.ListReport {
 	a := msg.GetArtifact()
-	summary := []string{fmt.Sprintf("Artifact: %s", a.GetId()), fmt.Sprintf("Kind: %s", a.GetKind()), fmt.Sprintf("Access: %s", a.GetAccessPath())}
+	summary := []string{
+		fmt.Sprintf("Artifact: %s", a.GetId()),
+		fmt.Sprintf("Kind: %s", a.GetKind()),
+		fmt.Sprintf("Read: test-genie runs download-artifact %s %s %s [--out <path>]", ctx.Positional("scenario"), ctx.Positional("run_id"), ctx.Positional("artifact_id")),
+	}
 	if msg.GetLegacyDiscovered() {
 		summary = append(summary, "Evidence degraded: discovered from a historical run without a persisted catalog.")
 	}
@@ -455,7 +471,7 @@ func getRunCall(apiClient *cliutil.APIClient) func(cliapp.OperationContext) (*ru
 		if err != nil {
 			return nil, err
 		}
-		resp, err := cl.GetRun(context.Background(), connect.NewRequest(&runspb.GetRunRequest{Target: ctx.Flag("scenario"), RunId: ctx.Positional("run_id")}))
+		resp, err := cl.GetRun(context.Background(), connect.NewRequest(&runspb.GetRunRequest{Target: ctx.Positional("scenario"), RunId: ctx.Positional("run_id")}))
 		if err != nil {
 			return nil, &exitErr{code: exitNotComparable, err: err}
 		}
@@ -493,7 +509,7 @@ func deleteRunCall(apiClient *cliutil.APIClient) func(cliapp.OperationContext) (
 			return nil, err
 		}
 		resp, err := cl.DeleteRun(context.Background(), connect.NewRequest(&runspb.DeleteRunRequest{
-			Target: ctx.Flag("scenario"),
+			Target: ctx.Positional("scenario"),
 			RunId:  ctx.Positional("run_id"),
 			Force:  ctx.BoolFlag("force"),
 		}))
@@ -515,7 +531,7 @@ func pinRunCall(apiClient *cliutil.APIClient) func(cliapp.OperationContext) (*ru
 			return nil, err
 		}
 		resp, err := cl.PinRun(context.Background(), connect.NewRequest(&runspb.PinRunRequest{
-			Target:   ctx.Flag("scenario"),
+			Target:   ctx.Positional("scenario"),
 			RunId:    ctx.Positional("run_id"),
 			PinnedBy: strings.TrimSpace(ctx.Flag("by")),
 			Reason:   strings.TrimSpace(ctx.Flag("reason")),
@@ -538,7 +554,7 @@ func unpinRunCall(apiClient *cliutil.APIClient) func(cliapp.OperationContext) (*
 			return nil, err
 		}
 		resp, err := cl.UnpinRun(context.Background(), connect.NewRequest(&runspb.UnpinRunRequest{
-			Target:   ctx.Flag("scenario"),
+			Target:   ctx.Positional("scenario"),
 			RunId:    ctx.Positional("run_id"),
 			PinnedBy: strings.TrimSpace(ctx.Flag("by")),
 		}))
@@ -560,7 +576,7 @@ func compareRunsCall(apiClient *cliutil.APIClient) func(cliapp.OperationContext)
 			return nil, err
 		}
 		resp, err := cl.CompareRuns(context.Background(), connect.NewRequest(&runspb.CompareRunsRequest{
-			Target: ctx.Flag("scenario"),
+			Target: ctx.Positional("scenario"),
 			RunIdA: ctx.Positional("left_run_id"),
 			RunIdB: ctx.Positional("right_run_id"),
 			Phase:  strings.TrimSpace(ctx.Flag("phase")),

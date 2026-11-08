@@ -123,7 +123,7 @@ top-level `capabilities` array, matched case-insensitively — the same resoluti
 Test Genie uses). A capability-only scenario is discovered and fails with
 `SEARCH_CONFIG_MISSING` rather than disappearing from the fleet, so a reviewer can
 diff `search-hub maturity scan --fast --json` (each result carries an
-`applicability_reason`) against `test-genie phases applicability <scenario>
+`applicability_reason`) against `test-genie phases applicability "test-genie"
 --phase search --json` and see no target-set mismatch.
 
 Provider-specific implementation details stay in Search Hub. Test Genie only plans the phase, checks provider readiness, calls the shared validation RPC, maps findings, and records the result.
@@ -131,8 +131,8 @@ Provider-specific implementation details stay in Search Hub. Test Genie only pla
 ## Inspection
 
 ```bash
-test-genie phases applicability <scenario> --phase search --json
-test-genie phases plan <scenario> --preset comprehensive --json
+test-genie phases applicability "test-genie" --phase search --json
+test-genie phases plan "test-genie" --preset comprehensive --json
 test-genie provider-contract check search <scenario> --json
 search-hub maturity scan --json
 search-hub maturity scan --fast --json

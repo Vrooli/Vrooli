@@ -131,8 +131,13 @@ func TestServer_handlePlaybooksSeedApply_RequiresLiveTargetAPI(t *testing.T) {
 	if applyCalled {
 		t.Fatal("seed isolation/apply ran without a resolved target API")
 	}
-	if len(server.seedSessions) != 0 || len(server.seedSessionsByScenario) != 0 {
-		t.Fatal("unavailable target created a seed cleanup session")
+	if len(server.seedSessionsByScenario) != 0 {
+		t.Fatal("unavailable target retained active ownership")
+	}
+	for _, record := range server.seedSessions {
+		if record.Session != nil {
+			t.Fatal("unavailable target created backing resources")
+		}
 	}
 }
 
@@ -159,40 +164,32 @@ func TestServer_handlePlaybooksSeedApply_Conflict(t *testing.T) {
 	if err := json.NewDecoder(rec.Body).Decode(&payload); err != nil {
 		t.Fatalf("decode conflict response: %v", err)
 	}
-	if payload["cleanup_token"] != "existing-token" {
-		t.Fatalf("expected cleanup_token existing-token, got %#v", payload["cleanup_token"])
+	if _, leaked := payload["cleanup_token"]; leaked {
+		t.Fatal("conflicting callers must not receive the active owner bearer token")
 	}
 }
 
 func TestServer_handlePlaybooksSeedCleanup_Success(t *testing.T) {
-	token := "cleanup-token"
-	server := &Server{
-		config:    Config{Port: "0"},
-		router:    mux.NewRouter(),
-		scenarios: &stubScenarioDirectory{scenarioRoot: "/tmp"},
-		logger:    log.New(io.Discard, "", 0),
-		seedSessions: map[string]*seedSession{
-			token: {
-				Scenario: "demo",
-				Session: &phases.PlaybooksSeedSession{
-					RunID: "run-123",
-				},
-			},
-		},
-		seedSessionsByScenario: map[string]string{"demo": token},
+	fixture := newSeedRecoveryFixture(t)
+	server := newRecoverySeedServer(t, fixture)
+	token, record, err := server.applySeedSession(t.Context(), "demo", fixture.source, "legacy-cleanup", false)
+	if err != nil {
+		t.Fatal(err)
 	}
-
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/scenarios/demo/playbooks/seed/cleanup", strings.NewReader(`{"cleanup_token":"cleanup-token"}`))
+	project := record.Session.SeedState["project"].(string)
+	body, _ := json.Marshal(map[string]string{"cleanup_token": token})
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/scenarios/demo/playbooks/seed/cleanup", strings.NewReader(string(body)))
 	req = mux.SetURLVars(req, map[string]string{"name": "demo"})
 	rec := httptest.NewRecorder()
-
 	server.handlePlaybooksSeedCleanup(rec, req)
-
 	if rec.Code != http.StatusOK {
-		t.Fatalf("expected 200, got %d", rec.Code)
+		t.Fatalf("expected 200, got %d: %s", rec.Code, rec.Body.String())
 	}
-	if len(server.seedSessions) != 0 || len(server.seedSessionsByScenario) != 0 {
-		t.Fatalf("expected cleanup session to be removed")
+	if len(server.seedSessions) != 1 || len(server.seedSessionsByScenario) != 0 {
+		t.Fatal("cleanup must retire active ownership and retain its retry outcome")
+	}
+	if _, err := os.Stat(project); !os.IsNotExist(err) {
+		t.Fatal("cleanup did not retire actual private backing", err)
 	}
 }
 
@@ -224,28 +221,21 @@ func TestServer_handlePlaybooksSeedCleanup_Conflict(t *testing.T) {
 }
 
 func TestServer_handlePlaybooksSeedCleanupForce_Success(t *testing.T) {
-	token := "cleanup-token"
-	server := &Server{
-		config:    Config{Port: "0"},
-		router:    mux.NewRouter(),
-		scenarios: &stubScenarioDirectory{scenarioRoot: "/tmp"},
-		logger:    log.New(io.Discard, "", 0),
-		seedSessions: map[string]*seedSession{
-			token: {
-				Scenario: "demo",
-				Session:  &phases.PlaybooksSeedSession{RunID: "run-123"},
-			},
-		},
-		seedSessionsByScenario: map[string]string{"demo": token},
+	fixture := newSeedRecoveryFixture(t)
+	server := newRecoverySeedServer(t, fixture)
+	_, record, err := server.applySeedSession(t.Context(), "demo", fixture.source, "legacy-force-cleanup", false)
+	if err != nil {
+		t.Fatal(err)
 	}
-
+	project := record.Session.SeedState["project"].(string)
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/scenarios/demo/playbooks/seed/cleanup-force?force=true", strings.NewReader(`{}`))
 	req = mux.SetURLVars(req, map[string]string{"name": "demo"})
 	rec := httptest.NewRecorder()
-
 	server.handlePlaybooksSeedCleanupForce(rec, req)
-
 	if rec.Code != http.StatusOK {
-		t.Fatalf("expected 200, got %d", rec.Code)
+		t.Fatalf("expected 200, got %d: %s", rec.Code, rec.Body.String())
+	}
+	if _, err := os.Stat(project); !os.IsNotExist(err) {
+		t.Fatal("force route did not retire exact owner backing", err)
 	}
 }

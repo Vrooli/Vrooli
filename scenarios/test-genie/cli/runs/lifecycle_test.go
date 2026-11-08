@@ -544,7 +544,7 @@ func TestRunFollowRendersStandingAndFindingsBreadcrumb(t *testing.T) {
 		"gaps: arch.primitive_unverified",
 		"next: Prove each command primitive.",
 		`docs: search-hub query "architecture maturity next move" --type doc`,
-		"findings: test-genie runs findings R --scenario demo",
+		"findings: test-genie runs findings demo R",
 	} {
 		if !strings.Contains(out, want) {
 			t.Fatalf("follow output missing %q\n---\n%s", want, out)

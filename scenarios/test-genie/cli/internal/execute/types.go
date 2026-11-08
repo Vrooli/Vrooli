@@ -408,6 +408,10 @@ type RunHandle struct {
 	Reattach string `json:"reattach"`
 	// Follow is the `runs follow` command for live human progress.
 	Follow string `json:"follow"`
+	// Logs prints the phase command logs once the run is terminal.
+	Logs string `json:"logs,omitempty"`
+	// Artifacts lists the run's artifact catalog (findings, phase results).
+	Artifacts string `json:"artifacts,omitempty"`
 	// Coalesced reports that this request rode an already-in-flight identical run
 	// (the one-run-per-scenario guard) instead of starting a second suite.
 	Coalesced bool `json:"coalesced,omitempty"`

@@ -270,7 +270,7 @@ test-genie execute my-scenario --preset comprehensive
 - [Architecture](concepts/architecture.md) - Go orchestrator design
 
 ### Implementation
-- [Scenario Unit Testing](phases/unit/scenario-unit-testing.md) - Go, Node, Python tests
+- [Test Authoring Guide](/docs/testing/UNIT-TEST-AUTHORING.md) - Behavior-first test design
 - [UI Testability](guides/ui-testability.md) - BAS workflow testing
 
 ---

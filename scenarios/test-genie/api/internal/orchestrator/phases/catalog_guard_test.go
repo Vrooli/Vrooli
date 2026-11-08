@@ -283,6 +283,57 @@ func TestGeneratedPhaseDocsMatchCommitted(t *testing.T) {
 	assertGeneratedDoc(t, filepath.Join(root, "docs", "reference", "presets.md"), RenderPresetsMarkdown(DefaultCatalog()))
 }
 
+func TestRenderPhasesMarkdownAnchorsRepositoryDocsAtRoot(t *testing.T) {
+	markdown := RenderPhasesMarkdown(DefaultCatalog())
+	for _, target := range []string{
+		"/scenarios/audio-tools/docs/test-genie/soak/README.md",
+		"/scenarios/switchboard/docs/internal/PROBLEMS.md",
+	} {
+		if !strings.Contains(markdown, "]("+target+")") {
+			t.Errorf("generated phase docs do not contain root-relative link %q", target)
+		}
+	}
+	for _, stale := range []string{
+		"(scenarios/audio-tools/docs/test-genie/soak/README.md)",
+		"(scenarios/switchboard/docs/internal/PROBLEMS.md)",
+	} {
+		if strings.Contains(markdown, stale) {
+			t.Errorf("generated phase docs contain stale relative link %q", stale)
+		}
+	}
+}
+
+func TestDocLinkPreservesPathOwnership(t *testing.T) {
+	tests := []struct {
+		name string
+		path string
+		want string
+	}{
+		{
+			name: "repository documentation is root-relative",
+			path: "docs/agent-system/routed-test-db.md",
+			want: "/docs/agent-system/routed-test-db.md",
+		},
+		{
+			name: "Test Genie phase documentation stays local",
+			path: "scenarios/test-genie/docs/phases/unit/README.md",
+			want: "unit/README.md",
+		},
+		{
+			name: "external URL is preserved",
+			path: "https://example.com/guide",
+			want: "https://example.com/guide",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := docLink(tt.path); got != tt.want {
+				t.Fatalf("docLink(%q) = %q, want %q", tt.path, got, tt.want)
+			}
+		})
+	}
+}
+
 func assertGeneratedDoc(t *testing.T, path string, want string) {
 	t.Helper()
 	if os.Getenv("UPDATE_TEST_GENIE_DOCS") == "1" {

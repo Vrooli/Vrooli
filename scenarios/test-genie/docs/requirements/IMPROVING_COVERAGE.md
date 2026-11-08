@@ -79,7 +79,7 @@ test-genie execute <scenario>
 
 # Or, if you only changed one area, you can sync explicitly without a full run
 # of every phase (advanced; uses whatever evidence is already on disk):
-test-genie requirements sync --scenario <scenario>
+test-genie requirements sync --scenario "browser-automation-studio"
 ```
 
 After a full run, the report's **Changes this run** section tells you exactly
@@ -99,10 +99,10 @@ fails. The report names the requirement and its `prd_ref`. To resolve it:
 
 ```bash
 # Human-readable rollup of requirement/OT status:
-test-genie requirements report --scenario <scenario>
+vrooli scenario requirements report browser-automation-studio
 
 # Machine-readable:
-test-genie requirements report --scenario <scenario> --format json
+vrooli scenario requirements report browser-automation-studio --format json
 ```
 
 ## See also

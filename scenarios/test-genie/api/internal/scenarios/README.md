@@ -177,4 +177,4 @@ The runner:
 ## Related Documentation
 
 - [API README](../../README.md) — HTTP layer & endpoints
-- [Execution README](../execution/README.md) — Execution state management
+- [Execution repository](../execution/repository.go) — Execution state management

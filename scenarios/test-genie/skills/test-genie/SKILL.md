@@ -54,11 +54,13 @@ summary; inspect the named receipt before acting on one failure.
 
 ### Run artifacts
 
-Use the Test Genie CLI for artifact discovery and transfer. List a run's catalog
-with `test-genie runs artifacts <run-id> --scenario <scenario> [--kinds <kind>]`;
-download a selected artifact with
-`test-genie runs download-artifact <run-id> <artifact-id> --scenario <scenario> --out <path>`.
-The download command preserves an existing destination unless `--overwrite` is
+Use the Test Genie CLI for artifact discovery and transfer; every `runs` command
+takes `<scenario> <run-id>`. Read phase logs with
+`test-genie runs logs <scenario> <run-id> [--phase <phase>]`; list the catalog
+with `test-genie runs artifacts <scenario> <run-id> [--kinds <kind>]`; print a
+selected artifact with `test-genie runs download-artifact <scenario> <run-id> <artifact-id>`
+(pipe it to `jq`/`rg`), or add `--out <path>` for a file and SHA-256 receipt.
+A file download preserves an existing destination unless `--overwrite` is
 explicitly supplied. Artifact IDs are opaque: take them from the catalog instead
 of constructing internal HTTP URLs or guessing paths.
 

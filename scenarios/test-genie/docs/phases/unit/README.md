@@ -41,19 +41,20 @@ Each finding caps its capability at a rung; only `ERROR`/`BLOCKER` severities fa
 | `TEST_SURFACE_ABSENT` / `UNIT_REQUIRED_ROLE_MISSING` | surface_discovery | L0 | ERROR | Yes |
 | `UNIT_SURFACE_UNGOVERNED` / `UNSUPPORTED_PARSE_UNIT` | surface_discovery | L1 | WARNING / INFO | No |
 | `TEST_DEPENDENCY_MISSING` / `TEST_EXECUTION_FAILURE` / `TEST_TIMEOUT_HANG` | execution_readiness | L0–L2 | ERROR | Yes |
+| `COVERAGE_BELOW_COMMITTED` | execution_readiness | L2 | ERROR | Yes |
 | `UNIT_TEST_KIND_OUT_OF_SCOPE` | execution_readiness | L1 | WARNING | No |
 | `TEST_MISCONFIGURATION` | execution_readiness | L1 | WARNING | No |
 | `TEST_FRAMEWORK_MISSING` / `UNIT_POLICY_PROFILE_INVALID` / `TEST_FRAMEWORK_NONCANONICAL` / `UNIT_POLICY_WEAKENED` / `UNIT_POLICY_WAIVER_INVALID` / `UNIT_POLICY_PROJECTION_DRIFT` / `COVERAGE_CONFIG_MISSING` | framework_config | L0–L2 | ERROR | Yes |
 | `PACKAGE_MANAGER_MISMATCH` | framework_config | L3 | WARNING | No |
 | `TEST_HELPER_FROM_PRODUCTION` | test_architecture | L3 | ERROR | Yes |
 | `TEST_NOT_COLOCATED` / `TEST_UTIL_MISSING` / `MISSING_INJECTABLE_SEAM` | test_architecture | L2–L3 | WARNING | No |
-| `LOW_COVERAGE` / `COVERAGE_ABSENT` / `TEST_SKIPPED_OR_ONLY` | coverage_quality | L0–L2 | WARNING / INFO | No |
+| `LOW_COVERAGE` / `COVERAGE_ABSENT` / `COVERAGE_COMMITMENT_BEHIND` / `TEST_SKIPPED_OR_ONLY` | coverage_quality | L0–L2 | WARNING / INFO | No |
 | `TEST_FLAKE_SUSPECTED` / `TEST_RUNTIME_GROWTH` / `TEST_UNTAGGED_REQUIREMENT` | stability_traceability | L2 | WARNING / INFO | No |
 
 ## The canonical fix
 
 - **Surface-discovery findings** → add a test surface / required-role tests where absent; govern discovered surfaces so nothing is silently untested (skills: `test`, `unit-testing-architecture-steer`).
-- **Execution-readiness findings** → restore missing dependency readiness through Scenario Dependency Analyzer, fix the failing tests, and eliminate hangs (bound or remove the deadlocking test); repair local execution misconfiguration (skills: `test`, `scientific-debugging`). Unit Health remains observational and never installs dependencies or mutates manifests.
+- **Execution-readiness findings** → restore missing dependency readiness through Scenario Dependency Analyzer, fix the failing tests, and eliminate hangs (bound or remove the deadlocking test); repair local execution misconfiguration (skills: `test`, `scientific-debugging`). `COVERAGE_BELOW_COMMITTED` means every test passed but coverage fell below the scenario's committed floor; the finding carries measured and committed values, so add tests rather than hunting for a failure. Unit Health remains observational and never installs dependencies or mutates manifests.
 - **Framework-config findings** → configure a canonical framework (Go `go test`, React/Vite `vitest`, Python `pytest`) with coverage-capable config, a valid policy profile, and aligned package manager; never weaken policy or file an invalid waiver (skill: `unit-testing-architecture-steer`).
 - **Test-architecture findings** → co-locate tests with source, add the shared test util, and stop importing production helpers from tests; add injectable seams so behavior is testable (skills: `unit-testing-architecture-steer`, `seam-discovery-and-enforcement`).
 - **Coverage-quality findings** → raise per-file coverage, strengthen assertions, un-skip tests, replace render-only/snapshot-heavy tests with behavioral ones, and cover edge cases (skill: `test`).
@@ -135,9 +136,11 @@ describe('projectStore [REQ:MY-PROJECT-CRUD]', () => {
 
 ## Coverage Thresholds & Canonical Frameworks
 
-Coverage thresholds, canonical test frameworks (Go `go test`, React/Vite
-`vitest`, Python `pytest`), and degraded/noncanonical detection are owned by
-unit-health and documented there. In `.vrooli/testing.json`, Test Genie reads
+Coverage targets and committed floors, canonical test frameworks (Go `go
+test`, React/Vite `vitest`, Python `pytest`), and degraded/noncanonical
+detection are owned by unit-health and documented in its
+[configuration reference](../../../../unit-health/docs/reference/configuration.md#coverage-target-and-committed-floor).
+Native runner coverage thresholds are not part of the contract. In `.vrooli/testing.json`, Test Genie reads
 `phases`, `presets`, and other orchestration controls; `unit.policy_profile` is
 the Unit Health contract for required roles, policy classes, waivers, and native
 projection checks. Shell syntax validation is **not** part of the unit phase —

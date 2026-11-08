@@ -98,6 +98,10 @@ func RunDurable(baseURL string, req Request, opts DurableOptions) error {
 				emitJSONError(os.Stdout, req.ScenarioName, "", err)
 				return fmt.Errorf("start run: %w", err)
 			}
+			if msg, ok := admissionSaturationGuidance(err); ok {
+				fmt.Fprint(os.Stderr, msg)
+				return fmt.Errorf("start run: %w", err)
+			}
 			if msg, ok := runBusyGuidance(err); ok {
 				fmt.Fprint(os.Stderr, msg)
 				return fmt.Errorf("scenario %s is busy with another run", req.ScenarioName)
@@ -319,12 +323,66 @@ func emitJSONError(out io.Writer, scenario, runID string, cause error) {
 	if runID != "" {
 		fields["runId"] = runID
 	}
+	if saturation := admissionSaturation(cause); saturation != nil {
+		fields["retryable"] = true
+		fields["admissionSaturation"] = map[string]any{
+			"limitKind":         saturation.GetLimitKind().String(),
+			"occupancy":         saturation.GetOccupancy(),
+			"configuredLimit":   saturation.GetConfiguredLimit(),
+			"fifoPosition":      saturation.GetFifoPosition(),
+			"retryAfterSeconds": saturation.GetRetryAfterSeconds(),
+		}
+	}
 	body, err := json.MarshalIndent(fields, "", "  ")
 	if err != nil {
 		fmt.Fprintf(out, "{\"success\":false,\"error\":%q}\n", cause.Error())
 		return
 	}
 	fmt.Fprintf(out, "%s\n", body)
+}
+
+func admissionSaturation(err error) *runspb.AdmissionSaturation {
+	var ce *connect.Error
+	if !errors.As(err, &ce) || ce.Code() != connect.CodeResourceExhausted {
+		return nil
+	}
+	for _, detail := range ce.Details() {
+		value, err := detail.Value()
+		if err != nil {
+			continue
+		}
+		if saturation, ok := value.(*runspb.AdmissionSaturation); ok {
+			return saturation
+		}
+	}
+	return nil
+}
+
+func admissionSaturationGuidance(err error) (string, bool) {
+	saturation := admissionSaturation(err)
+	if saturation == nil {
+		return "", false
+	}
+	limit := "admission"
+	switch saturation.GetLimitKind() {
+	case runspb.AdmissionLimitKind_ADMISSION_LIMIT_KIND_GLOBAL_PREVIEW:
+		limit = "global preview"
+	case runspb.AdmissionLimitKind_ADMISSION_LIMIT_KIND_CALLER_PREVIEW:
+		limit = "per-caller preview"
+	case runspb.AdmissionLimitKind_ADMISSION_LIMIT_KIND_GLOBAL_QUEUE:
+		limit = "global queued-run"
+	case runspb.AdmissionLimitKind_ADMISSION_LIMIT_KIND_CALLER_QUEUE:
+		limit = "per-caller queued-run"
+	case runspb.AdmissionLimitKind_ADMISSION_LIMIT_KIND_RESERVATION_QUEUE:
+		limit = "reservation queued-run"
+	}
+	var b strings.Builder
+	fmt.Fprintf(&b, "Test Genie temporarily rejected this run at the %s capacity (%d/%d).\n", limit, saturation.GetOccupancy(), saturation.GetConfiguredLimit())
+	if saturation.GetRetryAfterSeconds() > 0 {
+		fmt.Fprintf(&b, "  Retry hint: wait at least %d seconds, then submit once if capacity is still needed.\n", saturation.GetRetryAfterSeconds())
+	}
+	b.WriteString("  Do not resubmit in a loop; the rejection is retryable and no run was started.\n")
+	return b.String(), true
 }
 
 // newRunHandle builds the structured, server-owned run identity shared by the
@@ -335,6 +393,8 @@ func newRunHandle(scenario, runID string, coalesced bool) RunHandle {
 		Scenario:  scenario,
 		Reattach:  reattachCommand(scenario, runID),
 		Follow:    followCommand(scenario, runID),
+		Logs:      logsCommand(scenario, runID),
+		Artifacts: artifactsCommand(scenario, runID),
 		Coalesced: coalesced,
 	}
 }

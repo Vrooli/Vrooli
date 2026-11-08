@@ -339,4 +339,4 @@ To achieve gold standard testing:
 
 - [Testing Strategy](../concepts/strategy.md) - Three-layer approach
 - [Safety Guidelines](../safety/GUIDELINES.md) - Critical safety rules
-- [Test Runners](../phases/unit/test-runners.md) - Language-specific runners
+- [Testing Guide](/docs/TESTING.md) - Scenario and package test commands

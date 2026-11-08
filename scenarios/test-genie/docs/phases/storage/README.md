@@ -218,7 +218,7 @@ misread as proof of fleet-wide byte accounting.
   backs this phase (analyzers, maturity ladder, auto-fix, fleet intelligence)
 - [Workflow Phase](../workflow/README.md) — the destructive E2E phase this
   gate protects
-- [Routed Test-Storage Contract](../../../../docs/agent-system/routed-test-db.md) —
+- [Routed Test-Storage Contract](/docs/agent-system/routed-test-db.md) —
   the canonical routed database and file-storage contract
 
 ## See Also

@@ -417,7 +417,7 @@ func TestEvidenceProducerAbortFencePreventsLateStartAndRestartReplay(t *testing.
 	input := execution.SuiteExecutionInput{Request: orchestrator.SuiteExecutionRequest{ScenarioName: "provider", RunID: "fenced-before-start", ValidationRun: true, RetainForEvidence: true}, EvidenceProducer: &execution.EvidenceProducerCommand{Provider: "provider", Name: "refresh", Argv: []string{"/bin/true"}, WorkingDirectory: "/tmp", OutputRoot: "/tmp/output", Timeout: time.Second, MaximumOutputBytes: 64, DescriptorDigest: "sha256:descriptor", SourceIdentity: "source"}}
 	firstExecutor := newFakeExecutor(root)
 	first := New(firstExecutor, root)
-	status, err := first.AbortEvidenceProducer(StartOptions{Input: input})
+	status, err := first.AbortEvidenceProducer(context.Background(), StartOptions{Input: input})
 	if err != nil || status.Status != sharedruns.StatusAborted {
 		t.Fatalf("prelaunch abort=%+v err=%v", status, err)
 	}
@@ -569,7 +569,7 @@ func TestEvidenceProducerAbortFenceUsesPinnedRootAcrossResolverTransition(t *tes
 		m.Shutdown()
 	}()
 
-	status, err := m.AbortEvidenceProducer(StartOptions{Input: input})
+	status, err := m.AbortEvidenceProducer(context.Background(), StartOptions{Input: input})
 	if err != nil || status.Status != sharedruns.StatusAborted {
 		t.Fatalf("prelaunch abort=%+v err=%v", status, err)
 	}
@@ -630,7 +630,7 @@ func TestEvidenceProducerAbortAfterIndexedStartCancelsExecutor(t *testing.T) {
 	case <-time.After(time.Second):
 		t.Fatal("executor did not reach start barrier")
 	}
-	status, err := manager.AbortEvidenceProducer(StartOptions{Input: input})
+	status, err := manager.AbortEvidenceProducer(context.Background(), StartOptions{Input: input})
 	if err != nil || status.Status != sharedruns.StatusAborted {
 		t.Fatalf("post-index abort=%+v err=%v", status, err)
 	}
@@ -969,7 +969,7 @@ func TestReservationExpiresWhenDeclaredMembersTerminate(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := m.Abort("member", started.RunID); err != nil {
+	if _, err := m.Abort(context.Background(), "member", started.RunID); err != nil {
 		t.Fatal(err)
 	}
 	m.mu.Lock()
@@ -1122,7 +1122,7 @@ func TestAbortTransitionsToAborted(t *testing.T) {
 	runID := startRun(t, m, StartOptions{Input: execution.SuiteExecutionInput{Request: orchestrator.SuiteExecutionRequest{ScenarioName: "demo"}}})
 	<-exec.started
 
-	st, err := m.Abort("demo", runID)
+	st, err := m.Abort(context.Background(), "demo", runID)
 	if err != nil {
 		t.Fatalf("abort: %v", err)
 	}
@@ -1139,6 +1139,72 @@ func TestAbortTransitionsToAborted(t *testing.T) {
 	}
 	if catalog, err := sharedartifacts.ReadArtifactCatalog(scenarioDir, runID); err != nil || catalog.LegacyDiscovered {
 		t.Fatalf("aborted run artifact catalog = %+v err=%v", catalog, err)
+	}
+}
+
+func TestAbortDeadlineReturnsNonterminalStatusAndError(t *testing.T) {
+	root := t.TempDir()
+	exec := newFakeExecutor(root + "/demo")
+	// This executor deliberately ignores the run's cancellation and waits for an
+	// external release, so Abort must expose its caller deadline instead of
+	// returning an in-progress snapshot as a successful terminal result.
+	m := New(exec, root)
+	defer m.Shutdown()
+	var releaseOnce sync.Once
+	release := func() { releaseOnce.Do(func() { close(exec.release) }) }
+	defer release()
+
+	runID := startRun(t, m, StartOptions{Input: execution.SuiteExecutionInput{Request: orchestrator.SuiteExecutionRequest{ScenarioName: "demo"}}})
+	<-exec.started
+
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Millisecond)
+	defer cancel()
+	status, err := m.Abort(ctx, "demo", runID)
+	if !errors.Is(err, context.DeadlineExceeded) {
+		t.Fatalf("abort error = %v, want deadline exceeded", err)
+	}
+	if status.Status != sharedruns.StatusInProgress {
+		t.Fatalf("timed-out abort status = %q, want in_progress", status.Status)
+	}
+
+	release()
+	settled, err := m.Wait(context.Background(), "demo", runID)
+	if err != nil {
+		t.Fatalf("wait for cancelled executor: %v", err)
+	}
+	if settled.Status != sharedruns.StatusAborted {
+		t.Fatalf("settled status = %q, want aborted", settled.Status)
+	}
+}
+
+func TestAbortOwnerBoundReturnsNonterminalStatusForBackgroundCaller(t *testing.T) {
+	root := t.TempDir()
+	exec := newFakeExecutor(root + "/demo")
+	m := New(exec, root)
+	m.abortWait = 20 * time.Millisecond
+	defer m.Shutdown()
+	var releaseOnce sync.Once
+	release := func() { releaseOnce.Do(func() { close(exec.release) }) }
+	defer release()
+
+	runID := startRun(t, m, StartOptions{Input: execution.SuiteExecutionInput{Request: orchestrator.SuiteExecutionRequest{ScenarioName: "demo"}}})
+	<-exec.started
+
+	status, err := m.Abort(context.Background(), "demo", runID)
+	if !errors.Is(err, context.DeadlineExceeded) {
+		t.Fatalf("background abort error = %v, want owner deadline exceeded", err)
+	}
+	if status.Status != sharedruns.StatusInProgress {
+		t.Fatalf("background abort status = %q, want in_progress", status.Status)
+	}
+
+	release()
+	settled, err := m.Wait(context.Background(), "demo", runID)
+	if err != nil {
+		t.Fatalf("wait for cancelled executor: %v", err)
+	}
+	if settled.Status != sharedruns.StatusAborted {
+		t.Fatalf("settled status = %q, want aborted", settled.Status)
 	}
 }
 
@@ -1773,7 +1839,7 @@ func TestExclusiveBASResourceQueuesAcrossScenarios(t *testing.T) {
 		t.Fatalf("driven suites = %d, want only the first while BAS is occupied", got)
 	}
 
-	if _, err := m.Abort("bas-owner", firstID); err != nil {
+	if _, err := m.Abort(context.Background(), "bas-owner", firstID); err != nil {
 		t.Fatalf("abort first BAS run: %v", err)
 	}
 	deadline := time.Now().Add(2 * time.Second)
@@ -2072,7 +2138,7 @@ func TestQueuedRunPromotedOnSlotFree(t *testing.T) {
 	}
 
 	// Free the only slot; dispatch must promote b.
-	if _, err := m.Abort("a", aID); err != nil {
+	if _, err := m.Abort(context.Background(), "a", aID); err != nil {
 		t.Fatalf("abort a: %v", err)
 	}
 	waitForStatus(t, m, "b", bID, sharedruns.StatusInProgress)
@@ -2107,7 +2173,7 @@ func TestQueuedRunPromotedWhenCapacityChangesWithoutTerminalEvent(t *testing.T) 
 	waitForStatus(t, m, "capacity-waiter", secondID, sharedruns.StatusInProgress)
 	waitForDriveCount(t, exec, 2)
 
-	if _, err := m.Abort("capacity-owner", firstID); err != nil {
+	if _, err := m.Abort(context.Background(), "capacity-owner", firstID); err != nil {
 		t.Fatalf("abort owner: %v", err)
 	}
 }
@@ -2125,7 +2191,7 @@ func TestAbortQueuedRun(t *testing.T) {
 	_ = startRun(t, m, StartOptions{Input: startInput("a")})
 	bID := startRun(t, m, StartOptions{Input: startInput("b")})
 
-	st, err := m.Abort("b", bID)
+	st, err := m.Abort(context.Background(), "b", bID)
 	if err != nil {
 		t.Fatalf("abort queued: %v", err)
 	}
@@ -2163,7 +2229,7 @@ func TestAbortOrphanDowngradesIndex(t *testing.T) {
 	}
 
 	m := New(nil, root)
-	st, err := m.Abort(scenario, runID)
+	st, err := m.Abort(context.Background(), scenario, runID)
 	if err != nil {
 		t.Fatalf("abort orphan: %v", err)
 	}
@@ -2491,5 +2557,262 @@ func TestArtifactRootResolverOwnsLifecycleIndexPath(t *testing.T) {
 	}
 	if _, err := os.Stat(filepath.Join(sourceRoot, "demo", "coverage")); !os.IsNotExist(err) {
 		t.Fatalf("resolver materialized source coverage: %v", err)
+	}
+}
+
+type lifecycleSuiteExecutor struct {
+	started  chan string
+	contexts chan context.Context
+	release  map[string]chan struct{}
+}
+
+func (e *lifecycleSuiteExecutor) ExecuteWithEvents(ctx context.Context, input execution.SuiteExecutionInput, _ orchestrator.ExecutionEventCallback) (*orchestrator.SuiteExecutionResult, error) {
+	e.started <- input.Request.ScenarioName
+	e.contexts <- ctx
+	select {
+	case <-e.release[input.Request.ScenarioName]:
+		return &orchestrator.SuiteExecutionResult{RunID: input.Request.RunID, ScenarioName: input.Request.ScenarioName, Success: true, Verdict: "PASS", CompletedAt: time.Now()}, nil
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	}
+}
+func releaseLifecycleTests(e *lifecycleSuiteExecutor) {
+	for _, ch := range e.release {
+		select {
+		case <-ch:
+		default:
+			close(ch)
+		}
+	}
+}
+func TestLifecycleInventoryDrainsAsyncQueueAndPreviewWithoutCanceling(t *testing.T) {
+	e := &lifecycleSuiteExecutor{started: make(chan string, 3), contexts: make(chan context.Context, 3), release: map[string]chan struct{}{"first": make(chan struct{}), "second": make(chan struct{}), "third": make(chan struct{})}}
+	m := New(e, t.TempDir())
+	defer func() { releaseLifecycleTests(e); m.Shutdown() }()
+	m.mu.Lock()
+	m.maxConcurrentRuns = 1
+	m.effectiveConcurrent = 1
+	m.mu.Unlock()
+	preview, err := m.TryAcquirePreviewFor("synthetic-caller")
+	if err != nil {
+		t.Fatal(err)
+	}
+	request, cancel := context.WithCancel(t.Context())
+	first := startRun(t, m, StartOptions{Input: startInput("first"), Initiator: request})
+	<-e.started
+	firstCtx := <-e.contexts
+	cancel()
+	second := startRun(t, m, StartOptions{Input: startInput("second")})
+	inv, err := m.LifecycleInventory(t.Context())
+	if err != nil || !inv.Complete || inv.Remaining != 3 || len(inv.Work) != 3 {
+		t.Fatal("async run, queued run and preview were not completely inventoried", inv, err)
+	}
+	if firstCtx.Err() != nil {
+		t.Fatal("request cancellation canceled admitted suite")
+	}
+	if err := m.QuiesceLifecycle(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := m.Start(StartOptions{Input: startInput("third")}); !errors.Is(err, ErrLifecycleAdmissionClosed) {
+		t.Fatal("maintenance admitted a new suite", err)
+	}
+	if _, err := m.TryAcquirePreviewFor("other"); !errors.Is(err, ErrLifecycleAdmissionClosed) {
+		t.Fatal("maintenance admitted a new preview", err)
+	}
+	inv, err = m.LifecycleInventory(t.Context())
+	if err != nil || inv.Remaining != 3 || firstCtx.Err() != nil {
+		t.Fatal("quiescence canceled or erased admitted work", inv, err)
+	}
+	preview()
+	close(e.release["first"])
+	if got := <-e.started; got != "second" {
+		t.Fatal("queued suite was not naturally promoted", got)
+	}
+	secondCtx := <-e.contexts
+	<-m.lookup("first", first).done
+	inv, err = m.LifecycleInventory(t.Context())
+	if err != nil || inv.Remaining != 1 || len(inv.Work) != 1 || inv.Work[0].Id != "second/"+second || inv.Work[0].Status != sharedruns.StatusInProgress || secondCtx.Err() != nil {
+		t.Fatal("queue promotion lost exact running ownership", inv, err)
+	}
+	close(e.release["second"])
+	<-m.lookup("second", second).done
+	inv, err = m.LifecycleInventory(t.Context())
+	if err != nil || !inv.Complete || inv.Remaining != 0 || len(inv.Work) != 0 {
+		t.Fatal("naturally completed suites did not drain", inv, err)
+	}
+	if err := m.ResumeLifecycle(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	close(e.release["third"])
+	third := startRun(t, m, StartOptions{Input: startInput("third")})
+	<-m.lookup("third", third).done
+}
+
+type lifecycleFinalizer struct{ entered, release chan struct{} }
+
+func (r *lifecycleFinalizer) ReleaseRun(context.Context, string, string) error {
+	close(r.entered)
+	<-r.release
+	return nil
+}
+func TestLifecycleInventoryKeepsTerminalFinalizationUntilDone(t *testing.T) {
+	e := newFakeExecutor("")
+	close(e.release)
+	cleanup := &lifecycleFinalizer{entered: make(chan struct{}), release: make(chan struct{})}
+	m := New(e, t.TempDir()).WithRunClaimReleaser(cleanup)
+	defer func() {
+		select {
+		case <-cleanup.release:
+		default:
+			close(cleanup.release)
+		}
+		m.Shutdown()
+	}()
+	id := startRun(t, m, StartOptions{Input: startInput("finalizing")})
+	<-cleanup.entered
+	if got := m.AdmissionStatus(); got.Running != 0 {
+		t.Fatal("fixture did not reach terminal status")
+	}
+	inv, err := m.LifecycleInventory(t.Context())
+	if err != nil || inv.Remaining != 1 || len(inv.Work) != 1 || inv.Work[0].Id != "finalizing/"+id || inv.Work[0].Status != "finalizing" {
+		t.Fatal("terminal status falsely proved finalized work absent", inv, err)
+	}
+	close(cleanup.release)
+	<-m.lookup("finalizing", id).done
+	inv, err = m.LifecycleInventory(t.Context())
+	if err != nil || inv.Remaining != 0 {
+		t.Fatal("finalization completion was not observed", inv, err)
+	}
+}
+
+func TestLifecycleInventoryCoversAdmissionBeforeRunRegistration(t *testing.T) {
+	entered, resolve := make(chan struct{}), make(chan struct{})
+	var once sync.Once
+	e := newFakeExecutor("")
+	root := t.TempDir()
+	m := New(e, root).WithArtifactRootResolver(func(string) (string, error) { once.Do(func() { close(entered) }); <-resolve; return root, nil })
+	defer func() {
+		select {
+		case <-resolve:
+		default:
+			close(resolve)
+		}
+		select {
+		case <-e.release:
+		default:
+			close(e.release)
+		}
+		m.Shutdown()
+	}()
+	done := make(chan StartResult, 1)
+	errs := make(chan error, 1)
+	go func() { r, err := m.Start(StartOptions{Input: startInput("handoff")}); done <- r; errs <- err }()
+	<-entered
+	if err := m.QuiesceLifecycle(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	inv, err := m.LifecycleInventory(t.Context())
+	if err != nil || inv.Remaining != 1 || len(inv.Work) != 1 || inv.Work[0].Kind != "suite-admission" {
+		t.Fatal("pre-registration admission disappeared from lifecycle inventory", inv, err)
+	}
+	close(resolve)
+	r := <-done
+	if err := <-errs; err != nil {
+		t.Fatal("already admitted preparation was canceled by closure", err)
+	}
+	<-e.started
+	inv, err = m.LifecycleInventory(t.Context())
+	if err != nil || inv.Remaining != 1 || inv.Work[0].Id != "handoff/"+r.RunID {
+		t.Fatal("admission transfer lost its run identity", inv, err)
+	}
+	close(e.release)
+	<-m.lookup("handoff", r.RunID).done
+}
+
+func TestLifecycleInventoryRefusesUnknownAndHonorsDeadline(t *testing.T) {
+	var missing *Manager
+	inv, err := missing.LifecycleInventory(t.Context())
+	if err == nil || inv.Complete || inv.Remaining != -1 {
+		t.Fatal("missing manager implied drain", inv, err)
+	}
+	e := newFakeExecutor("")
+	m := New(e, t.TempDir())
+	defer m.Shutdown()
+	m.mu.Lock()
+	ctx, cancel := context.WithTimeout(t.Context(), 20*time.Millisecond)
+	start := time.Now()
+	inv, err = m.LifecycleInventory(ctx)
+	cancel()
+	m.mu.Unlock()
+	if !errors.Is(err, context.DeadlineExceeded) || inv.Complete || inv.Remaining != -1 || time.Since(start) > time.Second {
+		t.Fatal("busy inventory ignored its caller bound or implied zero", inv, err)
+	}
+	m.mu.Lock()
+	m.runs["broken"] = &activeRun{runID: "broken", scenario: "demo", status: sharedruns.StatusInProgress, cancel: func() {}}
+	m.mu.Unlock()
+	inv, err = m.LifecycleInventory(t.Context())
+	if err == nil || inv.Complete || inv.Remaining != -1 {
+		t.Fatal("incomplete execution owner implied drain", inv, err)
+	}
+	m.mu.Lock()
+	delete(m.runs, "broken")
+	m.mu.Unlock()
+
+	m.mu.Lock()
+	m.lifecycleAdmissions = lifecycleInventoryLimit + 1
+	m.mu.Unlock()
+	inv, err = m.LifecycleInventory(t.Context())
+	if err == nil || inv.Complete || inv.Remaining != -1 {
+		t.Fatal("oversized inventory implied complete or zero", inv, err)
+	}
+	m.mu.Lock()
+	m.lifecycleAdmissions = 0
+	m.previewByCaller["unaccounted"] = 1
+	m.mu.Unlock()
+	inv, err = m.LifecycleInventory(t.Context())
+	if err == nil || inv.Complete || inv.Remaining != -1 {
+		t.Fatal("inconsistent preview accounting implied zero", inv, err)
+	}
+	m.mu.Lock()
+	delete(m.previewByCaller, "unaccounted")
+	m.mu.Unlock()
+}
+
+func TestLifecycleFinalizationDoesNotMutateBorrowedExecutorResult(t *testing.T) {
+	shared := &orchestrator.SuiteExecutionResult{Success: true, Verdict: "PASS", Warnings: []string{"immutable producer note"}}
+	e := newFakeExecutor("")
+	e.result = shared
+	m := New(e, t.TempDir())
+	first := startRun(t, m, StartOptions{Input: startInput("alpha")})
+	second := startRun(t, m, StartOptions{Input: startInput("beta")})
+	deadline := time.Now().Add(time.Second)
+	for e.driveCount() < 2 && time.Now().Before(deadline) {
+		time.Sleep(time.Millisecond)
+	}
+	close(e.release)
+	m.Shutdown()
+	if !shared.Success || shared.Verdict != "PASS" || shared.RunID != "" || shared.ScenarioName != "" || !shared.CompletedAt.IsZero() || len(shared.Warnings) != 1 || shared.Warnings[0] != "immutable producer note" {
+		t.Fatal("manager settlement mutated borrowed concurrent executor output")
+	}
+	if first == second {
+		t.Fatal("independent runs reused one identity")
+	}
+}
+
+func TestLifecycleShutdownKeepsAdmissionClosed(t *testing.T) {
+	m := New(newFakeExecutor(""), t.TempDir())
+	m.Shutdown()
+	if _, err := m.Start(StartOptions{Input: startInput("after-shutdown")}); !errors.Is(err, ErrLifecycleAdmissionClosed) {
+		t.Fatal("shutdown admitted new suite preparation", err)
+	}
+	if _, err := m.TryAcquirePreviewFor("after-shutdown"); !errors.Is(err, ErrLifecycleAdmissionClosed) {
+		t.Fatal("shutdown admitted a new preview", err)
+	}
+	if err := m.ResumeLifecycle(t.Context()); err == nil {
+		t.Fatal("shutdown manager reopened admission")
+	}
+	inv, err := m.LifecycleInventory(t.Context())
+	if err == nil || inv.Complete || inv.Remaining != -1 {
+		t.Fatal("shutdown manager implied a complete zero inventory", inv, err)
 	}
 }
