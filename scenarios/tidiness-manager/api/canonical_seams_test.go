@@ -39,6 +39,31 @@ func aliased() { _ = filesystem.Rename("a", "b") }
 	}
 }
 
+// TestScanSeamsSkipsSourceThatVanishesMidScan pins scanning a live, shared
+// working tree: a listed .go entry whose file is gone by the time it is read
+// (here, a link to a deleted file) is skipped instead of failing the scan.
+func TestScanSeamsSkipsSourceThatVanishesMidScan(t *testing.T) {
+	root := t.TempDir()
+	writeSeamTestFile(t, root, "src/bypass.go", `package sample
+import "os"
+func bypass() { _ = os.Rename("a", "b") }
+`)
+	if err := os.Symlink(filepath.Join(root, "src", "deleted.go"), filepath.Join(root, "src", "transient.go")); err != nil {
+		t.Fatal(err)
+	}
+	seams := []Seam{
+		{ID: "owned-write", Canonical: "config.WriteOwnedFileAtomic", Why: "ownership", Remediation: "use the owned writer", Bypass: SeamBypass{Kind: "call", Pattern: `^os\.Rename$`}, Scope: SeamScope{Include: []string{"src/**"}}, Severity: "high"},
+		{ID: "declared", Canonical: "x", Why: "y", Remediation: "z", Bypass: SeamBypass{Kind: "declaration", Pattern: `^never$`}, Scope: SeamScope{Include: []string{"src/**"}}, Severity: "low"},
+	}
+	hits, err := ScanSeams(root, seams)
+	if err != nil {
+		t.Fatalf("scan failed on a vanished entry: %v", err)
+	}
+	if len(hits) != 1 || hits[0].Path != "src/bypass.go" {
+		t.Fatalf("hits = %#v, want only the live bypass", hits)
+	}
+}
+
 func TestScanSeamsMatchesImportPathsIncludingAliases(t *testing.T) {
 	root := t.TempDir()
 	writeSeamTestFile(t, root, "src/imports.go", `package sample

@@ -1,7 +1,12 @@
 package main
 
 import (
+	"bytes"
+	"encoding/base64"
+	"encoding/json"
 	"fmt"
+	"html"
+	"net/url"
 	"regexp"
 	"strings"
 	"time"
@@ -231,6 +236,31 @@ func applyTransformation(text string, transform Transformation) string {
 		return strings.ToLower(text)
 	case "title":
 		return strings.Title(text)
+	case "case":
+		switch to, _ := transform.Parameters["to"].(string); to {
+		case "upper", "lower", "title":
+			return applyTransformation(text, Transformation{Type: to})
+		}
+		return text
+	case "format":
+		// JSON formatting pretty-prints a JSON document and encodes any other
+		// text as a JSON string value.
+		if format, _ := transform.Parameters["type"].(string); format == "json" {
+			var formatted bytes.Buffer
+			if json.Indent(&formatted, []byte(text), "", "  ") == nil {
+				return formatted.String()
+			}
+			if encoded, err := json.Marshal(text); err == nil {
+				return string(encoded)
+			}
+		}
+		return text
+	case "encode", "decode":
+		codec, _ := transform.Parameters["type"].(string)
+		if transform.Type == "encode" {
+			return encodeText(text, codec)
+		}
+		return decodeText(text, codec)
 	case "sanitize":
 		// Basic HTML tag removal
 		re := regexp.MustCompile(`<[^>]*>`)
@@ -238,6 +268,39 @@ func applyTransformation(text string, transform Transformation) string {
 	default:
 		return text
 	}
+}
+
+// encodeText applies a named encoding; an unknown encoding leaves the text
+// unchanged, like an unknown transformation.
+func encodeText(text, codec string) string {
+	switch codec {
+	case "base64":
+		return base64.StdEncoding.EncodeToString([]byte(text))
+	case "url":
+		return url.QueryEscape(text)
+	case "html":
+		return html.EscapeString(text)
+	default:
+		return text
+	}
+}
+
+// decodeText reverses encodeText; input that is not valid for the encoding is
+// returned unchanged rather than partially decoded.
+func decodeText(text, codec string) string {
+	switch codec {
+	case "base64":
+		if decoded, err := base64.StdEncoding.DecodeString(text); err == nil {
+			return string(decoded)
+		}
+	case "url":
+		if decoded, err := url.QueryUnescape(text); err == nil {
+			return decoded
+		}
+	case "html":
+		return html.UnescapeString(text)
+	}
+	return text
 }
 
 func trackTransformationSteps(text string, transforms []Transformation) []string {
@@ -262,6 +325,11 @@ func extractContent(source interface{}, options ExtractOptions) (string, map[str
 		metadata["length"] = len(v)
 		return v, metadata
 	case map[string]interface{}:
+		if text, ok := v["text"].(string); ok {
+			metadata["type"] = "text"
+			metadata["length"] = len(text)
+			return text, metadata
+		}
 		if url, ok := v["url"].(string); ok {
 			// TODO: Implement URL content extraction
 			metadata["type"] = "url"

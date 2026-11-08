@@ -59,6 +59,12 @@ func (*hostedSignInReach) Negotiate(context.Context, identity.TargetRef) (reach.
 }
 
 func TestJ13_SignInSurvivesOptionalDependencyFailure(t *testing.T) {
+	// A live journey: it runs this checkout's built vrooli CLI, a runtime
+	// supervisor and a real landing-page-business-suite start in an isolated
+	// HOME, so it depends on host binaries and minutes of wall time.
+	if os.Getenv("VROOLI_STC_JOURNEY_LIVE") == "" {
+		t.Skip("set VROOLI_STC_JOURNEY_LIVE=1 to run the hosted sign-in journey against this checkout's built CLI")
+	}
 	ctx, cancel := context.WithTimeout(context.Background(), 9*time.Minute)
 	t.Cleanup(cancel)
 	repo, err := filepath.Abs("../../../..")

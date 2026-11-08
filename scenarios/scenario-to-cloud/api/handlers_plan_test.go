@@ -311,8 +311,10 @@ func TestConnectPlansServiceMirrorsREST(t *testing.T) {
 	if resp.Msg.GetPlanDigest() != preview["plan_digest"] {
 		t.Fatalf("Connect digest %s != REST digest %v", resp.Msg.GetPlanDigest(), preview["plan_digest"])
 	}
-	if len(resp.Msg.GetPlan().GetActions()) == 0 || resp.Msg.GetPlan().GetActions()[0].GetOwnerOperation() != execplan.OpHostPrepare {
-		t.Fatalf("expected proto actions, got %v", resp.Msg.GetPlan().GetActions())
+	// Release delivery is the bootstrap boundary; host preparation follows it.
+	actions := resp.Msg.GetPlan().GetActions()
+	if len(actions) < 2 || actions[0].GetOwnerOperation() != execplan.OpReleaseDeliver || actions[1].GetOwnerOperation() != execplan.OpHostPrepare {
+		t.Fatalf("expected proto actions led by release delivery then host preparation, got %v", actions)
 	}
 	_, err = client.ApplyPlan(context.Background(), connect.NewRequest(&plansv1.ApplyPlanRequest{DeploymentId: "dep-1", PlanDigest: "sha256:wrong", RequestKey: "k"}))
 	var cerr *connect.Error
@@ -351,8 +353,8 @@ func TestVPSSetupApplyRequiresReviewedDigest(t *testing.T) {
 		t.Fatalf("plan: %d %s", rec.Code, rec.Body.String())
 	}
 	steps := body["plan"].([]any)
-	if steps[0].(map[string]any)["id"] != execplan.OpHostPrepare {
-		t.Fatalf("legacy step view must carry action ids: %v", steps[0])
+	if steps[0].(map[string]any)["id"] != execplan.OpReleaseDeliver || steps[1].(map[string]any)["id"] != execplan.OpHostPrepare {
+		t.Fatalf("legacy step view must carry action ids in execution order: %v", steps[:2])
 	}
 	rec, body = postPlan(t, router, "/api/v1/vps/setup/apply", map[string]any{"manifest": manifest, "bundle_path": bundle})
 	if rec.Code != http.StatusBadRequest || errorCode(body) != "invalid_request" {

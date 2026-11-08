@@ -103,8 +103,12 @@ func TestFixturePlansCarryNoShellSyntax(t *testing.T) {
 		w := cat.Workloads[id]
 		t.Run(id, func(t *testing.T) {
 			manifest, closure := fixtureManifest(w)
+			// The plan and the derived commands share one deployment identity;
+			// edge specs bind it and refuse a mismatch.
+			deployment := &domain.Deployment{ID: "dep-" + w.ID, ScenarioID: manifest.Scenario.ID, Environment: "production", Target: domain.TargetRefFromManifest(manifest)}
 			plan, err := vps.CompilePlan(context.Background(), vps.PlanRequest{
 				Manifest:     manifest,
+				Deployment:   deployment,
 				BundlePath:   fixtureRelease(t, t.TempDir(), w.ID),
 				Closure:      closure,
 				Scope:        execplan.ScopeFull,
@@ -116,7 +120,7 @@ func TestFixturePlansCarryNoShellSyntax(t *testing.T) {
 			if len(plan.Actions) == 0 {
 				t.Fatal("plan has no actions")
 			}
-			cc := vps.CommandContext{DeploymentID: "dep-" + w.ID, ScenarioID: manifest.Scenario.ID, Identity: vps.Identity{OperationID: "op-archtest", Fence: 7}, Manifest: manifest}
+			cc := vps.CommandContext{DeploymentID: deployment.ID, ScenarioID: manifest.Scenario.ID, Identity: vps.Identity{OperationID: "op-archtest", Fence: 7}, Manifest: manifest}
 			derived := 0
 			for _, action := range plan.Actions {
 				for key, value := range action.Inputs {

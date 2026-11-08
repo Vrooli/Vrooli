@@ -34,8 +34,6 @@ replace github.com/vrooli/vrooli/packages/proto => ../../../packages/proto
 
 replace github.com/vrooli/vrooli/packages/capabilityprobe => ../../../packages/capabilityprobe
 
-replace github.com/vrooli/vrooli => ../../..
-
 replace github.com/vrooli/envkit-go => ../../../packages/envkit-go
 
 replace github.com/vrooli/mdns-go => ../../../packages/mdns-go

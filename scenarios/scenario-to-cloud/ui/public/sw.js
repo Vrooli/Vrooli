@@ -1,5 +1,5 @@
 const CACHE_NAME = "scenario-to-cloud-shell-v1";
-const SHELL = ["/", "/index.html", "/site.webmanifest", "/favicon.svg", "/logo.svg"];
+const SHELL = ["/", "/index.html", "/public/site.webmanifest", "/public/favicon.svg", "/public/logo.svg"];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(caches.open(CACHE_NAME).then((cache) => cache.addAll(SHELL)));

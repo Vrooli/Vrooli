@@ -21,20 +21,12 @@ require (
 	google.golang.org/protobuf v1.36.11 // indirect
 )
 
-replace github.com/vrooli/api-core => ../../../packages/api-core
-
 replace github.com/vrooli/cli-core => ../../../packages/cli-core
 
 replace github.com/vrooli/repo-contract-go => ../../../packages/repo-contract-go
 
 replace github.com/vrooli/vrooli/packages/proto => ../../../packages/proto
 
-replace github.com/vrooli/vrooli => ../../..
-
 replace github.com/vrooli/maturity-go => ../../../packages/maturity-go
 
-replace github.com/vrooli/binaryfetch => ../../../packages/binaryfetch
-
 replace github.com/vrooli/envkit-go => ../../../packages/envkit-go
-
-replace github.com/vrooli/platform-go => ../../../packages/platform-go

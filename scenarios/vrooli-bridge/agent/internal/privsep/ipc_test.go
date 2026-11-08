@@ -37,7 +37,7 @@ func TestIPCProvisionRoundTripUsesTypedEvents(t *testing.T) {
 
 	fakeVrooli := filepath.Join(t.TempDir(), "vrooli")
 	require.NoError(t, os.WriteFile(fakeVrooli, []byte("#!/bin/sh\nexit 0\n"), 0o700))
-	socket := filepath.Join(t.TempDir(), "run", "provision.sock")
+	socket := filepath.Join(socketDir(t), "run", "provision.sock")
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	serverErr := make(chan error, 1)
@@ -64,7 +64,7 @@ func TestIPCProvisionRoundTripUsesTypedEvents(t *testing.T) {
 }
 
 func TestIPCRejectsWrongRunnerPeer(t *testing.T) {
-	socket := filepath.Join(t.TempDir(), "provision.sock")
+	socket := filepath.Join(socketDir(t), "provision.sock")
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	serverErr := make(chan error, 1)
@@ -81,7 +81,7 @@ func TestIPCCleanupRoundTripsEveryNamedOperation(t *testing.T) {
 	require.NoError(t, os.WriteFile(filepath.Join(stateDir, "encryption.key"), nodePrivate.Bytes(), 0o600))
 	fakeVrooli := filepath.Join(t.TempDir(), "vrooli")
 	require.NoError(t, os.WriteFile(fakeVrooli, []byte("#!/bin/sh\nprintf '{\"ok\":true,\"complete\":true,\"plan_hash\":\"frozen\"}\\n'\n"), 0o700))
-	socket := filepath.Join(t.TempDir(), "run", "cleanup.sock")
+	socket := filepath.Join(socketDir(t), "run", "cleanup.sock")
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	serverErr := make(chan error, 1)
@@ -165,4 +165,17 @@ func runGit(t *testing.T, dir string, args ...string) []byte {
 	out, err := cmd.CombinedOutput()
 	require.NoError(t, err, "%s", out)
 	return out
+}
+
+// socketDir returns a short private directory for Unix sockets. A socket
+// address is limited to about 104-108 bytes, and t.TempDir() follows GOTMPDIR,
+// which lifecycle-managed shells place deep under the runtime home.
+func socketDir(t *testing.T) string {
+	t.Helper()
+	dir, err := os.MkdirTemp("", "vb")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.RemoveAll(dir) })
+	return dir
 }

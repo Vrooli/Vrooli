@@ -389,6 +389,9 @@ func (s *Server) processAnalyzeV1(req AnalyzeRequest) AnalyzeResponse {
 			response.Keywords = extractKeywords(req.Text)
 		case "language":
 			response.Language = detectLanguage(req.Text)
+		case "statistics":
+			stats := calculateTextStatistics(req.Text)
+			response.Statistics = &stats
 		}
 	}
 

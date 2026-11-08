@@ -148,7 +148,8 @@ func TestResourceManagerStop(t *testing.T) {
 func TestResourceManagerGetStatus(t *testing.T) {
 	t.Run("Returns_Resource_Status", func(t *testing.T) {
 		config := &Config{
-			RedisURL: "http://localhost:6379",
+			OllamaURL: "http://ollama:11434",
+			RedisURL:  "http://localhost:6379",
 		}
 
 		rm := NewResourceManager(config)
@@ -186,7 +187,7 @@ func TestResourceManagerGetStatus(t *testing.T) {
 
 func TestResourceManagerIsAvailable(t *testing.T) {
 	t.Run("Returns_True_For_Available_Resource", func(t *testing.T) {
-		config := &Config{}
+		config := &Config{OllamaURL: "http://ollama:11434"}
 
 		rm := NewResourceManager(config)
 		rm.resources["ollama"].Available = true
@@ -197,7 +198,7 @@ func TestResourceManagerIsAvailable(t *testing.T) {
 	})
 
 	t.Run("Returns_False_For_Unavailable_Resource", func(t *testing.T) {
-		config := &Config{}
+		config := &Config{OllamaURL: "http://ollama:11434"}
 
 		rm := NewResourceManager(config)
 		rm.resources["ollama"].Available = false
@@ -219,7 +220,7 @@ func TestResourceManagerIsAvailable(t *testing.T) {
 
 func TestResourceManagerGetHealth(t *testing.T) {
 	t.Run("Returns_Health_For_Available_Resource", func(t *testing.T) {
-		config := &Config{}
+		config := &Config{OllamaURL: "http://ollama:11434"}
 
 		rm := NewResourceManager(config)
 		rm.resources["ollama"].Available = true
@@ -242,7 +243,7 @@ func TestResourceManagerGetHealth(t *testing.T) {
 	})
 
 	t.Run("Returns_Detailed_Info_For_Unavailable_Resource", func(t *testing.T) {
-		config := &Config{}
+		config := &Config{OllamaURL: "http://ollama:11434"}
 
 		rm := NewResourceManager(config)
 		rm.resources["ollama"].Available = false
@@ -328,7 +329,7 @@ func TestCheckResource(t *testing.T) {
 
 func TestWaitForResource(t *testing.T) {
 	t.Run("Returns_True_If_Available", func(t *testing.T) {
-		config := &Config{}
+		config := &Config{OllamaURL: "http://ollama:11434"}
 
 		rm := NewResourceManager(config)
 		rm.resources["ollama"].Available = true
@@ -341,7 +342,7 @@ func TestWaitForResource(t *testing.T) {
 	})
 
 	t.Run("Returns_False_If_Not_Available", func(t *testing.T) {
-		config := &Config{}
+		config := &Config{OllamaURL: "http://ollama:11434"}
 
 		rm := NewResourceManager(config)
 		rm.resources["ollama"].Available = false
@@ -367,7 +368,7 @@ func TestWaitForResource(t *testing.T) {
 
 func TestTryWithResource(t *testing.T) {
 	t.Run("Executes_Function_If_Available", func(t *testing.T) {
-		config := &Config{}
+		config := &Config{OllamaURL: "http://ollama:11434"}
 
 		rm := NewResourceManager(config)
 		rm.resources["ollama"].Available = true
@@ -386,7 +387,7 @@ func TestTryWithResource(t *testing.T) {
 	})
 
 	t.Run("Returns_Error_If_Unavailable", func(t *testing.T) {
-		config := &Config{}
+		config := &Config{OllamaURL: "http://ollama:11434"}
 
 		rm := NewResourceManager(config)
 		rm.resources["ollama"].Available = false
@@ -419,7 +420,7 @@ func TestResourceUnavailableError(t *testing.T) {
 
 func TestHandleResourceAvailable(t *testing.T) {
 	t.Run("Updates_Status", func(t *testing.T) {
-		config := &Config{}
+		config := &Config{OllamaURL: "http://ollama:11434"}
 
 		rm := NewResourceManager(config)
 		resource := rm.resources["ollama"]
@@ -437,7 +438,8 @@ func TestHandleResourceAvailable(t *testing.T) {
 func TestGetResourceMetrics(t *testing.T) {
 	t.Run("Returns_Metrics", func(t *testing.T) {
 		config := &Config{
-			RedisURL: "http://localhost:6379",
+			OllamaURL: "http://ollama:11434",
+			RedisURL:  "http://localhost:6379",
 		}
 
 		rm := NewResourceManager(config)

@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"go/ast"
 	"go/parser"
@@ -16,6 +17,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"unicode"
 )
 
@@ -365,15 +367,22 @@ func ScanSeams(treeRoot string, seams []Seam) ([]SeamHit, error) {
 		}
 		compiled = append(compiled, candidate)
 	}
-	absenceHits, err := scanAbsenceSeams(treeRoot, compiled)
+	// Every scanner reads one inventory of the source tree, so files the
+	// repository ignores (build output, caches, staging trees) never count
+	// and the tree is listed once rather than once per scanner.
+	files, err := seamTreeFiles(treeRoot)
 	if err != nil {
 		return nil, err
 	}
-	declarationPackages, err := collectDeclarationPackages(treeRoot, compiled)
+	absenceHits, err := scanAbsenceSeams(treeRoot, files, compiled)
 	if err != nil {
 		return nil, err
 	}
-	shapeGroups, err := collectShapeGroups(treeRoot, compiled)
+	declarationPackages, err := collectDeclarationPackages(files, compiled)
+	if err != nil {
+		return nil, err
+	}
+	shapeGroups, err := collectShapeGroups(files, compiled)
 	if err != nil {
 		return nil, err
 	}
@@ -382,24 +391,7 @@ func ScanSeams(treeRoot string, seams []Seam) ([]SeamHit, error) {
 		return nil, err
 	}
 	hits := append(absenceHits, brokeredHits...)
-	err = filepath.WalkDir(treeRoot, func(path string, entry fs.DirEntry, walkErr error) error {
-		if walkErr != nil {
-			return walkErr
-		}
-		if entry.IsDir() {
-			if path != treeRoot && (entry.Name() == ".git" || entry.Name() == "node_modules" || entry.Name() == "vendor") {
-				return filepath.SkipDir
-			}
-			return nil
-		}
-		if !strings.HasSuffix(entry.Name(), ".go") {
-			return nil
-		}
-		rel, err := filepath.Rel(treeRoot, path)
-		if err != nil {
-			return err
-		}
-		rel = filepath.ToSlash(rel)
+	err = forEachSeamGoFile(files, func(path, rel string) error {
 		applicable := make([]compiledSeam, 0, len(compiled))
 		for _, candidate := range compiled {
 			if candidate.seam.Bypass.Kind == "absence" {
@@ -415,6 +407,9 @@ func ScanSeams(treeRoot string, seams []Seam) ([]SeamHit, error) {
 		fset := token.NewFileSet()
 		file, err := parser.ParseFile(fset, path, nil, parser.ParseComments)
 		if err != nil {
+			if vanishedDuringScan(err) {
+				return nil
+			}
 			return fmt.Errorf("parse %s: %w", rel, err)
 		}
 		aliases := seamImportAliases(file)
@@ -902,7 +897,7 @@ func jsonFieldNameFromAST(field *ast.Field) string {
 	return ""
 }
 
-func collectShapeGroups(treeRoot string, seams []compiledSeam) (map[string]map[string]int, error) {
+func collectShapeGroups(files []seamTreeFile, seams []compiledSeam) (map[string]map[string]int, error) {
 	groups := make(map[string]map[string]int)
 	for _, candidate := range seams {
 		if candidate.seam.Bypass.Kind != "shape" || (candidate.seam.Bypass.ShapeKind != "interface_method_set" && candidate.seam.Bypass.ShapeKind != "struct_field_set") {
@@ -913,24 +908,7 @@ func collectShapeGroups(treeRoot string, seams []compiledSeam) (map[string]map[s
 	if len(groups) == 0 {
 		return groups, nil
 	}
-	err := filepath.WalkDir(treeRoot, func(path string, entry fs.DirEntry, walkErr error) error {
-		if walkErr != nil {
-			return walkErr
-		}
-		if entry.IsDir() {
-			if path != treeRoot && (entry.Name() == ".git" || entry.Name() == "node_modules" || entry.Name() == "vendor") {
-				return filepath.SkipDir
-			}
-			return nil
-		}
-		if !strings.HasSuffix(entry.Name(), ".go") {
-			return nil
-		}
-		rel, err := filepath.Rel(treeRoot, path)
-		if err != nil {
-			return err
-		}
-		rel = filepath.ToSlash(rel)
+	err := forEachSeamGoFile(files, func(path, rel string) error {
 		fileApplicable := make([]compiledSeam, 0)
 		for _, candidate := range seams {
 			if candidate.seam.Bypass.Kind == "shape" && seamPathIncluded(rel, candidate.seam.Scope) {
@@ -942,6 +920,9 @@ func collectShapeGroups(treeRoot string, seams []compiledSeam) (map[string]map[s
 		}
 		file, err := parser.ParseFile(token.NewFileSet(), path, nil, 0)
 		if err != nil {
+			if vanishedDuringScan(err) {
+				return nil
+			}
 			return fmt.Errorf("parse %s: %w", rel, err)
 		}
 		for _, declaration := range file.Decls {
@@ -1077,36 +1058,13 @@ func functionHasErrorBoundary(function *ast.FuncDecl) bool {
 	return hasErrorCall
 }
 
-func scanAbsenceSeams(treeRoot string, seams []compiledSeam) ([]SeamHit, error) {
+func scanAbsenceSeams(treeRoot string, files []seamTreeFile, seams []compiledSeam) ([]SeamHit, error) {
 	var hits []SeamHit
 	for _, candidate := range seams {
 		if candidate.seam.Bypass.Kind != "absence" {
 			continue
 		}
-		err := filepath.WalkDir(treeRoot, func(path string, entry fs.DirEntry, walkErr error) error {
-			if walkErr != nil {
-				return walkErr
-			}
-			if entry.IsDir() {
-				if path != treeRoot && (entry.Name() == ".git" || entry.Name() == "node_modules" || entry.Name() == "vendor") {
-					return filepath.SkipDir
-				}
-				if path != treeRoot {
-					rel, err := filepath.Rel(treeRoot, path)
-					if err != nil {
-						return err
-					}
-					if seamDirectoryExcluded(filepath.ToSlash(rel), candidate.seam.Scope) {
-						return filepath.SkipDir
-					}
-				}
-				return nil
-			}
-			rel, err := filepath.Rel(treeRoot, path)
-			if err != nil {
-				return err
-			}
-			rel = filepath.ToSlash(rel)
+		err := forEachSeamFile(files, func(path, rel string) error {
 			if !seamGlob(candidate.seam.Bypass.RequireFor).MatchString(rel) {
 				return nil
 			}
@@ -1134,12 +1092,7 @@ func scanAbsenceSeams(treeRoot string, seams []compiledSeam) ([]SeamHit, error) 
 				return err
 			}
 			if !present {
-				position, _ := entry.Info()
-				line := 0
-				if position != nil {
-					line = 1
-				}
-				hits = append(hits, SeamHit{SeamID: candidate.seam.ID, Canonical: candidate.seam.Canonical, Why: candidate.seam.Why, Remediation: candidate.seam.Remediation, Severity: candidate.seam.Severity, Budget: candidate.seam.Budget, Path: rel, Symbol: candidate.seam.Bypass.RequirePresent, Line: line})
+				hits = append(hits, SeamHit{SeamID: candidate.seam.ID, Canonical: candidate.seam.Canonical, Why: candidate.seam.Why, Remediation: candidate.seam.Remediation, Severity: candidate.seam.Severity, Budget: candidate.seam.Budget, Path: rel, Symbol: candidate.seam.Bypass.RequirePresent, Line: 1})
 			}
 			return nil
 		})
@@ -1148,16 +1101,6 @@ func scanAbsenceSeams(treeRoot string, seams []compiledSeam) ([]SeamHit, error) 
 		}
 	}
 	return hits, nil
-}
-
-func seamDirectoryExcluded(rel string, scope SeamScope) bool {
-	probe := strings.TrimSuffix(rel, "/") + "/__seam_probe__"
-	for _, pattern := range scope.Exclude {
-		if seamGlob(pattern).MatchString(probe) {
-			return true
-		}
-	}
-	return false
 }
 
 func isExecutableArtifact(path string) (bool, error) {
@@ -1304,26 +1247,9 @@ func requiredTargetPresent(treeRoot, target string) (bool, error) {
 // collectDeclarationPackages computes repetition against package identities,
 // rather than directory names. This keeps a declaration seam stable when code
 // moves between folders within the same Go package.
-func collectDeclarationPackages(treeRoot string, seams []compiledSeam) (map[string]map[string]struct{}, error) {
+func collectDeclarationPackages(files []seamTreeFile, seams []compiledSeam) (map[string]map[string]struct{}, error) {
 	packages := make(map[string]map[string]struct{})
-	err := filepath.WalkDir(treeRoot, func(path string, entry fs.DirEntry, walkErr error) error {
-		if walkErr != nil {
-			return walkErr
-		}
-		if entry.IsDir() {
-			if path != treeRoot && (entry.Name() == ".git" || entry.Name() == "node_modules" || entry.Name() == "vendor") {
-				return filepath.SkipDir
-			}
-			return nil
-		}
-		if !strings.HasSuffix(entry.Name(), ".go") {
-			return nil
-		}
-		rel, err := filepath.Rel(treeRoot, path)
-		if err != nil {
-			return err
-		}
-		rel = filepath.ToSlash(rel)
+	err := forEachSeamGoFile(files, func(path, rel string) error {
 		applicable := make([]compiledSeam, 0)
 		for _, candidate := range seams {
 			if candidate.seam.Bypass.Kind == "declaration" && seamPathIncluded(rel, candidate.seam.Scope) {
@@ -1336,6 +1262,9 @@ func collectDeclarationPackages(treeRoot string, seams []compiledSeam) (map[stri
 		fset := token.NewFileSet()
 		file, err := parser.ParseFile(fset, path, nil, 0)
 		if err != nil {
+			if vanishedDuringScan(err) {
+				return nil
+			}
 			return fmt.Errorf("parse %s: %w", rel, err)
 		}
 		constStack := make([]bool, 0, 16)
@@ -1681,10 +1610,27 @@ func seamPathIncluded(path string, scope SeamScope) bool {
 	return true
 }
 
+// seamGlobs caches compiled scope globs: a repository scan matches every file
+// against every seam's patterns, so compiling per match dominated the scan.
+var seamGlobs sync.Map
+
 func seamGlob(pattern string) *regexp.Regexp {
+	if cached, ok := seamGlobs.Load(pattern); ok {
+		return cached.(*regexp.Regexp)
+	}
 	quoted := regexp.QuoteMeta(filepath.ToSlash(strings.TrimSpace(pattern)))
 	quoted = strings.ReplaceAll(quoted, `\*\*`, `.*`)
 	quoted = strings.ReplaceAll(quoted, `\*`, `[^/]*`)
 	quoted = strings.ReplaceAll(quoted, `\?`, `[^/]`)
-	return regexp.MustCompile(`^` + quoted + `$`)
+	compiled, _ := seamGlobs.LoadOrStore(pattern, regexp.MustCompile(`^`+quoted+`$`))
+	return compiled.(*regexp.Regexp)
+}
+
+// vanishedDuringScan reports an entry that was deleted between being listed
+// and being read. Repository scans run against a live, shared working tree in
+// which tools create and remove transient trees; an entry that is gone was
+// never part of the tree being judged, so it is skipped rather than failing
+// the scan.
+func vanishedDuringScan(err error) bool {
+	return errors.Is(err, fs.ErrNotExist)
 }

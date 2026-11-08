@@ -24,6 +24,7 @@ Existing local entry points (choose the domain test for the behavior you change)
 - [api/handlers/health/handler_test.go](../../api/handlers/health/handler_test.go)
 - [ui/src/App.test.tsx](../../ui/src/App.test.tsx)
 - [ui/src/api/health.test.ts](../../ui/src/api/health.test.ts)
+- [ui/src/pages/DashboardPage.test.tsx](../../ui/src/pages/DashboardPage.test.tsx)
 - [ui/src/layout/AppShell.a11y.test.tsx](../../ui/src/layout/AppShell.a11y.test.tsx)
 - [cli/app_test.go](../../cli/app_test.go)
 
@@ -64,12 +65,13 @@ These files are the source of truth. When in doubt, copy their shape:
   test. App composes shell + features; feature behaviour belongs beside
   the feature.
 - **UI health API**: `ui/src/api/health.test.ts` — typed health
-  responses and failure handling at the API boundary. The current
-  `HealthCard.tsx` feature is covered through the dashboard and shell
-  composition tests listed above.
-- **UI a11y**: `ui/src/components/AppShell.a11y.test.tsx` and
-  `ui/src/features/health/HealthCard.a11y.test.tsx` — shell and feature
-  accessibility are tested at their ownership boundary.
+  responses and failure handling at the API boundary.
+- **UI health-card composition**: `ui/src/pages/DashboardPage.test.tsx`
+  verifies the health card appears in the dashboard and includes a page-level
+  axe check. There is no isolated HealthCard accessibility test.
+- **UI a11y**: `ui/src/layout/AppShell.a11y.test.tsx` and
+  `ui/src/features/fleet/FleetPanel.a11y.test.tsx` test shell and fleet-panel
+  accessibility at their ownership boundaries.
 - **CLI**: `cli/app_test.go` — smoke gate (NewApp, --version, --help).
   When domain commands arrive, extend with `clitest.NewAPIServer` +
   `clitest.CaptureStdout` from `cli/internal/testutil/`.

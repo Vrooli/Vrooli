@@ -12,22 +12,9 @@
 // function takes as its first argument.
 
 export const strings = {
-  $schema: "$schema",
-  "Changes saved successfully": {
-    "": "Changes saved successfully.",
-  },
-  "Disabled states retain the same geometry and clearly communicate that the action is unavailable": {
-    "": "Disabled states retain the same geometry and clearly communicate that the action is unavailable.",
-  },
-  "Request in progress": "Request in progress",
-  Saved: "Saved",
   app: {
     title: "app.title",
   },
-  asset: "asset",
-  children: "children",
-  default: "default",
-  detail: "detail",
   errorBoundary: {
     message: "errorBoundary.message",
     retry: "errorBoundary.retry",
@@ -51,7 +38,6 @@ export const strings = {
     unimplemented: "errors.unimplemented",
     unknown: "errors.unknown",
   },
-  export: "export",
   fleet: {
     archLabel: "fleet.archLabel",
     bridgeReadinessActionResult: "fleet.bridgeReadinessActionResult",
@@ -313,7 +299,6 @@ export const strings = {
     unknownValue: "fleet.unknownValue",
     versionLabel: "fleet.versionLabel",
   },
-  format: "format",
   health: {
     error: "health.error",
     loading: "health.loading",
@@ -325,10 +310,6 @@ export const strings = {
     timestampLabel: "health.timestampLabel",
     title: "health.title",
   },
-  iconName: "iconName",
-  id: "id",
-  kind: "kind",
-  label: "label",
   layout: {
     bottomNavLabel: "layout.bottomNavLabel",
     mainLabel: "layout.mainLabel",
@@ -343,13 +324,9 @@ export const strings = {
     },
     sidebarLabel: "layout.sidebarLabel",
   },
-  libraryId: "libraryId",
   locale: {
     switcherLabel: "locale.switcherLabel",
   },
-  mode: "mode",
-  module: "module",
-  name: "name",
   notifications: {
     summary: "notifications.summary",
     summary_one: "notifications.summary_one",
@@ -370,10 +347,6 @@ export const strings = {
       title: "pages.settings.title",
     },
   },
-  path: "path",
-  react: "react",
-  resolvedAt: "resolvedAt",
-  role: "role",
   runs: {
     artifactsEmpty: "runs.artifactsEmpty",
     artifactsHeading: "runs.artifactsHeading",
@@ -408,7 +381,6 @@ export const strings = {
     title: "runs.title",
     view: "runs.view",
   },
-  selector: "selector",
   session: {
     accountHeading: "session.accountHeading",
     firstTimeNote: "session.firstTimeNote",
@@ -441,8 +413,6 @@ export const strings = {
     signedIn: "session.signedIn",
     signedInAs: "session.signedInAs",
   },
-  size: "size",
-  status: "status",
   theme: {
     choice: {
       dark: "theme.choice.dark",
@@ -451,10 +421,6 @@ export const strings = {
     },
     switcherLabel: "theme.switcherLabel",
   },
-  title: "title",
-  value: "value",
-  variant: "variant",
-  version: "version",
 } as const;
 
 export type Strings = typeof strings;

@@ -22,7 +22,7 @@ var Runbook = []RunbookEntry{
 	{
 		Situation: "Capture a recovery point before a destructive schema change or activation",
 		OwnerVerb: "cloud-target:data.backup",
-		Argv:      "vrooli cloud-target data backup --deployment <id> --operation <op> --step data.backup --fence <n> --binding '<json>'... --key-ref <logical_id:field> --schema-version <v> --configuration-digest <d> --credential-version-ref <ref>... --provider data-backup-manager --migration-posture <posture>",
+		Argv:      "vrooli cloud-target data backup --deployment \"$DEPLOYMENT_ID\" --operation \"$OPERATION_ID\" --step data.backup --fence \"$FENCE\" --binding \"$BINDING_JSON\" --key-ref \"$KEY_REF\" --schema-version \"$SCHEMA_VERSION\" --configuration-digest \"$CONFIGURATION_DIGEST\" --credential-version-ref \"$CREDENTIAL_VERSION_REF\" --provider data-backup-manager --migration-posture \"$MIGRATION_POSTURE\"",
 		Preconditions: []string{
 			"Every binding is declared in the closure persistent_data with an owner and a provider; a database is captured only by its owner's database-native tooling (resources/postgres deployment.backup).",
 			"The recovery key reference resolves through the credential authority on the operator side, never on the target being protected.",
@@ -34,7 +34,7 @@ var Runbook = []RunbookEntry{
 	{
 		Situation: "Verify a recovery point (checksums, key availability, expected inventory) without restoring",
 		OwnerVerb: "cloud-target:data.verify",
-		Argv:      "vrooli cloud-target data verify --deployment <id> --recovery-point <id> [--open] [--expect '<json>']",
+		Argv:      "vrooli cloud-target data verify --deployment \"$DEPLOYMENT_ID\" --recovery-point \"$RECOVERY_POINT_ID\" [--open] [--expect \"$EXPECTED_JSON\"]",
 		Preconditions: []string{
 			"--open resolves the recovery key and decrypts every artifact: run it from the operator side to prove the key lives outside the target failure domain.",
 		},
@@ -44,7 +44,7 @@ var Runbook = []RunbookEntry{
 	{
 		Situation: "Restore a recovery point onto a replacement host",
 		OwnerVerb: "cloud-target:data.restore",
-		Argv:      "vrooli cloud-target data restore --deployment <id> --operation <op> --step data.restore --fence <n> --recovery-point <id> --into <binding>=<locator>...",
+		Argv:      "vrooli cloud-target data restore --deployment \"$DEPLOYMENT_ID\" --operation \"$OPERATION_ID\" --step data.restore --fence \"$FENCE\" --recovery-point \"$RECOVERY_POINT_ID\" --into \"$BINDING_LOCATOR\"",
 		Preconditions: []string{
 			"The replacement host holds the release (release verify + stage) and the credentials the workload needs (credentials.provision) before data is restored.",
 			"Every target binding is clean: an empty directory or a database without user tables. Restore never overwrites operator-owned data.",

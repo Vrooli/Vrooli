@@ -5,6 +5,7 @@ import (
 	"log"
 	"net"
 	"net/http"
+	"os"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -133,7 +134,7 @@ func (f *desktopOwnerFixture) Stop(context.Context, *connectrpc.Request[desktopv
 }
 
 func TestUnixDesktopAdapterUsesLeaseScopedOwnerRPC(t *testing.T) {
-	dir := t.TempDir()
+	dir := socketDir(t)
 	socket := filepath.Join(dir, "desktop-owner.sock")
 	listener, err := net.Listen("unix", socket)
 	require.NoError(t, err)
@@ -182,4 +183,17 @@ func TestDesktopBoundSessionUsesTypedAdapterAndStopsOnClose(t *testing.T) {
 	require.Equal(t, "cmd-1", adapter.commands[0].GetCommandId())
 	c.closeNodeSession("desktop-session", "revoked")
 	require.True(t, adapter.stopped)
+}
+
+// socketDir returns a short private directory for Unix sockets. A socket
+// address is limited to about 104-108 bytes, and t.TempDir() follows GOTMPDIR,
+// which lifecycle-managed shells place deep under the runtime home.
+func socketDir(t *testing.T) string {
+	t.Helper()
+	dir, err := os.MkdirTemp("", "vb")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.RemoveAll(dir) })
+	return dir
 }

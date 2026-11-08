@@ -41,6 +41,7 @@ var execUsers = map[string]string{
 	"backup":           "runs the declared consistency provider argv (pg_dump, data-backup-manager) on the operator side (P12)",
 	"instance":         "local QEMU/cloud-localds provider for the disposable qualification instance (P20)",
 	"sshidentity":      "ssh-keygen fingerprint of a locally held public key (identity display, no target reach)",
+	"vps":              "builds the vrooli-watchdog native artifact on the operator host (go run/build/list) that release.deliver places on the target",
 }
 
 // TestOSExecIsConfinedToLocalProcessOwners [REQ:STC-P0-043] fails when a
@@ -238,10 +239,11 @@ func TestOnlyTheCredentialsOwnerComposesCredentialVerbs(t *testing.T) {
 // credential state, which is the credentials package's through the target
 // verbs above.
 var authorityLibraryUsers = map[string]string{
-	"backup":  "resolves the recovery key reference and the managed postgres password for the local consistency provider (P12); operator-side by design, never on the target",
-	"secrets": "reads the secrets-manager service token for the deployment-tier client; a bearer for another owner, not a managed binding",
-	"vps":     "resolves declared bundle secrets from the onboarding identity at deploy time (credentials.provision); values travel only on the ingest verb's stdin",
-	"":        "handlers_publication.go binds the Ed25519 receipt signer to the authority's trust root (P17); a signing key store, not a lifecycle call",
+	"backup":     "resolves the recovery key reference and the managed postgres password for the local consistency provider (P12); operator-side by design, never on the target",
+	"secrets":    "reads the secrets-manager service token for the deployment-tier client; a bearer for another owner, not a managed binding",
+	"vps":        "resolves declared bundle secrets from the onboarding identity at deploy time (credentials.provision); values travel only on the ingest verb's stdin",
+	"deployment": "resolves the local consumer's service token to hand a deployment-generated credential to a local scenario over discovery (local credential handoff); never sent to the target",
+	"":           "handlers_publication.go binds the Ed25519 receipt signer to the authority's trust root (P17); a signing key store, not a lifecycle call",
 }
 
 // TestAuthorityLibraryIsOpenedByDeclaredOwnersOnly [REQ:STC-P0-043] fails

@@ -18,12 +18,6 @@ export default defineConfig({
     coverage: {
       reporter: ['json-summary', 'text'],
       reportOnFailure: true,
-      thresholds: {
-        lines: 0,
-        functions: 0,
-        branches: 0,
-        statements: 0,
-      },
     },
   },
 });

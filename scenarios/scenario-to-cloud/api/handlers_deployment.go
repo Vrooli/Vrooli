@@ -218,6 +218,10 @@ func (s *Server) handleCreateDeployment(w http.ResponseWriter, r *http.Request) 
 	})
 }
 
+// operatorCredentialAuthority is the credential authority seam; tests
+// substitute an explicitly scoped authority.
+var operatorCredentialAuthority = credentialauthority.Default
+
 // ensureOperatorSSHKeyBinding binds the operator-held key path from the local
 // credential authority to a new SSH deployment. The path is metadata only; key
 // bytes never enter the deployment database or manifest. An unconfigured key
@@ -226,31 +230,47 @@ func (s *Server) ensureOperatorSSHKeyBinding(ctx context.Context, deploymentID s
 	if s.repo == nil || strings.TrimSpace(deploymentID) == "" {
 		return
 	}
-	authority, err := credentialauthority.Default()
+	authority, err := operatorCredentialAuthority()
 	if err != nil {
 		s.log("operator SSH key authority unavailable", map[string]interface{}{"error": err.Error()})
 		return
 	}
-	identity, err := credentialauthority.ParseIdentity(credentials.SSHKeyDescriptor.LogicalID)
+	keyPath, err := resolveOperatorSSHKeyPath(authority)
 	if err != nil {
-		s.log("operator SSH key identity invalid", map[string]interface{}{"error": err.Error()})
-		return
-	}
-	keyPath, err := authority.Resolve(identity, credentials.SSHKeyDescriptor.Field)
-	if err != nil {
-		// An unconfigured key remains valid for ambient SSH identities. Other
-		// authority failures are reported and must not create a misleading
+		// Authority faults are reported and must not create a misleading
 		// deployment binding.
-		if !errors.Is(err, credentialauthority.ErrUnconfigured) {
-			s.log("operator SSH key resolve failed", map[string]interface{}{"error": err.Error()})
-		}
+		s.log("operator SSH key resolve failed", map[string]interface{}{"error": err.Error()})
 		return
 	}
-	if strings.TrimSpace(keyPath) == "" {
+	if keyPath == "" {
 		return
 	}
 	if err := s.repo.UpsertBinding(ctx, credentials.NewSSHKeyBinding(deploymentID, keyPath, time.Now())); err != nil {
 		s.log("persist operator SSH key binding failed", map[string]interface{}{"deployment_id": deploymentID, "error": err.Error()})
+	}
+}
+
+// resolveOperatorSSHKeyPath returns the operator's configured SSH key path, or
+// "" when none is configured (ambient SSH identities remain valid). The other
+// two authority failures are distinct faults with distinct remediations and
+// are returned rather than read as "no key".
+func resolveOperatorSSHKeyPath(authority *credentialauthority.Authority) (string, error) {
+	identity, err := credentialauthority.ParseIdentity(credentials.SSHKeyDescriptor.LogicalID)
+	if err != nil {
+		return "", fmt.Errorf("operator SSH key identity invalid: %w", err)
+	}
+	keyPath, err := authority.Require(identity, credentials.SSHKeyDescriptor.Field)
+	switch {
+	case err == nil:
+		return strings.TrimSpace(keyPath), nil
+	case errors.Is(err, credentialauthority.ErrUnconfigured):
+		return "", nil
+	case errors.Is(err, credentialauthority.ErrProviderUnavailable):
+		return "", fmt.Errorf("credential store is unavailable (unlock it and redeploy to bind the operator key): %w", err)
+	case errors.Is(err, credentialauthority.ErrProviderAbsent):
+		return "", fmt.Errorf("this host has no credential store, so no operator key can be bound: %w", err)
+	default:
+		return "", err
 	}
 }
 

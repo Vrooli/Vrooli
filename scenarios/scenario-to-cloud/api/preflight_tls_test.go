@@ -194,7 +194,7 @@ func preflightObservationResponses() map[string]sshadapter.Result {
 		quoted("cat", "/etc/ufw/ufw.conf"):                                                {ExitCode: 0, Stdout: "ENABLED=no\n"},
 		quoted("df", "-Pk", "/"):                                                          {ExitCode: 0, Stdout: "Filesystem 1024-blocks Used Available Capacity Mounted on\n/dev/vda1 40000000 30000001 9999999 76% /"},
 		quoted("grep", "MemTotal", "/proc/meminfo"):                                       {ExitCode: 0, Stdout: "MemTotal:        2097152 kB"},
-		quoted("find", "/usr/bin", "/usr/local/bin", "/bin", "/usr/sbin", "/sbin", "/snap/bin", "-maxdepth", "1", "(", "-name", "curl", "-o", "-name", "git", "-o", "-name", "unzip", "-o", "-name", "tar", "-o", "-name", "jq", "-o", "-name", "apt-get", "-o", "-name", "docker", "-o", "-name", "systemctl", ")"): {ExitCode: 0, Stdout: "/usr/bin/curl\n/usr/bin/git\n/usr/bin/unzip\n/bin/tar\n/usr/bin/jq\n/usr/bin/apt-get\n/usr/bin/docker\n/usr/bin/systemctl"},
+		quoted("find", "/usr/bin", "/usr/local/bin", "/usr/sbin", "-maxdepth", "1", "(", "-name", "curl", "-o", "-name", "git", "-o", "-name", "unzip", "-o", "-name", "tar", "-o", "-name", "jq", "-o", "-name", "apt-get", "-o", "-name", "docker", "-o", "-name", "systemctl", ")"): {ExitCode: 0, Stdout: "/usr/bin/curl\n/usr/bin/git\n/usr/bin/unzip\n/usr/bin/tar\n/usr/bin/jq\n/usr/bin/apt-get\n/usr/bin/docker\n/usr/bin/systemctl"},
 		quoted("stat", "--", "/var/run/docker.sock"):               {ExitCode: 0, Stdout: "  File: /var/run/docker.sock"},
 		quoted("stat", "--", "/run/systemd/system"):                {ExitCode: 0, Stdout: "  File: /run/systemd/system"},
 		quoted("pgrep", "-a", "-f", "landing-page-business-suite"): {ExitCode: 1, Stdout: ""},

@@ -37,6 +37,7 @@ func TestMiniVrooliBundleSpec_IncludesAutohealAndPackagesAndFiltersScenariosReso
 	writeFile(t, repoRoot, "scenarios/app-a/.vrooli/plans.json", `{"bundle":{"bundle_key":"app-a"},"plans":[]}`)
 	writeFile(t, repoRoot, "scenarios/app-b/README.md", "app-b\n")
 	writeFile(t, repoRoot, "scenarios/vrooli-autoheal/README.md", "autoheal\n")
+	writeFile(t, repoRoot, "scenarios/vrooli-autoheal/.vrooli/service.json", `{"service":{"name":"vrooli-autoheal"},"components":{"api":{},"ui":{}}}`)
 
 	writeFile(t, repoRoot, "resources/postgres/README.md", "pg\n")
 	writeFile(t, repoRoot, "resources/postgres/cli/start.sh", "#!/usr/bin/env bash\necho start\n")
@@ -103,6 +104,9 @@ func TestWriteDeterministicTarGz_IsReproducibleAndRelative(t *testing.T) {
 	writeFile(t, repoRoot, "packages/pkg-a/README.md", "pkg-a\n")
 	writeFile(t, repoRoot, "scenarios/app-a/README.md", "app-a\n")
 	writeFile(t, repoRoot, "scenarios/vrooli-autoheal/README.md", "autoheal\n")
+	writeFile(t, repoRoot, "scenarios/vrooli-autoheal/.vrooli/service.json", `{"service":{"name":"vrooli-autoheal"},"components":{"api":{},"ui":{}}}`)
+	writeFile(t, repoRoot, "resources/postgres/README.md", "pg\n")
+	writeFile(t, repoRoot, "resources/postgres/cli/start.sh", "#!/usr/bin/env bash\necho start\n")
 
 	m := domain.CloudManifest{
 		Version: "1.0.0",
@@ -112,12 +116,13 @@ func TestWriteDeterministicTarGz_IsReproducibleAndRelative(t *testing.T) {
 		},
 		Dependencies: domain.ManifestDependencies{
 			Scenarios: []string{"app-a"},
-			Resources: []string{},
+			Resources: []string{"postgres"},
 		},
 		Bundle: domain.ManifestBundle{
 			IncludePackages: true,
 			IncludeAutoheal: true,
 			Scenarios:       []string{"app-a", "vrooli-autoheal"},
+			Resources:       []string{"postgres"},
 		},
 		Ports: domain.ManifestPorts{"ui": 3000, "api": 3001, "ws": 3002},
 		Edge:  domain.ManifestEdge{Domain: "example.com", Caddy: domain.ManifestCaddy{Enabled: true, Email: "ops@example.com"}},
@@ -164,6 +169,8 @@ func TestMiniVrooliBundleSpec_GeneratesNativeMiniRootManifest(t *testing.T) {
 	// [REQ:STC-P0-002] mini-Vrooli bundle should emit a native root manifest without legacy host-setup wiring
 	repoRoot := t.TempDir()
 	writeRepoContractFixture(t, repoRoot)
+	writeFile(t, repoRoot, "scenarios/vrooli-autoheal/.vrooli/service.json", `{"service":{"name":"vrooli-autoheal"},"components":{"api":{},"ui":{}}}`)
+	writeFile(t, repoRoot, "scenarios/app-a/.vrooli/service.json", `{"environment":{"CATALOG_PATH":".vrooli/plans.json"}}`)
 	writeFile(t, repoRoot, ".vrooli/service.json", `{
   "version": "2.0.0",
   "lifecycle": {
@@ -341,8 +348,9 @@ func TestMiniVrooliBundleSpec_EmbedsTrimmedGoWork(t *testing.T) {
 	// [REQ:STC-P0-002] mini-Vrooli bundle must not ship a go.work that references stripped modules.
 	repoRoot := t.TempDir()
 	writeRepoContractFixture(t, repoRoot)
+	writeFile(t, repoRoot, "scenarios/vrooli-autoheal/.vrooli/service.json", `{"service":{"name":"vrooli-autoheal"},"components":{"api":{},"ui":{}}}`)
 
-	writeFile(t, repoRoot, "go.work", `go 1.23.0
+	writeFile(t, repoRoot, "go.work", `go 1.25.0
 
 use (
 	./packages/proto
@@ -383,7 +391,9 @@ use (
 
 	b := buildTarBytes(t, repoRoot, spec)
 	goWork := string(tarEntryBytes(t, b, "go.work"))
-	if !strings.Contains(goWork, "go 1.23.0") {
+	// The source workspace version is kept while it covers every included
+	// module (the fixture root module declares go 1.24.0).
+	if !strings.Contains(goWork, "go 1.25.0") {
 		t.Fatalf("expected go.work to preserve version, got:\n%s", goWork)
 	}
 	if !strings.Contains(goWork, "\t./packages/proto") {
@@ -397,6 +407,17 @@ use (
 	}
 	if strings.Contains(goWork, "\t./scenarios/app-b/api") {
 		t.Fatalf("did not expect stripped module in go.work, got:\n%s", goWork)
+	}
+
+	// A workspace may not declare an older go version than a module it uses,
+	// so an included module that needs a newer toolchain raises the version.
+	writeFile(t, repoRoot, "scenarios/app-a/api/go.mod", "module example.com/app-a\n\ngo 1.26.1\n")
+	spec, err = bundle.MiniVrooliBundleSpec(repoRoot, m)
+	if err != nil {
+		t.Fatalf("MiniVrooliBundleSpec: %v", err)
+	}
+	if raised := string(tarEntryBytes(t, buildTarBytes(t, repoRoot, spec), "go.work")); !strings.Contains(raised, "go 1.26.1") {
+		t.Fatalf("expected go.work raised to the newest module version, got:\n%s", raised)
 	}
 }
 
@@ -413,9 +434,11 @@ func TestBuildMiniVrooliBundle_Smoke_ProducesSelfContainedMiniRepo(t *testing.T)
 	writeFile(t, repoRoot, "cli/install.sh", "#!/usr/bin/env bash\necho installer\n")
 	writeFile(t, repoRoot, "scenarios/app-a/README.md", "app-a\n")
 	writeFile(t, repoRoot, "scenarios/vrooli-autoheal/README.md", "autoheal\n")
+	writeFile(t, repoRoot, "scenarios/vrooli-autoheal/.vrooli/service.json", `{"service":{"name":"vrooli-autoheal"},"components":{"api":{},"ui":{}}}`)
 	writeFile(t, repoRoot, "resources/postgres/README.md", "pg\n")
 	writeFile(t, repoRoot, "packages/proto/go.mod", "module example.com/proto\n\ngo 1.23\n")
 	writeFile(t, repoRoot, "scenarios/app-a/api/go.mod", "module example.com/app-a\n\ngo 1.23\n")
+	writeFile(t, repoRoot, "scenarios/app-a/.vrooli/plans.json", `{"bundle":{"bundle_key":"app-a"},"plans":[]}`)
 
 	// Excluded directories should not be shipped.
 	writeFile(t, repoRoot, "coverage/should-not-ship.txt", "nope\n")

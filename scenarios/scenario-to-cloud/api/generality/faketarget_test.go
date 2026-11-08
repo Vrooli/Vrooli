@@ -7,10 +7,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"path/filepath"
 	"sort"
 	"strconv"
 	"strings"
 	"sync"
+	"testing"
 	"time"
 
 	"github.com/vrooli/vrooli/packages/cloudrelease"
@@ -182,6 +184,11 @@ func (t *fakeTarget) Exec(_ context.Context, _ identity.TargetRef, cmd reach.Com
 	t.calls = append(t.calls, cmd)
 	flags, positional := flagsOf(cmd.Args)
 	switch cmd.Verb {
+	case "cloud-target host bootstrap":
+		return t.effect(flags, func() (map[string]any, string, string) {
+			t.events = append(t.events, "host:bootstrap")
+			return map[string]any{"status": "bootstrapped"}, "succeeded", ""
+		}), nil
 	case "cloud-target host repair":
 		return t.effect(flags, func() (map[string]any, string, string) {
 			action := first(flags, "action")
@@ -448,4 +455,22 @@ type fakeSnapshot struct {
 	Receipts   []fakeReceipt
 	Calls      []reach.Command
 	Events     []string
+}
+
+// isolateOperatorHome points HOME at a fresh directory holding the operator's
+// managed autoheal CLI and its sidecars, which config.apply delivers to the
+// target before setup.
+func isolateOperatorHome(t *testing.T) {
+	t.Helper()
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	cli := filepath.Join(home, ".vrooli", "bin", "vrooli-autoheal")
+	if err := os.MkdirAll(filepath.Dir(cli), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	for path, mode := range map[string]os.FileMode{cli: 0o755, cli + ".manifest.json": 0o644, cli + ".build.meta": 0o644} {
+		if err := os.WriteFile(path, []byte("fixture\n"), mode); err != nil {
+			t.Fatal(err)
+		}
+	}
 }

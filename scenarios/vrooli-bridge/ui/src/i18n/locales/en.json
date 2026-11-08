@@ -1,21 +1,8 @@
 {
-  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
-  "Changes saved successfully": {
-    "": "We couldn’t save your changes."
-  },
-  "Disabled states retain the same geometry and clearly communicate that the action is unavailable": {
-    "": "A clear visual hierarchy, a full touch target, and a small amount of responsive motion make the next action feel inevitable."
-  },
-  "Request in progress": "Ready to save",
-  "Saved": "Try again",
   "_comment": "Two interpolation surfaces live in this file. (1) Generator-time: tokens like Vrooli Bridge are uppercase-snake-case placeholders replaced by `vrooli scenario generate` before the scenario is built — they appear as literal display values at runtime. (2) Runtime: tokens like {{count}} are i18next interpolation, replaced by `t(key, { count })` at render time. Keys that start with an underscore (like this one) are sentinels — skipped by the codegen, parity test, and unused-key audit.",
   "app": {
     "title": "Vrooli Bridge"
   },
-  "asset": "preview.showcase",
-  "children": "Try again",
-  "default": "Save changes",
-  "detail": "The generic harness supplies context; Button remains the subject.",
   "errorBoundary": {
     "message": "An unexpected error occurred while rendering the page. Try again, or reload if the problem persists.",
     "retry": "Try again",
@@ -39,7 +26,6 @@
     "unimplemented": "Not yet implemented.",
     "unknown": "An unknown error occurred."
   },
-  "export": "ErrorRecoveryStory",
   "fleet": {
     "archLabel": "Arch",
     "bridgeReadinessActionResult": "Firewall action: {{status}}",
@@ -301,7 +287,6 @@
     "unknownValue": "unknown",
     "versionLabel": "Version"
   },
-  "format": "renderable-text",
   "health": {
     "error": "Unable to reach the API. Make sure the scenario is running through `vrooli scenario start`.",
     "loading": "Checking API status…",
@@ -313,10 +298,6 @@
     "timestampLabel": "Timestamp:",
     "title": "API Health"
   },
-  "iconName": "arrowEnd",
-  "id": "error-retry",
-  "kind": "settle",
-  "label": "Disabled",
   "layout": {
     "bottomNavLabel": "Bottom navigation",
     "mainLabel": "Main content",
@@ -331,13 +312,9 @@
     },
     "sidebarLabel": "Primary navigation"
   },
-  "libraryId": "react-component-library:Pressable",
   "locale": {
     "switcherLabel": "Language"
   },
-  "mode": "live",
-  "module": "./story.tsx",
-  "name": "Recoverable save failure",
   "notifications": {
     "summary": "{{count}} notifications",
     "summary_one": "1 notification",
@@ -358,10 +335,6 @@
       "title": "Settings"
     }
   },
-  "path": "disabled",
-  "react": "^18",
-  "resolvedAt": "2026-08-31T08:56:56.781Z",
-  "role": "boundary",
   "runs": {
     "artifactsEmpty": "No artifacts produced.",
     "artifactsHeading": "Artifacts",
@@ -396,7 +369,6 @@
     "title": "Run history",
     "view": "View output"
   },
-  "selector": "button",
   "session": {
     "accountHeading": "Account",
     "firstTimeNote": "First time here? Create the owner account — it controls this fleet.",
@@ -429,8 +401,6 @@
     "signedIn": "Signed in",
     "signedInAs": "Signed in as {{email}}"
   },
-  "size": "lg",
-  "status": "alert",
   "theme": {
     "choice": {
       "dark": "Dark",
@@ -438,9 +408,5 @@
       "system": "System"
     },
     "switcherLabel": "Theme"
-  },
-  "title": "Button 2.2",
-  "value": "1",
-  "variant": "primary",
-  "version": "1.0.0"
+  }
 }

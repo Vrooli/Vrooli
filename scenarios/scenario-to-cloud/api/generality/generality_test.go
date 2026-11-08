@@ -30,7 +30,7 @@ import (
 // admission → worker execution against the target owner → target receipts
 // → health observation → certification evidence cell.
 func TestNewcomerDeploysThroughDeclarationsOnly(t *testing.T) {
-	t.Setenv("HOME", t.TempDir())
+	isolateOperatorHome(t)
 	w := newcomerWorkload(t)
 	if w.Declaration.PrimaryScenario != newcomerID || len(w.Declaration.Scenarios) == 0 || len(w.Declaration.Resources) == 0 {
 		t.Fatalf("fixture must declare a scenario dependency and a resource: %+v", w.Declaration)
@@ -145,8 +145,10 @@ func TestNewcomerDeploysThroughDeclarationsOnly(t *testing.T) {
 	if !snap.Resources["ledger-store"] {
 		t.Fatalf("ledger-store must be started: %v", snap.Resources)
 	}
-	if snap.BackedUp["newcomer-orders"] != 1 {
-		t.Fatalf("the declared SQL binding must be covered by the recovery point before activation: %v", snap.BackedUp)
+	// A first install has no prior data to preserve, so it takes no recovery
+	// point; updates do (see TestHostedBackendRoutesSurviveUpdate).
+	if snap.Backups != 0 || snap.BackedUp["newcomer-orders"] != 0 {
+		t.Fatalf("a greenfield install must not take a recovery point: backups=%d %v", snap.Backups, snap.BackedUp)
 	}
 	// The target's route is the one P14's policy derives for the declared
 	// public listener: same host, upstream and listener id.
@@ -195,7 +197,7 @@ func TestNewcomerDeploysThroughDeclarationsOnly(t *testing.T) {
 // have distinct deployment ids, target keys, credential bindings, edge
 // specs (domains) and never read or write each other's state.
 func TestTwoEnvironmentsOfOneScenarioAreIsolated(t *testing.T) {
-	t.Setenv("HOME", t.TempDir())
+	isolateOperatorHome(t)
 	w := newcomerWorkload(t)
 	stagingTarget := newFakeTarget(stagingEnv.MachineID)
 	productionTarget := newFakeTarget(productionEnv.MachineID)
@@ -340,7 +342,7 @@ func TestUnsupportedArchitectureNamesTheDependency(t *testing.T) {
 // same route host, upstream and listener id; the callback listener is never
 // routed; the predecessor is retained and the data binding persists.
 func TestHostedBackendRoutesSurviveUpdate(t *testing.T) {
-	t.Setenv("HOME", t.TempDir())
+	isolateOperatorHome(t)
 	w := newcomerWorkload(t)
 	target := newFakeTarget(productionEnv.MachineID)
 	d := newDeployment(t, w, productionEnv, target, "newcomer-v1")
@@ -414,14 +416,14 @@ func TestHostedBackendRoutesSurviveUpdate(t *testing.T) {
 	if after.Active == nil || after.Active.Active != d.release || after.Active.Previous != v1Release {
 		t.Fatalf("update must activate v2 and retain v1: %+v", after.Active)
 	}
-	// One recovery point per activation that touches persistent data: the
-	// initial deploy and the update each capture newcomer-orders before the
-	// runtime switch (design H: recovery points before destructive changes).
-	if after.Backups != 2 {
-		t.Fatalf("expected one recovery point per activation (2), got %d", after.Backups)
+	// The update captures newcomer-orders before the runtime switch (design H:
+	// recovery points before destructive changes); the greenfield install had
+	// no prior data and took none.
+	if after.Backups != 1 {
+		t.Fatalf("expected one recovery point for the update, got %d", after.Backups)
 	}
-	if after.BackedUp["newcomer-orders"] != 2 {
-		t.Fatalf("the declared SQL binding must be covered by both recovery points: %v", after.BackedUp)
+	if after.BackedUp["newcomer-orders"] != 1 {
+		t.Fatalf("the declared SQL binding must be covered by the update's recovery point: %v", after.BackedUp)
 	}
 	if len(d.provisioned) != 2 || d.provisioned[1].OperationID != done.ID {
 		t.Fatalf("private credentials are re-provisioned server-side under the update operation: %+v", d.provisioned)
@@ -438,7 +440,7 @@ func TestHostedBackendRoutesSurviveUpdate(t *testing.T) {
 // and after the newcomer journey in one test binary, and that digest equals
 // the golden recorded in testdata.
 func TestGenericFixtureUnchangedAfterAdoption(t *testing.T) {
-	t.Setenv("HOME", t.TempDir())
+	isolateOperatorHome(t)
 	cat := loadCatalog(t)
 	generic, ok := cat.Workloads["stateless-web"]
 	if !ok {

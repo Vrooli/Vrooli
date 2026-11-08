@@ -39,6 +39,7 @@ func TestBundleBuildEndpoint_BuildsTarballArtifact(t *testing.T) {
 	writeFileBytes(t, repoRoot, "scenarios/dep-a/README.md", []byte("dep-a-code\n"))
 	writeFileBytes(t, repoRoot, "scenarios/dep-a/.vrooli/service.json", []byte(`{"service":{"name":"dep-a"}}`))
 	writeFileBytes(t, repoRoot, "scenarios/vrooli-autoheal/README.md", []byte("autoheal\n"))
+	writeFileBytes(t, repoRoot, "scenarios/vrooli-autoheal/.vrooli/service.json", []byte(`{"service":{"name":"vrooli-autoheal"},"components":{"api":{},"ui":{}}}`))
 	writeFileBytes(t, repoRoot, "scenarios/vrooli-autoheal/.vrooli/service.json", []byte(`{"service":{"name":"vrooli-autoheal"}}`))
 	writeFileBytes(t, repoRoot, "resources/ollama/README.md", []byte("must-not-ship\n"))
 	writeFileBytes(t, repoRoot, "resources/router/README.md", []byte("must-not-ship\n"))
@@ -134,6 +135,7 @@ func TestBuildMiniVrooliBundle_DeterministicNameAndBytes(t *testing.T) {
 	writeFileBytes(t, repoRoot, "packages/pkg-a/README.md", []byte("pkg-a\n"))
 	writeFileBytes(t, repoRoot, "scenarios/app-a/README.md", []byte("app-a\n"))
 	writeFileBytes(t, repoRoot, "scenarios/vrooli-autoheal/README.md", []byte("autoheal\n"))
+	writeFileBytes(t, repoRoot, "scenarios/vrooli-autoheal/.vrooli/service.json", []byte(`{"service":{"name":"vrooli-autoheal"},"components":{"api":{},"ui":{}}}`))
 	writeFileBytes(t, repoRoot, "scenarios/vrooli-autoheal/.vrooli/service.json", []byte(`{"service":{"name":"vrooli-autoheal"}}`))
 	writeFileBytes(t, repoRoot, "resources/postgres/README.md", []byte("pg\n"))
 

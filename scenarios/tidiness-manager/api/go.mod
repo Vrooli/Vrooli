@@ -82,10 +82,4 @@ require (
 	google.golang.org/grpc v1.58.3 // indirect
 )
 
-replace github.com/vrooli/vrooli => ../../..
-
-replace github.com/vrooli/binaryfetch => ../../../packages/binaryfetch
-
 replace github.com/vrooli/envkit-go => ../../../packages/envkit-go
-
-replace github.com/vrooli/platform-go => ../../../packages/platform-go

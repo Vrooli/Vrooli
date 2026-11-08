@@ -473,13 +473,5 @@ func severityCount(a interface{ GetFindingsBySeverity() map[string]int32 }, seve
 	if a == nil {
 		return 0
 	}
-	total := 0
-	want := strings.TrimPrefix(strings.ToUpper(strings.TrimSpace(severity)), "FINDING_")
-	for key, count := range a.GetFindingsBySeverity() {
-		normalized := strings.TrimPrefix(strings.ToUpper(strings.TrimSpace(key)), "FINDING_")
-		if normalized == want {
-			total += int(count)
-		}
-	}
-	return total
+	return maturityreport.CountFindingsBySeverity(a.GetFindingsBySeverity(), severity)
 }

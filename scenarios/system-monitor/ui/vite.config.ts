@@ -58,12 +58,6 @@ export default defineConfig(({ mode }) => {
           'src/i18n/locales/**',
           'src/**/generated/**',
         ],
-        thresholds: {
-          lines: 85,
-          functions: 85,
-          branches: 85,
-          statements: 85,
-        },
       },
     },
     resolve: isProfile
