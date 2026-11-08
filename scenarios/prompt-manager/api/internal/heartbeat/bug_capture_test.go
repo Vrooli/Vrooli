@@ -7,6 +7,7 @@ import (
 	"github.com/vrooli/cli-core/teamattribution"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"prompt-manager/internal/paths"
@@ -23,6 +24,13 @@ func TestAssessBugCapturePublishesOnlyCompleteTaxonomy(t *testing.T) {
 	}
 	if accepted["signal_type"] != "code-defect" || accepted["severity"] != "blocker" {
 		t.Fatalf("accepted=%v", accepted)
+	}
+}
+
+func TestAssessBugCaptureRejectsInvalidObservedAt(t *testing.T) {
+	_, _, invalid := assessBugCapture(BugCaptureRequest{Title: "cache stale", SignalType: "code-defect", Severity: "major", ObservedAt: "2026-02-30", Repro: []string{"start"}, Expected: "fresh", Actual: "stale", Description: "details"})
+	if len(invalid) != 1 || invalid[0].Field != "observed_at" {
+		t.Fatalf("invalid observed_at diagnostics = %+v", invalid)
 	}
 }
 
@@ -93,7 +101,7 @@ func TestBugCaptureDraftRemainsPrivateUntilRepairPublishes(t *testing.T) {
 		return result
 	}
 
-	draft := invoke(http.MethodPost, "/capture", BugCaptureRequest{Title: "cache stale", SignalType: "regression"})
+	draft := invoke(http.MethodPost, "/capture", BugCaptureRequest{Title: "cache stale", SignalType: "regression", ObservedAt: "2026-08-22"})
 	if draft.Disposition != "draft" || draft.DraftID == "" {
 		t.Fatalf("draft = %+v", draft)
 	}
@@ -103,6 +111,9 @@ func TestBugCaptureDraftRemainsPrivateUntilRepairPublishes(t *testing.T) {
 	published := invoke(http.MethodPatch, "/draft/"+draft.DraftID, BugCaptureRequest{Severity: "major", Repro: []string{"start"}, Expected: "fresh", Actual: "stale", Description: "details"})
 	if published.Disposition != "published" || published.Knowledge == nil {
 		t.Fatalf("published = %+v", published)
+	}
+	if !strings.Contains(published.Knowledge.Content, "observed_at: 2026-08-22") {
+		t.Fatalf("historical observation date was replaced during draft repair: %s", published.Knowledge.Content)
 	}
 	if _, err := teamStore.GetBugDraft(context.Background(), scenarioQATeamID, draft.DraftID); err == nil {
 		t.Fatal("published draft was retained privately")
@@ -185,9 +196,9 @@ func TestBugCaptureUsesRetryKeyWithoutCollapsingLongTitles(t *testing.T) {
 		t.Fatal(err)
 	}
 	header := teamattribution.Encode(teamattribution.WriterSkill(teamattribution.Info{SpawnOrigin: teamattribution.SpawnOriginHeartbeat}, "report-bug", scenarioQATeamID))
-	capture := func(key, title string) BugCaptureResponse {
+	capture := func(key, title, observedAt string) BugCaptureResponse {
 		t.Helper()
-		body, err := json.Marshal(BugCaptureRequest{Title: title, IdempotencyKey: key, SignalType: "code-defect", Severity: "minor", Repro: []string{"Run the owner check"}, Expected: "current observation", Actual: "stale observation", Description: "Measured maintenance finding", HonestyFlags: []string{"ai-generated-summary"}})
+		body, err := json.Marshal(BugCaptureRequest{Title: title, IdempotencyKey: key, SignalType: "code-defect", Severity: "minor", ObservedAt: observedAt, Repro: []string{"Run the owner check"}, Expected: "current observation", Actual: "stale observation", Description: "Measured maintenance finding", HonestyFlags: []string{"ai-generated-summary"}})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -208,13 +219,19 @@ func TestBugCaptureUsesRetryKeyWithoutCollapsingLongTitles(t *testing.T) {
 		return result
 	}
 	prefix := "model policy drift provider runner catalog revision observation "
-	first := capture("finding-stale", prefix+"stale")
-	second := capture("finding-version", prefix+"version")
+	first := capture("finding-stale", prefix+"stale", "2026-08-22")
+	second := capture("finding-version", prefix+"version", "2026-08-23")
 	if first.Knowledge.ID == second.Knowledge.ID {
 		t.Fatal("distinct retry keys collapsed into one old truncated-title topic")
 	}
-	replay := capture("finding-stale", "a corrected display title")
+	if !strings.Contains(first.Knowledge.Content, "observed_at: 2026-08-22") {
+		t.Fatalf("historical observation date was not published: %s", first.Knowledge.Content)
+	}
+	replay := capture("finding-stale", "a corrected display title", "2026-09-01")
 	if replay.Knowledge.ID != first.Knowledge.ID {
 		t.Fatal("same retry key published a duplicate after display-title change")
+	}
+	if !strings.Contains(replay.Knowledge.Content, "observed_at: 2026-08-22") {
+		t.Fatalf("idempotent retry replaced the original observation date: %s", replay.Knowledge.Content)
 	}
 }

@@ -10,9 +10,9 @@ metadata:
   icon: "clock"
   status: "active"
   targetDimensions: ["cycles","structure"]
-  revision: 44
+  revision: 45
   createdAt: "2025-01-15T00:00:00Z"
-  updatedAt: "2026-05-08T00:00:00Z"
+  updatedAt: "2026-11-05T00:00:00Z"
   requires:
     scenarios: ["prompt-manager"]
     commands: ["prompt-manager skill", "prompt-manager skill read"]
@@ -188,6 +188,8 @@ For each candidate, identify:
 - race risks and ordering assumptions
 - current maturity level
 - next maturity step
+
+For persistence-backed transitions, trace the active transaction, lease, or executor through every recheck and write. Confirm each operation uses the intended owner and transaction scope. A read through the base pool from inside a transaction can wait on the transaction's only connection.
 
 Then improve the highest-risk flows first:
 - replace arbitrary sleeps/delays with event- or state-based coordination

@@ -15,7 +15,7 @@
 import { type ReactNode, type RefObject, type KeyboardEvent as ReactKeyboardEvent, useState, useRef, useCallback, useEffect, useMemo } from 'react'
 import * as Tabs from '@radix-ui/react-tabs'
 import { Copy, Folder, FolderPlus, HardDrive, Home, PanelLeftClose, PanelLeftOpen, Search, Plus, ChevronDown, ChevronUp, ChevronRight, Settings, Trash2, User, Users, Sparkles, Layers, Loader2, Activity, AlertCircle, Bolt } from 'lucide-react'
-import { ContextMenu, type ContextMenuItem } from '@vrooli/react-component-library/ContextMenu/1.3.0'
+import { ContextMenu, type ContextMenuItem } from '@vrooli/react-component-library/ContextMenu/1'
 import type { RowAction } from '@vrooli/react-component-library/useCollection/1'
 import { TabList, TabTrigger } from '../shared/TabTrigger'
 import { cn } from '@/lib/utils'

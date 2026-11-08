@@ -40,7 +40,7 @@ func TestValidateReportsPresentWaivedAndAbsentRoles(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(dir, "service.json"), service, 0o644); err != nil {
 		t.Fatal(err)
 	}
-	result := Validate(root, scenario)
+	result := Validate(ScenarioRoot(root, scenario), scenario)
 	if result.Status != "ok" || len(result.Roles) != 3 {
 		t.Fatalf("result=%+v", result)
 	}
@@ -72,7 +72,7 @@ func TestValidateReportsMissingDeclaredSource(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(dir, "service.json"), service, 0o644); err != nil {
 		t.Fatal(err)
 	}
-	result := Validate(root, "demo")
+	result := Validate(ScenarioRoot(root, "demo"), "demo")
 	if result.Status != "findings" || len(result.Findings) != 1 || result.Findings[0] != "skill-set.source_missing:usage" {
 		t.Fatalf("result=%+v", result)
 	}

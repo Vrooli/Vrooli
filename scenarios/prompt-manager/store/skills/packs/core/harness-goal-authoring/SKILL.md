@@ -1,6 +1,6 @@
 ---
 name: harness-goal-authoring
-description: Write the message a coding agent runs under in harness goal mode (Claude Code and Codex `/goal`, Agent Manager `until`), or the assignment a coordinator hands a sub-agent. Nine slots, five handoff shapes, and the split between what the docs and plan hold and what the goal message holds. Not for Swarm goal records; use swarm-manager-work-authoring for those.
+description: Write the message a coding agent runs under in harness goal mode (Claude Code and Codex `/goal`, Agent Manager `until`), or the assignment a coordinator hands a sub-agent. Ten slots, seven handoff shapes (including a thin scheduler over long-lived segment owners), how a goal survives compaction, and the split between what the docs and plan hold and what the goal message holds. Not for Swarm goal records; use swarm-manager-work-authoring for those.
 license: CC-BY-4.0
 metadata:
   kind: skill
@@ -9,9 +9,9 @@ metadata:
   tags: [goal, harness, until, delegation, sub-agent, orchestration, prompt]
   icon: target
   status: active
-  revision: 23
+  revision: 28
   createdAt: "2026-09-11T00:00:00Z"
-  updatedAt: "2026-11-05T01:50:00Z"
+  updatedAt: "2026-11-07T02:30:00Z"
   requires:
     scenarios: [prompt-manager]
     commands: [prompt-manager skill read]
@@ -29,6 +29,9 @@ harness's actual limits; Agent Manager allows up to 1 MiB of UTF-8 bytes in
 `until`.
 
 Required reading:
+- `docs/agent-system/LONG_EFFORT_DESIGN.md` for any goal or sub-agent tree expected to run
+  for hours: the design rules (D1–D12), the effort structures and the verified Codex
+  multi-agent settings. This skill applies them; it does not restate the evidence.
 - `docs/TESTING.md` — validation scope. A goal selects a posture; it does not
   redefine the scope rules.
 - `implementation-plan-execution` §"Divergence tiers" and §"Blocked" when the
@@ -64,18 +67,19 @@ The receiving agent verifies paths before editing them.
 
 | | Claude Code `/goal` | Codex `/goal` |
 |---|---|---|
-| Who decides "met" | A separate small model reads the transcript only. It runs no commands and opens no files. Verdicts: Not yet met, Met, Impossible. | The working model calls `update_goal(complete)`. Each continuation turn injects an audit: enumerate deliverables, reject proxy signals, treat uncertainty as not achieved. |
+| Who decides "met" | A separate small model reads the transcript only. It runs no commands and opens no files. Verdicts: Not yet met, Met, Impossible. | The working model calls `update_goal(complete)`. Each goal-turn start injects the objective and an audit: enumerate deliverables, reject proxy signals, treat uncertainty as not achieved. Nothing is injected inside a turn, and one turn can last hours. |
+| After compaction | The goal condition stays with the harness evaluator. | The objective survives only when short (`LONG_EFFORT_DESIGN.md` §4a gives the measured limit); a longer one becomes `[objective omitted; exceeds the evidence limit]` and returns at the next goal-turn start (§2a). |
 | What this requires of the author | Proof must appear in the transcript. Name the command and require its output to be shown. | Proof must be enumerable. State deliverables the audit can tick one by one. |
 | Loop guards | Halts after several turns without tool use. The Stop hook is overridden after repeated consecutive blocks; the hooks guide states the cap. No turn cap exists; add one in the text. | A continuation turn with zero tool calls suppresses the next one. On budget exhaustion the goal becomes `budget_limited` and the model is told to wrap up. |
-| Size | 4,000 characters. `ProposeGoal` proposals: 500. | Agent Manager caps `until` at 1 MiB of UTF-8 bytes. `--until-file` supports large values without shell argument limits. |
+| Size | 4,000 characters. `ProposeGoal` proposals: 500. | Write a kernel of 600 characters or fewer for anything that runs past one compaction (§2a). Agent Manager caps `until` at 1 MiB of UTF-8 bytes; `--until-file` supports large values without shell argument limits. |
 
 Agent Manager's delivery depends on runner support and the native field size:
 
 | Condition | Delivery |
 |---|---|
 | No native objective support, parser/watcher unavailable, or confirmed `/goal` submission lacks a matching acknowledgement | The task prompt carries the full `until`; the run records prompt-carried delivery. |
-| Native support and `until` fits the current 4,000-character Agent Manager native-objective bound | `/goal` carries the full `until`; the task prompt points to it. |
-| Native support and `until` exceeds that bound | `/goal` carries a short delegation, and the task prompt carries the full `until`. |
+| Native support and `until` fits what the harness keeps verbatim: 600 characters for Codex (a longer objective is omitted at compaction), 4,000 for Claude Code (its field limit) | `/goal` carries the full `until`; the task prompt points to it. |
+| Native support and `until` exceeds that limit | `/goal` carries a short delegation that survives compaction, and the task prompt carries the full `until`. |
 
 An uncertain `/goal` command submission or a canceled launch is not treated as
 prompt fallback: task text is withheld because the native command may still be
@@ -84,6 +88,41 @@ either route: its full prompt-carried form is a contract; its native form is
 the complete objective when it fits, or a short delegation backed by the full
 prompt when bounded. A short pointer is not a substitute for the condition
 when the native field was bounded.
+
+### 2a. Persistence over hours
+
+After an hour of work the agent no longer sees most of what you wrote. Its context keeps the
+system prompt, `AGENTS.md`, its own recent messages, inherited history and the latest tool
+output. A long objective, the stance paragraph and skills read early lose force first, and
+the agent starts copying its own recent units. Write every long-running goal so the parts
+that matter are re-presented:
+
+| Rule | How |
+|---|---|
+| **Stance message, kernel, charter** | Codex drops a long goal objective at compaction but keeps the last 8 user messages (`LONG_EFFORT_DESIGN.md` D3, §4a). Send the **stance message** first: an ordinary user message of 3,500 characters or fewer, most important text first, holding the operator's stance verbatim and in full, the destination with its scale and the charter re-read instruction (template below). Then set the **kernel** as the native goal, 600 characters or fewer: the destination itself in one line with its scale (never only "the destination in <file>": a transcript-only evaluator opens no files), a verbatim stance excerpt of about 150 characters, the charter path and "one unit per turn". The **charter** file (packet, epoch file or working brief) holds the full stance and everything else. Check each length with `wc -m` before sending. In an Agent Manager run the task prompt is the stance message: put the stance and destination in its first 1,400 characters. |
+| **Steer through the charter** | Every later user message, goal change and Agent Manager wake pushes the stance message toward eviction, and an unattended agent cannot send itself a new one. Put steering in the charter or feedback ledger; the agent's own defense is the charter re-read. An operator or supervising session that can message the agent resends the stance message after six newer messages. |
+| **One unit per turn** | Under a native goal, tell the agent to end its turn after each unit's record (a round, an epoch return, a study checkpoint). Codex then re-injects the objective and the audit before the next unit. Without it, one turn can run for hours through many compactions with no objective. Without a native goal, ending the turn ends the effort: run the effort as a native goal or an Agent Manager run, or omit this rule. |
+| **Re-read at unit start** | The first action of every unit re-reads the charter and the method skill's stance section. After any compaction, re-read the charter before acting. |
+| **Stance in every persistent layer** | The operator's words go in full into the stance message, the charter and every sub-agent brief, and as a verbatim excerpt into the kernel. A child has no user messages, so its brief is the only copy it gets. A stance that lives only in a long goal message is gone after the first compaction. |
+| **Curated precedent** | Point the agent at pinned exemplars of a good unit, never at "the latest records". Show recent output as numbers against the destination. |
+
+Stance message template:
+
+```text
+Stance for <effort>, in the operator's words: "<full stance, verbatim>"
+Destination: <end state in one line, with its scale>.
+Charter: <charter path>. Re-read it at every unit start and after every compaction; it holds the method, proof, boundary and budget, and it wins over your recent units as the template.
+```
+
+In a Codex root session, send it as its own message ending `The goal follows this message.
+Reply "ready" and wait for it.`, then set the goal. In an Agent Manager run, it opens the task
+prompt and `--until-file` carries the kernel; omit that line, because no goal message follows
+and waiting would end the run.
+
+The verified Codex multi-agent settings in `LONG_EFFORT_DESIGN.md` §4 also tell every
+sub-agent to re-read its brief after compaction. They do not replace these rules for the root.
+In Claude Code, the compaction hook from `resource-claude-code ensure` prompts the charter
+re-read (`LONG_EFFORT_DESIGN.md` §3 "Harnesses").
 
 In Swarm goal mode there is no per-session reviewer. Swarm's finalization
 reviews the item after the run ends, so the proof clause must still name the
@@ -99,21 +138,30 @@ predicate is not a report of current state.
 
 | Slot | Content | Rule |
 |---|---|---|
-| **destination** | One future end state in the present tense, introduced as an instruction. | Start with “Work until this verified end state is true:” or “Bring `<target>` to this state:”. Do not open with an unmarked assertion such as “The work is complete,” which can sound like current-state context. An outcome that splits is a separate goal. No feeling-words ("clean", "production-ready"). |
+| **destination** | One future end state in the present tense, introduced as an instruction. Its size carries the ambition. | Start with “Work until this verified end state is true:” or “Bring `<target>` to this state:”. Do not open with an unmarked assertion such as “The work is complete,” which can sound like current-state context. An outcome that splits is a separate goal. No feeling-words ("clean", "production-ready"). When the operator wants large work, name an end state that is large on its face (a capability delivered end to end, a class of defects gone, every caller migrated), so small work is visibly unfinished. Prefer outcomes to counts: "N rounds" rewards cheap rounds. Before sending a destination for large work, have it checked by the ambition reviewer (`LONG_EFFORT_DESIGN.md` §2b); the author of a goal is not the one to judge whether it is big enough. For research, the destination comes from the topic's `MISSION.md` workstreams (`research-coordination` missions). |
+| **stance** | The operator's posture in their own words, and what it licenses here. | Copy their words verbatim into a `Stance:` line; paraphrase strips the push, and a summary written by an agent is never a stance (`LONG_EFFORT_DESIGN.md` D13). Name what it licenses: large changes, deletions, migrations, other agents' uncommitted files. Repeat it in every sub-agent brief and the charter (§2a). |
 | **proof** | The commands or artifacts whose output must appear in the transcript, and what counts as passing. | Name the check. "Validated" without a command is not a proof clause. |
 | **sources** | What to read first, by name: skills, the selected plan or epoch file when applicable, and the scenario docs. | Point; do not paste. Docs first, then code. |
 | **boundary** | Allowed paths and effects. Scope policy: `fixed` or `extend-with-record`. | Use the plan's `acceptance_allow` when a plan exists. |
 | **dials** | Validation posture (targeted by default; name the heavy runs that are owed). Adjacent-defect posture (fix when understood and blocking; otherwise file and continue). Quality bar (no shims, no dead code, docs updated with the code). | Select a posture. The tiers themselves live in `implementation-plan-execution`. |
 | **blocked** | A human-owned decision, credential, or approval with no safe alternative. | Include this boundary. Diagnose tool, owner-read, model, and infrastructure failures; pursue materially different repairs or routes while they can safely advance the outcome. Retry only when the condition or evidence changes. Record unavailable proof honestly and continue independent work; an observation failure is not a portfolio-wide block. |
-| **budget** | A turn, time, or token clause, and the recovery or wrap-up action when it hits. | Claude Code has no turn cap of its own. Codex needs the wrap-up instruction to make `budget_limited` useful. Name only recovery the selected harness actually provides. If the run has no verified automatic continuation, require a checkpoint with the remaining work and exact resume route; do not assume Swarm or imply the limit is enforced. State that a verdict (`complete`, `blocked`, `abstained`) is final. |
+| **budget** | A turn, time, or token clause, and the recovery or wrap-up action when it hits. For a sustained effort, the agent ends units, never the goal: closure before the budget needs a fresh challenger run with the fixed brief in `LONG_EFFORT_DESIGN.md` §2a. A verdict reached that way (`complete`, `blocked`, `abstained`) is final. | Claude Code has no turn cap of its own. Codex needs the wrap-up instruction to make `budget_limited` useful. Name only recovery the selected harness actually provides. If the run has no verified automatic continuation, require a checkpoint with the remaining work and exact resume route; do not assume Swarm or imply the limit is enforced. State that a verdict (`complete`, `blocked`, `abstained`) is final. |
 | **handoff** | Where to checkpoint (Plan Manager log for plan-backed work, the epoch file in an orchestrated effort, otherwise the scenario's tracking doc) and the final report shape: changed, verified, remaining, unverified. | A report shape turns completion prose into checkable fields. |
 | **non-goals** | What not to do: widen scope, weaken required behavior, remove uniquely protective checks merely for a greener result, or rerun unchanged validation for that result. | Cite `improvement-do-and-dont` for anti-gaming and `test` §5/§8 for justified simplification. |
 
-Test the whole message with two questions: is the first sentence clearly an
+Test the whole message with three questions. Is the first sentence clearly an
 instruction to reach a future state rather than a claim that the state already
-holds, and could a reviewer who wanted to
-disprove "this goal was met" do so from the transcript alone? If not, the
-destination needs an explicit directive or the proof is unnamed.
+holds? Could a reviewer who wanted to disprove "this goal was met" do so from the
+transcript alone? If not, the destination needs an explicit directive or the proof
+is unnamed. Then run the **exits audit**: list every way the goal can end (complete,
+closure, blocked, a count reached, budget, "nothing material"). The agent takes the
+cheapest acceptable exit. Make each cheap exit expensive: no-change units do not
+count, blocked names one human-owned decision and routes it while other work
+continues, and closure of a sustained effort is decided by a fresh challenger run
+with the fixed brief in `LONG_EFFORT_DESIGN.md` §2a, whose question the closer may
+not rewrite. Count the clauses: when procedures for caution and
+bookkeeping outnumber the concrete destination, the agent will optimize the
+procedures.
 
 ### 4. What goes where
 
@@ -148,16 +196,27 @@ task or investigation goal. It receives a plan-backed goal only when it owns a
 separate plan-shaped change boundary. Do not
 author a child plan merely to make a worker's handoff look formal.
 
-Every sub-agent assignment also names its **model and lifetime**. Pick the
-cheapest agent definition or role that fits the required judgment
-(`.claude/agents/` `lookup`, `researcher`, `reviewer`, `implementer`, or the current
-Codex roles). Use lookup roles for well-specified retrieval. Use higher effort
-when conceptual design, synthesis or debugging requires it. One assignment is one coherent outcome. Start a fresh worker for a different
-outcome. For sustained research, one direction can include several checks and
-sessions; keep a productive investigator until a context or recovery handoff is
-justified. Use the curated brief and checkpoint instead of inheriting an entire
-history by default. Choose a role for the difficulty of judgment, not read-only
-status alone; a lookup role is not the default for conceptual research.
+Every sub-agent assignment also names its **model and lifetime**, and the lifetime
+matches the outcome. Change size follows how long one agent owns one coherent
+target (`LONG_EFFORT_DESIGN.md` §1): workers that live minutes never make large
+changes. Use this table:
+
+| Assignment | Role and lifetime |
+|---|---|
+| Well-specified retrieval, a count, one config value | Cheapest lookup role (`lookup`, Codex Luna read-only roles); minutes |
+| Independent review or challenge | `reviewer` or an equivalent read-only role; one pass |
+| Implementation, a migration, a hunt segment, a research direction | An implementation-capable role (`implementer`, Codex implementation roles) at the effort the judgment needs; owns the whole outcome for as long as it takes, often hours; re-task it on the next slice while its context stays useful (`followup_task` in Codex, a message to the running agent in Claude Code) |
+| A different outcome | A fresh worker with its own brief |
+
+Size each assignment around one coherent outcome, never around one step: do not split
+source, tests and validation into separate workers to create more dispatches. Write
+the brief from the charter, not from your recent context, and spawn with
+`fork_turns=none`; a full-history fork inherits your drift, most of your context window
+and your model. Carry the destination and the operator's stance verbatim. When the
+worker should delegate further, say so explicitly ("you are expected to spawn
+sub-agents for …"); the harness discourages spawning unless instructions ask for it.
+Use the harness's real names: `implementer`/`opus` exist only in Claude Code, Codex
+roles only in Codex.
 
 **A. Plan-backed goal.** A required route, phase order or delivery dependency
 needs a durable plan. Session count alone does not require a plan; sustained
@@ -198,7 +257,7 @@ Budget: <tokens or time>; when reached, checkpoint and summarize remaining rows.
 ```
 
 **C. Bounded task goal.** The work fits one session and the route is recoverable
-from the docs and code. No plan. Most coordinator sub-assignments that are not
+from the docs and code. No plan. A long-lived owner of a large outcome uses G, not C. Most coordinator sub-assignments that are not
 product features, including plan authoring and docs-first authoring, take this
 shape.
 
@@ -240,6 +299,46 @@ the selected owner; do not promise automatic continuation from prompt text.
 A session limit requires a checkpoint or successor, not a smaller research goal.
 For a bounded source question, a normal prompt may be cheaper than a native goal.
 
+**F. Thin scheduler (root of a long effort; Codex).** The effort runs longer than one healthy
+session (about 6 hours) or needs several parallel owners: a long hunt, a research cohort, a
+multi-part migration. The root holds a native goal (or runs as an Agent Manager run with
+`until`) and a ledger, and does no domain work. Its unit is one segment return; its turn
+spans the wait, which is tolerable because its context barely grows.
+Each unit it spawns or re-tasks a segment owner (G) from the charter template, waits, has a
+fresh challenger compare the return with the destination and the measured magnitude
+(`effort-diagnosis` `scripts/effort_anatomy.py drift <owner rollout> --scan <scan>`, which exits 3
+when a tripwire fires), records the result and ends its turn.
+Its context stays small because owners return summaries. Check the concurrency slots first:
+every waiting ancestor holds one, so run at most slots − 2 owners at once, and on `agent
+thread limit reached` do the work in-thread or wait instead of retrying (`LONG_EFFORT_DESIGN.md`
+§3–§4). In Claude Code use two tiers (`LONG_EFFORT_DESIGN.md` §3 "Harnesses").
+
+```text
+/goal Work until this verified end state is true: <destination in one line, with its scale>. Stance: "<verbatim excerpt, about 150 characters>". Follow the scheduler procedure in <charter path>; re-read it at every unit start and after compaction. Do no domain work yourself. After each segment return is recorded, end your turn.
+```
+
+Send the §2a stance message first, and keep the filled kernel at 600 characters or fewer. The charter holds the scheduler procedure
+(start or re-task one owner per free slot from the brief template with `fork_turns=none`; have
+a fresh reviewer judge each return against the destination; record it in the ledger; use the
+§2a challenger brief before any closure), the full stance, proof, boundary, blocked, budget,
+non-goals, the ledger path and the brief template.
+
+**G. Segment owner brief.** One owner, one coherent outcome, hours of work: a study's next
+epoch, ten hunt rounds, one migration. The brief is generated from the charter and names,
+destination and stance first (an Agent Manager child keeps the start of a long task prompt
+through compaction; how much of a native sub-agent's brief survives is unknown):
+the segment's destination and expected magnitude, the stance verbatim, the charter path to
+re-read at each round start and after compaction, explicit permission and expectation to
+spawn its own workers, pinned exemplars of a good unit, a time box of at least 2 hours
+unless the outcome finishes sooner, and the return shape (changed, verified, remaining,
+unverified, outcomes, files, lines added and removed). It does not return before its end
+state or time box. A segment that needs its own native goal and audit runs as an Agent
+Manager child run. Pass `--until-file <kernel> --charter <charter> --parent-run-id <own run>`,
+then wait with `run wait --children`. The parent must itself be an Agent Manager-launched run.
+If Agent Manager refuses or is unreachable (exit 6), give the same brief to a native
+sub-agent and continue. `LONG_EFFORT_DESIGN.md` §3 "Goal-bearing children" has the commands
+and the fallback rule.
+
 ### 6. Convergence goals: done is a disproof, not a checklist
 
 Some goals ask for genuine excellence, not a finished checklist: a maturity
@@ -270,20 +369,17 @@ condition, not as a list of features that exist. Orchestrated efforts follow
   bounded task (C) that tracks findings and open issues in the scenario's durable
   files, re-read each pass. Use a mandate (B) only when the work needs an improve
   skill's sensors and setpoints.
-- **Persistence is one fixed clause, plus the step-back rule.** Use: "Keep going
+- **Persistence is one fixed clause, plus the step-back rule and §2a.** Use: "Keep going
   through friction; when progress stalls, step back — write why, then park,
   switch or shrink — instead of stopping or adding more of the same." Do not
   stack further persistence controls; each one lengthens every resume and pushes
-  agents toward accretion. Keep a continuous goal to about 800 characters,
-  excluding the stance line below, and point at docs for everything else.
-- **Stance is not a persistence control; carry it verbatim.** When the operator
-  states an ambition or posture ("be bold and ambitious", "exercise creative
-  thinking", "don't be afraid to tackle large issues"), put their own words in a
-  `Stance:` line of the goal, or in the receiving skill. Do not compress them
-  into neutral procedure: paraphrase strips the push, and the receiving agent
-  falls back to its cautious default. Name what the stance licenses in this
-  work (large changes, other agents' uncommitted files, deletions) so it is
-  actionable, not decorative. `ecosystem-hunt` `references/goal.md` is an example.
+  agents toward accretion. Use the §2a stance message and kernel and point at the
+  charter for everything else.
+- **Stance is not a persistence control; carry it verbatim** (the §3 stance slot).
+  Do not compress the operator's words into neutral procedure: paraphrase strips
+  the push, and the receiving agent falls back to its cautious default. A stance
+  without a destination of matching size is tone; pair it with one.
+  `ecosystem-hunt` `references/goal.md` is an example.
 - **State the real stakes.** Name why the work matters and what stays blocked
   while it is broken. Keep them true; invented stakes read as hollow.
 - **Operator feedback is a durable, gating input.** The receiving agent appends
@@ -326,6 +422,11 @@ receiving skill's doctrine from inside a goal.
 | "Validated" with no command | The evaluator guesses; the agent stops early | Name the check and require its output |
 | The same tolerance preamble retyped every dispatch | Drift between copies; long goals | Move the rule into the receiving skill; the goal selects a posture |
 | A sub-agent with no model named | It inherits the parent's most expensive model | Name the agent definition or role (§5) |
+| Many minute-long workers for one outcome | No worker can make a large change; output falls while dispatches multiply | One owner per outcome for its whole length (§5 table) |
+| Full-history forks for workers | Children inherit drift and most of the context window; they compact early | Fresh brief from the charter, `fork_turns=none` |
+| A long goal message with no kernel | The objective is omitted after compaction; the agent copies its recent units | Stance message, kernel ≤600 characters and charter; one unit per turn (§2a) |
+| Ambition only as adjectives | The agent executes the procedures and treats "be bold" as tone | A destination large on its face, plus the stance slot |
+| A count destination ("N rounds") | Cheap, empty rounds satisfy it | An outcome destination; no-change units do not count |
 | A plan for every sub-assignment | 100k–200k tokens of authoring per worker | Choose the cheapest shape (§5) |
 | A goal that explains the design | Lossy, stale on arrival | Write the design into the docs; point the goal at it |
 | Completion by self-report | Harness "met" with no evidence | Proof in transcript; independent review for material outcomes |
@@ -336,6 +437,11 @@ receiving skill's doctrine from inside a goal.
   never entered the transcript. Rerun the named check so its output is visible.
 - **The agent stops after a few turns with no goal clear.** Several turns passed
   without tool use. Restate the next concrete action in the goal or the handoff.
+- **A long effort starts small or shrinks over hours.** Diagnose it with
+  `effort-diagnosis` before rewriting the goal; the cause is usually structure (worker
+  lifetime, forks, exits), not wording.
+- **Children never spawn their own workers.** The brief did not ask them to, or the
+  session still has the default Codex hint and slot limit (`LONG_EFFORT_DESIGN.md` §4).
 - **Codex reports `budget_limited`.** This is not completion. Read the wrap-up
   summary, then start a new session from the handoff.
 - **The goal repeats design already held in docs.** Move the durable design to

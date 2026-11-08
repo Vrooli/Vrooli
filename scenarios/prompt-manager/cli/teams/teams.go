@@ -7,6 +7,7 @@ import (
 	"bufio"
 	"bytes"
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"io"
@@ -556,10 +557,11 @@ func Commands(ctx appctx.Context) cliapp.CommandGroup {
 		Title: "Teams",
 		Commands: []cliapp.Command{
 			{
-				Name:        "team",
-				Aliases:     []string{"teams", "t"},
-				NeedsAPI:    true,
-				Description: "Manage teams (list|show|create|update|delete|knowledge-*|bug-*|friction-*|add-member|heartbeat-*|execution-status|retention|prune|import-cc|export-cc|trigger)",
+				Name:          "team",
+				Aliases:       []string{"teams", "t"},
+				NeedsAPI:      true,
+				PassHelpToRun: true,
+				Description:   "Manage teams (list|show|create|update|delete|knowledge-*|bug-*|friction-*|add-member|heartbeat-*|execution-status|retention|prune|import-cc|export-cc|trigger)",
 				Run: func(args []string) error {
 					return route(ctx, args)
 				},
@@ -582,10 +584,21 @@ func route(ctx appctx.Context, args []string) error {
 	if len(args) == 0 {
 		return printUsage()
 	}
+	if args[0] == "help" || args[0] == "-h" || args[0] == "--help" {
+		return printUsage()
+	}
 
 	subcommand := args[0]
 	subArgs := args[1:]
 
+	err := routeSubcommand(ctx, subcommand, subArgs)
+	if errors.Is(err, flag.ErrHelp) {
+		return nil
+	}
+	return err
+}
+
+func routeSubcommand(ctx appctx.Context, subcommand string, subArgs []string) error {
 	switch subcommand {
 	case "list", "ls":
 		return cmdList(ctx, subArgs)
@@ -3916,13 +3929,22 @@ type bugFieldDiagnostic struct {
 
 func cmdBugCapture(ctx appctx.Context, args []string) error {
 	fs := flag.NewFlagSet("bug-capture", flag.ContinueOnError)
+	fs.SetOutput(os.Stdout)
+	fs.Usage = func() {
+		fmt.Fprintln(fs.Output(), "Usage: prompt-manager team bug-capture scenario-qa --title <title> --signal-type <type> --severity <severity> --repro-step <step>... --expected <text> --actual <text> --description <text>")
+		fmt.Fprintln(fs.Output(), "Options:")
+		printDoubleDashFlagDefaults(fs)
+	}
 	flags := defineBugCaptureFlags(fs)
 	jsonOut := fs.Bool("json", false, "Output the structured capture result as JSON")
 	if err := cliutil.ParseInterspersed(fs, args); err != nil {
+		if errors.Is(err, flag.ErrHelp) {
+			return nil
+		}
 		return err
 	}
 	if fs.NArg() < 1 {
-		return fmt.Errorf("team bug-capture usage: scenario-qa --title=<title> --signal-type=<type> --severity=<severity> --repro=<step> --expected=<expected> --actual=<actual> --description=<description>")
+		return fmt.Errorf("team bug-capture usage: scenario-qa --title=<title> --signal-type=<type> --severity=<severity> --repro-step=<step> --expected=<expected> --actual=<actual> --description=<description>")
 	}
 	teamID := fs.Arg(0)
 	return attribution.WithWriterSkill("report-bug", teamID, func() error {
@@ -3932,9 +3954,18 @@ func cmdBugCapture(ctx appctx.Context, args []string) error {
 
 func cmdBugRepair(ctx appctx.Context, args []string) error {
 	fs := flag.NewFlagSet("bug-repair", flag.ContinueOnError)
+	fs.SetOutput(os.Stdout)
+	fs.Usage = func() {
+		fmt.Fprintln(fs.Output(), "Usage: prompt-manager team bug-repair scenario-qa <draft-id> [--repro-step <step>...] [--signal-type <type> --severity <severity> --expected <text> --actual <text>]")
+		fmt.Fprintln(fs.Output(), "Options:")
+		printDoubleDashFlagDefaults(fs)
+	}
 	flags := defineBugCaptureFlags(fs)
 	jsonOut := fs.Bool("json", false, "Output the structured capture result as JSON")
 	if err := cliutil.ParseInterspersed(fs, args); err != nil {
+		if errors.Is(err, flag.ErrHelp) {
+			return nil
+		}
 		return err
 	}
 	if fs.NArg() < 2 {
@@ -3946,14 +3977,37 @@ func cmdBugRepair(ctx appctx.Context, args []string) error {
 	})
 }
 
-type bugCaptureFlags struct{ title, signalType, severity, repro, expected, actual, description, scenario, skill, member, command, honestyFlags, idempotencyKey *string }
+type bugCaptureFlags struct {
+	title, signalType, severity, expected, actual, description, scenario, skill, member, command, honestyFlags, idempotencyKey *string
+	reproSteps                                                                                                                 *stringListFlag
+}
+
+type stringListFlag []string
+
+func (values *stringListFlag) String() string { return strings.Join(*values, ", ") }
+
+func (values *stringListFlag) Set(value string) error {
+	*values = append(*values, value)
+	return nil
+}
+
+func printDoubleDashFlagDefaults(fs *flag.FlagSet) {
+	output := fs.Output()
+	var defaults bytes.Buffer
+	fs.SetOutput(&defaults)
+	fs.PrintDefaults()
+	fs.SetOutput(output)
+	fmt.Fprint(output, strings.ReplaceAll(defaults.String(), "  -", "  --"))
+}
 
 func defineBugCaptureFlags(fs *flag.FlagSet) bugCaptureFlags {
-	return bugCaptureFlags{title: fs.String("title", "", "Short report title"), signalType: fs.String("signal-type", "", "code-defect|regression|prompt-confusion|data-shape-mismatch|unexpected-error|unknown"), severity: fs.String("severity", "", "blocker|major|minor"), repro: fs.String("repro", "", "Comma-separated reproduction steps"), expected: fs.String("expected", "", "Expected behavior"), actual: fs.String("actual", "", "Observed behavior"), description: fs.String("description", "", "Free-form report details"), scenario: fs.String("scenario", "", "Affected scenario (optional)"), skill: fs.String("skill", "", "Affected skill (optional)"), member: fs.String("member", "", "Affected member (optional)"), command: fs.String("command", "", "Affected command (optional)"), honestyFlags: fs.String("honesty-flags", "", "Comma-separated taxonomy honesty flags"), idempotencyKey: fs.String("idempotency-key", "", "Optional retry-safe capture key")}
+	var reproSteps stringListFlag
+	fs.Var(&reproSteps, "repro-step", "Ordered reproduction step; repeat once per step")
+	return bugCaptureFlags{title: fs.String("title", "", "Short report title"), signalType: fs.String("signal-type", "", "code-defect|regression|prompt-confusion|data-shape-mismatch|unexpected-error|unknown"), severity: fs.String("severity", "", "blocker|major|minor"), expected: fs.String("expected", "", "Expected behavior"), actual: fs.String("actual", "", "Observed behavior"), description: fs.String("description", "", "Free-form report details"), scenario: fs.String("scenario", "", "Affected scenario (optional)"), skill: fs.String("skill", "", "Affected skill (optional)"), member: fs.String("member", "", "Affected member (optional)"), command: fs.String("command", "", "Affected command (optional)"), honestyFlags: fs.String("honesty-flags", "", "Comma-separated taxonomy honesty flags"), idempotencyKey: fs.String("idempotency-key", "", "Optional retry-safe capture key"), reproSteps: &reproSteps}
 }
 
 func (f bugCaptureFlags) request() bugCaptureRequest {
-	return bugCaptureRequest{Title: *f.title, SignalType: *f.signalType, Severity: *f.severity, Repro: csvValues(*f.repro), Expected: *f.expected, Actual: *f.actual, Description: *f.description, Context: compactContext(*f.scenario, *f.skill, *f.member, *f.command), HonestyFlags: csvValues(*f.honestyFlags), IdempotencyKey: *f.idempotencyKey}
+	return bugCaptureRequest{Title: *f.title, SignalType: *f.signalType, Severity: *f.severity, Repro: append([]string(nil), (*f.reproSteps)...), Expected: *f.expected, Actual: *f.actual, Description: *f.description, Context: compactContext(*f.scenario, *f.skill, *f.member, *f.command), HonestyFlags: csvValues(*f.honestyFlags), IdempotencyKey: *f.idempotencyKey}
 }
 
 func runBugCapture(ctx appctx.Context, repair bool, path string, req bugCaptureRequest, jsonOut bool) error {

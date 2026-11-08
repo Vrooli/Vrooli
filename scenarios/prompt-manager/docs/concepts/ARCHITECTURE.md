@@ -62,6 +62,26 @@ Transport is portable by construction: clients resolve the lifecycle-managed
 API address, paths use Go's platform-aware APIs, and no contract depends on a
 shell, fixed home directory, executable suffix, or path separator.
 
+## Skill-read telemetry
+
+`api/internal/skillreads` owns skill-read records, retention policy, repository
+interface, and embedded SQL schema. The composition root supplies a repository
+over the existing routed SQLite pool and registers its schema with `AllSchemas`.
+Each append atomically inserts the record, removes records older than 30 days,
+and retains the latest 20,000 records in append order. Invalid timestamps remain
+visible, duplicate opaque IDs remain distinct reads, and attribution is retained.
+Indexed deletions avoid decoding and rewriting the retained history on each read.
+
+The read recorder and usage reporter preserve the request context through this
+service; usage counters also use a request-scoped metrics adapter. Leased test
+requests therefore address their own initialized pool. The handler remains
+best-effort for telemetry failures. Discovery-call and discovery-miss telemetry
+retain their separate existing JSONL ownership and semantics.
+
+Existing personal JSONL history is imported through an out-of-tree one-shot
+operation with the scenario stopped, a backup, and count/content verification.
+The running service has one telemetry store and performs no legacy-file import.
+
 ## Migration invariants
 
 ### UI response trust boundary

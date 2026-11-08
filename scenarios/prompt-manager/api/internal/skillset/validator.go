@@ -8,18 +8,26 @@ import (
 	"strings"
 )
 
-type Role struct{ Role, Status, Source, Reason string }
-type Result struct {
-	Scenario, Status string
-	Roles            []Role
-	Findings         []string
+type (
+	Role   struct{ Role, Status, Source, Reason string }
+	Result struct {
+		Scenario, Status string
+		Roles            []Role
+		Findings         []string
+	}
+)
+
+// ScenarioRoot is the conventional location of scenario in repoRoot. Callers
+// with an explicitly resolved scenario directory pass that directory instead.
+func ScenarioRoot(repoRoot, scenario string) string {
+	return filepath.Join(repoRoot, "scenarios", scenario)
 }
 
-// Validate inspects declaration integrity and sensor-facing structure. Skill
-// prose quality remains owned by the dedicated skill-validation flow.
-func Validate(repoRoot, scenario string) Result {
+// Validate inspects declaration integrity and sensor-facing structure of the
+// scenario rooted at root. Skill prose quality remains owned by the dedicated
+// skill-validation flow.
+func Validate(root, scenario string) Result {
 	r := Result{Scenario: scenario, Status: "ok"}
-	root := filepath.Join(repoRoot, "scenarios", scenario)
 	var service struct {
 		Skills map[string]json.RawMessage `json:"skills"`
 	}
@@ -40,7 +48,7 @@ func Validate(repoRoot, scenario string) Result {
 	_, improveWaived := skillsBlock.Waivers["improve"]
 	_, learningDeclared := service.Skills["learning"]
 	owed := map[string]bool{
-		"usage":  fileExists(filepath.Join(root, "cli", "manifest.json")),
+		"usage":   fileExists(filepath.Join(root, "cli", "manifest.json")),
 		"improve": improveDeclared || improveWaived || learningDeclared,
 		// Feature skills are opt-in and are never structurally owed.
 		"feature": false,

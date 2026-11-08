@@ -9,9 +9,9 @@ metadata:
   tags: [orchestration, multi-agent, effort, epochs, continuity, recovery]
   icon: network
   status: active
-  revision: 66
+  revision: 69
   createdAt: "2026-09-10T00:00:00Z"
-  updatedAt: "2026-10-26T00:00:00Z"
+  updatedAt: "2026-11-06T23:45:00Z"
   requires:
     scenarios: [prompt-manager, agent-manager]
     commands: [prompt-manager skill read, agent-manager]
@@ -29,13 +29,20 @@ Use this practice for long delivery goals. Phased plans, bounded tasks and direc
 requests keep their own work models. This is the only home of the epoch standard:
 an **epoch** is one coherent worker outcome with its brief and execution record.
 
+Read `path:docs/agent-system/LONG_EFFORT_DESIGN.md` once per session. This skill applies its
+rules to delivery, and inside a delivery effort it wins over another skill's stop or
+threshold rule (D12).
+
 Resolve supporting-file links below relative to the repository directory
 `scenarios/prompt-manager/store/skills/packs/core/large-effort-orchestration/`.
 Workers receive the full repository-relative worker-card path in their assignment.
 
 ### 1. Start from the product
 
-Read the team's `CHARTER.md`, current `STATUS.md`, open `FEEDBACK.md` and the native
+Re-read `CHARTER.md` at every wake and after every compaction, before anything else. Wakes
+are user messages, so after about eight of them your task prompt is gone from context and the
+charter is your only copy of the operator's stance and destination (`LONG_EFFORT_DESIGN.md`
+§4a). Then read the current `STATUS.md`, open `FEEDBACK.md` and the native
 `agent-manager effort board --effort-ref <ref>`. Read the relevant accepted results
 in `LOG.md` and any retained active brief. Run `agent-manager effort lint <home>`.
 Read decisions by stable effort (`agent-manager effort decision list --effort-ref <ref>`)
@@ -98,12 +105,14 @@ When an estimate is exceeded, improve the approach and revise the forecast while
 worker completes its admitted outcome and required proof. Do not freeze edits, force a
 partial return, stop workers or reject acceptance solely for exceeding an estimate.
 Unchanged outcomes require strategy review, not automatic abandonment.
-Worker lifetime is a quota lever, not a duration penalty: every request re-reads the
-worker's whole context, so a worker's cost grows with the square of its length. Give
-each admitted outcome a fresh worker and hand off through the effort files instead of
-resuming one long-lived worker across outcomes; when an outcome splits at a meaningful
-boundary, start the next part fresh. `agent-manager usage recommendations` shows where
-long workers cost the most. Preserve actual
+Worker lifetime follows the outcome. Change size follows how long one worker owns one
+coherent outcome (`docs/agent-system/LONG_EFFORT_DESIGN.md` §1), so let a worker finish its
+whole admitted outcome, however many hours that takes. Per-request cost grows with context
+only until compaction, then stays bounded by the window. Give each new admitted outcome a
+fresh worker with a curated brief (`fork_turns=none` in Codex) and hand off through the
+effort files instead of carrying one worker across unrelated outcomes; when an outcome
+splits at a meaningful boundary, start the next part fresh. `agent-manager usage
+recommendations` shows where long workers cost the most. Preserve actual
 authority/safety limits, explicit product requirements and native commission HARD STOP.
 
 Assign one owner the complete user journey, including necessary shared shell, theme,
@@ -115,6 +124,9 @@ shared components through their owner routes. Include focused self-validation an
 handoff in the implementation outcome. Remove superseded paths and preserve unique
 test protection. Do not split source, tests, captures and receipts into separate
 workers solely to create more dispatches. Do not invent deletion quotas for features.
+
+You may enlarge the charter destination's coverage or an admitted outcome; shrinking either
+needs a `supervisor-audit` entry or the operator (`LONG_EFFORT_DESIGN.md` D8).
 
 Maintain a `## Forecast`: destination target, current evidenced gap, proposed outcome
 order/dependencies, estimates and uncertainty. After acceptance, compare actual result
@@ -142,10 +154,14 @@ one user-visible outcome or a whole replacement/refactor. A defect-only assignme
 is justified when it closes that outcome. Split an oversized outcome at a meaningful
 behavior or ownership boundary; retain the full remainder in STATUS.
 
-Give every worker the following in its task description:
+Give every worker the following in its task description. Keep Mission, Stance and Outcome
+first: a worker is an Agent Manager run, and when its task prompt is long only the start
+survives compaction (`LONG_EFFORT_DESIGN.md` §4a). A native sub-agent's brief has no such
+guarantee; it relies on the re-read.
 
 ```text
 Mission: <the team's whole product destination and why this outcome matters>
+Stance: <the operator's words, verbatim from CHARTER.md>
 Outcome: <one substantial user-visible result or replacement>
 References: <exact governing sections, selected original image paths and current evidence>
 Ownership: <allowed modules/files, shared interfaces, peer ownership and non-goals>
@@ -246,16 +262,20 @@ clock or retained execution. Native clock commands and thresholds are in
 | Historical brief conflicts with current charter | Explicitly supersede it before dispatch; retain unique product requirements and evidence |
 
 Blocked means a decision, credential or approval you lack. Name it. Diagnosable friction
-is not blocked. Repairs inside the approved destination stay with this effort; work
-outside it follows `path:docs/agent-system/SWARM_MANAGER_WORK.md`. Preserve native identity,
+is not blocked. Repairs inside the approved destination stay with this effort; file work
+outside it to its owner with `prompt-manager skill read report-bug`. Delivery teams do not
+use Swarm Manager. Preserve native identity,
 permissions, human-only choices and governed dependency/generation/lifecycle operations.
 Do not invent an extra grant, isolation or approval requirement from assignment wording.
 
 ### Output expectations and anti-patterns
 
 Deliver current source and proportionate outcome evidence, an honest STATUS and exact
-LOG attribution. Finish successfully when the charter destination is met. If all
-remaining work requires a real operator/external return, keep it open and park. At a
+LOG attribution. Finish successfully when the charter destination is met. Before you declare
+it met, or that all remaining work waits on an operator or external return, run a fresh
+challenger with the fixed brief in `LONG_EFFORT_DESIGN.md` §2a, the charter and LOG; continue
+with its top permitted route unless it returns `NONE`. If all remaining work requires a real
+operator/external return, keep it open and park. At a
 native timed stop, publish the honest handback. Record a work-record through the Memory
 contract and clean up authorized goal-only installs/processes on closure.
 

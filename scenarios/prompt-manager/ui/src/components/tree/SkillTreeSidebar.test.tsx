@@ -27,7 +27,10 @@ vi.mock('@/services/skillService', () => ({
 
 const pendingConfig = new Promise<never>(() => {})
 
-vi.mock('@/lib/api', () => ({
+// Keep the module's other exports (connect base resolution is imported by
+// services the sidebar pulls in); only the request surface is stubbed.
+vi.mock('@/lib/api', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/api')>()),
   api: {
     aiSearch: vi.fn().mockResolvedValue({ results: [], method: 'ai' }),
     aiSearchAgents: vi.fn().mockResolvedValue({ results: [], method: 'ai' }),

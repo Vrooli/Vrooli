@@ -17,8 +17,11 @@ type Target struct {
 	Runtime      string
 	PathTemplate string
 	Path         string
-	Environment  string
-	ProjectScope bool
+	// RelocationKey is the environment variable that moves this directory
+	// (storage.entries.skills.relocation.key). It is empty for a pinned
+	// directory that no variable relocates.
+	RelocationKey string
+	ProjectScope  bool
 }
 
 type resourceDocument struct {
@@ -70,9 +73,11 @@ func LoadTargets(resourcesDir, home string) ([]Target, error) {
 		}
 		var skill struct {
 			Path       string `json:"path"`
+			Relocation struct {
+				Key string `json:"key"`
+			} `json:"relocation"`
 			Projection struct {
-				Environment  string `json:"environment"`
-				ProjectScope bool   `json:"project_scope"`
+				ProjectScope bool `json:"project_scope"`
 			} `json:"projection"`
 		}
 		if err := json.Unmarshal(raw, &skill); err != nil {
@@ -94,7 +99,7 @@ func LoadTargets(resourcesDir, home string) ([]Target, error) {
 		}
 		seenRuntime[runtime] = manifestPath
 		seenPath[path] = manifestPath
-		targets = append(targets, Target{Runtime: runtime, PathTemplate: skill.Path, Path: path, Environment: skill.Projection.Environment, ProjectScope: skill.Projection.ProjectScope})
+		targets = append(targets, Target{Runtime: runtime, PathTemplate: skill.Path, Path: path, RelocationKey: strings.TrimSpace(skill.Relocation.Key), ProjectScope: skill.Projection.ProjectScope})
 	}
 	sort.Slice(targets, func(i, j int) bool { return targets[i].Runtime < targets[j].Runtime })
 	return targets, nil

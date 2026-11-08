@@ -1,6 +1,6 @@
 /** SkillListView — collection-backed skill list with scenario-owned content. */
 import { Profiler, type ReactNode } from 'react'
-import { CollectionList } from '@vrooli/react-component-library/CollectionList/1.0.0'
+import { CollectionList } from '@vrooli/react-component-library/CollectionList/1'
 import { type Skill } from '@/types'
 import type { DetailMode } from '@/types/filterSort'
 import { SkillMetadataBadges } from './SkillMetadataBadges'

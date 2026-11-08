@@ -4,7 +4,7 @@
 
 import { useMemo } from 'react'
 import { Copy, Eye, Palette, Plus, Trash2, User } from 'lucide-react'
-import { CollectionList } from '@vrooli/react-component-library/CollectionList/1.0.0'
+import { CollectionList } from '@vrooli/react-component-library/CollectionList/1'
 import type { RowAction } from '@vrooli/react-component-library/useCollection/1'
 import { cn } from '@/lib/utils'
 import { useAgentData } from '@/hooks/useAgentData'

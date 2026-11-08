@@ -12,7 +12,7 @@
 
 import { useState, useMemo } from 'react'
 import { Plus, Layers, ChevronRight } from 'lucide-react'
-import { CollectionList } from '@vrooli/react-component-library/CollectionList/1.0.0'
+import { CollectionList } from '@vrooli/react-component-library/CollectionList/1'
 import type { RowAction } from '@vrooli/react-component-library/useCollection/1'
 import { cn } from '@/lib/utils'
 import { useTopics } from '@/hooks/useTopicData'

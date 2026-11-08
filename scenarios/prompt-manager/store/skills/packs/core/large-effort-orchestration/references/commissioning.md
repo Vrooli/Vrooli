@@ -39,7 +39,11 @@ member heartbeat remain disabled:
    precedence; distinguish desired from implemented state, selected from candidate
    references, and historical observations from current facts. Write `CHARTER.md`
    with the destination, constraints and decisions linked to these canonical
-   sources; it must not become a competing specification. For UI delivery, name the current
+   sources; it must not become a competing specification. Put a `Stance:` line near
+   the top with the operator's own words from the commission, verbatim; the orchestrator re-reads
+   it at every wake and copies it into every brief. State the destination as an end state
+   large on its face with its scale (`LONG_EFFORT_DESIGN.md` D1), and add pinned exemplar
+   epochs once accepted ones exist (D7). For UI delivery, name the current
    product design target and applicable amendments/refinements under `experiential-ui-design`
    §2a. Check that the receiver applies an approved modifier over the older mockup while
    retaining required behavior; an untested agent proposal is not an adopted refinement.

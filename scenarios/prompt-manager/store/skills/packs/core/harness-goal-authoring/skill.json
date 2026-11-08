@@ -1,6 +1,6 @@
 {
   "createdAt": "2026-09-11T00:00:00Z",
-  "description": "Write the message a coding agent runs under in harness goal mode (Claude Code and Codex `/goal`, Agent Manager `until`), or the assignment a coordinator hands a sub-agent. Nine slots, five handoff shapes, and the split between what the docs and plan hold and what the goal message holds. Not for Swarm goal records; use swarm-manager-work-authoring for those.",
+  "description": "Write the message a coding agent runs under in harness goal mode (Claude Code and Codex `/goal`, Agent Manager `until`), or the assignment a coordinator hands a sub-agent. Ten slots, seven handoff shapes (including a thin scheduler over long-lived segment owners), how a goal survives compaction, and the split between what the docs and plan hold and what the goal message holds. Not for Swarm goal records; use swarm-manager-work-authoring for those.",
   "entry": "SKILL.md",
   "icon": "target",
   "id": "harness-goal-authoring",
@@ -21,7 +21,7 @@
       "prompt-manager"
     ]
   },
-  "revision": 23,
+  "revision": 27,
   "schemaVersion": 1,
   "status": "active",
   "tags": [
@@ -33,5 +33,5 @@
     "orchestration",
     "prompt"
   ],
-  "updatedAt": "2026-11-05T01:50:00Z"
+  "updatedAt": "2026-11-06T23:45:00Z"
 }

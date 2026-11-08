@@ -268,6 +268,7 @@ type BugCaptureRequest struct {
 	Title          string            `json:"title"`
 	SignalType     string            `json:"signal_type"`
 	Severity       string            `json:"severity"`
+	ObservedAt     string            `json:"observed_at"`
 	Repro          []string          `json:"repro"`
 	Expected       string            `json:"expected"`
 	Actual         string            `json:"actual"`

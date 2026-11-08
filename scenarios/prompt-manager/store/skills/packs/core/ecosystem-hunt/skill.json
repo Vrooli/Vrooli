@@ -30,7 +30,7 @@
       "agent-manager"
     ]
   },
-  "revision": 3,
+  "revision": 6,
   "schemaVersion": 1,
   "status": "active",
   "tags": [
@@ -43,5 +43,5 @@
     "ecosystem",
     "maturity"
   ],
-  "updatedAt": "2026-11-05T02:27:00Z"
+  "updatedAt": "2026-11-06T23:45:00Z"
 }

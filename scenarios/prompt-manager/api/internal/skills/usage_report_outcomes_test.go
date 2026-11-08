@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"prompt-manager/internal/store"
+	"prompt-manager/internal/skillreads"
 )
 
 type outcomeResolverFunc func(context.Context, string) (string, error)
@@ -15,8 +15,8 @@ func (f outcomeResolverFunc) RunStatus(ctx context.Context, id string) (string, 
 }
 
 func TestReportOutcomesSplitsAttributedRunsAndLeavesUnattributedUncovered(t *testing.T) {
-	reads := store.NewSkillReadStore(t.TempDir())
-	for _, read := range []store.SkillRead{
+	reads := newSkillReadService(t)
+	for _, read := range []skillreads.Read{
 		{SkillID: "skill-a", AgentRunID: "run-ok", CallerKind: "agent-member"},
 		{SkillID: "skill-a", AgentRunID: "run-failed", CallerKind: "agent-member"},
 		{SkillID: "skill-a", CallerKind: "operator-direct"},
@@ -46,8 +46,8 @@ func TestReportOutcomesSplitsAttributedRunsAndLeavesUnattributedUncovered(t *tes
 }
 
 func TestReportDefaultDoesNotResolveRunOutcomes(t *testing.T) {
-	reads := store.NewSkillReadStore(t.TempDir())
-	if err := reads.Append(store.SkillRead{SkillID: "skill-a", AgentRunID: "run-ok"}); err != nil {
+	reads := newSkillReadService(t)
+	if err := reads.Append(skillreads.Read{SkillID: "skill-a", AgentRunID: "run-ok"}); err != nil {
 		t.Fatal(err)
 	}
 	reporter := NewUsageReporter(reads, nil)

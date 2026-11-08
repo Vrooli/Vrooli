@@ -5,8 +5,9 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
-	"prompt-manager/internal/store"
 	"testing"
+
+	"prompt-manager/internal/store"
 )
 
 func TestLoadTargetsDiscoversRealHarnessesAndFixture(t *testing.T) {
@@ -31,7 +32,8 @@ func TestLoadTargetsDiscoversRealHarnessesAndFixture(t *testing.T) {
 		"storage": map[string]any{"entries": map[string]any{
 			"skills": map[string]any{
 				"path":       "$USER_HOME/.fixture/skills",
-				"projection": map[string]any{"environment": "FIXTURE_HOME", "project_scope": true},
+				"relocation": map[string]any{"key": "FIXTURE_HOME", "scope": "process-tree"},
+				"projection": map[string]any{"project_scope": true},
 			},
 		}},
 	}
@@ -49,7 +51,7 @@ func TestLoadTargetsDiscoversRealHarnessesAndFixture(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(fixtureTargets) != 1 || fixtureTargets[0].Path != "/tmp/operator/.fixture/skills" {
+	if len(fixtureTargets) != 1 || fixtureTargets[0].Path != "/tmp/operator/.fixture/skills" || fixtureTargets[0].RelocationKey != "FIXTURE_HOME" || !fixtureTargets[0].ProjectScope {
 		t.Fatalf("fixture target = %#v", fixtureTargets)
 	}
 }

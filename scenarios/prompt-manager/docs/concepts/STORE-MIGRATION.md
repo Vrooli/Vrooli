@@ -111,6 +111,19 @@ func (a *StoreAdapter) GetAll() ([]Metadata, error) {
 }
 ```
 
+### Read metadata snapshots
+
+`StoreAdapter` also implements `MetadataBatchStore.LoadMetadataBatch`. A skill
+read requests its five legacy reader folders together and takes one fresh
+pack-registry snapshot. The adapter preserves the request context, active-pack
+precedence, folder order, and metadata used by ID/file/name resolution. It does
+not retain metadata between requests, so edits and source errors remain visible
+on the next read. Folder-file stores continue through `LoadMetadata`; their
+error behavior is unchanged.
+
+The regression and real-file benchmark live in
+`api/internal/skills/read_metadata_batch_test.go`.
+
 ### Dependency Injection in main.go
 
 ```go

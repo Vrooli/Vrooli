@@ -9,9 +9,9 @@ metadata:
   tags: [supervision, effort, efficiency, orchestration, evidence]
   icon: eye
   status: active
-  revision: 43
+  revision: 44
   createdAt: "2026-09-12T00:00:00Z"
-  updatedAt: "2026-10-25T00:00:00Z"
+  updatedAt: "2026-11-06T23:45:00Z"
   requires:
     scenarios: [agent-manager, prompt-manager]
     commands: [agent-manager, prompt-manager skill read]
@@ -26,7 +26,8 @@ moving by repairing what orchestrators route around, and keeps acceptance honest
 by auditing a sample of their decisions. It never selects, admits or accepts
 epochs. `large-effort-orchestration` owns the epoch standard, the goal home and
 acceptance; `path:docs/agent-system/EFFORT_SUPERVISION.md` owns authority and the
-qualification rows.
+qualification rows. `path:docs/agent-system/LONG_EFFORT_DESIGN.md` owns the design rules; the
+supervisor is the non-paying scope reviewer (D8) and reads the measured tripwires (D10).
 
 Use the selected native supervision profile. Choose direct repair or a capable existing
 permitted worker from the actual dependency and review needs; command count, elapsed
@@ -44,6 +45,7 @@ unknown usage remains unknown and does not terminate admitted work.
 | Repeated workaround | The same `STATUS.md` failure logged twice, or by two goals | Repair it (§3). |
 | Spend spike | A goal's weighted tokens per day above twice its 7-day median | Find the cause (`agent-manager usage recommendations --run <run ID>` lists the owner-level levers that name it); steer or repair. |
 | Planning finding | An orchestrator's trigger after a planning finding in the `STATUS.md` Forecast | Audit the plan (§4). |
+| Closure claim | An orchestrator's trigger when it declares the destination met | Audit the closure (§4). |
 
 Event wakes arrive through the existing trigger routes. After the trusted
 effort-signal dispatcher is qualified and adopted, an eligible signal record may
@@ -59,13 +61,9 @@ no active goal, stay idle.
 
 ### 1.1 Delivery pressure
 
-Slice budgets and estimates are optional. Large coherent slices are valid. Time/token
-totals or size alone do not establish poor performance. Analyze repeated failed operations,
-blocked dependencies, handoff failures, duplicated checks and user-visible outcome progress
-using existing run reports and friction evidence. Overruns may inform optimization; never
-stop workers, freeze source, force partial returns or refuse acceptance solely for an
-exceeded or absent slice estimate. Native commissioned HARD STOP and actual safety/authority
-boundaries remain enforced. Unknown usage does not establish waste.
+Slice budgets and estimates follow `large-effort-orchestration` §2: they inform optimization
+and never stop workers, freeze source, force partial returns or refuse acceptance. Unknown
+usage does not establish waste.
 
 Agent Manager's native effort owner computes deliveryPressure and enforces the persisted operator
 commission. The rare judgment supervisor reads that same signal; it does not run a second clock,
@@ -140,8 +138,10 @@ For each selected goal home:
    whole-effort denominator exists: an orchestrator above about 25% of measured
    goal spend is an overhead target for wake count, park timeout, or gate reruns.
    Check the `STATUS.md` Forecast: missing or
-   older than the last acceptance, or a scaled queue that cannot close the gap
-   with no planning under way, is a steering entry (§5).
+   older than the last acceptance, a scaled queue that cannot close the gap
+   with no planning under way, or queued outcomes that are each smaller than a
+   user journey or a whole replacement, is a steering entry (§5) asking for an
+   architect pass: what allocation would close the destination at its full scale?
 4. Confirm the orchestrator is running or parked. A repeated heartbeat relaunch
    within a day is a repair target, not a reason to relaunch again. A goal with
    no accepted epoch and no live worker for 24 hours is stalled. Write a steering
@@ -255,6 +255,15 @@ chose park, switch or shrink for a stated reason. For a planning finding, check
 that the new or re-estimated slices come from measured module gaps, carry
 deletion lists, and together can close the gap at the recent actual/estimate
 ratio.
+
+Run `effort-diagnosis` `scripts/effort_anatomy.py drift <rollout>` on the audited worker
+(its rollouts are under `~/.vrooli/state/vrooli/agent-manager/runs/<run-id>/`). A fired
+tripwire is a structural finding for the steering entry (re-read the charter, re-scope,
+end turns per slice), never a line quota. Check that the brief carried the charter's stance
+verbatim. When an orchestrator declares the destination met, or parks with all remaining
+work waiting on the operator, check that a fresh challenger with the fixed brief in
+`LONG_EFFORT_DESIGN.md` §2a returned `NONE`; if it did not run, or named a permitted route,
+that route becomes a `supervisor-audit` entry.
 
 For UI acceptance, check the current product target and `experiential-ui-design` §2a.
 Verify that explicit user amendments reached affected assignments and eligible native

@@ -75,6 +75,11 @@ unclear scope amendment before affected work. Then run:
 agent-manager effort epoch-check <repo-relative-brief> --runs <your-run> --wake-key <parent-run>
 ```
 
+When your run carries a native goal (its objective arrives as a goal injection), end your turn
+after the slice-log line and check: the harness re-injects your objective and completion audit
+before the next slice. Without a native goal, ending the turn ends the run, so continue instead.
+Re-read your brief after every compaction (`LONG_EFFORT_DESIGN.md` D3, D4).
+
 Add `--effort <exact-ref>` when the brief names one. This signals a fired step-back only;
 normal terminal results arrive through the completion watcher. Do not repeatedly wake
 or continue the parent to ask for review. On exit 3 for unchanged outcomes, record the

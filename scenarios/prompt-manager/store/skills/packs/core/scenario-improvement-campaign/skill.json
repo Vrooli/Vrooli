@@ -24,7 +24,7 @@
       "test-genie"
     ]
   },
-  "revision": 13,
+  "revision": 14,
   "schemaVersion": 1,
   "status": "active",
   "tags": [
@@ -34,5 +34,5 @@
     "self-improvement"
   ],
   "targetToolId": "run-agent",
-  "updatedAt": "2026-09-30T18:00:00Z"
+  "updatedAt": "2026-11-06T23:45:00Z"
 }

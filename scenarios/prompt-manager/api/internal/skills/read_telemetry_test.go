@@ -1,13 +1,20 @@
 package skills
 
 import (
+	"context"
+	"database/sql"
 	"encoding/base64"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"path/filepath"
 	"testing"
 	"time"
 
+	"github.com/vrooli/api-core/database"
+	_ "modernc.org/sqlite"
+	"prompt-manager/internal/metrics"
+	"prompt-manager/internal/skillreads"
 	"prompt-manager/internal/store"
 )
 
@@ -38,10 +45,10 @@ func attributedRequest(t *testing.T, kind, memberID string) *http.Request {
 
 // newRecorderAt builds a recorder whose clock is pinned, so discovery-window
 // boundaries are exercised deterministically.
-func newRecorderAt(t *testing.T, now time.Time) (*ReadRecorder, *store.SkillReadStore, *store.DiscoveryCallStore, *fakeUsage) {
+func newRecorderAt(t *testing.T, now time.Time) (*ReadRecorder, *skillreads.Service, *store.DiscoveryCallStore, *fakeUsage) {
 	t.Helper()
 	dir := t.TempDir()
-	reads := store.NewSkillReadStore(dir)
+	reads := newSkillReadService(t)
 	calls := store.NewDiscoveryCallStore(dir)
 	usage := &fakeUsage{}
 	rec := NewReadRecorder(reads, calls, usage)
@@ -155,4 +162,79 @@ func TestRecordToleratesMissingDependencies(t *testing.T) {
 
 	var nilRecorder *ReadRecorder
 	nilRecorder.Record(attributedRequest(t, "operator-direct", ""), []string{"alpha"})
+}
+
+func newSkillReadService(t *testing.T) *skillreads.Service {
+	t.Helper()
+	db, err := sql.Open("sqlite", filepath.Join(t.TempDir(), "reads.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	db.SetMaxOpenConns(1)
+	t.Cleanup(func() { db.Close() })
+	if err := database.EnsureSchemas(context.Background(), db, database.SchemaProviderFunc(skillreads.Schema)); err != nil {
+		t.Fatal(err)
+	}
+	return skillreads.NewService(skillreads.NewSQLRepository(db))
+}
+
+type contextReadRepository struct{ appendContext, readContext context.Context }
+
+func (r *contextReadRepository) Append(ctx context.Context, _ skillreads.Read, _ time.Time, _ int, _ time.Duration) error {
+	r.appendContext = ctx
+	return nil
+}
+func (r *contextReadRepository) ReadSince(ctx context.Context, _ time.Duration, _ time.Time) ([]skillreads.Read, error) {
+	r.readContext = ctx
+	return nil, nil
+}
+
+func TestSkillReadTelemetryConsumersPreserveRequestRoutingContext(t *testing.T) {
+	type routingKey struct{}
+	ctx := context.WithValue(context.Background(), routingKey{}, "lease")
+	repository := &contextReadRepository{}
+	reads := skillreads.NewService(repository)
+	recorder := NewReadRecorder(reads, nil, nil)
+	recorder.Record(httptest.NewRequest(http.MethodPost, "/skills/read", nil).WithContext(ctx), []string{"skill"})
+	reporter := NewUsageReporter(reads, nil)
+	if _, err := reporter.ReportContext(ctx, time.Hour); err != nil {
+		t.Fatal(err)
+	}
+	if repository.appendContext != ctx || repository.readContext != ctx {
+		t.Fatal("recorder or reporter discarded request-scoped database routing")
+	}
+}
+
+func TestSkillReadRecorderRoutesCounterAndTelemetryTogether(t *testing.T) {
+	routed, err := database.Open(context.Background(), database.Config{Driver: database.DriverSQLite, DSN: filepath.Join(t.TempDir(), "live.db"), MaxOpenConns: 1, MaxIdleConns: 1})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { routed.Close() })
+	initialize := func(ctx context.Context, db *sql.DB) error {
+		return database.EnsureSchemas(ctx, db, database.SchemaProviderFunc(Schema), database.SchemaProviderFunc(skillreads.Schema))
+	}
+	if err := initialize(context.Background(), routed.Primary()); err != nil {
+		t.Fatal(err)
+	}
+	routed.SetTestPoolInitializer(initialize)
+	if err := routed.InstallTestPool(context.Background(), filepath.Join(t.TempDir(), "test.db"), "read-counter-lease", 0); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { routed.ClearTestPool("read-counter-lease") })
+	reads := skillreads.NewService(skillreads.NewSQLRepository(routed))
+	recorder := NewReadRecorder(reads, nil, NewMetricsAdapter(metrics.NewRepository(routed)))
+	for _, ctx := range []context.Context{context.Background(), database.WithTestMode(context.Background())} {
+		recorder.Record(httptest.NewRequest(http.MethodPost, "/skills/read", nil).WithContext(ctx), []string{"skill"})
+	}
+	for _, ctx := range []context.Context{context.Background(), database.WithTestMode(context.Background())} {
+		rows, err := reads.WithContext(ctx).ReadSince(0)
+		if err != nil || len(rows) != 1 {
+			t.Fatalf("telemetry crossed routing boundary: %+v %v", rows, err)
+		}
+		var count int
+		if err := routed.QueryRowContext(ctx, "SELECT usage_count FROM skill_metrics WHERE skill_id = ?", "skill").Scan(&count); err != nil || count != 1 {
+			t.Fatalf("counter crossed routing boundary: count=%d err=%v", count, err)
+		}
+	}
 }

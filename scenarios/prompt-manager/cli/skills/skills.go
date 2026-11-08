@@ -762,6 +762,7 @@ func cmdRead(ctx appctx.Context, args []string) error {
 		"sep":     true,
 		"scope":   true,
 		"variant": true,
+		"lines":   true,
 	})
 	fs := flag.NewFlagSet("read", flag.ContinueOnError)
 	resolve := fs.String("resolve", "auto", "Resolution mode (auto|id|file|name)")
@@ -774,12 +775,28 @@ func cmdRead(ctx appctx.Context, args []string) error {
 	copyOut := fs.Bool("copy", false, "Copy combined output to clipboard")
 	withScope := fs.Bool("with-scope", false, "Include default scope skill from first skill")
 	scope := fs.String("scope", "", "Explicit scope skill to include")
+	lines := fs.String("lines", "", "Print only lines START-END of the output, numbered, with the next page's command")
 	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 
 	if fs.NArg() < 1 {
-		return fmt.Errorf("usage: skill read <identifier> [identifier...] [--variant=<variant-id>] [--resolve=auto|id|file|name] [--output=skills|combined|both|auto] [--format=xml|markdown|json] [--with-scope] [--scope=<scope-id>] [--strict] [--copy] [--json]")
+		return fmt.Errorf("usage: skill read <identifier> [identifier...] [--lines START-END] [--variant=<variant-id>] [--resolve=auto|id|file|name] [--output=skills|combined|both|auto] [--format=xml|markdown|json] [--with-scope] [--scope=<scope-id>] [--strict] [--copy] [--json]")
+	}
+	page, err := parseLineRange(*lines)
+	if err != nil {
+		return err
+	}
+	if page.set && *jsonOut {
+		return fmt.Errorf("--lines pages the text output; it cannot be combined with --json")
+	}
+	stdout := io.Writer(os.Stdout)
+	var paged strings.Builder
+	if page.set {
+		stdout = &paged
+		defer func() {
+			fmt.Print(page.render(paged.String(), readPageCommand(fs.Args(), args)))
+		}()
 	}
 
 	if *variant != "" {
@@ -799,7 +816,7 @@ func cmdRead(ctx appctx.Context, args []string) error {
 			enc.SetIndent("", "  ")
 			return enc.Encode(v)
 		}
-		fmt.Println(v.Content)
+		fmt.Fprintln(stdout, v.Content)
 		return nil
 	}
 
@@ -834,20 +851,20 @@ func cmdRead(ctx appctx.Context, args []string) error {
 	if printCombined && resp.Combined != "" {
 		if !printSkills {
 			for _, skill := range resp.Skills {
-				fmt.Print(thirdPartyHeader(skill))
+				fmt.Fprint(stdout, thirdPartyHeader(skill))
 			}
 		}
-		fmt.Print(resp.Combined)
+		fmt.Fprint(stdout, resp.Combined)
 		printed = true
 	}
 
 	if printSkills {
 		for i, skill := range resp.Skills {
 			if printed || i > 0 {
-				fmt.Print(*separator)
+				fmt.Fprint(stdout, *separator)
 			}
-			fmt.Print(thirdPartyHeader(skill))
-			fmt.Print(skill.Content)
+			fmt.Fprint(stdout, thirdPartyHeader(skill))
+			fmt.Fprint(stdout, skill.Content)
 			printed = true
 		}
 	}
@@ -1385,4 +1402,75 @@ func reorderFlagArgs(args []string, flagsWithValues map[string]bool) []string {
 	}
 
 	return append(flagArgs, positional...)
+}
+
+// lineRange is a 1-based inclusive page of `skill read` output.
+type lineRange struct {
+	set        bool
+	start, end int
+}
+
+func parseLineRange(raw string) (lineRange, error) {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return lineRange{}, nil
+	}
+	first, last, found := strings.Cut(raw, "-")
+	start, err := strconv.Atoi(strings.TrimSpace(first))
+	if err != nil || start < 1 {
+		return lineRange{}, fmt.Errorf("--lines must be START-END with START >= 1, got %q", raw)
+	}
+	end := start
+	if found {
+		if end, err = strconv.Atoi(strings.TrimSpace(last)); err != nil || end < start {
+			return lineRange{}, fmt.Errorf("--lines must be START-END with END >= START, got %q", raw)
+		}
+	}
+	return lineRange{set: true, start: start, end: end}, nil
+}
+
+// render numbers the selected lines and ends with where the text stands:
+// the next page's exact command, or that this page reached the end.
+func (r lineRange) render(text, nextCommand string) string {
+	all := strings.Split(strings.TrimRight(text, "\n"), "\n")
+	total := len(all)
+	var b strings.Builder
+	end := r.end
+	if end > total {
+		end = total
+	}
+	for i := r.start; i <= end; i++ {
+		fmt.Fprintf(&b, "%6d\t%s\n", i, all[i-1])
+	}
+	switch {
+	case r.start > total:
+		fmt.Fprintf(&b, "[lines %d-%d requested; the output has %d lines]\n", r.start, r.end, total)
+	case end < total:
+		size := r.end - r.start + 1
+		fmt.Fprintf(&b, "[lines %d-%d of %d; next: %s --lines %d-%d]\n", r.start, end, total, nextCommand, end+1, end+size)
+	default:
+		fmt.Fprintf(&b, "[lines %d-%d of %d; end of output]\n", r.start, end, total)
+	}
+	return b.String()
+}
+
+// readPageCommand rebuilds the invocation, identifiers first, without its
+// --lines flag. args is the flag-first order reorderFlagArgs produces.
+func readPageCommand(identifiers, args []string) string {
+	parts := append([]string{"prompt-manager", "skill", "read"}, identifiers...)
+	flags := args
+	if len(identifiers) <= len(args) {
+		flags = args[:len(args)-len(identifiers)]
+	}
+	for i := 0; i < len(flags); i++ {
+		arg := flags[i]
+		switch {
+		case arg == "--lines" || arg == "-lines":
+			i++
+		case strings.HasPrefix(arg, "--lines=") || strings.HasPrefix(arg, "-lines="):
+		default:
+			parts = append(parts, arg)
+		}
+	}
+	return strings.Join(parts, " ")
 }

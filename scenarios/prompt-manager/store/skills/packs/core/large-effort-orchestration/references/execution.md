@@ -51,8 +51,10 @@ Capture the dirty-scope anchor through `git-control-tower proposal anchor --effo
 `agent-manager run identity --json` (`claims.run_id`). Use existing authorized profiles.
 Send the complete assignment in the task description:
 
-The native `--until` must require the assigned product outcome and its demonstrated
-behavior/fidelity. "Produce comparisons", "run checks" or "return an honest report"
+The native `--until` is a kernel of 600 characters or fewer (`harness-goal-authoring` §2a): it
+requires the assigned product outcome and its demonstrated behavior/fidelity, quotes about 150
+characters of the charter's stance (`Stance: "<excerpt>"`), names the brief path to re-read after
+compaction, and tells the worker to end its turn after each slice-log line. The brief carries everything else. "Produce comparisons", "run checks" or "return an honest report"
 are evidence duties, not completion predicates. A genuine unresolved mismatch against the
 current target is unfinished work; an implemented verified amendment/refinement is an
 expected difference, not a reason to undo an improvement. Follow `experiential-ui-design` §2a.
@@ -64,9 +66,17 @@ agent-manager task create --title "<goal> E<n>" --scope-path <scenario path> --d
 agent-manager run create --task-id <returned-task> --profile-id <existing-profile> --parent-run-id <caller-run> --until "<assigned user-visible behavior and demonstrated acceptance condition>" --model <canonical-profile-model-id> --effort <permitted-reasoning> --workload-key <goal>/E<n>
 ```
 
+Add `--charter <absolute brief or charter path>` so the child's lineage header names the file to
+re-read after compaction. Wait with `agent-manager run wait --children <caller-run> --since
+<observed_at>`, not repeated `run get`. Exit 6 means Agent Manager is unreachable: continue with
+a native sub-agent and the same brief, never stall. Child depth is capped by
+`runExecution.maxChildDepth` (`POLICY_CHILD_DEPTH_EXCEEDED`). Only an Agent Manager-launched
+run can be a parent.
+
 Keep the file substitution quoted. Set an existing task's description with `task update
 <id> --description "$(cat -- /absolute/worker-brief.md)"`. Do not add `--prompt`: it replaces
-the task description. Keep `--until` separate from the task description and within Agent Manager's 1 MiB UTF-8 byte ceiling; use `--until-file` for large conditions that exceed shell argument limits. The worker receives
+the task description. Keep `--until` separate from the task description and within the kernel
+size; a longer objective is dropped at compaction (`LONG_EFFORT_DESIGN.md` §4a). The worker receives
 the exact repository-relative brief path, parent ID, worker card, applicable directives,
 source versions, applicable amendment/refinement IDs, gates and resume set. Verify receiving
 when feedback changes an active assignment; reconcile its eligible native predicate through
@@ -125,7 +135,7 @@ unit on acceptance. Preserve stable IDs and independent worker attribution.
 Three accepted outcomes below half their estimates, or a queue that cannot reach the
 destination, is a planning finding. Explain and re-estimate in Forecast. Wake supervision
 after a step-back, every third acceptance, repeated workaround, spend spike, planning
-finding or new human decision: `prompt-manager team heartbeat-trigger effort-supervision
+finding, new human decision or destination-met claim: `prompt-manager team heartbeat-trigger effort-supervision
 effort-supervisor`. Record the event first; use at most one event wake per schedule window.
 
 ## Steering, waits and decisions

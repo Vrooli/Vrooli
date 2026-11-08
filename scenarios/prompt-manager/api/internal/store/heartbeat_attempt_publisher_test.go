@@ -316,7 +316,7 @@ func TestRetainedPreparationInterruptedOwnerStateIsSupported(t *testing.T) {
 		t.Fatal(err)
 	}
 	if env.GetEventType() != heartbeatOwnerStateEventType || env.GetCorrelation() != nil {
-		t.Fatalf("preparation interruption must be an owner-state fact without task/run correlation: %#v", env)
+		t.Fatalf("preparation interruption must be an owner-state fact without task/run correlation: %#v", &env)
 	}
 	entry.RunID = "run-that-would-contradict-preparation"
 	if _, _, err := heartbeatAttemptEnvelope(entry); err == nil {

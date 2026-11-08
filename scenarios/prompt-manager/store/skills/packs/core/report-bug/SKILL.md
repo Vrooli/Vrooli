@@ -63,9 +63,9 @@ Gather before invoking the writer:
 | `repro` | yes | Ordered list of steps that reproduce the bug. If you couldn't reproduce, set `honesty_flags` to include `repro-not-attempted` and put what you did observe under `repro` anyway. |
 | `expected` | yes | One-line description of what you expected to happen. |
 | `actual` | yes | One-line description of what actually happened. |
-| `context` | recommended | Object with the most specific anchors you can give: `scenario`, `skill`, `member`, `command`. Any may be null; more context shortens the investigator's triage. |
+| `context` | recommended | Object with the most specific anchors you can give: `scenario`, `skill`, `member`, `command`. The CLI accepts these as `--scenario`, `--skill`, `--member`, and `--command`. Any may be null; more context shortens the investigator's triage. |
 | `description` | recommended | Free-form notes — what you observed, hypotheses you tried, why this looks like a bug rather than expected behavior. |
-| `honesty_flags` | when applicable | List from `repro-not-attempted`, `speculative-cause`, `minimal-context`, `ai-generated-summary`. Be honest about what your report doesn't have. |
+| `honesty_flags` | when applicable | List from `repro-not-attempted`, `speculative-cause`, `minimal-context`, `ai-generated-summary`; pass these with `--honesty-flags`. Be honest about what your report doesn't have. |
 
 Severity rule: severity is **the reporter's claim**. The investigator may overrule it during triage based on actual scope of impact (e.g., a "minor" with a corrupted invariant escalates).
 
@@ -90,9 +90,13 @@ test.
    ```bash
    prompt-manager team bug-capture scenario-qa \
      --title '<short observation>' --signal-type <type> --severity <severity> \
-     --repro '<step 1,step 2>' --expected '<expected>' --actual '<actual>' \
+     --repro-step '<step 1>' --repro-step '<step 2>' \
+     --expected '<expected>' --actual '<actual>' \
      --description '<useful details>'
    ```
+
+   Repeat `--repro-step` once for each ordered step. Each flag value is one
+   complete step, so commas and other punctuation remain part of that step.
 
    A complete submission publishes in this one command. An incomplete or
    invalid submission is instead saved as a private `draft`, with its missing

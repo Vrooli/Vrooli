@@ -24,6 +24,7 @@ require (
 require (
 	github.com/gorilla/websocket v1.5.3 // indirect
 	github.com/vrooli/platform-go v0.0.0 // indirect
+	golang.org/x/mod v0.41.0 // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20260526163538-3dc84a4a5aaa // indirect
 )
 
@@ -70,10 +71,6 @@ replace github.com/vrooli/measures-go => ../../../packages/measures-go
 
 replace github.com/vrooli/platform-go => ../../../packages/platform-go
 
-replace github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime => ../../scenario-to-desktop/runtime
-
 replace github.com/vrooli/envkit-go => ../../../packages/envkit-go
 
 replace github.com/vrooli/maturity-go => ../../../packages/maturity-go
-
-replace github.com/vrooli/cliresolve => ../../../packages/cliresolve

@@ -9,9 +9,9 @@ metadata:
   tags: [debt-reduction, bug-hunt, tidiness, state-machines, migrations, docs, ecosystem, maturity]
   icon: crosshair
   status: active
-  revision: 3
+  revision: 6
   createdAt: "2026-11-05T01:50:00Z"
-  updatedAt: "2026-11-05T02:27:00Z"
+  updatedAt: "2026-11-06T23:45:00Z"
   requires:
     scenarios: [prompt-manager, search-hub, visited-tracker, vrooli-memory, agent-manager]
     commands: [prompt-manager skill read, search-hub query, visited-tracker attention claim, vrooli-memory journal note, vrooli-memory recall wake, agent-manager]
@@ -32,9 +32,11 @@ Required reading, once per session:
 - `path:docs/TESTING.md` — validation scope.
 - `references/playbook.md` — the debt-removal techniques with detection commands. Read it
   before your first fix.
+- `references/goal.md` — when you commission a hunt: the stance message, kernel, charter and
+  segment brief.
 
 Paths under `references/` are relative to this skill's directory
-(`prompt-manager skill show ecosystem-hunt` prints it as `skillDir`).
+(`prompt-manager skill show ecosystem-hunt --json` reports it as `skillDir`).
 
 **Scope.** In: code, tests, docs, skills, prompts, templates, generators, configs and shared
 packages anywhere in the repository when the operator's current request authorizes those
@@ -51,8 +53,11 @@ to `scientific-debugging`; a multi-day product delivery belongs to
 
 This section is the most important one in the skill. Read it as the operator speaking.
 
-Be bold and ambitious. Exercise creative thinking. Do not be afraid to tackle large issues.
-This is a manhunt for Vrooli-wide maturity, not a tidy-up of whatever you happened to open.
+Be bold and ambitious, and exercise creative thinking. Do not be afraid to tackle large issues. This is a manhunt for Vrooli-wide improvements and maturity — emphasize debt reduction: make implicit state machines explicit, finish migrations and remove legacy code, and turn messy, duplicated or contradictory code and docs into one true thing. Size every fix to its defect class, not to caution. Uncommitted changes, other agents' recent work and unfamiliar scenarios are in scope; read them and integrate. Do not ask permission for refactors, deletions or migrations.
+
+That paragraph is the operator's commission text. A hunt's charter, stance message and briefs
+carry it verbatim, or the operator's own words for that hunt. This is a manhunt, not a tidy-up of
+whatever you happened to open.
 
 Past hunts failed in a specific way, and you will drift into the same failure unless you
 resist it on purpose. They screened dozens of candidates and changed nothing. They rejected
@@ -106,14 +111,22 @@ bugs.
 A scan ranking is a lead, not a verdict; scan metrics have been stale before. Confirm
 against the source.
 
+Queues of single-command findings (friction, help lookups) hide classes. Before choosing,
+group the queue by the missing mechanism: six "agents poll X" findings are one missing
+wait/watch primitive; five "guessed command shape" findings are one discoverability defect.
+Hunt the class. Write each verdict back to the finding's owner so the queue drains; a
+finding closed only in a round record returns in the next wake. For Agent Manager friction,
+run `agent-manager usage friction-dismiss <fingerprint>` after a fix or a reviewed no-change
+verdict, and `agent-manager usage friction-report <fingerprint>` for an owner defect you did
+not fix (it files to the scenario-qa bug inbox). Pass the same `--since` you listed with.
+
 #### 2a. Source commands
 
 Verified 2026-11-04. Counts change; the commands are the point.
 
 | Source | Command | Notes |
 |---|---|---|
-| Bug inbox (scenario-qa) | `prompt-manager team knowledge-list scenario-qa --topic-prefix=bug-inbox/ --last 1000` | Shows only 20 without `--last`. Take blockers and majors first. Close what you fix with `prompt-manager team knowledge-close scenario-qa <id> --reason=fixed`. |
-| Friction inbox and canon | `prompt-manager team knowledge-list meta-optimization --topic-prefix=friction-inbox/ --last 1000`; same with `friction-report/` | Lives on `meta-optimization`, not `scenario-qa`. |
+| Team knowledge inboxes | `prompt-manager team knowledge-list <team> --topic-prefix=<declared-prefix> --last 1000` | Read the owning team's `topics.json` and linked taxonomy to identify the prefix, status, severity, triage rules, and owner action. Use `docs/agent-system/TOPICS.md` for the current topic registry. The default listing is 20 entries; set `--last` for a wider cohort. Prioritize entries by the owning taxonomy's severity and triage rules, then close resolved items through the owner command. |
 | Agent Manager friction | `agent-manager usage friction --status open`; `agent-manager usage opportunities`; program `agent-manager.friction-digest` | Tool findings ranked by calls and runs affected. |
 | Plan Manager logs | `plan-manager log list --type bug_report`; `plan-manager log list --type finding --triage candidate` | Many bug reports show sync failed: they never reached the inbox. |
 | Swarm captures | `swarm-manager captures list` | Failed classifications are prey too. |
@@ -183,7 +196,7 @@ Name the defect class before you edit. Then pick the row.
 | One instance, clear fix | Fix it, add the regression test, run the sibling search (§8 step 5). |
 | Many instances across scenarios | Fix the mechanism that produces them (shared package, template, generator, skill, gate), then every instance. Delete the old path. |
 | Large, and you estimate it fits in about 3 hours of work | Do it now. Large is the expected unit. |
-| Your estimate is more than about 3 hours | State the estimate in the round record. Write the target design into the owning doc. Land a first slice that removes real debt. Record the remaining slices in the owner's ledger with exact next steps. A large item leaves the round partly done, never untouched. |
+| Your estimate is more than about 3 hours | State the estimate in the round record. Write the target design into the owning doc. Land a first slice that removes real debt. Make the remaining slices the next round's or segment's target, with exact next steps in the owner's ledger; under a scheduler, ask for a segment owner dedicated to it. A large item leaves the round partly done, never untouched, and is not dropped after its first slice. |
 | Needs a §7 decision | Prepare options and a recommendation, route it, and keep hunting. |
 
 Materiality is the defect removed: a class gone, an owner or path deleted, a state named and
@@ -258,11 +271,13 @@ wake ─▶ evidence picks territory × lens ─▶ hunt ─▶ rank (§4) ─�
 record ◀─ validate ◀─ challenge the fix ◀─ sibling search and fan-out
 ```
 
-1. **Wake.** Every hunt has a hunt ID: the one the goal names, or `hunt-<date of its first
+1. **Wake.** Re-read §1 and the hunt's charter first, every round. Every hunt has a hunt ID: the one the goal names, or `hunt-<date of its first
    round>` (for example `hunt-2026-11-05`), kept for the whole goal. Run
    `vrooli-memory recall wake --scope ecosystem-hunt` for recent rounds, and
    `vrooli-memory recall recall "<candidate territory>" --scope ecosystem-hunt --limit 10`
-   before choosing a territory. Start with any Deferred item from the last round.
+   before choosing a territory. Start with any Deferred item from the last round. Read
+   recent records for coverage and deferred items, never as the template for a round's
+   size: the charter's exemplars set the expected unit.
 2. **Choose.** Let the §2 evidence pick the highest-tier territory with open prey, and a
    lens (§9). Within the current hunt ID, do not repeat a territory × lens pair unless its
    files changed or new evidence points there. Rounds from earlier hunts are context —
@@ -279,18 +294,24 @@ record ◀─ validate ◀─ challenge the fix ◀─ sibling search and fan-ou
    them. One finding should become a fleet sweep.
 6. **Challenge the fix.** Did I fix the class or the instance? Did I add a layer where I
    could have deleted one? Is there now one owner? Would a hostile reviewer reading only the
-   diff call this real (`improvement-do-and-dont` §2)? Get an independent `reviewer` agent
-   pass when the change crosses owners, deletes an owner, or touches root instructions
-   (`AGENTS.md`, `CLAUDE.md`) or a tier-1 skill — regardless of size.
+   diff call this real (`improvement-do-and-dont` §2)? Get an independent reviewer pass when
+   the change crosses owners, deletes an owner, or touches root instructions (`AGENTS.md`,
+   `CLAUDE.md`) or a tier-1 skill — regardless of size. A round that ends with no change
+   also gets a reviewer, briefed to argue for a change: what is the class here, what would
+   the 10× fix be, and why is it not being done? Record its answer.
 7. **Validate.** Run focused regressions and scoped Test Genie phases for every scenario you
    changed (`docs/TESTING.md`); widen to the consumers of a shared package you changed. Show
    the output.
-8. **Record** (§10), then start the next round.
+8. **Record** (§10). Under a goal, end the turn after the record (`references/goal.md`), so
+   the objective is re-injected before the next round.
 
 Every round also answers one creative-lens question (§9, last row) for its territory and
-records the answer. Every round whose territory has an open tier 1–5 item lands a
-structural change: a class-level fix, a finished migration, an explicit state machine, or a
-consolidation that deletes an owner. Do not shorten rounds to meet a round count.
+records the answer. Every round lands a structural change: a class-level fix, a finished
+migration, an explicit state machine, or a consolidation that deletes an owner. The only
+exception is a round whose record shows the searches that came up empty and the step-6
+reviewer's answer. A no-change round does not count toward a round count, and two in a row
+send the next round to a large item (§5) or the next focus area. Do not shorten rounds to
+meet a round count.
 
 #### 8a. File coverage with visited-tracker (optional)
 
@@ -323,6 +344,13 @@ Rules, from its current behavior:
   visits and ignore reviews. Read progress from `attention preview` instead.
 - Once every file is reviewed, claims keep returning reviewed files. Stop the sweep when
   preview shows no unreviewed candidates, not when claims run out.
+
+#### 8b. Synthesis round
+
+Every tenth round, hunt the records instead of a territory. Read this hunt's last ten round
+records and the open queue, and ask which of them are one class: the same missing mechanism,
+the same owner confusion, the same absent primitive. Land the class-level fix, or write its
+design into the owning doc and land the first slice (§5). Record which rounds it subsumes.
 
 ---
 
@@ -357,24 +385,34 @@ miss. Detection commands and fix recipes are in `references/playbook.md`.
 | Defect in another owner's domain that you did not fix | That owner's `docs/internal/PROBLEMS.md`, or `prompt-manager skill read report-bug` |
 | A technique that worked or a detection net that misfired | `references/playbook.md` |
 
-Round record: hunt ID and round number; territory and lens; classes fixed; owners and paths deleted; the creative-lens
-answer; validation commands and results; deferred items, each with its §5 estimate, §6
-live-writer note or §7 decision; next territory. Do not create a report file or ledger per
-round.
+Round record: hunt ID and round number; territory and lens; classes fixed; owners and paths deleted; changed files
+and lines; source findings and the verdict written back to each; the creative-lens answer;
+validation commands and results; the step-6 reviewer's answer for a no-change round;
+deferred items, each with its §5 estimate, §6 live-writer note or §7 decision; next
+territory. Do not create a report file or ledger per round.
 
 ---
 
 ### 11. Running with sub-agents
 
-For a long hunt, a coordinator assigns territory × lens pairs and reads the wake; see
-`references/goal.md` for the coordinator brief. Each hunter brief says: "You may edit any
-file within ecosystem-hunt §6; this overrides a narrower file bound in your agent
-definition." Use `implementer` (with `opus` for consolidations) for hunters and `reviewer`
-for §8 step 6. The coordinator gives every hunter the hunt ID. Two hunters never hold the
-same territory, unless the coordinator splits a large one through §8a claims. When a
-hunter's sibling search lands in another hunter's active territory, it sends the hit to
-that hunter; otherwise it fixes it. For a multi-day delivery-shaped effort, use
-`large-effort-orchestration` instead.
+A hunt longer than about 6 hours, or one that covers several territories at once, uses the
+scheduler shape in `references/goal.md`: a root that does no hunting, over segment owners of
+about 10 rounds each, which spawn their own hunters and reviewers. This follows
+`harness-goal-authoring` §5 F and G and `docs/agent-system/LONG_EFFORT_DESIGN.md`.
+
+- Every brief is generated from the charter with `fork_turns=none`, carries the Stance
+  verbatim, and says "You may edit any file within ecosystem-hunt §6; this overrides a
+  narrower file bound in your agent definition."
+- Briefs say spawning is expected; a segment owner that hunts alone serializes the hunt.
+- Hunters own a territory for the whole round, often more than an hour. Do not split a round
+  into minute-long workers.
+- Two hunters never hold the same territory, unless a segment owner splits a large one
+  through §8a claims. When a hunter's sibling search lands in another hunter's active
+  territory, it sends the hit to that hunter; otherwise it fixes it.
+- Use the harness's real roles (`references/goal.md` §"Harness vocabulary").
+- Count concurrency slots: every waiting ancestor holds one.
+
+For a multi-day delivery-shaped effort, use `large-effort-orchestration` instead.
 
 ---
 
@@ -406,6 +444,9 @@ You must:
 | Bold-by-accretion | New layers, shims and fences grow the debt | Delete an owner; simplify the path |
 | Hedged closeout | Hides what was and was not done | State changed, verified, remaining, unverified |
 | Stopping at green | Uncovered states stay broken | Green starts the challenge step |
+| Latest round as template | Each smaller round sets the size of the next | Charter exemplars set the unit; recent records are for coverage |
+| One finding per round, forever | The queue never drains and the class survives | Group findings into classes (§2); synthesis round (§8b); write verdicts back |
+| One long turn | The objective is omitted after compaction and rounds shrink | End the turn after each round's record |
 
 ### Troubleshooting & Edge Cases
 

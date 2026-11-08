@@ -1269,7 +1269,7 @@ In development the HUD settings panel has a Levers tab that edits these live.
 | Setting | Bounds | Default | Impact | Persistence | Effect |
 |---|---|---|---|---|---|
 | `seed` | 0–4294967295 | 1 | world | operator | Changes the generated world. Saved in this page’s URL; default is 1. |
-| `actors` | 0–100000 | 0 | world | development | Creates a deterministic demonstration roster. Zero uses the live roster. |
+| `actors` | 0–100000 | 0 | world | development | Creates a deterministic demonstration roster. Use zero for an explicit empty roster; omit the parameter for the live roster. |
 
 Values must contain decimal digits only. Invalid values use the declared default and display an error.
 

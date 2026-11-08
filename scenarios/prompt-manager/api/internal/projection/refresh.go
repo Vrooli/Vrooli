@@ -162,8 +162,11 @@ func (s *Service) Refresh(req RefreshRequest) (RefreshResult, error) {
 	}
 	sort.Strings(ids)
 	for i, id := range ids {
-		if !allowed[id] || (i > 0 && id == ids[i-1]) {
-			return RefreshResult{}, fmt.Errorf("skill %q is not a unique base-pack selection", id)
+		if !allowed[id] {
+			return RefreshResult{}, fmt.Errorf("skill %q is not in the governed base pack; omit --skills to preview all eligible skills", id)
+		}
+		if i > 0 && id == ids[i-1] {
+			return RefreshResult{}, fmt.Errorf("skill %q is selected more than once", id)
 		}
 	}
 	var targets []Target

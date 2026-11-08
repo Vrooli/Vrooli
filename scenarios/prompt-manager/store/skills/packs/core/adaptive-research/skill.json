@@ -22,7 +22,7 @@
       "prompt-manager"
     ]
   },
-  "revision": 14,
+  "revision": 16,
   "schemaVersion": 1,
   "status": "active",
   "tags": [
@@ -31,5 +31,5 @@
     "evidence",
     "optimization"
   ],
-  "updatedAt": "2026-11-04T17:10:00Z"
+  "updatedAt": "2026-11-06T23:45:00Z"
 }

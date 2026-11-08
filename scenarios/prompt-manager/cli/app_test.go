@@ -107,6 +107,8 @@ func TestSkillHelpDoesNotRequireAPI(t *testing.T) {
 
 func TestBugCapturePreservesRequiredAttributionAlongsideInvocationHeaders(t *testing.T) {
 	var attribution, invocation string
+	var repro []string
+	var reportContext map[string]any
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case "/health":
@@ -115,6 +117,25 @@ func TestBugCapturePreservesRequiredAttributionAlongsideInvocationHeaders(t *tes
 		case "/vrooli.prompt_manager.v1.heartbeat.HeartbeatService/CaptureBug":
 			attribution = r.Header.Get("X-Vrooli-Attribution")
 			invocation = r.Header.Get("X-Vrooli-Invocation-ID")
+			body, readErr := io.ReadAll(r.Body)
+			if readErr != nil {
+				t.Fatalf("read bug-capture request: %v", readErr)
+			}
+			var request heartbeatv1.TeamMutationRequest
+			if err := proto.Unmarshal(body, &request); err != nil {
+				t.Fatalf("decode bug-capture request: %v", err)
+			}
+			payload := request.GetBody().GetStructValue().AsMap()
+			if rawSteps, ok := payload["repro"].([]any); ok {
+				for _, rawStep := range rawSteps {
+					if step, ok := rawStep.(string); ok {
+						repro = append(repro, step)
+					}
+				}
+			}
+			if rawContext, ok := payload["context"].(map[string]any); ok {
+				reportContext = rawContext
+			}
 			w.Header().Set("Content-Type", "application/proto")
 			data, _ := structpb.NewValue(map[string]any{"disposition": "published", "knowledge": map[string]any{"id": "knw-test", "topic": "bug-inbox/code-defect/test"}})
 			encoded, _ := proto.Marshal(&heartbeatv1.JsonResponse{Data: data})
@@ -130,8 +151,14 @@ func TestBugCapturePreservesRequiredAttributionAlongsideInvocationHeaders(t *tes
 		t.Fatalf("NewApp() error = %v", err)
 	}
 	app.core.Config.APIBase = server.URL
-	if err := app.Run([]string{"team", "bug-capture", "scenario-qa", "--title=test", "--signal-type=code-defect", "--severity=minor", "--repro=start", "--expected=publish", "--actual=dropped", "--description=header regression"}); err != nil {
+	if err := app.Run([]string{"team", "bug-capture", "scenario-qa", "--title=test", "--signal-type=code-defect", "--severity=minor", "--repro-step=Step one, with comma", "--repro-step=Run the command", "--expected=publish", "--actual=dropped", "--description=header regression", "--scenario=prompt-manager", "--skill=report-bug", "--member=bug-investigator", "--command=prompt-manager team bug-capture", "--honesty-flags=minimal-context"}); err != nil {
 		t.Fatalf("bug-capture: %v", err)
+	}
+	if got, want := strings.Join(repro, "|"), "Step one, with comma|Run the command"; got != want {
+		t.Fatalf("captured repro = %q, want %q", got, want)
+	}
+	if reportContext["scenario"] != "prompt-manager" || reportContext["skill"] != "report-bug" || reportContext["member"] != "bug-investigator" || reportContext["command"] != "prompt-manager team bug-capture" {
+		t.Fatalf("captured report context = %#v", reportContext)
 	}
 	if attribution == "" {
 		t.Fatal("bug-capture dropped X-Vrooli-Attribution")
@@ -149,6 +176,25 @@ func TestBugCapturePreservesRequiredAttributionAlongsideInvocationHeaders(t *tes
 	}
 	if invocation == "" {
 		t.Fatal("bug-capture dropped X-Vrooli-Invocation-ID")
+	}
+}
+
+func TestTeamBugCaptureHelpShowsItsDeclaredOptions(t *testing.T) {
+	app, err := NewApp()
+	if err != nil {
+		t.Fatalf("NewApp() error = %v", err)
+	}
+	app.core.Config.APIBase = "http://127.0.0.1:1"
+	app.core.CLI.SetStaleChecker(nil)
+	output := captureStdout(t, func() {
+		if err := app.Run([]string{"team", "bug-capture", "scenario-qa", "--help"}); err != nil {
+			t.Fatalf("bug-capture help: %v", err)
+		}
+	})
+	for _, want := range []string{"Usage: prompt-manager team bug-capture", "--scenario", "--skill", "--member", "--command", "--honesty-flags", "--repro-step"} {
+		if !strings.Contains(output, want) {
+			t.Fatalf("bug-capture help missing %q: %s", want, output)
+		}
 	}
 }
 

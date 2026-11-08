@@ -9,9 +9,9 @@ metadata:
   tags: [mandate, plan, setpoint, scenario, development, authoring, swarm]
   icon: compass
   status: active
-  revision: 2
+  revision: 3
   createdAt: "2026-09-11T00:00:00Z"
-  updatedAt: "2026-09-30T12:00:00Z"
+  updatedAt: "2026-11-06T23:45:00Z"
   requires:
     scenarios: [prompt-manager, plan-manager, program-runtime]
     commands: [prompt-manager skill read, plan-manager author, program-runtime library run]
@@ -36,6 +36,9 @@ Required reading:
   supplies the method.
 - `path:scenarios/plan-manager/docs/concepts/PLAN-MODEL.md` — the plan fields
   that exist today.
+- `path:docs/agent-system/LONG_EFFORT_DESIGN.md` — a mandate is the charter of a long
+  effort: the executing agent re-reads it at every intervention start and after every
+  compaction, so it carries what must not fade (D3).
 
 ### 1. Scope
 
@@ -78,12 +81,13 @@ Write every section. Each one has one rule.
 
 | Section | Content | Rule |
 |---|---|---|
+| **Stance** | The operator's words that commissioned the mandate. | Verbatim, never paraphrased; paraphrase strips the push. Name what they license (large changes, deletions, migrations, other agents' uncommitted files). |
 | **Target pointer** | Paths to the scenario docs that hold the design and the outcome rows. | Point; never paste a snapshot. A copied board is stale on arrival and outranks the live read for no reason. |
 | **Sensors** | The setpoint program by name, for example `program-runtime library run <scenario>.setpoint-read`, plus any named owner reads. | Name programs, not URLs or private scripts. The program contract owns row IDs and the wire vocabulary. |
 | **Evidence producers** | The owner command, program, or implementation path that can create current receipts for every required row. | A read-only sensor is not a completion path. Build or repair a missing producer only as a reusable instrument (D6); otherwise journal the row unverified. |
 | **Definition of done** | One band per outcome row: the row ID, the band predicate, and the validity rule (cohort, freshness, owner). | Every required row has a band. A row with no band is not required. The evidence audit passes: no band moved, no row hand-graded. |
 | **Scope and authority** | `acceptance_allow` narrowed to the scenario, its shared packages, its protos and its docs. `scope_policy: extend-with-record`. Effects that need a separate decision (paid spend, private data, product promises). | Narrow the allow list; let `plan-manager exec boundary-extend` record the rest. `acceptance_deny` still refuses. |
-| **Stop rules** | What counts as blocked. What is journaled instead of estimated. | Blocked means a decision, credential, or approval the agent lacks. A row that reads unavailable is journaled, not estimated. Friction the agent can diagnose is not blocked. |
+| **Stop rules** | What counts as blocked. What is journaled instead of estimated. Who decides early closure. | Blocked means a decision, credential, or approval the agent lacks. A row that reads unavailable is journaled, not estimated. Friction the agent can diagnose is not blocked. Closure before the bands are met or the budget ends goes to a fresh challenger with the fixed brief in `LONG_EFFORT_DESIGN.md` §2a, never to the executing agent's judgment. |
 | **Suggested arc** | understand → instrument → improve → validate. | Guidance, reorderable. Not phases, not steps. The agent may re-enter any stop when evidence sends it there. |
 | **Journal location** | The plan-artifacts directory, normally `~/.vrooli/plan-artifacts/<session-slug>`. | One journal. Checkpoints go through Plan Manager; readings and rejected hypotheses go in the journal. |
 
@@ -98,6 +102,9 @@ Fill every `<...>` field. Delete a row only when the scenario has no such row,
 and say so in the definition of done.
 
 ```markdown
+## Stance
+<the operator's words, verbatim> — licenses: <large changes, deletions, migrations, shared files>
+
 ## Target pointer
 - Design: path:scenarios/<scenario>/docs/START-HERE.md, path:scenarios/<scenario>/PRD.md
 - Requirements: path:scenarios/<scenario>/requirements/
@@ -129,6 +136,8 @@ Evidence audit: no band edited, no sensor edited to move a row, every required r
 - Blocked: a decision, credential, or approval the agent lacks. Name it.
 - Journaled, not estimated: a row that reads unavailable; a sensor that fails transport.
 - Not blocked: friction the agent can diagnose; an adjacent defect it can repair; a missing or broken authorized evidence producer.
+- Early closure: only when a fresh challenger with the fixed brief in docs/agent-system/LONG_EFFORT_DESIGN.md §2a returns NONE.
+- Method: <scenario>-improve chooses concerns and scenario-improvement-campaign runs the loop; their rules win over another skill's stop or threshold rule.
 
 ## Suggested arc
 understand → instrument → improve → validate. Reorderable. Re-enter any stop when evidence sends you there.
@@ -144,8 +153,8 @@ same content through `plan-manager author` as a compatibility representation.
 This is a migration aid, not a reason to make every mandate look like a fixed
 route.
 
-1. Start the session with `plan-manager author start` and write the target
-   pointer, sensors and scope into the plan's context and boundary sections.
+1. Start the session with `plan-manager author start` and write the stance,
+   target pointer, sensors and scope into the plan's context and boundary sections.
 2. Add at most one compatibility phase per arc stop (understand, instrument,
    improve, validate). Set each phase's acceptance to the band predicates it
    must make true. Keep steps to three or fewer per phase; each step names an

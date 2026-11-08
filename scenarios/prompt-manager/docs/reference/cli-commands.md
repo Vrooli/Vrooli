@@ -205,7 +205,7 @@ invalidation. With no `--tag`, it returns all skills.
 Read skills by identifier, with optional combined output formatting.
 
 ```bash
-prompt-manager skill read <identifier> [<identifier>...] [--resolve=auto|id|file|name] [--output=skills|combined|both|auto] [--format=xml|markdown|json] [--sep=STRING] [--strict] [--copy] [--json]
+prompt-manager skill read <identifier> [<identifier>...] [--lines START-END] [--resolve=auto|id|file|name] [--output=skills|combined|both|auto] [--format=xml|markdown|json] [--sep=STRING] [--strict] [--copy] [--json]
 ```
 
 **Options:**
@@ -218,10 +218,12 @@ prompt-manager skill read <identifier> [<identifier>...] [--resolve=auto|id|file
 | `--strict` | | Fail if any identifier is missing or ambiguous |
 | `--copy` | | Copy combined output to clipboard |
 | `--json` | | Output full response as JSON |
+| `--lines` | | Print only lines START-END, numbered, followed by the exact command for the next page (or an end-of-output marker). Use it when a tool truncates a long skill; not combinable with `--json` |
 
 **Example:**
 ```bash
 prompt-manager skill read ui-health domain-clarity --output=combined --format=markdown --copy
+prompt-manager skill read adaptive-research --lines 1-160
 ```
 
 ### prompt-manager skill rate

@@ -190,6 +190,10 @@ expensive read in several handlers; polling where an event or a single wait exis
 owner with explicit invalidation, or replace polling with the owner's wait. Report the
 before and after numbers.
 
+Prior evidence: Agent Manager's effort board used sequential per-run state and event
+accounting reads; a page-level run/event batch removed that fan-out while preserving per-run
+metering and isolated corrupt streams (hunt-2026-11-05 Round 80).
+
 ## 10. Fix the generator, not the copies
 
 **Signals**: the same defect in many scenarios with the same file layout; code under a

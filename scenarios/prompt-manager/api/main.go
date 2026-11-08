@@ -49,6 +49,7 @@ import (
 	"prompt-manager/internal/paths"
 	"prompt-manager/internal/projection"
 	"prompt-manager/internal/requestpolicy"
+	"prompt-manager/internal/skillreads"
 	"prompt-manager/internal/sourceledger"
 	"prompt-manager/internal/store"
 	"prompt-manager/internal/world"
@@ -686,7 +687,7 @@ func main() {
 	// only point every consumer passes through; the reporter joins those reads
 	// against the discovery calls above so a skill returned often and read
 	// rarely reads as a search-precision defect rather than as demand.
-	skillReadStore := store.NewSkillReadStore(roots.RuntimeData)
+	skillReadStore := skillreads.NewService(skillreads.NewSQLRepository(db))
 	skillHandlers.SetReadRecorder(skills.NewReadRecorder(skillReadStore, discoveryCallStore, metricsAdapter))
 	usageReporter := skills.NewUsageReporter(skillReadStore, discoveryCallStore)
 	skillHandlers.SetUsageReporter(usageReporter)

@@ -21,6 +21,7 @@ import (
 	"strings"
 	"time"
 
+	"prompt-manager/internal/skillreads"
 	"prompt-manager/internal/store"
 )
 
@@ -67,7 +68,7 @@ type SkillUsageReport struct {
 
 // UsageReporter builds SkillUsageReport from the two telemetry logs.
 type UsageReporter struct {
-	reads           *store.SkillReadStore
+	reads           *skillreads.Service
 	calls           *store.DiscoveryCallStore
 	projectedDir    string
 	outcomeResolver RunStatusResolver
@@ -80,7 +81,7 @@ type RunStatusResolver interface {
 }
 
 // NewUsageReporter builds a reporter over the read and discovery logs.
-func NewUsageReporter(reads *store.SkillReadStore, calls *store.DiscoveryCallStore) *UsageReporter {
+func NewUsageReporter(reads *skillreads.Service, calls *store.DiscoveryCallStore) *UsageReporter {
 	return &UsageReporter{reads: reads, calls: calls, projectedDir: strings.TrimSpace(os.Getenv("VROOLI_SKILL_PROJECTION_DIR"))}
 }
 
@@ -91,6 +92,10 @@ func (ur *UsageReporter) SetOutcomeResolver(resolver RunStatusResolver) {
 // Report aggregates the window. A nil store contributes zero rather than
 // failing, so the report degrades to whichever half is wired.
 func (ur *UsageReporter) Report(window time.Duration, outcomes ...bool) (SkillUsageReport, error) {
+	return ur.ReportContext(context.Background(), window, outcomes...)
+}
+
+func (ur *UsageReporter) ReportContext(ctx context.Context, window time.Duration, outcomes ...bool) (SkillUsageReport, error) {
 	report := SkillUsageReport{Since: window.String(), Rows: []SkillUsageRow{}}
 	if ur == nil {
 		return report, nil
@@ -126,7 +131,7 @@ func (ur *UsageReporter) Report(window time.Duration, outcomes ...bool) (SkillUs
 	}
 
 	if ur.reads != nil {
-		entries, err := ur.reads.ReadSince(window)
+		entries, err := ur.reads.WithContext(ctx).ReadSince(window)
 		if err != nil {
 			return report, err
 		}
@@ -162,7 +167,7 @@ func (ur *UsageReporter) Report(window time.Duration, outcomes ...bool) (SkillUs
 		for skillID, ids := range runIDs {
 			r := rows[skillID]
 			for runID := range ids {
-				status, err := ur.outcomeResolver.RunStatus(context.Background(), runID)
+				status, err := ur.outcomeResolver.RunStatus(ctx, runID)
 				if err != nil {
 					continue
 				}
@@ -279,7 +284,7 @@ func (h *Handlers) SkillUsage(w http.ResponseWriter, r *http.Request) {
 		}
 		window = parsed
 	}
-	report, err := h.usageReporter.Report(window, outcomes)
+	report, err := h.usageReporter.ReportContext(r.Context(), window, outcomes)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return

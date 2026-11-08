@@ -1,0 +1,86 @@
+{
+  "kind": "action",
+  "schemaVersion": 1,
+  "id": "infrastructure.scenario-cpu-profile",
+  "name": "Collect a bounded local scenario CPU profile",
+  "description": "Collect CPU samples from one exact native component launch over its owner-only local socket. Requires a rebuilt standard API runtime. Produces a private profile file and bounded identity/hash metadata. No sudo, arbitrary PID, public debug route, or overwrite. Inspect the artifact with go tool pprof.",
+  "status": "active",
+  "owner": {
+    "type": "project",
+    "id": "vrooli"
+  },
+  "command": {
+    "argv": [
+      "vrooli",
+      "scenario",
+      "profile",
+      "{{scenario}}",
+      "--seconds",
+      "{{seconds}}",
+      "--step",
+      "{{step}}",
+      "--out",
+      "{{output}}",
+      "--json"
+    ]
+  },
+  "inputs": {
+    "output": {
+      "type": "string",
+      "description": "New profile file path; its parent must exist. Existing destinations are refused.",
+      "required": true,
+      "maxLength": 2048
+    },
+    "scenario": {
+      "type": "string",
+      "description": "Local scenario name, optionally @variant; remote nodes are unsupported.",
+      "required": true,
+      "pattern": "^[a-z0-9][a-z0-9_-]*(?:@[a-z0-9][a-z0-9_-]*)?$",
+      "maxLength": 128
+    },
+    "seconds": {
+      "type": "string",
+      "description": "Integer duration from 1 through 30 seconds.",
+      "required": true,
+      "pattern": "^(?:[1-9]|[12][0-9]|30)$",
+      "maxLength": 2
+    },
+    "step": {
+      "type": "string",
+      "description": "Exact recorded lifecycle component step.",
+      "required": true,
+      "pattern": "^[a-z0-9][a-z0-9_-]*$",
+      "maxLength": 128
+    }
+  },
+  "outputs": {
+    "receipt": {
+      "type": "string",
+      "description": "JSON artifact path, exact component identity, byte count, SHA-256 digest and elapsed duration."
+    }
+  },
+  "permissions": {
+    "filesystemRead": true,
+    "filesystemWrite": true,
+    "localhostNetwork": true,
+    "processStart": true
+  },
+  "tags": [
+    "infrastructure",
+    "cpu",
+    "profiling",
+    "diagnostics",
+    "performance"
+  ],
+  "execution": {
+    "timeoutSeconds": 40,
+    "outputMode": "stdout",
+    "runEligible": true
+  },
+  "validation": {
+    "mode": "contract"
+  },
+  "revision": 1,
+  "createdAt": "2026-11-06T00:28:50Z",
+  "updatedAt": "2026-11-06T00:28:50Z"
+}

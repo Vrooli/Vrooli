@@ -7,15 +7,19 @@ const globalsCSS = readFileSync('src/styles/globals.css', 'utf8')
 
 describe('Prompt Manager mobile PWA contract', () => {
   it('keeps installed navigation in standalone mode on every client route', () => {
-    expect(indexHTML).toContain('rel="manifest" href="/public/site.webmanifest"')
+    // docs/concepts/PUBLIC_ASSETS.md: head links are document-relative under
+    // public/, so they resolve at a host root and behind a path-prefix proxy.
+    expect(indexHTML).toContain('rel="manifest" href="public/site.webmanifest"')
+    expect(indexHTML).not.toMatch(/<link[^>]+href="\/public\//)
     expect(indexHTML).toContain('name="apple-mobile-web-app-capable" content="yes"')
     expect(indexHTML).toContain('name="mobile-web-app-capable" content="yes"')
     expect(indexHTML).toContain('name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"')
 
     expect(JSON.parse(manifestJSON)).toMatchObject({
       display: 'standalone',
-      start_url: '/',
-      scope: '/',
+      // The manifest lives in public/, so the app root is one level up.
+      start_url: '../',
+      scope: '../',
     })
     expect(JSON.parse(manifestJSON).icons).toEqual(expect.arrayContaining([
       expect.objectContaining({ sizes: '192x192' }),

@@ -35,7 +35,7 @@ func NewConnectMount(legacy *domain.Handlers, skills *skillsdomain.Handlers, rep
 }
 
 func (h *connectHandler) ValidateSkillSet(_ context.Context, req *connect.Request[discoveryv1.ValidateSkillSetRequest]) (*connect.Response[discoveryv1.ValidateSkillSetResponse], error) {
-	result := skillset.Validate(h.repoRoot, req.Msg.GetScenario())
+	result := skillset.Validate(skillset.ScenarioRoot(h.repoRoot, req.Msg.GetScenario()), req.Msg.GetScenario())
 	response := &discoveryv1.ValidateSkillSetResponse{Scenario: result.Scenario, Status: result.Status, Findings: result.Findings}
 	for _, role := range result.Roles {
 		response.Roles = append(response.Roles, &discoveryv1.SkillSetRole{Role: role.Role, Status: role.Status, Source: role.Source, Reason: role.Reason})

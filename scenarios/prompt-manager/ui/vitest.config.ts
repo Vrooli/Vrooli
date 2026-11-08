@@ -18,6 +18,8 @@ export default defineConfig({
       },
     },
     coverage: {
+      reportOnFailure: true,
+      include: ['src/**/*.{ts,tsx}'],
       provider: 'v8',
       // Unit Health consumes coverage-summary.json or lcov.info.
       reporter: ['text', 'json', 'html', 'json-summary', 'lcov'],
@@ -26,7 +28,7 @@ export default defineConfig({
         'src/test/',
         '**/*.d.ts',
         '**/*.config.*',
-        '**/types/**',
+        '**/types/**', 'src/**/*.test.{ts,tsx}', 'src/**/*.spec.{ts,tsx}', 'src/**/*.d.ts', 'src/main.tsx', 'src/test-setup.ts', 'src/test-utils/**', 'src/consts/strings.generated.ts', 'src/i18n/locales/**', 'src/**/generated/**',
       ],
     },
   },

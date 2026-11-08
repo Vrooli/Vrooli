@@ -9,6 +9,13 @@ import (
 	"time"
 )
 
+// MetadataBatchStore can enumerate several reader folders from one fresh
+// authoritative snapshot. It retains no state between requests. Stores with
+// independent folder files can continue using SkillStore.LoadMetadata.
+type MetadataBatchStore interface {
+	LoadMetadataBatch(folders []string) (map[string][]Metadata, error)
+}
+
 // SkillStore defines the interface for skill storage operations.
 // This is the primary testing seam for the skills domain.
 // Implementations: Store (file-based, production), MockStore (testing).

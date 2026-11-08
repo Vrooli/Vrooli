@@ -1,25 +1,24 @@
 {
-  "id": "/",
-  "name": "Personal Prompt Manager",
-  "short_name": "Prompt Manager",
-  "description": "Manage prompts, skills, and agent operating models.",
-  "start_url": "/",
-  "scope": "/",
-  "display": "standalone",
   "background_color": "#020817",
-  "theme_color": "#020817",
+  "description": "Manage prompts, skills, and agent operating models.",
+  "display": "standalone",
   "icons": [
     {
-      "src": "/public/prompt-manager-icon.svg",
+      "purpose": "any",
       "sizes": "192x192",
-      "type": "image/svg+xml",
-      "purpose": "any"
+      "src": "prompt-manager-icon.svg",
+      "type": "image/svg+xml"
     },
     {
-      "src": "/public/prompt-manager-icon.svg",
+      "purpose": "maskable",
       "sizes": "512x512",
-      "type": "image/svg+xml",
-      "purpose": "maskable"
+      "src": "prompt-manager-icon.svg",
+      "type": "image/svg+xml"
     }
-  ]
+  ],
+  "name": "Personal Prompt Manager",
+  "scope": "../",
+  "short_name": "Prompt Manager",
+  "start_url": "../",
+  "theme_color": "#020817"
 }

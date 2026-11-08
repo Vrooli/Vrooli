@@ -114,16 +114,32 @@ func (a *StoreAdapter) ImportedSkillOverlayPath(id string) string {
 // LoadMetadata loads skills from a pack's skill directories.
 // Implements skills.SkillStore.LoadMetadata()
 func (a *StoreAdapter) LoadMetadata(folder string) ([]Metadata, error) {
+	folders, err := a.LoadMetadataBatch([]string{folder})
+	if err != nil {
+		return nil, err
+	}
+	return folders[folder], nil
+}
+
+// LoadMetadataBatch takes one fresh pack-registry snapshot for the requested
+// folders. The reader otherwise repeats this whole-registry enumeration for
+// each legacy folder. Request context, pack precedence and source errors remain
+// owned by the underlying store; no cross-request metadata cache is introduced.
+func (a *StoreAdapter) LoadMetadataBatch(folders []string) (map[string][]Metadata, error) {
 	ctx := a.requestContext()
 	skills, err := a.skillStore.List(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	var result []Metadata
+	requested := make(map[string]bool, len(folders))
+	for _, folder := range folders {
+		requested[folder] = true
+	}
+	result := make(map[string][]Metadata, len(folders))
 	for _, s := range skills {
-		if s.Pack == folder {
-			result = append(result, a.toMetadata(s))
+		if requested[s.Pack] {
+			result[s.Pack] = append(result[s.Pack], a.toMetadata(s))
 		}
 	}
 	return result, nil

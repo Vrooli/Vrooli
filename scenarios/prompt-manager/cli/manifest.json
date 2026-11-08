@@ -353,7 +353,7 @@
         },
         {
           "name": "refresh",
-          "description": "Preview native skill freshness or apply an exact reviewed projection digest.",
+          "description": "Preview the governed native skill projection or apply an exact reviewed digest. `--skills` accepts only base-pack IDs; omit it to preview all eligible skills.",
           "binding": {
             "kind": "connect-rpc",
             "service": "SkillsService",
@@ -1560,6 +1560,22 @@
             "kind": "connect-rpc",
             "service": "HeartbeatService",
             "method": "GetHandoffHistory"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "execution-status",
+          "description": "Read one team execution queue and retained ownership; not native process liveness.",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "HeartbeatService",
+            "method": "GetTeamExecutionStatus"
           },
           "governance": {
             "effect": "read",
@@ -2823,11 +2839,6 @@
       "service": "HeartbeatService",
       "method": "GetRunEvents",
       "reason": "Run event streams are an internal/generated-client diagnostic surface and have no stable standalone CLI command."
-    },
-    {
-      "service": "HeartbeatService",
-      "method": "GetTeamExecutionStatus",
-      "reason": "Team execution status is internal queue coordination state used by heartbeat scheduling rather than a stable operator contract."
     },
     {
       "service": "HeartbeatService",

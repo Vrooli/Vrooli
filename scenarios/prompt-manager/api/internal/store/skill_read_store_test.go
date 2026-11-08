@@ -8,58 +8,6 @@ import (
 	"time"
 )
 
-func TestSkillReadStoreBoundsAndPrunesByRetention(t *testing.T) {
-	now := time.Date(2026, 10, 20, 12, 0, 0, 0, time.UTC)
-	store := &SkillReadStore{
-		path:       filepath.Join(t.TempDir(), "skill-reads.jsonl"),
-		now:        func() time.Time { return now },
-		maxEntries: 2,
-		retention:  30 * 24 * time.Hour,
-	}
-	if err := store.Append(SkillRead{ID: "old", At: now.Add(-40 * 24 * time.Hour).Format(time.RFC3339), SkillID: "old"}); err != nil {
-		t.Fatal(err)
-	}
-	got, err := store.ReadSince(0)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(got) != 0 {
-		t.Fatalf("retention left stale entry before cap eviction: %#v", got)
-	}
-	for _, id := range []string{"one", "two", "three"} {
-		if err := store.Append(SkillRead{ID: id, SkillID: id}); err != nil {
-			t.Fatal(err)
-		}
-	}
-
-	got, err = store.ReadSince(0)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(got) != 2 || got[0].ID != "two" || got[1].ID != "three" {
-		t.Fatalf("bounded reads = %#v, want latest two entries", got)
-	}
-}
-
-func TestSkillReadStoreWindowReturnsAnEmptyCollectionWhenNoRowsMatch(t *testing.T) {
-	now := time.Date(2026, 10, 20, 12, 0, 0, 0, time.UTC)
-	store := &SkillReadStore{
-		path:      filepath.Join(t.TempDir(), "skill-reads.jsonl"),
-		now:       func() time.Time { return now },
-		retention: 365 * 24 * time.Hour,
-	}
-	if err := store.Append(SkillRead{ID: "old", At: now.Add(-24 * time.Hour).Format(time.RFC3339)}); err != nil {
-		t.Fatal(err)
-	}
-	got, err := store.ReadSince(time.Hour)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if got == nil || len(got) != 0 {
-		t.Fatalf("window reads = %#v, want non-nil empty collection", got)
-	}
-}
-
 func TestBoundedJSONLAppendPreservesMalformedRowsUntilRetentionRewrite(t *testing.T) {
 	now := time.Date(2026, 10, 20, 12, 0, 0, 0, time.UTC)
 	type row struct {

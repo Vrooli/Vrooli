@@ -203,6 +203,14 @@ func assessBugCapture(req BugCaptureRequest) (map[string]string, []string, []sto
 	} else {
 		needs = append(needs, "description (or honesty_flags=minimal-context)")
 	}
+	if observedAt := strings.TrimSpace(req.ObservedAt); observedAt != "" {
+		parsed, err := time.Parse("2006-01-02", observedAt)
+		if err != nil || parsed.Format("2006-01-02") != observedAt {
+			invalid = append(invalid, store.FieldDiagnostic{Field: "observed_at", Value: observedAt, Message: "expected a calendar date in YYYY-MM-DD format"})
+		} else {
+			accepted["observed_at"] = observedAt
+		}
+	}
 	accepted["honesty_flags"] = strings.Join(flags, ",")
 	return accepted, needs, invalid
 }
@@ -252,7 +260,7 @@ func trimmedStrings(values []string) []string {
 }
 
 func bugCaptureRaw(req BugCaptureRequest) map[string]any {
-	return map[string]any{"title": req.Title, "signal_type": req.SignalType, "severity": req.Severity, "repro": req.Repro, "expected": req.Expected, "actual": req.Actual, "description": req.Description, "context": req.Context, "honesty_flags": req.HonestyFlags, "idempotency_key": req.IdempotencyKey}
+	return map[string]any{"title": req.Title, "signal_type": req.SignalType, "severity": req.Severity, "observed_at": req.ObservedAt, "repro": req.Repro, "expected": req.Expected, "actual": req.Actual, "description": req.Description, "context": req.Context, "honesty_flags": req.HonestyFlags, "idempotency_key": req.IdempotencyKey}
 }
 
 func bugCaptureFromRaw(raw map[string]any) BugCaptureRequest {
@@ -271,6 +279,9 @@ func mergeBugCapture(old, patch BugCaptureRequest) BugCaptureRequest {
 	}
 	if strings.TrimSpace(patch.Severity) != "" {
 		old.Severity = patch.Severity
+	}
+	if strings.TrimSpace(patch.ObservedAt) != "" {
+		old.ObservedAt = patch.ObservedAt
 	}
 	if patch.Repro != nil {
 		old.Repro = patch.Repro
@@ -305,7 +316,11 @@ func renderBugReport(req BugCaptureRequest, accepted map[string]string, info sto
 	if context == nil {
 		context = map[string]string{}
 	}
-	lines := []string{"---", "severity: " + accepted["severity"], "reporter: " + yamlScalar(deriveCaller(info, scenarioQATeamID)), "reporter_team: " + scenarioQATeamID, "observed_at: " + time.Now().UTC().Format("2006-01-02"), "context:", "  scenario: " + yamlScalar(context["scenario"]), "  skill: " + yamlScalar(context["skill"]), "  member: " + yamlScalar(context["member"]), "  command: " + yamlScalar(context["command"]), "repro:"}
+	observedAt := accepted["observed_at"]
+	if observedAt == "" {
+		observedAt = time.Now().UTC().Format("2006-01-02")
+	}
+	lines := []string{"---", "severity: " + accepted["severity"], "reporter: " + yamlScalar(deriveCaller(info, scenarioQATeamID)), "reporter_team: " + scenarioQATeamID, "observed_at: " + observedAt, "context:", "  scenario: " + yamlScalar(context["scenario"]), "  skill: " + yamlScalar(context["skill"]), "  member: " + yamlScalar(context["member"]), "  command: " + yamlScalar(context["command"]), "repro:"}
 	for _, step := range trimmedStrings(req.Repro) {
 		lines = append(lines, "  - "+yamlScalar(step))
 	}

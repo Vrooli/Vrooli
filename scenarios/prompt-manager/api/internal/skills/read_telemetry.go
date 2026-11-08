@@ -16,11 +16,13 @@
 package skills
 
 import (
+	"context"
 	"net/http"
 	"strings"
 	"sync"
 	"time"
 
+	"prompt-manager/internal/skillreads"
 	"prompt-manager/internal/store"
 )
 
@@ -41,10 +43,14 @@ type usageRecorder interface {
 	RecordUsage(skillID string) (int, time.Time, error)
 }
 
+type contextualUsageRecorder interface {
+	WithContext(context.Context) MetricsService
+}
+
 // ReadRecorder records one SkillRead per resolved skill and joins it against
 // recent discovery calls by the same caller.
 type ReadRecorder struct {
-	reads *store.SkillReadStore
+	reads *skillreads.Service
 	calls *store.DiscoveryCallStore
 	usage usageRecorder
 	now   func() time.Time
@@ -58,7 +64,7 @@ type ReadRecorder struct {
 // NewReadRecorder builds a recorder. Any dependency may be nil: a nil store or
 // counter disables that half of the recording rather than failing the read.
 // Telemetry must never be the reason a skill fails to be served.
-func NewReadRecorder(reads *store.SkillReadStore, calls *store.DiscoveryCallStore, usage usageRecorder) *ReadRecorder {
+func NewReadRecorder(reads *skillreads.Service, calls *store.DiscoveryCallStore, usage usageRecorder) *ReadRecorder {
 	return &ReadRecorder{reads: reads, calls: calls, usage: usage, now: time.Now}
 }
 
@@ -80,13 +86,17 @@ func (rr *ReadRecorder) RecordWithRunID(r *http.Request, skillIDs []string, runI
 		attribution.Kind = "agent-member"
 	}
 	at := rr.now().UTC().Format(time.RFC3339)
+	usage := rr.usage
+	if scoped, ok := usage.(contextualUsageRecorder); ok {
+		usage = scoped.WithContext(r.Context())
+	}
 
 	for _, skillID := range skillIDs {
 		if skillID == "" {
 			continue
 		}
-		if rr.usage != nil {
-			_, _, _ = rr.usage.RecordUsage(skillID)
+		if usage != nil {
+			_, _, _ = usage.RecordUsage(skillID)
 		}
 		if rr.reads == nil {
 			continue
@@ -95,7 +105,7 @@ func (rr *ReadRecorder) RecordWithRunID(r *http.Request, skillIDs []string, runI
 		if strings.TrimSpace(runID) != "" {
 			agentRunID = strings.TrimSpace(runID)
 		}
-		entry := store.SkillRead{
+		entry := skillreads.Read{
 			At:         at,
 			SkillID:    skillID,
 			Caller:     attribution.Caller,
@@ -106,7 +116,7 @@ func (rr *ReadRecorder) RecordWithRunID(r *http.Request, skillIDs []string, runI
 			entry.ViaDiscovery = true
 			entry.DiscoveryCallID = callID
 		}
-		_ = rr.reads.Append(entry)
+		_ = rr.reads.WithContext(r.Context()).Append(entry)
 	}
 }
 

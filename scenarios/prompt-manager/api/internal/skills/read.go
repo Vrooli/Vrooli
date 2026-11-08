@@ -252,13 +252,13 @@ func isValidResolveMode(mode string) bool {
 }
 
 func loadIndexedSkills(store SkillStore) ([]indexedSkill, error) {
+	folders, err := loadReaderMetadata(store)
+	if err != nil {
+		return nil, err
+	}
 	var indexed []indexedSkill
 	for _, folder := range Folders {
-		skills, err := store.LoadMetadata(folder)
-		if err != nil {
-			return nil, err
-		}
-		for _, skill := range skills {
+		for _, skill := range folders[folder] {
 			filename := skill.File
 			prefix := folder + "/"
 			filename = strings.TrimPrefix(filename, prefix)
@@ -271,6 +271,21 @@ func loadIndexedSkills(store SkillStore) ([]indexedSkill, error) {
 		}
 	}
 	return indexed, nil
+}
+
+func loadReaderMetadata(source SkillStore) (map[string][]Metadata, error) {
+	if batch, ok := source.(MetadataBatchStore); ok {
+		return batch.LoadMetadataBatch(Folders)
+	}
+	folders := make(map[string][]Metadata, len(Folders))
+	for _, folder := range Folders {
+		metadata, err := source.LoadMetadata(folder)
+		if err != nil {
+			return nil, err
+		}
+		folders[folder] = metadata
+	}
+	return folders, nil
 }
 
 func resolveIdentifier(identifier, mode string, skills []indexedSkill) []indexedSkill {

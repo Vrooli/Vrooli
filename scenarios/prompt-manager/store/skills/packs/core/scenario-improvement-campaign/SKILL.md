@@ -10,9 +10,9 @@ metadata:
   icon: "list-checks"
   status: "active"
   targetToolId: "run-agent"
-  revision: 13
+  revision: 14
   createdAt: "2026-05-29T00:00:00Z"
-  updatedAt: "2026-09-30T18:00:00Z"
+  updatedAt: "2026-11-06T23:45:00Z"
   requires:
     scenarios: ["prompt-manager", "test-genie"]
     commands: ["prompt-manager skill read", "test-genie runs", "vrooli scenario test"]
@@ -31,6 +31,8 @@ Required reading:
 - `path:docs/agent-system/SCENARIO_DEVELOPMENT.md` — target, authority, and completion.
 - `path:docs/TESTING.md` — proportionate validation and durable waits.
 - `prompt-manager skill read improvement-do-and-dont` — anti-gaming rules.
+- `path:docs/agent-system/LONG_EFFORT_DESIGN.md` when the engagement runs for hours: its
+  rules on turns, compaction and closure apply to this loop.
 
 Load `<scenario>-improve` for scenario-contract work. Load `scenario-maturity-ladder`
 for an explicit maturity review. Load implementation-plan execution when working
@@ -94,13 +96,17 @@ local defect can take its scoped route without a complete readiness audit.
 
 Entry: an unmet outcome and a permitted intervention are identified.
 
-1. Select the next unmet outcome using scenario priorities and evidence validity.
+1. Select the next unmet outcome using scenario priorities and evidence validity. Size the
+   intervention to the mechanism behind the outcome (every caller, the shared owner, the old
+   path deleted), not to the smallest edit near the symptom.
 2. State the expected result and the observation that can falsify it.
 3. Check the change against the active grant.
 4. Load the method that owns the repair.
 5. Change implementation, tests, and affected documentation within scope.
 6. Run focused checks that distinguish success from the observed failure.
-7. Checkpoint the result and choose the next intervention from the new evidence.
+7. Checkpoint the result and choose the next intervention from the new evidence. Under a
+   native goal, end the turn after the checkpoint so the harness re-presents the objective
+   (`LONG_EFFORT_DESIGN.md` D4); without one, continue in the same turn.
 
 Exit: retain a supported result or a rejected hypothesis with its evidence.
 When the observation falsifies the hypothesis, revise it before another attempt.
@@ -140,6 +146,7 @@ contents. Do not change a floor or suppress a finding to manufacture success.
 | Evidence and authority | Next action |
 | --- | --- |
 | In-scope outcomes remain and useful work is possible. | Continue; do not request approval for each repair. |
+| You judge that no useful in-scope work remains before the budget ends. | Run a fresh challenger with the fixed brief in `LONG_EFFORT_DESIGN.md` §2a, the mandate and the board; continue with its top permitted route unless it returns `NONE`. |
 | A specific action needs another target, grant, or budget. | Request amendment; continue independent authorized work. |
 | Owner operation pending. | Attach to its wait and preserve identity. |
 | Budget exhausted or authority revoked. | Stop new effects and return an honest checkpoint. |
@@ -155,7 +162,7 @@ operations. A harness success signal cannot override an unmet product obligation
 | Old improve guidance requires every repair to be filed. | Apply the active mandate and repair obsolete guidance within scope rather than duplicating work. |
 | Required sensor is unavailable. | Repair it only if it is a reusable instrument (§2); otherwise record the row as unverified and continue. |
 | A provider finding appears wrong. | Test expected provider behavior and repair an authorized rule defect instead of suppressing the finding. |
-| Restart or compaction loses context. | Reload the target and owner checkpoint; do not infer prior success from a summary. |
+| Restart or compaction loses context. | Re-read the mandate or charter and the owner checkpoint before the next intervention; do not infer prior success from a summary. |
 | No valid authority can be recovered. | Preserve work and request it before further effects. |
 | An optimization changes acceptance semantics. | Preserve the target and request amendment. |
 

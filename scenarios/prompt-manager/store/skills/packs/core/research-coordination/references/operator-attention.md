@@ -22,13 +22,39 @@ For each ready item, retain a stable identity, affected topic/commission, exact 
 
 Keep actionable requests separate from agent prerequisites, future gates and superseded items. A supervisor reconciles them at launch, meaningful findings, new answers, approaching real deadlines and handoff/closure. An empty active queue does not require an invented question. State coverage; a skim of topic guides is not a complete audit of historical plans or accounts.
 
-For machine review, keep exactly one `## Actionable now` section in `ATTENTION.md`. Each ready item starts with `### STABLE-ID — concise title`; use the same ID for the corresponding owner decision where that route applies. When the section is empty, its only nonblank line is `No actionable items are recorded.` Put deferred, answered and historical items under other level-two headings. Preserve the detailed context beneath each actionable heading. At a review, supply the authorized research root and, when applicable, the exact enrolled effort reference to `program-runtime.research-supervision-read`. Its bounded index and owner-decision comparison identify items needing reconciliation; a partial board or unavailable owner means unobserved, not proven absent. The index reports only the recorded snapshot and cannot detect a need never written down. It does not send notifications, create authority, or wake a stopped supervisor.
+For machine review, keep exactly one `## Actionable now` section in `ATTENTION.md`. Each ready item starts with `### STABLE-ID — concise title`, with no prose before the first item; use the same ID for the corresponding owner decision where that route applies. When the section is empty, its only nonblank line is `No actionable items are recorded.` The `## Proposals awaiting approval` section above it follows the same rules; when empty, its only nonblank line is `No proposals are recorded.` The index reports every proposal ID, and a missing or malformed proposal section reads as unknown, not empty. Keep agent prerequisites and future gates in a concise section below. Move dated updates and answered or superseded requests verbatim to `ATTENTION-HISTORY.md` beside it, newest first. Preserve the detailed context beneath each proposal and actionable heading. At a review, supply the authorized research root and, when applicable, the exact enrolled effort reference to `program-runtime.research-supervision-read`. Its bounded index and owner-decision comparison identify items needing reconciliation; a partial board or unavailable owner means unobserved, not proven absent. The index reports only the recorded snapshot and cannot detect a need never written down. It does not send notifications, create authority, or wake a stopped supervisor.
 
 Before dispatching a fresh commission and immediately before every delivery, read each relevant ask from Notification Hub and reconcile its latest owner state. Treat answered (including `other`), dismissed, withdrawn and expired as distinct terminal or review outcomes; none remains actionable unless the operator's answer created a new, explicit request. Move terminal items out of `Actionable now`, update the triage/checkpoint and recompute the inline digest before sending. Never copy an old actionable entry into a fresh commission without this owner-state check. If the owner cannot be read, mark the state unobserved and do not describe it as pending or resolved.
 
+## Proposal packets
+
+A `propose-then-build` topic ([missions](mission.md#modes)) sends each new maintained
+capability, scenario or significant extension to the operator as a proposal, not as a question.
+A proposal is how exploration becomes building, so make it easy to say yes. Keep proposals in
+`ATTENTION.md` under exactly one `## Proposals awaiting approval` section, above `## Actionable
+now`, each headed `### PROPOSAL-<TOPIC>-<slug> — <title>`, with:
+
+| Field | Content |
+|---|---|
+| What gets built | The capability end state in two or three sentences, and where it would live. |
+| Why | The evidence from exploration: kits, prototypes, measured results and demand, with links. |
+| Magnitude | Agent-hours and owners touched, and the showcase that would prove it landed. |
+| Recommendation | Build, build smaller, or do not build, with the reason. |
+| Alternatives | What else was considered, including using an existing capability. |
+| Cost of waiting | What the topic does meanwhile; it never idles. |
+
+Deliver it as a Notification Hub decision ask with the options Approve, Approve with changes
+(the `other` answer), Decline and Defer. When the operator approves, move the packet to the
+topic's `MISSION.md` as a `build` workstream with status `approved` and the operator's answer
+quoted under Operator intent. Staff it in the next unit with an owner who works on it for hours;
+an approved proposal is implemented at the scale it was proposed. Record a decline under the
+topic's Not this or workstream table so it is not proposed again unchanged. A topic with nothing
+left to propose has an exploration lane that is not producing evidence, and needs an architect
+pass.
+
 ## Structure every operator delivery
 
-Refresh the actionable section immediately before composing a delivery. Every Notification Hub ask or informational notification includes the full absolute path to the supervisor's current action file. For this research home, use `/home/matthalloran8/.vrooli/research/ATTENTION.md`. Also include a compact inline digest of the other currently actionable items (stable ID and short title, with the needed operator action); do not make a local file path the only way to find them, because it may not open on a phone. Include only ready actionable items, not agent prerequisites, future gates, answered requests or superseded items. If the file cannot be read, include the known path, state that the other-item digest is unverified, and do not claim the queue is empty.
+Refresh the actionable section immediately before composing a delivery. Every Notification Hub ask or informational notification includes the full absolute path to the supervisor's current action file. For this research home, use `~/.vrooli/research/ATTENTION.md` expanded to its absolute path. Also include a compact inline digest of the other currently actionable items (stable ID and short title, with the needed operator action); do not make a local file path the only way to find them, because it may not open on a phone. Include only ready actionable items, not agent prerequisites, future gates, answered requests or superseded items. If the file cannot be read, include the known path, state that the other-item digest is unverified, and do not claim the queue is empty.
 
 Use a decision ask when the operator's answer can select among concrete, allowed next steps. Give at least two meaningful multiple-choice options and recommend one with a brief rationale whenever evidence supports a best choice. If the evidence does not favor an option, say that there is no recommendation and why; do not imply a false preference. Make the question self-contained: state the decision, the consequence of each option, the exact next action the answer unlocks, the genuine deadline or review point, and the action-file path plus other-item digest. Use an informational notification for status or findings that need no operator choice. Do not turn an update into a question or invent options to satisfy the ask API.
 

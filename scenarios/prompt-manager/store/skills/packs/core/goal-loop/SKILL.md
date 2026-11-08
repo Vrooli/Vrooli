@@ -9,9 +9,9 @@ metadata:
   tags: ["goal", "loop", "self-improvement", "setpoint", "heartbeat"]
   icon: "repeat"
   status: "active"
-  revision: 9
+  revision: 10
   createdAt: "2026-09-02T00:00:00Z"
-  updatedAt: "2026-09-29T16:00:00Z"
+  updatedAt: "2026-11-06T23:45:00Z"
   requires:
     scenarios: ["prompt-manager"]
     commands: ["prompt-manager skill read"]
@@ -51,6 +51,10 @@ finish line. This skill reads both and selects the posture; it writes neither.
 
 For an orchestrated long-running effort, epochs, their boundaries and their
 acceptance belong to `large-effort-orchestration`; route development there.
+Development that runs unattended for hours is a long effort under
+`path:docs/agent-system/LONG_EFFORT_DESIGN.md`: the author of its harness goal uses
+`harness-goal-authoring` §2a (stance message, kernel, charter), and the campaign ends
+turns per intervention and sends closure to the challenger.
 
 ### 2. Observe or perform authorized curation
 
