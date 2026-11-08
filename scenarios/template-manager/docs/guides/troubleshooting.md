@@ -237,8 +237,8 @@ writes to language-specific output paths: Go under
 ### Codegen ran but Go imports still fail
 
 The generated package paths follow `packages/proto/gen/go/template-manager/v1/<domain>/`.
-After a rename, run `go mod tidy` from the affected module (`api/`
-and `cli/`) so the import paths resolve.
+After a rename, run `scenario-dependency-analyzer deps reconcile --scenario template-manager --apply`
+so both modules (`api/` and `cli/`) record what the new import paths need.
 
 ## When to add a new entry here
 

@@ -149,7 +149,7 @@ func writeGeneratedScenario[C any](deps HandlerDeps[C], ctx C, prepared prepared
 	if err := verifyTemplate(prepared.destination); err != nil {
 		return err
 	}
-	return runRelocations(deps, ctx, prepared.info.Path, prepared.relocations, prepared.values, deps.Stdout(ctx))
+	return runRelocations(deps, ctx, deps.Root(ctx), deps.CommandEnv(ctx), prepared.relocations, prepared.values, deps.Stdout(ctx))
 }
 
 func validateGeneratedScenarioResult[C any](deps HandlerDeps[C], ctx C, prepared preparedGenerate) error {

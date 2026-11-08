@@ -2,7 +2,6 @@ package templateengine
 
 import (
 	"bytes"
-	"encoding/json"
 	"fmt"
 	"io/fs"
 	"os"
@@ -23,13 +22,9 @@ func copyTemplate(templateDir, destination string, values map[string]string, man
 	}
 	if base := strings.TrimSpace(manifest.BaseTemplate); base != "" {
 		baseDir := filepath.Join(filepath.Dir(templateDir), base)
-		baseData, err := os.ReadFile(filepath.Join(baseDir, "template.json"))
+		baseManifest, err := readTemplateManifest(baseDir)
 		if err != nil {
 			return fmt.Errorf("read base template %q: %w", base, err)
-		}
-		var baseManifest templatecontracts.TemplateManifest
-		if err := json.Unmarshal(baseData, &baseManifest); err != nil {
-			return fmt.Errorf("decode base template %q: %w", base, err)
 		}
 		baseManifest.CopyExcludes = append(baseManifest.CopyExcludes, manifest.BaseCopyExcludes...)
 		if err := copyTemplate(baseDir, destination, values, baseManifest); err != nil {
@@ -73,6 +68,11 @@ func walkTemplateEmissions(templateDir string, manifest templatecontracts.Templa
 	for _, reloc := range manifest.Relocations {
 		from := strings.TrimSpace(reloc.From)
 		if from == "" {
+			continue
+		}
+		// An inherited relocation's source lives in the base template; this
+		// template's own files at the same path are still emitted.
+		if reloc.SourceDir != "" && filepath.Clean(reloc.SourceDir) != filepath.Clean(templateDir) {
 			continue
 		}
 		relocSources[filepath.Clean(filepath.FromSlash(from))] = struct{}{}

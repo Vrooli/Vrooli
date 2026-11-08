@@ -156,7 +156,7 @@ file type, never invent a synonym.
 `template-manager lifecycle detemplate SCENARIO_NAME` removes all forms in one
 idempotent command (strip fenced blocks → strip marked lines → delete
 `exampleDomain.paths` → prune `jsonPrune` files → run finalizers
-`make generate` / `pnpm strings:gen` / `go mod tidy` / `gofumpt`),
+`make generate` / `pnpm strings:gen` / `scenario-dependency-analyzer deps reconcile` / `gofumpt`),
 refusing if a non-example file still imports a to-be-deleted package. The `example-domain-removed` orientation gate and
 deep template validation both fail if any `EXAMPLE-DOMAIN` marker
 survives. `START-HERE.md` points scenario authors at that command, not a

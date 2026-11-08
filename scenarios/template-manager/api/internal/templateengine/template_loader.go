@@ -54,12 +54,11 @@ func loadTemplate(root, name string) (templatecontracts.TemplateInfo, error) {
 	if !info.IsDir() {
 		return templatecontracts.TemplateInfo{}, fmt.Errorf("template path is not a directory: %s", templateDir)
 	}
-	data, err := os.ReadFile(filepath.Join(templateDir, "template.json"))
+	manifest, err := readTemplateManifest(templateDir)
 	if err != nil {
 		return templatecontracts.TemplateInfo{}, err
 	}
-	var manifest templatecontracts.TemplateManifest
-	if err := json.Unmarshal(data, &manifest); err != nil {
+	if manifest.Relocations, err = effectiveRelocations(templateDir, manifest, nil); err != nil {
 		return templatecontracts.TemplateInfo{}, err
 	}
 	if manifest.Name == "" {
@@ -180,4 +179,84 @@ func templateValidationSeedValuesForScenarioID(info templatecontracts.TemplateIn
 		values["SCENARIO_ID"] = scenarioID
 	}
 	return values
+}
+
+// readTemplateManifest decodes a template directory's template.json.
+func readTemplateManifest(templateDir string) (templatecontracts.TemplateManifest, error) {
+	var manifest templatecontracts.TemplateManifest
+	data, err := os.ReadFile(filepath.Join(templateDir, "template.json"))
+	if err != nil {
+		return manifest, err
+	}
+	if err := json.Unmarshal(data, &manifest); err != nil {
+		return manifest, err
+	}
+	return manifest, nil
+}
+
+// effectiveRelocations returns the template's own relocations followed by the
+// ones it inherits from its baseTemplate chain. A child that inherits a base
+// path must also inherit the base's relocation for it: copyTemplate never
+// copies a relocation source into the scenario, so dropping the relocation
+// would silently lose those files (for example, the proto schemas a base CLI
+// imports). A base relocation is not inherited when the child excludes its
+// source path through baseCopyExcludes, or declares its own relocation with
+// the same From (an override). Each relocation records its SourceDir.
+func effectiveRelocations(templateDir string, manifest templatecontracts.TemplateManifest, visiting map[string]bool) ([]templatecontracts.TemplateRelocation, error) {
+	templateDir = filepath.Clean(templateDir)
+	if visiting[templateDir] {
+		return nil, fmt.Errorf("template %s inherits itself through baseTemplate", templateDir)
+	}
+	out := make([]templatecontracts.TemplateRelocation, 0, len(manifest.Relocations))
+	declared := map[string]bool{}
+	for _, reloc := range manifest.Relocations {
+		if reloc.SourceDir == "" {
+			reloc.SourceDir = templateDir
+		}
+		declared[cleanTemplatePath(reloc.From)] = true
+		out = append(out, reloc)
+	}
+	base := strings.TrimSpace(manifest.BaseTemplate)
+	if base == "" {
+		return out, nil
+	}
+	baseDir := filepath.Join(filepath.Dir(templateDir), base)
+	baseManifest, err := readTemplateManifest(baseDir)
+	if err != nil {
+		return nil, fmt.Errorf("read base template %q: %w", base, err)
+	}
+	next := map[string]bool{templateDir: true}
+	for dir := range visiting {
+		next[dir] = true
+	}
+	inherited, err := effectiveRelocations(baseDir, baseManifest, next)
+	if err != nil {
+		return nil, err
+	}
+	for _, reloc := range inherited {
+		from := cleanTemplatePath(reloc.From)
+		if declared[from] || pathExcluded(from, manifest.BaseCopyExcludes) {
+			continue
+		}
+		out = append(out, reloc)
+	}
+	return out, nil
+}
+
+func cleanTemplatePath(path string) string {
+	return filepath.Clean(filepath.FromSlash(strings.TrimSpace(path)))
+}
+
+// pathExcluded reports whether path equals, or lies under, an excluded path.
+func pathExcluded(path string, excludes []string) bool {
+	for _, exclude := range excludes {
+		if strings.TrimSpace(exclude) == "" {
+			continue
+		}
+		exclude = cleanTemplatePath(exclude)
+		if path == exclude || strings.HasPrefix(path, exclude+string(filepath.Separator)) {
+			return true
+		}
+	}
+	return false
 }

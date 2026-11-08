@@ -26,21 +26,22 @@ import (
 // buf module (packages/proto/schemas/). The template's protos live
 // outside that module pre-substitution, so we copy them into a temp
 // subdirectory under schemas/ with template-validation seed values
-// applied, lint there, and clean up. The temp directory name is
-// prefixed with `.tmp-validate-` so it can never collide with a real
-// scenario schema directory.
+// applied, lint there, and clean up. root is the validation sandbox, never
+// the shared checkout: a schema directory in the shared tree is visible to
+// every concurrent generation. The temp directory name is prefixed with
+// `.tmp-validate-` so it can never collide with a real scenario schema
+// directory.
 //
 // Skipped entirely when deps.RunSubprocess is nil (mirrors the pattern
-// used by validateGeneratedScenario for `go mod tidy`).
-func validateRelocationProtoSources[C any](deps HandlerDeps[C], ctx C, info templatecontracts.TemplateInfo) []templatecontracts.TemplateValidationIssue {
+// used by validateGeneratedScenario for Go module convergence).
+func validateRelocationProtoSources[C any](deps HandlerDeps[C], ctx C, root string, info templatecontracts.TemplateInfo) []templatecontracts.TemplateValidationIssue {
 	if deps.RunSubprocess == nil {
 		return nil
 	}
 	if len(info.Manifest.Relocations) == 0 {
 		return nil
 	}
-	repoRoot := deps.Root(ctx)
-	protoPackageDir := filepath.Join(repoRoot, "packages", "proto")
+	protoPackageDir := filepath.Join(root, "packages", "proto")
 	schemasDir := filepath.Join(protoPackageDir, "schemas")
 	if _, err := os.Stat(schemasDir); err != nil {
 		// No proto module in this repo (e.g., test fixtures with a
@@ -60,7 +61,11 @@ func validateRelocationProtoSources[C any](deps HandlerDeps[C], ctx C, info temp
 		if from == "" {
 			continue
 		}
-		srcDir := filepath.Join(info.Path, filepath.FromSlash(from))
+		sourceDir := reloc.SourceDir
+		if sourceDir == "" {
+			sourceDir = info.Path
+		}
+		srcDir := filepath.Join(sourceDir, filepath.FromSlash(from))
 		if !directoryContainsProto(srcDir) {
 			continue
 		}

@@ -745,8 +745,9 @@ func verifyGeneratedResourceGoModules(destination string) error {
 		if !resourceModuleHasGoFiles(moduleDir) {
 			return nil
 		}
-		cmd := exec.Command("go", "mod", "tidy")
-		cmd.Dir = moduleDir
+		spec := goModuleConvergenceSpec(moduleDir)
+		cmd := exec.Command(spec.Name, spec.Args...)
+		cmd.Dir = spec.Dir
 		hookEnv, _ := templateHookEnv(os.Environ(), map[string]string{"GOWORK": "off"})
 		cmd.Env = envkit.Toolchain(envkit.Env(hookEnv), envkit.ToolchainOptions{})
 		output, execErr := cmd.CombinedOutput()

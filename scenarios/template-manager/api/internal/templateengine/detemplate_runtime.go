@@ -489,7 +489,7 @@ func danglingReferences(content []byte, tokens []*regexp.Regexp) []string {
 }
 
 // planDetemplateFinalizers lists the post-strip commands that refresh
-// generated artifacts and tidy/format the scenario. Each is conditional on the
+// generated artifacts and converge/format the scenario. Each is conditional on the
 // relevant surface existing, so a CLI-only or UI-only scenario only runs what
 // applies.
 func planDetemplateFinalizers(root string, item scenariomodel.Scenario, protoTouched bool) []detemplateFinalizerPlan {
@@ -535,10 +535,11 @@ func planDetemplateFinalizers(root string, item scenariomodel.Scenario, protoTou
 		})
 	}
 	if exists(item.Path, "api", "go.mod") {
+		converge := goModuleConvergenceSpec(filepath.Join(item.Path, "api"))
 		plans = append(plans, detemplateFinalizerPlan{
-			Description: "Tidy API Go module (go mod tidy)",
-			Name:        "go", Args: []string{"mod", "tidy"},
-			Dir: filepath.Join(item.Path, "api"),
+			Description: "Converge API Go module (scenario-dependency-analyzer deps reconcile)",
+			Name:        converge.Name, Args: converge.Args,
+			Dir: converge.Dir,
 		})
 		plans = append(plans, detemplateFinalizerPlan{
 			Description: "Format API Go sources (gofumpt)",
@@ -547,10 +548,11 @@ func planDetemplateFinalizers(root string, item scenariomodel.Scenario, protoTou
 		})
 	}
 	if exists(item.Path, "cli", "go.mod") {
+		converge := goModuleConvergenceSpec(filepath.Join(item.Path, "cli"))
 		plans = append(plans, detemplateFinalizerPlan{
-			Description: "Tidy CLI Go module (go mod tidy)",
-			Name:        "go", Args: []string{"mod", "tidy"},
-			Dir: filepath.Join(item.Path, "cli"),
+			Description: "Converge CLI Go module (scenario-dependency-analyzer deps reconcile)",
+			Name:        converge.Name, Args: converge.Args,
+			Dir: converge.Dir,
 		})
 		plans = append(plans, detemplateFinalizerPlan{
 			Description: "Format CLI Go sources (gofumpt)",

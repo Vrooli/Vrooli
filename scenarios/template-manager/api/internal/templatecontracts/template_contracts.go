@@ -34,6 +34,11 @@ type TemplateRelocation struct {
 	From        string         `json:"from"`
 	To          string         `json:"to"`
 	Post        []TemplateHook `json:"post,omitempty"`
+	// SourceDir is the directory of the template that declares the
+	// relocation; From is relative to it. The loader sets it, so a relocation
+	// a child inherits from its baseTemplate keeps the base's directory. Empty
+	// means the template being processed.
+	SourceDir string `json:"-"`
 }
 
 type TemplateDesign struct {
@@ -46,7 +51,9 @@ type TemplateManifest struct {
 	Name string `json:"name,omitempty"`
 	// BaseTemplate lets a focused template inherit a maintained scenario
 	// skeleton while replacing selected slots. The base is resolved beside the
-	// current template under templates/scenarios.
+	// current template under templates/scenarios. Inheriting a base path also
+	// inherits the base's relocation for it, unless BaseCopyExcludes excludes
+	// the path or the child declares a relocation with the same From.
 	BaseTemplate     string                 `json:"baseTemplate,omitempty"`
 	BaseCopyExcludes []string               `json:"baseCopyExcludes,omitempty"`
 	Version          string                 `json:"version,omitempty"`
@@ -254,6 +261,8 @@ type ResolvedRelocation struct {
 	From        string         `json:"from"` // template-relative source dir
 	To          string         `json:"to"`   // absolute path under repo root after substitution
 	Post        []TemplateHook `json:"post,omitempty"`
+	// SourceDir is the absolute directory of the template that owns From.
+	SourceDir string `json:"-"`
 }
 
 type ResolvedDesignCopy struct {

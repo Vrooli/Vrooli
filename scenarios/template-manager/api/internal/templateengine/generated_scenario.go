@@ -13,6 +13,22 @@ import (
 	templatecontracts "github.com/vrooli/vrooli/scenarios/template-manager/api/internal/templatecontracts"
 )
 
+// goModuleConvergenceSpec converges a generated Go module's go.mod and go.sum
+// through Scenario Dependency Analyzer: local replaces for exactly the in-repo
+// modules its import closure requires (adding missing ones, dropping dead ones
+// the template carried), the third-party requirements those modules pull in,
+// and any new requirement checked against approved dependencies. A template's
+// static replace list therefore cannot leave a new scenario unbuildable or
+// unconverged when shared packages gain or lose in-repo edges; a raw
+// `go mod tidy` can do neither (it never adds or drops a replace).
+func goModuleConvergenceSpec(moduleDir string) shell.Spec {
+	return shell.Spec{
+		Name: "scenario-dependency-analyzer",
+		Args: []string{"deps", "reconcile", "--module", moduleDir, "--apply"},
+		Dir:  moduleDir,
+	}
+}
+
 func validateGeneratedScenario(destination string, runCommands bool, run func(shell.Spec) error, templateName string, manifest templatecontracts.TemplateManifest) []templatecontracts.TemplateValidationIssue {
 	var issues []templatecontracts.TemplateValidationIssue
 	issues = append(issues, validateGeneratedStartDocument(destination, templateName, manifest)...)
@@ -45,11 +61,7 @@ func validateGeneratedScenario(destination string, runCommands bool, run func(sh
 			}
 		}
 		if runCommands && moduleHasGoFiles(moduleDir) {
-			if execErr := run(shell.Spec{
-				Name: "go",
-				Args: []string{"mod", "tidy"},
-				Dir:  moduleDir,
-			}); execErr != nil {
+			if execErr := run(goModuleConvergenceSpec(moduleDir)); execErr != nil {
 				issues = append(issues, templatecontracts.TemplateValidationIssue{
 					Template: templateName,
 					Path:     filepath.ToSlash(strings.TrimPrefix(path, destination+string(filepath.Separator))),

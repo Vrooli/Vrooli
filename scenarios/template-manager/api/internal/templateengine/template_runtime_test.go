@@ -565,7 +565,8 @@ func TestRunTemplateValidateDeepFailsWhenTestGenieJSONReportsFailure(t *testing.
 	if err != nil {
 		t.Fatalf("runTemplateValidate(deep) error = %v", err)
 	}
-	if len(report.Issues) != 1 {
+	// One summary issue plus one detail issue per failed phase.
+	if len(report.Issues) != 2 || report.Issues[1].Path != testGenieDeepValidationPhaseResultsPath+"/unit" {
 		t.Fatalf("issues = %#v", report.Issues)
 	}
 	if !strings.Contains(report.Issues[0].Message, "unit: go test failed") {
@@ -617,7 +618,7 @@ func TestRunTemplateValidateDeepParsesTestGenieJSONOnNonzeroExit(t *testing.T) {
 	if err != nil {
 		t.Fatalf("runTemplateValidate(deep) error = %v", err)
 	}
-	if len(report.Issues) != 1 {
+	if len(report.Issues) != 3 {
 		t.Fatalf("issues = %#v", report.Issues)
 	}
 	message := report.Issues[0].Message
@@ -625,6 +626,37 @@ func TestRunTemplateValidateDeepParsesTestGenieJSONOnNonzeroExit(t *testing.T) {
 		if !strings.Contains(message, want) {
 			t.Fatalf("issue message = %q, want %q", message, want)
 		}
+	}
+}
+
+func TestParseTestGenieJSONResultRecordsFailedPhaseFindings(t *testing.T) {
+	result := parseTestGenieJSONResult("react-vite", []byte(`{
+  "success": false,
+  "runId": "20261107-120000-abcd1234",
+  "phaseSummary": {"total": 2, "passed": 1, "failed": 1},
+  "phases": [
+    {"name": "structure", "status": "passed"},
+    {"name": "contracts", "status": "failed", "error": "1 contracts finding(s) at ERROR or BLOCKER severity",
+     "remediation": "Run contracts detail.", "logPath": "/tmp/contracts.log",
+     "phasePresentation": {"blocking_finding_codes": ["CONTRACT_DRIFT"],
+       "capabilities": [{"findings": [{"code": "CONTRACT_DRIFT", "message": "endpoint missing", "locations": ["api/main.go"]}]}]}}
+  ]
+}`))
+	issues := result.Issues()
+	if len(issues) != 2 {
+		t.Fatalf("issues = %#v", issues)
+	}
+	if !strings.Contains(issues[0].Message, "test-genie run 20261107-120000-abcd1234") {
+		t.Fatalf("summary must carry the run identity: %q", issues[0].Message)
+	}
+	detail := issues[1]
+	for _, want := range []string{"contracts:", "blocking: CONTRACT_DRIFT", "CONTRACT_DRIFT: endpoint missing @ api/main.go", "remediation: Run contracts detail.", "log: /tmp/contracts.log", "test-genie run: 20261107-120000-abcd1234"} {
+		if !strings.Contains(detail.Message, want) {
+			t.Fatalf("phase detail %q missing %q", detail.Message, want)
+		}
+	}
+	if detail.Path != testGenieDeepValidationPhaseResultsPath+"/contracts" {
+		t.Fatalf("phase detail path = %q", detail.Path)
 	}
 }
 
@@ -881,6 +913,22 @@ func TestPrepareDeepValidationWorkspaceLinksCanonicalSchemas(t *testing.T) {
 	}
 	if _, err := os.Stat(filepath.Join(schemasPath, "cli-manifest.schema.json")); err != nil {
 		t.Fatalf("shared schema unavailable from deep workspace: %v", err)
+	}
+}
+
+func TestPrepareDeepValidationWorkspaceLinksSharedMakefileIncludes(t *testing.T) {
+	repoRoot := t.TempDir()
+	writeTestFile(t, filepath.Join(repoRoot, "mk", "scenario.mk"), "lint-ui:\n")
+	tempRoot := filepath.Join(t.TempDir(), "workspace")
+
+	if err := prepareDeepValidationWorkspace(repoRoot, tempRoot); err != nil {
+		t.Fatalf("prepareDeepValidationWorkspace() error = %v", err)
+	}
+
+	// A generated Makefile at scenarios/<id>/ includes ../../mk/scenario.mk.
+	include := filepath.Join(tempRoot, "scenarios", "generated", "..", "..", "mk", "scenario.mk")
+	if _, err := os.Stat(include); err != nil {
+		t.Fatalf("generated Makefile include unavailable from deep workspace: %v", err)
 	}
 }
 
@@ -1311,7 +1359,7 @@ func TestRelocations_CopiesAndSubstitutes(t *testing.T) {
 
 	capture := &capturedSubprocess{}
 	deps := newRelocationTestDeps(repoRoot, io.Discard, io.Discard, capture)
-	if err := runRelocations(deps, struct{}{}, info.Path, resolved, values, io.Discard); err != nil {
+	if err := runRelocations(deps, struct{}{}, repoRoot, nil, resolved, values, io.Discard); err != nil {
 		t.Fatalf("runRelocations: %v", err)
 	}
 
@@ -1354,7 +1402,7 @@ func TestRelocations_VerifyDetectsUnresolvedPlaceholders(t *testing.T) {
 	}
 	capture := &capturedSubprocess{}
 	deps := newRelocationTestDeps(repoRoot, io.Discard, io.Discard, capture)
-	err = runRelocations(deps, struct{}{}, info.Path, resolved, values, io.Discard)
+	err = runRelocations(deps, struct{}{}, repoRoot, nil, resolved, values, io.Discard)
 	if err == nil {
 		t.Fatal("expected runRelocations to fail on unresolved placeholder")
 	}
@@ -1378,7 +1426,7 @@ func TestRelocations_PostCommandsRunAtRepoRoot(t *testing.T) {
 	}
 	capture := &capturedSubprocess{}
 	deps := newRelocationTestDeps(repoRoot, io.Discard, io.Discard, capture)
-	if err := runRelocations(deps, struct{}{}, info.Path, resolved, values, io.Discard); err != nil {
+	if err := runRelocations(deps, struct{}{}, repoRoot, nil, resolved, values, io.Discard); err != nil {
 		t.Fatalf("runRelocations: %v", err)
 	}
 	if len(capture.calls) != 1 {
@@ -1687,7 +1735,7 @@ func TestValidateRelocationProtoSources_DetectsProtoDir(t *testing.T) {
 	}
 	capture := &capturedSubprocess{}
 	deps := newRelocationTestDeps(repoRoot, io.Discard, io.Discard, capture)
-	issues := validateRelocationProtoSources(deps, struct{}{}, info)
+	issues := validateRelocationProtoSources(deps, struct{}{}, repoRoot, info)
 	// We don't assert on issue presence (the capture stub always returns
 	// nil from RunSubprocess so no failure is reported); we assert the
 	// lint call was made with the right shape.
@@ -1728,7 +1776,7 @@ func TestValidateRelocationProtoSources_SurfacesStdoutOnLintFailure(t *testing.T
 		return errors.New("exit status 100")
 	}
 
-	issues := validateRelocationProtoSources(deps, struct{}{}, info)
+	issues := validateRelocationProtoSources(deps, struct{}{}, repoRoot, info)
 	if len(issues) != 1 {
 		t.Fatalf("issues = %#v, want exactly 1", issues)
 	}
@@ -1750,7 +1798,7 @@ func TestValidateRelocationProtoSources_SkipsWhenSchemasDirAbsent(t *testing.T) 
 	repoRoot, info := writeRelocationTemplate(t, "reloc-noschemas", nil)
 	capture := &capturedSubprocess{}
 	deps := newRelocationTestDeps(repoRoot, io.Discard, io.Discard, capture)
-	issues := validateRelocationProtoSources(deps, struct{}{}, info)
+	issues := validateRelocationProtoSources(deps, struct{}{}, repoRoot, info)
 	if len(issues) != 0 {
 		t.Fatalf("issues = %#v, want none when schemas dir absent", issues)
 	}
@@ -1861,7 +1909,7 @@ func TestValidateRelocationProtoSources_RunsOfflineWithBSRUnreachable(t *testing
 		},
 	}
 
-	issues := validateRelocationProtoSources(deps, struct{}{}, info)
+	issues := validateRelocationProtoSources(deps, struct{}{}, repoRoot, info)
 
 	if len(issues) != 0 {
 		var msg strings.Builder
@@ -1902,7 +1950,7 @@ func TestValidateRelocationProtoSources_SkipsNonProtoRelocations(t *testing.T) {
 	}
 	capture := &capturedSubprocess{}
 	deps := newRelocationTestDeps(repoRoot, io.Discard, io.Discard, capture)
-	issues := validateRelocationProtoSources(deps, struct{}{}, info)
+	issues := validateRelocationProtoSources(deps, struct{}{}, repoRoot, info)
 	if len(issues) != 0 {
 		t.Fatalf("non-proto relocation produced issues: %#v", issues)
 	}

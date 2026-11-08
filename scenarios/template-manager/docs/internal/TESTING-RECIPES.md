@@ -1000,20 +1000,20 @@ machinery and failure-path regressions in the shared harness.
 
 | Module | Floor | Where it's enforced |
 |---|---|---|
-| UI (`ui/`) | 85% lines / branches / functions / statements | `ui/vite.config.ts` `test.coverage`; CI runs `pnpm test:coverage` |
+| UI (`ui/`) | Per-scenario `coverage.committed` floor, ratcheting toward the `coverage.minimum_percent` target | Unit Health in the unit phase ([coverage target and committed floor](/scenarios/unit-health/docs/reference/configuration.md#coverage-target-and-committed-floor)) |
 | API (`api/`) | 75% total | `.github/workflows/test.yml` `api` job |
 | CLI (`cli/`) | 75% total | `.github/workflows/test.yml` `cli` job |
 
 ### UI
 
-Configured in `vite.config.ts` at the bottom of the `test.coverage`
-block. The `coverage.exclude` list covers test scaffolding and codegen
-only — production source under `src/` is exhaustively included. The
-default position is: every new `src/` file ships with its own
-`*.test.{ts,tsx}` and lands inside the include set. If a scenario adds
-genuinely-untestable code, prefer a narrow file exclusion with a
-one-line rationale comment in `vite.config.ts` over loosening the
-thresholds.
+`vite.config.ts` `test.coverage` decides what is measured; Unit Health
+decides whether it is enough, so the config carries no `thresholds`. The
+`coverage.exclude` list covers test scaffolding and codegen only — production
+source under `src/` is exhaustively included. The default position is: every
+new `src/` file ships with its own `*.test.{ts,tsx}` and lands inside the
+include set. If a scenario adds genuinely-untestable code, prefer a narrow
+file exclusion with a one-line rationale comment in `vite.config.ts` over
+lowering the committed floor.
 
 ### Go (API + CLI)
 

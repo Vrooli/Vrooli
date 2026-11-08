@@ -409,7 +409,7 @@ deletion. It strips every fenced `EXAMPLE-DOMAIN` block (docs and code),
 deletes the example's files/dirs (including the relocated proto schema and
 its generated artifacts), prunes the example keys from the i18n locales
 and CLI manifest, then refreshes generated output (`make generate`,
-`pnpm strings:gen`, `go mod tidy`, `gofumpt`, CLI command surface):
+`pnpm strings:gen`, `scenario-dependency-analyzer deps reconcile`, `gofumpt`, CLI command surface):
 
 - [ ] Preview first: `template-manager lifecycle detemplate SCENARIO_NAME --dry-run`.
 - [ ] Remove it: `template-manager lifecycle detemplate SCENARIO_NAME`. If it refuses

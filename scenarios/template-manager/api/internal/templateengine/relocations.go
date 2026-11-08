@@ -49,22 +49,30 @@ func resolveRelocations(root string, info templatecontracts.TemplateInfo, values
 		if err != nil || strings.HasPrefix(rel, "..") {
 			return nil, fmt.Errorf("relocation %d: to %q resolves outside repo root", index, reloc.To)
 		}
+		sourceDir := reloc.SourceDir
+		if sourceDir == "" {
+			sourceDir = info.Path
+		}
 		resolved = append(resolved, templatecontracts.ResolvedRelocation{
 			Description: reloc.Description,
 			From:        cleanFrom,
 			To:          toAbs,
 			Post:        reloc.Post,
+			SourceDir:   sourceDir,
 		})
 	}
 	return resolved, nil
 }
 
-// runRelocations writes each resolved relocation to disk, substituting
+// runRelocations writes each resolved relocation to disk (reading From under
+// the relocation's SourceDir, which is the base template's directory for an
+// inherited relocation), substituting
 // {{...}} placeholders in both file content and path components, and
-// then invokes Post hooks at the repo root. It must run AFTER
+// then invokes Post hooks at root -- the repository the relocations were
+// resolved against -- with env as their base environment. It must run AFTER
 // copyTemplate so the in-tree skip-list has already filtered the
 // relocated source dirs out of the scenario destination.
-func runRelocations[C any](deps HandlerDeps[C], ctx C, templateDir string, relocations []templatecontracts.ResolvedRelocation, values map[string]string, output io.Writer) error {
+func runRelocations[C any](deps HandlerDeps[C], ctx C, root string, env []string, relocations []templatecontracts.ResolvedRelocation, values map[string]string, output io.Writer) error {
 	if len(relocations) == 0 {
 		return nil
 	}
@@ -72,7 +80,7 @@ func runRelocations[C any](deps HandlerDeps[C], ctx C, templateDir string, reloc
 		output = io.Discard
 	}
 	for _, reloc := range relocations {
-		srcDir := filepath.Join(templateDir, reloc.From)
+		srcDir := filepath.Join(reloc.SourceDir, reloc.From)
 		stat, err := os.Stat(srcDir)
 		if err != nil {
 			return fmt.Errorf("relocation source %q: %w", reloc.From, err)
@@ -92,18 +100,17 @@ func runRelocations[C any](deps HandlerDeps[C], ctx C, templateDir string, reloc
 	// declared per-relocation but executed in declaration order after every
 	// relocation has been written, so a single `make generate` covers all
 	// of them when multiple relocations are siblings.
-	repoRoot := deps.Root(ctx)
 	for _, reloc := range relocations {
 		for index, hook := range reloc.Post {
 			name, args, description, err := resolveTemplateHook(hook)
 			if err != nil {
 				return fmt.Errorf("relocation post hook %d: %w", index+1, err)
 			}
-			cwd := repoRoot
+			cwd := root
 			if hookCwd := strings.TrimSpace(hook.Cwd); hookCwd != "" && hookCwd != "." {
-				cwd = filepath.Join(repoRoot, filepath.FromSlash(hookCwd))
+				cwd = filepath.Join(root, filepath.FromSlash(hookCwd))
 			}
-			env, err := templateHookEnv(deps.CommandEnv(ctx), hook.Env)
+			hookEnv, err := templateHookEnv(env, hook.Env)
 			if err != nil {
 				return fmt.Errorf("relocation post hook %d: %w", index+1, err)
 			}
@@ -112,7 +119,7 @@ func runRelocations[C any](deps HandlerDeps[C], ctx C, templateDir string, reloc
 				Name:   name,
 				Args:   args,
 				Dir:    cwd,
-				Env:    env,
+				Env:    hookEnv,
 				Stdout: output,
 				Stderr: deps.Stderr(ctx),
 			}); err != nil {

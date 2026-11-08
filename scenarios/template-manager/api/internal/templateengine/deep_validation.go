@@ -112,7 +112,7 @@ func runDeepValidationTestGenie[C any](deps HandlerDeps[C], ctx C, templateName,
 			run.WarningSummary = result.WarningSummary
 		}
 		if result.Issue != nil && result.Success != nil && !*result.Success {
-			return []templatecontracts.TemplateValidationIssue{*result.Issue}
+			return result.Issues()
 		}
 		if issue := testGenieFailureIssueFromJSON(templateName, stdout.Bytes()); issue != nil {
 			return []templatecontracts.TemplateValidationIssue{*issue}
@@ -124,7 +124,7 @@ func runDeepValidationTestGenie[C any](deps HandlerDeps[C], ctx C, templateName,
 		run.WarningSummary = result.WarningSummary
 	}
 	if result.Issue != nil {
-		return []templatecontracts.TemplateValidationIssue{*result.Issue}
+		return result.Issues()
 	}
 	if req.WarningPolicy == templatecontracts.TemplateValidationWarningPolicyFail && result.WarningSummary.Total > 0 {
 		return []templatecontracts.TemplateValidationIssue{newTestGenieDeepValidationIssue(templateName, testGenieDeepValidationWarningsPath, fmt.Sprintf("test-genie deep validation reported %d warning(s)", run.WarningSummary.Total))}
@@ -166,7 +166,30 @@ type parsedTestGenieResult struct {
 	Success        *bool
 	WarningSummary templatecontracts.TemplateValidationWarningSummary
 	Issue          *templatecontracts.TemplateValidationIssue
+	// PhaseIssues carry one failed phase each: its error, the provider's
+	// findings, remediation, log path and the Test Genie run identity, so a
+	// validation run record explains a failure without rerunning the suite.
+	PhaseIssues []templatecontracts.TemplateValidationIssue
 }
+
+// Issues is the summary issue followed by any per-phase detail issues.
+func (r parsedTestGenieResult) Issues() []templatecontracts.TemplateValidationIssue {
+	if r.Issue == nil {
+		return nil
+	}
+	return append([]templatecontracts.TemplateValidationIssue{*r.Issue}, r.PhaseIssues...)
+}
+
+// testGeniePhaseFinding is the subset of a provider phase presentation finding
+// a template validation record needs.
+type testGeniePhaseFinding struct {
+	Code        string   `json:"code"`
+	Message     string   `json:"message"`
+	Locations   []string `json:"locations"`
+	Remediation string   `json:"remediation"`
+}
+
+const maxPhaseFindingsInIssue = 8
 
 func parseTestGenieJSONResult(templateName string, output []byte) parsedTestGenieResult {
 	type testGenieResponse struct {
@@ -179,10 +202,20 @@ func parseTestGenieJSONResult(templateName string, output []byte) parsedTestGeni
 			Failed int `json:"failed"`
 		} `json:"phaseSummary"`
 		Phases []struct {
-			Name   string `json:"name"`
-			Status string `json:"status"`
-			Error  string `json:"error,omitempty"`
+			Name              string `json:"name"`
+			Status            string `json:"status"`
+			Error             string `json:"error,omitempty"`
+			Remediation       string `json:"remediation,omitempty"`
+			LogPath           string `json:"logPath,omitempty"`
+			PhasePresentation *struct {
+				BlockingFindingCodes []string `json:"blocking_finding_codes"`
+				Capabilities         []struct {
+					Findings []testGeniePhaseFinding `json:"findings"`
+				} `json:"capabilities"`
+			} `json:"phasePresentation,omitempty"`
 		} `json:"phases"`
+		RunID          string                                             `json:"runId"`
+		ExecutionID    string                                             `json:"executionId"`
 		WarningSummary templatecontracts.TemplateValidationWarningSummary `json:"warningSummary"`
 	}
 
@@ -239,7 +272,53 @@ func parseTestGenieJSONResult(templateName string, output []byte) parsedTestGeni
 			failed = append(failed, strings.TrimSpace(msg))
 		}
 	}
+	runID := strings.TrimSpace(response.RunID)
+	if runID == "" {
+		runID = strings.TrimSpace(response.ExecutionID)
+	}
+	for _, phase := range response.Phases {
+		if phase.Status != "failed" {
+			continue
+		}
+		var detail []string
+		if text := strings.TrimSpace(phase.Error); text != "" {
+			detail = append(detail, text)
+		}
+		if presentation := phase.PhasePresentation; presentation != nil {
+			if len(presentation.BlockingFindingCodes) > 0 {
+				detail = append(detail, "blocking: "+strings.Join(presentation.BlockingFindingCodes, ", "))
+			}
+			listed := 0
+			for _, capability := range presentation.Capabilities {
+				for _, finding := range capability.Findings {
+					if listed == maxPhaseFindingsInIssue {
+						break
+					}
+					entry := finding.Code + ": " + strings.TrimSpace(finding.Message)
+					if len(finding.Locations) > 0 {
+						entry += " @ " + finding.Locations[0]
+					}
+					detail = append(detail, entry)
+					listed++
+				}
+			}
+		}
+		if text := strings.TrimSpace(phase.Remediation); text != "" {
+			detail = append(detail, "remediation: "+text)
+		}
+		if text := strings.TrimSpace(phase.LogPath); text != "" {
+			detail = append(detail, "log: "+text)
+		}
+		if runID != "" {
+			detail = append(detail, "test-genie run: "+runID)
+		}
+		result.PhaseIssues = append(result.PhaseIssues, newTestGenieDeepValidationIssue(templateName, testGenieDeepValidationPhaseResultsPath+"/"+phase.Name,
+			phase.Name+": "+truncateForIssue(strings.Join(detail, "; "), 4000)))
+	}
 	summary := fmt.Sprintf("%d passed, %d failed, %d total", response.PhaseSummary.Passed, response.PhaseSummary.Failed, response.PhaseSummary.Total)
+	if runID != "" {
+		summary += " (test-genie run " + runID + ")"
+	}
 	if len(failed) > 0 {
 		summary += "; failed phases: " + strings.Join(failed, "; ")
 	} else if strings.TrimSpace(response.Error) != "" {
@@ -284,6 +363,8 @@ func terminalTestGenieJSON(output []byte) ([]byte, error) {
 	return last, nil
 }
 
+var deepValidationSharedDirs = []string{"packages", "resources", "templates", "cmd", "internal", "mk"}
+
 func prepareDeepValidationWorkspace(repoRoot, tempRoot string) error {
 	if err := os.MkdirAll(filepath.Join(tempRoot, "scenarios"), 0o755); err != nil {
 		return err
@@ -311,7 +392,11 @@ func prepareDeepValidationWorkspace(repoRoot, tempRoot string) error {
 	} else if !os.IsNotExist(err) {
 		return err
 	}
-	for _, dir := range []string{"packages", "resources", "templates", "cmd", "internal"} {
+	// Shared source trees a generated scenario reaches by relative path: Go
+	// replace targets, resource manifests, and mk/ for the Makefile's
+	// `-include ../../mk/scenario.mk` (without it the include silently drops
+	// every shared fmt/lint/test target).
+	for _, dir := range deepValidationSharedDirs {
 		src := filepath.Join(repoRoot, dir)
 		dst := filepath.Join(tempRoot, dir)
 		if _, err := os.Stat(src); err != nil {
@@ -404,7 +489,7 @@ func generateDeepValidationScenario[C any](deps HandlerDeps[C], ctx C, info temp
 			Message:  fmt.Sprintf("resolve relocations: %v", err),
 		}}
 	}
-	if err := runRelocations(deps, ctx, info.Path, resolved, values, deps.Stderr(ctx)); err != nil {
+	if err := runRelocations(deps, ctx, deps.Root(ctx), deps.CommandEnv(ctx), resolved, values, deps.Stderr(ctx)); err != nil {
 		return nil, []templatecontracts.TemplateValidationIssue{{
 			Template: info.Name,
 			Message:  fmt.Sprintf("relocate deep validation artifacts: %v", err),

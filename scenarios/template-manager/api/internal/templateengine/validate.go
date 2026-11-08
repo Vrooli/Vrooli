@@ -80,7 +80,6 @@ func validateTemplateShallow[C any](deps HandlerDeps[C], ctx C, info templatecon
 			Message:  "template.json is missing",
 		})
 	}
-	issues = append(issues, validateRelocationProtoSources(deps, ctx, info)...)
 	tempRoot, err := os.MkdirTemp("", "vrooli-template-validate-*")
 	if err != nil {
 		return append(issues, templatecontracts.TemplateValidationIssue{
@@ -88,12 +87,30 @@ func validateTemplateShallow[C any](deps HandlerDeps[C], ctx C, info templatecon
 			Message:  fmt.Sprintf("create validation temp dir: %v", err),
 		})
 	}
+	defer removeValidationTree(tempRoot)
+	// Relocations write into the repository they resolve against, so a
+	// template that declares any relocates, regenerates and lints inside a
+	// private sandbox repository. One without relocations writes only its own
+	// destination.
+	var sandbox *validationSandbox
+	if len(info.Manifest.Relocations) > 0 {
+		sandbox, err = newValidationSandbox(deps.Root(ctx), filepath.Join(tempRoot, "repo"), deps.CommandEnv(ctx))
+		if err != nil {
+			return append(issues, templatecontracts.TemplateValidationIssue{
+				Template: info.Name,
+				Message:  fmt.Sprintf("prepare validation sandbox: %v", err),
+			})
+		}
+		issues = append(issues, validateRelocationProtoSources(deps, ctx, sandbox.Root, info)...)
+	}
 	destination := filepath.Join(tempRoot, "scenario")
-	return append(issues, validateTemplateShallowGeneratedCopy(deps, ctx, info, tempRoot, destination)...)
+	return append(issues, validateTemplateShallowGeneratedCopy(deps, ctx, info, sandbox, destination)...)
 }
 
-func validateTemplateShallowGeneratedCopy[C any](deps HandlerDeps[C], ctx C, info templatecontracts.TemplateInfo, tempRoot, destination string) []templatecontracts.TemplateValidationIssue {
-	defer os.RemoveAll(tempRoot)
+// validateTemplateShallowGeneratedCopy renders the template into destination
+// exactly as a real generation would (its paths resolve against the
+// checkout), while relocations and their hooks run in sandbox.
+func validateTemplateShallowGeneratedCopy[C any](deps HandlerDeps[C], ctx C, info templatecontracts.TemplateInfo, sandbox *validationSandbox, destination string) []templatecontracts.TemplateValidationIssue {
 	values, err := buildTemplateValues(
 		deps.Root(ctx),
 		destination,
@@ -158,22 +175,43 @@ func validateTemplateShallowGeneratedCopy[C any](deps HandlerDeps[C], ctx C, inf
 		}}
 	}
 	// Run relocations against validation seed values so generated module
-	// checks can resolve proto dependencies without leaving persistent
-	// template-validation-* artifacts in shared packages.
-	resolved, err := resolveRelocations(deps.Root(ctx), info, values)
+	// checks can resolve proto dependencies.
+	relocationRoot, relocationEnv := deps.Root(ctx), deps.CommandEnv(ctx)
+	if sandbox != nil {
+		relocationRoot, relocationEnv = sandbox.Root, sandbox.Env
+	}
+	resolved, err := resolveRelocations(relocationRoot, info, values)
 	if err != nil {
 		return []templatecontracts.TemplateValidationIssue{{
 			Template: info.Name,
 			Message:  fmt.Sprintf("resolve relocations: %v", err),
 		}}
 	}
-	defer cleanupRelocationTargets(resolved)
-	if err := runRelocations(deps, ctx, info.Path, resolved, values, deps.Stderr(ctx)); err != nil {
+	if err := runRelocations(deps, ctx, relocationRoot, relocationEnv, resolved, values, deps.Stderr(ctx)); err != nil {
 		return []templatecontracts.TemplateValidationIssue{{
 			Template: info.Name,
 			Message:  fmt.Sprintf("relocate validation artifacts: %v", err),
 		}}
 	}
+	check := func() []templatecontracts.TemplateValidationIssue {
+		return validateGeneratedModules(deps, ctx, info, destination)
+	}
+	if sandbox == nil || deps.RunSubprocess == nil {
+		return check()
+	}
+	issues, err := sandbox.lendGeneratedGo(validationContext(ctx), deps.Root(ctx), relocatedProtoOwners(sandbox.Root, resolved), check)
+	if err != nil {
+		return []templatecontracts.TemplateValidationIssue{{
+			Template: info.Name,
+			Message:  fmt.Sprintf("lend generated proto Go to module validation: %v", err),
+		}}
+	}
+	return issues
+}
+
+// validateGeneratedModules runs the generated scenario's structural and Go
+// module convergence checks.
+func validateGeneratedModules[C any](deps HandlerDeps[C], ctx C, info templatecontracts.TemplateInfo, destination string) []templatecontracts.TemplateValidationIssue {
 	return validateGeneratedScenario(destination, deps.RunSubprocess != nil, func(spec shell.Spec) error {
 		if deps.RunSubprocess == nil {
 			return nil

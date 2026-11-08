@@ -3,6 +3,7 @@ package validationrunner
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 	"time"
 
@@ -106,7 +107,7 @@ func TestServiceRecordFleetDriftResolvesOnlyFreshlyCleanScenarioDebt(t *testing.
 		}
 	}
 
-	runner := &fakeRunner{drift: DriftResult{Scenarios: []DriftScenario{
+	runner := &fakeRunner{drift: DriftResult{Success: true, Scenarios: []DriftScenario{
 		{Scenario: "fixed-app", TemplateID: "react-vite", Status: "ok"},
 		{Scenario: "still-drifted", TemplateID: "react-vite", Status: "drifted", ContentDrifted: true},
 		{Scenario: "hash-error", TemplateID: "react-vite", Status: "hash_error"},
@@ -166,7 +167,7 @@ func TestServiceRecordFleetDriftResolvesOnlyFreshlyCleanScenarioDebt(t *testing.
 
 	// A later drift observation reopens the exact debt key while retaining its
 	// original first-seen time, while a clean observation resolves uncertainty.
-	runner.drift = DriftResult{Scenarios: []DriftScenario{
+	runner.drift = DriftResult{Success: true, Scenarios: []DriftScenario{
 		{Scenario: "fixed-app", TemplateID: "react-vite", Status: "drifted", ManifestDrifted: true},
 		{Scenario: "unverifiable-app", TemplateID: "react-vite", Status: "ok"},
 	}}
@@ -383,6 +384,52 @@ func TestServiceShallowValidationHonorsRequestCancellation(t *testing.T) {
 		if run.Trigger == "manual" {
 			t.Fatalf("persisted canceled shallow run = %+v, want no terminal run", run)
 		}
+	}
+}
+
+// A scan that did not complete is not an observation: it must neither record
+// a snapshot nor resolve or open drift debt.
+func TestServiceRecordFleetDriftRefusesIncompleteScanWithoutTouchingDebt(t *testing.T) {
+	repo := newRepo(t)
+	ctx := context.Background()
+	old := time.Date(2026, 7, 8, 5, 0, 0, 0, time.UTC)
+	open := catalog.DebtEntry{Key: "drift.react-vite.fixed-app", TemplateID: "react-vite", Source: "template drift", Severity: "warning", Status: "open", Title: "old drift", Detail: "old drift", FirstSeenAt: old, LastSeenAt: old}
+	if err := repo.UpsertDebt(ctx, open); err != nil {
+		t.Fatal(err)
+	}
+	before, err := repo.ListDriftSnapshots(ctx, "react-vite")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	runner := &fakeRunner{drift: DriftResult{Success: false, Scenarios: []DriftScenario{
+		{Scenario: "fixed-app", TemplateID: "react-vite", Status: "ok"},
+	}}}
+	service := NewService(repo, runner)
+	service.now = func() time.Time { return old.Add(24 * time.Hour) }
+
+	if _, err := service.RecordFleetDrift(ctx); err == nil || !strings.Contains(err.Error(), "did not complete") {
+		t.Fatalf("RecordFleetDrift error = %v, want incomplete-scan refusal", err)
+	}
+	entries, err := repo.ListDebt(ctx, "react-vite", "open")
+	if err != nil {
+		t.Fatal(err)
+	}
+	stillOpen := false
+	for _, entry := range entries {
+		if entry.Key == open.Key {
+			stillOpen = entry.LastSeenAt.Equal(old)
+		}
+	}
+	if !stillOpen {
+		t.Fatalf("drift debt %q must stay open and unmodified after an incomplete scan", open.Key)
+	}
+	after, err := repo.ListDriftSnapshots(ctx, "react-vite")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(after) != len(before) {
+		t.Fatalf("snapshots %d -> %d; an incomplete scan must not record one", len(before), len(after))
 	}
 }
 
