@@ -19,6 +19,9 @@ in the `large-effort-orchestration` skill; the supervisor method is in
 `large-effort-supervision`. The [delivery reliability program](DELIVERY_RELIABILITY.md)
 records why the loop still needs operator rescue and tracks the workstreams that
 move its rules into tools.
+[Long effort design](LONG_EFFORT_DESIGN.md) holds the rules that keep unattended goals,
+supervisors and sub-agent trees ambitious over hours; `effort-diagnosis` investigates an
+effort that under-delivers.
 
 This is the live plan-of-record for the prompt-manager agent system. The Phase 1 canon migration has landed: the old duplicated doctrine was moved here, fully absorbed skills were deleted, and the PoR coherence test now guards against skills restating this canon.
 
@@ -130,6 +133,7 @@ For a first read, use this order:
 | `SWARM_MANAGER_WORK.md` | canon | One-hop filing, operator disposition, evidence return path, action boundaries, cross-team ownership, and inbox backpressure |
 | `REVIEW_FEEDBACK.md` | canon | Evidence review, correction requests, and return to the unified Swarm Manager work stream |
 | `SKILL_AUTHORING.md` | canon | Universal authoring quality bars |
+| `LONG_EFFORT_DESIGN.md` | canon | Design rules, effort structures (scheduler, segment owners, workers), verified Codex multi-agent settings and measured baselines for goals and sub-agent trees that run for hours |
 | `SCENARIO_DEVELOPMENT.md` | canon | One-item development mandates, artifact-first review, authority-aware improvement, and runtime qualification boundaries |
 | `FRAMEWORK_HEALTH.md` | canon | The framework's own targets: contract validity, declaration integrity, coupling visibility, canon coherence, skill conditioning quality. Each target names its sensor, deadband, and actuator. Framework health only — portfolio goals live in director-swarm's `OUTCOMES_CHARTER.md` |
 | `DEPRECATION_POLICY.md` | canon | Staleness windows, mandatory roadmap check, archive path, who-files-what |

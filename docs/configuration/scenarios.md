@@ -31,6 +31,37 @@ selection, or restarting the scenario.
 
 ## Restart and maintenance of an execution owner
 
+An accepted restart records its attempt before preflight and replacement builds,
+while the current instance keeps serving. `vrooli scenario wait <name>` attaches
+to that attempt through preparation, drain, replacement and readiness. A failed
+preflight reports the attempt's failure and leaves the current instance serving.
+Historical success never substitutes for a failed current registry read.
+Registry unavailability returns an infrastructure error rather than claiming
+the serving process is absent. A waiter pins the admitted operation ID; a later
+successor cannot substitute its outcome for the original attempt. Failed
+preparation retries retain the bounded latest linked terminal fence owner, so
+they cannot hide the exact recovery proof for an earlier failed replacement.
+The provider's current identity and complete drain proof are still required.
+
+Startup requires the standard health response's readiness to be true across
+every probed endpoint. HTTP 200 alone does not establish readiness. The start
+receipt and runtime snapshot use the same accepted observation, including its
+served build identity. Older endpoints with nonstandard 2xx responses retain
+transport-only compatibility; they cannot erase a standard endpoint's explicit
+not-ready result. The supervisor refreshes not-ready observations on renewal
+ticks, rather than keeping them for the steady-state health interval. A cancelled
+startup wait remains cancelled even when the last response was degraded.
+Partial JSON metadata does not erase explicit unhealthy or not-ready fields.
+When a build identity is expected, at least one standard health endpoint must
+verify it. Legacy HTML, empty 2xx responses and incomplete metadata can contribute
+availability evidence alongside that endpoint, but cannot prove the served image.
+This preserves the registry-backed cold-start contract: a scenario with a
+nonempty artifact identity and configured health checks must report that served
+identity before its start can succeed. Legacy-only health remains usable for
+availability-only waits and reuse of an already serving dependency; it does not
+qualify a newly launched image. Availability observations keep an empty served
+identity when the endpoint cannot establish it.
+
 ### Live API replacement fence
 
 When a restart replaces an authoritative live scenario that declares `API_PORT`,
@@ -41,6 +72,14 @@ provider, loopback-only lifecycle endpoint, and ingress accounting by default.
 An API with work that outlives its HTTP request must register owner snapshot and
 quiesce/resume hooks. Services with richer domain inventories can install their
 own provider and admission gate through the same lifecycle protocol.
+
+Recovery coordination can read `GET /api/v1/maintenance/admission?view=fence`
+on Agent Manager to observe its durable `closed` decision and revision without
+scanning executor history. This response declares `inventoryObserved=false`
+and omits drained, remaining and inventory fields. It is not a drain proof;
+standalone maintenance continues to use the full admission standing. Autoheal
+uses this bounded projection to respect closed admission without making a
+recoverable API depend on a complete historical executor inventory.
 
 This is a replacement safety check, not an authorization check. If `Status` is
 unsupported (`NotFound` or `Unimplemented`), the control plane logs a warning
@@ -53,6 +92,23 @@ risk for a restart with
 and warns that in-flight or detached owner work may be interrupted. This option
 does not permit replacing a process whose runtime identity is non-authoritative.
 Use it for a deliberate recovery when the work-loss risk is understood.
+
+A durable lifecycle fence can remain closed across a healthy API replacement.
+The owner must explicitly report `OPERATION_DURABLE` persistence and the same
+operation, token, revision and interlock. The control plane checks current
+complete, drained inventory before resuming that fence. Known process-local
+fences never cross generations; those replacements start open. This distinction
+preserves maintenance intent without leaving a healthy replacement permanently
+unable to admit work. It supplies safety evidence, not operator authority.
+
+A crashed API does not require an RPC fence from the dead process. The control
+plane may establish absence from a current-boot running instance, its declared
+API component's dead process reference, and a known unbound API port. Retained
+expired claims supply absence evidence only; they never advertise endpoints.
+A surviving declared UI does not prevent recovery. Missing references, unknown
+listener state, a live API or non-UI helper, startup, and foreign-boot evidence
+retain the normal fence requirement. This proof does not bypass teardown's
+process identity checks or authorize an operation.
 
 An ordinary operator-authorized `vrooli scenario restart agent-manager` uses a
 separate recovery-first path. The control plane stages a stale replacement before
@@ -148,17 +204,36 @@ dependencies apply their declared freshness policy to source drift, including
 Optional back-edges to an ancestor currently starting are reported as deferred;
 required cycles remain errors. Explicit target adoption still checks identity.
 
+### Service placement from bounded recovery callers
+
+On Linux, background scenario API/UI processes must transfer into their existing
+`vrooli-services.slice` service scopes before lifecycle publishes their process
+records. A coding worker or fallback operation remains bounded in its own job;
+its timeout must not kill a permanent service that it successfully restarted.
+The manager client uses the calling uid’s canonical user-bus environment, even
+when the worker carries only HOME and PATH. This changes neither the worker’s
+nor the service’s actor, authorization, or environment.
+
+If both manager adoption and native cgroup placement fail, lifecycle fails the
+launch and stops only the just-created detached process group after verifying
+that its group ID equals its root PID. It retains both placement errors and
+publishes no successful process record. It never falls back to claiming recovery
+while the daemon remains inside the caller’s kill boundary. Platforms without
+an adoption primitive retain their existing unsupported behavior; this is not
+Linux scope-survival evidence. The background daemon writes to its lifecycle
+log, rather than inheriting the caller’s stdout/stderr pipes.
+
 ### Physical executor exclusion
 
 The root maintenance controller owns the shared, read-only physical projection
 used by owner drain and fresh recovery. Invoke `vrooli runtime executor-scope
---json` with JSON on stdin (8 MiB maximum):
+--json` with JSON on stdin (32 MiB maximum):
 
 ```json
 {"executors":[{"runId":"run-id","tag":"current-tag","legacyTag":"legacy-tag","pid":123,"pgid":123,"startedAt":"2026-09-12T12:00:00Z","endedAt":"2026-09-12T13:00:00Z"}]}
 ```
 
-Requests contain 1–16,384 unique runs; timestamps are optional durable execution
+Requests contain 1–65,536 unique runs; timestamps are optional durable execution
 times. Gather the bounded owner inventory into one request instead of starting
 one host scan per row or database page. Database pagination does not limit the
 physical inventory to one page. Owners must match the root request and response
@@ -169,7 +244,14 @@ The response has `schemaVersion: "executor-scope-v1"`, `complete`, and an
 complete requested-ID coverage, `complete: true`, and explicit `absent` for
 every candidate. Exit success alone or an empty/missing result is not exclusion.
 
-The response is limited to 8 MiB and never truncates requested identities. PID
+Agent Manager hydrates only identity columns in SQL batches of at most 512 bind
+parameters, then submits one complete request. These database batches never
+become separate host scans. Retained terminal rows remain in scope; history is
+not deleted or reclassified to fit the protocol. More than 65,536 references
+still reports an explicit incomplete inventory, so this bounded capacity does
+not constitute unlimited historical retention.
+
+The response is limited to 32 MiB and never truncates requested identities. PID
 samples are capped at `min(64, floor(65536 / referenceCount))` per entry; they
 are evidence samples, not executor counts. Every `present` result retains at
 least one PID. Unknown reasons are bounded, and incomplete evidence remains

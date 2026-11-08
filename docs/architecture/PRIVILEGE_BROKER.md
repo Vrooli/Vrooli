@@ -53,6 +53,31 @@ replay bypass; each mutation is independently idempotent.
 
 ## Lifecycle and failure modes
 
+### Host memory diagnostics and service recovery
+
+`host.kernel-memory.inspect` accepts an empty subject and reads only the fixed
+Linux slab counters. It returns total allocated slab bytes, the full cache count,
+and at most 32 largest caches with object counts and reclaimability when observed.
+It never returns kernel addresses or reads a caller-selected path. The parser is
+size-bounded and rejects malformed counters and arithmetic overflow. Other
+platforms report unsupported instead of manufacturing Linux counters.
+
+`host.service.recover` accepts only `service.unit` and `service.operation`.
+The compiled service registry preserves autoheal's existing recovery units and
+adds `rsyslog`, `systemd-journald` and `systemd-oomd`. Only `start` and `restart`
+are allowed; arbitrary services, stop/enable operations, command arguments and
+mixed action subjects are rejected. The broker constructs fixed `systemctl`
+arguments and verifies the service is active after recovery. Audit events include
+the exact service and operation. No scenario or runtime CLI needs to invoke sudo.
+
+The control-plane front doors are `vrooli host kernel-memory --json` and
+`vrooli host service restart rsyslog --json`. A root-owned broker compiled before
+these capabilities needs one operator-terminal upgrade through
+`vrooli setup broker --sudo-mode=ask`. Full `vrooli setup` installs the same
+capabilities. Setup inspection distinguishes an available older broker from a
+current one with `upgrade_required` and `missing_capabilities`; it never treats
+an open socket as proof of the current capability set.
+
 ### Temporary process observation
 
 `storage.temporary-activity.observe` is a read-only storage capability. It

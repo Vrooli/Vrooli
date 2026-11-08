@@ -378,8 +378,8 @@ cover the heaviest open cluster.
 ```
 
 The dimension vocabulary's single source of truth is
-`packages/maturity-go/dimensions/dimensions.json` (consumed by Ecosystem
-Manager and described in `scenarios/swarm-manager/docs/concepts/DIMENSIONS.md`).
+`packages/maturity-go/dimensions/dimensions.json`; each dimension's description
+there is its canonical prose.
 Every value must be a member of that vocabulary; EM excludes and warns on
 undeclared/out-of-vocabulary dimensions. Non-steer skills omit the field.
 

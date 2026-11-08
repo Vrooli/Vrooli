@@ -71,6 +71,16 @@ The current shared-package baseline is:
 
 Shared packages should consume only the contract slices that are relevant to their own domain. They should not become generic pass-through wrappers for the full contract surface.
 
+`repo-contract-go.Load` reads current contract bytes on every call and reuses the
+immutable parsed result only for an exact SHA-256 content match. The process-local
+LRU retains at most eight validated documents, each with at most 256 KiB of source
+JSON; larger documents are parsed without retention. Read failures and invalid
+documents are never cached. File deletion, same-size/mtime edits, repository-root
+selection, environment expansion, and root-marker checks remain live. Public
+contract accessors return defensive copies of mutable values. The API storage
+resolver loads this authority once for all six class roots of one resolution;
+the next resolution observes the current context again.
+
 ## Structural Validation
 
 The JSON contract remains the machine-readable model. Structure Health is the

@@ -46,10 +46,12 @@ unrecorded and the launcher says so (`LeaseRecorded: false`).
 
 Every lease records what the session belongs to (`owner_kind`, `owner_ref`,
 `owner_evidence_json`, `owner_source` on `runtime_editor_leases`, schema 14).
-The launcher's lease recorder reads it from its own process at launch; a lease
-recorded before owners existed is backfilled the first time `vrooli agent list`
-or `vrooli agent reap` sees it, from the session's own environment and process
-tree. The owner is never read from a scope name.
+The launcher's lease recorder reads it from its own process at launch. A lease
+with no identified owner (empty kind, or `unknown` with no ref) is reexamined by
+`vrooli agent list` or `vrooli agent reap`, using the session's own environment
+and process tree. A discovered identity is backfilled atomically; an already
+identified launch owner is preserved, including one recorded concurrently. The
+owner is never read from a scope name.
 
 | Kind | Evidence (first match wins) | Ref | Owner is gone when |
 | --- | --- | --- | --- |
@@ -57,6 +59,7 @@ tree. The owner is never read from a scope name.
 | `desktop-app` | `VROOLI_DESKTOP_MODE=true` or `BUNDLE_ROOT`+`APP_DATA_DIR` | the app's `VROOLI_DATA` | the app runtime's pid is gone or reused (pid + start time recorded at launch); for a backfilled owner, no process outside the agent slice carries the same `VROOLI_DATA` |
 | `agent-manager-run` | run id from the `VROOLI_AGENT_IDENTITY_TOKEN` claims or an `agent-manager/runs/<uuid>` `CODEX_HOME`/`GROK_HOME`; a `<RUNNER>_AGENT_TAG` alone is evidence only | run id | Agent Manager reports the run `COMPLETE`, `FAILED` or `CANCELLED`, or answers `NOT_FOUND_RUN` |
 | `terminal` | a controlling tty, a non-web-console tmux, `SSH_TTY` or `STY` | tty or socket | never: no authority to ask |
+| `scenario-instance` | `VROOLI_RUNTIME_INSTANCE_ID` on a headless helper, after all preceding owner matches | exact runtime instance id | the selected runtime registry records that exact instance `stopped` with a stop completion timestamp |
 | `unknown` | none of the above | — | never |
 
 A web-console session id wins over the desktop markers because an operator
@@ -70,6 +73,29 @@ instance stays `unknown`. A probe that cannot answer leaves the owner
 `unknown`, and an unknown owner is never orphaned. While a web-console session
 is live its reported origin and owner are added to the recorded evidence,
 because web-console stops answering for a session once it is archived.
+
+### Headless scenario helpers
+
+A service helper can run in an agent scope after the scenario generation that
+launched it has stopped. Its inherited runtime instance ID identifies that
+generation; the currently serving generation is a different owner. The owner
+check reads the selected registry through its canonical store. A missing row,
+read failure, failed or expired status, or an incomplete stop remains unknown.
+Starting, running and stopping instances retain their helpers. A completed stop
+can make the helper orphaned and subject to the existing scope, age, freeze,
+immediate recheck and audit rules.
+
+Persistent Web Console panes, desktop apps, Agent Manager runs and operator
+terminals take precedence over this inherited marker. Their lifetime is not
+shortened by an ordinary scenario restart.
+
+A headless scenario helper can also inherit the maintainer's invocation token.
+That token alone does not make the helper part of the maintainer's Agent Manager
+run. A runner tag or per-run home identifies a managed runner; otherwise the
+runtime instance owns the helper. A prior token-only **backfill** can be refined
+when the live process still carries that same token identity and the exact
+recorded process, owner, source and evidence still match. Launch-recorded owners
+are excluded from that repair.
 
 ### The desktop-helper leak this guards
 
@@ -125,6 +151,14 @@ sums), `reapable`, `reapable_memory_bytes` and `reapable_swap_bytes`.
 The tree is the session's working directory; the scope is the containment
 scope the session was born in (`vrooli-agents.slice/vrooli-agent-<id>.scope`
 on Linux); frozen reflects the scope's `cgroup.freeze`.
+
+A launch with a cancellation context or `vrooli agent launch --timeout` keeps
+its waiting wrapper. On Linux, cancellation stops the acquired agent scope,
+reaps the exact spawned root and verifies that the scope has no remaining
+processes. If cancellation interrupted scope discovery, cleanup first resolves
+the scope under a separate bound and confirms the spawned root belongs to it.
+Unknown scope ownership or failed descendant verification is reported as
+unverified cleanup. A deadline alone is never proof that descendants stopped.
 
 ## Reaping orphaned sessions
 

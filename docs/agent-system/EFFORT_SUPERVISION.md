@@ -27,13 +27,9 @@ recurring instrument-only model or an ordinary backlog/plan-authoring prerequisi
 approved in-boundary delivery. This selection changes instructions, not native admission,
 permissions or activation. Current operator authority and team write boundaries still apply.
 
-Slice budgets and estimates are optional; large coherent outcomes are valid. Analyze actual
-friction and outcome progress, not duration or token totals alone. Slice time, token,
-work-unit and source-size estimates inform optimization only. An overrun
-does not stop execution, freeze source, require a partial return or block acceptance by
-itself. Review strategy and estimates while completing the admitted outcome and its proof.
-Actual authority/safety limits, explicit product requirements and the commissioned HARD STOP
-remain enforced. Budget classification is not a product-progress verdict.
+Slice budgets and estimates follow `large-effort-orchestration` §2: they inform optimization
+and never stop, freeze or reject admitted work. The commissioned HARD STOP and actual
+authority/safety limits remain enforced.
 
 Heartbeat admission requires the running native commission for a declared product home,
 or when the enrollment already carries a commission. An existing stopped/paused commission
@@ -51,9 +47,9 @@ matching profile, current authority and retained-owner reconciliation still bind
   acceptance rule, owner grant, secret, production system, paid service or
   unapproved dependency; those need an operator amendment.
 - Delivery execution stays with Agent Manager and its existing orchestrator.
-  New work outside the approved destination follows Swarm disposition under
-  SWARM_MANAGER_WORK.md. In-scope repair does not require a second work proposal;
-  this distinction creates no new runtime authority.
+  Delivery teams do not use Swarm Manager: new work outside the approved destination
+  is filed to its owner (`report-bug`). In-scope repair does not require a second work
+  proposal; this distinction creates no new runtime authority.
 
 ## Board and inputs
 

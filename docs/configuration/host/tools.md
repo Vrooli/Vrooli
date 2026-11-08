@@ -42,13 +42,37 @@ when that derivation would be wrong, and then supplies `privilegeReason`.
 `elevated` work remains confined to Vrooli's explicit project setup boundary.
 
 The Linux package-manager probe recognizes `apt-get`, `dnf`, `yum`, `zypper`,
-`pacman`, `apk`, and `brew` in that order. A release-backed tool that has no
-upstream `linux/arm64` artifact must declare a reason at
-`source.unsupported["linux/arm64"]`; this prevents a missing target from being
-mistaken for an installable route. `sd`, `sd-gpu`, and
-`realesrgan-ncnn-vulkan` use that explicit unsupported declaration. The
-manifest invariant test `TestReleaseManifestsDeclareLinuxArm64RouteOrUnsupportedReason`
-guards the contract.
+`pacman`, `apk`, and `brew` in that order.
+
+## Acquisition routes
+
+Every tool states how it is acquired on each platform it claims. One rule,
+`ValidateAcquisitionCoverage` in `internal/deployability/acquisition.go`, holds
+every manifest to that contract:
+
+- `platform_status` is the platform claim. A platform whose status is
+  `unsupported`, `not_applicable`, or `not_implemented` is not claimed. The
+  legacy `platforms` array is read only when a manifest has no
+  `platform_status`.
+- Each claimed OS needs a route: a checksum-verified `acquisition` target, a
+  package fallback (`defaultPackage` or `packages`), a custom `handler`, a
+  `manual` workflow, or an explicit unsupported target.
+- If a tool declares Linux acquisition targets, both `linux/amd64` and
+  `linux/arm64` must resolve to a target, an explicit unsupported reason, or a
+  Linux package fallback. A missing target must not read as an installable route.
+
+An unsupported route is an acquisition target with a reason instead of a URL,
+for example
+`{"when": {"os": "linux", "arch": "arm64"}, "unsupported": "Upstream publishes no Linux arm64 build."}`.
+Keep `platform_status` consistent with it. A pinned profile that can only run
+on one platform, such as `blender-renderer` or `ffmpeg-video`, marks the other
+host OSes `unsupported` and gives the reason.
+
+`TestToolManifestsDeclareAcquisitionRouteForEveryPlatform` in
+`internal/tools` applies the rule to every embedded manifest and lists every
+failing tool. Scenario Dependency Analyzer's portability provider calls the
+same `ValidateToolManifestAcquisitionCoverage` function at runtime. There is
+no second copy of the rule.
 
 ## Linux credential storage
 
@@ -297,6 +321,16 @@ version. The check reports this as `shadowed`. Updates, repairs and rollback ret
 the stale entry point and let the launcher rebuild it. Older `grok-<version>` files
 stay. A regular file at that path is kept until the rebuilt one verifies, and then
 removed; if the action fails, the old entry point goes back.
+
+### Codex's own updater
+
+Codex's built-in updater (the startup prompt and `codex update`) runs `npm install -g
+@openai/codex` against the system Node prefix. That needs sudo and writes a copy under
+`/usr` that the managed link shadows, so the running version never changes. Vrooli
+removes both entry points: `resources/codex/native-settings.json` sets
+`check_for_update_on_startup = false` (applied by `resource-codex ensure`), and the
+`codex` shim runs `vrooli resource update codex` for a bare `codex update`. A root-owned
+`/usr/bin/codex` left by an earlier attempt is a found copy and stays untouched.
 
 ### Effect on running sessions
 

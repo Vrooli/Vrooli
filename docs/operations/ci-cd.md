@@ -33,7 +33,7 @@ Useful focused targets:
 
 ```bash
 make hygiene
-make validate-package-governance
+make test-packages
 ```
 
 For scenario-focused validation:

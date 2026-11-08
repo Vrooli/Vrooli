@@ -347,13 +347,58 @@ enable lingering. Setup status reports service enablement separately from
 verified boot protection. An unavailable scheduler bus is reported as
 incomplete/degraded with the exact `vrooli setup` recovery command.
 
+## Watchdog executable updates
+
+The emergency-watchdog safeguard serializes executable updates with native
+recovery. It probes the staged image for the exact source stamp before replacing
+the installed image, streams a checksum-bound prior image into one retained
+slot, and persists publication intent before the rename. The installed-image
+probe must then match the admitted stamp and bytes. A lost write reply is
+reconciled from that receipt. Failed qualification restores only the exact
+retained image; an unexpected replacement or corrupt recovery copy remains
+unresolved and is reported. The same failed image is suppressed until a changed
+release is supplied.
+
+`~/.vrooli/libexec/vrooli-watchdog.update.json` holds the bounded publication
+receipt; `.previous` holds the retained executable and `.lock` serializes the
+owner. Setup inspection reports pending or corrupt receipts. The independent
+native runtime supervisor resumes already-admitted publication/restoration
+without a compiler or source-root lookup, even after the publishing caller
+dies. It cannot enroll or start another update. The owner removes only its
+abandoned regular staging files under that lock.
+
+The receipt's `verified` phase proves executable publication and its version
+canary. It does not prove that a scheduled pressure check completed, that changed
+scheduler definitions activated, or that root CLI self-update rollback works.
+The current-host Linux fixture proves caller SIGKILL followed by restoration
+through a fresh isolated native supervisor. Other native platforms remain
+unqualified for this recovery path.
+
+Completed live reports identify the producer's build, PID, process incarnation
+and validated native invocation ID. Compare those fields with the publication
+stamp and native unit's `InvocationID`, `ExecMainPID` and exit status to witness
+a scheduled run of the admitted build. Fixture reports omit producer identity.
+
 ## Runtime supervisor unit
+
+Root CLI installation stages a bounded executable snapshot before replacing the
+canonical path. The existing installer checks the Go package role, native
+OS/architecture and stamped `version --json` identity, then verifies the frozen
+checksum during publication. The root version response identifies the inspecting
+executable; supervisor status identifies the running owner. Basic version probes
+skip managed host initialization. Root install locks and shared artifact locks
+keep one admitted native file handle and reject observed leaf aliases.
+
+The streamed `.previous` root snapshot is prior canonical byte retention.
+Independent root CLI/supervisor activation and rollback still require the
+[root control-plane transaction](../../resources/deployment-contract.md#root-control-plane-activation-target).
 
 `runtime_supervisor` is a required project safeguard. Every `vrooli setup` run
 renders the supervisor's unit from the shared `platformgo.ServiceDefinition`,
 asks the native manager whether it would load it (`systemd-analyze --user
 verify`, `plutil -lint`), installs it as the invoking user, enables it,
-restarts it when the content changed, and then re-inspects to prove it active.
+restarts it when the content changed or its running executable needs adoption,
+and then re-inspects to prove it active.
 `vrooli runtime supervisor install --user` calls the same `Converge` function,
 so the CLI cannot render a unit setup would later call stale. Before 2026-09-02
 the supervisor unit was rendered once by the install command and never looked
@@ -366,7 +411,20 @@ when the validator rejects the render. The status carries evidence a
 readiness consumer reads back from `vrooli setup status --json --phase
 readiness`: `validator_verdict` (accepted, unavailable, or rejected, with the
 validator's output), `unit_state` (`ActiveState`, `UnitFileState`, `NRestarts`,
-`Result`), and the executable the unit names.
+`Result`, `MainPID`), and the executable the unit names. On Linux, inspection
+also compares the live process image's file identity through procfs with the
+installed executable. Replacing the CLI file does not update a running process.
+A mismatch, an unreadable image, or a missing active PID leaves the safeguard
+pending. `vrooli host safeguard runtime_supervisor` restarts the unit for an
+image mismatch even when its unit content is current, then verifies the adopted
+image. Evidence includes `process_image_pid` and `process_image_current`.
+
+The shared Linux convergence owner also performs this image check before
+returning success to `vrooli runtime supervisor install --user`. An active unit
+with a stale or unreadable executable, or without a valid `MainPID`, fails the
+installation result. This check proves the observed image at activation; it
+does not provide retained-artifact rollback after activation failure or caller
+loss. That recovery path remains a separate update obligation.
 
 ## Agent session containment
 
@@ -396,10 +454,40 @@ The defaults are the 2026-09-02 plan's D3 decision and have not been
 ratified by the operator.
 
 Ownership boundary: `remote_session_protection` owns the SYSTEM manager's
-units (the desktop reservation in `user-<uid>.slice.d` and `workload.slice`,
-Docker's parent) and needs `sudo vrooli setup`. This safeguard owns the USER
+units (the ancestor reservation in `user.slice.d`, the desktop reservation in
+`user-<uid>.slice.d`, and `workload.slice`, Docker's parent) and needs `sudo vrooli setup`. This safeguard owns the USER
 manager's `vrooli-agents.slice` and needs no privilege. Neither writes the
 other's paths, and the agent slice sits under the desktop reservation.
+
+
+`remote_session_protection` checks the actual cgroup v2 `memory.min` and
+`memory.low` floors on both `user.slice` and the existing UID-1000 desktop
+slice. A matching child drop-in alone does not establish effective kernel
+protection. Missing, unreadable, invalid or insufficient live values remain
+not applied. Its owner writes the ancestor definition under
+`/etc/systemd/system/user.slice.d/90-vrooli-remote-session-protection.conf`.
+When only reservation proof is missing, it changes only the owned reservation
+files and the system manager's runtime `MemoryMin`/`MemoryLow` properties;
+it does not reconfigure swap or restart Docker, graphical sessions or apps.
+Stronger known allocations are preserved. Unrecognized owned-path settings
+are refused before writes. It qualifies the system manager's unit search path,
+main fragment and all generic, dashed-prefix and exact-name drop-in layers,
+including files not loaded yet. Same-name specificity and search-path precedence
+and different-name lexicographic order are checked; persistent startup intent
+is kept separate from runtime properties. A later operator reset cannot be
+hidden by current kernel values or a new runtime override. Known stronger
+operator floors drive the runtime target. Aliases, masks, unsupported memory
+syntax, includes and conflicting resets remain unqualified rather than being
+silently rewritten. Non-memory generic defaults, such as `TasksMax`, remain
+untouched. Owned destination ancestry is checked for symlink or non-directory
+redirection before writes. Command replies and actual persistent, manager and
+kernel postconditions are checked separately, including reconciliation of a
+lost acknowledgement. These are bounded endpoint observations, not a
+transaction against arbitrary concurrent privileged configuration writers.
+These reservations protect an aggregate reclaim floor. They do not establish
+a per-service memory/swap ceiling, guarantee that each descendant remains
+available, or prevent every kernel OOM/systemd-oomd decision. File and live
+qualification also do not prove physical reboot or sustained-pressure survival.
 
 Evidence tier: Linux is host-verified (systemd 255, cgroup v2). macOS and
 Windows have no slice; the launcher applies the same ceilings per session
@@ -583,3 +671,28 @@ both the synchronous and non-blocking reload requests, although systemd
 returned a D-Bus timeout for the reload request. That timeout is itself
 reported as a reload failure and remains actionable rather than being treated
 as proof of persistence.
+
+## Recovery services under memory pressure
+
+The minimum recovery plane declared by `api-core/coreset` receives an explicit
+`ManagedOOMPreference=avoid` on each live scenario service scope. Shadow
+instances, agents, resources and other scenarios retain their ordinary policy.
+The native autoheal loop, runtime supervisor and emergency watchdog also render
+this preference on their own services. This is a Linux systemd policy; other
+platforms retain their existing containment behavior.
+
+A slice with `ManagedOOMMemoryPressure=auto` can still lose descendant services
+when an ancestor is monitored. The preference is not recursive, so setting it
+only on `vrooli-services.slice` would not protect its leaf scopes. `avoid`
+reduces selection priority but permits last-resort reclamation; it is not `omit`,
+a memory reservation, or a substitute for workload budgets. User-owned preferences
+are respected for the monitored user manager on this host (both cgroups have the
+same owner); a root-owned ancestor can ignore them. See the
+[systemd resource-control contract](https://www.freedesktop.org/software/systemd/man/latest/systemd.resource-control.html).
+
+Scenario lifecycle placement applies the scope property at launch. Setup owns
+rendering/updating the native supervisor units. A successful build does not
+change an already-running scenario scope: inspect the live properties after its
+normal lifecycle replacement. If the native manager cannot establish the
+preference, the raw cgroup fallback refuses to claim that protection and lifecycle
+logs a placement failure; service availability remains best-effort.

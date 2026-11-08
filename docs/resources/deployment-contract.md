@@ -153,6 +153,843 @@ be used by a `vendorable` item. This keeps signed releases deterministic while
 allowing host-required resources to resolve a more precise target on the
 machine where they run.
 
+A managed private or user-hosted restart acquires and verifies the declared
+artifact before stopping the serving instance. An unavailable download or
+checksum failure preserves that instance and its companions. This preparation
+step does not prove that a candidate will start or pass readiness; rollback
+after an activation failure requires a separate verified recovery path.
+
+Verified artifact staging and version reporting are implemented for cloudflared.
+Its host requirement delegates to SDA and the resource acquisition owner; the
+serving process remains unchanged. Managed-service status verifies retained
+running bytes independently of desired/staged release availability. The CLI
+reports those versions separately, so a new declaration cannot manufacture an
+outage. [CODE: internal/resources/managed_service_artifact_owner.go]
+[CODE: internal/cli/resourcecli/reports_proto.go]
+
+Frequent monitoring uses `vrooli resource status --health-only --json` (or a
+named resource with the same flag). This explicitly observes native process
+ownership, companions and the selected health probes without hashing entire
+installed runtime trees. Managed-service records report
+`artifact_verification: not_evaluated` and do not claim a newly verified staged
+version. Installed/running health does not authorize artifact activation.
+The default status path still audits current retained bytes; acquisition,
+staging, start and restart keep their full verification gates. Typed callers use
+`ResourceHealthStatuses` or `ResourceHealthStatus` for monitoring, and retain
+`ResourceStatuses` / `ResourceStatus` for current integrity inspection.
+
+#### Target: recoverable updates for stateless managed services
+
+The composed control-plane owner now implements the Linux stateless update path
+below, with Cloudflared as its first live target. Artifact staging and ordinary
+restart remain separate operations. Authenticated remote continuity, legacy
+connector retirement, enrollment and native safeguard activation rollback still
+require their outstanding delivery and qualification.
+The managed-service owner in the control plane owns the operation; scenarios
+observe and request it. Tool installation, resource launch, tunnel recovery and
+the UI must use that same artifact and operation identity.
+
+The opt-in declaration is `managed_service.update_policy` with
+`strategy: rolling-stateless` and `candidate_port` naming the single remapped
+port. Declaration validation is implemented: the initial strategy requires
+static checksum-pinned URL artifacts and only the managed-private provider.
+It initially supports single native executable files. It rejects bootstrap,
+declared data bundles/data-path templates, environment files, account switching,
+legacy process-limit declarations, target runtime environment overrides, companions,
+exclusive groups and runtime environment commands. An explicit HTTP 200
+readiness probe must address the remapped loopback port, and every launch
+variant must render that port. The resource and launch validators use the same
+port environment-name projection. These are declaration checks; live process,
+listener, readiness and recovery proofs remain required before promotion.
+Both braced and bare environment references are checked. Update contracts
+cannot override owner `RESOURCE_*` / `VROOLI_*` variables or depend on undeclared
+caller environment. Declared service variables and controlled owner paths remain
+valid inputs. Candidate config, cache, logs and credential directories must be
+isolated from serving-instance paths before any materialization.
+
+The control plane also contains a checkpoint model and resource-local file
+repository in `internal/resources/managed_update_workflow.go` and
+`managed_update_store.go`. These foundations are implemented and race-tested;
+the composed runner now connects admission, rollback qualification, candidate
+launch, primary promotion, durable serving publication and bounded restoration.
+Isolated native drills qualify those paths; the real connector and authenticated
+remote continuity still need their own witnesses.
+Checkpoints retain frozen
+launch declarations, platform-selected artifact identities, OS process
+incarnations and logical credential references. The repository admits one active
+operation, compares revisions, reconciles identical request retries, and refuses
+a new automatic attempt of a failed release. It never automatically discards
+old request keys: the initial 128-record / 16 MiB capacity fails closed until a
+governed archival policy preserves deduplication. An inspection read does not
+authorize resumption: `Confirm` durably recommits the exact reconstructed
+revision before the effect owner reconciles native identity. File and directory
+sync failures return an unconfirmed-commit error even when a rename is visible.
+Durable writes reconfirm all ancestor entries on retry, including physical
+ancestors behind directory aliases. Merely seeing a directory from an earlier
+failed acknowledgement does not establish that its entry was synced.
+A terminal receipt proves the health observation recorded at its commit time;
+it is not a claim about current health.
+
+Artifact retention now pins both frozen releases for every nonterminal update,
+even when no process is alive. An unreadable update ledger refuses pruning and
+ordinary lifecycle mutation. Ordinary start, restart, stop and uninstall, including
+the shared broker's owner path, check that ledger under the resource lifecycle
+lock. Terminal receipts release this operation fence. These interlocks are
+implemented and integrated with the composed promotion and recovery runner.
+
+An unresolved rollback reuses its recorded intent while the native identity is
+still live or unknown. A new rollback identity requires a durable retirement
+checkpoint with fresh, exact-identity evidence that the old native unit,
+processes and listener are absent. The checkpoint retains all retired identities
+and refuses reuse. The initial limit is four restoration attempts per operation;
+exhaustion leaves recovery unresolved and preserves the candidate. Caller death
+and a missing launch acknowledgement do not establish quiescence. This is the
+implemented checkpoint contract; producing its native proofs remains the effect
+owner's obligation.
+
+The platform owner now exposes a Linux-first `ServiceIntent` / `ServiceRef`
+boundary for the composed runner. It reuses bounded operations' exact native
+invocation and recursive process-tree proofs, with a distinct service namespace,
+resource ceilings and an explicitly infinite serving lifetime. Bounded jobs
+retain mandatory deadlines. Native host drills recovered the service from its
+persisted intent after dispatcher exit and forced dispatcher death, then proved
+owned descendant cleanup and unit release. A manager transport interruption
+leaves the outcome unknown; it never acknowledges cleanup. Other backends remain
+unsupported and fail closed. This primitive is connected to isolated candidate
+execution and primary promotion. A separate bounded supervisor worker now resumes
+already-admitted requests without delaying scenario lease renewal. Its blocked-owner
+heartbeat and panic-containment tests pass. On the receiving host, the supervisor
+completed the same native primary invocation after the foreground owner was
+forcibly killed while holding the resource lifecycle lock. This qualifies that
+connector operation's takeover; it does not establish authenticated remote
+session continuity.
+Role checkpoints now retain that native intent/ref and bind it to the resource
+instance, exact root PID and process incarnation. A committed native invocation
+cannot be replaced by a later observation. Receipt identity validation is pure;
+it neither asserts current ownership nor qualifies native effects on another OS.
+
+The resource owner also provides `RetainManagedServiceRollbackArtifact` for
+single-file legacy launches. It opens the actual running image, streams and
+verifies its retained checksum before publication, then reconfirms serving
+ownership. It leaves the supervisor record and process unchanged. Directory
+launch adoption remains unqualified. Retaining image bytes does not adopt a
+launch contract or admit an update; those remain separate obligations.
+
+`ObserveManagedServiceLegacyLaunch` now verifies exact argv boundaries/order,
+declared environment, the canonical credential-file path's current equality
+with logical authority, actual retained image and native resource scope. It
+reconfirms the serving process and supervisor bytes without adopting or stopping
+them. Credential comparisons stay in memory; receipts retain only logical IDs
+and optional authority-version metadata. The current connector's credential has
+no version metadata. A live-file binding is not proof of every historical input:
+the observation explicitly requires isolated rollback qualification. Operation
+credential pinning now copies the union of logical fields into private mode-0600
+files before admission, with keyed integrity over the exact contracts and bytes.
+Receipts contain metadata and an integrity digest, never secret values. Rotation,
+corruption, missing files and lost acknowledgement tests verify that an admitted
+operation cannot silently recapture a different credential. This is a runtime
+snapshot, not invented authority-version metadata.
+
+Historical primary checkpoints can retain a typed `ServiceScopeRef`, bound to
+their exact resource scope, PID/start time, native invocation and cgroup inode.
+Replay and transitions cannot replace that identity. Its Linux stop boundary
+uses a held PID handle for graceful termination and the held native cgroup
+directory for forced descendant cleanup. It never sends a stop to a possibly
+recycled PID or unit name. Native fixtures proved later-child cleanup, repeated
+stop after scope removal, refusal of stale receipts and refusal after the actual
+scope name was reused by another invocation. An adversarial stale-incarnation
+case initially reached a force-stop path; the corrected implementation refuses
+that inconsistency before signaling. Kernfs removal is checked through the held
+directory identity, including its kernel deleted-FD link.
+
+The resource-domain original-stop boundary additionally rechecks the candidate's
+current full readiness before any original stop. A real-process fixture changed
+the candidate to HTTP 503 after its durable ready checkpoint: the original stayed
+alive. Returning HTTP 200 permitted only the exact original stop and left the
+candidate healthy. The composed runner additionally keeps a qualified old-image probe live until
+promotion or restoration is verified. It publishes the exact native serving owner
+with a durable compare-and-swap before cleaning shadows; ordinary stop uses that
+owner and reconciles a lost native release acknowledgement. Isolated native drills
+now pass successful promotion, failed-candidate preservation, failed-primary
+restoration, caller death after primary dispatch, and a second sequential update
+from a published native owner. The receiving connector has also completed a real
+2025.10.0 to 2026.10.7 promotion, a receipt-backed rollback, a subsequent promotion,
+and forced-caller-loss continuation. A separate live drill stopped only the exact
+new primary during startup, with both shadows freshly healthy: the owner restored
+2026.10.7, recorded `failed_restored`, and released the failed primary, shadows and
+capacity reservation. The restored connector's actual image and four fresh edge
+connections were verified. The public resume command retains the failed outcome
+and exits nonzero. These observations do not prove authenticated remote API or
+terminal continuity, and the separate legacy root connector remains live pending
+route coverage and safe-retirement evidence.
+
+Additional isolated native fixtures cover loss of every update role after
+forced caller death and loss of the original after admission but before owner
+execution. Fresh owners respectively restored the retained image and completed
+the update, retaining exact exec fences and releasing fixture units. These are
+total-process-loss proofs on the current kernel, not host-reboot or changed
+kernel-namespace qualification.
+
+For retained process states, native release reconciliation now also binds the
+root to its recorded `boot-id:start-ticks` incarnation. Once both the exact
+native unit and cgroup are absent, a different validated boot excludes that
+old root even if the current host reuses its PID and start ticks. Same-boot
+roots, unavailable manager/boot observations and remaining native ownership
+still prevent release. Legacy callers and lost launch acknowledgements without
+a retained process state keep the conservative PID/start-ticks check. A focused
+namespace-change regression covers this decision; it is not a host reboot drill.
+
+Native-unit absence after ambiguous submission is not permission to redispatch
+an intent. The effect runner must fence future resource exec before acknowledging
+quiescence, including a late native-manager submission. Caller cancellation,
+launcher reaping and a missing unit alone do not establish that fence. The native
+service primitive does not supply a domain exec fence by itself.
+The resource-local exec-fence store is now implemented: preparation creates no
+process permission on its own; a wrapper may consume one durable claim after
+checking the admitted role, and revocation permanently blocks later claims.
+An unconfirmed claim returns no exec permission. Its native invocation remains
+retained after revocation. Duplicate JSON fields, malformed identities and owner
+path mismatches fail closed. A native host probe submitted a fixed wrapper after
+revocation and verified that its resource marker was never executed; the exact
+unit was then stopped and released.
+The fence also retains the first exact native delivery rejected after revocation,
+with its observation time. Lost audit acknowledgements never restore permission.
+This bounded owner receipt supplies rejection evidence independently of journal
+delivery; a native exit status alone does not prove which wrapper check rejected it.
+
+The production wrapper now validates the exact admitted starting role, the native
+root PID and incarnation, frozen launcher image, explicit native specification,
+private ownership token and retained resource checksum before consuming that fence.
+It executes the verified open ELF image rather than resolving its pathname again.
+Unsupported image execution has no pathname fallback. The launcher itself is
+retained from the executing control-plane image before dispatch, so a later CLI
+installation does not silently change that role's wrapper. Runtime receipts retain
+non-secret paths, the remapped port and service ceilings; they contain no token
+value or inherited caller/agent environment. The initial ceiling is 512 MiB,
+128 tasks and CPU weight 100. This is distinct from legacy process-limit metadata.
+
+Each role has separate home, config, cache, logs, state and credential directories.
+The wrapper retains operator context to locate its pinned operation inputs; the resource
+exec receives its private home, so implicit application defaults do not share
+the operator's home files.
+Preparation retries retain the same token, port and native intent. Cyclic or
+undeclared environment inputs and directory aliases within a role fail closed.
+The internal `managed-update-candidate` command advances only a request already
+admitted in the resource-local ledger. It commits before its sole dispatch edge;
+subsequent calls reconcile the same intent and never redispatch because a native
+unit or caller acknowledgement is missing. Exact image/argv/environment/native
+ownership, exclusive listener PID attribution and HTTP 200 readiness are checked
+before the candidate-ready checkpoint. Declared readiness gauges are fetched from
+that same loopback listener with bounded responses and no redirects or proxy. A
+gauge must be one finite, unlabelled sample without an explicit timestamp; missing,
+duplicate, stale and insufficient samples fail closed. Ready-state rechecks return the original
+durable receipt; promotion still needs its own fresh proof. This candidate path
+never stops or publishes a primary and is not an update-admission command.
+
+Isolated native host drills exercised the installed production CLI, verified
+resource execution and HTTP readiness at the same native root PID, rejected an
+actual delayed submission after revocation, and reached durable candidate-ready
+state through the candidate owner. Repeated candidate reconciliation retained the
+same intent and invocation. A stopped/revoked candidate did not become ready or
+redispatch. The fixtures' original serving records are synthetic: these results
+do not qualify actual connector continuity, a promotion, rollback or remote access.
+
+The supervisor now records the OS process incarnation for new launches. A live
+matching ownership token continues to identify older launches. An unavailable
+or cleared environment can use executable provenance only with the recorded,
+matching incarnation; an executable path alone cannot establish launch
+ownership, and a contradictory token is refused. Older launches with neither
+proof need explicit ownership reconciliation before lifecycle mutation.
+
+Eligibility is explicit. The service must declare a stateless update policy,
+checksum-pinned artifacts, a readiness probe and a parallel candidate probe.
+The first implementation must reject data migrations, destructive bootstrap,
+unknown serving ownership and unsupported update strategies. Ordinary resource
+restart remains available for resources without this update policy.
+
+The source contract remains `managed_service.acquisition` and
+`managed_service.artifact`. A host-tool adapter may delegate acquisition to
+Scenario Dependency Analyzer and inspect the resource-owned artifact; it must
+not keep an independent downloader, version pin or PATH-based success claim.
+Review and record new dependency sources through the governed owner.
+Archive integrity and the extracted executable/tree digest are separate proofs.
+Platform claims must match actual declared and qualified targets.
+
+Parallel launch admission reserves the peak additional RAM for three bounded
+roles (qualification, candidate and primary/restoration) through the canonical
+capacity owner. Each role has a 512 MiB native ceiling. Protected pending RAM
+reservations remain above measured resident usage, preventing concurrent strict
+placements from spending the same headroom. Strict no-reclaim decisions and
+recording share a cross-process ledger lock; external reclaim callbacks never run
+under it. No resident is evicted for an update. The ten-minute operation lease is
+renewed during preparation and supervisor reconciliation; after a lapse, a new
+row requires a fresh decision. The canonical capacity-ledger path is frozen in the budget, so a wrapper does
+not reinterpret an absent caller environment as a different ledger. The wrapper
+checks a current lease before and after its once-only exec claim; preparation
+has a bounded thirty-second wrapper budget.
+Only a terminal operation with verified cleanup releases the reservation. Ordinary
+advisory admissions retain their existing policy; this does not assert global
+memory enforcement for unrelated consumers.
+
+`resource update-check <name>` now dispatches inspection by resource owner.
+Managed-service inspection reports desired/running images, the latest operation,
+declaration support and unknown evidence without retaining images or renewing
+claims. `resource update <name> --request <id> --version <version> --sha256 <digest>`
+admits an already-staged release for the supervisor to execute. It requires a fresh
+supervisor running the same control-plane build. The supervisor records its own
+build identity and process incarnation at session claim; inspection never
+substitutes the inspecting CLI's identity, and historical missing metadata remains
+unknown. Update admission also compares the actual open running supervisor image
+with the requesting CLI image and reconfirms the process incarnation. Reuse the
+request after a lost
+response; `--action status|resume|abort --request <id>` operates on its frozen
+checkpoint even if the current source manifest is unavailable. A failed release
+requires a new request and explicit `--retry`. `--action rollback --rollback-of
+<completed-request>` selects that qualified receipt's retained previous image,
+with a new request and explicit version/checksum. It verifies the retained bytes,
+requalifies the current image as rollback, and uses the same candidate/promotion
+owner. It changes neither the desired manifest nor an old receipt. Missing,
+changed, active or unqualified rollback sources are refused. Coding-agent update
+semantics remain owned by the existing harness path.
+
+Certain rejected admissions remove their private inputs and release only their
+exact operation reservation while the lifecycle lock is held. A visible admitted
+receipt, unreadable ledger or unconfirmed ledger write retains inputs for
+reconciliation. An ordinary restart from a dead native serving record first
+retires that exact native unit and its tree before publishing a replacement.
+For enrolled Linux services, failed or unverified dedicated-scope placement
+refuses recovery success and stops the newly launched root; it cannot silently
+leave a reported recovered service dependent on its caller's scope.
+
+After terminal cleanup, the native reconciler removes operation-wide private
+credential snapshots and launcher copies. It preserves the canonical serving
+role's runtime files, ownership token and credential copies. Retired role inputs
+are removed only after fresh exact native quiescence and permanent exec-fence
+revocation; immutable operation and fence receipts remain. A durable cleanup
+receipt makes repeated passes cheap, and a later canonical-owner change permits
+retiring the formerly preserved inputs. Cleanup refuses aliases and corrupt
+receipts. Each pass rotates across at most four resources, using a short lifecycle
+lock attempt and a separate bounded cleanup budget. A native sequential-update
+and ordinary-crash-recovery fixture verifies both live-input preservation and
+eventual retired-input removal.
+
+The resource command surface must expose update inspection, execution,
+rollback and reconciliation. Extend the existing `resource update` and
+`resource update-check` dispatch by owner type. Keep coding-agent update
+semantics distinct from managed-service update semantics. Inspection must
+report desired, running and retained release identities, current operation,
+eligibility and any unknown evidence. It must not mutate the serving process.
+
+Before the first serving mutation, persist an operation receipt, the exact
+source revision, and a credential-free rollback contract for the verified
+current instance. Receipts store logical credential references and templates;
+they never contain resolved credentials or a copied process environment. Private
+operation files pin required runtime secrets independently of receipt metadata.
+Retain the previous
+artifact while rollback remains possible. Serialize operations with the
+existing resource lifecycle and artifact locks.
+
+Start a separately owned candidate using the verified new artifact and an
+isolated loopback metrics/readiness port. For cloudflared, use the canonical
+tunnel credential reference and verify the candidate's own fresh edge
+connections. Both `/ready` HTTP 200 and a current
+`cloudflared_tunnel_ha_connections` sample meeting the declared minimum of four
+are required for the exact role. The
+[2026.10.7 readiness implementation](https://github.com/cloudflare/cloudflared/blob/2026.10.7/metrics/readiness.go)
+uses its active connection tracker; the same logic exists in the retained
+2025.10.0 release. The gauge alone is insufficient: Cloudflare has documented a
+[failed-dial accounting bug](https://github.com/cloudflare/cloudflared/issues/1633).
+A listener or a Cloudflare Access redirect alone is insufficient.
+The old primary remains serving until this candidate is verified.
+
+Persist each transition before its destructive effect. Replace the primary
+through the managed-service owner and verify its executable identity, owned
+listener, readiness and fresh edge connections. Keep the candidate serving
+until the new primary passes those checks. Stop the candidate only after
+successful promotion or verified restoration of the previous primary.
+
+If activation fails, restore the retained primary contract through the same
+owner. Record the failed candidate separately from successful restoration;
+rollback success is not update success. Prevent automatic retries of that same
+failed release until an explicit retry policy or operator action admits them.
+An interrupted operation must reconcile its exact primary and candidate
+identities before another lifecycle action proceeds. Unknown process or
+receipt state must preserve recovery material and report the uncertainty.
+The native supervisor must recover an interrupted operation after its caller
+dies; an in-memory goroutine is not the recovery owner.
+
+```mermaid
+sequenceDiagram
+    participant Operator
+    participant Owner as Resource update owner
+    participant Store as Artifact and operation stores
+    participant Candidate as Candidate connector
+    participant Primary as Primary connector
+    Operator->>Owner: Request update of pinned release
+    Owner->>Store: Verify source, stage artifact, retain rollback contract
+    Owner->>Candidate: Start with isolated readiness port
+    Candidate-->>Owner: Owned readiness and fresh edge connections
+    Owner->>Store: Persist promotion intent
+    Owner->>Primary: Replace through managed lifecycle
+    Primary-->>Owner: Verified new runtime or activation failure
+    alt New primary verified
+        Owner->>Store: Record promotion success
+        Owner->>Candidate: Stop exact candidate
+    else Activation failed
+        Owner->>Primary: Restore retained contract
+        Primary-->>Owner: Verify restored serving state
+        Owner->>Store: Record failed update and restoration outcome
+        Owner->>Candidate: Stop only after primary restoration
+    end
+```
+
+Legacy system cloudflared services require explicit ownership reconciliation.
+Do not stop one merely because a managed connector is ready. Establish the
+tunnel identity and routes it serves, verify replacement coverage, then retire
+it through the supported host-service owner while retaining rollback material.
+Unresolved identity remains an unmet migration outcome.
+
+Verification must include corrupt or unavailable artifacts, wrong executable
+identity, readiness failure, failed restoration, caller death at each persisted
+transition, repeated reconciliation and duplicate update requests. Live
+qualification must witness the receiving client version and fresh connectivity,
+plus authenticated remote API/terminal continuity. Source tests or public
+login redirects do not replace those live witnesses. Scope host-verified claims
+to tested platforms; retain unqualified platform cases explicitly.
+
+Automatic updating is policy-controlled. Only explicitly enrolled services may
+use it, with bounded retries, retained receipts and a verified rollback policy.
+Update orchestration never creates operator authority or bypasses a human-only
+approval. Native safeguard refreshes retain their existing control-plane owners
+and must verify the running image after installation.
+
+The watchdog executable owner now has a bounded current/prior pair, strict
+durable publication receipts, staged and installed-image canaries, failed-image
+suppression and independent native-supervisor recovery after caller loss.
+This executable-publication recovery does not substitute for scheduler-definition
+activation rollback or root CLI/supervisor self-update rollback. A completed
+scheduled watchdog report separately carries its producer build and native
+invocation so activation witnesses can be checked against the native unit.
+See [Watchdog executable updates](../configuration/host/safeguards.md#watchdog-executable-updates).
+
+##### Root control-plane activation target
+
+Root CLI/API freshness and the governed local builder use the same canonical
+target list: the selected command, `internal/`, shared Go packages and root
+module manifests. Go sources and `go.mod`/`go.sum` changes invalidate the stamp,
+including shared launcher changes that previously escaped the root source list.
+This is conservative source freshness, separate from the narrower persistence
+contract. It does not establish adoption by an already running process or a
+complete inventory of every embedded non-Go asset.
+
+Root CLI preparation now freezes a bounded candidate, verifies its Go package
+role and native target, requires its embedded build and runtime-home identities through a version
+canary, and publishes only the checksum-bound bytes. Basic version queries run
+before host initialization. Prior canonical bytes are retained with a streamed
+durable write. Preparation does not complete the native activation transaction.
+
+`internal/coreactivation` now owns the bounded, strict operation receipt,
+initialization witness, once-only native submission and worker claim, durable
+revocation, restoration intent and failed-release suppression. Recovery retries
+the same idempotent restoration after a lost acknowledgement. Missing previously
+admitted state is an explicit conflict. Native fencing verifies the live root's
+process incarnation, native invocation and recursive tree membership; recovery
+requires a durable revoke and native quiescence before restoring artifacts.
+Native definitions must retain the store location resolved at admission, so
+opening the recovery store does not require the source repository.
+
+Frozen input sets bind the prior/candidate image and unit definition, retained
+worker image and canonical target layout by digest. Publication rejects changed
+inputs or unexpected installed image/definition bytes. Cleanup is bounded to
+reserved regular files, confirms directory durability even after a lost removal
+acknowledgement, and preserves unexpected content for owner inspection. The
+native worker verifies its actual running image through the process-image owner.
+Ordinary installer, self-rebuilder and unit convergence paths check the operation
+fence under the shared binary install lock; convergence lock waits honor context
+cancellation. A failed fallback copy now stops self-rebuild publication.
+The shared installation-ownership record also serializes its complete
+read/merge/write transaction across processes and confirms directory durability;
+independent binary/unit locks do not protect that shared inventory.
+
+The opt-in current-host transaction fixture exercises caller SIGKILL, native
+deadline termination of a lock-holding worker and its descendant, source
+unavailability, fresh-process restoration, repeated reconciliation and late
+worker rejection. It executes a retained worker and restores an isolated image
+and unit definition, then retires their private inputs. This does not qualify
+activation of the serving CLI or persistent-state rollback compatibility by itself.
+Admission derives persistent-state compatibility from both frozen actual root
+executables before native qualification or an operation commit, and rechecks
+cancellation and its deadline afterwards. Equal hashes supplied in a proposed
+record cannot substitute for executable evidence. Layout identity (the
+runtime-home contract) is checked separately.
+
+The bounded coding-agent worker declares its broker and admission records and
+its versioned execution sidecar as the `coding-agent-recovery` persistence
+owner. Deployment of the complete native coding-agent change is tracked
+separately from its isolated native execution qualification.
+
+###### Persistent-state contract
+
+`persistent_state_contract_sha256` (`vrooli version --json`) answers one
+question: can the serving image read everything the candidate writes before
+the activation verifies? It describes what is stored
+([`internal/statecontract`](../../internal/statecontract/doc.go)):
+
+- Every persistence owner on the native root path declares its stored
+  envelopes and format facts in `persistent_state.go` (`PersistentState()`);
+  [`internal/app/runtime/statecontract.go`](../../internal/app/runtime/statecontract.go)
+  lists the owners. Facts are named format-version constants, SQL DDL, witness
+  bytes and samples of derived stored identities (timestamp layout, process
+  incarnation, credential MAC framing, artifact cache keys).
+- The executable reads the recursive compiled JSON shape of every envelope:
+  each exported field's stored JSON key and `json` options, its type,
+  promotion and field order (several envelopes are self-hashed by
+  re-encoding). Go field names behind unchanged tags, unexported and
+  `json:"-"` fields do not participate.
+- Governed builders stamp, per stored named type, its enum constants and, for
+  a custom JSON/text codec, its type declaration, its encoder source and the
+  transitive same-package closure (constants, variables, types, functions and
+  named methods) its codec methods reach (`buildinfo.PersistentStateBuildFlag`).
+  A stored type from a checksum-pinned dependency module is bound by its
+  version and sum. An unstamped executable, an uncovered stored enum or codec
+  type, or a codec type missing from the stamp is unqualified.
+- Whole-source owners hash their complete source: the activation store
+  (`internal/coreactivation`), the watchdog (`internal/safeguards/emergency-watchdog`),
+  coding-agent recovery (`internal/recovery`), the platform native
+  operation, owned-service and containment identities, binaryfetch
+  (`acquisition`: the acquisition declarations resources stores and the
+  artifact identity digests the prior recomputes) and the resource storage
+  root layout (`resource-storage`). They are the rollback
+  machinery itself or keep their format in inline literals behind strict
+  readers, and are rarely edited, so any edit there needs a rebaseline. The
+  credential store (`secure-store`) is hybrid: its sealing, key-wrapping and
+  unlock sources and the shared `internal/credentialpolicy` envelope are
+  hashed whole, because their cryptographic framing lives in function bodies;
+  the rest of `internal/securestore` is precise.
+- The two SQLite owners (runtime registry, capacity) store untyped status,
+  kind and reason strings that an older binary queries by value, so every
+  package-level constant of their packages participates
+  (`statecontract.ConstantSources`).
+- Every other owner's package-level untyped string constant is classified in
+  `internal/statecontract/notstored.go` as stored (`StoredConstants`: a status,
+  kind, file name or format version) or not stored (`NotStoredConstants`: an
+  environment name, a command verb, a message). Stored constants participate
+  by name and value (`statecontract.PreciseSources`). An unclassified constant
+  is treated as stored when the executable is built, and fails its package's
+  `TestPersistentStateSourceChecks`, so it is classified during development.
+  `NotStoredConstants` also lists tunables of the SQLite owners (for example
+  `DemandAuditRetention`), which are otherwise stamped wholesale.
+- The time layouts each owner formats and parses participate as a set, so a
+  changed stored timestamp layout changes the contract. One field switching
+  to another layout the package already uses elsewhere is not seen (a
+  documented residual).
+- The Go release (major.minor) participates; patch releases do not.
+
+The builder also checks the owners' sources when it stamps, and any failure
+makes the executable ineligible for automatic activation, with the reason in
+its refusal: a format version field (json key `schema_version`,
+`format_version`, `*_schema_version`, or an integer `*version`) written or
+compared with anything but a named package constant; a version constant that
+is not a fact of its owner; a stored vocabulary value written as a string
+literal; and a custom codec that calls into another module package the stamp
+cannot follow.
+
+A stored vocabulary value is a word a reader branches on. In an owner package,
+a field is vocabulary when it is declared with one of the package's own
+string types or the package compares or switches on it against a constant or
+a string literal; the compared words are what a reader accepts, wherever the
+stored value comes from (this code, operator input, manifest data). A string
+literal assigned to such a field (composite literal or assignment), compared
+with it or used as its switch case is a violation (directly, or through a
+local variable assigned that literal), and so is a literal passed where
+`statecontract.StoredValueCalls` names a stored argument (process-ref
+statuses, demand-audit operations). It must be a named constant of the owner,
+which constant stamping covers. The builder records each candidate as
+`importpath.Type.Field@file:line`; the executable keeps those whose field is a
+string field of a type reachable from a declared envelope, so a literal on a
+type no owner stores, or on a reason or message field nothing branches on,
+is not one. The builder resolves a field's receiver from composite literals,
+receivers, parameters, declared variables, range variables, field chains,
+index expressions and the package's own call results; a field of another
+package's type carries that package's vocabulary and is skipped. Each owner
+package runs these checks in its own `TestPersistentStateSourceChecks`, and
+`TestStoredVocabularyIsNeverWrittenAsALiteral` (`internal/app/runtime`) holds
+composite literals of owner types anywhere in the repository to the same rule.
+
+For the frequently edited owners, function bodies, comments, tests and
+classified constants do not participate, so a behaviour-only change keeps the
+contract and activates through `make install` with automatic rollback. Tests
+keep the inventory honest: every struct with a format-version JSON key in the
+native supervisor's or watchdog's import closure (and any `*version*` key in
+an owner package) must be a declared envelope or carry a stated exemption;
+every package on that path that calls a durable writer (the repository's
+write helpers, whole-file writes, files created or opened for writing or
+appending, SQL statements) must be an owner or a listed, reasoned writer; and
+every `NotStoredConstants` entry must name an existing constant. The listed
+writers say why a restored prior never reads what they write during the
+window: the privilege broker's protocol belongs to its separately installed
+daemon, credential recovery bundles are read only by explicit operator
+recovery commands, removal receipts are never read back by a binary,
+operator-session enrollment is already a cross-version contract with every
+scenario API binary, and the rest write host configuration, caches,
+temporary files or build outputs. Artifact leases and the credential store are
+owners because reclamation and unattended unlock read them in other processes.
+
+The resource manifest (`resource-manifest`) and the scenario CLI contract
+(`scenario-contract`) are precise owners: resources stores their declarations,
+so the words their validators accept are stored vocabulary.
+
+Documented residuals: a value computed at run time (a function result or a
+parameter, not a literal) written into a vocabulary field; a field whose
+readers all reach it through receivers the builder cannot resolve; values
+formatted into SQL text; and event types appended to the registry's
+`runtime_events` log that nothing branches on (the demand audit, the only
+reader by type, uses a stamped constant; lifecycle and ports name theirs as
+registry constants too). A change of that kind must bump a declared format
+version.
+
+When the contracts differ, admission names each change by owner and stored
+type and field, by fact, or as a whole-source edit.
+`vrooli version --state-manifest` prints an executable's per-owner manifest
+and the coordinator diffs both images' manifests. The opt-in drill
+`VROOLI_STATE_CONTRACT_BUILD_PROBE=1 go test ./internal/app/runtime -run TestActualBuildsAdmit`
+builds actual root CLI variants and checks the admitted and refused outcomes
+through admission.
+
+The companion binaries (`vrooli-api`, `vrooli-agent-launcher`,
+`vrooli-policy-runner`) write through the same owners but have no activation
+transaction. `make install` installs them only after the root CLI activates,
+so a refused or rolled-back root never leaves them newer than the serving
+image.
+
+###### Operator rebaseline
+
+A candidate that changes the persistent-state contract cannot use automatic
+rollback. `make install` refuses it, lists the owner-level changes and says
+that the operator must decide: the operator runs `make rebaseline`; an agent
+must not, and reports the refusal instead. `make rebaseline` runs
+`vrooli runtime update rebaseline` from the same checkout and installs the
+companion binaries only after it succeeds. The transition:
+
+1. builds the watchdog from the same checkout and qualifies it against the
+   candidate (`ProbeWorkerIdentity`), qualifies the pair from the actual
+   images (same runtime-home layout; only the state contract differs), shows
+   the changes and asks for confirmation;
+2. retains the serving root image, watchdog image and supervisor unit with
+   checksums in `~/.vrooli/state/root-rebaseline/<id>/` (`receipt.json` is
+   audit evidence only), outside the rotating fallback slots;
+3. pauses automatic root updates when they are enabled now, and records the
+   exact enrollment record its pause wrote;
+4. installs the candidate through the atomic root installer;
+5. publishes exactly the watchdog image it qualified, bound by digest, through
+   the watchdog owner's receipts and canaries, without re-reading the live
+   tree;
+6. converges and restarts the native supervisor onto the candidate, unless it
+   already serves it with a fresh lease;
+7. verifies the serving image and a fresh, fleet-renewed supervisor lease;
+8. restores enrollment while a rebaseline's pause is still in effect;
+   enrollment qualification rechecks the watchdog/root contract pairing, the
+   recovery timer and native readiness.
+
+No file grants anything on a rerun. Every run re-derives its state from the
+installed images: while the candidate is not serving, a run is a fresh,
+fully qualified and confirmed transition; once it serves, a rerun only
+finishes steps 5-8, each idempotent and verified against live state. A pause
+stays in effect only while the enrollment record is exactly the one it wrote;
+if the operator enables or disables enrollment afterwards, that decision
+stands and the marker is cleared. While a pause is in effect, a rebuilt
+candidate with the installed build's contract continues the transition
+without asking again, and the next successful rebaseline restores
+enrollment. Every stop and refusal reports the live enrollment state and never
+promises automatic rollback while enrollment is paused. The run uses the
+checkout it is started from: the candidate must be inside it, and a
+`VROOLI_SOURCE_ROOT`/`VROOLI_ROOT` override that names another checkout is
+refused.
+
+It refuses a candidate that keeps the contract (use `make install`), a
+runtime-home layout change, an unstamped image, a watchdog that does not pair
+with the candidate, and a host with an unresolved activation. Agents are kept
+out in layers: the agent policy runtime treats `make rebaseline`,
+`vrooli runtime update rebaseline|enroll|disable|retry` and the watchdog's
+`--enroll-core-updates`, `--disable-core-updates` and `--retry-core-update`
+modes as operator-only, wherever the binary lives
+(Claude Code's PreToolUse hook asks the person at the keyboard, or denies in
+an unattended session; Codex hook enforcement is a pending operator decision,
+see [the agent policy runtime](../architecture/agent-policy-runtime.md#operator-only-commands)),
+and those commands, the watchdog modes included, refuse inside a coding-agent
+session (`agentscope.SessionEvidence`): the canonical caller detector
+(`cliutil.DetectCallerKind`: launcher identity, sandbox and per-harness
+markers) or a launcher-minted `vrooli-agent-*.scope` in its cgroup path. The surrounding `vrooli-agents.slice` is not evidence, because
+web-console operator panes live there too. These layers and the terminal prompt stop agents that follow
+the rules; they are not an authority boundary against a same-user process. A
+verified-human decision gate needs a control-plane-readable notification-hub
+decision, which does not exist yet; its specification is filed as Scenario QA
+bug `knw-1794105623434595536`. It has no automatic restoration, because the prior may
+not read what the candidate wrote; the retained images and the owner tools
+below support a reviewed manual return.
+
+The first activation after this contract format was introduced is always a
+rebaseline: an image built before it reports only a whole-source digest, so
+every candidate differs from it once. The same command covers it; step 5
+republishes the watchdog, which must carry the new contract because the
+coordinator requires the watchdog's contract to equal the serving root's.
+Because the activation machinery and native identities are hashed whole, an
+edit there also needs a rebaseline.
+
+An older terminal activation record remains historical audit evidence after a
+rebaseline. Identify the new baseline through the installed root and watchdog
+identities, the loaded supervisor image and its fresh lease; do not relabel the
+older record as a new activation.
+
+A retained maintenance installer must be compiled before source loss with the
+canonical `RuntimeHomeBuildFlag`; its entrypoint pins that snapshot before file
+mutation. `vrooli-atomic-install SOURCE DEST EXPECTED_CURRENT_SHA256` compares the
+current candidate or already-restored prior bytes under the same canonical
+binary-install lock. An unknown replacement is refused before fallback rotation.
+The guarded root path requires automatic enrollment to be disabled; it does not
+bypass enrolled activation or root executable-role qualification.
+
+`emergencywatchdog.RestoreRetainedBaseline` is the focused watchdog owner API for
+an explicitly reviewed retained baseline. It binds the exact current image,
+whole verified receipt, retained image/canary, and all four watchdog/recovery
+native definitions. It validates the retained definitions and refuses foreign
+bytes or native overrides before publication. Known owned inactive/disabled
+timers may be repaired; completion requires both timers enabled and active.
+The supervisor's fifth definition remains with its existing convergence owner.
+Its bootstrap guard prefers a valid compiled runtime-home digest over source;
+invalid compiled metadata refuses instead of falling back. Guarded retained
+convergence binds the executable, current definition and retained definition
+hashes under the same install lock before its atomic file write, while ordinary
+convergence preserves its existing contract.
+The canonical previous-image slot first retains the actual current image and
+stamp named by the new receipt; retained input may not be that rotating slot.
+The target image is published and canary-qualified before exposing a six-field
+`publishing` receipt. An old reconciler therefore no-ops on the original verified
+receipt before target visibility, or verifies the already-visible target after
+publication. It cannot turn a pre-copy restoration into a failed release.
+Restoration writes a new honest publication using the original six-field receipt
+codec; it never edits an old verified receipt backwards. Immutable previous
+receipt and terminal evidence remain separate from that compatibility surface.
+
+A bounded separate restoration journal binds partial writes to the exact
+request. Normal watchdog update and generic interrupted-publication reconciliation
+refuse while that journal is active. Exact replay completes known old/new bytes;
+foreign receipt/image/definition state refuses further mutation. Completion and
+lost-ack replay verify image, all definitions, native identity and timer health
+before retiring the matching active journal. Complete fsynced history is
+published without replacing any existing immutable evidence, so caller loss
+cannot create a truncated final record. Old readers continue to accept the six
+canonical fields and ignore completed sidecar history. Keep the journal-aware new supervisor loaded through watchdog restoration.
+The manual reverse order is retained root/CLI image paths first, watchdog plus
+its four definitions second, and the fifth supervisor definition/loaded process
+last. Do not replace the running owner with an older owner while a restoration
+journal is pending. Neither this API nor a retained installer is an
+automatic cross-contract rollback policy or a general host-repair framework.
+
+Historical coding-agent receipts keep their JSON format. New execution state
+lives in its own versioned sidecars, with retained native worker images. Before
+reversing this transition, stop new coding-agent admission and use the new owner
+to prove every new native tree excluded and retire its inputs; preserve its
+receipts. Then restore the retained images through the same atomic installer and
+native owners, verify their serving identities and re-enroll. An old CLI ignoring
+sidecars is not proof that their workers stopped. No stored-format rewrite or
+operator-supplied digest is part of this transition.
+
+A pre-initialization fence prevents an unverified candidate from using general
+CLI commands to register sessions, repair shims or reach other state writers.
+Its fixed native supervisor invocation is allowed only at the admitted claimed
+activation/verification edge with matching running-image, build and state
+identity. Version queries remain read-only, and the prior image remains available
+for recovery. The guard resolves the compiled state location without pinning a
+different global layout or requiring a source checkout. An isolated actual-CLI
+probe qualifies frozen-image compatibility, rejects spoofed equal record hashes,
+and confirms that denied commands and version queries create no runtime files.
+The serving-root transaction below uses the same fence.
+Governed project, distribution, self-rebuild and watchdog builds now carry the
+canonical runtime-home snapshot. The contract owner validates its bounded
+canonical encoding and permits only an immutable process pin; it does not guess
+paths or override source discovery. Native supervisor startup pins this authority
+before session, shim or source initialization, and its native working directory
+is the user home. Watchdog reports also pin their compiled authority. Unstamped
+development binaries retain source-bound behavior and have no qualifying digest.
+Version probes expose the compiled authority digest without initializing user
+state; ordinary native convergence checks it against the definition's source
+authority before replacing a unit. Layout changes also invalidate freshness.
+
+An isolated actual-CLI native probe starts from a frozen governed image with
+both source hints, CWD and executable ancestry lacking a checkout. It verifies
+the matching private registry lease and periodic heartbeat, then stops and
+releases that exact native job. This qualifies bootstrap and lease renewal,
+not source-dependent scenario builds, migrations or root activation rollback.
+
+The Linux production transaction now connects the root installer/self-rebuilder,
+runtime supervisor owner and independently installed watchdog. Its command surface
+is `vrooli runtime update <status|apply CANDIDATE|retry CANDIDATE|enroll|disable|reconcile>`.
+Status is read-only and remains available during candidate probation. Apply is a
+one-shot operation; retry explicitly admits a previously suppressed release.
+Enrollment durably routes canonical root installs and self-rebuilds through the
+same transaction. Missing previously initialized enrollment state is a conflict.
+Other CLI installations retain their existing installation owner.
+
+Admission holds the watchdog publication lock, freezes the exact worker and both
+native definitions, and requires the installed recovery image's verified receipt
+and enabled native recovery timer. It derives definitions and identity through
+bounded read-only probes in a private home, without inheriting caller source or
+runtime state. A single deadline binds admission and the native worker's bounded
+lifetime. Admission and recovery use operation-before-install lock order.
+
+The worker publishes checksum-bound inputs and restarts only the fixed supervisor
+unit. Success requires the running image, native invocation and registry owner to
+agree, followed by a fresh heartbeat and renewal of the running managed fleet.
+Existing operator drop-ins are bound by path/content digest and preserved;
+changed or unreadable overrides refuse native effects. Restoration checks frozen
+inputs before stopping anything, pins the exact supervisor cgroup, and proves it
+quiescent before restoring the prior image and definition.
+
+`vrooli-root-update-recovery.timer` runs the retained watchdog's fixed reconcile
+entrypoint every minute and after boot. It requires neither a source checkout nor
+a working candidate CLI. Recovery revokes the worker fence and excludes the exact
+native worker before restoration. Terminal cleanup releases that native unit and
+only the bounded reserved inputs. Failed image and source-build identities remain
+suppressed until explicit retry; changing build timestamps cannot evade policy.
+Caller cancellation stops observation without aborting or resubmitting the native
+operation.
+
+Current-host qualification includes a verified serving-root update, a successful
+update after caller SIGKILL, and independent scheduled restoration after SIGKILL
+of the caller, coordinator and exact claimed native worker at verification. The
+last drill restored the exact prior bytes in approximately 32 seconds, recorded
+`failed_restored`/`worker_lost`, retired the worker unit, and retained suppression.
+Local Web Console, Agent Manager and Autoheal APIs remained healthy afterward;
+the managed connector reported readiness and four edge connections. These
+witnesses do not prove authenticated remote continuity, every destructive edge,
+actual host reboot recovery or non-Linux runtime support.
+
+The transaction preserves these obligations:
+
+- One durable operation binds the admitted candidate, qualified prior native
+  image, native unit definition, compatibility evidence and failed-release policy.
+- The existing installer and supervisor convergence owner share that operation;
+  ordinary competing updates cannot cross an unresolved activation.
+- Activation runs under independent, bounded native ownership. A late worker
+  must consult the durable effect fence before any native definition or process
+  change. Caller loss cannot leave an unbounded activation child holding a lock.
+- The independent watchdog can reconcile and restore the retained image and
+  definition without a source tree, compiler, API, or working candidate CLI.
+  An unexpected image or definition remains an explicit conflict.
+- Success requires the admitted image and build to own the running supervisor,
+  with fresh recovery/lease observations. Restoration preserves the failed
+  update outcome and suppresses that exact failed release.
+- Native rollback requires a qualified persistent-state compatibility contract;
+  artifact bytes alone do not make database/schema rollback safe.
+- Further qualification must cover interrupted dispatch, every persisted destructive
+  edge, failed activation/restoration, caller death, source unavailability,
+  changed boot identity, repeated reconciliation and competing requests.
+
+Explicit automatic-update enrollment and operator authorization remain separate
+from readiness, drain and compatibility proofs. Existing human-only decisions
+retain their approval boundary.
+
 #### Per-target acquisition kind
 
 `acquisition.kind` sets the default source mechanism, and a single target may

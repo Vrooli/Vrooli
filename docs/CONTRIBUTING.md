@@ -71,7 +71,7 @@ Run the validations that match your change:
 vrooli scenario test <name>
 go test ./cmd/vrooli/... ./internal/...
 make hygiene
-make validate-package-governance
+make test-packages
 ```
 
 Do not treat every command above as mandatory for every change. Run the checks that cover the surface you touched, then call out anything you could not run.

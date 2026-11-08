@@ -88,13 +88,30 @@ The complete definition, including the `electron-v1` desktop profile, is in
 ## Adopter requirements
 
 - Emit explicit `<link>` / `<meta>` tags in the document head that point at
-  `/public/...` (absolute paths). iOS A2HS and OG crawlers read those tags, so
-  pointing them at the public surface is what makes the flow work.
+  the public surface with **relative** paths and no leading slash
+  (`public/site.webmanifest`, `public/apple-touch-icon.png`). Served from the
+  host root, a relative link resolves to `/public/...`, the prefix the Access
+  bypass covers; behind a path-prefix proxy it resolves under that prefix
+  instead of escaping to the proxy host's root, so the same document works in
+  both places (the `<base href>` the scenario server and proxy host inject
+  keeps this true on nested routes). iOS A2HS and OG crawlers read those tags, so pointing them at
+  the public surface is what makes the flow work. `og:image` and
+  `twitter:image` keep the absolute `/public/...` path: Open Graph expects an
+  absolute image URL, and a host-agnostic build can only fix the path, not the
+  host.
 - A PWA manifest at `/public/site.webmanifest` resolves its icon `src` values
-  relative to the manifest URL, so relative icon paths keep working — but
-  `start_url` and `scope` must point at the **app root** (`/`), not into
-  `/public/`, so the installed app launches into the app and not the asset
-  folder.
+  relative to the manifest URL, so relative icon paths keep working.
+  `start_url` and `scope` are `../`: relative to the manifest that is the
+  **app root**, not `/public/`, so the installed app launches into the app and
+  not the asset folder, and the manifest stays correct behind a path-prefix
+  proxy. The manifest omits `id`: browsers resolve `id` against the origin, so
+  `"/"` or `"."` would give every app behind one proxy the same install
+  identity, while an omitted `id` defaults to the resolved `start_url` (the
+  origin at a host root, keeping existing installs; the app's own prefix
+  behind a proxy).
+- The operator approved relative links and the `../` manifest scope on
+  2026-11-07; they replace the earlier absolute-path requirement. The security
+  contract and the `/public` URL-prefix bypass above are unchanged.
 
 ## Accepted edges
 

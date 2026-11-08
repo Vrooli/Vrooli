@@ -18,8 +18,9 @@ fleet. All of `make generate`, `make lint`, `make breaking`, and
 `make verify-committed-gen` are **fully offline-capable** — zero outbound BSR
 requests. `make refresh-vendor` is the only target that contacts buf.build (see
 [Refreshing vendored modules](#refreshing-vendored-modules)). Generation uses
-the Go `protogen` command, an advisory cross-process lock, a staging tree beside
-`gen/`, and publish-on-change semantics. Scoped runs include reverse dependents
+the Go `protogen` command, an advisory cross-process lock, a private staging
+tree outside the repository (see [Staging trees](#staging-trees)), and
+publish-on-change semantics. Scoped runs include reverse dependents
 and the requested owner's complete import closure automatically; callers do not
 need to enumerate imported schema owners by hand.
 
@@ -204,7 +205,7 @@ No buf.gen.yaml change is needed for a new file — the existing 6 plugin invoca
 
 ## Generation manifests
 
-The full-fleet form, `make generate`, builds every output in a temporary sibling
+The full-fleet form, `make generate`, builds every output in a private staging
 tree, rebuilds the
 descriptor image and lockfiles there, then publishes changed language files by
 atomic per-file rename while preserving their existing directory roots; the
@@ -237,8 +238,11 @@ and reports stale inputs, edited outputs, or orphan generated files as
 `proto.gen_manifest_missing`, and changed toolchain pins are advisory
 `proto.gen_toolchain_drift` until `make generate` refreshes the manifests.
 
-The runtime-only `.vrooli-proto-artifact.json` selection stamp beside `gen/` is
+The runtime-only `.vrooli-proto-artifact.json` selection stamp inside `gen/` is
 not committed output and is intentionally excluded from `make verify-committed-gen`.
+It is the one non-buf file the `gen/` purity check admits: the artifact store
+publishes it by the same atomic rename as the tree, so it cannot describe a
+different snapshot than the view it sits in.
 This keeps artifact selection state from turning a healthy generated tree into a
 false drift failure.
 
@@ -252,8 +256,45 @@ owner as usual.
 `make verify-committed-gen` is the authoritative boundary gate. It runs the
 same staged generation path under the same lock, compares every committed file
 under `gen/` (including descriptors and manifests), and leaves the worktree
-unchanged. Failed verification retains its staging path in the log for
-diagnosis; successful verification removes it.
+unchanged. Its staging tree is removed whether it passes or fails: the failure
+lists every differing path, and `make generate` reproduces the staged output.
+
+### Staging trees
+
+Every run (generate, verify, descriptor, and the lifecycle's compatibility-view
+install) builds in its own staging tree and publishes from it. A full tree is a
+copy of the generated fleet, about 100 MB, so two rules hold:
+
+- **Staging lives outside the repository**, in `staging/` beside the artifact
+  store (`~/.vrooli/artifacts/proto/staging`, or under
+  `$VROOLI_PROTO_ARTIFACT_ROOT`). A tree inside the checkout is seen by every
+  repository walker (seam scanners, file watchers, freshness fingerprints) and
+  races them while it is written and deleted. Publication renames files out of
+  the stage, so when the runtime root is on a different filesystem from
+  `packages/proto` protogen falls back to the historical in-tree parents:
+  `packages/` for generation trees and `packages/proto/` for compatibility
+  trees. The compatibility view's previous copy exists at `gen.previous` only
+  between its two installing renames, then is moved into the stage and deleted
+  there.
+- **A tree is owned by the process that created it.** The owner holds an
+  advisory lock on the tree's `owner.lock` and removes the tree on every exit
+  path; the CLI turns SIGINT and SIGTERM into cancellation so an interrupted
+  run unwinds the same way. The lock dies with its process, so each run first
+  sweeps trees whose lock it can take (a killed or crashed run) and never
+  touches a tree a concurrent run still holds. Lockless trees, written before
+  owner locks existed, are swept once they are ten minutes old.
+
+The automatic sweep covers the parent a run stages into. In-repository residue
+(from runs before staging moved, or from an interrupted run on a fallback host)
+is listed by `make cleanup` as `orphan_staging_tree` actions and removed by
+`go run ./cmd/protogen cleanup --apply`, which removes it without regenerating;
+`protogen clean` removes every unowned tree in all of these locations.
+
+`VROOLI_PROTO_ARTIFACT_ROOT` redirects both artifact publication and staging.
+Template validation uses it to run a template's relocation hook (`make
+generate`) inside a private sandbox copy of `packages/proto`, so validation
+never publishes a throwaway schema owner into the shared generated tree or
+makes it the shared active artifact.
 
 ## Descriptor snapshot contract
 

@@ -6,6 +6,25 @@ This document summarizes the current root CLI surface for the project-level plat
 
 Use `vrooli help` and subcommand `--help` output as the final authority for exact flags and any newly added commands.
 
+Scenario and resource CLIs built on cli-core share one command-resolution
+contract: singular/plural names dispatch, unknown names list the closest real
+commands with their usage lines, positionals may be passed as `--<name>`, and
+usage errors print the usage line and nearest flag. The contract lives in
+[`packages/cli-core/README.md`](../../packages/cli-core/README.md#command-resolution-and-usage-errors).
+
+## Resource health observations
+
+```bash
+vrooli resource status --health-only --json
+vrooli resource status reranker --health-only --no-fast --json
+```
+
+`--health-only` reports process ownership and operational health without reading
+every byte of installed runtime trees. Its managed-service records explicitly
+report `artifact_verification: not_evaluated`. `--no-fast` still requests the
+resource's readiness/liveness probes. Omit `--health-only` for a current artifact
+checksum audit; all lifecycle launch gates continue to verify artifact bytes.
+
 ## Agent Manager execution selection
 
 ```bash
@@ -45,7 +64,7 @@ registered repository; use an explicit ID when reconnecting across selections.
 prompt-manager skill import --help
 prompt-manager skill review-import --help
 prompt-manager skill import-staleness --help
-VROOLI_SKILL_PROJECTION_DIRS="$HOME/.claude/skills:$HOME/.codex/skills:$HOME/.config/opencode/skills:$HOME/.gemini/skills:$HOME/.grok/skills" prompt-manager skill topology --json
+VROOLI_SKILL_PROJECTION_DIRS="$HOME/.claude/skills:$HOME/.codex/skills:$HOME/.config/opencode/skills:$HOME/.gemini/config/skills:$HOME/.grok/skills" prompt-manager skill topology --json
 ```
 
 `skill import` requires a local pinned source directory, immutable commit,
@@ -303,6 +322,7 @@ vrooli scenario stop <name>
 vrooli scenario stop-all
 vrooli scenario test <name>
 vrooli scenario logs <name>
+vrooli scenario profile <name> --seconds 20 --out /tmp/scenario.cpu.pprof --json
 vrooli scenario open <name>
 vrooli scenario port <name>
 vrooli scenario ui-smoke <name>
@@ -311,6 +331,24 @@ template-manager registry list --kind scenario
 template-manager generate <template> --id <slug> --display-name <name> --description <text>
 vrooli scenario completeness <name>
 ```
+
+### Local CPU profiles
+
+`vrooli scenario profile` collects a bounded CPU profile from the exact recorded
+component launch (default `--step start-api`). Use a new output path; existing
+files are never overwritten. Durations are 1–30 seconds, and output is limited to
+16 MiB with owner-only permissions. Inspect it with `go tool pprof -top <path>`.
+The shared standard API runtime serves this through an owner-only Unix socket,
+enabled after a normal rebuild/restart with the current control plane. No sudo
+or public debug endpoint is required. Named local instances are supported;
+remote node profiling is explicitly unsupported. See the
+[runtime diagnostics contract](../../packages/api-core/runtimediagnostics/README.md).
+
+The CPU samples describe the selected Go process. Account for subprocesses
+separately when assessing a whole component; a quiet API profile does not prove
+that its child commands are idle. On Linux, `/proc/<pid>/io` also includes
+waited-for children, so those counters have a different scope from API-only CPU
+samples ([proc_pid_io(5)](https://www.man7.org/linux/man-pages/man5/proc_pid_io.5.html)).
 
 ### Node-axis addresses
 
@@ -433,6 +471,13 @@ what makes the start introspectable, attachable, and resumable:
 
 ## Resource Commands
 
+Managed-service JSON status separates current declaration, verified staged bytes,
+and the owned running image using `declared_artifact_version`,
+`staged_artifact_version` and `running_artifact_version` in the resource status
+record. `artifact_update_available` does not mean the service is down.
+`artifact_staging_error` describes the desired artifact independently of running
+health, so a missing newer release cannot hide a verified retained service.
+
 Inspect the current surface with:
 
 ```bash
@@ -536,11 +581,50 @@ vrooli contract match-glob
 
 ```bash
 vrooli agent launch --runner claude [--claim <path>]...
+vrooli agent launch --runner codex --prompt "Investigate the scenario" --timeout 10m
+vrooli agent recover list [--json]
+vrooli agent recover reconcile [--limit 32] [--json]
+vrooli agent recover investigate --scenario web-console --reason "API remains unhealthy" [--json]
 vrooli agent list [--json] [--idle-after 168h]
 vrooli agent reap --orphaned --dry-run [--json]
 vrooli agent reap --orphaned [--older-than 1h] [--json]
 vrooli agent thaw <session-or-scope>
 ```
+
+`agent launch --prompt` selects the runner's headless form: Claude, Grok and
+Antigravity use `-p`, Codex uses `exec`, and OpenCode uses `run`. Without a
+prompt, the runner keeps its normal interactive invocation. `--timeout` bounds
+the waiting invocation and preserves the wrapper so cancellation is not lost
+through process replacement. Cancellation alone does not prove that every
+descendant has stopped.
+
+`agent recover list` includes both lifecycle recovery and coding-agent
+investigation receipts. JSON separates these into `lifecycle` and
+`coding_agents`. Coding-agent receipts include the selected runner, creation
+time, deadline, outcome and error. A `succeeded` investigation means its runner
+returned successfully; fresh scenario health checks establish recovery.
+`scheduled`, `running` and `unconfirmed` receipts block another investigation
+for that scenario even after the hourly admission window. A lost owner or an
+expired deadline is not proof that the previous agent stopped. These receipts
+need reconciliation with native session ownership before retry; do not delete
+the ledger to bypass this protection.
+New ambiguous executions record `observation_ended_at` and leave `finished_at`
+unset. Observer cancellation is not agent completion.
+
+`agent recover reconcile` changes bounded historical or expired execution
+claims without a retained native identity into `unconfirmed`. It records when
+that uncertainty was established. It does not claim exit, stop or launch work,
+set a completion time, or release duplicate suppression. Fresh observations of
+native execution remain necessary before an unresolved attempt can be retired.
+
+`agent recover investigate` admits a bounded coding-agent investigation through
+the same native broker used by Autoheal, including its hourly scenario window,
+unresolved-work suppression, concurrency limit and ten-minute native deadline.
+It requires a resolved repository root and explicit failure reason. It returns
+the durable admission identity without waiting for the model. An ambiguous
+dispatch still prints that identity and exits with an error; inspect the receipt
+instead of submitting a replacement. The native job survives the calling CLI
+and Autoheal API. Fresh health evidence is required to claim a repair.
 
 `agent list` shows each session's state (`live`, `idle`, `orphaned`,
 `agentless`, `unrecorded`, `ghost`, `undetermined`) and its owner
@@ -590,6 +674,23 @@ Practical guidance:
 - `vrooli cleanup locks` expires stale leases and non-authoritative registry claims
 - `vrooli orphans` inspects or terminates orphaned Vrooli-managed processes
 - `vrooli diagnose-port <port>` is the targeted tool for a fixed-port startup failure after lifecycle has already attempted automatic cleanup
+
+`vrooli orphans kill --dry-run --json` previews generic orphan candidates.
+Execution pins a stable process handle before a fresh complete ownership check
+and verifies exit through that handle; PID reuse cannot transfer a signal to a
+replacement. Unknown handles or native membership refuse cleanup. Candidates
+that disappear or acquire an owner are reported as observations, not stop
+effects. Dedicated Vrooli service and operation scopes remain with their native
+lifecycle owners, including daemon children left after a root exits.
+Stale process-record cleanup compares OS incarnation when available and removes
+only the complete observed record under the same lock as launch registration.
+A new generation and its PID sidecar survive a stale cleanup snapshot.
+
+`vrooli agent reap --orphaned --dry-run --json` is the separate owner-aware
+session preview. Unknown membership is undetermined and cannot enter its reap
+plan. An operator terminal, unknown owner, or Web Console terminal whose origin
+is unobserved remains protected even when its former session is absent. Age,
+idle state and an agentless scope name do not authorize termination.
 
 ## Cloud target (target-local deployment owner)
 
@@ -713,10 +814,18 @@ make build
 make install
 make test
 make hygiene
-make validate-package-governance
+make test-packages
 ```
 
 These targets are confirmed in the current root `Makefile`.
+
+Root CLI installation freezes the candidate bytes, verifies its Go package and
+native target, and requires a stamped identity canary before publication.
+`vrooli version --json` reports that executable's `build_identity`.
+`vrooli runtime supervisor status --json` reports the running owner's identity.
+After installation, use `vrooli runtime supervisor install --user` for native
+adoption and inspect status again. Artifact preparation and fallback byte
+retention leave independent activation rollback as a separate obligation.
 
 For a focused privilege-broker upgrade, use `vrooli setup broker --sudo-mode=ask`.
 This project-setup subcommand installs the broker and saved local-service policy

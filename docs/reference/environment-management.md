@@ -186,6 +186,8 @@ The complete timing override surface is generated from `vrooli tuning list --jso
 | `SetupProgressObservationInterval` | duration | `VROOLI_TUNING_SETUP_PROGRESS_OBSERVATION_INTERVAL` | `30s` | Controls setup progress observation interval. |
 | `SetupProgressPollInterval` | duration | `VROOLI_TUNING_SETUP_PROGRESS_POLL_INTERVAL` | `1s` | Controls setup progress poll interval. |
 | `SetupProgressStaleThreshold` | duration | `VROOLI_TUNING_SETUP_PROGRESS_STALE_THRESHOLD` | `5m0s` | Controls setup progress stale threshold. |
+| `SharedPackageLockWaitLogInterval` | duration | `VROOLI_TUNING_SHARED_PACKAGE_LOCK_WAIT_LOG_INTERVAL` | `30s` | Controls shared package lock wait log interval. |
+| `SharedPackageLockWaitTimeout` | duration | `VROOLI_TUNING_SHARED_PACKAGE_LOCK_WAIT_TIMEOUT` | `10m0s` | Controls shared package lock wait timeout. |
 | `StructureProviderBudget` | duration | `VROOLI_TUNING_STRUCTURE_PROVIDER_BUDGET` | `30s` | Controls structure provider budget. |
 | `StructureProviderCallTimeout` | duration | `VROOLI_TUNING_STRUCTURE_PROVIDER_CALL_TIMEOUT` | `caller-provided` | Controls structure provider call timeout. |
 | `StructureProviderExtendedBudget` | duration | `VROOLI_TUNING_STRUCTURE_PROVIDER_EXTENDED_BUDGET` | `2m0s` | Controls structure provider extended budget. |

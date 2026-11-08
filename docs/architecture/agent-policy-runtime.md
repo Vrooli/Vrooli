@@ -119,6 +119,66 @@ missing, expired, unready, or unhealthy snapshot leaves the floor to decide
 alone, which is only ever stricter. The decision then carries
 `PATH_RULES_UNAVAILABLE` or `PATH_RULES_UNUSABLE` evidence.
 
+## Operator-only commands
+
+Some control-plane commands are the operator's decision by policy, not by
+risk class (`operator_only.go`). The runtime asks for every one of them,
+under every rollout profile and without providers, like the removal floor:
+
+- `make rebaseline` and `vrooli runtime update rebaseline`, which make a root
+  build that changes the persistent-state contract the new baseline without
+  automatic rollback;
+- `vrooli runtime update enroll` and `disable`, which change automatic root
+  update enrollment;
+- `vrooli runtime update retry`, which overrides a failed release's
+  suppression;
+- the installed watchdog's own modes those verbs forward to:
+  `vrooli-watchdog --enroll-core-updates`, `--disable-core-updates` and
+  `--retry-core-update`.
+
+These are the `runtime update` verbs the CLI manifest marks
+`run_eligible: false`. The walker resolves the command name from its last
+path segment, so `~/.vrooli/bin/vrooli`, `$HOME/...` and a checkout's
+`.vrooli/build/vrooli` are all `vrooli`; the hook resolves `~` and variables
+from its own environment. A name that is only known when the command runs
+(`$(command -v vrooli)`, an unset variable) is decided by its arguments: if
+they spell an operator-only command under any of these names, it asks.
+
+The walker unwraps `sudo`, `env`, `timeout`, `nohup`, `nice`, `exec`,
+`command`, `setsid`, `flock` (including `flock -c`), `script -c`, `bash -c`,
+`eval` and `go run ./cmd/vrooli`. Commands that relaunch their arguments
+elsewhere (`tmux`, `screen`, `systemd-run`, `watch`, `ssh`, `parallel`,
+`xargs`) are read for operator-only command text in every argument suffix,
+without feeding the removal floor. `xargs make`, `xargs vrooli runtime update`
+and `xargs vrooli-watchdog` ask when standard input could supply the rest of an
+operator-only command. An attended Claude Code session shows the prompt to the
+person at the keyboard. An unattended one denies it, so the operator runs the
+command from their own terminal.
+
+The floor does not see commands an interpreter builds at run time
+(`python3 -c "subprocess.run(['make','rebaseline'])"`, `node -e`),
+`make $(echo rebaseline)`, `go run .` from inside `cmd/vrooli`, or a value-taking
+option placed before `runtime`. It asks, rather than allows, for
+`--help` on these verbs and for `make -n rebaseline`.
+
+Codex, OpenCode and Grok reach this floor only once their hooks call
+`vrooli-policy-runner hook`; Codex hook enforcement is a pending operator
+decision. For every runner, and for the wrappers the floor cannot unwrap, the
+commands refuse in process: `vrooli runtime update rebaseline`, `enroll`,
+`disable` and `retry`, and the watchdog's enrollment and retry modes, refuse
+when `agentscope.SessionEvidence` finds an agent session. That check combines
+`cliutil.DetectCallerKind` with the kernel's cgroup record of a
+launcher-minted `vrooli-agent-*.scope`, which a process cannot leave by
+clearing its environment; an operator's web-console pane runs in a
+`tmux-spawn-*` scope and is not refused. Web Console keeps cli-core's ambient
+agent variables (`cliutil.AmbientAgentEnvironment`) out of operator panes: it
+filters each new session's environment and, at API start, unsets them in its
+tmux server's global environment, which a long-lived server otherwise keeps
+from whatever started it. Neither layer is an authority
+boundary against a same-user process that scrubs its environment outside an
+agent scope (for example through `systemd-run --user`); they stop agents that
+follow the rules.
+
 ## Snapshot publication and degraded enforcement
 
 ```mermaid

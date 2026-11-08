@@ -27,6 +27,39 @@ a fixture-only read through that same transport. An empty list shared by both
 stores is not a routing discriminator. Repair an unsupported client before
 writing; an untagged request follows the ordinary primary-store path.
 
+Async work must retain the admitted operation's pinned context through queued
+jobs, runner callbacks, event sinks, terminal persistence and finalization.
+Detach producer cancellation with `context.WithoutCancel` and give the owning
+job its own cancellation and timeout. Starting an admitted effect from
+`context.Background()` drops its storage pins; copying only the test-mode flag
+also loses the exact lease generation. After clear, replacement or expiry,
+the old operation must fail against its original pin rather than select a new
+lease or primary storage.
+
+At HTTP entry, register and wrap the handler with the same
+`devrouting.Service`: use `RegisterWithFileRootsService` and that service's
+`PinnedTestModeMiddleware`. The shared owner serializes pin capture with lease
+install, clear and restart operations. The lower-level
+`apihttp.TestModeMiddleware` only marks requests; it does not establish an
+exact paired generation or refuse a missing lease.
+
+Qualify those handoffs with actual leased SQL/file effects and an independent
+primary-storage check. Routing counters cannot count an async effect whose
+context lost the test-mode marker. A static storage-analysis pass does not
+prove the runtime handoff. Notification delivery needs its own isolation proof;
+correct persistence alone does not partition WebSocket subscribers.
+
+Chromium does not forward Playwright's `extraHTTPHeaders` on browser WebSocket
+upgrades. BAS therefore adds `__vrooli_test_mode=1` to new WebSocket URLs in
+fresh browser contexts explicitly configured with `X-Vrooli-Test-Mode: 1`.
+The shared API marker accepts this query only for GET WebSocket upgrades under
+the same development/explicit CI guard as the header. It grants no authority;
+the paired routing owner must still pin the exact live SQL/file lease before
+upgrading. Ordinary HTTP queries, malformed/duplicate values, and production
+requests cannot opt into test routing through this query. Existing sockets in
+attached application contexts are not retroactively reclassified; those
+contexts do not establish a routed browser journey through this mechanism.
+
 ## Planned graceful restart qualification
 
 The existing install/heartbeat/clear protocol does not restore a lease after a
@@ -60,9 +93,10 @@ those guarantees and use the dedicated resume operation. The validation harness
 may invoke this shared owner directly under the still-live Test Genie session;
 Test Genie itself does not need to restart. Owner clear must succeed before the
 harness invokes Test Genie resource cleanup. A failed owner clear retains the
-data and retry handle. Automated cleanup retry in Test Genie is a separate owner
-gap until its existing cancel-before-clear and resource-cleanup ordering are
-corrected and qualified.
+data and retry handle. Test Genie now retains exact cleanup ownership durably, revokes expired
+consumer leases, proves native seed exit before clear, and retries failed clear
+or backing retirement. This does not make a target restart ticket implicit or
+restore target-process counters after an unrelated crash.
 
 Retain pre-restart and post-resume counters separately with their observation
 windows; they are not proof of an atomic global drain or crash-time writes.

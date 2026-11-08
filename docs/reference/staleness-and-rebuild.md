@@ -5,6 +5,12 @@ scenario artifacts. The engine evaluates declared inputs by file content and
 the stat cache; it does not use source-versus-artifact mtime as a freshness
 verdict and it does not expose a stale-check bypass flag.
 
+Freshness sidecars (`<artifact>.freshness.json`) and the atomic writer's numeric
+`.freshness.json.tmp-*` files are generated metadata. Input enumeration and
+legacy manifest evaluation exclude them, so concurrent component publication
+cannot hash another writer's transient file. Similarly named authored source
+files remain inputs.
+
 The retired `--no-stale-check` global is tolerated until 2026-12-01: the root
 parser consumes it, prints one warning to stderr, and dispatches the command
 unchanged. The tolerance table lives in `internal/cli/rootcli/rootcli.go`
@@ -13,6 +19,60 @@ invoker registry test in `internal/cli/rootcli/invokers` fails on any
 registered argv that still carries a retired global.
 
 ## Freshness contract
+
+The installed root CLI and emergency watchdog use the root build stamp owned by
+`internal/buildinfo`. Their conservative portable input roots include their
+command tree, `internal`, shared `packages`, and root module files. The root CLI
+also includes its compiled `cli` package and embedded `cli/manifest.json` command
+contract. Changing that contract invalidates the same canonical stamp used by
+installation and distribution builds. The stamp
+includes Go and native compiler sources, headers and assembly, plus the actual
+assets selected by `//go:embed` comments in those sources. Embedded directory
+membership participates, so adding or removing an asset also changes freshness.
+Quoted and `all:` patterns are supported. An unresolved embedded pattern or
+explicitly selected symlink is an input error; compiler-excluded children of a
+recursive directory match are ignored. Unembedded prose
+does not participate. The watchdog consumes the same canonical input-root
+selector as the root build tools rather than maintaining its own shared list.
+The parsed compile-flag policy from the canonical repository contract also
+participates. Changing `build.go_flags` invalidates the stamp even when source
+files and the runtime-home layout stay unchanged. Unsupported policy flags are
+an unresolved-input error rather than an implicit default build.
+
+Proto owns the classification of its default generation and verification work
+trees, compatibility publication staging, and `packages/proto/gen.previous`
+recovery backup. Root stamps omit those uncompiled copies while tracking the
+active `packages/proto/gen` projection. Authored hidden directories elsewhere
+and explicitly selected embedded assets remain inputs. Concurrent verification
+and its cleanup therefore cannot change the root source identity.
+
+These root stamps identify source content. Scenario components continue to use
+their precise import closure and keyed compiler environment described below;
+root source stamps alone do not certify deployment, toolchain equivalence or
+adoption by a long-lived running process.
+
+A fresh root build is not necessarily installable. While root updates are
+enrolled, `make install` and self-rebuild hand the candidate to the independent
+coordinator (`vrooli runtime update apply`), which activates it with automatic
+rollback only when its `persistent_state_contract_sha256` (see
+`vrooli version --json`) equals the serving one. For the frequently edited
+persistence owners that contract covers what they store (compiled envelope
+shapes, enum constants, custom codecs and declared format facts), not their
+function bodies, so a behaviour-only change activates normally; the
+activation machinery and native identity owners are hashed whole. A real
+stored-format change is refused, and `make install` prints each change by
+owner and stored type, field or fact, followed by the remedy. The installed
+CLI stays on its prior build; that is a rollback-safety refusal, not a build
+failure. The companion binaries (`vrooli-api`, `vrooli-agent-launcher`,
+`vrooli-policy-runner`) install only after the root activates, so they are
+left unchanged too. When no receipt comes back and the images do not differ
+in contract, the outcome is reported as unresolved, with the coordinator's
+diagnostics, never as a refusal. Crossing a stored-format change is the
+operator's decision, `make rebaseline`, described in
+[the deployment contract](../resources/deployment-contract.md#root-control-plane-activation-target);
+an agent must not run it to push its own build, and it refuses to run inside
+an agent session. Verify root CLI changes with
+their focused tests until the build activates.
 
 An artifact is stale when it is missing, has no manifest, or its manifest no
 longer matches the declared inputs. A missing manifest is therefore a
