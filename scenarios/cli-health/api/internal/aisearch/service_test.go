@@ -544,7 +544,7 @@ func TestReconciler_ModifiedRecord_ProducesExactlyOneUpsert(t *testing.T) {
 	if err != nil {
 		t.Fatalf("initial reindex: %v", err)
 	}
-	waitJob(t, svc, job1.ID)
+	job1 = waitJob(t, svc, job1.ID)
 	if len(store.points) != 2 {
 		t.Fatalf("after initial build: points=%d, want 2", len(store.points))
 	}
@@ -557,7 +557,7 @@ func TestReconciler_ModifiedRecord_ProducesExactlyOneUpsert(t *testing.T) {
 	if err != nil {
 		t.Fatalf("second reindex: %v", err)
 	}
-	waitJob(t, svc, job2.ID)
+	job2 = waitJob(t, svc, job2.ID)
 
 	upserts := 0
 	for _, c := range job2.Apply.Collections {
@@ -600,7 +600,7 @@ func TestReindex_WalksScenariosAndExternalCLIs(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Reindex: %v", err)
 	}
-	waitJob(t, svc, job.ID)
+	job = waitJob(t, svc, job.ID)
 
 	// Both origins must be reflected in the store payload.
 	origins := map[string]int{}
@@ -626,7 +626,7 @@ func TestReindexDryRun_DoesNotUpsert(t *testing.T) {
 	if err != nil {
 		t.Fatalf("dry-run reindex: %v", err)
 	}
-	waitJob(t, svc, job.ID)
+	job = waitJob(t, svc, job.ID)
 	if len(store.points) != 0 {
 		t.Errorf("dry-run wrote %d points; want 0", len(store.points))
 	}
@@ -635,7 +635,7 @@ func TestReindexDryRun_DoesNotUpsert(t *testing.T) {
 	}
 }
 
-func waitJob(t *testing.T, svc *Service, jobID string) {
+func waitJob(t *testing.T, svc *Service, jobID string) *pkg.ReindexJob {
 	t.Helper()
 	for i := 0; i < 100_000; i++ {
 		job, ok := svc.ReindexStatus(jobID)
@@ -643,11 +643,15 @@ func waitJob(t *testing.T, svc *Service, jobID string) {
 			t.Fatalf("job %s missing", jobID)
 		}
 		if job.State == "succeeded" || job.State == "failed" || job.State == "cancelled" {
-			return
+			if job.State != "succeeded" {
+				t.Fatalf("job %s ended in state %q: %s", job.ID, job.State, job.Err)
+			}
+			return job
 		}
 		// Yield without a real sleep (the reconcile goroutine is CPU-bound and
 		// fast), mirroring packages/ai-go/search service_test.go waitJob.
 		runtime.Gosched()
 	}
 	t.Fatalf("job %s never terminated", jobID)
+	return nil
 }

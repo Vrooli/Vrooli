@@ -382,47 +382,98 @@ func parseManifestRecords(scenario string, raw []byte) ([]CommandRecord, error) 
 	}
 	records := make([]CommandRecord, 0, 16)
 	for _, group := range m.Groups {
-		groupName := strings.TrimSpace(group.Name)
-		groupDesc := strings.TrimSpace(group.Description)
-		for _, cmd := range group.Commands {
-			rec := CommandRecord{
-				Origin:      scenario,
-				Group:       groupName,
-				Name:        strings.TrimSpace(cmd.Name),
-				Description: strings.TrimSpace(cmd.Description),
-				Source:      SourceManifest,
-			}
-			// Fold the group's prose into the leaf (same rule as the --help
-			// path: dropped when empty or a pure repeat of the leaf desc) so
-			// manifest-discovered commands carry the same query vocabulary.
-			rec.GroupDescription = cliruntime.GroupContext(groupDesc, rec.Description)
-			rec.FullPath = canonicalManifestFullPath(scenario, groupName, rec.Name, group.Flat, len(group.Commands))
-
-			for _, f := range cmd.Flags {
-				if name := strings.TrimSpace(f.Name); name != "" {
-					rec.Flags = append(rec.Flags, name)
-				}
-			}
-			for _, p := range cmd.Positionals {
-				if name := strings.TrimSpace(p.Name); name != "" {
-					rec.Positionals = append(rec.Positionals, name)
-				}
-			}
-
-			if svc := strings.TrimSpace(cmd.Binding.Service); svc != "" {
-				rec.Binding = svc + "." + strings.TrimSpace(cmd.Binding.Method)
-			}
-			if args, err := cliapp.ManifestArgs(cmd); err == nil {
-				rec.Args = &args
-			}
-
-			rec.Tags = composeTags(groupName, cmd)
-			records = append(records, rec)
+		records = appendManifestGroupRecords(records, scenario, group, nil, true)
+	}
+	for _, exception := range m.Exceptions {
+		// Exceptions declare a live command path, but do not carry reliable
+		// argument metadata; leave Args nil so validation returns partial.
+		command := strings.TrimSpace(exception.Command)
+		if command == "" {
+			continue
 		}
+		parts := strings.Fields(command)
+		records = append(records, CommandRecord{
+			Origin:      scenario,
+			Name:        parts[len(parts)-1],
+			Description: strings.TrimSpace(exception.Reason),
+			FullPath:    scenario + " " + strings.Join(parts, " "),
+			Tags:        []string{"exception:" + strings.TrimSpace(exception.Class)},
+			Source:      SourceManifest,
+		})
 	}
 	records = append(records, builtinCommandRecords(scenario)...)
 	sort.Slice(records, func(i, j int) bool { return records[i].FullPath < records[j].FullPath })
 	return records, nil
+}
+
+// appendManifestGroupRecords projects every declared leaf into the same
+// space-separated command path used by the runtime help walker. Nested groups
+// are accepted by cli-manifest/v1, so catalog discovery must retain their path
+// and argument metadata instead of indexing only top-level commands.
+func appendManifestGroupRecords(records []CommandRecord, scenario string, group cliapp.ManifestGroup, ancestors []string, topLevel bool) []CommandRecord {
+	name := strings.TrimSpace(group.Name)
+	pathParts := append([]string(nil), ancestors...)
+	if !group.Flat && name != "" {
+		pathParts = append(pathParts, name)
+	}
+	groupPath := strings.Join(pathParts, " ")
+	groupDesc := strings.TrimSpace(group.Description)
+
+	for _, cmd := range group.Commands {
+		commandName := strings.TrimSpace(cmd.Name)
+		commandGroupPath := groupPath
+		if topLevel && len(group.Commands) == 1 && name == commandName {
+			// Preserve the pre-flat manifest compatibility rule: a sole command
+			// whose name repeats the group is a root leaf, not a doubled path.
+			commandGroupPath = ""
+		}
+		rec := CommandRecord{
+			Origin:      scenario,
+			Group:       commandGroupPath,
+			Name:        commandName,
+			Description: strings.TrimSpace(cmd.Description),
+			Source:      SourceManifest,
+		}
+		// Fold the nearest group's prose into the leaf (same rule as the --help
+		// path: dropped when empty or a pure repeat of the leaf desc).
+		rec.GroupDescription = cliruntime.GroupContext(groupDesc, rec.Description)
+		if topLevel {
+			rec.FullPath = canonicalManifestFullPath(scenario, name, commandName, group.Flat, len(group.Commands))
+		} else {
+			commandPath := commandGroupPath
+			if commandPath != "" {
+				commandPath += " " + commandName
+			} else {
+				commandPath = commandName
+			}
+			rec.FullPath = canonicalFullPath(scenario, "", commandPath)
+		}
+
+		for _, f := range cmd.Flags {
+			if flagName := strings.TrimSpace(f.Name); flagName != "" {
+				rec.Flags = append(rec.Flags, flagName)
+			}
+		}
+		for _, p := range cmd.Positionals {
+			if positionalName := strings.TrimSpace(p.Name); positionalName != "" {
+				rec.Positionals = append(rec.Positionals, positionalName)
+			}
+		}
+
+		if svc := strings.TrimSpace(cmd.Binding.Service); svc != "" {
+			rec.Binding = svc + "." + strings.TrimSpace(cmd.Binding.Method)
+		}
+		if args, err := cliapp.ManifestArgs(cmd); err == nil {
+			rec.Args = &args
+		}
+
+		rec.Tags = composeTags(commandGroupPath, cmd)
+		records = append(records, rec)
+	}
+	for _, child := range group.Groups {
+		records = appendManifestGroupRecords(records, scenario, child, pathParts, false)
+	}
+	return records
 }
 
 func builtinCommandRecords(scenario string) []CommandRecord {

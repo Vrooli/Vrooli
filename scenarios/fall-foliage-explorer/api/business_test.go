@@ -27,9 +27,7 @@ func TestBusinessWorkflow(t *testing.T) {
 			t.Fatalf("Failed to get regions: %d", rr1.Code)
 		}
 
-		var regionsResp Response
-		json.Unmarshal(rr1.Body.Bytes(), &regionsResp)
-		regions := regionsResp.Data.([]interface{})
+		regions := decodeRegions(t, rr1.Body.Bytes())
 
 		if len(regions) == 0 {
 			t.Skip("No regions available for testing")

@@ -50,7 +50,7 @@ describe("App auth gate", () => {
     seedSession({
       deviceToken: "pending-device-token",
       device: makeDevice({ trustState: TrustState.PENDING }),
-      ownerToken: "owner-jwt",
+      ownerEmail: "owner@example.test",
     });
 
     renderApp();

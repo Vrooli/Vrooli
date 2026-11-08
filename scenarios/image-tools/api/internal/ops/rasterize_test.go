@@ -9,7 +9,7 @@ import (
 const rasterizeFixtureSVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">` +
 	`<defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1">` +
 	`<stop offset="0" stop-color="#15243c"/><stop offset="1" stop-color="#0b1728"/></linearGradient></defs>` +
-	`<rect x="0" y="0" width="512" height="512" rx="112" fill="url(#g)"/>` +
+	`<rect x="0" y="0" width="512" height="512" fill="url(#g)"/>` +
 	`<path fill="#ffffff" d="M100 100H400V400H100Z M200 200V300H300V200Z"/></svg>`
 
 func TestRasterizeExactSizeAndDeterministic(t *testing.T) {

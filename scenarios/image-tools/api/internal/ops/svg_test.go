@@ -18,6 +18,7 @@ func TestHighFidelityFeatureDetection(t *testing.T) {
 		{"filter reference", `<svg><circle filter="url(#f)"/></svg>`, []string{"filter"}},
 		{"mask element", `<svg><mask id="m"></mask></svg>`, []string{"mask"}},
 		{"pattern element", `<svg><pattern id="p"></pattern></svg>`, []string{"pattern"}},
+		{"rounded rectangle", `<svg><rect width="10" height="10" rx="2" fill="#000"/></svg>`, []string{"rounded-rect"}},
 		{"stylesheet", `<svg><style>.a{fill:#000}</style></svg>`, []string{"css"}},
 		{
 			"all four",
@@ -38,6 +39,21 @@ func TestHighFidelityFeatureDetection(t *testing.T) {
 			require.Equal(t, tc.want, HighFidelitySVGFeatures([]byte(tc.svg)))
 		})
 	}
+}
+
+func TestRoundedRectRasterizationPreservesTransparentCorners(t *testing.T) {
+	const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128"><rect width="128" height="128" rx="32" fill="#336699"/></svg>`
+	img, err := rasterizeSVG([]byte(svg), 16, 16)
+	if ChromeBinary() == "" {
+		require.ErrorAs(t, err, new(*ErrSVGFidelityUnavailable))
+		require.Contains(t, err.Error(), "rounded-rect")
+		return
+	}
+	require.NoError(t, err)
+	_, _, _, cornerAlpha := img.At(0, 0).RGBA()
+	_, _, _, centerAlpha := img.At(8, 8).RGBA()
+	require.Zero(t, cornerAlpha, "rounded SVG corner should remain transparent")
+	require.Equal(t, uint32(0xffff), centerAlpha, "rectangle interior should remain opaque")
 }
 
 // The load-bearing test for D4.

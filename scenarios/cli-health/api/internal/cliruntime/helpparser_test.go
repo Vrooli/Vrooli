@@ -175,6 +175,39 @@ func TestParseHelpTree_VrooliRecurses(t *testing.T) {
 	}
 }
 
+func TestParseHelpTree_VrooliSetupFullyQualifiedSubcommands(t *testing.T) {
+	run, _ := staticRunner(t, map[string]string{
+		"vrooli": `Vrooli CLI
+
+Lifecycle Commands:
+    setup              Initialize the development environment
+`,
+		"vrooli setup": `Usage:
+  vrooli setup [options]
+
+Subcommands:
+  vrooli setup status            Inspect host requirements without applying changes
+  vrooli setup explain <name>    Show full reasons / notes / declarer for one requirement
+  vrooli setup broker            Install or upgrade only the broker and saved policy
+`,
+	})
+	records := ParseHelpTree(context.Background(), run, "vrooli", HelpTreeOptions{Origin: "vrooli"})
+	paths := make(map[string]struct{}, len(records))
+	for _, record := range records {
+		paths[record.FullPath] = struct{}{}
+	}
+	for _, want := range []string{"vrooli setup", "vrooli setup status", "vrooli setup explain", "vrooli setup broker"} {
+		if _, ok := paths[want]; !ok {
+			t.Errorf("missing fully-qualified setup subcommand %q; got %v", want, recordPaths(records))
+		}
+	}
+	for _, bad := range []string{"vrooli setup vrooli", "vrooli setup vrooli setup"} {
+		if _, ok := paths[bad]; ok {
+			t.Errorf("catalog contains duplicated qualified command %q", bad)
+		}
+	}
+}
+
 func TestParseHelpTree_DepthLimit(t *testing.T) {
 	run, _ := staticRunner(t, map[string]string{
 		"vrooli":                vrooliRootHelp,

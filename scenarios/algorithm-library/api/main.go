@@ -1,7 +1,6 @@
 package main
 
 import (
-	schema "algorithm-library-api/internal/algorithm"
 	"context"
 	"database/sql"
 	"encoding/json"
@@ -10,6 +9,8 @@ import (
 	"net/http"
 	"strings"
 	"time"
+
+	schema "algorithm-library-api/internal/algorithm"
 
 	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/health"
@@ -70,8 +71,10 @@ type TestResult struct {
 	ErrorMessage   string `json:"error_message,omitempty"`
 }
 
-var db *sql.DB
-var algorithmProcessor *AlgorithmProcessor
+var (
+	db                 *sql.DB
+	algorithmProcessor *AlgorithmProcessor
+)
 
 func main() {
 	// Preflight checks - must be first, before any initialization
@@ -99,11 +102,7 @@ func main() {
 	router := mux.NewRouter()
 
 	// Health check - use api-core/health for standardized response
-	healthHandler := health.New().
-		Version("1.0.0").
-		Check(health.DB(db), health.Critical).
-		Handler()
-	router.HandleFunc("/health", healthHandler).Methods("GET")
+	router.HandleFunc("/health", newHealthHandler(db)).Methods("GET")
 
 	// Algorithm routes - Specific routes MUST come before parameterized routes
 	router.HandleFunc("/api/v1/algorithms/search", searchAlgorithmsHandler).Methods("GET")
@@ -319,7 +318,6 @@ func executionTraceHandler(w http.ResponseWriter, r *http.Request) {
 			WHERE algorithm_id = $1 AND language = $2 AND is_primary = true
 			LIMIT 1
 		`, req.AlgorithmID, req.Language).Scan(&impl.Code)
-
 		if err != nil {
 			// Try without is_primary constraint
 			err = db.QueryRow(`
@@ -533,7 +531,6 @@ func validateAlgorithmHandler(w http.ResponseWriter, r *http.Request) {
 			WHERE LOWER(name) = LOWER($1) OR LOWER(display_name) = LOWER($1)
 			LIMIT 1
 		`, algorithmID).Scan(&foundID, &algorithmName)
-
 		if err != nil {
 			log.Printf("Failed to find algorithm by name: %v", err)
 			http.Error(w, fmt.Sprintf("Algorithm not found: %s", algorithmID), http.StatusNotFound)
@@ -558,7 +555,6 @@ func validateAlgorithmHandler(w http.ResponseWriter, r *http.Request) {
 		ORDER BY sequence_order
 		LIMIT 10
 	`, algorithmID)
-
 	if err != nil {
 		log.Printf("Failed to get test cases: %v", err)
 		http.Error(w, "Failed to retrieve test cases", http.StatusInternalServerError)
@@ -808,3 +804,11 @@ func algorithmValidateBatchHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 // Test change for rebuild detection
+
+// newHealthHandler reports service health; the database is a critical dependency.
+func newHealthHandler(db *sql.DB) http.HandlerFunc {
+	return health.New().
+		Version("1.0.0").
+		Check(health.DB(db), health.Critical).
+		Handler()
+}

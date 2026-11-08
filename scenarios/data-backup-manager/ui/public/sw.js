@@ -1,5 +1,5 @@
 const CACHE_NAME = "data-backup-manager-shell-v1";
-const APP_SHELL = ["/", "/index.html", "/site.webmanifest"];
+const APP_SHELL = ["/", "/index.html", "/public/site.webmanifest"];
 
 self.addEventListener("install", (event) => {
 	event.waitUntil(caches.open(CACHE_NAME).then((cache) => cache.addAll(APP_SHELL)));

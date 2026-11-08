@@ -3,7 +3,7 @@ package measures
 import (
 	"bytes"
 	"context"
-	"strings"
+	"encoding/json"
 	"testing"
 
 	"connectrpc.com/connect"
@@ -26,7 +26,12 @@ func TestMeasureJSONIncludesZeroScalar(t *testing.T) {
 	if err := measure(ctx, call, format); err != nil {
 		t.Fatalf("measure: %v", err)
 	}
-	if got := strings.TrimSpace(out.String()); got != "{\n  \"rate\": 0\n}" {
-		t.Fatalf("zero rate JSON = %q, want rate field present", got)
+	// protojson deliberately varies whitespace, so compare decoded fields.
+	var decoded map[string]any
+	if err := json.Unmarshal(out.Bytes(), &decoded); err != nil {
+		t.Fatalf("zero rate JSON %q: %v", out.String(), err)
+	}
+	if rate, ok := decoded["rate"]; !ok || rate != float64(0) || len(decoded) != 1 {
+		t.Fatalf("zero rate JSON = %q, want only rate: 0", out.String())
 	}
 }

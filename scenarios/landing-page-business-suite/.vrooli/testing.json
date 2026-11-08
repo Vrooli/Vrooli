@@ -123,7 +123,8 @@
               "text",
               "json-summary",
               "json"
-            ]
+            ],
+            "committed": {"lines": 85, "statements": 85, "functions": 84, "branches": 81}
           },
             "framework": "vitest",
           "language": "typescript",

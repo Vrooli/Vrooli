@@ -52,8 +52,6 @@ replace github.com/vrooli/api-core => ../../../packages/api-core
 
 replace github.com/vrooli/vrooli/packages/proto => ../../../packages/proto
 
-replace github.com/vrooli/vrooli => ../../..
-
 replace github.com/vrooli/repo-contract-go => ../../../packages/repo-contract-go
 
 replace github.com/vrooli/cli-core => ../../../packages/cli-core
@@ -65,11 +63,5 @@ replace github.com/vrooli/measures-go => ../../../packages/measures-go
 replace github.com/vrooli/searchregister-go => ../../../packages/searchregister-go
 
 replace github.com/vrooli/vrooli-cli-go => ../../../packages/vrooli-cli-go
-
-replace github.com/vrooli/binaryfetch => ../../../packages/binaryfetch
-
-replace github.com/vrooli/platform-go => ../../../packages/platform-go
-
-replace github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime => ../../scenario-to-desktop/runtime
 
 replace github.com/vrooli/envkit-go => ../../../packages/envkit-go

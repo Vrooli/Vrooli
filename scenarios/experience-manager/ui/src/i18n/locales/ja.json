@@ -58,7 +58,6 @@
       "loadError": "フリートスイープを読み込めませんでした。",
       "staleData": "フリートスイープデータは鮮度ウィンドウより古くなっています。",
       "filterStatus": "ステータスで絞り込み",
-      "filterAll": "すべてのステータス",
       "filterFindings": "検出あり",
       "filterClean": "クリーン",
       "sortBy": "{{column}}で並べ替え"

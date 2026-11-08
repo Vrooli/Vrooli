@@ -129,12 +129,14 @@ const literalSelectors = {
     topHeaderStale: "nav-top-header-stale",
     topHeaderHealth: "nav-top-header-health",
     topHeaderMenu: "nav-top-header-menu",
-    mobileBottomNav: "nav-mobile-bottom",
-    mobileBottomItemGoldens: "nav-mobile-goldens",
-    mobileBottomItemSkills: "nav-mobile-skills",
-    mobileBottomItemManifests: "nav-mobile-manifests",
-    mobileBottomItemRuns: "nav-mobile-runs",
-    mobileBottomItemSettings: "nav-mobile-settings",
+    // The library AppShell derives its phone tab bar ids: `${appShell}-tabs`
+    // for the bar and `${item testId}-tab` for each destination.
+    mobileBottomNav: "app-shell-tabs",
+    mobileBottomItemGoldens: "nav-sidebar-goldens-tab",
+    mobileBottomItemSkills: "nav-sidebar-skills-tab",
+    mobileBottomItemManifests: "nav-sidebar-manifests-tab",
+    mobileBottomItemRuns: "nav-sidebar-runs-tab",
+    mobileBottomItemSettings: "nav-sidebar-settings-tab",
     appShell: "app-shell",
   },
   settings: {

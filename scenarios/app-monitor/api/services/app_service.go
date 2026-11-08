@@ -54,6 +54,7 @@ func NewAppServiceWithOptions(repo repository.AppRepository, httpClient HTTPClie
 		issueCacheTTL:     fixBacklogCacheTTL,
 		repoRoot:          repoRoot,
 		scenarioURL:       discovery.ResolveScenarioURLDefault,
+		scenarioPort:      discovery.ResolveScenarioPort,
 		enrichmentCache:   make(map[string]*enrichmentCacheEntry),
 		uiServerPort:      envReader.Getenv("UI_PORT"),
 	}

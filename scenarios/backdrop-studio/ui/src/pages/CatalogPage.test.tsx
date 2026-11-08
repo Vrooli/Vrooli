@@ -21,9 +21,9 @@ describe("CatalogPage", () => {
     renderWithProviders(<CatalogPage />);
     expect(await screen.findByTestId("catalog-grid")).toBeInTheDocument();
     expect(screen.getByTestId("style-specimen-cyanotype-arcade")).toBeInTheDocument();
-    // The tile shows the style's cost lane, which is what an operator needs
-    // before spending anything.
-    expect(screen.getByText(strings.pages.catalog.free)).toBeInTheDocument();
+    // The tile shows the style's quality tier (procedural, local model, or
+    // frontier model): what an operator needs before rendering or spending.
+    expect(screen.getByText(strings.pages.catalog.tierProcedural)).toBeInTheDocument();
   });
 
   it("announces the loading state before the catalog arrives", () => {

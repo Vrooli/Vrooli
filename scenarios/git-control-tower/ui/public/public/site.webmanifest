@@ -32,10 +32,9 @@
       "type": "image/png"
     }
   ],
-  "id": "/",
   "name": "Rigel",
-  "scope": "/",
+  "scope": "../",
   "short_name": "Rigel",
-  "start_url": "/",
+  "start_url": "../",
   "theme_color": "#0f172a"
 }

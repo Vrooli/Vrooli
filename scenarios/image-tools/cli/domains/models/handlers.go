@@ -262,7 +262,7 @@ func (h *handlers) install(ctx cliapp.RunContext) error {
 		})
 	}
 
-	submitted := fmt.Sprintf("Submitted download for %s as job %s (~%ds, ~%dMB).",
+	submitted := fmt.Sprintf("Submitted model install or runtime-validation job for %s as job %s (~%ds, ~%dMB).",
 		id, resp.Msg.JobId, resp.Msg.EtaSeconds, resp.Msg.SizeMbApprox)
 
 	if !ctx.BoolFlag("wait") || resp.Msg.JobId == "" {

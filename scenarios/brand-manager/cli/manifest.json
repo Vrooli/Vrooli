@@ -1055,6 +1055,74 @@
               "network:internal"
             ]
           }
+        },
+        {
+          "name": "fix",
+          "description": "Preview Brand Manager's deterministic branding fixes for a scenario's auto-fixable findings (writes nothing).",
+          "positionals": [
+            {
+              "name": "scenario",
+              "required": true,
+              "description": "Scenario slug to repair"
+            }
+          ],
+          "flags": [
+            {
+              "name": "rule",
+              "description": "Restrict fixes to one or more rule ids (repeatable / comma-separated)"
+            },
+            {
+              "name": "path",
+              "description": "Filesystem path to repair instead of a scenario slug"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ScenarioValidationService",
+            "method": "PreviewFix"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "fix-apply",
+          "description": "Apply Brand Manager's deterministic branding fixes for a scenario's auto-fixable findings.",
+          "positionals": [
+            {
+              "name": "scenario",
+              "required": true,
+              "description": "Scenario slug to repair"
+            }
+          ],
+          "flags": [
+            {
+              "name": "rule",
+              "description": "Restrict fixes to one or more rule ids (repeatable / comma-separated)"
+            },
+            {
+              "name": "path",
+              "description": "Filesystem path to repair instead of a scenario slug"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ScenarioValidationService",
+            "method": "ApplyFix"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "filesystem:read",
+              "filesystem:write",
+              "network:internal"
+            ]
+          }
         }
       ]
     }

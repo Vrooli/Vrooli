@@ -53,7 +53,8 @@ func ParseHelpTree(ctx context.Context, run Runner, bin string, opts HelpTreeOpt
 // through); it is threaded down so every leaf can fold its group's real-world
 // vocabulary into its embedding text.
 func walkHelpTree(ctx context.Context, run Runner, bin, origin string, parents []string, groupDesc string, helpOut []byte, depth, maxDepth int, seen map[string]struct{}) []Command {
-	entries := parseHelpEntries(helpOut)
+	invocation := append([]string{origin}, parents...)
+	entries := parseHelpEntriesForInvocation(helpOut, invocation)
 	if len(entries) == 0 {
 		return []Command{leafRecord(origin, parents, groupDesc, helpOut)}
 	}
@@ -93,9 +94,93 @@ func walkHelpTree(ctx context.Context, run Runner, bin, origin string, parents [
 			out = append(out, leafRecordFromEntry(origin, parents, groupDesc, e))
 			continue
 		}
+		currentPath := strings.Join(append([]string{origin}, childPath...), " ")
+		if hasDescendantCommands(childRecords, currentPath) && hasStandaloneUsage(childOut, append([]string{origin}, childPath...)) {
+			// Some commands are both executable operations and groups for related
+			// subcommands. Keep the parent in the catalog when its Usage line
+			// accepts standalone options instead of requiring a subcommand.
+			out = append(out, leafRecordFromEntry(origin, parents, groupDesc, e))
+		}
 		out = append(out, childRecords...)
 	}
 	return out
+}
+
+func hasDescendantCommands(records []Command, parentPath string) bool {
+	prefix := parentPath + " "
+	for _, record := range records {
+		if strings.HasPrefix(record.FullPath, prefix) {
+			return true
+		}
+	}
+	return false
+}
+
+func hasStandaloneUsage(helpOut []byte, invocation []string) bool {
+	if len(invocation) == 0 {
+		return false
+	}
+	prefix := strings.Join(invocation, " ")
+	inUsage := false
+	for _, raw := range strings.Split(string(helpOut), "\n") {
+		line := strings.TrimRight(raw, "\r")
+		if m := sectionHeaderRE.FindStringSubmatch(line); m != nil {
+			inUsage = strings.EqualFold(strings.TrimSpace(m[1]), "Usage")
+			continue
+		}
+		if !inUsage {
+			continue
+		}
+		usage := strings.TrimSpace(line)
+		if usage != prefix && !strings.HasPrefix(usage, prefix+" ") {
+			continue
+		}
+		remainder := strings.TrimSpace(strings.TrimPrefix(usage, prefix))
+		if !strings.HasPrefix(remainder, "<subcommand>") {
+			return true
+		}
+	}
+	return false
+}
+
+// parseHelpEntriesForInvocation normalizes help sections whose command rows
+// repeat the command used to reach the current help page. Some CLIs print
+// fully-qualified entries under `Subcommands:` (for example, `vrooli setup
+// status` from `vrooli setup --help`), while the recursive walker already
+// supplies that prefix. Strip the exact invocation prefix before the generic
+// parser reads each row, so recursion adds the path exactly once.
+func parseHelpEntriesForInvocation(helpOut []byte, invocation []string) []helpEntry {
+	if len(invocation) == 0 {
+		return parseHelpEntries(helpOut)
+	}
+	prefix := strings.Join(invocation, " ")
+	lines := strings.Split(string(helpOut), "\n")
+	var (
+		inSubcommands bool
+		changed       bool
+	)
+	for i, raw := range lines {
+		line := strings.TrimRight(raw, "\r")
+		if m := sectionHeaderRE.FindStringSubmatch(line); m != nil {
+			inSubcommands = strings.EqualFold(strings.TrimSpace(m[1]), "Subcommands")
+			continue
+		}
+		if !inSubcommands {
+			continue
+		}
+		indent := line[:len(line)-len(strings.TrimLeft(line, " \t"))]
+		content := strings.TrimLeft(line, " \t")
+		qualifiedPrefix := prefix + " "
+		if !strings.HasPrefix(content, qualifiedPrefix) {
+			continue
+		}
+		lines[i] = indent + strings.TrimPrefix(content, qualifiedPrefix)
+		changed = true
+	}
+	if !changed {
+		return parseHelpEntries(helpOut)
+	}
+	return parseHelpEntries([]byte(strings.Join(lines, "\n")))
 }
 
 // helpEntry is one parsed command line: indented `<name><whitespace><desc>`.

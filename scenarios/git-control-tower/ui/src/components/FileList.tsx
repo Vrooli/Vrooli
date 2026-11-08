@@ -37,7 +37,7 @@ import { useIsMobile } from "../hooks";
 import type { DiffStats, RepoFileStats } from "../lib/api";
 import { ViewModeCycleButton } from "./ViewModeCycleButton";
 import { ProjectTreeView } from "./ProjectTreeView";
-import { ContextMenu, type ContextMenuItem } from "@vrooli/react-component-library/ContextMenu/1.3.0";
+import { ContextMenu, type ContextMenuItem } from "@vrooli/react-component-library/ContextMenu/1";
 import { ChangeMetricsModal } from "./ChangeMetricsModal";
 import { getFileStats, filterFileStats, filterCategoryStats } from "../lib/metrics";
 import { useDiffStats } from "../lib/hooks";

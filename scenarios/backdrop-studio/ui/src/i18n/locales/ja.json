@@ -91,8 +91,6 @@
       "specimenAlt": "{{style}} スタイルのレンダリング見本",
       "specimenLoading": "見本を描画しています…",
       "specimenUnavailable": "このホストでは見本を生成できません",
-      "metered": "従量課金",
-      "free": "無料",
       "tierProcedural": "無料・オフライン",
       "tierLocalModel": "ローカルモデルが必要",
       "tierFrontierModel": "有料・フロンティアモデル",

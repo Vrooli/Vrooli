@@ -1,0 +1,24 @@
+{
+  "background_color": "#ffffff",
+  "description": "Editorial production ledger for marketing content: drafts, verifiable claims, review gates, and publish history",
+  "display": "standalone",
+  "icons": [
+    {
+      "purpose": "any maskable",
+      "sizes": "192x192",
+      "src": "manifest-icon-192.maskable.png",
+      "type": "image/png"
+    },
+    {
+      "purpose": "any maskable",
+      "sizes": "512x512",
+      "src": "manifest-icon-512.maskable.png",
+      "type": "image/png"
+    }
+  ],
+  "name": "Content Desk",
+  "scope": "../",
+  "short_name": "content-desk",
+  "start_url": "../",
+  "theme_color": "#ffffff"
+}

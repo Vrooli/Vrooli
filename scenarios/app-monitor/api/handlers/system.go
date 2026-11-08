@@ -276,14 +276,15 @@ func (h *SystemHandler) upsertResourceCache(resource map[string]interface{}) {
 func resourceStatusToMap(rs *cliv1.ResourceStatus) map[string]interface{} {
 	res := rs.GetResource()
 	return map[string]interface{}{
-		"id":            res.GetName(),
-		"name":          res.GetName(),
-		"type":          res.GetDriver(),
-		"status":        deriveResourceStatus(rs),
-		"enabled":       res.GetEnabled(),
-		"enabled_known": true,
-		"running":       rs.GetRunning(),
-		"status_detail": rs.GetMessage(),
+		"id":                    res.GetName(),
+		"name":                  res.GetName(),
+		"type":                  res.GetDriver(),
+		"status":                deriveResourceStatus(rs),
+		"enabled":               res.GetEnabled(),
+		"enabled_known":         true,
+		"running":               rs.GetRunning(),
+		"status_detail":         rs.GetMessage(),
+		"artifact_verification": rs.GetArtifactVerification(),
 	}
 }
 
@@ -322,7 +323,7 @@ func rawDriverPayload(rs *cliv1.ResourceStatus) map[string]interface{} {
 func (h *SystemHandler) fetchResourceStatus(ctx context.Context, name string) (map[string]interface{}, error) {
 	fetch := h.resourceStatus
 	if fetch == nil {
-		fetch = cliClient.ResourceStatus
+		fetch = cliClient.ResourceHealthStatus
 	}
 	resp, err := fetch(ctx, name)
 	if err != nil {
@@ -338,7 +339,7 @@ func (h *SystemHandler) fetchResourceStatus(ctx context.Context, name string) (m
 func (h *SystemHandler) fetchResourceDetail(ctx context.Context, name string) (map[string]interface{}, map[string]interface{}, error) {
 	fetch := h.resourceStatus
 	if fetch == nil {
-		fetch = cliClient.ResourceStatus
+		fetch = cliClient.ResourceHealthStatus
 	}
 	resp, err := fetch(ctx, name)
 	if err != nil {
@@ -394,8 +395,8 @@ func NewSystemHandler(metricsService *services.MetricsService) *SystemHandler {
 		metricsService: metricsService,
 		resourceCache:  &resourceCache{},
 	}
-	h.resourceStatuses = cliClient.ResourceStatuses
-	h.resourceStatus = cliClient.ResourceStatus
+	h.resourceStatuses = cliClient.ResourceHealthStatuses
+	h.resourceStatus = cliClient.ResourceHealthStatus
 	return h
 }
 
@@ -519,7 +520,7 @@ func (h *SystemHandler) GetResources(c *gin.Context) {
 
 	fetch := h.resourceStatuses
 	if fetch == nil {
-		fetch = cliClient.ResourceStatuses
+		fetch = cliClient.ResourceHealthStatuses
 	}
 	resp, err := fetch(ctx)
 	if err != nil {

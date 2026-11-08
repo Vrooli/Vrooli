@@ -171,6 +171,151 @@ func TestReportAppIssue_ValidScreenshot(t *testing.T) {
 	}
 }
 
+func TestReportAppIssue_AcceptanceScopeUsesResolvedAppIdentity(t *testing.T) {
+	for _, tc := range []struct {
+		name             string
+		repo             *mockAppRepository
+		appID            string
+		requestScenario  string
+		wantScenarioPath string
+	}{
+		{
+			name:  "registered app ignores mismatched request scenario",
+			repo:  &mockAppRepository{apps: []repository.App{{ID: "app-a", Name: "App A", ScenarioName: "scenario-a"}}},
+			appID: "app-a", requestScenario: "scenario-b", wantScenarioPath: "scenarios/scenario-a/**",
+		},
+		{
+			name:  "unresolved app falls back to route identity",
+			repo:  &mockAppRepository{},
+			appID: "app-a", requestScenario: "scenario-b", wantScenarioPath: "scenarios/app-a/**",
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			var receivedBody string
+			mockHTTP := &mockHTTPClient{doFunc: func(req *http.Request) (*http.Response, error) {
+				body, _ := io.ReadAll(req.Body)
+				receivedBody = string(body)
+				return &http.Response{
+					StatusCode: http.StatusOK,
+					Body:       io.NopCloser(bytes.NewBufferString(`{"item":{"name":"test-fix","title":"Test Fix","kind":"fix"}}`)),
+				}, nil
+			}}
+
+			service := NewAppServiceWithOptions(tc.repo, mockHTTP, nil)
+			service.scenarioURL = func(context.Context, string) (string, error) { return "http://localhost:8080", nil }
+			_, err := service.ReportAppIssue(context.Background(), &IssueReportRequest{
+				AppID:        tc.appID,
+				Message:      "scope provenance regression",
+				ScenarioName: stringPtr(tc.requestScenario),
+			})
+			if err != nil {
+				t.Fatalf("ReportAppIssue returned error: %v", err)
+			}
+			if !strings.Contains(receivedBody, tc.wantScenarioPath) {
+				t.Errorf("Swarm payload missing canonical acceptance scope %q", tc.wantScenarioPath)
+			}
+			if strings.Contains(receivedBody, "scenarios/scenario-b/**") {
+				t.Errorf("forged request scenario leaked into acceptance scope: %s", receivedBody)
+			}
+		})
+	}
+}
+
+func TestReportAppIssue_RejectsUnsafeUnresolvedAppIdentity(t *testing.T) {
+	requestSent := false
+	mockHTTP := &mockHTTPClient{doFunc: func(req *http.Request) (*http.Response, error) {
+		requestSent = true
+		return nil, errors.New("unexpected Swarm Manager request")
+	}}
+	service := NewAppServiceWithOptions(&mockAppRepository{}, mockHTTP, nil)
+	service.scenarioURL = func(context.Context, string) (string, error) { return "http://localhost:8080", nil }
+
+	_, err := service.ReportAppIssue(context.Background(), &IssueReportRequest{
+		AppID:        "../scenario-b",
+		Message:      "unsafe unresolved identity",
+		ScenarioName: stringPtr("scenario-b"),
+	})
+	if !errors.Is(err, ErrIssueReportScenarioInvalid) {
+		t.Fatalf("error = %v, want ErrIssueReportScenarioInvalid", err)
+	}
+	if requestSent {
+		t.Fatal("Swarm Manager request was sent for an unsafe scenario identity")
+	}
+}
+
+func TestReportAppIssue_DataURLCaptureBecomesSwarmEvidence(t *testing.T) {
+	imageBytes := []byte("expected png bytes")
+	encoded := base64.StdEncoding.EncodeToString(imageBytes)
+
+	for _, tc := range []struct {
+		name         string
+		data         string
+		wantEvidence bool
+	}{
+		{name: "raw base64", data: encoded, wantEvidence: true},
+		{name: "PNG data URL", data: "data:image/png;base64," + encoded, wantEvidence: true},
+		{name: "unsupported JPEG data URL is filtered", data: "data:image/jpeg;base64," + encoded},
+		{name: "empty PNG data URL is filtered", data: "data:image/png;base64,"},
+		{name: "empty raw base64 is filtered", data: ""},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			requestReceived := false
+			receivedEvidence := false
+			mockHTTP := &mockHTTPClient{
+				doFunc: func(req *http.Request) (*http.Response, error) {
+					requestReceived = true
+					reader, err := req.MultipartReader()
+					if err != nil {
+						t.Fatalf("parse Swarm multipart request: %v", err)
+					}
+					for {
+						part, err := reader.NextPart()
+						if err == io.EOF {
+							break
+						}
+						if err != nil {
+							t.Fatalf("read Swarm multipart part: %v", err)
+						}
+						content, err := io.ReadAll(part)
+						if err != nil {
+							t.Fatalf("read Swarm evidence bytes: %v", err)
+						}
+						if part.FileName() == "element-01.png" {
+							receivedEvidence = true
+							if !bytes.Equal(content, imageBytes) {
+								t.Errorf("evidence bytes = %q, want %q", content, imageBytes)
+							}
+						}
+					}
+					return &http.Response{
+						StatusCode: http.StatusOK,
+						Body:       io.NopCloser(bytes.NewBufferString(`{"item":{"name":"test-fix","title":"Test Fix","kind":"fix"}}`)),
+					}, nil
+				},
+			}
+
+			service := NewAppServiceWithOptions(nil, mockHTTP, nil)
+			service.scenarioURL = func(context.Context, string) (string, error) { return "http://localhost:8080", nil }
+			_, err := service.ReportAppIssue(context.Background(), &IssueReportRequest{
+				AppID:   "test-app",
+				Message: "test capture evidence",
+				Captures: []IssueCapture{{
+					ID: "capture-1", Type: "element", Data: tc.data,
+				}},
+			})
+			if err != nil {
+				t.Fatalf("ReportAppIssue returned error: %v", err)
+			}
+			if !requestReceived {
+				t.Fatal("Swarm request was not sent")
+			}
+			if receivedEvidence != tc.wantEvidence {
+				t.Fatalf("element evidence present = %v, want %v", receivedEvidence, tc.wantEvidence)
+			}
+		})
+	}
+}
+
 func TestReportAppIssue_FullWorkflow(t *testing.T) {
 	mockRepo := &mockAppRepository{
 		apps: []repository.App{

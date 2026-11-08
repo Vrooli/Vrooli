@@ -2,6 +2,10 @@
 .DEFAULT_GOAL := help
 SCENARIO_NAME := $(notdir $(CURDIR))
 
+SCENARIO_CUSTOM_TARGETS += build
+# Shared toolchain floor (mk/toolchain.mk) and build targets (mk/scenario.mk); a custom body for one of them is declared in SCENARIO_CUSTOM_TARGETS.
+-include ../../mk/scenario.mk
+
 help:
 	@printf "Vrooli scenario entrypoints for %s\n" "$(SCENARIO_NAME)"
 	@printf "  make setup|start|stop|restart|status|logs|test\n"
@@ -21,5 +25,4 @@ test:
 	@vrooli scenario test "$(SCENARIO_NAME)"
 build:
 	@vrooli package build "$(SCENARIO_NAME)"
-fmt:
-	@gofmt -w api/*.go
+fmt: fmt-go

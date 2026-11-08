@@ -126,7 +126,20 @@
       "checkPlatformsNote": "各ホストOSに適用される登録済み autoheal チェックの数と、その母数。プラットフォームを宣言しないチェックはあらゆる環境に適用されるため、どのチェックも明示しないのに適用チェックを持つプラットフォームが生じる。",
       "checkPlatformRow": "{{total}} 件中 {{applicable}} 件が適用、うち {{universal}} 件は汎用",
       "statUngraded": "バーの無いセル",
-      "denominatorUnread": "基盤スペース文書を読めなかったため、この盤のどのセルも著された状態を持たない。"
+      "denominatorUnread": "基盤スペース文書を読めなかったため、この盤のどのセルも著された状態を持たない。",
+      "resourceAcquisitionColumn": "取得方法",
+      "resourceClaimsCaption": "{{count}} 件のリソース。それぞれに明示的なドライバー、取得種別、OS の主張、アーキテクチャのセルがある。",
+      "resourceClaimsHeading": "リソースのアーキテクチャ主張",
+      "resourceClaimsNote": "リソース群も移植性の面の一部。各行は、そのリソースの取得方法と、デプロイプロファイルが実際に宣言している OS とアーキテクチャのセルを示す。",
+      "resourceDriverColumn": "ドライバー",
+      "resourceNameColumn": "リソース",
+      "resourcePlatformColumn": "プラットフォームとアーキテクチャの主張",
+      "skipBudgetHeading": "プラットフォーム依存のテストスキップ",
+      "skipBudgetNote": "計測したスキップ数を、OS ごとの予算、ラチェットの方向、前回実行の判定とともに示す。取得できないソースを 0 として描画することはない。",
+      "skipBudgetOver": "前回の実行は予算超過",
+      "skipBudgetSummary": "計測スキップ {{measured}} 件 · 予算 {{budgets}} · ラチェット {{ratchet}}",
+      "skipBudgetUnavailable": "スキップ予算を取得できない: {{reason}}",
+      "skipBudgetWithin": "前回の実行は予算内"
     },
     "coverage": {
       "eyebrow": "インフラ健全性 · 被覆プロジェクション",

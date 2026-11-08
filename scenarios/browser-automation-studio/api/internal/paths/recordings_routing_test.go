@@ -10,12 +10,14 @@ import (
 	"github.com/google/uuid"
 	coredb "github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/storage"
+	"github.com/vrooli/api-core/storage/storagetest"
 	"github.com/vrooli/browser-automation-studio/automation/contracts"
 	executionwriter "github.com/vrooli/browser-automation-studio/automation/execution-writer"
 	"github.com/vrooli/browser-automation-studio/internal/paths"
 )
 
 func TestRecordingsRootProviderRoutesExecutionFilesToLeasedTestRoots(t *testing.T) {
+	storagetest.IsolateStorage(t)
 	primary := t.TempDir()
 	t.Setenv("BAS_RECORDINGS_ROOT", filepath.Join(primary, "recordings"))
 

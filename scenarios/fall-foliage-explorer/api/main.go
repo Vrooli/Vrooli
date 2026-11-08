@@ -365,16 +365,9 @@ No other text, just the JSON.`,
 	// semaphore can bound fleet-wide parallelism.
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()
-	cmd := exec.CommandContext(ctx, "resource-ollama", "gateway", "generate",
-		"--role", "summarize.default", "--json", "--prompt-stdin")
-	cmd.Stdin = strings.NewReader(prompt)
-	out, err := cmd.Output()
+	out, err := generateWithGateway(ctx, prompt)
 	if err != nil {
-		stderr := ""
-		if exitErr, ok := err.(*exec.ExitError); ok {
-			stderr = strings.TrimSpace(string(exitErr.Stderr))
-		}
-		return "", 0, fmt.Errorf("resource-ollama gateway generate failed: %v: %s", err, stderr)
+		return "", 0, err
 	}
 
 	var ollamaResp struct {
@@ -798,4 +791,22 @@ func main() {
 		logError("server error", "error", err)
 		os.Exit(1)
 	}
+}
+
+// generateWithGateway sends a prompt to the AI gateway's summarize role and
+// returns its JSON envelope. Tests replace it so predictions never depend on a
+// live model.
+var generateWithGateway = func(ctx context.Context, prompt string) ([]byte, error) {
+	cmd := exec.CommandContext(ctx, "resource-ollama", "gateway", "generate",
+		"--role", "summarize.default", "--json", "--prompt-stdin")
+	cmd.Stdin = strings.NewReader(prompt)
+	out, err := cmd.Output()
+	if err != nil {
+		stderr := ""
+		if exitErr, ok := err.(*exec.ExitError); ok {
+			stderr = strings.TrimSpace(string(exitErr.Stderr))
+		}
+		return nil, fmt.Errorf("resource-ollama gateway generate failed: %v: %s", err, stderr)
+	}
+	return out, nil
 }

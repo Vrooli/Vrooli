@@ -694,6 +694,8 @@
     "createCancel": "Request cancellation",
     "createResult": "The result is saved in Imported geometry candidates for review.",
     "createUnavailable": "Local geometry creation is unavailable for this request.",
+    "createReadbackUnavailable": "We couldn't check whether this request started. Recheck its status before trying again; the same request key will be used.",
+    "createRecheck": "Recheck request status",
     "createStorageUnavailable": "Browser storage is unavailable. Nothing was submitted; enable storage and retry.",
     "createReferenceUnavailable": "Project images could not be loaded.",
     "createSelectPrompt": "Choose a project image",

@@ -24,6 +24,7 @@ import {
 } from './diagnostic-logger';
 import { generateSilentSinkPatch, type AudioStrategy } from './audio';
 import { configureInteractionState } from './interaction-state';
+import { configureRoutedWebSockets } from './routed-websocket';
 
 // Re-export for backward compatibility (canonical location is browser-profile)
 export { BEHAVIOR_SETTINGS_KEY } from '../browser-profile';
@@ -337,6 +338,7 @@ export async function buildContext(
 
   // Create context
   const context = await browser.newContext(contextOptions);
+  await configureRoutedWebSockets(context, spec.browser_profile?.extra_headers);
   const storageOrigins = new Set(spec.storage_state?.origins.map(({ origin }) => origin));
   const rememberOrigin = (frame: Frame): void => {
     if (!frame.url()) return;

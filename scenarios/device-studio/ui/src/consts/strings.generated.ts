@@ -706,6 +706,8 @@ export const strings = {
     createCancel: "physical.createCancel",
     createResult: "physical.createResult",
     createUnavailable: "physical.createUnavailable",
+    createReadbackUnavailable: "physical.createReadbackUnavailable",
+    createRecheck: "physical.createRecheck",
     createStorageUnavailable: "physical.createStorageUnavailable",
     createReferenceUnavailable: "physical.createReferenceUnavailable",
     createSelectPrompt: "physical.createSelectPrompt",

@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, screen, waitFor } from "@testing-library/react";
-import { MemoryRouter, Route, Routes } from "react-router-dom";
+import { Route, Routes } from "react-router-dom";
 
 vi.mock("../api/conflicts", () => ({
   conflictsClient: {
@@ -19,15 +19,10 @@ afterEach(() => cleanup());
 describe("TargetConflictsPage", () => {
   it("renders the conflicts page under the workspace route", async () => {
     renderWithProviders(
-      <MemoryRouter
-        initialEntries={["/targets/demo/conflicts"]}
-        future={{ v7_startTransition: true, v7_relativeSplatPath: true }}
-      >
         <Routes>
           <Route path="/targets/:encodedPath/conflicts" element={<TargetConflictsPage />} />
-        </Routes>
-      </MemoryRouter>,
-      { withoutRouter: true },
+        </Routes>,
+      { routerEntries: ["/targets/demo/conflicts"] }
     );
 
     await waitFor(() =>

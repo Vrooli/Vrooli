@@ -67,7 +67,8 @@
       "documents": [
         {"path": "reference/api-endpoints.md", "docType": "api-reference", "title": "API Endpoints", "aliases": ["api", "api-endpoints", "endpoints"], "description": "REST API contracts and payloads", "maturity": "active", "requiredBy": ["implemented"], "completion": "required"},
         {"path": "reference/cli-commands.md", "docType": "cli-reference", "title": "CLI Commands", "aliases": ["cli", "commands"], "description": "Command-line usage and examples", "maturity": "active", "requiredBy": ["implemented"], "completion": "required"},
-        {"path": "reference/configuration.md", "docType": "configuration-reference", "title": "Configuration", "aliases": ["config", "environment"], "description": "Environment variables, ports, and defaults", "maturity": "active", "requiredBy": ["deployable"], "completion": "required"}
+        {"path": "reference/configuration.md", "docType": "configuration-reference", "title": "Configuration", "aliases": ["config", "environment"], "description": "Environment variables, ports, and defaults", "maturity": "active", "requiredBy": ["deployable"], "completion": "required"},
+        {"path": "reference/component-library-gaps.md", "docType": "component-library-gaps", "title": "Component Library Gaps", "description": "Why the explorer keeps its specialized shell instead of the shared library frame", "maturity": "active", "requiredBy": ["implemented"], "completion": "optional"}
       ]
     },
     {

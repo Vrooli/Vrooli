@@ -32,7 +32,7 @@ describe("DevicesPage", () => {
   });
 
   it("renders the management panel (issue + list) once an owner token is present", async () => {
-    seedSession({ ownerToken: "owner-jwt" });
+    seedSession({ ownerEmail: "owner@example.test" });
     renderWithProviders(<DevicesPage />);
 
     expect(screen.getByTestId(selectors.devices.panel)).toBeInTheDocument();

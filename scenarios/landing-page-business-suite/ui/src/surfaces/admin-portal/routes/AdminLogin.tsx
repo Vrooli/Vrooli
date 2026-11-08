@@ -95,7 +95,7 @@ export function AdminLogin() {
     setPasskeyLoading(true);
     try {
       const started = await beginAdminSecondFactor(email.trim());
-      const credential = await navigator.credentials.get({ publicKey: toRequestOptions(JSON.parse(started.optionsJson)) as PublicKeyCredentialRequestOptions });
+      const credential = await navigator.credentials.get({ publicKey: toRequestOptions(JSON.parse(started.optionsJson)) });
       if (!(credential instanceof PublicKeyCredential)) throw new Error('No passkey assertion was returned.');
       await attempt('', new TextEncoder().encode(JSON.stringify(credentialToJSON(credential))), started.ceremonyId);
     } catch (err) {

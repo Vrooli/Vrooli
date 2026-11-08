@@ -8,7 +8,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { MemoryRouter } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
 import { renderWithProviders } from "./test-utils";
@@ -65,14 +64,16 @@ function renderApp(entry = "/") {
     <QueryClientProvider
       client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}
     >
-      <MemoryRouter initialEntries={[entry]}>
         <ThemeProvider><App /></ThemeProvider>
-      </MemoryRouter>
-    </QueryClientProvider>,
+    </QueryClientProvider>, { routerEntries: [entry] }
   );
 }
 
-describe("App composition", () => {
+// Routes are lazy chunks: the first visit transforms the page module, which
+// takes several seconds when every suite runs in parallel on a loaded host.
+const ROUTE_LOAD_TIMEOUT_MS = 8_000;
+
+describe("App composition", { timeout: 15_000 }, () => {
   afterEach(() => {
     cleanup();
   });
@@ -85,18 +86,18 @@ describe("App composition", () => {
 
   it("lands on the Dashboard at /", async () => {
     renderApp();
-    expect(await screen.findByTestId("dashboard-page", undefined, { timeout: 2000 })).toBeInTheDocument();
+    expect(await screen.findByTestId("dashboard-page", undefined, { timeout: ROUTE_LOAD_TIMEOUT_MS })).toBeInTheDocument();
   });
 
   it("resolves /flows to the Inventory page", async () => {
     renderApp("/flows");
-    expect(await screen.findByTestId("inventory-page", undefined, { timeout: 2000 })).toBeInTheDocument();
+    expect(await screen.findByTestId("inventory-page", undefined, { timeout: ROUTE_LOAD_TIMEOUT_MS })).toBeInTheDocument();
   });
 
   it("resolves /flows/:flowId to FlowDetailPage and surfaces the flowId", async () => {
     renderApp("/flows/example.workflow.api");
     expect(
-      await screen.findByTestId("flow-detail-page", undefined, { timeout: 2000 }),
+      await screen.findByTestId("flow-detail-page", undefined, { timeout: ROUTE_LOAD_TIMEOUT_MS }),
     ).toBeInTheDocument();
     expect(screen.getByTestId("flow-detail-id")).toHaveTextContent("example.workflow.api");
   });
@@ -104,23 +105,23 @@ describe("App composition", () => {
   it("resolves /runs/:runId to RunDetailPage and surfaces the runId", async () => {
     renderApp("/runs/abc-123");
     expect(
-      await screen.findByTestId("run-detail-page", undefined, { timeout: 2000 }),
+      await screen.findByTestId("run-detail-page", undefined, { timeout: ROUTE_LOAD_TIMEOUT_MS }),
     ).toBeInTheDocument();
     expect(screen.getByTestId("run-detail-id")).toHaveTextContent("abc-123");
   });
 
   it("resolves /settings to the Settings page", async () => {
     renderApp("/settings");
-    expect(await screen.findByTestId("settings-page", undefined, { timeout: 2000 })).toBeInTheDocument();
+    expect(await screen.findByTestId("settings-page", undefined, { timeout: ROUTE_LOAD_TIMEOUT_MS })).toBeInTheDocument();
   });
 
   it("resolves an unknown path to the NotFound page", async () => {
     renderApp("/totally-not-a-route");
-    expect(await screen.findByTestId("not-found-page", undefined, { timeout: 2000 })).toBeInTheDocument();
+    expect(await screen.findByTestId("not-found-page", undefined, { timeout: ROUTE_LOAD_TIMEOUT_MS })).toBeInTheDocument();
   });
 });
 
-describe("App nav navigation", () => {
+describe("App nav navigation", { timeout: 15_000 }, () => {
   afterEach(() => {
     cleanup();
   });
@@ -128,7 +129,7 @@ describe("App nav navigation", () => {
   it("clicking the Flows nav link navigates to /flows without remounting the shell", async () => {
     const user = userEvent.setup();
     renderApp();
-    expect(await screen.findByTestId("dashboard-page", undefined, { timeout: 2000 })).toBeInTheDocument();
+    expect(await screen.findByTestId("dashboard-page", undefined, { timeout: ROUTE_LOAD_TIMEOUT_MS })).toBeInTheDocument();
 
     await user.click(screen.getByTestId("nav-flows"));
 

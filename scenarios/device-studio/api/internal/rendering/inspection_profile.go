@@ -45,7 +45,7 @@ func resolveInspectionProfile(ctx context.Context, getenv func(string) string, h
 		return nil, err
 	}
 	path, err := cliinvoke.Resolve(cliinvoke.ResolveOptions{
-		Explicit: strings.TrimSpace(getenv(cliinvoke.BinaryEnvVar)), RuntimeHome: home,
+		Explicit: strings.TrimSpace(getenv(cliinvoke.BinaryEnvVar)), UserHome: home,
 		Getenv:   func(string) string { return "" },
 		LookPath: func(string) (string, error) { return "", exec.ErrNotFound },
 	})

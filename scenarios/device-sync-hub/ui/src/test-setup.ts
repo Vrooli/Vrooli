@@ -24,12 +24,18 @@
  */
 import "@testing-library/jest-dom/vitest";
 import { createElement } from "react";
-import { afterEach, beforeEach, vi } from "vitest";
+import { afterEach, beforeAll, beforeEach, vi } from "vitest";
 import { configureTestProviders } from "@vrooli/api-base/testing";
 import { i18n } from "./i18n";
-import { Providers } from "./app/providers";
 
-configureTestProviders((children) => createElement(Providers, null, children));
+// Load the providers after each test file has registered its vi.mock()
+// factories. A static import here would evaluate the session, realtime and
+// API modules first, so their imports would bind to the real modules and a
+// test's mock of "../api/client" would never reach them.
+beforeAll(async () => {
+  const { Providers } = await import("./app/providers");
+  configureTestProviders((children) => createElement(Providers, null, children));
+});
 
 // jsdom does not provide the media-query API used by the shared AppShell.
 if (typeof window !== "undefined" && typeof window.matchMedia !== "function") {

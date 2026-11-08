@@ -136,6 +136,18 @@ func main() {
 			wantErr:    false,
 		},
 		{
+			name: "Source with shell metacharacters is written verbatim",
+			code: `
+package main
+import "fmt"
+func main() {
+    fmt.Println('x' == 'x', "it's $HOME")
+}`,
+			stdin:      "",
+			wantOutput: "true it's $HOME",
+			wantErr:    false,
+		},
+		{
 			name: "Compile error",
 			code: `
 package main

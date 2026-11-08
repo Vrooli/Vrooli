@@ -8,11 +8,13 @@ import (
 	"regexp"
 	"strings"
 
+	"brand-manager/internal/brandsurface"
 	"brand-manager/internal/profiles"
 	"brand-manager/internal/render"
 )
 
-// Managed icon paths. The /public/* layout serves ui/public/public at /public.
+// Managed icon paths. The /public/* layout serves ui/public/public at /public;
+// head links reference it document-relatively as public/....
 const (
 	indexHTMLPath = "ui/index.html"
 	markerStart   = "<!-- brand-manager:icons:start"
@@ -137,15 +139,17 @@ func (s *service) writeWebPublicWiring(ctx context.Context, scenario, brandSlug 
 	//
 	// Every key the manifest-completeness rule requires is written here
 	// (name, short_name, description, theme_color, background_color, display,
-	// start_url, id, icons). Writing only the first five left every branded
+	// start_url, icons). Writing only the first five left every branded
 	// scenario failing that rule identically — the gap was in this writer, not
 	// in the scenarios.
 	//
-	// Icon srcs stay relative (they sit beside this file), but start_url, scope
-	// and id are the app root "/" and NOT "." — this manifest is served from
-	// /public/site.webmanifest, so a relative "." would scope the installed app
-	// to the asset folder instead of the app. docs/concepts/PUBLIC_ASSETS.md
-	// §"Adopter requirements" states this explicitly.
+	// Icon srcs stay relative (they sit beside this file). start_url and scope
+	// are "../": this manifest is served from /public/site.webmanifest, so
+	// "../" is the app root, where "." would scope the installed app to the
+	// asset folder and "/" would escape a path-prefix proxy. id is omitted so
+	// it defaults to that resolved start_url (brandsurface.
+	// ManifestIDCollapsesToOrigin). docs/concepts/PUBLIC_ASSETS.md
+	// §"Adopter requirements".
 	name := firstNonEmpty(brand.DisplayName, brandSlug)
 	manifest := map[string]any{
 		"name":        name,
@@ -156,9 +160,8 @@ func (s *service) writeWebPublicWiring(ctx context.Context, scenario, brandSlug 
 		"theme_color":      firstNonEmpty(firstNonEmpty(brand.Colors.Background, brand.Colors.Primary), "#0f172a"),
 		"background_color": firstNonEmpty(brand.Colors.Background, "#0f172a"),
 		"display":          "standalone",
-		"id":               "/",
-		"start_url":        "/",
-		"scope":            "/",
+		"start_url":        brandsurface.ManifestAppRoot,
+		"scope":            brandsurface.ManifestAppRoot,
 		"icons":            manifestIcons(written),
 		// _brand makes an icons-only apply self-declaring: brand-markers-applied
 		// is otherwise satisfied only by CSS markers, which the icons element
@@ -183,8 +186,8 @@ func (s *service) writeWebPublicWiring(ctx context.Context, scenario, brandSlug 
 		return nil
 	}
 	updated := rewriteIconBlock(string(existing), brandSlug, brand.Version)
-	updated = rewriteMetaImage(updated, "og:image", "/public/og-image.png")
-	updated = rewriteMetaImage(updated, "twitter:image", "/public/og-image.png")
+	updated = rewriteMetaImage(updated, "og:image", brandsurface.PublicSocialImageURL("og-image.png"))
+	updated = rewriteMetaImage(updated, "twitter:image", brandsurface.PublicSocialImageURL("og-image.png"))
 	return s.workspace.WriteFile(ctx, scenario, indexHTMLPath, []byte(updated))
 }
 
@@ -303,11 +306,13 @@ func rewriteIconBlock(html, brandSlug string, version int) string {
 func buildIconBlock(brandSlug string, version int) string {
 	lines := []string{
 		fmt.Sprintf(`<!-- brand-manager:icons:start profile=web-public-v1 brand=%s version=%d -->`, brandSlug, version),
-		`<link rel="icon" type="image/svg+xml" href="/public/logo.svg" />`,
-		`<link rel="icon" type="image/png" sizes="32x32" href="/public/favicon-32.png" />`,
-		`<link rel="icon" type="image/png" sizes="16x16" href="/public/favicon-16.png" />`,
-		`<link rel="apple-touch-icon" sizes="180x180" href="/public/apple-touch-icon.png" />`,
-		`<link rel="manifest" href="/public/site.webmanifest" crossorigin="use-credentials" />`,
+		// Relative public/ links: /public/... from the host root (the Access
+		// bypass prefix), and under the prefix behind a path-prefix proxy.
+		`<link rel="icon" type="image/svg+xml" href="` + brandsurface.PublicHeadRef("logo.svg") + `" />`,
+		`<link rel="icon" type="image/png" sizes="32x32" href="` + brandsurface.PublicHeadRef("favicon-32.png") + `" />`,
+		`<link rel="icon" type="image/png" sizes="16x16" href="` + brandsurface.PublicHeadRef("favicon-16.png") + `" />`,
+		`<link rel="apple-touch-icon" sizes="180x180" href="` + brandsurface.PublicHeadRef("apple-touch-icon.png") + `" />`,
+		`<link rel="manifest" href="` + brandsurface.PublicHeadRef("site.webmanifest") + `" crossorigin="use-credentials" />`,
 		markerEnd,
 	}
 	return strings.Join(lines, "\n")

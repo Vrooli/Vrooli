@@ -44,6 +44,29 @@ func TestEndpointIDDistinguishesMethods(t *testing.T) {
 	}
 }
 
+func TestAIDoorReceiptAndIdentityRoutesAppearInInventory(t *testing.T) {
+	routes, err := inventoryRoutes(filepath.Join("..", "..", "routes.go"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []route{
+		{Path: "/api/v1/ai/receipt", Method: "GET"},
+		{Path: "/api/v1/ai/keys/device", Method: "POST"},
+		{Path: "/api/v1/ai/chat/completions", Method: "POST"},
+	} {
+		found := false
+		for _, got := range routes {
+			if got == want {
+				found = true
+				break
+			}
+		}
+		if !found {
+			t.Errorf("mounted Door route missing from inventory: %+v", want)
+		}
+	}
+}
+
 // [REQ:LP-PRES-009] Released same-origin byte delivery is a documented surface.
 func TestReleasedPresentationAssetsAppearInRouteInventory(t *testing.T) {
 	routes, err := registeredRoutes(filepath.Join("..", "..", "routes.go"))

@@ -9,7 +9,7 @@ import {
   Trash2,
   History,
 } from "lucide-react";
-import { ContextMenu, type ContextMenuItem } from "@vrooli/react-component-library/ContextMenu/1.3.0";
+import { ContextMenu, type ContextMenuItem } from "@vrooli/react-component-library/ContextMenu/1";
 import { useQueryClient } from "@tanstack/react-query";
 import { useDirectoryContents, queryKeys } from "../lib/hooks";
 import { fetchDirectoryContents, type DirEntry, type DirListResponse } from "../lib/api";

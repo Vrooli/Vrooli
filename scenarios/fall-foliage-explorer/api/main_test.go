@@ -2,7 +2,9 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -302,9 +304,12 @@ func TestPredictHandler(t *testing.T) {
 		regionID := setupTestRegion(t, testDB.DB)
 		defer cleanupTestRegion(t, testDB.DB, regionID)
 
-		// Set invalid Ollama URL to trigger fallback
-		restoreEnv := setTestEnv(t, "OLLAMA_URL", "http://invalid:9999")
-		defer restoreEnv()
+		// An unavailable AI gateway triggers the typical-week fallback.
+		original := generateWithGateway
+		generateWithGateway = func(context.Context, string) ([]byte, error) {
+			return nil, errors.New("gateway unavailable")
+		}
+		defer func() { generateWithGateway = original }()
 
 		rr, err := makeHTTPRequest(HTTPTestRequest{
 			Method: "POST",

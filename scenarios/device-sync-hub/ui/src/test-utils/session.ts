@@ -29,13 +29,13 @@ export function makeDevice(overrides: MessageInitShape<typeof DeviceSchema> = {}
 export function seedSession(opts: {
   deviceToken?: string;
   device?: Device | null;
-  ownerToken?: string;
+  /** A signed-in owner is marked by their email; the JWT is an HttpOnly cookie. */
   ownerEmail?: string | null;
 } = {}): void {
   saveSession({
     deviceToken: opts.deviceToken ?? "device-token-test",
     device: opts.device ?? makeDevice(),
-    ownerToken: opts.ownerToken ?? null,
+    ownerToken: null,
     ownerEmail: opts.ownerEmail ?? null,
   });
 }

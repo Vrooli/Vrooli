@@ -209,8 +209,12 @@ func correctionHandler(c coordinator) http.HandlerFunc {
 func operationHandler(c coordinator) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		job, err := c.FindGeometryCreationByKey(r.Context(), strings.TrimSpace(mux.Vars(r)["project_id"]), strings.TrimSpace(mux.Vars(r)["operation_key"]))
-		if err != nil || job.Input.SubjectKind != jobs.SubjectGeometryCreate {
+		if errors.Is(err, jobs.ErrNotFound) || (err == nil && job.Input.SubjectKind != jobs.SubjectGeometryCreate) {
 			writeJSON(w, http.StatusNotFound, map[string]string{"error": "geometry creation operation not found"})
+			return
+		}
+		if err != nil {
+			writeJSON(w, http.StatusServiceUnavailable, map[string]string{"error": "operation readback is temporarily unavailable; retry with the same operation key"})
 			return
 		}
 		writeJSON(w, http.StatusOK, project(job, ""))

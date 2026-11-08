@@ -168,3 +168,47 @@ func TestGeometryCreatePropagatesIdempotencyLookupFailure(t *testing.T) {
 		t.Fatal("idempotency lookup failure was ignored")
 	}
 }
+
+type failOnceGeometryReadbackJobs struct {
+	jobs.Service
+	calls int
+}
+
+func (s *failOnceGeometryReadbackJobs) FindByIdempotencyKey(ctx context.Context, key string) (jobs.Job, error) {
+	s.calls++
+	if s.calls == 1 {
+		return jobs.Job{}, errors.New("temporary owner readback outage")
+	}
+	return s.Service.FindByIdempotencyKey(ctx, key)
+}
+
+func TestGeometryOwnerReadbackRecoversSameAcceptedOperationAfterTemporaryFailure(t *testing.T) {
+	c, ctx, _ := integrationCoordinator(t, &integrationOps{}, false)
+	addGeometryPlate(c.media.(*integrationMedia))
+	const key = "owner-readback-recovery"
+	accepted := submitGeometryTestJob(t, c, ctx, geometryRequest(key))
+
+	readbacks := &failOnceGeometryReadbackJobs{Service: c.jobs}
+	c.jobs = readbacks
+	if _, err := c.FindGeometryCreationByKey(ctx, accepted.Input.ProjectID, key); err == nil {
+		t.Fatal("first owner readback should expose the temporary lookup failure")
+	}
+
+	got, err := c.FindGeometryCreationByKey(ctx, accepted.Input.ProjectID, key)
+	if err != nil {
+		t.Fatalf("retrying the same owner readback should recover the accepted operation: %v", err)
+	}
+	if got.ID != accepted.ID || got.Input.ProjectID != accepted.Input.ProjectID || got.IdempotencyKey != key {
+		t.Fatalf("recovered owner readback changed operation identity: got=%+v accepted=%+v", got, accepted)
+	}
+	if readbacks.calls != 2 {
+		t.Fatalf("expected one failed and one successful readback, got %d calls", readbacks.calls)
+	}
+	projectJobs, err := c.jobs.ListProject(ctx, accepted.Input.ProjectID, jobs.Cursor{}, 10)
+	if err != nil {
+		t.Fatalf("list durable project operations: %v", err)
+	}
+	if len(projectJobs) != 1 || projectJobs[0].ID != accepted.ID {
+		t.Fatalf("readback recovery should preserve exactly the accepted operation, got %+v", projectJobs)
+	}
+}

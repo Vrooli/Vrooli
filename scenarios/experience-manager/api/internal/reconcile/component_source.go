@@ -1,6 +1,7 @@
 package reconcile
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -18,6 +19,7 @@ import (
 // capture producer omits computed styles.
 var (
 	relativeImportRE         = regexp.MustCompile(`(?:from\s+|import\s*)["'](\.[^"']+)["']`)
+	libraryImportRE          = regexp.MustCompile(`(?:from\s+|import\s*)["']@vrooli/react-component-library/([A-Za-z0-9]+)/([0-9]+)["']`)
 	comfortableGapUtilityRE  = regexp.MustCompile(`(?s)comfortable\s*:\s*["'][^"']*gap-(?:[1-9][0-9]*(?:\.[0-9]+)?|\[[^]]+\])[^"]*["']`)
 	positiveGapDeclarationRE = regexp.MustCompile(`(?i)gap\s*:\s*(?:[1-9][0-9]*(?:\.[0-9]+)?|0?\.[0-9]+|\[[^]]+\])`)
 	semanticGapDeclarationRE = regexp.MustCompile(`(?is)gap\s*:\s*[^;{}]*var\(--space-[^)]+\)`)
@@ -99,20 +101,9 @@ func readComponentSourceGraph(report spec.Report, component spec.ComponentDocume
 	if !catalogPathWithinScenarioOrRCL(report.TargetPath, versionDir) {
 		return "", fmt.Errorf("catalog reference %q escapes the scenario tree", ref)
 	}
-	entries, err := os.ReadDir(versionDir)
+	entry, err := versionEntrySource(versionDir)
 	if err != nil {
-		return "", fmt.Errorf("read catalog version: %w", err)
-	}
-	var entry string
-	for _, item := range entries {
-		if item.IsDir() || item.Name() == "story.tsx" || !strings.HasSuffix(item.Name(), ".tsx") {
-			continue
-		}
-		entry = filepath.Join(versionDir, item.Name())
-		break
-	}
-	if entry == "" {
-		return "", fmt.Errorf("catalog version has no TSX source")
+		return "", err
 	}
 	seen := map[string]bool{}
 	var parts []string
@@ -128,6 +119,21 @@ func readComponentSourceGraph(report spec.Report, component spec.ComponentDocume
 			return err
 		}
 		parts = append(parts, string(body))
+		// A release composes other library components through major-version
+		// imports; their treatment (hover rules, surfaces) is part of what the
+		// release renders, so follow each to the exact version it pinned.
+		for _, match := range libraryImportRE.FindAllStringSubmatch(string(body), -1) {
+			dependency, ok, err := resolveLibraryImport(filepath.Dir(path), match[1], match[2])
+			if err != nil {
+				return err
+			}
+			if !ok || !catalogPathWithinScenarioOrRCL(report.TargetPath, dependency) {
+				continue
+			}
+			if err := visit(dependency); err != nil {
+				return err
+			}
+		}
 		for _, match := range relativeImportRE.FindAllStringSubmatch(string(body), -1) {
 			if len(match) < 2 {
 				continue
@@ -149,6 +155,58 @@ func readComponentSourceGraph(report spec.Report, component spec.ComponentDocume
 		return "", fmt.Errorf("read catalog source graph: %w", err)
 	}
 	return strings.Join(parts, "\n"), nil
+}
+
+// versionEntrySource returns a catalog release's component source: its one
+// non-story TSX file.
+func versionEntrySource(versionDir string) (string, error) {
+	entries, err := os.ReadDir(versionDir)
+	if err != nil {
+		return "", fmt.Errorf("read catalog version: %w", err)
+	}
+	for _, item := range entries {
+		if item.IsDir() || item.Name() == "story.tsx" || !strings.HasSuffix(item.Name(), ".tsx") {
+			continue
+		}
+		return filepath.Join(versionDir, item.Name()), nil
+	}
+	return "", fmt.Errorf("catalog version has no TSX source")
+}
+
+// resolveLibraryImport maps `@vrooli/react-component-library/<name>/<major>`
+// from a release directory to the source of the version that release pinned in
+// its dependencies.json. A directory without a pin (a scenario-local source)
+// or an unpinned dependency resolves to nothing.
+func resolveLibraryImport(versionDir, name, major string) (string, bool, error) {
+	raw, err := os.ReadFile(filepath.Join(versionDir, "dependencies.json"))
+	if os.IsNotExist(err) {
+		return "", false, nil
+	}
+	if err != nil {
+		return "", false, fmt.Errorf("read catalog dependencies: %w", err)
+	}
+	var pins struct {
+		Dependencies []struct {
+			LibraryID string `json:"libraryId"`
+			Major     int    `json:"major"`
+			Observed  string `json:"observed"`
+		} `json:"dependencies"`
+	}
+	if err := json.Unmarshal(raw, &pins); err != nil {
+		return "", false, fmt.Errorf("parse catalog dependencies %s: %w", versionDir, err)
+	}
+	for _, pin := range pins.Dependencies {
+		if pin.LibraryID != "react-component-library:"+name || fmt.Sprint(pin.Major) != major || pin.Observed == "" {
+			continue
+		}
+		componentsDir := filepath.Dir(filepath.Dir(filepath.Dir(versionDir)))
+		entry, err := versionEntrySource(filepath.Join(componentsDir, name, "versions", pin.Observed))
+		if err != nil {
+			return "", false, fmt.Errorf("resolve %s/%s: %w", name, major, err)
+		}
+		return entry, true, nil
+	}
+	return "", false, nil
 }
 
 func pathWithin(root, candidate string) bool {

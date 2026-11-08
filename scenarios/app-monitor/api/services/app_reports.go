@@ -27,17 +27,17 @@ import (
 // ReportAppIssue creates a Swarm Manager fix backlog item with attached App Monitor evidence.
 func (s *AppService) ReportAppIssue(ctx context.Context, req *IssueReportRequest) (*IssueReportResult, error) {
 	if req == nil {
-		return nil, errors.New("request payload is required")
+		return nil, ErrIssueReportPayloadRequired
 	}
 
 	appID := strings.TrimSpace(req.AppID)
 	if appID == "" {
-		return nil, errors.New("app identifier is required")
+		return nil, ErrAppIdentifierRequired
 	}
 
 	message := strings.TrimSpace(req.Message)
 	if message == "" {
-		return nil, errors.New("fix report message is required")
+		return nil, ErrIssueReportMessageRequired
 	}
 
 	primaryDescription := trimmedStringPtr(req.PrimaryDescription)
@@ -49,15 +49,16 @@ func (s *AppService) ReportAppIssue(ctx context.Context, req *IssueReportRequest
 	reportedAt := s.timeNow().UTC()
 
 	appName := trimmedStringPtr(req.AppName)
-	scenarioName := trimmedStringPtr(req.ScenarioName)
+	// The request's scenarioName is display metadata from the client, not an
+	// authority for the Swarm acceptance scope. Resolve the scenario from the
+	// registered app identity so a forged report cannot target another scenario.
+	scenarioName := ""
 
 	if app, err := s.GetApp(ctx, appID); err == nil && app != nil {
 		if appName == "" {
 			appName = app.Name
 		}
-		if scenarioName == "" {
-			scenarioName = app.ScenarioName
-		}
+		scenarioName = strings.TrimSpace(app.ScenarioName)
 	}
 
 	if appName == "" {
@@ -66,10 +67,13 @@ func (s *AppService) ReportAppIssue(ctx context.Context, req *IssueReportRequest
 	if scenarioName == "" {
 		scenarioName = appID
 	}
+	if !isSafeScenarioScopeIdentifier(scenarioName) {
+		return nil, ErrIssueReportScenarioInvalid
+	}
 
 	targetEntries := sanitizeIssueTargets(req.Targets, scenarioName, appName)
 	if len(targetEntries) == 0 {
-		return nil, errors.New("no valid targets provided for fix report")
+		return nil, ErrIssueReportTargetsRequired
 	}
 
 	previewURL := ""
@@ -905,6 +909,22 @@ func sanitizeIssueTargets(input []IssueTarget, fallbackScenarioID, fallbackScena
 	return normalized
 }
 
+// isSafeScenarioScopeIdentifier accepts only a single scenario slug suitable
+// for embedding in a repository-relative acceptance glob. It deliberately
+// rejects rather than rewrites non-canonical values.
+func isSafeScenarioScopeIdentifier(value string) bool {
+	if value == "" {
+		return false
+	}
+	for i, r := range value {
+		if (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9') || (i > 0 && (r == '-' || r == '_')) {
+			continue
+		}
+		return false
+	}
+	return true
+}
+
 // sanitizeIssueCaptures validates and normalizes screenshot/element captures
 func sanitizeIssueCaptures(entries []IssueCapture, maxEntries, maxNoteLength, maxLabelLength, maxTextLength int) []IssueCapture {
 	if len(entries) == 0 {
@@ -928,9 +948,16 @@ func sanitizeIssueCaptures(entries []IssueCapture, maxEntries, maxNoteLength, ma
 		// Support both raw base64 and data URLs (data:image/png;base64,...)
 		base64Payload := data
 		if strings.HasPrefix(data, "data:") {
-			if idx := strings.Index(data, ","); idx > 0 {
-				base64Payload = data[idx+1:]
+			idx := strings.Index(data, ",")
+			if idx <= 0 || !strings.EqualFold(data[:idx], "data:image/png;base64") {
+				logger.Warn("unsupported capture data URL, ignoring image capture")
+				continue
 			}
+			base64Payload = data[idx+1:]
+		}
+		if base64Payload == "" {
+			logger.Warn("empty capture payload, ignoring image capture")
+			continue
 		}
 
 		// Reject oversized captures (>3 MiB base64 = ~2.25 MiB decoded)
@@ -960,11 +987,13 @@ func sanitizeIssueCaptures(entries []IssueCapture, maxEntries, maxNoteLength, ma
 		}
 
 		sanitizedCapture := IssueCapture{
-			ID:        captureID,
-			Type:      kind,
-			Width:     clampCaptureDimension(entry.Width),
-			Height:    clampCaptureDimension(entry.Height),
-			Data:      data,
+			ID:     captureID,
+			Type:   kind,
+			Width:  clampCaptureDimension(entry.Width),
+			Height: clampCaptureDimension(entry.Height),
+			// Store the validated image payload in the canonical raw-base64 form
+			// expected by the Swarm evidence file builder.
+			Data:      base64Payload,
 			Note:      truncateString(strings.TrimSpace(entry.Note), maxNoteLength),
 			Selector:  truncateString(strings.TrimSpace(entry.Selector), maxLabelLength),
 			TagName:   truncateString(strings.TrimSpace(entry.TagName), maxLabelLength),

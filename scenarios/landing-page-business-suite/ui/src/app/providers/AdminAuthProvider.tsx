@@ -87,7 +87,7 @@ export function AdminAuthProvider({ children }: { children: ReactNode }) {
   return (
     <AdminAuthContext.Provider value={{ isAuthenticated, isSessionLoading, login, logout, user, canResetDemoData, assurance }}>
       {children}
-      {reauthPending && <AdminReauthDialog onCancel={() => reauthPending(false)} onSubmit={async (password, totp, recovery) => { await reauthenticateAdmin(password, totp, recovery); reauthPending(true); }} onPasskey={user && isPasskeySupported() ? async (password) => { const started = await beginAdminSecondFactor(user.email); const credential = await navigator.credentials.get({ publicKey: toRequestOptions(JSON.parse(started.optionsJson)) as PublicKeyCredentialRequestOptions }); if (!(credential instanceof PublicKeyCredential)) throw new Error('No passkey assertion was returned.'); await reauthenticateAdmin(password, '', '', new TextEncoder().encode(JSON.stringify(credentialToJSON(credential))), started.ceremonyId); reauthPending(true); } : undefined} />}
+      {reauthPending && <AdminReauthDialog onCancel={() => reauthPending(false)} onSubmit={async (password, totp, recovery) => { await reauthenticateAdmin(password, totp, recovery); reauthPending(true); }} onPasskey={user && isPasskeySupported() ? async (password) => { const started = await beginAdminSecondFactor(user.email); const credential = await navigator.credentials.get({ publicKey: toRequestOptions(JSON.parse(started.optionsJson)) }); if (!(credential instanceof PublicKeyCredential)) throw new Error('No passkey assertion was returned.'); await reauthenticateAdmin(password, '', '', new TextEncoder().encode(JSON.stringify(credentialToJSON(credential))), started.ceremonyId); reauthPending(true); } : undefined} />}
     </AdminAuthContext.Provider>
   );
 }

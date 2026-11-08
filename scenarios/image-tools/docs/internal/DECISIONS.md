@@ -146,6 +146,8 @@ are **Accepted** as of that date unless a later supersession is recorded.
 
 | 2026-11-01 | **A completed job total is provider-reported only when every dispatched variation has a valid contribution.** The total carries `cost_provenance=provider_reported_v1`; explicit zero is known, while any absent or malformed contribution omits the aggregate. Historical unmarked metadata is not rewritten. Failed/cancelled job linkage is deferred to D33. | A partial subtotal falsely presents an incomplete amount as the job's full cost. Keeping the provider provenance marker lets consumers distinguish a reported amount from legacy or estimated data without inventing pricing. | Accepted (AM-22/D31) |
 
+| 2026-11-05 | **SVG `<rect>` elements with `rx` or `ry` use the high-fidelity renderer, or fail by name when Chrome is absent.** | The pinned pure-Go renderer silently ignored rounded-rectangle radii, so a valid raster concealed the wrong silhouette and opaque corners. The existing high-fidelity path preserves these semantics and keeps ordinary sharp rectangles on pure Go. | Accepted — `HighFidelitySVGFeatures`, `TestRoundedRectRasterizationPreservesTransparentCorners`, and served SVG→ICO/ICNS run `cohort-six-topic-recommission-20261105-vector-icon-delivery-01`. |
+
 ## Superseded Decisions
 
 | Date | Superseded Decision | Replacement | Notes |

@@ -19,7 +19,7 @@ const presentationRetryDelaysMs = [100, 300];
 async function loadPublicPresentation(
   variant: string | undefined,
   visitorId: string | undefined,
-  options: Parameters<typeof getLandingConfig>[2],
+  options: NonNullable<Parameters<typeof getLandingConfig>[2]>,
 ) {
   let lastError: unknown;
   for (let attempt = 0; attempt <= presentationRetryDelaysMs.length; attempt += 1) {

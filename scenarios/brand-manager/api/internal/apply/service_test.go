@@ -9,6 +9,7 @@ import (
 
 	"brand-manager/internal/apply"
 	mocks "brand-manager/internal/apply/mocks"
+	"brand-manager/internal/brandsurface"
 
 	"github.com/stretchr/testify/require"
 )
@@ -132,21 +133,22 @@ func TestApply_ProfilesIconSetAndMarkerBlock(t *testing.T) {
 	// scenario failing that rule identically.
 	var manifestObj map[string]any
 	require.NoError(t, json.Unmarshal([]byte(manifest), &manifestObj))
-	for _, key := range []string{
-		"name", "short_name", "description",
-		"theme_color", "background_color",
-		"display", "start_url", "id", "icons",
-	} {
+	for _, key := range brandsurface.RequiredManifestKeys {
 		require.Contains(t, manifestObj, key, "manifest-completeness requires %q", key)
 		require.NotEmpty(t, manifestObj[key], "manifest key %q must not be empty", key)
 	}
+	// id is omitted so install identity defaults to the resolved start_url.
+	require.NotContains(t, manifestObj, "id")
 	// An icons-only apply must still declare the brand: brand-markers-applied is
 	// otherwise satisfied only by CSS markers, which this element never writes.
 	require.Contains(t, manifestObj, "_brand")
 
 	html := string(ws.Written("web-console", "ui/index.html"))
 	require.Contains(t, html, "brand-manager:icons:start")
-	require.Contains(t, html, `href="/public/logo.svg"`)
+	require.Contains(t, html, `href="public/logo.svg"`)
+	require.Contains(t, html, `href="public/site.webmanifest"`)
+	require.Equal(t, "../", manifestObj["start_url"], "the manifest under /public/ launches at the app root")
+	require.Equal(t, "../", manifestObj["scope"])
 	require.NotContains(t, html, `href="/favicon.ico"`, "old root link tags are replaced")
 
 	// Idempotent: a second apply is byte-identical.

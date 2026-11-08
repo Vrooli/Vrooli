@@ -22,6 +22,10 @@ var (
 	ErrSwarmManagerUnavailable       = errors.New("swarm-manager unavailable")
 	ErrPresetNotFound                = errors.New("workspace preset not found")
 	ErrPresetNameRequired            = errors.New("preset name is required")
+	ErrIssueReportPayloadRequired    = errors.New("request payload is required")
+	ErrIssueReportMessageRequired    = errors.New("fix report message is required")
+	ErrIssueReportTargetsRequired    = errors.New("no valid targets provided for fix report")
+	ErrIssueReportScenarioInvalid    = errors.New("scenario identifier is invalid")
 )
 
 // Cache and timing constants
@@ -151,6 +155,9 @@ type TimeProvider func() time.Time
 // ScenarioURLResolver resolves another scenario's API base URL.
 type ScenarioURLResolver func(ctx context.Context, scenarioSlug string) (string, error)
 
+// ScenarioPortResolver resolves an allocated port for another scenario.
+type ScenarioPortResolver func(ctx context.Context, scenarioName, portName string) (int, error)
+
 // =============================================================================
 // Cache Types
 // =============================================================================
@@ -212,6 +219,7 @@ type AppService struct {
 	issueCacheTTL     time.Duration
 	repoRoot          string
 	scenarioURL       ScenarioURLResolver
+	scenarioPort      ScenarioPortResolver
 	enrichmentMu      sync.RWMutex
 	enrichmentCache   map[string]*enrichmentCacheEntry // key: lowercase scenario name
 	uiServerPort      string
@@ -549,7 +557,7 @@ type IssueReportRequest struct {
 	IncludeScreenshot         *bool                   `json:"includeScreenshot"`
 	PreviewURL                *string                 `json:"previewUrl"`
 	AppName                   *string                 `json:"appName"`
-	ScenarioName              *string                 `json:"scenarioName"`
+	ScenarioName              *string                 `json:"scenarioName"` // Client hint; report scope is resolved from AppID.
 	Source                    *string                 `json:"source"`
 	ScreenshotData            *string                 `json:"screenshotData"`
 	Captures                  []IssueCapture          `json:"captures"`

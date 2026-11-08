@@ -23,8 +23,14 @@
  * easier to follow.
  */
 import "@testing-library/jest-dom/vitest";
+import { createElement } from "react";
+import { configureTestProviders } from "@vrooli/api-base/testing";
 import { afterEach, beforeEach, vi } from "vitest";
+import { ThemeProvider } from "./components/theme/ThemeProvider";
 import { i18n } from "./i18n";
+
+// Scenario-owned contexts the shared renderWithProviders cannot know about.
+configureTestProviders((children) => createElement(ThemeProvider, null, children));
 
 if (typeof window !== "undefined" && typeof window.matchMedia !== "function") {
   Object.defineProperty(window, "matchMedia", {

@@ -40,6 +40,7 @@ describe('EmailDelivery admin surface', () => {
     expect(screen.getByText('mailgun · daily: 8/10')).toBeInTheDocument();
     expect(screen.getByText(/Oldest waiting message: 12s/)).toBeInTheDocument();
     expect(screen.getByText(/person@example.net/)).toBeInTheDocument();
-    expect(screen.getByLabelText('SMTP password')).toHaveValue('');
+    // The credential form defaults to the Mailgun key (the transactional route) and never prefills a secret.
+    expect(screen.getByLabelText('Mailgun API key')).toHaveValue('');
   });
 });

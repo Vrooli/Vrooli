@@ -1552,8 +1552,8 @@
       "id": "models_install",
       "path": "/vrooli.image_tools.v1.models.ModelsService/InstallModel",
       "method": "POST",
-      "summary": "Install (download) a model",
-      "description": "Downloads a model's weights as a durable job (checksum pinned on first download, free disk space checked first). Returns a job id + ETA; block once on jobs wait. An already-installed model returns already_installed=true with no job.",
+      "summary": "Install or runtime-validate a model",
+      "description": "Downloads missing weights or revalidates the load-smoke for an installed model through the durable install job. Checksums are pinned on first download and free disk space is checked first. Returns a job id + ETA; block once on jobs wait. A runtime-ready installed model returns already_installed=true with no job.",
       "category": "models",
       "request": {
         "type": "object",
@@ -1575,6 +1575,11 @@
           "status": 404,
           "code": "not_found",
           "description": "No model with that id exists"
+        },
+        {
+          "status": 412,
+          "code": "failed_precondition",
+          "description": "Installed model runtime is not provisioned or cannot be smoke-validated"
         },
         {
           "status": 500,

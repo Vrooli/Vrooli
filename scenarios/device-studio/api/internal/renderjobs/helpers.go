@@ -436,7 +436,7 @@ func resolvePhysicalWorkerCLI(ownerHome, configuredCLI string) (string, error) {
 		return "", errors.New("renderjobs: runtime owner home is not an absolute clean path")
 	}
 	path, err := cliinvoke.Resolve(cliinvoke.ResolveOptions{
-		Explicit: configuredCLI, RuntimeHome: ownerHome,
+		Explicit: configuredCLI, UserHome: ownerHome,
 		Getenv:   func(string) string { return "" },
 		LookPath: func(string) (string, error) { return "", os.ErrNotExist },
 	})

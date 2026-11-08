@@ -1,5 +1,5 @@
 const CACHE_NAME = "backdrop-studio-app-shell-v1";
-const APP_SHELL_URLS = ["./", "./site.webmanifest"];
+const APP_SHELL_URLS = ["./", "./public/site.webmanifest"];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(

@@ -352,10 +352,14 @@ func TestLookupValue(t *testing.T) {
 func TestResourceStatusToMap(t *testing.T) {
 	t.Run("OnlineResource", func(t *testing.T) {
 		rs := &cliv1.ResourceStatus{
-			Resource: &cliv1.Resource{Name: "postgres", Driver: "compose-service", Registered: true, Enabled: true},
-			Running:  true,
+			Resource:             &cliv1.Resource{Name: "postgres", Driver: "compose-service", Registered: true, Enabled: true},
+			Running:              true,
+			ArtifactVerification: "not_evaluated",
 		}
 		m := resourceStatusToMap(rs)
+		if m["artifact_verification"] != "not_evaluated" {
+			t.Fatalf("artifact observation scope lost: %v", m)
+		}
 		if m["id"] != "postgres" || m["name"] != "postgres" {
 			t.Errorf("Expected id/name 'postgres', got %v", m)
 		}

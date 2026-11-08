@@ -18,6 +18,7 @@ require (
 	github.com/vrooli/api-core v0.0.0 // indirect
 	github.com/vrooli/binaryfetch v0.0.0 // indirect
 	github.com/vrooli/platform-go v0.0.0 // indirect
+	golang.org/x/mod v0.41.0 // indirect
 	golang.org/x/sys v0.48.0 // indirect
 	modernc.org/libc v1.72.3 // indirect
 	modernc.org/mathutil v1.7.1 // indirect
@@ -48,8 +49,4 @@ replace github.com/vrooli/vrooli/packages/proto => ../../../packages/proto
 
 replace github.com/vrooli/platform-go => ../../../packages/platform-go
 
-replace github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime => ../../scenario-to-desktop/runtime
-
 replace github.com/vrooli/envkit-go => ../../../packages/envkit-go
-
-replace github.com/vrooli/cliresolve => ../../../packages/cliresolve

@@ -12,23 +12,11 @@
 // function takes as its first argument.
 
 export const strings = {
-  $rowKey: "$rowKey",
-  $schema: "$schema",
   app: {
     description: "app.description",
     eyebrow: "app.eyebrow",
     title: "app.title",
   },
-  "aria-label": "aria-label",
-  ascending: "ascending",
-  "border-app-primary bg-app-primary text-app-primary-foreground": "border-app-primary bg-app-primary text-app-primary-foreground",
-  caption: "caption",
-  clsx: "clsx",
-  default: "default",
-  defaultValue: "defaultValue",
-  desc: "desc",
-  emptyMessage: "emptyMessage",
-  equals: "equals",
   errorBoundary: {
     message: "errorBoundary.message",
     retry: "errorBoundary.retry",
@@ -127,7 +115,6 @@ export const strings = {
       depthLabel: "experience.fleet.depthLabel",
       description: "experience.fleet.description",
       emptyFleet: "experience.fleet.emptyFleet",
-      filterAll: "experience.fleet.filterAll",
       filterClean: "experience.fleet.filterClean",
       filterFindings: "experience.fleet.filterFindings",
       filterStatus: "experience.fleet.filterStatus",
@@ -169,12 +156,6 @@ export const strings = {
       wireframeLabel: "experience.studio.wireframeLabel",
     },
   },
-  export: "export",
-  field: "field",
-  header: "header",
-  id: "id",
-  kind: "kind",
-  label: "label",
   layout: {
     bottomNavLabel: "layout.bottomNavLabel",
     mainLabel: "layout.mainLabel",
@@ -188,14 +169,9 @@ export const strings = {
     },
     sidebarLabel: "layout.sidebarLabel",
   },
-  libraryId: "libraryId",
   locale: {
     switcherLabel: "locale.switcherLabel",
   },
-  "lucide-react": "lucide-react",
-  mode: "mode",
-  module: "module",
-  name: "name",
   pages: {
     settings: {
       localeHeading: "pages.settings.localeHeading",
@@ -203,14 +179,6 @@ export const strings = {
       title: "pages.settings.title",
     },
   },
-  path: "path",
-  placeholder: "placeholder",
-  react: "react",
-  resolvedAt: "resolvedAt",
-  role: "role",
-  selector: "selector",
-  status: "status",
-  "tailwind-merge": "tailwind-merge",
   theme: {
     choice: {
       dark: "theme.choice.dark",
@@ -219,9 +187,6 @@ export const strings = {
     },
     switcherLabel: "theme.switcherLabel",
   },
-  title: "title",
-  value: "value",
-  version: "version",
 } as const;
 
 export type Strings = typeof strings;

@@ -17,6 +17,7 @@ This is a planned manual review protocol, not a pass receipt. Separate structure
 | Craft | Given the actual final output footprint, when reviewed against the chosen photographic benchmark, then scale, contact, materials, illumination and composition appear credible | Independent human findings and exact input revision |
 | Broad library | Given eight promised groups, when their released recipes are inspected, then real assets/outputs and supported motion envelopes exist | Per-group package, references, rights and reviews |
 | Credits/privacy | Given a selected route and project consent, when work/retries/children execute, then data/funds remain within that scope | Owner receipts, admission/cancel/reconciliation and upload evidence |
+| Recover uncertain geometry creation | Given a submitted creation with a saved idempotency key and the owner status lookup is temporarily unavailable, when the user rechecks status, then the client repeats only the owner lookup with the same key and never dispatches another creation; when the owner returns a job, then its status is shown | Focused UI regression with fixed request identity and assertions that submit endpoints are untouched; production owner receipt and human task evaluation remain required |
 | Desktop | Given a clean target install, when used offline and updated, then local projects persist and only qualified capabilities are advertised | Target/installer/tool digests and actual journey receipt |
 
 ## Review procedure

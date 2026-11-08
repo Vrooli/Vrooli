@@ -111,13 +111,7 @@ func TestRegionsHandlerDatabaseError(t *testing.T) {
 
 		assertJSONResponse(t, rr, http.StatusOK, true)
 
-		var response Response
-		json.Unmarshal(rr.Body.Bytes(), &response)
-
-		regions, ok := response.Data.([]interface{})
-		if !ok {
-			t.Fatal("Expected data to be an array")
-		}
+		regions := decodeRegions(t, rr.Body.Bytes())
 
 		// Should have at least the 2 we added
 		if len(regions) < 2 {

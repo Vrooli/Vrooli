@@ -32,10 +32,9 @@
       "type": "image/png"
     }
   ],
-  "id": "/",
   "name": "Pan",
-  "scope": "/",
+  "scope": "../",
   "short_name": "Pan",
-  "start_url": "/",
+  "start_url": "../",
   "theme_color": "#0f172a"
 }

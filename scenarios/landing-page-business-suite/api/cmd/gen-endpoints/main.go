@@ -91,11 +91,18 @@ func inventoryRoutes(routesPath string) ([]route, error) {
 	if err != nil {
 		return nil, err
 	}
+	// The issued-key AI boundary is mounted from its own composition file.
+	// Keep those actual mux registrations in the same generated inventory.
+	doorRoutes, err := registeredRoutes(filepath.Join(filepath.Dir(routesPath), "ai_door.go"))
+	if err != nil {
+		return nil, err
+	}
+	literalRoutes = append(literalRoutes, doorRoutes...)
 	return sortedUniqueRoutes(append(literalRoutes, connectRoutes()...)), nil
 }
 
 // registeredRoutes extracts literal mux registrations of the canonical form
-// router.HandleFunc("/path", handler).Methods("GET", ...). Keeping this AST
+// router.Handle[Func]("/path", handler).Methods("GET", ...). Keeping this AST
 // based makes formatting changes harmless while deliberately rejecting dynamic
 // paths or methods, which would make endpoint inventory unverifiable.
 func registeredRoutes(path string) ([]route, error) {
@@ -112,7 +119,7 @@ func registeredRoutes(path string) ([]route, error) {
 			return true
 		}
 		handleCall, ok := selectorReceiverCall(call.Fun)
-		if !ok || selectorName(handleCall.Fun) != "HandleFunc" || len(handleCall.Args) == 0 {
+		if !ok || (selectorName(handleCall.Fun) != "HandleFunc" && selectorName(handleCall.Fun) != "Handle") || len(handleCall.Args) == 0 {
 			return true
 		}
 		path, ok := stringLiteral(handleCall.Args[0])
@@ -133,7 +140,7 @@ func registeredRoutes(path string) ([]route, error) {
 		return true
 	})
 	if len(routes) == 0 {
-		return nil, fmt.Errorf("no literal HandleFunc(...).Methods(...) registrations found in %s", path)
+		return nil, fmt.Errorf("no literal Handle[Func](...).Methods(...) registrations found in %s", path)
 	}
 	return sortedUniqueRoutes(routes), nil
 }
@@ -217,7 +224,7 @@ func endpointsFor(routes []route) []endpoint {
 			Path:        route.Path,
 			Method:      route.Method,
 			Summary:     route.Method + " " + route.Path,
-			Description: "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+			Description: "Generated from API mux registrations; update the registration, then run make endpoints.",
 			Category:    categoryFor(route.Path),
 		})
 	}

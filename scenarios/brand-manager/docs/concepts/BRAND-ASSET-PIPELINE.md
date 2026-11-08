@@ -147,21 +147,21 @@ means.
 
 ### `web-public-v1`
 
-Files are under `ui/public/public/` and served at `/public/*`.
+Files are under `ui/public/public/` and served at `/public/*`. Head links reference them relatively (`public/...`), which resolves to `/public/...` from the host root and stays under the prefix behind a path-prefix proxy; the manifest's `start_url` and `scope` are `../`, the app root relative to the manifest ([PUBLIC_ASSETS.md](../../../../docs/concepts/PUBLIC_ASSETS.md)).
 
 | Target id | File | Format and size | Variant | Wiring |
 |---|---|---|---|---|
-| logo | logo.svg | SVG, viewBox 512 | rounded | `<link rel="icon" type="image/svg+xml" href="/public/logo.svg">` |
-| favicon-16 | favicon-16.png | PNG 16×16 | rounded, small mark if present | `<link rel="icon" type="image/png" sizes="16x16" href="/public/favicon-16.png">` |
-| favicon-32 | favicon-32.png | PNG 32×32 | rounded, small mark if present | `<link rel="icon" type="image/png" sizes="32x32" href="/public/favicon-32.png">` |
+| logo | logo.svg | SVG, viewBox 512 | rounded | `<link rel="icon" type="image/svg+xml" href="public/logo.svg">` |
+| favicon-16 | favicon-16.png | PNG 16×16 | rounded, small mark if present | `<link rel="icon" type="image/png" sizes="16x16" href="public/favicon-16.png">` |
+| favicon-32 | favicon-32.png | PNG 32×32 | rounded, small mark if present | `<link rel="icon" type="image/png" sizes="32x32" href="public/favicon-32.png">` |
 | favicon-196 | favicon-196.png | PNG 196×196 | rounded | file only |
 | icon-192 | icon-192.png | PNG 192×192 | rounded | manifest `purpose: "any"` |
 | icon-512 | icon-512.png | PNG 512×512 | rounded | manifest `purpose: "any"` |
 | maskable-192 | maskable-icon-192.png | PNG 192×192, opaque | full-bleed, mark inside the safe zone | manifest `purpose: "maskable"` |
 | maskable-512 | maskable-icon-512.png | PNG 512×512, opaque | full-bleed, mark inside the safe zone | manifest `purpose: "maskable"` |
-| apple-touch | apple-touch-icon.png | PNG 180×180, opaque | full-bleed | `<link rel="apple-touch-icon" sizes="180x180" href="/public/apple-touch-icon.png">` |
+| apple-touch | apple-touch-icon.png | PNG 180×180, opaque | full-bleed | `<link rel="apple-touch-icon" sizes="180x180" href="public/apple-touch-icon.png">` |
 | og-image | og-image.png | PNG 1200×630, opaque | social card: background, mark centred at 0.8 of height | `og:image` and `twitter:image` content `/public/og-image.png` |
-| manifest | site.webmanifest | JSON | — | `<link rel="manifest" href="/public/site.webmanifest" crossorigin="use-credentials">`; icon srcs relative (`icon-192.png`) |
+| manifest | site.webmanifest | JSON | — | `<link rel="manifest" href="public/site.webmanifest" crossorigin="use-credentials">`; icon srcs relative (`icon-192.png`) |
 
 ### `electron-v1`
 
@@ -182,11 +182,11 @@ replaced:
 
 ```html
 <!-- brand-manager:icons:start profile=web-public-v1 brand=aquila version=3 -->
-<link rel="icon" type="image/svg+xml" href="/public/logo.svg" />
-<link rel="icon" type="image/png" sizes="32x32" href="/public/favicon-32.png" />
-<link rel="icon" type="image/png" sizes="16x16" href="/public/favicon-16.png" />
-<link rel="apple-touch-icon" sizes="180x180" href="/public/apple-touch-icon.png" />
-<link rel="manifest" href="/public/site.webmanifest" crossorigin="use-credentials" />
+<link rel="icon" type="image/svg+xml" href="public/logo.svg" />
+<link rel="icon" type="image/png" sizes="32x32" href="public/favicon-32.png" />
+<link rel="icon" type="image/png" sizes="16x16" href="public/favicon-16.png" />
+<link rel="apple-touch-icon" sizes="180x180" href="public/apple-touch-icon.png" />
+<link rel="manifest" href="public/site.webmanifest" crossorigin="use-credentials" />
 <!-- brand-manager:icons:end -->
 ```
 

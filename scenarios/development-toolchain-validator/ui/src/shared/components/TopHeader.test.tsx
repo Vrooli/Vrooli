@@ -2,7 +2,6 @@ import { describe, expect, it, vi } from "vitest";
 import { screen, waitFor } from "@testing-library/react";
 import { create } from "@bufbuild/protobuf";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { MemoryRouter } from "react-router-dom";
 
 import {
   GoldenSchema,
@@ -31,7 +30,7 @@ import { TopHeader } from "./TopHeader";
 function renderHeader(ui: React.ReactElement) {
   return renderWithProviders(
     <QueryClientProvider client={new QueryClient()}>
-      <MemoryRouter>{ui}</MemoryRouter>
+      {ui}
     </QueryClientProvider>,
   );
 }

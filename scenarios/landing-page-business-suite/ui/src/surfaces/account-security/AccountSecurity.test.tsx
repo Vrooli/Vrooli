@@ -19,7 +19,9 @@ vi.mock('../../shared/api', () => ({
   renamePasskey: mocks.renamePasskey,
   revokePasskey: mocks.revokePasskey,
 }));
-vi.mock('../../app/providers/useUserAuth', () => ({ useUserAuth: () => ({ isAuthenticated: true, isSessionLoading: false }) }));
+// An authenticated session always carries its account identity.
+const signedIn = { isAuthenticated: true, isSessionLoading: false, user: { id: 'buyer-1', email: 'buyer@example.test', email_verified: true } };
+vi.mock('../../app/providers/useUserAuth', () => ({ useUserAuth: () => signedIn }));
 
 describe('AccountSecurity', () => {
   beforeEach(() => {

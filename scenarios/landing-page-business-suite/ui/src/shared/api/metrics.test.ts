@@ -32,14 +32,14 @@ describe('metrics API', () => {
     metricsClient.getVariantStats.mockResolvedValueOnce({
       startDate: '2026-01-01', endDate: '2026-01-31', stats: [{
         variantId: 7n, variantSlug: 'control', variantName: 'Control', views: 100n,
-        ctaClicks: 10n, conversions: 4n, downloads: 2n, conversionRate: 4, avgScrollDepth: 76.5,
+        ctaClicks: 10n, conversions: 4n, downloads: 2n, conversionRate: 4,
       }],
     });
 
     await expect(getVariantMetrics('control', '2026-01-01', '2026-01-31')).resolves.toEqual({
       start_date: '2026-01-01', end_date: '2026-01-31', stats: [{
         variant_id: 7, variant_slug: 'control', variant_name: 'Control', views: 100,
-        cta_clicks: 10, conversions: 4, downloads: 2, exposures: 0, conversion_rate: 4, avg_scroll_depth: 76.5,
+        cta_clicks: 10, conversions: 4, downloads: 2, exposures: 0, conversion_rate: 4,
       }],
     });
     expect(metricsClient.getVariantStats).toHaveBeenCalledWith({ variant: 'control', startDate: '2026-01-01', endDate: '2026-01-31' });
@@ -47,13 +47,13 @@ describe('metrics API', () => {
 
   it('maps a dimensional breakdown and uses the generated enum contract', async () => {
     metricsClient.getTrafficBreakdown.mockResolvedValueOnce({
-      rows: [{ key: 'US', label: 'United States', sessions: 8n, conversions: 2n, revenueMinor: 1200n, share: 1 }],
-      totalSessions: 8n, exhaustive: true, currency: 'usd',
+      rows: [{ key: 'US', label: 'United States', visitors: 8n, conversions: 2n, revenueMinor: 1200n, share: 1 }],
+      totalVisitors: 8n, exhaustive: true, currency: 'usd',
     });
 
     await expect(getTrafficBreakdown('country', '2026-01-01', '2026-01-31', 10)).resolves.toMatchObject({
-      rows: [{ key: 'US', sessions: 8, conversions: 2, revenue_minor: 1200, share: 1 }],
-      total_sessions: 8, exhaustive: true, currency: 'usd',
+      rows: [{ key: 'US', visitors: 8, conversions: 2, revenue_minor: 1200, share: 1 }],
+      total_visitors: 8, exhaustive: true, currency: 'usd',
     });
     expect(metricsClient.getTrafficBreakdown).toHaveBeenCalledWith({ dimension: 1, startDate: '2026-01-01', endDate: '2026-01-31', limit: 10 });
   });

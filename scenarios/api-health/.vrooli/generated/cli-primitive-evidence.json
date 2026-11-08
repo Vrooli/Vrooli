@@ -4,7 +4,7 @@
   "source_manifest": "cli/manifest.json",
   "scenario": "api-health",
   "generator": "v1.0.0",
-  "manifest_hash": "8a4cdd1545b25b74b838e98935c921df0e0081e59cd8dcab31c24775d4cd349d",
+  "manifest_hash": "09c727bb50e7136426e953d16fc60bba787f5582b4ebf519659eed3573e41b59",
   "commands": [
     {
       "path": "validate fix-apply",

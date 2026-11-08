@@ -211,6 +211,58 @@ func gpsTestEXIF() []byte {
 	return append([]byte("Exif\x00\x00"), t...)
 }
 
+func gpsTestBigEndianEXIF() []byte {
+	t := make([]byte, 8+2+3*12+4)
+	copy(t, []byte{'M', 'M', 0, 42, 0, 0, 0, 8})
+	binary.BigEndian.PutUint16(t[8:], 3)
+	entry := func(off int, tag, typ uint16, count, value uint32) {
+		binary.BigEndian.PutUint16(t[off:], tag)
+		binary.BigEndian.PutUint16(t[off+2:], typ)
+		binary.BigEndian.PutUint32(t[off+4:], count)
+		binary.BigEndian.PutUint32(t[off+8:], value)
+	}
+	artist := []byte("Alice\x00")
+	entry(10, 0x013b, 2, uint32(len(artist)), uint32(len(t)))
+	t = append(t, artist...)
+	copyright := []byte("Copyright 2026\x00")
+	entry(22, 0x8298, 2, uint32(len(copyright)), uint32(len(t)))
+	t = append(t, copyright...)
+	gpsOffset := uint32(len(t))
+	entry(34, 0x8825, 4, 1, gpsOffset)
+	t = append(t, make([]byte, 6)...)
+	binary.BigEndian.PutUint16(t[gpsOffset:], 0)
+	return append([]byte("Exif\x00\x00"), t...)
+}
+
+func TestStripGPSRebuildsBigEndianEXIFAsValidLittleEndian(t *testing.T) {
+	got, err := stripExifGPS(gpsTestBigEndianEXIF())
+	if err != nil {
+		t.Fatalf("stripExifGPS: %v", err)
+	}
+	if !bytes.HasPrefix(got, []byte("Exif\x00\x00II")) {
+		t.Fatalf("rebuilt EXIF prefix = %x, want little-endian TIFF", got[:min(len(got), 12)])
+	}
+	tiff := got[6:]
+	entries, err := validateTIFFTree(tiff, binary.LittleEndian, binary.LittleEndian.Uint32(tiff[4:8]), make(map[uint32]bool), 0)
+	if err != nil {
+		t.Fatalf("rebuilt little-endian TIFF is invalid: %v", err)
+	}
+	values := make(map[uint16]string)
+	for _, entry := range entries {
+		value, err := tiffValue(tiff, binary.LittleEndian, entry)
+		if err != nil {
+			t.Fatalf("read rebuilt tag %#04x: %v", entry.tag, err)
+		}
+		values[entry.tag] = strings.TrimRight(string(value), "\x00")
+	}
+	if values[0x013b] != "Alice" || values[0x8298] != "Copyright 2026" {
+		t.Fatalf("rebuilt allowlisted values = %#v", values)
+	}
+	if len(entries) != 2 {
+		t.Fatalf("rebuilt TIFF retained %d entries, want only Artist and Copyright", len(entries))
+	}
+}
+
 func gpsTestGPSOnlyEXIF() []byte {
 	t := make([]byte, 8+2+12+4)
 	copy(t, []byte{'I', 'I', 42, 0, 8, 0, 0, 0})
@@ -399,6 +451,40 @@ func TestStripGPSJPEGRetainsOnlyWhitelistedMetadataAndExactScan(t *testing.T) {
 		t.Fatal("XMP multi-value order was not deterministic/source ordered")
 	}
 	assertGPSXMPRDFContainers(t, out)
+}
+
+func TestStripGPSPreservesJPEGICCProfileChunksAndExactScan(t *testing.T) {
+	profile := []byte("synthetic-icc-color-transform-profile")
+	first := append([]byte("ICC_PROFILE\x00"), 1, 2)
+	first = append(first, profile[:16]...)
+	second := append([]byte("ICC_PROFILE\x00"), 2, 2)
+	second = append(second, profile[16:]...)
+	firstSegment := gpsTestSegment(0xe2, first)
+	secondSegment := gpsTestSegment(0xe2, second)
+	privateAPP := gpsTestSegment(0xe2, []byte("private camera serial"))
+	source := gpsTestJPEG(t,
+		firstSegment,
+		gpsTestSegment(0xe1, gpsTestGPSOnlyEXIF()),
+		secondSegment,
+		privateAPP,
+	)
+
+	got := gpsTestStrip(t, source)
+	if !bytes.Contains(got, firstSegment) || !bytes.Contains(got, secondSegment) {
+		t.Fatal("complete ICC APP2 chunks were not preserved byte-for-byte")
+	}
+	if bytes.Contains(got, privateAPP) {
+		t.Fatal("unrecognized APP2 metadata was retained")
+	}
+	if bytes.Contains(got, []byte("Exif\x00\x00")) {
+		t.Fatal("location-only EXIF survived the selective strip")
+	}
+	if !bytes.Equal(source[gpsTestSOSOffset(source):], got[gpsTestSOSOffset(got):]) {
+		t.Fatal("ICC preservation changed JPEG scan bytes")
+	}
+	if !bytes.Equal(append(append([]byte(nil), first[14:]...), second[14:]...), profile) {
+		t.Fatal("ICC profile chunks do not reconstruct the original profile payload")
+	}
 }
 
 func TestStripGPSWalksAllProgressiveScansAndPreservesScanBytes(t *testing.T) {

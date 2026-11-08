@@ -7,6 +7,8 @@ import (
 	"os"
 	"path"
 	"strings"
+
+	repocontract "github.com/vrooli/repo-contract-go"
 )
 
 func FileSHA256(body []byte) string { sum := sha256.Sum256(body); return hex.EncodeToString(sum[:]) }
@@ -45,8 +47,12 @@ func ReadKnowledgeMetadata(repoRoot, relative string) map[string]any {
 		return fallback
 	}
 	defer root.Close()
+	manifestRel, err := repocontract.ScenarioDocsManifestRel(repoRoot)
+	if err != nil {
+		return fallback
+	}
 	for dir := path.Dir(relative); ; dir = path.Dir(dir) {
-		manifestPath := path.Join(dir, "docs/manifest.json")
+		manifestPath := path.Join(dir, manifestRel)
 		body, err := root.ReadFile(manifestPath)
 		if err == nil {
 			var manifest Manifest

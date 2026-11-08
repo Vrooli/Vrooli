@@ -72,7 +72,7 @@ describe("JoinHubForm", () => {
   it("lets a signed-in owner approve this browser's pending pairing request", async () => {
     const user = userEvent.setup();
     const pending = makeDevice({ id: "dev-pending", trustState: TrustState.PENDING });
-    seedSession({ deviceToken: "dt-pending", device: pending, ownerToken: "owner-jwt" });
+    seedSession({ deviceToken: "dt-pending", device: pending, ownerEmail: "owner@example.test" });
     approvePairing.mockResolvedValueOnce({
       device: makeDevice({ id: "dev-pending", trustState: TrustState.TRUSTED }),
     });

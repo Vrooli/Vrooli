@@ -1,6 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { cleanup, screen, waitFor } from "@testing-library/react";
-import { MemoryRouter } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
 import { expectNoA11yViolations, renderWithProviders } from "../test-utils";
@@ -17,8 +16,8 @@ function renderFlowList() {
     <QueryClientProvider
       client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}
     >
-      <MemoryRouter initialEntries={["/"]}><SidebarFlowList /></MemoryRouter>
-    </QueryClientProvider>,
+      <SidebarFlowList />
+    </QueryClientProvider>, { routerEntries: ["/"] }
   );
 }
 

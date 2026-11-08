@@ -86,7 +86,7 @@ describe('AdminAnalytics [REQ:METRIC-SUMMARY,METRIC-DETAIL,METRIC-FILTER]', () =
 
     vi.mocked(api.getMetricsSummary).mockResolvedValue(mockSummary);
     vi.mocked(api.getVariantMetrics).mockResolvedValue({ start_date: '2026-01-01', end_date: '2026-01-07', stats: [mockSummary.variant_stats[0]!] });
-    vi.mocked(api.getTrafficBreakdown).mockResolvedValue({ rows: [{ key: 'US', label: 'United States', sessions: 8, conversions: 2, revenue_minor: 1200, share: 1 }], total_sessions: 8, exhaustive: true, currency: 'usd' });
+    vi.mocked(api.getTrafficBreakdown).mockResolvedValue({ rows: [{ key: 'US', label: 'United States', visitors: 8, conversions: 2, revenue_minor: 1200, share: 1 }], total_visitors: 8, exhaustive: true, currency: 'usd' });
     vi.mocked(api.getTrafficSeries).mockResolvedValue({ points: [{ bucket_start: '2026-01-01T00:00:00Z', value: 8 }], unit: 'count' });
     vi.mocked(api.checkAdminSession).mockResolvedValue({ authenticated: true, email: 'ops@vrooli.dev' });
   });
@@ -258,7 +258,7 @@ describe('AdminAnalytics [REQ:METRIC-SUMMARY,METRIC-DETAIL,METRIC-FILTER]', () =
   });
 
   it('states when the selected traffic window predates enrichment', async () => {
-    vi.mocked(api.getTrafficBreakdown).mockResolvedValue({ rows: [], total_sessions: 0, exhaustive: true, currency: 'usd' });
+    vi.mocked(api.getTrafficBreakdown).mockResolvedValue({ rows: [], total_visitors: 0, exhaustive: true, currency: 'usd' });
     vi.mocked(api.getTrafficSeries).mockResolvedValue({ points: [], unit: 'count' });
     await renderWithAuth(<AdminAnalytics />);
     expect(await screen.findByTestId('traffic-breakdown-empty')).toHaveTextContent(/predate attribution enrichment/i);

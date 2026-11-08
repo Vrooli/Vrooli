@@ -1,6 +1,10 @@
 package validation
 
-import "strings"
+import (
+	"strings"
+
+	"brand-manager/internal/brandsurface"
+)
 
 // This file holds the accessibility-depth (dark mode) and PWA/mobile-theming
 // rules. They are all UI-surface-conditional (registered with surfaceUI) and
@@ -189,7 +193,7 @@ func ruleManifestCompleteness(c *scanContext) (Finding, bool) {
 		}, true
 	}
 	var missing []string
-	for _, key := range manifestRequiredKeys {
+	for _, key := range brandsurface.RequiredManifestKeys {
 		if !manifestHasKey(obj, key) {
 			missing = append(missing, key)
 		}
@@ -209,13 +213,6 @@ func ruleManifestCompleteness(c *scanContext) (Finding, bool) {
 		RecommendedRemediation: "Fill the missing manifest fields; generate the 192/512 + maskable icon set from the logo.",
 		Evidence:               map[string]any{"missing": missing},
 	}, true
-}
-
-// manifestRequiredKeys is the scalar+icons key set a complete manifest declares.
-var manifestRequiredKeys = []string{
-	"name", "short_name", "description",
-	"theme_color", "background_color",
-	"display", "start_url", "id", "icons",
 }
 
 func manifestHasKey(obj map[string]any, key string) bool {
@@ -247,4 +244,29 @@ func manifestHasMaskableIcon(obj map[string]any) bool {
 		}
 	}
 	return false
+}
+
+// ruleManifestIdentity flags an explicit manifest id that names the bare
+// origin. The spec resolves id against the start URL's origin, so such an id
+// gives every app behind one path-prefix proxy the same identity, and
+// installing a second app replaces the first. Without an id, the identity is
+// the resolved start_url, which is distinct per app.
+func ruleManifestIdentity(c *scanContext) (Finding, bool) {
+	rel, obj, _, present := c.manifest()
+	if !present {
+		return Finding{}, false
+	}
+	id, _ := obj["id"].(string)
+	if !brandsurface.ManifestIDCollapsesToOrigin(id) {
+		return Finding{}, false
+	}
+	return Finding{
+		Severity:               SeverityWarning,
+		Title:                  "Manifest id collapses app identity to the origin",
+		Description:            "The web-app manifest declares an id that resolves to the bare origin, because browsers resolve id against the start URL's origin rather than start_url.",
+		FilePath:               rel,
+		WhyItMatters:           "Behind a path-prefix proxy every app on the origin then shares one install identity, so installing a second app replaces the first.",
+		RecommendedRemediation: "Remove id; it then defaults to the resolved start_url, which equals the origin at a host root (existing installs keep their identity) and the app's own prefix behind a proxy.",
+		Evidence:               map[string]any{"id": id},
+	}, true
 }

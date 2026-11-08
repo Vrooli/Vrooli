@@ -3,10 +3,11 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"net/http"
+
 	"github.com/vrooli/api-core/discovery"
 	"landing-page-business-suite-api/internal/aidoor"
 	"landing-page-business-suite-api/internal/commerce"
-	"net/http"
 )
 
 func registerAIDoor(s *Server) {
@@ -46,6 +47,7 @@ func registerAIDoorRoutes(s *Server, door *aidoor.Door) {
 	})).Methods("POST")
 	s.router.Handle("/api/v1/features/{feature}", door).Methods("POST")
 	s.router.Handle("/api/v1/ai/models", door).Methods("GET")
+	s.router.Handle("/api/v1/ai/receipt", door).Methods("GET")
 	s.router.Handle("/api/v1/ai/responses", door).Methods("POST")
 	s.router.Handle("/api/v1/ai/chat/completions", door).Methods("POST")
 	s.router.Handle("/api/v1/ai/keys/session", door).Methods("POST")

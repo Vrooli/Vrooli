@@ -27,6 +27,7 @@ import { createElement } from "react";
 import { afterEach, beforeEach, vi } from "vitest";
 import { configureTestProviders } from "@vrooli/api-base/testing";
 import { i18n } from "./i18n";
+import { installConsoleGuard } from "./test-utils/console";
 import { Providers } from "./app/providers";
 
 configureTestProviders((children) => createElement(Providers, null, children));
@@ -47,29 +48,16 @@ if (typeof window !== "undefined" && typeof window.matchMedia !== "function") {
   });
 }
 
-let consoleError: ReturnType<typeof vi.spyOn>;
-let consoleWarn: ReturnType<typeof vi.spyOn>;
+let finishConsoleGuard: () => void;
 
 beforeEach(async () => {
   window.localStorage.clear();
   await i18n.changeLanguage("cimode");
-  consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
-  consoleWarn = vi.spyOn(console, "warn").mockImplementation(() => {});
+  finishConsoleGuard = installConsoleGuard();
 });
 
 afterEach(() => {
-  const errorCalls = consoleError.mock.calls;
-  const warnCalls = consoleWarn.mock.calls;
-  consoleError.mockRestore();
-  consoleWarn.mockRestore();
-
-  if (errorCalls.length > 0 || warnCalls.length > 0) {
-    const formatted = [
-      ...errorCalls.map((args) => `console.error: ${args.map(String).join(" ")}`),
-      ...warnCalls.map((args) => `console.warn: ${args.map(String).join(" ")}`),
-    ].join("\n");
-    throw new Error(`Unexpected console output during test:\n${formatted}`);
-  }
+  finishConsoleGuard();
 });
 
 // Process-wide spy by intent — axe-core probes canvas during every a11y

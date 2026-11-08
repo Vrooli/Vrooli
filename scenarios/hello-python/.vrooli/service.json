@@ -140,6 +140,8 @@
       "startup_grace_period": 15000
     }
   },
-  "dependencies": {},
+  "dependencies": {
+    "resources": {}
+  },
   "credentials": {}
 }

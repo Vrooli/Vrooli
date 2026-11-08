@@ -831,3 +831,92 @@ session disappeared and the owner status lookup failed with
 `identity_refresh_unavailable`; do not claim that phase passed. Scheduler
 concurrency and device execution are unchanged. See the active cohort Image
 Tools checkpoint for generated artifact and dependency-refresh evidence.
+
+### W3 — Big-endian EXIF output is rebuilt with consistent little-endian fields
+
+The JPEG standards/capacity run initially stopped on a TIFF marker mismatch.
+That marker criterion alone was unsupported, but a separately frozen semantic
+scorer then parsed the actual TIFF directory and found a real serialization
+failure: BE inputs were emitted with an `II` header while the IFD count, entry
+fields, and offsets were written in the source `MM` order. A decoder following
+the output header read two retained entries as 512 and rejected the 74-byte
+directory; `file` independently reported 512 entries. The accepted selective
+strip behavior promises retained EXIF Artist/Copyright values, so malformed
+output violated that established behavior.
+
+The serializer now writes every rebuilt TIFF field using little-endian output
+order, independent of source order. Regression
+`TestStripGPSRebuildsBigEndianEXIFAsValidLittleEndian` failed before the fix
+with `truncated IFD entries` and passes after it. The focused `TestStripGPS`
+group passed. Test Genie unit run `image-tools/20261105-054148-9cc9ca50` passed
+in 54s at L2 Ready with 56 non-blocking warnings. A post-fix CLI→live-API
+replay passed LE baseline, BE baseline, and BE progressive fixtures: 9/9
+semantic EXIF/XMP/IPTC values retained, 0/7 location/private sentinels leaked,
+exact scan bytes and expected JPEG scan types/dimensions retained; both BE
+outputs now decode as valid little-endian TIFF with two entries. This remains
+synthetic-fixture evidence, not a real-photo interoperability or user privacy
+acceptance result. See the active cohort run
+`~/.vrooli/research/topics/image-tools-foundation/runs/cohort-six-topic-recommission-20261105-jpeg-standards-capacity-01/`.
+
+### 2026-11-05 — JPEG GPS strip dropped ICC color profiles — fixed
+
+**Symptom:** `metadata --strip-gps` preserved JPEG scan bytes but removed ICC APP2 profiles. Color-managed viewers then had to treat untagged RGB samples as their default color space.
+
+**Root cause:** the selective marker policy removed every APP2 marker, including `ICC_PROFILE\0` chunks that define color meaning rather than location.
+
+**Workaround:** no reliable color-preserving workaround existed inside the selective strip path; callers would need to retain and restore the profile themselves.
+
+**Real fix:** preserve ICC-profile APP2 chunks byte-for-byte while continuing to remove unrecognized/private APP2 metadata. The synthetic Adobe RGB comparison measured `(33, 15, 24)` 8-bit channel differences on an in-gamut patch when the profile was removed; the combined GPS+ICC replay now removes EXIF and retains the exact profile and JPEG scan. Focused StripGPS regressions and Test Genie unit run `20261105-063233-f7eac46a` pass.
+
+**Owner:** Image Tools.
+
+**Refs:** `api/internal/ops/jpeg_metadata.go`, `api/internal/ops/metadata_gps_test.go`, and research run `~/.vrooli/research/topics/image-tools-foundation/runs/cohort-six-topic-recommission-20261105-jpeg-icc-retention-01/`.
+
+### W3 — Rounded SVG rectangles preserve their declared corner geometry
+
+An authored icon SVG with `<rect rx="224">` initially rasterized through
+the pure-Go path as an opaque square: the 16×16 output was RGB with corner
+pixel `(16, 28, 55)`, while an equivalent circle control retained alpha.
+Source review isolated the difference to `oksvg` silently ignoring `rx`.
+The SVG fidelity detector now routes `<rect rx|ry>` through the existing
+headless Chrome renderer, or refuses by name if Chrome is unavailable. The
+focused regression proves a transparent corner and opaque center. The shared
+pure-Go fixture was narrowed to a sharp rectangle. Test Genie unit
+`20261105-073520-52c867d9` passes at L2 Ready; 56 existing warnings remain.
+Served rasterization now returns RGBA and ICO/ICNS bundles retain their
+multisize entries and are byte-identical on repeat. The 16px corner has a
+one-level antialias fringe (`alpha=1`), which remains within the frozen
+qualification check.
+
+The evidence covers one synthetic icon and this host's Chrome renderer; it
+does not qualify broad SVG compatibility, Chrome-free fallback quality,
+cross-platform icon viewers, visual approval, or capacity. See
+`api/internal/ops/svg.go`, `api/internal/ops/svg_test.go`,
+`api/internal/ops/rasterize_test.go`, and research run
+`~/.vrooli/research/topics/image-tools-foundation/runs/cohort-six-topic-recommission-20261105-vector-icon-delivery-01/`.
+
+### W3 — Installed models can revalidate a pending runtime smoke
+
+Both BiRefNet and IS-Net were present in the model store, but their owner
+readiness was `smoke_pending`. Image Tools' AI handler refused both with HTTP
+422 before creating a job. `Installer.Install` already supports revalidating an
+installed artifact and caching a passing load-smoke without downloading; the
+ModelsService handler instead returned `already_installed` for every model
+without a build profile, so the documented revalidation remedy was unreachable.
+
+The handler now returns `already_installed` only when runtime readiness passes,
+schedules the existing durable install job for an installed model with pending
+smoke, and returns a failed precondition when the runtime environment is absent
+or another unsupported state prevents revalidation. The CLI describes the job
+as install or runtime validation, not always a download. Focused handler tests
+prove pending installed weights schedule the job, the injected smoke completes
+without changing the artifact, a passing cached smoke remains a no-op, and a
+missing Python environment does not enqueue a futile job. Test Genie unit
+`20261105-082332-a5b55f67` passes at L2 Ready; 56 warnings remain, including the
+existing injectable-seam warning. The real Image Tools API has not yet been
+restarted with this source change, so live model revalidation is pending.
+
+See `api/handlers/models/connect_handler.go`,
+`api/handlers/models/connect_handler_install_test.go`, the owner route in
+`api/handlers/models/module.go`, CLI `domains/models/handlers.go` and the
+cohort run `~/.vrooli/research/topics/image-tools-foundation/runs/cohort-six-topic-recommission-20261105-image-smoke-gate-repair-01/`.

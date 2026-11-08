@@ -350,8 +350,8 @@ var Endpoints = []module.EndpointDescriptor{
 		ID:          "models_install",
 		Path:        modelsconnect.ModelsServiceInstallModelProcedure,
 		Method:      "POST",
-		Summary:     "Install (download) a model",
-		Description: "Downloads a model's weights as a durable job (checksum pinned on first download, free disk space checked first). Returns a job id + ETA; block once on jobs wait. An already-installed model returns already_installed=true with no job.",
+		Summary:     "Install or runtime-validate a model",
+		Description: "Downloads missing weights or revalidates the load-smoke for an installed model through the durable install job. Checksums are pinned on first download and free disk space is checked first. Returns a job id + ETA; block once on jobs wait. A runtime-ready installed model returns already_installed=true with no job.",
 		Category:    "models",
 		Request: &module.Schema{
 			Type:       "object",
@@ -368,6 +368,7 @@ var Endpoints = []module.EndpointDescriptor{
 		},
 		Errors: []module.ErrorDesc{
 			{Status: 404, Code: "not_found", Description: "No model with that id exists"},
+			{Status: 412, Code: "failed_precondition", Description: "Installed model runtime is not provisioned or cannot be smoke-validated"},
 			{Status: 500, Code: "internal", Description: "Install job submission failure"},
 			{Status: 501, Code: "unimplemented", Description: "Installation unavailable (read-only wiring)"},
 		},

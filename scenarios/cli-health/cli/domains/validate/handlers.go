@@ -3,7 +3,6 @@ package validate
 import (
 	"context"
 	"fmt"
-	"strings"
 
 	"connectrpc.com/connect"
 
@@ -148,16 +147,5 @@ func severityCount(a interface{ GetFindingsBySeverity() map[string]int32 }, seve
 	if a == nil {
 		return 0
 	}
-	counts := a.GetFindingsBySeverity()
-	if count, ok := counts[severity]; ok {
-		return int(count)
-	}
-	// The shared maturity contract serializes enum keys as
-	// FINDING_SEVERITY_*, while older callers used the shortened SEVERITY_*
-	// spelling. Accept the short spelling so human summaries and failure errors
-	// cannot silently report zero findings for a failed assessment.
-	if strings.HasPrefix(severity, "SEVERITY_") {
-		return int(counts["FINDING_"+severity])
-	}
-	return 0
+	return maturityreport.CountFindingsBySeverity(a.GetFindingsBySeverity(), severity)
 }

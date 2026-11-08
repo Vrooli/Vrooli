@@ -118,7 +118,7 @@
         { "in": "sidebar", "label": "Goldens", "test_id": "nav-sidebar-goldens",
           "reachable_via": ["mouse", "keyboard"] },
         { "in": "mobile_bottom_nav", "label": "Goldens", "icon": "target",
-          "test_id": "nav-mobile-goldens", "reachable_via": ["mouse", "keyboard"] }
+          "test_id": "nav-sidebar-goldens-tab", "reachable_via": ["mouse", "keyboard"] }
       ]
     },
     {
@@ -128,7 +128,7 @@
         { "in": "sidebar", "label": "Skills", "test_id": "nav-sidebar-skills",
           "reachable_via": ["mouse", "keyboard"] },
         { "in": "mobile_bottom_nav", "label": "Skills", "icon": "wrench",
-          "test_id": "nav-mobile-skills", "reachable_via": ["mouse", "keyboard"] }
+          "test_id": "nav-sidebar-skills-tab", "reachable_via": ["mouse", "keyboard"] }
       ]
     },
     {
@@ -138,7 +138,7 @@
         { "in": "sidebar", "label": "Manifests", "test_id": "nav-sidebar-manifests",
           "reachable_via": ["mouse", "keyboard"] },
         { "in": "mobile_bottom_nav", "label": "Manifests", "icon": "file-cog",
-          "test_id": "nav-mobile-manifests", "reachable_via": ["mouse", "keyboard"] }
+          "test_id": "nav-sidebar-manifests-tab", "reachable_via": ["mouse", "keyboard"] }
       ]
     },
     {
@@ -148,7 +148,7 @@
         { "in": "sidebar", "label": "Runs", "test_id": "nav-sidebar-runs",
           "reachable_via": ["mouse", "keyboard"] },
         { "in": "mobile_bottom_nav", "label": "Runs", "icon": "play-circle",
-          "test_id": "nav-mobile-runs", "reachable_via": ["mouse", "keyboard"] }
+          "test_id": "nav-sidebar-runs-tab", "reachable_via": ["mouse", "keyboard"] }
       ]
     },
     {
@@ -158,7 +158,7 @@
         { "in": "sidebar", "label": "Settings", "test_id": "nav-sidebar-settings",
           "reachable_via": ["mouse", "keyboard"] },
         { "in": "mobile_bottom_nav", "label": "Settings", "icon": "settings",
-          "test_id": "nav-mobile-settings", "reachable_via": ["mouse", "keyboard"] }
+          "test_id": "nav-sidebar-settings-tab", "reachable_via": ["mouse", "keyboard"] }
       ]
     },
     {

@@ -27,7 +27,8 @@ import (
 
 // LighthouseHandler handles Lighthouse audit requests
 type LighthouseHandler struct {
-	repoRoot string
+	repoRoot          string
+	runsClientFactory func(context.Context) (runsconnect.RunsServiceClient, string, error)
 }
 
 const (
@@ -256,6 +257,9 @@ func (h *LighthouseHandler) configPath(name string) string {
 }
 
 func (h *LighthouseHandler) runsClient(ctx context.Context) (runsconnect.RunsServiceClient, string, error) {
+	if h.runsClientFactory != nil {
+		return h.runsClientFactory(ctx)
+	}
 	baseURL, err := discovery.ResolveScenarioURLDefault(ctx, "test-genie")
 	if err != nil {
 		return nil, "", err
@@ -353,7 +357,13 @@ func (h *LighthouseHandler) GetLighthouseReport(c *gin.Context) {
 				if !strings.Contains(artifact.GetLabel(), reportID+ext) {
 					continue
 				}
-				request, requestErr := http.NewRequestWithContext(c.Request.Context(), http.MethodGet, baseURL+artifact.GetAccessPath(), nil)
+				metadata, metadataErr := client.GetRunArtifact(c.Request.Context(), connect.NewRequest(&runspb.GetRunArtifactRequest{
+					Target: scenarioName, RunId: run.GetRunId(), ArtifactId: artifact.GetId(),
+				}))
+				if metadataErr != nil || metadata.Msg.GetArtifact() == nil || metadata.Msg.GetArtifact().GetAccessPath() == "" {
+					continue
+				}
+				request, requestErr := http.NewRequestWithContext(c.Request.Context(), http.MethodGet, baseURL+metadata.Msg.GetArtifact().GetAccessPath(), nil)
 				if requestErr != nil {
 					continue
 				}

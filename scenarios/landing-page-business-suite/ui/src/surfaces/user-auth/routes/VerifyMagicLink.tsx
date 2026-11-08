@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { AlertCircle, ArrowRight, CheckCircle2, Clock3, Laptop, LinkIcon, RefreshCw, ShieldAlert, UserRound } from 'lucide-react';
 import { AuthPageLayout } from '../../../shared/ui/AuthPageLayout';
@@ -90,6 +90,15 @@ export function VerifyMagicLink({ redirectTo = redirectBrowser }: { redirectTo?:
     void loadPreview();
   }, [loadPreview]);
 
+  // Leaving this page (for example "Use a different email") abandons the
+  // confirmation: a verification that resolves later must not navigate the
+  // person back to the link's destination.
+  const mounted = useRef(true);
+  useEffect(() => {
+    mounted.current = true;
+    return () => { mounted.current = false; };
+  }, []);
+
   const appContext = state.status === 'confirm' || state.status === 'working' ? state.preview.context : undefined;
   const appName = appContext?.app || siteName;
 
@@ -104,7 +113,7 @@ export function VerifyMagicLink({ redirectTo = redirectBrowser }: { redirectTo?:
         return;
       }
       setState({ status: 'done', returning: false });
-      window.setTimeout(() => { navigate(nextPath, { replace: true }); }, 900);
+      window.setTimeout(() => { if (mounted.current) navigate(nextPath, { replace: true }); }, 900);
     } catch {
       setState({
         status: 'error',
@@ -133,6 +142,7 @@ export function VerifyMagicLink({ redirectTo = redirectBrowser }: { redirectTo?:
         return;
       }
       const verified = await verifyMagicLink(token, binding);
+      if (!mounted.current) return;
       if (context && preview.flow === 'desktop_link') {
         try {
           const outcome = await continueDesktopLink(context, redirectTo);

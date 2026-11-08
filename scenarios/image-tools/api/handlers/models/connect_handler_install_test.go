@@ -13,6 +13,7 @@ import (
 	"image-tools/internal/capabilities"
 	internaljobs "image-tools/internal/jobs"
 	internalmodels "image-tools/internal/models"
+	"image-tools/internal/smoke"
 
 	db "github.com/vrooli/api-core/databasetest"
 
@@ -176,6 +177,147 @@ func TestInstallModelAlreadyInstalledSkipsJob(t *testing.T) {
 	}
 	if sub.submitted != 0 {
 		t.Fatalf("no job should be submitted for an installed model, got %d", sub.submitted)
+	}
+}
+
+func TestInstallModelRevalidatesInstalledSmokePendingModelWithoutDownload(t *testing.T) {
+	h, installer, sub := newInstallHandler(t)
+	ctx := context.Background()
+	const modelID = "isnet-general-use"
+	modelDir := filepath.Join(installer.Root, "models", modelID)
+	if err := os.MkdirAll(modelDir, 0o755); err != nil {
+		t.Fatalf("create installed model dir: %v", err)
+	}
+	weightPath := filepath.Join(modelDir, "weights.onnx")
+	weight := []byte("already-installed-onnx-artifact")
+	if err := os.WriteFile(weightPath, weight, 0o644); err != nil {
+		t.Fatalf("write installed artifact: %v", err)
+	}
+	if err := installer.State.Set(ctx, internalmodels.InstallRecord{
+		ID: modelID, Installed: true, Path: modelDir, Checksum: "model-checksum",
+	}); err != nil {
+		t.Fatalf("record installed model: %v", err)
+	}
+	python := filepath.Join(installer.Root, "venv", "bin", "python")
+	if err := os.MkdirAll(filepath.Dir(python), 0o755); err != nil {
+		t.Fatalf("create fake venv dir: %v", err)
+	}
+	if err := os.WriteFile(python, []byte("fake python"), 0o755); err != nil {
+		t.Fatalf("create fake interpreter: %v", err)
+	}
+	smokeCalls := 0
+	installer.Smoke = &internalmodels.SmokeConfig{
+		Python: python, LockHash: "test-lock",
+		Run: func(_ context.Context, gotPython string, args, _ []string) ([]byte, error) {
+			smokeCalls++
+			if gotPython != python {
+				t.Fatalf("smoke interpreter = %q, want %q", gotPython, python)
+			}
+			if len(args) < 2 || args[0] != "-m" || args[1] != internalmodels.SmokeModule {
+				t.Fatalf("smoke args = %v, want probe module invocation", args)
+			}
+			return []byte("onnx load smoke passed"), nil
+		},
+	}
+	if ready, state := installer.RuntimeReadiness(ctx, modelID); ready || state != "smoke_pending" {
+		t.Fatalf("initial readiness = %t/%q, want smoke_pending", ready, state)
+	}
+
+	response, err := h.InstallModel(ctx, connect.NewRequest(&modelsv1.InstallModelRequest{Id: modelID}))
+	if err != nil {
+		t.Fatalf("request smoke revalidation: %v", err)
+	}
+	if response.Msg.AlreadyInstalled || response.Msg.JobId == "" {
+		t.Fatalf("pending smoke must schedule a durable revalidation job: %+v", response.Msg)
+	}
+	if sub.submitted != 1 || sub.last.Operation != internalmodels.InstallJobOperation {
+		t.Fatalf("revalidation must use one install job, got submissions=%d operation=%q", sub.submitted, sub.last.Operation)
+	}
+
+	if _, err := installer.InstallForJob(ctx, modelID, response.Msg.JobId, nil); err != nil {
+		t.Fatalf("run installed-model revalidation: %v", err)
+	}
+	if smokeCalls != 1 {
+		t.Fatalf("smoke calls = %d, want 1", smokeCalls)
+	}
+	if ready, state := installer.RuntimeReadiness(ctx, modelID); !ready || state != "ready" {
+		t.Fatalf("readiness after smoke = %t/%q, want ready", ready, state)
+	}
+	gotWeight, err := os.ReadFile(weightPath)
+	if err != nil {
+		t.Fatalf("read installed artifact: %v", err)
+	}
+	if !bytes.Equal(gotWeight, weight) {
+		t.Fatal("revalidation changed the installed model artifact")
+	}
+}
+
+func TestInstallModelDoesNotScheduleSmokeWhenRuntimeEnvironmentIsMissing(t *testing.T) {
+	h, installer, sub := newInstallHandler(t)
+	ctx := context.Background()
+	const modelID = "isnet-general-use"
+	modelDir := filepath.Join(installer.Root, "models", modelID)
+	if err := os.MkdirAll(modelDir, 0o755); err != nil {
+		t.Fatalf("create installed model dir: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(modelDir, "weights.onnx"), []byte("weights"), 0o644); err != nil {
+		t.Fatalf("write installed artifact: %v", err)
+	}
+	if err := installer.State.Set(ctx, internalmodels.InstallRecord{
+		ID: modelID, Installed: true, Path: modelDir, Checksum: "model-checksum",
+	}); err != nil {
+		t.Fatalf("record installed model: %v", err)
+	}
+	installer.Smoke = &internalmodels.SmokeConfig{LockHash: "test-lock"}
+
+	_, err := h.InstallModel(ctx, connect.NewRequest(&modelsv1.InstallModelRequest{Id: modelID}))
+	if connect.CodeOf(err) != connect.CodeFailedPrecondition {
+		t.Fatalf("install error = %v, want FailedPrecondition", err)
+	}
+	if sub.submitted != 0 {
+		t.Fatalf("must not schedule futile smoke job without a Python environment, got %d", sub.submitted)
+	}
+}
+
+func TestInstallModelAlreadyInstalledSmokeReadySkipsJob(t *testing.T) {
+	h, installer, sub := newInstallHandler(t)
+	ctx := context.Background()
+	const modelID = "isnet-general-use"
+	modelDir := filepath.Join(installer.Root, "models", modelID)
+	if err := os.MkdirAll(modelDir, 0o755); err != nil {
+		t.Fatalf("create installed model dir: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(modelDir, "weights.onnx"), []byte("weights"), 0o644); err != nil {
+		t.Fatalf("write installed artifact: %v", err)
+	}
+	if err := installer.State.Set(ctx, internalmodels.InstallRecord{
+		ID: modelID, Installed: true, Path: modelDir, Checksum: "model-checksum",
+	}); err != nil {
+		t.Fatalf("record installed model: %v", err)
+	}
+	python := filepath.Join(installer.Root, "venv", "bin", "python")
+	if err := os.MkdirAll(filepath.Dir(python), 0o755); err != nil {
+		t.Fatalf("create fake venv dir: %v", err)
+	}
+	if err := os.WriteFile(python, []byte("fake python"), 0o755); err != nil {
+		t.Fatalf("create fake interpreter: %v", err)
+	}
+	if err := smoke.WriteVerdict(modelDir, smoke.Verdict{
+		Pass: true, ModelHash: "model-checksum", LockHash: "test-lock", Kind: "onnx",
+	}); err != nil {
+		t.Fatalf("write cached smoke verdict: %v", err)
+	}
+	installer.Smoke = &internalmodels.SmokeConfig{Python: python, LockHash: "test-lock"}
+
+	response, err := h.InstallModel(ctx, connect.NewRequest(&modelsv1.InstallModelRequest{Id: modelID}))
+	if err != nil {
+		t.Fatalf("install ready model: %v", err)
+	}
+	if !response.Msg.AlreadyInstalled {
+		t.Fatal("runtime-ready installed model should remain already_installed")
+	}
+	if sub.submitted != 0 {
+		t.Fatalf("runtime-ready model must not schedule a revalidation job, got %d", sub.submitted)
 	}
 }
 

@@ -1,0 +1,24 @@
+{
+  "background_color": "#0f172a",
+  "description": "Cross-scenario CLI manifest validation and AI command discovery",
+  "display": "standalone",
+  "icons": [
+    {
+      "purpose": "any maskable",
+      "sizes": "192x192",
+      "src": "manifest-icon-192.maskable.png",
+      "type": "image/png"
+    },
+    {
+      "purpose": "any maskable",
+      "sizes": "512x512",
+      "src": "manifest-icon-512.maskable.png",
+      "type": "image/png"
+    }
+  ],
+  "name": "CLI Health",
+  "scope": "../",
+  "short_name": "cli-health",
+  "start_url": "../",
+  "theme_color": "#0f172a"
+}

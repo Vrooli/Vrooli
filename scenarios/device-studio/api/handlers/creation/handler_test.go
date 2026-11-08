@@ -26,6 +26,8 @@ type fakeCoordinator struct {
 	replayState   jobs.State
 	correction    renderjobs.GeometryCorrectionDetails
 	correctionErr error
+	readbackErr   error
+	readbackJob   jobs.Job
 }
 
 type fakeSessionCoordinator struct {
@@ -66,6 +68,12 @@ func (f *fakeCoordinator) SubmitGeometryCreation(_ context.Context, r renderjobs
 func (f *fakeCoordinator) FindGeometryCreationByKey(_ context.Context, projectID, key string) (jobs.Job, error) {
 	if projectID != "project-1" || key != "request-1" {
 		return jobs.Job{}, jobs.ErrNotFound
+	}
+	if f.readbackErr != nil {
+		return jobs.Job{}, f.readbackErr
+	}
+	if f.readbackJob.ID != "" {
+		return f.readbackJob, nil
 	}
 	return sampleJob(), nil
 }
@@ -293,6 +301,44 @@ func TestOperationReadbackIsDurableOwnerBackedAndProjectScoped(t *testing.T) {
 	}
 	if got := request("other-project", "request-1"); got.Code != http.StatusNotFound {
 		t.Fatalf("cross-project operation lookup status=%d body=%s", got.Code, got.Body.String())
+	}
+}
+
+func TestOperationReadbackFailureCanRetrySameKeyWithoutResubmitting(t *testing.T) {
+	c := &fakeCoordinator{readbackErr: errors.New("temporary durable read failure: private storage details")}
+	acceptedJob, created, err := c.SubmitGeometryCreation(context.Background(), renderjobs.GeometryCreationRequest{
+		ProjectID: "project-1", CandidateID: "candidate-1", IdempotencyKey: "request-1",
+	})
+	if err != nil || !created {
+		t.Fatalf("initial geometry creation was not accepted: created=%t err=%v", created, err)
+	}
+	c.readbackJob = acceptedJob
+	h := operationHandler(c)
+	request := func() *httptest.ResponseRecorder {
+		req := httptest.NewRequest(http.MethodGet, "/api/v1/projects/project-1/geometry-creations/operations/request-1", nil)
+		req = mux.SetURLVars(req, map[string]string{"project_id": "project-1", "operation_key": "request-1"})
+		w := httptest.NewRecorder()
+		h(w, req)
+		return w
+	}
+	if got := request(); got.Code != http.StatusServiceUnavailable || strings.Contains(got.Body.String(), "private storage details") || !strings.Contains(got.Body.String(), "same operation key") {
+		t.Fatalf("transient readback failure status=%d body=%s", got.Code, got.Body.String())
+	}
+
+	c.readbackErr = nil
+	got := request()
+	var projection jobProjection
+	if err := json.Unmarshal(got.Body.Bytes(), &projection); err != nil {
+		t.Fatalf("decode bounded readback projection: %v", err)
+	}
+	if got.Code != http.StatusOK || projection.JobID != acceptedJob.ID || projection.ProjectID != "project-1" || projection.CandidateID != "candidate-1" || projection.State != jobs.Queued || projection.Version != 3 {
+		t.Fatalf("recovered same-key readback status=%d projection=%+v body=%s", got.Code, projection, got.Body.String())
+	}
+	if projection.JobID != acceptedJob.ID {
+		t.Fatalf("recovered job ID %q differs from initially accepted job %q", projection.JobID, acceptedJob.ID)
+	}
+	if c.calls != 1 {
+		t.Fatalf("initial submit plus readback made %d submit calls, want exactly one", c.calls)
 	}
 }
 

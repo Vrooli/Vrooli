@@ -50,7 +50,7 @@ export function AppShell(): ReactNode {
   return (
     <LibraryAppShell
       density="sidebar"
-      mobileNav="drawer"
+      mobileNav="tabs"
       mainMode="scroll"
       brand={<span data-testid={selectors.nav.sidebarLogo}>{t(strings.app.eyebrow)}</span>}
       brandHref={ROUTES.goldensIndex}
@@ -73,6 +73,9 @@ export function AppShell(): ReactNode {
           {props.children}
         </NavLink>
       )}
+      // The phone tab bar selects rather than links; route it through the
+      // router so a tap is a client-side transition, not a page load.
+      onNavigate={(item) => void navigate(item.href)}
       header={<TopHeader />}
       menuLabel={t(strings.nav.menuToggle)}
       closeLabel="Close navigation"

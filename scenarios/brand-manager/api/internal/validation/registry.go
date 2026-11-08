@@ -66,6 +66,7 @@ var specs = []ruleSpec{
 	{id: "standalone-capable", surfaces: []surface{surfaceUI}, eval: ruleStandaloneCapable},
 	{id: "ios-statusbar-safe-area", surfaces: []surface{surfaceUI}, eval: ruleIOSStatusBarSafeArea},
 	{id: "manifest-completeness", surfaces: []surface{surfaceUI}, eval: ruleManifestCompleteness},
+	{id: "manifest-identity", surfaces: []surface{surfaceUI}, eval: ruleManifestIdentity},
 
 	// Phase 5 — social / link-preview metadata.
 	{id: "open-graph", surfaces: []surface{surfaceUI}, eval: ruleOpenGraph},
@@ -99,6 +100,7 @@ var fixerByID = map[string]fixerFunc{
 	"standalone-capable":      fixStandaloneCapable,
 	"ios-statusbar-safe-area": fixSafeArea,
 	"manifest-completeness":   fixManifestCompleteness,
+	"manifest-identity":       fixManifestIdentity,
 	"open-graph":              fixOpenGraph,
 	"twitter-card":            fixTwitterCard,
 	"reduced-motion-support":  fixReducedMotion,

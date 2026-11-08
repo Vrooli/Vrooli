@@ -1,6 +1,7 @@
 package validation
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"testing"
@@ -37,9 +38,9 @@ const compliantIndexHTML = `<!doctype html>
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/public/favicon.svg" />
-    <link rel="apple-touch-icon" href="/public/apple-icon-180.png" />
-    <link rel="manifest" href="/public/site.webmanifest" />
+    <link rel="icon" type="image/svg+xml" href="public/favicon.svg" />
+    <link rel="apple-touch-icon" href="public/apple-icon-180.png" />
+    <link rel="manifest" href="public/site.webmanifest" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="description" content="Buy widgets fast." />
     <meta name="theme-color" content="#1d4ed8" />
@@ -69,9 +70,8 @@ const compliantManifest = `{
   "theme_color": "#1d4ed8",
   "background_color": "#ffffff",
   "display": "standalone",
-  "start_url": "/",
-  "scope": "/",
-  "id": "/",
+  "start_url": "../",
+  "scope": "../",
   "icons": [
     {"src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable"},
     {"src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any"}
@@ -276,7 +276,7 @@ func TestBrandMarkersSatisfiedByAppliedWebManifest(t *testing.T) {
 	writeFile(t, root, "ui/src/app.css", ".a{color:red}")
 	writeFile(t, root, "ui/manifest.json", `{"contract":{"kind":"scenario-ui"}}`)
 	writeFile(t, root, "ui/public/public/site.webmanifest",
-		`{"name":"Mizar","short_name":"Mizar","description":"d","theme_color":"#0f172a","background_color":"#0f172a","display":"standalone","id":"/","start_url":"/","scope":"/","icons":[],"_brand":{"slug":"mizar","version":1}}`)
+		`{"name":"Mizar","short_name":"Mizar","description":"d","theme_color":"#0f172a","background_color":"#0f172a","display":"standalone","start_url":"/","scope":"/","icons":[],"_brand":{"slug":"mizar","version":1}}`)
 	mustNotFire(t, root, "brand-markers-applied")
 }
 
@@ -449,7 +449,7 @@ func TestAssetValidityMaskableMissingFires(t *testing.T) {
 	writeFile(t, root, "ui/public/public/site.webmanifest", `{
   "name": "Widget Shop", "short_name": "Widget Shop", "description": "Buy widgets fast.",
   "theme_color": "#1d4ed8", "background_color": "#ffffff", "display": "standalone",
-  "start_url": "/", "id": "/",
+  "start_url": "../", "scope": "../",
   "icons": [{"src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any"}]
 }`)
 	f := mustFire(t, root, "asset-validity")
@@ -539,4 +539,54 @@ func joinLines(lines []string) string {
 		out += l
 	}
 	return out
+}
+
+// --- manifest identity -------------------------------------------------------
+
+// The spec resolves id against the start URL's origin, so these all name the
+// bare origin and collapse every app behind one proxy into one identity.
+func TestManifestIdentityFlagsOriginCollapsingIDs(t *testing.T) {
+	for _, id := range []string{"/", ".", "./", "https://example.test/", "https://example.test"} {
+		root := fullyBrandedScenario(t)
+		rewriteManifestID(t, root, id)
+		f := mustFire(t, root, "manifest-identity")
+		if f.Evidence["id"] != id {
+			t.Fatalf("evidence id = %v, want %q", f.Evidence["id"], id)
+		}
+		if _, _, err := BuildFixCandidates(root, []string{"manifest-identity"}, true); err != nil {
+			t.Fatalf("apply for id %q: %v", id, err)
+		}
+		manifest, _ := readFile(root, "ui/public/public/site.webmanifest")
+		if contains(manifest, `"id"`) {
+			t.Fatalf("fixer left id %q in place:\n%s", id, manifest)
+		}
+		mustNotFire(t, root, "manifest-identity")
+		mustNotFire(t, root, "manifest-completeness")
+	}
+}
+
+// An app-specific id, or none at all, keeps identity distinct and is left
+// alone; so is an empty id, which the spec ignores.
+func TestManifestIdentityAcceptsDistinctOrAbsentIDs(t *testing.T) {
+	mustNotFire(t, fullyBrandedScenario(t), "manifest-identity")
+	for _, id := range []string{"/widget-shop/", "widget-shop", "/?app=widget-shop", ""} {
+		root := fullyBrandedScenario(t)
+		rewriteManifestID(t, root, id)
+		mustNotFire(t, root, "manifest-identity")
+	}
+}
+
+func rewriteManifestID(t *testing.T, root, id string) {
+	t.Helper()
+	raw, _ := readFile(root, "ui/public/public/site.webmanifest")
+	var obj map[string]any
+	if err := json.Unmarshal([]byte(raw), &obj); err != nil {
+		t.Fatal(err)
+	}
+	obj["id"] = id
+	out, err := json.Marshal(obj)
+	if err != nil {
+		t.Fatal(err)
+	}
+	writeFile(t, root, "ui/public/public/site.webmanifest", string(out))
 }

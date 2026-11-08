@@ -4,7 +4,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { MemoryRouter, Route, Routes } from "react-router-dom";
+import { Route, Routes } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { create } from "@bufbuild/protobuf";
 
@@ -260,7 +260,6 @@ const routeRender = (pattern: string, entry: string, element: JSX.Element) =>
         })
       }
     >
-      <MemoryRouter initialEntries={[entry]}>
         <Routes>
           <Route path={pattern} element={element} />
           <Route path={ROUTE_PATTERNS.runDetail} element={<div data-testid="run-detail-target" />} />
@@ -268,8 +267,7 @@ const routeRender = (pattern: string, entry: string, element: JSX.Element) =>
           <Route path={ROUTE_PATTERNS.manifestsIndex} element={<div data-testid="manifests-index-target" />} />
           <Route path={ROUTE_PATTERNS.skillsIndex} element={<div data-testid="skills-index-target" />} />
         </Routes>
-      </MemoryRouter>
-    </QueryClientProvider>,
+    </QueryClientProvider>, { routerEntries: [entry] }
   );
 
 describe("detail surfaces", () => {

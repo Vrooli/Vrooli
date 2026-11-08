@@ -82,10 +82,11 @@ func TestResolveVrooliRoot_WalkUp(t *testing.T) {
 }
 
 func TestResolveVrooliRoot_NotFound(t *testing.T) {
-	// /tmp/<random> has no scenarios/ or .vrooli/ ancestor on any sane
-	// box. Use the temp dir directly as the start, env empty.
-	tmp := t.TempDir()
-	_, err := scenarios.ResolveVrooliRoot(tmp, func(string) string { return "" })
+	// Start at the filesystem root: t.TempDir() follows GOTMPDIR, which
+	// lifecycle-managed shells place under ~/.vrooli, an ancestor this walk
+	// would rightly accept.
+	start := filepath.VolumeName(os.TempDir()) + string(filepath.Separator)
+	_, err := scenarios.ResolveVrooliRoot(start, func(string) string { return "" })
 	require.Error(t, err)
 }
 

@@ -58,7 +58,6 @@
       "loadError": "تعذر تحميل مسح الأسطول.",
       "staleData": "بيانات مسح الأسطول أقدم من نافذة الحداثة.",
       "filterStatus": "تصفية الحالة",
-      "filterAll": "كل الحالات",
       "filterFindings": "نتائج",
       "filterClean": "نظيف",
       "sortBy": "فرز حسب {{column}}"

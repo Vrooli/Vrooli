@@ -25,6 +25,7 @@ require (
 	github.com/vrooli/envkit-go v0.0.0 // indirect
 	github.com/vrooli/platform-go v0.0.0 // indirect
 	go.yaml.in/yaml/v3 v3.0.5 // indirect
+	golang.org/x/mod v0.41.0 // indirect
 )
 
 require (
@@ -62,8 +63,4 @@ replace github.com/vrooli/cli-core => ../../../packages/cli-core
 
 replace github.com/vrooli/platform-go => ../../../packages/platform-go
 
-replace github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime => ../../scenario-to-desktop/runtime
-
 replace github.com/vrooli/envkit-go => ../../../packages/envkit-go
-
-replace github.com/vrooli/cliresolve => ../../../packages/cliresolve

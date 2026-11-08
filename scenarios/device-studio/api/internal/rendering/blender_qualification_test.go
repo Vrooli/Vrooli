@@ -141,7 +141,7 @@ func queryBlenderProfile() ([]byte, *cliv1.BlenderToolProfile, error) {
 	if err != nil {
 		return nil, nil, err
 	}
-	path, err := cliinvoke.Resolve(cliinvoke.ResolveOptions{Explicit: os.Getenv(cliinvoke.BinaryEnvVar), RuntimeHome: home, Getenv: func(string) string { return "" }, LookPath: func(string) (string, error) { return "", exec.ErrNotFound }})
+	path, err := cliinvoke.Resolve(cliinvoke.ResolveOptions{Explicit: os.Getenv(cliinvoke.BinaryEnvVar), UserHome: home, Getenv: func(string) string { return "" }, LookPath: func(string) (string, error) { return "", exec.ErrNotFound }})
 	if err != nil {
 		return nil, nil, err
 	}

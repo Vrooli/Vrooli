@@ -8,7 +8,7 @@ import { renderWithProviders } from "./test-utils";
 describe("hello-mobile fixture", () => {
 	it("derives a deterministic response and persists the input state", () => {
 		localStorage.clear();
-		renderWithProviders(<App />);
+		renderWithProviders(<App />, { withoutRouter: true });
 		fireEvent.change(screen.getByTestId(selectors.helloMobile.input), { target: { value: "android" } });
 		fireEvent.click(screen.getByTestId(selectors.helloMobile.submit));
 		expect(screen.getByTestId(selectors.helloMobile.result)).toHaveTextContent("Result: DIORDNA");
@@ -17,7 +17,7 @@ describe("hello-mobile fixture", () => {
 	});
 
 	it("exposes explicit connectivity and notification targets", () => {
-		renderWithProviders(<App />);
+		renderWithProviders(<App />, { withoutRouter: true });
 		fireEvent.click(screen.getByRole("button", { name: "Toggle connectivity" }));
 		expect(screen.getByTestId(selectors.helloMobile.connectivity)).toHaveTextContent("Connectivity: offline");
 		fireEvent.click(screen.getByTestId(selectors.helloMobile.notification));

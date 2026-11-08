@@ -23,6 +23,7 @@ type AppHandler struct {
 	getApps        func(context.Context) ([]repository.App, error)
 	stopApp        func(context.Context, string) error
 	getApp         func(context.Context, string) (*repository.App, error)
+	reportAppIssue func(context.Context, *services.IssueReportRequest) (*services.IssueReportResult, error)
 }
 
 // NewAppHandler creates a new app handler
@@ -303,9 +304,25 @@ func (h *AppHandler) ReportAppFix(c *gin.Context) {
 
 	payload.AppID = appID
 
-	result, err := h.appService.ReportAppIssue(c.Request.Context(), &payload)
+	reportAppIssue := h.appService.ReportAppIssue
+	if h.reportAppIssue != nil {
+		reportAppIssue = h.reportAppIssue
+	}
+
+	result, err := reportAppIssue(c.Request.Context(), &payload)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, errorResponse(err.Error()))
+		status := http.StatusInternalServerError
+		switch {
+		case errors.Is(err, services.ErrAppIdentifierRequired),
+			errors.Is(err, services.ErrIssueReportPayloadRequired),
+			errors.Is(err, services.ErrIssueReportMessageRequired),
+			errors.Is(err, services.ErrIssueReportTargetsRequired),
+			errors.Is(err, services.ErrIssueReportScenarioInvalid):
+			status = http.StatusBadRequest
+		case errors.Is(err, services.ErrSwarmManagerUnavailable):
+			status = http.StatusServiceUnavailable
+		}
+		c.JSON(status, errorResponse(err.Error()))
 		return
 	}
 

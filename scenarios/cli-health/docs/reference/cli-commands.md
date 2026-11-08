@@ -48,6 +48,15 @@ request-data control flag or explicit decoder bind may set a non-empty
 bind finding. The waiver is supported on both `positionals` and `flags` and is
 validated by the shared manifest schema.
 
+Keep CLI transport inputs separate from RPC data. A path such as `--request-file`
+that the handler reads and decodes into a typed request is a CLI-only input and
+must use `local_only: true`; do not bind it to a made-up `request`, `body`, or
+`payload` field. Bind the actual argument only when it maps to a real field on
+the generated RPC request. Kebab-case names already resolve to the matching
+proto field, so omit redundant binds such as `caller-execution-id` →
+`caller_execution_id`. This keeps schemas honest and lets CLI Health detect real
+mapping mistakes instead of accumulating exception waivers.
+
 `binding.kind` is currently `connect-rpc` only. REST-exception
 commands, if a future domain needs them, should be appended to the
 loaded group outside the manifest path in the domain's `register.go`

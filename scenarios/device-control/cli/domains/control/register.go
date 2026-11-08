@@ -230,7 +230,7 @@ func StrategyGroup(core *cliapp.ScenarioApp) cliapp.SubcommandGroup {
 }
 
 func SessionGroup(core *cliapp.ScenarioApp) cliapp.SubcommandGroup {
-	return cliapp.SubcommandGroup{Name: "session", Description: "Manage exclusive device leases", NeedsAPI: true, Subcommands: []cliapp.Command{
+	return cliapp.SubcommandGroup{Name: "session", Aliases: []string{"lease"}, Description: "Manage exclusive device leases", NeedsAPI: true, Subcommands: []cliapp.Command{
 		command("list", "List live sessions and lease expiry", cliapp.ArgSchema{}, func(ctx cliapp.RunContext) error {
 			b, e := core.Request(http.MethodGet, "/sessions", nil, nil)
 			if e != nil {
@@ -327,10 +327,24 @@ func FlowGroup(core *cliapp.ScenarioApp) cliapp.SubcommandGroup {
 }
 
 func AuditGroup(core *cliapp.ScenarioApp) cliapp.SubcommandGroup {
-	return cliapp.SubcommandGroup{Name: "audit", Description: "Review device verb audit records", NeedsAPI: true, Subcommands: []cliapp.Command{command("list", "List audit records", cliapp.ArgSchema{}, func(ctx cliapp.RunContext) error {
+	return cliapp.SubcommandGroup{Name: "audit", Description: "Review device verb audit records", NeedsAPI: true, Subcommands: []cliapp.Command{command("list", "List audit records, newest first when filtered", cliapp.ArgSchema{Flags: []cliapp.Flag{
+		{Name: "device", Description: "Only records for this device id"},
+		{Name: "actor", Description: "Only records by this actor"},
+		{Name: "since", Description: "Only records created at or after this RFC 3339 time or this long ago (e.g. 15m)"},
+		{Name: "limit", Description: "Keep only the newest N matching records"},
+	}}, func(ctx cliapp.RunContext) error {
+		filter, err := parseAuditFilter(ctx.Flag("device"), ctx.Flag("actor"), ctx.Flag("since"), ctx.Flag("limit"), time.Now())
+		if err != nil {
+			return err
+		}
 		b, e := core.Request(http.MethodGet, "/evidence/audit", nil, nil)
 		if e != nil {
 			return e
+		}
+		if filter.active() {
+			if b, e = filter.apply(b); e != nil {
+				return e
+			}
 		}
 		return emit(ctx, b, "Audit")
 	})}}

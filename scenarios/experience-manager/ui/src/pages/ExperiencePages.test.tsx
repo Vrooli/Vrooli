@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -13,9 +13,7 @@ const mocks = vi.hoisted(() => ({
   compareStudioVariants: vi.fn(),
   fetchEvidence: vi.fn(),
   fetchFindings: vi.fn(),
-  fetchProviderValidation: vi.fn().mockResolvedValue({
-    assessment: { presentation: { contractVersion: "v1", capabilities: [] } },
-  }),
+  fetchProviderValidation: vi.fn(),
   fetchFleet: vi.fn(),
   fetchScenarioSpec: vi.fn(),
   previewFindingsFixes: vi.fn(),
@@ -44,6 +42,18 @@ vi.mock("../api/experience", async () => {
     suggestStudioBindings: mocks.suggestStudioBindings,
   };
 });
+
+/**
+ * Reset every mock, then restore the defaults a page needs to render at all.
+ * `vi.resetAllMocks()` alone strips the provider-validation response, and a
+ * query resolving to undefined is a React Query error, not an empty state.
+ */
+function resetMocks() {
+  vi.resetAllMocks();
+  mocks.fetchProviderValidation.mockResolvedValue({
+    assessment: { presentation: { contractVersion: "v1", capabilities: [], documentationTopics: [] } },
+  });
+}
 
 function studioSpecFixture() {
   return [
@@ -78,7 +88,7 @@ function studioSpecFixture() {
 describe("FleetPage", () => {
   afterEach(() => {
     cleanup();
-    vi.resetAllMocks();
+    resetMocks();
   });
 
   it("renders live fleet data without fallback rows", async () => {
@@ -120,7 +130,11 @@ describe("FleetPage", () => {
     const table = screen.getByTestId(selectors.experience.fleet.debtTable);
     expect(table).toHaveAttribute("data-testid", selectors.experience.fleet.debtTable);
     expect(table.querySelector('th[aria-sort="ascending"]')).not.toBeNull();
-    expect(screen.getByRole("button", { name: strings.experience.fleet.filterAll })).toHaveAttribute("aria-pressed", "true");
+    // DataTable's own "All" filter leads the group and starts pressed; the page
+    // adds only its narrowing filters, so there is exactly one "All".
+    const filterButtons = within(screen.getByRole("group", { name: strings.experience.fleet.filterStatus })).getAllByRole("button");
+    expect(filterButtons).toHaveLength(3);
+    expect(filterButtons[0]).toHaveAttribute("aria-pressed", "true");
 
     await userEvent.click(screen.getByRole("button", { name: strings.experience.fleet.filterFindings }));
     expect(table).toHaveTextContent("experience-manager");
@@ -142,7 +156,7 @@ describe("FleetPage", () => {
 
     unmount();
     cleanup();
-    vi.resetAllMocks();
+    resetMocks();
     mocks.fetchFleet.mockResolvedValueOnce({
       scenarios: [],
       scenarioCount: 0,
@@ -157,7 +171,7 @@ describe("FleetPage", () => {
     );
 
     cleanup();
-    vi.resetAllMocks();
+    resetMocks();
     mocks.fetchFleet.mockRejectedValueOnce(new Error("server unavailable"));
     renderWithProviders(<FleetPage />);
     await waitFor(() =>
@@ -169,7 +183,7 @@ describe("FleetPage", () => {
 describe("ScenarioExplorerPage", () => {
   afterEach(() => {
     cleanup();
-    vi.resetAllMocks();
+    resetMocks();
   });
 
   it("renders live page and machine-claim data", async () => {
@@ -204,8 +218,9 @@ describe("ScenarioExplorerPage", () => {
 
     renderWithProviders(<ScenarioExplorerPage />);
 
+    // The table re-renders its element once rows arrive; query it fresh.
+    await waitFor(() => expect(screen.getByTestId(selectors.experience.explorer.depthGrid)).toHaveTextContent("Fleet"));
     const grid = screen.getByTestId(selectors.experience.explorer.depthGrid);
-    await waitFor(() => expect(grid).toHaveTextContent("Fleet"));
     expect(grid).toHaveTextContent("L3");
     expect(grid).toHaveTextContent("-");
     expect(screen.getByTestId(selectors.experience.explorer.claimList)).toHaveTextContent("debt-table-perceivable");
@@ -258,7 +273,7 @@ describe("ScenarioExplorerPage", () => {
 describe("FindingsPage", () => {
   afterEach(() => {
     cleanup();
-    vi.resetAllMocks();
+    resetMocks();
   });
 
   it("renders live validation findings and previews deterministic fixes", async () => {
@@ -378,7 +393,7 @@ describe("FindingsPage", () => {
 
     unmount();
     cleanup();
-    vi.resetAllMocks();
+    resetMocks();
     mocks.fetchFindings.mockResolvedValueOnce([]);
     renderWithProviders(<FindingsPage />);
     await waitFor(() =>
@@ -388,7 +403,7 @@ describe("FindingsPage", () => {
     );
 
     cleanup();
-    vi.resetAllMocks();
+    resetMocks();
     mocks.fetchFindings.mockRejectedValueOnce(new Error("server unavailable"));
     renderWithProviders(<FindingsPage />);
     await waitFor(() =>
@@ -400,7 +415,7 @@ describe("FindingsPage", () => {
 describe("EvidencePage", () => {
   afterEach(() => {
     cleanup();
-    vi.resetAllMocks();
+    resetMocks();
   });
 
   it("renders persisted evidence rows and focuses their accessibility payloads", async () => {
@@ -545,7 +560,7 @@ describe("EvidencePage", () => {
 describe("StudioPage", () => {
   afterEach(() => {
     cleanup();
-    vi.resetAllMocks();
+    resetMocks();
   });
 
   it("renders live spec data, backend preview, variants, and binding suggestions", async () => {

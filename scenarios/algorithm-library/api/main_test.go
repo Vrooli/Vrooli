@@ -16,36 +16,39 @@ import (
 )
 
 func TestHealthHandler(t *testing.T) {
-	// Setup
-	mockDB, mock, err := sqlmock.New()
-	require.NoError(t, err)
-	defer mockDB.Close()
+	cases := []struct {
+		name       string
+		pingErr    error
+		wantCode   int
+		wantStatus string
+		connected  bool
+	}{
+		{name: "database reachable", wantCode: http.StatusOK, wantStatus: "healthy", connected: true},
+		{name: "database unreachable", pingErr: fmt.Errorf("connection refused"), wantCode: http.StatusServiceUnavailable, wantStatus: "unhealthy"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			mockDB, mock, err := sqlmock.New(sqlmock.MonitorPingsOption(true))
+			require.NoError(t, err)
+			defer mockDB.Close()
+			mock.ExpectPing().WillReturnError(tc.pingErr)
 
-	oldDB := db
-	db = mockDB
-	defer func() { db = oldDB }()
+			w := httptest.NewRecorder()
+			newHealthHandler(mockDB)(w, httptest.NewRequest("GET", "/health", nil))
 
-	// Expect database ping
-	mock.ExpectPing()
-
-	// Create request
-	req := httptest.NewRequest("GET", "/health", nil)
-	w := httptest.NewRecorder()
-
-	// Call handler
-	healthHandler(w, req)
-
-	// Check response
-	resp := w.Result()
-	assert.Equal(t, http.StatusOK, resp.StatusCode)
-
-	var result map[string]interface{}
-	err = json.NewDecoder(resp.Body).Decode(&result)
-	require.NoError(t, err)
-
-	assert.Equal(t, "healthy", result["status"])
-	assert.Equal(t, "algorithm-library-api", result["service"])
-	assert.Equal(t, true, result["database"])
+			assert.Equal(t, tc.wantCode, w.Code)
+			var result struct {
+				Status       string `json:"status"`
+				Dependencies map[string]struct {
+					Connected bool `json:"connected"`
+				} `json:"dependencies"`
+			}
+			require.NoError(t, json.NewDecoder(w.Body).Decode(&result))
+			assert.Equal(t, tc.wantStatus, result.Status)
+			assert.Equal(t, tc.connected, result.Dependencies["database"].Connected)
+			assert.NoError(t, mock.ExpectationsWereMet())
+		})
+	}
 }
 
 func TestSearchAlgorithmsHandler(t *testing.T) {

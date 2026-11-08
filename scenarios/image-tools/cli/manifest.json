@@ -309,7 +309,7 @@
         },
         {
           "name": "install",
-          "description": "Install (download) a model's weights as a durable job (--wait to block once on completion)",
+          "description": "Install model weights or revalidate an installed runtime as a durable job (--wait to block once on completion)",
           "positionals": [
             {
               "name": "id",
@@ -321,7 +321,7 @@
             {
               "name": "wait",
               "bool": true,
-              "description": "Block once until the download job is terminal (no polling)",
+              "description": "Block once until the install or runtime-validation job is terminal (no polling)",
               "local_only": true
             }
           ],

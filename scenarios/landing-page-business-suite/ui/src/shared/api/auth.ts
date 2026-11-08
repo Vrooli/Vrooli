@@ -188,7 +188,8 @@ export interface UserAuthUser {
   id: string;
   email: string;
   email_verified: boolean;
-  stripe_customer_id?: string;
+  /** Null when the account has no billing customer yet (the API's response schema allows it). */
+  stripe_customer_id?: string | null;
   created_at?: string;
   last_login_at?: string | null;
 }
@@ -375,8 +376,10 @@ export function refreshSessionOnce(): Promise<UserAuthTokens | null> {
   };
   if (!refreshFlight) {
     const locks = typeof navigator !== 'undefined' ? navigator.locks : undefined;
+		// Web Locks resolves with the callback's settled result; the DOM typing
+		// nests the callback's promise, so `then` flattens it for the type too.
 		refreshFlight = locks
-		  ? locks.request('lpbs-refresh', refresh) as Promise<UserAuthTokens | null>
+		  ? locks.request('lpbs-refresh', refresh).then((tokens) => tokens)
       : refresh();
 		void refreshFlight.then(() => { refreshFlight = null; }, () => { refreshFlight = null; });
   }

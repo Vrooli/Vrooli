@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { cleanup, screen } from "@testing-library/react";
-import { MemoryRouter, Route, Routes } from "react-router-dom";
+import { Route, Routes } from "react-router-dom";
 
 import { renderWithProviders } from "../test-utils";
 import { selectors } from "../consts/selectors";
@@ -10,16 +10,11 @@ afterEach(() => cleanup());
 
 function renderAt(path: string) {
   return renderWithProviders(
-    <MemoryRouter
-      initialEntries={[path]}
-      future={{ v7_startTransition: true, v7_relativeSplatPath: true }}
-    >
       <Routes>
         <Route path="/" element={<div data-testid="redirected-overview" />} />
         <Route path="/targets/:encodedPath" element={<TargetWorkspacePage />} />
-      </Routes>
-    </MemoryRouter>,
-    { withoutRouter: true },
+      </Routes>,
+    { routerEntries: [path] }
   );
 }
 

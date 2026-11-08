@@ -152,6 +152,18 @@ and after provenance, a verification class, evidence references, and any next
 action. The normal command performs lease acquisition and one typed recovery
 retry internally; operators do not acquire or release a lease for it.
 
+Leases live in the `session` group, which also answers to `lease`
+(`device-control lease list` is `device-control session list`). Audit records
+are read with `device-control audit list`; narrow them instead of re-filtering
+the full list, which keeps every record ever written:
+
+```bash
+device-control audit list --device "<id>" --actor operator --since 15m --limit 20 --json
+```
+
+Any filter returns the matching records newest first; `--since` takes an RFC
+3339 time or a duration ago.
+
 Transport candidates are exposed at `GET /api/v1/devices/relations` and retained
 stale records at `GET /api/v1/devices/diagnostics`; stale records are excluded
 from normal actionable selection.

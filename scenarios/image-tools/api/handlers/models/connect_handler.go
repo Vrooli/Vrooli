@@ -328,10 +328,20 @@ func (h *connectHandler) InstallModel(ctx context.Context, req *connect.Request[
 	}
 
 	if h.deps.Installer.Installed(ctx, id) && (m.BuildProfile == nil || h.deps.Installer.BuildReady(ctx, id)) {
-		return connect.NewResponse(&modelsv1.InstallModelResponse{
-			AlreadyInstalled: true,
-			SizeMbApprox:     int32(m.SizeMBApprox),
-		}), nil
+		runtimeReady, readiness := h.deps.Installer.RuntimeReadiness(ctx, id)
+		if runtimeReady {
+			return connect.NewResponse(&modelsv1.InstallModelResponse{
+				AlreadyInstalled: true,
+				SizeMbApprox:     int32(m.SizeMBApprox),
+			}), nil
+		}
+		if readiness != "smoke_pending" {
+			message := fmt.Sprintf("model %q is installed but not runtime-ready: %s", id, readiness)
+			return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New(message))
+		}
+		// Installed models with a pending or stale load-smoke must use the same
+		// durable install job so Installer.InstallForJob can validate the runtime
+		// without downloading already-present weights.
 	}
 
 	payload, err := json.Marshal(internalmodels.InstallPayload{ModelID: id})

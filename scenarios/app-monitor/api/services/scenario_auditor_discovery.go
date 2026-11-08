@@ -10,7 +10,11 @@ import (
 )
 
 func (s *AppService) locateScenarioAuditorAPIPort(ctx context.Context) (int, error) {
-	if port, err := discovery.ResolveScenarioPort(ctx, "scenario-auditor", "API_PORT"); err == nil && port > 0 {
+	portResolver := s.scenarioPort
+	if portResolver == nil {
+		portResolver = discovery.ResolveScenarioPort
+	}
+	if port, err := portResolver(ctx, "scenario-auditor", "API_PORT"); err == nil && port > 0 {
 		return port, nil
 	} else if err != nil {
 		logger.Warn("failed to resolve scenario-auditor port via CLI", err)

@@ -87,6 +87,15 @@ The required order is: authenticate the actor, verify membership in the selected
 
 After dispatch, settlement atomically allocates eligible lots and records the measured receipt under the immutable account, actor, app, and operation binding. Charge is capped at the hold; excess is an overrun. Exact settlement replay is a no-op and conflicting replay fails. A proven pre-dispatch failure may release the hold; its released key operation is terminal and a retry needs a new operation ID. A timeout, disconnect, or ambiguous provider outcome retains the hold for durable Gateway-receipt reconciliation by `internal/aidoor/recovery.go`. Automatic expiry is not evidence that an already dispatched call did not spend. See [funding flows](../concepts/FLOWS.md) for SM1/SM2 and the numeric boundaries.
 
+After total public-response loss, `GET /api/v1/ai/receipt` uses the original
+issued bearer key and original `Idempotency-Key` to derive the same operation.
+`internal/aidoor/receipt.go` first checks the key claim and account/actor-bound
+reservation, then may reconcile a pending hold from the private Gateway receipt.
+It cannot dispatch. Only public accounting status and exact terminal charged
+credits leave this boundary; unknown/pending never imply zero or successful
+content delivery. Wrong-key/account and nonexistent reads are indistinguishable.
+See the [public accounting recovery contract](../reference/api/OVERVIEW.md#hosted-ai-accounting-recovery).
+
 SM3 request ordering is owned by `api/internal/aidoor/request.go` and its consumed `request.spec.json` (level 4). The contract covers all 80 state/event pairs and eight traces; tests enumerate the production vocabulary and check reachable composition invariants. Existing J2/J16 journeys replay observed transitions from the real mounted Door, including receipt recovery after a process crash. The request model is ephemeral: it never replaces wallet reservations or Gateway receipts. The wallet owner admits device/session caps and its reservation in the same account transaction. A definitive wallet refusal commits a terminal zero-cost cap marker; a process crash before commit leaves neither cap consumption nor a wallet hold. Provider dispatch follows that commit. A reconstructed request starts in reconciliation and cannot dispatch. Duplicate private receipts cannot perform another commit; a receipt for another operation or with unknown cost cannot settle. Formal generation was attempted but the Quint Rust evaluator exceeded its recursion limit on the full matrix; no level-5 proof is claimed.
 
 Count-based reservations follow a separate non-credit path: authenticate the principal, derive its subscription tier, reserve current usage plus pending quota for the default ten minutes or bounded custom window, then finalize count usage or release pending capacity. The count owner rejects cost-based meters before state mutation and never allocates a funding lot.

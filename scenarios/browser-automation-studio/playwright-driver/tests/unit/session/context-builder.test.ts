@@ -3,6 +3,7 @@ import type { SessionSpec } from '../../../src/types';
 import type { BrowserContextOptions } from 'rebrowser-playwright';
 import { createMockBrowser, createTestConfig } from '../../helpers';
 import { interactionStateForContext } from '../../../src/session/interaction-state';
+import { installRoutedWebSocketMarker } from '../../../src/session/routed-websocket';
 
 describe('ContextBuilder', () => {
   let mockBrowser: ReturnType<typeof createMockBrowser>;
@@ -32,6 +33,12 @@ describe('ContextBuilder', () => {
   });
 
   describe('buildContext', () => {
+    it('installs browser WebSocket routing only for a routed context', async () => {
+      sessionSpec.browser_profile = { extra_headers: { 'X-Vrooli-Test-Mode': '1' } };
+      const result = await buildContext(mockBrowser, sessionSpec, config);
+      expect(result.context.addInitScript).toHaveBeenCalledWith(installRoutedWebSocketMarker);
+    });
+
     it('should create browser context with viewport', async () => {
       const result = await buildContext(mockBrowser, sessionSpec, config);
 

@@ -18,7 +18,11 @@ func TestRegisterLoadsProviderGroup(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Register: %v", err)
 	}
-	if group.Name != GroupName || len(group.Subcommands) != 1 {
+	names := map[string]bool{}
+	for _, sub := range group.Subcommands {
+		names[sub.Name] = true
+	}
+	if group.Name != GroupName || len(group.Subcommands) != 3 || !names["validate"] || !names["fix"] || !names["fix-apply"] {
 		t.Fatalf("unexpected group: %+v", group)
 	}
 }

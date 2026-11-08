@@ -58,7 +58,7 @@ Existing local entry points (choose the domain test for the behavior you change)
 
 - [api/handlers/health/handler_test.go](../../api/handlers/health/handler_test.go)
 - [ui/src/App.test.tsx](../../ui/src/App.test.tsx)
-- [ui/src/features/health/HealthCard.test.tsx](../../ui/src/features/health/HealthCard.test.tsx)
+- [ui/src/api/health.test.ts](../../ui/src/api/health.test.ts)
 - [ui/src/layout/AppShell.a11y.test.tsx](../../ui/src/layout/AppShell.a11y.test.tsx)
 - [cli/app_test.go](../../cli/app_test.go)
 
@@ -78,12 +78,11 @@ the right shape to copy for mechanics:
 - **UI composition**: `ui/src/App.test.tsx` is a smoke-only composition
   test. App composes shell plus features; feature behaviour belongs
   beside the feature.
-- **UI feature**: `ui/src/features/health/HealthCard.test.tsx` shows
-  `renderWithProviders`, factory data, an inline `vi.mock` factory
-  closure, cimode assertions, and real-locale assertions.
+- **UI health client**: `ui/src/api/health.test.ts` verifies the health
+  request method, cache policy, and endpoint path with a stubbed fetch.
 - **UI a11y**: `ui/src/layout/AppShell.a11y.test.tsx` and
-  `ui/src/features/health/HealthCard.a11y.test.tsx` test shell and
-  feature accessibility at their ownership boundary.
+  `ui/src/pages/routes.a11y.test.tsx` test shell and routed-page
+  accessibility at their ownership boundary.
 - **CLI**: `cli/app_test.go` is the smoke gate (NewApp, `--version`,
   `--help`). When domain commands arrive, extend it with
   `clitest.NewAPIServer` and `clitest.CaptureStdout` from

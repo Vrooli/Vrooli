@@ -43,13 +43,13 @@ export function useMetrics() {
     }
 
     const attribution = attributionRef.current ?? getAttributionContext(variant.slug, assignedVisitor);
+    // Attribution supplies the session, visitor and campaign context; the
+    // event's own type, data, current variant and referrer rule follow it.
     const event: MetricEventPayload = {
+      ...attribution,
       event_type: eventType,
       variant_slug: variant.slug,
-      session_id: attribution.session_id,
-      visitor_id: attribution.visitor_id,
       event_data: eventData,
-      ...attribution,
       referrer: eventType === 'page_view' ? attribution.referrer : '',
     };
 

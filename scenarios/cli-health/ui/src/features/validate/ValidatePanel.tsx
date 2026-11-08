@@ -27,16 +27,20 @@ export function ValidatePanel() {
   };
 
   const severityLabel = (s: string): { label: string; className: string; testId: string } => {
-    switch (s) {
-      case "SEVERITY_ERROR":
+    switch (s.trim().toUpperCase().replace(/^(FINDING_)?SEVERITY_/, "")) {
       case "ERROR":
+      case "FAILURE":
+      case "CRITICAL":
+      case "HIGH":
+      case "BLOCKER":
         return {
           label: t(strings.validate.severityError),
           className: "bg-red-500/20 text-red-300",
           testId: "severity-error",
         };
-      case "SEVERITY_WARNING":
       case "WARNING":
+      case "WARN":
+      case "MEDIUM":
         return {
           label: t(strings.validate.severityWarning),
           className: "bg-yellow-500/20 text-yellow-300",
@@ -54,9 +58,9 @@ export function ValidatePanel() {
   const data = mutation.data;
   const assessment = data?.assessment;
   const findings = assessment?.findings ?? [];
-  const errors = assessment?.findingsBySeverity["SEVERITY_ERROR"] ?? 0;
-  const warnings = assessment?.findingsBySeverity["SEVERITY_WARNING"] ?? 0;
-  const infos = assessment?.findingsBySeverity["SEVERITY_INFO"] ?? 0;
+  const errors = countSeverity(assessment?.findingsBySeverity, "ERROR");
+  const warnings = countSeverity(assessment?.findingsBySeverity, "WARNING");
+  const infos = countSeverity(assessment?.findingsBySeverity, "INFO");
   const passed = data?.status === ValidationStatus.PASSED;
 
   return (
@@ -154,4 +158,9 @@ export function ValidatePanel() {
       )}
     </section>
   );
+}
+
+function countSeverity(counts: Record<string, number> | undefined, severity: string): number {
+  if (!counts) return 0;
+  return (counts[`SEVERITY_${severity}`] ?? 0) + (counts[`FINDING_SEVERITY_${severity}`] ?? 0);
 }

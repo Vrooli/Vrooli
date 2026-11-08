@@ -27,6 +27,8 @@ func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup
 	h := newHandlers(core)
 	group, err := cliapp.LoadFromManifest(manifest, GroupName, map[string]func(cliapp.RunContext) error{
 		"ScenarioValidationService.ValidateScenario": h.validate,
+		"ScenarioValidationService.PreviewFix":       func(ctx cliapp.RunContext) error { return h.fix(ctx, false) },
+		"ScenarioValidationService.ApplyFix":         func(ctx cliapp.RunContext) error { return h.fix(ctx, true) },
 	})
 	if err != nil {
 		return cliapp.SubcommandGroup{}, fmt.Errorf("provider: load from manifest: %w", err)
@@ -60,6 +62,61 @@ func (h *handlers) validate(ctx cliapp.RunContext) error {
 		ResultsHeading: "Provider maturity",
 		Results:        results,
 	})
+}
+
+// fix previews (or applies) the provider's deterministic fixers for one
+// scenario, optionally restricted to named rules.
+func (h *handlers) fix(ctx cliapp.RunContext, apply bool) error {
+	scenario := ctx.Positional("scenario")
+	req := connect.NewRequest(&scenariovalidationv1.FixRequest{
+		Scenario: scenario,
+		Path:     ctx.Flag("path"),
+		RuleIds:  splitRuleIDs(ctx.FlagValues("rule")),
+	})
+	var (
+		resp *connect.Response[scenariovalidationv1.FixResponse]
+		err  error
+		verb = "preview branding fixes"
+	)
+	if apply {
+		verb = "apply branding fixes"
+		resp, err = h.client.ApplyFix(context.Background(), req)
+	} else {
+		resp, err = h.client.PreviewFix(context.Background(), req)
+	}
+	if err != nil {
+		return cliapp.WrapAPIError(fmt.Sprintf("%s for %q", verb, scenario), err, nil)
+	}
+	if resp == nil || resp.Msg == nil {
+		return fmt.Errorf("server returned no fix response")
+	}
+	changes := make([]string, 0, len(resp.Msg.GetCandidates()))
+	for _, c := range resp.Msg.GetCandidates() {
+		state := "preview"
+		if c.GetApplied() {
+			state = "applied"
+		}
+		changes = append(changes, fmt.Sprintf("[%s] %s → %s — %s", state, c.GetRuleId(), c.GetFilePath(), c.GetDescription()))
+	}
+	result := append([]string{fmt.Sprintf("%d branding fix candidate(s) for %s.", len(resp.Msg.GetCandidates()), resp.Msg.GetScenario())}, resp.Msg.GetMessages()...)
+	next := []string{fmt.Sprintf("`brand-manager provider validate %s` - re-check branding findings", scenario)}
+	if !apply && len(resp.Msg.GetCandidates()) > 0 {
+		next = append([]string{fmt.Sprintf("`brand-manager provider fix-apply %s` - apply these fixes", scenario)}, next...)
+	}
+	return cliapp.RenderProtoMutation(ctx, resp.Msg, cliapp.MutationReport{Result: result, Changes: changes, NextCommand: next})
+}
+
+// splitRuleIDs accepts repeated and comma-separated --rule values.
+func splitRuleIDs(values []string) []string {
+	var out []string
+	for _, value := range values {
+		for _, part := range strings.Split(value, ",") {
+			if part = strings.TrimSpace(part); part != "" {
+				out = append(out, part)
+			}
+		}
+	}
+	return out
 }
 
 // presentationReport is intentionally a shallow adapter. It displays the

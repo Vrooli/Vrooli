@@ -78,6 +78,9 @@ export function UserLogin({ redirectTo = redirectBrowser }: { redirectTo?: Redir
   const [choosingId, setChoosingId] = useState<string | null>(null);
   const emailRef = useRef<HTMLInputElement>(null);
   const submittingCode = useRef(false);
+  // Bumped when the person abandons the code step; a verification that
+  // resolves afterwards must not finish a sign-in they walked away from.
+  const codeAttempt = useRef(0);
   const deliveryPollingStopped = useRef(false);
   const conditionalAbort = useRef<AbortController | null>(null);
 
@@ -201,8 +204,9 @@ export function UserLogin({ redirectTo = redirectBrowser }: { redirectTo?: Redir
       if (!available || stopped || /^\d+\.\d+\.\d+\.\d+$/.test(window.location.hostname)) return;
       try {
         const started = await beginPasskeyAuthentication(context ? JSON.stringify(context) : '', controller.signal);
-        const options = { ...toRequestOptions(JSON.parse(started.optionsJson)), mediation: 'conditional', signal: controller.signal } as PublicKeyCredentialRequestOptions;
-        const assertion = await navigator.credentials.get({ publicKey: options });
+        // Conditional mediation and the abort signal belong to the credential
+        // request, not to its publicKey options.
+        const assertion = await navigator.credentials.get({ publicKey: toRequestOptions(JSON.parse(started.optionsJson)), mediation: 'conditional', signal: controller.signal });
         if (stopped || !(assertion instanceof PublicKeyCredential)) return;
         const finished = await finishPasskeyAuthentication(JSON.stringify(credentialToJSON(assertion)), started.ceremonyId, context ? JSON.stringify(context) : '');
         if (!finished.authenticated || stopped) return;
@@ -243,20 +247,25 @@ export function UserLogin({ redirectTo = redirectBrowser }: { redirectTo?: Redir
     setError(null);
     setNotice(null);
     const binding = getBrowserBinding();
+    const attempt = codeAttempt.current;
+    const abandoned = () => attempt !== codeAttempt.current;
     try {
       if (flow === 'native_app' && context) {
         const target = await authorizeNativeApp({ email, code: value, browserBinding: binding }, context);
+        if (abandoned()) return;
         setStep('done');
         redirectTo(target);
         return;
       }
       await verifySignInCode(email, value, binding);
+      if (abandoned()) return;
       if (flow === 'desktop_link' && context) {
         await connectDesktop();
         return;
       }
       await completeBrowserSignIn(true);
     } catch (err) {
+      if (abandoned()) return;
       setCode('');
       if (isApiError(err) && err.reason === 'code_invalid') {
         setError('That code isn’t right or has expired. Check your latest email and try again.');
@@ -314,7 +323,7 @@ export function UserLogin({ redirectTo = redirectBrowser }: { redirectTo?: Redir
     setPasskeyBusy(true); setError(null);
     try {
       const started = await beginPasskeyRegistration();
-      const credential = await navigator.credentials.create({ publicKey: toCreationOptions(JSON.parse(started.optionsJson)) as PublicKeyCredentialCreationOptions });
+      const credential = await navigator.credentials.create({ publicKey: toCreationOptions(JSON.parse(started.optionsJson)) });
       if (!(credential instanceof PublicKeyCredential)) throw new Error('No passkey was created');
       await finishPasskeyRegistration(JSON.stringify(credentialToJSON(credential)), started.ceremonyId);
       setSavePasskeyPrompt(false); setStep('done');
@@ -418,7 +427,7 @@ export function UserLogin({ redirectTo = redirectBrowser }: { redirectTo?: Redir
           aria-busy={busy}
           onSubmit={(event) => { event.preventDefault(); void submitCode(code); }}
         >
-          <button type="button" className="auth-back" onClick={() => { setStep('email'); setError(null); setNotice(null); }}>
+          <button type="button" className="auth-back" onClick={() => { codeAttempt.current += 1; setStep('email'); setError(null); setNotice(null); }}>
             <ArrowLeft aria-hidden="true" />Use a different email
           </button>
           <span className="auth-badge" aria-hidden="true"><Mail /></span>

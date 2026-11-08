@@ -216,6 +216,10 @@ func runPromotion(core *cliapp.ScenarioApp, args []string) error {
 	return nil
 }
 
+// promotionCredentialAuthority is the credential authority seam; tests
+// substitute an explicitly scoped authority.
+var promotionCredentialAuthority = credentialauthority.Default
+
 func resolvePromotionReaderToken() (string, error) {
 	// Keep the explicit environment override for isolated tests and short-lived
 	// operator probes. Normal CLI use resolves through the same credential
@@ -224,21 +228,18 @@ func resolvePromotionReaderToken() (string, error) {
 	if token := strings.TrimSpace(os.Getenv("COMMAND_CENTER_LPBS_READER_TOKEN")); token != "" {
 		return token, nil
 	}
-	authority, err := credentialauthority.Default()
+	authority, err := promotionCredentialAuthority()
 	if err != nil {
 		return "", fmt.Errorf("resolve LPBS production service credential: %w", err)
 	}
-	identity := credentialauthority.Identity("vrooli/landing-page-business-suite")
 	field := "metrics-reader-token"
 	if strings.EqualFold(strings.TrimSpace(os.Getenv("COMMAND_CENTER_LPBS_ORIGIN")), "production") {
-		identity = credentialauthority.Identity("vrooli/landing-page-business-suite")
 		field = "service-secret"
 	}
-	token, err := authority.Resolve(identity, field)
-	if err != nil || strings.TrimSpace(token) == "" {
-		if err == nil {
-			err = credentialauthority.ErrUnconfigured
-		}
+	// Require keeps the authority's failure taxonomy (unconfigured, provider
+	// unavailable, provider absent) and names the credential address.
+	token, err := authority.Require(credentialauthority.Identity("vrooli/landing-page-business-suite"), field)
+	if err != nil {
 		return "", fmt.Errorf("resolve LPBS production service credential: %w", err)
 	}
 	return strings.TrimSpace(token), nil

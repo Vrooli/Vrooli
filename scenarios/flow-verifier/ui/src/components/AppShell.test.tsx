@@ -1,7 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { cleanup, screen, waitFor } from "@testing-library/react";
 import { Route, Routes } from "react-router-dom";
-import { MemoryRouter } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { ReactNode } from "react";
 
@@ -24,8 +23,8 @@ function renderShell(ui: ReactNode) {
     <QueryClientProvider
       client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}
     >
-      <MemoryRouter initialEntries={["/"]}><ThemeProvider>{ui}</ThemeProvider></MemoryRouter>
-    </QueryClientProvider>,
+      <ThemeProvider>{ui}</ThemeProvider>
+    </QueryClientProvider>, { routerEntries: ["/"] }
   );
 }
 

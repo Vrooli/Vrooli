@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"regexp"
 	"strings"
 	"time"
@@ -198,12 +199,11 @@ func main() {
 `, code)
 	}
 
-	// Write to temporary file
-	tmpFile := "/tmp/algo_exec_" + fmt.Sprintf("%d", time.Now().UnixNano()) + ".go"
-	if err := exec.Command("bash", "-c", fmt.Sprintf("echo '%s' > %s", fullCode, tmpFile)).Run(); err != nil {
-		return nil, fmt.Errorf("failed to create temp file: %v", err)
+	workDir, tmpFile, cleanup, err := writeSourceWorkspace("main.go", fullCode)
+	if err != nil {
+		return nil, err
 	}
-	defer exec.Command("rm", tmpFile).Run()
+	defer cleanup()
 
 	// Compile and run
 	ctx, cancel := context.WithTimeout(context.Background(), e.timeout)
@@ -211,6 +211,7 @@ func main() {
 
 	start := time.Now()
 	cmd := exec.CommandContext(ctx, "go", "run", tmpFile)
+	cmd.Dir = workDir
 	cmd.Env = envkit.Toolchain(envkit.WithOverlay(envkit.Env(os.Environ()), envkit.SameScenario, nil), envkit.ToolchainOptions{})
 	cmd.Stdin = strings.NewReader(stdin)
 
@@ -218,7 +219,7 @@ func main() {
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
 
-	err := cmd.Run()
+	err = cmd.Run()
 	duration := time.Since(start)
 
 	// Handle timeout
@@ -367,17 +368,15 @@ public class AlgorithmExec {
 		className = "Main"
 	}
 
-	// Write to temporary file
-	tmpFile := "/tmp/" + className + "_" + fmt.Sprintf("%d", time.Now().UnixNano()) + ".java"
-	classFile := "/tmp/" + className + ".class"
-	if err := exec.Command("bash", "-c", fmt.Sprintf("cat > %s << 'EOF'\n%s\nEOF", tmpFile, javaCode)).Run(); err != nil {
-		return nil, fmt.Errorf("failed to create temp file: %v", err)
+	// javac requires a public class to live in a file of the same name.
+	workDir, tmpFile, cleanup, err := writeSourceWorkspace(className+".java", javaCode)
+	if err != nil {
+		return nil, err
 	}
-	defer exec.Command("rm", tmpFile).Run()
-	defer exec.Command("rm", classFile).Run()
+	defer cleanup()
 
 	// Compile
-	compileCmd := exec.Command("javac", "-d", "/tmp", tmpFile)
+	compileCmd := exec.Command("javac", "-d", workDir, tmpFile)
 	var compileErr bytes.Buffer
 	compileCmd.Stderr = &compileErr
 	if err := compileCmd.Run(); err != nil {
@@ -394,14 +393,14 @@ public class AlgorithmExec {
 	defer cancel()
 
 	start := time.Now()
-	cmd := exec.CommandContext(ctx, "java", "-cp", "/tmp", className)
+	cmd := exec.CommandContext(ctx, "java", "-cp", workDir, className)
 	cmd.Stdin = strings.NewReader(stdin)
 
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
 
-	err := cmd.Run()
+	err = cmd.Run()
 	duration := time.Since(start)
 
 	// Handle timeout
@@ -453,15 +452,12 @@ int main() {
 `, code)
 	}
 
-	// Write to temporary file
-	tmpFile := "/tmp/algo_exec_" + fmt.Sprintf("%d", time.Now().UnixNano()) + ".cpp"
-	tmpBinary := "/tmp/algo_exec_bin_" + fmt.Sprintf("%d", time.Now().UnixNano())
-
-	if err := exec.Command("bash", "-c", fmt.Sprintf("cat > %s << 'EOF'\n%s\nEOF", tmpFile, cppCode)).Run(); err != nil {
-		return nil, fmt.Errorf("failed to create temp file: %v", err)
+	workDir, tmpFile, cleanup, err := writeSourceWorkspace("main.cpp", cppCode)
+	if err != nil {
+		return nil, err
 	}
-	defer exec.Command("rm", tmpFile).Run()
-	defer exec.Command("rm", tmpBinary).Run()
+	defer cleanup()
+	tmpBinary := filepath.Join(workDir, "main")
 
 	// Compile
 	compileCmd := exec.Command("g++", "-o", tmpBinary, tmpFile, "-O2", "-std=c++17")
@@ -488,7 +484,7 @@ int main() {
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
 
-	err := cmd.Run()
+	err = cmd.Run()
 	duration := time.Since(start)
 
 	// Handle timeout
@@ -525,4 +521,21 @@ func indentCode(code string, indent string) string {
 		lines[i] = indent + line
 	}
 	return strings.Join(lines, "\n")
+}
+
+// writeSourceWorkspace writes code into a private per-execution directory so
+// concurrent executions never share source or build outputs, and user code is
+// written verbatim rather than through a shell.
+func writeSourceWorkspace(fileName, code string) (dir, path string, cleanup func(), err error) {
+	dir, err = os.MkdirTemp("", "algorithm-exec-*")
+	if err != nil {
+		return "", "", nil, fmt.Errorf("failed to create execution workspace: %w", err)
+	}
+	cleanup = func() { _ = os.RemoveAll(dir) }
+	path = filepath.Join(dir, fileName)
+	if err := os.WriteFile(path, []byte(code), 0o600); err != nil {
+		cleanup()
+		return "", "", nil, fmt.Errorf("failed to write source file: %w", err)
+	}
+	return dir, path, cleanup, nil
 }

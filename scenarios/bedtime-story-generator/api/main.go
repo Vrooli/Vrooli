@@ -118,8 +118,7 @@ func main() {
 	router := mux.NewRouter()
 
 	// Health check
-	healthHandler := health.New().Version("1.0.0").Check(health.DB(db), health.Critical).Handler()
-	router.HandleFunc("/health", healthHandler).Methods("GET")
+	router.HandleFunc("/health", newHealthHandler(db)).Methods("GET")
 
 	// Story endpoints
 	router.HandleFunc("/api/v1/stories", getStoriesHandler).Methods("GET")
@@ -570,7 +569,6 @@ func toggleFavoriteHandler(w http.ResponseWriter, r *http.Request) {
 		SET is_favorite = NOT is_favorite, updated_at = CURRENT_TIMESTAMP
 		WHERE id = $1
 		RETURNING is_favorite`, id).Scan(&isFavorite)
-
 	if err != nil {
 		if err == sql.ErrNoRows {
 			http.Error(w, "Story not found", http.StatusNotFound)
@@ -595,7 +593,6 @@ func startReadingHandler(w http.ResponseWriter, r *http.Request) {
 	_, err := db.Exec(`
 		INSERT INTO reading_sessions (id, story_id, started_at)
 		VALUES ($1, $2, $3)`, sessionID, storyID, time.Now())
-
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -647,7 +644,6 @@ func exportStoryHandler(w http.ResponseWriter, r *http.Request) {
 		&story.Theme, &story.StoryLength, &story.ReadingTime,
 		&charactersJSON, &story.PageCount, &story.CreatedAt,
 		&story.TimesRead, &story.LastRead, &story.IsFavorite, &illustrationsJSON)
-
 	if err != nil {
 		if err == sql.ErrNoRows {
 			http.Error(w, "Story not found", http.StatusNotFound)
@@ -763,7 +759,6 @@ func getThemesHandler(w http.ResponseWriter, r *http.Request) {
 		SELECT name, description, emoji, color
 		FROM story_themes
 		ORDER BY name`)
-
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -786,3 +781,8 @@ func getThemesHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 // Test change Mon Nov  3 01:06:22 AM EST 2025
+
+// newHealthHandler reports service health; the database is a critical dependency.
+func newHealthHandler(db *sql.DB) http.HandlerFunc {
+	return health.New().Version("1.0.0").Check(health.DB(db), health.Critical).Handler()
+}

@@ -19,16 +19,23 @@ export function bytesToBase64url(value: ArrayBuffer | Uint8Array): string {
   return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 }
 
-export function toCreationOptions(options: Record<string, unknown>): Record<string, unknown> {
+/**
+ * Decode a server's JSON creation options into the DOM contract: base64url
+ * `challenge` and `user.id` become bytes. A response without a challenge is
+ * rejected here rather than reaching the browser API.
+ */
+export function toCreationOptions(options: Record<string, unknown>): PublicKeyCredentialCreationOptions {
   const publicKey = (options.publicKey && typeof options.publicKey === 'object' ? options.publicKey : options) as Record<string, unknown>;
   const user = publicKey.user as Record<string, unknown> | undefined;
   if (user?.id && typeof user.id === 'string') user.id = base64urlToBytes(user.id);
   const challenge = publicKey.challenge;
   if (typeof challenge === 'string') publicKey.challenge = base64urlToBytes(challenge);
-  return publicKey;
+  assertChallenge(publicKey);
+  return publicKey as unknown as PublicKeyCredentialCreationOptions;
 }
 
-export function toRequestOptions(options: Record<string, unknown>): Record<string, unknown> {
+/** Decode a server's JSON request options into the DOM contract. */
+export function toRequestOptions(options: Record<string, unknown>): PublicKeyCredentialRequestOptions {
   const publicKey = (options.publicKey && typeof options.publicKey === 'object' ? options.publicKey : options) as Record<string, unknown>;
   if (typeof publicKey.challenge === 'string') publicKey.challenge = base64urlToBytes(publicKey.challenge);
   const allowCredentials = publicKey.allowCredentials;
@@ -40,7 +47,14 @@ export function toRequestOptions(options: Record<string, unknown>): Record<strin
       return entry;
     });
   }
-  return publicKey;
+  assertChallenge(publicKey);
+  return publicKey as unknown as PublicKeyCredentialRequestOptions;
+}
+
+function assertChallenge(publicKey: Record<string, unknown>): void {
+  if (!(publicKey.challenge instanceof Uint8Array) || publicKey.challenge.length === 0) {
+    throw new Error('The passkey request from the server is missing its challenge.');
+  }
 }
 
 export function credentialToJSON(credential: PublicKeyCredential): Record<string, unknown> {

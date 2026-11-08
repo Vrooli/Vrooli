@@ -10,7 +10,7 @@ import userEvent from "@testing-library/user-event";
 
 import { renderWithProviders } from "../test-utils";
 import { selectors } from "../consts/selectors";
-import { setLocale } from "../i18n";
+import { getLocaleConfig, setLocale } from "../i18n";
 import en from "../i18n/locales/en.json";
 import ja from "../i18n/locales/ja.json";
 import ar from "../i18n/locales/ar.json";
@@ -88,7 +88,8 @@ describe("Locale switching through the shell (real locales)", () => {
   it("switches to Japanese when 日本語 is selected", async () => {
     const user = userEvent.setup();
     renderShell("/settings");
-    await user.selectOptions(screen.getByTestId(selectors.settingsPage.localeSelect), "ja");
+    await user.click(screen.getByTestId(selectors.settingsPage.localeSelect));
+    await user.click(screen.getByRole("option", { name: getLocaleConfig("ja").nativeLabel }));
 
     await waitFor(() => {
       expect(screen.getAllByText(ja.layout.nav.dashboard).length).toBeGreaterThan(0);
@@ -99,7 +100,8 @@ describe("Locale switching through the shell (real locales)", () => {
   it("flips <html dir> to rtl when an RTL locale (ar) is chosen", async () => {
     const user = userEvent.setup();
     renderShell("/settings");
-    await user.selectOptions(screen.getByTestId(selectors.settingsPage.localeSelect), "ar");
+    await user.click(screen.getByTestId(selectors.settingsPage.localeSelect));
+    await user.click(screen.getByRole("option", { name: getLocaleConfig("ar").nativeLabel }));
 
     await waitFor(() => {
       expect(document.documentElement.dir).toBe("rtl");

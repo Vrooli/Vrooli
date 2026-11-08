@@ -13,7 +13,3 @@ require (
 )
 
 replace github.com/vrooli/vrooli/packages/proto => ../../../packages/proto
-
-replace github.com/vrooli/platform-go => ../../../packages/platform-go
-
-replace github.com/vrooli/repo-contract-go => ../../../packages/repo-contract-go

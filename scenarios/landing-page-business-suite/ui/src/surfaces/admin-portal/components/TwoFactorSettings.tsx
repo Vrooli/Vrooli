@@ -57,7 +57,7 @@ export function TwoFactorSettings({ enrollmentOnly = false, onDeferred, onEnroll
   const addPasskey = () => run(async () => {
     if (!isPasskeySupported()) throw new Error('This browser does not support passkeys.');
     const started = await beginAdminPasskeyRegistration();
-    const credential = await navigator.credentials.create({ publicKey: toCreationOptions(JSON.parse(started.optionsJson)) as PublicKeyCredentialCreationOptions });
+    const credential = await navigator.credentials.create({ publicKey: toCreationOptions(JSON.parse(started.optionsJson)) });
     if (!(credential instanceof PublicKeyCredential)) throw new Error('No passkey was created.');
     const nickname = window.prompt('Name this passkey', 'Administrator passkey')?.trim() || 'Administrator passkey';
     const saved = await finishAdminPasskeyRegistration(JSON.stringify(credentialToJSON(credential)), started.ceremonyId, nickname);

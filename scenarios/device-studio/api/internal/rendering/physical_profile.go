@@ -77,7 +77,7 @@ func resolvePhysicalBlenderCLI(getenv func(string) string, home string) (string,
 		return "", errors.New("physical renderer CLI resolution requires the user home and environment")
 	}
 	binary, err := cliinvoke.Resolve(cliinvoke.ResolveOptions{
-		Explicit: getenv(cliinvoke.BinaryEnvVar), RuntimeHome: home,
+		Explicit: getenv(cliinvoke.BinaryEnvVar), UserHome: home,
 		Getenv: func(key string) string {
 			if key == cliinvoke.BinaryEnvVar {
 				return getenv(cliinvoke.BinaryEnvVar)

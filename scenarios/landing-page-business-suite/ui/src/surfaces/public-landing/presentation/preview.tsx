@@ -48,7 +48,11 @@ function CommerceReview() {
     content: {
       heading: 'Simple pricing for everything.', description: 'Synthetic owner catalog for isolated visual review.',
       plan_refs: refs,
-      actions: refs.map(ref => ({ kind: 'purchase' as const, label: reviewPricing.monthly.concat(reviewPricing.yearly, reviewPricing.credit_topups).find(p => p.stripe_price_id === ref)?.metadata?.cta_label as string ?? 'Buy credits', accessible_label: ref, plan_ref: ref })),
+      actions: refs.map(ref => {
+        // Credit top-ups carry no CTA label; they fall back to "Buy credits".
+        const plan = [...reviewPricing.monthly, ...reviewPricing.yearly].find(p => p.stripe_price_id === ref);
+        return { kind: 'purchase' as const, label: plan?.metadata.cta_label ?? 'Buy credits', accessible_label: ref, plan_ref: ref };
+      }),
     },
   };
   const presentation = parseProductPresentation(JSON.stringify(fixture.presentation));

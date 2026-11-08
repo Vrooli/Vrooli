@@ -107,7 +107,7 @@ func fixManifestCompleteness(root string, apply bool) (Candidate, bool, error) {
 	c := newScanContext("", root)
 
 	fillable := map[string]string{}
-	for k, v := range c.identity().ManifestScalars() {
+	for k, v := range c.identity().ManifestScalars(rel) {
 		fillable[k] = v
 	}
 	if content, ok := loadIndexHTML(root); ok {
@@ -136,6 +136,33 @@ func fixManifestCompleteness(root string, apply bool) (Candidate, bool, error) {
 		Description: "Fill the missing scalar manifest fields from the scenario identity and house defaults (icons still require a logo).",
 		Before:      "(incomplete manifest)",
 		After:       string(out),
+	}
+	if apply {
+		if err := writeManifest(root, rel, obj); err != nil {
+			return Candidate{}, false, err
+		}
+		cand.Applied = true
+	}
+	return cand, true, nil
+}
+
+// fixManifestIdentity removes an origin-collapsing manifest id so the install
+// identity defaults to the resolved start_url (ruleManifestIdentity).
+func fixManifestIdentity(root string, apply bool) (Candidate, bool, error) {
+	if !ruleFiresIsolated(root, "manifest-identity") {
+		return Candidate{}, false, nil
+	}
+	rel, obj, present := loadManifestForFix(root)
+	if !present {
+		return Candidate{}, false, nil
+	}
+	before, _ := obj["id"].(string)
+	delete(obj, "id")
+	cand := Candidate{
+		FilePath:    rel,
+		Description: "Remove the origin-collapsing manifest id so install identity defaults to the resolved start_url.",
+		Before:      "id: " + before,
+		After:       "(id omitted)",
 	}
 	if apply {
 		if err := writeManifest(root, rel, obj); err != nil {

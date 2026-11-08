@@ -94,7 +94,7 @@ export function TrafficAttributionSection({ range }: Props) {
                 <div key={row.key}>
                   <div className="mb-1 flex items-center justify-between gap-3 text-sm">
                     <span className="truncate text-slate-200">{row.label}</span>
-                    <span className="shrink-0 text-slate-400">{row.sessions.toLocaleString()} · {(row.share * 100).toFixed(1)}%</span>
+                    <span className="shrink-0 text-slate-400">{row.visitors.toLocaleString()} · {(row.share * 100).toFixed(1)}%</span>
                   </div>
                   <div className="h-2 overflow-hidden rounded-full bg-white/10"><div className="h-full rounded-full bg-sky-400" style={{ width: `${String(Math.min(row.share * 100, 100))}%` }} /></div>
                   <div className="mt-1 text-xs text-slate-500">{row.conversions.toLocaleString()} conversions · {breakdown.currency.toUpperCase()} {(row.revenue_minor / 100).toFixed(2)}</div>
@@ -104,7 +104,7 @@ export function TrafficAttributionSection({ range }: Props) {
           )}
         </CardContent>
       </Card>
-      <p className="xl:col-span-2 text-xs text-slate-500" data-testid="traffic-count-semantics">Visitors: unique stable visitor IDs. Sessions: distinct session IDs ({breakdown?.total_sessions.toLocaleString() ?? '—'} in this attribution view).</p>
+      <p className="xl:col-span-2 text-xs text-slate-500" data-testid="traffic-count-semantics">Visitors: unique stable visitor IDs ({breakdown?.total_visitors.toLocaleString() ?? '—'} in this attribution view).</p>
     </section>
   );
 }

@@ -17,6 +17,11 @@ Deliberate REST exceptions:
 
 - `POST /api/v1/webhooks/sendgrid` — provider-owned Signed Event Webhook callback; the raw body and provider headers are not a Connect contract.
 
+- The issued-key AI Door remains an HTTP compatibility boundary for external
+  model clients. Its authenticated `GET /api/v1/ai/receipt` recovers accounting
+  after response loss using the original bearer key and caller idempotency key;
+  it exposes neither private Gateway receipt contents nor raw operation IDs.
+
 - Stripe webhooks require the signed callback shape supplied by Stripe.
 - JWKS is a standard discovery document consumed by generic clients.
 - Sitemap and robots are crawler documents, not application RPCs.

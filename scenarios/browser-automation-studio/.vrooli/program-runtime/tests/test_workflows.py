@@ -106,15 +106,37 @@ class Learn:
         selected = hits[0] if hits else default
         return {'selected_id': selected, 'source': 'advice' if hits else 'default', 'why': [], 'learning': {'advice': []}}
 
+def child_contract(program):
+    """The output contract a BAS child program declares in its reviewed contract file."""
+    path = ROOT / (program.replace('_', '-') + '.json')
+    return json.loads(path.read_text()).get('outputs', {}) if path.exists() else {}
+
+
+class ContractedChildren:
+    """Stands in for `lib.browser_automation_studio`: each child call returns its rows with the
+    child's declared output contract attached, as the kernel's nested result handle does."""
+    def __init__(self, children): self._children = children
+    def __getattr__(self, name):
+        call = getattr(self._children, name)
+        def invoke(**kw):
+            result = call(**kw)
+            if isinstance(result, Handle) and not result.meta():
+                result._metadata = {'output_contract': child_contract(name)}
+            return result
+        return invoke
+
+
 class Program:
     def __init__(self, inputs, outputs=None): self._inputs = inputs; self._child_helper=ProgramHelper("2", outputs or {})
     def inputs(self): return self._inputs
     def child_envelope(self, handle, **kwargs):
         rows=handle.head(1)
         if rows and isinstance(rows[0],dict):
-            row=dict(rows[0])
+            # Fixtures state only the fields a case cares about; fill the remaining envelope
+            # fields while keeping the child's own contract metadata for real validation.
+            row=dict(rows[0]); metadata=handle.meta()
             row.setdefault('phase','report');row.setdefault('signals',{});row.setdefault('errors',[]);row.setdefault('evidence',[])
-            handle=NS(head=lambda n:[row][:n],count=lambda:1,meta=lambda:{'output_contract':{}})
+            handle=NS(head=lambda n:[row][:n],count=lambda:1,meta=lambda:metadata)
         return self._child_helper.child_envelope(handle, **kwargs)
     def attach(self, envelope): self.envelope = envelope
     def fail(self, status, klass, detail, where):
@@ -134,6 +156,8 @@ class Programs(unittest.TestCase):
         self.learn = learn or Learn()
         self.learn.program = name
         outputs=json.loads((ROOT/(name+'.json')).read_text()).get('outputs',{})
+        if lib is not None and hasattr(lib,'browser_automation_studio'):
+            lib=NS(**{**vars(lib),'browser_automation_studio':ContractedChildren(lib.browser_automation_studio)})
         scope={'inputs':inputs,'browser_automation_studio':api,'lib':lib,'program':Program(inputs,outputs),'learn':self.learn,'ai':ai,
                'search_hub':NS(query=NS(query=lambda **kw:Handle(list(search_hub_rows or [])))),
                'workflow_health':NS(workflows=NS(search=lambda **kw:Handle(list(workflow_health_rows or []))))}
@@ -814,14 +838,14 @@ class Programs(unittest.TestCase):
     def test_qualification_failure_records_avoid_and_never_claims_success(self):
         flow={'nodes':[{'id':'open','action':{'type':'ACTION_TYPE_NAVIGATE','navigate':{'url':'http://x'}}}]}
         authored={'status':'ok','signals':{'outcome':'verified_success','workflow_id':'saved','version':3},'evidence':['adhoc:e1']}
-        failed={'status':'failed','signals':{'outcome':'failed'},'errors':[{'class':'assertion_failed'}],'evidence':['execution:e2']}
+        failed={'status':'failed','signals':{'outcome':'failed'},'errors':[{'class':'step_failed'}],'evidence':['execution:e2']}
         calls=[];learn=Learn()
         r=self.run_program('do-task',{'task':'read inbox','navigation_id':'nav','project_id':'p','qualify':True,'postconditions':[{'selector':'#inbox','mode':'exists'}]},
             lib=self._qualify_lib(self._reached(flow),authored,failed,calls),learn=learn)
         self.assertEqual('unknown',r['signals']['outcome'])
         self.assertEqual('partial',r['status'])
         self.assertFalse(r['signals']['replay_eligible'])
-        self.assertIn(('avoid',{'option_id':'saved@3','fingerprint':'assertion_failed'}),learn.notes)
+        self.assertIn(('avoid',{'option_id':'saved@3','fingerprint':'step_failed'}),learn.notes)
         self.assertNotIn(('preference',{'option_id':'saved@3'}),learn.notes)
 
     def test_qualify_requires_postconditions_before_repeating_any_effect(self):

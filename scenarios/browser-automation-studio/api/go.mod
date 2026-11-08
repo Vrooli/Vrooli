@@ -136,18 +136,6 @@ replace github.com/vrooli/binaryfetch => ../../../packages/binaryfetch
 
 replace github.com/vrooli/platform-go => ../../../packages/platform-go
 
-replace github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime => ../../scenario-to-desktop/runtime
-
 replace github.com/vrooli/envkit-go => ../../../packages/envkit-go
 
 replace github.com/vrooli/cliresolve => ../../../packages/cliresolve
-
-replace github.com/vrooli/maturity-go => ../../../packages/maturity-go
-
-replace github.com/vrooli/searchregister-go => ../../../packages/searchregister-go
-
-replace github.com/vrooli/vrooli/packages/capability-registry-go => ../../../packages/capability-registry-go
-
-replace nutrition-planner => ../../nutrition-planner/api
-
-replace workflow-health => ../../workflow-health/api

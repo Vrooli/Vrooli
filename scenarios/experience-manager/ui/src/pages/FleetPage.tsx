@@ -73,13 +73,9 @@ export function FleetPage() {
     ],
     [t],
   );
+  // DataTable supplies the "All" filter itself; these narrow it.
   const filters = useMemo<Array<DataTableFilter<FleetScenario>>>(
     () => [
-      {
-        id: "all",
-        label: t(strings.experience.fleet.filterAll),
-        predicate: () => true,
-      },
       {
         id: "findings",
         label: t(strings.experience.fleet.filterFindings),

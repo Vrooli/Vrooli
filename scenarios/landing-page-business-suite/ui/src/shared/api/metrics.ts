@@ -51,7 +51,6 @@ function variantStatsFromProto(value: GeneratedVariantStats): VariantStats {
     downloads: Number(value.downloads),
     exposures,
     conversion_rate: value.conversionRate,
-    ...(value.avgScrollDepth !== undefined ? { avg_scroll_depth: value.avgScrollDepth } : {}),
   };
 }
 
@@ -98,7 +97,7 @@ export type TrafficDimensionKey = 'country' | 'referrer_kind' | 'utm_source' | '
 export interface TrafficBreakdownRow {
   key: string;
   label: string;
-  sessions: number;
+  visitors: number;
   conversions: number;
   revenue_minor: number;
   share: number;
@@ -106,7 +105,7 @@ export interface TrafficBreakdownRow {
 
 export interface TrafficBreakdown {
   rows: TrafficBreakdownRow[];
-  total_sessions: number;
+  total_visitors: number;
   exhaustive: boolean;
   currency: string;
   observed_at?: string;
@@ -149,12 +148,12 @@ export async function getTrafficBreakdown(
     rows: response.rows.map((row) => ({
       key: row.key,
       label: row.label,
-      sessions: Number(row.sessions),
+      visitors: Number(row.visitors),
       conversions: Number(row.conversions),
       revenue_minor: Number(row.revenueMinor),
       share: row.share,
     })),
-    total_sessions: Number(response.totalSessions),
+    total_visitors: Number(response.totalVisitors),
     exhaustive: response.exhaustive,
     currency: response.currency,
     ...(response.observedAt ? { observed_at: normalizeTimestamp(response.observedAt) } : {}),

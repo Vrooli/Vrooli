@@ -20,17 +20,18 @@ var cliClient = vroolicli.New()
 // app-monitor UI. Every field is populated from the typed `vrooli resource
 // status` contract (cliv1.ResourceStatus).
 type ResourceStatus struct {
-	ID      string `json:"id"`
-	Name    string `json:"name"`
-	Type    string `json:"type"`
-	Status  string `json:"status"`
-	Enabled bool   `json:"enabled"`
-	Running bool   `json:"running"`
+	ID                   string `json:"id"`
+	Name                 string `json:"name"`
+	Type                 string `json:"type"`
+	Status               string `json:"status"`
+	Enabled              bool   `json:"enabled"`
+	Running              bool   `json:"running"`
+	ArtifactVerification string `json:"artifact_verification"`
 }
 
 // GetResources returns the status of all Vrooli resources.
 func (s *AppService) GetResources(ctx context.Context) ([]ResourceStatus, error) {
-	resp, err := cliClient.ResourceStatuses(ctx)
+	resp, err := cliClient.ResourceHealthStatuses(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get vrooli resources: %w", err)
 	}
@@ -51,7 +52,7 @@ func (s *AppService) GetResource(ctx context.Context, resourceID string) (*Resou
 		return nil, fmt.Errorf("resource_id is required")
 	}
 
-	resp, err := cliClient.ResourceStatus(ctx, resourceID)
+	resp, err := cliClient.ResourceHealthStatus(ctx, resourceID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get resource %s: %w", resourceID, err)
 	}
@@ -91,12 +92,13 @@ func (s *AppService) StopResource(ctx context.Context, resourceID string) error 
 func toResourceStatus(rs *cliv1.ResourceStatus) ResourceStatus {
 	res := rs.GetResource()
 	return ResourceStatus{
-		ID:      res.GetName(),
-		Name:    res.GetName(),
-		Type:    res.GetDriver(),
-		Status:  deriveResourceStatus(rs),
-		Enabled: res.GetEnabled(),
-		Running: rs.GetRunning(),
+		ID:                   res.GetName(),
+		Name:                 res.GetName(),
+		Type:                 res.GetDriver(),
+		Status:               deriveResourceStatus(rs),
+		Enabled:              res.GetEnabled(),
+		Running:              rs.GetRunning(),
+		ArtifactVerification: rs.GetArtifactVerification(),
 	}
 }
 

@@ -138,26 +138,6 @@ func TestGenerateRandomString(t *testing.T) {
 	assert.NotEqual(t, str, str2)
 }
 
-func TestParseFloat(t *testing.T) {
-	tests := []struct {
-		input    string
-		expected float64
-	}{
-		{"1.23", 1.23},
-		{"0", 0},
-		{"invalid", 0},
-		{"", 0},
-		{"-4.56", -4.56},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.input, func(t *testing.T) {
-			result := parseFloat(tt.input)
-			assert.Equal(t, tt.expected, result)
-		})
-	}
-}
-
 func TestParseExecutionTime(t *testing.T) {
 	tests := []struct {
 		name    string

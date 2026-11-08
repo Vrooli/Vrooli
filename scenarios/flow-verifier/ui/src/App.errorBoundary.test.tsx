@@ -31,6 +31,6 @@ describe("App per-route ErrorBoundary", () => {
   it("contains a render-time crash in the route without dismounting the shell", async () => {
     renderWithProviders(<App />, { routerEntries: ["/flows"] });
     expect(await screen.findByTestId(selectors.errorBoundary.root)).toBeInTheDocument();
-    expect(screen.getByTestId("app-shell")).toBeInTheDocument();
+    expect(screen.getByTestId("flow-verifier-app-shell")).toBeInTheDocument();
   });
 });

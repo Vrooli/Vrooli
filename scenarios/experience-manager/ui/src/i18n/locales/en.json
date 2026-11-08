@@ -1,22 +1,10 @@
 {
-  "$rowKey": "id",
-  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
   "_comment": "Two interpolation surfaces live in this file. (1) Generator-time: tokens like Experience Manager are uppercase-snake-case placeholders replaced by `vrooli scenario generate` before the scenario is built — they appear as literal display values at runtime. (2) Runtime: tokens like {{count}} are i18next interpolation, replaced by `t(key, { count })` at render time. Keys that start with an underscore (like this one) are sentinels — skipped by the codegen, parity test, and unused-key audit.",
   "app": {
     "description": "This starter UI is intentionally minimal. Replace it with your scenario-specific experience while keeping the styling conventions (Tailwind + shadcn) and API wiring in place.",
     "eyebrow": "Scenario Template",
     "title": "Experience Manager"
   },
-  "aria-label": "locked",
-  "ascending": "descending",
-  "border-app-primary bg-app-primary text-app-primary-foreground": "border-app-border text-app-muted-foreground hover:bg-app-surface-muted hover:text-app-foreground",
-  "caption": "No rows table",
-  "clsx": "^2.1.1",
-  "default": "native",
-  "defaultValue": "locked",
-  "desc": "asc",
-  "emptyMessage": "No scenarios match",
-  "equals": "Current",
   "errorBoundary": {
     "message": "An unexpected error occurred while rendering the page. Try again, or reload if the problem persists.",
     "retry": "Try again",
@@ -115,7 +103,6 @@
       "depthLabel": "Fleet depth",
       "description": "Worst-first experience debt across scenarios, with depth and coverage visible before detail.",
       "emptyFleet": "No scenarios with experience specs were found. Add an experience/ folder to start tracking debt.",
-      "filterAll": "All status",
       "filterClean": "Clean",
       "filterFindings": "Findings",
       "filterStatus": "Filter status",
@@ -157,12 +144,6 @@
       "wireframeLabel": "Wireframe preview"
     }
   },
-  "export": "Empty",
-  "field": "name",
-  "header": "Scenario",
-  "id": "disabled",
-  "kind": "role",
-  "label": "Open",
   "layout": {
     "bottomNavLabel": "Primary navigation",
     "mainLabel": "Main content",
@@ -176,14 +157,9 @@
     },
     "sidebarLabel": "Primary navigation"
   },
-  "libraryId": "react-component-library:StyleSheet",
   "locale": {
     "switcherLabel": "Language"
   },
-  "lucide-react": "^0.424.0",
-  "mode": "pinned",
-  "module": "./story.tsx",
-  "name": "Disabled",
   "pages": {
     "settings": {
       "localeHeading": "Language",
@@ -191,14 +167,6 @@
       "title": "Settings"
     }
   },
-  "path": "disabled",
-  "placeholder": "Choose status",
-  "react": "^18",
-  "resolvedAt": "2026-08-31T05:48:37Z",
-  "role": "combobox",
-  "selector": "select",
-  "status": "Behind",
-  "tailwind-merge": "^2.3.0",
   "theme": {
     "choice": {
       "dark": "Dark",
@@ -206,8 +174,5 @@
       "system": "System"
     },
     "switcherLabel": "Theme"
-  },
-  "title": "Select",
-  "value": "",
-  "version": "1.0.0"
+  }
 }

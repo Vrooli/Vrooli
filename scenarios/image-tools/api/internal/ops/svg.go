@@ -58,6 +58,10 @@ var highFidelityFeatures = []highFidelityFeature{
 	{"filter", regexp.MustCompile(`(?i)<\s*filter[\s>]|\bfilter\s*=\s*["']\s*url\(`)},
 	{"mask", regexp.MustCompile(`(?i)<\s*mask[\s>]|\bmask\s*=\s*["']\s*url\(`)},
 	{"pattern", regexp.MustCompile(`(?i)<\s*pattern[\s>]`)},
+	// oksvg silently treats rounded <rect> as a sharp rectangle. Icon marks
+	// depend on the corner cutout for their silhouette and transparency, so
+	// preserve those SVG semantics through the high-fidelity renderer.
+	{"rounded-rect", regexp.MustCompile(`(?i)<\s*rect\b[^>]*\b(?:rx|ry)\s*=`)},
 	{"css", regexp.MustCompile(`(?i)<\s*style[\s>]|\bstyle\s*=\s*["'][^"']*\bfilter\s*:`)},
 	// A transform list ("translate(x y) scale(s)") is dropped by the pinned
 	// oksvg together with everything in its group: brand-manager icon targets

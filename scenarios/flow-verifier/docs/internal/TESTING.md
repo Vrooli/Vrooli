@@ -18,7 +18,7 @@ Existing local entry points (choose the domain test for the behavior you change)
 
 - [api/handlers/health/handler_test.go](../../api/handlers/health/handler_test.go)
 - [ui/src/App.test.tsx](../../ui/src/App.test.tsx)
-- [ui/src/features/health/HealthCard.test.tsx](../../ui/src/features/health/HealthCard.test.tsx)
+- [ui/src/api/health.test.ts](../../ui/src/api/health.test.ts)
 - [cli/app_test.go](../../cli/app_test.go)
 
 ## API testing

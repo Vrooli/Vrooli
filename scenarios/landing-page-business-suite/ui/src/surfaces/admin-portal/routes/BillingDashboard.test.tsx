@@ -25,7 +25,7 @@ describe('BillingDashboard', () => {
 beforeEach(() => {
   vi.clearAllMocks();
   getAdminRevenueSummary.mockImplementation(() => new Promise(() => undefined));
-  getTrafficBreakdown.mockResolvedValue({ rows: [], total_sessions: 0, exhaustive: true, currency: 'usd' });
+  getTrafficBreakdown.mockResolvedValue({ rows: [], total_visitors: 0, exhaustive: true, currency: 'usd' });
   vi.stubGlobal('open', vi.fn());
 });
 
@@ -102,8 +102,8 @@ beforeEach(() => {
 
   it('renders campaign revenue attribution when enriched rows are available', async () => {
     getTrafficBreakdown.mockResolvedValue({
-      rows: [{ key: 'launch', label: 'Launch campaign', sessions: 12, conversions: 3, revenue_minor: 4500, share: 1 }],
-      total_sessions: 12,
+      rows: [{ key: 'launch', label: 'Launch campaign', visitors: 12, conversions: 3, revenue_minor: 4500, share: 1 }],
+      total_visitors: 12,
       exhaustive: true,
       currency: 'usd',
     });

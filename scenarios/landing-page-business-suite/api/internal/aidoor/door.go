@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"bytes"
 	"context"
-	"crypto/sha256"
 	"database/sql"
 	"encoding/json"
 	"errors"
@@ -85,6 +84,9 @@ func fail(w http.ResponseWriter, status int, message string) {
 }
 
 func (d *Door) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	if r.URL.Path == "/api/v1/ai/receipt" {
+		w.Header().Set("Cache-Control", "no-store")
+	}
 	key, err := d.Keys.Authenticate(r.Context(), r.Header.Get("Authorization"))
 	if err != nil {
 		fail(w, 401, err.Error())
@@ -93,6 +95,8 @@ func (d *Door) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	switch {
 	case r.Method == "GET" && r.URL.Path == "/api/v1/ai/models":
 		d.models(w, r, key)
+	case r.Method == "GET" && r.URL.Path == "/api/v1/ai/receipt":
+		d.publicReceipt(w, r, key)
 	case r.Method == "POST" && r.URL.Path == "/api/v1/ai/keys/session":
 		d.session(w, r, key)
 	case r.Method == "DELETE" && strings.HasPrefix(r.URL.Path, "/api/v1/ai/keys/"):
@@ -176,8 +180,7 @@ func (d *Door) funded(w http.ResponseWriter, r *http.Request, key Key, featureID
 	if operation == "" {
 		operation = randomID()
 	}
-	digest := sha256.Sum256([]byte(key.ID + ":" + operation))
-	operation = fmt.Sprintf("%x-%x-%x-%x-%x", digest[:4], digest[4:6], digest[6:8], digest[8:10], digest[10:16])
+	operation = callerOperationID(key, operation)
 	flow := d.requestLifecycle(operation, requestAccepted)
 	defer flow.finish()
 	tier, multiplier, err := d.Wallet.AccountCreditScope(r.Context(), key.Account, key.App)

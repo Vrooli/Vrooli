@@ -12,10 +12,11 @@ import (
 
 var errMalformedJPEGMetadata = errors.New("ops: malformed JPEG metadata")
 
-// stripJPEGGPSMetadata removes every JPEG APP/COM segment except a valid JFIF
-// header and rebuilt, explicitly whitelisted authorship fields. Entropy-coded
-// scan data is copied without decoding or re-encoding, including restart
-// markers and byte-stuffed values.
+// stripJPEGGPSMetadata removes location, private and unrecognized JPEG APP/COM
+// metadata while preserving valid JFIF and ICC color profiles plus rebuilt,
+// explicitly whitelisted authorship fields. Entropy-coded scan data is copied
+// without decoding or re-encoding, including restart markers and byte-stuffed
+// values.
 func stripJPEGGPSMetadata(src []byte) ([]byte, error) {
 	if len(src) < 4 || src[0] != 0xff || src[1] != 0xd8 {
 		return nil, fmt.Errorf("%w: missing SOI", errMalformedJPEGMetadata)
@@ -104,6 +105,11 @@ func stripJPEGGPSMetadata(src []byte) ([]byte, error) {
 		case marker == 0xe1 && bytes.HasPrefix(payload, []byte("http://ns.adobe.com/xap/1.0/\x00")):
 			keep = false
 			replacement, err = stripXMP(payload)
+		case marker == 0xe2 && bytes.HasPrefix(payload, []byte("ICC_PROFILE\x00")):
+			// ICC APP2 chunks describe how to render the encoded pixel values;
+			// they are color data, not location metadata. Preserve each original
+			// chunk byte-for-byte so removing GPS does not change color meaning.
+			keep = true
 		case marker == 0xed && bytes.HasPrefix(payload, []byte("Photoshop 3.0\x00")):
 			keep = false
 			replacement, err = stripPhotoshopIPTC(payload)
@@ -217,17 +223,18 @@ func stripExifGPS(payload []byte) ([]byte, error) {
 	// can survive this allowlist reconstruction.
 	data := make([]byte, 8+2+12*len(retained)+4)
 	copy(data, []byte{'I', 'I', 42, 0, 8, 0, 0, 0})
-	order.PutUint16(data[8:], uint16(len(retained)))
+	outOrder := binary.LittleEndian
+	outOrder.PutUint16(data[8:], uint16(len(retained)))
 	for i, item := range retained {
 		off := 10 + i*12
-		order.PutUint16(data[off:], item.tag)
-		order.PutUint16(data[off+2:], 2)
-		order.PutUint32(data[off+4:], uint32(len(item.value)+1))
+		outOrder.PutUint16(data[off:], item.tag)
+		outOrder.PutUint16(data[off+2:], 2)
+		outOrder.PutUint32(data[off+4:], uint32(len(item.value)+1))
 		v := append(append([]byte(nil), item.value...), 0)
 		if len(v) <= 4 {
 			copy(data[off+8:off+12], v)
 		} else {
-			order.PutUint32(data[off+8:], uint32(len(data)))
+			outOrder.PutUint32(data[off+8:], uint32(len(data)))
 			data = append(data, v...)
 		}
 	}

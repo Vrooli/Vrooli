@@ -24,7 +24,7 @@ describe("OwnerSignIn", () => {
   });
 
   it("shows the signed-in status + sign out when an owner token is present", () => {
-    seedSession({ ownerToken: "existing-jwt" });
+    seedSession({ ownerEmail: "owner@example.test" });
     renderWithProviders(<OwnerSignIn />);
     expect(screen.getByTestId(selectors.owner.status)).toBeInTheDocument();
     expect(screen.getByTestId(selectors.owner.signOutButton)).toBeInTheDocument();
@@ -32,7 +32,7 @@ describe("OwnerSignIn", () => {
 
   it("clears the owner token and returns to the sign-in form", async () => {
     const user = userEvent.setup();
-    seedSession({ ownerToken: "existing-jwt" });
+    seedSession({ ownerEmail: "owner@example.test" });
     renderWithProviders(<OwnerSignIn />);
 
     expect(screen.getByTestId(selectors.owner.status)).toBeInTheDocument();

@@ -329,7 +329,15 @@ func TestHardwareEvidenceIsCapabilityScoped(t *testing.T) {
 }
 
 func TestGridExposesBothArchitectureCells(t *testing.T) {
-	grid := liveGrid(t)
+	reader := liveReader(t)
+	grid, err := reader.Grid(time.Now())
+	if err != nil {
+		t.Fatal(err)
+	}
+	manifests, err := reader.Resources()
+	if err != nil {
+		t.Fatal(err)
+	}
 	entry, ok := grid.Capability("source-control")
 	if !ok {
 		t.Fatal("source-control capability missing")
@@ -344,10 +352,14 @@ func TestGridExposesBothArchitectureCells(t *testing.T) {
 	if len(grid.Resources) == 0 {
 		t.Fatal("resource profile architecture declarations were not read into the grid")
 	}
-	if len(grid.Resources) != 29 {
-		t.Fatalf("resource ledger entries = %d, want 29", len(grid.Resources))
+	// Every resource manifest appears in the ledger exactly once.
+	if len(grid.Resources) != len(manifests) {
+		t.Fatalf("resource ledger entries = %d, want one per resource manifest (%d)", len(grid.Resources), len(manifests))
 	}
 	for _, claim := range grid.Resources {
+		if _, ok := manifests[claim.Name]; !ok {
+			t.Fatalf("resource ledger entry %q has no resource manifest", claim.Name)
+		}
 		if claim.Name == "" || claim.Driver == "" || claim.AcquisitionKind == "" {
 			t.Fatalf("resource ledger entry is missing identity/acquisition fields: %+v", claim)
 		}

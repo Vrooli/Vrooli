@@ -298,6 +298,99 @@ func TestReportAppFix(t *testing.T) {
 			t.Errorf("missing JSON body must be rejected with 400, got %d", w.Code)
 		}
 	})
+
+	t.Run("ValidationError", func(t *testing.T) {
+		router := setupTestRouter()
+		router.POST("/apps/:id/fixes/report", handler.ReportAppFix)
+
+		request := httptest.NewRequest(http.MethodPost, "/apps/test-app/fixes/report", strings.NewReader(`{"message":"  "}`))
+		request.Header.Set("Content-Type", "application/json")
+		response := httptest.NewRecorder()
+		router.ServeHTTP(response, request)
+
+		if response.Code != http.StatusBadRequest {
+			t.Fatalf("validation failure status = %d, want %d: %s", response.Code, http.StatusBadRequest, response.Body.String())
+		}
+		if !strings.Contains(response.Body.String(), services.ErrIssueReportMessageRequired.Error()) {
+			t.Fatalf("validation response = %s, want message validation error", response.Body.String())
+		}
+	})
+
+	t.Run("InvalidScenarioScope", func(t *testing.T) {
+		handler.reportAppIssue = func(context.Context, *services.IssueReportRequest) (*services.IssueReportResult, error) {
+			return nil, services.ErrIssueReportScenarioInvalid
+		}
+		router := setupTestRouter()
+		router.POST("/apps/:id/fixes/report", handler.ReportAppFix)
+
+		request := httptest.NewRequest(http.MethodPost, "/apps/test-app/fixes/report", strings.NewReader(`{"message":"investigate issue"}`))
+		request.Header.Set("Content-Type", "application/json")
+		response := httptest.NewRecorder()
+		router.ServeHTTP(response, request)
+
+		if response.Code != http.StatusBadRequest {
+			t.Fatalf("invalid scope status = %d, want %d: %s", response.Code, http.StatusBadRequest, response.Body.String())
+		}
+	})
+
+	t.Run("SwarmManagerUnavailable", func(t *testing.T) {
+		handler.reportAppIssue = func(context.Context, *services.IssueReportRequest) (*services.IssueReportResult, error) {
+			return nil, services.ErrSwarmManagerUnavailable
+		}
+		router := setupTestRouter()
+		router.POST("/apps/:id/fixes/report", handler.ReportAppFix)
+
+		request := httptest.NewRequest(http.MethodPost, "/apps/test-app/fixes/report", strings.NewReader(`{"message":"investigate issue"}`))
+		request.Header.Set("Content-Type", "application/json")
+		response := httptest.NewRecorder()
+		router.ServeHTTP(response, request)
+
+		if response.Code != http.StatusServiceUnavailable {
+			t.Fatalf("upstream failure status = %d, want %d: %s", response.Code, http.StatusServiceUnavailable, response.Body.String())
+		}
+	})
+
+	t.Run("UnexpectedFailure", func(t *testing.T) {
+		handler.reportAppIssue = func(context.Context, *services.IssueReportRequest) (*services.IssueReportResult, error) {
+			return nil, errors.New("unexpected report failure")
+		}
+		router := setupTestRouter()
+		router.POST("/apps/:id/fixes/report", handler.ReportAppFix)
+
+		request := httptest.NewRequest(http.MethodPost, "/apps/test-app/fixes/report", strings.NewReader(`{"message":"investigate issue"}`))
+		request.Header.Set("Content-Type", "application/json")
+		response := httptest.NewRecorder()
+		router.ServeHTTP(response, request)
+
+		if response.Code != http.StatusInternalServerError {
+			t.Fatalf("unexpected failure status = %d, want %d: %s", response.Code, http.StatusInternalServerError, response.Body.String())
+		}
+	})
+
+	t.Run("SuccessContract", func(t *testing.T) {
+		handler.reportAppIssue = func(_ context.Context, request *services.IssueReportRequest) (*services.IssueReportResult, error) {
+			if request.AppID != "test-app" || request.Message != "investigate issue" {
+				t.Fatalf("service request = %#v, want path app ID and submitted message", request)
+			}
+			return &services.IssueReportResult{Message: "created", Kind: "fix", Name: "fix-123", URL: "http://swarm/fix-123"}, nil
+		}
+		router := setupTestRouter()
+		router.POST("/apps/:id/fixes/report", handler.ReportAppFix)
+
+		request := httptest.NewRequest(http.MethodPost, "/apps/test-app/fixes/report", strings.NewReader(`{"message":"investigate issue"}`))
+		request.Header.Set("Content-Type", "application/json")
+		response := httptest.NewRecorder()
+		router.ServeHTTP(response, request)
+
+		if response.Code != http.StatusOK {
+			t.Fatalf("success status = %d, want %d: %s", response.Code, http.StatusOK, response.Body.String())
+		}
+		for _, field := range []string{`"message":"created"`, `"kind":"fix"`, `"name":"fix-123"`, `"url":"http://swarm/fix-123"`} {
+			if !strings.Contains(response.Body.String(), field) {
+				t.Errorf("success response %s omitted %s", response.Body.String(), field)
+			}
+		}
+	})
 }
 
 func TestCheckAppIframeBridge(t *testing.T) {

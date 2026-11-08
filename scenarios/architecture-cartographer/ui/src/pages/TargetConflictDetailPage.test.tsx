@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, screen, waitFor } from "@testing-library/react";
-import { MemoryRouter, Route, Routes } from "react-router-dom";
+import { Route, Routes } from "react-router-dom";
 
 vi.mock("../api/conflicts", () => ({
   conflictsClient: {
@@ -20,18 +20,13 @@ afterEach(() => cleanup());
 describe("TargetConflictDetailPage", () => {
   it("renders the detail page with a back link", async () => {
     renderWithProviders(
-      <MemoryRouter
-        initialEntries={["/targets/demo/conflicts/c-1"]}
-        future={{ v7_startTransition: true, v7_relativeSplatPath: true }}
-      >
         <Routes>
           <Route
             path="/targets/:encodedPath/conflicts/:conflictId"
             element={<TargetConflictDetailPage />}
           />
-        </Routes>
-      </MemoryRouter>,
-      { withoutRouter: true },
+        </Routes>,
+      { routerEntries: ["/targets/demo/conflicts/c-1"] }
     );
 
     await waitFor(() =>

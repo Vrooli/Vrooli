@@ -5,7 +5,8 @@ import { credentialToJSON, isPasskeySupported, toCreationOptions, toRequestOptio
 import { useUserAuth } from '../../app/providers/useUserAuth';
 
 export function AccountSecurity() {
-  const { isAuthenticated, isSessionLoading } = useUserAuth();
+  const { isAuthenticated, isSessionLoading, user } = useUserAuth();
+  const accountId = user?.id ?? null;
   const [sessions, setSessions] = useState<AccountSession[]>([]);
   const [message, setMessage] = useState('');
   const [busy, setBusy] = useState(false);
@@ -15,10 +16,17 @@ export function AccountSecurity() {
   const [reauthPasskey, setReauthPasskey] = useState<{ optionsJson: string; ceremonyId: string } | null>(null);
 
   useEffect(() => {
-    if (!isAuthenticated) return;
-    void listAccountSessions().then((response) => setSessions(response.sessions)).catch(() => setMessage('We could not load your active sessions.'));
-    void listPasskeys().then((response) => setPasskeys(response.passkeys.map((p) => ({ id: p.id, nickname: p.nickname })))).catch(() => undefined);
-  }, [isAuthenticated]);
+    // Private account data belongs to one identity: drop it when the
+    // authoritative account changes, and ignore responses for a previous one.
+    setSessions([]);
+    setPasskeys([]);
+    setMessage('');
+    if (!isAuthenticated || !accountId) return;
+    let current = true;
+    void listAccountSessions().then((response) => { if (current) setSessions(response.sessions); }).catch(() => { if (current) setMessage('We could not load your active sessions.'); });
+    void listPasskeys().then((response) => { if (current) setPasskeys(response.passkeys.map((p) => ({ id: p.id, nickname: p.nickname }))); }).catch(() => undefined);
+    return () => { current = false; };
+  }, [isAuthenticated, accountId]);
 
   if (isSessionLoading) return <main className="auth-shell"><p>Loading your account…</p></main>;
   if (!isAuthenticated) return <Navigate to="/auth/login?next=%2Faccount%2Fsecurity" replace />;
@@ -41,7 +49,7 @@ export function AccountSecurity() {
     setBusy(true); setMessage('');
     try {
       const begin = await beginPasskeyRegistration();
-      const credential = await navigator.credentials.create({ publicKey: toCreationOptions(JSON.parse(begin.optionsJson)) as PublicKeyCredentialCreationOptions });
+      const credential = await navigator.credentials.create({ publicKey: toCreationOptions(JSON.parse(begin.optionsJson)) });
       if (!(credential instanceof PublicKeyCredential)) throw new Error('No passkey was created');
       const saved = await finishPasskeyRegistration(JSON.stringify(credentialToJSON(credential)), begin.ceremonyId);
       setPasskeys((current) => [...current, { id: saved.id, nickname: saved.nickname || 'Passkey' }]); setMessage('Passkey added.');

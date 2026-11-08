@@ -3,7 +3,6 @@
  */
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, screen, waitFor } from "@testing-library/react";
-import { MemoryRouter } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
 import { selectors } from "./consts/selectors";
@@ -42,10 +41,8 @@ describe("App composition", () => {
   it("renders the AppShell and resolves the default route to the goldens index", async () => {
     renderWithProviders(
       <QueryClientProvider client={new QueryClient()}>
-        <MemoryRouter initialEntries={["/"]}>
           <AppRoutes />
-        </MemoryRouter>
-      </QueryClientProvider>,
+      </QueryClientProvider>, { routerEntries: ["/"] }
     );
     await waitFor(() => {
       expect(screen.getByTestId(selectors.nav.appShell)).toBeInTheDocument();

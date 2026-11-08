@@ -7,6 +7,7 @@ import (
 	"connectrpc.com/connect"
 
 	"github.com/vrooli/cli-core/cliapp"
+	maturityreport "github.com/vrooli/maturity-go/report"
 	scenariovalidationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1"
 	scenariovalidationconnect "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1/scenariovalidationv1connect"
 )
@@ -159,5 +160,5 @@ func severityCount(a interface{ GetFindingsBySeverity() map[string]int32 }, seve
 	if a == nil {
 		return 0
 	}
-	return int(a.GetFindingsBySeverity()[severity])
+	return maturityreport.CountFindingsBySeverity(a.GetFindingsBySeverity(), severity)
 }

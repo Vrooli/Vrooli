@@ -72,15 +72,10 @@ visual layout:
 - The feature-folder pattern under `ui/src/features/<name>/`.
 - The proto → API → CLI → UI vertical-slice shape.
 
-**Connect-RPC is the default transport.** Every domain endpoint goes
-through a proto service and generated Connect handlers/clients. If
-you find yourself writing `Path: "/api/v1/..."` as a literal string in
-an `EndpointDescriptor`, stop — use a proto service method instead.
-Codegen rejects literal Paths that lack an explicit `RESTException`
-tag; the four allowed REST reasons (multipart upload, webhook
-receiver, third-party shape, ops probe) are enumerated in
-`api/internal/module/module.go`. The notes attachments endpoint is
-the worked REST example.
+**The API is Python.** It lives in `api/src/hello_python/` (managed with
+`uv`, see `api/pyproject.toml`) and currently serves `GET /health` and a
+stub `POST` handler. It has no Go API module; the Connect-RPC
+transport rules in the react-vite template apply to Go APIs only.
 
 [`docs/START-HERE.md`](docs/START-HERE.md) describes the replacement
 workflow in full.

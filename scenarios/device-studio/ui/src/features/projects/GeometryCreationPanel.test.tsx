@@ -120,6 +120,29 @@ describe("GeometryCreationPanel", () => {
     expect(await screen.findByTestId("geometry-creation-status")).toHaveTextContent("job-recovered");
   });
 
+  it("rechecks owner status after a readback outage without resubmitting the operation", async () => {
+    const user = userEvent.setup();
+    const request = { candidateId: "creation-stable", idempotencyKey: "request-stable", brief: "Compact field device", envelopeMM: [78, 148, 12] as [number, number, number], referenceMediaIDs: ["image-1"], fundingRoute: "local" as const };
+    localStorage.setItem("device-studio:geometry-creation:p1", JSON.stringify({ request, phase: "pending" }));
+    vi.mocked(findGeometryCreationOperation)
+      .mockRejectedValueOnce(new Error("temporarily unavailable"))
+      .mockResolvedValueOnce({ job_id: "job-recovered", project_id: "p1", candidate_id: request.candidateId, state: "running", version: 2, review_status: "unreviewed" });
+    vi.mocked(getGeometryCreation).mockResolvedValueOnce({ job_id: "job-recovered", project_id: "p1", candidate_id: request.candidateId, state: "running", version: 2, review_status: "unreviewed" });
+    renderWithProviders(<GeometryCreationPanel projectId="p1" />);
+
+    expect(await screen.findByText("We couldn't check whether this request started. Recheck its status before trying again; the same request key will be used.")).toBeInTheDocument();
+    expect(startGeometryCreation).not.toHaveBeenCalled();
+    expect(createGeometryCreationSession).not.toHaveBeenCalled();
+    await user.click(screen.getByRole("button", { name: "Recheck request status" }));
+
+    expect(await screen.findByTestId("geometry-creation-status")).toHaveTextContent("running");
+    expect(findGeometryCreationOperation).toHaveBeenCalledTimes(2);
+    expect(findGeometryCreationOperation).toHaveBeenNthCalledWith(1, "p1", request.idempotencyKey);
+    expect(findGeometryCreationOperation).toHaveBeenNthCalledWith(2, "p1", request.idempotencyKey);
+    expect(startGeometryCreation).not.toHaveBeenCalled();
+    expect(createGeometryCreationSession).not.toHaveBeenCalled();
+  });
+
   it("restores owner-confirmed status after reload without starting another request", async () => {
     const request = { candidateId: "creation-stable", idempotencyKey: "request-stable", brief: "Compact field device", envelopeMM: [78, 148, 12] as [number, number, number], referenceMediaIDs: ["image-1"], fundingRoute: "local" };
     localStorage.setItem("device-studio:geometry-creation:p1", JSON.stringify({ request }));

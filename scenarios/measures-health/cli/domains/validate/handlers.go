@@ -194,10 +194,7 @@ func severityLabel(s string) string {
 }
 
 func severityCount(counts map[string]int32, severity string) int {
-	if counts == nil {
-		return 0
-	}
-	return int(counts["SEVERITY_"+severity] + counts["FINDING_SEVERITY_"+severity])
+	return maturityreport.CountFindingsBySeverity(counts, severity)
 }
 
 func tierLabel(t validationv1.Tier) string {

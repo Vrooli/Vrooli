@@ -17,6 +17,7 @@ package brandsurface
 
 import (
 	"encoding/json"
+	"net/url"
 	"path"
 	"strings"
 )
@@ -112,18 +113,28 @@ func (s Surface) TwitterTags() []Tag {
 
 // ManifestScalars are the expected scalar (non-icon) web-app-manifest fields,
 // derived from the scenario's identity. Icon entries are out of scope here
-// because they require real image assets. start_url/scope/display/id are house
-// defaults for an installable PWA.
-func (s Surface) ManifestScalars() map[string]string {
+// because they require real image assets. display is the house default for an
+// installable PWA; start_url/scope name the app root from where the manifest
+// lives. There is deliberately no id: see ManifestIDCollapsesToOrigin.
+func (s Surface) ManifestScalars(manifestRel string) map[string]string {
+	launch := ManifestLaunchRoot(manifestRel)
 	return map[string]string{
 		"name":        s.DisplayName,
 		"short_name":  s.DisplayName,
 		"description": s.Description,
 		"display":     "standalone",
-		"start_url":   ".",
-		"scope":       ".",
-		"id":          "/",
+		"start_url":   launch,
+		"scope":       launch,
 	}
+}
+
+// ManifestLaunchRoot is the start_url/scope that names the app root from a
+// manifest at manifestRel: "../" under the public surface, "." beside the app.
+func ManifestLaunchRoot(manifestRel string) string {
+	if strings.HasPrefix(manifestRel, PublicAssetSourceDir+"/") {
+		return ManifestAppRoot
+	}
+	return "."
 }
 
 // --- /public/ asset convention (SSOT) --------------------------------------
@@ -147,6 +158,17 @@ const (
 	// PublicAssetSourceDir is the directory inside the publicDir whose files
 	// serve under PublicURLPrefix (the intentional ui/public/public nesting).
 	PublicAssetSourceDir = "ui/public/public"
+	// PublicRefPrefix is the document-relative form of PublicURLPrefix used by
+	// head links. Served from the host root (the scenario server injects
+	// <base href="/">) it resolves under PublicURLPrefix, which the Access
+	// bypass covers; behind a path-prefix proxy it resolves under that prefix
+	// instead of escaping to the proxy host's root.
+	PublicRefPrefix = "public/"
+	// ManifestAppRoot is start_url and scope for a manifest served under
+	// PublicURLPrefix: the app root, relative to the manifest, so the
+	// installed app launches into the app (not the asset folder) and the
+	// manifest stays correct behind a path-prefix proxy.
+	ManifestAppRoot = "../"
 )
 
 // publicBrandingAssetGlobs are the filename globs for the branding/PWA/OG assets
@@ -179,21 +201,34 @@ func IsPublicBrandingAsset(base string) bool {
 	return false
 }
 
-// IsUnderPublicPrefix reports whether a root-absolute URL path is served under
-// the public convention prefix.
-func IsUnderPublicPrefix(urlPath string) bool {
-	return strings.HasPrefix(strings.TrimSpace(urlPath), PublicURLPrefix)
+// PublicAssetPath is the path of a public branding asset beneath the public
+// surface, whichever form its reference takes: "/x", "x", "./x", "/public/x",
+// "public/x" or "./public/x" all name "x".
+func PublicAssetPath(ref string) string {
+	ref = strings.TrimPrefix(strings.TrimSpace(ref), "./")
+	ref = strings.TrimPrefix(ref, "/")
+	return strings.TrimPrefix(ref, PublicRefPrefix)
 }
 
-// PublicURLForRootRef rewrites a root-absolute asset URL ("/favicon.svg") to its
-// /public/ equivalent ("/public/favicon.svg"). A path already under the prefix is
-// returned unchanged.
-func PublicURLForRootRef(urlPath string) string {
-	urlPath = strings.TrimSpace(urlPath)
-	if IsUnderPublicPrefix(urlPath) {
-		return urlPath
-	}
-	return PublicURLPrefix + strings.TrimPrefix(urlPath, "/")
+// PublicHeadRef is the canonical head-link reference for a public branding
+// asset: document-relative under the public surface ("public/favicon.svg").
+// docs/concepts/PUBLIC_ASSETS.md §"Adopter requirements".
+func PublicHeadRef(ref string) string {
+	return PublicRefPrefix + PublicAssetPath(ref)
+}
+
+// PublicSocialImageURL is the canonical og:image / twitter:image value: the
+// absolute /public/ path, because Open Graph expects an absolute image URL and
+// a host-agnostic build can only fix the path.
+func PublicSocialImageURL(ref string) string {
+	return PublicURLPrefix + PublicAssetPath(ref)
+}
+
+// PublicManifestIconSrc is the canonical icon src inside a manifest served
+// under the public surface: relative to the manifest, which sits beside its
+// icons.
+func PublicManifestIconSrc(src string) string {
+	return PublicAssetPath(src)
 }
 
 // RequiredManifestKeys are the manifest fields a complete, installable manifest
@@ -203,5 +238,28 @@ func PublicURLForRootRef(urlPath string) string {
 var RequiredManifestKeys = []string{
 	"name", "short_name", "description",
 	"theme_color", "background_color",
-	"display", "start_url", "id", "icons",
+	"display", "start_url", "icons",
+}
+
+// ManifestIDCollapsesToOrigin reports whether an explicit manifest id names
+// the bare origin. The Web App Manifest spec resolves id against the start
+// URL's origin, not against start_url, so "/", "." and "https://host/" all
+// become "https://host/" whatever path the app is served under. Behind a
+// path-prefix proxy every app on that origin would then share one identity,
+// and installing a second app would replace the first. Omitting id lets it
+// default to the resolved start_url, which is "https://host/" at a host root
+// (so existing installs keep their identity) and "https://host/<prefix>/"
+// behind a proxy. An empty id is ignored by the spec and does not collapse.
+func ManifestIDCollapsesToOrigin(id string) bool {
+	id = strings.TrimSpace(id)
+	if id == "" {
+		return false
+	}
+	base, _ := url.Parse("https://origin.invalid/")
+	ref, err := url.Parse(id)
+	if err != nil {
+		return false
+	}
+	resolved := base.ResolveReference(ref)
+	return (resolved.Path == "" || resolved.Path == "/") && resolved.RawQuery == ""
 }

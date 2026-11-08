@@ -314,7 +314,10 @@ export function GeometryCreationPanel({ projectId }: { projectId: string }) {
       </section>}
       {(!operation || operation.phase === "draft") && <Button type="button" className="studio-primary min-h-11" disabled={!ready || Boolean(operation?.phase === "draft" && correction.data?.disposition !== "available")} onClick={begin}>{start.isPending ? t(strings.physical.createSubmitting) : t(operation?.phase === "draft" ? strings.physical.createCorrectionSubmit : strings.physical.createSubmit)}</Button>}
       {operation && operation.phase !== "draft" && !jobID && <Button type="button" className="studio-primary min-h-11" disabled={!operationLoaded || start.isPending || operationReadback.isFetching || Boolean(operationReadback.error)} onClick={begin}>{start.isPending ? t(strings.physical.createSubmitting) : t(strings.physical.createRetry)}</Button>}
-      {operationReadback.error && <p role="alert">{t(strings.physical.createUnavailable)}</p>}
+      {operationReadback.error && <>
+        <p role="alert">{t(strings.physical.createReadbackUnavailable)}</p>
+        <Button type="button" variant="outline" className="min-h-11" disabled={operationReadback.isFetching} onClick={() => void operationReadback.refetch()}>{t(strings.physical.createRecheck)}</Button>
+      </>}
       {(start.error || job.error) && <p role="alert">{start.error?.message ?? t(strings.physical.createUnavailable)}</p>}
       {job.data && <section aria-live="polite" data-testid="geometry-creation-status"><p>{t(strings.physical.createStatus, { state: job.data.state })}</p>
         {job.data.message && <p>{job.data.message}</p>}

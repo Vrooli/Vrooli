@@ -691,6 +691,8 @@
     "createCancel": "キャンセルを要求",
     "createResult": "結果はレビュー用のインポート済み形状候補に保存されます。",
     "createUnavailable": "このリクエストではローカル形状作成を利用できません。",
+    "createReadbackUnavailable": "このリクエストが開始されたか確認できませんでした。再試行する前に状態を再確認してください。同じリクエストキーを使用します。",
+    "createRecheck": "リクエストの状態を再確認",
     "createStorageUnavailable": "ブラウザーの保存領域を利用できません。送信していません。保存を有効にして再試行してください。",
     "createReferenceUnavailable": "プロジェクト画像を読み込めませんでした。",
     "createSelectPrompt": "プロジェクト画像を選択",

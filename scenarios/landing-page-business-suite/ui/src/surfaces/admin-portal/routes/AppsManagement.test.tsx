@@ -35,6 +35,9 @@ function createAdminHomeState(
 ): ReturnType<typeof useAdminHome> {
   return {
     experience: null,
+    emailReadiness: null,
+    emailReadinessLoading: false,
+    deliveryReport: null,
     healthSnapshot: null,
     healthLoading: false,
     healthError: null,
