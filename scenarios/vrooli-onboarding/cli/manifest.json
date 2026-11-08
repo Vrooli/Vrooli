@@ -1241,6 +1241,11 @@
       "reason": "Authentication is a browser-session bootstrap owned by the web surface; the onboarding CLI uses its configured local or authenticated API transport rather than accepting interactive account credentials."
     },
     {
+      "service": "CredentialsService",
+      "method": "RevealCredential",
+      "reason": "The CLI credentials reveal command is deliberately local-only so a secret never enters an API response or remote transport; the RPC serves the verified-human web surface."
+    },
+    {
       "service": "SelectionService",
       "method": "GetUnion",
       "reason": "Exposed through the local file-backed union.export exception, which still calls the typed RPC."

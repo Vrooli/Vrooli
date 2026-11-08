@@ -32,7 +32,9 @@ func TestGetReadinessProjectsTheRichTypedVerdict(t *testing.T) {
 	if response.Msg.GetStatus() != readinessv1.ReadinessState_READINESS_STATE_MISSING || len(response.Msg.GetCredentials()) != 1 || len(response.Msg.GetBlockers()) != 1 {
 		t.Fatalf("response = %+v", response.Msg)
 	}
-	if response.Msg.GetCredentials()[0].GetLegacyStatus() != "unconfigured" {
+	// The typed state carries "unsupported"; the legacy field stays empty so
+	// consumers reading `legacyStatus || stateName(status)` use the typed state.
+	if response.Msg.GetCredentials()[0].GetStatus() != readinessv1.ReadinessState_READINESS_STATE_UNSUPPORTED || response.Msg.GetCredentials()[0].GetLegacyStatus() != "" {
 		t.Fatalf("credential status was not preserved: %+v", response.Msg.GetCredentials()[0])
 	}
 	if response.Msg.GetCredentials()[0].GetEvidenceStatus() != "unavailable" || response.Msg.GetCredentials()[0].GetEvidenceDetail() == "" {
@@ -118,4 +120,15 @@ func (testProvider) VerifyRequest(_ context.Context, req *http.Request) (identit
 		return identity.Principal{}, identity.NewFailure(identity.FailureMissing, identity.SourceScenarioAuthenticator)
 	}
 	return identity.Principal{Kind: identity.ActorHuman, Subject: "operator-1", Verified: true, Source: identity.SourceScenarioAuthenticator, Scopes: []string{"vrooli-onboarding:write"}}, nil
+}
+
+func TestLegacyCredentialStatusBridgesOnlyConfigured(t *testing.T) {
+	for value, want := range map[string]string{
+		"ready": "configured", " Configured ": "configured",
+		"missing": "", "unsupported": "", "deferred": "", "": "",
+	} {
+		if got := legacyCredentialStatus(value); got != want {
+			t.Errorf("legacyCredentialStatus(%q) = %q, want %q", value, got, want)
+		}
+	}
 }

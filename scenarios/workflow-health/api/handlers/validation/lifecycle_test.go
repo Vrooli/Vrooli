@@ -37,6 +37,7 @@ func TestLifecycleFenceDrainsAcceptedRunsAndResumesExactRevisionAfterReplacement
 	}))
 	require.NoError(t, err)
 	standing := prepared.Msg.GetStanding()
+	require.Equal(t, commonv1.LifecycleFencePersistence_LIFECYCLE_FENCE_PERSISTENCE_OPERATION_DURABLE, standing.GetFencePersistence())
 	require.True(t, standing.GetAdmissionClosed())
 	require.False(t, standing.GetDrained())
 	require.Equal(t, int32(1), standing.GetRemaining())

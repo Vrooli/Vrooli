@@ -3,6 +3,7 @@ package attention
 import (
 	"context"
 	"fmt"
+	"io"
 	"strconv"
 
 	"connectrpc.com/connect"
@@ -113,11 +114,20 @@ func run(core *cliapp.ScenarioApp, campaignID *string, operation string, runctx 
 		}
 		fmt.Fprintf(runctx.Stdout(), "%d candidate(s); preview does not reserve work.\n", len(res.Candidates))
 	case *attentionv1.ClaimResponse:
-		if res.NoWork {
-			fmt.Fprintln(runctx.Stdout(), "No unclaimed work is available.")
-		} else if res.Claim != nil {
-			fmt.Fprintf(runctx.Stdout(), "Claim: %s\nFile: %s\nRevision: %s\nExpires: %s\nOutcome: %s\n", res.Claim.Id, res.Claim.Path, res.Claim.Revision, res.Claim.ExpiresAt, res.Claim.Outcome)
-		}
+		renderClaimResponse(runctx.Stdout(), res)
 	}
 	return nil
+}
+
+func renderClaimResponse(w io.Writer, res *attentionv1.ClaimResponse) {
+	if res.NoWork {
+		fmt.Fprintln(w, "No unclaimed work is available.")
+	} else if res.Claim != nil {
+		fmt.Fprintf(w, "Claim: %s\nFile: %s\nRevision: %s\nExpires: %s\nOutcome: %s\n", res.Claim.Id, res.Claim.Path, res.Claim.Revision, res.Claim.ExpiresAt, res.Claim.Outcome)
+	}
+	if res.UnreviewedCount == nil {
+		fmt.Fprintln(w, "Unreviewed files: unknown")
+		return
+	}
+	fmt.Fprintf(w, "Unreviewed files: %d\n", *res.UnreviewedCount)
 }

@@ -3,7 +3,7 @@ import json
 import os
 import pathlib
 import sys
-from playwright.sync_api import Error, sync_playwright
+from playwright.sync_api import sync_playwright
 endpoint, mode = sys.argv[1:3]
 with sync_playwright() as p:
     browser = p.chromium.connect_over_cdp(endpoint)
@@ -22,10 +22,12 @@ with sync_playwright() as p:
         page.screenshot(path=str(pathlib.Path(os.environ["J10_EVIDENCE"], "j10-update-" + mode + ".png")), full_page=True)
     if mode == "after":
         # Shut down the successor through Electron's own browser lifecycle.
-        try:
-            browser.new_browser_cdp_session().send("Browser.close")
-        except Error as error:
-            if "Target page, context or browser has been closed" not in str(error):
-                raise
+        # Browser.close can stop Chromium before it returns a CDP response. Queue
+        # the command without waiting for that response so normal shutdown does
+        # not hold the Go parent open until its process timeout.
+        session = browser.new_browser_cdp_session()
+        session._impl_obj._channel.send_no_reply(
+            "send", None, {"method": "Browser.close", "params": None}
+        )
     else:
         browser.close()

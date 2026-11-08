@@ -53,6 +53,72 @@ func TestFileRetentionStore_SetThenGet(t *testing.T) {
 	}
 }
 
+// A partial update must keep omitted fields in the durable value returned
+// after a new store loads the file.
+func TestFileRetentionStore_UpdatePersistsMergedConfig(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "retention.json")
+	seed := RetentionConfig{MaxArchiveAgeDays: 90, MaxArchiveSizeBytes: 10 << 30, MaxArchivesPerProject: 100}
+	store := NewFileRetentionStoreAtPath(path, seed)
+	age := 7
+	size := int64(1 << 30)
+	if _, err := store.Update(RetentionPatch{MaxArchiveAgeDays: &age}); err != nil {
+		t.Fatal(err)
+	}
+	got, err := store.Update(RetentionPatch{MaxArchiveSizeBytes: &size})
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := RetentionConfig{MaxArchiveAgeDays: age, MaxArchiveSizeBytes: size, MaxArchivesPerProject: 100}
+	if got != want {
+		t.Fatalf("updated config = %+v, want %+v", got, want)
+	}
+	reloaded := NewFileRetentionStoreAtPath(path, RetentionConfig{})
+	if err := reloaded.ensureLoaded(); err != nil {
+		t.Fatal(err)
+	}
+	if persisted := reloaded.Get(); persisted != want {
+		t.Fatalf("reloaded config = %+v, want %+v", persisted, want)
+	}
+}
+
+func TestFileRetentionStore_FailedPersistKeepsLastAcceptedConfig(t *testing.T) {
+	root := t.TempDir()
+	parent := filepath.Join(root, "config")
+	path := filepath.Join(parent, "retention.json")
+	accepted := RetentionConfig{MaxArchiveAgeDays: 30, MaxArchiveSizeBytes: 1 << 30}
+	store := NewFileRetentionStoreAtPath(path, RetentionConfig{})
+	if err := store.Set(accepted); err != nil {
+		t.Fatal(err)
+	}
+
+	// Simulate a write failure without relying on chmod or process privileges.
+	moved := filepath.Join(root, "saved-config")
+	if err := os.Rename(parent, moved); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(parent, []byte("blocks directory recreation"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	rejected := RetentionConfig{MaxArchiveAgeDays: 0, MaxArchiveSizeBytes: 0}
+	if err := store.Set(rejected); err == nil {
+		t.Fatal("Set must report the failed persistence")
+	}
+	if got := store.Get(); got != accepted {
+		t.Fatalf("Get after rejected Set = %+v, want last accepted %+v", got, accepted)
+	}
+	data, err := os.ReadFile(filepath.Join(moved, "retention.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var durable RetentionConfig
+	if err := json.Unmarshal(data, &durable); err != nil {
+		t.Fatal(err)
+	}
+	if durable != accepted {
+		t.Fatalf("durable config = %+v, want last accepted %+v", durable, accepted)
+	}
+}
+
 // TestFileRetentionStore_RejectsNegative — Set rejects negative values
 // for any of the three levers and does not mutate cache or disk.
 func TestFileRetentionStore_RejectsNegative(t *testing.T) {

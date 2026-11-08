@@ -41,8 +41,15 @@ type receiptServiceStub struct {
 	wallet   wallet.Wallet
 	operator string
 	txHash   string
+	priorID  string
 	check    baseusdc.Check
 	checks   []baseusdc.Check
+}
+
+func (s *receiptServiceStub) Recheck(_ context.Context, operator string, w wallet.Wallet, txHash, priorID string) (baseusdc.Check, error) {
+	s.calls++
+	s.wallet, s.operator, s.txHash, s.priorID = w, operator, txHash, priorID
+	return s.check, nil
 }
 
 func (s *receiptServiceStub) Verify(_ context.Context, operator string, w wallet.Wallet, txHash string) (baseusdc.Check, error) {

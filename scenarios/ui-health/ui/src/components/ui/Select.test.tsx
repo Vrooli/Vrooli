@@ -1,4 +1,5 @@
-import { render, screen } from "@testing-library/react";
+import { screen } from "@testing-library/react";
+import { renderWithProviders } from "../../test-utils";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
@@ -9,7 +10,7 @@ const ARIA = "tone-x";
 describe("Select", () => {
   it("calls onChange when selection changes", async () => {
     const onChange = vi.fn();
-    render(
+    renderWithProviders(
       <Select
         ariaLabel={ARIA}
         value="a"

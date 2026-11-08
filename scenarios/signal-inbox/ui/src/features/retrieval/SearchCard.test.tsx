@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { cleanup, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
-import { renderWithProviders } from "../../test-utils";
+import { chooseOption, renderWithProviders } from "../../test-utils";
 
 const retrieval = vi.hoisted(() => ({ search: vi.fn() }));
 vi.mock("../../api/retrieval", () => ({ retrievalClient: retrieval }));
@@ -18,7 +18,7 @@ describe("SearchCard [REQ:SIG-P0-009] [REQ:SIG-P0-010]", () => {
     renderWithProviders(<SearchCard />);
     await user.type(screen.getByLabelText("Search text"), "preserved idea");
     await user.type(screen.getByLabelText("Search tags"), "research, inbox");
-    await user.selectOptions(screen.getByLabelText("Disposition filter"), "dropped");
+    await chooseOption("Disposition filter", "dropped");
     await user.click(screen.getByRole("button", { name: "Search journal" }));
     await waitFor(() => expect(retrieval.search).toHaveBeenCalledWith(expect.objectContaining({ filter: expect.objectContaining({ text: "preserved idea", tags: ["research", "inbox"], disposition: "dropped" }) })));
     expect(await screen.findByText("A preserved signal")).toBeInTheDocument();

@@ -1,10 +1,10 @@
 package artifacts
 
 import (
-	"bufio"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -261,7 +261,7 @@ func CitedRunIDs(roots ...string) (map[string]bool, error) {
 		}
 		err := filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
 			if err != nil {
-				if errors.Is(err, fs.ErrNotExist) || errors.Is(err, fs.ErrPermission) {
+				if errors.Is(err, fs.ErrNotExist) && path == root {
 					return nil
 				}
 				return err
@@ -276,7 +276,11 @@ func CitedRunIDs(roots ...string) (map[string]bool, error) {
 			if !d.Type().IsRegular() {
 				return nil
 			}
-			if info, err := d.Info(); err != nil || info.Size() > citationFileLimit {
+			info, err := d.Info()
+			if err != nil {
+				return err
+			}
+			if info.Size() > citationFileLimit {
 				return nil
 			}
 			return scanFileForRunIDs(path, cited)
@@ -291,17 +295,21 @@ func CitedRunIDs(roots ...string) (map[string]bool, error) {
 func scanFileForRunIDs(path string, cited map[string]bool) error {
 	f, err := os.Open(path)
 	if err != nil {
-		return nil
+		return fmt.Errorf("open citation file %s: %w", path, err)
 	}
 	defer f.Close()
-	scanner := bufio.NewScanner(f)
-	scanner.Buffer(make([]byte, 64*1024), citationFileLimit)
-	for scanner.Scan() {
-		for _, id := range runIDPattern.FindAll(scanner.Bytes(), -1) {
-			cited[string(id)] = true
-		}
+	// A regular evidence file can have a single long JSON line. Scan the
+	// bounded file as bytes so line length cannot silently lose citations.
+	data, err := io.ReadAll(io.LimitReader(f, citationFileLimit+1))
+	if err != nil {
+		return fmt.Errorf("read citation file %s: %w", path, err)
 	}
-	// A line beyond the buffer is binary or generated data, not a citation.
+	if len(data) > citationFileLimit {
+		return fmt.Errorf("citation file %s grew beyond %d-byte limit during scan", path, citationFileLimit)
+	}
+	for _, id := range runIDPattern.FindAll(data, -1) {
+		cited[string(id)] = true
+	}
 	return nil
 }
 

@@ -212,3 +212,50 @@ a migration handoff with a planned retirement path back into
 - [`SEAMS.md`](SEAMS.md) — boundary registry (load-bearing for tests)
 - [`TESTING.md`](TESTING.md) — test patterns
 - [`../guides/troubleshooting.md`](../guides/troubleshooting.md) — generic-template issues
+
+## Work ladder
+
+- Rung: W3 — closed
+- Evidence: Agent Manager's seven-day owner digest reported 59 direct HTTP
+  requests to Android validation-matrix reads across four runs. The API already
+  exposes `GET /api/v1/validation/matrices/{run_id}` in
+  `packages/delivery-ramp-go/validationmatrix/handler.go`, but the scenario CLI
+  had only list, compare, and blocking wait commands.
+- Fix: Added `android matrix-get` as a read-only, nonblocking wrapper over the
+  existing owner endpoint, with run-ID validation, focused tests, CLI manifest
+  registration, and reference documentation.
+- Gate: Test Genie `unit,docs` run `20261105-105217-9a88df61` passed. Focused
+  `go test ./domains/android -run '^TestMatrixGet' -v` passed. The CLI primitive
+  evidence artifact was regenerated through its golden test.
+- Blocker: None for this CLI gap. Direct artifact-directory reads were tracked
+  as a separate follow-up and investigated in Round 48 below.
+- Measured: 2026-11-05
+
+- Rung: W3 — closed
+- Evidence: The deferred Agent Manager seven-day digest showed 87 direct reads
+  from `scenario-to-android/builds/artifacts` across three runs, with 84% of
+  calls concentrated in one run. Callers inspected `artifact.json` and searched
+  artifact directories for identity fields because the CLI had no historical
+  artifact listing or immutable-ref matrix creation path.
+- Fix: Added path-free `android artifact-list`; changed `android matrix-create`
+  to require `ANDROID_ARTIFACT_REF` and send the ref with its selection. The
+  producer resolves and fully verifies the retained APK/AAB pair before it
+  assigns its internal path to the durable matrix, and derives package,
+  version, and signing identity from the verified descriptor. Shared matrix
+  HTTP views redact producer-local paths in selections, metadata, and cell
+  reports while the durable store retains them for execution. The artifact
+  list reports manifest and file-shape checked candidates; selection performs
+  full content verification.
+- Gate: Focused Go checks passed for `validationmatrix`, Android builds,
+  artifact handlers, matrix creation, and the Android CLI. Test Genie run
+  `20261105-112242-678d5624` passed docs (62 existing warnings, 11 infos).
+  Run `20261105-111554-c3ac9fe1` could not complete unit or dependencies:
+  Unit Health and dependency provider readiness both required a running
+  Scenario Dependency Analyzer `API_PORT`.
+  Its supported start attempt failed with `lifecycle provider for
+  "scenario-dependency-analyzer" is not authoritative` (operation
+  `startop-7f19da560051ee20305770563f28c6ae`). No Android test failure was
+  reported. `UPDATE_CLI_EVIDENCE=1 go test .` passed and refreshed the CLI
+  primitive evidence after the manifest change; `git diff --check` passed.
+- Blocker: None known.
+- Measured: 2026-11-05

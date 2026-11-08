@@ -94,3 +94,10 @@ a migration handoff with a planned retirement path back into
 - [`SEAMS.md`](SEAMS.md) — boundary registry (load-bearing for tests)
 - [`TESTING.md`](TESTING.md) — test patterns
 - [`../guides/troubleshooting.md`](../guides/troubleshooting.md) — generic-template issues
+
+## Work ladder
+
+- Rung: W3 localized implementation defect.
+- Evidence: `api/run_artifact_retention.go` promises a pruning refusal when citations are unreadable, but `api/internal/artifacts/retention.go` suppressed file read and scanner errors. A citation in a regular 32 MiB single-line evidence file was missed before the fix, leaving its old timeline eligible for deletion.
+- Repair: `CitedRunIDs` now propagates unreadable-source errors and scans bounded file bytes without a line-length blind spot. The owner cycle refuses pruning on error; focused regressions cover long-line citation protection and unreadable-file refusal.
+- Measured: 2026-11-05; generated proto verifier passed; Workflow Health Test Genie `unit` run `20261105-062733-c3f9975e` passed. Source and limits are retained in the debt research run `cohort-six-topic-recommission-20261105-retention-lifecycle-03`.

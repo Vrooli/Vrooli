@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"sync/atomic"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -34,7 +35,7 @@ func TestMatrixAbortWaitsForOwnerTerminalState(t *testing.T) {
 	core.APIOverride = server.URL
 	t.Setenv("ANDROID_MATRIX_RUN_ID", "run-123")
 	var stdout bytes.Buffer
-	runCtx := cliapp.NewTestRunContext(cliapp.TestRunContextOptions{Core: core, JSON: true, Stdout: &stdout})
+	runCtx := cliapp.NewTestRunContext(cliapp.TestRunContextOptions{Schema: matrixRunArgs, Core: core, JSON: true, Stdout: &stdout})
 
 	err = matrixAbort(core)(runCtx)
 	require.NoError(t, err)
@@ -42,8 +43,112 @@ func TestMatrixAbortWaitsForOwnerTerminalState(t *testing.T) {
 		"POST /api/v1/validation/matrices/run-123/abort",
 		"GET /api/v1/validation/matrices/run-123/wait",
 	}, paths)
-	require.Contains(t, stdout.String(), "cancelled")
+	// --json prints the owner's terminal record itself, not a string inside a report.
+	var terminal map[string]any
+	require.NoError(t, json.Unmarshal(stdout.Bytes(), &terminal))
+	require.Equal(t, "cancelled", terminal["state"])
+
+	paths = nil
+	stdout.Reset()
+	human := cliapp.NewTestRunContext(cliapp.TestRunContextOptions{Schema: matrixRunArgs, Core: core, Stdout: &stdout})
+	require.NoError(t, matrixAbort(core)(human))
 	require.Contains(t, stdout.String(), "Owner persisted the terminal matrix state.")
+}
+
+func TestMatrixCommandsTakeTheRunIDAsAnArgumentAndListAsJSON(t *testing.T) {
+	var paths []string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		paths = append(paths, r.Method+" "+r.URL.Path+"?"+r.URL.RawQuery)
+		w.Header().Set("Content-Type", "application/json")
+		switch r.URL.Path {
+		case "/api/v1/validation/matrices/run-9":
+			_, _ = w.Write([]byte(`{"run_id":"run-9","state":"passed"}`))
+		case "/api/v1/validation/matrices":
+			_, _ = w.Write([]byte(`[{"run_id":"run-9","state":"passed"}]`))
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer server.Close()
+	core, err := cliapp.NewScenarioApp(cliapp.ScenarioOptions{Name: "scenario-to-android", APIPrefix: "/api/v1", DefaultAPIBase: server.URL, AllowAnonymous: true})
+	require.NoError(t, err)
+	core.APIOverride = server.URL
+	t.Setenv("ANDROID_MATRIX_RUN_ID", "")
+
+	var stdout bytes.Buffer
+	get := cliapp.NewTestRunContext(cliapp.TestRunContextOptions{Schema: matrixRunArgs, Positionals: map[string]string{"run_id": "run-9"}, Core: core, JSON: true, Stdout: &stdout})
+	require.NoError(t, matrixGet(core)(get))
+	var run map[string]any
+	require.NoError(t, json.Unmarshal(stdout.Bytes(), &run))
+	require.Equal(t, "passed", run["state"])
+
+	stdout.Reset()
+	list := cliapp.NewTestRunContext(cliapp.TestRunContextOptions{Schema: scenarioArgs, Flags: map[string]string{"scenario": "nutrition-planner"}, Core: core, JSON: true, Stdout: &stdout})
+	require.NoError(t, scenarioGet(core, "/validation/matrices")(list))
+	var runs []map[string]any
+	require.NoError(t, json.Unmarshal(stdout.Bytes(), &runs), "matrix-list --json must be a JSON array, got %s", stdout.String())
+	require.Len(t, runs, 1)
+	require.Equal(t, []string{
+		"GET /api/v1/validation/matrices/run-9?",
+		"GET /api/v1/validation/matrices?scenario=nutrition-planner",
+	}, paths)
+}
+
+func TestMatrixGetReadsOneRunWithoutWaiting(t *testing.T) {
+	var paths []string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		paths = append(paths, r.Method+" "+r.URL.Path)
+		w.Header().Set("Content-Type", "application/json")
+		if r.Method != http.MethodGet || r.URL.Path != "/api/v1/validation/matrices/run-123" {
+			http.NotFound(w, r)
+			return
+		}
+		_, _ = w.Write([]byte(`{"run_id":"run-123","state":"running"}`))
+	}))
+	defer server.Close()
+
+	core, err := cliapp.NewScenarioApp(cliapp.ScenarioOptions{Name: "scenario-to-android", APIPrefix: "/api/v1", DefaultAPIBase: server.URL, AllowAnonymous: true})
+	require.NoError(t, err)
+	core.APIOverride = server.URL
+	t.Setenv("ANDROID_MATRIX_RUN_ID", "run-123")
+	var stdout bytes.Buffer
+	runCtx := cliapp.NewTestRunContext(cliapp.TestRunContextOptions{Schema: matrixRunArgs, Core: core, Stdout: &stdout})
+
+	require.NoError(t, matrixGet(core)(runCtx))
+	require.Equal(t, []string{"GET /api/v1/validation/matrices/run-123"}, paths)
+	require.Contains(t, stdout.String(), "running")
+	require.Contains(t, stdout.String(), "matrix-wait")
+}
+
+func TestMatrixGetRequiresRunIDBeforeCallingAPI(t *testing.T) {
+	var requests atomic.Int32
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		requests.Add(1)
+		http.NotFound(w, r)
+	}))
+	defer server.Close()
+
+	core, err := cliapp.NewScenarioApp(cliapp.ScenarioOptions{Name: "scenario-to-android", APIPrefix: "/api/v1", DefaultAPIBase: server.URL, AllowAnonymous: true})
+	require.NoError(t, err)
+	core.APIOverride = server.URL
+	t.Setenv("ANDROID_MATRIX_RUN_ID", " ")
+	runCtx := cliapp.NewTestRunContext(cliapp.TestRunContextOptions{Schema: matrixRunArgs, Core: core, JSON: true})
+
+	err = matrixGet(core)(runCtx)
+	require.EqualError(t, err, "a matrix run id is required: pass <run_id> (from matrix-list) or set ANDROID_MATRIX_RUN_ID")
+	require.Zero(t, requests.Load())
+}
+
+func TestRegisterExposesMatrixGetCommand(t *testing.T) {
+	group := Register(&cliapp.ScenarioApp{})
+	for _, command := range group.Subcommands {
+		if command.Name == "matrix-get" {
+			require.Contains(t, command.Description, "one durable")
+			require.NotNil(t, command.RunCtx)
+			return
+		}
+	}
+	t.Fatal("matrix-get is not discoverable in the Android CLI")
 }
 
 func TestRegisterExposesMatrixAbortCommand(t *testing.T) {
@@ -299,6 +404,14 @@ func TestMatrixSelectionCarriesOwnerProducedArtifactMetadata(t *testing.T) {
 	require.Equal(t, "hello-mobile", request["scenario_name"])
 }
 
+func TestMatrixCreateSelectionOmitsProducerPathWhenResolvedByArtifactRef(t *testing.T) {
+	request := matrixSelectionRequest("sha256:"+strings.Repeat("a", 64), "", map[string]string{"scenario_name": "hello-mobile"}, nil)
+	require.NotContains(t, request, "artifact_path")
+	encoded, err := json.Marshal(request)
+	require.NoError(t, err)
+	require.NotContains(t, string(encoded), "artifact_path")
+}
+
 func TestSelectedJourneyIDsParsesFocusedSelectionsAndRejectsAmbiguousInput(t *testing.T) {
 	journeys, err := selectedJourneyIDs(" android-scenario-app-offline-transition-v1, android-scenario-app-verify-v1 ")
 	require.NoError(t, err)
@@ -361,6 +474,17 @@ func TestMatrixArtifactMetadataFailsClosedOnMismatchedIdentity(t *testing.T) {
 	artifact.Checksum = "sha256:" + strings.Repeat("b", 64)
 	_, err = matrixArtifactMetadata(digest, artifact.ImmutableRef, "", "", artifact)
 	require.ErrorContains(t, err, "does not match the requested immutable ref and digest")
+}
+
+func TestMatrixArtifactMetadataCanDeriveDigestFromImmutableRef(t *testing.T) {
+	digest := "sha256:" + strings.Repeat("a", 64)
+	artifact := artifactDescriptor{
+		ImmutableRef: "android-debug:" + strings.Repeat("a", 64), Checksum: digest,
+		PackageName: "com.example.generated", VersionName: "1.0.0", VersionCode: 1,
+	}
+	metadata, err := matrixArtifactMetadata("", artifact.ImmutableRef, "", "", artifact)
+	require.NoError(t, err)
+	require.Equal(t, artifact.ImmutableRef, metadata["immutable_ref"])
 }
 
 func TestMatrixArtifactMetadataRequiresReleaseSigningIdentity(t *testing.T) {

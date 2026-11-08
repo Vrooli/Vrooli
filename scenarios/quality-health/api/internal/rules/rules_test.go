@@ -178,3 +178,40 @@ func write(t *testing.T, path, content string) {
 	require.NoError(t, os.MkdirAll(filepath.Dir(path), 0o755))
 	require.NoError(t, os.WriteFile(path, []byte(content), 0o644))
 }
+
+// TestMakefileQualityGatesHonorSharedInclude pins that a scenario inheriting
+// its quality targets from the shared mk/scenario.mk include satisfies the
+// rule and needs no autofix, so the rule never pushes a scenario to copy the
+// shared bodies back into its own Makefile.
+func TestMakefileQualityGatesHonorSharedInclude(t *testing.T) {
+	repo := t.TempDir()
+	write(t, filepath.Join(repo, "mk", "toolchain.mk"), "toolchain-floor:\n\t@true\n")
+	write(t, filepath.Join(repo, "mk", "scenario.mk"), "include $(dir $(lastword $(MAKEFILE_LIST)))toolchain.mk\n"+
+		"ifeq ($(filter fmt-ui,$(SCENARIO_CUSTOM_TARGETS)),)\nfmt-ui:\n\tcd ui && pnpm run lint:fix\nendif\n"+
+		"lint-ui:\n\tcd ui && pnpm run lint && pnpm run type-check\n"+
+		"fmt-go:\n\tcd api && gofumpt -w .\n"+
+		"lint-go:\n\tcd api && golangci-lint run ./...\n")
+	scenario := filepath.Join(repo, "scenarios", "demo")
+	write(t, filepath.Join(scenario, "ui", "package.json"), `{"scripts":{"build":"vite build"}}`)
+	write(t, filepath.Join(scenario, "api", "go.mod"), "module demo\n")
+	makefile := filepath.Join(scenario, "Makefile")
+	write(t, makefile, "SCENARIO_CUSTOM_TARGETS += fmt-ui\n-include ../../mk/scenario.mk\n-include ../../mk/absent.mk\n\nfmt-ui:\n\tcd ui && pnpm run format && pnpm run lint:fix\n")
+
+	targets, err := rules.ResolveMakefileTargets(makefile)
+	require.NoError(t, err)
+	require.Contains(t, targets["lint-go"], "golangci-lint", "inherited recipe resolved through the include")
+	require.Contains(t, targets, "toolchain-floor", "nested include resolved through the make dir idiom")
+	require.Contains(t, targets["fmt-ui"], "pnpm run format", "the scenario's own custom body wins over the shared one")
+
+	rule, ok := rules.ByID(rules.RuleMakefileQualityGates)
+	require.True(t, ok)
+	inventory := surfaces.Inventory{RootPath: scenario, Surfaces: []surfaces.Surface{
+		{ID: "ui", Language: "typescript", RootPath: filepath.Join(scenario, "ui")},
+		{ID: "api", Language: "go", RootPath: filepath.Join(scenario, "api")},
+	}}
+	require.Empty(t, rule.Evaluate(rules.EvalContext{Inventory: inventory}))
+
+	candidates, err := autofix.Preview(scenario, []string{rules.RuleMakefileQualityGates})
+	require.NoError(t, err)
+	require.Empty(t, candidates, "autofix must not copy inherited targets into the scenario Makefile")
+}

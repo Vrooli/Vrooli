@@ -300,5 +300,19 @@
         "testid": "agent-detail-activity-region"
       }
     }
+  },
+  "sketch": {
+    "placements": [
+      {
+        "fills": {
+          "intent": "Show a focused agent detail view with identity, current state, and responsive operational context.",
+          "placeholder": "agent-detail-generated-boundary-v1"
+        },
+        "intent": "Show a focused agent detail view with identity, current state, and responsive operational context.",
+        "note": "reference-source=generated; provenance=unavailable: RCL has no image-tools / AI Gateway generation binding; visual-contract=identity-first profile, current state, concise operational context, mobile readable; replacement-owner=switchboard agent detail renderer",
+        "region": "grant-region",
+        "state": "invented"
+      }
+    ]
   }
 }

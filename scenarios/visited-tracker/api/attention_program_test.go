@@ -27,8 +27,12 @@ class Handle:
     def meta(self): return self.metadata
 def run(name, bindings, inputs):
     output = io.StringIO()
+    def classify(exc):
+        if "connection refused" in str(exc).lower(): return ("unavailable", "scenario_unreachable")
+        return ("failed", "kernel_runtime")
+    program = types.SimpleNamespace(inputs=lambda: inputs, classify=classify)
     with contextlib.redirect_stdout(output):
-        runpy.run_path(str(root / (name + ".py")), init_globals=dict(bindings, inputs=inputs))
+        runpy.run_path(str(root / (name + ".py")), init_globals=dict(bindings, inputs=inputs, program=program))
     raw = output.getvalue()
     value = json.loads(raw)
     assert len(raw.encode()) <= 65536, len(raw)

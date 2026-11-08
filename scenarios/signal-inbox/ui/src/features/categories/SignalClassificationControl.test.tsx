@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { cleanup, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
-import { renderWithProviders } from "../../test-utils";
+import { chooseOption, renderWithProviders } from "../../test-utils";
 import { strings } from "../../consts/strings";
 
 const api = vi.hoisted(() => ({
@@ -32,7 +32,7 @@ describe("SignalClassificationControl [REQ:SIG-P0-005]", () => {
     renderWithProviders(<SignalClassificationControl signalID="signal-1" />);
 
     expect(await screen.findByText(new RegExp(`${strings.categories.proposed}.*${strings.categories.confidence}`))).toBeInTheDocument();
-    await user.selectOptions(screen.getByLabelText(strings.categories.categoryFor), "category-b");
+    await chooseOption(strings.categories.categoryFor, "category-b");
     await user.click(screen.getByRole("button", { name: strings.categories.confirm }));
 
     await waitFor(() => expect(api.confirmClassification).toHaveBeenCalledWith({ signalId: "signal-1", categoryId: "category-b" }));

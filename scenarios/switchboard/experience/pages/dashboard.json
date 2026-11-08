@@ -293,5 +293,151 @@
         "testid": "dashboard-budget-region"
       }
     }
+  },
+  "sketch": {
+    "intent": {
+      "constraints": {
+        "preserveRoutes": true,
+        "preserveBusinessBehavior": true
+      },
+      "intent": "A calm operational dashboard that makes the next safe action obvious. Proof 1789618251672.",
+      "users": [
+        "Operations lead",
+        "Design reviewer"
+      ],
+      "primaryTasks": [
+        "Understand current state",
+        "Review retained evidence"
+      ],
+      "target": "react-vite",
+      "kit": "vrooli-default",
+      "viewports": [
+        "phone",
+        "desktop"
+      ]
+    },
+    "regions": [
+      {
+        "id": "bulk-actions",
+        "origin": "template"
+      },
+      {
+        "id": "inspector",
+        "origin": "template"
+      },
+      {
+        "id": "attention-region",
+        "note": "Items that require an operator decision."
+      },
+      {
+        "id": "channel-health-region",
+        "note": "Per-channel reachability and its stated reason."
+      },
+      {
+        "id": "budget-region",
+        "note": "Metered allowance and per-thread pressure."
+      }
+    ],
+    "render": {
+      "templateExport": "CollectionPage",
+      "regions": [
+        {
+          "templateRegion": "header",
+          "id": "attention-region",
+          "slot": [
+            "regions",
+            "header"
+          ]
+        },
+        {
+          "templateRegion": "filters",
+          "id": "channel-health-region",
+          "slot": [
+            "regions",
+            "filters"
+          ]
+        },
+        {
+          "templateRegion": "collection",
+          "id": "budget-region",
+          "slot": [
+            "regions",
+            "collection"
+          ]
+        },
+        {
+          "templateRegion": "bulk-actions",
+          "id": "bulk-actions",
+          "slot": [
+            "regions",
+            "bulkActions"
+          ]
+        },
+        {
+          "templateRegion": "inspector",
+          "id": "inspector",
+          "slot": [
+            "regions",
+            "inspector"
+          ]
+        }
+      ],
+      "bindings": {
+        "$template": {}
+      }
+    },
+    "template": {
+      "asset": "templates.collection-page",
+      "version": "1.7.1"
+    },
+    "unplaced": [
+      {
+        "placement": {
+          "fills": {
+            "intent": "Show a calm operational dashboard with clear campaign identity, current status, and responsive action hierarchy plus a refined mobile crop.",
+            "placeholder": "switchboard-dashboard-reference-v2"
+          },
+          "intent": "Show a calm operational dashboard with clear campaign identity, current status, and responsive action hierarchy plus a refined mobile crop.",
+          "note": "reference-source=uploaded; provenance=manual-upload-proof-20260916-v2; visual-contract=calm operational hierarchy, status-first layout, refined responsive mobile action path; replacement-owner=switchboard dashboard renderer implementation; uploaded-asset=f41ae57d4a91d7a1773ec47a171c33042e769bbfcf99b9b2e5a32416c68b22c9; asset-url=/api/v1/reference-assets/switchboard/dashboard/f41ae57d4a91d7a1773ec47a171c33042e769bbfcf99b9b2e5a32416c68b22c9.png",
+          "region": "attention-region",
+          "state": "invented"
+        },
+        "reason": "No region mapping into template templates.collection-page",
+        "region": "attention-region",
+        "was": "switchboard-dashboard-reference-v2"
+      },
+      {
+        "reason": "Authored element has no explicit composition region association",
+        "was": "attention-list"
+      },
+      {
+        "reason": "Authored element has no explicit composition region association",
+        "was": "gate-item"
+      },
+      {
+        "reason": "Authored element has no explicit composition region association",
+        "was": "refusal-list"
+      },
+      {
+        "reason": "Authored element has no explicit composition region association",
+        "was": "channel-health"
+      },
+      {
+        "reason": "Authored element has no explicit composition region association",
+        "was": "budget-region"
+      },
+      {
+        "reason": "Authored element has no explicit composition region association",
+        "was": "budget-meter"
+      },
+      {
+        "reason": "Authored element has no explicit composition region association",
+        "was": "all-clear"
+      },
+      {
+        "reason": "Authored element has no explicit composition region association",
+        "was": "retry-action"
+      }
+    ]
   }
 }

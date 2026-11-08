@@ -37,6 +37,7 @@ require (
 	github.com/vrooli/platform-go v0.0.0 // indirect
 	go.uber.org/atomic v1.11.0 // indirect
 	go.yaml.in/yaml/v3 v3.0.5 // indirect
+	golang.org/x/mod v0.41.0 // indirect
 	golang.org/x/sys v0.48.0 // indirect
 	modernc.org/libc v1.72.3 // indirect
 	modernc.org/mathutil v1.7.1 // indirect
@@ -44,10 +45,6 @@ require (
 )
 
 replace github.com/vrooli/api-core => ../../../packages/api-core
-
-replace github.com/vrooli/measures-go => ../../../packages/measures-go
-
-replace github.com/vrooli/ai-go => ../../../packages/ai-go
 
 replace github.com/vrooli/vrooli/packages/proto => ../../../packages/proto
 
@@ -62,23 +59,3 @@ replace github.com/vrooli/cli-core => ../../../packages/cli-core
 replace github.com/vrooli/envkit-go => ../../../packages/envkit-go
 
 replace github.com/vrooli/platform-go => ../../../packages/platform-go
-
-replace github.com/vrooli/cliresolve => ../../../packages/cliresolve
-
-replace github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime => ../../scenario-to-desktop/runtime
-
-replace github.com/vrooli/browser-automation-studio => ../../browser-automation-studio/api
-
-replace github.com/vrooli/maturity-go => ../../../packages/maturity-go
-
-replace github.com/vrooli/scenarioconfig-go => ../../../packages/scenarioconfig-go
-
-replace github.com/vrooli/searchregister-go => ../../../packages/searchregister-go
-
-replace github.com/vrooli/vrooli-cli-go => ../../../packages/vrooli-cli-go
-
-replace github.com/vrooli/vrooli/packages/capability-registry-go => ../../../packages/capability-registry-go
-
-replace nutrition-planner => ../../nutrition-planner/api
-
-replace workflow-health => ../../workflow-health/api

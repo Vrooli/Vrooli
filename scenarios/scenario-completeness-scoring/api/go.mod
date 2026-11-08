@@ -64,12 +64,6 @@ replace github.com/vrooli/freshness-go => ../../../packages/freshness-go
 
 replace github.com/vrooli/maturity-go => ../../../packages/maturity-go
 
-replace github.com/vrooli/binaryfetch => ../../../packages/binaryfetch
-
 replace github.com/vrooli/envkit-go => ../../../packages/envkit-go
 
 replace github.com/vrooli/platform-go => ../../../packages/platform-go
-
-replace github.com/vrooli/cliresolve => ../../../packages/cliresolve
-
-replace github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime => ../../scenario-to-desktop/runtime

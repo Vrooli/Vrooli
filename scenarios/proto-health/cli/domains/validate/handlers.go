@@ -89,7 +89,7 @@ func severityCount(a interface{ GetFindingsBySeverity() map[string]int32 }, seve
 	if a == nil {
 		return 0
 	}
-	return int(a.GetFindingsBySeverity()[severity.String()])
+	return maturityreport.CountFindingsBySeverity(a.GetFindingsBySeverity(), severity.String())
 }
 
 func failedFindingCount(a interface{ GetFindingsBySeverity() map[string]int32 }) int {

@@ -12,17 +12,6 @@
 // function takes as its first argument.
 
 export const strings = {
-  $rowKey: "$rowKey",
-  $schema: "$schema",
-  $text: "$text",
-  "Changes saved successfully": {
-    "": "Changes saved successfully.",
-  },
-  "Disabled states retain the same geometry and clearly communicate that the action is unavailable": {
-    "": "Disabled states retain the same geometry and clearly communicate that the action is unavailable.",
-  },
-  "Request in progress": "Request in progress",
-  Saved: "Saved",
   app: {
     title: "app.title",
   },
@@ -40,12 +29,6 @@ export const strings = {
     tableCaption: "approvals.tableCaption",
     title: "approvals.title",
   },
-  "aria-label": "aria-label",
-  ascending: "ascending",
-  asset: "asset",
-  "border-app-primary bg-app-primary text-app-primary-foreground": "border-app-primary bg-app-primary text-app-primary-foreground",
-  capability: "capability",
-  caption: "caption",
   catalog: {
     approval: "catalog.approval",
     cost: "catalog.cost",
@@ -59,8 +42,6 @@ export const strings = {
     title: "catalog.title",
     tokenType: "catalog.tokenType",
   },
-  children: "children",
-  clsx: "clsx",
   common: {
     actions: "common.actions",
     active: "common.active",
@@ -77,7 +58,6 @@ export const strings = {
     search: "common.search",
     status: "common.status",
   },
-  component: "component",
   dashboard: {
     current: "dashboard.current",
     holders: "dashboard.holders",
@@ -85,12 +65,6 @@ export const strings = {
     rewards: "dashboard.rewards",
     tokenTypes: "dashboard.tokenTypes",
   },
-  default: "default",
-  defaultValue: "defaultValue",
-  desc: "desc",
-  description: "description",
-  detail: "detail",
-  dialog: "dialog",
   earning: {
     description: "earning.description",
     empty: "earning.empty",
@@ -107,8 +81,6 @@ export const strings = {
     title: "earning.title",
     tokenType: "earning.tokenType",
   },
-  emptyMessage: "emptyMessage",
-  equals: "equals",
   errorBoundary: {
     message: "errorBoundary.message",
     retry: "errorBoundary.retry",
@@ -132,11 +104,6 @@ export const strings = {
     unimplemented: "errors.unimplemented",
     unknown: "errors.unknown",
   },
-  example: "example",
-  export: "export",
-  field: "field",
-  fixture: "fixture",
-  format: "format",
   grants: {
     allowScope: "grants.allowScope",
     anyScope: "grants.anyScope",
@@ -160,7 +127,6 @@ export const strings = {
     title: "grants.title",
     tokenType: "grants.tokenType",
   },
-  header: "header",
   health: {
     error: "health.error",
     loading: "health.loading",
@@ -219,8 +185,6 @@ export const strings = {
     tableCaption: "holders.tableCaption",
     title: "holders.title",
   },
-  iconName: "iconName",
-  id: "id",
   journal: {
     actor: "journal.actor",
     description: "journal.description",
@@ -236,8 +200,6 @@ export const strings = {
     unverified: "journal.unverified",
     verified: "journal.verified",
   },
-  kind: "kind",
-  label: "label",
   layout: {
     bottomNavLabel: "layout.bottomNavLabel",
     mainLabel: "layout.mainLabel",
@@ -254,11 +216,9 @@ export const strings = {
     },
     sidebarLabel: "layout.sidebarLabel",
   },
-  libraryId: "libraryId",
   locale: {
     switcherLabel: "locale.switcherLabel",
   },
-  "lucide-react": "lucide-react",
   mints: {
     capAmount: "mints.capAmount",
     capped: "mints.capped",
@@ -279,9 +239,6 @@ export const strings = {
     title: "mints.title",
     unbounded: "mints.unbounded",
   },
-  mode: "mode",
-  module: "module",
-  name: "name",
   notifications: {
     summary: "notifications.summary",
     summary_one: "notifications.summary_one",
@@ -298,25 +255,6 @@ export const strings = {
       title: "pages.settings.title",
     },
   },
-  path: "path",
-  placeholder: "placeholder",
-  provenance: "provenance",
-  purpose: "purpose",
-  react: "react",
-  "react-component-library:useEscapeKey": "react-component-library:useEscapeKey",
-  ref: "ref",
-  region: "region",
-  resolvedAt: "resolvedAt",
-  role: "role",
-  schema: "schema",
-  schemaVersion: "schemaVersion",
-  selector: "selector",
-  size: "size",
-  statement: "statement",
-  status: "status",
-  storyRef: "storyRef",
-  "tailwind-merge": "tailwind-merge",
-  testid: "testid",
   theme: {
     choice: {
       dark: "theme.choice.dark",
@@ -325,14 +263,6 @@ export const strings = {
     },
     switcherLabel: "theme.switcherLabel",
   },
-  tier: "tier",
-  title: "title",
-  tone: "tone",
-  true: "true",
-  type: "type",
-  value: "value",
-  variant: "variant",
-  version: "version",
 } as const;
 
 export type Strings = typeof strings;

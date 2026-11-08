@@ -26,14 +26,16 @@ func Register(core *cliapp.ScenarioApp) cliapp.SubcommandGroup {
 		{Name: "conformance-plan", Description: "Show the generated-app Android conformance chapters", NeedsAPI: true, RunCtx: get(core, "/android/conformance-plan")},
 		{Name: "readiness", Description: "Show the six-rung Google release readiness ladder", NeedsAPI: true, RunCtx: get(core, "/android/readiness")},
 		{Name: "distribution", Description: "Show independent Play, sideload, and ADB channels", NeedsAPI: true, RunCtx: get(core, "/android/distribution")},
-		{Name: "matrix-catalog", Description: "Show the durable Android validation catalog", NeedsAPI: true, RunCtx: get(core, "/validation/catalog?scenario=hello-mobile")},
-		{Name: "matrix-list", Description: "List durable Android validation runs", NeedsAPI: true, RunCtx: get(core, "/validation/matrices?scenario=hello-mobile")},
+		{Name: "artifact-list", Description: "List recent Android artifacts without exposing storage paths", NeedsAPI: true, RunCtx: get(core, "/android/artifacts")},
+		{Name: "matrix-catalog", Description: "Show the durable Android validation catalog", NeedsAPI: true, Args: scenarioArgs, RunCtx: scenarioGet(core, "/validation/catalog")},
+		{Name: "matrix-list", Description: "List durable Android validation runs", NeedsAPI: true, Args: scenarioArgs, RunCtx: scenarioGet(core, "/validation/matrices")},
+		{Name: "matrix-get", Description: "Read one durable Android validation run", NeedsAPI: true, Args: matrixRunArgs, RunCtx: matrixGet(core)},
 		{Name: "matrix-create", Description: "Create a normal-profile Android validation matrix", NeedsAPI: true, RunCtx: matrixCreate(core)},
-		{Name: "matrix-start", Description: "Start a server-owned Android validation matrix", NeedsAPI: true, RunCtx: matrixAction(core, "start")},
-		{Name: "matrix-abort", Description: "Cancel a matrix and wait for its owner to persist a terminal state", NeedsAPI: true, RunCtx: matrixAbort(core)},
-		{Name: "matrix-wait", Description: "Wait for a server-owned Android validation matrix", NeedsAPI: true, RunCtx: matrixWait(core)},
-		{Name: "compare", Description: "Compare two durable Android validation matrix runs", NeedsAPI: true, RunCtx: matrixCompare(core)},
-		{Name: "matrix-rerun-failed", Description: "Rerun failed Android validation cells", NeedsAPI: true, RunCtx: matrixRerun(core)},
+		{Name: "matrix-start", Description: "Start a server-owned Android validation matrix", NeedsAPI: true, Args: matrixRunArgs, RunCtx: matrixAction(core, "start")},
+		{Name: "matrix-abort", Description: "Cancel a matrix and wait for its owner to persist a terminal state", NeedsAPI: true, Args: matrixRunArgs, RunCtx: matrixAbort(core)},
+		{Name: "matrix-wait", Description: "Wait for a server-owned Android validation matrix", NeedsAPI: true, Args: matrixRunArgs, RunCtx: matrixWait(core)},
+		{Name: "compare", Description: "Compare two durable Android validation matrix runs", NeedsAPI: true, Args: matrixCompareArgs, RunCtx: matrixCompare(core)},
+		{Name: "matrix-rerun-failed", Description: "Rerun failed Android validation cells", NeedsAPI: true, Args: matrixRunArgs, RunCtx: matrixRerun(core)},
 		{Name: "evidence-paths", Description: "Print the absolute physical and emulator evidence paths", NeedsAPI: false, RunCtx: evidencePaths},
 	}}
 }
@@ -70,7 +72,7 @@ func signingProvision(core *cliapp.ScenarioApp) func(cliapp.RunContext) error {
 		if err != nil {
 			return fmt.Errorf("provision Android signing identity: %w", err)
 		}
-		return ctx.RenderOperational(cliapp.OperationalReport{Status: []string{strings.TrimSpace(string(response))}, NextSteps: []string{"Use ANDROID_SIGNING=required with android build after provisioning."}})
+		return renderAPIBody(ctx, response, nil, "Use ANDROID_SIGNING=required with android build after provisioning.")
 	}
 }
 
@@ -84,7 +86,7 @@ func generate(core *cliapp.ScenarioApp) func(cliapp.RunContext) error {
 		if err != nil {
 			return fmt.Errorf("generate Android project: %w", err)
 		}
-		return ctx.RenderOperational(cliapp.OperationalReport{Status: []string{strings.TrimSpace(string(response))}, NextSteps: []string{"Use the reported project_path as the input to local inspection or android build."}})
+		return renderAPIBody(ctx, response, nil, "Use the reported project_path as the input to local inspection or android build.")
 	}
 }
 
@@ -98,7 +100,7 @@ func build(core *cliapp.ScenarioApp) func(cliapp.RunContext) error {
 		if err != nil {
 			return fmt.Errorf("build Android artifact: %w", err)
 		}
-		return ctx.RenderOperational(cliapp.OperationalReport{Status: []string{strings.TrimSpace(string(response))}, NextSteps: []string{"Use the returned APK checksum when creating an Android validation matrix."}})
+		return renderAPIBody(ctx, response, nil, "Use the returned APK checksum when creating an Android validation matrix.")
 	}
 }
 
@@ -138,10 +140,12 @@ func matrixSelectionRequest(digest, artifactPath string, metadata map[string]str
 	request := map[string]any{
 		"scenario_name":        metadata["scenario_name"],
 		"artifact_digest":      digest,
-		"artifact_path":        artifactPath,
 		"environment_profiles": []int{1},
 		"max_concurrency":      1,
 		"metadata":             metadata,
+	}
+	if artifactPath = strings.TrimSpace(artifactPath); artifactPath != "" {
+		request["artifact_path"] = artifactPath
 	}
 	if target != nil {
 		request["targets"] = []map[string]any{target}
@@ -188,6 +192,9 @@ func withAuthProfile(metadata map[string]string, profileID string) map[string]st
 func matrixArtifactMetadata(digest, immutableRef, packageOverride, scenarioName string, artifact artifactDescriptor) (map[string]string, error) {
 	digest = strings.TrimSpace(digest)
 	checksum := "sha256:" + strings.TrimPrefix(digest, "sha256:")
+	if digest == "" {
+		checksum = strings.TrimSpace(artifact.Checksum)
+	}
 	immutableRef = strings.TrimSpace(immutableRef)
 	if !validImmutableRefForDigest(immutableRef, checksum) || artifact.ImmutableRef != immutableRef || artifact.Checksum != checksum {
 		return nil, fmt.Errorf("Android artifact metadata does not match the requested immutable ref and digest")
@@ -414,12 +421,7 @@ func runJourney(core *cliapp.ScenarioApp, mode string) func(cliapp.RunContext) e
 		if err != nil {
 			return fmt.Errorf("wait for Android validation matrix %s: %w", matrix.RunID, err)
 		}
-		return ctx.RenderOperational(cliapp.OperationalReport{
-			Status: []string{strings.TrimSpace(string(result))},
-			NextSteps: []string{
-				"Review the returned physical cell, correlated timeline, and review_recording_path before promoting the verdict.",
-			},
-		})
+		return renderAPIBody(ctx, result, nil, "Review the returned physical cell, correlated timeline, and review_recording_path before promoting the verdict.")
 	}
 }
 
@@ -470,17 +472,32 @@ func validImmutableRefForDigest(ref, checksum string) bool {
 
 func matrixCompare(core *cliapp.ScenarioApp) func(cliapp.RunContext) error {
 	return func(ctx cliapp.RunContext) error {
-		current := strings.TrimSpace(getenv("ANDROID_MATRIX_RUN_ID"))
-		prior := strings.TrimSpace(getenv("ANDROID_PRIOR_MATRIX_RUN_ID"))
+		current := firstNonEmpty(ctx.Positional("run_id"), getenv("ANDROID_MATRIX_RUN_ID"))
+		prior := firstNonEmpty(ctx.Positional("prior_run_id"), getenv("ANDROID_PRIOR_MATRIX_RUN_ID"))
 		if current == "" || prior == "" {
-			return fmt.Errorf("ANDROID_MATRIX_RUN_ID and ANDROID_PRIOR_MATRIX_RUN_ID are required")
+			return fmt.Errorf("compare needs <run_id> <prior_run_id> (or ANDROID_MATRIX_RUN_ID and ANDROID_PRIOR_MATRIX_RUN_ID)")
 		}
 		path := "/validation/matrices/" + url.PathEscape(current) + "/compare/" + url.PathEscape(prior)
 		body, err := core.Get(path, nil)
 		if err != nil {
 			return fmt.Errorf("compare Android matrices: %w", err)
 		}
-		return ctx.RenderOperational(cliapp.OperationalReport{Status: []string{strings.TrimSpace(string(body))}, NextSteps: []string{"Inspect changed cells and evidence counts before promoting a release gate."}})
+		return renderAPIBody(ctx, body, nil, "Inspect changed cells and evidence counts before promoting a release gate.")
+	}
+}
+
+func matrixGet(core *cliapp.ScenarioApp) func(cliapp.RunContext) error {
+	return func(ctx cliapp.RunContext) error {
+		id, err := matrixRunID(ctx)
+		if err != nil {
+			return err
+		}
+		path := "/validation/matrices/" + url.PathEscape(id)
+		body, err := core.Get(path, nil)
+		if err != nil {
+			return fmt.Errorf("get Android matrix: %w", err)
+		}
+		return renderAPIBody(ctx, body, nil, "Use matrix-wait when you need to block until the owner persists a terminal state.")
 	}
 }
 
@@ -490,27 +507,22 @@ func get(core *cliapp.ScenarioApp, path string) func(cliapp.RunContext) error {
 		if err != nil {
 			return fmt.Errorf("get %s: %w", path, err)
 		}
-		text := strings.TrimSpace(string(body))
-		if text == "" {
-			text = "{}"
-		}
-		return ctx.RenderOperational(cliapp.OperationalReport{Status: []string{text}, NextSteps: []string{"Use the next action reported by the Android ramp before attempting a release."}})
+		return renderAPIBody(ctx, body, nil, "Use the next action reported by the Android ramp before attempting a release.")
 	}
 }
 
 func matrixCreate(core *cliapp.ScenarioApp) func(cliapp.RunContext) error {
 	return func(ctx cliapp.RunContext) error {
 		digest := strings.TrimSpace(getenv("ANDROID_ARTIFACT_DIGEST"))
-		if digest == "" {
-			return fmt.Errorf("ANDROID_ARTIFACT_DIGEST is required")
-		}
-		artifactPath := strings.TrimSpace(getenv("ANDROID_ARTIFACT_PATH"))
-		if artifactPath == "" {
-			return fmt.Errorf("ANDROID_ARTIFACT_PATH is required for an Android matrix run")
-		}
-		metadata, err := resolveMatrixArtifactMetadata(core, digest, getenv("ANDROID_ARTIFACT_REF"), getenv("ANDROID_ARTIFACT_PACKAGE"), getenv("ANDROID_ARTIFACT_SCENARIO"))
+		artifactRef := strings.TrimSpace(getenv("ANDROID_ARTIFACT_REF"))
+		metadata, err := resolveMatrixArtifactMetadata(core, digest, artifactRef, getenv("ANDROID_ARTIFACT_PACKAGE"), getenv("ANDROID_ARTIFACT_SCENARIO"))
 		if err != nil {
 			return err
+		}
+		if digest == "" {
+			digest = "sha256:" + strings.SplitN(artifactRef, ":", 2)[1]
+		} else {
+			digest = "sha256:" + strings.TrimPrefix(digest, "sha256:")
 		}
 		metadata = withAuthProfile(metadata, getenv("ANDROID_AUTH_PROFILE_ID"))
 		journeys, err := selectedJourneyIDs(getenv("ANDROID_JOURNEY_IDS"))
@@ -529,37 +541,37 @@ func matrixCreate(core *cliapp.ScenarioApp) func(cliapp.RunContext) error {
 			}
 			target = selected
 		}
-		selection := matrixSelectionRequest(digest, artifactPath, metadata, target)
+		selection := matrixSelectionRequest(digest, "", metadata, target)
 		if len(journeys) > 0 {
 			selection["journeys"] = journeys
 		}
-		body, err := core.Request("POST", "/validation/matrices", nil, selection)
+		body, err := core.Request("POST", "/android/matrices", nil, map[string]any{"artifact_ref": artifactRef, "selection": selection})
 		if err != nil {
 			return fmt.Errorf("create Android matrix: %w", err)
 		}
-		return ctx.RenderOperational(cliapp.OperationalReport{Status: []string{strings.TrimSpace(string(body))}, NextSteps: []string{"Run vrooli scenario-to-android android matrix-start with ANDROID_MATRIX_RUN_ID from this response."}})
+		return renderAPIBody(ctx, body, nil, "Start it with `scenario-to-android android matrix-start <run_id>` using the run_id in this response.")
 	}
 }
 
 func matrixAction(core *cliapp.ScenarioApp, action string) func(cliapp.RunContext) error {
 	return func(ctx cliapp.RunContext) error {
-		id := strings.TrimSpace(getenv("ANDROID_MATRIX_RUN_ID"))
-		if id == "" {
-			return fmt.Errorf("ANDROID_MATRIX_RUN_ID is required")
+		id, err := matrixRunID(ctx)
+		if err != nil {
+			return err
 		}
 		body, err := core.Request("POST", "/validation/matrices/"+url.PathEscape(id)+"/"+action, nil, nil)
 		if err != nil {
 			return fmt.Errorf("matrix %s: %w", action, err)
 		}
-		return ctx.RenderOperational(cliapp.OperationalReport{Status: []string{strings.TrimSpace(string(body))}, NextSteps: []string{"Use matrix-wait after the server-owned run completes."}})
+		return renderAPIBody(ctx, body, nil, "Use matrix-wait after the server-owned run completes.")
 	}
 }
 
 func matrixAbort(core *cliapp.ScenarioApp) func(cliapp.RunContext) error {
 	return func(ctx cliapp.RunContext) error {
-		id := strings.TrimSpace(getenv("ANDROID_MATRIX_RUN_ID"))
-		if id == "" {
-			return fmt.Errorf("ANDROID_MATRIX_RUN_ID is required")
+		id, err := matrixRunID(ctx)
+		if err != nil {
+			return err
 		}
 		path := "/validation/matrices/" + url.PathEscape(id)
 		if _, err := core.Request("POST", path+"/abort", nil, nil); err != nil {
@@ -569,35 +581,35 @@ func matrixAbort(core *cliapp.ScenarioApp) func(cliapp.RunContext) error {
 		if err != nil {
 			return fmt.Errorf("wait for aborted Android matrix: %w", err)
 		}
-		return ctx.RenderOperational(cliapp.OperationalReport{Status: []string{strings.TrimSpace(string(body)), "Owner persisted the terminal matrix state."}, NextSteps: []string{"Inspect cell evidence and the fail-closed gate in the run review surface."}})
+		return renderAPIBody(ctx, body, []string{"Owner persisted the terminal matrix state."}, "Inspect cell evidence and the fail-closed gate in the run review surface.")
 	}
 }
 
 func matrixWait(core *cliapp.ScenarioApp) func(cliapp.RunContext) error {
 	return func(ctx cliapp.RunContext) error {
-		id := strings.TrimSpace(getenv("ANDROID_MATRIX_RUN_ID"))
-		if id == "" {
-			return fmt.Errorf("ANDROID_MATRIX_RUN_ID is required")
+		id, err := matrixRunID(ctx)
+		if err != nil {
+			return err
 		}
 		body, err := core.GetWithoutTimeout("/validation/matrices/"+url.PathEscape(id)+"/wait", nil)
 		if err != nil {
 			return fmt.Errorf("wait for Android matrix: %w", err)
 		}
-		return ctx.RenderOperational(cliapp.OperationalReport{Status: []string{strings.TrimSpace(string(body))}, NextSteps: []string{"Inspect cell evidence and the fail-closed gate in the run review surface."}})
+		return renderAPIBody(ctx, body, nil, "Inspect cell evidence and the fail-closed gate in the run review surface.")
 	}
 }
 
 func matrixRerun(core *cliapp.ScenarioApp) func(cliapp.RunContext) error {
 	return func(ctx cliapp.RunContext) error {
-		id := strings.TrimSpace(getenv("ANDROID_MATRIX_RUN_ID"))
-		if id == "" {
-			return fmt.Errorf("ANDROID_MATRIX_RUN_ID is required")
+		id, err := matrixRunID(ctx)
+		if err != nil {
+			return err
 		}
 		body, err := core.Request("POST", "/validation/matrices/"+url.PathEscape(id)+"/rerun", nil, map[string]string{"kind": "failed"})
 		if err != nil {
 			return fmt.Errorf("rerun Android matrix: %w", err)
 		}
-		return ctx.RenderOperational(cliapp.OperationalReport{Status: []string{strings.TrimSpace(string(body))}, NextSteps: []string{"Start the returned server-owned run."}})
+		return renderAPIBody(ctx, body, nil, "Start the returned server-owned run.")
 	}
 }
 

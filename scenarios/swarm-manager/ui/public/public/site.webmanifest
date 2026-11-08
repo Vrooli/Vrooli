@@ -1,0 +1,24 @@
+{
+  "background_color": "#020617",
+  "description": "Swarm Manager orchestrates backlog work, execution control, and lifecycle governance across the Vrooli ecosystem.",
+  "display": "standalone",
+  "icons": [
+    {
+      "purpose": "any maskable",
+      "sizes": "192x192",
+      "src": "manifest-icon-192.maskable.png",
+      "type": "image/png"
+    },
+    {
+      "purpose": "any maskable",
+      "sizes": "512x512",
+      "src": "manifest-icon-512.maskable.png",
+      "type": "image/png"
+    }
+  ],
+  "name": "Swarm Manager",
+  "scope": "../",
+  "short_name": "Swarm",
+  "start_url": "../",
+  "theme_color": "#0f172a"
+}

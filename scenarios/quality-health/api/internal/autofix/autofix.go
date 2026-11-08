@@ -455,7 +455,14 @@ func fixedMakefile(path string, node, goMod bool) (string, string, bool, error) 
 		return "", "", false, err
 	}
 	before := string(raw)
+	// Judge completeness on the resolved targets so a recipe inherited from
+	// mk/scenario.mk is never re-added as a copied body.
 	targets := parseMakefileTargets(before)
+	if err == nil {
+		if resolved, resolveErr := rules.ResolveMakefileTargets(path); resolveErr == nil {
+			targets = resolved
+		}
+	}
 	additions := []string{}
 	if node {
 		if !targetRuns(targets, "fmt-ui", "lint:fix") {

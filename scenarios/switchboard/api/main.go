@@ -122,7 +122,7 @@ func main() {
 		return ""
 	}
 	reply := dispatch.PersistingReply(threadStore, router.Send, agentFor)
-	processor := &dispatch.Processor{Ingress: ingress.New(), Threads: threadStore, Runner: dispatch.AgentManagerRunner{BaseURL: agentManagerURL, Threads: threadStore, Send: reply}, Send: reply, Grants: roster}
+	processor := &dispatch.Processor{Ingress: ingress.New(), Threads: threadStore, Runner: dispatch.AgentManagerRunner{BaseURL: agentManagerURL, Threads: threadStore, Send: reply, Identity: authVerifier}, Send: reply, Grants: roster}
 	channelDeps := channelsH.ModuleDeps{Registry: channelRegistry, Facts: hostFacts, DB: db.Primary(), Egress: router, Processor: processor, Gates: gateStore, Identity: authVerifier, Contacts: contactStore, Threads: threadStore}
 	stopChannels := channelsH.Start(context.Background(), channelDeps, log.Printf)
 	consoleDeps := consoleH.Deps{

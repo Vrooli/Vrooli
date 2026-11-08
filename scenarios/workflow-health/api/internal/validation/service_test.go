@@ -43,13 +43,18 @@ func TestEngineAllowsSelectorsDeclaredByExperienceBindings(t *testing.T) {
 	profile := &readinessProfile{Pages: []readinessPage{{Regions: []readinessRegion{{}}}}}
 	profile.Pages[0].Regions[0].Binding.Selector = "[data-testid='project-list']"
 	engine := NewEngine()
-	engine.ReadinessFetcher = func(context.Context, string) (*readinessProfile, error) {
+	var requestedPath string
+	engine.ReadinessFetcher = func(_ context.Context, _, scenarioPath string) (*readinessProfile, error) {
+		requestedPath = scenarioPath
 		return profile, nil
 	}
 
 	report, err := engine.ValidateScenario(t.Context(), "", root)
 	require.NoError(t, err)
 	require.NotContains(t, findingCodes(report.Findings), CodeSelectorUnregistered)
+	// The profile is compiled from the validated scenario's own directory, so an
+	// isolated workspace never resolves against the host repository.
+	require.Equal(t, report.TargetPath, requestedPath)
 }
 
 func TestBuildMaturityAssessmentUsesWorkflowSpec(t *testing.T) {

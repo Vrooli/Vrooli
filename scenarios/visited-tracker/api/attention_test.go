@@ -42,6 +42,50 @@ func attentionFixture(t *testing.T, count int) (*Campaign, time.Time) {
 	return c, now
 }
 
+func TestAttentionReportsUnreviewedProgressWithoutChangingRevisitEligibility(t *testing.T) {
+	c, _ := attentionFixture(t, 2)
+	rpc := &attentionRPC{}
+	ctx := context.Background()
+
+	preview, err := rpc.Preview(ctx, connect.NewRequest(&attentionv1.PreviewRequest{CampaignId: c.ID.String(), Limit: 10}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if preview.Msg.UnreviewedCount == nil || *preview.Msg.UnreviewedCount != 2 || preview.Msg.EligibleCount != 2 {
+		t.Fatalf("initial progress: unreviewed=%v eligible=%d, want 2/2", preview.Msg.UnreviewedCount, preview.Msg.EligibleCount)
+	}
+
+	claim, err := rpc.Claim(ctx, connect.NewRequest(&attentionv1.ClaimRequest{CampaignId: c.ID.String(), RequestId: "first", Worker: "worker", TtlSeconds: 600}))
+	if err != nil || claim.Msg.Claim == nil || claim.Msg.UnreviewedCount == nil || *claim.Msg.UnreviewedCount != 2 {
+		t.Fatalf("first claim progress: response=%+v err=%v", claim, err)
+	}
+	completed, err := rpc.Complete(ctx, connect.NewRequest(&attentionv1.CompleteRequest{CampaignId: c.ID.String(), ClaimId: claim.Msg.Claim.Id, Worker: "worker", Outcome: "reviewed", Evidence: "first pass"}))
+	if err != nil || completed.Msg.UnreviewedCount == nil || *completed.Msg.UnreviewedCount != 1 {
+		t.Fatalf("after first review: response=%+v err=%v, want unreviewed=1", completed, err)
+	}
+
+	claim, err = rpc.Claim(ctx, connect.NewRequest(&attentionv1.ClaimRequest{CampaignId: c.ID.String(), RequestId: "second", Worker: "worker", TtlSeconds: 600}))
+	if err != nil || claim.Msg.Claim == nil {
+		t.Fatalf("second claim: response=%+v err=%v", claim, err)
+	}
+	completed, err = rpc.Complete(ctx, connect.NewRequest(&attentionv1.CompleteRequest{CampaignId: c.ID.String(), ClaimId: claim.Msg.Claim.Id, Worker: "worker", Outcome: "reviewed", Evidence: "second pass"}))
+	if err != nil || completed.Msg.UnreviewedCount == nil || *completed.Msg.UnreviewedCount != 0 {
+		t.Fatalf("after first sweep: response=%+v err=%v, want unreviewed=0", completed, err)
+	}
+
+	preview, err = rpc.Preview(ctx, connect.NewRequest(&attentionv1.PreviewRequest{CampaignId: c.ID.String(), Limit: 10}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if preview.Msg.UnreviewedCount == nil || *preview.Msg.UnreviewedCount != 0 || preview.Msg.EligibleCount != 2 {
+		t.Fatalf("completed sweep must still allow future revisits: unreviewed=%v eligible=%d, want 0/2", preview.Msg.UnreviewedCount, preview.Msg.EligibleCount)
+	}
+	claim, err = rpc.Claim(ctx, connect.NewRequest(&attentionv1.ClaimRequest{CampaignId: c.ID.String(), RequestId: "revisit", Worker: "worker", TtlSeconds: 600}))
+	if err != nil || claim.Msg.Claim == nil || claim.Msg.NoWork || claim.Msg.UnreviewedCount == nil || *claim.Msg.UnreviewedCount != 0 {
+		t.Fatalf("reviewed files must remain claimable for attention: response=%+v err=%v", claim, err)
+	}
+}
+
 // [REQ:VT-REQ-024] Concurrent workers must never own the same file revision.
 func TestAttentionConcurrentClaimsAndReplay(t *testing.T) {
 	c, now := attentionFixture(t, 8)
@@ -52,7 +96,7 @@ func TestAttentionConcurrentClaimsAndReplay(t *testing.T) {
 		wg.Add(1)
 		go func(i int) {
 			defer wg.Done()
-			r, e := claimAttention(context.Background(), c.ID, fmt.Sprint(i), fmt.Sprint(i), 600, now)
+			r, _, e := claimAttention(context.Background(), c.ID, fmt.Sprint(i), fmt.Sprint(i), 600, now)
 			results <- r
 			errs <- e
 		}(i)
@@ -71,7 +115,7 @@ func TestAttentionConcurrentClaimsAndReplay(t *testing.T) {
 			t.Fatalf("duplicate or missing claim: %+v", r)
 		}
 		seen[r.FileID] = true
-		replay, err := claimAttention(context.Background(), c.ID, r.RequestID, r.Worker, 600, now.Add(time.Hour))
+		replay, _, err := claimAttention(context.Background(), c.ID, r.RequestID, r.Worker, 600, now.Add(time.Hour))
 		if err != nil || replay.ID != r.ID {
 			t.Fatalf("retry allocated new work: %+v %v", replay, err)
 		}
@@ -83,7 +127,7 @@ func TestAttentionCompletionGuardsAndIdempotency(t *testing.T) {
 	for _, mode := range []string{"changed", "expired", "wrong-worker", "reviewed", "incomplete", "skipped", "excluded"} {
 		t.Run(mode, func(t *testing.T) {
 			c, now := attentionFixture(t, 1)
-			r, err := claimAttention(context.Background(), c.ID, "request", "worker", 60, now)
+			r, _, err := claimAttention(context.Background(), c.ID, "request", "worker", 60, now)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -111,12 +155,12 @@ func TestAttentionCompletionGuardsAndIdempotency(t *testing.T) {
 				outcome = mode
 				evidence = ""
 			}
-			_, err = completeAttention(context.Background(), c.ID, r.ID, worker, outcome, evidence, now)
+			_, _, err = completeAttention(context.Background(), c.ID, r.ID, worker, outcome, evidence, now)
 			if !errors.Is(err, expected) {
 				t.Fatalf("got %v, want %v", err, expected)
 			}
 			if expected == nil {
-				if _, err := completeAttention(context.Background(), c.ID, r.ID, worker, outcome, evidence, now.Add(time.Hour)); err != nil {
+				if _, _, err := completeAttention(context.Background(), c.ID, r.ID, worker, outcome, evidence, now.Add(time.Hour)); err != nil {
 					t.Fatal(err)
 				}
 			}
@@ -167,11 +211,11 @@ func TestCampaignConcurrentTransactionsAndStaleSave(t *testing.T) {
 // [REQ:VT-REQ-027] Refresh preserves unique moves and invalidates changed revisions.
 func TestAttentionRevisionAndRename(t *testing.T) {
 	c, now := attentionFixture(t, 1)
-	r, err := claimAttention(context.Background(), c.ID, "r", "w", 600, now)
+	r, _, err := claimAttention(context.Background(), c.ID, "r", "w", 600, now)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := completeAttention(context.Background(), c.ID, r.ID, "w", "reviewed", "evidence", now); err != nil {
+	if _, _, err := completeAttention(context.Background(), c.ID, r.ID, "w", "reviewed", "evidence", now); err != nil {
 		t.Fatal(err)
 	}
 	c, err = loadCampaign(c.ID)
@@ -227,19 +271,19 @@ func TestAttentionPreviewReadOnlyAndBounds(t *testing.T) {
 // [REQ:VT-REQ-024] Expiry releases ownership but never certifies abandoned work.
 func TestAttentionExpiryRecovery(t *testing.T) {
 	c, now := attentionFixture(t, 1)
-	first, err := claimAttention(context.Background(), c.ID, "first", "one", 60, now)
+	first, _, err := claimAttention(context.Background(), c.ID, "first", "one", 60, now)
 	if err != nil {
 		t.Fatal(err)
 	}
-	held, err := claimAttention(context.Background(), c.ID, "second", "two", 60, now)
+	held, _, err := claimAttention(context.Background(), c.ID, "second", "two", 60, now)
 	if err != nil || held != nil {
 		t.Fatalf("live ownership not exclusive: %+v %v", held, err)
 	}
-	next, err := claimAttention(context.Background(), c.ID, "second", "two", 60, now.Add(time.Minute))
+	next, _, err := claimAttention(context.Background(), c.ID, "second", "two", 60, now.Add(time.Minute))
 	if err != nil || next == nil || next.ID == first.ID {
 		t.Fatalf("expired ownership not recovered: %+v %v", next, err)
 	}
-	if _, err := completeAttention(context.Background(), c.ID, first.ID, "one", "reviewed", "late", now.Add(time.Minute)); !errors.Is(err, ErrClaimExpired) {
+	if _, _, err := completeAttention(context.Background(), c.ID, first.ID, "one", "reviewed", "late", now.Add(time.Minute)); !errors.Is(err, ErrClaimExpired) {
 		t.Fatalf("expired owner accepted: %v", err)
 	}
 	stored, err := loadCampaign(c.ID)
@@ -250,14 +294,14 @@ func TestAttentionExpiryRecovery(t *testing.T) {
 
 func TestAttentionArchivesTerminalClaimsAndPreservesReplay(t *testing.T) {
 	c, now := attentionFixture(t, 1)
-	first, err := claimAttention(context.Background(), c.ID, "first", "one", 60, now)
+	first, _, err := claimAttention(context.Background(), c.ID, "first", "one", 60, now)
 	if err != nil || first == nil {
 		t.Fatalf("initial claim: %+v %v", first, err)
 	}
-	if _, err := completeAttention(context.Background(), c.ID, first.ID, "one", "incomplete", "", now); err != nil {
+	if _, _, err := completeAttention(context.Background(), c.ID, first.ID, "one", "incomplete", "", now); err != nil {
 		t.Fatalf("complete: %v", err)
 	}
-	second, err := claimAttention(context.Background(), c.ID, "second", "two", 60, now.Add(time.Second))
+	second, _, err := claimAttention(context.Background(), c.ID, "second", "two", 60, now.Add(time.Second))
 	if err != nil || second == nil {
 		t.Fatalf("claim after terminal archive: %+v %v", second, err)
 	}
@@ -268,11 +312,11 @@ func TestAttentionArchivesTerminalClaimsAndPreservesReplay(t *testing.T) {
 	if len(stored.Claims) != 1 || len(stored.ArchivedClaims) != 1 || stored.ArchivedClaims[0].ID != first.ID {
 		t.Fatalf("terminal claim was not archived: active=%d archived=%d", len(stored.Claims), len(stored.ArchivedClaims))
 	}
-	replay, err := claimAttention(context.Background(), c.ID, "first", "one", 60, now.Add(2*time.Second))
+	replay, _, err := claimAttention(context.Background(), c.ID, "first", "one", 60, now.Add(2*time.Second))
 	if err != nil || replay == nil || replay.ID != first.ID || replay.Outcome != "incomplete" {
 		t.Fatalf("archived replay changed identity: %+v %v", replay, err)
 	}
-	if _, err := completeAttention(context.Background(), c.ID, first.ID, "one", "reviewed", "late", now.Add(2*time.Second)); !errors.Is(err, ErrClaimExpired) {
+	if _, _, err := completeAttention(context.Background(), c.ID, first.ID, "one", "reviewed", "late", now.Add(2*time.Second)); !errors.Is(err, ErrClaimExpired) {
 		t.Fatalf("archived claim accepted new completion: %v", err)
 	}
 }
@@ -287,7 +331,7 @@ func TestAttentionPreviewReportsFairnessTelemetry(t *testing.T) {
 	}); err != nil {
 		t.Fatal(err)
 	}
-	claim, err := claimAttention(context.Background(), c.ID, "claim", "worker", 600, now)
+	claim, _, err := claimAttention(context.Background(), c.ID, "claim", "worker", 600, now)
 	if err != nil || claim == nil {
 		t.Fatalf("claim: %+v %v", claim, err)
 	}
@@ -458,7 +502,7 @@ func TestAttentionCancelledLockWaitDoesNotMutateCampaign(t *testing.T) {
 		t.Fatalf("cancelled waiter wrote campaign: %+v", current)
 	}
 	release()
-	if _, err := claimAttention(context.Background(), c.ID, "next", "worker", 60, now); err != nil {
+	if _, _, err := claimAttention(context.Background(), c.ID, "next", "worker", 60, now); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -472,15 +516,15 @@ func TestAttentionExplorationBoundsRepeatedIncompleteWork(t *testing.T) {
 	selected := map[uuid.UUID]bool{}
 	for i := 0; i < 4*len(c.TrackedFiles); i++ {
 		request := fmt.Sprintf("attempt-%d", i)
-		claim, err := claimAttention(context.Background(), c.ID, request, "worker", 60, now)
+		claim, _, err := claimAttention(context.Background(), c.ID, request, "worker", 60, now)
 		if err != nil || claim == nil {
 			t.Fatalf("claim: %+v %v", claim, err)
 		}
 		selected[claim.FileID] = true
-		if _, err := claimAttention(context.Background(), c.ID, request, "worker", 60, now); err != nil {
+		if _, _, err := claimAttention(context.Background(), c.ID, request, "worker", 60, now); err != nil {
 			t.Fatal(err)
 		}
-		if _, err := completeAttention(context.Background(), c.ID, claim.ID, "worker", "incomplete", "", now); err != nil {
+		if _, _, err := completeAttention(context.Background(), c.ID, claim.ID, "worker", "incomplete", "", now); err != nil {
 			t.Fatal(err)
 		}
 	}

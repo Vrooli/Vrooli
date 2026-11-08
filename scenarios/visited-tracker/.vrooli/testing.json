@@ -124,7 +124,8 @@
               "text",
               "json-summary",
               "json"
-            ]
+            ],
+            "committed": {"lines": 85, "statements": 85, "functions": 85, "branches": 85}
           },
           "test_utils": {
             "required_roots": [

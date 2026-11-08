@@ -13,7 +13,10 @@ import (
 	walletpkg "treasury/internal/wallet"
 )
 
-var ErrPersist = errors.New("Base receipt evidence could not be retained")
+var (
+	ErrPersist            = errors.New("Base receipt evidence could not be retained")
+	ErrPriorCheckNotFound = errors.New("verified Base receipt check not found in this operator, wallet, and transaction scope")
+)
 
 var atomicAmountPattern = regexp.MustCompile(`^[1-9][0-9]*$`)
 
@@ -36,6 +39,25 @@ func NewService(store Store, verifier Verification, providerID string, now func(
 }
 
 func (s *Service) Verify(ctx context.Context, operator string, wallet walletpkg.Wallet, transactionHash string) (Check, error) {
+	return s.verify(ctx, operator, wallet, transactionHash, nil)
+}
+
+func (s *Service) Recheck(ctx context.Context, operator string, wallet walletpkg.Wallet, transactionHash, priorCheckID string) (Check, error) {
+	if s == nil || s.store == nil || operator == "" || wallet.OperatorIdentity != operator || wallet.ID == "" || wallet.Network != Network || !evHash.MatchString(transactionHash) || strings.TrimSpace(priorCheckID) == "" {
+		return Check{}, errors.New("operator-bound Base wallet, transaction hash, and prior check are required")
+	}
+	canonicalHash := strings.ToLower(transactionHash)
+	prior, err := s.store.GetPriorVerified(ctx, operator, wallet.ID, wallet.Network, canonicalHash, priorCheckID)
+	if err != nil {
+		return Check{}, err
+	}
+	if prior.OperatorIdentity != operator || prior.WalletID != wallet.ID || prior.Network != wallet.Network || prior.TransactionHash != canonicalHash || prior.Outcome != "verified" || prior.ProviderID == "" || !validObservations(wallet, canonicalHash, prior.ProviderID, prior.Transfers) {
+		return Check{}, ErrPriorCheckNotFound
+	}
+	return s.verify(ctx, operator, wallet, canonicalHash, &prior)
+}
+
+func (s *Service) verify(ctx context.Context, operator string, wallet walletpkg.Wallet, transactionHash string, prior *Check) (Check, error) {
 	if s == nil || s.store == nil || s.verifier == nil || s.provider == "" || operator == "" || wallet.OperatorIdentity != operator || wallet.ID == "" || wallet.Network != Network || !evHash.MatchString(transactionHash) {
 		return Check{}, errors.New("operator-bound Base wallet, transaction hash, and receipt service are required")
 	}
@@ -54,17 +76,61 @@ func (s *Service) Verify(ctx context.Context, operator string, wallet walletpkg.
 		TransactionHash: canonicalHash, ProviderID: s.provider, CheckedAt: checkedAt,
 		Transfers: transfers,
 	}
+	if prior != nil {
+		check.PriorCheckID = prior.ID
+	}
 	if verifyErr == nil {
 		check.Outcome = "verified"
+		if prior != nil {
+			check.Relation = recheckRelation(*prior, transfers)
+			if check.Relation == "provider_observation_changed" {
+				check.Outcome = check.Relation
+			}
+		}
 	} else {
 		check.ErrorCode = errorCode(verifyErr)
 		check.Outcome = check.ErrorCode
 		check.Transfers = nil
+		if prior != nil {
+			switch {
+			case errors.Is(verifyErr, ErrNotCanonical):
+				check.Relation = "provider_reports_not_canonical"
+				check.Outcome = check.Relation
+			case errors.Is(verifyErr, ErrPending):
+				check.Relation = "provider_reports_pending"
+			default:
+				check.Relation = "provider_check_failed"
+			}
+		}
 	}
 	if err := s.store.Append(ctx, check); err != nil {
 		return Check{}, fmt.Errorf("%w: %v", ErrPersist, err)
 	}
 	return check, verifyErr
+}
+
+func recheckRelation(prior Check, current []Observation) string {
+	priorByKey := make(map[string]Observation, len(prior.Transfers))
+	for _, value := range prior.Transfers {
+		priorByKey[value.EconomicKey] = value
+	}
+	if len(priorByKey) == 0 || len(priorByKey) != len(current) {
+		return "provider_observation_changed"
+	}
+	reincluded := false
+	for _, value := range current {
+		old, ok := priorByKey[value.EconomicKey]
+		if !ok || old.AssetID != value.AssetID || old.Decimals != value.Decimals || old.From != value.From || old.To != value.To || old.AtomicAmount != value.AtomicAmount || old.TransactionHash != value.TransactionHash || old.LogIndex != value.LogIndex {
+			return "provider_observation_changed"
+		}
+		if old.InclusionRevision != value.InclusionRevision {
+			reincluded = true
+		}
+	}
+	if reincluded {
+		return "reincluded_new_revision"
+	}
+	return "same_inclusion"
 }
 
 func (s *Service) List(ctx context.Context, operator, walletID, transactionHash string, limit int) ([]Check, error) {

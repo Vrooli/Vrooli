@@ -24,12 +24,14 @@ import (
 	budgetH "treasury/handlers/budget"
 	capsH "treasury/handlers/capabilities"
 	evidenceH "treasury/handlers/evidence"
+	ledgeradminH "treasury/handlers/ledgeradmin"
 	mandateH "treasury/handlers/mandate"
 	treasuryadminH "treasury/handlers/treasuryadmin"
 	x402gateH "treasury/handlers/x402gate"
 
 	apidb "github.com/vrooli/api-core/database"
 	authorizationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/treasury/v1/authorization"
+	ledgerv1 "github.com/vrooli/vrooli/packages/proto/gen/go/treasury/v1/ledger"
 	"google.golang.org/protobuf/reflect/protoreflect"
 
 	healthH "treasury/handlers/health"
@@ -45,6 +47,7 @@ func AllEndpoints() []module.EndpointDescriptor {
 	out = append(out, healthH.Endpoints...)
 	out = append(out, capsH.Endpoints...)
 	out = append(out, agentspendH.Endpoints...)
+	out = append(out, ledgeradminH.Endpoints...)
 	out = append(out, treasuryadminH.Endpoints...)
 	out = append(out, x402gateH.Endpoints...)
 	return out
@@ -74,6 +77,7 @@ type ProtoFileEntry struct {
 func AllProtoFiles() []ProtoFileEntry {
 	return []ProtoFileEntry{
 		{Module: "agentspend", File: authorizationv1.File_treasury_v1_authorization_authorization_proto},
+		{Module: "ledgeradmin", File: ledgerv1.File_treasury_v1_ledger_ledger_proto},
 	}
 }
 

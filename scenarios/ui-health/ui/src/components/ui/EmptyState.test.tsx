@@ -1,4 +1,5 @@
-import { render, screen } from "@testing-library/react";
+import { screen } from "@testing-library/react";
+import { renderWithProviders } from "../../test-utils";
 import { Inbox } from "lucide-react";
 import { describe, expect, it } from "vitest";
 
@@ -6,7 +7,7 @@ import { EmptyState } from "./EmptyState";
 
 describe("EmptyState", () => {
   it("renders title, description, and action", () => {
-    render(
+    renderWithProviders(
       <EmptyState
         data-testid="empty"
         icon={Inbox}

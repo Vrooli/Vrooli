@@ -150,21 +150,30 @@ artifact creation, readiness, distribution, and durable validation runs:
 
 ```text
 targets · generate · build · signing-provision · conformance-plan · readiness · distribution
-matrix-catalog · matrix-list · matrix-create · matrix-start · matrix-abort · matrix-wait
+artifact-list · matrix-catalog · matrix-list · matrix-get · matrix-create · matrix-start · matrix-abort · matrix-wait
 compare · matrix-rerun-failed · evidence-paths · run
 app-test · app-install · app-update · app-verify
 ```
 
 `android generate` and `android build` read `ANDROID_SOURCE_REF` and optional
 artifact settings from the environment, then call `/api/v1/android/generate`
-or `/api/v1/android/build`. Matrix lifecycle commands use
-`ANDROID_MATRIX_RUN_ID`; `compare` additionally uses
-`ANDROID_PRIOR_MATRIX_RUN_ID`. `matrix-create` requires
-`ANDROID_ARTIFACT_DIGEST`, `ANDROID_ARTIFACT_REF` and `ANDROID_ARTIFACT_PATH`.
-It resolves the exact immutable ref through the artifact owner and includes
+or `/api/v1/android/build`. Matrix lifecycle commands (`matrix-get`,
+`matrix-start`, `matrix-wait`, `matrix-abort`, `matrix-rerun-failed`) take the
+run id as their argument (`matrix-get <run_id>`), falling back to
+`ANDROID_MATRIX_RUN_ID`; `compare <run_id> <prior_run_id>` falls back to
+`ANDROID_PRIOR_MATRIX_RUN_ID` for the second. `matrix-list` and
+`matrix-catalog` take `--scenario` (default `hello-mobile`). With `--json`,
+read commands print the owner's JSON response itself, ready for `jq`. `artifact-list` shows recent retained artifacts
+by immutable ref and package/version/signing metadata without exposing storage
+paths. `matrix-create` requires `ANDROID_ARTIFACT_REF`; it resolves and verifies
+the selected immutable artifact inside the producer, then includes
 owner-produced package, version and signing metadata in the full-catalog
-selection. `ANDROID_ARTIFACT_PACKAGE`, when provided, is checked against the
-owner record; it cannot override it.
+selection. `ANDROID_ARTIFACT_DIGEST` is optional and, when provided, must match
+the ref. `ANDROID_ARTIFACT_PACKAGE`, when provided, is checked against the owner
+record; it cannot override it. Matrix API responses omit producer-local paths.
+Use `android matrix-get` to read one known run ID without waiting for the
+server-owned run to finish. Use `matrix-wait` when the caller needs to block
+until a terminal state.
 `matrix-abort` sends a cancellation request and then waits on the server-owned
 run until the owner persists a terminal state. If the owner is still draining,
 keep it running and use `matrix-wait` to observe completion; do not stop the

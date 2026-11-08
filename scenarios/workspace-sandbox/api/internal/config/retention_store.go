@@ -56,6 +56,31 @@ type RetentionStore interface {
 	// validation errors as Config.Validate's retention block. On
 	// success the new value is immediately visible via Get.
 	Set(cfg RetentionConfig) error
+
+	// Update applies only supplied fields to the current value and commits
+	// the result atomically with respect to other store writes.
+	Update(patch RetentionPatch) (RetentionConfig, error)
+}
+
+// RetentionPatch preserves the distinction between an omitted field and an
+// explicit zero in a partial retention update.
+type RetentionPatch struct {
+	MaxArchiveAgeDays     *int
+	MaxArchiveSizeBytes   *int64
+	MaxArchivesPerProject *int
+}
+
+func (p RetentionPatch) apply(current RetentionConfig) RetentionConfig {
+	if p.MaxArchiveAgeDays != nil {
+		current.MaxArchiveAgeDays = *p.MaxArchiveAgeDays
+	}
+	if p.MaxArchiveSizeBytes != nil {
+		current.MaxArchiveSizeBytes = *p.MaxArchiveSizeBytes
+	}
+	if p.MaxArchivesPerProject != nil {
+		current.MaxArchivesPerProject = *p.MaxArchivesPerProject
+	}
+	return current
 }
 
 // FileRetentionStore persists RetentionConfig to a JSON file.
@@ -131,9 +156,32 @@ func (s *FileRetentionStore) Set(cfg RetentionConfig) error {
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	if err := s.persistLocked(cfg); err != nil {
+		return err
+	}
 	s.cache = cfg
 	s.loaded = true
-	return s.persistLocked()
+	return nil
+}
+
+// Update merges and persists a partial config while holding the store lock.
+// A failed load, validation, or write leaves the last accepted cache intact.
+func (s *FileRetentionStore) Update(patch RetentionPatch) (RetentionConfig, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if err := s.ensureLoadedLocked(); err != nil {
+		return RetentionConfig{}, err
+	}
+	next := patch.apply(s.cache)
+	if err := validateRetentionConfig(next); err != nil {
+		return RetentionConfig{}, err
+	}
+	if err := s.persistLocked(next); err != nil {
+		return RetentionConfig{}, err
+	}
+	s.cache = next
+	s.loaded = true
+	return next, nil
 }
 
 // ensureLoaded loads the cache from disk if not yet loaded.
@@ -173,14 +221,14 @@ func (s *FileRetentionStore) ensureLoadedLocked() error {
 	return nil
 }
 
-// persistLocked writes the cache to disk atomically. Must be called with
-// s.mu held.
-func (s *FileRetentionStore) persistLocked() error {
+// persistLocked writes the candidate to disk atomically. The caller publishes
+// it in the cache only after this succeeds. Must be called with s.mu held.
+func (s *FileRetentionStore) persistLocked(cfg RetentionConfig) error {
 	dir := filepath.Dir(s.path)
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return fmt.Errorf("retention_store: mkdir %s: %w", dir, err)
 	}
-	data, err := json.MarshalIndent(s.cache, "", "  ")
+	data, err := json.MarshalIndent(cfg, "", "  ")
 	if err != nil {
 		return fmt.Errorf("retention_store: marshal: %w", err)
 	}
@@ -248,6 +296,18 @@ func (m *MemoryRetentionStore) Set(cfg RetentionConfig) error {
 	defer m.mu.Unlock()
 	m.cache = cfg
 	return nil
+}
+
+// Update applies a partial config under the same lock as Get and Set.
+func (m *MemoryRetentionStore) Update(patch RetentionPatch) (RetentionConfig, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	next := patch.apply(m.cache)
+	if err := validateRetentionConfig(next); err != nil {
+		return RetentionConfig{}, err
+	}
+	m.cache = next
+	return next, nil
 }
 
 var (

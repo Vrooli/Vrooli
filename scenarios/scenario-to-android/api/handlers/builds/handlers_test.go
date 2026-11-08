@@ -62,6 +62,22 @@ func TestArtifactMetadataAndAPKHandlersUseImmutableOwnerReference(t *testing.T) 
 	require.Equal(t, "43", apkResponse.Header().Get("X-Vrooli-Android-Version-Code"))
 }
 
+func TestArtifactListHandlerReturnsPathFreeCandidates(t *testing.T) {
+	root, ref, _ := retainedHandlerArtifact(t)
+	handler := ArtifactListHandler(Surface{ArtifactRoot: func(context.Context) (string, error) { return root, nil }})
+	response := httptest.NewRecorder()
+	handler(response, httptest.NewRequest("GET", "/artifacts?limit=10", nil))
+	require.Equal(t, http.StatusOK, response.Code)
+	require.Equal(t, "private, no-store", response.Header().Get("Cache-Control"))
+	require.Contains(t, response.Body.String(), ref)
+	require.NotContains(t, response.Body.String(), root)
+	require.NotContains(t, response.Body.String(), "local_path")
+
+	invalid := httptest.NewRecorder()
+	handler(invalid, httptest.NewRequest("GET", "/artifacts?limit=101", nil))
+	require.Equal(t, http.StatusBadRequest, invalid.Code)
+}
+
 func TestArtifactHandlersFailClosedForUnknownOrUnavailableReference(t *testing.T) {
 	root, ref, _ := retainedHandlerArtifact(t)
 	handler := ArtifactMetadataHandler(Surface{ArtifactRoot: func(context.Context) (string, error) { return root, nil }})

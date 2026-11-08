@@ -49,6 +49,9 @@ export { renderWithProviders } from "@vrooli/api-base/testing";
 export type { ProviderRenderOptions, ProviderRenderResult } from "@vrooli/api-base/testing";
 export { interp } from "./interp";
 export { expectNoA11yViolations } from "@vrooli/api-base/testing";
+// Choose an option in a select by its label, for a native <select> or a
+// library Select (whose trigger, not its hidden native select, is the control).
+export { chooseOption } from "@vrooli/api-base/testing";
 // Note: HealthResponse is the *generated proto type* re-exported by
 // factories.ts. Tests should always import it from here so a future
 // schema change is one-import-update; consuming the proto package

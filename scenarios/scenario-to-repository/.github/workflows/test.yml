@@ -92,9 +92,9 @@ jobs:
         run: pnpm lint
 
       - name: Tests with coverage
-        # Coverage thresholds live in vite.config.ts — vitest exits non-zero
-        # when any of {lines, branches, functions, statements} drops below
-        # the configured floor. Tightening thresholds happens there, not here.
+        # Measures coverage only. The coverage gate is Unit Health's: it
+        # compares coverage/coverage-summary.json with coverage.committed in
+        # .vrooli/testing.json (`vrooli scenario test <name> --phases unit`).
         run: pnpm test:coverage
 
       - name: Production build

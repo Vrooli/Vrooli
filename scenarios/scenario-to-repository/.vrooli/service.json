@@ -153,6 +153,8 @@
     },
     "rationale": "The scenario owns its data directory; control-plane deployment state remains externally governed."
   },
-  "dependencies": {},
+  "dependencies": {
+    "resources": {}
+  },
   "credentials": {}
 }

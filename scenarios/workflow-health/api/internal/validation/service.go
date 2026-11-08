@@ -108,7 +108,7 @@ func (e *Engine) evaluate(ctx context.Context, target string, catalog *workflows
 	var profile *readinessProfile
 	var profileErr error
 	if e.ReadinessFetcher != nil {
-		profile, profileErr = e.ReadinessFetcher(ctx, catalog.Scenario)
+		profile, profileErr = e.ReadinessFetcher(ctx, catalog.Scenario, target)
 	}
 
 	assetPaths := make(map[string]struct{}, len(catalog.Assets))

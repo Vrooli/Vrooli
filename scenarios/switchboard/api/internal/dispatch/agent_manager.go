@@ -12,11 +12,29 @@ import (
 	"strings"
 	"time"
 
+	"github.com/vrooli/api-core/owneridentity"
+	"github.com/vrooli/api-core/scopecatalog"
 	"switchboard/internal/channels"
 	"switchboard/internal/threads"
 )
 
 type authorizationContextKey struct{}
+type createRunIdentityContextKey struct{}
+type createRunAmbiguousContextKey struct{}
+
+// WithCreateRunCaller retains offered channels without substituting identity.
+// This adapter currently has an existing human route, not a parent-run route.
+func WithCreateRunCaller(ctx context.Context, authorization, runIdentity string) context.Context {
+	return context.WithValue(WithAuthorization(ctx, authorization), createRunIdentityContextKey{}, runIdentity)
+}
+
+// WithCreateRunHeaders retains offered-channel presence and ambiguity so a
+// new-start refusal cannot be bypassed by choosing only the first field value.
+func WithCreateRunHeaders(ctx context.Context, headers http.Header) context.Context {
+	ctx = WithCreateRunCaller(ctx, headers.Get("Authorization"), headers.Get("X-Agent-Identity-Token"))
+	ambiguous := len(headers.Values("Authorization")) > 1 || len(headers.Values("X-Agent-Identity-Token")) != 0
+	return context.WithValue(ctx, createRunAmbiguousContextKey{}, ambiguous)
+}
 
 // WithAuthorization carries the caller's already-issued bearer credential
 // across the in-process dispatch boundary. It is intentionally request-scoped
@@ -34,11 +52,13 @@ func authorization(ctx context.Context) string {
 // task/run API. It deliberately owns no agent profile data; agent-manager
 // resolves the profile reference and remains the authority for execution.
 type AgentManagerRunner struct {
-	BaseURL string
-	Client  *http.Client
-	Threads *threads.Store
-	Send    Reply
-	Wait    time.Duration
+	Identity owneridentity.Validator
+	Now      func() time.Time
+	BaseURL  string
+	Client   *http.Client
+	Threads  *threads.Store
+	Send     Reply
+	Wait     time.Duration
 }
 
 func (r AgentManagerRunner) Run(ctx context.Context, agentID string, scopes []string, message string) (string, error) {
@@ -177,6 +197,27 @@ func (r AgentManagerRunner) events(ctx context.Context, runID string, afterSeque
 }
 
 func (r AgentManagerRunner) start(ctx context.Context, agentID string, scopes []string, message string) (string, string, error) {
+	// Verify the existing owner proof before the two-step task/run mutation.
+	// Nil verifier, lineage text and legacy subject headers supply no identity.
+	if ambiguous, _ := ctx.Value(createRunAmbiguousContextKey{}).(bool); ambiguous {
+		return "", "", fmt.Errorf("Switchboard CreateRun refuses ambiguous or unsupported offered identity")
+	}
+	if runProof, _ := ctx.Value(createRunIdentityContextKey{}).(string); runProof != "" {
+		return "", "", fmt.Errorf("Switchboard CreateRun has no qualified exact-parent run route")
+	}
+	parts := strings.Fields(authorization(ctx))
+	if len(parts) != 2 || !strings.EqualFold(parts[0], "Bearer") || r.Identity == nil {
+		return "", "", fmt.Errorf("Switchboard CreateRun requires a verified human owner")
+	}
+	owner, verifyErr := r.Identity.Validate(ctx, parts[1])
+	now := time.Now()
+	if r.Now != nil {
+		now = r.Now()
+	}
+	if verifyErr != nil || strings.TrimSpace(owner.Subject) == "" || !owner.ExpiresAt.After(now) || !scopecatalog.MatchCapability(owner.Scopes, "agent-manager:write") {
+		return "", "", fmt.Errorf("Switchboard CreateRun owner proof is invalid, expired or lacks agent-manager:write")
+	}
+
 	base := strings.TrimRight(strings.TrimSpace(r.BaseURL), "/")
 	if base == "" {
 		return "", "", fmt.Errorf("agent-manager URL is unavailable")
@@ -185,6 +226,11 @@ func (r AgentManagerRunner) start(ctx context.Context, agentID string, scopes []
 	if client == nil {
 		client = http.DefaultClient
 	}
+	// Even same-origin redirects must not move the caller's credential to a
+	// different operation. This copy changes no continuation/ingest contract.
+	creationClient := *client
+	creationClient.CheckRedirect = func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }
+	client = &creationClient
 	task, err := r.post(ctx, client, base+"/api/v1/tasks", map[string]any{
 		"task": map[string]string{"title": "Switchboard conversation", "description": message, "scope_path": "."},
 	})
@@ -250,7 +296,11 @@ func (r AgentManagerRunner) post(ctx context.Context, client *http.Client, url s
 	defer resp.Body.Close()
 	data, _ := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return nil, fmt.Errorf("agent-manager returned %s: %s", resp.Status, strings.TrimSpace(string(data)))
+		message := strings.TrimSpace(string(data))
+		if parts := strings.Fields(authorization(ctx)); len(parts) == 2 {
+			message = strings.ReplaceAll(message, parts[1], "[redacted]")
+		}
+		return nil, fmt.Errorf("agent-manager returned %s: %s", resp.Status, message)
 	}
 	var out map[string]any
 	if err := json.Unmarshal(data, &out); err != nil {

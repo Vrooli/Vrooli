@@ -14,6 +14,7 @@ import (
 	"github.com/google/uuid"
 	attentionv1 "github.com/vrooli/vrooli/packages/proto/gen/go/visited-tracker/v1/attention"
 	"github.com/vrooli/vrooli/packages/proto/gen/go/visited-tracker/v1/attention/attentionv1connect"
+	"google.golang.org/protobuf/proto"
 )
 
 type attentionRPC struct {
@@ -154,6 +155,7 @@ func (*attentionRPC) Preview(ctx context.Context, req *connect.Request[attention
 	response := &attentionv1.PreviewResponse{
 		CampaignRevision: c.Revision, ObservedAt: now.UTC().Format(time.RFC3339Nano),
 		EligibleCount: uint32(len(eligible)), ActiveClaimCount: uint32(activeClaimCount(c, now)),
+		UnreviewedCount:             proto.Uint32(unreviewedCount(c)),
 		OldestEligibleAgeSeconds:    uint64(oldestEligibleAge(eligible, now).Seconds()),
 		OldestActiveClaimAgeSeconds: uint64(oldestActiveClaimAge(c, now).Seconds()),
 		Integrity:                   observeClaimIntegrity(c, now),
@@ -197,11 +199,11 @@ func (*attentionRPC) Claim(ctx context.Context, req *connect.Request[attentionv1
 	if ttl == 0 {
 		ttl = 600
 	}
-	claim, err := claimAttention(ctx, id, req.Msg.RequestId, req.Msg.Worker, ttl, time.Now().UTC())
+	claim, unreviewed, err := claimAttention(ctx, id, req.Msg.RequestId, req.Msg.Worker, ttl, time.Now().UTC())
 	if err != nil {
 		return nil, attentionError(err)
 	}
-	return connect.NewResponse(&attentionv1.ClaimResponse{Claim: claimMessage(claim), NoWork: claim == nil}), nil
+	return connect.NewResponse(&attentionv1.ClaimResponse{Claim: claimMessage(claim), NoWork: claim == nil, UnreviewedCount: proto.Uint32(unreviewed)}), nil
 }
 
 func (*attentionRPC) Complete(ctx context.Context, req *connect.Request[attentionv1.CompleteRequest]) (*connect.Response[attentionv1.ClaimResponse], error) {
@@ -212,9 +214,9 @@ func (*attentionRPC) Complete(ctx context.Context, req *connect.Request[attentio
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
-	claim, err := completeAttention(ctx, id, req.Msg.ClaimId, req.Msg.Worker, req.Msg.Outcome, req.Msg.Evidence, time.Now().UTC())
+	claim, unreviewed, err := completeAttention(ctx, id, req.Msg.ClaimId, req.Msg.Worker, req.Msg.Outcome, req.Msg.Evidence, time.Now().UTC())
 	if err != nil {
 		return nil, attentionError(err)
 	}
-	return connect.NewResponse(&attentionv1.ClaimResponse{Claim: claimMessage(claim)}), nil
+	return connect.NewResponse(&attentionv1.ClaimResponse{Claim: claimMessage(claim), UnreviewedCount: proto.Uint32(unreviewed)}), nil
 }

@@ -7,12 +7,21 @@ import (
 	"testing"
 )
 
-func TestScenarioEnvironmentRulesMotivatingManifestsPass(t *testing.T) {
+// Every fleet manifest, including the ones that motivated these rules, passes
+// the environment contracts; a new violation names its manifest.
+func TestScenarioEnvironmentRulesFleetManifestsPass(t *testing.T) {
 	_, source, _, _ := runtime.Caller(0)
 	repoRoot := filepath.Clean(filepath.Join(filepath.Dir(source), "../../../../../../.."))
-	for _, name := range []string{"calendar", "api-library"} {
+	paths, err := filepath.Glob(filepath.Join(repoRoot, "scenarios", "*", ".vrooli", "service.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(paths) == 0 {
+		t.Fatal("no scenario manifests found")
+	}
+	for _, path := range paths {
+		name := filepath.Base(filepath.Dir(filepath.Dir(path)))
 		t.Run(name, func(t *testing.T) {
-			path := filepath.Join(repoRoot, "scenarios", name, ".vrooli", "service.json")
 			content, err := os.ReadFile(path)
 			if err != nil {
 				t.Fatal(err)

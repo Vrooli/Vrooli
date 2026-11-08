@@ -1,4 +1,5 @@
-import { render, screen } from "@testing-library/react";
+import { screen } from "@testing-library/react";
+import { renderWithProviders } from "../../test-utils";
 import userEvent from "@testing-library/user-event";
 import { useState } from "react";
 import { describe, expect, it, vi } from "vitest";
@@ -24,7 +25,7 @@ function Controlled({ initial = "", onClear }: { initial?: string; onClear?: () 
 
 describe("SearchInput", () => {
   it("forwards typing through onChange", async () => {
-    render(<Controlled />);
+    renderWithProviders(<Controlled />);
     const input = screen.getByRole<HTMLInputElement>("searchbox", { name: ARIA });
     await userEvent.type(input, "abc");
     expect(input.value).toBe("abc");
@@ -32,7 +33,7 @@ describe("SearchInput", () => {
 
   it("renders clear button only when value is non-empty and clears on click", async () => {
     const onClear = vi.fn();
-    render(<Controlled initial="seed" onClear={onClear} />);
+    renderWithProviders(<Controlled initial="seed" onClear={onClear} />);
     const clear = screen.getByRole("button", { name: CLEAR });
     await userEvent.click(clear);
     expect(onClear).toHaveBeenCalled();

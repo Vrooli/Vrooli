@@ -23,8 +23,19 @@
  * easier to follow.
  */
 import "@testing-library/jest-dom/vitest";
+import { createElement } from "react";
+import { configureTestProviders } from "@vrooli/api-base/testing";
 import { afterEach, beforeEach, vi } from "vitest";
 import { i18n } from "./i18n";
+import { ThemeProvider } from "./theme/ThemeProvider";
+
+// jsdom has no matchMedia; responsive library hooks (useMediaQuery) read it.
+if (!window.matchMedia) {
+  window.matchMedia = ((query: string) => ({ matches: false, media: query, onchange: null, addListener: () => undefined, removeListener: () => undefined, addEventListener: () => undefined, removeEventListener: () => undefined, dispatchEvent: () => false })) as typeof window.matchMedia;
+}
+
+// Scenario-owned contexts the shared renderWithProviders cannot know about.
+configureTestProviders((children) => createElement(ThemeProvider, null, children));
 
 let consoleError: ReturnType<typeof vi.spyOn>;
 let consoleWarn: ReturnType<typeof vi.spyOn>;

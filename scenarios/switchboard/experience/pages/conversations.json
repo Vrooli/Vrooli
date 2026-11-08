@@ -452,8 +452,1521 @@
     }
   },
   "sketch": {
+    "intent": {
+      "intent": "Triage conversations and inspect records",
+      "users": [
+        "Operator"
+      ],
+      "primaryTasks": [
+        "Find urgent conversations",
+        "Inspect context",
+        "Respond"
+      ],
+      "target": "react-vite",
+      "kit": "vrooli-default",
+      "viewports": [
+        "phone",
+        "desktop"
+      ]
+    },
+    "placements": [
+      {
+        "fills": {
+          "asset": "navigation.page-header",
+          "version": "2.0.1"
+        },
+        "region": "page-heading",
+        "state": "planned"
+      },
+      {
+        "fills": {
+          "asset": "ai.message-list",
+          "version": "1.1.2"
+        },
+        "region": "transcript-region",
+        "state": "planned"
+      },
+      {
+        "fills": {
+          "asset": "data-display.filter-bar",
+          "version": "1.3.1"
+        },
+        "region": "filters",
+        "state": "planned"
+      },
+      {
+        "fills": {
+          "asset": "data-display.collection-list",
+          "version": "1.3.4"
+        },
+        "region": "thread-list-region",
+        "state": "planned"
+      },
+      {
+        "fills": {
+          "asset": "ai.prompt-composer",
+          "version": "1.0.3"
+        },
+        "region": "composer-region",
+        "state": "planned"
+      },
+      {
+        "fills": {
+          "asset": "controls.button",
+          "version": "2.2.12"
+        },
+        "region": "start-action",
+        "state": "planned"
+      },
+      {
+        "fills": {
+          "asset": "overlays.responsive-dialog",
+          "version": "1.3.1"
+        },
+        "region": "start-dialog",
+        "state": "planned"
+      },
+      {
+        "fills": {
+          "asset": "forms.select",
+          "version": "1.3.15"
+        },
+        "region": "agent-choice",
+        "state": "planned"
+      },
+      {
+        "fills": {
+          "asset": "controls.button",
+          "version": "2.2.12"
+        },
+        "region": "start-confirm",
+        "state": "planned"
+      },
+      {
+        "fills": {
+          "asset": "ai.approval-prompt",
+          "version": "1.2.2"
+        },
+        "region": "gate-region",
+        "state": "planned"
+      }
+    ],
+    "regions": [
+      {
+        "id": "filters",
+        "origin": "template"
+      },
+      {
+        "id": "thread-list-region",
+        "note": "The cross-channel thread list."
+      },
+      {
+        "id": "transcript-region",
+        "note": "Message history for the selected thread."
+      },
+      {
+        "id": "page-heading",
+        "note": "Page identity and orientation; approval gates belong to their selected conversation."
+      },
+      {
+        "id": "composer-region",
+        "note": "Reply entry for the selected conversation; transport remains a simulated preview action."
+      },
+      {
+        "id": "start-action",
+        "note": "Shared start-conversation control; transport is a simulated fixture before acceptance."
+      },
+      {
+        "id": "start-dialog",
+        "note": "Shared start-conversation control; transport is a simulated fixture before acceptance."
+      },
+      {
+        "id": "agent-choice",
+        "note": "Shared start-conversation control; transport is a simulated fixture before acceptance."
+      },
+      {
+        "id": "start-confirm",
+        "note": "Shared start-conversation control; transport is a simulated fixture before acceptance."
+      },
+      {
+        "id": "gate-region",
+        "note": "A scoped capability request belonging to the selected conversation; simulated decisions before acceptance."
+      }
+    ],
+    "render": {
+      "templateExport": "CollectionPage",
+      "regions": [
+        {
+          "story": "default",
+          "templateRegion": "header",
+          "id": "page-heading",
+          "export": "PageHeader",
+          "slot": [
+            "regions",
+            "header"
+          ]
+        },
+        {
+          "story": "default",
+          "templateRegion": "filters",
+          "id": "filters",
+          "export": "FilterBar",
+          "slot": [
+            "regions",
+            "filters"
+          ]
+        },
+        {
+          "story": "default",
+          "templateRegion": "collection",
+          "id": "thread-list-region",
+          "export": "CollectionList",
+          "slot": [
+            "regions",
+            "collection"
+          ]
+        },
+        {
+          "story": "default",
+          "templateRegion": "inspector",
+          "id": "transcript-region",
+          "export": "MessageList",
+          "slot": [
+            "regions",
+            "inspector"
+          ]
+        },
+        {
+          "story": "default",
+          "templateRegion": "inspector-actions",
+          "id": "composer-region",
+          "export": "PromptComposer",
+          "slot": [
+            "regions",
+            "inspectorActions"
+          ]
+        },
+        {
+          "parent": "page-heading",
+          "story": "default",
+          "id": "start-action",
+          "export": "Button",
+          "slot": [
+            "actions"
+          ]
+        },
+        {
+          "story": "default",
+          "id": "start-dialog",
+          "export": "ResponsiveDialog",
+          "slot": [
+            "regions",
+            "overlays"
+          ],
+          "optional": true
+        },
+        {
+          "parent": "start-dialog",
+          "story": "default",
+          "id": "agent-choice",
+          "export": "Select",
+          "slot": [
+            "children"
+          ],
+          "optional": true
+        },
+        {
+          "parent": "start-dialog",
+          "story": "default",
+          "id": "start-confirm",
+          "export": "Button",
+          "slot": [
+            "footer"
+          ],
+          "optional": true
+        },
+        {
+          "story": "default",
+          "id": "gate-region",
+          "export": "ApprovalPrompt",
+          "slot": [
+            "regions",
+            "inspectorNotice"
+          ]
+        }
+      ],
+      "bindings": {
+        "$preview": {
+          "actions": {
+            "applyQuery": [
+              {
+                "set": [
+                  {
+                    "argument": [
+                      "query"
+                    ],
+                    "prop": "query",
+                    "target": "thread-list-region"
+                  }
+                ],
+                "state": "list"
+              }
+            ],
+            "back": [
+              {
+                "state": "list"
+              }
+            ],
+            "createRelease": [
+              {
+                "state": "newRelease"
+              }
+            ],
+            "createSupport": [
+              {
+                "state": "newSupport"
+              }
+            ],
+            "denyGate": [
+              {
+                "set": [
+                  {
+                    "prop": "status",
+                    "target": "gate-region",
+                    "value": "denied"
+                  }
+                ],
+                "state": "triage"
+              }
+            ],
+            "grantGate": [
+              {
+                "set": [
+                  {
+                    "prop": "status",
+                    "target": "gate-region",
+                    "value": "success"
+                  }
+                ],
+                "state": "triage"
+              }
+            ],
+            "listChooseAgent": [
+              {
+                "argument": [],
+                "equals": "release",
+                "state": "listCreateRelease"
+              },
+              {
+                "argument": [],
+                "equals": "support",
+                "state": "listCreateSupport"
+              }
+            ],
+            "listCloseCreate": [
+              {
+                "state": "list"
+              }
+            ],
+            "listOpenCreate": [
+              {
+                "state": "listCreateRelease"
+              }
+            ],
+            "listReplyEdit": [
+              {
+                "set": [
+                  {
+                    "argument": [],
+                    "prop": "value",
+                    "scope": "state",
+                    "target": "composer-region"
+                  }
+                ],
+                "state": "list"
+              }
+            ],
+            "listReplySend": [
+              {
+                "result": false,
+                "state": "list"
+              }
+            ],
+            "newReleaseReplyEdit": [
+              {
+                "set": [
+                  {
+                    "argument": [],
+                    "prop": "value",
+                    "scope": "state",
+                    "target": "composer-region"
+                  }
+                ],
+                "state": "newRelease"
+              }
+            ],
+            "newReleaseReplySend": [
+              {
+                "result": true,
+                "state": "newRelease"
+              }
+            ],
+            "newSupportReplyEdit": [
+              {
+                "set": [
+                  {
+                    "argument": [],
+                    "prop": "value",
+                    "scope": "state",
+                    "target": "composer-region"
+                  }
+                ],
+                "state": "newSupport"
+              }
+            ],
+            "newSupportReplySend": [
+              {
+                "result": true,
+                "state": "newSupport"
+              }
+            ],
+            "openThread": [
+              {
+                "argument": [
+                  "id"
+                ],
+                "equals": "support",
+                "state": "support"
+              },
+              {
+                "argument": [
+                  "id"
+                ],
+                "equals": "operations",
+                "state": "operations"
+              },
+              {
+                "argument": [
+                  "id"
+                ],
+                "equals": "triage",
+                "state": "triage"
+              }
+            ],
+            "operationsChooseAgent": [
+              {
+                "argument": [],
+                "equals": "release",
+                "state": "operationsCreateRelease"
+              },
+              {
+                "argument": [],
+                "equals": "support",
+                "state": "operationsCreateSupport"
+              }
+            ],
+            "operationsCloseCreate": [
+              {
+                "state": "operations"
+              }
+            ],
+            "operationsOpenCreate": [
+              {
+                "state": "operationsCreateRelease"
+              }
+            ],
+            "operationsReplyEdit": [
+              {
+                "set": [
+                  {
+                    "argument": [],
+                    "prop": "value",
+                    "scope": "state",
+                    "target": "composer-region"
+                  }
+                ],
+                "state": "operations"
+              }
+            ],
+            "operationsReplySend": [
+              {
+                "result": true,
+                "state": "operations"
+              }
+            ],
+            "resetQuery": [
+              {
+                "set": [
+                  {
+                    "prop": "query",
+                    "target": "thread-list-region",
+                    "value": ""
+                  }
+                ],
+                "state": "list"
+              }
+            ],
+            "supportChooseAgent": [
+              {
+                "argument": [],
+                "equals": "release",
+                "state": "supportCreateRelease"
+              },
+              {
+                "argument": [],
+                "equals": "support",
+                "state": "supportCreateSupport"
+              }
+            ],
+            "supportCloseCreate": [
+              {
+                "state": "support"
+              }
+            ],
+            "supportOpenCreate": [
+              {
+                "state": "supportCreateRelease"
+              }
+            ],
+            "supportReplyEdit": [
+              {
+                "set": [
+                  {
+                    "argument": [],
+                    "prop": "value",
+                    "scope": "state",
+                    "target": "composer-region"
+                  }
+                ],
+                "state": "support"
+              }
+            ],
+            "supportReplySend": [
+              {
+                "result": true,
+                "state": "support"
+              }
+            ],
+            "triageChooseAgent": [
+              {
+                "argument": [],
+                "equals": "release",
+                "state": "triageCreateRelease"
+              },
+              {
+                "argument": [],
+                "equals": "support",
+                "state": "triageCreateSupport"
+              }
+            ],
+            "triageCloseCreate": [
+              {
+                "state": "triage"
+              }
+            ],
+            "triageOpenCreate": [
+              {
+                "state": "triageCreateRelease"
+              }
+            ],
+            "triageReplyEdit": [
+              {
+                "set": [
+                  {
+                    "argument": [],
+                    "prop": "value",
+                    "scope": "state",
+                    "target": "composer-region"
+                  }
+                ],
+                "state": "triage"
+              }
+            ],
+            "triageReplySend": [
+              {
+                "result": true,
+                "state": "triage"
+              }
+            ]
+          },
+          "initial": "list",
+          "states": {
+            "list": {
+              "$template": {
+                "mobilePane": "collection"
+              },
+              "composer-region": {
+                "disabledReason": "Select a conversation to reply.",
+                "onSend": {
+                  "$handler": "listReplySend"
+                },
+                "onValueChange": {
+                  "$handler": "listReplyEdit"
+                }
+              },
+              "gate-region": {
+                "style": {
+                  "display": "none"
+                }
+              },
+              "start-action": {
+                "onClick": {
+                  "$handler": "listOpenCreate"
+                }
+              },
+              "thread-list-region": {
+                "currentKey": ""
+              }
+            },
+            "listCreateRelease": {
+              "$template": {
+                "mobilePane": "collection"
+              },
+              "agent-choice": {
+                "onValueChange": {
+                  "$handler": "listChooseAgent"
+                },
+                "value": "release"
+              },
+              "composer-region": {
+                "disabledReason": "Select a conversation to reply.",
+                "onSend": {
+                  "$handler": "listReplySend"
+                },
+                "onValueChange": {
+                  "$handler": "listReplyEdit"
+                }
+              },
+              "gate-region": {
+                "style": {
+                  "display": "none"
+                }
+              },
+              "start-action": {
+                "onClick": {
+                  "$handler": "listOpenCreate"
+                }
+              },
+              "start-confirm": {
+                "onClick": {
+                  "$handler": "createRelease"
+                }
+              },
+              "start-dialog": {
+                "onClose": {
+                  "$handler": "listCloseCreate"
+                },
+                "open": true
+              },
+              "thread-list-region": {
+                "currentKey": ""
+              }
+            },
+            "listCreateSupport": {
+              "$template": {
+                "mobilePane": "collection"
+              },
+              "agent-choice": {
+                "onValueChange": {
+                  "$handler": "listChooseAgent"
+                },
+                "value": "support"
+              },
+              "composer-region": {
+                "disabledReason": "Select a conversation to reply.",
+                "onSend": {
+                  "$handler": "listReplySend"
+                },
+                "onValueChange": {
+                  "$handler": "listReplyEdit"
+                }
+              },
+              "gate-region": {
+                "style": {
+                  "display": "none"
+                }
+              },
+              "start-action": {
+                "onClick": {
+                  "$handler": "listOpenCreate"
+                }
+              },
+              "start-confirm": {
+                "onClick": {
+                  "$handler": "createSupport"
+                }
+              },
+              "start-dialog": {
+                "onClose": {
+                  "$handler": "listCloseCreate"
+                },
+                "open": true
+              },
+              "thread-list-region": {
+                "currentKey": ""
+              }
+            },
+            "newRelease": {
+              "$template": {
+                "detailLabel": "Support escalation",
+                "detailTitle": "Release assistant",
+                "mobilePane": "inspector"
+              },
+              "composer-region": {
+                "disabledReason": "",
+                "onSend": {
+                  "$handler": "newReleaseReplySend"
+                },
+                "onValueChange": {
+                  "$handler": "newReleaseReplyEdit"
+                }
+              },
+              "gate-region": {
+                "style": {
+                  "display": "none"
+                }
+              },
+              "start-action": {
+                "onClick": {
+                  "$handler": "supportOpenCreate"
+                }
+              },
+              "start-dialog": {
+                "open": false
+              },
+              "thread-list-region": {
+                "currentKey": ""
+              },
+              "transcript-region": {
+                "branchId": "newRelease",
+                "emptyLabel": "Start the conversation with a message.",
+                "label": "New conversation",
+                "messages": [],
+                "state": "empty"
+              }
+            },
+            "newSupport": {
+              "$template": {
+                "detailLabel": "Support escalation",
+                "detailTitle": "Support assistant",
+                "mobilePane": "inspector"
+              },
+              "composer-region": {
+                "disabledReason": "",
+                "onSend": {
+                  "$handler": "newSupportReplySend"
+                },
+                "onValueChange": {
+                  "$handler": "newSupportReplyEdit"
+                }
+              },
+              "gate-region": {
+                "style": {
+                  "display": "none"
+                }
+              },
+              "start-action": {
+                "onClick": {
+                  "$handler": "supportOpenCreate"
+                }
+              },
+              "start-dialog": {
+                "open": false
+              },
+              "thread-list-region": {
+                "currentKey": ""
+              },
+              "transcript-region": {
+                "branchId": "newSupport",
+                "emptyLabel": "Start the conversation with a message.",
+                "label": "New conversation",
+                "messages": [],
+                "state": "empty"
+              }
+            },
+            "operations": {
+              "$template": {
+                "detailLabel": "Operations handoff",
+                "detailTitle": "Operations handoff",
+                "mobilePane": "inspector"
+              },
+              "composer-region": {
+                "disabledReason": "",
+                "onSend": {
+                  "$handler": "operationsReplySend"
+                },
+                "onValueChange": {
+                  "$handler": "operationsReplyEdit"
+                }
+              },
+              "gate-region": {
+                "style": {
+                  "display": "none"
+                }
+              },
+              "start-action": {
+                "onClick": {
+                  "$handler": "operationsOpenCreate"
+                }
+              },
+              "thread-list-region": {
+                "currentKey": "operations"
+              },
+              "transcript-region": {
+                "branchId": "operations",
+                "label": "Operations handoff",
+                "messages": [
+                  {
+                    "actor": {
+                      "name": "Operations assistant",
+                      "role": "Assistant"
+                    },
+                    "content": "The next operations check is scheduled for 14:00.",
+                    "id": "operations-response",
+                    "state": "default"
+                  }
+                ]
+              }
+            },
+            "operationsCreateRelease": {
+              "$template": {
+                "detailLabel": "Operations handoff",
+                "detailTitle": "Operations handoff",
+                "mobilePane": "inspector"
+              },
+              "agent-choice": {
+                "onValueChange": {
+                  "$handler": "operationsChooseAgent"
+                },
+                "value": "release"
+              },
+              "composer-region": {
+                "disabledReason": "",
+                "onSend": {
+                  "$handler": "operationsReplySend"
+                },
+                "onValueChange": {
+                  "$handler": "operationsReplyEdit"
+                }
+              },
+              "gate-region": {
+                "style": {
+                  "display": "none"
+                }
+              },
+              "start-action": {
+                "onClick": {
+                  "$handler": "operationsOpenCreate"
+                }
+              },
+              "start-confirm": {
+                "onClick": {
+                  "$handler": "createRelease"
+                }
+              },
+              "start-dialog": {
+                "onClose": {
+                  "$handler": "operationsCloseCreate"
+                },
+                "open": true
+              },
+              "thread-list-region": {
+                "currentKey": "operations"
+              },
+              "transcript-region": {
+                "branchId": "operations",
+                "label": "Operations handoff",
+                "messages": [
+                  {
+                    "actor": {
+                      "name": "Operations assistant",
+                      "role": "Assistant"
+                    },
+                    "content": "The next operations check is scheduled for 14:00.",
+                    "id": "operations-response",
+                    "state": "default"
+                  }
+                ]
+              }
+            },
+            "operationsCreateSupport": {
+              "$template": {
+                "detailLabel": "Operations handoff",
+                "detailTitle": "Operations handoff",
+                "mobilePane": "inspector"
+              },
+              "agent-choice": {
+                "onValueChange": {
+                  "$handler": "operationsChooseAgent"
+                },
+                "value": "support"
+              },
+              "composer-region": {
+                "disabledReason": "",
+                "onSend": {
+                  "$handler": "operationsReplySend"
+                },
+                "onValueChange": {
+                  "$handler": "operationsReplyEdit"
+                }
+              },
+              "gate-region": {
+                "style": {
+                  "display": "none"
+                }
+              },
+              "start-action": {
+                "onClick": {
+                  "$handler": "operationsOpenCreate"
+                }
+              },
+              "start-confirm": {
+                "onClick": {
+                  "$handler": "createSupport"
+                }
+              },
+              "start-dialog": {
+                "onClose": {
+                  "$handler": "operationsCloseCreate"
+                },
+                "open": true
+              },
+              "thread-list-region": {
+                "currentKey": "operations"
+              },
+              "transcript-region": {
+                "branchId": "operations",
+                "label": "Operations handoff",
+                "messages": [
+                  {
+                    "actor": {
+                      "name": "Operations assistant",
+                      "role": "Assistant"
+                    },
+                    "content": "The next operations check is scheduled for 14:00.",
+                    "id": "operations-response",
+                    "state": "default"
+                  }
+                ]
+              }
+            },
+            "support": {
+              "$template": {
+                "detailLabel": "Support escalation",
+                "detailTitle": "Support escalation",
+                "mobilePane": "inspector"
+              },
+              "composer-region": {
+                "disabledReason": "",
+                "onSend": {
+                  "$handler": "supportReplySend"
+                },
+                "onValueChange": {
+                  "$handler": "supportReplyEdit"
+                }
+              },
+              "gate-region": {
+                "style": {
+                  "display": "none"
+                }
+              },
+              "start-action": {
+                "onClick": {
+                  "$handler": "supportOpenCreate"
+                }
+              },
+              "thread-list-region": {
+                "currentKey": "support"
+              },
+              "transcript-region": {
+                "branchId": "support",
+                "label": "Support escalation",
+                "messages": [
+                  {
+                    "actor": {
+                      "name": "Maya Chen",
+                      "role": "Operator"
+                    },
+                    "content": "Can you review the deployment results and flag anything the support team needs to know?",
+                    "id": "support-request",
+                    "state": "default"
+                  },
+                  {
+                    "actor": {
+                      "name": "Release assistant",
+                      "role": "Assistant"
+                    },
+                    "content": "The rollout completed successfully. All three services are healthy.",
+                    "id": "support-response",
+                    "state": "default"
+                  }
+                ]
+              }
+            },
+            "supportCreateRelease": {
+              "$template": {
+                "detailLabel": "Support escalation",
+                "detailTitle": "Support escalation",
+                "mobilePane": "inspector"
+              },
+              "agent-choice": {
+                "onValueChange": {
+                  "$handler": "supportChooseAgent"
+                },
+                "value": "release"
+              },
+              "composer-region": {
+                "disabledReason": "",
+                "onSend": {
+                  "$handler": "supportReplySend"
+                },
+                "onValueChange": {
+                  "$handler": "supportReplyEdit"
+                }
+              },
+              "gate-region": {
+                "style": {
+                  "display": "none"
+                }
+              },
+              "start-action": {
+                "onClick": {
+                  "$handler": "supportOpenCreate"
+                }
+              },
+              "start-confirm": {
+                "onClick": {
+                  "$handler": "createRelease"
+                }
+              },
+              "start-dialog": {
+                "onClose": {
+                  "$handler": "supportCloseCreate"
+                },
+                "open": true
+              },
+              "thread-list-region": {
+                "currentKey": "support"
+              },
+              "transcript-region": {
+                "branchId": "support",
+                "label": "Support escalation",
+                "messages": [
+                  {
+                    "actor": {
+                      "name": "Maya Chen",
+                      "role": "Operator"
+                    },
+                    "content": "Can you review the deployment results and flag anything the support team needs to know?",
+                    "id": "support-request",
+                    "state": "default"
+                  },
+                  {
+                    "actor": {
+                      "name": "Release assistant",
+                      "role": "Assistant"
+                    },
+                    "content": "The rollout completed successfully. All three services are healthy.",
+                    "id": "support-response",
+                    "state": "default"
+                  }
+                ]
+              }
+            },
+            "supportCreateSupport": {
+              "$template": {
+                "detailLabel": "Support escalation",
+                "detailTitle": "Support escalation",
+                "mobilePane": "inspector"
+              },
+              "agent-choice": {
+                "onValueChange": {
+                  "$handler": "supportChooseAgent"
+                },
+                "value": "support"
+              },
+              "composer-region": {
+                "disabledReason": "",
+                "onSend": {
+                  "$handler": "supportReplySend"
+                },
+                "onValueChange": {
+                  "$handler": "supportReplyEdit"
+                }
+              },
+              "gate-region": {
+                "style": {
+                  "display": "none"
+                }
+              },
+              "start-action": {
+                "onClick": {
+                  "$handler": "supportOpenCreate"
+                }
+              },
+              "start-confirm": {
+                "onClick": {
+                  "$handler": "createSupport"
+                }
+              },
+              "start-dialog": {
+                "onClose": {
+                  "$handler": "supportCloseCreate"
+                },
+                "open": true
+              },
+              "thread-list-region": {
+                "currentKey": "support"
+              },
+              "transcript-region": {
+                "branchId": "support",
+                "label": "Support escalation",
+                "messages": [
+                  {
+                    "actor": {
+                      "name": "Maya Chen",
+                      "role": "Operator"
+                    },
+                    "content": "Can you review the deployment results and flag anything the support team needs to know?",
+                    "id": "support-request",
+                    "state": "default"
+                  },
+                  {
+                    "actor": {
+                      "name": "Release assistant",
+                      "role": "Assistant"
+                    },
+                    "content": "The rollout completed successfully. All three services are healthy.",
+                    "id": "support-response",
+                    "state": "default"
+                  }
+                ]
+              }
+            },
+            "triage": {
+              "$template": {
+                "detailLabel": "Incident triage",
+                "detailTitle": "Incident triage",
+                "mobilePane": "inspector"
+              },
+              "composer-region": {
+                "disabledReason": "",
+                "onSend": {
+                  "$handler": "triageReplySend"
+                },
+                "onValueChange": {
+                  "$handler": "triageReplyEdit"
+                }
+              },
+              "gate-region": {
+                "style": {
+                  "display": "grid"
+                }
+              },
+              "start-action": {
+                "onClick": {
+                  "$handler": "triageOpenCreate"
+                }
+              },
+              "thread-list-region": {
+                "currentKey": "triage"
+              },
+              "transcript-region": {
+                "branchId": "triage",
+                "height": 160,
+                "label": "Incident triage",
+                "messages": [
+                  {
+                    "actor": {
+                      "name": "Support assistant",
+                      "role": "Assistant"
+                    },
+                    "content": "The attachment review is waiting for an operator.",
+                    "id": "triage-response",
+                    "state": "default"
+                  }
+                ]
+              }
+            },
+            "triageCreateRelease": {
+              "$template": {
+                "detailLabel": "Incident triage",
+                "detailTitle": "Incident triage",
+                "mobilePane": "inspector"
+              },
+              "agent-choice": {
+                "onValueChange": {
+                  "$handler": "triageChooseAgent"
+                },
+                "value": "release"
+              },
+              "composer-region": {
+                "disabledReason": "",
+                "onSend": {
+                  "$handler": "triageReplySend"
+                },
+                "onValueChange": {
+                  "$handler": "triageReplyEdit"
+                }
+              },
+              "gate-region": {
+                "style": {
+                  "display": "grid"
+                }
+              },
+              "start-action": {
+                "onClick": {
+                  "$handler": "triageOpenCreate"
+                }
+              },
+              "start-confirm": {
+                "onClick": {
+                  "$handler": "createRelease"
+                }
+              },
+              "start-dialog": {
+                "onClose": {
+                  "$handler": "triageCloseCreate"
+                },
+                "open": true
+              },
+              "thread-list-region": {
+                "currentKey": "triage"
+              },
+              "transcript-region": {
+                "branchId": "triage",
+                "height": 160,
+                "label": "Incident triage",
+                "messages": [
+                  {
+                    "actor": {
+                      "name": "Support assistant",
+                      "role": "Assistant"
+                    },
+                    "content": "The attachment review is waiting for an operator.",
+                    "id": "triage-response",
+                    "state": "default"
+                  }
+                ]
+              }
+            },
+            "triageCreateSupport": {
+              "$template": {
+                "detailLabel": "Incident triage",
+                "detailTitle": "Incident triage",
+                "mobilePane": "inspector"
+              },
+              "agent-choice": {
+                "onValueChange": {
+                  "$handler": "triageChooseAgent"
+                },
+                "value": "support"
+              },
+              "composer-region": {
+                "disabledReason": "",
+                "onSend": {
+                  "$handler": "triageReplySend"
+                },
+                "onValueChange": {
+                  "$handler": "triageReplyEdit"
+                }
+              },
+              "gate-region": {
+                "style": {
+                  "display": "grid"
+                }
+              },
+              "start-action": {
+                "onClick": {
+                  "$handler": "triageOpenCreate"
+                }
+              },
+              "start-confirm": {
+                "onClick": {
+                  "$handler": "createSupport"
+                }
+              },
+              "start-dialog": {
+                "onClose": {
+                  "$handler": "triageCloseCreate"
+                },
+                "open": true
+              },
+              "thread-list-region": {
+                "currentKey": "triage"
+              },
+              "transcript-region": {
+                "branchId": "triage",
+                "height": 160,
+                "label": "Incident triage",
+                "messages": [
+                  {
+                    "actor": {
+                      "name": "Support assistant",
+                      "role": "Assistant"
+                    },
+                    "content": "The attachment review is waiting for an operator.",
+                    "id": "triage-response",
+                    "state": "default"
+                  }
+                ]
+              }
+            },
+            "triageExpired": {
+              "$template": {
+                "detailLabel": "Incident triage",
+                "detailTitle": "Incident triage",
+                "mobilePane": "inspector"
+              },
+              "composer-region": {
+                "disabledReason": "",
+                "onSend": {
+                  "$handler": "triageReplySend"
+                },
+                "onValueChange": {
+                  "$handler": "triageReplyEdit"
+                }
+              },
+              "gate-region": {
+                "status": "expired",
+                "style": {
+                  "display": "grid"
+                }
+              },
+              "start-action": {
+                "onClick": {
+                  "$handler": "triageOpenCreate"
+                }
+              },
+              "thread-list-region": {
+                "currentKey": "triage"
+              },
+              "transcript-region": {
+                "branchId": "triage",
+                "height": 160,
+                "label": "Incident triage",
+                "messages": [
+                  {
+                    "actor": {
+                      "name": "Support assistant",
+                      "role": "Assistant"
+                    },
+                    "content": "The attachment review is waiting for an operator.",
+                    "id": "triage-response",
+                    "state": "default"
+                  }
+                ]
+              }
+            },
+            "triageOwnerOnly": {
+              "$template": {
+                "detailLabel": "Incident triage",
+                "detailTitle": "Incident triage",
+                "mobilePane": "inspector"
+              },
+              "composer-region": {
+                "disabledReason": "",
+                "onSend": {
+                  "$handler": "triageReplySend"
+                },
+                "onValueChange": {
+                  "$handler": "triageReplyEdit"
+                }
+              },
+              "gate-region": {
+                "status": "permission-denied",
+                "style": {
+                  "display": "grid"
+                }
+              },
+              "start-action": {
+                "onClick": {
+                  "$handler": "triageOpenCreate"
+                }
+              },
+              "thread-list-region": {
+                "currentKey": "triage"
+              },
+              "transcript-region": {
+                "branchId": "triage",
+                "height": 160,
+                "label": "Incident triage",
+                "messages": [
+                  {
+                    "actor": {
+                      "name": "Support assistant",
+                      "role": "Assistant"
+                    },
+                    "content": "The attachment review is waiting for an operator.",
+                    "id": "triage-response",
+                    "state": "default"
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "$template": {
+          "backLabel": "Back to conversations",
+          "filterPlacement": "collection",
+          "gutter": "page",
+          "mobilePane": "collection",
+          "onMobilePaneChange": {
+            "$handler": "back"
+          }
+        },
+        "agent-choice": {
+          "aria-label": "Agent",
+          "options": [
+            {
+              "label": "Release assistant",
+              "value": "release"
+            },
+            {
+              "label": "Support assistant",
+              "value": "support"
+            }
+          ],
+          "value": "release"
+        },
+        "composer-region": {
+          "context": "Preview conversation · Sends are simulated",
+          "label": "Reply",
+          "onSend": {
+            "$handler": "sendReply"
+          },
+          "onValueChange": {
+            "$handler": "editReply"
+          },
+          "placeholder": "Write a reply…",
+          "value": ""
+        },
+        "filters": {
+          "applyLabel": "Search",
+          "density": "compact",
+          "onApply": {
+            "$handler": "applyQuery"
+          },
+          "onReset": {
+            "$handler": "resetQuery"
+          },
+          "queryLabel": "Search conversations",
+          "queryPlaceholder": "Search conversations"
+        },
+        "gate-region": {
+          "action": "inspect the attachment",
+          "approveLabel": "Allow once",
+          "consequences": "The assistant can read this file to help investigate the incident.",
+          "density": "compact",
+          "denyLabel": "Not now",
+          "description": "The support assistant needs your decision before opening the attached incident report.",
+          "onApprove": {
+            "$handler": "grantGate"
+          },
+          "onDeny": {
+            "$handler": "denyGate"
+          },
+          "scope": "this attachment once",
+          "status": "default",
+          "style": {
+            "display": "none"
+          },
+          "target": "Incident triage",
+          "title": "Allow attachment inspection?"
+        },
+        "page-heading": {
+          "density": "compact",
+          "description": "Review activity and reply across your connected channels.",
+          "title": "Conversations"
+        },
+        "start-action": {
+          "children": "Start a conversation",
+          "type": "button"
+        },
+        "start-confirm": {
+          "children": "Start conversation",
+          "type": "button"
+        },
+        "start-dialog": {
+          "closeLabel": "Close",
+          "open": false,
+          "size": "sm",
+          "title": "Start a conversation"
+        },
+        "thread-list-region": {
+          "bulkBar": "none",
+          "empty": "No conversations match your search. Try another search or reset the filters.",
+          "fields": {
+            "description": "description",
+            "key": "id",
+            "meta": "channel",
+            "title": "title"
+          },
+          "height": 420,
+          "items": [
+            {
+              "channel": "In-app · Release assistant",
+              "description": "Maya: Can you review the deployment results?",
+              "id": "support",
+              "title": "Support escalation"
+            },
+            {
+              "channel": "Slack · Operations assistant",
+              "description": "All services are healthy. The next check is scheduled.",
+              "id": "operations",
+              "title": "Operations handoff"
+            },
+            {
+              "channel": "Email · Support assistant",
+              "description": "An attachment is waiting for review.",
+              "id": "triage",
+              "title": "Incident triage"
+            }
+          ],
+          "label": "Conversations",
+          "onOpen": {
+            "$handler": "openThread"
+          },
+          "searchFields": [
+            "title",
+            "description",
+            "channel"
+          ],
+          "virtualize": true
+        },
+        "transcript-region": {
+          "height": 320,
+          "messages": [
+            {
+              "actor": {
+                "name": "Maya Chen",
+                "role": "Operator"
+              },
+              "content": "Please summarize the deployment results for the support team.",
+              "group": "Today",
+              "id": "request",
+              "timestamp": "2026-09-05T10:00:00Z"
+            },
+            {
+              "actor": {
+                "name": "Release assistant",
+                "role": "Assistant"
+              },
+              "content": "The rollout completed successfully. All three services are healthy, and no requests were lost.",
+              "group": "Today",
+              "id": "response",
+              "state": "success",
+              "timestamp": "2026-09-05T10:01:00Z"
+            }
+          ],
+          "presentation": "transcript",
+          "state": "default"
+        }
+      }
+    },
     "template": {
-      "asset": "templates.conversation-page"
+      "asset": "templates.collection-page",
+      "version": "1.7.1"
     }
   }
 }

@@ -248,15 +248,21 @@ function Fact({ icon, label, value }: { icon: ReactNode; label: string; value: n
 }
 
 function severityLabelKey(severity: string) {
-  switch (severity) {
-    case "SEVERITY_ERROR":
+  switch (severity.trim().toUpperCase().replace(/^(FINDING_)?SEVERITY_/, "")) {
     case "ERROR":
+    case "FAILURE":
+    case "CRITICAL":
+    case "HIGH":
+    case "BLOCKER":
       return strings.protoHealth.severity.error;
-    case "SEVERITY_WARNING":
     case "WARNING":
+    case "WARN":
+    case "MEDIUM":
       return strings.protoHealth.severity.warning;
-    case "SEVERITY_INFO":
     case "INFO":
+    case "INFORMATIONAL":
+    case "NOTICE":
+    case "LOW":
       return strings.protoHealth.severity.info;
     default:
       return strings.protoHealth.severity.unspecified;
@@ -267,7 +273,10 @@ function severityCount(
   assessment: { findingsBySeverity?: { [key: string]: number } } | undefined,
   severity: string,
 ) {
-  return assessment?.findingsBySeverity?.[severity] ?? 0;
+  const counts = assessment?.findingsBySeverity;
+  if (!counts) return 0;
+  const label = severity.replace(/^(FINDING_)?SEVERITY_/, "");
+  return (counts[`SEVERITY_${label}`] ?? 0) + (counts[`FINDING_SEVERITY_${label}`] ?? 0);
 }
 
 function transportWorldLabelKey(world: TransportWorld) {

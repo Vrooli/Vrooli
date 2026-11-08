@@ -39,3 +39,16 @@ func TestReadFactsRejectsInvalidRecordTimestamp(t *testing.T) {
 		t.Fatal("invalid timestamp was accepted")
 	}
 }
+
+// The producer reads the records file the build pipeline writes through
+// storagepaths, so a custom VROOLI_STORAGE_ROOT moves both together.
+func TestDefaultRecordsPathFollowsTheStorageLocator(t *testing.T) {
+	root := t.TempDir()
+	t.Setenv("VROOLI_STORAGE_ROOT", root)
+	t.Setenv("SCENARIO_TO_DESKTOP_RECORDS_PATH", "")
+	t.Setenv("VROOLI_STORAGE_NAMESPACE", "")
+	t.Setenv("VROOLI_VARIANT", "")
+	if got, want := defaultRecordsPath(), filepath.Join(root, "data", "vrooli", "scenario-to-desktop", "desktop_records_v2.json"); got != want {
+		t.Fatalf("defaultRecordsPath = %q, want %q", got, want)
+	}
+}

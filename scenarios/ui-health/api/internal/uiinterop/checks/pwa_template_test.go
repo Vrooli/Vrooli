@@ -121,9 +121,11 @@ func TestReactViteTemplateUsesProxySafePWAURLs(t *testing.T) {
 		required  []string
 	}{
 		{
-			rel:       "ui/index.html",
-			forbidden: []string{`href="/site.webmanifest"`, `href="/favicon-196.png"`, `href="/apple-icon-180.png"`},
-			required:  []string{`href="site.webmanifest"`, `href="favicon-196.png"`, `href="apple-icon-180.png"`, "viewport-fit=cover"},
+			rel: "ui/index.html",
+			// Head links are relative under public/: /public/ from the host root
+			// (the Access bypass prefix) and under the prefix behind a proxy.
+			forbidden: []string{`href="/site.webmanifest"`, `href="/public/site.webmanifest"`, `href="/public/apple-touch-icon.png"`, `href="/public/logo.svg"`},
+			required:  []string{`href="public/site.webmanifest"`, `href="public/apple-touch-icon.png"`, `href="public/logo.svg"`, "viewport-fit=cover"},
 		},
 		{
 			rel:       "ui/src/main.tsx",
@@ -132,8 +134,8 @@ func TestReactViteTemplateUsesProxySafePWAURLs(t *testing.T) {
 		},
 		{
 			rel:       "ui/public/sw.js",
-			forbidden: []string{`"/"`, `"/site.webmanifest"`},
-			required:  []string{`"./"`, `"./site.webmanifest"`},
+			forbidden: []string{`"/"`, `"/site.webmanifest"`, `"/public/site.webmanifest"`},
+			required:  []string{`"./"`, `"./public/site.webmanifest"`},
 		},
 	} {
 		t.Run(tc.rel, func(t *testing.T) {
@@ -153,5 +155,25 @@ func TestReactViteTemplateUsesProxySafePWAURLs(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+// A manifest served under /public/ must reach the app root: "../" does, while
+// "." scopes the installed app to the asset folder.
+func TestPWALaunchScopeRequiresAppRootFromPublicManifest(t *testing.T) {
+	for _, tc := range []struct {
+		scope  string
+		passes bool
+	}{{"../", true}, {".", false}, {"/", true}} {
+		root := t.TempDir()
+		writeTestFile(t, root, "ui/index.html", `<link rel="manifest" href="public/site.webmanifest">`)
+		writeTestFile(t, root, "ui/public/public/site.webmanifest", `{"start_url":"`+tc.scope+`","scope":"`+tc.scope+`"}`)
+		result := checkPWALaunchScope(uiinterop.CheckContext{ScenarioRoot: root, TechStack: []string{"React"}})
+		if result.Skipped {
+			t.Fatalf("scope %q: manifest linked from index.html was not found: %s", tc.scope, result.SkipReason)
+		}
+		if result.Passed != tc.passes {
+			t.Fatalf("scope %q: passed=%v, want %v (%v)", tc.scope, result.Passed, tc.passes, result.Violations)
+		}
 	}
 }

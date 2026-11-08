@@ -4,7 +4,7 @@
   "source_manifest": "cli/manifest.json",
   "scenario": "signal-inbox",
   "generator": "v1.0.0",
-  "manifest_hash": "7627327ab90afe8bdcb7c4428c404f6718c2375f8e163f7f501f00d7a1f7e763",
+  "manifest_hash": "8d5f10f53ef2dfba33d033e26b15936c935fc4bb573affaf75a74cfcf73f8bfa",
   "commands": [
     {
       "path": "categories confirm",

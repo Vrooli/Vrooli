@@ -146,8 +146,8 @@ func checkPWAManifest(ctx uiinterop.CheckContext) uiinterop.RuleResult {
 	}
 }
 
-// webmanifestCandidates are the common locations a Vite UI publishes its
-// web-app manifest at.
+// webmanifestCandidates are the conventional manifest locations, consulted
+// when ui/index.html links no resolvable manifest.
 var webmanifestCandidates = []string{
 	"ui/public/site.webmanifest",
 	"ui/public/manifest.webmanifest",
@@ -155,13 +155,15 @@ var webmanifestCandidates = []string{
 	"ui/site.webmanifest",
 }
 
-// readWebmanifest returns the first webmanifest found under the scenario, if any.
+// readWebmanifest returns the manifest the page links (see locateWebManifest).
 func readWebmanifest(root string) (string, bool) {
-	for _, rel := range webmanifestCandidates {
-		data, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(rel)))
-		if err == nil {
-			return string(data), true
-		}
+	rel, ok := locateWebManifest(root)
+	if !ok {
+		return "", false
 	}
-	return "", false
+	data, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(rel)))
+	if err != nil {
+		return "", false
+	}
+	return string(data), true
 }

@@ -4,7 +4,7 @@
   "source_manifest": "cli/manifest.json",
   "scenario": "vrooli-onboarding",
   "generator": "v1.0.0",
-  "manifest_hash": "f9b526f7a066437126275aa13507dbfa4b63ed715f20a5fa9ec17fe014b2d7d1",
+  "manifest_hash": "0b9882e62c06be5f19e1146455f22a03c361d30eb5882e26c5cdcbc62ad4e2b8",
   "commands": [
     {
       "path": "apply cancel",

@@ -7,6 +7,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"regexp"
 	"strings"
 
 	"ui-health/internal/uiinterop"
@@ -21,19 +22,107 @@ type manifestRead struct {
 }
 
 func readManifestJSON(root string) (manifestRead, bool) {
-	for _, rel := range webmanifestCandidates {
-		abs := filepath.Join(root, filepath.FromSlash(rel))
-		data, err := os.ReadFile(abs)
-		if err != nil {
-			continue
-		}
-		var doc map[string]any
-		if json.Unmarshal(data, &doc) != nil {
-			return manifestRead{rel: rel, dir: filepath.ToSlash(filepath.Dir(rel))}, true
-		}
-		return manifestRead{data: doc, rel: rel, dir: filepath.ToSlash(filepath.Dir(rel))}, true
+	rel, ok := locateWebManifest(root)
+	if !ok {
+		return manifestRead{}, false
 	}
-	return manifestRead{}, false
+	data, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(rel)))
+	if err != nil {
+		return manifestRead{}, false
+	}
+	read := manifestRead{rel: rel, dir: filepath.ToSlash(filepath.Dir(rel))}
+	var doc map[string]any
+	if json.Unmarshal(data, &doc) == nil {
+		read.data = doc
+	}
+	return read, true
+}
+
+// viteRootDir is the Vite publicDir: its files are served at the URL root.
+const viteRootDir = "ui/public"
+
+var (
+	manifestLinkRE = regexp.MustCompile(`(?is)<link\b[^>]*>`)
+	attrRE         = regexp.MustCompile(`(?is)\b(rel|href)\s*=\s*("([^"]*)"|'([^']*)')`)
+)
+
+// locateWebManifest finds the manifest the page actually links: the href of
+// ui/index.html's <link rel="manifest">, resolved from the URL root onto the
+// Vite publicDir (so href="public/site.webmanifest" or "/public/..." names
+// ui/public/public/site.webmanifest). A page without a resolvable link falls
+// back to the conventional locations.
+func locateWebManifest(root string) (string, bool) {
+	if html, err := os.ReadFile(filepath.Join(root, "ui", "index.html")); err == nil {
+		if href, ok := manifestHref(string(html)); ok {
+			if rel, ok := servedPathToSource(href); ok {
+				if info, err := os.Stat(filepath.Join(root, filepath.FromSlash(rel))); err == nil && !info.IsDir() {
+					return rel, true
+				}
+			}
+		}
+	}
+	for _, rel := range webmanifestCandidates {
+		if info, err := os.Stat(filepath.Join(root, filepath.FromSlash(rel))); err == nil && !info.IsDir() {
+			return rel, true
+		}
+	}
+	return "", false
+}
+
+func manifestHref(html string) (string, bool) {
+	for _, tag := range manifestLinkRE.FindAllString(html, -1) {
+		var rel, href string
+		for _, attr := range attrRE.FindAllStringSubmatch(tag, -1) {
+			value := attr[3] + attr[4]
+			if strings.EqualFold(attr[1], "rel") {
+				rel = value
+			} else {
+				href = value
+			}
+		}
+		for _, token := range strings.Fields(strings.ToLower(rel)) {
+			if token == "manifest" && strings.TrimSpace(href) != "" {
+				return strings.TrimSpace(href), true
+			}
+		}
+	}
+	return "", false
+}
+
+// servedPathToSource maps a page-root URL reference to its Vite publicDir
+// source file. External and data: references have no local source.
+func servedPathToSource(ref string) (string, bool) {
+	if strings.Contains(ref, "://") || strings.HasPrefix(ref, "//") || strings.HasPrefix(ref, "data:") {
+		return "", false
+	}
+	if i := strings.IndexAny(ref, "?#"); i >= 0 {
+		ref = ref[:i]
+	}
+	clean := path.Clean("/" + strings.TrimPrefix(ref, "./"))
+	if clean == "/" {
+		return "", false
+	}
+	return viteRootDir + clean, true
+}
+
+// manifestScopeCoversAppRoot reports whether a manifest's start_url and scope,
+// resolved against the URL the manifest is served from, include the app root.
+// A manifest under /public/ with scope "." would install an app scoped to the
+// asset folder.
+func manifestScopeCoversAppRoot(mf manifestRead, value string) bool {
+	if strings.TrimSpace(value) == "" || !strings.HasPrefix(mf.dir+"/", viteRootDir+"/") {
+		return true
+	}
+	u, err := url.Parse(value)
+	if err != nil || u.IsAbs() {
+		return true // unsafeLaunchURL judges absolute and cross-origin values
+	}
+	served := "/" + strings.TrimPrefix(strings.TrimPrefix(mf.dir, viteRootDir), "/")
+	resolved := u.Path
+	if !strings.HasPrefix(resolved, "/") {
+		resolved = path.Join(served, resolved)
+	}
+	return path.Clean(resolved) == "/"
 }
 
 func pwaResult(ruleID, passMessage, failMessage string, violations []uiinterop.Violation) uiinterop.RuleResult {

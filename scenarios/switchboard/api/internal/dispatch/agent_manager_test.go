@@ -31,14 +31,14 @@ func TestAgentManagerRunnerCreatesTaskAndRun(t *testing.T) {
 		_, _ = w.Write([]byte(`{"run":{"id":"run-1"}}`))
 	}))
 	defer server.Close()
-	run, err := (AgentManagerRunner{BaseURL: server.URL}).Run(context.Background(), "agent-1", []string{"read"}, "hello")
+	run, err := (AgentManagerRunner{BaseURL: server.URL, Identity: fixtureSwitcherOwner{}}).Run(WithAuthorization(context.Background(), "Bearer fixture-owner"), "agent-1", []string{"read"}, "hello")
 	require.NoError(t, err)
 	require.Equal(t, "agent-manager run accepted: run-1", run)
 	require.Equal(t, []string{"/api/v1/tasks", "/api/v1/runs"}, paths)
 	inline, ok := runBody["inline_config"].(map[string]any)
 	require.True(t, ok)
 	require.Equal(t, []any{"read"}, inline["allowed_tools"])
-	require.Empty(t, authorization)
+	require.Equal(t, "Bearer fixture-owner", authorization)
 }
 
 // [REQ:SWBD-P0-012]
@@ -54,7 +54,7 @@ func TestAgentManagerRunnerForwardsRequestBearerWithoutPersistingIt(t *testing.T
 	}))
 	defer server.Close()
 	ctx := WithAuthorization(context.Background(), "Bearer owner-token")
-	_, err := (AgentManagerRunner{BaseURL: server.URL}).Run(ctx, "agent-1", []string{"read"}, "hello")
+	_, err := (AgentManagerRunner{BaseURL: server.URL, Identity: fixtureSwitcherOwner{}}).Run(ctx, "agent-1", []string{"read"}, "hello")
 	require.NoError(t, err)
 	require.Equal(t, []string{"Bearer owner-token", "Bearer owner-token"}, authorization)
 }
@@ -64,7 +64,7 @@ func TestAgentManagerRunnerFailsClosedOnMalformedResponse(t *testing.T) {
 		_ = json.NewEncoder(w).Encode(map[string]any{"task": map[string]any{}})
 	}))
 	defer server.Close()
-	_, err := (AgentManagerRunner{BaseURL: server.URL}).Run(context.Background(), "agent-1", nil, "hello")
+	_, err := (AgentManagerRunner{BaseURL: server.URL, Identity: fixtureSwitcherOwner{}}).Run(WithAuthorization(context.Background(), "Bearer fixture-owner"), "agent-1", nil, "hello")
 	require.ErrorContains(t, err, "no id")
 }
 
@@ -87,13 +87,13 @@ func TestAgentManagerRunnerContinuesDurableThreadRun(t *testing.T) {
 	database := db.NewSQLite(t)
 	require.NoError(t, apidb.EnsureSchemas(context.Background(), database, apidb.SchemaProviderFunc(threads.Schema)))
 	store := threads.NewStore(database)
-	runner := AgentManagerRunner{BaseURL: server.URL, Threads: store}
+	runner := AgentManagerRunner{BaseURL: server.URL, Identity: fixtureSwitcherOwner{}, Threads: store}
 	require.NoError(t, func() error {
-		_, err := runner.RunConversation(context.Background(), "agent-1", []string{"read"}, "telegram", "chat-1", "first")
+		_, err := runner.RunConversation(WithAuthorization(context.Background(), "Bearer fixture-owner"), "agent-1", []string{"read"}, "telegram", "chat-1", "first")
 		return err
 	}())
 	require.NoError(t, func() error {
-		_, err := runner.RunConversation(context.Background(), "agent-1", []string{"read"}, "telegram", "chat-1", "second")
+		_, err := runner.RunConversation(WithAuthorization(context.Background(), "Bearer fixture-owner"), "agent-1", []string{"read"}, "telegram", "chat-1", "second")
 		return err
 	}())
 	require.Equal(t, []string{"/api/v1/tasks", "/api/v1/runs", "/api/v1/runs/run-1/events", "/api/v1/runs/run-1/continue"}, paths)
@@ -114,11 +114,11 @@ func TestAgentManagerRunnerDeliversAssistantEventOnSameThread(t *testing.T) {
 		}
 	}))
 	defer server.Close()
-	runner := AgentManagerRunner{BaseURL: server.URL, Wait: time.Second, Send: func(ctx context.Context, out channels.Outbound) error {
+	runner := AgentManagerRunner{BaseURL: server.URL, Identity: fixtureSwitcherOwner{}, Wait: time.Second, Send: func(ctx context.Context, out channels.Outbound) error {
 		replies <- out
 		return nil
 	}}
-	reply, err := runner.RunConversation(context.Background(), "agent-1", []string{"read"}, "telegram", "chat-1", "hello")
+	reply, err := runner.RunConversation(WithAuthorization(context.Background(), "Bearer fixture-owner"), "agent-1", []string{"read"}, "telegram", "chat-1", "hello")
 	require.NoError(t, err)
 	require.Empty(t, reply)
 	select {

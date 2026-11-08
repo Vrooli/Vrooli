@@ -1,4 +1,5 @@
-import { render, screen } from "@testing-library/react";
+import { screen } from "@testing-library/react";
+import { renderWithProviders } from "../../test-utils";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
@@ -9,7 +10,7 @@ const LABELS = { copyLabel: "copy-x", copiedLabel: "copied-x", copyShortLabel: "
 describe("CodeBlock", () => {
   it("renders code text and language label", () => {
     const lang = "lang-x";
-    render(<CodeBlock {...LABELS} data-testid="cb" code="payload-x" language={lang} />);
+    renderWithProviders(<CodeBlock {...LABELS} data-testid="cb" code="payload-x" language={lang} />);
     const root = screen.getByTestId("cb");
     expect(root.textContent).toContain(lang);
     expect(root.textContent).toContain("payload-x");
@@ -21,13 +22,13 @@ describe("CodeBlock", () => {
       configurable: true,
       value: { writeText },
     });
-    render(<CodeBlock {...LABELS} code="payload-x" />);
+    renderWithProviders(<CodeBlock {...LABELS} code="payload-x" />);
     await userEvent.click(screen.getByRole("button", { name: LABELS.copyLabel }));
     expect(writeText).toHaveBeenCalledWith("payload-x");
   });
 
   it("renders line numbers when requested", () => {
-    render(<CodeBlock {...LABELS} data-testid="cb" code={"a\nb\nc"} showLineNumbers />);
+    renderWithProviders(<CodeBlock {...LABELS} data-testid="cb" code={"a\nb\nc"} showLineNumbers />);
     const root = screen.getByTestId("cb");
     expect(root.textContent).toContain("1");
     expect(root.textContent).toContain("3");

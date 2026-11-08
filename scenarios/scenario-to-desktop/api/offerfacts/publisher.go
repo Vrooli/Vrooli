@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"net/http"
 	"os"
-	"path/filepath"
 	"strings"
 	"time"
 
@@ -16,6 +15,7 @@ import (
 	offersv1 "github.com/vrooli/vrooli/packages/proto/gen/go/offer-desk/v1/offers"
 	offersconnect "github.com/vrooli/vrooli/packages/proto/gen/go/offer-desk/v1/offers/offers_v1connect"
 	"google.golang.org/protobuf/types/known/timestamppb"
+	"scenario-to-desktop-api/storagepaths"
 )
 
 type buildRecord struct {
@@ -76,11 +76,18 @@ func defaultRecordsPath() string {
 	if configured := strings.TrimSpace(os.Getenv("SCENARIO_TO_DESKTOP_RECORDS_PATH")); configured != "" {
 		return configured
 	}
-	home, err := os.UserHomeDir()
+	// The records file is written through storagepaths; reading it through the
+	// same locator keeps a shadow variant or a custom VROOLI_STORAGE_ROOT on the
+	// file the writer actually uses.
+	locator, err := storagepaths.NewLocator()
 	if err != nil {
-		return filepath.Join(".vrooli", "data", "vrooli", "scenario-to-desktop", "desktop_records_v2.json")
+		return ""
 	}
-	return filepath.Join(home, ".vrooli", "data", "vrooli", "scenario-to-desktop", "desktop_records_v2.json")
+	path, err := locator.RecordsPath()
+	if err != nil {
+		return ""
+	}
+	return path
 }
 
 // ReadFacts converts durable desktop build records into producer-owned facts.

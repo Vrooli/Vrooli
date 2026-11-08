@@ -6,14 +6,15 @@
  * query by testid + role to keep the lint rule against copy-driven
  * queries happy.
  */
-import { render, screen } from "@testing-library/react";
+import { screen } from "@testing-library/react";
+import { renderWithProviders } from "../../test-utils";
 import { describe, expect, it } from "vitest";
 
 import { Card, CardBody, CardDescription, CardFooter, CardHeader, CardTitle } from "./Card";
 
 describe("Card", () => {
   it("renders header, title, description, body, and footer slots", () => {
-    render(
+    renderWithProviders(
       <Card data-testid="c">
         <CardHeader data-testid="c-header">
           <CardTitle data-testid="c-title">title-x</CardTitle>
@@ -34,7 +35,7 @@ describe("Card", () => {
   });
 
   it("applies token-based surface class", () => {
-    render(<Card data-testid="c">x</Card>);
+    renderWithProviders(<Card data-testid="c">x</Card>);
     expect(screen.getByTestId("c").className).toMatch(/bg-app-surface/);
   });
 });

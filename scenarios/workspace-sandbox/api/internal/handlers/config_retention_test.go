@@ -8,7 +8,9 @@ package handlers_test
 import (
 	"encoding/json"
 	"net/http"
+	"sync"
 	"testing"
+	"time"
 
 	"workspace-sandbox/internal/config"
 	"workspace-sandbox/internal/handlers"
@@ -20,6 +22,31 @@ import (
 // FileRetentionStore at a temp path.
 func withRetention(store config.RetentionStore) liveOpt {
 	return func(h *handlers.Handlers) { h.RetentionStore = store }
+}
+
+// staleReadRetentionStore makes the first two reads return the same snapshot
+// before either request may write. It fixes the concurrent schedule that a
+// partial PUT must handle, independent of the file store's lock timing.
+type staleReadRetentionStore struct {
+	config.RetentionStore
+	mu       sync.Mutex
+	reads    int
+	bothRead chan struct{}
+}
+
+func (s *staleReadRetentionStore) Get() config.RetentionConfig {
+	value := s.RetentionStore.Get()
+	s.mu.Lock()
+	s.reads++
+	read := s.reads
+	if read == 2 {
+		close(s.bothRead)
+	}
+	s.mu.Unlock()
+	if read <= 2 {
+		<-s.bothRead
+	}
+	return value
 }
 
 // TestGetRetention_Defaults — when the store is freshly seeded, GET
@@ -102,6 +129,40 @@ func TestUpdateRetention_PartialUpdate(t *testing.T) {
 	}
 	if got.MaxArchivesPerProject != 100 {
 		t.Errorf("MaxArchivesPerProject = %d, want unchanged 100", got.MaxArchivesPerProject)
+	}
+}
+
+// Two successful partial PUTs must retain both independently changed fields.
+func TestUpdateRetention_ConcurrentPartialUpdates(t *testing.T) {
+	store := &staleReadRetentionStore{
+		RetentionStore: config.NewMemoryRetentionStore(config.RetentionConfig{
+			MaxArchiveAgeDays:   90,
+			MaxArchiveSizeBytes: 10 << 30,
+		}),
+		bothRead: make(chan struct{}),
+	}
+	live := newLive(t, &sandboxiface.FakeService{}, withRetention(store))
+	bodies := []string{`{"maxArchiveAgeDays": 7}`, `{"maxArchiveSizeBytes": 1073741824}`}
+	results := make(chan int, len(bodies))
+	for _, body := range bodies {
+		go func() {
+			resp, _ := live.DoJSON(t, "PUT", "/api/v1/config/retention", body)
+			results <- resp.StatusCode
+		}()
+	}
+	for range bodies {
+		select {
+		case status := <-results:
+			if status != http.StatusOK {
+				t.Fatalf("concurrent PUT status = %d, want 200", status)
+			}
+		case <-time.After(5 * time.Second):
+			t.Fatal("concurrent PUTs did not complete")
+		}
+	}
+	got := store.RetentionStore.Get()
+	if got.MaxArchiveAgeDays != 7 || got.MaxArchiveSizeBytes != 1073741824 {
+		t.Fatalf("both PUTs succeeded, retained config = %+v; want age 7 and size 1073741824", got)
 	}
 }
 

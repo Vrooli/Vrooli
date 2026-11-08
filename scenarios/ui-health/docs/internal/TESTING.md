@@ -35,9 +35,9 @@ These files are the source of truth. When in doubt, copy their shape:
 - **UI composition**: `ui/src/App.test.tsx` — smoke-only composition
   test. App composes shell + features; feature behaviour belongs beside
   the feature.
-- **UI feature**: `ui/src/features/health/HealthCard.test.tsx` —
-  `renderWithProviders`, factory data, inline `vi.mock` factory
-  closure, cimode assertions, and real-locale assertions.
+- **UI health client**: [ui/src/api/health.test.ts](../../ui/src/api/health.test.ts)
+  verifies the `/health` request, GET method, and `no-store` cache policy
+  with a stubbed fetch.
 - **UI a11y**: `ui/src/components/ui/primitives.a11y.test.tsx`,
   `ui/src/features/validation/validation.a11y.test.tsx`,
   `ui/src/features/search/search.a11y.test.tsx`,

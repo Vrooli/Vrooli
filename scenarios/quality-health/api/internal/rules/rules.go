@@ -603,11 +603,10 @@ func evalTestingConfig(ctx EvalContext) []Finding {
 func evalMakefile(ctx EvalContext) []Finding {
 	rule, _ := ByID(RuleMakefileQualityGates)
 	path := filepath.Join(ctx.Inventory.RootPath, "Makefile")
-	raw, err := os.ReadFile(path)
+	targets, err := ResolveMakefileTargets(path)
 	if err != nil {
 		return nil
 	}
-	targets := parseMakefileTargets(string(raw))
 	var missing []string
 	if hasNode(ctx.Inventory) {
 		if !targetRuns(targets, "fmt-ui", "lint:fix") {
@@ -730,6 +729,78 @@ func RequiredGoLinters() []string {
 
 func ParseMakefileTargets(content string) map[string]string {
 	return parseMakefileTargets(content)
+}
+
+// makefileIncludeDepth bounds include resolution. Scenario Makefiles include
+// mk/scenario.mk, which includes mk/toolchain.mk; nothing legitimate nests
+// deeper, and the bound turns an include cycle into a stop rather than a hang.
+const makefileIncludeDepth = 4
+
+// makefileDirIdiom is the GNU make spelling of "the directory of the file
+// being read", which shared fragments use to include their siblings.
+const makefileDirIdiom = "$(dir $(lastword $(MAKEFILE_LIST)))"
+
+// ResolveMakefileTargets returns the targets a Makefile defines, including the
+// recipes it inherits through include directives. Scenario Makefiles get their
+// quality targets from the shared mk/scenario.mk include; reading only the
+// file's own text would report those inherited targets as missing and push
+// scenarios into copying the shared bodies back. A target the including file
+// defines itself wins over an included one, matching a scenario's declared
+// custom body. Includes whose path depends on other make variables are not
+// resolved.
+func ResolveMakefileTargets(path string) (map[string]string, error) {
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+	return resolveMakefileTargets(path, string(raw), makefileIncludeDepth), nil
+}
+
+func resolveMakefileTargets(path, content string, depth int) map[string]string {
+	targets := parseMakefileTargets(content)
+	if depth <= 0 {
+		return targets
+	}
+	dir := filepath.Dir(path)
+	for _, include := range makefileIncludes(content, dir) {
+		if strings.Contains(include, "$") {
+			continue
+		}
+		if !filepath.IsAbs(include) {
+			include = filepath.Join(dir, include)
+		}
+		raw, err := os.ReadFile(include)
+		if err != nil {
+			continue
+		}
+		for name, recipe := range resolveMakefileTargets(include, string(raw), depth-1) {
+			if _, own := targets[name]; !own {
+				targets[name] = recipe
+			}
+		}
+	}
+	return targets
+}
+
+// makefileIncludes lists the paths named by include, -include, and sinclude
+// directives, with the make dir idiom expanded to dir. The idiom contains
+// spaces, so it is expanded before the directive is split into paths.
+func makefileIncludes(content, dir string) []string {
+	var paths []string
+	for _, line := range strings.Split(content, "\n") {
+		if strings.HasPrefix(line, "\t") {
+			continue
+		}
+		fields := strings.Fields(strings.ReplaceAll(line, makefileDirIdiom, dir+string(filepath.Separator)))
+		if len(fields) < 2 {
+			continue
+		}
+		switch fields[0] {
+		case "include", "-include", "sinclude":
+			paths = append(paths, fields[1:]...)
+		}
+	}
+	return paths
 }
 
 func parseMakefileTargets(content string) map[string]string {

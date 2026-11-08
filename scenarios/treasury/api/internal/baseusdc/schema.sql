@@ -8,7 +8,9 @@ CREATE TABLE IF NOT EXISTS baseusdc_receipt_checks (
     outcome TEXT NOT NULL,
     error_code TEXT NOT NULL DEFAULT '',
     checked_at TEXT NOT NULL,
-    transfers_json TEXT NOT NULL
+    transfers_json TEXT NOT NULL,
+    prior_check_id TEXT NOT NULL DEFAULT '',
+    relation TEXT NOT NULL DEFAULT ''
 );
 
 CREATE INDEX IF NOT EXISTS idx_baseusdc_receipt_checks_lookup

@@ -4,7 +4,7 @@
   "source_manifest": "cli/manifest.json",
   "scenario": "scenario-to-android",
   "generator": "v1.0.0",
-  "manifest_hash": "3ee6cfe975ee20b087d858a5e72c4a340ad8621e2a7e9e03511de3d79dd18c38",
+  "manifest_hash": "82ef1e61fb059cc5dfa43d1e698cb0f2ae59fd8ef0ae3fe2f9e0fad923bcff51",
   "commands": [
     {
       "path": "android app-install",
@@ -28,6 +28,12 @@
       "path": "android app-verify",
       "group": "android",
       "command": "app-verify",
+      "binding": "."
+    },
+    {
+      "path": "android artifact-list",
+      "group": "android",
+      "command": "artifact-list",
       "binding": "."
     },
     {
@@ -82,6 +88,12 @@
       "path": "android matrix-create",
       "group": "android",
       "command": "matrix-create",
+      "binding": "."
+    },
+    {
+      "path": "android matrix-get",
+      "group": "android",
+      "command": "matrix-get",
       "binding": "."
     },
     {

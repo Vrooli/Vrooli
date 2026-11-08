@@ -73,6 +73,18 @@ func TestManifestVerifierReportsCleanAndDrift(t *testing.T) {
 			},
 		},
 		{
+			name: "generator source drift only",
+			mutate: func(t *testing.T, repoRoot string) {
+				path := filepath.Join(repoRoot, "packages", "proto", "protogen", "generator.go")
+				require.NoError(t, os.WriteFile(path, []byte("package protogen\n// metadata producer changed\n"), 0o644))
+			},
+			assert: func(t *testing.T, status GenSyncStatus) {
+				require.True(t, status.InSync)
+				require.Empty(t, status.Drift)
+				require.True(t, status.ToolchainDrift)
+			},
+		},
+		{
 			name: "toolchain drift only",
 			mutate: func(t *testing.T, repoRoot string) {
 				writeTool(t, repoRoot, "buf", "9.9.9")
@@ -118,6 +130,8 @@ func makeManifestRepo(t *testing.T) string {
 	require.NoError(t, os.MkdirAll(filepath.Join(protoRoot, "schemas", "demo", "v1", "core"), 0o755))
 	require.NoError(t, os.WriteFile(filepath.Join(protoRoot, "schemas", "demo", "v1", "core", "core.proto"), []byte("syntax = \"proto3\";\npackage demo.v1.core;\nmessage Demo {}\n"), 0o644))
 	require.NoError(t, os.WriteFile(filepath.Join(protoRoot, "buf.gen.yaml"), []byte("version: v2\n"), 0o644))
+	require.NoError(t, os.MkdirAll(filepath.Join(protoRoot, "protogen"), 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(protoRoot, "protogen", "generator.go"), []byte("package protogen\n"), 0o644))
 	for _, path := range []string{
 		filepath.Join(protoRoot, "gen", "go", "demo", "v1", "core", "core.pb.go"),
 		filepath.Join(protoRoot, "gen", "typescript", "demo", "v1", "core", "core_pb.ts"),

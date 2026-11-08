@@ -35,12 +35,14 @@ beforeEach(() => {
 
 describe("DashboardPage accessibility", () => {
   it("has no axe violations once the health card loads", async () => {
-    const { container, findByTestId } = renderWithProviders(<DashboardPage />);
+    const { container, findByTestId, queryClient } = renderWithProviders(<DashboardPage />);
     const card = await findByTestId(selectors.dashboard.apiStatus.card);
-    // Wait for the card body to populate (post fetchHealth resolve).
+    // Wait for the card body to populate (post fetchHealth resolve) and for
+    // every dashboard query to settle, so no update lands after the audit.
     const { waitFor } = await import("@testing-library/react");
     await waitFor(() => {
       if (!card.querySelector("dl")) throw new Error("health card body not ready");
+      if (queryClient.isFetching() > 0) throw new Error("dashboard queries still loading");
     });
     await expectNoA11yViolations(container);
   });

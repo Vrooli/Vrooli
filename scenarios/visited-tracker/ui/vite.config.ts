@@ -30,12 +30,6 @@ export default defineConfig({
       exclude: ['src/**/*.test.{ts,tsx}', 'src/**/*.spec.{ts,tsx}', 'src/**/*.d.ts',
         'src/main.tsx', 'src/test-setup.ts', 'src/test-utils/**',
         'src/consts/strings.generated.ts', 'src/i18n/locales/**', 'src/**/generated/**'],
-      thresholds: {
-        lines: 85,
-        functions: 85,
-        branches: 85,
-        statements: 85
-      }
     }
   }
 });

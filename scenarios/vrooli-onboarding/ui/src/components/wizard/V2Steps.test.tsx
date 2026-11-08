@@ -208,7 +208,9 @@ describe("V2 onboarding wizard steps", () => {
     fireEvent.change(input, { target: { value: "secret-value" } });
     fireEvent.click(screen.getByRole("button", { name: "Save securely" }));
     await waitFor(() => expect(credentialsApi.provisionCredential).toHaveBeenCalledWith({ logical_id: "openrouter", field: "api_key", value: "secret-value" }, "local"));
-    expect(input).toHaveValue("");
+    // Once the save resolves the secret is gone from the form, however the
+    // credential row re-renders after the refetch.
+    await waitFor(() => expect(screen.queryByDisplayValue("secret-value")).toBeNull());
 
     renderWithProviders(<StepReady />);
     expect(await screen.findByText("Host requirements")).toBeInTheDocument();

@@ -12,8 +12,12 @@ import (
 	"structure-health/internal/rules"
 )
 
+// schemaScanExcludedDirs are trees whose schema files are not authoritative
+// declarations: build and dependency outputs, and evidence directories, which
+// hold captured byte-for-byte snapshots (pre-images, prewrite bytes) of the
+// schema they recorded rather than forks of it.
 var schemaScanExcludedDirs = map[string]struct{}{
-	".git": {}, ".cache": {}, "build": {}, "coverage": {}, "dist": {}, "node_modules": {}, "vendor": {},
+	".git": {}, ".cache": {}, "build": {}, "coverage": {}, "dist": {}, "evidence": {}, "node_modules": {}, "vendor": {},
 }
 
 func projectSchemaIDRules(root string) []rules.Finding {

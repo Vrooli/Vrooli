@@ -1,4 +1,5 @@
-import { act, render, screen } from "@testing-library/react";
+import { act, screen } from "@testing-library/react";
+import { renderWithProviders } from "../../test-utils";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -18,7 +19,7 @@ describe("Toast", () => {
 
   it("pushes a toast and auto-dismisses after the duration", () => {
     let push: ReturnType<typeof useToast>["push"] | null = null;
-    render(
+    renderWithProviders(
       <ToastProvider>
         <Pusher onReady={(p) => { push = p; }} />
         <ToastHost dismissLabel={DISMISS} data-testid="toast-host" />
@@ -38,7 +39,7 @@ describe("Toast", () => {
     vi.useRealTimers();
     const user = userEvent.setup();
     let push: ReturnType<typeof useToast>["push"] | null = null;
-    render(
+    renderWithProviders(
       <ToastProvider>
         <Pusher onReady={(p) => { push = p; }} />
         <ToastHost dismissLabel={DISMISS} data-testid="toast-host" />

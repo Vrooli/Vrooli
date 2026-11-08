@@ -144,7 +144,7 @@ func (s *service) receive(w http.ResponseWriter, req *http.Request) {
 		http.Error(w, "invalid inbound envelope", http.StatusBadRequest)
 		return
 	}
-	result, err := s.ingest(dispatch.WithAuthorization(req.Context(), req.Header.Get("Authorization")), envelope)
+	result, err := s.ingest(dispatch.WithCreateRunHeaders(req.Context(), req.Header), envelope)
 	if err != nil {
 		if errors.Is(err, errUnbound) {
 			http.Error(w, errUnbound.Error(), http.StatusForbidden)

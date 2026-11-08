@@ -196,6 +196,42 @@
       ]
     },
     {
+      "id": "treasury_ledger_emissions_list",
+      "path": "/vrooli.treasury.v1.ledger.LedgerService/ListEmissions",
+      "method": "POST",
+      "summary": "Read durable Money Ledger delivery state",
+      "description": "",
+      "category": "ledger",
+      "request": {
+        "type": "ListEmissionsRequest"
+      },
+      "response": {
+        "type": "ListEmissionsResponse"
+      },
+      "errors": [
+        {
+          "status": 401,
+          "code": "unauthenticated",
+          "description": "Operator identity is required"
+        },
+        {
+          "status": 403,
+          "code": "permission_denied",
+          "description": "Caller is not in the operator realm"
+        },
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Unsupported status filter"
+        },
+        {
+          "status": 503,
+          "code": "failed_precondition",
+          "description": "Operator auth or readback is unavailable"
+        }
+      ]
+    },
+    {
       "id": "treasuryadmin_recover_research_wallet",
       "path": "/vrooli.treasury.v1.authorization.TreasuryAdmin/RecoverResearchWallet",
       "method": "POST",
@@ -269,6 +305,99 @@
       },
       "response": {
         "type": "ResearchWalletResponse"
+      },
+      "errors": [
+        {
+          "status": 401,
+          "code": "unauthenticated",
+          "description": "Operator identity is required"
+        },
+        {
+          "status": 403,
+          "code": "permission_denied",
+          "description": "Agent-realm or invalid operator credential"
+        },
+        {
+          "status": 412,
+          "code": "failed_precondition",
+          "description": "Operator realm is not configured"
+        }
+      ]
+    },
+    {
+      "id": "treasuryadmin_verify_base_usdc_receipt",
+      "path": "/vrooli.treasury.v1.authorization.TreasuryAdmin/VerifyBaseUSDCReceipt",
+      "method": "POST",
+      "summary": "Read and verify a Base native-USDC transaction receipt without posting or allocation",
+      "description": "",
+      "category": "admin",
+      "request": {
+        "type": "VerifyBaseUSDCReceiptRequest"
+      },
+      "response": {
+        "type": "VerifyBaseUSDCReceiptResponse"
+      },
+      "errors": [
+        {
+          "status": 401,
+          "code": "unauthenticated",
+          "description": "Operator identity is required"
+        },
+        {
+          "status": 403,
+          "code": "permission_denied",
+          "description": "Agent-realm or invalid operator credential"
+        },
+        {
+          "status": 412,
+          "code": "failed_precondition",
+          "description": "Operator realm is not configured"
+        }
+      ]
+    },
+    {
+      "id": "treasuryadmin_recheck_base_usdc_receipt",
+      "path": "/vrooli.treasury.v1.authorization.TreasuryAdmin/RecheckBaseUSDCReceipt",
+      "method": "POST",
+      "summary": "Recheck an exact prior verified Base receipt without posting or allocation",
+      "description": "",
+      "category": "admin",
+      "request": {
+        "type": "RecheckBaseUSDCReceiptRequest"
+      },
+      "response": {
+        "type": "RecheckBaseUSDCReceiptResponse"
+      },
+      "errors": [
+        {
+          "status": 401,
+          "code": "unauthenticated",
+          "description": "Operator identity is required"
+        },
+        {
+          "status": 403,
+          "code": "permission_denied",
+          "description": "Agent-realm or invalid operator credential"
+        },
+        {
+          "status": 412,
+          "code": "failed_precondition",
+          "description": "Operator realm is not configured"
+        }
+      ]
+    },
+    {
+      "id": "treasuryadmin_list_base_usdc_receipt_checks",
+      "path": "/vrooli.treasury.v1.authorization.TreasuryAdmin/ListBaseUSDCReceiptChecks",
+      "method": "POST",
+      "summary": "Read retained Base receipt checks for an operator-bound wallet and transaction",
+      "description": "",
+      "category": "admin",
+      "request": {
+        "type": "ListBaseUSDCReceiptChecksRequest"
+      },
+      "response": {
+        "type": "ListBaseUSDCReceiptChecksResponse"
       },
       "errors": [
         {
@@ -920,6 +1049,37 @@
       },
       "response": {
         "type": "ReportManualOutcomeResponse"
+      },
+      "errors": [
+        {
+          "status": 401,
+          "code": "unauthenticated",
+          "description": "Operator identity is required"
+        },
+        {
+          "status": 403,
+          "code": "permission_denied",
+          "description": "Agent-realm or invalid operator credential"
+        },
+        {
+          "status": 412,
+          "code": "failed_precondition",
+          "description": "Operator realm is not configured"
+        }
+      ]
+    },
+    {
+      "id": "treasuryadmin_resolve_unknown_settlement",
+      "path": "/vrooli.treasury.v1.authorization.TreasuryAdmin/ResolveUnknownSettlement",
+      "method": "POST",
+      "summary": "Reconcile an unknown or interrupted rail outcome through its registered adapter",
+      "description": "",
+      "category": "admin",
+      "request": {
+        "type": "ResolveUnknownSettlementRequest"
+      },
+      "response": {
+        "type": "ResolveUnknownSettlementResponse"
       },
       "errors": [
         {

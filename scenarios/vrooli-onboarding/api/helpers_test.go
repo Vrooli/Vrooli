@@ -30,6 +30,21 @@ func TestMain(m *testing.M) {
 	if err := os.Setenv("VROOLI_STATE_ROOT", stateRoot); err != nil {
 		panic(err)
 	}
+	// Pin the repository to this checkout rather than inheriting the caller's
+	// VROOLI_ROOT (set in lifecycle-managed and agent shells, absent in a bare
+	// one), and drop a global storage root, which would override the state
+	// root above. Tests that need another root still set it with t.Setenv.
+	repoRoot, err := filepath.Abs(filepath.Join("..", "..", ".."))
+	if err != nil {
+		panic(err)
+	}
+	_ = os.Setenv("VROOLI_ROOT", repoRoot)
+	_ = os.Unsetenv("VROOLI_STORAGE_ROOT")
+	// The CLIs these tests build act as the operator. An agent session running
+	// the tests would hand them its agent identity, which the operator
+	// boundary correctly refuses, and route their requests through its live
+	// credential broker.
+	_ = os.Unsetenv("VROOLI_AGENT_IDENTITY_TOKEN")
 	code := m.Run()
 	if hadPrevious {
 		_ = os.Setenv("HOME", previous)

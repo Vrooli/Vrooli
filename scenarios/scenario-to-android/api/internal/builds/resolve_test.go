@@ -32,6 +32,21 @@ func TestResolveAPKReturnsPathFreeVerifiedDescriptorAndBytes(t *testing.T) {
 	require.Equal(t, wantAPK, got)
 }
 
+func TestListArtifactCandidatesReturnsPathFreeRecentMetadata(t *testing.T) {
+	dataRoot, ref, _ := retainResolverFixture(t)
+	candidates, err := ListArtifactCandidates(dataRoot, 20)
+	require.NoError(t, err)
+	require.Len(t, candidates, 1)
+	require.Equal(t, ref, candidates[0].ImmutableRef)
+	require.Equal(t, "com.example.portal", candidates[0].PackageName)
+	require.EqualValues(t, 43, candidates[0].VersionCode)
+	encoded, err := json.Marshal(candidates)
+	require.NoError(t, err)
+	require.NotContains(t, string(encoded), dataRoot)
+	require.NotContains(t, string(encoded), "apk_path")
+	require.Error(t, func() error { _, err := ListArtifactCandidates(dataRoot, 101); return err }())
+}
+
 func TestResolveAPKRejectsInvalidReferenceTamperingAndSymlinks(t *testing.T) {
 	t.Run("reference cannot select arbitrary paths", func(t *testing.T) {
 		if _, err := ResolveAPK(t.TempDir(), "../../app.apk"); err == nil {

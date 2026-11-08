@@ -37,12 +37,6 @@ export default defineConfig(({ mode }) => {
       ],
       reporter: ['json-summary', 'json', 'text'],
       reportOnFailure: true,
-      thresholds: {
-        lines: 85,
-        functions: 85,
-        branches: 85,
-        statements: 85,
-      }
     }
     },
   };

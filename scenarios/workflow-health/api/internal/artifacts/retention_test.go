@@ -1,6 +1,7 @@
 package artifacts
 
 import (
+	"bytes"
 	"encoding/json"
 	"os"
 	"path/filepath"
@@ -130,6 +131,34 @@ func TestCitedRunIDsFindsUUIDsInEvidenceText(t *testing.T) {
 	}
 	if !cited[id] {
 		t.Errorf("CitedRunIDs missed %s: %v", id, cited)
+	}
+}
+
+func TestCitedRunIDsProtectsLongEvidenceLineWithinFileLimit(t *testing.T) {
+	root := t.TempDir()
+	now := time.Date(2026, 11, 5, 6, 0, 0, 0, time.UTC)
+	id := "db061437-aa6a-407e-bf39-622654162b6e"
+	timeline := writeFixture(t, root, now, fixtureRun{"hub", id, "case-a", 30 * 24 * time.Hour, 10})
+	// Large single-line JSON or generated evidence is still a regular file under
+	// the scanner's declared size cap. Its citation must protect the timeline.
+	evidence := t.TempDir()
+	line := append([]byte(id), bytes.Repeat([]byte("x"), citationFileLimit-len(id))...)
+	if err := os.WriteFile(filepath.Join(evidence, "note.json"), line, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	cited, err := CitedRunIDs(evidence)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !cited[id] {
+		t.Fatalf("long evidence line lost citation for %s", id)
+	}
+	res, err := PruneTimelines(root, RetentionPolicy{MinAge: 72 * time.Hour}, RetentionInputs{Now: now, CitedRuns: cited})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !exists(timeline) || res.Protected["cited_evidence"] != 1 {
+		t.Fatalf("cited timeline was not protected: %+v", res)
 	}
 }
 

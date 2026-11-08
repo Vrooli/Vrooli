@@ -435,5 +435,16 @@
   ],
   "measures": {"domains": []},
   "exceptions": [],
-  "omitted": []
+  "omitted": [
+    {
+      "service": "TreasuryAdmin",
+      "method": "RecheckBaseUSDCReceipt",
+      "reason": "No CLI command is defined for authenticated provider receipt rechecks."
+    },
+    {
+      "service": "TreasuryAdmin",
+      "method": "ResolveUnknownSettlement",
+      "reason": "No CLI command is defined for rail unknown-outcome reconciliation."
+    }
+  ]
 }

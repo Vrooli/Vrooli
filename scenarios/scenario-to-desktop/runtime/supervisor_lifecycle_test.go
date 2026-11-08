@@ -5,6 +5,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"reflect"
 	"runtime"
 	"strings"
 	"testing"
@@ -350,8 +351,20 @@ func TestAccessors(t *testing.T) {
 	})
 
 	t.Run("Manifest", func(t *testing.T) {
-		if got := s.Manifest(); got != m {
-			t.Error("Manifest() should return the manifest")
+		// Manifest returns a snapshot carrying the effective services, so
+		// callers can read it without holding the supervisor's lock.
+		got := s.Manifest()
+		if got == nil || got == m {
+			t.Fatalf("Manifest() = %p, want a snapshot distinct from the input %p", got, m)
+		}
+		want := *m
+		want.Services = []manifest.Service{} // the effective service list is always materialized
+		if !reflect.DeepEqual(*got, want) {
+			t.Errorf("Manifest() snapshot = %+v, want %+v", *got, want)
+		}
+		got.Services = nil
+		if len(s.Manifest().Services) != len(m.Services) {
+			t.Error("mutating a snapshot changed the supervisor's manifest")
 		}
 	})
 
@@ -448,7 +461,9 @@ func TestAccessors(t *testing.T) {
 		s.servicesStarted = false
 		s.opts.Manifest = &manifest.Manifest{}
 		s.StartServicesIfReady()
-		// Should trigger startServicesAsync
+		// Wait for the asynchronous start so it cannot write into the test's
+		// app data directory after the test returns.
+		s.wg.Wait()
 		if !s.servicesStarted {
 			t.Error("StartServicesIfReady() should set servicesStarted=true")
 		}

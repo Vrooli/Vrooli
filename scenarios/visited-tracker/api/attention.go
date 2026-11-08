@@ -206,14 +206,27 @@ func oldestActiveClaimAge(c *Campaign, now time.Time) time.Duration {
 	return oldest
 }
 
+func unreviewedCount(c *Campaign) uint32 {
+	var count uint32
+	for _, file := range c.TrackedFiles {
+		if file.Deleted || file.Excluded {
+			continue
+		}
+		if file.ContentHash == nil || file.LastReviewed == nil || file.ReviewedRevision != *file.ContentHash {
+			count++
+		}
+	}
+	return count
+}
+
 func validIdentity(value string) bool { return strings.TrimSpace(value) != "" && len(value) <= 200 }
 
-func claimAttention(ctx context.Context, id uuid.UUID, requestID, worker string, ttlSeconds int, now time.Time) (*ReviewClaim, error) {
+func claimAttention(ctx context.Context, id uuid.UUID, requestID, worker string, ttlSeconds int, now time.Time) (*ReviewClaim, uint32, error) {
 	if !validIdentity(requestID) || !validIdentity(worker) || ttlSeconds < 1 || ttlSeconds > 3600 {
-		return nil, fmt.Errorf("%w: request_id and worker are required; ttl_seconds must be 1..3600", ErrAttentionInput)
+		return nil, 0, fmt.Errorf("%w: request_id and worker are required; ttl_seconds must be 1..3600", ErrAttentionInput)
 	}
 	var result *ReviewClaim
-	_, err := mutateCampaign(ctx, id, func(c *Campaign) error {
+	updated, err := mutateCampaign(ctx, id, func(c *Campaign) error {
 		archiveTerminalClaims(c, now)
 		if claim := findClaimByRequest(c, requestID); claim != nil {
 			if claim.Worker != worker || claim.TTLSeconds != ttlSeconds {
@@ -250,17 +263,20 @@ func claimAttention(ctx context.Context, id uuid.UUID, requestID, worker string,
 		result = &claim
 		return nil
 	})
-	return result, err
+	if err != nil {
+		return nil, 0, err
+	}
+	return result, unreviewedCount(updated), nil
 }
 
-func completeAttention(ctx context.Context, id uuid.UUID, claimID, worker, outcome, evidence string, now time.Time) (*ReviewClaim, error) {
+func completeAttention(ctx context.Context, id uuid.UUID, claimID, worker, outcome, evidence string, now time.Time) (*ReviewClaim, uint32, error) {
 	if !validIdentity(claimID) || !validIdentity(worker) || len(evidence) > 4096 ||
 		(outcome != "reviewed" && outcome != "incomplete" && outcome != "skipped") ||
 		(outcome == "reviewed" && strings.TrimSpace(evidence) == "") {
-		return nil, fmt.Errorf("%w: require a claim, worker, supported outcome and evidence for reviewed work", ErrAttentionInput)
+		return nil, 0, fmt.Errorf("%w: require a claim, worker, supported outcome and evidence for reviewed work", ErrAttentionInput)
 	}
 	var result *ReviewClaim
-	_, err := mutateCampaign(ctx, id, func(c *Campaign) error {
+	updated, err := mutateCampaign(ctx, id, func(c *Campaign) error {
 		archiveTerminalClaims(c, now)
 		index := -1
 		for i := range c.Claims {
@@ -329,5 +345,8 @@ func completeAttention(ctx context.Context, id uuid.UUID, claimID, worker, outco
 		result = &copy
 		return nil
 	})
-	return result, err
+	if err != nil {
+		return nil, 0, err
+	}
+	return result, unreviewedCount(updated), nil
 }

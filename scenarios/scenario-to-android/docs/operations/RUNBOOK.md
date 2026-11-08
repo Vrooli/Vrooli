@@ -71,9 +71,9 @@ ANDROID_ARTIFACT_DIGEST=sha256:<artifact-sha256> \
 ANDROID_ARTIFACT_REF=android-debug:<artifact-sha256> \
 ANDROID_ARTIFACT_PATH=/absolute/path/to/app.apk \
   scenario-to-android android matrix-create
-ANDROID_MATRIX_RUN_ID=<run-id> scenario-to-android android matrix-start
-ANDROID_MATRIX_RUN_ID=<run-id> scenario-to-android android matrix-wait
-ANDROID_MATRIX_RUN_ID=<run-id> scenario-to-android android matrix-abort
+scenario-to-android android matrix-start <run-id>
+scenario-to-android android matrix-wait <run-id>
+scenario-to-android android matrix-abort <run-id>
 ```
 
 To run only the installed-app offline/online chapter on an isolated USB

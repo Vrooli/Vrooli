@@ -74,23 +74,12 @@ func (h *Handlers) UpdateRetention(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	cur := h.RetentionStore.Get()
-	next := config.RetentionConfig{
-		MaxArchiveAgeDays:     cur.MaxArchiveAgeDays,
-		MaxArchiveSizeBytes:   cur.MaxArchiveSizeBytes,
-		MaxArchivesPerProject: cur.MaxArchivesPerProject,
-	}
-	if req.MaxArchiveAgeDays != nil {
-		next.MaxArchiveAgeDays = *req.MaxArchiveAgeDays
-	}
-	if req.MaxArchiveSizeBytes != nil {
-		next.MaxArchiveSizeBytes = *req.MaxArchiveSizeBytes
-	}
-	if req.MaxArchivesPerProject != nil {
-		next.MaxArchivesPerProject = *req.MaxArchivesPerProject
-	}
-
-	if err := h.RetentionStore.Set(next); err != nil {
+	next, err := h.RetentionStore.Update(config.RetentionPatch{
+		MaxArchiveAgeDays:     req.MaxArchiveAgeDays,
+		MaxArchiveSizeBytes:   req.MaxArchiveSizeBytes,
+		MaxArchivesPerProject: req.MaxArchivesPerProject,
+	})
+	if err != nil {
 		h.JSONError(w, err.Error(), http.StatusBadRequest)
 		return
 	}

@@ -383,3 +383,34 @@ an actionable diff showing exactly which entries diverged.
 - Documentation manifest (used by doc-rendering tooling): `docs/manifest.json`.
 - Production-import quarantine for testutil: `api/internal/testutil/no_prod_import_test.go`.
 - The unit-testing-architecture-steer skill (loaded via `prompt-manager skill read unit-testing-architecture-steer`) is the canonical source for "should this be a seam?" judgement calls.
+
+
+## Seeded execution ownership
+
+| Seam | Declaration | Production wiring | Test substitution | Purpose |
+|---|---|---|---|---|
+| `SeedCoordinator` | `api/internal/execution/seed_isolation.go` | `NewService` constructs `NewSeedIsolation`; its discovered generated Test Genie client uses `SeedService` | `seed_isolation_test.go` private Connect owner | Acquire one seeded paired lease, forward seed-owned values, observe owner loss, and retain cleanup counters. |
+
+`SeedLease` carries the existing isolation lifecycle plus seed values; it does
+not provision resources or execute scripts locally. Declared seeds select this
+owner before the ordinary empty-lease path. A seed declaration is an execution
+dependency even for a read-only observer: failed acquisition or invalid seed
+proof refuses the asset before any BAS call. The 10-second GetSeed monitor
+renews Test Genie's 60-second consumer lease; process loss therefore stops
+renewal and lets the owner retire exact backing. Unseeded cases retain the existing
+routing coordinator. Electron-bound seeded execution refuses until a seed owner
+can prove that exact target; it never falls back to a fleet instance. Explicit
+inputs cannot replace seed-owned values. Tokens stay in memory and are omitted
+from public validation evidence. Setup/clear retries retain the same request
+identity or token and re-resolve discovery; owner loss fails the running case.
+The new seam has focused substitution tests; this addition does not establish a
+repository-wide seam or architecture maturity level.
+
+
+Workflow Health's lifecycle owner stores its fence in the primary validation
+ledger and reports `OPERATION_DURABLE` in the common standing. Replacement
+retains the exact operation and revision; only the control plane's authorized
+matching Resume reopens admission. The shared process-local provider has a
+different contract. Lifecycle handler and control-plane replacement tests cover
+the distinction; a healthy `/health` alone does not prove validation admission
+has reopened.

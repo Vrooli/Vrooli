@@ -1,4 +1,5 @@
-import { render, screen } from "@testing-library/react";
+import { screen } from "@testing-library/react";
+import { renderWithProviders } from "../../test-utils";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
@@ -26,7 +27,7 @@ const COLS: ColumnDef<Row>[] = [
 
 describe("Table", () => {
   it("renders one row per record with stable row keys", () => {
-    render(<Table data-testid="t" columns={COLS} rows={ROWS} rowKey={(r) => r.id} />);
+    renderWithProviders(<Table data-testid="t" columns={COLS} rows={ROWS} rowKey={(r) => r.id} />);
     const table = screen.getByTestId("t");
     expect(table.querySelector('[data-row-key="a"]')).not.toBeNull();
     expect(table.querySelector('[data-row-key="b"]')).not.toBeNull();
@@ -35,7 +36,7 @@ describe("Table", () => {
   });
 
   it("renders loading skeletons", () => {
-    const { container } = render(
+    const { container } = renderWithProviders(
       <Table data-testid="t" columns={COLS} rows={[]} rowKey={(r) => r.id} loading />,
     );
     expect(container.querySelectorAll(".animate-pulse").length).toBeGreaterThan(0);
@@ -43,19 +44,19 @@ describe("Table", () => {
 
   it("renders error alert with the supplied message", () => {
     const errMsg = "kaboom-x";
-    render(<Table data-testid="t" columns={COLS} rows={[]} rowKey={(r) => r.id} error={errMsg} />);
+    renderWithProviders(<Table data-testid="t" columns={COLS} rows={[]} rowKey={(r) => r.id} error={errMsg} />);
     expect(screen.getByRole("alert").textContent).toContain(errMsg);
   });
 
   it("renders empty state when no rows", () => {
     const emptyTitle = "empty-x";
-    render(<Table data-testid="t" columns={COLS} rows={[]} rowKey={(r) => r.id} emptyTitle={emptyTitle} />);
+    renderWithProviders(<Table data-testid="t" columns={COLS} rows={[]} rowKey={(r) => r.id} emptyTitle={emptyTitle} />);
     expect(screen.getByTestId("t").textContent).toContain(emptyTitle);
   });
 
   it("fires onRowClick for clickable rows", async () => {
     const onRowClick = vi.fn();
-    render(
+    renderWithProviders(
       <Table data-testid="t" columns={COLS} rows={ROWS} rowKey={(r) => r.id} onRowClick={onRowClick} />,
     );
     const row = screen.getByTestId("t").querySelector('[data-row-key="a"]') as HTMLElement;
@@ -65,7 +66,7 @@ describe("Table", () => {
 
   it("cycles sort direction on sortable column", async () => {
     const onSortChange = vi.fn();
-    render(
+    renderWithProviders(
       <Table
         data-testid="t"
         columns={COLS}

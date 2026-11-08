@@ -22,6 +22,7 @@ import (
 type Service struct {
 	Validator *validation.Engine
 	Client    BASClient
+	Seeds     SeedCoordinator
 	Now       func() time.Time
 }
 
@@ -29,6 +30,7 @@ func NewService(client BASClient) *Service {
 	return &Service{
 		Validator: validation.NewEngine(),
 		Client:    client,
+		Seeds:     NewSeedIsolation(),
 		Now:       func() time.Time { return time.Now().UTC() },
 	}
 }
@@ -139,12 +141,30 @@ func (s *Service) RunScenario(ctx context.Context, scenario, path string, opts O
 			return report, err
 		}
 	}
+	seeded := false
+	for _, asset := range selected {
+		if strings.TrimSpace(asset.Labels["seed"]) != "" {
+			seeded = true
+		}
+	}
+	if seeded && opts.ElectronTarget != nil {
+		return report, fmt.Errorf("seeded execution is not bound to a live local target")
+	}
+	if seeded && !opts.DryRun && s.Seeds == nil {
+		return report, fmt.Errorf("Test Genie seed coordinator is required for declared seeds")
+	}
 	isolationInstalled := false
 	executionCtx := ctx
 	var isolationLease IsolationLease
-	if opts.Isolation != nil && !opts.DryRun {
+	if (opts.Isolation != nil || seeded) && !opts.DryRun {
 		leaseID := firstNonEmpty(opts.IsolationLeaseID, opts.RunID, fmt.Sprintf("workflow-health-%d", s.now().UnixNano()))
-		lease, err := opts.Isolation.Acquire(ctx, scenario, leaseID)
+		var lease IsolationLease
+		var err error
+		if seeded {
+			lease, err = s.Seeds.AcquireSeed(ctx, scenario, static.TargetPath, leaseID)
+		} else {
+			lease, err = opts.Isolation.Acquire(ctx, scenario, leaseID)
+		}
 		if err != nil {
 			report.Isolation.InstallError = err.Error()
 			report.Findings = append(report.Findings, isolationFinding("routed test isolation was not installed: "+err.Error()))
@@ -204,6 +224,24 @@ func (s *Service) RunScenario(ctx context.Context, scenario, path string, opts O
 				}
 				validation.SortFindings(report.Findings)
 			}()
+			if seeded && isolationInstalled {
+				seededLease, ok := lease.(SeedLease)
+				if !ok {
+					return report, fmt.Errorf("seed coordinator returned no seed values contract")
+				}
+				params := make(map[string]any, len(opts.InitialParams)+len(seededLease.InitialParams()))
+				for key, value := range opts.InitialParams {
+					params[key] = value
+				}
+				for key, value := range seededLease.InitialParams() {
+					if _, exists := params[key]; exists {
+						return report, fmt.Errorf("explicit input conflicts with seed-owned parameter %q", key)
+					}
+					params[key] = value
+				}
+				opts.InitialParams = params
+			}
+
 		}
 	}
 	// Resolve the target to an absolute path before it feeds workflow reads or
@@ -539,6 +577,11 @@ func selectAssets(catalog *workflows.ScenarioWorkflowCatalog, opts Options) []wo
 }
 
 func refusalReason(asset workflows.WorkflowAsset, isolationInstalled bool, staticFindings []validation.Finding) string {
+	// A seed declaration is an execution dependency even for a read-only
+	// observer. Failure to acquire it must never fall through to primary reads.
+	if strings.TrimSpace(asset.Labels["seed"]) != "" && !isolationInstalled {
+		return "seeded workflow execution requires a proven seed lease"
+	}
 	for _, finding := range staticFindings {
 		if finding.Code == validation.CodeObserverContentUnsafe && finding.Severity == validation.SeverityError && finding.FilePath == asset.Path && (finding.AssetID == "" || finding.AssetID == asset.ID) {
 			return "observer workflow has a static safety error and cannot execute"

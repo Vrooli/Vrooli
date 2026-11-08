@@ -70,6 +70,11 @@ func checkPWALaunchScope(ctx uiinterop.CheckContext) uiinterop.RuleResult {
 			violations = append(violations, pwaViolation(ruleID, mf.rel, "Manifest "+field+" is not deployment-safe", fmt.Sprintf("%s %q is absolute localhost or cross-origin", field, value), "Use a relative or same-origin URL that survives proxy, tunnel, and installed contexts."))
 		}
 	}
+	for _, field := range []struct{ name, value string }{{"start_url", startURL}, {"scope", scope}} {
+		if !manifestScopeCoversAppRoot(mf, field.value) {
+			violations = append(violations, pwaViolation(ruleID, mf.rel, "Manifest "+field.name+" misses the app root", fmt.Sprintf("%s %q, resolved from %s, does not reach the app root", field.name, field.value, mf.rel), "Point start_url and scope at the app root relative to the manifest, e.g. \"../\" for a manifest under public/."))
+		}
+	}
 	if startURL != "" && scope != "" && !manifestURLInScope(startURL, scope) {
 		violations = append(violations, pwaViolation(ruleID, mf.rel, "Manifest start_url is outside scope", fmt.Sprintf("start_url %q is outside scope %q", startURL, scope), "Keep start_url under the manifest scope."))
 	}

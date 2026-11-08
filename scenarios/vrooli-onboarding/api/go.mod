@@ -38,6 +38,7 @@ require (
 	github.com/vrooli/cliresolve v0.0.0 // indirect
 	github.com/vrooli/envkit-go v0.0.0 // indirect
 	golang.org/x/crypto v0.57.0 // indirect
+	golang.org/x/mod v0.41.0 // indirect
 	golang.org/x/sync v0.23.0 // indirect
 	golang.org/x/sys v0.48.0 // indirect
 	modernc.org/libc v1.72.3 // indirect
@@ -62,8 +63,6 @@ replace github.com/vrooli/binaryfetch => ../../../packages/binaryfetch
 replace github.com/vrooli/cli-core => ../../../packages/cli-core
 
 replace github.com/vrooli/platform-go => ../../../packages/platform-go
-
-replace github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime => ../../scenario-to-desktop/runtime
 
 replace github.com/vrooli/envkit-go => ../../../packages/envkit-go
 

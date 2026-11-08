@@ -74,6 +74,13 @@ func checkComponentKitAffinity(ctx uiinterop.CheckContext) uiinterop.RuleResult 
 	if patternsErr != nil {
 		return uiinterop.RuleResult{RuleID: ruleID, Skipped: true, SkipReason: patternsErr.Error(), Message: "design-kit metadata unavailable; skipping component kit affinity"}
 	}
+	// Kits are visited in a stable order so a token private to several kits
+	// reports the same violations, in the same order, on every run.
+	kits := make([]string, 0, len(kitPrivateTokenPatterns))
+	for kit := range kitPrivateTokenPatterns {
+		kits = append(kits, kit)
+	}
+	sort.Strings(kits)
 	violations := []uiinterop.Violation{}
 	for _, source := range files {
 		libraryID := provenanceField(source.Content, "@vrooliComponentSource")
@@ -97,7 +104,8 @@ func checkComponentKitAffinity(ctx uiinterop.CheckContext) uiinterop.RuleResult 
 		for _, style := range manifest.DesignStyle {
 			native[style.StyleID] = strings.EqualFold(style.Affinity, "native")
 		}
-		for kit, pattern := range kitPrivateTokenPatterns {
+		for _, kit := range kits {
+			pattern := kitPrivateTokenPatterns[kit]
 			if native[kit] {
 				continue
 			}

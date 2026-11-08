@@ -152,7 +152,16 @@
     }
   },
   "dependencies": {
-    "resources": {}
+    "resources": {},
+    "scenarios": {
+      "test-genie": {
+        "required": false,
+        "startup_policy": "try_start",
+        "degraded_behavior": "Static and unseeded validation remain available; seeded cases refuse before BAS when Test Genie seed authority is unavailable.",
+        "versionRange": ">=0.0.1",
+        "description": "Seed lifecycle and source-identity owner for validation evidence."
+      }
+    }
   },
   "environment": {},
   "components": {

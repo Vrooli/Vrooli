@@ -54,13 +54,9 @@ replace github.com/vrooli/maturity-go => ../../../packages/maturity-go
 
 replace github.com/vrooli/vrooli/packages/proto => ../../../packages/proto
 
-replace github.com/vrooli/vrooli => ../../..
-
 replace github.com/vrooli/repo-contract-go => ../../../packages/repo-contract-go
 
 replace github.com/vrooli/vrooli-cli-go => ../../../packages/vrooli-cli-go
-
-replace github.com/vrooli/binaryfetch => ../../../packages/binaryfetch
 
 replace github.com/vrooli/cli-core => ../../../packages/cli-core
 

@@ -19,7 +19,7 @@ import (
 // ReadinessProfileFetcher is the only contract boundary Workflow Health uses.
 // Experience Manager owns compilation; Workflow Health never reads authored
 // experience files or maintains a parallel readiness registry.
-type ReadinessProfileFetcher func(context.Context, string) (*readinessProfile, error)
+type ReadinessProfileFetcher func(ctx context.Context, scenario, scenarioPath string) (*readinessProfile, error)
 
 type readinessProfile struct {
 	Version string          `json:"version"`
@@ -48,12 +48,12 @@ type readinessRegion struct {
 func newExperienceManagerFetcher() ReadinessProfileFetcher {
 	resolver := discovery.NewResolver(discovery.ResolverConfig{})
 	client := &http.Client{Timeout: 15 * time.Second}
-	return func(ctx context.Context, scenario string) (*readinessProfile, error) {
+	return func(ctx context.Context, scenario, scenarioPath string) (*readinessProfile, error) {
 		base, err := resolver.ResolveScenarioURLDefault(ctx, "experience-manager")
 		if err != nil {
 			return nil, err
 		}
-		resp, err := contractconnect.NewContractServiceClient(client, base).GetReadinessProfile(ctx, connect.NewRequest(&contractv1.GetReadinessProfileRequest{Scenario: scenario}))
+		resp, err := contractconnect.NewContractServiceClient(client, base).GetReadinessProfile(ctx, connect.NewRequest(&contractv1.GetReadinessProfileRequest{Scenario: scenario, Path: scenarioPath}))
 		if err != nil {
 			return nil, err
 		}

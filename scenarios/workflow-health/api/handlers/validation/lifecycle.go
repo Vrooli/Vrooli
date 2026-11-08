@@ -252,6 +252,7 @@ func (h *connectHandler) lifecycleStanding(ctx context.Context, requestedOperati
 		Phase:           commonv1.LifecycleMaintenancePhase_LIFECYCLE_MAINTENANCE_PHASE_OPEN,
 		AdmissionClosed: after.Closed, Admitting: int32(admittingAfter), Remaining: int32(len(active)),
 		InventoryComplete: true, ObservedAt: timestamppb.Now(), Interlock: validationLifecycleInterlock,
+		FencePersistence: commonv1.LifecycleFencePersistence_LIFECYCLE_FENCE_PERSISTENCE_OPERATION_DURABLE,
 	}
 	for _, item := range active {
 		standing.Work = append(standing.Work, &commonv1.LifecycleWorkItem{Id: item.ID, Kind: item.Kind, Status: item.State, PhysicalExecutorPresent: item.Executor})

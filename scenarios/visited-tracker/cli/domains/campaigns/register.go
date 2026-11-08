@@ -23,13 +23,13 @@ func Register(core *cliapp.ScenarioApp, campaignID *string) cliapp.SubcommandGro
 		Description: "Manage visit campaigns",
 		NeedsAPI:    true,
 		Subcommands: []cliapp.Command{
-			{Name: "list", Description: "List campaigns", Run: func(args []string) error { return runList(core, args) }},
+			{Name: "list", Description: "List campaigns", Usage: cliName + " campaigns list [--tag <tag>] [--json]", Run: func(args []string) error { return runList(core, args) }},
 			{Name: "create", Description: "Create a campaign", Run: func(args []string) error { return runCreate(core, &resolver, args) }},
 			{Name: "get", Description: "Get a campaign by ID", Run: func(args []string) error { return runGet(core, args) }},
 			{Name: "update", Description: "Update campaign notes", Run: func(args []string) error { return runUpdate(core, args) }},
 			{Name: "note", Description: "Update campaign notes", Run: func(args []string) error { return runNote(core, &resolver, args) }},
 			{Name: "reset", Description: "Reset campaign visits", Run: func(args []string) error { return runReset(core, &resolver, args) }},
-			{Name: "delete", Description: "Delete a campaign", Run: func(args []string) error { return runDelete(core, args) }},
+			{Name: "delete", Description: "Delete a campaign", Usage: cliName + " campaigns delete <campaign-id> [--json]", Run: func(args []string) error { return runDelete(core, args) }},
 			{Name: "find-or-create", Description: "Find or create by location and tag", Run: func(args []string) error { return runFindOrCreate(core, &resolver, args) }},
 		},
 	}
@@ -39,6 +39,7 @@ func runList(core *cliapp.ScenarioApp, args []string) error {
 	fs := flag.NewFlagSet("campaigns list", flag.ContinueOnError)
 	fs.SetOutput(io.Discard)
 	jsonOutput := cliutil.JSONFlag(fs)
+	tag := fs.String("tag", "", "Only show campaigns with this exact tag")
 	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
@@ -50,15 +51,37 @@ func runList(core *cliapp.ScenarioApp, args []string) error {
 	if err := json.Unmarshal(body, &response); err != nil {
 		return fmt.Errorf("parse campaigns response: %w", err)
 	}
+	campaigns := filterCampaignsByTag(response.Campaigns, *tag)
+	if *jsonOutput {
+		return writeCampaignsJSON(os.Stdout, campaigns)
+	}
 	report := cliapp.ListReport{
-		Summary:        []string{fmt.Sprintf("Campaigns: %d", len(response.Campaigns))},
-		Results:        renderCampaigns(response.Campaigns),
+		Summary:        []string{fmt.Sprintf("Campaigns: %d", len(campaigns))},
+		Results:        renderCampaigns(campaigns),
 		RetrievalHints: []string{cliName + " campaigns get <campaign-id>", cliName + " campaigns create --name \"...\" --pattern \"**/*\""},
 	}
-	if *jsonOutput {
-		return cliapp.PrintReportJSON(os.Stdout, report)
-	}
 	return cliapp.RenderListReport(os.Stdout, report)
+}
+
+func filterCampaignsByTag(items []support.Campaign, tag string) []support.Campaign {
+	if strings.TrimSpace(tag) == "" {
+		return items
+	}
+	wanted := strings.TrimSpace(tag)
+	filtered := make([]support.Campaign, 0, len(items))
+	for _, item := range items {
+		if item.Tag != nil && *item.Tag == wanted {
+			filtered = append(filtered, item)
+		}
+	}
+	return filtered
+}
+
+func writeCampaignsJSON(w io.Writer, campaigns []support.Campaign) error {
+	return cliapp.PrintReportJSON(w, struct {
+		Campaigns []support.Campaign `json:"campaigns"`
+		Count     int                `json:"count"`
+	}{Campaigns: campaigns, Count: len(campaigns)})
 }
 
 func runCreate(core *cliapp.ScenarioApp, resolver *support.Resolver, args []string) error {

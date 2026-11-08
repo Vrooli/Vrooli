@@ -1,22 +1,28 @@
 /*
 Rule: PWA Manifest Install Fields
 ID: pwa_manifest_install_fields
-Description: A UI's web app manifest must declare identity, launch URL, display
-  mode, colors, and icons for install readiness.
+Description: A UI's web app manifest must declare naming, launch URL, display
+  mode, colors, and icons for install readiness, and must not declare an id
+  that collapses install identity to the origin.
 Why: Browsers cannot present a scenario as an installable, native-feeling web app
-  unless the manifest carries stable identity, launch, scope, color, and icon
-  metadata. ui-health owns this contract shape; brand-manager owns asset quality.
+  unless the manifest carries naming, launch, scope, color, and icon metadata.
+  Install identity is the manifest id, resolved against the start URL's origin;
+  "/", "." or an origin URL therefore names the bare origin, so every app behind
+  one path-prefix proxy shares an identity and installing one replaces another.
+  Without an id, identity defaults to the resolved start_url, which is distinct
+  per app. ui-health owns this contract shape; brand-manager owns asset quality.
 Category: pwa
 Severity: medium
 Slot: [A]
 SlotFile: ui/public/site.webmanifest
 TechStack: React
-Recommendation: Add id, name, short_name, description, start_url, scope,
-  display, background_color, theme_color, and icon entries to the web manifest.
+Recommendation: Add name, short_name, description, start_url, scope, display,
+  background_color, theme_color, and icon entries to the web manifest, and omit
+  id (or make it app-specific).
 Standard: vrooli-pwa-native-readiness-v1
 
 GoodExample:
-    { "id": ".", "name": "Demo", "short_name": "Demo", "description": "Demo",
+    { "name": "Demo", "short_name": "Demo", "description": "Demo",
       "start_url": ".", "scope": ".", "display": "standalone",
       "background_color": "#0f172a", "theme_color": "#0f172a",
       "icons": [{ "src": "manifest-icon-192.maskable.png", "sizes": "192x192",
@@ -29,7 +35,7 @@ BadExample:
   <description>site.webmanifest carries install identity, launch, colors, and a resolvable icon</description>
   <input>
     [ui/public/site.webmanifest]
-    { "id": ".", "name": "Demo", "short_name": "Demo", "description": "Demo",
+    { "name": "Demo", "short_name": "Demo", "description": "Demo",
       "start_url": ".", "scope": ".", "display": "standalone",
       "background_color": "#0f172a", "theme_color": "#0f172a",
       "icons": [{ "src": "manifest-icon-192.maskable.png", "sizes": "192x192",
@@ -47,12 +53,28 @@ BadExample:
   </input>
   <expected-message>short_name</expected-message>
 </test-case>
+
+<test-case id="manifest-install-fields-origin-id" should-fail="true">
+  <description>an id of "/" resolves to the bare origin and collapses install identity behind a proxy</description>
+  <input>
+    [ui/public/site.webmanifest]
+    { "id": "/", "name": "Demo", "short_name": "Demo", "description": "Demo",
+      "start_url": ".", "scope": ".", "display": "standalone",
+      "background_color": "#0f172a", "theme_color": "#0f172a",
+      "icons": [{ "src": "manifest-icon-192.maskable.png", "sizes": "192x192",
+        "type": "image/png", "purpose": "any maskable" }] }
+    [ui/public/manifest-icon-192.maskable.png]
+    png
+  </input>
+  <expected-message>origin</expected-message>
+</test-case>
 */
 
 package checks
 
 import (
 	"fmt"
+	"net/url"
 	"strings"
 
 	"ui-health/internal/uiinterop"
@@ -69,10 +91,13 @@ func checkPWAManifestInstallFields(ctx uiinterop.CheckContext) uiinterop.RuleRes
 		return skippedPWA(ruleID, "web app manifest not found")
 	}
 	var violations []uiinterop.Violation
-	for _, field := range []string{"id", "name", "short_name", "description", "start_url", "scope", "display", "background_color", "theme_color"} {
+	for _, field := range []string{"name", "short_name", "description", "start_url", "scope", "display", "background_color", "theme_color"} {
 		if strings.TrimSpace(stringField(mf.data, field)) == "" {
 			violations = append(violations, pwaViolation(ruleID, mf.rel, "Missing manifest "+field, "web app manifest is missing "+field, "Add "+field+" to the web app manifest."))
 		}
+	}
+	if id := stringField(mf.data, "id"); manifestIDCollapsesToOrigin(id) {
+		violations = append(violations, pwaViolation(ruleID, mf.rel, "Manifest id collapses install identity", fmt.Sprintf("web app manifest id %q resolves to the bare origin, so every app behind one path-prefix proxy shares an install identity", id), "Remove id so install identity defaults to the resolved start_url, or make it app-specific."))
 	}
 	if display := stringField(mf.data, "display"); display != "" && display != "standalone" && display != "fullscreen" && display != "minimal-ui" {
 		violations = append(violations, pwaViolation(ruleID, mf.rel, "Install display is not standalone", `web app manifest display should be "standalone", "fullscreen", or "minimal-ui" for install readiness`, `Set "display":"standalone" unless the product needs another install display mode.`))
@@ -97,4 +122,23 @@ func checkPWAManifestInstallFields(ctx uiinterop.CheckContext) uiinterop.RuleRes
 		}
 	}
 	return pwaResult(ruleID, "manifest install fields are complete", "manifest install fields are incomplete", violations)
+}
+
+// manifestIDCollapsesToOrigin reports whether an explicit manifest id names
+// the bare origin. The Web App Manifest spec resolves id against the start
+// URL's origin, not against start_url, so "/", "." and "https://host/" all
+// become "https://host/" whatever path the app is served under. An empty id
+// is ignored by the spec and does not collapse.
+func manifestIDCollapsesToOrigin(id string) bool {
+	id = strings.TrimSpace(id)
+	if id == "" {
+		return false
+	}
+	base, _ := url.Parse("https://origin.invalid/")
+	ref, err := url.Parse(id)
+	if err != nil {
+		return false
+	}
+	resolved := base.ResolveReference(ref)
+	return (resolved.Path == "" || resolved.Path == "/") && resolved.RawQuery == ""
 }

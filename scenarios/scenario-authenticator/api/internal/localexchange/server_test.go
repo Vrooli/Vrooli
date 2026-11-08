@@ -6,6 +6,7 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -24,7 +25,15 @@ func TestStartInjectsKernelPeerPrincipalOverRealSocket(t *testing.T) {
 		t.Fatalf("current principal: %v", err)
 	}
 
-	path := filepath.Join(t.TempDir(), "auth.sock")
+	// A Unix socket address is limited to about 104-108 bytes; t.TempDir()
+	// follows GOTMPDIR, which lifecycle-managed shells place deep under the
+	// runtime home, so keep the socket in a short private directory.
+	dir, err := os.MkdirTemp("", "sa")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.RemoveAll(dir) })
+	path := filepath.Join(dir, "auth.sock")
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		principal, ok := PeerPrincipal(r.Context())
 		if !ok {

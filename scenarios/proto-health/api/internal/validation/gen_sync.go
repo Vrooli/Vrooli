@@ -101,8 +101,10 @@ func truthy(raw string) bool {
 	}
 }
 
+// sameToolchain mirrors genmanifest's freshness rule: a change to buf, its
+// generation config, the generator source, or any plugin version is drift.
 func sameToolchain(a, b genmanifest.Toolchain) bool {
-	if a.Buf != b.Buf || a.BufGenYAMLDigest != b.BufGenYAMLDigest || len(a.Plugins) != len(b.Plugins) {
+	if a.Buf != b.Buf || a.BufGenYAMLDigest != b.BufGenYAMLDigest || a.GeneratorDigest != b.GeneratorDigest || len(a.Plugins) != len(b.Plugins) {
 		return false
 	}
 	for name, version := range a.Plugins {

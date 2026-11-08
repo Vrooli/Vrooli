@@ -22,7 +22,7 @@
   "skills": {
     "usage": {
       "source": "skills/swarm-manager/SKILL.md",
-      "programs": ["archive-terminal"]
+      "programs": ["swarm-manager.archive-terminal"]
     },
     "improve": {
       "source": "skills/swarm-manager-improve/SKILL.md",

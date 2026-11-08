@@ -228,7 +228,7 @@ func TestJ12_OwnKeyWorksInLaunchedBundle(t *testing.T) {
 	t.Setenv("XDG_CONFIG_HOME", filepath.Join(os.Getenv("HOME"), ".config"))
 	t.Setenv("XDG_DATA_HOME", filepath.Join(os.Getenv("HOME"), ".local", "share"))
 	runtimeDir := t.TempDir()
-	if err := os.Chmod(runtimeDir, 0700); err != nil {
+	if err := os.Chmod(runtimeDir, 0o700); err != nil {
 		t.Fatal(err)
 	}
 	t.Setenv("XDG_RUNTIME_DIR", runtimeDir)
@@ -308,7 +308,7 @@ func TestJ12_OwnKeyWorksInLaunchedBundle(t *testing.T) {
 	}))
 	t.Cleanup(proxy.Close)
 	trust := filepath.Join(t.TempDir(), "router-ca.pem")
-	if err := os.WriteFile(trust, certPEM, 0600); err != nil {
+	if err := os.WriteFile(trust, certPEM, 0o600); err != nil {
 		t.Fatal(err)
 	}
 	t.Setenv("SSL_CERT_FILE", trust)
@@ -365,5 +365,31 @@ func TestJ12_OwnKeyWorksInLaunchedBundle(t *testing.T) {
 	if response.Msg.GetValueJson() != `{"answer":"ok"}` || calls.Load() != 1 {
 		t.Fatalf("own-key result=%s router calls=%d", response.Msg.GetValueJson(), calls.Load())
 	}
-	t.Log("actual AppImage used its native encrypted credential authority and canonical OpenRouter HTTPS endpoint; only upstream router was fake")
+	// The provider credential is read through Credential Authority for each
+	// inference. Removing it must revoke the route immediately: a later request
+	// cannot reuse a cached key or reach the upstream router.
+	if err := authority.Delete(identity, "api-key"); err != nil {
+		t.Fatalf("revoke isolated native own-key credential: %v", err)
+	}
+	revoked, err := client.Run(ctx, req)
+	if err != nil {
+		t.Fatalf("revoked own-key request should return a typed Gateway result: %v", err)
+	}
+	if revoked.Msg.GetError() == nil || revoked.Msg.GetError().GetCode() != inferencev1.InferenceErrorCode_INFERENCE_ERROR_CODE_UNAVAILABLE || calls.Load() != 1 {
+		t.Fatalf("revoked credential was not refused before upstream dispatch: error=%v router calls=%d", revoked.Msg.GetError(), calls.Load())
+	}
+
+	// Restoring the exact selected credential recovers the route without
+	// restarting the launched bundle or replacing its provider policy.
+	if err := authority.Put(identity, "api-key", key); err != nil {
+		t.Fatalf("restore isolated native own-key credential: %v", err)
+	}
+	recovered, err := client.Run(ctx, req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if recovered.Msg.GetError() != nil || recovered.Msg.GetValueJson() != `{"answer":"ok"}` || calls.Load() != 2 {
+		t.Fatalf("own-key route did not recover after credential restoration: result=%s error=%v router calls=%d", recovered.Msg.GetValueJson(), recovered.Msg.GetError(), calls.Load())
+	}
+	t.Log("real AppImage used its native encrypted credential authority and canonical OpenRouter HTTPS endpoint; revocation refused before dispatch and the route recovered after restoring the exact credential; only upstream router was fake")
 }

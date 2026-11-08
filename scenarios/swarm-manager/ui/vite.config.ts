@@ -96,12 +96,6 @@ export default defineConfig(({ mode }): UserConfig => {
           "src/i18n/locales/**",
           "src/**/generated/**",
         ],
-        thresholds: {
-          lines: 85,
-          functions: 85,
-          branches: 85,
-          statements: 85,
-        },
       },
     },
   };

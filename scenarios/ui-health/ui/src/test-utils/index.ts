@@ -45,7 +45,22 @@
  * initialised. The pattern above is hoisting-safe and preserves every
  * non-overridden export of `./api/health` via `importOriginal()`.
  */
-export { renderWithProviders } from "@vrooli/api-base/testing";
+import type { ReactElement } from "react";
+import {
+  renderWithProviders as renderWithSharedProviders,
+  type ProviderRenderOptions,
+  type ProviderRenderResult,
+} from "@vrooli/api-base/testing";
+import { i18n } from "../i18n";
+
+/**
+ * The shared helper defaults to its own cimode i18n instance. Rendering with
+ * the scenario's instance keeps one i18n for components and tests: cimode by
+ * default (test-setup.ts), real catalogs after `setLocale(...)`.
+ */
+export function renderWithProviders(ui: ReactElement, options: ProviderRenderOptions = {}): ProviderRenderResult {
+  return renderWithSharedProviders(ui, { i18n, ...options });
+}
 export type { ProviderRenderOptions, ProviderRenderResult } from "@vrooli/api-base/testing";
 export { interp } from "./interp";
 export { expectNoA11yViolations } from "@vrooli/api-base/testing";

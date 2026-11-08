@@ -31,7 +31,7 @@
     "localeCatalogue": {
       "path": "ui/src/i18n/locales/{locale}.json",
       "defaultLocale": "en",
-      "description": "i18next catalogues, one per supported locale; react-component-library merges library strings into each."
+      "description": "i18next catalogues, one per supported locale. react-component-library never writes them: library strings fall back to their defineStrings defaults until a scenario translates a key in every locale."
     },
     "selectorRegistry": {
       "path": "ui/src/consts/selectors.ts",

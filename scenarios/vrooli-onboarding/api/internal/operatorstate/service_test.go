@@ -17,8 +17,12 @@ func newService(t *testing.T) *sharedstate.Service {
 		t.Fatal("runtime.Caller failed")
 	}
 	repoRoot := filepath.Clean(filepath.Join(filepath.Dir(current), "..", "..", "..", "..", ".."))
+	// RepoRoot only keys the writer lock; StateRoot places the document. Without
+	// it these tests patched the operator's live state.
+	root := t.TempDir()
 	return sharedstate.New(sharedstate.Config{
-		RepoRoot:   t.TempDir(),
+		RepoRoot:   root,
+		StateRoot:  filepath.Join(root, "state"),
 		SchemaPath: filepath.Join(repoRoot, sharedstate.SchemaPath),
 		Now:        func() time.Time { return time.Date(2026, 9, 10, 0, 0, 0, 0, time.UTC) },
 	})

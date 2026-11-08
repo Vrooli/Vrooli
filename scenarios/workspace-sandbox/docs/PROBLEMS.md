@@ -213,3 +213,15 @@ The following issues were addressed in the 2025-12-16 Idempotency & Temporal Flo
 ### R-001: SSE exit-event race (2026-04-28)
 **Symptom**: Fast-failing processes (e.g. bwrap chdir failures, exit in ~10ms) closed the SSE log stream before `spawnExitReaper` called `RecordExit`. `StreamProcessLogs`'s best-effort `GetExitInfo` lookup returned nil, so no `event: exit` frame was ever sent. Agent-manager's SandboxLauncher treated the missing frame as a clean success.
 **Fix**: `process.Tracker.WaitForExit` blocks on a per-process `exitCh` channel that `RecordExit` closes; `StreamProcessLogs` awaits it with a 5s bounded timeout before emitting `event: exit` (or `event: error` if the timeout fires). See `scenarios/workspace-sandbox/docs/SEAMS.md` (Process Tracker seam).
+
+## Work ladder
+
+- Rung: W3 localized implementation defect.
+- Evidence: `api/internal/config/retention_store.go` promises that a failed retention policy write leaves the accepted runtime configuration intact. `FileRetentionStore.Set` published the candidate to its cache before `persistLocked` returned. A focused regression showed a failed write left the reconciler-visible `Get` value at the rejected policy.
+- Repair: persist the candidate under the store lock, then publish it to cache only after a successful write. The focused failed-write, acceptance, atomic-write and concurrent-read checks pass.
+- Measured: 2026-11-05. Workspace Sandbox Test Genie `unit` run `20261105-063010-e322333a` failed on unrelated `UNIT_POLICY_PROJECTION_DRIFT` in the unchanged UI workspace; Scenario QA bug `knw-1793860309257191953` owns that issue. The config repair and proof are retained in debt research run `cohort-six-topic-recommission-20261105-retention-lifecycle-03`.
+
+- Rung: W3 localized partial-update defect.
+- Evidence: `api/internal/handlers/config_retention.go` read, merged, then wrote a whole policy through separate store calls. The deterministic two-request HTTP regression returned two successful PUTs while the final value lost the requested size update.
+- Repair: the handler passes optional fields to the store; file and memory stores merge under their write lock, validate, and publish only after persistence succeeds. Focused HTTP and file-reload checks pass.
+- Measured: 2026-11-05. Workspace Sandbox Test Genie `unit` run `20261105-065746-c9cc0b68` failed on the same unrelated UI `UNIT_POLICY_PROJECTION_DRIFT` finding. Proof is retained in debt research run `cohort-six-topic-recommission-20261105-retention-partial-update-04`.

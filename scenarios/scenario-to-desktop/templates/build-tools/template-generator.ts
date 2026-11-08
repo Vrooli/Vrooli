@@ -1159,9 +1159,19 @@ SOFTWARE.`;
 
     private async copyUIDistFiles(): Promise<void> {
         // Check if scenario_dist_path is provided and valid
-        const distPath = this.config.scenario_dist_path;
-        if (!distPath || distPath === '../ui/dist') {
+        const configured = this.config.scenario_dist_path;
+        if (!configured || configured === '../ui/dist') {
             console.log('ℹ️  No UI dist path provided - desktop app will load from external server');
+            return;
+        }
+        // A relative dist path is relative to the generated shell, which is
+        // how electron-builder's extraResources reads it. Resolving it against
+        // the generator's working directory copied whatever happened to sit
+        // there (the API's own Go "bundle" package) into renderer/.
+        const distPath = path.resolve(this.outputPath, configured);
+        const fromShell = path.relative(path.resolve(this.outputPath), distPath);
+        if (fromShell === '' || (!fromShell.startsWith('..') && !path.isAbsolute(fromShell))) {
+            console.log(`ℹ️  UI dist path ${configured} already ships inside the desktop shell - nothing to copy`);
             return;
         }
 

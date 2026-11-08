@@ -54,15 +54,11 @@ replace github.com/vrooli/ai-go => ../../../packages/ai-go
 
 replace github.com/vrooli/vrooli/packages/proto => ../../../packages/proto
 
-replace github.com/vrooli/vrooli => ../../..
-
 replace github.com/vrooli/repo-contract-go => ../../../packages/repo-contract-go
 
 replace github.com/vrooli/searchregister-go => ../../../packages/searchregister-go
 
 replace github.com/vrooli/cli-core => ../../../packages/cli-core
-
-replace github.com/vrooli/binaryfetch => ../../../packages/binaryfetch
 
 replace github.com/vrooli/envkit-go => ../../../packages/envkit-go
 

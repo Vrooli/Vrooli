@@ -11,6 +11,39 @@ import (
 const scenarioUIProxyHeader = "X-Vrooli-Scenario-UI-Proxy"
 const scenarioUIProxyValue = "scenario-to-android"
 
+// ArtifactListHandler returns recent path-free retained build candidates.
+// Matrix creation revalidates the selected artifact's complete content digest.
+func ArtifactListHandler(surface Surface) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		limit := 20
+		if raw := strings.TrimSpace(r.URL.Query().Get("limit")); raw != "" {
+			parsed, err := strconv.Atoi(raw)
+			if err != nil || parsed < 1 || parsed > 100 {
+				http.Error(w, "limit must be an integer between 1 and 100", http.StatusBadRequest)
+				return
+			}
+			limit = parsed
+		}
+		if surface.ArtifactRoot == nil {
+			http.Error(w, "Android artifact resolution unavailable", http.StatusServiceUnavailable)
+			return
+		}
+		root, err := surface.ArtifactRoot(r.Context())
+		if err != nil || root == "" {
+			http.Error(w, "Android artifact storage unavailable", http.StatusServiceUnavailable)
+			return
+		}
+		artifacts, err := buildsdomain.ListArtifactCandidates(root, limit)
+		if err != nil {
+			http.Error(w, "Android artifact listing unavailable", http.StatusInternalServerError)
+			return
+		}
+		w.Header().Set("Cache-Control", "private, no-store")
+		w.Header().Set("X-Content-Type-Options", "nosniff")
+		writeJSON(w, map[string]any{"artifacts": artifacts, "limit": limit})
+	}
+}
+
 // ArtifactMetadataHandler resolves an immutable Android reference to a
 // path-free descriptor. Artifact bytes remain in the producer's data root.
 func ArtifactMetadataHandler(surface Surface) http.HandlerFunc {

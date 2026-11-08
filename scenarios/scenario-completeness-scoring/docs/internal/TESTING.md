@@ -18,7 +18,7 @@ Existing local entry points (choose the domain test for the behavior you change)
 
 - [api/handlers/health/handler_test.go](../../api/handlers/health/handler_test.go)
 - [ui/src/App.test.tsx](../../ui/src/App.test.tsx)
-- [ui/src/features/health/HealthCard.test.tsx](../../ui/src/features/health/HealthCard.test.tsx)
+- [ui/src/api/health.test.ts](../../ui/src/api/health.test.ts)
 - [ui/src/layout/AppShell.a11y.test.tsx](../../ui/src/layout/AppShell.a11y.test.tsx)
 - [cli/app_test.go](../../cli/app_test.go)
 
@@ -37,13 +37,11 @@ These files are the source of truth. When in doubt, copy their shape:
 - **UI composition**: `ui/src/App.test.tsx` — smoke-only composition
   test. App composes shell + features; feature behaviour belongs beside
   the feature.
-- **UI feature**: `ui/src/features/health/HealthCard.test.tsx` —
-  `renderWithProviders`, factory data, inline `vi.mock` factory
-  closure, cimode assertions, and real-locale assertions.
+- **UI health client**: `ui/src/api/health.test.ts` verifies that the health
+  request uses the `/health` endpoint, GET, and `cache: "no-store"`.
 - **UI a11y**: `ui/src/layout/AppShell.a11y.test.tsx`,
-  `ui/src/features/health/HealthCard.a11y.test.tsx`, and
-  `ui/src/features/scoring/ScoreDashboard.a11y.test.tsx` — shell and
-  feature accessibility are tested at their ownership boundary.
+  `ui/src/features/scoring/ScoreDashboard.a11y.test.tsx` — shell and scoring
+  dashboard accessibility are tested at their ownership boundary.
 - **CLI**: `cli/app_test.go` — smoke gate (NewApp, --version, --help).
   When domain commands arrive, extend with `clitest.NewAPIServer` +
   `clitest.CaptureStdout` from `cli/internal/testutil/`.

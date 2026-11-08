@@ -137,14 +137,73 @@ func (h *connectHandler) ListBaseUSDCReceiptChecks(ctx context.Context, request 
 	}
 	response := &authv1.ListBaseUSDCReceiptChecksResponse{Checks: make([]*walletv1.BaseUSDCReceiptCheck, 0, len(checks))}
 	for _, check := range checks {
-		response.Checks = append(response.Checks, &walletv1.BaseUSDCReceiptCheck{
-			Id: check.ID, WalletId: check.WalletID, Network: check.Network,
-			TransactionHash: check.TransactionHash, ProviderId: check.ProviderID,
-			Outcome: check.Outcome, ErrorCode: check.ErrorCode,
-			CheckedAt: timestamppb.New(check.CheckedAt), Transfers: baseUSDCObservationsToProto(check.Transfers),
-		})
+		response.Checks = append(response.Checks, baseUSDCCheckToProto(check))
 	}
 	return connect.NewResponse(response), nil
+}
+
+func (h *connectHandler) RecheckBaseUSDCReceipt(ctx context.Context, request *connect.Request[authv1.RecheckBaseUSDCReceiptRequest]) (*connect.Response[authv1.RecheckBaseUSDCReceiptResponse], error) {
+	operator, err := h.operatorIdentity(ctx, request)
+	if err != nil {
+		return nil, err
+	}
+	if h.wallets == nil {
+		return nil, walletError(wallet.ErrUnavailable)
+	}
+	if h.baseUSDC == nil {
+		return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("Base receipt verifier unavailable"))
+	}
+	if request.Msg.GetWalletId() == "" || request.Msg.GetTransactionHash() == "" || request.Msg.GetPriorCheckId() == "" {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("wallet ID, transaction hash, and prior check ID are required"))
+	}
+	w, err := h.wallets.Get(ctx, request.Msg.GetWalletId(), baseusdc.Network, operator.Subject)
+	if err != nil {
+		return nil, walletError(err)
+	}
+	check, err := h.baseUSDC.Recheck(ctx, operator.Subject, w, request.Msg.GetTransactionHash(), request.Msg.GetPriorCheckId())
+	if check.ID != "" {
+		return connect.NewResponse(&authv1.RecheckBaseUSDCReceiptResponse{Check: baseUSDCCheckToProto(check)}), nil
+	}
+	if errors.Is(err, baseusdc.ErrPriorCheckNotFound) {
+		return nil, connect.NewError(connect.CodeNotFound, err)
+	}
+	if err != nil {
+		code := connect.CodeFailedPrecondition
+		if errors.Is(err, baseusdc.ErrPersist) {
+			code = connect.CodeInternal
+		}
+		return nil, connect.NewError(code, err)
+	}
+	return nil, connect.NewError(connect.CodeInternal, errors.New("Base receipt recheck returned no durable check"))
+}
+
+func baseUSDCCheckToProto(check baseusdc.Check) *walletv1.BaseUSDCReceiptCheck {
+	return &walletv1.BaseUSDCReceiptCheck{
+		Id: check.ID, WalletId: check.WalletID, Network: check.Network,
+		TransactionHash: check.TransactionHash, ProviderId: check.ProviderID,
+		Outcome: check.Outcome, ErrorCode: check.ErrorCode,
+		CheckedAt: timestamppb.New(check.CheckedAt), Transfers: baseUSDCObservationsToProto(check.Transfers),
+		PriorCheckId: check.PriorCheckID, Relation: baseUSDCRelationToProto(check.Relation),
+	}
+}
+
+func baseUSDCRelationToProto(relation string) walletv1.BaseUSDCReceiptRelation {
+	switch relation {
+	case "same_inclusion":
+		return walletv1.BaseUSDCReceiptRelation_BASE_USDC_RECEIPT_RELATION_SAME_INCLUSION
+	case "reincluded_new_revision":
+		return walletv1.BaseUSDCReceiptRelation_BASE_USDC_RECEIPT_RELATION_REINCLUDED_NEW_REVISION
+	case "provider_reports_not_canonical":
+		return walletv1.BaseUSDCReceiptRelation_BASE_USDC_RECEIPT_RELATION_PROVIDER_REPORTS_NOT_CANONICAL
+	case "provider_reports_pending":
+		return walletv1.BaseUSDCReceiptRelation_BASE_USDC_RECEIPT_RELATION_PROVIDER_REPORTS_PENDING
+	case "provider_observation_changed":
+		return walletv1.BaseUSDCReceiptRelation_BASE_USDC_RECEIPT_RELATION_PROVIDER_OBSERVATION_CHANGED
+	case "provider_check_failed":
+		return walletv1.BaseUSDCReceiptRelation_BASE_USDC_RECEIPT_RELATION_PROVIDER_CHECK_FAILED
+	default:
+		return walletv1.BaseUSDCReceiptRelation_BASE_USDC_RECEIPT_RELATION_UNSPECIFIED
+	}
 }
 
 func baseUSDCObservationsToProto(observations []baseusdc.Observation) []*walletv1.BaseUSDCTransferObservation {

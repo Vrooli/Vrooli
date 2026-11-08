@@ -203,6 +203,19 @@ func TestProjectPackRejectsDuplicateSchemaID(t *testing.T) {
 	t.Fatalf("expected duplicate schema id finding, got %v", got)
 }
 
+func TestProjectPackIgnoresSchemaSnapshotsInEvidence(t *testing.T) {
+	root := validProjectFixture(t)
+	schema := `{"$schema":"http://json-schema.org/draft-07/schema#","$id":"https://example.test/shared"}`
+	write(t, root, "schemas/first.schema.json", schema)
+	write(t, root, "scenarios/demo/docs/goal/evidence/E1/preimage/first.schema.json", schema)
+
+	for _, finding := range Evaluate("project", root, "repo") {
+		if finding.Code == "REPO_SCHEMA_ID_UNIQUE" {
+			t.Fatalf("an evidence snapshot was reported as a schema fork: %+v", finding)
+		}
+	}
+}
+
 func TestRepositorySchemaIDsAreUnique(t *testing.T) {
 	root, err := os.Getwd()
 	if err != nil {

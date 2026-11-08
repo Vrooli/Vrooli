@@ -143,7 +143,7 @@ func TestJ11PublishFullAudioFixture(t *testing.T) {
 	if source == "" {
 		t.Fatal("J11_FULL_OWNER_OUTPUT selects the fresh owner bundle directory")
 	}
-	if err := os.MkdirAll(source, 0700); err != nil {
+	if err := os.MkdirAll(source, 0o700); err != nil {
 		t.Fatal(err)
 	}
 	fresh := filepath.Join(source, "owner-input.json")
@@ -546,7 +546,7 @@ func TestJ11_TamperedEntryRefused(t *testing.T) {
 		t.Fatalf("tamper altered old installation: %v", err)
 	}
 	root := filepath.Join(m.Root, signed.Entry.ID, "generations", signed.Entry.SHA256)
-	if err = os.WriteFile(filepath.Join(root, "tampered"), []byte("unexpected executable content"), 0600); err != nil {
+	if err = os.WriteFile(filepath.Join(root, "tampered"), []byte("unexpected executable content"), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	var host manifest.Manifest
@@ -822,10 +822,10 @@ func TestJ11_UninstallOffersDataChoice(t *testing.T) {
 		t.Fatal("installed component state missing")
 	}
 	data := filepath.Join(componentRoot, "audio-tools", "data", "saved-setting")
-	if err := os.MkdirAll(filepath.Dir(data), 0700); err != nil {
+	if err := os.MkdirAll(filepath.Dir(data), 0o700); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(data, []byte("user-choice"), 0600); err != nil {
+	if err := os.WriteFile(data, []byte("user-choice"), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	port := runtimePort(t, home, "audio-tools")
@@ -855,11 +855,13 @@ func TestJ11_UninstallOffersDataChoice(t *testing.T) {
 }
 
 func TestJ11_AddHereOrGetFullAppBothOffered(t *testing.T) {
+	// The release root selects this live journey; once selected, the full
+	// AppImage is a required input like the journey's other artifacts.
+	root, _ := startJ11Release(t)
 	full := os.Getenv("J11_FULL_AUDIO_APPIMAGE")
 	if full == "" {
 		t.Fatal("real published full Audio AppImage required")
 	}
-	root, _ := startJ11Release(t)
 	artifact := buildJ11Host(t, filepath.Join(root, "host-input.json"))
 	home := t.TempDir()
 	installed := filepath.Join(home, "Aquila.AppImage")

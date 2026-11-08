@@ -1,4 +1,5 @@
-import { render, screen } from "@testing-library/react";
+import { screen } from "@testing-library/react";
+import { renderWithProviders } from "../../test-utils";
 import userEvent from "@testing-library/user-event";
 import { useState } from "react";
 import { describe, expect, it } from "vitest";
@@ -28,20 +29,20 @@ function Controlled() {
 
 describe("Tabs", () => {
   it("renders a tablist with the selected tab", () => {
-    render(<Controlled />);
+    renderWithProviders(<Controlled />);
     const list = screen.getByRole("tablist", { name: LIST_LABEL });
     expect(list).toBeInTheDocument();
     expect(screen.getByRole("tab", { name: LABEL_A })).toHaveAttribute("aria-selected", "true");
   });
 
   it("switches tabs on click", async () => {
-    render(<Controlled />);
+    renderWithProviders(<Controlled />);
     await userEvent.click(screen.getByRole("tab", { name: LABEL_B }));
     expect(screen.getByRole("tab", { name: LABEL_B })).toHaveAttribute("aria-selected", "true");
   });
 
   it("supports arrow-key navigation", async () => {
-    render(<Controlled />);
+    renderWithProviders(<Controlled />);
     const a = screen.getByRole("tab", { name: LABEL_A });
     a.focus();
     await userEvent.keyboard("{ArrowRight}");

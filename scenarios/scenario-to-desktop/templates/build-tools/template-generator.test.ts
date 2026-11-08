@@ -278,6 +278,31 @@ describe('DesktopTemplateGenerator update configuration', () => {
         });
     });
 
+    describe('UI dist copy resolves relative paths against the shell', () => {
+        it('copies nothing for a dist path inside the shell, whatever the working directory holds', async () => {
+            const cwd = process.cwd();
+            const elsewhere = await fs.mkdtemp(path.join(os.tmpdir(), 'cwd-'));
+            await fs.mkdir(path.join(elsewhere, 'bundle'));
+            await fs.writeFile(path.join(elsewhere, 'bundle', 'stray.go'), 'package bundle\n');
+            try {
+                process.chdir(elsewhere);
+                const generator = new DesktopTemplateGenerator(createMinimalConfig({ scenario_dist_path: 'bundle' }));
+                await (generator as any).copyUIDistFiles();
+            } finally {
+                process.chdir(cwd);
+            }
+            await expect(fs.stat(path.join(tempDir, 'renderer'))).rejects.toThrow();
+        });
+
+        it('copies an external UI dist into renderer/', async () => {
+            const dist = await fs.mkdtemp(path.join(os.tmpdir(), 'dist-'));
+            await fs.writeFile(path.join(dist, 'index.html'), '<!doctype html>');
+            const generator = new DesktopTemplateGenerator(createMinimalConfig({ scenario_dist_path: dist }));
+            await (generator as any).copyUIDistFiles();
+            await expect(fs.readFile(path.join(tempDir, 'renderer', 'index.html'), 'utf8')).resolves.toBe('<!doctype html>');
+        });
+    });
+
     it('wires the Linux artifact signer only when Linux signing is enabled', () => {
         const unsigned = new DesktopTemplateGenerator(createMinimalConfig());
         expect((unsigned as any).buildTemplateVariables({}).LINUX_ARTIFACT_SIGNER_HOOK).toBe('null');

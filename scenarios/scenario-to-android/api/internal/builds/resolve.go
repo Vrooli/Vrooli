@@ -12,6 +12,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -22,8 +23,9 @@ import (
 const maxRetainedArtifactBytes int64 = 1 << 30
 
 var (
-	immutableAndroidRef = regexp.MustCompile(`^(android-debug|android-release):([0-9a-f]{64})$`)
-	androidPackageName  = regexp.MustCompile(`^[A-Za-z][A-Za-z0-9_]*(\.[A-Za-z][A-Za-z0-9_]*)+$`)
+	immutableAndroidRef    = regexp.MustCompile(`^(android-debug|android-release):([0-9a-f]{64})$`)
+	immutableAndroidDigest = regexp.MustCompile(`^[0-9a-f]{64}$`)
+	androidPackageName     = regexp.MustCompile(`^[A-Za-z][A-Za-z0-9_]*(\.[A-Za-z][A-Za-z0-9_]*)+$`)
 )
 
 // APKDescriptor is the path-free owner contract consumed by Device Control.
@@ -49,6 +51,102 @@ type APKDescriptor struct {
 type ResolvedAPK struct {
 	Descriptor APKDescriptor
 	File       *os.File
+	Path       string
+}
+
+// ArtifactCandidate is a path-free summary of one retained build. Listing
+// reads metadata and file sizes only; ResolveAPK performs the full content
+// integrity check before a matrix can use the artifact.
+type ArtifactCandidate struct {
+	ImmutableRef    string    `json:"immutable_ref"`
+	Kind            string    `json:"kind"`
+	Checksum        string    `json:"checksum"`
+	SizeBytes       int64     `json:"size_bytes"`
+	APKSizeBytes    int64     `json:"apk_size_bytes"`
+	PackageName     string    `json:"package_name"`
+	VersionName     string    `json:"version_name"`
+	VersionCode     int64     `json:"version_code"`
+	Signing         string    `json:"signing"`
+	SigningIdentity string    `json:"signing_identity,omitempty"`
+	CreatedAt       time.Time `json:"created_at"`
+}
+
+// ListArtifactCandidates returns recent retained Android builds without
+// exposing paths. It validates manifest identity and file shape, while the
+// selected artifact is content-verified by ResolveAPK before use.
+func ListArtifactCandidates(dataRoot string, limit int) ([]ArtifactCandidate, error) {
+	if strings.TrimSpace(dataRoot) == "" {
+		return nil, errors.New("Android artifact storage is unavailable")
+	}
+	if limit < 1 || limit > 100 {
+		return nil, errors.New("Android artifact list limit must be between 1 and 100")
+	}
+	parent := filepath.Join(dataRoot, "builds", "artifacts")
+	entries, err := os.ReadDir(parent)
+	if os.IsNotExist(err) {
+		return []ArtifactCandidate{}, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	candidates := make([]ArtifactCandidate, 0, len(entries))
+	for _, entry := range entries {
+		if !entry.IsDir() || !immutableAndroidDigest.MatchString(entry.Name()) {
+			continue
+		}
+		digest := entry.Name()
+		root := filepath.Join(parent, digest)
+		manifestPath := filepath.Join(root, "artifact.json")
+		manifestInfo, err := os.Lstat(manifestPath)
+		if err != nil || !manifestInfo.Mode().IsRegular() || manifestInfo.Size() <= 0 || manifestInfo.Size() > 1<<20 {
+			continue
+		}
+		manifestFile, err := os.Open(manifestPath)
+		if err != nil {
+			continue
+		}
+		var artifact deliveryramp.Artifact
+		decodeErr := json.NewDecoder(io.LimitReader(manifestFile, 1<<20)).Decode(&artifact)
+		closeErr := manifestFile.Close()
+		if decodeErr != nil || closeErr != nil {
+			continue
+		}
+		match := immutableAndroidRef.FindStringSubmatch(artifact.ImmutableRef)
+		if match == nil || match[2] != digest || artifact.Checksum != "sha256:"+digest || artifact.SizeBytes <= 0 || artifact.SizeBytes > maxRetainedArtifactBytes || artifact.CreatedAt.IsZero() {
+			continue
+		}
+		expectedKind := "android-debug-apk-aab"
+		if match[1] == "android-release" {
+			expectedKind = "android-release-apk-aab"
+		}
+		if artifact.Kind != expectedKind {
+			continue
+		}
+		apkInfo, apkErr := os.Lstat(filepath.Join(root, "app.apk"))
+		aabInfo, aabErr := os.Lstat(filepath.Join(root, "app.aab"))
+		if apkErr != nil || aabErr != nil || !apkInfo.Mode().IsRegular() || !aabInfo.Mode().IsRegular() || apkInfo.Size() <= 0 || aabInfo.Size() <= 0 || apkInfo.Size()+aabInfo.Size() != artifact.SizeBytes {
+			continue
+		}
+		packageName := strings.TrimSpace(artifact.Metadata["package_name"])
+		versionName := strings.TrimSpace(artifact.Metadata["version_name"])
+		versionCode, versionErr := parsePositiveInt64(artifact.Metadata["version_code"])
+		signing := strings.TrimSpace(artifact.Metadata["signing"])
+		signingIdentity := strings.TrimSpace(artifact.Metadata["signing_identity"])
+		if !androidPackageName.MatchString(packageName) || versionName == "" || versionErr != nil || signing == "" || (match[1] == "android-release" && signingIdentity == "") {
+			continue
+		}
+		candidates = append(candidates, ArtifactCandidate{
+			ImmutableRef: artifact.ImmutableRef, Kind: artifact.Kind, Checksum: artifact.Checksum,
+			SizeBytes: artifact.SizeBytes, APKSizeBytes: apkInfo.Size(), PackageName: packageName,
+			VersionName: versionName, VersionCode: versionCode, Signing: signing,
+			SigningIdentity: signingIdentity, CreatedAt: artifact.CreatedAt,
+		})
+	}
+	sort.Slice(candidates, func(i, j int) bool { return candidates[i].CreatedAt.After(candidates[j].CreatedAt) })
+	if len(candidates) > limit {
+		candidates = candidates[:limit]
+	}
+	return candidates, nil
 }
 
 // ResolveAPK resolves only an exact retained immutable reference. It derives
@@ -187,6 +285,7 @@ func ResolveAPK(dataRoot, immutableRef string) (ResolvedAPK, error) {
 			CreatedAt:       artifact.CreatedAt,
 		},
 		File: apk,
+		Path: apkPath,
 	}, nil
 }
 

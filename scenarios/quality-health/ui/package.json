@@ -66,8 +66,8 @@
     "selector:manifest": "node scripts/generate-selector-manifest.mjs",
     "strings:check": "node scripts/gen-strings.mjs --check",
     "strings:gen": "node scripts/gen-strings.mjs",
-    "test": "vitest run",
-    "test:coverage": "vitest run --coverage",
+    "test": "node --test eslint-rules/*.test.mjs && vitest run",
+    "test:coverage": "node --test eslint-rules/*.test.mjs && vitest run --coverage",
     "type-check": "pnpm strings:check \u0026\u0026 tsc --noEmit"
   },
   "type": "module",

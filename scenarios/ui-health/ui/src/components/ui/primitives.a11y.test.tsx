@@ -7,7 +7,7 @@
  * configuration and scanned via `expectNoA11yViolations`. New primitives must
  * register here.
  */
-import { render } from "@testing-library/react";
+import { renderWithProviders } from "../../test-utils";
 import { Search } from "lucide-react";
 import { afterEach, describe, it } from "vitest";
 
@@ -35,7 +35,7 @@ describe("ui primitives — axe", () => {
   });
 
   it("Button: primary, ghost, danger have no violations", async () => {
-    const { container } = render(
+    const { container } = renderWithProviders(
       <div>
         <Button>Primary</Button>
         <Button variant="ghost">Ghost</Button>
@@ -46,7 +46,7 @@ describe("ui primitives — axe", () => {
   });
 
   it("Card: full composition", async () => {
-    const { container } = render(
+    const { container } = renderWithProviders(
       <Card>
         <CardHeader>
           <CardTitle>Title</CardTitle>
@@ -59,17 +59,17 @@ describe("ui primitives — axe", () => {
   });
 
   it("Badge", async () => {
-    const { container } = render(<Badge tone="success">ok</Badge>);
+    const { container } = renderWithProviders(<Badge tone="success">ok</Badge>);
     await expectNoA11yViolations(container);
   });
 
   it("StatusPill", async () => {
-    const { container } = render(<StatusPill status="ok" label="Healthy" />);
+    const { container } = renderWithProviders(<StatusPill status="ok" label="Healthy" />);
     await expectNoA11yViolations(container);
   });
 
   it("Skeleton + RouteSkeleton", async () => {
-    const { container } = render(
+    const { container } = renderWithProviders(
       <div>
         <Skeleton className="h-6 w-32" />
         <RouteSkeleton label="loading" />
@@ -79,7 +79,7 @@ describe("ui primitives — axe", () => {
   });
 
   it("EmptyState", async () => {
-    const { container } = render(
+    const { container } = renderWithProviders(
       <EmptyState title="Nothing here" description="Try a different filter." />,
     );
     await expectNoA11yViolations(container);
@@ -90,7 +90,7 @@ describe("ui primitives — axe", () => {
     const cols: ColumnDef<Row>[] = [
       { key: "name", header: "Name", cell: (r) => r.name, sortable: true },
     ];
-    const { container } = render(
+    const { container } = renderWithProviders(
       <Table
         columns={cols}
         rows={[{ id: "a", name: "Alpha" }]}
@@ -102,7 +102,7 @@ describe("ui primitives — axe", () => {
   });
 
   it("Modal (open)", async () => {
-    const { container } = render(
+    const { container } = renderWithProviders(
       <Modal
         open
         onClose={() => {}}
@@ -118,7 +118,7 @@ describe("ui primitives — axe", () => {
   });
 
   it("ConfirmDialog", async () => {
-    const { container } = render(
+    const { container } = renderWithProviders(
       <ConfirmDialog
         open
         onConfirm={() => {}}
@@ -136,7 +136,7 @@ describe("ui primitives — axe", () => {
   });
 
   it("Toast host", async () => {
-    const { container } = render(
+    const { container } = renderWithProviders(
       <ToastProvider>
         <ToastHost dismissLabel="dismiss" />
       </ToastProvider>,
@@ -145,7 +145,7 @@ describe("ui primitives — axe", () => {
   });
 
   it("SearchInput", async () => {
-    const { container } = render(
+    const { container } = renderWithProviders(
       <SearchInput
         value=""
         onChange={() => {}}
@@ -158,7 +158,7 @@ describe("ui primitives — axe", () => {
   });
 
   it("Select", async () => {
-    const { container } = render(
+    const { container } = renderWithProviders(
       <Select
         ariaLabel="Choose"
         value="a"
@@ -173,7 +173,7 @@ describe("ui primitives — axe", () => {
   });
 
   it("Tabs", async () => {
-    const { container } = render(
+    const { container } = renderWithProviders(
       <Tabs
         ariaLabel="Sections"
         value="a"
@@ -188,7 +188,7 @@ describe("ui primitives — axe", () => {
   });
 
   it("CodeBlock", async () => {
-    const { container } = render(
+    const { container } = renderWithProviders(
       <CodeBlock
         code={"{\n  \"ok\": true\n}"}
         language="json"
@@ -202,12 +202,12 @@ describe("ui primitives — axe", () => {
   });
 
   it("ProgressBar", async () => {
-    const { container } = render(<ProgressBar value={42} label="Indexing surfaces" />);
+    const { container } = renderWithProviders(<ProgressBar value={42} label="Indexing surfaces" />);
     await expectNoA11yViolations(container);
   });
 
   it("Icon (labelled + decorative)", async () => {
-    const { container } = render(
+    const { container } = renderWithProviders(
       <div>
         <Icon icon={Search} label="search" />
         <Icon icon={Search} />

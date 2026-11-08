@@ -80,6 +80,7 @@ type Wallets interface {
 
 type BaseUSDCReceiptService interface {
 	Verify(context.Context, string, wallet.Wallet, string) (baseusdc.Check, error)
+	Recheck(context.Context, string, wallet.Wallet, string, string) (baseusdc.Check, error)
 	List(context.Context, string, string, string, int) ([]baseusdc.Check, error)
 }
 
