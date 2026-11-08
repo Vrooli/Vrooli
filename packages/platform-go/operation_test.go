@@ -5,8 +5,10 @@ package platform
 import (
 	"context"
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -440,6 +442,69 @@ func TestStopSendsGracefulSignalToMainBeforeKillingOperationTree(t *testing.T) {
 	}
 	if len(signals) != 1 || signals[0] != "SIGTERM" {
 		t.Fatalf("cleanup did not finish during the main-only grace period: signals=%v", signals)
+	}
+}
+
+func TestStopExcludesDescendantsWhenOperationMainIsGone(t *testing.T) {
+	for _, diesDuringSignal := range []bool{false, true} {
+		t.Run(fmt.Sprint(diesDuringSignal), func(t *testing.T) {
+			oldQuery, oldSignal, oldRoot := queryOwnedUnit, signalOwnedUnit, operationCgroupRoot
+			t.Cleanup(func() { queryOwnedUnit, signalOwnedUnit, operationCgroupRoot = oldQuery, oldSignal, oldRoot })
+			operationCgroupRoot = t.TempDir()
+			intent, err := NewOperationIntent("device-studio", "lost-main-stop", operationTestSpec())
+			if err != nil {
+				t.Fatal(err)
+			}
+			unit := operationUnitName(intent)
+			path := "/user.slice/user-1000.slice/user@1000.service/" + OperationsSlice + "/" + unit
+			ref := OperationRef{Intent: intent, Unit: unit, Scope: ScopeRef{Kind: ScopeKindCgroup, Path: path}, NativeInvocationID: "0123456789abcdef0123456789abcdef"}
+			group := filepath.Join(operationCgroupRoot, strings.TrimPrefix(path, "/"))
+			if err := os.MkdirAll(group, 0o700); err != nil {
+				t.Fatal(err)
+			}
+			events := filepath.Join(group, "cgroup.events")
+			if err := os.WriteFile(events, []byte("populated 1\n"), 0o600); err != nil {
+				t.Fatal(err)
+			}
+			gone, empty := !diesDuringSignal, false
+			queryOwnedUnit = func(context.Context, string) (ownedUnitState, error) {
+				s := ownedUnitState{LoadState: "loaded", ActiveState: "active", SubState: "running", ControlGroup: path, InvocationID: ref.NativeInvocationID, MainPID: 1234}
+				if gone {
+					s.MainPID = 0
+					s.ExitKnown = true
+					s.Result = "signal"
+				}
+				if empty {
+					s.ActiveState = "failed"
+					s.SubState = "failed"
+				}
+				return s, nil
+			}
+			signals := []string{}
+			signalOwnedUnit = func(_ context.Context, got, signal string) error {
+				if got != unit {
+					t.Fatal("foreign unit signaled")
+				}
+				signals = append(signals, signal)
+				if signal == "SIGTERM" {
+					gone = true
+					return errors.New("native main no longer exists")
+				}
+				empty = true
+				return os.WriteFile(events, []byte("populated 0\n"), 0o600)
+			}
+			receipt, err := StopOwnedOperation(context.Background(), ref)
+			if err != nil || !receipt.NativeQuiescent {
+				t.Fatalf("lost main prevented exact descendant exclusion: %+v %v", receipt, err)
+			}
+			want := []string{"SIGKILL"}
+			if diesDuringSignal {
+				want = []string{"SIGTERM", "SIGKILL"}
+			}
+			if !reflect.DeepEqual(signals, want) {
+				t.Fatalf("signals %v, want %v", signals, want)
+			}
+		})
 	}
 }
 

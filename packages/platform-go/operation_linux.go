@@ -40,6 +40,7 @@ type ownedUnitState struct {
 var (
 	queryOwnedUnit       = queryOwnedUnitSystemd
 	queryOperationsSlice = queryOperationsSliceSystemd
+	queryServicesSlice   = queryServicesSliceSystemd
 	signalOwnedUnit      = signalOwnedUnitSystemd
 	cancelOwnedUnit      = cancelOwnedUnitSystemd
 	releaseOwnedUnit     = releaseOwnedUnitSystemd
@@ -125,16 +126,30 @@ func ownedServiceCommand(intent OperationIntent, spec OperationSpec) (*exec.Cmd,
 		return nil, fmt.Errorf("%w: systemd-run is required for pre-exec operation ownership", ErrUnsupported)
 	}
 	unit := operationUnitName(intent)
+	runtimeMax := spec.Limits.WallTime.String()
+	if intent.Kind == ownedServiceKind {
+		runtimeMax = "infinity"
+	}
 	args := []string{
-		"--user", "--quiet", "--no-block", "--remain-after-exit", "--service-type=exec", "--expand-environment=no", "--unit=" + unit, "--slice=" + OperationsSlice,
+		"--user", "--quiet", "--no-block", "--remain-after-exit", "--service-type=exec", "--expand-environment=no", "--unit=" + unit, "--slice=" + ownedWorkloadSlice(unit),
 		"--working-directory=" + spec.Dir,
 		"--property=CPUWeight=" + strconv.Itoa(spec.Limits.CPUWeight),
 		"--property=MemoryMax=" + strconv.FormatInt(spec.Limits.MemoryMaxBytes, 10),
 		"--property=TasksMax=" + strconv.Itoa(spec.Limits.TasksMax),
-		"--property=RuntimeMaxSec=" + spec.Limits.WallTime.String(),
+		"--property=RuntimeMaxSec=" + runtimeMax,
+		"--property=Restart=no",
 		"--property=ExitType=cgroup", "--property=KillMode=mixed", "--property=TimeoutStopSec=10s", "--property=SendSIGKILL=yes",
 		"--property=LogRateLimitIntervalSec=30s", "--property=LogRateLimitBurst=1000",
 		"--property=StandardOutput=journal", "--property=StandardError=journal", "--",
+	}
+	if spec.Gate != nil {
+		if err := spec.Gate.validate(); err != nil {
+			return nil, err
+		}
+		// A native unit is visible before ExecCondition runs. Revocation plus
+		// complete unit/cgroup absence therefore excludes a future seed effect,
+		// while an already-accepted condition remains subject to exact stop.
+		args = append(args[:len(args)-1], "--property=ExecCondition=/usr/bin/test -f "+systemdExecArgument(spec.Gate.ReadyPath), "--")
 	}
 	args = append(args, "/usr/bin/env", "-i")
 	args = append(args, spec.Env...)
@@ -189,7 +204,11 @@ func makeOperationRef(ctx context.Context, intent OperationIntent, unit string, 
 		if !(terminalOperationState(state) || state.HasPendingJob) || state.MainPID != 0 {
 			return OperationRef{}, fmt.Errorf("%w: manager omitted control group before acknowledged or pending state", ErrOperationOutcomeLost)
 		}
-		base, err := queryOperationsSlice(ctx)
+		querySlice := queryOperationsSlice
+		if intent.Kind == ownedServiceKind {
+			querySlice = queryServicesSlice
+		}
+		base, err := querySlice(ctx)
 		if err != nil {
 			return OperationRef{}, fmt.Errorf("platform: resolve retained operation slice identity: %w", err)
 		}
@@ -283,14 +302,31 @@ func stopOwnedOperation(ctx context.Context, expected OperationRef) (OperationSt
 	} else if empty {
 		return OperationStopReceipt{Ref: expected, NativeQuiescent: true, LauncherReap: LauncherReapUnknown}, nil
 	}
-	if err := signalOwnedUnit(ctx, expected.Unit, "SIGTERM"); err != nil {
-		return OperationStopReceipt{}, fmt.Errorf("platform: request operation tree termination: %w", err)
+	if state.MainPID != 0 {
+		if err := signalOwnedUnit(ctx, expected.Unit, "SIGTERM"); err != nil {
+			// The main can die between observation and the graceful signal.
+			// Re-read the exact invocation; a manager error or a replacement
+			// must not become permission to signal a different process tree.
+			after, inspectErr := queryOwnedUnit(ctx, expected.Unit)
+			if inspectErr != nil {
+				return OperationStopReceipt{}, fmt.Errorf("platform: recheck operation after failed graceful signal: %w", inspectErr)
+			}
+			if identityErr := validateOwnedUnitRef(expected, after); identityErr != nil {
+				return OperationStopReceipt{}, identityErr
+			}
+			if after.MainPID != 0 {
+				return OperationStopReceipt{}, fmt.Errorf("platform: request operation tree termination: %w", err)
+			}
+		} else {
+			if waitErr := waitOperationTreeEmpty(ctx, expected, operationTermGrace); waitErr == nil {
+				return OperationStopReceipt{Ref: expected, NativeQuiescent: true, LauncherReap: LauncherReapUnknown}, nil
+			} else if !errors.Is(waitErr, ErrOperationNotQuiescent) {
+				return OperationStopReceipt{}, waitErr
+			}
+		}
 	}
-	if waitErr := waitOperationTreeEmpty(ctx, expected, operationTermGrace); waitErr == nil {
-		return OperationStopReceipt{Ref: expected, NativeQuiescent: true, LauncherReap: LauncherReapUnknown}, nil
-	} else if !errors.Is(waitErr, ErrOperationNotQuiescent) {
-		return OperationStopReceipt{}, waitErr
-	}
+	// ExitType=cgroup retains descendants after main loss. There is no main
+	// left to handle SIGTERM; exclusion must address the exact whole tree.
 	if err := signalOwnedUnit(ctx, expected.Unit, "SIGKILL"); err != nil {
 		return OperationStopReceipt{}, fmt.Errorf("platform: force operation tree termination: %w", err)
 	}
@@ -446,15 +482,14 @@ func validateOwnedUnitRef(expected OperationRef, state ownedUnitState) error {
 }
 
 func validOperationServicePath(path, unit string) bool {
-	if path == "" || !filepath.IsAbs(path) || filepath.Clean(path) != path {
-		return false
+	return validCgroupServicePath(path, unit, ownedWorkloadSlice(unit))
+}
+
+func ownedWorkloadSlice(unit string) string {
+	if strings.HasPrefix(unit, "vrooli-svc-") {
+		return ServicesSlice
 	}
-	for _, part := range strings.Split(path, string(filepath.Separator)) {
-		if part == ".." {
-			return false
-		}
-	}
-	return strings.HasSuffix(path, "/"+OperationsSlice+"/"+unit)
+	return OperationsSlice
 }
 
 func queryOwnedUnitSystemd(ctx context.Context, unit string) (ownedUnitState, error) {
@@ -464,6 +499,9 @@ func queryOwnedUnitSystemd(ctx context.Context, unit string) (ownedUnitState, er
 	data, runErr := cmd.CombinedOutput()
 	state, parseErr := parseOwnedUnitState(string(data))
 	if parseErr != nil {
+		if runErr != nil {
+			return state, fmt.Errorf("systemctl show %s: %w (invalid manager response: %v)", unit, runErr, parseErr)
+		}
 		return state, parseErr
 	}
 	if runErr != nil && !(state.LoadState == "not-found" && state.ActiveState == "inactive") {
@@ -473,12 +511,20 @@ func queryOwnedUnitSystemd(ctx context.Context, unit string) (ownedUnitState, er
 }
 
 func queryOperationsSliceSystemd(ctx context.Context) (string, error) {
-	cmd := exec.CommandContext(ctx, "systemctl", "--user", "show", "--property=LoadState", "--property=ControlGroup", "--", OperationsSlice)
+	return queryOwnedSliceSystemd(ctx, OperationsSlice)
+}
+
+func queryServicesSliceSystemd(ctx context.Context) (string, error) {
+	return queryOwnedSliceSystemd(ctx, ServicesSlice)
+}
+
+func queryOwnedSliceSystemd(ctx context.Context, slice string) (string, error) {
+	cmd := exec.CommandContext(ctx, "systemctl", "--user", "show", "--property=LoadState", "--property=ControlGroup", "--", slice)
 	cmd.Env = userManagerEnv(nil)
 	cmd.WaitDelay = time.Second
 	data, err := cmd.CombinedOutput()
 	if err != nil {
-		return "", fmt.Errorf("systemctl show operations slice: %w", err)
+		return "", fmt.Errorf("systemctl show owned workload slice %s: %w", slice, err)
 	}
 	values := map[string]string{}
 	for _, line := range strings.Split(string(data), "\n") {
@@ -488,17 +534,25 @@ func queryOperationsSliceSystemd(ctx context.Context) (string, error) {
 		}
 	}
 	base := values["ControlGroup"]
-	if values["LoadState"] != "loaded" || !validOperationSlicePath(base) {
-		return "", fmt.Errorf("%w: operations slice manager identity is missing or invalid", ErrOperationOutcomeLost)
+	if values["LoadState"] != "loaded" || !validOwnedSlicePath(base, slice) {
+		return "", fmt.Errorf("%w: owned workload slice manager identity is missing or invalid", ErrOperationOutcomeLost)
 	}
 	return base, nil
 }
 
 func validOperationSlicePath(path string) bool {
-	return filepath.IsAbs(path) && filepath.Clean(path) == path && strings.HasSuffix(path, "/"+OperationsSlice)
+	return validOwnedSlicePath(path, OperationsSlice)
+}
+
+func validOwnedSlicePath(path, slice string) bool {
+	return filepath.IsAbs(path) && filepath.Clean(path) == path && strings.HasSuffix(path, "/"+slice)
 }
 
 func parseOwnedUnitState(data string) (ownedUnitState, error) {
+	return parseOwnedNativeUnitState(data, false)
+}
+
+func parseOwnedNativeUnitState(data string, scope bool) (ownedUnitState, error) {
 	state := ownedUnitState{}
 	seen := map[string]bool{}
 	for _, line := range strings.Split(data, "\n") {
@@ -541,7 +595,11 @@ func parseOwnedUnitState(data string) (ownedUnitState, error) {
 			}
 		}
 	}
-	for _, key := range []string{"LoadState", "ActiveState", "SubState", "ControlGroup", "InvocationID", "Result", "MainPID", "ExecMainCode", "ExecMainStatus", "Job"} {
+	required := []string{"LoadState", "ActiveState", "SubState", "ControlGroup", "InvocationID", "Result", "MainPID", "ExecMainCode", "ExecMainStatus", "Job"}
+	if scope {
+		required = []string{"LoadState", "ActiveState", "SubState", "ControlGroup", "InvocationID", "Job"}
+	}
+	for _, key := range required {
 		if !seen[key] {
 			return state, fmt.Errorf("systemctl manager omitted required operation field %s", key)
 		}
@@ -557,7 +615,7 @@ func parseOwnedUnitState(data string) (ownedUnitState, error) {
 	}
 	state.HasPendingJob = state.Job != "" && state.Job != "0"
 	terminalSubstate := terminalOperationState(state)
-	state.ExitKnown = terminalSubstate && state.MainPID == 0 && state.Result != "" && state.Result != "start-limit-hit"
+	state.ExitKnown = !scope && terminalSubstate && state.MainPID == 0 && state.Result != "" && state.Result != "start-limit-hit"
 	return state, nil
 }
 

@@ -223,7 +223,7 @@ func TestSystemdRenderQuotesPerDirective(t *testing.T) {
 		`Environment=HOME="/home/my tester"`,
 		`Environment=VROOLI_SOURCE_ROOT="/srv/my vrooli"`,
 		`ExecStart="/opt/vrooli bin/vrooli" runtime supervisor run`,
-		"WorkingDirectory=/srv/my vrooli\n",
+		"WorkingDirectory=/home/my tester\n",
 		"StandardOutput=append:/home/my tester/.vrooli/logs/runtime-supervisor.log\n",
 		"StandardError=append:/home/my tester/.vrooli/logs/runtime-supervisor.log\n",
 		"Restart=always\n",
@@ -250,10 +250,13 @@ func TestSystemdRenderOmitsDirectivesForEmptyFields(t *testing.T) {
 		t.Fatal(err)
 	}
 	content := artifact.Primary().Content
-	for _, absent := range []string{"StandardOutput=", "StandardError=", "WorkingDirectory=", "VROOLI_SOURCE_ROOT"} {
+	for _, absent := range []string{"StandardOutput=", "StandardError=", "VROOLI_SOURCE_ROOT"} {
 		if strings.Contains(content, absent) {
 			t.Errorf("expected no %s directive when its input is empty:\n%s", absent, content)
 		}
+	}
+	if !strings.Contains(content, "WorkingDirectory=/home/tester\n") {
+		t.Fatal("native supervisor has no stable home working directory")
 	}
 }
 
@@ -517,13 +520,13 @@ func TestVerdictIsJSONEvidence(t *testing.T) {
 
 func TestCoreUnitsAreTheOnlyUnitList(t *testing.T) {
 	units := CoreUnits()
-	if len(units) != 4 {
-		t.Fatalf("expected four core units, got %d", len(units))
+	if len(units) != 6 {
+		t.Fatalf("expected six core units, got %d", len(units))
 	}
 	if got := CoreDaemonUnits(); strings.Join(got, ",") != "vrooli-autoheal.service,vrooli-runtime-supervisor.service" {
 		t.Fatalf("daemon units = %v", got)
 	}
-	if got := CoreSystemdUnits(); len(got) != 4 || got[3] != "vrooli-emergency-watchdog.timer" {
+	if got := CoreSystemdUnits(); len(got) != 6 || got[3] != "vrooli-emergency-watchdog.timer" || got[5] != "vrooli-root-update-recovery.timer" {
 		t.Fatalf("systemd units = %v", got)
 	}
 	if unit, ok := CoreUnitByID(CoreUnitAutohealLoop); !ok || unit.NativeName("darwin") != "com.vrooli.autoheal" || unit.NativeName("windows") != "VrooliAutoheal" {

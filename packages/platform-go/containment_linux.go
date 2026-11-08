@@ -92,6 +92,9 @@ func applySpec(cmd *exec.Cmd, spec ContainedSpec) {
 // systemdProperties renders the ceilings as systemd-run -p arguments.
 func systemdProperties(c Containment) []string {
 	var out []string
+	if c.ManagedOOMAvoid {
+		out = append(out, "ManagedOOMPreference=avoid")
+	}
 	if c.CPUWeight > 0 {
 		out = append(out, "CPUWeight="+strconv.Itoa(c.CPUWeight))
 	}
@@ -336,6 +339,9 @@ func enableControllers(dir string) error {
 }
 
 func writeCgroupLimits(dir string, c Containment) error {
+	if c.ManagedOOMAvoid {
+		return fmt.Errorf("platform: managed OOM preference requires the native service manager")
+	}
 	physical, _ := memTotalBytes()
 	writes := map[string]string{}
 	if c.CPUWeight > 0 {
@@ -680,12 +686,13 @@ func adoptIntoScope(spec AdoptSpec) (ScopeRef, string, error) {
 	if !strings.HasSuffix(unit, scopeSuffix) {
 		unit += scopeSuffix
 	}
-	if ref, err := adoptThroughManager(spec, unit); err == nil {
+	ref, managerErr := adoptThroughManager(spec, unit)
+	if managerErr == nil {
 		return ref, MethodSystemdRun, nil
 	}
 	ref, err := adoptByCgroupWrite(spec, unit)
 	if err != nil {
-		return ScopeRef{Kind: ScopeKindNone}, MethodNone, err
+		return ScopeRef{Kind: ScopeKindNone}, MethodNone, errors.Join(managerErr, err)
 	}
 	return ref, MethodCgroupWrite, nil
 }
@@ -719,10 +726,18 @@ func adoptThroughManager(spec AdoptSpec, unit string) (ScopeRef, error) {
 		argv = append(argv, key, transientPropertyType(key), value)
 	}
 	argv = append(argv, "0")
-	if out, runErr := exec.Command(busctl, argv...).CombinedOutput(); runErr != nil {
+	ctx, cancel := context.WithTimeout(context.Background(), scopeResolveBudget)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, busctl, argv...)
+	// Native recovery workers deliberately omit login-session variables. Only
+	// the manager client needs this uid's bus; do not widen the service or
+	// caller environment (including its actor/authorization identity).
+	cmd.Env = userManagerEnv(nil)
+	cmd.WaitDelay = time.Second
+	if out, runErr := cmd.CombinedOutput(); runErr != nil {
 		return ScopeRef{}, fmt.Errorf("platform: adopt pid %d into %s: %w: %s", spec.PID, unit, runErr, strings.TrimSpace(string(out)))
 	}
-	path := systemdScopeCgroup(strings.TrimSuffix(unit, scopeSuffix))
+	path := systemdScopeCgroupContext(ctx, strings.TrimSuffix(unit, scopeSuffix))
 	if path == "" {
 		return ScopeRef{}, fmt.Errorf("platform: the user manager reported no cgroup for %s", unit)
 	}

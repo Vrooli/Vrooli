@@ -168,3 +168,20 @@ func TestAgentSliceMatchesFixture(t *testing.T) {
 		t.Fatalf("slice drifted from its fixture; rendered:\n%s\nfixture:\n%s", artifact.Primary().Content, want)
 	}
 }
+
+func TestRecoveryServiceOOMPreferenceIsExplicitAndOptional(t *testing.T) {
+	for _, avoid := range []bool{false, true} {
+		d := ServiceDefinition{Name: "recovery-test", Restart: RestartPolicy{Mode: RestartNever}, Description: "Recovery test", DocumentationURL: "https://example.com/recovery", Executable: "/bin/true", Kind: KindDaemon, Scope: ScopeUser, Protections: Protections{Containment: Containment{ManagedOOMAvoid: avoid}}}
+		artifact, err := RenderSystemd(d)
+		if err != nil {
+			t.Fatal(err)
+		}
+		got := strings.Contains(artifact.Primary().Content, "ManagedOOMPreference=avoid\n")
+		if got != avoid {
+			t.Fatalf("explicit OOM avoidance=%v, rendered=%s", avoid, artifact.Primary().Content)
+		}
+		if strings.Contains(artifact.Primary().Content, "ManagedOOMPreference=omit") {
+			t.Fatal("recovery must remain a last-resort candidate")
+		}
+	}
+}

@@ -211,3 +211,13 @@ func TestContainSelfAdoptsCallingProcess(t *testing.T) {
 	}
 	// The scope is empty once the helper exited; systemd garbage-collects it.
 }
+
+func TestTransientRecoveryScopeCarriesOOMPreference(t *testing.T) {
+	properties := systemdProperties(Containment{ManagedOOMAvoid: true})
+	if len(properties) != 1 || properties[0] != "ManagedOOMPreference=avoid" || transientPropertyType("ManagedOOMPreference") != "s" {
+		t.Fatalf("transient preference not expressed: %v", properties)
+	}
+	if err := writeCgroupLimits(t.TempDir(), Containment{ManagedOOMAvoid: true}); err == nil {
+		t.Fatal("fallback claimed a manager-only protection")
+	}
+}

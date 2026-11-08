@@ -47,6 +47,7 @@ func EmergencyWatchdogDefinition(target string, options EmergencyWatchdogOptions
 		Args:             []string{"--report-only", "--request-pressure"},
 		Env:              env,
 		Kind:             KindTimer,
+		Protections:      Protections{Containment: Containment{ManagedOOMAvoid: true}},
 		Schedule:         &Schedule{OnBoot: 2 * time.Minute, Every: options.Interval, Persistent: true},
 		Restart:          RestartPolicy{Mode: RestartNever},
 		Scope:            ScopeUser,

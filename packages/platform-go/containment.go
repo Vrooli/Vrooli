@@ -179,17 +179,32 @@ func cleanupFailedContainmentStart(c *Contained) error {
 	cleanup, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	var scopeErr error
+	if (c.Scope.Kind == "" || c.Scope.Kind == ScopeKindNone) && c.afterContext != nil {
+		// Cancellation may have interrupted scope discovery after the child
+		// was placed. Resolve under the cleanup budget, then require the exact
+		// spawned root to belong to that scope before stopping descendants.
+		resolve, stopResolve := context.WithTimeout(cleanup, time.Second)
+		resolveErr := c.afterContext(resolve, c)
+		stopResolve()
+		if resolveErr == nil && c.Scope.Kind == ScopeKindCgroup {
+			path, err := ProcessScope(c.Cmd.Process.Pid)
+			if err != nil || path != c.Scope.Path {
+				resolveErr = errors.Join(err, errors.New("spawned root scope ownership was not confirmed"))
+			}
+		} else if resolveErr == nil {
+			resolveErr = errors.New("interrupted containment has no verifiable root scope")
+		}
+		if resolveErr != nil {
+			c.Scope = ScopeRef{Kind: ScopeKindNone}
+			scopeErr = errors.Join(ErrContainmentCleanupUnverified, resolveErr)
+		}
+	}
 	if c.Scope.Kind == "" || c.Scope.Kind == ScopeKindNone {
-		scopeErr = ErrContainmentCleanupUnverified
+		scopeErr = errors.Join(scopeErr, ErrContainmentCleanupUnverified)
 	} else {
 		scopeErr = StopScopeContext(cleanup, c.Scope)
 		if scopeErr == nil {
-			pids, e := ScopeProcessesContext(cleanup, c.Scope)
-			if e != nil {
-				scopeErr = e
-			} else if len(pids) > 0 {
-				scopeErr = fmt.Errorf("scope still contains %d processes", len(pids))
-			}
+			scopeErr = WaitScopeEmpty(cleanup, c.Scope)
 		}
 		if scopeErr != nil {
 			scopeErr = errors.Join(ErrContainmentCleanupUnverified, scopeErr)
@@ -284,6 +299,28 @@ func StopScope(ref ScopeRef) error { return stopScope(ref) }
 // The compatibility StopScope entrypoint retains its existing behavior.
 func StopScopeContext(ctx context.Context, ref ScopeRef) error {
 	return stopScopeContext(ctx, ref)
+}
+
+// WaitScopeEmpty verifies descendant exit after a stop request. A successful
+// manager request or cgroup.kill write can precede removal of the final task.
+// Read failures never establish quiescence, and the caller supplies the bound.
+func WaitScopeEmpty(ctx context.Context, ref ScopeRef) error {
+	for {
+		pids, err := ScopeProcessesContext(ctx, ref)
+		if err != nil {
+			return err
+		}
+		if len(pids) == 0 {
+			return nil
+		}
+		timer := time.NewTimer(10 * time.Millisecond)
+		select {
+		case <-ctx.Done():
+			timer.Stop()
+			return ctx.Err()
+		case <-timer.C:
+		}
+	}
 }
 
 // sizeSuffixes are systemd's binary size suffixes.

@@ -52,11 +52,13 @@ func RuntimeSupervisorDefinition(target string, options RuntimeSupervisorOptions
 		Executable:       options.Executable,
 		Args:             cliinvoke.RuntimeSupervisorRun(),
 		Env:              env,
-		WorkingDirectory: sourceRoot,
+		// Home remains available when the source checkout is moved or absent.
+		// SourceRoot is an optional source-operation hint, not a boot directory.
+		WorkingDirectory: options.Home,
 		Kind:             KindDaemon,
 		Restart:          RestartPolicy{Mode: RestartAlways, Delay: 5 * time.Second, BurstLimit: 5, BurstWindow: 300 * time.Second},
 		Scope:            ScopeUser,
-		Protections:      Protections{Containment: Containment{CPUWeight: 400}, MemoryMin: "128M", OOMScoreAdjust: -500},
+		Protections:      Protections{Containment: Containment{CPUWeight: 400, ManagedOOMAvoid: true}, MemoryMin: "128M", OOMScoreAdjust: -500},
 		StopTimeout:      30 * time.Second,
 		Logs:             LogPaths{Stdout: logPath, Stderr: logPath},
 	}

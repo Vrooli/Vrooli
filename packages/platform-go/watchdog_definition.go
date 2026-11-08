@@ -60,7 +60,7 @@ func WatchdogDefinition(target string, options WatchdogDefinitionOptions) (Servi
 		Restart:          RestartPolicy{Mode: RestartOnFailure, Delay: 15 * time.Second, BurstLimit: 5, BurstWindow: 300 * time.Second},
 		OnFailureUnit:    emergency.Systemd,
 		Scope:            scope,
-		Protections:      Protections{Containment: Containment{CPUWeight: 400}, MemoryMin: "128M", OOMScoreAdjust: -500},
+		Protections:      Protections{Containment: Containment{CPUWeight: 400, ManagedOOMAvoid: true}, MemoryMin: "128M", OOMScoreAdjust: -500},
 		StopTimeout:      30 * time.Second,
 		Username:         username,
 	}

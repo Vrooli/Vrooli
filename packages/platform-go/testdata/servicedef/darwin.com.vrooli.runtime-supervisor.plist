@@ -24,7 +24,7 @@
     <string>/Users/alice/Vrooli</string>
   </dict>
   <key>WorkingDirectory</key>
-  <string>/Users/alice/Vrooli</string>
+  <string>/Users/alice</string>
   <key>StandardOutPath</key>
   <string>/Users/alice/.vrooli/logs/runtime-supervisor.log</string>
   <key>StandardErrorPath</key>

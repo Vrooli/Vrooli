@@ -53,6 +53,9 @@ type ServiceDefinition struct {
 	// StopTimeout bounds the graceful stop before the manager kills the
 	// process; zero leaves the manager's default.
 	StopTimeout time.Duration
+	// StartTimeout explicitly bounds a oneshot/start job and its child tree.
+	// Zero retains the manager default; root recovery supplies a fixed bound.
+	StartTimeout time.Duration
 	// Username is the OS principal the unit runs as. It is required for the
 	// windows target (the task principal) and optional elsewhere.
 	Username string
@@ -131,6 +134,9 @@ type Containment struct {
 	// killing to save the host, and a scenario or resource service is the
 	// thing being saved. Only the systemd renderer expresses it.
 	ManagedOOMKill bool
+	// ManagedOOMAvoid de-prioritizes this exact cgroup for systemd-oomd.
+	// It is not inherited and does not make the workload immune to killing.
+	ManagedOOMAvoid bool
 }
 
 // Protections are the resource-control settings that keep a supervisor
@@ -432,13 +438,16 @@ type CoreUnit struct {
 }
 
 const (
-	CoreUnitAutohealLoop           = "autoheal-loop"
-	CoreUnitRuntimeSupervisor      = "runtime-supervisor"
-	CoreUnitEmergencyWatchdog      = "emergency-watchdog"
-	CoreUnitEmergencyWatchdogTimer = "emergency-watchdog-timer"
+	CoreUnitAutohealLoop            = "autoheal-loop"
+	CoreUnitRuntimeSupervisor       = "runtime-supervisor"
+	CoreUnitEmergencyWatchdog       = "emergency-watchdog"
+	CoreUnitEmergencyWatchdogTimer  = "emergency-watchdog-timer"
+	CoreUnitRootUpdateRecovery      = "root-update-recovery"
+	CoreUnitRootUpdateRecoveryTimer = "root-update-recovery-timer"
 )
 
-// CoreUnits returns the four native units every Vrooli host carries. Lists
+// CoreUnits returns the native units owned by the control plane. An empty
+// target identity means that mechanism is not implemented on that target. Lists
 // of "our units" are derived from here, never retyped.
 func CoreUnits() []CoreUnit {
 	return []CoreUnit{
@@ -446,6 +455,8 @@ func CoreUnits() []CoreUnit {
 		{ID: CoreUnitRuntimeSupervisor, Kind: KindDaemon, Systemd: "vrooli-runtime-supervisor.service", Launchd: "com.vrooli.runtime-supervisor", Windows: "VrooliRuntimeSupervisor", OwnerPath: "internal/runtimesupervisor/service_install.go"},
 		{ID: CoreUnitEmergencyWatchdog, Kind: KindOneshot, Systemd: "vrooli-emergency-watchdog.service", Launchd: "com.vrooli.emergency-watchdog", Windows: "VrooliEmergencyWatchdog", OwnerPath: "internal/safeguards/emergency-watchdog/handler.go"},
 		{ID: CoreUnitEmergencyWatchdogTimer, Kind: KindTimer, Systemd: "vrooli-emergency-watchdog.timer", OwnerPath: "internal/safeguards/emergency-watchdog/handler.go"},
+		{ID: CoreUnitRootUpdateRecovery, Kind: KindOneshot, Systemd: "vrooli-root-update-recovery.service", OwnerPath: "internal/safeguards/emergency-watchdog/handler.go"},
+		{ID: CoreUnitRootUpdateRecoveryTimer, Kind: KindTimer, Systemd: "vrooli-root-update-recovery.timer", OwnerPath: "internal/safeguards/emergency-watchdog/handler.go"},
 	}
 }
 

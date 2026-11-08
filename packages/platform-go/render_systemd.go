@@ -78,6 +78,9 @@ func systemdService(d ServiceDefinition) string {
 	if d.StopTimeout > 0 {
 		fmt.Fprintf(&b, "TimeoutStopSec=%s\n", systemdSeconds(d.StopTimeout))
 	}
+	if d.StartTimeout > 0 {
+		fmt.Fprintf(&b, "TimeoutStartSec=%s\n", systemdSeconds(d.StartTimeout))
+	}
 	writeSystemdContainment(&b, d.Protections.Containment)
 	if d.Protections.MemoryMin != "" {
 		fmt.Fprintf(&b, "MemoryMin=%s\n", d.Protections.MemoryMin)
@@ -94,6 +97,9 @@ func systemdService(d ServiceDefinition) string {
 // writeSystemdContainment emits the ceiling directives shared by services
 // and slices, in a fixed order, omitting unset fields.
 func writeSystemdContainment(b *strings.Builder, c Containment) {
+	if c.ManagedOOMAvoid {
+		b.WriteString("ManagedOOMPreference=avoid\n")
+	}
 	if c.Slice != "" {
 		fmt.Fprintf(b, "Slice=%s\n", c.Slice)
 	}

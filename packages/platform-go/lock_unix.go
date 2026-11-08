@@ -9,20 +9,29 @@ import (
 	"syscall"
 )
 
-func acquireFileLock(path string) (func(), error) {
-	f, err := os.OpenFile(path, os.O_RDWR|os.O_CREATE, 0o644)
+func openLockFile(path string, perm os.FileMode) (*os.File, error) {
+	fd, err := syscall.Open(path, syscall.O_RDWR|syscall.O_CREAT|syscall.O_NOFOLLOW|syscall.O_NONBLOCK|syscall.O_CLOEXEC, uint32(perm.Perm()))
 	if err != nil {
 		return nil, fmt.Errorf("platform: open lock %s: %w", path, err)
 	}
-	release, err := lockFile(f, false)
-	if err != nil {
+	f := os.NewFile(uintptr(fd), path)
+	if err := validateLockFile(f); err != nil {
 		_ = f.Close()
-		return nil, fmt.Errorf("platform: lock %s: %w", path, err)
+		return nil, err
 	}
-	return func() {
-		release()
-		_ = f.Close()
-	}, nil
+	return f, nil
+}
+
+func validateLockFile(f *os.File) error {
+	info, err := f.Stat()
+	if err != nil {
+		return err
+	}
+	st, ok := info.Sys().(*syscall.Stat_t)
+	if !info.Mode().IsRegular() || !ok || st.Nlink != 1 {
+		return fmt.Errorf("platform: lock must be a regular single-link file")
+	}
+	return nil
 }
 
 func lockFile(f *os.File, nonBlocking bool) (func(), error) {

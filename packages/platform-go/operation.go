@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"path/filepath"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -59,12 +60,17 @@ type OperationSpec struct {
 	Env    []string
 	Dir    string
 	Limits OperationLimits
+	Gate   *OperationGate
 }
 
 // OperationIntent is the caller-persisted, pre-dispatch identity. Persist it
 // durably before calling StartOwnedOperation and never reuse its attempt or
 // invocation ID. SpecDigest binds the intent to the resolved invocation.
 type OperationIntent struct {
+	// Kind is empty for bounded operations. Long-lived resource services use
+	// a separate admission API and native namespace; their identities are not
+	// interchangeable with deadline-bound jobs.
+	Kind         string `json:"kind,omitempty"`
 	Owner        string `json:"owner"`
 	AttemptID    string `json:"attempt_id"`
 	InvocationID string `json:"invocation_id"`
@@ -84,6 +90,43 @@ type OperationRef struct {
 	NativeInvocationID string          `json:"native_invocation_id"`
 	ScopeDevice        uint64          `json:"scope_device,omitempty"`
 	ScopeInode         uint64          `json:"scope_inode,omitempty"`
+}
+
+// ValidateIdentity checks persisted operation metadata without native effects.
+func (r OperationRef) ValidateIdentity() error {
+	if err := validateOperationRefIdentity(r); err != nil {
+		return err
+	}
+	slice := OperationsSlice
+	if r.Intent.Kind == ownedServiceKind {
+		slice = ServicesSlice
+	}
+	if r.Scope.Kind != ScopeKindCgroup || r.Scope.PID != 0 || !validCgroupServicePath(r.Scope.Path, r.Unit, slice) || !operationInvocation.MatchString(r.NativeInvocationID) || (r.ScopeDevice == 0) != (r.ScopeInode == 0) {
+		return fmt.Errorf("%w: malformed native workload identity", ErrOperationIdentity)
+	}
+	if r.RootPID > 0 {
+		n, err := strconv.ParseUint(r.RootStartTime, 10, 64)
+		if err != nil || n == 0 {
+			return fmt.Errorf("%w: invalid native root start identity", ErrOperationIdentity)
+		}
+	}
+	return nil
+}
+
+// ValidateIdentity checks persisted pre-dispatch metadata without submission.
+func (i OperationIntent) ValidateIdentity() error { return validateOperationIntentShape(i) }
+
+// UnitName is metadata only; it does not assert native presence or ownership.
+func (i OperationIntent) UnitName() (string, error) {
+	if err := i.ValidateIdentity(); err != nil {
+		return "", err
+	}
+	return operationUnitName(i), nil
+}
+
+// ValidateSpec checks the frozen bounded invocation without submitting it.
+func (i OperationIntent) ValidateSpec(spec OperationSpec) error {
+	return validateOperationIntent(i, spec)
 }
 
 type OperationState string
@@ -134,6 +177,10 @@ func NewOperationIntent(owner, attemptID string, spec OperationSpec) (OperationI
 	if err := validateOperationSpec(spec); err != nil {
 		return OperationIntent{}, err
 	}
+	return newOwnedWorkloadIntent(owner, attemptID, operationSpecDigest(spec), "")
+}
+
+func newOwnedWorkloadIntent(owner, attemptID, digest, kind string) (OperationIntent, error) {
 	if !operationOwnerPattern.MatchString(owner) {
 		return OperationIntent{}, fmt.Errorf("platform: invalid operation owner %q", owner)
 	}
@@ -145,12 +192,15 @@ func NewOperationIntent(owner, attemptID string, spec OperationSpec) (OperationI
 		return OperationIntent{}, fmt.Errorf("platform: generate operation invocation ID: %w", err)
 	}
 	return OperationIntent{
-		Owner: owner, AttemptID: attemptID, InvocationID: hex.EncodeToString(random),
-		SpecDigest: operationSpecDigest(spec),
+		Kind: kind, Owner: owner, AttemptID: attemptID, InvocationID: hex.EncodeToString(random),
+		SpecDigest: digest,
 	}, nil
 }
 
 func validateOperationIntent(intent OperationIntent, spec OperationSpec) error {
+	if intent.Kind != "" {
+		return fmt.Errorf("%w: bounded operation cannot dispatch a service intent", ErrOperationIdentity)
+	}
 	if !operationOwnerPattern.MatchString(intent.Owner) || !operationAttemptPattern.MatchString(intent.AttemptID) || !operationInvocation.MatchString(intent.InvocationID) {
 		return fmt.Errorf("%w: malformed operation intent", ErrOperationIdentity)
 	}
@@ -167,6 +217,21 @@ func validateOperationIntent(intent OperationIntent, spec OperationSpec) error {
 }
 
 func validateOperationSpec(spec OperationSpec) error {
+	if err := validateOwnedProcessSpec(spec); err != nil {
+		return err
+	}
+	if spec.Gate != nil {
+		if err := spec.Gate.validateLocation(); err != nil {
+			return err
+		}
+	}
+	if spec.Limits.WallTime < minOperationWallTime || spec.Limits.WallTime > maxOperationWallTime {
+		return fmt.Errorf("platform: operation wall time must be between %s and %s", minOperationWallTime, maxOperationWallTime)
+	}
+	return nil
+}
+
+func validateOwnedProcessSpec(spec OperationSpec) error {
 	if !filepath.IsAbs(spec.Path) || filepath.Clean(spec.Path) != spec.Path || strings.ContainsRune(spec.Path, '\x00') {
 		return errors.New("platform: operation executable must be an absolute, clean path")
 	}
@@ -215,9 +280,6 @@ func validateOperationSpec(spec OperationSpec) error {
 	if limits.CPUWeight < 1 || limits.CPUWeight > 10000 {
 		return errors.New("platform: operation CPUWeight must be between 1 and 10000")
 	}
-	if limits.WallTime < minOperationWallTime || limits.WallTime > maxOperationWallTime {
-		return fmt.Errorf("platform: operation wall time must be between %s and %s", minOperationWallTime, maxOperationWallTime)
-	}
 	return nil
 }
 
@@ -228,7 +290,8 @@ func operationSpecDigest(spec OperationSpec) string {
 		Env    []string        `json:"env"`
 		Dir    string          `json:"dir"`
 		Limits OperationLimits `json:"limits"`
-	}{spec.Path, spec.Args, spec.Env, spec.Dir, spec.Limits}
+		Gate   *OperationGate  `json:"gate,omitempty"`
+	}{spec.Path, spec.Args, spec.Env, spec.Dir, spec.Limits, spec.Gate}
 	data, _ := json.Marshal(canonical)
 	sum := sha256.Sum256(data)
 	return hex.EncodeToString(sum[:])
@@ -237,7 +300,11 @@ func operationSpecDigest(spec OperationSpec) string {
 func operationUnitName(intent OperationIntent) string {
 	data, _ := json.Marshal(intent)
 	sum := sha256.Sum256(data)
-	return "vrooli-op-" + intent.Owner + "-" + hex.EncodeToString(sum[:12]) + ".service"
+	prefix := "vrooli-op-"
+	if intent.Kind == ownedServiceKind {
+		prefix = "vrooli-svc-"
+	}
+	return prefix + intent.Owner + "-" + hex.EncodeToString(sum[:12]) + ".service"
 }
 
 // StartOwnedOperation starts one pre-persisted operation under the native
@@ -308,6 +375,9 @@ func ReleaseOwnedOperation(ctx context.Context, expected OperationRef) error {
 }
 
 func validateOperationIntentShape(intent OperationIntent) error {
+	if intent.Kind != "" && intent.Kind != ownedServiceKind {
+		return fmt.Errorf("%w: unknown native workload kind", ErrOperationIdentity)
+	}
 	if !operationOwnerPattern.MatchString(intent.Owner) || !operationAttemptPattern.MatchString(intent.AttemptID) || !operationInvocation.MatchString(intent.InvocationID) {
 		return fmt.Errorf("%w: malformed operation intent", ErrOperationIdentity)
 	}
@@ -321,6 +391,13 @@ func validateOperationIntentShape(intent OperationIntent) error {
 }
 
 func validateOperationRefShape(ref OperationRef) error {
+	if err := validateOperationRefIdentity(ref); err != nil {
+		return err
+	}
+	return validateNativeOperationRef(ref)
+}
+
+func validateOperationRefIdentity(ref OperationRef) error {
 	if err := validateOperationIntentShape(ref.Intent); err != nil {
 		return err
 	}
@@ -330,7 +407,7 @@ func validateOperationRefShape(ref OperationRef) error {
 	if ref.RootPID < 0 || (ref.RootPID == 0) != (ref.RootStartTime == "") {
 		return fmt.Errorf("%w: malformed root process identity", ErrOperationIdentity)
 	}
-	return validateNativeOperationRef(ref)
+	return nil
 }
 
 // Stop stops the native service and waits for the manager's terminal record.

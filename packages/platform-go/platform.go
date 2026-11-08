@@ -178,43 +178,106 @@ func ReadProcessEnvironment(pid int) (map[string]string, error) {
 
 // AcquireFileLock takes an exclusive advisory lock and returns its release
 // function. The file remains on disk so lock ownership can be diagnosed.
-func AcquireFileLock(path string) (func(), error) { return acquireFileLock(path) }
+func AcquireFileLock(path string) (func(), error) {
+	return AcquireFileLockContext(context.Background(), path)
+}
+
+// OpenLockFile opens a dedicated regular, single-link lock inode without
+// following a leaf alias. The caller owns the returned file. Parent location
+// authority belongs to the domain selecting the path.
+func OpenLockFile(path string, perm os.FileMode) (*os.File, error) {
+	if strings.TrimSpace(path) == "" {
+		return nil, fmt.Errorf("platform: lock file path is required")
+	}
+	return openLockFile(path, perm)
+}
+
+// VerifyLockFile checks that the admitted handle is still the regular lock
+// inode named by path. Domains must never unlink/recreate an active lock.
+func VerifyLockFile(file *os.File, path string) error {
+	if file == nil {
+		return fmt.Errorf("platform: nil lock file")
+	}
+	if err := validateLockFile(file); err != nil {
+		return err
+	}
+	named, err := os.Lstat(path)
+	if err != nil {
+		return fmt.Errorf("platform: lock path unavailable: %w", err)
+	}
+	opened, err := file.Stat()
+	if err != nil {
+		return err
+	}
+	if !named.Mode().IsRegular() || !os.SameFile(named, opened) {
+		return fmt.Errorf("platform: lock path no longer names the admitted inode")
+	}
+	return nil
+}
 
 // AcquireFileLockContext waits for exclusive ownership until ctx expires.
 // Nonblocking native attempts avoid stranding a goroutine in the kernel after
 // cancellation. Release is idempotent, including concurrent callers.
 func AcquireFileLockContext(ctx context.Context, path string) (func(), error) {
+	if ctx == nil {
+		return nil, fmt.Errorf("platform: nil lock context")
+	}
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
-	file, err := os.OpenFile(path, os.O_RDWR|os.O_CREATE, 0o644)
+	file, err := OpenLockFile(path, 0o644)
 	if err != nil {
 		return nil, fmt.Errorf("platform: open lock %s: %w", path, err)
 	}
+	release, err := LockFileContext(ctx, file)
+	if err != nil {
+		_ = file.Close()
+		return nil, err
+	}
+	if err := VerifyLockFile(file, path); err != nil {
+		release()
+		_ = file.Close()
+		return nil, err
+	}
+	var once sync.Once
+	return func() { once.Do(func() { release(); _ = file.Close() }) }, nil
+}
+
+// LockFileContext waits on an already-admitted handle without reopening its
+// pathname or closing the caller's file. Release is concurrent-idempotent.
+func LockFileContext(ctx context.Context, file *os.File) (func(), error) {
+	if ctx == nil {
+		return nil, fmt.Errorf("platform: nil lock context")
+	}
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	if file == nil {
+		return nil, fmt.Errorf("platform: nil lock file")
+	}
 	for {
 		if err := ctx.Err(); err != nil {
-			_ = file.Close()
+			return nil, err
+		}
+		if err := validateLockFile(file); err != nil {
 			return nil, err
 		}
 		release, err := lockFile(file, true)
 		if err == nil {
 			if err := ctx.Err(); err != nil {
 				release()
-				_ = file.Close()
 				return nil, err
 			}
 			var once sync.Once
-			return func() { once.Do(func() { release(); _ = file.Close() }) }, nil
+			return func() { once.Do(release) }, nil
 		}
 		if !errors.Is(err, ErrLockUnavailable) {
-			_ = file.Close()
-			return nil, fmt.Errorf("platform: lock %s: %w", path, err)
+			return nil, fmt.Errorf("platform: lock admitted file: %w", err)
 		}
 		timer := time.NewTimer(10 * time.Millisecond)
 		select {
 		case <-ctx.Done():
 			timer.Stop()
-			_ = file.Close()
 			return nil, ctx.Err()
 		case <-timer.C:
 		}
