@@ -1047,8 +1047,11 @@ type EffortAssignment struct {
 	ObservedAt         *timestamppb.Timestamp `protobuf:"bytes,10,opt,name=observed_at,json=observedAt,proto3" json:"observed_at,omitempty"`
 	UnavailableReason  string                 `protobuf:"bytes,11,opt,name=unavailable_reason,json=unavailableReason,proto3" json:"unavailable_reason,omitempty"`
 	ExecutionIdentity  string                 `protobuf:"bytes,12,opt,name=execution_identity,json=executionIdentity,proto3" json:"execution_identity,omitempty"`
-	unknownFields      protoimpl.UnknownFields
-	sizeCache          protoimpl.SizeCache
+	// Transcript step-back triggers observed on this run; empty when none fired
+	// or the run has no stored transcript evidence.
+	StepBack      []*StepBackTrigger `protobuf:"bytes,13,rep,name=step_back,json=stepBack,proto3" json:"step_back,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *EffortAssignment) Reset() {
@@ -1165,6 +1168,91 @@ func (x *EffortAssignment) GetExecutionIdentity() string {
 	return ""
 }
 
+func (x *EffortAssignment) GetStepBack() []*StepBackTrigger {
+	if x != nil {
+		return x.StepBack
+	}
+	return nil
+}
+
+// One step-back trigger observed in a run's stored transcript events: a
+// pattern of a long effort losing its objective or its scale. The IDs are the
+// effort-diagnosis drift tripwires: objective-lost, stance-not-retained,
+// unit-per-turn, short-workers and inherited-context. An observation only; Agent Manager
+// never stops, parks or re-tasks a run because of one. The goal-home triggers
+// of `effort epoch-check` (flatline, overrun, growth, spend, wall-clock) are
+// the other half of the same vocabulary.
+type StepBackTrigger struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	Id    string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	// Effort-diagnosis mechanism catalog entry, e.g. "M1".
+	Mechanism string `protobuf:"bytes,2,opt,name=mechanism,proto3" json:"mechanism,omitempty"`
+	// Measured evidence; it changes while the run works.
+	Detail string `protobuf:"bytes,3,opt,name=detail,proto3" json:"detail,omitempty"`
+	// The re-orientation the pattern calls for.
+	Remedy        string `protobuf:"bytes,4,opt,name=remedy,proto3" json:"remedy,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *StepBackTrigger) Reset() {
+	*x = StepBackTrigger{}
+	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[9]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *StepBackTrigger) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*StepBackTrigger) ProtoMessage() {}
+
+func (x *StepBackTrigger) ProtoReflect() protoreflect.Message {
+	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[9]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use StepBackTrigger.ProtoReflect.Descriptor instead.
+func (*StepBackTrigger) Descriptor() ([]byte, []int) {
+	return file_agent_manager_v1_domain_effort_proto_rawDescGZIP(), []int{9}
+}
+
+func (x *StepBackTrigger) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *StepBackTrigger) GetMechanism() string {
+	if x != nil {
+		return x.Mechanism
+	}
+	return ""
+}
+
+func (x *StepBackTrigger) GetDetail() string {
+	if x != nil {
+		return x.Detail
+	}
+	return ""
+}
+
+func (x *StepBackTrigger) GetRemedy() string {
+	if x != nil {
+		return x.Remedy
+	}
+	return ""
+}
+
 // Attributed outcome evidence; a workspace self-report cannot establish owner acceptance.
 type EffortOutcomeStanding struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
@@ -1180,7 +1268,7 @@ type EffortOutcomeStanding struct {
 
 func (x *EffortOutcomeStanding) Reset() {
 	*x = EffortOutcomeStanding{}
-	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[9]
+	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1192,7 +1280,7 @@ func (x *EffortOutcomeStanding) String() string {
 func (*EffortOutcomeStanding) ProtoMessage() {}
 
 func (x *EffortOutcomeStanding) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[9]
+	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1205,7 +1293,7 @@ func (x *EffortOutcomeStanding) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use EffortOutcomeStanding.ProtoReflect.Descriptor instead.
 func (*EffortOutcomeStanding) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_domain_effort_proto_rawDescGZIP(), []int{9}
+	return file_agent_manager_v1_domain_effort_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *EffortOutcomeStanding) GetState() string {
@@ -1282,7 +1370,7 @@ type EffortBoardRow struct {
 
 func (x *EffortBoardRow) Reset() {
 	*x = EffortBoardRow{}
-	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[10]
+	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1294,7 +1382,7 @@ func (x *EffortBoardRow) String() string {
 func (*EffortBoardRow) ProtoMessage() {}
 
 func (x *EffortBoardRow) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[10]
+	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1307,7 +1395,7 @@ func (x *EffortBoardRow) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use EffortBoardRow.ProtoReflect.Descriptor instead.
 func (*EffortBoardRow) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_domain_effort_proto_rawDescGZIP(), []int{10}
+	return file_agent_manager_v1_domain_effort_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *EffortBoardRow) GetEnrollment() *EffortEnrollment {
@@ -1455,7 +1543,7 @@ type EffortBoard struct {
 
 func (x *EffortBoard) Reset() {
 	*x = EffortBoard{}
-	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[11]
+	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1467,7 +1555,7 @@ func (x *EffortBoard) String() string {
 func (*EffortBoard) ProtoMessage() {}
 
 func (x *EffortBoard) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[11]
+	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1480,7 +1568,7 @@ func (x *EffortBoard) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use EffortBoard.ProtoReflect.Descriptor instead.
 func (*EffortBoard) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_domain_effort_proto_rawDescGZIP(), []int{11}
+	return file_agent_manager_v1_domain_effort_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *EffortBoard) GetRows() []*EffortBoardRow {
@@ -1557,7 +1645,7 @@ type GetEffortBoardRequest struct {
 
 func (x *GetEffortBoardRequest) Reset() {
 	*x = GetEffortBoardRequest{}
-	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[12]
+	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1569,7 +1657,7 @@ func (x *GetEffortBoardRequest) String() string {
 func (*GetEffortBoardRequest) ProtoMessage() {}
 
 func (x *GetEffortBoardRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[12]
+	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1582,7 +1670,7 @@ func (x *GetEffortBoardRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetEffortBoardRequest.ProtoReflect.Descriptor instead.
 func (*GetEffortBoardRequest) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_domain_effort_proto_rawDescGZIP(), []int{12}
+	return file_agent_manager_v1_domain_effort_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *GetEffortBoardRequest) GetEffortRef() string {
@@ -1616,7 +1704,7 @@ type ListEffortsRequest struct {
 
 func (x *ListEffortsRequest) Reset() {
 	*x = ListEffortsRequest{}
-	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[13]
+	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1628,7 +1716,7 @@ func (x *ListEffortsRequest) String() string {
 func (*ListEffortsRequest) ProtoMessage() {}
 
 func (x *ListEffortsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[13]
+	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1641,7 +1729,7 @@ func (x *ListEffortsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListEffortsRequest.ProtoReflect.Descriptor instead.
 func (*ListEffortsRequest) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_domain_effort_proto_rawDescGZIP(), []int{13}
+	return file_agent_manager_v1_domain_effort_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *ListEffortsRequest) GetPageSize() uint32 {
@@ -1669,7 +1757,7 @@ type ListEffortsResponse struct {
 
 func (x *ListEffortsResponse) Reset() {
 	*x = ListEffortsResponse{}
-	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[14]
+	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1681,7 +1769,7 @@ func (x *ListEffortsResponse) String() string {
 func (*ListEffortsResponse) ProtoMessage() {}
 
 func (x *ListEffortsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[14]
+	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1694,7 +1782,7 @@ func (x *ListEffortsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListEffortsResponse.ProtoReflect.Descriptor instead.
 func (*ListEffortsResponse) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_domain_effort_proto_rawDescGZIP(), []int{14}
+	return file_agent_manager_v1_domain_effort_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *ListEffortsResponse) GetEfforts() []*EffortEnrollment {
@@ -1729,7 +1817,7 @@ type EnrollEffortRequest struct {
 
 func (x *EnrollEffortRequest) Reset() {
 	*x = EnrollEffortRequest{}
-	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[15]
+	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1741,7 +1829,7 @@ func (x *EnrollEffortRequest) String() string {
 func (*EnrollEffortRequest) ProtoMessage() {}
 
 func (x *EnrollEffortRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[15]
+	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1754,7 +1842,7 @@ func (x *EnrollEffortRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use EnrollEffortRequest.ProtoReflect.Descriptor instead.
 func (*EnrollEffortRequest) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_domain_effort_proto_rawDescGZIP(), []int{15}
+	return file_agent_manager_v1_domain_effort_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *EnrollEffortRequest) GetEnrollment() *EffortEnrollment {
@@ -1793,7 +1881,7 @@ type ReconcileEffortMetadataRequest struct {
 
 func (x *ReconcileEffortMetadataRequest) Reset() {
 	*x = ReconcileEffortMetadataRequest{}
-	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[16]
+	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1805,7 +1893,7 @@ func (x *ReconcileEffortMetadataRequest) String() string {
 func (*ReconcileEffortMetadataRequest) ProtoMessage() {}
 
 func (x *ReconcileEffortMetadataRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[16]
+	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1818,7 +1906,7 @@ func (x *ReconcileEffortMetadataRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ReconcileEffortMetadataRequest.ProtoReflect.Descriptor instead.
 func (*ReconcileEffortMetadataRequest) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_domain_effort_proto_rawDescGZIP(), []int{16}
+	return file_agent_manager_v1_domain_effort_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *ReconcileEffortMetadataRequest) GetEnrollment() *EffortEnrollment {
@@ -1861,7 +1949,7 @@ type WithdrawEffortRequest struct {
 
 func (x *WithdrawEffortRequest) Reset() {
 	*x = WithdrawEffortRequest{}
-	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[17]
+	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1873,7 +1961,7 @@ func (x *WithdrawEffortRequest) String() string {
 func (*WithdrawEffortRequest) ProtoMessage() {}
 
 func (x *WithdrawEffortRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[17]
+	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1886,7 +1974,7 @@ func (x *WithdrawEffortRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WithdrawEffortRequest.ProtoReflect.Descriptor instead.
 func (*WithdrawEffortRequest) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_domain_effort_proto_rawDescGZIP(), []int{17}
+	return file_agent_manager_v1_domain_effort_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *WithdrawEffortRequest) GetEffortRef() string {
@@ -1925,7 +2013,7 @@ type ReconcileEffortDiscoveryRequest struct {
 
 func (x *ReconcileEffortDiscoveryRequest) Reset() {
 	*x = ReconcileEffortDiscoveryRequest{}
-	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[18]
+	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1937,7 +2025,7 @@ func (x *ReconcileEffortDiscoveryRequest) String() string {
 func (*ReconcileEffortDiscoveryRequest) ProtoMessage() {}
 
 func (x *ReconcileEffortDiscoveryRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[18]
+	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1950,7 +2038,7 @@ func (x *ReconcileEffortDiscoveryRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ReconcileEffortDiscoveryRequest.ProtoReflect.Descriptor instead.
 func (*ReconcileEffortDiscoveryRequest) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_domain_effort_proto_rawDescGZIP(), []int{18}
+	return file_agent_manager_v1_domain_effort_proto_rawDescGZIP(), []int{19}
 }
 
 // One weighted-token cap reading for an active run of a goal-home effort.
@@ -1969,7 +2057,7 @@ type EffortCapUsage struct {
 
 func (x *EffortCapUsage) Reset() {
 	*x = EffortCapUsage{}
-	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[19]
+	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[20]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1981,7 +2069,7 @@ func (x *EffortCapUsage) String() string {
 func (*EffortCapUsage) ProtoMessage() {}
 
 func (x *EffortCapUsage) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[19]
+	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[20]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1994,7 +2082,7 @@ func (x *EffortCapUsage) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use EffortCapUsage.ProtoReflect.Descriptor instead.
 func (*EffortCapUsage) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_domain_effort_proto_rawDescGZIP(), []int{19}
+	return file_agent_manager_v1_domain_effort_proto_rawDescGZIP(), []int{20}
 }
 
 func (x *EffortCapUsage) GetRunId() string {
@@ -2047,7 +2135,7 @@ type SurfaceProgress struct {
 
 func (x *SurfaceProgress) Reset() {
 	*x = SurfaceProgress{}
-	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[20]
+	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[21]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2059,7 +2147,7 @@ func (x *SurfaceProgress) String() string {
 func (*SurfaceProgress) ProtoMessage() {}
 
 func (x *SurfaceProgress) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[20]
+	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[21]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2072,7 +2160,7 @@ func (x *SurfaceProgress) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SurfaceProgress.ProtoReflect.Descriptor instead.
 func (*SurfaceProgress) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_domain_effort_proto_rawDescGZIP(), []int{20}
+	return file_agent_manager_v1_domain_effort_proto_rawDescGZIP(), []int{21}
 }
 
 func (x *SurfaceProgress) GetSurface() string {
@@ -2114,7 +2202,7 @@ type EffortActiveUnit struct {
 
 func (x *EffortActiveUnit) Reset() {
 	*x = EffortActiveUnit{}
-	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[21]
+	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[22]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2126,7 +2214,7 @@ func (x *EffortActiveUnit) String() string {
 func (*EffortActiveUnit) ProtoMessage() {}
 
 func (x *EffortActiveUnit) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[21]
+	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[22]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2139,7 +2227,7 @@ func (x *EffortActiveUnit) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use EffortActiveUnit.ProtoReflect.Descriptor instead.
 func (*EffortActiveUnit) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_domain_effort_proto_rawDescGZIP(), []int{21}
+	return file_agent_manager_v1_domain_effort_proto_rawDescGZIP(), []int{22}
 }
 
 func (x *EffortActiveUnit) GetUnitId() string {
@@ -2217,7 +2305,7 @@ type EffortGoalHome struct {
 
 func (x *EffortGoalHome) Reset() {
 	*x = EffortGoalHome{}
-	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[22]
+	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[23]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2229,7 +2317,7 @@ func (x *EffortGoalHome) String() string {
 func (*EffortGoalHome) ProtoMessage() {}
 
 func (x *EffortGoalHome) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[22]
+	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[23]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2242,7 +2330,7 @@ func (x *EffortGoalHome) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use EffortGoalHome.ProtoReflect.Descriptor instead.
 func (*EffortGoalHome) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_domain_effort_proto_rawDescGZIP(), []int{22}
+	return file_agent_manager_v1_domain_effort_proto_rawDescGZIP(), []int{23}
 }
 
 func (x *EffortGoalHome) GetPath() string {
@@ -2462,7 +2550,7 @@ type EffortSignal struct {
 
 func (x *EffortSignal) Reset() {
 	*x = EffortSignal{}
-	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[23]
+	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[24]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2474,7 +2562,7 @@ func (x *EffortSignal) String() string {
 func (*EffortSignal) ProtoMessage() {}
 
 func (x *EffortSignal) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[23]
+	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[24]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2487,7 +2575,7 @@ func (x *EffortSignal) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use EffortSignal.ProtoReflect.Descriptor instead.
 func (*EffortSignal) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_domain_effort_proto_rawDescGZIP(), []int{23}
+	return file_agent_manager_v1_domain_effort_proto_rawDescGZIP(), []int{24}
 }
 
 func (x *EffortSignal) GetSeq() int64 {
@@ -2552,7 +2640,7 @@ type ListEffortSignalsRequest struct {
 
 func (x *ListEffortSignalsRequest) Reset() {
 	*x = ListEffortSignalsRequest{}
-	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[24]
+	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[25]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2564,7 +2652,7 @@ func (x *ListEffortSignalsRequest) String() string {
 func (*ListEffortSignalsRequest) ProtoMessage() {}
 
 func (x *ListEffortSignalsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[24]
+	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[25]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2577,7 +2665,7 @@ func (x *ListEffortSignalsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListEffortSignalsRequest.ProtoReflect.Descriptor instead.
 func (*ListEffortSignalsRequest) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_domain_effort_proto_rawDescGZIP(), []int{24}
+	return file_agent_manager_v1_domain_effort_proto_rawDescGZIP(), []int{25}
 }
 
 func (x *ListEffortSignalsRequest) GetEffortRef() string {
@@ -2612,7 +2700,7 @@ type ListEffortSignalsResponse struct {
 
 func (x *ListEffortSignalsResponse) Reset() {
 	*x = ListEffortSignalsResponse{}
-	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[25]
+	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[26]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2624,7 +2712,7 @@ func (x *ListEffortSignalsResponse) String() string {
 func (*ListEffortSignalsResponse) ProtoMessage() {}
 
 func (x *ListEffortSignalsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[25]
+	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[26]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2637,7 +2725,7 @@ func (x *ListEffortSignalsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListEffortSignalsResponse.ProtoReflect.Descriptor instead.
 func (*ListEffortSignalsResponse) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_domain_effort_proto_rawDescGZIP(), []int{25}
+	return file_agent_manager_v1_domain_effort_proto_rawDescGZIP(), []int{26}
 }
 
 func (x *ListEffortSignalsResponse) GetSignals() []*EffortSignal {
@@ -2671,7 +2759,7 @@ type RecordEffortSignalRequest struct {
 
 func (x *RecordEffortSignalRequest) Reset() {
 	*x = RecordEffortSignalRequest{}
-	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[26]
+	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[27]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2683,7 +2771,7 @@ func (x *RecordEffortSignalRequest) String() string {
 func (*RecordEffortSignalRequest) ProtoMessage() {}
 
 func (x *RecordEffortSignalRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[26]
+	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[27]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2696,7 +2784,7 @@ func (x *RecordEffortSignalRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RecordEffortSignalRequest.ProtoReflect.Descriptor instead.
 func (*RecordEffortSignalRequest) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_domain_effort_proto_rawDescGZIP(), []int{26}
+	return file_agent_manager_v1_domain_effort_proto_rawDescGZIP(), []int{27}
 }
 
 func (x *RecordEffortSignalRequest) GetEffortRef() string {
@@ -2744,7 +2832,7 @@ type EffortDecisionOption struct {
 
 func (x *EffortDecisionOption) Reset() {
 	*x = EffortDecisionOption{}
-	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[27]
+	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[28]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2756,7 +2844,7 @@ func (x *EffortDecisionOption) String() string {
 func (*EffortDecisionOption) ProtoMessage() {}
 
 func (x *EffortDecisionOption) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[27]
+	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[28]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2769,7 +2857,7 @@ func (x *EffortDecisionOption) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use EffortDecisionOption.ProtoReflect.Descriptor instead.
 func (*EffortDecisionOption) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_domain_effort_proto_rawDescGZIP(), []int{27}
+	return file_agent_manager_v1_domain_effort_proto_rawDescGZIP(), []int{28}
 }
 
 func (x *EffortDecisionOption) GetKey() string {
@@ -2838,7 +2926,7 @@ type EffortDecision struct {
 
 func (x *EffortDecision) Reset() {
 	*x = EffortDecision{}
-	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[28]
+	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[29]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2850,7 +2938,7 @@ func (x *EffortDecision) String() string {
 func (*EffortDecision) ProtoMessage() {}
 
 func (x *EffortDecision) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[28]
+	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[29]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2863,7 +2951,7 @@ func (x *EffortDecision) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use EffortDecision.ProtoReflect.Descriptor instead.
 func (*EffortDecision) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_domain_effort_proto_rawDescGZIP(), []int{28}
+	return file_agent_manager_v1_domain_effort_proto_rawDescGZIP(), []int{29}
 }
 
 func (x *EffortDecision) GetEffortRef() string {
@@ -3092,7 +3180,7 @@ type RaiseEffortDecisionRequest struct {
 
 func (x *RaiseEffortDecisionRequest) Reset() {
 	*x = RaiseEffortDecisionRequest{}
-	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[29]
+	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[30]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3104,7 +3192,7 @@ func (x *RaiseEffortDecisionRequest) String() string {
 func (*RaiseEffortDecisionRequest) ProtoMessage() {}
 
 func (x *RaiseEffortDecisionRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[29]
+	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[30]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3117,7 +3205,7 @@ func (x *RaiseEffortDecisionRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RaiseEffortDecisionRequest.ProtoReflect.Descriptor instead.
 func (*RaiseEffortDecisionRequest) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_domain_effort_proto_rawDescGZIP(), []int{29}
+	return file_agent_manager_v1_domain_effort_proto_rawDescGZIP(), []int{30}
 }
 
 func (x *RaiseEffortDecisionRequest) GetDecision() *EffortDecision {
@@ -3140,7 +3228,7 @@ type RaiseEffortDecisionResponse struct {
 
 func (x *RaiseEffortDecisionResponse) Reset() {
 	*x = RaiseEffortDecisionResponse{}
-	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[30]
+	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[31]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3152,7 +3240,7 @@ func (x *RaiseEffortDecisionResponse) String() string {
 func (*RaiseEffortDecisionResponse) ProtoMessage() {}
 
 func (x *RaiseEffortDecisionResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[30]
+	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[31]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3165,7 +3253,7 @@ func (x *RaiseEffortDecisionResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RaiseEffortDecisionResponse.ProtoReflect.Descriptor instead.
 func (*RaiseEffortDecisionResponse) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_domain_effort_proto_rawDescGZIP(), []int{30}
+	return file_agent_manager_v1_domain_effort_proto_rawDescGZIP(), []int{31}
 }
 
 func (x *RaiseEffortDecisionResponse) GetDecision() *EffortDecision {
@@ -3204,7 +3292,7 @@ type ListEffortDecisionsRequest struct {
 
 func (x *ListEffortDecisionsRequest) Reset() {
 	*x = ListEffortDecisionsRequest{}
-	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[31]
+	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[32]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3216,7 +3304,7 @@ func (x *ListEffortDecisionsRequest) String() string {
 func (*ListEffortDecisionsRequest) ProtoMessage() {}
 
 func (x *ListEffortDecisionsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[31]
+	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[32]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3229,7 +3317,7 @@ func (x *ListEffortDecisionsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListEffortDecisionsRequest.ProtoReflect.Descriptor instead.
 func (*ListEffortDecisionsRequest) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_domain_effort_proto_rawDescGZIP(), []int{31}
+	return file_agent_manager_v1_domain_effort_proto_rawDescGZIP(), []int{32}
 }
 
 func (x *ListEffortDecisionsRequest) GetGoalHome() string {
@@ -3277,7 +3365,7 @@ type ListEffortDecisionsResponse struct {
 
 func (x *ListEffortDecisionsResponse) Reset() {
 	*x = ListEffortDecisionsResponse{}
-	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[32]
+	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[33]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3289,7 +3377,7 @@ func (x *ListEffortDecisionsResponse) String() string {
 func (*ListEffortDecisionsResponse) ProtoMessage() {}
 
 func (x *ListEffortDecisionsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[32]
+	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[33]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3302,7 +3390,7 @@ func (x *ListEffortDecisionsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListEffortDecisionsResponse.ProtoReflect.Descriptor instead.
 func (*ListEffortDecisionsResponse) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_domain_effort_proto_rawDescGZIP(), []int{32}
+	return file_agent_manager_v1_domain_effort_proto_rawDescGZIP(), []int{33}
 }
 
 func (x *ListEffortDecisionsResponse) GetDecisions() []*EffortDecision {
@@ -3332,7 +3420,7 @@ type AnswerEffortDecisionRequest struct {
 
 func (x *AnswerEffortDecisionRequest) Reset() {
 	*x = AnswerEffortDecisionRequest{}
-	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[33]
+	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[34]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3344,7 +3432,7 @@ func (x *AnswerEffortDecisionRequest) String() string {
 func (*AnswerEffortDecisionRequest) ProtoMessage() {}
 
 func (x *AnswerEffortDecisionRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[33]
+	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[34]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3357,7 +3445,7 @@ func (x *AnswerEffortDecisionRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AnswerEffortDecisionRequest.ProtoReflect.Descriptor instead.
 func (*AnswerEffortDecisionRequest) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_domain_effort_proto_rawDescGZIP(), []int{33}
+	return file_agent_manager_v1_domain_effort_proto_rawDescGZIP(), []int{34}
 }
 
 func (x *AnswerEffortDecisionRequest) GetGoalHome() string {
@@ -3401,7 +3489,7 @@ type MarkEffortDecisionRecordedRequest struct {
 
 func (x *MarkEffortDecisionRecordedRequest) Reset() {
 	*x = MarkEffortDecisionRecordedRequest{}
-	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[34]
+	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[35]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3413,7 +3501,7 @@ func (x *MarkEffortDecisionRecordedRequest) String() string {
 func (*MarkEffortDecisionRecordedRequest) ProtoMessage() {}
 
 func (x *MarkEffortDecisionRecordedRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[34]
+	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[35]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3426,7 +3514,7 @@ func (x *MarkEffortDecisionRecordedRequest) ProtoReflect() protoreflect.Message 
 
 // Deprecated: Use MarkEffortDecisionRecordedRequest.ProtoReflect.Descriptor instead.
 func (*MarkEffortDecisionRecordedRequest) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_domain_effort_proto_rawDescGZIP(), []int{34}
+	return file_agent_manager_v1_domain_effort_proto_rawDescGZIP(), []int{35}
 }
 
 func (x *MarkEffortDecisionRecordedRequest) GetGoalHome() string {
@@ -3580,7 +3668,7 @@ const file_agent_manager_v1_domain_effort_proto_rawDesc = "" +
 	"\vuncertainty\x18\f \x01(\tR\vuncertainty\x12!\n" +
 	"\fevidence_ref\x18\r \x01(\tR\vevidenceRefB\x0f\n" +
 	"\r_used_percentB\x11\n" +
-	"\x0f_window_minutes\"\xcc\x04\n" +
+	"\x0f_window_minutes\"\x8c\x05\n" +
 	"\x10EffortAssignment\x129\n" +
 	"\asubject\x18\x01 \x01(\v2\x1f.agent_manager.v1.EffortSubjectR\asubject\x12#\n" +
 	"\rruntime_state\x18\x02 \x01(\tR\fruntimeState\x12'\n" +
@@ -3595,7 +3683,13 @@ const file_agent_manager_v1_domain_effort_proto_rawDesc = "" +
 	" \x01(\v2\x1a.google.protobuf.TimestampR\n" +
 	"observedAt\x12-\n" +
 	"\x12unavailable_reason\x18\v \x01(\tR\x11unavailableReason\x12-\n" +
-	"\x12execution_identity\x18\f \x01(\tR\x11executionIdentity\"\x85\x02\n" +
+	"\x12execution_identity\x18\f \x01(\tR\x11executionIdentity\x12>\n" +
+	"\tstep_back\x18\r \x03(\v2!.agent_manager.v1.StepBackTriggerR\bstepBack\"o\n" +
+	"\x0fStepBackTrigger\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1c\n" +
+	"\tmechanism\x18\x02 \x01(\tR\tmechanism\x12\x16\n" +
+	"\x06detail\x18\x03 \x01(\tR\x06detail\x12\x16\n" +
+	"\x06remedy\x18\x04 \x01(\tR\x06remedy\"\x85\x02\n" +
 	"\x15EffortOutcomeStanding\x12\x14\n" +
 	"\x05state\x18\x01 \x01(\tR\x05state\x12 \n" +
 	"\vattribution\x18\x02 \x01(\tR\vattribution\x12#\n" +
@@ -3862,7 +3956,7 @@ func file_agent_manager_v1_domain_effort_proto_rawDescGZIP() []byte {
 }
 
 var file_agent_manager_v1_domain_effort_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_agent_manager_v1_domain_effort_proto_msgTypes = make([]protoimpl.MessageInfo, 35)
+var file_agent_manager_v1_domain_effort_proto_msgTypes = make([]protoimpl.MessageInfo, 36)
 var file_agent_manager_v1_domain_effort_proto_goTypes = []any{
 	(EffortFreshness)(0),                      // 0: agent_manager.v1.EffortFreshness
 	(*EffortSubject)(nil),                     // 1: agent_manager.v1.EffortSubject
@@ -3874,98 +3968,100 @@ var file_agent_manager_v1_domain_effort_proto_goTypes = []any{
 	(*EffortUsage)(nil),                       // 7: agent_manager.v1.EffortUsage
 	(*EffortQuotaObservation)(nil),            // 8: agent_manager.v1.EffortQuotaObservation
 	(*EffortAssignment)(nil),                  // 9: agent_manager.v1.EffortAssignment
-	(*EffortOutcomeStanding)(nil),             // 10: agent_manager.v1.EffortOutcomeStanding
-	(*EffortBoardRow)(nil),                    // 11: agent_manager.v1.EffortBoardRow
-	(*EffortBoard)(nil),                       // 12: agent_manager.v1.EffortBoard
-	(*GetEffortBoardRequest)(nil),             // 13: agent_manager.v1.GetEffortBoardRequest
-	(*ListEffortsRequest)(nil),                // 14: agent_manager.v1.ListEffortsRequest
-	(*ListEffortsResponse)(nil),               // 15: agent_manager.v1.ListEffortsResponse
-	(*EnrollEffortRequest)(nil),               // 16: agent_manager.v1.EnrollEffortRequest
-	(*ReconcileEffortMetadataRequest)(nil),    // 17: agent_manager.v1.ReconcileEffortMetadataRequest
-	(*WithdrawEffortRequest)(nil),             // 18: agent_manager.v1.WithdrawEffortRequest
-	(*ReconcileEffortDiscoveryRequest)(nil),   // 19: agent_manager.v1.ReconcileEffortDiscoveryRequest
-	(*EffortCapUsage)(nil),                    // 20: agent_manager.v1.EffortCapUsage
-	(*SurfaceProgress)(nil),                   // 21: agent_manager.v1.SurfaceProgress
-	(*EffortActiveUnit)(nil),                  // 22: agent_manager.v1.EffortActiveUnit
-	(*EffortGoalHome)(nil),                    // 23: agent_manager.v1.EffortGoalHome
-	(*EffortSignal)(nil),                      // 24: agent_manager.v1.EffortSignal
-	(*ListEffortSignalsRequest)(nil),          // 25: agent_manager.v1.ListEffortSignalsRequest
-	(*ListEffortSignalsResponse)(nil),         // 26: agent_manager.v1.ListEffortSignalsResponse
-	(*RecordEffortSignalRequest)(nil),         // 27: agent_manager.v1.RecordEffortSignalRequest
-	(*EffortDecisionOption)(nil),              // 28: agent_manager.v1.EffortDecisionOption
-	(*EffortDecision)(nil),                    // 29: agent_manager.v1.EffortDecision
-	(*RaiseEffortDecisionRequest)(nil),        // 30: agent_manager.v1.RaiseEffortDecisionRequest
-	(*RaiseEffortDecisionResponse)(nil),       // 31: agent_manager.v1.RaiseEffortDecisionResponse
-	(*ListEffortDecisionsRequest)(nil),        // 32: agent_manager.v1.ListEffortDecisionsRequest
-	(*ListEffortDecisionsResponse)(nil),       // 33: agent_manager.v1.ListEffortDecisionsResponse
-	(*AnswerEffortDecisionRequest)(nil),       // 34: agent_manager.v1.AnswerEffortDecisionRequest
-	(*MarkEffortDecisionRecordedRequest)(nil), // 35: agent_manager.v1.MarkEffortDecisionRecordedRequest
-	(*timestamppb.Timestamp)(nil),             // 36: google.protobuf.Timestamp
-	(WatchAuthority)(0),                       // 37: agent_manager.v1.WatchAuthority
+	(*StepBackTrigger)(nil),                   // 10: agent_manager.v1.StepBackTrigger
+	(*EffortOutcomeStanding)(nil),             // 11: agent_manager.v1.EffortOutcomeStanding
+	(*EffortBoardRow)(nil),                    // 12: agent_manager.v1.EffortBoardRow
+	(*EffortBoard)(nil),                       // 13: agent_manager.v1.EffortBoard
+	(*GetEffortBoardRequest)(nil),             // 14: agent_manager.v1.GetEffortBoardRequest
+	(*ListEffortsRequest)(nil),                // 15: agent_manager.v1.ListEffortsRequest
+	(*ListEffortsResponse)(nil),               // 16: agent_manager.v1.ListEffortsResponse
+	(*EnrollEffortRequest)(nil),               // 17: agent_manager.v1.EnrollEffortRequest
+	(*ReconcileEffortMetadataRequest)(nil),    // 18: agent_manager.v1.ReconcileEffortMetadataRequest
+	(*WithdrawEffortRequest)(nil),             // 19: agent_manager.v1.WithdrawEffortRequest
+	(*ReconcileEffortDiscoveryRequest)(nil),   // 20: agent_manager.v1.ReconcileEffortDiscoveryRequest
+	(*EffortCapUsage)(nil),                    // 21: agent_manager.v1.EffortCapUsage
+	(*SurfaceProgress)(nil),                   // 22: agent_manager.v1.SurfaceProgress
+	(*EffortActiveUnit)(nil),                  // 23: agent_manager.v1.EffortActiveUnit
+	(*EffortGoalHome)(nil),                    // 24: agent_manager.v1.EffortGoalHome
+	(*EffortSignal)(nil),                      // 25: agent_manager.v1.EffortSignal
+	(*ListEffortSignalsRequest)(nil),          // 26: agent_manager.v1.ListEffortSignalsRequest
+	(*ListEffortSignalsResponse)(nil),         // 27: agent_manager.v1.ListEffortSignalsResponse
+	(*RecordEffortSignalRequest)(nil),         // 28: agent_manager.v1.RecordEffortSignalRequest
+	(*EffortDecisionOption)(nil),              // 29: agent_manager.v1.EffortDecisionOption
+	(*EffortDecision)(nil),                    // 30: agent_manager.v1.EffortDecision
+	(*RaiseEffortDecisionRequest)(nil),        // 31: agent_manager.v1.RaiseEffortDecisionRequest
+	(*RaiseEffortDecisionResponse)(nil),       // 32: agent_manager.v1.RaiseEffortDecisionResponse
+	(*ListEffortDecisionsRequest)(nil),        // 33: agent_manager.v1.ListEffortDecisionsRequest
+	(*ListEffortDecisionsResponse)(nil),       // 34: agent_manager.v1.ListEffortDecisionsResponse
+	(*AnswerEffortDecisionRequest)(nil),       // 35: agent_manager.v1.AnswerEffortDecisionRequest
+	(*MarkEffortDecisionRecordedRequest)(nil), // 36: agent_manager.v1.MarkEffortDecisionRecordedRequest
+	(*timestamppb.Timestamp)(nil),             // 37: google.protobuf.Timestamp
+	(WatchAuthority)(0),                       // 38: agent_manager.v1.WatchAuthority
 }
 var file_agent_manager_v1_domain_effort_proto_depIdxs = []int32{
 	1,  // 0: agent_manager.v1.EffortEnrollment.subjects:type_name -> agent_manager.v1.EffortSubject
-	36, // 1: agent_manager.v1.EffortEnrollment.updated_at:type_name -> google.protobuf.Timestamp
+	37, // 1: agent_manager.v1.EffortEnrollment.updated_at:type_name -> google.protobuf.Timestamp
 	3,  // 2: agent_manager.v1.EffortEnrollment.delivery:type_name -> agent_manager.v1.EffortDelivery
-	36, // 3: agent_manager.v1.EffortDelivery.started_at:type_name -> google.protobuf.Timestamp
-	36, // 4: agent_manager.v1.EffortDelivery.paused_at:type_name -> google.protobuf.Timestamp
-	36, // 5: agent_manager.v1.EffortDelivery.stopped_at:type_name -> google.protobuf.Timestamp
-	36, // 6: agent_manager.v1.EffortDelivery.finalized_at:type_name -> google.protobuf.Timestamp
-	23, // 7: agent_manager.v1.EffortDelivery.outcome:type_name -> agent_manager.v1.EffortGoalHome
-	36, // 8: agent_manager.v1.EffortDeliveryPressure.hard_stop_at:type_name -> google.protobuf.Timestamp
-	36, // 9: agent_manager.v1.EffortDeliveryPressure.checkpoint_deadline:type_name -> google.protobuf.Timestamp
-	36, // 10: agent_manager.v1.EffortDiscovery.last_scan_at:type_name -> google.protobuf.Timestamp
-	36, // 11: agent_manager.v1.EffortDiscovery.last_successful_scan_at:type_name -> google.protobuf.Timestamp
+	37, // 3: agent_manager.v1.EffortDelivery.started_at:type_name -> google.protobuf.Timestamp
+	37, // 4: agent_manager.v1.EffortDelivery.paused_at:type_name -> google.protobuf.Timestamp
+	37, // 5: agent_manager.v1.EffortDelivery.stopped_at:type_name -> google.protobuf.Timestamp
+	37, // 6: agent_manager.v1.EffortDelivery.finalized_at:type_name -> google.protobuf.Timestamp
+	24, // 7: agent_manager.v1.EffortDelivery.outcome:type_name -> agent_manager.v1.EffortGoalHome
+	37, // 8: agent_manager.v1.EffortDeliveryPressure.hard_stop_at:type_name -> google.protobuf.Timestamp
+	37, // 9: agent_manager.v1.EffortDeliveryPressure.checkpoint_deadline:type_name -> google.protobuf.Timestamp
+	37, // 10: agent_manager.v1.EffortDiscovery.last_scan_at:type_name -> google.protobuf.Timestamp
+	37, // 11: agent_manager.v1.EffortDiscovery.last_successful_scan_at:type_name -> google.protobuf.Timestamp
 	5,  // 12: agent_manager.v1.EffortDiscovery.findings:type_name -> agent_manager.v1.EffortDiscoveryFinding
 	7,  // 13: agent_manager.v1.EffortDiscovery.standing_usage:type_name -> agent_manager.v1.EffortUsage
-	36, // 14: agent_manager.v1.EffortQuotaObservation.observed_at:type_name -> google.protobuf.Timestamp
-	36, // 15: agent_manager.v1.EffortQuotaObservation.reset_at:type_name -> google.protobuf.Timestamp
+	37, // 14: agent_manager.v1.EffortQuotaObservation.observed_at:type_name -> google.protobuf.Timestamp
+	37, // 15: agent_manager.v1.EffortQuotaObservation.reset_at:type_name -> google.protobuf.Timestamp
 	1,  // 16: agent_manager.v1.EffortAssignment.subject:type_name -> agent_manager.v1.EffortSubject
 	7,  // 17: agent_manager.v1.EffortAssignment.usage:type_name -> agent_manager.v1.EffortUsage
-	36, // 18: agent_manager.v1.EffortAssignment.observed_at:type_name -> google.protobuf.Timestamp
-	2,  // 19: agent_manager.v1.EffortBoardRow.enrollment:type_name -> agent_manager.v1.EffortEnrollment
-	36, // 20: agent_manager.v1.EffortBoardRow.observed_at:type_name -> google.protobuf.Timestamp
-	0,  // 21: agent_manager.v1.EffortBoardRow.freshness:type_name -> agent_manager.v1.EffortFreshness
-	10, // 22: agent_manager.v1.EffortBoardRow.outcome_standing:type_name -> agent_manager.v1.EffortOutcomeStanding
-	9,  // 23: agent_manager.v1.EffortBoardRow.assignments:type_name -> agent_manager.v1.EffortAssignment
-	7,  // 24: agent_manager.v1.EffortBoardRow.usage:type_name -> agent_manager.v1.EffortUsage
-	8,  // 25: agent_manager.v1.EffortBoardRow.quota_observations:type_name -> agent_manager.v1.EffortQuotaObservation
-	23, // 26: agent_manager.v1.EffortBoardRow.goal_home:type_name -> agent_manager.v1.EffortGoalHome
-	4,  // 27: agent_manager.v1.EffortBoardRow.delivery_pressure:type_name -> agent_manager.v1.EffortDeliveryPressure
-	11, // 28: agent_manager.v1.EffortBoard.rows:type_name -> agent_manager.v1.EffortBoardRow
-	6,  // 29: agent_manager.v1.EffortBoard.discovery:type_name -> agent_manager.v1.EffortDiscovery
-	36, // 30: agent_manager.v1.EffortBoard.observed_at:type_name -> google.protobuf.Timestamp
-	8,  // 31: agent_manager.v1.EffortBoard.quota_observations:type_name -> agent_manager.v1.EffortQuotaObservation
-	2,  // 32: agent_manager.v1.ListEffortsResponse.efforts:type_name -> agent_manager.v1.EffortEnrollment
-	2,  // 33: agent_manager.v1.EnrollEffortRequest.enrollment:type_name -> agent_manager.v1.EffortEnrollment
-	2,  // 34: agent_manager.v1.ReconcileEffortMetadataRequest.enrollment:type_name -> agent_manager.v1.EffortEnrollment
-	37, // 35: agent_manager.v1.ReconcileEffortMetadataRequest.authority:type_name -> agent_manager.v1.WatchAuthority
-	36, // 36: agent_manager.v1.EffortGoalHome.current_as_of:type_name -> google.protobuf.Timestamp
-	36, // 37: agent_manager.v1.EffortGoalHome.last_accepted_at:type_name -> google.protobuf.Timestamp
-	29, // 38: agent_manager.v1.EffortGoalHome.open_decisions:type_name -> agent_manager.v1.EffortDecision
-	20, // 39: agent_manager.v1.EffortGoalHome.cap_usage:type_name -> agent_manager.v1.EffortCapUsage
-	36, // 40: agent_manager.v1.EffortGoalHome.read_at:type_name -> google.protobuf.Timestamp
-	21, // 41: agent_manager.v1.EffortGoalHome.surface_scoreboard:type_name -> agent_manager.v1.SurfaceProgress
-	22, // 42: agent_manager.v1.EffortGoalHome.active_units:type_name -> agent_manager.v1.EffortActiveUnit
-	36, // 43: agent_manager.v1.EffortSignal.created_at:type_name -> google.protobuf.Timestamp
-	24, // 44: agent_manager.v1.ListEffortSignalsResponse.signals:type_name -> agent_manager.v1.EffortSignal
-	28, // 45: agent_manager.v1.EffortDecision.options:type_name -> agent_manager.v1.EffortDecisionOption
-	36, // 46: agent_manager.v1.EffortDecision.deadline:type_name -> google.protobuf.Timestamp
-	36, // 47: agent_manager.v1.EffortDecision.answered_at:type_name -> google.protobuf.Timestamp
-	36, // 48: agent_manager.v1.EffortDecision.created_at:type_name -> google.protobuf.Timestamp
-	36, // 49: agent_manager.v1.EffortDecision.published_at:type_name -> google.protobuf.Timestamp
-	36, // 50: agent_manager.v1.EffortDecision.recorded_at:type_name -> google.protobuf.Timestamp
-	36, // 51: agent_manager.v1.EffortDecision.resolved_at:type_name -> google.protobuf.Timestamp
-	29, // 52: agent_manager.v1.RaiseEffortDecisionRequest.decision:type_name -> agent_manager.v1.EffortDecision
-	29, // 53: agent_manager.v1.RaiseEffortDecisionResponse.decision:type_name -> agent_manager.v1.EffortDecision
-	29, // 54: agent_manager.v1.ListEffortDecisionsResponse.decisions:type_name -> agent_manager.v1.EffortDecision
-	36, // 55: agent_manager.v1.MarkEffortDecisionRecordedRequest.answered_at:type_name -> google.protobuf.Timestamp
-	36, // 56: agent_manager.v1.MarkEffortDecisionRecordedRequest.resolved_at:type_name -> google.protobuf.Timestamp
-	57, // [57:57] is the sub-list for method output_type
-	57, // [57:57] is the sub-list for method input_type
-	57, // [57:57] is the sub-list for extension type_name
-	57, // [57:57] is the sub-list for extension extendee
-	0,  // [0:57] is the sub-list for field type_name
+	37, // 18: agent_manager.v1.EffortAssignment.observed_at:type_name -> google.protobuf.Timestamp
+	10, // 19: agent_manager.v1.EffortAssignment.step_back:type_name -> agent_manager.v1.StepBackTrigger
+	2,  // 20: agent_manager.v1.EffortBoardRow.enrollment:type_name -> agent_manager.v1.EffortEnrollment
+	37, // 21: agent_manager.v1.EffortBoardRow.observed_at:type_name -> google.protobuf.Timestamp
+	0,  // 22: agent_manager.v1.EffortBoardRow.freshness:type_name -> agent_manager.v1.EffortFreshness
+	11, // 23: agent_manager.v1.EffortBoardRow.outcome_standing:type_name -> agent_manager.v1.EffortOutcomeStanding
+	9,  // 24: agent_manager.v1.EffortBoardRow.assignments:type_name -> agent_manager.v1.EffortAssignment
+	7,  // 25: agent_manager.v1.EffortBoardRow.usage:type_name -> agent_manager.v1.EffortUsage
+	8,  // 26: agent_manager.v1.EffortBoardRow.quota_observations:type_name -> agent_manager.v1.EffortQuotaObservation
+	24, // 27: agent_manager.v1.EffortBoardRow.goal_home:type_name -> agent_manager.v1.EffortGoalHome
+	4,  // 28: agent_manager.v1.EffortBoardRow.delivery_pressure:type_name -> agent_manager.v1.EffortDeliveryPressure
+	12, // 29: agent_manager.v1.EffortBoard.rows:type_name -> agent_manager.v1.EffortBoardRow
+	6,  // 30: agent_manager.v1.EffortBoard.discovery:type_name -> agent_manager.v1.EffortDiscovery
+	37, // 31: agent_manager.v1.EffortBoard.observed_at:type_name -> google.protobuf.Timestamp
+	8,  // 32: agent_manager.v1.EffortBoard.quota_observations:type_name -> agent_manager.v1.EffortQuotaObservation
+	2,  // 33: agent_manager.v1.ListEffortsResponse.efforts:type_name -> agent_manager.v1.EffortEnrollment
+	2,  // 34: agent_manager.v1.EnrollEffortRequest.enrollment:type_name -> agent_manager.v1.EffortEnrollment
+	2,  // 35: agent_manager.v1.ReconcileEffortMetadataRequest.enrollment:type_name -> agent_manager.v1.EffortEnrollment
+	38, // 36: agent_manager.v1.ReconcileEffortMetadataRequest.authority:type_name -> agent_manager.v1.WatchAuthority
+	37, // 37: agent_manager.v1.EffortGoalHome.current_as_of:type_name -> google.protobuf.Timestamp
+	37, // 38: agent_manager.v1.EffortGoalHome.last_accepted_at:type_name -> google.protobuf.Timestamp
+	30, // 39: agent_manager.v1.EffortGoalHome.open_decisions:type_name -> agent_manager.v1.EffortDecision
+	21, // 40: agent_manager.v1.EffortGoalHome.cap_usage:type_name -> agent_manager.v1.EffortCapUsage
+	37, // 41: agent_manager.v1.EffortGoalHome.read_at:type_name -> google.protobuf.Timestamp
+	22, // 42: agent_manager.v1.EffortGoalHome.surface_scoreboard:type_name -> agent_manager.v1.SurfaceProgress
+	23, // 43: agent_manager.v1.EffortGoalHome.active_units:type_name -> agent_manager.v1.EffortActiveUnit
+	37, // 44: agent_manager.v1.EffortSignal.created_at:type_name -> google.protobuf.Timestamp
+	25, // 45: agent_manager.v1.ListEffortSignalsResponse.signals:type_name -> agent_manager.v1.EffortSignal
+	29, // 46: agent_manager.v1.EffortDecision.options:type_name -> agent_manager.v1.EffortDecisionOption
+	37, // 47: agent_manager.v1.EffortDecision.deadline:type_name -> google.protobuf.Timestamp
+	37, // 48: agent_manager.v1.EffortDecision.answered_at:type_name -> google.protobuf.Timestamp
+	37, // 49: agent_manager.v1.EffortDecision.created_at:type_name -> google.protobuf.Timestamp
+	37, // 50: agent_manager.v1.EffortDecision.published_at:type_name -> google.protobuf.Timestamp
+	37, // 51: agent_manager.v1.EffortDecision.recorded_at:type_name -> google.protobuf.Timestamp
+	37, // 52: agent_manager.v1.EffortDecision.resolved_at:type_name -> google.protobuf.Timestamp
+	30, // 53: agent_manager.v1.RaiseEffortDecisionRequest.decision:type_name -> agent_manager.v1.EffortDecision
+	30, // 54: agent_manager.v1.RaiseEffortDecisionResponse.decision:type_name -> agent_manager.v1.EffortDecision
+	30, // 55: agent_manager.v1.ListEffortDecisionsResponse.decisions:type_name -> agent_manager.v1.EffortDecision
+	37, // 56: agent_manager.v1.MarkEffortDecisionRecordedRequest.answered_at:type_name -> google.protobuf.Timestamp
+	37, // 57: agent_manager.v1.MarkEffortDecisionRecordedRequest.resolved_at:type_name -> google.protobuf.Timestamp
+	58, // [58:58] is the sub-list for method output_type
+	58, // [58:58] is the sub-list for method input_type
+	58, // [58:58] is the sub-list for extension type_name
+	58, // [58:58] is the sub-list for extension extendee
+	0,  // [0:58] is the sub-list for field type_name
 }
 
 func init() { file_agent_manager_v1_domain_effort_proto_init() }
@@ -3976,17 +4072,17 @@ func file_agent_manager_v1_domain_effort_proto_init() {
 	file_agent_manager_v1_domain_watch_proto_init()
 	file_agent_manager_v1_domain_effort_proto_msgTypes[6].OneofWrappers = []any{}
 	file_agent_manager_v1_domain_effort_proto_msgTypes[7].OneofWrappers = []any{}
-	file_agent_manager_v1_domain_effort_proto_msgTypes[9].OneofWrappers = []any{}
-	file_agent_manager_v1_domain_effort_proto_msgTypes[19].OneofWrappers = []any{}
-	file_agent_manager_v1_domain_effort_proto_msgTypes[22].OneofWrappers = []any{}
+	file_agent_manager_v1_domain_effort_proto_msgTypes[10].OneofWrappers = []any{}
+	file_agent_manager_v1_domain_effort_proto_msgTypes[20].OneofWrappers = []any{}
 	file_agent_manager_v1_domain_effort_proto_msgTypes[23].OneofWrappers = []any{}
+	file_agent_manager_v1_domain_effort_proto_msgTypes[24].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_agent_manager_v1_domain_effort_proto_rawDesc), len(file_agent_manager_v1_domain_effort_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   35,
+			NumMessages:   36,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

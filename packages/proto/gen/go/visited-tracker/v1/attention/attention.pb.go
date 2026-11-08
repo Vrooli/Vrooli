@@ -288,8 +288,12 @@ type PreviewResponse struct {
 	OldestActiveClaimAgeSeconds uint64                   `protobuf:"varint,7,opt,name=oldest_active_claim_age_seconds,json=oldestActiveClaimAgeSeconds,proto3" json:"oldest_active_claim_age_seconds,omitempty"`
 	Integrity                   *ClaimIntegrity          `protobuf:"bytes,8,opt,name=integrity,proto3" json:"integrity,omitempty"`
 	StorageWrites               *StorageWriteObservation `protobuf:"bytes,9,opt,name=storage_writes,json=storageWrites,proto3" json:"storage_writes,omitempty"`
-	unknownFields               protoimpl.UnknownFields
-	sizeCache                   protoimpl.SizeCache
+	// Active files whose current content revision has not been reviewed. A zero
+	// count marks first-pass completion; reviewed files can remain eligible for
+	// future attention as their review age increases.
+	UnreviewedCount *uint32 `protobuf:"varint,10,opt,name=unreviewed_count,json=unreviewedCount,proto3,oneof" json:"unreviewed_count,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *PreviewResponse) Reset() {
@@ -383,6 +387,13 @@ func (x *PreviewResponse) GetStorageWrites() *StorageWriteObservation {
 		return x.StorageWrites
 	}
 	return nil
+}
+
+func (x *PreviewResponse) GetUnreviewedCount() uint32 {
+	if x != nil && x.UnreviewedCount != nil {
+		return *x.UnreviewedCount
+	}
+	return 0
 }
 
 // Current active-claim invariants in this campaign snapshot. This is not a
@@ -745,11 +756,14 @@ func (x *Claim) GetCompletedAt() string {
 // no_work means no eligible candidate at this observation; claim absence never
 // means an expired claim was silently replaced with fresh work.
 type ClaimResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Claim         *Claim                 `protobuf:"bytes,1,opt,name=claim,proto3" json:"claim,omitempty"`
-	NoWork        bool                   `protobuf:"varint,2,opt,name=no_work,json=noWork,proto3" json:"no_work,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state  protoimpl.MessageState `protogen:"open.v1"`
+	Claim  *Claim                 `protobuf:"bytes,1,opt,name=claim,proto3" json:"claim,omitempty"`
+	NoWork bool                   `protobuf:"varint,2,opt,name=no_work,json=noWork,proto3" json:"no_work,omitempty"`
+	// Current-revision files still awaiting their first successful review.
+	// no_work remains a separate, momentary claimability observation.
+	UnreviewedCount *uint32 `protobuf:"varint,3,opt,name=unreviewed_count,json=unreviewedCount,proto3,oneof" json:"unreviewed_count,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *ClaimResponse) Reset() {
@@ -794,6 +808,13 @@ func (x *ClaimResponse) GetNoWork() bool {
 		return x.NoWork
 	}
 	return false
+}
+
+func (x *ClaimResponse) GetUnreviewedCount() uint32 {
+	if x != nil && x.UnreviewedCount != nil {
+		return *x.UnreviewedCount
+	}
+	return 0
 }
 
 type CompleteRequest struct {
@@ -896,7 +917,7 @@ const file_visited_tracker_v1_attention_attention_proto_rawDesc = "" +
 	"\brevision\x18\x03 \x01(\tR\brevision\x12\x14\n" +
 	"\x05score\x18\x04 \x01(\x01R\x05score\x12\x1a\n" +
 	"\bpriority\x18\x05 \x01(\x01R\bpriority\x12\x1a\n" +
-	"\breviewed\x18\x06 \x01(\bR\breviewed\"\xc1\x04\n" +
+	"\breviewed\x18\x06 \x01(\bR\breviewed\"\x86\x05\n" +
 	"\x0fPreviewResponse\x12N\n" +
 	"\n" +
 	"candidates\x18\x01 \x03(\v2..vrooli.visited_tracker.v1.attention.CandidateR\n" +
@@ -909,7 +930,10 @@ const file_visited_tracker_v1_attention_attention_proto_rawDesc = "" +
 	"\x1boldest_eligible_age_seconds\x18\x06 \x01(\x04R\x18oldestEligibleAgeSeconds\x12D\n" +
 	"\x1foldest_active_claim_age_seconds\x18\a \x01(\x04R\x1boldestActiveClaimAgeSeconds\x12Q\n" +
 	"\tintegrity\x18\b \x01(\v23.vrooli.visited_tracker.v1.attention.ClaimIntegrityR\tintegrity\x12c\n" +
-	"\x0estorage_writes\x18\t \x01(\v2<.vrooli.visited_tracker.v1.attention.StorageWriteObservationR\rstorageWrites\"\xac\x01\n" +
+	"\x0estorage_writes\x18\t \x01(\v2<.vrooli.visited_tracker.v1.attention.StorageWriteObservationR\rstorageWrites\x12.\n" +
+	"\x10unreviewed_count\x18\n" +
+	" \x01(\rH\x00R\x0funreviewedCount\x88\x01\x01B\x13\n" +
+	"\x11_unreviewed_count\"\xac\x01\n" +
 	"\x0eClaimIntegrity\x120\n" +
 	"\x14check_schema_version\x18\x01 \x01(\rR\x12checkSchemaVersion\x12\x1f\n" +
 	"\vobserved_at\x18\x02 \x01(\tR\n" +
@@ -949,10 +973,12 @@ const file_visited_tracker_v1_attention_attention_proto_rawDesc = "" +
 	"\aoutcome\x18\b \x01(\tR\aoutcome\x12\x1a\n" +
 	"\bevidence\x18\t \x01(\tR\bevidence\x12!\n" +
 	"\fcompleted_at\x18\n" +
-	" \x01(\tR\vcompletedAt\"j\n" +
+	" \x01(\tR\vcompletedAt\"\xaf\x01\n" +
 	"\rClaimResponse\x12@\n" +
 	"\x05claim\x18\x01 \x01(\v2*.vrooli.visited_tracker.v1.attention.ClaimR\x05claim\x12\x17\n" +
-	"\ano_work\x18\x02 \x01(\bR\x06noWork\"\x9b\x01\n" +
+	"\ano_work\x18\x02 \x01(\bR\x06noWork\x12.\n" +
+	"\x10unreviewed_count\x18\x03 \x01(\rH\x00R\x0funreviewedCount\x88\x01\x01B\x13\n" +
+	"\x11_unreviewed_count\"\x9b\x01\n" +
 	"\x0fCompleteRequest\x12\x1f\n" +
 	"\vcampaign_id\x18\x01 \x01(\tR\n" +
 	"campaignId\x12\x19\n" +
@@ -1017,6 +1043,8 @@ func file_visited_tracker_v1_attention_attention_proto_init() {
 	if File_visited_tracker_v1_attention_attention_proto != nil {
 		return
 	}
+	file_visited_tracker_v1_attention_attention_proto_msgTypes[4].OneofWrappers = []any{}
+	file_visited_tracker_v1_attention_attention_proto_msgTypes[9].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{

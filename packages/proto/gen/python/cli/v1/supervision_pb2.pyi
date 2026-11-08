@@ -1,3 +1,4 @@
+from google.protobuf import struct_pb2 as _struct_pb2
 from google.protobuf.internal import containers as _containers
 from google.protobuf import descriptor as _descriptor
 from google.protobuf import message as _message
@@ -33,7 +34,7 @@ class SupervisionMember(_message.Message):
     def __init__(self, name: _Optional[str] = ..., kind: _Optional[str] = ..., supervision_intent: _Optional[str] = ..., attribution_chain: _Optional[_Iterable[_Union[SupervisionAttributionStep, _Mapping]]] = ...) -> None: ...
 
 class SupervisionSetResponse(_message.Message):
-    __slots__ = ("source", "core_set", "seed", "added_by_closure", "trusted_base", "members", "member_counts", "load_errors")
+    __slots__ = ("source", "core_set", "seed", "added_by_closure", "trusted_base", "members", "member_counts", "load_errors", "trusted_base_violations")
     class MemberCountsEntry(_message.Message):
         __slots__ = ("key", "value")
         KEY_FIELD_NUMBER: _ClassVar[int]
@@ -48,6 +49,13 @@ class SupervisionSetResponse(_message.Message):
         key: str
         value: str
         def __init__(self, key: _Optional[str] = ..., value: _Optional[str] = ...) -> None: ...
+    class TrustedBaseViolationsEntry(_message.Message):
+        __slots__ = ("key", "value")
+        KEY_FIELD_NUMBER: _ClassVar[int]
+        VALUE_FIELD_NUMBER: _ClassVar[int]
+        key: str
+        value: _struct_pb2.ListValue
+        def __init__(self, key: _Optional[str] = ..., value: _Optional[_Union[_struct_pb2.ListValue, _Mapping]] = ...) -> None: ...
     SOURCE_FIELD_NUMBER: _ClassVar[int]
     CORE_SET_FIELD_NUMBER: _ClassVar[int]
     SEED_FIELD_NUMBER: _ClassVar[int]
@@ -56,6 +64,7 @@ class SupervisionSetResponse(_message.Message):
     MEMBERS_FIELD_NUMBER: _ClassVar[int]
     MEMBER_COUNTS_FIELD_NUMBER: _ClassVar[int]
     LOAD_ERRORS_FIELD_NUMBER: _ClassVar[int]
+    TRUSTED_BASE_VIOLATIONS_FIELD_NUMBER: _ClassVar[int]
     source: str
     core_set: _containers.RepeatedScalarFieldContainer[str]
     seed: _containers.RepeatedScalarFieldContainer[str]
@@ -64,4 +73,5 @@ class SupervisionSetResponse(_message.Message):
     members: _containers.RepeatedCompositeFieldContainer[SupervisionMember]
     member_counts: _containers.ScalarMap[str, int]
     load_errors: _containers.ScalarMap[str, str]
-    def __init__(self, source: _Optional[str] = ..., core_set: _Optional[_Iterable[str]] = ..., seed: _Optional[_Iterable[str]] = ..., added_by_closure: _Optional[_Iterable[str]] = ..., trusted_base: _Optional[_Iterable[str]] = ..., members: _Optional[_Iterable[_Union[SupervisionMember, _Mapping]]] = ..., member_counts: _Optional[_Mapping[str, int]] = ..., load_errors: _Optional[_Mapping[str, str]] = ...) -> None: ...
+    trusted_base_violations: _containers.MessageMap[str, _struct_pb2.ListValue]
+    def __init__(self, source: _Optional[str] = ..., core_set: _Optional[_Iterable[str]] = ..., seed: _Optional[_Iterable[str]] = ..., added_by_closure: _Optional[_Iterable[str]] = ..., trusted_base: _Optional[_Iterable[str]] = ..., members: _Optional[_Iterable[_Union[SupervisionMember, _Mapping]]] = ..., member_counts: _Optional[_Mapping[str, int]] = ..., load_errors: _Optional[_Mapping[str, str]] = ..., trusted_base_violations: _Optional[_Mapping[str, _struct_pb2.ListValue]] = ...) -> None: ...

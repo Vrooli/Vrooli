@@ -17,7 +17,7 @@
   "toolchain": {
     "buf": "1.37.0",
     "buf_gen_yaml_digest": "sha256:0006e0ffb2ba47a8abd22f21bcd0646e9aaa7a47f8bc8cd028bc17c74a5b346d",
-    "generator_digest": "sha256:00641b8b46018a15d67bebb28f7d4ae7caa5bfc402255ccd952815314415b921",
+    "generator_digest": "sha256:cccdbaf9a556a5be923d2c17f31d7f3f1e8de7959b27263f9ddbb964a4b52cc9",
     "plugins": {
       "protoc": "34.1",
       "protoc-gen-connect-go": "v1.19.2",

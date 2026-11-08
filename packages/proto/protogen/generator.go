@@ -44,6 +44,9 @@ type Config struct {
 
 type Generator struct {
 	cfg Config
+
+	stageOnce           sync.Once
+	resolvedStageParent string
 }
 
 var processLock sync.Mutex
@@ -82,10 +85,7 @@ func New(config Config) (*Generator, error) {
 		config.LockPoll = 25 * time.Millisecond
 	}
 	if config.PublishArtifacts && strings.TrimSpace(config.ArtifactRoot) == "" {
-		config.ArtifactRoot = DefaultArtifactRoot("")
-	}
-	if config.StageParent == "" {
-		config.StageParent = DefaultStageParent(config.ProtoRoot)
+		config.ArtifactRoot = ResolveArtifactRoot()
 	}
 	return &Generator{cfg: config}, nil
 }
@@ -95,92 +95,33 @@ func DefaultConfig(repoRoot string) Config {
 	return Config{RepoRoot: repoRoot, ProtoRoot: protoRoot}
 }
 
-// DefaultStageParent resolves where staging trees are created when a Config
-// leaves StageParent empty. It is exported so callers that reap staging trees
-// without building a Generator -- `protogen clean` -- target exactly the
-// directory the generator writes to, from a single definition.
-func DefaultStageParent(protoRoot string) string {
-	return filepath.Dir(filepath.Clean(protoRoot))
+// stageParent resolves, once per generator, where this generator's staging
+// trees live. An explicit Config.StageParent wins; otherwise trees are staged
+// beside the artifact store, outside the repository (see staging.go).
+func (g *Generator) stageParent() string {
+	g.stageOnce.Do(func() {
+		if g.cfg.StageParent != "" {
+			g.resolvedStageParent = g.cfg.StageParent
+			return
+		}
+		g.resolvedStageParent = resolveStageParent(StagingRoot(g.artifactRoot()), g.cfg.ProtoRoot, InTreeStageParent(g.cfg.ProtoRoot))
+	})
+	return g.resolvedStageParent
 }
 
-// stagePrefixes names every staging directory protogen creates. Reaping keys
-// on the whole set rather than one literal so a future staging kind cannot
-// silently escape the retention bound.
-var stagePrefixes = []string{".proto-gen-stage-", ".proto-gen-verify-", ".proto-descriptor-"}
-
-// stageRetention bounds how long a retained staging tree survives. Retention
-// exists so a failed run can be inspected, but a full staging tree is a copy of
-// the entire generated fleet: without a bound, every failure permanently adds
-// tens of megabytes that nothing removes. One day is long enough to debug the
-// run that produced the tree and short enough that trees cannot accumulate.
-const stageRetention = 24 * time.Hour
-
-func hasStagePrefix(name string) bool {
-	for _, prefix := range stagePrefixes {
-		if strings.HasPrefix(name, prefix) {
-			return true
-		}
+func (g *Generator) artifactRoot() string {
+	if root := strings.TrimSpace(g.cfg.ArtifactRoot); root != "" {
+		return root
 	}
-	return false
+	return ResolveArtifactRoot()
 }
 
-// stageRetainable reports whether a finished run's staging tree is worth
-// keeping. Only a genuine failure is: a cancelled or timed-out run leaves a
-// partial tree that says nothing the logs do not, and cancellation is the
-// common case when generation runs under an agent or a test harness.
-func stageRetainable(err error) bool {
-	if err == nil {
-		return false
-	}
-	return !errors.Is(err, context.Canceled) && !errors.Is(err, context.DeadlineExceeded)
-}
-
-// reapStaleStages removes staging trees left behind by earlier runs. Callers
-// hold the generator lock, so no live run owns a tree here. A tree that cannot
-// be removed is logged and skipped: stale staging output is garbage, never a
-// reason to fail the run that encountered it.
-func (g *Generator) reapStaleStages(now time.Time) {
-	entries, err := os.ReadDir(g.cfg.StageParent)
-	if err != nil {
-		return
-	}
-	for _, entry := range entries {
-		if !entry.IsDir() || !hasStagePrefix(entry.Name()) {
-			continue
-		}
-		info, err := entry.Info()
-		if err != nil || now.Sub(info.ModTime()) < stageRetention {
-			continue
-		}
-		path := filepath.Join(g.cfg.StageParent, entry.Name())
-		if err := os.RemoveAll(path); err != nil {
-			logf(g.cfg.Logger, "protogen: could not reap stale staging tree %s: %v", path, err)
-			continue
-		}
-		logf(g.cfg.Logger, "protogen: reaped stale staging tree %s", path)
-	}
-}
-
-// CleanStages removes every staging tree under stageParent regardless of age.
-// Clean is an explicit operator request, so unlike reapStaleStages it does not
-// honour stageRetention -- an operator asking to clean means all of it.
-func CleanStages(stageParent string) error {
-	entries, err := os.ReadDir(stageParent)
-	if errors.Is(err, os.ErrNotExist) {
-		return nil
-	}
-	if err != nil {
-		return err
-	}
-	for _, entry := range entries {
-		if !entry.IsDir() || !hasStagePrefix(entry.Name()) {
-			continue
-		}
-		if err := os.RemoveAll(filepath.Join(stageParent, entry.Name())); err != nil {
-			return fmt.Errorf("remove staging tree %s: %w", entry.Name(), err)
-		}
-	}
-	return nil
+// newStage sweeps orphaned trees from earlier runs, then creates this run's
+// owned staging tree. Callers hold the generator lock and defer Remove.
+func (g *Generator) newStage(prefix string) (*stage, error) {
+	parent := g.stageParent()
+	sweepStagesLogged(parent, g.cfg.Logger)
+	return createStage(parent, prefix)
 }
 
 // Clean removes generated outputs while preserving the generated directory
@@ -202,16 +143,13 @@ func Clean(genRoot string) error {
 	return nil
 }
 
-// Generate publishes the generated tree. The named error return is what drives
-// staging-tree retention in the deferred cleanup below, so every failure path
-// must return through it rather than exiting by another route.
-func (g *Generator) Generate(ctx context.Context) (err error) {
+// Generate publishes the generated tree.
+func (g *Generator) Generate(ctx context.Context) error {
 	unlock, err := g.acquireLock(ctx)
 	if err != nil {
 		return err
 	}
 	defer unlock()
-	g.reapStaleStages(time.Now())
 
 	allScenarios, err := genmanifest.ScenarioNames(g.cfg.ProtoRoot)
 	if err != nil {
@@ -276,17 +214,12 @@ func (g *Generator) Generate(ctx context.Context) (err error) {
 		return fmt.Errorf("capture Proto input state: %w", err)
 	}
 
-	stage, err := os.MkdirTemp(g.cfg.StageParent, ".proto-gen-stage-")
+	staged, err := g.newStage(generationStagePrefix)
 	if err != nil {
-		return fmt.Errorf("create generation staging directory: %w", err)
+		return fmt.Errorf("create generation staging tree: %w", err)
 	}
-	defer func() {
-		if stageRetainable(err) {
-			logf(g.cfg.Logger, "protogen: generation failed; staging tree retained at %s", stage)
-			return
-		}
-		_ = os.RemoveAll(stage)
-	}()
+	defer staged.Remove()
+	stage := staged.Dir
 	stageGen := filepath.Join(stage, "gen")
 	if err := os.MkdirAll(stageGen, 0o755); err != nil {
 		return fmt.Errorf("create staged generated tree: %w", err)
@@ -602,32 +535,26 @@ func generateArgs(scope []string, stage string, scoped bool) []string {
 	return args
 }
 
-// Verify carries the same named-error retention contract as Generate: a real
-// mismatch keeps its staging tree so the diff can be inspected, a cancellation
-// does not.
-func (g *Generator) Verify(ctx context.Context) (err error) {
+// Verify regenerates the whole tree in a private stage and compares it with the
+// committed tree. The stage is always removed: the returned findings name every
+// differing path, and `make generate` reproduces the staged output.
+func (g *Generator) Verify(ctx context.Context) error {
 	unlock, err := g.acquireLock(ctx)
 	if err != nil {
 		return err
 	}
 	defer unlock()
-	g.reapStaleStages(time.Now())
 
 	allScenarios, err := genmanifest.ScenarioNames(g.cfg.ProtoRoot)
 	if err != nil {
 		return fmt.Errorf("list schema scenarios: %w", err)
 	}
-	stage, err := os.MkdirTemp(g.cfg.StageParent, ".proto-gen-verify-")
+	staged, err := g.newStage(verificationStagePrefix)
 	if err != nil {
-		return fmt.Errorf("create verification staging directory: %w", err)
+		return fmt.Errorf("create verification staging tree: %w", err)
 	}
-	defer func() {
-		if stageRetainable(err) {
-			logf(g.cfg.Logger, "protogen: verification failed; staging tree retained at %s", stage)
-			return
-		}
-		_ = os.RemoveAll(stage)
-	}()
+	defer staged.Remove()
+	stage := staged.Dir
 	stageGen := filepath.Join(stage, "gen")
 	if err := os.MkdirAll(stageGen, 0o755); err != nil {
 		return err
@@ -669,12 +596,12 @@ func (g *Generator) Descriptor(ctx context.Context) error {
 	}
 	defer unlock()
 
-	stage, err := os.MkdirTemp(g.cfg.StageParent, ".proto-descriptor-")
+	staged, err := g.newStage(descriptorStagePrefix)
 	if err != nil {
-		return fmt.Errorf("create descriptor staging directory: %w", err)
+		return fmt.Errorf("create descriptor staging tree: %w", err)
 	}
-	defer os.RemoveAll(stage)
-	target := filepath.Join(stage, "image.binpb")
+	defer staged.Remove()
+	target := filepath.Join(staged.Dir, "image.binpb")
 	if err := g.cfg.RunTool(ctx, g.cfg.ProtoRoot, "buf", bufCommandArgs("build", "-o", target)...); err != nil {
 		return fmt.Errorf("buf build descriptor: %w", err)
 	}
@@ -1013,8 +940,8 @@ func compareTrees(staged, committed string) ([]string, error) {
 	// generated tree after an immutable artifact is selected. It is deliberately
 	// not committed generated output, so verification must not report it as an
 	// orphan/missing generated file.
-	delete(left, compatibilityStampName)
-	delete(right, compatibilityStampName)
+	delete(left, CompatibilityStampName)
+	delete(right, CompatibilityStampName)
 	keys := make(map[string]struct{}, len(left)+len(right))
 	for key := range left {
 		keys[key] = struct{}{}
@@ -1112,7 +1039,21 @@ func (g *Generator) acquireLock(ctx context.Context) (func(), error) {
 }
 
 func (g *Generator) acquireFileLock(ctx context.Context) (func(), error) {
-	path := g.cfg.LockPath
+	return acquireGenerationLockFile(ctx, g.cfg.LockPath, g.cfg.LockPoll, g.cfg.Logger)
+}
+
+// LockGeneration takes the cross-process Proto generation lock that protogen
+// and lifecycle setup share, for a caller that must change packages/proto/gen
+// outside a Generator run and undo the change before releasing it. It waits
+// until ctx ends.
+func LockGeneration(ctx context.Context, logger io.Writer) (func(), error) {
+	if logger == nil {
+		logger = io.Discard
+	}
+	return acquireGenerationLockFile(ctx, "", 25*time.Millisecond, logger)
+}
+
+func acquireGenerationLockFile(ctx context.Context, path string, poll time.Duration, logger io.Writer) (func(), error) {
 	if path == "" {
 		home, err := platform.HomeDir()
 		if err != nil {
@@ -1136,7 +1077,7 @@ func (g *Generator) acquireFileLock(ctx context.Context) (func(), error) {
 		release, lockErr := platform.LockFile(file, true)
 		if lockErr == nil {
 			if waited {
-				logf(g.cfg.Logger, "protogen: acquired generation lock after %s", time.Since(started).Round(time.Millisecond))
+				logf(logger, "protogen: acquired generation lock after %s", time.Since(started).Round(time.Millisecond))
 			}
 			if _, err := file.Seek(0, 0); err == nil {
 				_ = file.Truncate(0)
@@ -1151,13 +1092,13 @@ func (g *Generator) acquireFileLock(ctx context.Context) (func(), error) {
 		}
 		if !waited {
 			waited = true
-			logf(g.cfg.Logger, "protogen: waiting for generation lock held by PID %s", holderPID(file))
+			logf(logger, "protogen: waiting for generation lock held by PID %s", holderPID(file))
 		}
 		select {
 		case <-ctx.Done():
 			_ = file.Close()
 			return nil, ctx.Err()
-		case <-time.After(g.cfg.LockPoll):
+		case <-time.After(poll):
 		}
 	}
 }

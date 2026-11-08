@@ -267,6 +267,17 @@ message VerifyBaseUSDCReceiptResponse {
   string provider_id = 4;
   google.protobuf.Timestamp checked_at = 5;
 }
+// Rechecks are accepted only when the prior verified check matches all three
+// supplied scope fields under the authenticated operator and Base network.
+message RecheckBaseUSDCReceiptRequest {
+  string wallet_id = 1;
+  string transaction_hash = 2;
+  string prior_check_id = 3;
+}
+message RecheckBaseUSDCReceiptResponse {
+  // Provider observation only; this RPC never posts or credits funds.
+  vrooli.treasury.v1.wallet.BaseUSDCReceiptCheck check = 1;
+}
 message ListBaseUSDCReceiptChecksRequest { string wallet_id = 1; string transaction_hash = 2; uint32 limit = 3; }
 message ListBaseUSDCReceiptChecksResponse { repeated vrooli.treasury.v1.wallet.BaseUSDCReceiptCheck checks = 1; }
 
@@ -287,6 +298,7 @@ service TreasuryAdmin {
   rpc GetResearchWallet(ResearchWalletRequest) returns (ResearchWalletResponse);
   rpc ProveResearchWallet(ProveResearchWalletRequest) returns (ProveResearchWalletResponse);
   rpc VerifyBaseUSDCReceipt(VerifyBaseUSDCReceiptRequest) returns (VerifyBaseUSDCReceiptResponse);
+  rpc RecheckBaseUSDCReceipt(RecheckBaseUSDCReceiptRequest) returns (RecheckBaseUSDCReceiptResponse);
   rpc ListBaseUSDCReceiptChecks(ListBaseUSDCReceiptChecksRequest) returns (ListBaseUSDCReceiptChecksResponse);
   rpc QualifyResearchWalletRecovery(ResearchWalletRequest) returns (ResearchWalletResponse);
   rpc RecoverResearchWallet(ResearchWalletRequest) returns (ResearchWalletResponse);

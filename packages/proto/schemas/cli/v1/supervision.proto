@@ -4,6 +4,8 @@ package vrooli.cli.v1;
 
 option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/cli/v1;cliv1";
 
+import "google/protobuf/struct.proto";
+
 // One link from a supervised member back toward its operator-granted seed.
 message SupervisionAttributionStep {
   string name = 1;
@@ -32,4 +34,7 @@ message SupervisionSetResponse {
   repeated SupervisionMember members = 6;
   map<string, int32> member_counts = 7;
   map<string, string> load_errors = 8;
+  // Each value is a list of required scenario names outside the trusted base.
+  // ListValue preserves the canonical report's JSON map-of-arrays shape.
+  map<string, google.protobuf.ListValue> trusted_base_violations = 9;
 }

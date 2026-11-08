@@ -75,6 +75,22 @@ message ResourceStatus {
 
   // Evidence behind observed_mode, in the words of whatever produced it.
   string mode_reason = 14;
+
+  // Release requested by the current resource declaration; not a live-image claim.
+  string declared_artifact_version = 15;
+  // Declared release whose staged bytes passed integrity verification, if available.
+  string staged_artifact_version = 16;
+  // Release recorded for the verified, owned running process, if one exists.
+  string running_artifact_version = 17;
+  // Desired version/digest differs from the running artifact. This does not mean downtime.
+  bool artifact_update_available = 18;
+  // Desired artifact cannot currently be staged/verified; running health is independent.
+  string artifact_staging_error = 19;
+  // This observation's current artifact-byte audit: verified, failed, or
+  // not_evaluated. Operational health is independent of this integrity result.
+  // --health-only reports not_evaluated and does not populate a newly verified
+  // staged version. Acquisition and launch always retain checksum verification.
+  string artifact_verification = 20;
 }
 
 // ResourceStatusesResponse is the fleet form of `resource status --json`

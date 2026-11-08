@@ -4225,8 +4225,12 @@ type CreateRunRequest struct {
 	// work references; a promote-quiesce drain of another instance skips the
 	// run. Undeclared runs count as live.
 	TargetInstances []string `protobuf:"bytes,18,rep,name=target_instances,json=targetInstances,proto3" json:"target_instances,omitempty"`
-	unknownFields   protoimpl.UnknownFields
-	sizeCache       protoimpl.SizeCache
+	// Absolute path of an existing charter file for this run. Agent Manager
+	// names it in the task prompt's header with the instruction to re-read it
+	// at every unit start and after any context compaction.
+	CharterPath   *string `protobuf:"bytes,19,opt,name=charter_path,json=charterPath,proto3,oneof" json:"charter_path,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *CreateRunRequest) Reset() {
@@ -4383,6 +4387,13 @@ func (x *CreateRunRequest) GetTargetInstances() []string {
 		return x.TargetInstances
 	}
 	return nil
+}
+
+func (x *CreateRunRequest) GetCharterPath() string {
+	if x != nil && x.CharterPath != nil {
+		return *x.CharterPath
+	}
+	return ""
 }
 
 // RunIdentityScopeRequest narrows an owner-authenticated CreateRun request.
@@ -6026,7 +6037,10 @@ type ListRunsRequest struct {
 	// Who started the run: "agent_manager" (executed by Agent Manager),
 	// "operator_sessions" (imported, attached or interactive sessions) or
 	// "workflows" (workflow steps). Empty lists every origin.
-	Origin        *string `protobuf:"bytes,8,opt,name=origin,proto3,oneof" json:"origin,omitempty"`
+	Origin *string `protobuf:"bytes,8,opt,name=origin,proto3,oneof" json:"origin,omitempty"`
+	// Only direct child runs of this parent run.
+	// @format uuid
+	ParentRunId   *string `protobuf:"bytes,9,opt,name=parent_run_id,json=parentRunId,proto3,oneof" json:"parent_run_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -6117,6 +6131,631 @@ func (x *ListRunsRequest) GetOrigin() string {
 	return ""
 }
 
+func (x *ListRunsRequest) GetParentRunId() string {
+	if x != nil && x.ParentRunId != nil {
+		return *x.ParentRunId
+	}
+	return ""
+}
+
+// WaitRunRequest waits for one run to settle.
+type WaitRunRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// @format uuid
+	RunId string `protobuf:"bytes,1,opt,name=run_id,json=runId,proto3" json:"run_id,omitempty"`
+	// Server-side bound in seconds (1-900). Callers wanting a longer wait call
+	// again; each call is a fresh read, so an Agent Manager restart only ends
+	// the current call.
+	TimeoutSeconds int32 `protobuf:"varint,2,opt,name=timeout_seconds,json=timeoutSeconds,proto3" json:"timeout_seconds,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *WaitRunRequest) Reset() {
+	*x = WaitRunRequest{}
+	mi := &file_agent_manager_v1_api_service_proto_msgTypes[87]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *WaitRunRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*WaitRunRequest) ProtoMessage() {}
+
+func (x *WaitRunRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_agent_manager_v1_api_service_proto_msgTypes[87]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use WaitRunRequest.ProtoReflect.Descriptor instead.
+func (*WaitRunRequest) Descriptor() ([]byte, []int) {
+	return file_agent_manager_v1_api_service_proto_rawDescGZIP(), []int{87}
+}
+
+func (x *WaitRunRequest) GetRunId() string {
+	if x != nil {
+		return x.RunId
+	}
+	return ""
+}
+
+func (x *WaitRunRequest) GetTimeoutSeconds() int32 {
+	if x != nil {
+		return x.TimeoutSeconds
+	}
+	return 0
+}
+
+type WaitRunResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// The run as last read.
+	Run *domain.Run `protobuf:"bytes,1,opt,name=run,proto3" json:"run,omitempty"`
+	// "terminal", "needs_review" or "timed_out".
+	Outcome       string `protobuf:"bytes,2,opt,name=outcome,proto3" json:"outcome,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *WaitRunResponse) Reset() {
+	*x = WaitRunResponse{}
+	mi := &file_agent_manager_v1_api_service_proto_msgTypes[88]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *WaitRunResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*WaitRunResponse) ProtoMessage() {}
+
+func (x *WaitRunResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_agent_manager_v1_api_service_proto_msgTypes[88]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use WaitRunResponse.ProtoReflect.Descriptor instead.
+func (*WaitRunResponse) Descriptor() ([]byte, []int) {
+	return file_agent_manager_v1_api_service_proto_rawDescGZIP(), []int{88}
+}
+
+func (x *WaitRunResponse) GetRun() *domain.Run {
+	if x != nil {
+		return x.Run
+	}
+	return nil
+}
+
+func (x *WaitRunResponse) GetOutcome() string {
+	if x != nil {
+		return x.Outcome
+	}
+	return ""
+}
+
+// WaitRunChildrenRequest waits for a direct child of one parent run to settle.
+type WaitRunChildrenRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// @format uuid
+	ParentRunId string `protobuf:"bytes,1,opt,name=parent_run_id,json=parentRunId,proto3" json:"parent_run_id,omitempty"`
+	// Server-side bound in seconds (1-900).
+	TimeoutSeconds int32 `protobuf:"varint,2,opt,name=timeout_seconds,json=timeoutSeconds,proto3" json:"timeout_seconds,omitempty"`
+	// Report children that settled at or after this instant. Omitted means the
+	// call's start; pass the previous response's observed_at to miss nothing
+	// between calls.
+	Since         *timestamppb.Timestamp `protobuf:"bytes,3,opt,name=since,proto3,oneof" json:"since,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *WaitRunChildrenRequest) Reset() {
+	*x = WaitRunChildrenRequest{}
+	mi := &file_agent_manager_v1_api_service_proto_msgTypes[89]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *WaitRunChildrenRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*WaitRunChildrenRequest) ProtoMessage() {}
+
+func (x *WaitRunChildrenRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_agent_manager_v1_api_service_proto_msgTypes[89]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use WaitRunChildrenRequest.ProtoReflect.Descriptor instead.
+func (*WaitRunChildrenRequest) Descriptor() ([]byte, []int) {
+	return file_agent_manager_v1_api_service_proto_rawDescGZIP(), []int{89}
+}
+
+func (x *WaitRunChildrenRequest) GetParentRunId() string {
+	if x != nil {
+		return x.ParentRunId
+	}
+	return ""
+}
+
+func (x *WaitRunChildrenRequest) GetTimeoutSeconds() int32 {
+	if x != nil {
+		return x.TimeoutSeconds
+	}
+	return 0
+}
+
+func (x *WaitRunChildrenRequest) GetSince() *timestamppb.Timestamp {
+	if x != nil {
+		return x.Since
+	}
+	return nil
+}
+
+// RunChildSummary is one child row of a children wait or wake.
+type RunChildSummary struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	RunId string                 `protobuf:"bytes,1,opt,name=run_id,json=runId,proto3" json:"run_id,omitempty"`
+	// Agent Manager run status, for example "running" or "complete".
+	Status        string                 `protobuf:"bytes,2,opt,name=status,proto3" json:"status,omitempty"`
+	EndedAt       *timestamppb.Timestamp `protobuf:"bytes,3,opt,name=ended_at,json=endedAt,proto3,oneof" json:"ended_at,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RunChildSummary) Reset() {
+	*x = RunChildSummary{}
+	mi := &file_agent_manager_v1_api_service_proto_msgTypes[90]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RunChildSummary) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RunChildSummary) ProtoMessage() {}
+
+func (x *RunChildSummary) ProtoReflect() protoreflect.Message {
+	mi := &file_agent_manager_v1_api_service_proto_msgTypes[90]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RunChildSummary.ProtoReflect.Descriptor instead.
+func (*RunChildSummary) Descriptor() ([]byte, []int) {
+	return file_agent_manager_v1_api_service_proto_rawDescGZIP(), []int{90}
+}
+
+func (x *RunChildSummary) GetRunId() string {
+	if x != nil {
+		return x.RunId
+	}
+	return ""
+}
+
+func (x *RunChildSummary) GetStatus() string {
+	if x != nil {
+		return x.Status
+	}
+	return ""
+}
+
+func (x *RunChildSummary) GetEndedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.EndedAt
+	}
+	return nil
+}
+
+type WaitRunChildrenResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// "child_run_ended", "no_active_children" or "timer" (the bound elapsed).
+	WakeReason string `protobuf:"bytes,1,opt,name=wake_reason,json=wakeReason,proto3" json:"wake_reason,omitempty"`
+	// Children that settled since the requested instant.
+	Ended []*RunChildSummary `protobuf:"bytes,2,rep,name=ended,proto3" json:"ended,omitempty"`
+	// Children still pending, starting, running or parked.
+	Active []*RunChildSummary `protobuf:"bytes,3,rep,name=active,proto3" json:"active,omitempty"`
+	// When the children were last read; pass as `since` on the next call.
+	ObservedAt    *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=observed_at,json=observedAt,proto3" json:"observed_at,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *WaitRunChildrenResponse) Reset() {
+	*x = WaitRunChildrenResponse{}
+	mi := &file_agent_manager_v1_api_service_proto_msgTypes[91]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *WaitRunChildrenResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*WaitRunChildrenResponse) ProtoMessage() {}
+
+func (x *WaitRunChildrenResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_agent_manager_v1_api_service_proto_msgTypes[91]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use WaitRunChildrenResponse.ProtoReflect.Descriptor instead.
+func (*WaitRunChildrenResponse) Descriptor() ([]byte, []int) {
+	return file_agent_manager_v1_api_service_proto_rawDescGZIP(), []int{91}
+}
+
+func (x *WaitRunChildrenResponse) GetWakeReason() string {
+	if x != nil {
+		return x.WakeReason
+	}
+	return ""
+}
+
+func (x *WaitRunChildrenResponse) GetEnded() []*RunChildSummary {
+	if x != nil {
+		return x.Ended
+	}
+	return nil
+}
+
+func (x *WaitRunChildrenResponse) GetActive() []*RunChildSummary {
+	if x != nil {
+		return x.Active
+	}
+	return nil
+}
+
+func (x *WaitRunChildrenResponse) GetObservedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.ObservedAt
+	}
+	return nil
+}
+
+// GetRunTreeRequest reads one run and its descendants.
+type GetRunTreeRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// @format uuid
+	RunId         string `protobuf:"bytes,1,opt,name=run_id,json=runId,proto3" json:"run_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetRunTreeRequest) Reset() {
+	*x = GetRunTreeRequest{}
+	mi := &file_agent_manager_v1_api_service_proto_msgTypes[92]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetRunTreeRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetRunTreeRequest) ProtoMessage() {}
+
+func (x *GetRunTreeRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_agent_manager_v1_api_service_proto_msgTypes[92]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetRunTreeRequest.ProtoReflect.Descriptor instead.
+func (*GetRunTreeRequest) Descriptor() ([]byte, []int) {
+	return file_agent_manager_v1_api_service_proto_rawDescGZIP(), []int{92}
+}
+
+func (x *GetRunTreeRequest) GetRunId() string {
+	if x != nil {
+		return x.RunId
+	}
+	return ""
+}
+
+// RunTreeNode is one run in a run tree.
+type RunTreeNode struct {
+	state        protoimpl.MessageState `protogen:"open.v1"`
+	RunId        string                 `protobuf:"bytes,1,opt,name=run_id,json=runId,proto3" json:"run_id,omitempty"`
+	ParentRunId  *string                `protobuf:"bytes,2,opt,name=parent_run_id,json=parentRunId,proto3,oneof" json:"parent_run_id,omitempty"`
+	Depth        int32                  `protobuf:"varint,3,opt,name=depth,proto3" json:"depth,omitempty"`
+	Status       domain.RunStatus       `protobuf:"varint,4,opt,name=status,proto3,enum=agent_manager.v1.RunStatus" json:"status,omitempty"`
+	Label        string                 `protobuf:"bytes,5,opt,name=label,proto3" json:"label,omitempty"`
+	Runner       string                 `protobuf:"bytes,6,opt,name=runner,proto3" json:"runner,omitempty"`
+	Model        string                 `protobuf:"bytes,7,opt,name=model,proto3" json:"model,omitempty"`
+	GoalDelivery string                 `protobuf:"bytes,8,opt,name=goal_delivery,json=goalDelivery,proto3" json:"goal_delivery,omitempty"`
+	StartedAt    *timestamppb.Timestamp `protobuf:"bytes,9,opt,name=started_at,json=startedAt,proto3,oneof" json:"started_at,omitempty"`
+	EndedAt      *timestamppb.Timestamp `protobuf:"bytes,10,opt,name=ended_at,json=endedAt,proto3,oneof" json:"ended_at,omitempty"`
+	// From start (or creation) to end, or to the read for a live run.
+	ElapsedSeconds int64 `protobuf:"varint,11,opt,name=elapsed_seconds,json=elapsedSeconds,proto3" json:"elapsed_seconds,omitempty"`
+	// Non-cache tokens weighted by model tier (the run report's weighting).
+	WeightedTokens float64 `protobuf:"fixed64,12,opt,name=weighted_tokens,json=weightedTokens,proto3" json:"weighted_tokens,omitempty"`
+	// False when usage is not final or the model has no known tier weight.
+	WeightedTokensKnown bool `protobuf:"varint,13,opt,name=weighted_tokens_known,json=weightedTokensKnown,proto3" json:"weighted_tokens_known,omitempty"`
+	// True for a live child (pending, starting, running or parked) whose parent
+	// is terminal. Agent Manager reports orphans and never stops them itself.
+	Orphaned    bool           `protobuf:"varint,14,opt,name=orphaned,proto3" json:"orphaned,omitempty"`
+	CharterPath string         `protobuf:"bytes,15,opt,name=charter_path,json=charterPath,proto3" json:"charter_path,omitempty"`
+	Children    []*RunTreeNode `protobuf:"bytes,16,rep,name=children,proto3" json:"children,omitempty"`
+	// When the run's owner authority ends: after it the run gets no identity,
+	// so it cannot create children or wake its parent. A child inherits its
+	// parent's window, so the root owner's credential bounds the whole tree.
+	OwnerExpiresAt *timestamppb.Timestamp `protobuf:"bytes,17,opt,name=owner_expires_at,json=ownerExpiresAt,proto3,oneof" json:"owner_expires_at,omitempty"`
+	// Transcript step-back triggers observed on this run (see StepBackTrigger);
+	// short-workers counts this run's descendants in the tree.
+	StepBack      []*domain.StepBackTrigger `protobuf:"bytes,18,rep,name=step_back,json=stepBack,proto3" json:"step_back,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RunTreeNode) Reset() {
+	*x = RunTreeNode{}
+	mi := &file_agent_manager_v1_api_service_proto_msgTypes[93]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RunTreeNode) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RunTreeNode) ProtoMessage() {}
+
+func (x *RunTreeNode) ProtoReflect() protoreflect.Message {
+	mi := &file_agent_manager_v1_api_service_proto_msgTypes[93]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RunTreeNode.ProtoReflect.Descriptor instead.
+func (*RunTreeNode) Descriptor() ([]byte, []int) {
+	return file_agent_manager_v1_api_service_proto_rawDescGZIP(), []int{93}
+}
+
+func (x *RunTreeNode) GetRunId() string {
+	if x != nil {
+		return x.RunId
+	}
+	return ""
+}
+
+func (x *RunTreeNode) GetParentRunId() string {
+	if x != nil && x.ParentRunId != nil {
+		return *x.ParentRunId
+	}
+	return ""
+}
+
+func (x *RunTreeNode) GetDepth() int32 {
+	if x != nil {
+		return x.Depth
+	}
+	return 0
+}
+
+func (x *RunTreeNode) GetStatus() domain.RunStatus {
+	if x != nil {
+		return x.Status
+	}
+	return domain.RunStatus(0)
+}
+
+func (x *RunTreeNode) GetLabel() string {
+	if x != nil {
+		return x.Label
+	}
+	return ""
+}
+
+func (x *RunTreeNode) GetRunner() string {
+	if x != nil {
+		return x.Runner
+	}
+	return ""
+}
+
+func (x *RunTreeNode) GetModel() string {
+	if x != nil {
+		return x.Model
+	}
+	return ""
+}
+
+func (x *RunTreeNode) GetGoalDelivery() string {
+	if x != nil {
+		return x.GoalDelivery
+	}
+	return ""
+}
+
+func (x *RunTreeNode) GetStartedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.StartedAt
+	}
+	return nil
+}
+
+func (x *RunTreeNode) GetEndedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.EndedAt
+	}
+	return nil
+}
+
+func (x *RunTreeNode) GetElapsedSeconds() int64 {
+	if x != nil {
+		return x.ElapsedSeconds
+	}
+	return 0
+}
+
+func (x *RunTreeNode) GetWeightedTokens() float64 {
+	if x != nil {
+		return x.WeightedTokens
+	}
+	return 0
+}
+
+func (x *RunTreeNode) GetWeightedTokensKnown() bool {
+	if x != nil {
+		return x.WeightedTokensKnown
+	}
+	return false
+}
+
+func (x *RunTreeNode) GetOrphaned() bool {
+	if x != nil {
+		return x.Orphaned
+	}
+	return false
+}
+
+func (x *RunTreeNode) GetCharterPath() string {
+	if x != nil {
+		return x.CharterPath
+	}
+	return ""
+}
+
+func (x *RunTreeNode) GetChildren() []*RunTreeNode {
+	if x != nil {
+		return x.Children
+	}
+	return nil
+}
+
+func (x *RunTreeNode) GetOwnerExpiresAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.OwnerExpiresAt
+	}
+	return nil
+}
+
+func (x *RunTreeNode) GetStepBack() []*domain.StepBackTrigger {
+	if x != nil {
+		return x.StepBack
+	}
+	return nil
+}
+
+type RunTree struct {
+	state     protoimpl.MessageState `protogen:"open.v1"`
+	Root      *RunTreeNode           `protobuf:"bytes,1,opt,name=root,proto3" json:"root,omitempty"`
+	NodeCount int32                  `protobuf:"varint,2,opt,name=node_count,json=nodeCount,proto3" json:"node_count,omitempty"`
+	// True when descendants beyond the node bound were omitted.
+	Truncated bool `protobuf:"varint,3,opt,name=truncated,proto3" json:"truncated,omitempty"`
+	// runExecution.maxChildDepth at read time.
+	MaxChildDepth int32 `protobuf:"varint,4,opt,name=max_child_depth,json=maxChildDepth,proto3" json:"max_child_depth,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RunTree) Reset() {
+	*x = RunTree{}
+	mi := &file_agent_manager_v1_api_service_proto_msgTypes[94]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RunTree) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RunTree) ProtoMessage() {}
+
+func (x *RunTree) ProtoReflect() protoreflect.Message {
+	mi := &file_agent_manager_v1_api_service_proto_msgTypes[94]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RunTree.ProtoReflect.Descriptor instead.
+func (*RunTree) Descriptor() ([]byte, []int) {
+	return file_agent_manager_v1_api_service_proto_rawDescGZIP(), []int{94}
+}
+
+func (x *RunTree) GetRoot() *RunTreeNode {
+	if x != nil {
+		return x.Root
+	}
+	return nil
+}
+
+func (x *RunTree) GetNodeCount() int32 {
+	if x != nil {
+		return x.NodeCount
+	}
+	return 0
+}
+
+func (x *RunTree) GetTruncated() bool {
+	if x != nil {
+		return x.Truncated
+	}
+	return false
+}
+
+func (x *RunTree) GetMaxChildDepth() int32 {
+	if x != nil {
+		return x.MaxChildDepth
+	}
+	return 0
+}
+
 // ListRunsResponse returns a list of runs.
 type ListRunsResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -6132,7 +6771,7 @@ type ListRunsResponse struct {
 
 func (x *ListRunsResponse) Reset() {
 	*x = ListRunsResponse{}
-	mi := &file_agent_manager_v1_api_service_proto_msgTypes[87]
+	mi := &file_agent_manager_v1_api_service_proto_msgTypes[95]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6144,7 +6783,7 @@ func (x *ListRunsResponse) String() string {
 func (*ListRunsResponse) ProtoMessage() {}
 
 func (x *ListRunsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_api_service_proto_msgTypes[87]
+	mi := &file_agent_manager_v1_api_service_proto_msgTypes[95]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6157,7 +6796,7 @@ func (x *ListRunsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListRunsResponse.ProtoReflect.Descriptor instead.
 func (*ListRunsResponse) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_api_service_proto_rawDescGZIP(), []int{87}
+	return file_agent_manager_v1_api_service_proto_rawDescGZIP(), []int{95}
 }
 
 func (x *ListRunsResponse) GetRuns() []*domain.Run {
@@ -6193,7 +6832,7 @@ type StopRunRequest struct {
 
 func (x *StopRunRequest) Reset() {
 	*x = StopRunRequest{}
-	mi := &file_agent_manager_v1_api_service_proto_msgTypes[88]
+	mi := &file_agent_manager_v1_api_service_proto_msgTypes[96]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6205,7 +6844,7 @@ func (x *StopRunRequest) String() string {
 func (*StopRunRequest) ProtoMessage() {}
 
 func (x *StopRunRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_api_service_proto_msgTypes[88]
+	mi := &file_agent_manager_v1_api_service_proto_msgTypes[96]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6218,7 +6857,7 @@ func (x *StopRunRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StopRunRequest.ProtoReflect.Descriptor instead.
 func (*StopRunRequest) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_api_service_proto_rawDescGZIP(), []int{88}
+	return file_agent_manager_v1_api_service_proto_rawDescGZIP(), []int{96}
 }
 
 func (x *StopRunRequest) GetRunId() string {
@@ -6241,7 +6880,7 @@ type StopRunResponse struct {
 
 func (x *StopRunResponse) Reset() {
 	*x = StopRunResponse{}
-	mi := &file_agent_manager_v1_api_service_proto_msgTypes[89]
+	mi := &file_agent_manager_v1_api_service_proto_msgTypes[97]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6253,7 +6892,7 @@ func (x *StopRunResponse) String() string {
 func (*StopRunResponse) ProtoMessage() {}
 
 func (x *StopRunResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_api_service_proto_msgTypes[89]
+	mi := &file_agent_manager_v1_api_service_proto_msgTypes[97]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6266,7 +6905,7 @@ func (x *StopRunResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StopRunResponse.ProtoReflect.Descriptor instead.
 func (*StopRunResponse) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_api_service_proto_rawDescGZIP(), []int{89}
+	return file_agent_manager_v1_api_service_proto_rawDescGZIP(), []int{97}
 }
 
 func (x *StopRunResponse) GetStatus() string {
@@ -6294,7 +6933,7 @@ type StopRunByTagRequest struct {
 
 func (x *StopRunByTagRequest) Reset() {
 	*x = StopRunByTagRequest{}
-	mi := &file_agent_manager_v1_api_service_proto_msgTypes[90]
+	mi := &file_agent_manager_v1_api_service_proto_msgTypes[98]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6306,7 +6945,7 @@ func (x *StopRunByTagRequest) String() string {
 func (*StopRunByTagRequest) ProtoMessage() {}
 
 func (x *StopRunByTagRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_api_service_proto_msgTypes[90]
+	mi := &file_agent_manager_v1_api_service_proto_msgTypes[98]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6319,7 +6958,7 @@ func (x *StopRunByTagRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StopRunByTagRequest.ProtoReflect.Descriptor instead.
 func (*StopRunByTagRequest) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_api_service_proto_rawDescGZIP(), []int{90}
+	return file_agent_manager_v1_api_service_proto_rawDescGZIP(), []int{98}
 }
 
 func (x *StopRunByTagRequest) GetTag() string {
@@ -6344,7 +6983,7 @@ type StopRunByTagResponse struct {
 
 func (x *StopRunByTagResponse) Reset() {
 	*x = StopRunByTagResponse{}
-	mi := &file_agent_manager_v1_api_service_proto_msgTypes[91]
+	mi := &file_agent_manager_v1_api_service_proto_msgTypes[99]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6356,7 +6995,7 @@ func (x *StopRunByTagResponse) String() string {
 func (*StopRunByTagResponse) ProtoMessage() {}
 
 func (x *StopRunByTagResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_api_service_proto_msgTypes[91]
+	mi := &file_agent_manager_v1_api_service_proto_msgTypes[99]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6369,7 +7008,7 @@ func (x *StopRunByTagResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StopRunByTagResponse.ProtoReflect.Descriptor instead.
 func (*StopRunByTagResponse) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_api_service_proto_rawDescGZIP(), []int{91}
+	return file_agent_manager_v1_api_service_proto_rawDescGZIP(), []int{99}
 }
 
 func (x *StopRunByTagResponse) GetStatus() string {
@@ -6406,7 +7045,7 @@ type StopAllRunsRequest struct {
 
 func (x *StopAllRunsRequest) Reset() {
 	*x = StopAllRunsRequest{}
-	mi := &file_agent_manager_v1_api_service_proto_msgTypes[92]
+	mi := &file_agent_manager_v1_api_service_proto_msgTypes[100]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6418,7 +7057,7 @@ func (x *StopAllRunsRequest) String() string {
 func (*StopAllRunsRequest) ProtoMessage() {}
 
 func (x *StopAllRunsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_api_service_proto_msgTypes[92]
+	mi := &file_agent_manager_v1_api_service_proto_msgTypes[100]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6431,7 +7070,7 @@ func (x *StopAllRunsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StopAllRunsRequest.ProtoReflect.Descriptor instead.
 func (*StopAllRunsRequest) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_api_service_proto_rawDescGZIP(), []int{92}
+	return file_agent_manager_v1_api_service_proto_rawDescGZIP(), []int{100}
 }
 
 func (x *StopAllRunsRequest) GetTagPrefix() string {
@@ -6459,7 +7098,7 @@ type StopAllRunsResponse struct {
 
 func (x *StopAllRunsResponse) Reset() {
 	*x = StopAllRunsResponse{}
-	mi := &file_agent_manager_v1_api_service_proto_msgTypes[93]
+	mi := &file_agent_manager_v1_api_service_proto_msgTypes[101]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6471,7 +7110,7 @@ func (x *StopAllRunsResponse) String() string {
 func (*StopAllRunsResponse) ProtoMessage() {}
 
 func (x *StopAllRunsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_api_service_proto_msgTypes[93]
+	mi := &file_agent_manager_v1_api_service_proto_msgTypes[101]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6484,7 +7123,7 @@ func (x *StopAllRunsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StopAllRunsResponse.ProtoReflect.Descriptor instead.
 func (*StopAllRunsResponse) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_api_service_proto_rawDescGZIP(), []int{93}
+	return file_agent_manager_v1_api_service_proto_rawDescGZIP(), []int{101}
 }
 
 func (x *StopAllRunsResponse) GetResult() *domain.StopAllResult {
@@ -6528,7 +7167,7 @@ type QuiesceScenarioRequest struct {
 
 func (x *QuiesceScenarioRequest) Reset() {
 	*x = QuiesceScenarioRequest{}
-	mi := &file_agent_manager_v1_api_service_proto_msgTypes[94]
+	mi := &file_agent_manager_v1_api_service_proto_msgTypes[102]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6540,7 +7179,7 @@ func (x *QuiesceScenarioRequest) String() string {
 func (*QuiesceScenarioRequest) ProtoMessage() {}
 
 func (x *QuiesceScenarioRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_api_service_proto_msgTypes[94]
+	mi := &file_agent_manager_v1_api_service_proto_msgTypes[102]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6553,7 +7192,7 @@ func (x *QuiesceScenarioRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use QuiesceScenarioRequest.ProtoReflect.Descriptor instead.
 func (*QuiesceScenarioRequest) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_api_service_proto_rawDescGZIP(), []int{94}
+	return file_agent_manager_v1_api_service_proto_rawDescGZIP(), []int{102}
 }
 
 func (x *QuiesceScenarioRequest) GetScenario() string {
@@ -6622,7 +7261,7 @@ type QuiesceScenarioResponse struct {
 
 func (x *QuiesceScenarioResponse) Reset() {
 	*x = QuiesceScenarioResponse{}
-	mi := &file_agent_manager_v1_api_service_proto_msgTypes[95]
+	mi := &file_agent_manager_v1_api_service_proto_msgTypes[103]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6634,7 +7273,7 @@ func (x *QuiesceScenarioResponse) String() string {
 func (*QuiesceScenarioResponse) ProtoMessage() {}
 
 func (x *QuiesceScenarioResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_api_service_proto_msgTypes[95]
+	mi := &file_agent_manager_v1_api_service_proto_msgTypes[103]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6647,7 +7286,7 @@ func (x *QuiesceScenarioResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use QuiesceScenarioResponse.ProtoReflect.Descriptor instead.
 func (*QuiesceScenarioResponse) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_api_service_proto_rawDescGZIP(), []int{95}
+	return file_agent_manager_v1_api_service_proto_rawDescGZIP(), []int{103}
 }
 
 func (x *QuiesceScenarioResponse) GetResult() *QuiesceResult {
@@ -6686,7 +7325,7 @@ type QuiesceResult struct {
 
 func (x *QuiesceResult) Reset() {
 	*x = QuiesceResult{}
-	mi := &file_agent_manager_v1_api_service_proto_msgTypes[96]
+	mi := &file_agent_manager_v1_api_service_proto_msgTypes[104]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6698,7 +7337,7 @@ func (x *QuiesceResult) String() string {
 func (*QuiesceResult) ProtoMessage() {}
 
 func (x *QuiesceResult) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_api_service_proto_msgTypes[96]
+	mi := &file_agent_manager_v1_api_service_proto_msgTypes[104]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6711,7 +7350,7 @@ func (x *QuiesceResult) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use QuiesceResult.ProtoReflect.Descriptor instead.
 func (*QuiesceResult) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_api_service_proto_rawDescGZIP(), []int{96}
+	return file_agent_manager_v1_api_service_proto_rawDescGZIP(), []int{104}
 }
 
 func (x *QuiesceResult) GetScenario() string {
@@ -6799,7 +7438,7 @@ type QuiesceRunRef struct {
 
 func (x *QuiesceRunRef) Reset() {
 	*x = QuiesceRunRef{}
-	mi := &file_agent_manager_v1_api_service_proto_msgTypes[97]
+	mi := &file_agent_manager_v1_api_service_proto_msgTypes[105]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6811,7 +7450,7 @@ func (x *QuiesceRunRef) String() string {
 func (*QuiesceRunRef) ProtoMessage() {}
 
 func (x *QuiesceRunRef) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_api_service_proto_msgTypes[97]
+	mi := &file_agent_manager_v1_api_service_proto_msgTypes[105]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6824,7 +7463,7 @@ func (x *QuiesceRunRef) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use QuiesceRunRef.ProtoReflect.Descriptor instead.
 func (*QuiesceRunRef) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_api_service_proto_rawDescGZIP(), []int{97}
+	return file_agent_manager_v1_api_service_proto_rawDescGZIP(), []int{105}
 }
 
 func (x *QuiesceRunRef) GetId() string {
@@ -6873,7 +7512,7 @@ type RecoverRunRequest struct {
 
 func (x *RecoverRunRequest) Reset() {
 	*x = RecoverRunRequest{}
-	mi := &file_agent_manager_v1_api_service_proto_msgTypes[98]
+	mi := &file_agent_manager_v1_api_service_proto_msgTypes[106]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6885,7 +7524,7 @@ func (x *RecoverRunRequest) String() string {
 func (*RecoverRunRequest) ProtoMessage() {}
 
 func (x *RecoverRunRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_api_service_proto_msgTypes[98]
+	mi := &file_agent_manager_v1_api_service_proto_msgTypes[106]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6898,7 +7537,7 @@ func (x *RecoverRunRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RecoverRunRequest.ProtoReflect.Descriptor instead.
 func (*RecoverRunRequest) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_api_service_proto_rawDescGZIP(), []int{98}
+	return file_agent_manager_v1_api_service_proto_rawDescGZIP(), []int{106}
 }
 
 func (x *RecoverRunRequest) GetRunId() string {
@@ -6920,7 +7559,7 @@ type RecoverRunResponse struct {
 
 func (x *RecoverRunResponse) Reset() {
 	*x = RecoverRunResponse{}
-	mi := &file_agent_manager_v1_api_service_proto_msgTypes[99]
+	mi := &file_agent_manager_v1_api_service_proto_msgTypes[107]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6932,7 +7571,7 @@ func (x *RecoverRunResponse) String() string {
 func (*RecoverRunResponse) ProtoMessage() {}
 
 func (x *RecoverRunResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_api_service_proto_msgTypes[99]
+	mi := &file_agent_manager_v1_api_service_proto_msgTypes[107]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6945,7 +7584,7 @@ func (x *RecoverRunResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RecoverRunResponse.ProtoReflect.Descriptor instead.
 func (*RecoverRunResponse) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_api_service_proto_rawDescGZIP(), []int{99}
+	return file_agent_manager_v1_api_service_proto_rawDescGZIP(), []int{107}
 }
 
 func (x *RecoverRunResponse) GetRun() *domain.Run {
@@ -6996,7 +7635,7 @@ type GetRunEventsRequest struct {
 
 func (x *GetRunEventsRequest) Reset() {
 	*x = GetRunEventsRequest{}
-	mi := &file_agent_manager_v1_api_service_proto_msgTypes[100]
+	mi := &file_agent_manager_v1_api_service_proto_msgTypes[108]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7008,7 +7647,7 @@ func (x *GetRunEventsRequest) String() string {
 func (*GetRunEventsRequest) ProtoMessage() {}
 
 func (x *GetRunEventsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_api_service_proto_msgTypes[100]
+	mi := &file_agent_manager_v1_api_service_proto_msgTypes[108]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7021,7 +7660,7 @@ func (x *GetRunEventsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetRunEventsRequest.ProtoReflect.Descriptor instead.
 func (*GetRunEventsRequest) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_api_service_proto_rawDescGZIP(), []int{100}
+	return file_agent_manager_v1_api_service_proto_rawDescGZIP(), []int{108}
 }
 
 func (x *GetRunEventsRequest) GetRunId() string {
@@ -7074,7 +7713,7 @@ type GetRunEventsResponse struct {
 
 func (x *GetRunEventsResponse) Reset() {
 	*x = GetRunEventsResponse{}
-	mi := &file_agent_manager_v1_api_service_proto_msgTypes[101]
+	mi := &file_agent_manager_v1_api_service_proto_msgTypes[109]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7086,7 +7725,7 @@ func (x *GetRunEventsResponse) String() string {
 func (*GetRunEventsResponse) ProtoMessage() {}
 
 func (x *GetRunEventsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_api_service_proto_msgTypes[101]
+	mi := &file_agent_manager_v1_api_service_proto_msgTypes[109]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7099,7 +7738,7 @@ func (x *GetRunEventsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetRunEventsResponse.ProtoReflect.Descriptor instead.
 func (*GetRunEventsResponse) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_api_service_proto_rawDescGZIP(), []int{101}
+	return file_agent_manager_v1_api_service_proto_rawDescGZIP(), []int{109}
 }
 
 func (x *GetRunEventsResponse) GetEvents() []*domain.RunEvent {
@@ -7136,7 +7775,7 @@ type RunEventSummary struct {
 
 func (x *RunEventSummary) Reset() {
 	*x = RunEventSummary{}
-	mi := &file_agent_manager_v1_api_service_proto_msgTypes[102]
+	mi := &file_agent_manager_v1_api_service_proto_msgTypes[110]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7148,7 +7787,7 @@ func (x *RunEventSummary) String() string {
 func (*RunEventSummary) ProtoMessage() {}
 
 func (x *RunEventSummary) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_api_service_proto_msgTypes[102]
+	mi := &file_agent_manager_v1_api_service_proto_msgTypes[110]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7161,7 +7800,7 @@ func (x *RunEventSummary) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RunEventSummary.ProtoReflect.Descriptor instead.
 func (*RunEventSummary) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_api_service_proto_rawDescGZIP(), []int{102}
+	return file_agent_manager_v1_api_service_proto_rawDescGZIP(), []int{110}
 }
 
 func (x *RunEventSummary) GetCounts() map[string]int64 {
@@ -7190,7 +7829,7 @@ type GetRunDiffRequest struct {
 
 func (x *GetRunDiffRequest) Reset() {
 	*x = GetRunDiffRequest{}
-	mi := &file_agent_manager_v1_api_service_proto_msgTypes[103]
+	mi := &file_agent_manager_v1_api_service_proto_msgTypes[111]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7202,7 +7841,7 @@ func (x *GetRunDiffRequest) String() string {
 func (*GetRunDiffRequest) ProtoMessage() {}
 
 func (x *GetRunDiffRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_api_service_proto_msgTypes[103]
+	mi := &file_agent_manager_v1_api_service_proto_msgTypes[111]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7215,7 +7854,7 @@ func (x *GetRunDiffRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetRunDiffRequest.ProtoReflect.Descriptor instead.
 func (*GetRunDiffRequest) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_api_service_proto_rawDescGZIP(), []int{103}
+	return file_agent_manager_v1_api_service_proto_rawDescGZIP(), []int{111}
 }
 
 func (x *GetRunDiffRequest) GetRunId() string {
@@ -7236,7 +7875,7 @@ type GetRunDiffResponse struct {
 
 func (x *GetRunDiffResponse) Reset() {
 	*x = GetRunDiffResponse{}
-	mi := &file_agent_manager_v1_api_service_proto_msgTypes[104]
+	mi := &file_agent_manager_v1_api_service_proto_msgTypes[112]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7248,7 +7887,7 @@ func (x *GetRunDiffResponse) String() string {
 func (*GetRunDiffResponse) ProtoMessage() {}
 
 func (x *GetRunDiffResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_api_service_proto_msgTypes[104]
+	mi := &file_agent_manager_v1_api_service_proto_msgTypes[112]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7261,7 +7900,7 @@ func (x *GetRunDiffResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetRunDiffResponse.ProtoReflect.Descriptor instead.
 func (*GetRunDiffResponse) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_api_service_proto_rawDescGZIP(), []int{104}
+	return file_agent_manager_v1_api_service_proto_rawDescGZIP(), []int{112}
 }
 
 func (x *GetRunDiffResponse) GetDiff() *domain.RunDiff {
@@ -7289,7 +7928,7 @@ type ApproveRunRequest struct {
 
 func (x *ApproveRunRequest) Reset() {
 	*x = ApproveRunRequest{}
-	mi := &file_agent_manager_v1_api_service_proto_msgTypes[105]
+	mi := &file_agent_manager_v1_api_service_proto_msgTypes[113]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7301,7 +7940,7 @@ func (x *ApproveRunRequest) String() string {
 func (*ApproveRunRequest) ProtoMessage() {}
 
 func (x *ApproveRunRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_api_service_proto_msgTypes[105]
+	mi := &file_agent_manager_v1_api_service_proto_msgTypes[113]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7314,7 +7953,7 @@ func (x *ApproveRunRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ApproveRunRequest.ProtoReflect.Descriptor instead.
 func (*ApproveRunRequest) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_api_service_proto_rawDescGZIP(), []int{105}
+	return file_agent_manager_v1_api_service_proto_rawDescGZIP(), []int{113}
 }
 
 func (x *ApproveRunRequest) GetRunId() string {
@@ -7356,7 +7995,7 @@ type ApproveRunResponse struct {
 
 func (x *ApproveRunResponse) Reset() {
 	*x = ApproveRunResponse{}
-	mi := &file_agent_manager_v1_api_service_proto_msgTypes[106]
+	mi := &file_agent_manager_v1_api_service_proto_msgTypes[114]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7368,7 +8007,7 @@ func (x *ApproveRunResponse) String() string {
 func (*ApproveRunResponse) ProtoMessage() {}
 
 func (x *ApproveRunResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_api_service_proto_msgTypes[106]
+	mi := &file_agent_manager_v1_api_service_proto_msgTypes[114]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7381,7 +8020,7 @@ func (x *ApproveRunResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ApproveRunResponse.ProtoReflect.Descriptor instead.
 func (*ApproveRunResponse) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_api_service_proto_rawDescGZIP(), []int{106}
+	return file_agent_manager_v1_api_service_proto_rawDescGZIP(), []int{114}
 }
 
 func (x *ApproveRunResponse) GetResult() *domain.ApproveResult {
@@ -7407,7 +8046,7 @@ type RejectRunRequest struct {
 
 func (x *RejectRunRequest) Reset() {
 	*x = RejectRunRequest{}
-	mi := &file_agent_manager_v1_api_service_proto_msgTypes[107]
+	mi := &file_agent_manager_v1_api_service_proto_msgTypes[115]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7419,7 +8058,7 @@ func (x *RejectRunRequest) String() string {
 func (*RejectRunRequest) ProtoMessage() {}
 
 func (x *RejectRunRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_api_service_proto_msgTypes[107]
+	mi := &file_agent_manager_v1_api_service_proto_msgTypes[115]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7432,7 +8071,7 @@ func (x *RejectRunRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RejectRunRequest.ProtoReflect.Descriptor instead.
 func (*RejectRunRequest) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_api_service_proto_rawDescGZIP(), []int{107}
+	return file_agent_manager_v1_api_service_proto_rawDescGZIP(), []int{115}
 }
 
 func (x *RejectRunRequest) GetRunId() string {
@@ -7467,7 +8106,7 @@ type RejectRunResponse struct {
 
 func (x *RejectRunResponse) Reset() {
 	*x = RejectRunResponse{}
-	mi := &file_agent_manager_v1_api_service_proto_msgTypes[108]
+	mi := &file_agent_manager_v1_api_service_proto_msgTypes[116]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7479,7 +8118,7 @@ func (x *RejectRunResponse) String() string {
 func (*RejectRunResponse) ProtoMessage() {}
 
 func (x *RejectRunResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_api_service_proto_msgTypes[108]
+	mi := &file_agent_manager_v1_api_service_proto_msgTypes[116]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7492,7 +8131,7 @@ func (x *RejectRunResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RejectRunResponse.ProtoReflect.Descriptor instead.
 func (*RejectRunResponse) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_api_service_proto_rawDescGZIP(), []int{108}
+	return file_agent_manager_v1_api_service_proto_rawDescGZIP(), []int{116}
 }
 
 func (x *RejectRunResponse) GetStatus() string {
@@ -7520,7 +8159,7 @@ type PartialApproveRunRequest struct {
 
 func (x *PartialApproveRunRequest) Reset() {
 	*x = PartialApproveRunRequest{}
-	mi := &file_agent_manager_v1_api_service_proto_msgTypes[109]
+	mi := &file_agent_manager_v1_api_service_proto_msgTypes[117]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7532,7 +8171,7 @@ func (x *PartialApproveRunRequest) String() string {
 func (*PartialApproveRunRequest) ProtoMessage() {}
 
 func (x *PartialApproveRunRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_api_service_proto_msgTypes[109]
+	mi := &file_agent_manager_v1_api_service_proto_msgTypes[117]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7545,7 +8184,7 @@ func (x *PartialApproveRunRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PartialApproveRunRequest.ProtoReflect.Descriptor instead.
 func (*PartialApproveRunRequest) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_api_service_proto_rawDescGZIP(), []int{109}
+	return file_agent_manager_v1_api_service_proto_rawDescGZIP(), []int{117}
 }
 
 func (x *PartialApproveRunRequest) GetRunId() string {
@@ -7587,7 +8226,7 @@ type PartialApproveRunResponse struct {
 
 func (x *PartialApproveRunResponse) Reset() {
 	*x = PartialApproveRunResponse{}
-	mi := &file_agent_manager_v1_api_service_proto_msgTypes[110]
+	mi := &file_agent_manager_v1_api_service_proto_msgTypes[118]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7599,7 +8238,7 @@ func (x *PartialApproveRunResponse) String() string {
 func (*PartialApproveRunResponse) ProtoMessage() {}
 
 func (x *PartialApproveRunResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_api_service_proto_msgTypes[110]
+	mi := &file_agent_manager_v1_api_service_proto_msgTypes[118]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7612,7 +8251,7 @@ func (x *PartialApproveRunResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PartialApproveRunResponse.ProtoReflect.Descriptor instead.
 func (*PartialApproveRunResponse) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_api_service_proto_rawDescGZIP(), []int{110}
+	return file_agent_manager_v1_api_service_proto_rawDescGZIP(), []int{118}
 }
 
 func (x *PartialApproveRunResponse) GetResult() *domain.ApproveResult {
@@ -7631,7 +8270,7 @@ type GetRunnerStatusRequest struct {
 
 func (x *GetRunnerStatusRequest) Reset() {
 	*x = GetRunnerStatusRequest{}
-	mi := &file_agent_manager_v1_api_service_proto_msgTypes[111]
+	mi := &file_agent_manager_v1_api_service_proto_msgTypes[119]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7643,7 +8282,7 @@ func (x *GetRunnerStatusRequest) String() string {
 func (*GetRunnerStatusRequest) ProtoMessage() {}
 
 func (x *GetRunnerStatusRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_api_service_proto_msgTypes[111]
+	mi := &file_agent_manager_v1_api_service_proto_msgTypes[119]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7656,7 +8295,7 @@ func (x *GetRunnerStatusRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetRunnerStatusRequest.ProtoReflect.Descriptor instead.
 func (*GetRunnerStatusRequest) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_api_service_proto_rawDescGZIP(), []int{111}
+	return file_agent_manager_v1_api_service_proto_rawDescGZIP(), []int{119}
 }
 
 // GetRunnerStatusResponse returns all runner statuses.
@@ -7670,7 +8309,7 @@ type GetRunnerStatusResponse struct {
 
 func (x *GetRunnerStatusResponse) Reset() {
 	*x = GetRunnerStatusResponse{}
-	mi := &file_agent_manager_v1_api_service_proto_msgTypes[112]
+	mi := &file_agent_manager_v1_api_service_proto_msgTypes[120]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7682,7 +8321,7 @@ func (x *GetRunnerStatusResponse) String() string {
 func (*GetRunnerStatusResponse) ProtoMessage() {}
 
 func (x *GetRunnerStatusResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_api_service_proto_msgTypes[112]
+	mi := &file_agent_manager_v1_api_service_proto_msgTypes[120]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7695,7 +8334,7 @@ func (x *GetRunnerStatusResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetRunnerStatusResponse.ProtoReflect.Descriptor instead.
 func (*GetRunnerStatusResponse) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_api_service_proto_rawDescGZIP(), []int{112}
+	return file_agent_manager_v1_api_service_proto_rawDescGZIP(), []int{120}
 }
 
 func (x *GetRunnerStatusResponse) GetRunners() []*domain.RunnerStatus {
@@ -7716,7 +8355,7 @@ type ProbeRunnerRequest struct {
 
 func (x *ProbeRunnerRequest) Reset() {
 	*x = ProbeRunnerRequest{}
-	mi := &file_agent_manager_v1_api_service_proto_msgTypes[113]
+	mi := &file_agent_manager_v1_api_service_proto_msgTypes[121]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7728,7 +8367,7 @@ func (x *ProbeRunnerRequest) String() string {
 func (*ProbeRunnerRequest) ProtoMessage() {}
 
 func (x *ProbeRunnerRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_api_service_proto_msgTypes[113]
+	mi := &file_agent_manager_v1_api_service_proto_msgTypes[121]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7741,7 +8380,7 @@ func (x *ProbeRunnerRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ProbeRunnerRequest.ProtoReflect.Descriptor instead.
 func (*ProbeRunnerRequest) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_api_service_proto_rawDescGZIP(), []int{113}
+	return file_agent_manager_v1_api_service_proto_rawDescGZIP(), []int{121}
 }
 
 func (x *ProbeRunnerRequest) GetRunnerType() domain.RunnerType {
@@ -7762,7 +8401,7 @@ type ProbeRunnerResponse struct {
 
 func (x *ProbeRunnerResponse) Reset() {
 	*x = ProbeRunnerResponse{}
-	mi := &file_agent_manager_v1_api_service_proto_msgTypes[114]
+	mi := &file_agent_manager_v1_api_service_proto_msgTypes[122]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7774,7 +8413,7 @@ func (x *ProbeRunnerResponse) String() string {
 func (*ProbeRunnerResponse) ProtoMessage() {}
 
 func (x *ProbeRunnerResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_api_service_proto_msgTypes[114]
+	mi := &file_agent_manager_v1_api_service_proto_msgTypes[122]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7787,7 +8426,7 @@ func (x *ProbeRunnerResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ProbeRunnerResponse.ProtoReflect.Descriptor instead.
 func (*ProbeRunnerResponse) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_api_service_proto_rawDescGZIP(), []int{114}
+	return file_agent_manager_v1_api_service_proto_rawDescGZIP(), []int{122}
 }
 
 func (x *ProbeRunnerResponse) GetResult() *domain.ProbeResult {
@@ -7809,7 +8448,7 @@ type RolePolicyDiagnostic struct {
 
 func (x *RolePolicyDiagnostic) Reset() {
 	*x = RolePolicyDiagnostic{}
-	mi := &file_agent_manager_v1_api_service_proto_msgTypes[115]
+	mi := &file_agent_manager_v1_api_service_proto_msgTypes[123]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7821,7 +8460,7 @@ func (x *RolePolicyDiagnostic) String() string {
 func (*RolePolicyDiagnostic) ProtoMessage() {}
 
 func (x *RolePolicyDiagnostic) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_api_service_proto_msgTypes[115]
+	mi := &file_agent_manager_v1_api_service_proto_msgTypes[123]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7834,7 +8473,7 @@ func (x *RolePolicyDiagnostic) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RolePolicyDiagnostic.ProtoReflect.Descriptor instead.
 func (*RolePolicyDiagnostic) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_api_service_proto_rawDescGZIP(), []int{115}
+	return file_agent_manager_v1_api_service_proto_rawDescGZIP(), []int{123}
 }
 
 func (x *RolePolicyDiagnostic) GetCode() string {
@@ -7868,7 +8507,7 @@ type RolePolicyRequirement struct {
 
 func (x *RolePolicyRequirement) Reset() {
 	*x = RolePolicyRequirement{}
-	mi := &file_agent_manager_v1_api_service_proto_msgTypes[116]
+	mi := &file_agent_manager_v1_api_service_proto_msgTypes[124]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7880,7 +8519,7 @@ func (x *RolePolicyRequirement) String() string {
 func (*RolePolicyRequirement) ProtoMessage() {}
 
 func (x *RolePolicyRequirement) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_api_service_proto_msgTypes[116]
+	mi := &file_agent_manager_v1_api_service_proto_msgTypes[124]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7893,7 +8532,7 @@ func (x *RolePolicyRequirement) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RolePolicyRequirement.ProtoReflect.Descriptor instead.
 func (*RolePolicyRequirement) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_api_service_proto_rawDescGZIP(), []int{116}
+	return file_agent_manager_v1_api_service_proto_rawDescGZIP(), []int{124}
 }
 
 func (x *RolePolicyRequirement) GetRequired() bool {
@@ -7922,7 +8561,7 @@ type RolePolicyReloadAttempt struct {
 
 func (x *RolePolicyReloadAttempt) Reset() {
 	*x = RolePolicyReloadAttempt{}
-	mi := &file_agent_manager_v1_api_service_proto_msgTypes[117]
+	mi := &file_agent_manager_v1_api_service_proto_msgTypes[125]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7934,7 +8573,7 @@ func (x *RolePolicyReloadAttempt) String() string {
 func (*RolePolicyReloadAttempt) ProtoMessage() {}
 
 func (x *RolePolicyReloadAttempt) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_api_service_proto_msgTypes[117]
+	mi := &file_agent_manager_v1_api_service_proto_msgTypes[125]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7947,7 +8586,7 @@ func (x *RolePolicyReloadAttempt) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RolePolicyReloadAttempt.ProtoReflect.Descriptor instead.
 func (*RolePolicyReloadAttempt) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_api_service_proto_rawDescGZIP(), []int{117}
+	return file_agent_manager_v1_api_service_proto_rawDescGZIP(), []int{125}
 }
 
 func (x *RolePolicyReloadAttempt) GetAttemptedAt() *timestamppb.Timestamp {
@@ -7993,7 +8632,7 @@ type RolePolicyStatus struct {
 
 func (x *RolePolicyStatus) Reset() {
 	*x = RolePolicyStatus{}
-	mi := &file_agent_manager_v1_api_service_proto_msgTypes[118]
+	mi := &file_agent_manager_v1_api_service_proto_msgTypes[126]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -8005,7 +8644,7 @@ func (x *RolePolicyStatus) String() string {
 func (*RolePolicyStatus) ProtoMessage() {}
 
 func (x *RolePolicyStatus) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_api_service_proto_msgTypes[118]
+	mi := &file_agent_manager_v1_api_service_proto_msgTypes[126]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -8018,7 +8657,7 @@ func (x *RolePolicyStatus) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RolePolicyStatus.ProtoReflect.Descriptor instead.
 func (*RolePolicyStatus) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_api_service_proto_rawDescGZIP(), []int{118}
+	return file_agent_manager_v1_api_service_proto_rawDescGZIP(), []int{126}
 }
 
 func (x *RolePolicyStatus) GetPath() string {
@@ -8073,7 +8712,7 @@ type RolePolicyCatalogMetadata struct {
 
 func (x *RolePolicyCatalogMetadata) Reset() {
 	*x = RolePolicyCatalogMetadata{}
-	mi := &file_agent_manager_v1_api_service_proto_msgTypes[119]
+	mi := &file_agent_manager_v1_api_service_proto_msgTypes[127]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -8085,7 +8724,7 @@ func (x *RolePolicyCatalogMetadata) String() string {
 func (*RolePolicyCatalogMetadata) ProtoMessage() {}
 
 func (x *RolePolicyCatalogMetadata) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_api_service_proto_msgTypes[119]
+	mi := &file_agent_manager_v1_api_service_proto_msgTypes[127]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -8098,7 +8737,7 @@ func (x *RolePolicyCatalogMetadata) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RolePolicyCatalogMetadata.ProtoReflect.Descriptor instead.
 func (*RolePolicyCatalogMetadata) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_api_service_proto_rawDescGZIP(), []int{119}
+	return file_agent_manager_v1_api_service_proto_rawDescGZIP(), []int{127}
 }
 
 func (x *RolePolicyCatalogMetadata) GetCatalogId() string {
@@ -8125,7 +8764,7 @@ type RolePolicyCandidate struct {
 
 func (x *RolePolicyCandidate) Reset() {
 	*x = RolePolicyCandidate{}
-	mi := &file_agent_manager_v1_api_service_proto_msgTypes[120]
+	mi := &file_agent_manager_v1_api_service_proto_msgTypes[128]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -8137,7 +8776,7 @@ func (x *RolePolicyCandidate) String() string {
 func (*RolePolicyCandidate) ProtoMessage() {}
 
 func (x *RolePolicyCandidate) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_api_service_proto_msgTypes[120]
+	mi := &file_agent_manager_v1_api_service_proto_msgTypes[128]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -8150,7 +8789,7 @@ func (x *RolePolicyCandidate) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RolePolicyCandidate.ProtoReflect.Descriptor instead.
 func (*RolePolicyCandidate) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_api_service_proto_rawDescGZIP(), []int{120}
+	return file_agent_manager_v1_api_service_proto_rawDescGZIP(), []int{128}
 }
 
 func (x *RolePolicyCandidate) GetRunnerType() domain.RunnerType {
@@ -8179,7 +8818,7 @@ type RolePolicyDefinition struct {
 
 func (x *RolePolicyDefinition) Reset() {
 	*x = RolePolicyDefinition{}
-	mi := &file_agent_manager_v1_api_service_proto_msgTypes[121]
+	mi := &file_agent_manager_v1_api_service_proto_msgTypes[129]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -8191,7 +8830,7 @@ func (x *RolePolicyDefinition) String() string {
 func (*RolePolicyDefinition) ProtoMessage() {}
 
 func (x *RolePolicyDefinition) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_api_service_proto_msgTypes[121]
+	mi := &file_agent_manager_v1_api_service_proto_msgTypes[129]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -8204,7 +8843,7 @@ func (x *RolePolicyDefinition) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RolePolicyDefinition.ProtoReflect.Descriptor instead.
 func (*RolePolicyDefinition) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_api_service_proto_rawDescGZIP(), []int{121}
+	return file_agent_manager_v1_api_service_proto_rawDescGZIP(), []int{129}
 }
 
 func (x *RolePolicyDefinition) GetRoleRef() string {
@@ -8249,7 +8888,7 @@ type RolePolicyCatalog struct {
 
 func (x *RolePolicyCatalog) Reset() {
 	*x = RolePolicyCatalog{}
-	mi := &file_agent_manager_v1_api_service_proto_msgTypes[122]
+	mi := &file_agent_manager_v1_api_service_proto_msgTypes[130]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -8261,7 +8900,7 @@ func (x *RolePolicyCatalog) String() string {
 func (*RolePolicyCatalog) ProtoMessage() {}
 
 func (x *RolePolicyCatalog) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_api_service_proto_msgTypes[122]
+	mi := &file_agent_manager_v1_api_service_proto_msgTypes[130]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -8274,7 +8913,7 @@ func (x *RolePolicyCatalog) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RolePolicyCatalog.ProtoReflect.Descriptor instead.
 func (*RolePolicyCatalog) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_api_service_proto_rawDescGZIP(), []int{122}
+	return file_agent_manager_v1_api_service_proto_rawDescGZIP(), []int{130}
 }
 
 func (x *RolePolicyCatalog) GetSchemaVersion() int32 {
@@ -8313,7 +8952,7 @@ type GetRolePolicyStatusRequest struct {
 
 func (x *GetRolePolicyStatusRequest) Reset() {
 	*x = GetRolePolicyStatusRequest{}
-	mi := &file_agent_manager_v1_api_service_proto_msgTypes[123]
+	mi := &file_agent_manager_v1_api_service_proto_msgTypes[131]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -8325,7 +8964,7 @@ func (x *GetRolePolicyStatusRequest) String() string {
 func (*GetRolePolicyStatusRequest) ProtoMessage() {}
 
 func (x *GetRolePolicyStatusRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_api_service_proto_msgTypes[123]
+	mi := &file_agent_manager_v1_api_service_proto_msgTypes[131]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -8338,7 +8977,7 @@ func (x *GetRolePolicyStatusRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetRolePolicyStatusRequest.ProtoReflect.Descriptor instead.
 func (*GetRolePolicyStatusRequest) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_api_service_proto_rawDescGZIP(), []int{123}
+	return file_agent_manager_v1_api_service_proto_rawDescGZIP(), []int{131}
 }
 
 type GetRolePolicyStatusResponse struct {
@@ -8350,7 +8989,7 @@ type GetRolePolicyStatusResponse struct {
 
 func (x *GetRolePolicyStatusResponse) Reset() {
 	*x = GetRolePolicyStatusResponse{}
-	mi := &file_agent_manager_v1_api_service_proto_msgTypes[124]
+	mi := &file_agent_manager_v1_api_service_proto_msgTypes[132]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -8362,7 +9001,7 @@ func (x *GetRolePolicyStatusResponse) String() string {
 func (*GetRolePolicyStatusResponse) ProtoMessage() {}
 
 func (x *GetRolePolicyStatusResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_api_service_proto_msgTypes[124]
+	mi := &file_agent_manager_v1_api_service_proto_msgTypes[132]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -8375,7 +9014,7 @@ func (x *GetRolePolicyStatusResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetRolePolicyStatusResponse.ProtoReflect.Descriptor instead.
 func (*GetRolePolicyStatusResponse) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_api_service_proto_rawDescGZIP(), []int{124}
+	return file_agent_manager_v1_api_service_proto_rawDescGZIP(), []int{132}
 }
 
 func (x *GetRolePolicyStatusResponse) GetStatus() *RolePolicyStatus {
@@ -8393,7 +9032,7 @@ type GetRolePolicyCatalogRequest struct {
 
 func (x *GetRolePolicyCatalogRequest) Reset() {
 	*x = GetRolePolicyCatalogRequest{}
-	mi := &file_agent_manager_v1_api_service_proto_msgTypes[125]
+	mi := &file_agent_manager_v1_api_service_proto_msgTypes[133]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -8405,7 +9044,7 @@ func (x *GetRolePolicyCatalogRequest) String() string {
 func (*GetRolePolicyCatalogRequest) ProtoMessage() {}
 
 func (x *GetRolePolicyCatalogRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_api_service_proto_msgTypes[125]
+	mi := &file_agent_manager_v1_api_service_proto_msgTypes[133]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -8418,7 +9057,7 @@ func (x *GetRolePolicyCatalogRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetRolePolicyCatalogRequest.ProtoReflect.Descriptor instead.
 func (*GetRolePolicyCatalogRequest) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_api_service_proto_rawDescGZIP(), []int{125}
+	return file_agent_manager_v1_api_service_proto_rawDescGZIP(), []int{133}
 }
 
 type GetRolePolicyCatalogResponse struct {
@@ -8431,7 +9070,7 @@ type GetRolePolicyCatalogResponse struct {
 
 func (x *GetRolePolicyCatalogResponse) Reset() {
 	*x = GetRolePolicyCatalogResponse{}
-	mi := &file_agent_manager_v1_api_service_proto_msgTypes[126]
+	mi := &file_agent_manager_v1_api_service_proto_msgTypes[134]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -8443,7 +9082,7 @@ func (x *GetRolePolicyCatalogResponse) String() string {
 func (*GetRolePolicyCatalogResponse) ProtoMessage() {}
 
 func (x *GetRolePolicyCatalogResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_api_service_proto_msgTypes[126]
+	mi := &file_agent_manager_v1_api_service_proto_msgTypes[134]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -8456,7 +9095,7 @@ func (x *GetRolePolicyCatalogResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetRolePolicyCatalogResponse.ProtoReflect.Descriptor instead.
 func (*GetRolePolicyCatalogResponse) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_api_service_proto_rawDescGZIP(), []int{126}
+	return file_agent_manager_v1_api_service_proto_rawDescGZIP(), []int{134}
 }
 
 func (x *GetRolePolicyCatalogResponse) GetStatus() *RolePolicyStatus {
@@ -8481,7 +9120,7 @@ type ValidateRolePolicyCatalogRequest struct {
 
 func (x *ValidateRolePolicyCatalogRequest) Reset() {
 	*x = ValidateRolePolicyCatalogRequest{}
-	mi := &file_agent_manager_v1_api_service_proto_msgTypes[127]
+	mi := &file_agent_manager_v1_api_service_proto_msgTypes[135]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -8493,7 +9132,7 @@ func (x *ValidateRolePolicyCatalogRequest) String() string {
 func (*ValidateRolePolicyCatalogRequest) ProtoMessage() {}
 
 func (x *ValidateRolePolicyCatalogRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_api_service_proto_msgTypes[127]
+	mi := &file_agent_manager_v1_api_service_proto_msgTypes[135]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -8506,7 +9145,7 @@ func (x *ValidateRolePolicyCatalogRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ValidateRolePolicyCatalogRequest.ProtoReflect.Descriptor instead.
 func (*ValidateRolePolicyCatalogRequest) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_api_service_proto_rawDescGZIP(), []int{127}
+	return file_agent_manager_v1_api_service_proto_rawDescGZIP(), []int{135}
 }
 
 type ValidateRolePolicyCatalogResponse struct {
@@ -8521,7 +9160,7 @@ type ValidateRolePolicyCatalogResponse struct {
 
 func (x *ValidateRolePolicyCatalogResponse) Reset() {
 	*x = ValidateRolePolicyCatalogResponse{}
-	mi := &file_agent_manager_v1_api_service_proto_msgTypes[128]
+	mi := &file_agent_manager_v1_api_service_proto_msgTypes[136]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -8533,7 +9172,7 @@ func (x *ValidateRolePolicyCatalogResponse) String() string {
 func (*ValidateRolePolicyCatalogResponse) ProtoMessage() {}
 
 func (x *ValidateRolePolicyCatalogResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_api_service_proto_msgTypes[128]
+	mi := &file_agent_manager_v1_api_service_proto_msgTypes[136]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -8546,7 +9185,7 @@ func (x *ValidateRolePolicyCatalogResponse) ProtoReflect() protoreflect.Message 
 
 // Deprecated: Use ValidateRolePolicyCatalogResponse.ProtoReflect.Descriptor instead.
 func (*ValidateRolePolicyCatalogResponse) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_api_service_proto_rawDescGZIP(), []int{128}
+	return file_agent_manager_v1_api_service_proto_rawDescGZIP(), []int{136}
 }
 
 func (x *ValidateRolePolicyCatalogResponse) GetValid() bool {
@@ -8585,7 +9224,7 @@ type ReloadRolePolicyCatalogRequest struct {
 
 func (x *ReloadRolePolicyCatalogRequest) Reset() {
 	*x = ReloadRolePolicyCatalogRequest{}
-	mi := &file_agent_manager_v1_api_service_proto_msgTypes[129]
+	mi := &file_agent_manager_v1_api_service_proto_msgTypes[137]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -8597,7 +9236,7 @@ func (x *ReloadRolePolicyCatalogRequest) String() string {
 func (*ReloadRolePolicyCatalogRequest) ProtoMessage() {}
 
 func (x *ReloadRolePolicyCatalogRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_api_service_proto_msgTypes[129]
+	mi := &file_agent_manager_v1_api_service_proto_msgTypes[137]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -8610,7 +9249,7 @@ func (x *ReloadRolePolicyCatalogRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ReloadRolePolicyCatalogRequest.ProtoReflect.Descriptor instead.
 func (*ReloadRolePolicyCatalogRequest) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_api_service_proto_rawDescGZIP(), []int{129}
+	return file_agent_manager_v1_api_service_proto_rawDescGZIP(), []int{137}
 }
 
 type ReloadRolePolicyCatalogResponse struct {
@@ -8624,7 +9263,7 @@ type ReloadRolePolicyCatalogResponse struct {
 
 func (x *ReloadRolePolicyCatalogResponse) Reset() {
 	*x = ReloadRolePolicyCatalogResponse{}
-	mi := &file_agent_manager_v1_api_service_proto_msgTypes[130]
+	mi := &file_agent_manager_v1_api_service_proto_msgTypes[138]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -8636,7 +9275,7 @@ func (x *ReloadRolePolicyCatalogResponse) String() string {
 func (*ReloadRolePolicyCatalogResponse) ProtoMessage() {}
 
 func (x *ReloadRolePolicyCatalogResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_api_service_proto_msgTypes[130]
+	mi := &file_agent_manager_v1_api_service_proto_msgTypes[138]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -8649,7 +9288,7 @@ func (x *ReloadRolePolicyCatalogResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ReloadRolePolicyCatalogResponse.ProtoReflect.Descriptor instead.
 func (*ReloadRolePolicyCatalogResponse) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_api_service_proto_rawDescGZIP(), []int{130}
+	return file_agent_manager_v1_api_service_proto_rawDescGZIP(), []int{138}
 }
 
 func (x *ReloadRolePolicyCatalogResponse) GetActivated() bool {
@@ -8686,7 +9325,7 @@ type ExplainRolePolicyRequest struct {
 
 func (x *ExplainRolePolicyRequest) Reset() {
 	*x = ExplainRolePolicyRequest{}
-	mi := &file_agent_manager_v1_api_service_proto_msgTypes[131]
+	mi := &file_agent_manager_v1_api_service_proto_msgTypes[139]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -8698,7 +9337,7 @@ func (x *ExplainRolePolicyRequest) String() string {
 func (*ExplainRolePolicyRequest) ProtoMessage() {}
 
 func (x *ExplainRolePolicyRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_api_service_proto_msgTypes[131]
+	mi := &file_agent_manager_v1_api_service_proto_msgTypes[139]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -8711,7 +9350,7 @@ func (x *ExplainRolePolicyRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ExplainRolePolicyRequest.ProtoReflect.Descriptor instead.
 func (*ExplainRolePolicyRequest) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_api_service_proto_rawDescGZIP(), []int{131}
+	return file_agent_manager_v1_api_service_proto_rawDescGZIP(), []int{139}
 }
 
 func (x *ExplainRolePolicyRequest) GetTarget() isExplainRolePolicyRequest_Target {
@@ -8768,7 +9407,7 @@ type ExplainRolePolicyResponse struct {
 
 func (x *ExplainRolePolicyResponse) Reset() {
 	*x = ExplainRolePolicyResponse{}
-	mi := &file_agent_manager_v1_api_service_proto_msgTypes[132]
+	mi := &file_agent_manager_v1_api_service_proto_msgTypes[140]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -8780,7 +9419,7 @@ func (x *ExplainRolePolicyResponse) String() string {
 func (*ExplainRolePolicyResponse) ProtoMessage() {}
 
 func (x *ExplainRolePolicyResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_api_service_proto_msgTypes[132]
+	mi := &file_agent_manager_v1_api_service_proto_msgTypes[140]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -8793,7 +9432,7 @@ func (x *ExplainRolePolicyResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ExplainRolePolicyResponse.ProtoReflect.Descriptor instead.
 func (*ExplainRolePolicyResponse) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_api_service_proto_rawDescGZIP(), []int{132}
+	return file_agent_manager_v1_api_service_proto_rawDescGZIP(), []int{140}
 }
 
 func (x *ExplainRolePolicyResponse) GetTargetType() string {
@@ -8842,7 +9481,7 @@ type PermissionPolicyDiagnostic struct {
 
 func (x *PermissionPolicyDiagnostic) Reset() {
 	*x = PermissionPolicyDiagnostic{}
-	mi := &file_agent_manager_v1_api_service_proto_msgTypes[133]
+	mi := &file_agent_manager_v1_api_service_proto_msgTypes[141]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -8854,7 +9493,7 @@ func (x *PermissionPolicyDiagnostic) String() string {
 func (*PermissionPolicyDiagnostic) ProtoMessage() {}
 
 func (x *PermissionPolicyDiagnostic) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_api_service_proto_msgTypes[133]
+	mi := &file_agent_manager_v1_api_service_proto_msgTypes[141]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -8867,7 +9506,7 @@ func (x *PermissionPolicyDiagnostic) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PermissionPolicyDiagnostic.ProtoReflect.Descriptor instead.
 func (*PermissionPolicyDiagnostic) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_api_service_proto_rawDescGZIP(), []int{133}
+	return file_agent_manager_v1_api_service_proto_rawDescGZIP(), []int{141}
 }
 
 func (x *PermissionPolicyDiagnostic) GetCode() string {
@@ -8901,7 +9540,7 @@ type PermissionPolicyRequirement struct {
 
 func (x *PermissionPolicyRequirement) Reset() {
 	*x = PermissionPolicyRequirement{}
-	mi := &file_agent_manager_v1_api_service_proto_msgTypes[134]
+	mi := &file_agent_manager_v1_api_service_proto_msgTypes[142]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -8913,7 +9552,7 @@ func (x *PermissionPolicyRequirement) String() string {
 func (*PermissionPolicyRequirement) ProtoMessage() {}
 
 func (x *PermissionPolicyRequirement) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_api_service_proto_msgTypes[134]
+	mi := &file_agent_manager_v1_api_service_proto_msgTypes[142]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -8926,7 +9565,7 @@ func (x *PermissionPolicyRequirement) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PermissionPolicyRequirement.ProtoReflect.Descriptor instead.
 func (*PermissionPolicyRequirement) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_api_service_proto_rawDescGZIP(), []int{134}
+	return file_agent_manager_v1_api_service_proto_rawDescGZIP(), []int{142}
 }
 
 func (x *PermissionPolicyRequirement) GetRequired() bool {
@@ -8955,7 +9594,7 @@ type PermissionPolicyReloadAttempt struct {
 
 func (x *PermissionPolicyReloadAttempt) Reset() {
 	*x = PermissionPolicyReloadAttempt{}
-	mi := &file_agent_manager_v1_api_service_proto_msgTypes[135]
+	mi := &file_agent_manager_v1_api_service_proto_msgTypes[143]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -8967,7 +9606,7 @@ func (x *PermissionPolicyReloadAttempt) String() string {
 func (*PermissionPolicyReloadAttempt) ProtoMessage() {}
 
 func (x *PermissionPolicyReloadAttempt) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_api_service_proto_msgTypes[135]
+	mi := &file_agent_manager_v1_api_service_proto_msgTypes[143]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -8980,7 +9619,7 @@ func (x *PermissionPolicyReloadAttempt) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PermissionPolicyReloadAttempt.ProtoReflect.Descriptor instead.
 func (*PermissionPolicyReloadAttempt) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_api_service_proto_rawDescGZIP(), []int{135}
+	return file_agent_manager_v1_api_service_proto_rawDescGZIP(), []int{143}
 }
 
 func (x *PermissionPolicyReloadAttempt) GetAttemptedAt() *timestamppb.Timestamp {
@@ -9025,7 +9664,7 @@ type PermissionPolicyStatus struct {
 
 func (x *PermissionPolicyStatus) Reset() {
 	*x = PermissionPolicyStatus{}
-	mi := &file_agent_manager_v1_api_service_proto_msgTypes[136]
+	mi := &file_agent_manager_v1_api_service_proto_msgTypes[144]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -9037,7 +9676,7 @@ func (x *PermissionPolicyStatus) String() string {
 func (*PermissionPolicyStatus) ProtoMessage() {}
 
 func (x *PermissionPolicyStatus) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_api_service_proto_msgTypes[136]
+	mi := &file_agent_manager_v1_api_service_proto_msgTypes[144]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -9050,7 +9689,7 @@ func (x *PermissionPolicyStatus) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PermissionPolicyStatus.ProtoReflect.Descriptor instead.
 func (*PermissionPolicyStatus) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_api_service_proto_rawDescGZIP(), []int{136}
+	return file_agent_manager_v1_api_service_proto_rawDescGZIP(), []int{144}
 }
 
 func (x *PermissionPolicyStatus) GetPath() string {
@@ -9105,7 +9744,7 @@ type PermissionPolicyCatalogMetadata struct {
 
 func (x *PermissionPolicyCatalogMetadata) Reset() {
 	*x = PermissionPolicyCatalogMetadata{}
-	mi := &file_agent_manager_v1_api_service_proto_msgTypes[137]
+	mi := &file_agent_manager_v1_api_service_proto_msgTypes[145]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -9117,7 +9756,7 @@ func (x *PermissionPolicyCatalogMetadata) String() string {
 func (*PermissionPolicyCatalogMetadata) ProtoMessage() {}
 
 func (x *PermissionPolicyCatalogMetadata) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_api_service_proto_msgTypes[137]
+	mi := &file_agent_manager_v1_api_service_proto_msgTypes[145]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -9130,7 +9769,7 @@ func (x *PermissionPolicyCatalogMetadata) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PermissionPolicyCatalogMetadata.ProtoReflect.Descriptor instead.
 func (*PermissionPolicyCatalogMetadata) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_api_service_proto_rawDescGZIP(), []int{137}
+	return file_agent_manager_v1_api_service_proto_rawDescGZIP(), []int{145}
 }
 
 func (x *PermissionPolicyCatalogMetadata) GetCatalogId() string {
@@ -9157,7 +9796,7 @@ type PermissionPolicyMatcher struct {
 
 func (x *PermissionPolicyMatcher) Reset() {
 	*x = PermissionPolicyMatcher{}
-	mi := &file_agent_manager_v1_api_service_proto_msgTypes[138]
+	mi := &file_agent_manager_v1_api_service_proto_msgTypes[146]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -9169,7 +9808,7 @@ func (x *PermissionPolicyMatcher) String() string {
 func (*PermissionPolicyMatcher) ProtoMessage() {}
 
 func (x *PermissionPolicyMatcher) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_api_service_proto_msgTypes[138]
+	mi := &file_agent_manager_v1_api_service_proto_msgTypes[146]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -9182,7 +9821,7 @@ func (x *PermissionPolicyMatcher) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PermissionPolicyMatcher.ProtoReflect.Descriptor instead.
 func (*PermissionPolicyMatcher) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_api_service_proto_rawDescGZIP(), []int{138}
+	return file_agent_manager_v1_api_service_proto_rawDescGZIP(), []int{146}
 }
 
 func (x *PermissionPolicyMatcher) GetKind() string {
@@ -9214,7 +9853,7 @@ type PermissionPolicyRule struct {
 
 func (x *PermissionPolicyRule) Reset() {
 	*x = PermissionPolicyRule{}
-	mi := &file_agent_manager_v1_api_service_proto_msgTypes[139]
+	mi := &file_agent_manager_v1_api_service_proto_msgTypes[147]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -9226,7 +9865,7 @@ func (x *PermissionPolicyRule) String() string {
 func (*PermissionPolicyRule) ProtoMessage() {}
 
 func (x *PermissionPolicyRule) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_api_service_proto_msgTypes[139]
+	mi := &file_agent_manager_v1_api_service_proto_msgTypes[147]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -9239,7 +9878,7 @@ func (x *PermissionPolicyRule) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PermissionPolicyRule.ProtoReflect.Descriptor instead.
 func (*PermissionPolicyRule) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_api_service_proto_rawDescGZIP(), []int{139}
+	return file_agent_manager_v1_api_service_proto_rawDescGZIP(), []int{147}
 }
 
 func (x *PermissionPolicyRule) GetId() string {
@@ -9303,7 +9942,7 @@ type PermissionPolicyCatalog struct {
 
 func (x *PermissionPolicyCatalog) Reset() {
 	*x = PermissionPolicyCatalog{}
-	mi := &file_agent_manager_v1_api_service_proto_msgTypes[140]
+	mi := &file_agent_manager_v1_api_service_proto_msgTypes[148]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -9315,7 +9954,7 @@ func (x *PermissionPolicyCatalog) String() string {
 func (*PermissionPolicyCatalog) ProtoMessage() {}
 
 func (x *PermissionPolicyCatalog) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_api_service_proto_msgTypes[140]
+	mi := &file_agent_manager_v1_api_service_proto_msgTypes[148]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -9328,7 +9967,7 @@ func (x *PermissionPolicyCatalog) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PermissionPolicyCatalog.ProtoReflect.Descriptor instead.
 func (*PermissionPolicyCatalog) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_api_service_proto_rawDescGZIP(), []int{140}
+	return file_agent_manager_v1_api_service_proto_rawDescGZIP(), []int{148}
 }
 
 func (x *PermissionPolicyCatalog) GetSchemaVersion() int32 {
@@ -9369,7 +10008,7 @@ type PermissionPolicyEnforcement struct {
 
 func (x *PermissionPolicyEnforcement) Reset() {
 	*x = PermissionPolicyEnforcement{}
-	mi := &file_agent_manager_v1_api_service_proto_msgTypes[141]
+	mi := &file_agent_manager_v1_api_service_proto_msgTypes[149]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -9381,7 +10020,7 @@ func (x *PermissionPolicyEnforcement) String() string {
 func (*PermissionPolicyEnforcement) ProtoMessage() {}
 
 func (x *PermissionPolicyEnforcement) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_api_service_proto_msgTypes[141]
+	mi := &file_agent_manager_v1_api_service_proto_msgTypes[149]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -9394,7 +10033,7 @@ func (x *PermissionPolicyEnforcement) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PermissionPolicyEnforcement.ProtoReflect.Descriptor instead.
 func (*PermissionPolicyEnforcement) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_api_service_proto_rawDescGZIP(), []int{141}
+	return file_agent_manager_v1_api_service_proto_rawDescGZIP(), []int{149}
 }
 
 func (x *PermissionPolicyEnforcement) GetPermissions() string {
@@ -9432,7 +10071,7 @@ type PermissionPolicyResourceResult struct {
 
 func (x *PermissionPolicyResourceResult) Reset() {
 	*x = PermissionPolicyResourceResult{}
-	mi := &file_agent_manager_v1_api_service_proto_msgTypes[142]
+	mi := &file_agent_manager_v1_api_service_proto_msgTypes[150]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -9444,7 +10083,7 @@ func (x *PermissionPolicyResourceResult) String() string {
 func (*PermissionPolicyResourceResult) ProtoMessage() {}
 
 func (x *PermissionPolicyResourceResult) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_api_service_proto_msgTypes[142]
+	mi := &file_agent_manager_v1_api_service_proto_msgTypes[150]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -9457,7 +10096,7 @@ func (x *PermissionPolicyResourceResult) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PermissionPolicyResourceResult.ProtoReflect.Descriptor instead.
 func (*PermissionPolicyResourceResult) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_api_service_proto_rawDescGZIP(), []int{142}
+	return file_agent_manager_v1_api_service_proto_rawDescGZIP(), []int{150}
 }
 
 func (x *PermissionPolicyResourceResult) GetRunnerType() domain.RunnerType {
@@ -9563,7 +10202,7 @@ type PermissionPolicyPlan struct {
 
 func (x *PermissionPolicyPlan) Reset() {
 	*x = PermissionPolicyPlan{}
-	mi := &file_agent_manager_v1_api_service_proto_msgTypes[143]
+	mi := &file_agent_manager_v1_api_service_proto_msgTypes[151]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -9575,7 +10214,7 @@ func (x *PermissionPolicyPlan) String() string {
 func (*PermissionPolicyPlan) ProtoMessage() {}
 
 func (x *PermissionPolicyPlan) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_api_service_proto_msgTypes[143]
+	mi := &file_agent_manager_v1_api_service_proto_msgTypes[151]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -9588,7 +10227,7 @@ func (x *PermissionPolicyPlan) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PermissionPolicyPlan.ProtoReflect.Descriptor instead.
 func (*PermissionPolicyPlan) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_api_service_proto_rawDescGZIP(), []int{143}
+	return file_agent_manager_v1_api_service_proto_rawDescGZIP(), []int{151}
 }
 
 func (x *PermissionPolicyPlan) GetCatalogDigest() string {
@@ -9635,7 +10274,7 @@ type PermissionPolicyReconcileResult struct {
 
 func (x *PermissionPolicyReconcileResult) Reset() {
 	*x = PermissionPolicyReconcileResult{}
-	mi := &file_agent_manager_v1_api_service_proto_msgTypes[144]
+	mi := &file_agent_manager_v1_api_service_proto_msgTypes[152]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -9647,7 +10286,7 @@ func (x *PermissionPolicyReconcileResult) String() string {
 func (*PermissionPolicyReconcileResult) ProtoMessage() {}
 
 func (x *PermissionPolicyReconcileResult) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_api_service_proto_msgTypes[144]
+	mi := &file_agent_manager_v1_api_service_proto_msgTypes[152]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -9660,7 +10299,7 @@ func (x *PermissionPolicyReconcileResult) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PermissionPolicyReconcileResult.ProtoReflect.Descriptor instead.
 func (*PermissionPolicyReconcileResult) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_api_service_proto_rawDescGZIP(), []int{144}
+	return file_agent_manager_v1_api_service_proto_rawDescGZIP(), []int{152}
 }
 
 func (x *PermissionPolicyReconcileResult) GetCatalogDigest() string {
@@ -9727,7 +10366,7 @@ type GetPermissionPolicyStatusRequest struct {
 
 func (x *GetPermissionPolicyStatusRequest) Reset() {
 	*x = GetPermissionPolicyStatusRequest{}
-	mi := &file_agent_manager_v1_api_service_proto_msgTypes[145]
+	mi := &file_agent_manager_v1_api_service_proto_msgTypes[153]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -9739,7 +10378,7 @@ func (x *GetPermissionPolicyStatusRequest) String() string {
 func (*GetPermissionPolicyStatusRequest) ProtoMessage() {}
 
 func (x *GetPermissionPolicyStatusRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_api_service_proto_msgTypes[145]
+	mi := &file_agent_manager_v1_api_service_proto_msgTypes[153]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -9752,7 +10391,7 @@ func (x *GetPermissionPolicyStatusRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetPermissionPolicyStatusRequest.ProtoReflect.Descriptor instead.
 func (*GetPermissionPolicyStatusRequest) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_api_service_proto_rawDescGZIP(), []int{145}
+	return file_agent_manager_v1_api_service_proto_rawDescGZIP(), []int{153}
 }
 
 type GetPermissionPolicyStatusResponse struct {
@@ -9765,7 +10404,7 @@ type GetPermissionPolicyStatusResponse struct {
 
 func (x *GetPermissionPolicyStatusResponse) Reset() {
 	*x = GetPermissionPolicyStatusResponse{}
-	mi := &file_agent_manager_v1_api_service_proto_msgTypes[146]
+	mi := &file_agent_manager_v1_api_service_proto_msgTypes[154]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -9777,7 +10416,7 @@ func (x *GetPermissionPolicyStatusResponse) String() string {
 func (*GetPermissionPolicyStatusResponse) ProtoMessage() {}
 
 func (x *GetPermissionPolicyStatusResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_api_service_proto_msgTypes[146]
+	mi := &file_agent_manager_v1_api_service_proto_msgTypes[154]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -9790,7 +10429,7 @@ func (x *GetPermissionPolicyStatusResponse) ProtoReflect() protoreflect.Message 
 
 // Deprecated: Use GetPermissionPolicyStatusResponse.ProtoReflect.Descriptor instead.
 func (*GetPermissionPolicyStatusResponse) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_api_service_proto_rawDescGZIP(), []int{146}
+	return file_agent_manager_v1_api_service_proto_rawDescGZIP(), []int{154}
 }
 
 func (x *GetPermissionPolicyStatusResponse) GetStatus() *PermissionPolicyStatus {
@@ -9815,7 +10454,7 @@ type GetPermissionPolicyCatalogRequest struct {
 
 func (x *GetPermissionPolicyCatalogRequest) Reset() {
 	*x = GetPermissionPolicyCatalogRequest{}
-	mi := &file_agent_manager_v1_api_service_proto_msgTypes[147]
+	mi := &file_agent_manager_v1_api_service_proto_msgTypes[155]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -9827,7 +10466,7 @@ func (x *GetPermissionPolicyCatalogRequest) String() string {
 func (*GetPermissionPolicyCatalogRequest) ProtoMessage() {}
 
 func (x *GetPermissionPolicyCatalogRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_api_service_proto_msgTypes[147]
+	mi := &file_agent_manager_v1_api_service_proto_msgTypes[155]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -9840,7 +10479,7 @@ func (x *GetPermissionPolicyCatalogRequest) ProtoReflect() protoreflect.Message 
 
 // Deprecated: Use GetPermissionPolicyCatalogRequest.ProtoReflect.Descriptor instead.
 func (*GetPermissionPolicyCatalogRequest) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_api_service_proto_rawDescGZIP(), []int{147}
+	return file_agent_manager_v1_api_service_proto_rawDescGZIP(), []int{155}
 }
 
 type GetPermissionPolicyCatalogResponse struct {
@@ -9853,7 +10492,7 @@ type GetPermissionPolicyCatalogResponse struct {
 
 func (x *GetPermissionPolicyCatalogResponse) Reset() {
 	*x = GetPermissionPolicyCatalogResponse{}
-	mi := &file_agent_manager_v1_api_service_proto_msgTypes[148]
+	mi := &file_agent_manager_v1_api_service_proto_msgTypes[156]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -9865,7 +10504,7 @@ func (x *GetPermissionPolicyCatalogResponse) String() string {
 func (*GetPermissionPolicyCatalogResponse) ProtoMessage() {}
 
 func (x *GetPermissionPolicyCatalogResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_api_service_proto_msgTypes[148]
+	mi := &file_agent_manager_v1_api_service_proto_msgTypes[156]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -9878,7 +10517,7 @@ func (x *GetPermissionPolicyCatalogResponse) ProtoReflect() protoreflect.Message
 
 // Deprecated: Use GetPermissionPolicyCatalogResponse.ProtoReflect.Descriptor instead.
 func (*GetPermissionPolicyCatalogResponse) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_api_service_proto_rawDescGZIP(), []int{148}
+	return file_agent_manager_v1_api_service_proto_rawDescGZIP(), []int{156}
 }
 
 func (x *GetPermissionPolicyCatalogResponse) GetStatus() *PermissionPolicyStatus {
@@ -9903,7 +10542,7 @@ type ValidatePermissionPolicyCatalogRequest struct {
 
 func (x *ValidatePermissionPolicyCatalogRequest) Reset() {
 	*x = ValidatePermissionPolicyCatalogRequest{}
-	mi := &file_agent_manager_v1_api_service_proto_msgTypes[149]
+	mi := &file_agent_manager_v1_api_service_proto_msgTypes[157]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -9915,7 +10554,7 @@ func (x *ValidatePermissionPolicyCatalogRequest) String() string {
 func (*ValidatePermissionPolicyCatalogRequest) ProtoMessage() {}
 
 func (x *ValidatePermissionPolicyCatalogRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_api_service_proto_msgTypes[149]
+	mi := &file_agent_manager_v1_api_service_proto_msgTypes[157]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -9928,7 +10567,7 @@ func (x *ValidatePermissionPolicyCatalogRequest) ProtoReflect() protoreflect.Mes
 
 // Deprecated: Use ValidatePermissionPolicyCatalogRequest.ProtoReflect.Descriptor instead.
 func (*ValidatePermissionPolicyCatalogRequest) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_api_service_proto_rawDescGZIP(), []int{149}
+	return file_agent_manager_v1_api_service_proto_rawDescGZIP(), []int{157}
 }
 
 type ValidatePermissionPolicyCatalogResponse struct {
@@ -9943,7 +10582,7 @@ type ValidatePermissionPolicyCatalogResponse struct {
 
 func (x *ValidatePermissionPolicyCatalogResponse) Reset() {
 	*x = ValidatePermissionPolicyCatalogResponse{}
-	mi := &file_agent_manager_v1_api_service_proto_msgTypes[150]
+	mi := &file_agent_manager_v1_api_service_proto_msgTypes[158]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -9955,7 +10594,7 @@ func (x *ValidatePermissionPolicyCatalogResponse) String() string {
 func (*ValidatePermissionPolicyCatalogResponse) ProtoMessage() {}
 
 func (x *ValidatePermissionPolicyCatalogResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_api_service_proto_msgTypes[150]
+	mi := &file_agent_manager_v1_api_service_proto_msgTypes[158]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -9968,7 +10607,7 @@ func (x *ValidatePermissionPolicyCatalogResponse) ProtoReflect() protoreflect.Me
 
 // Deprecated: Use ValidatePermissionPolicyCatalogResponse.ProtoReflect.Descriptor instead.
 func (*ValidatePermissionPolicyCatalogResponse) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_api_service_proto_rawDescGZIP(), []int{150}
+	return file_agent_manager_v1_api_service_proto_rawDescGZIP(), []int{158}
 }
 
 func (x *ValidatePermissionPolicyCatalogResponse) GetValid() bool {
@@ -10007,7 +10646,7 @@ type ReloadPermissionPolicyCatalogRequest struct {
 
 func (x *ReloadPermissionPolicyCatalogRequest) Reset() {
 	*x = ReloadPermissionPolicyCatalogRequest{}
-	mi := &file_agent_manager_v1_api_service_proto_msgTypes[151]
+	mi := &file_agent_manager_v1_api_service_proto_msgTypes[159]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -10019,7 +10658,7 @@ func (x *ReloadPermissionPolicyCatalogRequest) String() string {
 func (*ReloadPermissionPolicyCatalogRequest) ProtoMessage() {}
 
 func (x *ReloadPermissionPolicyCatalogRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_api_service_proto_msgTypes[151]
+	mi := &file_agent_manager_v1_api_service_proto_msgTypes[159]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -10032,7 +10671,7 @@ func (x *ReloadPermissionPolicyCatalogRequest) ProtoReflect() protoreflect.Messa
 
 // Deprecated: Use ReloadPermissionPolicyCatalogRequest.ProtoReflect.Descriptor instead.
 func (*ReloadPermissionPolicyCatalogRequest) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_api_service_proto_rawDescGZIP(), []int{151}
+	return file_agent_manager_v1_api_service_proto_rawDescGZIP(), []int{159}
 }
 
 type ReloadPermissionPolicyCatalogResponse struct {
@@ -10046,7 +10685,7 @@ type ReloadPermissionPolicyCatalogResponse struct {
 
 func (x *ReloadPermissionPolicyCatalogResponse) Reset() {
 	*x = ReloadPermissionPolicyCatalogResponse{}
-	mi := &file_agent_manager_v1_api_service_proto_msgTypes[152]
+	mi := &file_agent_manager_v1_api_service_proto_msgTypes[160]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -10058,7 +10697,7 @@ func (x *ReloadPermissionPolicyCatalogResponse) String() string {
 func (*ReloadPermissionPolicyCatalogResponse) ProtoMessage() {}
 
 func (x *ReloadPermissionPolicyCatalogResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_api_service_proto_msgTypes[152]
+	mi := &file_agent_manager_v1_api_service_proto_msgTypes[160]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -10071,7 +10710,7 @@ func (x *ReloadPermissionPolicyCatalogResponse) ProtoReflect() protoreflect.Mess
 
 // Deprecated: Use ReloadPermissionPolicyCatalogResponse.ProtoReflect.Descriptor instead.
 func (*ReloadPermissionPolicyCatalogResponse) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_api_service_proto_rawDescGZIP(), []int{152}
+	return file_agent_manager_v1_api_service_proto_rawDescGZIP(), []int{160}
 }
 
 func (x *ReloadPermissionPolicyCatalogResponse) GetActivated() bool {
@@ -10103,7 +10742,7 @@ type PlanPermissionPolicyRequest struct {
 
 func (x *PlanPermissionPolicyRequest) Reset() {
 	*x = PlanPermissionPolicyRequest{}
-	mi := &file_agent_manager_v1_api_service_proto_msgTypes[153]
+	mi := &file_agent_manager_v1_api_service_proto_msgTypes[161]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -10115,7 +10754,7 @@ func (x *PlanPermissionPolicyRequest) String() string {
 func (*PlanPermissionPolicyRequest) ProtoMessage() {}
 
 func (x *PlanPermissionPolicyRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_api_service_proto_msgTypes[153]
+	mi := &file_agent_manager_v1_api_service_proto_msgTypes[161]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -10128,7 +10767,7 @@ func (x *PlanPermissionPolicyRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PlanPermissionPolicyRequest.ProtoReflect.Descriptor instead.
 func (*PlanPermissionPolicyRequest) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_api_service_proto_rawDescGZIP(), []int{153}
+	return file_agent_manager_v1_api_service_proto_rawDescGZIP(), []int{161}
 }
 
 type PlanPermissionPolicyResponse struct {
@@ -10140,7 +10779,7 @@ type PlanPermissionPolicyResponse struct {
 
 func (x *PlanPermissionPolicyResponse) Reset() {
 	*x = PlanPermissionPolicyResponse{}
-	mi := &file_agent_manager_v1_api_service_proto_msgTypes[154]
+	mi := &file_agent_manager_v1_api_service_proto_msgTypes[162]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -10152,7 +10791,7 @@ func (x *PlanPermissionPolicyResponse) String() string {
 func (*PlanPermissionPolicyResponse) ProtoMessage() {}
 
 func (x *PlanPermissionPolicyResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_api_service_proto_msgTypes[154]
+	mi := &file_agent_manager_v1_api_service_proto_msgTypes[162]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -10165,7 +10804,7 @@ func (x *PlanPermissionPolicyResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PlanPermissionPolicyResponse.ProtoReflect.Descriptor instead.
 func (*PlanPermissionPolicyResponse) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_api_service_proto_rawDescGZIP(), []int{154}
+	return file_agent_manager_v1_api_service_proto_rawDescGZIP(), []int{162}
 }
 
 func (x *PlanPermissionPolicyResponse) GetPlan() *PermissionPolicyPlan {
@@ -10184,7 +10823,7 @@ type ReconcilePermissionPolicyRequest struct {
 
 func (x *ReconcilePermissionPolicyRequest) Reset() {
 	*x = ReconcilePermissionPolicyRequest{}
-	mi := &file_agent_manager_v1_api_service_proto_msgTypes[155]
+	mi := &file_agent_manager_v1_api_service_proto_msgTypes[163]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -10196,7 +10835,7 @@ func (x *ReconcilePermissionPolicyRequest) String() string {
 func (*ReconcilePermissionPolicyRequest) ProtoMessage() {}
 
 func (x *ReconcilePermissionPolicyRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_api_service_proto_msgTypes[155]
+	mi := &file_agent_manager_v1_api_service_proto_msgTypes[163]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -10209,7 +10848,7 @@ func (x *ReconcilePermissionPolicyRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ReconcilePermissionPolicyRequest.ProtoReflect.Descriptor instead.
 func (*ReconcilePermissionPolicyRequest) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_api_service_proto_rawDescGZIP(), []int{155}
+	return file_agent_manager_v1_api_service_proto_rawDescGZIP(), []int{163}
 }
 
 func (x *ReconcilePermissionPolicyRequest) GetExplicitlyAuthorized() bool {
@@ -10228,7 +10867,7 @@ type ReconcilePermissionPolicyResponse struct {
 
 func (x *ReconcilePermissionPolicyResponse) Reset() {
 	*x = ReconcilePermissionPolicyResponse{}
-	mi := &file_agent_manager_v1_api_service_proto_msgTypes[156]
+	mi := &file_agent_manager_v1_api_service_proto_msgTypes[164]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -10240,7 +10879,7 @@ func (x *ReconcilePermissionPolicyResponse) String() string {
 func (*ReconcilePermissionPolicyResponse) ProtoMessage() {}
 
 func (x *ReconcilePermissionPolicyResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_api_service_proto_msgTypes[156]
+	mi := &file_agent_manager_v1_api_service_proto_msgTypes[164]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -10253,7 +10892,7 @@ func (x *ReconcilePermissionPolicyResponse) ProtoReflect() protoreflect.Message 
 
 // Deprecated: Use ReconcilePermissionPolicyResponse.ProtoReflect.Descriptor instead.
 func (*ReconcilePermissionPolicyResponse) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_api_service_proto_rawDescGZIP(), []int{156}
+	return file_agent_manager_v1_api_service_proto_rawDescGZIP(), []int{164}
 }
 
 func (x *ReconcilePermissionPolicyResponse) GetResult() *PermissionPolicyReconcileResult {
@@ -10271,7 +10910,7 @@ type DoctorPermissionPolicyRequest struct {
 
 func (x *DoctorPermissionPolicyRequest) Reset() {
 	*x = DoctorPermissionPolicyRequest{}
-	mi := &file_agent_manager_v1_api_service_proto_msgTypes[157]
+	mi := &file_agent_manager_v1_api_service_proto_msgTypes[165]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -10283,7 +10922,7 @@ func (x *DoctorPermissionPolicyRequest) String() string {
 func (*DoctorPermissionPolicyRequest) ProtoMessage() {}
 
 func (x *DoctorPermissionPolicyRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_api_service_proto_msgTypes[157]
+	mi := &file_agent_manager_v1_api_service_proto_msgTypes[165]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -10296,7 +10935,7 @@ func (x *DoctorPermissionPolicyRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DoctorPermissionPolicyRequest.ProtoReflect.Descriptor instead.
 func (*DoctorPermissionPolicyRequest) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_api_service_proto_rawDescGZIP(), []int{157}
+	return file_agent_manager_v1_api_service_proto_rawDescGZIP(), []int{165}
 }
 
 type DoctorPermissionPolicyResponse struct {
@@ -10311,7 +10950,7 @@ type DoctorPermissionPolicyResponse struct {
 
 func (x *DoctorPermissionPolicyResponse) Reset() {
 	*x = DoctorPermissionPolicyResponse{}
-	mi := &file_agent_manager_v1_api_service_proto_msgTypes[158]
+	mi := &file_agent_manager_v1_api_service_proto_msgTypes[166]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -10323,7 +10962,7 @@ func (x *DoctorPermissionPolicyResponse) String() string {
 func (*DoctorPermissionPolicyResponse) ProtoMessage() {}
 
 func (x *DoctorPermissionPolicyResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_api_service_proto_msgTypes[158]
+	mi := &file_agent_manager_v1_api_service_proto_msgTypes[166]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -10336,7 +10975,7 @@ func (x *DoctorPermissionPolicyResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DoctorPermissionPolicyResponse.ProtoReflect.Descriptor instead.
 func (*DoctorPermissionPolicyResponse) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_api_service_proto_rawDescGZIP(), []int{158}
+	return file_agent_manager_v1_api_service_proto_rawDescGZIP(), []int{166}
 }
 
 func (x *DoctorPermissionPolicyResponse) GetStatus() *PermissionPolicyStatus {
@@ -10382,7 +11021,7 @@ type PurgeDataRequest struct {
 
 func (x *PurgeDataRequest) Reset() {
 	*x = PurgeDataRequest{}
-	mi := &file_agent_manager_v1_api_service_proto_msgTypes[159]
+	mi := &file_agent_manager_v1_api_service_proto_msgTypes[167]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -10394,7 +11033,7 @@ func (x *PurgeDataRequest) String() string {
 func (*PurgeDataRequest) ProtoMessage() {}
 
 func (x *PurgeDataRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_api_service_proto_msgTypes[159]
+	mi := &file_agent_manager_v1_api_service_proto_msgTypes[167]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -10407,7 +11046,7 @@ func (x *PurgeDataRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PurgeDataRequest.ProtoReflect.Descriptor instead.
 func (*PurgeDataRequest) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_api_service_proto_rawDescGZIP(), []int{159}
+	return file_agent_manager_v1_api_service_proto_rawDescGZIP(), []int{167}
 }
 
 func (x *PurgeDataRequest) GetPattern() string {
@@ -10443,7 +11082,7 @@ type PurgeCounts struct {
 
 func (x *PurgeCounts) Reset() {
 	*x = PurgeCounts{}
-	mi := &file_agent_manager_v1_api_service_proto_msgTypes[160]
+	mi := &file_agent_manager_v1_api_service_proto_msgTypes[168]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -10455,7 +11094,7 @@ func (x *PurgeCounts) String() string {
 func (*PurgeCounts) ProtoMessage() {}
 
 func (x *PurgeCounts) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_api_service_proto_msgTypes[160]
+	mi := &file_agent_manager_v1_api_service_proto_msgTypes[168]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -10468,7 +11107,7 @@ func (x *PurgeCounts) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PurgeCounts.ProtoReflect.Descriptor instead.
 func (*PurgeCounts) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_api_service_proto_rawDescGZIP(), []int{160}
+	return file_agent_manager_v1_api_service_proto_rawDescGZIP(), []int{168}
 }
 
 func (x *PurgeCounts) GetProfiles() int32 {
@@ -10507,7 +11146,7 @@ type PurgeDataResponse struct {
 
 func (x *PurgeDataResponse) Reset() {
 	*x = PurgeDataResponse{}
-	mi := &file_agent_manager_v1_api_service_proto_msgTypes[161]
+	mi := &file_agent_manager_v1_api_service_proto_msgTypes[169]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -10519,7 +11158,7 @@ func (x *PurgeDataResponse) String() string {
 func (*PurgeDataResponse) ProtoMessage() {}
 
 func (x *PurgeDataResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_api_service_proto_msgTypes[161]
+	mi := &file_agent_manager_v1_api_service_proto_msgTypes[169]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -10532,7 +11171,7 @@ func (x *PurgeDataResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PurgeDataResponse.ProtoReflect.Descriptor instead.
 func (*PurgeDataResponse) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_api_service_proto_rawDescGZIP(), []int{161}
+	return file_agent_manager_v1_api_service_proto_rawDescGZIP(), []int{169}
 }
 
 func (x *PurgeDataResponse) GetMatched() *PurgeCounts {
@@ -10569,7 +11208,7 @@ type InvestigationSubject struct {
 
 func (x *InvestigationSubject) Reset() {
 	*x = InvestigationSubject{}
-	mi := &file_agent_manager_v1_api_service_proto_msgTypes[162]
+	mi := &file_agent_manager_v1_api_service_proto_msgTypes[170]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -10581,7 +11220,7 @@ func (x *InvestigationSubject) String() string {
 func (*InvestigationSubject) ProtoMessage() {}
 
 func (x *InvestigationSubject) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_api_service_proto_msgTypes[162]
+	mi := &file_agent_manager_v1_api_service_proto_msgTypes[170]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -10594,7 +11233,7 @@ func (x *InvestigationSubject) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use InvestigationSubject.ProtoReflect.Descriptor instead.
 func (*InvestigationSubject) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_api_service_proto_rawDescGZIP(), []int{162}
+	return file_agent_manager_v1_api_service_proto_rawDescGZIP(), []int{170}
 }
 
 func (x *InvestigationSubject) GetOwner() string {
@@ -10648,7 +11287,7 @@ type InvestigationEvidenceReference struct {
 
 func (x *InvestigationEvidenceReference) Reset() {
 	*x = InvestigationEvidenceReference{}
-	mi := &file_agent_manager_v1_api_service_proto_msgTypes[163]
+	mi := &file_agent_manager_v1_api_service_proto_msgTypes[171]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -10660,7 +11299,7 @@ func (x *InvestigationEvidenceReference) String() string {
 func (*InvestigationEvidenceReference) ProtoMessage() {}
 
 func (x *InvestigationEvidenceReference) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_api_service_proto_msgTypes[163]
+	mi := &file_agent_manager_v1_api_service_proto_msgTypes[171]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -10673,7 +11312,7 @@ func (x *InvestigationEvidenceReference) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use InvestigationEvidenceReference.ProtoReflect.Descriptor instead.
 func (*InvestigationEvidenceReference) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_api_service_proto_rawDescGZIP(), []int{163}
+	return file_agent_manager_v1_api_service_proto_rawDescGZIP(), []int{171}
 }
 
 func (x *InvestigationEvidenceReference) GetOwner() string {
@@ -10728,7 +11367,7 @@ type InvestigationMethodReference struct {
 
 func (x *InvestigationMethodReference) Reset() {
 	*x = InvestigationMethodReference{}
-	mi := &file_agent_manager_v1_api_service_proto_msgTypes[164]
+	mi := &file_agent_manager_v1_api_service_proto_msgTypes[172]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -10740,7 +11379,7 @@ func (x *InvestigationMethodReference) String() string {
 func (*InvestigationMethodReference) ProtoMessage() {}
 
 func (x *InvestigationMethodReference) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_api_service_proto_msgTypes[164]
+	mi := &file_agent_manager_v1_api_service_proto_msgTypes[172]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -10753,7 +11392,7 @@ func (x *InvestigationMethodReference) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use InvestigationMethodReference.ProtoReflect.Descriptor instead.
 func (*InvestigationMethodReference) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_api_service_proto_rawDescGZIP(), []int{164}
+	return file_agent_manager_v1_api_service_proto_rawDescGZIP(), []int{172}
 }
 
 func (x *InvestigationMethodReference) GetSkillId() string {
@@ -10784,7 +11423,7 @@ type InvestigationEvidencePolicy struct {
 
 func (x *InvestigationEvidencePolicy) Reset() {
 	*x = InvestigationEvidencePolicy{}
-	mi := &file_agent_manager_v1_api_service_proto_msgTypes[165]
+	mi := &file_agent_manager_v1_api_service_proto_msgTypes[173]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -10796,7 +11435,7 @@ func (x *InvestigationEvidencePolicy) String() string {
 func (*InvestigationEvidencePolicy) ProtoMessage() {}
 
 func (x *InvestigationEvidencePolicy) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_api_service_proto_msgTypes[165]
+	mi := &file_agent_manager_v1_api_service_proto_msgTypes[173]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -10809,7 +11448,7 @@ func (x *InvestigationEvidencePolicy) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use InvestigationEvidencePolicy.ProtoReflect.Descriptor instead.
 func (*InvestigationEvidencePolicy) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_api_service_proto_rawDescGZIP(), []int{165}
+	return file_agent_manager_v1_api_service_proto_rawDescGZIP(), []int{173}
 }
 
 func (x *InvestigationEvidencePolicy) GetMode() string {
@@ -10866,7 +11505,7 @@ type InvestigationBudget struct {
 
 func (x *InvestigationBudget) Reset() {
 	*x = InvestigationBudget{}
-	mi := &file_agent_manager_v1_api_service_proto_msgTypes[166]
+	mi := &file_agent_manager_v1_api_service_proto_msgTypes[174]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -10878,7 +11517,7 @@ func (x *InvestigationBudget) String() string {
 func (*InvestigationBudget) ProtoMessage() {}
 
 func (x *InvestigationBudget) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_api_service_proto_msgTypes[166]
+	mi := &file_agent_manager_v1_api_service_proto_msgTypes[174]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -10891,7 +11530,7 @@ func (x *InvestigationBudget) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use InvestigationBudget.ProtoReflect.Descriptor instead.
 func (*InvestigationBudget) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_api_service_proto_rawDescGZIP(), []int{166}
+	return file_agent_manager_v1_api_service_proto_rawDescGZIP(), []int{174}
 }
 
 func (x *InvestigationBudget) GetMaxDelegatedRuns() int32 {
@@ -10932,7 +11571,7 @@ type InvestigationRecommendationPolicy struct {
 
 func (x *InvestigationRecommendationPolicy) Reset() {
 	*x = InvestigationRecommendationPolicy{}
-	mi := &file_agent_manager_v1_api_service_proto_msgTypes[167]
+	mi := &file_agent_manager_v1_api_service_proto_msgTypes[175]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -10944,7 +11583,7 @@ func (x *InvestigationRecommendationPolicy) String() string {
 func (*InvestigationRecommendationPolicy) ProtoMessage() {}
 
 func (x *InvestigationRecommendationPolicy) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_api_service_proto_msgTypes[167]
+	mi := &file_agent_manager_v1_api_service_proto_msgTypes[175]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -10957,7 +11596,7 @@ func (x *InvestigationRecommendationPolicy) ProtoReflect() protoreflect.Message 
 
 // Deprecated: Use InvestigationRecommendationPolicy.ProtoReflect.Descriptor instead.
 func (*InvestigationRecommendationPolicy) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_api_service_proto_rawDescGZIP(), []int{167}
+	return file_agent_manager_v1_api_service_proto_rawDescGZIP(), []int{175}
 }
 
 func (x *InvestigationRecommendationPolicy) GetAllowedKinds() []string {
@@ -10984,7 +11623,7 @@ type InvestigationProvenance struct {
 
 func (x *InvestigationProvenance) Reset() {
 	*x = InvestigationProvenance{}
-	mi := &file_agent_manager_v1_api_service_proto_msgTypes[168]
+	mi := &file_agent_manager_v1_api_service_proto_msgTypes[176]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -10996,7 +11635,7 @@ func (x *InvestigationProvenance) String() string {
 func (*InvestigationProvenance) ProtoMessage() {}
 
 func (x *InvestigationProvenance) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_api_service_proto_msgTypes[168]
+	mi := &file_agent_manager_v1_api_service_proto_msgTypes[176]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -11009,7 +11648,7 @@ func (x *InvestigationProvenance) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use InvestigationProvenance.ProtoReflect.Descriptor instead.
 func (*InvestigationProvenance) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_api_service_proto_rawDescGZIP(), []int{168}
+	return file_agent_manager_v1_api_service_proto_rawDescGZIP(), []int{176}
 }
 
 func (x *InvestigationProvenance) GetKind() string {
@@ -11045,7 +11684,7 @@ type InvestigationRequest struct {
 
 func (x *InvestigationRequest) Reset() {
 	*x = InvestigationRequest{}
-	mi := &file_agent_manager_v1_api_service_proto_msgTypes[169]
+	mi := &file_agent_manager_v1_api_service_proto_msgTypes[177]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -11057,7 +11696,7 @@ func (x *InvestigationRequest) String() string {
 func (*InvestigationRequest) ProtoMessage() {}
 
 func (x *InvestigationRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_api_service_proto_msgTypes[169]
+	mi := &file_agent_manager_v1_api_service_proto_msgTypes[177]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -11070,7 +11709,7 @@ func (x *InvestigationRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use InvestigationRequest.ProtoReflect.Descriptor instead.
 func (*InvestigationRequest) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_api_service_proto_rawDescGZIP(), []int{169}
+	return file_agent_manager_v1_api_service_proto_rawDescGZIP(), []int{177}
 }
 
 func (x *InvestigationRequest) GetSchemaVersion() string {
@@ -11170,7 +11809,7 @@ type InvestigationRecord struct {
 
 func (x *InvestigationRecord) Reset() {
 	*x = InvestigationRecord{}
-	mi := &file_agent_manager_v1_api_service_proto_msgTypes[170]
+	mi := &file_agent_manager_v1_api_service_proto_msgTypes[178]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -11182,7 +11821,7 @@ func (x *InvestigationRecord) String() string {
 func (*InvestigationRecord) ProtoMessage() {}
 
 func (x *InvestigationRecord) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_api_service_proto_msgTypes[170]
+	mi := &file_agent_manager_v1_api_service_proto_msgTypes[178]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -11195,7 +11834,7 @@ func (x *InvestigationRecord) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use InvestigationRecord.ProtoReflect.Descriptor instead.
 func (*InvestigationRecord) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_api_service_proto_rawDescGZIP(), []int{170}
+	return file_agent_manager_v1_api_service_proto_rawDescGZIP(), []int{178}
 }
 
 func (x *InvestigationRecord) GetInvestigationId() string {
@@ -11291,7 +11930,7 @@ type StartInvestigationRequest struct {
 
 func (x *StartInvestigationRequest) Reset() {
 	*x = StartInvestigationRequest{}
-	mi := &file_agent_manager_v1_api_service_proto_msgTypes[171]
+	mi := &file_agent_manager_v1_api_service_proto_msgTypes[179]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -11303,7 +11942,7 @@ func (x *StartInvestigationRequest) String() string {
 func (*StartInvestigationRequest) ProtoMessage() {}
 
 func (x *StartInvestigationRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_api_service_proto_msgTypes[171]
+	mi := &file_agent_manager_v1_api_service_proto_msgTypes[179]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -11316,7 +11955,7 @@ func (x *StartInvestigationRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StartInvestigationRequest.ProtoReflect.Descriptor instead.
 func (*StartInvestigationRequest) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_api_service_proto_rawDescGZIP(), []int{171}
+	return file_agent_manager_v1_api_service_proto_rawDescGZIP(), []int{179}
 }
 
 func (x *StartInvestigationRequest) GetRequest() *InvestigationRequest {
@@ -11336,7 +11975,7 @@ type StartInvestigationResponse struct {
 
 func (x *StartInvestigationResponse) Reset() {
 	*x = StartInvestigationResponse{}
-	mi := &file_agent_manager_v1_api_service_proto_msgTypes[172]
+	mi := &file_agent_manager_v1_api_service_proto_msgTypes[180]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -11348,7 +11987,7 @@ func (x *StartInvestigationResponse) String() string {
 func (*StartInvestigationResponse) ProtoMessage() {}
 
 func (x *StartInvestigationResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_api_service_proto_msgTypes[172]
+	mi := &file_agent_manager_v1_api_service_proto_msgTypes[180]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -11361,7 +12000,7 @@ func (x *StartInvestigationResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StartInvestigationResponse.ProtoReflect.Descriptor instead.
 func (*StartInvestigationResponse) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_api_service_proto_rawDescGZIP(), []int{172}
+	return file_agent_manager_v1_api_service_proto_rawDescGZIP(), []int{180}
 }
 
 func (x *StartInvestigationResponse) GetInvestigation() *InvestigationRecord {
@@ -11387,7 +12026,7 @@ type GetInvestigationRequest struct {
 
 func (x *GetInvestigationRequest) Reset() {
 	*x = GetInvestigationRequest{}
-	mi := &file_agent_manager_v1_api_service_proto_msgTypes[173]
+	mi := &file_agent_manager_v1_api_service_proto_msgTypes[181]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -11399,7 +12038,7 @@ func (x *GetInvestigationRequest) String() string {
 func (*GetInvestigationRequest) ProtoMessage() {}
 
 func (x *GetInvestigationRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_api_service_proto_msgTypes[173]
+	mi := &file_agent_manager_v1_api_service_proto_msgTypes[181]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -11412,7 +12051,7 @@ func (x *GetInvestigationRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetInvestigationRequest.ProtoReflect.Descriptor instead.
 func (*GetInvestigationRequest) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_api_service_proto_rawDescGZIP(), []int{173}
+	return file_agent_manager_v1_api_service_proto_rawDescGZIP(), []int{181}
 }
 
 func (x *GetInvestigationRequest) GetInvestigationId() string {
@@ -11432,7 +12071,7 @@ type ListInvestigationsRequest struct {
 
 func (x *ListInvestigationsRequest) Reset() {
 	*x = ListInvestigationsRequest{}
-	mi := &file_agent_manager_v1_api_service_proto_msgTypes[174]
+	mi := &file_agent_manager_v1_api_service_proto_msgTypes[182]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -11444,7 +12083,7 @@ func (x *ListInvestigationsRequest) String() string {
 func (*ListInvestigationsRequest) ProtoMessage() {}
 
 func (x *ListInvestigationsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_api_service_proto_msgTypes[174]
+	mi := &file_agent_manager_v1_api_service_proto_msgTypes[182]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -11457,7 +12096,7 @@ func (x *ListInvestigationsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListInvestigationsRequest.ProtoReflect.Descriptor instead.
 func (*ListInvestigationsRequest) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_api_service_proto_rawDescGZIP(), []int{174}
+	return file_agent_manager_v1_api_service_proto_rawDescGZIP(), []int{182}
 }
 
 func (x *ListInvestigationsRequest) GetOperationStatus() string {
@@ -11483,7 +12122,7 @@ type ListInvestigationsResponse struct {
 
 func (x *ListInvestigationsResponse) Reset() {
 	*x = ListInvestigationsResponse{}
-	mi := &file_agent_manager_v1_api_service_proto_msgTypes[175]
+	mi := &file_agent_manager_v1_api_service_proto_msgTypes[183]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -11495,7 +12134,7 @@ func (x *ListInvestigationsResponse) String() string {
 func (*ListInvestigationsResponse) ProtoMessage() {}
 
 func (x *ListInvestigationsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_api_service_proto_msgTypes[175]
+	mi := &file_agent_manager_v1_api_service_proto_msgTypes[183]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -11508,7 +12147,7 @@ func (x *ListInvestigationsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListInvestigationsResponse.ProtoReflect.Descriptor instead.
 func (*ListInvestigationsResponse) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_api_service_proto_rawDescGZIP(), []int{175}
+	return file_agent_manager_v1_api_service_proto_rawDescGZIP(), []int{183}
 }
 
 func (x *ListInvestigationsResponse) GetInvestigations() []*InvestigationRecord {
@@ -11528,7 +12167,7 @@ type WaitInvestigationRequest struct {
 
 func (x *WaitInvestigationRequest) Reset() {
 	*x = WaitInvestigationRequest{}
-	mi := &file_agent_manager_v1_api_service_proto_msgTypes[176]
+	mi := &file_agent_manager_v1_api_service_proto_msgTypes[184]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -11540,7 +12179,7 @@ func (x *WaitInvestigationRequest) String() string {
 func (*WaitInvestigationRequest) ProtoMessage() {}
 
 func (x *WaitInvestigationRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_api_service_proto_msgTypes[176]
+	mi := &file_agent_manager_v1_api_service_proto_msgTypes[184]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -11553,7 +12192,7 @@ func (x *WaitInvestigationRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WaitInvestigationRequest.ProtoReflect.Descriptor instead.
 func (*WaitInvestigationRequest) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_api_service_proto_rawDescGZIP(), []int{176}
+	return file_agent_manager_v1_api_service_proto_rawDescGZIP(), []int{184}
 }
 
 func (x *WaitInvestigationRequest) GetInvestigationId() string {
@@ -11580,7 +12219,7 @@ type WaitInvestigationResponse struct {
 
 func (x *WaitInvestigationResponse) Reset() {
 	*x = WaitInvestigationResponse{}
-	mi := &file_agent_manager_v1_api_service_proto_msgTypes[177]
+	mi := &file_agent_manager_v1_api_service_proto_msgTypes[185]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -11592,7 +12231,7 @@ func (x *WaitInvestigationResponse) String() string {
 func (*WaitInvestigationResponse) ProtoMessage() {}
 
 func (x *WaitInvestigationResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_api_service_proto_msgTypes[177]
+	mi := &file_agent_manager_v1_api_service_proto_msgTypes[185]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -11605,7 +12244,7 @@ func (x *WaitInvestigationResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WaitInvestigationResponse.ProtoReflect.Descriptor instead.
 func (*WaitInvestigationResponse) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_api_service_proto_rawDescGZIP(), []int{177}
+	return file_agent_manager_v1_api_service_proto_rawDescGZIP(), []int{185}
 }
 
 func (x *WaitInvestigationResponse) GetInvestigation() *InvestigationRecord {
@@ -11631,7 +12270,7 @@ type CancelInvestigationRequest struct {
 
 func (x *CancelInvestigationRequest) Reset() {
 	*x = CancelInvestigationRequest{}
-	mi := &file_agent_manager_v1_api_service_proto_msgTypes[178]
+	mi := &file_agent_manager_v1_api_service_proto_msgTypes[186]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -11643,7 +12282,7 @@ func (x *CancelInvestigationRequest) String() string {
 func (*CancelInvestigationRequest) ProtoMessage() {}
 
 func (x *CancelInvestigationRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_api_service_proto_msgTypes[178]
+	mi := &file_agent_manager_v1_api_service_proto_msgTypes[186]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -11656,7 +12295,7 @@ func (x *CancelInvestigationRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CancelInvestigationRequest.ProtoReflect.Descriptor instead.
 func (*CancelInvestigationRequest) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_api_service_proto_rawDescGZIP(), []int{178}
+	return file_agent_manager_v1_api_service_proto_rawDescGZIP(), []int{186}
 }
 
 func (x *CancelInvestigationRequest) GetInvestigationId() string {
@@ -11986,8 +12625,7 @@ const file_agent_manager_v1_api_service_proto_rawDesc = "" +
 	"\vprofile_key\x18\x01 \x01(\tB\t\xbaH\x06r\x04\x10\x01\x18dR\n" +
 	"profileKey\x12:\n" +
 	"\bdefaults\x18\x02 \x01(\v2\x1e.agent_manager.v1.AgentProfileR\bdefaults\x12'\n" +
-	"\x0fupdate_existing\x18\x03 \x01(\bR\x0eupdateExisting\"\xc2\n" +
-	"\n" +
+	"\x0fupdate_existing\x18\x03 \x01(\bR\x0eupdateExisting\"\x87\v\n" +
 	"\x10CreateRunRequest\x12!\n" +
 	"\atask_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\x06taskId\x12-\n" +
 	"\x10agent_profile_id\x18\x02 \x01(\tH\x00R\x0eagentProfileId\x88\x01\x01\x12\x15\n" +
@@ -12011,7 +12649,9 @@ const file_agent_manager_v1_api_service_proto_rawDesc = "" +
 	"\x0fwork_references\x18\x0f \x03(\v2-.vrooli.vrooli_events.v1.domain.WorkReferenceB\b\xbaH\x05\x92\x01\x02\x10dR\x0eworkReferences\x12T\n" +
 	"\x10requested_scopes\x18\x10 \x01(\v2).agent_manager.v1.RunIdentityScopeRequestR\x0frequestedScopes\x12[\n" +
 	"\x15execution_preferences\x18\x11 \x01(\v2&.agent_manager.v1.ExecutionPreferencesR\x14executionPreferences\x12<\n" +
-	"\x10target_instances\x18\x12 \x03(\tB\x11\xbaH\x0e\x92\x01\v\x10\x10\"\ar\x05\x10\x03\x18\x80\x02R\x0ftargetInstances\x1a>\n" +
+	"\x10target_instances\x18\x12 \x03(\tB\x11\xbaH\x0e\x92\x01\v\x10\x10\"\ar\x05\x10\x03\x18\x80\x02R\x0ftargetInstances\x122\n" +
+	"\fcharter_path\x18\x13 \x01(\tB\n" +
+	"\xbaH\ar\x05\x10\x02\x18\x80 H\vR\vcharterPath\x88\x01\x01\x1a>\n" +
 	"\x10EnvironmentEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01B\x13\n" +
@@ -12025,7 +12665,8 @@ const file_agent_manager_v1_api_service_proto_rawDesc = "" +
 	"\x14_existing_sandbox_idB\x12\n" +
 	"\x10_conversation_idB\x10\n" +
 	"\x0e_parent_run_idB\x11\n" +
-	"\x0f_execution_mode\"\x84\x01\n" +
+	"\x0f_execution_modeB\x0f\n" +
+	"\r_charter_path\"\x84\x01\n" +
 	"\x17RunIdentityScopeRequest\x12)\n" +
 	"\x06scopes\x18\x01 \x03(\tB\x11\xbaH\x0e\x92\x01\v\x10d\"\ar\x05\x10\x01\x18\x80\x02R\x06scopes\x12>\n" +
 	"\x16expected_owner_subject\x18\x02 \x01(\tB\b\xbaH\x05r\x03\x18\x80\x04R\x14expectedOwnerSubject\"\xb0\x02\n" +
@@ -12167,7 +12808,7 @@ const file_agent_manager_v1_api_service_proto_rawDesc = "" +
 	"\x12GetRunByTagRequest\x12\x19\n" +
 	"\x03tag\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x03tag\">\n" +
 	"\x13GetRunByTagResponse\x12'\n" +
-	"\x03run\x18\x01 \x01(\v2\x15.agent_manager.v1.RunR\x03run\"\xe5\x03\n" +
+	"\x03run\x18\x01 \x01(\v2\x15.agent_manager.v1.RunR\x03run\"\xaa\x04\n" +
 	"\x0fListRunsRequest\x128\n" +
 	"\x06status\x18\x01 \x01(\x0e2\x1b.agent_manager.v1.RunStatusH\x00R\x06status\x88\x01\x01\x12\x1c\n" +
 	"\atask_id\x18\x02 \x01(\tH\x01R\x06taskId\x88\x01\x01\x12-\n" +
@@ -12178,7 +12819,8 @@ const file_agent_manager_v1_api_service_proto_rawDesc = "" +
 	"\xbaH\a\x1a\x05\x18\x88'(\x01H\x04R\x05limit\x88\x01\x01\x12$\n" +
 	"\x06offset\x18\x06 \x01(\x05B\a\xbaH\x04\x1a\x02(\x00H\x05R\x06offset\x88\x01\x01\x12 \n" +
 	"\ttop_level\x18\a \x01(\bH\x06R\btopLevel\x88\x01\x01\x12O\n" +
-	"\x06origin\x18\b \x01(\tB2\xbaH/r-R\ragent_managerR\x11operator_sessionsR\tworkflowsH\aR\x06origin\x88\x01\x01B\t\n" +
+	"\x06origin\x18\b \x01(\tB2\xbaH/r-R\ragent_managerR\x11operator_sessionsR\tworkflowsH\aR\x06origin\x88\x01\x01\x121\n" +
+	"\rparent_run_id\x18\t \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01H\bR\vparentRunId\x88\x01\x01B\t\n" +
 	"\a_statusB\n" +
 	"\n" +
 	"\b_task_idB\x13\n" +
@@ -12188,7 +12830,66 @@ const file_agent_manager_v1_api_service_proto_rawDesc = "" +
 	"\a_offsetB\f\n" +
 	"\n" +
 	"_top_levelB\t\n" +
-	"\a_origin\"n\n" +
+	"\a_originB\x10\n" +
+	"\x0e_parent_run_id\"f\n" +
+	"\x0eWaitRunRequest\x12\x1f\n" +
+	"\x06run_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\x05runId\x123\n" +
+	"\x0ftimeout_seconds\x18\x02 \x01(\x05B\n" +
+	"\xbaH\a\x1a\x05\x18\x84\a(\x01R\x0etimeoutSeconds\"T\n" +
+	"\x0fWaitRunResponse\x12'\n" +
+	"\x03run\x18\x01 \x01(\v2\x15.agent_manager.v1.RunR\x03run\x12\x18\n" +
+	"\aoutcome\x18\x02 \x01(\tR\aoutcome\"\xbc\x01\n" +
+	"\x16WaitRunChildrenRequest\x12,\n" +
+	"\rparent_run_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\vparentRunId\x123\n" +
+	"\x0ftimeout_seconds\x18\x02 \x01(\x05B\n" +
+	"\xbaH\a\x1a\x05\x18\x84\a(\x01R\x0etimeoutSeconds\x125\n" +
+	"\x05since\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampH\x00R\x05since\x88\x01\x01B\b\n" +
+	"\x06_since\"\x89\x01\n" +
+	"\x0fRunChildSummary\x12\x15\n" +
+	"\x06run_id\x18\x01 \x01(\tR\x05runId\x12\x16\n" +
+	"\x06status\x18\x02 \x01(\tR\x06status\x12:\n" +
+	"\bended_at\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampH\x00R\aendedAt\x88\x01\x01B\v\n" +
+	"\t_ended_at\"\xeb\x01\n" +
+	"\x17WaitRunChildrenResponse\x12\x1f\n" +
+	"\vwake_reason\x18\x01 \x01(\tR\n" +
+	"wakeReason\x127\n" +
+	"\x05ended\x18\x02 \x03(\v2!.agent_manager.v1.RunChildSummaryR\x05ended\x129\n" +
+	"\x06active\x18\x03 \x03(\v2!.agent_manager.v1.RunChildSummaryR\x06active\x12;\n" +
+	"\vobserved_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\n" +
+	"observedAt\"4\n" +
+	"\x11GetRunTreeRequest\x12\x1f\n" +
+	"\x06run_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\x05runId\"\xcb\x06\n" +
+	"\vRunTreeNode\x12\x15\n" +
+	"\x06run_id\x18\x01 \x01(\tR\x05runId\x12'\n" +
+	"\rparent_run_id\x18\x02 \x01(\tH\x00R\vparentRunId\x88\x01\x01\x12\x14\n" +
+	"\x05depth\x18\x03 \x01(\x05R\x05depth\x123\n" +
+	"\x06status\x18\x04 \x01(\x0e2\x1b.agent_manager.v1.RunStatusR\x06status\x12\x14\n" +
+	"\x05label\x18\x05 \x01(\tR\x05label\x12\x16\n" +
+	"\x06runner\x18\x06 \x01(\tR\x06runner\x12\x14\n" +
+	"\x05model\x18\a \x01(\tR\x05model\x12#\n" +
+	"\rgoal_delivery\x18\b \x01(\tR\fgoalDelivery\x12>\n" +
+	"\n" +
+	"started_at\x18\t \x01(\v2\x1a.google.protobuf.TimestampH\x01R\tstartedAt\x88\x01\x01\x12:\n" +
+	"\bended_at\x18\n" +
+	" \x01(\v2\x1a.google.protobuf.TimestampH\x02R\aendedAt\x88\x01\x01\x12'\n" +
+	"\x0felapsed_seconds\x18\v \x01(\x03R\x0eelapsedSeconds\x12'\n" +
+	"\x0fweighted_tokens\x18\f \x01(\x01R\x0eweightedTokens\x122\n" +
+	"\x15weighted_tokens_known\x18\r \x01(\bR\x13weightedTokensKnown\x12\x1a\n" +
+	"\borphaned\x18\x0e \x01(\bR\borphaned\x12!\n" +
+	"\fcharter_path\x18\x0f \x01(\tR\vcharterPath\x129\n" +
+	"\bchildren\x18\x10 \x03(\v2\x1d.agent_manager.v1.RunTreeNodeR\bchildren\x12I\n" +
+	"\x10owner_expires_at\x18\x11 \x01(\v2\x1a.google.protobuf.TimestampH\x03R\x0eownerExpiresAt\x88\x01\x01\x12>\n" +
+	"\tstep_back\x18\x12 \x03(\v2!.agent_manager.v1.StepBackTriggerR\bstepBackB\x10\n" +
+	"\x0e_parent_run_idB\r\n" +
+	"\v_started_atB\v\n" +
+	"\t_ended_atB\x13\n" +
+	"\x11_owner_expires_at\"\xa1\x01\n" +
+	"\aRunTree\x121\n" +
+	"\x04root\x18\x01 \x01(\v2\x1d.agent_manager.v1.RunTreeNodeR\x04root\x12\x1d\n" +
+	"\n" +
+	"node_count\x18\x02 \x01(\x05R\tnodeCount\x12\x1c\n" +
+	"\ttruncated\x18\x03 \x01(\bR\ttruncated\x12&\n" +
+	"\x0fmax_child_depth\x18\x04 \x01(\x05R\rmaxChildDepth\"n\n" +
 	"\x10ListRunsResponse\x12)\n" +
 	"\x04runs\x18\x01 \x03(\v2\x15.agent_manager.v1.RunR\x04runs\x12\x14\n" +
 	"\x05total\x18\x02 \x01(\x05R\x05total\x12\x19\n" +
@@ -12634,7 +13335,7 @@ const file_agent_manager_v1_api_service_proto_rawDesc = "" +
 	"\x18PURGE_TARGET_UNSPECIFIED\x10\x00\x12\x19\n" +
 	"\x15PURGE_TARGET_PROFILES\x10\x01\x12\x16\n" +
 	"\x12PURGE_TARGET_TASKS\x10\x02\x12\x15\n" +
-	"\x11PURGE_TARGET_RUNS\x10\x032\xfcW\n" +
+	"\x11PURGE_TARGET_RUNS\x10\x032\x82Z\n" +
 	"\x13AgentManagerService\x12Z\n" +
 	"\vListEfforts\x12$.agent_manager.v1.ListEffortsRequest\x1a%.agent_manager.v1.ListEffortsResponse\x12X\n" +
 	"\x0eGetEffortBoard\x12'.agent_manager.v1.GetEffortBoardRequest\x1a\x1d.agent_manager.v1.EffortBoard\x12Y\n" +
@@ -12704,7 +13405,11 @@ const file_agent_manager_v1_api_service_proto_rawDesc = "" +
 	"\x06GetRun\x12\x1f.agent_manager.v1.GetRunRequest\x1a .agent_manager.v1.GetRunResponse\"\x1d\x82\xd3\xe4\x93\x02\x17\x12\x15/api/v1/runs/{run_id}\x12x\n" +
 	"\fGetRunReport\x12%.agent_manager.v1.GetRunReportRequest\x1a\x1b.agent_manager.v1.RunReport\"$\x82\xd3\xe4\x93\x02\x1e\x12\x1c/api/v1/runs/{run_id}/report\x12\x88\x01\n" +
 	"\x10GetRunAccounting\x12).agent_manager.v1.GetRunAccountingRequest\x1a\x1f.agent_manager.v1.RunAccounting\"(\x82\xd3\xe4\x93\x02\"\x12 /api/v1/runs/{run_id}/accounting\x12g\n" +
-	"\bListRuns\x12!.agent_manager.v1.ListRunsRequest\x1a\".agent_manager.v1.ListRunsResponse\"\x14\x82\xd3\xe4\x93\x02\x0e\x12\f/api/v1/runs\x12\x83\x01\n" +
+	"\bListRuns\x12!.agent_manager.v1.ListRunsRequest\x1a\".agent_manager.v1.ListRunsResponse\"\x14\x82\xd3\xe4\x93\x02\x0e\x12\f/api/v1/runs\x12N\n" +
+	"\aWaitRun\x12 .agent_manager.v1.WaitRunRequest\x1a!.agent_manager.v1.WaitRunResponse\x12f\n" +
+	"\x0fWaitRunChildren\x12(.agent_manager.v1.WaitRunChildrenRequest\x1a).agent_manager.v1.WaitRunChildrenResponse\x12L\n" +
+	"\n" +
+	"GetRunTree\x12#.agent_manager.v1.GetRunTreeRequest\x1a\x19.agent_manager.v1.RunTree\x12\x83\x01\n" +
 	"\fGetRunEvents\x12%.agent_manager.v1.GetRunEventsRequest\x1a&.agent_manager.v1.GetRunEventsResponse\"$\x82\xd3\xe4\x93\x02\x1e\x12\x1c/api/v1/runs/{run_id}/events\x12Z\n" +
 	"\vProbeRunner\x12$.agent_manager.v1.ProbeRunnerRequest\x1a%.agent_manager.v1.ProbeRunnerResponse\x12r\n" +
 	"\x13GetRolePolicyStatus\x12,.agent_manager.v1.GetRolePolicyStatusRequest\x1a-.agent_manager.v1.GetRolePolicyStatusResponse\x12\x9a\x01\n" +
@@ -12734,7 +13439,7 @@ func file_agent_manager_v1_api_service_proto_rawDescGZIP() []byte {
 }
 
 var file_agent_manager_v1_api_service_proto_enumTypes = make([]protoimpl.EnumInfo, 3)
-var file_agent_manager_v1_api_service_proto_msgTypes = make([]protoimpl.MessageInfo, 184)
+var file_agent_manager_v1_api_service_proto_msgTypes = make([]protoimpl.MessageInfo, 192)
 var file_agent_manager_v1_api_service_proto_goTypes = []any{
 	(ProfileReconcileStatus)(0),                            // 0: agent_manager.v1.ProfileReconcileStatus
 	(WorkflowReconcileStatus)(0),                           // 1: agent_manager.v1.WorkflowReconcileStatus
@@ -12826,513 +13531,541 @@ var file_agent_manager_v1_api_service_proto_goTypes = []any{
 	(*GetRunByTagRequest)(nil),                             // 87: agent_manager.v1.GetRunByTagRequest
 	(*GetRunByTagResponse)(nil),                            // 88: agent_manager.v1.GetRunByTagResponse
 	(*ListRunsRequest)(nil),                                // 89: agent_manager.v1.ListRunsRequest
-	(*ListRunsResponse)(nil),                               // 90: agent_manager.v1.ListRunsResponse
-	(*StopRunRequest)(nil),                                 // 91: agent_manager.v1.StopRunRequest
-	(*StopRunResponse)(nil),                                // 92: agent_manager.v1.StopRunResponse
-	(*StopRunByTagRequest)(nil),                            // 93: agent_manager.v1.StopRunByTagRequest
-	(*StopRunByTagResponse)(nil),                           // 94: agent_manager.v1.StopRunByTagResponse
-	(*StopAllRunsRequest)(nil),                             // 95: agent_manager.v1.StopAllRunsRequest
-	(*StopAllRunsResponse)(nil),                            // 96: agent_manager.v1.StopAllRunsResponse
-	(*QuiesceScenarioRequest)(nil),                         // 97: agent_manager.v1.QuiesceScenarioRequest
-	(*QuiesceScenarioResponse)(nil),                        // 98: agent_manager.v1.QuiesceScenarioResponse
-	(*QuiesceResult)(nil),                                  // 99: agent_manager.v1.QuiesceResult
-	(*QuiesceRunRef)(nil),                                  // 100: agent_manager.v1.QuiesceRunRef
-	(*RecoverRunRequest)(nil),                              // 101: agent_manager.v1.RecoverRunRequest
-	(*RecoverRunResponse)(nil),                             // 102: agent_manager.v1.RecoverRunResponse
-	(*GetRunEventsRequest)(nil),                            // 103: agent_manager.v1.GetRunEventsRequest
-	(*GetRunEventsResponse)(nil),                           // 104: agent_manager.v1.GetRunEventsResponse
-	(*RunEventSummary)(nil),                                // 105: agent_manager.v1.RunEventSummary
-	(*GetRunDiffRequest)(nil),                              // 106: agent_manager.v1.GetRunDiffRequest
-	(*GetRunDiffResponse)(nil),                             // 107: agent_manager.v1.GetRunDiffResponse
-	(*ApproveRunRequest)(nil),                              // 108: agent_manager.v1.ApproveRunRequest
-	(*ApproveRunResponse)(nil),                             // 109: agent_manager.v1.ApproveRunResponse
-	(*RejectRunRequest)(nil),                               // 110: agent_manager.v1.RejectRunRequest
-	(*RejectRunResponse)(nil),                              // 111: agent_manager.v1.RejectRunResponse
-	(*PartialApproveRunRequest)(nil),                       // 112: agent_manager.v1.PartialApproveRunRequest
-	(*PartialApproveRunResponse)(nil),                      // 113: agent_manager.v1.PartialApproveRunResponse
-	(*GetRunnerStatusRequest)(nil),                         // 114: agent_manager.v1.GetRunnerStatusRequest
-	(*GetRunnerStatusResponse)(nil),                        // 115: agent_manager.v1.GetRunnerStatusResponse
-	(*ProbeRunnerRequest)(nil),                             // 116: agent_manager.v1.ProbeRunnerRequest
-	(*ProbeRunnerResponse)(nil),                            // 117: agent_manager.v1.ProbeRunnerResponse
-	(*RolePolicyDiagnostic)(nil),                           // 118: agent_manager.v1.RolePolicyDiagnostic
-	(*RolePolicyRequirement)(nil),                          // 119: agent_manager.v1.RolePolicyRequirement
-	(*RolePolicyReloadAttempt)(nil),                        // 120: agent_manager.v1.RolePolicyReloadAttempt
-	(*RolePolicyStatus)(nil),                               // 121: agent_manager.v1.RolePolicyStatus
-	(*RolePolicyCatalogMetadata)(nil),                      // 122: agent_manager.v1.RolePolicyCatalogMetadata
-	(*RolePolicyCandidate)(nil),                            // 123: agent_manager.v1.RolePolicyCandidate
-	(*RolePolicyDefinition)(nil),                           // 124: agent_manager.v1.RolePolicyDefinition
-	(*RolePolicyCatalog)(nil),                              // 125: agent_manager.v1.RolePolicyCatalog
-	(*GetRolePolicyStatusRequest)(nil),                     // 126: agent_manager.v1.GetRolePolicyStatusRequest
-	(*GetRolePolicyStatusResponse)(nil),                    // 127: agent_manager.v1.GetRolePolicyStatusResponse
-	(*GetRolePolicyCatalogRequest)(nil),                    // 128: agent_manager.v1.GetRolePolicyCatalogRequest
-	(*GetRolePolicyCatalogResponse)(nil),                   // 129: agent_manager.v1.GetRolePolicyCatalogResponse
-	(*ValidateRolePolicyCatalogRequest)(nil),               // 130: agent_manager.v1.ValidateRolePolicyCatalogRequest
-	(*ValidateRolePolicyCatalogResponse)(nil),              // 131: agent_manager.v1.ValidateRolePolicyCatalogResponse
-	(*ReloadRolePolicyCatalogRequest)(nil),                 // 132: agent_manager.v1.ReloadRolePolicyCatalogRequest
-	(*ReloadRolePolicyCatalogResponse)(nil),                // 133: agent_manager.v1.ReloadRolePolicyCatalogResponse
-	(*ExplainRolePolicyRequest)(nil),                       // 134: agent_manager.v1.ExplainRolePolicyRequest
-	(*ExplainRolePolicyResponse)(nil),                      // 135: agent_manager.v1.ExplainRolePolicyResponse
-	(*PermissionPolicyDiagnostic)(nil),                     // 136: agent_manager.v1.PermissionPolicyDiagnostic
-	(*PermissionPolicyRequirement)(nil),                    // 137: agent_manager.v1.PermissionPolicyRequirement
-	(*PermissionPolicyReloadAttempt)(nil),                  // 138: agent_manager.v1.PermissionPolicyReloadAttempt
-	(*PermissionPolicyStatus)(nil),                         // 139: agent_manager.v1.PermissionPolicyStatus
-	(*PermissionPolicyCatalogMetadata)(nil),                // 140: agent_manager.v1.PermissionPolicyCatalogMetadata
-	(*PermissionPolicyMatcher)(nil),                        // 141: agent_manager.v1.PermissionPolicyMatcher
-	(*PermissionPolicyRule)(nil),                           // 142: agent_manager.v1.PermissionPolicyRule
-	(*PermissionPolicyCatalog)(nil),                        // 143: agent_manager.v1.PermissionPolicyCatalog
-	(*PermissionPolicyEnforcement)(nil),                    // 144: agent_manager.v1.PermissionPolicyEnforcement
-	(*PermissionPolicyResourceResult)(nil),                 // 145: agent_manager.v1.PermissionPolicyResourceResult
-	(*PermissionPolicyPlan)(nil),                           // 146: agent_manager.v1.PermissionPolicyPlan
-	(*PermissionPolicyReconcileResult)(nil),                // 147: agent_manager.v1.PermissionPolicyReconcileResult
-	(*GetPermissionPolicyStatusRequest)(nil),               // 148: agent_manager.v1.GetPermissionPolicyStatusRequest
-	(*GetPermissionPolicyStatusResponse)(nil),              // 149: agent_manager.v1.GetPermissionPolicyStatusResponse
-	(*GetPermissionPolicyCatalogRequest)(nil),              // 150: agent_manager.v1.GetPermissionPolicyCatalogRequest
-	(*GetPermissionPolicyCatalogResponse)(nil),             // 151: agent_manager.v1.GetPermissionPolicyCatalogResponse
-	(*ValidatePermissionPolicyCatalogRequest)(nil),         // 152: agent_manager.v1.ValidatePermissionPolicyCatalogRequest
-	(*ValidatePermissionPolicyCatalogResponse)(nil),        // 153: agent_manager.v1.ValidatePermissionPolicyCatalogResponse
-	(*ReloadPermissionPolicyCatalogRequest)(nil),           // 154: agent_manager.v1.ReloadPermissionPolicyCatalogRequest
-	(*ReloadPermissionPolicyCatalogResponse)(nil),          // 155: agent_manager.v1.ReloadPermissionPolicyCatalogResponse
-	(*PlanPermissionPolicyRequest)(nil),                    // 156: agent_manager.v1.PlanPermissionPolicyRequest
-	(*PlanPermissionPolicyResponse)(nil),                   // 157: agent_manager.v1.PlanPermissionPolicyResponse
-	(*ReconcilePermissionPolicyRequest)(nil),               // 158: agent_manager.v1.ReconcilePermissionPolicyRequest
-	(*ReconcilePermissionPolicyResponse)(nil),              // 159: agent_manager.v1.ReconcilePermissionPolicyResponse
-	(*DoctorPermissionPolicyRequest)(nil),                  // 160: agent_manager.v1.DoctorPermissionPolicyRequest
-	(*DoctorPermissionPolicyResponse)(nil),                 // 161: agent_manager.v1.DoctorPermissionPolicyResponse
-	(*PurgeDataRequest)(nil),                               // 162: agent_manager.v1.PurgeDataRequest
-	(*PurgeCounts)(nil),                                    // 163: agent_manager.v1.PurgeCounts
-	(*PurgeDataResponse)(nil),                              // 164: agent_manager.v1.PurgeDataResponse
-	(*InvestigationSubject)(nil),                           // 165: agent_manager.v1.InvestigationSubject
-	(*InvestigationEvidenceReference)(nil),                 // 166: agent_manager.v1.InvestigationEvidenceReference
-	(*InvestigationMethodReference)(nil),                   // 167: agent_manager.v1.InvestigationMethodReference
-	(*InvestigationEvidencePolicy)(nil),                    // 168: agent_manager.v1.InvestigationEvidencePolicy
-	(*InvestigationBudget)(nil),                            // 169: agent_manager.v1.InvestigationBudget
-	(*InvestigationRecommendationPolicy)(nil),              // 170: agent_manager.v1.InvestigationRecommendationPolicy
-	(*InvestigationProvenance)(nil),                        // 171: agent_manager.v1.InvestigationProvenance
-	(*InvestigationRequest)(nil),                           // 172: agent_manager.v1.InvestigationRequest
-	(*InvestigationRecord)(nil),                            // 173: agent_manager.v1.InvestigationRecord
-	(*StartInvestigationRequest)(nil),                      // 174: agent_manager.v1.StartInvestigationRequest
-	(*StartInvestigationResponse)(nil),                     // 175: agent_manager.v1.StartInvestigationResponse
-	(*GetInvestigationRequest)(nil),                        // 176: agent_manager.v1.GetInvestigationRequest
-	(*ListInvestigationsRequest)(nil),                      // 177: agent_manager.v1.ListInvestigationsRequest
-	(*ListInvestigationsResponse)(nil),                     // 178: agent_manager.v1.ListInvestigationsResponse
-	(*WaitInvestigationRequest)(nil),                       // 179: agent_manager.v1.WaitInvestigationRequest
-	(*WaitInvestigationResponse)(nil),                      // 180: agent_manager.v1.WaitInvestigationResponse
-	(*CancelInvestigationRequest)(nil),                     // 181: agent_manager.v1.CancelInvestigationRequest
-	nil,                                                    // 182: agent_manager.v1.HealthResponse.DependenciesEntry
-	nil,                                                    // 183: agent_manager.v1.HealthResponse.MetricsEntry
-	nil,                                                    // 184: agent_manager.v1.CreateRunRequest.EnvironmentEntry
-	nil,                                                    // 185: agent_manager.v1.RunReport.EventCountsEntry
-	nil,                                                    // 186: agent_manager.v1.RunEventSummary.CountsEntry
-	(v1.HealthStatus)(0),                                   // 187: common.v1.HealthStatus
-	(*domain.AgentProfile)(nil),                            // 188: agent_manager.v1.AgentProfile
-	(*domain.WorkflowDiagnostic)(nil),                      // 189: agent_manager.v1.WorkflowDiagnostic
-	(*structpb.Struct)(nil),                                // 190: google.protobuf.Struct
-	(*domain.WorkflowRevision)(nil),                        // 191: agent_manager.v1.WorkflowRevision
-	(*structpb.Value)(nil),                                 // 192: google.protobuf.Value
-	(*domain.WorkflowEngagementGrant)(nil),                 // 193: agent_manager.v1.WorkflowEngagementGrant
-	(*domain.ExecutionPreferences)(nil),                    // 194: agent_manager.v1.ExecutionPreferences
-	(domain.RunnerType)(0),                                 // 195: agent_manager.v1.RunnerType
-	(*domain.WorkflowExecution)(nil),                       // 196: agent_manager.v1.WorkflowExecution
-	(domain.WorkflowExecutionStatus)(0),                    // 197: agent_manager.v1.WorkflowExecutionStatus
-	(*domain.WorkflowNodeAttempt)(nil),                     // 198: agent_manager.v1.WorkflowNodeAttempt
-	(*domain.WorkflowJournalEntry)(nil),                    // 199: agent_manager.v1.WorkflowJournalEntry
-	(*domain.Task)(nil),                                    // 200: agent_manager.v1.Task
-	(domain.TaskStatus)(0),                                 // 201: agent_manager.v1.TaskStatus
-	(domain.RunMode)(0),                                    // 202: agent_manager.v1.RunMode
-	(*domain.RunConfigOverrides)(nil),                      // 203: agent_manager.v1.RunConfigOverrides
-	(domain.ExecutionMode)(0),                              // 204: agent_manager.v1.ExecutionMode
-	(*domain1.WorkReference)(nil),                          // 205: vrooli.vrooli_events.v1.domain.WorkReference
-	(*domain.Run)(nil),                                     // 206: agent_manager.v1.Run
-	(*timestamppb.Timestamp)(nil),                          // 207: google.protobuf.Timestamp
-	(domain.RunStatus)(0),                                  // 208: agent_manager.v1.RunStatus
-	(*domain.StopAllResult)(nil),                           // 209: agent_manager.v1.StopAllResult
-	(domain.RunEventType)(0),                               // 210: agent_manager.v1.RunEventType
-	(*domain.RunEvent)(nil),                                // 211: agent_manager.v1.RunEvent
-	(*domain.RunDiff)(nil),                                 // 212: agent_manager.v1.RunDiff
-	(*domain.ApproveResult)(nil),                           // 213: agent_manager.v1.ApproveResult
-	(*domain.RunnerStatus)(nil),                            // 214: agent_manager.v1.RunnerStatus
-	(*domain.ProbeResult)(nil),                             // 215: agent_manager.v1.ProbeResult
-	(*domain.ExecutionPolicySnapshot)(nil),                 // 216: agent_manager.v1.ExecutionPolicySnapshot
-	(*v1.JsonValue)(nil),                                   // 217: common.v1.JsonValue
-	(*domain.ListEffortsRequest)(nil),                      // 218: agent_manager.v1.ListEffortsRequest
-	(*domain.GetEffortBoardRequest)(nil),                   // 219: agent_manager.v1.GetEffortBoardRequest
-	(*domain.EnrollEffortRequest)(nil),                     // 220: agent_manager.v1.EnrollEffortRequest
-	(*domain.ReconcileEffortMetadataRequest)(nil),          // 221: agent_manager.v1.ReconcileEffortMetadataRequest
-	(*domain.WithdrawEffortRequest)(nil),                   // 222: agent_manager.v1.WithdrawEffortRequest
-	(*domain.ReconcileEffortDiscoveryRequest)(nil),         // 223: agent_manager.v1.ReconcileEffortDiscoveryRequest
-	(*domain.ListEffortSignalsRequest)(nil),                // 224: agent_manager.v1.ListEffortSignalsRequest
-	(*domain.RecordEffortSignalRequest)(nil),               // 225: agent_manager.v1.RecordEffortSignalRequest
-	(*domain.RaiseEffortDecisionRequest)(nil),              // 226: agent_manager.v1.RaiseEffortDecisionRequest
-	(*domain.ListEffortDecisionsRequest)(nil),              // 227: agent_manager.v1.ListEffortDecisionsRequest
-	(*domain.AnswerEffortDecisionRequest)(nil),             // 228: agent_manager.v1.AnswerEffortDecisionRequest
-	(*domain.MarkEffortDecisionRecordedRequest)(nil),       // 229: agent_manager.v1.MarkEffortDecisionRecordedRequest
-	(*domain.CreateCohortWatchRequest)(nil),                // 230: agent_manager.v1.CreateCohortWatchRequest
-	(*domain.GetCohortWatchRequest)(nil),                   // 231: agent_manager.v1.GetCohortWatchRequest
-	(*domain.ListCohortWatchesRequest)(nil),                // 232: agent_manager.v1.ListCohortWatchesRequest
-	(*domain.WaitCohortWatchRequest)(nil),                  // 233: agent_manager.v1.WaitCohortWatchRequest
-	(*domain.CancelCohortWatchRequest)(nil),                // 234: agent_manager.v1.CancelCohortWatchRequest
-	(*domain.InspectCohortWatchRequest)(nil),               // 235: agent_manager.v1.InspectCohortWatchRequest
-	(*domain.RequestCohortWatchActionRequest)(nil),         // 236: agent_manager.v1.RequestCohortWatchActionRequest
-	(*domain.ListCohortWatchActionsRequest)(nil),           // 237: agent_manager.v1.ListCohortWatchActionsRequest
-	(*domain.GetSupervisionPolicyRequest)(nil),             // 238: agent_manager.v1.GetSupervisionPolicyRequest
-	(*domain.CreateSupervisionPolicyCandidateRequest)(nil), // 239: agent_manager.v1.CreateSupervisionPolicyCandidateRequest
-	(*domain.RecordSupervisionOutcomeRequest)(nil),         // 240: agent_manager.v1.RecordSupervisionOutcomeRequest
-	(*domain.EvaluateSupervisionPolicyRequest)(nil),        // 241: agent_manager.v1.EvaluateSupervisionPolicyRequest
-	(*domain.PromoteSupervisionPolicyRequest)(nil),         // 242: agent_manager.v1.PromoteSupervisionPolicyRequest
-	(*domain.RejectSupervisionPolicyRequest)(nil),          // 243: agent_manager.v1.RejectSupervisionPolicyRequest
-	(*domain.RollbackSupervisionPolicyRequest)(nil),        // 244: agent_manager.v1.RollbackSupervisionPolicyRequest
-	(*domain.SetSupervisionPolicyDisabledRequest)(nil),     // 245: agent_manager.v1.SetSupervisionPolicyDisabledRequest
-	(*domain.ListSupervisionOutcomesRequest)(nil),          // 246: agent_manager.v1.ListSupervisionOutcomesRequest
-	(*domain.ListEffortsResponse)(nil),                     // 247: agent_manager.v1.ListEffortsResponse
-	(*domain.EffortBoard)(nil),                             // 248: agent_manager.v1.EffortBoard
-	(*domain.EffortEnrollment)(nil),                        // 249: agent_manager.v1.EffortEnrollment
-	(*domain.EffortDiscovery)(nil),                         // 250: agent_manager.v1.EffortDiscovery
-	(*domain.ListEffortSignalsResponse)(nil),               // 251: agent_manager.v1.ListEffortSignalsResponse
-	(*domain.EffortSignal)(nil),                            // 252: agent_manager.v1.EffortSignal
-	(*domain.RaiseEffortDecisionResponse)(nil),             // 253: agent_manager.v1.RaiseEffortDecisionResponse
-	(*domain.ListEffortDecisionsResponse)(nil),             // 254: agent_manager.v1.ListEffortDecisionsResponse
-	(*domain.EffortDecision)(nil),                          // 255: agent_manager.v1.EffortDecision
-	(*domain.CohortWatch)(nil),                             // 256: agent_manager.v1.CohortWatch
-	(*domain.ListCohortWatchesResponse)(nil),               // 257: agent_manager.v1.ListCohortWatchesResponse
-	(*domain.WaitCohortWatchResponse)(nil),                 // 258: agent_manager.v1.WaitCohortWatchResponse
-	(*domain.InspectCohortWatchResponse)(nil),              // 259: agent_manager.v1.InspectCohortWatchResponse
-	(*domain.RequestCohortWatchActionResponse)(nil),        // 260: agent_manager.v1.RequestCohortWatchActionResponse
-	(*domain.ListCohortWatchActionsResponse)(nil),          // 261: agent_manager.v1.ListCohortWatchActionsResponse
-	(*domain.SupervisionPolicyRecord)(nil),                 // 262: agent_manager.v1.SupervisionPolicyRecord
-	(*domain.RecordSupervisionOutcomeResponse)(nil),        // 263: agent_manager.v1.RecordSupervisionOutcomeResponse
-	(*domain.SupervisionReplayReport)(nil),                 // 264: agent_manager.v1.SupervisionReplayReport
-	(*domain.SupervisionPolicyControl)(nil),                // 265: agent_manager.v1.SupervisionPolicyControl
-	(*domain.ListSupervisionOutcomesResponse)(nil),         // 266: agent_manager.v1.ListSupervisionOutcomesResponse
+	(*WaitRunRequest)(nil),                                 // 90: agent_manager.v1.WaitRunRequest
+	(*WaitRunResponse)(nil),                                // 91: agent_manager.v1.WaitRunResponse
+	(*WaitRunChildrenRequest)(nil),                         // 92: agent_manager.v1.WaitRunChildrenRequest
+	(*RunChildSummary)(nil),                                // 93: agent_manager.v1.RunChildSummary
+	(*WaitRunChildrenResponse)(nil),                        // 94: agent_manager.v1.WaitRunChildrenResponse
+	(*GetRunTreeRequest)(nil),                              // 95: agent_manager.v1.GetRunTreeRequest
+	(*RunTreeNode)(nil),                                    // 96: agent_manager.v1.RunTreeNode
+	(*RunTree)(nil),                                        // 97: agent_manager.v1.RunTree
+	(*ListRunsResponse)(nil),                               // 98: agent_manager.v1.ListRunsResponse
+	(*StopRunRequest)(nil),                                 // 99: agent_manager.v1.StopRunRequest
+	(*StopRunResponse)(nil),                                // 100: agent_manager.v1.StopRunResponse
+	(*StopRunByTagRequest)(nil),                            // 101: agent_manager.v1.StopRunByTagRequest
+	(*StopRunByTagResponse)(nil),                           // 102: agent_manager.v1.StopRunByTagResponse
+	(*StopAllRunsRequest)(nil),                             // 103: agent_manager.v1.StopAllRunsRequest
+	(*StopAllRunsResponse)(nil),                            // 104: agent_manager.v1.StopAllRunsResponse
+	(*QuiesceScenarioRequest)(nil),                         // 105: agent_manager.v1.QuiesceScenarioRequest
+	(*QuiesceScenarioResponse)(nil),                        // 106: agent_manager.v1.QuiesceScenarioResponse
+	(*QuiesceResult)(nil),                                  // 107: agent_manager.v1.QuiesceResult
+	(*QuiesceRunRef)(nil),                                  // 108: agent_manager.v1.QuiesceRunRef
+	(*RecoverRunRequest)(nil),                              // 109: agent_manager.v1.RecoverRunRequest
+	(*RecoverRunResponse)(nil),                             // 110: agent_manager.v1.RecoverRunResponse
+	(*GetRunEventsRequest)(nil),                            // 111: agent_manager.v1.GetRunEventsRequest
+	(*GetRunEventsResponse)(nil),                           // 112: agent_manager.v1.GetRunEventsResponse
+	(*RunEventSummary)(nil),                                // 113: agent_manager.v1.RunEventSummary
+	(*GetRunDiffRequest)(nil),                              // 114: agent_manager.v1.GetRunDiffRequest
+	(*GetRunDiffResponse)(nil),                             // 115: agent_manager.v1.GetRunDiffResponse
+	(*ApproveRunRequest)(nil),                              // 116: agent_manager.v1.ApproveRunRequest
+	(*ApproveRunResponse)(nil),                             // 117: agent_manager.v1.ApproveRunResponse
+	(*RejectRunRequest)(nil),                               // 118: agent_manager.v1.RejectRunRequest
+	(*RejectRunResponse)(nil),                              // 119: agent_manager.v1.RejectRunResponse
+	(*PartialApproveRunRequest)(nil),                       // 120: agent_manager.v1.PartialApproveRunRequest
+	(*PartialApproveRunResponse)(nil),                      // 121: agent_manager.v1.PartialApproveRunResponse
+	(*GetRunnerStatusRequest)(nil),                         // 122: agent_manager.v1.GetRunnerStatusRequest
+	(*GetRunnerStatusResponse)(nil),                        // 123: agent_manager.v1.GetRunnerStatusResponse
+	(*ProbeRunnerRequest)(nil),                             // 124: agent_manager.v1.ProbeRunnerRequest
+	(*ProbeRunnerResponse)(nil),                            // 125: agent_manager.v1.ProbeRunnerResponse
+	(*RolePolicyDiagnostic)(nil),                           // 126: agent_manager.v1.RolePolicyDiagnostic
+	(*RolePolicyRequirement)(nil),                          // 127: agent_manager.v1.RolePolicyRequirement
+	(*RolePolicyReloadAttempt)(nil),                        // 128: agent_manager.v1.RolePolicyReloadAttempt
+	(*RolePolicyStatus)(nil),                               // 129: agent_manager.v1.RolePolicyStatus
+	(*RolePolicyCatalogMetadata)(nil),                      // 130: agent_manager.v1.RolePolicyCatalogMetadata
+	(*RolePolicyCandidate)(nil),                            // 131: agent_manager.v1.RolePolicyCandidate
+	(*RolePolicyDefinition)(nil),                           // 132: agent_manager.v1.RolePolicyDefinition
+	(*RolePolicyCatalog)(nil),                              // 133: agent_manager.v1.RolePolicyCatalog
+	(*GetRolePolicyStatusRequest)(nil),                     // 134: agent_manager.v1.GetRolePolicyStatusRequest
+	(*GetRolePolicyStatusResponse)(nil),                    // 135: agent_manager.v1.GetRolePolicyStatusResponse
+	(*GetRolePolicyCatalogRequest)(nil),                    // 136: agent_manager.v1.GetRolePolicyCatalogRequest
+	(*GetRolePolicyCatalogResponse)(nil),                   // 137: agent_manager.v1.GetRolePolicyCatalogResponse
+	(*ValidateRolePolicyCatalogRequest)(nil),               // 138: agent_manager.v1.ValidateRolePolicyCatalogRequest
+	(*ValidateRolePolicyCatalogResponse)(nil),              // 139: agent_manager.v1.ValidateRolePolicyCatalogResponse
+	(*ReloadRolePolicyCatalogRequest)(nil),                 // 140: agent_manager.v1.ReloadRolePolicyCatalogRequest
+	(*ReloadRolePolicyCatalogResponse)(nil),                // 141: agent_manager.v1.ReloadRolePolicyCatalogResponse
+	(*ExplainRolePolicyRequest)(nil),                       // 142: agent_manager.v1.ExplainRolePolicyRequest
+	(*ExplainRolePolicyResponse)(nil),                      // 143: agent_manager.v1.ExplainRolePolicyResponse
+	(*PermissionPolicyDiagnostic)(nil),                     // 144: agent_manager.v1.PermissionPolicyDiagnostic
+	(*PermissionPolicyRequirement)(nil),                    // 145: agent_manager.v1.PermissionPolicyRequirement
+	(*PermissionPolicyReloadAttempt)(nil),                  // 146: agent_manager.v1.PermissionPolicyReloadAttempt
+	(*PermissionPolicyStatus)(nil),                         // 147: agent_manager.v1.PermissionPolicyStatus
+	(*PermissionPolicyCatalogMetadata)(nil),                // 148: agent_manager.v1.PermissionPolicyCatalogMetadata
+	(*PermissionPolicyMatcher)(nil),                        // 149: agent_manager.v1.PermissionPolicyMatcher
+	(*PermissionPolicyRule)(nil),                           // 150: agent_manager.v1.PermissionPolicyRule
+	(*PermissionPolicyCatalog)(nil),                        // 151: agent_manager.v1.PermissionPolicyCatalog
+	(*PermissionPolicyEnforcement)(nil),                    // 152: agent_manager.v1.PermissionPolicyEnforcement
+	(*PermissionPolicyResourceResult)(nil),                 // 153: agent_manager.v1.PermissionPolicyResourceResult
+	(*PermissionPolicyPlan)(nil),                           // 154: agent_manager.v1.PermissionPolicyPlan
+	(*PermissionPolicyReconcileResult)(nil),                // 155: agent_manager.v1.PermissionPolicyReconcileResult
+	(*GetPermissionPolicyStatusRequest)(nil),               // 156: agent_manager.v1.GetPermissionPolicyStatusRequest
+	(*GetPermissionPolicyStatusResponse)(nil),              // 157: agent_manager.v1.GetPermissionPolicyStatusResponse
+	(*GetPermissionPolicyCatalogRequest)(nil),              // 158: agent_manager.v1.GetPermissionPolicyCatalogRequest
+	(*GetPermissionPolicyCatalogResponse)(nil),             // 159: agent_manager.v1.GetPermissionPolicyCatalogResponse
+	(*ValidatePermissionPolicyCatalogRequest)(nil),         // 160: agent_manager.v1.ValidatePermissionPolicyCatalogRequest
+	(*ValidatePermissionPolicyCatalogResponse)(nil),        // 161: agent_manager.v1.ValidatePermissionPolicyCatalogResponse
+	(*ReloadPermissionPolicyCatalogRequest)(nil),           // 162: agent_manager.v1.ReloadPermissionPolicyCatalogRequest
+	(*ReloadPermissionPolicyCatalogResponse)(nil),          // 163: agent_manager.v1.ReloadPermissionPolicyCatalogResponse
+	(*PlanPermissionPolicyRequest)(nil),                    // 164: agent_manager.v1.PlanPermissionPolicyRequest
+	(*PlanPermissionPolicyResponse)(nil),                   // 165: agent_manager.v1.PlanPermissionPolicyResponse
+	(*ReconcilePermissionPolicyRequest)(nil),               // 166: agent_manager.v1.ReconcilePermissionPolicyRequest
+	(*ReconcilePermissionPolicyResponse)(nil),              // 167: agent_manager.v1.ReconcilePermissionPolicyResponse
+	(*DoctorPermissionPolicyRequest)(nil),                  // 168: agent_manager.v1.DoctorPermissionPolicyRequest
+	(*DoctorPermissionPolicyResponse)(nil),                 // 169: agent_manager.v1.DoctorPermissionPolicyResponse
+	(*PurgeDataRequest)(nil),                               // 170: agent_manager.v1.PurgeDataRequest
+	(*PurgeCounts)(nil),                                    // 171: agent_manager.v1.PurgeCounts
+	(*PurgeDataResponse)(nil),                              // 172: agent_manager.v1.PurgeDataResponse
+	(*InvestigationSubject)(nil),                           // 173: agent_manager.v1.InvestigationSubject
+	(*InvestigationEvidenceReference)(nil),                 // 174: agent_manager.v1.InvestigationEvidenceReference
+	(*InvestigationMethodReference)(nil),                   // 175: agent_manager.v1.InvestigationMethodReference
+	(*InvestigationEvidencePolicy)(nil),                    // 176: agent_manager.v1.InvestigationEvidencePolicy
+	(*InvestigationBudget)(nil),                            // 177: agent_manager.v1.InvestigationBudget
+	(*InvestigationRecommendationPolicy)(nil),              // 178: agent_manager.v1.InvestigationRecommendationPolicy
+	(*InvestigationProvenance)(nil),                        // 179: agent_manager.v1.InvestigationProvenance
+	(*InvestigationRequest)(nil),                           // 180: agent_manager.v1.InvestigationRequest
+	(*InvestigationRecord)(nil),                            // 181: agent_manager.v1.InvestigationRecord
+	(*StartInvestigationRequest)(nil),                      // 182: agent_manager.v1.StartInvestigationRequest
+	(*StartInvestigationResponse)(nil),                     // 183: agent_manager.v1.StartInvestigationResponse
+	(*GetInvestigationRequest)(nil),                        // 184: agent_manager.v1.GetInvestigationRequest
+	(*ListInvestigationsRequest)(nil),                      // 185: agent_manager.v1.ListInvestigationsRequest
+	(*ListInvestigationsResponse)(nil),                     // 186: agent_manager.v1.ListInvestigationsResponse
+	(*WaitInvestigationRequest)(nil),                       // 187: agent_manager.v1.WaitInvestigationRequest
+	(*WaitInvestigationResponse)(nil),                      // 188: agent_manager.v1.WaitInvestigationResponse
+	(*CancelInvestigationRequest)(nil),                     // 189: agent_manager.v1.CancelInvestigationRequest
+	nil,                                                    // 190: agent_manager.v1.HealthResponse.DependenciesEntry
+	nil,                                                    // 191: agent_manager.v1.HealthResponse.MetricsEntry
+	nil,                                                    // 192: agent_manager.v1.CreateRunRequest.EnvironmentEntry
+	nil,                                                    // 193: agent_manager.v1.RunReport.EventCountsEntry
+	nil,                                                    // 194: agent_manager.v1.RunEventSummary.CountsEntry
+	(v1.HealthStatus)(0),                                   // 195: common.v1.HealthStatus
+	(*domain.AgentProfile)(nil),                            // 196: agent_manager.v1.AgentProfile
+	(*domain.WorkflowDiagnostic)(nil),                      // 197: agent_manager.v1.WorkflowDiagnostic
+	(*structpb.Struct)(nil),                                // 198: google.protobuf.Struct
+	(*domain.WorkflowRevision)(nil),                        // 199: agent_manager.v1.WorkflowRevision
+	(*structpb.Value)(nil),                                 // 200: google.protobuf.Value
+	(*domain.WorkflowEngagementGrant)(nil),                 // 201: agent_manager.v1.WorkflowEngagementGrant
+	(*domain.ExecutionPreferences)(nil),                    // 202: agent_manager.v1.ExecutionPreferences
+	(domain.RunnerType)(0),                                 // 203: agent_manager.v1.RunnerType
+	(*domain.WorkflowExecution)(nil),                       // 204: agent_manager.v1.WorkflowExecution
+	(domain.WorkflowExecutionStatus)(0),                    // 205: agent_manager.v1.WorkflowExecutionStatus
+	(*domain.WorkflowNodeAttempt)(nil),                     // 206: agent_manager.v1.WorkflowNodeAttempt
+	(*domain.WorkflowJournalEntry)(nil),                    // 207: agent_manager.v1.WorkflowJournalEntry
+	(*domain.Task)(nil),                                    // 208: agent_manager.v1.Task
+	(domain.TaskStatus)(0),                                 // 209: agent_manager.v1.TaskStatus
+	(domain.RunMode)(0),                                    // 210: agent_manager.v1.RunMode
+	(*domain.RunConfigOverrides)(nil),                      // 211: agent_manager.v1.RunConfigOverrides
+	(domain.ExecutionMode)(0),                              // 212: agent_manager.v1.ExecutionMode
+	(*domain1.WorkReference)(nil),                          // 213: vrooli.vrooli_events.v1.domain.WorkReference
+	(*domain.Run)(nil),                                     // 214: agent_manager.v1.Run
+	(*timestamppb.Timestamp)(nil),                          // 215: google.protobuf.Timestamp
+	(domain.RunStatus)(0),                                  // 216: agent_manager.v1.RunStatus
+	(*domain.StepBackTrigger)(nil),                         // 217: agent_manager.v1.StepBackTrigger
+	(*domain.StopAllResult)(nil),                           // 218: agent_manager.v1.StopAllResult
+	(domain.RunEventType)(0),                               // 219: agent_manager.v1.RunEventType
+	(*domain.RunEvent)(nil),                                // 220: agent_manager.v1.RunEvent
+	(*domain.RunDiff)(nil),                                 // 221: agent_manager.v1.RunDiff
+	(*domain.ApproveResult)(nil),                           // 222: agent_manager.v1.ApproveResult
+	(*domain.RunnerStatus)(nil),                            // 223: agent_manager.v1.RunnerStatus
+	(*domain.ProbeResult)(nil),                             // 224: agent_manager.v1.ProbeResult
+	(*domain.ExecutionPolicySnapshot)(nil),                 // 225: agent_manager.v1.ExecutionPolicySnapshot
+	(*v1.JsonValue)(nil),                                   // 226: common.v1.JsonValue
+	(*domain.ListEffortsRequest)(nil),                      // 227: agent_manager.v1.ListEffortsRequest
+	(*domain.GetEffortBoardRequest)(nil),                   // 228: agent_manager.v1.GetEffortBoardRequest
+	(*domain.EnrollEffortRequest)(nil),                     // 229: agent_manager.v1.EnrollEffortRequest
+	(*domain.ReconcileEffortMetadataRequest)(nil),          // 230: agent_manager.v1.ReconcileEffortMetadataRequest
+	(*domain.WithdrawEffortRequest)(nil),                   // 231: agent_manager.v1.WithdrawEffortRequest
+	(*domain.ReconcileEffortDiscoveryRequest)(nil),         // 232: agent_manager.v1.ReconcileEffortDiscoveryRequest
+	(*domain.ListEffortSignalsRequest)(nil),                // 233: agent_manager.v1.ListEffortSignalsRequest
+	(*domain.RecordEffortSignalRequest)(nil),               // 234: agent_manager.v1.RecordEffortSignalRequest
+	(*domain.RaiseEffortDecisionRequest)(nil),              // 235: agent_manager.v1.RaiseEffortDecisionRequest
+	(*domain.ListEffortDecisionsRequest)(nil),              // 236: agent_manager.v1.ListEffortDecisionsRequest
+	(*domain.AnswerEffortDecisionRequest)(nil),             // 237: agent_manager.v1.AnswerEffortDecisionRequest
+	(*domain.MarkEffortDecisionRecordedRequest)(nil),       // 238: agent_manager.v1.MarkEffortDecisionRecordedRequest
+	(*domain.CreateCohortWatchRequest)(nil),                // 239: agent_manager.v1.CreateCohortWatchRequest
+	(*domain.GetCohortWatchRequest)(nil),                   // 240: agent_manager.v1.GetCohortWatchRequest
+	(*domain.ListCohortWatchesRequest)(nil),                // 241: agent_manager.v1.ListCohortWatchesRequest
+	(*domain.WaitCohortWatchRequest)(nil),                  // 242: agent_manager.v1.WaitCohortWatchRequest
+	(*domain.CancelCohortWatchRequest)(nil),                // 243: agent_manager.v1.CancelCohortWatchRequest
+	(*domain.InspectCohortWatchRequest)(nil),               // 244: agent_manager.v1.InspectCohortWatchRequest
+	(*domain.RequestCohortWatchActionRequest)(nil),         // 245: agent_manager.v1.RequestCohortWatchActionRequest
+	(*domain.ListCohortWatchActionsRequest)(nil),           // 246: agent_manager.v1.ListCohortWatchActionsRequest
+	(*domain.GetSupervisionPolicyRequest)(nil),             // 247: agent_manager.v1.GetSupervisionPolicyRequest
+	(*domain.CreateSupervisionPolicyCandidateRequest)(nil), // 248: agent_manager.v1.CreateSupervisionPolicyCandidateRequest
+	(*domain.RecordSupervisionOutcomeRequest)(nil),         // 249: agent_manager.v1.RecordSupervisionOutcomeRequest
+	(*domain.EvaluateSupervisionPolicyRequest)(nil),        // 250: agent_manager.v1.EvaluateSupervisionPolicyRequest
+	(*domain.PromoteSupervisionPolicyRequest)(nil),         // 251: agent_manager.v1.PromoteSupervisionPolicyRequest
+	(*domain.RejectSupervisionPolicyRequest)(nil),          // 252: agent_manager.v1.RejectSupervisionPolicyRequest
+	(*domain.RollbackSupervisionPolicyRequest)(nil),        // 253: agent_manager.v1.RollbackSupervisionPolicyRequest
+	(*domain.SetSupervisionPolicyDisabledRequest)(nil),     // 254: agent_manager.v1.SetSupervisionPolicyDisabledRequest
+	(*domain.ListSupervisionOutcomesRequest)(nil),          // 255: agent_manager.v1.ListSupervisionOutcomesRequest
+	(*domain.ListEffortsResponse)(nil),                     // 256: agent_manager.v1.ListEffortsResponse
+	(*domain.EffortBoard)(nil),                             // 257: agent_manager.v1.EffortBoard
+	(*domain.EffortEnrollment)(nil),                        // 258: agent_manager.v1.EffortEnrollment
+	(*domain.EffortDiscovery)(nil),                         // 259: agent_manager.v1.EffortDiscovery
+	(*domain.ListEffortSignalsResponse)(nil),               // 260: agent_manager.v1.ListEffortSignalsResponse
+	(*domain.EffortSignal)(nil),                            // 261: agent_manager.v1.EffortSignal
+	(*domain.RaiseEffortDecisionResponse)(nil),             // 262: agent_manager.v1.RaiseEffortDecisionResponse
+	(*domain.ListEffortDecisionsResponse)(nil),             // 263: agent_manager.v1.ListEffortDecisionsResponse
+	(*domain.EffortDecision)(nil),                          // 264: agent_manager.v1.EffortDecision
+	(*domain.CohortWatch)(nil),                             // 265: agent_manager.v1.CohortWatch
+	(*domain.ListCohortWatchesResponse)(nil),               // 266: agent_manager.v1.ListCohortWatchesResponse
+	(*domain.WaitCohortWatchResponse)(nil),                 // 267: agent_manager.v1.WaitCohortWatchResponse
+	(*domain.InspectCohortWatchResponse)(nil),              // 268: agent_manager.v1.InspectCohortWatchResponse
+	(*domain.RequestCohortWatchActionResponse)(nil),        // 269: agent_manager.v1.RequestCohortWatchActionResponse
+	(*domain.ListCohortWatchActionsResponse)(nil),          // 270: agent_manager.v1.ListCohortWatchActionsResponse
+	(*domain.SupervisionPolicyRecord)(nil),                 // 271: agent_manager.v1.SupervisionPolicyRecord
+	(*domain.RecordSupervisionOutcomeResponse)(nil),        // 272: agent_manager.v1.RecordSupervisionOutcomeResponse
+	(*domain.SupervisionReplayReport)(nil),                 // 273: agent_manager.v1.SupervisionReplayReport
+	(*domain.SupervisionPolicyControl)(nil),                // 274: agent_manager.v1.SupervisionPolicyControl
+	(*domain.ListSupervisionOutcomesResponse)(nil),         // 275: agent_manager.v1.ListSupervisionOutcomesResponse
 }
 var file_agent_manager_v1_api_service_proto_depIdxs = []int32{
-	187, // 0: agent_manager.v1.HealthResponse.status:type_name -> common.v1.HealthStatus
-	182, // 1: agent_manager.v1.HealthResponse.dependencies:type_name -> agent_manager.v1.HealthResponse.DependenciesEntry
-	183, // 2: agent_manager.v1.HealthResponse.metrics:type_name -> agent_manager.v1.HealthResponse.MetricsEntry
-	188, // 3: agent_manager.v1.CreateProfileRequest.profile:type_name -> agent_manager.v1.AgentProfile
-	188, // 4: agent_manager.v1.CreateProfileResponse.profile:type_name -> agent_manager.v1.AgentProfile
-	188, // 5: agent_manager.v1.EnsureProfileRequest.defaults:type_name -> agent_manager.v1.AgentProfile
-	188, // 6: agent_manager.v1.EnsureProfileResponse.profile:type_name -> agent_manager.v1.AgentProfile
+	195, // 0: agent_manager.v1.HealthResponse.status:type_name -> common.v1.HealthStatus
+	190, // 1: agent_manager.v1.HealthResponse.dependencies:type_name -> agent_manager.v1.HealthResponse.DependenciesEntry
+	191, // 2: agent_manager.v1.HealthResponse.metrics:type_name -> agent_manager.v1.HealthResponse.MetricsEntry
+	196, // 3: agent_manager.v1.CreateProfileRequest.profile:type_name -> agent_manager.v1.AgentProfile
+	196, // 4: agent_manager.v1.CreateProfileResponse.profile:type_name -> agent_manager.v1.AgentProfile
+	196, // 5: agent_manager.v1.EnsureProfileRequest.defaults:type_name -> agent_manager.v1.AgentProfile
+	196, // 6: agent_manager.v1.EnsureProfileResponse.profile:type_name -> agent_manager.v1.AgentProfile
 	0,   // 7: agent_manager.v1.ProfileReconcileResult.status:type_name -> agent_manager.v1.ProfileReconcileStatus
-	189, // 8: agent_manager.v1.ProfileReconcileResult.diagnostics:type_name -> agent_manager.v1.WorkflowDiagnostic
+	197, // 8: agent_manager.v1.ProfileReconcileResult.diagnostics:type_name -> agent_manager.v1.WorkflowDiagnostic
 	10,  // 9: agent_manager.v1.ReconcileScenarioProfilesResponse.results:type_name -> agent_manager.v1.ProfileReconcileResult
-	190, // 10: agent_manager.v1.ValidateWorkflowRequest.definition:type_name -> google.protobuf.Struct
-	190, // 11: agent_manager.v1.ValidateWorkflowResponse.definition:type_name -> google.protobuf.Struct
-	189, // 12: agent_manager.v1.ValidateWorkflowResponse.diagnostics:type_name -> agent_manager.v1.WorkflowDiagnostic
+	198, // 10: agent_manager.v1.ValidateWorkflowRequest.definition:type_name -> google.protobuf.Struct
+	198, // 11: agent_manager.v1.ValidateWorkflowResponse.definition:type_name -> google.protobuf.Struct
+	197, // 12: agent_manager.v1.ValidateWorkflowResponse.diagnostics:type_name -> agent_manager.v1.WorkflowDiagnostic
 	1,   // 13: agent_manager.v1.WorkflowReconcileResult.status:type_name -> agent_manager.v1.WorkflowReconcileStatus
-	189, // 14: agent_manager.v1.WorkflowReconcileResult.diagnostics:type_name -> agent_manager.v1.WorkflowDiagnostic
+	197, // 14: agent_manager.v1.WorkflowReconcileResult.diagnostics:type_name -> agent_manager.v1.WorkflowDiagnostic
 	15,  // 15: agent_manager.v1.ReconcileScenarioWorkflowsResponse.results:type_name -> agent_manager.v1.WorkflowReconcileResult
 	10,  // 16: agent_manager.v1.ReconcileScenarioDeclarationsResponse.profile_results:type_name -> agent_manager.v1.ProfileReconcileResult
 	15,  // 17: agent_manager.v1.ReconcileScenarioDeclarationsResponse.workflow_results:type_name -> agent_manager.v1.WorkflowReconcileResult
-	191, // 18: agent_manager.v1.ListWorkflowRevisionsResponse.revisions:type_name -> agent_manager.v1.WorkflowRevision
-	191, // 19: agent_manager.v1.GetWorkflowRevisionResponse.revision:type_name -> agent_manager.v1.WorkflowRevision
-	192, // 20: agent_manager.v1.StartWorkflowExecutionRequest.input:type_name -> google.protobuf.Value
-	193, // 21: agent_manager.v1.StartWorkflowExecutionRequest.engagement_grant:type_name -> agent_manager.v1.WorkflowEngagementGrant
-	194, // 22: agent_manager.v1.StartWorkflowExecutionRequest.execution_preferences:type_name -> agent_manager.v1.ExecutionPreferences
-	195, // 23: agent_manager.v1.ExecutionOption.runner_type:type_name -> agent_manager.v1.RunnerType
+	199, // 18: agent_manager.v1.ListWorkflowRevisionsResponse.revisions:type_name -> agent_manager.v1.WorkflowRevision
+	199, // 19: agent_manager.v1.GetWorkflowRevisionResponse.revision:type_name -> agent_manager.v1.WorkflowRevision
+	200, // 20: agent_manager.v1.StartWorkflowExecutionRequest.input:type_name -> google.protobuf.Value
+	201, // 21: agent_manager.v1.StartWorkflowExecutionRequest.engagement_grant:type_name -> agent_manager.v1.WorkflowEngagementGrant
+	202, // 22: agent_manager.v1.StartWorkflowExecutionRequest.execution_preferences:type_name -> agent_manager.v1.ExecutionPreferences
+	203, // 23: agent_manager.v1.ExecutionOption.runner_type:type_name -> agent_manager.v1.RunnerType
 	25,  // 24: agent_manager.v1.ExecutionOption.models:type_name -> agent_manager.v1.ModelOption
 	26,  // 25: agent_manager.v1.ListExecutionOptionsResponse.options:type_name -> agent_manager.v1.ExecutionOption
-	196, // 26: agent_manager.v1.WorkflowExecutionResponse.execution:type_name -> agent_manager.v1.WorkflowExecution
-	196, // 27: agent_manager.v1.WaitWorkflowExecutionResponse.execution:type_name -> agent_manager.v1.WorkflowExecution
-	197, // 28: agent_manager.v1.ListWorkflowExecutionsRequest.status:type_name -> agent_manager.v1.WorkflowExecutionStatus
-	196, // 29: agent_manager.v1.ListWorkflowExecutionsResponse.executions:type_name -> agent_manager.v1.WorkflowExecution
-	196, // 30: agent_manager.v1.GetWorkflowExecutionTraceResponse.execution:type_name -> agent_manager.v1.WorkflowExecution
-	198, // 31: agent_manager.v1.GetWorkflowExecutionTraceResponse.attempts:type_name -> agent_manager.v1.WorkflowNodeAttempt
-	199, // 32: agent_manager.v1.GetWorkflowExecutionTraceResponse.journal:type_name -> agent_manager.v1.WorkflowJournalEntry
-	198, // 33: agent_manager.v1.ListWorkflowExecutionRunsResponse.attempts:type_name -> agent_manager.v1.WorkflowNodeAttempt
-	192, // 34: agent_manager.v1.SignalWorkflowExecutionRequest.payload:type_name -> google.protobuf.Value
-	196, // 35: agent_manager.v1.WorkflowExecutionOperationResponse.execution:type_name -> agent_manager.v1.WorkflowExecution
-	192, // 36: agent_manager.v1.SimulateWorkflowRequest.input:type_name -> google.protobuf.Value
+	204, // 26: agent_manager.v1.WorkflowExecutionResponse.execution:type_name -> agent_manager.v1.WorkflowExecution
+	204, // 27: agent_manager.v1.WaitWorkflowExecutionResponse.execution:type_name -> agent_manager.v1.WorkflowExecution
+	205, // 28: agent_manager.v1.ListWorkflowExecutionsRequest.status:type_name -> agent_manager.v1.WorkflowExecutionStatus
+	204, // 29: agent_manager.v1.ListWorkflowExecutionsResponse.executions:type_name -> agent_manager.v1.WorkflowExecution
+	204, // 30: agent_manager.v1.GetWorkflowExecutionTraceResponse.execution:type_name -> agent_manager.v1.WorkflowExecution
+	206, // 31: agent_manager.v1.GetWorkflowExecutionTraceResponse.attempts:type_name -> agent_manager.v1.WorkflowNodeAttempt
+	207, // 32: agent_manager.v1.GetWorkflowExecutionTraceResponse.journal:type_name -> agent_manager.v1.WorkflowJournalEntry
+	206, // 33: agent_manager.v1.ListWorkflowExecutionRunsResponse.attempts:type_name -> agent_manager.v1.WorkflowNodeAttempt
+	200, // 34: agent_manager.v1.SignalWorkflowExecutionRequest.payload:type_name -> google.protobuf.Value
+	204, // 35: agent_manager.v1.WorkflowExecutionOperationResponse.execution:type_name -> agent_manager.v1.WorkflowExecution
+	200, // 36: agent_manager.v1.SimulateWorkflowRequest.input:type_name -> google.protobuf.Value
 	43,  // 37: agent_manager.v1.SimulateWorkflowResponse.nodes:type_name -> agent_manager.v1.WorkflowNodePlan
-	189, // 38: agent_manager.v1.SimulateWorkflowResponse.diagnostics:type_name -> agent_manager.v1.WorkflowDiagnostic
-	188, // 39: agent_manager.v1.GetProfileResponse.profile:type_name -> agent_manager.v1.AgentProfile
-	188, // 40: agent_manager.v1.ListProfilesResponse.profiles:type_name -> agent_manager.v1.AgentProfile
-	188, // 41: agent_manager.v1.UpdateProfileRequest.profile:type_name -> agent_manager.v1.AgentProfile
-	188, // 42: agent_manager.v1.UpdateProfileResponse.profile:type_name -> agent_manager.v1.AgentProfile
-	200, // 43: agent_manager.v1.CreateTaskRequest.task:type_name -> agent_manager.v1.Task
-	200, // 44: agent_manager.v1.CreateTaskResponse.task:type_name -> agent_manager.v1.Task
-	200, // 45: agent_manager.v1.GetTaskResponse.task:type_name -> agent_manager.v1.Task
-	201, // 46: agent_manager.v1.ListTasksRequest.status:type_name -> agent_manager.v1.TaskStatus
-	200, // 47: agent_manager.v1.ListTasksResponse.tasks:type_name -> agent_manager.v1.Task
-	200, // 48: agent_manager.v1.UpdateTaskRequest.task:type_name -> agent_manager.v1.Task
-	200, // 49: agent_manager.v1.UpdateTaskResponse.task:type_name -> agent_manager.v1.Task
-	188, // 50: agent_manager.v1.ProfileRef.defaults:type_name -> agent_manager.v1.AgentProfile
-	202, // 51: agent_manager.v1.CreateRunRequest.run_mode:type_name -> agent_manager.v1.RunMode
-	203, // 52: agent_manager.v1.CreateRunRequest.inline_config:type_name -> agent_manager.v1.RunConfigOverrides
+	197, // 38: agent_manager.v1.SimulateWorkflowResponse.diagnostics:type_name -> agent_manager.v1.WorkflowDiagnostic
+	196, // 39: agent_manager.v1.GetProfileResponse.profile:type_name -> agent_manager.v1.AgentProfile
+	196, // 40: agent_manager.v1.ListProfilesResponse.profiles:type_name -> agent_manager.v1.AgentProfile
+	196, // 41: agent_manager.v1.UpdateProfileRequest.profile:type_name -> agent_manager.v1.AgentProfile
+	196, // 42: agent_manager.v1.UpdateProfileResponse.profile:type_name -> agent_manager.v1.AgentProfile
+	208, // 43: agent_manager.v1.CreateTaskRequest.task:type_name -> agent_manager.v1.Task
+	208, // 44: agent_manager.v1.CreateTaskResponse.task:type_name -> agent_manager.v1.Task
+	208, // 45: agent_manager.v1.GetTaskResponse.task:type_name -> agent_manager.v1.Task
+	209, // 46: agent_manager.v1.ListTasksRequest.status:type_name -> agent_manager.v1.TaskStatus
+	208, // 47: agent_manager.v1.ListTasksResponse.tasks:type_name -> agent_manager.v1.Task
+	208, // 48: agent_manager.v1.UpdateTaskRequest.task:type_name -> agent_manager.v1.Task
+	208, // 49: agent_manager.v1.UpdateTaskResponse.task:type_name -> agent_manager.v1.Task
+	196, // 50: agent_manager.v1.ProfileRef.defaults:type_name -> agent_manager.v1.AgentProfile
+	210, // 51: agent_manager.v1.CreateRunRequest.run_mode:type_name -> agent_manager.v1.RunMode
+	211, // 52: agent_manager.v1.CreateRunRequest.inline_config:type_name -> agent_manager.v1.RunConfigOverrides
 	65,  // 53: agent_manager.v1.CreateRunRequest.profile_ref:type_name -> agent_manager.v1.ProfileRef
-	184, // 54: agent_manager.v1.CreateRunRequest.environment:type_name -> agent_manager.v1.CreateRunRequest.EnvironmentEntry
-	204, // 55: agent_manager.v1.CreateRunRequest.execution_mode:type_name -> agent_manager.v1.ExecutionMode
-	205, // 56: agent_manager.v1.CreateRunRequest.work_references:type_name -> vrooli.vrooli_events.v1.domain.WorkReference
+	192, // 54: agent_manager.v1.CreateRunRequest.environment:type_name -> agent_manager.v1.CreateRunRequest.EnvironmentEntry
+	212, // 55: agent_manager.v1.CreateRunRequest.execution_mode:type_name -> agent_manager.v1.ExecutionMode
+	213, // 56: agent_manager.v1.CreateRunRequest.work_references:type_name -> vrooli.vrooli_events.v1.domain.WorkReference
 	67,  // 57: agent_manager.v1.CreateRunRequest.requested_scopes:type_name -> agent_manager.v1.RunIdentityScopeRequest
-	194, // 58: agent_manager.v1.CreateRunRequest.execution_preferences:type_name -> agent_manager.v1.ExecutionPreferences
-	206, // 59: agent_manager.v1.AttachRunResponse.run:type_name -> agent_manager.v1.Run
-	207, // 60: agent_manager.v1.AttachRunResponse.expires_at:type_name -> google.protobuf.Timestamp
-	206, // 61: agent_manager.v1.DetachRunResponse.run:type_name -> agent_manager.v1.Run
-	206, // 62: agent_manager.v1.CreateRunResponse.run:type_name -> agent_manager.v1.Run
-	206, // 63: agent_manager.v1.GetRunResponse.run:type_name -> agent_manager.v1.Run
+	202, // 58: agent_manager.v1.CreateRunRequest.execution_preferences:type_name -> agent_manager.v1.ExecutionPreferences
+	214, // 59: agent_manager.v1.AttachRunResponse.run:type_name -> agent_manager.v1.Run
+	215, // 60: agent_manager.v1.AttachRunResponse.expires_at:type_name -> google.protobuf.Timestamp
+	214, // 61: agent_manager.v1.DetachRunResponse.run:type_name -> agent_manager.v1.Run
+	214, // 62: agent_manager.v1.CreateRunResponse.run:type_name -> agent_manager.v1.Run
+	214, // 63: agent_manager.v1.GetRunResponse.run:type_name -> agent_manager.v1.Run
 	83,  // 64: agent_manager.v1.RunReport.result:type_name -> agent_manager.v1.RunReportResult
-	185, // 65: agent_manager.v1.RunReport.event_counts:type_name -> agent_manager.v1.RunReport.EventCountsEntry
+	193, // 65: agent_manager.v1.RunReport.event_counts:type_name -> agent_manager.v1.RunReport.EventCountsEntry
 	84,  // 66: agent_manager.v1.RunReport.tools:type_name -> agent_manager.v1.RunReportTool
 	85,  // 67: agent_manager.v1.RunReport.diff:type_name -> agent_manager.v1.RunReportDiff
 	86,  // 68: agent_manager.v1.RunReport.events_availability:type_name -> agent_manager.v1.RunReportAvailability
 	86,  // 69: agent_manager.v1.RunReport.receipts_availability:type_name -> agent_manager.v1.RunReportAvailability
 	82,  // 70: agent_manager.v1.RunReport.time_accounting:type_name -> agent_manager.v1.RunTimeAccounting
 	81,  // 71: agent_manager.v1.RunReport.goal_outcome:type_name -> agent_manager.v1.RunGoalOutcome
-	205, // 72: agent_manager.v1.RunReport.work_references:type_name -> vrooli.vrooli_events.v1.domain.WorkReference
+	213, // 72: agent_manager.v1.RunReport.work_references:type_name -> vrooli.vrooli_events.v1.domain.WorkReference
 	86,  // 73: agent_manager.v1.RunReportDiff.available:type_name -> agent_manager.v1.RunReportAvailability
-	206, // 74: agent_manager.v1.GetRunByTagResponse.run:type_name -> agent_manager.v1.Run
-	208, // 75: agent_manager.v1.ListRunsRequest.status:type_name -> agent_manager.v1.RunStatus
-	206, // 76: agent_manager.v1.ListRunsResponse.runs:type_name -> agent_manager.v1.Run
-	206, // 77: agent_manager.v1.StopRunResponse.run:type_name -> agent_manager.v1.Run
-	206, // 78: agent_manager.v1.StopRunByTagResponse.run:type_name -> agent_manager.v1.Run
-	209, // 79: agent_manager.v1.StopAllRunsResponse.result:type_name -> agent_manager.v1.StopAllResult
-	99,  // 80: agent_manager.v1.QuiesceScenarioResponse.result:type_name -> agent_manager.v1.QuiesceResult
-	100, // 81: agent_manager.v1.QuiesceResult.in_flight:type_name -> agent_manager.v1.QuiesceRunRef
-	100, // 82: agent_manager.v1.QuiesceResult.cancelled:type_name -> agent_manager.v1.QuiesceRunRef
-	100, // 83: agent_manager.v1.QuiesceResult.excluded:type_name -> agent_manager.v1.QuiesceRunRef
-	100, // 84: agent_manager.v1.QuiesceResult.not_drained:type_name -> agent_manager.v1.QuiesceRunRef
-	206, // 85: agent_manager.v1.RecoverRunResponse.run:type_name -> agent_manager.v1.Run
-	210, // 86: agent_manager.v1.GetRunEventsRequest.event_types:type_name -> agent_manager.v1.RunEventType
-	211, // 87: agent_manager.v1.GetRunEventsResponse.events:type_name -> agent_manager.v1.RunEvent
-	105, // 88: agent_manager.v1.GetRunEventsResponse.summary:type_name -> agent_manager.v1.RunEventSummary
-	186, // 89: agent_manager.v1.RunEventSummary.counts:type_name -> agent_manager.v1.RunEventSummary.CountsEntry
-	212, // 90: agent_manager.v1.GetRunDiffResponse.diff:type_name -> agent_manager.v1.RunDiff
-	213, // 91: agent_manager.v1.ApproveRunResponse.result:type_name -> agent_manager.v1.ApproveResult
-	213, // 92: agent_manager.v1.PartialApproveRunResponse.result:type_name -> agent_manager.v1.ApproveResult
-	214, // 93: agent_manager.v1.GetRunnerStatusResponse.runners:type_name -> agent_manager.v1.RunnerStatus
-	195, // 94: agent_manager.v1.ProbeRunnerRequest.runner_type:type_name -> agent_manager.v1.RunnerType
-	215, // 95: agent_manager.v1.ProbeRunnerResponse.result:type_name -> agent_manager.v1.ProbeResult
-	207, // 96: agent_manager.v1.RolePolicyReloadAttempt.attempted_at:type_name -> google.protobuf.Timestamp
-	118, // 97: agent_manager.v1.RolePolicyReloadAttempt.diagnostic:type_name -> agent_manager.v1.RolePolicyDiagnostic
-	119, // 98: agent_manager.v1.RolePolicyStatus.requirement:type_name -> agent_manager.v1.RolePolicyRequirement
-	207, // 99: agent_manager.v1.RolePolicyStatus.activated_at:type_name -> google.protobuf.Timestamp
-	120, // 100: agent_manager.v1.RolePolicyStatus.last_reload_attempt:type_name -> agent_manager.v1.RolePolicyReloadAttempt
-	195, // 101: agent_manager.v1.RolePolicyCandidate.runner_type:type_name -> agent_manager.v1.RunnerType
-	123, // 102: agent_manager.v1.RolePolicyDefinition.candidates:type_name -> agent_manager.v1.RolePolicyCandidate
-	122, // 103: agent_manager.v1.RolePolicyCatalog.metadata:type_name -> agent_manager.v1.RolePolicyCatalogMetadata
-	124, // 104: agent_manager.v1.RolePolicyCatalog.roles:type_name -> agent_manager.v1.RolePolicyDefinition
-	121, // 105: agent_manager.v1.GetRolePolicyStatusResponse.status:type_name -> agent_manager.v1.RolePolicyStatus
-	121, // 106: agent_manager.v1.GetRolePolicyCatalogResponse.status:type_name -> agent_manager.v1.RolePolicyStatus
-	125, // 107: agent_manager.v1.GetRolePolicyCatalogResponse.catalog:type_name -> agent_manager.v1.RolePolicyCatalog
-	118, // 108: agent_manager.v1.ValidateRolePolicyCatalogResponse.diagnostic:type_name -> agent_manager.v1.RolePolicyDiagnostic
-	121, // 109: agent_manager.v1.ReloadRolePolicyCatalogResponse.status:type_name -> agent_manager.v1.RolePolicyStatus
-	118, // 110: agent_manager.v1.ReloadRolePolicyCatalogResponse.diagnostic:type_name -> agent_manager.v1.RolePolicyDiagnostic
-	216, // 111: agent_manager.v1.ExplainRolePolicyResponse.snapshot:type_name -> agent_manager.v1.ExecutionPolicySnapshot
-	207, // 112: agent_manager.v1.PermissionPolicyReloadAttempt.attempted_at:type_name -> google.protobuf.Timestamp
-	136, // 113: agent_manager.v1.PermissionPolicyReloadAttempt.diagnostic:type_name -> agent_manager.v1.PermissionPolicyDiagnostic
-	137, // 114: agent_manager.v1.PermissionPolicyStatus.requirement:type_name -> agent_manager.v1.PermissionPolicyRequirement
-	207, // 115: agent_manager.v1.PermissionPolicyStatus.activated_at:type_name -> google.protobuf.Timestamp
-	138, // 116: agent_manager.v1.PermissionPolicyStatus.last_reload_attempt:type_name -> agent_manager.v1.PermissionPolicyReloadAttempt
-	141, // 117: agent_manager.v1.PermissionPolicyRule.matcher:type_name -> agent_manager.v1.PermissionPolicyMatcher
-	140, // 118: agent_manager.v1.PermissionPolicyCatalog.metadata:type_name -> agent_manager.v1.PermissionPolicyCatalogMetadata
-	142, // 119: agent_manager.v1.PermissionPolicyCatalog.rules:type_name -> agent_manager.v1.PermissionPolicyRule
-	195, // 120: agent_manager.v1.PermissionPolicyResourceResult.runner_type:type_name -> agent_manager.v1.RunnerType
-	144, // 121: agent_manager.v1.PermissionPolicyResourceResult.enforcement:type_name -> agent_manager.v1.PermissionPolicyEnforcement
-	141, // 122: agent_manager.v1.PermissionPolicyResourceResult.unsupported_matchers:type_name -> agent_manager.v1.PermissionPolicyMatcher
-	145, // 123: agent_manager.v1.PermissionPolicyPlan.resources:type_name -> agent_manager.v1.PermissionPolicyResourceResult
-	207, // 124: agent_manager.v1.PermissionPolicyReconcileResult.started_at:type_name -> google.protobuf.Timestamp
-	207, // 125: agent_manager.v1.PermissionPolicyReconcileResult.finished_at:type_name -> google.protobuf.Timestamp
-	145, // 126: agent_manager.v1.PermissionPolicyReconcileResult.resources:type_name -> agent_manager.v1.PermissionPolicyResourceResult
-	139, // 127: agent_manager.v1.GetPermissionPolicyStatusResponse.status:type_name -> agent_manager.v1.PermissionPolicyStatus
-	147, // 128: agent_manager.v1.GetPermissionPolicyStatusResponse.last_reconcile:type_name -> agent_manager.v1.PermissionPolicyReconcileResult
-	139, // 129: agent_manager.v1.GetPermissionPolicyCatalogResponse.status:type_name -> agent_manager.v1.PermissionPolicyStatus
-	143, // 130: agent_manager.v1.GetPermissionPolicyCatalogResponse.catalog:type_name -> agent_manager.v1.PermissionPolicyCatalog
-	136, // 131: agent_manager.v1.ValidatePermissionPolicyCatalogResponse.diagnostic:type_name -> agent_manager.v1.PermissionPolicyDiagnostic
-	139, // 132: agent_manager.v1.ReloadPermissionPolicyCatalogResponse.status:type_name -> agent_manager.v1.PermissionPolicyStatus
-	136, // 133: agent_manager.v1.ReloadPermissionPolicyCatalogResponse.diagnostic:type_name -> agent_manager.v1.PermissionPolicyDiagnostic
-	146, // 134: agent_manager.v1.PlanPermissionPolicyResponse.plan:type_name -> agent_manager.v1.PermissionPolicyPlan
-	147, // 135: agent_manager.v1.ReconcilePermissionPolicyResponse.result:type_name -> agent_manager.v1.PermissionPolicyReconcileResult
-	139, // 136: agent_manager.v1.DoctorPermissionPolicyResponse.status:type_name -> agent_manager.v1.PermissionPolicyStatus
-	146, // 137: agent_manager.v1.DoctorPermissionPolicyResponse.plan:type_name -> agent_manager.v1.PermissionPolicyPlan
-	2,   // 138: agent_manager.v1.PurgeDataRequest.targets:type_name -> agent_manager.v1.PurgeTarget
-	163, // 139: agent_manager.v1.PurgeDataResponse.matched:type_name -> agent_manager.v1.PurgeCounts
-	163, // 140: agent_manager.v1.PurgeDataResponse.deleted:type_name -> agent_manager.v1.PurgeCounts
-	165, // 141: agent_manager.v1.InvestigationRequest.subject:type_name -> agent_manager.v1.InvestigationSubject
-	167, // 142: agent_manager.v1.InvestigationRequest.method_ref:type_name -> agent_manager.v1.InvestigationMethodReference
-	166, // 143: agent_manager.v1.InvestigationRequest.domain_evidence:type_name -> agent_manager.v1.InvestigationEvidenceReference
-	168, // 144: agent_manager.v1.InvestigationRequest.evidence_policy:type_name -> agent_manager.v1.InvestigationEvidencePolicy
-	169, // 145: agent_manager.v1.InvestigationRequest.budget:type_name -> agent_manager.v1.InvestigationBudget
-	170, // 146: agent_manager.v1.InvestigationRequest.recommendation_policy:type_name -> agent_manager.v1.InvestigationRecommendationPolicy
-	171, // 147: agent_manager.v1.InvestigationRequest.provenance:type_name -> agent_manager.v1.InvestigationProvenance
-	172, // 148: agent_manager.v1.InvestigationRecord.request:type_name -> agent_manager.v1.InvestigationRequest
-	207, // 149: agent_manager.v1.InvestigationRecord.created_at:type_name -> google.protobuf.Timestamp
-	207, // 150: agent_manager.v1.InvestigationRecord.updated_at:type_name -> google.protobuf.Timestamp
-	207, // 151: agent_manager.v1.InvestigationRecord.completed_at:type_name -> google.protobuf.Timestamp
-	207, // 152: agent_manager.v1.InvestigationRecord.cancelled_at:type_name -> google.protobuf.Timestamp
-	172, // 153: agent_manager.v1.StartInvestigationRequest.request:type_name -> agent_manager.v1.InvestigationRequest
-	173, // 154: agent_manager.v1.StartInvestigationResponse.investigation:type_name -> agent_manager.v1.InvestigationRecord
-	173, // 155: agent_manager.v1.ListInvestigationsResponse.investigations:type_name -> agent_manager.v1.InvestigationRecord
-	173, // 156: agent_manager.v1.WaitInvestigationResponse.investigation:type_name -> agent_manager.v1.InvestigationRecord
-	217, // 157: agent_manager.v1.HealthResponse.DependenciesEntry.value:type_name -> common.v1.JsonValue
-	217, // 158: agent_manager.v1.HealthResponse.MetricsEntry.value:type_name -> common.v1.JsonValue
-	218, // 159: agent_manager.v1.AgentManagerService.ListEfforts:input_type -> agent_manager.v1.ListEffortsRequest
-	219, // 160: agent_manager.v1.AgentManagerService.GetEffortBoard:input_type -> agent_manager.v1.GetEffortBoardRequest
-	220, // 161: agent_manager.v1.AgentManagerService.EnrollEffort:input_type -> agent_manager.v1.EnrollEffortRequest
-	221, // 162: agent_manager.v1.AgentManagerService.ReconcileEffortMetadata:input_type -> agent_manager.v1.ReconcileEffortMetadataRequest
-	222, // 163: agent_manager.v1.AgentManagerService.WithdrawEffort:input_type -> agent_manager.v1.WithdrawEffortRequest
-	223, // 164: agent_manager.v1.AgentManagerService.ReconcileEffortDiscovery:input_type -> agent_manager.v1.ReconcileEffortDiscoveryRequest
-	224, // 165: agent_manager.v1.AgentManagerService.ListEffortSignals:input_type -> agent_manager.v1.ListEffortSignalsRequest
-	225, // 166: agent_manager.v1.AgentManagerService.RecordEffortSignal:input_type -> agent_manager.v1.RecordEffortSignalRequest
-	226, // 167: agent_manager.v1.AgentManagerService.RaiseEffortDecision:input_type -> agent_manager.v1.RaiseEffortDecisionRequest
-	227, // 168: agent_manager.v1.AgentManagerService.ListEffortDecisions:input_type -> agent_manager.v1.ListEffortDecisionsRequest
-	228, // 169: agent_manager.v1.AgentManagerService.AnswerEffortDecision:input_type -> agent_manager.v1.AnswerEffortDecisionRequest
-	229, // 170: agent_manager.v1.AgentManagerService.MarkEffortDecisionRecorded:input_type -> agent_manager.v1.MarkEffortDecisionRecordedRequest
-	3,   // 171: agent_manager.v1.AgentManagerService.Health:input_type -> agent_manager.v1.HealthRequest
-	24,  // 172: agent_manager.v1.AgentManagerService.ListExecutionOptions:input_type -> agent_manager.v1.ListExecutionOptionsRequest
-	174, // 173: agent_manager.v1.AgentManagerService.StartInvestigation:input_type -> agent_manager.v1.StartInvestigationRequest
-	176, // 174: agent_manager.v1.AgentManagerService.GetInvestigation:input_type -> agent_manager.v1.GetInvestigationRequest
-	177, // 175: agent_manager.v1.AgentManagerService.ListInvestigations:input_type -> agent_manager.v1.ListInvestigationsRequest
-	179, // 176: agent_manager.v1.AgentManagerService.WaitInvestigation:input_type -> agent_manager.v1.WaitInvestigationRequest
-	181, // 177: agent_manager.v1.AgentManagerService.CancelInvestigation:input_type -> agent_manager.v1.CancelInvestigationRequest
-	230, // 178: agent_manager.v1.AgentManagerService.CreateCohortWatch:input_type -> agent_manager.v1.CreateCohortWatchRequest
-	231, // 179: agent_manager.v1.AgentManagerService.GetCohortWatch:input_type -> agent_manager.v1.GetCohortWatchRequest
-	232, // 180: agent_manager.v1.AgentManagerService.ListCohortWatches:input_type -> agent_manager.v1.ListCohortWatchesRequest
-	233, // 181: agent_manager.v1.AgentManagerService.WaitCohortWatch:input_type -> agent_manager.v1.WaitCohortWatchRequest
-	234, // 182: agent_manager.v1.AgentManagerService.CancelCohortWatch:input_type -> agent_manager.v1.CancelCohortWatchRequest
-	235, // 183: agent_manager.v1.AgentManagerService.InspectCohortWatch:input_type -> agent_manager.v1.InspectCohortWatchRequest
-	236, // 184: agent_manager.v1.AgentManagerService.RequestCohortWatchAction:input_type -> agent_manager.v1.RequestCohortWatchActionRequest
-	237, // 185: agent_manager.v1.AgentManagerService.ListCohortWatchActions:input_type -> agent_manager.v1.ListCohortWatchActionsRequest
-	238, // 186: agent_manager.v1.AgentManagerService.GetSupervisionPolicy:input_type -> agent_manager.v1.GetSupervisionPolicyRequest
-	239, // 187: agent_manager.v1.AgentManagerService.CreateSupervisionPolicyCandidate:input_type -> agent_manager.v1.CreateSupervisionPolicyCandidateRequest
-	240, // 188: agent_manager.v1.AgentManagerService.RecordSupervisionOutcome:input_type -> agent_manager.v1.RecordSupervisionOutcomeRequest
-	241, // 189: agent_manager.v1.AgentManagerService.EvaluateSupervisionPolicy:input_type -> agent_manager.v1.EvaluateSupervisionPolicyRequest
-	242, // 190: agent_manager.v1.AgentManagerService.PromoteSupervisionPolicy:input_type -> agent_manager.v1.PromoteSupervisionPolicyRequest
-	243, // 191: agent_manager.v1.AgentManagerService.RejectSupervisionPolicy:input_type -> agent_manager.v1.RejectSupervisionPolicyRequest
-	244, // 192: agent_manager.v1.AgentManagerService.RollbackSupervisionPolicy:input_type -> agent_manager.v1.RollbackSupervisionPolicyRequest
-	245, // 193: agent_manager.v1.AgentManagerService.SetSupervisionPolicyDisabled:input_type -> agent_manager.v1.SetSupervisionPolicyDisabledRequest
-	246, // 194: agent_manager.v1.AgentManagerService.ListSupervisionOutcomes:input_type -> agent_manager.v1.ListSupervisionOutcomesRequest
-	9,   // 195: agent_manager.v1.AgentManagerService.ReconcileScenarioProfiles:input_type -> agent_manager.v1.ReconcileScenarioProfilesRequest
-	12,  // 196: agent_manager.v1.AgentManagerService.ValidateWorkflow:input_type -> agent_manager.v1.ValidateWorkflowRequest
-	14,  // 197: agent_manager.v1.AgentManagerService.ReconcileScenarioWorkflows:input_type -> agent_manager.v1.ReconcileScenarioWorkflowsRequest
-	14,  // 198: agent_manager.v1.AgentManagerService.PlanScenarioWorkflows:input_type -> agent_manager.v1.ReconcileScenarioWorkflowsRequest
-	17,  // 199: agent_manager.v1.AgentManagerService.ReconcileScenarioDeclarations:input_type -> agent_manager.v1.ReconcileScenarioDeclarationsRequest
-	17,  // 200: agent_manager.v1.AgentManagerService.PlanScenarioDeclarations:input_type -> agent_manager.v1.ReconcileScenarioDeclarationsRequest
-	19,  // 201: agent_manager.v1.AgentManagerService.ListWorkflowRevisions:input_type -> agent_manager.v1.ListWorkflowRevisionsRequest
-	21,  // 202: agent_manager.v1.AgentManagerService.GetWorkflowRevision:input_type -> agent_manager.v1.GetWorkflowRevisionRequest
-	14,  // 203: agent_manager.v1.AgentManagerService.ReloadScenarioWorkflows:input_type -> agent_manager.v1.ReconcileScenarioWorkflowsRequest
-	21,  // 204: agent_manager.v1.AgentManagerService.ExplainWorkflow:input_type -> agent_manager.v1.GetWorkflowRevisionRequest
-	23,  // 205: agent_manager.v1.AgentManagerService.StartWorkflowExecution:input_type -> agent_manager.v1.StartWorkflowExecutionRequest
-	33,  // 206: agent_manager.v1.AgentManagerService.ListWorkflowExecutions:input_type -> agent_manager.v1.ListWorkflowExecutionsRequest
-	28,  // 207: agent_manager.v1.AgentManagerService.GetWorkflowExecution:input_type -> agent_manager.v1.GetWorkflowExecutionRequest
-	29,  // 208: agent_manager.v1.AgentManagerService.GetWorkflowExecutionResult:input_type -> agent_manager.v1.GetWorkflowExecutionResultRequest
-	28,  // 209: agent_manager.v1.AgentManagerService.AdvanceWorkflowExecution:input_type -> agent_manager.v1.GetWorkflowExecutionRequest
-	31,  // 210: agent_manager.v1.AgentManagerService.WaitWorkflowExecution:input_type -> agent_manager.v1.WaitWorkflowExecutionRequest
-	35,  // 211: agent_manager.v1.AgentManagerService.GetWorkflowExecutionTrace:input_type -> agent_manager.v1.GetWorkflowExecutionTraceRequest
-	37,  // 212: agent_manager.v1.AgentManagerService.ListWorkflowExecutionRuns:input_type -> agent_manager.v1.ListWorkflowExecutionRunsRequest
-	39,  // 213: agent_manager.v1.AgentManagerService.SignalWorkflowExecution:input_type -> agent_manager.v1.SignalWorkflowExecutionRequest
-	40,  // 214: agent_manager.v1.AgentManagerService.CancelWorkflowExecution:input_type -> agent_manager.v1.WorkflowExecutionOperationRequest
-	40,  // 215: agent_manager.v1.AgentManagerService.RetryWorkflowExecution:input_type -> agent_manager.v1.WorkflowExecutionOperationRequest
-	40,  // 216: agent_manager.v1.AgentManagerService.ResumeWorkflowExecution:input_type -> agent_manager.v1.WorkflowExecutionOperationRequest
-	42,  // 217: agent_manager.v1.AgentManagerService.SimulateWorkflow:input_type -> agent_manager.v1.SimulateWorkflowRequest
-	45,  // 218: agent_manager.v1.AgentManagerService.GetProfile:input_type -> agent_manager.v1.GetProfileRequest
-	47,  // 219: agent_manager.v1.AgentManagerService.ListProfiles:input_type -> agent_manager.v1.ListProfilesRequest
-	53,  // 220: agent_manager.v1.AgentManagerService.CreateTask:input_type -> agent_manager.v1.CreateTaskRequest
-	66,  // 221: agent_manager.v1.AgentManagerService.CreateRun:input_type -> agent_manager.v1.CreateRunRequest
-	75,  // 222: agent_manager.v1.AgentManagerService.GetRun:input_type -> agent_manager.v1.GetRunRequest
-	77,  // 223: agent_manager.v1.AgentManagerService.GetRunReport:input_type -> agent_manager.v1.GetRunReportRequest
-	78,  // 224: agent_manager.v1.AgentManagerService.GetRunAccounting:input_type -> agent_manager.v1.GetRunAccountingRequest
-	89,  // 225: agent_manager.v1.AgentManagerService.ListRuns:input_type -> agent_manager.v1.ListRunsRequest
-	103, // 226: agent_manager.v1.AgentManagerService.GetRunEvents:input_type -> agent_manager.v1.GetRunEventsRequest
-	116, // 227: agent_manager.v1.AgentManagerService.ProbeRunner:input_type -> agent_manager.v1.ProbeRunnerRequest
-	126, // 228: agent_manager.v1.AgentManagerService.GetRolePolicyStatus:input_type -> agent_manager.v1.GetRolePolicyStatusRequest
-	128, // 229: agent_manager.v1.AgentManagerService.GetRolePolicyCatalog:input_type -> agent_manager.v1.GetRolePolicyCatalogRequest
-	130, // 230: agent_manager.v1.AgentManagerService.ValidateRolePolicyCatalog:input_type -> agent_manager.v1.ValidateRolePolicyCatalogRequest
-	132, // 231: agent_manager.v1.AgentManagerService.ReloadRolePolicyCatalog:input_type -> agent_manager.v1.ReloadRolePolicyCatalogRequest
-	134, // 232: agent_manager.v1.AgentManagerService.ExplainRolePolicy:input_type -> agent_manager.v1.ExplainRolePolicyRequest
-	148, // 233: agent_manager.v1.AgentManagerService.GetPermissionPolicyStatus:input_type -> agent_manager.v1.GetPermissionPolicyStatusRequest
-	150, // 234: agent_manager.v1.AgentManagerService.GetPermissionPolicyCatalog:input_type -> agent_manager.v1.GetPermissionPolicyCatalogRequest
-	152, // 235: agent_manager.v1.AgentManagerService.ValidatePermissionPolicyCatalog:input_type -> agent_manager.v1.ValidatePermissionPolicyCatalogRequest
-	154, // 236: agent_manager.v1.AgentManagerService.ReloadPermissionPolicyCatalog:input_type -> agent_manager.v1.ReloadPermissionPolicyCatalogRequest
-	156, // 237: agent_manager.v1.AgentManagerService.PlanPermissionPolicy:input_type -> agent_manager.v1.PlanPermissionPolicyRequest
-	158, // 238: agent_manager.v1.AgentManagerService.ReconcilePermissionPolicy:input_type -> agent_manager.v1.ReconcilePermissionPolicyRequest
-	160, // 239: agent_manager.v1.AgentManagerService.DoctorPermissionPolicy:input_type -> agent_manager.v1.DoctorPermissionPolicyRequest
-	162, // 240: agent_manager.v1.AgentManagerService.PurgeData:input_type -> agent_manager.v1.PurgeDataRequest
-	247, // 241: agent_manager.v1.AgentManagerService.ListEfforts:output_type -> agent_manager.v1.ListEffortsResponse
-	248, // 242: agent_manager.v1.AgentManagerService.GetEffortBoard:output_type -> agent_manager.v1.EffortBoard
-	249, // 243: agent_manager.v1.AgentManagerService.EnrollEffort:output_type -> agent_manager.v1.EffortEnrollment
-	249, // 244: agent_manager.v1.AgentManagerService.ReconcileEffortMetadata:output_type -> agent_manager.v1.EffortEnrollment
-	249, // 245: agent_manager.v1.AgentManagerService.WithdrawEffort:output_type -> agent_manager.v1.EffortEnrollment
-	250, // 246: agent_manager.v1.AgentManagerService.ReconcileEffortDiscovery:output_type -> agent_manager.v1.EffortDiscovery
-	251, // 247: agent_manager.v1.AgentManagerService.ListEffortSignals:output_type -> agent_manager.v1.ListEffortSignalsResponse
-	252, // 248: agent_manager.v1.AgentManagerService.RecordEffortSignal:output_type -> agent_manager.v1.EffortSignal
-	253, // 249: agent_manager.v1.AgentManagerService.RaiseEffortDecision:output_type -> agent_manager.v1.RaiseEffortDecisionResponse
-	254, // 250: agent_manager.v1.AgentManagerService.ListEffortDecisions:output_type -> agent_manager.v1.ListEffortDecisionsResponse
-	255, // 251: agent_manager.v1.AgentManagerService.AnswerEffortDecision:output_type -> agent_manager.v1.EffortDecision
-	255, // 252: agent_manager.v1.AgentManagerService.MarkEffortDecisionRecorded:output_type -> agent_manager.v1.EffortDecision
-	4,   // 253: agent_manager.v1.AgentManagerService.Health:output_type -> agent_manager.v1.HealthResponse
-	27,  // 254: agent_manager.v1.AgentManagerService.ListExecutionOptions:output_type -> agent_manager.v1.ListExecutionOptionsResponse
-	175, // 255: agent_manager.v1.AgentManagerService.StartInvestigation:output_type -> agent_manager.v1.StartInvestigationResponse
-	173, // 256: agent_manager.v1.AgentManagerService.GetInvestigation:output_type -> agent_manager.v1.InvestigationRecord
-	178, // 257: agent_manager.v1.AgentManagerService.ListInvestigations:output_type -> agent_manager.v1.ListInvestigationsResponse
-	180, // 258: agent_manager.v1.AgentManagerService.WaitInvestigation:output_type -> agent_manager.v1.WaitInvestigationResponse
-	173, // 259: agent_manager.v1.AgentManagerService.CancelInvestigation:output_type -> agent_manager.v1.InvestigationRecord
-	256, // 260: agent_manager.v1.AgentManagerService.CreateCohortWatch:output_type -> agent_manager.v1.CohortWatch
-	256, // 261: agent_manager.v1.AgentManagerService.GetCohortWatch:output_type -> agent_manager.v1.CohortWatch
-	257, // 262: agent_manager.v1.AgentManagerService.ListCohortWatches:output_type -> agent_manager.v1.ListCohortWatchesResponse
-	258, // 263: agent_manager.v1.AgentManagerService.WaitCohortWatch:output_type -> agent_manager.v1.WaitCohortWatchResponse
-	256, // 264: agent_manager.v1.AgentManagerService.CancelCohortWatch:output_type -> agent_manager.v1.CohortWatch
-	259, // 265: agent_manager.v1.AgentManagerService.InspectCohortWatch:output_type -> agent_manager.v1.InspectCohortWatchResponse
-	260, // 266: agent_manager.v1.AgentManagerService.RequestCohortWatchAction:output_type -> agent_manager.v1.RequestCohortWatchActionResponse
-	261, // 267: agent_manager.v1.AgentManagerService.ListCohortWatchActions:output_type -> agent_manager.v1.ListCohortWatchActionsResponse
-	262, // 268: agent_manager.v1.AgentManagerService.GetSupervisionPolicy:output_type -> agent_manager.v1.SupervisionPolicyRecord
-	262, // 269: agent_manager.v1.AgentManagerService.CreateSupervisionPolicyCandidate:output_type -> agent_manager.v1.SupervisionPolicyRecord
-	263, // 270: agent_manager.v1.AgentManagerService.RecordSupervisionOutcome:output_type -> agent_manager.v1.RecordSupervisionOutcomeResponse
-	264, // 271: agent_manager.v1.AgentManagerService.EvaluateSupervisionPolicy:output_type -> agent_manager.v1.SupervisionReplayReport
-	262, // 272: agent_manager.v1.AgentManagerService.PromoteSupervisionPolicy:output_type -> agent_manager.v1.SupervisionPolicyRecord
-	262, // 273: agent_manager.v1.AgentManagerService.RejectSupervisionPolicy:output_type -> agent_manager.v1.SupervisionPolicyRecord
-	262, // 274: agent_manager.v1.AgentManagerService.RollbackSupervisionPolicy:output_type -> agent_manager.v1.SupervisionPolicyRecord
-	265, // 275: agent_manager.v1.AgentManagerService.SetSupervisionPolicyDisabled:output_type -> agent_manager.v1.SupervisionPolicyControl
-	266, // 276: agent_manager.v1.AgentManagerService.ListSupervisionOutcomes:output_type -> agent_manager.v1.ListSupervisionOutcomesResponse
-	11,  // 277: agent_manager.v1.AgentManagerService.ReconcileScenarioProfiles:output_type -> agent_manager.v1.ReconcileScenarioProfilesResponse
-	13,  // 278: agent_manager.v1.AgentManagerService.ValidateWorkflow:output_type -> agent_manager.v1.ValidateWorkflowResponse
-	16,  // 279: agent_manager.v1.AgentManagerService.ReconcileScenarioWorkflows:output_type -> agent_manager.v1.ReconcileScenarioWorkflowsResponse
-	16,  // 280: agent_manager.v1.AgentManagerService.PlanScenarioWorkflows:output_type -> agent_manager.v1.ReconcileScenarioWorkflowsResponse
-	18,  // 281: agent_manager.v1.AgentManagerService.ReconcileScenarioDeclarations:output_type -> agent_manager.v1.ReconcileScenarioDeclarationsResponse
-	18,  // 282: agent_manager.v1.AgentManagerService.PlanScenarioDeclarations:output_type -> agent_manager.v1.ReconcileScenarioDeclarationsResponse
-	20,  // 283: agent_manager.v1.AgentManagerService.ListWorkflowRevisions:output_type -> agent_manager.v1.ListWorkflowRevisionsResponse
-	22,  // 284: agent_manager.v1.AgentManagerService.GetWorkflowRevision:output_type -> agent_manager.v1.GetWorkflowRevisionResponse
-	16,  // 285: agent_manager.v1.AgentManagerService.ReloadScenarioWorkflows:output_type -> agent_manager.v1.ReconcileScenarioWorkflowsResponse
-	22,  // 286: agent_manager.v1.AgentManagerService.ExplainWorkflow:output_type -> agent_manager.v1.GetWorkflowRevisionResponse
-	30,  // 287: agent_manager.v1.AgentManagerService.StartWorkflowExecution:output_type -> agent_manager.v1.WorkflowExecutionResponse
-	34,  // 288: agent_manager.v1.AgentManagerService.ListWorkflowExecutions:output_type -> agent_manager.v1.ListWorkflowExecutionsResponse
-	30,  // 289: agent_manager.v1.AgentManagerService.GetWorkflowExecution:output_type -> agent_manager.v1.WorkflowExecutionResponse
-	30,  // 290: agent_manager.v1.AgentManagerService.GetWorkflowExecutionResult:output_type -> agent_manager.v1.WorkflowExecutionResponse
-	30,  // 291: agent_manager.v1.AgentManagerService.AdvanceWorkflowExecution:output_type -> agent_manager.v1.WorkflowExecutionResponse
-	32,  // 292: agent_manager.v1.AgentManagerService.WaitWorkflowExecution:output_type -> agent_manager.v1.WaitWorkflowExecutionResponse
-	36,  // 293: agent_manager.v1.AgentManagerService.GetWorkflowExecutionTrace:output_type -> agent_manager.v1.GetWorkflowExecutionTraceResponse
-	38,  // 294: agent_manager.v1.AgentManagerService.ListWorkflowExecutionRuns:output_type -> agent_manager.v1.ListWorkflowExecutionRunsResponse
-	41,  // 295: agent_manager.v1.AgentManagerService.SignalWorkflowExecution:output_type -> agent_manager.v1.WorkflowExecutionOperationResponse
-	41,  // 296: agent_manager.v1.AgentManagerService.CancelWorkflowExecution:output_type -> agent_manager.v1.WorkflowExecutionOperationResponse
-	41,  // 297: agent_manager.v1.AgentManagerService.RetryWorkflowExecution:output_type -> agent_manager.v1.WorkflowExecutionOperationResponse
-	41,  // 298: agent_manager.v1.AgentManagerService.ResumeWorkflowExecution:output_type -> agent_manager.v1.WorkflowExecutionOperationResponse
-	44,  // 299: agent_manager.v1.AgentManagerService.SimulateWorkflow:output_type -> agent_manager.v1.SimulateWorkflowResponse
-	46,  // 300: agent_manager.v1.AgentManagerService.GetProfile:output_type -> agent_manager.v1.GetProfileResponse
-	48,  // 301: agent_manager.v1.AgentManagerService.ListProfiles:output_type -> agent_manager.v1.ListProfilesResponse
-	54,  // 302: agent_manager.v1.AgentManagerService.CreateTask:output_type -> agent_manager.v1.CreateTaskResponse
-	74,  // 303: agent_manager.v1.AgentManagerService.CreateRun:output_type -> agent_manager.v1.CreateRunResponse
-	76,  // 304: agent_manager.v1.AgentManagerService.GetRun:output_type -> agent_manager.v1.GetRunResponse
-	80,  // 305: agent_manager.v1.AgentManagerService.GetRunReport:output_type -> agent_manager.v1.RunReport
-	79,  // 306: agent_manager.v1.AgentManagerService.GetRunAccounting:output_type -> agent_manager.v1.RunAccounting
-	90,  // 307: agent_manager.v1.AgentManagerService.ListRuns:output_type -> agent_manager.v1.ListRunsResponse
-	104, // 308: agent_manager.v1.AgentManagerService.GetRunEvents:output_type -> agent_manager.v1.GetRunEventsResponse
-	117, // 309: agent_manager.v1.AgentManagerService.ProbeRunner:output_type -> agent_manager.v1.ProbeRunnerResponse
-	127, // 310: agent_manager.v1.AgentManagerService.GetRolePolicyStatus:output_type -> agent_manager.v1.GetRolePolicyStatusResponse
-	129, // 311: agent_manager.v1.AgentManagerService.GetRolePolicyCatalog:output_type -> agent_manager.v1.GetRolePolicyCatalogResponse
-	131, // 312: agent_manager.v1.AgentManagerService.ValidateRolePolicyCatalog:output_type -> agent_manager.v1.ValidateRolePolicyCatalogResponse
-	133, // 313: agent_manager.v1.AgentManagerService.ReloadRolePolicyCatalog:output_type -> agent_manager.v1.ReloadRolePolicyCatalogResponse
-	135, // 314: agent_manager.v1.AgentManagerService.ExplainRolePolicy:output_type -> agent_manager.v1.ExplainRolePolicyResponse
-	149, // 315: agent_manager.v1.AgentManagerService.GetPermissionPolicyStatus:output_type -> agent_manager.v1.GetPermissionPolicyStatusResponse
-	151, // 316: agent_manager.v1.AgentManagerService.GetPermissionPolicyCatalog:output_type -> agent_manager.v1.GetPermissionPolicyCatalogResponse
-	153, // 317: agent_manager.v1.AgentManagerService.ValidatePermissionPolicyCatalog:output_type -> agent_manager.v1.ValidatePermissionPolicyCatalogResponse
-	155, // 318: agent_manager.v1.AgentManagerService.ReloadPermissionPolicyCatalog:output_type -> agent_manager.v1.ReloadPermissionPolicyCatalogResponse
-	157, // 319: agent_manager.v1.AgentManagerService.PlanPermissionPolicy:output_type -> agent_manager.v1.PlanPermissionPolicyResponse
-	159, // 320: agent_manager.v1.AgentManagerService.ReconcilePermissionPolicy:output_type -> agent_manager.v1.ReconcilePermissionPolicyResponse
-	161, // 321: agent_manager.v1.AgentManagerService.DoctorPermissionPolicy:output_type -> agent_manager.v1.DoctorPermissionPolicyResponse
-	164, // 322: agent_manager.v1.AgentManagerService.PurgeData:output_type -> agent_manager.v1.PurgeDataResponse
-	241, // [241:323] is the sub-list for method output_type
-	159, // [159:241] is the sub-list for method input_type
-	159, // [159:159] is the sub-list for extension type_name
-	159, // [159:159] is the sub-list for extension extendee
-	0,   // [0:159] is the sub-list for field type_name
+	214, // 74: agent_manager.v1.GetRunByTagResponse.run:type_name -> agent_manager.v1.Run
+	216, // 75: agent_manager.v1.ListRunsRequest.status:type_name -> agent_manager.v1.RunStatus
+	214, // 76: agent_manager.v1.WaitRunResponse.run:type_name -> agent_manager.v1.Run
+	215, // 77: agent_manager.v1.WaitRunChildrenRequest.since:type_name -> google.protobuf.Timestamp
+	215, // 78: agent_manager.v1.RunChildSummary.ended_at:type_name -> google.protobuf.Timestamp
+	93,  // 79: agent_manager.v1.WaitRunChildrenResponse.ended:type_name -> agent_manager.v1.RunChildSummary
+	93,  // 80: agent_manager.v1.WaitRunChildrenResponse.active:type_name -> agent_manager.v1.RunChildSummary
+	215, // 81: agent_manager.v1.WaitRunChildrenResponse.observed_at:type_name -> google.protobuf.Timestamp
+	216, // 82: agent_manager.v1.RunTreeNode.status:type_name -> agent_manager.v1.RunStatus
+	215, // 83: agent_manager.v1.RunTreeNode.started_at:type_name -> google.protobuf.Timestamp
+	215, // 84: agent_manager.v1.RunTreeNode.ended_at:type_name -> google.protobuf.Timestamp
+	96,  // 85: agent_manager.v1.RunTreeNode.children:type_name -> agent_manager.v1.RunTreeNode
+	215, // 86: agent_manager.v1.RunTreeNode.owner_expires_at:type_name -> google.protobuf.Timestamp
+	217, // 87: agent_manager.v1.RunTreeNode.step_back:type_name -> agent_manager.v1.StepBackTrigger
+	96,  // 88: agent_manager.v1.RunTree.root:type_name -> agent_manager.v1.RunTreeNode
+	214, // 89: agent_manager.v1.ListRunsResponse.runs:type_name -> agent_manager.v1.Run
+	214, // 90: agent_manager.v1.StopRunResponse.run:type_name -> agent_manager.v1.Run
+	214, // 91: agent_manager.v1.StopRunByTagResponse.run:type_name -> agent_manager.v1.Run
+	218, // 92: agent_manager.v1.StopAllRunsResponse.result:type_name -> agent_manager.v1.StopAllResult
+	107, // 93: agent_manager.v1.QuiesceScenarioResponse.result:type_name -> agent_manager.v1.QuiesceResult
+	108, // 94: agent_manager.v1.QuiesceResult.in_flight:type_name -> agent_manager.v1.QuiesceRunRef
+	108, // 95: agent_manager.v1.QuiesceResult.cancelled:type_name -> agent_manager.v1.QuiesceRunRef
+	108, // 96: agent_manager.v1.QuiesceResult.excluded:type_name -> agent_manager.v1.QuiesceRunRef
+	108, // 97: agent_manager.v1.QuiesceResult.not_drained:type_name -> agent_manager.v1.QuiesceRunRef
+	214, // 98: agent_manager.v1.RecoverRunResponse.run:type_name -> agent_manager.v1.Run
+	219, // 99: agent_manager.v1.GetRunEventsRequest.event_types:type_name -> agent_manager.v1.RunEventType
+	220, // 100: agent_manager.v1.GetRunEventsResponse.events:type_name -> agent_manager.v1.RunEvent
+	113, // 101: agent_manager.v1.GetRunEventsResponse.summary:type_name -> agent_manager.v1.RunEventSummary
+	194, // 102: agent_manager.v1.RunEventSummary.counts:type_name -> agent_manager.v1.RunEventSummary.CountsEntry
+	221, // 103: agent_manager.v1.GetRunDiffResponse.diff:type_name -> agent_manager.v1.RunDiff
+	222, // 104: agent_manager.v1.ApproveRunResponse.result:type_name -> agent_manager.v1.ApproveResult
+	222, // 105: agent_manager.v1.PartialApproveRunResponse.result:type_name -> agent_manager.v1.ApproveResult
+	223, // 106: agent_manager.v1.GetRunnerStatusResponse.runners:type_name -> agent_manager.v1.RunnerStatus
+	203, // 107: agent_manager.v1.ProbeRunnerRequest.runner_type:type_name -> agent_manager.v1.RunnerType
+	224, // 108: agent_manager.v1.ProbeRunnerResponse.result:type_name -> agent_manager.v1.ProbeResult
+	215, // 109: agent_manager.v1.RolePolicyReloadAttempt.attempted_at:type_name -> google.protobuf.Timestamp
+	126, // 110: agent_manager.v1.RolePolicyReloadAttempt.diagnostic:type_name -> agent_manager.v1.RolePolicyDiagnostic
+	127, // 111: agent_manager.v1.RolePolicyStatus.requirement:type_name -> agent_manager.v1.RolePolicyRequirement
+	215, // 112: agent_manager.v1.RolePolicyStatus.activated_at:type_name -> google.protobuf.Timestamp
+	128, // 113: agent_manager.v1.RolePolicyStatus.last_reload_attempt:type_name -> agent_manager.v1.RolePolicyReloadAttempt
+	203, // 114: agent_manager.v1.RolePolicyCandidate.runner_type:type_name -> agent_manager.v1.RunnerType
+	131, // 115: agent_manager.v1.RolePolicyDefinition.candidates:type_name -> agent_manager.v1.RolePolicyCandidate
+	130, // 116: agent_manager.v1.RolePolicyCatalog.metadata:type_name -> agent_manager.v1.RolePolicyCatalogMetadata
+	132, // 117: agent_manager.v1.RolePolicyCatalog.roles:type_name -> agent_manager.v1.RolePolicyDefinition
+	129, // 118: agent_manager.v1.GetRolePolicyStatusResponse.status:type_name -> agent_manager.v1.RolePolicyStatus
+	129, // 119: agent_manager.v1.GetRolePolicyCatalogResponse.status:type_name -> agent_manager.v1.RolePolicyStatus
+	133, // 120: agent_manager.v1.GetRolePolicyCatalogResponse.catalog:type_name -> agent_manager.v1.RolePolicyCatalog
+	126, // 121: agent_manager.v1.ValidateRolePolicyCatalogResponse.diagnostic:type_name -> agent_manager.v1.RolePolicyDiagnostic
+	129, // 122: agent_manager.v1.ReloadRolePolicyCatalogResponse.status:type_name -> agent_manager.v1.RolePolicyStatus
+	126, // 123: agent_manager.v1.ReloadRolePolicyCatalogResponse.diagnostic:type_name -> agent_manager.v1.RolePolicyDiagnostic
+	225, // 124: agent_manager.v1.ExplainRolePolicyResponse.snapshot:type_name -> agent_manager.v1.ExecutionPolicySnapshot
+	215, // 125: agent_manager.v1.PermissionPolicyReloadAttempt.attempted_at:type_name -> google.protobuf.Timestamp
+	144, // 126: agent_manager.v1.PermissionPolicyReloadAttempt.diagnostic:type_name -> agent_manager.v1.PermissionPolicyDiagnostic
+	145, // 127: agent_manager.v1.PermissionPolicyStatus.requirement:type_name -> agent_manager.v1.PermissionPolicyRequirement
+	215, // 128: agent_manager.v1.PermissionPolicyStatus.activated_at:type_name -> google.protobuf.Timestamp
+	146, // 129: agent_manager.v1.PermissionPolicyStatus.last_reload_attempt:type_name -> agent_manager.v1.PermissionPolicyReloadAttempt
+	149, // 130: agent_manager.v1.PermissionPolicyRule.matcher:type_name -> agent_manager.v1.PermissionPolicyMatcher
+	148, // 131: agent_manager.v1.PermissionPolicyCatalog.metadata:type_name -> agent_manager.v1.PermissionPolicyCatalogMetadata
+	150, // 132: agent_manager.v1.PermissionPolicyCatalog.rules:type_name -> agent_manager.v1.PermissionPolicyRule
+	203, // 133: agent_manager.v1.PermissionPolicyResourceResult.runner_type:type_name -> agent_manager.v1.RunnerType
+	152, // 134: agent_manager.v1.PermissionPolicyResourceResult.enforcement:type_name -> agent_manager.v1.PermissionPolicyEnforcement
+	149, // 135: agent_manager.v1.PermissionPolicyResourceResult.unsupported_matchers:type_name -> agent_manager.v1.PermissionPolicyMatcher
+	153, // 136: agent_manager.v1.PermissionPolicyPlan.resources:type_name -> agent_manager.v1.PermissionPolicyResourceResult
+	215, // 137: agent_manager.v1.PermissionPolicyReconcileResult.started_at:type_name -> google.protobuf.Timestamp
+	215, // 138: agent_manager.v1.PermissionPolicyReconcileResult.finished_at:type_name -> google.protobuf.Timestamp
+	153, // 139: agent_manager.v1.PermissionPolicyReconcileResult.resources:type_name -> agent_manager.v1.PermissionPolicyResourceResult
+	147, // 140: agent_manager.v1.GetPermissionPolicyStatusResponse.status:type_name -> agent_manager.v1.PermissionPolicyStatus
+	155, // 141: agent_manager.v1.GetPermissionPolicyStatusResponse.last_reconcile:type_name -> agent_manager.v1.PermissionPolicyReconcileResult
+	147, // 142: agent_manager.v1.GetPermissionPolicyCatalogResponse.status:type_name -> agent_manager.v1.PermissionPolicyStatus
+	151, // 143: agent_manager.v1.GetPermissionPolicyCatalogResponse.catalog:type_name -> agent_manager.v1.PermissionPolicyCatalog
+	144, // 144: agent_manager.v1.ValidatePermissionPolicyCatalogResponse.diagnostic:type_name -> agent_manager.v1.PermissionPolicyDiagnostic
+	147, // 145: agent_manager.v1.ReloadPermissionPolicyCatalogResponse.status:type_name -> agent_manager.v1.PermissionPolicyStatus
+	144, // 146: agent_manager.v1.ReloadPermissionPolicyCatalogResponse.diagnostic:type_name -> agent_manager.v1.PermissionPolicyDiagnostic
+	154, // 147: agent_manager.v1.PlanPermissionPolicyResponse.plan:type_name -> agent_manager.v1.PermissionPolicyPlan
+	155, // 148: agent_manager.v1.ReconcilePermissionPolicyResponse.result:type_name -> agent_manager.v1.PermissionPolicyReconcileResult
+	147, // 149: agent_manager.v1.DoctorPermissionPolicyResponse.status:type_name -> agent_manager.v1.PermissionPolicyStatus
+	154, // 150: agent_manager.v1.DoctorPermissionPolicyResponse.plan:type_name -> agent_manager.v1.PermissionPolicyPlan
+	2,   // 151: agent_manager.v1.PurgeDataRequest.targets:type_name -> agent_manager.v1.PurgeTarget
+	171, // 152: agent_manager.v1.PurgeDataResponse.matched:type_name -> agent_manager.v1.PurgeCounts
+	171, // 153: agent_manager.v1.PurgeDataResponse.deleted:type_name -> agent_manager.v1.PurgeCounts
+	173, // 154: agent_manager.v1.InvestigationRequest.subject:type_name -> agent_manager.v1.InvestigationSubject
+	175, // 155: agent_manager.v1.InvestigationRequest.method_ref:type_name -> agent_manager.v1.InvestigationMethodReference
+	174, // 156: agent_manager.v1.InvestigationRequest.domain_evidence:type_name -> agent_manager.v1.InvestigationEvidenceReference
+	176, // 157: agent_manager.v1.InvestigationRequest.evidence_policy:type_name -> agent_manager.v1.InvestigationEvidencePolicy
+	177, // 158: agent_manager.v1.InvestigationRequest.budget:type_name -> agent_manager.v1.InvestigationBudget
+	178, // 159: agent_manager.v1.InvestigationRequest.recommendation_policy:type_name -> agent_manager.v1.InvestigationRecommendationPolicy
+	179, // 160: agent_manager.v1.InvestigationRequest.provenance:type_name -> agent_manager.v1.InvestigationProvenance
+	180, // 161: agent_manager.v1.InvestigationRecord.request:type_name -> agent_manager.v1.InvestigationRequest
+	215, // 162: agent_manager.v1.InvestigationRecord.created_at:type_name -> google.protobuf.Timestamp
+	215, // 163: agent_manager.v1.InvestigationRecord.updated_at:type_name -> google.protobuf.Timestamp
+	215, // 164: agent_manager.v1.InvestigationRecord.completed_at:type_name -> google.protobuf.Timestamp
+	215, // 165: agent_manager.v1.InvestigationRecord.cancelled_at:type_name -> google.protobuf.Timestamp
+	180, // 166: agent_manager.v1.StartInvestigationRequest.request:type_name -> agent_manager.v1.InvestigationRequest
+	181, // 167: agent_manager.v1.StartInvestigationResponse.investigation:type_name -> agent_manager.v1.InvestigationRecord
+	181, // 168: agent_manager.v1.ListInvestigationsResponse.investigations:type_name -> agent_manager.v1.InvestigationRecord
+	181, // 169: agent_manager.v1.WaitInvestigationResponse.investigation:type_name -> agent_manager.v1.InvestigationRecord
+	226, // 170: agent_manager.v1.HealthResponse.DependenciesEntry.value:type_name -> common.v1.JsonValue
+	226, // 171: agent_manager.v1.HealthResponse.MetricsEntry.value:type_name -> common.v1.JsonValue
+	227, // 172: agent_manager.v1.AgentManagerService.ListEfforts:input_type -> agent_manager.v1.ListEffortsRequest
+	228, // 173: agent_manager.v1.AgentManagerService.GetEffortBoard:input_type -> agent_manager.v1.GetEffortBoardRequest
+	229, // 174: agent_manager.v1.AgentManagerService.EnrollEffort:input_type -> agent_manager.v1.EnrollEffortRequest
+	230, // 175: agent_manager.v1.AgentManagerService.ReconcileEffortMetadata:input_type -> agent_manager.v1.ReconcileEffortMetadataRequest
+	231, // 176: agent_manager.v1.AgentManagerService.WithdrawEffort:input_type -> agent_manager.v1.WithdrawEffortRequest
+	232, // 177: agent_manager.v1.AgentManagerService.ReconcileEffortDiscovery:input_type -> agent_manager.v1.ReconcileEffortDiscoveryRequest
+	233, // 178: agent_manager.v1.AgentManagerService.ListEffortSignals:input_type -> agent_manager.v1.ListEffortSignalsRequest
+	234, // 179: agent_manager.v1.AgentManagerService.RecordEffortSignal:input_type -> agent_manager.v1.RecordEffortSignalRequest
+	235, // 180: agent_manager.v1.AgentManagerService.RaiseEffortDecision:input_type -> agent_manager.v1.RaiseEffortDecisionRequest
+	236, // 181: agent_manager.v1.AgentManagerService.ListEffortDecisions:input_type -> agent_manager.v1.ListEffortDecisionsRequest
+	237, // 182: agent_manager.v1.AgentManagerService.AnswerEffortDecision:input_type -> agent_manager.v1.AnswerEffortDecisionRequest
+	238, // 183: agent_manager.v1.AgentManagerService.MarkEffortDecisionRecorded:input_type -> agent_manager.v1.MarkEffortDecisionRecordedRequest
+	3,   // 184: agent_manager.v1.AgentManagerService.Health:input_type -> agent_manager.v1.HealthRequest
+	24,  // 185: agent_manager.v1.AgentManagerService.ListExecutionOptions:input_type -> agent_manager.v1.ListExecutionOptionsRequest
+	182, // 186: agent_manager.v1.AgentManagerService.StartInvestigation:input_type -> agent_manager.v1.StartInvestigationRequest
+	184, // 187: agent_manager.v1.AgentManagerService.GetInvestigation:input_type -> agent_manager.v1.GetInvestigationRequest
+	185, // 188: agent_manager.v1.AgentManagerService.ListInvestigations:input_type -> agent_manager.v1.ListInvestigationsRequest
+	187, // 189: agent_manager.v1.AgentManagerService.WaitInvestigation:input_type -> agent_manager.v1.WaitInvestigationRequest
+	189, // 190: agent_manager.v1.AgentManagerService.CancelInvestigation:input_type -> agent_manager.v1.CancelInvestigationRequest
+	239, // 191: agent_manager.v1.AgentManagerService.CreateCohortWatch:input_type -> agent_manager.v1.CreateCohortWatchRequest
+	240, // 192: agent_manager.v1.AgentManagerService.GetCohortWatch:input_type -> agent_manager.v1.GetCohortWatchRequest
+	241, // 193: agent_manager.v1.AgentManagerService.ListCohortWatches:input_type -> agent_manager.v1.ListCohortWatchesRequest
+	242, // 194: agent_manager.v1.AgentManagerService.WaitCohortWatch:input_type -> agent_manager.v1.WaitCohortWatchRequest
+	243, // 195: agent_manager.v1.AgentManagerService.CancelCohortWatch:input_type -> agent_manager.v1.CancelCohortWatchRequest
+	244, // 196: agent_manager.v1.AgentManagerService.InspectCohortWatch:input_type -> agent_manager.v1.InspectCohortWatchRequest
+	245, // 197: agent_manager.v1.AgentManagerService.RequestCohortWatchAction:input_type -> agent_manager.v1.RequestCohortWatchActionRequest
+	246, // 198: agent_manager.v1.AgentManagerService.ListCohortWatchActions:input_type -> agent_manager.v1.ListCohortWatchActionsRequest
+	247, // 199: agent_manager.v1.AgentManagerService.GetSupervisionPolicy:input_type -> agent_manager.v1.GetSupervisionPolicyRequest
+	248, // 200: agent_manager.v1.AgentManagerService.CreateSupervisionPolicyCandidate:input_type -> agent_manager.v1.CreateSupervisionPolicyCandidateRequest
+	249, // 201: agent_manager.v1.AgentManagerService.RecordSupervisionOutcome:input_type -> agent_manager.v1.RecordSupervisionOutcomeRequest
+	250, // 202: agent_manager.v1.AgentManagerService.EvaluateSupervisionPolicy:input_type -> agent_manager.v1.EvaluateSupervisionPolicyRequest
+	251, // 203: agent_manager.v1.AgentManagerService.PromoteSupervisionPolicy:input_type -> agent_manager.v1.PromoteSupervisionPolicyRequest
+	252, // 204: agent_manager.v1.AgentManagerService.RejectSupervisionPolicy:input_type -> agent_manager.v1.RejectSupervisionPolicyRequest
+	253, // 205: agent_manager.v1.AgentManagerService.RollbackSupervisionPolicy:input_type -> agent_manager.v1.RollbackSupervisionPolicyRequest
+	254, // 206: agent_manager.v1.AgentManagerService.SetSupervisionPolicyDisabled:input_type -> agent_manager.v1.SetSupervisionPolicyDisabledRequest
+	255, // 207: agent_manager.v1.AgentManagerService.ListSupervisionOutcomes:input_type -> agent_manager.v1.ListSupervisionOutcomesRequest
+	9,   // 208: agent_manager.v1.AgentManagerService.ReconcileScenarioProfiles:input_type -> agent_manager.v1.ReconcileScenarioProfilesRequest
+	12,  // 209: agent_manager.v1.AgentManagerService.ValidateWorkflow:input_type -> agent_manager.v1.ValidateWorkflowRequest
+	14,  // 210: agent_manager.v1.AgentManagerService.ReconcileScenarioWorkflows:input_type -> agent_manager.v1.ReconcileScenarioWorkflowsRequest
+	14,  // 211: agent_manager.v1.AgentManagerService.PlanScenarioWorkflows:input_type -> agent_manager.v1.ReconcileScenarioWorkflowsRequest
+	17,  // 212: agent_manager.v1.AgentManagerService.ReconcileScenarioDeclarations:input_type -> agent_manager.v1.ReconcileScenarioDeclarationsRequest
+	17,  // 213: agent_manager.v1.AgentManagerService.PlanScenarioDeclarations:input_type -> agent_manager.v1.ReconcileScenarioDeclarationsRequest
+	19,  // 214: agent_manager.v1.AgentManagerService.ListWorkflowRevisions:input_type -> agent_manager.v1.ListWorkflowRevisionsRequest
+	21,  // 215: agent_manager.v1.AgentManagerService.GetWorkflowRevision:input_type -> agent_manager.v1.GetWorkflowRevisionRequest
+	14,  // 216: agent_manager.v1.AgentManagerService.ReloadScenarioWorkflows:input_type -> agent_manager.v1.ReconcileScenarioWorkflowsRequest
+	21,  // 217: agent_manager.v1.AgentManagerService.ExplainWorkflow:input_type -> agent_manager.v1.GetWorkflowRevisionRequest
+	23,  // 218: agent_manager.v1.AgentManagerService.StartWorkflowExecution:input_type -> agent_manager.v1.StartWorkflowExecutionRequest
+	33,  // 219: agent_manager.v1.AgentManagerService.ListWorkflowExecutions:input_type -> agent_manager.v1.ListWorkflowExecutionsRequest
+	28,  // 220: agent_manager.v1.AgentManagerService.GetWorkflowExecution:input_type -> agent_manager.v1.GetWorkflowExecutionRequest
+	29,  // 221: agent_manager.v1.AgentManagerService.GetWorkflowExecutionResult:input_type -> agent_manager.v1.GetWorkflowExecutionResultRequest
+	28,  // 222: agent_manager.v1.AgentManagerService.AdvanceWorkflowExecution:input_type -> agent_manager.v1.GetWorkflowExecutionRequest
+	31,  // 223: agent_manager.v1.AgentManagerService.WaitWorkflowExecution:input_type -> agent_manager.v1.WaitWorkflowExecutionRequest
+	35,  // 224: agent_manager.v1.AgentManagerService.GetWorkflowExecutionTrace:input_type -> agent_manager.v1.GetWorkflowExecutionTraceRequest
+	37,  // 225: agent_manager.v1.AgentManagerService.ListWorkflowExecutionRuns:input_type -> agent_manager.v1.ListWorkflowExecutionRunsRequest
+	39,  // 226: agent_manager.v1.AgentManagerService.SignalWorkflowExecution:input_type -> agent_manager.v1.SignalWorkflowExecutionRequest
+	40,  // 227: agent_manager.v1.AgentManagerService.CancelWorkflowExecution:input_type -> agent_manager.v1.WorkflowExecutionOperationRequest
+	40,  // 228: agent_manager.v1.AgentManagerService.RetryWorkflowExecution:input_type -> agent_manager.v1.WorkflowExecutionOperationRequest
+	40,  // 229: agent_manager.v1.AgentManagerService.ResumeWorkflowExecution:input_type -> agent_manager.v1.WorkflowExecutionOperationRequest
+	42,  // 230: agent_manager.v1.AgentManagerService.SimulateWorkflow:input_type -> agent_manager.v1.SimulateWorkflowRequest
+	45,  // 231: agent_manager.v1.AgentManagerService.GetProfile:input_type -> agent_manager.v1.GetProfileRequest
+	47,  // 232: agent_manager.v1.AgentManagerService.ListProfiles:input_type -> agent_manager.v1.ListProfilesRequest
+	53,  // 233: agent_manager.v1.AgentManagerService.CreateTask:input_type -> agent_manager.v1.CreateTaskRequest
+	66,  // 234: agent_manager.v1.AgentManagerService.CreateRun:input_type -> agent_manager.v1.CreateRunRequest
+	75,  // 235: agent_manager.v1.AgentManagerService.GetRun:input_type -> agent_manager.v1.GetRunRequest
+	77,  // 236: agent_manager.v1.AgentManagerService.GetRunReport:input_type -> agent_manager.v1.GetRunReportRequest
+	78,  // 237: agent_manager.v1.AgentManagerService.GetRunAccounting:input_type -> agent_manager.v1.GetRunAccountingRequest
+	89,  // 238: agent_manager.v1.AgentManagerService.ListRuns:input_type -> agent_manager.v1.ListRunsRequest
+	90,  // 239: agent_manager.v1.AgentManagerService.WaitRun:input_type -> agent_manager.v1.WaitRunRequest
+	92,  // 240: agent_manager.v1.AgentManagerService.WaitRunChildren:input_type -> agent_manager.v1.WaitRunChildrenRequest
+	95,  // 241: agent_manager.v1.AgentManagerService.GetRunTree:input_type -> agent_manager.v1.GetRunTreeRequest
+	111, // 242: agent_manager.v1.AgentManagerService.GetRunEvents:input_type -> agent_manager.v1.GetRunEventsRequest
+	124, // 243: agent_manager.v1.AgentManagerService.ProbeRunner:input_type -> agent_manager.v1.ProbeRunnerRequest
+	134, // 244: agent_manager.v1.AgentManagerService.GetRolePolicyStatus:input_type -> agent_manager.v1.GetRolePolicyStatusRequest
+	136, // 245: agent_manager.v1.AgentManagerService.GetRolePolicyCatalog:input_type -> agent_manager.v1.GetRolePolicyCatalogRequest
+	138, // 246: agent_manager.v1.AgentManagerService.ValidateRolePolicyCatalog:input_type -> agent_manager.v1.ValidateRolePolicyCatalogRequest
+	140, // 247: agent_manager.v1.AgentManagerService.ReloadRolePolicyCatalog:input_type -> agent_manager.v1.ReloadRolePolicyCatalogRequest
+	142, // 248: agent_manager.v1.AgentManagerService.ExplainRolePolicy:input_type -> agent_manager.v1.ExplainRolePolicyRequest
+	156, // 249: agent_manager.v1.AgentManagerService.GetPermissionPolicyStatus:input_type -> agent_manager.v1.GetPermissionPolicyStatusRequest
+	158, // 250: agent_manager.v1.AgentManagerService.GetPermissionPolicyCatalog:input_type -> agent_manager.v1.GetPermissionPolicyCatalogRequest
+	160, // 251: agent_manager.v1.AgentManagerService.ValidatePermissionPolicyCatalog:input_type -> agent_manager.v1.ValidatePermissionPolicyCatalogRequest
+	162, // 252: agent_manager.v1.AgentManagerService.ReloadPermissionPolicyCatalog:input_type -> agent_manager.v1.ReloadPermissionPolicyCatalogRequest
+	164, // 253: agent_manager.v1.AgentManagerService.PlanPermissionPolicy:input_type -> agent_manager.v1.PlanPermissionPolicyRequest
+	166, // 254: agent_manager.v1.AgentManagerService.ReconcilePermissionPolicy:input_type -> agent_manager.v1.ReconcilePermissionPolicyRequest
+	168, // 255: agent_manager.v1.AgentManagerService.DoctorPermissionPolicy:input_type -> agent_manager.v1.DoctorPermissionPolicyRequest
+	170, // 256: agent_manager.v1.AgentManagerService.PurgeData:input_type -> agent_manager.v1.PurgeDataRequest
+	256, // 257: agent_manager.v1.AgentManagerService.ListEfforts:output_type -> agent_manager.v1.ListEffortsResponse
+	257, // 258: agent_manager.v1.AgentManagerService.GetEffortBoard:output_type -> agent_manager.v1.EffortBoard
+	258, // 259: agent_manager.v1.AgentManagerService.EnrollEffort:output_type -> agent_manager.v1.EffortEnrollment
+	258, // 260: agent_manager.v1.AgentManagerService.ReconcileEffortMetadata:output_type -> agent_manager.v1.EffortEnrollment
+	258, // 261: agent_manager.v1.AgentManagerService.WithdrawEffort:output_type -> agent_manager.v1.EffortEnrollment
+	259, // 262: agent_manager.v1.AgentManagerService.ReconcileEffortDiscovery:output_type -> agent_manager.v1.EffortDiscovery
+	260, // 263: agent_manager.v1.AgentManagerService.ListEffortSignals:output_type -> agent_manager.v1.ListEffortSignalsResponse
+	261, // 264: agent_manager.v1.AgentManagerService.RecordEffortSignal:output_type -> agent_manager.v1.EffortSignal
+	262, // 265: agent_manager.v1.AgentManagerService.RaiseEffortDecision:output_type -> agent_manager.v1.RaiseEffortDecisionResponse
+	263, // 266: agent_manager.v1.AgentManagerService.ListEffortDecisions:output_type -> agent_manager.v1.ListEffortDecisionsResponse
+	264, // 267: agent_manager.v1.AgentManagerService.AnswerEffortDecision:output_type -> agent_manager.v1.EffortDecision
+	264, // 268: agent_manager.v1.AgentManagerService.MarkEffortDecisionRecorded:output_type -> agent_manager.v1.EffortDecision
+	4,   // 269: agent_manager.v1.AgentManagerService.Health:output_type -> agent_manager.v1.HealthResponse
+	27,  // 270: agent_manager.v1.AgentManagerService.ListExecutionOptions:output_type -> agent_manager.v1.ListExecutionOptionsResponse
+	183, // 271: agent_manager.v1.AgentManagerService.StartInvestigation:output_type -> agent_manager.v1.StartInvestigationResponse
+	181, // 272: agent_manager.v1.AgentManagerService.GetInvestigation:output_type -> agent_manager.v1.InvestigationRecord
+	186, // 273: agent_manager.v1.AgentManagerService.ListInvestigations:output_type -> agent_manager.v1.ListInvestigationsResponse
+	188, // 274: agent_manager.v1.AgentManagerService.WaitInvestigation:output_type -> agent_manager.v1.WaitInvestigationResponse
+	181, // 275: agent_manager.v1.AgentManagerService.CancelInvestigation:output_type -> agent_manager.v1.InvestigationRecord
+	265, // 276: agent_manager.v1.AgentManagerService.CreateCohortWatch:output_type -> agent_manager.v1.CohortWatch
+	265, // 277: agent_manager.v1.AgentManagerService.GetCohortWatch:output_type -> agent_manager.v1.CohortWatch
+	266, // 278: agent_manager.v1.AgentManagerService.ListCohortWatches:output_type -> agent_manager.v1.ListCohortWatchesResponse
+	267, // 279: agent_manager.v1.AgentManagerService.WaitCohortWatch:output_type -> agent_manager.v1.WaitCohortWatchResponse
+	265, // 280: agent_manager.v1.AgentManagerService.CancelCohortWatch:output_type -> agent_manager.v1.CohortWatch
+	268, // 281: agent_manager.v1.AgentManagerService.InspectCohortWatch:output_type -> agent_manager.v1.InspectCohortWatchResponse
+	269, // 282: agent_manager.v1.AgentManagerService.RequestCohortWatchAction:output_type -> agent_manager.v1.RequestCohortWatchActionResponse
+	270, // 283: agent_manager.v1.AgentManagerService.ListCohortWatchActions:output_type -> agent_manager.v1.ListCohortWatchActionsResponse
+	271, // 284: agent_manager.v1.AgentManagerService.GetSupervisionPolicy:output_type -> agent_manager.v1.SupervisionPolicyRecord
+	271, // 285: agent_manager.v1.AgentManagerService.CreateSupervisionPolicyCandidate:output_type -> agent_manager.v1.SupervisionPolicyRecord
+	272, // 286: agent_manager.v1.AgentManagerService.RecordSupervisionOutcome:output_type -> agent_manager.v1.RecordSupervisionOutcomeResponse
+	273, // 287: agent_manager.v1.AgentManagerService.EvaluateSupervisionPolicy:output_type -> agent_manager.v1.SupervisionReplayReport
+	271, // 288: agent_manager.v1.AgentManagerService.PromoteSupervisionPolicy:output_type -> agent_manager.v1.SupervisionPolicyRecord
+	271, // 289: agent_manager.v1.AgentManagerService.RejectSupervisionPolicy:output_type -> agent_manager.v1.SupervisionPolicyRecord
+	271, // 290: agent_manager.v1.AgentManagerService.RollbackSupervisionPolicy:output_type -> agent_manager.v1.SupervisionPolicyRecord
+	274, // 291: agent_manager.v1.AgentManagerService.SetSupervisionPolicyDisabled:output_type -> agent_manager.v1.SupervisionPolicyControl
+	275, // 292: agent_manager.v1.AgentManagerService.ListSupervisionOutcomes:output_type -> agent_manager.v1.ListSupervisionOutcomesResponse
+	11,  // 293: agent_manager.v1.AgentManagerService.ReconcileScenarioProfiles:output_type -> agent_manager.v1.ReconcileScenarioProfilesResponse
+	13,  // 294: agent_manager.v1.AgentManagerService.ValidateWorkflow:output_type -> agent_manager.v1.ValidateWorkflowResponse
+	16,  // 295: agent_manager.v1.AgentManagerService.ReconcileScenarioWorkflows:output_type -> agent_manager.v1.ReconcileScenarioWorkflowsResponse
+	16,  // 296: agent_manager.v1.AgentManagerService.PlanScenarioWorkflows:output_type -> agent_manager.v1.ReconcileScenarioWorkflowsResponse
+	18,  // 297: agent_manager.v1.AgentManagerService.ReconcileScenarioDeclarations:output_type -> agent_manager.v1.ReconcileScenarioDeclarationsResponse
+	18,  // 298: agent_manager.v1.AgentManagerService.PlanScenarioDeclarations:output_type -> agent_manager.v1.ReconcileScenarioDeclarationsResponse
+	20,  // 299: agent_manager.v1.AgentManagerService.ListWorkflowRevisions:output_type -> agent_manager.v1.ListWorkflowRevisionsResponse
+	22,  // 300: agent_manager.v1.AgentManagerService.GetWorkflowRevision:output_type -> agent_manager.v1.GetWorkflowRevisionResponse
+	16,  // 301: agent_manager.v1.AgentManagerService.ReloadScenarioWorkflows:output_type -> agent_manager.v1.ReconcileScenarioWorkflowsResponse
+	22,  // 302: agent_manager.v1.AgentManagerService.ExplainWorkflow:output_type -> agent_manager.v1.GetWorkflowRevisionResponse
+	30,  // 303: agent_manager.v1.AgentManagerService.StartWorkflowExecution:output_type -> agent_manager.v1.WorkflowExecutionResponse
+	34,  // 304: agent_manager.v1.AgentManagerService.ListWorkflowExecutions:output_type -> agent_manager.v1.ListWorkflowExecutionsResponse
+	30,  // 305: agent_manager.v1.AgentManagerService.GetWorkflowExecution:output_type -> agent_manager.v1.WorkflowExecutionResponse
+	30,  // 306: agent_manager.v1.AgentManagerService.GetWorkflowExecutionResult:output_type -> agent_manager.v1.WorkflowExecutionResponse
+	30,  // 307: agent_manager.v1.AgentManagerService.AdvanceWorkflowExecution:output_type -> agent_manager.v1.WorkflowExecutionResponse
+	32,  // 308: agent_manager.v1.AgentManagerService.WaitWorkflowExecution:output_type -> agent_manager.v1.WaitWorkflowExecutionResponse
+	36,  // 309: agent_manager.v1.AgentManagerService.GetWorkflowExecutionTrace:output_type -> agent_manager.v1.GetWorkflowExecutionTraceResponse
+	38,  // 310: agent_manager.v1.AgentManagerService.ListWorkflowExecutionRuns:output_type -> agent_manager.v1.ListWorkflowExecutionRunsResponse
+	41,  // 311: agent_manager.v1.AgentManagerService.SignalWorkflowExecution:output_type -> agent_manager.v1.WorkflowExecutionOperationResponse
+	41,  // 312: agent_manager.v1.AgentManagerService.CancelWorkflowExecution:output_type -> agent_manager.v1.WorkflowExecutionOperationResponse
+	41,  // 313: agent_manager.v1.AgentManagerService.RetryWorkflowExecution:output_type -> agent_manager.v1.WorkflowExecutionOperationResponse
+	41,  // 314: agent_manager.v1.AgentManagerService.ResumeWorkflowExecution:output_type -> agent_manager.v1.WorkflowExecutionOperationResponse
+	44,  // 315: agent_manager.v1.AgentManagerService.SimulateWorkflow:output_type -> agent_manager.v1.SimulateWorkflowResponse
+	46,  // 316: agent_manager.v1.AgentManagerService.GetProfile:output_type -> agent_manager.v1.GetProfileResponse
+	48,  // 317: agent_manager.v1.AgentManagerService.ListProfiles:output_type -> agent_manager.v1.ListProfilesResponse
+	54,  // 318: agent_manager.v1.AgentManagerService.CreateTask:output_type -> agent_manager.v1.CreateTaskResponse
+	74,  // 319: agent_manager.v1.AgentManagerService.CreateRun:output_type -> agent_manager.v1.CreateRunResponse
+	76,  // 320: agent_manager.v1.AgentManagerService.GetRun:output_type -> agent_manager.v1.GetRunResponse
+	80,  // 321: agent_manager.v1.AgentManagerService.GetRunReport:output_type -> agent_manager.v1.RunReport
+	79,  // 322: agent_manager.v1.AgentManagerService.GetRunAccounting:output_type -> agent_manager.v1.RunAccounting
+	98,  // 323: agent_manager.v1.AgentManagerService.ListRuns:output_type -> agent_manager.v1.ListRunsResponse
+	91,  // 324: agent_manager.v1.AgentManagerService.WaitRun:output_type -> agent_manager.v1.WaitRunResponse
+	94,  // 325: agent_manager.v1.AgentManagerService.WaitRunChildren:output_type -> agent_manager.v1.WaitRunChildrenResponse
+	97,  // 326: agent_manager.v1.AgentManagerService.GetRunTree:output_type -> agent_manager.v1.RunTree
+	112, // 327: agent_manager.v1.AgentManagerService.GetRunEvents:output_type -> agent_manager.v1.GetRunEventsResponse
+	125, // 328: agent_manager.v1.AgentManagerService.ProbeRunner:output_type -> agent_manager.v1.ProbeRunnerResponse
+	135, // 329: agent_manager.v1.AgentManagerService.GetRolePolicyStatus:output_type -> agent_manager.v1.GetRolePolicyStatusResponse
+	137, // 330: agent_manager.v1.AgentManagerService.GetRolePolicyCatalog:output_type -> agent_manager.v1.GetRolePolicyCatalogResponse
+	139, // 331: agent_manager.v1.AgentManagerService.ValidateRolePolicyCatalog:output_type -> agent_manager.v1.ValidateRolePolicyCatalogResponse
+	141, // 332: agent_manager.v1.AgentManagerService.ReloadRolePolicyCatalog:output_type -> agent_manager.v1.ReloadRolePolicyCatalogResponse
+	143, // 333: agent_manager.v1.AgentManagerService.ExplainRolePolicy:output_type -> agent_manager.v1.ExplainRolePolicyResponse
+	157, // 334: agent_manager.v1.AgentManagerService.GetPermissionPolicyStatus:output_type -> agent_manager.v1.GetPermissionPolicyStatusResponse
+	159, // 335: agent_manager.v1.AgentManagerService.GetPermissionPolicyCatalog:output_type -> agent_manager.v1.GetPermissionPolicyCatalogResponse
+	161, // 336: agent_manager.v1.AgentManagerService.ValidatePermissionPolicyCatalog:output_type -> agent_manager.v1.ValidatePermissionPolicyCatalogResponse
+	163, // 337: agent_manager.v1.AgentManagerService.ReloadPermissionPolicyCatalog:output_type -> agent_manager.v1.ReloadPermissionPolicyCatalogResponse
+	165, // 338: agent_manager.v1.AgentManagerService.PlanPermissionPolicy:output_type -> agent_manager.v1.PlanPermissionPolicyResponse
+	167, // 339: agent_manager.v1.AgentManagerService.ReconcilePermissionPolicy:output_type -> agent_manager.v1.ReconcilePermissionPolicyResponse
+	169, // 340: agent_manager.v1.AgentManagerService.DoctorPermissionPolicy:output_type -> agent_manager.v1.DoctorPermissionPolicyResponse
+	172, // 341: agent_manager.v1.AgentManagerService.PurgeData:output_type -> agent_manager.v1.PurgeDataResponse
+	257, // [257:342] is the sub-list for method output_type
+	172, // [172:257] is the sub-list for method input_type
+	172, // [172:172] is the sub-list for extension type_name
+	172, // [172:172] is the sub-list for extension extendee
+	0,   // [0:172] is the sub-list for field type_name
 }
 
 func init() { file_agent_manager_v1_api_service_proto_init() }
@@ -13348,14 +14081,17 @@ func file_agent_manager_v1_api_service_proto_init() {
 	file_agent_manager_v1_api_service_proto_msgTypes[77].OneofWrappers = []any{}
 	file_agent_manager_v1_api_service_proto_msgTypes[78].OneofWrappers = []any{}
 	file_agent_manager_v1_api_service_proto_msgTypes[86].OneofWrappers = []any{}
-	file_agent_manager_v1_api_service_proto_msgTypes[92].OneofWrappers = []any{}
-	file_agent_manager_v1_api_service_proto_msgTypes[94].OneofWrappers = []any{}
+	file_agent_manager_v1_api_service_proto_msgTypes[89].OneofWrappers = []any{}
+	file_agent_manager_v1_api_service_proto_msgTypes[90].OneofWrappers = []any{}
+	file_agent_manager_v1_api_service_proto_msgTypes[93].OneofWrappers = []any{}
 	file_agent_manager_v1_api_service_proto_msgTypes[100].OneofWrappers = []any{}
 	file_agent_manager_v1_api_service_proto_msgTypes[102].OneofWrappers = []any{}
-	file_agent_manager_v1_api_service_proto_msgTypes[105].OneofWrappers = []any{}
-	file_agent_manager_v1_api_service_proto_msgTypes[107].OneofWrappers = []any{}
-	file_agent_manager_v1_api_service_proto_msgTypes[109].OneofWrappers = []any{}
-	file_agent_manager_v1_api_service_proto_msgTypes[131].OneofWrappers = []any{
+	file_agent_manager_v1_api_service_proto_msgTypes[108].OneofWrappers = []any{}
+	file_agent_manager_v1_api_service_proto_msgTypes[110].OneofWrappers = []any{}
+	file_agent_manager_v1_api_service_proto_msgTypes[113].OneofWrappers = []any{}
+	file_agent_manager_v1_api_service_proto_msgTypes[115].OneofWrappers = []any{}
+	file_agent_manager_v1_api_service_proto_msgTypes[117].OneofWrappers = []any{}
+	file_agent_manager_v1_api_service_proto_msgTypes[139].OneofWrappers = []any{
 		(*ExplainRolePolicyRequest_ProfileId)(nil),
 		(*ExplainRolePolicyRequest_RunId)(nil),
 	}
@@ -13365,7 +14101,7 @@ func file_agent_manager_v1_api_service_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_agent_manager_v1_api_service_proto_rawDesc), len(file_agent_manager_v1_api_service_proto_rawDesc)),
 			NumEnums:      3,
-			NumMessages:   184,
+			NumMessages:   192,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

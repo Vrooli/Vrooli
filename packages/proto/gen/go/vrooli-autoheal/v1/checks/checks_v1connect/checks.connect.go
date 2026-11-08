@@ -38,6 +38,8 @@ const (
 	ChecksServiceListChecksProcedure = "/vrooli.vrooli_autoheal.v1.checks.ChecksService/ListChecks"
 	// ChecksServiceGetCheckProcedure is the fully-qualified name of the ChecksService's GetCheck RPC.
 	ChecksServiceGetCheckProcedure = "/vrooli.vrooli_autoheal.v1.checks.ChecksService/GetCheck"
+	// ChecksServiceRunCheckProcedure is the fully-qualified name of the ChecksService's RunCheck RPC.
+	ChecksServiceRunCheckProcedure = "/vrooli.vrooli_autoheal.v1.checks.ChecksService/RunCheck"
 	// ChecksServiceGetHistoryProcedure is the fully-qualified name of the ChecksService's GetHistory
 	// RPC.
 	ChecksServiceGetHistoryProcedure = "/vrooli.vrooli_autoheal.v1.checks.ChecksService/GetHistory"
@@ -64,6 +66,9 @@ const (
 type ChecksServiceClient interface {
 	ListChecks(context.Context, *connect.Request[checks.ListChecksRequest]) (*connect.Response[checks.ListChecksResponse], error)
 	GetCheck(context.Context, *connect.Request[checks.GetCheckRequest]) (*connect.Response[checks.GetCheckResponse], error)
+	// RunCheck refreshes one observation regardless of its interval. It persists
+	// the result without executing recovery actions or a fleet-wide tick.
+	RunCheck(context.Context, *connect.Request[checks.RunCheckRequest]) (*connect.Response[checks.RunCheckResponse], error)
 	GetHistory(context.Context, *connect.Request[checks.GetHistoryRequest]) (*connect.Response[checks.GetHistoryResponse], error)
 	GetStatus(context.Context, *connect.Request[checks.GetStatusRequest]) (*connect.Response[checks.GetStatusResponse], error)
 	GetTransitions(context.Context, *connect.Request[checks.GetTransitionsRequest]) (*connect.Response[checks.GetTransitionsResponse], error)
@@ -100,6 +105,12 @@ func NewChecksServiceClient(httpClient connect.HTTPClient, baseURL string, opts 
 			httpClient,
 			baseURL+ChecksServiceGetCheckProcedure,
 			connect.WithSchema(checksServiceMethods.ByName("GetCheck")),
+			connect.WithClientOptions(opts...),
+		),
+		runCheck: connect.NewClient[checks.RunCheckRequest, checks.RunCheckResponse](
+			httpClient,
+			baseURL+ChecksServiceRunCheckProcedure,
+			connect.WithSchema(checksServiceMethods.ByName("RunCheck")),
 			connect.WithClientOptions(opts...),
 		),
 		getHistory: connect.NewClient[checks.GetHistoryRequest, checks.GetHistoryResponse](
@@ -151,6 +162,7 @@ func NewChecksServiceClient(httpClient connect.HTTPClient, baseURL string, opts 
 type checksServiceClient struct {
 	listChecks     *connect.Client[checks.ListChecksRequest, checks.ListChecksResponse]
 	getCheck       *connect.Client[checks.GetCheckRequest, checks.GetCheckResponse]
+	runCheck       *connect.Client[checks.RunCheckRequest, checks.RunCheckResponse]
 	getHistory     *connect.Client[checks.GetHistoryRequest, checks.GetHistoryResponse]
 	getStatus      *connect.Client[checks.GetStatusRequest, checks.GetStatusResponse]
 	getTransitions *connect.Client[checks.GetTransitionsRequest, checks.GetTransitionsResponse]
@@ -168,6 +180,11 @@ func (c *checksServiceClient) ListChecks(ctx context.Context, req *connect.Reque
 // GetCheck calls vrooli.vrooli_autoheal.v1.checks.ChecksService.GetCheck.
 func (c *checksServiceClient) GetCheck(ctx context.Context, req *connect.Request[checks.GetCheckRequest]) (*connect.Response[checks.GetCheckResponse], error) {
 	return c.getCheck.CallUnary(ctx, req)
+}
+
+// RunCheck calls vrooli.vrooli_autoheal.v1.checks.ChecksService.RunCheck.
+func (c *checksServiceClient) RunCheck(ctx context.Context, req *connect.Request[checks.RunCheckRequest]) (*connect.Response[checks.RunCheckResponse], error) {
+	return c.runCheck.CallUnary(ctx, req)
 }
 
 // GetHistory calls vrooli.vrooli_autoheal.v1.checks.ChecksService.GetHistory.
@@ -210,6 +227,9 @@ func (c *checksServiceClient) ListSaturation(ctx context.Context, req *connect.R
 type ChecksServiceHandler interface {
 	ListChecks(context.Context, *connect.Request[checks.ListChecksRequest]) (*connect.Response[checks.ListChecksResponse], error)
 	GetCheck(context.Context, *connect.Request[checks.GetCheckRequest]) (*connect.Response[checks.GetCheckResponse], error)
+	// RunCheck refreshes one observation regardless of its interval. It persists
+	// the result without executing recovery actions or a fleet-wide tick.
+	RunCheck(context.Context, *connect.Request[checks.RunCheckRequest]) (*connect.Response[checks.RunCheckResponse], error)
 	GetHistory(context.Context, *connect.Request[checks.GetHistoryRequest]) (*connect.Response[checks.GetHistoryResponse], error)
 	GetStatus(context.Context, *connect.Request[checks.GetStatusRequest]) (*connect.Response[checks.GetStatusResponse], error)
 	GetTransitions(context.Context, *connect.Request[checks.GetTransitionsRequest]) (*connect.Response[checks.GetTransitionsResponse], error)
@@ -242,6 +262,12 @@ func NewChecksServiceHandler(svc ChecksServiceHandler, opts ...connect.HandlerOp
 		ChecksServiceGetCheckProcedure,
 		svc.GetCheck,
 		connect.WithSchema(checksServiceMethods.ByName("GetCheck")),
+		connect.WithHandlerOptions(opts...),
+	)
+	checksServiceRunCheckHandler := connect.NewUnaryHandler(
+		ChecksServiceRunCheckProcedure,
+		svc.RunCheck,
+		connect.WithSchema(checksServiceMethods.ByName("RunCheck")),
 		connect.WithHandlerOptions(opts...),
 	)
 	checksServiceGetHistoryHandler := connect.NewUnaryHandler(
@@ -292,6 +318,8 @@ func NewChecksServiceHandler(svc ChecksServiceHandler, opts ...connect.HandlerOp
 			checksServiceListChecksHandler.ServeHTTP(w, r)
 		case ChecksServiceGetCheckProcedure:
 			checksServiceGetCheckHandler.ServeHTTP(w, r)
+		case ChecksServiceRunCheckProcedure:
+			checksServiceRunCheckHandler.ServeHTTP(w, r)
 		case ChecksServiceGetHistoryProcedure:
 			checksServiceGetHistoryHandler.ServeHTTP(w, r)
 		case ChecksServiceGetStatusProcedure:
@@ -321,6 +349,10 @@ func (UnimplementedChecksServiceHandler) ListChecks(context.Context, *connect.Re
 
 func (UnimplementedChecksServiceHandler) GetCheck(context.Context, *connect.Request[checks.GetCheckRequest]) (*connect.Response[checks.GetCheckResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.vrooli_autoheal.v1.checks.ChecksService.GetCheck is not implemented"))
+}
+
+func (UnimplementedChecksServiceHandler) RunCheck(context.Context, *connect.Request[checks.RunCheckRequest]) (*connect.Response[checks.RunCheckResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.vrooli_autoheal.v1.checks.ChecksService.RunCheck is not implemented"))
 }
 
 func (UnimplementedChecksServiceHandler) GetHistory(context.Context, *connect.Request[checks.GetHistoryRequest]) (*connect.Response[checks.GetHistoryResponse], error) {

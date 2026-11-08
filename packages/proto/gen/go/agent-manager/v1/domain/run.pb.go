@@ -361,6 +361,14 @@ type Run struct {
 	// Direct sub-agent runs of this run. Filled by run listings only (one query
 	// for the whole page); zero everywhere else.
 	SubAgentCount int32 `protobuf:"varint,62,opt,name=sub_agent_count,json=subAgentCount,proto3" json:"sub_agent_count,omitempty"`
+	// Nesting depth recorded at creation: 0 for a root run (omitted from JSON),
+	// the parent's depth + 1 for a child. Child creation is refused above the
+	// orchestration setting runExecution.maxChildDepth.
+	Depth int32 `protobuf:"varint,63,opt,name=depth,proto3" json:"depth,omitempty"`
+	// Absolute charter file named at creation (run create --charter). The run's
+	// task prompt names it and tells the agent to re-read it at every unit start
+	// and after any context compaction. Empty when none was named.
+	CharterPath   string `protobuf:"bytes,64,opt,name=charter_path,json=charterPath,proto3" json:"charter_path,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -813,6 +821,20 @@ func (x *Run) GetSubAgentCount() int32 {
 		return x.SubAgentCount
 	}
 	return 0
+}
+
+func (x *Run) GetDepth() int32 {
+	if x != nil {
+		return x.Depth
+	}
+	return 0
+}
+
+func (x *Run) GetCharterPath() string {
+	if x != nil {
+		return x.CharterPath
+	}
+	return ""
 }
 
 // FinalOutputCandidate is one assistant message considered by the resolver.
@@ -4027,7 +4049,7 @@ var File_agent_manager_v1_domain_run_proto protoreflect.FileDescriptor
 
 const file_agent_manager_v1_domain_run_proto_rawDesc = "" +
 	"\n" +
-	"!agent-manager/v1/domain/run.proto\x12\x10agent_manager.v1\x1a%agent-manager/v1/domain/profile.proto\x1a#agent-manager/v1/domain/types.proto\x1a&vrooli-events/v1/domain/envelope.proto\x1a\x1bbuf/validate/validate.proto\x1a\x1egoogle/protobuf/duration.proto\x1a\x1cgoogle/protobuf/struct.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\x96\x19\n" +
+	"!agent-manager/v1/domain/run.proto\x12\x10agent_manager.v1\x1a%agent-manager/v1/domain/profile.proto\x1a#agent-manager/v1/domain/types.proto\x1a&vrooli-events/v1/domain/envelope.proto\x1a\x1bbuf/validate/validate.proto\x1a\x1egoogle/protobuf/duration.proto\x1a\x1cgoogle/protobuf/struct.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xcf\x19\n" +
 	"\x03Run\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12!\n" +
 	"\atask_id\x18\x02 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\x06taskId\x12-\n" +
@@ -4100,7 +4122,9 @@ const file_agent_manager_v1_domain_run_proto_rawDesc = "" +
 	"\x10observed_goal_at\x18; \x01(\v2\x1a.google.protobuf.TimestampH\x0eR\x0eobservedGoalAt\x88\x01\x01\x12Q\n" +
 	"\x14provider_activity_at\x18< \x01(\v2\x1a.google.protobuf.TimestampH\x0fR\x12providerActivityAt\x88\x01\x01\x121\n" +
 	"\rparent_run_id\x18= \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01H\x10R\vparentRunId\x88\x01\x01\x12&\n" +
-	"\x0fsub_agent_count\x18> \x01(\x05R\rsubAgentCountB\x13\n" +
+	"\x0fsub_agent_count\x18> \x01(\x05R\rsubAgentCount\x12\x14\n" +
+	"\x05depth\x18? \x01(\x05R\x05depth\x12!\n" +
+	"\fcharter_path\x18@ \x01(\tR\vcharterPathB\x13\n" +
 	"\x11_agent_profile_idB\r\n" +
 	"\v_sandbox_idB\r\n" +
 	"\v_started_atB\v\n" +

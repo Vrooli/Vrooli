@@ -53,6 +53,19 @@ message BaseUSDCTransferObservation {
 
 // A durable record of one operator-requested read from the configured Base
 // RPC. Provider claims remain observations, not consensus or fiat accounting.
+enum BaseUSDCReceiptRelation {
+  BASE_USDC_RECEIPT_RELATION_UNSPECIFIED = 0;
+  BASE_USDC_RECEIPT_RELATION_SAME_INCLUSION = 1;
+  BASE_USDC_RECEIPT_RELATION_REINCLUDED_NEW_REVISION = 2;
+  BASE_USDC_RECEIPT_RELATION_PROVIDER_REPORTS_NOT_CANONICAL = 3;
+  BASE_USDC_RECEIPT_RELATION_PROVIDER_REPORTS_PENDING = 4;
+  BASE_USDC_RECEIPT_RELATION_PROVIDER_CHECK_FAILED = 5;
+  BASE_USDC_RECEIPT_RELATION_PROVIDER_OBSERVATION_CHANGED = 6;
+}
+
+// Each recheck record links to an earlier check without changing that prior
+// record. Relations describe provider-reported observations, not consensus or
+// a financial reversal instruction.
 message BaseUSDCReceiptCheck {
   string id = 1;
   string wallet_id = 2;
@@ -63,4 +76,6 @@ message BaseUSDCReceiptCheck {
   string error_code = 7;
   google.protobuf.Timestamp checked_at = 8;
   repeated BaseUSDCTransferObservation transfers = 9;
+  string prior_check_id = 10;
+  BaseUSDCReceiptRelation relation = 11;
 }

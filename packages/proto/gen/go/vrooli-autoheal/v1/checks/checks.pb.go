@@ -502,6 +502,94 @@ func (x *GetCheckResponse) GetResult() *CheckResult {
 	return nil
 }
 
+type RunCheckRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	CheckId       string                 `protobuf:"bytes,1,opt,name=check_id,json=checkId,proto3" json:"check_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RunCheckRequest) Reset() {
+	*x = RunCheckRequest{}
+	mi := &file_vrooli_autoheal_v1_checks_checks_proto_msgTypes[7]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RunCheckRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RunCheckRequest) ProtoMessage() {}
+
+func (x *RunCheckRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_vrooli_autoheal_v1_checks_checks_proto_msgTypes[7]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RunCheckRequest.ProtoReflect.Descriptor instead.
+func (*RunCheckRequest) Descriptor() ([]byte, []int) {
+	return file_vrooli_autoheal_v1_checks_checks_proto_rawDescGZIP(), []int{7}
+}
+
+func (x *RunCheckRequest) GetCheckId() string {
+	if x != nil {
+		return x.CheckId
+	}
+	return ""
+}
+
+type RunCheckResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Result        *CheckResult           `protobuf:"bytes,1,opt,name=result,proto3" json:"result,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RunCheckResponse) Reset() {
+	*x = RunCheckResponse{}
+	mi := &file_vrooli_autoheal_v1_checks_checks_proto_msgTypes[8]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RunCheckResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RunCheckResponse) ProtoMessage() {}
+
+func (x *RunCheckResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_vrooli_autoheal_v1_checks_checks_proto_msgTypes[8]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RunCheckResponse.ProtoReflect.Descriptor instead.
+func (*RunCheckResponse) Descriptor() ([]byte, []int) {
+	return file_vrooli_autoheal_v1_checks_checks_proto_rawDescGZIP(), []int{8}
+}
+
+func (x *RunCheckResponse) GetResult() *CheckResult {
+	if x != nil {
+		return x.Result
+	}
+	return nil
+}
+
 type GetHistoryRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	CheckId       string                 `protobuf:"bytes,1,opt,name=check_id,json=checkId,proto3" json:"check_id,omitempty"`
@@ -512,7 +600,7 @@ type GetHistoryRequest struct {
 
 func (x *GetHistoryRequest) Reset() {
 	*x = GetHistoryRequest{}
-	mi := &file_vrooli_autoheal_v1_checks_checks_proto_msgTypes[7]
+	mi := &file_vrooli_autoheal_v1_checks_checks_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -524,7 +612,7 @@ func (x *GetHistoryRequest) String() string {
 func (*GetHistoryRequest) ProtoMessage() {}
 
 func (x *GetHistoryRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_vrooli_autoheal_v1_checks_checks_proto_msgTypes[7]
+	mi := &file_vrooli_autoheal_v1_checks_checks_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -537,7 +625,7 @@ func (x *GetHistoryRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetHistoryRequest.ProtoReflect.Descriptor instead.
 func (*GetHistoryRequest) Descriptor() ([]byte, []int) {
-	return file_vrooli_autoheal_v1_checks_checks_proto_rawDescGZIP(), []int{7}
+	return file_vrooli_autoheal_v1_checks_checks_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *GetHistoryRequest) GetCheckId() string {
@@ -563,7 +651,7 @@ type GetHistoryResponse struct {
 
 func (x *GetHistoryResponse) Reset() {
 	*x = GetHistoryResponse{}
-	mi := &file_vrooli_autoheal_v1_checks_checks_proto_msgTypes[8]
+	mi := &file_vrooli_autoheal_v1_checks_checks_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -575,7 +663,7 @@ func (x *GetHistoryResponse) String() string {
 func (*GetHistoryResponse) ProtoMessage() {}
 
 func (x *GetHistoryResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_vrooli_autoheal_v1_checks_checks_proto_msgTypes[8]
+	mi := &file_vrooli_autoheal_v1_checks_checks_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -588,7 +676,7 @@ func (x *GetHistoryResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetHistoryResponse.ProtoReflect.Descriptor instead.
 func (*GetHistoryResponse) Descriptor() ([]byte, []int) {
-	return file_vrooli_autoheal_v1_checks_checks_proto_rawDescGZIP(), []int{8}
+	return file_vrooli_autoheal_v1_checks_checks_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *GetHistoryResponse) GetResults() []*CheckResult {
@@ -606,7 +694,7 @@ type GetStatusRequest struct {
 
 func (x *GetStatusRequest) Reset() {
 	*x = GetStatusRequest{}
-	mi := &file_vrooli_autoheal_v1_checks_checks_proto_msgTypes[9]
+	mi := &file_vrooli_autoheal_v1_checks_checks_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -618,7 +706,7 @@ func (x *GetStatusRequest) String() string {
 func (*GetStatusRequest) ProtoMessage() {}
 
 func (x *GetStatusRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_vrooli_autoheal_v1_checks_checks_proto_msgTypes[9]
+	mi := &file_vrooli_autoheal_v1_checks_checks_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -631,7 +719,7 @@ func (x *GetStatusRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetStatusRequest.ProtoReflect.Descriptor instead.
 func (*GetStatusRequest) Descriptor() ([]byte, []int) {
-	return file_vrooli_autoheal_v1_checks_checks_proto_rawDescGZIP(), []int{9}
+	return file_vrooli_autoheal_v1_checks_checks_proto_rawDescGZIP(), []int{11}
 }
 
 type GetStatusResponse struct {
@@ -650,7 +738,7 @@ type GetStatusResponse struct {
 
 func (x *GetStatusResponse) Reset() {
 	*x = GetStatusResponse{}
-	mi := &file_vrooli_autoheal_v1_checks_checks_proto_msgTypes[10]
+	mi := &file_vrooli_autoheal_v1_checks_checks_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -662,7 +750,7 @@ func (x *GetStatusResponse) String() string {
 func (*GetStatusResponse) ProtoMessage() {}
 
 func (x *GetStatusResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_vrooli_autoheal_v1_checks_checks_proto_msgTypes[10]
+	mi := &file_vrooli_autoheal_v1_checks_checks_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -675,7 +763,7 @@ func (x *GetStatusResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetStatusResponse.ProtoReflect.Descriptor instead.
 func (*GetStatusResponse) Descriptor() ([]byte, []int) {
-	return file_vrooli_autoheal_v1_checks_checks_proto_rawDescGZIP(), []int{10}
+	return file_vrooli_autoheal_v1_checks_checks_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *GetStatusResponse) GetStatus() CheckStatus {
@@ -744,7 +832,7 @@ type GetTransitionsRequest struct {
 
 func (x *GetTransitionsRequest) Reset() {
 	*x = GetTransitionsRequest{}
-	mi := &file_vrooli_autoheal_v1_checks_checks_proto_msgTypes[11]
+	mi := &file_vrooli_autoheal_v1_checks_checks_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -756,7 +844,7 @@ func (x *GetTransitionsRequest) String() string {
 func (*GetTransitionsRequest) ProtoMessage() {}
 
 func (x *GetTransitionsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_vrooli_autoheal_v1_checks_checks_proto_msgTypes[11]
+	mi := &file_vrooli_autoheal_v1_checks_checks_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -769,7 +857,7 @@ func (x *GetTransitionsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetTransitionsRequest.ProtoReflect.Descriptor instead.
 func (*GetTransitionsRequest) Descriptor() ([]byte, []int) {
-	return file_vrooli_autoheal_v1_checks_checks_proto_rawDescGZIP(), []int{11}
+	return file_vrooli_autoheal_v1_checks_checks_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *GetTransitionsRequest) GetWindowHours() int32 {
@@ -795,7 +883,7 @@ type GetTransitionsResponse struct {
 
 func (x *GetTransitionsResponse) Reset() {
 	*x = GetTransitionsResponse{}
-	mi := &file_vrooli_autoheal_v1_checks_checks_proto_msgTypes[12]
+	mi := &file_vrooli_autoheal_v1_checks_checks_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -807,7 +895,7 @@ func (x *GetTransitionsResponse) String() string {
 func (*GetTransitionsResponse) ProtoMessage() {}
 
 func (x *GetTransitionsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_vrooli_autoheal_v1_checks_checks_proto_msgTypes[12]
+	mi := &file_vrooli_autoheal_v1_checks_checks_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -820,7 +908,7 @@ func (x *GetTransitionsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetTransitionsResponse.ProtoReflect.Descriptor instead.
 func (*GetTransitionsResponse) Descriptor() ([]byte, []int) {
-	return file_vrooli_autoheal_v1_checks_checks_proto_rawDescGZIP(), []int{12}
+	return file_vrooli_autoheal_v1_checks_checks_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *GetTransitionsResponse) GetTransitions() []*Transition {
@@ -857,7 +945,7 @@ type Reconcile struct {
 
 func (x *Reconcile) Reset() {
 	*x = Reconcile{}
-	mi := &file_vrooli_autoheal_v1_checks_checks_proto_msgTypes[13]
+	mi := &file_vrooli_autoheal_v1_checks_checks_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -869,7 +957,7 @@ func (x *Reconcile) String() string {
 func (*Reconcile) ProtoMessage() {}
 
 func (x *Reconcile) ProtoReflect() protoreflect.Message {
-	mi := &file_vrooli_autoheal_v1_checks_checks_proto_msgTypes[13]
+	mi := &file_vrooli_autoheal_v1_checks_checks_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -882,7 +970,7 @@ func (x *Reconcile) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Reconcile.ProtoReflect.Descriptor instead.
 func (*Reconcile) Descriptor() ([]byte, []int) {
-	return file_vrooli_autoheal_v1_checks_checks_proto_rawDescGZIP(), []int{13}
+	return file_vrooli_autoheal_v1_checks_checks_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *Reconcile) GetGhostCheckIds() []string {
@@ -949,7 +1037,7 @@ type GetReconcileRequest struct {
 
 func (x *GetReconcileRequest) Reset() {
 	*x = GetReconcileRequest{}
-	mi := &file_vrooli_autoheal_v1_checks_checks_proto_msgTypes[14]
+	mi := &file_vrooli_autoheal_v1_checks_checks_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -961,7 +1049,7 @@ func (x *GetReconcileRequest) String() string {
 func (*GetReconcileRequest) ProtoMessage() {}
 
 func (x *GetReconcileRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_vrooli_autoheal_v1_checks_checks_proto_msgTypes[14]
+	mi := &file_vrooli_autoheal_v1_checks_checks_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -974,7 +1062,7 @@ func (x *GetReconcileRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetReconcileRequest.ProtoReflect.Descriptor instead.
 func (*GetReconcileRequest) Descriptor() ([]byte, []int) {
-	return file_vrooli_autoheal_v1_checks_checks_proto_rawDescGZIP(), []int{14}
+	return file_vrooli_autoheal_v1_checks_checks_proto_rawDescGZIP(), []int{16}
 }
 
 type GetReconcileResponse struct {
@@ -986,7 +1074,7 @@ type GetReconcileResponse struct {
 
 func (x *GetReconcileResponse) Reset() {
 	*x = GetReconcileResponse{}
-	mi := &file_vrooli_autoheal_v1_checks_checks_proto_msgTypes[15]
+	mi := &file_vrooli_autoheal_v1_checks_checks_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -998,7 +1086,7 @@ func (x *GetReconcileResponse) String() string {
 func (*GetReconcileResponse) ProtoMessage() {}
 
 func (x *GetReconcileResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_vrooli_autoheal_v1_checks_checks_proto_msgTypes[15]
+	mi := &file_vrooli_autoheal_v1_checks_checks_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1011,7 +1099,7 @@ func (x *GetReconcileResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetReconcileResponse.ProtoReflect.Descriptor instead.
 func (*GetReconcileResponse) Descriptor() ([]byte, []int) {
-	return file_vrooli_autoheal_v1_checks_checks_proto_rawDescGZIP(), []int{15}
+	return file_vrooli_autoheal_v1_checks_checks_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *GetReconcileResponse) GetReconcile() *Reconcile {
@@ -1034,7 +1122,7 @@ type Shelf struct {
 
 func (x *Shelf) Reset() {
 	*x = Shelf{}
-	mi := &file_vrooli_autoheal_v1_checks_checks_proto_msgTypes[16]
+	mi := &file_vrooli_autoheal_v1_checks_checks_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1046,7 +1134,7 @@ func (x *Shelf) String() string {
 func (*Shelf) ProtoMessage() {}
 
 func (x *Shelf) ProtoReflect() protoreflect.Message {
-	mi := &file_vrooli_autoheal_v1_checks_checks_proto_msgTypes[16]
+	mi := &file_vrooli_autoheal_v1_checks_checks_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1059,7 +1147,7 @@ func (x *Shelf) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Shelf.ProtoReflect.Descriptor instead.
 func (*Shelf) Descriptor() ([]byte, []int) {
-	return file_vrooli_autoheal_v1_checks_checks_proto_rawDescGZIP(), []int{16}
+	return file_vrooli_autoheal_v1_checks_checks_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *Shelf) GetCheckId() string {
@@ -1106,7 +1194,7 @@ type ListShelvesRequest struct {
 
 func (x *ListShelvesRequest) Reset() {
 	*x = ListShelvesRequest{}
-	mi := &file_vrooli_autoheal_v1_checks_checks_proto_msgTypes[17]
+	mi := &file_vrooli_autoheal_v1_checks_checks_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1118,7 +1206,7 @@ func (x *ListShelvesRequest) String() string {
 func (*ListShelvesRequest) ProtoMessage() {}
 
 func (x *ListShelvesRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_vrooli_autoheal_v1_checks_checks_proto_msgTypes[17]
+	mi := &file_vrooli_autoheal_v1_checks_checks_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1131,7 +1219,7 @@ func (x *ListShelvesRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListShelvesRequest.ProtoReflect.Descriptor instead.
 func (*ListShelvesRequest) Descriptor() ([]byte, []int) {
-	return file_vrooli_autoheal_v1_checks_checks_proto_rawDescGZIP(), []int{17}
+	return file_vrooli_autoheal_v1_checks_checks_proto_rawDescGZIP(), []int{19}
 }
 
 func (x *ListShelvesRequest) GetIncludeExpired() bool {
@@ -1150,7 +1238,7 @@ type ListShelvesResponse struct {
 
 func (x *ListShelvesResponse) Reset() {
 	*x = ListShelvesResponse{}
-	mi := &file_vrooli_autoheal_v1_checks_checks_proto_msgTypes[18]
+	mi := &file_vrooli_autoheal_v1_checks_checks_proto_msgTypes[20]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1162,7 +1250,7 @@ func (x *ListShelvesResponse) String() string {
 func (*ListShelvesResponse) ProtoMessage() {}
 
 func (x *ListShelvesResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_vrooli_autoheal_v1_checks_checks_proto_msgTypes[18]
+	mi := &file_vrooli_autoheal_v1_checks_checks_proto_msgTypes[20]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1175,7 +1263,7 @@ func (x *ListShelvesResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListShelvesResponse.ProtoReflect.Descriptor instead.
 func (*ListShelvesResponse) Descriptor() ([]byte, []int) {
-	return file_vrooli_autoheal_v1_checks_checks_proto_rawDescGZIP(), []int{18}
+	return file_vrooli_autoheal_v1_checks_checks_proto_rawDescGZIP(), []int{20}
 }
 
 func (x *ListShelvesResponse) GetShelves() []*Shelf {
@@ -1207,7 +1295,7 @@ type Saturation struct {
 
 func (x *Saturation) Reset() {
 	*x = Saturation{}
-	mi := &file_vrooli_autoheal_v1_checks_checks_proto_msgTypes[19]
+	mi := &file_vrooli_autoheal_v1_checks_checks_proto_msgTypes[21]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1219,7 +1307,7 @@ func (x *Saturation) String() string {
 func (*Saturation) ProtoMessage() {}
 
 func (x *Saturation) ProtoReflect() protoreflect.Message {
-	mi := &file_vrooli_autoheal_v1_checks_checks_proto_msgTypes[19]
+	mi := &file_vrooli_autoheal_v1_checks_checks_proto_msgTypes[21]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1232,7 +1320,7 @@ func (x *Saturation) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Saturation.ProtoReflect.Descriptor instead.
 func (*Saturation) Descriptor() ([]byte, []int) {
-	return file_vrooli_autoheal_v1_checks_checks_proto_rawDescGZIP(), []int{19}
+	return file_vrooli_autoheal_v1_checks_checks_proto_rawDescGZIP(), []int{21}
 }
 
 func (x *Saturation) GetCheckId() string {
@@ -1279,7 +1367,7 @@ type ListSaturationRequest struct {
 
 func (x *ListSaturationRequest) Reset() {
 	*x = ListSaturationRequest{}
-	mi := &file_vrooli_autoheal_v1_checks_checks_proto_msgTypes[20]
+	mi := &file_vrooli_autoheal_v1_checks_checks_proto_msgTypes[22]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1291,7 +1379,7 @@ func (x *ListSaturationRequest) String() string {
 func (*ListSaturationRequest) ProtoMessage() {}
 
 func (x *ListSaturationRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_vrooli_autoheal_v1_checks_checks_proto_msgTypes[20]
+	mi := &file_vrooli_autoheal_v1_checks_checks_proto_msgTypes[22]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1304,7 +1392,7 @@ func (x *ListSaturationRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListSaturationRequest.ProtoReflect.Descriptor instead.
 func (*ListSaturationRequest) Descriptor() ([]byte, []int) {
-	return file_vrooli_autoheal_v1_checks_checks_proto_rawDescGZIP(), []int{20}
+	return file_vrooli_autoheal_v1_checks_checks_proto_rawDescGZIP(), []int{22}
 }
 
 func (x *ListSaturationRequest) GetWindowHours() int32 {
@@ -1330,7 +1418,7 @@ type ListSaturationResponse struct {
 
 func (x *ListSaturationResponse) Reset() {
 	*x = ListSaturationResponse{}
-	mi := &file_vrooli_autoheal_v1_checks_checks_proto_msgTypes[21]
+	mi := &file_vrooli_autoheal_v1_checks_checks_proto_msgTypes[23]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1342,7 +1430,7 @@ func (x *ListSaturationResponse) String() string {
 func (*ListSaturationResponse) ProtoMessage() {}
 
 func (x *ListSaturationResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_vrooli_autoheal_v1_checks_checks_proto_msgTypes[21]
+	mi := &file_vrooli_autoheal_v1_checks_checks_proto_msgTypes[23]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1355,7 +1443,7 @@ func (x *ListSaturationResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListSaturationResponse.ProtoReflect.Descriptor instead.
 func (*ListSaturationResponse) Descriptor() ([]byte, []int) {
-	return file_vrooli_autoheal_v1_checks_checks_proto_rawDescGZIP(), []int{21}
+	return file_vrooli_autoheal_v1_checks_checks_proto_rawDescGZIP(), []int{23}
 }
 
 func (x *ListSaturationResponse) GetSaturations() []*Saturation {
@@ -1396,7 +1484,7 @@ type GetSaturationRequest struct {
 
 func (x *GetSaturationRequest) Reset() {
 	*x = GetSaturationRequest{}
-	mi := &file_vrooli_autoheal_v1_checks_checks_proto_msgTypes[22]
+	mi := &file_vrooli_autoheal_v1_checks_checks_proto_msgTypes[24]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1408,7 +1496,7 @@ func (x *GetSaturationRequest) String() string {
 func (*GetSaturationRequest) ProtoMessage() {}
 
 func (x *GetSaturationRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_vrooli_autoheal_v1_checks_checks_proto_msgTypes[22]
+	mi := &file_vrooli_autoheal_v1_checks_checks_proto_msgTypes[24]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1421,7 +1509,7 @@ func (x *GetSaturationRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetSaturationRequest.ProtoReflect.Descriptor instead.
 func (*GetSaturationRequest) Descriptor() ([]byte, []int) {
-	return file_vrooli_autoheal_v1_checks_checks_proto_rawDescGZIP(), []int{22}
+	return file_vrooli_autoheal_v1_checks_checks_proto_rawDescGZIP(), []int{24}
 }
 
 func (x *GetSaturationRequest) GetCheckId() string {
@@ -1451,7 +1539,7 @@ type GetSaturationResponse struct {
 
 func (x *GetSaturationResponse) Reset() {
 	*x = GetSaturationResponse{}
-	mi := &file_vrooli_autoheal_v1_checks_checks_proto_msgTypes[23]
+	mi := &file_vrooli_autoheal_v1_checks_checks_proto_msgTypes[25]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1463,7 +1551,7 @@ func (x *GetSaturationResponse) String() string {
 func (*GetSaturationResponse) ProtoMessage() {}
 
 func (x *GetSaturationResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_vrooli_autoheal_v1_checks_checks_proto_msgTypes[23]
+	mi := &file_vrooli_autoheal_v1_checks_checks_proto_msgTypes[25]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1476,7 +1564,7 @@ func (x *GetSaturationResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetSaturationResponse.ProtoReflect.Descriptor instead.
 func (*GetSaturationResponse) Descriptor() ([]byte, []int) {
-	return file_vrooli_autoheal_v1_checks_checks_proto_rawDescGZIP(), []int{23}
+	return file_vrooli_autoheal_v1_checks_checks_proto_rawDescGZIP(), []int{25}
 }
 
 func (x *GetSaturationResponse) GetCheckId() string {
@@ -1553,6 +1641,10 @@ const file_vrooli_autoheal_v1_checks_checks_proto_rawDesc = "" +
 	"\x0fGetCheckRequest\x12\x19\n" +
 	"\bcheck_id\x18\x01 \x01(\tR\acheckId\"Y\n" +
 	"\x10GetCheckResponse\x12E\n" +
+	"\x06result\x18\x01 \x01(\v2-.vrooli.vrooli_autoheal.v1.checks.CheckResultR\x06result\",\n" +
+	"\x0fRunCheckRequest\x12\x19\n" +
+	"\bcheck_id\x18\x01 \x01(\tR\acheckId\"Y\n" +
+	"\x10RunCheckResponse\x12E\n" +
 	"\x06result\x18\x01 \x01(\v2-.vrooli.vrooli_autoheal.v1.checks.CheckResultR\x06result\"D\n" +
 	"\x11GetHistoryRequest\x12\x19\n" +
 	"\bcheck_id\x18\x01 \x01(\tR\acheckId\x12\x14\n" +
@@ -1631,11 +1723,12 @@ const file_vrooli_autoheal_v1_checks_checks_proto_rawDesc = "" +
 	"\x0fCHECK_STATUS_OK\x10\x01\x12\x18\n" +
 	"\x14CHECK_STATUS_WARNING\x10\x02\x12\x19\n" +
 	"\x15CHECK_STATUS_CRITICAL\x10\x03\x12\x1f\n" +
-	"\x1bCHECK_STATUS_NOT_APPLICABLE\x10\x042\xf4\b\n" +
+	"\x1bCHECK_STATUS_NOT_APPLICABLE\x10\x042\xe7\t\n" +
 	"\rChecksService\x12w\n" +
 	"\n" +
 	"ListChecks\x123.vrooli.vrooli_autoheal.v1.checks.ListChecksRequest\x1a4.vrooli.vrooli_autoheal.v1.checks.ListChecksResponse\x12q\n" +
-	"\bGetCheck\x121.vrooli.vrooli_autoheal.v1.checks.GetCheckRequest\x1a2.vrooli.vrooli_autoheal.v1.checks.GetCheckResponse\x12w\n" +
+	"\bGetCheck\x121.vrooli.vrooli_autoheal.v1.checks.GetCheckRequest\x1a2.vrooli.vrooli_autoheal.v1.checks.GetCheckResponse\x12q\n" +
+	"\bRunCheck\x121.vrooli.vrooli_autoheal.v1.checks.RunCheckRequest\x1a2.vrooli.vrooli_autoheal.v1.checks.RunCheckResponse\x12w\n" +
 	"\n" +
 	"GetHistory\x123.vrooli.vrooli_autoheal.v1.checks.GetHistoryRequest\x1a4.vrooli.vrooli_autoheal.v1.checks.GetHistoryResponse\x12t\n" +
 	"\tGetStatus\x122.vrooli.vrooli_autoheal.v1.checks.GetStatusRequest\x1a3.vrooli.vrooli_autoheal.v1.checks.GetStatusResponse\x12\x83\x01\n" +
@@ -1658,7 +1751,7 @@ func file_vrooli_autoheal_v1_checks_checks_proto_rawDescGZIP() []byte {
 }
 
 var file_vrooli_autoheal_v1_checks_checks_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_vrooli_autoheal_v1_checks_checks_proto_msgTypes = make([]protoimpl.MessageInfo, 24)
+var file_vrooli_autoheal_v1_checks_checks_proto_msgTypes = make([]protoimpl.MessageInfo, 26)
 var file_vrooli_autoheal_v1_checks_checks_proto_goTypes = []any{
 	(CheckStatus)(0),               // 0: vrooli.vrooli_autoheal.v1.checks.CheckStatus
 	(*CheckInfo)(nil),              // 1: vrooli.vrooli_autoheal.v1.checks.CheckInfo
@@ -1668,70 +1761,75 @@ var file_vrooli_autoheal_v1_checks_checks_proto_goTypes = []any{
 	(*ListChecksResponse)(nil),     // 5: vrooli.vrooli_autoheal.v1.checks.ListChecksResponse
 	(*GetCheckRequest)(nil),        // 6: vrooli.vrooli_autoheal.v1.checks.GetCheckRequest
 	(*GetCheckResponse)(nil),       // 7: vrooli.vrooli_autoheal.v1.checks.GetCheckResponse
-	(*GetHistoryRequest)(nil),      // 8: vrooli.vrooli_autoheal.v1.checks.GetHistoryRequest
-	(*GetHistoryResponse)(nil),     // 9: vrooli.vrooli_autoheal.v1.checks.GetHistoryResponse
-	(*GetStatusRequest)(nil),       // 10: vrooli.vrooli_autoheal.v1.checks.GetStatusRequest
-	(*GetStatusResponse)(nil),      // 11: vrooli.vrooli_autoheal.v1.checks.GetStatusResponse
-	(*GetTransitionsRequest)(nil),  // 12: vrooli.vrooli_autoheal.v1.checks.GetTransitionsRequest
-	(*GetTransitionsResponse)(nil), // 13: vrooli.vrooli_autoheal.v1.checks.GetTransitionsResponse
-	(*Reconcile)(nil),              // 14: vrooli.vrooli_autoheal.v1.checks.Reconcile
-	(*GetReconcileRequest)(nil),    // 15: vrooli.vrooli_autoheal.v1.checks.GetReconcileRequest
-	(*GetReconcileResponse)(nil),   // 16: vrooli.vrooli_autoheal.v1.checks.GetReconcileResponse
-	(*Shelf)(nil),                  // 17: vrooli.vrooli_autoheal.v1.checks.Shelf
-	(*ListShelvesRequest)(nil),     // 18: vrooli.vrooli_autoheal.v1.checks.ListShelvesRequest
-	(*ListShelvesResponse)(nil),    // 19: vrooli.vrooli_autoheal.v1.checks.ListShelvesResponse
-	(*Saturation)(nil),             // 20: vrooli.vrooli_autoheal.v1.checks.Saturation
-	(*ListSaturationRequest)(nil),  // 21: vrooli.vrooli_autoheal.v1.checks.ListSaturationRequest
-	(*ListSaturationResponse)(nil), // 22: vrooli.vrooli_autoheal.v1.checks.ListSaturationResponse
-	(*GetSaturationRequest)(nil),   // 23: vrooli.vrooli_autoheal.v1.checks.GetSaturationRequest
-	(*GetSaturationResponse)(nil),  // 24: vrooli.vrooli_autoheal.v1.checks.GetSaturationResponse
-	(*timestamppb.Timestamp)(nil),  // 25: google.protobuf.Timestamp
+	(*RunCheckRequest)(nil),        // 8: vrooli.vrooli_autoheal.v1.checks.RunCheckRequest
+	(*RunCheckResponse)(nil),       // 9: vrooli.vrooli_autoheal.v1.checks.RunCheckResponse
+	(*GetHistoryRequest)(nil),      // 10: vrooli.vrooli_autoheal.v1.checks.GetHistoryRequest
+	(*GetHistoryResponse)(nil),     // 11: vrooli.vrooli_autoheal.v1.checks.GetHistoryResponse
+	(*GetStatusRequest)(nil),       // 12: vrooli.vrooli_autoheal.v1.checks.GetStatusRequest
+	(*GetStatusResponse)(nil),      // 13: vrooli.vrooli_autoheal.v1.checks.GetStatusResponse
+	(*GetTransitionsRequest)(nil),  // 14: vrooli.vrooli_autoheal.v1.checks.GetTransitionsRequest
+	(*GetTransitionsResponse)(nil), // 15: vrooli.vrooli_autoheal.v1.checks.GetTransitionsResponse
+	(*Reconcile)(nil),              // 16: vrooli.vrooli_autoheal.v1.checks.Reconcile
+	(*GetReconcileRequest)(nil),    // 17: vrooli.vrooli_autoheal.v1.checks.GetReconcileRequest
+	(*GetReconcileResponse)(nil),   // 18: vrooli.vrooli_autoheal.v1.checks.GetReconcileResponse
+	(*Shelf)(nil),                  // 19: vrooli.vrooli_autoheal.v1.checks.Shelf
+	(*ListShelvesRequest)(nil),     // 20: vrooli.vrooli_autoheal.v1.checks.ListShelvesRequest
+	(*ListShelvesResponse)(nil),    // 21: vrooli.vrooli_autoheal.v1.checks.ListShelvesResponse
+	(*Saturation)(nil),             // 22: vrooli.vrooli_autoheal.v1.checks.Saturation
+	(*ListSaturationRequest)(nil),  // 23: vrooli.vrooli_autoheal.v1.checks.ListSaturationRequest
+	(*ListSaturationResponse)(nil), // 24: vrooli.vrooli_autoheal.v1.checks.ListSaturationResponse
+	(*GetSaturationRequest)(nil),   // 25: vrooli.vrooli_autoheal.v1.checks.GetSaturationRequest
+	(*GetSaturationResponse)(nil),  // 26: vrooli.vrooli_autoheal.v1.checks.GetSaturationResponse
+	(*timestamppb.Timestamp)(nil),  // 27: google.protobuf.Timestamp
 }
 var file_vrooli_autoheal_v1_checks_checks_proto_depIdxs = []int32{
 	0,  // 0: vrooli.vrooli_autoheal.v1.checks.CheckResult.status:type_name -> vrooli.vrooli_autoheal.v1.checks.CheckStatus
-	25, // 1: vrooli.vrooli_autoheal.v1.checks.CheckResult.observed_at:type_name -> google.protobuf.Timestamp
+	27, // 1: vrooli.vrooli_autoheal.v1.checks.CheckResult.observed_at:type_name -> google.protobuf.Timestamp
 	0,  // 2: vrooli.vrooli_autoheal.v1.checks.Transition.from_status:type_name -> vrooli.vrooli_autoheal.v1.checks.CheckStatus
 	0,  // 3: vrooli.vrooli_autoheal.v1.checks.Transition.to_status:type_name -> vrooli.vrooli_autoheal.v1.checks.CheckStatus
-	25, // 4: vrooli.vrooli_autoheal.v1.checks.Transition.observed_at:type_name -> google.protobuf.Timestamp
+	27, // 4: vrooli.vrooli_autoheal.v1.checks.Transition.observed_at:type_name -> google.protobuf.Timestamp
 	1,  // 5: vrooli.vrooli_autoheal.v1.checks.ListChecksResponse.checks:type_name -> vrooli.vrooli_autoheal.v1.checks.CheckInfo
 	2,  // 6: vrooli.vrooli_autoheal.v1.checks.GetCheckResponse.result:type_name -> vrooli.vrooli_autoheal.v1.checks.CheckResult
-	2,  // 7: vrooli.vrooli_autoheal.v1.checks.GetHistoryResponse.results:type_name -> vrooli.vrooli_autoheal.v1.checks.CheckResult
-	0,  // 8: vrooli.vrooli_autoheal.v1.checks.GetStatusResponse.status:type_name -> vrooli.vrooli_autoheal.v1.checks.CheckStatus
-	2,  // 9: vrooli.vrooli_autoheal.v1.checks.GetStatusResponse.checks:type_name -> vrooli.vrooli_autoheal.v1.checks.CheckResult
-	25, // 10: vrooli.vrooli_autoheal.v1.checks.GetStatusResponse.computed_at:type_name -> google.protobuf.Timestamp
-	3,  // 11: vrooli.vrooli_autoheal.v1.checks.GetTransitionsResponse.transitions:type_name -> vrooli.vrooli_autoheal.v1.checks.Transition
-	25, // 12: vrooli.vrooli_autoheal.v1.checks.Reconcile.computed_at:type_name -> google.protobuf.Timestamp
-	14, // 13: vrooli.vrooli_autoheal.v1.checks.GetReconcileResponse.reconcile:type_name -> vrooli.vrooli_autoheal.v1.checks.Reconcile
-	25, // 14: vrooli.vrooli_autoheal.v1.checks.Shelf.expires_at:type_name -> google.protobuf.Timestamp
-	25, // 15: vrooli.vrooli_autoheal.v1.checks.Shelf.created_at:type_name -> google.protobuf.Timestamp
-	17, // 16: vrooli.vrooli_autoheal.v1.checks.ListShelvesResponse.shelves:type_name -> vrooli.vrooli_autoheal.v1.checks.Shelf
-	0,  // 17: vrooli.vrooli_autoheal.v1.checks.Saturation.current_status:type_name -> vrooli.vrooli_autoheal.v1.checks.CheckStatus
-	20, // 18: vrooli.vrooli_autoheal.v1.checks.ListSaturationResponse.saturations:type_name -> vrooli.vrooli_autoheal.v1.checks.Saturation
-	25, // 19: vrooli.vrooli_autoheal.v1.checks.ListSaturationResponse.computed_at:type_name -> google.protobuf.Timestamp
-	25, // 20: vrooli.vrooli_autoheal.v1.checks.GetSaturationResponse.computed_at:type_name -> google.protobuf.Timestamp
-	4,  // 21: vrooli.vrooli_autoheal.v1.checks.ChecksService.ListChecks:input_type -> vrooli.vrooli_autoheal.v1.checks.ListChecksRequest
-	6,  // 22: vrooli.vrooli_autoheal.v1.checks.ChecksService.GetCheck:input_type -> vrooli.vrooli_autoheal.v1.checks.GetCheckRequest
-	8,  // 23: vrooli.vrooli_autoheal.v1.checks.ChecksService.GetHistory:input_type -> vrooli.vrooli_autoheal.v1.checks.GetHistoryRequest
-	10, // 24: vrooli.vrooli_autoheal.v1.checks.ChecksService.GetStatus:input_type -> vrooli.vrooli_autoheal.v1.checks.GetStatusRequest
-	12, // 25: vrooli.vrooli_autoheal.v1.checks.ChecksService.GetTransitions:input_type -> vrooli.vrooli_autoheal.v1.checks.GetTransitionsRequest
-	15, // 26: vrooli.vrooli_autoheal.v1.checks.ChecksService.GetReconcile:input_type -> vrooli.vrooli_autoheal.v1.checks.GetReconcileRequest
-	18, // 27: vrooli.vrooli_autoheal.v1.checks.ChecksService.ListShelves:input_type -> vrooli.vrooli_autoheal.v1.checks.ListShelvesRequest
-	23, // 28: vrooli.vrooli_autoheal.v1.checks.ChecksService.GetSaturation:input_type -> vrooli.vrooli_autoheal.v1.checks.GetSaturationRequest
-	21, // 29: vrooli.vrooli_autoheal.v1.checks.ChecksService.ListSaturation:input_type -> vrooli.vrooli_autoheal.v1.checks.ListSaturationRequest
-	5,  // 30: vrooli.vrooli_autoheal.v1.checks.ChecksService.ListChecks:output_type -> vrooli.vrooli_autoheal.v1.checks.ListChecksResponse
-	7,  // 31: vrooli.vrooli_autoheal.v1.checks.ChecksService.GetCheck:output_type -> vrooli.vrooli_autoheal.v1.checks.GetCheckResponse
-	9,  // 32: vrooli.vrooli_autoheal.v1.checks.ChecksService.GetHistory:output_type -> vrooli.vrooli_autoheal.v1.checks.GetHistoryResponse
-	11, // 33: vrooli.vrooli_autoheal.v1.checks.ChecksService.GetStatus:output_type -> vrooli.vrooli_autoheal.v1.checks.GetStatusResponse
-	13, // 34: vrooli.vrooli_autoheal.v1.checks.ChecksService.GetTransitions:output_type -> vrooli.vrooli_autoheal.v1.checks.GetTransitionsResponse
-	16, // 35: vrooli.vrooli_autoheal.v1.checks.ChecksService.GetReconcile:output_type -> vrooli.vrooli_autoheal.v1.checks.GetReconcileResponse
-	19, // 36: vrooli.vrooli_autoheal.v1.checks.ChecksService.ListShelves:output_type -> vrooli.vrooli_autoheal.v1.checks.ListShelvesResponse
-	24, // 37: vrooli.vrooli_autoheal.v1.checks.ChecksService.GetSaturation:output_type -> vrooli.vrooli_autoheal.v1.checks.GetSaturationResponse
-	22, // 38: vrooli.vrooli_autoheal.v1.checks.ChecksService.ListSaturation:output_type -> vrooli.vrooli_autoheal.v1.checks.ListSaturationResponse
-	30, // [30:39] is the sub-list for method output_type
-	21, // [21:30] is the sub-list for method input_type
-	21, // [21:21] is the sub-list for extension type_name
-	21, // [21:21] is the sub-list for extension extendee
-	0,  // [0:21] is the sub-list for field type_name
+	2,  // 7: vrooli.vrooli_autoheal.v1.checks.RunCheckResponse.result:type_name -> vrooli.vrooli_autoheal.v1.checks.CheckResult
+	2,  // 8: vrooli.vrooli_autoheal.v1.checks.GetHistoryResponse.results:type_name -> vrooli.vrooli_autoheal.v1.checks.CheckResult
+	0,  // 9: vrooli.vrooli_autoheal.v1.checks.GetStatusResponse.status:type_name -> vrooli.vrooli_autoheal.v1.checks.CheckStatus
+	2,  // 10: vrooli.vrooli_autoheal.v1.checks.GetStatusResponse.checks:type_name -> vrooli.vrooli_autoheal.v1.checks.CheckResult
+	27, // 11: vrooli.vrooli_autoheal.v1.checks.GetStatusResponse.computed_at:type_name -> google.protobuf.Timestamp
+	3,  // 12: vrooli.vrooli_autoheal.v1.checks.GetTransitionsResponse.transitions:type_name -> vrooli.vrooli_autoheal.v1.checks.Transition
+	27, // 13: vrooli.vrooli_autoheal.v1.checks.Reconcile.computed_at:type_name -> google.protobuf.Timestamp
+	16, // 14: vrooli.vrooli_autoheal.v1.checks.GetReconcileResponse.reconcile:type_name -> vrooli.vrooli_autoheal.v1.checks.Reconcile
+	27, // 15: vrooli.vrooli_autoheal.v1.checks.Shelf.expires_at:type_name -> google.protobuf.Timestamp
+	27, // 16: vrooli.vrooli_autoheal.v1.checks.Shelf.created_at:type_name -> google.protobuf.Timestamp
+	19, // 17: vrooli.vrooli_autoheal.v1.checks.ListShelvesResponse.shelves:type_name -> vrooli.vrooli_autoheal.v1.checks.Shelf
+	0,  // 18: vrooli.vrooli_autoheal.v1.checks.Saturation.current_status:type_name -> vrooli.vrooli_autoheal.v1.checks.CheckStatus
+	22, // 19: vrooli.vrooli_autoheal.v1.checks.ListSaturationResponse.saturations:type_name -> vrooli.vrooli_autoheal.v1.checks.Saturation
+	27, // 20: vrooli.vrooli_autoheal.v1.checks.ListSaturationResponse.computed_at:type_name -> google.protobuf.Timestamp
+	27, // 21: vrooli.vrooli_autoheal.v1.checks.GetSaturationResponse.computed_at:type_name -> google.protobuf.Timestamp
+	4,  // 22: vrooli.vrooli_autoheal.v1.checks.ChecksService.ListChecks:input_type -> vrooli.vrooli_autoheal.v1.checks.ListChecksRequest
+	6,  // 23: vrooli.vrooli_autoheal.v1.checks.ChecksService.GetCheck:input_type -> vrooli.vrooli_autoheal.v1.checks.GetCheckRequest
+	8,  // 24: vrooli.vrooli_autoheal.v1.checks.ChecksService.RunCheck:input_type -> vrooli.vrooli_autoheal.v1.checks.RunCheckRequest
+	10, // 25: vrooli.vrooli_autoheal.v1.checks.ChecksService.GetHistory:input_type -> vrooli.vrooli_autoheal.v1.checks.GetHistoryRequest
+	12, // 26: vrooli.vrooli_autoheal.v1.checks.ChecksService.GetStatus:input_type -> vrooli.vrooli_autoheal.v1.checks.GetStatusRequest
+	14, // 27: vrooli.vrooli_autoheal.v1.checks.ChecksService.GetTransitions:input_type -> vrooli.vrooli_autoheal.v1.checks.GetTransitionsRequest
+	17, // 28: vrooli.vrooli_autoheal.v1.checks.ChecksService.GetReconcile:input_type -> vrooli.vrooli_autoheal.v1.checks.GetReconcileRequest
+	20, // 29: vrooli.vrooli_autoheal.v1.checks.ChecksService.ListShelves:input_type -> vrooli.vrooli_autoheal.v1.checks.ListShelvesRequest
+	25, // 30: vrooli.vrooli_autoheal.v1.checks.ChecksService.GetSaturation:input_type -> vrooli.vrooli_autoheal.v1.checks.GetSaturationRequest
+	23, // 31: vrooli.vrooli_autoheal.v1.checks.ChecksService.ListSaturation:input_type -> vrooli.vrooli_autoheal.v1.checks.ListSaturationRequest
+	5,  // 32: vrooli.vrooli_autoheal.v1.checks.ChecksService.ListChecks:output_type -> vrooli.vrooli_autoheal.v1.checks.ListChecksResponse
+	7,  // 33: vrooli.vrooli_autoheal.v1.checks.ChecksService.GetCheck:output_type -> vrooli.vrooli_autoheal.v1.checks.GetCheckResponse
+	9,  // 34: vrooli.vrooli_autoheal.v1.checks.ChecksService.RunCheck:output_type -> vrooli.vrooli_autoheal.v1.checks.RunCheckResponse
+	11, // 35: vrooli.vrooli_autoheal.v1.checks.ChecksService.GetHistory:output_type -> vrooli.vrooli_autoheal.v1.checks.GetHistoryResponse
+	13, // 36: vrooli.vrooli_autoheal.v1.checks.ChecksService.GetStatus:output_type -> vrooli.vrooli_autoheal.v1.checks.GetStatusResponse
+	15, // 37: vrooli.vrooli_autoheal.v1.checks.ChecksService.GetTransitions:output_type -> vrooli.vrooli_autoheal.v1.checks.GetTransitionsResponse
+	18, // 38: vrooli.vrooli_autoheal.v1.checks.ChecksService.GetReconcile:output_type -> vrooli.vrooli_autoheal.v1.checks.GetReconcileResponse
+	21, // 39: vrooli.vrooli_autoheal.v1.checks.ChecksService.ListShelves:output_type -> vrooli.vrooli_autoheal.v1.checks.ListShelvesResponse
+	26, // 40: vrooli.vrooli_autoheal.v1.checks.ChecksService.GetSaturation:output_type -> vrooli.vrooli_autoheal.v1.checks.GetSaturationResponse
+	24, // 41: vrooli.vrooli_autoheal.v1.checks.ChecksService.ListSaturation:output_type -> vrooli.vrooli_autoheal.v1.checks.ListSaturationResponse
+	32, // [32:42] is the sub-list for method output_type
+	22, // [22:32] is the sub-list for method input_type
+	22, // [22:22] is the sub-list for extension type_name
+	22, // [22:22] is the sub-list for extension extendee
+	0,  // [0:22] is the sub-list for field type_name
 }
 
 func init() { file_vrooli_autoheal_v1_checks_checks_proto_init() }
@@ -1745,7 +1843,7 @@ func file_vrooli_autoheal_v1_checks_checks_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_vrooli_autoheal_v1_checks_checks_proto_rawDesc), len(file_vrooli_autoheal_v1_checks_checks_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   24,
+			NumMessages:   26,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

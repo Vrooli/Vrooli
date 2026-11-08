@@ -235,6 +235,15 @@ const (
 	// AgentManagerServiceListRunsProcedure is the fully-qualified name of the AgentManagerService's
 	// ListRuns RPC.
 	AgentManagerServiceListRunsProcedure = "/agent_manager.v1.AgentManagerService/ListRuns"
+	// AgentManagerServiceWaitRunProcedure is the fully-qualified name of the AgentManagerService's
+	// WaitRun RPC.
+	AgentManagerServiceWaitRunProcedure = "/agent_manager.v1.AgentManagerService/WaitRun"
+	// AgentManagerServiceWaitRunChildrenProcedure is the fully-qualified name of the
+	// AgentManagerService's WaitRunChildren RPC.
+	AgentManagerServiceWaitRunChildrenProcedure = "/agent_manager.v1.AgentManagerService/WaitRunChildren"
+	// AgentManagerServiceGetRunTreeProcedure is the fully-qualified name of the AgentManagerService's
+	// GetRunTree RPC.
+	AgentManagerServiceGetRunTreeProcedure = "/agent_manager.v1.AgentManagerService/GetRunTree"
 	// AgentManagerServiceGetRunEventsProcedure is the fully-qualified name of the AgentManagerService's
 	// GetRunEvents RPC.
 	AgentManagerServiceGetRunEventsProcedure = "/agent_manager.v1.AgentManagerService/GetRunEvents"
@@ -388,6 +397,18 @@ type AgentManagerServiceClient interface {
 	GetRunAccounting(context.Context, *connect.Request[api.GetRunAccountingRequest]) (*connect.Response[api.RunAccounting], error)
 	// ListRuns returns runs with optional filtering.
 	ListRuns(context.Context, *connect.Request[api.ListRunsRequest]) (*connect.Response[api.ListRunsResponse], error)
+	// WaitRun blocks until one run settles (terminal, or needs_review with its
+	// worker exited) or the bounded timeout elapses. It only reads run state:
+	// the caller need not be a run, and cancelling the wait never touches the
+	// run.
+	WaitRun(context.Context, *connect.Request[api.WaitRunRequest]) (*connect.Response[api.WaitRunResponse], error)
+	// WaitRunChildren blocks until a direct child of the parent settles after
+	// `since`, no child is active, or the bounded timeout elapses. It returns
+	// the same summary a parked parent's children wake carries.
+	WaitRunChildren(context.Context, *connect.Request[api.WaitRunChildrenRequest]) (*connect.Response[api.WaitRunChildrenResponse], error)
+	// GetRunTree returns a run and its descendants with depth, status, runner,
+	// model, goal delivery, elapsed time, weighted tokens and orphan markers.
+	GetRunTree(context.Context, *connect.Request[api.GetRunTreeRequest]) (*connect.Response[api.RunTree], error)
 	// GetRunEvents returns the event stream for a run.
 	GetRunEvents(context.Context, *connect.Request[api.GetRunEventsRequest]) (*connect.Response[api.GetRunEventsResponse], error)
 	// ProbeRunner sends a test request to verify runner connectivity.
@@ -836,6 +857,24 @@ func NewAgentManagerServiceClient(httpClient connect.HTTPClient, baseURL string,
 			connect.WithSchema(agentManagerServiceMethods.ByName("ListRuns")),
 			connect.WithClientOptions(opts...),
 		),
+		waitRun: connect.NewClient[api.WaitRunRequest, api.WaitRunResponse](
+			httpClient,
+			baseURL+AgentManagerServiceWaitRunProcedure,
+			connect.WithSchema(agentManagerServiceMethods.ByName("WaitRun")),
+			connect.WithClientOptions(opts...),
+		),
+		waitRunChildren: connect.NewClient[api.WaitRunChildrenRequest, api.WaitRunChildrenResponse](
+			httpClient,
+			baseURL+AgentManagerServiceWaitRunChildrenProcedure,
+			connect.WithSchema(agentManagerServiceMethods.ByName("WaitRunChildren")),
+			connect.WithClientOptions(opts...),
+		),
+		getRunTree: connect.NewClient[api.GetRunTreeRequest, api.RunTree](
+			httpClient,
+			baseURL+AgentManagerServiceGetRunTreeProcedure,
+			connect.WithSchema(agentManagerServiceMethods.ByName("GetRunTree")),
+			connect.WithClientOptions(opts...),
+		),
 		getRunEvents: connect.NewClient[api.GetRunEventsRequest, api.GetRunEventsResponse](
 			httpClient,
 			baseURL+AgentManagerServiceGetRunEventsProcedure,
@@ -998,6 +1037,9 @@ type agentManagerServiceClient struct {
 	getRunReport                     *connect.Client[api.GetRunReportRequest, api.RunReport]
 	getRunAccounting                 *connect.Client[api.GetRunAccountingRequest, api.RunAccounting]
 	listRuns                         *connect.Client[api.ListRunsRequest, api.ListRunsResponse]
+	waitRun                          *connect.Client[api.WaitRunRequest, api.WaitRunResponse]
+	waitRunChildren                  *connect.Client[api.WaitRunChildrenRequest, api.WaitRunChildrenResponse]
+	getRunTree                       *connect.Client[api.GetRunTreeRequest, api.RunTree]
 	getRunEvents                     *connect.Client[api.GetRunEventsRequest, api.GetRunEventsResponse]
 	probeRunner                      *connect.Client[api.ProbeRunnerRequest, api.ProbeRunnerResponse]
 	getRolePolicyStatus              *connect.Client[api.GetRolePolicyStatusRequest, api.GetRolePolicyStatusResponse]
@@ -1353,6 +1395,21 @@ func (c *agentManagerServiceClient) ListRuns(ctx context.Context, req *connect.R
 	return c.listRuns.CallUnary(ctx, req)
 }
 
+// WaitRun calls agent_manager.v1.AgentManagerService.WaitRun.
+func (c *agentManagerServiceClient) WaitRun(ctx context.Context, req *connect.Request[api.WaitRunRequest]) (*connect.Response[api.WaitRunResponse], error) {
+	return c.waitRun.CallUnary(ctx, req)
+}
+
+// WaitRunChildren calls agent_manager.v1.AgentManagerService.WaitRunChildren.
+func (c *agentManagerServiceClient) WaitRunChildren(ctx context.Context, req *connect.Request[api.WaitRunChildrenRequest]) (*connect.Response[api.WaitRunChildrenResponse], error) {
+	return c.waitRunChildren.CallUnary(ctx, req)
+}
+
+// GetRunTree calls agent_manager.v1.AgentManagerService.GetRunTree.
+func (c *agentManagerServiceClient) GetRunTree(ctx context.Context, req *connect.Request[api.GetRunTreeRequest]) (*connect.Response[api.RunTree], error) {
+	return c.getRunTree.CallUnary(ctx, req)
+}
+
 // GetRunEvents calls agent_manager.v1.AgentManagerService.GetRunEvents.
 func (c *agentManagerServiceClient) GetRunEvents(ctx context.Context, req *connect.Request[api.GetRunEventsRequest]) (*connect.Response[api.GetRunEventsResponse], error) {
 	return c.getRunEvents.CallUnary(ctx, req)
@@ -1537,6 +1594,18 @@ type AgentManagerServiceHandler interface {
 	GetRunAccounting(context.Context, *connect.Request[api.GetRunAccountingRequest]) (*connect.Response[api.RunAccounting], error)
 	// ListRuns returns runs with optional filtering.
 	ListRuns(context.Context, *connect.Request[api.ListRunsRequest]) (*connect.Response[api.ListRunsResponse], error)
+	// WaitRun blocks until one run settles (terminal, or needs_review with its
+	// worker exited) or the bounded timeout elapses. It only reads run state:
+	// the caller need not be a run, and cancelling the wait never touches the
+	// run.
+	WaitRun(context.Context, *connect.Request[api.WaitRunRequest]) (*connect.Response[api.WaitRunResponse], error)
+	// WaitRunChildren blocks until a direct child of the parent settles after
+	// `since`, no child is active, or the bounded timeout elapses. It returns
+	// the same summary a parked parent's children wake carries.
+	WaitRunChildren(context.Context, *connect.Request[api.WaitRunChildrenRequest]) (*connect.Response[api.WaitRunChildrenResponse], error)
+	// GetRunTree returns a run and its descendants with depth, status, runner,
+	// model, goal delivery, elapsed time, weighted tokens and orphan markers.
+	GetRunTree(context.Context, *connect.Request[api.GetRunTreeRequest]) (*connect.Response[api.RunTree], error)
 	// GetRunEvents returns the event stream for a run.
 	GetRunEvents(context.Context, *connect.Request[api.GetRunEventsRequest]) (*connect.Response[api.GetRunEventsResponse], error)
 	// ProbeRunner sends a test request to verify runner connectivity.
@@ -1981,6 +2050,24 @@ func NewAgentManagerServiceHandler(svc AgentManagerServiceHandler, opts ...conne
 		connect.WithSchema(agentManagerServiceMethods.ByName("ListRuns")),
 		connect.WithHandlerOptions(opts...),
 	)
+	agentManagerServiceWaitRunHandler := connect.NewUnaryHandler(
+		AgentManagerServiceWaitRunProcedure,
+		svc.WaitRun,
+		connect.WithSchema(agentManagerServiceMethods.ByName("WaitRun")),
+		connect.WithHandlerOptions(opts...),
+	)
+	agentManagerServiceWaitRunChildrenHandler := connect.NewUnaryHandler(
+		AgentManagerServiceWaitRunChildrenProcedure,
+		svc.WaitRunChildren,
+		connect.WithSchema(agentManagerServiceMethods.ByName("WaitRunChildren")),
+		connect.WithHandlerOptions(opts...),
+	)
+	agentManagerServiceGetRunTreeHandler := connect.NewUnaryHandler(
+		AgentManagerServiceGetRunTreeProcedure,
+		svc.GetRunTree,
+		connect.WithSchema(agentManagerServiceMethods.ByName("GetRunTree")),
+		connect.WithHandlerOptions(opts...),
+	)
 	agentManagerServiceGetRunEventsHandler := connect.NewUnaryHandler(
 		AgentManagerServiceGetRunEventsProcedure,
 		svc.GetRunEvents,
@@ -2207,6 +2294,12 @@ func NewAgentManagerServiceHandler(svc AgentManagerServiceHandler, opts ...conne
 			agentManagerServiceGetRunAccountingHandler.ServeHTTP(w, r)
 		case AgentManagerServiceListRunsProcedure:
 			agentManagerServiceListRunsHandler.ServeHTTP(w, r)
+		case AgentManagerServiceWaitRunProcedure:
+			agentManagerServiceWaitRunHandler.ServeHTTP(w, r)
+		case AgentManagerServiceWaitRunChildrenProcedure:
+			agentManagerServiceWaitRunChildrenHandler.ServeHTTP(w, r)
+		case AgentManagerServiceGetRunTreeProcedure:
+			agentManagerServiceGetRunTreeHandler.ServeHTTP(w, r)
 		case AgentManagerServiceGetRunEventsProcedure:
 			agentManagerServiceGetRunEventsHandler.ServeHTTP(w, r)
 		case AgentManagerServiceProbeRunnerProcedure:
@@ -2512,6 +2605,18 @@ func (UnimplementedAgentManagerServiceHandler) GetRunAccounting(context.Context,
 
 func (UnimplementedAgentManagerServiceHandler) ListRuns(context.Context, *connect.Request[api.ListRunsRequest]) (*connect.Response[api.ListRunsResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("agent_manager.v1.AgentManagerService.ListRuns is not implemented"))
+}
+
+func (UnimplementedAgentManagerServiceHandler) WaitRun(context.Context, *connect.Request[api.WaitRunRequest]) (*connect.Response[api.WaitRunResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("agent_manager.v1.AgentManagerService.WaitRun is not implemented"))
+}
+
+func (UnimplementedAgentManagerServiceHandler) WaitRunChildren(context.Context, *connect.Request[api.WaitRunChildrenRequest]) (*connect.Response[api.WaitRunChildrenResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("agent_manager.v1.AgentManagerService.WaitRunChildren is not implemented"))
+}
+
+func (UnimplementedAgentManagerServiceHandler) GetRunTree(context.Context, *connect.Request[api.GetRunTreeRequest]) (*connect.Response[api.RunTree], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("agent_manager.v1.AgentManagerService.GetRunTree is not implemented"))
 }
 
 func (UnimplementedAgentManagerServiceHandler) GetRunEvents(context.Context, *connect.Request[api.GetRunEventsRequest]) (*connect.Response[api.GetRunEventsResponse], error) {

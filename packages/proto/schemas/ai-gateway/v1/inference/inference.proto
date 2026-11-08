@@ -50,6 +50,10 @@ enum InferenceErrorCode {
   // requested output cap cannot fit the resolved provider model window. The
   // gateway refuses before dispatch and never exposes the window value.
   INFERENCE_ERROR_CODE_CONTEXT_OVERFLOW = 7;
+  // OUTCOME_UNCERTAIN means a hosted provider request may have reached LPBS,
+  // but the Gateway cannot safely return its output. Reuse root_operation_id
+  // to resolve the accounting-only recovery receipt; do not start a new run.
+  INFERENCE_ERROR_CODE_OUTCOME_UNCERTAIN = 8;
 }
 
 // InferenceError is a typed failure returned inside a response. It is kept
@@ -102,6 +106,25 @@ message SpendAuthorization {
   int32 context_window_tokens = 15;
 }
 
+// RecoveryReceipt exposes only Gateway/LPBS accounting state. It never
+// includes provider output, provider identity, model, or private LPBS receipt.
+enum RecoveryReceiptState {
+  RECOVERY_RECEIPT_STATE_UNSPECIFIED = 0;
+  RECOVERY_RECEIPT_STATE_UNCERTAIN = 1;
+  RECOVERY_RECEIPT_STATE_PENDING = 2;
+  RECOVERY_RECEIPT_STATE_SETTLED = 3;
+  RECOVERY_RECEIPT_STATE_RELEASED = 4;
+  RECOVERY_RECEIPT_STATE_OUTPUT_UNAVAILABLE = 5;
+}
+
+message RecoveryReceipt {
+  // Server-generated diagnostic reference; it cannot authorize a receipt read.
+  string attempt_reference = 1;
+  RecoveryReceiptState state = 2;
+  string accounting_status = 3;
+  optional int64 charged_credits = 4;
+}
+
 message RunRequest {
   string source = 1;
   string schema_json = 2;
@@ -134,6 +157,9 @@ message RunRequest {
   // spend_limit is mandatory for remote device.geometry.* roles and forbidden
   // for local-only execution. The owner binds it to exact request inputs.
   SpendLimit spend_limit = 11;
+  // Caller-generated high-entropy idempotency name, not authorization. Reuse
+  // with exactly the same request to recover a prior HostedDoor attempt.
+  string root_operation_id = 12;
 }
 
 message RunResponse {
@@ -153,6 +179,8 @@ message RunResponse {
   // refusals are not counted; the number is not a provider HTTP-call receipt.
   int32 provider_calls_made = 8;
   SpendAuthorization spend_authorization = 9;
+  // Accounting-only result when the original hosted output cannot be returned.
+  RecoveryReceipt recovery = 10;
 }
 
 message RunBatchItem {

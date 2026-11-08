@@ -199,7 +199,10 @@ message MeasureHit {
   double confidence = 8;
 }
 
-// Phase-4 honest grouping (pre-rerank): candidates kept per provider.
+// Provider result metadata. Hits are populated here when the response is not
+// reranked. When QueryResponse.ranked is populated, this message retains the
+// provider count and degradation provenance while the ranked list owns the
+// complete hit payload, avoiding duplicate result serialization.
 message ProviderResultGroup {
   string provider_id = 1;
   repeated SearchHit hits = 2;
@@ -216,9 +219,11 @@ message ProviderResultGroup {
 }
 
 message QueryResponse {
-  // Unified ranked list — populated once rerank lands (Phase 6).
+  // Unified complete hit payload — populated when reranking succeeds. In that
+  // state groups contain provider summaries without duplicated hits.
   repeated SearchHit ranked = 1;
-  // By-provider grouping — always populated.
+  // By-provider grouping and metadata — populated when providers are queried;
+  // hits are empty when ranked owns the result payload.
   repeated ProviderResultGroup groups = 2;
   // Which providers were hit (operator output).
   repeated string corpora_searched = 3;

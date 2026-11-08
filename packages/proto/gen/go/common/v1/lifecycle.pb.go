@@ -130,6 +130,58 @@ func (LifecycleBlockerDisposition) EnumDescriptor() ([]byte, []int) {
 	return file_common_v1_lifecycle_proto_rawDescGZIP(), []int{1}
 }
 
+// Persistence of the admission fence, independent of provider process identity.
+// Unspecified retains the conservative process-local behavior unless a
+// replacement explicitly proves the same operation in durable storage.
+type LifecycleFencePersistence int32
+
+const (
+	LifecycleFencePersistence_LIFECYCLE_FENCE_PERSISTENCE_UNSPECIFIED       LifecycleFencePersistence = 0
+	LifecycleFencePersistence_LIFECYCLE_FENCE_PERSISTENCE_PROCESS_LOCAL     LifecycleFencePersistence = 1
+	LifecycleFencePersistence_LIFECYCLE_FENCE_PERSISTENCE_OPERATION_DURABLE LifecycleFencePersistence = 2
+)
+
+// Enum value maps for LifecycleFencePersistence.
+var (
+	LifecycleFencePersistence_name = map[int32]string{
+		0: "LIFECYCLE_FENCE_PERSISTENCE_UNSPECIFIED",
+		1: "LIFECYCLE_FENCE_PERSISTENCE_PROCESS_LOCAL",
+		2: "LIFECYCLE_FENCE_PERSISTENCE_OPERATION_DURABLE",
+	}
+	LifecycleFencePersistence_value = map[string]int32{
+		"LIFECYCLE_FENCE_PERSISTENCE_UNSPECIFIED":       0,
+		"LIFECYCLE_FENCE_PERSISTENCE_PROCESS_LOCAL":     1,
+		"LIFECYCLE_FENCE_PERSISTENCE_OPERATION_DURABLE": 2,
+	}
+)
+
+func (x LifecycleFencePersistence) Enum() *LifecycleFencePersistence {
+	p := new(LifecycleFencePersistence)
+	*p = x
+	return p
+}
+
+func (x LifecycleFencePersistence) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (LifecycleFencePersistence) Descriptor() protoreflect.EnumDescriptor {
+	return file_common_v1_lifecycle_proto_enumTypes[2].Descriptor()
+}
+
+func (LifecycleFencePersistence) Type() protoreflect.EnumType {
+	return &file_common_v1_lifecycle_proto_enumTypes[2]
+}
+
+func (x LifecycleFencePersistence) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use LifecycleFencePersistence.Descriptor instead.
+func (LifecycleFencePersistence) EnumDescriptor() ([]byte, []int) {
+	return file_common_v1_lifecycle_proto_rawDescGZIP(), []int{2}
+}
+
 type LifecyclePrepareRequest struct {
 	state             protoimpl.MessageState `protogen:"open.v1"`
 	OperationId       string                 `protobuf:"bytes,1,opt,name=operation_id,json=operationId,proto3" json:"operation_id,omitempty"`
@@ -619,8 +671,12 @@ type LifecycleStanding struct {
 	// True while the control plane must request the provider's separate
 	// quiescence stage before final drain, even if no OS components are listed.
 	QuiescencePending bool `protobuf:"varint,21,opt,name=quiescence_pending,json=quiescencePending,proto3" json:"quiescence_pending,omitempty"`
-	unknownFields     protoimpl.UnknownFields
-	sizeCache         protoimpl.SizeCache
+	// OPERATION_DURABLE permits an exact operation/token/revision/interlock to
+	// survive replacement. It does not authorize another operation or make
+	// incomplete work inventory sufficient to reopen admission.
+	FencePersistence LifecycleFencePersistence `protobuf:"varint,22,opt,name=fence_persistence,json=fencePersistence,proto3,enum=common.v1.LifecycleFencePersistence" json:"fence_persistence,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
 }
 
 func (x *LifecycleStanding) Reset() {
@@ -798,6 +854,13 @@ func (x *LifecycleStanding) GetQuiescencePending() bool {
 		return x.QuiescencePending
 	}
 	return false
+}
+
+func (x *LifecycleStanding) GetFencePersistence() LifecycleFencePersistence {
+	if x != nil {
+		return x.FencePersistence
+	}
+	return LifecycleFencePersistence_LIFECYCLE_FENCE_PERSISTENCE_UNSPECIFIED
 }
 
 type LifecyclePrepareResponse struct {
@@ -1018,7 +1081,7 @@ const file_common_v1_lifecycle_proto_rawDesc = "" +
 	"\x04code\x18\x01 \x01(\tR\x04code\x12\x18\n" +
 	"\amessage\x18\x02 \x01(\tR\amessage\x12H\n" +
 	"\vdisposition\x18\x03 \x01(\x0e2&.common.v1.LifecycleBlockerDispositionR\vdisposition\x12\x1a\n" +
-	"\bobserved\x18\x04 \x01(\bR\bobserved\"\xa1\a\n" +
+	"\bobserved\x18\x04 \x01(\bR\bobserved\"\xf4\a\n" +
 	"\x11LifecycleStanding\x12\x1a\n" +
 	"\bprovider\x18\x01 \x01(\tR\bprovider\x120\n" +
 	"\x14provider_instance_id\x18\x02 \x01(\tR\x12providerInstanceId\x12\x1a\n" +
@@ -1045,7 +1108,8 @@ const file_common_v1_lifecycle_proto_rawDesc = "" +
 	"\tinterlock\x18\x12 \x01(\tR\tinterlock\x12S\n" +
 	"\x12managed_components\x18\x13 \x03(\v2$.common.v1.LifecycleManagedComponentR\x11managedComponents\x120\n" +
 	"\x14component_stop_ready\x18\x14 \x01(\bR\x12componentStopReady\x12-\n" +
-	"\x12quiescence_pending\x18\x15 \x01(\bR\x11quiescencePending\"T\n" +
+	"\x12quiescence_pending\x18\x15 \x01(\bR\x11quiescencePending\x12Q\n" +
+	"\x11fence_persistence\x18\x16 \x01(\x0e2$.common.v1.LifecycleFencePersistenceR\x10fencePersistence\"T\n" +
 	"\x18LifecyclePrepareResponse\x128\n" +
 	"\bstanding\x18\x01 \x01(\v2\x1c.common.v1.LifecycleStandingR\bstanding\"S\n" +
 	"\x17LifecycleStatusResponse\x128\n" +
@@ -1064,7 +1128,11 @@ const file_common_v1_lifecycle_proto_rawDesc = "" +
 	")LIFECYCLE_BLOCKER_DISPOSITION_UNSPECIFIED\x10\x00\x12*\n" +
 	"&LIFECYCLE_BLOCKER_DISPOSITION_BLOCKING\x10\x01\x12.\n" +
 	"*LIFECYCLE_BLOCKER_DISPOSITION_OVERRIDEABLE\x10\x02\x12)\n" +
-	"%LIFECYCLE_BLOCKER_DISPOSITION_UNKNOWN\x10\x032\xe1\x02\n" +
+	"%LIFECYCLE_BLOCKER_DISPOSITION_UNKNOWN\x10\x03*\xaa\x01\n" +
+	"\x19LifecycleFencePersistence\x12+\n" +
+	"'LIFECYCLE_FENCE_PERSISTENCE_UNSPECIFIED\x10\x00\x12-\n" +
+	")LIFECYCLE_FENCE_PERSISTENCE_PROCESS_LOCAL\x10\x01\x121\n" +
+	"-LIFECYCLE_FENCE_PERSISTENCE_OPERATION_DURABLE\x10\x022\xe1\x02\n" +
 	"\x1bLifecycleMaintenanceService\x12R\n" +
 	"\aPrepare\x12\".common.v1.LifecyclePrepareRequest\x1a#.common.v1.LifecyclePrepareResponse\x12O\n" +
 	"\x06Status\x12!.common.v1.LifecycleStatusRequest\x1a\".common.v1.LifecycleStatusResponse\x12L\n" +
@@ -1083,53 +1151,55 @@ func file_common_v1_lifecycle_proto_rawDescGZIP() []byte {
 	return file_common_v1_lifecycle_proto_rawDescData
 }
 
-var file_common_v1_lifecycle_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
+var file_common_v1_lifecycle_proto_enumTypes = make([]protoimpl.EnumInfo, 3)
 var file_common_v1_lifecycle_proto_msgTypes = make([]protoimpl.MessageInfo, 12)
 var file_common_v1_lifecycle_proto_goTypes = []any{
 	(LifecycleMaintenancePhase)(0),    // 0: common.v1.LifecycleMaintenancePhase
 	(LifecycleBlockerDisposition)(0),  // 1: common.v1.LifecycleBlockerDisposition
-	(*LifecyclePrepareRequest)(nil),   // 2: common.v1.LifecyclePrepareRequest
-	(*LifecycleStatusRequest)(nil),    // 3: common.v1.LifecycleStatusRequest
-	(*LifecycleDrainRequest)(nil),     // 4: common.v1.LifecycleDrainRequest
-	(*LifecycleManagedComponent)(nil), // 5: common.v1.LifecycleManagedComponent
-	(*LifecycleResumeRequest)(nil),    // 6: common.v1.LifecycleResumeRequest
-	(*LifecycleWorkItem)(nil),         // 7: common.v1.LifecycleWorkItem
-	(*LifecycleBlocker)(nil),          // 8: common.v1.LifecycleBlocker
-	(*LifecycleStanding)(nil),         // 9: common.v1.LifecycleStanding
-	(*LifecyclePrepareResponse)(nil),  // 10: common.v1.LifecyclePrepareResponse
-	(*LifecycleStatusResponse)(nil),   // 11: common.v1.LifecycleStatusResponse
-	(*LifecycleDrainResponse)(nil),    // 12: common.v1.LifecycleDrainResponse
-	(*LifecycleResumeResponse)(nil),   // 13: common.v1.LifecycleResumeResponse
-	(*durationpb.Duration)(nil),       // 14: google.protobuf.Duration
-	(*timestamppb.Timestamp)(nil),     // 15: google.protobuf.Timestamp
+	(LifecycleFencePersistence)(0),    // 2: common.v1.LifecycleFencePersistence
+	(*LifecyclePrepareRequest)(nil),   // 3: common.v1.LifecyclePrepareRequest
+	(*LifecycleStatusRequest)(nil),    // 4: common.v1.LifecycleStatusRequest
+	(*LifecycleDrainRequest)(nil),     // 5: common.v1.LifecycleDrainRequest
+	(*LifecycleManagedComponent)(nil), // 6: common.v1.LifecycleManagedComponent
+	(*LifecycleResumeRequest)(nil),    // 7: common.v1.LifecycleResumeRequest
+	(*LifecycleWorkItem)(nil),         // 8: common.v1.LifecycleWorkItem
+	(*LifecycleBlocker)(nil),          // 9: common.v1.LifecycleBlocker
+	(*LifecycleStanding)(nil),         // 10: common.v1.LifecycleStanding
+	(*LifecyclePrepareResponse)(nil),  // 11: common.v1.LifecyclePrepareResponse
+	(*LifecycleStatusResponse)(nil),   // 12: common.v1.LifecycleStatusResponse
+	(*LifecycleDrainResponse)(nil),    // 13: common.v1.LifecycleDrainResponse
+	(*LifecycleResumeResponse)(nil),   // 14: common.v1.LifecycleResumeResponse
+	(*durationpb.Duration)(nil),       // 15: google.protobuf.Duration
+	(*timestamppb.Timestamp)(nil),     // 16: google.protobuf.Timestamp
 }
 var file_common_v1_lifecycle_proto_depIdxs = []int32{
-	14, // 0: common.v1.LifecycleDrainRequest.timeout:type_name -> google.protobuf.Duration
-	5,  // 1: common.v1.LifecycleDrainRequest.component_exits:type_name -> common.v1.LifecycleManagedComponent
+	15, // 0: common.v1.LifecycleDrainRequest.timeout:type_name -> google.protobuf.Duration
+	6,  // 1: common.v1.LifecycleDrainRequest.component_exits:type_name -> common.v1.LifecycleManagedComponent
 	1,  // 2: common.v1.LifecycleBlocker.disposition:type_name -> common.v1.LifecycleBlockerDisposition
 	0,  // 3: common.v1.LifecycleStanding.phase:type_name -> common.v1.LifecycleMaintenancePhase
-	7,  // 4: common.v1.LifecycleStanding.work:type_name -> common.v1.LifecycleWorkItem
-	8,  // 5: common.v1.LifecycleStanding.blockers:type_name -> common.v1.LifecycleBlocker
-	15, // 6: common.v1.LifecycleStanding.observed_at:type_name -> google.protobuf.Timestamp
-	15, // 7: common.v1.LifecycleStanding.expires_at:type_name -> google.protobuf.Timestamp
-	5,  // 8: common.v1.LifecycleStanding.managed_components:type_name -> common.v1.LifecycleManagedComponent
-	9,  // 9: common.v1.LifecyclePrepareResponse.standing:type_name -> common.v1.LifecycleStanding
-	9,  // 10: common.v1.LifecycleStatusResponse.standing:type_name -> common.v1.LifecycleStanding
-	9,  // 11: common.v1.LifecycleDrainResponse.standing:type_name -> common.v1.LifecycleStanding
-	9,  // 12: common.v1.LifecycleResumeResponse.standing:type_name -> common.v1.LifecycleStanding
-	2,  // 13: common.v1.LifecycleMaintenanceService.Prepare:input_type -> common.v1.LifecyclePrepareRequest
-	3,  // 14: common.v1.LifecycleMaintenanceService.Status:input_type -> common.v1.LifecycleStatusRequest
-	4,  // 15: common.v1.LifecycleMaintenanceService.Drain:input_type -> common.v1.LifecycleDrainRequest
-	6,  // 16: common.v1.LifecycleMaintenanceService.Resume:input_type -> common.v1.LifecycleResumeRequest
-	10, // 17: common.v1.LifecycleMaintenanceService.Prepare:output_type -> common.v1.LifecyclePrepareResponse
-	11, // 18: common.v1.LifecycleMaintenanceService.Status:output_type -> common.v1.LifecycleStatusResponse
-	12, // 19: common.v1.LifecycleMaintenanceService.Drain:output_type -> common.v1.LifecycleDrainResponse
-	13, // 20: common.v1.LifecycleMaintenanceService.Resume:output_type -> common.v1.LifecycleResumeResponse
-	17, // [17:21] is the sub-list for method output_type
-	13, // [13:17] is the sub-list for method input_type
-	13, // [13:13] is the sub-list for extension type_name
-	13, // [13:13] is the sub-list for extension extendee
-	0,  // [0:13] is the sub-list for field type_name
+	8,  // 4: common.v1.LifecycleStanding.work:type_name -> common.v1.LifecycleWorkItem
+	9,  // 5: common.v1.LifecycleStanding.blockers:type_name -> common.v1.LifecycleBlocker
+	16, // 6: common.v1.LifecycleStanding.observed_at:type_name -> google.protobuf.Timestamp
+	16, // 7: common.v1.LifecycleStanding.expires_at:type_name -> google.protobuf.Timestamp
+	6,  // 8: common.v1.LifecycleStanding.managed_components:type_name -> common.v1.LifecycleManagedComponent
+	2,  // 9: common.v1.LifecycleStanding.fence_persistence:type_name -> common.v1.LifecycleFencePersistence
+	10, // 10: common.v1.LifecyclePrepareResponse.standing:type_name -> common.v1.LifecycleStanding
+	10, // 11: common.v1.LifecycleStatusResponse.standing:type_name -> common.v1.LifecycleStanding
+	10, // 12: common.v1.LifecycleDrainResponse.standing:type_name -> common.v1.LifecycleStanding
+	10, // 13: common.v1.LifecycleResumeResponse.standing:type_name -> common.v1.LifecycleStanding
+	3,  // 14: common.v1.LifecycleMaintenanceService.Prepare:input_type -> common.v1.LifecyclePrepareRequest
+	4,  // 15: common.v1.LifecycleMaintenanceService.Status:input_type -> common.v1.LifecycleStatusRequest
+	5,  // 16: common.v1.LifecycleMaintenanceService.Drain:input_type -> common.v1.LifecycleDrainRequest
+	7,  // 17: common.v1.LifecycleMaintenanceService.Resume:input_type -> common.v1.LifecycleResumeRequest
+	11, // 18: common.v1.LifecycleMaintenanceService.Prepare:output_type -> common.v1.LifecyclePrepareResponse
+	12, // 19: common.v1.LifecycleMaintenanceService.Status:output_type -> common.v1.LifecycleStatusResponse
+	13, // 20: common.v1.LifecycleMaintenanceService.Drain:output_type -> common.v1.LifecycleDrainResponse
+	14, // 21: common.v1.LifecycleMaintenanceService.Resume:output_type -> common.v1.LifecycleResumeResponse
+	18, // [18:22] is the sub-list for method output_type
+	14, // [14:18] is the sub-list for method input_type
+	14, // [14:14] is the sub-list for extension type_name
+	14, // [14:14] is the sub-list for extension extendee
+	0,  // [0:14] is the sub-list for field type_name
 }
 
 func init() { file_common_v1_lifecycle_proto_init() }
@@ -1142,7 +1212,7 @@ func file_common_v1_lifecycle_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_common_v1_lifecycle_proto_rawDesc), len(file_common_v1_lifecycle_proto_rawDesc)),
-			NumEnums:      2,
+			NumEnums:      3,
 			NumMessages:   12,
 			NumExtensions: 0,
 			NumServices:   1,

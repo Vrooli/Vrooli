@@ -2,12 +2,30 @@ import datetime
 
 from google.protobuf import timestamp_pb2 as _timestamp_pb2
 from google.protobuf.internal import containers as _containers
+from google.protobuf.internal import enum_type_wrapper as _enum_type_wrapper
 from google.protobuf import descriptor as _descriptor
 from google.protobuf import message as _message
 from collections.abc import Iterable as _Iterable, Mapping as _Mapping
 from typing import ClassVar as _ClassVar, Optional as _Optional, Union as _Union
 
 DESCRIPTOR: _descriptor.FileDescriptor
+
+class BaseUSDCReceiptRelation(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    BASE_USDC_RECEIPT_RELATION_UNSPECIFIED: _ClassVar[BaseUSDCReceiptRelation]
+    BASE_USDC_RECEIPT_RELATION_SAME_INCLUSION: _ClassVar[BaseUSDCReceiptRelation]
+    BASE_USDC_RECEIPT_RELATION_REINCLUDED_NEW_REVISION: _ClassVar[BaseUSDCReceiptRelation]
+    BASE_USDC_RECEIPT_RELATION_PROVIDER_REPORTS_NOT_CANONICAL: _ClassVar[BaseUSDCReceiptRelation]
+    BASE_USDC_RECEIPT_RELATION_PROVIDER_REPORTS_PENDING: _ClassVar[BaseUSDCReceiptRelation]
+    BASE_USDC_RECEIPT_RELATION_PROVIDER_CHECK_FAILED: _ClassVar[BaseUSDCReceiptRelation]
+    BASE_USDC_RECEIPT_RELATION_PROVIDER_OBSERVATION_CHANGED: _ClassVar[BaseUSDCReceiptRelation]
+BASE_USDC_RECEIPT_RELATION_UNSPECIFIED: BaseUSDCReceiptRelation
+BASE_USDC_RECEIPT_RELATION_SAME_INCLUSION: BaseUSDCReceiptRelation
+BASE_USDC_RECEIPT_RELATION_REINCLUDED_NEW_REVISION: BaseUSDCReceiptRelation
+BASE_USDC_RECEIPT_RELATION_PROVIDER_REPORTS_NOT_CANONICAL: BaseUSDCReceiptRelation
+BASE_USDC_RECEIPT_RELATION_PROVIDER_REPORTS_PENDING: BaseUSDCReceiptRelation
+BASE_USDC_RECEIPT_RELATION_PROVIDER_CHECK_FAILED: BaseUSDCReceiptRelation
+BASE_USDC_RECEIPT_RELATION_PROVIDER_OBSERVATION_CHANGED: BaseUSDCReceiptRelation
 
 class Wallet(_message.Message):
     __slots__ = ("id", "book_id", "operator_identity", "network", "address", "public_key", "custody_reference", "created_at", "recovery_status", "recovery_sha256", "independent_recovery_verified")
@@ -91,7 +109,7 @@ class BaseUSDCTransferObservation(_message.Message):
     def __init__(self, economic_key: _Optional[str] = ..., inclusion_revision: _Optional[str] = ..., wallet_id: _Optional[str] = ..., network: _Optional[str] = ..., asset_id: _Optional[str] = ..., decimals: _Optional[int] = ..., to: _Optional[str] = ..., atomic_amount: _Optional[str] = ..., transaction_hash: _Optional[str] = ..., log_index: _Optional[int] = ..., block_number: _Optional[int] = ..., block_hash: _Optional[str] = ..., block_time: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., finality: _Optional[str] = ..., finalized_head_number: _Optional[int] = ..., finalized_head_hash: _Optional[str] = ..., provider_id: _Optional[str] = ..., observed_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., **kwargs) -> None: ...
 
 class BaseUSDCReceiptCheck(_message.Message):
-    __slots__ = ("id", "wallet_id", "network", "transaction_hash", "provider_id", "outcome", "error_code", "checked_at", "transfers")
+    __slots__ = ("id", "wallet_id", "network", "transaction_hash", "provider_id", "outcome", "error_code", "checked_at", "transfers", "prior_check_id", "relation")
     ID_FIELD_NUMBER: _ClassVar[int]
     WALLET_ID_FIELD_NUMBER: _ClassVar[int]
     NETWORK_FIELD_NUMBER: _ClassVar[int]
@@ -101,6 +119,8 @@ class BaseUSDCReceiptCheck(_message.Message):
     ERROR_CODE_FIELD_NUMBER: _ClassVar[int]
     CHECKED_AT_FIELD_NUMBER: _ClassVar[int]
     TRANSFERS_FIELD_NUMBER: _ClassVar[int]
+    PRIOR_CHECK_ID_FIELD_NUMBER: _ClassVar[int]
+    RELATION_FIELD_NUMBER: _ClassVar[int]
     id: str
     wallet_id: str
     network: str
@@ -110,4 +130,6 @@ class BaseUSDCReceiptCheck(_message.Message):
     error_code: str
     checked_at: _timestamp_pb2.Timestamp
     transfers: _containers.RepeatedCompositeFieldContainer[BaseUSDCTransferObservation]
-    def __init__(self, id: _Optional[str] = ..., wallet_id: _Optional[str] = ..., network: _Optional[str] = ..., transaction_hash: _Optional[str] = ..., provider_id: _Optional[str] = ..., outcome: _Optional[str] = ..., error_code: _Optional[str] = ..., checked_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., transfers: _Optional[_Iterable[_Union[BaseUSDCTransferObservation, _Mapping]]] = ...) -> None: ...
+    prior_check_id: str
+    relation: BaseUSDCReceiptRelation
+    def __init__(self, id: _Optional[str] = ..., wallet_id: _Optional[str] = ..., network: _Optional[str] = ..., transaction_hash: _Optional[str] = ..., provider_id: _Optional[str] = ..., outcome: _Optional[str] = ..., error_code: _Optional[str] = ..., checked_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., transfers: _Optional[_Iterable[_Union[BaseUSDCTransferObservation, _Mapping]]] = ..., prior_check_id: _Optional[str] = ..., relation: _Optional[_Union[BaseUSDCReceiptRelation, str]] = ...) -> None: ...

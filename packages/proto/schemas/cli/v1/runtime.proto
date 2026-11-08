@@ -31,6 +31,18 @@ message CliVersion {
 
   // Resolved Vrooli source root the CLI is bound to.
   string root = 3;
+
+  // Fingerprint embedded in this executable. Empty for an unstamped build;
+  // this is artifact identity, not evidence of native activation or health.
+  string build_identity = 4;
+
+  // Canonical runtime-home authority carried by this executable's build.
+  // Empty means source-independent native bootstrap is not qualified.
+  string runtime_home_contract_sha256 = 5;
+
+  // Reviewed native persistence-source manifest embedded by the build owner.
+  // Equality is required for rollback admission; absence is unqualified.
+  string persistent_state_contract_sha256 = 6;
 }
 
 // CliSupervisorStatus is the shape of `vrooli runtime supervisor status --json`.

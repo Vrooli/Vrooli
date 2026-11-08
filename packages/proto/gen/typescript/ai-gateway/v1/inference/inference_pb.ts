@@ -12,7 +12,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file ai-gateway/v1/inference/inference.proto.
  */
 export const file_ai_gateway_v1_inference_inference: GenFile = /*@__PURE__*/
-  fileDesc("CidhaS1nYXRld2F5L3YxL2luZmVyZW5jZS9pbmZlcmVuY2UucHJvdG8SHnZyb29saS5haV9nYXRld2F5LnYxLmluZmVyZW5jZSKFAwoFVXNhZ2USFAoMaW5wdXRfdG9rZW5zGAEgASgDEhUKDW91dHB1dF90b2tlbnMYAiABKAMSEwoLY29zdF9taWNyb3MYAyABKAMSUAoXaW5wdXRfdG9rZW5zX3Byb3ZlbmFuY2UYBCABKA4yLy52cm9vbGkuYWlfZ2F0ZXdheS52MS5pbmZlcmVuY2UuVXNhZ2VQcm92ZW5hbmNlElEKGG91dHB1dF90b2tlbnNfcHJvdmVuYW5jZRgFIAEoDjIvLnZyb29saS5haV9nYXRld2F5LnYxLmluZmVyZW5jZS5Vc2FnZVByb3ZlbmFuY2USSAoPY29zdF9wcm92ZW5hbmNlGAYgASgOMi8udnJvb2xpLmFpX2dhdGV3YXkudjEuaW5mZXJlbmNlLlVzYWdlUHJvdmVuYW5jZRIcCg9jcmVkaXRzX2NoYXJnZWQYByABKANIAIgBARIZChFhY2NvdW50aW5nX3N0YXR1cxgIIAEoCUISChBfY3JlZGl0c19jaGFyZ2VkInYKDkluZmVyZW5jZUVycm9yEkAKBGNvZGUYASABKA4yMi52cm9vbGkuYWlfZ2F0ZXdheS52MS5pbmZlcmVuY2UuSW5mZXJlbmNlRXJyb3JDb2RlEg8KB21lc3NhZ2UYAiABKAkSEQoJY29uc3RydWN0GAMgASgJImAKBFR1cm4SDAoEcm9sZRgBIAEoCRIMCgR0ZXh0GAIgASgJEjwKC2F0dGFjaG1lbnRzGAMgAygLMicudnJvb2xpLmFpX2dhdGV3YXkudjEuc2hhcmVkLkF0dGFjaG1lbnQinAEKClNwZW5kTGltaXQSFwoPbWF4X2Nvc3RfbWljcm9zGAEgASgDEhQKDG9wZXJhdGlvbl9pZBgCIAEoCRIZChFpbnB1dF9maW5nZXJwcmludBgDIAEoCRIYChByZWZlcmVuY2Vfc2hhMjU2GAQgAygJEhMKC2ltYWdlX2NvdW50GAUgASgFEhUKDWZ1bmRpbmdfcm91dGUYBiABKAkiiQMKElNwZW5kQXV0aG9yaXphdGlvbhIYChBhdXRob3JpemF0aW9uX2lkGAEgASgJEg4KBnN0YXR1cxgCIAEoCRIXCg9tYXhfY29zdF9taWNyb3MYAyABKAMSGgoSaW5wdXRfdG9rZW5zX2JvdW5kGAQgASgFEhsKE291dHB1dF90b2tlbnNfYm91bmQYBSABKAUSEwoLaW1hZ2VfY291bnQYBiABKAUSFgoOY29udGV4dF9zb3VyY2UYByABKAkSFAoMb3BlcmF0aW9uX2lkGAggASgJEhkKEWlucHV0X2ZpbmdlcnByaW50GAkgASgJEhgKEHJlZmVyZW5jZV9zaGEyNTYYCiADKAkSFQoNZnVuZGluZ19yb3V0ZRgLIAEoCRIYChBhY2NvdW50X2lkZW50aXR5GAwgASgJEg0KBW1vZGVsGA0gASgJEiAKGHByb3ZpZGVyX2NvbnRyb2xzX3NoYTI1NhgOIAEoCRIdChVjb250ZXh0X3dpbmRvd190b2tlbnMYDyABKAUitwMKClJ1blJlcXVlc3QSDgoGc291cmNlGAEgASgJEhMKC3NjaGVtYV9qc29uGAIgASgJEhMKC2luc3RydWN0aW9uGAMgASgJEgwKBHJvbGUYBCABKAkSMwoFdHVybnMYBSADKAsyJC52cm9vbGkuYWlfZ2F0ZXdheS52MS5pbmZlcmVuY2UuVHVybhI8CgthdHRhY2htZW50cxgGIAMoCzInLnZyb29saS5haV9nYXRld2F5LnYxLnNoYXJlZC5BdHRhY2htZW50EjUKB3Byb2ZpbGUYByABKA4yJC52cm9vbGkuYWlfZ2F0ZXdheS52MS5zaGFyZWQuUHJvZmlsZRI/CghzYW1wbGluZxgIIAEoCzItLnZyb29saS5haV9nYXRld2F5LnYxLnNoYXJlZC5TYW1wbGluZ0NvbnRyb2xzEhkKEW1heF9vdXRwdXRfdG9rZW5zGAkgASgFEhoKEm1heF9wcm92aWRlcl9jYWxscxgKIAEoBRI/CgtzcGVuZF9saW1pdBgLIAEoCzIqLnZyb29saS5haV9nYXRld2F5LnYxLmluZmVyZW5jZS5TcGVuZExpbWl0IvcCCgtSdW5SZXNwb25zZRISCgp2YWx1ZV9qc29uGAEgASgJEhAKCHByb3ZpZGVyGAIgASgJEg0KBW1vZGVsGAMgASgJEhEKCXZhbGlkYXRlZBgEIAEoCBI0CgV1c2FnZRgFIAEoCzIlLnZyb29saS5haV9nYXRld2F5LnYxLmluZmVyZW5jZS5Vc2FnZRI9CgVlcnJvchgGIAEoCzIuLnZyb29saS5haV9nYXRld2F5LnYxLmluZmVyZW5jZS5JbmZlcmVuY2VFcnJvchI9CgdhcHBsaWVkGAcgASgLMiwudnJvb2xpLmFpX2dhdGV3YXkudjEuc2hhcmVkLkFwcGxpZWRTZXR0aW5ncxIbChNwcm92aWRlcl9jYWxsc19tYWRlGAggASgFEk8KE3NwZW5kX2F1dGhvcml6YXRpb24YCSABKAsyMi52cm9vbGkuYWlfZ2F0ZXdheS52MS5pbmZlcmVuY2UuU3BlbmRBdXRob3JpemF0aW9uIh4KDFJ1bkJhdGNoSXRlbRIOCgZzb3VyY2UYASABKAkihgEKD1J1bkJhdGNoUmVxdWVzdBI7CgVpdGVtcxgBIAMoCzIsLnZyb29saS5haV9nYXRld2F5LnYxLmluZmVyZW5jZS5SdW5CYXRjaEl0ZW0SEwoLc2NoZW1hX2pzb24YAiABKAkSEwoLaW5zdHJ1Y3Rpb24YAyABKAkSDAoEcm9sZRgEIAEoCSKGAQoQUnVuQmF0Y2hSZXNwb25zZRI8CgdyZXN1bHRzGAEgAygLMisudnJvb2xpLmFpX2dhdGV3YXkudjEuaW5mZXJlbmNlLlJ1blJlc3BvbnNlEjQKBXVzYWdlGAIgASgLMiUudnJvb2xpLmFpX2dhdGV3YXkudjEuaW5mZXJlbmNlLlVzYWdlImwKDEVtYmVkUmVxdWVzdBINCgV0ZXh0cxgBIAMoCRIMCgRyb2xlGAIgASgJEj8KCHNhbXBsaW5nGAMgASgLMi0udnJvb2xpLmFpX2dhdGV3YXkudjEuc2hhcmVkLlNhbXBsaW5nQ29udHJvbHMi+gEKDUVtYmVkUmVzcG9uc2USQAoHdmVjdG9ycxgBIAMoCzIvLnZyb29saS5haV9nYXRld2F5LnYxLmluZmVyZW5jZS5FbWJlZGRpbmdWZWN0b3ISEAoIcHJvdmlkZXIYAiABKAkSDQoFbW9kZWwYAyABKAkSEQoJZGltZW5zaW9uGAQgASgFEjQKBXVzYWdlGAUgASgLMiUudnJvb2xpLmFpX2dhdGV3YXkudjEuaW5mZXJlbmNlLlVzYWdlEj0KBWVycm9yGAYgASgLMi4udnJvb2xpLmFpX2dhdGV3YXkudjEuaW5mZXJlbmNlLkluZmVyZW5jZUVycm9yIiEKD0VtYmVkZGluZ1ZlY3RvchIOCgZ2YWx1ZXMYASADKAEiNAoORGVjaXNpb25PcHRpb24SDQoFbGFiZWwYASABKAkSEwoLZGVzY3JpcHRpb24YAiABKAki/gEKEERlY2lzaW9uUXVlc3Rpb24SCgoCaWQYASABKAkSQgoEdHlwZRgCIAEoDjI0LnZyb29saS5haV9nYXRld2F5LnYxLmluZmVyZW5jZS5EZWNpc2lvblF1ZXN0aW9uVHlwZRIUCgxpbnN0cnVjdGlvbnMYAyABKAkSPwoHb3B0aW9ucxgEIAMoCzIuLnZyb29saS5haV9nYXRld2F5LnYxLmluZmVyZW5jZS5EZWNpc2lvbk9wdGlvbhIOCgZsZXZlbHMYBSADKAkSGAoQdHJ1ZV9kZXNjcmlwdGlvbhgGIAEoCRIZChFmYWxzZV9kZXNjcmlwdGlvbhgHIAEoCSK8AQoNRGVjaWRlUmVxdWVzdBIMCgRyb2xlGAEgASgJEg0KBXN0YXRlGAIgASgJEhIKCnN0YXRlX2pzb24YAyABKAkSQwoJcXVlc3Rpb25zGAQgAygLMjAudnJvb2xpLmFpX2dhdGV3YXkudjEuaW5mZXJlbmNlLkRlY2lzaW9uUXVlc3Rpb24SNQoHcHJvZmlsZRgFIAEoDjIkLnZyb29saS5haV9nYXRld2F5LnYxLnNoYXJlZC5Qcm9maWxlIjoKE0RlY2lzaW9uUHJvYmFiaWxpdHkSDgoGb3B0aW9uGAEgASgJEhMKC3Byb2JhYmlsaXR5GAIgASgBIqcCCg5EZWNpc2lvbkFuc3dlchITCgtxdWVzdGlvbl9pZBgBIAEoCRJCCgR0eXBlGAIgASgOMjQudnJvb2xpLmFpX2dhdGV3YXkudjEuaW5mZXJlbmNlLkRlY2lzaW9uUXVlc3Rpb25UeXBlEg4KBmNob2ljZRgDIAEoCRISCgVzY29yZRgEIAEoAUgAiAEBEhEKBG5vdWwYBSABKAFIAYgBARIXCgpjb25maWRlbmNlGAYgASgBSAKIAQESSgoNcHJvYmFiaWxpdGllcxgHIAMoCzIzLnZyb29saS5haV9nYXRld2F5LnYxLmluZmVyZW5jZS5EZWNpc2lvblByb2JhYmlsaXR5QggKBl9zY29yZUIHCgVfbm91bEINCgtfY29uZmlkZW5jZSLLAQoRRGVjaXNpb25DYW5kaWRhdGUSEAoIcHJvdmlkZXIYASABKAkSFQoNcmVzb3VyY2Vfcm9sZRgCIAEoCRIQCghsb2NhbGl0eRgDIAEoCRJHCgZzdGF0dXMYBCABKA4yNy52cm9vbGkuYWlfZ2F0ZXdheS52MS5pbmZlcmVuY2UuRGVjaXNpb25DYW5kaWRhdGVTdGF0dXMSDgoGcmVhc29uGAUgASgJEg4KBmRldGFpbBgGIAEoCRISCgpsYXRlbmN5X21zGAcgASgDIqsDCg5EZWNpZGVSZXNwb25zZRI/CgdhbnN3ZXJzGAEgAygLMi4udnJvb2xpLmFpX2dhdGV3YXkudjEuaW5mZXJlbmNlLkRlY2lzaW9uQW5zd2VyEhAKCHByb3ZpZGVyGAIgASgJEg0KBW1vZGVsGAMgASgJEj4KBm1ldGhvZBgEIAEoDjIuLnZyb29saS5haV9nYXRld2F5LnYxLmluZmVyZW5jZS5EZWNpc2lvbk1ldGhvZBI0CgV1c2FnZRgFIAEoCzIlLnZyb29saS5haV9nYXRld2F5LnYxLmluZmVyZW5jZS5Vc2FnZRI9CgVlcnJvchgGIAEoCzIuLnZyb29saS5haV9nYXRld2F5LnYxLmluZmVyZW5jZS5JbmZlcmVuY2VFcnJvchISCgpsYXRlbmN5X21zGAcgASgDEkUKCmNhbmRpZGF0ZXMYCCADKAsyMS52cm9vbGkuYWlfZ2F0ZXdheS52MS5pbmZlcmVuY2UuRGVjaXNpb25DYW5kaWRhdGUSFQoNcmVzb3VyY2Vfcm9sZRgJIAEoCRIQCghsb2NhbGl0eRgKIAEoCSI0Cg9EZWNpZGVCYXRjaEl0ZW0SDQoFc3RhdGUYASABKAkSEgoKc3RhdGVfanNvbhgCIAEoCSLeAQoSRGVjaWRlQmF0Y2hSZXF1ZXN0EgwKBHJvbGUYASABKAkSQwoJcXVlc3Rpb25zGAIgAygLMjAudnJvb2xpLmFpX2dhdGV3YXkudjEuaW5mZXJlbmNlLkRlY2lzaW9uUXVlc3Rpb24SPgoFaXRlbXMYAyADKAsyLy52cm9vbGkuYWlfZ2F0ZXdheS52MS5pbmZlcmVuY2UuRGVjaWRlQmF0Y2hJdGVtEjUKB3Byb2ZpbGUYBCABKA4yJC52cm9vbGkuYWlfZ2F0ZXdheS52MS5zaGFyZWQuUHJvZmlsZSKMAQoTRGVjaWRlQmF0Y2hSZXNwb25zZRI/CgdyZXN1bHRzGAEgAygLMi4udnJvb2xpLmFpX2dhdGV3YXkudjEuaW5mZXJlbmNlLkRlY2lkZVJlc3BvbnNlEjQKBXVzYWdlGAIgASgLMiUudnJvb2xpLmFpX2dhdGV3YXkudjEuaW5mZXJlbmNlLlVzYWdlKrwBCg9Vc2FnZVByb3ZlbmFuY2USIAocVVNBR0VfUFJPVkVOQU5DRV9VTlNQRUNJRklFRBAAEhwKGFVTQUdFX1BST1ZFTkFOQ0VfVU5LTk9XThABEiYKIlVTQUdFX1BST1ZFTkFOQ0VfUFJPVklERVJfUkVQT1JURUQQAhIlCiFVU0FHRV9QUk9WRU5BTkNFX0dBVEVXQVlfRVNUSU1BVEUQAxIaChZVU0FHRV9QUk9WRU5BTkNFX01JWEVEEAQq5wIKEkluZmVyZW5jZUVycm9yQ29kZRIkCiBJTkZFUkVOQ0VfRVJST1JfQ09ERV9VTlNQRUNJRklFRBAAEiQKIElORkVSRU5DRV9FUlJPUl9DT0RFX1VOQVZBSUxBQkxFEAESKAokSU5GRVJFTkNFX0VSUk9SX0NPREVfSU5WQUxJRF9SRVFVRVNUEAISKwonSU5GRVJFTkNFX0VSUk9SX0NPREVfVU5TVVBQT1JURURfU0NIRU1BEAMSKgomSU5GRVJFTkNFX0VSUk9SX0NPREVfVkFMSURBVElPTl9GQUlMRUQQBBIoCiRJTkZFUkVOQ0VfRVJST1JfQ09ERV9QUk9WSURFUl9GQUlMRUQQBRItCilJTkZFUkVOQ0VfRVJST1JfQ09ERV9VTlNVUFBPUlRFRF9TQU1QTElORxAGEikKJUlORkVSRU5DRV9FUlJPUl9DT0RFX0NPTlRFWFRfT1ZFUkZMT1cQByqkAQoURGVjaXNpb25RdWVzdGlvblR5cGUSJgoiREVDSVNJT05fUVVFU1RJT05fVFlQRV9VTlNQRUNJRklFRBAAEiEKHURFQ0lTSU9OX1FVRVNUSU9OX1RZUEVfQ0hPSUNFEAESIAocREVDSVNJT05fUVVFU1RJT05fVFlQRV9TQ09SRRACEh8KG0RFQ0lTSU9OX1FVRVNUSU9OX1RZUEVfTk9VTBADKnMKDkRlY2lzaW9uTWV0aG9kEh8KG0RFQ0lTSU9OX01FVEhPRF9VTlNQRUNJRklFRBAAEiIKHkRFQ0lTSU9OX01FVEhPRF9ERUNJU0lPTl9NT0RFTBABEhwKGERFQ0lTSU9OX01FVEhPRF9MTE1fRU5VTRACKuYBChdEZWNpc2lvbkNhbmRpZGF0ZVN0YXR1cxIpCiVERUNJU0lPTl9DQU5ESURBVEVfU1RBVFVTX1VOU1BFQ0lGSUVEEAASJgoiREVDSVNJT05fQ0FORElEQVRFX1NUQVRVU19BTlNXRVJFRBABEiUKIURFQ0lTSU9OX0NBTkRJREFURV9TVEFUVVNfU0tJUFBFRBACEiQKIERFQ0lTSU9OX0NBTkRJREFURV9TVEFUVVNfRkFJTEVEEAMSKwonREVDSVNJT05fQ0FORElEQVRFX1NUQVRVU19OT1RfQVRURU1QVEVEEAQyqAQKEEluZmVyZW5jZVNlcnZpY2USXgoDUnVuEioudnJvb2xpLmFpX2dhdGV3YXkudjEuaW5mZXJlbmNlLlJ1blJlcXVlc3QaKy52cm9vbGkuYWlfZ2F0ZXdheS52MS5pbmZlcmVuY2UuUnVuUmVzcG9uc2USbQoIUnVuQmF0Y2gSLy52cm9vbGkuYWlfZ2F0ZXdheS52MS5pbmZlcmVuY2UuUnVuQmF0Y2hSZXF1ZXN0GjAudnJvb2xpLmFpX2dhdGV3YXkudjEuaW5mZXJlbmNlLlJ1bkJhdGNoUmVzcG9uc2USZAoFRW1iZWQSLC52cm9vbGkuYWlfZ2F0ZXdheS52MS5pbmZlcmVuY2UuRW1iZWRSZXF1ZXN0Gi0udnJvb2xpLmFpX2dhdGV3YXkudjEuaW5mZXJlbmNlLkVtYmVkUmVzcG9uc2USZwoGRGVjaWRlEi0udnJvb2xpLmFpX2dhdGV3YXkudjEuaW5mZXJlbmNlLkRlY2lkZVJlcXVlc3QaLi52cm9vbGkuYWlfZ2F0ZXdheS52MS5pbmZlcmVuY2UuRGVjaWRlUmVzcG9uc2USdgoLRGVjaWRlQmF0Y2gSMi52cm9vbGkuYWlfZ2F0ZXdheS52MS5pbmZlcmVuY2UuRGVjaWRlQmF0Y2hSZXF1ZXN0GjMudnJvb2xpLmFpX2dhdGV3YXkudjEuaW5mZXJlbmNlLkRlY2lkZUJhdGNoUmVzcG9uc2VCVVpTZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby9haS1nYXRld2F5L3YxL2luZmVyZW5jZTtpbmZlcmVuY2VfdjFiBnByb3RvMw", [file_ai_gateway_v1_shared_gateway]);
+  fileDesc("CidhaS1nYXRld2F5L3YxL2luZmVyZW5jZS9pbmZlcmVuY2UucHJvdG8SHnZyb29saS5haV9nYXRld2F5LnYxLmluZmVyZW5jZSKFAwoFVXNhZ2USFAoMaW5wdXRfdG9rZW5zGAEgASgDEhUKDW91dHB1dF90b2tlbnMYAiABKAMSEwoLY29zdF9taWNyb3MYAyABKAMSUAoXaW5wdXRfdG9rZW5zX3Byb3ZlbmFuY2UYBCABKA4yLy52cm9vbGkuYWlfZ2F0ZXdheS52MS5pbmZlcmVuY2UuVXNhZ2VQcm92ZW5hbmNlElEKGG91dHB1dF90b2tlbnNfcHJvdmVuYW5jZRgFIAEoDjIvLnZyb29saS5haV9nYXRld2F5LnYxLmluZmVyZW5jZS5Vc2FnZVByb3ZlbmFuY2USSAoPY29zdF9wcm92ZW5hbmNlGAYgASgOMi8udnJvb2xpLmFpX2dhdGV3YXkudjEuaW5mZXJlbmNlLlVzYWdlUHJvdmVuYW5jZRIcCg9jcmVkaXRzX2NoYXJnZWQYByABKANIAIgBARIZChFhY2NvdW50aW5nX3N0YXR1cxgIIAEoCUISChBfY3JlZGl0c19jaGFyZ2VkInYKDkluZmVyZW5jZUVycm9yEkAKBGNvZGUYASABKA4yMi52cm9vbGkuYWlfZ2F0ZXdheS52MS5pbmZlcmVuY2UuSW5mZXJlbmNlRXJyb3JDb2RlEg8KB21lc3NhZ2UYAiABKAkSEQoJY29uc3RydWN0GAMgASgJImAKBFR1cm4SDAoEcm9sZRgBIAEoCRIMCgR0ZXh0GAIgASgJEjwKC2F0dGFjaG1lbnRzGAMgAygLMicudnJvb2xpLmFpX2dhdGV3YXkudjEuc2hhcmVkLkF0dGFjaG1lbnQinAEKClNwZW5kTGltaXQSFwoPbWF4X2Nvc3RfbWljcm9zGAEgASgDEhQKDG9wZXJhdGlvbl9pZBgCIAEoCRIZChFpbnB1dF9maW5nZXJwcmludBgDIAEoCRIYChByZWZlcmVuY2Vfc2hhMjU2GAQgAygJEhMKC2ltYWdlX2NvdW50GAUgASgFEhUKDWZ1bmRpbmdfcm91dGUYBiABKAkiiQMKElNwZW5kQXV0aG9yaXphdGlvbhIYChBhdXRob3JpemF0aW9uX2lkGAEgASgJEg4KBnN0YXR1cxgCIAEoCRIXCg9tYXhfY29zdF9taWNyb3MYAyABKAMSGgoSaW5wdXRfdG9rZW5zX2JvdW5kGAQgASgFEhsKE291dHB1dF90b2tlbnNfYm91bmQYBSABKAUSEwoLaW1hZ2VfY291bnQYBiABKAUSFgoOY29udGV4dF9zb3VyY2UYByABKAkSFAoMb3BlcmF0aW9uX2lkGAggASgJEhkKEWlucHV0X2ZpbmdlcnByaW50GAkgASgJEhgKEHJlZmVyZW5jZV9zaGEyNTYYCiADKAkSFQoNZnVuZGluZ19yb3V0ZRgLIAEoCRIYChBhY2NvdW50X2lkZW50aXR5GAwgASgJEg0KBW1vZGVsGA0gASgJEiAKGHByb3ZpZGVyX2NvbnRyb2xzX3NoYTI1NhgOIAEoCRIdChVjb250ZXh0X3dpbmRvd190b2tlbnMYDyABKAUivgEKD1JlY292ZXJ5UmVjZWlwdBIZChFhdHRlbXB0X3JlZmVyZW5jZRgBIAEoCRJDCgVzdGF0ZRgCIAEoDjI0LnZyb29saS5haV9nYXRld2F5LnYxLmluZmVyZW5jZS5SZWNvdmVyeVJlY2VpcHRTdGF0ZRIZChFhY2NvdW50aW5nX3N0YXR1cxgDIAEoCRIcCg9jaGFyZ2VkX2NyZWRpdHMYBCABKANIAIgBAUISChBfY2hhcmdlZF9jcmVkaXRzItIDCgpSdW5SZXF1ZXN0Eg4KBnNvdXJjZRgBIAEoCRITCgtzY2hlbWFfanNvbhgCIAEoCRITCgtpbnN0cnVjdGlvbhgDIAEoCRIMCgRyb2xlGAQgASgJEjMKBXR1cm5zGAUgAygLMiQudnJvb2xpLmFpX2dhdGV3YXkudjEuaW5mZXJlbmNlLlR1cm4SPAoLYXR0YWNobWVudHMYBiADKAsyJy52cm9vbGkuYWlfZ2F0ZXdheS52MS5zaGFyZWQuQXR0YWNobWVudBI1Cgdwcm9maWxlGAcgASgOMiQudnJvb2xpLmFpX2dhdGV3YXkudjEuc2hhcmVkLlByb2ZpbGUSPwoIc2FtcGxpbmcYCCABKAsyLS52cm9vbGkuYWlfZ2F0ZXdheS52MS5zaGFyZWQuU2FtcGxpbmdDb250cm9scxIZChFtYXhfb3V0cHV0X3Rva2VucxgJIAEoBRIaChJtYXhfcHJvdmlkZXJfY2FsbHMYCiABKAUSPwoLc3BlbmRfbGltaXQYCyABKAsyKi52cm9vbGkuYWlfZ2F0ZXdheS52MS5pbmZlcmVuY2UuU3BlbmRMaW1pdBIZChFyb290X29wZXJhdGlvbl9pZBgMIAEoCSK6AwoLUnVuUmVzcG9uc2USEgoKdmFsdWVfanNvbhgBIAEoCRIQCghwcm92aWRlchgCIAEoCRINCgVtb2RlbBgDIAEoCRIRCgl2YWxpZGF0ZWQYBCABKAgSNAoFdXNhZ2UYBSABKAsyJS52cm9vbGkuYWlfZ2F0ZXdheS52MS5pbmZlcmVuY2UuVXNhZ2USPQoFZXJyb3IYBiABKAsyLi52cm9vbGkuYWlfZ2F0ZXdheS52MS5pbmZlcmVuY2UuSW5mZXJlbmNlRXJyb3ISPQoHYXBwbGllZBgHIAEoCzIsLnZyb29saS5haV9nYXRld2F5LnYxLnNoYXJlZC5BcHBsaWVkU2V0dGluZ3MSGwoTcHJvdmlkZXJfY2FsbHNfbWFkZRgIIAEoBRJPChNzcGVuZF9hdXRob3JpemF0aW9uGAkgASgLMjIudnJvb2xpLmFpX2dhdGV3YXkudjEuaW5mZXJlbmNlLlNwZW5kQXV0aG9yaXphdGlvbhJBCghyZWNvdmVyeRgKIAEoCzIvLnZyb29saS5haV9nYXRld2F5LnYxLmluZmVyZW5jZS5SZWNvdmVyeVJlY2VpcHQiHgoMUnVuQmF0Y2hJdGVtEg4KBnNvdXJjZRgBIAEoCSKGAQoPUnVuQmF0Y2hSZXF1ZXN0EjsKBWl0ZW1zGAEgAygLMiwudnJvb2xpLmFpX2dhdGV3YXkudjEuaW5mZXJlbmNlLlJ1bkJhdGNoSXRlbRITCgtzY2hlbWFfanNvbhgCIAEoCRITCgtpbnN0cnVjdGlvbhgDIAEoCRIMCgRyb2xlGAQgASgJIoYBChBSdW5CYXRjaFJlc3BvbnNlEjwKB3Jlc3VsdHMYASADKAsyKy52cm9vbGkuYWlfZ2F0ZXdheS52MS5pbmZlcmVuY2UuUnVuUmVzcG9uc2USNAoFdXNhZ2UYAiABKAsyJS52cm9vbGkuYWlfZ2F0ZXdheS52MS5pbmZlcmVuY2UuVXNhZ2UibAoMRW1iZWRSZXF1ZXN0Eg0KBXRleHRzGAEgAygJEgwKBHJvbGUYAiABKAkSPwoIc2FtcGxpbmcYAyABKAsyLS52cm9vbGkuYWlfZ2F0ZXdheS52MS5zaGFyZWQuU2FtcGxpbmdDb250cm9scyL6AQoNRW1iZWRSZXNwb25zZRJACgd2ZWN0b3JzGAEgAygLMi8udnJvb2xpLmFpX2dhdGV3YXkudjEuaW5mZXJlbmNlLkVtYmVkZGluZ1ZlY3RvchIQCghwcm92aWRlchgCIAEoCRINCgVtb2RlbBgDIAEoCRIRCglkaW1lbnNpb24YBCABKAUSNAoFdXNhZ2UYBSABKAsyJS52cm9vbGkuYWlfZ2F0ZXdheS52MS5pbmZlcmVuY2UuVXNhZ2USPQoFZXJyb3IYBiABKAsyLi52cm9vbGkuYWlfZ2F0ZXdheS52MS5pbmZlcmVuY2UuSW5mZXJlbmNlRXJyb3IiIQoPRW1iZWRkaW5nVmVjdG9yEg4KBnZhbHVlcxgBIAMoASI0Cg5EZWNpc2lvbk9wdGlvbhINCgVsYWJlbBgBIAEoCRITCgtkZXNjcmlwdGlvbhgCIAEoCSL+AQoQRGVjaXNpb25RdWVzdGlvbhIKCgJpZBgBIAEoCRJCCgR0eXBlGAIgASgOMjQudnJvb2xpLmFpX2dhdGV3YXkudjEuaW5mZXJlbmNlLkRlY2lzaW9uUXVlc3Rpb25UeXBlEhQKDGluc3RydWN0aW9ucxgDIAEoCRI/CgdvcHRpb25zGAQgAygLMi4udnJvb2xpLmFpX2dhdGV3YXkudjEuaW5mZXJlbmNlLkRlY2lzaW9uT3B0aW9uEg4KBmxldmVscxgFIAMoCRIYChB0cnVlX2Rlc2NyaXB0aW9uGAYgASgJEhkKEWZhbHNlX2Rlc2NyaXB0aW9uGAcgASgJIrwBCg1EZWNpZGVSZXF1ZXN0EgwKBHJvbGUYASABKAkSDQoFc3RhdGUYAiABKAkSEgoKc3RhdGVfanNvbhgDIAEoCRJDCglxdWVzdGlvbnMYBCADKAsyMC52cm9vbGkuYWlfZ2F0ZXdheS52MS5pbmZlcmVuY2UuRGVjaXNpb25RdWVzdGlvbhI1Cgdwcm9maWxlGAUgASgOMiQudnJvb2xpLmFpX2dhdGV3YXkudjEuc2hhcmVkLlByb2ZpbGUiOgoTRGVjaXNpb25Qcm9iYWJpbGl0eRIOCgZvcHRpb24YASABKAkSEwoLcHJvYmFiaWxpdHkYAiABKAEipwIKDkRlY2lzaW9uQW5zd2VyEhMKC3F1ZXN0aW9uX2lkGAEgASgJEkIKBHR5cGUYAiABKA4yNC52cm9vbGkuYWlfZ2F0ZXdheS52MS5pbmZlcmVuY2UuRGVjaXNpb25RdWVzdGlvblR5cGUSDgoGY2hvaWNlGAMgASgJEhIKBXNjb3JlGAQgASgBSACIAQESEQoEbm91bBgFIAEoAUgBiAEBEhcKCmNvbmZpZGVuY2UYBiABKAFIAogBARJKCg1wcm9iYWJpbGl0aWVzGAcgAygLMjMudnJvb2xpLmFpX2dhdGV3YXkudjEuaW5mZXJlbmNlLkRlY2lzaW9uUHJvYmFiaWxpdHlCCAoGX3Njb3JlQgcKBV9ub3VsQg0KC19jb25maWRlbmNlIssBChFEZWNpc2lvbkNhbmRpZGF0ZRIQCghwcm92aWRlchgBIAEoCRIVCg1yZXNvdXJjZV9yb2xlGAIgASgJEhAKCGxvY2FsaXR5GAMgASgJEkcKBnN0YXR1cxgEIAEoDjI3LnZyb29saS5haV9nYXRld2F5LnYxLmluZmVyZW5jZS5EZWNpc2lvbkNhbmRpZGF0ZVN0YXR1cxIOCgZyZWFzb24YBSABKAkSDgoGZGV0YWlsGAYgASgJEhIKCmxhdGVuY3lfbXMYByABKAMiqwMKDkRlY2lkZVJlc3BvbnNlEj8KB2Fuc3dlcnMYASADKAsyLi52cm9vbGkuYWlfZ2F0ZXdheS52MS5pbmZlcmVuY2UuRGVjaXNpb25BbnN3ZXISEAoIcHJvdmlkZXIYAiABKAkSDQoFbW9kZWwYAyABKAkSPgoGbWV0aG9kGAQgASgOMi4udnJvb2xpLmFpX2dhdGV3YXkudjEuaW5mZXJlbmNlLkRlY2lzaW9uTWV0aG9kEjQKBXVzYWdlGAUgASgLMiUudnJvb2xpLmFpX2dhdGV3YXkudjEuaW5mZXJlbmNlLlVzYWdlEj0KBWVycm9yGAYgASgLMi4udnJvb2xpLmFpX2dhdGV3YXkudjEuaW5mZXJlbmNlLkluZmVyZW5jZUVycm9yEhIKCmxhdGVuY3lfbXMYByABKAMSRQoKY2FuZGlkYXRlcxgIIAMoCzIxLnZyb29saS5haV9nYXRld2F5LnYxLmluZmVyZW5jZS5EZWNpc2lvbkNhbmRpZGF0ZRIVCg1yZXNvdXJjZV9yb2xlGAkgASgJEhAKCGxvY2FsaXR5GAogASgJIjQKD0RlY2lkZUJhdGNoSXRlbRINCgVzdGF0ZRgBIAEoCRISCgpzdGF0ZV9qc29uGAIgASgJIt4BChJEZWNpZGVCYXRjaFJlcXVlc3QSDAoEcm9sZRgBIAEoCRJDCglxdWVzdGlvbnMYAiADKAsyMC52cm9vbGkuYWlfZ2F0ZXdheS52MS5pbmZlcmVuY2UuRGVjaXNpb25RdWVzdGlvbhI+CgVpdGVtcxgDIAMoCzIvLnZyb29saS5haV9nYXRld2F5LnYxLmluZmVyZW5jZS5EZWNpZGVCYXRjaEl0ZW0SNQoHcHJvZmlsZRgEIAEoDjIkLnZyb29saS5haV9nYXRld2F5LnYxLnNoYXJlZC5Qcm9maWxlIowBChNEZWNpZGVCYXRjaFJlc3BvbnNlEj8KB3Jlc3VsdHMYASADKAsyLi52cm9vbGkuYWlfZ2F0ZXdheS52MS5pbmZlcmVuY2UuRGVjaWRlUmVzcG9uc2USNAoFdXNhZ2UYAiABKAsyJS52cm9vbGkuYWlfZ2F0ZXdheS52MS5pbmZlcmVuY2UuVXNhZ2UqvAEKD1VzYWdlUHJvdmVuYW5jZRIgChxVU0FHRV9QUk9WRU5BTkNFX1VOU1BFQ0lGSUVEEAASHAoYVVNBR0VfUFJPVkVOQU5DRV9VTktOT1dOEAESJgoiVVNBR0VfUFJPVkVOQU5DRV9QUk9WSURFUl9SRVBPUlRFRBACEiUKIVVTQUdFX1BST1ZFTkFOQ0VfR0FURVdBWV9FU1RJTUFURRADEhoKFlVTQUdFX1BST1ZFTkFOQ0VfTUlYRUQQBCqTAwoSSW5mZXJlbmNlRXJyb3JDb2RlEiQKIElORkVSRU5DRV9FUlJPUl9DT0RFX1VOU1BFQ0lGSUVEEAASJAogSU5GRVJFTkNFX0VSUk9SX0NPREVfVU5BVkFJTEFCTEUQARIoCiRJTkZFUkVOQ0VfRVJST1JfQ09ERV9JTlZBTElEX1JFUVVFU1QQAhIrCidJTkZFUkVOQ0VfRVJST1JfQ09ERV9VTlNVUFBPUlRFRF9TQ0hFTUEQAxIqCiZJTkZFUkVOQ0VfRVJST1JfQ09ERV9WQUxJREFUSU9OX0ZBSUxFRBAEEigKJElORkVSRU5DRV9FUlJPUl9DT0RFX1BST1ZJREVSX0ZBSUxFRBAFEi0KKUlORkVSRU5DRV9FUlJPUl9DT0RFX1VOU1VQUE9SVEVEX1NBTVBMSU5HEAYSKQolSU5GRVJFTkNFX0VSUk9SX0NPREVfQ09OVEVYVF9PVkVSRkxPVxAHEioKJklORkVSRU5DRV9FUlJPUl9DT0RFX09VVENPTUVfVU5DRVJUQUlOEAgqgAIKFFJlY292ZXJ5UmVjZWlwdFN0YXRlEiYKIlJFQ09WRVJZX1JFQ0VJUFRfU1RBVEVfVU5TUEVDSUZJRUQQABIkCiBSRUNPVkVSWV9SRUNFSVBUX1NUQVRFX1VOQ0VSVEFJThABEiIKHlJFQ09WRVJZX1JFQ0VJUFRfU1RBVEVfUEVORElORxACEiIKHlJFQ09WRVJZX1JFQ0VJUFRfU1RBVEVfU0VUVExFRBADEiMKH1JFQ09WRVJZX1JFQ0VJUFRfU1RBVEVfUkVMRUFTRUQQBBItCilSRUNPVkVSWV9SRUNFSVBUX1NUQVRFX09VVFBVVF9VTkFWQUlMQUJMRRAFKqQBChREZWNpc2lvblF1ZXN0aW9uVHlwZRImCiJERUNJU0lPTl9RVUVTVElPTl9UWVBFX1VOU1BFQ0lGSUVEEAASIQodREVDSVNJT05fUVVFU1RJT05fVFlQRV9DSE9JQ0UQARIgChxERUNJU0lPTl9RVUVTVElPTl9UWVBFX1NDT1JFEAISHwobREVDSVNJT05fUVVFU1RJT05fVFlQRV9OT1VMEAMqcwoORGVjaXNpb25NZXRob2QSHwobREVDSVNJT05fTUVUSE9EX1VOU1BFQ0lGSUVEEAASIgoeREVDSVNJT05fTUVUSE9EX0RFQ0lTSU9OX01PREVMEAESHAoYREVDSVNJT05fTUVUSE9EX0xMTV9FTlVNEAIq5gEKF0RlY2lzaW9uQ2FuZGlkYXRlU3RhdHVzEikKJURFQ0lTSU9OX0NBTkRJREFURV9TVEFUVVNfVU5TUEVDSUZJRUQQABImCiJERUNJU0lPTl9DQU5ESURBVEVfU1RBVFVTX0FOU1dFUkVEEAESJQohREVDSVNJT05fQ0FORElEQVRFX1NUQVRVU19TS0lQUEVEEAISJAogREVDSVNJT05fQ0FORElEQVRFX1NUQVRVU19GQUlMRUQQAxIrCidERUNJU0lPTl9DQU5ESURBVEVfU1RBVFVTX05PVF9BVFRFTVBURUQQBDKoBAoQSW5mZXJlbmNlU2VydmljZRJeCgNSdW4SKi52cm9vbGkuYWlfZ2F0ZXdheS52MS5pbmZlcmVuY2UuUnVuUmVxdWVzdBorLnZyb29saS5haV9nYXRld2F5LnYxLmluZmVyZW5jZS5SdW5SZXNwb25zZRJtCghSdW5CYXRjaBIvLnZyb29saS5haV9nYXRld2F5LnYxLmluZmVyZW5jZS5SdW5CYXRjaFJlcXVlc3QaMC52cm9vbGkuYWlfZ2F0ZXdheS52MS5pbmZlcmVuY2UuUnVuQmF0Y2hSZXNwb25zZRJkCgVFbWJlZBIsLnZyb29saS5haV9nYXRld2F5LnYxLmluZmVyZW5jZS5FbWJlZFJlcXVlc3QaLS52cm9vbGkuYWlfZ2F0ZXdheS52MS5pbmZlcmVuY2UuRW1iZWRSZXNwb25zZRJnCgZEZWNpZGUSLS52cm9vbGkuYWlfZ2F0ZXdheS52MS5pbmZlcmVuY2UuRGVjaWRlUmVxdWVzdBouLnZyb29saS5haV9nYXRld2F5LnYxLmluZmVyZW5jZS5EZWNpZGVSZXNwb25zZRJ2CgtEZWNpZGVCYXRjaBIyLnZyb29saS5haV9nYXRld2F5LnYxLmluZmVyZW5jZS5EZWNpZGVCYXRjaFJlcXVlc3QaMy52cm9vbGkuYWlfZ2F0ZXdheS52MS5pbmZlcmVuY2UuRGVjaWRlQmF0Y2hSZXNwb25zZUJVWlNnaXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL2FpLWdhdGV3YXkvdjEvaW5mZXJlbmNlO2luZmVyZW5jZV92MWIGcHJvdG8z", [file_ai_gateway_v1_shared_gateway]);
 
 /**
  * @generated from message vrooli.ai_gateway.v1.inference.Usage
@@ -273,6 +273,40 @@ export const SpendAuthorizationSchema: GenMessage<SpendAuthorization> = /*@__PUR
   messageDesc(file_ai_gateway_v1_inference_inference, 4);
 
 /**
+ * @generated from message vrooli.ai_gateway.v1.inference.RecoveryReceipt
+ */
+export type RecoveryReceipt = Message<"vrooli.ai_gateway.v1.inference.RecoveryReceipt"> & {
+  /**
+   * Server-generated diagnostic reference; it cannot authorize a receipt read.
+   *
+   * @generated from field: string attempt_reference = 1;
+   */
+  attemptReference: string;
+
+  /**
+   * @generated from field: vrooli.ai_gateway.v1.inference.RecoveryReceiptState state = 2;
+   */
+  state: RecoveryReceiptState;
+
+  /**
+   * @generated from field: string accounting_status = 3;
+   */
+  accountingStatus: string;
+
+  /**
+   * @generated from field: optional int64 charged_credits = 4;
+   */
+  chargedCredits?: bigint | undefined;
+};
+
+/**
+ * Describes the message vrooli.ai_gateway.v1.inference.RecoveryReceipt.
+ * Use `create(RecoveryReceiptSchema)` to create a new message.
+ */
+export const RecoveryReceiptSchema: GenMessage<RecoveryReceipt> = /*@__PURE__*/
+  messageDesc(file_ai_gateway_v1_inference_inference, 5);
+
+/**
  * @generated from message vrooli.ai_gateway.v1.inference.RunRequest
  */
 export type RunRequest = Message<"vrooli.ai_gateway.v1.inference.RunRequest"> & {
@@ -355,6 +389,14 @@ export type RunRequest = Message<"vrooli.ai_gateway.v1.inference.RunRequest"> & 
    * @generated from field: vrooli.ai_gateway.v1.inference.SpendLimit spend_limit = 11;
    */
   spendLimit?: SpendLimit | undefined;
+
+  /**
+   * Caller-generated high-entropy idempotency name, not authorization. Reuse
+   * with exactly the same request to recover a prior HostedDoor attempt.
+   *
+   * @generated from field: string root_operation_id = 12;
+   */
+  rootOperationId: string;
 };
 
 /**
@@ -362,7 +404,7 @@ export type RunRequest = Message<"vrooli.ai_gateway.v1.inference.RunRequest"> & 
  * Use `create(RunRequestSchema)` to create a new message.
  */
 export const RunRequestSchema: GenMessage<RunRequest> = /*@__PURE__*/
-  messageDesc(file_ai_gateway_v1_inference_inference, 5);
+  messageDesc(file_ai_gateway_v1_inference_inference, 6);
 
 /**
  * @generated from message vrooli.ai_gateway.v1.inference.RunResponse
@@ -421,6 +463,13 @@ export type RunResponse = Message<"vrooli.ai_gateway.v1.inference.RunResponse"> 
    * @generated from field: vrooli.ai_gateway.v1.inference.SpendAuthorization spend_authorization = 9;
    */
   spendAuthorization?: SpendAuthorization | undefined;
+
+  /**
+   * Accounting-only result when the original hosted output cannot be returned.
+   *
+   * @generated from field: vrooli.ai_gateway.v1.inference.RecoveryReceipt recovery = 10;
+   */
+  recovery?: RecoveryReceipt | undefined;
 };
 
 /**
@@ -428,7 +477,7 @@ export type RunResponse = Message<"vrooli.ai_gateway.v1.inference.RunResponse"> 
  * Use `create(RunResponseSchema)` to create a new message.
  */
 export const RunResponseSchema: GenMessage<RunResponse> = /*@__PURE__*/
-  messageDesc(file_ai_gateway_v1_inference_inference, 6);
+  messageDesc(file_ai_gateway_v1_inference_inference, 7);
 
 /**
  * @generated from message vrooli.ai_gateway.v1.inference.RunBatchItem
@@ -445,7 +494,7 @@ export type RunBatchItem = Message<"vrooli.ai_gateway.v1.inference.RunBatchItem"
  * Use `create(RunBatchItemSchema)` to create a new message.
  */
 export const RunBatchItemSchema: GenMessage<RunBatchItem> = /*@__PURE__*/
-  messageDesc(file_ai_gateway_v1_inference_inference, 7);
+  messageDesc(file_ai_gateway_v1_inference_inference, 8);
 
 /**
  * @generated from message vrooli.ai_gateway.v1.inference.RunBatchRequest
@@ -477,7 +526,7 @@ export type RunBatchRequest = Message<"vrooli.ai_gateway.v1.inference.RunBatchRe
  * Use `create(RunBatchRequestSchema)` to create a new message.
  */
 export const RunBatchRequestSchema: GenMessage<RunBatchRequest> = /*@__PURE__*/
-  messageDesc(file_ai_gateway_v1_inference_inference, 8);
+  messageDesc(file_ai_gateway_v1_inference_inference, 9);
 
 /**
  * @generated from message vrooli.ai_gateway.v1.inference.RunBatchResponse
@@ -502,7 +551,7 @@ export type RunBatchResponse = Message<"vrooli.ai_gateway.v1.inference.RunBatchR
  * Use `create(RunBatchResponseSchema)` to create a new message.
  */
 export const RunBatchResponseSchema: GenMessage<RunBatchResponse> = /*@__PURE__*/
-  messageDesc(file_ai_gateway_v1_inference_inference, 9);
+  messageDesc(file_ai_gateway_v1_inference_inference, 10);
 
 /**
  * @generated from message vrooli.ai_gateway.v1.inference.EmbedRequest
@@ -531,7 +580,7 @@ export type EmbedRequest = Message<"vrooli.ai_gateway.v1.inference.EmbedRequest"
  * Use `create(EmbedRequestSchema)` to create a new message.
  */
 export const EmbedRequestSchema: GenMessage<EmbedRequest> = /*@__PURE__*/
-  messageDesc(file_ai_gateway_v1_inference_inference, 10);
+  messageDesc(file_ai_gateway_v1_inference_inference, 11);
 
 /**
  * @generated from message vrooli.ai_gateway.v1.inference.EmbedResponse
@@ -573,7 +622,7 @@ export type EmbedResponse = Message<"vrooli.ai_gateway.v1.inference.EmbedRespons
  * Use `create(EmbedResponseSchema)` to create a new message.
  */
 export const EmbedResponseSchema: GenMessage<EmbedResponse> = /*@__PURE__*/
-  messageDesc(file_ai_gateway_v1_inference_inference, 11);
+  messageDesc(file_ai_gateway_v1_inference_inference, 12);
 
 /**
  * @generated from message vrooli.ai_gateway.v1.inference.EmbeddingVector
@@ -590,7 +639,7 @@ export type EmbeddingVector = Message<"vrooli.ai_gateway.v1.inference.EmbeddingV
  * Use `create(EmbeddingVectorSchema)` to create a new message.
  */
 export const EmbeddingVectorSchema: GenMessage<EmbeddingVector> = /*@__PURE__*/
-  messageDesc(file_ai_gateway_v1_inference_inference, 12);
+  messageDesc(file_ai_gateway_v1_inference_inference, 13);
 
 /**
  * @generated from message vrooli.ai_gateway.v1.inference.DecisionOption
@@ -616,7 +665,7 @@ export type DecisionOption = Message<"vrooli.ai_gateway.v1.inference.DecisionOpt
  * Use `create(DecisionOptionSchema)` to create a new message.
  */
 export const DecisionOptionSchema: GenMessage<DecisionOption> = /*@__PURE__*/
-  messageDesc(file_ai_gateway_v1_inference_inference, 13);
+  messageDesc(file_ai_gateway_v1_inference_inference, 14);
 
 /**
  * @generated from message vrooli.ai_gateway.v1.inference.DecisionQuestion
@@ -674,7 +723,7 @@ export type DecisionQuestion = Message<"vrooli.ai_gateway.v1.inference.DecisionQ
  * Use `create(DecisionQuestionSchema)` to create a new message.
  */
 export const DecisionQuestionSchema: GenMessage<DecisionQuestion> = /*@__PURE__*/
-  messageDesc(file_ai_gateway_v1_inference_inference, 14);
+  messageDesc(file_ai_gateway_v1_inference_inference, 15);
 
 /**
  * DecideRequest asks typed questions about one state. The gateway owns the
@@ -727,7 +776,7 @@ export type DecideRequest = Message<"vrooli.ai_gateway.v1.inference.DecideReques
  * Use `create(DecideRequestSchema)` to create a new message.
  */
 export const DecideRequestSchema: GenMessage<DecideRequest> = /*@__PURE__*/
-  messageDesc(file_ai_gateway_v1_inference_inference, 15);
+  messageDesc(file_ai_gateway_v1_inference_inference, 16);
 
 /**
  * @generated from message vrooli.ai_gateway.v1.inference.DecisionProbability
@@ -751,7 +800,7 @@ export type DecisionProbability = Message<"vrooli.ai_gateway.v1.inference.Decisi
  * Use `create(DecisionProbabilitySchema)` to create a new message.
  */
 export const DecisionProbabilitySchema: GenMessage<DecisionProbability> = /*@__PURE__*/
-  messageDesc(file_ai_gateway_v1_inference_inference, 16);
+  messageDesc(file_ai_gateway_v1_inference_inference, 17);
 
 /**
  * @generated from message vrooli.ai_gateway.v1.inference.DecisionAnswer
@@ -812,7 +861,7 @@ export type DecisionAnswer = Message<"vrooli.ai_gateway.v1.inference.DecisionAns
  * Use `create(DecisionAnswerSchema)` to create a new message.
  */
 export const DecisionAnswerSchema: GenMessage<DecisionAnswer> = /*@__PURE__*/
-  messageDesc(file_ai_gateway_v1_inference_inference, 17);
+  messageDesc(file_ai_gateway_v1_inference_inference, 18);
 
 /**
  * DecisionCandidate is one row of the walk the gateway performed, in catalog
@@ -869,7 +918,7 @@ export type DecisionCandidate = Message<"vrooli.ai_gateway.v1.inference.Decision
  * Use `create(DecisionCandidateSchema)` to create a new message.
  */
 export const DecisionCandidateSchema: GenMessage<DecisionCandidate> = /*@__PURE__*/
-  messageDesc(file_ai_gateway_v1_inference_inference, 18);
+  messageDesc(file_ai_gateway_v1_inference_inference, 19);
 
 /**
  * @generated from message vrooli.ai_gateway.v1.inference.DecideResponse
@@ -943,7 +992,7 @@ export type DecideResponse = Message<"vrooli.ai_gateway.v1.inference.DecideRespo
  * Use `create(DecideResponseSchema)` to create a new message.
  */
 export const DecideResponseSchema: GenMessage<DecideResponse> = /*@__PURE__*/
-  messageDesc(file_ai_gateway_v1_inference_inference, 19);
+  messageDesc(file_ai_gateway_v1_inference_inference, 20);
 
 /**
  * @generated from message vrooli.ai_gateway.v1.inference.DecideBatchItem
@@ -965,7 +1014,7 @@ export type DecideBatchItem = Message<"vrooli.ai_gateway.v1.inference.DecideBatc
  * Use `create(DecideBatchItemSchema)` to create a new message.
  */
 export const DecideBatchItemSchema: GenMessage<DecideBatchItem> = /*@__PURE__*/
-  messageDesc(file_ai_gateway_v1_inference_inference, 20);
+  messageDesc(file_ai_gateway_v1_inference_inference, 21);
 
 /**
  * DecideBatchRequest asks the same questions about up to 256 states.
@@ -999,7 +1048,7 @@ export type DecideBatchRequest = Message<"vrooli.ai_gateway.v1.inference.DecideB
  * Use `create(DecideBatchRequestSchema)` to create a new message.
  */
 export const DecideBatchRequestSchema: GenMessage<DecideBatchRequest> = /*@__PURE__*/
-  messageDesc(file_ai_gateway_v1_inference_inference, 21);
+  messageDesc(file_ai_gateway_v1_inference_inference, 22);
 
 /**
  * @generated from message vrooli.ai_gateway.v1.inference.DecideBatchResponse
@@ -1024,7 +1073,7 @@ export type DecideBatchResponse = Message<"vrooli.ai_gateway.v1.inference.Decide
  * Use `create(DecideBatchResponseSchema)` to create a new message.
  */
 export const DecideBatchResponseSchema: GenMessage<DecideBatchResponse> = /*@__PURE__*/
-  messageDesc(file_ai_gateway_v1_inference_inference, 22);
+  messageDesc(file_ai_gateway_v1_inference_inference, 23);
 
 /**
  * Usage preserves legacy numeric accounting and states where each value came
@@ -1121,6 +1170,15 @@ export enum InferenceErrorCode {
    * @generated from enum value: INFERENCE_ERROR_CODE_CONTEXT_OVERFLOW = 7;
    */
   CONTEXT_OVERFLOW = 7,
+
+  /**
+   * OUTCOME_UNCERTAIN means a hosted provider request may have reached LPBS,
+   * but the Gateway cannot safely return its output. Reuse root_operation_id
+   * to resolve the accounting-only recovery receipt; do not start a new run.
+   *
+   * @generated from enum value: INFERENCE_ERROR_CODE_OUTCOME_UNCERTAIN = 8;
+   */
+  OUTCOME_UNCERTAIN = 8,
 }
 
 /**
@@ -1128,6 +1186,50 @@ export enum InferenceErrorCode {
  */
 export const InferenceErrorCodeSchema: GenEnum<InferenceErrorCode> = /*@__PURE__*/
   enumDesc(file_ai_gateway_v1_inference_inference, 1);
+
+/**
+ * RecoveryReceipt exposes only Gateway/LPBS accounting state. It never
+ * includes provider output, provider identity, model, or private LPBS receipt.
+ *
+ * @generated from enum vrooli.ai_gateway.v1.inference.RecoveryReceiptState
+ */
+export enum RecoveryReceiptState {
+  /**
+   * @generated from enum value: RECOVERY_RECEIPT_STATE_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+
+  /**
+   * @generated from enum value: RECOVERY_RECEIPT_STATE_UNCERTAIN = 1;
+   */
+  UNCERTAIN = 1,
+
+  /**
+   * @generated from enum value: RECOVERY_RECEIPT_STATE_PENDING = 2;
+   */
+  PENDING = 2,
+
+  /**
+   * @generated from enum value: RECOVERY_RECEIPT_STATE_SETTLED = 3;
+   */
+  SETTLED = 3,
+
+  /**
+   * @generated from enum value: RECOVERY_RECEIPT_STATE_RELEASED = 4;
+   */
+  RELEASED = 4,
+
+  /**
+   * @generated from enum value: RECOVERY_RECEIPT_STATE_OUTPUT_UNAVAILABLE = 5;
+   */
+  OUTPUT_UNAVAILABLE = 5,
+}
+
+/**
+ * Describes the enum vrooli.ai_gateway.v1.inference.RecoveryReceiptState.
+ */
+export const RecoveryReceiptStateSchema: GenEnum<RecoveryReceiptState> = /*@__PURE__*/
+  enumDesc(file_ai_gateway_v1_inference_inference, 2);
 
 /**
  * DecisionQuestionType is the closed set of decision question shapes. A
@@ -1168,7 +1270,7 @@ export enum DecisionQuestionType {
  * Describes the enum vrooli.ai_gateway.v1.inference.DecisionQuestionType.
  */
 export const DecisionQuestionTypeSchema: GenEnum<DecisionQuestionType> = /*@__PURE__*/
-  enumDesc(file_ai_gateway_v1_inference_inference, 2);
+  enumDesc(file_ai_gateway_v1_inference_inference, 3);
 
 /**
  * @generated from enum vrooli.ai_gateway.v1.inference.DecisionMethod
@@ -1201,7 +1303,7 @@ export enum DecisionMethod {
  * Describes the enum vrooli.ai_gateway.v1.inference.DecisionMethod.
  */
 export const DecisionMethodSchema: GenEnum<DecisionMethod> = /*@__PURE__*/
-  enumDesc(file_ai_gateway_v1_inference_inference, 3);
+  enumDesc(file_ai_gateway_v1_inference_inference, 4);
 
 /**
  * @generated from enum vrooli.ai_gateway.v1.inference.DecisionCandidateStatus
@@ -1245,7 +1347,7 @@ export enum DecisionCandidateStatus {
  * Describes the enum vrooli.ai_gateway.v1.inference.DecisionCandidateStatus.
  */
 export const DecisionCandidateStatusSchema: GenEnum<DecisionCandidateStatus> = /*@__PURE__*/
-  enumDesc(file_ai_gateway_v1_inference_inference, 4);
+  enumDesc(file_ai_gateway_v1_inference_inference, 5);
 
 /**
  * @generated from service vrooli.ai_gateway.v1.inference.InferenceService

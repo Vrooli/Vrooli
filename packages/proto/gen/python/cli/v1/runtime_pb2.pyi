@@ -7,14 +7,20 @@ from typing import ClassVar as _ClassVar, Optional as _Optional, Union as _Union
 DESCRIPTOR: _descriptor.FileDescriptor
 
 class CliVersion(_message.Message):
-    __slots__ = ("cli_version", "platform_version", "root")
+    __slots__ = ("cli_version", "platform_version", "root", "build_identity", "runtime_home_contract_sha256", "persistent_state_contract_sha256")
     CLI_VERSION_FIELD_NUMBER: _ClassVar[int]
     PLATFORM_VERSION_FIELD_NUMBER: _ClassVar[int]
     ROOT_FIELD_NUMBER: _ClassVar[int]
+    BUILD_IDENTITY_FIELD_NUMBER: _ClassVar[int]
+    RUNTIME_HOME_CONTRACT_SHA256_FIELD_NUMBER: _ClassVar[int]
+    PERSISTENT_STATE_CONTRACT_SHA256_FIELD_NUMBER: _ClassVar[int]
     cli_version: str
     platform_version: str
     root: str
-    def __init__(self, cli_version: _Optional[str] = ..., platform_version: _Optional[str] = ..., root: _Optional[str] = ...) -> None: ...
+    build_identity: str
+    runtime_home_contract_sha256: str
+    persistent_state_contract_sha256: str
+    def __init__(self, cli_version: _Optional[str] = ..., platform_version: _Optional[str] = ..., root: _Optional[str] = ..., build_identity: _Optional[str] = ..., runtime_home_contract_sha256: _Optional[str] = ..., persistent_state_contract_sha256: _Optional[str] = ...) -> None: ...
 
 class CliSupervisorStatus(_message.Message):
     __slots__ = ("supervisor_id", "status", "status_reason", "host_boot_id", "host_session_id", "pid", "last_heartbeat_at", "heartbeat_deadline_at", "supervised_instance_count", "unverified_instance_count", "effective_renew_interval", "effective_lease_ttl", "effective_health_interval", "effective_max_health_concurrency", "effective_batch_size", "last_tick", "build_identity")

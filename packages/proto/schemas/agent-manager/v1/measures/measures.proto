@@ -1352,6 +1352,10 @@ message UsageFrictionRequest {
   int32 limit = 3;
   // RFC 3339 start of the friction window; empty means 7 days ago.
   string since = 4;
+  // When set, include only findings and command profiles owned by this
+  // scenario. Coverage remains window-wide so callers can interpret an empty
+  // owner result without treating it as proof that no commands were seen.
+  string owner = 5;
 }
 
 // UsageToolFinding is one owner-level problem from the tool profiles: who can
@@ -1489,6 +1493,30 @@ message UsageInterventions {
   string unshown_reason = 7;
   // Messages shown across the categories (the pooled bucket included).
   int64 shown = 8;
+  // Operator corrections and failure reports from the separately measured
+  // operator-signal classifier, shown when its gate is proven even while no
+  // friction category is. Absent when operator signals are off or unproven.
+  UsageOperatorCorrections corrections = 9;
+}
+
+// UsageOperatorCorrections are the operator messages the operator-signal
+// classifier admits as an explicit negative (a reported failure or a
+// correction: "that's not what I meant", "still broken", "don't stop there")
+// under its proven gate. They have no owner; the examples say what the
+// operator rejected.
+message UsageOperatorCorrections {
+  int64 count = 1;
+  // Classified operator messages in the window; count is a share of these.
+  int64 classified = 2;
+  double per_agent_hour = 3;
+  // Hold-out precision and recall the gate was proven at; 0 when the admitted
+  // messages came from more than one model.
+  double precision = 4;
+  double recall = 5;
+  string classifier_version = 6;
+  // Newest first, at most the request limit. category is "explicit_negative"
+  // and probability its probability mass.
+  repeated UsageInterventionExample examples = 7;
 }
 
 message UsageFrictionResponse {
@@ -1513,6 +1541,10 @@ message UsageFrictionResponse {
   MeasureValidity validity = 100;
   MeasureProvenance provenance = 101;
   string definition_id = 102;
+  // Populated only when the request names an owner. Counts and calls cover
+  // that owner's command profiles for the same window.
+  int64 owner_profile_count = 15;
+  int64 owner_call_count = 16;
 }
 
 message UsageCoverageRequest {

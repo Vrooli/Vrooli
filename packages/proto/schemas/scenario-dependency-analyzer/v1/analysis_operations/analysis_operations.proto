@@ -1,0 +1,101 @@
+syntax = "proto3";
+
+package vrooli.scenario_dependency_analyzer.v1.analysis_operations;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-dependency-analyzer/v1/analysis_operations;analysis_operations_v1";
+
+// @stability beta
+// Durable fleet work. A disconnected observer never owns execution lifetime.
+service AnalysisOperationsService {
+  // StartOperation persists admission before scheduling. Caller IDs are
+  // idempotent; identical active operations are coalesced.
+  rpc StartOperation(StartOperationRequest) returns (StartOperationResponse);
+  // GetOperation reads a bounded receipt, including per-scenario outcomes.
+  rpc GetOperation(GetOperationRequest) returns (GetOperationResponse);
+  // WaitOperation blocks once until terminal or the observer disconnects.
+  rpc WaitOperation(WaitOperationRequest) returns (WaitOperationResponse);
+}
+
+enum AnalysisOperationKind {
+  ANALYSIS_OPERATION_KIND_UNSPECIFIED = 0;
+  ANALYSIS_OPERATION_KIND_FLEET_ANALYSIS = 1;
+  ANALYSIS_OPERATION_KIND_GRAPH_REBUILD = 2;
+}
+
+enum AnalysisOperationState {
+  ANALYSIS_OPERATION_STATE_UNSPECIFIED = 0;
+  ANALYSIS_OPERATION_STATE_QUEUED = 1;
+  ANALYSIS_OPERATION_STATE_RUNNING = 2;
+  ANALYSIS_OPERATION_STATE_SUCCEEDED = 3;
+  ANALYSIS_OPERATION_STATE_PARTIAL = 4;
+  ANALYSIS_OPERATION_STATE_FAILED = 5;
+  ANALYSIS_OPERATION_STATE_INTERRUPTED = 6;
+}
+
+message StartOperationRequest {
+  // Required, at most 200 characters. Reuse after any uncertain response.
+  string client_operation_id = 1;
+  // Unspecified defaults to fleet analysis.
+  AnalysisOperationKind kind = 2;
+  // Only valid for graph rebuild; publishes graph edges when true.
+  bool apply_graph = 3;
+}
+
+message StartOperationResponse {
+  AnalysisOperation operation = 1;
+  // True for caller-ID replay or coalescing with an identical active request.
+  bool reused = 2;
+}
+
+message GetOperationRequest {
+  string operation_id = 1;
+}
+
+message GetOperationResponse {
+  AnalysisOperation operation = 1;
+}
+
+message WaitOperationRequest {
+  string operation_id = 1;
+}
+
+message WaitOperationResponse {
+  AnalysisOperation operation = 1;
+}
+
+message AnalysisOperation {
+  string id = 1;
+  AnalysisOperationKind kind = 2;
+  bool apply_graph = 3;
+  AnalysisOperationState state = 4;
+  string created_at = 5;
+  string started_at = 6;
+  string completed_at = 7;
+  uint32 scenarios_total = 8;
+  uint32 scenarios_completed = 9;
+  uint32 scenarios_failed = 10;
+  // Bounded diagnostic. An empty value is not an independent success proof.
+  string error = 11;
+  repeated ScenarioAnalysisOutcome scenarios = 12;
+  GraphRebuildOutcome graph = 13;
+  // Older receipts retain outcomes and idempotency bindings after detail expiry.
+  bool details_pruned = 14;
+}
+
+message ScenarioAnalysisOutcome {
+  string scenario = 1;
+  AnalysisOperationState state = 2;
+  uint32 detected_resources = 3;
+  uint32 scenario_dependencies = 4;
+  uint32 deployment_dependencies = 5;
+  uint64 duration_ms = 6;
+  string error = 7;
+}
+
+message GraphRebuildOutcome {
+  uint32 edges = 1;
+  uint32 scenario_edges = 2;
+  uint32 resource_edges = 3;
+  repeated string degraded_sources = 4;
+  bool applied = 5;
+}

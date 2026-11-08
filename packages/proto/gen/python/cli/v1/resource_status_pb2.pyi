@@ -10,7 +10,7 @@ from typing import ClassVar as _ClassVar, Optional as _Optional, Union as _Union
 DESCRIPTOR: _descriptor.FileDescriptor
 
 class ResourceStatus(_message.Message):
-    __slots__ = ("resource", "installed", "running", "healthy", "health", "status_code", "message", "probe_error", "raw", "serving", "declared_mode", "observed_mode", "mode_drift", "mode_reason")
+    __slots__ = ("resource", "installed", "running", "healthy", "health", "status_code", "message", "probe_error", "raw", "serving", "declared_mode", "observed_mode", "mode_drift", "mode_reason", "declared_artifact_version", "staged_artifact_version", "running_artifact_version", "artifact_update_available", "artifact_staging_error", "artifact_verification")
     RESOURCE_FIELD_NUMBER: _ClassVar[int]
     INSTALLED_FIELD_NUMBER: _ClassVar[int]
     RUNNING_FIELD_NUMBER: _ClassVar[int]
@@ -25,6 +25,12 @@ class ResourceStatus(_message.Message):
     OBSERVED_MODE_FIELD_NUMBER: _ClassVar[int]
     MODE_DRIFT_FIELD_NUMBER: _ClassVar[int]
     MODE_REASON_FIELD_NUMBER: _ClassVar[int]
+    DECLARED_ARTIFACT_VERSION_FIELD_NUMBER: _ClassVar[int]
+    STAGED_ARTIFACT_VERSION_FIELD_NUMBER: _ClassVar[int]
+    RUNNING_ARTIFACT_VERSION_FIELD_NUMBER: _ClassVar[int]
+    ARTIFACT_UPDATE_AVAILABLE_FIELD_NUMBER: _ClassVar[int]
+    ARTIFACT_STAGING_ERROR_FIELD_NUMBER: _ClassVar[int]
+    ARTIFACT_VERIFICATION_FIELD_NUMBER: _ClassVar[int]
     resource: _resource_list_pb2.Resource
     installed: bool
     running: bool
@@ -39,7 +45,13 @@ class ResourceStatus(_message.Message):
     observed_mode: str
     mode_drift: bool
     mode_reason: str
-    def __init__(self, resource: _Optional[_Union[_resource_list_pb2.Resource, _Mapping]] = ..., installed: _Optional[bool] = ..., running: _Optional[bool] = ..., healthy: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ..., health: _Optional[str] = ..., status_code: _Optional[str] = ..., message: _Optional[str] = ..., probe_error: _Optional[str] = ..., raw: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ..., serving: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ..., declared_mode: _Optional[str] = ..., observed_mode: _Optional[str] = ..., mode_drift: _Optional[bool] = ..., mode_reason: _Optional[str] = ...) -> None: ...
+    declared_artifact_version: str
+    staged_artifact_version: str
+    running_artifact_version: str
+    artifact_update_available: bool
+    artifact_staging_error: str
+    artifact_verification: str
+    def __init__(self, resource: _Optional[_Union[_resource_list_pb2.Resource, _Mapping]] = ..., installed: _Optional[bool] = ..., running: _Optional[bool] = ..., healthy: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ..., health: _Optional[str] = ..., status_code: _Optional[str] = ..., message: _Optional[str] = ..., probe_error: _Optional[str] = ..., raw: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ..., serving: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ..., declared_mode: _Optional[str] = ..., observed_mode: _Optional[str] = ..., mode_drift: _Optional[bool] = ..., mode_reason: _Optional[str] = ..., declared_artifact_version: _Optional[str] = ..., staged_artifact_version: _Optional[str] = ..., running_artifact_version: _Optional[str] = ..., artifact_update_available: _Optional[bool] = ..., artifact_staging_error: _Optional[str] = ..., artifact_verification: _Optional[str] = ...) -> None: ...
 
 class ResourceStatusesResponse(_message.Message):
     __slots__ = ("success", "resources", "discovery_failures")

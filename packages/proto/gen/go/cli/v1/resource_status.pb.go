@@ -62,9 +62,24 @@ type ResourceStatus struct {
 	// True when the resource is serving below its declared backend.
 	ModeDrift bool `protobuf:"varint,13,opt,name=mode_drift,json=modeDrift,proto3" json:"mode_drift,omitempty"`
 	// Evidence behind observed_mode, in the words of whatever produced it.
-	ModeReason    string `protobuf:"bytes,14,opt,name=mode_reason,json=modeReason,proto3" json:"mode_reason,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	ModeReason string `protobuf:"bytes,14,opt,name=mode_reason,json=modeReason,proto3" json:"mode_reason,omitempty"`
+	// Release requested by the current resource declaration; not a live-image claim.
+	DeclaredArtifactVersion string `protobuf:"bytes,15,opt,name=declared_artifact_version,json=declaredArtifactVersion,proto3" json:"declared_artifact_version,omitempty"`
+	// Declared release whose staged bytes passed integrity verification, if available.
+	StagedArtifactVersion string `protobuf:"bytes,16,opt,name=staged_artifact_version,json=stagedArtifactVersion,proto3" json:"staged_artifact_version,omitempty"`
+	// Release recorded for the verified, owned running process, if one exists.
+	RunningArtifactVersion string `protobuf:"bytes,17,opt,name=running_artifact_version,json=runningArtifactVersion,proto3" json:"running_artifact_version,omitempty"`
+	// Desired version/digest differs from the running artifact. This does not mean downtime.
+	ArtifactUpdateAvailable bool `protobuf:"varint,18,opt,name=artifact_update_available,json=artifactUpdateAvailable,proto3" json:"artifact_update_available,omitempty"`
+	// Desired artifact cannot currently be staged/verified; running health is independent.
+	ArtifactStagingError string `protobuf:"bytes,19,opt,name=artifact_staging_error,json=artifactStagingError,proto3" json:"artifact_staging_error,omitempty"`
+	// This observation's current artifact-byte audit: verified, failed, or
+	// not_evaluated. Operational health is independent of this integrity result.
+	// --health-only reports not_evaluated and does not populate a newly verified
+	// staged version. Acquisition and launch always retain checksum verification.
+	ArtifactVerification string `protobuf:"bytes,20,opt,name=artifact_verification,json=artifactVerification,proto3" json:"artifact_verification,omitempty"`
+	unknownFields        protoimpl.UnknownFields
+	sizeCache            protoimpl.SizeCache
 }
 
 func (x *ResourceStatus) Reset() {
@@ -191,6 +206,48 @@ func (x *ResourceStatus) GetModeDrift() bool {
 func (x *ResourceStatus) GetModeReason() string {
 	if x != nil {
 		return x.ModeReason
+	}
+	return ""
+}
+
+func (x *ResourceStatus) GetDeclaredArtifactVersion() string {
+	if x != nil {
+		return x.DeclaredArtifactVersion
+	}
+	return ""
+}
+
+func (x *ResourceStatus) GetStagedArtifactVersion() string {
+	if x != nil {
+		return x.StagedArtifactVersion
+	}
+	return ""
+}
+
+func (x *ResourceStatus) GetRunningArtifactVersion() string {
+	if x != nil {
+		return x.RunningArtifactVersion
+	}
+	return ""
+}
+
+func (x *ResourceStatus) GetArtifactUpdateAvailable() bool {
+	if x != nil {
+		return x.ArtifactUpdateAvailable
+	}
+	return false
+}
+
+func (x *ResourceStatus) GetArtifactStagingError() string {
+	if x != nil {
+		return x.ArtifactStagingError
+	}
+	return ""
+}
+
+func (x *ResourceStatus) GetArtifactVerification() string {
+	if x != nil {
+		return x.ArtifactVerification
 	}
 	return ""
 }
@@ -443,7 +500,7 @@ var File_cli_v1_resource_status_proto protoreflect.FileDescriptor
 
 const file_cli_v1_resource_status_proto_rawDesc = "" +
 	"\n" +
-	"\x1ccli/v1/resource_status.proto\x12\rvrooli.cli.v1\x1a\x13cli/v1/common.proto\x1a\x1acli/v1/resource_list.proto\x1a\x1cgoogle/protobuf/struct.proto\"\x89\x04\n" +
+	"\x1ccli/v1/resource_status.proto\x12\rvrooli.cli.v1\x1a\x13cli/v1/common.proto\x1a\x1acli/v1/resource_list.proto\x1a\x1cgoogle/protobuf/struct.proto\"\xde\x06\n" +
 	"\x0eResourceStatus\x123\n" +
 	"\bresource\x18\x01 \x01(\v2\x17.vrooli.cli.v1.ResourceR\bresource\x12\x1c\n" +
 	"\tinstalled\x18\x02 \x01(\bR\tinstalled\x12\x18\n" +
@@ -463,7 +520,13 @@ const file_cli_v1_resource_status_proto_rawDesc = "" +
 	"\n" +
 	"mode_drift\x18\r \x01(\bR\tmodeDrift\x12\x1f\n" +
 	"\vmode_reason\x18\x0e \x01(\tR\n" +
-	"modeReason\"\xc1\x01\n" +
+	"modeReason\x12:\n" +
+	"\x19declared_artifact_version\x18\x0f \x01(\tR\x17declaredArtifactVersion\x126\n" +
+	"\x17staged_artifact_version\x18\x10 \x01(\tR\x15stagedArtifactVersion\x128\n" +
+	"\x18running_artifact_version\x18\x11 \x01(\tR\x16runningArtifactVersion\x12:\n" +
+	"\x19artifact_update_available\x18\x12 \x01(\bR\x17artifactUpdateAvailable\x124\n" +
+	"\x16artifact_staging_error\x18\x13 \x01(\tR\x14artifactStagingError\x123\n" +
+	"\x15artifact_verification\x18\x14 \x01(\tR\x14artifactVerification\"\xc1\x01\n" +
 	"\x18ResourceStatusesResponse\x12\x18\n" +
 	"\asuccess\x18\x01 \x01(\bR\asuccess\x12;\n" +
 	"\tresources\x18\x02 \x03(\v2\x1d.vrooli.cli.v1.ResourceStatusR\tresources\x12N\n" +

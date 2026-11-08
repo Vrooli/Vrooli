@@ -4821,13 +4821,15 @@ type ArtifactRef struct {
 	SizeBytes        int64                    `protobuf:"varint,6,opt,name=size_bytes,json=sizeBytes,proto3" json:"size_bytes,omitempty"`
 	CreatedAt        string                   `protobuf:"bytes,7,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
 	AccessCapability ArtifactAccessCapability `protobuf:"varint,8,opt,name=access_capability,json=accessCapability,proto3,enum=vrooli.test_genie.v1.runs.ArtifactAccessCapability" json:"access_capability,omitempty"`
-	AccessPath       string                   `protobuf:"bytes,9,opt,name=access_path,json=accessPath,proto3" json:"access_path,omitempty"`
-	Metadata         map[string]string        `protobuf:"bytes,10,rep,name=metadata,proto3" json:"metadata,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
-	Relationships    []*ArtifactRelationship  `protobuf:"bytes,11,rep,name=relationships,proto3" json:"relationships,omitempty"`
-	Comparison       *ArtifactComparison      `protobuf:"bytes,12,opt,name=comparison,proto3" json:"comparison,omitempty"`
-	Provenance       ArtifactProvenance       `protobuf:"varint,13,opt,name=provenance,proto3,enum=vrooli.test_genie.v1.runs.ArtifactProvenance" json:"provenance,omitempty"`
-	unknownFields    protoimpl.UnknownFields
-	sizeCache        protoimpl.SizeCache
+	// Present on GetRunArtifact responses. ListRunArtifacts omits this route so
+	// catalog consumers use opaque IDs and the owning transfer operation.
+	AccessPath    string                  `protobuf:"bytes,9,opt,name=access_path,json=accessPath,proto3" json:"access_path,omitempty"`
+	Metadata      map[string]string       `protobuf:"bytes,10,rep,name=metadata,proto3" json:"metadata,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	Relationships []*ArtifactRelationship `protobuf:"bytes,11,rep,name=relationships,proto3" json:"relationships,omitempty"`
+	Comparison    *ArtifactComparison     `protobuf:"bytes,12,opt,name=comparison,proto3" json:"comparison,omitempty"`
+	Provenance    ArtifactProvenance      `protobuf:"varint,13,opt,name=provenance,proto3,enum=vrooli.test_genie.v1.runs.ArtifactProvenance" json:"provenance,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *ArtifactRef) Reset() {

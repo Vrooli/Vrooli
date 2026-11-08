@@ -840,7 +840,10 @@ func (x *MeasureHit) GetConfidence() float64 {
 	return 0
 }
 
-// Phase-4 honest grouping (pre-rerank): candidates kept per provider.
+// Provider result metadata. Hits are populated here when the response is not
+// reranked. When QueryResponse.ranked is populated, this message retains the
+// provider count and degradation provenance while the ranked list owns the
+// complete hit payload, avoiding duplicate result serialization.
 type ProviderResultGroup struct {
 	state      protoimpl.MessageState `protogen:"open.v1"`
 	ProviderId string                 `protobuf:"bytes,1,opt,name=provider_id,json=providerId,proto3" json:"provider_id,omitempty"`
@@ -954,9 +957,11 @@ func (x *ProviderResultGroup) GetNextCursor() string {
 
 type QueryResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Unified ranked list — populated once rerank lands (Phase 6).
+	// Unified complete hit payload — populated when reranking succeeds. In that
+	// state groups contain provider summaries without duplicated hits.
 	Ranked []*SearchHit `protobuf:"bytes,1,rep,name=ranked,proto3" json:"ranked,omitempty"`
-	// By-provider grouping — always populated.
+	// By-provider grouping and metadata — populated when providers are queried;
+	// hits are empty when ranked owns the result payload.
 	Groups []*ProviderResultGroup `protobuf:"bytes,2,rep,name=groups,proto3" json:"groups,omitempty"`
 	// Which providers were hit (operator output).
 	CorporaSearched []string `protobuf:"bytes,3,rep,name=corpora_searched,json=corporaSearched,proto3" json:"corpora_searched,omitempty"`

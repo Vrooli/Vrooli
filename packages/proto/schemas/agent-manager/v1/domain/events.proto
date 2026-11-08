@@ -198,6 +198,11 @@ message RunStatusUpdate {
   // run detail response and are never broadcast globally.
   FinalOutputSelectionStatus result_selection_status = 5;
   string result_selection_rule = 6;
+
+  // Revision of the persisted run projected by this notification, identical
+  // to Run.updated_at in detail and list responses. Clients discard older
+  // revisions while allowing newer continuations of a terminal run.
+  google.protobuf.Timestamp updated_at = 7;
 }
 
 // TaskStatusUpdate reports a task status change.

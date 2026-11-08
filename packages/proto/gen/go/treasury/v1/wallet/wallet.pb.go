@@ -22,6 +22,69 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
+// A durable record of one operator-requested read from the configured Base
+// RPC. Provider claims remain observations, not consensus or fiat accounting.
+type BaseUSDCReceiptRelation int32
+
+const (
+	BaseUSDCReceiptRelation_BASE_USDC_RECEIPT_RELATION_UNSPECIFIED                    BaseUSDCReceiptRelation = 0
+	BaseUSDCReceiptRelation_BASE_USDC_RECEIPT_RELATION_SAME_INCLUSION                 BaseUSDCReceiptRelation = 1
+	BaseUSDCReceiptRelation_BASE_USDC_RECEIPT_RELATION_REINCLUDED_NEW_REVISION        BaseUSDCReceiptRelation = 2
+	BaseUSDCReceiptRelation_BASE_USDC_RECEIPT_RELATION_PROVIDER_REPORTS_NOT_CANONICAL BaseUSDCReceiptRelation = 3
+	BaseUSDCReceiptRelation_BASE_USDC_RECEIPT_RELATION_PROVIDER_REPORTS_PENDING       BaseUSDCReceiptRelation = 4
+	BaseUSDCReceiptRelation_BASE_USDC_RECEIPT_RELATION_PROVIDER_CHECK_FAILED          BaseUSDCReceiptRelation = 5
+	BaseUSDCReceiptRelation_BASE_USDC_RECEIPT_RELATION_PROVIDER_OBSERVATION_CHANGED   BaseUSDCReceiptRelation = 6
+)
+
+// Enum value maps for BaseUSDCReceiptRelation.
+var (
+	BaseUSDCReceiptRelation_name = map[int32]string{
+		0: "BASE_USDC_RECEIPT_RELATION_UNSPECIFIED",
+		1: "BASE_USDC_RECEIPT_RELATION_SAME_INCLUSION",
+		2: "BASE_USDC_RECEIPT_RELATION_REINCLUDED_NEW_REVISION",
+		3: "BASE_USDC_RECEIPT_RELATION_PROVIDER_REPORTS_NOT_CANONICAL",
+		4: "BASE_USDC_RECEIPT_RELATION_PROVIDER_REPORTS_PENDING",
+		5: "BASE_USDC_RECEIPT_RELATION_PROVIDER_CHECK_FAILED",
+		6: "BASE_USDC_RECEIPT_RELATION_PROVIDER_OBSERVATION_CHANGED",
+	}
+	BaseUSDCReceiptRelation_value = map[string]int32{
+		"BASE_USDC_RECEIPT_RELATION_UNSPECIFIED":                    0,
+		"BASE_USDC_RECEIPT_RELATION_SAME_INCLUSION":                 1,
+		"BASE_USDC_RECEIPT_RELATION_REINCLUDED_NEW_REVISION":        2,
+		"BASE_USDC_RECEIPT_RELATION_PROVIDER_REPORTS_NOT_CANONICAL": 3,
+		"BASE_USDC_RECEIPT_RELATION_PROVIDER_REPORTS_PENDING":       4,
+		"BASE_USDC_RECEIPT_RELATION_PROVIDER_CHECK_FAILED":          5,
+		"BASE_USDC_RECEIPT_RELATION_PROVIDER_OBSERVATION_CHANGED":   6,
+	}
+)
+
+func (x BaseUSDCReceiptRelation) Enum() *BaseUSDCReceiptRelation {
+	p := new(BaseUSDCReceiptRelation)
+	*p = x
+	return p
+}
+
+func (x BaseUSDCReceiptRelation) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (BaseUSDCReceiptRelation) Descriptor() protoreflect.EnumDescriptor {
+	return file_treasury_v1_wallet_wallet_proto_enumTypes[0].Descriptor()
+}
+
+func (BaseUSDCReceiptRelation) Type() protoreflect.EnumType {
+	return &file_treasury_v1_wallet_wallet_proto_enumTypes[0]
+}
+
+func (x BaseUSDCReceiptRelation) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use BaseUSDCReceiptRelation.Descriptor instead.
+func (BaseUSDCReceiptRelation) EnumDescriptor() ([]byte, []int) {
+	return file_treasury_v1_wallet_wallet_proto_rawDescGZIP(), []int{0}
+}
+
 // Receive-only custody metadata. No field confers signing or spending authority.
 type Wallet struct {
 	state            protoimpl.MessageState `protogen:"open.v1"`
@@ -415,8 +478,9 @@ func (x *BaseUSDCTransferObservation) GetObservedAt() *timestamppb.Timestamp {
 	return nil
 }
 
-// A durable record of one operator-requested read from the configured Base
-// RPC. Provider claims remain observations, not consensus or fiat accounting.
+// Each recheck record links to an earlier check without changing that prior
+// record. Relations describe provider-reported observations, not consensus or
+// a financial reversal instruction.
 type BaseUSDCReceiptCheck struct {
 	state           protoimpl.MessageState         `protogen:"open.v1"`
 	Id              string                         `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
@@ -428,6 +492,8 @@ type BaseUSDCReceiptCheck struct {
 	ErrorCode       string                         `protobuf:"bytes,7,opt,name=error_code,json=errorCode,proto3" json:"error_code,omitempty"`
 	CheckedAt       *timestamppb.Timestamp         `protobuf:"bytes,8,opt,name=checked_at,json=checkedAt,proto3" json:"checked_at,omitempty"`
 	Transfers       []*BaseUSDCTransferObservation `protobuf:"bytes,9,rep,name=transfers,proto3" json:"transfers,omitempty"`
+	PriorCheckId    string                         `protobuf:"bytes,10,opt,name=prior_check_id,json=priorCheckId,proto3" json:"prior_check_id,omitempty"`
+	Relation        BaseUSDCReceiptRelation        `protobuf:"varint,11,opt,name=relation,proto3,enum=vrooli.treasury.v1.wallet.BaseUSDCReceiptRelation" json:"relation,omitempty"`
 	unknownFields   protoimpl.UnknownFields
 	sizeCache       protoimpl.SizeCache
 }
@@ -525,6 +591,20 @@ func (x *BaseUSDCReceiptCheck) GetTransfers() []*BaseUSDCTransferObservation {
 	return nil
 }
 
+func (x *BaseUSDCReceiptCheck) GetPriorCheckId() string {
+	if x != nil {
+		return x.PriorCheckId
+	}
+	return ""
+}
+
+func (x *BaseUSDCReceiptCheck) GetRelation() BaseUSDCReceiptRelation {
+	if x != nil {
+		return x.Relation
+	}
+	return BaseUSDCReceiptRelation_BASE_USDC_RECEIPT_RELATION_UNSPECIFIED
+}
+
 var File_treasury_v1_wallet_wallet_proto protoreflect.FileDescriptor
 
 const file_treasury_v1_wallet_wallet_proto_rawDesc = "" +
@@ -575,7 +655,7 @@ const file_treasury_v1_wallet_wallet_proto_rawDesc = "" +
 	"\vprovider_id\x18\x12 \x01(\tR\n" +
 	"providerId\x12;\n" +
 	"\vobserved_at\x18\x13 \x01(\v2\x1a.google.protobuf.TimestampR\n" +
-	"observedAt\"\xf3\x02\n" +
+	"observedAt\"\xe9\x03\n" +
 	"\x14BaseUSDCReceiptCheck\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1b\n" +
 	"\twallet_id\x18\x02 \x01(\tR\bwalletId\x12\x18\n" +
@@ -588,7 +668,18 @@ const file_treasury_v1_wallet_wallet_proto_rawDesc = "" +
 	"error_code\x18\a \x01(\tR\terrorCode\x129\n" +
 	"\n" +
 	"checked_at\x18\b \x01(\v2\x1a.google.protobuf.TimestampR\tcheckedAt\x12T\n" +
-	"\ttransfers\x18\t \x03(\v26.vrooli.treasury.v1.wallet.BaseUSDCTransferObservationR\ttransfersBMZKgithub.com/vrooli/vrooli/packages/proto/gen/go/treasury/v1/wallet;wallet_v1b\x06proto3"
+	"\ttransfers\x18\t \x03(\v26.vrooli.treasury.v1.wallet.BaseUSDCTransferObservationR\ttransfers\x12$\n" +
+	"\x0eprior_check_id\x18\n" +
+	" \x01(\tR\fpriorCheckId\x12N\n" +
+	"\brelation\x18\v \x01(\x0e22.vrooli.treasury.v1.wallet.BaseUSDCReceiptRelationR\brelation*\x97\x03\n" +
+	"\x17BaseUSDCReceiptRelation\x12*\n" +
+	"&BASE_USDC_RECEIPT_RELATION_UNSPECIFIED\x10\x00\x12-\n" +
+	")BASE_USDC_RECEIPT_RELATION_SAME_INCLUSION\x10\x01\x126\n" +
+	"2BASE_USDC_RECEIPT_RELATION_REINCLUDED_NEW_REVISION\x10\x02\x12=\n" +
+	"9BASE_USDC_RECEIPT_RELATION_PROVIDER_REPORTS_NOT_CANONICAL\x10\x03\x127\n" +
+	"3BASE_USDC_RECEIPT_RELATION_PROVIDER_REPORTS_PENDING\x10\x04\x124\n" +
+	"0BASE_USDC_RECEIPT_RELATION_PROVIDER_CHECK_FAILED\x10\x05\x12;\n" +
+	"7BASE_USDC_RECEIPT_RELATION_PROVIDER_OBSERVATION_CHANGED\x10\x06BMZKgithub.com/vrooli/vrooli/packages/proto/gen/go/treasury/v1/wallet;wallet_v1b\x06proto3"
 
 var (
 	file_treasury_v1_wallet_wallet_proto_rawDescOnce sync.Once
@@ -602,26 +693,29 @@ func file_treasury_v1_wallet_wallet_proto_rawDescGZIP() []byte {
 	return file_treasury_v1_wallet_wallet_proto_rawDescData
 }
 
+var file_treasury_v1_wallet_wallet_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
 var file_treasury_v1_wallet_wallet_proto_msgTypes = make([]protoimpl.MessageInfo, 4)
 var file_treasury_v1_wallet_wallet_proto_goTypes = []any{
-	(*Wallet)(nil),                      // 0: vrooli.treasury.v1.wallet.Wallet
-	(*ControlProof)(nil),                // 1: vrooli.treasury.v1.wallet.ControlProof
-	(*BaseUSDCTransferObservation)(nil), // 2: vrooli.treasury.v1.wallet.BaseUSDCTransferObservation
-	(*BaseUSDCReceiptCheck)(nil),        // 3: vrooli.treasury.v1.wallet.BaseUSDCReceiptCheck
-	(*timestamppb.Timestamp)(nil),       // 4: google.protobuf.Timestamp
+	(BaseUSDCReceiptRelation)(0),        // 0: vrooli.treasury.v1.wallet.BaseUSDCReceiptRelation
+	(*Wallet)(nil),                      // 1: vrooli.treasury.v1.wallet.Wallet
+	(*ControlProof)(nil),                // 2: vrooli.treasury.v1.wallet.ControlProof
+	(*BaseUSDCTransferObservation)(nil), // 3: vrooli.treasury.v1.wallet.BaseUSDCTransferObservation
+	(*BaseUSDCReceiptCheck)(nil),        // 4: vrooli.treasury.v1.wallet.BaseUSDCReceiptCheck
+	(*timestamppb.Timestamp)(nil),       // 5: google.protobuf.Timestamp
 }
 var file_treasury_v1_wallet_wallet_proto_depIdxs = []int32{
-	4, // 0: vrooli.treasury.v1.wallet.Wallet.created_at:type_name -> google.protobuf.Timestamp
-	0, // 1: vrooli.treasury.v1.wallet.ControlProof.wallet:type_name -> vrooli.treasury.v1.wallet.Wallet
-	4, // 2: vrooli.treasury.v1.wallet.BaseUSDCTransferObservation.block_time:type_name -> google.protobuf.Timestamp
-	4, // 3: vrooli.treasury.v1.wallet.BaseUSDCTransferObservation.observed_at:type_name -> google.protobuf.Timestamp
-	4, // 4: vrooli.treasury.v1.wallet.BaseUSDCReceiptCheck.checked_at:type_name -> google.protobuf.Timestamp
-	2, // 5: vrooli.treasury.v1.wallet.BaseUSDCReceiptCheck.transfers:type_name -> vrooli.treasury.v1.wallet.BaseUSDCTransferObservation
-	6, // [6:6] is the sub-list for method output_type
-	6, // [6:6] is the sub-list for method input_type
-	6, // [6:6] is the sub-list for extension type_name
-	6, // [6:6] is the sub-list for extension extendee
-	0, // [0:6] is the sub-list for field type_name
+	5, // 0: vrooli.treasury.v1.wallet.Wallet.created_at:type_name -> google.protobuf.Timestamp
+	1, // 1: vrooli.treasury.v1.wallet.ControlProof.wallet:type_name -> vrooli.treasury.v1.wallet.Wallet
+	5, // 2: vrooli.treasury.v1.wallet.BaseUSDCTransferObservation.block_time:type_name -> google.protobuf.Timestamp
+	5, // 3: vrooli.treasury.v1.wallet.BaseUSDCTransferObservation.observed_at:type_name -> google.protobuf.Timestamp
+	5, // 4: vrooli.treasury.v1.wallet.BaseUSDCReceiptCheck.checked_at:type_name -> google.protobuf.Timestamp
+	3, // 5: vrooli.treasury.v1.wallet.BaseUSDCReceiptCheck.transfers:type_name -> vrooli.treasury.v1.wallet.BaseUSDCTransferObservation
+	0, // 6: vrooli.treasury.v1.wallet.BaseUSDCReceiptCheck.relation:type_name -> vrooli.treasury.v1.wallet.BaseUSDCReceiptRelation
+	7, // [7:7] is the sub-list for method output_type
+	7, // [7:7] is the sub-list for method input_type
+	7, // [7:7] is the sub-list for extension type_name
+	7, // [7:7] is the sub-list for extension extendee
+	0, // [0:7] is the sub-list for field type_name
 }
 
 func init() { file_treasury_v1_wallet_wallet_proto_init() }
@@ -634,13 +728,14 @@ func file_treasury_v1_wallet_wallet_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_treasury_v1_wallet_wallet_proto_rawDesc), len(file_treasury_v1_wallet_wallet_proto_rawDesc)),
-			NumEnums:      0,
+			NumEnums:      1,
 			NumMessages:   4,
 			NumExtensions: 0,
 			NumServices:   0,
 		},
 		GoTypes:           file_treasury_v1_wallet_wallet_proto_goTypes,
 		DependencyIndexes: file_treasury_v1_wallet_wallet_proto_depIdxs,
+		EnumInfos:         file_treasury_v1_wallet_wallet_proto_enumTypes,
 		MessageInfos:      file_treasury_v1_wallet_wallet_proto_msgTypes,
 	}.Build()
 	File_treasury_v1_wallet_wallet_proto = out.File

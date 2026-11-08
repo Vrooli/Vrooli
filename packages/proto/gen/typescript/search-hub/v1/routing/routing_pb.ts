@@ -521,7 +521,10 @@ export const MeasureHitSchema: GenMessage<MeasureHit> = /*@__PURE__*/
   messageDesc(file_search_hub_v1_routing_routing, 6);
 
 /**
- * Phase-4 honest grouping (pre-rerank): candidates kept per provider.
+ * Provider result metadata. Hits are populated here when the response is not
+ * reranked. When QueryResponse.ranked is populated, this message retains the
+ * provider count and degradation provenance while the ranked list owns the
+ * complete hit payload, avoiding duplicate result serialization.
  *
  * @generated from message vrooli.search_hub.v1.routing.ProviderResultGroup
  */
@@ -590,14 +593,16 @@ export const ProviderResultGroupSchema: GenMessage<ProviderResultGroup> = /*@__P
  */
 export type QueryResponse = Message<"vrooli.search_hub.v1.routing.QueryResponse"> & {
   /**
-   * Unified ranked list — populated once rerank lands (Phase 6).
+   * Unified complete hit payload — populated when reranking succeeds. In that
+   * state groups contain provider summaries without duplicated hits.
    *
    * @generated from field: repeated vrooli.search_hub.v1.routing.SearchHit ranked = 1;
    */
   ranked: SearchHit[];
 
   /**
-   * By-provider grouping — always populated.
+   * By-provider grouping and metadata — populated when providers are queried;
+   * hits are empty when ranked owns the result payload.
    *
    * @generated from field: repeated vrooli.search_hub.v1.routing.ProviderResultGroup groups = 2;
    */

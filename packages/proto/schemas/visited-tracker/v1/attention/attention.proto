@@ -36,6 +36,10 @@ message PreviewResponse {
   uint64 oldest_active_claim_age_seconds = 7;
   ClaimIntegrity integrity = 8;
   StorageWriteObservation storage_writes = 9;
+  // Active files whose current content revision has not been reviewed. A zero
+  // count marks first-pass completion; reviewed files can remain eligible for
+  // future attention as their review age increases.
+  optional uint32 unreviewed_count = 10;
 }
 // Current active-claim invariants in this campaign snapshot. This is not a
 // historical correctness certificate and does not count guarded rejections.
@@ -78,7 +82,13 @@ message Claim {
 }
 // no_work means no eligible candidate at this observation; claim absence never
 // means an expired claim was silently replaced with fresh work.
-message ClaimResponse { Claim claim = 1; bool no_work = 2; }
+message ClaimResponse {
+  Claim claim = 1;
+  bool no_work = 2;
+  // Current-revision files still awaiting their first successful review.
+  // no_work remains a separate, momentary claimability observation.
+  optional uint32 unreviewed_count = 3;
+}
 message CompleteRequest {
   string campaign_id = 1;
   string claim_id = 2;

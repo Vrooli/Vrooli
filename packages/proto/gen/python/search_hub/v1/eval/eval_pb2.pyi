@@ -25,7 +25,7 @@ REFERENTIAL_OUTCOME_INCONCLUSIVE: ReferentialOutcome
 REFERENTIAL_OUTCOME_PROVIDER_ERROR: ReferentialOutcome
 
 class EvalSuite(_message.Message):
-    __slots__ = ("suite_id", "provider_id", "name", "description", "cases", "state", "created_at", "updated_at")
+    __slots__ = ("suite_id", "provider_id", "name", "description", "cases", "state", "created_at", "updated_at", "minimum", "coverage")
     SUITE_ID_FIELD_NUMBER: _ClassVar[int]
     PROVIDER_ID_FIELD_NUMBER: _ClassVar[int]
     NAME_FIELD_NUMBER: _ClassVar[int]
@@ -34,6 +34,8 @@ class EvalSuite(_message.Message):
     STATE_FIELD_NUMBER: _ClassVar[int]
     CREATED_AT_FIELD_NUMBER: _ClassVar[int]
     UPDATED_AT_FIELD_NUMBER: _ClassVar[int]
+    MINIMUM_FIELD_NUMBER: _ClassVar[int]
+    COVERAGE_FIELD_NUMBER: _ClassVar[int]
     suite_id: str
     provider_id: str
     name: str
@@ -42,7 +44,39 @@ class EvalSuite(_message.Message):
     state: str
     created_at: str
     updated_at: str
-    def __init__(self, suite_id: _Optional[str] = ..., provider_id: _Optional[str] = ..., name: _Optional[str] = ..., description: _Optional[str] = ..., cases: _Optional[_Iterable[_Union[EvalCase, _Mapping]]] = ..., state: _Optional[str] = ..., created_at: _Optional[str] = ..., updated_at: _Optional[str] = ...) -> None: ...
+    minimum: EvalMinimum
+    coverage: EvalCoverageConfig
+    def __init__(self, suite_id: _Optional[str] = ..., provider_id: _Optional[str] = ..., name: _Optional[str] = ..., description: _Optional[str] = ..., cases: _Optional[_Iterable[_Union[EvalCase, _Mapping]]] = ..., state: _Optional[str] = ..., created_at: _Optional[str] = ..., updated_at: _Optional[str] = ..., minimum: _Optional[_Union[EvalMinimum, _Mapping]] = ..., coverage: _Optional[_Union[EvalCoverageConfig, _Mapping]] = ...) -> None: ...
+
+class EvalMinimum(_message.Message):
+    __slots__ = ("reviewed_positive", "negative", "required_tags")
+    REVIEWED_POSITIVE_FIELD_NUMBER: _ClassVar[int]
+    NEGATIVE_FIELD_NUMBER: _ClassVar[int]
+    REQUIRED_TAGS_FIELD_NUMBER: _ClassVar[int]
+    reviewed_positive: int
+    negative: int
+    required_tags: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, reviewed_positive: _Optional[int] = ..., negative: _Optional[int] = ..., required_tags: _Optional[_Iterable[str]] = ...) -> None: ...
+
+class EvalCoverageConfig(_message.Message):
+    __slots__ = ("required_tags", "required_tag_groups")
+    REQUIRED_TAGS_FIELD_NUMBER: _ClassVar[int]
+    REQUIRED_TAG_GROUPS_FIELD_NUMBER: _ClassVar[int]
+    required_tags: _containers.RepeatedScalarFieldContainer[str]
+    required_tag_groups: _containers.RepeatedCompositeFieldContainer[EvalCoverageTagGroup]
+    def __init__(self, required_tags: _Optional[_Iterable[str]] = ..., required_tag_groups: _Optional[_Iterable[_Union[EvalCoverageTagGroup, _Mapping]]] = ...) -> None: ...
+
+class EvalCoverageTagGroup(_message.Message):
+    __slots__ = ("id", "description", "tags", "min_reviewed_positive")
+    ID_FIELD_NUMBER: _ClassVar[int]
+    DESCRIPTION_FIELD_NUMBER: _ClassVar[int]
+    TAGS_FIELD_NUMBER: _ClassVar[int]
+    MIN_REVIEWED_POSITIVE_FIELD_NUMBER: _ClassVar[int]
+    id: str
+    description: str
+    tags: _containers.RepeatedScalarFieldContainer[str]
+    min_reviewed_positive: int
+    def __init__(self, id: _Optional[str] = ..., description: _Optional[str] = ..., tags: _Optional[_Iterable[str]] = ..., min_reviewed_positive: _Optional[int] = ...) -> None: ...
 
 class EvalCase(_message.Message):
     __slots__ = ("case_id", "query", "tags", "expect_ids", "expect_within_top_k", "expect_min_score", "expect_max_score", "expect_no_strong_hit", "note", "status", "scope", "expect_min_margin", "expected_provider_id")

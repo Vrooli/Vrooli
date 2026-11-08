@@ -1,10 +1,13 @@
 package protogen
 
 import (
+	"context"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestPlanCleanupFindsOrphanOwnerFootprintAndEmptySchemaOwner(t *testing.T) {
@@ -102,4 +105,42 @@ func cleanupActionPaths(plan CleanupPlan) []string {
 		paths = append(paths, action.Path)
 	}
 	return paths
+}
+
+func TestCleanupRemovesOnlyOrphanedInTreeStagingTreesWithoutRegenerating(t *testing.T) {
+	root := t.TempDir()
+	protoRoot := filepath.Join(root, "packages", "proto")
+	writeCleanupFile(t, filepath.Join(protoRoot, "schemas", "active", "v1", "service.proto"), "syntax = \"proto3\";\n")
+	legacyVerify := writeStageTree(t, filepath.Join(root, "packages"), ".proto-gen-verify-123", unownedStageGrace+time.Hour)
+	legacyView := writeStageTree(t, protoRoot, ".proto-compatibility-456", unownedStageGrace+time.Hour)
+	live, err := createStage(filepath.Join(root, "packages"), generationStagePrefix)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer live.Remove()
+
+	options := CleanupOptions{RepoRoot: root, ProtoRoot: protoRoot}
+	plan, err := PlanCleanup(options)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []string{"packages/.proto-gen-verify-123", "packages/proto/.proto-compatibility-456"}
+	if got := cleanupActionPaths(plan); strings.Join(got, ",") != strings.Join(want, ",") {
+		t.Fatalf("planned paths = %v, want %v (live tree excluded, no regeneration)", got, want)
+	}
+	result, err := ApplyCleanup(context.Background(), options, plan, io.Discard)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !result.Applied || result.GenerationRan {
+		t.Fatalf("result applied=%t generation=%t, want applied without generation", result.Applied, result.GenerationRan)
+	}
+	for _, path := range []string{legacyVerify, legacyView} {
+		if _, err := os.Stat(path); !os.IsNotExist(err) {
+			t.Fatalf("orphaned staging tree %s survived apply: %v", path, err)
+		}
+	}
+	if _, err := os.Stat(live.Dir); err != nil {
+		t.Fatalf("apply removed a live staging tree: %v", err)
+	}
 }

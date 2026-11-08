@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/vrooli/vrooli/packages/proto/genmanifest"
 )
@@ -23,6 +24,11 @@ type CleanupOptions struct {
 	Scenarios []string
 	DryRun    bool
 }
+
+const (
+	orphanStagingTreeAction = "orphan_staging_tree"
+	regenerateAction        = "regenerate_generated_tree"
+)
 
 type CleanupAction struct {
 	Kind    string `json:"kind"`
@@ -119,16 +125,30 @@ func PlanCleanup(opts CleanupOptions) (CleanupPlan, error) {
 
 	if len(plan.Actions) > 0 {
 		add(CleanupAction{
-			Kind: "regenerate_generated_tree", Owner: "fleet",
+			Kind: regenerateAction, Owner: "fleet",
 			Path:   filepath.Join(opts.ProtoRoot, "gen"),
 			Reason: "the descriptor image and remaining manifests must be rebuilt after orphan removal", Safe: true,
 		})
-	}
-	if len(plan.Actions) > 0 {
 		plan.Notes = append(plan.Notes,
 			"semantic possibly-unused messages are advisory; review them with proto-health before deleting source contracts",
 			"apply performs a full staged generation so the descriptor, language outputs, and manifests converge atomically",
 		)
+	}
+
+	// Staging trees inside the repository are residue: of runs from before
+	// staging moved out of the tree, or of an interrupted run on a host whose
+	// runtime staging root is on another filesystem. They are not generated
+	// output, so removing them never needs a regeneration. Live trees of a
+	// concurrent run are never listed.
+	orphanedStages, err := OrphanedStages(InTreeStageParents(opts.ProtoRoot), time.Now())
+	if err != nil {
+		return CleanupPlan{}, fmt.Errorf("inspect staging trees: %w", err)
+	}
+	for _, path := range orphanedStages {
+		add(CleanupAction{
+			Kind: orphanStagingTreeAction, Owner: "fleet", Path: path,
+			Reason: "staging tree left by an earlier protogen run; no live process owns it", Safe: true,
+		})
 	}
 	sort.Slice(plan.Actions, func(i, j int) bool {
 		if plan.Actions[i].Path != plan.Actions[j].Path {
@@ -154,15 +174,43 @@ func schemaOwnerHasFiles(root string) (bool, error) {
 	return found, err
 }
 
-// ApplyCleanup reconciles the generated tree only after a plan has been
-// produced. Generation is staged and published atomically by Generator, so a
-// failed Buf/plugin run leaves the existing generated tree untouched.
+// ApplyCleanup executes a produced plan. Orphaned staging trees are removed
+// directly; generated-output actions are reconciled by one full generation,
+// which is staged and published atomically by Generator, so a failed Buf or
+// plugin run leaves the existing generated tree untouched.
 func ApplyCleanup(ctx context.Context, opts CleanupOptions, plan CleanupPlan, logger io.Writer) (CleanupResult, error) {
 	result := CleanupResult{Plan: plan}
 	if plan.DryRun {
 		return result, nil
 	}
-	if len(plan.Actions) == 0 {
+	regenerate := false
+	for i := range result.Plan.Actions {
+		action := &result.Plan.Actions[i]
+		if action.Kind != orphanStagingTreeAction {
+			regenerate = regenerate || action.Kind == regenerateAction
+			continue
+		}
+		// Ownership is rechecked at apply time: a planned path may since have
+		// been reused, and a live tree is never removed.
+		path := filepath.Join(opts.RepoRoot, filepath.FromSlash(action.Path))
+		orphaned, err := stageOrphaned(path, time.Now())
+		if errors.Is(err, os.ErrNotExist) {
+			action.Applied = true
+			continue
+		}
+		if err != nil {
+			return result, fmt.Errorf("inspect staging tree %s: %w", action.Path, err)
+		}
+		if !orphaned {
+			continue
+		}
+		if err := os.RemoveAll(path); err != nil {
+			return result, fmt.Errorf("remove staging tree %s: %w", action.Path, err)
+		}
+		action.Applied = true
+	}
+	if !regenerate {
+		result.Applied = true
 		return result, nil
 	}
 	config := DefaultConfig(opts.RepoRoot)
@@ -179,6 +227,9 @@ func ApplyCleanup(ctx context.Context, opts CleanupOptions, plan CleanupPlan, lo
 	result.GenerationRan = true
 	for i := range result.Plan.Actions {
 		action := &result.Plan.Actions[i]
+		if action.Kind == orphanStagingTreeAction {
+			continue
+		}
 		if action.Kind == "empty_schema_owner" {
 			path := filepath.Join(opts.RepoRoot, filepath.FromSlash(action.Path))
 			if err := removeEmptyDirectoryTree(path); err != nil {

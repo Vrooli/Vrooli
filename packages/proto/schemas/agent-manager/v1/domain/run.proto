@@ -253,6 +253,16 @@ message Run {
   // Direct sub-agent runs of this run. Filled by run listings only (one query
   // for the whole page); zero everywhere else.
   int32 sub_agent_count = 62;
+
+  // Nesting depth recorded at creation: 0 for a root run (omitted from JSON),
+  // the parent's depth + 1 for a child. Child creation is refused above the
+  // orchestration setting runExecution.maxChildDepth.
+  int32 depth = 63;
+
+  // Absolute charter file named at creation (run create --charter). The run's
+  // task prompt names it and tells the agent to re-read it at every unit start
+  // and after any context compaction. Empty when none was named.
+  string charter_path = 64;
 }
 
 // FinalOutputSelectionStatus describes whether provider evidence identifies a

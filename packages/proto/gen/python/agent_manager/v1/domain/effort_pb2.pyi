@@ -218,7 +218,7 @@ class EffortQuotaObservation(_message.Message):
     def __init__(self, provider: _Optional[str] = ..., pool: _Optional[str] = ..., window: _Optional[str] = ..., observed_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., standing: _Optional[str] = ..., used_percent: _Optional[float] = ..., window_minutes: _Optional[int] = ..., reset_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., source_run_id: _Optional[str] = ..., freshness: _Optional[str] = ..., provenance: _Optional[str] = ..., uncertainty: _Optional[str] = ..., evidence_ref: _Optional[str] = ...) -> None: ...
 
 class EffortAssignment(_message.Message):
-    __slots__ = ("subject", "runtime_state", "requested_model", "effective_model", "requested_runner", "effective_runner", "requested_reasoning", "effective_reasoning", "usage", "observed_at", "unavailable_reason", "execution_identity")
+    __slots__ = ("subject", "runtime_state", "requested_model", "effective_model", "requested_runner", "effective_runner", "requested_reasoning", "effective_reasoning", "usage", "observed_at", "unavailable_reason", "execution_identity", "step_back")
     SUBJECT_FIELD_NUMBER: _ClassVar[int]
     RUNTIME_STATE_FIELD_NUMBER: _ClassVar[int]
     REQUESTED_MODEL_FIELD_NUMBER: _ClassVar[int]
@@ -231,6 +231,7 @@ class EffortAssignment(_message.Message):
     OBSERVED_AT_FIELD_NUMBER: _ClassVar[int]
     UNAVAILABLE_REASON_FIELD_NUMBER: _ClassVar[int]
     EXECUTION_IDENTITY_FIELD_NUMBER: _ClassVar[int]
+    STEP_BACK_FIELD_NUMBER: _ClassVar[int]
     subject: EffortSubject
     runtime_state: str
     requested_model: str
@@ -243,7 +244,20 @@ class EffortAssignment(_message.Message):
     observed_at: _timestamp_pb2.Timestamp
     unavailable_reason: str
     execution_identity: str
-    def __init__(self, subject: _Optional[_Union[EffortSubject, _Mapping]] = ..., runtime_state: _Optional[str] = ..., requested_model: _Optional[str] = ..., effective_model: _Optional[str] = ..., requested_runner: _Optional[str] = ..., effective_runner: _Optional[str] = ..., requested_reasoning: _Optional[str] = ..., effective_reasoning: _Optional[str] = ..., usage: _Optional[_Union[EffortUsage, _Mapping]] = ..., observed_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., unavailable_reason: _Optional[str] = ..., execution_identity: _Optional[str] = ...) -> None: ...
+    step_back: _containers.RepeatedCompositeFieldContainer[StepBackTrigger]
+    def __init__(self, subject: _Optional[_Union[EffortSubject, _Mapping]] = ..., runtime_state: _Optional[str] = ..., requested_model: _Optional[str] = ..., effective_model: _Optional[str] = ..., requested_runner: _Optional[str] = ..., effective_runner: _Optional[str] = ..., requested_reasoning: _Optional[str] = ..., effective_reasoning: _Optional[str] = ..., usage: _Optional[_Union[EffortUsage, _Mapping]] = ..., observed_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., unavailable_reason: _Optional[str] = ..., execution_identity: _Optional[str] = ..., step_back: _Optional[_Iterable[_Union[StepBackTrigger, _Mapping]]] = ...) -> None: ...
+
+class StepBackTrigger(_message.Message):
+    __slots__ = ("id", "mechanism", "detail", "remedy")
+    ID_FIELD_NUMBER: _ClassVar[int]
+    MECHANISM_FIELD_NUMBER: _ClassVar[int]
+    DETAIL_FIELD_NUMBER: _ClassVar[int]
+    REMEDY_FIELD_NUMBER: _ClassVar[int]
+    id: str
+    mechanism: str
+    detail: str
+    remedy: str
+    def __init__(self, id: _Optional[str] = ..., mechanism: _Optional[str] = ..., detail: _Optional[str] = ..., remedy: _Optional[str] = ...) -> None: ...
 
 class EffortOutcomeStanding(_message.Message):
     __slots__ = ("state", "attribution", "evidence_refs", "met_count", "required_count", "limitations")

@@ -9,6 +9,9 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-autoh
 service ChecksService {
   rpc ListChecks(ListChecksRequest) returns (ListChecksResponse);
   rpc GetCheck(GetCheckRequest) returns (GetCheckResponse);
+  // RunCheck refreshes one observation regardless of its interval. It persists
+  // the result without executing recovery actions or a fleet-wide tick.
+  rpc RunCheck(RunCheckRequest) returns (RunCheckResponse);
   rpc GetHistory(GetHistoryRequest) returns (GetHistoryResponse);
   rpc GetStatus(GetStatusRequest) returns (GetStatusResponse);
   rpc GetTransitions(GetTransitionsRequest) returns (GetTransitionsResponse);
@@ -69,6 +72,9 @@ message ListChecksResponse { repeated CheckInfo checks = 1; }
 
 message GetCheckRequest { string check_id = 1; }
 message GetCheckResponse { CheckResult result = 1; }
+
+message RunCheckRequest { string check_id = 1; }
+message RunCheckResponse { CheckResult result = 1; }
 
 message GetHistoryRequest {
   string check_id = 1;

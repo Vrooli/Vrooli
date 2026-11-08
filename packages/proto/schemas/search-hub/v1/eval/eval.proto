@@ -49,6 +49,31 @@ message EvalSuite {
   // RFC3339Nano.
   string created_at = 7;
   string updated_at = 8;
+  // Provider-authored corpus registration policy from search.json. These
+  // fields must survive store/write-back round-trips with the case corpus.
+  EvalMinimum minimum = 9;
+  EvalCoverageConfig coverage = 10;
+}
+
+// EvalMinimum is the provider-declared minimum evidence required for an active
+// production suite.
+message EvalMinimum {
+  int32 reviewed_positive = 1;
+  int32 negative = 2;
+  repeated string required_tags = 3;
+}
+
+// EvalCoverageConfig declares the question families a reviewed suite must cover.
+message EvalCoverageConfig {
+  repeated string required_tags = 1;
+  repeated EvalCoverageTagGroup required_tag_groups = 2;
+}
+
+message EvalCoverageTagGroup {
+  string id = 1;
+  string description = 2;
+  repeated string tags = 3;
+  int32 min_reviewed_positive = 4;
 }
 
 // One golden query + its EXPECTATIONS. Expectations are soft: they produce a

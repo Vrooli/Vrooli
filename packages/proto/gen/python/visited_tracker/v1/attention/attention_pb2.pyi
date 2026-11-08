@@ -51,7 +51,7 @@ class Candidate(_message.Message):
     def __init__(self, file_id: _Optional[str] = ..., path: _Optional[str] = ..., revision: _Optional[str] = ..., score: _Optional[float] = ..., priority: _Optional[float] = ..., reviewed: _Optional[bool] = ...) -> None: ...
 
 class PreviewResponse(_message.Message):
-    __slots__ = ("candidates", "campaign_revision", "observed_at", "eligible_count", "active_claim_count", "oldest_eligible_age_seconds", "oldest_active_claim_age_seconds", "integrity", "storage_writes")
+    __slots__ = ("candidates", "campaign_revision", "observed_at", "eligible_count", "active_claim_count", "oldest_eligible_age_seconds", "oldest_active_claim_age_seconds", "integrity", "storage_writes", "unreviewed_count")
     CANDIDATES_FIELD_NUMBER: _ClassVar[int]
     CAMPAIGN_REVISION_FIELD_NUMBER: _ClassVar[int]
     OBSERVED_AT_FIELD_NUMBER: _ClassVar[int]
@@ -61,6 +61,7 @@ class PreviewResponse(_message.Message):
     OLDEST_ACTIVE_CLAIM_AGE_SECONDS_FIELD_NUMBER: _ClassVar[int]
     INTEGRITY_FIELD_NUMBER: _ClassVar[int]
     STORAGE_WRITES_FIELD_NUMBER: _ClassVar[int]
+    UNREVIEWED_COUNT_FIELD_NUMBER: _ClassVar[int]
     candidates: _containers.RepeatedCompositeFieldContainer[Candidate]
     campaign_revision: int
     observed_at: str
@@ -70,7 +71,8 @@ class PreviewResponse(_message.Message):
     oldest_active_claim_age_seconds: int
     integrity: ClaimIntegrity
     storage_writes: StorageWriteObservation
-    def __init__(self, candidates: _Optional[_Iterable[_Union[Candidate, _Mapping]]] = ..., campaign_revision: _Optional[int] = ..., observed_at: _Optional[str] = ..., eligible_count: _Optional[int] = ..., active_claim_count: _Optional[int] = ..., oldest_eligible_age_seconds: _Optional[int] = ..., oldest_active_claim_age_seconds: _Optional[int] = ..., integrity: _Optional[_Union[ClaimIntegrity, _Mapping]] = ..., storage_writes: _Optional[_Union[StorageWriteObservation, _Mapping]] = ...) -> None: ...
+    unreviewed_count: int
+    def __init__(self, candidates: _Optional[_Iterable[_Union[Candidate, _Mapping]]] = ..., campaign_revision: _Optional[int] = ..., observed_at: _Optional[str] = ..., eligible_count: _Optional[int] = ..., active_claim_count: _Optional[int] = ..., oldest_eligible_age_seconds: _Optional[int] = ..., oldest_active_claim_age_seconds: _Optional[int] = ..., integrity: _Optional[_Union[ClaimIntegrity, _Mapping]] = ..., storage_writes: _Optional[_Union[StorageWriteObservation, _Mapping]] = ..., unreviewed_count: _Optional[int] = ...) -> None: ...
 
 class ClaimIntegrity(_message.Message):
     __slots__ = ("check_schema_version", "observed_at", "examined_claims", "violations")
@@ -141,12 +143,14 @@ class Claim(_message.Message):
     def __init__(self, id: _Optional[str] = ..., request_id: _Optional[str] = ..., worker: _Optional[str] = ..., file_id: _Optional[str] = ..., path: _Optional[str] = ..., revision: _Optional[str] = ..., expires_at: _Optional[str] = ..., outcome: _Optional[str] = ..., evidence: _Optional[str] = ..., completed_at: _Optional[str] = ...) -> None: ...
 
 class ClaimResponse(_message.Message):
-    __slots__ = ("claim", "no_work")
+    __slots__ = ("claim", "no_work", "unreviewed_count")
     CLAIM_FIELD_NUMBER: _ClassVar[int]
     NO_WORK_FIELD_NUMBER: _ClassVar[int]
+    UNREVIEWED_COUNT_FIELD_NUMBER: _ClassVar[int]
     claim: Claim
     no_work: bool
-    def __init__(self, claim: _Optional[_Union[Claim, _Mapping]] = ..., no_work: _Optional[bool] = ...) -> None: ...
+    unreviewed_count: int
+    def __init__(self, claim: _Optional[_Union[Claim, _Mapping]] = ..., no_work: _Optional[bool] = ..., unreviewed_count: _Optional[int] = ...) -> None: ...
 
 class CompleteRequest(_message.Message):
     __slots__ = ("campaign_id", "claim_id", "worker", "outcome", "evidence")

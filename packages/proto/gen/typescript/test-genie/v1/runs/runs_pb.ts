@@ -2608,6 +2608,9 @@ export type ArtifactRef = Message<"vrooli.test_genie.v1.runs.ArtifactRef"> & {
   accessCapability: ArtifactAccessCapability;
 
   /**
+   * Present on GetRunArtifact responses. ListRunArtifacts omits this route so
+   * catalog consumers use opaque IDs and the owning transfer operation.
+   *
    * @generated from field: string access_path = 9;
    */
   accessPath: string;
@@ -4761,7 +4764,7 @@ export const RunsService: GenService<{
   },
   /**
    * GetRunArtifact returns metadata for one opaque run-scoped artifact ID.
-   * Bytes are streamed through the access_path advertised on ArtifactRef.
+   * Its ArtifactRef includes the server-owned access_path used to stream bytes.
    *
    * @generated from rpc vrooli.test_genie.v1.runs.RunsService.GetRunArtifact
    */

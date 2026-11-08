@@ -162,6 +162,26 @@ message EffortAssignment {
   google.protobuf.Timestamp observed_at = 10;
   string unavailable_reason = 11;
   string execution_identity = 12;
+  // Transcript step-back triggers observed on this run; empty when none fired
+  // or the run has no stored transcript evidence.
+  repeated StepBackTrigger step_back = 13;
+}
+
+// One step-back trigger observed in a run's stored transcript events: a
+// pattern of a long effort losing its objective or its scale. The IDs are the
+// effort-diagnosis drift tripwires: objective-lost, stance-not-retained,
+// unit-per-turn, short-workers and inherited-context. An observation only; Agent Manager
+// never stops, parks or re-tasks a run because of one. The goal-home triggers
+// of `effort epoch-check` (flatline, overrun, growth, spend, wall-clock) are
+// the other half of the same vocabulary.
+message StepBackTrigger {
+  string id = 1;
+  // Effort-diagnosis mechanism catalog entry, e.g. "M1".
+  string mechanism = 2;
+  // Measured evidence; it changes while the run works.
+  string detail = 3;
+  // The re-orientation the pattern calls for.
+  string remedy = 4;
 }
 
 // Attributed outcome evidence; a workspace self-report cannot establish owner acceptance.

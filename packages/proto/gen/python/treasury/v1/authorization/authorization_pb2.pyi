@@ -464,6 +464,22 @@ class VerifyBaseUSDCReceiptResponse(_message.Message):
     checked_at: _timestamp_pb2.Timestamp
     def __init__(self, transfers: _Optional[_Iterable[_Union[_wallet_pb2.BaseUSDCTransferObservation, _Mapping]]] = ..., check_id: _Optional[str] = ..., check_outcome: _Optional[str] = ..., provider_id: _Optional[str] = ..., checked_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ...) -> None: ...
 
+class RecheckBaseUSDCReceiptRequest(_message.Message):
+    __slots__ = ("wallet_id", "transaction_hash", "prior_check_id")
+    WALLET_ID_FIELD_NUMBER: _ClassVar[int]
+    TRANSACTION_HASH_FIELD_NUMBER: _ClassVar[int]
+    PRIOR_CHECK_ID_FIELD_NUMBER: _ClassVar[int]
+    wallet_id: str
+    transaction_hash: str
+    prior_check_id: str
+    def __init__(self, wallet_id: _Optional[str] = ..., transaction_hash: _Optional[str] = ..., prior_check_id: _Optional[str] = ...) -> None: ...
+
+class RecheckBaseUSDCReceiptResponse(_message.Message):
+    __slots__ = ("check",)
+    CHECK_FIELD_NUMBER: _ClassVar[int]
+    check: _wallet_pb2.BaseUSDCReceiptCheck
+    def __init__(self, check: _Optional[_Union[_wallet_pb2.BaseUSDCReceiptCheck, _Mapping]] = ...) -> None: ...
+
 class ListBaseUSDCReceiptChecksRequest(_message.Message):
     __slots__ = ("wallet_id", "transaction_hash", "limit")
     WALLET_ID_FIELD_NUMBER: _ClassVar[int]

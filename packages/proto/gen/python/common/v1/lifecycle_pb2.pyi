@@ -25,6 +25,12 @@ class LifecycleBlockerDisposition(int, metaclass=_enum_type_wrapper.EnumTypeWrap
     LIFECYCLE_BLOCKER_DISPOSITION_BLOCKING: _ClassVar[LifecycleBlockerDisposition]
     LIFECYCLE_BLOCKER_DISPOSITION_OVERRIDEABLE: _ClassVar[LifecycleBlockerDisposition]
     LIFECYCLE_BLOCKER_DISPOSITION_UNKNOWN: _ClassVar[LifecycleBlockerDisposition]
+
+class LifecycleFencePersistence(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    LIFECYCLE_FENCE_PERSISTENCE_UNSPECIFIED: _ClassVar[LifecycleFencePersistence]
+    LIFECYCLE_FENCE_PERSISTENCE_PROCESS_LOCAL: _ClassVar[LifecycleFencePersistence]
+    LIFECYCLE_FENCE_PERSISTENCE_OPERATION_DURABLE: _ClassVar[LifecycleFencePersistence]
 LIFECYCLE_MAINTENANCE_PHASE_UNSPECIFIED: LifecycleMaintenancePhase
 LIFECYCLE_MAINTENANCE_PHASE_OPEN: LifecycleMaintenancePhase
 LIFECYCLE_MAINTENANCE_PHASE_CLOSING: LifecycleMaintenancePhase
@@ -34,6 +40,9 @@ LIFECYCLE_BLOCKER_DISPOSITION_UNSPECIFIED: LifecycleBlockerDisposition
 LIFECYCLE_BLOCKER_DISPOSITION_BLOCKING: LifecycleBlockerDisposition
 LIFECYCLE_BLOCKER_DISPOSITION_OVERRIDEABLE: LifecycleBlockerDisposition
 LIFECYCLE_BLOCKER_DISPOSITION_UNKNOWN: LifecycleBlockerDisposition
+LIFECYCLE_FENCE_PERSISTENCE_UNSPECIFIED: LifecycleFencePersistence
+LIFECYCLE_FENCE_PERSISTENCE_PROCESS_LOCAL: LifecycleFencePersistence
+LIFECYCLE_FENCE_PERSISTENCE_OPERATION_DURABLE: LifecycleFencePersistence
 
 class LifecyclePrepareRequest(_message.Message):
     __slots__ = ("operation_id", "reason", "emergency_override", "override_reason")
@@ -116,7 +125,7 @@ class LifecycleBlocker(_message.Message):
     def __init__(self, code: _Optional[str] = ..., message: _Optional[str] = ..., disposition: _Optional[_Union[LifecycleBlockerDisposition, str]] = ..., observed: _Optional[bool] = ...) -> None: ...
 
 class LifecycleStanding(_message.Message):
-    __slots__ = ("provider", "provider_instance_id", "scenario", "instance_id", "operation_id", "fence_token", "revision", "phase", "admission_closed", "admitting", "remaining", "inventory_complete", "drained", "work", "blockers", "observed_at", "expires_at", "interlock", "managed_components", "component_stop_ready", "quiescence_pending")
+    __slots__ = ("provider", "provider_instance_id", "scenario", "instance_id", "operation_id", "fence_token", "revision", "phase", "admission_closed", "admitting", "remaining", "inventory_complete", "drained", "work", "blockers", "observed_at", "expires_at", "interlock", "managed_components", "component_stop_ready", "quiescence_pending", "fence_persistence")
     PROVIDER_FIELD_NUMBER: _ClassVar[int]
     PROVIDER_INSTANCE_ID_FIELD_NUMBER: _ClassVar[int]
     SCENARIO_FIELD_NUMBER: _ClassVar[int]
@@ -138,6 +147,7 @@ class LifecycleStanding(_message.Message):
     MANAGED_COMPONENTS_FIELD_NUMBER: _ClassVar[int]
     COMPONENT_STOP_READY_FIELD_NUMBER: _ClassVar[int]
     QUIESCENCE_PENDING_FIELD_NUMBER: _ClassVar[int]
+    FENCE_PERSISTENCE_FIELD_NUMBER: _ClassVar[int]
     provider: str
     provider_instance_id: str
     scenario: str
@@ -159,7 +169,8 @@ class LifecycleStanding(_message.Message):
     managed_components: _containers.RepeatedCompositeFieldContainer[LifecycleManagedComponent]
     component_stop_ready: bool
     quiescence_pending: bool
-    def __init__(self, provider: _Optional[str] = ..., provider_instance_id: _Optional[str] = ..., scenario: _Optional[str] = ..., instance_id: _Optional[str] = ..., operation_id: _Optional[str] = ..., fence_token: _Optional[str] = ..., revision: _Optional[int] = ..., phase: _Optional[_Union[LifecycleMaintenancePhase, str]] = ..., admission_closed: _Optional[bool] = ..., admitting: _Optional[int] = ..., remaining: _Optional[int] = ..., inventory_complete: _Optional[bool] = ..., drained: _Optional[bool] = ..., work: _Optional[_Iterable[_Union[LifecycleWorkItem, _Mapping]]] = ..., blockers: _Optional[_Iterable[_Union[LifecycleBlocker, _Mapping]]] = ..., observed_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., expires_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., interlock: _Optional[str] = ..., managed_components: _Optional[_Iterable[_Union[LifecycleManagedComponent, _Mapping]]] = ..., component_stop_ready: _Optional[bool] = ..., quiescence_pending: _Optional[bool] = ...) -> None: ...
+    fence_persistence: LifecycleFencePersistence
+    def __init__(self, provider: _Optional[str] = ..., provider_instance_id: _Optional[str] = ..., scenario: _Optional[str] = ..., instance_id: _Optional[str] = ..., operation_id: _Optional[str] = ..., fence_token: _Optional[str] = ..., revision: _Optional[int] = ..., phase: _Optional[_Union[LifecycleMaintenancePhase, str]] = ..., admission_closed: _Optional[bool] = ..., admitting: _Optional[int] = ..., remaining: _Optional[int] = ..., inventory_complete: _Optional[bool] = ..., drained: _Optional[bool] = ..., work: _Optional[_Iterable[_Union[LifecycleWorkItem, _Mapping]]] = ..., blockers: _Optional[_Iterable[_Union[LifecycleBlocker, _Mapping]]] = ..., observed_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., expires_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., interlock: _Optional[str] = ..., managed_components: _Optional[_Iterable[_Union[LifecycleManagedComponent, _Mapping]]] = ..., component_stop_ready: _Optional[bool] = ..., quiescence_pending: _Optional[bool] = ..., fence_persistence: _Optional[_Union[LifecycleFencePersistence, str]] = ...) -> None: ...
 
 class LifecyclePrepareResponse(_message.Message):
     __slots__ = ("standing",)

@@ -93,6 +93,18 @@ class GetCheckResponse(_message.Message):
     result: CheckResult
     def __init__(self, result: _Optional[_Union[CheckResult, _Mapping]] = ...) -> None: ...
 
+class RunCheckRequest(_message.Message):
+    __slots__ = ("check_id",)
+    CHECK_ID_FIELD_NUMBER: _ClassVar[int]
+    check_id: str
+    def __init__(self, check_id: _Optional[str] = ...) -> None: ...
+
+class RunCheckResponse(_message.Message):
+    __slots__ = ("result",)
+    RESULT_FIELD_NUMBER: _ClassVar[int]
+    result: CheckResult
+    def __init__(self, result: _Optional[_Union[CheckResult, _Mapping]] = ...) -> None: ...
+
 class GetHistoryRequest(_message.Message):
     __slots__ = ("check_id", "limit")
     CHECK_ID_FIELD_NUMBER: _ClassVar[int]

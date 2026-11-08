@@ -82,6 +82,15 @@ message LifecycleBlocker {
   bool observed = 4;
 }
 
+// Persistence of the admission fence, independent of provider process identity.
+// Unspecified retains the conservative process-local behavior unless a
+// replacement explicitly proves the same operation in durable storage.
+enum LifecycleFencePersistence {
+  LIFECYCLE_FENCE_PERSISTENCE_UNSPECIFIED = 0;
+  LIFECYCLE_FENCE_PERSISTENCE_PROCESS_LOCAL = 1;
+  LIFECYCLE_FENCE_PERSISTENCE_OPERATION_DURABLE = 2;
+}
+
 message LifecycleStanding {
   string provider = 1;
   string provider_instance_id = 2;
@@ -108,6 +117,10 @@ message LifecycleStanding {
   // True while the control plane must request the provider's separate
   // quiescence stage before final drain, even if no OS components are listed.
   bool quiescence_pending = 21;
+  // OPERATION_DURABLE permits an exact operation/token/revision/interlock to
+  // survive replacement. It does not authorize another operation or make
+  // incomplete work inventory sufficient to reopen admission.
+  LifecycleFencePersistence fence_persistence = 22;
 }
 
 message LifecyclePrepareResponse { LifecycleStanding standing = 1; }

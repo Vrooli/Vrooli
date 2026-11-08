@@ -61,6 +61,9 @@ const (
 	// TreasuryAdminVerifyBaseUSDCReceiptProcedure is the fully-qualified name of the TreasuryAdmin's
 	// VerifyBaseUSDCReceipt RPC.
 	TreasuryAdminVerifyBaseUSDCReceiptProcedure = "/vrooli.treasury.v1.authorization.TreasuryAdmin/VerifyBaseUSDCReceipt"
+	// TreasuryAdminRecheckBaseUSDCReceiptProcedure is the fully-qualified name of the TreasuryAdmin's
+	// RecheckBaseUSDCReceipt RPC.
+	TreasuryAdminRecheckBaseUSDCReceiptProcedure = "/vrooli.treasury.v1.authorization.TreasuryAdmin/RecheckBaseUSDCReceipt"
 	// TreasuryAdminListBaseUSDCReceiptChecksProcedure is the fully-qualified name of the
 	// TreasuryAdmin's ListBaseUSDCReceiptChecks RPC.
 	TreasuryAdminListBaseUSDCReceiptChecksProcedure = "/vrooli.treasury.v1.authorization.TreasuryAdmin/ListBaseUSDCReceiptChecks"
@@ -310,6 +313,7 @@ type TreasuryAdminClient interface {
 	GetResearchWallet(context.Context, *connect.Request[authorization.ResearchWalletRequest]) (*connect.Response[authorization.ResearchWalletResponse], error)
 	ProveResearchWallet(context.Context, *connect.Request[authorization.ProveResearchWalletRequest]) (*connect.Response[authorization.ProveResearchWalletResponse], error)
 	VerifyBaseUSDCReceipt(context.Context, *connect.Request[authorization.VerifyBaseUSDCReceiptRequest]) (*connect.Response[authorization.VerifyBaseUSDCReceiptResponse], error)
+	RecheckBaseUSDCReceipt(context.Context, *connect.Request[authorization.RecheckBaseUSDCReceiptRequest]) (*connect.Response[authorization.RecheckBaseUSDCReceiptResponse], error)
 	ListBaseUSDCReceiptChecks(context.Context, *connect.Request[authorization.ListBaseUSDCReceiptChecksRequest]) (*connect.Response[authorization.ListBaseUSDCReceiptChecksResponse], error)
 	QualifyResearchWalletRecovery(context.Context, *connect.Request[authorization.ResearchWalletRequest]) (*connect.Response[authorization.ResearchWalletResponse], error)
 	RecoverResearchWallet(context.Context, *connect.Request[authorization.ResearchWalletRequest]) (*connect.Response[authorization.ResearchWalletResponse], error)
@@ -368,6 +372,12 @@ func NewTreasuryAdminClient(httpClient connect.HTTPClient, baseURL string, opts 
 			httpClient,
 			baseURL+TreasuryAdminVerifyBaseUSDCReceiptProcedure,
 			connect.WithSchema(treasuryAdminMethods.ByName("VerifyBaseUSDCReceipt")),
+			connect.WithClientOptions(opts...),
+		),
+		recheckBaseUSDCReceipt: connect.NewClient[authorization.RecheckBaseUSDCReceiptRequest, authorization.RecheckBaseUSDCReceiptResponse](
+			httpClient,
+			baseURL+TreasuryAdminRecheckBaseUSDCReceiptProcedure,
+			connect.WithSchema(treasuryAdminMethods.ByName("RecheckBaseUSDCReceipt")),
 			connect.WithClientOptions(opts...),
 		),
 		listBaseUSDCReceiptChecks: connect.NewClient[authorization.ListBaseUSDCReceiptChecksRequest, authorization.ListBaseUSDCReceiptChecksResponse](
@@ -517,6 +527,7 @@ type treasuryAdminClient struct {
 	getResearchWallet             *connect.Client[authorization.ResearchWalletRequest, authorization.ResearchWalletResponse]
 	proveResearchWallet           *connect.Client[authorization.ProveResearchWalletRequest, authorization.ProveResearchWalletResponse]
 	verifyBaseUSDCReceipt         *connect.Client[authorization.VerifyBaseUSDCReceiptRequest, authorization.VerifyBaseUSDCReceiptResponse]
+	recheckBaseUSDCReceipt        *connect.Client[authorization.RecheckBaseUSDCReceiptRequest, authorization.RecheckBaseUSDCReceiptResponse]
 	listBaseUSDCReceiptChecks     *connect.Client[authorization.ListBaseUSDCReceiptChecksRequest, authorization.ListBaseUSDCReceiptChecksResponse]
 	qualifyResearchWalletRecovery *connect.Client[authorization.ResearchWalletRequest, authorization.ResearchWalletResponse]
 	recoverResearchWallet         *connect.Client[authorization.ResearchWalletRequest, authorization.ResearchWalletResponse]
@@ -560,6 +571,12 @@ func (c *treasuryAdminClient) ProveResearchWallet(ctx context.Context, req *conn
 // VerifyBaseUSDCReceipt calls vrooli.treasury.v1.authorization.TreasuryAdmin.VerifyBaseUSDCReceipt.
 func (c *treasuryAdminClient) VerifyBaseUSDCReceipt(ctx context.Context, req *connect.Request[authorization.VerifyBaseUSDCReceiptRequest]) (*connect.Response[authorization.VerifyBaseUSDCReceiptResponse], error) {
 	return c.verifyBaseUSDCReceipt.CallUnary(ctx, req)
+}
+
+// RecheckBaseUSDCReceipt calls
+// vrooli.treasury.v1.authorization.TreasuryAdmin.RecheckBaseUSDCReceipt.
+func (c *treasuryAdminClient) RecheckBaseUSDCReceipt(ctx context.Context, req *connect.Request[authorization.RecheckBaseUSDCReceiptRequest]) (*connect.Response[authorization.RecheckBaseUSDCReceiptResponse], error) {
+	return c.recheckBaseUSDCReceipt.CallUnary(ctx, req)
 }
 
 // ListBaseUSDCReceiptChecks calls
@@ -687,6 +704,7 @@ type TreasuryAdminHandler interface {
 	GetResearchWallet(context.Context, *connect.Request[authorization.ResearchWalletRequest]) (*connect.Response[authorization.ResearchWalletResponse], error)
 	ProveResearchWallet(context.Context, *connect.Request[authorization.ProveResearchWalletRequest]) (*connect.Response[authorization.ProveResearchWalletResponse], error)
 	VerifyBaseUSDCReceipt(context.Context, *connect.Request[authorization.VerifyBaseUSDCReceiptRequest]) (*connect.Response[authorization.VerifyBaseUSDCReceiptResponse], error)
+	RecheckBaseUSDCReceipt(context.Context, *connect.Request[authorization.RecheckBaseUSDCReceiptRequest]) (*connect.Response[authorization.RecheckBaseUSDCReceiptResponse], error)
 	ListBaseUSDCReceiptChecks(context.Context, *connect.Request[authorization.ListBaseUSDCReceiptChecksRequest]) (*connect.Response[authorization.ListBaseUSDCReceiptChecksResponse], error)
 	QualifyResearchWalletRecovery(context.Context, *connect.Request[authorization.ResearchWalletRequest]) (*connect.Response[authorization.ResearchWalletResponse], error)
 	RecoverResearchWallet(context.Context, *connect.Request[authorization.ResearchWalletRequest]) (*connect.Response[authorization.ResearchWalletResponse], error)
@@ -741,6 +759,12 @@ func NewTreasuryAdminHandler(svc TreasuryAdminHandler, opts ...connect.HandlerOp
 		TreasuryAdminVerifyBaseUSDCReceiptProcedure,
 		svc.VerifyBaseUSDCReceipt,
 		connect.WithSchema(treasuryAdminMethods.ByName("VerifyBaseUSDCReceipt")),
+		connect.WithHandlerOptions(opts...),
+	)
+	treasuryAdminRecheckBaseUSDCReceiptHandler := connect.NewUnaryHandler(
+		TreasuryAdminRecheckBaseUSDCReceiptProcedure,
+		svc.RecheckBaseUSDCReceipt,
+		connect.WithSchema(treasuryAdminMethods.ByName("RecheckBaseUSDCReceipt")),
 		connect.WithHandlerOptions(opts...),
 	)
 	treasuryAdminListBaseUSDCReceiptChecksHandler := connect.NewUnaryHandler(
@@ -891,6 +915,8 @@ func NewTreasuryAdminHandler(svc TreasuryAdminHandler, opts ...connect.HandlerOp
 			treasuryAdminProveResearchWalletHandler.ServeHTTP(w, r)
 		case TreasuryAdminVerifyBaseUSDCReceiptProcedure:
 			treasuryAdminVerifyBaseUSDCReceiptHandler.ServeHTTP(w, r)
+		case TreasuryAdminRecheckBaseUSDCReceiptProcedure:
+			treasuryAdminRecheckBaseUSDCReceiptHandler.ServeHTTP(w, r)
 		case TreasuryAdminListBaseUSDCReceiptChecksProcedure:
 			treasuryAdminListBaseUSDCReceiptChecksHandler.ServeHTTP(w, r)
 		case TreasuryAdminQualifyResearchWalletRecoveryProcedure:
@@ -960,6 +986,10 @@ func (UnimplementedTreasuryAdminHandler) ProveResearchWallet(context.Context, *c
 
 func (UnimplementedTreasuryAdminHandler) VerifyBaseUSDCReceipt(context.Context, *connect.Request[authorization.VerifyBaseUSDCReceiptRequest]) (*connect.Response[authorization.VerifyBaseUSDCReceiptResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.treasury.v1.authorization.TreasuryAdmin.VerifyBaseUSDCReceipt is not implemented"))
+}
+
+func (UnimplementedTreasuryAdminHandler) RecheckBaseUSDCReceipt(context.Context, *connect.Request[authorization.RecheckBaseUSDCReceiptRequest]) (*connect.Response[authorization.RecheckBaseUSDCReceiptResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.treasury.v1.authorization.TreasuryAdmin.RecheckBaseUSDCReceipt is not implemented"))
 }
 
 func (UnimplementedTreasuryAdminHandler) ListBaseUSDCReceiptChecks(context.Context, *connect.Request[authorization.ListBaseUSDCReceiptChecksRequest]) (*connect.Response[authorization.ListBaseUSDCReceiptChecksResponse], error) {

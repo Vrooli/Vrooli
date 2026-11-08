@@ -324,7 +324,7 @@ func TestArtifactStoreMaterializesCompatibilityViewWithoutMixedTree(t *testing.T
 	if got, err := os.ReadFile(filepath.Join(target, "go", "demo", "demo.pb.go")); err != nil || string(got) != "selected" {
 		t.Fatalf("compatibility output = %q, err=%v", got, err)
 	}
-	stamp, err := os.ReadFile(filepath.Join(target, compatibilityStampName))
+	stamp, err := os.ReadFile(filepath.Join(target, CompatibilityStampName))
 	if err != nil || !strings.Contains(string(stamp), `"artifact_id": "selected"`) {
 		t.Fatalf("compatibility stamp = %q, err=%v", stamp, err)
 	}

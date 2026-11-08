@@ -922,8 +922,12 @@ type RunStatusUpdate struct {
 	// run detail response and are never broadcast globally.
 	ResultSelectionStatus FinalOutputSelectionStatus `protobuf:"varint,5,opt,name=result_selection_status,json=resultSelectionStatus,proto3,enum=agent_manager.v1.FinalOutputSelectionStatus" json:"result_selection_status,omitempty"`
 	ResultSelectionRule   string                     `protobuf:"bytes,6,opt,name=result_selection_rule,json=resultSelectionRule,proto3" json:"result_selection_rule,omitempty"`
-	unknownFields         protoimpl.UnknownFields
-	sizeCache             protoimpl.SizeCache
+	// Revision of the persisted run projected by this notification, identical
+	// to Run.updated_at in detail and list responses. Clients discard older
+	// revisions while allowing newer continuations of a terminal run.
+	UpdatedAt     *timestamppb.Timestamp `protobuf:"bytes,7,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *RunStatusUpdate) Reset() {
@@ -996,6 +1000,13 @@ func (x *RunStatusUpdate) GetResultSelectionRule() string {
 		return x.ResultSelectionRule
 	}
 	return ""
+}
+
+func (x *RunStatusUpdate) GetUpdatedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.UpdatedAt
+	}
+	return nil
 }
 
 // TaskStatusUpdate reports a task status change.
@@ -2798,14 +2809,16 @@ const file_agent_manager_v1_domain_events_proto_rawDesc = "" +
 	"\fjournal_kind\x18\v \x01(\tR\vjournalKind\x124\n" +
 	"\x16journal_payload_digest\x18\f \x01(\tR\x14journalPayloadDigest\x12H\n" +
 	"\fbudget_usage\x18\r \x01(\v2%.agent_manager.v1.WorkflowBudgetUsageR\vbudgetUsage\x12Q\n" +
-	"\x0fterminal_reason\x18\x0e \x01(\v2(.agent_manager.v1.WorkflowTerminalReasonR\x0eterminalReason\"\xb7\x02\n" +
+	"\x0fterminal_reason\x18\x0e \x01(\v2(.agent_manager.v1.WorkflowTerminalReasonR\x0eterminalReason\"\xf2\x02\n" +
 	"\x0fRunStatusUpdate\x12\x15\n" +
 	"\x06run_id\x18\x01 \x01(\tR\x05runId\x123\n" +
 	"\x06status\x18\x02 \x01(\x0e2\x1b.agent_manager.v1.RunStatusR\x06status\x12\x17\n" +
 	"\atask_id\x18\x03 \x01(\tR\x06taskId\x12%\n" +
 	"\x0eprompt_preview\x18\x04 \x01(\tR\rpromptPreview\x12d\n" +
 	"\x17result_selection_status\x18\x05 \x01(\x0e2,.agent_manager.v1.FinalOutputSelectionStatusR\x15resultSelectionStatus\x122\n" +
-	"\x15result_selection_rule\x18\x06 \x01(\tR\x13resultSelectionRule\"a\n" +
+	"\x15result_selection_rule\x18\x06 \x01(\tR\x13resultSelectionRule\x129\n" +
+	"\n" +
+	"updated_at\x18\a \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\"a\n" +
 	"\x10TaskStatusUpdate\x12\x17\n" +
 	"\atask_id\x18\x01 \x01(\tR\x06taskId\x124\n" +
 	"\x06status\x18\x02 \x01(\x0e2\x1c.agent_manager.v1.TaskStatusR\x06status\"a\n" +
@@ -3054,24 +3067,25 @@ var file_agent_manager_v1_domain_events_proto_depIdxs = []int32{
 	31, // 25: agent_manager.v1.WorkflowLifecycleUpdate.terminal_reason:type_name -> agent_manager.v1.WorkflowTerminalReason
 	32, // 26: agent_manager.v1.RunStatusUpdate.status:type_name -> agent_manager.v1.RunStatus
 	33, // 27: agent_manager.v1.RunStatusUpdate.result_selection_status:type_name -> agent_manager.v1.FinalOutputSelectionStatus
-	34, // 28: agent_manager.v1.TaskStatusUpdate.status:type_name -> agent_manager.v1.TaskStatus
-	29, // 29: agent_manager.v1.WsConnected.timestamp:type_name -> google.protobuf.Timestamp
-	29, // 30: agent_manager.v1.WsPong.timestamp:type_name -> google.protobuf.Timestamp
-	1,  // 31: agent_manager.v1.AgentManagerWsClientMessage.type:type_name -> agent_manager.v1.AgentManagerWsClientMessageType
-	11, // 32: agent_manager.v1.AgentManagerWsClientMessage.run_subscription:type_name -> agent_manager.v1.RunSubscription
-	14, // 33: agent_manager.v1.MessageEventData.attachments:type_name -> agent_manager.v1.MessageAttachmentInfo
-	35, // 34: agent_manager.v1.ToolCallEventData.input:type_name -> google.protobuf.Struct
-	18, // 35: agent_manager.v1.ToolResultEventData.output_blocks:type_name -> agent_manager.v1.ToolOutputBlock
-	27, // 36: agent_manager.v1.MetricEventData.tags:type_name -> agent_manager.v1.MetricEventData.TagsEntry
-	36, // 37: agent_manager.v1.ErrorEventData.recovery:type_name -> agent_manager.v1.RecoveryAction
-	35, // 38: agent_manager.v1.ErrorEventData.details:type_name -> google.protobuf.Struct
-	37, // 39: agent_manager.v1.ProgressEventData.phase:type_name -> agent_manager.v1.RunPhase
-	29, // 40: agent_manager.v1.RateLimitEventData.reset_time:type_name -> google.protobuf.Timestamp
-	41, // [41:41] is the sub-list for method output_type
-	41, // [41:41] is the sub-list for method input_type
-	41, // [41:41] is the sub-list for extension type_name
-	41, // [41:41] is the sub-list for extension extendee
-	0,  // [0:41] is the sub-list for field type_name
+	29, // 28: agent_manager.v1.RunStatusUpdate.updated_at:type_name -> google.protobuf.Timestamp
+	34, // 29: agent_manager.v1.TaskStatusUpdate.status:type_name -> agent_manager.v1.TaskStatus
+	29, // 30: agent_manager.v1.WsConnected.timestamp:type_name -> google.protobuf.Timestamp
+	29, // 31: agent_manager.v1.WsPong.timestamp:type_name -> google.protobuf.Timestamp
+	1,  // 32: agent_manager.v1.AgentManagerWsClientMessage.type:type_name -> agent_manager.v1.AgentManagerWsClientMessageType
+	11, // 33: agent_manager.v1.AgentManagerWsClientMessage.run_subscription:type_name -> agent_manager.v1.RunSubscription
+	14, // 34: agent_manager.v1.MessageEventData.attachments:type_name -> agent_manager.v1.MessageAttachmentInfo
+	35, // 35: agent_manager.v1.ToolCallEventData.input:type_name -> google.protobuf.Struct
+	18, // 36: agent_manager.v1.ToolResultEventData.output_blocks:type_name -> agent_manager.v1.ToolOutputBlock
+	27, // 37: agent_manager.v1.MetricEventData.tags:type_name -> agent_manager.v1.MetricEventData.TagsEntry
+	36, // 38: agent_manager.v1.ErrorEventData.recovery:type_name -> agent_manager.v1.RecoveryAction
+	35, // 39: agent_manager.v1.ErrorEventData.details:type_name -> google.protobuf.Struct
+	37, // 40: agent_manager.v1.ProgressEventData.phase:type_name -> agent_manager.v1.RunPhase
+	29, // 41: agent_manager.v1.RateLimitEventData.reset_time:type_name -> google.protobuf.Timestamp
+	42, // [42:42] is the sub-list for method output_type
+	42, // [42:42] is the sub-list for method input_type
+	42, // [42:42] is the sub-list for extension type_name
+	42, // [42:42] is the sub-list for extension extendee
+	0,  // [0:42] is the sub-list for field type_name
 }
 
 func init() { file_agent_manager_v1_domain_events_proto_init() }

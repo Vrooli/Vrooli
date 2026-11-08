@@ -729,7 +729,7 @@ class ProfileRef(_message.Message):
     def __init__(self, profile_key: _Optional[str] = ..., defaults: _Optional[_Union[_profile_pb2.AgentProfile, _Mapping]] = ..., update_existing: _Optional[bool] = ...) -> None: ...
 
 class CreateRunRequest(_message.Message):
-    __slots__ = ("task_id", "agent_profile_id", "tag", "run_mode", "inline_config", "force", "idempotency_key", "profile_ref", "prompt", "existing_sandbox_id", "environment", "conversation_id", "parent_run_id", "execution_mode", "work_references", "requested_scopes", "execution_preferences", "target_instances")
+    __slots__ = ("task_id", "agent_profile_id", "tag", "run_mode", "inline_config", "force", "idempotency_key", "profile_ref", "prompt", "existing_sandbox_id", "environment", "conversation_id", "parent_run_id", "execution_mode", "work_references", "requested_scopes", "execution_preferences", "target_instances", "charter_path")
     class EnvironmentEntry(_message.Message):
         __slots__ = ("key", "value")
         KEY_FIELD_NUMBER: _ClassVar[int]
@@ -755,6 +755,7 @@ class CreateRunRequest(_message.Message):
     REQUESTED_SCOPES_FIELD_NUMBER: _ClassVar[int]
     EXECUTION_PREFERENCES_FIELD_NUMBER: _ClassVar[int]
     TARGET_INSTANCES_FIELD_NUMBER: _ClassVar[int]
+    CHARTER_PATH_FIELD_NUMBER: _ClassVar[int]
     task_id: str
     agent_profile_id: str
     tag: str
@@ -773,7 +774,8 @@ class CreateRunRequest(_message.Message):
     requested_scopes: RunIdentityScopeRequest
     execution_preferences: _profile_pb2.ExecutionPreferences
     target_instances: _containers.RepeatedScalarFieldContainer[str]
-    def __init__(self, task_id: _Optional[str] = ..., agent_profile_id: _Optional[str] = ..., tag: _Optional[str] = ..., run_mode: _Optional[_Union[_types_pb2.RunMode, str]] = ..., inline_config: _Optional[_Union[_profile_pb2.RunConfigOverrides, _Mapping]] = ..., force: _Optional[bool] = ..., idempotency_key: _Optional[str] = ..., profile_ref: _Optional[_Union[ProfileRef, _Mapping]] = ..., prompt: _Optional[str] = ..., existing_sandbox_id: _Optional[str] = ..., environment: _Optional[_Mapping[str, str]] = ..., conversation_id: _Optional[str] = ..., parent_run_id: _Optional[str] = ..., execution_mode: _Optional[_Union[_types_pb2.ExecutionMode, str]] = ..., work_references: _Optional[_Iterable[_Union[_envelope_pb2.WorkReference, _Mapping]]] = ..., requested_scopes: _Optional[_Union[RunIdentityScopeRequest, _Mapping]] = ..., execution_preferences: _Optional[_Union[_profile_pb2.ExecutionPreferences, _Mapping]] = ..., target_instances: _Optional[_Iterable[str]] = ...) -> None: ...
+    charter_path: str
+    def __init__(self, task_id: _Optional[str] = ..., agent_profile_id: _Optional[str] = ..., tag: _Optional[str] = ..., run_mode: _Optional[_Union[_types_pb2.RunMode, str]] = ..., inline_config: _Optional[_Union[_profile_pb2.RunConfigOverrides, _Mapping]] = ..., force: _Optional[bool] = ..., idempotency_key: _Optional[str] = ..., profile_ref: _Optional[_Union[ProfileRef, _Mapping]] = ..., prompt: _Optional[str] = ..., existing_sandbox_id: _Optional[str] = ..., environment: _Optional[_Mapping[str, str]] = ..., conversation_id: _Optional[str] = ..., parent_run_id: _Optional[str] = ..., execution_mode: _Optional[_Union[_types_pb2.ExecutionMode, str]] = ..., work_references: _Optional[_Iterable[_Union[_envelope_pb2.WorkReference, _Mapping]]] = ..., requested_scopes: _Optional[_Union[RunIdentityScopeRequest, _Mapping]] = ..., execution_preferences: _Optional[_Union[_profile_pb2.ExecutionPreferences, _Mapping]] = ..., target_instances: _Optional[_Iterable[str]] = ..., charter_path: _Optional[str] = ...) -> None: ...
 
 class RunIdentityScopeRequest(_message.Message):
     __slots__ = ("scopes", "expected_owner_subject")
@@ -1063,7 +1065,7 @@ class GetRunByTagResponse(_message.Message):
     def __init__(self, run: _Optional[_Union[_run_pb2.Run, _Mapping]] = ...) -> None: ...
 
 class ListRunsRequest(_message.Message):
-    __slots__ = ("status", "task_id", "agent_profile_id", "tag_prefix", "limit", "offset", "top_level", "origin")
+    __slots__ = ("status", "task_id", "agent_profile_id", "tag_prefix", "limit", "offset", "top_level", "origin", "parent_run_id")
     STATUS_FIELD_NUMBER: _ClassVar[int]
     TASK_ID_FIELD_NUMBER: _ClassVar[int]
     AGENT_PROFILE_ID_FIELD_NUMBER: _ClassVar[int]
@@ -1072,6 +1074,7 @@ class ListRunsRequest(_message.Message):
     OFFSET_FIELD_NUMBER: _ClassVar[int]
     TOP_LEVEL_FIELD_NUMBER: _ClassVar[int]
     ORIGIN_FIELD_NUMBER: _ClassVar[int]
+    PARENT_RUN_ID_FIELD_NUMBER: _ClassVar[int]
     status: _types_pb2.RunStatus
     task_id: str
     agent_profile_id: str
@@ -1080,7 +1083,114 @@ class ListRunsRequest(_message.Message):
     offset: int
     top_level: bool
     origin: str
-    def __init__(self, status: _Optional[_Union[_types_pb2.RunStatus, str]] = ..., task_id: _Optional[str] = ..., agent_profile_id: _Optional[str] = ..., tag_prefix: _Optional[str] = ..., limit: _Optional[int] = ..., offset: _Optional[int] = ..., top_level: _Optional[bool] = ..., origin: _Optional[str] = ...) -> None: ...
+    parent_run_id: str
+    def __init__(self, status: _Optional[_Union[_types_pb2.RunStatus, str]] = ..., task_id: _Optional[str] = ..., agent_profile_id: _Optional[str] = ..., tag_prefix: _Optional[str] = ..., limit: _Optional[int] = ..., offset: _Optional[int] = ..., top_level: _Optional[bool] = ..., origin: _Optional[str] = ..., parent_run_id: _Optional[str] = ...) -> None: ...
+
+class WaitRunRequest(_message.Message):
+    __slots__ = ("run_id", "timeout_seconds")
+    RUN_ID_FIELD_NUMBER: _ClassVar[int]
+    TIMEOUT_SECONDS_FIELD_NUMBER: _ClassVar[int]
+    run_id: str
+    timeout_seconds: int
+    def __init__(self, run_id: _Optional[str] = ..., timeout_seconds: _Optional[int] = ...) -> None: ...
+
+class WaitRunResponse(_message.Message):
+    __slots__ = ("run", "outcome")
+    RUN_FIELD_NUMBER: _ClassVar[int]
+    OUTCOME_FIELD_NUMBER: _ClassVar[int]
+    run: _run_pb2.Run
+    outcome: str
+    def __init__(self, run: _Optional[_Union[_run_pb2.Run, _Mapping]] = ..., outcome: _Optional[str] = ...) -> None: ...
+
+class WaitRunChildrenRequest(_message.Message):
+    __slots__ = ("parent_run_id", "timeout_seconds", "since")
+    PARENT_RUN_ID_FIELD_NUMBER: _ClassVar[int]
+    TIMEOUT_SECONDS_FIELD_NUMBER: _ClassVar[int]
+    SINCE_FIELD_NUMBER: _ClassVar[int]
+    parent_run_id: str
+    timeout_seconds: int
+    since: _timestamp_pb2.Timestamp
+    def __init__(self, parent_run_id: _Optional[str] = ..., timeout_seconds: _Optional[int] = ..., since: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ...) -> None: ...
+
+class RunChildSummary(_message.Message):
+    __slots__ = ("run_id", "status", "ended_at")
+    RUN_ID_FIELD_NUMBER: _ClassVar[int]
+    STATUS_FIELD_NUMBER: _ClassVar[int]
+    ENDED_AT_FIELD_NUMBER: _ClassVar[int]
+    run_id: str
+    status: str
+    ended_at: _timestamp_pb2.Timestamp
+    def __init__(self, run_id: _Optional[str] = ..., status: _Optional[str] = ..., ended_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ...) -> None: ...
+
+class WaitRunChildrenResponse(_message.Message):
+    __slots__ = ("wake_reason", "ended", "active", "observed_at")
+    WAKE_REASON_FIELD_NUMBER: _ClassVar[int]
+    ENDED_FIELD_NUMBER: _ClassVar[int]
+    ACTIVE_FIELD_NUMBER: _ClassVar[int]
+    OBSERVED_AT_FIELD_NUMBER: _ClassVar[int]
+    wake_reason: str
+    ended: _containers.RepeatedCompositeFieldContainer[RunChildSummary]
+    active: _containers.RepeatedCompositeFieldContainer[RunChildSummary]
+    observed_at: _timestamp_pb2.Timestamp
+    def __init__(self, wake_reason: _Optional[str] = ..., ended: _Optional[_Iterable[_Union[RunChildSummary, _Mapping]]] = ..., active: _Optional[_Iterable[_Union[RunChildSummary, _Mapping]]] = ..., observed_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ...) -> None: ...
+
+class GetRunTreeRequest(_message.Message):
+    __slots__ = ("run_id",)
+    RUN_ID_FIELD_NUMBER: _ClassVar[int]
+    run_id: str
+    def __init__(self, run_id: _Optional[str] = ...) -> None: ...
+
+class RunTreeNode(_message.Message):
+    __slots__ = ("run_id", "parent_run_id", "depth", "status", "label", "runner", "model", "goal_delivery", "started_at", "ended_at", "elapsed_seconds", "weighted_tokens", "weighted_tokens_known", "orphaned", "charter_path", "children", "owner_expires_at", "step_back")
+    RUN_ID_FIELD_NUMBER: _ClassVar[int]
+    PARENT_RUN_ID_FIELD_NUMBER: _ClassVar[int]
+    DEPTH_FIELD_NUMBER: _ClassVar[int]
+    STATUS_FIELD_NUMBER: _ClassVar[int]
+    LABEL_FIELD_NUMBER: _ClassVar[int]
+    RUNNER_FIELD_NUMBER: _ClassVar[int]
+    MODEL_FIELD_NUMBER: _ClassVar[int]
+    GOAL_DELIVERY_FIELD_NUMBER: _ClassVar[int]
+    STARTED_AT_FIELD_NUMBER: _ClassVar[int]
+    ENDED_AT_FIELD_NUMBER: _ClassVar[int]
+    ELAPSED_SECONDS_FIELD_NUMBER: _ClassVar[int]
+    WEIGHTED_TOKENS_FIELD_NUMBER: _ClassVar[int]
+    WEIGHTED_TOKENS_KNOWN_FIELD_NUMBER: _ClassVar[int]
+    ORPHANED_FIELD_NUMBER: _ClassVar[int]
+    CHARTER_PATH_FIELD_NUMBER: _ClassVar[int]
+    CHILDREN_FIELD_NUMBER: _ClassVar[int]
+    OWNER_EXPIRES_AT_FIELD_NUMBER: _ClassVar[int]
+    STEP_BACK_FIELD_NUMBER: _ClassVar[int]
+    run_id: str
+    parent_run_id: str
+    depth: int
+    status: _types_pb2.RunStatus
+    label: str
+    runner: str
+    model: str
+    goal_delivery: str
+    started_at: _timestamp_pb2.Timestamp
+    ended_at: _timestamp_pb2.Timestamp
+    elapsed_seconds: int
+    weighted_tokens: float
+    weighted_tokens_known: bool
+    orphaned: bool
+    charter_path: str
+    children: _containers.RepeatedCompositeFieldContainer[RunTreeNode]
+    owner_expires_at: _timestamp_pb2.Timestamp
+    step_back: _containers.RepeatedCompositeFieldContainer[_effort_pb2.StepBackTrigger]
+    def __init__(self, run_id: _Optional[str] = ..., parent_run_id: _Optional[str] = ..., depth: _Optional[int] = ..., status: _Optional[_Union[_types_pb2.RunStatus, str]] = ..., label: _Optional[str] = ..., runner: _Optional[str] = ..., model: _Optional[str] = ..., goal_delivery: _Optional[str] = ..., started_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., ended_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., elapsed_seconds: _Optional[int] = ..., weighted_tokens: _Optional[float] = ..., weighted_tokens_known: _Optional[bool] = ..., orphaned: _Optional[bool] = ..., charter_path: _Optional[str] = ..., children: _Optional[_Iterable[_Union[RunTreeNode, _Mapping]]] = ..., owner_expires_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., step_back: _Optional[_Iterable[_Union[_effort_pb2.StepBackTrigger, _Mapping]]] = ...) -> None: ...
+
+class RunTree(_message.Message):
+    __slots__ = ("root", "node_count", "truncated", "max_child_depth")
+    ROOT_FIELD_NUMBER: _ClassVar[int]
+    NODE_COUNT_FIELD_NUMBER: _ClassVar[int]
+    TRUNCATED_FIELD_NUMBER: _ClassVar[int]
+    MAX_CHILD_DEPTH_FIELD_NUMBER: _ClassVar[int]
+    root: RunTreeNode
+    node_count: int
+    truncated: bool
+    max_child_depth: int
+    def __init__(self, root: _Optional[_Union[RunTreeNode, _Mapping]] = ..., node_count: _Optional[int] = ..., truncated: _Optional[bool] = ..., max_child_depth: _Optional[int] = ...) -> None: ...
 
 class ListRunsResponse(_message.Message):
     __slots__ = ("runs", "total", "has_more")

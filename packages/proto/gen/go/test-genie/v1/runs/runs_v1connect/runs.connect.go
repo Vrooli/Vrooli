@@ -114,7 +114,7 @@ type RunsServiceClient interface {
 	// a Test Genie or consumer schema change.
 	ListRunArtifacts(context.Context, *connect.Request[runs.ListRunArtifactsRequest]) (*connect.Response[runs.ListRunArtifactsResponse], error)
 	// GetRunArtifact returns metadata for one opaque run-scoped artifact ID.
-	// Bytes are streamed through the access_path advertised on ArtifactRef.
+	// Its ArtifactRef includes the server-owned access_path used to stream bytes.
 	GetRunArtifact(context.Context, *connect.Request[runs.GetRunArtifactRequest]) (*connect.Response[runs.GetRunArtifactResponse], error)
 	// GetRunFindings returns the per-phase maturity standing (Phase Capability
 	// Contract) persisted in the run's findings.json, on demand.
@@ -509,7 +509,7 @@ type RunsServiceHandler interface {
 	// a Test Genie or consumer schema change.
 	ListRunArtifacts(context.Context, *connect.Request[runs.ListRunArtifactsRequest]) (*connect.Response[runs.ListRunArtifactsResponse], error)
 	// GetRunArtifact returns metadata for one opaque run-scoped artifact ID.
-	// Bytes are streamed through the access_path advertised on ArtifactRef.
+	// Its ArtifactRef includes the server-owned access_path used to stream bytes.
 	GetRunArtifact(context.Context, *connect.Request[runs.GetRunArtifactRequest]) (*connect.Response[runs.GetRunArtifactResponse], error)
 	// GetRunFindings returns the per-phase maturity standing (Phase Capability
 	// Contract) persisted in the run's findings.json, on demand.

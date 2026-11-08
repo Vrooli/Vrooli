@@ -2942,6 +2942,113 @@ func (x *VerifyBaseUSDCReceiptResponse) GetCheckedAt() *timestamppb.Timestamp {
 	return nil
 }
 
+// Rechecks are accepted only when the prior verified check matches all three
+// supplied scope fields under the authenticated operator and Base network.
+type RecheckBaseUSDCReceiptRequest struct {
+	state           protoimpl.MessageState `protogen:"open.v1"`
+	WalletId        string                 `protobuf:"bytes,1,opt,name=wallet_id,json=walletId,proto3" json:"wallet_id,omitempty"`
+	TransactionHash string                 `protobuf:"bytes,2,opt,name=transaction_hash,json=transactionHash,proto3" json:"transaction_hash,omitempty"`
+	PriorCheckId    string                 `protobuf:"bytes,3,opt,name=prior_check_id,json=priorCheckId,proto3" json:"prior_check_id,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
+}
+
+func (x *RecheckBaseUSDCReceiptRequest) Reset() {
+	*x = RecheckBaseUSDCReceiptRequest{}
+	mi := &file_treasury_v1_authorization_authorization_proto_msgTypes[56]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RecheckBaseUSDCReceiptRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RecheckBaseUSDCReceiptRequest) ProtoMessage() {}
+
+func (x *RecheckBaseUSDCReceiptRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_treasury_v1_authorization_authorization_proto_msgTypes[56]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RecheckBaseUSDCReceiptRequest.ProtoReflect.Descriptor instead.
+func (*RecheckBaseUSDCReceiptRequest) Descriptor() ([]byte, []int) {
+	return file_treasury_v1_authorization_authorization_proto_rawDescGZIP(), []int{56}
+}
+
+func (x *RecheckBaseUSDCReceiptRequest) GetWalletId() string {
+	if x != nil {
+		return x.WalletId
+	}
+	return ""
+}
+
+func (x *RecheckBaseUSDCReceiptRequest) GetTransactionHash() string {
+	if x != nil {
+		return x.TransactionHash
+	}
+	return ""
+}
+
+func (x *RecheckBaseUSDCReceiptRequest) GetPriorCheckId() string {
+	if x != nil {
+		return x.PriorCheckId
+	}
+	return ""
+}
+
+type RecheckBaseUSDCReceiptResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Provider observation only; this RPC never posts or credits funds.
+	Check         *wallet.BaseUSDCReceiptCheck `protobuf:"bytes,1,opt,name=check,proto3" json:"check,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RecheckBaseUSDCReceiptResponse) Reset() {
+	*x = RecheckBaseUSDCReceiptResponse{}
+	mi := &file_treasury_v1_authorization_authorization_proto_msgTypes[57]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RecheckBaseUSDCReceiptResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RecheckBaseUSDCReceiptResponse) ProtoMessage() {}
+
+func (x *RecheckBaseUSDCReceiptResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_treasury_v1_authorization_authorization_proto_msgTypes[57]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RecheckBaseUSDCReceiptResponse.ProtoReflect.Descriptor instead.
+func (*RecheckBaseUSDCReceiptResponse) Descriptor() ([]byte, []int) {
+	return file_treasury_v1_authorization_authorization_proto_rawDescGZIP(), []int{57}
+}
+
+func (x *RecheckBaseUSDCReceiptResponse) GetCheck() *wallet.BaseUSDCReceiptCheck {
+	if x != nil {
+		return x.Check
+	}
+	return nil
+}
+
 type ListBaseUSDCReceiptChecksRequest struct {
 	state           protoimpl.MessageState `protogen:"open.v1"`
 	WalletId        string                 `protobuf:"bytes,1,opt,name=wallet_id,json=walletId,proto3" json:"wallet_id,omitempty"`
@@ -2953,7 +3060,7 @@ type ListBaseUSDCReceiptChecksRequest struct {
 
 func (x *ListBaseUSDCReceiptChecksRequest) Reset() {
 	*x = ListBaseUSDCReceiptChecksRequest{}
-	mi := &file_treasury_v1_authorization_authorization_proto_msgTypes[56]
+	mi := &file_treasury_v1_authorization_authorization_proto_msgTypes[58]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2965,7 +3072,7 @@ func (x *ListBaseUSDCReceiptChecksRequest) String() string {
 func (*ListBaseUSDCReceiptChecksRequest) ProtoMessage() {}
 
 func (x *ListBaseUSDCReceiptChecksRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_treasury_v1_authorization_authorization_proto_msgTypes[56]
+	mi := &file_treasury_v1_authorization_authorization_proto_msgTypes[58]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2978,7 +3085,7 @@ func (x *ListBaseUSDCReceiptChecksRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListBaseUSDCReceiptChecksRequest.ProtoReflect.Descriptor instead.
 func (*ListBaseUSDCReceiptChecksRequest) Descriptor() ([]byte, []int) {
-	return file_treasury_v1_authorization_authorization_proto_rawDescGZIP(), []int{56}
+	return file_treasury_v1_authorization_authorization_proto_rawDescGZIP(), []int{58}
 }
 
 func (x *ListBaseUSDCReceiptChecksRequest) GetWalletId() string {
@@ -3011,7 +3118,7 @@ type ListBaseUSDCReceiptChecksResponse struct {
 
 func (x *ListBaseUSDCReceiptChecksResponse) Reset() {
 	*x = ListBaseUSDCReceiptChecksResponse{}
-	mi := &file_treasury_v1_authorization_authorization_proto_msgTypes[57]
+	mi := &file_treasury_v1_authorization_authorization_proto_msgTypes[59]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3023,7 +3130,7 @@ func (x *ListBaseUSDCReceiptChecksResponse) String() string {
 func (*ListBaseUSDCReceiptChecksResponse) ProtoMessage() {}
 
 func (x *ListBaseUSDCReceiptChecksResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_treasury_v1_authorization_authorization_proto_msgTypes[57]
+	mi := &file_treasury_v1_authorization_authorization_proto_msgTypes[59]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3036,7 +3143,7 @@ func (x *ListBaseUSDCReceiptChecksResponse) ProtoReflect() protoreflect.Message 
 
 // Deprecated: Use ListBaseUSDCReceiptChecksResponse.ProtoReflect.Descriptor instead.
 func (*ListBaseUSDCReceiptChecksResponse) Descriptor() ([]byte, []int) {
-	return file_treasury_v1_authorization_authorization_proto_rawDescGZIP(), []int{57}
+	return file_treasury_v1_authorization_authorization_proto_rawDescGZIP(), []int{59}
 }
 
 func (x *ListBaseUSDCReceiptChecksResponse) GetChecks() []*wallet.BaseUSDCReceiptCheck {
@@ -3238,7 +3345,13 @@ const file_treasury_v1_authorization_authorization_proto_rawDesc = "" +
 	"\vprovider_id\x18\x04 \x01(\tR\n" +
 	"providerId\x129\n" +
 	"\n" +
-	"checked_at\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampR\tcheckedAt\"\x80\x01\n" +
+	"checked_at\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampR\tcheckedAt\"\x8d\x01\n" +
+	"\x1dRecheckBaseUSDCReceiptRequest\x12\x1b\n" +
+	"\twallet_id\x18\x01 \x01(\tR\bwalletId\x12)\n" +
+	"\x10transaction_hash\x18\x02 \x01(\tR\x0ftransactionHash\x12$\n" +
+	"\x0eprior_check_id\x18\x03 \x01(\tR\fpriorCheckId\"g\n" +
+	"\x1eRecheckBaseUSDCReceiptResponse\x12E\n" +
+	"\x05check\x18\x01 \x01(\v2/.vrooli.treasury.v1.wallet.BaseUSDCReceiptCheckR\x05check\"\x80\x01\n" +
 	" ListBaseUSDCReceiptChecksRequest\x12\x1b\n" +
 	"\twallet_id\x18\x01 \x01(\tR\bwalletId\x12)\n" +
 	"\x10transaction_hash\x18\x02 \x01(\tR\x0ftransactionHash\x12\x14\n" +
@@ -3258,12 +3371,13 @@ const file_treasury_v1_authorization_authorization_proto_rawDesc = "" +
 	"\x10GetAuthorization\x129.vrooli.treasury.v1.authorization.GetAuthorizationRequest\x1a:.vrooli.treasury.v1.authorization.GetAuthorizationResponse\x12\x8c\x01\n" +
 	"\x11GetBudgetHeadroom\x12:.vrooli.treasury.v1.authorization.GetBudgetHeadroomRequest\x1a;.vrooli.treasury.v1.authorization.GetBudgetHeadroomResponse\x12}\n" +
 	"\fListMandates\x125.vrooli.treasury.v1.authorization.ListMandatesRequest\x1a6.vrooli.treasury.v1.authorization.ListMandatesResponse\x12\x80\x01\n" +
-	"\rReportOutcome\x126.vrooli.treasury.v1.authorization.ReportOutcomeRequest\x1a7.vrooli.treasury.v1.authorization.ReportOutcomeResponse2\xf4\x1c\n" +
+	"\rReportOutcome\x126.vrooli.treasury.v1.authorization.ReportOutcomeRequest\x1a7.vrooli.treasury.v1.authorization.ReportOutcomeResponse2\x92\x1e\n" +
 	"\rTreasuryAdmin\x12\x8f\x01\n" +
 	"\x14CreateResearchWallet\x12=.vrooli.treasury.v1.authorization.CreateResearchWalletRequest\x1a8.vrooli.treasury.v1.authorization.ResearchWalletResponse\x12\x86\x01\n" +
 	"\x11GetResearchWallet\x127.vrooli.treasury.v1.authorization.ResearchWalletRequest\x1a8.vrooli.treasury.v1.authorization.ResearchWalletResponse\x12\x92\x01\n" +
 	"\x13ProveResearchWallet\x12<.vrooli.treasury.v1.authorization.ProveResearchWalletRequest\x1a=.vrooli.treasury.v1.authorization.ProveResearchWalletResponse\x12\x98\x01\n" +
-	"\x15VerifyBaseUSDCReceipt\x12>.vrooli.treasury.v1.authorization.VerifyBaseUSDCReceiptRequest\x1a?.vrooli.treasury.v1.authorization.VerifyBaseUSDCReceiptResponse\x12\xa4\x01\n" +
+	"\x15VerifyBaseUSDCReceipt\x12>.vrooli.treasury.v1.authorization.VerifyBaseUSDCReceiptRequest\x1a?.vrooli.treasury.v1.authorization.VerifyBaseUSDCReceiptResponse\x12\x9b\x01\n" +
+	"\x16RecheckBaseUSDCReceipt\x12?.vrooli.treasury.v1.authorization.RecheckBaseUSDCReceiptRequest\x1a@.vrooli.treasury.v1.authorization.RecheckBaseUSDCReceiptResponse\x12\xa4\x01\n" +
 	"\x19ListBaseUSDCReceiptChecks\x12B.vrooli.treasury.v1.authorization.ListBaseUSDCReceiptChecksRequest\x1aC.vrooli.treasury.v1.authorization.ListBaseUSDCReceiptChecksResponse\x12\x92\x01\n" +
 	"\x1dQualifyResearchWalletRecovery\x127.vrooli.treasury.v1.authorization.ResearchWalletRequest\x1a8.vrooli.treasury.v1.authorization.ResearchWalletResponse\x12\x8a\x01\n" +
 	"\x15RecoverResearchWallet\x127.vrooli.treasury.v1.authorization.ResearchWalletRequest\x1a8.vrooli.treasury.v1.authorization.ResearchWalletResponse\x12w\n" +
@@ -3303,7 +3417,7 @@ func file_treasury_v1_authorization_authorization_proto_rawDescGZIP() []byte {
 }
 
 var file_treasury_v1_authorization_authorization_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_treasury_v1_authorization_authorization_proto_msgTypes = make([]protoimpl.MessageInfo, 58)
+var file_treasury_v1_authorization_authorization_proto_msgTypes = make([]protoimpl.MessageInfo, 60)
 var file_treasury_v1_authorization_authorization_proto_goTypes = []any{
 	(AuthorizationVerdict)(0),                  // 0: vrooli.treasury.v1.authorization.AuthorizationVerdict
 	(*AuthorizationRecord)(nil),                // 1: vrooli.treasury.v1.authorization.AuthorizationRecord
@@ -3362,135 +3476,140 @@ var file_treasury_v1_authorization_authorization_proto_goTypes = []any{
 	(*ProveResearchWalletResponse)(nil),        // 54: vrooli.treasury.v1.authorization.ProveResearchWalletResponse
 	(*VerifyBaseUSDCReceiptRequest)(nil),       // 55: vrooli.treasury.v1.authorization.VerifyBaseUSDCReceiptRequest
 	(*VerifyBaseUSDCReceiptResponse)(nil),      // 56: vrooli.treasury.v1.authorization.VerifyBaseUSDCReceiptResponse
-	(*ListBaseUSDCReceiptChecksRequest)(nil),   // 57: vrooli.treasury.v1.authorization.ListBaseUSDCReceiptChecksRequest
-	(*ListBaseUSDCReceiptChecksResponse)(nil),  // 58: vrooli.treasury.v1.authorization.ListBaseUSDCReceiptChecksResponse
-	(*timestamppb.Timestamp)(nil),              // 59: google.protobuf.Timestamp
-	(*budget.Headroom)(nil),                    // 60: vrooli.treasury.v1.budget.Headroom
-	(*mandate.Mandate)(nil),                    // 61: vrooli.treasury.v1.mandate.Mandate
-	(*settlement.Charge)(nil),                  // 62: vrooli.treasury.v1.settlement.Charge
-	(*settlement.ManualAttestation)(nil),       // 63: vrooli.treasury.v1.settlement.ManualAttestation
-	(*book.Book)(nil),                          // 64: vrooli.treasury.v1.book.Book
-	(*budget.Budget)(nil),                      // 65: vrooli.treasury.v1.budget.Budget
-	(approval.ApprovalStatus)(0),               // 66: vrooli.treasury.v1.approval.ApprovalStatus
-	(*approval.ApprovalRequest)(nil),           // 67: vrooli.treasury.v1.approval.ApprovalRequest
-	(*instrument.Instrument)(nil),              // 68: vrooli.treasury.v1.instrument.Instrument
-	(*wallet.Wallet)(nil),                      // 69: vrooli.treasury.v1.wallet.Wallet
-	(*wallet.ControlProof)(nil),                // 70: vrooli.treasury.v1.wallet.ControlProof
-	(*wallet.BaseUSDCTransferObservation)(nil), // 71: vrooli.treasury.v1.wallet.BaseUSDCTransferObservation
-	(*wallet.BaseUSDCReceiptCheck)(nil),        // 72: vrooli.treasury.v1.wallet.BaseUSDCReceiptCheck
+	(*RecheckBaseUSDCReceiptRequest)(nil),      // 57: vrooli.treasury.v1.authorization.RecheckBaseUSDCReceiptRequest
+	(*RecheckBaseUSDCReceiptResponse)(nil),     // 58: vrooli.treasury.v1.authorization.RecheckBaseUSDCReceiptResponse
+	(*ListBaseUSDCReceiptChecksRequest)(nil),   // 59: vrooli.treasury.v1.authorization.ListBaseUSDCReceiptChecksRequest
+	(*ListBaseUSDCReceiptChecksResponse)(nil),  // 60: vrooli.treasury.v1.authorization.ListBaseUSDCReceiptChecksResponse
+	(*timestamppb.Timestamp)(nil),              // 61: google.protobuf.Timestamp
+	(*budget.Headroom)(nil),                    // 62: vrooli.treasury.v1.budget.Headroom
+	(*mandate.Mandate)(nil),                    // 63: vrooli.treasury.v1.mandate.Mandate
+	(*settlement.Charge)(nil),                  // 64: vrooli.treasury.v1.settlement.Charge
+	(*settlement.ManualAttestation)(nil),       // 65: vrooli.treasury.v1.settlement.ManualAttestation
+	(*book.Book)(nil),                          // 66: vrooli.treasury.v1.book.Book
+	(*budget.Budget)(nil),                      // 67: vrooli.treasury.v1.budget.Budget
+	(approval.ApprovalStatus)(0),               // 68: vrooli.treasury.v1.approval.ApprovalStatus
+	(*approval.ApprovalRequest)(nil),           // 69: vrooli.treasury.v1.approval.ApprovalRequest
+	(*instrument.Instrument)(nil),              // 70: vrooli.treasury.v1.instrument.Instrument
+	(*wallet.Wallet)(nil),                      // 71: vrooli.treasury.v1.wallet.Wallet
+	(*wallet.ControlProof)(nil),                // 72: vrooli.treasury.v1.wallet.ControlProof
+	(*wallet.BaseUSDCTransferObservation)(nil), // 73: vrooli.treasury.v1.wallet.BaseUSDCTransferObservation
+	(*wallet.BaseUSDCReceiptCheck)(nil),        // 74: vrooli.treasury.v1.wallet.BaseUSDCReceiptCheck
 }
 var file_treasury_v1_authorization_authorization_proto_depIdxs = []int32{
 	0,  // 0: vrooli.treasury.v1.authorization.AuthorizationRecord.verdict:type_name -> vrooli.treasury.v1.authorization.AuthorizationVerdict
-	59, // 1: vrooli.treasury.v1.authorization.AuthorizationRecord.created_at:type_name -> google.protobuf.Timestamp
-	59, // 2: vrooli.treasury.v1.authorization.AuthorizationRecord.expires_at:type_name -> google.protobuf.Timestamp
+	61, // 1: vrooli.treasury.v1.authorization.AuthorizationRecord.created_at:type_name -> google.protobuf.Timestamp
+	61, // 2: vrooli.treasury.v1.authorization.AuthorizationRecord.expires_at:type_name -> google.protobuf.Timestamp
 	1,  // 3: vrooli.treasury.v1.authorization.ProposeChargeResponse.authorization:type_name -> vrooli.treasury.v1.authorization.AuthorizationRecord
 	1,  // 4: vrooli.treasury.v1.authorization.GetAuthorizationResponse.authorization:type_name -> vrooli.treasury.v1.authorization.AuthorizationRecord
-	60, // 5: vrooli.treasury.v1.authorization.GetBudgetHeadroomResponse.headroom:type_name -> vrooli.treasury.v1.budget.Headroom
-	61, // 6: vrooli.treasury.v1.authorization.ListMandatesResponse.mandates:type_name -> vrooli.treasury.v1.mandate.Mandate
+	62, // 5: vrooli.treasury.v1.authorization.GetBudgetHeadroomResponse.headroom:type_name -> vrooli.treasury.v1.budget.Headroom
+	63, // 6: vrooli.treasury.v1.authorization.ListMandatesResponse.mandates:type_name -> vrooli.treasury.v1.mandate.Mandate
 	1,  // 7: vrooli.treasury.v1.authorization.ReportOutcomeResponse.authorization:type_name -> vrooli.treasury.v1.authorization.AuthorizationRecord
-	62, // 8: vrooli.treasury.v1.authorization.ReportOutcomeResponse.settlement:type_name -> vrooli.treasury.v1.settlement.Charge
-	63, // 9: vrooli.treasury.v1.authorization.ReportManualOutcomeRequest.attestation:type_name -> vrooli.treasury.v1.settlement.ManualAttestation
+	64, // 8: vrooli.treasury.v1.authorization.ReportOutcomeResponse.settlement:type_name -> vrooli.treasury.v1.settlement.Charge
+	65, // 9: vrooli.treasury.v1.authorization.ReportManualOutcomeRequest.attestation:type_name -> vrooli.treasury.v1.settlement.ManualAttestation
 	1,  // 10: vrooli.treasury.v1.authorization.ReportManualOutcomeResponse.authorization:type_name -> vrooli.treasury.v1.authorization.AuthorizationRecord
-	62, // 11: vrooli.treasury.v1.authorization.ReportManualOutcomeResponse.settlement:type_name -> vrooli.treasury.v1.settlement.Charge
+	64, // 11: vrooli.treasury.v1.authorization.ReportManualOutcomeResponse.settlement:type_name -> vrooli.treasury.v1.settlement.Charge
 	1,  // 12: vrooli.treasury.v1.authorization.ResolveUnknownSettlementResponse.authorization:type_name -> vrooli.treasury.v1.authorization.AuthorizationRecord
-	62, // 13: vrooli.treasury.v1.authorization.ResolveUnknownSettlementResponse.settlement:type_name -> vrooli.treasury.v1.settlement.Charge
-	64, // 14: vrooli.treasury.v1.authorization.CreateBookRequest.book:type_name -> vrooli.treasury.v1.book.Book
-	64, // 15: vrooli.treasury.v1.authorization.CreateBookResponse.book:type_name -> vrooli.treasury.v1.book.Book
-	64, // 16: vrooli.treasury.v1.authorization.GetBookResponse.book:type_name -> vrooli.treasury.v1.book.Book
-	61, // 17: vrooli.treasury.v1.authorization.CreateMandateRequest.mandate:type_name -> vrooli.treasury.v1.mandate.Mandate
-	61, // 18: vrooli.treasury.v1.authorization.CreateMandateResponse.mandate:type_name -> vrooli.treasury.v1.mandate.Mandate
-	61, // 19: vrooli.treasury.v1.authorization.RevokeMandateResponse.mandate:type_name -> vrooli.treasury.v1.mandate.Mandate
-	61, // 20: vrooli.treasury.v1.authorization.CancelStandingMandateResponse.mandate:type_name -> vrooli.treasury.v1.mandate.Mandate
-	65, // 21: vrooli.treasury.v1.authorization.SetBudgetCapsRequest.budget:type_name -> vrooli.treasury.v1.budget.Budget
-	65, // 22: vrooli.treasury.v1.authorization.SetBudgetCapsResponse.budget:type_name -> vrooli.treasury.v1.budget.Budget
-	65, // 23: vrooli.treasury.v1.authorization.SetGatingResponse.budget:type_name -> vrooli.treasury.v1.budget.Budget
-	66, // 24: vrooli.treasury.v1.authorization.ResolveApprovalRequest.resolution:type_name -> vrooli.treasury.v1.approval.ApprovalStatus
-	67, // 25: vrooli.treasury.v1.authorization.ResolveApprovalResponse.approval:type_name -> vrooli.treasury.v1.approval.ApprovalRequest
-	66, // 26: vrooli.treasury.v1.authorization.ListApprovalsRequest.status:type_name -> vrooli.treasury.v1.approval.ApprovalStatus
-	67, // 27: vrooli.treasury.v1.authorization.ListApprovalsResponse.approvals:type_name -> vrooli.treasury.v1.approval.ApprovalRequest
-	65, // 28: vrooli.treasury.v1.authorization.FreezeBudgetResponse.budget:type_name -> vrooli.treasury.v1.budget.Budget
-	65, // 29: vrooli.treasury.v1.authorization.UnfreezeBudgetResponse.budget:type_name -> vrooli.treasury.v1.budget.Budget
-	59, // 30: vrooli.treasury.v1.authorization.FreezeBookResponse.updated_at:type_name -> google.protobuf.Timestamp
-	59, // 31: vrooli.treasury.v1.authorization.UnfreezeBookResponse.updated_at:type_name -> google.protobuf.Timestamp
-	59, // 32: vrooli.treasury.v1.authorization.GetFreezeStatusResponse.updated_at:type_name -> google.protobuf.Timestamp
-	59, // 33: vrooli.treasury.v1.authorization.FreezeAllResponse.updated_at:type_name -> google.protobuf.Timestamp
-	59, // 34: vrooli.treasury.v1.authorization.UnfreezeAllResponse.updated_at:type_name -> google.protobuf.Timestamp
-	68, // 35: vrooli.treasury.v1.authorization.RegisterInstrumentRequest.instrument:type_name -> vrooli.treasury.v1.instrument.Instrument
-	68, // 36: vrooli.treasury.v1.authorization.RegisterInstrumentResponse.instrument:type_name -> vrooli.treasury.v1.instrument.Instrument
-	69, // 37: vrooli.treasury.v1.authorization.ResearchWalletResponse.wallet:type_name -> vrooli.treasury.v1.wallet.Wallet
-	70, // 38: vrooli.treasury.v1.authorization.ProveResearchWalletResponse.proof:type_name -> vrooli.treasury.v1.wallet.ControlProof
-	71, // 39: vrooli.treasury.v1.authorization.VerifyBaseUSDCReceiptResponse.transfers:type_name -> vrooli.treasury.v1.wallet.BaseUSDCTransferObservation
-	59, // 40: vrooli.treasury.v1.authorization.VerifyBaseUSDCReceiptResponse.checked_at:type_name -> google.protobuf.Timestamp
-	72, // 41: vrooli.treasury.v1.authorization.ListBaseUSDCReceiptChecksResponse.checks:type_name -> vrooli.treasury.v1.wallet.BaseUSDCReceiptCheck
-	2,  // 42: vrooli.treasury.v1.authorization.AgentSpend.ProposeCharge:input_type -> vrooli.treasury.v1.authorization.ProposeChargeRequest
-	4,  // 43: vrooli.treasury.v1.authorization.AgentSpend.GetAuthorization:input_type -> vrooli.treasury.v1.authorization.GetAuthorizationRequest
-	6,  // 44: vrooli.treasury.v1.authorization.AgentSpend.GetBudgetHeadroom:input_type -> vrooli.treasury.v1.authorization.GetBudgetHeadroomRequest
-	8,  // 45: vrooli.treasury.v1.authorization.AgentSpend.ListMandates:input_type -> vrooli.treasury.v1.authorization.ListMandatesRequest
-	10, // 46: vrooli.treasury.v1.authorization.AgentSpend.ReportOutcome:input_type -> vrooli.treasury.v1.authorization.ReportOutcomeRequest
-	50, // 47: vrooli.treasury.v1.authorization.TreasuryAdmin.CreateResearchWallet:input_type -> vrooli.treasury.v1.authorization.CreateResearchWalletRequest
-	51, // 48: vrooli.treasury.v1.authorization.TreasuryAdmin.GetResearchWallet:input_type -> vrooli.treasury.v1.authorization.ResearchWalletRequest
-	53, // 49: vrooli.treasury.v1.authorization.TreasuryAdmin.ProveResearchWallet:input_type -> vrooli.treasury.v1.authorization.ProveResearchWalletRequest
-	55, // 50: vrooli.treasury.v1.authorization.TreasuryAdmin.VerifyBaseUSDCReceipt:input_type -> vrooli.treasury.v1.authorization.VerifyBaseUSDCReceiptRequest
-	57, // 51: vrooli.treasury.v1.authorization.TreasuryAdmin.ListBaseUSDCReceiptChecks:input_type -> vrooli.treasury.v1.authorization.ListBaseUSDCReceiptChecksRequest
-	51, // 52: vrooli.treasury.v1.authorization.TreasuryAdmin.QualifyResearchWalletRecovery:input_type -> vrooli.treasury.v1.authorization.ResearchWalletRequest
-	51, // 53: vrooli.treasury.v1.authorization.TreasuryAdmin.RecoverResearchWallet:input_type -> vrooli.treasury.v1.authorization.ResearchWalletRequest
-	16, // 54: vrooli.treasury.v1.authorization.TreasuryAdmin.CreateBook:input_type -> vrooli.treasury.v1.authorization.CreateBookRequest
-	18, // 55: vrooli.treasury.v1.authorization.TreasuryAdmin.GetBook:input_type -> vrooli.treasury.v1.authorization.GetBookRequest
-	20, // 56: vrooli.treasury.v1.authorization.TreasuryAdmin.CreateMandate:input_type -> vrooli.treasury.v1.authorization.CreateMandateRequest
-	22, // 57: vrooli.treasury.v1.authorization.TreasuryAdmin.RevokeMandate:input_type -> vrooli.treasury.v1.authorization.RevokeMandateRequest
-	24, // 58: vrooli.treasury.v1.authorization.TreasuryAdmin.CancelStandingMandate:input_type -> vrooli.treasury.v1.authorization.CancelStandingMandateRequest
-	8,  // 59: vrooli.treasury.v1.authorization.TreasuryAdmin.ListMandates:input_type -> vrooli.treasury.v1.authorization.ListMandatesRequest
-	26, // 60: vrooli.treasury.v1.authorization.TreasuryAdmin.SetBudgetCaps:input_type -> vrooli.treasury.v1.authorization.SetBudgetCapsRequest
-	28, // 61: vrooli.treasury.v1.authorization.TreasuryAdmin.SetGating:input_type -> vrooli.treasury.v1.authorization.SetGatingRequest
-	32, // 62: vrooli.treasury.v1.authorization.TreasuryAdmin.ListApprovals:input_type -> vrooli.treasury.v1.authorization.ListApprovalsRequest
-	30, // 63: vrooli.treasury.v1.authorization.TreasuryAdmin.ResolveApproval:input_type -> vrooli.treasury.v1.authorization.ResolveApprovalRequest
-	34, // 64: vrooli.treasury.v1.authorization.TreasuryAdmin.FreezeBudget:input_type -> vrooli.treasury.v1.authorization.FreezeBudgetRequest
-	36, // 65: vrooli.treasury.v1.authorization.TreasuryAdmin.UnfreezeBudget:input_type -> vrooli.treasury.v1.authorization.UnfreezeBudgetRequest
-	38, // 66: vrooli.treasury.v1.authorization.TreasuryAdmin.FreezeBook:input_type -> vrooli.treasury.v1.authorization.FreezeBookRequest
-	40, // 67: vrooli.treasury.v1.authorization.TreasuryAdmin.UnfreezeBook:input_type -> vrooli.treasury.v1.authorization.UnfreezeBookRequest
-	42, // 68: vrooli.treasury.v1.authorization.TreasuryAdmin.FreezeAll:input_type -> vrooli.treasury.v1.authorization.FreezeAllRequest
-	43, // 69: vrooli.treasury.v1.authorization.TreasuryAdmin.GetFreezeStatus:input_type -> vrooli.treasury.v1.authorization.GetFreezeStatusRequest
-	46, // 70: vrooli.treasury.v1.authorization.TreasuryAdmin.UnfreezeAll:input_type -> vrooli.treasury.v1.authorization.UnfreezeAllRequest
-	48, // 71: vrooli.treasury.v1.authorization.TreasuryAdmin.RegisterInstrument:input_type -> vrooli.treasury.v1.authorization.RegisterInstrumentRequest
-	12, // 72: vrooli.treasury.v1.authorization.TreasuryAdmin.ReportManualOutcome:input_type -> vrooli.treasury.v1.authorization.ReportManualOutcomeRequest
-	14, // 73: vrooli.treasury.v1.authorization.TreasuryAdmin.ResolveUnknownSettlement:input_type -> vrooli.treasury.v1.authorization.ResolveUnknownSettlementRequest
-	3,  // 74: vrooli.treasury.v1.authorization.AgentSpend.ProposeCharge:output_type -> vrooli.treasury.v1.authorization.ProposeChargeResponse
-	5,  // 75: vrooli.treasury.v1.authorization.AgentSpend.GetAuthorization:output_type -> vrooli.treasury.v1.authorization.GetAuthorizationResponse
-	7,  // 76: vrooli.treasury.v1.authorization.AgentSpend.GetBudgetHeadroom:output_type -> vrooli.treasury.v1.authorization.GetBudgetHeadroomResponse
-	9,  // 77: vrooli.treasury.v1.authorization.AgentSpend.ListMandates:output_type -> vrooli.treasury.v1.authorization.ListMandatesResponse
-	11, // 78: vrooli.treasury.v1.authorization.AgentSpend.ReportOutcome:output_type -> vrooli.treasury.v1.authorization.ReportOutcomeResponse
-	52, // 79: vrooli.treasury.v1.authorization.TreasuryAdmin.CreateResearchWallet:output_type -> vrooli.treasury.v1.authorization.ResearchWalletResponse
-	52, // 80: vrooli.treasury.v1.authorization.TreasuryAdmin.GetResearchWallet:output_type -> vrooli.treasury.v1.authorization.ResearchWalletResponse
-	54, // 81: vrooli.treasury.v1.authorization.TreasuryAdmin.ProveResearchWallet:output_type -> vrooli.treasury.v1.authorization.ProveResearchWalletResponse
-	56, // 82: vrooli.treasury.v1.authorization.TreasuryAdmin.VerifyBaseUSDCReceipt:output_type -> vrooli.treasury.v1.authorization.VerifyBaseUSDCReceiptResponse
-	58, // 83: vrooli.treasury.v1.authorization.TreasuryAdmin.ListBaseUSDCReceiptChecks:output_type -> vrooli.treasury.v1.authorization.ListBaseUSDCReceiptChecksResponse
-	52, // 84: vrooli.treasury.v1.authorization.TreasuryAdmin.QualifyResearchWalletRecovery:output_type -> vrooli.treasury.v1.authorization.ResearchWalletResponse
-	52, // 85: vrooli.treasury.v1.authorization.TreasuryAdmin.RecoverResearchWallet:output_type -> vrooli.treasury.v1.authorization.ResearchWalletResponse
-	17, // 86: vrooli.treasury.v1.authorization.TreasuryAdmin.CreateBook:output_type -> vrooli.treasury.v1.authorization.CreateBookResponse
-	19, // 87: vrooli.treasury.v1.authorization.TreasuryAdmin.GetBook:output_type -> vrooli.treasury.v1.authorization.GetBookResponse
-	21, // 88: vrooli.treasury.v1.authorization.TreasuryAdmin.CreateMandate:output_type -> vrooli.treasury.v1.authorization.CreateMandateResponse
-	23, // 89: vrooli.treasury.v1.authorization.TreasuryAdmin.RevokeMandate:output_type -> vrooli.treasury.v1.authorization.RevokeMandateResponse
-	25, // 90: vrooli.treasury.v1.authorization.TreasuryAdmin.CancelStandingMandate:output_type -> vrooli.treasury.v1.authorization.CancelStandingMandateResponse
-	9,  // 91: vrooli.treasury.v1.authorization.TreasuryAdmin.ListMandates:output_type -> vrooli.treasury.v1.authorization.ListMandatesResponse
-	27, // 92: vrooli.treasury.v1.authorization.TreasuryAdmin.SetBudgetCaps:output_type -> vrooli.treasury.v1.authorization.SetBudgetCapsResponse
-	29, // 93: vrooli.treasury.v1.authorization.TreasuryAdmin.SetGating:output_type -> vrooli.treasury.v1.authorization.SetGatingResponse
-	33, // 94: vrooli.treasury.v1.authorization.TreasuryAdmin.ListApprovals:output_type -> vrooli.treasury.v1.authorization.ListApprovalsResponse
-	31, // 95: vrooli.treasury.v1.authorization.TreasuryAdmin.ResolveApproval:output_type -> vrooli.treasury.v1.authorization.ResolveApprovalResponse
-	35, // 96: vrooli.treasury.v1.authorization.TreasuryAdmin.FreezeBudget:output_type -> vrooli.treasury.v1.authorization.FreezeBudgetResponse
-	37, // 97: vrooli.treasury.v1.authorization.TreasuryAdmin.UnfreezeBudget:output_type -> vrooli.treasury.v1.authorization.UnfreezeBudgetResponse
-	39, // 98: vrooli.treasury.v1.authorization.TreasuryAdmin.FreezeBook:output_type -> vrooli.treasury.v1.authorization.FreezeBookResponse
-	41, // 99: vrooli.treasury.v1.authorization.TreasuryAdmin.UnfreezeBook:output_type -> vrooli.treasury.v1.authorization.UnfreezeBookResponse
-	45, // 100: vrooli.treasury.v1.authorization.TreasuryAdmin.FreezeAll:output_type -> vrooli.treasury.v1.authorization.FreezeAllResponse
-	44, // 101: vrooli.treasury.v1.authorization.TreasuryAdmin.GetFreezeStatus:output_type -> vrooli.treasury.v1.authorization.GetFreezeStatusResponse
-	47, // 102: vrooli.treasury.v1.authorization.TreasuryAdmin.UnfreezeAll:output_type -> vrooli.treasury.v1.authorization.UnfreezeAllResponse
-	49, // 103: vrooli.treasury.v1.authorization.TreasuryAdmin.RegisterInstrument:output_type -> vrooli.treasury.v1.authorization.RegisterInstrumentResponse
-	13, // 104: vrooli.treasury.v1.authorization.TreasuryAdmin.ReportManualOutcome:output_type -> vrooli.treasury.v1.authorization.ReportManualOutcomeResponse
-	15, // 105: vrooli.treasury.v1.authorization.TreasuryAdmin.ResolveUnknownSettlement:output_type -> vrooli.treasury.v1.authorization.ResolveUnknownSettlementResponse
-	74, // [74:106] is the sub-list for method output_type
-	42, // [42:74] is the sub-list for method input_type
-	42, // [42:42] is the sub-list for extension type_name
-	42, // [42:42] is the sub-list for extension extendee
-	0,  // [0:42] is the sub-list for field type_name
+	64, // 13: vrooli.treasury.v1.authorization.ResolveUnknownSettlementResponse.settlement:type_name -> vrooli.treasury.v1.settlement.Charge
+	66, // 14: vrooli.treasury.v1.authorization.CreateBookRequest.book:type_name -> vrooli.treasury.v1.book.Book
+	66, // 15: vrooli.treasury.v1.authorization.CreateBookResponse.book:type_name -> vrooli.treasury.v1.book.Book
+	66, // 16: vrooli.treasury.v1.authorization.GetBookResponse.book:type_name -> vrooli.treasury.v1.book.Book
+	63, // 17: vrooli.treasury.v1.authorization.CreateMandateRequest.mandate:type_name -> vrooli.treasury.v1.mandate.Mandate
+	63, // 18: vrooli.treasury.v1.authorization.CreateMandateResponse.mandate:type_name -> vrooli.treasury.v1.mandate.Mandate
+	63, // 19: vrooli.treasury.v1.authorization.RevokeMandateResponse.mandate:type_name -> vrooli.treasury.v1.mandate.Mandate
+	63, // 20: vrooli.treasury.v1.authorization.CancelStandingMandateResponse.mandate:type_name -> vrooli.treasury.v1.mandate.Mandate
+	67, // 21: vrooli.treasury.v1.authorization.SetBudgetCapsRequest.budget:type_name -> vrooli.treasury.v1.budget.Budget
+	67, // 22: vrooli.treasury.v1.authorization.SetBudgetCapsResponse.budget:type_name -> vrooli.treasury.v1.budget.Budget
+	67, // 23: vrooli.treasury.v1.authorization.SetGatingResponse.budget:type_name -> vrooli.treasury.v1.budget.Budget
+	68, // 24: vrooli.treasury.v1.authorization.ResolveApprovalRequest.resolution:type_name -> vrooli.treasury.v1.approval.ApprovalStatus
+	69, // 25: vrooli.treasury.v1.authorization.ResolveApprovalResponse.approval:type_name -> vrooli.treasury.v1.approval.ApprovalRequest
+	68, // 26: vrooli.treasury.v1.authorization.ListApprovalsRequest.status:type_name -> vrooli.treasury.v1.approval.ApprovalStatus
+	69, // 27: vrooli.treasury.v1.authorization.ListApprovalsResponse.approvals:type_name -> vrooli.treasury.v1.approval.ApprovalRequest
+	67, // 28: vrooli.treasury.v1.authorization.FreezeBudgetResponse.budget:type_name -> vrooli.treasury.v1.budget.Budget
+	67, // 29: vrooli.treasury.v1.authorization.UnfreezeBudgetResponse.budget:type_name -> vrooli.treasury.v1.budget.Budget
+	61, // 30: vrooli.treasury.v1.authorization.FreezeBookResponse.updated_at:type_name -> google.protobuf.Timestamp
+	61, // 31: vrooli.treasury.v1.authorization.UnfreezeBookResponse.updated_at:type_name -> google.protobuf.Timestamp
+	61, // 32: vrooli.treasury.v1.authorization.GetFreezeStatusResponse.updated_at:type_name -> google.protobuf.Timestamp
+	61, // 33: vrooli.treasury.v1.authorization.FreezeAllResponse.updated_at:type_name -> google.protobuf.Timestamp
+	61, // 34: vrooli.treasury.v1.authorization.UnfreezeAllResponse.updated_at:type_name -> google.protobuf.Timestamp
+	70, // 35: vrooli.treasury.v1.authorization.RegisterInstrumentRequest.instrument:type_name -> vrooli.treasury.v1.instrument.Instrument
+	70, // 36: vrooli.treasury.v1.authorization.RegisterInstrumentResponse.instrument:type_name -> vrooli.treasury.v1.instrument.Instrument
+	71, // 37: vrooli.treasury.v1.authorization.ResearchWalletResponse.wallet:type_name -> vrooli.treasury.v1.wallet.Wallet
+	72, // 38: vrooli.treasury.v1.authorization.ProveResearchWalletResponse.proof:type_name -> vrooli.treasury.v1.wallet.ControlProof
+	73, // 39: vrooli.treasury.v1.authorization.VerifyBaseUSDCReceiptResponse.transfers:type_name -> vrooli.treasury.v1.wallet.BaseUSDCTransferObservation
+	61, // 40: vrooli.treasury.v1.authorization.VerifyBaseUSDCReceiptResponse.checked_at:type_name -> google.protobuf.Timestamp
+	74, // 41: vrooli.treasury.v1.authorization.RecheckBaseUSDCReceiptResponse.check:type_name -> vrooli.treasury.v1.wallet.BaseUSDCReceiptCheck
+	74, // 42: vrooli.treasury.v1.authorization.ListBaseUSDCReceiptChecksResponse.checks:type_name -> vrooli.treasury.v1.wallet.BaseUSDCReceiptCheck
+	2,  // 43: vrooli.treasury.v1.authorization.AgentSpend.ProposeCharge:input_type -> vrooli.treasury.v1.authorization.ProposeChargeRequest
+	4,  // 44: vrooli.treasury.v1.authorization.AgentSpend.GetAuthorization:input_type -> vrooli.treasury.v1.authorization.GetAuthorizationRequest
+	6,  // 45: vrooli.treasury.v1.authorization.AgentSpend.GetBudgetHeadroom:input_type -> vrooli.treasury.v1.authorization.GetBudgetHeadroomRequest
+	8,  // 46: vrooli.treasury.v1.authorization.AgentSpend.ListMandates:input_type -> vrooli.treasury.v1.authorization.ListMandatesRequest
+	10, // 47: vrooli.treasury.v1.authorization.AgentSpend.ReportOutcome:input_type -> vrooli.treasury.v1.authorization.ReportOutcomeRequest
+	50, // 48: vrooli.treasury.v1.authorization.TreasuryAdmin.CreateResearchWallet:input_type -> vrooli.treasury.v1.authorization.CreateResearchWalletRequest
+	51, // 49: vrooli.treasury.v1.authorization.TreasuryAdmin.GetResearchWallet:input_type -> vrooli.treasury.v1.authorization.ResearchWalletRequest
+	53, // 50: vrooli.treasury.v1.authorization.TreasuryAdmin.ProveResearchWallet:input_type -> vrooli.treasury.v1.authorization.ProveResearchWalletRequest
+	55, // 51: vrooli.treasury.v1.authorization.TreasuryAdmin.VerifyBaseUSDCReceipt:input_type -> vrooli.treasury.v1.authorization.VerifyBaseUSDCReceiptRequest
+	57, // 52: vrooli.treasury.v1.authorization.TreasuryAdmin.RecheckBaseUSDCReceipt:input_type -> vrooli.treasury.v1.authorization.RecheckBaseUSDCReceiptRequest
+	59, // 53: vrooli.treasury.v1.authorization.TreasuryAdmin.ListBaseUSDCReceiptChecks:input_type -> vrooli.treasury.v1.authorization.ListBaseUSDCReceiptChecksRequest
+	51, // 54: vrooli.treasury.v1.authorization.TreasuryAdmin.QualifyResearchWalletRecovery:input_type -> vrooli.treasury.v1.authorization.ResearchWalletRequest
+	51, // 55: vrooli.treasury.v1.authorization.TreasuryAdmin.RecoverResearchWallet:input_type -> vrooli.treasury.v1.authorization.ResearchWalletRequest
+	16, // 56: vrooli.treasury.v1.authorization.TreasuryAdmin.CreateBook:input_type -> vrooli.treasury.v1.authorization.CreateBookRequest
+	18, // 57: vrooli.treasury.v1.authorization.TreasuryAdmin.GetBook:input_type -> vrooli.treasury.v1.authorization.GetBookRequest
+	20, // 58: vrooli.treasury.v1.authorization.TreasuryAdmin.CreateMandate:input_type -> vrooli.treasury.v1.authorization.CreateMandateRequest
+	22, // 59: vrooli.treasury.v1.authorization.TreasuryAdmin.RevokeMandate:input_type -> vrooli.treasury.v1.authorization.RevokeMandateRequest
+	24, // 60: vrooli.treasury.v1.authorization.TreasuryAdmin.CancelStandingMandate:input_type -> vrooli.treasury.v1.authorization.CancelStandingMandateRequest
+	8,  // 61: vrooli.treasury.v1.authorization.TreasuryAdmin.ListMandates:input_type -> vrooli.treasury.v1.authorization.ListMandatesRequest
+	26, // 62: vrooli.treasury.v1.authorization.TreasuryAdmin.SetBudgetCaps:input_type -> vrooli.treasury.v1.authorization.SetBudgetCapsRequest
+	28, // 63: vrooli.treasury.v1.authorization.TreasuryAdmin.SetGating:input_type -> vrooli.treasury.v1.authorization.SetGatingRequest
+	32, // 64: vrooli.treasury.v1.authorization.TreasuryAdmin.ListApprovals:input_type -> vrooli.treasury.v1.authorization.ListApprovalsRequest
+	30, // 65: vrooli.treasury.v1.authorization.TreasuryAdmin.ResolveApproval:input_type -> vrooli.treasury.v1.authorization.ResolveApprovalRequest
+	34, // 66: vrooli.treasury.v1.authorization.TreasuryAdmin.FreezeBudget:input_type -> vrooli.treasury.v1.authorization.FreezeBudgetRequest
+	36, // 67: vrooli.treasury.v1.authorization.TreasuryAdmin.UnfreezeBudget:input_type -> vrooli.treasury.v1.authorization.UnfreezeBudgetRequest
+	38, // 68: vrooli.treasury.v1.authorization.TreasuryAdmin.FreezeBook:input_type -> vrooli.treasury.v1.authorization.FreezeBookRequest
+	40, // 69: vrooli.treasury.v1.authorization.TreasuryAdmin.UnfreezeBook:input_type -> vrooli.treasury.v1.authorization.UnfreezeBookRequest
+	42, // 70: vrooli.treasury.v1.authorization.TreasuryAdmin.FreezeAll:input_type -> vrooli.treasury.v1.authorization.FreezeAllRequest
+	43, // 71: vrooli.treasury.v1.authorization.TreasuryAdmin.GetFreezeStatus:input_type -> vrooli.treasury.v1.authorization.GetFreezeStatusRequest
+	46, // 72: vrooli.treasury.v1.authorization.TreasuryAdmin.UnfreezeAll:input_type -> vrooli.treasury.v1.authorization.UnfreezeAllRequest
+	48, // 73: vrooli.treasury.v1.authorization.TreasuryAdmin.RegisterInstrument:input_type -> vrooli.treasury.v1.authorization.RegisterInstrumentRequest
+	12, // 74: vrooli.treasury.v1.authorization.TreasuryAdmin.ReportManualOutcome:input_type -> vrooli.treasury.v1.authorization.ReportManualOutcomeRequest
+	14, // 75: vrooli.treasury.v1.authorization.TreasuryAdmin.ResolveUnknownSettlement:input_type -> vrooli.treasury.v1.authorization.ResolveUnknownSettlementRequest
+	3,  // 76: vrooli.treasury.v1.authorization.AgentSpend.ProposeCharge:output_type -> vrooli.treasury.v1.authorization.ProposeChargeResponse
+	5,  // 77: vrooli.treasury.v1.authorization.AgentSpend.GetAuthorization:output_type -> vrooli.treasury.v1.authorization.GetAuthorizationResponse
+	7,  // 78: vrooli.treasury.v1.authorization.AgentSpend.GetBudgetHeadroom:output_type -> vrooli.treasury.v1.authorization.GetBudgetHeadroomResponse
+	9,  // 79: vrooli.treasury.v1.authorization.AgentSpend.ListMandates:output_type -> vrooli.treasury.v1.authorization.ListMandatesResponse
+	11, // 80: vrooli.treasury.v1.authorization.AgentSpend.ReportOutcome:output_type -> vrooli.treasury.v1.authorization.ReportOutcomeResponse
+	52, // 81: vrooli.treasury.v1.authorization.TreasuryAdmin.CreateResearchWallet:output_type -> vrooli.treasury.v1.authorization.ResearchWalletResponse
+	52, // 82: vrooli.treasury.v1.authorization.TreasuryAdmin.GetResearchWallet:output_type -> vrooli.treasury.v1.authorization.ResearchWalletResponse
+	54, // 83: vrooli.treasury.v1.authorization.TreasuryAdmin.ProveResearchWallet:output_type -> vrooli.treasury.v1.authorization.ProveResearchWalletResponse
+	56, // 84: vrooli.treasury.v1.authorization.TreasuryAdmin.VerifyBaseUSDCReceipt:output_type -> vrooli.treasury.v1.authorization.VerifyBaseUSDCReceiptResponse
+	58, // 85: vrooli.treasury.v1.authorization.TreasuryAdmin.RecheckBaseUSDCReceipt:output_type -> vrooli.treasury.v1.authorization.RecheckBaseUSDCReceiptResponse
+	60, // 86: vrooli.treasury.v1.authorization.TreasuryAdmin.ListBaseUSDCReceiptChecks:output_type -> vrooli.treasury.v1.authorization.ListBaseUSDCReceiptChecksResponse
+	52, // 87: vrooli.treasury.v1.authorization.TreasuryAdmin.QualifyResearchWalletRecovery:output_type -> vrooli.treasury.v1.authorization.ResearchWalletResponse
+	52, // 88: vrooli.treasury.v1.authorization.TreasuryAdmin.RecoverResearchWallet:output_type -> vrooli.treasury.v1.authorization.ResearchWalletResponse
+	17, // 89: vrooli.treasury.v1.authorization.TreasuryAdmin.CreateBook:output_type -> vrooli.treasury.v1.authorization.CreateBookResponse
+	19, // 90: vrooli.treasury.v1.authorization.TreasuryAdmin.GetBook:output_type -> vrooli.treasury.v1.authorization.GetBookResponse
+	21, // 91: vrooli.treasury.v1.authorization.TreasuryAdmin.CreateMandate:output_type -> vrooli.treasury.v1.authorization.CreateMandateResponse
+	23, // 92: vrooli.treasury.v1.authorization.TreasuryAdmin.RevokeMandate:output_type -> vrooli.treasury.v1.authorization.RevokeMandateResponse
+	25, // 93: vrooli.treasury.v1.authorization.TreasuryAdmin.CancelStandingMandate:output_type -> vrooli.treasury.v1.authorization.CancelStandingMandateResponse
+	9,  // 94: vrooli.treasury.v1.authorization.TreasuryAdmin.ListMandates:output_type -> vrooli.treasury.v1.authorization.ListMandatesResponse
+	27, // 95: vrooli.treasury.v1.authorization.TreasuryAdmin.SetBudgetCaps:output_type -> vrooli.treasury.v1.authorization.SetBudgetCapsResponse
+	29, // 96: vrooli.treasury.v1.authorization.TreasuryAdmin.SetGating:output_type -> vrooli.treasury.v1.authorization.SetGatingResponse
+	33, // 97: vrooli.treasury.v1.authorization.TreasuryAdmin.ListApprovals:output_type -> vrooli.treasury.v1.authorization.ListApprovalsResponse
+	31, // 98: vrooli.treasury.v1.authorization.TreasuryAdmin.ResolveApproval:output_type -> vrooli.treasury.v1.authorization.ResolveApprovalResponse
+	35, // 99: vrooli.treasury.v1.authorization.TreasuryAdmin.FreezeBudget:output_type -> vrooli.treasury.v1.authorization.FreezeBudgetResponse
+	37, // 100: vrooli.treasury.v1.authorization.TreasuryAdmin.UnfreezeBudget:output_type -> vrooli.treasury.v1.authorization.UnfreezeBudgetResponse
+	39, // 101: vrooli.treasury.v1.authorization.TreasuryAdmin.FreezeBook:output_type -> vrooli.treasury.v1.authorization.FreezeBookResponse
+	41, // 102: vrooli.treasury.v1.authorization.TreasuryAdmin.UnfreezeBook:output_type -> vrooli.treasury.v1.authorization.UnfreezeBookResponse
+	45, // 103: vrooli.treasury.v1.authorization.TreasuryAdmin.FreezeAll:output_type -> vrooli.treasury.v1.authorization.FreezeAllResponse
+	44, // 104: vrooli.treasury.v1.authorization.TreasuryAdmin.GetFreezeStatus:output_type -> vrooli.treasury.v1.authorization.GetFreezeStatusResponse
+	47, // 105: vrooli.treasury.v1.authorization.TreasuryAdmin.UnfreezeAll:output_type -> vrooli.treasury.v1.authorization.UnfreezeAllResponse
+	49, // 106: vrooli.treasury.v1.authorization.TreasuryAdmin.RegisterInstrument:output_type -> vrooli.treasury.v1.authorization.RegisterInstrumentResponse
+	13, // 107: vrooli.treasury.v1.authorization.TreasuryAdmin.ReportManualOutcome:output_type -> vrooli.treasury.v1.authorization.ReportManualOutcomeResponse
+	15, // 108: vrooli.treasury.v1.authorization.TreasuryAdmin.ResolveUnknownSettlement:output_type -> vrooli.treasury.v1.authorization.ResolveUnknownSettlementResponse
+	76, // [76:109] is the sub-list for method output_type
+	43, // [43:76] is the sub-list for method input_type
+	43, // [43:43] is the sub-list for extension type_name
+	43, // [43:43] is the sub-list for extension extendee
+	0,  // [0:43] is the sub-list for field type_name
 }
 
 func init() { file_treasury_v1_authorization_authorization_proto_init() }
@@ -3504,7 +3623,7 @@ func file_treasury_v1_authorization_authorization_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_treasury_v1_authorization_authorization_proto_rawDesc), len(file_treasury_v1_authorization_authorization_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   58,
+			NumMessages:   60,
 			NumExtensions: 0,
 			NumServices:   2,
 		},

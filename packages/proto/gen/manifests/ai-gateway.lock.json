@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "scenario": "ai-gateway",
-  "input_digest": "sha256:845309aef76909ab28db1184165888aa26f5bdcb5c11420d185671d71fec84f4",
+  "input_digest": "sha256:ae219f67a3b8ce00538d5e7e2125dfc393238aebc0a1bb81d6aecdaf97df008a",
   "input_files": [
     "schemas/ai-gateway/v1/conformance/conformance.proto",
     "schemas/ai-gateway/v1/gateway/gateway.proto",
@@ -18,7 +18,7 @@
   "toolchain": {
     "buf": "1.37.0",
     "buf_gen_yaml_digest": "sha256:0006e0ffb2ba47a8abd22f21bcd0646e9aaa7a47f8bc8cd028bc17c74a5b346d",
-    "generator_digest": "sha256:00641b8b46018a15d67bebb28f7d4ae7caa5bfc402255ccd952815314415b921",
+    "generator_digest": "sha256:cccdbaf9a556a5be923d2c17f31d7f3f1e8de7959b27263f9ddbb964a4b52cc9",
     "plugins": {
       "protoc": "34.1",
       "protoc-gen-connect-go": "v1.19.2",
@@ -31,7 +31,7 @@
     "gen/go/ai-gateway/v1/conformance/conformance_v1connect/conformance.connect.go": "sha256:1025baf72149721a877ed9d9014245e2eb9f5b8df12f1488d903e0179f861f76",
     "gen/go/ai-gateway/v1/gateway/gateway.pb.go": "sha256:5ed39f68ef183355ea54440d0df5b9d96bc72e4c2d3e6c77c7be470c408a1e50",
     "gen/go/ai-gateway/v1/gateway/gateway_v1connect/gateway.connect.go": "sha256:e1e38d91e621d033b522ed1549d9c9a73c97d7b9fd6cea8c7099e9598a329b18",
-    "gen/go/ai-gateway/v1/inference/inference.pb.go": "sha256:94dbfd1854962b3d9b260965c049084a4ce484a4037f4ecb258208fa648ac40d",
+    "gen/go/ai-gateway/v1/inference/inference.pb.go": "sha256:3aace18e705d54aa57d3de9e6aadd6a1e6d28a1e23e4a2c055360fbb8a1474f7",
     "gen/go/ai-gateway/v1/inference/inference_v1connect/inference.connect.go": "sha256:ff55f220ec454e8e77b7b3659582c7fac8c2afc7788b305be832d5cc9fe1ee2d",
     "gen/go/ai-gateway/v1/inventory/inventory.pb.go": "sha256:8e4366c393e757b3630858ee95c34c6078ca0dcf4cc284e10d0add0983531d9f",
     "gen/go/ai-gateway/v1/inventory/inventory_v1connect/inventory.connect.go": "sha256:ffcd7a85f234c5b689c22bcbb46d3a522a678c532b7a5eb1833d5a3c856fa3cf",
@@ -49,8 +49,8 @@
     "gen/python/ai_gateway/v1/gateway/gateway_pb2.py": "sha256:a3bcec5429752a59b3917d7270b26d26670b99e67904b2f9fd924ab9bbf2276d",
     "gen/python/ai_gateway/v1/gateway/gateway_pb2.pyi": "sha256:a36bb36e1466b7619a9616eafa95f684bf1022de597943e41dfba9a460fe9cb5",
     "gen/python/ai_gateway/v1/gateway/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-    "gen/python/ai_gateway/v1/inference/inference_pb2.py": "sha256:f3f1e049a51c3c014ef1e5ab93ed72f79b6d65999b4a2f8b34172017c6501be3",
-    "gen/python/ai_gateway/v1/inference/inference_pb2.pyi": "sha256:99d6313743c4b536fe1a10173651835736753299d08d4f7a2477089809a63220",
+    "gen/python/ai_gateway/v1/inference/inference_pb2.py": "sha256:a3d35bb8e8691e6f2069e2bf0d49cdac646ebd912a24562d5b7f1daf3ffd2cdb",
+    "gen/python/ai_gateway/v1/inference/inference_pb2.pyi": "sha256:e719c09a9f6e6f2ccc244b8b76628c10a6391ec3e60caa945254c721a91e3b3a",
     "gen/python/ai_gateway/v1/inference/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
     "gen/python/ai_gateway/v1/inventory/inventory_pb2.py": "sha256:ef5a825782d634aeeaaf5c97026db7c9b8f3d8b5226d1cf1039d8ccee35d0f62",
     "gen/python/ai_gateway/v1/inventory/inventory_pb2.pyi": "sha256:bf9326fcfad9c6e301abb22ea359ae43f8c227a58ed046881c53cc3f155cc72e",
@@ -71,7 +71,7 @@
     "gen/python/ai_gateway/v1/shared/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
     "gen/typescript/ai-gateway/v1/conformance/conformance_pb.ts": "sha256:fb1b0726fa47d19f32e9e8771b1bf1eb0a3e75a09f195e1c0738f1351da45075",
     "gen/typescript/ai-gateway/v1/gateway/gateway_pb.ts": "sha256:17892b82e0012ad3233fb56ee685efeceb11b2e2feadff2710e5c7fd736a359b",
-    "gen/typescript/ai-gateway/v1/inference/inference_pb.ts": "sha256:4cfb631623a3afca168e91b06d813bd8503f318818e52218037a79c1491fbe75",
+    "gen/typescript/ai-gateway/v1/inference/inference_pb.ts": "sha256:4bae51772df8330827a3788ba16798a36a15f09fd56f6c245d7fd2d39a89040b",
     "gen/typescript/ai-gateway/v1/inventory/inventory_pb.ts": "sha256:476b456117c226bdec4a9248bc8fd9ae7799fbbc2ab253d5c930100a55f3cacf",
     "gen/typescript/ai-gateway/v1/measures/measures_pb.ts": "sha256:1dce74a3961a27010deac1fa3f6bbbbfae7b98034e62effd7b0a4419e9b5367b",
     "gen/typescript/ai-gateway/v1/routing/routing_pb.ts": "sha256:50385cac4c1ad2f24b92ecaaed06734addb9f702c3cb4aceef99b60b0ba7f72a",

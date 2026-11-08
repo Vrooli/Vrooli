@@ -34,9 +34,14 @@ const (
 	// retention window alone grows with publication frequency, so collection
 	// also caps how many unprotected snapshots survive inside that window.
 	defaultSnapshotKeep = 8
-	// Keep consumer freshness cheap: hash this tiny selection stamp instead of
-	// walking the roughly 100 MB generated compatibility tree.
-	compatibilityStampName = ".vrooli-proto-artifact.json"
+	// CompatibilityStampName is the selection stamp written inside the
+	// compatibility view (packages/proto/gen). It lives in the view rather than
+	// beside it because it is published by the same atomic rename, so the stamp
+	// can never describe a different snapshot than the tree it sits in.
+	// Consumer freshness hashes this tiny stamp instead of walking the roughly
+	// 100 MB generated tree. It is runtime selection state, not buf output, and
+	// committed-output comparison ignores it.
+	CompatibilityStampName = ".vrooli-proto-artifact.json"
 )
 
 var (
@@ -252,6 +257,21 @@ type Store struct {
 	Logger io.Writer
 
 	mu sync.Mutex
+}
+
+// ArtifactRootEnv overrides the artifact store a process publishes to and
+// stages beside. Lifecycle passes it to generation it supervises; an isolated
+// proto tree (template validation's sandbox) sets it so its output can never
+// become the shared active artifact.
+const ArtifactRootEnv = "VROOLI_PROTO_ARTIFACT_ROOT"
+
+// ResolveArtifactRoot is the artifact store for this process: ArtifactRootEnv
+// when set, otherwise the operator's default store.
+func ResolveArtifactRoot() string {
+	if root := strings.TrimSpace(os.Getenv(ArtifactRootEnv)); root != "" {
+		return filepath.Clean(root)
+	}
+	return DefaultArtifactRoot("")
 }
 
 func DefaultArtifactRoot(home string) string {
@@ -645,9 +665,14 @@ type Snapshot struct {
 // MaterializeCompatibilityView atomically replaces a legacy package output
 // directory with the contents of a resolved snapshot. The view exists only
 // for consumers whose language toolchain still requires a fixed local module
-// path; lifecycle holds the shared Proto lock across setup and build. A
-// previous view is retained until the replacement is installed so an
-// interrupted replacement can be repaired on the next call.
+// path; lifecycle holds the shared Proto lock across setup and build.
+//
+// The replacement is assembled in an owned staging tree outside the
+// repository and installed by one rename, so the selection stamp and the tree
+// it describes are published together. The previous view is kept at
+// target.previous only between the two renames, which lets an interrupted
+// replacement be repaired on the next call; it is then moved into the staging
+// tree and deleted there, so the repository never holds a half-deleted copy.
 func (s *Store) MaterializeCompatibilityView(ctx context.Context, snapshot *Snapshot, target string) error {
 	if err := ctx.Err(); err != nil {
 		return err
@@ -666,38 +691,43 @@ func (s *Store) MaterializeCompatibilityView(ctx context.Context, snapshot *Snap
 	if err := recoverCompatibilityView(target); err != nil {
 		return err
 	}
-	tmp, err := os.MkdirTemp(parent, ".proto-compatibility-")
+	stageParent := resolveStageParent(StagingRoot(s.Root), parent, parent)
+	logger := s.Logger
+	if logger == nil {
+		logger = io.Discard
+	}
+	sweepStagesLogged(stageParent, logger)
+	staged, err := createStage(stageParent, compatibilityStagePrefix)
 	if err != nil {
 		return err
 	}
-	defer os.RemoveAll(tmp)
-	if err := copyTree(ctx, snapshot.GenRoot(), tmp); err != nil {
+	defer staged.Remove()
+	view := filepath.Join(staged.Dir, "gen")
+	if err := copyTree(ctx, snapshot.GenRoot(), view); err != nil {
 		return fmt.Errorf("copy selected Proto snapshot: %w", err)
 	}
-	if err := writeJSON(filepath.Join(tmp, compatibilityStampName), map[string]any{
+	if err := writeJSON(filepath.Join(view, CompatibilityStampName), map[string]any{
 		"schema_version": 1,
 		"artifact_id":    snapshot.Metadata.ArtifactID,
 		"source_digest":  snapshot.Metadata.SourceDigest,
 	}); err != nil {
 		return fmt.Errorf("write Proto compatibility stamp: %w", err)
 	}
-	// os.MkdirTemp creates tmp as 0700, so without this the published gen root
-	// would be traversable only by its owner. The generated tree is a committed,
-	// world-readable compatibility view (copyTree writes 0755 dirs / 0644 files);
-	// if materialization ever runs as a different user (e.g. a root-run provision),
-	// a 0700 root-owned gen locks every unprivileged build out of the whole proto
-	// tree. Normalizing to 0755 keeps the view readable regardless of who wrote it.
-	if err := os.Chmod(tmp, 0o755); err != nil {
+	// The generated tree is a committed, world-readable compatibility view. If
+	// materialization ever runs as a different user (e.g. a root-run
+	// provision) under a restrictive umask, an owner-only gen root locks every
+	// unprivileged build out of the whole proto tree, so pin the root's mode.
+	if err := os.Chmod(view, 0o755); err != nil {
 		return fmt.Errorf("normalize compatibility view permissions: %w", err)
 	}
-	backup := target + ".previous"
+	backup := compatibilityBackupPath(target)
 	_ = os.RemoveAll(backup)
 	if _, err := os.Stat(target); err == nil {
 		if err := os.Rename(target, backup); err != nil {
 			return fmt.Errorf("stage compatibility view replacement: %w", err)
 		}
 	}
-	if err := os.Rename(tmp, target); err != nil {
+	if err := os.Rename(view, target); err != nil {
 		if _, restoreErr := os.Stat(backup); restoreErr == nil {
 			_ = os.Rename(backup, target)
 		}
@@ -706,14 +736,16 @@ func (s *Store) MaterializeCompatibilityView(ctx context.Context, snapshot *Snap
 	if err := syncDirectory(parent); err != nil {
 		return fmt.Errorf("durably install compatibility view: %w", err)
 	}
-	if err := os.RemoveAll(backup); err != nil && !errors.Is(err, fs.ErrNotExist) {
-		return fmt.Errorf("remove previous compatibility view: %w", err)
+	if err := os.Rename(backup, filepath.Join(staged.Dir, "previous")); err != nil && !errors.Is(err, fs.ErrNotExist) {
+		if err := os.RemoveAll(backup); err != nil {
+			return fmt.Errorf("remove previous compatibility view: %w", err)
+		}
 	}
 	return syncDirectory(parent)
 }
 
 func recoverCompatibilityView(target string) error {
-	backup := target + ".previous"
+	backup := compatibilityBackupPath(target)
 	_, targetErr := os.Stat(target)
 	_, backupErr := os.Stat(backup)
 	if targetErr == nil {

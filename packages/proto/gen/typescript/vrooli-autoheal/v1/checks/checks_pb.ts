@@ -12,7 +12,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file vrooli-autoheal/v1/checks/checks.proto.
  */
 export const file_vrooli_autoheal_v1_checks_checks: GenFile = /*@__PURE__*/
-  fileDesc("CiZ2cm9vbGktYXV0b2hlYWwvdjEvY2hlY2tzL2NoZWNrcy5wcm90bxIgdnJvb2xpLnZyb29saV9hdXRvaGVhbC52MS5jaGVja3MijgEKCUNoZWNrSW5mbxIKCgJpZBgBIAEoCRINCgV0aXRsZRgCIAEoCRITCgtkZXNjcmlwdGlvbhgDIAEoCRISCgppbXBvcnRhbmNlGAQgASgJEhAKCGNhdGVnb3J5GAUgASgJEhgKEGludGVydmFsX3NlY29uZHMYBiABKAUSEQoJcGxhdGZvcm1zGAcgAygJIssBCgtDaGVja1Jlc3VsdBIQCghjaGVja19pZBgBIAEoCRI9CgZzdGF0dXMYAiABKA4yLS52cm9vbGkudnJvb2xpX2F1dG9oZWFsLnYxLmNoZWNrcy5DaGVja1N0YXR1cxIPCgdtZXNzYWdlGAMgASgJEi8KC29ic2VydmVkX2F0GAQgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBITCgtkdXJhdGlvbl9tcxgFIAEoAxIUCgxkZXRhaWxzX2pzb24YBiABKAki5gEKClRyYW5zaXRpb24SEAoIY2hlY2tfaWQYASABKAkSQgoLZnJvbV9zdGF0dXMYAiABKA4yLS52cm9vbGkudnJvb2xpX2F1dG9oZWFsLnYxLmNoZWNrcy5DaGVja1N0YXR1cxJACgl0b19zdGF0dXMYAyABKA4yLS52cm9vbGkudnJvb2xpX2F1dG9oZWFsLnYxLmNoZWNrcy5DaGVja1N0YXR1cxIPCgdtZXNzYWdlGAQgASgJEi8KC29ic2VydmVkX2F0GAUgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcCITChFMaXN0Q2hlY2tzUmVxdWVzdCJRChJMaXN0Q2hlY2tzUmVzcG9uc2USOwoGY2hlY2tzGAEgAygLMisudnJvb2xpLnZyb29saV9hdXRvaGVhbC52MS5jaGVja3MuQ2hlY2tJbmZvIiMKD0dldENoZWNrUmVxdWVzdBIQCghjaGVja19pZBgBIAEoCSJRChBHZXRDaGVja1Jlc3BvbnNlEj0KBnJlc3VsdBgBIAEoCzItLnZyb29saS52cm9vbGlfYXV0b2hlYWwudjEuY2hlY2tzLkNoZWNrUmVzdWx0IjQKEUdldEhpc3RvcnlSZXF1ZXN0EhAKCGNoZWNrX2lkGAEgASgJEg0KBWxpbWl0GAIgASgFIlQKEkdldEhpc3RvcnlSZXNwb25zZRI+CgdyZXN1bHRzGAEgAygLMi0udnJvb2xpLnZyb29saV9hdXRvaGVhbC52MS5jaGVja3MuQ2hlY2tSZXN1bHQiEgoQR2V0U3RhdHVzUmVxdWVzdCK2AgoRR2V0U3RhdHVzUmVzcG9uc2USPQoGc3RhdHVzGAEgASgOMi0udnJvb2xpLnZyb29saV9hdXRvaGVhbC52MS5jaGVja3MuQ2hlY2tTdGF0dXMSEwoLdG90YWxfY291bnQYAiABKAUSEAoIb2tfY291bnQYAyABKAUSFQoNd2FybmluZ19jb3VudBgEIAEoBRIWCg5jcml0aWNhbF9jb3VudBgFIAEoBRIcChRub3RfYXBwbGljYWJsZV9jb3VudBgGIAEoBRI9CgZjaGVja3MYByADKAsyLS52cm9vbGkudnJvb2xpX2F1dG9oZWFsLnYxLmNoZWNrcy5DaGVja1Jlc3VsdBIvCgtjb21wdXRlZF9hdBgIIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXAiPAoVR2V0VHJhbnNpdGlvbnNSZXF1ZXN0EhQKDHdpbmRvd19ob3VycxgBIAEoBRINCgVsaW1pdBgCIAEoBSJbChZHZXRUcmFuc2l0aW9uc1Jlc3BvbnNlEkEKC3RyYW5zaXRpb25zGAEgAygLMiwudnJvb2xpLnZyb29saV9hdXRvaGVhbC52MS5jaGVja3MuVHJhbnNpdGlvbiKFAgoJUmVjb25jaWxlEhcKD2dob3N0X2NoZWNrX2lkcxgBIAMoCRIaChJ1bnN1cGVydmlzZWRfcGxhbnQYAiADKAkSEQoJYXZhaWxhYmxlGAMgASgIEhoKEnVuYXZhaWxhYmxlX3JlYXNvbhgEIAEoCRIvCgtjb21wdXRlZF9hdBgFIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASHgoWb3V0X29mX3Njb3BlX2NoZWNrX2lkcxgGIAMoCRIhChlnaG9zdF9kZXRlY3Rpb25fYXZhaWxhYmxlGAcgASgIEiAKGGdob3N0X3VuYXZhaWxhYmxlX3JlYXNvbhgIIAEoCSIVChNHZXRSZWNvbmNpbGVSZXF1ZXN0IlYKFEdldFJlY29uY2lsZVJlc3BvbnNlEj4KCXJlY29uY2lsZRgBIAEoCzIrLnZyb29saS52cm9vbGlfYXV0b2hlYWwudjEuY2hlY2tzLlJlY29uY2lsZSKZAQoFU2hlbGYSEAoIY2hlY2tfaWQYASABKAkSDgoGcmVhc29uGAIgASgJEi4KCmV4cGlyZXNfYXQYAyABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEg4KBnNldF9ieRgEIAEoCRIuCgpjcmVhdGVkX2F0GAUgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcCItChJMaXN0U2hlbHZlc1JlcXVlc3QSFwoPaW5jbHVkZV9leHBpcmVkGAEgASgIIk8KE0xpc3RTaGVsdmVzUmVzcG9uc2USOAoHc2hlbHZlcxgBIAMoCzInLnZyb29saS52cm9vbGlfYXV0b2hlYWwudjEuY2hlY2tzLlNoZWxmIqgBCgpTYXR1cmF0aW9uEhAKCGNoZWNrX2lkGAEgASgJEhQKDHRyYW5zaXRpb25lZBgCIAEoCBIYChB0cmFuc2l0aW9uX2NvdW50GAMgASgFEkUKDmN1cnJlbnRfc3RhdHVzGAQgASgOMi0udnJvb2xpLnZyb29saV9hdXRvaGVhbC52MS5jaGVja3MuQ2hlY2tTdGF0dXMSEQoJc2F0dXJhdGVkGAUgASgIIi0KFUxpc3RTYXR1cmF0aW9uUmVxdWVzdBIUCgx3aW5kb3dfaG91cnMYASABKAUitQEKFkxpc3RTYXR1cmF0aW9uUmVzcG9uc2USQQoLc2F0dXJhdGlvbnMYASADKAsyLC52cm9vbGkudnJvb2xpX2F1dG9oZWFsLnYxLmNoZWNrcy5TYXR1cmF0aW9uEhQKDHdpbmRvd19ob3VycxgCIAEoBRIvCgtjb21wdXRlZF9hdBgDIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASEQoJdHJ1bmNhdGVkGAQgASgIIj4KFEdldFNhdHVyYXRpb25SZXF1ZXN0EhAKCGNoZWNrX2lkGAEgASgJEhQKDHdpbmRvd19ob3VycxgCIAEoBSKgAQoVR2V0U2F0dXJhdGlvblJlc3BvbnNlEhAKCGNoZWNrX2lkGAEgASgJEhQKDHRyYW5zaXRpb25lZBgCIAEoCBIYChB0cmFuc2l0aW9uX2NvdW50GAMgASgFEhQKDHdpbmRvd19ob3VycxgEIAEoBRIvCgtjb21wdXRlZF9hdBgFIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXAqlgEKC0NoZWNrU3RhdHVzEhwKGENIRUNLX1NUQVRVU19VTlNQRUNJRklFRBAAEhMKD0NIRUNLX1NUQVRVU19PSxABEhgKFENIRUNLX1NUQVRVU19XQVJOSU5HEAISGQoVQ0hFQ0tfU1RBVFVTX0NSSVRJQ0FMEAMSHwobQ0hFQ0tfU1RBVFVTX05PVF9BUFBMSUNBQkxFEAQy9AgKDUNoZWNrc1NlcnZpY2USdwoKTGlzdENoZWNrcxIzLnZyb29saS52cm9vbGlfYXV0b2hlYWwudjEuY2hlY2tzLkxpc3RDaGVja3NSZXF1ZXN0GjQudnJvb2xpLnZyb29saV9hdXRvaGVhbC52MS5jaGVja3MuTGlzdENoZWNrc1Jlc3BvbnNlEnEKCEdldENoZWNrEjEudnJvb2xpLnZyb29saV9hdXRvaGVhbC52MS5jaGVja3MuR2V0Q2hlY2tSZXF1ZXN0GjIudnJvb2xpLnZyb29saV9hdXRvaGVhbC52MS5jaGVja3MuR2V0Q2hlY2tSZXNwb25zZRJ3CgpHZXRIaXN0b3J5EjMudnJvb2xpLnZyb29saV9hdXRvaGVhbC52MS5jaGVja3MuR2V0SGlzdG9yeVJlcXVlc3QaNC52cm9vbGkudnJvb2xpX2F1dG9oZWFsLnYxLmNoZWNrcy5HZXRIaXN0b3J5UmVzcG9uc2USdAoJR2V0U3RhdHVzEjIudnJvb2xpLnZyb29saV9hdXRvaGVhbC52MS5jaGVja3MuR2V0U3RhdHVzUmVxdWVzdBozLnZyb29saS52cm9vbGlfYXV0b2hlYWwudjEuY2hlY2tzLkdldFN0YXR1c1Jlc3BvbnNlEoMBCg5HZXRUcmFuc2l0aW9ucxI3LnZyb29saS52cm9vbGlfYXV0b2hlYWwudjEuY2hlY2tzLkdldFRyYW5zaXRpb25zUmVxdWVzdBo4LnZyb29saS52cm9vbGlfYXV0b2hlYWwudjEuY2hlY2tzLkdldFRyYW5zaXRpb25zUmVzcG9uc2USfQoMR2V0UmVjb25jaWxlEjUudnJvb2xpLnZyb29saV9hdXRvaGVhbC52MS5jaGVja3MuR2V0UmVjb25jaWxlUmVxdWVzdBo2LnZyb29saS52cm9vbGlfYXV0b2hlYWwudjEuY2hlY2tzLkdldFJlY29uY2lsZVJlc3BvbnNlEnoKC0xpc3RTaGVsdmVzEjQudnJvb2xpLnZyb29saV9hdXRvaGVhbC52MS5jaGVja3MuTGlzdFNoZWx2ZXNSZXF1ZXN0GjUudnJvb2xpLnZyb29saV9hdXRvaGVhbC52MS5jaGVja3MuTGlzdFNoZWx2ZXNSZXNwb25zZRKAAQoNR2V0U2F0dXJhdGlvbhI2LnZyb29saS52cm9vbGlfYXV0b2hlYWwudjEuY2hlY2tzLkdldFNhdHVyYXRpb25SZXF1ZXN0GjcudnJvb2xpLnZyb29saV9hdXRvaGVhbC52MS5jaGVja3MuR2V0U2F0dXJhdGlvblJlc3BvbnNlEoMBCg5MaXN0U2F0dXJhdGlvbhI3LnZyb29saS52cm9vbGlfYXV0b2hlYWwudjEuY2hlY2tzLkxpc3RTYXR1cmF0aW9uUmVxdWVzdBo4LnZyb29saS52cm9vbGlfYXV0b2hlYWwudjEuY2hlY2tzLkxpc3RTYXR1cmF0aW9uUmVzcG9uc2VCVFpSZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby92cm9vbGktYXV0b2hlYWwvdjEvY2hlY2tzO2NoZWNrc192MWIGcHJvdG8z", [file_google_protobuf_timestamp]);
+  fileDesc("CiZ2cm9vbGktYXV0b2hlYWwvdjEvY2hlY2tzL2NoZWNrcy5wcm90bxIgdnJvb2xpLnZyb29saV9hdXRvaGVhbC52MS5jaGVja3MijgEKCUNoZWNrSW5mbxIKCgJpZBgBIAEoCRINCgV0aXRsZRgCIAEoCRITCgtkZXNjcmlwdGlvbhgDIAEoCRISCgppbXBvcnRhbmNlGAQgASgJEhAKCGNhdGVnb3J5GAUgASgJEhgKEGludGVydmFsX3NlY29uZHMYBiABKAUSEQoJcGxhdGZvcm1zGAcgAygJIssBCgtDaGVja1Jlc3VsdBIQCghjaGVja19pZBgBIAEoCRI9CgZzdGF0dXMYAiABKA4yLS52cm9vbGkudnJvb2xpX2F1dG9oZWFsLnYxLmNoZWNrcy5DaGVja1N0YXR1cxIPCgdtZXNzYWdlGAMgASgJEi8KC29ic2VydmVkX2F0GAQgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBITCgtkdXJhdGlvbl9tcxgFIAEoAxIUCgxkZXRhaWxzX2pzb24YBiABKAki5gEKClRyYW5zaXRpb24SEAoIY2hlY2tfaWQYASABKAkSQgoLZnJvbV9zdGF0dXMYAiABKA4yLS52cm9vbGkudnJvb2xpX2F1dG9oZWFsLnYxLmNoZWNrcy5DaGVja1N0YXR1cxJACgl0b19zdGF0dXMYAyABKA4yLS52cm9vbGkudnJvb2xpX2F1dG9oZWFsLnYxLmNoZWNrcy5DaGVja1N0YXR1cxIPCgdtZXNzYWdlGAQgASgJEi8KC29ic2VydmVkX2F0GAUgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcCITChFMaXN0Q2hlY2tzUmVxdWVzdCJRChJMaXN0Q2hlY2tzUmVzcG9uc2USOwoGY2hlY2tzGAEgAygLMisudnJvb2xpLnZyb29saV9hdXRvaGVhbC52MS5jaGVja3MuQ2hlY2tJbmZvIiMKD0dldENoZWNrUmVxdWVzdBIQCghjaGVja19pZBgBIAEoCSJRChBHZXRDaGVja1Jlc3BvbnNlEj0KBnJlc3VsdBgBIAEoCzItLnZyb29saS52cm9vbGlfYXV0b2hlYWwudjEuY2hlY2tzLkNoZWNrUmVzdWx0IiMKD1J1bkNoZWNrUmVxdWVzdBIQCghjaGVja19pZBgBIAEoCSJRChBSdW5DaGVja1Jlc3BvbnNlEj0KBnJlc3VsdBgBIAEoCzItLnZyb29saS52cm9vbGlfYXV0b2hlYWwudjEuY2hlY2tzLkNoZWNrUmVzdWx0IjQKEUdldEhpc3RvcnlSZXF1ZXN0EhAKCGNoZWNrX2lkGAEgASgJEg0KBWxpbWl0GAIgASgFIlQKEkdldEhpc3RvcnlSZXNwb25zZRI+CgdyZXN1bHRzGAEgAygLMi0udnJvb2xpLnZyb29saV9hdXRvaGVhbC52MS5jaGVja3MuQ2hlY2tSZXN1bHQiEgoQR2V0U3RhdHVzUmVxdWVzdCK2AgoRR2V0U3RhdHVzUmVzcG9uc2USPQoGc3RhdHVzGAEgASgOMi0udnJvb2xpLnZyb29saV9hdXRvaGVhbC52MS5jaGVja3MuQ2hlY2tTdGF0dXMSEwoLdG90YWxfY291bnQYAiABKAUSEAoIb2tfY291bnQYAyABKAUSFQoNd2FybmluZ19jb3VudBgEIAEoBRIWCg5jcml0aWNhbF9jb3VudBgFIAEoBRIcChRub3RfYXBwbGljYWJsZV9jb3VudBgGIAEoBRI9CgZjaGVja3MYByADKAsyLS52cm9vbGkudnJvb2xpX2F1dG9oZWFsLnYxLmNoZWNrcy5DaGVja1Jlc3VsdBIvCgtjb21wdXRlZF9hdBgIIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXAiPAoVR2V0VHJhbnNpdGlvbnNSZXF1ZXN0EhQKDHdpbmRvd19ob3VycxgBIAEoBRINCgVsaW1pdBgCIAEoBSJbChZHZXRUcmFuc2l0aW9uc1Jlc3BvbnNlEkEKC3RyYW5zaXRpb25zGAEgAygLMiwudnJvb2xpLnZyb29saV9hdXRvaGVhbC52MS5jaGVja3MuVHJhbnNpdGlvbiKFAgoJUmVjb25jaWxlEhcKD2dob3N0X2NoZWNrX2lkcxgBIAMoCRIaChJ1bnN1cGVydmlzZWRfcGxhbnQYAiADKAkSEQoJYXZhaWxhYmxlGAMgASgIEhoKEnVuYXZhaWxhYmxlX3JlYXNvbhgEIAEoCRIvCgtjb21wdXRlZF9hdBgFIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASHgoWb3V0X29mX3Njb3BlX2NoZWNrX2lkcxgGIAMoCRIhChlnaG9zdF9kZXRlY3Rpb25fYXZhaWxhYmxlGAcgASgIEiAKGGdob3N0X3VuYXZhaWxhYmxlX3JlYXNvbhgIIAEoCSIVChNHZXRSZWNvbmNpbGVSZXF1ZXN0IlYKFEdldFJlY29uY2lsZVJlc3BvbnNlEj4KCXJlY29uY2lsZRgBIAEoCzIrLnZyb29saS52cm9vbGlfYXV0b2hlYWwudjEuY2hlY2tzLlJlY29uY2lsZSKZAQoFU2hlbGYSEAoIY2hlY2tfaWQYASABKAkSDgoGcmVhc29uGAIgASgJEi4KCmV4cGlyZXNfYXQYAyABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEg4KBnNldF9ieRgEIAEoCRIuCgpjcmVhdGVkX2F0GAUgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcCItChJMaXN0U2hlbHZlc1JlcXVlc3QSFwoPaW5jbHVkZV9leHBpcmVkGAEgASgIIk8KE0xpc3RTaGVsdmVzUmVzcG9uc2USOAoHc2hlbHZlcxgBIAMoCzInLnZyb29saS52cm9vbGlfYXV0b2hlYWwudjEuY2hlY2tzLlNoZWxmIqgBCgpTYXR1cmF0aW9uEhAKCGNoZWNrX2lkGAEgASgJEhQKDHRyYW5zaXRpb25lZBgCIAEoCBIYChB0cmFuc2l0aW9uX2NvdW50GAMgASgFEkUKDmN1cnJlbnRfc3RhdHVzGAQgASgOMi0udnJvb2xpLnZyb29saV9hdXRvaGVhbC52MS5jaGVja3MuQ2hlY2tTdGF0dXMSEQoJc2F0dXJhdGVkGAUgASgIIi0KFUxpc3RTYXR1cmF0aW9uUmVxdWVzdBIUCgx3aW5kb3dfaG91cnMYASABKAUitQEKFkxpc3RTYXR1cmF0aW9uUmVzcG9uc2USQQoLc2F0dXJhdGlvbnMYASADKAsyLC52cm9vbGkudnJvb2xpX2F1dG9oZWFsLnYxLmNoZWNrcy5TYXR1cmF0aW9uEhQKDHdpbmRvd19ob3VycxgCIAEoBRIvCgtjb21wdXRlZF9hdBgDIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASEQoJdHJ1bmNhdGVkGAQgASgIIj4KFEdldFNhdHVyYXRpb25SZXF1ZXN0EhAKCGNoZWNrX2lkGAEgASgJEhQKDHdpbmRvd19ob3VycxgCIAEoBSKgAQoVR2V0U2F0dXJhdGlvblJlc3BvbnNlEhAKCGNoZWNrX2lkGAEgASgJEhQKDHRyYW5zaXRpb25lZBgCIAEoCBIYChB0cmFuc2l0aW9uX2NvdW50GAMgASgFEhQKDHdpbmRvd19ob3VycxgEIAEoBRIvCgtjb21wdXRlZF9hdBgFIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXAqlgEKC0NoZWNrU3RhdHVzEhwKGENIRUNLX1NUQVRVU19VTlNQRUNJRklFRBAAEhMKD0NIRUNLX1NUQVRVU19PSxABEhgKFENIRUNLX1NUQVRVU19XQVJOSU5HEAISGQoVQ0hFQ0tfU1RBVFVTX0NSSVRJQ0FMEAMSHwobQ0hFQ0tfU1RBVFVTX05PVF9BUFBMSUNBQkxFEAQy5wkKDUNoZWNrc1NlcnZpY2USdwoKTGlzdENoZWNrcxIzLnZyb29saS52cm9vbGlfYXV0b2hlYWwudjEuY2hlY2tzLkxpc3RDaGVja3NSZXF1ZXN0GjQudnJvb2xpLnZyb29saV9hdXRvaGVhbC52MS5jaGVja3MuTGlzdENoZWNrc1Jlc3BvbnNlEnEKCEdldENoZWNrEjEudnJvb2xpLnZyb29saV9hdXRvaGVhbC52MS5jaGVja3MuR2V0Q2hlY2tSZXF1ZXN0GjIudnJvb2xpLnZyb29saV9hdXRvaGVhbC52MS5jaGVja3MuR2V0Q2hlY2tSZXNwb25zZRJxCghSdW5DaGVjaxIxLnZyb29saS52cm9vbGlfYXV0b2hlYWwudjEuY2hlY2tzLlJ1bkNoZWNrUmVxdWVzdBoyLnZyb29saS52cm9vbGlfYXV0b2hlYWwudjEuY2hlY2tzLlJ1bkNoZWNrUmVzcG9uc2USdwoKR2V0SGlzdG9yeRIzLnZyb29saS52cm9vbGlfYXV0b2hlYWwudjEuY2hlY2tzLkdldEhpc3RvcnlSZXF1ZXN0GjQudnJvb2xpLnZyb29saV9hdXRvaGVhbC52MS5jaGVja3MuR2V0SGlzdG9yeVJlc3BvbnNlEnQKCUdldFN0YXR1cxIyLnZyb29saS52cm9vbGlfYXV0b2hlYWwudjEuY2hlY2tzLkdldFN0YXR1c1JlcXVlc3QaMy52cm9vbGkudnJvb2xpX2F1dG9oZWFsLnYxLmNoZWNrcy5HZXRTdGF0dXNSZXNwb25zZRKDAQoOR2V0VHJhbnNpdGlvbnMSNy52cm9vbGkudnJvb2xpX2F1dG9oZWFsLnYxLmNoZWNrcy5HZXRUcmFuc2l0aW9uc1JlcXVlc3QaOC52cm9vbGkudnJvb2xpX2F1dG9oZWFsLnYxLmNoZWNrcy5HZXRUcmFuc2l0aW9uc1Jlc3BvbnNlEn0KDEdldFJlY29uY2lsZRI1LnZyb29saS52cm9vbGlfYXV0b2hlYWwudjEuY2hlY2tzLkdldFJlY29uY2lsZVJlcXVlc3QaNi52cm9vbGkudnJvb2xpX2F1dG9oZWFsLnYxLmNoZWNrcy5HZXRSZWNvbmNpbGVSZXNwb25zZRJ6CgtMaXN0U2hlbHZlcxI0LnZyb29saS52cm9vbGlfYXV0b2hlYWwudjEuY2hlY2tzLkxpc3RTaGVsdmVzUmVxdWVzdBo1LnZyb29saS52cm9vbGlfYXV0b2hlYWwudjEuY2hlY2tzLkxpc3RTaGVsdmVzUmVzcG9uc2USgAEKDUdldFNhdHVyYXRpb24SNi52cm9vbGkudnJvb2xpX2F1dG9oZWFsLnYxLmNoZWNrcy5HZXRTYXR1cmF0aW9uUmVxdWVzdBo3LnZyb29saS52cm9vbGlfYXV0b2hlYWwudjEuY2hlY2tzLkdldFNhdHVyYXRpb25SZXNwb25zZRKDAQoOTGlzdFNhdHVyYXRpb24SNy52cm9vbGkudnJvb2xpX2F1dG9oZWFsLnYxLmNoZWNrcy5MaXN0U2F0dXJhdGlvblJlcXVlc3QaOC52cm9vbGkudnJvb2xpX2F1dG9oZWFsLnYxLmNoZWNrcy5MaXN0U2F0dXJhdGlvblJlc3BvbnNlQlRaUmdpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vdnJvb2xpLWF1dG9oZWFsL3YxL2NoZWNrcztjaGVja3NfdjFiBnByb3RvMw", [file_google_protobuf_timestamp]);
 
 /**
  * @generated from message vrooli.vrooli_autoheal.v1.checks.CheckInfo
@@ -211,6 +211,40 @@ export const GetCheckResponseSchema: GenMessage<GetCheckResponse> = /*@__PURE__*
   messageDesc(file_vrooli_autoheal_v1_checks_checks, 6);
 
 /**
+ * @generated from message vrooli.vrooli_autoheal.v1.checks.RunCheckRequest
+ */
+export type RunCheckRequest = Message<"vrooli.vrooli_autoheal.v1.checks.RunCheckRequest"> & {
+  /**
+   * @generated from field: string check_id = 1;
+   */
+  checkId: string;
+};
+
+/**
+ * Describes the message vrooli.vrooli_autoheal.v1.checks.RunCheckRequest.
+ * Use `create(RunCheckRequestSchema)` to create a new message.
+ */
+export const RunCheckRequestSchema: GenMessage<RunCheckRequest> = /*@__PURE__*/
+  messageDesc(file_vrooli_autoheal_v1_checks_checks, 7);
+
+/**
+ * @generated from message vrooli.vrooli_autoheal.v1.checks.RunCheckResponse
+ */
+export type RunCheckResponse = Message<"vrooli.vrooli_autoheal.v1.checks.RunCheckResponse"> & {
+  /**
+   * @generated from field: vrooli.vrooli_autoheal.v1.checks.CheckResult result = 1;
+   */
+  result?: CheckResult | undefined;
+};
+
+/**
+ * Describes the message vrooli.vrooli_autoheal.v1.checks.RunCheckResponse.
+ * Use `create(RunCheckResponseSchema)` to create a new message.
+ */
+export const RunCheckResponseSchema: GenMessage<RunCheckResponse> = /*@__PURE__*/
+  messageDesc(file_vrooli_autoheal_v1_checks_checks, 8);
+
+/**
  * @generated from message vrooli.vrooli_autoheal.v1.checks.GetHistoryRequest
  */
 export type GetHistoryRequest = Message<"vrooli.vrooli_autoheal.v1.checks.GetHistoryRequest"> & {
@@ -230,7 +264,7 @@ export type GetHistoryRequest = Message<"vrooli.vrooli_autoheal.v1.checks.GetHis
  * Use `create(GetHistoryRequestSchema)` to create a new message.
  */
 export const GetHistoryRequestSchema: GenMessage<GetHistoryRequest> = /*@__PURE__*/
-  messageDesc(file_vrooli_autoheal_v1_checks_checks, 7);
+  messageDesc(file_vrooli_autoheal_v1_checks_checks, 9);
 
 /**
  * @generated from message vrooli.vrooli_autoheal.v1.checks.GetHistoryResponse
@@ -247,7 +281,7 @@ export type GetHistoryResponse = Message<"vrooli.vrooli_autoheal.v1.checks.GetHi
  * Use `create(GetHistoryResponseSchema)` to create a new message.
  */
 export const GetHistoryResponseSchema: GenMessage<GetHistoryResponse> = /*@__PURE__*/
-  messageDesc(file_vrooli_autoheal_v1_checks_checks, 8);
+  messageDesc(file_vrooli_autoheal_v1_checks_checks, 10);
 
 /**
  * @generated from message vrooli.vrooli_autoheal.v1.checks.GetStatusRequest
@@ -260,7 +294,7 @@ export type GetStatusRequest = Message<"vrooli.vrooli_autoheal.v1.checks.GetStat
  * Use `create(GetStatusRequestSchema)` to create a new message.
  */
 export const GetStatusRequestSchema: GenMessage<GetStatusRequest> = /*@__PURE__*/
-  messageDesc(file_vrooli_autoheal_v1_checks_checks, 9);
+  messageDesc(file_vrooli_autoheal_v1_checks_checks, 11);
 
 /**
  * @generated from message vrooli.vrooli_autoheal.v1.checks.GetStatusResponse
@@ -312,7 +346,7 @@ export type GetStatusResponse = Message<"vrooli.vrooli_autoheal.v1.checks.GetSta
  * Use `create(GetStatusResponseSchema)` to create a new message.
  */
 export const GetStatusResponseSchema: GenMessage<GetStatusResponse> = /*@__PURE__*/
-  messageDesc(file_vrooli_autoheal_v1_checks_checks, 10);
+  messageDesc(file_vrooli_autoheal_v1_checks_checks, 12);
 
 /**
  * @generated from message vrooli.vrooli_autoheal.v1.checks.GetTransitionsRequest
@@ -334,7 +368,7 @@ export type GetTransitionsRequest = Message<"vrooli.vrooli_autoheal.v1.checks.Ge
  * Use `create(GetTransitionsRequestSchema)` to create a new message.
  */
 export const GetTransitionsRequestSchema: GenMessage<GetTransitionsRequest> = /*@__PURE__*/
-  messageDesc(file_vrooli_autoheal_v1_checks_checks, 11);
+  messageDesc(file_vrooli_autoheal_v1_checks_checks, 13);
 
 /**
  * @generated from message vrooli.vrooli_autoheal.v1.checks.GetTransitionsResponse
@@ -351,7 +385,7 @@ export type GetTransitionsResponse = Message<"vrooli.vrooli_autoheal.v1.checks.G
  * Use `create(GetTransitionsResponseSchema)` to create a new message.
  */
 export const GetTransitionsResponseSchema: GenMessage<GetTransitionsResponse> = /*@__PURE__*/
-  messageDesc(file_vrooli_autoheal_v1_checks_checks, 12);
+  messageDesc(file_vrooli_autoheal_v1_checks_checks, 14);
 
 /**
  * @generated from message vrooli.vrooli_autoheal.v1.checks.Reconcile
@@ -418,7 +452,7 @@ export type Reconcile = Message<"vrooli.vrooli_autoheal.v1.checks.Reconcile"> & 
  * Use `create(ReconcileSchema)` to create a new message.
  */
 export const ReconcileSchema: GenMessage<Reconcile> = /*@__PURE__*/
-  messageDesc(file_vrooli_autoheal_v1_checks_checks, 13);
+  messageDesc(file_vrooli_autoheal_v1_checks_checks, 15);
 
 /**
  * @generated from message vrooli.vrooli_autoheal.v1.checks.GetReconcileRequest
@@ -431,7 +465,7 @@ export type GetReconcileRequest = Message<"vrooli.vrooli_autoheal.v1.checks.GetR
  * Use `create(GetReconcileRequestSchema)` to create a new message.
  */
 export const GetReconcileRequestSchema: GenMessage<GetReconcileRequest> = /*@__PURE__*/
-  messageDesc(file_vrooli_autoheal_v1_checks_checks, 14);
+  messageDesc(file_vrooli_autoheal_v1_checks_checks, 16);
 
 /**
  * @generated from message vrooli.vrooli_autoheal.v1.checks.GetReconcileResponse
@@ -448,7 +482,7 @@ export type GetReconcileResponse = Message<"vrooli.vrooli_autoheal.v1.checks.Get
  * Use `create(GetReconcileResponseSchema)` to create a new message.
  */
 export const GetReconcileResponseSchema: GenMessage<GetReconcileResponse> = /*@__PURE__*/
-  messageDesc(file_vrooli_autoheal_v1_checks_checks, 15);
+  messageDesc(file_vrooli_autoheal_v1_checks_checks, 17);
 
 /**
  * @generated from message vrooli.vrooli_autoheal.v1.checks.Shelf
@@ -485,7 +519,7 @@ export type Shelf = Message<"vrooli.vrooli_autoheal.v1.checks.Shelf"> & {
  * Use `create(ShelfSchema)` to create a new message.
  */
 export const ShelfSchema: GenMessage<Shelf> = /*@__PURE__*/
-  messageDesc(file_vrooli_autoheal_v1_checks_checks, 16);
+  messageDesc(file_vrooli_autoheal_v1_checks_checks, 18);
 
 /**
  * @generated from message vrooli.vrooli_autoheal.v1.checks.ListShelvesRequest
@@ -502,7 +536,7 @@ export type ListShelvesRequest = Message<"vrooli.vrooli_autoheal.v1.checks.ListS
  * Use `create(ListShelvesRequestSchema)` to create a new message.
  */
 export const ListShelvesRequestSchema: GenMessage<ListShelvesRequest> = /*@__PURE__*/
-  messageDesc(file_vrooli_autoheal_v1_checks_checks, 17);
+  messageDesc(file_vrooli_autoheal_v1_checks_checks, 19);
 
 /**
  * @generated from message vrooli.vrooli_autoheal.v1.checks.ListShelvesResponse
@@ -519,7 +553,7 @@ export type ListShelvesResponse = Message<"vrooli.vrooli_autoheal.v1.checks.List
  * Use `create(ListShelvesResponseSchema)` to create a new message.
  */
 export const ListShelvesResponseSchema: GenMessage<ListShelvesResponse> = /*@__PURE__*/
-  messageDesc(file_vrooli_autoheal_v1_checks_checks, 18);
+  messageDesc(file_vrooli_autoheal_v1_checks_checks, 20);
 
 /**
  * @generated from message vrooli.vrooli_autoheal.v1.checks.Saturation
@@ -567,7 +601,7 @@ export type Saturation = Message<"vrooli.vrooli_autoheal.v1.checks.Saturation"> 
  * Use `create(SaturationSchema)` to create a new message.
  */
 export const SaturationSchema: GenMessage<Saturation> = /*@__PURE__*/
-  messageDesc(file_vrooli_autoheal_v1_checks_checks, 19);
+  messageDesc(file_vrooli_autoheal_v1_checks_checks, 21);
 
 /**
  * @generated from message vrooli.vrooli_autoheal.v1.checks.ListSaturationRequest
@@ -584,7 +618,7 @@ export type ListSaturationRequest = Message<"vrooli.vrooli_autoheal.v1.checks.Li
  * Use `create(ListSaturationRequestSchema)` to create a new message.
  */
 export const ListSaturationRequestSchema: GenMessage<ListSaturationRequest> = /*@__PURE__*/
-  messageDesc(file_vrooli_autoheal_v1_checks_checks, 20);
+  messageDesc(file_vrooli_autoheal_v1_checks_checks, 22);
 
 /**
  * @generated from message vrooli.vrooli_autoheal.v1.checks.ListSaturationResponse
@@ -621,7 +655,7 @@ export type ListSaturationResponse = Message<"vrooli.vrooli_autoheal.v1.checks.L
  * Use `create(ListSaturationResponseSchema)` to create a new message.
  */
 export const ListSaturationResponseSchema: GenMessage<ListSaturationResponse> = /*@__PURE__*/
-  messageDesc(file_vrooli_autoheal_v1_checks_checks, 21);
+  messageDesc(file_vrooli_autoheal_v1_checks_checks, 23);
 
 /**
  * @generated from message vrooli.vrooli_autoheal.v1.checks.GetSaturationRequest
@@ -643,7 +677,7 @@ export type GetSaturationRequest = Message<"vrooli.vrooli_autoheal.v1.checks.Get
  * Use `create(GetSaturationRequestSchema)` to create a new message.
  */
 export const GetSaturationRequestSchema: GenMessage<GetSaturationRequest> = /*@__PURE__*/
-  messageDesc(file_vrooli_autoheal_v1_checks_checks, 22);
+  messageDesc(file_vrooli_autoheal_v1_checks_checks, 24);
 
 /**
  * @generated from message vrooli.vrooli_autoheal.v1.checks.GetSaturationResponse
@@ -680,7 +714,7 @@ export type GetSaturationResponse = Message<"vrooli.vrooli_autoheal.v1.checks.Ge
  * Use `create(GetSaturationResponseSchema)` to create a new message.
  */
 export const GetSaturationResponseSchema: GenMessage<GetSaturationResponse> = /*@__PURE__*/
-  messageDesc(file_vrooli_autoheal_v1_checks_checks, 23);
+  messageDesc(file_vrooli_autoheal_v1_checks_checks, 25);
 
 /**
  * @generated from enum vrooli.vrooli_autoheal.v1.checks.CheckStatus
@@ -737,6 +771,17 @@ export const ChecksService: GenService<{
     methodKind: "unary";
     input: typeof GetCheckRequestSchema;
     output: typeof GetCheckResponseSchema;
+  },
+  /**
+   * RunCheck refreshes one observation regardless of its interval. It persists
+   * the result without executing recovery actions or a fleet-wide tick.
+   *
+   * @generated from rpc vrooli.vrooli_autoheal.v1.checks.ChecksService.RunCheck
+   */
+  runCheck: {
+    methodKind: "unary";
+    input: typeof RunCheckRequestSchema;
+    output: typeof RunCheckResponseSchema;
   },
   /**
    * @generated from rpc vrooli.vrooli_autoheal.v1.checks.ChecksService.GetHistory

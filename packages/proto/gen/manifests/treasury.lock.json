@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "scenario": "treasury",
-  "input_digest": "sha256:39be7a4a26459164299c254b16903a7166f8a8d8aa9538cafa087f04b37fd86c",
+  "input_digest": "sha256:ae8e29c4b1a3b4b4a0c0ac572929170f1a5ba85c33749a8232af0e32359dd3ad",
   "input_files": [
     "schemas/treasury/v1/approval/approval.proto",
     "schemas/treasury/v1/authorization/authorization.proto",
@@ -21,7 +21,7 @@
   "toolchain": {
     "buf": "1.37.0",
     "buf_gen_yaml_digest": "sha256:0006e0ffb2ba47a8abd22f21bcd0646e9aaa7a47f8bc8cd028bc17c74a5b346d",
-    "generator_digest": "sha256:00641b8b46018a15d67bebb28f7d4ae7caa5bfc402255ccd952815314415b921",
+    "generator_digest": "sha256:cccdbaf9a556a5be923d2c17f31d7f3f1e8de7959b27263f9ddbb964a4b52cc9",
     "plugins": {
       "protoc": "34.1",
       "protoc-gen-connect-go": "v1.19.2",
@@ -31,8 +31,8 @@
   },
   "outputs": {
     "gen/go/treasury/v1/approval/approval.pb.go": "sha256:2841ba2251ec53af81621285f6b32ace3a25d734f321e08bb3a2564801f63ca3",
-    "gen/go/treasury/v1/authorization/authorization.pb.go": "sha256:6e7ec565a6501f06b22c33c4d3c8ab579ebb8332a4f823b4662fc57734830230",
-    "gen/go/treasury/v1/authorization/authorization_v1connect/authorization.connect.go": "sha256:9765cc55076187873388a650a6600d5c0a7c53531fbb3fa392236e5fb1c6e029",
+    "gen/go/treasury/v1/authorization/authorization.pb.go": "sha256:7f55a86d15c465a31d89c60f495594e3feae6a85e562b1fb5e3c88d3f36478e9",
+    "gen/go/treasury/v1/authorization/authorization_v1connect/authorization.connect.go": "sha256:753ba43e77c296a5c0b25a7eca2ea7c8751dbc911512dce479ea999f96f6dcc6",
     "gen/go/treasury/v1/book/book.pb.go": "sha256:465a659e029a07a0830f3e86563e845aca2cfed54333dfa201d6b15299f35a4b",
     "gen/go/treasury/v1/budget/budget.pb.go": "sha256:94415e7f72efe8c808d6ffb8115b869a06203cdb7d57b4ccbcbdbad6f05023c9",
     "gen/go/treasury/v1/evidence/evidence.pb.go": "sha256:ff34030c733e006d3d81d41d153a1761e715608d6b0c49e20c42c8eb700db5ef",
@@ -45,13 +45,13 @@
     "gen/go/treasury/v1/settlement/settlement.pb.go": "sha256:bd6c9c82753be9648e653eb7e3ea3bca3452d5200af4b8ce030c768b3068c87c",
     "gen/go/treasury/v1/shared/errors.pb.go": "sha256:ce0ec7af3190ecd7e38adcc47ce6597298c0720afb945c30bb0192abe93b4f30",
     "gen/go/treasury/v1/shared/health.pb.go": "sha256:46635aaa3348abaac25a01b5b0da23f9f9db59c2038cd9e113656e29eaeb8ff3",
-    "gen/go/treasury/v1/wallet/wallet.pb.go": "sha256:329e372cf4e5f5e0fce27bc1db7743f634ec2765d9714458662057f2ec6d6464",
+    "gen/go/treasury/v1/wallet/wallet.pb.go": "sha256:26ef3d7f30c1f5f0b9a7d365b69da3f4d20326100bdf9b5dc75b69ff42ad35e1",
     "gen/python/treasury/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
     "gen/python/treasury/v1/approval/approval_pb2.py": "sha256:9ec9ce0ce80e6661676383ae9fde24c70665ad38563e347e973f235f9ee8ce76",
     "gen/python/treasury/v1/approval/approval_pb2.pyi": "sha256:ff3517e444b037d54895a327bee59427a5e4f60d8d5b166eae5dfb7ce8dc92dd",
     "gen/python/treasury/v1/approval/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-    "gen/python/treasury/v1/authorization/authorization_pb2.py": "sha256:88dcbe3cb21e46fbe5b262b160384d54fe132201aee2d186868b748f3fa5268c",
-    "gen/python/treasury/v1/authorization/authorization_pb2.pyi": "sha256:5ec25ec6ffb4f2ed774d922b27e8d5d481aaa356d228f2db51bafdf127f0697e",
+    "gen/python/treasury/v1/authorization/authorization_pb2.py": "sha256:88ac887d9214a1c9cc865f648464ba242e05a954e0fce9b647926a42803d0017",
+    "gen/python/treasury/v1/authorization/authorization_pb2.pyi": "sha256:ac10526e6f32fe24511d4452e19583ce74f0454aeb6babe521de7fc51d2669f1",
     "gen/python/treasury/v1/authorization/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
     "gen/python/treasury/v1/book/book_pb2.py": "sha256:1584a35b2bb6b3d45e87e0cf9d9e6d21bd5eb7a52859fab227521b2d1d0cf4cb",
     "gen/python/treasury/v1/book/book_pb2.pyi": "sha256:7260260ffff11aeac32637646be1895182a4fd2b68a2ca951c8565d3f7314ce5",
@@ -87,11 +87,11 @@
     "gen/python/treasury/v1/shared/health_pb2.pyi": "sha256:b9ec00d86e0bdde26187240212eb1746c8be4ebac7b5320be40d8097822a8a04",
     "gen/python/treasury/v1/shared/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
     "gen/python/treasury/v1/wallet/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-    "gen/python/treasury/v1/wallet/wallet_pb2.py": "sha256:e8cc05914a30fd8224931835dc38f88b5ea8f1c3a5e5459734149a9a28145d60",
-    "gen/python/treasury/v1/wallet/wallet_pb2.pyi": "sha256:6eef9139202ab5cf4a367734f3552f138ea77687bd6bbbd17e6256b9222e92fc",
+    "gen/python/treasury/v1/wallet/wallet_pb2.py": "sha256:c702a78f30683b5728e1125fb579c3ea2d981975033c9d5d40ea61043c5662d5",
+    "gen/python/treasury/v1/wallet/wallet_pb2.pyi": "sha256:9d6b6ebacc6de9a62301bfecc48a5523aeadcb1b1cdde1055d808fb607131786",
     "gen/typescript/package.json": "sha256:50d93031d2c18b3d841aeb57f4392798fe0dfba5f6c8aeedfa9932b942d329c4",
     "gen/typescript/treasury/v1/approval/approval_pb.ts": "sha256:d96a2aea30c66ab53e10538d644517f5df363ea98db0a52e02d2fece1a2f3c8d",
-    "gen/typescript/treasury/v1/authorization/authorization_pb.ts": "sha256:1182bd4918daaf060e6c1823a5bd2887d4fb6fd01cc092589f93761106a94e3d",
+    "gen/typescript/treasury/v1/authorization/authorization_pb.ts": "sha256:c2b853c787d0c57a75d3ea285f9780a91c071563329f292ded3648862b1dbacc",
     "gen/typescript/treasury/v1/book/book_pb.ts": "sha256:9c97b06b531fbdc2d21b9bc769e345a59aa327d0f499c966a37e496f5ca13a9c",
     "gen/typescript/treasury/v1/budget/budget_pb.ts": "sha256:b1070f9c6ac7633930677d62ccb3711c9c10628e202b15b01e8437030d03541a",
     "gen/typescript/treasury/v1/evidence/evidence_pb.ts": "sha256:6e59445dc2efd08cd7e05922989359662ec0486d518fd730b4ecf1fe4fffb32b",
@@ -103,6 +103,6 @@
     "gen/typescript/treasury/v1/settlement/settlement_pb.ts": "sha256:c74cdf894a6f926943bb96e7c7ba8660eb0edd8b3a441aa3b272a2111394db6f",
     "gen/typescript/treasury/v1/shared/errors_pb.ts": "sha256:8f71b28a70a5fec4cb9183287ace495d811c44cf55bc2f2b128441524c09e9a9",
     "gen/typescript/treasury/v1/shared/health_pb.ts": "sha256:de10faff32cc8e6a9314b7703c64e827461ad3b072e657ff838cc867f131458e",
-    "gen/typescript/treasury/v1/wallet/wallet_pb.ts": "sha256:9d1d4235b8e87c6ce158df5fed9c969f6afb2b4728776daffa36ef950a29549c"
+    "gen/typescript/treasury/v1/wallet/wallet_pb.ts": "sha256:9e9cb77b3be43fbc31f77b027a25add670d00178a58d922424054546b6808062"
   }
 }

@@ -8,21 +8,39 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	"os/signal"
 	"path/filepath"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/vrooli/vrooli/packages/proto/protogen"
 )
 
 func main() {
-	if err := run(os.Args[1:], os.Stdout, os.Stderr); err != nil {
+	ctx, stop := interruptContext()
+	err := run(ctx, os.Args[1:], os.Stdout, os.Stderr)
+	stop()
+	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
 }
 
-func run(args []string, stdout, stderr io.Writer) error {
+// interruptContext turns the first SIGINT or SIGTERM into cancellation, so an
+// interrupted run unwinds through its deferred cleanup (stopping buf and
+// removing its staging tree) instead of dying mid-write. A second signal gets
+// the default behaviour, so an operator can still force an exit.
+func interruptContext() (context.Context, context.CancelFunc) {
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	go func() {
+		<-ctx.Done()
+		stop()
+	}()
+	return ctx, stop
+}
+
+func run(ctx context.Context, args []string, stdout, stderr io.Writer) error {
 	if len(args) == 0 {
 		return fmt.Errorf("usage: protogen <generate|verify|descriptor|artifact|lint|format|breaking|clean|cleanup|refresh-vendor>")
 	}
@@ -56,17 +74,16 @@ func run(args []string, stdout, stderr io.Writer) error {
 		if err != nil {
 			return err
 		}
-		return generator.Generate(context.Background())
+		return generator.Generate(ctx)
 	case "verify":
 		config := protogen.DefaultConfig(repoRoot)
 		config.ProtoRoot = protoRoot
 		config.Logger = stdout
-		config.PublishArtifacts = true
 		generator, err := protogen.New(config)
 		if err != nil {
 			return err
 		}
-		return generator.Verify(context.Background())
+		return generator.Verify(ctx)
 	case "descriptor":
 		config := protogen.DefaultConfig(repoRoot)
 		config.ProtoRoot = protoRoot
@@ -74,13 +91,13 @@ func run(args []string, stdout, stderr io.Writer) error {
 		if err != nil {
 			return err
 		}
-		return generator.Descriptor(context.Background())
+		return generator.Descriptor(ctx)
 	case "artifact":
-		return runArtifactCommand(args[1:], stdout, stderr)
+		return runArtifactCommand(ctx, args[1:], stdout, stderr)
 	case "lint":
-		return runBuf(context.Background(), protoRoot, "lint")
+		return runBuf(ctx, protoRoot, "lint")
 	case "format":
-		return runBuf(context.Background(), protoRoot, "format", "-w")
+		return runBuf(ctx, protoRoot, "format", "-w")
 	case "breaking":
 		fs := flag.NewFlagSet(command, flag.ContinueOnError)
 		fs.SetOutput(stderr)
@@ -91,12 +108,13 @@ func run(args []string, stdout, stderr io.Writer) error {
 		if strings.TrimSpace(*scenario) == "" {
 			return fmt.Errorf("breaking requires --scenario")
 		}
-		return runExternal(context.Background(), "proto-health", "impact", "scenario", *scenario)
+		return runExternal(ctx, "proto-health", "impact", "scenario", *scenario)
 	case "clean":
 		// Staging trees are protogen's own output too. Leaving them behind made
 		// the one command named "clean" the one command that did not remove the
-		// largest thing protogen writes.
-		if err := protogen.CleanStages(protogen.DefaultStageParent(protoRoot)); err != nil {
+		// largest thing protogen writes. Live trees of a concurrent run survive.
+		parents := append([]string{protogen.StagingRoot(protogen.ResolveArtifactRoot())}, protogen.InTreeStageParents(protoRoot)...)
+		if err := protogen.CleanStages(parents...); err != nil {
 			return err
 		}
 		return protogen.Clean(filepath.Join(protoRoot, "gen"))
@@ -122,7 +140,7 @@ func run(args []string, stdout, stderr io.Writer) error {
 		}
 		result := protogen.CleanupResult{Plan: plan}
 		if *apply {
-			result, err = protogen.ApplyCleanup(context.Background(), protogen.CleanupOptions{
+			result, err = protogen.ApplyCleanup(ctx, protogen.CleanupOptions{
 				RepoRoot: repoRoot, ProtoRoot: protoRoot, Scenarios: scenarios, DryRun: false,
 			}, plan, stdout)
 			if err != nil {
@@ -134,10 +152,10 @@ func run(args []string, stdout, stderr io.Writer) error {
 		}
 		return writeCleanupReport(stdout, result)
 	case "refresh-vendor":
-		if err := runBuf(context.Background(), protoRoot, "export", "buf.build/googleapis/googleapis", "-o", filepath.Join(protoRoot, "vendor", "googleapis")); err != nil {
+		if err := runBuf(ctx, protoRoot, "export", "buf.build/googleapis/googleapis", "-o", filepath.Join(protoRoot, "vendor", "googleapis")); err != nil {
 			return err
 		}
-		return runBuf(context.Background(), protoRoot, "export", "buf.build/bufbuild/protovalidate", "-o", filepath.Join(protoRoot, "vendor", "protovalidate"))
+		return runBuf(ctx, protoRoot, "export", "buf.build/bufbuild/protovalidate", "-o", filepath.Join(protoRoot, "vendor", "protovalidate"))
 	default:
 		return fmt.Errorf("unknown protogen command %q", command)
 	}
@@ -169,13 +187,13 @@ func writeCleanupReport(stdout io.Writer, result protogen.CleanupResult) error {
 	return nil
 }
 
-func runArtifactCommand(args []string, stdout, stderr io.Writer) error {
+func runArtifactCommand(ctx context.Context, args []string, stdout, stderr io.Writer) error {
 	if len(args) == 0 {
 		return fmt.Errorf("usage: protogen artifact <status|promote|rollback|cleanup>")
 	}
 	fs := flag.NewFlagSet("artifact "+args[0], flag.ContinueOnError)
 	fs.SetOutput(stderr)
-	root := fs.String("root", "", "runtime artifact root (defaults to ~/.vrooli/artifacts/proto)")
+	root := fs.String("root", "", "runtime artifact root (defaults to $"+protogen.ArtifactRootEnv+", then ~/.vrooli/artifacts/proto)")
 	artifactID := fs.String("artifact", "", "validated artifact id")
 	jsonOutput := fs.Bool("json", false, "write machine-readable JSON")
 	if err := fs.Parse(args[1:]); err != nil {
@@ -183,7 +201,7 @@ func runArtifactCommand(args []string, stdout, stderr io.Writer) error {
 	}
 	artifactRoot := *root
 	if strings.TrimSpace(artifactRoot) == "" {
-		artifactRoot = protogen.DefaultArtifactRoot("")
+		artifactRoot = protogen.ResolveArtifactRoot()
 	}
 	store, err := protogen.NewArtifactStore(artifactRoot)
 	if err != nil {
@@ -191,7 +209,7 @@ func runArtifactCommand(args []string, stdout, stderr io.Writer) error {
 	}
 	switch args[0] {
 	case "status":
-		status, err := store.Status(context.Background())
+		status, err := store.Status(ctx)
 		if err != nil {
 			return err
 		}
@@ -210,13 +228,13 @@ func runArtifactCommand(args []string, stdout, stderr io.Writer) error {
 		if strings.TrimSpace(*artifactID) == "" {
 			return fmt.Errorf("artifact %s requires --artifact", args[0])
 		}
-		if err := store.Promote(context.Background(), *artifactID); err != nil {
+		if err := store.Promote(ctx, *artifactID); err != nil {
 			return err
 		}
 		fmt.Fprintf(stdout, "artifact=%s operation=%s status=promoted\n", *artifactID, args[0])
 		return nil
 	case "cleanup":
-		removed, err := store.Collect(context.Background(), time.Now())
+		removed, err := store.Collect(ctx, time.Now())
 		if err != nil {
 			return err
 		}

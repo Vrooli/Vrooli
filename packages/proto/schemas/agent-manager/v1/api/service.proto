@@ -312,6 +312,21 @@ service AgentManagerService {
     option (google.api.http) = {get: "/api/v1/runs"};
   }
 
+  // WaitRun blocks until one run settles (terminal, or needs_review with its
+  // worker exited) or the bounded timeout elapses. It only reads run state:
+  // the caller need not be a run, and cancelling the wait never touches the
+  // run.
+  rpc WaitRun(WaitRunRequest) returns (WaitRunResponse);
+
+  // WaitRunChildren blocks until a direct child of the parent settles after
+  // `since`, no child is active, or the bounded timeout elapses. It returns
+  // the same summary a parked parent's children wake carries.
+  rpc WaitRunChildren(WaitRunChildrenRequest) returns (WaitRunChildrenResponse);
+
+  // GetRunTree returns a run and its descendants with depth, status, runner,
+  // model, goal delivery, elapsed time, weighted tokens and orphan markers.
+  rpc GetRunTree(GetRunTreeRequest) returns (RunTree);
+
   // ==========================================================================
   // RUN EVENTS
   // ==========================================================================
@@ -1080,6 +1095,14 @@ message CreateRunRequest {
     max_items: 16
     items: {string: {min_len: 3, max_len: 256}}
   }];
+
+  // Absolute path of an existing charter file for this run. Agent Manager
+  // names it in the task prompt's header with the instruction to re-read it
+  // at every unit start and after any context compaction.
+  optional string charter_path = 19 [(buf.validate.field).string = {
+    min_len: 2
+    max_len: 4096
+  }];
 }
 
 // RunIdentityScopeRequest narrows an owner-authenticated CreateRun request.
@@ -1360,6 +1383,111 @@ message ListRunsRequest {
   optional string origin = 8 [(buf.validate.field).string = {
     in: ["agent_manager", "operator_sessions", "workflows"]
   }];
+
+  // Only direct child runs of this parent run.
+  // @format uuid
+  optional string parent_run_id = 9 [(buf.validate.field).string.uuid = true];
+}
+
+// WaitRunRequest waits for one run to settle.
+message WaitRunRequest {
+  // @format uuid
+  string run_id = 1 [(buf.validate.field).string.uuid = true];
+  // Server-side bound in seconds (1-900). Callers wanting a longer wait call
+  // again; each call is a fresh read, so an Agent Manager restart only ends
+  // the current call.
+  int32 timeout_seconds = 2 [(buf.validate.field).int32 = {
+    gte: 1
+    lte: 900
+  }];
+}
+
+message WaitRunResponse {
+  // The run as last read.
+  Run run = 1;
+  // "terminal", "needs_review" or "timed_out".
+  string outcome = 2;
+}
+
+// WaitRunChildrenRequest waits for a direct child of one parent run to settle.
+message WaitRunChildrenRequest {
+  // @format uuid
+  string parent_run_id = 1 [(buf.validate.field).string.uuid = true];
+  // Server-side bound in seconds (1-900).
+  int32 timeout_seconds = 2 [(buf.validate.field).int32 = {
+    gte: 1
+    lte: 900
+  }];
+  // Report children that settled at or after this instant. Omitted means the
+  // call's start; pass the previous response's observed_at to miss nothing
+  // between calls.
+  optional google.protobuf.Timestamp since = 3;
+}
+
+// RunChildSummary is one child row of a children wait or wake.
+message RunChildSummary {
+  string run_id = 1;
+  // Agent Manager run status, for example "running" or "complete".
+  string status = 2;
+  optional google.protobuf.Timestamp ended_at = 3;
+}
+
+message WaitRunChildrenResponse {
+  // "child_run_ended", "no_active_children" or "timer" (the bound elapsed).
+  string wake_reason = 1;
+  // Children that settled since the requested instant.
+  repeated RunChildSummary ended = 2;
+  // Children still pending, starting, running or parked.
+  repeated RunChildSummary active = 3;
+  // When the children were last read; pass as `since` on the next call.
+  google.protobuf.Timestamp observed_at = 4;
+}
+
+// GetRunTreeRequest reads one run and its descendants.
+message GetRunTreeRequest {
+  // @format uuid
+  string run_id = 1 [(buf.validate.field).string.uuid = true];
+}
+
+// RunTreeNode is one run in a run tree.
+message RunTreeNode {
+  string run_id = 1;
+  optional string parent_run_id = 2;
+  int32 depth = 3;
+  RunStatus status = 4;
+  string label = 5;
+  string runner = 6;
+  string model = 7;
+  string goal_delivery = 8;
+  optional google.protobuf.Timestamp started_at = 9;
+  optional google.protobuf.Timestamp ended_at = 10;
+  // From start (or creation) to end, or to the read for a live run.
+  int64 elapsed_seconds = 11;
+  // Non-cache tokens weighted by model tier (the run report's weighting).
+  double weighted_tokens = 12;
+  // False when usage is not final or the model has no known tier weight.
+  bool weighted_tokens_known = 13;
+  // True for a live child (pending, starting, running or parked) whose parent
+  // is terminal. Agent Manager reports orphans and never stops them itself.
+  bool orphaned = 14;
+  string charter_path = 15;
+  repeated RunTreeNode children = 16;
+  // When the run's owner authority ends: after it the run gets no identity,
+  // so it cannot create children or wake its parent. A child inherits its
+  // parent's window, so the root owner's credential bounds the whole tree.
+  optional google.protobuf.Timestamp owner_expires_at = 17;
+  // Transcript step-back triggers observed on this run (see StepBackTrigger);
+  // short-workers counts this run's descendants in the tree.
+  repeated StepBackTrigger step_back = 18;
+}
+
+message RunTree {
+  RunTreeNode root = 1;
+  int32 node_count = 2;
+  // True when descendants beyond the node bound were omitted.
+  bool truncated = 3;
+  // runExecution.maxChildDepth at read time.
+  int32 max_child_depth = 4;
 }
 
 // ListRunsResponse returns a list of runs.

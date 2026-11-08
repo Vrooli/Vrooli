@@ -16,7 +16,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file cli/v1/resource_status.proto.
  */
 export const file_cli_v1_resource_status: GenFile = /*@__PURE__*/
-  fileDesc("ChxjbGkvdjEvcmVzb3VyY2Vfc3RhdHVzLnByb3RvEg12cm9vbGkuY2xpLnYxIvgCCg5SZXNvdXJjZVN0YXR1cxIpCghyZXNvdXJjZRgBIAEoCzIXLnZyb29saS5jbGkudjEuUmVzb3VyY2USEQoJaW5zdGFsbGVkGAIgASgIEg8KB3J1bm5pbmcYAyABKAgSJwoHaGVhbHRoeRgEIAEoCzIWLmdvb2dsZS5wcm90b2J1Zi5WYWx1ZRIOCgZoZWFsdGgYBSABKAkSEwoLc3RhdHVzX2NvZGUYBiABKAkSDwoHbWVzc2FnZRgHIAEoCRITCgtwcm9iZV9lcnJvchgIIAEoCRIjCgNyYXcYCSABKAsyFi5nb29nbGUucHJvdG9idWYuVmFsdWUSJwoHc2VydmluZxgKIAEoCzIWLmdvb2dsZS5wcm90b2J1Zi5WYWx1ZRIVCg1kZWNsYXJlZF9tb2RlGAsgASgJEhUKDW9ic2VydmVkX21vZGUYDCABKAkSEgoKbW9kZV9kcmlmdBgNIAEoCBITCgttb2RlX3JlYXNvbhgOIAEoCSKaAQoYUmVzb3VyY2VTdGF0dXNlc1Jlc3BvbnNlEg8KB3N1Y2Nlc3MYASABKAgSMAoJcmVzb3VyY2VzGAIgAygLMh0udnJvb2xpLmNsaS52MS5SZXNvdXJjZVN0YXR1cxI7ChJkaXNjb3ZlcnlfZmFpbHVyZXMYAyADKAsyHy52cm9vbGkuY2xpLnYxLkRpc2NvdmVyeUZhaWx1cmUiggIKFlJlc291cmNlU3RhdHVzUmVzcG9uc2USDwoHc3VjY2VzcxgBIAEoCBIMCgRuYW1lGAIgASgJEhEKCWluc3RhbGxlZBgDIAEoCBIPCgdydW5uaW5nGAQgASgIEicKB2hlYWx0aHkYBSABKAsyFi5nb29nbGUucHJvdG9idWYuVmFsdWUSDgoGc3RhdHVzGAYgASgJEi8KCHJlc291cmNlGAcgASgLMh0udnJvb2xpLmNsaS52MS5SZXNvdXJjZVN0YXR1cxInCgdzZXJ2aW5nGAggASgLMhYuZ29vZ2xlLnByb3RvYnVmLlZhbHVlEhIKCm1vZGVfZHJpZnQYCSABKAgiWAoUUmVzb3VyY2VJbmZvUmVzcG9uc2USDwoHc3VjY2VzcxgBIAEoCBIvCghyZXNvdXJjZRgCIAEoCzIdLnZyb29saS5jbGkudjEuUmVzb3VyY2VTdGF0dXNCPVo7Z2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby9jbGkvdjE7Y2xpdjFiBnByb3RvMw", [file_cli_v1_common, file_cli_v1_resource_list, file_google_protobuf_struct]);
+  fileDesc("ChxjbGkvdjEvcmVzb3VyY2Vfc3RhdHVzLnByb3RvEg12cm9vbGkuY2xpLnYxIsAECg5SZXNvdXJjZVN0YXR1cxIpCghyZXNvdXJjZRgBIAEoCzIXLnZyb29saS5jbGkudjEuUmVzb3VyY2USEQoJaW5zdGFsbGVkGAIgASgIEg8KB3J1bm5pbmcYAyABKAgSJwoHaGVhbHRoeRgEIAEoCzIWLmdvb2dsZS5wcm90b2J1Zi5WYWx1ZRIOCgZoZWFsdGgYBSABKAkSEwoLc3RhdHVzX2NvZGUYBiABKAkSDwoHbWVzc2FnZRgHIAEoCRITCgtwcm9iZV9lcnJvchgIIAEoCRIjCgNyYXcYCSABKAsyFi5nb29nbGUucHJvdG9idWYuVmFsdWUSJwoHc2VydmluZxgKIAEoCzIWLmdvb2dsZS5wcm90b2J1Zi5WYWx1ZRIVCg1kZWNsYXJlZF9tb2RlGAsgASgJEhUKDW9ic2VydmVkX21vZGUYDCABKAkSEgoKbW9kZV9kcmlmdBgNIAEoCBITCgttb2RlX3JlYXNvbhgOIAEoCRIhChlkZWNsYXJlZF9hcnRpZmFjdF92ZXJzaW9uGA8gASgJEh8KF3N0YWdlZF9hcnRpZmFjdF92ZXJzaW9uGBAgASgJEiAKGHJ1bm5pbmdfYXJ0aWZhY3RfdmVyc2lvbhgRIAEoCRIhChlhcnRpZmFjdF91cGRhdGVfYXZhaWxhYmxlGBIgASgIEh4KFmFydGlmYWN0X3N0YWdpbmdfZXJyb3IYEyABKAkSHQoVYXJ0aWZhY3RfdmVyaWZpY2F0aW9uGBQgASgJIpoBChhSZXNvdXJjZVN0YXR1c2VzUmVzcG9uc2USDwoHc3VjY2VzcxgBIAEoCBIwCglyZXNvdXJjZXMYAiADKAsyHS52cm9vbGkuY2xpLnYxLlJlc291cmNlU3RhdHVzEjsKEmRpc2NvdmVyeV9mYWlsdXJlcxgDIAMoCzIfLnZyb29saS5jbGkudjEuRGlzY292ZXJ5RmFpbHVyZSKCAgoWUmVzb3VyY2VTdGF0dXNSZXNwb25zZRIPCgdzdWNjZXNzGAEgASgIEgwKBG5hbWUYAiABKAkSEQoJaW5zdGFsbGVkGAMgASgIEg8KB3J1bm5pbmcYBCABKAgSJwoHaGVhbHRoeRgFIAEoCzIWLmdvb2dsZS5wcm90b2J1Zi5WYWx1ZRIOCgZzdGF0dXMYBiABKAkSLwoIcmVzb3VyY2UYByABKAsyHS52cm9vbGkuY2xpLnYxLlJlc291cmNlU3RhdHVzEicKB3NlcnZpbmcYCCABKAsyFi5nb29nbGUucHJvdG9idWYuVmFsdWUSEgoKbW9kZV9kcmlmdBgJIAEoCCJYChRSZXNvdXJjZUluZm9SZXNwb25zZRIPCgdzdWNjZXNzGAEgASgIEi8KCHJlc291cmNlGAIgASgLMh0udnJvb2xpLmNsaS52MS5SZXNvdXJjZVN0YXR1c0I9WjtnaXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL2NsaS92MTtjbGl2MWIGcHJvdG8z", [file_cli_v1_common, file_cli_v1_resource_list, file_google_protobuf_struct]);
 
 /**
  * ResourceStatus is one resource's runtime status (control.Status). It embeds
@@ -131,6 +131,51 @@ export type ResourceStatus = Message<"vrooli.cli.v1.ResourceStatus"> & {
    * @generated from field: string mode_reason = 14;
    */
   modeReason: string;
+
+  /**
+   * Release requested by the current resource declaration; not a live-image claim.
+   *
+   * @generated from field: string declared_artifact_version = 15;
+   */
+  declaredArtifactVersion: string;
+
+  /**
+   * Declared release whose staged bytes passed integrity verification, if available.
+   *
+   * @generated from field: string staged_artifact_version = 16;
+   */
+  stagedArtifactVersion: string;
+
+  /**
+   * Release recorded for the verified, owned running process, if one exists.
+   *
+   * @generated from field: string running_artifact_version = 17;
+   */
+  runningArtifactVersion: string;
+
+  /**
+   * Desired version/digest differs from the running artifact. This does not mean downtime.
+   *
+   * @generated from field: bool artifact_update_available = 18;
+   */
+  artifactUpdateAvailable: boolean;
+
+  /**
+   * Desired artifact cannot currently be staged/verified; running health is independent.
+   *
+   * @generated from field: string artifact_staging_error = 19;
+   */
+  artifactStagingError: string;
+
+  /**
+   * This observation's current artifact-byte audit: verified, failed, or
+   * not_evaluated. Operational health is independent of this integrity result.
+   * --health-only reports not_evaluated and does not populate a newly verified
+   * staged version. Acquisition and launch always retain checksum verification.
+   *
+   * @generated from field: string artifact_verification = 20;
+   */
+  artifactVerification: string;
 };
 
 /**

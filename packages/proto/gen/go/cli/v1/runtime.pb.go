@@ -30,9 +30,18 @@ type CliVersion struct {
 	// Platform semantic version (e.g. "1.4.2").
 	PlatformVersion string `protobuf:"bytes,2,opt,name=platform_version,json=platformVersion,proto3" json:"platform_version,omitempty"`
 	// Resolved Vrooli source root the CLI is bound to.
-	Root          string `protobuf:"bytes,3,opt,name=root,proto3" json:"root,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	Root string `protobuf:"bytes,3,opt,name=root,proto3" json:"root,omitempty"`
+	// Fingerprint embedded in this executable. Empty for an unstamped build;
+	// this is artifact identity, not evidence of native activation or health.
+	BuildIdentity string `protobuf:"bytes,4,opt,name=build_identity,json=buildIdentity,proto3" json:"build_identity,omitempty"`
+	// Canonical runtime-home authority carried by this executable's build.
+	// Empty means source-independent native bootstrap is not qualified.
+	RuntimeHomeContractSha256 string `protobuf:"bytes,5,opt,name=runtime_home_contract_sha256,json=runtimeHomeContractSha256,proto3" json:"runtime_home_contract_sha256,omitempty"`
+	// Reviewed native persistence-source manifest embedded by the build owner.
+	// Equality is required for rollback admission; absence is unqualified.
+	PersistentStateContractSha256 string `protobuf:"bytes,6,opt,name=persistent_state_contract_sha256,json=persistentStateContractSha256,proto3" json:"persistent_state_contract_sha256,omitempty"`
+	unknownFields                 protoimpl.UnknownFields
+	sizeCache                     protoimpl.SizeCache
 }
 
 func (x *CliVersion) Reset() {
@@ -82,6 +91,27 @@ func (x *CliVersion) GetPlatformVersion() string {
 func (x *CliVersion) GetRoot() string {
 	if x != nil {
 		return x.Root
+	}
+	return ""
+}
+
+func (x *CliVersion) GetBuildIdentity() string {
+	if x != nil {
+		return x.BuildIdentity
+	}
+	return ""
+}
+
+func (x *CliVersion) GetRuntimeHomeContractSha256() string {
+	if x != nil {
+		return x.RuntimeHomeContractSha256
+	}
+	return ""
+}
+
+func (x *CliVersion) GetPersistentStateContractSha256() string {
+	if x != nil {
+		return x.PersistentStateContractSha256
 	}
 	return ""
 }
@@ -2184,13 +2214,16 @@ var File_cli_v1_runtime_proto protoreflect.FileDescriptor
 
 const file_cli_v1_runtime_proto_rawDesc = "" +
 	"\n" +
-	"\x14cli/v1/runtime.proto\x12\rvrooli.cli.v1\"l\n" +
+	"\x14cli/v1/runtime.proto\x12\rvrooli.cli.v1\"\x9d\x02\n" +
 	"\n" +
 	"CliVersion\x12\x1f\n" +
 	"\vcli_version\x18\x01 \x01(\tR\n" +
 	"cliVersion\x12)\n" +
 	"\x10platform_version\x18\x02 \x01(\tR\x0fplatformVersion\x12\x12\n" +
-	"\x04root\x18\x03 \x01(\tR\x04root\"\xb2\x06\n" +
+	"\x04root\x18\x03 \x01(\tR\x04root\x12%\n" +
+	"\x0ebuild_identity\x18\x04 \x01(\tR\rbuildIdentity\x12?\n" +
+	"\x1cruntime_home_contract_sha256\x18\x05 \x01(\tR\x19runtimeHomeContractSha256\x12G\n" +
+	" persistent_state_contract_sha256\x18\x06 \x01(\tR\x1dpersistentStateContractSha256\"\xb2\x06\n" +
 	"\x13CliSupervisorStatus\x12#\n" +
 	"\rsupervisor_id\x18\x01 \x01(\tR\fsupervisorId\x12\x16\n" +
 	"\x06status\x18\x02 \x01(\tR\x06status\x12#\n" +

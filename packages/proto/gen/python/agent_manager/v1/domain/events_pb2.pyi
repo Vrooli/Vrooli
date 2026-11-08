@@ -157,20 +157,22 @@ class WorkflowLifecycleUpdate(_message.Message):
     def __init__(self, execution_id: _Optional[str] = ..., definition_digest: _Optional[str] = ..., status: _Optional[str] = ..., node_id: _Optional[str] = ..., strategy: _Optional[str] = ..., profile_identity: _Optional[str] = ..., run_id: _Optional[str] = ..., conversation_id: _Optional[str] = ..., source_attempt_id: _Optional[str] = ..., journal_sequence: _Optional[int] = ..., journal_kind: _Optional[str] = ..., journal_payload_digest: _Optional[str] = ..., budget_usage: _Optional[_Union[_workflow_pb2.WorkflowBudgetUsage, _Mapping]] = ..., terminal_reason: _Optional[_Union[_workflow_pb2.WorkflowTerminalReason, _Mapping]] = ...) -> None: ...
 
 class RunStatusUpdate(_message.Message):
-    __slots__ = ("run_id", "status", "task_id", "prompt_preview", "result_selection_status", "result_selection_rule")
+    __slots__ = ("run_id", "status", "task_id", "prompt_preview", "result_selection_status", "result_selection_rule", "updated_at")
     RUN_ID_FIELD_NUMBER: _ClassVar[int]
     STATUS_FIELD_NUMBER: _ClassVar[int]
     TASK_ID_FIELD_NUMBER: _ClassVar[int]
     PROMPT_PREVIEW_FIELD_NUMBER: _ClassVar[int]
     RESULT_SELECTION_STATUS_FIELD_NUMBER: _ClassVar[int]
     RESULT_SELECTION_RULE_FIELD_NUMBER: _ClassVar[int]
+    UPDATED_AT_FIELD_NUMBER: _ClassVar[int]
     run_id: str
     status: _types_pb2.RunStatus
     task_id: str
     prompt_preview: str
     result_selection_status: _run_pb2.FinalOutputSelectionStatus
     result_selection_rule: str
-    def __init__(self, run_id: _Optional[str] = ..., status: _Optional[_Union[_types_pb2.RunStatus, str]] = ..., task_id: _Optional[str] = ..., prompt_preview: _Optional[str] = ..., result_selection_status: _Optional[_Union[_run_pb2.FinalOutputSelectionStatus, str]] = ..., result_selection_rule: _Optional[str] = ...) -> None: ...
+    updated_at: _timestamp_pb2.Timestamp
+    def __init__(self, run_id: _Optional[str] = ..., status: _Optional[_Union[_types_pb2.RunStatus, str]] = ..., task_id: _Optional[str] = ..., prompt_preview: _Optional[str] = ..., result_selection_status: _Optional[_Union[_run_pb2.FinalOutputSelectionStatus, str]] = ..., result_selection_rule: _Optional[str] = ..., updated_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ...) -> None: ...
 
 class TaskStatusUpdate(_message.Message):
     __slots__ = ("task_id", "status")

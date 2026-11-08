@@ -9,6 +9,7 @@ package cliv1
 import (
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
+	structpb "google.golang.org/protobuf/types/known/structpb"
 	reflect "reflect"
 	sync "sync"
 	unsafe "unsafe"
@@ -179,8 +180,11 @@ type SupervisionSetResponse struct {
 	Members        []*SupervisionMember   `protobuf:"bytes,6,rep,name=members,proto3" json:"members,omitempty"`
 	MemberCounts   map[string]int32       `protobuf:"bytes,7,rep,name=member_counts,json=memberCounts,proto3" json:"member_counts,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"varint,2,opt,name=value"`
 	LoadErrors     map[string]string      `protobuf:"bytes,8,rep,name=load_errors,json=loadErrors,proto3" json:"load_errors,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+	// Each value is a list of required scenario names outside the trusted base.
+	// ListValue preserves the canonical report's JSON map-of-arrays shape.
+	TrustedBaseViolations map[string]*structpb.ListValue `protobuf:"bytes,9,rep,name=trusted_base_violations,json=trustedBaseViolations,proto3" json:"trusted_base_violations,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	unknownFields         protoimpl.UnknownFields
+	sizeCache             protoimpl.SizeCache
 }
 
 func (x *SupervisionSetResponse) Reset() {
@@ -269,11 +273,18 @@ func (x *SupervisionSetResponse) GetLoadErrors() map[string]string {
 	return nil
 }
 
+func (x *SupervisionSetResponse) GetTrustedBaseViolations() map[string]*structpb.ListValue {
+	if x != nil {
+		return x.TrustedBaseViolations
+	}
+	return nil
+}
+
 var File_cli_v1_supervision_proto protoreflect.FileDescriptor
 
 const file_cli_v1_supervision_proto_rawDesc = "" +
 	"\n" +
-	"\x18cli/v1/supervision.proto\x12\rvrooli.cli.v1\"\xac\x01\n" +
+	"\x18cli/v1/supervision.proto\x12\rvrooli.cli.v1\x1a\x1cgoogle/protobuf/struct.proto\"\xac\x01\n" +
 	"\x1aSupervisionAttributionStep\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x12\n" +
 	"\x04kind\x18\x02 \x01(\tR\x04kind\x12\x1f\n" +
@@ -285,7 +296,7 @@ const file_cli_v1_supervision_proto_rawDesc = "" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x12\n" +
 	"\x04kind\x18\x02 \x01(\tR\x04kind\x12-\n" +
 	"\x12supervision_intent\x18\x03 \x01(\tR\x11supervisionIntent\x12V\n" +
-	"\x11attribution_chain\x18\x04 \x03(\v2).vrooli.cli.v1.SupervisionAttributionStepR\x10attributionChain\"\x9e\x04\n" +
+	"\x11attribution_chain\x18\x04 \x03(\v2).vrooli.cli.v1.SupervisionAttributionStepR\x10attributionChain\"\xfe\x05\n" +
 	"\x16SupervisionSetResponse\x12\x16\n" +
 	"\x06source\x18\x01 \x01(\tR\x06source\x12\x19\n" +
 	"\bcore_set\x18\x02 \x03(\tR\acoreSet\x12\x12\n" +
@@ -295,13 +306,17 @@ const file_cli_v1_supervision_proto_rawDesc = "" +
 	"\amembers\x18\x06 \x03(\v2 .vrooli.cli.v1.SupervisionMemberR\amembers\x12\\\n" +
 	"\rmember_counts\x18\a \x03(\v27.vrooli.cli.v1.SupervisionSetResponse.MemberCountsEntryR\fmemberCounts\x12V\n" +
 	"\vload_errors\x18\b \x03(\v25.vrooli.cli.v1.SupervisionSetResponse.LoadErrorsEntryR\n" +
-	"loadErrors\x1a?\n" +
+	"loadErrors\x12x\n" +
+	"\x17trusted_base_violations\x18\t \x03(\v2@.vrooli.cli.v1.SupervisionSetResponse.TrustedBaseViolationsEntryR\x15trustedBaseViolations\x1a?\n" +
 	"\x11MemberCountsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\x05R\x05value:\x028\x01\x1a=\n" +
 	"\x0fLoadErrorsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01B=Z;github.com/vrooli/vrooli/packages/proto/gen/go/cli/v1;cliv1b\x06proto3"
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\x1ad\n" +
+	"\x1aTrustedBaseViolationsEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x120\n" +
+	"\x05value\x18\x02 \x01(\v2\x1a.google.protobuf.ListValueR\x05value:\x028\x01B=Z;github.com/vrooli/vrooli/packages/proto/gen/go/cli/v1;cliv1b\x06proto3"
 
 var (
 	file_cli_v1_supervision_proto_rawDescOnce sync.Once
@@ -315,24 +330,28 @@ func file_cli_v1_supervision_proto_rawDescGZIP() []byte {
 	return file_cli_v1_supervision_proto_rawDescData
 }
 
-var file_cli_v1_supervision_proto_msgTypes = make([]protoimpl.MessageInfo, 5)
+var file_cli_v1_supervision_proto_msgTypes = make([]protoimpl.MessageInfo, 6)
 var file_cli_v1_supervision_proto_goTypes = []any{
 	(*SupervisionAttributionStep)(nil), // 0: vrooli.cli.v1.SupervisionAttributionStep
 	(*SupervisionMember)(nil),          // 1: vrooli.cli.v1.SupervisionMember
 	(*SupervisionSetResponse)(nil),     // 2: vrooli.cli.v1.SupervisionSetResponse
 	nil,                                // 3: vrooli.cli.v1.SupervisionSetResponse.MemberCountsEntry
 	nil,                                // 4: vrooli.cli.v1.SupervisionSetResponse.LoadErrorsEntry
+	nil,                                // 5: vrooli.cli.v1.SupervisionSetResponse.TrustedBaseViolationsEntry
+	(*structpb.ListValue)(nil),         // 6: google.protobuf.ListValue
 }
 var file_cli_v1_supervision_proto_depIdxs = []int32{
 	0, // 0: vrooli.cli.v1.SupervisionMember.attribution_chain:type_name -> vrooli.cli.v1.SupervisionAttributionStep
 	1, // 1: vrooli.cli.v1.SupervisionSetResponse.members:type_name -> vrooli.cli.v1.SupervisionMember
 	3, // 2: vrooli.cli.v1.SupervisionSetResponse.member_counts:type_name -> vrooli.cli.v1.SupervisionSetResponse.MemberCountsEntry
 	4, // 3: vrooli.cli.v1.SupervisionSetResponse.load_errors:type_name -> vrooli.cli.v1.SupervisionSetResponse.LoadErrorsEntry
-	4, // [4:4] is the sub-list for method output_type
-	4, // [4:4] is the sub-list for method input_type
-	4, // [4:4] is the sub-list for extension type_name
-	4, // [4:4] is the sub-list for extension extendee
-	0, // [0:4] is the sub-list for field type_name
+	5, // 4: vrooli.cli.v1.SupervisionSetResponse.trusted_base_violations:type_name -> vrooli.cli.v1.SupervisionSetResponse.TrustedBaseViolationsEntry
+	6, // 5: vrooli.cli.v1.SupervisionSetResponse.TrustedBaseViolationsEntry.value:type_name -> google.protobuf.ListValue
+	6, // [6:6] is the sub-list for method output_type
+	6, // [6:6] is the sub-list for method input_type
+	6, // [6:6] is the sub-list for extension type_name
+	6, // [6:6] is the sub-list for extension extendee
+	0, // [0:6] is the sub-list for field type_name
 }
 
 func init() { file_cli_v1_supervision_proto_init() }
@@ -346,7 +365,7 @@ func file_cli_v1_supervision_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_cli_v1_supervision_proto_rawDesc), len(file_cli_v1_supervision_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   5,
+			NumMessages:   6,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

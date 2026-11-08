@@ -1770,14 +1770,16 @@ class UsageWindowOutcome(_message.Message):
     def __init__(self, recoverable_points: _Optional[float] = ..., levers: _Optional[int] = ..., projected: _Optional[bool] = ..., end_percent: _Optional[float] = ..., reaches_reset: _Optional[bool] = ..., run_out_at: _Optional[str] = ..., shortfall_seconds: _Optional[int] = ..., cut_needed: _Optional[float] = ...) -> None: ...
 
 class UsageFrictionRequest(_message.Message):
-    __slots__ = ("status", "limit", "since")
+    __slots__ = ("status", "limit", "since", "owner")
     STATUS_FIELD_NUMBER: _ClassVar[int]
     LIMIT_FIELD_NUMBER: _ClassVar[int]
     SINCE_FIELD_NUMBER: _ClassVar[int]
+    OWNER_FIELD_NUMBER: _ClassVar[int]
     status: str
     limit: int
     since: str
-    def __init__(self, status: _Optional[str] = ..., limit: _Optional[int] = ..., since: _Optional[str] = ...) -> None: ...
+    owner: str
+    def __init__(self, status: _Optional[str] = ..., limit: _Optional[int] = ..., since: _Optional[str] = ..., owner: _Optional[str] = ...) -> None: ...
 
 class UsageToolFinding(_message.Message):
     __slots__ = ("fingerprint", "kind", "owner", "owner_kind", "command_path", "description", "calls", "runs", "cost_unit", "cost", "cost_share", "signature", "example_commands", "evidence_refs", "status", "bug_id", "status_at", "top_run_share", "root_cause", "subs", "guesses", "printed_tokens", "read_tokens", "shares", "score")
@@ -1912,7 +1914,7 @@ class UsageInterventionExample(_message.Message):
     def __init__(self, event_id: _Optional[str] = ..., run_id: _Optional[str] = ..., occurred_at: _Optional[str] = ..., category: _Optional[str] = ..., probability: _Optional[float] = ..., owner: _Optional[str] = ..., text: _Optional[str] = ..., work_requests: _Optional[int] = ..., work_tool_calls: _Optional[int] = ..., work_tokens: _Optional[int] = ..., repeat_of_event_id: _Optional[str] = ..., pooled: _Optional[bool] = ...) -> None: ...
 
 class UsageInterventions(_message.Message):
-    __slots__ = ("categories", "examples", "operator_messages", "classified", "coverage", "agent_hours", "unshown_reason", "shown")
+    __slots__ = ("categories", "examples", "operator_messages", "classified", "coverage", "agent_hours", "unshown_reason", "shown", "corrections")
     CATEGORIES_FIELD_NUMBER: _ClassVar[int]
     EXAMPLES_FIELD_NUMBER: _ClassVar[int]
     OPERATOR_MESSAGES_FIELD_NUMBER: _ClassVar[int]
@@ -1921,6 +1923,7 @@ class UsageInterventions(_message.Message):
     AGENT_HOURS_FIELD_NUMBER: _ClassVar[int]
     UNSHOWN_REASON_FIELD_NUMBER: _ClassVar[int]
     SHOWN_FIELD_NUMBER: _ClassVar[int]
+    CORRECTIONS_FIELD_NUMBER: _ClassVar[int]
     categories: _containers.RepeatedCompositeFieldContainer[UsageInterventionCategory]
     examples: _containers.RepeatedCompositeFieldContainer[UsageInterventionExample]
     operator_messages: int
@@ -1929,10 +1932,29 @@ class UsageInterventions(_message.Message):
     agent_hours: float
     unshown_reason: str
     shown: int
-    def __init__(self, categories: _Optional[_Iterable[_Union[UsageInterventionCategory, _Mapping]]] = ..., examples: _Optional[_Iterable[_Union[UsageInterventionExample, _Mapping]]] = ..., operator_messages: _Optional[int] = ..., classified: _Optional[int] = ..., coverage: _Optional[float] = ..., agent_hours: _Optional[float] = ..., unshown_reason: _Optional[str] = ..., shown: _Optional[int] = ...) -> None: ...
+    corrections: UsageOperatorCorrections
+    def __init__(self, categories: _Optional[_Iterable[_Union[UsageInterventionCategory, _Mapping]]] = ..., examples: _Optional[_Iterable[_Union[UsageInterventionExample, _Mapping]]] = ..., operator_messages: _Optional[int] = ..., classified: _Optional[int] = ..., coverage: _Optional[float] = ..., agent_hours: _Optional[float] = ..., unshown_reason: _Optional[str] = ..., shown: _Optional[int] = ..., corrections: _Optional[_Union[UsageOperatorCorrections, _Mapping]] = ...) -> None: ...
+
+class UsageOperatorCorrections(_message.Message):
+    __slots__ = ("count", "classified", "per_agent_hour", "precision", "recall", "classifier_version", "examples")
+    COUNT_FIELD_NUMBER: _ClassVar[int]
+    CLASSIFIED_FIELD_NUMBER: _ClassVar[int]
+    PER_AGENT_HOUR_FIELD_NUMBER: _ClassVar[int]
+    PRECISION_FIELD_NUMBER: _ClassVar[int]
+    RECALL_FIELD_NUMBER: _ClassVar[int]
+    CLASSIFIER_VERSION_FIELD_NUMBER: _ClassVar[int]
+    EXAMPLES_FIELD_NUMBER: _ClassVar[int]
+    count: int
+    classified: int
+    per_agent_hour: float
+    precision: float
+    recall: float
+    classifier_version: str
+    examples: _containers.RepeatedCompositeFieldContainer[UsageInterventionExample]
+    def __init__(self, count: _Optional[int] = ..., classified: _Optional[int] = ..., per_agent_hour: _Optional[float] = ..., precision: _Optional[float] = ..., recall: _Optional[float] = ..., classifier_version: _Optional[str] = ..., examples: _Optional[_Iterable[_Union[UsageInterventionExample, _Mapping]]] = ...) -> None: ...
 
 class UsageFrictionResponse(_message.Message):
-    __slots__ = ("interventions", "tool_findings", "below_floor", "beyond_limit", "materiality_score", "coverage", "window_start", "open", "reported", "dismissed", "generated_at", "validity", "provenance", "definition_id")
+    __slots__ = ("interventions", "tool_findings", "below_floor", "beyond_limit", "materiality_score", "coverage", "window_start", "open", "reported", "dismissed", "generated_at", "validity", "provenance", "definition_id", "owner_profile_count", "owner_call_count")
     INTERVENTIONS_FIELD_NUMBER: _ClassVar[int]
     TOOL_FINDINGS_FIELD_NUMBER: _ClassVar[int]
     BELOW_FLOOR_FIELD_NUMBER: _ClassVar[int]
@@ -1947,6 +1969,8 @@ class UsageFrictionResponse(_message.Message):
     VALIDITY_FIELD_NUMBER: _ClassVar[int]
     PROVENANCE_FIELD_NUMBER: _ClassVar[int]
     DEFINITION_ID_FIELD_NUMBER: _ClassVar[int]
+    OWNER_PROFILE_COUNT_FIELD_NUMBER: _ClassVar[int]
+    OWNER_CALL_COUNT_FIELD_NUMBER: _ClassVar[int]
     interventions: UsageInterventions
     tool_findings: _containers.RepeatedCompositeFieldContainer[UsageToolFinding]
     below_floor: int
@@ -1961,7 +1985,9 @@ class UsageFrictionResponse(_message.Message):
     validity: MeasureValidity
     provenance: MeasureProvenance
     definition_id: str
-    def __init__(self, interventions: _Optional[_Union[UsageInterventions, _Mapping]] = ..., tool_findings: _Optional[_Iterable[_Union[UsageToolFinding, _Mapping]]] = ..., below_floor: _Optional[int] = ..., beyond_limit: _Optional[int] = ..., materiality_score: _Optional[float] = ..., coverage: _Optional[_Union[ToolFrictionCoverage, _Mapping]] = ..., window_start: _Optional[str] = ..., open: _Optional[int] = ..., reported: _Optional[int] = ..., dismissed: _Optional[int] = ..., generated_at: _Optional[str] = ..., validity: _Optional[_Union[MeasureValidity, _Mapping]] = ..., provenance: _Optional[_Union[MeasureProvenance, _Mapping]] = ..., definition_id: _Optional[str] = ...) -> None: ...
+    owner_profile_count: int
+    owner_call_count: int
+    def __init__(self, interventions: _Optional[_Union[UsageInterventions, _Mapping]] = ..., tool_findings: _Optional[_Iterable[_Union[UsageToolFinding, _Mapping]]] = ..., below_floor: _Optional[int] = ..., beyond_limit: _Optional[int] = ..., materiality_score: _Optional[float] = ..., coverage: _Optional[_Union[ToolFrictionCoverage, _Mapping]] = ..., window_start: _Optional[str] = ..., open: _Optional[int] = ..., reported: _Optional[int] = ..., dismissed: _Optional[int] = ..., generated_at: _Optional[str] = ..., validity: _Optional[_Union[MeasureValidity, _Mapping]] = ..., provenance: _Optional[_Union[MeasureProvenance, _Mapping]] = ..., definition_id: _Optional[str] = ..., owner_profile_count: _Optional[int] = ..., owner_call_count: _Optional[int] = ...) -> None: ...
 
 class UsageCoverageRequest(_message.Message):
     __slots__ = ("since",)
