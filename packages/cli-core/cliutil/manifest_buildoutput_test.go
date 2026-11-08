@@ -1,6 +1,7 @@
 package cliutil
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
@@ -278,5 +279,63 @@ func TestRealSourceChangeStillDetected(t *testing.T) {
 	}
 	if !v.Stale {
 		t.Error("a real source change was not detected")
+	}
+}
+
+func TestFreshnessSidecarPublicationCannotBecomeSourceInput(t *testing.T) {
+	for _, inputs := range [][]string{nil, {"."}, {"api/**"}} {
+		t.Run(fmt.Sprint(inputs), func(t *testing.T) {
+			root := t.TempDir()
+			writeOutputTestFile(t, filepath.Join(root, "api", "main.go"), "package main\n")
+			// A similarly named authored source must remain a real input.
+			writeOutputTestFile(t, filepath.Join(root, "api", "policy.freshness.json.tmp-template.go"), "package main\nconst Policy = 1\n")
+			spec := FreshnessSpec{SourceRoot: root, ContextRoot: root, Inputs: inputs}
+			before, err := ComputeFreshnessManifest(spec, "binaries", nil, time.Now().UnixNano())
+			if err != nil {
+				t.Fatal(err)
+			}
+			fingerprint, err := ComputeFreshnessFingerprint(spec)
+			if err != nil {
+				t.Fatal(err)
+			}
+			outputs := []string{"api/ui.artifact.freshness.json", "api/ui.artifact.freshness.json.tmp-2241563930"}
+			for _, name := range outputs {
+				writeOutputTestFile(t, filepath.Join(root, filepath.FromSlash(name)), "generated publication state\n")
+			}
+			after, err := ComputeFreshnessManifest(spec, "binaries", nil, time.Now().UnixNano())
+			if err != nil {
+				t.Fatal(err)
+			}
+			if len(after.Files) != len(before.Files) {
+				t.Fatalf("publication changed source set: before=%+v after=%+v", before.Files, after.Files)
+			}
+			got, err := ComputeFreshnessFingerprint(spec)
+			if err != nil || got != fingerprint {
+				t.Fatalf("publication changed fingerprint: %s != %s err=%v", got, fingerprint, err)
+			}
+			verdict, err := EvaluateFreshness(spec, before, nil)
+			if err != nil || verdict.Stale {
+				t.Fatalf("publication made source stale: %+v %v", verdict, err)
+			}
+			// Older manifests can list the generated file. Neither its presence nor
+			// its atomic rename/removal may make the source appear changed.
+			after.Files = append(after.Files, FileManifestEntry{Rel: outputs[1], Size: 1, MTimeNS: 1, Hash: "old"})
+			verdict, err = EvaluateFreshness(spec, after, nil)
+			if err != nil || verdict.Stale {
+				t.Fatalf("legacy publication entry made source stale: %+v %v", verdict, err)
+			}
+			if err := os.Remove(filepath.Join(root, filepath.FromSlash(outputs[1]))); err != nil {
+				t.Fatal(err)
+			}
+			verdict, err = EvaluateFreshness(spec, after, nil)
+			if err != nil || verdict.Stale {
+				t.Fatalf("atomic rename invalidated legacy manifest: %+v %v", verdict, err)
+			}
+			writeOutputTestFile(t, filepath.Join(root, "api", "policy.freshness.json.tmp-template.go"), "package main\nconst Policy = 222\n")
+			verdict, err = EvaluateFreshness(spec, before, nil)
+			if err != nil || !verdict.Stale {
+				t.Fatalf("authored source edit hidden: %+v %v", verdict, err)
+			}
+		})
 	}
 }

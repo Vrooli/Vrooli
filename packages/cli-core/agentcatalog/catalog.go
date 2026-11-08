@@ -28,6 +28,16 @@ type UsageTiers struct {
 	ExemptRoles  []string          `json:"exempt_roles,omitempty"`
 }
 
+// Catalog vocabulary the policy readers branch on.
+const (
+	// LiveCatalogCurated marks a provider whose live marketplace is broader
+	// than fleet policy on purpose.
+	LiveCatalogCurated = "curated"
+	// ModelSourceClaudeSubscription marks a role model served by the Claude
+	// subscription, which the installed Claude Code must offer.
+	ModelSourceClaudeSubscription = "claude-subscription"
+)
+
 type CodingRoleCatalog struct {
 	SchemaVersion string                `json:"schema_version"`
 	Runner        string                `json:"runner"`
@@ -253,7 +263,7 @@ func liveCatalogFindings(c CodingRoleCatalog, live LiveModelCatalog) []PolicyVal
 			}
 		}
 	}
-	if c.LiveCatalogMode == "curated" {
+	if c.LiveCatalogMode == LiveCatalogCurated {
 		return findings
 	}
 	for _, model := range live.Models {

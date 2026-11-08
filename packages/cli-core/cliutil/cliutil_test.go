@@ -469,7 +469,10 @@ func TestHTTPClientApplicationAndInvocationHeaderSourcesCompose(t *testing.T) {
 }
 
 func TestIdentityForwardingTransportAddsProcessIdentityForRawClient(t *testing.T) {
-	t.Setenv(EnvIdentityToken, "opaque-agent-token")
+	// No broker is reachable here, so only a structurally ordinary run token
+	// is forwarded.
+	runToken := credentialRoleTestToken(nil)
+	t.Setenv(EnvIdentityToken, runToken)
 	gotIdentity := ""
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		gotIdentity = r.Header.Get(HeaderAgentIdentityToken)
@@ -483,7 +486,7 @@ func TestIdentityForwardingTransportAddsProcessIdentityForRawClient(t *testing.T
 		t.Fatalf("raw client request: %v", err)
 	}
 	resp.Body.Close()
-	if gotIdentity != "opaque-agent-token" {
+	if gotIdentity != runToken {
 		t.Fatalf("identity header = %q, want process token", gotIdentity)
 	}
 }
@@ -565,6 +568,7 @@ func (t *pinnedExactRecordingTransport) RoundTrip(r *http.Request) (*http.Respon
 	*t.calls++
 	return t.next.RoundTrip(r)
 }
+
 func TestPinnedExactCarrierRefusesRedirectsWithoutChangingOrdinaryClient(t *testing.T) {
 	namespace, err := os.MkdirTemp("", "exact-pin-")
 	if err != nil {
@@ -648,6 +652,7 @@ func TestPinnedExactCarrierRefusesRedirectsWithoutChangingOrdinaryClient(t *test
 		}
 	}
 }
+
 func TestPinnedExactCustomTransportRechecksCustodyBeforeWire(t *testing.T) {
 	wires := 0
 	raw := &http.Client{Transport: &pinnedExactRecordingTransport{next: &http.Transport{}, calls: &wires}}

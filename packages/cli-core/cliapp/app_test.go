@@ -58,6 +58,68 @@ func TestAppRunWithWritersRoutesDeclarativeOutput(t *testing.T) {
 	}
 }
 
+func TestAppRunPassesNestedHelpToLegacyCommandWhenDeclared(t *testing.T) {
+	var got []string
+	app := NewApp(AppOptions{
+		Name: "demo",
+		Commands: []CommandGroup{{
+			Title: "Demo",
+			Commands: []Command{{
+				Name:          "team",
+				NeedsAPI:      true,
+				PassHelpToRun: true,
+				Run: func(args []string) error {
+					got = append([]string(nil), args...)
+					return nil
+				},
+			}},
+		}},
+	})
+	var stdout, stderr bytes.Buffer
+	if err := app.RunWithWriters([]string{"team", "bug-capture", "scenario-qa", "--help"}, &stdout, &stderr); err != nil {
+		t.Fatalf("RunWithWriters: %v", err)
+	}
+	if gotText, wantText := strings.Join(got, "|"), "bug-capture|scenario-qa|--help"; gotText != wantText {
+		t.Fatalf("Run args = %v, want %s", got, wantText)
+	}
+	if stdout.Len() != 0 || stderr.Len() != 0 {
+		t.Fatalf("unexpected help output from dispatcher: stdout=%q stderr=%q", stdout.String(), stderr.String())
+	}
+}
+
+func TestAppRunPassesNestedHelpWithoutAPIOrPreflight(t *testing.T) {
+	var got []string
+	preflightCalled := false
+	app := NewApp(AppOptions{
+		Name: "demo",
+		Commands: []CommandGroup{{
+			Title: "Demo",
+			Commands: []Command{{
+				Name:          "team",
+				NeedsAPI:      true,
+				PassHelpToRun: true,
+				Run: func(args []string) error {
+					got = append([]string(nil), args...)
+					return nil
+				},
+			}},
+		}},
+		Preflight: func(Command, GlobalOptions) error {
+			preflightCalled = true
+			return errors.New("API unavailable")
+		},
+	})
+	if err := app.Run([]string{"team", "bug-capture", "scenario-qa", "--help"}); err != nil {
+		t.Fatalf("nested help failed: %v", err)
+	}
+	if preflightCalled {
+		t.Fatal("preflight must not run for nested help")
+	}
+	if gotText, wantText := strings.Join(got, "|"), "bug-capture|scenario-qa|--help"; gotText != wantText {
+		t.Fatalf("Run args = %v, want %s", got, wantText)
+	}
+}
+
 func TestParseGlobalFlagsMissingValue(t *testing.T) {
 	global := GlobalOptions{}
 	_, err := ParseGlobalFlags([]string{"--api-base"}, &global, nil)
@@ -370,36 +432,156 @@ func TestAppKnownNonAPISubcommandChecksFreshnessBeforeDispatch(t *testing.T) {
 	}
 }
 
-func TestAppUnknownCommandSuggestsNearest(t *testing.T) {
+func TestAppResolvesSingularPluralFormsAndSuggestsRealCommands(t *testing.T) {
+	var ran []string
+	record := func(name string) func(RunContext) error {
+		return func(RunContext) error { ran = append(ran, name); return nil }
+	}
 	app := NewApp(AppOptions{
-		Name:    "demo",
-		Version: "0.0.1",
-		SubcommandGroups: []SubcommandGroup{{
-			Name:        "records",
-			Description: "records group",
-			Subcommands: []Command{
-				{Name: "create", Description: "create", Run: func(args []string) error { return nil }},
+		Name: "demo",
+		SubcommandGroups: []SubcommandGroup{
+			{
+				Name:        "records",
+				Aliases:     []string{"rec"},
+				Description: "records group",
+				Subcommands: []Command{
+					{Name: "create", Description: "Create a record", RunCtx: record("records create")},
+					{Name: "get", Description: "Show one record", Args: ArgSchema{Positionals: []Positional{{Name: "id", Required: true}}}, RunCtx: record("records get")},
+					{Name: "executions", Description: "List executions", RunCtx: record("records executions")},
+				},
 			},
-		}},
-		ColorEnabled: DefaultColorEnabled(),
+			{
+				Name:        "library",
+				Description: "library group",
+				Subcommands: []Command{
+					{Name: "run", Description: "Run a library program", Args: ArgSchema{Positionals: []Positional{{Name: "name", Required: true}}, Flags: []Flag{{Name: "input", Repeated: true}}}, RunCtx: record("library run")},
+				},
+			},
+		},
 	})
 
-	// Singular/plural miss on a group name — the corpus's `record create`.
-	err := app.Run([]string{"record", "create"})
-	if err == nil || !strings.Contains(err.Error(), `did you mean "records"?`) {
-		t.Fatalf("expected records suggestion, got %v", err)
+	// A declared group alias, and its plural, is that group.
+	if err := app.Run([]string{"rec", "create"}); err != nil {
+		t.Fatalf("rec create: %v", err)
+	}
+	if err := app.Run([]string{"recs", "create"}); err != nil {
+		t.Fatalf("recs create: %v", err)
+	}
+	ran = nil
+
+	// A singular/plural form of exactly one name is that name.
+	if err := app.Run([]string{"record", "create"}); err != nil {
+		t.Fatalf("record create: %v", err)
+	}
+	if err := app.Run([]string{"records", "execution"}); err != nil {
+		t.Fatalf("records execution: %v", err)
+	}
+	if got := strings.Join(ran, ","); got != "records create,records executions" {
+		t.Fatalf("dispatched %q", got)
 	}
 
-	// Unknown subcommand within a known group.
-	err = app.Run([]string{"records", "creat"})
-	if err == nil || !strings.Contains(err.Error(), `did you mean "create"?`) {
-		t.Fatalf("expected create suggestion, got %v", err)
+	cases := []struct {
+		args      []string
+		want      []string
+		forbidden string
+	}{
+		// The same leaf in another group, with its usage line.
+		{args: []string{"run", "x"}, want: []string{`Unknown command: run (did you mean "library run"?)`, "demo library run <name> [options]", "Run a library program"}},
+		// A sibling verb with the same meaning.
+		{args: []string{"records", "show", "r1"}, want: []string{`Unknown subcommand: records show (did you mean "records get"?)`, "demo records get <id>"}},
+		// A near spelling.
+		{args: []string{"records", "creat"}, want: []string{`did you mean "records create"?`}},
+		// Another group named as a leaf.
+		{args: []string{"records", "library"}, want: []string{`did you mean "library"?`, "demo library <subcommand> [options]"}},
+		// Distant garbage gets no suggestion.
+		{args: []string{"zzzzzzzz"}, want: []string{"Unknown command: zzzzzzzz"}, forbidden: "did you mean"},
+	}
+	for _, tc := range cases {
+		err := app.Run(tc.args)
+		if err == nil {
+			t.Fatalf("%v: expected an error", tc.args)
+		}
+		for _, want := range tc.want {
+			if !strings.Contains(err.Error(), want) {
+				t.Errorf("%v: error %q lacks %q", tc.args, err.Error(), want)
+			}
+		}
+		if tc.forbidden != "" && strings.Contains(err.Error(), tc.forbidden) {
+			t.Errorf("%v: error %q contains %q", tc.args, err.Error(), tc.forbidden)
+		}
+	}
+}
+
+func TestSameWordForm(t *testing.T) {
+	for _, tc := range []struct {
+		a, b string
+		want bool
+	}{
+		{"run", "runs", true},
+		{"executions", "execution", true},
+		{"process", "processes", true},
+		{"policy", "policies", true},
+		{"playbooks-seed", "playbooks-seeds", true},
+		{"run", "run", false},
+		{"ls", "lss", false},
+		{"status", "state", false},
+	} {
+		if got := sameWordForm(tc.a, tc.b); got != tc.want {
+			t.Errorf("sameWordForm(%q, %q) = %v, want %v", tc.a, tc.b, got, tc.want)
+		}
+	}
+}
+
+func TestAppUsageErrorsCarryUsageAndAcceptNamedPositionals(t *testing.T) {
+	var gotRun, gotArtifact, gotScenario string
+	app := NewApp(AppOptions{
+		Name: "demo",
+		SubcommandGroups: []SubcommandGroup{{
+			Name: "runs",
+			Subcommands: []Command{{
+				Name: "artifact",
+				Args: ArgSchema{
+					Positionals: []Positional{{Name: "run_id", Required: true}, {Name: "artifact_id", Required: true}},
+					Flags:       []Flag{{Name: "scenario", Required: true}, {Name: "owner-id"}},
+				},
+				RunCtx: func(ctx RunContext) error {
+					gotRun, gotArtifact, gotScenario = ctx.Positional("run_id"), ctx.Positional("artifact_id"), ctx.Flag("scenario")
+					return nil
+				},
+			}},
+		}},
+	})
+
+	if err := app.Run([]string{"runs", "artifact", "a1", "--scenario", "s", "--run-id", "r1"}); err != nil {
+		t.Fatalf("named positional: %v", err)
+	}
+	if gotRun != "r1" || gotArtifact != "a1" || gotScenario != "s" {
+		t.Fatalf("got run=%q artifact=%q scenario=%q", gotRun, gotArtifact, gotScenario)
 	}
 
-	// Distant garbage gets no suggestion.
-	err = app.Run([]string{"zzzzzzzz"})
-	if err == nil || strings.Contains(err.Error(), "did you mean") {
-		t.Fatalf("expected no suggestion for garbage, got %v", err)
+	err := app.Run([]string{"runs", "artifact", "r1", "a1", "--senario", "s"})
+	var usageErr *UsageError
+	if !errors.As(err, &usageErr) {
+		t.Fatalf("expected a UsageError, got %v", err)
+	}
+	for _, want := range []string{
+		"unknown option: --senario (did you mean --scenario?)",
+		"Usage: demo runs artifact <run_id> <artifact_id> [options]",
+		"Options: --scenario <value>, --owner-id <value>, --json",
+	} {
+		if !strings.Contains(err.Error(), want) {
+			t.Errorf("error %q lacks %q", err.Error(), want)
+		}
+	}
+
+	err = app.Run([]string{"runs", "artifact", "r1", "a1", "--scenario", "s", "--owner", "x"})
+	if err == nil || !strings.Contains(err.Error(), "did you mean --owner-id?") {
+		t.Fatalf("expected owner-id suggestion, got %v", err)
+	}
+
+	err = app.Run([]string{"runs", "artifact", "r1", "--scenario", "s"})
+	if err == nil || !strings.Contains(err.Error(), "missing required positional <artifact_id>\nUsage: demo runs artifact") {
+		t.Fatalf("expected missing positional with usage, got %v", err)
 	}
 }
 

@@ -26,6 +26,9 @@ const (
 	maxModelIDLength   = 128
 )
 
+// ModelWindowRecordSchemaVersion is the stored context-window record format.
+const ModelWindowRecordSchemaVersion = 1
+
 // ModelWindowRecord is the durable model-to-window record the Claude status
 // line feed writes. Claude reports the window only for the running session's
 // model, so every model seen so far stays here.
@@ -64,7 +67,7 @@ func RecordModelWindow(path, model string, tokens int64, now time.Time) error {
 	if record.Models[model].ContextWindowTokens == tokens {
 		return nil
 	}
-	record.SchemaVersion = 1
+	record.SchemaVersion = ModelWindowRecordSchemaVersion
 	if record.Models == nil {
 		record.Models = map[string]ModelWindow{}
 	}

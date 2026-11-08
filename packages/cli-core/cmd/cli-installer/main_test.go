@@ -41,6 +41,11 @@ func main() { fmt.Println("demo") }
 
 	cmd := exec.Command("go", "run", ".", "--module", moduleDir, "--manifest", manifestPath, "--install-dir", installDir, "--name", "demo-cli")
 	cmd.Dir = "."
+	// The demo module lives in a temporary directory that may sit inside an
+	// unrelated git work tree (for example a home directory under version
+	// control), where Go's VCS stamping fails. The installer stamps its own
+	// build identity through ldflags, so VCS stamping is irrelevant here.
+	cmd.Env = append(os.Environ(), "GOFLAGS=-buildvcs=false")
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		t.Fatalf("go run cli-installer failed: %v\n%s", err, output)

@@ -284,6 +284,11 @@ func statFreshnessInputsForManifest(spec FreshnessSpec, manifest FreshnessManife
 
 	current := make(map[string]statEntry, len(manifest.Files))
 	for _, file := range manifest.Files {
+		// Legacy manifests can contain a sibling writer's generated metadata.
+		// Apply the same output rule before statting its transient name.
+		if isBuildOutput(file.Rel) {
+			continue
+		}
 		abs := filepath.Join(contextRoot, filepath.FromSlash(file.Rel))
 		info, err := os.Lstat(abs)
 		if err != nil {
@@ -340,7 +345,7 @@ func freshnessDirectoryChildren(dir string, spec FreshnessSpec) ([]string, error
 	children := make([]string, 0, len(entries))
 	for _, entry := range entries {
 		name := entry.Name()
-		if name == FreshnessManifestSuffix || strings.HasSuffix(name, FreshnessManifestSuffix) || isBuildOutput(name) || hasSkippedSuffix(name, spec.SkipSuffixes) {
+		if isBuildOutput(name) || hasSkippedSuffix(name, spec.SkipSuffixes) {
 			continue
 		}
 		if entry.IsDir() {
@@ -533,6 +538,9 @@ var (
 // build input.
 func isBuildOutput(rel string) bool {
 	base := path.Base(rel)
+	if isFreshnessManifestOutput(base) {
+		return true
+	}
 	for _, name := range BuildOutputSkipNames {
 		if base == name {
 			return true
@@ -544,6 +552,30 @@ func isBuildOutput(rel string) bool {
 		}
 	}
 	return false
+}
+
+// The atomic writer's reserved sidecar namespace is generated metadata, not
+// authored input. Its current temporary names end in a numeric random suffix;
+// do not hide similarly named authored files such as .tmp-template.go.
+func isFreshnessManifestOutput(base string) bool {
+	if strings.HasSuffix(base, FreshnessManifestSuffix) {
+		return true
+	}
+	const temporaryMarker = FreshnessManifestSuffix + ".tmp-"
+	index := strings.LastIndex(base, temporaryMarker)
+	if index < 0 {
+		return false
+	}
+	suffix := base[index+len(temporaryMarker):]
+	if suffix == "" {
+		return false
+	}
+	for _, char := range suffix {
+		if char < '0' || char > '9' {
+			return false
+		}
+	}
+	return true
 }
 
 // BuildOutputSkipSuffixesFor returns output suffixes for the target platform.

@@ -18,6 +18,6 @@
       "strategy": "restart_running_consumers",
       "restart_running_consumers": true
     },
-    "docs": []
+    "docs": ["packages/envkit-go/README.md", "docs/package-governance.md"]
   }
 }

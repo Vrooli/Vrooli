@@ -97,6 +97,11 @@ func (a *ResourceApp) SetCommandsWithSubgroups(commands []CommandGroup, subcomma
 		ColorEnabled:     colorEnabled,
 		OnColor:          a.options.OnColor,
 		Preflight:        preflight,
+		// Without this, an installed resource CLI never refreshes itself: an
+		// unknown command (a verb added in source since the build) and API
+		// commands check freshness and rebuild; other commands keep their fast
+		// path, so per-tool-call hooks such as hook-guard pay nothing.
+		StaleChecker: a.StaleChecker,
 	})
 }
 

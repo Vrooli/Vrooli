@@ -28,7 +28,11 @@ type ManifestGroup struct {
 }
 
 type ManifestCommand struct {
-	Name         string                `json:"name"`
+	Name string `json:"name"`
+	// Aliases are owner-declared alternative names that dispatch to this
+	// command (for example "show" for "get"). Declare one only when it means
+	// exactly the same operation; cli-core suggests near verbs on its own.
+	Aliases      []string              `json:"aliases,omitempty"`
 	Description  string                `json:"description,omitempty"`
 	NeedsAPI     *bool                 `json:"needs_api,omitempty"`
 	Positionals  []ManifestPositional  `json:"positionals,omitempty"`
@@ -332,6 +336,9 @@ func loadFromManifest(raw []byte, groupName string, bindings map[string]boundHan
 		return SubcommandGroup{}, fmt.Errorf("cli manifest %q: group %q not found (have: %s)", m.Name, groupName, listGroupNames(m))
 	}
 
+	if err := checkManifestCommandNames(group); err != nil {
+		return SubcommandGroup{}, fmt.Errorf("cli manifest %q: %w", m.Name, err)
+	}
 	used := make(map[string]struct{}, len(bindings))
 	subs := make([]Command, 0, len(group.Commands))
 	needsAPI := false
@@ -373,6 +380,7 @@ func loadFromManifest(raw []byte, groupName string, bindings map[string]boundHan
 		}
 		subs = append(subs, Command{
 			Name:              c.Name,
+			Aliases:           append([]string(nil), c.Aliases...),
 			Description:       c.Description,
 			NeedsAPI:          commandNeedsAPI,
 			NeedsAPIOverride:  c.NeedsAPI,
@@ -444,4 +452,19 @@ func listGroupNames(m *Manifest) string {
 	}
 	sort.Strings(names)
 	return strings.Join(names, ", ")
+}
+
+// checkManifestCommandNames rejects a group where two commands answer to the
+// same name or alias, so an alias can never shadow a real command.
+func checkManifestCommandNames(group *ManifestGroup) error {
+	owner := make(map[string]string, len(group.Commands))
+	for _, c := range group.Commands {
+		for _, name := range append([]string{c.Name}, c.Aliases...) {
+			if previous, taken := owner[name]; taken {
+				return fmt.Errorf("group %s: %q names both %s and %s", group.Name, name, previous, c.Name)
+			}
+			owner[name] = c.Name
+		}
+	}
+	return nil
 }

@@ -32,6 +32,18 @@ func isolateLauncherModelPolicy(t *testing.T) {
 	t.Setenv("CODEX_HOME", t.TempDir())
 }
 
+func TestCancellableAgentLaunchRetainsWaitingWrapper(t *testing.T) {
+	request := AgentLaunchRequest{Stdin: os.Stdin, Stdout: os.Stdout, Stderr: os.Stderr}
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	if canExecReplace(ctx, request) {
+		t.Fatal("exec replacement would discard cancellation")
+	}
+	if got := canExecReplace(context.Background(), request); got != execReplaceSupported {
+		t.Fatalf("ordinary interactive exec support=%v, platform support=%v", got, execReplaceSupported)
+	}
+}
+
 func TestLaunchCodingAgentFallsBackWhenAgentManagerUnavailable(t *testing.T) {
 	// A token in the ambient environment would make the launcher adopt it and
 	// skip attaching, so pin it empty to keep this test about the attach path.
@@ -448,12 +460,14 @@ func jsonDecode(r *http.Request, target *map[string]string) error {
 func TestProtectedLaunchBrokerRefusalBeforeAnyBootstrapOrChild(t *testing.T) {
 	testProtectedSessionBroker(t, LaunchCodingAgentResult)
 }
+
 func TestProtectedCommandSessionBrokerRefusalBeforeAnyBootstrapOrChild(t *testing.T) {
 	testProtectedSessionBroker(t, func(ctx context.Context, r AgentLaunchRequest) (LaunchResult, error) {
 		r.Args = append([]string{"fixture-command"}, r.Args...)
 		return LaunchCommandSessionResult(ctx, r)
 	})
 }
+
 func testProtectedSessionBroker(t *testing.T, launch func(context.Context, AgentLaunchRequest) (LaunchResult, error)) {
 	for _, mode := range []string{"refused", "unavailable", "changed", "same", "postattach refused", "postattach forwarding refusal"} {
 		t.Run(mode, func(t *testing.T) {
@@ -470,7 +484,7 @@ func testProtectedSessionBroker(t *testing.T, launch func(context.Context, Agent
 				t.Setenv(EnvIdentityToken, "")
 			}
 			socket := AgentCredentialSocket()
-			if os.MkdirAll(filepath.Dir(socket), 0700) != nil {
+			if os.MkdirAll(filepath.Dir(socket), 0o700) != nil {
 				t.Fatal("broker directory")
 			}
 			calls, attach, detach, child := 0, 0, 0, 0
@@ -518,7 +532,8 @@ func testProtectedSessionBroker(t *testing.T, launch func(context.Context, Agent
 			if mode == "postattach forwarding refusal" {
 				transport = identityForwardingTransport{next: transport}
 			}
-			_, err := launch(context.Background(), AgentLaunchRequest{Agent: "codex", RequireNativeIdentity: true, APIBase: server.URL, HTTPClient: &http.Client{Transport: transport},
+			_, err := launch(context.Background(), AgentLaunchRequest{
+				Agent: "codex", RequireNativeIdentity: true, APIBase: server.URL, HTTPClient: &http.Client{Transport: transport},
 				LookPath: func(string) (string, error) { return "/disposable/codex", nil },
 				RunChild: func(_ context.Context, _ string, _ []string, env []string, _ io.Reader, _, _ io.Writer) error {
 					child++

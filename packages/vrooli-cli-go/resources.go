@@ -33,10 +33,25 @@ func (c *Client) ListResources(ctx context.Context) (*cliv1.ResourceListResponse
 // ResourceStatuses returns the typed fleet form of `vrooli resource status
 // --json` (every resource's runtime status).
 func (c *Client) ResourceStatuses(ctx context.Context) (*cliv1.ResourceStatusesResponse, error) {
+	return c.resourceStatuses(ctx, false)
+}
+
+// ResourceHealthStatuses observes native process/health state without walking
+// and hashing installed runtime trees. ArtifactVerification reports that this
+// observation did not audit current bytes. Lifecycle gates are unchanged.
+func (c *Client) ResourceHealthStatuses(ctx context.Context) (*cliv1.ResourceStatusesResponse, error) {
+	return c.resourceStatuses(ctx, true)
+}
+
+func (c *Client) resourceStatuses(ctx context.Context, healthOnly bool) (*cliv1.ResourceStatusesResponse, error) {
 	ctx, cancel := c.withTimeout(ctx)
 	defer cancel()
 
-	out, err := c.run(ctx, "resource", "status", "--json")
+	args := []string{"resource", "status"}
+	if healthOnly {
+		args = append(args, "--health-only")
+	}
+	out, err := c.run(ctx, append(args, "--json")...)
 	if err != nil {
 		return nil, err
 	}
@@ -50,13 +65,27 @@ func (c *Client) ResourceStatuses(ctx context.Context) (*cliv1.ResourceStatusesR
 // ResourceStatus returns the typed single form of `vrooli resource status <name>
 // --json`.
 func (c *Client) ResourceStatus(ctx context.Context, name string) (*cliv1.ResourceStatusResponse, error) {
+	return c.resourceStatus(ctx, name, false)
+}
+
+// ResourceHealthStatus runs one resource's health probes without a current
+// artifact-byte audit. Call ResourceStatus for an explicit integrity inspection.
+func (c *Client) ResourceHealthStatus(ctx context.Context, name string) (*cliv1.ResourceStatusResponse, error) {
+	return c.resourceStatus(ctx, name, true)
+}
+
+func (c *Client) resourceStatus(ctx context.Context, name string, healthOnly bool) (*cliv1.ResourceStatusResponse, error) {
 	if strings.TrimSpace(name) == "" {
 		return nil, fmt.Errorf("resource status: name is required")
 	}
 	ctx, cancel := c.withTimeout(ctx)
 	defer cancel()
 
-	out, err := c.run(ctx, "resource", "status", name, "--json")
+	args := []string{"resource", "status", name}
+	if healthOnly {
+		args = append(args, "--health-only")
+	}
+	out, err := c.run(ctx, append(args, "--json")...)
 	if err != nil {
 		return nil, err
 	}

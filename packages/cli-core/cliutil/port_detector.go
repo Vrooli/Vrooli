@@ -409,7 +409,7 @@ func SetPortLookupRunner(fn func(ctx context.Context, target, portVar string) Sc
 // falls back to the bare name so exec reports the PATH failure itself.
 func resolveVrooliBinary() string {
 	home, _ := userHomeFn()
-	path, err := cliinvoke.Resolve(cliinvoke.ResolveOptions{RuntimeHome: home, LookPath: lookPathFn})
+	path, err := cliinvoke.Resolve(cliinvoke.ResolveOptions{UserHome: home, LookPath: lookPathFn})
 	if err != nil {
 		return "vrooli"
 	}

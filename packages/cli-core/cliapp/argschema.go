@@ -3,6 +3,8 @@ package cliapp
 import (
 	"fmt"
 	"strings"
+
+	"github.com/vrooli/cli-core/cliutil"
 )
 
 // ArgSchema describes the positionals and flags a Command accepts.
@@ -236,4 +238,45 @@ func (s ArgSchema) flagByName(name string) (Flag, bool) {
 		}
 	}
 	return Flag{}, false
+}
+
+// positionalByFlagName returns the positional a --<name> token names, if any:
+// --run-id, --run_id and <run_id> are the same name.
+func (s ArgSchema) positionalByFlagName(name string) (Positional, bool) {
+	want := normalizeArgName(name)
+	for _, p := range s.Positionals {
+		if normalizeArgName(p.Name) == want {
+			return p, true
+		}
+	}
+	return Positional{}, false
+}
+
+// nearestFlag names the declared flag an unknown flag most likely meant: a
+// near spelling, or a declared flag that extends the guess ("owner" for
+// "owner-id"). It returns "" when no flag is close.
+func (s ArgSchema) nearestFlag(name string) string {
+	want := strings.ToLower(strings.TrimSpace(name))
+	if want == "" {
+		return ""
+	}
+	names := make([]string, 0, len(s.Flags)+1)
+	for _, f := range s.Flags {
+		names = append(names, f.Name)
+		names = append(names, f.Aliases...)
+	}
+	names = append(names, jsonFlagName)
+	if nearest := cliutil.NearestString(want, names, 2); nearest != "" {
+		return nearest
+	}
+	var extended []string
+	for _, candidate := range names {
+		if len(want) >= 3 && (strings.HasPrefix(candidate, want+"-") || strings.HasSuffix(candidate, "-"+want)) {
+			extended = append(extended, candidate)
+		}
+	}
+	if len(extended) == 1 {
+		return extended[0]
+	}
+	return ""
 }

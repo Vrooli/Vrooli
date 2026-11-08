@@ -293,7 +293,7 @@ func NewMode(t Tiers, o NewModeOptions) (Mode, error) {
 	}
 	kind := o.Kind
 	if kind == "" {
-		kind = "save"
+		kind = KindSave
 	}
 	exempt := append(append([]string(nil), t.ExemptRoles...), o.ExtraExemptRoles...)
 	return Mode{

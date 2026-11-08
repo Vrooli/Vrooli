@@ -56,6 +56,27 @@ func TestResourceStatusSinglePassesName(t *testing.T) {
 	}
 }
 
+func TestResourceHealthObservationsUseExplicitCommandAndRetainIntegrityScope(t *testing.T) {
+	runner := &stubRunner{responses: []stubResponse{
+		{output: []byte(`{"success":true,"resources":[{"resource":{"name":"redis"},"running":true,"artifact_verification":"not_evaluated"}]}`)},
+		{output: []byte(`{"success":true,"name":"redis","running":true,"resource":{"artifact_verification":"not_evaluated"}}`)},
+	}}
+	client := New(WithRunner(runner))
+	fleet, err := client.ResourceHealthStatuses(context.Background())
+	if err != nil || fleet.GetResources()[0].GetArtifactVerification() != "not_evaluated" {
+		t.Fatalf("fleet health observation: %+v %v", fleet, err)
+	}
+	single, err := client.ResourceHealthStatus(context.Background(), "redis")
+	if err != nil || single.GetResource().GetArtifactVerification() != "not_evaluated" {
+		t.Fatalf("single health observation: %+v %v", single, err)
+	}
+	for n, want := range []string{"resource status --health-only --json", "resource status redis --health-only --json"} {
+		if got := strings.Join(runner.calls[n].args, " "); got != want {
+			t.Fatalf("health argv=%s, want %s", got, want)
+		}
+	}
+}
+
 func TestScenarioStatusesDecodesListForm(t *testing.T) {
 	runner := &stubRunner{responses: []stubResponse{{output: []byte(`{
 		"success": true,

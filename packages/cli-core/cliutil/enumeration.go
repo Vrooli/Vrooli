@@ -4,6 +4,7 @@ import (
 	"io/fs"
 	"os"
 	"os/exec"
+	"path"
 	"path/filepath"
 	"runtime"
 	"sort"
@@ -114,11 +115,21 @@ func uniqueStrings(values []string) []string {
 	return out
 }
 
+// buildOutputDirectory is the walk fallback's stand-in for the repository's
+// ignore rules: directories that hold build output, installed environments or
+// packaged desktop payloads, never source. Keep it aligned with .gitignore so
+// a tree enumerates the same files with or without Git.
 func buildOutputDirectory(root, rel string) bool {
-	name := filepath.Base(filepath.FromSlash(rel))
+	slashed := filepath.ToSlash(rel)
+	name := path.Base(slashed)
 	switch name {
-	case ".git", ".vrooli", "node_modules", "dist", "build", "data", "tmp":
+	case ".git", ".vrooli", "node_modules", "dist", "build", "data", "tmp",
+		".venv", "dist-electron", "bin":
 		return true
+	case "bundle":
+		// The packaged payload of a generated desktop shell; a Go package
+		// named bundle elsewhere is source.
+		return path.Base(path.Dir(slashed)) == "electron"
 	case "coverage":
 		return buildinfo.IsCoverageOutputDir(root, rel)
 	default:

@@ -147,3 +147,32 @@ func TestResourceAppStandardLifecycleCommandsExposeCompleteSurface(t *testing.T)
 		t.Fatalf("command names = %v, want %v", got, want)
 	}
 }
+
+// An installed resource CLI built before a verb existed must check freshness
+// (and so self-refresh) when that verb is invoked, while non-API commands keep
+// the fast path.
+func TestResourceAppChecksFreshnessOnUnknownCommandsOnly(t *testing.T) {
+	calls := 0
+	app, err := NewResourceApp(ResourceOptions{Name: "demo", Version: "1", BuildFingerprint: "fp", BuildSourceRoot: t.TempDir()})
+	if err != nil {
+		t.Fatal(err)
+	}
+	app.StaleChecker.FingerprintFunc = func(cliutil.FreshnessSpec) (string, error) {
+		calls++
+		return "fp", nil
+	}
+	ran := false
+	app.SetCommands([]CommandGroup{{Title: "Demo", Commands: []Command{{Name: "fast", Description: "d", Run: func([]string) error { ran = true; return nil }}}}})
+	if err := app.CLI.Run([]string{"fast"}); err != nil || !ran {
+		t.Fatalf("fast command: ran=%v err=%v", ran, err)
+	}
+	if calls != 0 {
+		t.Fatalf("non-API command checked freshness %d times", calls)
+	}
+	if err := app.CLI.Run([]string{"added-since-build"}); err == nil {
+		t.Fatal("unknown command succeeded")
+	}
+	if calls != 1 {
+		t.Fatalf("unknown command checked freshness %d times, want 1", calls)
+	}
+}

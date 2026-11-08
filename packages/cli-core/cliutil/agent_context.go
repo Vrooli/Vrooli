@@ -177,6 +177,31 @@ func IsLikelyAgentContext() bool {
 	return k == CallerKindVrooliAgent || k == CallerKindExternalAgent || k == CallerKindOverride
 }
 
+// AmbientAgentEnvironment names every variable through which an enclosing
+// coding-agent session changes CLI behaviour: the strict context keys (while
+// any is set, generic API base variables are ignored), the identity token
+// and session marker forwarded as credentials, the VROOLI_CALLER override,
+// and the runtime signals behind DetectCallerKind, ResolveCallerActor and
+// InvocationHeaders. Keep it in step with those detectors.
+//
+// Tests use it to detach from the session that runs them, through
+// cliapptest.IsolateAgentEnvironment and cliapptest.RunWithoutAgentSession.
+func AmbientAgentEnvironment() []string {
+	keys := append([]string(nil), agentContextEnvKeys...)
+	return append(keys,
+		AgentSessionEnv,
+		"VROOLI_CALLER",
+		EnvClaudeCodeSessionID,
+		EnvCodexThreadID,
+		"CLAUDECODE",
+		"CODEX_CI",
+		"GROK_AGENT",
+		"ANTIGRAVITY_AGENT",
+		"ANTIGRAVITY_CONVERSATION_ID",
+		"OPENCODE_PID",
+	)
+}
+
 // --- helpers --------------------------------------------------------------
 
 func envEquals(key, value string) func() bool {

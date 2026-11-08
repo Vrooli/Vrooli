@@ -29,6 +29,10 @@ type Command struct {
 	HelpText        string
 	LongDescription string
 	NeedsAPI        bool
+	// PassHelpToRun lets a legacy Run command handle help embedded in its own
+	// nested command grammar. Without this, cli-core treats any --help argument
+	// as help for the outer Command before the nested router can identify it.
+	PassHelpToRun bool
 	// NeedsAPIOverride lets a command in an API-backed subgroup explicitly
 	// remain runnable without its scenario API. Prompt-time hooks use this for
 	// their fail-closed no-op path when the owning scenario is stopped.
@@ -66,20 +70,62 @@ type Command struct {
 // UsageError marks an invalid command invocation without confusing it with a
 // runtime failure. Embedding CLIs can translate it into their native error
 // envelope and preserve a command-specific help target.
+//
+// Detail carries the exact usage line (and, for an unknown option, the
+// accepted options) so the caller can retry once without a help lookup.
 type UsageError struct {
 	cause      error
 	helpTarget string
+	detail     string
 }
 
 func NewUsageError(cause error, helpTarget string) *UsageError {
 	return &UsageError{cause: cause, helpTarget: strings.TrimSpace(helpTarget)}
 }
 
+// newCommandUsageError is NewUsageError plus the command's usage detail.
+func newCommandUsageError(cause error, helpTarget, prefix string, cmd Command) *UsageError {
+	err := NewUsageError(cause, helpTarget)
+	lines := []string{"Usage: " + commandUsageLine(prefix, cmd)}
+	if cause != nil && strings.HasPrefix(cause.Error(), "unknown option") {
+		if options := optionSummary(cmd.Args); options != "" {
+			lines = append(lines, "Options: "+options)
+		}
+	}
+	err.detail = strings.Join(lines, "\n")
+	return err
+}
+
 func (e *UsageError) Error() string {
 	if e == nil || e.cause == nil {
 		return "invalid command usage"
 	}
-	return e.cause.Error()
+	if e.detail == "" {
+		return e.cause.Error()
+	}
+	return e.cause.Error() + "\n" + e.detail
+}
+
+// Detail returns the usage guidance appended to Error, without the cause.
+func (e *UsageError) Detail() string {
+	if e == nil {
+		return ""
+	}
+	return e.detail
+}
+
+// optionSummary lists a schema's flags on one line for usage errors.
+func optionSummary(schema ArgSchema) string {
+	parts := make([]string, 0, len(schema.Flags)+1)
+	for _, f := range schema.Flags {
+		if f.Bool {
+			parts = append(parts, "--"+f.Name)
+		} else {
+			parts = append(parts, "--"+f.Name+" <value>")
+		}
+	}
+	parts = append(parts, "--json")
+	return strings.Join(parts, ", ")
 }
 
 func (e *UsageError) Unwrap() error { return e.cause }
@@ -143,6 +189,10 @@ type CommandGroup struct {
 type SubcommandGroup struct {
 	// Name is the group command (e.g., "pipeline", "telemetry")
 	Name string
+	// Aliases are owner-declared alternative group names ("lease" for a
+	// "session" group whose commands manage leases). Singular/plural forms
+	// resolve without an alias.
+	Aliases []string
 	// Description shown in main help
 	Description string
 	// Subcommands within this group (e.g., "run", "status")
@@ -280,6 +330,14 @@ func (a *App) run(args []string) error {
 
 	cmd, ok := a.commandLookup[remaining[0]]
 	if !ok {
+		if formCmd, formGroup, found := a.resolveTopLevelForm(remaining[0]); found {
+			if formGroup != nil {
+				return a.runSubcommand(formGroup, remaining[1:], args)
+			}
+			cmd, ok = formCmd, true
+		}
+	}
+	if !ok {
 		// The installed binary may predate a command that now exists in source.
 		// Check freshness before reporting capability absence so an unknown
 		// command gets the same self-healing path as a known API command. This
@@ -290,18 +348,20 @@ func (a *App) run(args []string) error {
 		} else if restarted {
 			return nil
 		}
+		fragment, detail := a.suggestTopLevel(remaining[0]).render()
 		hint := a.unknownCommandHint(remaining)
 		if hint == "" {
 			hint = fmt.Sprintf("\n\nRun '%s --help' to see available commands.", a.opts.Name)
 		}
-		return fmt.Errorf("Unknown command: %s%s%s", remaining[0], a.suggestCommand(remaining[0]), hint)
+		return fmt.Errorf("Unknown command: %s%s%s%s", remaining[0], fragment, detail, hint)
 	}
-	if wantsHelp(remaining[1:]) {
+	nestedHelpDispatch := wantsHelp(remaining[1:]) && cmd.PassHelpToRun && cmd.Run != nil
+	if wantsHelp(remaining[1:]) && !nestedHelpDispatch {
 		a.printCommandHelp(a.opts.Name, cmd)
 		return nil
 	}
 
-	if cmd.NeedsAPI {
+	if cmd.NeedsAPI && !nestedHelpDispatch {
 		if restarted, staleErr := a.checkStaleAndMaybeRebuild(args); staleErr != nil {
 			return staleErr
 		} else if restarted {
@@ -309,7 +369,7 @@ func (a *App) run(args []string) error {
 		}
 	}
 
-	if a.opts.Preflight != nil {
+	if a.opts.Preflight != nil && !nestedHelpDispatch {
 		if err := a.opts.Preflight(cmd, a.global); err != nil {
 			return err
 		}
@@ -325,23 +385,8 @@ func (a *App) runSubcommand(group *SubcommandGroup, args []string, originalArgs 
 		return nil
 	}
 
-	// Find the subcommand
-	var cmd *Command
-	for i := range group.Subcommands {
-		if group.Subcommands[i].Name == args[0] {
-			cmd = &group.Subcommands[i]
-			break
-		}
-		for _, alias := range group.Subcommands[i].Aliases {
-			if alias == args[0] {
-				cmd = &group.Subcommands[i]
-				break
-			}
-		}
-		if cmd != nil {
-			break
-		}
-	}
+	// Find the subcommand: exact name or alias, then a singular/plural form.
+	cmd := findSubcommand(group, args[0])
 
 	if cmd == nil && group.DefaultSubcommand != "" {
 		for i := range group.Subcommands {
@@ -369,8 +414,9 @@ func (a *App) runSubcommand(group *SubcommandGroup, args []string, originalArgs 
 			return nil
 		}
 		path := append([]string{group.Name}, args...)
-		return fmt.Errorf("Unknown subcommand: %s %s%s%s\nRun '%s %s help' for available subcommands",
-			group.Name, args[0], suggestSubcommand(group, args[0]), a.unknownCommandHint(path), a.opts.Name, group.Name)
+		fragment, detail := a.suggestSubcommand(group, args[0]).render()
+		return fmt.Errorf("Unknown subcommand: %s %s%s%s%s\nRun '%s %s help' for available subcommands",
+			group.Name, args[0], fragment, detail, a.unknownCommandHint(path), a.opts.Name, group.Name)
 	}
 	if wantsHelp(args[1:]) {
 		a.printCommandHelp(strings.TrimSpace(a.opts.Name+" "+group.Name), *cmd)
@@ -420,7 +466,7 @@ func (a *App) dispatchCommand(prefix string, cmd Command, cmdArgs []string) erro
 			}
 			helpTarget := strings.TrimSpace(prefix + " " + cmd.Name)
 			helpTarget = strings.TrimPrefix(helpTarget, "vrooli ")
-			return NewUsageError(err, helpTarget)
+			return newCommandUsageError(err, helpTarget, prefix, cmd)
 		}
 		return renderCommandError(prefix, cmd.RunCtx(ctx))
 	}
@@ -456,7 +502,7 @@ func (a *App) printSubcommandHelp(group *SubcommandGroup) {
 	fmt.Fprintf(w, "Usage:\n  %s %s <subcommand> [options]\n\n", a.opts.Name, group.Name)
 	fmt.Fprintln(w, "Subcommands:")
 	for _, cmd := range group.Subcommands {
-		fmt.Fprintf(w, "  %-20s %s\n", cmd.Name, cmd.Description)
+		fmt.Fprintf(w, "  %-20s %s\n", strings.Join(commandNames(cmd), ", "), cmd.Description)
 	}
 	fmt.Fprintln(w)
 	fmt.Fprintf(w, "Run '%s %s <subcommand> --help' for subcommand-specific options.\n", a.opts.Name, group.Name)
@@ -524,7 +570,7 @@ func (a *App) PrintHelp() {
 	if len(a.opts.SubcommandGroups) > 0 {
 		fmt.Fprintln(w, "Command Groups (run '<group> help' for details):")
 		for _, group := range a.opts.SubcommandGroups {
-			fmt.Fprintf(w, "  %-20s %s\n", group.Name, group.Description)
+			fmt.Fprintf(w, "  %-20s %s\n", strings.Join(append([]string{group.Name}, group.Aliases...), ", "), group.Description)
 		}
 		fmt.Fprintln(w)
 	}
@@ -614,6 +660,14 @@ func (a *App) buildCommands() {
 		group := &a.opts.SubcommandGroups[i]
 		a.subcommandGroupLookup[group.Name] = group
 	}
+	for i := range a.opts.SubcommandGroups {
+		group := &a.opts.SubcommandGroups[i]
+		for _, alias := range group.Aliases {
+			if _, taken := a.subcommandGroupLookup[alias]; !taken {
+				a.subcommandGroupLookup[alias] = group
+			}
+		}
+	}
 }
 
 func (a *App) applyColor() {
@@ -685,26 +739,6 @@ func ParseGlobalFlags(args []string, global *GlobalOptions, apiOverrideTarget *s
 	return remaining, nil
 }
 
-// suggestCommand returns a ` (did you mean "x"?)` fragment naming the nearest
-// command or subcommand group, or "" when nothing is close. Covers the common
-// singular/plural miss (e.g. `record create` → `records create`) so agents get
-// a one-retry correction instead of a dead end.
-func (a *App) suggestCommand(candidate string) string {
-	options := make([]string, 0, len(a.commandLookup)+len(a.subcommandGroupLookup))
-	for name := range a.commandLookup {
-		if !strings.HasPrefix(name, "-") { // skip --help/-v style aliases
-			options = append(options, name)
-		}
-	}
-	for name := range a.subcommandGroupLookup {
-		options = append(options, name)
-	}
-	if nearest := cliutil.NearestString(candidate, options, 2); nearest != "" {
-		return fmt.Sprintf(" (did you mean %q?)", nearest)
-	}
-	return ""
-}
-
 func (a *App) unknownCommandHint(args []string) string {
 	if a.opts.UnknownCommandHint == nil {
 		return ""
@@ -714,19 +748,6 @@ func (a *App) unknownCommandHint(args []string) string {
 		return ""
 	}
 	return "\n\n" + hint
-}
-
-// suggestSubcommand is suggestCommand scoped to one group's subcommands.
-func suggestSubcommand(group *SubcommandGroup, candidate string) string {
-	options := make([]string, 0, len(group.Subcommands))
-	for _, sub := range group.Subcommands {
-		options = append(options, sub.Name)
-		options = append(options, sub.Aliases...)
-	}
-	if nearest := cliutil.NearestString(candidate, options, 2); nearest != "" {
-		return fmt.Sprintf(" (did you mean %q?)", nearest)
-	}
-	return ""
 }
 
 func isHelpToken(arg string) bool {

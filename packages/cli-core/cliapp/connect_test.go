@@ -2,6 +2,8 @@ package cliapp
 
 import (
 	"context"
+	"encoding/base64"
+	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
@@ -9,6 +11,7 @@ import (
 	"net/url"
 	"strings"
 	"testing"
+	"time"
 
 	"connectrpc.com/connect"
 	"github.com/vrooli/cli-core/cliutil"
@@ -44,8 +47,20 @@ func TestNewConnectHTTPClientCallsConnectHandler(t *testing.T) {
 	}
 }
 
+// ordinaryRunToken is structurally an Agent Manager run token. With no
+// credential broker reachable (the package runs detached from any agent
+// session), cli-core forwards only such a token.
+func ordinaryRunToken() string {
+	claims, _ := json.Marshal(map[string]any{
+		"run_id": "a7b11e9a-3263-4c93-9e87-3d462d1963b3", "iat": time.Now().Unix(),
+		"exp": time.Now().Add(time.Hour).Unix(),
+	})
+	return base64.RawURLEncoding.EncodeToString(claims) + "." + base64.RawURLEncoding.EncodeToString(make([]byte, 32))
+}
+
 func TestNewConnectHTTPClientForwardsAgentIdentity(t *testing.T) {
-	t.Setenv(cliutil.EnvIdentityToken, "run-token")
+	runToken := ordinaryRunToken()
+	t.Setenv(cliutil.EnvIdentityToken, runToken)
 	handler := connect.NewUnaryHandlerSimple(
 		"/test.v1.Echo/Echo",
 		func(ctx context.Context, req *wrapperspb.StringValue) (*wrapperspb.StringValue, error) {
@@ -53,7 +68,7 @@ func TestNewConnectHTTPClientForwardsAgentIdentity(t *testing.T) {
 		},
 	)
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if got := r.Header.Get(cliutil.HeaderAgentIdentityToken); got != "run-token" {
+		if got := r.Header.Get(cliutil.HeaderAgentIdentityToken); got != runToken {
 			t.Fatalf("agent identity = %q", got)
 		}
 		handler.ServeHTTP(w, r)

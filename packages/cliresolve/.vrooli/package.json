@@ -1,0 +1,33 @@
+{
+  "$schema": "schemas/package.schema.json",
+  "version": "1.0.0",
+  "package": {
+    "name": "cliresolve",
+    "display_name": "github.com/vrooli/cliresolve",
+    "description": "Resolves installed Vrooli command-line programs without a repository checkout or the installer that produced them.",
+    "kind": "go_runtime",
+    "language": "go",
+    "module_identifiers": [
+      "github.com/vrooli/cliresolve"
+    ],
+    "adoption": {
+      "scenario_adoptable": true,
+      "allowed_consumers": [
+        "scenario_api",
+        "internal_platform"
+      ],
+      "adoption_modes": [
+        "go_module_replace"
+      ]
+    },
+    "lifecycle": {},
+    "refresh": {
+      "strategy": "none",
+      "restart_running_consumers": false
+    },
+    "docs": [
+      "packages/cliresolve/README.md",
+      "docs/package-governance.md"
+    ]
+  }
+}

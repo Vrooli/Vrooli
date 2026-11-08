@@ -63,7 +63,7 @@ func resolveBinary(name string) string {
 		explicit = name
 	}
 	home, _ := os.UserHomeDir()
-	path, err := cliinvoke.Resolve(cliinvoke.ResolveOptions{Explicit: explicit, RuntimeHome: home})
+	path, err := cliinvoke.Resolve(cliinvoke.ResolveOptions{Explicit: explicit, UserHome: home})
 	if err != nil {
 		return name
 	}

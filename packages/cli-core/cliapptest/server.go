@@ -8,7 +8,8 @@
 //
 //   - NewHTTPServer / NewAPIServer: real httptest.Server fakes, t-cleanup wired.
 //   - WithAPIBase: sets the API_BASE_URL env var so cli-core's resolver picks
-//     up the test server. Restored at end-of-test via t.Setenv.
+//     up the test server, after IsolateAgentEnvironment detaches the test from
+//     any live agent session. Restored at end-of-test via t.Setenv.
 //   - NewTestApp: wires a *cliapp.ScenarioApp pointed at a test server so
 //     domain handler tests can drive core.Get / core.Request through one
 //     line of construction. See app.go.
@@ -66,7 +67,13 @@ func NewHTTPServer(tb testing.TB, handler http.Handler) *httptest.Server {
 // cli-core's APIBase resolver picks it up. If a scenario adds another API
 // env var (e.g. an upper-snake-case variant of the scenario id), it can wrap
 // or replace this helper.
+//
+// It isolates the agent environment first: inside an agent session cli-core
+// ignores generic API base variables and asks the live credential broker for
+// a grant, so without isolation the CLI under test would send its request to
+// the running scenario rather than to the test server.
 func WithAPIBase(tb testing.TB, apiBase string) {
 	tb.Helper()
+	IsolateAgentEnvironment(tb)
 	tb.Setenv("API_BASE_URL", apiBase)
 }

@@ -192,3 +192,24 @@ func findCommand(t *testing.T, g SubcommandGroup, name string) Command {
 	t.Fatalf("command %q not found in group %q", name, g.Name)
 	return Command{}
 }
+
+func TestLoadFromManifestCommandAliases(t *testing.T) {
+	bindings := map[string]func(RunContext) error{
+		"NotesService.ListNotes":  okHandler,
+		"NotesService.CreateNote": okHandler,
+		"NotesService.GetNote":    okHandler,
+	}
+	aliased := strings.Replace(validManifest, `"name": "get",`, `"name": "get", "aliases": ["show"],`, 1)
+	group, err := LoadFromManifest([]byte(aliased), "notes", bindings)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if cmd := findSubcommand(&group, "show"); cmd == nil || cmd.Name != "get" {
+		t.Fatalf("alias show resolved to %+v, want get", cmd)
+	}
+
+	shadowing := strings.Replace(validManifest, `"name": "get",`, `"name": "get", "aliases": ["list"],`, 1)
+	if _, err := LoadFromManifest([]byte(shadowing), "notes", bindings); err == nil || !strings.Contains(err.Error(), `"list" names both list and get`) {
+		t.Fatalf("expected alias collision error, got %v", err)
+	}
+}

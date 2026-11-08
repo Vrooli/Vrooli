@@ -28,7 +28,7 @@ var (
 	// scenario start is itself a lifecycle orchestration.
 	runScenarioLifecycle = func(verb, name string) error {
 		home, _ := os.UserHomeDir()
-		binary, err := cliinvoke.Resolve(cliinvoke.ResolveOptions{RuntimeHome: home})
+		binary, err := cliinvoke.Resolve(cliinvoke.ResolveOptions{UserHome: home})
 		if err != nil {
 			return err
 		}

@@ -4,15 +4,20 @@ import (
 	"bytes"
 	"context"
 	"io"
+	"net/http"
+	"net/http/httptest"
+	"os"
+	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 )
 
 func TestInformationalInvocationRecognisesProbes(t *testing.T) {
 	for _, args := range [][]string{
-		{"--version"}, {"-v"}, {"-V"}, {"--help"}, {"-h"}, {"doctor"},
+		{"--version"}, {"-V"}, {"--help"}, {"-h"}, {"doctor"},
 	} {
-		if !informationalInvocation(args) {
+		if !informationalInvocation("codex", args) {
 			t.Fatalf("%v asks the binary a question and exits; it is not a session", args)
 		}
 	}
@@ -26,10 +31,10 @@ func TestInformationalInvocationTreatsAnythingElseAsASession(t *testing.T) {
 		{},
 		{"--yolo"},
 		{"--version", "--yolo"},
-		{"exec", "--help"},
+		{"exec", "--help", "prompt"},
 		{"--dangerously-skip-permissions"},
 	} {
-		if informationalInvocation(args) {
+		if informationalInvocation("codex", args) {
 			t.Fatalf("%v must be treated as a session", args)
 		}
 	}
@@ -225,5 +230,137 @@ func TestCeilingWarningDoesNotBlockTheLaunch(t *testing.T) {
 	}
 	if !started {
 		t.Fatal("a full ceiling is a warning, never a refusal to start the agent")
+	}
+}
+
+// Help for a known task subcommand must answer without opening a session. All
+// downstream effects are fake; the installed provider binary is never executed.
+func TestSubcommandHelpRoutingUsesOnlyInformationalPath(t *testing.T) {
+	type invocationCase struct {
+		agent string
+		args  []string
+		probe bool
+	}
+	cases := []invocationCase{
+		{"codex", []string{"exec", "--help"}, true},
+		{"codex", []string{"exec", "-h"}, true},
+		{"codex", []string{"exec", "-h", "--help"}, false},
+		{"opencode", []string{"run", "--help"}, true},
+		{"opencode", []string{"run", "-h"}, true},
+		{"claude", []string{"--help"}, true},
+		{"grok", []string{"--help"}, true},
+		{"codex", []string{"exec", "compute 6*7"}, false},
+		{"opencode", []string{"run", "compute 6*7"}, false},
+		{"codex", []string{"exec", "--", "--help"}, false},
+		{"opencode", []string{"run", "--", "--help"}, false},
+		{"codex", []string{"exec", "--help", "--", "prompt"}, false},
+		{"codex", []string{"exec", "--help", "prompt"}, false},
+		{"opencode", []string{"run", "prompt", "--help"}, false},
+		{"codex", []string{"exec", "--version"}, false},
+		{"opencode", []string{"exec", "--help"}, false},
+		{"codex", []string{"run", "--help"}, false},
+		{"claude", []string{"exec", "--help"}, false},
+		{"codex", []string{"EXEC", "--help"}, false},
+		{"opencode", []string{" run", "--help"}, false},
+		{"codex", []string{"exec", " --help"}, false},
+		{"codex", []string{"exec", "--help="}, false},
+		{"codex", []string{"--", "--help"}, false},
+		{"codex", []string{"--help "}, false},
+		{"codex", []string{"exec"}, false},
+		{"opencode", nil, false},
+	}
+
+	// Every registered harness is checked independently. A positional word is
+	// not a portable subcommand, and repeated/mixed flags are not qualified probes.
+	for _, agent := range []string{"codex", "claude", "opencode", "grok", "agy"} {
+		qualified := agent != "agy"
+		for _, flag := range []string{"--help", "-h", "--version"} {
+			cases = append(cases, invocationCase{agent, []string{flag}, qualified})
+		}
+		for _, flag := range []string{"-v", "-V"} {
+			allowed := flag == "-V" && agent == "codex" || flag == "-v" && (agent == "claude" || agent == "opencode")
+			cases = append(cases, invocationCase{agent, []string{flag}, allowed})
+		}
+		cases = append(cases, invocationCase{agent, []string{"doctor"}, agent == "codex" || agent == "claude"})
+		for _, args := range [][]string{
+			{"doctor", "doctor"}, {"doctor", "--version"}, {"--version", "doctor"},
+			{"doctor", "--help"}, {"--help", "doctor"}, {"doctor", "project"},
+			{"project", "--help"}, {"--", "doctor"}, {"--help", "--help"},
+			{"--help", "--version"}, {"--version", "--version"}, {"-v", "-V"},
+		} {
+			cases = append(cases, invocationCase{agent, args, false})
+		}
+	}
+	for _, tc := range cases {
+		t.Run(tc.agent+"/"+strings.Join(tc.args, "|"), func(t *testing.T) {
+			isolateLauncherModelPolicy(t)
+			t.Setenv("TMPDIR", t.TempDir())
+			t.Setenv(AgentSessionEnv, "")
+			recorder := &recordingLeaseRecorder{}
+			withLeaseRecorder(t, recorder)
+			container := withFakeContainer(t, false)
+			attachments := 0
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				attachments++
+				w.WriteHeader(http.StatusServiceUnavailable)
+			}))
+			defer server.Close()
+
+			// In OpenCode doctor is a possible project name, not a diagnostic command.
+			// Use a real private directory while retaining fake provider execution.
+			workingDir := t.TempDir()
+			if err := os.Mkdir(filepath.Join(workingDir, "doctor"), 0700); err != nil {
+				t.Fatal(err)
+			}
+			calls := 0
+			result, err := LaunchCodingAgentResult(context.Background(), AgentLaunchRequest{
+				Agent: tc.agent, Args: tc.args, Environment: []string{"PATH=/fixture"}, APIBase: server.URL, WorkingDir: workingDir,
+				LookPath: func(string) (string, error) { return "/fixture/provider", nil },
+				RunChild: func(_ context.Context, path string, args, env []string, _ io.Reader, _, _ io.Writer) error {
+					calls++
+					if path != "/fixture/provider" || !reflect.DeepEqual(args, tc.args) {
+						t.Errorf("argv changed: %q %q", path, args)
+					}
+					if (environmentValue(env, AgentSessionEnv) == "") != tc.probe {
+						t.Errorf("session marker probe=%v", tc.probe)
+					}
+					return nil
+				},
+			})
+			if err != nil || calls != 1 {
+				t.Fatalf("fake child result: %+v %v calls=%d", result, err, calls)
+			}
+			if tc.probe {
+				if attachments != 0 || len(recorder.created) != 0 || len(recorder.stopped) != 0 || len(container.runs) != 0 || len(container.selfCalls) != 0 || result.Scope != "" || result.LeaseRecorded || !strings.Contains(result.AttachFailure, "not a session") {
+					t.Fatalf("help opened session: result=%+v attach=%d leases=%d", result, attachments, len(recorder.created))
+				}
+			} else {
+				if attachments != 1 || len(recorder.created) != 1 || len(recorder.stopped) != 1 || !result.LeaseRecorded || strings.Contains(result.AttachFailure, "not a session") {
+					t.Fatalf("session escaped governance: result=%+v attach=%d leases=%d", result, attachments, len(recorder.created))
+				}
+			}
+		})
+	}
+}
+
+func TestProtectedSubcommandHelpStillRequiresExistingCustody(t *testing.T) {
+	for _, tc := range []struct{ agent, command string }{{"codex", "exec"}, {"opencode", "run"}} {
+		t.Run(tc.agent, func(t *testing.T) {
+			isolateLauncherModelPolicy(t)
+			t.Setenv("TMPDIR", t.TempDir())
+			t.Setenv(AgentSessionEnv, "")
+			called := false
+			_, err := LaunchCodingAgentResult(context.Background(), AgentLaunchRequest{
+				Agent: tc.agent, Args: []string{tc.command, "--help"}, RequireNativeIdentity: true,
+				LookPath: func(string) (string, error) { return "/fixture/provider", nil },
+				RunChild: func(context.Context, string, []string, []string, io.Reader, io.Writer, io.Writer) error {
+					called = true
+					return nil
+				},
+			})
+			if err == nil || called {
+				t.Fatalf("protected help escaped custody: %v called=%v", err, called)
+			}
+		})
 	}
 }

@@ -252,7 +252,7 @@ func applyClaudeModelEvidence(catalog *CodingRoleCatalog, evidence claudeModelEv
 			return fmt.Errorf("%w: role %q uses %q, which the installed Claude Code does not offer", ErrRefreshEvidenceUnavailable, name, role.Model)
 		}
 		for _, declared := range role.Models {
-			if declared.Source == "claude-subscription" && !offered(declared.Model) {
+			if declared.Source == ModelSourceClaudeSubscription && !offered(declared.Model) {
 				return fmt.Errorf("%w: role %q declares %q, which the installed Claude Code does not offer", ErrRefreshEvidenceUnavailable, name, declared.Model)
 			}
 		}

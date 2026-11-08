@@ -234,6 +234,13 @@ func Action[Resp any](
 	}}
 }
 
+// ContentAction is an action whose result is the content itself (artifact
+// bytes, a log) written straight to RunContext.Stdout so a caller can pipe it.
+// It carries the same action evidence as Action; there is no report to render.
+func ContentAction(run func(ctx RunContext) error) PrimitiveHandler {
+	return PrimitiveHandler{primitive: PrimitiveAction, Run: run}
+}
+
 // ActionWithExit is Action with a post-render exit decision. It is useful for
 // diagnostic scans that must emit their complete report while still returning
 // a non-zero status when the report contains a gating finding.

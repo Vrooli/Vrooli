@@ -55,6 +55,7 @@ func parseArgs(schema ArgSchema, args []string, core *ScenarioApp, stdout, stder
 	}
 
 	rawPositionals := make([]string, 0, len(args))
+	namedPositionals := map[string]string{}
 	endOfFlags := false
 	for i := 0; i < len(args); i++ {
 		arg := args[i]
@@ -91,8 +92,29 @@ func parseArgs(schema ArgSchema, args []string, core *ScenarioApp, stdout, stder
 
 		flag, ok := schema.flagByName(canonical)
 		if !ok {
+			// A positional may also be passed by its own name
+			// (`--run-id X` for <run_id>), the shape agents carry over
+			// from flag-only CLIs.
+			if positional, found := schema.positionalByFlagName(canonical); found {
+				value := inlineValue
+				if !hasInline {
+					if i+1 >= len(args) {
+						return nil, fmt.Errorf("missing value for --%s", canonical)
+					}
+					i++
+					value = args[i]
+				}
+				if _, dup := namedPositionals[positional.Name]; dup {
+					return nil, fmt.Errorf("<%s> given more than once", positional.Name)
+				}
+				namedPositionals[positional.Name] = value
+				continue
+			}
 			if isGlobalFlagName(canonical) {
 				return nil, fmt.Errorf("unknown option: %s (this is a global flag — place it BEFORE the command, e.g. `--%s <command> ...`)", arg, canonical)
+			}
+			if nearest := schema.nearestFlag(canonical); nearest != "" {
+				return nil, fmt.Errorf("unknown option: %s (did you mean --%s?)", arg, nearest)
 			}
 			return nil, fmt.Errorf("unknown option: %s", arg)
 		}
@@ -132,6 +154,7 @@ func parseArgs(schema ArgSchema, args []string, core *ScenarioApp, stdout, stder
 		}
 	}
 
+	rawPositionals = mergeNamedPositionals(schema, rawPositionals, namedPositionals)
 	if err := assignPositionals(ctx, schema, rawPositionals); err != nil {
 		return nil, err
 	}
@@ -204,4 +227,26 @@ func assignPositionals(ctx *runContext, schema ArgSchema, values []string) error
 		ctx.positionals[specs[i].Name] = values[i]
 	}
 	return nil
+}
+
+// mergeNamedPositionals places positionals passed by name into their declared
+// slots, filling the remaining slots from bare arguments in order.
+func mergeNamedPositionals(schema ArgSchema, raw []string, named map[string]string) []string {
+	if len(named) == 0 {
+		return raw
+	}
+	out := make([]string, 0, len(raw)+len(named))
+	next := 0
+	for _, spec := range schema.Positionals {
+		if value, ok := named[spec.Name]; ok {
+			out = append(out, value)
+			continue
+		}
+		if spec.Repeated || next >= len(raw) {
+			break
+		}
+		out = append(out, raw[next])
+		next++
+	}
+	return append(out, raw[next:]...)
 }

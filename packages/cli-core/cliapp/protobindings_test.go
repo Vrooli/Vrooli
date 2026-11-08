@@ -181,15 +181,6 @@ func TestResolveArgFieldUnmappedNamesArgument(t *testing.T) {
 	}
 }
 
-func containsString(values []string, want string) bool {
-	for _, value := range values {
-		if value == want {
-			return true
-		}
-	}
-	return false
-}
-
 // scalarDecodableFixture carries one field of every shape the predicate must
 // classify, including the repeated-scalar case that must stay legal because a
 // repeatable flag supplies it element by element.

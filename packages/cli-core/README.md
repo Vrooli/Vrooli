@@ -66,6 +66,34 @@ Guidance:
 - Use generated Connect clients for proto-typed operations.
 - Use `cliapp.RenderProtoList` and `RenderProtoMutation` when a command returns one proto response. Use the `RunContext` report helpers directly for aggregate/non-proto output.
 
+## Command resolution and usage errors
+
+Every `cliapp.App` resolves command names and reports usage mistakes the same
+way, so no CLI keeps its own alias table or "did you mean" helper:
+
+- **Singular/plural forms dispatch.** `runs` reaches `run`, `execution` reaches
+  `executions`, `policies` reaches `policy`, for groups, top-level commands and
+  leaves alike, when exactly one name matches. An exact name or alias wins first.
+- **Owner aliases.** `Command.Aliases`, `SubcommandGroup.Aliases` and the
+  manifest command `aliases` field declare alternative names that mean exactly
+  the same operation (for example `library get` also answers to `show`). A
+  manifest alias that collides with another command in its group fails at load.
+- **Unknown names list real commands.** The error's first line keeps the
+  `(did you mean "x"?)` fragment and up to three following lines give each
+  candidate's full usage line and description. Candidates are, in order: the
+  same leaf inside a group (`run` → `library run`), a verb with the same meaning
+  (`show`/`get`/`describe`, `list`/`ls`, `logs`/`events`, …), a near spelling,
+  and the same leaf or a group of that name elsewhere. A suggestion never runs.
+- **Positionals may be passed by name.** `--run-id X` fills `<run_id>`; dashes
+  and underscores are equivalent. CLIs can therefore make a positional the
+  canonical form without breaking callers that used a same-named flag.
+- **Usage errors carry the usage line.** A parse failure appends
+  `Usage: <full usage line>`; an unknown option also names the nearest flag
+  (`--senario` → `--scenario`, `--owner` → `--owner-id`) and lists the accepted
+  options. `UsageError.Detail()` exposes that text to embedding CLIs.
+- **Content commands.** `cliapp.ContentAction` is an action whose result is raw
+  bytes written to stdout (artifact payloads, logs) so callers can pipe them.
+
 ## Quickstart (install a scenario CLI)
 ```bash
 # From repo root (macOS/Linux)
@@ -188,8 +216,9 @@ replace <scenario-api-module> => ../api
 
 Go `replace` directives and `go.sum` entries are not transitive. A consumer's
 own `go.mod` and `go.sum` must be refreshed after `cli-core/go.mod` changes.
-Run `GOWORK=off go mod tidy` in the consumer module, then verify with
-`GOWORK=off go build ./...`. Scenario Dependency Analyzer's dependency-health
+Run `scenario-dependency-analyzer deps reconcile --all-modules --apply` (governed
+convergence; see [Go module convergence](../../docs/package-governance.md#go-module-convergence)),
+not a raw `go mod tidy`. Scenario Dependency Analyzer's dependency-health
 provider enforces this contract for scenario Go surfaces.
 
 `cli-core` is also governed as a leaf shared Go package. It must not introduce
