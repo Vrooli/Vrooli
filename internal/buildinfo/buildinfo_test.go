@@ -697,6 +697,33 @@ func TestBuildTargetForExecutableRejectsBlankPath(t *testing.T) {
 	}
 }
 
+func TestProjectFingerprintIncludesSharedGoAndModuleInputs(t *testing.T) {
+	root := t.TempDir()
+	writeTestFile(t, root, "cmd/vrooli/main.go", "package main\n")
+	writeTestFile(t, root, "internal/example.go", "package internal\n")
+	writeTestFile(t, root, "packages/cli-core/cliutil/launch.go", "package cliutil\nconst Version = 1\n")
+	writeTestFile(t, root, "go.mod", "module example.test/root\n")
+	writeTestFile(t, root, "go.sum", "initial\n")
+	targets := FingerprintTargetsForExecutable("vrooli")
+	previous, err := ComputeSourceFingerprintForPaths(root, targets...)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, change := range []struct{ path, content string }{
+		{"packages/cli-core/cliutil/launch.go", "package cliutil\nconst Version = 2\n"},
+		{"go.mod", "module example.test/changed\n"},
+		{"go.sum", "updated\n"},
+		{"packages/cli-core/go.mod", "module example.test/shared\n"},
+	} {
+		writeTestFile(t, root, change.path, change.content)
+		next, err := ComputeSourceFingerprintForPaths(root, targets...)
+		if err != nil || next == previous {
+			t.Fatalf("linked source/module change %s did not invalidate freshness: %v", change.path, err)
+		}
+		previous = next
+	}
+}
+
 func TestFingerprintTargetsInfersTargetsFromExecutableName(t *testing.T) {
 	originalExecutablePathFn := executablePathFn
 	t.Cleanup(func() {
@@ -710,8 +737,8 @@ func TestFingerprintTargetsInfersTargetsFromExecutableName(t *testing.T) {
 		executable string
 		want       []string
 	}{
-		{name: "vrooli", executable: "/tmp/vrooli", want: []string{"cmd/vrooli", "internal"}},
-		{name: "vrooli-api", executable: "/tmp/vrooli-api", want: []string{"cmd/vrooli-api", "internal"}},
+		{name: "vrooli", executable: "/tmp/vrooli", want: []string{"cmd/vrooli", "cli", "internal", "packages", "go.mod", "go.sum"}},
+		{name: "vrooli-api", executable: "/tmp/vrooli-api", want: []string{"cmd/vrooli-api", "internal", "packages", "go.mod", "go.sum"}},
 		{name: "unknown", executable: "/tmp/custom-tool", want: nil},
 	}
 
@@ -829,6 +856,8 @@ func TestRebuildAndReexecBuildsAndExecsCurrentBinary(t *testing.T) {
 	})
 
 	root := t.TempDir()
+	repocontracttest.WriteRepoContract(t, root, "scenarios")
+	writeStateContractFixture(t, root)
 	writeTestFile(t, root, "go.mod", "module example.com/test\n\ngo 1.21\n")
 	writeTestFile(t, root, "cmd/vrooli/main.go", "package main\n")
 	writeTestFile(t, root, "internal/buildinfo/buildinfo.go", "package buildinfo\n")
@@ -906,7 +935,7 @@ func TestRebuildAndReexecBuildsAndExecsCurrentBinary(t *testing.T) {
 		"-ldflags",
 		"-s -w -X github.com/vrooli/vrooli/internal/buildinfo.Fingerprint=" + current +
 			" -X github.com/vrooli/vrooli/internal/buildinfo.GitCommit=abc123" +
-			" -X github.com/vrooli/vrooli/internal/buildinfo.BuildTime=2026-04-10T20:00:00Z",
+			" -X github.com/vrooli/vrooli/internal/buildinfo.BuildTime=2026-04-10T20:00:00Z" + " " + mustRuntimeHomeBuildFlag(t, root) + " " + mustStateBuildFlag(t, root),
 		"-o",
 		tempPath,
 		"./cmd/vrooli",
@@ -961,6 +990,8 @@ func TestRebuildAndReexecFallsBackToGitCommandWhenCommitUnknown(t *testing.T) {
 	})
 
 	root := t.TempDir()
+	repocontracttest.WriteRepoContract(t, root, "scenarios")
+	writeStateContractFixture(t, root)
 	writeTestFile(t, root, "go.mod", "module example.com/test\n\ngo 1.21\n")
 	writeTestFile(t, root, "cmd/vrooli/main.go", "package main\n")
 	writeTestFile(t, root, "internal/buildinfo/buildinfo.go", "package buildinfo\n")
@@ -1015,6 +1046,8 @@ func TestRebuildAndReexecReturnsBuildFailure(t *testing.T) {
 	})
 
 	root := t.TempDir()
+	repocontracttest.WriteRepoContract(t, root, "scenarios")
+	writeStateContractFixture(t, root)
 	writeTestFile(t, root, "go.mod", "module example.com/test\n\ngo 1.21\n")
 	writeTestFile(t, root, "cmd/vrooli/main.go", "package main\n")
 	writeTestFile(t, root, "internal/buildinfo/buildinfo.go", "package buildinfo\n")
@@ -1044,6 +1077,8 @@ func TestRebuildAndReexecReturnsExecFailure(t *testing.T) {
 	})
 
 	root := t.TempDir()
+	repocontracttest.WriteRepoContract(t, root, "scenarios")
+	writeStateContractFixture(t, root)
 	writeTestFile(t, root, "go.mod", "module example.com/test\n\ngo 1.21\n")
 	writeTestFile(t, root, "cmd/vrooli/main.go", "package main\n")
 	writeTestFile(t, root, "internal/buildinfo/buildinfo.go", "package buildinfo\n")
@@ -1155,6 +1190,8 @@ func rebuildTestEnv(t *testing.T) (root, executable string) {
 	})
 
 	root = t.TempDir()
+	repocontracttest.WriteRepoContract(t, root, "scenarios")
+	writeStateContractFixture(t, root)
 	writeTestFile(t, root, "go.mod", "module example.com/test\n\ngo 1.21\n")
 	writeTestFile(t, root, "cmd/vrooli/main.go", "package main\n")
 	writeTestFile(t, root, "internal/buildinfo/buildinfo.go", "package buildinfo\n")

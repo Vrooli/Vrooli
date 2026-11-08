@@ -17,6 +17,7 @@ import (
 	platformgo "github.com/vrooli/platform-go"
 	repocontract "github.com/vrooli/repo-contract-go"
 	"github.com/vrooli/vrooli/internal/agentscope"
+	"github.com/vrooli/vrooli/internal/scenarioruntime"
 )
 
 // probeTimeout bounds every read-only owner query.
@@ -120,6 +121,14 @@ func LiveProbes(home string) Probes {
 	client := &http.Client{Timeout: probeTimeout}
 	agentManager, webConsole := resolveBase("agent-manager"), resolveBase("web-console")
 	return Probes{
+		ScenarioInstance: func(ctx context.Context, instanceID string) (scenarioruntime.Instance, error) {
+			store, err := scenarioruntime.NewSQLiteStore(ctx, scenarioruntime.Config{HomeDir: home, ReadOnly: true})
+			if err != nil {
+				return scenarioruntime.Instance{}, err
+			}
+			defer store.Close()
+			return store.GetInstance(ctx, instanceID)
+		},
 		RunStatus: func(ctx context.Context, runID string) (string, error) {
 			return agentManagerRunStatus(ctx, client, agentManager, runID)
 		},

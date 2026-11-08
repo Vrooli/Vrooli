@@ -5,6 +5,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	testkitgo "github.com/vrooli/repo-contract-go/repocontracttest"
@@ -45,6 +46,63 @@ func (f *fakeScenarioRunner) Stop(name string, opts lifecycle.StopOptions) error
 func (f *fakeScenarioRunner) RunPhaseDetailed(name, phase string, opts lifecycle.PhaseOptions) (lifecycle.PhaseResult, error) {
 	f.phases = append(f.phases, name+":"+phase)
 	return lifecycle.PhaseResult{ExecutedSteps: 1}, nil
+}
+
+func (f *fakeScenarioRunner) SetupAdmissionBlockers(string, string) ([]string, error) {
+	return nil, nil
+}
+
+// variantScenarioRunner models a scenario whose shadow variant is running:
+// setup admission names the shadow, and stopped-only setup defers.
+type variantScenarioRunner struct {
+	fakeScenarioRunner
+	blockers []string
+}
+
+func (v *variantScenarioRunner) SetupAdmissionBlockers(string, string) ([]string, error) {
+	return v.blockers, nil
+}
+
+func (v *variantScenarioRunner) RunSetupIfStopped(name string, opts lifecycle.PhaseOptions) (lifecycle.PhaseResult, error) {
+	v.phases = append(v.phases, name+":setup-if-stopped")
+	return lifecycle.PhaseResult{Scenario: name, Phase: "setup", Status: lifecycle.PhaseExecutionRunningDeferred}, nil
+}
+
+func restartingRefresh(service ScenarioRuntime, runner ScenarioPhaseRunner) *refreshRuntime {
+	item := packagegov.Package{Name: "alpha"}
+	item.Manifest.Package.Refresh.RestartRunningConsumers = true
+	return &refreshRuntime{item: item, service: service, runner: runner}
+}
+
+// knw-1794078160449965368: a refresh with --restart stopped the live site,
+// setup deferred because a shadow variant was running, and nothing restarted
+// the live instance. The refresh must refuse before stopping anything.
+func TestRefreshRestartRefusesBeforeStoppingWhenAnotherVariantRuns(t *testing.T) {
+	service := &fakeScenarioRuntime{}
+	runner := &variantScenarioRunner{blockers: []string{"landing-page-business-suite@shadow"}}
+
+	status, err := restartingRefresh(service, runner).setupScenario("landing-page-business-suite")
+	if err == nil || !strings.Contains(err.Error(), "landing-page-business-suite@shadow") {
+		t.Fatalf("setupScenario = %q, %v; want a refusal naming the running shadow", status, err)
+	}
+	if len(runner.stopped) != 0 || len(runner.phases) != 0 || len(service.started) != 0 {
+		t.Fatalf("refused refresh still acted: stopped=%v phases=%v started=%v", runner.stopped, runner.phases, service.started)
+	}
+}
+
+// A variant that starts after the admission check still defers setup; the
+// live instance this refresh stopped is started again.
+func TestRefreshRestartRestoresLiveInstanceWhenSetupDefers(t *testing.T) {
+	service := &fakeScenarioRuntime{}
+	runner := &variantScenarioRunner{}
+
+	status, err := restartingRefresh(service, runner).setupScenario("landing-page-business-suite")
+	if err != nil || status != "running_setup_deferred" {
+		t.Fatalf("setupScenario = %q, %v; want running_setup_deferred", status, err)
+	}
+	if len(runner.stopped) != 1 || len(service.started) != 1 {
+		t.Fatalf("stopped=%v started=%v; the stopped live instance was not restored", runner.stopped, service.started)
+	}
 }
 
 func TestRefreshUsesInterfaceBasedScenarioDependencies(t *testing.T) {

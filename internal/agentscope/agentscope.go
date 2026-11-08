@@ -19,6 +19,9 @@
 package agentscope
 
 import (
+	"errors"
+	"fmt"
+	"os"
 	"strings"
 
 	"github.com/vrooli/cli-core/agentcatalog/harness"
@@ -56,6 +59,9 @@ type Entry struct {
 	// charged to the slice's ceiling for as long as its children run, and
 	// nothing in the session lifecycle releases them.
 	Agentless bool `json:"agentless"`
+	// MembershipError leaves the scope unclassified. False Agentless alone
+	// must not turn an unreadable member into a reported live agent.
+	MembershipError string `json:"membership_error,omitempty"`
 }
 
 // Reader reads the kernel through injectable seams so the census is tested
@@ -96,18 +102,26 @@ func (r Reader) HoldsLiveAgent(ref platformgo.ScopeRef) (bool, error) {
 	if err != nil {
 		return false, err
 	}
+	var unread []error
 	for _, pid := range pids {
 		name, readErr := r.ProcessName(pid)
 		if readErr != nil {
-			// The process exited between the listing and the read; that is
-			// not evidence either way.
+			// Only native absence means the member exited. Permissions,
+			// unsupported readers and malformed proc data leave it unknown.
+			if !errors.Is(readErr, os.ErrNotExist) {
+				unread = append(unread, fmt.Errorf("scope member %d: %w", pid, readErr))
+			}
+			continue
+		}
+		if strings.TrimSpace(name) == "" {
+			unread = append(unread, fmt.Errorf("scope member %d has an empty program name", pid))
 			continue
 		}
 		if Binaries[strings.ToLower(strings.TrimSpace(name))] {
 			return true, nil
 		}
 	}
-	return false, nil
+	return false, errors.Join(unread...)
 }
 
 // Census reads every session scope a slice holds and asks each one the
@@ -131,10 +145,23 @@ func (r Reader) Census(slice platformgo.ScopeRef) ([]Entry, error) {
 		}
 		if live, liveErr := r.HoldsLiveAgent(child); liveErr == nil {
 			entry.Agentless = !live
+		} else {
+			entry.MembershipError = liveErr.Error()
 		}
 		out = append(out, entry)
 	}
 	return out, nil
+}
+
+// Uncertain returns scopes whose member programs could not be classified.
+func Uncertain(entries []Entry) []Entry {
+	var out []Entry
+	for _, entry := range entries {
+		if entry.MembershipError != "" {
+			out = append(out, entry)
+		}
+	}
+	return out
 }
 
 // scopeUnitName recovers the unit name from a ref; ScopeChildren trims the

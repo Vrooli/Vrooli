@@ -1,10 +1,12 @@
 package buildinfo
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"os"
 	"path/filepath"
+	"sync"
 
 	"github.com/vrooli/vrooli/internal/tuning"
 
@@ -12,14 +14,14 @@ import (
 	"github.com/vrooli/vrooli/internal/config"
 )
 
-// PreserveRootBinaryFallback keeps the last known-good root control-plane
-// executable in a stable location outside ~/.vrooli/bin. The normal install
+// PreserveRootBinaryFallback keeps the prior canonical root executable
+// in a stable location outside ~/.vrooli/bin. This is a byte snapshot, not
+// evidence that the prior image activated or passed health checks. The install
 // path is atomic, but a foreign remover, a repair tool, or an interrupted
 // first install can still make the canonical path unavailable. The POSIX
 // launcher uses this copy only while the canonical executable is absent.
 //
-// This is best-effort by design: failure to refresh a recovery copy must not
-// turn an otherwise successful binary install into a failed install.
+// Callers decide whether failed retention prevents their installation.
 func PreserveRootBinaryFallback(executable string) error {
 	base := filepath.Base(filepath.Clean(executable))
 	switch base {
@@ -28,82 +30,85 @@ func PreserveRootBinaryFallback(executable string) error {
 		return nil
 	}
 
-	info, err := os.Stat(executable)
+	info, err := os.Lstat(executable)
 	if err != nil {
 		if os.IsNotExist(err) {
 			return nil
 		}
 		return err
 	}
-	if !info.Mode().IsRegular() {
-		return fmt.Errorf("root executable %s is not a regular file", executable)
+	if !info.Mode().IsRegular() || info.Size() <= 0 || info.Size() > 512<<20 {
+		return fmt.Errorf("root executable %s is not a bounded nonempty regular file", executable)
 	}
 
 	fallbackDir := filepath.Join(filepath.Dir(filepath.Dir(executable)), "libexec")
-	if err := os.MkdirAll(fallbackDir, tuning.PermDir); err != nil {
+	if _, err := config.EnsureOwnedDir(fallbackDir); err != nil {
 		return err
 	}
 	fallback := filepath.Join(fallbackDir, base+".previous")
-	tmp, err := os.CreateTemp(fallbackDir, "."+base+".previous-*")
+	in, err := os.Open(executable)
 	if err != nil {
 		return err
 	}
-	tmpPath := tmp.Name()
-	defer os.Remove(tmpPath)
-	_ = tmp.Chmod(info.Mode().Perm())
-
-	// Copy the known-good bytes before replacing the fallback name. Keeping
-	// this as a copy instead of a hard link also works across filesystems and
-	// avoids retaining an inode whose ownership may be surprising to cleanup
-	// tooling.
-	in, openErr := os.Open(executable)
-	if openErr != nil {
-		_ = tmp.Close()
-		return openErr
+	defer in.Close()
+	opened, err := in.Stat()
+	if err != nil || !os.SameFile(info, opened) {
+		return fmt.Errorf("prior root executable changed while opening")
 	}
-	_, copyErr := io.Copy(tmp, in)
-	closeInErr := in.Close()
-	if copyErr == nil {
-		copyErr = closeInErr
-	}
-	if copyErr != nil {
-		_ = tmp.Close()
-		return copyErr
-	}
-	if err := tmp.Sync(); err != nil {
-		_ = tmp.Close()
-		return err
-	}
-	if err := tmp.Close(); err != nil {
-		return err
-	}
-	data, err := os.ReadFile(tmpPath)
-	if err != nil {
-		return err
-	}
-	if err := config.WriteOwnedFileAtomic(fallback, data, info.Mode().Perm()); err != nil {
-		return err
-	}
-	return nil
+	return config.WriteOwnedFileDurableStream(fallback, info.Mode().Perm(), func(w io.Writer) error {
+		n, err := io.Copy(w, io.LimitReader(in, (512<<20)+1))
+		if err != nil {
+			return err
+		}
+		if n != info.Size() {
+			return fmt.Errorf("prior root executable changed during retention")
+		}
+		return nil
+	})
 }
 
 // AcquireBinaryInstallLock serializes every replacement of one installed
 // executable. The project installer and the stale self-rebuilder must share
 // this lock or they can replace the same path concurrently.
 func AcquireBinaryInstallLock(executable string) (func(), error) {
+	return AcquireBinaryInstallLockContext(context.Background(), executable)
+}
+
+// AcquireBinaryInstallLockContext lets a bounded convergence caller leave a
+// competing install wait without a lock goroutine or reopened descriptor.
+func AcquireBinaryInstallLockContext(ctx context.Context, executable string) (func(), error) {
+	if ctx == nil {
+		return nil, fmt.Errorf("binary install context is required")
+	}
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 	lockPath := executable + ".lock"
-	f, err := openFileFn(lockPath, os.O_RDWR|os.O_CREATE, tuning.PermFile)
+	f, err := platform.OpenLockFile(lockPath, tuning.PermFile)
 	if err != nil {
 		return nil, fmt.Errorf("open lock %s: %w", lockPath, err)
 	}
-	release, err := platform.LockFile(f, false)
+	if err := f.Chmod(tuning.PermFile); err != nil {
+		_ = f.Close()
+		return nil, err
+	}
+	if err := config.ChownFileToInvokingUser(f); err != nil {
+		_ = f.Close()
+		return nil, err
+	}
+	release, err := platform.LockFileContext(ctx, f)
 	if err != nil {
 		_ = f.Close()
 		return nil, fmt.Errorf("lock %s: %w", lockPath, err)
 	}
-	return func() {
+	if err := platform.VerifyLockFile(f, lockPath); err != nil {
 		release()
 		_ = f.Close()
+		return nil, err
+	}
+	var once sync.Once
+	return func() {
+		once.Do(func() { release(); _ = f.Close() })
 	}, nil
 }
 

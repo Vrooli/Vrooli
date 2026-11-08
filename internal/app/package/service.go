@@ -29,6 +29,9 @@ type ScenarioPhaseRunner interface {
 	Stop(name string, opts lifecycle.StopOptions) error
 	RunPhaseDetailed(name, phase string, opts lifecycle.PhaseOptions) (lifecycle.PhaseResult, error)
 	RunSetupIfStopped(name string, opts lifecycle.PhaseOptions) (lifecycle.PhaseResult, error)
+	// SetupAdmissionBlockers names running instances, other than the given
+	// variant, that would make RunSetupIfStopped defer.
+	SetupAdmissionBlockers(name, exceptVariant string) ([]string, error)
 }
 
 type Service struct {
@@ -324,15 +327,33 @@ func (r *refreshRuntime) setupScenario(name string) (string, error) {
 		return "running_setup_deferred", nil
 	}
 	if wasRunning {
+		// Setup runs only when no instance of the scenario is running. Stopping
+		// the live instance while another variant (a shadow) still runs would
+		// leave setup deferred and the live site down, so refuse before
+		// stopping anything.
+		blockers, err := runner.SetupAdmissionBlockers(name, "")
+		if err != nil {
+			return "", err
+		}
+		if len(blockers) > 0 {
+			return "", fmt.Errorf("refusing to restart %s for package refresh: setup cannot run while %s is running, so the live instance would stay down; stop it (vrooli scenario stop %s) and retry. Nothing was stopped", name, strings.Join(blockers, ", "), blockers[0])
+		}
 		if err := runner.Stop(name, lifecycle.StopOptions{}); err != nil {
 			return "", err
 		}
 	}
 	result, err := runner.RunSetupIfStopped(name, lifecycle.PhaseOptions{})
 	if err != nil {
-		return "", err
+		return "", r.restoreAfterFailedSetup(service, name, wasRunning, err)
 	}
 	if result.Status == lifecycle.PhaseExecutionRunningDeferred {
+		// Another variant started between the check and setup. Whatever setup
+		// does, an instance this refresh stopped is started again.
+		if wasRunning {
+			if _, err := service.StartDetailed(name, lifecycle.StartOptions{}); err != nil {
+				return "", fmt.Errorf("restart %s after deferred setup: %w", name, err)
+			}
+		}
 		return "running_setup_deferred", nil
 	}
 	if wasRunning {
@@ -342,6 +363,18 @@ func (r *refreshRuntime) setupScenario(name string) (string, error) {
 		return packageActionRestarted, nil
 	}
 	return packageSetupOnly, nil
+}
+
+// restoreAfterFailedSetup starts an instance this refresh stopped when setup
+// fails, so a failed refresh does not also take the consumer down.
+func (r *refreshRuntime) restoreAfterFailedSetup(service ScenarioRuntime, name string, wasRunning bool, setupErr error) error {
+	if !wasRunning {
+		return setupErr
+	}
+	if _, err := service.StartDetailed(name, lifecycle.StartOptions{}); err != nil {
+		return fmt.Errorf("%w (restart of %s after failed setup also failed: %v)", setupErr, name, err)
+	}
+	return setupErr
 }
 
 func (r *refreshRuntime) restartScenario(name string) (string, error) {
@@ -444,9 +477,13 @@ func rebuildGoConsumerTargets(dependents []packagegov.Dependent, stdout, stderr 
 		if _, err := os.Stat(filepath.Join(buildPath, "go.mod")); err != nil {
 			continue
 		}
+		// The refresh proves the consumer still compiles against the changed
+		// package; it is not a release build. VCS stamping would make the
+		// result depend on the checkout's git state (an unreadable or foreign
+		// .git above the consumer fails the build with exit 128), so it is off.
 		spec := shell.Spec{
 			Name:   "go",
-			Args:   []string{"build", "./..."},
+			Args:   []string{"build", "-buildvcs=false", "./..."},
 			Dir:    buildPath,
 			Env:    envkit.WithOverlay(envkit.Env(os.Environ()), envkit.SameScenario, envkit.Env{"GOWORK=off"}),
 			Stdout: stdout,

@@ -59,12 +59,20 @@ func liveFrozen(host *hostFacts) func(scope string) string {
 // to the registry for backfilling owners.
 func LiveReconciler(home string, store OwnerStore, idleAfter time.Duration) Reconciler {
 	host := &hostFacts{}
+	probes := LiveProbes(home)
+	if reader, ok := store.(interface {
+		GetInstance(context.Context, string) (scenarioruntime.Instance, error)
+	}); ok {
+		// The caller's registry is the selected authority (including an
+		// explicit DBPath); reuse it rather than opening one per helper.
+		probes.ScenarioInstance = reader.GetInstance
+	}
 	return Reconciler{
 		Census:    LiveCensus,
 		Alive:     platformgo.IsPIDRunning,
 		Frozen:    liveFrozen(host),
 		Host:      host,
-		Probes:    LiveProbes(home),
+		Probes:    probes,
 		Store:     store,
 		IdleAfter: idleAfter,
 	}

@@ -81,6 +81,7 @@ func LoadResourceClaimSpec(root, resourceName string) (ResourceClaimSpec, bool, 
 type AdmitStore interface {
 	ClaimRepository
 	PolicyRepository
+	LockAdmission(context.Context) (func(), error)
 	Close() error
 }
 
@@ -148,6 +149,13 @@ func AdmitResource(ctx context.Context, opts AdmitOptions) (AdmissionResult, err
 		return AdmissionResult{}, err
 	}
 	defer store.Close()
+	if opts.NoReclaim {
+		release, err := LockAdmission(ctx, store)
+		if err != nil {
+			return AdmissionResult{}, err
+		}
+		defer release()
+	}
 
 	policy, err := store.GetPolicy(ctx)
 	if err != nil {
@@ -187,7 +195,6 @@ func AdmitResource(ctx context.Context, opts AdmitOptions) (AdmissionResult, err
 		decisionReq := req
 		if reusable != nil {
 			ignored = append(ignored, reusable.ClaimID)
-
 		}
 		if opts.NoReclaim {
 			// Startup executes the selected manifest, not an unimplemented lower-rung

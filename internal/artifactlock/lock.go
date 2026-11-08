@@ -6,7 +6,6 @@ package artifactlock
 import (
 	"context"
 	"fmt"
-	"os"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -57,6 +56,9 @@ func AcquireContext(ctx context.Context, key string) (func(), error) {
 
 // AcquireWithPathContext is the injectable context-aware owner boundary.
 func AcquireWithPathContext(ctx context.Context, key string, pathFn func(string) (string, error)) (func(), error) {
+	if ctx == nil || pathFn == nil {
+		return nil, fmt.Errorf("artifact lock context and path authority are required")
+	}
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
@@ -81,21 +83,35 @@ func AcquireWithPathContext(ctx context.Context, key string, pathFn func(string)
 		unlock()
 		return nil, fmt.Errorf("create artifact lock directory: %w", err)
 	}
-	file, err := os.OpenFile(path, os.O_CREATE|os.O_RDWR, artifactLockMode)
+	file, err := platform.OpenLockFile(path, artifactLockMode)
 	if err != nil {
 		unlock()
 		return nil, fmt.Errorf("open artifact lock %q: %w", path, err)
 	}
-	_ = os.Chmod(path, artifactLockMode)
-	_ = config.ChownToInvokingUser(path)
-	_ = file.Close()
-	releaseFile, err := platform.AcquireFileLockContext(ctx, path)
+	if err := file.Chmod(artifactLockMode); err != nil {
+		_ = file.Close()
+		unlock()
+		return nil, err
+	}
+	if err := config.ChownFileToInvokingUser(file); err != nil {
+		_ = file.Close()
+		unlock()
+		return nil, err
+	}
+	releaseFile, err := platform.LockFileContext(ctx, file)
 	if err != nil {
+		_ = file.Close()
 		unlock()
 		return nil, fmt.Errorf("lock artifact %q: %w", key, err)
 	}
+	if err := platform.VerifyLockFile(file, path); err != nil {
+		releaseFile()
+		_ = file.Close()
+		unlock()
+		return nil, err
+	}
 	var once sync.Once
-	return func() { once.Do(func() { releaseFile(); unlock() }) }, nil
+	return func() { once.Do(func() { releaseFile(); _ = file.Close(); unlock() }) }, nil
 }
 
 func safeName(key string) string {

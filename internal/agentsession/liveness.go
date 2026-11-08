@@ -7,6 +7,8 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+
+	"github.com/vrooli/vrooli/internal/scenarioruntime"
 )
 
 // Liveness states of an owner.
@@ -70,6 +72,9 @@ type WebConsoleSession struct {
 // Probes ask each owner's authority. Every probe is read-only. A nil probe
 // leaves that kind unknown.
 type Probes struct {
+	// ScenarioInstance reads one exact registry identity. Missing rows and
+	// failed reads are unknown; only a completed stop proves this owner gone.
+	ScenarioInstance func(ctx context.Context, instanceID string) (scenarioruntime.Instance, error)
 	// RunStatus returns an Agent Manager run's status (e.g.
 	// RUN_STATUS_RUNNING), or ErrNotFound when Agent Manager answered that
 	// it has no such run.
@@ -109,11 +114,50 @@ func Check(ctx context.Context, owner Owner, probes Probes, now time.Time) Liven
 		return checkWebConsole(ctx, owner, probes, out)
 	case KindDesktopApp:
 		return checkDesktopApp(owner, probes, out)
+	case KindScenarioInstance:
+		return checkScenarioInstance(ctx, owner, probes, out)
 	default:
 		out.State = OwnerNotApplicable
 		out.Detail = "no owner authority: a " + owner.Kind + " session is never orphaned automatically"
 		return out
 	}
+}
+
+func checkScenarioInstance(ctx context.Context, owner Owner, probes Probes, out Liveness) Liveness {
+	if owner.Ref == "" || (owner.Evidence.RuntimeInstanceID != "" && owner.Evidence.RuntimeInstanceID != owner.Ref) {
+		out.Detail = "scenario runtime identity is absent or conflicting"
+		return out
+	}
+	if probes.ScenarioInstance == nil {
+		out.Detail = "scenario runtime registry probe unavailable"
+		return out
+	}
+	probeCtx, cancel := context.WithTimeout(ctx, probeTimeout)
+	defer cancel()
+	instance, err := probes.ScenarioInstance(probeCtx, owner.Ref)
+	if err != nil {
+		out.Detail = "scenario runtime registry did not confirm the owner: " + err.Error()
+		return out
+	}
+	if instance.InstanceID != owner.Ref {
+		out.Detail = "scenario runtime registry returned another instance identity"
+		return out
+	}
+	switch instance.Status {
+	case scenarioruntime.StatusStopped:
+		if instance.StoppedAt == nil {
+			out.Detail = "scenario runtime stop has no completion timestamp"
+			return out
+		}
+		out.State, out.Detail = OwnerGone, fmt.Sprintf("scenario runtime %s (%s/%s generation %d) completed its stop", owner.Ref, instance.Scenario, instance.Variant, instance.Generation)
+	case scenarioruntime.StatusStarting, scenarioruntime.StatusRunning, scenarioruntime.StatusStopping:
+		out.State, out.Detail = OwnerAlive, fmt.Sprintf("scenario runtime %s is %s", owner.Ref, instance.Status)
+	default:
+		// Failed or expired bookkeeping alone does not prove its processes
+		// stopped. Preserve that uncertainty instead of reaping their helpers.
+		out.Detail = fmt.Sprintf("scenario runtime %s status %q does not confirm a completed stop", owner.Ref, instance.Status)
+	}
+	return out
 }
 
 func checkRun(ctx context.Context, owner Owner, probes Probes, out Liveness) Liveness {

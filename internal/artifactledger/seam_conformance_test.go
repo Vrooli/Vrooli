@@ -69,7 +69,8 @@ var nonArtifactReceivers = map[string]bool{
 // Adding one is a design decision; if a future exemption really means "routing
 // this is inconvenient", it belongs in the seam instead.
 var seamExemptions = map[string]string{
-	"uninstall_plan.go:Apply": "dispatches to the Remover interface; the production implementation (fileRemover) routes through the seam, and tests inject a recorder that touches no disk",
+	"uninstall_plan.go:Apply":              "dispatches to the Remover interface; the production implementation (fileRemover) routes through the seam, and tests inject a recorder that touches no disk",
+	"root_candidate.go:retireRootCLIStage": "retires the root CLI candidate's private <binary>.staged scratch copy, written and removed under the binary install lock; it is never an installed artifact, and Guard would re-take that same <binary>.lock and self-deadlock",
 }
 
 // TestRemovalsGoThroughTheSeam keeps the mutation seam a seam.

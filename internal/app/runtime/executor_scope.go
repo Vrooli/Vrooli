@@ -33,7 +33,7 @@ func decodeExecutorScopeRequest(in io.Reader) (maintenance.ExecutorScopeRequest,
 		return request, err
 	}
 	if len(body) > maxInput {
-		return request, fmt.Errorf("executor-scope input exceeds 8 MiB")
+		return request, fmt.Errorf("executor-scope input exceeds %d bytes", maxInput)
 	}
 	if err := json.Unmarshal(body, &request); err != nil {
 		return request, fmt.Errorf("invalid executor-scope JSON input")
@@ -47,7 +47,7 @@ func writeExecutorScopeReport(ctx context.Context, out io.Writer, report mainten
 		return err
 	}
 	if len(data)+1 > maintenance.ExecutorScopeMaxBytes {
-		return fmt.Errorf("executor-scope output exceeds 8 MiB")
+		return fmt.Errorf("executor-scope output exceeds %d bytes", maintenance.ExecutorScopeMaxBytes)
 	}
 	if err := ctx.Err(); err != nil {
 		return err

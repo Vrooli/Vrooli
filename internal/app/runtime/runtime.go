@@ -2,18 +2,21 @@ package runtimeapp
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"os"
 	"runtime"
 	"time"
 
+	emergencywatchdog "github.com/vrooli/vrooli/internal/safeguards/emergency-watchdog"
 	runtimesupervisorsafeguard "github.com/vrooli/vrooli/internal/safeguards/runtime-supervisor"
 
 	"github.com/vrooli/vrooli/internal/buildinfo"
 	"github.com/vrooli/vrooli/internal/cliinstall"
 	"github.com/vrooli/vrooli/internal/cliout"
 	"github.com/vrooli/vrooli/internal/hostreqspec"
+	"github.com/vrooli/vrooli/internal/resources"
 	"github.com/vrooli/vrooli/internal/runtimesupervisor"
 	"github.com/vrooli/vrooli/internal/scenarioruntime"
 )
@@ -37,6 +40,18 @@ func (app *Service) RunSupervisor(operationCtx context.Context, home string, opt
 	cfg.Version = app.Version
 	cfg.BuildIdentity = buildinfo.Fingerprint
 	cfg.Takeover = opts.Takeover
+	var updates *resources.Controller
+	cfg.ManagedUpdateReconcile = func(ctx context.Context) error {
+		watchdogErr := emergencywatchdog.ReconcileBinaryPublication(ctx, home)
+		root, err := app.resolveRoot()
+		if err != nil {
+			return errors.Join(watchdogErr, fmt.Errorf("resolve managed update source root: %w", err))
+		}
+		if updates == nil || updates.Root != root {
+			updates = resources.NewController(root, home)
+		}
+		return errors.Join(watchdogErr, updates.ResumeManagedServiceUpdates(ctx))
+	}
 	return runtimesupervisor.Run(operationCtx, cfg)
 }
 

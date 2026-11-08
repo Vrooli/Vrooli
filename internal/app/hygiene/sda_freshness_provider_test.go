@@ -44,9 +44,9 @@ func TestSDAFreshnessProviderMapsStaleSurfacesToHygieneFindings(t *testing.T) {
 				},
 			},
 			NextActions: []sdaFreshnessAction{{
-				Code:    "apply_go_tidy",
+				Code:    "reconcile_go_modules",
 				Message: "Run tidy",
-				Command: "scenario-dependency-analyzer freshness --touched --apply",
+				Command: "scenario-dependency-analyzer deps reconcile --all-modules --apply",
 			}, {
 				Code:    "preview_missing_local_replaces",
 				Message: "Preview replaces",
@@ -82,7 +82,7 @@ func TestSDAFreshnessProviderMapsStaleSurfacesToHygieneFindings(t *testing.T) {
 	if len(report.Actions) != 2 {
 		t.Fatalf("actions = %#v, want SDA apply and reconcile actions", report.Actions)
 	}
-	if report.Actions[0].Command != "scenario-dependency-analyzer freshness --touched --apply" || report.Actions[0].Fixability != FixabilityAutomatic {
+	if report.Actions[0].Command != "scenario-dependency-analyzer deps reconcile --all-modules --apply" || report.Actions[0].Fixability != FixabilityAutomatic {
 		t.Fatalf("first action = %#v, want automatic SDA apply action", report.Actions[0])
 	}
 	if report.Actions[1].Command != "scenario-dependency-analyzer deps reconcile --all --json" || report.Actions[1].Fixability != FixabilityGuided {
@@ -111,9 +111,9 @@ func TestSDAFreshnessProviderMarksStaleOnlyReportAutomatic(t *testing.T) {
 				DiffPaths: []string{"scenarios/demo/api/go.mod"},
 			}},
 			NextActions: []sdaFreshnessAction{{
-				Code:    "apply_go_tidy",
+				Code:    "reconcile_go_modules",
 				Message: "Run tidy",
-				Command: "scenario-dependency-analyzer freshness --touched --apply",
+				Command: "scenario-dependency-analyzer deps reconcile --all-modules --apply",
 			}},
 		}},
 	}

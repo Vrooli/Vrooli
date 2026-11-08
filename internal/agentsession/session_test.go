@@ -2,6 +2,7 @@ package agentsession
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 
@@ -10,6 +11,143 @@ import (
 )
 
 var now = time.Date(2026, 10, 7, 12, 0, 0, 0, time.UTC)
+
+func TestUnknownMemberClassificationCannotMakeAReapCandidate(t *testing.T) {
+	for _, leased := range []bool{false, true} {
+		r, lease := scenarioHelperFixture(nil, scenarioruntime.StatusStopped)
+		r.Census = func() ([]agentscope.Entry, error) {
+			return []agentscope.Entry{{Name: "vrooli-agent-helper.scope", MembershipError: "permission denied"}}, nil
+		}
+		var leases []scenarioruntime.EditorLease
+		if leased {
+			leases = []scenarioruntime.EditorLease{lease}
+		}
+		sessions := r.Sessions(context.Background(), leases)
+		if len(sessions) != 1 || sessions[0].State != StateUndetermined || len(Plan(sessions, ReapPolicy{}, now)) != 0 {
+			t.Fatalf("uncertain membership entered reap policy: leased=%v sessions=%+v", leased, sessions)
+		}
+	}
+}
+
+func scenarioHelperFixture(store OwnerStore, status string) (Reconciler, scenarioruntime.EditorLease) {
+	host := &fakeHost{
+		facts: map[int]ProcessFact{7: {PID: 7, PPID: 1}},
+		envs:  map[int]map[string]string{7: {"VROOLI_RUNTIME_INSTANCE_ID": "inst-owner"}},
+		names: map[int]string{7: "opencode"}, members: map[string][]int{"vrooli-agent-helper.scope": {7}},
+	}
+	r := Reconciler{
+		Census: func() ([]agentscope.Entry, error) {
+			return []agentscope.Entry{{Name: "vrooli-agent-helper.scope"}}, nil
+		},
+		Alive: func(int) bool { return true }, Host: host, Store: store, Now: func() time.Time { return now },
+		Probes: Probes{ScenarioInstance: func(context.Context, string) (scenarioruntime.Instance, error) {
+			return scenarioruntime.Instance{InstanceID: "inst-owner", Status: status, StoppedAt: &now}, nil
+		}},
+	}
+	lease := scenarioruntime.EditorLease{
+		SessionID: "helper", PID: 7, Scope: "vrooli-agent-helper", CreatedAt: now.Add(-24 * time.Hour),
+		Owner: scenarioruntime.EditorLeaseOwner{Kind: KindUnknown, Source: SourceLaunch},
+	}
+	return r, lease
+}
+
+func TestReconcilerIdentifiesUnknownScenarioHelpersAndKeepsTheLiveGeneration(t *testing.T) {
+	for _, status := range []string{scenarioruntime.StatusStopped, scenarioruntime.StatusRunning} {
+		t.Run(status, func(t *testing.T) {
+			store := newFakeOwnerStore()
+			r, lease := scenarioHelperFixture(store, status)
+			session := r.Sessions(context.Background(), []scenarioruntime.EditorLease{lease})[0]
+			if session.Owner.Kind != KindScenarioInstance || session.Owner.Ref != "inst-owner" || session.Owner.Source != SourceBackfill {
+				t.Fatalf("owner=%+v", session.Owner)
+			}
+			if got := store.backfills[lease.SessionID]; got.Kind != KindScenarioInstance || got.Ref != "inst-owner" {
+				t.Fatalf("persisted owner=%+v", got)
+			}
+			reap, reason := ReapDecision(session, ReapPolicy{}, now)
+			if reap != (status == scenarioruntime.StatusStopped) {
+				t.Fatalf("state=%s reap=%t reason=%s", session.State, reap, reason)
+			}
+		})
+	}
+}
+
+type ownerCASStore struct {
+	*fakeOwnerStore
+	readErr error
+}
+
+func (s ownerCASStore) BackfillEditorLeaseOwner(context.Context, string, scenarioruntime.EditorLeaseOwner) (bool, error) {
+	return false, nil
+}
+
+func (s ownerCASStore) GetEditorLease(_ context.Context, id string) (scenarioruntime.EditorLease, error) {
+	return scenarioruntime.EditorLease{SessionID: id, Owner: scenarioruntime.EditorLeaseOwner{Kind: KindTerminal, Ref: "/dev/pts/9", Source: SourceLaunch}}, s.readErr
+}
+
+func TestReconcilerRespectsConcurrentOwnerRecordingAndReadUncertainty(t *testing.T) {
+	for _, readErr := range []error{nil, errors.New("registry unavailable")} {
+		store := ownerCASStore{fakeOwnerStore: newFakeOwnerStore(), readErr: readErr}
+		r, lease := scenarioHelperFixture(store, scenarioruntime.StatusStopped)
+		session := r.Sessions(context.Background(), []scenarioruntime.EditorLease{lease})[0]
+		if reap, reason := ReapDecision(session, ReapPolicy{}, now); reap {
+			t.Fatalf("conflicting or unverified owner was reapable: %s", reason)
+		}
+		if readErr == nil && session.Owner.Kind != KindTerminal {
+			t.Fatalf("recorded owner lost: %+v", session.Owner)
+		}
+		if readErr != nil && session.Owner.Kind != KindUnknown {
+			t.Fatalf("unverified owner=%+v", session.Owner)
+		}
+	}
+}
+
+type runtimeOwnerStore struct{ *fakeOwnerStore }
+
+type refiningOwnerStore struct {
+	*fakeOwnerStore
+	refines int
+}
+
+func (s *refiningOwnerStore) RefineBackfilledEditorLeaseOwner(_ context.Context, _ string, _ int, _, _ scenarioruntime.EditorLeaseOwner) (bool, error) {
+	s.refines++
+	return true, nil
+}
+
+func TestReconcilerRefinesOnlyTheMatchingTokenOnlyBackfill(t *testing.T) {
+	for _, tc := range []struct {
+		name, source, tag string
+		refine            bool
+	}{
+		{"ambient-token backfill", SourceBackfill, "", true},
+		{"recorded launch owner", SourceLaunch, "", false},
+		{"explicit managed runner", SourceBackfill, "managed-run", false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			store := &refiningOwnerStore{fakeOwnerStore: newFakeOwnerStore()}
+			r, lease := scenarioHelperFixture(store, scenarioruntime.StatusStopped)
+			env := r.Host.(*fakeHost).envs[7]
+			env[envIdentityToken] = identityToken(`{"run_id":"maintainer"}`)
+			env["OPENCODE_AGENT_TAG"] = tc.tag
+			lease.Owner = Owner{Kind: KindAgentManagerRun, Ref: "maintainer", Source: tc.source, Evidence: Evidence{RunID: "maintainer", RunIDSource: "identity_token"}}.LeaseOwner()
+			session := r.Sessions(context.Background(), []scenarioruntime.EditorLease{lease})[0]
+			if (store.refines == 1) != tc.refine || (session.Owner.Kind == KindScenarioInstance) != tc.refine {
+				t.Fatalf("refines=%d owner=%+v", store.refines, session.Owner)
+			}
+		})
+	}
+}
+
+func (s runtimeOwnerStore) GetInstance(_ context.Context, id string) (scenarioruntime.Instance, error) {
+	return scenarioruntime.Instance{InstanceID: id, Status: scenarioruntime.StatusRunning}, nil
+}
+
+func TestLiveReconcilerUsesTheSelectedRegistryForScenarioOwner(t *testing.T) {
+	r := LiveReconciler(t.TempDir(), runtimeOwnerStore{newFakeOwnerStore()}, 0)
+	got := Check(context.Background(), Owner{Kind: KindScenarioInstance, Ref: "inst-selected"}, r.Probes, now)
+	if got.State != OwnerAlive {
+		t.Fatalf("selected runtime registry was not used: %+v", got)
+	}
+}
 
 func TestDeriveState(t *testing.T) {
 	gone := Liveness{State: OwnerGone}

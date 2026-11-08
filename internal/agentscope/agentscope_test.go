@@ -2,6 +2,7 @@ package agentscope
 
 import (
 	"errors"
+	"os"
 	"testing"
 
 	platformgo "github.com/vrooli/platform-go"
@@ -38,10 +39,45 @@ func (f *fakeKernel) reader() Reader {
 		ProcessName: func(pid int) (string, error) {
 			name, ok := f.names[pid]
 			if !ok {
-				return "", errors.New("no such process")
+				return "", os.ErrNotExist
 			}
 			return name, nil
 		},
+	}
+}
+
+func TestUnreadableMemberCannotEstablishAnAgentlessScope(t *testing.T) {
+	kernel := &fakeKernel{
+		children: []platformgo.ScopeRef{scope("vrooli-agent-codex-unreadable")},
+		tasks:    map[string]int64{"vrooli-agent-codex-unreadable": 2},
+		members:  map[string][]int{"vrooli-agent-codex-unreadable": {61, 62}},
+	}
+	reader := kernel.reader()
+	reader.ProcessName = func(pid int) (string, error) {
+		if pid == 61 {
+			return "node", nil
+		}
+		return "", os.ErrPermission
+	}
+	if live, err := reader.HoldsLiveAgent(scope("vrooli-agent-codex-unreadable")); err == nil || live {
+		t.Fatalf("unreadable member invented agent absence: live=%v err=%v", live, err)
+	}
+	entries, err := reader.Census(Ref("/user.slice/vrooli-agents.slice"))
+	if err != nil || len(entries) != 1 || entries[0].Agentless || entries[0].MembershipError == "" || len(Uncertain(entries)) != 1 {
+		t.Fatalf("uncertain scope became an orphan candidate: %+v %v", entries, err)
+	}
+}
+
+func TestKnownLiveAgentAnswersDespiteAnotherUnreadableMember(t *testing.T) {
+	reader := (&fakeKernel{members: map[string][]int{"vrooli-agent-codex-live": {71, 72}}}).reader()
+	reader.ProcessName = func(pid int) (string, error) {
+		if pid == 71 {
+			return "", os.ErrPermission
+		}
+		return "codex", nil
+	}
+	if live, err := reader.HoldsLiveAgent(scope("vrooli-agent-codex-live")); err != nil || !live {
+		t.Fatalf("positive live agent evidence lost: live=%v err=%v", live, err)
 	}
 }
 

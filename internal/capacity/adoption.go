@@ -34,6 +34,11 @@ func AdoptObservedResidents(ctx context.Context, store ClaimRepository, snapshot
 	if attr == nil || loadSpec == nil {
 		return nil, nil
 	}
+	release, err := LockAdmission(ctx, store)
+	if err != nil {
+		return nil, err
+	}
+	defer release()
 	active, err := store.ListClaims(ctx, ClaimFilter{Statuses: ActiveClaimStatuses()})
 	if err != nil {
 		return nil, err

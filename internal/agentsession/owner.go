@@ -18,6 +18,9 @@ const (
 	// KindDesktopApp is a session a bundled desktop app started; Ref is the
 	// app instance's data directory (VROOLI_DATA).
 	KindDesktopApp = "desktop-app"
+	// KindScenarioInstance is a headless helper of one exact control-plane
+	// runtime instance. Persistent panes and agent runs have their own owners.
+	KindScenarioInstance = "scenario-instance"
 	// KindTerminal is an interactive operator shell with no Vrooli owner.
 	KindTerminal = "terminal"
 	// KindUnknown is a session whose evidence names no owner.
@@ -41,6 +44,14 @@ const (
 	OriginProgrammatic = "programmatic"
 	OriginRemote       = "remote"
 	OriginUnspecified  = "unspecified"
+)
+
+// RunIDSource values that name a run identity token. Ownership reconciliation
+// reads them back by value, so they are stored vocabulary; the run-directory
+// sources are the lowercased environment names that held the directory.
+const (
+	RunIDSourceIdentityToken          = "identity_token"
+	RunIDSourceInheritedIdentityToken = "inherited_identity_token"
 )
 
 // Evidence is what an owner was read from. Every field is a fact observed in
@@ -75,6 +86,9 @@ type Evidence struct {
 	// Terminal is the controlling terminal or multiplexer of an operator
 	// shell.
 	Terminal string `json:"terminal,omitempty"`
+	// RuntimeInstanceID is the lifecycle identity inherited by a scenario's
+	// headless helpers, never a scenario name or the currently serving generation.
+	RuntimeInstanceID string `json:"runtime_instance_id,omitempty"`
 }
 
 // Owner is what a session belongs to.
@@ -89,7 +103,7 @@ type Owner struct {
 // whether it is still there.
 func (o Owner) Known() bool {
 	switch o.Kind {
-	case KindAgentManagerRun, KindWebConsoleSession, KindDesktopApp:
+	case KindAgentManagerRun, KindWebConsoleSession, KindDesktopApp, KindScenarioInstance:
 		return true
 	default:
 		return false

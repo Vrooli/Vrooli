@@ -111,7 +111,10 @@ func buildDarwinFixture(t *testing.T) string {
 		t.Fatal(err)
 	}
 	binary := filepath.Join(dir, "fixture")
-	cmd := exec.Command("go", "build", "-o", binary, ".")
+	// The temporary module may sit inside an unrelated git work tree (a home
+	// directory under version control), where VCS stamping fails; the fixture
+	// only needs its CGO_ENABLED build setting.
+	cmd := exec.Command("go", "build", "-buildvcs=false", "-o", binary, ".")
 	cmd.Dir = dir
 	cmd.Env = append(os.Environ(), "CGO_ENABLED=0", "GOOS=darwin", "GOARCH="+runtime.GOARCH, "GOFLAGS=")
 	if output, err := cmd.CombinedOutput(); err != nil {

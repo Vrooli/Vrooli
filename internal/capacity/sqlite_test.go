@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -150,6 +151,8 @@ func TestReportActivityBumpsGenerationAndAutoProtectsInteractive(t *testing.T) {
 	// A heartbeat with the now-stale generation must fail, signaling re-read.
 	if _, err := store.HeartbeatClaim(ctx, created.ClaimID, created.Generation, 0); !errors.Is(err, ErrStaleGeneration) {
 		t.Errorf("stale heartbeat error = %v, want ErrStaleGeneration", err)
+	} else if want := fmt.Sprintf("at generation %d", active.Generation); !strings.Contains(err.Error(), want) {
+		t.Errorf("stale heartbeat error %q should name the current generation (%s) so the caller can retry once", err, want)
 	}
 
 	idle, err := store.ReportActivity(ctx, active.ClaimID, active.Generation, ActivityIdle)

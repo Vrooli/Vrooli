@@ -25,6 +25,7 @@ const (
 	envBundleRoot        = "BUNDLE_ROOT"
 	envSSHTTY            = "SSH_TTY"
 	envScreen            = "STY"
+	envRuntimeInstance   = "VROOLI_RUNTIME_INSTANCE_ID"
 )
 
 // agentTagEnvs are the <RUNNER>_AGENT_TAG keys Agent Manager's codecs set.
@@ -44,7 +45,8 @@ var runDirPattern = regexp.MustCompile(`(?:^|/)agent-manager/runs/([0-9a-fA-F]{8
 //  3. an Agent Manager run, by run id when one is present and by tag only as
 //     evidence (a tag names many runs over time, so it is never a ref);
 //  4. an operator terminal (a tty, a non-web-console tmux, ssh or screen);
-//  5. unknown.
+//  5. a headless helper of one exact scenario runtime instance;
+//  6. unknown.
 func Infer(env map[string]string, tty string) Owner {
 	evidence := Evidence{}
 	runID, runSource := runIdentity(env)
@@ -68,11 +70,23 @@ func Infer(env map[string]string, tty string) Owner {
 		return Owner{Kind: KindDesktopApp, Ref: data, Evidence: evidence}
 	}
 	if runID != "" || evidence.AgentTag != "" {
-		return Owner{Kind: KindAgentManagerRun, Ref: runID, Evidence: evidence}
+		// A scenario daemon can inherit its maintainer's invocation token.
+		// Actual managed runners also carry a runner tag or per-run home;
+		// token-only evidence must not transfer a headless service helper's
+		// lifetime from its scenario generation to the maintainer's run.
+		homeID, _ := runHomeIdentity(env)
+		if value(env, envRuntimeInstance) == "" || evidence.AgentTag != "" || homeID != "" {
+			return Owner{Kind: KindAgentManagerRun, Ref: runID, Evidence: evidence}
+		}
+		evidence.RunIDSource = RunIDSourceInheritedIdentityToken
 	}
 	if terminal := terminalEvidence(env, tty); terminal != "" {
 		evidence.Terminal = terminal
 		return Owner{Kind: KindTerminal, Ref: terminal, Evidence: evidence}
+	}
+	if instanceID := value(env, envRuntimeInstance); instanceID != "" {
+		evidence.RuntimeInstanceID = instanceID
+		return Owner{Kind: KindScenarioInstance, Ref: instanceID, Evidence: evidence}
 	}
 	return Owner{Kind: KindUnknown, Evidence: evidence}
 }
@@ -94,9 +108,13 @@ func desktopMode(env map[string]string) bool {
 func runIdentity(env map[string]string) (string, string) {
 	if token := value(env, envIdentityToken); token != "" {
 		if id := tokenRunID(token); id != "" {
-			return id, "identity_token"
+			return id, RunIDSourceIdentityToken
 		}
 	}
+	return runHomeIdentity(env)
+}
+
+func runHomeIdentity(env map[string]string) (string, string) {
 	for _, key := range []string{envCodexHome, envGrokHome} {
 		if match := runDirPattern.FindStringSubmatch(filepath.ToSlash(value(env, key))); len(match) == 2 {
 			return strings.ToLower(match[1]), strings.ToLower(key)

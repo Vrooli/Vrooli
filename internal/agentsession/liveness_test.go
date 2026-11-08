@@ -5,9 +5,56 @@ import (
 	"errors"
 	"testing"
 	"time"
+
+	"github.com/vrooli/vrooli/internal/scenarioruntime"
 )
 
 var checkedAt = time.Date(2026, 10, 7, 12, 0, 0, 0, time.UTC)
+
+func TestScenarioInstanceRequiresAnExactCompletedStop(t *testing.T) {
+	for _, tc := range []struct {
+		name, id, status string
+		stopped          bool
+		err              error
+		want             string
+	}{
+		{"completed stop", "inst-1", scenarioruntime.StatusStopped, true, nil, OwnerGone},
+		{"running", "inst-1", scenarioruntime.StatusRunning, false, nil, OwnerAlive},
+		{"starting", "inst-1", scenarioruntime.StatusStarting, false, nil, OwnerAlive},
+		{"stop in progress", "inst-1", scenarioruntime.StatusStopping, false, nil, OwnerAlive},
+		{"failed is not stopped", "inst-1", scenarioruntime.StatusFailed, false, nil, OwnerUnknown},
+		{"expired is not stopped", "inst-1", scenarioruntime.StatusExpired, false, nil, OwnerUnknown},
+		{"missing completion evidence", "inst-1", scenarioruntime.StatusStopped, false, nil, OwnerUnknown},
+		{"different instance", "inst-other", scenarioruntime.StatusStopped, true, nil, OwnerUnknown},
+		{"missing record", "", "", false, scenarioruntime.ErrNotFound, OwnerUnknown},
+		{"registry unavailable", "", "", false, errors.New("unavailable"), OwnerUnknown},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			probe := Probes{ScenarioInstance: func(_ context.Context, id string) (scenarioruntime.Instance, error) {
+				if id != "inst-1" {
+					t.Fatalf("looked up %q", id)
+				}
+				instance := scenarioruntime.Instance{InstanceID: tc.id, Status: tc.status}
+				if tc.stopped {
+					instance.StoppedAt = &checkedAt
+				}
+				return instance, tc.err
+			}}
+			owner := Owner{Kind: KindScenarioInstance, Ref: "inst-1", Evidence: Evidence{RuntimeInstanceID: "inst-1"}}
+			if got := Check(context.Background(), owner, probe, checkedAt); got.State != tc.want {
+				t.Fatalf("liveness=%+v, want %s", got, tc.want)
+			}
+		})
+	}
+	for _, owner := range []Owner{
+		{Kind: KindScenarioInstance},
+		{Kind: KindScenarioInstance, Ref: "inst-1", Evidence: Evidence{RuntimeInstanceID: "inst-other"}},
+	} {
+		if got := Check(context.Background(), owner, Probes{}, checkedAt); got.State != OwnerUnknown {
+			t.Fatalf("unproven identity=%+v", got)
+		}
+	}
+}
 
 func runProbe(status string, err error, calls *probeCalls) Probes {
 	return Probes{RunStatus: func(context.Context, string) (string, error) {

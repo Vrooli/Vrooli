@@ -151,3 +151,24 @@ func TestRestoreDoesNotOverlayStaleRuntimeData(t *testing.T) {
 		t.Errorf("restore overlaid stale runtime data: %q", got)
 	}
 }
+
+// TestConfigFallbackExcludesProjectRuntimeState pins that a .vrooli directory
+// copied into a legacy serving tree carries configuration but never the
+// project runtime state the floor excludes everywhere else.
+func TestConfigFallbackExcludesProjectRuntimeState(t *testing.T) {
+	for _, rel := range []string{"secrets.json", "operator-state.json", "generated-service.json", "build.lock", "service.local.json"} {
+		if !configFallbackIgnorer.Ignored(rel, false) {
+			t.Errorf("config fallback copies runtime state %q", rel)
+		}
+	}
+	for _, rel := range []string{"state", "runtime"} {
+		if !configFallbackIgnorer.Ignored(rel, true) {
+			t.Errorf("config fallback copies runtime directory %q", rel)
+		}
+	}
+	for _, rel := range []string{"service.json", "testing.json"} {
+		if configFallbackIgnorer.Ignored(rel, false) {
+			t.Errorf("config fallback drops configuration %q", rel)
+		}
+	}
+}

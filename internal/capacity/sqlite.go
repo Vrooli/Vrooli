@@ -12,6 +12,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -46,9 +47,11 @@ type Config struct {
 // It mirrors internal/scenarioruntime.SQLiteStore's patterns (single conn, WAL,
 // busy_timeout, withRetryableTx) without importing it.
 type SQLiteStore struct {
-	db     *sql.DB
-	clock  clock.Clock
-	dbPath string
+	db            *sql.DB
+	clock         clock.Clock
+	dbPath        string
+	admissionOnce sync.Once
+	admissionGate chan struct{}
 }
 
 // DefaultDBPath resolves the capacity ledger SQLite path. It lives beside the
@@ -306,7 +309,7 @@ func (s *SQLiteStore) ReportActivity(ctx context.Context, claimID string, genera
 			return getErr
 		}
 		if prior.Generation != generation {
-			return ErrStaleGeneration
+			return staleGenerationError(prior)
 		}
 		if !IsActiveClaimStatus(prior.Status) {
 			return fmt.Errorf("%w: claim %s is %s, not active", ErrInvalidClaim, claimID, prior.Status)
@@ -976,6 +979,13 @@ func isSQLiteLockContention(err error) bool {
 	return strings.Contains(msg, "database is locked") || strings.Contains(msg, "table in the database is locked")
 }
 
+// staleGenerationError is ErrStaleGeneration naming the claim's current
+// generation and status, so the caller can retry once with the right value
+// (or without the optional guard) instead of guessing.
+func staleGenerationError(current CapacityClaim) error {
+	return fmt.Errorf("%w: claim %s is %s at generation %d; re-read it with `vrooli capacity list --json` or omit --generation", ErrStaleGeneration, current.ClaimID, current.Status, current.Generation)
+}
+
 // finishMutation interprets a single-row UPDATE result: 0 rows affected means
 // either a stale generation or an absent claim; otherwise it re-reads the row.
 func finishMutation(ctx context.Context, tx *sql.Tx, result sql.Result, claimID string, out *CapacityClaim) error {
@@ -984,10 +994,11 @@ func finishMutation(ctx context.Context, tx *sql.Tx, result sql.Result, claimID 
 		return fmt.Errorf("inspect capacity claim mutation: %w", err)
 	}
 	if affected == 0 {
-		if _, getErr := getClaimTx(ctx, tx, claimID); getErr != nil {
+		current, getErr := getClaimTx(ctx, tx, claimID)
+		if getErr != nil {
 			return getErr
 		}
-		return ErrStaleGeneration
+		return staleGenerationError(current)
 	}
 	updated, err := getClaimTx(ctx, tx, claimID)
 	if err != nil {

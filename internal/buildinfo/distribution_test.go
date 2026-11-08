@@ -9,6 +9,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/vrooli/repo-contract-go/repocontracttest"
+
 	"github.com/vrooli/vrooli/internal/shell"
 )
 
@@ -38,7 +40,12 @@ func TestDistributionTargetsAreTheCompleteSupportedMatrix(t *testing.T) {
 // fingerprint, ldflags, and env plumbing.
 func TestBuildDistributionUsesCanonicalFingerprintAndCGODisabled(t *testing.T) {
 	root := t.TempDir()
+	repocontracttest.WriteRepoContract(t, root, "scenarios")
+	writeStateContractFixture(t, root)
+	writeTestFile(t, root, "go.mod", "module example.com/test\n\ngo 1.21\n")
+	writeTestFile(t, root, "go.sum", "")
 	writeTestFile(t, root, "cmd/vrooli/main.go", "package main\n")
+	writeTestFile(t, root, "cli/manifest_embed.go", "package manifest\n")
 	writeTestFile(t, root, "internal/buildinfo/buildinfo.go", "package buildinfo\n")
 	output := filepath.Join(t.TempDir(), "vrooli_linux_arm64")
 
@@ -106,7 +113,11 @@ func TestTransferredSidecarIsFreshAcrossRootsAndClockSkew(t *testing.T) {
 	rootB := t.TempDir()
 	for _, root := range []string{rootA, rootB} {
 		writeTestFile(t, root, "cmd/vrooli/main.go", "package main\nfunc main() {}\n")
+		writeTestFile(t, root, "cli/manifest_embed.go", "package manifest\n")
 		writeTestFile(t, root, "internal/buildinfo/buildinfo.go", "package buildinfo\n")
+		writeTestFile(t, root, "packages/cli-core/cliutil/launch.go", "package cliutil\n")
+		writeTestFile(t, root, "go.mod", "module example.test/transferred\n")
+		writeTestFile(t, root, "go.sum", "")
 	}
 	targets := FingerprintTargetsForExecutable("vrooli")
 	fingerprintA, err := ComputeSourceFingerprintForPaths(rootA, targets...)

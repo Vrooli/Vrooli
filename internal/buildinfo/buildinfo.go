@@ -1,7 +1,9 @@
 package buildinfo
 
 import (
+	"context"
 	"crypto/sha256"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -14,9 +16,11 @@ import (
 	"time"
 
 	repocontract "github.com/vrooli/repo-contract-go"
+	"github.com/vrooli/vrooli/internal/buildflags"
 	"github.com/vrooli/vrooli/internal/clock"
 	"github.com/vrooli/vrooli/internal/repocontractmeta"
 	"github.com/vrooli/vrooli/internal/tuning"
+	"github.com/vrooli/vrooli/packages/proto/protogen"
 
 	platform "github.com/vrooli/platform-go"
 	"github.com/vrooli/vrooli/internal/config"
@@ -114,11 +118,13 @@ type FingerprintOptions struct {
 // FingerprintReport describes the source set that participated in a fingerprint
 // calculation. It is primarily intended for build tooling and diagnostics.
 type FingerprintReport struct {
-	Root           string
-	Targets        []string
-	MissingTargets []string
-	MatchedFiles   int
-	Fingerprint    string
+	Root                      string
+	Targets                   []string
+	MissingTargets            []string
+	MatchedFiles              int
+	Fingerprint               string
+	RuntimeHomeSnapshotDigest string
+	BuildFlagPolicyDigest     string
 }
 
 // StaleCheck describes the outcome of comparing the embedded build fingerprint
@@ -178,8 +184,8 @@ func (e TargetPathError) Error() string {
 	}
 }
 
-// ComputeSourceFingerprint returns a deterministic fingerprint of all Go files
-// reachable beneath the provided root directory.
+// ComputeSourceFingerprint hashes selected compiler sources, embedded assets,
+// module files and the canonical runtime-home snapshot when declared.
 func ComputeSourceFingerprint(rootDir string) (string, error) {
 	return ComputeSourceFingerprintForPaths(rootDir)
 }
@@ -227,7 +233,7 @@ func ComputeSourceFingerprintReport(rootDir string, options FingerprintOptions, 
 			continue
 		}
 
-		if !strings.HasSuffix(info.Name(), ".go") {
+		if !fingerprintSourceFile(info.Name()) {
 			continue
 		}
 		entry, err := fingerprintFile(absoluteRoot, base)
@@ -240,6 +246,10 @@ func ComputeSourceFingerprintReport(rootDir string, options FingerprintOptions, 
 	if options.RequireExistingTargets && len(report.MissingTargets) > 0 {
 		return FingerprintReport{}, MissingTargetsError{Targets: append([]string(nil), report.MissingTargets...)}
 	}
+	entries, err = completeCompilerInputs(absoluteRoot, entries)
+	if err != nil {
+		return FingerprintReport{}, err
+	}
 
 	sort.Slice(entries, func(i, j int) bool {
 		return entries[i].rel < entries[j].rel
@@ -250,13 +260,44 @@ func ComputeSourceFingerprintReport(rootDir string, options FingerprintOptions, 
 	for _, entry := range entries {
 		fmt.Fprintf(hasher, "%s|%d|%x\n", entry.rel, entry.size, entry.hash)
 	}
+	// Native artifacts embed this structural authority. A layout-only source
+	// change must invalidate freshness just like a Go change. Generic Go
+	// source trees without a repo contract keep their existing semantics;
+	// governed native builds separately require the contract to exist.
+	contractPath := repocontractmeta.ContractPath(absoluteRoot)
+	if _, err := os.Lstat(contractPath); err == nil {
+		contract, err := repocontract.LoadDefault(absoluteRoot)
+		if err != nil {
+			return FingerprintReport{}, err
+		}
+		snapshot, err := contract.RuntimeHomeSnapshot()
+		if err != nil {
+			return FingerprintReport{}, err
+		}
+		sum := sha256.Sum256(snapshot)
+		report.RuntimeHomeSnapshotDigest = fmt.Sprintf("%x", sum)
+		fmt.Fprintf(hasher, "runtime-home-snapshot|%s\n", report.RuntimeHomeSnapshotDigest)
+		policy, err := buildflags.Load(absoluteRoot)
+		if err != nil {
+			return FingerprintReport{}, err
+		}
+		encoded, err := json.Marshal(policy)
+		if err != nil {
+			return FingerprintReport{}, err
+		}
+		policySum := sha256.Sum256(encoded)
+		report.BuildFlagPolicyDigest = fmt.Sprintf("%x", policySum)
+		fmt.Fprintf(hasher, "build-flag-policy|%s\n", report.BuildFlagPolicyDigest)
+	} else if !os.IsNotExist(err) {
+		return FingerprintReport{}, err
+	}
 	report.Fingerprint = fmt.Sprintf("%x", hasher.Sum(nil))
 
 	if isFingerprintDebugEnabled() {
 		dumpFingerprintEntries(debugWriter, report.Root, report.Fingerprint, entries)
 	}
 
-	if options.RequireGoFiles && report.MatchedFiles == 0 {
+	if options.RequireGoFiles && !slices.ContainsFunc(entries, func(entry fingerprintEntry) bool { return strings.HasSuffix(entry.rel, ".go") }) {
 		return FingerprintReport{}, NoGoFilesMatchedError{
 			Root:    report.Root,
 			Targets: append([]string(nil), report.Targets...),
@@ -266,8 +307,8 @@ func ComputeSourceFingerprintReport(rootDir string, options FingerprintOptions, 
 	return report, nil
 }
 
-// ComputeSourceFingerprintForPaths returns a deterministic fingerprint of all Go
-// files beneath the provided relative paths. When no paths are provided, the
+// ComputeSourceFingerprintForPaths returns a deterministic fingerprint of Go
+// sources and go.mod/go.sum beneath the relative paths. With no paths, the
 // entire root is scanned.
 func ComputeSourceFingerprintForPaths(rootDir string, relPaths ...string) (string, error) {
 	report, err := ComputeSourceFingerprintReport(rootDir, FingerprintOptions{}, relPaths...)
@@ -440,9 +481,11 @@ func FingerprintTargetsForExecutable(executableName string) []string {
 	executableName = strings.TrimSuffix(filepath.Base(strings.TrimSpace(executableName)), ".exe")
 	switch executableName {
 	case "vrooli-api":
-		return []string{"cmd/vrooli-api", "internal"}
+		return []string{"cmd/vrooli-api", "internal", "packages", "go.mod", "go.sum"}
 	case "vrooli":
-		return []string{"cmd/vrooli", "internal"}
+		return []string{"cmd/vrooli", "cli", "internal", "packages", "go.mod", "go.sum"}
+	case "vrooli-watchdog":
+		return []string{"cmd/vrooli-watchdog", "internal", "packages", "go.mod", "go.sum"}
 	default:
 		return nil
 	}
@@ -587,12 +630,20 @@ func RebuildAndReexec(argv []string) error {
 	if previousFingerprint := strings.TrimSpace(os.Getenv(RebuildLoopEnvVar)); previousFingerprint == currentFingerprint {
 		return fmt.Errorf("rebuild loop detected for fingerprint %s", currentFingerprint)
 	}
+	if suppressed, err := RetainSuppressedRootBuild(executable, currentFingerprint); err != nil {
+		return err
+	} else if suppressed {
+		return nil
+	}
 
 	release, err := acquireRebuildLock(executable)
 	if err != nil {
 		return fmt.Errorf("acquire rebuild lock: %w", err)
 	}
 	defer release()
+	if err := GuardRootActivation(context.Background(), executable); err != nil {
+		return err
+	}
 
 	buildDir, err := prepareRebuildDirectory(executable)
 	if err != nil {
@@ -626,6 +677,16 @@ func RebuildAndReexec(argv []string) error {
 		"github.com/vrooli/vrooli/internal/buildinfo.GitCommit", gitCommit,
 		"github.com/vrooli/vrooli/internal/buildinfo.BuildTime", buildTime,
 	)
+	runtimeHomeFlag, err := RuntimeHomeBuildFlag(root)
+	if err != nil {
+		return fmt.Errorf("freeze self-rebuild runtime-home authority: %w", err)
+	}
+	ldflags += " " + runtimeHomeFlag
+	stateFlag, err := PersistentStateBuildFlag(root)
+	if err != nil {
+		return err
+	}
+	ldflags += " " + stateFlag
 
 	tempFile, err := os.CreateTemp(buildDir, rebuildTempPrefix)
 	if err != nil {
@@ -641,7 +702,25 @@ func RebuildAndReexec(argv []string) error {
 		_ = os.Remove(tempPath)
 		return fmt.Errorf("rebuild %s: %w", buildTarget, err)
 	}
-	_ = PreserveRootBinaryFallback(executable)
+	if enrolled, err := EnrolledRootUpdate(executable); err != nil {
+		_ = os.Remove(tempPath)
+		return err
+	} else if enrolled {
+		// The coordinator reacquires installation under the operation lock.
+		// Waiting for it while holding this lock would deadlock its worker.
+		release()
+		defer os.Remove(tempPath)
+		if err := RequestRootUpdate(context.Background(), tempPath, root); err != nil {
+			return err
+		}
+		_ = WriteSidecarFingerprint(executable, currentFingerprint)
+		execArgs := append([]string{executable}, argv...)
+		return execFn(executable, execArgs, values.SetEnv(os.Environ(), RebuildLoopEnvVar, currentFingerprint))
+	}
+	if err := PreserveRootBinaryFallback(executable); err != nil {
+		_ = os.Remove(tempPath)
+		return fmt.Errorf("retain root fallback before self-rebuild publication: %w", err)
+	}
 	if err := config.InstallExecutableAtomic(tempPath, executable); err != nil {
 		_ = os.Remove(tempPath)
 		return fmt.Errorf("install rebuilt binary %s: %w", executable, err)
@@ -766,13 +845,13 @@ func collectFingerprintEntries(rootDir, start string, entries *[]fingerprintEntr
 		}
 
 		if d.IsDir() {
-			if shouldSkipDir(rel) {
+			if shouldSkipDir(rel) || protogen.IsDefaultStagingOrBackupPath(rootDir, path) {
 				return filepath.SkipDir
 			}
 			return nil
 		}
 
-		if !strings.HasSuffix(rel, ".go") {
+		if !fingerprintSourceFile(rel) {
 			return nil
 		}
 
@@ -783,6 +862,11 @@ func collectFingerprintEntries(rootDir, start string, entries *[]fingerprintEntr
 		*entries = append(*entries, entry)
 		return nil
 	})
+}
+
+func fingerprintSourceFile(path string) bool {
+	name := filepath.Base(path)
+	return IsGoBuildSource(name) || name == "go.mod" || name == "go.sum"
 }
 
 func fingerprintFile(rootDir, path string) (fingerprintEntry, error) {

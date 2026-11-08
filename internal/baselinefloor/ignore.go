@@ -8,6 +8,8 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+
+	"github.com/vrooli/vrooli/internal/repocontractmeta"
 )
 
 // Ignorer decides whether a path inside a copied tree is skipped. rel is the
@@ -45,6 +47,20 @@ var floorIgnorePatterns = []string{
 // patterns (gitignore syntax).
 func FloorIgnorePatterns() []string {
 	return append([]string(nil), floorIgnorePatterns...)
+}
+
+// projectConfigIgnorePatterns returns the floor's .vrooli exclusions rewritten
+// relative to a .vrooli directory itself, for copies rooted at one. Deriving
+// them keeps a single list of project runtime state the floor never carries.
+func projectConfigIgnorePatterns() []string {
+	prefix := "**/" + repocontractmeta.ProjectConfigDir + "/"
+	var patterns []string
+	for _, pattern := range floorIgnorePatterns {
+		if rel, ok := strings.CutPrefix(pattern, prefix); ok {
+			patterns = append(patterns, rel)
+		}
+	}
+	return patterns
 }
 
 // IgnoreSpec configures an IgnoreMatcher.

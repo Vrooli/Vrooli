@@ -79,8 +79,9 @@ type (
 		Name string
 	}
 	StatusRequest struct {
-		Name string
-		Fast bool
+		Name       string
+		Fast       bool
+		HealthOnly bool
 	}
 	ValidateRequest struct {
 		Name string

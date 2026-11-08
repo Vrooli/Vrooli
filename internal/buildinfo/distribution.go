@@ -141,6 +141,16 @@ func BuildDistribution(ctx context.Context, options DistributionBuildOptions) (D
 		"-s -w -X github.com/vrooli/vrooli/internal/buildinfo.Fingerprint=%s -X github.com/vrooli/vrooli/internal/buildinfo.GitCommit=%s -X github.com/vrooli/vrooli/internal/buildinfo.BuildTime=%s -X main.vrooliVersion=%s",
 		report.Fingerprint, gitCommit, buildTime.Format(time.RFC3339), version,
 	)
+	runtimeHomeFlag, err := RuntimeHomeBuildFlag(root)
+	if err != nil {
+		return DistributionArtifact{}, fmt.Errorf("freeze distribution runtime-home authority: %w", err)
+	}
+	ldflags += " " + runtimeHomeFlag
+	stateFlag, err := PersistentStateBuildFlag(root)
+	if err != nil {
+		return DistributionArtifact{}, err
+	}
+	ldflags += " " + stateFlag
 	cgoEnabled, err := distributionCgoSetting(options.Target, options.AllowMissingDarwinKeychain)
 	if err != nil {
 		return DistributionArtifact{}, err

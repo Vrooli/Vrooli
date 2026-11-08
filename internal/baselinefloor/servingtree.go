@@ -328,8 +328,7 @@ func materializeScenarioCopy(spec ServingSpec, dst string) error {
 
 // configFallbackIgnorer filters a working-tree .vrooli directory copied into
 // a legacy serving copy. Paths are relative to .vrooli itself.
-var configFallbackIgnorer = NewIgnoreMatcher(IgnoreSpec{Patterns: append(FloorIgnorePatterns(),
-	"secrets.json", "*.lock", "*.local.json", "state/", "runtime/", "generated-service.json", "operator-state.json")})
+var configFallbackIgnorer = NewIgnoreMatcher(IgnoreSpec{Patterns: append(FloorIgnorePatterns(), projectConfigIgnorePatterns()...)})
 
 func copyFrozenRoot(snapshot, rel, dst string) error {
 	src := filepath.Join(snapshot, filepath.FromSlash(rel))

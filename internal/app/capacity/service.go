@@ -405,6 +405,13 @@ func (s Service) Claim(ctx context.Context, req ClaimRequest) (ClaimOutput, erro
 		return ClaimOutput{}, err
 	}
 	effective := policy.EffectiveEnforce(envEnforce())
+	if req.NoReclaim {
+		release, err := engine.LockAdmission(ctx, store)
+		if err != nil {
+			return ClaimOutput{}, err
+		}
+		defer release()
+	}
 	verdict, err := engine.EvaluateAdmission(ctx, store, engReq, engine.AdmissionOptions{
 		Source: s.Source, MemoryPressure: s.MemoryPressure, Attributor: s.attributor(),
 		Exec: s.Exec, Policy: policy, Enforce: effective, Clock: s.now,

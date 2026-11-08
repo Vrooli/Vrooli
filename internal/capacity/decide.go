@@ -2,6 +2,7 @@ package capacity
 
 import (
 	"fmt"
+	"math"
 	"sort"
 	"time"
 
@@ -58,10 +59,22 @@ func Decide(req CapacityRequest, snapshot hostinventory.Snapshot, ledger []Capac
 	// outstanding ledger commitments on this resource — so two simultaneous
 	// grants before either materializes don't both think the space is free.
 	committed := sumActiveAmounts(req, ledger)
+	// A pending RAM reservation has not been attributed to measured residents.
+	// Keep its complete budget above the measured baseline; max(usage, ledger)
+	// alone lets two not-yet-started operations spend the same free memory.
+	var pending int64
+	if req.ResourceKind == ResourceKindRAM {
+		for _, c := range ledger {
+			if c.ResourceKind == ResourceKindRAM && c.Status == StatusReserved {
+				pending = addCapacityBytes(pending, c.AmountBytes)
+			}
+		}
+	}
 	effectiveUsed := observedUsed
 	if committed > effectiveUsed {
 		effectiveUsed = committed
 	}
+	effectiveUsed = addCapacityBytes(effectiveUsed, pending)
 	available := total - effectiveUsed
 	if available < 0 {
 		available = 0
@@ -177,11 +190,9 @@ func resolveCapacity(req CapacityRequest, snapshot hostinventory.Snapshot) (tota
 		if total <= 0 {
 			return 0, 0, false, "host RAM total is unknown"
 		}
-		if snapshot.Memory.AvailableBytes > 0 {
-			used = total - int64(snapshot.Memory.AvailableBytes)
-			if used < 0 {
-				used = 0
-			}
+		used = total - int64(snapshot.Memory.AvailableBytes)
+		if used < 0 {
+			used = 0
 		}
 		return total, used, true, ""
 	case ResourceKindCPU:
@@ -289,9 +300,22 @@ func sumActiveAmounts(req CapacityRequest, ledger []CapacityClaim) int64 {
 		if req.ResourceKind == ResourceKindVRAM && !sameGPU(req.GPUIndex, c.GPUIndex) {
 			continue
 		}
-		sum += c.AmountBytes
+		if req.ResourceKind == ResourceKindRAM && c.Status == StatusReserved {
+			continue // Pending overhead is added above observed residents in Decide.
+		}
+		sum = addCapacityBytes(sum, c.AmountBytes)
 	}
 	return sum
+}
+
+func addCapacityBytes(a, b int64) int64 {
+	if b <= 0 {
+		return a
+	}
+	if a > math.MaxInt64-b {
+		return math.MaxInt64
+	}
+	return a + b
 }
 
 func sameGPU(a, b *int) bool {

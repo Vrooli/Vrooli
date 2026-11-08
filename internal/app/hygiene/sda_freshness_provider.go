@@ -145,11 +145,11 @@ func (p sdaFreshnessProvider) apply(report *Report, freshness sdaFreshnessReport
 	for _, next := range freshness.NextActions {
 		command := strings.TrimSpace(next.Command)
 		if command == "" {
-			command = "scenario-dependency-analyzer freshness --touched --apply"
+			command = "scenario-dependency-analyzer deps reconcile --all-modules --apply"
 		}
 		actions = append(actions, Action{
 			Code:       values.FirstNonEmpty(next.Code, "fix_dependency_freshness"),
-			Message:    values.FirstNonEmpty(next.Message, "Run SDA-owned package freshness repair for impacted Go surfaces."),
+			Message:    values.FirstNonEmpty(next.Message, "Converge impacted Go modules through SDA's governed reconcile."),
 			Command:    command,
 			Fixability: dependencyFreshnessActionFixability(next),
 		})
@@ -189,7 +189,7 @@ func dependencyFreshnessActionFixability(action sdaFreshnessAction) Fixability {
 		return action.Fixability
 	}
 	switch action.Code {
-	case "apply_go_tidy":
+	case "reconcile_go_modules":
 		return FixabilityAutomatic
 	case "preview_missing_local_replaces":
 		return FixabilityGuided

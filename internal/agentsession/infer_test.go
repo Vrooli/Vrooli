@@ -82,6 +82,64 @@ func TestInferReadsEachOwnerKindFromItsOwnEnvironment(t *testing.T) {
 	}
 }
 
+func TestInferScenarioHelperOwnerPreservesMoreSpecificLifetimes(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		env  map[string]string
+		tty  string
+		kind string
+		ref  string
+	}{
+		{"headless scenario helper", nil, "", "scenario-instance", "inst-owner"},
+		{"operator terminal", nil, "/dev/pts/7", KindTerminal, "/dev/pts/7"},
+		{"operator multiplexer", map[string]string{"TMUX": "/tmp/tmux/default,1,0"}, "", KindTerminal, "tmux:/tmp/tmux/default"},
+		{"persistent web-console pane", map[string]string{"WC_WEB_CONSOLE_SESSION_ID": "wc-pane"}, "", KindWebConsoleSession, "wc-pane"},
+		{"detached agent run", map[string]string{"CODEX_HOME": "/agent-manager/runs/7867dda8-1111-4222-8333-444455556666/codex"}, "", KindAgentManagerRun, "7867dda8-1111-4222-8333-444455556666"},
+		{"desktop app helper", map[string]string{"VROOLI_DESKTOP_MODE": "true", "VROOLI_DATA": "/desktop/data"}, "", KindDesktopApp, "/desktop/data"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			env := map[string]string{"VROOLI_RUNTIME_INSTANCE_ID": "inst-owner"}
+			for k, v := range tc.env {
+				env[k] = v
+			}
+			got := Infer(env, tc.tty)
+			if got.Kind != tc.kind || got.Ref != tc.ref {
+				t.Fatalf("owner=%+v, want %s/%s", got, tc.kind, tc.ref)
+			}
+		})
+	}
+}
+
+func TestScenarioHelperDoesNotBelongToAnInheritedInvocationToken(t *testing.T) {
+	const runID = "7867dda8-1111-4222-8333-444455556666"
+	for _, tc := range []struct {
+		name string
+		env  map[string]string
+		tty  string
+		kind string
+	}{
+		{"token-only daemon helper", nil, "", KindScenarioInstance},
+		{"operator terminal", nil, "/dev/pts/7", KindTerminal},
+		{"managed runner tag", map[string]string{"OPENCODE_AGENT_TAG": "run-tag"}, "", KindAgentManagerRun},
+		{"managed runner home", map[string]string{"CODEX_HOME": "/agent-manager/runs/" + runID + "/codex"}, "", KindAgentManagerRun},
+		{"persistent pane", map[string]string{"WC_WEB_CONSOLE_SESSION_ID": "pane"}, "", KindWebConsoleSession},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			env := map[string]string{"VROOLI_RUNTIME_INSTANCE_ID": "inst-owner", "VROOLI_AGENT_IDENTITY_TOKEN": identityToken(`{"run_id":"` + runID + `"}`)}
+			for k, v := range tc.env {
+				env[k] = v
+			}
+			owner := Infer(env, tc.tty)
+			if owner.Kind != tc.kind {
+				t.Fatalf("owner=%+v, want %s", owner, tc.kind)
+			}
+			if tc.kind == KindScenarioInstance && (owner.Ref != "inst-owner" || owner.Evidence.RunIDSource != "inherited_identity_token") {
+				t.Fatalf("inherited invocation was not separated from owner: %+v", owner)
+			}
+		})
+	}
+}
+
 // An operator terminal inside a desktop build of web-console carries the
 // desktop markers too. It belongs to its web-console session, which outlives
 // the app, so the app's exit must not orphan it.

@@ -187,6 +187,9 @@ func (r Reconciler) Sessions(ctx context.Context, leases []scenarioruntime.Edito
 		if entry.Agentless {
 			state = StateAgentless
 		}
+		if entry.MembershipError != "" {
+			state = StateUndetermined
+		}
 		sessions = append(sessions, Session{SessionID: "(no lease)", Scope: entry.Name, Tasks: entry.Tasks, KernelState: state, ScopeHeld: true})
 	}
 
@@ -214,6 +217,9 @@ func leaseKernelState(lease scenarioruntime.EditorLease, entry agentscope.Entry,
 		// after the session left it, or never created.
 		return StateUnrecorded
 	}
+	if entry.MembershipError != "" {
+		return StateUndetermined
+	}
 	if entry.Agentless {
 		return StateAgentless
 	}
@@ -231,12 +237,40 @@ func (r Reconciler) classify(ctx context.Context, s *Session, memo map[string]Li
 			fact, haveFact = f, true
 		}
 	}
-	if s.Owner.Kind == "" {
+	if s.Owner.Kind == "" || (s.Owner.Kind == KindUnknown && s.Owner.Ref == "") {
 		s.Owner = r.inferOwner(pid, fact)
 		if s.Leased && s.Owner.Kind != KindUnknown && r.Store != nil {
 			s.Owner.Source = SourceBackfill
-			if _, err := r.Store.BackfillEditorLeaseOwner(ctx, s.SessionID, s.Owner.LeaseOwner()); err != nil {
+			if changed, err := r.Store.BackfillEditorLeaseOwner(ctx, s.SessionID, s.Owner.LeaseOwner()); err != nil || !changed {
 				s.Owner.Source = SourceInferred
+				// A concurrent writer may have recorded a stronger owner while
+				// we read process evidence. That canonical identity must win.
+				if reader, ok := r.Store.(interface {
+					GetEditorLease(context.Context, string) (scenarioruntime.EditorLease, error)
+				}); ok {
+					lease, readErr := reader.GetEditorLease(ctx, s.SessionID)
+					if readErr != nil {
+						s.Owner = Owner{Kind: KindUnknown, Source: SourceInferred}
+					} else if recorded, present := OwnerFromLease(lease.Owner); present {
+						s.Owner = recorded
+					}
+				}
+			}
+		}
+	}
+	if s.Leased && s.Owner.Kind == KindAgentManagerRun && s.Owner.Source == SourceBackfill && s.Owner.Evidence.RunIDSource == RunIDSourceIdentityToken && s.Owner.Evidence.AgentTag == "" {
+		// Repair token-only backfills made before scenario helpers had their
+		// own lifetime. Known launch owners and actual tagged/per-home runs
+		// remain untouched. The exact recorded evidence is a CAS guard.
+		inferred := r.inferOwner(pid, fact)
+		if inferred.Kind == KindScenarioInstance && inferred.Evidence.RunID == s.Owner.Ref && inferred.Evidence.RunIDSource == RunIDSourceInheritedIdentityToken {
+			if refiner, ok := r.Store.(interface {
+				RefineBackfilledEditorLeaseOwner(context.Context, string, int, scenarioruntime.EditorLeaseOwner, scenarioruntime.EditorLeaseOwner) (bool, error)
+			}); ok {
+				inferred.Source = SourceBackfill
+				if changed, err := refiner.RefineBackfilledEditorLeaseOwner(ctx, s.SessionID, s.PID, s.Owner.LeaseOwner(), inferred.LeaseOwner()); err == nil && changed {
+					s.Owner = inferred
+				}
 			}
 		}
 	}
